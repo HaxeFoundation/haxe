@@ -433,10 +433,31 @@ let dsp_get_files dsp_file =
 	in
 	filter_all_in get_file (open_in dsp_file)
 
+let vcproj_get_files vcp_file =
+	let get_file line =
+		let len = String.length line in
+		let p = ref 0 in
+		while !p < len && (line.[!p] = ' ' || line.[!p] = '\t') do
+			incr p;
+		done;
+		let line = String.sub line !p (len - !p) in		
+		if String.length line > 13 && String.sub line 0 13 = "RelativePath=" then begin
+			let str = String.sub line 13 (String.length line - 14) in
+			Some (unescape str)
+		end else
+			None
+	in
+	filter_all_in get_file (open_in vcp_file)
+
 let rec list_files errors file =
 	match extension file with
 	| "ML" -> [(ML,file)]
 	| "MLI" -> [(MLI,file)]
+	| "VCPROJ" ->
+		project_name := Some (Filename.basename file);
+		error_process := true;
+		chars_process := true;
+		List.concat (List.map (list_files false) (vcproj_get_files file))
 	| "DSP" ->
 		project_name := Some (Filename.basename file);
 		error_process := true;
