@@ -540,10 +540,11 @@ and parse_tag_list ch =
 let parse ch =
 	let sign = nread ch 3 in
 	(* TODO : compression *)
-	if sign <> "FWS" then error "Invalid SWF signature";	
-	let ver = read_byte ch in	
+	if sign <> "FWS" && sign <> "CWS" then error "Invalid SWF signature";
+	let ver = read_byte ch in
 	swf_version := ver;
 	let file_len = read_ui32 ch in
+	let compressed, ch = (if sign = "CWS" then true , inflate ch else false, ch) in
 	let size = read_rect ch in
 	let fps = read_ui16 ch in
 	let frame_count = read_ui16 ch in
@@ -552,6 +553,7 @@ let parse ch =
 		h_size = size;
 		h_fps = fps;
 		h_frame_count = frame_count;
+		h_compressed = compressed;
 	} in
 	h , parse_tag_list ch
 
@@ -704,7 +706,7 @@ and write_tag ch t =
 
 let write ch (h,tags) =
 	swf_version := h.h_version;
-	nwrite ch "FWS";
+	nwrite ch (if h.h_compressed then "CWS" else "FWS");
 	write ch (char_of_int h.h_version);
 	let rec calc_len = function
 		| [] -> tag_length TEnd
@@ -716,12 +718,14 @@ let write ch (h,tags) =
 	exact_match := true;
 	let len = len + 4 + 4 + rect_length h.h_size + 2 + 2 in
 	write_ui32 ch len;
+	let ch = (if h.h_compressed then deflate ch else ch) in
 	write_rect ch h.h_size;
 	write_ui16 ch h.h_fps;
 	write_ui16 ch h.h_frame_count;
 	exact_match := old_exact_match;
 	List.iter (write_tag ch) tags;
-	write_tag ch TEnd
+	write_tag ch TEnd;
+	flush ch
 
 ;;
 Swf.__parser := parse;

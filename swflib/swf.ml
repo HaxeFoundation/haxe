@@ -52,6 +52,7 @@ type header = {
 	h_size : rect;
 	h_fps : float16;
 	h_frame_count : int; 
+	mutable h_compressed : bool;
 }
 
 type export = {
@@ -274,6 +275,8 @@ and clip = {
 
 type swf = header * tag list
 
+let __deflate = ref (fun (_:unit IO.stdout) -> assert false)
+let __inflate = ref (fun _ -> assert false)
 let __parser = ref (fun _ -> assert false)
 let __printer = ref (fun (_:unit IO.stdout) _ -> ())
 
@@ -286,3 +289,9 @@ let parse (ch : IO.stdin) =
 
 let write (ch : 'a IO.stdout) (data : swf) =
 	!__printer (Obj.magic ch) data
+
+let deflate (ch : 'a IO.stdout) =
+	(Obj.magic (!__deflate (Obj.magic ch) : unit IO.stdout) : 'a IO.stdout)
+
+let inflate (ch : IO.stdin) =
+	(!__inflate ch : IO.stdin)
