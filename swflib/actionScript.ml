@@ -223,10 +223,27 @@ let write_mm_double ch f =
 	write_real_i32 ch (Int64.to_int32 (Int64.shift_right_logical i64 32));
 	write_real_i32 ch (Int64.to_int32 i64)	
 
-let parse_push_item ch = 
+let read_string_max ch len =
+	let b = Buffer.create 0 in
+	let rec loop l =
+		if l = 0 then begin
+			let s = Buffer.contents b in
+			String.sub s 0 (String.length s - 1)
+		end else
+			let c = read ch in
+			if c = '\000' then 
+				Buffer.contents b
+			else begin
+				Buffer.add_char b c;
+				loop (l - 1)
+			end;
+	in
+	loop len
+
+let parse_push_item ch len = 
 	let id = read_byte ch in
 	match id with
-	| 0 -> PString (read_string ch)
+	| 0 -> PString (read_string_max ch len)
 	| 1 -> PFloat (read_real_i32 ch)
 	| 2 -> PNull
 	| 3 -> PUndefined
@@ -243,7 +260,7 @@ let rec parse_push_items ch len =
 	if len = 0 then
 		 []
 	else
-		let item = parse_push_item ch in
+		let item = parse_push_item ch len in
 		item :: parse_push_items ch (len - 1 - push_item_length item)
 
 let rec read_strings ch n =
@@ -303,6 +320,7 @@ let parse_function_decl2 ch =
 let parse_action ch =
 	let id = read_byte ch in
 	let len = (if id >= 0x80 then read_ui16 ch else 0) in
+	let len = (if len = 0xFFFF then 0 else len) in
 	let act = 
 		(match id with
 		| 0x81 ->
@@ -379,11 +397,16 @@ let size_to_jump_index acts curindex size =
 let parse_actions ch =
 	let acts = DynArray.create() in
 	let rec loop() =
-		let a = parse_action ch in
-		if a <> AEnd then begin
+		match parse_action ch with
+		| AEnd -> ()
+		| AUnknown (0xFF,"") -> 
+			DynArray.add acts APlay;
+			DynArray.add acts APlay;
+			DynArray.add acts APlay;
+			loop()
+		| a ->
 			DynArray.add acts a;
 			loop();
-		end;
 	in
 	loop();
 	(* process jump indexes *)
