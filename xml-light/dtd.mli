@@ -147,7 +147,7 @@ type prove_error =
 	| UnexpectedAttribute of string
 	| InvalidAttributeValue of string
 	| RequiredAttribute of string
-	| ChildExpected
+	| ChildExpected of string
 	| EmptyExpected
 
 type parse_error = parse_error_msg * Xml.error_pos

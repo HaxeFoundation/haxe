@@ -40,7 +40,7 @@ type prove_error =
 	| UnexpectedAttribute of string
 	| InvalidAttributeValue of string
 	| RequiredAttribute of string
-	| ChildExpected
+	| ChildExpected of string
 	| EmptyExpected
 
 type dtd_child =
@@ -378,21 +378,28 @@ let rec do_prove dtd = function
 		| DTDAny
 		| DTDEmpty -> ()
 		| DTDChild elt ->
+			let name = ref "" in
 			let rec check = function
-				| DTDTag _ -> false
+				| DTDTag t -> 
+					name := t;
+					false
 				| DTDPCData when !childs = [] ->
 					childs := [PCData ""];
 					true
-				| DTDPCData -> false
+				| DTDPCData ->
+					name := "#PCDATA";
+					false
 				| DTDOptional _ -> true
 				| DTDZeroOrMore _ -> true
-				| DTDOneOrMore _ -> false
+				| DTDOneOrMore e ->
+					ignore(check e);
+					false
 				| DTDChoice l -> List.exists check l
 				| DTDChildren l -> List.for_all check l
 			in
 			match check elt with
 			| true -> ()
-			| false -> raise (Prove_error ChildExpected));
+			| false -> raise (Prove_error (ChildExpected !name)));
 		let ctag, cur = Stack.pop dtd.state in
 		dtd.curtag <- tag;
 		dtd.current <- cur;
@@ -428,7 +435,7 @@ let prove_error = function
 	| UnexpectedAttribute att -> sprintf "Unexpected attribute : '%s'" att
 	| InvalidAttributeValue att -> sprintf "Invalid attribute value for '%s'" att
 	| RequiredAttribute att -> sprintf "Required attribute not found : '%s'" att
-	| ChildExpected -> "Child expected"
+	| ChildExpected cname -> sprintf "Child expected : '%s'" cname
 	| EmptyExpected -> "No more children expected"
 
 let to_string = function
