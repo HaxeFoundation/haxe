@@ -530,6 +530,8 @@ exception Error of string
 
 let error msg = raise (Error msg)
 
+let warnings = ref true
+
 let to_float16 f =
 	let sign , f = (if f < 0. then true , 0. -. f else false , f) in
 	let high = int_of_float f in

@@ -1113,7 +1113,7 @@ let rec parse_tag ch =
 		(*// 0x41 TScriptLimits *)
 		(*// 0x42 TSetTabIndex *)
 		| _ ->
-			Printf.printf "Unknown tag 0x%.2X\n" id;
+			if !Swf.warnings then Printf.printf "Unknown tag 0x%.2X\n" id;
 			TUnknown (id,nread ch len)
 	) in	
 (*	let len2 = tag_data_length t in
