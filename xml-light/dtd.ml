@@ -373,13 +373,16 @@ let rec do_prove dtd = function
 		dtd.current <- elt;
 		List.iter (check_attrib ahash) attr;
 		let attr = Hashtbl.fold (prove_attrib dtd attr) ahash [] in
-		let childs = List.map (do_prove dtd) childs in
+		let childs = ref (List.map (do_prove dtd) childs) in
 		(match dtd.current with
 		| DTDAny
 		| DTDEmpty -> ()
 		| DTDChild elt ->
 			let rec check = function
 				| DTDTag _ -> false
+				| DTDPCData when !childs = [] ->
+					childs := [PCData ""];
+					true
 				| DTDPCData -> false
 				| DTDOptional _ -> true
 				| DTDZeroOrMore _ -> true
@@ -393,7 +396,7 @@ let rec do_prove dtd = function
 		let ctag, cur = Stack.pop dtd.state in
 		dtd.curtag <- tag;
 		dtd.current <- cur;
-		Element (tag,attr,childs)
+		Element (tag,attr,!childs)
 
 let prove dtd root xml =
 	do_prove (start_prove dtd root) xml
