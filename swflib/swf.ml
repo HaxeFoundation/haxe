@@ -473,6 +473,8 @@ type tag_data =
 	| TFont2 of font2
 	| TExport of export list
 	| TDoInitAction of do_init_action
+	| TVideoStream of unknown
+	| TVideoFrame of unknown
 	| TUnknown of int * unknown
 
 and tag = {

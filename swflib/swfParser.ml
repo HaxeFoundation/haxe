@@ -313,6 +313,10 @@ let rec tag_data_length = function
 		2 + sum export_length el
 	| TDoInitAction i ->
 		2 + actions_length i.dia_actions
+	| TVideoStream s ->
+		String.length s
+	| TVideoFrame s ->
+		String.length s
 	| TUnknown (_,data) ->
 		String.length data
 
@@ -1100,8 +1104,10 @@ let rec parse_tag ch =
 				dia_id = cid;
 				dia_actions = actions;
 			}
-		(*// 0x3C TVideoStream *)
-		(*// 0x3D TVideoFrame *)
+		| 0x3C ->
+			TVideoStream (nread ch len)
+		| 0x3D -> 
+			TVideoFrame (nread ch len)
 		(*// 0x3E TFontInfo2 *)
 		(*// 0x40 TEnableDebugger2 *)
 		(*// 0x41 TScriptLimits *)
@@ -1179,6 +1185,8 @@ let rec tag_id = function
 	| TFont2 _ -> 0x30
 	| TExport _ -> 0x38
 	| TDoInitAction _ -> 0x3B
+	| TVideoStream _ -> 0x3C
+	| TVideoFrame _ -> 0x3D
 	| TUnknown (id,_) -> id
 
 let write_clip_event ch c =
@@ -1490,6 +1498,10 @@ let rec write_tag_data ch = function
 	| TDoInitAction i ->
 		write_ui16 ch i.dia_id;
 		write_actions ch i.dia_actions;
+	| TVideoStream s ->
+		nwrite ch s
+	| TVideoFrame s ->
+		nwrite ch s
 	| TUnknown (_,data) ->
 		nwrite ch data
 
