@@ -179,7 +179,7 @@ let print_errors output msg =
 	List.iter printer output;
 	failwith msg
 
-let exec ?(outfirst=false) cmd errmsg =
+let exec ?(stdout=false) ?(outfirst=false) cmd errmsg =
 	if !verbose then print cmd;
 	let pout, pin, perr = open_process_full cmd (Unix.environment()) in
 	let read = filter_all_in (fun s -> Some s) in
@@ -198,7 +198,7 @@ let exec ?(outfirst=false) cmd errmsg =
 		d,ed) in
 	match close_process_full (pout, pin, perr) with
 	| WEXITED 0 -> data,edata
-	| WEXITED exitcode -> print_errors edata errmsg
+	| WEXITED exitcode -> print_errors (if stdout then edata @ data else edata) errmsg
 	| _ -> failwith "Build aborted by signal"
 
 (* ************************************************************************ *)
@@ -419,7 +419,7 @@ let link opt paramlist files priority output =
 	let params = flatten paramlist in
 	let cc = (if opt then "ocamlopt" else "ocamlc") in
 	let cmd = sprintf "%s %s %s %s -o %s" cc params lparams sparams output in
-	ignore(exec cmd "Linking failed")
+	ignore(exec ~stdout:true cmd "Linking failed")
 
 (* ************************************************************************ *)
 (* FILE PROCESSING *)
