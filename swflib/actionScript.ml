@@ -44,12 +44,12 @@ let short_op_codes = begin
 	0x07 => (AStop,"STOP");
 	0x08 => (AToggleHighQuality,"TGLHIGHQULTY");
 	0x09 => (AStopSounds,"STOPSOUNDS");
-	0x0A => (AAdd,"ADD");
+	0x0A => (AAddNum,"ADDNUM");
 	0x0B => (ASubtract,"SUB");
 	0x0C => (AMultiply,"MULT");
 	0x0D => (ADivide,"DIV");
-	0x0E => (ACompare,"CMP");
-	0x0F => (ANumberEqual,"NUMEQ");
+	0x0E => (ACompareNum,"CMP");
+	0x0F => (AEqualNum,"EQNUM");
 	0x10 => (ALogicalAnd,"LAND");
 	0x11 => (ALogicalOr,"LOR");
 	0x12 => (ANot,"NOT");
@@ -82,19 +82,19 @@ let short_op_codes = begin
 	0x37 => (AMBChr,"MBCHR");
 	0x3A => (ADeleteObj,"DELETEOBJ");
 	0x3B => (ADelete,"DELETE");
-	0x3C => (ALocalVar,"VAR");
+	0x3C => (ALocalAssign,"VARSET");
 	0x3D => (ACall,"CALL");
 	0x3E => (AReturn,"RET");
 	0x3F => (AMod,"MOD");
 	0x40 => (ANew,"NEW");
-	0x41 => (ALocalAssign,"VARSET");
+	0x41 => (ALocalVar,"VAR");
 	0x42 => (AInitArray,"ARRAY");
 	0x43 => (AObject,"OBJECT");
 	0x44 => (ATypeOf,"TYPEOF");
 	0x45 => (ATargetPath,"TARGETPATH");
 	0x46 => (AEnum,"ENUM");
-	0x47 => (AAdd2,"ADD2");
-	0x48 => (ACompare2,"CMP2");
+	0x47 => (AAdd,"ADD");
+	0x48 => (ACompare,"CMP");
 	0x49 => (AEqual,"EQ");
 	0x4A => (AToNumber,"TONUMBER");
 	0x4B => (AToString,"TOSTRING");
@@ -190,8 +190,6 @@ let action_data_length = function
 let action_length a = 
 	let len = (if action_id a >= 0x80 then 3 else 1) in
 	len + action_data_length a
-
-let jump_length = action_length (AJump 0)
 
 let actions_length acts =
 	DynArray.fold_left (fun acc a -> acc + action_length a) (action_length AEnd) acts
@@ -479,7 +477,7 @@ let write_action_data acts curindex ch = function
 		write_ui16 ch size;
 	| ACondJump target ->
 		let size = jump_index_to_size acts curindex target in
-		write_i16 ch size
+		write_i16 ch size;
 	| AGotoFrame2 (play,None) ->
 		write_byte ch (if play then 1 else 0)
 	| AGotoFrame2 (play,Some delta) ->
@@ -536,7 +534,7 @@ let action_string get_ident pos = function
 		Buffer.add_string b (String.concat "," (List.map (fun (n,str) -> sprintf "%d:%s" n str) f.f2_args));
 		Buffer.add_char b ')';
 		Buffer.add_string b (sprintf " nregs:%d flags:%d " f.f2_nregs (f2_flags_value f.f2_flags));
-		Buffer.add_string b (sprintf "0x%.6X" (pos + action_length (AFunction2 f) + f.f2_codelen));
+		Buffer.add_string b (sprintf "0x%.4X" (pos + 1 + f.f2_codelen));
 		Buffer.contents b
 	| APush pl ->
 		let b = Buffer.create 0 in
@@ -572,7 +570,7 @@ let action_string get_ident pos = function
 		) pl;
 		Buffer.contents b
 	| AWith n -> sprintf "WITH %d" n
-	| AJump n -> sprintf "JUMP 0x%.6X" (n + pos + action_length (AJump n))
+	| AJump n -> sprintf "JUMP 0x%.4X" (n + pos + 1)
 	| AGetURL2 n -> sprintf "GETURL2 %d" n
 	| AFunction f ->
 		let b = Buffer.create 0 in
@@ -581,9 +579,9 @@ let action_string get_ident pos = function
 		Buffer.add_char b '(';
 		Buffer.add_string b (String.concat "," f.f_args);
 		Buffer.add_char b ')';
-		Buffer.add_string b (sprintf " 0x%.6X" (pos + action_length (AFunction f) + f.f_codelen));
+		Buffer.add_string b (sprintf " 0x%.4X" (pos + 1 + f.f_codelen));
 		Buffer.contents b
-	| ACondJump n -> sprintf "CJMP 0x%.6X" (n + pos + action_length (ACondJump n))
+	| ACondJump n -> sprintf "CJMP 0x%.4X" (n + pos + 1)
 	| AGotoFrame2 (b,None) -> sprintf "GOTOFRAME2 %b" b
 	| AGotoFrame2 (b,Some i) -> sprintf "GOTOFRAME2 %b %d" b i
 	| AUnknown (tag,_) -> sprintf "??? 0x%.2X" tag
