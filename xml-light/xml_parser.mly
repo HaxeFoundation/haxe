@@ -27,7 +27,7 @@
 %right STAR QUESTION PLUS
 
 %start dtd_element
-%type <'a> dtd_element
+%type <Dtd.dtd_child> dtd_element
 %%
 
 dtd_element:
