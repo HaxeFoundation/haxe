@@ -450,7 +450,11 @@ and tag = {
 	tdata : tag_data;
 }
 
-and clip_event = int * unknown
+and clip_event = {
+	cle_events : int;
+	cle_key : char option;
+	cle_actions : actions;
+}
 
 and place_object2 = {
 	po_depth : int;

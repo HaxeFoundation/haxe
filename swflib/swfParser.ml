@@ -108,8 +108,8 @@ let cxa_length c =
 	let nbits = 6 + opt_len (const (nbits * 4)) c.cxa_add + opt_len (const (nbits * 4)) c.cxa_mult in
 	(nbits + 7) / 8
 
-let clip_event_length (_,s) =
-	if !swf_version >= 6 then 4 + 4 + String.length s else 2 + 4 + String.length s
+let clip_event_length c =
+	(if !swf_version >= 6 then 4 else 2) + 4 + (opt_len (const 1) c.cle_key) + actions_length c.cle_actions
 
 let clip_events_length l =
 	(if !swf_version >= 6 then 10 else 6) + sum clip_event_length l
@@ -568,8 +568,13 @@ let parse_clip_events ch =
 			[]
 		else
 			let len = read_i32 ch in
-			let s = nread ch len in
-			(events , s) :: (loop())
+			let key = (if events land (1 lsl 17) <> 0 then Some (read ch) else None) in
+			let e = {
+				cle_events = events;
+				cle_key = key;
+				cle_actions = parse_actions ch
+			} in
+			e :: (loop())
 	in
 	loop()
 
@@ -1158,14 +1163,15 @@ let rec tag_id = function
 	| TDoInitAction _ -> 0x3B
 	| TUnknown (id,_) -> id
 
-let write_clip_event ch (id,data) =
-	write_event ch id;
-	write_i32 ch (String.length data);
-	nwrite ch data
+let write_clip_event ch c =
+	write_event ch c.cle_events;
+	write_i32 ch (actions_length c.cle_actions + opt_len (const 1) c.cle_key);
+	opt (write ch) c.cle_key;
+	write_actions ch c.cle_actions	
 
 let write_clip_events ch event_list =
  	write_ui16 ch 0;
-	let all_events = List.fold_left (fun acc (id,_) -> acc lor id) 0 event_list in
+	let all_events = List.fold_left (fun acc c -> acc lor c.cle_events) 0 event_list in
 	write_event ch all_events;
 	List.iter (write_clip_event ch) event_list;
 	write_event ch 0
