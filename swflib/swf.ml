@@ -2,6 +2,8 @@ type float16 = int
 
 type unknown = string
 
+type action_count = int
+
 type rgb = {
 	cr : int;
 	cg : int;
@@ -52,7 +54,7 @@ type color_transform_alpha = {
 type function_decl = {
 	f_name : string;
 	f_args : string list;
-	mutable f_codelen : int;
+	mutable f_codelen : action_count;
 }
 
 type func2_flags =
@@ -71,7 +73,7 @@ type function_decl2 = {
 	f2_flags : func2_flags list;
 	f2_args : (int * string) list;
 	mutable f2_nregs : int;
-	mutable f2_codelen : int;
+	mutable f2_codelen : action_count;
 }
 
 type push_item =
@@ -119,12 +121,12 @@ type action =
 	| AStop
 	| AToggleHighQuality
 	| AStopSounds
-	| AAdd
+	| AAddNum
 	| ASubtract
 	| AMultiply
 	| ADivide
-	| ACompare
-	| ANumberEqual
+	| ACompareNum
+	| AEqualNum
 	| ALogicalAnd
 	| ALogicalOr
 	| ANot
@@ -157,19 +159,19 @@ type action =
 	| AMBChr
 	| ADeleteObj
 	| ADelete
-	| ALocalVar
+	| ALocalAssign
 	| ACall
 	| AReturn
 	| AMod
 	| ANew
-	| ALocalAssign
+	| ALocalVar
 	| AInitArray
 	| AObject
 	| ATypeOf
 	| ATargetPath
 	| AEnum
-	| AAdd2
-	| ACompare2
+	| AAdd
+	| ACompare
 	| AEqual
 	| AToNumber
 	| AToString
@@ -205,10 +207,10 @@ type action =
 	| AFunction2 of function_decl2
 	| APush of push_item list
 	| AWith of int
-	| AJump of int
+	| AJump of action_count
 	| AGetURL2 of int
 	| AFunction of function_decl
-	| ACondJump of int
+	| ACondJump of action_count
 	| ACallFrame (* no data *)
 	| AGotoFrame2 of bool * int option
 
