@@ -249,9 +249,54 @@ type shape_fill_style =
 	| SFSRadialGradient of matrix * gradient
 	| SFSBitmap of sfs_bitmap
 
+type shape_line_style = {
+	sls_width : int;
+	sls_color : color;
+}
+
+type shape_new_styles = {
+	sns_fill_styles : shape_fill_style list;
+	sns_line_styles : shape_line_style list;
+	sns_nlbits : int;
+	sns_nfbits : int;
+}
+
+type shape_change_style_record = {
+	scsr_move : (int * int * int) option;
+	scsr_fs0 : int option;
+	scsr_fs1 : int option;
+	scsr_ls : int option;
+	scsr_new_styles : shape_new_styles option;
+}
+
+type shape_curved_edge_record = {
+	scer_nbits : int;
+	scer_cx : int;
+	scer_cy : int;
+	scer_ax : int;
+	scer_ay : int;
+}
+
+type shape_straight_edge_record = {
+	sser_nbits : int;
+	sser_line : int option * int option;
+}
+
+type shape_record = 
+	| SRStyleChange of shape_change_style_record
+	| SRCurvedEdge of shape_curved_edge_record
+	| SRStraightEdge of shape_straight_edge_record
+
+type shape_records = {
+	srs_nlbits : int;
+	srs_nfbits : int;
+	srs_records : shape_record list;
+}
+
 type shape_with_style = {
 	sws_fill_styles : shape_fill_style list;
-	sws_data : unknown;
+	sws_line_styles : shape_line_style list;
+	sws_records : shape_records;
 }
 
 type shape = {
@@ -385,6 +430,7 @@ type tag_data =
 	| TPlaceObject2 of place_object2
 	| TRemoveObject2 of int
 	| TShape3 of shape
+	| TText2 of text
 	| TButton2 of button2
 	| TBitsJPEG3 of bitmap_jpg3
 	| TBitsLossless2 of bitmap_lossless

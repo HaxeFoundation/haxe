@@ -13,7 +13,6 @@ type 'a bits = {
 
 let swf_version = ref 0
 let id_count = ref 0
-let exact_match = ref true
 let tag_end = { tid = 0; textended = false; tdata = TEnd }
 
 let sum f l =
@@ -69,12 +68,7 @@ let _nbits x =
 		!nbits
 
 let rect_nbits r = 
-	if !exact_match then
-		r.rect_nbits
-	else
-		max
-			(max (_nbits r.left) (_nbits r.right))
-			(max (_nbits r.top) (_nbits r.bottom))
+	r.rect_nbits
 
 let rgba_nbits c =
 	max
@@ -82,18 +76,10 @@ let rgba_nbits c =
 		(max (_nbits c.b) (_nbits c.a))
 
 let cxa_nbits c =
-	if !exact_match then
-		c.cxa_nbits
-	else
-		max
-			(opt_len rgba_nbits c.cxa_add)
-			(opt_len rgba_nbits c.cxa_mult)
+	c.cxa_nbits
 
 let matrix_part_nbits m = 
-	if !exact_match then
-		m.m_nbits
-	else
-		max (_nbits m.mx) (_nbits m.my)
+	m.m_nbits
 
 let rgb_length = 3
 
@@ -142,12 +128,46 @@ let shape_fill_style_length s =
 	| SFSRadialGradient (m,g) -> matrix_length m + gradient_length g
 	| SFSBitmap b -> 2 + matrix_length b.sfb_mpos
 
-let shape_fill_styles_length s =
+let shape_line_style_length s =
+	2 + color_length s.sls_color
+
+let shape_array_length f s =
 	let n = List.length s in
-	(if n < 0xFF then 1 else 3) + sum shape_fill_style_length s
+	(if n < 0xFF then 1 else 3) + sum f s
+
+let shape_new_styles_length s =
+	shape_array_length shape_fill_style_length s.sns_fill_styles + 
+	shape_array_length shape_line_style_length s.sns_line_styles +
+	1
+
+let shape_records_length records =
+	let nbits = ref 8 in
+	let nfbits = ref records.srs_nfbits in
+	let nlbits = ref records.srs_nlbits in
+	List.iter (fun r ->
+		nbits := !nbits + 6;
+		match r with
+		| SRStyleChange s ->
+			nbits := !nbits + 
+				opt_len (fun (n,_,_) -> 5 + n * 2) s.scsr_move +
+				opt_len (const !nfbits) s.scsr_fs0 +
+				opt_len (const !nfbits) s.scsr_fs1 +
+				opt_len (const !nlbits) s.scsr_ls;
+			(match s.scsr_new_styles with
+			| None -> ()
+			| Some s -> nbits := (((!nbits + 7) / 8) + shape_new_styles_length s) * 8)				
+		| SRCurvedEdge s ->
+			nbits := !nbits + s.scer_nbits * 4
+		| SRStraightEdge s ->
+			nbits := !nbits + 1 + (match s.sser_line with None , None -> assert false | Some _ , None | None, Some _ -> 1 + s.sser_nbits | Some _ , Some _ -> 2 * s.sser_nbits)
+	) records.srs_records;
+	nbits := !nbits + 6;
+	(!nbits + 7) / 8
 
 let shape_with_style_length s =
-	shape_fill_styles_length s.sws_fill_styles + String.length s.sws_data
+	shape_array_length shape_fill_style_length s.sws_fill_styles + 
+	shape_array_length shape_line_style_length s.sws_line_styles +
+	shape_records_length s.sws_records
 
 let shape_length s =
 	2 + rect_length s.sh_bounds + shape_with_style_length s.sh_style
@@ -186,6 +206,9 @@ let font2_length f =
 	2 + String.length f.ft2_data
 
 let edit_text_layout_length = 9
+
+let header_length h =
+	3 + 1 + rect_length h.h_size + 2 + 4
 
 let edit_text_length t =
 	2 + rect_length t.edt_bounds + 2 + 
@@ -241,6 +264,8 @@ let rec tag_data_length = function
 		2
 	| TShape3 s ->
 		shape_length s
+	| TText2 t ->
+		text_length t
 	| TButton2 b ->
 		button2_length b
 	| TBitsJPEG3 b ->
@@ -290,11 +315,20 @@ let rec read_bits b n =
 		b.b_count <- c;
 		k
 	end else begin
-		if b.b_count >= 24 then error "Bits overflow";
 		let k = read_byte b.b_ch in
-		b.b_data <- (b.b_data lsl 8) lor k;
-		b.b_count <- b.b_count + 8;
-		read_bits b n
+		if b.b_count >= 24 then begin
+			if n >= 32 then error "Read bits overflow";
+			let c = 8 + b.b_count - n in
+			let d = b.b_data land ((1 lsl b.b_count) - 1) in
+			let d = (d lsl (8 - c)) lor (k lsr c) in
+			b.b_data <- k;
+			b.b_count <- c;
+			d
+		end else begin			
+			b.b_data <- (b.b_data lsl 8) lor k;
+			b.b_count <- b.b_count + 8;
+			read_bits b n;
+		end
 	end
 
 let read_rgba ch =
@@ -532,7 +566,7 @@ let parse_clip_events ch =
 	in
 	loop()
 
-let parse_shape_fill_style ch is_shape3 =
+let parse_shape_fill_style ch is_shape3 =	
 	let t = read_byte ch in
 	match t with
 	| 0x00 when is_shape3 -> SFSSolid3 (read_rgba ch)
@@ -560,30 +594,138 @@ let parse_shape_fill_style ch is_shape3 =
 	| _ ->
 		assert false
 
-let parse_shape_fill_styles ch is_shape3 =
+let parse_shape_line_style ch is_shape3 =
+	let width = read_ui16 ch in
+	let color = (if is_shape3 then ColorRGBA (read_rgba ch) else ColorRGB (read_rgb ch)) in
+	{
+		sls_width = width;
+		sls_color = color;
+	}
+
+let parse_shape_array f ch is_shape3 =
 	let rec loop n =
 		if n = 0 then
 			[]
 		else
-			let s = parse_shape_fill_style ch is_shape3 in
+			let s = f ch is_shape3 in
 			s :: loop (n-1)
 	in
 	let n = (match read_byte ch with 0xFF -> read_ui16 ch | n -> n) in	
 	loop n
 
-let parse_shape_with_style ch len is_shape3 =
-	let fstyles = parse_shape_fill_styles ch is_shape3 in
-	let data = nread ch (len - shape_fill_styles_length fstyles) in
+let parse_shape_style_change_record ch b flags nlbits nfbits is_shape3 =
+	let move = (if flags land 1 <> 0 then begin
+		let mbits = read_bits b 5 in
+		let dx = read_bits b mbits in
+		let dy = read_bits b mbits in
+		Some (mbits,dx,dy)
+	end else
+		None)
+	in
+	let fs0 = (if flags land 2 <> 0 then Some (read_bits b !nfbits) else None) in
+	let fs1 = (if flags land 4 <> 0 then Some (read_bits b !nfbits) else None) in
+	let ls = (if flags land 8 <> 0 then Some (read_bits b !nlbits) else None) in
+	let styles = (if flags land 16 <> 0 then begin		
+		b.b_count <- 0;
+		let fstyles = parse_shape_array parse_shape_fill_style ch is_shape3 in
+		let lstyles = parse_shape_array parse_shape_line_style ch is_shape3 in		
+		let bits = read_byte ch in
+		nlbits := bits land 15;
+		nfbits := bits lsr 4;
+		Some {
+			sns_fill_styles = fstyles;
+			sns_line_styles = lstyles;
+			sns_nlbits = !nlbits;
+			sns_nfbits = !nfbits;
+		}
+	end else
+		None
+	) in
+	{
+		scsr_move = move;
+		scsr_fs0 = fs0;
+		scsr_fs1 = fs1;
+		scsr_ls = ls;
+		scsr_new_styles = styles;
+	}
+
+let parse_shape_curved_edge_record b flags =
+	let nbits = (flags land 15) + 2 in
+	let cx = read_bits b nbits in
+	let cy = read_bits b nbits in
+	let ax = read_bits b nbits in
+	let ay = read_bits b nbits in
+	{
+		scer_nbits = nbits;
+		scer_cx = cx;
+		scer_cy = cy;
+		scer_ax = ax;
+		scer_ay = ay;
+	}
+
+let parse_shape_straight_edge_record b flags =	
+	let nbits = (flags land 15) + 2 in
+	let is_general = (read_bits b 1 = 1) in
+	let l = (if is_general then 
+		let dx = read_bits b nbits in
+		let dy = read_bits b nbits in
+		Some dx, Some dy
+	else
+		let is_vertical = (read_bits b 1 = 1) in
+		let p = read_bits b nbits in
+		if is_vertical then
+			None, Some p
+		else
+			Some p, None)
+	in
+	{
+		sser_nbits = nbits;
+		sser_line = l;
+	}
+
+let parse_shape_records ch nlbits nfbits is_shape3 =
+	let b = init_bits ch in
+	let nlbits = ref nlbits in
+	let nfbits = ref nfbits in
+	let rec loop() =
+		let flags = read_bits b 6 in
+		if flags = 0 then
+			[]
+		else
+			let r = 
+				(if (flags land 32) = 0 then
+					SRStyleChange (parse_shape_style_change_record ch b flags nlbits nfbits is_shape3)
+				else if (flags land 48) = 32 then
+					SRCurvedEdge (parse_shape_curved_edge_record b flags)
+				else
+					SRStraightEdge (parse_shape_straight_edge_record b flags))
+			in
+			r :: loop()
+	in
+	loop()
+
+let parse_shape_with_style ch is_shape3 =
+	let fstyles = parse_shape_array parse_shape_fill_style ch is_shape3 in
+	let lstyles = parse_shape_array parse_shape_line_style ch is_shape3 in
+	let bits = read_byte ch in
+	let nlbits = bits land 15 in
+	let nfbits = bits lsr 4 in
+	let records = parse_shape_records ch nlbits nfbits is_shape3 in
 	{
 		sws_fill_styles = fstyles;
-		sws_data = data;
+		sws_line_styles = lstyles;
+		sws_records = {
+			srs_nlbits = nlbits;
+			srs_nfbits = nfbits;
+			srs_records = records;
+		}
 	}
 		
 
 let parse_shape ch len is_shape3 =
 	let id = read_ui16 ch in
 	let bounds = read_rect ch in
-	let style = parse_shape_with_style ch (len - 2 - rect_length bounds) is_shape3 in
+	let style = parse_shape_with_style ch is_shape3 in
 	{
 		sh_id = id;
 		sh_bounds = bounds;
@@ -869,8 +1011,9 @@ let rec parse_tag ch =
 			let depth = read_ui16 ch in
 			TRemoveObject2 depth
 		| 0x20 ->
-			TShape3 (parse_shape ch len true)
-		(*//0x21 TText2 *)
+			TShape3 (parse_shape ch len true)		
+		| 0x21 ->
+			TText2 (parse_text ch true)
 		| 0x22 ->
 			TButton2 (parse_button2 ch len)
 		| 0x23 ->
@@ -936,10 +1079,10 @@ let rec parse_tag ch =
 		| _ ->
 			Printf.printf "Unknown tag 0x%.2X\n" id;
 			TUnknown (id,nread ch len)
-	) in
-	let len2 = tag_data_length t in
-(*//	if len <> len2 then error (sprintf "Datalen mismatch for tag 0x%.2X (%d != %d)" id len len2); *)
-	{
+	) in	
+(*/*let len2 = tag_data_length t in
+	if len <> len2 then error (Printf.sprintf "Datalen mismatch for tag 0x%.2X (%d != %d)" id len len2);
+*/*)	{
 		tid = gen_id();
 		tdata = t;
 		textended = extended;
@@ -994,6 +1137,7 @@ let rec tag_id = function
 	| TPlaceObject2 _ -> 0x1A
 	| TRemoveObject2 _ -> 0x1C
 	| TShape3 _ -> 0x20
+	| TText2 _ -> 0x21
 	| TButton2 _ -> 0x22
 	| TBitsJPEG3 _ -> 0x23
 	| TBitsLossless2 _ -> 0x24
@@ -1044,18 +1188,78 @@ let write_shape_fill_style ch s =
 		write_ui16 ch b.sfb_cid;
 		write_matrix ch b.sfb_mpos
 
-let write_shape_fill_styles ch sl =
+let write_shape_line_style ch l =
+	write_ui16 ch l.sls_width;
+	write_color ch l.sls_color
+
+let write_shape_array ch f sl =
 	let n = List.length sl in
 	if n >= 0xFF then begin
 		write_byte ch 0xFF;
 		write_ui16 ch n;
 	end else
 		write_byte ch n;
-	List.iter (write_shape_fill_style ch) sl
+	List.iter (f ch) sl
+
+let write_shape_style_change_record ch b nlbits nfbits s =
+	let flags = make_flags [flag s.scsr_move; flag s.scsr_fs0; flag s.scsr_fs1; flag s.scsr_ls; flag s.scsr_new_styles] in	
+	write_bits b 6 flags;
+	opt (fun (n,dx,dy) -> 
+		write_bits b 5 n;
+		write_bits b n dx;
+		write_bits b n dy;
+	) s.scsr_move;
+	opt (write_bits b !nfbits) s.scsr_fs0;
+	opt (write_bits b !nfbits) s.scsr_fs1;
+	opt (write_bits b !nlbits) s.scsr_ls;
+	match s.scsr_new_styles with
+	| None -> ()
+	| Some s ->
+		flush_bits b;
+		write_shape_array ch write_shape_fill_style s.sns_fill_styles;
+		write_shape_array ch write_shape_line_style s.sns_line_styles;
+		nfbits := s.sns_nfbits;
+		nlbits := s.sns_nlbits;
+		write_bits b 4 !nfbits;
+		write_bits b 4 !nlbits
+
+let write_shape_record ch b nlbits nfbits = function
+	| SRStyleChange s ->
+		write_shape_style_change_record ch b nlbits nfbits s
+	| SRCurvedEdge s ->
+		write_bits b 2 2;
+		write_bits b 4 (s.scer_nbits - 2);
+		write_bits b s.scer_nbits s.scer_cx;
+		write_bits b s.scer_nbits s.scer_cy;
+		write_bits b s.scer_nbits s.scer_ax;
+		write_bits b s.scer_nbits s.scer_ay;
+	| SRStraightEdge s ->
+		write_bits b 2 3;
+		write_bits b 4 (s.sser_nbits - 2);
+		match s.sser_line with
+		| None , None -> assert false
+		| None , Some p
+		| Some p , None ->
+			write_bits b 1 0;
+			write_bits b 1 (if (fst s.sser_line) = None then 1 else 0);
+			write_bits b s.sser_nbits p;
+		| Some dx, Some dy ->
+			write_bits b 1 1;
+			write_bits b s.sser_nbits dx;
+			write_bits b s.sser_nbits dy
 
 let write_shape_with_style ch s =
-	write_shape_fill_styles ch s.sws_fill_styles;
-	nwrite ch s.sws_data
+	write_shape_array ch write_shape_fill_style s.sws_fill_styles;
+	write_shape_array ch write_shape_line_style s.sws_line_styles;
+	let r = s.sws_records in
+	let b = init_bits ch in
+	write_bits b 4 r.srs_nfbits;
+	write_bits b 4 r.srs_nlbits;
+	let nlbits = ref r.srs_nlbits in
+	let nfbits = ref r.srs_nfbits in
+	List.iter (write_shape_record ch b nlbits nfbits) r.srs_records;
+	write_bits b 6 0;
+	flush_bits b
 
 let write_shape ch s =
 	write_ui16 ch s.sh_id;
@@ -1220,6 +1424,8 @@ let rec write_tag_data ch = function
 		write_ui16 ch depth;
 	| TShape3 s -> 
 		write_shape ch s
+	| TText2 t ->
+		write_text ch t
 	| TButton2 b ->
 		write_button2 ch b
 	| TBitsJPEG3 b ->
@@ -1277,15 +1483,12 @@ let write ch (h,tags) =
 			tag_length t + calc_len l
 	in
 	let len = calc_len tags in
-	let old_exact_match = !exact_match in
-	exact_match := true;
 	let len = len + 4 + 4 + rect_length h.h_size + 2 + 2 in
 	write_i32 ch len;
 	let ch = (if h.h_compressed then deflate ch else ch) in
 	write_rect ch h.h_size;
 	write_ui16 ch h.h_fps;
 	write_ui16 ch h.h_frame_count;
-	exact_match := old_exact_match;
 	List.iter (write_tag ch) tags;
 	write_tag ch tag_end;
 	flush ch
