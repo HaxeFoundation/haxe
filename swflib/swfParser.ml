@@ -283,7 +283,7 @@ let read_cxa ch =
 	}
 
 let read_event ch =
-	(if !swf_version >= 6 then read_ui32 else read_ui16) ch
+	(if !swf_version >= 6 then read_i32 else read_ui16) ch
 
 (* ************************************************************************ *)
 (* WRITE PRIMS *)
@@ -363,7 +363,7 @@ let write_cxa ch c =
 	flush_bits b
 
 let write_event ch evt =
-	(if !swf_version >= 6 then write_ui32 else write_ui16) ch evt
+	(if !swf_version >= 6 then write_i32 else write_ui16) ch evt
 
 (* ************************************************************************ *)
 (* PARSING *)
@@ -376,7 +376,7 @@ let parse_clip_events ch =
 		if events = 0 then
 			[]
 		else
-			let len = read_ui32 ch in
+			let len = read_i32 ch in
 			let s = nread ch len in
 			(events , s) :: (loop())
 	in
@@ -388,7 +388,7 @@ let rec parse_tag ch =
 	let len = h land 63 in
 	let len , extended = (
 		if len = 63 then 
-			let len = read_ui32 ch in
+			let len = read_i32 ch in
 			len , len < 63
 		else 
 			len , false
@@ -543,7 +543,7 @@ let parse ch =
 	if sign <> "FWS" && sign <> "CWS" then error "Invalid SWF signature";
 	let ver = read_byte ch in
 	swf_version := ver;
-	let file_len = read_ui32 ch in
+	let file_len = read_i32 ch in
 	let compressed, ch = (if sign = "CWS" then true , inflate ch else false, ch) in
 	let size = read_rect ch in
 	let fps = read_ui16 ch in
@@ -594,7 +594,7 @@ let rec tag_id = function
 
 let write_clip_event ch (id,data) =
 	write_event ch id;
-	write_ui32 ch (String.length data);
+	write_i32 ch (String.length data);
 	nwrite ch data
 
 let write_clip_events ch event_list =
@@ -698,7 +698,7 @@ and write_tag ch t =
 	let extended = (match t with TExtended _ -> true | _ -> dlen >= 63) in
 	if extended then begin
 		write_ui16 ch ((id lsl 6) lor 63);
-		write_ui32 ch dlen;
+		write_i32 ch dlen;
 	end else begin
 		write_ui16 ch ((id lsl 6) lor dlen);
 	end;
@@ -717,7 +717,7 @@ let write ch (h,tags) =
 	let old_exact_match = !exact_match in
 	exact_match := true;
 	let len = len + 4 + 4 + rect_length h.h_size + 2 + 2 in
-	write_ui32 ch len;
+	write_i32 ch len;
 	let ch = (if h.h_compressed then deflate ch else ch) in
 	write_rect ch h.h_size;
 	write_ui16 ch h.h_fps;
