@@ -30,7 +30,7 @@ let buf = ref "" in
 print_endline "Please enter some XML data followed (press return twice to parse) :";
 while true do
 	match read_line() with
-	| "" ->
+	| "" when !buf <> "" ->
 		let data = !buf in
 		buf := "";
 		(try
