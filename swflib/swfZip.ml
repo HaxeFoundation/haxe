@@ -18,9 +18,7 @@
  *)
 
 let inflate i =
-	let str = IO.read_all i in
-	Printf.printf "SIZE = %d\n" (String.length str);
-	IO.input_string (Extc.unzip str)
+	IO.input_string (Extc.unzip (IO.read_all i))
 
 let deflate o =
 	let buf = Buffer.create 0 in
