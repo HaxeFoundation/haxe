@@ -254,17 +254,20 @@ let start_prove dtd root =
 		Not_found -> raise (Check_error (ElementNotDeclared root))
 
 
-(* - for debug only -
- 
+(* - for debug only - *)
+
+let to_string_ref = ref (fun _ -> assert false)
+
 let trace dtd tag =
 	let item = DTDElement ("current",dtd.current) in
 	printf "%s : %s\n"
 		(match tag with None -> "#PCDATA" | Some t -> t)
-		(to_string item)
+		(!to_string_ref item)
 
-*)
+exception TmpResult of dtd_result
 
 let prove_child dtd tag = 
+	trace dtd tag;
 	match dtd.current with
 	| DTDEmpty -> raise (Prove_error EmptyExpected)
 	| DTDAny -> ()
@@ -298,12 +301,16 @@ let prove_child dtd tag =
 			| DTDMatched
 			| DTDMatchedResult _ -> DTDMatchedResult (DTDZeroOrMore x))
 		| DTDChoice l ->
-			(match List.exists (fun x ->
-				match update x with
-				| DTDMatched | DTDMatchedResult _ -> true
-				| DTDNext | DTDNotMatched -> false) l with
-			| true -> DTDMatched
-			| false -> DTDNotMatched)
+			(try
+				(match List.exists (fun x ->
+					match update x with
+					| DTDMatched -> true
+					| DTDMatchedResult _ as r -> raise (TmpResult r)
+					| DTDNext | DTDNotMatched -> false) l with
+				| true -> DTDMatched
+				| false -> DTDNotMatched)
+			with
+				TmpResult r -> r)	
 		| DTDChildren [] -> assert false (* DTD is checked ! *)
 		| DTDChildren (h :: t) ->
 			(match update h with
@@ -496,3 +503,6 @@ let to_string = function
 				| r, false -> sprintf "(%s%s)" (echild_to_string r) (op_to_string x)
 		in
 		sprintf "<!ELEMENT %s %s>" tag (etype_to_string etype)
+
+;;
+to_string_ref := to_string
