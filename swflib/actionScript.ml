@@ -150,6 +150,7 @@ let action_id = function
 	| AGotoLabel _ -> 0x8C
 	| AWaitForFrame2 _ -> 0x8D
 	| AFunction2 _ -> 0x8E
+	| ATry _ -> 0x8F
 	| AWith _ -> 0x94
 	| APush _ -> 0x96
 	| AJump _ -> 0x99
@@ -157,7 +158,6 @@ let action_id = function
 	| AFunction _ -> 0x9B
 	| ACondJump _ -> 0x9D
 	| AGotoFrame2 _ -> 0x9F
-
 	| AUnknown (id,_) -> id
 
 	| op ->
@@ -186,6 +186,8 @@ let action_data_length = function
 		String.length label + 1
 	| AWaitForFrame2 _ ->
 		1
+	| ATry t ->
+		1 + 6 + (match t.tr_style with TryVariable n -> String.length n + 1 | TryRegister _ -> 1)
 	| AWith _ ->
 		2 (* the string does not count in length *)
 	| APush items ->
@@ -346,6 +348,18 @@ let parse_action ch =
 			AWaitForFrame2 (read_byte ch)
 		| 0x8E ->
 			AFunction2 (parse_function_decl2 ch)
+		| 0x8F ->
+			let flags = read_byte ch in
+			let tsize = read_ui16 ch in
+			let csize = read_ui16 ch in
+			let fsize = read_ui16 ch in
+			let tstyle = (if flags land 4 == 0 then TryVariable (read_string ch) else TryRegister (read_byte ch)) in
+			ATry {
+				tr_style = tstyle;
+				tr_trylen = tsize;
+				tr_catchlen = (if flags land 1 == 0 then None else Some csize);
+				tr_finallylen = (if flags land 2 == 0 then None else Some fsize);
+			}
 		| 0x94 ->
 			let size = read_ui16 ch in
 			AWith size
@@ -426,6 +440,11 @@ let parse_actions ch =
 		| AWith size ->
 			let index = size_to_jump_index acts curindex size in
 			DynArray.set acts curindex (AWith index)
+		| ATry t ->
+			let tindex = size_to_jump_index acts curindex t.tr_trylen in
+			let cindex = (match t.tr_catchlen with None -> None | Some size -> Some (size_to_jump_index acts (curindex + tindex) size)) in
+			let findex = (match t.tr_finallylen with None -> None | Some size -> Some (size_to_jump_index acts (curindex + tindex + (match cindex with None -> 0 | Some i -> i)) size)) in
+			DynArray.set acts curindex (ATry { t with tr_trylen = tindex; tr_catchlen = cindex; tr_finallylen = findex })
 		| _ ->
 			()
 	in
@@ -508,6 +527,18 @@ let write_action_data acts curindex ch = function
 		) f.f2_args;
 		let size = jump_index_to_size acts curindex f.f2_codelen in
 		write_ui16 ch size;
+	| ATry t ->
+		let tsize = jump_index_to_size acts curindex t.tr_trylen in
+		let csize = (match t.tr_catchlen with None -> 0 | Some idx -> jump_index_to_size acts (curindex + t.tr_trylen) idx) in
+		let fsize = (match t.tr_finallylen with None -> 0 | Some idx -> jump_index_to_size acts (curindex + t.tr_trylen + (match t.tr_catchlen with None -> 0 | Some n -> n)) idx) in		
+		let flags = (if t.tr_catchlen <> None then 1 else 0) lor (if t.tr_finallylen <> None then 2 else 0) lor (match t.tr_style with TryRegister _ -> 4 | TryVariable _ -> 0) in
+		write_byte ch flags;
+		write_ui16 ch tsize;
+		write_ui16 ch csize;
+		write_ui16 ch fsize;
+		(match t.tr_style with
+		| TryVariable v -> write_string ch v
+		| TryRegister r -> write_byte ch r)
 	| AWith target ->
 		let size = jump_index_to_size acts curindex target in
 		write_ui16 ch size		
@@ -621,6 +652,7 @@ let action_string get_ident pos = function
 				Buffer.add_char b ']';
 		) pl;
 		Buffer.contents b
+	| ATry _ -> sprintf "TRY"
 	| AWith n -> sprintf "WITH %d" n
 	| AJump n -> sprintf "JUMP 0x%.4X" (n + pos + 1)
 	| AGetURL2 n -> sprintf "GETURL2 %d" n

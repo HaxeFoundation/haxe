@@ -94,6 +94,17 @@ type function_decl2 = {
 	mutable f2_codelen : action_count;
 }
 
+type try_style =
+	| TryRegister of int
+	| TryVariable of string
+
+type try_block = {
+	tr_style : try_style;
+	mutable tr_trylen : action_count;
+	mutable tr_catchlen : action_count option;
+	mutable tr_finallylen : action_count option
+}
+
 type push_item =
 	| PString of string
 	| PFloat of int32
@@ -223,8 +234,9 @@ type action =
 	| AGotoLabel of string
 	| AWaitForFrame2 of int
 	| AFunction2 of function_decl2
-	| APush of push_item list
+	| ATry of try_block
 	| AWith of int
+	| APush of push_item list
 	| AJump of action_count
 	| AGetURL2 of int
 	| AFunction of function_decl
