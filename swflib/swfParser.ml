@@ -9,7 +9,7 @@ open Printf
 let swf_version = ref 0
 let id_count = ref 0
 let exact_match = ref true
-let tag_end = { tid = 0; tdata = TEnd }
+let tag_end = { tid = 0; textended = false; tdata = TEnd }
 
 let sum f l =
 	List.fold_left (fun acc x -> acc + f x) 0 l
@@ -217,13 +217,10 @@ let rec tag_data_length = function
 		2 + actions_length i.dia_actions
 	| TUnknown (_,data) ->
 		String.length data
-	| TExtended t ->
-		tag_data_length t.tdata
 
 and tag_length t = 
 	let dlen = tag_data_length t.tdata in
-	let extended = (match t.tdata with TExtended _ -> true | _ -> dlen >= 63) in
-	dlen + 2 + (if extended then 4 else 0)
+	dlen + 2 + (if t.textended || dlen >= 63 then 4 else 0)
 
 (* ************************************************************************ *)
 (* READ PRIMS *)
@@ -542,8 +539,8 @@ let rec parse_tag ch =
 			len , len < 63
 		else 
 			len , false
-	) in	
-	let tag = (
+	) in
+	let t = (
 		match id with
 		| 0x00 ->
 			TEnd
@@ -555,7 +552,10 @@ let rec parse_tag ch =
 		| 0x05 ->
 			let cid = read_ui16 ch in
 			let depth = read_ui16 ch in
-			TRemoveObject (cid,depth)
+			TRemoveObject {
+				rmo_id = cid;
+				rmo_depth = depth;
+			}
 		| 0x06 ->
 			TBitsJPEG (parse_bitmap ch len)
 		(*//0x07 TButton *)
@@ -693,16 +693,12 @@ let rec parse_tag ch =
 			printf "Unknown tag 0x%.2X\n" id;
 			TUnknown (id,nread ch len)
 	) in
-	let t = (if extended then
-		TExtended { tid = gen_id(); tdata = tag }
-		else
-			tag)
-	in
 	let len2 = tag_data_length t in
 	if len <> len2 then error (sprintf "Datalen mismatch for tag 0x%.2X (%d != %d)" id len len2);
 	{
 		tid = gen_id();
 		tdata = t;
+		textended = extended;
 	}
 
 and parse_tag_list ch =
@@ -767,7 +763,6 @@ let rec tag_id = function
 	| TExport _ -> 0x38
 	| TDoInitAction _ -> 0x3B
 	| TUnknown (id,_) -> id
-	| TExtended t -> tag_id t.tdata
 
 let write_clip_event ch (id,data) =
 	write_event ch id;
@@ -838,7 +833,7 @@ let write_button2 ch b =
 	write_byte ch (if b.bt2_track_as_menu then 1 else 0);
 	if b.bt2_actions <> [] then write_ui16 ch (3 + sum button_record_length b.bt2_records) else write_ui16 ch 0;
 	List.iter (write_button_record ch) b.bt2_records;
-	write_byte ch 0;	
+	write_byte ch 0;
 	if b.bt2_actions <> [] then write_button_actions ch b.bt2_actions	
 
 let rec write_tag_data ch = function
@@ -848,9 +843,9 @@ let rec write_tag_data ch = function
 		()
 	| TShape s ->
 		write_shape ch s
-	| TRemoveObject (cid,depth) ->
-		write_ui16 ch cid;
-		write_ui16 ch depth;
+	| TRemoveObject r ->
+		write_ui16 ch r.rmo_id;
+		write_ui16 ch r.rmo_depth;
 	| TBitsJPEG b ->
 		write_bitmap ch b
 	| TJPEGTables tab ->
@@ -935,14 +930,11 @@ let rec write_tag_data ch = function
 		write_actions ch i.dia_actions;
 	| TUnknown (_,data) ->
 		nwrite ch data
-	| TExtended t ->
-		write_tag_data ch t.tdata
 
 and write_tag ch t =
 	let id = tag_id t.tdata in
 	let dlen = tag_data_length t.tdata in
-	let extended = (match t.tdata with TExtended _ -> true | _ -> dlen >= 63) in
-	if extended then begin
+	if t.textended || dlen >= 63 then begin
 		write_ui16 ch ((id lsl 6) lor 63);
 		write_i32 ch dlen;
 	end else begin

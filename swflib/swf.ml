@@ -47,19 +47,6 @@ type color_transform_alpha = {
 	cxa_mult : rgba option;
 }
 
-type header = {
-	h_version : int;
-	h_size : rect;
-	h_fps : float16;
-	h_frame_count : int; 
-	mutable h_compressed : bool;
-}
-
-type export = {
-	exp_id : int;
-	exp_name : string;
-}
-
 type function_decl = {
 	f_name : string;
 	f_args : string list;
@@ -216,42 +203,55 @@ type action =
 
 type actions = action DynArray.t
 
+type header = {
+	h_version : int;
+	h_size : rect;
+	h_fps : float16;
+	h_frame_count : int; 
+	mutable h_compressed : bool;
+}
+
+type export = {
+	mutable exp_id : int;
+	exp_name : string;
+}
+
 type do_init_action = {
-	dia_id : int;
+	mutable dia_id : int;
 	dia_actions : actions;
 }
 
 type sound = {
-	so_id : int;
+	mutable so_id : int;
 	so_flags : int;
 	so_samples : int;
 	so_data : unknown;
 }
 
 type start_sound = {
-	sts_id : int;
+	mutable sts_id : int;
 	sts_data : unknown;
 }
 
 type shape = {
-	sh_id : int;
+	mutable sh_id : int;
 	sh_bounds : rect;
 	sh_data : unknown;
 }
 
 type bitmap = {
-	bmp_id : int;
+	mutable bmp_id : int;
 	bmp_data : string;
 }
 
 type bitmap_jpg3 = {
-	jp3_id : int;
+	mutable jp3_id : int;
 	jp3_data : string;
 	jp3_alpha_data : string;
 }
 
 type bitmap_lossless = {
-	bll_id : int;
+	mutable bll_id : int;
 	bll_format : int;
 	bll_width : int;
 	bll_height : int;
@@ -259,25 +259,25 @@ type bitmap_lossless = {
 }
 
 type morph_shape = {
-	msh_id : int;
+	mutable msh_id : int;
 	msh_start_bounds : rect;
 	msh_end_bounds : rect;
 	msh_data : unknown;
 }
 
 type font2 = {
-	ft2_id : int;
+	mutable ft2_id : int;
 	ft2_data : unknown;
 }
 
 type text = {
-	txt_id : int;
+	mutable txt_id : int;
 	txt_data : unknown;
 }
 
 type button_record = {
 	btr_flags : int;
-	btr_cid : int;
+	mutable btr_cid : int;
 	btr_depth : int;
 	btr_mpos : matrix;
 	btr_color : color_transform_alpha option;
@@ -289,17 +289,22 @@ type button_action = {
 }
 
 type button2 = {
-	bt2_id : int;
+	mutable bt2_id : int;
 	bt2_track_as_menu : bool;
 	bt2_records : button_record list;
 	bt2_actions : button_action list;
+}
+
+type remove_object = {
+	mutable rmo_id : int;
+	rmo_depth : int;
 }
 
 type tag_data =
 	| TEnd
 	| TShowFrame
 	| TShape of shape
-	| TRemoveObject of int * int
+	| TRemoveObject of remove_object
 	| TBitsJPEG of bitmap
 	| TJPEGTables of string
 	| TSetBgColor of rgb
@@ -326,10 +331,10 @@ type tag_data =
 	| TExport of export list
 	| TDoInitAction of do_init_action
 	| TUnknown of int * unknown
-	| TExtended of tag
 
 and tag = {
 	tid : int;
+	textended : bool;
 	tdata : tag_data;
 }
 
@@ -338,7 +343,7 @@ and clip_event = int * unknown
 and place_object2 = {
 	po_depth : int;
 	po_move : bool;
-	po_cid : int option;
+	mutable po_cid : int option;
 	po_matrix : matrix option;
 	po_color : color_transform_alpha option;
 	po_ratio : float16 option;
@@ -348,7 +353,7 @@ and place_object2 = {
 }
 
 and clip = {
-	c_id : int;
+	mutable c_id : int;
 	c_frame_count : int;
 	c_tags : tag list;
 }
