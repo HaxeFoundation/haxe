@@ -15,6 +15,10 @@ type rgba = {
 	a : int;
 }
 
+type color =
+	| ColorRGB of rgb
+	| ColorRGBA of rgba
+
 type gradient =
 	| GradientRGB of (int * rgb) list
 	| GradientRGBA of (int * rgba) list
@@ -287,9 +291,26 @@ type font2 = {
 	ft2_data : unknown;
 }
 
+type text_glyph = {
+	txg_index : int;
+	txg_advanced : int;
+}
+
+type text_record = {
+	mutable txr_font : (int * int) option;
+	txr_color : color option;
+	txr_dx : int option;
+	txr_dy : int option;
+	txr_glyphs : text_glyph list;
+}
+
 type text = {
 	mutable txt_id : int;
-	txt_data : unknown;
+	txt_bounds : rect;
+	txt_matrix : matrix;
+	txt_ngbits : int;
+	txt_nabits : int;
+	txt_records : text_record list;
 }
 
 type button_record = {
@@ -317,6 +338,34 @@ type remove_object = {
 	rmo_depth : int;
 }
 
+type edit_text_layout = {
+	edtl_align : int;
+	edtl_left_margin : int;
+	edtl_right_margin : int;
+	edtl_indent : int;
+	edtl_leading : int;
+}
+
+type edit_text = {
+	mutable edt_id : int;
+	edt_bounds : rect;
+	mutable edt_font : (int * int) option;
+	edt_color : rgba option;
+	edt_maxlen : int option;
+	edt_layout : edit_text_layout option;
+	edt_variable : string;
+	edt_text : string option;
+	edt_wordwrap : bool;
+	edt_multiline : bool;
+	edt_password : bool;
+	edt_readonly : bool;
+	edt_autosize : bool;
+	edt_noselect : bool;
+	edt_border : bool;
+	edt_html : bool;
+	edt_outlines : bool;
+}
+
 type tag_data =
 	| TEnd
 	| TShowFrame
@@ -339,7 +388,7 @@ type tag_data =
 	| TButton2 of button2
 	| TBitsJPEG3 of bitmap_jpg3
 	| TBitsLossless2 of bitmap_lossless
-	| TEditText of text
+	| TEditText of edit_text
 	| TClip of clip
 	| TFrameLabel of string
 	| TSoundStreamHead2 of unknown

@@ -99,6 +99,10 @@ let rgb_length = 3
 
 let rgba_length = 4
 
+let color_length = function
+	| ColorRGB _ -> rgb_length
+	| ColorRGBA _ -> rgba_length
+
 let rect_length r =
 	let nbits = rect_nbits r in
 	let nbits = nbits * 4 + 5 in
@@ -156,9 +160,16 @@ let bitmap_lossless_length b =
 
 let morph_shape_length s =
 	2 + rect_length s.msh_start_bounds + rect_length s.msh_end_bounds + String.length s.msh_data
+	
+let text_record_length t r =
+	1 + opt_len (const 4) r.txr_font + 
+		opt_len color_length r.txr_color + 
+		opt_len (const 2) r.txr_dx + 
+		opt_len (const 2) r.txr_dy + 
+		1 + ((((t.txt_ngbits + t.txt_nabits) * List.length r.txr_glyphs) + 7) / 8)
 
 let text_length t =
-	2 + String.length t.txt_data
+	2 + rect_length t.txt_bounds + matrix_length t.txt_matrix + 2 + sum (text_record_length t) t.txt_records + 1
 
 let button_record_length r =
 	1 + 2 + 2 + matrix_length r.btr_mpos + (match r.btr_color with None -> 0 | Some c -> cxa_length c)
@@ -173,6 +184,17 @@ let button2_length b =
 
 let font2_length f =
 	2 + String.length f.ft2_data
+
+let edit_text_layout_length = 9
+
+let edit_text_length t =
+	2 + rect_length t.edt_bounds + 2 + 
+		opt_len (const 4) t.edt_font + 
+		opt_len (const rgba_length) t.edt_color +
+		opt_len (const 2) t.edt_maxlen +
+		opt_len (const edit_text_layout_length) t.edt_layout +
+		String.length t.edt_variable + 1 +
+		opt_len (fun s -> String.length s + 1) t.edt_text
 
 let rec tag_data_length = function
 	| TEnd ->
@@ -226,7 +248,7 @@ let rec tag_data_length = function
 	| TBitsLossless2 b ->
 		bitmap_lossless_length b
 	| TEditText t ->
-		text_length t
+		edit_text_length t
 	| TClip c ->
 		4 + sum tag_length (tag_end :: c.c_tags)
 	| TFrameLabel label ->
@@ -413,6 +435,10 @@ let write_rgba ch c =
 	write_byte ch c.b;
 	write_byte ch c.a
 
+let write_color ch = function
+	| ColorRGB c -> write_rgb ch c
+	| ColorRGBA c -> write_rgba ch c
+
 let write_gradient ch = function
 	| GradientRGB l ->
 		let n = List.length l in
@@ -579,12 +605,100 @@ let parse_bitmap_lossless ch len =
 		bll_data = data;
 	}
 
-let parse_text ch len =
+let parse_text ch is_txt2 =
 	let id = read_ui16 ch in
-	let data = nread ch (len - 2) in
+	let bounds = read_rect ch in
+	let matrix = read_matrix ch in
+	let ngbits = read_byte ch in
+	let nabits = read_byte ch in
+	let rec loop_glyphs bits n =
+		if n = 0 then
+			[]
+		else
+			let indx = read_bits bits ngbits in
+			let adv = read_bits bits nabits in
+			let g = {
+				txg_index = indx;
+				txg_advanced = adv;
+			} in
+			g :: loop_glyphs bits (n-1)
+	in		
+	let rec loop() =
+		let flags = read_byte ch in
+		if flags = 0 then
+			[]
+		else
+			let font_id = (if flags land 8 <> 0 then read_ui16 ch else 0) in
+			let color = (if flags land 4 <> 0 then Some (if is_txt2 then ColorRGBA (read_rgba ch) else ColorRGB (read_rgb ch)) else None) in
+			let dx = (if flags land 1 <> 0 then Some (read_i16 ch) else None) in
+			let dy = (if flags land 2 <> 0 then Some (read_i16 ch) else None) in
+			let font = (if flags land 8 <> 0 then Some (font_id,read_ui16 ch) else None) in
+			let nglyphs = read_byte ch in
+			let r = {
+				txr_font = font;
+				txr_color = color;
+				txr_dx = dx;
+				txr_dy = dy;
+				txr_glyphs = loop_glyphs (init_bits ch) nglyphs;
+			} in
+			r :: loop()
+	in
 	{
 		txt_id = id;
-		txt_data = data;
+		txt_bounds = bounds;
+		txt_matrix = matrix;
+		txt_ngbits = ngbits;
+		txt_nabits = nabits;
+		txt_records = loop();
+	}
+
+let parse_edit_text_layout ch =
+	let align = read_byte ch in
+	let ml = read_ui16 ch in
+	let rl = read_ui16 ch in
+	let ident = read_ui16 ch in
+	let lead = read_ui16 ch in
+	{
+		edtl_align = align;
+		edtl_left_margin = ml;
+		edtl_right_margin = rl;
+		edtl_indent = ident;
+		edtl_leading = lead;
+	}
+
+let parse_edit_text ch =
+	let id = read_ui16 ch in
+	let bounds = read_rect ch in
+	let flags = read_ui16 ch in
+	let font = (if flags land 1 <> 0 then 
+			let fid = read_ui16 ch in
+			let height = read_ui16 ch in
+			Some (fid, height)
+		else
+			None) in
+	let color = (if flags land 4 <> 0 then Some (read_rgba ch) else None) in
+	let maxlen = (if flags land 2 <> 0 then Some (read_ui16 ch) else None) in
+	let layout = (if flags land (1 lsl 13) <> 0 then Some (parse_edit_text_layout ch) else None) in
+	let variable = read_string ch in
+	let text = (if flags land 128 <> 0 then Some (read_string ch) else None) in
+	{
+		edt_id = id;
+		edt_bounds = bounds;
+		edt_font = font;
+		edt_color = color;
+		edt_maxlen = maxlen;
+		edt_layout = layout;
+		edt_variable = variable;
+		edt_text = text;
+		edt_wordwrap = (flags land 64) <> 0;
+		edt_multiline = (flags land 32) <> 0;
+		edt_password = (flags land 16) <> 0;
+		edt_readonly = (flags land 8) <> 0;
+		edt_autosize = (flags land (1 lsl 14)) <> 0;
+		edt_noselect = (flags land 4096) <> 0;
+		edt_border = (flags land 2048) <> 0;
+		edt_html = (flags land 512) <> 0;
+		edt_outlines = (flags land 256) <> 0;
 	}
 
 let parse_font2 ch len =
@@ -688,7 +802,7 @@ let rec parse_tag ch =
 			TSetBgColor (read_rgb ch)
 		(*//0x0A TFont *)
 		| 0x0B ->
-			TText (parse_text ch len)
+			TText (parse_text ch false)
 		| 0x0C ->
 			TDoAction (parse_actions ch)
 		(*//0x0D TFontInfo *)
@@ -765,7 +879,7 @@ let rec parse_tag ch =
 		| 0x24 ->
 			TBitsLossless2 (parse_bitmap_lossless ch len)
 		| 0x25 ->
-			TEditText (parse_text ch len)
+			TEditText (parse_edit_text ch)
 		| 0x27 ->
 			let cid = read_ui16 ch in
 			let fcount = read_ui16 ch in
@@ -834,7 +948,6 @@ and parse_tag_list ch =
 
 let parse ch =
 	let sign = nread ch 3 in
-	(* TODO : compression *)
 	if sign <> "FWS" && sign <> "CWS" then error "Invalid SWF signature";
 	let ver = read_byte ch in
 	swf_version := ver;
@@ -959,9 +1072,52 @@ let write_morph_shape ch s =
 	write_rect ch s.msh_end_bounds;
 	nwrite ch s.msh_data
 
+let write_text_record ch t r =
+	write_byte ch (make_flags [flag r.txr_dx; flag r.txr_dy; flag r.txr_color; flag r.txr_font; false; false; false; true]);
+	opt (fun (id,_) -> write_ui16 ch id) r.txr_font;
+	opt (write_color ch) r.txr_color;
+	opt (write_i16 ch) r.txr_dx;
+	opt (write_i16 ch) r.txr_dy;
+	opt (fun (_,id) -> write_ui16 ch id) r.txr_font;
+	write_byte ch (List.length r.txr_glyphs);
+	let bits = init_bits ch in
+	List.iter (fun g ->
+		write_bits bits t.txt_ngbits g.txg_index;
+		write_bits bits t.txt_nabits g.txg_advanced;
+	) r.txr_glyphs;
+	flush_bits bits
+
 let write_text ch t =
 	write_ui16 ch t.txt_id;
-	nwrite ch t.txt_data
+	write_rect ch t.txt_bounds;
+	write_matrix ch t.txt_matrix;
+	write_byte ch t.txt_ngbits;
+	write_byte ch t.txt_nabits;
+	List.iter (write_text_record ch t) t.txt_records;
+	write_byte ch 0
+
+let write_edit_text_layout ch l =
+	write_byte ch l.edtl_align;
+	write_ui16 ch l.edtl_left_margin;
+	write_ui16 ch l.edtl_right_margin;
+	write_ui16 ch l.edtl_indent;
+	write_ui16 ch l.edtl_leading
+
+let write_edit_text ch t =
+	write_ui16 ch t.edt_id;
+	write_rect ch t.edt_bounds;
+	write_ui16 ch (make_flags [
+		flag t.edt_font; flag t.edt_maxlen; flag t.edt_color; t.edt_readonly;
+		t.edt_password; t.edt_multiline; t.edt_wordwrap; flag t.edt_text;
+		t.edt_outlines; t.edt_html; false; t.edt_border;
+		t.edt_noselect; flag t.edt_layout; t.edt_autosize; false
+	]);
+	opt (fun (id,h) -> write_ui16 ch id; write_ui16 ch h) t.edt_font;
+	opt (write_rgba ch) t.edt_color;
+	opt (write_ui16 ch) t.edt_maxlen;
+	opt (write_edit_text_layout ch) t.edt_layout;
+	write_string ch t.edt_variable;
+	opt (write_string ch) t.edt_text
 
 let write_font2 ch t =
 	write_ui16 ch t.ft2_id;
@@ -1066,7 +1222,7 @@ let rec write_tag_data ch = function
 	| TBitsLossless2 b ->
 		write_bitmap_lossless ch b
 	| TEditText t ->
-		write_text ch t
+		write_edit_text ch t
 	| TClip c ->
 		write_ui16 ch c.c_id;
 		write_ui16 ch c.c_frame_count;
