@@ -32,11 +32,11 @@ let executable_path() =
 	String.sub p 0 (min p1 p2) ^ "/"
 
 let zlib_op op z str =
-	let bufsize = 1 lsl 12 in
+	let bufsize = 1 lsl 14 in
 	let tmp = String.create bufsize in
 	let total = ref 0 in
 	let rec loop pos len acc =
-		let r = op z ~src:str ~spos:pos ~slen:len ~dst:tmp ~dpos:0 ~dlen:bufsize Z_FINISH in
+		let r = op z ~src:str ~spos:pos ~slen:len ~dst:tmp ~dpos:0 ~dlen:bufsize (if len = 0 then Z_FINISH else Z_SYNC_FLUSH) in
 		total := !total + r.z_wrote;
 		let acc = String.sub tmp 0 r.z_wrote :: acc in
 		if r.z_finish then
@@ -55,7 +55,7 @@ let zlib_op op z str =
 	big
 
 let zip str =
-	let z = zlib_deflate_init 6 in
+	let z = zlib_deflate_init 9 in
 	let s = zlib_op zlib_deflate z str in
 	zlib_deflate_end z;
 	s
