@@ -7,7 +7,16 @@ open Printf
 (* TOOLS *)
 
 let swf_version = ref 0
+let id_count = ref 0
 let exact_match = ref true
+let tag_end = { tid = 0; tdata = TEnd }
+
+let sum f l =
+	List.fold_left (fun acc x -> acc + f x) 0 l
+
+let gen_id() =
+	incr id_count;
+	!id_count
 
 let const n = fun _ -> n
 
@@ -102,38 +111,72 @@ let clip_event_length (_,s) =
 	if !swf_version >= 6 then 4 + 4 + String.length s else 2 + 4 + String.length s
 
 let clip_events_length l =
-	List.fold_left (fun acc evt -> acc + clip_event_length evt) (if !swf_version >= 6 then 10 else 6) l
+	(if !swf_version >= 6 then 10 else 6) + sum clip_event_length l
 
 let export_length e =
 	2 + String.length e.exp_name + 1
+
+let sound_length s =
+	2 + 1 + 4 + String.length s.so_data
+
+let shape_length s =
+	2 + rect_length s.sh_bounds + String.length s.sh_data
+
+let bitmap_length b =
+	2 + String.length b.bmp_data
+
+let bitmap_lossless_length b =
+	2 + 1 + 2 + 2 + String.length b.bll_data
+
+let morph_shape_length s =
+	2 + rect_length s.msh_start_bounds + rect_length s.msh_end_bounds + String.length s.msh_data
+
+let text_length t =
+	2 + String.length t.txt_data
+
+let button_record_length r =
+	1 + 2 + 2 + matrix_length r.btr_mpos + (match r.btr_color with None -> 0 | Some c -> cxa_length c)
+
+let button_action_length r =
+	2 + 2 + actions_length r.bta_actions
+	
+let button2_length b =
+	2 + 1 + 2 + 
+		1 + sum button_record_length b.bt2_records + 
+		sum button_action_length b.bt2_actions
+
+let font2_length f =
+	2 + String.length f.ft2_data
 
 let rec tag_data_length = function
 	| TEnd ->
 		0
 	| TShowFrame ->
 		0
-	| TShape data ->
-		String.length data
+	| TShape s ->
+		shape_length s
 	| TRemoveObject _ ->
 		4
-	| TBitsJPEG data ->
-		String.length data
+	| TBitsJPEG b ->
+		bitmap_length b
 	| TJPEGTables tab ->
 		String.length tab
 	| TSetBgColor _ ->
 		rgb_length
-	| TText s ->
-		String.length s
+	| TText t ->
+		text_length t
 	| TDoAction acts ->
 		actions_length acts
-	| TSound data ->
-		String.length data
-	| TBitsLossless data ->
-		String.length data
-	| TBitsJPEG2 data ->
-		String.length data
-	| TShape2 data ->
-		String.length data
+	| TSound s ->
+		sound_length s
+	| TStartSound s ->
+		2 + String.length s.sts_data
+	| TBitsLossless b ->
+		bitmap_lossless_length b
+	| TBitsJPEG2 b ->
+		bitmap_length b
+	| TShape2 s ->
+		shape_length s
 	| TProtect ->
 		0
 	| TPlaceObject2 p ->
@@ -148,38 +191,38 @@ let rec tag_data_length = function
 		+ opt_len clip_events_length p.po_events
 	| TRemoveObject2 _ ->
 		2
-	| TShape3 data ->
-		String.length data
-	| TButton2 data ->
-		String.length data
-	| TBitsJPEG3 data ->
-		String.length data
-	| TBitsLossless2 data ->
-		String.length data
-	| TEditText data ->
-		String.length data
+	| TShape3 s ->
+		shape_length s
+	| TButton2 b ->
+		button2_length b
+	| TBitsJPEG3 b ->
+		2 + 4 + String.length b.jp3_alpha_data + String.length b.jp3_data
+	| TBitsLossless2 b ->
+		bitmap_lossless_length b
+	| TEditText t ->
+		text_length t
 	| TClip c ->
-		List.fold_left (fun acc t -> acc + tag_length t) 4 (TEnd :: c.c_tags)
+		4 + sum tag_length (tag_end :: c.c_tags)
 	| TFrameLabel label ->
 		String.length label + 1
 	| TSoundStreamHead2 data ->
 		String.length data
-	| TMorphShape data ->
-		String.length data
-	| TFont2 data ->
-		String.length data
+	| TMorphShape s ->
+		morph_shape_length s
+	| TFont2 f ->
+		font2_length f
 	| TExport el ->
-		List.fold_left (fun acc e -> acc + export_length e) 2 el
+		2 + sum export_length el
 	| TDoInitAction i ->
 		2 + actions_length i.dia_actions
 	| TUnknown (_,data) ->
 		String.length data
 	| TExtended t ->
-		tag_data_length t
+		tag_data_length t.tdata
 
 and tag_length t = 
-	let dlen = tag_data_length t in
-	let extended = (match t with TExtended _ -> true | _ -> dlen >= 63) in
+	let dlen = tag_data_length t.tdata in
+	let extended = (match t.tdata with TExtended _ -> true | _ -> dlen >= 63) in
 	dlen + 2 + (if extended then 4 else 0)
 
 (* ************************************************************************ *)
@@ -193,7 +236,7 @@ let init_bits ch =
 	}
 
 let skip ch n =
-	seek_in ch ((pos_in ch) + n)
+	seek_in ch ((Pervasives.pos_in ch) + n)
 
 let rec read_bits b n =
 	if b.b_count >= n then begin
@@ -320,7 +363,7 @@ let write_matrix ch m =
 	let b = init_bits ch in
 	let write_matrix_part m =
 		let nbits = matrix_part_nbits m in
-		write_bits b 5 nbits;
+		write_bits b 5 nbits;		
 		write_bits b nbits m.mx;
 		write_bits b nbits m.my;
 	in
@@ -382,6 +425,113 @@ let parse_clip_events ch =
 	in
 	loop()
 
+let parse_shape ch len =
+	let id = read_ui16 ch in
+	let bounds = read_rect ch in
+	let data = nread ch (len - 2 - rect_length bounds) in
+	{
+		sh_id = id;
+		sh_bounds = bounds;
+		sh_data = data;
+	}
+
+let parse_bitmap ch len =
+	let id = read_ui16 ch in
+	let data = nread ch (len - 2) in
+	{
+		bmp_id = id;
+		bmp_data = data;
+	}
+
+let parse_bitmap_lossless ch len =
+	let id = read_ui16 ch in
+	let format = read_byte ch in
+	let width = read_ui16 ch in
+	let height = read_ui16 ch in
+	let data = nread ch (len - 7) in
+	{
+		bll_id = id;
+		bll_format = format;
+		bll_width = width;
+		bll_height = height;
+		bll_data = data;
+	}
+
+let parse_text ch len =
+	let id = read_ui16 ch in
+	let data = nread ch (len - 2) in
+	{
+		txt_id = id;
+		txt_data = data;
+	}
+
+let parse_font2 ch len =
+	let id = read_ui16 ch in
+	let data = nread ch (len - 2) in
+	{
+		ft2_id = id;
+		ft2_data = data;
+	}
+
+let parse_morph_shape ch len =
+	let id = read_ui16 ch in
+	let sbounds = read_rect ch in
+	let ebounds = read_rect ch in
+	let data = nread ch (len - 2 - rect_length sbounds - rect_length ebounds) in
+	{
+		msh_id = id;
+		msh_start_bounds = sbounds;
+		msh_end_bounds = ebounds;
+		msh_data = data;
+	}
+
+let rec parse_button_records ch color =
+	let flags = read_byte ch in
+	if flags = 0 then
+		[]
+	else
+		let cid = read_ui16 ch in
+		let depth = read_ui16 ch in
+		let mpos = read_matrix ch in
+		let cxa = (if color then Some (read_cxa ch) else None) in
+		let r = {
+			btr_flags = flags;
+			btr_cid = cid;
+			btr_depth = depth;
+			btr_mpos = mpos;
+			btr_color = cxa;
+		} in
+		r :: parse_button_records ch color
+
+let rec parse_button_actions ch =
+	let size = read_ui16 ch in	
+	let flags = read_ui16 ch in
+	let actions = parse_actions ch in
+	let bta = {
+		bta_flags = flags;
+		bta_actions = actions;
+	} in
+	if size = 0 then
+		[bta]
+	else
+		bta :: parse_button_actions ch
+
+let parse_button2 ch len =
+	let id = read_ui16 ch in
+	let flags = read_byte ch in
+	let track = (match flags with 0 -> false | 1 -> true | _ -> assert false) in
+	let offset = read_ui16 ch in	
+	let records = parse_button_records ch true in
+	let actions = (if offset = 0 then [] else parse_button_actions ch) in
+	let bt2 = {
+		bt2_id = id;
+		bt2_track_as_menu = track;
+		bt2_records = records;
+		bt2_actions = actions;
+	} in	
+	if button2_length bt2 <> len then failwith (sprintf "Error in Button2 %d(%d,%d) => %d(%d,%d)" len offset (len-offset-5) (button2_length bt2) (2 + 1 + sum button_record_length records) (2 + sum button_action_length actions));
+	bt2
+
 let rec parse_tag ch =
 	let h = read_ui16 ch in
 	let id = h lsr 6 in
@@ -400,14 +550,14 @@ let rec parse_tag ch =
 		| 0x01 ->
 			TShowFrame
 		| 0x02 ->
-			TShape (nread ch len)
+			TShape (parse_shape ch len)
 		(*//0x04 TPlaceObject *)
 		| 0x05 ->
 			let cid = read_ui16 ch in
 			let depth = read_ui16 ch in
 			TRemoveObject (cid,depth)
 		| 0x06 ->
-			TBitsJPEG (nread ch len)
+			TBitsJPEG (parse_bitmap ch len)
 		(*//0x07 TButton *)
 		| 0x08 ->
 			TJPEGTables (nread ch len)
@@ -415,22 +565,37 @@ let rec parse_tag ch =
 			TSetBgColor (read_rgb ch)
 		(*//0x0A TFont *)
 		| 0x0B ->
-			TText (nread ch len)
+			TText (parse_text ch len)
 		| 0x0C ->
 			TDoAction (parse_actions ch)
 		(*//0x0D TFontInfo *)
 		| 0x0E ->
-			TSound (nread ch len)
-		(*//0x0F TStartSound *)
+			let sid = read_ui16 ch in
+			let flags = read_byte ch in
+			let samples = read_i32 ch in
+			let data = nread ch (len - 7) in
+			TSound {
+				so_id = sid;
+				so_flags = flags;
+				so_samples = samples;
+				so_data = data;
+			}
+		| 0x0F ->
+			let sid = read_ui16 ch in
+			let data = nread ch (len - 2) in
+			TStartSound {
+				sts_id = sid;
+				sts_data = data;
+			}
 		(*//0x11 TButtonSound *)
 		(*//0x12 TSoundStreamHead *)
 		(*//0x13 TSoundStreamBlock *)
 		| 0x14 ->
-			TBitsLossless (nread ch len)
+			TBitsLossless (parse_bitmap_lossless ch len)
 		| 0x15 ->
-			TBitsJPEG2 (nread ch len)
+			TBitsJPEG2 (parse_bitmap ch len)
 		| 0x16 ->
-			TShape2 (nread ch len)
+			TShape2 (parse_shape ch len)
 		(*//0x17 TButtonCXForm *)
 		| 0x18 ->
 			TProtect
@@ -460,16 +625,24 @@ let rec parse_tag ch =
 			let depth = read_ui16 ch in
 			TRemoveObject2 depth
 		| 0x20 ->
-			TShape3 (nread ch len)
+			TShape3 (parse_shape ch len)
 		(*//0x21 TText2 *)
 		| 0x22 ->
-			TButton2 (nread ch len)
+			TButton2 (parse_button2 ch len)
 		| 0x23 ->
-			TBitsJPEG3 (nread ch len)
+			let id = read_ui16 ch in
+			let size = read_i32 ch in
+			let data = nread ch size in
+			let alpha_data = nread ch (len - 6 - size) in
+			TBitsJPEG3 {
+				jp3_id = id;
+				jp3_data = data;
+				jp3_alpha_data = alpha_data;
+			}
 		| 0x24 ->
-			TBitsLossless2 (nread ch len)
+			TBitsLossless2 (parse_bitmap_lossless ch len)
 		| 0x25 ->
-			TEditText (nread ch len)
+			TEditText (parse_text ch len)
 		| 0x27 ->
 			let cid = read_ui16 ch in
 			let fcount = read_ui16 ch in
@@ -485,9 +658,9 @@ let rec parse_tag ch =
 		| 0x2D ->
 			TSoundStreamHead2 (nread ch len)		
 		| 0x2E ->
-			TMorphShape (nread ch len)
+			TMorphShape (parse_morph_shape ch len)
 		| 0x30 ->
-			TFont2 (nread ch len)
+			TFont2 (parse_font2 ch len)
 		| 0x38 ->
 			let rec loop n =
 				if n = 0 then
@@ -521,18 +694,21 @@ let rec parse_tag ch =
 			TUnknown (id,nread ch len)
 	) in
 	let t = (if extended then
-			TExtended tag
+		TExtended { tid = gen_id(); tdata = tag }
 		else
 			tag)
 	in
 	let len2 = tag_data_length t in
 	if len <> len2 then error (sprintf "Datalen mismatch for tag 0x%.2X (%d != %d)" id len len2);
-	t
+	{
+		tid = gen_id();
+		tdata = t;
+	}
 
 and parse_tag_list ch =
 	let rec loop acc =
 		match parse_tag ch with
-		| TEnd -> List.rev acc
+		| { tdata = TEnd } -> List.rev acc
 		| t -> loop (t :: acc)
 	in
 	loop []
@@ -571,6 +747,7 @@ let rec tag_id = function
 	| TText _ -> 0x0B
 	| TDoAction _ -> 0x0C
 	| TSound _ -> 0x0E
+	| TStartSound _ -> 0x0F
 	| TBitsLossless _ -> 0x14
 	| TBitsJPEG2 _ -> 0x15
 	| TShape2 _ -> 0x16
@@ -590,7 +767,7 @@ let rec tag_id = function
 	| TExport _ -> 0x38
 	| TDoInitAction _ -> 0x3B
 	| TUnknown (id,_) -> id
-	| TExtended t -> tag_id t
+	| TExtended t -> tag_id t.tdata
 
 let write_clip_event ch (id,data) =
 	write_event ch id;
@@ -604,34 +781,100 @@ let write_clip_events ch event_list =
 	List.iter (write_clip_event ch) event_list;
 	write_event ch 0
 
+let write_shape ch s =
+	write_ui16 ch s.sh_id;
+	write_rect ch s.sh_bounds;
+	nwrite ch s.sh_data
+
+let write_bitmap ch b =
+	write_ui16 ch b.bmp_id;
+	nwrite ch b.bmp_data
+
+let write_bitmap_lossless ch b =
+	write_ui16 ch b.bll_id;
+	write_byte ch b.bll_format;
+	write_ui16 ch b.bll_width;
+	write_ui16 ch b.bll_height;
+	nwrite ch b.bll_data
+
+let write_morph_shape ch s =
+	write_ui16 ch s.msh_id;
+	write_rect ch s.msh_start_bounds;
+	write_rect ch s.msh_end_bounds;
+	nwrite ch s.msh_data
+
+let write_text ch t =
+	write_ui16 ch t.txt_id;
+	nwrite ch t.txt_data
+
+let write_font2 ch t =
+	write_ui16 ch t.ft2_id;
+	nwrite ch t.ft2_data
+
+let write_button_record ch r =
+	write_byte ch r.btr_flags;
+	write_ui16 ch r.btr_cid;
+	write_ui16 ch r.btr_depth;
+	write_matrix ch r.btr_mpos;
+	match r.btr_color with
+	| None -> ()
+	| Some c -> 
+		write_cxa ch c
+
+let write_button_actions ch = function
+	| [] -> assert false
+	| [a] ->
+		write_ui16 ch 0;
+		write_ui16 ch a.bta_flags;
+		write_actions ch a.bta_actions
+	| a :: l ->
+		let size = button_action_length a in
+		write_ui16 ch size;
+		write_ui16 ch a.bta_flags;
+		write_actions ch a.bta_actions
+
+let write_button2 ch b =
+	write_ui16 ch b.bt2_id;
+	write_byte ch (if b.bt2_track_as_menu then 1 else 0);
+	if b.bt2_actions <> [] then write_ui16 ch (3 + sum button_record_length b.bt2_records) else write_ui16 ch 0;
+	List.iter (write_button_record ch) b.bt2_records;
+	write_byte ch 0;	
+	if b.bt2_actions <> [] then write_button_actions ch b.bt2_actions	
+
 let rec write_tag_data ch = function
 	| TEnd ->
 		()		
 	| TShowFrame ->
 		()
-	| TShape data ->
-		nwrite ch data
+	| TShape s ->
+		write_shape ch s
 	| TRemoveObject (cid,depth) ->
 		write_ui16 ch cid;
 		write_ui16 ch depth;
-	| TBitsJPEG data ->
-		nwrite ch data
+	| TBitsJPEG b ->
+		write_bitmap ch b
 	| TJPEGTables tab ->
 		nwrite ch tab
 	| TSetBgColor c ->
 		write_rgb ch c
-	| TText data ->
-		nwrite ch data
+	| TText t ->
+		write_text ch t
 	| TDoAction acts ->
 		write_actions ch acts
-	| TSound data ->
-		nwrite ch data
-	| TBitsLossless data ->
-		nwrite ch data
-	| TBitsJPEG2 data ->
-		nwrite ch data
-	| TShape2 data ->
-		nwrite ch data
+	| TSound s ->
+		write_ui16 ch s.so_id;
+		write_byte ch s.so_flags;
+		write_i32 ch s.so_samples;
+		nwrite ch s.so_data
+	| TStartSound s ->
+		write_ui16 ch s.sts_id;
+		nwrite ch s.sts_data
+	| TBitsLossless b ->
+		write_bitmap_lossless ch b
+	| TBitsJPEG2 b ->
+		write_bitmap ch b
+	| TShape2 s ->
+		write_shape ch s
 	| TProtect -> 
 		()
 	| TPlaceObject2 p ->
@@ -655,29 +898,32 @@ let rec write_tag_data ch = function
 		opt (write_clip_events ch) p.po_events;
 	| TRemoveObject2 depth ->
 		write_ui16 ch depth;
-	| TShape3 data -> 
-		nwrite ch data
-	| TButton2 data ->
-		nwrite ch data
-	| TBitsJPEG3 data ->
-		nwrite ch data
-	| TBitsLossless2 data ->
-		nwrite ch data
-	| TEditText data ->
-		nwrite ch data
+	| TShape3 s -> 
+		write_shape ch s
+	| TButton2 b ->
+		write_button2 ch b
+	| TBitsJPEG3 b ->
+		write_ui16 ch b.jp3_id;
+		write_i32 ch (String.length b.jp3_data);
+		nwrite ch b.jp3_data;
+		nwrite ch b.jp3_alpha_data;
+	| TBitsLossless2 b ->
+		write_bitmap_lossless ch b
+	| TEditText t ->
+		write_text ch t
 	| TClip c ->
 		write_ui16 ch c.c_id;
 		write_ui16 ch c.c_frame_count;
 		List.iter (write_tag ch) c.c_tags;
-		write_tag ch TEnd
+		write_tag ch tag_end;
 	| TFrameLabel label ->
 		write_string ch label
 	| TSoundStreamHead2 data ->
 		nwrite ch data
-	| TMorphShape data ->
-		nwrite ch data
-	| TFont2 data ->
-		nwrite ch data
+	| TMorphShape s ->
+		write_morph_shape ch s
+	| TFont2 f ->
+		write_font2 ch f
 	| TExport el ->
 		write_ui16 ch (List.length el);
 		List.iter (fun e ->
@@ -690,26 +936,26 @@ let rec write_tag_data ch = function
 	| TUnknown (_,data) ->
 		nwrite ch data
 	| TExtended t ->
-		write_tag_data ch t
+		write_tag_data ch t.tdata
 
 and write_tag ch t =
-	let id = tag_id t in
-	let dlen = tag_data_length t in
-	let extended = (match t with TExtended _ -> true | _ -> dlen >= 63) in
+	let id = tag_id t.tdata in
+	let dlen = tag_data_length t.tdata in
+	let extended = (match t.tdata with TExtended _ -> true | _ -> dlen >= 63) in
 	if extended then begin
 		write_ui16 ch ((id lsl 6) lor 63);
 		write_i32 ch dlen;
 	end else begin
 		write_ui16 ch ((id lsl 6) lor dlen);
 	end;
-	write_tag_data ch t
+	write_tag_data ch t.tdata
 
 let write ch (h,tags) =
 	swf_version := h.h_version;
 	nwrite ch (if h.h_compressed then "CWS" else "FWS");
 	write ch (char_of_int h.h_version);
 	let rec calc_len = function
-		| [] -> tag_length TEnd
+		| [] -> tag_length tag_end
 		| t :: l -> 
 			tag_length t + calc_len l
 	in
@@ -724,7 +970,7 @@ let write ch (h,tags) =
 	write_ui16 ch h.h_frame_count;
 	exact_match := old_exact_match;
 	List.iter (write_tag ch) tags;
-	write_tag ch TEnd;
+	write_tag ch tag_end;
 	flush ch
 
 ;;

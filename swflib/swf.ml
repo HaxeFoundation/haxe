@@ -221,37 +221,117 @@ type do_init_action = {
 	dia_actions : actions;
 }
 
-type tag =
+type sound = {
+	so_id : int;
+	so_flags : int;
+	so_samples : int;
+	so_data : unknown;
+}
+
+type start_sound = {
+	sts_id : int;
+	sts_data : unknown;
+}
+
+type shape = {
+	sh_id : int;
+	sh_bounds : rect;
+	sh_data : unknown;
+}
+
+type bitmap = {
+	bmp_id : int;
+	bmp_data : string;
+}
+
+type bitmap_jpg3 = {
+	jp3_id : int;
+	jp3_data : string;
+	jp3_alpha_data : string;
+}
+
+type bitmap_lossless = {
+	bll_id : int;
+	bll_format : int;
+	bll_width : int;
+	bll_height : int;
+	bll_data : unknown;
+}
+
+type morph_shape = {
+	msh_id : int;
+	msh_start_bounds : rect;
+	msh_end_bounds : rect;
+	msh_data : unknown;
+}
+
+type font2 = {
+	ft2_id : int;
+	ft2_data : unknown;
+}
+
+type text = {
+	txt_id : int;
+	txt_data : unknown;
+}
+
+type button_record = {
+	btr_flags : int;
+	btr_cid : int;
+	btr_depth : int;
+	btr_mpos : matrix;
+	btr_color : color_transform_alpha option;
+}
+
+type button_action = {
+	bta_flags : int;
+	bta_actions : actions;
+}
+
+type button2 = {
+	bt2_id : int;
+	bt2_track_as_menu : bool;
+	bt2_records : button_record list;
+	bt2_actions : button_action list;
+}
+
+type tag_data =
 	| TEnd
 	| TShowFrame
-	| TShape of unknown
+	| TShape of shape
 	| TRemoveObject of int * int
-	| TBitsJPEG of unknown
+	| TBitsJPEG of bitmap
 	| TJPEGTables of string
 	| TSetBgColor of rgb
-	| TText of unknown
+	| TText of text
 	| TDoAction of actions
-	| TSound of unknown
-	| TBitsLossless of unknown
-	| TBitsJPEG2 of unknown
-	| TShape2 of unknown
+	| TSound of sound
+	| TStartSound of start_sound
+	| TBitsLossless of bitmap_lossless
+	| TBitsJPEG2 of bitmap
+	| TShape2 of shape
 	| TProtect
 	| TPlaceObject2 of place_object2
 	| TRemoveObject2 of int
-	| TShape3 of unknown
-	| TButton2 of unknown
-	| TBitsJPEG3 of unknown
-	| TBitsLossless2 of unknown
-	| TEditText of unknown
+	| TShape3 of shape
+	| TButton2 of button2
+	| TBitsJPEG3 of bitmap_jpg3
+	| TBitsLossless2 of bitmap_lossless
+	| TEditText of text
 	| TClip of clip
 	| TFrameLabel of string
 	| TSoundStreamHead2 of unknown
-	| TMorphShape of unknown
-	| TFont2 of unknown
+	| TMorphShape of morph_shape
+	| TFont2 of font2
 	| TExport of export list
 	| TDoInitAction of do_init_action
 	| TUnknown of int * unknown
 	| TExtended of tag
+
+and tag = {
+	tid : int;
+	tdata : tag_data;
+}
 
 and clip_event = int * unknown
 
