@@ -136,7 +136,7 @@ let short_op_codes = begin
 	0x67 => (AGreater,"GT");
 	0x68 => (AStringGreater,"STRGT");
 	0x69 => (AExtends,"EXTENDS");
-	0x0E => (ACallFrame,"CALLFRAME"); (* special case *)
+	0x9E => (ACallFrame,"CALLFRAME"); (* special case *)
 
 end
 
@@ -373,6 +373,8 @@ let parse_action ch =
 			AFunction (parse_function_decl ch)
 		| 0x9D ->
 			ACondJump (read_i16 ch)
+		| 0x9E ->
+			ACallFrame
 		| 0x9F ->
 			let flags = read_byte ch in
 			let play = flags land 1 <> 0 in
