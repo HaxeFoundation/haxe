@@ -1133,7 +1133,7 @@ let write_button_record ch r =
 	| Some c -> 
 		write_cxa ch c
 
-let write_button_actions ch = function
+let rec write_button_actions ch = function
 	| [] -> assert false
 	| [a] ->
 		write_ui16 ch 0;
@@ -1143,7 +1143,8 @@ let write_button_actions ch = function
 		let size = button_action_length a in
 		write_ui16 ch size;
 		write_ui16 ch a.bta_flags;
-		write_actions ch a.bta_actions
+		write_actions ch a.bta_actions;
+		write_button_actions ch l
 
 let write_button2 ch b =
 	write_ui16 ch b.bt2_id;
