@@ -489,23 +489,23 @@ and clip = {
 
 type swf = header * tag list
 
-let __deflate = ref (fun (_:unit IO.stdout) -> assert false)
+let __deflate = ref (fun (_:unit IO.output) -> assert false)
 let __inflate = ref (fun _ -> assert false)
 let __parser = ref (fun _ -> assert false)
-let __printer = ref (fun (_:unit IO.stdout) _ -> ())
+let __printer = ref (fun (_:unit IO.output) _ -> ())
 
 exception Error of string
 
 let error msg = raise (Error msg)
 
-let parse (ch : IO.stdin) =
+let parse (ch : IO.input) =
 	(!__parser ch : swf)
 
-let write (ch : 'a IO.stdout) (data : swf) =
+let write (ch : 'a IO.output) (data : swf) =
 	!__printer (Obj.magic ch) data
 
-let deflate (ch : 'a IO.stdout) =
-	(Obj.magic (!__deflate (Obj.magic ch) : unit IO.stdout) : 'a IO.stdout)
+let deflate (ch : 'a IO.output) =
+	(Obj.magic (!__deflate (Obj.magic ch) : unit IO.output) : 'a IO.output)
 
-let inflate (ch : IO.stdin) =
-	(!__inflate ch : IO.stdin)
+let inflate (ch : IO.input) =
+	(!__inflate ch : IO.input)
