@@ -1,6 +1,6 @@
 ZLIB = zlib.lib
 CFLAGS =
-LIBS = -cclib $(ZLIB) -cclib extc_stubs
+LIBS = -cclib $(ZLIB) -cclib extc_stubs.obj
 
 all: bytecode native
 
