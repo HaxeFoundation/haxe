@@ -434,7 +434,10 @@ and dtd_item = parse
 
 and dtd_attributes = parse
 	| '>'
-		{ [] }
+		{
+			ignore_spaces lexbuf;
+			[]
+		}
 	| ""
 		{
 			let attrname = (try ident_name lexbuf with Error EIdentExpected -> raise (DTDError EInvalidDTDAttribute)) in
