@@ -1,9 +1,3 @@
-type 'a bits = {
-	mutable b_data : int;
-	mutable b_count : int;
-	b_ch : 'a;
-}
-
 type float16 = int
 
 type unknown = string
@@ -20,6 +14,10 @@ type rgba = {
 	b : int;
 	a : int;
 }
+
+type gradient =
+	| GradientRGB of (int * rgb) list
+	| GradientRGBA of (int * rgba) list
 
 type rect = {
 	rect_nbits : int;
@@ -233,10 +231,29 @@ type start_sound = {
 	sts_data : unknown;
 }
 
+type sfs_bitmap = {
+	sfb_repeat : bool;
+	sfb_smooth : bool;
+	mutable sfb_cid : int;
+	sfb_mpos : matrix;
+}
+
+type shape_fill_style = 
+	| SFSSolid of rgb
+	| SFSSolid3 of rgba
+	| SFSLinearGradient of matrix * gradient
+	| SFSRadialGradient of matrix * gradient
+	| SFSBitmap of sfs_bitmap
+
+type shape_with_style = {
+	sws_fill_styles : shape_fill_style list;
+	sws_data : unknown;
+}
+
 type shape = {
 	mutable sh_id : int;
 	sh_bounds : rect;
-	sh_data : unknown;
+	sh_style : shape_with_style;
 }
 
 type bitmap = {
@@ -333,7 +350,7 @@ type tag_data =
 	| TUnknown of int * unknown
 
 and tag = {
-	tid : int;
+	mutable tid : int;
 	textended : bool;
 	tdata : tag_data;
 }

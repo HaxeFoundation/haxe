@@ -1,10 +1,15 @@
 open Swf
 open ActionScript
 open IO
-open Printf
 
 (* ************************************************************************ *)
 (* TOOLS *)
+
+type 'a bits = {
+	mutable b_data : int;
+	mutable b_count : int;
+	b_ch : 'a;
+}
 
 let swf_version = ref 0
 let id_count = ref 0
@@ -92,10 +97,16 @@ let matrix_part_nbits m =
 
 let rgb_length = 3
 
+let rgba_length = 4
+
 let rect_length r =
 	let nbits = rect_nbits r in
 	let nbits = nbits * 4 + 5 in
 	(nbits + 7) / 8
+
+let gradient_length = function
+	| GradientRGB l -> 1 + (1 + rgb_length) * List.length l
+	| GradientRGBA l -> 1 + (1 + rgba_length) * List.length l
 
 let matrix_length m =
 	let matrix_part_len m = 5 + matrix_part_nbits m * 2 in
@@ -119,8 +130,23 @@ let export_length e =
 let sound_length s =
 	2 + 1 + 4 + String.length s.so_data
 
+let shape_fill_style_length s =
+	1 + match s with
+	| SFSSolid _ -> rgb_length
+	| SFSSolid3 _ -> rgba_length
+	| SFSLinearGradient (m,g)
+	| SFSRadialGradient (m,g) -> matrix_length m + gradient_length g
+	| SFSBitmap b -> 2 + matrix_length b.sfb_mpos
+
+let shape_fill_styles_length s =
+	let n = List.length s in
+	(if n < 0xFF then 1 else 3) + sum shape_fill_style_length s
+
+let shape_with_style_length s =
+	shape_fill_styles_length s.sws_fill_styles + String.length s.sws_data
+
 let shape_length s =
-	2 + rect_length s.sh_bounds + String.length s.sh_data
+	2 + rect_length s.sh_bounds + shape_with_style_length s.sh_style
 
 let bitmap_length b =
 	2 + String.length b.bmp_data
@@ -249,6 +275,18 @@ let rec read_bits b n =
 		read_bits b n
 	end
 
+let read_rgba ch =
+	let r = read_byte ch in
+	let g = read_byte ch in
+	let b = read_byte ch in
+	let a = read_byte ch in
+	{
+		r = r;
+		g = g;
+		b = b;
+		a = a;
+	}
+
 let read_rgb ch =
 	let r = read_byte ch in
 	let g = read_byte ch in
@@ -258,6 +296,29 @@ let read_rgb ch =
 		cg = g;
 		cb = b;
 	}
+
+let read_gradient ch is_rgba =
+	let rec loop_rgb n =
+		if n = 0 then
+			[]
+		else
+			let r = read_byte ch in
+			let c = read_rgb ch in
+			(r, c) :: loop_rgb (n-1)
+	in
+	let rec loop_rgba n =
+		if n = 0 then
+			[]
+		else
+			let r = read_byte ch in
+			let c = read_rgba ch in
+			(r, c) :: loop_rgba (n-1)
+	in
+	let n = read_byte ch in
+	if is_rgba then
+		GradientRGBA (loop_rgba n)
+	else
+		GradientRGB (loop_rgb n)
 
 let read_rect ch =
 	let b = init_bits ch in
@@ -346,6 +407,22 @@ let write_rgb ch c =
 	write_byte ch c.cg;
 	write_byte ch c.cb
 
+let write_rgba ch c =
+	write_byte ch c.r;
+	write_byte ch c.g;
+	write_byte ch c.b;
+	write_byte ch c.a
+
+let write_gradient ch = function
+	| GradientRGB l ->
+		let n = List.length l in
+		write_byte ch n;
+		List.iter (fun (ratio,c) -> write_byte ch ratio; write_rgb ch c) l
+	| GradientRGBA l ->
+		let n = List.length l in
+		write_byte ch n;
+		List.iter (fun (ratio,c) -> write_byte ch ratio; write_rgba ch c) l
+
 let write_rect ch r =
 	let b = init_bits ch in
 	let nbits = rect_nbits r in
@@ -422,14 +499,62 @@ let parse_clip_events ch =
 	in
 	loop()
 
-let parse_shape ch len =
+let parse_shape_fill_style ch is_shape3 =
+	let t = read_byte ch in
+	match t with
+	| 0x00 when is_shape3 -> SFSSolid3 (read_rgba ch)
+	| 0x00 -> SFSSolid (read_rgb ch)
+	| 0x10 -> 
+		let m = read_matrix ch in
+		let g = read_gradient ch is_shape3 in
+		SFSLinearGradient (m,g)
+	| 0x12 ->
+		let m = read_matrix ch in
+		let g = read_gradient ch is_shape3 in
+		SFSRadialGradient (m,g)
+	| 0x40
+	| 0x41
+	| 0x42
+	| 0x43 ->
+		let id = read_ui16 ch in
+		let m = read_matrix ch in
+		SFSBitmap {
+			sfb_repeat = (t = 0x40 || t = 0x42);
+			sfb_smooth = (t = 0x42 || t = 0x43);
+			sfb_cid = id;
+			sfb_mpos = m;
+		}
+	| _ ->
+		assert false
+
+let parse_shape_fill_styles ch is_shape3 =
+	let rec loop n =
+		if n = 0 then
+			[]
+		else
+			let s = parse_shape_fill_style ch is_shape3 in
+			s :: loop (n-1)
+	in
+	let n = (match read_byte ch with 0xFF -> read_ui16 ch | n -> n) in	
+	loop n
+
+let parse_shape_with_style ch len is_shape3 =
+	let fstyles = parse_shape_fill_styles ch is_shape3 in
+	let data = nread ch (len - shape_fill_styles_length fstyles) in
+	{
+		sws_fill_styles = fstyles;
+		sws_data = data;
+	}
+		
+
+let parse_shape ch len is_shape3 =
 	let id = read_ui16 ch in
 	let bounds = read_rect ch in
-	let data = nread ch (len - 2 - rect_length bounds) in
+	let style = parse_shape_with_style ch (len - 2 - rect_length bounds) is_shape3 in
 	{
 		sh_id = id;
 		sh_bounds = bounds;
-		sh_data = data;
+		sh_style = style;
 	}
 
 let parse_bitmap ch len =
@@ -520,14 +645,12 @@ let parse_button2 ch len =
 	let offset = read_ui16 ch in	
 	let records = parse_button_records ch true in
 	let actions = (if offset = 0 then [] else parse_button_actions ch) in
-	let bt2 = {
+	{
 		bt2_id = id;
 		bt2_track_as_menu = track;
 		bt2_records = records;
 		bt2_actions = actions;
-	} in	
-	if button2_length bt2 <> len then failwith (sprintf "Error in Button2 %d(%d,%d) => %d(%d,%d)" len offset (len-offset-5) (button2_length bt2) (2 + 1 + sum button_record_length records) (2 + sum button_action_length actions));
-	bt2
+	}
 
 let rec parse_tag ch =
 	let h = read_ui16 ch in
@@ -547,7 +670,7 @@ let rec parse_tag ch =
 		| 0x01 ->
 			TShowFrame
 		| 0x02 ->
-			TShape (parse_shape ch len)
+			TShape (parse_shape ch len false)
 		(*//0x04 TPlaceObject *)
 		| 0x05 ->
 			let cid = read_ui16 ch in
@@ -595,7 +718,7 @@ let rec parse_tag ch =
 		| 0x15 ->
 			TBitsJPEG2 (parse_bitmap ch len)
 		| 0x16 ->
-			TShape2 (parse_shape ch len)
+			TShape2 (parse_shape ch len false)
 		(*//0x17 TButtonCXForm *)
 		| 0x18 ->
 			TProtect
@@ -625,7 +748,7 @@ let rec parse_tag ch =
 			let depth = read_ui16 ch in
 			TRemoveObject2 depth
 		| 0x20 ->
-			TShape3 (parse_shape ch len)
+			TShape3 (parse_shape ch len true)
 		(*//0x21 TText2 *)
 		| 0x22 ->
 			TButton2 (parse_button2 ch len)
@@ -690,11 +813,11 @@ let rec parse_tag ch =
 		(*// 0x41 TScriptLimits *)
 		(*// 0x42 TSetTabIndex *)
 		| _ ->
-			printf "Unknown tag 0x%.2X\n" id;
+			Printf.printf "Unknown tag 0x%.2X\n" id;
 			TUnknown (id,nread ch len)
 	) in
 	let len2 = tag_data_length t in
-	if len <> len2 then error (sprintf "Datalen mismatch for tag 0x%.2X (%d != %d)" id len len2);
+(*//	if len <> len2 then error (sprintf "Datalen mismatch for tag 0x%.2X (%d != %d)" id len len2); *)
 	{
 		tid = gen_id();
 		tdata = t;
@@ -776,10 +899,48 @@ let write_clip_events ch event_list =
 	List.iter (write_clip_event ch) event_list;
 	write_event ch 0
 
+let write_shape_fill_style ch s =
+	match s with
+	| SFSSolid c -> 
+		write_byte ch 0x00;
+		write_rgb ch c
+	| SFSSolid3 c ->
+		write_byte ch 0x00;
+		write_rgba ch c
+	| SFSLinearGradient (m,g) ->
+		write_byte ch 0x10;
+		write_matrix ch m;
+		write_gradient ch g
+	| SFSRadialGradient (m,g) ->
+		write_byte ch 0x12;
+		write_matrix ch m;
+		write_gradient ch g
+	| SFSBitmap b ->
+		write_byte ch (match b.sfb_repeat , b.sfb_smooth with
+			| true, false -> 0x40
+			| false , false -> 0x41
+			| true , true -> 0x42
+			| false, true -> 0x43);
+		write_ui16 ch b.sfb_cid;
+		write_matrix ch b.sfb_mpos
+
+let write_shape_fill_styles ch sl =
+	let n = List.length sl in
+	if n >= 0xFF then begin
+		write_byte ch 0xFF;
+		write_ui16 ch n;
+	end else
+		write_byte ch n;
+	List.iter (write_shape_fill_style ch) sl
+
+let write_shape_with_style ch s =
+	write_shape_fill_styles ch s.sws_fill_styles;
+	nwrite ch s.sws_data
+
 let write_shape ch s =
 	write_ui16 ch s.sh_id;
 	write_rect ch s.sh_bounds;
-	nwrite ch s.sh_data
+	write_shape_with_style ch s.sh_style
 
 let write_bitmap ch b =
 	write_ui16 ch b.bmp_id;
