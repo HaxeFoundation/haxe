@@ -28,24 +28,27 @@ let parse data =
 ;;
 let buf = ref "" in
 print_endline "Please enter some XML data followed (press return twice to parse) :";
-while true do
-	match read_line() with
-	| "" when !buf <> "" ->
-		let data = !buf in
-		buf := "";
-		(try
-			let x = parse data in
-			print_endline "Parsing...";
-			print_endline (Xml.to_string_fmt x);
-		with
-			| Xml.Error msg as e ->
-				Printf.printf "Xml error : %s\n" (Xml.error msg)
-			| Dtd.Parse_error msg as e ->
-				Printf.printf "Dtd parse error : %s\n" (Dtd.parse_error msg)
-			| Dtd.Check_error msg as e ->
-				Printf.printf "Dtd check error : %s\n" (Dtd.check_error msg)
-			| Dtd.Prove_error msg as e ->
-				Printf.printf "Dtd prove error : %s\n" (Dtd.prove_error msg))
-	| s -> 
-		buf := !buf ^ s ^ "\n"
-done
+try
+	while true do
+		match read_line() with
+		| "" when !buf <> "" ->
+			let data = !buf in
+			buf := "";
+			(try
+				let x = parse data in
+				print_endline "Parsing...";
+				print_endline (Xml.to_string_fmt x);
+			with
+				| Xml.Error msg as e ->
+					Printf.printf "Xml error : %s\n" (Xml.error msg)
+				| Dtd.Parse_error msg as e ->
+					Printf.printf "Dtd parse error : %s\n" (Dtd.parse_error msg)
+				| Dtd.Check_error msg as e ->
+					Printf.printf "Dtd check error : %s\n" (Dtd.check_error msg)
+				| Dtd.Prove_error msg as e ->
+					Printf.printf "Dtd prove error : %s\n" (Dtd.prove_error msg))
+		| s -> 
+			buf := !buf ^ s ^ "\n"
+	done
+with
+	End_of_file -> print_endline "Exit."
