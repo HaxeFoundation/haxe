@@ -3,7 +3,7 @@
 <center><b><font color="#000099" size="+2">OCamake</font></b></center>
 <br>
 <font color="#777777">
-	OCamake - Copyright (c)2002 by the author : Nicolas Cannasse, and his current company : Motion Twin.<br>
+	OCamake - Copyright (c)2002-2003 Nicolas Cannasse & Motion Twin.<br>
 	The last version of this software can be found at : <a href="http://tech.motion-twin.com">http://tech.motion-twin.com</a><br><br>
 	This software is provided "AS IS" without any warranty of any kind, merchantability or fitness for a particular purpose. You should use it at your own risks, as the author and his company won't be responsible for any problem that the usage of this software could raise.
 </font>
@@ -54,29 +54,29 @@ Once the final file list is made, OCamake run <code>ocamldep</code> to build mod
 Only modified sources files or files with one dependency modified are rebuilt.<br>
 <br>
 If one <code>dsp</code> file has been found or if the <code>-epp</code> flag has been set, then all compilation errors are processed by OCamake to transform them into a Visual Studio compatible format.<br>
-If one <code>dsp</code> file has been fonud or if the <code>-cpp</code> flag has been set, the character ranges in Ocaml errors are replaced by the corresponding expression found in the source file.
+If one <code>dsp</code> file has been found or if the <code>-cpp</code> flag has been set, the character ranges in Ocaml errors are replaced by the corresponding expression found in the source file.
 <br>
 <br>
 <li><b><font color="#000099">Options:</font></b><br>
 <br>
 The following command-line options are available :
 <ul>
-	<li><code>-clean</code> : delete all the intermediate and ouput files for the target build
-	<li><code>-mak</code> : generate a <code>Makefile</code> for this project<br>
-	<i><font size="-1">Note : some problems with GNU Make can occur in complex project built</font></i>
-	<li><code>-opt</code> : turn on native compilation
-	<li><code>-a</code> : build a library (<code>cma, cmxa</code>)
-	<li><code>-o &lt;output&gt;</code> : set the output file for the project
-	<li><code>-all</code> : rebuild the entire project
-	<li><code>-cpp</code> : convert characters range in errors to file expression
-	<li><code>-epp</code> : use MSVC error messages format
-	<li><code>-g</code> : compile and link in debug mode
-	<li><code>-pp &lt;command&gt;</code> : pipe source through preprocessor
+	<li><code>-clean</code> : delete all the intermediate and ouput files for the target build.
+	<li><code>-mak</code> : generate a <code>Makefile</code> for this project (<i>still experimental</i>).
+	<li><code>-opt</code> : turn on native compilation.
+	<li><code>-a</code> : build a library (<code>cma or cmxa</code>).
+	<li><code>-o &lt;output&gt;</code> : set the output file for the project.
+	<li><code>-all</code> : rebuild the entire project.
+	<li><code>-cpp</code> : convert characters range in errors to file expression.
+	<li><code>-epp</code> : use MSVC error messages format.
+	<li><code>-g</code> : compile and link in debug mode.
+	<li><code>-pp &lt;command&gt;</code> : pipe source through preprocessor.
 	<li><code>-cp &lt;flag&gt;</code> : add this flag to the compiler command line paramaters.
-	<li><code>-lp &lt;flag&gt;</code> : add this flag to the linker command line paramaters
-	<li><code>-I &lt;path&gt;</code> : add the path to the list of include directories
+	<li><code>-lp &lt;flag&gt;</code> : add this flag to the linker command line paramaters.
+	<li><code>-I &lt;path&gt;</code> : add the path to the list of include directories.
 	<li><code>-n &lt;file&gt;</code> : remove that file from the file list : this can be useful when you want to have all the files but one (<code>ocamake -n myfile.ml *.ml *.mli</code>).
 	<li><code>-v</code> : verbose mode - this print all the commands that ocamake is running in order to build the project.
+	<li><code>-P &lt;file&gt;</code> : add priority to a given file when having cycle between modules.
 </ul>
 <br>
 <li><b><font color="#000099">Licence:</font></b><br>
