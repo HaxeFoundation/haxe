@@ -505,7 +505,7 @@ let rec get_output_file islib cm =
 try
 
 let usage =
-	"OCAMAKE v1.31 - Copyright (C)2002-2003 Nicolas Cannasse"
+	"OCAMAKE v1.4 - Copyright (C)2002-2005 Nicolas Cannasse"
 	^"\r\nLast version : http://tech.motion-twin.com" in
 let compile_mode = ref CM_DEFAULT in
 let compile_cma = ref false in
