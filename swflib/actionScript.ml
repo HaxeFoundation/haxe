@@ -187,7 +187,7 @@ let action_data_length = function
 
 let action_length a = 
 	let len = (if action_id a >= 0x80 then 3 else 1) in
-	len + action_data_length a + (match a with AWith (s,_) -> String.length s + 1 | _ -> 0)
+	len + action_data_length a
 
 let actions_length acts =
 	DynArray.fold_left (fun acc a -> acc + action_length a) (action_length AEnd) acts
@@ -287,8 +287,7 @@ let parse_action ch =
 			AFunction2 (parse_function_decl2 ch)
 		| 0x94 ->
 			let size = read_ui16 ch in
-			let eval = read_string ch in
-			AWith (eval,size)
+			AWith size
 		| 0x96 ->
 			APush (parse_push_items ch len)
 		| 0x99 ->
@@ -318,11 +317,15 @@ let parse_action ch =
 
 let size_to_jump_index acts curindex size =
 	let delta = ref 0 in
-	let size = ref size in
+	prerr_endline (" AT " ^ string_of_int curindex ^ " SIZE " ^ string_of_int size );
+	let log = (size = 3772) in
+	let size = ref size in	
 	if !size >= 0 then begin
 		while !size > 0 do
 			incr delta;
-			size := !size - action_length (DynArray.get acts (curindex + !delta));
+			let a = DynArray.get acts (curindex + !delta) in
+				if log then Printf.eprintf "0x%.8X (indx : %d , id : %X, size : %d)\n" (0x42E + (3772 - !size)) (curindex + !delta) (action_id a) (action_length a);
+			size := !size - action_length a;
 			if !size < 0 then error "Unaligned code";
 		done;		
 	end else begin
@@ -358,9 +361,9 @@ let parse_actions ch =
 		| AFunction2 f ->
 			let index = size_to_jump_index acts curindex f.f2_codelen in
 			DynArray.set acts curindex (AFunction2 { f with f2_codelen = index })
-		| AWith (eval,size) ->
+		| AWith size ->
 			let index = size_to_jump_index acts curindex size in
-			DynArray.set acts curindex (AWith (eval,index))
+			DynArray.set acts curindex (AWith index)
 		| _ ->
 			()
 	in
@@ -429,10 +432,9 @@ let write_action_data acts curindex ch = function
 		) f.f2_args;
 		let size = jump_index_to_size acts curindex f.f2_codelen in
 		write_ui16 ch size;
-	| AWith (eval,target) ->
+	| AWith target ->
 		let size = jump_index_to_size acts curindex target in
-		write_ui16 ch size;
-		write_string ch eval;
+		write_ui16 ch size		
 	| APush items ->
 		List.iter (fun item ->
 			write_byte ch (push_item_id item);

@@ -193,7 +193,7 @@ type action =
 	| AWaitForFrame2 of int
 	| AFunction2 of function_decl2
 	| APush of push_item list
-	| AWith of string * int
+	| AWith of int
 	| AJump of int
 	| AGetURL2 of int
 	| AFunction of function_decl
