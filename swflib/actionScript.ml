@@ -29,101 +29,103 @@ let push_item_id = function
 
 let opcodes = Hashtbl.create 0
 let opcodes_rev = Hashtbl.create 0
+let opcodes_names = Hashtbl.create 0
 
-let ( => ) code op =
+let ( => ) code (op,name) =
 	Hashtbl.add opcodes op code;
-	Hashtbl.add opcodes_rev code op
+	Hashtbl.add opcodes_rev code op;
+	Hashtbl.add opcodes_names op name
 
 let short_op_codes = begin
-	0x00 => AEnd;
-	0x04 => ANextFrame;
-	0x05 => APrefFrame;
-	0x06 => APlay;
-	0x07 => AStop;
-	0x08 => AToggleHighQuality;
-	0x09 => AStopSounds;
-	0x0A => AAdd;
-	0x0B => ASubtract;
-	0x0C => AMultiply;
-	0x0D => ADivide;
-	0x0E => ACompare;
-	0x0F => ANumberEqual;
-	0x10 => ALogicalAnd;
-	0x11 => ALogicalOr;
-	0x12 => ANot;
-	0x13 => AStringEqual;
-	0x14 => AStringLength;
-	0x15 => ASubString;
-	0x17 => APop;
-	0x18 => AToInt;
-	0x1C => AEval;
-	0x1D => ASet;
-	0x20 => ATellTarget;
-	0x21 => AStringAdd;
-	0x22 => AGetProperty;
-	0x23 => ASetProperty;
-	0x24 => ADuplicateMC;
-	0x25 => ARemoveMC;
-	0x26 => ATrace;
-	0x27 => AStartDrag;
-	0x28 => AStopDrag;
-	0x2A => AThrow;
-	0x2B => ACast;
-	0x2C => AImplement;
-	0x30 => ARandom;
-	0x31 => AMBStringLength;
-	0x32 => AOrd;
-	0x33 => AChr;
-	0x34 => AGetTimer;
-	0x35 => AMBStringSub;
-	0x36 => AMBOrd;
-	0x37 => AMBChr;
-	0x3A => ADeleteObj;
-	0x3B => ADelete;
-	0x3C => ALocalVar;
-	0x3D => ACall;
-	0x3E => AReturn;
-	0x3F => AMod;
-	0x40 => ANew;
-	0x41 => ALocalAssign;
-	0x42 => AInitArray;
-	0x43 => AObject;
-	0x44 => ATypeOf;
-	0x45 => ATargetPath;
-	0x46 => AEnum;
-	0x47 => AAdd2;
-	0x48 => ACompare2;
-	0x49 => AEqual;
-	0x4A => AToNumber;
-	0x4B => AToString;
-	0x4C => ADup;
-	0x4D => ASwap;
-	0x4E => AObjGet;
-	0x4F => AObjSet;
-	0x50 => AIncrement;
-	0x51 => ADecrement;
-	0x52 => AObjCall;
-	0x53 => ANewMethod;
-	0x54 => AInstanceOf;
-	0x55 => AEnum2;
-	0x60 => AAnd;
-	0x61 => AOr;
-	0x62 => AXor;
-	0x63 => AShl;
-	0x64 => AShr;
-	0x65 => AAsr;
-	0x66 => APhysEqual;
-	0x67 => AGreater;
-	0x68 => AStringGreater;
-	0x69 => AExtends;
-	0x0E => ACallFrame; (* special case *)
+	0x00 => (AEnd,"END");
+	0x04 => (ANextFrame,"NEXTFRAME");
+	0x05 => (APrevFrame,"PREVFRAME");
+	0x06 => (APlay,"PLAY");
+	0x07 => (AStop,"STOP");
+	0x08 => (AToggleHighQuality,"TGLHIGHQULTY");
+	0x09 => (AStopSounds,"STOPSOUNDS");
+	0x0A => (AAdd,"ADD");
+	0x0B => (ASubtract,"SUB");
+	0x0C => (AMultiply,"MULT");
+	0x0D => (ADivide,"DIV");
+	0x0E => (ACompare,"CMP");
+	0x0F => (ANumberEqual,"NUMEQ");
+	0x10 => (ALogicalAnd,"LAND");
+	0x11 => (ALogicalOr,"LOR");
+	0x12 => (ANot,"NOT");
+	0x13 => (AStringEqual,"STREQ");
+	0x14 => (AStringLength,"STRLEN");
+	0x15 => (ASubString,"SUBSTR");
+	0x17 => (APop,"POP");
+	0x18 => (AToInt,"TOINT");
+	0x1C => (AEval,"EVAL");
+	0x1D => (ASet,"SET");
+	0x20 => (ATellTarget,"TELLTARGET");
+	0x21 => (AStringAdd,"STRADD");
+	0x22 => (AGetProperty,"GETPROP");
+	0x23 => (ASetProperty,"SETPROP");
+	0x24 => (ADuplicateMC,"DUPLICATEMC");
+	0x25 => (ARemoveMC,"REMOVEMC");
+	0x26 => (ATrace,"TRACE");
+	0x27 => (AStartDrag,"STARTDRAG");
+	0x28 => (AStopDrag,"STOPDRAG");
+	0x2A => (AThrow,"THROW");
+	0x2B => (ACast,"CAST");
+	0x2C => (AImplements,"IMPLEMENTS");
+	0x30 => (ARandom,"RANDOM");
+	0x31 => (AMBStringLength,"MBSTRLEN");
+	0x32 => (AOrd,"ORD");
+	0x33 => (AChr,"CHR");
+	0x34 => (AGetTimer,"GETTIMER");
+	0x35 => (AMBStringSub,"MBSTRSUB");
+	0x36 => (AMBOrd,"MBORD");
+	0x37 => (AMBChr,"MBCHR");
+	0x3A => (ADeleteObj,"DELETEOBJ");
+	0x3B => (ADelete,"DELETE");
+	0x3C => (ALocalVar,"VAR");
+	0x3D => (ACall,"CALL");
+	0x3E => (AReturn,"RET");
+	0x3F => (AMod,"MOD");
+	0x40 => (ANew,"NEW");
+	0x41 => (ALocalAssign,"VARSET");
+	0x42 => (AInitArray,"ARRAY");
+	0x43 => (AObject,"OBJECT");
+	0x44 => (ATypeOf,"TYPEOF");
+	0x45 => (ATargetPath,"TARGETPATH");
+	0x46 => (AEnum,"ENUM");
+	0x47 => (AAdd2,"ADD2");
+	0x48 => (ACompare2,"CMP2");
+	0x49 => (AEqual,"EQ");
+	0x4A => (AToNumber,"TONUMBER");
+	0x4B => (AToString,"TOSTRING");
+	0x4C => (ADup,"DUP");
+	0x4D => (ASwap,"SWAP");
+	0x4E => (AObjGet,"OBJGET");
+	0x4F => (AObjSet,"OBJSET");
+	0x50 => (AIncrement,"INCR");
+	0x51 => (ADecrement,"DECR");
+	0x52 => (AObjCall,"OBJCALL");
+	0x53 => (ANewMethod,"NEWMETHOD");
+	0x54 => (AInstanceOf,"INSTANCEOF");
+	0x55 => (AEnum2,"ENUM2");
+	0x60 => (AAnd,"AND");
+	0x61 => (AOr,"OR");
+	0x62 => (AXor,"XOR");
+	0x63 => (AShl,"SHL");
+	0x64 => (AShr,"SHR");
+	0x65 => (AAsr,"ASR");
+	0x66 => (APhysEqual,"PHYSEQ");
+	0x67 => (AGreater,"GT");
+	0x68 => (AStringGreater,"STRGT");
+	0x69 => (AExtends,"EXTENDS");
+	0x0E => (ACallFrame,"CALLFRAME"); (* special case *)
 
 end
 
 let action_id = function
 	| AGotoFrame _ -> 0x81
 	| AGetURL _ -> 0x83
-	| APushReg _ -> 0x87
+	| ASetReg _ -> 0x87
 	| AStringPool _ -> 0x88
 	| AWaitForFrame _ -> 0x8A
 	| ASetTarget _ -> 0x8B
@@ -151,7 +153,7 @@ let action_data_length = function
 		2
 	| AGetURL (url,target) ->
 		2 + String.length url + String.length target
-	| APushReg _ ->
+	| ASetReg _ ->
 		1
 	| AStringPool strs ->
 		List.fold_left (fun acc item -> acc + 1 + String.length item) 2 strs
@@ -189,6 +191,8 @@ let action_length a =
 	let len = (if action_id a >= 0x80 then 3 else 1) in
 	len + action_data_length a
 
+let jump_length = action_length (AJump 0)
+
 let actions_length acts =
 	DynArray.fold_left (fun acc a -> acc + action_length a) (action_length AEnd) acts
 
@@ -196,13 +200,13 @@ let parse_push_item ch =
 	let id = read_byte ch in
 	match id with
 	| 0 -> PString (read_string ch)
-	| 1 -> PFloat (nread ch 4)
+	| 1 -> PFloat (read_real_i32 ch)
 	| 2 -> PNull
 	| 3 -> PUndefined
 	| 4 -> PReg (read_byte ch)
 	| 5 -> PBool (read_byte ch <> 0)
-	| 6 -> PDouble (nread ch 8)
-	| 7 -> PInt (nread ch 4)
+	| 6 -> PDouble (read_double ch)
+	| 7 -> PInt (read_real_i32 ch)
 	| 8 -> PStack (read_byte ch)
 	| 9 -> PStack2 (read_ui16 ch)
 	| _ -> error (sprintf "Unknown PUSH item id : %d" id)
@@ -233,11 +237,23 @@ let parse_function_decl ch =
 		f_codelen = clen;
 	}
 
+let parse_f2_flags n =
+	let flags = ref [] in
+	let v = ref 1 in
+	let add_flag f =
+		if n land !v <> 0 then flags := f :: !flags;
+		v := !v lsl 1
+	in
+	List.iter add_flag 
+		[ThisRegister; ThisNoVar; ArgumentsRegister; ArgumentsNoVar; SuperRegister; 
+		 SuperNoVar; RootRegister; ParentRegister; GlobalRegister];
+	!flags
+
 let parse_function_decl2 ch =
 	let name = read_string ch in
 	let nargs = read_ui16 ch in
 	let nregs = read_byte ch in
-	let flags = read_ui16 ch in
+	let flags = parse_f2_flags (read_ui16 ch) in
 	let rec loop n = 
 		if n = 0 then
 			[]
@@ -269,7 +285,7 @@ let parse_action ch =
 			let target = read_string ch in
 			AGetURL (url,target)
 		| 0x87 ->
-			APushReg (read_byte ch)
+			ASetReg (read_byte ch)
 		| 0x88 ->
 			let nstrs = read_ui16 ch in
 			AStringPool (read_strings ch nstrs)
@@ -387,15 +403,29 @@ let rec write_strings ch = function
 
 let write_push_item_data ch = function
 	| PString s -> write_string ch s
-	| PFloat data -> nwrite ch data
+	| PFloat f -> write_real_i32 ch f
 	| PNull -> ()
 	| PUndefined -> ()
 	| PReg r -> write_byte ch r
 	| PBool b -> write_byte ch (if b then 1 else 0)
-	| PDouble data -> nwrite ch data
-	| PInt data -> nwrite ch data
+	| PDouble f -> write_double ch f
+	| PInt n -> write_real_i32 ch n
 	| PStack index -> write_byte ch index
 	| PStack2 index -> write_ui16 ch index
+
+let f2_flags_value flags =
+	let fval = function
+		| ThisRegister -> 1
+		| ThisNoVar -> 2 
+		| ArgumentsRegister -> 4
+		| ArgumentsNoVar -> 8
+		| SuperRegister -> 16
+		| SuperNoVar -> 32
+		| RootRegister -> 64
+		| ParentRegister -> 128
+		| GlobalRegister -> 256
+	in
+	List.fold_left (fun n f -> n lor (fval f)) 0 flags	
 
 let write_action_data acts curindex ch = function
 	| AGotoFrame frame ->
@@ -403,7 +433,7 @@ let write_action_data acts curindex ch = function
 	| AGetURL (url,target) ->
 		write_string ch url;
 		write_string ch target
-	| APushReg reg ->
+	| ASetReg reg ->
 		write_byte ch reg
 	| AStringPool strs ->
 		write_ui16 ch (List.length strs);
@@ -421,7 +451,7 @@ let write_action_data acts curindex ch = function
 		write_string ch f.f2_name;
 		write_ui16 ch (List.length f.f2_args);
 		write_byte ch f.f2_nregs;
-		write_ui16 ch f.f2_flags;
+		write_ui16 ch (f2_flags_value f.f2_flags);
 		List.iter (fun (r,s) ->
 			write_byte ch r;
 			write_string ch s;
@@ -475,3 +505,90 @@ let write_action acts curindex ch a =
 let write_actions ch acts =
 	DynArray.iteri (fun index act -> write_action acts index ch act) acts;
 	write_action acts (DynArray.length acts) ch AEnd
+
+let sprintf = Printf.sprintf
+
+let action_string get_ident pos = function
+	| AGotoFrame n -> sprintf "GOTOFRAME %d" n
+	| AGetURL (a,b) -> sprintf "GETURL '%s' '%s'" a b
+	| ASetReg n -> sprintf "SETREG %d" n
+	| AStringPool strlist -> 
+		let b = Buffer.create 0 in
+		Buffer.add_string b "STRINGS ";
+		let p = ref 0 in
+		List.iter (fun s ->
+			Buffer.add_string b (string_of_int !p);
+			incr p;
+			Buffer.add_char b ':';
+			Buffer.add_string b s;
+			Buffer.add_char b ' ';
+		) strlist;
+		Buffer.contents b
+	| AWaitForFrame (i,j) -> sprintf "WAITFORFRAME %d %d" i j
+	| ASetTarget s -> sprintf "SETTARGET %s" s
+	| AGotoLabel s -> sprintf "GOTOLABEL %s" s
+	| AWaitForFrame2 n -> sprintf "WAITFORFRAME2 %d" n
+	| AFunction2 f ->
+		let b = Buffer.create 0 in
+		Buffer.add_string b "FUNCTION2 ";
+		Buffer.add_string b f.f2_name;
+		Buffer.add_char b '(';
+		Buffer.add_string b (String.concat "," (List.map (fun (n,str) -> sprintf "%d:%s" n str) f.f2_args));
+		Buffer.add_char b ')';
+		Buffer.add_string b (sprintf " nregs:%d flags:%d " f.f2_nregs (f2_flags_value f.f2_flags));
+		Buffer.add_string b (sprintf "0x%.6X" (pos + action_length (AFunction2 f) + f.f2_codelen));
+		Buffer.contents b
+	| APush pl ->
+		let b = Buffer.create 0 in
+		Buffer.add_string b "PUSH";
+		List.iter (fun it ->
+			Buffer.add_char b ' ';
+			match it with
+			| PString s -> 
+				Buffer.add_char b '"';
+				Buffer.add_string b s;
+				Buffer.add_char b '"'
+			| PFloat _ ->
+				Buffer.add_string b "<float>"
+			| PNull ->
+				Buffer.add_string b "null"
+			| PUndefined ->
+				Buffer.add_string b "undefined"
+			| PReg n ->
+				Buffer.add_string b (sprintf "reg:%d" n)
+			| PBool fl ->
+				Buffer.add_string b (if fl then "true" else "false")
+			| PDouble _ ->
+				Buffer.add_string b "<double>"
+			| PInt i ->
+				Buffer.add_string b (Int32.to_string i)
+			| PStack n
+			| PStack2 n ->
+				Buffer.add_char b '[';
+				Buffer.add_string b (string_of_int n);
+				Buffer.add_char b ':';
+				Buffer.add_string b (get_ident n);
+				Buffer.add_char b ']';
+		) pl;
+		Buffer.contents b
+	| AWith n -> sprintf "WITH %d" n
+	| AJump n -> sprintf "JUMP 0x%.6X" (n + pos + action_length (AJump n))
+	| AGetURL2 n -> sprintf "GETURL2 %d" n
+	| AFunction f ->
+		let b = Buffer.create 0 in
+		Buffer.add_string b "FUNCTION ";
+		Buffer.add_string b f.f_name;
+		Buffer.add_char b '(';
+		Buffer.add_string b (String.concat "," f.f_args);
+		Buffer.add_char b ')';
+		Buffer.add_string b (sprintf " 0x%.6X" (pos + action_length (AFunction f) + f.f_codelen));
+		Buffer.contents b
+	| ACondJump n -> sprintf "CJMP 0x%.6X" (n + pos + action_length (ACondJump n))
+	| AGotoFrame2 (b,None) -> sprintf "GOTOFRAME2 %b" b
+	| AGotoFrame2 (b,Some i) -> sprintf "GOTOFRAME2 %b %d" b i
+	| AUnknown (tag,_) -> sprintf "??? 0x%.2X" tag
+	| op ->
+		try
+			Hashtbl.find opcodes_names op
+		with
+			Not_found -> assert false

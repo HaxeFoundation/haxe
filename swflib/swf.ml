@@ -52,26 +52,37 @@ type color_transform_alpha = {
 type function_decl = {
 	f_name : string;
 	f_args : string list;
-	f_codelen : int;
+	mutable f_codelen : int;
 }
+
+type func2_flags =
+	| ThisRegister
+	| ThisNoVar
+	| ArgumentsRegister
+	| ArgumentsNoVar
+	| SuperRegister
+	| SuperNoVar
+	| RootRegister
+	| ParentRegister
+	| GlobalRegister
 
 type function_decl2 = {
 	f2_name : string;
-	f2_nregs : int;
-	f2_flags : int;
+	f2_flags : func2_flags list;
 	f2_args : (int * string) list;
-	f2_codelen : int;
+	mutable f2_nregs : int;
+	mutable f2_codelen : int;
 }
 
 type push_item =
 	| PString of string
-	| PFloat of unknown
+	| PFloat of int32
 	| PNull
 	| PUndefined
 	| PReg of int
 	| PBool of bool
-	| PDouble of unknown
-	| PInt of unknown
+	| PDouble of float
+	| PInt of int32
 	| PStack of int
 	| PStack2 of int
 
@@ -103,7 +114,7 @@ type action =
 	| AEnd
 
 	| ANextFrame
-	| APrefFrame
+	| APrevFrame
 	| APlay
 	| AStop
 	| AToggleHighQuality
@@ -135,7 +146,7 @@ type action =
 	| AStopDrag
 	| AThrow
 	| ACast
-	| AImplement
+	| AImplements
 	| ARandom
 	| AMBStringLength
 	| AOrd
@@ -185,7 +196,7 @@ type action =
 
 	| AGotoFrame of int
 	| AGetURL of string * string
-	| APushReg of int
+	| ASetReg of int
 	| AStringPool of string list
 	| AWaitForFrame of int * int
 	| ASetTarget of string
