@@ -122,7 +122,7 @@ CAMLprim value zlib_inflate_end(value zv) {
 	return Val_unit;
 }
 
-CAMLprim value executable_path(value p) {
+CAMLprim value executable_path(value u) {
 #ifdef _WIN32
 	char path[MAX_PATH];
 	if( GetModuleFileName(NULL,path,MAX_PATH) == 0 )
