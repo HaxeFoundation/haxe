@@ -155,11 +155,18 @@ let shape_records_length records =
 				opt_len (const !nlbits) s.scsr_ls;
 			(match s.scsr_new_styles with
 			| None -> ()
-			| Some s -> nbits := (((!nbits + 7) / 8) + shape_new_styles_length s) * 8)				
+			| Some s -> 
+				nbits := (((!nbits + 7) / 8) + shape_new_styles_length s) * 8;
+				nfbits := s.sns_nfbits;
+				nlbits := s.sns_nlbits)
 		| SRCurvedEdge s ->
 			nbits := !nbits + s.scer_nbits * 4
 		| SRStraightEdge s ->
-			nbits := !nbits + 1 + (match s.sser_line with None , None -> assert false | Some _ , None | None, Some _ -> 1 + s.sser_nbits | Some _ , Some _ -> 2 * s.sser_nbits)
+			nbits := !nbits + 1 + (match s.sser_line with 
+								| None , None -> assert false 
+								| Some _ , None 
+								| None, Some _ -> 1 + s.sser_nbits 
+								| Some _ , Some _ -> 2 * s.sser_nbits)
 	) records.srs_records;
 	nbits := !nbits + 6;
 	(!nbits + 7) / 8
@@ -1080,9 +1087,9 @@ let rec parse_tag ch =
 			Printf.printf "Unknown tag 0x%.2X\n" id;
 			TUnknown (id,nread ch len)
 	) in	
-(*/*let len2 = tag_data_length t in
+(*	let len2 = tag_data_length t in
 	if len <> len2 then error (Printf.sprintf "Datalen mismatch for tag 0x%.2X (%d != %d)" id len len2);
-*/*)	{
+*)	{
 		tid = gen_id();
 		tdata = t;
 		textended = extended;
