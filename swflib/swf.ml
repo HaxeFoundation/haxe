@@ -516,6 +516,13 @@ exception Error of string
 
 let error msg = raise (Error msg)
 
+let to_float16 f =
+	let sign , f = (if f < 0. then true , 0. -. f else false , f) in
+	let high = int_of_float f in
+	let low = int_of_float ((f -. (float high)) *. 256.) in
+	if high > 127 then failwith "to_float16";
+	(high lsl 8) lor (if sign then low lor (1 lsl 15) else low)
+
 let parse (ch : IO.input) =
 	(!__parser ch : swf)
 
