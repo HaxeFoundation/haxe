@@ -91,7 +91,7 @@ and
 			while true do
 				match s.xparser.concat_pcdata , read_node s , !elems with
 				| true , PCData c , (PCData c2) :: q ->
-					elems := PCData (sprintf "%s\n%s" c c2) :: q
+					elems := PCData (sprintf "%s\n%s" c2 c) :: q
 				| _ , x , l ->
 					elems := x :: l
 			done
