@@ -200,16 +200,18 @@ let check dtd =
 	in
 	let check_item = function
 		| DTDAttribute (tag,aname,atype,adef) ->
-			ftodo tag None;
-			fattrib tag aname (atype,adef)
+			let utag = String.uppercase tag in
+			ftodo utag None;
+			fattrib utag (String.uppercase aname) (atype,adef)
 		| DTDElement (tag,etype) ->
-			fdone tag etype;
+			let utag = String.uppercase tag in
+			fdone utag etype;
 			let check_type = function
 				| DTDEmpty -> ()
 				| DTDAny -> ()
 				| DTDChild x ->
 					let rec check_child = function
-						| DTDTag s -> ftodo s (Some tag)
+						| DTDTag s -> ftodo (String.uppercase s) (Some utag)
 						| DTDPCData -> ()
 						| DTDOptional c
 						| DTDZeroOrMore c
@@ -246,7 +248,7 @@ let start_prove dtd root =
 		curtag = "_root";
 	} in
 	try
-		ignore(Hashtbl.find d.elements root);
+		ignore(Hashtbl.find d.elements (String.uppercase root));
 		d
 	with
 		Not_found -> raise (Check_error (ElementNotDeclared root))
@@ -271,7 +273,7 @@ let prove_child dtd tag =
 		| DTDTag s ->
 			(match tag with
 			| None -> DTDNotMatched
-			| Some t when t = s -> DTDMatched
+			| Some t when t = String.uppercase s -> DTDMatched
 			| Some _ -> DTDNotMatched)
 		| DTDPCData ->
 			(match tag with
@@ -365,14 +367,16 @@ let rec do_prove dtd = function
 		prove_child dtd None;
 		PCData s
 	| Element (tag,attr,childs) ->
-		prove_child dtd (Some tag);
+		let utag = String.uppercase tag in
+		let uattr = List.map (fun (aname,aval) -> String.uppercase aname , aval) attr in
+		prove_child dtd (Some utag);
 		Stack.push (dtd.curtag,dtd.current) dtd.state;
-		let elt = (try Hashtbl.find dtd.elements tag with Not_found -> raise (Prove_error (UnexpectedTag tag))) in
-		let ahash = (try Hashtbl.find dtd.attribs tag with Not_found -> empty_hash) in
+		let elt = (try Hashtbl.find dtd.elements utag with Not_found -> raise (Prove_error (UnexpectedTag tag))) in
+		let ahash = (try Hashtbl.find dtd.attribs utag with Not_found -> empty_hash) in
 		dtd.curtag <- tag;
 		dtd.current <- elt;
-		List.iter (check_attrib ahash) attr;
-		let attr = Hashtbl.fold (prove_attrib dtd attr) ahash [] in
+		List.iter (check_attrib ahash) uattr;
+		let attr = Hashtbl.fold (prove_attrib dtd uattr) ahash [] in
 		let childs = ref (List.map (do_prove dtd) childs) in
 		(match dtd.current with
 		| DTDAny

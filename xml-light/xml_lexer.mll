@@ -598,12 +598,17 @@ and dtd_attr_default = parse
 	| "#FIXED"
 		{
 			ignore_spaces lexbuf;
-			DTDFixed (dtd_attr_fixed lexbuf)
+			DTDFixed (dtd_attr_string lexbuf)
+		}
+	| "#DEFAULT"
+		{
+			ignore_spaces lexbuf;
+			DTDDefault (dtd_attr_string lexbuf)
 		}
 	| _ | eof
 		{ dtd_error lexbuf EInvalidDTDAttribute }
 
-and dtd_attr_fixed = parse
+and dtd_attr_string = parse
 	| '"'
 		{
 			Buffer.reset tmp;
