@@ -41,7 +41,7 @@ CFG=swflib - Win32 Bytecode
 # PROP Use_Debug_Libraries 1
 # PROP Output_Dir ""
 # PROP Intermediate_Dir ""
-# PROP Cmd_Line "ocamake swflib.dsp"
+# PROP Cmd_Line "ocamake -g swflib.dsp extlib.cma"
 # PROP Rebuild_Opt "-all"
 # PROP Target_File "swflib.exe"
 # PROP Bsc_Name ""
@@ -62,7 +62,7 @@ CFG=swflib - Win32 Bytecode
 # PROP Use_Debug_Libraries 0
 # PROP Output_Dir ""
 # PROP Intermediate_Dir ""
-# PROP Cmd_Line "ocamake -opt swflib.dsp -o swflib.exe"
+# PROP Cmd_Line "ocamake -opt swflib.dsp -o swflib.exe extlib.cmxa"
 # PROP Rebuild_Opt "-all"
 # PROP Target_File "swflib.exe"
 # PROP Bsc_Name ""
@@ -83,7 +83,19 @@ CFG=swflib - Win32 Bytecode
 
 # Begin Source File
 
+SOURCE=.\actionScript.ml
+# End Source File
+# Begin Source File
+
+SOURCE=.\parser.ml
+# End Source File
+# Begin Source File
+
 SOURCE=.\swf.ml
+# End Source File
+# Begin Source File
+
+SOURCE=.\tools.ml
 # End Source File
 # End Target
 # End Project
