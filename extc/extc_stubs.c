@@ -23,6 +23,8 @@
 #include <zlib.h>
 #ifdef _WIN32
 #	include <windows.h>
+#else
+#	include <unistd.h>
 #endif
 
 #define zval(z)		((z_streamp)(z))
@@ -123,6 +125,16 @@ CAMLprim value executable_path(value p) {
 		failwith("executable_path");
 	return caml_copy_string(path);
 #else
-	return caml_copy_string(getenv("_"));
+	const char *p = getenv("_");
+	if( p != NULL )
+		return caml_copy_string(p);
+	{
+		char path[200];
+		int length = readlink("/proc/self/exe", path, sizeof(path));
+		if( length < 0 || length >= 200 )
+			failwith("executable_path");
+	    path[length] = '\0';
+		return caml_copy_string(path);
+	}
 #endif
 }
