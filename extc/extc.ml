@@ -47,7 +47,10 @@ let executable_path() =
 	let p = _executable_path Sys.argv.(0) in
 	let p1 = (try String.rindex p '/' with Not_found -> String.length p + 1) in
 	let p2 = (try String.rindex p '\\' with Not_found -> String.length p + 1) in
-	String.sub p 0 (min p1 p2) ^ "/"
+	match min p1 p2 with
+	| x when x = String.length p + 1 -> ""
+	| pos ->
+		String.sub p 0 pos ^ "/"
 
 let zlib_op op z str =
 	let bufsize = 1 lsl 14 in

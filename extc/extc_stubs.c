@@ -123,6 +123,6 @@ CAMLprim value executable_path(value p) {
 		failwith("executable_path");
 	return caml_copy_string(path);
 #else
-	return caml_copy_string(String_val(p));
+	return caml_copy_string(getenv("_"));
 #endif
 }
