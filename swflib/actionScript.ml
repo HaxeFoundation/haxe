@@ -317,15 +317,11 @@ let parse_action ch =
 
 let size_to_jump_index acts curindex size =
 	let delta = ref 0 in
-	prerr_endline (" AT " ^ string_of_int curindex ^ " SIZE " ^ string_of_int size );
-	let log = (size = 3772) in
 	let size = ref size in	
 	if !size >= 0 then begin
 		while !size > 0 do
 			incr delta;
-			let a = DynArray.get acts (curindex + !delta) in
-				if log then Printf.eprintf "0x%.8X (indx : %d , id : %X, size : %d)\n" (0x42E + (3772 - !size)) (curindex + !delta) (action_id a) (action_length a);
-			size := !size - action_length a;
+			size := !size - action_length (DynArray.get acts (curindex + !delta));
 			if !size < 0 then error "Unaligned code";
 		done;		
 	end else begin
