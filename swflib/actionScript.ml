@@ -194,6 +194,17 @@ let action_length a =
 let actions_length acts =
 	DynArray.fold_left (fun acc a -> acc + action_length a) (action_length AEnd) acts
 
+let read_mm_double ch =
+	let i1 = Int64.of_int32 (read_real_i32 ch) in
+	let i2 = Int64.of_int32 (read_real_i32 ch) in
+	let i2 = (if i2 < Int64.zero then Int64.add i2 (Int64.shift_left Int64.one 32) else i2) in
+	Int64.float_of_bits (Int64.logor i2 (Int64.shift_left i1 32))
+
+let write_mm_double ch f =
+	let i64 = Int64.bits_of_float f in
+	write_real_i32 ch (Int64.to_int32 (Int64.shift_right_logical i64 32));
+	write_real_i32 ch (Int64.to_int32 i64)	
+
 let parse_push_item ch = 
 	let id = read_byte ch in
 	match id with
@@ -203,7 +214,7 @@ let parse_push_item ch =
 	| 3 -> PUndefined
 	| 4 -> PReg (read_byte ch)
 	| 5 -> PBool (read_byte ch <> 0)
-	| 6 -> PDouble (read_double ch)
+	| 6 -> PDouble (read_mm_double ch)
 	| 7 -> PInt (read_real_i32 ch)
 	| 8 -> PStack (read_byte ch)
 	| 9 -> PStack2 (read_ui16 ch)
@@ -406,7 +417,7 @@ let write_push_item_data ch = function
 	| PUndefined -> ()
 	| PReg r -> write_byte ch r
 	| PBool b -> write_byte ch (if b then 1 else 0)
-	| PDouble f -> write_double ch f
+	| PDouble f -> write_mm_double ch f
 	| PInt n -> write_real_i32 ch n
 	| PStack index -> write_byte ch index
 	| PStack2 index -> write_ui16 ch index
