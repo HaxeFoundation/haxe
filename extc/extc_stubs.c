@@ -1,0 +1,109 @@
+#include <caml/alloc.h>
+#include <caml/mlvalues.h>
+#include <caml/fail.h>
+#include <zlib.h>
+#ifdef _WIN32
+#	include <windows.h>
+#endif
+
+#define zval(z)		((z_streamp)(z))
+
+value zlib_new_stream() {
+	value z = alloc((sizeof(z_stream) + sizeof(value) - 1) / sizeof(value),Abstract_tag);
+	z_stream *s = zval(z);
+	s->zalloc = NULL;
+	s->zfree = NULL;
+	s->opaque = NULL;
+	s->next_in = NULL;
+	s->next_out = NULL;
+	return z;
+}
+
+CAMLprim value zlib_deflate_init(value lvl) {
+	value z = zlib_new_stream();
+	if( deflateInit(zval(z),Int_val(lvl)) != Z_OK )
+		failwith("zlib_deflate_init");
+	return z;
+}
+
+CAMLprim value zlib_deflate( value zv, value src, value spos, value slen, value dst, value dpos, value dlen, value flush ) {
+	z_streamp z = zval(zv);
+	value res;
+	int r;
+
+	z->next_in = String_val(src) + Int_val(spos);
+	z->next_out = String_val(dst) + Int_val(dpos);
+	z->avail_in = Int_val(slen);
+	z->avail_out = Int_val(dlen);
+	if( (r = deflate(z,Int_val(flush))) < 0 )
+		failwith("zlib_deflate");
+
+	z->next_in = NULL;
+	z->next_out = NULL;
+
+	res = alloc_small(3, 0);
+	Field(res, 0) = Val_bool(r == Z_STREAM_END);
+	Field(res, 1) = Val_int(Int_val(slen) - z->avail_in);
+	Field(res, 2) = Val_int(Int_val(dlen) - z->avail_out);
+	return res;
+}
+
+CAMLprim value zlib_deflate_bytecode(value * arg, int nargs) {
+	return zlib_deflate(arg[0],arg[1],arg[2],arg[3],arg[4],arg[5],arg[6],arg[7]);
+}
+
+CAMLprim value zlib_deflate_end(value zv) {
+	if( deflateEnd(zval(zv)) != 0 )
+		failwith("zlib_deflate_end");
+	return Val_unit;
+}
+
+CAMLprim value zlib_inflate_init() {
+	value z = zlib_new_stream();
+	if( inflateInit(zval(z)) != Z_OK )
+		failwith("zlib_inflate_init");
+	return z;
+}
+
+CAMLprim value zlib_inflate( value zv, value src, value spos, value slen, value dst, value dpos, value dlen, value flush ) {
+	z_streamp z = zval(zv);
+	value res;
+	int r;
+
+	z->next_in = String_val(src) + Int_val(spos);
+	z->next_out = String_val(dst) + Int_val(dpos);
+	z->avail_in = Int_val(slen);
+	z->avail_out = Int_val(dlen);
+	if( (r = inflate(z,Int_val(flush))) < 0 )
+		failwith("zlib_inflate");
+
+	z->next_in = NULL;
+	z->next_out = NULL;
+
+	res = alloc_small(3, 0);
+	Field(res, 0) = Val_bool(r == Z_STREAM_END);
+	Field(res, 1) = Val_int(Int_val(slen) - z->avail_in);
+	Field(res, 2) = Val_int(Int_val(dlen) - z->avail_out);
+	return res;
+}
+
+CAMLprim value zlib_inflate_bytecode(value * arg, int nargs) {
+	return zlib_inflate(arg[0],arg[1],arg[2],arg[3],arg[4],arg[5],arg[6],arg[7]);
+}
+
+CAMLprim value zlib_inflate_end(value zv) {
+	if( inflateEnd(zval(zv)) != 0 )
+		failwith("zlib_inflate_end");
+	return Val_unit;
+}
+
+CAMLprim value executable_path(value p) {
+#ifdef _WIN32
+	char path[MAX_PATH];
+	if( GetModuleFileName(NULL,path,MAX_PATH) == 0 )
+		failwith("executable_path");
+	return caml_copy_string(path);
+#else
+	return caml_copy_string(Val_string(p));
+#endif
+}
