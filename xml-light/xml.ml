@@ -69,14 +69,13 @@ let parse (p:XmlParser.t) (source:XmlParser.source) =
 let parse_in ch = parse default_parser (XmlParser.SChannel ch)
 let parse_string str = parse default_parser (XmlParser.SString str)
 
-let resolve_path path file =
-	let name = (match path with "." -> file | _ -> path ^ "/" ^ file) in
-	let ch = (try open_in name with Sys_error _ -> raise (File_not_found name)) in
-	Dtd.check (Dtd.parse_in ch)
-
 let parse_file f =
 	let p = XmlParser.make() in
-	XmlParser.resolve p (resolve_path (Filename.dirname f));
+	let path = Filename.dirname f in
+	XmlParser.resolve p (fun file -> 
+		let name = (match path with "." -> file | _ -> path ^ "/" ^ file) in
+		Dtd.check (Dtd.parse_file name)
+	);
 	parse p (XmlParser.SFile f)
 
 let error_msg = function
