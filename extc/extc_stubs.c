@@ -26,6 +26,10 @@
 #else
 #	include <unistd.h>
 #endif
+#ifdef __APPLE__
+#	include <sys/param.h>
+#	include <mach-o/dyld.h>
+#endif
 
 #define zval(z)		((z_streamp)(z))
 
@@ -122,6 +126,12 @@ CAMLprim value executable_path(value p) {
 #ifdef _WIN32
 	char path[MAX_PATH];
 	if( GetModuleFileName(NULL,path,MAX_PATH) == 0 )
+		failwith("executable_path");
+	return caml_copy_string(path);
+#elif __APPLE__
+	char path[MAXPATHLEN+1];
+	unsigned long path_len = MAXPATHLEN;
+	if ( _NSGetExecutablePath(path, &path_len) )
 		failwith("executable_path");
 	return caml_copy_string(path);
 #else
