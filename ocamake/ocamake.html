@@ -47,7 +47,7 @@ OCamake works with the following files :
 	<li><code>ml, mli</code> : theses files are added to the list of files to build
 	<li><code>cmo, cmx, cma, cmxa, dll, so, lib, a, o, obj</code> : theses files are added to the library list
 	<li><code>mll, mly</code> : theses files are compiled using <code>ocamllex</code> and <code>ocamlyacc</code>, and their result are added to the list of files to build.
-	<li><code>dsp</code> (Visual Studio Project) : all the files included in the project are added to the ocamake file list.
+	<li><code>dsp, vcproj</code> (Visual Studio Project) : all the files included in the project are added to the ocamake file list.
 </ul>
 <br>
 Once the final file list is made, OCamake run <code>ocamldep</code> to build module dependencies tree, and then build and link the tree in the good order (for more informations on the algorithm used, see sources).
