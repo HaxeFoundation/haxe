@@ -1,7 +1,7 @@
-open Printf
-open Tools
 open Swf
 open ActionScript
+open IO
+open Printf
 
 (* ************************************************************************ *)
 (* TOOLS *)
@@ -112,18 +112,28 @@ let rec tag_data_length = function
 		0
 	| TShowFrame ->
 		0
-	| TShape s ->
-		String.length s
+	| TShape data ->
+		String.length data
 	| TRemoveObject _ ->
 		4
+	| TBitsJPEG data ->
+		String.length data
+	| TJPEGTables tab ->
+		String.length tab
 	| TSetBgColor _ ->
 		rgb_length
 	| TText s ->
 		String.length s
 	| TDoAction acts ->
 		actions_length acts
-	| TShape2 s ->
-		String.length s
+	| TSound data ->
+		String.length data
+	| TBitsLossless data ->
+		String.length data
+	| TBitsJPEG2 data ->
+		String.length data
+	| TShape2 data ->
+		String.length data
 	| TProtect ->
 		0
 	| TPlaceObject2 p ->
@@ -142,6 +152,8 @@ let rec tag_data_length = function
 		String.length data
 	| TButton2 data ->
 		String.length data
+	| TBitsJPEG3 data ->
+		String.length data
 	| TBitsLossless2 data ->
 		String.length data
 	| TEditText data ->
@@ -150,6 +162,8 @@ let rec tag_data_length = function
 		List.fold_left (fun acc t -> acc + tag_length t) 4 (TEnd :: c.c_tags)
 	| TFrameLabel label ->
 		String.length label + 1
+	| TSoundStreamHead2 data ->
+		String.length data
 	| TMorphShape data ->
 		String.length data
 	| TFont2 data ->
@@ -269,7 +283,7 @@ let read_cxa ch =
 	}
 
 let read_event ch =
-	(if !swf_version >= 6 then read_i32 else read_ui16) ch
+	(if !swf_version >= 6 then read_ui32 else read_ui16) ch
 
 (* ************************************************************************ *)
 (* WRITE PRIMS *)
@@ -291,12 +305,6 @@ let write_rgb ch c =
 	write_byte ch c.cr;
 	write_byte ch c.cg;
 	write_byte ch c.cb
-
-let write_i32 ch n =
-	write_byte ch n;
-	write_byte ch (n lsr 8);
-	write_byte ch (n lsr 16);
-	write_byte ch (n asr 24)
 
 let write_rect ch r =
 	let b = init_bits ch in
@@ -355,7 +363,7 @@ let write_cxa ch c =
 	flush_bits b
 
 let write_event ch evt =
-	(if !swf_version >= 6 then write_i32 else write_ui16) ch evt
+	(if !swf_version >= 6 then write_ui32 else write_ui16) ch evt
 
 (* ************************************************************************ *)
 (* PARSING *)
@@ -368,8 +376,8 @@ let parse_clip_events ch =
 		if events = 0 then
 			[]
 		else
-			let len = read_i32 ch in
-			let s = read ch len in
+			let len = read_ui32 ch in
+			let s = nread ch len in
 			(events , s) :: (loop())
 	in
 	loop()
@@ -380,11 +388,11 @@ let rec parse_tag ch =
 	let len = h land 63 in
 	let len , extended = (
 		if len = 63 then 
-			let len = read_i32 ch in
+			let len = read_ui32 ch in
 			len , len < 63
 		else 
 			len , false
-	) in
+	) in	
 	let tag = (
 		match id with
 		| 0x00 ->
@@ -392,32 +400,37 @@ let rec parse_tag ch =
 		| 0x01 ->
 			TShowFrame
 		| 0x02 ->
-			TShape (read ch len)
+			TShape (nread ch len)
 		(*//0x04 TPlaceObject *)
 		| 0x05 ->
 			let cid = read_ui16 ch in
 			let depth = read_ui16 ch in
 			TRemoveObject (cid,depth)
-		(*//0x05 TBitsJPEG *)
+		| 0x06 ->
+			TBitsJPEG (nread ch len)
 		(*//0x07 TButton *)
-		(*//0x08 TJPEGTables *)
+		| 0x08 ->
+			TJPEGTables (nread ch len)
 		| 0x09 ->
 			TSetBgColor (read_rgb ch)
 		(*//0x0A TFont *)
 		| 0x0B ->
-			TText (read ch len)
+			TText (nread ch len)
 		| 0x0C ->
 			TDoAction (parse_actions ch)
 		(*//0x0D TFontInfo *)
-		(*//0x0E TSound *)
+		| 0x0E ->
+			TSound (nread ch len)
 		(*//0x0F TStartSound *)
 		(*//0x11 TButtonSound *)
 		(*//0x12 TSoundStreamHead *)
 		(*//0x13 TSoundStreamBlock *)
-		(*//0x14 TBitsLoosless *)
-		(*//0x15 TBitsJPEG2 *)
+		| 0x14 ->
+			TBitsLossless (nread ch len)
+		| 0x15 ->
+			TBitsJPEG2 (nread ch len)
 		| 0x16 ->
-			TShape2 (read ch len)
+			TShape2 (nread ch len)
 		(*//0x17 TButtonCXForm *)
 		| 0x18 ->
 			TProtect
@@ -447,15 +460,16 @@ let rec parse_tag ch =
 			let depth = read_ui16 ch in
 			TRemoveObject2 depth
 		| 0x20 ->
-			TShape3 (read ch len)
+			TShape3 (nread ch len)
 		(*//0x21 TText2 *)
 		| 0x22 ->
-			TButton2 (read ch len)
-		(*//0x23 TBitsJPEG3 *)
+			TButton2 (nread ch len)
+		| 0x23 ->
+			TBitsJPEG3 (nread ch len)
 		| 0x24 ->
-			TBitsLossless2 (read ch len)
+			TBitsLossless2 (nread ch len)
 		| 0x25 ->
-			TEditText (read ch len)
+			TEditText (nread ch len)
 		| 0x27 ->
 			let cid = read_ui16 ch in
 			let fcount = read_ui16 ch in
@@ -468,11 +482,12 @@ let rec parse_tag ch =
 		| 0x2B ->
 			let label = read_string ch in
 			TFrameLabel label
-		(*//0x2D TSoundStreamHead2 *)
+		| 0x2D ->
+			TSoundStreamHead2 (nread ch len)		
 		| 0x2E ->
-			TMorphShape (read ch len)
+			TMorphShape (nread ch len)
 		| 0x30 ->
-			TFont2 (read ch len)
+			TFont2 (nread ch len)
 		| 0x38 ->
 			let rec loop n =
 				if n = 0 then
@@ -503,7 +518,7 @@ let rec parse_tag ch =
 		(*// 0x42 TSetTabIndex *)
 		| _ ->
 			printf "Unknown tag 0x%.2X\n" id;
-			TUnknown (id,read ch len)
+			TUnknown (id,nread ch len)
 	) in
 	let t = (if extended then
 			TExtended tag
@@ -523,14 +538,14 @@ and parse_tag_list ch =
 	loop []
 
 let parse ch =
-	let sign = read ch 3 in
+	let sign = nread ch 3 in
 	(* TODO : compression *)
-	if sign <> "FWS" then error "Invalid SWF signature";
-	let ver = read_byte ch in
+	if sign <> "FWS" then error "Invalid SWF signature";	
+	let ver = read_byte ch in	
 	swf_version := ver;
-	let file_len = read_i32 ch in
+	let file_len = read_ui32 ch in
 	let size = read_rect ch in
-	let fps = read_f16 ch in
+	let fps = read_ui16 ch in
 	let frame_count = read_ui16 ch in
 	let h = {
 		h_version = ver;
@@ -548,19 +563,26 @@ let rec tag_id = function
 	| TShowFrame -> 0x01
 	| TShape _ -> 0x02
 	| TRemoveObject _ -> 0x05
+	| TBitsJPEG _ -> 0x06
+	| TJPEGTables _ -> 0x08
 	| TSetBgColor _ -> 0x09
 	| TText _ -> 0x0B
 	| TDoAction _ -> 0x0C
+	| TSound _ -> 0x0E
+	| TBitsLossless _ -> 0x14
+	| TBitsJPEG2 _ -> 0x15
 	| TShape2 _ -> 0x16
 	| TProtect -> 0x18
 	| TPlaceObject2 _ -> 0x1A
 	| TRemoveObject2 _ -> 0x1C
 	| TShape3 _ -> 0x20
 	| TButton2 _ -> 0x22
+	| TBitsJPEG3 _ -> 0x23
 	| TBitsLossless2 _ -> 0x24
 	| TEditText _ -> 0x25
 	| TClip _ -> 0x27
 	| TFrameLabel _ -> 0x2B
+	| TSoundStreamHead2 _ -> 0x2D
 	| TMorphShape _ -> 0x2E
 	| TFont2 _ -> 0x30
 	| TExport _ -> 0x38
@@ -570,8 +592,8 @@ let rec tag_id = function
 
 let write_clip_event ch (id,data) =
 	write_event ch id;
-	write_i32 ch (String.length data);
-	output_string ch data
+	write_ui32 ch (String.length data);
+	nwrite ch data
 
 let write_clip_events ch event_list =
  	write_ui16 ch 0;
@@ -586,18 +608,28 @@ let rec write_tag_data ch = function
 	| TShowFrame ->
 		()
 	| TShape data ->
-		output_string ch data
+		nwrite ch data
 	| TRemoveObject (cid,depth) ->
 		write_ui16 ch cid;
 		write_ui16 ch depth;
+	| TBitsJPEG data ->
+		nwrite ch data
+	| TJPEGTables tab ->
+		nwrite ch tab
 	| TSetBgColor c ->
 		write_rgb ch c
 	| TText data ->
-		output_string ch data
+		nwrite ch data
 	| TDoAction acts ->
 		write_actions ch acts
+	| TSound data ->
+		nwrite ch data
+	| TBitsLossless data ->
+		nwrite ch data
+	| TBitsJPEG2 data ->
+		nwrite ch data
 	| TShape2 data ->
-		output_string ch data
+		nwrite ch data
 	| TProtect -> 
 		()
 	| TPlaceObject2 p ->
@@ -622,13 +654,15 @@ let rec write_tag_data ch = function
 	| TRemoveObject2 depth ->
 		write_ui16 ch depth;
 	| TShape3 data -> 
-		output_string ch data
+		nwrite ch data
 	| TButton2 data ->
-		output_string ch data
+		nwrite ch data
+	| TBitsJPEG3 data ->
+		nwrite ch data
 	| TBitsLossless2 data ->
-		output_string ch data
+		nwrite ch data
 	| TEditText data ->
-		output_string ch data
+		nwrite ch data
 	| TClip c ->
 		write_ui16 ch c.c_id;
 		write_ui16 ch c.c_frame_count;
@@ -636,10 +670,12 @@ let rec write_tag_data ch = function
 		write_tag ch TEnd
 	| TFrameLabel label ->
 		write_string ch label
+	| TSoundStreamHead2 data ->
+		nwrite ch data
 	| TMorphShape data ->
-		output_string ch data
+		nwrite ch data
 	| TFont2 data ->
-		output_string ch data
+		nwrite ch data
 	| TExport el ->
 		write_ui16 ch (List.length el);
 		List.iter (fun e ->
@@ -650,7 +686,7 @@ let rec write_tag_data ch = function
 		write_ui16 ch i.dia_id;
 		write_actions ch i.dia_actions;
 	| TUnknown (_,data) ->
-		output_string ch data
+		nwrite ch data
 	| TExtended t ->
 		write_tag_data ch t
 
@@ -660,7 +696,7 @@ and write_tag ch t =
 	let extended = (match t with TExtended _ -> true | _ -> dlen >= 63) in
 	if extended then begin
 		write_ui16 ch ((id lsl 6) lor 63);
-		write_i32 ch dlen;
+		write_ui32 ch dlen;
 	end else begin
 		write_ui16 ch ((id lsl 6) lor dlen);
 	end;
@@ -668,8 +704,8 @@ and write_tag ch t =
 
 let write ch (h,tags) =
 	swf_version := h.h_version;
-	output_string ch "FWS";
-	output_char ch (char_of_int h.h_version);
+	nwrite ch "FWS";
+	write ch (char_of_int h.h_version);
 	let rec calc_len = function
 		| [] -> tag_length TEnd
 		| t :: l -> 
@@ -679,16 +715,14 @@ let write ch (h,tags) =
 	let old_exact_match = !exact_match in
 	exact_match := true;
 	let len = len + 4 + 4 + rect_length h.h_size + 2 + 2 in
-	write_i32 ch len;
+	write_ui32 ch len;
 	write_rect ch h.h_size;
-	write_f16 ch h.h_fps;
+	write_ui16 ch h.h_fps;
 	write_ui16 ch h.h_frame_count;
 	exact_match := old_exact_match;
 	List.iter (write_tag ch) tags;
 	write_tag ch TEnd
 
 ;;
-let swf = parse (open_in_bin "test.swf") in
-let out = open_out_bin "test2.swf" in
-write out swf;
-close_out out;
+Swf.__parser := parse;
+Swf.__printer := write

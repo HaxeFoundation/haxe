@@ -1,6 +1,6 @@
-open Printf
 open Swf
-open Tools
+open IO
+open Printf
 
 let push_item_length = function
 	| PString s -> String.length s + 1
@@ -120,11 +120,6 @@ let short_op_codes = begin
 
 end
 
-(*/*
-X	OP(0x8E,"FUNCTION2"); // see Tag
-X	OP(0x8F,"TRY")
-*/*)
-
 let action_id = function
 	| AGotoFrame _ -> 0x81
 	| AGetURL _ -> 0x83
@@ -201,13 +196,13 @@ let parse_push_item ch =
 	let id = read_byte ch in
 	match id with
 	| 0 -> PString (read_string ch)
-	| 1 -> PFloat (read ch 4)
+	| 1 -> PFloat (nread ch 4)
 	| 2 -> PNull
 	| 3 -> PUndefined
 	| 4 -> PReg (read_byte ch)
 	| 5 -> PBool (read_byte ch <> 0)
-	| 6 -> PDouble (read ch 8)
-	| 7 -> PInt (read ch 4)
+	| 6 -> PDouble (nread ch 8)
+	| 7 -> PInt (nread ch 4)
 	| 8 -> PStack (read_byte ch)
 	| 9 -> PStack2 (read_ui16 ch)
 	| _ -> error (sprintf "Unknown PUSH item id : %d" id)
@@ -219,6 +214,13 @@ let rec parse_push_items ch len =
 	else
 		let item = parse_push_item ch in
 		item :: parse_push_items ch (len - 1 - push_item_length item)
+
+let rec read_strings ch n =
+	if n = 0 then
+		[]
+	else
+		let s = read_string ch in
+		s :: read_strings ch (n-1)
 
 let parse_function_decl ch =
 	let name = read_string ch in
@@ -308,7 +310,7 @@ let parse_action ch =
 			with
 				Not_found ->
 					printf "Unknown Action 0x%.2X (%d)\n" id len;
-					AUnknown (id,read ch len)
+					AUnknown (id,nread ch len)
 	) in
 	let len2 = action_data_length act in
 	if len <> len2 then error (sprintf "Datalen mismatch for action 0x%.2X (%d != %d)" id len len2);
@@ -378,15 +380,21 @@ let jump_index_to_size acts curindex target =
 	end;
 	!size
 
+let rec write_strings ch = function
+	| [] -> ()
+	| s :: l ->
+		write_string ch s;
+		write_strings ch l
+
 let write_push_item_data ch = function
 	| PString s -> write_string ch s
-	| PFloat data -> output_string ch data
+	| PFloat data -> nwrite ch data
 	| PNull -> ()
 	| PUndefined -> ()
 	| PReg r -> write_byte ch r
 	| PBool b -> write_byte ch (if b then 1 else 0)
-	| PDouble data -> output_string ch data
-	| PInt data -> output_string ch data
+	| PDouble data -> nwrite ch data
+	| PInt data -> nwrite ch data
 	| PStack index -> write_byte ch index
 	| PStack2 index -> write_ui16 ch index
 
@@ -452,7 +460,7 @@ let write_action_data acts curindex ch = function
 	| ACallFrame ->
 		()
 	| AUnknown (_,data) ->
-		output_string ch data
+		nwrite ch data
 	| _ ->
 		assert false
 

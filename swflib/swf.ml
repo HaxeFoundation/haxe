@@ -225,19 +225,26 @@ type tag =
 	| TShowFrame
 	| TShape of unknown
 	| TRemoveObject of int * int
+	| TBitsJPEG of unknown
+	| TJPEGTables of string
 	| TSetBgColor of rgb
 	| TText of unknown
 	| TDoAction of actions
+	| TSound of unknown
+	| TBitsLossless of unknown
+	| TBitsJPEG2 of unknown
 	| TShape2 of unknown
 	| TProtect
 	| TPlaceObject2 of place_object2
 	| TRemoveObject2 of int
 	| TShape3 of unknown
 	| TButton2 of unknown
+	| TBitsJPEG3 of unknown
 	| TBitsLossless2 of unknown
 	| TEditText of unknown
 	| TClip of clip
 	| TFrameLabel of string
+	| TSoundStreamHead2 of unknown
 	| TMorphShape of unknown
 	| TFont2 of unknown
 	| TExport of export list
@@ -267,3 +274,15 @@ and clip = {
 
 type swf = header * tag list
 
+let __parser = ref (fun _ -> assert false)
+let __printer = ref (fun (_:unit IO.stdout) _ -> ())
+
+exception Error of string
+
+let error msg = raise (Error msg)
+
+let parse (ch : IO.stdin) =
+	(!__parser ch : swf)
+
+let write (ch : 'a IO.stdout) (data : swf) =
+	!__printer (Obj.magic ch) data
