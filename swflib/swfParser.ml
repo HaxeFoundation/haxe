@@ -1524,6 +1524,12 @@ let write ch (h,tags) =
 	write_tag ch tag_end;
 	flush ch
 
+let init inflate deflate =
+	Swf.__parser := parse;
+	Swf.__printer := write;
+	Swf.__inflate := inflate;
+	Swf.__deflate := deflate;
+
 ;;
 Swf.__parser := parse;
 Swf.__printer := write
