@@ -600,7 +600,7 @@ match files with
 				fprint ((f.name +! ext)^": "^(f.name +! ML)^"\n")
 			| MLY ->
 				fprint ((f.name +! ext)^": "^(f.name +! ML)^"\n");
-				fprint ((f.name +! CMI)^": "^(f.name +! ML)^"\n")
+				fprint ((f.name +! CMI)^": "^(f.name +! ML)^" "^(f.name +! MLI)^"\n")
 			| _ when f.deps <> [] ->
 				fprint (f.target^": "^(flatten f.deps)^"\n")
 			| _ ->
