@@ -412,14 +412,21 @@ let read_event ch =
 (* WRITE PRIMS *)
 
 let rec write_bits b n x =
-	if n + b.b_count >= 32 then error "Write bits count overflow";
-	if x >= 1 lsl n then error "Write bits value overflow";
-	b.b_data <- (b.b_data lsl n) lor x;
-	b.b_count <- b.b_count + n;
-	while b.b_count >= 8 do
-		b.b_count <- b.b_count - 8;
-		write_byte b.b_ch (b.b_data asr b.b_count)
-	done
+	if n + b.b_count >= 32 then begin
+		let n2 = 32 - b.b_count - 1 in
+		let n3 = n - n2 in
+		write_bits b n2 (x asr n3);
+		write_bits b n3 (x land ((1 lsl n3) - 1));
+	end else begin
+		if n < 0 || x < 0 then error "Write negative bits";
+		if x >= 1 lsl n then error "Write bits value overflow";
+		b.b_data <- (b.b_data lsl n) lor x;
+		b.b_count <- b.b_count + n;
+		while b.b_count >= 8 do
+			b.b_count <- b.b_count - 8;
+			write_byte b.b_ch (b.b_data asr b.b_count)
+		done
+	end
 
 let flush_bits b =
 	if b.b_count > 0 then write_bits b (8 - b.b_count) 0
