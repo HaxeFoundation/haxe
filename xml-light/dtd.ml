@@ -267,7 +267,6 @@ let trace dtd tag =
 exception TmpResult of dtd_result
 
 let prove_child dtd tag = 
-	trace dtd tag;
 	match dtd.current with
 	| DTDEmpty -> raise (Prove_error EmptyExpected)
 	| DTDAny -> ()
