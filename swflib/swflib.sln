@@ -1,0 +1,21 @@
+Microsoft Visual Studio Solution File, Format Version 8.00
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "swflib", "swflib.vcproj", "{A9DD9D90-85E1-4FCF-8C09-42BF78942849}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfiguration) = preSolution
+		Bytecode = Bytecode
+		Native code = Native code
+	EndGlobalSection
+	GlobalSection(ProjectConfiguration) = postSolution
+		{A9DD9D90-85E1-4FCF-8C09-42BF78942849}.Bytecode.ActiveCfg = Bytecode|Win32
+		{A9DD9D90-85E1-4FCF-8C09-42BF78942849}.Bytecode.Build.0 = Bytecode|Win32
+		{A9DD9D90-85E1-4FCF-8C09-42BF78942849}.Native code.ActiveCfg = Native code|Win32
+		{A9DD9D90-85E1-4FCF-8C09-42BF78942849}.Native code.Build.0 = Native code|Win32
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+	EndGlobalSection
+	GlobalSection(ExtensibilityAddIns) = postSolution
+	EndGlobalSection
+EndGlobal

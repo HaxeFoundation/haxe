@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioProject
+	ProjectType="Visual C++"
+	Version="7.10"
+	Name="swflib"
+	SccProjectName=""
+	SccLocalPath=""
+	Keyword="MakeFileProj">
+	<Platforms>
+		<Platform
+			Name="Win32"/>
+	</Platforms>
+	<Configurations>
+		<Configuration
+			Name="Native code|Win32"
+			OutputDirectory="."
+			IntermediateDirectory="."
+			ConfigurationType="0"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			<Tool
+				Name="VCNMakeTool"
+				BuildCommandLine="ocamake -opt swfLib.vcproj -a"
+				ReBuildCommandLine="ocamake -opt swfLib.vcproj -a"
+				Output="swflib.exe"/>
+		</Configuration>
+		<Configuration
+			Name="Bytecode|Win32"
+			OutputDirectory="."
+			IntermediateDirectory="."
+			ConfigurationType="0"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="FALSE">
+			<Tool
+				Name="VCNMakeTool"
+				BuildCommandLine="ocamake -a swfLib.vcproj"
+				ReBuildCommandLine="ocamake -a swfLib.vcproj -all"
+				Output="swflib.exe"/>
+		</Configuration>
+	</Configurations>
+	<References>
+	</References>
+	<Files>
+		<File
+			RelativePath=".\actionScript.ml">
+		</File>
+		<File
+			RelativePath=".\swf.ml">
+		</File>
+		<File
+			RelativePath=".\swfParser.ml">
+		</File>
+		<File
+			RelativePath=".\swfZip.ml">
+		</File>
+	</Files>
+	<Globals>
+	</Globals>
+</VisualStudioProject>
