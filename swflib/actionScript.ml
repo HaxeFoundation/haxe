@@ -166,8 +166,8 @@ let action_data_length = function
 		String.length label + 1
 	| AWaitForFrame2 _ ->
 		1
-	| AWith (s,_) ->
-		2 + String.length s + 1
+	| AWith _ ->
+		2 (* the string does not count in length *)
 	| APush items ->
 		List.fold_left (fun acc item -> acc + 1 + push_item_length item) 0 items
 	| AJump _ ->
@@ -187,7 +187,7 @@ let action_data_length = function
 
 let action_length a = 
 	let len = (if action_id a >= 0x80 then 3 else 1) in
-	len + action_data_length a
+	len + action_data_length a + (match a with AWith (s,_) -> String.length s + 1 | _ -> 0)
 
 let actions_length acts =
 	DynArray.fold_left (fun acc a -> acc + action_length a) (action_length AEnd) acts
@@ -312,9 +312,9 @@ let parse_action ch =
 					printf "Unknown Action 0x%.2X (%d)\n" id len;
 					AUnknown (id,nread ch len)
 	) in
-	let len2 = action_data_length act in
+(*	let len2 = action_data_length act in
 	if len <> len2 then error (sprintf "Datalen mismatch for action 0x%.2X (%d != %d)" id len len2);
-	act
+*)	act
 
 let size_to_jump_index acts curindex size =
 	let delta = ref 0 in
