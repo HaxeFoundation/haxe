@@ -570,6 +570,16 @@ and dtd_attr_type = parse
 			ignore_spaces lexbuf;
 			DTDNMToken
 		}
+	| "ID"
+		{
+			ignore_spaces lexbuf;
+		 	DTDID
+		}
+	| "IDREF"
+		{
+			ignore_spaces lexbuf;
+			DTDIDRef
+		}
 	| '('
 		{
 			ignore_spaces lexbuf;

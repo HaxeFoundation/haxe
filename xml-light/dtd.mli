@@ -68,6 +68,8 @@ type dtd_attr_type =
 	| DTDCData
 	| DTDNMToken
 	| DTDEnum of string list
+	| DTDID
+	| DTDIDRef
 
 type dtd_item =
 	| DTDAttribute of string * string * dtd_attr_type * dtd_attr_default
@@ -140,6 +142,7 @@ type check_error =
 	| ElementEmptyContructor of string
 	| ElementReferenced of string * string
 	| ElementNotDeclared of string
+	| WrongImplicitValueForID of string * string
 
 type prove_error =
 	| UnexpectedPCData
@@ -149,6 +152,8 @@ type prove_error =
 	| RequiredAttribute of string
 	| ChildExpected of string
 	| EmptyExpected
+	| DuplicateID of string
+	| MissingID of string
 
 type parse_error = parse_error_msg * Xml.error_pos
 
