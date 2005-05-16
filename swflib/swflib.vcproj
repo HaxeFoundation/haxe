@@ -45,10 +45,19 @@
 			RelativePath=".\actionScript.ml">
 		</File>
 		<File
+			RelativePath=".\png.ml">
+		</File>
+		<File
+			RelativePath=".\png.mli">
+		</File>
+		<File
 			RelativePath=".\swf.ml">
 		</File>
 		<File
 			RelativePath=".\swfParser.ml">
+		</File>
+		<File
+			RelativePath=".\swfPic.ml">
 		</File>
 		<File
 			RelativePath=".\swfZip.ml">
