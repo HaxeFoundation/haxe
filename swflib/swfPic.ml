@@ -68,7 +68,7 @@ let load_picture file id =
 		let data = (try Extc.unzip png.data with _ -> error UnzipFailed) in
 		let w = png.header.width in
 		let h = png.header.height in
-		let data = (try Png.filter png data with Png.Error msg -> error (PngError msg)) in
+		let data = (try Png.filter ~keep_invisible:false ~default_alpha:'\000' png data with Png.Error msg -> error (PngError msg)) in
 		{
 			pwidth = w;
 			pheight = h;

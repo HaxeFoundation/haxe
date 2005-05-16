@@ -92,5 +92,5 @@ val is_safe_to_copy : chunk_id -> bool
 
 val color_bits : color -> int
 val parse : IO.input -> png
-val filter : png -> string -> string
+val filter : png -> ?keep_invisible:bool -> ?default_alpha:char -> string -> string
 
