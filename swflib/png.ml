@@ -234,7 +234,7 @@ let parse ch =
 		chunks = chunks;
 	}
 
-let filter png ?(keep_invisible=false) ?(default_alpha='\255') data =
+let filter png data =
 	let w = png.header.width in
 	let h = png.header.height in
 	match png.header.color with
@@ -286,7 +286,7 @@ let filter png ?(keep_invisible=false) ?(default_alpha='\255') data =
 			for x = 0 to w - 1 do
 				let p = x * nbytes + y * stride in
 				if not alpha then begin
-					set (int_of_char default_alpha);
+					set 255;
 					for c = 1 to 3 do
 						let v = get (p + c) in
 						set (f x y v)
@@ -302,18 +302,4 @@ let filter png ?(keep_invisible=false) ?(default_alpha='\255') data =
 				end;
 			done;
 		done;
-		if alpha && not keep_invisible then begin
-			bp := 0;
-			for y = 0 to h - 1 do
-				for x = 0 to w - 1 do
-					let a = bget !bp in
-					if a = 0 then begin
-						String.unsafe_set buf (!bp + 1) '\000';
-						String.unsafe_set buf (!bp + 2) '\000';
-						String.unsafe_set buf (!bp + 3) '\000';
-					end;
-					bp := !bp + 4;
-				done;
-			done;
-		end;
 		buf
