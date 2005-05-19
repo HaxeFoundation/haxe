@@ -23,12 +23,6 @@ open IO
 (* ************************************************************************ *)
 (* TOOLS *)
 
-type 'a bits = {
-	mutable b_data : int;
-	mutable b_count : int;
-	b_ch : 'a;
-}
-
 let swf_version = ref 0
 let id_count = ref 0
 let tag_end = { tid = 0; textended = false; tdata = TEnd }
@@ -327,38 +321,8 @@ and tag_length t =
 (* ************************************************************************ *)
 (* READ PRIMS *)
 
-let init_bits ch =
-	{
-		b_data = 0;
-		b_count = 0;
-		b_ch = ch;
-	}
-
 let skip ch n =
 	seek_in ch ((Pervasives.pos_in ch) + n)
-
-let rec read_bits b n =
-	if b.b_count >= n then begin
-		let c = b.b_count - n in
-		let k = (b.b_data asr c) land ((1 lsl n) - 1) in
-		b.b_count <- c;
-		k
-	end else begin
-		let k = read_byte b.b_ch in
-		if b.b_count >= 24 then begin
-			if n >= 32 then error "Read bits overflow";
-			let c = 8 + b.b_count - n in
-			let d = b.b_data land ((1 lsl b.b_count) - 1) in
-			let d = (d lsl (8 - c)) lor (k lsr c) in
-			b.b_data <- k;
-			b.b_count <- c;
-			d
-		end else begin			
-			b.b_data <- (b.b_data lsl 8) lor k;
-			b.b_count <- b.b_count + 8;
-			read_bits b n;
-		end
-	end
 
 let read_rgba ch =
 	let r = read_byte ch in
@@ -406,7 +370,7 @@ let read_gradient ch is_rgba =
 		GradientRGB (loop_rgb n)
 
 let read_rect ch =
-	let b = init_bits ch in
+	let b = input_bits ch in
 	let nbits = read_bits b 5 in
 	let left = read_bits b nbits in
 	let right = read_bits b nbits in
@@ -421,7 +385,7 @@ let read_rect ch =
 	}
 
 let read_matrix ch =
-	let b = init_bits ch in
+	let b = input_bits ch in
 	let read_matrix_part() =
 		let nbits = read_bits b 5 in
 		let x = read_bits b nbits in
@@ -444,7 +408,7 @@ let read_matrix ch =
 	}	
 
 let read_cxa ch =
-	let b = init_bits ch in
+	let b = input_bits ch in
 	let has_add = (read_bits b 1 = 1) in
 	let has_mult = (read_bits b 1 = 1) in
 	let nbits = read_bits b 4 in
@@ -474,26 +438,6 @@ let read_event ch =
 (* ************************************************************************ *)
 (* WRITE PRIMS *)
 
-let rec write_bits b n x =
-	if n + b.b_count >= 32 then begin
-		let n2 = 32 - b.b_count - 1 in
-		let n3 = n - n2 in
-		write_bits b n2 (x asr n3);
-		write_bits b n3 (x land ((1 lsl n3) - 1));
-	end else begin
-		if n < 0 || x < 0 then error "Write negative bits";
-		if x >= 1 lsl n then error "Write bits value overflow";
-		b.b_data <- (b.b_data lsl n) lor x;
-		b.b_count <- b.b_count + n;
-		while b.b_count >= 8 do
-			b.b_count <- b.b_count - 8;
-			write_byte b.b_ch (b.b_data asr b.b_count)
-		done
-	end
-
-let flush_bits b =
-	if b.b_count > 0 then write_bits b (8 - b.b_count) 0
-
 let write_rgb ch c =
 	write_byte ch c.cr;
 	write_byte ch c.cg;
@@ -520,7 +464,7 @@ let write_gradient ch = function
 		List.iter (fun (ratio,c) -> write_byte ch ratio; write_rgba ch c) l
 
 let write_rect ch r =
-	let b = init_bits ch in
+	let b = output_bits ch in
 	let nbits = rect_nbits r in
 	write_bits b 5 nbits;
 	write_bits b nbits r.left;
@@ -530,7 +474,7 @@ let write_rect ch r =
 	flush_bits b
 
 let write_matrix ch m =
-	let b = init_bits ch in
+	let b = output_bits ch in
 	let write_matrix_part m =
 		let nbits = matrix_part_nbits m in
 		write_bits b 5 nbits;		
@@ -554,7 +498,7 @@ let write_matrix ch m =
 	flush_bits b
 
 let write_cxa ch c =
-	let b = init_bits ch in
+	let b = output_bits ch in
 	let nbits = cxa_nbits c in
 	(match c.cxa_add , c.cxa_mult with
 	| None , None ->
@@ -563,15 +507,15 @@ let write_cxa ch c =
 	| Some c , None -> 
 		write_bits b 2 2;
 		write_bits b 4 nbits;
-		List.iter (write_bits b nbits) [c.r;c.g;c.b;c.a];
+		List.iter (write_bits b ~nbits) [c.r;c.g;c.b;c.a];
 	| None , Some c -> 
 		write_bits b 2 1;
 		write_bits b 4 nbits;
-		List.iter (write_bits b nbits) [c.r;c.g;c.b;c.a];
+		List.iter (write_bits b ~nbits) [c.r;c.g;c.b;c.a];
 	| Some c1 , Some c2 -> 
 		write_bits b 2 3;
 		write_bits b 4 nbits;
-		List.iter (write_bits b nbits) [c2.r;c2.g;c2.b;c2.a;c1.r;c1.g;c1.b;c1.a]
+		List.iter (write_bits b ~nbits) [c2.r;c2.g;c2.b;c2.a;c1.r;c1.g;c1.b;c1.a]
 	);
 	flush_bits b
 
@@ -660,7 +604,7 @@ let parse_shape_style_change_record ch b flags nlbits nfbits is_shape3 =
 	let fs1 = (if flags land 4 <> 0 then Some (read_bits b !nfbits) else None) in
 	let ls = (if flags land 8 <> 0 then Some (read_bits b !nlbits) else None) in
 	let styles = (if flags land 16 <> 0 then begin		
-		b.b_count <- 0;
+		IO.drop_bits b;
 		let fstyles = parse_shape_array parse_shape_fill_style ch is_shape3 in
 		let lstyles = parse_shape_array parse_shape_line_style ch is_shape3 in		
 		let bits = read_byte ch in
@@ -718,7 +662,7 @@ let parse_shape_straight_edge_record b flags =
 	}
 
 let parse_shape_records ch nlbits nfbits is_shape3 =
-	let b = init_bits ch in
+	let b = input_bits ch in
 	let nlbits = ref nlbits in
 	let nfbits = ref nfbits in
 	let rec loop() =
@@ -822,7 +766,7 @@ let parse_text ch is_txt2 =
 				txr_color = color;
 				txr_dx = dx;
 				txr_dy = dy;
-				txr_glyphs = loop_glyphs (init_bits ch) nglyphs;
+				txr_glyphs = loop_glyphs (input_bits ch) nglyphs;
 			} in
 			r :: loop()
 	in
@@ -1248,9 +1192,9 @@ let write_shape_style_change_record ch b nlbits nfbits s =
 		write_bits b n dx;
 		write_bits b n dy;
 	) s.scsr_move;
-	opt (write_bits b !nfbits) s.scsr_fs0;
-	opt (write_bits b !nfbits) s.scsr_fs1;
-	opt (write_bits b !nlbits) s.scsr_ls;
+	opt (write_bits b ~nbits:!nfbits) s.scsr_fs0;
+	opt (write_bits b ~nbits:!nfbits) s.scsr_fs1;
+	opt (write_bits b ~nbits:!nlbits) s.scsr_ls;
 	match s.scsr_new_styles with
 	| None -> ()
 	| Some s ->
@@ -1291,7 +1235,7 @@ let write_shape_with_style ch s =
 	write_shape_array ch write_shape_fill_style s.sws_fill_styles;
 	write_shape_array ch write_shape_line_style s.sws_line_styles;
 	let r = s.sws_records in
-	let b = init_bits ch in
+	let b = output_bits ch in
 	write_bits b 4 r.srs_nfbits;
 	write_bits b 4 r.srs_nlbits;
 	let nlbits = ref r.srs_nlbits in
@@ -1330,7 +1274,7 @@ let write_text_record ch t r =
 	opt (write_i16 ch) r.txr_dy;
 	opt (fun (_,id) -> write_ui16 ch id) r.txr_font;
 	write_byte ch (List.length r.txr_glyphs);
-	let bits = init_bits ch in
+	let bits = output_bits ch in
 	List.iter (fun g ->
 		write_bits bits t.txt_ngbits g.txg_index;
 		write_bits bits t.txt_nabits g.txg_advanced;
