@@ -49,10 +49,10 @@ type color =
 	| ClIndexed of index_bits
 
 type header = {
-	width : int;
-	height : int;
-	color : color;
-	interlace : bool;
+	png_width : int;
+	png_height : int;
+	png_color : color;
+	png_interlace : bool;
 }
 
 type chunk_id = string
@@ -64,12 +64,7 @@ type chunk =
 	| CPalette of string
 	| CUnknown of chunk_id * string
 
-type png = {
-	header : header;
-	data : string;
-	palette : string option;
-	chunks : chunk list;
-}
+type png = chunk list
 
 type error_msg =
 	| Invalid_header
@@ -80,6 +75,7 @@ type error_msg =
 	| Unsupported_colors
 	| Invalid_datasize
 	| Invalid_filter of int
+	| Invalid_array
 
 exception Error of error_msg
 
@@ -92,6 +88,7 @@ let error_msg = function
 	| Unsupported_colors -> "Unsupported color model"
 	| Invalid_datasize -> "Invalid data size"
 	| Invalid_filter f -> "Invalid filter " ^ string_of_int f
+	| Invalid_array -> "Invalid array"
 
 let error msg = raise (Error msg)
 
@@ -107,6 +104,16 @@ let is_safe_to_copy id = is_upper id.[3]
 
 let is_id_char c =
 	(c >= '\065' && c <= '\090') || (c >= '\097' && c <= '\122')
+
+let rec header = function
+	| [] -> error Invalid_file
+	| CHeader h :: _ -> h
+	| _ :: l -> header l
+
+let rec data = function
+	| [] -> error Invalid_file
+	| CData s :: _ -> s
+	| _ :: l -> data l
 
 let color_bits = function
 	| ClGreyScale g -> (match g with
@@ -163,6 +170,34 @@ let input_crc ch =
 	in
 	ch2 , (fun () -> Int32.logxor !crc 0xFFFFFFFFl)
 
+let output_crc ch =
+	let crc = ref 0xFFFFFFFFl in
+	let update c =
+		let c = Int32.of_int (int_of_char c) in
+		let k = Array.unsafe_get crc_table (Int32.to_int (Int32.logand (Int32.logxor !crc c) 0xFFl)) in
+		crc := Int32.logxor k (Int32.shift_right_logical !crc 8)
+	in
+	let ch2 = IO.create_out
+		~write:(fun c ->
+			IO.write ch c;
+			update c;
+		)
+		~output:(fun s p l ->
+			let l = IO.output ch s p l in
+			for i = 0 to l - 1 do
+				update s.[p+i]
+			done;
+			l
+		)
+		~flush:(fun () ->
+			IO.flush ch
+		)
+		~close:(fun () ->
+			IO.close_out ch
+		)
+	in
+	ch2 , (fun () -> Int32.logxor !crc 0xFFFFFFFFl)
+
 let parse_header ch =
 	let width = IO.BigEndian.read_i32 ch in
 	let height = IO.BigEndian.read_i32 ch in
@@ -183,10 +218,10 @@ let parse_header ch =
 	let interlace = IO.read_byte ch in
 	let interlace = (match interlace with 0 -> false | 1 -> true | _ -> error Invalid_header) in
 	{
-		width = width;
-		height = height;
-		color = color;
-		interlace = interlace;
+		png_width = width;
+		png_height = height;
+		png_color = color;
+		png_interlace = interlace;
 	}
 
 let parse_chunk ch =
@@ -204,40 +239,61 @@ let parse_chunk ch =
 	| "PLTE" -> CPalette data
 	| _ -> CUnknown (id,data)
 
+let png_sign = "\137\080\078\071\013\010\026\010"
+
 let parse ch =
-	let sign = (try IO.nread ch 8 with IO.No_more_input -> error Invalid_header) in
-	if sign <> "\137\080\078\071\013\010\026\010" then error Invalid_header;
+	let sign = (try IO.nread ch (String.length png_sign) with IO.No_more_input -> error Invalid_header) in
+	if sign <> png_sign then error Invalid_header;
 	let rec loop acc =
 		match parse_chunk ch with
 		| CEnd -> List.rev acc
 		| c -> loop (c :: acc)
 	in
-	let chunks = (try
+	try
 		loop []
 	with
 		| IO.No_more_input -> error Truncated_file
-		| IO.Overflow _ -> error Invalid_file)
-	in
-	let header = ref None in
-	let data = ref None in
-	let pal = ref None in
+		| IO.Overflow _ -> error Invalid_file
+
+let write_chunk ch cid cdata =
+	IO.BigEndian.write_i32 ch (String.length cdata);
+	let ch2 , crc = output_crc ch in
+	IO.nwrite ch2 cid;
+	IO.nwrite ch2 cdata;
+	IO.BigEndian.write_real_i32 ch (crc())
+
+let write_header real_ch h =
+	let ch = IO.output_string() in
+	IO.BigEndian.write_i32 ch h.png_width;
+	IO.BigEndian.write_i32 ch h.png_height;
+	IO.write_byte ch (color_bits h.png_color);
+	IO.write_byte ch (match h.png_color with
+		| ClGreyScale _ -> 0
+		| ClTrueColor (_,NoAlpha) -> 2
+		| ClIndexed _ -> 3
+		| ClGreyAlpha _ -> 4
+		| ClTrueColor (_,HaveAlpha) -> 6);
+	IO.write_byte ch 0;
+	IO.write_byte ch 0;
+	IO.write_byte ch (if h.png_interlace then 1 else 0);
+	let data = IO.close_out ch in
+	write_chunk real_ch "IHDR" data
+
+let write ch png =
+	IO.nwrite ch png_sign;
 	List.iter (function
-		| CHeader h -> if !header <> None then error Invalid_file; header := Some h
-		| CData s -> (match !data with None -> data := Some s | Some s2 -> data := Some (s2 ^ s))
-		| CPalette s -> if !pal <> None then error Invalid_file; pal := Some s
-		| _ -> ()
-	) chunks;
-	{
-		header = (match !header with None -> error Invalid_file | Some h -> h);
-		data = (match !data with None -> error Invalid_file | Some d -> d);
-		palette = !pal;
-		chunks = chunks;
-	}
+		| CEnd -> write_chunk ch "IEND" ""
+		| CHeader h -> write_header ch h
+		| CData s -> write_chunk ch "IDAT" s
+		| CPalette s -> write_chunk ch "PLTE" s
+		| CUnknown (id,data) -> write_chunk ch id data
+	) png
 
 let filter png data =
-	let w = png.header.width in
-	let h = png.header.height in
-	match png.header.color with
+	let head = header png in
+	let w = head.png_width in
+	let h = head.png_height in
+	match head.png_color with
 	| ClGreyScale _
 	| ClGreyAlpha _
 	| ClIndexed _ 
@@ -303,3 +359,28 @@ let filter png data =
 			done;
 		done;
 		buf
+
+let make ~width ~height ~pixel ~compress =
+	let data = String.create (width * height * 4 + height) in
+	let p = ref 0 in
+	let set v = String.unsafe_set data !p (Char.unsafe_chr v); incr p in
+	for y = 0 to height - 1 do
+		set 0;
+		for x = 0 to width - 1 do
+			let c = pixel x y in
+			let ic = Int32.to_int c in
+			(* RGBA *)
+			set (ic lsr 16);
+			set (ic lsr 8);
+			set ic;
+			set (Int32.to_int (Int32.shift_right_logical c 24));
+		done;
+	done;
+	let data = compress data in
+	let header = {
+		png_width = width;
+		png_height = height;
+		png_color = ClTrueColor (TBits8,HaveAlpha);
+		png_interlace = false;
+	} in
+	[CHeader header; CData data; CEnd]

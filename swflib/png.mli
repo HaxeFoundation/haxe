@@ -49,10 +49,10 @@ type color =
 	| ClIndexed of index_bits
 
 type header = {
-	width : int;
-	height : int;
-	color : color;
-	interlace : bool;
+	png_width : int;
+	png_height : int;
+	png_color : color;
+	png_interlace : bool;
 }
 
 type chunk_id = string
@@ -64,12 +64,7 @@ type chunk =
 	| CPalette of string
 	| CUnknown of chunk_id * string
 
-type png = {
-	header : header;
-	data : string;
-	palette : string option;
-	chunks : chunk list;
-}
+type png = chunk list
 
 type error_msg =
 	| Invalid_header
@@ -80,6 +75,7 @@ type error_msg =
 	| Unsupported_colors
 	| Invalid_datasize
 	| Invalid_filter of int
+	| Invalid_array
 
 exception Error of error_msg
 
@@ -90,7 +86,12 @@ val is_public : chunk_id -> bool
 val is_reseverd : chunk_id -> bool
 val is_safe_to_copy : chunk_id -> bool
 
+val header : png -> header
+val data : png -> string
+
 val color_bits : color -> int
 val parse : IO.input -> png
+val write : 'a IO.output -> png -> unit
 val filter : png -> string -> string
 
+val make : width:int -> height:int -> pixel:(int -> int -> int32) -> compress:(string -> string) -> png
