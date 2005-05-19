@@ -62,18 +62,23 @@ let load_picture file id =
 	let _ , ext = (try ExtString.String.split file "." with Not_found -> file , "") in
 	match String.uppercase ext with
 	| "PNG" ->
-		let png = (try Png.parse ch with Png.Error msg -> IO.close_in ch; error (PngError msg)) in
+		let png , header, data = (try 
+			let p = Png.parse ch in
+			p , Png.header p, Png.data p
+		with Png.Error msg -> 
+			IO.close_in ch; error (PngError msg)
+		) in
 		IO.close_in ch;
-		if png.header.interlace then error Interlaced;
-		let data = (try Extc.unzip png.data with _ -> error UnzipFailed) in
-		let w = png.header.width in
-		let h = png.header.height in
+		if header.png_interlace then error Interlaced;
+		let data = (try Extc.unzip data with _ -> error UnzipFailed) in
+		let w = header.png_width in
+		let h = header.png_height in
 		let data = (try Png.filter png data with Png.Error msg -> error (PngError msg)) in
 		{
 			pwidth = w;
 			pheight = h;
 			pid = id;
-			pdata = (match png.header.color with
+			pdata = (match header.png_color with
 				| ClTrueColor (TBits8,NoAlpha) ->
 					(* set alpha to 0 *)
 					for p = 0 to w * h - 1 do
