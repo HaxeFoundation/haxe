@@ -33,7 +33,6 @@ type check_error =
 	| ElementEmptyContructor of string
 	| ElementReferenced of string * string
 	| ElementNotDeclared of string
-	| WrongImplicitValueForID of string * string
 
 type prove_error =
 	| UnexpectedPCData
@@ -43,8 +42,6 @@ type prove_error =
 	| RequiredAttribute of string
 	| ChildExpected of string
 	| EmptyExpected
-	| DuplicateID of string
-	| MissingID of string
 
 type dtd_child =
 	| DTDTag of string
@@ -70,8 +67,6 @@ type dtd_attr_type =
 	| DTDCData
 	| DTDNMToken
 	| DTDEnum of string list
-	| DTDID
-	| DTDIDRef
 
 type dtd_item =
 	| DTDAttribute of string * string * dtd_attr_type * dtd_attr_default
@@ -189,11 +184,6 @@ let check dtd =
 				Hashtbl.add hdone tag edata
 	in
 	let fattrib tag aname adata =
-		(match adata with
-	    | DTDID,DTDImplied -> ()
-	    | DTDID,DTDRequired -> ()
-	    | DTDID,_ -> raise (Check_error (WrongImplicitValueForID (tag,aname)))
-	    | _ -> ());
 		let h = (try
 				Hashtbl.find attribs tag
 			with
@@ -277,6 +267,7 @@ let trace dtd tag =
 exception TmpResult of dtd_result
 
 let prove_child dtd tag = 
+	trace dtd tag;
 	match dtd.current with
 	| DTDEmpty -> raise (Prove_error EmptyExpected)
 	| DTDAny -> ()
@@ -349,7 +340,7 @@ let is_nmtoken_char = function
 	| 'A'..'Z' | 'a'..'z' | '0'..'9' | '.' | '-' | '_' | ':' -> true
 	| _ -> false
 
-let prove_attrib dtd hid hidref attr aname (atype,adef) accu =
+let prove_attrib dtd attr aname (atype,adef) accu =
 	let aval = (try Some (List.assoc aname attr) with Not_found -> None) in
 	(match atype, aval with
 	| DTDCData, _ -> ()
@@ -360,14 +351,7 @@ let prove_attrib dtd hid hidref attr aname (atype,adef) accu =
 		done
 	| DTDEnum l, None -> ()
 	| DTDEnum l, Some v ->
-		if not (List.exists ((=) v) l) then raise (Prove_error (InvalidAttributeValue aname))
-	| DTDID, None -> ()
-	| DTDID, Some id ->
-		if Hashtbl.mem hid id then raise (Prove_error (DuplicateID id));
-		Hashtbl.add hid id ()
-	| DTDIDRef, None -> ()
-	| DTDIDRef, Some idref -> 
-		Hashtbl.add hidref idref ());
+		if not (List.exists ((=) v) l) then raise (Prove_error (InvalidAttributeValue aname)));
 	match adef, aval with
 	| DTDRequired, None -> raise (Prove_error (RequiredAttribute aname))
 	| DTDFixed v, Some av when v <> av -> raise (Prove_error (InvalidAttributeValue aname))
@@ -385,7 +369,7 @@ let check_attrib ahash (aname,_) =
 	with
 		Not_found -> raise (Prove_error (UnexpectedAttribute aname))
 
-let rec do_prove hid hidref dtd = function
+let rec do_prove dtd = function
 	| PCData s ->
 		prove_child dtd None;
 		PCData s
@@ -399,8 +383,8 @@ let rec do_prove hid hidref dtd = function
 		dtd.curtag <- tag;
 		dtd.current <- elt;
 		List.iter (check_attrib ahash) uattr;
-		let attr = Hashtbl.fold (prove_attrib dtd hid hidref uattr) ahash [] in
-		let childs = ref (List.map (do_prove hid hidref dtd) childs) in
+		let attr = Hashtbl.fold (prove_attrib dtd uattr) ahash [] in
+		let childs = ref (List.map (do_prove dtd) childs) in
 		(match dtd.current with
 		| DTDAny
 		| DTDEmpty -> ()
@@ -433,13 +417,7 @@ let rec do_prove hid hidref dtd = function
 		Element (tag,attr,!childs)
 
 let prove dtd root xml =
-	let hid = Hashtbl.create 0 in
-	let hidref = Hashtbl.create 0 in
-	let x = do_prove hid hidref (start_prove dtd root) xml in
-	Hashtbl.iter (fun id () ->
-		if not (Hashtbl.mem hid id) then raise (Prove_error (MissingID id))
-	) hidref;
-	x
+	do_prove (start_prove dtd root) xml
 
 let parse_error_msg = function
 	| InvalidDTDDecl -> "Invalid DOCTYPE declaration"
@@ -461,7 +439,6 @@ let check_error = function
 	| ElementEmptyContructor tag -> sprintf "Element '%s' has empty constructor" tag
 	| ElementReferenced (tag,from) -> sprintf "Element '%s' referenced by '%s' is not declared" tag from
 	| ElementNotDeclared tag -> sprintf "Element '%s' needed but is not declared" tag
-	| WrongImplicitValueForID (tag,idname) -> sprintf "Attribute '%s' of type ID of element '%s' not defined with implicit value #REQUIRED or #IMPLIED" idname tag
 
 let prove_error = function
 	| UnexpectedPCData -> "Unexpected PCData"
@@ -471,8 +448,6 @@ let prove_error = function
 	| RequiredAttribute att -> sprintf "Required attribute not found : '%s'" att
 	| ChildExpected cname -> sprintf "Child expected : '%s'" cname
 	| EmptyExpected -> "No more children expected"
-	| DuplicateID id  -> sprintf "ID '%s' used several times" id
-	| MissingID idref -> sprintf "missing ID value for IDREF '%s'" idref
 
 let to_string = function
 	| DTDAttribute (tag,aname,atype,adef) ->
@@ -480,8 +455,6 @@ let to_string = function
 			| DTDCData -> "CDATA"
 			| DTDNMToken -> "NMTOKEN"
 			| DTDEnum l -> sprintf "(%s)" (String.concat "|" l)
-			| DTDID -> "ID"
-			| DTDIDRef -> "IDREF"
 		in
 		let adefault_to_string = function
 			| DTDDefault s -> sprintf "\"%s\"" s
