@@ -112,7 +112,6 @@ let space = [' ' '\t']
 let identchar =  ['A'-'Z' 'a'-'z' '_' '0'-'9' ':' '-']
 let entitychar = ['A'-'Z' 'a'-'z']
 let pcchar = [^ '\r' '\n' '<' '>' '&']
-let cdata_start = ['c''C']['d''D']['a''A']['t''T']['a''A']
 
 rule token = parse
 	| newline
@@ -134,12 +133,6 @@ rule token = parse
 			let data = dtd_data lexbuf in
 			DocType (root, data)
 		}
-	| "<![" cdata_start '['
-		{
-			last_pos := lexeme_start lexbuf;
-			Buffer.reset tmp;
-			PCData (cdata lexbuf)
-		}		
 	| "<!--"
 		{
 			last_pos := lexeme_start lexbuf;
@@ -205,7 +198,7 @@ and ignore_spaces = parse
 		{ () }
 
 and comment = parse
-	| newline
+    | newline
 		{
 			newline lexbuf;
 			comment lexbuf
@@ -218,7 +211,7 @@ and comment = parse
 		{ comment lexbuf }
 
 and header = parse
-	| newline
+    | newline
 		{
 			newline lexbuf;
 			header lexbuf
@@ -229,28 +222,6 @@ and header = parse
 		{ error lexbuf ECloseExpected }
 	| _
 		{ header lexbuf }		
-
-and cdata = parse
-	| [^ ']' '\n']+
-		{
-			Buffer.add_string tmp (lexeme lexbuf);
-			cdata lexbuf
-		}
-	| newline 
-		{
-			newline lexbuf;
-			Buffer.add_string tmp (lexeme lexbuf);
-			cdata lexbuf
-		}
-	| "]]>"
-		{ Buffer.contents tmp }
-	| ']'
-		{
-			Buffer.add_string tmp (lexeme lexbuf);
-			cdata lexbuf
-		}
-	| eof
-		{ error lexbuf ECloseExpected }
 
 and pcdata = parse
 	| pcchar+
@@ -569,16 +540,6 @@ and dtd_attr_type = parse
 		{
 			ignore_spaces lexbuf;
 			DTDNMToken
-		}
-	| "ID"
-		{
-			ignore_spaces lexbuf;
-		 	DTDID
-		}
-	| "IDREF"
-		{
-			ignore_spaces lexbuf;
-			DTDIDRef
 		}
 	| '('
 		{
