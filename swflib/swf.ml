@@ -249,10 +249,10 @@ type action =
 type actions = action DynArray.t
 
 type header = {
-	h_version : int;
-	h_size : rect;
-	h_fps : float16;
-	h_frame_count : int; 
+	mutable h_version : int;
+	mutable h_size : rect;
+	mutable h_fps : float16;
+	mutable h_frame_count : int; 
 	mutable h_compressed : bool;
 }
 
