@@ -14,6 +14,9 @@ opt: xml-light.cmxa test_opt.exe
 install: all opt
 	cp xml-light.cmxa xml-light.a xml-light.cma xml.mli xmlParser.mli dtd.mli xml.cmi xmlParser.cmi dtd.cmi xml.cmx dtd.cmx xmlParser.cmx $(INSTALLDIR)
 
+wininstall: all opt
+	cp xml-light.cmxa xml-light.lib xml-light.cma xml.mli xmlParser.mli dtd.mli xml.cmi xmlParser.cmi dtd.cmi xml.cmx dtd.cmx xmlParser.cmx c:\ocaml\lib
+
 doc:
 	mkdir doc
 	ocamldoc -sort -html -d doc xml.mli dtd.mli xmlParser.mli
