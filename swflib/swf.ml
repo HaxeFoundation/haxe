@@ -479,7 +479,7 @@ type tag_data =
 	| TBitsLossless2 of bitmap_lossless
 	| TEditText of edit_text
 	| TClip of clip
-	| TFrameLabel of string
+	| TFrameLabel of string * char option
 	| TSoundStreamHead2 of unknown
 	| TMorphShape of morph_shape
 	| TFont2 of font2

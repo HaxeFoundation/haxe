@@ -295,8 +295,8 @@ let rec tag_data_length = function
 		edit_text_length t
 	| TClip c ->
 		4 + sum tag_length (tag_end :: c.c_tags)
-	| TFrameLabel label ->
-		String.length label + 1
+	| TFrameLabel (label,id) ->
+		String.length label + 1 + (match id with None -> 0 | Some _ -> 1)
 	| TSoundStreamHead2 data ->
 		String.length data
 	| TMorphShape s ->
@@ -1019,7 +1019,8 @@ let rec parse_tag ch =
 			}
 		| 0x2B ->
 			let label = read_string ch in
-			TFrameLabel label
+			let id = (if len = String.length label + 2 then Some (read ch) else None) in
+			TFrameLabel (label,id)
 		| 0x2D ->
 			TSoundStreamHead2 (nread ch len)		
 		| 0x2E ->
@@ -1425,8 +1426,9 @@ let rec write_tag_data ch = function
 		write_ui16 ch c.c_frame_count;
 		List.iter (write_tag ch) c.c_tags;
 		write_tag ch tag_end;
-	| TFrameLabel label ->
-		write_string ch label
+	| TFrameLabel (label,id) ->
+		write_string ch label;
+		opt (write ch) id;
 	| TSoundStreamHead2 data ->
 		nwrite ch data
 	| TMorphShape s ->
