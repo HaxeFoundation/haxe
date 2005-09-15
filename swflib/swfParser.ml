@@ -224,6 +224,12 @@ let button2_length b =
 let font2_length f =
 	2 + String.length f.ft2_data
 
+let font3_length f =
+	2 + String.length f.ft3_data
+
+let font_glyphs_length f =
+	2 + String.length f.fgl_data
+
 let edit_text_layout_length = 9
 
 let header_length h =
@@ -311,6 +317,12 @@ let rec tag_data_length = function
 		String.length s
 	| TVideoFrame s ->
 		String.length s
+	| TFlash8 s ->
+		String.length s
+	| TFontGlyphs f ->
+		font_glyphs_length f
+	| TFont3 f ->
+		font3_length f
 	| TUnknown (_,data) ->
 		String.length data
 
@@ -836,6 +848,22 @@ let parse_font2 ch len =
 		ft2_data = data;
 	}
 
+let parse_font3 ch len =
+	let id = read_ui16 ch in
+	let data = nread ch (len - 2) in
+	{
+		ft3_id = id;
+		ft3_data = data;
+	}
+
+let parse_font_glyphs ch len =
+	let id = read_ui16 ch in
+	let data = nread ch (len - 2) in
+	{
+		fgl_id = id;
+		fgl_data = data;
+	}
+
 let parse_morph_shape ch len =
 	let id = read_ui16 ch in
 	let sbounds = read_rect ch in
@@ -1057,6 +1085,12 @@ let rec parse_tag ch =
 		(*// 0x40 TEnableDebugger2 *)
 		(*// 0x41 TScriptLimits *)
 		(*// 0x42 TSetTabIndex *)
+		| 0x45 ->			
+			TFlash8 (nread ch len)
+		| 0x49 ->
+			TFontGlyphs (parse_font_glyphs ch len)
+		| 0x4B ->
+			TFont3 (parse_font3 ch len)
 		| _ ->
 			if !Swf.warnings then Printf.printf "Unknown tag 0x%.2X\n" id;
 			TUnknown (id,nread ch len)
@@ -1132,6 +1166,9 @@ let rec tag_id = function
 	| TDoInitAction _ -> 0x3B
 	| TVideoStream _ -> 0x3C
 	| TVideoFrame _ -> 0x3D
+	| TFlash8 _ -> 0x45
+	| TFontGlyphs _ -> 0x49
+	| TFont3 _ -> 0x4B
 	| TUnknown (id,_) -> id
 
 let write_clip_event ch c =
@@ -1318,6 +1355,14 @@ let write_font2 ch t =
 	write_ui16 ch t.ft2_id;
 	nwrite ch t.ft2_data
 
+let write_font3 ch t =
+	write_ui16 ch t.ft3_id;
+	nwrite ch t.ft3_data
+
+let write_font_glyphs ch t =
+	write_ui16 ch t.fgl_id;
+	nwrite ch t.fgl_data
+
 let write_button_record ch r =
 	write_byte ch r.btr_flags;
 	write_ui16 ch r.btr_cid;
@@ -1448,6 +1493,12 @@ let rec write_tag_data ch = function
 		nwrite ch s
 	| TVideoFrame s ->
 		nwrite ch s
+	| TFlash8 s ->
+		nwrite ch s
+	| TFontGlyphs f ->
+		write_font_glyphs ch f
+	| TFont3 f ->
+		write_font3 ch f
 	| TUnknown (_,data) ->
 		nwrite ch data
 

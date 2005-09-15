@@ -379,6 +379,16 @@ type font2 = {
 	ft2_data : unknown;
 }
 
+type font3 = {
+	mutable ft3_id : int;
+	ft3_data : unknown;
+}
+
+type font_glyphs = {
+	mutable fgl_id : int;
+	fgl_data : unknown;
+}
+
 type text_glyph = {
 	txg_index : int;
 	txg_advanced : int;
@@ -487,6 +497,9 @@ type tag_data =
 	| TDoInitAction of do_init_action
 	| TVideoStream of unknown
 	| TVideoFrame of unknown
+	| TFlash8 of unknown
+	| TFontGlyphs of font_glyphs
+	| TFont3 of font3
 	| TUnknown of int * unknown
 
 and tag = {
