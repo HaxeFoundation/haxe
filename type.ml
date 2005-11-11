@@ -21,29 +21,57 @@ type module_path = string list * string
 
 type t = 
 	| TMono of t option ref
-	| TEnum of module_path
+	| TEnum of module_path * t list
 	| TInst of tclass * t list
 	| TFun of t list * t
 
 and tconstant =
-	| TInt of int
+	| TInt of string
 	| TFloat of string
 	| TString of string
 	| TIdent of string
 
+and tfunc = {
+	tf_args : (string * t) list;
+	tf_type : t;
+	tf_expr : texpr;
+}
+
 and texpr_decl =
 	| TConst of tconstant
+	| TArray of texpr * texpr
+	| TBinop of Ast.binop * texpr * texpr
+	| TField of texpr * string
+	| TType of module_path
+	| TParenthesis of texpr
+	| TObjectDecl of (string * texpr) list
+	| TArrayDecl of texpr list
+	| TCall of texpr * texpr list
+	| TNew of tclass * t list * texpr list
+	| TUnop of Ast.unop * Ast.unop_flag * texpr
+	| TVars of (string * t * texpr option) list
+	| TFunction of tfunc
+	| TBlock of texpr list
+	| TFor of string * texpr * texpr
+	| TIf of texpr * texpr * texpr option
+	| TWhile of texpr * texpr * Ast.while_flag
+	| TSwitch of texpr * (texpr * texpr) list * texpr option
+	| TTry of texpr * (string * t * texpr) list
+	| TReturn of texpr option
+	| TBreak
+	| TContinue
 
 and texpr = {
 	edecl : texpr_decl;
 	etype : t;
+	epos : Ast.pos;
 }
 
 and tclass_field = {
 	cf_name : string;
 	cf_type : t;
-	cf_expr : texpr option;
 	cf_public : bool;
+	mutable cf_expr : texpr option;
 }
 
 and tclass = {
@@ -66,14 +94,77 @@ type module_def = {
 	mtypes : (module_path * module_type) list;
 }
 
+let mk e t p = { edecl = e; etype = t; epos = p }
+
+let print_context() = ref []
+
+let rec s_type ctx t = 
+	match t with
+	| TMono _ -> 
+		Printf.sprintf "'%d" (try List.assq t (!ctx) with Not_found -> let n = List.length !ctx in ctx := (t,n) :: !ctx; n)
+	| TEnum (path,tl) ->
+		Ast.s_type_path path ^ s_type_params ctx tl
+	| TInst (c,tl) ->
+		Ast.s_type_path (fst c.cl_module,c.cl_name) ^ s_type_params ctx tl
+	| TFun ([],t) ->
+		"void -> " ^ s_type ctx t
+	| TFun (l,t) ->
+		String.concat " -> " (List.map (fun t -> match t with TFun _ -> "(" ^ s_type ctx t ^ ")" | _ -> s_type ctx t) l) ^ " -> " ^ s_type ctx t
+
+and s_type_params ctx = function
+	| [] -> ""
+	| l -> "<" ^ String.concat ", " (List.map (s_type ctx) l) ^ ">"
+
+let rec link e a b =
+	let rec loop t =
+		if t == a then
+			true
+		else match t with
+		| TMono t -> (match !t with None -> false | Some t -> loop t)
+		| TEnum (_,tl) -> List.exists loop tl
+		| TInst (_,tl) -> List.exists loop tl
+		| TFun (tl,t) -> List.exists loop tl || loop t
+	in
+	if loop b then
+		false
+	else begin
+		e := Some b;
+		true
+	end
+
 let rec type_eq a b =
 	if a == b then
 		true
 	else match a , b with
-	| TEnum a , TEnum b -> a = b
+	| TMono t , _ -> (match !t with None -> link t a b | Some t -> type_eq t b)
+	| _ , TMono t -> (match !t with None -> link t b a | Some t -> type_eq a t)
+	| TEnum (a,tl1) , TEnum (b,tl2) -> a = b && List.for_all2 type_eq tl1 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) -> 
-		c1.cl_name = c2.cl_name && c1.cl_module = c2.cl_module && List.for_all2 type_eq tl1 tl2
+		c1 == c2 && List.for_all2 type_eq tl1 tl2
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
 		type_eq r1 r2 && List.for_all2 type_eq l1 l2
+	| _ , _ ->
+		false
+
+(* perform unification with subtyping.
+   the first type is always the most down in the class hierarchy
+   it's also the one that is pointed by the position.
+   It's actually a typecheck of  A :> B where some mutations can happen *)
+
+let rec unify a b =
+	if a == b then
+		true
+	else match a, b with
+	| TMono t , _ -> (match !t with None -> link t a b | Some t -> unify t b)
+	| _ , TMono t -> (match !t with None -> link t b a | Some t -> unify a t)
+	| TEnum (a,tl1) , TEnum (b,tl2) -> a = b && List.for_all2 type_eq tl1 tl2
+	| TInst (c1,tl1) , TInst (c2,tl2) ->
+		if c1 == c2 then
+			List.for_all2 type_eq tl1 tl2
+		else begin
+			assert false
+		end
+	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
+		unify r1 r2 && List.for_all2 unify l2 l1 (* contravariance *)
 	| _ , _ ->
 		false

@@ -21,16 +21,25 @@ open Ast
 open Type
 
 type context = {
+	(* shared *)	
+	types : (module_path, module_path) Hashtbl.t;
 	modules : (module_path , module_def) Hashtbl.t;
-	current : module_def;
 	delays : (unit -> unit) list list ref;
-	mutable types : (module_path * module_type) list;
+	(* per-module *)
+	current : module_def;
+	mutable in_static : bool;
+	mutable local_types : (module_path * module_type) list;
 }
+
+(* ---------------------------------------------------------------------- *)
+(* TOOLS *)
 
 let context() = {
 	modules = Hashtbl.create 0;
-	types = [];
+	types = Hashtbl.create 0;
 	delays = ref [];
+	in_static = false;
+	local_types = [];
 	current = {
 		mpath = [] , "";
 		mtypes = [];
@@ -39,12 +48,16 @@ let context() = {
 
 type error_msg =
 	| Module_not_found of module_path
+	| Cannot_unify of t * t
 	| Custom of string
 
 exception Error of error_msg * pos
 
 let error_msg = function
 	| Module_not_found m -> "Module not found : " ^ s_type_path m
+	| Cannot_unify (t1,t2) -> 
+		let ctx = print_context() in
+		s_type ctx t1 ^ " should be " ^ s_type ctx t2
 	| Custom s -> s
 
 let error msg p = raise (Error (msg,p))
@@ -54,21 +67,22 @@ let load_ref : (context -> module_path -> pos -> module_def) ref = ref (fun _ _ 
 let load ctx m p = (!load_ref) ctx m p
 
 (** since load_type is used in PASS2 , it cannot access the structure of a type **)
-let rec load_normal_type ctx t p =
-	let tpath = t.tpackage , t.tname in
-	let tdef = (try
-		snd (List.find (fun (tp,_) -> tp = tpath || snd tp = t.tname) ctx.types)
+
+let load_type_def ctx tpath p =
+	try
+		snd (List.find (fun (tp,_) -> tp = tpath || (fst tpath = [] && snd tp = snd tpath)) ctx.local_types)
 	with
 		Not_found ->
 			let m = load ctx tpath p in
 			try
 				snd (List.find (fun (tp,_) -> tp = tpath) m.mtypes)
 			with
-				Not_found -> error (Custom ("Module " ^ s_type_path tpath ^ " does not define type " ^ t.tname)) p
-	) in
-	match tdef with
+				Not_found -> error (Custom ("Module " ^ s_type_path tpath ^ " does not define type " ^ snd tpath)) p
+
+let rec load_normal_type ctx t p =
+	match load_type_def ctx (t.tpackage,t.tname) p with
 	| TClassDecl c -> 
-		if List.length c.cl_types <> List.length t.tparams then error (Custom ("Invalid number of type parameters for " ^ s_type_path tpath)) p;
+		if List.length c.cl_types <> List.length t.tparams then error (Custom ("Invalid number of type parameters for " ^ s_type_path (fst c.cl_module,c.cl_name))) p;
 		let types = List.map (fun t ->
 			let t = load_type ctx t p in
 			(** CHECK t AGAINST corresponding classtype (for subtyping) **)
@@ -89,11 +103,90 @@ let load_type_opt ctx t p =
 	| None -> TMono (ref None)
 	| Some t -> load_type ctx t p
 
-let type_static_var ctx t e p () =
+let unify t1 t2 p =
+	if not (unify t1 t2) then error (Cannot_unify (t1,t2)) p
+
+let t_int ctx = load_normal_type ctx { tpackage = []; tname = "Int"; tparams = [] } null_pos
+let t_float ctx = load_normal_type ctx { tpackage = []; tname = "Float"; tparams = [] } null_pos
+let t_bool ctx = load_normal_type ctx { tpackage = []; tname = "Bool"; tparams = [] } null_pos
+let t_string ctx = load_normal_type ctx { tpackage = []; tname = "String"; tparams = [] } null_pos
+
+let t_array ctx =
+	match load_type_def ctx ([],"Array") null_pos with
+	| TClassDecl c ->
+		if List.length c.cl_types <> 1 then assert false;
+		let pt = TMono (ref None) in
+		TInst (c,[pt]) , pt
+	| _ ->
+		assert false
+
+(* ---------------------------------------------------------------------- *)
+(* PASS 3 : type expression & check structure *)
+
+let type_ident ctx i p =
 	assert false
 
-let type_function ctx t static f p () =
+let type_constant ctx c p =
+	match c with
+	| Int i -> mk (TConst (TInt i)) (t_int ctx) p
+	| Float f -> mk (TConst (TFloat f)) (t_float ctx) p 
+	| String s -> mk (TConst (TString s)) (t_string ctx) p
+	| Ident s -> type_ident ctx s p
+	| Type s ->
+		let t = load_type_def ctx ([],s) p in 
+		assert false
+
+let rec type_binop ctx op e1 e2 p =
 	assert false
+
+and type_expr ctx (e,p) =
+	match e with
+	| EConst c ->
+		type_constant ctx c p
+	| EArray (e1,e2) ->
+		let e1 = type_expr ctx e1 in
+		let e2 = type_expr ctx e2 in
+		unify e2.etype (t_int ctx) e2.epos;
+		let t , pt = t_array ctx in
+		unify e1.etype t e1.epos;
+		mk (TArray (e1,e2)) pt p
+    | EBinop (op,e1,e2) -> 
+		type_binop ctx op e1 e2 p
+	| _ ->
+		assert false
+(*/*
+	| EField of expr * string
+	| EType of expr * string
+	| EParenthesis of expr
+	| EObjectDecl of (string * expr) list
+	| EArrayDecl of expr list
+	| ECall of expr * expr list
+	| ENew of type_path * expr list
+	| EUnop of unop * unop_flag * expr
+	| EVars of (string * type_path option * expr option) list
+	| EFunction of func
+	| EBlock of expr list
+	| EFor of string * expr * expr
+	| EIf of expr * expr * expr option
+	| EWhile of expr * expr * while_flag
+	| ESwitch of expr * (expr * expr) list * expr option
+	| ETry of expr * (string * type_path * expr) list
+	| EReturn of expr option
+	| EBreak
+	| EContinue
+*/*)
+
+let type_static_var ctx t e p =
+	ctx.in_static <- true;
+	let e = type_expr ctx e in
+	unify e.etype t p;
+	e
+
+let type_function ctx t static f p =
+	ctx.in_static <- static;
+	let e = type_expr ctx f.f_expr in
+	unify e.etype t p;
+	e
 
 let check_overloading c p () =
 	let rec loop s f =
@@ -109,10 +202,13 @@ let check_overloading c p () =
 	in
 	PMap.iter (fun _ f -> loop c.cl_super f) c.cl_fields
 
+(* ---------------------------------------------------------------------- *)
+(* PASS 1 & 2 : Module and Class Structure *)
+
 let init_class ctx c p types herits fields =
 	let type_class_flags n flags =
 		match flags with
-		| [] -> TEnum (fst ctx.current.mpath,c.cl_name ^ "#" ^ n)
+		| [] -> TEnum ((fst ctx.current.mpath,c.cl_name ^ "#" ^ n),[])
 		| l -> assert false
 	in
 	c.cl_types <- List.map (fun (n,flags) ->
@@ -146,21 +242,27 @@ let init_class ctx c p types herits fields =
 		match f with
 		| FVar (name,access,t,e) ->
 			let t = load_type ctx t p in
-			List.mem AStatic access, {
+			let cf = {
 				cf_name = name;
 				cf_type = t;
 				cf_expr = None;
 				cf_public = not (List.mem APrivate access);
-			} , (match e with None -> (fun() -> ()) | Some e -> type_static_var ctx t e p)
+			} in
+			let delay = (match e with 
+				| None -> (fun() -> ())
+				| Some e -> (fun () -> cf.cf_expr <- Some (type_static_var ctx t e p))
+			) in
+			List.mem AStatic access, cf, delay
 		| FFun (name,access,f) ->
 			let t = TFun (List.map (fun (_,t) -> load_type_opt ctx t p) f.f_args,load_type_opt ctx f.f_type p) in
 			let stat = List.mem AStatic access in
-			stat, {
+			let cf = {
 				cf_name = name;
 				cf_type = t;
 				cf_expr = None;
 				cf_public = not (List.mem APrivate access);
-			} , type_function ctx t stat f p
+			} in
+			stat, cf , (fun() -> cf.cf_expr <- Some (type_function ctx t stat f p))
 	in
 	List.map (fun (f,p) ->
 		let static , f , delayed = loop_cf f p in
@@ -176,9 +278,13 @@ let type_module ctx m tdecls =
 	(* PASS 1 : build module structure - does not load any module or type - should be atomic ! *)
 	let decls = ref [] in
 	let decl_with_name name p =
-		List.iter (fun ((_,name2),_) ->
-			if name = name2 then error (Custom ("Type name redefinition " ^ name)) p;
-		) (!decls)
+		let tpath = (fst m,name) in
+		try
+			let m2 = Hashtbl.find ctx.types tpath in
+			error (Custom ("Type name " ^ s_type_path tpath ^ " is redefined from module " ^ s_type_path m2)) p
+		with
+			Not_found ->
+				Hashtbl.add ctx.types (fst m,name) m
 	in
 	List.iter (fun (d,p) ->
 		match d with
@@ -209,15 +315,18 @@ let type_module ctx m tdecls =
 	let ctx = {
 		modules = ctx.modules;
 		delays = ctx.delays;
+		types = ctx.types;
+
 		current = m;
-		types = m.mtypes;
+		local_types = m.mtypes;
+		in_static = false;
 	} in
 	let delays = ref [] in
 	List.iter (fun (d,p) ->
 		match d with
 		| EImport t ->
 			let m = load ctx t p in
-			ctx.types <- ctx.types @ m.mtypes
+			ctx.local_types <- ctx.local_types @ m.mtypes
 		| EClass (name,types,herits,fields) ->
 			let c = List.find (fun (_,d) -> match d with TClassDecl ({ cl_name = n } as c) -> n = name | _ -> false) m.mtypes in
 			let c = (match snd c with TClassDecl c -> c | _ -> assert false) in
