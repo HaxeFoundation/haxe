@@ -17,9 +17,9 @@
 			ConfigurationType="0">
 			<Tool
 				Name="VCNMakeTool"
-				BuildCommandLine="ocamake -opt -pp camlp4o haxe.vcproj extc.cmxa"
-				ReBuildCommandLine="ocamake -all -opt -pp camlp4o haxe.vcproj extc.cmxa"
-				CleanCommandLine="ocamake -clean -opt -pp camlp4o haxe.vcproj extc.cmxa"
+				BuildCommandLine="ocamake -opt -pp camlp4o haxe.vcproj extLib.cmxa extc.cmxa"
+				ReBuildCommandLine="ocamake -all -opt -pp camlp4o haxe.vcproj extLib.cmxa extc.cmxa"
+				CleanCommandLine="ocamake -clean -opt -pp camlp4o haxe.vcproj extLib.cmxa extc.cmxa"
 				Output="haxe.exe"/>
 		</Configuration>
 		<Configuration
@@ -52,6 +52,12 @@
 		</File>
 		<File
 			RelativePath=".\plugin.ml">
+		</File>
+		<File
+			RelativePath=".\type.ml">
+		</File>
+		<File
+			RelativePath=".\typer.ml">
 		</File>
 	</Files>
 	<Globals>
