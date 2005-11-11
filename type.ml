@@ -21,15 +21,18 @@ type module_path = string list * string
 
 type t = 
 	| TMono of t option ref
-	| TEnum of module_path * t list
+	| TEnum of tenum * t list
 	| TInst of tclass * t list
 	| TFun of t list * t
+	| TParameter of module_path * string  
 
 and tconstant =
 	| TInt of string
 	| TFloat of string
 	| TString of string
-	| TIdent of string
+	| TBool of bool
+	| TNull
+	| TThis
 
 and tfunc = {
 	tf_args : (string * t) list;
@@ -39,10 +42,14 @@ and tfunc = {
 
 and texpr_decl =
 	| TConst of tconstant
+	| TLocal of string
+	| TMember of tclass * string
+	| TEnumField of tenum * string
+	| TStaticField of tclass * string
 	| TArray of texpr * texpr
 	| TBinop of Ast.binop * texpr * texpr
 	| TField of texpr * string
-	| TType of module_path
+	| TType of module_type
 	| TParenthesis of texpr
 	| TObjectDecl of (string * texpr) list
 	| TArrayDecl of texpr list
@@ -75,8 +82,7 @@ and tclass_field = {
 }
 
 and tclass = {
-	cl_module : module_path;
-	cl_name : string;
+	cl_path : module_path;
 	mutable cl_native : bool;
 	mutable cl_types : (string * t) list;
 	mutable cl_super : (tclass * t list) option;
@@ -85,9 +91,20 @@ and tclass = {
 	mutable cl_statics : (string, tclass_field) PMap.t;
 }
 
-type module_type = 
+and tenum_field = {
+	ef_name : string;
+	ef_type : t;
+}
+
+and tenum = {
+	e_path : module_path;
+	mutable e_types : (string * t) list;
+	mutable e_constrs : (string , tenum_field) PMap.t;
+}
+
+and module_type = 
 	| TClassDecl of tclass 
-	| TEnumDecl
+	| TEnumDecl of tenum
 
 type module_def = {
 	mpath : module_path;		
@@ -96,20 +113,24 @@ type module_def = {
 
 let mk e t p = { edecl = e; etype = t; epos = p }
 
+let mk_mono() = TMono (ref None)
+
 let print_context() = ref []
 
 let rec s_type ctx t = 
 	match t with
 	| TMono _ -> 
 		Printf.sprintf "'%d" (try List.assq t (!ctx) with Not_found -> let n = List.length !ctx in ctx := (t,n) :: !ctx; n)
-	| TEnum (path,tl) ->
-		Ast.s_type_path path ^ s_type_params ctx tl
+	| TEnum (e,tl) ->
+		Ast.s_type_path e.e_path ^ s_type_params ctx tl
 	| TInst (c,tl) ->
-		Ast.s_type_path (fst c.cl_module,c.cl_name) ^ s_type_params ctx tl
+		Ast.s_type_path c.cl_path ^ s_type_params ctx tl
 	| TFun ([],t) ->
 		"void -> " ^ s_type ctx t
 	| TFun (l,t) ->
 		String.concat " -> " (List.map (fun t -> match t with TFun _ -> "(" ^ s_type ctx t ^ ")" | _ -> s_type ctx t) l) ^ " -> " ^ s_type ctx t
+	| TParameter (p,n) ->
+		Ast.s_type_path p ^ "#" ^ n
 
 and s_type_params ctx = function
 	| [] -> ""
@@ -124,6 +145,7 @@ let rec link e a b =
 		| TEnum (_,tl) -> List.exists loop tl
 		| TInst (_,tl) -> List.exists loop tl
 		| TFun (tl,t) -> List.exists loop tl || loop t
+		| TParameter (_,_) -> false
 	in
 	if loop b then
 		false
@@ -132,13 +154,20 @@ let rec link e a b =
 		true
 	end
 
+(* substitute parameters with other types *)
+let apply_params cparams params t =
+	assert false
+
+let monomorphs eparams t =
+	apply_params eparams (List.map (fun _ -> mk_mono()) eparams) t
+
 let rec type_eq a b =
 	if a == b then
 		true
 	else match a , b with
 	| TMono t , _ -> (match !t with None -> link t a b | Some t -> type_eq t b)
 	| _ , TMono t -> (match !t with None -> link t b a | Some t -> type_eq a t)
-	| TEnum (a,tl1) , TEnum (b,tl2) -> a = b && List.for_all2 type_eq tl1 tl2
+	| TEnum (a,tl1) , TEnum (b,tl2) -> a == b && List.for_all2 type_eq tl1 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) -> 
 		c1 == c2 && List.for_all2 type_eq tl1 tl2
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
@@ -157,7 +186,7 @@ let rec unify a b =
 	else match a, b with
 	| TMono t , _ -> (match !t with None -> link t a b | Some t -> unify t b)
 	| _ , TMono t -> (match !t with None -> link t b a | Some t -> unify a t)
-	| TEnum (a,tl1) , TEnum (b,tl2) -> a = b && List.for_all2 type_eq tl1 tl2
+	| TEnum (a,tl1) , TEnum (b,tl2) -> a == b && List.for_all2 type_eq tl1 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		if c1 == c2 then
 			List.for_all2 type_eq tl1 tl2

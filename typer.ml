@@ -25,26 +25,17 @@ type context = {
 	types : (module_path, module_path) Hashtbl.t;
 	modules : (module_path , module_def) Hashtbl.t;
 	delays : (unit -> unit) list list ref;
+	mutable std : module_def;
 	(* per-module *)
 	current : module_def;
+	mutable curclass : tclass;
 	mutable in_static : bool;
+	mutable locals : (string, t) PMap.t;
 	mutable local_types : (module_path * module_type) list;
 }
 
 (* ---------------------------------------------------------------------- *)
 (* TOOLS *)
-
-let context() = {
-	modules = Hashtbl.create 0;
-	types = Hashtbl.create 0;
-	delays = ref [];
-	in_static = false;
-	local_types = [];
-	current = {
-		mpath = [] , "";
-		mtypes = [];
-	}
-}
 
 type error_msg =
 	| Module_not_found of module_path
@@ -82,15 +73,21 @@ let load_type_def ctx tpath p =
 let rec load_normal_type ctx t p =
 	match load_type_def ctx (t.tpackage,t.tname) p with
 	| TClassDecl c -> 
-		if List.length c.cl_types <> List.length t.tparams then error (Custom ("Invalid number of type parameters for " ^ s_type_path (fst c.cl_module,c.cl_name))) p;
+		if List.length c.cl_types <> List.length t.tparams then error (Custom ("Invalid number of type parameters for " ^ s_type_path c.cl_path)) p;
 		let types = List.map (fun t ->
 			let t = load_type ctx t p in
 			(** CHECK t AGAINST corresponding classtype (for subtyping) **)
 			t
 		) t.tparams in
 		TInst (c,types)
-	| TEnumDecl ->
-		assert false
+	| TEnumDecl e ->
+		if List.length e.e_types <> List.length t.tparams then error (Custom ("Invalid number of type parameters for " ^ s_type_path e.e_path)) p;
+		let types = List.map (fun t ->
+			let t = load_type ctx t p in
+			(** CHECK t AGAINST corresponding classtype (for subtyping) **)
+			t
+		) t.tparams in
+		TEnum (e,types)
 
 and load_type ctx t p =
 	match t with
@@ -100,11 +97,16 @@ and load_type ctx t p =
 
 let load_type_opt ctx t p =
 	match t with
-	| None -> TMono (ref None)
+	| None -> mk_mono()
 	| Some t -> load_type ctx t p
 
 let unify t1 t2 p =
 	if not (unify t1 t2) then error (Cannot_unify (t1,t2)) p
+
+let type_type_params ctx path p (n,flags) =
+	n , match flags with
+	| [] -> TParameter (path,n)
+	| _ -> assert false
 
 let t_int ctx = load_normal_type ctx { tpackage = []; tname = "Int"; tparams = [] } null_pos
 let t_float ctx = load_normal_type ctx { tpackage = []; tname = "Float"; tparams = [] } null_pos
@@ -115,7 +117,7 @@ let t_array ctx =
 	match load_type_def ctx ([],"Array") null_pos with
 	| TClassDecl c ->
 		if List.length c.cl_types <> 1 then assert false;
-		let pt = TMono (ref None) in
+		let pt = mk_mono() in
 		TInst (c,[pt]) , pt
 	| _ ->
 		assert false
@@ -124,13 +126,61 @@ let t_array ctx =
 (* PASS 3 : type expression & check structure *)
 
 let type_ident ctx i p =
-	assert false
+	try
+		(* local loookup *)
+		let t = PMap.find i ctx.locals in
+		mk (TLocal i) t p
+	with Not_found -> try
+		(* member variable lookup *)
+		if ctx.in_static then raise Not_found;
+		let rec loop c =
+			try	
+				let f = PMap.find i c.cl_fields in
+				f.cf_type
+			with
+				Not_found ->
+					match c.cl_super with
+					| None -> raise Not_found
+					| Some (c,params) ->
+						let t = loop c in
+						apply_params c.cl_types params t
+		in
+		let t = loop ctx.curclass in
+		mk (TMember (ctx.curclass,i)) t p
+	with Not_found -> try
+		(* static variable lookup *)
+		let f = PMap.find i ctx.curclass.cl_statics in
+		mk (TStaticField (ctx.curclass,i)) f.cf_type p
+	with Not_found -> try
+		(* lookup imported *)
+		let rec loop l =
+			match l with
+			| [] -> raise Not_found
+			| (_,t) :: l ->
+				match t with
+				| TClassDecl c -> 
+					loop l
+				| TEnumDecl e ->
+					try
+						let ef = PMap.find i e.e_constrs in
+						mk (TEnumField (e,i)) (monomorphs e.e_types ef.ef_type) p
+					with
+						Not_found -> loop l
+		in
+		loop ctx.local_types
+	with Not_found ->
+		if ctx.in_static && PMap.mem i ctx.curclass.cl_fields then error (Custom ("Cannot access " ^ i ^ " in static function")) p;
+		error (Custom ("Unknown identifier " ^ i)) p 
 
 let type_constant ctx c p =
 	match c with
 	| Int i -> mk (TConst (TInt i)) (t_int ctx) p
 	| Float f -> mk (TConst (TFloat f)) (t_float ctx) p 
 	| String s -> mk (TConst (TString s)) (t_string ctx) p
+	| Ident "true" -> mk (TConst (TBool true)) (t_bool ctx) p
+	| Ident "false" -> mk (TConst (TBool false)) (t_bool ctx) p
+	| Ident "this" -> assert false
+	| Ident "null" -> mk (TConst TNull) (mk_mono()) p
 	| Ident s -> type_ident ctx s p
 	| Type s ->
 		let t = load_type_def ctx ([],s) p in 
@@ -202,18 +252,14 @@ let check_overloading c p () =
 	in
 	PMap.iter (fun _ f -> loop c.cl_super f) c.cl_fields
 
+let check_interfaces c p () =
+	() (**** TODO ****)
+
 (* ---------------------------------------------------------------------- *)
 (* PASS 1 & 2 : Module and Class Structure *)
 
 let init_class ctx c p types herits fields =
-	let type_class_flags n flags =
-		match flags with
-		| [] -> TEnum ((fst ctx.current.mpath,c.cl_name ^ "#" ^ n),[])
-		| l -> assert false
-	in
-	c.cl_types <- List.map (fun (n,flags) ->
-		n , type_class_flags n flags
-	) types;
+	c.cl_types <- List.map (type_type_params ctx c.cl_path p) types;
 	c.cl_native <- List.mem HNative herits;
 	let rec loop_super = function 
 		| [] ->
@@ -250,7 +296,10 @@ let init_class ctx c p types herits fields =
 			} in
 			let delay = (match e with 
 				| None -> (fun() -> ())
-				| Some e -> (fun () -> cf.cf_expr <- Some (type_static_var ctx t e p))
+				| Some e -> (fun () ->
+					ctx.curclass <- c;
+					cf.cf_expr <- Some (type_static_var ctx t e p)
+				)
 			) in
 			List.mem AStatic access, cf, delay
 		| FFun (name,access,f) ->
@@ -262,7 +311,10 @@ let init_class ctx c p types herits fields =
 				cf_expr = None;
 				cf_public = not (List.mem APrivate access);
 			} in
-			stat, cf , (fun() -> cf.cf_expr <- Some (type_function ctx t stat f p))
+			stat, cf , (fun() -> 
+				ctx.curclass <- c;
+				cf.cf_expr <- Some (type_function ctx t stat f p)
+			)
 	in
 	List.map (fun (f,p) ->
 		let static , f , delayed = loop_cf f p in
@@ -284,16 +336,16 @@ let type_module ctx m tdecls =
 			error (Custom ("Type name " ^ s_type_path tpath ^ " is redefined from module " ^ s_type_path m2)) p
 		with
 			Not_found ->
-				Hashtbl.add ctx.types (fst m,name) m
+				Hashtbl.add ctx.types (fst m,name) m;
+				tpath
 	in
 	List.iter (fun (d,p) ->
 		match d with
 		| EImport _ -> ()
 		| EClass (name,_,_,_) ->
-			decl_with_name name p;
+			let path = decl_with_name name p in
 			let c = { 
-				cl_module = m;
-				cl_name = name;
+				cl_path = path;
 				cl_types = [];
 				cl_native = false;
 				cl_super = None;
@@ -303,8 +355,13 @@ let type_module ctx m tdecls =
 			} in
 			decls := ((fst m,name),TClassDecl c) :: !decls
 		| EEnum (name,_,_) ->
-			decl_with_name name p;
-			assert false
+			let path = decl_with_name name p in
+			let e = {
+				e_path = path;
+				e_types = [];
+				e_constrs = PMap.empty;
+			} in
+			decls := ((fst m,name), TEnumDecl e) :: !decls
 	) tdecls;
 	let m = {
 		mpath = m;
@@ -316,9 +373,11 @@ let type_module ctx m tdecls =
 		modules = ctx.modules;
 		delays = ctx.delays;
 		types = ctx.types;
-
+		curclass = ctx.curclass;
+		std = ctx.std;
 		current = m;
-		local_types = m.mtypes;
+		locals = PMap.empty;
+		local_types = ctx.std.mtypes @ m.mtypes;
 		in_static = false;
 	} in
 	let delays = ref [] in
@@ -328,11 +387,21 @@ let type_module ctx m tdecls =
 			let m = load ctx t p in
 			ctx.local_types <- ctx.local_types @ m.mtypes
 		| EClass (name,types,herits,fields) ->
-			let c = List.find (fun (_,d) -> match d with TClassDecl ({ cl_name = n } as c) -> n = name | _ -> false) m.mtypes in
+			let c = List.find (fun (_,d) -> match d with TClassDecl ({ cl_path = _ , n } as c) -> n = name | _ -> false) m.mtypes in
 			let c = (match snd c with TClassDecl c -> c | _ -> assert false) in
-			delays := !delays @ check_overloading c p :: init_class ctx c p types herits fields
+			delays := !delays @ check_overloading c p :: check_interfaces c p :: init_class ctx c p types herits fields
 		| EEnum (name,types,constrs) ->
-			assert false
+			let e = List.find (fun (_,d) -> match d with TEnumDecl ({ e_path = _ , n } as e) -> n = name | _ -> false) m.mtypes in
+			let e = (match snd e with TEnumDecl e -> e | _ -> assert false) in
+			e.e_types <- List.map (type_type_params ctx e.e_path p) types;
+			let et = TEnum (e,List.map snd e.e_types) in
+			List.iter (fun (c,t,p) ->
+				let t = (match t with 
+					| [] -> et
+					| l -> TFun (List.map (fun (_,t) -> load_type ctx t p) l, et)
+				) in
+				e.e_constrs <- PMap.add c { ef_name = c; ef_type = t } e.e_constrs
+			) constrs
 	) tdecls;
 	(* PASS 3 : type checking, delayed until all modules and types are built *)
 	ctx.delays := !delays :: !(ctx.delays);
@@ -356,6 +425,38 @@ let load ctx m p =
 					error (Custom ("Invalid package : " ^ spack (fst m) ^ " should be " ^ spack pack)) p
 			end;
 			type_module ctx m decls
+
+let context() =
+	let empty =	{
+		mpath = [] , "";
+		mtypes = [];
+	} in
+	let ctx = {
+		modules = Hashtbl.create 0;
+		types = Hashtbl.create 0;
+		delays = ref [];
+		in_static = false;
+		locals = PMap.empty;
+		local_types = [];
+		curclass = {
+			cl_path = [] , "";
+			cl_native = false;
+			cl_types = [];
+			cl_super = None;
+			cl_implements = [];
+			cl_fields = PMap.empty;
+			cl_statics = PMap.empty;
+		};
+		current = empty;
+		std = empty;
+	} in
+	ctx.std <- (try
+		load ctx ([],"Std") null_pos
+	with
+		Error (Module_not_found ([],"Std"),_) ->
+			error (Custom "Standard library not found") null_pos
+	);
+	ctx
 
 let rec finalize ctx =
 	let delays = List.concat !(ctx.delays) in
