@@ -149,10 +149,10 @@ and parse_type_anonymous = parser
 	| [< '(Const (Ident name),_); '(DblDot,_); t = parse_type_path >] -> (name,t)
 
 and parse_enum = parser
-	| [< '(Const (Ident name),_); s >] ->
+	| [< '(Const (Ident name),p); s >] ->
 		match s with parser
-		| [< '(POpen,_); l = psep Comma parse_enum_param; '(PClose,_); _ = semicolon; >] -> (name,l)
-		| [< '(Semicolon,_) >] -> (name,[])
+		| [< '(POpen,_); l = psep Comma parse_enum_param; '(PClose,_); _ = semicolon; >] -> (name,l,p)
+		| [< '(Semicolon,_) >] -> (name,[],p)
 		| [< >] -> serror()
 
 and parse_enum_param = parser

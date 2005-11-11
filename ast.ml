@@ -181,7 +181,7 @@ type type_param = string * type_param_flag list
 
 type type_def =
 	| EClass of string * type_param list * type_param_flag list * (class_field * pos) list
-	| EEnum of string * type_param list * (string * (string * type_path) list) list
+	| EEnum of string * type_param list * (string * (string * type_path) list * pos) list
 	| EImport of (string list * string)
 
 type type_decl = type_def * pos
