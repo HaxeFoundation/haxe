@@ -1,0 +1,289 @@
+<html>
+<head>
+<title>The haXe Programming Language Reference</title>
+<link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+
+<body>
+
+<div class="content">
+
+<h1>The haXe Programming Language Reference</h1>
+
+<script type="text/javascript" src="menu.js"></script>
+
+
+<h2>Introduction</h2>
+
+<p>
+	This Language Reference document will quickly introduce you the haXe programming language syntax and features.
+</p>
+
+<h2>My First Class</h2>
+
+<p>
+	The syntax is Java/ActionScript/C++ like.
+</p>
+
+<p>
+	A source code file is composed of a <em>package name</em> followed by several <em>type</em> declarations. In order to enforce the conventions, packages names are composed of several <em>identifiers</em> which are starting with a lowercase letter while <em>type identifiers</em> are always starting with an uppercase letter. The following <em>types</em> are available :
+</p>
+
+<ul>
+	<li>class</li>
+	<li>enumeration</li>
+	<li><em>(... more to come)</em></li>
+</ul>
+
+<p>
+	Here's one single sample mixing a class and an enumeration :
+</p>
+
+<pre>    <k>package</k> my.pack {
+
+        <k>enum</k> Color {
+            red;
+            green;
+            blue;
+        }
+
+        <k>class</k> Colors {
+            <k>static function</k> toInt( c : Color ) : Int {
+                <k>return if</k>( c == red ) 0xFF000
+                  <k>else if</k>( c == green ) 0x00FF00
+                  <k>else</k> 0x0000FF;
+            }
+        }
+    }
+</pre>
+
+<p>
+	We can notice several things here :
+</p>
+
+<ul>
+	<li>an enumeration define several <em>identifiers</em> which have the enumeration type.</li>
+	<li>a class can have methods (static or private/public). All class fields (methods and members) must be typed.</li>
+	<li>There is no <em>statement</em>. For exemple <c><k>if</k></c> block can be used on the right side of a return, or as function call parameter, or everywhere else an expression can be put.</li>
+</ul>
+
+<h2>The Type System</h2>
+
+<p>
+	The Type System is more rich that usual OO languages. There is several kind of types available :
+</p>
+
+<ul class="big">
+	<li><b>Objects</b> : objects are declared using classes. Each class can <em>extend</em> a single class (using inheritance) and can <em>implements</em> several classes (this is prototyping).</li>
+	<li><b>Anonymous Objects</b> : it's possible to define anonymous objects such as <c>{ x : Int; y : Int }</c>.</li>
+	<li><b>Dynamic Objects</b> : the <c>Dynamic</c> class have an infinite number of fields and methods, each having the <c>Dynamic</c> type. Classes can <em>extends</em> Dynamic in order to get dynamic behavior. <c>Dynamic</c> can have an optional type parameter (see below).</li>
+	<li><b>Abstract Types</b>
+: enumeration are abstract types. They define a finite number of
+instance of this type. The empty enumeration for exemple, although it
+has a name, can't be constructed.</li>
+	<li><b>Function Types</b> :
+when you want to define function types, you can define them by listing
+the arguments followed by the return type and separated with arrows.
+For exemple <c>Int -&gt; Void</c> is the type of a function taking an Int as argument and returning Void. And <c>Color -&gt; Color -&gt; Int</c> takes two Color arguments and returns an Int.</li>
+</ul>
+
+<p>
+	As we said before, all objects fields (members and methods) must be fully typed (although you can use the <c>Dynamic</c>
+type if you want to get dynamic behavior). That means that inside a
+method, we know all the types. You don't have then to declare local
+variable types since they will get inferred for you by the compiler.
+</p>
+
+<p>
+	Several common types are already defined in the language. Most of them are abstracts.
+</p>
+
+<ul>
+	<li><c>Dynamic</c> : special type</li>
+	<li><c>Void</c> : abstract</li>
+	<li><c>Int</c> : abstract</li>
+	<li><c>Float</c> : abstract</li>
+	<li><c>Bool</c> : enum { true; false; }</li>
+</ul>
+
+<h2>Class Parameters</h2>
+
+<p>
+	You can define class parameters in order to have one single class implementing different behavior. This is a way to get <em>polymorphism</em> :
+</p>
+
+<pre>    <k>native class</k> Array&lt;T&gt; {
+        <k>function new</k>() : Void;
+        <k>function</k> get( pos : Int ) : T;
+        <k>function</k> set( pos : Int, elt : T ) : Void;
+        ...
+    }
+</pre>
+
+<p>
+	Then you can use different kind of <c>Array</c>s by specifying the type parameter. For example <c>Array&lt;Int&gt;</c> is an array of integers and <c>Array&lt;Array&lt;Float&gt;&gt;</c>
+is a two dimentional array containing floats. You can of course define
+your own parametrized types. If you want them not to be fully abstract,
+you can specify some requirements in the type parameter :
+</p>
+
+<pre>    <k>class</k> MyClass&lt;T <k>extends</k> MyObject&gt; {
+        <k>var</k> o : T;
+        <k>function</k> foo() : Void {
+            o.myMethod();
+        }
+        ...
+    }
+</pre>
+
+<h2>Iterators</h2>
+
+<p> A nice feature of the language is to be able to define your own
+iterators and play with them. An iterator is a function of the form : <c>Void -&gt; X</c> where <c>X</c> is the iterated type. You can use the <c><k>for</k>...<k>in</k></c> syntax in order to execute iterators. The most simple iterator is the <c>Int</c> iterator which can easily be built using the operator <c>...</c> :
+</p>
+
+<pre>    <k>for</k> i <k>in</k> 1...10 {
+        <g>// ...</g>
+    }
+</pre>
+
+<p>
+	Or the usual <c><k>for</k></c> loop :
+</p>
+
+<pre>    <k>for</k> i <k>in</k> 0...arr.length {
+        foo(arr[i]);
+    }
+</pre>
+
+<p>
+	But you can also define you own iterators. You can simply implement the <c>iterator()</c> method in your class. This method must return another function that will return one object each call or the special value <k><c>done</c></k> when finished. Here's a simple integer enumerator sample. Please note that it is not really useful since there is already the <c>...</c>&lt;&gt; operator, but it's good sample to understand how it works <em>behind the scene</em> :
+</p>
+
+<pre>    <k>class</k> IntIter {
+        <k>var</k> min : Int;
+        <k>var</k> max : Int;
+
+        <k>function new</k>( min : Int, max : Int ) {
+            <k>this</k>.min = min;
+            <k>this</k>.max = max;
+        }
+
+        <k>function</k> iterator() {
+            <k>var</k> cur = min;
+            <k>return function</k>() {
+                <k>if</k>( cur == max )
+                    <k>return</k> done;
+                <k>return</k> cur++;
+            }
+        }
+    }
+</pre>
+
+<p>
+	As this class shows, you can call several times the <c>iterator()</c> method in order to have several parallel iterators. Once your iterator is implemented, you can simply use it with the <c><k>for</k>...<k>in</k></c> syntax, this way :
+</p>
+
+<pre>    <k>var</k> iter = <k>new</k> IntIter(0,10);
+    <k>for</k> i <k>in</k> iter {
+        <g>// ...</g>
+    }
+</pre>
+
+<p> The variable name in the iterator is automaticaly declared and its
+type is bound to the iterator type. If the iterator is a function, then
+it must be of the form <c>Void -&gt; X</c> as previously said. If it's an object like the sample here, then it's a shortcut for writing <c>iter.iterator()</c>.
+</p>
+
+<h2>Going Dynamic</h2>
+
+<p>
+	When you want to have dynamic behavior, you can either type some variables as <c>Dynamic</c> or have your classes <c><k>extends</k></c> or <c><k>implements</k></c> Dynamic. Dynamic can have an optional type parameter that determine the type of the object fields when accessed. For exemple :
+</p>
+
+<pre>    <k>class</k> XML {
+
+        <k>var</k> attributes : Dynamic&lt;String&gt;
+        ....
+
+    }
+</pre>
+
+<p>
+	In that case, all objects fields of attributes will have the type <c>String</c>. Dynamic classes are then Strongly typed Object-Hashes. You can write as well <c>Dynamic&lt;Dynamic&lt;String&gt;&gt;</c> which will give you a two-level objects access (if you find any use for it...). Actually , <c>Dynamic</c> without type parameter is a shortcut for the infinite declaration : <c>Dynamic&lt;Dynamic&lt;Dynamic&lt;....&gt;&gt;&gt;</c> which would otherwise takes too much time to write.
+</p>
+
+<p>
+	Another possibility to get dynamic behavior is to set your code into an <c>untyped { }</c> block :
+</p>
+
+<pre>    <k>function</k> iKnowWhatImDoing( o : SomeObject ) : SomethingElse {
+        <k>untyped</k> {
+            <k>return</k> o.someStrangeMethod();
+        }
+    }
+</pre>
+
+<h2>Syntax</h2>
+
+<p>
+	Here's the syntax grammar (still in the works) :
+</p>
+
+<pre>    ident := [a-z][a-zA-Z0-9]*
+    type-name := [A-Z][a-zA-Z0-9]*
+
+    package-name := (<em>ident</em> <t>.</t> )* <em>ident</em>
+
+    type-path := (<em>package-name</em> <t>.</t>)? <em>type-name</em> <em>type-params</em>
+
+    type-params :=
+        | &#949;
+        | <t>&lt;</t> <em>type-path</em>+ <t>&gt;</t>
+
+    type-option :=
+        | &#949;
+        | <t>:</t> <em>type-path</em>
+
+    program := <k>package</k> <em>package-name</em>? <t>{</t> (<em>type-declaration</em> | <em>import</em> | <t>;</t> )* <t>}</t>
+
+    type-declaration :=
+        | <k>class</k> <em>type-name</em> <t>{</t> <em>class-field</em>* <t>}</t>
+        | <k>enum</k> <em>type-name</em> <t>{</t> (<em>ident</em> | <t>;</t> )* <t>}</t>
+
+    import := <k>import</k> <em>type-path</em>
+
+    class-field :=
+        | <em>field-style</em>* <k>var</k> <em>ident</em> <em>type-option</em>
+        | <em>field-style</em>* <k>function</k> <em>ident</em> <t>(</t> <em>parameter-list</em>? <t>)</t> <em>type-option</em> <t>{</t> <em>expr</em>* <t>}</t>
+
+    field-style :=
+        | <k>public</k>
+        | <k>private</k>
+        | <k>static</k>
+        | <k>native</k>
+
+    parameter_list := <em>ident</em> <em>type-option</em> (<t>,</t> <em>parameter-list</em>)?
+
+    expr := TODO
+
+</pre>
+
+<h2>And now ?</h2>
+
+<p>
+	A lot more will come later :)
+</p>
+
+<h2>Author</h2>
+
+<p>
+	<a href="mailto:ncannasse@motion-twin.com">Nicolas Cannasse</a>
+</p>
+
+<h2 class="end">Eof</h2>
+
+</div>
+
+</body>
+</html>

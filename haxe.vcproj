@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioProject
+	ProjectType="Visual C++"
+	Version="7.10"
+	Name="haxe"
+	ProjectGUID="{6194C08E-41F1-4013-9D50-58C89E401FA8}"
+	Keyword="MakeFileProj">
+	<Platforms>
+		<Platform
+			Name="Win32"/>
+	</Platforms>
+	<Configurations>
+		<Configuration
+			Name="Debug|Win32"
+			OutputDirectory="Debug"
+			IntermediateDirectory="Debug"
+			ConfigurationType="0">
+			<Tool
+				Name="VCNMakeTool"
+				BuildCommandLine="ocamake -opt -pp camlp4o haxe.vcproj extc.cmxa"
+				ReBuildCommandLine="ocamake -all -opt -pp camlp4o haxe.vcproj extc.cmxa"
+				CleanCommandLine="ocamake -clean -opt -pp camlp4o haxe.vcproj extc.cmxa"
+				Output="haxe.exe"/>
+		</Configuration>
+		<Configuration
+			Name="Release|Win32"
+			OutputDirectory="Release"
+			IntermediateDirectory="Release"
+			ConfigurationType="0">
+			<Tool
+				Name="VCNMakeTool"
+				BuildCommandLine="ocamake -opt -pp camlp4o haxe.vcproj"
+				ReBuildCommandLine="ocamake -all -opt -pp camlp4o haxe.vcproj"
+				CleanCommandLine="ocamake -clean -opt -pp camlp4o haxe.vcproj"
+				Output="haxe.exe"/>
+		</Configuration>
+	</Configurations>
+	<References>
+	</References>
+	<Files>
+		<File
+			RelativePath=".\ast.ml">
+		</File>
+		<File
+			RelativePath=".\lexer.mll">
+		</File>
+		<File
+			RelativePath=".\main.ml">
+		</File>
+		<File
+			RelativePath=".\parser.ml">
+		</File>
+		<File
+			RelativePath=".\plugin.ml">
+		</File>
+	</Files>
+	<Globals>
+	</Globals>
+</VisualStudioProject>
