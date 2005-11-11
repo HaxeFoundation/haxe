@@ -32,36 +32,55 @@ let report kind msg p =
 	prerr_endline (sprintf "%s : %s %s" epos kind msg);
 	exit 1
 
-let compile files =
+let compile classes =
+	let ctx = Typer.context() in
 	List.iter (fun f ->
-		let file = (try Plugin.find_file f with Not_found -> failwith ("File not found " ^ f)) in
-		let ch = open_in file in
-		let ast = Parser.parse (Lexing.from_channel ch) file in
-		()
-	) files
+		let cl = ExtString.String.nsplit f "." in
+		let error() = failwith ("Invalid class name " ^ f) in
+		let invalid_char x =
+			for i = 1 to String.length x - 1 do
+				match x.[i] with
+				| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' -> ()
+				| _ -> error()
+			done;
+			false
+		in
+		let rec loop = function
+			| [] -> error()
+			| [x] -> if String.length x = 0 || x.[0] < 'A' || x.[0] > 'Z' || invalid_char x then error() else [] , x
+			| x :: l ->
+				if String.length x = 0 || x.[0] < 'a' || x.[0] > 'z' || invalid_char x then error() else
+					let path , name = loop l in
+					x :: path , name
+		in
+		let cpath = loop cl in
+		ignore(Typer.load ctx cpath Ast.null_pos);
+	) classes;
+	Typer.finalize ctx
 
 ;;
 try	
-	let usage = "Haxe Compiler Alpha - (c)2005 Motion-Twin\n Usage : haxe.exe [options] <files...>\n Options :" in
+	let usage = "Haxe Compiler Alpha - (c)2005 Motion-Twin\n Usage : haxe.exe [options] <class names...>\n Options :" in
 	let base_path = normalize_path (try Extc.executable_path() with _ -> ".") in
-	let files = ref [] in
+	let classes = ref [] in
 	let time = Sys.time() in
 	Plugin.class_path := [base_path;"";"/"];
 	let args_spec = [
 		("-cp",Arg.String (fun path -> Plugin.class_path := normalize_path path :: !Plugin.class_path),"<path> : add a directory to find source files");
 		("-v",Arg.Unit (fun () -> Plugin.verbose := true),": turn on verbose mode");
 	] @ !Plugin.options in
-	Arg.parse args_spec (fun file -> files := file :: !files) usage;
-	if !files = [] then begin
+	Arg.parse args_spec (fun cl -> classes := cl :: !classes) usage;
+	if !classes = [] then begin
 		Arg.usage args_spec usage
 	end else begin
 		if !Plugin.verbose then print_endline ("Classpath : " ^ (String.concat ";" !Plugin.class_path));
-		compile (List.rev !files);
+		compile (List.rev !classes);
 		if !Plugin.verbose then print_endline ("Time spent : " ^ string_of_float (Sys.time() -. time));
 	end;
 with
 	| Lexer.Error (m,p) -> report "syntax error" (Lexer.error_msg m) p
 	| Parser.Error (m,p) -> report "parse error" (Parser.error_msg m) p
+	| Typer.Error (m,p) -> report "type error" (Typer.error_msg m) p
 	| Failure msg ->
 		prerr_endline msg;
 		exit 1;
