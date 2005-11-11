@@ -1,7 +1,7 @@
 /* ----------- colors ------------ */
 
 body {
-	background-color : #705200;
+	background-color : #D0DEC3;
 }
 
 .content {
@@ -22,7 +22,7 @@ a:hover {
 }
 
 b , strong {
-	color: #705200;
+	color: black;
 }
 
 /* ----------- style ------------ */
@@ -38,6 +38,7 @@ body {
 	width : 800px;
 	position: relative;
 	margin : 10 auto 30 auto;
+	border : solid 2px #666;
 	text-align: left;
 }
 
@@ -49,15 +50,19 @@ h1 {
 	margin-top : 0px;
 	text-align: center;
 	padding: 4px 0px 4px 0px;
+	border-bottom : solid 2px #666;
 }
 
 h2 {
 	padding: 2px 0px 2px 20px;
 	margin-top : 30px;
+	border-top : solid 2px #666;
+	border-bottom : solid 2px #666;
 }
 
 h2.end {
 	margin-bottom : 0px;
+	border-bottom : none;
 }
 
 p, li {
