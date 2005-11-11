@@ -156,6 +156,7 @@ rule token = parse
 	| "&&" { mk lexbuf (Binop OpBoolAnd) }
 	| "||" { mk lexbuf (Binop OpBoolOr) }
 	| "<<" { mk lexbuf (Binop OpShl) }
+	| "->" { mk lexbuf Arrow }
 (*//| ">>" { mk lexbuf (Binop OpShr) } *)
 (*//| ">>>" { mk lexbuf (Binop OpUShr) } *)
 	| "!" { mk lexbuf (Unop Not) }

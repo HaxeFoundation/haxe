@@ -110,6 +110,7 @@ type token =
 	| PClose
 	| Dot
 	| DblDot
+	| Arrow
 
 type unop_flag =
 	| Prefix
@@ -119,11 +120,16 @@ type while_flag =
 	| NormalWhile
 	| DoWhile
 
-type type_path = { 
+type type_path_normal = { 
 	tpackage : string list;
 	tname : string;
 	tparams : type_path list;
 }
+
+and type_path = 
+	| TPNormal of type_path_normal
+	| TPFunction of type_path list * type_path
+	| TPAnonymous of (string * type_path) list
 
 type func = {
 	f_args : (string * type_path option) list;
@@ -166,17 +172,17 @@ type class_field =
 	| FVar of string * access list * type_path * expr option
 	| FFun of string * access list * func
 
-type class_flag =
+type type_param_flag =
 	| HNative
-	| HExtends of type_path
-	| HImplements of type_path
+	| HExtends of type_path_normal
+	| HImplements of type_path_normal
 
-type class_type = string * class_flag list
+type type_param = string * type_param_flag list
 
 type type_def =
-	| EClass of string * class_type list * class_flag list * class_field list
-	| EEnum of string * (string * (string * type_path) list) list
-	| EImport of type_path
+	| EClass of string * type_param list * type_param_flag list * (class_field * pos) list
+	| EEnum of string * type_param list * (string * (string * type_path) list) list
+	| EImport of (string list * string)
 
 type type_decl = type_def * pos
 
@@ -303,3 +309,4 @@ let s_token = function
 	| PClose -> ")"
 	| Dot -> "."
 	| DblDot -> ":"
+	| Arrow -> "->"

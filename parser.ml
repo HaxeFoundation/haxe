@@ -83,20 +83,17 @@ let rec plist f = parser
 
 let rec psep sep f = parser
 	| [< v = f; s >] ->
-		match s with parser
-		| [< '(sep2,_) when sep2 = sep; l = psep sep f >] -> v :: l
-		| [< >] -> [v]
-
-let rec psep_opt sep f = parser
-	| [< v = f; s >] ->
 		(match s with parser
-		| [< '(sep2,_) when sep2 = sep; l = psep_opt sep f >] -> v :: l
-		| [< l = psep_opt sep f >] -> v :: l
+		| [< '(sep2,_) when sep2 = sep; l = psep sep f >] -> v :: l
+		| [< l = psep sep f >] -> v :: l
 		| [< >] -> serror())
 	| [< >] -> []
 
 let ident = parser
 	| [< '(Const (Ident i),_) >] -> i
+
+let log m s =
+	prerr_endline m
 
 let comma = parser
 	| [< '(Comma,_) >] -> ()
@@ -106,22 +103,25 @@ let semicolon = parser
 	| [< '(_,p) >] -> error Missing_semicolon p
 
 let rec	parse_file = parser
-	| [< '(Const (Ident "package"),_); p = parse_package; '(BrOpen,_); l = psep_opt Semicolon parse_type_decl; '(BrClose,_); '(Eof,_); >] -> p , l
+	| [< '(Const (Ident "package"),_); p = parse_package; '(BrOpen,_); l = psep Semicolon parse_type_decl; '(BrClose,_); '(Eof,_); >] -> p , l
 
 and parse_type_decl = parser
-	| [< '(Kwd Import,p); t = parse_type_path >] -> (EImport t, p)
-	| [< '(Kwd Enum,p1); '(Const (Type name),_); '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] -> (EEnum (name,l), punion p1 p2)
-	| [< '(Kwd Class,p1); '(Const (Type name),_); tl = parse_class_types; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = plist parse_class_field; '(BrClose,p2) >] -> (EClass (name,tl,hl,fl), punion p1 p2)
+	| [< '(Kwd Import,p1); p = parse_package; '(Dot,_); '(Const (Type name),_) >] -> (EImport (p,name), p1)
+	| [< '(Kwd Enum,p1); '(Const (Type name),_);  tl = parse_type_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] -> (EEnum (name,tl,l), punion p1 p2)
+	| [< '(Kwd Class,p1); '(Const (Type name),_); tl = parse_type_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = plist parse_class_field; '(BrClose,p2) >] -> (EClass (name,tl,hl,fl), punion p1 p2)
 
-and parse_package = parser
-	| [< p = psep Dot ident >] -> p 
-	| [< >] -> []
+and parse_package s = psep Dot ident s
 
 and parse_type_opt = parser
 	| [< '(DblDot,_); t = parse_type_path >] -> Some t
 	| [< >] -> None
 
-and parse_type_path s = parse_type_path1 [] s
+and parse_type_path = parser
+	| [< '(POpen,_); t = parse_type_path; '(PClose,_); s >] -> parse_type_path_next t s
+	| [< '(BrOpen,_); l = psep Comma parse_type_anonymous; '(BrClose,_); s >] -> parse_type_path_next (TPAnonymous l) s
+	| [< t = parse_type_path_normal; s >] -> parse_type_path_next (TPNormal t) s
+
+and parse_type_path_normal s = parse_type_path1 [] s
 
 and parse_type_path1 pack = parser
 	| [< '(Const (Ident name),_); '(Dot,_); t = parse_type_path1 (name :: pack) >] -> t
@@ -136,6 +136,18 @@ and parse_type_path1 pack = parser
 			tparams = params
 		}
 
+and parse_type_path_next t = parser
+	| [< '(Arrow,_); t2 = parse_type_path >] ->
+		(match t2 with
+		| TPFunction (args,r) ->
+			TPFunction (t :: args,r)
+		| _ ->
+			TPFunction ([t] , t2))
+	| [< >] -> t 
+
+and parse_type_anonymous = parser
+	| [< '(Const (Ident name),_); '(DblDot,_); t = parse_type_path >] -> (name,t)
+
 and parse_enum = parser
 	| [< '(Const (Ident name),_); s >] ->
 		match s with parser
@@ -149,20 +161,20 @@ and parse_enum_param = parser
 and parse_class_field = parser
 	| [< l = parse_cf_rights []; s >] ->
 		match s with parser
-		| [< '(Kwd Var,_); '(Const (Ident name),_); '(DblDot,_); t = parse_type_path; s >] -> 
-			let e = (match s with parser
-			| [< '(Binop OpAssign,_) when List.mem AStatic l; e = expr; _ = semicolon >] -> Some e
-			| [< '(Semicolon,_) >] -> None
+		| [< '(Kwd Var,p1); '(Const (Ident name),_); '(DblDot,_); t = parse_type_path; s >] -> 
+			let e , p2 = (match s with parser
+			| [< '(Binop OpAssign,_) when List.mem AStatic l; e = expr; p2 = semicolon >] -> Some e , p2
+			| [< '(Semicolon,p2) >] -> None , p2
 			| [< >] -> serror()
 			) in
-			FVar (name,l,t,e)
-		| [< '(Kwd Function,_); '(Const (Ident name),_); '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; e = expr >] ->
+			(FVar (name,l,t,e),punion p1 p2)
+		| [< '(Kwd Function,p1); '(Const (Ident name),_); '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; e = expr >] ->
 			let f = {
 				f_args = al;
 				f_type = t;
 				f_expr = e;
 			} in
-			FFun (name,l,f)
+			(FFun (name,l,f),punion p1 (pos e))
 		| [< >] -> if l = [] then raise Stream.Failure else serror()
 
 and parse_cf_rights l = parser
@@ -174,16 +186,16 @@ and parse_cf_rights l = parser
 and parse_fun_param = parser
 	| [< '(Const (Ident name),_); t = parse_type_opt >] -> (name,t)
 
-and parse_class_types = parser
-	| [< '(Binop OpLt,_); l = psep Comma parse_class_type; '(Binop OpGt,_) >] -> l
+and parse_type_params = parser
+	| [< '(Binop OpLt,_); l = psep Comma parse_type_param; '(Binop OpGt,_) >] -> l
 	| [< >] -> []
 
-and parse_class_type = parser
+and parse_type_param = parser
 	| [< '(Const (Type name),_); h = psep Comma parse_class_herit >] -> (name,h)
 
 and parse_class_herit = parser
-	| [< '(Kwd Extends,_); t = parse_type_path >] -> HExtends t
-	| [< '(Kwd Implements,_); t = parse_type_path >] -> HImplements t
+	| [< '(Kwd Extends,_); t = parse_type_path_normal >] -> HExtends t
+	| [< '(Kwd Implements,_); t = parse_type_path_normal >] -> HImplements t
 
 and block s = plist parse_block_elt s
 
