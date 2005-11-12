@@ -129,6 +129,10 @@ rule token = parse
 	| '.' ['0'-'9']+ { mk lexbuf (Const (Float (lexeme lexbuf))) }
 	| ['0'-'9']+ ['e' 'E'] ['+' '-']? ['0'-'9']+ { mk lexbuf (Const (Float (lexeme lexbuf))) }
 	| ['0'-'9']+ '.' ['0'-'9']* ['e' 'E'] ['+' '-']? ['0'-'9']+ { mk lexbuf (Const (Float (lexeme lexbuf))) }
+	| ['0'-'9']+ "..." { 
+			let s = lexeme lexbuf in
+			mk lexbuf (IntInterval (String.sub s 0 (String.length s - 3)))
+		}
 	| "//" [^'\n' '\r']*  {
 			let s = lexeme lexbuf in
 			mk lexbuf (CommentLine (String.sub s 2 ((String.length s)-2)))
@@ -157,8 +161,7 @@ rule token = parse
 	| "||" { mk lexbuf (Binop OpBoolOr) }
 	| "<<" { mk lexbuf (Binop OpShl) }
 	| "->" { mk lexbuf Arrow }
-(*//| ">>" { mk lexbuf (Binop OpShr) } *)
-(*//| ">>>" { mk lexbuf (Binop OpUShr) } *)
+	| "..." { mk lexbuf (Binop OpInterval) }
 	| "!" { mk lexbuf (Unop Not) }
 	| "<" { mk lexbuf (Binop OpLt) }
 	| ">" { mk lexbuf (Binop OpGt) }
