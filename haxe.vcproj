@@ -17,9 +17,9 @@
 			ConfigurationType="0">
 			<Tool
 				Name="VCNMakeTool"
-				BuildCommandLine="ocamake -opt -pp camlp4o haxe.vcproj extLib.cmxa extc.cmxa"
-				ReBuildCommandLine="ocamake -all -opt -pp camlp4o haxe.vcproj extLib.cmxa extc.cmxa"
-				CleanCommandLine="ocamake -clean -opt -pp camlp4o haxe.vcproj extLib.cmxa extc.cmxa"
+				BuildCommandLine="ocamake -g -pp camlp4o haxe.vcproj extLib.cma"
+				ReBuildCommandLine="ocamake -all -g -pp camlp4o haxe.vcproj extLib.cma"
+				CleanCommandLine="ocamake -clean -pp camlp4o haxe.vcproj extLib.cma"
 				Output="haxe.exe"/>
 		</Configuration>
 		<Configuration
@@ -29,9 +29,9 @@
 			ConfigurationType="0">
 			<Tool
 				Name="VCNMakeTool"
-				BuildCommandLine="ocamake -opt -pp camlp4o haxe.vcproj"
-				ReBuildCommandLine="ocamake -all -opt -pp camlp4o haxe.vcproj"
-				CleanCommandLine="ocamake -clean -opt -pp camlp4o haxe.vcproj"
+				BuildCommandLine="ocamake -opt -pp camlp4o haxe.vcproj extLib.cmxa etx.cmxa"
+				ReBuildCommandLine="ocamake -all -opt -pp camlp4o haxe.vcproj extLib.cmxa extc.cmxa"
+				CleanCommandLine="ocamake -clean -opt -pp camlp4o haxe.vcproj extLib.cmxa extc.cmxa"
 				Output="haxe.exe"/>
 		</Configuration>
 	</Configurations>
