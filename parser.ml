@@ -34,10 +34,13 @@ let error m p = raise (Error (m,p))
 
 let serror() = raise (Stream.Error "")
 
+let last = ref (Eof,null_pos)
+
 let priority = function
 	| OpAssign | OpAssignOp _ -> -4
 	| OpBoolOr -> -3
 	| OpBoolAnd -> -2
+	| OpInterval -> -2
 	| OpEq | OpNotEq | OpGt | OpLt | OpGte | OpLte | OpPhysEq | OpPhysNotEq -> -1
 	| OpOr | OpAnd | OpXor -> 0
 	| OpShl | OpShr | OpUShr -> 1
@@ -98,9 +101,13 @@ let log m s =
 let comma = parser
 	| [< '(Comma,_) >] -> ()
 
-let semicolon = parser
-	| [< '(Semicolon,p) >] -> p
-	| [< '(_,p) >] -> error Missing_semicolon p
+let semicolon s =
+	if fst (!last) = BrClose then
+		snd (!last)
+	else
+		match s with parser
+		| [< '(Semicolon,p) >] -> p
+		| [< '(_,p) >] -> error Missing_semicolon p
 
 let rec	parse_file = parser
 	| [< '(Const (Ident "package"),_); p = parse_package; '(BrOpen,_); l = psep Semicolon parse_type_decl; '(BrClose,_); '(Eof,_); >] -> p , l
@@ -108,9 +115,13 @@ let rec	parse_file = parser
 and parse_type_decl = parser
 	| [< '(Kwd Import,p1); p = parse_package; '(Dot,_); '(Const (Type name),_) >] -> (EImport (p,name), p1)
 	| [< '(Kwd Enum,p1); '(Const (Type name),_);  tl = parse_type_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] -> (EEnum (name,tl,l), punion p1 p2)
-	| [< '(Kwd Class,p1); '(Const (Type name),_); tl = parse_type_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = plist parse_class_field; '(BrClose,p2) >] -> (EClass (name,tl,hl,fl), punion p1 p2)
+	| [< n , p1 = parse_class_native; '(Const (Type name),_); tl = parse_type_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = plist parse_class_field; '(BrClose,p2) >] -> (EClass (name,tl,n @ hl,fl), punion p1 p2)
 
 and parse_package s = psep Dot ident s
+
+and parse_class_native = parser
+	| [< '(Kwd Native,_); '(Kwd Class,p1) >] -> [HNative] , p1
+	| [< '(Kwd Class,p1) >] -> [] , p1
 
 and parse_type_opt = parser
 	| [< '(DblDot,_); t = parse_type_path >] -> Some t
@@ -168,7 +179,7 @@ and parse_class_field = parser
 			| [< >] -> serror()
 			) in
 			(FVar (name,l,t,e),punion p1 p2)
-		| [< '(Kwd Function,p1); '(Const (Ident name),_); '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; e = expr >] ->
+		| [< '(Kwd Function,p1); name = parse_fun_name; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; e = expr >] ->
 			let f = {
 				f_args = al;
 				f_type = t;
@@ -182,6 +193,10 @@ and parse_cf_rights l = parser
 	| [< '(Kwd Public,_) when not(List.mem APublic l || List.mem APrivate l); l = parse_cf_rights (APublic :: l) >] -> l
 	| [< '(Kwd Private,_) when not(List.mem APublic l || List.mem APrivate l); l = parse_cf_rights (APrivate :: l) >] -> l
 	| [< >] -> l
+
+and parse_fun_name = parser
+	| [< '(Const (Ident name),_) >] -> name
+	| [< '(Kwd New,_) >] -> "new"
 
 and parse_fun_param = parser
 	| [< '(Const (Ident name),_); t = parse_type_opt >] -> (name,t)
@@ -197,11 +212,21 @@ and parse_class_herit = parser
 	| [< '(Kwd Extends,_); t = parse_type_path_normal >] -> HExtends t
 	| [< '(Kwd Implements,_); t = parse_type_path_normal >] -> HImplements t
 
+and block1 = parser
+	| [< '(Const (Ident name),p); s >] ->
+		(match s with parser
+		| [< '(DblDot,_); e = expr; l = psep Comma parse_obj_decl; _ = popt comma >] -> EObjectDecl ((name,e) :: l)
+		| [< e = expr_next (EConst (Ident name),p); _ = semicolon; b = block >] -> EBlock (e :: b))
+	| [< b = block >] -> EBlock b
+
 and block s = plist parse_block_elt s
 
 and parse_block_elt = parser
 	| [< '(Kwd Var,p1); vl = psep Comma parse_var_decl; p2 = semicolon >] -> (EVars vl,punion p1 p2)
 	| [< e = expr; _ = semicolon >] -> e
+
+and parse_obj_decl = parser
+	| [< '(Comma,_); '(Const (Ident name),_); '(DblDot,_); e = expr >] -> (name,e)
 
 and parse_var_decl = parser
 	| [< '(Const (Ident name),_); t = parse_type_opt; s >] ->
@@ -210,11 +235,11 @@ and parse_var_decl = parser
 		| [< >] -> (name,t,None)
 
 and expr = parser
-	| [< '(BrOpen,p1); l = block; '(BrClose,p2) >] -> (EBlock l,punion p1 p2)
+	| [< '(BrOpen,p1); e = block1; '(BrClose,p2) >] -> (e,punion p1 p2)
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
 	| [< '(Kwd Throw,p); s >] -> expr_next (EConst (Ident "throw"),p) s
-	| [< '(Kwd New,p1); t = parse_type_path; '(POpen,_); al = psep Comma expr; '(PClose,p2); s >] -> expr_next (ENew (t,al),punion p1 p2) s
+	| [< '(Kwd New,p1); t = parse_type_path_normal; '(POpen,_); al = psep Comma expr; '(PClose,p2); s >] -> expr_next (ENew (t,al),punion p1 p2) s
 	| [< '(POpen,p1); e = expr; '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
 	| [< '(BkOpen,p1); l = psep Comma expr; _ = popt comma; '(BkClose,p2); s >] -> expr_next (EArrayDecl l, punion p1 p2) s
 	| [< '(Kwd Function,p1); '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; e = expr; s >] -> 
@@ -240,6 +265,7 @@ and expr = parser
 	| [< '(Kwd Do,p1); e = expr; '(Kwd While,_); cond = expr; s >] -> expr_next (EWhile (cond,e,DoWhile),punion p1 (pos e)) s
 	| [< '(Kwd Switch,p1); e = expr; '(BrOpen,_); cases , def = parse_switch_cases; '(BrClose,p2); s >] -> expr_next (ESwitch (e,List.rev cases,def),punion p1 p2) s
 	| [< '(Kwd Try,p1); e = expr; cl = plist parse_catch; s >] -> expr_next (ETry (e,cl),p1) s
+	| [< '(IntInterval i,p1); e2 = expr >] -> make_binop OpInterval (EConst (Int i),p1) e2
 
 and expr_next e1 = parser
 	| [< '(Dot,_); s >] -> 
@@ -251,6 +277,16 @@ and expr_next e1 = parser
 		expr_next (ECall (e1,params) , punion (pos e1) p2) s
 	| [< '(BkOpen,_); e2 = expr; '(BkClose,p2); s >] ->
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
+	| [< '(Binop OpGt,_); s >] ->
+		(match s with parser
+		| [< '(Binop OpGt,_); s >] ->
+			(match s with parser
+			| [< '(Binop OpGt,_); e2 = expr >] -> make_binop OpUShr e1 e2
+			| [< e2 = expr >] -> make_binop OpShr e1 e2
+			| [< >] -> serror())
+		| [< e2 = expr >] ->
+			make_binop OpGt e1 e2
+		| [< >] -> serror())
 	| [< '(Binop op,_); e2 = expr >] ->
 		make_binop op e1 e2
 	| [< '(Unop op,p) when is_postfix e1 op; s >] ->
@@ -258,11 +294,11 @@ and expr_next e1 = parser
 	| [< >] -> e1
 
 and parse_switch_cases = parser
-	| [< '(Kwd Default,p1); '(DblDot,_); el = block; l , def = parse_switch_cases >] -> 
+	| [< '(Kwd Default,p1); '(DblDot,_); e = block1; l , def = parse_switch_cases >] -> 
 		(match def with None -> () | Some (e,p) -> error Duplicate_default p);
-		l , Some (EBlock el , p1)
-	| [< e = expr; '(DblDot,_); el = block; l , def = parse_switch_cases >] ->
-		(e,(EBlock el,pos e)) :: l , def
+		l , Some (e , p1)
+	| [< e = expr; '(DblDot,_); b = block1; l , def = parse_switch_cases >] ->
+		(e,(b,pos e)) :: l , def
 
 and parse_catch = parser
 	| [< '(Kwd Catch,_); '(POpen,_); '(Const (Ident name),_); '(DblDot,_); t = parse_type_path; e = expr >] -> (name,t,e)
@@ -270,15 +306,15 @@ and parse_catch = parser
 let parse code file =
 	let old = Lexer.save() in
 	Lexer.init file;
-	let last = ref (Eof,null_pos) in
+	last := (Eof,null_pos);
 	let rec next_token x =
-		let t, p = Lexer.token code in
-		match t with 
+		let tk = Lexer.token code in
+		match fst tk with 
 		| Comment s | CommentLine s -> 
 			next_token x
 		| _ ->
-			last := (t , p);
-			Some (t , p)
+			last := tk;
+			Some tk
 	in
 	try
 		let l = parse_file (Stream.from next_token) in
