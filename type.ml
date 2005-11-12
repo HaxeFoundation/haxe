@@ -24,7 +24,8 @@ type t =
 	| TEnum of tenum * t list
 	| TInst of tclass * t list
 	| TFun of t list * t
-	| TParameter of module_path * string  
+	| TAnon of (string, tclass_field) PMap.t
+	| TDynamic of t
 
 and tconstant =
 	| TInt of string
@@ -33,6 +34,7 @@ and tconstant =
 	| TBool of bool
 	| TNull
 	| TThis
+	| TSuper
 
 and tfunc = {
 	tf_args : (string * t) list;
@@ -43,9 +45,8 @@ and tfunc = {
 and texpr_decl =
 	| TConst of tconstant
 	| TLocal of string
-	| TMember of tclass * string
+	| TMember of string
 	| TEnumField of tenum * string
-	| TStaticField of tclass * string
 	| TArray of texpr * texpr
 	| TBinop of Ast.binop * texpr * texpr
 	| TField of texpr * string
@@ -89,6 +90,7 @@ and tclass = {
 	mutable cl_implements : (tclass * t list) list;
 	mutable cl_fields : (string , tclass_field) PMap.t;
 	mutable cl_statics : (string, tclass_field) PMap.t;
+	mutable cl_dynamic : t option;
 }
 
 and tenum_field = {
@@ -115,26 +117,48 @@ let mk e t p = { edecl = e; etype = t; epos = p }
 
 let mk_mono() = TMono (ref None)
 
+let rec t_dynamic = TDynamic t_dynamic
+
 let print_context() = ref []
 
 let rec s_type ctx t = 
 	match t with
-	| TMono _ -> 
-		Printf.sprintf "'%d" (try List.assq t (!ctx) with Not_found -> let n = List.length !ctx in ctx := (t,n) :: !ctx; n)
+	| TMono r ->
+		(match !r with
+		| None -> Printf.sprintf "'%d" (try List.assq t (!ctx) with Not_found -> let n = List.length !ctx in ctx := (t,n) :: !ctx; n)
+		| Some t -> s_type ctx t)
 	| TEnum (e,tl) ->
 		Ast.s_type_path e.e_path ^ s_type_params ctx tl
 	| TInst (c,tl) ->
 		Ast.s_type_path c.cl_path ^ s_type_params ctx tl
 	| TFun ([],t) ->
-		"void -> " ^ s_type ctx t
+		"Void -> " ^ s_type ctx t
 	| TFun (l,t) ->
 		String.concat " -> " (List.map (fun t -> match t with TFun _ -> "(" ^ s_type ctx t ^ ")" | _ -> s_type ctx t) l) ^ " -> " ^ s_type ctx t
-	| TParameter (p,n) ->
-		Ast.s_type_path p ^ "#" ^ n
+	| TAnon fl ->
+		let fl = PMap.fold (fun f acc -> (" " ^ f.cf_name ^ " : " ^ s_type ctx f.cf_type) :: acc) fl [] in
+		"{" ^ String.concat "," fl ^ " }";
+	| TDynamic t2 ->
+		"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
 
 and s_type_params ctx = function
 	| [] -> ""
 	| l -> "<" ^ String.concat ", " (List.map (s_type ctx) l) ^ ">"
+
+let rec follow t =
+	match t with
+	| TMono r ->
+		(match !r with
+		| Some t -> follow t
+		| _ -> t)
+	| _ -> t
+
+let rec is_parent csup c =
+	if c == csup then
+		true
+	else match c.cl_super with
+		| None -> false
+		| Some (c,_) -> is_parent csup c
 
 let rec link e a b =
 	let rec loop t =
@@ -145,7 +169,17 @@ let rec link e a b =
 		| TEnum (_,tl) -> List.exists loop tl
 		| TInst (_,tl) -> List.exists loop tl
 		| TFun (tl,t) -> List.exists loop tl || loop t
-		| TParameter (_,_) -> false
+		| TDynamic t2 ->
+			if t == t2 then
+				false
+			else
+				loop t2
+		| TAnon fl ->
+			try
+				PMap.iter (fun _ f -> if loop f.cf_type then raise Exit) fl;
+				false
+			with
+				Exit -> true
 	in
 	if loop b then
 		false
@@ -156,7 +190,48 @@ let rec link e a b =
 
 (* substitute parameters with other types *)
 let apply_params cparams params t =
-	assert false
+	let rec loop l1 l2 =
+		match l1, l2 with
+		| [] , [] -> []
+		| (_,t1) :: l1 , t2 :: l2 -> (t1,t2) :: loop l1 l2
+		| _ -> assert false
+	in
+	let subst = loop cparams params in
+	let rec loop t =
+		try
+			List.assq t subst
+		with Not_found ->
+		match t with
+		| TMono r ->
+			(match !r with
+			| None -> t
+			| Some t -> loop t)
+		| TEnum (e,tl) ->
+			TEnum (e,List.map loop tl)
+		| TInst (c,tl) ->
+			(match tl with
+			| [TMono r] ->
+				(match !r with
+				| Some tt when t == tt -> 
+					(* for dynamic *)
+					let pt = mk_mono() in
+					let t = TInst (c,[pt]) in
+					(match pt with TMono r -> r := Some t | _ -> assert false);
+					t
+				| _ -> TInst (c,List.map loop tl))
+			| _ ->
+				TInst (c,List.map loop tl))
+		| TFun (tl,r) ->
+			TFun (List.map loop tl,loop r)
+		| TAnon fl ->
+			TAnon (PMap.map (fun f -> { f with cf_type = loop f.cf_type }) fl)
+		| TDynamic t2 ->
+			if t == t2 then
+				t
+			else
+				TDynamic (loop t2)
+	in
+	loop t
 
 let monomorphs eparams t =
 	apply_params eparams (List.map (fun _ -> mk_mono()) eparams) t
@@ -188,12 +263,32 @@ let rec unify a b =
 	| _ , TMono t -> (match !t with None -> link t b a | Some t -> unify a t)
 	| TEnum (a,tl1) , TEnum (b,tl2) -> a == b && List.for_all2 type_eq tl1 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
-		if c1 == c2 then
-			List.for_all2 type_eq tl1 tl2
-		else begin
-			assert false
-		end
+		let rec loop c tl =
+			if c == c2 then
+				List.for_all2 type_eq tl tl2
+			else (match c.cl_super with
+				| None -> false
+				| Some (cs,tls) ->
+					loop cs (List.map (apply_params c.cl_types tl) tls)
+			) || List.exists (fun (cs,tls) ->
+				loop cs (List.map (apply_params c.cl_types tl) tls)
+			) c.cl_implements
+		in
+		loop c1 tl1
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
 		unify r1 r2 && List.for_all2 unify l2 l1 (* contravariance *)
+	| TAnon fl1 , TAnon fl2 ->
+		(try
+			PMap.iter (fun n f2 ->
+				let f1 = PMap.find n fl1 in
+				if not (unify f1.cf_type f2.cf_type) then raise Not_found;
+			) fl2;
+			true
+		with
+			Not_found -> false)
+	| TDynamic t , _ ->
+		t == a || (match b with TDynamic t2 -> t2 == b || type_eq t t2 | _ -> false)
+	| _ , TDynamic t ->
+		t == b || (match a with TDynamic t2 -> t2 == a || type_eq t t2 | _ -> false)
 	| _ , _ ->
 		false

@@ -25,13 +25,19 @@ type context = {
 	types : (module_path, module_path) Hashtbl.t;
 	modules : (module_path , module_def) Hashtbl.t;
 	delays : (unit -> unit) list list ref;
+	warn : string -> string -> pos -> unit; 
 	mutable std : module_def;
 	(* per-module *)
 	current : module_def;
-	mutable curclass : tclass;
-	mutable in_static : bool;
-	mutable locals : (string, t) PMap.t;
 	mutable local_types : (module_path * module_type) list;
+	(* per-class *)
+	mutable curclass : tclass;
+	mutable type_params : (string * t) list;
+	(* per-function *)
+	mutable in_constructor : bool;
+	mutable in_static : bool;
+	mutable ret : t;
+	mutable locals : (string, t) PMap.t;
 }
 
 (* ---------------------------------------------------------------------- *)
@@ -45,21 +51,24 @@ type error_msg =
 exception Error of error_msg * pos
 
 let error_msg = function
-	| Module_not_found m -> "Module not found : " ^ s_type_path m
+	| Module_not_found m -> "Class not found : " ^ s_type_path m
 	| Cannot_unify (t1,t2) -> 
 		let ctx = print_context() in
 		s_type ctx t1 ^ " should be " ^ s_type ctx t2
 	| Custom s -> s
 
-let error msg p = raise (Error (msg,p))
+let error msg p = raise (Error (Custom msg,p))
 
 let load_ref : (context -> module_path -> pos -> module_def) ref = ref (fun _ _ _ -> assert false)
 
 let load ctx m p = (!load_ref) ctx m p
 
+let unify t1 t2 p =
+	if not (unify t1 t2) then raise (Error (Cannot_unify (t1,t2),p))
+
 (** since load_type is used in PASS2 , it cannot access the structure of a type **)
 
-let load_type_def ctx tpath p =
+let load_type_def ctx p tpath =
 	try
 		snd (List.find (fun (tp,_) -> tp = tpath || (fst tpath = [] && snd tp = snd tpath)) ctx.local_types)
 	with
@@ -68,53 +77,154 @@ let load_type_def ctx tpath p =
 			try
 				snd (List.find (fun (tp,_) -> tp = tpath) m.mtypes)
 			with
-				Not_found -> error (Custom ("Module " ^ s_type_path tpath ^ " does not define type " ^ snd tpath)) p
+				Not_found -> error ("Module " ^ s_type_path tpath ^ " does not define type " ^ snd tpath) p
 
-let rec load_normal_type ctx t p =
-	match load_type_def ctx (t.tpackage,t.tname) p with
-	| TClassDecl c -> 
-		if List.length c.cl_types <> List.length t.tparams then error (Custom ("Invalid number of type parameters for " ^ s_type_path c.cl_path)) p;
-		let types = List.map (fun t ->
-			let t = load_type ctx t p in
-			(** CHECK t AGAINST corresponding classtype (for subtyping) **)
-			t
-		) t.tparams in
-		TInst (c,types)
-	| TEnumDecl e ->
-		if List.length e.e_types <> List.length t.tparams then error (Custom ("Invalid number of type parameters for " ^ s_type_path e.e_path)) p;
-		let types = List.map (fun t ->
-			let t = load_type ctx t p in
-			(** CHECK t AGAINST corresponding classtype (for subtyping) **)
-			t
-		) t.tparams in
-		TEnum (e,types)
+let rec load_normal_type ctx t p allow_no_params =
+	try
+		if t.tpackage <> [] then raise Not_found;
+		let pt = List.assoc t.tname ctx.type_params in
+		if t.tparams <> [] then error ("Class type parameter " ^ t.tname ^ " can't have parameters") p;
+		pt
+	with Not_found ->
+		let types , path , f , complex = match load_type_def ctx p (t.tpackage,t.tname) with
+			| TClassDecl c -> c.cl_types , c.cl_path , (fun t -> TInst (c,t)) , true
+			| TEnumDecl e -> e.e_types , e.e_path , (fun t -> TEnum (e,t)) , false
+		in
+		if allow_no_params && t.tparams = [] && not complex then
+			f (List.map (fun _ -> mk_mono()) types)
+		else if path = ([],"Dynamic") then
+			match t.tparams with
+			| [] -> t_dynamic
+			| [t] -> TDynamic (load_type ctx p t)
+			| _ -> error "Too many parameters for Dynamic" p 
+		else begin
+			if List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;
+			let params = List.map2 (fun t (_,t2) ->
+				let t = load_type ctx p t in
+				(match t2 with
+				| TInst (c,[]) ->
+					(match c.cl_super with
+					| None -> ()
+					| Some (c,params) ->
+						unify t (TInst (c,params)) p);
+					List.iter (fun (i,params) ->
+						unify t (TInst (i,params)) p
+					) c.cl_implements
+				| TEnum (c,[]) -> ()
+				| _ -> assert false);
+				t
+			) t.tparams types in
+			f params
+		end
 
-and load_type ctx t p =
+and load_type ctx p t =
 	match t with
-	| TPNormal t -> load_normal_type ctx t p
-	| TPAnonymous l -> assert false
-	| TPFunction (args,r) -> assert false
+	| TPNormal t -> load_normal_type ctx t p false
+	| TPAnonymous l ->
+		let rec loop acc (n,t) =
+			let t = load_type ctx p t in
+			if PMap.mem n acc then error ("Duplicate field declaration : " ^ n) p;
+			PMap.add n {
+				cf_name = n;
+				cf_type = t;
+				cf_public = true;
+				cf_expr = None;
+			} acc
+		in
+		TAnon (List.fold_left loop PMap.empty l)
+	| TPFunction (args,r) ->
+		match args with
+		| [TPNormal { tpackage = []; tparams = []; tname = "Void" }] ->
+			TFun ([],load_type ctx p r)
+		| _ ->
+			TFun (List.map (load_type ctx p) args,load_type ctx p r)
 
-let load_type_opt ctx t p =
+let load_type_opt ctx p t =
 	match t with
 	| None -> mk_mono()
-	| Some t -> load_type ctx t p
+	| Some t -> load_type ctx p t
 
-let unify t1 t2 p =
-	if not (unify t1 t2) then error (Cannot_unify (t1,t2)) p
+let set_heritance ctx c herits p =
+	let rec loop = function
+		| HNative ->
+			()
+		| HExtends t ->
+			if c.cl_super <> None then error "Cannot extend several classes" p;
+			let t = load_normal_type ctx t p false in
+			(match t with
+			| TInst (cl,params) ->
+				if is_parent c cl then error "Recursive class" p; 
+				c.cl_super <- Some (cl,params)
+			| _ -> error "Should extend a class" p)
+		| HImplements t ->
+			let t = load_normal_type ctx t p false in
+			(match t with
+			| TInst (cl,params) -> 
+				if is_parent c cl then error "Recursive class" p;
+				c.cl_implements <- (cl, params) :: c.cl_implements
+			| TDynamic t -> 
+				if c.cl_dynamic <> None then error "Cannot have several dynamics" p;
+				c.cl_dynamic <- Some t
+			| _ -> error "Should implement a class" p)
+	in
+	List.iter loop herits
 
 let type_type_params ctx path p (n,flags) =
-	n , match flags with
-	| [] -> TParameter (path,n)
-	| _ -> assert false
+	let t = (match flags with
+	| [] ->
+		(* build a phantom enum *)
+		let e = {
+			e_path = (fst path @ [snd path],n);
+			e_types = [];
+			e_constrs = PMap.empty;
+		} in
+		TEnum (e,[])
+	| l ->
+		(* build a phantom class *)
+		let c = {
+			cl_path = (fst path @ [snd path],n);
+			cl_native = false;
+			cl_types = [];
+			cl_super = None;
+			cl_implements = [];
+			cl_fields = PMap.empty;
+			cl_statics = PMap.empty;
+			cl_dynamic = None;
+		} in
+		set_heritance ctx c l p;
+		let add_field ctypes params _ f =
+			let f = { f with cf_type = apply_params ctypes params f.cf_type } in
+			c.cl_fields <- PMap.add f.cf_name f c.cl_fields
+		in
+		List.iter (fun (cl,params) -> 
+			PMap.iter (add_field cl.cl_types params) cl.cl_fields
+		) c.cl_implements;
+		TInst (c,[])
+	) in
+	n , t
 
-let t_int ctx = load_normal_type ctx { tpackage = []; tname = "Int"; tparams = [] } null_pos
-let t_float ctx = load_normal_type ctx { tpackage = []; tname = "Float"; tparams = [] } null_pos
-let t_bool ctx = load_normal_type ctx { tpackage = []; tname = "Bool"; tparams = [] } null_pos
-let t_string ctx = load_normal_type ctx { tpackage = []; tname = "String"; tparams = [] } null_pos
+let t_int ctx = load_normal_type ctx { tpackage = []; tname = "Int"; tparams = [] } null_pos false
+let t_float ctx = load_normal_type ctx { tpackage = []; tname = "Float"; tparams = [] } null_pos false
+let t_bool ctx = load_normal_type ctx { tpackage = []; tname = "Bool"; tparams = [] } null_pos false
+let t_string ctx = load_normal_type ctx { tpackage = []; tname = "String"; tparams = [] } null_pos false
+let t_void ctx = load_normal_type ctx { tpackage = []; tname = "Void"; tparams = [] } null_pos false
+
+let is_int t = 
+	match follow t with
+	| TEnum (e,[]) ->
+		e.e_path = ([],"Int")
+	| _ ->
+		false
+
+let is_float t = 
+	match follow t with
+	| TEnum (e,[]) ->
+		e.e_path = ([],"Float")
+	| _ ->
+		false
 
 let t_array ctx =
-	match load_type_def ctx ([],"Array") null_pos with
+	match load_type_def ctx null_pos ([],"Array") with
 	| TClassDecl c ->
 		if List.length c.cl_types <> 1 then assert false;
 		let pt = mk_mono() in
@@ -125,6 +235,18 @@ let t_array ctx =
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
 
+let rec class_field c i =
+	try	
+		let f = PMap.find i c.cl_fields in
+		f.cf_type , f
+	with
+		Not_found ->
+			match c.cl_super with
+			| None -> raise Not_found
+			| Some (c,params) ->
+				let t , f = class_field c i in
+				apply_params c.cl_types params t , f
+
 let type_ident ctx i p =
 	try
 		(* local loookup *)
@@ -133,24 +255,13 @@ let type_ident ctx i p =
 	with Not_found -> try
 		(* member variable lookup *)
 		if ctx.in_static then raise Not_found;
-		let rec loop c =
-			try	
-				let f = PMap.find i c.cl_fields in
-				f.cf_type
-			with
-				Not_found ->
-					match c.cl_super with
-					| None -> raise Not_found
-					| Some (c,params) ->
-						let t = loop c in
-						apply_params c.cl_types params t
-		in
-		let t = loop ctx.curclass in
-		mk (TMember (ctx.curclass,i)) t p
+		let t , _ = class_field ctx.curclass i in
+		mk (TMember i) t p
 	with Not_found -> try
 		(* static variable lookup *)
 		let f = PMap.find i ctx.curclass.cl_statics in
-		mk (TStaticField (ctx.curclass,i)) f.cf_type p
+		let tt = mk (TType (TClassDecl ctx.curclass)) (mk_mono()) p in
+		mk (TField (tt,i)) f.cf_type p
 	with Not_found -> try
 		(* lookup imported *)
 		let rec loop l =
@@ -169,8 +280,22 @@ let type_ident ctx i p =
 		in
 		loop ctx.local_types
 	with Not_found ->
-		if ctx.in_static && PMap.mem i ctx.curclass.cl_fields then error (Custom ("Cannot access " ^ i ^ " in static function")) p;
-		error (Custom ("Unknown identifier " ^ i)) p 
+		if ctx.in_static && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
+		error ("Unknown identifier " ^ i) p 
+
+let type_type ctx tpath p =
+	match load_type_def ctx p tpath with
+	| TClassDecl c ->
+		let fl = (if is_parent c ctx.curclass then 
+			c.cl_statics
+		else
+			(* keep only publics *)
+			PMap.fold (fun f acc -> if f.cf_public then PMap.add f.cf_name f acc else acc) c.cl_statics PMap.empty 
+		) in
+		mk (TType (TClassDecl c)) (TAnon fl) p
+	| TEnumDecl e ->
+		let fl = PMap.map (fun e -> { cf_name = e.ef_name; cf_public = true; cf_type = e.ef_type; cf_expr = None }) e.e_constrs in 
+		mk (TType (TEnumDecl e)) (TAnon fl) p
 
 let type_constant ctx c p =
 	match c with
@@ -179,15 +304,164 @@ let type_constant ctx c p =
 	| String s -> mk (TConst (TString s)) (t_string ctx) p
 	| Ident "true" -> mk (TConst (TBool true)) (t_bool ctx) p
 	| Ident "false" -> mk (TConst (TBool false)) (t_bool ctx) p
-	| Ident "this" -> assert false
+	| Ident "this" ->
+		if ctx.in_static then error "Cannot access this from a static function" p;
+		mk (TConst TThis) (TInst (ctx.curclass,List.map snd ctx.curclass.cl_types)) p
+	| Ident "super" ->
+		let t = (match ctx.curclass.cl_super with
+		| None -> error "Current class does not have a superclass" p
+		| Some (c,params) -> TInst(c,params)
+		) in
+		if ctx.in_static then error "Cannot access super from a static function" p;
+		mk (TConst TSuper) t p
 	| Ident "null" -> mk (TConst TNull) (mk_mono()) p
 	| Ident s -> type_ident ctx s p
 	| Type s ->
-		let t = load_type_def ctx ([],s) p in 
-		assert false
+		type_type ctx ([],s) p
+
+let check_assign e =
+	match e.edecl with
+	| TLocal _ | TMember _ | TArray _ | TField _ ->
+		()
+	| _ ->
+		error "Invalid assign" e.epos
+
+let type_field ctx t i p =
+	let no_field() =
+		error (s_type (print_context()) t ^ " have no field " ^ i) p
+	in
+	match follow t with
+	| TInst (c,params) ->
+		let priv = is_parent c ctx.curclass in
+		let rec loop c params =
+			try	
+				let f = PMap.find i c.cl_fields in
+				if not f.cf_public && not priv then error ("Cannot access to private field " ^ i) p;
+				apply_params c.cl_types params f.cf_type
+			with
+				Not_found ->
+					match c.cl_super with
+					| None -> raise Not_found
+					| Some (c,params) -> loop c params
+		in
+		let rec loop_dyn c params =
+			match c.cl_dynamic with
+			| Some t -> apply_params c.cl_types params t 
+			| None ->
+				match c.cl_super with
+				| None -> raise Not_found
+				| Some (c,params) -> loop_dyn c params
+		in
+		(try 
+			loop c params
+		with Not_found -> try 
+			loop_dyn c params
+		with Not_found ->
+			no_field())
+	| TDynamic t ->
+		t
+	| TAnon fl ->
+		let f = (try PMap.find i fl with Not_found -> no_field()) in
+		f.cf_type
+	| t ->
+		no_field()
 
 let rec type_binop ctx op e1 e2 p =
-	assert false
+	let e1 = type_expr ctx e1 in
+	let e2 = type_expr ctx e2 in
+	let mk_op t = mk (TBinop (op,e1,e2)) t p in
+	let rec loop op =
+	match op with
+	| OpAdd ->
+		let i1 = is_int e1.etype in
+		let i2 = is_int e2.etype in
+		mk_op (if i1 && i2 then
+			t_int ctx
+		else if (i1 || is_float e1.etype) && (i2 || is_float e2.etype) then
+			t_float ctx
+		else
+			t_string ctx)
+	| OpAnd
+	| OpOr
+	| OpXor
+	| OpShl
+	| OpShr
+	| OpUShr ->
+		let i = t_int ctx in
+		unify e1.etype i e1.epos;
+		unify e2.etype i e2.epos;
+		mk_op i
+	| OpMod
+	| OpMult 
+	| OpDiv
+	| OpSub ->
+		let i = t_int ctx in
+		let f1 = is_float e1.etype in
+		let f2 = is_float e2.etype in
+		if not f1 then unify e1.etype i e1.epos;
+		if not f2 then unify e2.etype i e2.epos;
+		if not f1 && not f2 then
+			mk_op i
+		else
+			mk_op (t_float ctx)
+	| OpEq
+	| OpPhysEq
+	| OpPhysNotEq
+	| OpNotEq
+	| OpGt
+	| OpGte
+	| OpLt
+	| OpLte ->
+		(try
+			unify e1.etype e2.etype p
+		with
+			Error (Cannot_unify _,_) -> unify e2.etype e1.etype p);
+		mk_op (t_bool ctx)
+	| OpBoolAnd
+	| OpBoolOr ->
+		let b = t_bool ctx in
+		unify e1.etype b p;
+		unify e2.etype b p;
+		mk_op b
+	| OpInterval ->
+		let i = t_int ctx in
+		unify e1.etype i p;
+		unify e2.etype i p;
+		mk_op (TFun ([],i))
+	| OpAssign ->
+		unify e2.etype e1.etype p;
+		check_assign e1;
+		mk_op e1.etype
+	| OpAssignOp op ->
+		let e = loop op in
+		match e.edecl with
+		| TBinop (op,e1,e2) -> 
+			mk (TBinop (OpAssignOp op,e1,e2)) e.etype p
+		| _ ->
+			assert false
+	in
+	loop op
+
+and type_unop ctx op flag e p =
+	let e = type_expr ctx e in
+	let t = (match op with
+	| Not ->
+		let b = t_bool ctx in
+		unify e.etype b e.epos;
+		b
+	| Increment
+	| Decrement
+	| Neg
+	| NegBits ->
+		if op = Increment || op = Decrement then check_assign e;
+		if is_float e.etype then 
+			t_float ctx
+		else begin
+			unify e.etype (t_int ctx) e.epos;
+			t_int ctx
+		end
+	) in
+	mk (TUnop (op,flag,e)) t p
 
 and type_expr ctx (e,p) =
 	match e with
@@ -202,39 +476,239 @@ and type_expr ctx (e,p) =
 		mk (TArray (e1,e2)) pt p
     | EBinop (op,e1,e2) -> 
 		type_binop ctx op e1 e2 p
-	| _ ->
-		assert false
-(*/*
-	| EField of expr * string
-	| EType of expr * string
-	| EParenthesis of expr
-	| EObjectDecl of (string * expr) list
-	| EArrayDecl of expr list
-	| ECall of expr * expr list
-	| ENew of type_path * expr list
-	| EUnop of unop * unop_flag * expr
-	| EVars of (string * type_path option * expr option) list
-	| EFunction of func
-	| EBlock of expr list
-	| EFor of string * expr * expr
-	| EIf of expr * expr * expr option
-	| EWhile of expr * expr * while_flag
-	| ESwitch of expr * (expr * expr) list * expr option
-	| ETry of expr * (string * type_path * expr) list
-	| EReturn of expr option
-	| EBreak
-	| EContinue
-*/*)
+	| EBlock l ->
+		let locals = ctx.locals in
+		let l = List.map (type_expr ctx) l in
+		ctx.locals <- locals;
+		let rec loop = function
+			| [] -> t_void ctx
+			| [e] -> e.etype
+			| _ :: l -> loop l
+		in
+		mk (TBlock l) (loop l) p
+	| EType (pack,s) ->
+		let rec loop (e,p) =
+			match e with
+			| EField (e,s) -> s :: loop e
+			| EConst (Ident i) -> [i]
+			| _ -> assert false
+		in
+		let pack = List.rev (loop pack)	in
+		type_type ctx (pack,s) p
+	| EParenthesis e ->
+		let e = type_expr ctx e in
+		mk (TParenthesis e) e.etype p
+	| EObjectDecl fl ->
+		let rec loop (l,acc) (f,e) =
+			if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;
+			let e = type_expr ctx e in
+			let cf = {
+				cf_name = f;
+				cf_type = e.etype;
+				cf_public = false;
+				cf_expr = None;
+			} in
+			((f,e) :: l, PMap.add f cf acc)
+		in
+		let fields , types = List.fold_left loop ([],PMap.empty) fl in
+		mk (TObjectDecl fields) (TAnon types) p
+	| EArrayDecl el ->
+		let t , pt = t_array ctx in
+		let el = List.map (fun e ->
+			let e = type_expr ctx e in
+			unify e.etype pt e.epos;
+			e
+		) el in
+		mk (TArrayDecl el) t p
+	| EVars vl ->
+		let vl = List.map (fun (v,t,e) ->
+			let t = load_type_opt ctx p t in
+			let e = (match e with
+				| None -> None 
+				| Some e ->
+					let e = type_expr ctx e in
+					unify e.etype t p;
+					Some e
+			) in
+			ctx.locals <- PMap.add v t ctx.locals;
+			v , t , e
+		) vl in
+		mk (TVars vl) (t_void ctx) p
+	| EFor (i,e1,e2) ->
+		let e1 = type_expr ctx e1 in
+		let pt = mk_mono() in
+		let t = TFun ([],pt) in 
+		unify e1.etype t e1.epos;
+		let locals = ctx.locals in
+		ctx.locals <- PMap.add i pt ctx.locals;
+		let e2 = type_expr ctx e2 in
+		ctx.locals <- locals;
+		mk (TFor (i,e1,e2)) (t_void ctx) p
+	| EIf (e,e1,e2) ->
+		let e = type_expr ctx e in
+		unify e.etype (t_bool ctx) e.epos;
+		let e1 = type_expr ctx e1 in
+		(match e2 with
+		| None -> mk (TIf (e,e1,None)) (t_void ctx) p
+		| Some e2 ->
+			let e2 = type_expr ctx e2 in
+			let t = (try
+				unify e1.etype e2.etype p;
+				e2.etype
+			with
+				Error (Cannot_unify _,_) ->
+					unify e2.etype e1.etype p;
+					e1.etype
+			) in
+			mk (TIf (e,e1,Some e2)) t p)
+	| EWhile (cond,e,flag) ->
+		let cond = type_expr ctx cond in
+		unify cond.etype (t_bool ctx) cond.epos;
+		let e = type_expr ctx e in
+		mk (TWhile (cond,e,flag)) (t_void ctx) p
+	| ESwitch (e,cases,def) ->
+		let e = type_expr ctx e in
+		let t = mk_mono() in
+		let cases = List.map (fun (e1,e2) ->
+			let e1 = type_expr ctx e1 in
+			(* this inversion is needed *)
+			unify e.etype e1.etype e1.epos; 
+			let e2 = type_expr ctx e2 in
+			unify e2.etype t e2.epos;
+			(e1,e2)
+		) cases in
+		let def = (match def with
+			| None -> None
+			| Some e ->
+				let e = type_expr ctx e in
+				unify e.etype t e.epos;
+				Some e
+		) in
+		mk (TSwitch (e,cases,def)) t p
+	| EReturn e ->
+		let e , t = (match e with
+			| None ->
+				let v = t_void ctx in 
+				unify v ctx.ret p;
+				None , v
+			| Some e -> 
+				let e = type_expr ctx e in
+				unify e.etype ctx.ret e.epos;
+				Some e , e.etype
+		) in
+		mk (TReturn e) t p
+	| EBreak ->
+		mk TBreak (t_void ctx) p
+	| EContinue ->
+		mk TContinue (t_void ctx) p
+	| ETry (e1,catches) -> 
+		let e1 = type_expr ctx e1 in
+		let catches = List.map (fun (v,t,e) ->
+			let t = load_type ctx (pos e) t in
+			let locals = ctx.locals in
+			ctx.locals <- PMap.add v t ctx.locals;
+			let e = type_expr ctx e in
+			ctx.locals <- locals;
+			unify e.etype e1.etype e.epos;
+			v , t , e
+		) catches in
+		mk (TTry (e1,catches)) e1.etype p
+	| ECall ((EConst (Ident "type"),_),[e]) ->
+		let e = type_expr ctx e in
+		ctx.warn "type" (s_type (print_context()) e.etype) e.epos;
+		e
+	| ECall ((EConst (Ident "super"),sp),el) ->
+		let el = List.map (type_expr ctx) el in
+		if ctx.in_static || not ctx.in_constructor then error "Cannot call superconstructor outside class constructor" p;
+		(match ctx.curclass.cl_super with
+		| None -> error "Current class does not have a super" p
+		| Some (c,params) ->
+			let f = (try PMap.find "new" c.cl_statics with Not_found -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
+			(match apply_params c.cl_types params f.cf_type with
+			| TFun (args,r) ->
+				if List.length args <> List.length el then error "Invalid number of constructor parameters" p;
+				List.iter2 (fun e t -> unify e.etype t e.epos) el args;
+			| _ ->
+				error "Constructor is not a function" p);
+		);
+		mk (TCall (mk (TConst TSuper) (mk_mono()) sp,el)) (t_void ctx) p
+	| ECall (e,el) ->
+		let e = type_expr ctx e in
+		let el = List.map (type_expr ctx) el in
+		let t = (match follow e.etype with
+		| TFun (args,r) ->
+			if List.length args <> List.length el then error "Invalid number of arguments" p;
+			List.iter2 (fun e t ->
+				unify e.etype t e.epos;
+			) el args;
+			r
+		| TMono _ ->
+			let t = mk_mono() in
+			unify (TFun (List.map (fun e -> e.etype) el,t)) e.etype e.epos;
+			t
+		| t ->
+			error (s_type (print_context()) t ^ " cannot be called") e.epos
+		) in
+		mk (TCall (e,el)) t p
+	| EField (e,i) ->
+		let e = type_expr ctx e in
+		let t = type_field ctx e.etype i p in
+		mk (TField (e,i)) t p
+	| ENew (t,el) ->
+		let t = load_normal_type ctx t p true in
+		let el = List.map (type_expr ctx) el in
+		let c , params , t = (match t with
+		| TInst (c,params) ->
+			let f = (try PMap.find "new" c.cl_statics with Not_found -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
+			if not f.cf_public && not (is_parent c ctx.curclass) then error "Cannot access private constructor" p;
+			(match apply_params c.cl_types params f.cf_type with
+			| TFun (args,r) ->
+				if List.length args <> List.length el then error "Invalid number of constructor parameters" p;
+				List.iter2 (fun e t -> unify e.etype t e.epos) el args;
+			| _ ->
+				error "Constructor is not a function" p);
+			c , params , t
+		| _ ->
+			error (s_type (print_context()) t ^ " cannot be constructed") p
+		) in
+		mk (TNew (c,params,el)) t p
+	| EUnop (op,flag,e) ->
+		type_unop ctx op flag e p
+	| EFunction f ->
+		let rt = load_type_opt ctx p f.f_type in
+		let args = List.map (fun (s,t) -> s , load_type_opt ctx p t) f.f_args in
+		let ft = TFun (List.map snd args,rt) in
+		let e = type_function ctx ft true false f p in
+		let f = {
+			tf_args = args;
+			tf_type = rt;
+			tf_expr = e;
+		} in
+		mk (TFunction f) ft p
+
+and type_function ctx t static constr f p =
+	let locals = ctx.locals in
+	let argst , r = (match t with TFun (args,r) -> args, r | _ -> assert false) in
+	List.iter2 (fun (n,_) t ->
+		ctx.locals <- PMap.add n t ctx.locals;		
+	) f.f_args argst;
+	let old_ret = ctx.ret in
+	let old_static = ctx.in_static in
+	let old_constr = ctx.in_constructor in
+	ctx.in_static <- static;
+	ctx.in_constructor <- constr;
+	ctx.ret <- r;
+	let e = type_expr ctx f.f_expr in
+	unify e.etype r e.epos;
+	ctx.locals <- locals;
+	ctx.ret <- old_ret;
+	ctx.in_static <- old_static;
+	ctx.in_constructor <- old_constr;
+	e
 
 let type_static_var ctx t e p =
 	ctx.in_static <- true;
 	let e = type_expr ctx e in
-	unify e.etype t p;
-	e
-
-let type_function ctx t static f p =
-	ctx.in_static <- static;
-	let e = type_expr ctx f.f_expr in
 	unify e.etype t p;
 	e
 
@@ -245,49 +719,39 @@ let check_overloading c p () =
 		| Some (c,_) ->
 			try
 				let f2 = PMap.find f.cf_name c.cl_fields in
-				if not (type_eq f.cf_type f2.cf_type) then error (Custom ("Field " ^ f.cf_name ^ " overload parent class with different or incomplete type")) p;
-				if f.cf_public <> f2.cf_public then error (Custom ("Field " ^ f.cf_name ^ " have different access right than previous one")) p; 
+				if not (type_eq f.cf_type f2.cf_type) then error ("Field " ^ f.cf_name ^ " overload parent class with different or incomplete type") p;
+				if f.cf_public <> f2.cf_public then error ("Field " ^ f.cf_name ^ " have different access right than previous one") p; 
 			with
 				Not_found -> loop c.cl_super f
 	in
 	PMap.iter (fun _ f -> loop c.cl_super f) c.cl_fields
 
 let check_interfaces c p () =
-	() (**** TODO ****)
+	List.iter (fun (intf,params) ->
+		PMap.iter (fun i f ->
+			try
+				let t , f2 = class_field c i in
+				if f2.cf_public <> f.cf_public then error ("Field " ^ i ^ " have different access than in " ^ s_type_path intf.cl_path) p;
+				if not (type_eq f2.cf_type (apply_params intf.cl_types params f.cf_type)) then error ("Field " ^ i ^ " have different type than in " ^ s_type_path intf.cl_path) p;
+			with
+				Not_found ->
+					error ("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing") p
+		) intf.cl_fields;
+	) c.cl_implements
 
 (* ---------------------------------------------------------------------- *)
 (* PASS 1 & 2 : Module and Class Structure *)
 
 let init_class ctx c p types herits fields =
+	ctx.type_params <- [];
 	c.cl_types <- List.map (type_type_params ctx c.cl_path p) types;
+	ctx.type_params <- c.cl_types;
 	c.cl_native <- List.mem HNative herits;
-	let rec loop_super = function 
-		| [] ->
-			None
-		| HExtends t :: _ ->
-			let t = load_normal_type ctx t p in
-			(match t with
-			| TInst (cl,params) -> Some (cl,params)
-			| _ -> error (Custom "Should extend a class") p)
-		| _ :: l ->
-				loop_super l
-	in
-	c.cl_super <- loop_super herits;
-	let rec loop_implements = function
-		| [] -> []
-		| HImplements t :: l ->
-			let t = load_normal_type ctx t p in
-			(match t with
-			| TInst (cl,params) -> (cl, params) :: loop_implements l
-			| _ -> error (Custom "Shoule implement a class") p)
-		| _ :: l ->
-			loop_implements l
-	in
-	c.cl_implements <- loop_implements herits;
+	set_heritance ctx c herits p;
 	let loop_cf f p =
 		match f with
 		| FVar (name,access,t,e) ->
-			let t = load_type ctx t p in
+			let t = load_type ctx p t in
 			let cf = {
 				cf_name = name;
 				cf_type = t;
@@ -303,7 +767,8 @@ let init_class ctx c p types herits fields =
 			) in
 			List.mem AStatic access, cf, delay
 		| FFun (name,access,f) ->
-			let t = TFun (List.map (fun (_,t) -> load_type_opt ctx t p) f.f_args,load_type_opt ctx f.f_type p) in
+			let r = load_type_opt ctx p f.f_type in
+			let t = TFun (List.map (fun (_,t) -> load_type_opt ctx p t) f.f_args,r) in
 			let stat = List.mem AStatic access in
 			let cf = {
 				cf_name = name;
@@ -311,14 +776,15 @@ let init_class ctx c p types herits fields =
 				cf_expr = None;
 				cf_public = not (List.mem APrivate access);
 			} in
-			stat, cf , (fun() -> 
+			let define_fun() = 
 				ctx.curclass <- c;
-				cf.cf_expr <- Some (type_function ctx t stat f p)
-			)
+				cf.cf_expr <- Some (type_function ctx t stat (name = "new") f p)
+			in
+			stat || name = "new", cf , (if c.cl_native then (fun() -> ()) else define_fun)
 	in
 	List.map (fun (f,p) ->
 		let static , f , delayed = loop_cf f p in
-		if PMap.mem f.cf_name (if static then c.cl_statics else c.cl_fields) then error (Custom ("Duplicate class field declaration : " ^ f.cf_name)) p;
+		if PMap.mem f.cf_name (if static then c.cl_statics else c.cl_fields) then error ("Duplicate class field declaration : " ^ f.cf_name) p;
 		if static then
 			c.cl_statics <- PMap.add f.cf_name f c.cl_statics
 		else
@@ -333,7 +799,7 @@ let type_module ctx m tdecls =
 		let tpath = (fst m,name) in
 		try
 			let m2 = Hashtbl.find ctx.types tpath in
-			error (Custom ("Type name " ^ s_type_path tpath ^ " is redefined from module " ^ s_type_path m2)) p
+			error ("Type name " ^ s_type_path tpath ^ " is redefined from module " ^ s_type_path m2) p
 		with
 			Not_found ->
 				Hashtbl.add ctx.types (fst m,name) m;
@@ -352,6 +818,7 @@ let type_module ctx m tdecls =
 				cl_implements = [];
 				cl_fields = PMap.empty;
 				cl_statics = PMap.empty;
+				cl_dynamic = None;
 			} in
 			decls := ((fst m,name),TClassDecl c) :: !decls
 		| EEnum (name,_,_) ->
@@ -373,11 +840,15 @@ let type_module ctx m tdecls =
 		modules = ctx.modules;
 		delays = ctx.delays;
 		types = ctx.types;
+		warn = ctx.warn;
 		curclass = ctx.curclass;
 		std = ctx.std;
+		ret = ctx.ret;
 		current = m;
 		locals = PMap.empty;
 		local_types = ctx.std.mtypes @ m.mtypes;
+		type_params = [];
+		in_constructor = false;
 		in_static = false;
 	} in
 	let delays = ref [] in
@@ -393,12 +864,14 @@ let type_module ctx m tdecls =
 		| EEnum (name,types,constrs) ->
 			let e = List.find (fun (_,d) -> match d with TEnumDecl ({ e_path = _ , n } as e) -> n = name | _ -> false) m.mtypes in
 			let e = (match snd e with TEnumDecl e -> e | _ -> assert false) in
+			ctx.type_params <- [];
 			e.e_types <- List.map (type_type_params ctx e.e_path p) types;
+			ctx.type_params <- e.e_types;
 			let et = TEnum (e,List.map snd e.e_types) in
 			List.iter (fun (c,t,p) ->
 				let t = (match t with 
 					| [] -> et
-					| l -> TFun (List.map (fun (_,t) -> load_type ctx t p) l, et)
+					| l -> TFun (List.map (fun (_,t) -> load_type ctx p t) l, et)
 				) in
 				e.e_constrs <- PMap.add c { ef_name = c; ef_type = t } e.e_constrs
 			) constrs
@@ -413,20 +886,20 @@ let load ctx m p =
 	with
 		Not_found ->
 			let file = (match m with [] , name -> name | l , name -> String.concat "/" l ^ "/" ^ name) ^ ".hx" in
-			let file = (try Plugin.find_file file with Not_found -> error (Module_not_found m) p) in
-			let ch = (try open_in file with _ -> error (Custom ("Could not open " ^ file)) p) in
+			let file = (try Plugin.find_file file with Not_found -> raise (Error (Module_not_found m,p))) in
+			let ch = (try open_in file with _ -> error ("Could not open " ^ file) p) in
 			let pack , decls = (try Parser.parse (Lexing.from_channel ch) file with e -> close_in ch; raise e) in
 			close_in ch;
 			if pack <> fst m then begin
 				let spack m = if m = [] then "<empty>" else String.concat "." m in
 				if p == Ast.null_pos then
-					error (Custom ("Invalid commandline class : " ^ s_type_path m ^ " should be " ^ s_type_path (pack,snd m))) p
+					error ("Invalid commandline class : " ^ s_type_path m ^ " should be " ^ s_type_path (pack,snd m)) p
 				else
-					error (Custom ("Invalid package : " ^ spack (fst m) ^ " should be " ^ spack pack)) p
+					error ("Invalid package : " ^ spack (fst m) ^ " should be " ^ spack pack) p
 			end;
 			type_module ctx m decls
 
-let context() =
+let context warn =
 	let empty =	{
 		mpath = [] , "";
 		mtypes = [];
@@ -435,9 +908,13 @@ let context() =
 		modules = Hashtbl.create 0;
 		types = Hashtbl.create 0;
 		delays = ref [];
+		in_constructor = false;
 		in_static = false;
+		ret = mk_mono();
+		warn = warn;
 		locals = PMap.empty;
 		local_types = [];
+		type_params = [];
 		curclass = {
 			cl_path = [] , "";
 			cl_native = false;
@@ -446,6 +923,7 @@ let context() =
 			cl_implements = [];
 			cl_fields = PMap.empty;
 			cl_statics = PMap.empty;
+			cl_dynamic = None;
 		};
 		current = empty;
 		std = empty;
@@ -454,7 +932,7 @@ let context() =
 		load ctx ([],"Std") null_pos
 	with
 		Error (Module_not_found ([],"Std"),_) ->
-			error (Custom "Standard library not found") null_pos
+			error "Standard library not found" null_pos
 	);
 	ctx
 
