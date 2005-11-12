@@ -77,6 +77,7 @@ type binop =
 	| OpUShr
 	| OpMod
 	| OpAssignOp of binop
+	| OpInterval
 
 type unop =
 	| Increment
@@ -111,6 +112,7 @@ type token =
 	| Dot
 	| DblDot
 	| Arrow
+	| IntInterval of string
 
 type unop_flag =
 	| Prefix
@@ -147,7 +149,7 @@ and expr_def =
 	| EObjectDecl of (string * expr) list
 	| EArrayDecl of expr list
 	| ECall of expr * expr list
-	| ENew of type_path * expr list
+	| ENew of type_path_normal * expr list
 	| EUnop of unop * unop_flag * expr
 	| EVars of (string * type_path option * expr option) list
 	| EFunction of func
@@ -283,6 +285,7 @@ let rec s_binop = function
 	| OpShl -> "<<"
 	| OpMod -> "%"
 	| OpAssignOp op -> s_binop op ^ "="
+	| OpInterval -> "..."
 
 let s_unop = function
 	| Increment -> "++"
@@ -310,3 +313,4 @@ let s_token = function
 	| Dot -> "."
 	| DblDot -> ":"
 	| Arrow -> "->"
+	| IntInterval s -> s ^ "..."
