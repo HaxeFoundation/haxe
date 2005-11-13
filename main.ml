@@ -26,14 +26,17 @@ let normalize_path p =
 		| '\\' | '/' -> p
 		| _ -> p ^ "/"
 
-let report kind msg p =
+let warn msg p =
 	let error_printer file line = sprintf "%s:%d:" file line in
 	let epos = Lexer.get_error_pos error_printer p in
-	prerr_endline (sprintf "%s : %s %s" epos kind msg);
+	prerr_endline (sprintf "%s : %s" epos msg)
+
+let report msg p =
+	warn msg p;
 	exit 1
 
 let compile classes =
-	let ctx = Typer.context() in
+	let ctx = Typer.context warn in
 	List.iter (fun f ->
 		let cl = ExtString.String.nsplit f "." in
 		let error() = failwith ("Invalid class name " ^ f) in
@@ -78,9 +81,9 @@ try
 		if !Plugin.verbose then print_endline ("Time spent : " ^ string_of_float (Sys.time() -. time));
 	end;
 with
-	| Lexer.Error (m,p) -> report "syntax error" (Lexer.error_msg m) p
-	| Parser.Error (m,p) -> report "parse error" (Parser.error_msg m) p
-	| Typer.Error (m,p) -> report "type error" (Typer.error_msg m) p
+	| Lexer.Error (m,p) -> report (Lexer.error_msg m) p
+	| Parser.Error (m,p) -> report (Parser.error_msg m) p
+	| Typer.Error (m,p) -> report (Typer.error_msg m) p
 	| Failure msg ->
 		prerr_endline msg;
 		exit 1;
