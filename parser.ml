@@ -263,7 +263,7 @@ and expr = parser
 	| [< '(Kwd Continue,p) >] -> (EContinue,p)
 	| [< '(Kwd While,p1); cond = expr; e = expr; s >] -> expr_next (EWhile (cond,e,NormalWhile),punion p1 (pos e)) s
 	| [< '(Kwd Do,p1); e = expr; '(Kwd While,_); cond = expr; s >] -> expr_next (EWhile (cond,e,DoWhile),punion p1 (pos e)) s
-	| [< '(Kwd Switch,p1); e = expr; '(BrOpen,_); cases , def = parse_switch_cases; '(BrClose,p2); s >] -> expr_next (ESwitch (e,List.rev cases,def),punion p1 p2) s
+	| [< '(Kwd Switch,p1); e = expr; '(BrOpen,_); cases , def = parse_switch_cases; '(BrClose,p2); s >] -> expr_next (ESwitch (e,cases,def),punion p1 p2) s
 	| [< '(Kwd Try,p1); e = expr; cl = plist parse_catch; s >] -> expr_next (ETry (e,cl),p1) s
 	| [< '(IntInterval i,p1); e2 = expr >] -> make_binop OpInterval (EConst (Int i),p1) e2
 
@@ -297,8 +297,10 @@ and parse_switch_cases = parser
 	| [< '(Kwd Default,p1); '(DblDot,_); e = block1; l , def = parse_switch_cases >] -> 
 		(match def with None -> () | Some (e,p) -> error Duplicate_default p);
 		l , Some (e , p1)
-	| [< e = expr; '(DblDot,_); b = block1; l , def = parse_switch_cases >] ->
-		(e,(b,pos e)) :: l , def
+	| [< '(Kwd Case,p1); e = expr; '(DblDot,_); b = block1; l , def = parse_switch_cases >] ->
+		(e,(b,p1)) :: l , def
+	| [< >] ->
+		[] , None
 
 and parse_catch = parser
 	| [< '(Kwd Catch,_); '(POpen,_); '(Const (Ident name),_); '(DblDot,_); t = parse_type_path; e = expr >] -> (name,t,e)
