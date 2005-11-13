@@ -25,7 +25,7 @@ type context = {
 	types : (module_path, module_path) Hashtbl.t;
 	modules : (module_path , module_def) Hashtbl.t;
 	delays : (unit -> unit) list list ref;
-	warn : string -> string -> pos -> unit; 
+	warn : string -> pos -> unit; 
 	mutable std : module_def;
 	(* per-module *)
 	current : module_def;
@@ -232,6 +232,34 @@ let t_array ctx =
 	| _ ->
 		assert false
 
+let rec return_flow e =
+	let error() = error "A return is missing here" e.epos in
+	match e.eexpr with
+	| TReturn _ -> ()
+	| TParenthesis e -> 
+		return_flow e
+	| TBlock el ->
+		let rec loop = function
+			| [] -> error()
+			| [e] -> return_flow e
+			| { eexpr = TReturn _ } :: _ -> ()
+			| _ :: l -> loop l
+		in
+		loop el
+	| TIf (_,e1,Some e2) ->
+		return_flow e1;
+		return_flow e2;
+	| TWhile ({ eexpr = TConst (TBool true) },e,_) ->
+		return_flow e
+	| TSwitch (_,cases,Some e) ->
+		List.iter (fun (_,e) -> return_flow e) cases;
+		return_flow e
+	| TTry (e,cases) ->
+		return_flow e;
+		List.iter (fun (_,_,e) -> return_flow e) cases;
+	| _ ->
+		error()
+
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
 
@@ -320,11 +348,53 @@ let type_constant ctx c p =
 		type_type ctx ([],s) p
 
 let check_assign e =
-	match e.edecl with
+	match e.eexpr with
 	| TLocal _ | TMember _ | TArray _ | TField _ ->
 		()
 	| _ ->
 		error "Invalid assign" e.epos
+
+let type_matching ctx (enum,params) (e,p) ecases =
+	let invalid() = error "Invalid enum matching" p in
+	let needs n = error ("This constructor needs " ^ string_of_int n ^ " parameters") p in
+	let constr name =
+		if PMap.mem name (!ecases) then error "This constructor has already been used" p;
+		ecases := PMap.add name () (!ecases);
+		try
+			PMap.find name enum.e_constrs
+		with
+			Not_found -> error ("This constructor is not part of the enum " ^ s_type_path enum.e_path) p
+	in
+	match e with
+	| EConst (Ident name) ->
+		let c = constr name in
+		(match c.ef_type with
+			| TFun (l,_) -> needs (List.length l)
+			| TEnum _ -> ()
+			| _ -> assert false
+		);
+		let t = TEnum (enum , params) in
+		mk (TMatch (enum,name,None)) t p 
+	| ECall ((EConst (Ident name),_),el) ->
+		let c = constr name in
+		let args = (match c.ef_type with
+			| TFun (l,_) -> 
+				if List.length l <> List.length el then needs (List.length l);
+				List.map (apply_params enum.e_types params) l
+			| TEnum _ -> error "This constructor does not take any paramter" p
+			| _ -> assert false
+		) in
+		let idents = List.map2 (fun (e,_) t -> 
+			match e with 
+			| EConst (Ident name) ->
+				ctx.locals <- PMap.add name t ctx.locals;
+				name , t
+			| _ -> invalid()
+		) el args in
+		let t = TEnum (enum, params) in
+		mk (TMatch (enum,name,Some idents)) t p 
+	| _ ->
+		invalid()
 
 let type_field ctx t i p =
 	let no_field() =
@@ -434,7 +504,7 @@ let rec type_binop ctx op e1 e2 p =
 		mk_op e1.etype
 	| OpAssignOp op ->
 		let e = loop op in
-		match e.edecl with
+		match e.eexpr with
 		| TBinop (op,e1,e2) -> 
 			mk (TBinop (OpAssignOp op,e1,e2)) e.etype p
 		| _ ->
@@ -462,6 +532,70 @@ and type_unop ctx op flag e p =
 		end
 	) in
 	mk (TUnop (op,flag,e)) t p
+
+and type_switch ctx e cases def p =
+	let e = type_expr ctx e in
+	let t = mk_mono() in
+	let constr name = 
+		let rec loop l =
+			match l with
+			| [] -> raise Not_found
+			| (_,TEnumDecl e) :: l -> if PMap.mem name e.e_constrs then e else loop l
+			| _ :: l -> loop l
+		in
+		loop ctx.local_types
+	in
+	let rec lookup_enum l =
+		match l with
+		| [] -> None
+		| (ECall ((EConst (Ident name),p),_),_) :: l
+		| (EConst (Ident name),p) :: l ->
+			(try 
+				let e = type_ident ctx name p in
+				(match e.eexpr with
+				| TEnumField (e,_) -> Some (e, List.map (fun _ -> mk_mono()) e.e_types)
+				| _ -> None)
+			with
+				Error (Custom _,_) -> lookup_enum l)
+		| _ ->
+			None
+	in
+	let enum = (match follow e.etype with
+		| TEnum (e,params) -> Some (e,params)
+		| TMono _ -> lookup_enum (List.map fst cases)
+		| _ -> None
+	) in
+	let ecases = ref PMap.empty in
+	let cases = List.map (fun (e1,e2) ->
+		let locals = ctx.locals in
+		let e1 = (match enum with Some e -> type_matching ctx e e1 ecases | None -> type_expr ctx e1) in
+		(* this inversion is needed *)
+		unify e.etype e1.etype e1.epos; 
+		let e2 = type_expr ctx e2 in
+		ctx.locals <- locals;
+		unify e2.etype t e2.epos;
+		(e1,e2)
+	) cases in
+	let def = (match def with
+		| None -> 
+			(match enum with
+			| None -> ()
+			| Some (e,_) ->
+				let l = PMap.fold (fun c acc ->
+					if PMap.mem c.ef_name (!ecases) then acc else c.ef_name :: acc
+				) e.e_constrs [] in
+				match l with
+				| [] -> ()
+				| _ -> error ("Some constructors are not matched : " ^ String.concat "," l) p
+			);
+			None
+		| Some e ->
+			let e = type_expr ctx e in
+			unify e.etype t e.epos;
+			Some e
+	) in
+	mk (TSwitch (e,cases,def)) t p
+
 
 and type_expr ctx (e,p) =
 	match e with
@@ -567,24 +701,7 @@ and type_expr ctx (e,p) =
 		let e = type_expr ctx e in
 		mk (TWhile (cond,e,flag)) (t_void ctx) p
 	| ESwitch (e,cases,def) ->
-		let e = type_expr ctx e in
-		let t = mk_mono() in
-		let cases = List.map (fun (e1,e2) ->
-			let e1 = type_expr ctx e1 in
-			(* this inversion is needed *)
-			unify e.etype e1.etype e1.epos; 
-			let e2 = type_expr ctx e2 in
-			unify e2.etype t e2.epos;
-			(e1,e2)
-		) cases in
-		let def = (match def with
-			| None -> None
-			| Some e ->
-				let e = type_expr ctx e in
-				unify e.etype t e.epos;
-				Some e
-		) in
-		mk (TSwitch (e,cases,def)) t p
+		type_switch ctx e cases def p
 	| EReturn e ->
 		let e , t = (match e with
 			| None ->
@@ -596,7 +713,7 @@ and type_expr ctx (e,p) =
 				unify e.etype ctx.ret e.epos;
 				Some e , e.etype
 		) in
-		mk (TReturn e) t p
+		mk (TReturn e) (t_void ctx) p
 	| EBreak ->
 		mk TBreak (t_void ctx) p
 	| EContinue ->
@@ -615,7 +732,7 @@ and type_expr ctx (e,p) =
 		mk (TTry (e1,catches)) e1.etype p
 	| ECall ((EConst (Ident "type"),_),[e]) ->
 		let e = type_expr ctx e in
-		ctx.warn "type" (s_type (print_context()) e.etype) e.epos;
+		ctx.warn (s_type (print_context()) e.etype) e.epos;
 		e
 	| ECall ((EConst (Ident "super"),sp),el) ->
 		let el = List.map (type_expr ctx) el in
@@ -699,7 +816,17 @@ and type_function ctx t static constr f p =
 	ctx.in_constructor <- constr;
 	ctx.ret <- r;
 	let e = type_expr ctx f.f_expr in
-	unify e.etype r e.epos;
+	let rec loop e =
+		match e.eexpr with
+		| TReturn _ -> raise Exit
+		| TFunction _ -> ()
+		| _ -> Type.iter loop e
+	in
+	let have_ret = (try loop e; false with Exit -> true) in
+	if have_ret then 
+		return_flow e
+	else
+		unify r (t_void ctx) p;
 	ctx.locals <- locals;
 	ctx.ret <- old_ret;
 	ctx.in_static <- old_static;
