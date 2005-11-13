@@ -42,7 +42,7 @@ and tfunc = {
 	tf_expr : texpr;
 }
 
-and texpr_decl =
+and texpr_expr =
 	| TConst of tconstant
 	| TLocal of string
 	| TMember of string
@@ -68,9 +68,10 @@ and texpr_decl =
 	| TReturn of texpr option
 	| TBreak
 	| TContinue
+	| TMatch of tenum * string * (string * t) list option
 
 and texpr = {
-	edecl : texpr_decl;
+	eexpr : texpr_expr;
 	etype : t;
 	epos : Ast.pos;
 }
@@ -113,7 +114,7 @@ type module_def = {
 	mtypes : (module_path * module_type) list;
 }
 
-let mk e t p = { edecl = e; etype = t; epos = p }
+let mk e t p = { eexpr = e; etype = t; epos = p }
 
 let mk_mono() = TMono (ref None)
 
@@ -292,3 +293,51 @@ let rec unify a b =
 		t == b || (match a with TDynamic t2 -> t2 == a || type_eq t t2 | _ -> false)
 	| _ , _ ->
 		false
+
+let rec iter f e =
+	match e.eexpr with
+	| TConst _
+	| TLocal _
+	| TMember _
+	| TEnumField _
+	| TBreak
+	| TContinue
+	| TMatch _
+	| TType _ ->
+		()
+	| TArray (e1,e2)
+	| TBinop (_,e1,e2)
+	| TFor (_,e1,e2)
+	| TWhile (e1,e2,_) ->
+		f e1;
+		f e2;
+	| TField (e,_)
+	| TParenthesis e
+	| TUnop (_,_,e) ->
+		f e
+	| TArrayDecl el
+	| TNew (_,_,el)
+	| TBlock el ->
+		List.iter f el
+	| TObjectDecl fl ->
+		List.iter (fun (_,e) -> f e) fl
+	| TCall (e,el) ->
+		f e;
+		List.iter f el
+	| TVars vl ->
+		List.iter (fun (_,_,e) -> match e with None -> () | Some e -> f e) vl
+	| TFunction fu ->
+		f fu.tf_expr
+	| TIf (e,e1,e2) ->
+		f e;
+		f e1;
+		(match e2 with None -> () | Some e -> f e)
+	| TSwitch (e,cases,def) ->
+		f e;
+		List.iter (fun (e1,e2) -> f e1; f e2) cases;
+		(match def with None -> () | Some e -> f e)
+	| TTry (e,catches) ->
+		f e;
+		List.iter (fun (_,_,e) -> f e) catches
+	| TReturn eo ->
+		(match eo with None -> () | Some e -> f e)
