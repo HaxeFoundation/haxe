@@ -470,7 +470,7 @@ let rec type_binop ctx op e1 e2 p =
 		let f2 = is_float e2.etype in
 		if not f1 then unify e1.etype i e1.epos;
 		if not f2 then unify e2.etype i e2.epos;
-		if not f1 && not f2 then
+		if op <> OpDiv && not f1 && not f2 then
 			mk_op i
 		else
 			mk_op (t_float ctx)
@@ -883,7 +883,7 @@ let init_class ctx c p types herits fields =
 				cf_name = name;
 				cf_type = t;
 				cf_expr = None;
-				cf_public = not (List.mem APrivate access);
+				cf_public = List.mem APublic access;
 			} in
 			let delay = (match e with 
 				| None -> (fun() -> ())
@@ -901,7 +901,7 @@ let init_class ctx c p types herits fields =
 				cf_name = name;
 				cf_type = t;
 				cf_expr = None;
-				cf_public = not (List.mem APrivate access);
+				cf_public = List.mem APublic access;
 			} in
 			let define_fun() = 
 				ctx.curclass <- c;
