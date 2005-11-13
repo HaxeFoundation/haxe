@@ -1,6 +1,6 @@
 <html>
 <head>
-<title>The haXe Programming Language Reference</title>
+<title>The haXe Programming Language</title>
 <link rel="stylesheet" type="text/css" href="style.css"/>
 </head>
 
@@ -8,10 +8,9 @@
 
 <div class="content">
 
-<h1>The haXe Programming Language Reference</h1>
+<h1>The haXe Programming Language</h1>
 
 <script type="text/javascript" src="menu.js"></script>
-
 
 <h2>Introduction</h2>
 
@@ -19,27 +18,527 @@
 	This Language Reference document will quickly introduce you the haXe programming language syntax and features.
 </p>
 
-<h2>My First Class</h2>
+<ul>
+	<li><a href="#types">Types</a></li>
+	<li><a href="#classes">Classes</a></li>
+	<li><a href="#expr">Expressions</a></li>
+</ul>
+
+
+<a name="types"></a>
+<h2>Types</h2>
 
 <p>
 	The syntax is Java/ActionScript/C++ like.
 </p>
 
 <p>
-	A source code file is composed of a <em>package name</em> followed by several <em>type</em> declarations. In order to enforce the conventions, packages names are composed of several <em>identifiers</em> which are starting with a lowercase letter while <em>type identifiers</em> are always starting with an uppercase letter. The following <em>types</em> are available :
+	A source code file is composed of a <em>package name</em> followed by several <em>imports</em> and <em>type</em> declarations. In order to enforce the conventions, packages names are composed of several <em>identifiers</em> which are starting with a lowercase letter while <em>type identifiers</em> are always starting with an uppercase letter.
+</p>
+
+<p>
+	There is several kind of types. The two important ones are <em>classes</em> and <em>enums</em>. Here are some of the <em>basic types</em> as declared in the standard library :
+</p>
+
+<pre>
+<k>package</k> {
+
+    <k>enum</k> Void {
+    }
+
+    <k>class</k> Float {
+    }
+
+    <k>class</k> Int <k>extends</k> Float {
+    }
+
+    <k>enum</k> Bool {
+        <k>true</k>;
+        <k>false</k>;
+    }
+
+    <k>class</k> Dynamic&lt;T&gt; {
+    }
+
+}
+</pre>
+
+<p>
+	The standard library is declared in the <em>root</em> (or <em>empty</em>) package. Let's see each type one by one :
+</p>
+
+<ul class="big">
+	<li><strong>Void</strong> is declared as an <em>enum</em>. An enumeration list a number of valid <em>constructors</em>. An empty enumeration such as <code>Void</code> does not have then any instance. However, it's still a valid type that can be used.</li>
+	<li><strong>Float</strong> is a floating point number class. It doesn't have any method so it can be greatly optimized on some platforms.</li>
+	<li><strong>Int</strong> is an integer. It doesn't have methods either but it inherit from <code>Float</code>, so it means that everywhere a <code>Float</code> is requested, you can use an <code>Int</code>, while the contrary is not true. And that seems pretty correct.</li>
+	<li><strong>Bool</strong> is an enumeration, like <code>Void</code>, but it has two instances <code>true</code> and <code>false</code>. As you can see, even <em>standard</em> types can be defined easily using the hAxe type system. It means also you can use it to define your own types.</li>
+	<li><strong>Dynamic</strong> is a class with a <em>type parameter</em>. We will explain how to use type parameters later in this document.</li>
+</ul>
+
+<p>
+	Let's see now how you can praticaly use classes.
+</p>
+
+<a name="classes"></a>
+<h2>Classes</h2>
+
+<p>
+	We will now quickly introduce the structure of classes.
+</p>
+
+<pre>
+<k>package</k> my.pack {
+    <g>
+    /*
+        this will define the class my.pack.MyClass
+    */</g>
+    <k>class</k> MyClass {
+        <g>// ....</g>
+    }
+
+}
+</pre>
+
+<p>
+	A Class can have several <em>variables</em> and <em>methods</em>.
+</p>
+
+<pre>
+<k>package</k> my.pack {
+
+    <k>class</k> MyClass {
+
+        <k>var</k> id : Int;
+
+        <k>static var</k> name : String = <t>"MyString"</t>;
+
+        <k>function</k> foo() : Void {
+        }
+
+        <k>static function</k> bar( s : String, v : Bool ) : Void {
+        }
+    }
+
+}
+</pre>
+
+<p>
+	Variables and methods can have the following <em>flags</em> :
+</p>
+
+<ul class="big">
+	<li><b>static</b> : the field belongs to the Class itself and not to <em>instances</em> of this class. Static identifiers can be used directly in the class itself. Outside of the class, it but must be used with the class name (for example : <code>my.pack.MyClass.name</code>).
+	</li>
+	<li><b>public</b> : the field can be accessed by other classes. By default, all fields are <code>private</code>.</li>
+	<li><b>private</b> : the field access is restricted to the class itself and all the classes that will <code><k>extends</k></code> this class. This is better to ensure that the class internal state is not accessible.</li>
+</ul>
+
+<p>
+	All class variables <b>must</b> be declared with a type (you can use <code>Dynamic</code> if you don't know which type to use). Function arguments and return types are optional but are still stricly checked as we will see when introducing <em>type inference</em>.
+</p>
+
+<p>
+	Static variables <em>can</em> have an initial value although it's not required.
+</p>
+
+<h3>Constructor</h3>
+
+<p>
+	The class can have only one constructor, which is the not-static function called <code><k>new</k></code>. This is a keyword that can also be used to name a class function :
+</p>
+
+<pre>
+<k>package</k> {
+    <k>class</k> Point {
+        <k>public var</k> x : Int;
+        <k>public var</k> y : Int;
+
+        <k>public function new</k>() {
+            <k>this</k>.x = 0;
+            <k>this</k>.y = 0;
+        }
+
+    }
+}
+</pre>
+
+<p>
+	We will now introduce the <em>expressions</em> that can be used to implement functions or to initialize static variables.
+</p>
+
+<a name="expr"></a>
+<h2>Expressions</h2>
+
+<p>
+	In <b>hAxe</b>, all expressions have the same level. It means that you can nest them together recursively without any problem. For example : <code>foo(if (x == 3) 5 else 8)</code>. As this exemple shows, it also means that every expression is <em>returning</em> a value of a given <em>type</em>.
+</p>
+
+<h3>Constants</h3>
+
+<p>
+	The following constant values can be used :
+</p>
+
+<pre>
+0; <g>// Int</g>
+-134; <g>// Int</g>
+0xFF00; <g>// Int</g>
+
+123.0; <g>// Float</g>
+.14179; <g>// Float</g>
+13e50; <g>// Float</g>
+-1e-99; <g>// Float</g>
+
+"hello"; <g>// String</g>
+"hello \"world\" !"; <g>// String</g>
+'hello "world" !'; <g>// String</g>
+
+true; <g>// Bool</g>
+false; <g>// Bool</g>
+
+null; <g>// Unknown&lt;0></g>
+</pre>
+
+<p>
+	You can notice that <code>null</code> have a special value that can be used for any type but have different behavior than <code>Dynamic</code>. It will be explained in details when introducing <em>type inference</em>.
+</p>
+
+<h3>Operations</h3>
+
+<p>
+	The following usual operations can be used, with that order of priority :
+</p>
+
+<ul class="big">
+	<li><code>v = e</code> : assign a value to an expression, return <code>e</code></li>
+	<li><code>+= -= *= /= %= &= |= ^= &lt;&lt;= >>= >>>=</code> : assign after performing the corresponding operation</li>
+	<li><code>e1 || e2</code> : If <code>e1</code> is <code>true</code> then <code>true</code> else evaluate <code>e2</code> . Both <code>e1</code> and <code>e2</code> must be <code>Bool</code>.</li>
+	<li><code>e1 && e2</code> : If <code>e1</code> is <code>false</code> then <code>false</code> else evaluate <code>e2</code> . Both <code>e1</code> and <code>e2</code> must be <code>Bool</code>.</li>
+	<li><code>e1...e2</code> : Build an integer iterator (see later about Iterators).</li>
+	<li><code>== != > &lt; >= &lt;= === !==</code> : perform normal or physical comparisons between two expressions sharing a common type. Return <code>Bool</code>.</li>
+	<li><code>| & ^</code> : perform bitwise operation between two <code>Int</code> expressions. Return <code>Int</code>.</li>
+	<li><code>&lt;&lt; >> >>></code> : perform bitwise shifts between two <code>Int</code> expressions. Return <code>Int</code>.</li>
+	<li><code>e1 + e2</code> : perform addition. If both expressions are <code>Int</code> then return <code>Int</code> else if both expressions are either <code>Int</code> or <code>Float</code> then return <code>Float</code> else return <code>String</code>.</li>
+	<li><code>e1 - e2</code> : perform substraction between two <code>Int</code> or <code>Float</code> expressions. Return <code>Int</code> if both are <code>Int</code> and <code>Float</code> either.</li>
+	<li><code>e1 % e2</code> : modulo, same return type as substract.</li>
+	<li><code>e1 * e2</code> : multiply, same return type as substract.</li>
+	<li><code>e1 / e2</code> : divide, return <code>Float</code>.</li>
+</ul>
+
+<h3>Unary operations</h3>
+
+<p>
+	The following unary operations are available :
+</p>
+
+<ul class="big">
+	<li><code>!</code> : boolean <em>not</em>. Inverse the expression <code>Bool</code> value.</li>
+	<li><code>-</code> : negative number, change the sign of the <code>Int</code> or <code>Float</code> value.</li>
+	<li><code>++</code> and <code>--</code> can be used before or after an expression. When used before, they first increment the corresponding variable and then return the incremented value. When used after, they increment the variable but returns the value it had before incrementation. Can only be used with <code>Int</code> or <code>Float</code> values.</li>
+	<li><code>~</code> : one-complement of an <code>Int</code>.</li>
+</ul>
+
+<h3>Parenthesis</h3>
+
+<p>
+	Expressions can be delimited with parenthesis in order to give a specific priority when performing operations. The type of <code>( e )</code> is the same as <code>e</code> and they both evaluates to the same value.
+</p>
+
+<h3>Blocks</h3>
+
+<p>
+	Blocks can execute several expressions. The syntax of a block is the following :
+</p>
+
+<pre>
+{
+    e1;
+    e2;
+        <g>//...</g>
+    eX;
+}
+</pre>
+
+<p>
+	A block evaluates to the type and value of the <em>last expression</em> of the block. For example :
+</p>
+
+<pre>
+{ f(); x = 124; <k>true</k>; }
+</pre>
+
+<p>
+	This block have type <code>Bool</code> and will evaluate to <code>true</code>.
+</p>
+
+<p>
+	As an exception, the empty block <code>{ }</code> evaluates to <code>Void</code>.
+</p>
+
+<h3>Local Variables</h3>
+
+<p>
+	Local variables can be declared into Blocks using <code><k>var</k></code>, as the following samples are showing :
+</p>
+
+<pre>
+{
+    <k>var</k> x;
+    <k>var</k> y = 3;
+    <k>var</k> z : String;
+    <k>var</k> w : String = <t>""</t>;
+    <k>var</k> a, b : Bool, c : Int = 0;
+}
+</pre>
+
+<p>
+	A variable can be declared with an optional type and an optional initial value. If no value is given then the variable is <code>null</code> by default. If no type is give, then the variable type is <code>Unknown</code> but will still be strictly typed. This will be explained in details when introducing <em>type inference</em>.
+</p>
+
+<p>
+	Several local variables can be declared in the same <code><k>var</l></code> expression.
+</p>
+
+<p>
+	Local variables are only defined until the Block they're declared in is closed. They can no longer be accessible after that time.
+</p>
+
+<h3>Identifiers</h3>
+
+<p>
+	An identifier can be of two kinds. A <em>variable identifier</em> starts with an lowercase letter while a <em>type identifier</em> starts with an uppercase letter. As a consequence, it's not possible to have a variable name starting with an uppercase letter. This is a good way to enforce some <em>code conventions</em>.
+</p>
+
+<p>
+	When a variable identifier is found, it is <em>resolved</em> using the following order :
 </p>
 
 <ul>
-	<li>class</li>
-	<li>enumeration</li>
-	<li><em>(... more to come)</em></li>
+	<li>local variables, last declared having priority</li>
+	<li>class members (current class and inherited fields)</li>
+	<li>current class static fields</li>
+	<li>enum constructors that have been either declared in this file or <em>imported</em></li>
 </ul>
+
+<h3>Field access</h3>
+
+<p>
+	Object access is done using traditional dot-access :
+</p>
+
+<pre>
+    o.field
+</pre>
+
+<h3>Calls</h3>
+
+<p>
+	You can call functions as usual using parenthesis and commas in order to delimit arguments. You can call methods by using dot access on objects :
+</p>
+
+<pre>
+    f(1,2,3);
+    object.method(1,2,3);
+</pre>
+
+<h3>New</h3>
+
+<p>
+	The <code><k>new</k></code> keyword is used in expressions to create a Class instance. It needs a class name and can take parameters :
+</p>
+
+<pre>
+    a = <k>new</k> Array();
+    s = <k>new</k> String(<t>"hello"</t>);
+</pre>
+
+<h3>Arrays</h3>
+
+<p>
+	You can create arrays directly from a list of values by using the following syntax :
+</p>
+
+<pre>
+    <k>var</k> a : Array&lt;Int> = [1,2,3,4];
+</pre>
+
+<p>
+	Please notice that the type Array takes one <em>type parameter</em> that is the type of items stored into the Array. This way all operations on arrays are safe. As a consequence, all items in a given Array must be of the same type.
+</p>
+
+<p>
+	You can read and write into an Array by using the following traditional bracket accesses :
+</p>
+
+<pre>
+    first = a[0];
+    a[1] = value;
+</pre>
+
+<p>
+	The array index must be of type <code>Int</code>.
+</p>
+
+<h3>If</h3>
+
+<p>
+	Here are some examples of <code><k>if</k></code> expressions :
+</p>
+
+<pre>
+    <k>if</k> (life == 0) destroy();
+    <k>if</k> (flag) 1 <k>else</k> 2;
+</pre>
+
+<p>
+	Here's the generic syntax of <code><k>if</k></code> expressions :
+</p>
+
+<pre>
+    <k>if</k> <em>expr-cond</em> <em>expr-1</em> [<k>else</k> <em>expr-2</em>]
+</pre>
+
+<p>
+	First <code>expr-cond</code> is evaluated. It must be of type <code>Bool</code>. Then if <code>true</code> then <code>expr-1</code> is evaluated, either, if there is an <code>expr-2</code> then it is evaluated instead.
+</p>
+
+<p>
+	If there is no <code>else</code>, the <code><k>if</k></code> expression has type <code>Void</code>. If there is an <code>else</code>, then <code>expr-1</code> and <code>expr-2</code> must be of the same type and this will be the type of the <code><k>if</k></code> expression :
+</p>
+
+<pre>
+    <k>var</k> x : Void = <k>if</k>( flag ) destroy();
+    <k>var</k> y : Int = <k>if</k>( flag ) 1 <k>else</k> 2;
+</pre>
+
+<p>
+	In <b>haXe</b>, <code>if</code> are actually similar to ternary C <code>a?b:c</code> syntax.
+</p>
+
+<h3>While</h3>
+
+<p>
+	While are standard loops that are using a precondition or a postcondition :
+</p>
+
+<pre>
+    <k>while</k> <em>expr-cond</em> <em>expr-loop</em>;
+    <k>do</k> <em>expr-loop</em> <k>while</k> <em>expr-cond</em>;
+</pre>
+
+<p>
+	For example :
+</p>
+
+<pre>
+    <k>var</k> i = 0;
+    <k>while</k>( i < 10 ) {
+        <g>// ...</g>
+        i++;
+    }
+</pre>
+
+<p>
+	Or using <code>do...while</code> :
+</p>
+
+<pre>
+    <k>var</k> i = 0;
+    <k>do</k> {
+        <g>// ...</g>
+        i++;
+    } <k>while</k>( i < 10 );
+</pre>
+
+<p>
+	Like for <code>if</code>, the <code>expr-cond</code> in a while-loop type must be of type <code>Bool</code>.
+</p>
+
+<h3>For</h3>
+
+<p>
+	For loops are little different from traditional C <code>for</code> loops. They're actually used for <em>iterators</em>, which will be introduced later in this document. Here's an exemple of a for loop :
+</p>
+
+<pre>
+    <k>for</k> i <k>in</k> 0...a.length-1 {
+        foo(a[i]);
+    }
+</pre>
+
+<h3>Return</h3>
+
+<p>
+	In order to exit from a function before the end or to return a value from a function, you can use the <code>return</code> expression :
+</p>
+
+<pre>
+    <k>function</k> odd( x : Int ) : Bool {
+        <k>if</k>( x % 1 == 0 )
+            <k>return true</k>;
+        <k>return false</k>;
+    }
+</pre>
+
+<p>
+	The <code>return</code> expression can be used without argument if the function does not require a value to be returned :
+</p>
+
+<pre>
+    <k>function</k> foo() : Void {
+        <g>// ...</g>
+        <k>if</k>( abort )
+            <k>return</k>;
+        <g>// ....</g>
+    }
+</pre>
+
+<h3>Break and Continue</h3>
+
+<p>
+	Theses two keywords are useful to exit earlier for a <code>for</code> or <code>while</code> loop or to go to the next iteration of a loop :
+</p>
+
+<pre>
+    <k>var</k> i = 0;
+    <k>while</k>( i < 10 ) {
+        <k>if</k>( i == 7 )
+            <k>continue</k>; <g>// skip this iteration</g>
+        <g>// ...</g>
+        <k>if</k>( flag )
+            <k>break</k>; <g>// stop earlier</g>
+    }
+</pre>
+
+<h3>Try and Catch</h3>
+
+<h3>Switch</h3>
+
+<h3>Local Functions</h3>
+
+<h3>Anonymous Objects</h3>
+
+<h2>Class Inheritance</h2>
+
+<h2>Class parameters</h2>
+
+<h2>The power of Enum</h2>
+
+<h2>Type infererence</h2>
+
+<h2>Dynamics</h2>
+
+<h2>Iterators</h2>
+
+<!---- ****************************
+
+<h2>The power of Enum</h2>
 
 <p>
 	Here's one single sample mixing a class and an enumeration :
 </p>
 
-<pre>    <k>package</k> my.pack {
+<pre>    <k>package</k> {
 
         <k>enum</k> Color {
             red;
@@ -49,9 +548,11 @@
 
         <k>class</k> Colors {
             <k>static function</k> toInt( c : Color ) : Int {
-                <k>return if</k>( c == red ) 0xFF000
-                  <k>else if</k>( c == green ) 0x00FF00
-                  <k>else</k> 0x0000FF;
+                <k>return switch</k>( c ) {
+                    <k>case</k> red: 0xFF000;
+                    <k>case</k> green: 0x00FF00;
+                    <k>case</k> blue: 0x0000FF;
+                }
             }
         }
     }
@@ -66,6 +567,7 @@
 	<li>a class can have methods (static or private/public). All class fields (methods and members) must be typed.</li>
 	<li>There is no <em>statement</em>. For exemple <c><k>if</k></c> block can be used on the right side of a return, or as function call parameter, or everywhere else an expression can be put.</li>
 </ul>
+
 
 <h2>The Type System</h2>
 
@@ -224,55 +726,12 @@ it must be of the form <c>Void -&gt; X</c> as previously said. If it's an object
     }
 </pre>
 
-<h2>Syntax</h2>
+---->
+
+<h2>And Now ?</h2>
 
 <p>
-	Here's the syntax grammar (still in the works) :
-</p>
-
-<pre>    ident := [a-z][a-zA-Z0-9]*
-    type-name := [A-Z][a-zA-Z0-9]*
-
-    package-name := (<em>ident</em> <t>.</t> )* <em>ident</em>
-
-    type-path := (<em>package-name</em> <t>.</t>)? <em>type-name</em> <em>type-params</em>
-
-    type-params :=
-        | &#949;
-        | <t>&lt;</t> <em>type-path</em>+ <t>&gt;</t>
-
-    type-option :=
-        | &#949;
-        | <t>:</t> <em>type-path</em>
-
-    program := <k>package</k> <em>package-name</em>? <t>{</t> (<em>type-declaration</em> | <em>import</em> | <t>;</t> )* <t>}</t>
-
-    type-declaration :=
-        | <k>class</k> <em>type-name</em> <t>{</t> <em>class-field</em>* <t>}</t>
-        | <k>enum</k> <em>type-name</em> <t>{</t> (<em>ident</em> | <t>;</t> )* <t>}</t>
-
-    import := <k>import</k> <em>type-path</em>
-
-    class-field :=
-        | <em>field-style</em>* <k>var</k> <em>ident</em> <em>type-option</em>
-        | <em>field-style</em>* <k>function</k> <em>ident</em> <t>(</t> <em>parameter-list</em>? <t>)</t> <em>type-option</em> <t>{</t> <em>expr</em>* <t>}</t>
-
-    field-style :=
-        | <k>public</k>
-        | <k>private</k>
-        | <k>static</k>
-        | <k>native</k>
-
-    parameter_list := <em>ident</em> <em>type-option</em> (<t>,</t> <em>parameter-list</em>)?
-
-    expr := TODO
-
-</pre>
-
-<h2>And now ?</h2>
-
-<p>
-	A lot more will come later :)
+	Now that you have a good understanding of the language, you can go to the next section : <a href="tutos.html">Tutorials</a>.
 </p>
 
 <h2>Author</h2>
