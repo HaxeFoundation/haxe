@@ -15,18 +15,26 @@
 <h2>Introduction</h2>
 
 <p>
-	This Language Reference document will quickly introduce you the haXe programming language syntax and features.
+	This Language Reference document will quickly introduce you the haXe programming language syntax and features. Here's today menu :
 </p>
 
-<ul>
-	<li><a href="#types">Types</a></li>
+<ol>
+	<li><a href="#types">Base Types</a></li>
 	<li><a href="#classes">Classes</a></li>
 	<li><a href="#expr">Expressions</a></li>
-</ul>
-
+	<li><a href="#tinf">Type Inference</a></li>
+	<li><a href="#inherit">Class Inheritance</a></li>
+	<li><a href="#tparams">Class parameters</a></li>
+	<li><a href="#enums">The power of Enum</a></li>
+	<li><a href="#packages">Packages and Imports</a></li>
+	<li><a href="#dynamic">Dynamic</a></li>
+	<li><a href="#tother">Other Types</a></li>
+	<li><a href="#tsub">Subtyping</a></li>
+	<li><a href="#iter">Iterators</a></li>
+</ol>
 
 <a name="types"></a>
-<h2>Types</h2>
+<h2>Base Types</h2>
 
 <p>
 	The syntax is Java/ActionScript/C++ like.
@@ -57,7 +65,7 @@
         <k>false</k>;
     }
 
-    <k>class</k> Dynamic&lt;T&gt; {
+    <k>enum</k> Dynamic&lt;T&gt; {
     }
 
 }
@@ -70,20 +78,20 @@
 <ul class="big">
 	<li><strong>Void</strong> is declared as an <em>enum</em>. An enumeration list a number of valid <em>constructors</em>. An empty enumeration such as <code>Void</code> does not have then any instance. However, it's still a valid type that can be used.</li>
 	<li><strong>Float</strong> is a floating point number class. It doesn't have any method so it can be greatly optimized on some platforms.</li>
-	<li><strong>Int</strong> is an integer. It doesn't have methods either but it inherit from <code>Float</code>, so it means that everywhere a <code>Float</code> is requested, you can use an <code>Int</code>, while the contrary is not true. And that seems pretty correct.</li>
+	<li><strong>Int</strong> is an integer. It doesn't have methods either but it inherits from <code>Float</code>, so it means that everywhere a <code>Float</code> is requested, you can use an <code>Int</code>, while the contrary is not true. And that seems pretty correct.</li>
 	<li><strong>Bool</strong> is an enumeration, like <code>Void</code>, but it has two instances <code>true</code> and <code>false</code>. As you can see, even <em>standard</em> types can be defined easily using the hAxe type system. It means also you can use it to define your own types.</li>
-	<li><strong>Dynamic</strong> is a class with a <em>type parameter</em>. We will explain how to use type parameters later in this document.</li>
+	<li><strong>Dynamic</strong> is an enum with a <em>type parameter</em>. We will explain how to use type parameters later in this document.</li>
 </ul>
 
 <p>
-	Let's see now how you can praticaly use classes.
+	Let's see now how you can practically use classes.
 </p>
 
 <a name="classes"></a>
 <h2>Classes</h2>
 
 <p>
-	We will now quickly introduce the structure of classes.
+	We will quickly introduce the structure of classes that you might already be familiar with if you've done some OO programming before :
 </p>
 
 <pre>
@@ -129,7 +137,7 @@
 <ul class="big">
 	<li><b>static</b> : the field belongs to the Class itself and not to <em>instances</em> of this class. Static identifiers can be used directly in the class itself. Outside of the class, it but must be used with the class name (for example : <code>my.pack.MyClass.name</code>).
 	</li>
-	<li><b>public</b> : the field can be accessed by other classes. By default, all fields are <code>private</code>.</li>
+	<li><b>public</b> : the field can be accessed by other classes. <b>By default, all fields are <code>private</code></b>.</li>
 	<li><b>private</b> : the field access is restricted to the class itself and all the classes that will <code><k>extends</k></code> this class. This is better to ensure that the class internal state is not accessible.</li>
 </ul>
 
@@ -220,9 +228,9 @@ null; <g>// Unknown&lt;0></g>
 	<li><code>&lt;&lt; >> >>></code> : perform bitwise shifts between two <code>Int</code> expressions. Return <code>Int</code>.</li>
 	<li><code>e1 + e2</code> : perform addition. If both expressions are <code>Int</code> then return <code>Int</code> else if both expressions are either <code>Int</code> or <code>Float</code> then return <code>Float</code> else return <code>String</code>.</li>
 	<li><code>e1 - e2</code> : perform substraction between two <code>Int</code> or <code>Float</code> expressions. Return <code>Int</code> if both are <code>Int</code> and <code>Float</code> either.</li>
-	<li><code>e1 % e2</code> : modulo, same return type as substract.</li>
-	<li><code>e1 * e2</code> : multiply, same return type as substract.</li>
-	<li><code>e1 / e2</code> : divide, return <code>Float</code>.</li>
+	<li><code>e1 % e2</code> : modulo of two numbers, same return type as substract.</li>
+	<li><code>e1 * e2</code> : multiply two numbers, same return type as substract.</li>
+	<li><code>e1 / e2</code> : divide two numbers, return <code>Float</code>.</li>
 </ul>
 
 <h3>Unary operations</h3>
@@ -254,7 +262,7 @@ null; <g>// Unknown&lt;0></g>
 {
     e1;
     e2;
-        <g>//...</g>
+        <g>// ...</g>
     eX;
 }
 </pre>
@@ -292,7 +300,7 @@ null; <g>// Unknown&lt;0></g>
 </pre>
 
 <p>
-	A variable can be declared with an optional type and an optional initial value. If no value is given then the variable is <code>null</code> by default. If no type is give, then the variable type is <code>Unknown</code> but will still be strictly typed. This will be explained in details when introducing <em>type inference</em>.
+	A variable can be declared with an optional type and an optional initial value. If no value is given then the variable is <code>null</code> by default. If no type is given, then the variable type is <code>Unknown</code> but will still be strictly typed. This will be explained in details when introducing <em>type inference</em>.
 </p>
 
 <p>
@@ -319,6 +327,49 @@ null; <g>// Unknown&lt;0></g>
 	<li>current class static fields</li>
 	<li>enum constructors that have been either declared in this file or <em>imported</em></li>
 </ul>
+
+<pre>
+<k>package</k> {
+
+    <k>enum</k> Axis {
+        x;
+        y;
+        z;
+    }
+
+    <k>class</k> C {
+        <k>static var</k> x : Int;
+        <k>var</k> x : Int;
+
+        <k>function new</k>() {
+            <g>// x means member variable this.x</g>
+            {
+                <k>var</k> x : String;
+                <g>// x means the local variable</g>
+            }
+        }
+
+        <k>function</k> f(x : String) {
+            <g>// x means the function parameter</g>
+        }
+
+        <k>static function</k> f() {
+            <g>// x means the class static variable</g>
+        }
+    }
+
+    <k>class</k> D {
+        <k>function new</k>() {
+            <g>// x means the x Axis</g>
+        }
+    }
+
+}
+</pre>
+
+<p>
+	<em>Type identifiers</em> are resolved according to the imported packages, as we will explain later.
+</p>
 
 <h3>Field access</h3>
 
@@ -413,6 +464,10 @@ null; <g>// Unknown&lt;0></g>
 
 <p>
 	In <b>haXe</b>, <code>if</code> are actually similar to ternary C <code>a?b:c</code> syntax.
+</p>
+
+<p>
+	As an exception, if an <code>if</code> block is not supposed to return any value (like in the middle of a Block) then both <code>expr-1</code> and <code>expr-2</code> can have different types and the <code>if</code> block type will be <code>Void</code>.
 </p>
 
 <h3>While</h3>
@@ -510,138 +565,789 @@ null; <g>// Unknown&lt;0></g>
     }
 </pre>
 
-<h3>Try and Catch</h3>
+<h3>Exceptions</h3>
+
+<p>
+	Exceptions are a way to do non-local jumps. You can <code>throw</code> an exception and <code>catch</code> it from any calling function on the stack :
+</p>
+
+<pre>
+    <k>function</k> foo() {
+        <g>// ...</g>
+        <k>throw new</k> Error("invalid foo");
+    }
+
+    <g>// ...</g>
+
+    <k>try</k> {
+        foo();
+    } <k>catch</k>( e : Error ) {
+        <g>// handle exception</g>
+    }
+</pre>
+
+<p>
+	There can be several <code>catch</code> after a <code>try</code>, in order to catch different type of exceptions. They're tested in the order they're declared.
+</p>
+
+<p>
+	All the <code>try</code> and the <code>catch</code> expressions must have the same returning type except when no value is needed (same as <code>if</code>).
+</p>
 
 <h3>Switch</h3>
 
+<p>
+	Switchs are a way to express multiple <code>if...else if... else if</code> if equality on the same value :
+</p>
+
+<pre>
+    <k>if</k>( v == 0 )
+        e1
+    <k>else if</k>( v == foo(1) )
+        e2
+    <k>else if</k>( v == 65 )
+        e3
+    <k>else</k>
+        e4;
+</pre>
+
+<p>
+	Will translate to the following <code>switch</code> :
+</p>
+
+<pre>
+    <k>switch</k>( v ) {
+    <k>case</k> 0:
+        e1;
+    <k>case</k> foo(1):
+        e2;
+    <k>case</k> 65:
+        e3;
+    <k>default</k>:
+        e4;
+    }
+</pre>
+
+<p>
+	Switchs in <b>haXe</b> are different from traditional switchs : all <em>cases</em> are separate expressions so after one case expression is executed the switch block is automatically exited. As a consequence, <code>break</code> can't be used in a <code>switch</code> and the position of the <code>default</code> case is not important.
+</p>
+
+<p>
+	On some <em>platforms</em>, switchs on constant values (especially constant integers) might be optimized for better speed.
+</p>
+
+<p>
+	Switchs can also be used on <code>enum</code> with a different semantic. It will be explained later in this document.
+</p>
+
 <h3>Local Functions</h3>
+
+<p>
+	Local functions are declared using the <code>function</code> keyword but they can't have a name. They're <em>values</em> just like literal integers or strings :
+</p>
+
+<pre>
+    <k>var</k> f = <k>function</k>() { <g>/* ... */</g> };
+    f(); <g>// call the function</g>
+</pre>
+
+<p>
+	Local functions can access its parameters, the current class statics, but also the local variables that where declared before it :
+</p>
+
+<pre>
+    <k>var</k> x = 10;
+    <k>var</k> add = <k>function</k>(n) { x += n; };
+    add(2);
+    add(3);
+    <g>// now x is 15</g>
+</pre>
+
+<p>
+	However, local functions declared in methods cannot access the <code><k>this</k></code> value. You then need to declare a local variable such as <code>me</code> :
+</p>
+
+
+<pre>
+<k>package</k> {
+    <k>class</k> C {
+
+        <k>var</k> x : Int;
+
+        <k>function</k> f() {
+            <g>// WILL NOT COMPILE</g>
+            <k>var</k> add = <k>function</k>(n) { <k>this</k>.x += n };
+        }
+
+        <k>function</k> f2() {
+            <g>// will compile</g>
+            <k>var</k> me = <k>this</k>;
+            <k>var</k> add = <k>function</k>(n) { me.x += n };
+        }
+    }
+}
+</pre>
 
 <h3>Anonymous Objects</h3>
 
-<h2>Class Inheritance</h2>
-
-<h2>Class parameters</h2>
-
-<h2>The power of Enum</h2>
-
-<h2>Type infererence</h2>
-
-<h2>Dynamics</h2>
-
-<h2>Iterators</h2>
-
-<!---- ****************************
-
-<h2>The power of Enum</h2>
-
 <p>
-	Here's one single sample mixing a class and an enumeration :
+	Anonymous objects can be declared using the following syntax :
 </p>
 
-<pre>    <k>package</k> {
+<pre>
+    <k>var</k> o = { age : 26, name : "Tom" };
+</pre>
 
-        <k>enum</k> Color {
-            red;
-            green;
-            blue;
+<p>
+	Please note that because of the <em>type inference</em>, anonymous objects are also strictly typed.
+</p>
+
+<a name="tinf"></a>
+<h2>Type Inference</h2>
+
+<p>
+	<em>Type Inference</em> means that the type information is not only checked in the program, it's also <em>carried</em> when typing, so it doesn't have to be resolved immediatly. For example a local variable can be declared without any type (it will have the type <code>Unknown</code>) and when first used, its type will be set to the corresponding one.
+</p>
+
+<h3>Printing a Type</h3>
+
+<p>
+	Anywhere in your program, you can use the <code>type</code> operation to know the type of a given expression. At compilation, the <code>type</code> operation will be removed and only the expression will remain :
+</p>
+
+<pre>
+    <k>var</k> x : Int = type(0);
+</pre>
+
+<p>
+	This will print <code>Int</code> at compilation, and compile the same program as if <code>type</code> was not used.
+</p>
+
+<p>
+	This is useful to quickly get a type instead of looking at the class or some documentation.
+</p>
+
+<h3>Local variable inference</h3>
+
+<p>
+	Type Inference enables the whole program to be strictly typed without any need to put types everywhere. In particular, local variables does not need to be typed, their types will be inferred when they are first accessed for reading or writing :
+</p>
+
+<pre>
+    <k>var</k> loc;
+    type(loc); <g>// print Unkown&lt;0></g>
+    loc = <t>"hello"</t>;
+    type(loc); <g>// print String</g>
+</pre>
+
+<h3>Function types inference</h3>
+
+<p>
+	A class method or local function types are also optional. It means that the first time the function is used, the type will be set to the type it was used with, just like local variables. It can be tricky since it will obviously depends on the order in which the program is typed. Here's an exemple that shows some problem :
+</p>
+
+<pre>
+    <k>function</k> f( posx ) {
+        <g>// ....</g>
+    }
+    <g>// ...</g>
+
+    f(134);
+    f(12.2); <g>// Error : Float should be Int</g>
+</pre>
+
+<p>
+	In that case the first call to <code>f</code> set the type of <code>posx</code> to <code>Int</code>, and the second call compilation fails because a <code>Float</code> is not an <code>Int</code>. However if we reverse the two calls to <code>f</code>, the type is set to <code>Float</code> which was the intended type, and it can now accept <code>Int</code> as well.
+</p>
+
+<p>
+	In that exemple, the two calls are just near each other so it's quite easy to understand and fix, but in more large programs with more complex cases, fixing such compilation problems can be tricky. There is however always an easy solution which is to set the type of the function when an error of this kind happens. Then the call that was responsible for the problem will be displayed when recompiling.
+</p>
+
+<h3>User Choice</h3>
+
+<p>
+	Using type inference is a choice. You can simply not type your variables and functions and let the compiler <em>infer</em> the types for you, or you can type all of them in order to have more control on the process. The best is maybe in the middle, by adding some typing in order to improve code documentation and still be able to write quickly some functions without typing everything.
+</p>
+
+<p>
+	In all cases, and unless you use <em>dynamics</em> (they will be introduced later), your program will be strictly typed and any wrong usage will be detected instantly at compilation.
+</p>
+
+<a name="inherit"></a>
+<h2>Class Inheritance</h2>
+
+<p>
+	When declared, a class can <em>extends</em> one Class and <em>implements</em> several classes. It means that it will get several <em>types</em> at the same time. For example :
+</p>
+
+<pre>
+    <k>class</k> D <k>extends</k> A, <k>implements</k> B, <k>implements</k> C {
+
+    }
+</pre>
+
+<p>
+	This means that every <em>instance</em> of D will have the <em>type</em> D but you will be able to use it also where a A, B or C instance is required. This means that every <em>instance</em> of D have also the <em>types</em> A , B and C.
+</p>
+
+<h3>Extends</h3>
+
+<p>
+	When <em>extending</em> a class, your class <em>inherits</em> from all <em>public</em> and <em>private</em> not-static fields. You can then use them in your class as if they where declared here. You can also <em>override</em> a method by redefining it (it needs to have some number of arguments and same types). Your class don't inherit <em>static</em> fields.
+</p>
+
+<p>
+	When a <em>method</em> is <em>overriden</em>, then you can still access the <em>superclass</em> method using <code>super</code> :
+</p>
+
+<pre>
+    <k>class</k> B <k>extends</k> A {
+        <k>function</k> foo() : Int {
+            <k>return super</k>.foo() + 1;
+        }
+    }
+</pre>
+
+<p>
+	In your class constructor you can call the <em>superclass</em> constructor using also <code>super</code> :
+</p>
+
+<pre>
+    <k>class</k> B <k>extends</k> A {
+        <k>function new</k>() {
+            <k>super</k>(36,<t>""</t>);
+        }
+    }
+</pre>
+
+<h3>Implements</h3>
+
+<p>
+	When <em>implementing</em> a class, your class is <em>required</em> to implement all the fields <em>declared</em> or <em>inherited</em> by the class it implements, with same type and name. However the field might already be <em>inherited</em> from a superclass.
+</p>
+
+<a name="tparams"></a>
+<h2>Class parameters</h2>
+
+<p>
+	A class can have several <em>type parameters</em> that can be used to get <em>extensible behavior</em>. For example, the <code>Array</code> class have one type parameter :
+</p>
+
+<pre>
+<k>package</k> {
+    <k>class</k> Array&lt;T> {
+
+        <k>function new</k>() {
+            <g>// ...</g>
         }
 
-        <k>class</k> Colors {
-            <k>static function</k> toInt( c : Color ) : Int {
-                <k>return switch</k>( c ) {
-                    <k>case</k> red: 0xFF000;
-                    <k>case</k> green: 0x00FF00;
-                    <k>case</k> blue: 0x0000FF;
-                }
+        <k>function</k> get( pos : Int ) : T {
+            <g>// ...</g>
+        }
+
+        <k>function</k> set( pos : Int, val : T ) : Void {
+            <g>// ...</g>
+        }
+    }
+}
+</pre>
+
+<p>
+	Inside the <code>Array</code> class, the type <code>T</code> is <em>abstract</em> and then its fields and methods are not accessible. However when you declare an array you need to specify its type : <code>Array&lt;Int></code> or <code>Array&lt;String></code> for example. This will act the same as if you had replaced all types <code>T</code> in <code>Array</code> declaration by the type you're specifying.
+</p>
+
+<p>
+	Type parameter is very useful in order to get strict typing of <em>containers</em> such as <code>Array</code>, <code>List</code>, <code>Tree</code>... You can define your own <em>parametrized</em> classes with several <em>type parameters</em> for your own usage when you need it.
+</p>
+
+<h3>Constraint Parameters</h3>
+
+<p>
+	While it's nice to be able to define <em>abstract</em> parameters, it is also possible to define several <em>constraints</em> on them in order to be able to use them in the class implementation. For example :
+</p>
+
+<pre>
+<k>package</k> {
+    <k>class</k> EvtQueue&lt;T : Event, EventDispatcher> {
+        <k>var</k> evt : T;
+        <g>// ...</g>
+    }
+}
+</pre>
+
+<p>
+	In this class, the field <code>evt</code>, although it's a class parameter, the typer knows that it has both types <code>Event</code> and <code>EventDispatcher</code> so it can actually access it like if it was <em>implementing</em> both classes. Later, when an <code>EvtQueue</code> is created, the typer will check that the <em>type parameter</em> will either <em>extends</em> or <em>implements</em> the two types <code>Event</code> and <code>EventDispatcher</code>.
+</p>
+
+<p>
+	Type parameters constraints are a powerful advanced feature, that can be really useful to write generic code that can be reused in different applications.
+</p>
+
+
+<a name="enums"></a>
+<h2>The Power of Enum</h2>
+
+<p>
+	<em>Enums</em> are another type than <em>classes</em> and are declared with a finite number of <em>constructors</em>. Here's a small sample :
+</p>
+
+<pre>
+<k>package</k> {
+
+    <k>enum</k> Color {
+        red;
+        green;
+        blue;
+    }
+
+    <k>class</k> Colors {
+        <k>static function</k> toInt( c : Color ) : Int {
+            <k>return switch</k>( c ) {
+                <k>case</k> red: 0xFF000;
+                <k>case</k> green: 0x00FF00;
+                <k>case</k> blue: 0x0000FF;
+            }
+        }
+    }
+}
+</pre>
+
+<p>
+	When you have a fixed number of values and that you want to ensure that only theses values are used then <em>enum</em>s are the best thing since they ensure that other values cannot be constructed.
+</p>
+
+<h3>Constructors parameters</h3>
+
+<p>
+	The previous <code>Color</code> sample shows three <em>constant constructors</em> for an <em>enum</em>. It is also possible to have parameters for constructors :
+</p>
+
+<pre>
+    <k>enum</k> Color2 {
+        red;
+        green;
+        blue;
+        grey( v : Int );
+        rgb( r : Int, g : Int, b : Int );
+    }
+</pre>
+
+<p>
+	This way, there is an infinite number of <code>Color2</code> possible, but they are five different constructors possible for it. The following values are all <code>Color2</code> :
+</p>
+
+<pre>
+    red;
+    green;
+    blue;
+    grey(0);
+    grey(128);
+    rgb( 0x00, 0x12, 0x23 );
+    rgb( 0xFF, 0xAA, 0xBB );
+</pre>
+
+<p>
+	We can also have a recursive type, for exemple to add <code>alpha</code> :
+</p>
+
+<pre>
+    <k>enum</k> Color3 {
+        red;
+        green;
+        blue;
+        grey( v : Int );
+        rgb( r : Int, g : Int, b : Int );
+        alpha( a : Int, col : Color3 );
+    }
+</pre>
+
+<p>
+	The following are valid <code>Color3</code> values :
+</p>
+
+<pre>
+    alpha( 127, red );
+    alpha( 255, rgb(0,0,0) );
+</pre>
+
+<h3>Switch on Enum</h3>
+
+<p>
+	Switch have a special semantic when used on an <em>enum</em>. If there is no <code>default</code> case then it will check that all <em>enum constructor</em> are used, and you'll get an error if not. For exemple, using the first <code>Color</code> <em>enum</em> :
+</p>
+
+<pre>
+    <k>switch</k>( c ) {
+        <k>case</k> red: 0xFF000;
+        <k>case</k> green: 0x00FF00;
+    }
+</pre>
+
+<p>
+	This will cause an <em>compile error</em> telling that the constructor <code>blue</code> is not used. In that case you can either add a case for it or add a default case that does something. It's very useful since when you add a new constructor to your <em>enum</em>, compiler errors will display in your program the places where the new constructor have to be handled.
+</p>
+
+<h3>Switch with Constructor Parameters</h3>
+
+<p>
+	If enum constructor have parameters, they <em>must</em> but listed as variable names in a <em>switch</em> case. This way all the variables will be locals accessibles in the <code>case</code> expression and corresponding to the type of the enum constructor parameter. For example, using the <code>Color3</code> enum :
+</p>
+
+<pre>
+    <k>class</k> Colors {
+        <k>static function</k> toInt( c : Color3 ) : Int {
+            <k>return switch</k>( c ) {
+                <k>case</k> red: 0xFF000;
+                <k>case</k> green: 0x00FF00;
+                <k>case</k> blue: 0x0000FF;
+                <k>case</k> grey(v): (v &lt;&lt; 16) | (v &lt;&lt; 8) | v;
+                <k>case</k> rgb(r,g,b): (r &lt;&lt; 16) | (g &lt;&lt; 8) | b;
+                <k>case</k> alpha(a,c): (a &lt;&lt; 24) | (toInt(c) & 0xFFFFFF);
             }
         }
     }
 </pre>
 
 <p>
-	We can notice several things here :
+	Using <code>switch</code> is the only possible way to access the enum constructors parameters.
 </p>
 
-<ul>
-	<li>an enumeration define several <em>identifiers</em> which have the enumeration type.</li>
-	<li>a class can have methods (static or private/public). All class fields (methods and members) must be typed.</li>
-	<li>There is no <em>statement</em>. For exemple <c><k>if</k></c> block can be used on the right side of a return, or as function call parameter, or everywhere else an expression can be put.</li>
-</ul>
-
-
-<h2>The Type System</h2>
+<h3>Enum Type Parameters</h3>
 
 <p>
-	The Type System is more rich that usual OO languages. There is several kind of types available :
+	Enum, as classes, can also have type parameters. The syntax is the same so here's a small sample of a parametrized linked <code>List</code> using an <em>enum</em> to store the cells :
+</p>
+
+<pre>
+<k>package</k> {
+    <k>enum</k> Cell&lt;T> {
+        empty;
+        cons( item : T, next : Cell&lt;T> );
+    }
+
+    <k>class</k> List&lt;T> {
+        <k>var</k> head : Cell&lt;T>;
+
+        <k>public function new</k>() {
+            head = empty;
+        }
+
+        <k>public function</k> add( item : T ) {
+            head = cons(item,head);
+        }
+
+        <k>public function</k> length() : int {
+            <k>return</k> cell_length(head);
+        }
+
+        <k>private function</k> cell_length( c : Cell&lt;T> ) : Int {
+            <k>return switch</k>( c ) {
+            <k>case</k> empty : 0;
+            <k>case</k> cons(item,next): 1 + cell_length(next);
+            }
+        }
+
+    }
+}
+</pre>
+
+<p>
+	Using both <em>enum</em> and <em>classes</em> together can be pretty powerful in some cases.
+</p>
+
+<a name="packages"></a>
+<h2>Packages and Imports</h2>
+
+<p>
+	Each file can contain several <em>classes</em>, <em>enums</em> and <em>imports</em>. They are all part of the <em>package</em> declared at the beginning of the class. Each <em>type</em> has then a <em>path</em> corresponding to the <em>package</em> name followed by the <em>type</em> name.
+</p>
+
+<pre>
+<g>// file my/pack/C.hx</g>
+<k>package</k> my.pack {
+    <k>enum</k> E {
+    }
+
+    <k>class</k> C {
+    }
+}
+</pre>
+
+<p>
+	This file declares two <em>types</em> : <code>my.pack.E</code> and <code>my.pack.C</code>. It's possible to have several classes in the same file, but the type name must be <em>unique</em> in the whole application, so conflicts can appear if you're not using packages enough (this does not mean that you have to use long packages names everywhere).
+</p>
+
+<p>
+	When using packages, your files should be placed into subdirectories having the same name of it. In general the name of the file is the one of the main <em>class</em> defined into it.
+</p>
+
+<p>
+	The file extension for <b>hAxe</b> is <code>.hx</code>.
+</p>
+
+<h3>Imports</h3>
+
+<p>
+	Imports can be used to have access to all the types of a file without needing to specify the package name.
+</p>
+
+<pre>
+<k>package</k> my.pack2 {
+    <k>class</k> C2 <k>extends</k> my.pack.C {
+    }
+}
+</pre>
+
+<p>
+	Is identical to the following :
+</p>
+
+<pre>
+<k>package</k> my.pack2 {
+    <k>import</k> my.pack.C;
+
+    <k>class</k> C2 <k>extends</k> C {
+    }
+}
+</pre>
+
+<p>
+	The only difference is that when using <k>import</k> you can use <em>enum constructors</em> that were declared in the <code>my/pack/C.hx</code> file.
+</p>
+
+<h3>Type Lookup</h3>
+
+<p>
+	When a type name is found, the following lookup is performed, in that order :
 </p>
 
 <ul class="big">
-	<li><b>Objects</b> : objects are declared using classes. Each class can <em>extend</em> a single class (using inheritance) and can <em>implements</em> several classes (this is prototyping).</li>
-	<li><b>Anonymous Objects</b> : it's possible to define anonymous objects such as <c>{ x : Int; y : Int }</c>.</li>
-	<li><b>Dynamic Objects</b> : the <c>Dynamic</c> class have an infinite number of fields and methods, each having the <c>Dynamic</c> type. Classes can <em>extends</em> Dynamic in order to get dynamic behavior. <c>Dynamic</c> can have an optional type parameter (see below).</li>
-	<li><b>Abstract Types</b>
-: enumeration are abstract types. They define a finite number of
-instance of this type. The empty enumeration for exemple, although it
-has a name, can't be constructed.</li>
-	<li><b>Function Types</b> :
-when you want to define function types, you can define them by listing
-the arguments followed by the return type and separated with arrows.
-For exemple <c>Int -&gt; Void</c> is the type of a function taking an Int as argument and returning Void. And <c>Color -&gt; Color -&gt; Int</c> takes two Color arguments and returns an Int.</li>
+	<li>current class type parameters</li>
+	<li>standard types</li>
+	<li>types declared in the current file</li>
+	<li>types declared in imported files (if the searched package is empty)</li>
+	<li>if not found, the corresponding file is loaded and the type is searched inside it</li>
 </ul>
 
+<h3>Enum Constructors</h3>
+
 <p>
-	As we said before, all objects fields (members and methods) must be fully typed (although you can use the <c>Dynamic</c>
-type if you want to get dynamic behavior). That means that inside a
-method, we know all the types. You don't have then to declare local
-variable types since they will get inferred for you by the compiler.
+	In order to use enum constructors, the file in which the <em>enum</em> is declared must first be imported, or you can use the full type path to access constructors as if they were static fields of the <em>enum</em> type.
+</p>
+
+<pre>
+    <k>var</k> c : my.pack.Color = my.pack.Color.red;
+</pre>
+
+<p>
+	As an exception, in <code>switch</code>, if the type of the <em>enum</em> is known at compile time, then you can use directly constructors in cases without the need to import.
+</p>
+
+<a name="dynamic"></a>
+<h2>Dynamic</h2>
+
+<p>
+	When you want to get some <em>dynamicly typed</em> behavior and get free from the type system, you can use the <code>Dynamic</code> type which can be used in place of <em>any</em> type without any compiler check :
+</p>
+
+<pre>
+    <k>var</k> x : Dynamic = "";
+    x = true;
+    x = 1.744;
+    x = <k>new</k> Array();
+</pre>
+
+<p>
+	Also, a <code>Dynamic</code> have an infinite number of fields, all having the type <code>Dynamic</code>, it can be used as an <code>Array</code> for bracket syntax, etc...
 </p>
 
 <p>
-	Several common types are already defined in the language. Most of them are abstracts.
+	While this can be useful sometimes, please be careful not to break your program safety by using too many dynamic variables. An <em>untyped</em> variable is not a <code>Dynamic</code> but an <code>Unknown</code>, and is still stricly typed. This was explained in <em>type inference</em>.
+</p>
+
+<h3>Dynamic Parameter</h3>
+
+<p>
+	As it was said when listing standard library types, <code>Dynamic</code> <em>can</em> also take a type parameter. When you use <code>Dynamic&lt;String></code>, it has different behavior.
+</p>
+
+<p>
+	<code>Dynamic&lt;String></code> cannot be used in place of any other type. However, it has an infinite number of fields which all have the type <code>String</code>. This is useful to encode Hashtables where items are accessed using <em>dot</em> syntax :
+</p>
+
+<pre>
+    <k>var</k> att : Dynamic&lt;String> = xml.attributes;
+    x.name = <t>"Nicolas"</t>;
+    x.age = <t>"26"</t>;
+    <g>// ...</g>
+</pre>
+
+<h3>Implementic Dynamic</h3>
+
+<p>
+	Any class can also <em>implement</em> a Dynamic with or without type parameter. In that case, the class fields are typed when they exists, or they have a dynamic type either :
+</p>
+
+<pre>
+<k>package</k> {
+    <k>class</k> C <k>implements</k> Dynamic&lt;Int> {
+        <k>public var</k> name : String;
+        <k>public var</k> address : String;
+    }
+    <g>// ...</g>
+    <k>var</k> c = <k>new</k> C();
+    <k>var</k> n : String = c.name; <g>// ok</g>
+    <k>var</k> a : String = c.address; <g>// ok</g>
+    <k>var</k> i : Int = c.phone; <g>// ok : use Dynamic</g>
+    <k>var</k> co : String = c.country <g>// error : is an Int</g>
+}
+</pre>
+
+<p>
+	Dynamic behavior is <em>inherited</em> by subclasses. When several classes are implementing different Dynamic kinds in a class hierarchy, the last Dynamic definition is used.
+</p>
+
+<a name="tother"></a>
+<h2>Other Types</h2>
+
+<p>
+	Up to know, we have seen the following types :
 </p>
 
 <ul>
-	<li><c>Dynamic</c> : special type</li>
-	<li><c>Void</c> : abstract</li>
-	<li><c>Int</c> : abstract</li>
-	<li><c>Float</c> : abstract</li>
-	<li><c>Bool</c> : enum { true; false; }</li>
+	<li>class instance</li>
+	<li>enum instance</li>
+	<li>dynamic</li>
 </ul>
 
-<h2>Class Parameters</h2>
-
 <p>
-	You can define class parameters in order to have one single class implementing different behavior. This is a way to get <em>polymorphism</em> :
+	There is three additional important types :
 </p>
 
-<pre>    <k>native class</k> Array&lt;T&gt; {
-        <k>function new</k>() : Void;
-        <k>function</k> get( pos : Int ) : T;
-        <k>function</k> set( pos : Int, elt : T ) : Void;
-        ...
+<ul class="big">
+	<li><b>Anonymous Type</b> : an anonymous type is the type of an anonymously declared object. It is also the type of a Class identifier (corresponding to all the static fields) or an Enum identifier (liting all the constructors). Here's an example that shows it :
+	<pre>
+<k>package</k> {
+    <k>enum</k> State {
+    	on;
+    	off;
+    	disable;
     }
-</pre>
 
-<p>
-	Then you can use different kind of <c>Array</c>s by specifying the type parameter. For example <c>Array&lt;Int&gt;</c> is an array of integers and <c>Array&lt;Array&lt;Float&gt;&gt;</c>
-is a two dimentional array containing floats. You can of course define
-your own parametrized types. If you want them not to be fully abstract,
-you can specify some requirements in the type parameter :
-</p>
+    <k>class</k> C {
+        <k>static var</k> x : Int;
+        <k>static var</k> y : String;
 
-<pre>    <k>class</k> MyClass&lt;T <k>extends</k> MyObject&gt; {
-        <k>var</k> o : T;
-        <k>function</k> foo() : Void {
-            o.myMethod();
+        <k>function</k> f() {
+            <g>// print { id : Int, city : String }</g>
+            type({ id : 125, city : "Kyoto" });
         }
-        ...
-    }
-</pre>
 
+        <k>function</k> g() {
+            <g>// print { on : State, off : State, disable : State }</g>
+            type(State);
+        }
+
+        <k>function</k> h() {
+            <g>// print { x : Int, y : String }</g>
+            type(C);
+        }
+    }
+}
+	</pre>
+	</li>
+
+	<li><b>Function Type</b> : when you want to define function types, you can define them by listing the arguments followed by the return type and separated with arrows. For exemple <code>Int -&gt; Void</code> is the type of a function taking an Int as argument and returning Void. And <code>Color -&gt; Color -&gt; Int</code> takes two Color arguments and returns an Int.
+	<pre>
+<k>package</k> {
+    <k>class</k> C {
+        <k>function</k> f(x : String) : Int {
+            <g>// ...</g>
+        }
+
+        <k>function</k> g() {
+            type(f); <g>// print String -> Int</g>
+        }
+    }
+}
+	</pre>
+	</li>
+
+	<li><b>Unknown Type</b> : when a type is not declared, it is used with the type <code>Unknown</code>. The first time it is used with another type, it will change to it. This was explained in more details in <em>type inference</em>. The <code>id</code> printed with the <code>Unknown</code> type is used to differenciate several unknowns when printing a complex type.
+	</li>
+
+	<pre>
+    <k>function</k> f() {
+        <k>var</k> x;
+        type(x); <g>// print Unknown&lt;0></g>
+        x = 0;
+        type(x); <g>// print Int</g>
+    }
+	</pre>
+</ul>
+
+<p>
+	The diversity of types expressible with <b>haXe</b> enable more powerful models of programming by providing high-level abstractions that don't need complex classes relationships to be used.
+</p>
+
+<a name="tsub"></a>
+<h2>Subtyping</h2>
+
+<p>
+	The following types should have now be fully introduced in previous sections :
+</p>
+
+<ul>
+	<li>class instance</li>
+	<li>enum instance</li>
+	<li>dynamic (with optional parameter)</li>
+	<li>anonymous</li>
+	<li>unknown (with an id)</li>
+	<li>function</li>
+</ul>
+
+<p>
+	When two types need to be used together, the compiler don't rely on simply checking <em>type equality</em>. For example an <code>Int</code> can be used everywhere a <code>Float</code> is required. In order to check if a type is allowed where another is requested, the compiler is using <b>subtyping</b>.
+</p>
+
+<p>
+	Classes have their own <em>subtyping</em> relationship that was explained in <em>class heritance</em>. A Class instance can then be used instead of another Class instance if it's a subtype of it according to <em>extends</em> and <em>implements</em> statements.
+</p>
+
+<p>
+	An Enum does not have subtype other then itself.
+</p>
+
+<p>
+	<em>Type Parameters</em> must be <em>the sames</em> in order to have subtyping. For example, <code>Array&lt;Int></code> is NOT a subtype of <code>Array&lt;Float></code>.
+</p>
+
+<p>
+	Anonymous types are using <em>structural</em> subtyping. An anonymous type B is a subtype of an anonymous type A is B is <em>included</em> into A. It means for example that <code>{ x : Int, y : Int, z : Int }</code> is a subtype of <code>{ x : Float, y : Float }</code>.
+</p>
+
+<p>
+	Dynamic without parameter is a subtype of every type. Dynamic with a parameter is only subtype of Dynamic with the same parameter.
+</p>
+
+<p>
+	Unknown is the subtype of every type as well. When testing for subtype, it will actually <em>become</em> this type and will no longer be an <em>Unknown</em>.
+</p>
+
+<p>
+	A Function of the form <code>A1 -> A2 -> B</code> is the subtype of <code>B1 -> B2 -> A</code> if <code>B1</code> is the subtype of <code>A1</code>, <code>B2</code> is the subtype of <code>A2</code> and <code>B</code> is the subtype of <code>A</code>. Not so easy to understand but it's correct.
+</p>
+
+<p>
+	Subtyping is important in order to be able to get more extensible programs.
+</p>
+
+<a name="iter"></a>
 <h2>Iterators</h2>
 
-<p> A nice feature of the language is to be able to define your own
-iterators and play with them. An iterator is a function of the form : <c>Void -&gt; X</c> where <c>X</c> is the iterated type. You can use the <c><k>for</k>...<k>in</k></c> syntax in order to execute iterators. The most simple iterator is the <c>Int</c> iterator which can easily be built using the operator <c>...</c> :
+<p>
+	An iterator is a function of the form : <c>Void -&gt; X</c> where <c>X</c> is the iterated type. You can use the <c><k>for</k>...<k>in</k></c> syntax in order to execute iterators. The most simple iterator is the <c>Int</c> iterator which can easily be built using the operator <c>...</c> :
 </p>
 
 <pre>    <k>for</k> i <k>in</k> 1...10 {
@@ -653,13 +1359,13 @@ iterators and play with them. An iterator is a function of the form : <c>Void -&
 	Or the usual <c><k>for</k></c> loop :
 </p>
 
-<pre>    <k>for</k> i <k>in</k> 0...arr.length {
+<pre>    <k>for</k> i <k>in</k> 0...arr.length-1 {
         foo(arr[i]);
     }
 </pre>
 
 <p>
-	But you can also define you own iterators. You can simply implement the <c>iterator()</c> method in your class. This method must return another function that will return one object each call or the special value <k><c>done</c></k> when finished. Here's a simple integer enumerator sample. Please note that it is not really useful since there is already the <c>...</c>&lt;&gt; operator, but it's good sample to understand how it works <em>behind the scene</em> :
+	You can also define you own iterators. You can simply implement the <c>iterator()</c> method in your class. This method must return another function that will return one value each call or the special value <k><c>done</c></k> when finished. Here's a simple integer enumerator sample. Please note that it is not really useful since there is already the <c>...</c> operator, but it's good sample to understand how it works <em>behind the scene</em> :
 </p>
 
 <pre>    <k>class</k> IntIter {
@@ -692,41 +1398,10 @@ iterators and play with them. An iterator is a function of the form : <c>Void -&
     }
 </pre>
 
-<p> The variable name in the iterator is automaticaly declared and its
+<p> The variable name in the iterator is automatically declared and its
 type is bound to the iterator type. If the iterator is a function, then
 it must be of the form <c>Void -&gt; X</c> as previously said. If it's an object like the sample here, then it's a shortcut for writing <c>iter.iterator()</c>.
 </p>
-
-<h2>Going Dynamic</h2>
-
-<p>
-	When you want to have dynamic behavior, you can either type some variables as <c>Dynamic</c> or have your classes <c><k>extends</k></c> or <c><k>implements</k></c> Dynamic. Dynamic can have an optional type parameter that determine the type of the object fields when accessed. For exemple :
-</p>
-
-<pre>    <k>class</k> XML {
-
-        <k>var</k> attributes : Dynamic&lt;String&gt;
-        ....
-
-    }
-</pre>
-
-<p>
-	In that case, all objects fields of attributes will have the type <c>String</c>. Dynamic classes are then Strongly typed Object-Hashes. You can write as well <c>Dynamic&lt;Dynamic&lt;String&gt;&gt;</c> which will give you a two-level objects access (if you find any use for it...). Actually , <c>Dynamic</c> without type parameter is a shortcut for the infinite declaration : <c>Dynamic&lt;Dynamic&lt;Dynamic&lt;....&gt;&gt;&gt;</c> which would otherwise takes too much time to write.
-</p>
-
-<p>
-	Another possibility to get dynamic behavior is to set your code into an <c>untyped { }</c> block :
-</p>
-
-<pre>    <k>function</k> iKnowWhatImDoing( o : SomeObject ) : SomethingElse {
-        <k>untyped</k> {
-            <k>return</k> o.someStrangeMethod();
-        }
-    }
-</pre>
-
----->
 
 <h2>And Now ?</h2>
 
