@@ -64,10 +64,10 @@ let compile classes =
 ;;
 try	
 	let usage = "Haxe Compiler Alpha - (c)2005 Motion-Twin\n Usage : haxe.exe [options] <class names...>\n Options :" in
-	let base_path = normalize_path (try Extc.executable_path() with _ -> ".") in
+	let base_path = normalize_path (try Extc.executable_path() with _ -> "./") in
 	let classes = ref [] in
 	let time = Sys.time() in
-	Plugin.class_path := [base_path;"";"/"];
+	Plugin.class_path := [base_path ^ "std/";"";"/"];
 	let args_spec = [
 		("-cp",Arg.String (fun path -> Plugin.class_path := normalize_path path :: !Plugin.class_path),"<path> : add a directory to find source files");
 		("-v",Arg.Unit (fun () -> Plugin.verbose := true),": turn on verbose mode");
