@@ -113,7 +113,7 @@ let rec	parse_file = parser
 	| [< '(Const (Ident "package"),_); p = parse_package; '(BrOpen,_); l = psep Semicolon parse_type_decl; '(BrClose,_); '(Eof,_); >] -> p , l
 
 and parse_type_decl = parser
-	| [< '(Kwd Import,p1); p = parse_package; '(Dot,_); '(Const (Type name),_) >] -> (EImport (p,name), p1)
+	| [< '(Kwd Import,p1); t = parse_type_path_normal >] -> (EImport (t.tpackage,t.tname), p1)
 	| [< '(Kwd Enum,p1); '(Const (Type name),_);  tl = parse_type_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] -> (EEnum (name,tl,l), punion p1 p2)
 	| [< n , p1 = parse_class_native; '(Const (Type name),_); tl = parse_type_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = plist parse_class_field; '(BrClose,p2) >] -> (EClass (name,tl,n @ hl,fl), punion p1 p2)
 
@@ -206,7 +206,10 @@ and parse_type_params = parser
 	| [< >] -> []
 
 and parse_type_param = parser
-	| [< '(Const (Type name),_); h = psep Comma parse_class_herit >] -> (name,h)
+	| [< '(Const (Type name),_); s >] ->
+		match s with parser
+		| [< '(DblDot,_); l = psep Comma parse_type_path_normal >] -> (name,l)
+		| [< >] -> (name,[])
 
 and parse_class_herit = parser
 	| [< '(Kwd Extends,_); t = parse_type_path_normal >] -> HExtends t
@@ -303,7 +306,7 @@ and parse_switch_cases = parser
 		[] , None
 
 and parse_catch = parser
-	| [< '(Kwd Catch,_); '(POpen,_); '(Const (Ident name),_); '(DblDot,_); t = parse_type_path; e = expr >] -> (name,t,e)
+	| [< '(Kwd Catch,_); '(POpen,_); '(Const (Ident name),_); '(DblDot,_); t = parse_type_path; '(PClose,_); e = expr >] -> (name,t,e)
 
 let parse code file =
 	let old = Lexer.save() in
