@@ -35,6 +35,7 @@ and tconstant =
 	| TNull
 	| TThis
 	| TSuper
+	| TDone
 
 and tfunc = {
 	tf_args : (string * t) list;
@@ -69,6 +70,7 @@ and texpr_expr =
 	| TBreak
 	| TContinue
 	| TMatch of tenum * string * (string * t) list option
+	| TThrow of texpr
 
 and texpr = {
 	eexpr : texpr_expr;
@@ -311,6 +313,7 @@ let rec iter f e =
 	| TWhile (e1,e2,_) ->
 		f e1;
 		f e2;
+	| TThrow e
 	| TField (e,_)
 	| TParenthesis e
 	| TUnop (_,_,e) ->
