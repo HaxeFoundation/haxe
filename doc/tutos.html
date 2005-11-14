@@ -12,6 +12,34 @@
 
 <script type="text/javascript" src="menu.js"></script>
 
+<h2>Using the compiler</h2>
+
+<p>
+	The <b>haXe</b> compiler is a commandline compiler that can take the following parameters :
+</p>
+
+<ul class="big">
+	<li><code>-cp (path)</code> : adds a search path for files. Can be used several times for adding several different paths.</li>
+	<li><code>-v</code> : verbose mode.</li>
+	<li>...more later</li>
+</ul>
+
+<p>
+	<font color="red">The current version of the compiler does only typing, you can only play with it but it will not generate any binary right now</font>
+</p>
+
+<p>
+	To compile the class <code>my.Class</code> implemented in the file <code>c:\work\my\Class.hx</code> then simply run :
+</p>
+
+<pre>
+    haxe -cp "c:\work" my.Class
+</pre>
+
+<p>
+	Please notice that the <b>haXe</b> compiler only takes <em>class names</em> as input and not <em>file names</em>.
+</p>
+
 <h2>Tutorials</h2>
 
 <p>
