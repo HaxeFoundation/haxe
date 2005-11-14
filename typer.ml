@@ -191,7 +191,7 @@ let type_type_params ctx path p (n,flags) =
 			cl_statics = PMap.empty;
 			cl_dynamic = None;
 		} in
-		set_heritance ctx c l p;
+		set_heritance ctx c (List.map (fun t -> HImplements t) l) p;
 		let add_field ctypes params _ f =
 			let f = { f with cf_type = apply_params ctypes params f.cf_type } in
 			c.cl_fields <- PMap.add f.cf_name f c.cl_fields
@@ -342,6 +342,7 @@ let type_constant ctx c p =
 		) in
 		if ctx.in_static then error "Cannot access super from a static function" p;
 		mk (TConst TSuper) t p
+	| Ident "done" -> mk (TConst TDone) (mk_mono()) p
 	| Ident "null" -> mk (TConst TNull) (mk_mono()) p
 	| Ident s -> type_ident ctx s p
 	| Type s ->
@@ -533,9 +534,9 @@ and type_unop ctx op flag e p =
 	) in
 	mk (TUnop (op,flag,e)) t p
 
-and type_switch ctx e cases def p =
+and type_switch ctx e cases def need_val p =
 	let e = type_expr ctx e in
-	let t = mk_mono() in
+	let t = (if need_val then t_void ctx else mk_mono()) in
 	let constr name = 
 		let rec loop l =
 			match l with
@@ -573,7 +574,7 @@ and type_switch ctx e cases def p =
 		unify e.etype e1.etype e1.epos; 
 		let e2 = type_expr ctx e2 in
 		ctx.locals <- locals;
-		unify e2.etype t e2.epos;
+		if need_val then unify e2.etype t e2.epos;
 		(e1,e2)
 	) cases in
 	let def = (match def with
@@ -591,13 +592,13 @@ and type_switch ctx e cases def p =
 			None
 		| Some e ->
 			let e = type_expr ctx e in
-			unify e.etype t e.epos;
+			if need_val then unify e.etype t e.epos;
 			Some e
 	) in
 	mk (TSwitch (e,cases,def)) t p
 
 
-and type_expr ctx (e,p) =
+and type_expr ctx ?(need_val=true) (e,p) =
 	match e with
 	| EConst c ->
 		type_constant ctx c p
@@ -612,7 +613,12 @@ and type_expr ctx (e,p) =
 		type_binop ctx op e1 e2 p
 	| EBlock l ->
 		let locals = ctx.locals in
-		let l = List.map (type_expr ctx) l in
+		let rec loop = function
+			| [] -> []
+			| [e] -> [type_expr ctx ~need_val e]
+			| e :: l -> type_expr ctx ~need_val:false e :: loop l
+		in
+		let l = loop l in
 		ctx.locals <- locals;
 		let rec loop = function
 			| [] -> t_void ctx
@@ -630,7 +636,7 @@ and type_expr ctx (e,p) =
 		let pack = List.rev (loop pack)	in
 		type_type ctx (pack,s) p
 	| EParenthesis e ->
-		let e = type_expr ctx e in
+		let e = type_expr ctx ~need_val e in
 		mk (TParenthesis e) e.etype p
 	| EObjectDecl fl ->
 		let rec loop (l,acc) (f,e) =
@@ -671,8 +677,15 @@ and type_expr ctx (e,p) =
 	| EFor (i,e1,e2) ->
 		let e1 = type_expr ctx e1 in
 		let pt = mk_mono() in
-		let t = TFun ([],pt) in 
-		unify e1.etype t e1.epos;
+		let t = TFun ([],pt) in
+		(match follow e1.etype with
+		| TAnon _
+		| TInst _ ->
+			let ft = type_field ctx e1.etype "iterator" e1.epos in
+			unify ft t e1.epos 
+		| _ ->
+			unify e1.etype t e1.epos;
+		);
 		let locals = ctx.locals in
 		ctx.locals <- PMap.add i pt ctx.locals;
 		let e2 = type_expr ctx e2 in
@@ -681,12 +694,12 @@ and type_expr ctx (e,p) =
 	| EIf (e,e1,e2) ->
 		let e = type_expr ctx e in
 		unify e.etype (t_bool ctx) e.epos;
-		let e1 = type_expr ctx e1 in
+		let e1 = type_expr ctx ~need_val e1 in
 		(match e2 with
 		| None -> mk (TIf (e,e1,None)) (t_void ctx) p
 		| Some e2 ->
-			let e2 = type_expr ctx e2 in
-			let t = (try
+			let e2 = type_expr ctx ~need_val e2 in
+			let t = if not need_val then t_void ctx else (try
 				unify e1.etype e2.etype p;
 				e2.etype
 			with
@@ -701,7 +714,7 @@ and type_expr ctx (e,p) =
 		let e = type_expr ctx e in
 		mk (TWhile (cond,e,flag)) (t_void ctx) p
 	| ESwitch (e,cases,def) ->
-		type_switch ctx e cases def p
+		type_switch ctx e cases def need_val p
 	| EReturn e ->
 		let e , t = (match e with
 			| None ->
@@ -719,17 +732,20 @@ and type_expr ctx (e,p) =
 	| EContinue ->
 		mk TContinue (t_void ctx) p
 	| ETry (e1,catches) -> 
-		let e1 = type_expr ctx e1 in
+		let e1 = type_expr ctx ~need_val e1 in
 		let catches = List.map (fun (v,t,e) ->
 			let t = load_type ctx (pos e) t in
 			let locals = ctx.locals in
 			ctx.locals <- PMap.add v t ctx.locals;
-			let e = type_expr ctx e in
+			let e = type_expr ctx ~need_val e in
 			ctx.locals <- locals;
-			unify e.etype e1.etype e.epos;
+			if not need_val then unify e.etype e1.etype e.epos;
 			v , t , e
 		) catches in
-		mk (TTry (e1,catches)) e1.etype p
+		mk (TTry (e1,catches)) (if not need_val then t_void ctx else e1.etype) p
+	| ECall ((EConst (Ident "throw"),_),[e]) ->
+		let e = type_expr ctx e in
+		mk (TThrow e) (mk_mono()) p
 	| ECall ((EConst (Ident "type"),_),[e]) ->
 		let e = type_expr ctx e in
 		ctx.warn (s_type (print_context()) e.etype) e.epos;
