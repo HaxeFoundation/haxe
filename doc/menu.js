@@ -5,7 +5,7 @@ document.write(' \
 </p> \
 \
 <p> \
-	hAxe is an open source programming language for the web. \
+	haXe is an open source programming language for the web. \
 </p> \
 \
 ');
