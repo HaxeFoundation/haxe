@@ -179,7 +179,7 @@ type type_param_flag =
 	| HExtends of type_path_normal
 	| HImplements of type_path_normal
 
-type type_param = string * type_param_flag list
+type type_param = string * type_path_normal list
 
 type type_def =
 	| EClass of string * type_param list * type_param_flag list * (class_field * pos) list
