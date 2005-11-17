@@ -86,10 +86,11 @@ let rec plist f = parser
 
 let rec psep sep f = parser
 	| [< v = f; s >] ->
-		(match s with parser
-		| [< '(sep2,_) when sep2 = sep; l = psep sep f >] -> v :: l
-		| [< l = psep sep f >] -> v :: l
-		| [< >] -> serror())
+		let rec loop = parser
+			| [< '(sep2,_) when sep2 = sep; v = f; l = loop >] -> v :: l
+			| [< >] -> []
+		in
+		v :: loop s
 	| [< >] -> []
 
 let ident = parser
@@ -110,7 +111,8 @@ let semicolon s =
 		| [< '(_,p) >] -> error Missing_semicolon p
 
 let rec	parse_file = parser
-	| [< '(Const (Ident "package"),_); p = parse_package; '(BrOpen,_); l = psep Semicolon parse_type_decl; '(BrClose,_); '(Eof,_); >] -> p , l
+	| [< '(Const (Ident "package"),_); p = parse_package; _ = semicolon; l = plist parse_type_decl; '(Eof,_); >] -> p , l
+	| [< l = plist parse_type_decl; '(Eof,_) >] -> [] , l
 
 and parse_type_decl = parser
 	| [< '(Kwd Import,p1); t = parse_type_path_normal >] -> (EImport (t.tpackage,t.tname), p1)
