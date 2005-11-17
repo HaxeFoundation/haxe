@@ -41,7 +41,7 @@
 </p>
 
 <p>
-	A source code file is composed of a <em>package name</em> followed by several <em>imports</em> and <em>type</em> declarations. In order to enforce the conventions, packages names are composed of several <em>identifiers</em> which are starting with a lowercase letter while <em>type identifiers</em> are always starting with an uppercase letter.
+	A source code file is composed of an optional <em>package name</em> followed by several <em>imports</em> and <em>type</em> declarations. In order to enforce the conventions, packages names are composed of several <em>identifiers</em> which are starting with a lowercase letter while <em>type identifiers</em> are always starting with an uppercase letter.
 </p>
 
 <p>
@@ -49,8 +49,6 @@
 </p>
 
 <pre>
-<k>package</k> {
-
     <k>enum</k> Void {
     }
 
@@ -67,12 +65,10 @@
 
     <k>enum</k> Dynamic&lt;T&gt; {
     }
-
-}
 </pre>
 
 <p>
-	The standard library is declared in the <em>root</em> (or <em>empty</em>) package. Let's see each type one by one :
+	Let's see each type one by one :
 </p>
 
 <ul class="big">
@@ -95,16 +91,13 @@
 </p>
 
 <pre>
-<k>package</k> my.pack {
-    <g>
-    /*
+    <k>package</k> my.pack;
+    <g>/*
         this will define the class my.pack.MyClass
     */</g>
     <k>class</k> MyClass {
         <g>// ....</g>
     }
-
-}
 </pre>
 
 <p>
@@ -112,7 +105,7 @@
 </p>
 
 <pre>
-<k>package</k> my.pack {
+    <k>package</k> my.pack;
 
     <k>class</k> MyClass {
 
@@ -126,8 +119,6 @@
         <k>static function</k> bar( s : String, v : Bool ) : Void {
         }
     }
-
-}
 </pre>
 
 <p>
@@ -156,7 +147,6 @@
 </p>
 
 <pre>
-<k>package</k> {
     <k>class</k> Point {
         <k>public var</k> x : Int;
         <k>public var</k> y : Int;
@@ -167,7 +157,6 @@
         }
 
     }
-}
 </pre>
 
 <p>
@@ -329,8 +318,6 @@ null; <g>// Unknown&lt;0></g>
 </ul>
 
 <pre>
-<k>package</k> {
-
     <k>enum</k> Axis {
         x;
         y;
@@ -363,8 +350,6 @@ null; <g>// Unknown&lt;0></g>
             <g>// x means the x Axis</g>
         }
     }
-
-}
 </pre>
 
 <p>
@@ -669,7 +654,6 @@ null; <g>// Unknown&lt;0></g>
 
 
 <pre>
-<k>package</k> {
     <k>class</k> C {
 
         <k>var</k> x : Int;
@@ -685,7 +669,6 @@ null; <g>// Unknown&lt;0></g>
             <k>var</k> add = <k>function</k>(n) { me.x += n };
         }
     }
-}
 </pre>
 
 <h3>Anonymous Objects</h3>
@@ -835,7 +818,6 @@ null; <g>// Unknown&lt;0></g>
 </p>
 
 <pre>
-<k>package</k> {
     <k>class</k> Array&lt;T> {
 
         <k>function new</k>() {
@@ -850,7 +832,6 @@ null; <g>// Unknown&lt;0></g>
             <g>// ...</g>
         }
     }
-}
 </pre>
 
 <p>
@@ -868,12 +849,10 @@ null; <g>// Unknown&lt;0></g>
 </p>
 
 <pre>
-<k>package</k> {
     <k>class</k> EvtQueue&lt;T : Event, EventDispatcher> {
         <k>var</k> evt : T;
         <g>// ...</g>
     }
-}
 </pre>
 
 <p>
@@ -893,8 +872,6 @@ null; <g>// Unknown&lt;0></g>
 </p>
 
 <pre>
-<k>package</k> {
-
     <k>enum</k> Color {
         red;
         green;
@@ -910,7 +887,6 @@ null; <g>// Unknown&lt;0></g>
             }
         }
     }
-}
 </pre>
 
 <p>
@@ -1020,7 +996,6 @@ null; <g>// Unknown&lt;0></g>
 </p>
 
 <pre>
-<k>package</k> {
     <k>enum</k> Cell&lt;T> {
         empty;
         cons( item : T, next : Cell&lt;T> );
@@ -1037,7 +1012,7 @@ null; <g>// Unknown&lt;0></g>
             head = cons(item,head);
         }
 
-        <k>public function</k> length() : int {
+        <k>public function</k> length() : Int {
             <k>return</k> cell_length(head);
         }
 
@@ -1049,7 +1024,6 @@ null; <g>// Unknown&lt;0></g>
         }
 
     }
-}
 </pre>
 
 <p>
@@ -1060,18 +1034,18 @@ null; <g>// Unknown&lt;0></g>
 <h2>Packages and Imports</h2>
 
 <p>
-	Each file can contain several <em>classes</em>, <em>enums</em> and <em>imports</em>. They are all part of the <em>package</em> declared at the beginning of the class. Each <em>type</em> has then a <em>path</em> corresponding to the <em>package</em> name followed by the <em>type</em> name.
+	Each file can contain several <em>classes</em>, <em>enums</em> and <em>imports</em>. They are all part of the <em>package</em> declared at the beginning of the class. If <em>package</em> is not declared than the default empty package is used. Each <em>type</em> has then a <em>path</em> corresponding to the <em>package</em> name followed by the <em>type</em> name.
 </p>
 
 <pre>
-<g>// file my/pack/C.hx</g>
-<k>package</k> my.pack {
+    <g>// file my/pack/C.hx</g>
+    <k>package</k> my.pack;
+
     <k>enum</k> E {
     }
 
     <k>class</k> C {
     }
-}
 </pre>
 
 <p>
@@ -1093,10 +1067,9 @@ null; <g>// Unknown&lt;0></g>
 </p>
 
 <pre>
-<k>package</k> my.pack2 {
+    <k>package</k> my.pack2;
     <k>class</k> C2 <k>extends</k> my.pack.C {
     }
-}
 </pre>
 
 <p>
@@ -1104,12 +1077,11 @@ null; <g>// Unknown&lt;0></g>
 </p>
 
 <pre>
-<k>package</k> my.pack2 {
+    <k>package</k> my.pack2;
     <k>import</k> my.pack.C;
 
     <k>class</k> C2 <k>extends</k> C {
     }
-}
 </pre>
 
 <p>
@@ -1190,7 +1162,6 @@ null; <g>// Unknown&lt;0></g>
 </p>
 
 <pre>
-<k>package</k> {
     <k>class</k> C <k>implements</k> Dynamic&lt;Int> {
         <k>public var</k> name : String;
         <k>public var</k> address : String;
@@ -1201,7 +1172,6 @@ null; <g>// Unknown&lt;0></g>
     <k>var</k> a : String = c.address; <g>// ok</g>
     <k>var</k> i : Int = c.phone; <g>// ok : use Dynamic</g>
     <k>var</k> co : String = c.country <g>// error : is an Int</g>
-}
 </pre>
 
 <p>
@@ -1228,7 +1198,6 @@ null; <g>// Unknown&lt;0></g>
 <ul class="big">
 	<li><b>Anonymous Type</b> : an anonymous type is the type of an anonymously declared object. It is also the type of a Class identifier (corresponding to all the static fields) or an Enum identifier (liting all the constructors). Here's an example that shows it :
 	<pre>
-<k>package</k> {
     <k>enum</k> State {
     	on;
     	off;
@@ -1254,13 +1223,11 @@ null; <g>// Unknown&lt;0></g>
             type(C);
         }
     }
-}
 	</pre>
 	</li>
 
 	<li><b>Function Type</b> : when you want to define function types, you can define them by listing the arguments followed by the return type and separated with arrows. For exemple <code>Int -&gt; Void</code> is the type of a function taking an Int as argument and returning Void. And <code>Color -&gt; Color -&gt; Int</code> takes two Color arguments and returns an Int.
 	<pre>
-<k>package</k> {
     <k>class</k> C {
         <k>function</k> f(x : String) : Int {
             <g>// ...</g>
@@ -1270,7 +1237,6 @@ null; <g>// Unknown&lt;0></g>
             type(f); <g>// print String -> Int</g>
         }
     }
-}
 	</pre>
 	</li>
 
