@@ -616,7 +616,9 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let rec loop = function
 			| [] -> []
 			| [e] -> [type_expr ctx ~need_val e]
-			| e :: l -> type_expr ctx ~need_val:false e :: loop l
+			| e :: l -> 
+				let e = type_expr ctx ~need_val:false e in
+				e :: loop l
 		in
 		let l = loop l in
 		ctx.locals <- locals;
