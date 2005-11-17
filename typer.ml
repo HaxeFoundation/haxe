@@ -211,15 +211,15 @@ let t_void ctx = load_normal_type ctx { tpackage = []; tname = "Void"; tparams =
 
 let is_int t = 
 	match follow t with
-	| TEnum (e,[]) ->
-		e.e_path = ([],"Int")
+	| TInst (c,[]) ->
+		c.cl_path = ([],"Int")
 	| _ ->
 		false
 
 let is_float t = 
 	match follow t with
-	| TEnum (e,[]) ->
-		e.e_path = ([],"Float")
+	| TInst (c,[]) ->
+		c.cl_path = ([],"Float")
 	| _ ->
 		false
 
@@ -536,7 +536,7 @@ and type_unop ctx op flag e p =
 
 and type_switch ctx e cases def need_val p =
 	let e = type_expr ctx e in
-	let t = (if need_val then t_void ctx else mk_mono()) in
+	let t = (if need_val then mk_mono() else t_void ctx) in
 	let constr name = 
 		let rec loop l =
 			match l with
