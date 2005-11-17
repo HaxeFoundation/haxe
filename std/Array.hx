@@ -1,5 +1,3 @@
-package {
-
 native class Array<T> {
 
 	public var length : Int;
@@ -15,7 +13,5 @@ native class Array<T> {
 	function sort( f : T -> T -> Int ) : Void { }
 	function insert( pos : Int, x : T ) : Void { }
 
-
-}
 
 }

@@ -1,5 +1,3 @@
-package {
-
 enum Void { }
 
 native class Float { }
@@ -12,6 +10,4 @@ enum Bool {
 }
 
 enum Dynamic<T> {
-}
-
 }

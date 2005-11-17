@@ -1,9 +1,7 @@
-package {
-
 enum Cell<T> {
 	empty;
 	cons( item : T, next : Cell<T> );
-};
+}
 
 class List<T> {
 
@@ -39,7 +37,5 @@ class List<T> {
 			}
 		};
 	}
-
-}
 
 }
