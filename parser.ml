@@ -115,7 +115,7 @@ let rec	parse_file = parser
 	| [< l = plist parse_type_decl; '(Eof,_) >] -> [] , l
 
 and parse_type_decl = parser
-	| [< '(Kwd Import,p1); t = parse_type_path_normal >] -> (EImport (t.tpackage,t.tname), p1)
+	| [< '(Kwd Import,p1); t = parse_type_path_normal; _ = semicolon >] -> (EImport (t.tpackage,t.tname), p1)
 	| [< '(Kwd Enum,p1); '(Const (Type name),_);  tl = parse_type_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] -> (EEnum (name,tl,l), punion p1 p2)
 	| [< n , p1 = parse_class_native; '(Const (Type name),_); tl = parse_type_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = plist parse_class_field; '(BrClose,p2) >] -> (EClass (name,tl,n @ hl,fl), punion p1 p2)
 
