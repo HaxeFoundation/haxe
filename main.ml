@@ -35,41 +35,39 @@ let report msg p =
 	warn msg p;
 	exit 1
 
-let compile classes =
-	let ctx = Typer.context warn in
-	List.iter (fun f ->
-		let cl = ExtString.String.nsplit f "." in
-		let error() = failwith ("Invalid class name " ^ f) in
-		let invalid_char x =
-			for i = 1 to String.length x - 1 do
-				match x.[i] with
-				| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' -> ()
-				| _ -> error()
-			done;
-			false
-		in
-		let rec loop = function
-			| [] -> error()
-			| [x] -> if String.length x = 0 || x.[0] < 'A' || x.[0] > 'Z' || invalid_char x then error() else [] , x
-			| x :: l ->
-				if String.length x = 0 || x.[0] < 'a' || x.[0] > 'z' || invalid_char x then error() else
-					let path , name = loop l in
-					x :: path , name
-		in
-		let cpath = loop cl in
-		ignore(Typer.load ctx cpath Ast.null_pos);
-	) classes;
-	Typer.finalize ctx
+let compile ctx f =
+	let cl = ExtString.String.nsplit f "." in
+	let error() = failwith ("Invalid class name " ^ f) in
+	let invalid_char x =
+		for i = 1 to String.length x - 1 do
+			match x.[i] with
+			| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' -> ()
+			| _ -> error()
+		done;
+		false
+	in
+	let rec loop = function
+		| [] -> error()
+		| [x] -> if String.length x = 0 || x.[0] < 'A' || x.[0] > 'Z' || invalid_char x then error() else [] , x
+		| x :: l ->
+			if String.length x = 0 || x.[0] < 'a' || x.[0] > 'z' || invalid_char x then error() else
+				let path , name = loop l in
+				x :: path , name
+	in
+	let cpath = loop cl in
+	ignore(Typer.load ctx cpath Ast.null_pos)
 
 ;;
 try	
 	let usage = "Haxe Compiler Alpha - (c)2005 Motion-Twin\n Usage : haxe.exe [options] <class names...>\n Options :" in
 	let base_path = normalize_path (try Extc.executable_path() with _ -> "./") in
 	let classes = ref [] in
+	let swf_out = ref None in
 	let time = Sys.time() in
 	Plugin.class_path := [base_path ^ "std/";"";"/"];
 	let args_spec = [
 		("-cp",Arg.String (fun path -> Plugin.class_path := normalize_path path :: !Plugin.class_path),"<path> : add a directory to find source files");
+		("-swf",Arg.String (fun file -> swf_out := Some file),"<file> : compile code to SWF file");
 		("-v",Arg.Unit (fun () -> Plugin.verbose := true),": turn on verbose mode");
 	] @ !Plugin.options in
 	Arg.parse args_spec (fun cl -> classes := cl :: !classes) usage;
@@ -77,7 +75,16 @@ try
 		Arg.usage args_spec usage
 	end else begin
 		if !Plugin.verbose then print_endline ("Classpath : " ^ (String.concat ";" !Plugin.class_path));
-		compile (List.rev !classes);
+		let ctx = Typer.context warn in
+		List.iter (compile ctx) (List.rev !classes);
+		Typer.finalize ctx;
+		let modules = Typer.modules ctx in
+		(match !swf_out with
+		| None -> ()
+		| Some file ->
+			if !Plugin.verbose then print_endline ("Generating swf : " ^ file);
+			Genswf.generate file modules
+		);
 		if !Plugin.verbose then print_endline ("Time spent : " ^ string_of_float (Sys.time() -. time));
 	end;
 with
