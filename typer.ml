@@ -1089,5 +1089,9 @@ let rec finalize ctx =
 	| l ->
 		List.iter (fun f -> f()) l;
 		finalize ctx
+
+let modules ctx =
+	Hashtbl.fold (fun _ m acc -> m :: acc) ctx.modules []
+
 ;;
 load_ref := load
