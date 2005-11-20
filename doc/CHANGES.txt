@@ -1,0 +1,11 @@
+2005-11-??: alpha 2
+	swf generation
+
+2005-11-17: alpha 1b
+	fix some bugs
+	changed package syntax
+
+2005-11-14: alpha 1
+	lexer
+	parser
+	typer
