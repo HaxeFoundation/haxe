@@ -63,6 +63,13 @@ let f16_value (a,b) =
 	let k = int_of_char a lor (int_of_char b lsl 8) in
 	float_of_int k /. float_of_int (1 lsl 8)
 
+let rec read_count n f arg =
+	if n = 0 then
+		[]
+	else
+		let v = f arg in
+		v :: read_count (n - 1) f arg
+
 (* ************************************************************************ *)
 (* LENGTH *)
 
@@ -244,6 +251,38 @@ let edit_text_length t =
 		String.length t.edt_variable + 1 +
 		opt_len (fun s -> String.length s + 1) t.edt_text
 
+let filters_length l =
+	1 + sum (fun f ->
+		1 + match f with
+		| FDropShadow s
+		| FBlur s
+		| FGlow s
+		| FBevel s
+		| FAdjustColor s ->
+			String.length s
+		| FGradientGlow fg
+		| FGradientBevel fg ->
+			1 + ((rgba_length + 1) * List.length fg.fgr_colors) + String.length fg.fgr_data
+	) l
+
+let place_object_length p v3 =
+	3
+	+ (if v3 then 1 else 0)
+	+ 0 (* po_move *)
+	+ opt_len (const 2) p.po_cid
+	+ opt_len matrix_length p.po_matrix
+	+ opt_len cxa_length p.po_color
+	+ opt_len (const 2) p.po_ratio
+	+ opt_len (fun s -> String.length s + 1) p.po_inst_name
+	+ opt_len (const 2) p.po_clip_depth
+	+ opt_len clip_events_length p.po_events
+	+ (if v3 then
+		opt_len filters_length p.po_filters
+		+ opt_len (const 1) p.po_blend
+		+ opt_len (const 1) p.po_bcache
+	else
+		0)
+
 let rec tag_data_length = function
 	| TEnd ->
 		0
@@ -276,15 +315,7 @@ let rec tag_data_length = function
 	| TProtect ->
 		0
 	| TPlaceObject2 p ->
-		3
-		+ 0 (* po_move *)
-		+ opt_len (const 2) p.po_cid
-		+ opt_len matrix_length p.po_matrix
-		+ opt_len cxa_length p.po_color
-		+ opt_len (const 2) p.po_ratio
-		+ opt_len (fun s -> String.length s + 1) p.po_inst_name
-		+ opt_len (const 2) p.po_clip_depth
-		+ opt_len clip_events_length p.po_events
+		place_object_length p false
 	| TRemoveObject2 _ ->
 		2
 	| TShape3 s ->
@@ -319,6 +350,8 @@ let rec tag_data_length = function
 		String.length s
 	| TFlash8 s ->
 		String.length s
+	| TPlaceObject3 p ->
+		place_object_length p true
 	| TFontGlyphs f ->
 		font_glyphs_length f
 	| TFont3 f ->
@@ -361,27 +394,21 @@ let read_rgb ch =
 	}
 
 let read_gradient ch is_rgba =
-	let rec loop_rgb n =
-		if n = 0 then
-			[]
-		else
-			let r = read_byte ch in
-			let c = read_rgb ch in
-			(r, c) :: loop_rgb (n-1)
+	let grad_rgb() =
+		let r = read_byte ch in
+		let c = read_rgb ch in
+		(r, c)
 	in
-	let rec loop_rgba n =
-		if n = 0 then
-			[]
-		else
-			let r = read_byte ch in
-			let c = read_rgba ch in
-			(r, c) :: loop_rgba (n-1)
+	let grad_rgba() =
+		let r = read_byte ch in
+		let c = read_rgba ch in
+		(r, c)
 	in
 	let n = read_byte ch in
 	if is_rgba then
-		GradientRGBA (loop_rgba n)
+		GradientRGBA (read_count n grad_rgba ())
 	else
-		GradientRGB (loop_rgb n)
+		GradientRGB (read_count n grad_rgb ())
 
 let read_rect ch =
 	let b = input_bits ch in
@@ -597,15 +624,8 @@ let parse_shape_line_style ch vshape =
 	}
 
 let parse_shape_array f ch vshape =
-	let rec loop n =
-		if n = 0 then
-			[]
-		else
-			let s = f ch vshape in
-			s :: loop (n-1)
-	in
 	let n = (match read_byte ch with 0xFF -> read_ui16 ch | n -> n) in	
-	loop n
+	read_count n (f ch) vshape
 
 let parse_shape_style_change_record ch b flags nlbits nfbits vshape =
 	let move = (if flags land 1 <> 0 then begin
@@ -762,17 +782,13 @@ let parse_text ch is_txt2 =
 	let matrix = read_matrix ch in
 	let ngbits = read_byte ch in
 	let nabits = read_byte ch in
-	let rec loop_glyphs bits n =
-		if n = 0 then
-			[]
-		else
-			let indx = read_bits bits ngbits in
-			let adv = read_bits bits nabits in
-			let g = {
-				txg_index = indx;
-				txg_advanced = adv;
-			} in
-			g :: loop_glyphs bits (n-1)
+	let read_glyph bits =
+		let indx = read_bits bits ngbits in
+		let adv = read_bits bits nabits in
+		{
+			txg_index = indx;
+			txg_advanced = adv;
+		}
 	in		
 	let rec loop() =
 		let flags = read_byte ch in
@@ -790,7 +806,7 @@ let parse_text ch is_txt2 =
 				txr_color = color;
 				txr_dx = dx;
 				txr_dy = dy;
-				txr_glyphs = loop_glyphs (input_bits ch) nglyphs;
+				txr_glyphs = read_count nglyphs read_glyph (input_bits ch);
 			} in
 			r :: loop()
 	in
@@ -933,6 +949,61 @@ let parse_button2 ch len =
 		bt2_actions = actions;
 	}
 
+let parse_filter_gradient ch =
+	let ncolors = read_byte ch in
+	let colors = read_count ncolors read_rgba ch in
+	let cvals = read_count ncolors read_byte ch in
+	let data = nread ch 19 in
+	{
+		fgr_colors = List.combine colors cvals;
+		fgr_data = data;
+	}
+
+let parse_filter ch =
+	match read_byte ch with
+	| 0 -> FDropShadow (nread ch 23)
+	| 1 -> FBlur (nread ch 9)
+	| 2 -> FGlow (nread ch 15)
+	| 3 -> FBevel (nread ch 27)
+	| 4 -> FGradientGlow (parse_filter_gradient ch)
+	| 6 -> FAdjustColor (nread ch 80)
+	| 7 -> FGradientBevel (parse_filter_gradient ch)
+	| _ -> assert false
+
+let parse_filters ch =
+	let nf = read_byte ch in
+	read_count nf parse_filter ch
+
+let parse_place_object ch v3 =
+	let f = read_byte ch in
+	let fext = (if v3 then read_byte ch else 0) in
+	let depth = read_ui16 ch in
+	let move = (f land 1) <> 0 in
+	let cid = opt_flag f 2 read_ui16 ch in
+	let matrix = opt_flag f 4 read_matrix ch in
+	let color = opt_flag f 8 read_cxa ch in
+	let ratio = opt_flag f 16 read_ui16 ch in
+	let name = opt_flag f 32 read_string ch in
+	let clip_depth = opt_flag f 64 read_ui16 ch in
+	let clip_events = opt_flag f 128 parse_clip_events ch in
+	let filters = opt_flag fext 1 parse_filters ch in
+	let blend = opt_flag fext 2 read_byte ch in
+	let bcache = opt_flag fext 4 read_byte ch in
+	{
+		po_depth = depth;
+		po_move = move;
+		po_cid = cid;
+		po_matrix = matrix;
+		po_color = color;
+		po_ratio = ratio;
+		po_inst_name = name;
+		po_clip_depth = clip_depth;
+		po_events = clip_events;
+		po_filters = filters;
+		po_blend = blend;
+		po_bcache = bcache;
+	}
+
 let rec parse_tag ch =
 	let h = read_ui16 ch in
 	let id = h lsr 6 in
@@ -1004,27 +1075,7 @@ let rec parse_tag ch =
 		| 0x18 ->
 			TProtect
 		| 0x1A ->
-			let f = read_byte ch in
-			let depth = read_ui16 ch in
-			let move = (f land 1) <> 0 in
-			let cid = opt_flag f 2 read_ui16 ch in
-			let matrix = opt_flag f 4 read_matrix ch in
-			let color = opt_flag f 8 read_cxa ch in
-			let ratio = opt_flag f 16 read_ui16 ch in
-			let name = opt_flag f 32 read_string ch in
-			let clip_depth = opt_flag f 64 read_ui16 ch in
-			let clip_events = opt_flag f 128 parse_clip_events ch in
-			TPlaceObject2 {
-				po_depth = depth;
-				po_move = move;
-				po_cid = cid;
-				po_matrix = matrix;
-				po_color = color;
-				po_ratio = ratio;
-				po_inst_name = name;
-				po_clip_depth = clip_depth;
-				po_events = clip_events;
-			}
+			TPlaceObject2 (parse_place_object ch false)			
 		| 0x1C ->
 			let depth = read_ui16 ch in
 			TRemoveObject2 depth
@@ -1068,18 +1119,15 @@ let rec parse_tag ch =
 		| 0x30 ->
 			TFont2 (parse_font2 ch len)
 		| 0x38 ->
-			let rec loop n =
-				if n = 0 then
-					[]
-				else
-					let cid = read_ui16 ch in
-					let name = read_string ch in
-					{
-						exp_id = cid;
-						exp_name = name
-					} :: loop (n-1)
+			let read_export() =
+				let cid = read_ui16 ch in
+				let name = read_string ch in
+				{
+					exp_id = cid;
+					exp_name = name
+				}
 			in
-			TExport (loop (read_ui16 ch))
+			TExport (read_count (read_ui16 ch) read_export ())
 		(*// 0x39 TImport *)
 		(*// 0x3A TEnableDebugger *)
 		| 0x3B ->
@@ -1099,6 +1147,8 @@ let rec parse_tag ch =
 		(*// 0x42 TSetTabIndex *)
 		| 0x45 ->			
 			TFlash8 (nread ch len)
+		| 0x46 ->
+			TPlaceObject3 (parse_place_object ch true)
 		| 0x49 ->
 			TFontGlyphs (parse_font_glyphs ch len)
 		| 0x4B ->
@@ -1181,6 +1231,7 @@ let rec tag_id = function
 	| TVideoStream _ -> 0x3C
 	| TVideoFrame _ -> 0x3D
 	| TFlash8 _ -> 0x45
+	| TPlaceObject3 _ -> 0x46
 	| TFontGlyphs _ -> 0x49
 	| TFont3 _ -> 0x4B
 	| TShape4 _ -> 0x53
@@ -1417,6 +1468,64 @@ let write_button2 ch b =
 	write_byte ch 0;
 	if b.bt2_actions <> [] then write_button_actions ch b.bt2_actions	
 
+let write_filter_gradient ch fg =
+	write_byte ch (List.length fg.fgr_colors);
+	List.iter (fun (c,_) -> write_rgba ch c) fg.fgr_colors;
+	List.iter (fun (_,n) -> write_byte ch n) fg.fgr_colors;
+	nwrite ch fg.fgr_data
+
+let write_filter ch = function
+	| FDropShadow s ->
+		write_byte ch 0;
+		nwrite ch s
+	| FBlur s ->
+		write_byte ch 1;
+		nwrite ch s
+	| FGlow s ->
+		write_byte ch 2;
+		nwrite ch s
+	| FBevel s ->
+		write_byte ch 3;
+		nwrite ch s
+	| FGradientGlow fg ->
+		write_byte ch 4;
+		write_filter_gradient ch fg
+	| FAdjustColor s ->
+		write_byte ch 6;
+		nwrite ch s
+	| FGradientBevel fg ->
+		write_byte ch 7;
+		write_filter_gradient ch fg
+
+let write_place_object ch p v3 =	
+	write_byte ch (make_flags [
+		p.po_move;
+		flag p.po_cid;
+		flag p.po_matrix;
+		flag p.po_color;
+		flag p.po_ratio;
+		flag p.po_inst_name;
+		flag p.po_clip_depth;
+		flag p.po_events
+	]);
+	if v3 then write_byte ch (make_flags [flag p.po_filters; flag p.po_blend; flag p.po_bcache]);
+	write_ui16 ch p.po_depth;
+	opt (write_ui16 ch) p.po_cid;
+	opt (write_matrix ch) p.po_matrix;
+	opt (write_cxa ch) p.po_color;
+	opt (write_ui16 ch) p.po_ratio;
+	opt (write_string ch) p.po_inst_name;
+	opt (write_ui16 ch) p.po_clip_depth;
+	opt (write_clip_events ch) p.po_events;
+	if v3 then begin
+		opt (fun l -> 
+			write_byte ch (List.length l);
+			List.iter (write_filter ch) l
+		) p.po_filters;
+		opt (write_byte ch) p.po_blend;
+		opt (write_byte ch) p.po_bcache;
+	end
+
 let rec write_tag_data ch = function
 	| TEnd ->
 		()		
@@ -1454,24 +1563,7 @@ let rec write_tag_data ch = function
 	| TProtect -> 
 		()
 	| TPlaceObject2 p ->
-		write_byte ch (make_flags [
-			p.po_move;
-			flag p.po_cid;
-			flag p.po_matrix;
-			flag p.po_color;
-			flag p.po_ratio;
-			flag p.po_inst_name;
-			flag p.po_clip_depth;
-			flag p.po_events
-		]);
-		write_ui16 ch p.po_depth;
-		opt (write_ui16 ch) p.po_cid;
-		opt (write_matrix ch) p.po_matrix;
-		opt (write_cxa ch) p.po_color;
-		opt (write_ui16 ch) p.po_ratio;
-		opt (write_string ch) p.po_inst_name;
-		opt (write_ui16 ch) p.po_clip_depth;
-		opt (write_clip_events ch) p.po_events;
+		write_place_object ch p false;
 	| TRemoveObject2 depth ->
 		write_ui16 ch depth;
 	| TShape3 s -> 
@@ -1518,6 +1610,8 @@ let rec write_tag_data ch = function
 		nwrite ch s
 	| TFlash8 s ->
 		nwrite ch s
+	| TPlaceObject3 p ->
+		write_place_object ch p true;
 	| TFontGlyphs f ->
 		write_font_glyphs ch f
 	| TFont3 f ->

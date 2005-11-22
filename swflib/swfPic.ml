@@ -200,6 +200,9 @@ let make_clip name pics baseid =
 				po_inst_name = None;
 				po_clip_depth = None;
 				po_events = None;
+				po_filters = None;
+				po_blend = None;
+				po_bcache = None;
 			} :: TShowFrame :: loop (i+1)
 	in
 	let tid = ref 0 in

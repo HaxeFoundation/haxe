@@ -350,6 +350,20 @@ type shape = {
 	sh_style : shape_with_style;
 }
 
+type filter_gradient = {
+	fgr_colors : (rgba * int) list;
+	fgr_data : unknown;
+}
+
+type filter =
+	| FDropShadow of unknown
+	| FBlur of unknown
+	| FGlow of unknown
+	| FBevel of unknown
+	| FGradientGlow of filter_gradient
+	| FAdjustColor of unknown
+	| FGradientBevel of filter_gradient
+
 type bitmap = {
 	mutable bmp_id : int;
 	bmp_data : string;
@@ -482,7 +496,7 @@ type tag_data =
 	| TBitsJPEG2 of bitmap
 	| TShape2 of shape
 	| TProtect
-	| TPlaceObject2 of place_object2
+	| TPlaceObject2 of place_object
 	| TRemoveObject2 of int
 	| TShape3 of shape
 	| TText2 of text
@@ -500,6 +514,7 @@ type tag_data =
 	| TVideoStream of unknown
 	| TVideoFrame of unknown
 	| TFlash8 of unknown
+	| TPlaceObject3 of place_object
 	| TFontGlyphs of font_glyphs
 	| TFont3 of font3
 	| TShape4 of shape
@@ -517,7 +532,7 @@ and clip_event = {
 	cle_actions : actions;
 }
 
-and place_object2 = {
+and place_object = {
 	po_depth : int;
 	po_move : bool;
 	mutable po_cid : int option;
@@ -527,6 +542,9 @@ and place_object2 = {
 	po_inst_name : string option;
 	po_clip_depth : int option;
 	po_events : clip_event list option;
+	po_filters : filter list option;
+	po_blend : int option;
+	po_bcache : int option;
 }
 
 and clip = {
