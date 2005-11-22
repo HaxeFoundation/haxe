@@ -130,6 +130,7 @@ let make_clip name pics baseid =
 				right = w * 20;
 				bottom = h * 20;
 			};
+			sh_bounds2 = None;
 			sh_style = {
 				sws_fill_styles = [
 					SFSBitmap {

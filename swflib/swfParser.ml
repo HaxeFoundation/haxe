@@ -141,7 +141,7 @@ let shape_fill_style_length s =
 	| SFSBitmap b -> 2 + matrix_length b.sfb_mpos
 
 let shape_line_style_length s =
-	2 + color_length s.sls_color
+	2 + color_length s.sls_color + opt_len (const 2) s.sls_unk
 
 let shape_array_length f s =
 	let n = List.length s in
@@ -189,7 +189,7 @@ let shape_with_style_length s =
 	shape_records_length s.sws_records
 
 let shape_length s =
-	2 + rect_length s.sh_bounds + shape_with_style_length s.sh_style
+	2 + rect_length s.sh_bounds + opt_len (fun (r,_) -> rect_length r + 1) s.sh_bounds2 + shape_with_style_length s.sh_style
 
 let bitmap_length b =
 	2 + String.length b.bmp_data
@@ -323,6 +323,8 @@ let rec tag_data_length = function
 		font_glyphs_length f
 	| TFont3 f ->
 		font3_length f
+	| TShape4 s ->
+		shape_length s
 	| TUnknown (_,data) ->
 		String.length data
 
@@ -556,18 +558,18 @@ let parse_clip_events ch =
 	in
 	loop()
 
-let parse_shape_fill_style ch is_shape3 =	
+let parse_shape_fill_style ch vshape =	
 	let t = read_byte ch in
 	match t with
-	| 0x00 when is_shape3 -> SFSSolid3 (read_rgba ch)
+	| 0x00 when vshape >= 3 -> SFSSolid3 (read_rgba ch)
 	| 0x00 -> SFSSolid (read_rgb ch)
 	| 0x10 -> 
 		let m = read_matrix ch in
-		let g = read_gradient ch is_shape3 in
+		let g = read_gradient ch (vshape >= 3) in
 		SFSLinearGradient (m,g)
 	| 0x12 ->
 		let m = read_matrix ch in
-		let g = read_gradient ch is_shape3 in
+		let g = read_gradient ch (vshape >= 3) in
 		SFSRadialGradient (m,g)
 	| 0x40
 	| 0x41
@@ -584,26 +586,28 @@ let parse_shape_fill_style ch is_shape3 =
 	| _ ->
 		assert false
 
-let parse_shape_line_style ch is_shape3 =
+let parse_shape_line_style ch vshape =	
 	let width = read_ui16 ch in
-	let color = (if is_shape3 then ColorRGBA (read_rgba ch) else ColorRGB (read_rgb ch)) in
+	let color = (if vshape >= 3 then ColorRGBA (read_rgba ch) else ColorRGB (read_rgb ch)) in
+	let unk = (if vshape = 4 then Some (read_ui16 ch) else None) in
 	{
 		sls_width = width;
 		sls_color = color;
+		sls_unk = unk;
 	}
 
-let parse_shape_array f ch is_shape3 =
+let parse_shape_array f ch vshape =
 	let rec loop n =
 		if n = 0 then
 			[]
 		else
-			let s = f ch is_shape3 in
+			let s = f ch vshape in
 			s :: loop (n-1)
 	in
 	let n = (match read_byte ch with 0xFF -> read_ui16 ch | n -> n) in	
 	loop n
 
-let parse_shape_style_change_record ch b flags nlbits nfbits is_shape3 =
+let parse_shape_style_change_record ch b flags nlbits nfbits vshape =
 	let move = (if flags land 1 <> 0 then begin
 		let mbits = read_bits b 5 in
 		let dx = read_bits b mbits in
@@ -617,8 +621,8 @@ let parse_shape_style_change_record ch b flags nlbits nfbits is_shape3 =
 	let ls = (if flags land 8 <> 0 then Some (read_bits b !nlbits) else None) in
 	let styles = (if flags land 16 <> 0 then begin		
 		IO.drop_bits b;
-		let fstyles = parse_shape_array parse_shape_fill_style ch is_shape3 in
-		let lstyles = parse_shape_array parse_shape_line_style ch is_shape3 in		
+		let fstyles = parse_shape_array parse_shape_fill_style ch vshape in
+		let lstyles = parse_shape_array parse_shape_line_style ch vshape in	
 		let bits = read_byte ch in
 		nlbits := bits land 15;
 		nfbits := bits lsr 4;
@@ -673,7 +677,7 @@ let parse_shape_straight_edge_record b flags =
 		sser_line = l;
 	}
 
-let parse_shape_records ch nlbits nfbits is_shape3 =
+let parse_shape_records ch nlbits nfbits vshape =
 	let b = input_bits ch in
 	let nlbits = ref nlbits in
 	let nfbits = ref nfbits in
@@ -684,7 +688,7 @@ let parse_shape_records ch nlbits nfbits is_shape3 =
 		else
 			let r = 
 				(if (flags land 32) = 0 then
-					SRStyleChange (parse_shape_style_change_record ch b flags nlbits nfbits is_shape3)
+					SRStyleChange (parse_shape_style_change_record ch b flags nlbits nfbits vshape)
 				else if (flags land 48) = 32 then
 					SRCurvedEdge (parse_shape_curved_edge_record b flags)
 				else
@@ -694,13 +698,13 @@ let parse_shape_records ch nlbits nfbits is_shape3 =
 	in
 	loop()
 
-let parse_shape_with_style ch is_shape3 =
-	let fstyles = parse_shape_array parse_shape_fill_style ch is_shape3 in
-	let lstyles = parse_shape_array parse_shape_line_style ch is_shape3 in
+let parse_shape_with_style ch vshape =
+	let fstyles = parse_shape_array parse_shape_fill_style ch vshape in
+	let lstyles = parse_shape_array parse_shape_line_style ch vshape in
 	let bits = read_byte ch in
 	let nlbits = bits land 15 in
 	let nfbits = bits lsr 4 in
-	let records = parse_shape_records ch nlbits nfbits is_shape3 in
+	let records = parse_shape_records ch nlbits nfbits vshape in
 	{
 		sws_fill_styles = fstyles;
 		sws_line_styles = lstyles;
@@ -712,13 +716,21 @@ let parse_shape_with_style ch is_shape3 =
 	}
 		
 
-let parse_shape ch len is_shape3 =
+let parse_shape ch len vshape =
 	let id = read_ui16 ch in
 	let bounds = read_rect ch in
-	let style = parse_shape_with_style ch is_shape3 in
+	let bounds2 = (if vshape = 4 then
+		let r = read_rect ch in
+		let b = read_byte ch in
+		Some (r, b)
+	else
+		None
+	) in
+	let style = parse_shape_with_style ch vshape in
 	{
 		sh_id = id;
 		sh_bounds = bounds;
+		sh_bounds2 = bounds2;
 		sh_style = style;
 	}
 
@@ -939,7 +951,7 @@ let rec parse_tag ch =
 		| 0x01 ->
 			TShowFrame
 		| 0x02 ->
-			TShape (parse_shape ch len false)
+			TShape (parse_shape ch len 1)
 		(*//0x04 TPlaceObject *)
 		| 0x05 ->
 			let cid = read_ui16 ch in
@@ -987,7 +999,7 @@ let rec parse_tag ch =
 		| 0x15 ->
 			TBitsJPEG2 (parse_bitmap ch len)
 		| 0x16 ->
-			TShape2 (parse_shape ch len false)
+			TShape2 (parse_shape ch len 2)
 		(*//0x17 TButtonCXForm *)
 		| 0x18 ->
 			TProtect
@@ -1017,7 +1029,7 @@ let rec parse_tag ch =
 			let depth = read_ui16 ch in
 			TRemoveObject2 depth
 		| 0x20 ->
-			TShape3 (parse_shape ch len true)		
+			TShape3 (parse_shape ch len 3)
 		| 0x21 ->
 			TText2 (parse_text ch true)
 		| 0x22 ->
@@ -1091,10 +1103,12 @@ let rec parse_tag ch =
 			TFontGlyphs (parse_font_glyphs ch len)
 		| 0x4B ->
 			TFont3 (parse_font3 ch len)
+		| 0x53 ->
+			TShape4 (parse_shape ch len 4)
 		| _ ->
 			if !Swf.warnings then Printf.printf "Unknown tag 0x%.2X\n" id;
 			TUnknown (id,nread ch len)
-	) in	
+	) in
 (*	let len2 = tag_data_length t in
 	if len <> len2 then error (Printf.sprintf "Datalen mismatch for tag 0x%.2X (%d != %d)" id len len2);
 *)	{
@@ -1169,6 +1183,7 @@ let rec tag_id = function
 	| TFlash8 _ -> 0x45
 	| TFontGlyphs _ -> 0x49
 	| TFont3 _ -> 0x4B
+	| TShape4 _ -> 0x53
 	| TUnknown (id,_) -> id
 
 let write_clip_event ch c =
@@ -1211,7 +1226,10 @@ let write_shape_fill_style ch s =
 
 let write_shape_line_style ch l =
 	write_ui16 ch l.sls_width;
-	write_color ch l.sls_color
+	write_color ch l.sls_color;
+	match l.sls_unk with
+	| None -> ()
+	| Some i -> write_ui16 ch i
 
 let write_shape_array ch f sl =
 	let n = List.length sl in
@@ -1285,6 +1303,11 @@ let write_shape_with_style ch s =
 let write_shape ch s =
 	write_ui16 ch s.sh_id;
 	write_rect ch s.sh_bounds;
+	(match s.sh_bounds2 with
+	| None -> ()
+	| Some (r,b) ->
+		write_rect ch r;
+		write_byte ch b);
 	write_shape_with_style ch s.sh_style
 
 let write_bitmap ch b =
@@ -1499,6 +1522,8 @@ let rec write_tag_data ch = function
 		write_font_glyphs ch f
 	| TFont3 f ->
 		write_font3 ch f
+	| TShape4 s ->
+		write_shape ch s
 	| TUnknown (_,data) ->
 		nwrite ch data
 

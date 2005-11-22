@@ -295,6 +295,7 @@ type shape_fill_style =
 type shape_line_style = {
 	sls_width : int;
 	sls_color : color;
+	sls_unk : int option;
 }
 
 type shape_new_styles = {
@@ -345,6 +346,7 @@ type shape_with_style = {
 type shape = {
 	mutable sh_id : int;
 	sh_bounds : rect;
+	sh_bounds2 : (rect * int) option;
 	sh_style : shape_with_style;
 }
 
@@ -500,6 +502,7 @@ type tag_data =
 	| TFlash8 of unknown
 	| TFontGlyphs of font_glyphs
 	| TFont3 of font3
+	| TShape4 of shape
 	| TUnknown of int * unknown
 
 and tag = {
