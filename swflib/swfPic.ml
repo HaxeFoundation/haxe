@@ -59,7 +59,9 @@ let unsigned v n =
 
 let load_picture file id =
 	let ch = IO.input_channel (try open_in_bin file with _ -> raise (File_not_found file)) in
-	let _ , ext = (try ExtString.String.split file "." with Not_found -> file , "") in
+	let len = String.length file in
+	let p = (try String.rindex file '.' with Not_found -> len) in
+	let ext = String.sub file (p + 1) (len - (p + 1)) in
 	match String.uppercase ext with
 	| "PNG" ->
 		let png , header, data = (try 
