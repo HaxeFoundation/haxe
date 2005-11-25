@@ -836,7 +836,7 @@ and type_function ctx t static constr f p =
 	let e = type_expr ctx f.f_expr in
 	let rec loop e =
 		match e.eexpr with
-		| TReturn _ -> raise Exit
+		| TReturn (Some _) -> raise Exit
 		| TFunction _ -> ()
 		| _ -> Type.iter loop e
 	in
