@@ -913,7 +913,8 @@ let init_class ctx c p types herits fields =
 			List.mem AStatic access, cf, delay
 		| FFun (name,access,f) ->
 			let r = load_type_opt ctx p f.f_type in
-			let t = TFun (List.map (fun (_,t) -> load_type_opt ctx p t) f.f_args,r) in
+			let args = List.map (fun (name,t) -> name , load_type_opt ctx p t) f.f_args in
+			let t = TFun (List.map snd args,r) in
 			let stat = List.mem AStatic access in
 			let cf = {
 				cf_name = name;
@@ -923,7 +924,13 @@ let init_class ctx c p types herits fields =
 			} in
 			let define_fun() = 
 				ctx.curclass <- c;
-				cf.cf_expr <- Some (type_function ctx t stat (name = "new") f p)
+				let e = type_function ctx t stat (name = "new") f p in
+				let f = {
+					tf_args = args;
+					tf_type = r;
+					tf_expr = e;
+				} in
+				cf.cf_expr <- Some (mk (TFunction f) t p)
 			in
 			stat || name = "new", cf , (if c.cl_native then (fun() -> ()) else define_fun)
 	in
