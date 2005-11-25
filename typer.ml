@@ -782,7 +782,10 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			unify (TFun (List.map (fun e -> e.etype) el,t)) e.etype e.epos;
 			t
 		| t ->
-			error (s_type (print_context()) t ^ " cannot be called") e.epos
+			if t == t_dynamic then
+				t
+			else
+				error (s_type (print_context()) t ^ " cannot be called") e.epos
 		) in
 		mk (TCall (e,el)) t p
 	| EField (e,i) ->
