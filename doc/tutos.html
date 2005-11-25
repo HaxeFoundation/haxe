@@ -20,13 +20,10 @@
 
 <ul class="big">
 	<li><code>-cp (path)</code> : adds a search path for files. Can be used several times for adding several different paths.</li>
+	<li><code>-swf (file)</code> : compile code to SWF file (create a new file)</li>
 	<li><code>-v</code> : verbose mode.</li>
 	<li>...more later</li>
 </ul>
-
-<p>
-	<font color="red">The alpha of the compiler does only typing, you can only play with it but it will not generate any binary right now</font>
-</p>
 
 <p>
 	To compile the class <code>my.Class</code> implemented in the file <code>c:\work\my\Class.hx</code> then simply run :
@@ -42,8 +39,31 @@
 
 <h2>Tutorials</h2>
 
+<h3>Flash Hello World</h3>
+
 <p>
-	Tutorials are not yet ready. If you're interesting in proposing some, please do it.
+	Create the following file named <code>Hello.hx</code> in <code>c:\work</code> for example :
+</p>
+
+<pre>
+<k>class</k> Hello {
+    <k>function new</k>() {
+        Boot._global.trace(<t>"hello world !"</t>);
+    }
+    <k>static var</k> init : Hello = <k>new</k> Hello();
+}
+</pre>
+
+<p>
+	Compile using the <b>haXe</b> compiler :
+</p>
+
+<pre>
+    haxe -cp "c:\work" -swf hello.swf Hello
+</pre>
+
+<p>
+	This will produce a <code>hello.swf</code> file. Drag'n drop it to an opened instance of the Flash IDE to see the trace.
 </p>
 
 <h2 class="end">Eof</h2>
