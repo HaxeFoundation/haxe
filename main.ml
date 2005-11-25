@@ -66,8 +66,13 @@ try
 	let time = Sys.time() in
 	Plugin.class_path := [base_path ^ "std/";"";"/"];
 	let args_spec = [
-		("-cp",Arg.String (fun path -> Plugin.class_path := normalize_path path :: !Plugin.class_path),"<path> : add a directory to find source files");
-		("-swf",Arg.String (fun file -> swf_out := Some file),"<file> : compile code to SWF file");
+		("-cp",Arg.String (fun path ->
+			Plugin.class_path := normalize_path path :: !Plugin.class_path
+		),"<path> : add a directory to find source files");
+		("-swf",Arg.String (fun file -> 
+			Plugin.class_path := (base_path ^ "flash/") :: !Plugin.class_path;
+			swf_out := Some file
+		),"<file> : compile code to SWF file");
 		("-v",Arg.Unit (fun () -> Plugin.verbose := true),": turn on verbose mode");
 	] @ !Plugin.options in
 	Arg.parse args_spec (fun cl -> classes := cl :: !classes) usage;
