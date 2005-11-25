@@ -1,5 +1,6 @@
-2005-11-??: alpha 2
-	swf generation
+2005-11-25: alpha 2
+	swf generation (missing iterators)
+	some typing fixes
 
 2005-11-17: alpha 1b
 	fix some bugs
