@@ -537,15 +537,6 @@ and type_unop ctx op flag e p =
 and type_switch ctx e cases def need_val p =
 	let e = type_expr ctx e in
 	let t = (if need_val then mk_mono() else t_void ctx) in
-	let constr name = 
-		let rec loop l =
-			match l with
-			| [] -> raise Not_found
-			| (_,TEnumDecl e) :: l -> if PMap.mem name e.e_constrs then e else loop l
-			| _ :: l -> loop l
-		in
-		loop ctx.local_types
-	in
 	let rec lookup_enum l =
 		match l with
 		| [] -> None
@@ -1013,11 +1004,11 @@ let type_module ctx m tdecls =
 			let m = load ctx t p in
 			ctx.local_types <- ctx.local_types @ m.mtypes
 		| EClass (name,types,herits,fields) ->
-			let c = List.find (fun (_,d) -> match d with TClassDecl ({ cl_path = _ , n } as c) -> n = name | _ -> false) m.mtypes in
+			let c = List.find (fun (_,d) -> match d with TClassDecl { cl_path = _ , n } -> n = name | _ -> false) m.mtypes in
 			let c = (match snd c with TClassDecl c -> c | _ -> assert false) in
 			delays := !delays @ check_overloading c p :: check_interfaces c p :: init_class ctx c p types herits fields
 		| EEnum (name,types,constrs) ->
-			let e = List.find (fun (_,d) -> match d with TEnumDecl ({ e_path = _ , n } as e) -> n = name | _ -> false) m.mtypes in
+			let e = List.find (fun (_,d) -> match d with TEnumDecl { e_path = _ , n } -> n = name | _ -> false) m.mtypes in
 			let e = (match snd e with TEnumDecl e -> e | _ -> assert false) in
 			ctx.type_params <- [];
 			e.e_types <- List.map (type_type_params ctx e.e_path p) types;

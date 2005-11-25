@@ -255,7 +255,6 @@ let func ctx need_super args =
 	} in
 	write ctx (AFunction2 f);
 	let start_pos = ctx.code_pos in
-	let op_pos = DynArray.length ctx.opcodes - 1 in
 	let old_stack = ctx.fun_stack in
 	let old_rmax = ctx.reg_max in
 	ctx.fun_stack <- ctx.stack_size;
@@ -282,7 +281,6 @@ let open_block ctx =
 let begin_loop ctx =
 	let old_breaks = ctx.breaks in
 	let old_cont = ctx.continues in
-	let old_stack = ctx.loop_stack in
 	ctx.breaks <- [];
 	ctx.continues <- [];
 	ctx.loop_stack <- ctx.stack_size;
@@ -760,7 +758,7 @@ and gen_unop ctx retval op flag e =
 			let k = gen_access ctx false e in
 			getvar ctx k
 		end;
-		let k = gen_access ctx false e in
+		ignore(gen_access ctx false e);
 		let k = gen_access ctx false e in
 		getvar ctx k;
 		write ctx (match op with Increment -> AIncrement | Decrement -> ADecrement | _ -> assert false);
