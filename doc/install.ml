@@ -19,17 +19,21 @@
 
 #load "unix.cma"
 
-
 (* ----- BEGIN CONFIGURATION ---- *)
 
-let zlib = "zlib.lib"
-let bytecode = true
+let bytecode = false
 let native = true
 
 (* ------ END CONFIGURATION ----- *)
 
 let obj_ext = match Sys.os_type with "Win32" -> ".obj" | _ -> ".o"
 let exe_ext = match Sys.os_type with "Win32" | "Cygwin" -> ".exe" | _ -> ""
+
+let zlib = match Sys.os_type with 
+	| "Win32" -> "zlib.lib" 
+	| _ -> 
+		let osx = "/usr/lib/libz.dylib" in
+		if Sys.file_exists osx then osx else "/usr/lib/libz.so.1"
 
 let msg m =
 	prerr_endline m;
