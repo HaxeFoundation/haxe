@@ -567,14 +567,14 @@ let write_event ch evt =
 (* PARSING *)
 
 let parse_clip_events ch =
-	let reserved = read_ui16 ch in
-	let all_events = read_event ch in
+	ignore(read_ui16 ch); (* reserved *)
+	ignore(read_event ch); (* all_events *)
 	let rec loop() =
 		let events = read_event ch in
 		if events = 0 then
 			[]
-		else
-			let len = read_i32 ch in
+		else begin
+			ignore(read_i32 ch); (* len *)
 			let key = (if events land (1 lsl 17) <> 0 then Some (read ch) else None) in
 			let e = {
 				cle_events = events;
@@ -582,6 +582,7 @@ let parse_clip_events ch =
 				cle_actions = parse_actions ch
 			} in
 			e :: (loop())
+		end;
 	in
 	loop()
 
@@ -1180,7 +1181,7 @@ let parse ch =
 	if sign <> "FWS" && sign <> "CWS" then error "Invalid SWF signature";
 	let ver = read_byte ch in
 	swf_version := ver;
-	let file_len = read_i32 ch in
+	ignore(read_i32 ch); (* file length *)
 	let compressed, ch = (if sign = "CWS" then true , inflate ch else false, ch) in
 	let size = read_rect ch in
 	let fps = read_ui16 ch in
