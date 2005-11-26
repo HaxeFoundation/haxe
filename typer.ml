@@ -27,6 +27,7 @@ type context = {
 	delays : (unit -> unit) list list ref;
 	warn : string -> pos -> unit; 
 	mutable std : module_def;
+	mutable untyped : bool;
 	(* per-module *)
 	current : module_def;
 	mutable local_types : (module_path * module_type) list;
@@ -63,17 +64,25 @@ let load_ref : (context -> module_path -> pos -> module_def) ref = ref (fun _ _ 
 
 let load ctx m p = (!load_ref) ctx m p
 
-let unify t1 t2 p =
-	if not (unify t1 t2) then raise (Error (Cannot_unify (t1,t2),p))
+let unify ctx t1 t2 p =
+	if not (unify t1 t2) && not ctx.untyped then raise (Error (Cannot_unify (t1,t2),p))
 
 (** since load_type is used in PASS2 , it cannot access the structure of a type **)
 
 let load_type_def ctx p tpath =
+	let no_pack = fst tpath = [] in
 	try
-		snd (List.find (fun (tp,_) -> tp = tpath || (fst tpath = [] && snd tp = snd tpath)) ctx.local_types)
+		snd (List.find (fun (tp,_) -> tp = tpath || (no_pack && snd tp = snd tpath)) ctx.local_types)
 	with
 		Not_found ->
-			let m = load ctx tpath p in
+			let tpath, m = (try 
+				if not no_pack || fst ctx.current.mpath = [] then raise Exit;
+				let tpath2 = fst ctx.current.mpath , snd tpath in
+				tpath2, load ctx tpath2 p 
+			with 				
+				| Error (Module_not_found _,p2) when p == p2 -> tpath, load ctx tpath p
+				| Exit -> tpath, load ctx tpath p
+			) in
 			try
 				snd (List.find (fun (tp,_) -> tp = tpath) m.mtypes)
 			with
@@ -106,9 +115,9 @@ let rec load_normal_type ctx t p allow_no_params =
 					(match c.cl_super with
 					| None -> ()
 					| Some (c,params) ->
-						unify t (TInst (c,params)) p);
+						unify ctx t (TInst (c,params)) p);
 					List.iter (fun (i,params) ->
-						unify t (TInst (i,params)) p
+						unify ctx t (TInst (i,params)) p
 					) c.cl_implements
 				| TEnum (c,[]) -> ()
 				| _ -> assert false);
@@ -146,7 +155,7 @@ let load_type_opt ctx p t =
 
 let set_heritance ctx c herits p =
 	let rec loop = function
-		| HNative ->
+		| HExtern | HInterface ->
 			()
 		| HExtends t ->
 			if c.cl_super <> None then error "Cannot extend several classes" p;
@@ -183,7 +192,8 @@ let type_type_params ctx path p (n,flags) =
 		(* build a phantom class *)
 		let c = {
 			cl_path = (fst path @ [snd path],n);
-			cl_native = false;
+			cl_extern = false;
+			cl_interface = false;
 			cl_types = [];
 			cl_super = None;
 			cl_implements = [];
@@ -308,8 +318,10 @@ let type_ident ctx i p =
 		in
 		loop ctx.local_types
 	with Not_found ->
-		if ctx.in_static && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
-		error ("Unknown identifier " ^ i) p 
+		if ctx.untyped then mk (TLocal i) t_dynamic p else begin
+			if ctx.in_static && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
+			error ("Unknown identifier " ^ i) p 
+		end
 
 let type_type ctx tpath p =
 	match load_type_def ctx p tpath with
@@ -333,7 +345,7 @@ let type_constant ctx c p =
 	| Ident "true" -> mk (TConst (TBool true)) (t_bool ctx) p
 	| Ident "false" -> mk (TConst (TBool false)) (t_bool ctx) p
 	| Ident "this" ->
-		if ctx.in_static then error "Cannot access this from a static function" p;
+		if not ctx.untyped && ctx.in_static then error "Cannot access this from a static function" p;
 		mk (TConst TThis) (TInst (ctx.curclass,List.map snd ctx.curclass.cl_types)) p
 	| Ident "super" ->
 		let t = (match ctx.curclass.cl_super with
@@ -348,9 +360,11 @@ let type_constant ctx c p =
 	| Type s ->
 		type_type ctx ([],s) p
 
-let check_assign e =
+let check_assign ctx e =
 	match e.eexpr with
 	| TLocal _ | TMember _ | TArray _ | TField _ ->
+		()
+	| TType _ when ctx.untyped ->
 		()
 	| _ ->
 		error "Invalid assign" e.epos
@@ -399,7 +413,7 @@ let type_matching ctx (enum,params) (e,p) ecases =
 
 let type_field ctx t i p =
 	let no_field() =
-		error (s_type (print_context()) t ^ " have no field " ^ i) p
+		if ctx.untyped then t_dynamic else error (s_type (print_context()) t ^ " have no field " ^ i) p
 	in
 	match follow t with
 	| TInst (c,params) ->
@@ -432,8 +446,7 @@ let type_field ctx t i p =
 	| TDynamic t ->
 		t
 	| TAnon fl ->
-		let f = (try PMap.find i fl with Not_found -> no_field()) in
-		f.cf_type
+		(try (PMap.find i fl).cf_type with Not_found -> no_field())		
 	| t ->
 		no_field()
 
@@ -459,8 +472,8 @@ let rec type_binop ctx op e1 e2 p =
 	| OpShr
 	| OpUShr ->
 		let i = t_int ctx in
-		unify e1.etype i e1.epos;
-		unify e2.etype i e2.epos;
+		unify ctx e1.etype i e1.epos;
+		unify ctx e2.etype i e2.epos;
 		mk_op i
 	| OpMod
 	| OpMult 
@@ -469,8 +482,8 @@ let rec type_binop ctx op e1 e2 p =
 		let i = t_int ctx in
 		let f1 = is_float e1.etype in
 		let f2 = is_float e2.etype in
-		if not f1 then unify e1.etype i e1.epos;
-		if not f2 then unify e2.etype i e2.epos;
+		if not f1 then unify ctx e1.etype i e1.epos;
+		if not f2 then unify ctx e2.etype i e2.epos;
 		if op <> OpDiv && not f1 && not f2 then
 			mk_op i
 		else
@@ -484,24 +497,24 @@ let rec type_binop ctx op e1 e2 p =
 	| OpLt
 	| OpLte ->
 		(try
-			unify e1.etype e2.etype p
+			unify ctx e1.etype e2.etype p
 		with
-			Error (Cannot_unify _,_) -> unify e2.etype e1.etype p);
+			Error (Cannot_unify _,_) -> unify ctx e2.etype e1.etype p);
 		mk_op (t_bool ctx)
 	| OpBoolAnd
 	| OpBoolOr ->
 		let b = t_bool ctx in
-		unify e1.etype b p;
-		unify e2.etype b p;
+		unify ctx e1.etype b p;
+		unify ctx e2.etype b p;
 		mk_op b
 	| OpInterval ->
 		let i = t_int ctx in
-		unify e1.etype i p;
-		unify e2.etype i p;
+		unify ctx e1.etype i p;
+		unify ctx e2.etype i p;
 		mk_op (TFun ([],i))
 	| OpAssign ->
-		unify e2.etype e1.etype p;
-		check_assign e1;
+		unify ctx e2.etype e1.etype p;
+		check_assign ctx e1;
 		mk_op e1.etype
 	| OpAssignOp op ->
 		let e = loop op in
@@ -518,17 +531,17 @@ and type_unop ctx op flag e p =
 	let t = (match op with
 	| Not ->
 		let b = t_bool ctx in
-		unify e.etype b e.epos;
+		unify ctx e.etype b e.epos;
 		b
 	| Increment
 	| Decrement
 	| Neg
 	| NegBits ->
-		if op = Increment || op = Decrement then check_assign e;
+		if op = Increment || op = Decrement then check_assign ctx e;
 		if is_float e.etype then 
 			t_float ctx
 		else begin
-			unify e.etype (t_int ctx) e.epos;
+			unify ctx e.etype (t_int ctx) e.epos;
 			t_int ctx
 		end
 	) in
@@ -562,10 +575,10 @@ and type_switch ctx e cases def need_val p =
 		let locals = ctx.locals in
 		let e1 = (match enum with Some e -> type_matching ctx e e1 ecases | None -> type_expr ctx e1) in
 		(* this inversion is needed *)
-		unify e.etype e1.etype e1.epos; 
+		unify ctx e.etype e1.etype e1.epos; 
 		let e2 = type_expr ctx e2 in
 		ctx.locals <- locals;
-		if need_val then unify e2.etype t e2.epos;
+		if need_val then unify ctx e2.etype t e2.epos;
 		(e1,e2)
 	) cases in
 	let def = (match def with
@@ -583,7 +596,7 @@ and type_switch ctx e cases def need_val p =
 			None
 		| Some e ->
 			let e = type_expr ctx e in
-			if need_val then unify e.etype t e.epos;
+			if need_val then unify ctx e.etype t e.epos;
 			Some e
 	) in
 	mk (TSwitch (e,cases,def)) t p
@@ -596,9 +609,9 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	| EArray (e1,e2) ->
 		let e1 = type_expr ctx e1 in
 		let e2 = type_expr ctx e2 in
-		unify e2.etype (t_int ctx) e2.epos;
+		unify ctx e2.etype (t_int ctx) e2.epos;
 		let t , pt = t_array ctx in
-		unify e1.etype t e1.epos;
+		unify ctx e1.etype t e1.epos;
 		mk (TArray (e1,e2)) pt p
     | EBinop (op,e1,e2) -> 
 		type_binop ctx op e1 e2 p
@@ -649,7 +662,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let t , pt = t_array ctx in
 		let el = List.map (fun e ->
 			let e = type_expr ctx e in
-			unify e.etype pt e.epos;
+			unify ctx e.etype pt e.epos;
 			e
 		) el in
 		mk (TArrayDecl el) t p
@@ -660,7 +673,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				| None -> None 
 				| Some e ->
 					let e = type_expr ctx e in
-					unify e.etype t p;
+					unify ctx e.etype t p;
 					Some e
 			) in
 			ctx.locals <- PMap.add v t ctx.locals;
@@ -675,9 +688,9 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		| TAnon _
 		| TInst _ ->
 			let ft = type_field ctx e1.etype "iterator" e1.epos in
-			unify ft t e1.epos 
+			unify ctx ft t e1.epos 
 		| _ ->
-			unify e1.etype t e1.epos;
+			unify ctx e1.etype t e1.epos;
 		);
 		let locals = ctx.locals in
 		ctx.locals <- PMap.add i pt ctx.locals;
@@ -686,24 +699,24 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		mk (TFor (i,e1,e2)) (t_void ctx) p
 	| EIf (e,e1,e2) ->
 		let e = type_expr ctx e in
-		unify e.etype (t_bool ctx) e.epos;
+		unify ctx e.etype (t_bool ctx) e.epos;
 		let e1 = type_expr ctx ~need_val e1 in
 		(match e2 with
 		| None -> mk (TIf (e,e1,None)) (t_void ctx) p
 		| Some e2 ->
 			let e2 = type_expr ctx ~need_val e2 in
 			let t = if not need_val then t_void ctx else (try
-				unify e1.etype e2.etype p;
+				unify ctx e1.etype e2.etype p;
 				e2.etype
 			with
 				Error (Cannot_unify _,_) ->
-					unify e2.etype e1.etype p;
+					unify ctx e2.etype e1.etype p;
 					e1.etype
 			) in
 			mk (TIf (e,e1,Some e2)) t p)
 	| EWhile (cond,e,flag) ->
 		let cond = type_expr ctx cond in
-		unify cond.etype (t_bool ctx) cond.epos;
+		unify ctx cond.etype (t_bool ctx) cond.epos;
 		let e = type_expr ctx e in
 		mk (TWhile (cond,e,flag)) (t_void ctx) p
 	| ESwitch (e,cases,def) ->
@@ -712,11 +725,11 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let e , t = (match e with
 			| None ->
 				let v = t_void ctx in 
-				unify v ctx.ret p;
+				unify ctx v ctx.ret p;
 				None , v
 			| Some e -> 
 				let e = type_expr ctx e in
-				unify e.etype ctx.ret e.epos;
+				unify ctx e.etype ctx.ret e.epos;
 				Some e , e.etype
 		) in
 		mk (TReturn e) (t_void ctx) p
@@ -732,11 +745,11 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			ctx.locals <- PMap.add v t ctx.locals;
 			let e = type_expr ctx ~need_val e in
 			ctx.locals <- locals;
-			if not need_val then unify e.etype e1.etype e.epos;
+			if not need_val then unify ctx e.etype e1.etype e.epos;
 			v , t , e
 		) catches in
 		mk (TTry (e1,catches)) (if not need_val then t_void ctx else e1.etype) p
-	| ECall ((EConst (Ident "throw"),_),[e]) ->
+	| EThrow e ->
 		let e = type_expr ctx e in
 		mk (TThrow e) (mk_mono()) p
 	| ECall ((EConst (Ident "type"),_),[e]) ->
@@ -753,7 +766,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			(match apply_params c.cl_types params f.cf_type with
 			| TFun (args,r) ->
 				if List.length args <> List.length el then error "Invalid number of constructor parameters" p;
-				List.iter2 (fun e t -> unify e.etype t e.epos) el args;
+				List.iter2 (fun e t -> unify ctx e.etype t e.epos) el args;
 			| _ ->
 				error "Constructor is not a function" p);
 		);
@@ -765,12 +778,12 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		| TFun (args,r) ->
 			if List.length args <> List.length el then error "Invalid number of arguments" p;
 			List.iter2 (fun e t ->
-				unify e.etype t e.epos;
+				unify ctx e.etype t e.epos;
 			) el args;
 			r
 		| TMono _ ->
 			let t = mk_mono() in
-			unify (TFun (List.map (fun e -> e.etype) el,t)) e.etype e.epos;
+			unify ctx (TFun (List.map (fun e -> e.etype) el,t)) e.etype e.epos;
 			t
 		| t ->
 			if t == t_dynamic then
@@ -793,7 +806,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			(match apply_params c.cl_types params f.cf_type with
 			| TFun (args,r) ->
 				if List.length args <> List.length el then error "Invalid number of constructor parameters" p;
-				List.iter2 (fun e t -> unify e.etype t e.epos) el args;
+				List.iter2 (fun e t -> unify ctx e.etype t e.epos) el args;
 			| _ ->
 				error "Constructor is not a function" p);
 			c , params , t
@@ -814,6 +827,12 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			tf_expr = e;
 		} in
 		mk (TFunction f) ft p
+	| EUntyped e ->
+		let old = ctx.untyped in
+		ctx.untyped <- true;
+		let e = type_expr ctx e in
+		ctx.untyped <- old;
+		e
 
 and type_function ctx t static constr f p =
 	let locals = ctx.locals in
@@ -838,7 +857,7 @@ and type_function ctx t static constr f p =
 	if have_ret then 
 		return_flow e
 	else
-		unify r (t_void ctx) p;
+		unify ctx r (t_void ctx) p;
 	ctx.locals <- locals;
 	ctx.ret <- old_ret;
 	ctx.in_static <- old_static;
@@ -848,7 +867,7 @@ and type_function ctx t static constr f p =
 let type_static_var ctx t e p =
 	ctx.in_static <- true;
 	let e = type_expr ctx e in
-	unify e.etype t p;
+	unify ctx e.etype t p;
 	e
 
 let check_overloading c p () =
@@ -885,8 +904,19 @@ let init_class ctx c p types herits fields =
 	ctx.type_params <- [];
 	c.cl_types <- List.map (type_type_params ctx c.cl_path p) types;
 	ctx.type_params <- c.cl_types;
-	c.cl_native <- List.mem HNative herits;
+	c.cl_extern <- List.mem HExtern herits;
+	c.cl_interface <- List.mem HInterface herits;
 	set_heritance ctx c herits p;
+	let is_public access =
+		if c.cl_extern || c.cl_interface then not (List.mem APrivate access) else List.mem APublic access
+	in
+	let type_opt p t =
+		match t with
+		| None when c.cl_extern || c.cl_interface ->
+			error "Type required for extern classes and interfaces" p
+		| _ ->
+			load_type_opt ctx p t
+	in
 	let loop_cf f p =
 		match f with
 		| FVar (name,access,t,e) ->
@@ -895,7 +925,7 @@ let init_class ctx c p types herits fields =
 				cf_name = name;
 				cf_type = t;
 				cf_expr = None;
-				cf_public = List.mem APublic access;
+				cf_public = is_public access;
 			} in
 			let delay = (match e with 
 				| None -> (fun() -> ())
@@ -906,15 +936,15 @@ let init_class ctx c p types herits fields =
 			) in
 			List.mem AStatic access, cf, delay
 		| FFun (name,access,f) ->
-			let r = load_type_opt ctx p f.f_type in
-			let args = List.map (fun (name,t) -> name , load_type_opt ctx p t) f.f_args in
+			let r = type_opt p f.f_type in
+			let args = List.map (fun (name,t) -> name , type_opt p t) f.f_args in
 			let t = TFun (List.map snd args,r) in
 			let stat = List.mem AStatic access in
 			let cf = {
 				cf_name = name;
 				cf_type = t;
 				cf_expr = None;
-				cf_public = List.mem APublic access;
+				cf_public = is_public access;
 			} in
 			let define_fun() = 
 				ctx.curclass <- c;
@@ -926,7 +956,7 @@ let init_class ctx c p types herits fields =
 				} in
 				cf.cf_expr <- Some (mk (TFunction f) t p)
 			in
-			stat || name = "new", cf , (if c.cl_native then (fun() -> ()) else define_fun)
+			stat || name = "new", cf , (if c.cl_extern || c.cl_interface then (fun() -> ()) else define_fun)
 	in
 	List.map (fun (f,p) ->
 		let static , f , delayed = loop_cf f p in
@@ -959,7 +989,8 @@ let type_module ctx m tdecls =
 			let c = { 
 				cl_path = path;
 				cl_types = [];
-				cl_native = false;
+				cl_extern = false;
+				cl_interface = false;
 				cl_super = None;
 				cl_implements = [];
 				cl_fields = PMap.empty;
@@ -996,6 +1027,7 @@ let type_module ctx m tdecls =
 		type_params = [];
 		in_constructor = false;
 		in_static = false;
+		untyped = false;
 	} in
 	let delays = ref [] in
 	List.iter (fun (d,p) ->
@@ -1056,6 +1088,7 @@ let context warn =
 		delays = ref [];
 		in_constructor = false;
 		in_static = false;
+		untyped = false;
 		ret = mk_mono();
 		warn = warn;
 		locals = PMap.empty;
@@ -1063,7 +1096,8 @@ let context warn =
 		type_params = [];
 		curclass = {
 			cl_path = [] , "";
-			cl_native = false;
+			cl_extern = false;
+			cl_interface = false;
 			cl_types = [];
 			cl_super = None;
 			cl_implements = [];
