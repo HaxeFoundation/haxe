@@ -1,8 +1,10 @@
+// standard haXe types
+
 enum Void { }
 
-native class Float { }
+extern class Float { }
 
-native class Int extends Float { }
+extern class Int extends Float { }
 
 enum Bool {
 	true;
@@ -10,4 +12,8 @@ enum Bool {
 }
 
 enum Dynamic<T> {
+}
+
+class Std {
+
 }

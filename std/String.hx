@@ -1,9 +1,20 @@
-native class String {
+extern class String {
 
-	public var length : Int;
+	var length : Int;
 
-	public function new( s : String ) { }
-	public function sub( p : Int, l : Int) : String { }
-	public function split( s : String ) : Array<String> { }
+	function new(string:String) : Void;
+
+	function toUpperCase() : String;
+	function toLowerCase() : String;
+
+	function charAt( index : Int) : String;
+	function charCodeAt( index : Int) : Int;
+
+	function indexOf( value : String, startIndex : Int ) : Int;
+	function lastIndexOf( value : String, startIndex : Int ) : Int;
+	function split( delimiter : String ) : Array<String>;
+
+	/* added */
+	function sub( pos : Int, len : Int ) : String;
 
 }
