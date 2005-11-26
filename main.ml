@@ -63,19 +63,32 @@ try
 	let base_path = normalize_path (try Extc.executable_path() with _ -> "./") in
 	let classes = ref [] in
 	let swf_out = ref None in
+	let swf_version = ref 8 in
 	let time = Sys.time() in
 	Plugin.class_path := [base_path ^ "std/";"";"/"];
 	let args_spec = [
 		("-cp",Arg.String (fun path ->
 			Plugin.class_path := normalize_path path :: !Plugin.class_path
 		),"<path> : add a directory to find source files");
-		("-swf",Arg.String (fun file -> 
+		("-swf",Arg.String (fun file ->
+			classes := "Boot" :: !classes;
 			Plugin.class_path := (base_path ^ "flash/") :: !Plugin.class_path;
 			swf_out := Some file
 		),"<file> : compile code to SWF file");
+		("-fplayer",Arg.Int (fun v ->
+			swf_version := v;
+		),"<version> : flash player version (8 by default)");
+		("-D",Arg.String (fun def ->
+			Hashtbl.add Parser.defines def ();
+		),"<var> : define the macro variable");
 		("-v",Arg.Unit (fun () -> Plugin.verbose := true),": turn on verbose mode");
 	] @ !Plugin.options in
 	Arg.parse args_spec (fun cl -> classes := cl :: !classes) usage;
+	(match !swf_out with
+	| None -> ()
+	| Some _ ->
+		Hashtbl.add Parser.defines "flash" ();
+		Hashtbl.add Parser.defines ("flash" ^ string_of_int !swf_version) ());
 	if !classes = [] then begin
 		Arg.usage args_spec usage
 	end else begin
@@ -88,7 +101,7 @@ try
 		| None -> ()
 		| Some file ->
 			if !Plugin.verbose then print_endline ("Generating swf : " ^ file);
-			Genswf.generate file modules
+			Genswf.generate file (!swf_version) modules
 		);
 		if !Plugin.verbose then print_endline ("Time spent : " ^ string_of_float (Sys.time() -. time));
 	end;
