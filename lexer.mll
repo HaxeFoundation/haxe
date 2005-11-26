@@ -47,8 +47,8 @@ let keywords =
 	List.iter (fun k -> Hashtbl.add h (s_keyword k) k) 
 		[Function;Class;Static;Var;If;Else;While;Do;For;
 		Break;Return;Continue;Extends;Implements;Import;
-		Switch;Case;Default;Public;Private;Try;
-		Catch;New;This;Throw;Native;Enum;In];
+		Switch;Case;Default;Public;Private;Try;Untyped;
+		Catch;New;This;Throw;Extern;Enum;In;Interface];
 	h
 
 let init file =
@@ -202,6 +202,11 @@ rule token = parse
 			let pmax = (try string2 lexbuf with Exit -> error Unterminated_string pmin) in
 			mk_tok (Const (String (contents()))) pmin pmax;
 		}
+	| '#' ident { 
+			let v = lexeme lexbuf in
+			let v = String.sub v 1 (String.length v - 1) in
+			mk lexbuf (Macro v) 
+		}	
 	| ident { mk_ident lexbuf }
 	| idtype { mk lexbuf (Const (Type (lexeme lexbuf))) }
 	| _ { error (Invalid_character (lexeme_char lexbuf 0)) (lexeme_start lexbuf) }
