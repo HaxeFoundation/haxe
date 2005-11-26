@@ -87,7 +87,8 @@ and tclass_field = {
 
 and tclass = {
 	cl_path : module_path;
-	mutable cl_native : bool;
+	mutable cl_extern : bool;
+	mutable cl_interface : bool;
 	mutable cl_types : (string * t) list;
 	mutable cl_super : (tclass * t list) option;
 	mutable cl_implements : (tclass * t list) list;
