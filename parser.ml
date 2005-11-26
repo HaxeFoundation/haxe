@@ -22,6 +22,8 @@ type error_msg =
 	| Unexpected of token
 	| Duplicate_default
 	| Missing_semicolon
+	| Unclosed_macro
+	| Unimplemented
 
 exception Error of error_msg * pos
 
@@ -29,12 +31,23 @@ let error_msg = function
 	| Unexpected t -> "Unexpected "^(s_token t)
 	| Duplicate_default -> "Duplicate default"
 	| Missing_semicolon -> "Missing ;"
+	| Unclosed_macro -> "Unclosed macro"
+	| Unimplemented -> "Not implemented for current platform"
 
 let error m p = raise (Error (m,p))
 
+let cache = ref (DynArray.create())
+
+let last_token s =
+	let n = Stream.count s in
+	DynArray.get (!cache) (if n = 0 then 0 else n - 1)
+
 let serror() = raise (Stream.Error "")
 
-let last = ref (Eof,null_pos)
+let defines =
+	let h = Hashtbl.create 0 in
+	Hashtbl.add h "true" ();
+	h
 
 let priority = function
 	| OpAssign | OpAssignOp _ -> -4
@@ -103,12 +116,14 @@ let comma = parser
 	| [< '(Comma,_) >] -> ()
 
 let semicolon s =
-	if fst (!last) = BrClose then
-		snd (!last)
-	else
+	if fst (last_token s) = BrClose then
 		match s with parser
 		| [< '(Semicolon,p) >] -> p
-		| [< '(_,p) >] -> error Missing_semicolon p
+		| [< >] -> snd (last_token s)
+	else 
+		match s with parser
+		| [< '(Semicolon,p) >] -> p
+		| [< s >] -> error Missing_semicolon (snd (last_token s))
 
 let rec	parse_file = parser
 	| [< '(Const (Ident "package"),_); p = parse_package; _ = semicolon; l = plist parse_type_decl; '(Eof,_); >] -> p , l
@@ -122,7 +137,7 @@ and parse_type_decl = parser
 and parse_package s = psep Dot ident s
 
 and parse_class_native = parser
-	| [< '(Kwd Native,_); '(Kwd Class,p1) >] -> [HNative] , p1
+	| [< '(Kwd Extern,_); '(Kwd Class,p1) >] -> [HExtern] , p1
 	| [< '(Kwd Class,p1) >] -> [] , p1
 
 and parse_type_opt = parser
@@ -181,7 +196,12 @@ and parse_class_field = parser
 			| [< >] -> serror()
 			) in
 			(FVar (name,l,t,e),punion p1 p2)
-		| [< '(Kwd Function,p1); name = parse_fun_name; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; e = expr >] ->
+		| [< '(Kwd Function,p1); name = parse_fun_name; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->			
+			let e = (match s with parser
+				| [< e = expr >] -> e
+				| [< '(Semicolon,p) >] -> (EBlock [],p)
+				| [< >] -> serror()
+			) in
 			let f = {
 				f_args = al;
 				f_type = t;
@@ -243,7 +263,7 @@ and expr = parser
 	| [< '(BrOpen,p1); e = block1; '(BrClose,p2) >] -> (e,punion p1 p2)
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
-	| [< '(Kwd Throw,p); s >] -> expr_next (EConst (Ident "throw"),p) s
+	| [< '(Kwd Throw,p); e = expr >] -> (EThrow e,p)
 	| [< '(Kwd New,p1); t = parse_type_path_normal; '(POpen,_); al = psep Comma expr; '(PClose,p2); s >] -> expr_next (ENew (t,al),punion p1 p2) s
 	| [< '(POpen,p1); e = expr; '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
 	| [< '(BkOpen,p1); l = psep Comma expr; _ = popt comma; '(BkClose,p2); s >] -> expr_next (EArrayDecl l, punion p1 p2) s
@@ -260,7 +280,16 @@ and expr = parser
 	| [< '(Kwd If,p); cond = expr; e1 = expr; s >] ->
 		let e2 , s = (match s with parser
 			| [< '(Kwd Else,_); e2 = expr; s >] -> Some e2 , s
-			| [< >] -> None , s
+			| [< >] -> 
+				match Stream.npeek 2 s with
+				| [(Semicolon,_);(Kwd Else,_)] ->
+					Stream.junk s;
+					Stream.junk s;
+					(match s with parser
+					| [< e2 = expr; s >] -> Some e2, s
+					| [< >] -> serror())
+				| _ ->
+					None , s
 		) in
 		expr_next (EIf (cond,e1,e2), punion p (match e2 with None -> pos e1 | Some e -> pos e)) s
 	| [< '(Kwd Return,p); e = popt expr >] -> (EReturn e, match e with None -> p | Some e -> punion p (pos e))
@@ -271,6 +300,7 @@ and expr = parser
 	| [< '(Kwd Switch,p1); e = expr; '(BrOpen,_); cases , def = parse_switch_cases; '(BrClose,p2); s >] -> expr_next (ESwitch (e,cases,def),punion p1 p2) s
 	| [< '(Kwd Try,p1); e = expr; cl = plist parse_catch; s >] -> expr_next (ETry (e,cl),p1) s
 	| [< '(IntInterval i,p1); e2 = expr >] -> make_binop OpInterval (EConst (Int i),p1) e2
+	| [< '(Kwd Untyped,p1); e = expr >] -> (EUntyped e,punion p1 (pos e))
 
 and expr_next e1 = parser
 	| [< '(Dot,_); s >] -> 
@@ -312,26 +342,83 @@ and parse_catch = parser
 
 let parse code file =
 	let old = Lexer.save() in
-	Lexer.init file;
-	last := (Eof,null_pos);
-	let rec next_token x =
-		let tk = Lexer.token code in
+	let old_cache = !cache in
+	let mstack = ref [] in
+	cache := DynArray.create();
+	Lexer.init file;	
+	let rec next_token() =
+		let tk = Lexer.token code in		
 		match fst tk with 
 		| Comment s | CommentLine s -> 
-			next_token x
+			next_token()
+		| Macro "end" ->
+			(match !mstack with
+			| [] -> serror()
+			| _ :: l -> 
+				mstack := l;
+				next_token())
+		| Macro "else" ->
+			skip_tokens()
+		| Macro s ->
+			enter_macro s (snd tk)
 		| _ ->
-			last := tk;
-			Some tk
+			tk	
+
+	and macro_else tk =
+		(match !mstack with
+		| [] -> serror()
+		| _ :: l -> 
+			mstack := l;
+			match Lexer.token code with
+			| (Const (Ident s),p) ->
+				enter_macro s p
+			| _ ->
+				serror())
+
+	and enter_macro s p =
+		mstack := p :: !mstack;
+		if s = "error" then error Unimplemented p;
+		if Hashtbl.mem defines s then
+			next_token()
+		else 
+			skip_tokens()
+	
+	and skip_tokens() =
+		let rec loop() =
+			let tk = Lexer.token code in
+			match fst tk with
+			| Macro "end"  ->
+				mstack := (match !mstack with [] -> assert false | _ :: l -> l);
+				next_token()
+			| Macro "else" ->
+				macro_else tk
+			| Macro s ->
+				ignore(skip_tokens());
+				loop()
+			| _ ->
+				loop()
+		in
+		loop()
 	in
+	let s = Stream.from (fun _ -> 
+		let t = next_token() in
+		DynArray.add (!cache) t;
+		Some t
+	) in
 	try
-		let l = parse_file (Stream.from next_token) in
+		let l = parse_file s in
+		(match !mstack with [] -> () | p :: _ -> error Unclosed_macro p);
+		cache := old_cache;
 		Lexer.restore old;
 		l
 	with
 		| Stream.Error _
 		| Stream.Failure -> 
+			let last = last_token s in
 			Lexer.restore old;
-			error (Unexpected (fst !last)) (pos !last)
+			cache := old_cache;
+			error (Unexpected (fst last)) (pos last)
 		| e ->
 			Lexer.restore old;
+			cache := old_cache;
 			raise e
