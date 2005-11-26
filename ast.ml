@@ -49,9 +49,11 @@ type keyword =
 	| New
 	| This
 	| Throw
-	| Native
+	| Extern
 	| Enum
 	| In
+	| Interface
+	| Untyped
 	
 type binop =
 	| OpAdd
@@ -113,6 +115,7 @@ type token =
 	| DblDot
 	| Arrow
 	| IntInterval of string
+	| Macro of string
 
 type unop_flag =
 	| Prefix
@@ -162,6 +165,8 @@ and expr_def =
 	| EReturn of expr option
 	| EBreak
 	| EContinue
+	| EUntyped of expr
+	| EThrow of expr
 
 and expr = expr_def * pos
 
@@ -175,7 +180,8 @@ type class_field =
 	| FFun of string * access list * func
 
 type type_param_flag =
-	| HNative
+	| HInterface
+	| HExtern
 	| HExtends of type_path_normal
 	| HImplements of type_path_normal
 
@@ -257,9 +263,11 @@ let s_keyword = function
 	| New -> "new"
 	| This -> "this"
 	| Throw -> "throw"
-	| Native -> "native"
+	| Extern -> "extern"
 	| Enum -> "enum"
 	| In -> "in"
+	| Interface -> "interface"
+	| Untyped -> "untyped"
 
 let rec s_binop = function
 	| OpAdd -> "+"
@@ -314,3 +322,4 @@ let s_token = function
 	| DblDot -> ":"
 	| Arrow -> "->"
 	| IntInterval s -> s ^ "..."
+	| Macro s -> "#" ^ s
