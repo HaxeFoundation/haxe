@@ -30,7 +30,7 @@ type context = {
 
 	(* management *)
 	idents : (string,int) Hashtbl.t;
-	types : (module_path,string) Hashtbl.t;
+	types : (module_path,(string * bool)) Hashtbl.t;
 	mutable statics : (string * string * texpr) list;
 	mutable regs : (string,int option) PMap.t;
 	mutable reg_count : int;
@@ -405,13 +405,15 @@ let gen_ident =
 	in
 	loop
 
-let gen_type ctx t =
+let gen_type ctx t extern =
 	try
-		Hashtbl.find ctx.types t
+		let id , e = Hashtbl.find ctx.types t in
+		if e <> extern then assert false;
+		id
 	with
 		Not_found ->
 			let id = gen_ident() in
-			Hashtbl.add ctx.types t id;
+			Hashtbl.add ctx.types t (id,extern);
 			id
 
 let no_value ctx retval =
@@ -506,14 +508,14 @@ let rec gen_access ctx forcall e =
 		gen_expr ctx eb;
 		VarObj
 	| TEnumField (e,f) ->
-		push ctx [VStr (gen_type ctx e.e_path)];
+		push ctx [VStr (gen_type ctx e.e_path false)];
 		write ctx AEval;
 		push ctx [VStr f];
 		VarObj
 	| TType t ->
 		push ctx [VStr (match t with
-			| TClassDecl c -> gen_type ctx c.cl_path
-			| TEnumDecl e -> gen_type ctx e.e_path
+			| TClassDecl c -> gen_type ctx c.cl_path c.cl_extern
+			| TEnumDecl e -> gen_type ctx e.e_path false
 		)];
 		VarStr
 	| _ ->
@@ -903,7 +905,7 @@ and gen_expr ctx ?(retval=true) e =
 		let nargs = List.length el in
 		List.iter (gen_expr ctx) (List.rev el);
 		push ctx [VInt nargs];
-		push ctx [VStr (gen_type ctx c.cl_path)];
+		push ctx [VStr (gen_type ctx c.cl_path c.cl_extern)];
 		new_call ctx VarStr nargs
 	| TSwitch (e,cases,def) ->
 		let is_enum = cases <> [] && List.for_all (fun (e,_) -> match e.eexpr with TMatch _ -> true | _ -> false) cases in
@@ -979,10 +981,10 @@ let gen_enum_field ctx f =
 let gen_type_def ctx t tdef =
 	match tdef with
 	| TClassDecl c ->
-		if c.cl_native then 
+		if c.cl_extern || c.cl_interface then 
 			()
 		else
-		let id = gen_type ctx t in
+		let id = gen_type ctx t false in
 		push ctx [VStr id];
 		(try 
 			let constr = PMap.find "new" c.cl_statics in
@@ -1002,25 +1004,71 @@ let gen_type_def ctx t tdef =
 		PMap.iter (fun _ f -> gen_class_static_field ctx id f) c.cl_statics;
 		PMap.iter (fun _ f -> gen_class_field ctx f) c.cl_fields;
 	| TEnumDecl e ->
-		let id = gen_type ctx t in
+		let id = gen_type ctx t false in
 		push ctx [VStr id; VInt 0; VStr "Object"];
 		write ctx ANew;
 		write ctx (ASetReg 0);
 		setvar ctx VarStr;
 		PMap.iter (fun _ f -> gen_enum_field ctx f) e.e_constrs
 
-let gen_boot ctx =
-	let id = gen_type ctx ([],"Boot") in
+let gen_boot ctx m =
+	let id = gen_type ctx ([],"Boot") false in
+	(* r0 = Boot *)
 	push ctx [VStr id];
-	push ctx [VStr "_global"; VStr "_global"];
 	write ctx AEval;
-	push ctx [VStr "_root"; VStr "_root"];
+	write ctx (ASetReg 0);
+	write ctx APop;
+	(* r0._global = eval("_global") *)
+	push ctx [VReg 0; VStr "_global"; VStr "_global"];
 	write ctx AEval;
-	push ctx [VStr "current"; VStr "this"];
+	write ctx AObjSet;
+	(* r0._root = eval("_root") *)
+	push ctx [VReg 0; VStr "_root"; VStr "_root"];
 	write ctx AEval;
-	push ctx [VInt 3];
-	write ctx AObject;
-	write ctx ASet
+	write ctx AObjSet;
+	(* r0.current = eval("this") *)
+	push ctx [VReg 0; VStr "current"; VStr "this"];
+	write ctx AEval;
+	write ctx AObjSet;
+	(* r0.newObject = function(x,args) {
+		if( x == null )
+			x = Object;
+		return new x(args[0],arg[1],arg[2],args[3],args[4],args[5]);
+	} *)
+	push ctx [VReg 0; VStr "newObject"];
+	ctx.reg_count <- 3;
+	let fdone = func ctx false [(2,"");(3,"")] in
+	let size = ctx.stack_size in
+	push ctx [VReg 2; VNull];
+	write ctx APhysEqual;
+	write ctx ANot;
+	let j = cjmp ctx in
+	push ctx [VStr "Object"];
+	write ctx AEval;
+	write ctx (ASetReg 2);
+	write ctx APop;
+	j();
+	push ctx [VReg 3;VInt 5];
+	write ctx AObjGet;
+	push ctx [VReg 3;VInt 4];
+	write ctx AObjGet;
+	push ctx [VReg 3;VInt 3];
+	write ctx AObjGet;
+	push ctx [VReg 3;VInt 2];
+	write ctx AObjGet;
+	push ctx [VReg 3;VInt 1];
+	write ctx AObjGet;
+	push ctx [VReg 3;VInt 0];
+	write ctx AObjGet;
+	push ctx [VInt 6];
+	new_call ctx (VarReg 2) 6;
+	write ctx AReturn;
+	ctx.stack_size <- size;
+	fdone();
+	write ctx AObjSet;
+	push ctx [VInt 0; VReg 0; VStr "__init"];
+	call ctx VarObj 0;
+	write ctx APop
 
 let gen_type_map ctx =
 	let packs = Hashtbl.create 0 in
@@ -1067,11 +1115,29 @@ let gen_type_map ctx =
 					defined();
 					loop acc id l
 	in
-	Hashtbl.iter (fun (p,t) n ->
-		let k = loop [] "" p in
-		push ctx [VStr t;VStr n];
-		write ctx AEval;
-		setvar ctx k	
+	Hashtbl.iter (fun (p,t) (n,ext) ->
+		if ext then begin
+			push ctx [VStr n];
+			(match p with
+			| [] ->
+				push ctx [VStr t];
+				write ctx AEval
+			| p :: l -> 
+				push ctx [VStr p];
+				write ctx AEval;
+				List.iter (fun p ->
+					push ctx [VStr p];
+					write ctx AObjGet;
+				) l;
+				push ctx [VStr t];
+				write ctx AObjGet);
+			write ctx ASet
+		end else begin
+			let k = loop [] "" p in
+			push ctx [VStr t;VStr n];
+			write ctx AEval;
+			setvar ctx k
+		end
 	) ctx.types
 
 let to_utf8 str =
@@ -1084,7 +1150,7 @@ let to_utf8 str =
 			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
 			UTF8.Buf.contents b
 
-let generate file modules =
+let generate file ver modules =
 	let ctx = {
 		opcodes = DynArray.create();
 		code_pos = 0;
@@ -1104,11 +1170,13 @@ let generate file modules =
 		statics = [];
 	} in
 	write ctx (AStringPool []);
+	let boot = ref None in
 	List.iter (fun m ->
+		if m.mpath = ([],"Boot") then boot := Some m;
 		if m.mpath <> ([],"Std") then List.iter (fun (p,t) -> gen_type_def ctx p t) m.mtypes
 	) modules;
-	gen_boot ctx;
 	gen_type_map ctx;
+	gen_boot ctx (match !boot with None -> assert false | Some m -> m);
 	List.iter (gen_class_static_init ctx) (List.rev ctx.statics);
 	let idents = ctx.idents in
 	let idents = Hashtbl.fold (fun ident pos acc -> (ident,pos) :: acc) idents [] in
@@ -1119,7 +1187,7 @@ let generate file modules =
 	let fps = 20. in
 	let bg = 0xFFFFFF in
 	let header = {
-		h_version = 8;
+		h_version = ver;
 		h_size = {
 			rect_nbits = if (max w h) >= 820 then 16 else 15;
 			left = 0;
