@@ -103,7 +103,7 @@ let compile() =
 	Sys.chdir "haxe";
 	command "ocamllex lexer.mll";
 	ocamlc "ast.ml lexer.ml";
-	ocamlc "-pp camlp4o parser.ml";
+	ocamlc "-I ../ocaml -pp camlp4o parser.ml";
 	ocamlc "-I ../ocaml -I ../ocaml/extc -I ../ocaml/swflib type.ml plugin.ml typer.ml genswf.ml main.ml";
 	let mlist = ["ast";"lexer";"parser";"type";"plugin";"typer";"genswf";"main"] in
 	if bytecode then command ("ocamlc -custom -o ../bin/haxe-byte" ^ exe_ext ^ " ../ocaml/extLib.cma ../ocaml/extc/extc.cma ../ocaml/swflib/swflib.cma " ^ modules mlist ".cmo");
