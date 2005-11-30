@@ -48,7 +48,10 @@
 <pre>
 <k>class</k> Hello {
     <k>function new</k>() {
-        Boot._global.trace(<t>"hello world !"</t>);
+    	<g>// creates a textfield named 'tf'</g>
+        Boot.current.createTextField(<t>"tf"</t>,0,0,0,Stage.width,Stage.height);
+        var tf : TextField = Boot.current.tf;
+        tf.text = <t>"hello world !"</t>;
     }
     <k>static var</k> init : Hello = <k>new</k> Hello();
 }
@@ -63,7 +66,7 @@
 </pre>
 
 <p>
-	This will produce a <code>hello.swf</code> file. Drag'n drop it to an opened instance of the Flash IDE to see the trace.
+	This will produce a <code>hello.swf</code> file. Open it and it should display the text.
 </p>
 
 <h2 class="end">Eof</h2>
