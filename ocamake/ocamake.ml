@@ -156,7 +156,7 @@ let print_errors output msg =
 				prerr_string (file ^ "(" ^ lnumber ^ ") : ");
 				let chars, _ = split chars ":" in
 				if !chars_process then
-					process_chars file chars (int_of_string lnumber);
+					(try process_chars file chars (int_of_string lnumber) with _ -> raise Not_found)
  			with
 				Not_found ->
 					prerr_endline line)
