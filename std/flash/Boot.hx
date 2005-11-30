@@ -30,6 +30,15 @@ class Boot {
 			flash.system.IME._UNKNOWN = System["IME"]["UNKNOWN"];
 			#end
 
+			Node = _global["XMLNode"];
+			Node.element_node = 1;
+			Node.text_node = 3;
+			Node.prototype.removeChild = Node.prototype.removeNode;
+			Node.prototype.replaceChild = function(cnew,cold) {
+				this.insertBefore(cnew,cold);
+				this.removeChild(cold);
+			};
+
 			Array.prototype.copy = Array.prototype.slice;
 			Array.prototype.insert = function(i,x) {
 				this.splice(i,0,x);
