@@ -27,10 +27,11 @@
 	<li><a href="#tparams">Class parameters</a></li>
 	<li><a href="#enums">The power of Enum</a></li>
 	<li><a href="#packages">Packages and Imports</a></li>
-	<li><a href="#dynamic">Dynamic</a></li>
+	<li><a href="#dynamic">Dynamic and Untyped</a></li>
 	<li><a href="#tother">Other Types</a></li>
 	<li><a href="#tsub">Subtyping</a></li>
 	<li><a href="#iter">Iterators</a></li>
+	<li><a href="#cond">Conditional Compilation</a></li>
 </ol>
 
 <a name="types"></a>
@@ -1178,6 +1179,29 @@ null; <g>// Unknown&lt;0></g>
 	Dynamic behavior is <em>inherited</em> by subclasses. When several classes are implementing different Dynamic kinds in a class hierarchy, the last Dynamic definition is used.
 </p>
 
+<h3>Untyped</h3>
+
+<p>
+	One other way to do dynamic things is to use the <code>untyped</code> keyword. When an expression is said untyped, no type-check will be done so you can do a lot of dynamic operations at once :
+</p>
+
+<pre>
+    <k>untyped</k> { a["hello"] = 0; }
+</pre>
+
+<p>
+	Since an <code>untyped</code> expression type is always <code>Dynamic</code>, one other usage of untyped is to do an <em>unsafe cast</em> from one type to another. :
+</p>
+
+<pre>
+    <k>var</k> x : A = ...;
+    <k>var</k> y : B = <k>untyped</k> x;
+</pre>
+
+<p>
+	Be careful to use untyped expressions only when you really need them and when you know what you're doing.
+</p>
+
 <a name="tother"></a>
 <h2>Other Types</h2>
 
@@ -1313,10 +1337,24 @@ null; <g>// Unknown&lt;0></g>
 <h2>Iterators</h2>
 
 <p>
-	An iterator is a function of the form : <c>Void -&gt; X</c> where <c>X</c> is the iterated type. You can use the <c><k>for</k>...<k>in</k></c> syntax in order to execute iterators. The most simple iterator is the <c>Int</c> iterator which can easily be built using the operator <c>...</c> :
+	An iterator is an object which implements the <code>Iterator</code> interface (The type <code>T</code> is the iterated type) :
+
 </p>
 
-<pre>    <k>for</k> i <k>in</k> 1...10 {
+
+<pre>
+    <k>interface</k> Iterator&lt;T&gt; {
+        <k>function</k> hasNext() : Bool;
+        <k>function</k> next() : T;
+    }
+</pre>
+
+<p>
+	You can use the <c><k>for</k></c> syntax in order to execute iterators. The most simple iterator is the <c>IntIter</c> iterator which can easily be built using the operator <c>...</c> (three dots). For example this will list all numbers from 0 to 9 :
+</p>
+
+<pre>
+    <k>for</k> i <k>in</k> 0...10 {
         <g>// ...</g>
     }
 </pre>
@@ -1325,37 +1363,41 @@ null; <g>// Unknown&lt;0></g>
 	Or the usual <c><k>for</k></c> loop :
 </p>
 
-<pre>    <k>for</k> i <k>in</k> 0...arr.length-1 {
+<pre>    <k>for</k> i <k>in</k> 0...arr.length {
         foo(arr[i]);
     }
 </pre>
 
+<h3>Implementing Iterator</h3>
+
 <p>
-	You can also define you own iterators. You can simply implement the <c>iterator()</c> method in your class. This method must return another function that will return one value each call or the special value <k><c>done</c></k> when finished. Here's a simple integer enumerator sample. Please note that it is not really useful since there is already the <c>...</c> operator, but it's good sample to understand how it works <em>behind the scene</em> :
+	You can also define you own iterators. You can simply implement the <c>Iterator</c> interface in your class. This method must return an object implementing the <code>Iterator</code> interface. Here's for example the <code>IntIter</code> class that is part of the standard library and can iter both backward and forward :
 </p>
 
-<pre>    <k>class</k> IntIter {
+<pre>    <k>class</k> IntIter <k>implements</k> Iterator&lt;Int&gt; {
         <k>var</k> min : Int;
         <k>var</k> max : Int;
 
-        <k>function new</k>( min : Int, max : Int ) {
+        <k>public function new</k>( min : Int, max : Int ) {
             <k>this</k>.min = min;
             <k>this</k>.max = max;
         }
 
-        <k>function</k> iterator() {
-            <k>var</k> cur = min;
-            <k>return function</k>() {
-                <k>if</k>( cur == max )
-                    <k>return</k> done;
-                <k>return</k> cur++;
-            }
+        <k>public function</k> hasNext() {
+            <k>return</k>( min != max );
+        }
+
+        <k>public function</k> next() {
+            <k>if</k>( min < max )
+                <k>return</k> min++;
+            <k>else</k>
+                <k>return</k> min--;
         }
     }
 </pre>
 
 <p>
-	As this class shows, you can call several times the <c>iterator()</c> method in order to have several parallel iterators. Once your iterator is implemented, you can simply use it with the <c><k>for</k>...<k>in</k></c> syntax, this way :
+	Once your iterator is implemented, you can simply use it with the <c><k>for</k>...<k>in</k></c> syntax, this way :
 </p>
 
 <pre>    <k>var</k> iter = <k>new</k> IntIter(0,10);
@@ -1364,9 +1406,24 @@ null; <g>// Unknown&lt;0></g>
     }
 </pre>
 
-<p> The variable name in the iterator is automatically declared and its
-type is bound to the iterator type. If the iterator is a function, then
-it must be of the form <c>Void -&gt; X</c> as previously said. If it's an object like the sample here, then it's a shortcut for writing <c>iter.iterator()</c>.
+<p>The variable name in the <code>for</code> is automatically declared and its
+type is bound to the iterator type. It can still be accessible after the iteration is done.</p>
+
+<h3>Iterable Objects</h3>
+
+<p>
+	If an object has a method <code>iterator()</code> taking no arguments and returning an iterator, it is said <em>iterable</em>. It doesn't have to implement any type. You can use such class directly into a <code>for</code> expression without the need to call the <code>iterator()</code> method :
+</p>
+
+<pre>
+    <k>var</k> a : Array&lt;Int&gt; = ["hello","world","I","love","haXe","!"];
+    <k>for</k> txt <k>in</k> a {
+        tf.text += txt + " ";
+    }
+</pre>
+
+<p>
+	This sample will build the string by listing an array elements using an iterator. It is same as calling <code>a.iterator()</code> in the <code>for</code> expression.
 </p>
 
 <h2>And Now ?</h2>
