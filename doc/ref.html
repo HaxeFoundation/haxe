@@ -762,7 +762,7 @@ null; <g>// Unknown&lt;0></g>
 <h2>Class Inheritance</h2>
 
 <p>
-	When declared, a class can <em>extends</em> one Class and <em>implements</em> several classes. It means that it will get several <em>types</em> at the same time. For example :
+	When declared, a class can <em>extends</em> one Class and <em>implements</em> several classes or interfaces. It means that it will get several <em>types</em> at the same time. For example :
 </p>
 
 <pre>
@@ -808,8 +808,25 @@ null; <g>// Unknown&lt;0></g>
 <h3>Implements</h3>
 
 <p>
-	When <em>implementing</em> a class, your class is <em>required</em> to implement all the fields <em>declared</em> or <em>inherited</em> by the class it implements, with same type and name. However the field might already be <em>inherited</em> from a superclass.
+	When <em>implementing</em> a class or an interface, your class is <em>required</em> to implement all the fields <em>declared</em> or <em>inherited</em> by the class it implements, with same type and name. However the field might already be <em>inherited</em> from a superclass.
 </p>
+
+<h3>Interfaces</h3>
+
+<p>
+	<em>Interface</em> are classes prototypes. They are declared using the <code><k>interface</k></code> keyword. By default, all interfaces fields are <em>public</em>. Interfaces cannot be instancied.
+</p>
+
+<pre>
+    <k>interface</k> PointProto {
+        <k>var</k> x : Int;
+        <k>var</k> y : Int;
+
+        <k>function</k> length() : Int;
+        <k>function</k> add( p : PointProto ) : Void;
+    }
+</pre>
+
 
 <a name="tparams"></a>
 <h2>Class parameters</h2>
