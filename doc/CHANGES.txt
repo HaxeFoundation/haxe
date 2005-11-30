@@ -5,6 +5,7 @@
 	added conditional compilation
 	added interfaces
 	changed iterators from closures to objects
+	added (XML)Node and XmlParser for Flash
 	
 2005-11-25: alpha 2
 	swf generation (missing iterators)
