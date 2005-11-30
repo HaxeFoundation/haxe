@@ -30,7 +30,6 @@ class Boot {
 			flash.system.IME._UNKNOWN = System["IME"]["UNKNOWN"];
 			#end
 
-			String.prototype.sub = String.prototype.substr;
 			Array.prototype.copy = Array.prototype.slice;
 			Array.prototype.insert = function(i,x) {
 				this.splice(i,0,x);
@@ -47,6 +46,31 @@ class Boot {
 				}
 				return false;
 			}
+			Array.prototype.iterator = function() {
+				return {
+					cur : 0,
+					max : this.length,
+					arr : this,
+					hasNext : function() {
+						return this.cur < this.max;
+					},
+					next : function() {
+						return this.arr[this.cur++];
+					}
+				}
+			};
+			Array.prototype.indexes = function() {
+				return {
+					cur : 0,
+					max : this.length,
+					hasNext : function() {
+						return this.cur < this.max;
+					},
+					next : function() {
+						return this.cur++;
+					}
+				}
+			};
 		}
 	}
 

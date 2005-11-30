@@ -22,5 +22,7 @@ extern class Array<T> {
 	function insert( pos : Int, x : T ) : Void;
 	function remove( x : T ) : Bool;
 	function copy() : Array<T>;
+	function iterator() : Iterator<T>;
+	function indexes() : Iterator<Int>;
 
 }
