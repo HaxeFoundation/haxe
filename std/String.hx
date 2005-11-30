@@ -13,8 +13,6 @@ extern class String {
 	function indexOf( value : String, startIndex : Int ) : Int;
 	function lastIndexOf( value : String, startIndex : Int ) : Int;
 	function split( delimiter : String ) : Array<String>;
-
-	/* added */
-	function sub( pos : Int, len : Int ) : String;
+	function substr( pos : Int, len : Int ) : String;
 
 }
