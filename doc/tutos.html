@@ -21,8 +21,9 @@
 <ul class="big">
 	<li><code>-cp (path)</code> : adds a search path for files. Can be used several times for adding several different paths.</li>
 	<li><code>-swf (file)</code> : compile code to SWF file (create a new file)</li>
+	<li><code>-fplayer (version)</code> : set the version used to generate SWF</li>
+	<li><code>-D (var)</code> : define a macro variable used for conditional compilation</li>
 	<li><code>-v</code> : verbose mode.</li>
-	<li>...more later</li>
 </ul>
 
 <p>
@@ -68,6 +69,18 @@
 <p>
 	This will produce a <code>hello.swf</code> file. Open it and it should display the text.
 </p>
+
+<h3>Crossplatform XML Parsing</h3>
+
+<p>
+	This code will parse some XML string :
+</p>
+
+<pre>
+    <k>var</k> str = <t>"&lt;hello where=\"world\"&gt;haXe&lt;/hello&gt;"</t>;
+    <k>var</k> x = XmlParser.parse(str).firstChild;
+    <k>var</k> s = x.nodeName + " " + x.attributes.where+" "+x.firstChild.nodeValue;
+</pre>
 
 <h2 class="end">Eof</h2>
 
