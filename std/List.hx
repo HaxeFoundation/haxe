@@ -3,6 +3,31 @@ enum Cell<T> {
 	cons( item : T, next : Cell<T> );
 }
 
+class ListIter<T> implements Iterator<T> {
+
+	private var h : Cell<T>;
+
+	public function new( h : Cell<T> ) {
+		this.h = h;
+	}
+
+	public function hasNext() : Bool {
+		return (h != empty);
+	}
+
+	public function next() : T {
+		return switch h {
+		case empty:
+			null;
+		case cons(it,h):
+			this.h = h;
+			it;
+		}
+	}
+
+}
+
+
 class List<T> {
 
 	private var h : Cell<T>;
@@ -25,17 +50,8 @@ class List<T> {
 		}
 	}
 
-	public function iterator() : Void -> T {
-		var h = this.h;
-		return function() {
-			return switch h {
-			case empty:
-				done;
-			case cons(it,next):
-				h = next;
-				it;
-			}
-		};
+	public function iterator() : Iterator<T> {
+		return new ListIter<T>(h);
 	}
 
 }
