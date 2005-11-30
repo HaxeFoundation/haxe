@@ -16,8 +16,20 @@ class Boot {
 			flash.system = newObject(null,[]);
 			flash.system.Capabilities = System.capabilities;
 			flash.system.Security = System.security;
-			flash.system.IME = System["IME"];
 			Math.pi = Math["PI"];
+
+			#flash8
+			flash.system.IME = System["IME"];
+			flash.system.IME._ALPHANUMERIC_FULL = System["IME"]["ALPHANUMERIC_FULL"];
+			flash.system.IME._ALPHANUMERIC_HALF = System["IME"]["ALPHANUMERIC_HALF"];
+			flash.system.IME._CHINESE = System["IME"]["CHINESE"];
+			flash.system.IME._JAPANESE_HIRAGANA = System["IME"]["JAPANESE_HIRAGANA"];
+			flash.system.IME._JAPANESE_KATAKANA_FULL = System["IME"]["JAPANESE_KATAKANA_FULL"];
+			flash.system.IME._JAPANESE_KATAKANA_HALF = System["IME"]["JAPANESE_KATAKANA_HALF"];
+			flash.system.IME._KOREAN = System["IME"]["KOREAN"];
+			flash.system.IME._UNKNOWN = System["IME"]["UNKNOWN"];
+			#end
+
 			String.prototype.sub = String.prototype.substr;
 			Array.prototype.copy = Array.prototype.slice;
 			Array.prototype.insert = function(i,x) {
