@@ -1416,7 +1416,7 @@ type is bound to the iterator type. It can still be accessible after the iterati
 </p>
 
 <pre>
-    <k>var</k> a : Array&lt;Int&gt; = ["hello","world","I","love","haXe","!"];
+    <k>var</k> a : Array&lt;String&gt; = ["hello","world","I","love","haXe","!"];
     <k>for</k> txt <k>in</k> a {
         tf.text += txt + " ";
     }
@@ -1424,6 +1424,44 @@ type is bound to the iterator type. It can still be accessible after the iterati
 
 <p>
 	This sample will build the string by listing an array elements using an iterator. It is same as calling <code>a.iterator()</code> in the <code>for</code> expression.
+</p>
+
+<a name="cond"></a>
+<h2>Conditional Compilation</h2>
+
+<p>
+	Sometimes you might want to have a single library using specific API depending on the platform it is compiled on. At some other time, you might want to do some optimizations only if you turn a flag ON. For all that, you can use <em>conditional compilation macros</em> :
+</p>
+
+<p>
+	Here's an example of multiplaform code :
+</p>
+
+<pre>
+    #flash8
+    <g>// specific flash 8 code</g>
+    #else flash
+    <g>// generic flash code</g>
+    #else js
+    <g>// javascript specific code</g>
+    #else neko
+    <g>// neko specific code</g>
+    #else error <g>// will display an error "Not implemented on this platform"</g>
+    #end
+</pre>
+
+<p>
+	Here's another example for turning on some logs only if <code>mydebug</code> flag is used when compiling the code :
+</p>
+
+<pre>
+    #mydebug
+    trace("Some debug infos");
+    #end
+</pre>
+
+<p>
+	You can define your own variables by using the <b>haXe</b> compiler commandline options.
 </p>
 
 <h2>And Now ?</h2>
