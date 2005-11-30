@@ -163,6 +163,7 @@ let set_heritance ctx c herits p =
 			(match t with
 			| TInst (cl,params) ->
 				if is_parent c cl then error "Recursive class" p; 
+				if c.cl_interface then error "Cannot extend an interface" p;
 				c.cl_super <- Some (cl,params)
 			| _ -> error "Should extend a class" p)
 		| HImplements t ->
@@ -235,6 +236,15 @@ let is_float t =
 
 let t_array ctx =
 	match load_type_def ctx null_pos ([],"Array") with
+	| TClassDecl c ->
+		if List.length c.cl_types <> 1 then assert false;
+		let pt = mk_mono() in
+		TInst (c,[pt]) , pt
+	| _ ->
+		assert false
+
+let t_iterator ctx =
+	match load_type_def ctx null_pos ([],"Iterator") with
 	| TClassDecl c ->
 		if List.length c.cl_types <> 1 then assert false;
 		let pt = mk_mono() in
@@ -509,9 +519,10 @@ let rec type_binop ctx op e1 e2 p =
 		mk_op b
 	| OpInterval ->
 		let i = t_int ctx in
-		unify ctx e1.etype i p;
-		unify ctx e2.etype i p;
-		mk_op (TFun ([],i))
+		let t = load_normal_type ctx { tpackage = []; tname = "IntIter"; tparams = [] } p false in
+		unify ctx e1.etype i e1.epos;
+		unify ctx e2.etype i e2.epos;
+		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[e1;e2])) t p
 	| OpAssign ->
 		unify ctx e2.etype e1.etype p;
 		check_assign ctx e1;
@@ -682,20 +693,28 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		mk (TVars vl) (t_void ctx) p
 	| EFor (i,e1,e2) ->
 		let e1 = type_expr ctx e1 in
-		let pt = mk_mono() in
-		let t = TFun ([],pt) in
-		(match follow e1.etype with
+		let t, pt = t_iterator ctx in
+		let e1 = (match follow e1.etype with
 		| TAnon _
 		| TInst _ ->
-			let ft = type_field ctx e1.etype "iterator" e1.epos in
-			unify ctx ft t e1.epos 
+			(try
+				unify ctx e1.etype t e1.epos;
+				e1
+			with _ ->
+				match follow (type_field ctx e1.etype "iterator" e1.epos) with
+				| TFun ([],it) as ft ->
+					unify ctx it t e1.epos;
+					let fe = mk (TField (e1,"iterator")) ft e1.epos in
+					mk (TCall (fe,[])) t e1.epos
+				| _ ->
+					error "The field iterator is not a method" e1.epos
+			)
 		| _ ->
 			unify ctx e1.etype t e1.epos;
-		);
-		let locals = ctx.locals in
+			e1
+		) in
 		ctx.locals <- PMap.add i pt ctx.locals;
 		let e2 = type_expr ctx e2 in
-		ctx.locals <- locals;
 		mk (TFor (i,e1,e2)) (t_void ctx) p
 	| EIf (e,e1,e2) ->
 		let e = type_expr ctx e in
