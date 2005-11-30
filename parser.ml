@@ -139,6 +139,7 @@ and parse_package s = psep Dot ident s
 and parse_class_native = parser
 	| [< '(Kwd Extern,_); '(Kwd Class,p1) >] -> [HExtern] , p1
 	| [< '(Kwd Class,p1) >] -> [] , p1
+	| [< '(Kwd Interface,p1) >] -> [HInterface] , p1
 
 and parse_type_opt = parser
 	| [< '(DblDot,_); t = parse_type_path >] -> Some t
