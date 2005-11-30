@@ -241,7 +241,7 @@ and parse_class_herit = parser
 and block1 = parser
 	| [< '(Const (Ident name),p); s >] ->
 		(match s with parser
-		| [< '(DblDot,_); e = expr; l = psep Comma parse_obj_decl; _ = popt comma >] -> EObjectDecl ((name,e) :: l)
+		| [< '(DblDot,_); e = expr; l = plist parse_obj_decl; _ = popt comma >] -> EObjectDecl ((name,e) :: l)
 		| [< e = expr_next (EConst (Ident name),p); _ = semicolon; b = block >] -> EBlock (e :: b))
 	| [< b = block >] -> EBlock b
 
