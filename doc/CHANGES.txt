@@ -1,3 +1,11 @@
+2005-11-30: alpha 3
+	added Flash extern classes
+	Boot initialization
+	added "untyped"
+	added conditional compilation
+	added interfaces
+	changed iterators from closures to objects
+	
 2005-11-25: alpha 2
 	swf generation (missing iterators)
 	some typing fixes
