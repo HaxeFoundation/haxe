@@ -771,7 +771,7 @@ and gen_discard ctx e retval =
 	gen_expr ctx ~retval e;
 	if old <> ctx.stack_size then begin
 		if old + 1 <> ctx.stack_size then assert false;		
-		write ctx APop;
+		if not retval then write ctx APop;
 	end
 
 and gen_expr ctx ?(retval=true) e =
