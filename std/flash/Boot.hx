@@ -18,7 +18,7 @@ class Boot {
 			flash.system.Security = System.security;
 			Math.pi = Math["PI"];
 
-			#flash8
+			#use_ime
 			flash.system.IME = System["IME"];
 			flash.system.IME._ALPHANUMERIC_FULL = System["IME"]["ALPHANUMERIC_FULL"];
 			flash.system.IME._ALPHANUMERIC_HALF = System["IME"]["ALPHANUMERIC_HALF"];

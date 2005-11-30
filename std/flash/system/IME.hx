@@ -1,5 +1,7 @@
 package flash.system;
 
+#use_ime
+
 extern class IME {
 
 	static var _ALPHANUMERIC_FULL : String;
@@ -20,3 +22,5 @@ extern class IME {
 	static function addListener(listener:Dynamic) : Void;
 	static function removeListener(listener:Dynamic) : Bool;
 }
+
+#end
