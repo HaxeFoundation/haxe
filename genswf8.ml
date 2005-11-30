@@ -363,7 +363,7 @@ let cfind flag cst e =
 		Exit -> 
 			true
 
-let define_var ctx v t ef exprs =
+let define_var ctx v ef exprs =
 	if List.exists (cfind false (TLocal v)) ctx.cur_block then begin
 		push ctx [VStr v];
 		ctx.regs <- PMap.add v None ctx.regs;
@@ -666,7 +666,7 @@ and gen_match ctx retval e cases def =
 		let n = ref 0 in
 		List.iter (fun (a,t) ->
 			incr n;
-			define_var ctx a t (Some (fun() ->
+			define_var ctx a (Some (fun() ->
 				push ctx [VReg renum; VInt !n];
 				write ctx AObjGet
 			)) [e]
@@ -806,7 +806,7 @@ and gen_expr ctx ?(retval=true) e =
 		b()	
 	| TVars vl ->
 		List.iter (fun (v,t,e) ->
-			define_var ctx v t (match e with None -> None | Some e -> Some (fun() -> gen_expr ctx e)) ctx.cur_block
+			define_var ctx v (match e with None -> None | Some e -> Some (fun() -> gen_expr ctx e)) ctx.cur_block
 		) vl;
 		if retval then push ctx [VNull]
 	| TArrayDecl el ->
@@ -924,8 +924,22 @@ and gen_expr ctx ?(retval=true) e =
 		(* done : only in switch *)
 		assert false
 	| TFor (v,it,e) ->
-		(** TODO **)
-		assert false
+		gen_expr ctx it;
+		let r = alloc_reg ctx in
+		write ctx (ASetReg r);
+		write ctx APop;
+		let j_begin = pos ctx in
+		push ctx [VInt 0; VReg r; VStr "hasNext"];
+		call ctx VarObj 0;
+		write ctx ANot;
+		let j_end = cjmp ctx in
+		define_var ctx v (Some (fun() -> 
+			push ctx [VInt 0; VReg r; VStr "next"];
+			call ctx VarObj 0;
+		)) ctx.cur_block;
+		gen_expr ctx e;
+		j_begin false;
+		j_end()
 
 let gen_class_static_field ctx cclass f =
 	if f.cf_name <> "new" then
