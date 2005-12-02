@@ -37,6 +37,7 @@ type context = {
 	(* per-function *)
 	mutable in_constructor : bool;
 	mutable in_static : bool;
+	mutable in_loop : bool;
 	mutable ret : t;
 	mutable locals : (string, t) PMap.t;
 }
@@ -713,8 +714,11 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			unify ctx e1.etype t e1.epos;
 			e1
 		) in
+		let old_loop = ctx.in_loop in
 		ctx.locals <- PMap.add i pt ctx.locals;
+		ctx.in_loop <- true;
 		let e2 = type_expr ctx e2 in
+		ctx.in_loop <- old_loop;
 		mk (TFor (i,e1,e2)) (t_void ctx) p
 	| EIf (e,e1,e2) ->
 		let e = type_expr ctx e in
@@ -734,9 +738,12 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			) in
 			mk (TIf (e,e1,Some e2)) t p)
 	| EWhile (cond,e,flag) ->
+		let old_loop = ctx.in_loop in
 		let cond = type_expr ctx cond in
 		unify ctx cond.etype (t_bool ctx) cond.epos;
+		ctx.in_loop <- true;
 		let e = type_expr ctx e in
+		ctx.in_loop <- old_loop;
 		mk (TWhile (cond,e,flag)) (t_void ctx) p
 	| ESwitch (e,cases,def) ->
 		type_switch ctx e cases def need_val p
@@ -753,8 +760,10 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		) in
 		mk (TReturn e) (t_void ctx) p
 	| EBreak ->
+		if not ctx.in_loop then error "Break outside loop" p;
 		mk TBreak (t_void ctx) p
 	| EContinue ->
+		if not ctx.in_loop then error "Continue outside loop" p;
 		mk TContinue (t_void ctx) p
 	| ETry (e1,catches) -> 
 		let e1 = type_expr ctx ~need_val e1 in
@@ -1046,6 +1055,7 @@ let type_module ctx m tdecls =
 		type_params = [];
 		in_constructor = false;
 		in_static = false;
+		in_loop = false;
 		untyped = false;
 	} in
 	let delays = ref [] in
@@ -1107,6 +1117,7 @@ let context warn =
 		delays = ref [];
 		in_constructor = false;
 		in_static = false;
+		in_loop = false;
 		untyped = false;
 		ret = mk_mono();
 		warn = warn;
