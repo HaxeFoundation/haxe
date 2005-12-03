@@ -856,7 +856,6 @@ and gen_expr_2 ctx retval e =
 		j();
 		ctx.stack_size <- s;
 		gen_expr ctx retval e;
-		if ctx.stack_size <> s then assert false;
 		jend()
 	| TWhile (cond,e,Ast.NormalWhile) ->
 		let loop_end = begin_loop ctx in
