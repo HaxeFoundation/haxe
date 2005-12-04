@@ -15,7 +15,7 @@ class Std {
 	public static function string( s : Dynamic ) : String {
 		return untyped
 		#flash
-		String(s);
+		Boot.__string_rec(s,"");
 		#else error
 		#end
 	}
