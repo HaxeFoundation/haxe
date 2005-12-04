@@ -1081,7 +1081,7 @@ let gen_path ctx (p,t) is_extern =
 let gen_type_def ctx t tdef =
 	match tdef with
 	| TClassDecl c ->
-		if c.cl_extern || c.cl_interface then 
+		if c.cl_extern then
 			()
 		else
 		let id = gen_type ctx t false in
