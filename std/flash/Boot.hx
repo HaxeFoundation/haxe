@@ -1,8 +1,48 @@
 class Boot {
 
-	public static var _global : Dynamic;
-	public static var _root : MovieClip;
-	public static var current : MovieClip;
+	private static function __string_rec(o,s) {
+		untyped {
+			if( s.length >= 20 )
+				return "<...>"; // too much deep recursion
+			var t = __typeof__(o);
+			if( t == "movieclip" )
+				t = "object";
+			switch( t ) {
+			case "object":
+				if( __instanceof__(o,Array) ) {
+					var l = o.length;
+					var i;
+					var str = "[";
+					s += "    ";
+					for i in 0...l
+						str += (if (i > 0) "," else "")+__string_rec(o[i],s);
+					s = s.substring(4);
+					str += "]";
+					return str;
+				}
+				var s2 = o.toString();
+				if( typeof(s2) == "string" && s2 != "[object Object]" )
+					return s2;
+				var k;
+				var str = "{\n";
+				if( typeof(o) == "movieclip" )
+					str = "MC("+o._name+") "+str;
+				s += "    ";
+				for k in (__keys__(o)).iterator() {
+					str += s + k + " : "+__string_rec(o[k],s)+"\n";
+				}
+				s = s.substring(4);
+				str += s + "}";
+				return str;
+			case "function":
+				return "<function>";
+			case "string":
+				return o;
+			default:
+				return String(o);
+			}
+		}
+	}
 
 	private static function __closure(f,o) {
 		untyped {
@@ -35,7 +75,7 @@ class Boot {
 		}
 	}
 
-	private static function __init() {
+	private static function __init(current) {
 		untyped {
 			var obj = _global["Object"];
 			if( flash == null )
@@ -111,6 +151,9 @@ class Boot {
 				}
 			};
 
+			Stage._global = _global;
+			Stage._root = _root;
+			Stage.current = current;
 			Int = __new__(obj);
 			Float = _global["Number"];
 			// prevent closure creation by setting untyped
