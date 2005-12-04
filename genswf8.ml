@@ -1058,7 +1058,8 @@ let gen_enum_field ctx f =
 		gen_expr ctx true (mk (TArrayDecl [ename]) t Ast.null_pos));
 	write ctx AObjSet
 
-let gen_path ctx (p,t) =
+let gen_path ctx (p,t) is_extern =
+	if is_extern then begin
 	match p with
 	| [] ->
 		push ctx [VStr t];
@@ -1072,6 +1073,10 @@ let gen_path ctx (p,t) =
 		) l;
 		push ctx [VStr t];
 		write ctx AObjGet
+	end else
+		let id = gen_type ctx (p,t) false in
+		push ctx [VStr id];
+		write ctx AEval
 
 let gen_type_def ctx t tdef =
 	match tdef with
@@ -1096,13 +1101,16 @@ let gen_type_def ctx t tdef =
 		| None -> ()
 		| Some (csuper,_) ->
 			push ctx [VReg 0];
-			if csuper.cl_extern then 
-				gen_path ctx csuper.cl_path
-			else 
-				let id = gen_type ctx csuper.cl_path false in
-				push ctx [VStr id];
-				write ctx AEval;
+			gen_path ctx csuper.cl_path csuper.cl_extern;
 			write ctx AExtends);
+		(match c.cl_implements with
+		| [] -> ()
+		| l ->
+			let nimpl = List.length l in
+			List.iter (fun (c,_) -> gen_path ctx c.cl_path c.cl_extern) l;
+			push ctx [VInt nimpl; VReg 0];
+			write ctx AImplements;
+			ctx.stack_size <- ctx.stack_size - nimpl);
 		push ctx [VReg 0; VStr "prototype"];
 		getvar ctx VarObj;
 		write ctx (ASetReg 1);
@@ -1179,7 +1187,7 @@ let gen_type_map ctx =
 	Hashtbl.iter (fun (p,t) (n,ext) ->
 		if ext then begin
 			push ctx [VStr n];
-			gen_path ctx (p,t);
+			gen_path ctx (p,t) true;
 			write ctx ASet
 		end else begin
 			let k = loop [] "" p in
