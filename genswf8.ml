@@ -53,6 +53,7 @@ type kind =
 	| VarReg of int
 	| VarStr
 	| VarObj
+	| VarClosure
 
 type push_style =
 	| VStr of string
@@ -123,7 +124,7 @@ let call ctx kind n =
 			AObjCall , n + 2
 		| VarStr -> 
 			ACall , n + 1
-		| VarObj ->
+		| VarClosure | VarObj ->
 			AObjCall , n + 2
 	) in
 	DynArray.add ctx.opcodes op;
@@ -138,7 +139,7 @@ let new_call ctx kind n  =
 			ANewMethod , n + 2
 		| VarStr -> 
 			ANew , n + 1
-		| VarObj ->
+		| VarClosure | VarObj ->
 			ANewMethod , n + 2
 	) in
 	DynArray.add ctx.opcodes op;
@@ -233,7 +234,8 @@ let setvar ?(retval=false) ctx = function
 	| VarReg (-1) -> assert false (** true, false, null **)
 	| VarReg n -> write ctx (ASetReg n); if not retval then write ctx APop
 	| VarStr
-	| VarObj as s -> 
+	| VarObj
+	| VarClosure as s -> 
 		if retval then write ctx (ASetReg 0);
 		write ctx (if s = VarStr then ASet else AObjSet);
 		if retval then push ctx [VReg 0]
@@ -243,9 +245,12 @@ let getvar ctx = function
 	| VarReg n -> push ctx [VReg n]
 	| VarStr -> write ctx AEval
 	| VarObj -> write ctx AObjGet
+	| VarClosure ->
+		push ctx [VInt 2; VStr "@closure"];
+		call ctx VarStr 2
 
-let func ctx need_super args =
-	let default_flags = [ThisRegister; ArgumentsNoVar] in
+let func ctx need_super need_args args =
+	let default_flags = ThisRegister :: (if need_args then [] else [ArgumentsNoVar]) in
 	let f = {
 		f2_name = "";
 		f2_args = args;
@@ -500,22 +505,31 @@ let rec gen_access ctx forcall e =
 		VarReg 1
 	| TMember f ->
 		push ctx [VReg 1; VStr f];
-		VarObj
+		(match follow e.etype with
+		| TFun _ -> VarClosure
+		| _ -> VarObj)
+	| TLocal "__arguments__" ->
+		push ctx [VStr "arguments"];
+		VarStr
 	| TLocal s ->
 		access_local ctx s
-	| TField (e,f) ->
-		gen_expr ctx true e;
+	| TField (e2,f) ->
+		gen_expr ctx true e2;
 		push ctx [VStr f];
-		VarObj
+		(match follow e.etype with
+		| TFun _ -> VarClosure
+		| _ -> VarObj)
 	| TArray (ea,eb) ->
 		gen_expr ctx true ea;
 		gen_expr ctx true eb;
 		VarObj
-	| TEnumField (e,f) ->
-		push ctx [VStr (gen_type ctx e.e_path false)];
+	| TEnumField (en,f) ->
+		push ctx [VStr (gen_type ctx en.e_path false)];
 		write ctx AEval;
 		push ctx [VStr f];
-		VarObj
+		(match follow e.etype with
+		| TFun _ -> VarClosure
+		| _ -> VarObj)
 	| TType t ->
 		push ctx [VStr (match t with
 			| TClassDecl c -> gen_type ctx c.cl_path c.cl_extern
@@ -836,7 +850,7 @@ and gen_expr_2 ctx retval e =
 				r , ""
 			end
 		) f.tf_args in
-		let tf = func ctx (reg_super) rargs in
+		let tf = func ctx reg_super (cfind true (TLocal "__arguments__") f.tf_expr) rargs in
 		gen_expr ctx false f.tf_expr;
 		tf();
 		block();
@@ -1031,7 +1045,7 @@ let gen_type_def ctx t tdef =
 			| Some ({ eexpr = TFunction _ } as e) -> gen_expr ctx true e
 			| _ -> raise Not_found);
 		with Not_found ->
-			let f = func ctx true [] in
+			let f = func ctx true false [] in
 			f()
 		);
 		write ctx (ASetReg 0);
@@ -1087,7 +1101,7 @@ let gen_boot ctx m =
 	} *)
 	push ctx [VReg 0; VStr "newObject"];
 	ctx.reg_count <- 3;
-	let fdone = func ctx false [(2,"");(3,"")] in
+	let fdone = func ctx false false [(2,"");(3,"")] in
 	let size = ctx.stack_size in
 	push ctx [VReg 2; VNull];
 	write ctx APhysEqual;
@@ -1116,6 +1130,11 @@ let gen_boot ctx m =
 	ctx.stack_size <- size;
 	fdone();
 	write ctx AObjSet;
+	(* @closure = Boot.__closure *)
+	push ctx [VStr "@closure"; VReg 0; VStr "__closure"];
+	write ctx AObjGet;
+	write ctx ASet;
+	(* Boot.__init() *)
 	push ctx [VInt 0; VReg 0; VStr "__init"];
 	call ctx VarObj 0;
 	write ctx APop
