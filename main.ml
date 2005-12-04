@@ -61,7 +61,7 @@ let compile ctx f =
 try	
 	let usage = "Haxe Compiler Alpha - (c)2005 Motion-Twin\n Usage : haxe.exe [options] <class names...>\n Options :" in
 	let base_path = normalize_path (try Extc.executable_path() with _ -> "./") in
-	let classes = ref [] in
+	let classes = ref ["Std"] in
 	let swf_out = ref None in
 	let swf_version = ref 8 in
 	let time = Sys.time() in
@@ -71,7 +71,6 @@ try
 			Plugin.class_path := normalize_path path :: !Plugin.class_path
 		),"<path> : add a directory to find source files");
 		("-swf",Arg.String (fun file ->
-			classes := "Boot" :: !classes;
 			Plugin.class_path := (base_path ^ "flash/") :: !Plugin.class_path;
 			swf_out := Some file
 		),"<file> : compile code to SWF file");
