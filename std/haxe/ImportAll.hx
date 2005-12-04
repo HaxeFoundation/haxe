@@ -1,12 +1,14 @@
 // std
 import Array;
 import Date;
+import Hash;
 import ImportAll;
 import IntIter;
 import Iterator;
 import List;
 import Math;
 import Std;
+import StdTypes;
 import String;
 
 // flash
