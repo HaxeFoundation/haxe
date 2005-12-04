@@ -45,6 +45,7 @@ type context = {
 }
 
 let error p = Typer.error "Invalid expression" p
+let stack_error p = Typer.error "Stack error" p
 
 (* -------------------------------------------------------------- *)
 (* Bytecode Helpers *)
@@ -490,7 +491,6 @@ let access_local ctx s =
 	| Some r ->
 		VarReg r
 
-
 let rec gen_access ctx forcall e =
 	match e.eexpr with
 	| TConst TSuper ->
@@ -542,7 +542,7 @@ let rec gen_access ctx forcall e =
 		write ctx (APush [PUndefined]);
 		VarObj
 
-and gen_try_catch ctx e catchs =
+and gen_try_catch ctx retval e catchs =
 	let tdata = {
 		tr_style = TryRegister 0;
 		tr_trylen = 0;
@@ -551,14 +551,15 @@ and gen_try_catch ctx e catchs =
 	} in
 	write ctx (ATry tdata);
 	let start = ctx.code_pos in
-	gen_expr ctx true e;
+	gen_expr ctx retval e;
 	let jump_end = jmp ctx in
 	tdata.tr_trylen <- ctx.code_pos - start;
 	let start = ctx.code_pos in
 	let end_throw = ref true in
-	let first_catch = ref true in
 	let jumps = List.map (fun (name,t,e) ->	
-		let t = (match follow t with
+		if not !end_throw then
+			(fun () -> ())
+		else let t = (match follow t with
 			| TEnum (e,_) -> Some (TEnumDecl e)
 			| TInst (c,_) -> Some (TClassDecl c)
 			| TFun _
@@ -571,33 +572,27 @@ and gen_try_catch ctx e catchs =
 		let next_catch = (match t with
 		| None -> 
 			end_throw := false;
-			write ctx APop;
 			push ctx [VStr name;VReg 0];
 			write ctx ALocalAssign;
-			gen_expr ctx true e;
+			gen_expr ctx retval e;			
 			(fun() -> ())
 		| Some t ->
-			if not !first_catch then write ctx APop;
 			getvar ctx (gen_access ctx false (mk (TType t) (mk_mono()) e.epos));
-			push ctx [VReg 0];
-			write ctx ACast;
-			write ctx ADup;
-			push ctx [VNull];
-			write ctx APhysEqual;
+			push ctx [VReg 0; VInt 2; VStr "@instanceof"];
+			call ctx VarStr 2;
+			write ctx ANot;
 			let c = cjmp ctx in
-			push ctx [VStr name];
-			write ctx ASwap;
+			push ctx [VStr name; VReg 0];
 			write ctx ALocalAssign;
-			gen_expr ctx true e;
+			gen_expr ctx retval e;
 			c
 		) in
-		first_catch := false;
+		if retval then ctx.stack_size <- ctx.stack_size - 1;
 		let j = jmp ctx in
 		next_catch();
 		j
 	) catchs in
 	if !end_throw && catchs <> [] then begin
-		write ctx APop;
 		push ctx [VReg 0];
 		write ctx AThrow;
 	end;
@@ -625,20 +620,18 @@ and gen_switch ctx retval e cases def =
 			(j,x) :: loop l
 	in
 	let dispatch = loop cases in
-	let stack = ctx.stack_size in
 	(match def with
 	| None -> if retval then push ctx [VNull]
 	| Some e -> gen_expr ctx retval e);
 	let jend = jmp ctx in
 	let jends = List.map (fun (j,e) ->
-		ctx.stack_size <- stack;
 		j();
 		gen_expr ctx retval e;
+		if retval then ctx.stack_size <- ctx.stack_size - 1;
 		jmp ctx;
 	) dispatch in		
 	jend();
-	List.iter (fun j -> j()) jends;
-	if retval then ctx.stack_size <- stack + 1
+	List.iter (fun j -> j()) jends
 
 and gen_match ctx retval e cases def =
 	gen_expr ctx true e;
@@ -671,7 +664,6 @@ and gen_match ctx retval e cases def =
 			(j,args,x) :: loop l
 	in
 	let dispatch = loop cases in
-	let stack = ctx.stack_size in
 	(match def with
 	| None -> if retval then push ctx [VNull]
 	| Some e -> gen_expr ctx retval e);
@@ -679,7 +671,6 @@ and gen_match ctx retval e cases def =
 	let jends = List.map (fun (j,args,e) ->
 		let regs = ctx.regs in
 		let nregs = ctx.reg_count in
-		ctx.stack_size <- stack;
 		j();
 		let n = ref 0 in
 		List.iter (fun (a,t) ->
@@ -690,13 +681,13 @@ and gen_match ctx retval e cases def =
 			)) [e]
 		) (match args with None -> [] | Some l -> l);
 		gen_expr ctx retval e;
+		if retval then ctx.stack_size <- ctx.stack_size - 1;
 		ctx.regs <- regs;
 		ctx.reg_count <- nregs;
 		jmp ctx;
-	) dispatch in		
+	) dispatch in
 	jend();
-	List.iter (fun j -> j()) jends;
-	if retval then ctx.stack_size <- stack + 1
+	List.iter (fun j -> j()) jends
 
 and gen_binop ctx retval op e1 e2 =
 	let gen a =
@@ -784,6 +775,29 @@ and gen_unop ctx retval op flag e =
 		write ctx (match op with Increment -> AIncrement | Decrement -> ADecrement | _ -> assert false);
 		setvar ~retval:(retval && flag = Prefix) ctx k
 
+and gen_call ctx e el =
+	match e.eexpr, el with
+	| TLocal "__instanceof__" ,  [e1;e2] ->
+		gen_expr ctx true e1;
+		gen_expr ctx true e2;
+		write ctx AInstanceOf
+	| TLocal "__typeof__" , [e] ->
+		gen_expr ctx true e;
+		write ctx ATypeOf
+	| TLocal "__new__", e :: el ->
+		let nargs = List.length el in
+		List.iter (gen_expr ctx true) el;
+		push ctx [VInt nargs];
+		let k = gen_access ctx true e in
+		new_call ctx k nargs
+	| _ , _ ->
+		let nargs = List.length el in
+		List.iter (gen_expr ctx true) (List.rev el);
+		push ctx [VInt nargs];
+		let k = gen_access ctx true e in
+		call ctx k nargs
+
+
 and gen_expr_2 ctx retval e =
 	match e.eexpr with
 	| TConst TSuper
@@ -864,12 +878,11 @@ and gen_expr_2 ctx retval e =
 	| TIf (cond,e,Some e2) ->
 		gen_expr ctx true cond;
 		let j = cjmp ctx in
-		let s = ctx.stack_size in
 		gen_expr ctx retval e2;
 		let jend = jmp ctx in
 		j();
-		ctx.stack_size <- s;
 		gen_expr ctx retval e;
+		if retval then ctx.stack_size <- ctx.stack_size - 1;
 		jend()
 	| TWhile (cond,e,Ast.NormalWhile) ->
 		let loop_end = begin_loop ctx in
@@ -908,11 +921,7 @@ and gen_expr_2 ctx retval e =
 		ctx.continues <- jmp_pos ctx false :: ctx.continues;
 		no_value ctx retval
 	| TCall (e,el) ->
-		let nargs = List.length el in
-		List.iter (gen_expr ctx true) (List.rev el);
-		push ctx [VInt nargs];
-		let k = gen_access ctx true e in
-		call ctx k nargs
+		gen_call ctx e el
 	| TNew (c,_,el) ->
 		let nargs = List.length el in
 		List.iter (gen_expr ctx true) (List.rev el);
@@ -927,7 +936,7 @@ and gen_expr_2 ctx retval e =
 		write ctx AThrow;
 		no_value ctx retval
 	| TTry (e,catchs) ->
-		gen_try_catch ctx e catchs
+		gen_try_catch ctx retval e catchs
 	| TBinop (op,e1,e2) ->
 		gen_binop ctx retval op e1 e2
 	| TUnop (op,flag,e) ->
@@ -961,9 +970,9 @@ and gen_expr ctx retval e =
 	let old = ctx.stack_size in
 	gen_expr_2 ctx retval e;
 	if old <> ctx.stack_size then begin
-		if old + 1 <> ctx.stack_size then assert false;
+		if old + 1 <> ctx.stack_size then stack_error e.epos;
 		if not retval then write ctx APop;
-	end else if retval then assert false
+	end else if retval then stack_error e.epos
 
 let gen_class_static_field ctx cclass f =
 	if f.cf_name <> "new" then
@@ -1094,46 +1103,6 @@ let gen_boot ctx m =
 	push ctx [VReg 0; VStr "current"; VStr "this"];
 	write ctx AEval;
 	write ctx AObjSet;
-	(* r0.newObject = function(x,args) {
-		if( x == null )
-			x = Object;
-		return new x(args[0],arg[1],arg[2],args[3],args[4],args[5]);
-	} *)
-	push ctx [VReg 0; VStr "newObject"];
-	ctx.reg_count <- 3;
-	let fdone = func ctx false false [(2,"");(3,"")] in
-	let size = ctx.stack_size in
-	push ctx [VReg 2; VNull];
-	write ctx APhysEqual;
-	write ctx ANot;
-	let j = cjmp ctx in
-	push ctx [VStr "Object"];
-	write ctx AEval;
-	write ctx (ASetReg 2);
-	write ctx APop;
-	j();
-	push ctx [VReg 3;VInt 5];
-	write ctx AObjGet;
-	push ctx [VReg 3;VInt 4];
-	write ctx AObjGet;
-	push ctx [VReg 3;VInt 3];
-	write ctx AObjGet;
-	push ctx [VReg 3;VInt 2];
-	write ctx AObjGet;
-	push ctx [VReg 3;VInt 1];
-	write ctx AObjGet;
-	push ctx [VReg 3;VInt 0];
-	write ctx AObjGet;
-	push ctx [VInt 6];
-	new_call ctx (VarReg 2) 6;
-	write ctx AReturn;
-	ctx.stack_size <- size;
-	fdone();
-	write ctx AObjSet;
-	(* @closure = Boot.__closure *)
-	push ctx [VStr "@closure"; VReg 0; VStr "__closure"];
-	write ctx AObjGet;
-	write ctx ASet;
 	(* Boot.__init() *)
 	push ctx [VInt 0; VReg 0; VStr "__init"];
 	call ctx VarObj 0;
@@ -1230,7 +1199,7 @@ let generate file ver modules =
 	let boot = ref None in
 	List.iter (fun m ->
 		if m.mpath = ([],"Boot") then boot := Some m;
-		if m.mpath <> ([],"Std") then List.iter (fun (p,t) -> gen_type_def ctx p t) m.mtypes
+		List.iter (fun (p,t) -> gen_type_def ctx p t) m.mtypes
 	) modules;
 	gen_type_map ctx;
 	gen_boot ctx (match !boot with None -> assert false | Some m -> m);
