@@ -50,8 +50,8 @@
 <k>class</k> Hello {
     <k>function new</k>() {
     	<g>// creates a textfield named 'tf'</g>
-        Boot.current.createTextField(<t>"tf"</t>,0,0,0,Stage.width,Stage.height);
-        var tf : TextField = Boot.current.tf;
+        Stage.current.createTextField(<t>"tf"</t>,0,0,0,Stage.width,Stage.height);
+        var tf : TextField = Stage.current.tf;
         tf.text = <t>"hello world !"</t>;
     }
     <k>static var</k> init : Hello = <k>new</k> Hello();
