@@ -860,7 +860,11 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		ctx.untyped <- true;
 		let e = type_expr ctx e in
 		ctx.untyped <- old;
-		e
+		{
+			eexpr = e.eexpr;
+			etype = t_dynamic;
+			epos = e.epos;
+		}
 
 and type_function ctx t static constr f p =
 	let locals = ctx.locals in
