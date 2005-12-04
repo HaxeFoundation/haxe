@@ -2,6 +2,8 @@
 	forbid break and continue outside loops
 	fixed SWF generation bugs
 	added SWF "extends" support
+	added method closures
+	added some flash lowlevel operations (__xxx__)
 	
 2005-11-30: alpha 3
 	added Flash extern classes
