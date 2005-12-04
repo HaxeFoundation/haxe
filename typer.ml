@@ -715,10 +715,12 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			e1
 		) in
 		let old_loop = ctx.in_loop in
+		let old_locals = ctx.locals in
 		ctx.locals <- PMap.add i pt ctx.locals;
 		ctx.in_loop <- true;
 		let e2 = type_expr ctx e2 in
 		ctx.in_loop <- old_loop;
+		ctx.locals <- old_locals;
 		mk (TFor (i,e1,e2)) (t_void ctx) p
 	| EIf (e,e1,e2) ->
 		let e = type_expr ctx e in
@@ -814,8 +816,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			unify ctx (TFun (List.map (fun e -> e.etype) el,t)) e.etype e.epos;
 			t
 		| t ->
-			if t == t_dynamic then
-				t
+			if t == t_dynamic || ctx.untyped then
+				t_dynamic
 			else
 				error (s_type (print_context()) t ^ " cannot be called") e.epos
 		) in
@@ -1143,9 +1145,9 @@ let context warn =
 		std = empty;
 	} in
 	ctx.std <- (try
-		load ctx ([],"Std") null_pos
+		load ctx ([],"StdTypes") null_pos
 	with
-		Error (Module_not_found ([],"Std"),_) ->
+		Error (Module_not_found ([],"StdTypes"),_) ->
 			error "Standard library not found" null_pos
 	);
 	ctx
