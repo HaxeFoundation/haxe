@@ -416,7 +416,9 @@ let gen_ident =
 	loop
 
 let gen_type ctx t extern =
-	try
+	if fst t = [] then 
+		snd t
+	else try
 		let id , e = Hashtbl.find ctx.types t in
 		if e <> extern then assert false;
 		id
