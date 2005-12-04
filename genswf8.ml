@@ -302,6 +302,10 @@ let alloc_reg ctx =
 	if ctx.reg_count > ctx.reg_max then ctx.reg_max <- ctx.reg_count;
 	ctx.reg_count
 
+let free_reg ctx r p =
+	if r <> ctx.reg_count then stack_error p;
+	ctx.reg_count <- ctx.reg_count - 1
+
 let best_eq t = 
 	match follow t with
 	| TMono _
@@ -631,6 +635,7 @@ and gen_switch ctx retval e cases def =
 		jmp ctx;
 	) dispatch in		
 	jend();
+	free_reg ctx r e.epos;
 	List.iter (fun j -> j()) jends
 
 and gen_match ctx retval e cases def =
@@ -664,6 +669,7 @@ and gen_match ctx retval e cases def =
 			(j,args,x) :: loop l
 	in
 	let dispatch = loop cases in
+	free_reg ctx rtag e.epos;
 	(match def with
 	| None -> if retval then push ctx [VNull]
 	| Some e -> gen_expr ctx retval e);
@@ -687,6 +693,7 @@ and gen_match ctx retval e cases def =
 		jmp ctx;
 	) dispatch in
 	jend();
+	free_reg ctx renum e.epos;
 	List.iter (fun j -> j()) jends
 
 and gen_binop ctx retval op e1 e2 =
@@ -790,6 +797,27 @@ and gen_call ctx e el =
 		push ctx [VInt nargs];
 		let k = gen_access ctx true e in
 		new_call ctx k nargs
+	| TLocal "__keys__", [e] ->
+		let r = alloc_reg ctx in
+		push ctx [VInt 0; VStr "Array"];
+		new_call ctx VarStr 0;
+		write ctx (ASetReg r);
+		write ctx APop;
+		gen_expr ctx true e;
+		write ctx AEnum2;
+		ctx.stack_size <- ctx.stack_size + 1; (* fake *)
+		let loop = pos ctx in
+		write ctx (ASetReg 0);
+		push ctx [VNull];
+		write ctx AEqual;
+		let jump_end = cjmp ctx in
+		push ctx [VReg 0; VInt 1; VReg r; VStr "push"];
+		call ctx VarObj 1;
+		write ctx APop;
+		loop false;
+		jump_end();
+		push ctx [VReg r];
+		free_reg ctx r e.epos;
 	| _ , _ ->
 		let nargs = List.length el in
 		List.iter (gen_expr ctx true) (List.rev el);
@@ -956,6 +984,7 @@ and gen_expr_2 ctx retval e =
 		call ctx VarObj 0;
 		write ctx ANot;
 		let j_end = cjmp ctx in
+		let b = open_block ctx in
 		define_var ctx v (Some (fun() -> 
 			push ctx [VInt 0; VReg r; VStr "next"];
 			call ctx VarObj 0;
@@ -964,7 +993,9 @@ and gen_expr_2 ctx retval e =
 		j_begin false;
 		j_end();
 		loop_end cont_pos;
-		if retval then getvar ctx (access_local ctx v)
+		if retval then getvar ctx (access_local ctx v);
+		b();
+		free_reg ctx r null_pos
 
 and gen_expr ctx retval e =
 	let old = ctx.stack_size in
@@ -1091,20 +1122,10 @@ let gen_boot ctx m =
 	write ctx AEval;
 	write ctx (ASetReg 0);
 	write ctx APop;
-	(* r0._global = eval("_global") *)
-	push ctx [VReg 0; VStr "_global"; VStr "_global"];
+	(* r0.__init(eval("this")) *)
+	push ctx [VStr "this"];
 	write ctx AEval;
-	write ctx AObjSet;
-	(* r0._root = eval("_root") *)
-	push ctx [VReg 0; VStr "_root"; VStr "_root"];
-	write ctx AEval;
-	write ctx AObjSet;
-	(* r0.current = eval("this") *)
-	push ctx [VReg 0; VStr "current"; VStr "this"];
-	write ctx AEval;
-	write ctx AObjSet;
-	(* Boot.__init() *)
-	push ctx [VInt 0; VReg 0; VStr "__init"];
+	push ctx [VInt 1; VReg 0; VStr "__init"];
 	call ctx VarObj 0;
 	write ctx APop
 
