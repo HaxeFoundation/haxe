@@ -502,7 +502,7 @@ null; <g>// Unknown&lt;0></g>
 </p>
 
 <pre>
-    <k>for</k> i <k>in</k> 0...a.length-1 {
+    <k>for</k> i <k>in</k> 0...a.length {
         foo(a[i]);
     }
 </pre>
@@ -1380,10 +1380,15 @@ null; <g>// Unknown&lt;0></g>
 	Or the usual <c><k>for</k></c> loop :
 </p>
 
-<pre>    <k>for</k> i <k>in</k> 0...arr.length {
+<pre>
+    <k>for</k> i <k>in</k> 0...arr.length {
         foo(arr[i]);
     }
 </pre>
+
+<p>
+	You don't need to declare the variable <code>i</code> before using a for, since it will be automatically declared. This variable will only be available inside the <c><k>for</k></c> loop.
+</p>
 
 <h3>Implementing Iterator</h3>
 
@@ -1417,14 +1422,15 @@ null; <g>// Unknown&lt;0></g>
 	Once your iterator is implemented, you can simply use it with the <c><k>for</k>...<k>in</k></c> syntax, this way :
 </p>
 
-<pre>    <k>var</k> iter = <k>new</k> IntIter(0,10);
+<pre>
+    <k>var</k> iter = <k>new</k> IntIter(0,10);
     <k>for</k> i <k>in</k> iter {
         <g>// ...</g>
     }
 </pre>
 
 <p>The variable name in the <code>for</code> is automatically declared and its
-type is bound to the iterator type. It can still be accessible after the iteration is done.</p>
+type is bound to the iterator type. It cannot be accessible after the iteration is done.</p>
 
 <h3>Iterable Objects</h3>
 
@@ -1456,13 +1462,13 @@ type is bound to the iterator type. It can still be accessible after the iterati
 
 <pre>
     #flash8
-    <g>// specific flash 8 code</g>
+    <g>// haXe code specific for flash player 8</g>
     #else flash
-    <g>// generic flash code</g>
+    <g>// haXe code specific for flash platform (any version)</g>
     #else js
-    <g>// javascript specific code</g>
+    <g>// haXe code specific for javascript plaform</g>
     #else neko
-    <g>// neko specific code</g>
+    <g>// haXe code specific for neko plaform</g>
     #else error <g>// will display an error "Not implemented on this platform"</g>
     #end
 </pre>
