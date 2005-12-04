@@ -4,16 +4,46 @@ class Boot {
 	public static var _root : MovieClip;
 	public static var current : MovieClip;
 
-	public static var newObject : Dynamic -> Array<Dynamic> -> Dynamic;
+	private static function __closure(f,o) {
+		untyped {
+			var f2 = function() {
+				var me = __arguments__.callee;
+				return me.f.apply(me.o,__arguments__);
+			};
+			f2.f = o[f];
+			f2.o = o;
+			return f2;
+		}
+	}
+
+	private static function __instanceof(o,cl) {
+		untyped {
+			if( __instanceof__(o,cl) )
+				return true;
+			switch( cl ) {
+			case Int:
+				return Math.ceil(o) == o; // error with NaN
+			case Float:
+				return __typeof__(o) == "number";
+			case Bool:
+				return (o == true || o == false);
+			case String:
+				return __typeof__(o) == "string";
+			default:
+				return false;
+			}
+		}
+	}
 
 	private static function __init() {
 		untyped {
+			var obj = _global["Object"];
 			if( flash == null )
-				flash = newObject(null,[]);
+				flash = __new__(obj);
 			else if( flash.text == null )
-				flash.text = newObject(null,[]);
+				flash.text = __new__(obj);
 			flash.text.StyleSheet = TextField["StyleSheet"];
-			flash.system = newObject(null,[]);
+			flash.system = __new__(obj);
 			flash.system.Capabilities = System.capabilities;
 			flash.system.Security = System.security;
 			Math.pi = Math["PI"];
@@ -80,6 +110,12 @@ class Boot {
 					}
 				}
 			};
+
+			Int = __new__(obj);
+			Float = _global["Number"];
+			// prevent closure creation by setting untyped
+			current["@instanceof"] = untyped __instanceof;
+			current["@closure"] = untyped __closure;
 		}
 	}
 
