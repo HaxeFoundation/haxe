@@ -327,7 +327,8 @@ let cfind flag cst e =
 	let vname = (match cst with TConst TSuper -> "super" | TLocal v -> v | _ -> assert false) in
 	let rec loop2 e =
 		match e.eexpr with
-		| TFunction _ -> ()
+		| TFunction f ->
+			if not flag && not (List.exists (fun (a,_) -> a = vname) f.tf_args) then loop2 f.tf_expr
 		| TBlock _ ->
 			(try
 				iter loop2 e;
