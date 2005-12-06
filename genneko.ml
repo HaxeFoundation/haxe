@@ -18,6 +18,8 @@
  *)
 open Ast
 open Type
+open Nast
+open Nxml
 
 let generate file types =
 	()

@@ -38,11 +38,21 @@
 	<References>
 	</References>
 	<Files>
+		<Filter
+			Name="neko"
+			Filter="">
+			<File
+				RelativePath=".\genneko.ml">
+			</File>
+			<File
+				RelativePath="..\neko\libs\include\ocaml\nast.ml">
+			</File>
+			<File
+				RelativePath="..\neko\libs\include\ocaml\nxml.ml">
+			</File>
+		</Filter>
 		<File
 			RelativePath=".\ast.ml">
-		</File>
-		<File
-			RelativePath=".\genneko.ml">
 		</File>
 		<File
 			RelativePath=".\genswf.ml">
