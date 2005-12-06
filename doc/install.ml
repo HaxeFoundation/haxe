@@ -107,7 +107,7 @@ let compile() =
 	ocamlc "-I ../ocaml -pp camlp4o parser.ml";
 	ocamlc "-I ../ocaml -I ../ocaml/swflib type.ml plugin.ml typer.ml genswf.ml";
 	ocamlc "-I ../ocaml -I ../neko/libs/include/ocaml ../neko/libs/include/ocaml/nast.ml ../neko/libs/include/ocaml/nxml.ml genneko.ml";
-	ocamlc "-I ../ocaml/extc main.ml";
+	ocamlc "-I ../ocaml -I ../ocaml/extc main.ml";
 	let mlist = ["ast";"lexer";"parser";"type";"plugin";"typer";"genswf";"../neko/libs/include/ocaml/nast";"../neko/libs/include/ocaml/nxml";"genneko";"main"] in
 	if bytecode then command ("ocamlc -custom -o ../bin/haxe-byte" ^ exe_ext ^ " ../ocaml/extLib.cma ../ocaml/extc/extc.cma ../ocaml/swflib/swflib.cma " ^ modules mlist ".cmo");
 	if native then command ("ocamlopt -o ../bin/haxe" ^ exe_ext ^ " ../ocaml/extLib.cmxa ../ocaml/extc/extc.cmxa ../ocaml/swflib/swflib.cmxa " ^ modules mlist ".cmx");
