@@ -42,6 +42,9 @@
 			RelativePath=".\ast.ml">
 		</File>
 		<File
+			RelativePath=".\genneko.ml">
+		</File>
+		<File
 			RelativePath=".\genswf.ml">
 		</File>
 		<File

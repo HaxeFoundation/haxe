@@ -1126,7 +1126,7 @@ let gen_type_def ctx t tdef =
 		setvar ctx VarStr;
 		PMap.iter (fun _ f -> gen_enum_field ctx f) e.e_constrs
 
-let gen_boot ctx m =
+let gen_boot ctx =
 	let id = gen_type ctx ([],"Boot") false in
 	(* r0 = Boot *)
 	push ctx [VStr id];
@@ -1208,7 +1208,7 @@ let to_utf8 str =
 			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
 			UTF8.Buf.contents b
 
-let generate file ver modules =
+let generate file ver types =
 	let ctx = {
 		opcodes = DynArray.create();
 		code_pos = 0;
@@ -1228,13 +1228,9 @@ let generate file ver modules =
 		statics = [];
 	} in
 	write ctx (AStringPool []);
-	let boot = ref None in
-	List.iter (fun m ->
-		if m.mpath = ([],"Boot") then boot := Some m;
-		List.iter (fun (p,t) -> gen_type_def ctx p t) m.mtypes
-	) modules;
+	List.iter (fun (p,t) -> gen_type_def ctx p t) types;
 	gen_type_map ctx;
-	gen_boot ctx (match !boot with None -> assert false | Some m -> m);
+	gen_boot ctx;
 	List.iter (gen_class_static_init ctx) (List.rev ctx.statics);
 	let idents = ctx.idents in
 	let idents = Hashtbl.fold (fun ident pos acc -> (ident,pos) :: acc) idents [] in

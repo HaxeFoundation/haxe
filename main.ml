@@ -63,20 +63,28 @@ try
 	let base_path = normalize_path (try Extc.executable_path() with _ -> "./") in
 	let classes = ref ["Std"] in
 	let swf_out = ref None in
+	let neko_out = ref None in
 	let swf_version = ref 8 in
 	let time = Sys.time() in
 	Plugin.class_path := [base_path ^ "std/";"";"/"];
+	let check_targets() =
+		if !swf_out <> None || !neko_out <> None then raise (Arg.Bad "Multiple targets");
+	in
 	let args_spec = [
 		("-cp",Arg.String (fun path ->
 			Plugin.class_path := normalize_path path :: !Plugin.class_path
 		),"<path> : add a directory to find source files");
 		("-swf",Arg.String (fun file ->
-			Plugin.class_path := (base_path ^ "flash/") :: !Plugin.class_path;
+			check_targets();
 			swf_out := Some file
 		),"<file> : compile code to SWF file");
 		("-fplayer",Arg.Int (fun v ->
 			swf_version := v;
 		),"<version> : flash player version (8 by default)");
+		("-neko",Arg.String (fun file ->
+			check_targets();
+			neko_out := Some file
+		),"<file> : compile code to Neko Binary");
 		("-D",Arg.String (fun def ->
 			Hashtbl.add Parser.defines def ();
 		),"<var> : define the macro variable");
@@ -87,7 +95,13 @@ try
 	| None -> ()
 	| Some _ ->
 		Hashtbl.add Parser.defines "flash" ();
+		Plugin.class_path := (base_path ^ "flash/") :: !Plugin.class_path;
 		Hashtbl.add Parser.defines ("flash" ^ string_of_int !swf_version) ());
+	(match !neko_out with
+	| None -> ()
+	| Some _ ->
+		Hashtbl.add Parser.defines "neko" ();
+		Plugin.class_path := (base_path ^ "neko/") :: !Plugin.class_path);
 	if !classes = [] then begin
 		Arg.usage args_spec usage
 	end else begin
@@ -95,13 +109,18 @@ try
 		let ctx = Typer.context warn in
 		List.iter (compile ctx) (List.rev !classes);
 		Typer.finalize ctx;
-		let modules = Typer.modules ctx in
+		let types = Typer.types ctx in
 		(match !swf_out with
 		| None -> ()
 		| Some file ->
 			if !Plugin.verbose then print_endline ("Generating swf : " ^ file);
-			Genswf.generate file (!swf_version) modules
+			Genswf.generate file (!swf_version) types
 		);
+		(match !neko_out with
+		| None -> ()
+		| Some file ->
+			if !Plugin.verbose then print_endline ("Generating neko : " ^ file);
+			Genneko.generate file types);
 		if !Plugin.verbose then print_endline ("Time spent : " ^ string_of_float (Sys.time() -. time));
 	end;
 with

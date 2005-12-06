@@ -1161,8 +1161,86 @@ let rec finalize ctx =
 		List.iter (fun f -> f()) l;
 		finalize ctx
 
-let modules ctx =
-	Hashtbl.fold (fun _ m acc -> m :: acc) ctx.modules []
+type state =
+	| Generating
+	| Done
+	| NotYet
+
+let types ctx =
+	let types = ref [] in
+	let states = Hashtbl.create 0 in
+	let state p = try Hashtbl.find states p with Not_found -> NotYet in
+	let rec loop (p,t) =
+		match state p with
+		| Done -> ()
+		| Generating ->
+			prerr_endline ("Warning : maybe loop in static generation of " ^ s_type_path p);
+		| NotYet ->
+			Hashtbl.add states p Generating;
+			(match t with
+			| TClassDecl c -> walk_class p c
+			| TEnumDecl e -> ());				
+			Hashtbl.replace states p Done;
+			types := (p,t) :: !types
+
+    and loop_class p c =
+		if c.cl_path <> p then loop (c.cl_path,TClassDecl c)
+
+	and loop_enum p e =
+		if e.e_path <> p then loop (e.e_path,TEnumDecl e)
+
+	and walk_static_call p c name =
+		try
+			let f = PMap.find name c.cl_statics in
+			match f.cf_expr with
+			| None -> ()
+			| Some e -> walk_expr p e
+		with
+			Not_found -> ()
+
+	and walk_expr p e =
+		match e.eexpr with
+		| TType t ->
+			(match t with
+			| TClassDecl c -> loop_class p c
+			| TEnumDecl e -> loop_enum p e)
+		| TEnumField (e,_) ->
+			loop_enum p e
+		| TNew (c,_,_) ->
+			loop_class p c
+		| TMatch (e,_,_) ->
+			loop_enum p e
+		| TCall (f,_) ->
+			iter (walk_expr p) e;
+			(* static call for initializing a variable *)
+			let rec loop f =
+				match f.eexpr with
+				| TField ({ eexpr = TType t },name) ->
+					(match t with
+					| TEnumDecl _ -> ()
+					| TClassDecl c -> walk_static_call p c name)
+				| TField (f,_) -> loop f
+				| _ -> ()
+			in
+			loop f
+		| _ -> 
+			iter (walk_expr p) e
+
+    and walk_class p c =
+		(match c.cl_super with None -> () | Some (c,_) -> loop_class p c);
+		List.iter (fun (c,_) -> loop_class p c) c.cl_implements;
+		PMap.iter (fun _ f ->
+			match f.cf_expr with
+			| None -> ()
+			| Some e -> 
+				match e.eexpr with
+				| TFunction _ -> ()
+				| _ -> walk_expr p e
+		) c.cl_statics
+
+	in
+	Hashtbl.iter (fun _ m -> List.iter loop m.mtypes) ctx.modules;
+	List.rev !types
 
 ;;
 load_ref := load
