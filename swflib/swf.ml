@@ -51,6 +51,14 @@ type rect = {
 	bottom : int;
 }
 
+type big_rect = {
+	brect_nbits : int;
+	bleft : int list;
+	bright : int list;
+	btop : int list; 
+	bbottom : int list;
+}
+
 type matrix_part = {
 	m_nbits : int;
 	mx : int;
@@ -420,7 +428,7 @@ type text_record = {
 
 type text = {
 	mutable txt_id : int;
-	txt_bounds : rect;
+	txt_bounds : big_rect;
 	txt_matrix : matrix;
 	txt_ngbits : int;
 	txt_nabits : int;

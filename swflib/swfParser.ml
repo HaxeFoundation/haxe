@@ -89,6 +89,9 @@ let _nbits x =
 let rect_nbits r = 
 	r.rect_nbits
 
+let bigrect_nbits r =
+	r.brect_nbits
+
 let rgba_nbits c =
 	max
 		(max (_nbits c.r) (_nbits c.g))
@@ -110,6 +113,11 @@ let color_length = function
 
 let rect_length r =
 	let nbits = rect_nbits r in
+	let nbits = nbits * 4 + 5 in
+	(nbits + 7) / 8
+
+let big_rect_length r =
+	let nbits = bigrect_nbits r in
 	let nbits = nbits * 4 + 5 in
 	(nbits + 7) / 8
 
@@ -215,7 +223,7 @@ let text_record_length t r =
 		1 + ((((t.txt_ngbits + t.txt_nabits) * List.length r.txr_glyphs) + 7) / 8)
 
 let text_length t =
-	2 + rect_length t.txt_bounds + matrix_length t.txt_matrix + 2 + sum (text_record_length t) t.txt_records + 1
+	2 + big_rect_length t.txt_bounds + matrix_length t.txt_matrix + 2 + sum (text_record_length t) t.txt_records + 1
 
 let button_record_length r =
 	1 + 2 + 2 + matrix_length r.btr_mpos + (match r.btr_color with None -> 0 | Some c -> cxa_length c)
@@ -425,6 +433,28 @@ let read_rect ch =
 		bottom = bottom;
 	}
 
+let rec read_multi_bits b n =
+	if n <= 30 then
+		[read_bits b n]
+	else
+		let d = read_bits b 30 in
+		d :: read_multi_bits b (n - 30)
+
+let read_big_rect ch =
+	let b = input_bits ch in
+	let nbits = read_bits b 5 in
+	let left = read_multi_bits b nbits in
+	let right = read_multi_bits b nbits in
+	let top = read_multi_bits b nbits in
+	let bottom = read_multi_bits b nbits in
+	{
+		brect_nbits = nbits;
+		bleft = left;
+		bright = right;
+		btop = top;
+		bbottom = bottom;
+	}
+
 let read_matrix ch =
 	let b = input_bits ch in
 	let read_matrix_part() =
@@ -512,6 +542,27 @@ let write_rect ch r =
 	write_bits b nbits r.right;
 	write_bits b nbits r.top;
 	write_bits b nbits r.bottom;
+	flush_bits b
+
+let rec write_multi_bits b n l =
+	if n <= 30 then
+		match l with
+		| [] -> write_bits b n 0
+		| [x] -> write_bits b n x
+		| _ -> assert false
+	else
+		match l with
+		| [] -> write_bits b 30 0; write_multi_bits b (n - 30) []
+		| x :: l -> write_bits b 30 x; write_multi_bits b (n - 30) l
+
+let write_big_rect ch r =
+	let b = output_bits ch in
+	let nbits = bigrect_nbits r in
+	write_bits b 5 nbits;
+	write_multi_bits b nbits r.bleft;
+	write_multi_bits b nbits r.bright;
+	write_multi_bits b nbits r.btop;
+	write_multi_bits b nbits r.bbottom;
 	flush_bits b
 
 let write_matrix ch m =
@@ -779,7 +830,7 @@ let parse_bitmap_lossless ch len =
 
 let parse_text ch is_txt2 =
 	let id = read_ui16 ch in
-	let bounds = read_rect ch in
+	let bounds = read_big_rect ch in
 	let matrix = read_matrix ch in
 	let ngbits = read_byte ch in
 	let nabits = read_byte ch in
@@ -1396,7 +1447,7 @@ let write_text_record ch t r =
 
 let write_text ch t =
 	write_ui16 ch t.txt_id;
-	write_rect ch t.txt_bounds;
+	write_big_rect ch t.txt_bounds;
 	write_matrix ch t.txt_matrix;
 	write_byte ch t.txt_ngbits;
 	write_byte ch t.txt_nabits;
