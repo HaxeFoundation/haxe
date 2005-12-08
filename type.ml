@@ -35,7 +35,6 @@ and tconstant =
 	| TNull
 	| TThis
 	| TSuper
-	| TDone
 
 and tfunc = {
 	tf_args : (string * t) list;
@@ -100,6 +99,7 @@ and tclass = {
 and tenum_field = {
 	ef_name : string;
 	ef_type : t;
+	ef_pos : Ast.pos;
 }
 
 and tenum = {

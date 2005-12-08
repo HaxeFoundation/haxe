@@ -365,7 +365,6 @@ let type_constant ctx c p =
 		) in
 		if ctx.in_static then error "Cannot access super from a static function" p;
 		mk (TConst TSuper) t p
-	| Ident "done" -> mk (TConst TDone) (mk_mono()) p
 	| Ident "null" -> mk (TConst TNull) (mk_mono()) p
 	| Ident s -> type_ident ctx s p
 	| Type s ->
@@ -1086,7 +1085,7 @@ let type_module ctx m tdecls =
 					| [] -> et
 					| l -> TFun (List.map (fun (_,t) -> load_type ctx p t) l, et)
 				) in
-				e.e_constrs <- PMap.add c { ef_name = c; ef_type = t } e.e_constrs
+				e.e_constrs <- PMap.add c { ef_name = c; ef_type = t; ef_pos = p } e.e_constrs
 			) constrs
 	) tdecls;
 	(* PASS 3 : type checking, delayed until all modules and types are built *)
