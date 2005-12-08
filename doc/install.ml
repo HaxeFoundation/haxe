@@ -26,10 +26,15 @@ let native = true
 
 (* ------ END CONFIGURATION ----- *)
 
-let obj_ext = match Sys.os_type with "Win32" -> ".obj" | _ -> ".o"
-let exe_ext = match Sys.os_type with "Win32" | "Cygwin" -> ".exe" | _ -> ""
+let os_type = Sys.os_type
 
-let zlib = match Sys.os_type with 
+(* remove the comment to compile with windows using ocaml cygwin *)
+(* let os_type = "Cygwin" *)
+
+let obj_ext = match os_type with "Win32" -> ".obj" | _ -> ".o"
+let exe_ext = match os_type with "Win32" | "Cygwin" -> ".exe" | _ -> ""
+
+let zlib = match os_type with 
 	| "Win32" -> "zlib.lib" 
 	| _ -> 
 		let osx = "/usr/lib/libz.dylib" in
@@ -58,25 +63,28 @@ let modules l ext =
 let sourceforge = ":pserver:anonymous@cvs.sourceforge.net:/cvsroot/ocaml-lib" in
 let motiontwin = ":pserver:anonymous@cvs.motion-twin.com:/cvsroot" in
 
-let download () =
 
+let download_extlib() =
 	msg "*** Please hit enter on login (empty password) ***";
 	cvs sourceforge "login";
 	cvs sourceforge "co extlib-dev";
+in
 
-	msg "*** Please hit enter on login (empty password) ***";
-	cvs motiontwin "login";
-	cvs motiontwin "co haxe";
+let download_libs() =
 	cvs motiontwin "co ocaml/swflib";
 	cvs motiontwin "co ocaml/extc";
 	cvs motiontwin "co neko/libs/include/ocaml"
-	
 in
 
-let compile() =
+let download() =
+	msg "*** Please hit enter on login (empty password) ***";
+	cvs motiontwin "login";
+	cvs motiontwin "co haxe";
+	download_libs();
+	download_extlib();	
+in
 
-	(try Unix.mkdir "bin" 0o740 with Unix.Unix_error(Unix.EEXIST,_,_) -> ());
-
+let compile_libs() =	
 	(* EXTLIB *)
 	Sys.chdir "extlib-dev";
 	command ("ocaml install.ml -nodoc -d ../ocaml " ^ (if bytecode then "-b " else "") ^ (if native then "-n" else ""));
@@ -99,6 +107,13 @@ let compile() =
 	if bytecode then command ("ocamlc -a -o swflib.cma " ^ files);
 	if native then command ("ocamlopt -a -o swflib.cmxa " ^ files);
 	Sys.chdir "../..";
+in
+
+let compile() =
+
+	(try Unix.mkdir "bin" 0o740 with Unix.Unix_error(Unix.EEXIST,_,_) -> ());
+
+	compile_libs();
 
 	(* HAXE *)
 	Sys.chdir "haxe";
