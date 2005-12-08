@@ -486,7 +486,6 @@ let rec gen_constant ctx c p =
 	| TString s -> push ctx [VStr (unescape_chars s p)]
 	| TBool b -> write ctx (APush [PBool b])
 	| TNull -> push ctx [VNull]
-	| TDone -> push ctx [VStr "@done"]
 	| TThis
 	| TSuper -> assert false
 
