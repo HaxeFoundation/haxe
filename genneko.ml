@@ -64,6 +64,10 @@ let array p el =
 let pmap_list f p =
 	PMap.fold (fun v acc -> f v :: acc) p []
 
+let nparams l =
+	let pcount = ref 0 in
+	List.map (fun _ -> incr pcount; "p" ^ string_of_int (!pcount)) l
+
 let gen_type_path p (path,t) =
 	match path with
 	| [] -> ident p t
@@ -75,7 +79,7 @@ let gen_constant p c =
 	match c with
 	| TInt i -> (try int p (int_of_string i) with _ -> (EConst (Float i),p))
 	| TFloat f -> (EConst (Float f),p)
-	| TString s -> str p s
+	| TString s -> call p (field p (ident p "String") "new") [str p s]
 	| TBool b -> (EConst (if b then True else False),p)
 	| TNull -> null p
 	| TThis -> this p 
@@ -196,28 +200,46 @@ and gen_expr e =
 	| TSwitch (e,cases,eo) ->
 		null p
 
-let gen_static_method c =
+let gen_method c acc =
 	match c.cf_expr with
-	| None -> assert false
+	| None -> acc
 	| Some e ->
-		c.cf_name , (match e.eexpr with
-			| TFunction _ -> gen_expr e
-			| _ -> null (pos e.epos)
-		)
+		match e.eexpr with
+		| TFunction _ -> ((if c.cf_name = "new" then "__construct__" else c.cf_name), gen_expr e) :: acc
+		| _ -> acc
 
 let gen_class p c =	
+	let clpath = gen_type_path null_pos (fst p,"@" ^ snd p) in
+	let fnew = (try
+		let f = PMap.find "new" c.cl_statics in
+		match follow f.cf_type with
+		| TFun (args,_) ->
+			let params = nparams args in
+			let p = null_pos in
+			["new",(EFunction (params,(EBlock [
+				(EVars ["@o",Some (call p (builtin p "new") [clpath])],p);
+				(call p (builtin p "call") [field p (this p) "__construct__"; ident p "@o"; array p (List.map (ident p) params)]);
+				(EReturn (Some (ident p "@o")),p)
+			],p)),p)]
+		| _ -> []
+	with Not_found ->
+		[]
+	) in
 	let estat = (EBinop ("=",
 		gen_type_path null_pos p,
-		(EObject (pmap_list gen_static_method c.cl_statics),null_pos)
+		(EObject (PMap.fold gen_method c.cl_statics fnew),null_pos)
 	),null_pos) in
-	estat
+	let eclass = (EBinop ("=",
+		clpath,
+		(EObject (PMap.fold gen_method c.cl_fields []),null_pos)
+	),null_pos) in
+	(ENext (estat,eclass),null_pos)
 
 let gen_enum_constr c =
 	let p = pos c.ef_pos in
 	c.ef_name , (match follow c.ef_type with
 		| TFun (params,_) -> 
-			let pcount = ref 0 in
-			let params = List.map (fun _ -> incr pcount; "p" ^ string_of_int (!pcount)) params in
+			let params = nparams params in
 			(EFunction (params,array p (str p c.ef_name :: List.map (ident p) params)),p)
 		| _ ->
 			array p [str p c.ef_name]
@@ -260,9 +282,15 @@ let gen_static_vars (_,t) =
 						),p) :: acc
 			) c.cl_statics []
 
+let gen_boot() =
+	call null_pos (field null_pos (ident null_pos "Boot") "__init") []
+
 let generate file types =
-	let e = (EBlock (List.map gen_type types @ (List.concat (List.map gen_static_vars types))), null_pos) in
+	let e = (EBlock (List.map gen_type types @ [gen_boot()] @ (List.concat (List.map gen_static_vars types))), null_pos) in
 	let neko_file = Filename.chop_extension file ^ ".neko" in
 	let ch = IO.output_channel (open_out neko_file) in
 	Nxml.write ch (Nxml.to_xml e);
 	IO.close_out ch
+
+;;
+Nast.do_escape := false
