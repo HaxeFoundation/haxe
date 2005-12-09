@@ -8,6 +8,8 @@ class Std {
 		return untyped
 		#flash
 		Boot.__instanceof(obj,vclass);
+		#else neko
+		null;
 		#else error
 		#end
 	}
@@ -16,6 +18,8 @@ class Std {
 		return untyped
 		#flash
 		Boot.__string_rec(s,"");
+		#else neko
+		__dollar__string(s);
 		#else error
 		#end
 	}
