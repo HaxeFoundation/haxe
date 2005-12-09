@@ -1,6 +1,4 @@
-#flash
 import Boot;
-#end
 
 class Std {
 
