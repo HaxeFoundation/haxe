@@ -348,7 +348,7 @@ let parse code file =
 	cache := DynArray.create();
 	Lexer.init file;	
 	let rec next_token() =
-		let tk = Lexer.token code in		
+		let tk = Lexer.token code in
 		match fst tk with 
 		| Comment s | CommentLine s -> 
 			next_token()
@@ -359,43 +359,44 @@ let parse code file =
 				mstack := l;
 				next_token())
 		| Macro "else" ->
-			skip_tokens()
+			(match !mstack with
+			| [] -> serror()
+			| _ :: l -> 
+				mstack := l;
+				skip_tokens false;
+				next_token())			
 		| Macro s ->
-			enter_macro s (snd tk)
+			enter_macro s (snd tk);
+			next_token()
 		| _ ->
-			tk	
-
-	and macro_else tk =
-		(match !mstack with
-		| [] -> serror()
-		| _ :: l -> 
-			mstack := l;
-			match Lexer.token code with
-			| (Const (Ident s),p) ->
-				enter_macro s p
-			| _ ->
-				serror())
+			tk
 
 	and enter_macro s p =
-		mstack := p :: !mstack;
 		if s = "error" then error Unimplemented p;
 		if Hashtbl.mem defines s then
-			next_token()
-		else 
-			skip_tokens()
+			mstack := p :: !mstack
+		else
+			skip_tokens true
 	
-	and skip_tokens() =
+	and skip_tokens test =
 		let rec loop() =
 			let tk = Lexer.token code in
 			match fst tk with
 			| Macro "end"  ->
-				mstack := (match !mstack with [] -> assert false | _ :: l -> l);
-				next_token()
-			| Macro "else" ->
-				macro_else tk
-			| Macro s ->
-				ignore(skip_tokens());
+				()
+			| Macro "else" when not test ->
 				loop()
+			| Macro "else" ->
+				(match Lexer.token code with
+				| (Const (Ident s),p) ->
+					enter_macro s p
+				| _ ->
+					serror())
+			| Macro s ->
+				ignore(skip_tokens false);
+				loop()
+			| Eof ->
+				serror()
 			| _ ->
 				loop()
 		in
