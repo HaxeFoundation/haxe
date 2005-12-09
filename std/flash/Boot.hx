@@ -75,6 +75,31 @@ class Boot {
 		}
 	}
 
+	private static function __trace(v) {
+		untyped {
+			var tf = _root.__trace_txt;
+			if( tf == null ) {
+				_root.createTextField("__trace_txt",1048500,0,0,Stage.width,Stage.height);
+				tf = _root.__trace_txt;
+				tf.selectable = false;
+				_root.__trace_lines = new Array<String>();
+			}
+			var lines = _root.__trace_lines.concat(__string_rec(v,"").split("\n"));
+			_root.__trace_lines = lines;
+			var nlines = Stage.height / 16;
+			if( lines.length > nlines )
+				lines.splice(0,lines.length-nlines);
+			tf.text = lines.join("\n");
+		}
+	}
+
+	private static function __clear_trace() {
+		untyped {
+			_root.__trace_txt.removeTextField();
+			_root.__trace_lines = null;
+		}
+	}
+
 	private static function __init(current) {
 		untyped {
 			var obj = _global["Object"];
