@@ -35,6 +35,7 @@ type context = {
 	mutable curclass : tclass;
 	mutable type_params : (string * t) list;
 	(* per-function *)
+	mutable curmethod : string;
 	mutable in_constructor : bool;
 	mutable in_static : bool;
 	mutable in_loop : bool;
@@ -781,6 +782,18 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	| EThrow e ->
 		let e = type_expr ctx e in
 		mk (TThrow e) (mk_mono()) p
+	| ECall ((EConst (Ident "trace"),p),e :: el) ->
+		let params = (match el with [] -> [] | _ -> ["customParams",(EArrayDecl el , p)]) in
+		let infos = (EObjectDecl (
+			("fileName" , (EConst (String (Filename.basename p.pfile)) , p)) ::
+			("lineNumber" , (EConst (Int (string_of_int (Lexer.get_error_line p))),p)) ::
+			("className" , (EConst (String (s_type_path ctx.curclass.cl_path)),p)) ::
+			(if ctx.curmethod = "" then
+				params
+			else 
+				("methodName", (EConst (String ctx.curmethod),p)) :: params)
+		) ,p) in
+		type_expr ctx (ECall ((EField ((EConst (Type "Log"),p),"trace"),p),[e;EUntyped infos,p]),p)
 	| ECall ((EConst (Ident "type"),_),[e]) ->
 		let e = type_expr ctx e in
 		ctx.warn (s_type (print_context()) e.etype) e.epos;
@@ -981,6 +994,8 @@ let init_class ctx c p types herits fields =
 			} in
 			let define_fun() = 
 				ctx.curclass <- c;
+				ctx.curmethod <- name;
+				if !Plugin.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
 				let e = type_function ctx t stat (name = "new") f p in
 				let f = {
 					tf_args = args;
@@ -1058,6 +1073,7 @@ let type_module ctx m tdecls =
 		locals = PMap.empty;
 		local_types = ctx.std.mtypes @ m.mtypes;
 		type_params = [];
+		curmethod = "";
 		in_constructor = false;
 		in_static = false;
 		in_loop = false;
@@ -1102,6 +1118,7 @@ let load ctx m p =
 			let ch = (try open_in file with _ -> error ("Could not open " ^ file) p) in
 			let pack , decls = (try Parser.parse (Lexing.from_channel ch) file with e -> close_in ch; raise e) in
 			close_in ch;
+			if !Plugin.verbose then print_endline ("Parsed " ^ file);
 			if pack <> fst m then begin
 				let spack m = if m = [] then "<empty>" else String.concat "." m in
 				if p == Ast.null_pos then
@@ -1129,6 +1146,7 @@ let context warn =
 		locals = PMap.empty;
 		local_types = [];
 		type_params = [];
+		curmethod = "";
 		curclass = {
 			cl_path = [] , "";
 			cl_extern = false;
