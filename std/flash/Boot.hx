@@ -75,7 +75,7 @@ class Boot {
 		}
 	}
 
-	private static function __trace(v) {
+	private static function __trace(v,inf) {
 		untyped {
 			var tf = _root.__trace_txt;
 			if( tf == null ) {
@@ -84,7 +84,8 @@ class Boot {
 				tf.selectable = false;
 				_root.__trace_lines = new Array<String>();
 			}
-			var lines = _root.__trace_lines.concat(__string_rec(v,"").split("\n"));
+			var s = inf.fileName+":"+inf.lineNumber+": "+__string_rec(v,"");
+			var lines = _root.__trace_lines.concat(s.split("\n"));
 			_root.__trace_lines = lines;
 			var nlines = Stage.height / 16;
 			if( lines.length > nlines )
