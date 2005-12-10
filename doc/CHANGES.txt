@@ -4,6 +4,9 @@
 	added SWF "extends" support
 	added method closures
 	added some flash lowlevel operations (__xxx__)
+	added Log, LogInfos and trace 
+	added Neko generation
+	fixed problems with conditional compilation macros
 	
 2005-11-30: alpha 3
 	added Flash extern classes
