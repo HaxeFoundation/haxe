@@ -105,7 +105,7 @@ class NekoArray__<T> implements Array<T> {
 		for i in it {
 			s.add(i);
 			if( it.hasNext() )
-				s.add(",");
+				s.add(", ");
 		}
 		s.add("]");
 		return s.toString();
@@ -234,10 +234,6 @@ class NekoArray__<T> implements Array<T> {
 
 
 	/* NEKO INTERNAL */
-
-	private function __string() {
-		return untyped toString().__s;
-	}
 
 	private function __get( pos  ) {
 		return untyped this.__a[pos];
