@@ -15,4 +15,6 @@ extern class String {
 	function split( delimiter : String ) : Array<String>;
 	function substr( pos : Int, len : Int ) : String;
 
+	function toString() : String;
+
 }
