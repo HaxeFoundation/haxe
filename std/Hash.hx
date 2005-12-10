@@ -1,14 +1,16 @@
 class Hash<T> {
 
 	public function new() : Void {
-		#neko
+		#flash
+		h = untyped __new__(_global["Object"]);
+		#else neko
 		h = untyped __dollar__hnew(0);
 		#end
 	}
 
 	public function set( key : String, value : T ) : Void {
 		#flash
-		untyped this[key] = value;
+		untyped h[key] = value;
 		#else neko
 		untyped __dollar__hset(h,key.__s,value,null);
 		#end
@@ -16,7 +18,7 @@ class Hash<T> {
 
 	public function get( key : String ) : T {
 		#flash
-		return untyped this[key];
+		return untyped h[key];
 		#else neko
 		return untyped __dollar__hget(h,key.__s,null);
 		#end
@@ -24,7 +26,7 @@ class Hash<T> {
 
 	public function exists( key : String ) : Bool {
 		#flash
-		return untyped this[key] != null;
+		return untyped h.hasOwnProperty(key);
 		#else neko
 		return untyped __dollar__hmem(h,key.__s,null);
 		#end
@@ -32,7 +34,7 @@ class Hash<T> {
 
 	public function keys() : Iterator<String> {
 		#flash
-		return untyped (__keys__(this)).iterator();
+		return untyped (__keys__(h)).iterator();
 		#else neko
 		var l = new List<String>();
 		untyped __dollar__hiter(h,function(k,_) { l.push(new String(k)); });
@@ -43,7 +45,7 @@ class Hash<T> {
 	public function iterator() : Iterator<T> {
 		#flash
 		return untyped({
-			ref : this,
+			ref : h,
 			it : keys(),
 			hasNext : function() { return this.it.hasNext(); },
 			next : function() { var i = this.it.next(); return this.ref[i]; }
@@ -70,10 +72,6 @@ class Hash<T> {
 		return s.toString();
 	}
 
-	#flash
-	static var __init : Dynamic = untyped _global["ASSetPropFlags"](Hash.prototype,null,1);
-	#else neko
 	private var h : Dynamic;
-	#else error
-	#end
+
 }
