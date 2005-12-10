@@ -783,6 +783,9 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let e = type_expr ctx e in
 		mk (TThrow e) (mk_mono()) p
 	| ECall ((EConst (Ident "trace"),p),e :: el) ->
+		if Hashtbl.mem Parser.defines "notrace" then
+			mk (TConst TNull) (t_void ctx) p
+		else
 		let params = (match el with [] -> [] | _ -> ["customParams",(EArrayDecl el , p)]) in
 		let infos = (EObjectDecl (
 			("fileName" , (EConst (String (Filename.basename p.pfile)) , p)) ::
