@@ -7,7 +7,7 @@ class Std {
 		#flash
 		Boot.__instanceof(obj,vclass);
 		#else neko
-		null;
+		Boot.__instanceof(obj,vclass);
 		#else error
 		#end
 	}

@@ -85,33 +85,6 @@ let gen_constant p c =
 	| TThis -> this p 
 	| TSuper -> assert false
 
-let op_str op =
-	match op with
-	| OpAdd -> "+"
-	| OpMult -> "*"
-	| OpDiv -> "/"
-	| OpSub -> "-"
-	| OpAssign -> "="
-	| OpEq -> "=="
-	| OpNotEq -> "!="
-	| OpGt -> ">"
-	| OpGte -> ">="
-	| OpLt -> "<"
-	| OpLte -> "<="
-	| OpAnd -> "&"
-	| OpOr -> "|"
-	| OpXor -> "^"
-	| OpBoolAnd -> "&&"
-	| OpBoolOr -> "||"
-	| OpShl -> "<<"
-	| OpShr -> ">>"
-	| OpUShr -> ">>>"
-	| OpMod -> "%"
-	| OpPhysEq
-	| OpPhysNotEq
-	| OpAssignOp _
-	| OpInterval -> assert false
-
 let rec gen_binop p op e1 e2 =
 	let gen_op str =
 		(EBinop (str,gen_expr e1,gen_expr e2),p)
@@ -119,9 +92,7 @@ let rec gen_binop p op e1 e2 =
 	match op with
 	| OpPhysEq -> (EBinop ("==", call p (builtin p "pcompare") [gen_expr e1; gen_expr e2], int p 0),p)
 	| OpPhysNotEq ->  (EBinop ("!=", call p (builtin p "pcompare") [gen_expr e1; gen_expr e2], int p 0),p)
-	| OpAssignOp op -> gen_op (op_str op ^ "=")
-	| OpInterval -> assert false (* handled by typer *)
-	| _ -> gen_op (op_str op)
+	| _ -> gen_op (Ast.s_binop op)
 
 and gen_unop p op flag e =	
 	match op with
@@ -245,6 +216,7 @@ and gen_expr e =
 					List.map (fun (e1,e2) -> gen_expr e1, gen_expr e2) cases,
 					(match eo with None -> None | Some e -> Some (gen_expr e))
 				),p)
+
 let gen_method c acc =
 	match c.cf_expr with
 	| None -> acc
@@ -255,6 +227,8 @@ let gen_method c acc =
 
 let gen_class p c =	
 	let clpath = gen_type_path null_pos (fst p,"@" ^ snd p) in
+	let stpath = gen_type_path null_pos p in
+	let esuper = match c.cl_super with None -> null null_pos | Some (c,_) -> gen_type_path null_pos (fst c.cl_path,"@" ^ snd c.cl_path) in
 	let fnew = (try
 		let f = PMap.find "new" c.cl_statics in
 		match follow f.cf_type with
@@ -281,22 +255,24 @@ let gen_class p c =
 		| _ -> []
 	with Not_found -> 
 		[]
-	) in
+	) in	
 	let estat = (EBinop ("=",
-		gen_type_path null_pos p,
+		stpath,
 		(EObject (PMap.fold gen_method c.cl_statics fnew),null_pos)
 	),null_pos) in
 	let p = null_pos in
 	let eclass = (EBinop ("=",
 		clpath,
-		call p (builtin p "new") [match c.cl_super with None -> null p | Some (c,_) -> gen_type_path p (fst c.cl_path,"@" ^ snd c.cl_path)]
+		call p (builtin p "new") [esuper]
 	),null_pos) in
+	let interf = array p (List.map (fun (c,_) -> gen_type_path p c.cl_path) c.cl_implements) in
+	let magic = ("__class__", call p (builtin p "array") [stpath; interf; match c.cl_super with None -> null p | Some _ -> field p esuper "__class__"]) in
 	let methods = PMap.fold gen_method c.cl_fields fstring in
 	(EBlock (
 		estat ::
 		eclass ::
 		(EVars ["@tmp", Some clpath],p) ::
-		(List.map (fun (f,e) -> (EBinop ("=",field p (ident p "@tmp") f,e),p)) methods)
+		(List.map (fun (f,e) -> (EBinop ("=",field p (ident p "@tmp") f,e),p)) (magic :: methods))
 	),p)
 
 let gen_enum_constr c =
