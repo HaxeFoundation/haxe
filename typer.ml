@@ -529,12 +529,7 @@ let rec type_binop ctx op e1 e2 p =
 		check_assign ctx e1;
 		mk_op e1.etype
 	| OpAssignOp op ->
-		let e = loop op in
-		match e.eexpr with
-		| TBinop (op,e1,e2) -> 
-			mk (TBinop (OpAssignOp op,e1,e2)) e.etype p
-		| _ ->
-			assert false
+		loop op
 	in
 	loop op
 
