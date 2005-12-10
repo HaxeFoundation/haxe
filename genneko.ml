@@ -157,7 +157,7 @@ and gen_expr e =
 	| TObjectDecl fl ->
 		(EObject (List.map (fun (f,e) -> f , gen_expr e) fl),p)
 	| TArrayDecl el ->
-		array p (List.map gen_expr el)
+		call p (field p (ident p "Array") "new1") [array p (List.map gen_expr el); int p (List.length el)]
 	| TCall (e,el) ->
 		call p (gen_expr e) (List.map gen_expr el)
 	| TNew (c,_,params) ->
@@ -174,10 +174,10 @@ and gen_expr e =
 		(EBlock 
 			[(EVars ["@tmp", Some (gen_expr it)],p);
 			(EWhile (call p (field p (ident p "@tmp") "hasNext") [],
-				(ENext 
-					((EVars ["n", Some (call p (field p (ident p "@tmp") "next") [])],p),
+				(EBlock [
+					(EVars [v, Some (call p (field p (ident p "@tmp") "next") [])],p);
 					gen_expr e
-				),p)
+				],p)
 			,NormalWhile),p)]
 		,p)	
 	| TIf (cond,e1,e2) ->
@@ -198,8 +198,34 @@ and gen_expr e =
 	| TMatch _ ->
 		assert false
 	| TSwitch (e,cases,eo) ->
-		null p
-
+		try
+			let l = List.map (fun (e,e2) -> match e.eexpr with TMatch (_,s,vl) -> (s,vl,e2) | _ -> raise Not_found) cases in
+			(ENext (
+				(EVars ["@tmp",Some (gen_expr e)],p),
+				(ESwitch (
+					(EArray (ident p "@tmp",int p 0),p),
+					List.map (fun (s,el,e2) ->
+						let count = ref 0 in
+						let e = match el with
+							| None -> gen_expr e2
+							| Some el ->
+								(EBlock [
+									(EVars (List.map (fun (v,_) -> incr count; v , Some (EArray (ident p "@tmp",int p (!count)),p)) el),p);
+									(gen_expr e2)
+								],p)
+						in
+						str p s , e
+					) l,
+					(match eo with None -> None | Some e -> Some (gen_expr e))
+				),p)
+			),p)
+		with
+			Not_found ->
+				(ESwitch (
+					gen_expr e,
+					List.map (fun (e1,e2) -> gen_expr e1, gen_expr e2) cases,
+					(match eo with None -> None | Some e -> Some (gen_expr e))
+				),p)
 let gen_method c acc =
 	match c.cf_expr with
 	| None -> acc
@@ -225,13 +251,25 @@ let gen_class p c =
 	with Not_found ->
 		[]
 	) in
+	let fstring = (try
+		let f = PMap.find "toString" c.cl_fields in
+		match follow f.cf_type with
+		| TFun ([],_) ->
+			let p = null_pos in
+			["__string",(EFunction ([],(EBlock [
+				EReturn (Some (field p (call p (field p (this p) "toString") []) "__s")),p
+			],p)),p)]
+		| _ -> []
+	with Not_found -> 
+		[]
+	) in
 	let estat = (EBinop ("=",
 		gen_type_path null_pos p,
 		(EObject (PMap.fold gen_method c.cl_statics fnew),null_pos)
 	),null_pos) in
 	let eclass = (EBinop ("=",
 		clpath,
-		(EObject (PMap.fold gen_method c.cl_fields []),null_pos)
+		(EObject (PMap.fold gen_method c.cl_fields fstring),null_pos)
 	),null_pos) in
 	(ENext (estat,eclass),null_pos)
 
