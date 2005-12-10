@@ -799,7 +799,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	| ECall ((EConst (Ident "super"),sp),el) ->
 		let el = List.map (type_expr ctx) el in
 		if ctx.in_static || not ctx.in_constructor then error "Cannot call superconstructor outside class constructor" p;
-		(match ctx.curclass.cl_super with
+		let t = (match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
 			let f = (try PMap.find "new" c.cl_statics with Not_found -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
@@ -809,8 +809,9 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				List.iter2 (fun e t -> unify ctx e.etype t e.epos) el args;
 			| _ ->
 				error "Constructor is not a function" p);
-		);
-		mk (TCall (mk (TConst TSuper) (mk_mono()) sp,el)) (t_void ctx) p
+			TInst (c,params)
+		) in
+		mk (TCall (mk (TConst TSuper) t sp,el)) (t_void ctx) p
 	| ECall (e,el) ->
 		let e = type_expr ctx e in
 		let el = List.map (type_expr ctx) el in
