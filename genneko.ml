@@ -131,6 +131,25 @@ and gen_unop p op flag e =
 	| Neg -> (EBinop ("-",int p 0, gen_expr e),p)
 	| NegBits -> error "Operation not available" e.epos
 
+and gen_call p e el =
+	match e.eexpr , el with
+	| TConst TSuper , _ ->
+		let c = (match follow e.etype with TInst (c,_) -> c | _ -> assert false) in
+		call p (builtin p "call") [
+			field p (gen_type_path p c.cl_path) "__construct__";
+			this p;
+			array p (List.map gen_expr el)
+		]
+	| TField ({ eexpr = TConst TSuper; etype = t },f) , _ ->
+		let c = (match follow t with TInst (c,_) -> c | _ -> assert false) in
+		call p (builtin p "call") [
+			field p (gen_type_path p (fst c.cl_path,"@" ^ snd c.cl_path)) f;
+			this p;
+			array p (List.map gen_expr el)
+		]
+	| _ , _ ->
+		call p (gen_expr e) (List.map gen_expr el)
+
 and gen_expr e = 
 	let p = pos e.epos in
 	match e.eexpr with
@@ -159,7 +178,7 @@ and gen_expr e =
 	| TArrayDecl el ->
 		call p (field p (ident p "Array") "new1") [array p (List.map gen_expr el); int p (List.length el)]
 	| TCall (e,el) ->
-		call p (gen_expr e) (List.map gen_expr el)
+		gen_call p e el
 	| TNew (c,_,params) ->
 		call p (field p (gen_type_path p c.cl_path) "new") (List.map gen_expr params)
 	| TUnop (op,flag,e) ->
@@ -267,11 +286,18 @@ let gen_class p c =
 		gen_type_path null_pos p,
 		(EObject (PMap.fold gen_method c.cl_statics fnew),null_pos)
 	),null_pos) in
+	let p = null_pos in
 	let eclass = (EBinop ("=",
 		clpath,
-		(EObject (PMap.fold gen_method c.cl_fields fstring),null_pos)
+		call p (builtin p "new") [match c.cl_super with None -> null p | Some (c,_) -> gen_type_path p (fst c.cl_path,"@" ^ snd c.cl_path)]
 	),null_pos) in
-	(ENext (estat,eclass),null_pos)
+	let methods = PMap.fold gen_method c.cl_fields fstring in
+	(EBlock (
+		estat ::
+		eclass ::
+		(EVars ["@tmp", Some clpath],p) ::
+		(List.map (fun (f,e) -> (EBinop ("=",field p (ident p "@tmp") f,e),p)) methods)
+	),p)
 
 let gen_enum_constr c =
 	let p = pos c.ef_pos in
@@ -320,11 +346,32 @@ let gen_static_vars (_,t) =
 						),p) :: acc
 			) c.cl_statics []
 
+let gen_packages h ((p,_),t) =
+	let rec loop acc p =
+		match p with
+		| [] -> []
+		| x :: l ->
+			let path = acc @ [x] in
+			if not (Hashtbl.mem h path) then begin
+				let p = null_pos in
+				let e = (EBinop ("=",gen_type_path p (acc,x),call p (builtin p "new") [null p]),p) in
+				Hashtbl.add h path ();
+				e :: loop path l
+			end else
+				loop path l
+	in
+	loop [] p
+
 let gen_boot() =
 	call null_pos (field null_pos (ident null_pos "Boot") "__init") []
 
 let generate file types =
-	let e = (EBlock (List.map gen_type types @ [gen_boot()] @ (List.concat (List.map gen_static_vars types))), null_pos) in
+	let h = Hashtbl.create 0 in
+	let packs = List.concat (List.map (gen_packages h) types) in
+	let methods = List.map gen_type types in
+	let boot = gen_boot() in
+	let vars = List.concat (List.map gen_static_vars types) in
+	let e = (EBlock (packs @ methods @ boot :: vars), null_pos) in
 	let neko_file = Filename.chop_extension file ^ ".neko" in
 	let ch = IO.output_channel (open_out neko_file) in
 	Nxml.write ch (Nxml.to_xml e);
