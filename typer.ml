@@ -432,7 +432,7 @@ let type_field ctx t i p =
 		let rec loop c params =
 			try	
 				let f = PMap.find i c.cl_fields in
-				if not f.cf_public && not priv then error ("Cannot access to private field " ^ i) p;
+				if not f.cf_public && not priv && not ctx.untyped then error ("Cannot access to private field " ^ i) p;
 				apply_params c.cl_types params f.cf_type
 			with
 				Not_found ->
@@ -842,7 +842,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let c , params , t = (match t with
 		| TInst (c,params) ->
 			let f = (try PMap.find "new" c.cl_statics with Not_found -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
-			if not f.cf_public && not (is_parent c ctx.curclass) then error "Cannot access private constructor" p;
+			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then error "Cannot access private constructor" p;
 			(match apply_params c.cl_types params f.cf_type with
 			| TFun (args,r) ->
 				if List.length args <> List.length el then error "Invalid number of constructor parameters" p;
