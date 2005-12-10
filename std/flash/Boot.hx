@@ -21,7 +21,7 @@ class Boot {
 					return str;
 				}
 				var s2 = o.toString();
-				if( typeof(s2) == "string" && s2 != "[object Object]" )
+				if( (__typeof__(s2) == "string" || __instanceof__(s2,String)) && s2 != "[object Object]" )
 					return s2;
 				var k;
 				var str = "{\n";
