@@ -4,4 +4,8 @@ class Neko {
 		return untyped __dollar__loader.loadprim((lib+"@"+prim).__s,nargs);
 	}
 
+	public static function print( v : Dynamic ) : Void {
+		untyped __dollar__print(v);
+	}
+
 }
