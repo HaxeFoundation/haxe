@@ -78,9 +78,6 @@ try
 			check_targets();
 			swf_out := Some file
 		),"<file> : compile code to SWF file");
-		("-fplayer",Arg.Int (fun v ->
-			swf_version := v;
-		),"<version> : flash player version (8 by default)");
 		("-neko",Arg.String (fun file ->
 			check_targets();
 			neko_out := Some file
@@ -88,6 +85,9 @@ try
 		("-D",Arg.String (fun def ->
 			Hashtbl.add Parser.defines def ();
 		),"<var> : define the macro variable");
+		("-fplayer",Arg.Int (fun v ->
+			swf_version := v;
+		),"<version> : flash player version (8 by default)");
 		("-v",Arg.Unit (fun () -> Plugin.verbose := true),": turn on verbose mode");
 	] @ !Plugin.options in
 	Arg.parse args_spec (fun cl -> classes := cl :: !classes) usage;
@@ -102,7 +102,7 @@ try
 	| Some _ ->
 		Hashtbl.add Parser.defines "neko" ();
 		Plugin.class_path := (base_path ^ "neko/") :: !Plugin.class_path);
-	if !classes = [] then begin
+	if !classes = ["Std"] then begin
 		Arg.usage args_spec usage
 	end else begin
 		if !Plugin.verbose then print_endline ("Classpath : " ^ (String.concat ";" !Plugin.class_path));
