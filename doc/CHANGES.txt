@@ -1,4 +1,6 @@
-2005-12-??: alpha 4
+2005-12-??: alpha 5
+
+2005-12-10: alpha 4
 	forbid break and continue outside loops
 	fixed SWF generation bugs
 	added SWF "extends" support
