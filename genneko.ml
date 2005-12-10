@@ -351,7 +351,8 @@ let generate file types =
 	let neko_file = Filename.chop_extension file ^ ".neko" in
 	let ch = IO.output_channel (open_out neko_file) in
 	Nxml.write ch (Nxml.to_xml e);
-	IO.close_out ch
+	IO.close_out ch;
+	if Sys.command ("nekovm neko " ^ neko_file) = 0 && not (!Plugin.verbose) then Sys.remove neko_file
 
 ;;
 Nast.do_escape := false
