@@ -2,7 +2,7 @@ interface LogInfos {
 	var fileName : String;
 	var lineNumber : Int;
 	var className : String;
-	var methodNumber : String;
+	var methodName : String;
 	var customParams : Array<Dynamic>;
 }
 
