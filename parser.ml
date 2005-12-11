@@ -277,7 +277,11 @@ and expr = parser
 		expr_next (EFunction f, punion p1 (pos e)) s
 	| [< '(Unop op,p1) when is_prefix op; e = expr >] -> make_unop op e p1
 	| [< '(Binop OpSub,p1); e = expr >] -> make_unop Neg e p1
-	| [< '(Kwd For,p); '(Const (Ident name),_); '(Kwd In,_); it = expr; e = expr; s >] -> expr_next (EFor (name,it,e),punion p (pos e)) s
+	| [< '(Kwd For,p); s >] ->
+		(match s with parser
+		| [< '(POpen,_); '(Const (Ident name),_); '(Kwd In,_); it = expr; '(PClose,_); e = expr; s >] -> expr_next (EFor (name,it,e),punion p (pos e)) s
+		| [< '(Const (Ident name),_); '(Kwd In,_); it = expr; e = expr; s >] -> expr_next (EFor (name,it,e),punion p (pos e)) s
+		| [< >] -> serror())
 	| [< '(Kwd If,p); cond = expr; e1 = expr; s >] ->
 		let e2 , s = (match s with parser
 			| [< '(Kwd Else,_); e2 = expr; s >] -> Some e2 , s
@@ -416,7 +420,7 @@ let parse code file =
 	with
 		| Stream.Error _
 		| Stream.Failure -> 
-			let last = last_token s in
+			let last = (match Stream.peek s with None -> last_token s | Some t -> t) in
 			Lexer.restore old;
 			cache := old_cache;
 			error (Unexpected (fst last)) (pos last)
