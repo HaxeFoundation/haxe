@@ -176,7 +176,7 @@ type access =
 	| AStatic
 
 type class_field =
-	| FVar of string * access list * type_path * expr option
+	| FVar of string * access list * type_path option * expr option
 	| FFun of string * access list * func
 
 type type_param_flag =

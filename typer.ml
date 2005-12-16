@@ -977,7 +977,12 @@ let init_class ctx c p types herits fields =
 	let loop_cf f p =
 		match f with
 		| FVar (name,access,t,e) ->
-			let t = load_type ctx p t in
+			let t = (match t with
+				| None -> 
+					if not (List.mem AStatic access) then error ("Type required for member variable " ^ name) p;
+					mk_mono()
+				| Some t -> load_type ctx p t
+			) in
 			let cf = {
 				cf_name = name;
 				cf_type = t;

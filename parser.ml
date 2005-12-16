@@ -190,7 +190,7 @@ and parse_enum_param = parser
 and parse_class_field = parser
 	| [< l = parse_cf_rights []; s >] ->
 		match s with parser
-		| [< '(Kwd Var,p1); '(Const (Ident name),_); '(DblDot,_); t = parse_type_path; s >] -> 
+		| [< '(Kwd Var,p1); '(Const (Ident name),_); t = parse_type_opt; s >] ->			
 			let e , p2 = (match s with parser
 			| [< '(Binop OpAssign,_) when List.mem AStatic l; e = expr; p2 = semicolon >] -> Some e , p2
 			| [< '(Semicolon,p2) >] -> None , p2
