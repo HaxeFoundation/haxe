@@ -903,6 +903,18 @@ and type_function ctx t static constr f p =
 		return_flow e
 	else
 		unify ctx r (t_void ctx) p;
+	let rec loop e =
+		match e.eexpr with
+		| TCall ({ eexpr = TConst TSuper },_) -> raise Exit
+		| TFunction _ -> ()
+		| _ -> Type.iter loop e
+	in
+	if constr && (match ctx.curclass.cl_super with None -> false | Some (cl,_) -> PMap.mem "new" cl.cl_statics) then
+		(try
+			loop e;
+			error "Missing super constructor call" p
+		with
+			Exit -> ());
 	ctx.locals <- locals;
 	ctx.ret <- old_ret;
 	ctx.in_static <- old_static;
@@ -1186,6 +1198,8 @@ let types ctx =
 	let types = ref [] in
 	let states = Hashtbl.create 0 in
 	let state p = try Hashtbl.find states p with Not_found -> NotYet in
+	let statics = ref PMap.empty in
+
 	let rec loop (p,t) =
 		match state p with
 		| Done -> ()
@@ -1210,7 +1224,13 @@ let types ctx =
 			let f = PMap.find name c.cl_statics in
 			match f.cf_expr with
 			| None -> ()
-			| Some e -> walk_expr p e
+			| Some e -> 
+				if PMap.mem (c.cl_path,name) (!statics) then
+					()
+				else begin
+					statics := PMap.add (c.cl_path,name) () (!statics);
+					walk_expr p e;
+				end
 		with
 			Not_found -> ()
 
@@ -1223,6 +1243,7 @@ let types ctx =
 		| TEnumField (e,_) ->
 			loop_enum p e
 		| TNew (c,_,_) ->
+			iter (walk_expr p) e;
 			loop_class p c
 		| TMatch (e,_,_) ->
 			loop_enum p e
@@ -1235,7 +1256,6 @@ let types ctx =
 					(match t with
 					| TEnumDecl _ -> ()
 					| TClassDecl c -> walk_static_call p c name)
-				| TField (f,_) -> loop f
 				| _ -> ()
 			in
 			loop f
