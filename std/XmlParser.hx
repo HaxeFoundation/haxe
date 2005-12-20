@@ -3,7 +3,7 @@ class XmlParser {
 	public static function parse( xmlData : String ) : Node {
 		#flash
 		untyped {
-			var x = Boot.newObject(_global["XML"],[]);
+			var x = __new__(_global["XML"]);
 			x.parseXML(xmlData);
 			if( x.status != 0 )
 				throw ("Xml parse error #"+x.status);
