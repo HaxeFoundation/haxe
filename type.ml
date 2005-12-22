@@ -255,17 +255,17 @@ let apply_params cparams params t =
 let monomorphs eparams t =
 	apply_params eparams (List.map (fun _ -> mk_mono()) eparams) t
 
-let rec type_eq a b =
-	if a == b then
+let rec type_eq param a b =
+	if a == b || (param && b == t_dynamic) then
 		true
 	else match a , b with
-	| TMono t , _ -> (match !t with None -> link t a b | Some t -> type_eq t b)
-	| _ , TMono t -> (match !t with None -> link t b a | Some t -> type_eq a t)
-	| TEnum (a,tl1) , TEnum (b,tl2) -> a == b && List.for_all2 type_eq tl1 tl2
+	| TMono t , _ -> (match !t with None -> link t a b | Some t -> type_eq param t b)
+	| _ , TMono t -> (match !t with None -> link t b a | Some t -> type_eq param a t)
+	| TEnum (a,tl1) , TEnum (b,tl2) -> a == b && List.for_all2 (type_eq param) tl1 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) -> 
-		c1 == c2 && List.for_all2 type_eq tl1 tl2
+		c1 == c2 && List.for_all2 (type_eq param) tl1 tl2
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
-		type_eq r1 r2 && List.for_all2 type_eq l1 l2
+		type_eq param r1 r2 && List.for_all2 (type_eq param) l1 l2
 	| _ , _ ->
 		false
 
@@ -280,11 +280,11 @@ let rec unify a b =
 	else match a, b with
 	| TMono t , _ -> (match !t with None -> link t a b | Some t -> unify t b)
 	| _ , TMono t -> (match !t with None -> link t b a | Some t -> unify a t)
-	| TEnum (a,tl1) , TEnum (b,tl2) -> a == b && List.for_all2 type_eq tl1 tl2
+	| TEnum (a,tl1) , TEnum (b,tl2) -> a == b && List.for_all2 (type_eq true) tl1 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		let rec loop c tl =
 			if c == c2 then
-				List.for_all2 type_eq tl tl2
+				List.for_all2 (type_eq true) tl tl2
 			else (match c.cl_super with
 				| None -> false
 				| Some (cs,tls) ->
@@ -306,9 +306,9 @@ let rec unify a b =
 		with
 			Not_found -> false)
 	| TDynamic t , _ ->
-		t == a || (match b with TDynamic t2 -> t2 == b || type_eq t t2 | _ -> false)
+		t == a || (match b with TDynamic t2 -> t2 == b || type_eq true t t2 | _ -> false)
 	| _ , TDynamic t ->
-		t == b || (match a with TDynamic t2 -> t2 == a || type_eq t t2 | _ -> false)
+		t == b || (match a with TDynamic t2 -> t2 == a || type_eq true t t2 | _ -> false)
 	| _ , _ ->
 		false
 
