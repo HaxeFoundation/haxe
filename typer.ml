@@ -1199,7 +1199,7 @@ type state =
 	| Done
 	| NotYet
 
-let types ctx =
+let types ctx main =
 	let types = ref [] in
 	let states = Hashtbl.create 0 in
 	let state p = try Hashtbl.find states p with Not_found -> NotYet in
@@ -1281,6 +1281,31 @@ let types ctx =
 
 	in
 	Hashtbl.iter (fun _ m -> List.iter loop m.mtypes) ctx.modules;
+	(match main with
+	| None -> ()
+	| Some cl ->
+		let t = load_type_def ctx null_pos cl in
+		(match t with
+		| TEnumDecl _ -> error ("Invalid -main : " ^ s_type_path cl ^ " is not a class") null_pos
+		| TClassDecl c ->
+			try
+				let f = PMap.find "main" c.cl_statics in
+				match follow f.cf_type with
+				| TFun ([],_) -> ()
+				| _ -> error ("Invalid -main : " ^ s_type_path cl ^ " has invalid main function") null_pos
+			with
+				Not_found -> error ("Invalid -main : " ^ s_type_path cl ^ " does not have static function main") null_pos
+		);
+		let path = ([],"@Main") in
+		let c = mk_class path in
+		c.cl_statics <- PMap.add "init" {
+			cf_name = "init";
+			cf_type = mk_mono();
+			cf_public = false;
+			cf_expr = Some (mk (TCall (mk (TField (mk (TType t) (mk_mono()) null_pos,"main")) (mk_mono()) null_pos,[])) (mk_mono()) null_pos);
+		} c.cl_statics;
+		types := (path,TClassDecl c) :: !types
+	);
 	List.rev !types
 
 ;;

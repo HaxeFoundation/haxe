@@ -35,7 +35,7 @@ let report msg p =
 	warn msg p;
 	exit 1
 
-let compile ctx f =
+let make_path f =
 	let cl = ExtString.String.nsplit f "." in
 	let error() = failwith ("Invalid class name " ^ f) in
 	let invalid_char x =
@@ -54,16 +54,16 @@ let compile ctx f =
 				let path , name = loop l in
 				x :: path , name
 	in
-	let cpath = loop cl in
-	ignore(Typer.load ctx cpath Ast.null_pos)
+	loop cl
 
 ;;
 try	
 	let usage = "Haxe Compiler Alpha - (c)2005 Motion-Twin\n Usage : haxe.exe [options] <class names...>\n Options :" in
 	let base_path = normalize_path (try Extc.executable_path() with _ -> "./") in
-	let classes = ref ["Std"] in
+	let classes = ref [([],"Std")] in
 	let swf_out = ref None in
 	let neko_out = ref None in
+	let main_class = ref None in
 	let swf_version = ref 8 in
 	let time = Sys.time() in
 	Plugin.class_path := [base_path ^ "std/";"";"/"];
@@ -82,6 +82,12 @@ try
 			check_targets();
 			neko_out := Some file
 		),"<file> : compile code to Neko Binary");
+		("-main",Arg.String (fun cl ->
+			if !main_class <> None then raise (Arg.Bad "Multiple -main");
+			let cpath = make_path cl in
+			main_class := Some cpath;
+			classes := cpath :: !classes
+		),"<class> : select startup class");
 		("-D",Arg.String (fun def ->
 			Hashtbl.add Parser.defines def ();
 		),"<var> : define the macro variable");
@@ -90,7 +96,7 @@ try
 		),"<version> : flash player version (8 by default)");
 		("-v",Arg.Unit (fun () -> Plugin.verbose := true),": turn on verbose mode");
 	] @ !Plugin.options in
-	Arg.parse args_spec (fun cl -> classes := cl :: !classes) usage;
+	Arg.parse args_spec (fun cl -> classes := make_path cl :: !classes) usage;
 	(match !swf_out with
 	| None -> ()
 	| Some _ ->
@@ -102,14 +108,14 @@ try
 	| Some _ ->
 		Hashtbl.add Parser.defines "neko" ();
 		Plugin.class_path := (base_path ^ "neko/") :: !Plugin.class_path);
-	if !classes = ["Std"] then begin
+	if !classes = [([],"Std")] then begin
 		Arg.usage args_spec usage
 	end else begin
 		if !Plugin.verbose then print_endline ("Classpath : " ^ (String.concat ";" !Plugin.class_path));
 		let ctx = Typer.context warn in
-		List.iter (compile ctx) (List.rev !classes);
+		List.iter (fun cpath -> ignore(Typer.load ctx cpath Ast.null_pos)) (List.rev !classes);
 		Typer.finalize ctx;
-		let types = Typer.types ctx in
+		let types = Typer.types ctx (!main_class) in
 		(match !swf_out with
 		| None -> ()
 		| Some file ->
