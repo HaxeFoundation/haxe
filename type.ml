@@ -94,6 +94,7 @@ and tclass = {
 	mutable cl_fields : (string , tclass_field) PMap.t;
 	mutable cl_statics : (string, tclass_field) PMap.t;
 	mutable cl_dynamic : t option;
+	mutable cl_constructor : tclass_field option;
 }
 
 and tenum_field = {
@@ -122,6 +123,20 @@ let mk e t p = { eexpr = e; etype = t; epos = p }
 let mk_mono() = TMono (ref None)
 
 let rec t_dynamic = TDynamic t_dynamic
+
+let mk_class path =
+	{
+		cl_path = path;
+		cl_extern = false;
+		cl_interface = false;
+		cl_types = [];
+		cl_super = None;
+		cl_implements = [];
+		cl_fields = PMap.empty;
+		cl_statics = PMap.empty;
+		cl_dynamic = None;
+		cl_constructor = None;
+	}
 
 let print_context() = ref []
 

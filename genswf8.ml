@@ -1008,7 +1008,6 @@ and gen_expr ctx retval e =
 	end else if retval then stack_error e.epos
 
 let gen_class_static_field ctx cclass f =
-	if f.cf_name <> "new" then
 	match f.cf_expr with
 	| None -> ()
 	| Some e ->
@@ -1086,15 +1085,12 @@ let gen_type_def ctx t tdef =
 		else
 		let id = gen_type ctx t false in
 		push ctx [VStr id];
-		(try 
-			let constr = PMap.find "new" c.cl_statics in
-			(match constr.cf_expr with
-			| Some ({ eexpr = TFunction _ } as e) -> gen_expr ctx true e
-			| _ -> raise Not_found);
-		with Not_found ->
+		(match c.cl_constructor with
+		| Some { cf_expr = Some e } ->
+			gen_expr ctx true e
+		| _ ->
 			let f = func ctx true false [] in
-			f()
-		);
+			f());		
 		write ctx (ASetReg 0);
 		setvar ctx VarStr;
 		(match c.cl_super with

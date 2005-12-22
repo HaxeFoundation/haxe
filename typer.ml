@@ -193,17 +193,7 @@ let type_type_params ctx path p (n,flags) =
 		TEnum (e,[])
 	| l ->
 		(* build a phantom class *)
-		let c = {
-			cl_path = (fst path @ [snd path],n);
-			cl_extern = false;
-			cl_interface = false;
-			cl_types = [];
-			cl_super = None;
-			cl_implements = [];
-			cl_fields = PMap.empty;
-			cl_statics = PMap.empty;
-			cl_dynamic = None;
-		} in
+		let c = mk_class (fst path @ [snd path],n) in
 		set_heritance ctx c (List.map (fun t -> HImplements t) l) p;
 		let add_field ctypes params _ f =
 			let f = { f with cf_type = apply_params ctypes params f.cf_type } in
@@ -802,7 +792,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let t = (match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
-			let f = (try PMap.find "new" c.cl_statics with Not_found -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
+			let f = (match c.cl_constructor with Some f -> f | None -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
 			(match apply_params c.cl_types params f.cf_type with
 			| TFun (args,r) ->
 				if List.length args <> List.length el then error "Invalid number of constructor parameters" p;
@@ -842,7 +832,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let el = List.map (type_expr ctx) el in
 		let c , params , t = (match t with
 		| TInst (c,params) ->
-			let f = (try PMap.find "new" c.cl_statics with Not_found -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
+			let f = (match c.cl_constructor with Some f -> f | None -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then error "Cannot access private constructor" p;
 			(match apply_params c.cl_types params f.cf_type with
 			| TFun (args,r) ->
@@ -909,7 +899,7 @@ and type_function ctx t static constr f p =
 		| TFunction _ -> ()
 		| _ -> Type.iter loop e
 	in
-	if constr && (match ctx.curclass.cl_super with None -> false | Some (cl,_) -> PMap.mem "new" cl.cl_statics) then
+	if constr && (match ctx.curclass.cl_super with None -> false | Some (cl,_) -> cl.cl_constructor <> None) then
 		(try
 			loop e;
 			error "Missing super constructor call" p
@@ -996,12 +986,13 @@ let init_class ctx c p types herits fields =
 					cf.cf_expr <- Some (type_static_var ctx t e p)
 				)
 			) in
-			List.mem AStatic access, cf, delay
+			List.mem AStatic access, false, cf, delay
 		| FFun (name,access,f) ->
 			let r = type_opt p f.f_type in
 			let args = List.map (fun (name,t) -> name , type_opt p t) f.f_args in
 			let t = TFun (List.map snd args,r) in
 			let stat = List.mem AStatic access in
+			let constr = (name = "new") in
 			let cf = {
 				cf_name = name;
 				cf_type = t;
@@ -1012,7 +1003,7 @@ let init_class ctx c p types herits fields =
 				ctx.curclass <- c;
 				ctx.curmethod <- name;
 				if !Plugin.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
-				let e = type_function ctx t stat (name = "new") f p in
+				let e = type_function ctx t stat constr f p in
 				let f = {
 					tf_args = args;
 					tf_type = r;
@@ -1020,17 +1011,46 @@ let init_class ctx c p types herits fields =
 				} in
 				cf.cf_expr <- Some (mk (TFunction f) t p)
 			in
-			stat || name = "new", cf , (if c.cl_extern || c.cl_interface then (fun() -> ()) else define_fun)
+			stat, constr, cf , (if c.cl_extern || c.cl_interface then (fun() -> ()) else define_fun)
 	in
-	List.map (fun (f,p) ->
-		let static , f , delayed = loop_cf f p in
-		if PMap.mem f.cf_name (if static then c.cl_statics else c.cl_fields) then error ("Duplicate class field declaration : " ^ f.cf_name) p;
-		if static then
-			c.cl_statics <- PMap.add f.cf_name f c.cl_statics
-		else
-			c.cl_fields <- PMap.add f.cf_name f c.cl_fields;
+	let fl = List.map (fun (f,p) ->
+		let static , constr, f , delayed = loop_cf f p in
+		if constr then begin
+			if c.cl_constructor <> None then error "Duplicate constructor" p;
+			c.cl_constructor <- Some f;
+		end else begin
+			if PMap.mem f.cf_name (if static then c.cl_statics else c.cl_fields) then error ("Duplicate class field declaration : " ^ f.cf_name) p;
+			if static then
+				c.cl_statics <- PMap.add f.cf_name f c.cl_statics
+			else
+				c.cl_fields <- PMap.add f.cf_name f c.cl_fields;
+		end;
 		delayed
-	) fields
+	) fields in
+	(* define an default inherited constructor *)
+	(match c.cl_constructor, c.cl_super with
+	| None , Some ({ cl_constructor = Some f } as csuper, cparams) ->
+		(match follow f.cf_type with
+		| TFun (args,r) ->
+			let t = f.cf_type in
+			let n = ref 0 in
+			let args = List.map (fun t -> incr n; "p" ^ string_of_int (!n) , t) args in
+			let eargs = List.map (fun (n,t) -> mk (TLocal n) t p) args in
+			let func = {
+				tf_args = args;
+				tf_type = t;
+				tf_expr = mk (TCall (mk (TConst TSuper) (TInst (csuper,cparams)) p,eargs)) r p;
+			} in
+			c.cl_constructor <- Some {
+				cf_name = "new";
+				cf_type = t;
+				cf_expr = Some (mk (TFunction func) t p);
+				cf_public = f.cf_public;
+			}
+		| _ -> assert false)
+	| _ , _ ->
+		());
+	fl
 
 let type_module ctx m tdecls =
 	(* PASS 1 : build module structure - does not load any module or type - should be atomic ! *)
@@ -1050,17 +1070,7 @@ let type_module ctx m tdecls =
 		| EImport _ -> ()
 		| EClass (name,_,_,_) ->
 			let path = decl_with_name name p in
-			let c = { 
-				cl_path = path;
-				cl_types = [];
-				cl_extern = false;
-				cl_interface = false;
-				cl_super = None;
-				cl_implements = [];
-				cl_fields = PMap.empty;
-				cl_statics = PMap.empty;
-				cl_dynamic = None;
-			} in
+			let c = mk_class path in
 			decls := ((fst m,name),TClassDecl c) :: !decls
 		| EEnum (name,_,_) ->
 			let path = decl_with_name name p in
@@ -1163,17 +1173,7 @@ let context warn =
 		local_types = [];
 		type_params = [];
 		curmethod = "";
-		curclass = {
-			cl_path = [] , "";
-			cl_extern = false;
-			cl_interface = false;
-			cl_types = [];
-			cl_super = None;
-			cl_implements = [];
-			cl_fields = PMap.empty;
-			cl_statics = PMap.empty;
-			cl_dynamic = None;
-		};
+		curclass = mk_class ([],"");
 		current = empty;
 		std = empty;
 	} in

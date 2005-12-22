@@ -229,19 +229,19 @@ let gen_class p c =
 	let clpath = gen_type_path null_pos (fst p,"@" ^ snd p) in
 	let stpath = gen_type_path null_pos p in
 	let esuper = match c.cl_super with None -> null null_pos | Some (c,_) -> gen_type_path null_pos (fst c.cl_path,"@" ^ snd c.cl_path) in
-	let fnew = (try
-		let f = PMap.find "new" c.cl_statics in
-		match follow f.cf_type with
+	let fnew = (match c.cl_constructor with
+	| Some f ->
+		(match follow f.cf_type with
 		| TFun (args,_) ->
 			let params = nparams args in
 			let p = null_pos in
-			["new",(EFunction (params,(EBlock [
+			gen_method f ["new",(EFunction (params,(EBlock [
 				(EVars ["@o",Some (call p (builtin p "new") [clpath])],p);
 				(call p (builtin p "call") [field p (this p) "__construct__"; ident p "@o"; array p (List.map (ident p) params)]);
 				(EReturn (Some (ident p "@o")),p)
 			],p)),p)]
-		| _ -> []
-	with Not_found ->
+		| _ -> [])
+	| None ->
 		[]
 	) in
 	let fstring = (try
