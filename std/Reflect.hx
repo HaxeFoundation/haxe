@@ -25,7 +25,7 @@
 
 class Reflect {
 
-	public static function makeNew( cl : Dynamic, args : Array<Dynamic> ) : Dynamic {
+	public static function createInstance( cl : Dynamic, args : Array<Dynamic> ) : Dynamic {
 		return untyped
 		#flash
 			switch( args.length ) {
@@ -51,7 +51,7 @@ class Reflect {
 			;
 	}
 
-	public static function haveField( o : Dynamic, field : String ) : Bool {
+	public static function hasField( o : Dynamic, field : String ) : Bool {
 		return untyped
 		#flash
 			o.hasOwnProperty(field)
