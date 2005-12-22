@@ -118,8 +118,27 @@ and gen_call p e el =
 			this p;
 			array p (List.map gen_expr el)
 		]
+	| TMember s , el ->
+		call p (field p (this p) s) (List.map gen_expr el)
+	| TField (e,f) , el ->
+		call p (field p (gen_expr e) f) (List.map gen_expr el)
 	| _ , _ ->
 		call p (gen_expr e) (List.map gen_expr el)
+
+and gen_closure p t e f =
+	match follow t with
+	| TFun (args,_) ->
+		let n = ref 0 in
+		let args = List.map (fun _ -> incr n; "p" ^ string_of_int (!n)) args in
+		EBlock [
+			(EVars ["@tmp", Some e; "@fun", Some (field p (ident p "@tmp") f)] , p);
+			(EFunction (args,(EBlock [
+				(EBinop ("=",this p,ident p "@tmp"),p);
+				(EReturn (Some (call p (ident p "@fun") (List.map (ident p) args))),p)
+			],p)),p)
+		] , p
+	| _ -> 
+		field p e f
 
 and gen_expr e = 
 	let p = pos e.epos in
@@ -129,15 +148,15 @@ and gen_expr e =
 	| TLocal s ->
 		ident p s
 	| TMember s ->
-		field p (this p) s
+		gen_closure p e.etype (this p) s		
 	| TEnumField (e,f) ->
 		field p (gen_type_path p e.e_path) f
 	| TArray (e1,e2) ->
 		(EArray (gen_expr e1,gen_expr e2),p)
 	| TBinop (op,e1,e2) ->
 		gen_binop p op e1 e2
-	| TField (e,f) ->
-		field p (gen_expr e) f
+	| TField (e2,f) ->
+		gen_closure p e.etype (gen_expr e2) f
 	| TType t ->
 		(match t with
 		| TClassDecl c -> gen_type_path p c.cl_path
