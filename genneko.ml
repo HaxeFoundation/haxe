@@ -175,7 +175,26 @@ and gen_expr e =
 	| TWhile (econd,e,flag) ->
 		(EWhile (gen_expr econd, gen_expr e, match flag with Ast.NormalWhile -> NormalWhile | Ast.DoWhile -> DoWhile),p)
 	| TTry (e,catchs) ->
-		let catchs = null p in
+		let rec loop = function
+			| [] -> call p (builtin p "rethrow") [ident p "@tmp"]
+			| (v,t,e) :: l ->
+				let e2 = loop l in
+				let path = (match follow t with 
+					| TInst (c,_) -> Some c.cl_path
+					| TEnum (e,_) -> Some e.e_path
+					| TDynamic _ -> None
+					| _ -> assert false
+				) in
+				let cond = (match path with
+					| None -> (EConst True,p)
+					| Some path -> call p (field p (ident p "Boot") "__instanceof") [ident p "@tmp"; gen_type_path p path]
+				) in
+				(EIf (cond,(EBlock [
+					EVars [v,Some (ident p "@tmp")],p;
+					gen_expr e;
+				],p),Some e2),p)
+		in
+		let catchs = loop catchs in
 		(ETry (gen_expr e,"@tmp",catchs),p)
 	| TReturn eo ->
 		(EReturn (match eo with None -> None | Some e -> Some (gen_expr e)),p)
