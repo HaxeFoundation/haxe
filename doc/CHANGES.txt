@@ -1,4 +1,12 @@
 2005-12-??: alpha 5
+	added -main
+	catches are now working with Neko
+	restricted catch types for type-safety
+	added constructor inheritance + check if superconstructor is called
+	allowed Dynamic-only subtyping on type parameters
+	added method closures to Neko generation
+	added class Reflect
+	added License : libraries are BSD
 
 2005-12-10: alpha 4
 	forbid break and continue outside loops
