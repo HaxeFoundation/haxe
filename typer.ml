@@ -756,6 +756,13 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let e1 = type_expr ctx ~need_val e1 in
 		let catches = List.map (fun (v,t,e) ->
 			let t = load_type ctx (pos e) t in
+			(match follow t with
+			| TInst (_,params) ->
+				List.iter (fun pt ->
+					if pt != t_dynamic then error "Catch class parameter must be Dynamic" p;
+				) params;
+			| TDynamic _ -> ()
+			| _ -> error "Catch type must be a class" p);
 			let locals = ctx.locals in
 			ctx.locals <- PMap.add v t ctx.locals;
 			let e = type_expr ctx ~need_val e in
