@@ -158,9 +158,7 @@ and gen_expr e =
 	| TField (e2,f) ->
 		gen_closure p e.etype (gen_expr e2) f
 	| TType t ->
-		(match t with
-		| TClassDecl c -> gen_type_path p c.cl_path
-		| TEnumDecl e -> gen_type_path p e.e_path)
+		gen_type_path p (type_path t)
 	| TParenthesis e ->
 		(EParenthesis (gen_expr e),p)
 	| TObjectDecl fl ->
@@ -263,16 +261,16 @@ let gen_method c acc =
 		| TFunction _ -> ((if c.cf_name = "new" then "__construct__" else c.cf_name), gen_expr e) :: acc
 		| _ -> acc
 
-let gen_class p c =	
-	let clpath = gen_type_path null_pos (fst p,"@" ^ snd p) in
-	let stpath = gen_type_path null_pos p in
-	let esuper = match c.cl_super with None -> null null_pos | Some (c,_) -> gen_type_path null_pos (fst c.cl_path,"@" ^ snd c.cl_path) in
+let gen_class c =	
+	let p = pos c.cl_pos in
+	let clpath = gen_type_path p (fst c.cl_path,"@" ^ snd c.cl_path) in
+	let stpath = gen_type_path p c.cl_path in
+	let esuper = match c.cl_super with None -> null p | Some (c,_) -> gen_type_path p (fst c.cl_path,"@" ^ snd c.cl_path) in
 	let fnew = (match c.cl_constructor with
 	| Some f ->
 		(match follow f.cf_type with
 		| TFun (args,_) ->
 			let params = nparams args in
-			let p = null_pos in
 			gen_method f ["new",(EFunction (params,(EBlock [
 				(EVars ["@o",Some (call p (builtin p "new") [clpath])],p);
 				(call p (builtin p "call") [field p (this p) "__construct__"; ident p "@o"; array p (List.map (ident p) params)]);
@@ -286,7 +284,6 @@ let gen_class p c =
 		let f = PMap.find "toString" c.cl_fields in
 		match follow f.cf_type with
 		| TFun ([],_) ->
-			let p = null_pos in
 			["__string",(EFunction ([],(EBlock [
 				EReturn (Some (field p (call p (field p (this p) "toString") []) "__s")),p
 			],p)),p)]
@@ -296,13 +293,12 @@ let gen_class p c =
 	) in	
 	let estat = (EBinop ("=",
 		stpath,
-		(EObject (PMap.fold gen_method c.cl_statics fnew),null_pos)
-	),null_pos) in
-	let p = null_pos in
+		(EObject (PMap.fold gen_method c.cl_statics fnew),p)
+	),p) in
 	let eclass = (EBinop ("=",
 		clpath,
 		call p (builtin p "new") [esuper]
-	),null_pos) in
+	),p) in
 	let interf = array p (List.map (fun (c,_) -> gen_type_path p c.cl_path) c.cl_implements) in
 	let magic = ("__class__", call p (builtin p "array") [stpath; interf; match c.cl_super with None -> null p | Some _ -> field p esuper "__class__"]) in
 	let methods = PMap.fold gen_method c.cl_fields fstring in
@@ -323,21 +319,22 @@ let gen_enum_constr c =
 			array p [str p c.ef_name]
 	)
 
-let gen_enum p e =
+let gen_enum e =
+	let p = pos e.e_pos in
 	(EBinop ("=",
-		gen_type_path null_pos p,
-		(EObject (pmap_list gen_enum_constr e.e_constrs),null_pos)
+		gen_type_path p e.e_path,
+		(EObject (pmap_list gen_enum_constr e.e_constrs),p)
 	),null_pos)
 
 let gen_type (p,t) =
 	match t with
 	| TClassDecl c -> 
 		if c.cl_extern then
-			null null_pos
+			null (pos c.cl_pos)
 		else
-			gen_class p c
+			gen_class c
 	| TEnumDecl e -> 
-		gen_enum p e
+		gen_enum e
 
 let gen_static_vars (_,t) =
 	match t with
@@ -367,7 +364,7 @@ let gen_packages h ((p,_),t) =
 		| x :: l ->
 			let path = acc @ [x] in
 			if not (Hashtbl.mem h path) then begin
-				let p = null_pos in
+				let p = pos (match t with TClassDecl c -> c.cl_pos | TEnumDecl e -> e.e_pos) in
 				let e = (EBinop ("=",gen_type_path p (acc,x),call p (builtin p "new") [null p]),p) in
 				Hashtbl.add h path ();
 				e :: loop path l

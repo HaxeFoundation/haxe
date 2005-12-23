@@ -30,7 +30,7 @@ type context = {
 	mutable untyped : bool;
 	(* per-module *)
 	current : module_def;
-	mutable local_types : (module_path * module_type) list;
+	mutable local_types : module_type list;
 	(* per-class *)
 	mutable curclass : tclass;
 	mutable type_params : (string * t) list;
@@ -74,7 +74,10 @@ let unify ctx t1 t2 p =
 let load_type_def ctx p tpath =
 	let no_pack = fst tpath = [] in
 	try
-		snd (List.find (fun (tp,_) -> tp = tpath || (no_pack && snd tp = snd tpath)) ctx.local_types)
+		List.find (fun t -> 
+			let tp = type_path t in
+			tp = tpath || (no_pack && snd tp = snd tpath)
+		) ctx.local_types
 	with
 		Not_found ->
 			let tpath, m = (try 
@@ -86,7 +89,7 @@ let load_type_def ctx p tpath =
 				| Exit -> tpath, load ctx tpath p
 			) in
 			try
-				snd (List.find (fun (tp,_) -> tp = tpath) m.mtypes)
+				List.find (fun t -> type_path t = tpath) m.mtypes
 			with
 				Not_found -> error ("Module " ^ s_type_path tpath ^ " does not define type " ^ snd tpath) p
 
@@ -187,13 +190,14 @@ let type_type_params ctx path p (n,flags) =
 		(* build a phantom enum *)
 		let e = {
 			e_path = (fst path @ [snd path],n);
+			e_pos = p;
 			e_types = [];
 			e_constrs = PMap.empty;
 		} in
 		TEnum (e,[])
 	| l ->
 		(* build a phantom class *)
-		let c = mk_class (fst path @ [snd path],n) in
+		let c = mk_class (fst path @ [snd path],n) p in
 		set_heritance ctx c (List.map (fun t -> HImplements t) l) p;
 		let add_field ctypes params _ f =
 			let f = { f with cf_type = apply_params ctypes params f.cf_type } in
@@ -307,7 +311,7 @@ let type_ident ctx i p =
 		let rec loop l =
 			match l with
 			| [] -> raise Not_found
-			| (_,t) :: l ->
+			| t :: l ->
 				match t with
 				| TClassDecl c -> 
 					loop l
@@ -1077,16 +1081,17 @@ let type_module ctx m tdecls =
 		| EImport _ -> ()
 		| EClass (name,_,_,_) ->
 			let path = decl_with_name name p in
-			let c = mk_class path in
-			decls := ((fst m,name),TClassDecl c) :: !decls
+			let c = mk_class path p in
+			decls := TClassDecl c :: !decls
 		| EEnum (name,_,_) ->
 			let path = decl_with_name name p in
 			let e = {
 				e_path = path;
+				e_pos = p;
 				e_types = [];
 				e_constrs = PMap.empty;
 			} in
-			decls := ((fst m,name), TEnumDecl e) :: !decls
+			decls := TEnumDecl e :: !decls
 	) tdecls;
 	let m = {
 		mpath = m;
@@ -1119,12 +1124,12 @@ let type_module ctx m tdecls =
 			let m = load ctx t p in
 			ctx.local_types <- ctx.local_types @ m.mtypes
 		| EClass (name,types,herits,fields) ->
-			let c = List.find (fun (_,d) -> match d with TClassDecl { cl_path = _ , n } -> n = name | _ -> false) m.mtypes in
-			let c = (match snd c with TClassDecl c -> c | _ -> assert false) in
+			let c = List.find (fun d -> match d with TClassDecl { cl_path = _ , n } -> n = name | _ -> false) m.mtypes in
+			let c = (match c with TClassDecl c -> c | _ -> assert false) in
 			delays := !delays @ check_overloading c p :: check_interfaces c p :: init_class ctx c p types herits fields
 		| EEnum (name,types,constrs) ->
-			let e = List.find (fun (_,d) -> match d with TEnumDecl { e_path = _ , n } -> n = name | _ -> false) m.mtypes in
-			let e = (match snd e with TEnumDecl e -> e | _ -> assert false) in
+			let e = List.find (fun d -> match d with TEnumDecl { e_path = _ , n } -> n = name | _ -> false) m.mtypes in
+			let e = (match e with TEnumDecl e -> e | _ -> assert false) in
 			ctx.type_params <- [];
 			e.e_types <- List.map (type_type_params ctx e.e_path p) types;
 			ctx.type_params <- e.e_types;
@@ -1180,7 +1185,7 @@ let context warn =
 		local_types = [];
 		type_params = [];
 		curmethod = "";
-		curclass = mk_class ([],"");
+		curclass = mk_class ([],"") null_pos;
 		current = empty;
 		std = empty;
 	} in
@@ -1212,7 +1217,8 @@ let types ctx main =
 	let state p = try Hashtbl.find states p with Not_found -> NotYet in
 	let statics = ref PMap.empty in
 
-	let rec loop (p,t) =
+	let rec loop t =
+		let p = type_path t in
 		match state p with
 		| Done -> ()
 		| Generating ->
@@ -1226,10 +1232,10 @@ let types ctx main =
 			types := (p,t) :: !types
 
     and loop_class p c =
-		if c.cl_path <> p then loop (c.cl_path,TClassDecl c)
+		if c.cl_path <> p then loop (TClassDecl c)
 
 	and loop_enum p e =
-		if e.e_path <> p then loop (e.e_path,TEnumDecl e)
+		if e.e_path <> p then loop (TEnumDecl e)
 
 	and walk_static_call p c name =
 		try
@@ -1304,7 +1310,7 @@ let types ctx main =
 				Not_found -> error ("Invalid -main : " ^ s_type_path cl ^ " does not have static function main") null_pos
 		);
 		let path = ([],"@Main") in
-		let c = mk_class path in
+		let c = mk_class path null_pos in
 		c.cl_statics <- PMap.add "init" {
 			cf_name = "init";
 			cf_type = mk_mono();

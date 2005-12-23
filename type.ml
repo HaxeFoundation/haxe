@@ -86,6 +86,7 @@ and tclass_field = {
 
 and tclass = {
 	cl_path : module_path;
+	cl_pos : Ast.pos;
 	mutable cl_extern : bool;
 	mutable cl_interface : bool;
 	mutable cl_types : (string * t) list;
@@ -105,6 +106,7 @@ and tenum_field = {
 
 and tenum = {
 	e_path : module_path;
+	e_pos : Ast.pos;
 	mutable e_types : (string * t) list;
 	mutable e_constrs : (string , tenum_field) PMap.t;
 }
@@ -115,7 +117,7 @@ and module_type =
 
 type module_def = {
 	mpath : module_path;		
-	mtypes : (module_path * module_type) list;
+	mtypes : module_type list;
 }
 
 let mk e t p = { eexpr = e; etype = t; epos = p }
@@ -124,9 +126,10 @@ let mk_mono() = TMono (ref None)
 
 let rec t_dynamic = TDynamic t_dynamic
 
-let mk_class path =
+let mk_class path pos =
 	{
 		cl_path = path;
+		cl_pos = pos;
 		cl_extern = false;
 		cl_interface = false;
 		cl_types = [];
@@ -163,6 +166,11 @@ let rec s_type ctx t =
 and s_type_params ctx = function
 	| [] -> ""
 	| l -> "<" ^ String.concat ", " (List.map (s_type ctx) l) ^ ">"
+
+let type_path t =
+	match t with 
+	| TClassDecl c -> c.cl_path
+	| TEnumDecl e -> e.e_path
 
 let rec follow t =
 	match t with
