@@ -1229,7 +1229,7 @@ let types ctx main =
 			| TClassDecl c -> walk_class p c
 			| TEnumDecl e -> ());				
 			Hashtbl.replace states p Done;
-			types := (p,t) :: !types
+			types := t :: !types
 
     and loop_class p c =
 		if c.cl_path <> p then loop (TClassDecl c)
@@ -1317,7 +1317,7 @@ let types ctx main =
 			cf_public = false;
 			cf_expr = Some (mk (TCall (mk (TField (mk (TType t) (mk_mono()) null_pos,"main")) (mk_mono()) null_pos,[])) (mk_mono()) null_pos);
 		} c.cl_statics;
-		types := (path,TClassDecl c) :: !types
+		types := TClassDecl c :: !types
 	);
 	List.rev !types
 

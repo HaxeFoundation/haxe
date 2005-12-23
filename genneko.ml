@@ -326,7 +326,7 @@ let gen_enum e =
 		(EObject (pmap_list gen_enum_constr e.e_constrs),p)
 	),null_pos)
 
-let gen_type (p,t) =
+let gen_type t =
 	match t with
 	| TClassDecl c -> 
 		if c.cl_extern then
@@ -336,7 +336,7 @@ let gen_type (p,t) =
 	| TEnumDecl e -> 
 		gen_enum e
 
-let gen_static_vars (_,t) =
+let gen_static_vars t =
 	match t with
 	| TEnumDecl _ -> []
 	| TClassDecl c ->
@@ -357,7 +357,7 @@ let gen_static_vars (_,t) =
 						),p) :: acc
 			) c.cl_statics []
 
-let gen_packages h ((p,_),t) =
+let gen_packages h t =
 	let rec loop acc p =
 		match p with
 		| [] -> []
@@ -371,7 +371,7 @@ let gen_packages h ((p,_),t) =
 			end else
 				loop path l
 	in
-	loop [] p
+	loop [] (fst (type_path t))
 
 let gen_boot() =
 	call null_pos (field null_pos (ident null_pos "Boot") "__init") []

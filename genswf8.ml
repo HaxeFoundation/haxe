@@ -1077,13 +1077,13 @@ let gen_path ctx (p,t) is_extern =
 		push ctx [VStr id];
 		write ctx AEval
 
-let gen_type_def ctx t tdef =
-	match tdef with
+let gen_type_def ctx t =
+	match t with
 	| TClassDecl c ->
 		if c.cl_extern then
 			()
 		else
-		let id = gen_type ctx t false in
+		let id = gen_type ctx c.cl_path false in
 		push ctx [VStr id];
 		(match c.cl_constructor with
 		| Some { cf_expr = Some e } ->
@@ -1114,7 +1114,7 @@ let gen_type_def ctx t tdef =
 		PMap.iter (fun _ f -> gen_class_static_field ctx id f) c.cl_statics;
 		PMap.iter (fun _ f -> gen_class_field ctx f) c.cl_fields;
 	| TEnumDecl e ->
-		let id = gen_type ctx t false in
+		let id = gen_type ctx e.e_path false in
 		push ctx [VStr id; VInt 0; VStr "Object"];
 		write ctx ANew;
 		write ctx (ASetReg 0);
@@ -1223,7 +1223,7 @@ let generate file ver types =
 		statics = [];
 	} in
 	write ctx (AStringPool []);
-	List.iter (fun (p,t) -> gen_type_def ctx p t) types;
+	List.iter (fun t -> gen_type_def ctx t) types;
 	gen_type_map ctx;
 	gen_boot ctx;
 	List.iter (gen_class_static_init ctx) (List.rev ctx.statics);
