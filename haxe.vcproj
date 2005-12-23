@@ -58,6 +58,9 @@
 			RelativePath=".\genswf.ml">
 		</File>
 		<File
+			RelativePath=".\genxml.ml">
+		</File>
+		<File
 			RelativePath=".\lexer.mll">
 		</File>
 		<File

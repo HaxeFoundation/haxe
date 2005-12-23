@@ -63,6 +63,7 @@ try
 	let classes = ref [([],"Std")] in
 	let swf_out = ref None in
 	let neko_out = ref None in
+	let xml_out = ref None in
 	let main_class = ref None in
 	let swf_version = ref 8 in
 	let time = Sys.time() in
@@ -82,6 +83,9 @@ try
 			check_targets();
 			neko_out := Some file
 		),"<file> : compile code to Neko Binary");
+		("-xml",Arg.String (fun file ->
+			xml_out := Some file
+		),"<file> : generate XML types description");
 		("-main",Arg.String (fun cl ->
 			if !main_class <> None then raise (Arg.Bad "Multiple -main");
 			let cpath = make_path cl in
@@ -127,6 +131,11 @@ try
 		| Some file ->
 			if !Plugin.verbose then print_endline ("Generating neko : " ^ file);
 			Genneko.generate file types);
+		(match !xml_out with
+		| None -> ()
+		| Some file ->
+			if !Plugin.verbose then print_endline ("Generating xml : " ^ file);
+			Genxml.generate file types);
 		if !Plugin.verbose then print_endline ("Time spent : " ^ string_of_float (Sys.time() -. time));
 	end;
 with
