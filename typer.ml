@@ -143,6 +143,7 @@ and load_type ctx p t =
 				cf_type = t;
 				cf_public = true;
 				cf_expr = None;
+				cf_doc = None;
 			} acc
 		in
 		TAnon (List.fold_left loop PMap.empty l)
@@ -193,11 +194,12 @@ let type_type_params ctx path p (n,flags) =
 			e_pos = p;
 			e_types = [];
 			e_constrs = PMap.empty;
+			e_doc = None;
 		} in
 		TEnum (e,[])
 	| l ->
 		(* build a phantom class *)
-		let c = mk_class (fst path @ [snd path],n) p in
+		let c = mk_class (fst path @ [snd path],n) p None in
 		set_heritance ctx c (List.map (fun t -> HImplements t) l) p;
 		let add_field ctypes params _ f =
 			let f = { f with cf_type = apply_params ctypes params f.cf_type } in
@@ -340,7 +342,7 @@ let type_type ctx tpath p =
 		) in
 		mk (TType (TClassDecl c)) (TAnon fl) p
 	| TEnumDecl e ->
-		let fl = PMap.map (fun e -> { cf_name = e.ef_name; cf_public = true; cf_type = e.ef_type; cf_expr = None }) e.e_constrs in 
+		let fl = PMap.map (fun e -> { cf_name = e.ef_name; cf_public = true; cf_type = e.ef_type; cf_expr = None; cf_doc = None }) e.e_constrs in 
 		mk (TType (TEnumDecl e)) (TAnon fl) p
 
 let type_constant ctx c p =
@@ -654,6 +656,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				cf_type = e.etype;
 				cf_public = false;
 				cf_expr = None;
+				cf_doc = None;
 			} in
 			((f,e) :: l, PMap.add f cf acc)
 		in
@@ -977,7 +980,7 @@ let init_class ctx c p types herits fields =
 	in
 	let loop_cf f p =
 		match f with
-		| FVar (name,access,t,e) ->
+		| FVar (name,doc,access,t,e) ->
 			let t = (match t with
 				| None -> 
 					if not (List.mem AStatic access) then error ("Type required for member variable " ^ name) p;
@@ -986,6 +989,7 @@ let init_class ctx c p types herits fields =
 			) in
 			let cf = {
 				cf_name = name;
+				cf_doc = doc;
 				cf_type = t;
 				cf_expr = None;
 				cf_public = is_public access;
@@ -998,7 +1002,7 @@ let init_class ctx c p types herits fields =
 				)
 			) in
 			List.mem AStatic access, false, cf, delay
-		| FFun (name,access,f) ->
+		| FFun (name,doc,access,f) ->
 			let r = type_opt p f.f_type in
 			let args = List.map (fun (name,t) -> name , type_opt p t) f.f_args in
 			let t = TFun (List.map snd args,r) in
@@ -1006,6 +1010,7 @@ let init_class ctx c p types herits fields =
 			let constr = (name = "new") in
 			let cf = {
 				cf_name = name;
+				cf_doc = doc;
 				cf_type = t;
 				cf_expr = None;
 				cf_public = is_public access;
@@ -1055,6 +1060,7 @@ let init_class ctx c p types herits fields =
 			c.cl_constructor <- Some {
 				cf_name = "new";
 				cf_type = t;
+				cf_doc = None;
 				cf_expr = Some (mk (TFunction func) t p);
 				cf_public = f.cf_public;
 			}
@@ -1079,15 +1085,16 @@ let type_module ctx m tdecls =
 	List.iter (fun (d,p) ->
 		match d with
 		| EImport _ -> ()
-		| EClass (name,_,_,_) ->
+		| EClass (name,doc,_,_,_) ->
 			let path = decl_with_name name p in
-			let c = mk_class path p in
+			let c = mk_class path p doc in
 			decls := TClassDecl c :: !decls
-		| EEnum (name,_,_) ->
+		| EEnum (name,doc,_,_) ->
 			let path = decl_with_name name p in
 			let e = {
 				e_path = path;
 				e_pos = p;
+				e_doc = doc;
 				e_types = [];
 				e_constrs = PMap.empty;
 			} in
@@ -1123,23 +1130,23 @@ let type_module ctx m tdecls =
 		| EImport t ->
 			let m = load ctx t p in
 			ctx.local_types <- ctx.local_types @ m.mtypes
-		| EClass (name,types,herits,fields) ->
+		| EClass (name,_,types,herits,fields) ->
 			let c = List.find (fun d -> match d with TClassDecl { cl_path = _ , n } -> n = name | _ -> false) m.mtypes in
 			let c = (match c with TClassDecl c -> c | _ -> assert false) in
 			delays := !delays @ check_overloading c p :: check_interfaces c p :: init_class ctx c p types herits fields
-		| EEnum (name,types,constrs) ->
+		| EEnum (name,_,types,constrs) ->
 			let e = List.find (fun d -> match d with TEnumDecl { e_path = _ , n } -> n = name | _ -> false) m.mtypes in
 			let e = (match e with TEnumDecl e -> e | _ -> assert false) in
 			ctx.type_params <- [];
 			e.e_types <- List.map (type_type_params ctx e.e_path p) types;
 			ctx.type_params <- e.e_types;
 			let et = TEnum (e,List.map snd e.e_types) in
-			List.iter (fun (c,t,p) ->
+			List.iter (fun (c,doc,t,p) ->
 				let t = (match t with 
 					| [] -> et
 					| l -> TFun (List.map (fun (_,t) -> load_type ctx p t) l, et)
 				) in
-				e.e_constrs <- PMap.add c { ef_name = c; ef_type = t; ef_pos = p } e.e_constrs
+				e.e_constrs <- PMap.add c { ef_name = c; ef_type = t; ef_pos = p; ef_doc = doc } e.e_constrs
 			) constrs
 	) tdecls;
 	(* PASS 3 : type checking, delayed until all modules and types are built *)
@@ -1185,7 +1192,7 @@ let context warn =
 		local_types = [];
 		type_params = [];
 		curmethod = "";
-		curclass = mk_class ([],"") null_pos;
+		curclass = mk_class ([],"") null_pos None;
 		current = empty;
 		std = empty;
 	} in
@@ -1310,11 +1317,12 @@ let types ctx main =
 				Not_found -> error ("Invalid -main : " ^ s_type_path cl ^ " does not have static function main") null_pos
 		);
 		let path = ([],"@Main") in
-		let c = mk_class path null_pos in
+		let c = mk_class path null_pos None in
 		c.cl_statics <- PMap.add "init" {
 			cf_name = "init";
 			cf_type = mk_mono();
 			cf_public = false;
+			cf_doc = None;
 			cf_expr = Some (mk (TCall (mk (TField (mk (TType t) (mk_mono()) null_pos,"main")) (mk_mono()) null_pos,[])) (mk_mono()) null_pos);
 		} c.cl_statics;
 		types := TClassDecl c :: !types

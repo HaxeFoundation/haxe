@@ -81,12 +81,14 @@ and tclass_field = {
 	cf_name : string;
 	cf_type : t;
 	cf_public : bool;
+	cf_doc : Ast.documentation;
 	mutable cf_expr : texpr option;
 }
 
 and tclass = {
 	cl_path : module_path;
 	cl_pos : Ast.pos;
+	cl_doc : Ast.documentation;
 	mutable cl_extern : bool;
 	mutable cl_interface : bool;
 	mutable cl_types : (string * t) list;
@@ -102,17 +104,19 @@ and tenum_field = {
 	ef_name : string;
 	ef_type : t;
 	ef_pos : Ast.pos;
+	ef_doc : Ast.documentation;
 }
 
 and tenum = {
 	e_path : module_path;
 	e_pos : Ast.pos;
+	e_doc : Ast.documentation;
 	mutable e_types : (string * t) list;
 	mutable e_constrs : (string , tenum_field) PMap.t;
 }
 
 and module_type = 
-	| TClassDecl of tclass 
+	| TClassDecl of tclass
 	| TEnumDecl of tenum
 
 type module_def = {
@@ -126,10 +130,11 @@ let mk_mono() = TMono (ref None)
 
 let rec t_dynamic = TDynamic t_dynamic
 
-let mk_class path pos =
+let mk_class path pos doc =
 	{
 		cl_path = path;
 		cl_pos = pos;
+		cl_doc = doc;
 		cl_extern = false;
 		cl_interface = false;
 		cl_types = [];

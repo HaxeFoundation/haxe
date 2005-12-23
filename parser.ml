@@ -37,6 +37,7 @@ let error_msg = function
 let error m p = raise (Error (m,p))
 
 let cache = ref (DynArray.create())
+let doc = ref None
 
 let last_token s =
 	let n = Stream.count s in
@@ -112,6 +113,8 @@ let ident = parser
 let log m s =
 	prerr_endline m
 
+let get_doc s = !doc
+
 let comma = parser
 	| [< '(Comma,_) >] -> ()
 
@@ -129,10 +132,12 @@ let rec	parse_file = parser
 	| [< '(Const (Ident "package"),_); p = parse_package; _ = semicolon; l = plist parse_type_decl; '(Eof,_); >] -> p , l
 	| [< l = plist parse_type_decl; '(Eof,_) >] -> [] , l
 
-and parse_type_decl = parser
+and parse_type_decl s =
+	doc := None;
+	match s with parser
 	| [< '(Kwd Import,p1); t = parse_type_path_normal; _ = semicolon >] -> (EImport (t.tpackage,t.tname), p1)
-	| [< '(Kwd Enum,p1); '(Const (Type name),_);  tl = parse_type_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] -> (EEnum (name,tl,l), punion p1 p2)
-	| [< n , p1 = parse_class_native; '(Const (Type name),_); tl = parse_type_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = plist parse_class_field; '(BrClose,p2) >] -> (EClass (name,tl,n @ hl,fl), punion p1 p2)
+	| [< '(Kwd Enum,p1); doc = get_doc; '(Const (Type name),_); tl = parse_type_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] -> (EEnum (name,doc,tl,l), punion p1 p2)
+	| [< n , p1 = parse_class_native; doc = get_doc; '(Const (Type name),_); tl = parse_type_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = plist parse_class_field; '(BrClose,p2) >] -> (EClass (name,doc,tl,n @ hl,fl), punion p1 p2)
 
 and parse_package s = psep Dot ident s
 
@@ -177,18 +182,22 @@ and parse_type_path_next t = parser
 and parse_type_anonymous = parser
 	| [< '(Const (Ident name),_); '(DblDot,_); t = parse_type_path >] -> (name,t)
 
-and parse_enum = parser
-	| [< '(Const (Ident name),p); s >] ->
+and parse_enum s = 
+	doc := None;
+	match s with parser
+	| [< '(Const (Ident name),p); doc = get_doc; s >] ->
 		match s with parser
-		| [< '(POpen,_); l = psep Comma parse_enum_param; '(PClose,_); _ = semicolon; >] -> (name,l,p)
-		| [< '(Semicolon,_) >] -> (name,[],p)
+		| [< '(POpen,_); l = psep Comma parse_enum_param; '(PClose,_); _ = semicolon; >] -> (name,doc,l,p)
+		| [< '(Semicolon,_) >] -> (name,doc,[],p)
 		| [< >] -> serror()
 
 and parse_enum_param = parser
 	| [< '(Const (Ident name),_); '(DblDot,_); t = parse_type_path >] -> (name,t)
 
-and parse_class_field = parser
-	| [< l = parse_cf_rights []; s >] ->
+and parse_class_field s =
+	doc := None;
+	match s with parser
+	| [< l = parse_cf_rights []; doc = get_doc; s >] ->
 		match s with parser
 		| [< '(Kwd Var,p1); '(Const (Ident name),_); t = parse_type_opt; s >] ->			
 			let e , p2 = (match s with parser
@@ -196,7 +205,7 @@ and parse_class_field = parser
 			| [< '(Semicolon,p2) >] -> None , p2
 			| [< >] -> serror()
 			) in
-			(FVar (name,l,t,e),punion p1 p2)
+			(FVar (name,doc,l,t,e),punion p1 p2)
 		| [< '(Kwd Function,p1); name = parse_fun_name; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->			
 			let e = (match s with parser
 				| [< e = expr >] -> e
@@ -208,7 +217,7 @@ and parse_class_field = parser
 				f_type = t;
 				f_expr = e;
 			} in
-			(FFun (name,l,f),punion p1 (pos e))
+			(FFun (name,doc,l,f),punion p1 (pos e))
 		| [< >] -> if l = [] then raise Stream.Failure else serror()
 
 and parse_cf_rights l = parser
@@ -350,11 +359,16 @@ let parse code file =
 	let old_cache = !cache in
 	let mstack = ref [] in
 	cache := DynArray.create();
+	doc := None;
 	Lexer.init file;	
 	let rec next_token() =
 		let tk = Lexer.token code in
-		match fst tk with 
-		| Comment s | CommentLine s -> 
+		match fst tk with
+		| Comment s ->
+			let l = String.length s in
+			if l > 2 && s.[0] = '*' && s.[l-1] = '*' then doc := Some (String.sub s 1 (l-2));
+			next_token()
+		| CommentLine s -> 
 			next_token()
 		| Macro "end" ->
 			(match !mstack with

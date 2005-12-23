@@ -170,14 +170,16 @@ and expr_def =
 
 and expr = expr_def * pos
 
+type documentation = string option
+
 type access =
 	| APublic
 	| APrivate
 	| AStatic
 
 type class_field =
-	| FVar of string * access list * type_path option * expr option
-	| FFun of string * access list * func
+	| FVar of string * documentation * access list * type_path option * expr option
+	| FFun of string * documentation * access list * func
 
 type type_param_flag =
 	| HInterface
@@ -188,8 +190,8 @@ type type_param_flag =
 type type_param = string * type_path_normal list
 
 type type_def =
-	| EClass of string * type_param list * type_param_flag list * (class_field * pos) list
-	| EEnum of string * type_param list * (string * (string * type_path) list * pos) list
+	| EClass of string * documentation * type_param list * type_param_flag list * (class_field * pos) list
+	| EEnum of string * documentation * type_param list * (string * documentation * (string * type_path) list * pos) list
 	| EImport of (string list * string)
 
 type type_decl = type_def * pos

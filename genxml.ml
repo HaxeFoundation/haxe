@@ -34,6 +34,13 @@ let pmap f m =
 let gen_path (p,n) =
 	("path",String.concat "." (p @ [n]))
 
+let gen_doc s = node "doc" [] [pcdata s]
+
+let gen_doc_opt d =
+	match d with 
+	| None -> []
+	| Some s -> [gen_doc s]
+
 let rec gen_type t =
 	match t with
 	| TMono m -> (match !m with None -> tag "unknown" | Some t -> gen_type t)
@@ -44,11 +51,12 @@ let rec gen_type t =
 	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
 
 let gen_constr e =
-	node e.ef_name [] (match follow e.ef_type with TFun (args,_) -> List.map gen_type args | _ -> [])
+	let doc = gen_doc_opt e.ef_doc in
+	node e.ef_name [] (match follow e.ef_type with TFun (args,_) -> List.map gen_type args @ doc | _ -> doc)
 
 let gen_field att f =
 	let att = (match f.cf_expr with None -> att | Some e -> ("line",string_of_int (Lexer.get_error_line e.epos)) :: att) in
-	node f.cf_name (if f.cf_public then ("public","1") :: att else att) [gen_type f.cf_type]
+	node f.cf_name (if f.cf_public then ("public","1") :: att else att) (gen_type f.cf_type :: gen_doc_opt f.cf_doc)
 
 let gen_type t =
 	match t with
@@ -56,9 +64,11 @@ let gen_type t =
 		let stats = pmap (gen_field ["static","1"]) c.cl_statics in
 		let fields = pmap (gen_field []) c.cl_fields in
 		let constr = (match c.cl_constructor with None -> [] | Some f -> [gen_field [] f]) in
-		node "class" [gen_path c.cl_path;("file",c.cl_pos.pfile)] (stats @ fields @ constr)
+		let doc = gen_doc_opt c.cl_doc in
+		node "class" [gen_path c.cl_path;("file",c.cl_pos.pfile)] (stats @ fields @ constr @ doc)
 	| TEnumDecl e ->
-		node "enum" [gen_path e.e_path;("file",e.e_pos.pfile)] (pmap gen_constr e.e_constrs)
+		let doc = gen_doc_opt e.e_doc in
+		node "enum" [gen_path e.e_path;("file",e.e_pos.pfile)] (pmap gen_constr e.e_constrs @ doc)
 
 let att_str att = 
 	String.concat "" (List.map (fun (a,v) -> Printf.sprintf " %s=\"%s\"" a v) att)
