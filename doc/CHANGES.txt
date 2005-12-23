@@ -1,5 +1,5 @@
 2005-12-??: alpha 5
-	added -main
+	added -main commandline parameter
 	catches are now working with Neko
 	restricted catch types for type-safety
 	added constructor inheritance + check if superconstructor is called
@@ -7,6 +7,8 @@
 	added method closures to Neko generation
 	added class Reflect
 	added License : libraries are BSD
+	added -xml documentation output
+	allowed class instance :> anonymous subtyping
 
 2005-12-10: alpha 4
 	forbid break and continue outside loops
