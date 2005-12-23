@@ -309,6 +309,15 @@ let rec unify a b =
 		loop c1 tl1
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
 		unify r1 r2 && List.for_all2 unify l2 l1 (* contravariance *)
+	| TInst (c,tl) , TAnon fl ->
+		(try
+			PMap.iter (fun n f2 ->
+				let f1 = PMap.find n c.cl_fields in				
+				if not (unify (apply_params c.cl_types tl f1.cf_type) f2.cf_type) then raise Not_found;
+			) fl;
+			true
+		with
+			Not_found -> false)
 	| TAnon fl1 , TAnon fl2 ->
 		(try
 			PMap.iter (fun n f2 ->
