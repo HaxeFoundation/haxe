@@ -664,11 +664,20 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		mk (TObjectDecl fields) (TAnon types) p
 	| EArrayDecl el ->
 		let t , pt = t_array ctx in
+		let dyn = ref ctx.untyped in
 		let el = List.map (fun e ->
 			let e = type_expr ctx e in
-			unify ctx e.etype pt e.epos;
+			if not (!dyn) then (try
+				unify ctx e.etype pt e.epos;
+			with 
+				Error (Cannot_unify _,_) -> dyn := true);
 			e
 		) el in
+		let t = if !dyn then begin
+			let t , pt = t_array ctx in
+			unify ctx t_dynamic pt p;
+			t
+		end else t in
 		mk (TArrayDecl el) t p
 	| EVars vl ->
 		let vl = List.map (fun (v,t,e) ->
