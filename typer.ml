@@ -253,14 +253,14 @@ let t_iterator ctx =
 let rec return_flow e =
 	let error() = error "A return is missing here" e.epos in
 	match e.eexpr with
-	| TReturn _ -> ()
+	| TReturn _ | TThrow _ -> ()
 	| TParenthesis e -> 
 		return_flow e
 	| TBlock el ->
 		let rec loop = function
 			| [] -> error()
 			| [e] -> return_flow e
-			| { eexpr = TReturn _ } :: _ -> ()
+			| { eexpr = TReturn _ } :: _ | { eexpr = TThrow _ } :: _ -> ()			
 			| _ :: l -> loop l
 		in
 		loop el
