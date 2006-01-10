@@ -65,6 +65,8 @@ xml_parser.cmo: xml_parser.ml dtd.cmi xml_parser.mli xml_parser.cmi
 
 xml_parser.cmx: xml_parser.ml dtd.cmi xml_parser.mli xml_parser.cmi
 
+xml_parser.cmi: xml_parser.mli dtd.cmi xml.cmi
+
 xml_lexer.cmo: xml_lexer.ml xml_lexer.cmi
 
 xml_lexer.cmx: xml_lexer.ml xml_lexer.cmi
