@@ -297,7 +297,7 @@ type shape_fill_style =
 	| SFSSolid of rgb
 	| SFSSolid3 of rgba
 	| SFSLinearGradient of matrix * gradient
-	| SFSRadialGradient of matrix * gradient
+	| SFSRadialGradient of matrix * gradient * int option
 	| SFSBitmap of sfs_bitmap
 
 type shape_line_style = {
@@ -524,6 +524,7 @@ type tag_data =
 	| TFlash8 of unknown
 	| TPlaceObject3 of place_object
 	| TFontGlyphs of font_glyphs
+	| TTextInfo of unknown
 	| TFont3 of font3
 	| TShape4 of shape
 	| TUnknown of int * unknown

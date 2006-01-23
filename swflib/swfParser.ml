@@ -151,8 +151,9 @@ let shape_fill_style_length s =
 	1 + match s with
 	| SFSSolid _ -> rgb_length
 	| SFSSolid3 _ -> rgba_length
-	| SFSLinearGradient (m,g)
-	| SFSRadialGradient (m,g) -> matrix_length m + gradient_length g
+	| SFSLinearGradient (m,g) 
+	| SFSRadialGradient (m,g,None) -> matrix_length m + gradient_length g
+	| SFSRadialGradient (m,g,Some _) -> matrix_length m + gradient_length g + 2
 	| SFSBitmap b -> 2 + matrix_length b.sfb_mpos
 
 let shape_line_style_length s =
@@ -362,6 +363,8 @@ let rec tag_data_length = function
 		place_object_length p true
 	| TFontGlyphs f ->
 		font_glyphs_length f
+	| TTextInfo s ->
+		String.length s
 	| TFont3 f ->
 		font3_length f
 	| TShape4 s ->
@@ -649,7 +652,12 @@ let parse_shape_fill_style ch vshape =
 	| 0x12 ->
 		let m = read_matrix ch in
 		let g = read_gradient ch (vshape >= 3) in
-		SFSRadialGradient (m,g)
+		SFSRadialGradient (m,g,None)
+	| 0x13 ->
+		let m = read_matrix ch in
+		let g = read_gradient ch (vshape >= 3) in
+		let i = IO.read_i16 ch in
+		SFSRadialGradient (m,g,Some i)
 	| 0x40
 	| 0x41
 	| 0x42
@@ -1203,6 +1211,8 @@ let rec parse_tag ch =
 			TPlaceObject3 (parse_place_object ch true)
 		| 0x49 ->
 			TFontGlyphs (parse_font_glyphs ch len)
+		| 0x4A ->
+			TTextInfo (nread ch len)
 		| 0x4B ->
 			TFont3 (parse_font3 ch len)
 		| 0x53 ->
@@ -1285,6 +1295,7 @@ let rec tag_id = function
 	| TFlash8 _ -> 0x45
 	| TPlaceObject3 _ -> 0x46
 	| TFontGlyphs _ -> 0x49
+	| TTextInfo _ -> 0x4A
 	| TFont3 _ -> 0x4B
 	| TShape4 _ -> 0x53
 	| TUnknown (id,_) -> id
@@ -1314,10 +1325,15 @@ let write_shape_fill_style ch s =
 		write_byte ch 0x10;
 		write_matrix ch m;
 		write_gradient ch g
-	| SFSRadialGradient (m,g) ->
+	| SFSRadialGradient (m,g,None) ->
 		write_byte ch 0x12;
 		write_matrix ch m;
 		write_gradient ch g
+	| SFSRadialGradient (m,g,Some i) ->
+		write_byte ch 0x13;
+		write_matrix ch m;
+		write_gradient ch g;
+		write_i16 ch i;
 	| SFSBitmap b ->
 		write_byte ch (match b.sfb_repeat , b.sfb_smooth with
 			| true, false -> 0x40
@@ -1666,6 +1682,8 @@ let rec write_tag_data ch = function
 		write_place_object ch p true;
 	| TFontGlyphs f ->
 		write_font_glyphs ch f
+	| TTextInfo s ->
+		nwrite ch s
 	| TFont3 f ->
 		write_font3 ch f
 	| TShape4 s ->
