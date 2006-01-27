@@ -26,7 +26,7 @@
 class StringBuf {
 
 	public function new() {
-		#neko
+		#if neko
 		b = __make();
 		#else flash
 		b = "";
@@ -35,16 +35,16 @@ class StringBuf {
 	}
 
 	public function add( x : Dynamic ) {
-		#neko
+		#if neko
 		__add(b,x);
 		#else flash
-		b += x;
+		b += untyped Boot.__string_rec(x,"");
 		#else error
 		#end
 	}
 
 	public function addSub( s : String, pos : Int, len : Int ) {
-		#neko
+		#if neko
 		__add_sub(b,untyped s.__s,pos,len);
 		#else flash
 		b += s.substr(pos,len);
@@ -53,7 +53,7 @@ class StringBuf {
 	}
 
 	public function addChar( c : Int ) {
-		#neko
+		#if neko
 		__add_char(b,c);
 		#else flash
 		b += untyped String.fromCharCode(c);
@@ -62,7 +62,7 @@ class StringBuf {
 	}
 
 	public function toString() : String {
-		#neko
+		#if neko
 		return new String(__string(b));
 		#else flash
 		return b;
@@ -72,7 +72,7 @@ class StringBuf {
 
 	private var b : Dynamic;
 
-#neko
+#if neko
 	static var __make : Dynamic = Neko.load("std","buffer_new",0);
 	static var __add : Dynamic = Neko.load("std","buffer_add",2);
 	static var __add_char : Dynamic = Neko.load("std","buffer_add_char",2);

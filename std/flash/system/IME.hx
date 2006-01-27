@@ -1,6 +1,6 @@
 package flash.system;
 
-#use_ime
+#if use_ime
 
 extern class IME {
 

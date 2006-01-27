@@ -27,7 +27,7 @@ class Reflect {
 
 	public static function createInstance( cl : Dynamic, args : Array<Dynamic> ) : Dynamic {
 		return untyped
-		#flash
+		#if flash
 			switch( args.length ) {
 			case 0:
 				__new__(cl);
@@ -53,7 +53,7 @@ class Reflect {
 
 	public static function hasField( o : Dynamic, field : String ) : Bool {
 		return untyped
-		#flash
+		#if flash
 			o.hasOwnProperty(field)
 		#else neko
 			__dollar__typeof(o) == __dollar__tobject && __dollar__objfield(o,__dollar__hash(field.__s))
@@ -64,7 +64,7 @@ class Reflect {
 
 	public static function field( o : Dynamic, field : String ) : Dynamic {
 		return untyped
-		#flash
+		#if flash
 			{
 				var f = o[field];
 				if( f == null && !o.hasOwnProperty(f) )
@@ -88,7 +88,7 @@ class Reflect {
 
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
 		untyped {
-		#flash
+		#if flash
 			o[field] = value;
 		#else neko
 			if( __dollar__typeof(o) == __dollar__tobject )
@@ -100,7 +100,7 @@ class Reflect {
 
 	public static function callField( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic {
 		return untyped
-		#flash
+		#if flash
 			func.apply(o,args)
 		#else neko
 			__dollar__call(func,o,args.__a)
@@ -111,7 +111,7 @@ class Reflect {
 
 	public static function fields( o : Dynamic ) : Array<String> {
 		return untyped
-		#flash
+		#if flash
 			__keys__(o)
 		#else neko
 			if( __dollar__typeof(o) != __dollar__tobject )

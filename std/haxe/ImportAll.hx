@@ -42,7 +42,7 @@ import StringBuf;
 //import XmlParser;
 
 // flash
-#flash
+#if flash
 
 import Accessibility;
 import AsBroadCaster;
@@ -73,7 +73,7 @@ import flash.system.Security;
 
 #end
 
-#flash8
+#if flash8
 
 import flash.display.BitmapData;
 import flash.external.ExternalInterface;
@@ -102,7 +102,7 @@ import flash.text.TextRenderer;
 
 #end
 
-#neko
+#if neko
 
 import Boot;
 import Neko;

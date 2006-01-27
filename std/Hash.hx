@@ -26,7 +26,7 @@
 class Hash<T> {
 
 	public function new() : Void {
-		#flash
+		#if flash
 		h = untyped __new__(_global["Object"]);
 		#else neko
 		h = untyped __dollar__hnew(0);
@@ -34,7 +34,7 @@ class Hash<T> {
 	}
 
 	public function set( key : String, value : T ) : Void {
-		#flash
+		#if flash
 		untyped h[key] = value;
 		#else neko
 		untyped __dollar__hset(h,key.__s,value,null);
@@ -42,7 +42,7 @@ class Hash<T> {
 	}
 
 	public function get( key : String ) : T {
-		#flash
+		#if flash
 		return untyped h[key];
 		#else neko
 		return untyped __dollar__hget(h,key.__s,null);
@@ -50,7 +50,7 @@ class Hash<T> {
 	}
 
 	public function exists( key : String ) : Bool {
-		#flash
+		#if flash
 		return untyped h.hasOwnProperty(key);
 		#else neko
 		return untyped __dollar__hmem(h,key.__s,null);
@@ -58,7 +58,7 @@ class Hash<T> {
 	}
 
 	public function keys() : Iterator<String> {
-		#flash
+		#if flash
 		return untyped (__keys__(h)).iterator();
 		#else neko
 		var l = new List<String>();
@@ -68,7 +68,7 @@ class Hash<T> {
 	}
 
 	public function iterator() : Iterator<T> {
-		#flash
+		#if flash
 		return untyped({
 			ref : h,
 			it : keys(),
