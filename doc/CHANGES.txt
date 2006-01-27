@@ -1,5 +1,9 @@
 2006-01-??: beta 1
 	allowed array literals to be dynamic
+	use neko 1.2 commandline and prototypes
+	changed #cond to #if cond for conditional compilation
+	all fields are defined to null by default
+	defied __class__ and other meta accesses for Flash and Neko
 
 2005-12-23: alpha 5
 	added -main commandline parameter
