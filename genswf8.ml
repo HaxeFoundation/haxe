@@ -1009,7 +1009,9 @@ and gen_expr ctx retval e =
 
 let gen_class_static_field ctx cclass f =
 	match f.cf_expr with
-	| None -> ()
+	| None ->
+		push ctx [VReg 0; VStr f.cf_name; VNull];
+		setvar ctx VarObj
 	| Some e ->
 		match e.eexpr with
 		| TFunction _ ->
@@ -1027,12 +1029,11 @@ let gen_class_static_init ctx (cclass,name,e) =
 	setvar ctx VarObj
 
 let gen_class_field ctx f =
-	match f.cf_expr with
-	| None -> ()
-	| Some e ->
-		push ctx [VReg 1; VStr f.cf_name];
-		gen_expr ctx true e;
-		setvar ctx VarObj
+	push ctx [VReg 1; VStr f.cf_name];
+	(match f.cf_expr with
+	| None -> push ctx [VNull]
+	| Some e ->	gen_expr ctx true e);
+	setvar ctx VarObj
 
 let gen_enum_field ctx f =
 	let ename = mk (TConst (TString f.ef_name)) f.ef_type Ast.null_pos in
@@ -1084,25 +1085,45 @@ let gen_type_def ctx t =
 			()
 		else
 		let id = gen_type ctx c.cl_path false in
+		let have_constr = ref false in
 		push ctx [VStr id];
 		(match c.cl_constructor with
 		| Some { cf_expr = Some e } ->
+			have_constr := true;
 			gen_expr ctx true e
 		| _ ->
 			let f = func ctx true false [] in
 			f());		
 		write ctx (ASetReg 0);
 		setvar ctx VarStr;
+		if !have_constr then begin
+			push ctx [VReg 0; VStr "__construct__"; VReg 0];
+			setvar ctx VarObj
+		end;
 		(match c.cl_super with
-		| None -> ()
+		| None ->
+			push ctx [VReg 0; VStr "__super__"; VNull];
+			setvar ctx VarObj
 		| Some (csuper,_) ->
 			push ctx [VReg 0];
+			push ctx [VReg 0; VStr "__super__"];
 			gen_path ctx csuper.cl_path csuper.cl_extern;
-			write ctx AExtends);
+			setvar ctx VarObj;
+			write ctx AExtends;
+		);
 		(match c.cl_implements with
-		| [] -> ()
+		| [] ->
+			push ctx [VReg 0; VStr "__interfaces__"; VInt 0];
+			write ctx AInitArray;
+			setvar ctx VarObj;
 		| l ->
 			let nimpl = List.length l in
+			push ctx [VReg 0; VStr "__interfaces__"];
+			List.iter (fun (c,_) -> gen_path ctx c.cl_path c.cl_extern) l;
+			push ctx [VInt nimpl];
+			write ctx AInitArray;
+			setvar ctx VarObj;
+			ctx.stack_size <- ctx.stack_size - nimpl;
 			List.iter (fun (c,_) -> gen_path ctx c.cl_path c.cl_extern) l;
 			push ctx [VInt nimpl; VReg 0];
 			write ctx AImplements;
@@ -1111,6 +1132,10 @@ let gen_type_def ctx t =
 		getvar ctx VarObj;
 		write ctx (ASetReg 1);
 		write ctx APop;
+		push ctx [VReg 0; VStr "__prototype__"; VReg 1];
+		setvar ctx VarObj;
+		push ctx [VReg 1; VStr "__class__"; VReg 0];
+		setvar ctx VarObj;
 		PMap.iter (fun _ f -> gen_class_static_field ctx id f) c.cl_statics;
 		PMap.iter (fun _ f -> gen_class_field ctx f) c.cl_fields;
 	| TEnumDecl e ->

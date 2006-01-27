@@ -253,13 +253,14 @@ and gen_expr e =
 					(match eo with None -> None | Some e -> Some (gen_expr e))
 				),p)
 
-let gen_method c acc =
+let gen_method p c acc =
 	match c.cf_expr with
-	| None -> acc
+	| None -> 
+		(c.cf_name, null p) :: acc
 	| Some e ->
 		match e.eexpr with
 		| TFunction _ -> ((if c.cf_name = "new" then "__construct__" else c.cf_name), gen_expr e) :: acc
-		| _ -> acc
+		| _ -> (c.cf_name, null p) :: acc
 
 let gen_class c =	
 	let p = pos c.cl_pos in
@@ -271,7 +272,7 @@ let gen_class c =
 		(match follow f.cf_type with
 		| TFun (args,_) ->
 			let params = nparams args in
-			gen_method f ["new",(EFunction (params,(EBlock [
+			gen_method p f ["new",(EFunction (params,(EBlock [
 				(EVars ["@o",Some (call p (builtin p "new") [null p])],p);
 				(call p (builtin p "objsetproto") [ident p "@o"; clpath]);
 				(call p (builtin p "call") [field p (this p) "__construct__"; ident p "@o"; array p (List.map (ident p) params)]);
@@ -296,23 +297,17 @@ let gen_class c =
 	let estat = (EBinop ("=",
 		stpath,
 		(EObject (
-			("__proto__",clpath) ::
+			("__prototype__",clpath) ::
 			("__super__", match c.cl_super with None -> null p | Some _ -> field p esuper "__class__") ::
 			("__interfaces__", interf) ::
-			PMap.fold gen_method c.cl_statics fnew
+			PMap.fold (gen_method p) c.cl_statics fnew
 		),p)
 	),p) in
 	let eclass = (EBinop ("=",
 		clpath,
-		call p (builtin p "new") [esuper]
+		(EObject (PMap.fold (gen_method p) c.cl_fields fstring),p)
 	),p) in
-	let methods = PMap.fold gen_method c.cl_fields fstring in
-	(EBlock (
-		estat ::
-		eclass ::
-		(EVars ["@tmp", Some clpath],p) ::
-		(List.map (fun (f,e) -> (EBinop ("=",field p (ident p "@tmp") f,e),p)) (("__class__", stpath) :: methods))
-	),p)
+	(EBlock [eclass; estat; (EBinop ("=",field p clpath "__class__",stpath),p)],p)	
 
 let gen_enum_constr c =
 	let p = pos c.ef_pos in
