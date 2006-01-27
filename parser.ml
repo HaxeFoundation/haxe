@@ -383,18 +383,22 @@ let parse code file =
 				mstack := l;
 				skip_tokens false;
 				next_token())			
-		| Macro s ->
-			enter_macro s (snd tk);
+		| Macro "if" ->
+			enter_macro();
 			next_token()
 		| _ ->
 			tk
 
-	and enter_macro s p =
-		if s = "error" then error Unimplemented p;
-		if Hashtbl.mem defines s then
-			mstack := p :: !mstack
-		else
-			skip_tokens true
+	and enter_macro() =
+		match Lexer.token code with
+		| (Const (Ident s),p) ->
+			if s = "error" then error Unimplemented p;
+			if Hashtbl.mem defines s then
+				mstack := p :: !mstack
+			else
+				skip_tokens true		
+		| _ ->
+			serror()
 	
 	and skip_tokens test =
 		let rec loop() =
@@ -405,12 +409,8 @@ let parse code file =
 			| Macro "else" when not test ->
 				loop()
 			| Macro "else" ->
-				(match Lexer.token code with
-				| (Const (Ident s),p) ->
-					enter_macro s p
-				| _ ->
-					serror())
-			| Macro s ->
+				enter_macro()
+			| Macro "if" ->
 				ignore(skip_tokens false);
 				loop()
 			| Eof ->
