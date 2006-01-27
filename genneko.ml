@@ -272,7 +272,8 @@ let gen_class c =
 		| TFun (args,_) ->
 			let params = nparams args in
 			gen_method f ["new",(EFunction (params,(EBlock [
-				(EVars ["@o",Some (call p (builtin p "new") [clpath])],p);
+				(EVars ["@o",Some (call p (builtin p "new") [null p])],p);
+				(call p (builtin p "objsetproto") [ident p "@o"; clpath]);
 				(call p (builtin p "call") [field p (this p) "__construct__"; ident p "@o"; array p (List.map (ident p) params)]);
 				(EReturn (Some (ident p "@o")),p)
 			],p)),p)]
@@ -291,22 +292,26 @@ let gen_class c =
 	with Not_found -> 
 		[]
 	) in	
+	let interf = array p (List.map (fun (c,_) -> gen_type_path p c.cl_path) c.cl_implements) in
 	let estat = (EBinop ("=",
 		stpath,
-		(EObject (PMap.fold gen_method c.cl_statics fnew),p)
+		(EObject (
+			("__proto__",clpath) ::
+			("__super__", match c.cl_super with None -> null p | Some _ -> field p esuper "__class__") ::
+			("__interfaces__", interf) ::
+			PMap.fold gen_method c.cl_statics fnew
+		),p)
 	),p) in
 	let eclass = (EBinop ("=",
 		clpath,
 		call p (builtin p "new") [esuper]
 	),p) in
-	let interf = array p (List.map (fun (c,_) -> gen_type_path p c.cl_path) c.cl_implements) in
-	let magic = ("__class__", call p (builtin p "array") [stpath; interf; match c.cl_super with None -> null p | Some _ -> field p esuper "__class__"]) in
 	let methods = PMap.fold gen_method c.cl_fields fstring in
 	(EBlock (
 		estat ::
 		eclass ::
 		(EVars ["@tmp", Some clpath],p) ::
-		(List.map (fun (f,e) -> (EBinop ("=",field p (ident p "@tmp") f,e),p)) (magic :: methods))
+		(List.map (fun (f,e) -> (EBinop ("=",field p (ident p "@tmp") f,e),p)) (("__class__", stpath) :: methods))
 	),p)
 
 let gen_enum_constr c =
@@ -387,7 +392,7 @@ let generate file types =
 	let ch = IO.output_channel (open_out neko_file) in
 	Nxml.write ch (Nxml.to_xml e);
 	IO.close_out ch;
-	if Sys.command ("nekovm neko " ^ neko_file) = 0 && not (!Plugin.verbose) then Sys.remove neko_file
+	if Sys.command ("nekoc " ^ neko_file) = 0 && not (!Plugin.verbose) then Sys.remove neko_file
 
 ;;
 Nast.do_escape := false
