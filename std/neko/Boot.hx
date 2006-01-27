@@ -35,13 +35,13 @@ class Boot {
 			case __dollar__tobject:
 				var c = o.__class__;
 				while( c != null ) {
-					if( cl == c )
+					if( __dollar__pcompare(cl,c) == 0 )
 						return true;
 					var il = c.__interfaces__;
 					var i = 0;
 					var l = __dollar__asize(il);
 					while( i < l ) {
-						if( cl == il[i] )
+						if( __dollar___pcompare(cl,il[i]) == 0 )
 							return true;
 						i += 1;
 					}
