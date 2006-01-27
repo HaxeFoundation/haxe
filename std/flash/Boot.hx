@@ -32,6 +32,8 @@ class Boot {
 			var t = __typeof__(o);
 			if( t == "movieclip" )
 				t = "object";
+			else if( t == "function" && o.__interfaces__ != null )
+				t = "object";
 			switch( t ) {
 			case "object":
 				if( __instanceof__(o,Array) ) {
@@ -46,7 +48,7 @@ class Boot {
 					return str;
 				}
 				var s2 = o.toString();
-				if( (__typeof__(s2) == "string" || __instanceof__(s2,String)) && s2 != "[object Object]" )
+				if( (__typeof__(s2) == "string" || __instanceof__(s2,String)) && s2 != "[object Object]" && s2 != "[type Function]" )
 					return s2;
 				var k;
 				var str = "{\n";
@@ -54,7 +56,10 @@ class Boot {
 					str = "MC("+o._name+") "+str;
 				s += "    ";
 				for k in (__keys__(o)).iterator() {
-					str += s + k + " : "+__string_rec(o[k],s)+"\n";
+					if( k == "__construct__" && __typeof__(o[k]) == "function" )
+						str += s + k + " : <function>\n";
+					else
+						str += s + k + " : "+__string_rec(o[k],s)+"\n";
 				}
 				s = s.substring(4);
 				str += s + "}";
@@ -139,7 +144,7 @@ class Boot {
 			flash.system.Security = System.security;
 			Math.pi = Math["PI"];
 
-			#use_ime
+			#if use_ime
 			flash.system.IME = System["IME"];
 			flash.system.IME._ALPHANUMERIC_FULL = System["IME"]["ALPHANUMERIC_FULL"];
 			flash.system.IME._ALPHANUMERIC_HALF = System["IME"]["ALPHANUMERIC_HALF"];
