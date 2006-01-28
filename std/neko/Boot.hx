@@ -41,7 +41,7 @@ class Boot {
 					var i = 0;
 					var l = __dollar__asize(il);
 					while( i < l ) {
-						if( __dollar___pcompare(cl,il[i]) == 0 )
+						if( __dollar__pcompare(cl,il[i]) == 0 )
 							return true;
 						i += 1;
 					}
