@@ -18,6 +18,8 @@
  *)
 open Printf
 
+let prompt = ref false
+
 let normalize_path p =
 	let l = String.length p in
 	if l = 0 then
@@ -27,12 +29,20 @@ let normalize_path p =
 		| _ -> p ^ "/"
 
 let warn msg p =
-	let error_printer file line = sprintf "%s:%d:" file line in
-	let epos = Lexer.get_error_pos error_printer p in
-	prerr_endline (sprintf "%s : %s" epos msg)
+	if p = Ast.null_pos then
+		prerr_endline msg
+	else begin
+		let error_printer file line = sprintf "%s:%d:" file line in
+		let epos = Lexer.get_error_pos error_printer p in
+		prerr_endline (sprintf "%s : %s" epos msg)
+	end
 
 let report msg p =
 	warn msg p;
+	if !prompt then begin
+		print_endline "Press enter to exit...";
+		ignore(read_line());
+	end;
 	exit 1
 
 let make_path f =
@@ -99,6 +109,7 @@ try
 			swf_version := v;
 		),"<version> : flash player version (8 by default)");
 		("-v",Arg.Unit (fun () -> Plugin.verbose := true),": turn on verbose mode");
+		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
 	] @ !Plugin.options in
 	Arg.parse args_spec (fun cl -> classes := make_path cl :: !classes) usage;
 	(match !swf_out with
@@ -142,6 +153,5 @@ with
 	| Lexer.Error (m,p) -> report (Lexer.error_msg m) p
 	| Parser.Error (m,p) -> report (Parser.error_msg m) p
 	| Typer.Error (m,p) -> report (Typer.error_msg m) p
-	| Failure msg ->
-		prerr_endline msg;
-		exit 1;
+	| Failure msg -> report msg Ast.null_pos
+	| e -> report (Printexc.to_string e) Ast.null_pos
