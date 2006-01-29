@@ -107,5 +107,6 @@ import flash.text.TextRenderer;
 
 import neko.Boot;
 import neko.Lib;
+import neko.Web;
 
 #end
