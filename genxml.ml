@@ -49,6 +49,7 @@ let rec gen_type t =
 	| TFun (args,r) -> node "f" [] (List.map gen_type (args @ [r]))
 	| TAnon fields -> node "a" [] (pmap (fun f -> node f.cf_name [] [gen_type f.cf_type]) fields)
 	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
+	| TLazy f -> gen_type (!f())
 
 let gen_constr e =
 	let doc = gen_doc_opt e.ef_doc in

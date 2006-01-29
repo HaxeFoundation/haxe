@@ -26,6 +26,7 @@ type t =
 	| TFun of t list * t
 	| TAnon of (string, tclass_field) PMap.t
 	| TDynamic of t
+	| TLazy of (unit -> t) ref
 
 and tconstant =
 	| TInt of string
@@ -79,7 +80,7 @@ and texpr = {
 
 and tclass_field = {
 	cf_name : string;
-	cf_type : t;
+	mutable cf_type : t;
 	cf_public : bool;
 	cf_doc : Ast.documentation;
 	mutable cf_expr : texpr option;
@@ -167,6 +168,8 @@ let rec s_type ctx t =
 		"{" ^ String.concat "," fl ^ " }";
 	| TDynamic t2 ->
 		"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
+	| TLazy f ->		
+		s_type ctx (!f())
 
 and s_type_params ctx = function
 	| [] -> ""
@@ -183,6 +186,8 @@ let rec follow t =
 		(match !r with
 		| Some t -> follow t
 		| _ -> t)
+	| TLazy f ->		
+		follow (!f())
 	| _ -> t
 
 let rec is_parent csup c =
@@ -206,6 +211,8 @@ let rec link e a b =
 				false
 			else
 				loop t2
+		| TLazy f ->
+			loop (!f())
 		| TAnon fl ->
 			try
 				PMap.iter (fun _ f -> if loop f.cf_type then raise Exit) fl;
@@ -257,6 +264,8 @@ let apply_params cparams params t =
 			TFun (List.map loop tl,loop r)
 		| TAnon fl ->
 			TAnon (PMap.map (fun f -> { f with cf_type = loop f.cf_type }) fl)
+		| TLazy f ->
+			loop (!f())
 		| TDynamic t2 ->
 			if t == t2 then
 				t
@@ -272,6 +281,8 @@ let rec type_eq param a b =
 	if a == b || (param && b == t_dynamic) then
 		true
 	else match a , b with
+	| TLazy f , _ -> type_eq param (!f()) b
+	| _ , TLazy f -> type_eq param a (!f())
 	| TMono t , _ -> (match !t with None -> link t a b | Some t -> type_eq param t b)
 	| _ , TMono t -> (match !t with None -> link t b a | Some t -> type_eq param a t)
 	| TEnum (a,tl1) , TEnum (b,tl2) -> a == b && List.for_all2 (type_eq param) tl1 tl2
@@ -280,6 +291,9 @@ let rec type_eq param a b =
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
 		type_eq param r1 r2 && List.for_all2 (type_eq param) l1 l2
 	| _ , _ ->
+		let p = print_context() in
+		prerr_endline (s_type p a);
+		prerr_endline (s_type p b);
 		false
 
 (* perform unification with subtyping.
@@ -291,6 +305,8 @@ let rec unify a b =
 	if a == b then
 		true
 	else match a, b with
+	| TLazy f , _ -> unify (!f()) b
+	| _ , TLazy f -> unify a (!f())
 	| TMono t , _ -> (match !t with None -> link t a b | Some t -> unify t b)
 	| _ , TMono t -> (match !t with None -> link t b a | Some t -> unify a t)
 	| TEnum (a,tl1) , TEnum (b,tl2) -> a == b && List.for_all2 (type_eq true) tl1 tl2

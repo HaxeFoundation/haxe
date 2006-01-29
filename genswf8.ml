@@ -310,6 +310,7 @@ let best_eq t =
 	match follow t with
 	| TMono _
 	| TDynamic _
+	| TLazy _
 	| TInst ({ cl_path = ([],"String") },_) ->
 		AEqual
 	| TInst _
@@ -569,6 +570,7 @@ and gen_try_catch ctx retval e catchs =
 			| TEnum (e,_) -> Some (TEnumDecl e)
 			| TInst (c,_) -> Some (TClassDecl c)
 			| TFun _
+			| TLazy _
 			| TAnon _ ->
 				assert false
 			| TMono _

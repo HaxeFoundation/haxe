@@ -123,7 +123,7 @@ class NekoString__ implements String {
 		}
 	}
 
-	public function toString() {
+	public function toString() : String {
 		return this;
 	}
 

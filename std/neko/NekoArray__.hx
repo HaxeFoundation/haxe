@@ -112,7 +112,7 @@ class NekoArray__<T> implements Array<T> {
 		}
 	}
 
-	public function join(delim) {
+	public function join(delim : String) {
 		var s = new StringBuf();
 		var it = iterator();
 		for i in it {
