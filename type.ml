@@ -290,10 +290,9 @@ let rec type_eq param a b =
 		c1 == c2 && List.for_all2 (type_eq param) tl1 tl2
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
 		type_eq param r1 r2 && List.for_all2 (type_eq param) l1 l2
+	| TDynamic a , TDynamic b ->
+		type_eq param a b
 	| _ , _ ->
-		let p = print_context() in
-		prerr_endline (s_type p a);
-		prerr_endline (s_type p b);
 		false
 
 (* perform unification with subtyping.
