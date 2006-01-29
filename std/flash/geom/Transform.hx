@@ -8,6 +8,6 @@ extern class Transform {
 	var concatenatedColorTransform : ColorTransform;
 	var pixelBounds : Rectangle<Float>;
 
-	function new( mc : MovieClip ) : Void;
+	function new( mc : flash.MovieClip ) : Void;
 
 }

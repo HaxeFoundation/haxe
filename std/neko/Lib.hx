@@ -22,8 +22,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
+package neko;
 
-class Neko {
+class Lib {
 
 	public static function load( lib : String, prim : String, nargs : Int ) : Dynamic {
 		return untyped __dollar__loader.loadprim((lib+"@"+prim).__s,nargs);

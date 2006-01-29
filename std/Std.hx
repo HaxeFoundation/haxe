@@ -23,16 +23,14 @@
  * DAMAGE.
  */
 
-import Boot;
-
 class Std {
 
 	public static function instanceof( obj : Dynamic, vclass : Dynamic ) : Bool {
 		return untyped
 		#if flash
-		Boot.__instanceof(obj,vclass);
+		flash.Boot.__instanceof(obj,vclass);
 		#else neko
-		Boot.__instanceof(obj,vclass);
+		neko.Boot.__instanceof(obj,vclass);
 		#else error
 		#end
 	}
@@ -40,7 +38,7 @@ class Std {
 	public static function string( s : Dynamic ) : String {
 		return untyped
 		#if flash
-		Boot.__string_rec(s,"");
+		flash.Boot.__string_rec(s,"");
 		#else neko
 		__dollar__string(s);
 		#else error

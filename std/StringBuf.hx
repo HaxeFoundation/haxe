@@ -38,7 +38,7 @@ class StringBuf {
 		#if neko
 		__add(b,x);
 		#else flash
-		b += untyped Boot.__string_rec(x,"");
+		b += untyped flash.Boot.__string_rec(x,"");
 		#else error
 		#end
 	}
@@ -73,11 +73,11 @@ class StringBuf {
 	private var b : Dynamic;
 
 #if neko
-	static var __make : Dynamic = Neko.load("std","buffer_new",0);
-	static var __add : Dynamic = Neko.load("std","buffer_add",2);
-	static var __add_char : Dynamic = Neko.load("std","buffer_add_char",2);
-	static var __add_sub : Dynamic = Neko.load("std","buffer_add_sub",4);
-	static var __string : Dynamic = Neko.load("std","buffer_string",1);
+	static var __make : Dynamic = neko.Lib.load("std","buffer_new",0);
+	static var __add : Dynamic = neko.Lib.load("std","buffer_add",2);
+	static var __add_char : Dynamic = neko.Lib.load("std","buffer_add_char",2);
+	static var __add_sub : Dynamic = neko.Lib.load("std","buffer_add_sub",4);
+	static var __string : Dynamic = neko.Lib.load("std","buffer_string",1);
 #end
 
 }

@@ -44,28 +44,29 @@ import StringBuf;
 // flash
 #if flash
 
-import Accessibility;
-import AsBroadCaster;
-import Boot;
-import Camera;
-import Color;
-import Key;
-import LoadVars;
-import LocalConnection;
-import Microphone;
-import Mouse;
-import MovieClip;
-import MovieClipLoader;
-import PrintJob;
-import Selection;
-import SharedObject;
-import Sound;
-import Stage;
-import System;
-import TextField;
-import TextFormat;
-import TextSnapshot;
-import Video;
+import flash.Boot;
+import flash.Lib;
+
+import flash.Accessibility;
+import flash.Camera;
+import flash.Color;
+import flash.Key;
+import flash.LoadVars;
+import flash.LocalConnection;
+import flash.Microphone;
+import flash.Mouse;
+import flash.MovieClip;
+import flash.MovieClipLoader;
+import flash.PrintJob;
+import flash.Selection;
+import flash.SharedObject;
+import flash.Sound;
+import flash.Stage;
+import flash.System;
+import flash.TextField;
+import flash.TextFormat;
+import flash.TextSnapshot;
+import flash.Video;
 
 import flash.text.StyleSheet;
 import flash.system.Capabilities;
@@ -104,7 +105,7 @@ import flash.text.TextRenderer;
 
 #if neko
 
-import Boot;
-import Neko;
+import neko.Boot;
+import neko.Lib;
 
 #end

@@ -22,10 +22,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
+package neko;
 
 class NekoString__ implements String {
 
-	private static var __split : Dynamic = Neko.load("std","string_split",2);
+	private static var __split : Dynamic = Lib.load("std","string_split",2);
 
 	public var length : Int;
 

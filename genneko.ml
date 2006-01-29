@@ -204,7 +204,7 @@ and gen_expr e =
 				) in
 				let cond = (match path with
 					| None -> (EConst True,p)
-					| Some path -> call p (field p (ident p "Boot") "__instanceof") [ident p "@tmp"; gen_type_path p path]
+					| Some path -> call p (field p (gen_type_path p (["neko"],"Boot")) "__instanceof") [ident p "@tmp"; gen_type_path p path]
 				) in
 				(EIf (cond,(EBlock [
 					EVars [v,Some (ident p "@tmp")],p;
@@ -374,7 +374,7 @@ let gen_packages h t =
 	loop [] (fst (type_path t))
 
 let gen_boot() =
-	call null_pos (field null_pos (ident null_pos "Boot") "__init") []
+	call null_pos (field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__init") []
 
 let generate file types =
 	let h = Hashtbl.create 0 in

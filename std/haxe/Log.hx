@@ -36,7 +36,7 @@ class Log {
 
 	public static function trace( v : Dynamic, infos : LogInfos ) : Void {
 		#if flash
-		untyped Boot.__trace(v,infos);
+		untyped flash.Boot.__trace(v,infos);
 		#else neko
 		untyped __dollar__print(infos.fileName+":"+infos.lineNumber+": ",v,"\n");
 		#else error
@@ -45,7 +45,7 @@ class Log {
 
 	public static function clear() : Void {
 		#if flash
-		untyped Boot.__clear_trace();
+		untyped flash.Boot.__clear_trace();
 		#else neko
 		// nothing
 		#else error

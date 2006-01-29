@@ -108,16 +108,17 @@ class Boot {
 
 	private static function __trace(v,inf) {
 		untyped {
-			var tf = _root.__trace_txt;
+			var root = flash.Lib.current;
+			var tf = root.__trace_txt;
 			if( tf == null ) {
-				_root.createTextField("__trace_txt",1048500,0,0,Stage.width,Stage.height);
-				tf = _root.__trace_txt;
+				root.createTextField("__trace_txt",1048500,0,0,Stage.width,Stage.height);
+				tf = root.__trace_txt;
 				tf.selectable = false;
-				_root.__trace_lines = new Array<String>();
+				root.__trace_lines = new Array<String>();
 			}
 			var s = inf.fileName+":"+inf.lineNumber+": "+__string_rec(v,"");
-			var lines = _root.__trace_lines.concat(s.split("\n"));
-			_root.__trace_lines = lines;
+			var lines = root.__trace_lines.concat(s.split("\n"));
+			root.__trace_lines = lines;
 			var nlines = Stage.height / 16;
 			if( lines.length > nlines )
 				lines.splice(0,lines.length-nlines);
@@ -135,9 +136,8 @@ class Boot {
 	private static function __init(current) {
 		untyped {
 			var obj = _global["Object"];
-			if( flash == null )
-				flash = __new__(obj);
-			else if( flash.text == null )
+			var flash = current["flash"];
+			if( flash.text == null )
 				flash.text = __new__(obj);
 			flash.text.StyleSheet = TextField["StyleSheet"];
 			flash.system = __new__(obj);
@@ -208,9 +208,32 @@ class Boot {
 				}
 			};
 
-			Stage._global = _global;
-			Stage._root = _root;
-			Stage.current = current;
+			// copy base classes from root to flash package
+			// we can't make a loop since we need to assign short-type-ids
+			flash.Accessibility = _global["Accessibility"];
+			flash.Camera = _global["Camera"];
+			flash.Color = _global["Color"];
+			flash.Key = _global["Key"];
+			flash.LoadVars = _global["LoadVars"];
+			flash.LocalConnection = _global["LocalConnection"];
+			flash.Microphone = _global["Microphone"];
+			flash.Mouse = _global["Mouse"];
+			flash.MovieClip = _global["MovieClip"];
+			flash.MovieClipLoader = _global["MovieClipLoader"];
+			flash.PrintJob = _global["PrintJob"];
+			flash.Selection = _global["Selection"];
+			flash.SharedObject = _global["SharedObject"];
+			flash.Sound = _global["Sound"];
+			flash.Stage = _global["Stage"];
+			flash.System = _global["System"];
+			flash.TextField = _global["TextField"];
+			flash.TextFormat = _global["TextFormat"];
+			flash.TextSnapshot = _global["TextSnapshot"];
+			flash.Video = _global["Video"];
+
+			Lib._global = _global;
+			Lib._root = _root;
+			Lib.current = current;
 			Int = __new__(obj);
 			Float = _global["Number"];
 			// prevent closure creation by setting untyped

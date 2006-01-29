@@ -1147,7 +1147,7 @@ let gen_type_def ctx t =
 		PMap.iter (fun _ f -> gen_enum_field ctx f) e.e_constrs
 
 let gen_boot ctx =
-	let id = gen_type ctx ([],"Boot") false in
+	let id = gen_type ctx (["flash"],"Boot") false in
 	(* r0 = Boot *)
 	push ctx [VStr id];
 	write ctx AEval;
