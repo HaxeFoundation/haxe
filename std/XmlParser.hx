@@ -26,7 +26,7 @@
 class XmlParser {
 
 	public static function parse( xmlData : String ) : Node {
-		#flash
+		#if flash
 		untyped {
 			var x = __new__(_global["XML"]);
 			x.parseXML(xmlData);
@@ -34,8 +34,76 @@ class XmlParser {
 				throw ("Xml parse error #"+x.status);
 			return x;
 		}
-		#else error
+		#else neko
+			var x = new Node();
+			x.childNodes = new Array<Node>();
+			var hierarchy = function(x : Node) {
+				x.firstChild = x.childNodes[0];
+				var i = 0;
+				var prev = null;
+				var l = x.childNodes.length;
+				while( i < l ) {
+					var c = x.childNodes[i++];
+					c.previousSibling = prev;
+					if( prev != null ) prev.nextSibling = c;
+					prev = c;
+				}
+				x.lastChild = prev;
+			}
+			var parser = {
+				cur : x,
+				xml : function(name,att) {
+					var x = new Node();
+					x.nodeType = Node.element_node;
+					x.nodeName = new String(name);
+					x.childNodes = new Array<Node>();
+					x.parentNode = untyped this.cur;
+					x.attributes = att;
+					untyped {
+						var f = __dollar__objfields(att);
+						var i = 0;
+						var l = __dollar__asize(f);
+						while( i < l ) {
+							__dollar__objset(att,f[i], new String(__dollar__objget(att,f[i])) );
+							i++;
+						}
+					}
+					untyped this.cur.childNodes.push(x);
+					untyped this.cur = x;
+				},
+				cdata : function(text) {
+					var x = new Node();
+					x.nodeType = Node.text_node;
+					x.nodeValue = new String(text);
+					x.parentNode = untyped this.cur;
+					untyped this.cur.childNodes.push(x);
+				},
+				pcdata : function(text) {
+					var x = new Node();
+					x.nodeType = Node.text_node;
+					x.nodeValue = new String(text);
+					x.parentNode = untyped this.cur;
+					untyped this.cur.childNodes.push(x);
+				},
+				comment : function(text) {
+				},
+				doctype : function(text) {
+				},
+				done : function() {
+					var x = untyped this.cur;
+					hierarchy(x);
+					x = x.parentNode;
+					untyped this.cur = x;
+				}
+			};
+			untyped _parse(xmlData.__s,parser);
+			hierarchy(x);
+			return x;
 		#end
 	}
+
+	#if neko
+	private static var _parse = neko.Lib.load("std","parse_xml",2);
+	#end
 
 }
