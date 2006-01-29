@@ -5,6 +5,7 @@
 	all fields are defined to null by default
 	defined __class__ and other meta accesses for Flash and Neko
 	fixed type hole for compiler-know types (should not resolve using imports)
+	changed packages : neko.* and flash.* (with protection)
 
 2005-12-23: alpha 5
 	added -main commandline parameter
