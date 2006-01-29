@@ -25,6 +25,7 @@ type error_msg =
 	| Invalid_character of char
 	| Unterminated_string
 	| Unclosed_comment
+	| Invalid_escape
 
 exception Error of error_msg * pos
 
@@ -33,6 +34,7 @@ let error_msg = function
 	| Invalid_character c -> Printf.sprintf "Invalid character 0x%.2X" (int_of_char c)
 	| Unterminated_string -> "Unterminated string"
 	| Unclosed_comment -> "Unclosed comment"
+	| Invalid_escape -> "Invalid escape sequence"
 
 let cur_file = ref ""
 let all_lines = Hashtbl.create 0
@@ -194,13 +196,15 @@ rule token = parse
 			reset();
 			let pmin = lexeme_start lexbuf in
 			let pmax = (try string lexbuf with Exit -> error Unterminated_string pmin) in
-			mk_tok (Const (String (contents()))) pmin pmax;
+			let str = (try unescape (contents()) with Exit -> error Invalid_escape pmin) in
+			mk_tok (Const (String str)) pmin pmax;
 		}
 	| "'" {
 			reset();
 			let pmin = lexeme_start lexbuf in
 			let pmax = (try string2 lexbuf with Exit -> error Unterminated_string pmin) in
-			mk_tok (Const (String (contents()))) pmin pmax;
+			let str = (try unescape (contents()) with Exit -> error Invalid_escape pmin) in
+			mk_tok (Const (String str)) pmin pmax;
 		}
 	| '#' ident { 
 			let v = lexeme lexbuf in

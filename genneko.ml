@@ -387,9 +387,6 @@ let generate file types =
 	let e = (EBlock (packs @ methods @ boot :: vars), null_pos) in
 	let neko_file = Filename.chop_extension file ^ ".neko" in
 	let ch = IO.output_channel (open_out neko_file) in
-	Nxml.write ch (Nxml.to_xml e);
+	(if !Plugin.verbose then Nxml.write_fmt else Nxml.write) ch (Nxml.to_xml e);
 	IO.close_out ch;
 	if Sys.command ("nekoc " ^ neko_file) = 0 && not (!Plugin.verbose) then Sys.remove neko_file
-
-;;
-Nast.do_escape := false

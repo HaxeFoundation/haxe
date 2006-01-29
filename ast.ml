@@ -228,6 +228,8 @@ let s_escape s =
 		| '\n' -> Buffer.add_string b "\\n"
 		| '\t' -> Buffer.add_string b "\\t"
 		| '\r' -> Buffer.add_string b "\\r"
+		| '"' -> Buffer.add_string b "\\\""
+		| '\\' -> Buffer.add_string b "\\\\"
 		| c -> Buffer.add_char b c
 	done;
 	Buffer.contents b
@@ -325,3 +327,38 @@ let s_token = function
 	| Arrow -> "->"
 	| IntInterval s -> s ^ "..."
 	| Macro s -> "#" ^ s
+
+let unescape s = 
+	let b = Buffer.create 0 in
+	let rec loop esc i =
+		if i = String.length s then
+			()
+		else
+			let c = s.[i] in
+			if esc then begin
+				let inext = ref (i + 1) in
+				(match c with
+				| 'n' -> Buffer.add_char b '\n'
+				| 'r' -> Buffer.add_char b '\r'
+				| 't' -> Buffer.add_char b '\t'
+				| '"' | '\'' | '\\' -> Buffer.add_char b c
+				| '0'..'3' ->
+					let c = (try char_of_int (int_of_string ("0o" ^ String.sub s i 3)) with _ -> raise Exit) in
+					Buffer.add_char b c;
+					inext := !inext + 2;
+				| 'x' ->
+					let c = (try char_of_int (int_of_string ("0x" ^ String.sub s (i+1) 2)) with _ -> raise Exit) in
+					Buffer.add_char b c;
+					inext := !inext + 2;
+				| _ ->
+					raise Exit);
+				loop false !inext;
+			end else
+				match c with
+				| '\\' -> loop true (i + 1)
+				| c ->
+					Buffer.add_char b c;
+					loop false (i + 1)
+	in
+	loop false 0;
+	Buffer.contents b
