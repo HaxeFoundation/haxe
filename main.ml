@@ -77,7 +77,7 @@ try
 	let main_class = ref None in
 	let swf_version = ref 8 in
 	let time = Sys.time() in
-	Plugin.class_path := [base_path ^ "std/";"";"/"];
+	Plugin.class_path := [base_path;base_path ^ "std/";"";"/"];
 	let check_targets() =
 		if !swf_out <> None || !neko_out <> None then raise (Arg.Bad "Multiple targets");
 	in
@@ -113,7 +113,27 @@ try
 		("-v",Arg.Unit (fun () -> Plugin.verbose := true),": turn on verbose mode");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
 	] @ !Plugin.options in
-	Arg.parse args_spec (fun cl -> classes := make_path cl :: !classes) usage;
+	let rec args_callback cl =
+		match List.rev (ExtString.String.nsplit cl ".") with
+		| x :: _ when String.lowercase x = "hxml" ->
+			let ch = (try open_in cl with _ -> failwith ("File not found " ^ cl)) in
+			let lines = Std.input_list ch in
+			let args = List.concat (List.map (fun l -> 
+				if l = "" || l.[0] = '#' then
+					[]
+				else if l.[0] = '-' then
+					try
+						let a, b = ExtString.String.split l " " in
+						[a; b]
+					with
+						_ -> [l]
+				else
+					[l]
+			) lines) in
+			Arg.parse_argv ~current:(ref (-1)) (Array.of_list args) args_spec args_callback usage;
+		| _ -> classes := make_path cl :: !classes
+	in
+	Arg.parse args_spec args_callback usage;
 	(match !swf_out with
 	| None -> ()
 	| Some _ ->
