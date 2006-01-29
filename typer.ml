@@ -348,7 +348,7 @@ let type_ident ctx i p =
 		in
 		loop ctx.local_types
 	with Not_found ->
-		if ctx.untyped then mk (TLocal i) t_dynamic p else begin
+		if ctx.untyped then mk (TLocal i) (mk_mono()) p else begin
 			if ctx.in_static && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
 			error ("Unknown identifier " ^ i) p 
 		end
@@ -442,7 +442,7 @@ let type_matching ctx (enum,params) (e,p) ecases =
 
 let type_field ctx t i p =
 	let no_field() =
-		if ctx.untyped then t_dynamic else error (s_type (print_context()) t ^ " have no field " ^ i) p
+		if ctx.untyped then mk_mono() else error (s_type (print_context()) t ^ " have no field " ^ i) p
 	in
 	match follow t with
 	| TInst (c,params) ->
@@ -862,8 +862,10 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			unify ctx (TFun (List.map (fun e -> e.etype) el,t)) e.etype e.epos;
 			t
 		| t ->
-			if t == t_dynamic || ctx.untyped then
+			if t == t_dynamic then
 				t_dynamic
+			else if ctx.untyped then
+				mk_mono()
 			else
 				error (s_type (print_context()) t ^ " cannot be called") e.epos
 		) in
@@ -910,7 +912,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		ctx.untyped <- old;
 		{
 			eexpr = e.eexpr;
-			etype = t_dynamic;
+			etype = mk_mono();
 			epos = e.epos;
 		}
 
@@ -1027,16 +1029,22 @@ let init_class ctx c p types herits fields =
 			} in
 			let delay = (match e with 
 				| None -> (fun() -> ())
-				| Some e -> (fun () ->
-					ctx.curclass <- c;
-					cf.cf_expr <- Some (type_static_var ctx t e p)
-				)
+				| Some e ->
+					let ctx = { ctx with curclass = c } in
+					let rec r = ref (fun () ->
+						r := (fun() -> t);
+						if !Plugin.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
+						cf.cf_expr <- Some (type_static_var ctx t e p);
+						t
+					) in
+					cf.cf_type <- TLazy r;
+					(fun () -> ignore(!r()))
 			) in
 			List.mem AStatic access, false, cf, delay
 		| FFun (name,doc,access,f) ->
-			let r = type_opt p f.f_type in
+			let ret = type_opt p f.f_type in
 			let args = List.map (fun (name,t) -> name , type_opt p t) f.f_args in
-			let t = TFun (List.map snd args,r) in
+			let t = TFun (List.map snd args,ret) in
 			let stat = List.mem AStatic access in
 			let constr = (name = "new") in
 			let cf = {
@@ -1046,19 +1054,28 @@ let init_class ctx c p types herits fields =
 				cf_expr = None;
 				cf_public = is_public access;
 			} in
-			let define_fun() = 
-				ctx.curclass <- c;
-				ctx.curmethod <- name;
+			let ctx = { ctx with curclass = c; curmethod = name } in
+			let rec r = ref (fun() ->
+				r := (fun() -> t);
 				if !Plugin.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
 				let e = type_function ctx t stat constr f p in
 				let f = {
 					tf_args = args;
-					tf_type = r;
+					tf_type = ret;
 					tf_expr = e;
 				} in
-				cf.cf_expr <- Some (mk (TFunction f) t p)
-			in
-			stat, constr, cf , (if c.cl_extern || c.cl_interface then (fun() -> ()) else define_fun)
+				cf.cf_expr <- Some (mk (TFunction f) t p);
+				t
+			) in
+			let delay = (
+				if c.cl_extern || c.cl_interface then
+					(fun() -> ())
+				else begin
+					cf.cf_type <- TLazy r;
+					(fun() -> ignore((!r)()))
+				end
+			) in
+			stat, constr, cf, delay
 	in
 	let fl = List.map (fun (f,p) ->
 		let static , constr, f , delayed = loop_cf f p in
