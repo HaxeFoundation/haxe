@@ -3,7 +3,8 @@
 	use neko 1.2 commandline and prototypes
 	changed #cond to #if cond for conditional compilation
 	all fields are defined to null by default
-	defied __class__ and other meta accesses for Flash and Neko
+	defined __class__ and other meta accesses for Flash and Neko
+	fixed type hole for compiler-know types (should not resolve using imports)
 
 2005-12-23: alpha 5
 	added -main commandline parameter
