@@ -43,6 +43,8 @@ extern class Node {
 	var nextSibling : Node;
 	// var ownerDocument : Document; => Not in Flash
 
+	function new() : Void;
+
 	function insertBefore( newChild : Node, refChild : Node ) : Void;
 
 	/* renamed from removeNode in Flash */
