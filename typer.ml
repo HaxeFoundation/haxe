@@ -212,11 +212,27 @@ let type_type_params ctx path p (n,flags) =
 	) in
 	n , t
 
-let t_int ctx = load_normal_type ctx { tpackage = []; tname = "Int"; tparams = [] } null_pos false
-let t_float ctx = load_normal_type ctx { tpackage = []; tname = "Float"; tparams = [] } null_pos false
-let t_bool ctx = load_normal_type ctx { tpackage = []; tname = "Bool"; tparams = [] } null_pos false
-let t_string ctx = load_normal_type ctx { tpackage = []; tname = "String"; tparams = [] } null_pos false
-let t_void ctx = load_normal_type ctx { tpackage = []; tname = "Void"; tparams = [] } null_pos false
+let hide_types ctx =	
+	let old_locals = ctx.local_types in
+	let old_type_params = ctx.type_params in
+	ctx.local_types <- (try (Hashtbl.find ctx.modules ([],"StdTypes")).mtypes with Not_found -> assert false);
+	ctx.type_params <- [];
+	(fun() ->
+		ctx.local_types <- old_locals;
+		ctx.type_params <- old_type_params;
+	)
+
+let load_core_type ctx name =
+	let show = hide_types ctx in
+	let t = load_normal_type ctx { tpackage = []; tname = name; tparams = [] } null_pos false in
+	show();
+	t
+
+let t_int ctx = load_core_type ctx "Int"
+let t_float ctx = load_core_type ctx "Float"
+let t_bool ctx = load_core_type ctx "Bool"
+let t_void ctx = load_core_type ctx "Void"
+let t_string ctx = load_core_type ctx "String"
 
 let is_int t = 
 	match follow t with
@@ -233,8 +249,10 @@ let is_float t =
 		false
 
 let t_array ctx =
+	let show = hide_types ctx in
 	match load_type_def ctx null_pos ([],"Array") with
 	| TClassDecl c ->
+		show();
 		if List.length c.cl_types <> 1 then assert false;
 		let pt = mk_mono() in
 		TInst (c,[pt]) , pt
@@ -242,8 +260,10 @@ let t_array ctx =
 		assert false
 
 let t_iterator ctx =
+	let show = hide_types ctx in
 	match load_type_def ctx null_pos ([],"Iterator") with
 	| TClassDecl c ->
+		show();
 		if List.length c.cl_types <> 1 then assert false;
 		let pt = mk_mono() in
 		TInst (c,[pt]) , pt
@@ -516,7 +536,7 @@ let rec type_binop ctx op e1 e2 p =
 		mk_op b
 	| OpInterval ->
 		let i = t_int ctx in
-		let t = load_normal_type ctx { tpackage = []; tname = "IntIter"; tparams = [] } p false in
+		let t = load_core_type ctx "IntIter" in
 		unify ctx e1.etype i e1.epos;
 		unify ctx e2.etype i e2.epos;
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[e1;e2])) t p
