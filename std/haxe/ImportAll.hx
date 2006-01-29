@@ -39,7 +39,7 @@ import Std;
 import StdTypes;
 import String;
 import StringBuf;
-//import XmlParser;
+import XmlParser;
 
 // flash
 #if flash
@@ -108,5 +108,6 @@ import flash.text.TextRenderer;
 import neko.Boot;
 import neko.Lib;
 import neko.Web;
+import neko.File;
 
 #end
