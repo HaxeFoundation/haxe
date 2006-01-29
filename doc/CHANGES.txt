@@ -7,7 +7,11 @@
 	fixed type hole for compiler-know types (should not resolve using imports)
 	changed packages : neko.* and flash.* (with protection)
 	added Lazy types : type the fields when they are needed with recursion
-	untyped accesses are monomorphs, not dynamics.
+	untyped accesses are monomorphs, not dynamics
+	generated __string check that toString() return an object
+	XmlParser and other APIs for Neko
+	fixed escaped chars in Neko generation 
+	conservative static initialization order
 
 2005-12-23: alpha 5
 	added -main commandline parameter
