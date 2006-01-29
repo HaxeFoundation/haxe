@@ -87,10 +87,12 @@ try
 		),"<path> : add a directory to find source files");
 		("-swf",Arg.String (fun file ->
 			check_targets();
+			Typer.forbidden_packages := ["js"; "neko"];
 			swf_out := Some file
 		),"<file> : compile code to SWF file");
 		("-neko",Arg.String (fun file ->
 			check_targets();
+			Typer.forbidden_packages := ["js"; "flash"];
 			neko_out := Some file
 		),"<file> : compile code to Neko Binary");
 		("-xml",Arg.String (fun file ->
@@ -116,13 +118,12 @@ try
 	| None -> ()
 	| Some _ ->
 		Hashtbl.add Parser.defines "flash" ();
-		Plugin.class_path := (base_path ^ "flash/") :: !Plugin.class_path;
 		Hashtbl.add Parser.defines ("flash" ^ string_of_int !swf_version) ());
 	(match !neko_out with
 	| None -> ()
 	| Some _ ->
 		Hashtbl.add Parser.defines "neko" ();
-		Plugin.class_path := (base_path ^ "neko/") :: !Plugin.class_path);
+	);
 	if !classes = [([],"Std")] then begin
 		Arg.usage args_spec usage
 	end else begin

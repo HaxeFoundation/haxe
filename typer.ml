@@ -60,6 +60,8 @@ let error_msg = function
 		s_type ctx t1 ^ " should be " ^ s_type ctx t2
 	| Custom s -> s
 
+let forbidden_packages = ref []
+
 let error msg p = raise (Error (Custom msg,p))
 
 let load_ref : (context -> module_path -> pos -> module_def) ref = ref (fun _ _ _ -> assert false)
@@ -1187,7 +1189,12 @@ let load ctx m p =
 		Hashtbl.find ctx.modules m
 	with
 		Not_found ->
-			let file = (match m with [] , name -> name | l , name -> String.concat "/" l ^ "/" ^ name) ^ ".hx" in
+			let file = (match m with 
+				| [] , name -> name 
+				| x :: l , name -> 
+					if List.mem x (!forbidden_packages) then error ("You can't access the " ^ x ^ " package with current compilation flags") p;
+					String.concat "/" (x :: l) ^ "/" ^ name
+			) ^ ".hx" in
 			let file = (try Plugin.find_file file with Not_found -> raise (Error (Module_not_found m,p))) in
 			let ch = (try open_in file with _ -> error ("Could not open " ^ file) p) in
 			let pack , decls = (try Parser.parse (Lexing.from_channel ch) file with e -> close_in ch; raise e) in
