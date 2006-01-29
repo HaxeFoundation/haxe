@@ -6,6 +6,8 @@
 	defined __class__ and other meta accesses for Flash and Neko
 	fixed type hole for compiler-know types (should not resolve using imports)
 	changed packages : neko.* and flash.* (with protection)
+	added Lazy types : type the fields when they are needed with recursion
+	untyped accesses are monomorphs, not dynamics.
 
 2005-12-23: alpha 5
 	added -main commandline parameter
