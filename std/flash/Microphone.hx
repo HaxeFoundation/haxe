@@ -1,3 +1,5 @@
+package flash;
+
 extern class Microphone
 {
 	static var names:Array<Dynamic>;
@@ -12,12 +14,12 @@ extern class Microphone
 	var rate:Float;
 	var useEchoSuppression:Bool;
 	var muted:Bool;
-	
+
 	function setSilenceLevel(silenceLevel:Float,timeOut:Float):Void;
 	function setRate(rate:Float):Void;
 	function setGain(gain:Float):Void;
 	function setUseEchoSuppression(useEchoSuppression:Bool):Void;
-	
+
 	function onActivity(active:Bool):Void;
 	function onStatus(infoObject:Dynamic):Void;
 }

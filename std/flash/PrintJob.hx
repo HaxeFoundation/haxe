@@ -1,3 +1,5 @@
+package flash;
+
 extern class PrintJob
 {
 	function start():Bool;

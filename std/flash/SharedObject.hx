@@ -1,3 +1,5 @@
+package flash;
+
 extern class SharedObject
 {
 	static function getLocal(name:String,localPath:String):SharedObject;

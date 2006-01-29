@@ -1,3 +1,5 @@
+package flash;
+
 extern class Key
 {
 	static function getAscii():Int;

@@ -1,4 +1,6 @@
-﻿extern class System
+package flash;
+
+extern class System
 {
 	static var useCodepage:Bool;
 	static var exactSettings:Bool;

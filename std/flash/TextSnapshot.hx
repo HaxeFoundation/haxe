@@ -1,4 +1,6 @@
-﻿extern class TextSnapshot
+package flash;
+
+extern class TextSnapshot
 {
 	function findText(startIndex:Float, textToFind:String, caseSensitive:Bool):Float;
 	function getCount():Float;

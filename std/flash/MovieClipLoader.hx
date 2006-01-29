@@ -1,3 +1,5 @@
+package flash;
+
 extern class MovieClipLoader
 {
 	function new() : Void;

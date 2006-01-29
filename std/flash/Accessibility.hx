@@ -1,3 +1,5 @@
+package flash;
+
 extern class Accessibility
 {
 	static function isActive() : Bool;

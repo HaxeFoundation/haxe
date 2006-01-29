@@ -1,3 +1,5 @@
+package flash;
+
 extern class Camera
 {
 	static var names:Array<String>;

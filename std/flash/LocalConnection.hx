@@ -1,3 +1,5 @@
+package flash;
+
 extern class LocalConnection implements Dynamic<String>
 {
 	function new() : Void;

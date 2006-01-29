@@ -1,4 +1,6 @@
-﻿extern class Selection
+package flash;
+
+extern class Selection
 {
 	static function getBeginIndex():Float;
 	static function getEndIndex():Float;

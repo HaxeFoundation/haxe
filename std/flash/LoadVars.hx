@@ -1,3 +1,5 @@
+package flash;
+
 extern class LoadVars implements Dynamic<String>
 {
 	var contentType:String;

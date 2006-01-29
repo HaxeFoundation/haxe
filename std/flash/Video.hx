@@ -1,3 +1,5 @@
+package flash;
+
 extern class Video
 {
 	var deblocking : Float;

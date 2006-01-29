@@ -1,3 +1,5 @@
+package flash;
+
 extern class TextFormat
 {
 	var font:String;

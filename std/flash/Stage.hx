@@ -1,11 +1,7 @@
+package flash;
+
 extern class Stage
 {
-	/* haXe specific */
-	static var _global : Dynamic;
-	static var _root : MovieClip;
-	static var current : MovieClip;
-	/* end */
-
 	static var width:Float;
 	static var height:Float;
 	static var scaleMode:String;
