@@ -59,6 +59,7 @@ class Boot {
 		untyped {
 			String = NekoString__;
 			Array = NekoArray__;
+			Node = NekoNode__;
 			Int = __dollar__new(null);
 			Float = __dollar__new(null);
 		}
