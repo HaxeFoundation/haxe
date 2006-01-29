@@ -287,7 +287,9 @@ let gen_class c =
 		match follow f.cf_type with
 		| TFun ([],_) ->
 			["__string",(EFunction ([],(EBlock [
-				EReturn (Some (field p (call p (field p (this p) "toString") []) "__s")),p
+				EVars ["@s",Some (call p (field p (this p) "toString") [])] ,p;
+				EIf ((EBinop ("!=",call p (builtin p "typeof") [ident p "@s"],builtin p "tobject"),p),(EReturn (Some (null p)),p),None),p;
+				EReturn (Some (field p (ident p "@s") "__s")),p;
 			],p)),p)]
 		| _ -> []
 	with Not_found -> 
