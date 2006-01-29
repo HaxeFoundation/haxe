@@ -34,7 +34,7 @@ let pmap f m =
 let gen_path (p,n) =
 	("path",String.concat "." (p @ [n]))
 
-let gen_doc s = node "$doc" [] [pcdata s]
+let gen_doc s = node "haxe:doc" [] [pcdata s]
 
 let gen_doc_opt d =
 	match d with 
