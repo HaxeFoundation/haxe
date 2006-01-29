@@ -1084,13 +1084,15 @@ let init_class ctx c p types herits fields =
 			c.cl_constructor <- Some f;
 		end else begin
 			if PMap.mem f.cf_name (if static then c.cl_statics else c.cl_fields) then error ("Duplicate class field declaration : " ^ f.cf_name) p;
-			if static then
-				c.cl_statics <- PMap.add f.cf_name f c.cl_statics
-			else
+			if static then begin
+				c.cl_statics <- PMap.add f.cf_name f c.cl_statics;
+				c.cl_ordered_statics <- f :: c.cl_ordered_statics;
+			end else
 				c.cl_fields <- PMap.add f.cf_name f c.cl_fields;
 		end;
 		delayed
 	) fields in
+	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	(* define an default inherited constructor *)
 	(match c.cl_constructor, c.cl_super with
 	| None , Some ({ cl_constructor = Some f } as csuper, cparams) ->
@@ -1371,13 +1373,15 @@ let types ctx main =
 		);
 		let path = ([],"@Main") in
 		let c = mk_class path null_pos None in
-		c.cl_statics <- PMap.add "init" {
+		let f = {
 			cf_name = "init";
 			cf_type = mk_mono();
 			cf_public = false;
 			cf_doc = None;
 			cf_expr = Some (mk (TCall (mk (TField (mk (TType t) (mk_mono()) null_pos,"main")) (mk_mono()) null_pos,[])) (mk_mono()) null_pos);
-		} c.cl_statics;
+		} in
+		c.cl_statics <- PMap.add "init" f c.cl_statics;
+		c.cl_ordered_statics <- f :: c.cl_ordered_statics;
 		types := TClassDecl c :: !types
 	);
 	List.rev !types

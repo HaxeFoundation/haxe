@@ -1096,7 +1096,7 @@ let gen_type_def ctx t =
 		setvar ctx VarObj;
 		push ctx [VReg 1; VStr "__class__"; VReg 0];
 		setvar ctx VarObj;
-		PMap.iter (fun _ f -> gen_class_static_field ctx id f) c.cl_statics;
+		List.iter (gen_class_static_field ctx id) c.cl_ordered_statics;
 		PMap.iter (fun _ f -> gen_class_field ctx f) c.cl_fields;
 	| TEnumDecl e ->
 		let id = gen_type ctx e.e_path false in

@@ -97,6 +97,7 @@ and tclass = {
 	mutable cl_implements : (tclass * t list) list;
 	mutable cl_fields : (string , tclass_field) PMap.t;
 	mutable cl_statics : (string, tclass_field) PMap.t;
+	mutable cl_ordered_statics : tclass_field list;
 	mutable cl_dynamic : t option;
 	mutable cl_constructor : tclass_field option;
 }
@@ -142,6 +143,7 @@ let mk_class path pos doc =
 		cl_super = None;
 		cl_implements = [];
 		cl_fields = PMap.empty;
+		cl_ordered_statics = [];
 		cl_statics = PMap.empty;
 		cl_dynamic = None;
 		cl_constructor = None;

@@ -345,7 +345,7 @@ let gen_static_vars t =
 		if c.cl_extern then
 			[]
 		else
-			PMap.fold (fun f acc ->
+			List.fold_right (fun f acc ->
 				match f.cf_expr with
 				| None -> acc
 				| Some e ->
@@ -357,7 +357,7 @@ let gen_static_vars t =
 							(field p (gen_type_path p c.cl_path) f.cf_name),
 							gen_expr e
 						),p) :: acc
-			) c.cl_statics []
+			) c.cl_ordered_statics []
 
 let gen_packages h t =
 	let rec loop acc p =
