@@ -19,8 +19,6 @@
 
 let verbose = ref false
 
-let options = ref ([] : (string * Arg.spec * string) list)
-
 let class_path = ref ([] : string list)
 
 let find_file f =
