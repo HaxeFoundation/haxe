@@ -372,13 +372,20 @@ type filter =
 	| FAdjustColor of unknown
 	| FGradientBevel of filter_gradient
 
-type bitmap = {
-	mutable bmp_id : int;
-	bmp_data : string;
+type bitmap_jpg = {
+	mutable jpg_id : int;
+	jpg_data : string;
+}
+
+type bitmap_jpg2 = {
+	mutable jp2_id : int;
+	jp2_table : string;
+	jp2_data : string;
 }
 
 type bitmap_jpg3 = {
 	mutable jp3_id : int;
+	jp3_table : string;
 	jp3_data : string;
 	jp3_alpha_data : string;
 }
@@ -493,7 +500,7 @@ type tag_data =
 	| TShowFrame
 	| TShape of shape
 	| TRemoveObject of remove_object
-	| TBitsJPEG of bitmap
+	| TBitsJPEG of bitmap_jpg
 	| TJPEGTables of string
 	| TSetBgColor of rgb
 	| TText of text
@@ -501,7 +508,7 @@ type tag_data =
 	| TSound of sound
 	| TStartSound of start_sound
 	| TBitsLossless of bitmap_lossless
-	| TBitsJPEG2 of bitmap
+	| TBitsJPEG2 of bitmap_jpg2
 	| TShape2 of shape
 	| TProtect
 	| TPlaceObject2 of place_object
@@ -531,8 +538,8 @@ type tag_data =
 
 and tag = {
 	mutable tid : int;
-	textended : bool;
-	tdata : tag_data;
+	mutable textended : bool;
+	mutable tdata : tag_data;
 }
 
 and clip_event = {

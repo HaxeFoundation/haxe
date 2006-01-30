@@ -23,6 +23,7 @@ open IO
 (* ************************************************************************ *)
 (* TOOLS *)
 
+let full_parsing = ref true
 let swf_version = ref 0
 let id_count = ref 0
 let tag_end = { tid = 0; textended = false; tdata = TEnd }
@@ -207,9 +208,6 @@ let shape_with_style_length s =
 let shape_length s =
 	2 + rect_length s.sh_bounds + opt_len (fun (r,_) -> rect_length r + 1) s.sh_bounds2 + shape_with_style_length s.sh_style
 
-let bitmap_length b =
-	2 + String.length b.bmp_data
-
 let bitmap_lossless_length b =
 	2 + 1 + 2 + 2 + String.length b.bll_data
 
@@ -302,7 +300,7 @@ let rec tag_data_length = function
 	| TRemoveObject _ ->
 		4
 	| TBitsJPEG b ->
-		bitmap_length b
+		2 + String.length b.jpg_data	
 	| TJPEGTables tab ->
 		String.length tab
 	| TSetBgColor _ ->
@@ -318,7 +316,7 @@ let rec tag_data_length = function
 	| TBitsLossless b ->
 		bitmap_lossless_length b
 	| TBitsJPEG2 b ->
-		bitmap_length b
+		2 + String.length b.jp2_table + String.length b.jp2_data
 	| TShape2 s ->
 		shape_length s
 	| TProtect ->
@@ -334,7 +332,7 @@ let rec tag_data_length = function
 	| TButton2 b ->
 		button2_length b
 	| TBitsJPEG3 b ->
-		2 + 4 + String.length b.jp3_alpha_data + String.length b.jp3_data
+		2 + 4 + String.length b.jp3_alpha_data + String.length b.jp3_data + String.length b.jp3_table
 	| TBitsLossless2 b ->
 		bitmap_lossless_length b
 	| TEditText t ->
@@ -814,13 +812,18 @@ let parse_shape ch len vshape =
 		sh_style = style;
 	}
 
-let parse_bitmap ch len =
-	let id = read_ui16 ch in
-	let data = nread ch (len - 2) in
-	{
-		bmp_id = id;
-		bmp_data = data;
-	}
+let parse_jpg_table ch =
+	let b = Buffer.create 0 in
+	let rec loop flag =
+		let c = IO.read ch in
+		Buffer.add_char b c;
+		match int_of_char c with
+		| 0xFF -> loop true
+		| 0xD9 when flag -> ()
+		| _ -> loop false
+	in
+	loop false;
+	Buffer.contents b
 
 let parse_bitmap_lossless ch len =
 	let id = read_ui16 ch in
@@ -1081,7 +1084,7 @@ let rec parse_tag ch =
 			TEnd
 		| 0x01 ->
 			TShowFrame
-		| 0x02 ->
+		| 0x02 when !full_parsing ->
 			TShape (parse_shape ch len 1)
 		(*//0x04 TPlaceObject *)
 		| 0x05 ->
@@ -1092,14 +1095,19 @@ let rec parse_tag ch =
 				rmo_depth = depth;
 			}
 		| 0x06 ->
-			TBitsJPEG (parse_bitmap ch len)
+			let id = read_ui16 ch in
+			let data = nread ch (len - 2) in
+			TBitsJPEG {
+				jpg_id = id;
+				jpg_data = data;
+			}
 		(*//0x07 TButton *)
 		| 0x08 ->
 			TJPEGTables (nread ch len)
 		| 0x09 ->
 			TSetBgColor (read_rgb ch)
 		(*//0x0A TFont *)
-		| 0x0B ->
+		| 0x0B when !full_parsing ->
 			TText (parse_text ch false)
 		| 0x0C ->
 			TDoAction (parse_actions ch)
@@ -1128,36 +1136,45 @@ let rec parse_tag ch =
 		| 0x14 ->
 			TBitsLossless (parse_bitmap_lossless ch len)
 		| 0x15 ->
-			TBitsJPEG2 (parse_bitmap ch len)
-		| 0x16 ->
+			let id = read_ui16 ch in
+			let table = parse_jpg_table ch in
+			let data = nread ch (len - 2 - String.length table) in
+			TBitsJPEG2 {
+				jp2_id = id;
+				jp2_table = table;
+				jp2_data = data;
+			}
+		| 0x16 when !full_parsing ->
 			TShape2 (parse_shape ch len 2)
 		(*//0x17 TButtonCXForm *)
 		| 0x18 ->
 			TProtect
-		| 0x1A ->
+		| 0x1A when !full_parsing ->
 			TPlaceObject2 (parse_place_object ch false)			
 		| 0x1C ->
 			let depth = read_ui16 ch in
 			TRemoveObject2 depth
-		| 0x20 ->
+		| 0x20 when !full_parsing ->
 			TShape3 (parse_shape ch len 3)
-		| 0x21 ->
+		| 0x21 when !full_parsing ->
 			TText2 (parse_text ch true)
 		| 0x22 ->
 			TButton2 (parse_button2 ch len)
 		| 0x23 ->
 			let id = read_ui16 ch in
 			let size = read_i32 ch in
-			let data = nread ch size in
+			let table = parse_jpg_table ch in
+			let data = nread ch (size - String.length table) in
 			let alpha_data = nread ch (len - 6 - size) in
 			TBitsJPEG3 {
 				jp3_id = id;
+				jp3_table = table;
 				jp3_data = data;
 				jp3_alpha_data = alpha_data;
 			}
 		| 0x24 ->
 			TBitsLossless2 (parse_bitmap_lossless ch len)
-		| 0x25 ->
+		| 0x25 when !full_parsing ->
 			TEditText (parse_edit_text ch)
 		| 0x27 ->
 			let cid = read_ui16 ch in
@@ -1174,9 +1191,9 @@ let rec parse_tag ch =
 			TFrameLabel (label,id)
 		| 0x2D ->
 			TSoundStreamHead2 (nread ch len)		
-		| 0x2E ->
+		| 0x2E when !full_parsing ->
 			TMorphShape (parse_morph_shape ch len)
-		| 0x30 ->
+		| 0x30 when !full_parsing ->
 			TFont2 (parse_font2 ch len)
 		| 0x38 ->
 			let read_export() =
@@ -1207,15 +1224,15 @@ let rec parse_tag ch =
 		(*// 0x42 TSetTabIndex *)
 		| 0x45 ->			
 			TFlash8 (nread ch len)
-		| 0x46 ->
+		| 0x46 when !full_parsing ->
 			TPlaceObject3 (parse_place_object ch true)
-		| 0x49 ->
+		| 0x49 when !full_parsing ->
 			TFontGlyphs (parse_font_glyphs ch len)
 		| 0x4A ->
 			TTextInfo (nread ch len)
-		| 0x4B ->
+		| 0x4B when !full_parsing ->
 			TFont3 (parse_font3 ch len)
-		| 0x53 ->
+		| 0x53 when !full_parsing ->
 			TShape4 (parse_shape ch len 4)
 		| _ ->
 			if !Swf.warnings then Printf.printf "Unknown tag 0x%.2X\n" id;
@@ -1429,10 +1446,6 @@ let write_shape ch s =
 		write_byte ch b);
 	write_shape_with_style ch s.sh_style
 
-let write_bitmap ch b =
-	write_ui16 ch b.bmp_id;
-	nwrite ch b.bmp_data
-
 let write_bitmap_lossless ch b =
 	write_ui16 ch b.bll_id;
 	write_byte ch b.bll_format;
@@ -1605,7 +1618,8 @@ let rec write_tag_data ch = function
 		write_ui16 ch r.rmo_id;
 		write_ui16 ch r.rmo_depth;
 	| TBitsJPEG b ->
-		write_bitmap ch b
+		write_ui16 ch b.jpg_id;
+		nwrite ch b.jpg_data
 	| TJPEGTables tab ->
 		nwrite ch tab
 	| TSetBgColor c ->
@@ -1625,7 +1639,9 @@ let rec write_tag_data ch = function
 	| TBitsLossless b ->
 		write_bitmap_lossless ch b
 	| TBitsJPEG2 b ->
-		write_bitmap ch b
+		write_ui16 ch b.jp2_id;
+		nwrite ch b.jp2_table;
+		nwrite ch b.jp2_data;		
 	| TShape2 s ->
 		write_shape ch s
 	| TProtect -> 
@@ -1642,7 +1658,8 @@ let rec write_tag_data ch = function
 		write_button2 ch b
 	| TBitsJPEG3 b ->
 		write_ui16 ch b.jp3_id;
-		write_i32 ch (String.length b.jp3_data);
+		write_i32 ch (String.length b.jp3_data + String.length b.jp3_table);
+		nwrite ch b.jp3_table;
 		nwrite ch b.jp3_data;
 		nwrite ch b.jp3_alpha_data;
 	| TBitsLossless2 b ->
