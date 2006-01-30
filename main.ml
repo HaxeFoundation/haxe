@@ -66,7 +66,9 @@ let make_path f =
 	in
 	loop cl
 
-;;
+let base_defines = Hashtbl.copy Parser.defines
+
+let rec init argv argv_start =
 try	
 	let usage = "Haxe Compiler Alpha - (c)2005 Motion-Twin\n Usage : haxe.exe [options] <class names...>\n Options :" in
 	let base_path = normalize_path (try Extc.executable_path() with _ -> "./") in
@@ -76,10 +78,15 @@ try
 	let xml_out = ref None in
 	let main_class = ref None in
 	let swf_version = ref 8 in
-	let time = Sys.time() in
+	let current = ref argv_start in
+	let next = ref (fun() -> ()) in
+	Hashtbl.clear Parser.defines;
+	Hashtbl.iter (Hashtbl.add Parser.defines) base_defines;
+	Plugin.verbose := false;
+	Typer.forbidden_packages := ["js"; "neko"; "flash"];
 	Plugin.class_path := [base_path;base_path ^ "std/";"";"/"];
 	let check_targets() =
-		if !swf_out <> None || !neko_out <> None then raise (Arg.Bad "Multiple targets");
+		if !swf_out <> None || !neko_out <> None then failwith "Multiple targets";
 	in
 	let args_spec = [
 		("-cp",Arg.String (fun path ->
@@ -112,7 +119,12 @@ try
 		),"<version> : flash player version (8 by default)");
 		("-v",Arg.Unit (fun () -> Plugin.verbose := true),": turn on verbose mode");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
-	] @ !Plugin.options in
+		("--next", Arg.Unit (fun() -> 
+			let p = !current in
+			current := Array.length argv;
+			next := (fun() -> init argv p);
+		), ": separate several haxe compilations");
+	] in
 	let rec args_callback cl =
 		match List.rev (ExtString.String.nsplit cl ".") with
 		| x :: _ when String.lowercase x = "hxml" ->
@@ -130,10 +142,11 @@ try
 				else
 					[l]
 			) lines) in
-			Arg.parse_argv ~current:(ref (-1)) (Array.of_list args) args_spec args_callback usage;
+			init (Array.of_list args) (-1);
+			raise Exit
 		| _ -> classes := make_path cl :: !classes
 	in
-	Arg.parse args_spec args_callback usage;
+	Arg.parse_argv ~current argv args_spec args_callback usage;
 	(match !swf_out with
 	| None -> ()
 	| Some _ ->
@@ -168,11 +181,17 @@ try
 		| Some file ->
 			if !Plugin.verbose then print_endline ("Generating xml : " ^ file);
 			Genxml.generate file types);
-		if !Plugin.verbose then print_endline ("Time spent : " ^ string_of_float (Sys.time() -. time));
 	end;
+	(!next)();
 with
+	| Exit -> ()
 	| Lexer.Error (m,p) -> report (Lexer.error_msg m) p
 	| Parser.Error (m,p) -> report (Parser.error_msg m) p
 	| Typer.Error (m,p) -> report (Typer.error_msg m) p
-	| Failure msg -> report msg Ast.null_pos
+	| Failure msg | Arg.Bad msg -> report ("Error : " ^ msg) Ast.null_pos
 	| e -> report (Printexc.to_string e) Ast.null_pos
+
+;;
+let time = Sys.time() in
+init Sys.argv 0;
+if !Plugin.verbose then print_endline ("Time spent : " ^ string_of_float (Sys.time() -. time));
