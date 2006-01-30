@@ -130,7 +130,7 @@ class NekoString__ implements String {
 	/* NEKO INTERNALS */
 
 	private function __compare(o) {
-		return untyped __compare__(this.__s,o.__s);
+		return untyped __dollar__compare(this.__s,o.__s);
 	}
 
 	private function __add(s) {
