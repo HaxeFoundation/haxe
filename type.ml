@@ -294,6 +294,16 @@ let rec type_eq param a b =
 		type_eq param r1 r2 && List.for_all2 (type_eq param) l1 l2
 	| TDynamic a , TDynamic b ->
 		type_eq param a b
+	| TAnon fl1, TAnon fl2 ->
+		let keys1 = PMap.fold (fun f acc -> f :: acc) fl1 [] in
+		let keys2 = PMap.fold (fun f acc -> f :: acc) fl2 [] in
+		(try
+			List.iter2 (fun f1 f2 ->
+				if f1.cf_name <> f2.cf_name || not (type_eq param f1.cf_type f2.cf_type) then raise Not_found
+			) keys1 keys2;
+			true
+		with
+			_ -> false)
 	| _ , _ ->
 		false
 
