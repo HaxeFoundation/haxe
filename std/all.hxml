@@ -1,0 +1,7 @@
+-neko all.n
+ImportAll
+
+--next
+
+-swf all.swf
+ImportAll
