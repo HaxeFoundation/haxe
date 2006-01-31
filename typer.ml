@@ -102,11 +102,11 @@ let rec load_normal_type ctx t p allow_no_params =
 		if t.tparams <> [] then error ("Class type parameter " ^ t.tname ^ " can't have parameters") p;
 		pt
 	with Not_found ->
-		let types , path , f , complex = match load_type_def ctx p (t.tpackage,t.tname) with
-			| TClassDecl c -> c.cl_types , c.cl_path , (fun t -> TInst (c,t)) , true
-			| TEnumDecl e -> e.e_types , e.e_path , (fun t -> TEnum (e,t)) , false
+		let types , path , f = match load_type_def ctx p (t.tpackage,t.tname) with
+			| TClassDecl c -> c.cl_types , c.cl_path , (fun t -> TInst (c,t))
+			| TEnumDecl e -> e.e_types , e.e_path , (fun t -> TEnum (e,t))
 		in
-		if allow_no_params && t.tparams = [] && not complex then
+		if allow_no_params && t.tparams = [] then
 			f (List.map (fun _ -> mk_mono()) types)
 		else if path = ([],"Dynamic") then
 			match t.tparams with
