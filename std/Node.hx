@@ -58,4 +58,7 @@ extern class Node {
 	/* added in Flash */
 	function replaceChild( newChild : Node, oldChild : Node ) : Void;
 
+
+	/* added for haXe */
+	function nodes() : Iterator<Node>;
 }

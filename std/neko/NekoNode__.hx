@@ -100,4 +100,25 @@ class NekoNode__ implements Node {
 		throw "not implemented";
 	}
 
+	public function nodes() {
+		return untyped {
+			p : 0,
+			a : childNodes,
+			next : function() {
+				return this.a[this.p++];
+			},
+			hasNext : function() {
+				while true {
+					var x = this.a[this.p];
+					if( x == null )
+						return false;
+					if( x.nodeType == element_node )
+						return true;
+					this.p++;
+				}
+				return null;
+			}
+		};
+	}
+
 }

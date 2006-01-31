@@ -165,7 +165,26 @@ class Boot {
 				this.insertBefore(cnew,cold);
 				this.removeChild(cold);
 			};
-
+			Node.prototype.nodes = function() {
+				return untyped {
+					p : 0,
+					a : childNodes,
+					next : function() {
+						return this.a[this.p++];
+					},
+					hasNext : function() {
+						while true {
+							var x = this.a[this.p];
+							if( x == null )
+								return false;
+							if( x.nodeType == 1 )
+								return true;
+							this.p++;
+						}
+						return null;
+					}
+				};
+			};
 			Array.prototype.copy = Array.prototype.slice;
 			Array.prototype.insert = function(i,x) {
 				this.splice(i,0,x);
