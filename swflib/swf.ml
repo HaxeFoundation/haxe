@@ -186,6 +186,7 @@ type action =
 	| AThrow
 	| ACast
 	| AImplements
+	| AFSCommand2
 	| ARandom
 	| AMBStringLength
 	| AOrd

@@ -90,6 +90,7 @@ let short_op_codes = begin
 	0x2A => (AThrow,"THROW");
 	0x2B => (ACast,"CAST");
 	0x2C => (AImplements,"IMPLEMENTS");
+	0x2D => (AFSCommand2,"FSCOMMAND2");
 	0x30 => (ARandom,"RANDOM");
 	0x31 => (AMBStringLength,"MBSTRLEN");
 	0x32 => (AOrd,"ORD");
