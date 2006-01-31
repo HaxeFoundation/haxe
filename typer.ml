@@ -289,8 +289,6 @@ let rec return_flow e =
 	| TIf (_,e1,Some e2) ->
 		return_flow e1;
 		return_flow e2;
-	| TWhile ({ eexpr = TConst (TBool true) },e,_) ->
-		return_flow e
 	| TSwitch (_,cases,Some e) ->
 		List.iter (fun (_,e) -> return_flow e) cases;
 		return_flow e
