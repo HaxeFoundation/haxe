@@ -170,18 +170,23 @@ class Boot {
 					p : 0,
 					a : childNodes,
 					next : function() {
-						return this.a[this.p++];
-					},
-					hasNext : function() {
 						while true {
 							var x = this.a[this.p];
 							if( x == null )
-								return false;
-							if( x.nodeType == 1 )
-								return true;
+								return null;
 							this.p++;
+							if( x.nodeType == 1 )
+								return x;
 						}
 						return null;
+					},
+					hasNext : function() {
+						var x = this.next();
+						if( x != null ) {
+							this.p--;
+							return true;
+						}
+						return false;
 					}
 				};
 			};
