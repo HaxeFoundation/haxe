@@ -39,6 +39,7 @@ import Std;
 import StdTypes;
 import String;
 import StringBuf;
+import StringTools;
 import XmlParser;
 
 // flash
