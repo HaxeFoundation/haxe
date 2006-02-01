@@ -43,6 +43,14 @@ class StringTools {
 		#end
 	}
 
+	public static function unhtml( s : String ) : String {
+		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
+	}
+
+	public static function rehtml( s : String ) : String {
+		return s.split("&gt;").join(">").split("&lt;").join("<").split("&amp;").join("&");
+	}
+
 	#if neko
 	private static var _urlEncode = neko.Lib.load("std","url_encode",1);
 	private static var _urlDecode = neko.Lib.load("std","url_decode",1);
