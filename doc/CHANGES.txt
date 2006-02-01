@@ -1,4 +1,4 @@
-2006-01-??: beta 1
+2006-02-??: beta 1
 	allowed array literals to be dynamic
 	use neko 1.2 commandline and prototypes
 	changed #cond to #if cond for conditional compilation
@@ -12,6 +12,7 @@
 	XmlParser and other APIs for Neko
 	fixed escaped chars in Neko generation 
 	conservative static initialization order
+	allowed no type parameters for new Class
 
 2005-12-23: alpha 5
 	added -main commandline parameter
