@@ -66,6 +66,9 @@ let gen_field att f =
 	let att = (match f.cf_expr with None -> att | Some e -> ("line",string_of_int (Lexer.get_error_line e.epos)) :: att) in
 	node f.cf_name (if f.cf_public then ("public","1") :: att else att) (gen_type f.cf_type :: gen_doc_opt f.cf_doc)
 
+let gen_type_params path params pos =
+	[gen_path path;("params", String.concat ":" (List.map fst params));("file",pos.pfile)]
+
 let gen_type t =
 	match t with
 	| TClassDecl c -> 
@@ -73,10 +76,10 @@ let gen_type t =
 		let fields = pmap (gen_field []) c.cl_fields in
 		let constr = (match c.cl_constructor with None -> [] | Some f -> [gen_field [] f]) in
 		let doc = gen_doc_opt c.cl_doc in
-		node "class" [gen_path c.cl_path;("file",c.cl_pos.pfile)] (stats @ fields @ constr @ doc)
+		node "class" (gen_type_params c.cl_path c.cl_types c.cl_pos) (stats @ fields @ constr @ doc)
 	| TEnumDecl e ->
 		let doc = gen_doc_opt e.e_doc in
-		node "enum" [gen_path e.e_path;("file",e.e_pos.pfile)] (pmap gen_constr e.e_constrs @ doc)
+		node "enum" (gen_type_params e.e_path e.e_types e.e_pos) (pmap gen_constr e.e_constrs @ doc)
 
 let att_str att = 
 	String.concat "" (List.map (fun (a,v) -> Printf.sprintf " %s=\"%s\"" a v) att)
