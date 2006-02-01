@@ -1000,11 +1000,6 @@ let gen_enum_field ctx f =
 	push ctx [VReg 0; VStr f.ef_name];
 	(match follow f.ef_type with
 	| TFun (args,r) ->
-		let n = ref 0 in
-		let args = List.map (fun t ->
-			incr n;
-			"p" ^ string_of_int (!n), t
-		) args in
 		let e = mk (TReturn (Some (mk (TArrayDecl (ename :: 
 			List.map (fun (n,t) -> mk (TLocal n) t Ast.null_pos) args
 		)) r Ast.null_pos))) (mk_mono()) Ast.null_pos in

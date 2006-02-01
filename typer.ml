@@ -154,7 +154,7 @@ and load_type ctx p t =
 		| [TPNormal { tpackage = []; tparams = []; tname = "Void" }] ->
 			TFun ([],load_type ctx p r)
 		| _ ->
-			TFun (List.map (load_type ctx p) args,load_type ctx p r)
+			TFun (List.map (fun t -> "",load_type ctx p t) args,load_type ctx p r)
 
 let load_type_opt ctx p t =
 	match t with
@@ -422,7 +422,7 @@ let type_matching ctx (enum,params) (e,p) ecases =
 		let args = (match c.ef_type with
 			| TFun (l,_) -> 
 				if List.length l <> List.length el then needs (List.length l);
-				List.map (apply_params enum.e_types params) l
+				List.map (fun (_,t) -> apply_params enum.e_types params t) l
 			| TEnum _ -> error "This constructor does not take any paramter" p
 			| _ -> assert false
 		) in
@@ -839,7 +839,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			(match apply_params c.cl_types params f.cf_type with
 			| TFun (args,r) ->
 				if List.length args <> List.length el then error "Invalid number of constructor parameters" p;
-				List.iter2 (fun e t -> unify ctx e.etype t e.epos) el args;
+				List.iter2 (fun e (_,t) -> unify ctx e.etype t e.epos) el args;
 			| _ ->
 				error "Constructor is not a function" p);
 			TInst (c,params)
@@ -851,13 +851,13 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let t = (match follow e.etype with
 		| TFun (args,r) ->
 			if List.length args <> List.length el then error "Invalid number of arguments" p;
-			List.iter2 (fun e t ->
+			List.iter2 (fun e (_,t) ->
 				unify ctx e.etype t e.epos;
 			) el args;
 			r
 		| TMono _ ->
 			let t = mk_mono() in
-			unify ctx (TFun (List.map (fun e -> e.etype) el,t)) e.etype e.epos;
+			unify ctx (TFun (List.map (fun e -> "",e.etype) el,t)) e.etype e.epos;
 			t
 		| t ->
 			if t == t_dynamic then
@@ -882,7 +882,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			(match apply_params c.cl_types params f.cf_type with
 			| TFun (args,r) ->
 				if List.length args <> List.length el then error "Invalid number of constructor parameters" p;
-				List.iter2 (fun e t -> unify ctx e.etype t e.epos) el args;
+				List.iter2 (fun e (_,t) -> unify ctx e.etype t e.epos) el args;
 			| _ ->
 				error "Constructor is not a function" p);
 			c , params , t
@@ -895,7 +895,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	| EFunction f ->
 		let rt = load_type_opt ctx p f.f_type in
 		let args = List.map (fun (s,t) -> s , load_type_opt ctx p t) f.f_args in
-		let ft = TFun (List.map snd args,rt) in
+		let ft = TFun (args,rt) in
 		let e = type_function ctx ft true false f p in
 		let f = {
 			tf_args = args;
@@ -916,7 +916,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 
 and type_function ctx t static constr f p =
 	let locals = ctx.locals in
-	let argst , r = (match t with TFun (args,r) -> args, r | _ -> assert false) in
+	let argst , r = (match t with TFun (args,r) -> List.map snd args, r | _ -> assert false) in
 	List.iter2 (fun (n,_) t ->
 		ctx.locals <- PMap.add n t ctx.locals;		
 	) f.f_args argst;
@@ -1042,7 +1042,7 @@ let init_class ctx c p types herits fields =
 		| FFun (name,doc,access,f) ->
 			let ret = type_opt p f.f_type in
 			let args = List.map (fun (name,t) -> name , type_opt p t) f.f_args in
-			let t = TFun (List.map snd args,ret) in
+			let t = TFun (args,ret) in
 			let stat = List.mem AStatic access in
 			let constr = (name = "new") in
 			let cf = {
@@ -1098,7 +1098,7 @@ let init_class ctx c p types herits fields =
 		| TFun (args,r) ->
 			let t = f.cf_type in
 			let n = ref 0 in
-			let args = List.map (fun t -> incr n; "p" ^ string_of_int (!n) , t) args in
+			let args = List.map (fun (_,t) -> incr n; "p" ^ string_of_int (!n) , t) args in
 			let eargs = List.map (fun (n,t) -> mk (TLocal n) t p) args in
 			let func = {
 				tf_args = args;
@@ -1192,7 +1192,7 @@ let type_module ctx m tdecls =
 			List.iter (fun (c,doc,t,p) ->
 				let t = (match t with 
 					| [] -> et
-					| l -> TFun (List.map (fun (_,t) -> load_type ctx p t) l, et)
+					| l -> TFun (List.map (fun (s,t) -> s, load_type ctx p t) l, et)
 				) in
 				e.e_constrs <- PMap.add c { ef_name = c; ef_type = t; ef_pos = p; ef_doc = doc } e.e_constrs
 			) constrs

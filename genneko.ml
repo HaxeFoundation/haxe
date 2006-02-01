@@ -64,10 +64,6 @@ let array p el =
 let pmap_list f p =
 	PMap.fold (fun v acc -> f v :: acc) p []
 
-let nparams l =
-	let pcount = ref 0 in
-	List.map (fun _ -> incr pcount; "p" ^ string_of_int (!pcount)) l
-
 let gen_type_path p (path,t) =
 	match path with
 	| [] -> ident p t
@@ -271,7 +267,7 @@ let gen_class c =
 	| Some f ->
 		(match follow f.cf_type with
 		| TFun (args,_) ->
-			let params = nparams args in
+			let params = List.map fst args in
 			gen_method p f ["new",(EFunction (params,(EBlock [
 				(EVars ["@o",Some (call p (builtin p "new") [null p])],p);
 				(call p (builtin p "objsetproto") [ident p "@o"; clpath]);
@@ -315,7 +311,7 @@ let gen_enum_constr c =
 	let p = pos c.ef_pos in
 	c.ef_name , (match follow c.ef_type with
 		| TFun (params,_) -> 
-			let params = nparams params in
+			let params = List.map fst params in
 			(EFunction (params,array p (str p c.ef_name :: List.map (ident p) params)),p)
 		| _ ->
 			array p [str p c.ef_name]

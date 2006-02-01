@@ -46,14 +46,21 @@ let rec gen_type t =
 	| TMono m -> (match !m with None -> tag "unknown" | Some t -> gen_type t)
 	| TEnum (e,params) -> node "e" [gen_path e.e_path] (List.map gen_type params)
 	| TInst (c,params) -> node "c" [gen_path c.cl_path] (List.map gen_type params)
-	| TFun (args,r) -> node "f" [] (List.map gen_type (args @ [r]))
+	| TFun (args,r) -> node "f" ["a",String.concat ":" (List.map fst args)] (List.map gen_type (List.map snd args @ [r]))
 	| TAnon fields -> node "a" [] (pmap (fun f -> node f.cf_name [] [gen_type f.cf_type]) fields)
 	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
 	| TLazy f -> gen_type (!f())
 
 let gen_constr e =
 	let doc = gen_doc_opt e.ef_doc in
-	node e.ef_name [] (match follow e.ef_type with TFun (args,_) -> List.map gen_type args @ doc | _ -> doc)
+	let args, t = (match follow e.ef_type with 
+		| TFun (args,_) ->
+			["a",String.concat ":" (List.map fst args)] ,
+			List.map (fun (_,t) -> gen_type t) args @ doc
+		| _ -> 
+			[] , doc
+	) in
+	node e.ef_name args t 
 
 let gen_field att f =
 	let att = (match f.cf_expr with None -> att | Some e -> ("line",string_of_int (Lexer.get_error_line e.epos)) :: att) in
