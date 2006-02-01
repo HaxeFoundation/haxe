@@ -354,15 +354,32 @@ let type_ident ctx i p =
 let type_type ctx tpath p =
 	match load_type_def ctx p tpath with
 	| TClassDecl c ->
-		let fl = (if is_parent c ctx.curclass then 
-			(* all fields are public *)
-			PMap.fold (fun f acc -> PMap.add f.cf_name { f with cf_public = true } acc) c.cl_statics PMap.empty 
-		else
-			c.cl_statics
-		) in
+		let priv = is_parent c ctx.curclass in
+		let types = List.map (fun _ -> mk_mono()) c.cl_types in
+		let fl = PMap.fold (fun f acc -> 
+			if priv || f.cf_public then
+				PMap.add f.cf_name { 
+					cf_name = f.cf_name;
+					cf_public = true;
+					cf_type = apply_params c.cl_types types f.cf_type;
+					cf_doc = None;
+					cf_expr = None;
+				} acc
+			else
+				acc
+		) c.cl_statics PMap.empty in
 		mk (TType (TClassDecl c)) (TAnon fl) p
 	| TEnumDecl e ->
-		let fl = PMap.map (fun e -> { cf_name = e.ef_name; cf_public = true; cf_type = e.ef_type; cf_expr = None; cf_doc = None }) e.e_constrs in 
+		let types = List.map (fun _ -> mk_mono()) e.e_types in
+		let fl = PMap.fold (fun f acc -> 
+			PMap.add f.ef_name { 
+				cf_name = f.ef_name;
+				cf_public = true;
+				cf_type = apply_params e.e_types types f.ef_type;
+				cf_doc = None;
+				cf_expr = None;
+			} acc
+		) e.e_constrs PMap.empty in
 		mk (TType (TEnumDecl e)) (TAnon fl) p
 
 let type_constant ctx c p =
