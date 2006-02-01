@@ -1,7 +1,9 @@
 -neko all.n
+-xml neko.xml
 ImportAll
 
 --next
 
 -swf all.swf
+-xml flash.xml
 ImportAll
