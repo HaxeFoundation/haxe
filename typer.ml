@@ -355,10 +355,10 @@ let type_type ctx tpath p =
 	match load_type_def ctx p tpath with
 	| TClassDecl c ->
 		let fl = (if is_parent c ctx.curclass then 
-			c.cl_statics
+			(* all fields are public *)
+			PMap.fold (fun f acc -> PMap.add f.cf_name { f with cf_public = true } acc) c.cl_statics PMap.empty 
 		else
-			(* keep only publics *)
-			PMap.fold (fun f acc -> if f.cf_public then PMap.add f.cf_name f acc else acc) c.cl_statics PMap.empty 
+			c.cl_statics
 		) in
 		mk (TType (TClassDecl c)) (TAnon fl) p
 	| TEnumDecl e ->
@@ -473,7 +473,11 @@ let type_field ctx t i p =
 	| TDynamic t ->
 		t
 	| TAnon fl ->
-		(try (PMap.find i fl).cf_type with Not_found -> no_field())		
+		(try 
+			let f = PMap.find i fl in
+			if not f.cf_public && not ctx.untyped then error ("Cannot access to private field " ^ i) p;
+			f.cf_type
+		with Not_found -> no_field())	
 	| t ->
 		no_field()
 
@@ -674,7 +678,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			let cf = {
 				cf_name = f;
 				cf_type = e.etype;
-				cf_public = false;
+				cf_public = true;
 				cf_expr = None;
 				cf_doc = None;
 			} in
