@@ -148,7 +148,7 @@ and load_type ctx p t =
 				cf_doc = None;
 			} acc
 		in
-		TAnon (List.fold_left loop PMap.empty l)
+		TAnon (List.fold_left loop PMap.empty l,None)
 	| TPFunction (args,r) ->
 		match args with
 		| [TPNormal { tpackage = []; tparams = []; tname = "Void" }] ->
@@ -368,7 +368,7 @@ let type_type ctx tpath p =
 			else
 				acc
 		) c.cl_statics PMap.empty in
-		mk (TType (TClassDecl c)) (TAnon fl) p
+		mk (TType (TClassDecl c)) (TAnon (fl,Some ("#" ^ s_type_path c.cl_path))) p
 	| TEnumDecl e ->
 		let types = List.map (fun _ -> mk_mono()) e.e_types in
 		let fl = PMap.fold (fun f acc -> 
@@ -380,7 +380,7 @@ let type_type ctx tpath p =
 				cf_expr = None;
 			} acc
 		) e.e_constrs PMap.empty in
-		mk (TType (TEnumDecl e)) (TAnon fl) p
+		mk (TType (TEnumDecl e)) (TAnon (fl,Some ("#" ^ s_type_path e.e_path))) p
 
 let type_constant ctx c p =
 	match c with
@@ -489,7 +489,7 @@ let type_field ctx t i p =
 			no_field())
 	| TDynamic t ->
 		t
-	| TAnon fl ->
+	| TAnon (fl,_) ->
 		(try 
 			let f = PMap.find i fl in
 			if not f.cf_public && not ctx.untyped then error ("Cannot access to private field " ^ i) p;
@@ -702,7 +702,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			((f,e) :: l, PMap.add f cf acc)
 		in
 		let fields , types = List.fold_left loop ([],PMap.empty) fl in
-		mk (TObjectDecl fields) (TAnon types) p
+		mk (TObjectDecl fields) (TAnon (types,None)) p
 	| EArrayDecl el ->
 		let t , pt = t_array ctx in
 		let dyn = ref ctx.untyped in

@@ -24,7 +24,7 @@ type t =
 	| TEnum of tenum * t list
 	| TInst of tclass * t list
 	| TFun of (string * t) list * t
-	| TAnon of (string, tclass_field) PMap.t
+	| TAnon of (string, tclass_field) PMap.t * string option
 	| TDynamic of t
 	| TLazy of (unit -> t) ref
 
@@ -165,9 +165,12 @@ let rec s_type ctx t =
 		"Void -> " ^ s_type ctx t
 	| TFun (l,t) ->
 		String.concat " -> " (List.map (fun (s,t) -> s ^ " : " ^ match t with TFun _ -> "(" ^ s_type ctx t ^ ")" | _ -> s_type ctx t) l) ^ " -> " ^ s_type ctx t
-	| TAnon fl ->
-		let fl = PMap.fold (fun f acc -> (" " ^ f.cf_name ^ " : " ^ s_type ctx f.cf_type) :: acc) fl [] in
-		"{" ^ String.concat "," fl ^ " }";
+	| TAnon (fl,name) ->
+		(match name with
+		| Some s -> s
+		| None ->
+			let fl = PMap.fold (fun f acc -> (" " ^ f.cf_name ^ " : " ^ s_type ctx f.cf_type) :: acc) fl [] in
+			"{" ^ String.concat "," fl ^ " }");
 	| TDynamic t2 ->
 		"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
 	| TLazy f ->		
@@ -215,7 +218,7 @@ let rec link e a b =
 				loop t2
 		| TLazy f ->
 			loop (!f())
-		| TAnon fl ->
+		| TAnon (fl,_) ->
 			try
 				PMap.iter (fun _ f -> if loop f.cf_type then raise Exit) fl;
 				false
@@ -264,8 +267,8 @@ let apply_params cparams params t =
 				TInst (c,List.map loop tl))
 		| TFun (tl,r) ->
 			TFun (List.map (fun (s,t) -> s, loop t) tl,loop r)
-		| TAnon fl ->
-			TAnon (PMap.map (fun f -> { f with cf_type = loop f.cf_type }) fl)
+		| TAnon (fl,name) ->
+			TAnon (PMap.map (fun f -> { f with cf_type = loop f.cf_type }) fl,name)
 		| TLazy f ->
 			loop (!f())
 		| TDynamic t2 ->
@@ -294,7 +297,7 @@ let rec type_eq param a b =
 		type_eq param r1 r2 && List.for_all2 (fun (_,t1) (_,t2) -> type_eq param t1 t2) l1 l2
 	| TDynamic a , TDynamic b ->
 		type_eq param a b
-	| TAnon fl1, TAnon fl2 ->
+	| TAnon (fl1,_), TAnon (fl2,_) ->
 		let keys1 = PMap.fold (fun f acc -> f :: acc) fl1 [] in
 		let keys2 = PMap.fold (fun f acc -> f :: acc) fl2 [] in
 		(try
@@ -336,7 +339,7 @@ let rec unify a b =
 		loop c1 tl1
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
 		unify r1 r2 && List.for_all2 (fun (_,t1) (_,t2) -> unify t1 t2) l2 l1 (* contravariance *)
-	| TInst (c,tl) , TAnon fl ->
+	| TInst (c,tl) , TAnon (fl,_) ->
 		(try
 			PMap.iter (fun n f2 ->
 				let f1 = PMap.find n c.cl_fields in				
@@ -345,7 +348,7 @@ let rec unify a b =
 			true
 		with
 			Not_found -> false)
-	| TAnon fl1 , TAnon fl2 ->
+	| TAnon (fl1,_) , TAnon (fl2,_) ->
 		(try
 			PMap.iter (fun n f2 ->
 				let f1 = PMap.find n fl1 in
