@@ -140,15 +140,26 @@ let rec	parse_file s =
 and parse_type_decl s =	
 	match s with parser
 	| [< '(Kwd Import,p1); t = parse_type_path_normal; _ = semicolon >] -> (EImport (t.tpackage,t.tname), p1)
-	| [< '(Kwd Enum,p1); doc = get_doc; '(Const (Type name),_); tl = parse_type_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] -> (EEnum (name,doc,tl,l), punion p1 p2)
-	| [< n , p1 = parse_class_native; doc = get_doc; '(Const (Type name),_); tl = parse_type_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = plist parse_class_field; '(BrClose,p2) >] -> (EClass (name,doc,tl,n @ hl,fl), punion p1 p2)
+	| [< c = parse_common_params; s >] ->
+		match s with parser 
+		| [< n , p1 = parse_enum_params; doc = get_doc; '(Const (Type name),_); tl = parse_type_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] -> (EEnum (name,doc,tl,List.map snd c @ n,l), punion p1 p2)
+		| [< n , p1 = parse_class_params; doc = get_doc; '(Const (Type name),_); tl = parse_type_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = plist parse_class_field; '(BrClose,p2) >] -> (EClass (name,doc,tl,List.map fst c @ n @ hl,fl), punion p1 p2)
 
 and parse_package s = psep Dot ident s
 
-and parse_class_native = parser
-	| [< '(Kwd Extern,_); '(Kwd Class,p1) >] -> [HExtern] , p1
-	| [< '(Kwd Class,p1) >] -> [] , p1
-	| [< '(Kwd Interface,p1) >] -> [HInterface] , p1
+and parse_common_params = parser
+	| [< '(Kwd Private,_); l = parse_common_params >] -> (HPrivate, EPrivate) :: l
+	| [< >] -> []
+
+and parse_enum_params = parser
+	| [< '(Kwd Private,_); l, p = parse_enum_params >] -> EPrivate :: l , p
+	| [< '(Kwd Enum,p) >] -> [] , p
+
+and parse_class_params = parser
+	| [< '(Kwd Extern,_); l, p = parse_class_params >] -> HExtern :: l , p
+	| [< '(Kwd Private,_); l, p = parse_class_params >] -> HPrivate :: l , p
+	| [< '(Kwd Class,p) >] -> [] , p
+	| [< '(Kwd Interface,p) >] -> [HInterface] , p
 
 and parse_type_opt = parser
 	| [< '(DblDot,_); t = parse_type_path >] -> Some t

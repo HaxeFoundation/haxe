@@ -90,6 +90,7 @@ and tclass = {
 	cl_path : module_path;
 	cl_pos : Ast.pos;
 	cl_doc : Ast.documentation;
+	cl_private : bool;
 	mutable cl_extern : bool;
 	mutable cl_interface : bool;
 	mutable cl_types : (string * t) list;
@@ -113,6 +114,7 @@ and tenum = {
 	e_path : module_path;
 	e_pos : Ast.pos;
 	e_doc : Ast.documentation;
+	e_private : bool;
 	mutable e_types : (string * t) list;
 	mutable e_constrs : (string , tenum_field) PMap.t;
 }
@@ -132,11 +134,12 @@ let mk_mono() = TMono (ref None)
 
 let rec t_dynamic = TDynamic t_dynamic
 
-let mk_class path pos doc =
+let mk_class path pos doc priv =
 	{
 		cl_path = path;
 		cl_pos = pos;
 		cl_doc = doc;
+		cl_private = priv;
 		cl_extern = false;
 		cl_interface = false;
 		cl_types = [];
@@ -148,6 +151,14 @@ let mk_class path pos doc =
 		cl_dynamic = None;
 		cl_constructor = None;
 	}
+
+let t_private = function
+	| TClassDecl c -> c.cl_private
+	| TEnumDecl  e -> e.e_private
+
+let t_path = function
+	| TClassDecl c -> c.cl_path
+	| TEnumDecl  e -> e.e_path
 
 let print_context() = ref []
 

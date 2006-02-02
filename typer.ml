@@ -91,7 +91,7 @@ let load_type_def ctx p tpath =
 				| Exit -> tpath, load ctx tpath p
 			) in
 			try
-				List.find (fun t -> type_path t = tpath) m.mtypes
+				List.find (fun t -> not (t_private t) && type_path t = tpath) m.mtypes
 			with
 				Not_found -> error ("Module " ^ s_type_path tpath ^ " does not define type " ^ snd tpath) p
 
@@ -163,7 +163,7 @@ let load_type_opt ctx p t =
 
 let set_heritance ctx c herits p =
 	let rec loop = function
-		| HExtern | HInterface ->
+		| HPrivate | HExtern | HInterface ->
 			()
 		| HExtends t ->
 			if c.cl_super <> None then error "Cannot extend several classes" p;
@@ -194,6 +194,7 @@ let type_type_params ctx path p (n,flags) =
 		let e = {
 			e_path = (fst path @ [snd path],n);
 			e_pos = p;
+			e_private = true;
 			e_types = [];
 			e_constrs = PMap.empty;
 			e_doc = None;
@@ -201,7 +202,7 @@ let type_type_params ctx path p (n,flags) =
 		TEnum (e,[])
 	| l ->
 		(* build a phantom class *)
-		let c = mk_class (fst path @ [snd path],n) p None in
+		let c = mk_class (fst path @ [snd path],n) p None true in
 		set_heritance ctx c (List.map (fun t -> HImplements t) l) p;
 		let add_field ctypes params _ f =
 			let f = { f with cf_type = apply_params ctypes params f.cf_type } in
@@ -1141,9 +1142,12 @@ let init_class ctx c p types herits fields =
 let type_module ctx m tdecls =
 	(* PASS 1 : build module structure - does not load any module or type - should be atomic ! *)
 	let decls = ref [] in
-	let decl_with_name name p =
+	let decl_with_name name p priv =
 		let tpath = (fst m,name) in
-		try
+		if priv then begin
+			if List.exists (fun t -> tpath = t_path t) (!decls) then error ("Type name " ^ name ^ " is alreday defined in this module") p;
+			tpath
+		end else try
 			let m2 = Hashtbl.find ctx.types tpath in
 			error ("Type name " ^ s_type_path tpath ^ " is redefined from module " ^ s_type_path m2) p
 		with
@@ -1154,17 +1158,20 @@ let type_module ctx m tdecls =
 	List.iter (fun (d,p) ->
 		match d with
 		| EImport _ -> ()
-		| EClass (name,doc,_,_,_) ->
-			let path = decl_with_name name p in
-			let c = mk_class path p doc in
+		| EClass (name,doc,_,flags,_) ->
+			let priv = List.mem HPrivate flags in
+			let path = decl_with_name name p priv in
+			let c = mk_class path p doc priv in
 			decls := TClassDecl c :: !decls
-		| EEnum (name,doc,_,_) ->
-			let path = decl_with_name name p in
+		| EEnum (name,doc,_,flags,_) ->
+			let priv = List.mem EPrivate flags in
+			let path = decl_with_name name p priv in
 			let e = {
 				e_path = path;
 				e_pos = p;
 				e_doc = doc;
 				e_types = [];
+				e_private = priv;
 				e_constrs = PMap.empty;
 			} in
 			decls := TEnumDecl e :: !decls
@@ -1198,12 +1205,12 @@ let type_module ctx m tdecls =
 		match d with
 		| EImport t ->
 			let m = load ctx t p in
-			ctx.local_types <- ctx.local_types @ m.mtypes
+			ctx.local_types <- ctx.local_types @ (List.filter (fun t -> not (t_private t)) m.mtypes)
 		| EClass (name,_,types,herits,fields) ->
 			let c = List.find (fun d -> match d with TClassDecl { cl_path = _ , n } -> n = name | _ -> false) m.mtypes in
 			let c = (match c with TClassDecl c -> c | _ -> assert false) in
 			delays := !delays @ check_overloading c p :: check_interfaces c p :: init_class ctx c p types herits fields
-		| EEnum (name,_,types,constrs) ->
+		| EEnum (name,_,types,_,constrs) ->
 			let e = List.find (fun d -> match d with TEnumDecl { e_path = _ , n } -> n = name | _ -> false) m.mtypes in
 			let e = (match e with TEnumDecl e -> e | _ -> assert false) in
 			ctx.type_params <- [];
@@ -1266,7 +1273,7 @@ let context warn =
 		local_types = [];
 		type_params = [];
 		curmethod = "";
-		curclass = mk_class ([],"") null_pos None;
+		curclass = mk_class ([],"") null_pos None true;
 		current = empty;
 		std = empty;
 	} in
@@ -1391,7 +1398,7 @@ let types ctx main =
 				Not_found -> error ("Invalid -main : " ^ s_type_path cl ^ " does not have static function main") null_pos
 		);
 		let path = ([],"@Main") in
-		let c = mk_class path null_pos None in
+		let c = mk_class path null_pos None true in
 		let f = {
 			cf_name = "init";
 			cf_type = mk_mono();

@@ -181,9 +181,13 @@ type class_field =
 	| FVar of string * documentation * access list * type_path option * expr option
 	| FFun of string * documentation * access list * func
 
+type enum_param =
+	| EPrivate
+
 type type_param_flag =
 	| HInterface
 	| HExtern
+	| HPrivate
 	| HExtends of type_path_normal
 	| HImplements of type_path_normal
 
@@ -191,7 +195,7 @@ type type_param = string * type_path_normal list
 
 type type_def =
 	| EClass of string * documentation * type_param list * type_param_flag list * (class_field * pos) list
-	| EEnum of string * documentation * type_param list * (string * documentation * (string * type_path) list * pos) list
+	| EEnum of string * documentation * type_param list * enum_param list * (string * documentation * (string * type_path) list * pos) list
 	| EImport of (string list * string)
 
 type type_decl = type_def * pos
