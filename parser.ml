@@ -113,7 +113,10 @@ let ident = parser
 let log m s =
 	prerr_endline m
 
-let get_doc s = !doc
+let get_doc s = 
+	let d = !doc in
+	doc := None;
+	d
 
 let comma = parser
 	| [< '(Comma,_) >] -> ()
@@ -128,12 +131,13 @@ let semicolon s =
 		| [< '(Semicolon,p) >] -> p
 		| [< s >] -> error Missing_semicolon (snd (last_token s))
 
-let rec	parse_file = parser
+let rec	parse_file s = 
+	doc := None;
+	match s with parser
 	| [< '(Const (Ident "package"),_); p = parse_package; _ = semicolon; l = plist parse_type_decl; '(Eof,_); >] -> p , l
 	| [< l = plist parse_type_decl; '(Eof,_) >] -> [] , l
 
-and parse_type_decl s =
-	doc := None;
+and parse_type_decl s =	
 	match s with parser
 	| [< '(Kwd Import,p1); t = parse_type_path_normal; _ = semicolon >] -> (EImport (t.tpackage,t.tname), p1)
 	| [< '(Kwd Enum,p1); doc = get_doc; '(Const (Type name),_); tl = parse_type_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] -> (EEnum (name,doc,tl,l), punion p1 p2)
