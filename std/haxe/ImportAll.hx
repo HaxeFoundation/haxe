@@ -30,6 +30,7 @@ import Hash;
 import ImportAll;
 import IntIter;
 import Iterator;
+import Lambda;
 import List;
 import Log;
 import Math;
@@ -110,5 +111,6 @@ import neko.Boot;
 import neko.Lib;
 import neko.Web;
 import neko.File;
+import haxe.DocView;
 
 #end

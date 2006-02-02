@@ -13,6 +13,10 @@
 	fixed escaped chars in Neko generation 
 	conservative static initialization order
 	allowed no type parameters for new Class
+	function types carry parameter names
+	anonymous types contain private variables (for private static accesses)
+	added optional name for anonymous types in typer (for static accesses)
+	private classes and enums (partial support)
 
 2005-12-23: alpha 5
 	added -main commandline parameter
