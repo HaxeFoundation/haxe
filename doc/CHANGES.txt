@@ -17,6 +17,10 @@
 	anonymous types contain private variables (for private static accesses)
 	added optional name for anonymous types in typer (for static accesses)
 	private classes and enums (partial support)
+	improved error message for invalid number of arguments
+	flash extern classes can take variable number of args.
+	added -swf-lib for importing SWF library
+	added neko.db package
 
 2005-12-23: alpha 5
 	added -main commandline parameter
