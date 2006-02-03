@@ -24,11 +24,11 @@
  */
 package flash;
 
-extern class Lib {
+class Lib {
 
-	static var _global : Dynamic;
-	static var _root : MovieClip;
-	static var current : MovieClip;
+	public static var _global : Dynamic;
+	public static var _root : MovieClip;
+	public static var current : MovieClip;
 
 }
 
