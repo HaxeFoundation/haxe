@@ -892,7 +892,9 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				match l , l2 with
 				| [] , _ -> ()
 				| _ , [] -> error "Too many arguments" p
-				| e :: l, (_,t) :: l2 -> unify ctx e.etype t e.epos
+				| e :: l, (_,t) :: l2 ->
+					unify ctx e.etype t e.epos;
+					loop l l2
 			in
 			loop el args;
 			r
