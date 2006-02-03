@@ -1183,7 +1183,26 @@ let to_utf8 str =
 			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
 			UTF8.Buf.contents b
 
-let generate file ver types =
+let default_header ver =
+	let w = 400 in
+	let h = 300 in
+	let fps = 30. in
+	{
+		h_version = ver;
+		h_size = {
+			rect_nbits = if (max w h) >= 820 then 16 else 15;
+			left = 0;
+			top = 0;
+			right = w * 20;
+			bottom = h * 20;
+		};
+		h_frame_count = 1;
+		h_fps = to_float16 fps;
+		h_compressed = true;
+	}
+
+
+let generate file ver infile types =
 	let ctx = {
 		opcodes = DynArray.create();
 		code_pos = 0;
@@ -1211,35 +1230,39 @@ let generate file ver types =
 	let idents = Hashtbl.fold (fun ident pos acc -> (ident,pos) :: acc) idents [] in
 	let idents = List.sort (fun (_,p1) (_,p2) -> compare p1 p2) idents in
 	DynArray.set ctx.opcodes 0 (AStringPool (List.map (fun (id,_) -> to_utf8 id) idents));
-	let w = 400 in
-	let h = 300 in
-	let fps = 20. in
-	let bg = 0xFFFFFF in
-	let header = {
-		h_version = ver;
-		h_size = {
-			rect_nbits = if (max w h) >= 820 then 16 else 15;
-			left = 0;
-			top = 0;
-			right = w * 20;
-			bottom = h * 20;
-		};
-		h_frame_count = 1;
-		h_fps = to_float16 fps;
-		h_compressed = true;
-	} in
 	let tag ?(ext=false) d = {
 		tid = 0;
 		textended = ext;
 		tdata = d;
 	} in
-	let tagbg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
 	let tagcode = tag (TDoAction ctx.opcodes) in
-	let tagshow = tag TShowFrame in
+	let swf = (match infile with
+		| None ->
+			let header = default_header ver in
+			let bg = 0xFFFFFF in
+			let tagbg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
+			let tagshow = tag TShowFrame in
+			(header,[tagbg;tagcode;tagshow])
+		| Some file ->
+			let file = (try Plugin.find_file file with Not_found -> failwith ("File not found : " ^ file)) in
+			let ch = IO.input_channel (open_in_bin file) in
+			let header, swf = (try Swf.parse ch with _ -> failwith ("The input swf " ^ file ^ " is corrupted")) in
+			IO.close_in ch;
+			let rec loop = function
+				| [] ->
+					failwith ("Frame 1 not found in " ^ file)
+				| ({ tdata = TShowFrame } as t) :: l ->
+					tagcode :: t :: l
+				| t :: l -> 
+					t :: loop l
+			in
+			(header , loop swf)
+	) in
 	let ch = IO.output_channel (open_out_bin file) in
-	Swf.write ch (header,[tagbg;tagcode;tagshow]);
+	Swf.write ch swf;
 	IO.close_out ch
 
 ;;
 SwfParser.init SwfZip.inflate SwfZip.deflate;
+SwfParser.full_parsing := false;
 Swf.warnings := false;

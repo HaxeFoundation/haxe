@@ -47,6 +47,10 @@ let report msg p =
 
 let make_path f =
 	let cl = ExtString.String.nsplit f "." in
+	let cl = (match List.rev cl with
+		| "hx" :: l -> List.rev l
+		| _ -> cl
+	) in
 	let error() = failwith ("Invalid class name " ^ f) in
 	let invalid_char x =
 		for i = 1 to String.length x - 1 do
@@ -74,6 +78,7 @@ try
 	let base_path = normalize_path (try Extc.executable_path() with _ -> "./") in
 	let classes = ref [([],"Std")] in
 	let swf_out = ref None in
+	let swf_in = ref None in
 	let neko_out = ref None in
 	let xml_out = ref None in
 	let main_class = ref None in
@@ -97,6 +102,9 @@ try
 			Typer.forbidden_packages := ["js"; "neko"];
 			swf_out := Some file
 		),"<file> : compile code to SWF file");
+		("-swf-lib",Arg.String (fun file ->
+			swf_in := Some file
+		),"<file> : add the SWF library to the compiled SWF");
 		("-neko",Arg.String (fun file ->
 			check_targets();
 			Typer.forbidden_packages := ["js"; "flash"];
@@ -169,7 +177,7 @@ try
 		| None -> ()
 		| Some file ->
 			if !Plugin.verbose then print_endline ("Generating swf : " ^ file);
-			Genswf.generate file (!swf_version) types
+			Genswf.generate file (!swf_version) (!swf_in) types
 		);
 		(match !neko_out with
 		| None -> ()
