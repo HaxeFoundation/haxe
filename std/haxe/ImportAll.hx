@@ -111,6 +111,11 @@ import neko.Boot;
 import neko.Lib;
 import neko.Web;
 import neko.File;
+
+import neko.db.Mysql;
+import neko.db.Connection;
+import neko.db.Result;
+
 import haxe.DocView;
 
 #end
