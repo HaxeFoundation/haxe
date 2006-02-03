@@ -24,7 +24,7 @@
  */
 package flash;
 
-class Lib {
+extern class Lib {
 
 	static var _global : Dynamic;
 	static var _root : MovieClip;
