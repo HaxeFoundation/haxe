@@ -251,6 +251,14 @@ let is_float t =
 	| _ ->
 		false
 
+let is_flash_extern t =
+	match follow t with
+	| TInst (c,_) ->
+		(match fst c.cl_path with
+		| "flash" :: _ -> c.cl_extern
+		| _ -> false)
+	| _ -> false
+
 let t_array ctx =
 	let show = hide_types ctx in
 	match load_type_def ctx null_pos ([],"Array") with
@@ -872,10 +880,21 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let el = List.map (type_expr ctx) el in
 		let t = (match follow e.etype with
 		| TFun (args,r) ->
-			if List.length args <> List.length el then error "Invalid number of arguments" p;
-			List.iter2 (fun e (_,t) ->
-				unify ctx e.etype t e.epos;
-			) el args;
+			if List.length args <> List.length el then begin
+				match e.eexpr with
+				| TField (e,_) when is_flash_extern e.etype ->
+					() (* allow variable args for flash API only *)
+				| _ ->
+					let argstr = "Function require " ^ (if args = [] then "no argument" else String.concat ", " (List.map fst args)) in
+					error ("Invalid number of arguments\n" ^ argstr) p;
+			end;
+			let rec loop l l2 =
+				match l , l2 with
+				| [] , _ -> ()
+				| _ , [] -> error "Too many arguments" p
+				| e :: l, (_,t) :: l2 -> unify ctx e.etype t e.epos
+			in
+			loop el args;
 			r
 		| TMono _ ->
 			let t = mk_mono() in
