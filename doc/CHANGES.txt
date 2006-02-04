@@ -1,4 +1,4 @@
-2006-02-??: beta 1
+2006-02-04: beta 1
 	allowed array literals to be dynamic
 	use neko 1.2 commandline and prototypes
 	changed #cond to #if cond for conditional compilation
