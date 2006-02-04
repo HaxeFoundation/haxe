@@ -25,14 +25,11 @@
 
 extern class Date
 {
-	function new(year : Int, month : Int, date : Int, hour : Int, min : Int, sec : Int, ms : Int) : Void;
-
-	function getTime() : Int;
-	function setTime(value : Int) : Void;
+	function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void;
+	function getTime() : Float;
 	function toString():String;
 
-	// need to think about the API
-
+	static function now() : Date;
 }
 
 
