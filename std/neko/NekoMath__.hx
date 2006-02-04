@@ -24,47 +24,26 @@
  */
 package neko;
 
-class Boot {
-
-
-	private static function __instanceof(o,cl) {
-		untyped {
-			switch __dollar__typeof(o) {
-			case __dollar__tint: return (cl == Int || cl == Float);
-			case __dollar__tfloat: return cl == Float;
-			case __dollar__tbool: return cl == Bool;
-			case __dollar__tobject:
-				var c = o.__class__;
-				while( c != null ) {
-					if( __dollar__pcompare(cl,c) == 0 )
-						return true;
-					var il = c.__interfaces__;
-					var i = 0;
-					var l = __dollar__asize(il);
-					while( i < l ) {
-						if( __dollar__pcompare(cl,il[i]) == 0 )
-							return true;
-						i += 1;
-					}
-					c = c.__super__;
-				}
-				return false;
-			default:
-				return false;
-			}
-		}
-	}
-
-	private static function __init() {
-		untyped {
-			String = NekoString__;
-			Array = NekoArray__;
-			Node = NekoNode__;
-			Math = NekoMath__;
-			Date = NekoDate__;
-			Int = __dollar__new(null);
-			Float = __dollar__new(null);
-		}
-	}
-
+class NekoMath__
+{
+	static var pi = Lib.load("std","math_pi",0)();
+	static var abs = Lib.load("std","math_abs",1);
+	static function min(a,b) { return if( a < b ) a else b; }
+	static function max(a,b) { return if( a < b ) b else a; }
+	static var sin = Lib.load("std","math_sin",1);
+	static var cos = Lib.load("std","math_cos",1);
+	static var atan2 = Lib.load("std","math_atan2",2);
+	static var tan = Lib.load("std","math_tan",1);
+	static var exp = Lib.load("std","math_exp",1);
+	static var log = Lib.load("std","math_log",1);
+	static var sqrt = Lib.load("std","math_sqrt",1);
+	static var round = Lib.load("std","math_round",1);
+	static var floor = Lib.load("std","math_floor",1);
+	static var ceil = Lib.load("std","math_ceil",1);
+	static var atan = Lib.load("std","math_atan",1);
+	static var asin = Lib.load("std","math_asin",1);
+	static var acos = Lib.load("std","math_acos",1);
+	static var pow = Lib.load("std","math_pow",2);
 }
+
+

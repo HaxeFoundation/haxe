@@ -24,47 +24,36 @@
  */
 package neko;
 
-class Boot {
+class NekoDate__ implements Date
+{
+	private var __t : Void;
 
-
-	private static function __instanceof(o,cl) {
-		untyped {
-			switch __dollar__typeof(o) {
-			case __dollar__tint: return (cl == Int || cl == Float);
-			case __dollar__tfloat: return cl == Float;
-			case __dollar__tbool: return cl == Bool;
-			case __dollar__tobject:
-				var c = o.__class__;
-				while( c != null ) {
-					if( __dollar__pcompare(cl,c) == 0 )
-						return true;
-					var il = c.__interfaces__;
-					var i = 0;
-					var l = __dollar__asize(il);
-					while( i < l ) {
-						if( __dollar__pcompare(cl,il[i]) == 0 )
-							return true;
-						i += 1;
-					}
-					c = c.__super__;
-				}
-				return false;
-			default:
-				return false;
-			}
-		}
+	public function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) {
+		__t = date_now();
+		date_set_day(__t,year,month,day);
+		date_set_hour(__t,hour,min,sec);
 	}
 
-	private static function __init() {
-		untyped {
-			String = NekoString__;
-			Array = NekoArray__;
-			Node = NekoNode__;
-			Math = NekoMath__;
-			Date = NekoDate__;
-			Int = __dollar__new(null);
-			Float = __dollar__new(null);
-		}
+	public function getTime() : Float {
+		return int32_to_float(__t) * 100;
 	}
+
+	public function toString():String {
+		return new String(date_format(__t,null));
+	}
+
+	static function now() {
+		var d = new NekoDate__(2005,1,1,0,0,0);
+		d.__t = date_now();
+		return d;
+	}
+
+	static var date_now = Lib.load("std","date_now",0);
+	static var date_format = Lib.load("std","date_format",2);
+	static var date_set_hour = Lib.load("std","date_set_hour",4);
+	static var date_set_day = Lib.load("std","date_set_day",4);
+	static var int32_to_float = Lib.load("std","int32_to_float",1);
 
 }
+
+
