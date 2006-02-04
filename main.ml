@@ -74,7 +74,7 @@ let base_defines = Hashtbl.copy Parser.defines
 
 let rec init argv argv_start =
 try	
-	let usage = "Haxe Compiler Alpha - (c)2005 Motion-Twin\n Usage : haxe.exe [options] <class names...>\n Options :" in
+	let usage = "Haxe Compiler Beta 1 - (c)2005 Motion-Twin\n Usage : haxe.exe [options] <class names...>\n Options :" in
 	let base_path = normalize_path (try Extc.executable_path() with _ -> "./") in
 	let classes = ref [([],"Std")] in
 	let swf_out = ref None in
