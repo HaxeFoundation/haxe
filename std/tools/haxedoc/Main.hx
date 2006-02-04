@@ -86,8 +86,13 @@ private class DocField {
 			return link(name)+ps;
 		case tanon(fields):
 			var buf = new StringBuf();
+			var first = true;
 			buf.add("{");
 			for( f in fields ) {
+				if( first )
+					first = false;
+				else
+					buf.add(", ");
 				buf.add(f.name);
 				buf.add(" : ");
 				buf.add(typeToString(f.t));
