@@ -924,8 +924,10 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then error "Cannot access private constructor" p;
 			(match apply_params c.cl_types params f.cf_type with
 			| TFun (args,r) ->
-				if List.length args <> List.length el then error "Invalid number of constructor parameters" p;
-				List.iter2 (fun e (_,t) -> unify ctx e.etype t e.epos) el args;
+				if List.length args <> List.length el then begin
+					if not ctx.untyped then error "Invalid number of constructor parameters" p;
+				end else
+					List.iter2 (fun e (_,t) -> unify ctx e.etype t e.epos) el args;
 			| _ ->
 				error "Constructor is not a function" p);
 			c , params , t
