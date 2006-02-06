@@ -1,4 +1,4 @@
-package haxe;
+package tools;
 
 import neko.Lib;
 import neko.Web;

@@ -116,6 +116,6 @@ import neko.db.Mysql;
 import neko.db.Connection;
 import neko.db.Result;
 
-import haxe.DocView;
+import tools.DocView;
 
 #end

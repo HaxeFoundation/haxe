@@ -1,5 +1,5 @@
 #
 # compile DocView service
 #
--main haxe.DocView
+-main tools.DocView
 -neko docview.n
