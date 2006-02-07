@@ -535,6 +535,7 @@ type tag_data =
 	| TTextInfo of unknown
 	| TFont3 of font3
 	| TShape4 of shape
+	| TShape5 of int * string
 	| TUnknown of int * unknown
 
 and tag = {

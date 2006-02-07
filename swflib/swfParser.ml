@@ -367,6 +367,8 @@ let rec tag_data_length = function
 		font3_length f
 	| TShape4 s ->
 		shape_length s
+	| TShape5 (_,s) ->
+		2 + String.length s
 	| TUnknown (_,data) ->
 		String.length data
 
@@ -1234,6 +1236,9 @@ let rec parse_tag ch =
 			TFont3 (parse_font3 ch len)
 		| 0x53 when !full_parsing ->
 			TShape4 (parse_shape ch len 4)
+		| 0x54 when !full_parsing ->
+			let id = read_ui16 ch in
+			TShape5 (id,nread ch (len - 2))
 		| _ ->
 			if !Swf.warnings then Printf.printf "Unknown tag 0x%.2X\n" id;
 			TUnknown (id,nread ch len)
@@ -1315,6 +1320,7 @@ let rec tag_id = function
 	| TTextInfo _ -> 0x4A
 	| TFont3 _ -> 0x4B
 	| TShape4 _ -> 0x53
+	| TShape5 _ -> 0x54
 	| TUnknown (id,_) -> id
 
 let write_clip_event ch c =
@@ -1705,6 +1711,9 @@ let rec write_tag_data ch = function
 		write_font3 ch f
 	| TShape4 s ->
 		write_shape ch s
+	| TShape5 (id,s) ->
+		write_ui16 ch id;
+		
 	| TUnknown (_,data) ->
 		nwrite ch data
 
