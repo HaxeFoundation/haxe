@@ -46,8 +46,8 @@ private class DocField {
 		}
 	}
 
-	public function link(name) {
-		return Url.make("class="+StringTools.urlEncode(name),name);
+	public function link(name : String) {
+		return Url.make(name.split(".").join("/"),name);
 	}
 
 	public function typeToString(t) {
@@ -407,7 +407,7 @@ class DocView {
 				Lib.print("</li>");
 			case eclass(c):
 				if( c.fields.length > 0 )
-					Lib.print("<li>"+Url.make("class="+StringTools.urlEncode(c.path),c.name)+"</li>");
+					Lib.print("<li>"+Url.make(c.path.split(".").join("/"),c.name)+"</li>");
 			}
 		}
 		Lib.print("</ul>");
@@ -425,17 +425,20 @@ class DocView {
 		loadFile("flash.xml");
 		loadFile("neko.xml");
 		sortEntries(entries);
-		Url.base = Web.getURI() + "?";
+		Url.base = "/api/";
 		var clname = h.get("class");
+		if( clname == "index" )
+			clname = null;
 		if( clname == null )
 			display(entries);
 		else {
+			clname = clname.split("/").join(".");
 			var c = findEntry(entries,clname.split("."));
 			if( c == null )
 				throw ("Class not found : "+clname);
-			Lib.print(Url.make("","Index"));
+			Lib.print(Url.make("index","Index"));
 			Lib.print(c.toString());
-			Lib.print(Url.make("","Index"));
+			Lib.print(Url.make("index","Index"));
 		}
 	}
 
