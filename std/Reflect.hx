@@ -118,19 +118,13 @@ class Reflect {
 				new Array<String>();
 			else {
 				var a = __dollar__objfields(o);
-				var i = 0, j = 0;
-				var hclass = __dollar__hash("__class__".__s);
+				var i = 0;
 				var l = __dollar__asize(a);
 				while( i < l ) {
-					if( a[i] == hclass )
-						i++;
-					else {
-						a[j] = new String(__dollar__field(a[i]));
-						i++;
-						j++;
-					}
+					a[i] = new String(__dollar__field(a[i]));
+					i++;
 				}
-				Array.new1(a,j);
+				Array.new1(a,l);
 			}
 		#else error
 		#end
