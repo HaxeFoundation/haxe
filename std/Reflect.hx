@@ -131,4 +131,15 @@ class Reflect {
 			;
 	}
 
+	public static function isFunction( f : Dynamic ) : Bool {
+		return untyped
+		#if flash
+			f.call == _global["Function"].call
+		#else neko
+			__dollar__typeof(f) == __dollar__tfunction
+		#else error
+		#end
+			;
+	}
+
 }
