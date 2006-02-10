@@ -42,12 +42,17 @@ class NekoDate__ implements Date
 		return new String(date_format(__t,null));
 	}
 
-	static function now() {
+	private static function now() {
+		return new1(date_now());
+	}
+
+	private static function new1(t) {
 		var d = new NekoDate__(2005,1,1,0,0,0);
-		d.__t = date_now();
+		d.__t = t;
 		return d;
 	}
 
+	static var date_new = Lib.load("std","date_new",1);
 	static var date_now = Lib.load("std","date_now",0);
 	static var date_format = Lib.load("std","date_format",2);
 	static var date_set_hour = Lib.load("std","date_set_hour",4);
