@@ -114,7 +114,7 @@ import neko.File;
 
 import neko.db.Mysql;
 import neko.db.Connection;
-import neko.db.Result;
+import neko.db.ResultSet;
 
 import tools.DocView;
 

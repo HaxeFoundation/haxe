@@ -1,3 +1,8 @@
+2006-02-??: beta 2
+	renamed neko.db.Result to neko.db.ResultSet
+	added Date support for Mysql results
+	added private fields for static class anonymous types
+
 2006-02-04: beta 1
 	allowed array literals to be dynamic
 	use neko 1.2 commandline and prototypes
