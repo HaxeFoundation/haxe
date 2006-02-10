@@ -359,7 +359,7 @@ class DocView {
 			var found = false;
 			for( e in pack ) {
 				switch e {
-				case eclass(c): if( c.name == p ) return c;
+				case eclass(c): if( c.name.toLowerCase() == p.toLowerCase() ) return c;
 				case epackage(name,newpack):
 					if( name == p ) {
 						found = true;
