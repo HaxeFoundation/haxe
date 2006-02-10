@@ -12,10 +12,10 @@ class Connection {
 		sql_select_db(this.__c,untyped db.__s);
 	}
 
-	public function request( s : String ) : Result {
+	public function request( s : String ) : ResultSet {
 		var r = sql_request(this.__c,untyped s.__s);
-		//Result.set_conv_date(r,function(d) { return new Date(d); });
-		return untyped new Result(r);
+		untyped ResultSet.result_set_conv_date(r,function(d) { return Date.new1(d); });
+		return untyped new ResultSet(r);
 	}
 
 	public function close() {

@@ -1,22 +1,33 @@
 package neko.db;
 
-class Result {
+class ResultSet implements Iterator<Dynamic> {
 
 	public var length : Int;
 	public var nfields : Int;
-	public var current : { };
 	private var __r : Void;
+	private var cache : Dynamic;
 
 	private function new(r) {
 		__r = r;
+		length = result_get_length(r);
+		nfields = result_get_nfields(r);
 	}
 
+	public function hasNext() {
+		if( cache == null )
+			cache = next();
+		return (cache != null);
+	}
 
-	public function next() : Bool {
-		var c = result_next(__r);
-		current = c;
+	public function next() : Dynamic {
+		var c = cache;
+		if( c != null ) {
+			cache = null;
+			return c;
+		}
+		c = result_next(__r);
 		if( c == null )
-			return false;
+			return null;
 		untyped {
 			var f = __dollar__objfields(c);
 			var i = 0;
@@ -28,7 +39,7 @@ class Result {
 				i = i + 1;
 			}
 		}
-		return true;
+		return c;
 	}
 
 	public function getResult( n : Int ) {
@@ -41,13 +52,6 @@ class Result {
 
 	public function getFloatResult( n : Int ) : Float {
 		return result_get_float(__r,n);
-	}
-
-	public function results() : Array<{}> {
-		var a = new Array();
-		while( next() )
-			a.push(current);
-		return a;
 	}
 
 	private static var result_get_length = neko.Lib.load("mysql","result_get_length",1);
