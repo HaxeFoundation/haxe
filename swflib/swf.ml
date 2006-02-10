@@ -40,8 +40,8 @@ type color =
 	| ColorRGBA of rgba
 
 type gradient =
-	| GradientRGB of (int * rgb) list
-	| GradientRGBA of (int * rgba) list
+	| GradientRGB of ((int * rgb) list * int)
+	| GradientRGBA of ((int * rgba) list * int) 
 
 type rect = {
 	rect_nbits : int;

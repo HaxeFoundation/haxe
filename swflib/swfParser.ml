@@ -123,8 +123,8 @@ let big_rect_length r =
 	(nbits + 7) / 8
 
 let gradient_length = function
-	| GradientRGB l -> 1 + (1 + rgb_length) * List.length l
-	| GradientRGBA l -> 1 + (1 + rgba_length) * List.length l
+	| GradientRGB (l,_) -> 1 + (1 + rgb_length) * List.length l
+	| GradientRGBA (l,_) -> 1 + (1 + rgba_length) * List.length l
 
 let matrix_length m =
 	let matrix_part_len m = 5 + matrix_part_nbits m * 2 in
@@ -416,10 +416,11 @@ let read_gradient ch is_rgba =
 		(r, c)
 	in
 	let n = read_byte ch in
+	let n , flags = n land 0xF , n lsr 4 in
 	if is_rgba then
-		GradientRGBA (read_count n grad_rgba ())
+		GradientRGBA (read_count n grad_rgba (),flags)
 	else
-		GradientRGB (read_count n grad_rgb ())
+		GradientRGB (read_count n grad_rgb (),flags)
 
 let read_rect ch =
 	let b = input_bits ch in
@@ -528,13 +529,13 @@ let write_color ch = function
 	| ColorRGBA c -> write_rgba ch c
 
 let write_gradient ch = function
-	| GradientRGB l ->
+	| GradientRGB (l,flags) ->
 		let n = List.length l in
-		write_byte ch n;
+		write_byte ch (n lor (flags lsl 4));
 		List.iter (fun (ratio,c) -> write_byte ch ratio; write_rgb ch c) l
-	| GradientRGBA l ->
+	| GradientRGBA (l,flags) ->
 		let n = List.length l in
-		write_byte ch n;
+		write_byte ch (n lor (flags lsl 4));
 		List.iter (fun (ratio,c) -> write_byte ch ratio; write_rgba ch c) l
 
 let write_rect ch r =
