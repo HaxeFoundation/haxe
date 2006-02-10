@@ -363,19 +363,16 @@ let type_ident ctx i p =
 let type_type ctx tpath p =
 	match load_type_def ctx p tpath with
 	| TClassDecl c ->
-		let priv = is_parent c ctx.curclass in
+		let pub = is_parent c ctx.curclass in
 		let types = List.map (fun _ -> mk_mono()) c.cl_types in
 		let fl = PMap.fold (fun f acc -> 
-			if priv || f.cf_public then
-				PMap.add f.cf_name { 
-					cf_name = f.cf_name;
-					cf_public = true;
-					cf_type = apply_params c.cl_types types f.cf_type;
-					cf_doc = None;
-					cf_expr = None;
-				} acc
-			else
-				acc
+			PMap.add f.cf_name { 
+				cf_name = f.cf_name;
+				cf_public = f.cf_public || pub;
+				cf_type = apply_params c.cl_types types f.cf_type;
+				cf_doc = None;
+				cf_expr = None;
+			} acc
 		) c.cl_statics PMap.empty in
 		mk (TType (TClassDecl c)) (TAnon (fl,Some ("#" ^ s_type_path c.cl_path))) p
 	| TEnumDecl e ->
