@@ -144,11 +144,12 @@ class Reflect {
 
 	public static function deleteField( o : Dynamic, f : String ) {
 		#if flash
-			untyped __delete__(o,f);
+			untyped __delete__(o,f)
 		#else neko
 			untyped __dollar__objremove(o,f.__s)
 		#else error
 		#end
+			;
 	}
 
 }
