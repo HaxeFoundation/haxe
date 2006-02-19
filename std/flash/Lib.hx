@@ -30,6 +30,47 @@ class Lib {
 	public static var _root : MovieClip;
 	public static var current : MovieClip;
 
+	public static function trace( str : String ) {
+		untyped __trace__(str);
+	}
+
+	public static function eval( str : String ) : Dynamic {
+		return untyped __eval__(str);
+	}
+
+	public static function getURL( url : String, target : String, post : Bool ) {
+		untyped if( post == null ) {
+			if( target == null )
+				__geturl__(url,"_self");
+			else
+				__geturl__(url,target);
+		} else if( post )
+			__geturl__(url,target,"POST");
+		else
+			__geturl__(url,target,"GET");
+	}
+
+	public static function fscommand( cmd : String ) {
+		untyped __geturl__("FSCommand:"+cmd,"");
+	}
+
+	public static function print( cmd : String, kind : String ) {
+		kind = if (kind == "bframe" || kind == "bmax") "print:#"+kind else "print:";
+		untyped __geturl__(kind,cmd);
+	}
+
+	public static function getTimer() : Int {
+		return untyped __gettimer__();
+	}
+
+	public static function getVersion() : String {
+		return untyped _root["$version"];
+	}
+
+	public static function registerClass( name : String, cl : {} ) {
+		untyped _global["Object"].registerClass(name,cl);
+	}
+
 }
 
 
