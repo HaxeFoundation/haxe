@@ -37,9 +37,9 @@ extern class Math
 	static function exp(value:Float):Float;
 	static function log(value:Float):Float;
 	static function sqrt(value:Float):Float;
-	static function round(value:Float):Float;
-	static function floor(value:Float):Float;
-	static function ceil(value:Float):Float;
+	static function round(value:Float):Int;
+	static function floor(value:Float):Int;
+	static function ceil(value:Float):Int;
 	static function atan(value:Float):Float;
 	static function asin(value:Float):Float;
 	static function acos(value:Float):Float;
