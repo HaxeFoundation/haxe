@@ -44,6 +44,10 @@ class NekoMath__
 	static var asin = Lib.load("std","math_asin",1);
 	static var acos = Lib.load("std","math_acos",1);
 	static var pow = Lib.load("std","math_pow",2);
+
+	static var _rnd = Lib.load("std","random_new",0)();
+	static var _random = Lib.load("std","random_float",1);
+	static function random() { return _random(_rnd); }
 }
 
 

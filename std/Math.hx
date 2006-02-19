@@ -44,6 +44,7 @@ extern class Math
 	static function asin(value:Float):Float;
 	static function acos(value:Float):Float;
 	static function pow(value1:Float,value2:Float):Float;
+	static function random() : Float;
 }
 
 
