@@ -1,4 +1,4 @@
-2006-02-??: beta 2
+2006-02-19: beta 2
 	renamed neko.db.Result to neko.db.ResultSet
 	added Date support for Mysql results
 	added private fields for static class anonymous types
@@ -10,6 +10,7 @@
 	added flash.XMLSocket and flash.Timer classes
 	completed Std class with conversion functions and others.
 	completed flash.Lib class with flash toplevel functions.
+	fixed bugs in neko webserver
 
 2006-02-04: beta 1
 	allowed array literals to be dynamic
