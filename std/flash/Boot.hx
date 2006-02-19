@@ -232,7 +232,7 @@ class Boot {
 				}
 			};
 			Date.now = function() {
-				return new Date();
+				return __new__(Date);
 			};
 			Date.prototype.toString = function() {
 				var m = this.getMonth() + 1;
