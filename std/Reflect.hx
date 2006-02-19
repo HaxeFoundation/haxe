@@ -25,6 +25,17 @@
 
 class Reflect {
 
+	public static function empty() : {} {
+		return untyped
+		#if flash
+			__new__(_global["Object"])
+		#else neko
+			__dollar__new(null)
+		#else error
+		#end
+			;
+	}
+
 	public static function createInstance( cl : Dynamic, args : Array<Dynamic> ) : Dynamic {
 		return untyped
 		#if flash
@@ -54,7 +65,7 @@ class Reflect {
 	public static function hasField( o : Dynamic, field : String ) : Bool {
 		return untyped
 		#if flash
-			o.hasOwnProperty(field)
+			this.hasOwnProperty.call(o,field)
 		#else neko
 			__dollar__typeof(o) == __dollar__tobject && __dollar__objfield(o,__dollar__hash(field.__s))
 		#else error
@@ -67,7 +78,7 @@ class Reflect {
 		#if flash
 			{
 				var f = o[field];
-				if( f == null && !o.hasOwnProperty(f) )
+				if( f == null && !this.hasOwnProperty(o,f) )
 					throw ("No such field : " + field);
 				return f;
 			}
@@ -98,7 +109,7 @@ class Reflect {
 		}
 	}
 
-	public static function callField( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic {
+	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic {
 		return untyped
 		#if flash
 			func.apply(o,args)
