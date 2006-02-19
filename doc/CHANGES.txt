@@ -7,7 +7,9 @@
 	improved function parameters type error reporting.
 	allowed variable number of args for flash.* constructors.
 	added Math.random(), Reflect.empty()
-	completed Std class.
+	added flash.XMLSocket and flash.Timer classes
+	completed Std class with conversion functions and others.
+	completed flash.Lib class with flash toplevel functions.
 
 2006-02-04: beta 1
 	allowed array literals to be dynamic
