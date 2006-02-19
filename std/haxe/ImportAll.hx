@@ -69,6 +69,7 @@ import flash.TextField;
 import flash.TextFormat;
 import flash.TextSnapshot;
 import flash.Video;
+import flash.XMLSocket;
 
 import flash.text.StyleSheet;
 import flash.system.Capabilities;
