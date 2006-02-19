@@ -50,15 +50,19 @@ type error_msg =
 	| Module_not_found of module_path
 	| Cannot_unify of t * t
 	| Custom of string
+	| Protect of error_msg
+	| Stack of error_msg * error_msg
 
 exception Error of error_msg * pos
 
-let error_msg = function
+let rec error_msg = function
 	| Module_not_found m -> "Class not found : " ^ s_type_path m
 	| Cannot_unify (t1,t2) -> 
 		let ctx = print_context() in
 		s_type ctx t1 ^ " should be " ^ s_type ctx t2
 	| Custom s -> s
+	| Stack (m1,m2) -> error_msg m1 ^ "\n" ^ error_msg m2
+	| Protect m -> error_msg m
 
 let forbidden_packages = ref []
 
@@ -70,6 +74,16 @@ let load ctx m p = (!load_ref) ctx m p
 
 let unify ctx t1 t2 p =
 	if not (unify t1 t2) && not ctx.untyped then raise (Error (Cannot_unify (t1,t2),p))
+
+let exc_protect f =
+	let rec r = ref (fun() ->
+		try
+			f r
+		with
+			| Error (Protect _,_) as e -> raise e
+			| Error (m,p) -> raise (Error (Protect m,p))
+	) in
+	r
 
 (** since load_type is used in PASS2 , it cannot access the structure of a type **)
 
@@ -309,6 +323,33 @@ let rec return_flow e =
 
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
+
+let unify_call_params ctx t el args p =
+	let error flag =
+		if flag && is_flash_extern t then
+			() (* allow fewer args for flash API only *)
+		else 
+			let argstr = "Function require " ^ (if args = [] then "no argument" else "arguments : " ^ String.concat ", " (List.map fst args)) in
+			error ((if flag then "Not enough" else "Too many") ^ " arguments\n" ^ argstr) p;
+	in
+	let rec loop l l2 =
+		match l , l2 with
+		| [] , [] ->
+			()
+		| [] , _ ->
+			error true
+		| _ , [] -> 
+			error false
+		| e :: l, (name,t) :: l2 ->
+			(try 
+				unify ctx e.etype t e.epos;
+			with
+				| Error (Protect _,_) as e -> raise e
+				| Error (m,p) -> raise (Error (Stack (m,Custom ("For function argument '" ^ name ^ "'")), p))
+			);
+			loop l l2
+	in
+	loop el args
 
 let rec class_field c i =
 	try	
@@ -687,6 +728,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			match e with
 			| EField (e,s) -> s :: loop e
 			| EConst (Ident i) -> [i]
+			| EConst (Type i) -> error ("Invalid package identifier : " ^ i) p
 			| _ -> assert false
 		in
 		let pack = List.rev (loop pack)	in
@@ -864,9 +906,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		| Some (c,params) ->
 			let f = (match c.cl_constructor with Some f -> f | None -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
 			(match apply_params c.cl_types params f.cf_type with
-			| TFun (args,r) ->
-				if List.length args <> List.length el then error "Invalid number of constructor parameters" p;
-				List.iter2 (fun e (_,t) -> unify ctx e.etype t e.epos) el args;
+			| TFun (args,_) ->
+				unify_call_params ctx (TInst (c,[])) el args p;
 			| _ ->
 				error "Constructor is not a function" p);
 			TInst (c,params)
@@ -877,23 +918,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let el = List.map (type_expr ctx) el in
 		let t = (match follow e.etype with
 		| TFun (args,r) ->
-			if List.length args <> List.length el then begin
-				match e.eexpr with
-				| TField (e,_) when is_flash_extern e.etype ->
-					() (* allow variable args for flash API only *)
-				| _ ->
-					let argstr = "Function require " ^ (if args = [] then "no argument" else String.concat ", " (List.map fst args)) in
-					error ("Invalid number of arguments\n" ^ argstr) p;
-			end;
-			let rec loop l l2 =
-				match l , l2 with
-				| [] , _ -> ()
-				| _ , [] -> error "Too many arguments" p
-				| e :: l, (_,t) :: l2 ->
-					unify ctx e.etype t e.epos;
-					loop l l2
-			in
-			loop el args;
+			unify_call_params ctx (match e.eexpr with TField (e,_) -> e.etype | _ -> t_dynamic) el args p;
 			r
 		| TMono _ ->
 			let t = mk_mono() in
@@ -921,10 +946,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then error "Cannot access private constructor" p;
 			(match apply_params c.cl_types params f.cf_type with
 			| TFun (args,r) ->
-				if List.length args <> List.length el then begin
-					if not ctx.untyped then error "Invalid number of constructor parameters" p;
-				end else
-					List.iter2 (fun e (_,t) -> unify ctx e.etype t e.epos) el args;
+				unify_call_params ctx t el args p
 			| _ ->
 				error "Constructor is not a function" p);
 			c , params , t
@@ -968,7 +990,7 @@ and type_function ctx t static constr f p =
 	ctx.in_static <- static;
 	ctx.in_constructor <- constr;
 	ctx.ret <- r;
-	let e = type_expr ctx f.f_expr in
+	let e = type_expr ~need_val:false ctx f.f_expr in
 	let rec loop e =
 		match e.eexpr with
 		| TReturn (Some _) -> raise Exit
@@ -1071,7 +1093,7 @@ let init_class ctx c p types herits fields =
 				| None -> (fun() -> ())
 				| Some e ->
 					let ctx = { ctx with curclass = c } in
-					let rec r = ref (fun () ->
+					let r = exc_protect (fun r ->
 						r := (fun() -> t);
 						if !Plugin.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
 						cf.cf_expr <- Some (type_static_var ctx t e p);
@@ -1095,7 +1117,7 @@ let init_class ctx c p types herits fields =
 				cf_public = is_public access;
 			} in
 			let ctx = { ctx with curclass = c; curmethod = name } in
-			let rec r = ref (fun() ->
+			let r = exc_protect (fun r ->
 				r := (fun() -> t);
 				if !Plugin.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
 				let e = type_function ctx t stat constr f p in
