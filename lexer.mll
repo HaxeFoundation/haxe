@@ -151,14 +151,14 @@ rule token = parse
 	| "*=" { mk lexbuf (Binop (OpAssignOp OpMult)) }
 	| "/=" { mk lexbuf (Binop (OpAssignOp OpDiv)) }
 	| "<<=" { mk lexbuf (Binop (OpAssignOp OpShl)) }
-	| ">>=" { mk lexbuf (Binop (OpAssignOp OpShr)) }
-	| ">>>=" { mk lexbuf (Binop (OpAssignOp OpUShr)) }	
+(*//| ">>=" { mk lexbuf (Binop (OpAssignOp OpShr)) } *)
+(*//| ">>>=" { mk lexbuf (Binop (OpAssignOp OpUShr)) } *)
 	| "===" { mk lexbuf (Binop OpPhysEq) }
 	| "!==" { mk lexbuf (Binop OpPhysNotEq) }
 	| "==" { mk lexbuf (Binop OpEq) }
 	| "!=" { mk lexbuf (Binop OpNotEq) }
 	| "<=" { mk lexbuf (Binop OpLte) }
-	| ">=" { mk lexbuf (Binop OpGte) }
+(*//| ">=" { mk lexbuf (Binop OpGte) }*)
 	| "&&" { mk lexbuf (Binop OpBoolAnd) }
 	| "||" { mk lexbuf (Binop OpBoolOr) }
 	| "<<" { mk lexbuf (Binop OpShl) }

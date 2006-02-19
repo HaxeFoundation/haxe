@@ -345,8 +345,17 @@ and expr_next e1 = parser
 		(match s with parser
 		| [< '(Binop OpGt,_); s >] ->
 			(match s with parser
-			| [< '(Binop OpGt,_); e2 = expr >] -> make_binop OpUShr e1 e2
+			| [< '(Binop OpGt,_) >] -> 
+				(match s with parser
+				| [< '(Binop OpAssign,_); e2 = expr >] -> make_binop (OpAssignOp OpUShr) e1 e2
+				| [< e2 = expr >] -> make_binop OpUShr e1 e2
+				| [< >] -> serror())
+			| [< '(Binop OpAssign,_); e2 = expr >] -> make_binop (OpAssignOp OpShr) e1 e2
 			| [< e2 = expr >] -> make_binop OpShr e1 e2
+			| [< >] -> serror())
+		| [< '(Binop OpAssign,_); s >] ->
+			(match s with parser
+			| [< e2 = expr >] -> make_binop OpGte e1 e2
 			| [< >] -> serror())
 		| [< e2 = expr >] ->
 			make_binop OpGt e1 e2
