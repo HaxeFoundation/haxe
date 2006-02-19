@@ -1060,10 +1060,11 @@ let gen_type_def ctx t =
 			push ctx [VReg 0; VStr "__super__"; VNull];
 			setvar ctx VarObj
 		| Some (csuper,_) ->
-			push ctx [VReg 0];
 			push ctx [VReg 0; VStr "__super__"];
 			gen_path ctx csuper.cl_path csuper.cl_extern;
 			setvar ctx VarObj;
+			push ctx [VReg 0];
+			gen_path ctx csuper.cl_path csuper.cl_extern;
 			write ctx AExtends;
 		);
 		(match c.cl_implements with

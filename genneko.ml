@@ -305,7 +305,7 @@ let gen_class c =
 		clpath,
 		(EObject (PMap.fold (gen_method p) c.cl_fields fstring),p)
 	),p) in
-	(EBlock [eclass; estat; (EBinop ("=",field p clpath "__class__",stpath),p)],p)	
+	(EBlock [eclass; estat; call p (builtin p "objsetproto") [clpath; esuper]; (EBinop ("=",field p clpath "__class__",stpath),p)],p)	
 
 let gen_enum_constr c =
 	let p = pos c.ef_pos in
