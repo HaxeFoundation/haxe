@@ -91,7 +91,8 @@ let stack_delta = function
 	| ADeleteObj | AInstanceOf | ACast -> -1
 	| AExtends | AImplements -> -2
 	| AEnum2 | ATrace | AThrow -> -1
-	| AIncrement | ADecrement | AChr | AOrd | ARandom | ADelete | AGetTimer | ATypeOf | ATargetPath -> 0
+	| AGetTimer -> 1
+	| AIncrement | ADecrement | AChr | AOrd | ARandom | ADelete | ATypeOf | ATargetPath -> 0
 	| AObjCall | ACall | ANewMethod -> assert false
 	| AStringPool _ -> 0
 	| op -> failwith ("Unknown stack delta for " ^ (ActionScript.action_string (fun _ -> "") 0 op))
@@ -753,6 +754,21 @@ and gen_call ctx e el =
 	| TLocal "__typeof__" , [e] ->
 		gen_expr ctx true e;
 		write ctx ATypeOf
+	| TLocal "__random__" , [e] ->
+		gen_expr ctx true e;
+		write ctx ARandom
+	| TLocal "__trace__" , [e] ->
+		gen_expr ctx true e;
+		write ctx ATrace
+	| TLocal "__eval__" , [e] ->
+		gen_expr ctx true e;
+		write ctx AEval
+	| TLocal "__gettimer__", [] ->
+		write ctx AGetTimer
+	| TLocal "__geturl__" , url :: target :: post ->
+		gen_expr ctx true url;
+		gen_expr ctx true target;
+		write ctx (AGetURL2 (match post with [] -> 0 | [{ eexpr = TConst (TString "GET") }] -> 1 | _ -> 2))
 	| TLocal "__new__", e :: el ->
 		let nargs = List.length el in
 		List.iter (gen_expr ctx true) el;
