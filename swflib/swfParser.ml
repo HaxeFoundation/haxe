@@ -1714,7 +1714,7 @@ let rec write_tag_data ch = function
 		write_shape ch s
 	| TShape5 (id,s) ->
 		write_ui16 ch id;
-		
+		nwrite ch s
 	| TUnknown (_,data) ->
 		nwrite ch data
 
