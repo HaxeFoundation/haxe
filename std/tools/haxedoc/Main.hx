@@ -5,6 +5,7 @@ import neko.Web;
 
 private class Url {
 	public static var base : String;
+	public static var buffer : StringBuf;
 	public static function make( params, text ) {
 		return "<a href=\""+base + params+"\">"+text+"</a>";
 	}
@@ -398,19 +399,19 @@ class DocView {
 	}
 
 	static function display(p : Array<DocEntry> ) {
-		Lib.print("<ul>");
+		print("<ul>");
 		for( e in p ) {
 			switch e {
 			case epackage(name,p):
-				Lib.print("<li>"+name);
+				print("<li>"+name);
 				display(p);
-				Lib.print("</li>");
+				print("</li>");
 			case eclass(c):
 				if( c.fields.length > 0 )
-					Lib.print("<li>"+Url.make(c.path.split(".").join("/"),c.name)+"</li>");
+					print("<li>"+Url.make(c.path.split(".").join("/"),c.name)+"</li>");
 			}
 		}
-		Lib.print("</ul>");
+		print("</ul>");
 	}
 
 	static function loadFile(file) {
@@ -420,26 +421,59 @@ class DocView {
 			processClass(c);
 	}
 
+	static function print(s) {
+		Url.buffer.add(s);
+	}
+
+	static function displayHtml(html : Node) {
+		if( html.nodeType != Node.element_node ) {
+			print(html.toString());
+			return;
+		}
+		if( html.nodeName == "data" ) {
+			var h = Web.params();
+			var clname = h.get("class");
+			if( clname == "index" )
+				clname = null;
+			if( clname == null )
+				display(entries);
+			else {
+				clname = clname.split("/").join(".");
+				var c = findEntry(entries,clname.split("."));
+				if( c == null )
+					throw ("Class not found : "+clname);
+				print(Url.make("index","Index"));
+				print(c.toString());
+				print(Url.make("index","Index"));
+			}
+			return;
+		}
+		if( html.childNodes.length == 0 ) {
+			print(html.toString());
+			return;
+		}
+		print("<");
+		print(html.nodeName);
+		for( k in Reflect.fields(html.attributes) )
+			print(" "+k+"=\""+Reflect.field(html.attributes,k)+"\"");
+		print(">");
+		for( c in html.childNodes )
+			displayHtml(c);
+		print("</"+html.nodeName+">");
+	}
+
+	static var default_template = "<html><body><data/></body></html>";
+
 	public static function main() {
-		var h = Web.params();
+		var hdata = try neko.File.getContent(Web.getCwd()+"template.xml") catch( e : Dynamic ) default_template;
+		var html = XmlParser.parse(hdata).firstChild;
 		loadFile("flash.xml");
 		loadFile("neko.xml");
 		sortEntries(entries);
 		Url.base = "/api/";
-		var clname = h.get("class");
-		if( clname == "index" )
-			clname = null;
-		if( clname == null )
-			display(entries);
-		else {
-			clname = clname.split("/").join(".");
-			var c = findEntry(entries,clname.split("."));
-			if( c == null )
-				throw ("Class not found : "+clname);
-			Lib.print(Url.make("index","Index"));
-			Lib.print(c.toString());
-			Lib.print(Url.make("index","Index"));
-		}
+		Url.buffer = new StringBuf();
+		displayHtml(html);
+		Lib.print(Url.buffer.toString());
 	}
 
 }
