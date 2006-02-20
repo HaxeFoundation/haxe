@@ -26,6 +26,10 @@ class Connection {
 		return new String(sql_escape(__c,untyped s.__s));
 	}
 
+	public function quote( s : String ) {
+		return "'"+escape(s)+"'";
+	}
+
 	private static var __use_date = Date;
 	private static var sql_select_db = neko.Lib.load("mysql","select_db",2);
 	private static var sql_request = neko.Lib.load("mysql","request",2);
