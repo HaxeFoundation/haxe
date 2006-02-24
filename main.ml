@@ -18,6 +18,12 @@
  *)
 open Printf
 
+type target = 
+	| No 
+	| Js of string
+	| Swf of string
+	| Neko of string
+
 let prompt = ref false
 
 let normalize_path p =
@@ -77,9 +83,8 @@ try
 	let usage = "Haxe Compiler Beta 2 - (c)2005-2006 Motion-Twin\n Usage : haxe.exe [options] <class names...>\n Options :" in
 	let base_path = normalize_path (try Extc.executable_path() with _ -> "./") in
 	let classes = ref [([],"Std")] in
-	let swf_out = ref None in
+	let target = ref No in
 	let swf_in = ref None in
-	let neko_out = ref None in
 	let xml_out = ref None in
 	let main_class = ref None in
 	let swf_version = ref 8 in
@@ -91,24 +96,29 @@ try
 	Typer.forbidden_packages := ["js"; "neko"; "flash"];
 	Plugin.class_path := [base_path;base_path ^ "std/";"";"/"];
 	let check_targets() =
-		if !swf_out <> None || !neko_out <> None then failwith "Multiple targets";
+		if !target <> No then failwith "Multiple targets";
 	in
 	let args_spec = [
 		("-cp",Arg.String (fun path ->
 			Plugin.class_path := normalize_path path :: !Plugin.class_path
 		),"<path> : add a directory to find source files");
+		("-js",Arg.String (fun file ->
+			check_targets();
+			Typer.forbidden_packages := ["neko"; "flash"];
+			target := Js file
+		),"<file> : compile code to JavaScript file");
 		("-swf",Arg.String (fun file ->
 			check_targets();
 			Typer.forbidden_packages := ["js"; "neko"];
-			swf_out := Some file
-		),"<file> : compile code to SWF file");
+			target := Swf file
+		),"<file> : compile code to Flash SWF file");
 		("-swf-lib",Arg.String (fun file ->
 			swf_in := Some file
 		),"<file> : add the SWF library to the compiled SWF");
 		("-neko",Arg.String (fun file ->
 			check_targets();
 			Typer.forbidden_packages := ["js"; "flash"];
-			neko_out := Some file
+			target := Neko file
 		),"<file> : compile code to Neko Binary");
 		("-xml",Arg.String (fun file ->
 			xml_out := Some file
@@ -155,15 +165,16 @@ try
 		| _ -> classes := make_path cl :: !classes
 	in
 	Arg.parse_argv ~current argv args_spec args_callback usage;
-	(match !swf_out with
-	| None -> ()
-	| Some _ ->
+	(match !target with
+	| No ->
+		()
+	| Swf _ ->
 		Hashtbl.add Parser.defines "flash" ();
-		Hashtbl.add Parser.defines ("flash" ^ string_of_int !swf_version) ());
-	(match !neko_out with
-	| None -> ()
-	| Some _ ->
+		Hashtbl.add Parser.defines ("flash" ^ string_of_int !swf_version) ();
+	| Neko _ ->
 		Hashtbl.add Parser.defines "neko" ();
+	| Js _ ->
+		Hashtbl.add Parser.defines "js" ();
 	);
 	if !classes = [([],"Std")] then begin
 		Arg.usage args_spec usage
@@ -173,17 +184,18 @@ try
 		List.iter (fun cpath -> ignore(Typer.load ctx cpath Ast.null_pos)) (List.rev !classes);
 		Typer.finalize ctx;
 		let types = Typer.types ctx (!main_class) in
-		(match !swf_out with
-		| None -> ()
-		| Some file ->
+		(match !target with
+		| No -> ()
+		| Swf file ->
 			if !Plugin.verbose then print_endline ("Generating swf : " ^ file);
 			Genswf.generate file (!swf_version) (!swf_in) types
-		);
-		(match !neko_out with
-		| None -> ()
-		| Some file ->
+		| Neko file ->
 			if !Plugin.verbose then print_endline ("Generating neko : " ^ file);
-			Genneko.generate file types);
+			Genneko.generate file types
+		| Js file ->
+			if !Plugin.verbose then print_endline ("Generating js : " ^ file);
+			Genjs.generate file types
+		);
 		(match !xml_out with
 		| None -> ()
 		| Some file ->
