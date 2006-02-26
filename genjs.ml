@@ -23,6 +23,7 @@ type ctx = {
 	packages : (string list,unit) Hashtbl.t;
 	mutable statics : (tclass * string * texpr) list;
 	mutable tabs : string;
+	mutable in_value : bool;
 }
 
 let s_path = function
@@ -35,14 +36,21 @@ let kwds =
 	h
 
 let field s = if Hashtbl.mem kwds s then "[\"" ^ s ^ "\"]" else "." ^ s
-let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
+let ident s = 
+	if Hashtbl.mem kwds s then "$" ^ s else 
+	let len = String.length s in
+	if len > 7 && String.sub s 0 7 = "__top__" then String.sub s 7 (len - 7 )
+	else s
 
 let spr ctx s = Buffer.add_string ctx.buf s
 let print ctx = Printf.ksprintf (fun s -> Buffer.add_string ctx.buf s)
 
+let unsupported p = 
+	raise (Typer.Error (Typer.Custom "This expression cannot be compiled to Javascript",p))
+
 let newline ctx = 
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
-	| '}' -> print ctx "\n%s" ctx.tabs
+	| '}' | '{' | ':' -> print ctx "\n%s" ctx.tabs
 	| _ -> print ctx ";\n%s" ctx.tabs
 
 let rec concat ctx s f = function
@@ -58,73 +66,103 @@ let parent e =
 	| TParenthesis _ -> e
 	| _ -> mk (TParenthesis e) e.etype e.epos
 
+let block e = 
+	match e.eexpr with
+	| TBlock (_ :: _) -> e
+	| _ -> mk (TBlock [e]) e.etype e.epos
+
+let open_block ctx =
+	let oldt = ctx.tabs in
+	ctx.tabs <- "\t" ^ ctx.tabs;
+	(fun() -> ctx.tabs <- oldt)
+
 let gen_constant ctx = function
 	| TInt s
 	| TFloat s -> spr ctx s
-	| TString s -> print ctx "\"%s\"" s
+	| TString s -> print ctx "\"%s\"" (Ast.s_escape s)
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "null"
 	| TThis -> spr ctx "this"
 	| TSuper -> assert false
 
-let rec gen_expr ctx e =
+let rec gen_call ctx e el =
+	match e.eexpr , el with
+	| TLocal "__new__" , { eexpr = TConst (TString cl) } :: params ->
+		print ctx "new %s(" cl;
+		concat ctx "," (gen_value ctx) params;
+		spr ctx ")";
+	| TLocal "__new__" , e :: params ->
+		spr ctx "new ";
+		gen_value ctx e;
+		spr ctx "(";
+		concat ctx "," (gen_value ctx) params;
+		spr ctx ")";
+	| _ ->
+		gen_value ctx e;
+		spr ctx "(";
+		concat ctx "," (gen_value ctx) el;
+		spr ctx ")"
+
+and gen_expr ctx e =
 	match e.eexpr with
 	| TConst c -> gen_constant ctx c
 	| TLocal s -> spr ctx (ident s)
 	| TMember s -> print ctx "this%s" (field s)
-	| TEnumField (e,s) -> print ctx "%s%s" (s_path e.e_path) (field s)
+	| TEnumField (e,s) ->
+		print ctx "%s%s" (s_path e.e_path) (field s)
 	| TArray (e1,e2) -> 
-		gen_expr ctx e1;
+		gen_value ctx e1;
 		spr ctx "[";
-		gen_expr ctx e2;
+		gen_value ctx e2;
 		spr ctx "]";
 	| TBinop (op,e1,e2) ->
-		gen_expr ctx e1;
+		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
-		gen_expr ctx e2;
+		gen_value ctx e2;
 	| TField (e,s) ->
-		gen_expr ctx e;
+		gen_value ctx e;
 		spr ctx (field s)
 	| TType t ->
 		spr ctx (s_path (t_path t))
 	| TParenthesis e ->
 		spr ctx "(";
-		gen_expr ctx e;
+		gen_value ctx e;
 		spr ctx ")";
 	| TReturn eo ->
+		if ctx.in_value then unsupported e.epos;
 		(match eo with
 		| None ->
 			spr ctx "return"
 		| Some e ->
 			spr ctx "return ";
-			gen_expr ctx e);
+			gen_value ctx e);
 	| TBreak ->
+		if ctx.in_value then unsupported e.epos;
 		spr ctx "break"
 	| TContinue ->
+		if ctx.in_value then unsupported e.epos;
 		spr ctx "continue"
+	| TBlock [] ->
+		spr ctx "null"
 	| TBlock el ->
-		let oldt = ctx.tabs in
 		print ctx "{";
-		ctx.tabs <- "\t" ^ ctx.tabs;		
+		let bend = open_block ctx in
 		List.iter (fun e -> newline ctx; gen_expr ctx e) el;
-		ctx.tabs <- oldt;
+		bend();
 		newline ctx;
 		print ctx "}";
 	| TFunction f ->
-		print ctx "function(%s)" (String.concat "," (List.map ident (List.map fst f.tf_args)));
-		gen_expr ctx f.tf_expr;
+		print ctx "function(%s) " (String.concat "," (List.map ident (List.map fst f.tf_args)));
+		gen_expr ctx (block f.tf_expr);
 	| TCall (e,el) ->
-		gen_expr ctx e;
-		spr ctx "(";
-		concat ctx "," (gen_expr ctx) el;
-		spr ctx ")"
+		gen_call ctx e el
 	| TArrayDecl el ->
 		spr ctx "[";
-		concat ctx "," (gen_expr ctx) el;
+		concat ctx "," (gen_value ctx) el;
 		spr ctx "]"
 	| TThrow e ->
 		spr ctx "throw ";
-		gen_expr ctx e;
+		gen_value ctx e;
 	| TVars [] ->
 		()
 	| TVars vl ->
@@ -135,43 +173,46 @@ let rec gen_expr ctx e =
 			| None -> ()
 			| Some e ->
 				spr ctx " = ";
-				gen_expr ctx e
+				gen_value ctx e
 		) vl;
 	| TNew (c,_,el) ->
 		print ctx "new %s(" (s_path c.cl_path);
-		concat ctx "," (gen_expr ctx) el;
+		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 	| TIf (cond,e,eelse) ->
 		spr ctx "if";
-		gen_expr ctx (parent cond);
+		gen_value ctx (parent cond);
 		spr ctx " ";
 		gen_expr ctx e;
 		(match eelse with
 		| None -> ()
-		| Some e -> 
-			spr ctx "; else ";
+		| Some e ->
+			newline ctx;
+			spr ctx "else ";
 			gen_expr ctx e);
 	| TUnop (op,Ast.Prefix,e) ->
 		spr ctx (Ast.s_unop op);
-		gen_expr ctx e
+		gen_value ctx e
 	| TUnop (op,Ast.Postfix,e) ->
-		gen_expr ctx e;
+		gen_value ctx e;
 		spr ctx (Ast.s_unop op)
 	| TWhile (cond,e,Ast.NormalWhile) ->
-		gen_expr ctx (parent cond);
+		spr ctx "while";
+		gen_value ctx (parent cond);
+		spr ctx " ";
 		gen_expr ctx e;
 	| TWhile (cond,e,Ast.DoWhile) ->
 		spr ctx "do ";
 		gen_expr ctx e;
 		spr ctx " while";
-		gen_expr ctx (parent cond);		
+		gen_value ctx (parent cond);		
 	| TObjectDecl fields ->
 		spr ctx "{ ";
-		concat ctx ", " (fun (f,e) -> print ctx "%s : " f; gen_expr ctx e) fields;
+		concat ctx ", " (fun (f,e) -> print ctx "%s : " f; gen_value ctx e) fields;
 		spr ctx "}"
 	| TFor (v,it,e) ->
 		spr ctx "var $it = ";
-		gen_expr ctx it;
+		gen_value ctx it;
 		newline ctx;
 		print ctx "while( $it.hasNext() ) { var %s = $it.next()" (ident v);
 		newline ctx;
@@ -186,18 +227,181 @@ let rec gen_expr ctx e =
 		newline ctx;
 		(* TODO : CATCHES *)
 		spr ctx "}";
-	| TMatch _ ->
-		assert false (* handled in TSwitch *)
+	| TMatch (e,_,cases,def) ->
+		spr ctx "var $e = ";
+		gen_value ctx e;
+		newline ctx;
+		spr ctx "switch( $e[0] ) {";
+		newline ctx;
+		List.iter (fun (constr,params,e) ->
+			print ctx "case \"%s\":" constr;
+			newline ctx;
+			(match params with 
+			| None | Some [] -> ()
+			| Some l -> 
+				let n = ref 1 in
+				spr ctx "var ";
+				concat ctx ", " (fun (v,_) -> 
+					print ctx "%s = $e[%d]" v (!n);
+					incr n;
+				) l;
+				newline ctx);
+			gen_expr ctx (block e);
+			print ctx "break";
+			newline ctx
+		) cases;
+		(match def with
+		| None -> ()
+		| Some e ->
+			spr ctx "default:";
+			gen_expr ctx (block e);
+			print ctx "break";
+			newline ctx;
+		);
+		spr ctx "}"		
 	| TSwitch (e,cases,def) ->
-		spr ctx "null"
+		spr ctx "switch";
+		gen_value ctx (parent e);
+		spr ctx " {";
+		newline ctx;
+		List.iter (fun (e1,e2) ->
+			spr ctx "case ";
+			gen_value ctx e1;
+			spr ctx ":";
+			gen_expr ctx (block e2);
+			print ctx "break";
+			newline ctx;
+		) cases;
+		(match def with
+		| None -> ()
+		| Some e ->
+			spr ctx "default:";
+			gen_expr ctx (block e);
+			print ctx "break";
+			newline ctx;
+		);
+		spr ctx "}"
+
+and gen_value ctx e =
+	let assign e =
+		mk (TBinop (Ast.OpAssign,
+			mk (TLocal "$r") t_dynamic e.epos,
+			e
+		)) e.etype e.epos
+	in
+	let value block =
+		let old = ctx.in_value in
+		ctx.in_value <- true;
+		spr ctx "function() ";
+		let b = if block then begin
+			spr ctx "{";
+			let b = open_block ctx in
+			newline ctx;
+			spr ctx "var $r";
+			newline ctx;
+			b
+		end else
+			(fun() -> ()) 
+		in
+		(fun() ->
+			if block then begin
+				newline ctx;
+				spr ctx "return $r";				
+				b();
+				newline ctx;
+				spr ctx "}";
+			end;
+			ctx.in_value <- old;
+			spr ctx "()"
+		)
+	in
+	match e.eexpr with
+	| TConst _
+	| TLocal _
+	| TMember _
+	| TEnumField _
+	| TArray _
+	| TBinop _
+	| TField _
+	| TType _
+	| TParenthesis _
+	| TObjectDecl _
+	| TArrayDecl _
+	| TCall _
+	| TNew _
+	| TUnop _
+	| TFunction _ ->
+		gen_expr ctx e
+	| TReturn _
+	| TBreak
+	| TContinue ->		
+		unsupported e.epos
+	| TVars _
+	| TFor _
+	| TWhile _
+	| TThrow _ ->
+		(* value is discarded anyway *)
+		let v = value true in
+		gen_expr ctx e;
+		v()
+	| TBlock [e] ->
+		gen_value ctx e
+	| TBlock el ->
+		let v = value true in
+		let rec loop = function
+			| [] -> 
+				spr ctx "return null";
+			| [e] ->
+				gen_expr ctx (assign e);
+			| e :: l ->
+				gen_expr ctx e;
+				newline ctx;
+				loop l
+		in
+		loop el;
+		v();	
+	| TIf (cond,e,eo) ->
+		spr ctx "(";
+		gen_value ctx cond;
+		spr ctx "?";
+		gen_value ctx e;
+		spr ctx ":";
+		(match eo with
+		| None -> spr ctx "null"
+		| Some e -> gen_value ctx e);
+		spr ctx ")"
+	| TSwitch (cond,cases,def) ->
+		let v = value true in
+		gen_expr ctx (mk (TSwitch (cond,
+			List.map (fun (e1,e2) -> (e1,assign e2)) cases,
+			match def with None -> None | Some e -> Some (assign e)
+		)) e.etype e.epos);
+		v()
+	| TMatch (cond,enum,cases,def) ->
+		let v = value true in
+		gen_expr ctx (mk (TMatch (cond,enum,
+			List.map (fun (constr,params,e) -> (constr,params,assign e)) cases,
+			match def with None -> None | Some e -> Some (assign e)
+		)) e.etype e.epos);
+		v()
+	| TTry (b,catchs) ->
+		let v = value true in
+		gen_expr ctx (mk (TTry (assign b,
+			List.map (fun (v,t,e) -> v, t , assign e) catchs
+		)) e.etype e.epos);
+		v()
 
 let generate_package_create ctx (p,_) =
 	let rec loop acc = function
 		| [] -> ()
 		| p :: l when Hashtbl.mem ctx.packages (p :: acc) -> loop (p :: acc) l
-		| p :: l ->			
+		| p :: l ->
 			Hashtbl.add ctx.packages (p :: acc) ();
-			print ctx "%s%s = {}" (String.concat "." (List.rev acc)) (field p);
+			(match acc with
+			| [] -> 
+				print ctx "%s = {}" p;
+			| _ ->
+				print ctx "%s%s = {}" (String.concat "." (List.rev acc)) (field p));
 			newline ctx;
 			loop (p :: acc) l
 	in
@@ -212,7 +416,7 @@ let gen_class_static_field ctx c f =
 		match e.eexpr with
 		| TFunction _ ->
 			print ctx "%s%s = " (s_path c.cl_path) (field f.cf_name);
-			gen_expr ctx e;
+			gen_value ctx e;
 			newline ctx
 		| _ ->
 			ctx.statics <- (c,f.cf_name,e) :: ctx.statics
@@ -224,7 +428,7 @@ let gen_class_field ctx c f =
 		print ctx "null";
 		newline ctx
 	| Some e ->
-		gen_expr ctx e;
+		gen_value ctx e;
 		newline ctx
 
 let generate_class ctx c = 
@@ -232,7 +436,7 @@ let generate_class ctx c =
 	print ctx "%s = " (s_path c.cl_path);
 	(match c.cl_constructor with
 	| Some { cf_expr = Some e } ->
-		gen_expr ctx e;
+		gen_value ctx e;
 	| _ ->
 		print ctx "function() { }"
 	);
@@ -248,7 +452,7 @@ let generate_enum ctx e =
 
 let generate_static ctx (c,f,e) =
 	print ctx "%s%s = " (s_path c.cl_path) (field f);
-	gen_expr ctx e;
+	gen_value ctx e;
 	newline ctx
 
 let generate_type ctx = function
@@ -261,8 +465,11 @@ let generate file types =
 		packages = Hashtbl.create 0;
 		statics = [];
 		tabs = "";
+		in_value = false;
 	} in
 	List.iter (generate_type ctx) types;
+	print ctx "js.Boot.__init()";
+	newline ctx;
 	List.iter (generate_static ctx) (List.rev ctx.statics);
 	let ch = open_out file in
 	output_string ch (Buffer.contents ctx.buf);
