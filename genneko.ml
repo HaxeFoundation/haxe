@@ -217,37 +217,32 @@ and gen_expr e =
 		(EContinue,p)
 	| TThrow e ->
 		call p (builtin p "throw") [gen_expr e]
-	| TMatch _ ->
-		assert false
-	| TSwitch (e,cases,eo) ->
-		try
-			let l = List.map (fun (e,e2) -> match e.eexpr with TMatch (_,s,vl) -> (s,vl,e2) | _ -> raise Not_found) cases in
-			(ENext (
-				(EVars ["@tmp",Some (gen_expr e)],p),
-				(ESwitch (
-					(EArray (ident p "@tmp",int p 0),p),
-					List.map (fun (s,el,e2) ->
-						let count = ref 0 in
-						let e = match el with
-							| None -> gen_expr e2
-							| Some el ->
-								(EBlock [
-									(EVars (List.map (fun (v,_) -> incr count; v , Some (EArray (ident p "@tmp",int p (!count)),p)) el),p);
-									(gen_expr e2)
-								],p)
-						in
-						str p s , e
-					) l,
-					(match eo with None -> None | Some e -> Some (gen_expr e))
-				),p)
+	| TMatch (e,_,cases,eo) ->
+		(ENext (
+			(EVars ["@tmp",Some (gen_expr e)],p),
+			(ESwitch (
+				(EArray (ident p "@tmp",int p 0),p),
+				List.map (fun (s,el,e2) ->
+					let count = ref 0 in
+					let e = match el with
+						| None -> gen_expr e2
+						| Some el ->
+							(EBlock [
+								(EVars (List.map (fun (v,_) -> incr count; v , Some (EArray (ident p "@tmp",int p (!count)),p)) el),p);
+								(gen_expr e2)
+							],p)
+					in
+					str p s , e
+				) cases,
+				(match eo with None -> None | Some e -> Some (gen_expr e))
 			),p)
-		with
-			Not_found ->
-				(ESwitch (
-					gen_expr e,
-					List.map (fun (e1,e2) -> gen_expr e1, gen_expr e2) cases,
-					(match eo with None -> None | Some e -> Some (gen_expr e))
-				),p)
+		),p)
+	| TSwitch (e,cases,eo) ->
+		(ESwitch (
+			gen_expr e,
+			List.map (fun (e1,e2) -> gen_expr e1, gen_expr e2) cases,
+			(match eo with None -> None | Some e -> Some (gen_expr e))
+		),p)
 
 let gen_method p c acc =
 	match c.cf_expr with

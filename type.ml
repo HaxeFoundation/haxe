@@ -58,18 +58,18 @@ and texpr_expr =
 	| TCall of texpr * texpr list
 	| TNew of tclass * t list * texpr list
 	| TUnop of Ast.unop * Ast.unop_flag * texpr
-	| TVars of (string * t * texpr option) list
 	| TFunction of tfunc
+	| TVars of (string * t * texpr option) list
 	| TBlock of texpr list
 	| TFor of string * texpr * texpr
 	| TIf of texpr * texpr * texpr option
 	| TWhile of texpr * texpr * Ast.while_flag
 	| TSwitch of texpr * (texpr * texpr) list * texpr option
+	| TMatch of texpr * (tenum * t list) * (string * (string * t) list option * texpr) list * texpr option
 	| TTry of texpr * (string * t * texpr) list
 	| TReturn of texpr option
 	| TBreak
 	| TContinue
-	| TMatch of tenum * string * (string * t) list option
 	| TThrow of texpr
 
 and texpr = {
@@ -383,7 +383,6 @@ let rec iter f e =
 	| TEnumField _
 	| TBreak
 	| TContinue
-	| TMatch _
 	| TType _ ->
 		()
 	| TArray (e1,e2)
@@ -417,6 +416,10 @@ let rec iter f e =
 	| TSwitch (e,cases,def) ->
 		f e;
 		List.iter (fun (e1,e2) -> f e1; f e2) cases;
+		(match def with None -> () | Some e -> f e)
+	| TMatch (e,_,cases,def) ->
+		f e;
+		List.iter (fun (_,_,e) -> f e) cases;
 		(match def with None -> () | Some e -> f e)
 	| TTry (e,catches) ->
 		f e;

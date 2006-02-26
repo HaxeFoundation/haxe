@@ -609,27 +609,20 @@ and gen_match ctx retval e cases def =
 	write ctx AObjGet;
 	let rtag = alloc_reg ctx in
 	write ctx (ASetReg rtag);
-	let gen_match e x =
-		match e.eexpr with
-		| TMatch (e,constr,args) ->
-			push ctx [VStr constr];
-			write ctx APhysEqual;
-			args
-		| _ ->
-			assert false
-	in
 	let rec loop = function
 		| [] -> 
 			write ctx APop;
 			[]
-		| [(e,x)] ->
-			let args = gen_match e x in
-			[cjmp ctx,args,x]
-		| (e,x) :: l ->
-			let args = gen_match e x in
+		| [(constr,args,e)] ->
+			push ctx [VStr constr];
+			write ctx APhysEqual;
+			[cjmp ctx,args,e]
+		| (constr,args,e) :: l ->
+			push ctx [VStr constr];
+			write ctx APhysEqual;
 			let j = cjmp ctx in
 			push ctx [VReg rtag];
-			(j,args,x) :: loop l
+			(j,args,e) :: loop l
 	in
 	let dispatch = loop cases in
 	free_reg ctx rtag e.epos;
@@ -935,8 +928,7 @@ and gen_expr_2 ctx retval e =
 		push ctx [VStr (gen_type ctx c.cl_path c.cl_extern)];
 		new_call ctx VarStr nargs
 	| TSwitch (e,cases,def) ->
-		let is_enum = cases <> [] && List.for_all (fun (e,_) -> match e.eexpr with TMatch _ -> true | _ -> false) cases in
-		(if is_enum then gen_match else gen_switch) ctx retval e cases def
+		gen_switch ctx retval e cases def
 	| TThrow e ->
 		gen_expr ctx true e;
 		write ctx AThrow;
@@ -947,9 +939,8 @@ and gen_expr_2 ctx retval e =
 		gen_binop ctx retval op e1 e2
 	| TUnop (op,flag,e) ->
 		gen_unop ctx retval op flag e
-	| TMatch _ ->
-		(* done : only in switch *)
-		assert false
+	| TMatch (e,_,cases,def) ->
+		gen_match ctx retval e cases def
 	| TFor (v,it,e) ->
 		gen_expr ctx true it;
 		let r = alloc_reg ctx in

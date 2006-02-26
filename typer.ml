@@ -46,6 +46,10 @@ type context = {
 (* ---------------------------------------------------------------------- *)
 (* TOOLS *)
 
+type switch_mode =
+	| CMatch of (string * (string * t) list option)
+	| CExpr of texpr
+
 type error_msg =
 	| Module_not_found of module_path
 	| Cannot_unify of t * t
@@ -479,8 +483,7 @@ let type_matching ctx (enum,params) (e,p) ecases =
 			| TEnum _ -> ()
 			| _ -> assert false
 		);
-		let t = TEnum (enum , params) in
-		mk (TMatch (enum,name,None)) t p 
+		(name,None)
 	| ECall ((EConst (Ident name),_),el) ->
 		let c = constr name in
 		let args = (match c.ef_type with
@@ -497,8 +500,7 @@ let type_matching ctx (enum,params) (e,p) ecases =
 				name , t
 			| _ -> invalid()
 		) el args in
-		let t = TEnum (enum, params) in
-		mk (TMatch (enum,name,Some idents)) t p 
+		(name,Some idents)
 	| _ ->
 		invalid()
 
@@ -664,9 +666,14 @@ and type_switch ctx e cases def need_val p =
 	let ecases = ref PMap.empty in
 	let cases = List.map (fun (e1,e2) ->
 		let locals = ctx.locals in
-		let e1 = (match enum with Some e -> type_matching ctx e e1 ecases | None -> type_expr ctx e1) in
-		(* this inversion is needed *)
-		unify ctx e.etype e1.etype e1.epos; 
+		let e1 = (match enum with 
+		| Some e -> CMatch (type_matching ctx e e1 ecases) 
+		| None -> 
+			let e1 = type_expr ctx e1 in
+			(* this inversion is needed *)
+			unify ctx e.etype e1.etype e1.epos; 
+			CExpr e1
+		) in
 		let e2 = type_expr ctx e2 in
 		ctx.locals <- locals;
 		if need_val then unify ctx e2.etype t e2.epos;
@@ -690,8 +697,21 @@ and type_switch ctx e cases def need_val p =
 			if need_val then unify ctx e.etype t e.epos;
 			Some e
 	) in
-	mk (TSwitch (e,cases,def)) t p
-
+	match enum with
+	| None -> 
+		let exprs (c,e) =
+			match c with
+			| CExpr c -> c , e
+			| _ -> assert false
+		in
+		mk (TSwitch (e,List.map exprs cases,def)) t p
+	| Some enum ->
+		let matchs (c,e) =
+			match c with
+			| CMatch (c,p) -> (c,p,e)
+			| _ -> assert false
+		in
+		mk (TMatch (e,enum,List.map matchs cases,def)) t p
 
 and type_expr ctx ?(need_val=true) (e,p) =
 	match e with
@@ -850,13 +870,13 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				unify ctx e.etype ctx.ret e.epos;
 				Some e , e.etype
 		) in
-		mk (TReturn e) (t_void ctx) p
+		mk (TReturn e) (mk_mono()) p
 	| EBreak ->
 		if not ctx.in_loop then error "Break outside loop" p;
-		mk TBreak (t_void ctx) p
+		mk TBreak (mk_mono()) p
 	| EContinue ->
 		if not ctx.in_loop then error "Continue outside loop" p;
-		mk TContinue (t_void ctx) p
+		mk TContinue (mk_mono()) p
 	| ETry (e1,catches) -> 
 		let e1 = type_expr ctx ~need_val e1 in
 		let catches = List.map (fun (v,t,e) ->
@@ -1393,8 +1413,9 @@ let types ctx main =
 		| TNew (c,_,_) ->
 			iter (walk_expr p) e;
 			loop_class p c
-		| TMatch (e,_,_) ->
-			loop_enum p e
+		| TMatch (_,(enum,_),_,_) ->
+			loop_enum p enum;
+			iter (walk_expr p) e
 		| TCall (f,_) ->
 			iter (walk_expr p) e;
 			(* static call for initializing a variable *)
