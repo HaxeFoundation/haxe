@@ -70,6 +70,8 @@ import flash.TextFormat;
 import flash.TextSnapshot;
 import flash.Video;
 import flash.XMLSocket;
+import flash.NetStream;
+import flash.NetConnection;
 
 import flash.text.StyleSheet;
 import flash.system.Capabilities;

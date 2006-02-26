@@ -276,6 +276,8 @@ class Boot {
 			flash.TextSnapshot = _global["TextSnapshot"];
 			flash.Video = _global["Video"];
 			flash.XMLSocket = _global["XMLSocket"];
+			flash.NetConnection = _global["NetConnection"];
+			flash.NetStream = _global["NetStream"];
 
 			Lib._global = _global;
 			Lib._root = _root;
