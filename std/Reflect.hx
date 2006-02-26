@@ -31,6 +31,8 @@ class Reflect {
 			__new__(_global["Object"])
 		#else neko
 			__dollar__new(null)
+		#else js
+			__new__("Object")
 		#else error
 		#end
 			;
@@ -57,6 +59,8 @@ class Reflect {
 			}
 		#else neko
 			__dollar__call(__dollar__objget(cl,__dollar__hash("new".__s)),cl,args.__a)
+		#else js
+			__new__(cl,args[0],args[1],args[2],args[3],args[4])
 		#else error
 		#end
 			;
@@ -66,6 +70,8 @@ class Reflect {
 		return untyped
 		#if flash
 			this.hasOwnProperty.call(o,field)
+		#else js
+			o.hasOwnProperty(field)
 		#else neko
 			__dollar__typeof(o) == __dollar__tobject && __dollar__objfield(o,__dollar__hash(field.__s))
 		#else error
@@ -74,11 +80,18 @@ class Reflect {
 	}
 
 	public static function field( o : Dynamic, field : String ) : Dynamic {
-		return untyped
+		untyped
 		#if flash
 			{
 				var f = o[field];
-				if( f == null && !this.hasOwnProperty(o,f) )
+				if( f == null && !this.hasOwnProperty.call(o,f) )
+					throw ("No such field : " + field);
+				return f;
+			}
+		#else js
+			{
+				var f = o[field];
+				if( f == null && !o.hasOwnProperty(f) )
 					throw ("No such field : " + field);
 				return f;
 			}
@@ -98,20 +111,23 @@ class Reflect {
 	}
 
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
-		untyped {
+		untyped
 		#if flash
+			o[field] = value;
+		#else js
 			o[field] = value;
 		#else neko
 			if( __dollar__typeof(o) == __dollar__tobject )
 				__dollar__objset(o,__dollar__hash(field.__s),value);
 		#else error
 		#end
-		}
 	}
 
 	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic {
 		return untyped
 		#if flash
+			func.apply(o,args)
+		#else js
 			func.apply(o,args)
 		#else neko
 			__dollar__call(func,o,args.__a)
@@ -124,6 +140,8 @@ class Reflect {
 		return untyped
 		#if flash
 			__keys__(o)
+		#else js
+			js.Boot.__keys(o)
 		#else neko
 			if( __dollar__typeof(o) != __dollar__tobject )
 				new Array<String>();
@@ -146,6 +164,8 @@ class Reflect {
 		return untyped
 		#if flash
 			f.call == _global["Function"].call
+		#else js
+			f.call == isFunction.call
 		#else neko
 			__dollar__typeof(f) == __dollar__tfunction
 		#else error
@@ -156,6 +176,8 @@ class Reflect {
 	public static function deleteField( o : Dynamic, f : String ) {
 		#if flash
 			untyped __delete__(o,f)
+		#else js
+			untyped delete(o[f])
 		#else neko
 			untyped __dollar__objremove(o,f.__s)
 		#else error

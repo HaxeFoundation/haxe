@@ -120,3 +120,10 @@ import neko.db.ResultSet;
 import tools.DocView;
 
 #end
+
+#if js
+
+import js.Boot;
+import js.Lib;
+
+#end

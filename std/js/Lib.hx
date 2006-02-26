@@ -22,72 +22,23 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
+package js;
 
-class StringBuf {
+class Lib {
 
-	public function new() {
-		#if neko
-		b = __make();
-		#else flash
-		b = "";
-		#else js
-		b = "";
-		#else error
-		#end
+	public static var isIE = untyped (document.all != null);
+
+	public static function alert( v : Dynamic ) {
+		untyped __top__alert(js.Boot.__string_rec(v,""));
 	}
 
-	public function add( x : Dynamic ) {
-		#if neko
-		__add(b,x);
-		#else flash
-		b += untyped flash.Boot.__string_rec(x,"");
-		#else js
-		b += untyped js.Boot.__string_rec(x,"");
-		#else error
-		#end
+	public static function setErrorHandler( f : String -> String -> Int -> Bool ) {
+		untyped __top__onerror = f;
 	}
 
-	public function addSub( s : String, pos : Int, len : Int ) {
-		#if neko
-		__add_sub(b,untyped s.__s,pos,len);
-		#else flash
-		b += s.substr(pos,len);
-		#else js
-		b += s.substr(pos,len);
-		#else error
-		#end
+	public static function defaultHandler( msg : String, url : String, line : Int ) {
+		alert("Error "+url+" ("+line+")\n\n"+msg);
+		return true;
 	}
-
-	public function addChar( c : Int ) {
-		#if neko
-		__add_char(b,c);
-		#else flash
-		b += untyped String.fromCharCode(c);
-		#else js
-		b += untyped String.fromCharCode(c);
-		#else error
-		#end
-	}
-
-	public function toString() : String {
-		#if neko
-		return new String(__string(b));
-		#else flash
-		return b;
-		#else js
-		return b;
-		#else error
-		#end
-	}
-
-	private var b : Dynamic;
-
-#if neko
-	static var __make : Dynamic = neko.Lib.load("std","buffer_new",0);
-	static var __add : Dynamic = neko.Lib.load("std","buffer_add",2);
-	static var __add_char : Dynamic = neko.Lib.load("std","buffer_add_char",2);
-	static var __add_sub : Dynamic = neko.Lib.load("std","buffer_add_sub",4);
-	static var __string : Dynamic = neko.Lib.load("std","buffer_string",1);
-#end
 
 }

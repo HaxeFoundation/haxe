@@ -30,6 +30,8 @@ class StringTools {
 		return untyped _global.escape(s);
 		#else neko
 		return new String(_urlEncode(untyped s.__s));
+		#else js
+		return untyped __top__encodeURI(s);
 		#else error
 		#end
 	}
@@ -39,6 +41,8 @@ class StringTools {
 		return untyped _global.unescape(s);
 		#else neko
 		return new String(_urlDecode(untyped s.__s));
+		#else js
+		return untyped __top__decodeURI(s);
 		#else error
 		#end
 	}

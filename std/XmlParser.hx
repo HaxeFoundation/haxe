@@ -99,6 +99,15 @@ class XmlParser {
 			untyped _parse(xmlData.__s,parser);
 			hierarchy(x);
 			return x;
+		#else js
+		if( js.Lib.isIE ) untyped {
+			var x = __new__("ActiveXObject","Microsoft.XMLDOM");
+			x.async="false";
+			x.loadXML(xmlData);
+			return x;
+		} else
+			return untyped __new__("DOMParser").parseFromString(xmlData, "text/xml");
+		#else error
 		#end
 	}
 

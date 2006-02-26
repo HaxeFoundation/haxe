@@ -39,6 +39,8 @@ class Log {
 		untyped flash.Boot.__trace(v,infos);
 		#else neko
 		untyped __dollar__print(infos.fileName+":"+infos.lineNumber+": ",v,"\n");
+		#else js
+		untyped js.Boot.__trace(v,infos);
 		#else error
 		#end
 	}
@@ -46,6 +48,8 @@ class Log {
 	public static function clear() : Void {
 		#if flash
 		untyped flash.Boot.__clear_trace();
+		#else js
+		untyped js.Boot.__clear_trace();
 		#else neko
 		// nothing
 		#else error

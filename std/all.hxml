@@ -7,3 +7,9 @@ ImportAll
 -swf all.swf
 -xml flash.xml
 ImportAll
+
+--next
+
+-js all.js
+-xml js.xml
+ImportAll

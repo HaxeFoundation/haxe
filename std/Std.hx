@@ -34,6 +34,8 @@ class Std {
 		flash.Boot.__instanceof(obj,vclass);
 		#else neko
 		neko.Boot.__instanceof(obj,vclass);
+		#else js
+		js.Boot.__instanceof(obj,vclass);
 		#else error
 		#end
 	}
@@ -44,6 +46,8 @@ class Std {
 		flash.Boot.__string_rec(s,"");
 		#else neko
 		__dollar__string(s);
+		#else js
+		js.Boot.__string_rec(s,"");
 		#else error
 		#end
 	}
@@ -62,6 +66,8 @@ class Std {
 		_global.parseInt(x);
 		#else neko
 		__dollar__int(x.__s);
+		#else js
+		__top__parseInt(x);
 		#else error
 		#end
 	}
@@ -72,6 +78,8 @@ class Std {
 		_global.parseFloat(x);
 		#else neko
 		__dollar__float(x.__s);
+		#else js
+		__top__parseFloat(x);
 		#else error
 		#end
 	}
@@ -86,25 +94,31 @@ class Std {
 			__dollar__sset(s,0,x);
 			new String(s);
 		}
+		#else js
+		String.fromCharCode(x);
 		#else error
 		#end
 	}
 
 	public static function ord( x : String ) : Int {
-		return untyped
 		#if flash
 		if( x == "" )
-			null;
+			return null;
 		else
-			x.charCodeAt(0);
+			return x.charCodeAt(0);
 		#else neko
-		{
+		untyped {
 			var s = __dollar__ssize(x.__s);
 			if( s == 0 )
-				null;
+				return null;
 			else
-				__dollar__sget(s,0);
+				return __dollar__sget(s,0);
 		}
+		#else js
+		if( x == "" )
+			return null;
+		else
+			return x.charCodeAt(0);
 		#else error
 		#end
 	}
@@ -115,6 +129,8 @@ class Std {
 		_global.isFinite(i);
 		#else neko
 		!__dollar__isinfinite(i);
+		#else js
+		__top__isFinite(i);
 		#else error
 		#end
 	}
@@ -125,6 +141,8 @@ class Std {
 		_global.isNaN(i);
 		#else neko
 		__dollar__isnan(i);
+		#else js
+		__top__isNaN(i);
 		#else error
 		#end
 	}
@@ -135,6 +153,8 @@ class Std {
 		__random__(x);
 		#else neko
 		Math._rand_int(Math._rnd,x);
+		#else js
+		Math.floor(Math.random()*x);
 		#else error
 		#end
 	}
