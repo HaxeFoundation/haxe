@@ -160,7 +160,7 @@ try
 				else
 					[l]
 			) lines) in
-			init (Array.of_list args) (-1);
+			init (Array.of_list (cl :: args)) 0;
 			raise Exit
 		| _ -> classes := make_path cl :: !classes
 	in
