@@ -41,6 +41,8 @@ type context = {
 	mutable in_loop : bool;
 	mutable ret : t;
 	mutable locals : (string, t) PMap.t;
+	mutable locals_map : (string, string) PMap.t;
+	mutable locals_map_inv : (string, string) PMap.t;
 }
 
 (* ---------------------------------------------------------------------- *)
@@ -78,6 +80,32 @@ let load ctx m p = (!load_ref) ctx m p
 
 let unify ctx t1 t2 p =
 	if not (unify t1 t2) && not ctx.untyped then raise (Error (Cannot_unify (t1,t2),p))
+
+let save_locals ctx =
+	let locals = ctx.locals in
+	let map = ctx.locals_map in
+	let inv = ctx.locals_map_inv in
+	(fun() ->
+		ctx.locals <- locals;
+		ctx.locals_map <- map;
+		ctx.locals_map_inv <- inv;
+	)
+
+let add_local ctx v t =
+	let rec loop n =
+		let nv = (if n = 0 then v else v ^ string_of_int n) in
+		if PMap.mem nv ctx.locals || PMap.mem nv ctx.locals_map_inv then
+			loop (n+1)
+		else begin
+			ctx.locals <- PMap.add v t ctx.locals;
+			if n <> 0 then begin
+				ctx.locals_map <- PMap.add v nv ctx.locals_map;
+				ctx.locals_map_inv <- PMap.add nv v ctx.locals_map_inv;	
+			end;
+			nv
+		end
+	in
+	loop 0
 
 let exc_protect f =
 	let rec r = ref (fun() ->
@@ -374,6 +402,7 @@ let type_ident ctx i p =
 	try
 		(* local loookup *)
 		let t = PMap.find i ctx.locals in
+		let i = (try PMap.find i ctx.locals_map with Not_found -> i) in
 		mk (TLocal i) t p
 	with Not_found -> try
 		(* member variable lookup *)
@@ -499,7 +528,7 @@ let type_matching ctx (enum,params) (e,p) ecases =
 		let idents = List.map2 (fun (e,_) t -> 
 			match e with 
 			| EConst (Ident name) ->
-				ctx.locals <- PMap.add name t ctx.locals;
+				let name = add_local ctx name t in
 				name , t
 			| _ -> invalid()
 		) el args in
@@ -668,7 +697,7 @@ and type_switch ctx e cases def need_val p =
 	) in
 	let ecases = ref PMap.empty in
 	let cases = List.map (fun (e1,e2) ->
-		let locals = ctx.locals in
+		let locals = save_locals ctx in
 		let e1 = (match enum with 
 		| Some e -> CMatch (type_matching ctx e e1 ecases) 
 		| None -> 
@@ -678,7 +707,7 @@ and type_switch ctx e cases def need_val p =
 			CExpr e1
 		) in
 		let e2 = type_expr ctx e2 in
-		ctx.locals <- locals;
+		locals();
 		if need_val then unify ctx e2.etype t e2.epos;
 		(e1,e2)
 	) cases in
@@ -730,7 +759,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
     | EBinop (op,e1,e2) -> 
 		type_binop ctx op e1 e2 p
 	| EBlock l ->
-		let locals = ctx.locals in
+		let locals = save_locals ctx in
 		let rec loop = function
 			| [] -> []
 			| [e] -> [type_expr ctx ~need_val e]
@@ -739,7 +768,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				e :: loop l
 		in
 		let l = loop l in
-		ctx.locals <- locals;
+		locals();
 		let rec loop = function
 			| [] -> t_void ctx
 			| [e] -> e.etype
@@ -801,7 +830,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 					unify ctx e.etype t p;
 					Some e
 			) in
-			ctx.locals <- PMap.add v t ctx.locals;
+			let v = add_local ctx v t in
 			v , t , e
 		) vl in
 		mk (TVars vl) (t_void ctx) p
@@ -828,13 +857,28 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			e1
 		) in
 		let old_loop = ctx.in_loop in
-		let old_locals = ctx.locals in
-		ctx.locals <- PMap.add i pt ctx.locals;
+		let old_locals = save_locals ctx in
+		let i = add_local ctx i pt in
 		ctx.in_loop <- true;
 		let e2 = type_expr ctx e2 in
 		ctx.in_loop <- old_loop;
-		ctx.locals <- old_locals;
-		mk (TFor (i,e1,e2)) (t_void ctx) p
+		old_locals();
+		(match e1.eexpr with
+		| TNew ({ cl_path = ([],"IntIter") },[],[i1;i2]) -> 
+			let ident = mk (TLocal i) i1.etype p in
+			mk (TBlock [
+				mk (TVars [i,i1.etype,Some i1;"MAX",i2.etype,Some i2]) (t_void ctx) p;
+				mk (TWhile (
+					mk (TBinop (OpLt, ident, mk (TLocal "MAX") i2.etype p)) (t_bool ctx) p,
+					mk (TBlock [
+						e2;
+						mk (TUnop (Increment,Prefix,ident)) i1.etype p;
+					]) (t_void ctx) p,
+					NormalWhile
+				)) (t_void ctx) p;
+			]) (t_void ctx) p
+		| _ ->
+			mk (TFor (i,e1,e2)) (t_void ctx) p)
 	| EIf (e,e1,e2) ->
 		let e = type_expr ctx e in
 		unify ctx e.etype (t_bool ctx) e.epos;
@@ -891,10 +935,10 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				) params;
 			| TDynamic _ -> ()
 			| _ -> error "Catch type must be a class" p);
-			let locals = ctx.locals in
-			ctx.locals <- PMap.add v t ctx.locals;
+			let locals = save_locals ctx in
+			let v = add_local ctx v t in
 			let e = type_expr ctx ~need_val e in
-			ctx.locals <- locals;
+			locals();
 			if not need_val then unify ctx e.etype e1.etype e.epos;
 			v , t , e
 		) catches in
@@ -983,9 +1027,9 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let rt = load_type_opt ctx p f.f_type in
 		let args = List.map (fun (s,t) -> s , load_type_opt ctx p t) f.f_args in
 		let ft = TFun (args,rt) in
-		let e = type_function ctx ft true false f p in
+		let e , fargs = type_function ctx ft true false f p in
 		let f = {
-			tf_args = args;
+			tf_args = fargs;
 			tf_type = rt;
 			tf_expr = e;
 		} in
@@ -1002,11 +1046,11 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		}
 
 and type_function ctx t static constr f p =
-	let locals = ctx.locals in
-	let argst , r = (match t with TFun (args,r) -> List.map snd args, r | _ -> assert false) in
-	List.iter2 (fun (n,_) t ->
-		ctx.locals <- PMap.add n t ctx.locals;		
-	) f.f_args argst;
+	let locals = save_locals ctx in
+	let fargs , r = (match t with 
+		| TFun (args,r) -> List.map (fun (n,t) -> add_local ctx n t, t) args, r
+		| _ -> assert false
+	) in
 	let old_ret = ctx.ret in
 	let old_static = ctx.in_static in
 	let old_constr = ctx.in_constructor in
@@ -1037,11 +1081,11 @@ and type_function ctx t static constr f p =
 			error "Missing super constructor call" p
 		with
 			Exit -> ());
-	ctx.locals <- locals;
+	locals();
 	ctx.ret <- old_ret;
 	ctx.in_static <- old_static;
 	ctx.in_constructor <- old_constr;
-	e
+	e , fargs
 
 let type_static_var ctx t e p =
 	ctx.in_static <- true;
@@ -1143,9 +1187,9 @@ let init_class ctx c p types herits fields =
 			let r = exc_protect (fun r ->
 				r := (fun() -> t);
 				if !Plugin.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
-				let e = type_function ctx t stat constr f p in
+				let e , fargs = type_function ctx t stat constr f p in
 				let f = {
-					tf_args = args;
+					tf_args = fargs;
 					tf_type = ret;
 					tf_expr = e;
 				} in
@@ -1257,6 +1301,8 @@ let type_module ctx m tdecls =
 		ret = ctx.ret;
 		current = m;
 		locals = PMap.empty;
+		locals_map = PMap.empty;
+		locals_map_inv = PMap.empty;
 		local_types = ctx.std.mtypes @ m.mtypes;
 		type_params = [];
 		curmethod = "";
@@ -1335,6 +1381,8 @@ let context warn =
 		ret = mk_mono();
 		warn = warn;
 		locals = PMap.empty;
+		locals_map = PMap.empty;
+		locals_map_inv = PMap.empty;
 		local_types = [];
 		type_params = [];
 		curmethod = "";
