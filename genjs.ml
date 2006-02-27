@@ -32,15 +32,11 @@ let s_path = function
 
 let kwds = 
 	let h = Hashtbl.create 0 in
-	List.iter (fun s -> Hashtbl.add h s ()) ["instanceof";"int"];
+	List.iter (fun s -> Hashtbl.add h s ()) ["instanceof";"int";"true";"false"];
 	h
 
 let field s = if Hashtbl.mem kwds s then "[\"" ^ s ^ "\"]" else "." ^ s
-let ident s = 
-	if Hashtbl.mem kwds s then "$" ^ s else 
-	let len = String.length s in
-	if len > 7 && String.sub s 0 7 = "__top__" then String.sub s 7 (len - 7 )
-	else s
+let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
 
 let spr ctx s = Buffer.add_string ctx.buf s
 let print ctx = Printf.ksprintf (fun s -> Buffer.add_string ctx.buf s)
@@ -97,6 +93,8 @@ let rec gen_call ctx e el =
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) params;
 		spr ctx ")";
+	| TLocal "__js__", [{ eexpr = TConst (TString code) }] ->
+		spr ctx code
 	| _ ->
 		gen_value ctx e;
 		spr ctx "(";
@@ -432,23 +430,43 @@ let gen_class_field ctx c f =
 		newline ctx
 
 let generate_class ctx c = 
+	let p = s_path c.cl_path in
 	generate_package_create ctx c.cl_path;
-	print ctx "%s = " (s_path c.cl_path);
+	print ctx "%s = " p;
 	(match c.cl_constructor with
 	| Some { cf_expr = Some e } ->
 		gen_value ctx e;
+		newline ctx;
+		print ctx "%s.__construct__ = %s" p p;
 	| _ ->
-		print ctx "function() { }"
+		print ctx "function() { }";
+		newline ctx;
+		print ctx "%s.__construct__ = null" p;
 	);
 	newline ctx;
 	List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
-	PMap.iter (fun _ f -> gen_class_field ctx c f) c.cl_fields
+	PMap.iter (fun _ f -> gen_class_field ctx c f) c.cl_fields;
+	print ctx "%s.prototype.__class__ = %s" p p;
+	newline ctx;
+	print ctx "%s.__interfaces__ = [%s]" p (String.concat "," (List.map (fun (i,_) -> s_path i.cl_path) c.cl_implements));
+	newline ctx
 
 let generate_enum ctx e =
+	let p = s_path e.e_path in
 	generate_package_create ctx e.e_path;
-	print ctx "%s = " (s_path e.e_path);
-	print ctx "null";
-	newline ctx
+	print ctx "%s = new Object()" p;	
+	newline ctx;
+	PMap.iter (fun _ f ->
+		print ctx "%s%s = " p (field f.ef_name);
+		(match f.ef_type with
+		| TFun (args,_) ->
+			let sargs = String.concat "," (List.map fst args) in
+			print ctx "function(%s) { return [\"%s\",%s]; }" sargs f.ef_name sargs;
+		| _ ->
+			print ctx "[\"%s\"]" f.ef_name
+		);
+		newline ctx
+	) e.e_constrs
 
 let generate_static ctx (c,f,e) =
 	print ctx "%s%s = " (s_path c.cl_path) (field f);
