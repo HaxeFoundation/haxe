@@ -27,7 +27,12 @@ package js;
 class Boot {
 
 	private static function __keys(o) {
-		return []; // TODO
+		var a = new Array();
+		untyped __js__("
+			for(var i in o)
+				a.push(i);
+		");
+		return a;
 	}
 
 	private static function __unhtml(s : String) {
@@ -54,11 +59,83 @@ class Boot {
 	}
 
 	private static function __string_rec(o,s) {
-		return untyped __top__String(o); // TODO
+		untyped {
+			if( o == null )
+			    return "null";
+			if( s.length >= 5 )
+				return "<...>"; // too much deep recursion
+			var t = __js__("typeof(o)");
+			if( t == "function" && o.__interfaces__ != null )
+				t = "object";
+			switch( t ) {
+			case "object":
+				if( __js__("o instanceof Array") ) {
+					var l = o.length;
+					var i;
+					var str = "[";
+					s += "    ";
+					for( i in 0...l )
+						str += (if (i > 0) "," else "")+__string_rec(o[i],s);
+					s = s.substring(4);
+					str += "]";
+					return str;
+				}
+				if( o.toString != __js__("Object.toString") ) {
+					var s2 = o.toString();
+					if( s2 != "[object Object]")
+						return s2;
+				}
+				var k;
+				var str = "{\n";
+				s += "\t";
+				__js__("for( var k in o ) { ");
+					if( k == "__class__" && o[k].__interfaces__ != null )
+						__js__("continue");
+					if( k == "__construct__" && __js__("typeof(o[k])") == "function" )
+						str += s + k + " : <function>\n";
+					else
+						str += s + k + " : "+__string_rec(o[k],s)+"\n";
+				__js__("}");
+				s = s.substring(1);
+				str += s + "}";
+				return str;
+			case "function":
+				return "<function>";
+			case "string":
+				return o;
+			default:
+				return String(o);
+			}
+		}
 	}
 
 	private static function __instanceof(o,cl) {
-		return false; // TODO
+		untyped {
+			try {
+				if( __js__("o instanceof cl") )
+					return true;
+				var il = o.__class__.__interfaces__;
+				var i = 0;
+				while( i < il.length ) {
+					if( il[i] == cl )
+						return true;
+					i++;
+				}
+			} catch( e : Dynamic ) {
+			}
+			switch( cl ) {
+			case Int:
+				return Math.ceil(o) == o; // error with NaN
+			case Float:
+				return __js__("typeof(o)") == "number";
+			case Bool:
+				return (o == true || o == false);
+			case String:
+				return __js__("typeof(o)") == "string";
+			default:
+				return false;
+			}
+		}
 	}
 
 	private static function __init() {
@@ -152,6 +229,10 @@ class Boot {
 					s = "0" + s;
 				return this.getFullYear()+"-"+m+"-"+d+" "+h+":"+mi+":"+s;
 			};
+			Int = __new__("Object");
+			Float = __js__("Number");
+			Bool["true"] = true;
+			Bool["false"] = false;
 		}
 	}
 
