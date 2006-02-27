@@ -29,11 +29,11 @@ class Lib {
 	public static var isIE = untyped (document.all != null);
 
 	public static function alert( v : Dynamic ) {
-		untyped __top__alert(js.Boot.__string_rec(v,""));
+		untyped __js__("alert")(js.Boot.__string_rec(v,""));
 	}
 
 	public static function setErrorHandler( f : String -> String -> Int -> Bool ) {
-		untyped __top__onerror = f;
+		untyped onerror = f;
 	}
 
 	public static function defaultHandler( msg : String, url : String, line : Int ) {

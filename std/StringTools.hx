@@ -31,7 +31,7 @@ class StringTools {
 		#else neko
 		return new String(_urlEncode(untyped s.__s));
 		#else js
-		return untyped __top__encodeURI(s);
+		return untyped encodeURI(s);
 		#else error
 		#end
 	}
@@ -42,7 +42,7 @@ class StringTools {
 		#else neko
 		return new String(_urlDecode(untyped s.__s));
 		#else js
-		return untyped __top__decodeURI(s);
+		return untyped decodeURI(s);
 		#else error
 		#end
 	}

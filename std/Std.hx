@@ -67,7 +67,7 @@ class Std {
 		#else neko
 		__dollar__int(x.__s);
 		#else js
-		__top__parseInt(x);
+		__js__("parseInt")(x);
 		#else error
 		#end
 	}
@@ -79,7 +79,7 @@ class Std {
 		#else neko
 		__dollar__float(x.__s);
 		#else js
-		__top__parseFloat(x);
+		__js__("parseFloat")(x);
 		#else error
 		#end
 	}
@@ -130,7 +130,7 @@ class Std {
 		#else neko
 		!__dollar__isinfinite(i);
 		#else js
-		__top__isFinite(i);
+		__js__("isFinite")(i);
 		#else error
 		#end
 	}
@@ -142,7 +142,7 @@ class Std {
 		#else neko
 		__dollar__isnan(i);
 		#else js
-		__top__isNaN(i);
+		__js__("isNaN")(i);
 		#else error
 		#end
 	}
