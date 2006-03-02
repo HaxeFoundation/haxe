@@ -1101,7 +1101,7 @@ let check_overloading c p () =
 			try
 				let f2 = PMap.find f.cf_name c.cl_fields in
 				if not (type_eq false f.cf_type f2.cf_type) then error ("Field " ^ f.cf_name ^ " overload parent class with different or incomplete type") p;
-				if f.cf_public <> f2.cf_public then error ("Field " ^ f.cf_name ^ " have different access right than previous one") p; 
+				if f.cf_public <> f2.cf_public then error ("Field " ^ f.cf_name ^ " has different access right than previous one") p; 
 			with
 				Not_found -> loop c.cl_super f
 	in
@@ -1112,8 +1112,8 @@ let check_interfaces c p () =
 		PMap.iter (fun i f ->
 			try
 				let t , f2 = class_field c i in
-				if f2.cf_public <> f.cf_public then error ("Field " ^ i ^ " have different access than in " ^ s_type_path intf.cl_path) p;
-				if not (type_eq false f2.cf_type (apply_params intf.cl_types params f.cf_type)) then error ("Field " ^ i ^ " have different type than in " ^ s_type_path intf.cl_path) p;
+				if f2.cf_public <> f.cf_public then error ("Field " ^ i ^ " has different access than in " ^ s_type_path intf.cl_path) p;
+				if not (type_eq false f2.cf_type (apply_params intf.cl_types params f.cf_type)) then error ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
 			with
 				Not_found ->
 					error ("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing") p

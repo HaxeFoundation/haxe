@@ -275,7 +275,7 @@ class DocView {
 		var path = x.attributes.path;
 		if( try Reflect.field(x.attributes,"private") == "1" catch( e : Dynamic ) false )
 			return;
-		if( StringTools.endWith(path,"__") )
+		if( StringTools.endsWith(path,"__") )
 			return;
 		if( findEntry(entries,path.split(".")) != null )
 			return;

@@ -55,11 +55,11 @@ class StringTools {
 		return s.split("&gt;").join(">").split("&lt;").join("<").split("&amp;").join("&");
 	}
 
-	public static function startWith( s : String, start : String ) {
+	public static function startsWith( s : String, start : String ) {
 		return( s.length >= start.length && s.substr(0,start.length) == start );
 	}
 
-	public static function endWith( s : String, end : String ) {
+	public static function endsWith( s : String, end : String ) {
 		var elen = end.length;
 		var slen = s.length;
 		return( slen >= elen && s.substr(slen-elen,elen) == end );
