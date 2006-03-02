@@ -152,6 +152,8 @@ let mk_class path pos doc priv =
 		cl_constructor = None;
 	}
 
+let null_class = mk_class ([],"") Ast.null_pos None true
+
 let t_private = function
 	| TClassDecl c -> c.cl_private
 	| TEnumDecl  e -> e.e_private

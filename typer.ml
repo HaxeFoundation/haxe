@@ -1386,7 +1386,7 @@ let context warn =
 		local_types = [];
 		type_params = [];
 		curmethod = "";
-		curclass = mk_class ([],"") null_pos None true;
+		curclass = null_class;
 		current = empty;
 		std = empty;
 	} in
