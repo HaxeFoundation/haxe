@@ -21,6 +21,7 @@ open Type
 type ctx = {
 	buf : Buffer.t;
 	packages : (string list,unit) Hashtbl.t;
+	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
 	mutable tabs : string;
 	mutable in_value : bool;
@@ -83,6 +84,22 @@ let gen_constant ctx = function
 
 let rec gen_call ctx e el =
 	match e.eexpr , el with
+	| TConst TSuper , params ->
+		(match ctx.current.cl_super with
+		| None -> assert false
+		| Some (c,_) ->
+			print ctx "%s.apply(this,[" (s_path c.cl_path);
+			concat ctx "," (gen_value ctx) params;
+			spr ctx "])";
+		);
+	| TField ({ eexpr = TConst TSuper },name) , params ->
+		(match ctx.current.cl_super with
+		| None -> assert false
+		| Some (c,_) ->
+			print ctx "%s.prototype%s.apply(this,[" (s_path c.cl_path) (field name);
+			concat ctx "," (gen_value ctx) params;
+			spr ctx "])";
+		);
 	| TLocal "__new__" , { eexpr = TConst (TString cl) } :: params ->
 		print ctx "new %s(" cl;
 		concat ctx "," (gen_value ctx) params;
@@ -430,6 +447,7 @@ let gen_class_field ctx c f =
 		newline ctx
 
 let generate_class ctx c = 
+	ctx.current <- c;
 	let p = s_path c.cl_path in
 	generate_package_create ctx c.cl_path;
 	print ctx "%s = " p;
@@ -444,6 +462,15 @@ let generate_class ctx c =
 		print ctx "%s.__construct__ = null" p;
 	);
 	newline ctx;
+	(match c.cl_super with
+	| None -> ()
+	| Some (csup,_) ->
+		let psup = s_path csup.cl_path in
+		print ctx "%s.__super__ = %s" p psup;
+		newline ctx;
+		print ctx "for(var k in %s.prototype ) %s.prototype[k] = %s.prototype[k]" psup p psup;
+		newline ctx;
+	);
 	List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
 	PMap.iter (fun _ f -> gen_class_field ctx c f) c.cl_fields;
 	print ctx "%s.prototype.__class__ = %s" p p;
@@ -482,6 +509,7 @@ let generate file types =
 		buf = Buffer.create 16000;
 		packages = Hashtbl.create 0;
 		statics = [];
+		current = null_class;
 		tabs = "";
 		in_value = false;
 	} in
