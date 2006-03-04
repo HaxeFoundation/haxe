@@ -69,7 +69,11 @@ extern class MovieClip implements Dynamic
 	function moveTo(x : Float, y : Float) : Void;
 	function lineTo(x : Float, y : Float) : Void;
 	function curveTo(controlX : Float, controlY : Float, anchorX : Float, anchorY : Float) : Void;
+#if flash8
+	function lineStyle(thickness : Float, rgb : Float, alpha : Float, pixelHinting : Bool, noScale : String, capsStyle : String, jointStyle : String, miterLimit : Float) : Void;
+#else
 	function lineStyle(thickness : Float, rgb : Float, alpha : Float) : Void;
+#end
 	function endFill() : Void;
 	function clear() : Void;
 	function createTextField(instanceName : String, depth : Float, x : Float, y : Float, width : Float, height : Float) : TextField; /* Void before Flash 8 */
@@ -95,8 +99,7 @@ extern class MovieClip implements Dynamic
 	function onSetFocus(oldFocus : Dynamic) : Void;
 	function onUnload() : Void;
 
-	// FLASH 8
-
+#if flash8
 	var filters : Array<flash.filters.BitmapFilter>;
 	var blendMode : Dynamic;
 	var cacheAsBitmap : Bool;
@@ -106,6 +109,7 @@ extern class MovieClip implements Dynamic
 	var scale9Grid : flash.geom.Rectangle<Float>;
 	function getRect( bounds : Dynamic ) : Dynamic;
 	function attachBitmap( bmp : flash.display.BitmapData, depth : Float, pixelSnapping : String, smoothing : Bool ) : Void;
+#end
 
 }
 
