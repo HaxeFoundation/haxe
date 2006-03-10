@@ -24,8 +24,15 @@
  */
 package neko;
 
+/**
+	This class is used for accessing the local Web server and the current
+	client request and informations.
+**/
 class Web {
 
+	/**
+		Returns the GET and POST parameters.
+	**/
 	public static function params() {
 		var p = _get_params();
 		var h = new Hash<String>();
@@ -38,42 +45,74 @@ class Web {
 		return h;
 	}
 
+	/**
+		Returns the local server host name
+	**/
 	public static function getHostName() {
 		return new String(_get_host_name());
 	}
 
+	/**
+		Surprisingly returns the client IP address.
+	**/
 	public static function getClientIP() {
 		return new String(_get_client_ip());
 	}
 
+	/**
+		Returns the original request URL (before any server internal redirections)
+	**/
 	public static function getURI() {
 		return new String(_get_uri());
 	}
 
+	/**
+		Tell the client to redirect to the given url ("Location" header)
+	**/
 	public static function redirect( url : String ) {
 		_cgi_redirect(untyped url.__s);
 	}
 
+	/**
+		Set an output header value. If some data have been printed, the headers have
+		already been sent so this will raise an exception.
+	**/
 	public static function setHeader( h : String, v : String ) {
 		_cgi_set_header(untyped h.__s,untyped v.__s);
 	}
 
+	/**
+		Set the HTTP return code. Same remark as setHeader.
+	**/
 	public static function setReturnCode( r : Int ) {
 		_set_return_code(r);
 	}
 
+	/**
+		Retrieve a client header value sent with the request.
+	**/
 	public static function getClientHeader( k : String ) {
 		return new String(_get_client_header(untyped k.__s));
 	}
 
+	/**
+		Returns all the GET parameters String
+	**/
 	public static function getParamsString() {
 		return new String(_get_params_string());
 	}
 
+	/**
+		Returns all the POST data (in case of file transfert for example).
+	**/
 	public static function getPostData() {
 		return new String(_get_post_data());
 	}
 
+	/**
+		Returns an hashtable of all Cookies sent by the client.
+		Modifying the hashtable will not modify the cookie, use setCookie instead.
+	**/
 	public static function getCookies() {
 		var p = _get_cookies();
 		var h = new Hash<String>();
@@ -86,14 +125,25 @@ class Web {
 		return h;
 	}
 
+
+	/**
+		Set a Cookie value in the HTTP headers. Same remark as setClientHeader.
+	**/
 	public static function setCookie( k : String, v : String ) {
 		_set_cookie(untyped k.__s,untyped v.__s);
 	}
 
+	/**
+		Get the current script directory in the local filesystem.
+	**/
 	public static function getCwd() {
 		return new String(_get_cwd());
 	}
 
+	/**
+		Set the main entry point function used to handle requests.
+		Setting it back to null will disable code caching.
+	**/
 	public static function setMain( f : Void -> Void ) {
 		_set_main(f);
 	}
