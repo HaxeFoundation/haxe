@@ -88,6 +88,7 @@ try
 	let xml_out = ref None in
 	let main_class = ref None in
 	let swf_version = ref 8 in
+	let swf_header = ref None in
 	let current = ref argv_start in
 	let next = ref (fun() -> ()) in
 	Hashtbl.clear Parser.defines;
@@ -132,9 +133,17 @@ try
 		("-D",Arg.String (fun def ->
 			Hashtbl.add Parser.defines def ();
 		),"<var> : define the macro variable");
-		("-fplayer",Arg.Int (fun v ->
-			swf_version := v;
-		),"<version> : flash player version (8 by default)");
+		("-fheader",Arg.String (fun h ->
+			try
+				swf_header := Some (match ExtString.String.nsplit h ":" with
+				| [width; height; fps] ->
+					(int_of_string width,int_of_string height,float_of_string fps,0xFFFFFF)
+				| [width; height; fps; color] ->
+					(int_of_string width, int_of_string height, float_of_string fps, int_of_string color)
+				| _ -> raise Exit)
+			with
+				_ -> raise (Arg.Bad "Invalid SWF header format")
+		),"<header> : define SWF header (width:height:fps:color)");
 		("-v",Arg.Unit (fun () -> Plugin.verbose := true),": turn on verbose mode");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
 		("--next", Arg.Unit (fun() -> 
@@ -170,7 +179,9 @@ try
 		()
 	| Swf _ ->
 		Hashtbl.add Parser.defines "flash" ();
-		Hashtbl.add Parser.defines ("flash" ^ string_of_int !swf_version) ();
+		if Hashtbl.mem Parser.defines "flash6" then swf_version := 6
+		else if Hashtbl.mem Parser.defines "flash7" then swf_version := 7
+		else Hashtbl.add Parser.defines "flash8" ();
 	| Neko _ ->
 		Hashtbl.add Parser.defines "neko" ();
 	| Js _ ->
@@ -188,7 +199,7 @@ try
 		| No -> ()
 		| Swf file ->
 			if !Plugin.verbose then print_endline ("Generating swf : " ^ file);
-			Genswf.generate file (!swf_version) (!swf_in) types
+			Genswf.generate file (!swf_version) (!swf_header) (!swf_in) types
 		| Neko file ->
 			if !Plugin.verbose then print_endline ("Generating neko : " ^ file);
 			Genneko.generate file types
