@@ -1,0 +1,24 @@
+body { padding: 0px 20px 0px 26px; background: #ffffff; color: #000000; font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 90%; }
+h1 { padding : 5px 0px 5px 0px; font-size : 16pt; font-weight : normal; background-color : #E0E0FF }
+h6 { padding : 5px 0px 5px 20px; font-size : 16pt; font-weight : normal; background-color : #E0E0FF }
+a:link, a:visited, a:active { text-decoration: none; }
+a:link { color: #000077; }
+a:visited { color: #000077; }
+a:hover { color: #cc9900; }
+.keyword { font-weight : bold ; color : Blue }
+.keywordsign { color : #606060 }
+.superscript { font-size : 4 }
+.subscript { font-size : 4 }
+.comment { color : #606060 }
+.constructor { color : #808080; }
+.type { color : #606060 }
+.string { color : Red }
+.warning { color : Red ; font-weight : bold }
+.info { margin-left : 3em; margin-right : 3em }
+.code { color : #606060 ; }
+.title1 { font-size : 16pt ; background-color : #E0E0E0 }
+.title2 { font-size : 16pt ; background-color : #E0E0E0 }
+.title3 { font-size : 16pt ; background-color : #E0E0E0 }
+.title4 { font-size : 16pt ; background-color : #E0E0E0 }
+.title5 { font-size : 16pt ; background-color : #E0E0E0 }
+.title6 { font-size : 16pt ; background-color : #E0E0E0; }
