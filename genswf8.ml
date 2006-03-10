@@ -1211,10 +1211,7 @@ let to_utf8 str =
 			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
 			UTF8.Buf.contents b
 
-let default_header ver =
-	let w = 400 in
-	let h = 300 in
-	let fps = 30. in
+let convert_header ver (w,h,fps,bg) =
 	{
 		h_version = ver;
 		h_size = {
@@ -1227,10 +1224,12 @@ let default_header ver =
 		h_frame_count = 1;
 		h_fps = to_float16 fps;
 		h_compressed = true;
-	}
+	} , bg
 
+let default_header ver =
+	convert_header ver (400,300,30.,0xFFFFFF)
 
-let generate file ver infile types =
+let generate file ver header infile types =
 	let ctx = {
 		opcodes = DynArray.create();
 		code_pos = 0;
@@ -1266,15 +1265,15 @@ let generate file ver infile types =
 	let tagcode = tag (TDoAction ctx.opcodes) in
 	let swf = (match infile with
 		| None ->
-			let header = default_header ver in
-			let bg = 0xFFFFFF in
+			let header , bg = (match header with None -> default_header ver | Some h -> convert_header ver h) in
 			let tagbg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
 			let tagshow = tag TShowFrame in
 			(header,[tagbg;tagcode;tagshow])
 		| Some file ->
 			let file = (try Plugin.find_file file with Not_found -> failwith ("File not found : " ^ file)) in
 			let ch = IO.input_channel (open_in_bin file) in
-			let header, swf = (try Swf.parse ch with _ -> failwith ("The input swf " ^ file ^ " is corrupted")) in
+			let h, swf = (try Swf.parse ch with _ -> failwith ("The input swf " ^ file ^ " is corrupted")) in
+			let header = (match header with None -> h | Some h -> fst (convert_header ver h)) in
 			IO.close_in ch;
 			let rec loop = function
 				| [] ->
