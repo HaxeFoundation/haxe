@@ -60,19 +60,12 @@ let modules l ext =
 
 ;;
 
-let sourceforge = ":pserver:anonymous@cvs.sourceforge.net:/cvsroot/ocaml-lib" in
 let motiontwin = ":pserver:anonymous@cvs.motion-twin.com:/cvsroot" in
-
-
-let download_extlib() =
-	msg "*** Please hit enter on login (empty password) ***";
-	cvs sourceforge "login";
-	cvs sourceforge "co extlib-dev";
-in
 
 let download_libs() =
 	cvs motiontwin "co ocaml/swflib";
 	cvs motiontwin "co ocaml/extc";
+	cvs motiontwin "co ocaml/extlib-dev";
 	cvs motiontwin "co neko/libs/include/ocaml"
 in
 
@@ -81,15 +74,14 @@ let download() =
 	cvs motiontwin "login";
 	cvs motiontwin "co haxe";
 	download_libs();
-	download_extlib();	
 in
 
 let compile_libs() =	
 	(* EXTLIB *)
-	Sys.chdir "extlib-dev";
-	command ("ocaml install.ml -nodoc -d ../ocaml " ^ (if bytecode then "-b " else "") ^ (if native then "-n" else ""));
+	Sys.chdir "ocaml/extlib-dev";
+	command ("ocaml install.ml -nodoc -d .. " ^ (if bytecode then "-b " else "") ^ (if native then "-n" else ""));
 	msg "";
-	Sys.chdir "..";
+	Sys.chdir "../..";
 
 	(* EXTC *)
 	Sys.chdir "ocaml/extc";
