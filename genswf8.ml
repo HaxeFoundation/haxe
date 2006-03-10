@@ -539,6 +539,12 @@ and gen_try_catch ctx retval e catchs =
 		let next_catch = (match t with
 		| None -> 
 			end_throw := false;
+			(* @exc.pop() *)			
+			push ctx [VInt 0;VStr "@exc"];
+			write ctx AEval;
+			push ctx [VStr "pop"];
+			call ctx VarObj 0;
+			write ctx APop;
 			push ctx [VStr name;VReg 0];
 			write ctx ALocalAssign;
 			gen_expr ctx retval e;			
@@ -549,6 +555,12 @@ and gen_try_catch ctx retval e catchs =
 			call ctx VarStr 2;
 			write ctx ANot;
 			let c = cjmp ctx in
+			(* @exc.pop() *)
+			push ctx [VInt 0;VStr "@exc"];
+			write ctx AEval;
+			push ctx [VStr "pop"];
+			call ctx VarObj 0;
+			write ctx APop;
 			push ctx [VStr name; VReg 0];
 			write ctx ALocalAssign;
 			gen_expr ctx retval e;
@@ -930,7 +942,15 @@ and gen_expr_2 ctx retval e =
 	| TSwitch (e,cases,def) ->
 		gen_switch ctx retval e cases def
 	| TThrow e ->
+		(* call @exc.push(e) *)
 		gen_expr ctx true e;
+		write ctx (ASetReg 0);
+		push ctx [VInt 1; VStr "@exc"];
+		write ctx AEval;
+		push ctx [VStr "push"];
+		call ctx VarObj 1;
+		write ctx APop;
+		push ctx [VReg 0];
 		write ctx AThrow;
 		no_value ctx retval
 	| TTry (e,catchs) ->

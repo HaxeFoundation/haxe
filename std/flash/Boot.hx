@@ -26,6 +26,8 @@ package flash;
 
 class Boot {
 
+	private static var exc : Array<Dynamic>;
+
 	private static function __string_rec(o,s) {
 		untyped {
 			if( s.length >= 20 )
@@ -290,6 +292,8 @@ class Boot {
 			// prevent closure creation by setting untyped
 			current["@instanceof"] = untyped __instanceof;
 			current["@closure"] = untyped __closure;
+			exc = new Array();
+			current["@exc"] = exc;
 		}
 	}
 
