@@ -23,23 +23,39 @@
  * DAMAGE.
  */
 
+/**
+	The Std class provides standard methods for manipulating basic types.
+**/
 class Std {
 
+	/**
+		The infinity Float value.
+	**/
 	public static var infinity = 1.0 / 0.0;
+
+	/**
+		The not-a-number Float value.
+	**/
 	public static var nan = 0.0 / 0.0;
 
-	public static function instanceof( obj : Dynamic, vclass : Dynamic ) : Bool {
+	/**
+		Tells is a value v is of the type t.
+	**/
+	public static function is( v : Dynamic, t : Dynamic ) : Bool {
 		return untyped
 		#if flash
-		flash.Boot.__instanceof(obj,vclass);
+		flash.Boot.__instanceof(v,t);
 		#else neko
-		neko.Boot.__instanceof(obj,vclass);
+		neko.Boot.__instanceof(v,t);
 		#else js
-		js.Boot.__instanceof(obj,vclass);
+		js.Boot.__instanceof(v,t);
 		#else error
 		#end
 	}
 
+	/**
+		Convert any value to a String
+	**/
 	public static function string( s : Dynamic ) : String {
 		return untyped
 		#if flash
@@ -52,14 +68,23 @@ class Std {
 		#end
 	}
 
+	/**
+		Convert a Float to an Int, rounded down.
+	**/
 	public static function int( x : Float ) : Int {
 		return Math.floor(x);
 	}
 
+	/**
+		Convert any value to a Bool. Only 0, null and false are false, other values are true.
+	**/
 	public static function bool( x : Dynamic ) : Bool {
 		return x != 0 && x != null && x != false;
 	}
 
+	/**
+		Convert a String to an Int, parsing different possible representations
+	**/
 	public static function parseInt( x : String ) : Int {
 		return untyped
 		#if flash
@@ -72,6 +97,9 @@ class Std {
 		#end
 	}
 
+	/**
+		Convert a String to a Float, parsing different possible reprensations.
+	**/
 	public static function parseFloat( x : String ) : Float {
 		return untyped
 		#if flash
@@ -84,6 +112,9 @@ class Std {
 		#end
 	}
 
+	/**
+		Convert a character code into the corresponding single-char String.
+	**/
 	public static function chr( x : Int ) : String {
 		return untyped
 		#if flash
@@ -100,6 +131,9 @@ class Std {
 		#end
 	}
 
+	/**
+		Return the character code of the first character of the String, or null if the String is empty.
+	**/
 	public static function ord( x : String ) : Int {
 		#if flash
 		if( x == "" )
@@ -123,6 +157,9 @@ class Std {
 		#end
 	}
 
+	/**
+		Tells if a Float value is finite.
+	**/
 	public static function isFinite(i : Float) : Bool {
 		return untyped
 		#if flash
@@ -135,6 +172,9 @@ class Std {
 		#end
 	}
 
+	/**
+		Tells if a Float value is not-a-number.
+	**/
 	public static function isNaN(i : Float) : Bool {
 		return untyped
 		#if flash
@@ -147,6 +187,9 @@ class Std {
 		#end
 	}
 
+	/**
+		Return a random integer between 0 included and x excluded.
+	**/
 	public static function random( x : Int ) : Int {
 		return untyped
 		#if flash
