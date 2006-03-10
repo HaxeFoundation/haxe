@@ -283,6 +283,9 @@ class Boot {
 			Lib._root = _root;
 			Lib.current = current;
 			Int = __new__(obj);
+			Bool = __new__(obj);
+			Bool["true"] = true;
+			Bool["false"] = false;
 			Float = _global["Number"];
 			// prevent closure creation by setting untyped
 			current["@instanceof"] = untyped __instanceof;

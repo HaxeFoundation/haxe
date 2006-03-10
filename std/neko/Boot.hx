@@ -64,6 +64,8 @@ class Boot {
 			Date = NekoDate__;
 			Int = __dollar__new(null);
 			Float = __dollar__new(null);
+			Bool.true = true;
+			Bool.false = false;
 		}
 	}
 
