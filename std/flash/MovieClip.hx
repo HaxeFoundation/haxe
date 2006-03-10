@@ -71,12 +71,17 @@ extern class MovieClip implements Dynamic
 	function curveTo(controlX : Float, controlY : Float, anchorX : Float, anchorY : Float) : Void;
 #if flash8
 	function lineStyle(thickness : Float, rgb : Float, alpha : Float, pixelHinting : Bool, noScale : String, capsStyle : String, jointStyle : String, miterLimit : Float) : Void;
-#else
+#else true
 	function lineStyle(thickness : Float, rgb : Float, alpha : Float) : Void;
 #end
 	function endFill() : Void;
 	function clear() : Void;
-	function createTextField(instanceName : String, depth : Float, x : Float, y : Float, width : Float, height : Float) : TextField; /* Void before Flash 8 */
+
+#if flash8
+	function createTextField(instanceName : String, depth : Float, x : Float, y : Float, width : Float, height : Float) : TextField;
+#else true
+	function createTextField(instanceName : String, depth : Float, x : Float, y : Float, width : Float, height : Float) : Void;
+#end
 	function getTextSnapshot() : TextSnapshot;
 	function getSWFVersion() : Float;
 
