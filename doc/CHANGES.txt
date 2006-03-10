@@ -1,7 +1,11 @@
 2006-03-??: beta 3
-	javacript generator
+	javascript generator
 	optimized for in interval
 	renaming of locals (name must be unique)
+	added uncaught exceptions handling in Flash
+	fixed Bool.true == true and Bool.false == false on all platforms
+	fixed matching on Bool different from enums
+	removed -fplayer (use -D instead) and added -fheader
 	
 2006-02-19: beta 2
 	renamed neko.db.Result to neko.db.ResultSet
