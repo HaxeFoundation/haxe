@@ -131,7 +131,7 @@ class Boot {
 			}
 			switch( cl ) {
 			case Int:
-				return Math.ceil(o) == o; // error with NaN
+				return (Math.ceil(o) == o) && isFinite(o);
 			case Float:
 				return __js__("typeof(o)") == "number";
 			case Bool:
