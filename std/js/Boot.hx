@@ -89,15 +89,17 @@ class Boot {
 				var str = "{\n";
 				s += "\t";
 				__js__("for( var k in o ) { ");
+					if( str.length != 2 )
+						str += ", \n";
 					if( k == "__class__" && o[k].__interfaces__ != null )
 						__js__("continue");
 					if( k == "__construct__" && __js__("typeof(o[k])") == "function" )
-						str += s + k + " : <function>\n";
+						str += s + k + " : <function>";
 					else
-						str += s + k + " : "+__string_rec(o[k],s)+"\n";
+						str += s + k + " : "+__string_rec(o[k],s);
 				__js__("}");
 				s = s.substring(1);
-				str += s + "}";
+				str += "\n" + s + "}";
 				return str;
 			case "function":
 				return "<function>";
