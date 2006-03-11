@@ -75,6 +75,7 @@ let forbidden_packages = ref []
 let error msg p = raise (Error (Custom msg,p))
 
 let load_ref : (context -> module_path -> pos -> module_def) ref = ref (fun _ _ _ -> assert false)
+let type_expr_ref = ref (fun _ ?need_val _ -> assert false)
 
 let load ctx m p = (!load_ref) ctx m p
 
@@ -116,6 +117,17 @@ let exc_protect f =
 			| Error (m,p) -> raise (Error (Protect m,p))
 	) in
 	r
+
+let mk_infos ctx p params =
+	(EObjectDecl (
+		("fileName" , (EConst (String (Filename.basename p.pfile)) , p)) ::
+		("lineNumber" , (EConst (Int (string_of_int (Lexer.get_error_line p))),p)) ::
+		("className" , (EConst (String (s_type_path ctx.curclass.cl_path)),p)) ::
+		if ctx.curmethod = "" then
+			params
+		else 
+			("methodName", (EConst (String ctx.curmethod),p)) :: params
+	) ,p)
 
 (** since load_type is used in PASS2 , it cannot access the structure of a type **)
 
@@ -483,6 +495,9 @@ let type_constant ctx c p =
 		if ctx.in_static then error "Cannot access super from a static function" p;
 		mk (TConst TSuper) t p
 	| Ident "null" -> mk (TConst TNull) (mk_mono()) p
+	| Ident "here" ->
+		let infos = mk_infos ctx p [] in
+		(!type_expr_ref) ctx ~need_val:true infos
 	| Ident s -> type_ident ctx s p
 	| Type s ->
 		type_type ctx ([],s) p
@@ -953,15 +968,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			mk (TConst TNull) (t_void ctx) p
 		else
 		let params = (match el with [] -> [] | _ -> ["customParams",(EArrayDecl el , p)]) in
-		let infos = (EObjectDecl (
-			("fileName" , (EConst (String (Filename.basename p.pfile)) , p)) ::
-			("lineNumber" , (EConst (Int (string_of_int (Lexer.get_error_line p))),p)) ::
-			("className" , (EConst (String (s_type_path ctx.curclass.cl_path)),p)) ::
-			(if ctx.curmethod = "" then
-				params
-			else 
-				("methodName", (EConst (String ctx.curmethod),p)) :: params)
-		) ,p) in
+		let infos = mk_infos ctx p params in
 		type_expr ctx (ECall ((EField ((EConst (Type "Log"),p),"trace"),p),[e;EUntyped infos,p]),p)
 	| ECall ((EConst (Ident "type"),_),[e]) ->
 		let e = type_expr ctx e in
@@ -1529,4 +1536,5 @@ let types ctx main =
 	List.rev !types
 
 ;;
-load_ref := load
+load_ref := load;
+type_expr_ref := type_expr;
