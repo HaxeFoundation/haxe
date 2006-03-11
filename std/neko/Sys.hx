@@ -80,15 +80,15 @@ class Sys {
 		return h;
 	}
 
-	public static function stdin() {
+	public static function stdin() : File {
 		return untyped new File(file_stdin());
 	}
 
-	public static function stdout() {
+	public static function stdout() : File {
 		return untyped new File(file_stdout());
 	}
 
-	public static function stderr() {
+	public static function stderr() : File {
 		return untyped new File(file_stderr());
 	}
 
