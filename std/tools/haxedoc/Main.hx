@@ -6,8 +6,8 @@ import neko.Web;
 private class Url {
 	public static var base : String;
 	public static var buffer : StringBuf;
-	public static function make( params, text ) {
-		return "<a href=\""+base + params+"\">"+text+"</a>";
+	public static function make( params, css, text ) {
+		return "<a href=\""+base + params+"\" class=\""+css+"\">"+text+"</a>";
 	}
 }
 
@@ -47,11 +47,23 @@ private class DocField {
 		}
 	}
 
-	public function link(name : String) {
-		return Url.make(name.split(".").join("/"),name);
+	public function link(name : String, curpath : Array<String> ) {
+		var path = name.split(".");
+		var local = true;
+		for( i in 0...path.length-1 ) {
+			if( path[i] != curpath[i] ) {
+				local = false;
+				break;
+			}
+		}
+		if( local ) {
+			var url = path.join("/");
+			return Url.make(url,"type",path.pop());
+		}
+		return Url.make(path.join("/"),"type",name);
 	}
 
-	public function typeToString(t) {
+	public function typeToString(t,curp) {
 		switch t {
 		case tunknown:
 			return "Unknown";
@@ -65,11 +77,11 @@ private class DocField {
 						first = false;
 					else
 						ps += ",";
-					ps += typeToString(p);
+					ps += typeToString(p,curp);
 				}
 				ps += "&gt;";
 			}
-			return link(name)+ps;
+			return link(name,curp)+ps;
 		case tenum(name,params):
 			var ps = "";
 			if( params.length != 0 ) {
@@ -80,11 +92,11 @@ private class DocField {
 						first = false;
 					else
 						ps += ",";
-					ps += typeToString(p);
+					ps += typeToString(p,curp);
 				}
 				ps += "&gt;";
 			}
-			return link(name)+ps;
+			return link(name,curp)+ps;
 		case tanon(fields):
 			var buf = new StringBuf();
 			var first = true;
@@ -96,14 +108,14 @@ private class DocField {
 					buf.add(", ");
 				buf.add(f.name);
 				buf.add(" : ");
-				buf.add(typeToString(f.t));
+				buf.add(typeToString(f.t,curp));
 			}
 			buf.add(" }");
 			return buf.toString();
 		case tdynamic(t):
 			if( t == null )
-				return link("Dynamic");
-			return link("Dynamic") + "&lt;" + typeToString(t) + "&gt;";
+				return link("Dynamic",curp);
+			return link("Dynamic",curp) + "&lt;" + typeToString(t,curp) + "&gt;";
 		case tfunction(params,ret):
 			var s = new StringBuf();
 			s.add("(");
@@ -115,12 +127,12 @@ private class DocField {
 					s.add(", ");
 				s.add(p.name);
 				s.add(" : ");
-				s.add(typeToString(p.t));
+				s.add(typeToString(p.t,curp));
 			}
 			s.add(") : ");
-			return s.toString() + typeToString(ret);
+			return s.toString() + typeToString(ret,curp);
 		case tparam(cl,name):
-			return if( cl != parent.path ) link(cl) + "." + name else name;
+			return if( cl != parent.path ) link(cl,curp) + "." + name else name;
 		case tconstr(params):
 			var s = new StringBuf();
 			s.add("(");
@@ -132,7 +144,7 @@ private class DocField {
 					s.add(", ");
 				s.add(p.name);
 				s.add(" : ");
-				s.add(typeToString(p.t));
+				s.add(typeToString(p.t,curp));
 			}
 			s.add(")");
 			return s.toString();
@@ -160,18 +172,20 @@ private class DocClass {
 
 	public function toString() {
 		var s = new StringBuf();
-		s.add("<h1>");
+		var curp = path.split(".");
+		s.add("<div class=\"classname\">");
+		s.add(if isEnum "enum " else "class ");
 		s.add(path);
 		if( params.length > 0 ) {
 			s.add("&lt;");
 			s.add(params.join(", "));
 			s.add("&gt;");
 		}
-		s.add("</h1>");
+		s.add("</div>");
 		if( doc != null ) {
-			s.add("<p>");
+			s.add("<div class=\"classdoc\">");
 			s.add(doc);
-			s.add("</p>");
+			s.add("</div>");
 		}
 		s.add("<dl>");
 		if( isEnum ) {
@@ -179,7 +193,7 @@ private class DocClass {
 				s.add("<dt>");
 				s.add(f.name);
 				if( f.type != null )
-					s.add(f.typeToString(f.type));
+					s.add(f.typeToString(f.type,curp));
 				s.add("</dt>");
 				s.add("<dd>");
 				if( f.doc != null ) s.add(f.doc);
@@ -197,7 +211,7 @@ private class DocClass {
 				s.add(f.name);
 				if( f.isVar() )
 					s.add(" : ");
-				s.add(f.typeToString(f.type));
+				s.add(f.typeToString(f.type,curp));
 				s.add("</dt>");
 				s.add("<dd>");
 				if( f.doc != null ) s.add(f.doc);
@@ -399,7 +413,7 @@ class DocView {
 	}
 
 	static function display(p : Array<DocEntry> ) {
-		print("<ul>");
+		print("<ul class=\"entry\">");
 		for( e in p ) {
 			switch e {
 			case epackage(name,p):
@@ -408,7 +422,7 @@ class DocView {
 				print("</li>");
 			case eclass(c):
 				if( c.fields.length > 0 )
-					print("<li>"+Url.make(c.path.split(".").join("/"),c.name)+"</li>");
+					print("<li>"+Url.make(c.path.split(".").join("/"),"entry",c.name)+"</li>");
 			}
 		}
 		print("</ul>");
@@ -442,9 +456,9 @@ class DocView {
 				var c = findEntry(entries,clname.split("."));
 				if( c == null )
 					throw ("Class not found : "+clname);
-				print(Url.make("index","Index"));
+				print(Url.make("index","index","Index"));
 				print(c.toString());
-				print(Url.make("index","Index"));
+				print(Url.make("index","index","Index"));
 			}
 			return;
 		}
@@ -469,6 +483,7 @@ class DocView {
 		var html = XmlParser.parse(hdata).firstChild;
 		loadFile("flash.xml");
 		loadFile("neko.xml");
+		loadFile("js.xml");
 		sortEntries(entries);
 		Url.base = "/api/";
 		Url.buffer = new StringBuf();

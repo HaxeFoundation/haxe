@@ -1,0 +1,92 @@
+<html>
+
+<head>
+<title>haXe API Documentation</title>
+
+<style type="text/css">
+body {
+	text-align: center;
+	font-family: Trebuchet MS, sans-serif;
+	background-color : #D0DEC3;
+}
+
+.document {
+	width : 800px;
+	position : relative;
+	margin : 10px auto 5px auto;
+	border : solid 2px #666;
+	text-align : justify;
+	background-color: white;
+}
+
+.title {
+	font-size: 35;
+	font-weight: bold;
+	text-align: center;
+	background-color : #fb0;
+	color : white;
+}
+
+ul.entry {
+	list-style-type: circle;
+	font-weight : bold;
+	padding-left : 30px;
+}
+
+a {
+	color : #fb0;
+	font-weight : bold;
+	text-decoration : none;
+}
+
+a:hover {
+	color : #ea0;
+}
+
+.index {
+	margin-left : 10px;
+}
+
+.classname {
+	font-size : 30;
+	font-weight : bold;
+	margin-left : 10px;
+	margin-bottom : 20px;
+}
+
+.classdoc {
+	border : 1px dashed #666;
+	margin-left : 20px;
+	margin-right : 20px;
+	padding : 5 5 5 5;
+}
+
+dd {
+	margin : 0 20 20 40;
+	font-size : 12pt;
+}
+
+dt {
+	margin-left : 20px;
+	margin-bottom : 10px;
+	text-align : left;
+	font-size : 10pt;
+	font-weight : bold;
+	font-family: Courier New, monospace;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="document">
+<div class="title">haXe API Documentation</div>
+
+<data/>
+
+</div>
+
+</body>
+</html>
