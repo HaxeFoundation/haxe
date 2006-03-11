@@ -24,23 +24,24 @@
  */
 package js;
 
-class Lib {
+extern class Link extends HtmlDom {
 
-	public static var isIE : Bool;
-	public static var document : Document = untyped __js__("document");
-	public static var window : Window = untyped __js__("window");
+	var charset : String;
+	var disabled : Bool;
+	var href : String;
+	var hreflang : String;
+	var media : String;
+	var rel : String;
+	var rev : String;
+	var target : String;
+	var type : String;
 
-	public static function alert( v : Dynamic ) {
-		untyped __js__("alert")(js.Boot.__string_rec(v,""));
-	}
+	#if w3c
+	#else true
+	var id : String;
+	var name : String;
+	#end
 
-	public static function setErrorHandler( f : String -> String -> Int -> Bool ) {
-		untyped onerror = f;
-	}
-
-	public static function defaultHandler( msg : String, url : String, line : Int ) {
-		alert("Error "+url+" ("+line+")\n\n"+msg);
-		return true;
-	}
+	var onLoad : Event -> Void;
 
 }

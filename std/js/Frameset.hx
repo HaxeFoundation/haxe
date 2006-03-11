@@ -24,23 +24,21 @@
  */
 package js;
 
-class Lib {
+extern class Frameset extends HtmlDom {
 
-	public static var isIE : Bool;
-	public static var document : Document = untyped __js__("document");
-	public static var window : Window = untyped __js__("window");
+	var cols : Int;
+	var rows : Int;
+	#if w3c
+	#else true
+	var id : String;
+	#end
 
-	public static function alert( v : Dynamic ) {
-		untyped __js__("alert")(js.Boot.__string_rec(v,""));
-	}
+	function blur() : Void;
+	function focus() : Void;
 
-	public static function setErrorHandler( f : String -> String -> Int -> Bool ) {
-		untyped onerror = f;
-	}
-
-	public static function defaultHandler( msg : String, url : String, line : Int ) {
-		alert("Error "+url+" ("+line+")\n\n"+msg);
-		return true;
-	}
+	/* IE only ?
+	var onBlur : Event -> Void;
+	var onFocus : Event -> Void;
+	*/
 
 }

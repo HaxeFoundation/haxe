@@ -24,23 +24,28 @@
  */
 package js;
 
-class Lib {
+extern class Frame extends HtmlDom {
 
-	public static var isIE : Bool;
-	public static var document : Document = untyped __js__("document");
-	public static var window : Window = untyped __js__("window");
+	var contentDocument : Document;
+	var frameBorder : String;
+	// IE6 only ? var longDesc : String
+	var marginHeight : String;
+	var marginWidth : String;
+	var name : String;
+	var noResize : Bool;
+	var scrolling : String;
+	var src : String;
 
-	public static function alert( v : Dynamic ) {
-		untyped __js__("alert")(js.Boot.__string_rec(v,""));
-	}
+	#if w3c
+	#else true
+	var id : String;
+	function blur() : Void;
+	function focus() : Void;
+	#end
 
-	public static function setErrorHandler( f : String -> String -> Int -> Bool ) {
-		untyped onerror = f;
-	}
-
-	public static function defaultHandler( msg : String, url : String, line : Int ) {
-		alert("Error "+url+" ("+line+")\n\n"+msg);
-		return true;
-	}
-
+	/* IE only
+	var onBlur : Event -> Void;
+	var onFocus : Event -> Void;
+	*/
 }
+

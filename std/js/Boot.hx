@@ -80,7 +80,14 @@ class Boot {
 					str += "]";
 					return str;
 				}
-				if( o.toString != __js__("Object.toString") ) {
+				var tostr;
+				try {
+					tostr = o.toString;
+				} catch( e : Dynamic ) {
+					// strange error on IE
+					return "???";
+				}
+				if( tostr != __js__("Object.toString") ) {
 					var s2 = o.toString();
 					if( s2 != "[object Object]")
 						return s2;
@@ -148,6 +155,9 @@ class Boot {
 
 	private static function __init() {
 		untyped {
+			Lib.isIE = (document.all != null);
+			if( Lib.isIE )
+				Node = __js__("Object");
 			Node.element_node = 1;
 			Node.text_node = 3;
 			Node.prototype.nodes = function() {

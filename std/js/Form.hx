@@ -24,23 +24,25 @@
  */
 package js;
 
-class Lib {
+extern class Form extends HtmlDom {
 
-	public static var isIE : Bool;
-	public static var document : Document = untyped __js__("document");
-	public static var window : Window = untyped __js__("window");
+	var elements : HtmlCollection<HtmlDom>;
 
-	public static function alert( v : Dynamic ) {
-		untyped __js__("alert")(js.Boot.__string_rec(v,""));
-	}
+	var acceptCharset : String;
+	var action : String;
+	var encoding : String;
+	var enctype : String;
+	var id : String;
+	var length : Int;
+	var method : String;
+	var name : String;
+	var tabIndex : Int;
+	var target : String;
 
-	public static function setErrorHandler( f : String -> String -> Int -> Bool ) {
-		untyped onerror = f;
-	}
+	function reset() : Void;
+	function submit() : Void;
 
-	public static function defaultHandler( msg : String, url : String, line : Int ) {
-		alert("Error "+url+" ("+line+")\n\n"+msg);
-		return true;
-	}
+	var onReset : Event -> Void;
+	var onSubmit : Event -> Void;
 
 }

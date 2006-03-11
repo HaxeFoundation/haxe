@@ -24,23 +24,23 @@
  */
 package js;
 
-class Lib {
+extern class Textarea extends FormElement {
 
-	public static var isIE : Bool;
-	public static var document : Document = untyped __js__("document");
-	public static var window : Window = untyped __js__("window");
+	var cols : Int;
+	var rows : Int;
+	var defaultValue : String;
+	var readOnly : Bool;
 
-	public static function alert( v : Dynamic ) {
-		untyped __js__("alert")(js.Boot.__string_rec(v,""));
-	}
+	function select() : Void;
 
-	public static function setErrorHandler( f : String -> String -> Int -> Bool ) {
-		untyped onerror = f;
-	}
+	var onChange : Event -> Void;
 
-	public static function defaultHandler( msg : String, url : String, line : Int ) {
-		alert("Error "+url+" ("+line+")\n\n"+msg);
-		return true;
-	}
+	/* not on IE ?
+	var onKeyDown : Event -> Void;
+	var onKeyPress : Event -> Void;
+	var onKeyUp : Event -> Void;
+	var onSelect : Event -> Void;
+	*/
 
 }
+

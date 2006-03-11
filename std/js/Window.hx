@@ -24,23 +24,64 @@
  */
 package js;
 
-class Lib {
+extern class Window {
 
-	public static var isIE : Bool;
-	public static var document : Document = untyped __js__("document");
-	public static var window : Window = untyped __js__("window");
+	var history : History;
+	var location : Location;
+	var document : Document;
+	var navigator : Navigator;
+	var screen : Screen;
 
-	public static function alert( v : Dynamic ) {
-		untyped __js__("alert")(js.Boot.__string_rec(v,""));
-	}
+	var frames : HtmlCollection<Frame>;
+	var closed : Bool;
+	var defaultStatus : String;
+	var length : Int;
+	var name : String;
+	var opener : Window;
+	var parent : Window;
 
-	public static function setErrorHandler( f : String -> String -> Int -> Bool ) {
-		untyped onerror = f;
-	}
+	var self : Window;
+	var status : String;
+	var top : Window;
 
-	public static function defaultHandler( msg : String, url : String, line : Int ) {
-		alert("Error "+url+" ("+line+")\n\n"+msg);
-		return true;
-	}
+	function alert( msg : String ) : Void;
+	function blur() : Void;
+	// clearInterval
+	// clearTimeout
+	function close() : Void;
+	function confirm( msg : String ) : Bool;
+	function focus() : Void;
+	function moveBy( dx : Int, dy : Int ) : Void;
+	function moveTo( x : Int, y : Int ) : Void;
+	function print() : Void;
+	function prompt( msg : String ) : String;
+	// FF1.5 resizeTo
+	function scrollBy( dx : Int, dy : Int ) : Void;
+	function scrollTo( x : Int, y : Int ) : Void;
+	// setInterval
+	// setTimeout
 
+	/* IE only ?
+	clientInformation
+	clipboardData
+	event
+	external
+	dialogArguments
+	dialog....
+	frameElement
+	offscreenBuffering
+	returnValue
+	screenTop
+	createPopup()
+	execScript()
+	navigate(url)
+	resizeBy()
+	scroll();
+	setActive()
+	showHelp()
+	show...()
+	*/
+
+ 	// events : only on FF
 }
+

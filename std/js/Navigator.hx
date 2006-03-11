@@ -24,23 +24,27 @@
  */
 package js;
 
-class Lib {
+extern class Navigator {
 
-	public static var isIE : Bool;
-	public static var document : Document = untyped __js__("document");
-	public static var window : Window = untyped __js__("window");
+	// var plugins : HtmlCollection<???>
 
-	public static function alert( v : Dynamic ) {
-		untyped __js__("alert")(js.Boot.__string_rec(v,""));
-	}
+	var appCodeName : String;
+	var appName : String;
+	var appVersion : String;
+	var cookieEnabled : Bool;
+	var platform : String;
+	var userAgent : String;
 
-	public static function setErrorHandler( f : String -> String -> Int -> Bool ) {
-		untyped onerror = f;
-	}
+	/* IE only ?
+	var appMinorVersion : String
+	var browserLanguage : String
+	var cpuClass : String;
+	var onLine : Bool;
+	var systemLanguage : String;
+	var userLanguage : String;
+	*/
 
-	public static function defaultHandler( msg : String, url : String, line : Int ) {
-		alert("Error "+url+" ("+line+")\n\n"+msg);
-		return true;
-	}
+	function javaEnabled() : Bool;
+	function taintEnabled() : Bool;
 
 }

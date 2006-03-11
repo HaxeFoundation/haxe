@@ -24,23 +24,25 @@
  */
 package js;
 
-class Lib {
+extern class FormElement extends HtmlDom {
 
-	public static var isIE : Bool;
-	public static var document : Document = untyped __js__("document");
-	public static var window : Window = untyped __js__("window");
+	var disabled : Bool;
+	var form : Form;
+	var name : String;
+	var type : String;
+	var value : String;
 
-	public static function alert( v : Dynamic ) {
-		untyped __js__("alert")(js.Boot.__string_rec(v,""));
-	}
+	#if w3c
+	#else true
+	var id : String;
+	#end
 
-	public static function setErrorHandler( f : String -> String -> Int -> Bool ) {
-		untyped onerror = f;
-	}
+	function blur() : Void;
+	function click() : Void;
+	function focus() : Void;
 
-	public static function defaultHandler( msg : String, url : String, line : Int ) {
-		alert("Error "+url+" ("+line+")\n\n"+msg);
-		return true;
-	}
+	var onBlur : Event -> Void;
+	var onClick : Event -> Void;
+	var onFocus : Event -> Void;
 
 }

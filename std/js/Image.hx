@@ -24,23 +24,39 @@
  */
 package js;
 
-class Lib {
+extern class Image extends HtmlDom {
 
-	public static var isIE : Bool;
-	public static var document : Document = untyped __js__("document");
-	public static var window : Window = untyped __js__("window");
+	var align : String;
+	var alt : String;
+	var border : String;
+	var height : Int;
+	var hspace : Int;
+	var isMap : Bool;
+	// IE only : var longDesc : String;
+	var name : String;
+	var src : String;
+	var useMap : String;
+	var vspace : Int;
+	var width : Int;
 
-	public static function alert( v : Dynamic ) {
-		untyped __js__("alert")(js.Boot.__string_rec(v,""));
-	}
+	#if w3c
+	#else true
+	var complete : Bool;
+	var id : String;
+	var lowsrc : String;
+	#end
 
-	public static function setErrorHandler( f : String -> String -> Int -> Bool ) {
-		untyped onerror = f;
-	}
+	/* IE ONLY
+	function blur() : Void;
+	function click() : Void;
+	function focus() : Void;
+	var onBlur : Event -> Void;
+	var onClick : Event -> Void;
+	var onFocus : Event -> Void;
+	*/
 
-	public static function defaultHandler( msg : String, url : String, line : Int ) {
-		alert("Error "+url+" ("+line+")\n\n"+msg);
-		return true;
-	}
+	var onAbort : Event -> Void;
+	var onError : Event -> Void;
+	var onLoad : Event -> Void;
 
 }

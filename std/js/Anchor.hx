@@ -24,23 +24,30 @@
  */
 package js;
 
-class Lib {
+extern class Anchor extends HtmlDom {
 
-	public static var isIE : Bool;
-	public static var document : Document = untyped __js__("document");
-	public static var window : Window = untyped __js__("window");
+	function blur() : Void;
+	function focus() : Void;
 
-	public static function alert( v : Dynamic ) {
-		untyped __js__("alert")(js.Boot.__string_rec(v,""));
-	}
+	var accessKey : String;
+	var href : String;
+	var id : String;
+	var innerHTML : String;
+	var name: String;
+	var rel : String;
+	var rev : String;
+	var tabIndex : Int;
+	var target : String;
 
-	public static function setErrorHandler( f : String -> String -> Int -> Bool ) {
-		untyped onerror = f;
-	}
+#if ie5
+	var charset : String;
+	var coords : String;
+	var hreflang : String;
+	var shape : String;
+	var type : String;
+#end
 
-	public static function defaultHandler( msg : String, url : String, line : Int ) {
-		alert("Error "+url+" ("+line+")\n\n"+msg);
-		return true;
-	}
+	var onBlur : Event -> Void;
+	var onFocus : Event -> Void;
 
 }

@@ -24,23 +24,23 @@
  */
 package js;
 
-class Lib {
+extern class Screen {
 
-	public static var isIE : Bool;
-	public static var document : Document = untyped __js__("document");
-	public static var window : Window = untyped __js__("window");
+	var availHeight : Int;
+	var availWidth : Int;
+	var colorDepth : Int;
+	var height : Int;
+	var width : Int;
 
-	public static function alert( v : Dynamic ) {
-		untyped __js__("alert")(js.Boot.__string_rec(v,""));
-	}
+	// FF only ? var pixelDepth : Int;
 
-	public static function setErrorHandler( f : String -> String -> Int -> Bool ) {
-		untyped onerror = f;
-	}
-
-	public static function defaultHandler( msg : String, url : String, line : Int ) {
-		alert("Error "+url+" ("+line+")\n\n"+msg);
-		return true;
-	}
+	/* IE only ?
+	var bufferDepth : Int;
+	var deviceXDPI : Int;
+	var deviceYDPI : Int;
+	var logicalXDPI : Int;
+	var logicalYDPI : Int;
+	var updateInterval : Int;
+	*/
 
 }
