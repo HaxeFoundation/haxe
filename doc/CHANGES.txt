@@ -1,4 +1,4 @@
-2006-03-??: beta 3
+2006-03-11: beta 3
 	javascript generator
 	optimized for in interval
 	renaming of locals (name must be unique)
@@ -6,6 +6,10 @@
 	fixed Bool.true == true and Bool.false == false on all platforms
 	fixed matching on Bool different from enums
 	removed -fplayer (use -D instead) and added -fheader
+	fixed infinity is Int
+	added "here" special identifier
+	neko Apis : File, FileSystem, Sys
+	added base JS API
 	
 2006-02-19: beta 2
 	renamed neko.db.Result to neko.db.ResultSet
