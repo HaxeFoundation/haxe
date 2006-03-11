@@ -239,8 +239,40 @@ and gen_expr ctx e =
 		gen_expr ctx e;
 		newline ctx;
 		spr ctx "catch( $e ) {";
+		let bend = open_block ctx in
 		newline ctx;
-		(* TODO : CATCHES *)
+		let last = ref false in
+		List.iter (fun (v,t,e) ->
+			if !last then () else
+			let t = (match follow t with
+			| TEnum (e,_) -> Some (TEnumDecl e)
+			| TInst (c,_) -> Some (TClassDecl c)
+			| TFun _
+			| TLazy _
+			| TAnon _ ->
+				assert false
+			| TMono _
+			| TDynamic _ ->
+				None
+			) in
+			match t with
+			| None -> 
+				last := true; 
+				gen_expr ctx e;
+				bend();
+				newline ctx;
+			| Some t ->
+				spr ctx "if( js.Boot.__instanceof($e,";
+				gen_value ctx (mk (TType t) (mk_mono()) e.epos);
+				spr ctx ") ) ";
+				gen_expr ctx e;
+				newline ctx;
+		) catchs;
+		if not !last then begin
+			spr ctx "throw($e)";
+			bend();
+			newline ctx;
+		end;		
 		spr ctx "}";
 	| TMatch (e,_,cases,def) ->
 		spr ctx "var $e = ";
