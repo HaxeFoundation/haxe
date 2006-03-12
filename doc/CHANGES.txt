@@ -1,3 +1,6 @@
+2006-03-??: beta 4
+	fixed javascript events case
+
 2006-03-11: beta 3
 	javascript generator
 	optimized for in interval
