@@ -33,11 +33,11 @@ extern class Text extends FormElement {
 
 	function select() : Void;
 
-	var onChange : Event -> Void;
-	var onKeyDown : Event -> Void;
-	var onKeyPress : Event -> Void;
-	var onKeyUp : Event -> Void;
-	var onSelect : Event -> Void;
+	var onchange : Event -> Void;
+	var onkeydown : Event -> Void;
+	var onkeypress : Event -> Void;
+	var onkeyup : Event -> Void;
+	var onselect : Event -> Void;
 
 }
 

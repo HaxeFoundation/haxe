@@ -37,8 +37,8 @@ extern class Frameset extends HtmlDom {
 	function focus() : Void;
 
 	/* IE only ?
-	var onBlur : Event -> Void;
-	var onFocus : Event -> Void;
+	var onblur : Event -> Void;
+	var onfocus : Event -> Void;
 	*/
 
 }

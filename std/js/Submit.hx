@@ -27,6 +27,6 @@ package js;
 extern class Submit extends FormElement {
 
 	function select() : Void;
-	var onSelectStart : Event -> Void;
+	var onselectstart : Event -> Void;
 }
 

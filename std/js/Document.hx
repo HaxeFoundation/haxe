@@ -66,16 +66,16 @@ extern class Document extends HtmlDom {
 	function getElementById( id : String ) : HtmlDom;
 	function getElementsByName( name : String ) : HtmlCollection<HtmlDom>;
 
-	var onClick : Event -> Void;
-	var onDblClick : Event -> Void;
-	var onFocus : Event -> Void;
-	var onKeyDown : Event -> Void;
-	var onKeyUp : Event -> Void;
-	var onMouseDown : Event -> Void;
-	var onMouseMove : Event -> Void;
-	var onMouseOut : Event -> Void;
-	var onMouseOver : Event -> Void;
-	var onMouseUp : Event -> Void;
-	var onResize : Event -> Void;
+	var onclick : Event -> Void;
+	var ondblclick : Event -> Void;
+	var onfocus : Event -> Void;
+	var onkeydown : Event -> Void;
+	var onkeyup : Event -> Void;
+	var onmousedown : Event -> Void;
+	var onmousemove : Event -> Void;
+	var onmouseout : Event -> Void;
+	var onmouseover : Event -> Void;
+	var onmouseup : Event -> Void;
+	var onresize : Event -> Void;
 
 }

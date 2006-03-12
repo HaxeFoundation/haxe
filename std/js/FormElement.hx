@@ -41,8 +41,8 @@ extern class FormElement extends HtmlDom {
 	function click() : Void;
 	function focus() : Void;
 
-	var onBlur : Event -> Void;
-	var onClick : Event -> Void;
-	var onFocus : Event -> Void;
+	var onblur : Event -> Void;
+	var onclick : Event -> Void;
+	var onfocus : Event -> Void;
 
 }

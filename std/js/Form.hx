@@ -42,7 +42,7 @@ extern class Form extends HtmlDom {
 	function reset() : Void;
 	function submit() : Void;
 
-	var onReset : Event -> Void;
-	var onSubmit : Event -> Void;
+	var onreset : Event -> Void;
+	var onsubmit : Event -> Void;
 
 }

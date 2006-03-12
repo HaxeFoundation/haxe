@@ -26,8 +26,8 @@ package js;
 
 extern class Button extends FormElement {
 
-	var onMouseDown : Event -> Void;
-	var onMouseUp : Event -> Void;
+	var onmousedown : Event -> Void;
+	var onmouseup : Event -> Void;
 
 }
 

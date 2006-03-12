@@ -42,6 +42,6 @@ extern class Link extends HtmlDom {
 	var name : String;
 	#end
 
-	var onLoad : Event -> Void;
+	var onload : Event -> Void;
 
 }

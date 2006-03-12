@@ -50,13 +50,13 @@ extern class Image extends HtmlDom {
 	function blur() : Void;
 	function click() : Void;
 	function focus() : Void;
-	var onBlur : Event -> Void;
-	var onClick : Event -> Void;
-	var onFocus : Event -> Void;
+	var onblur : Event -> Void;
+	var onclick : Event -> Void;
+	var onfocus : Event -> Void;
 	*/
 
-	var onAbort : Event -> Void;
-	var onError : Event -> Void;
-	var onLoad : Event -> Void;
+	var onabort : Event -> Void;
+	var onerror : Event -> Void;
+	var onload : Event -> Void;
 
 }

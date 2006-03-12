@@ -33,9 +33,9 @@ extern class Password extends FormElement {
 
 	function select() : Void;
 
-	var onKeyUp : Event -> Void;
-	var onKeyDown : Event -> Void;
-	var onKeyPress : Event -> Void;
+	var onkeyup : Event -> Void;
+	var onkeydown : Event -> Void;
+	var onkeypress : Event -> Void;
 
 }
 
