@@ -29,7 +29,8 @@ class Timer {
 	private var id : Int;
 
 	public function new( time : Int ) {
-		id = untyped _global.setInterval(this,"run",time);
+		var me = this;
+		id = untyped _global.setInterval(function() { me.run(); },time);
 	}
 
 	public function run() {
