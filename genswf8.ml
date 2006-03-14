@@ -307,19 +307,6 @@ let free_reg ctx r p =
 	if r <> ctx.reg_count then stack_error p;
 	ctx.reg_count <- ctx.reg_count - 1
 
-let best_eq t = 
-	match follow t with
-	| TMono _
-	| TDynamic _
-	| TLazy _
-	| TInst ({ cl_path = ([],"String") },_) ->
-		AEqual
-	| TInst _
-	| TEnum _
-	| TFun _
-	| TAnon _ ->
-		APhysEqual
-
 (* -------------------------------------------------------------- *)
 (* Generation Helpers *)
 
@@ -589,11 +576,11 @@ and gen_switch ctx retval e cases def =
 			[]
 		| [(e,x)] ->
 			gen_expr ctx true e;
-			write ctx (best_eq e.etype);
+			write ctx AEqual;
 			[cjmp ctx,x]
 		| (e,x) :: l ->
 			gen_expr ctx true e;
-			write ctx (best_eq e.etype);
+			write ctx AEqual;
 			let j = cjmp ctx in
 			push ctx [VReg r];
 			(j,x) :: loop l
@@ -683,13 +670,13 @@ and gen_binop ctx retval op e1 e2 =
 	| OpMult -> gen AMultiply
 	| OpDiv -> gen ADivide
 	| OpSub -> gen ASubtract
-	| OpEq -> gen (best_eq e1.etype)
+	| OpEq -> gen AEqual
 	| OpPhysEq -> gen APhysEqual
 	| OpPhysNotEq ->
 		gen APhysEqual;
 		write ctx ANot
 	| OpNotEq -> 
-		gen (best_eq e1.etype);
+		gen AEqual;
 		write ctx ANot
 	| OpGt -> gen AGreater
 	| OpGte ->
