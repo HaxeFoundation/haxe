@@ -25,6 +25,7 @@ type target =
 	| Neko of string
 
 let prompt = ref false
+let alt_format = ref false
 
 let normalize_path p =
 	let l = String.length p in
@@ -38,9 +39,14 @@ let warn msg p =
 	if p = Ast.null_pos then
 		prerr_endline msg
 	else begin
-		let error_printer file line = sprintf "%s:%d:" file line in
+		let error_printer file line = 
+			if !alt_format then
+				sprintf "%s(%d):" file line
+			else
+				sprintf "%s:%d: :" file line
+		in
 		let epos = Lexer.get_error_pos error_printer p in
-		prerr_endline (sprintf "%s : %s" epos msg)
+		prerr_endline (sprintf "%s %s" epos msg)
 	end
 
 let report msg p =
@@ -146,6 +152,7 @@ try
 		),"<header> : define SWF header (width:height:fps:color)");
 		("-v",Arg.Unit (fun () -> Plugin.verbose := true),": turn on verbose mode");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
+		("-altfmt", Arg.Unit (fun() -> alt_format := true),": use alternative error output format");
 		("--next", Arg.Unit (fun() -> 
 			let p = !current in
 			current := Array.length argv;
