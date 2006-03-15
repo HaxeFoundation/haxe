@@ -94,6 +94,33 @@ class List<T> {
 		return found.ref;
 	}
 
+	public function length() {
+		var c = 0;
+		var h = this.h;
+		while( true ) {
+			switch( h ) {
+			case empty: break;
+			case cons(_,h2): h = h2; c++;
+			}
+		}
+		return c;
+	}
+
+	public function has(x) {
+		var h = this.h;
+		while( true ) {
+			switch( h ) {
+			case empty:
+				break;
+			case cons(x2,h2):
+				if( x == x2 )
+					return true;
+				h = h2;
+			}
+		}
+		return false;
+	}
+
 	public function iterator() : Iterator<T> {
 		return new ListIter<T>(h);
 	}
