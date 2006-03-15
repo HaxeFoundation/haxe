@@ -998,7 +998,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			let v = add_local ctx v t in
 			let e = type_expr ctx ~need_val e in
 			locals();
-			if not need_val then unify ctx e.etype e1.etype e.epos;
+			if need_val then unify ctx e.etype e1.etype e.epos;
 			v , t , e
 		) catches in
 		mk (TTry (e1,catches)) (if not need_val then t_void ctx else e1.etype) p
