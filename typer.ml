@@ -594,6 +594,23 @@ let type_field ctx t i p =
 	| t ->
 		no_field()
 
+type type_class =
+	| KInt
+	| KFloat
+	| KString
+	| KUnk
+	| KDyn
+	| KOther
+
+let classify t =
+	match follow t with
+	| TInst ({ cl_path = ([],"Int") },[]) -> KInt
+	| TInst ({ cl_path = ([],"Float") },[]) -> KFloat
+	| TInst ({ cl_path = ([],"String") },[]) -> KString
+	| TMono r when !r = None -> KUnk
+	| TDynamic _ -> KDyn
+	| _ -> KOther
+
 let rec type_binop ctx op e1 e2 p =
 	let e1 = type_expr ctx e1 in
 	let e2 = type_expr ctx e2 in
@@ -601,14 +618,39 @@ let rec type_binop ctx op e1 e2 p =
 	let rec loop op =
 	match op with
 	| OpAdd ->
-		let i1 = is_int e1.etype in
-		let i2 = is_int e2.etype in
-		mk_op (if i1 && i2 then
+		mk_op (match classify e1.etype, classify e2.etype with
+		| KInt , KInt ->
 			t_int ctx
-		else if (i1 || is_float e1.etype) && (i2 || is_float e2.etype) then
-			t_float ctx
-		else
-			t_string ctx)
+		| KFloat , KInt 
+		| KInt, KFloat
+		| KFloat, KFloat ->
+			t_float ctx		
+		| KUnk , KInt
+		| KUnk , KFloat
+		| KUnk , KString  ->
+			unify ctx e1.etype e2.etype e1.epos;
+			e1.etype
+		| KInt , KUnk
+		| KFloat , KUnk 
+		| KString , KUnk ->
+			unify ctx e2.etype e1.etype e2.epos;
+			e2.etype
+		| _ , KString
+		| _ , KDyn ->
+			e2.etype
+		| KString , _
+		| KDyn , _ ->
+			e1.etype
+		| KUnk , KUnk ->
+			let t = t_int ctx in
+			unify ctx e1.etype t e1.epos;
+			unify ctx e2.etype t e2.epos;
+			t
+		| KOther, _
+		| _ , KOther ->
+			let pr = print_context() in
+			error ("Cannot add " ^ s_type pr e1.etype ^ " and " ^ s_type pr e2.etype) p
+		)
 	| OpAnd
 	| OpOr
 	| OpXor
