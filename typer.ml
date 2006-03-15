@@ -919,7 +919,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let old_locals = save_locals ctx in
 		let i = add_local ctx i pt in
 		ctx.in_loop <- true;
-		let e2 = type_expr ctx e2 in
+		let e2 = type_expr ~need_val:false ctx e2 in
 		ctx.in_loop <- old_loop;
 		old_locals();
 		(match e1.eexpr with
@@ -960,7 +960,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let cond = type_expr ctx cond in
 		unify ctx cond.etype (t_bool ctx) cond.epos;
 		ctx.in_loop <- true;
-		let e = type_expr ctx e in
+		let e = type_expr ~need_val:false ctx e in
 		ctx.in_loop <- old_loop;
 		mk (TWhile (cond,e,flag)) (t_void ctx) p
 	| ESwitch (e,cases,def) ->
