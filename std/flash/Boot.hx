@@ -59,12 +59,16 @@ class Boot {
 					str = "MC("+o._name+") "+str;
 				s += "    ";
 				for k in (__keys__(o)).iterator() {
+					if( str.length != 2 )
+						str += ",\n";
 					if( k == "__construct__" && __typeof__(o[k]) == "function" )
-						str += s + k + " : <function>\n";
+						str += s + k + " : <function>";
 					else
-						str += s + k + " : "+__string_rec(o[k],s)+"\n";
+						str += s + k + " : "+__string_rec(o[k],s);
 				}
 				s = s.substring(4);
+				if( str.length != 2 )
+					str += "\n";
 				str += s + "}";
 				return str;
 			case "function":
