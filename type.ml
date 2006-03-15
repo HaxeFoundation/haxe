@@ -361,6 +361,22 @@ let rec unify a b =
 			true
 		with
 			Not_found -> false)
+	| TAnon (fl,_) , TInst (c,tl) ->
+		let rec loop c tl =
+			PMap.iter (fun n f2 ->
+				let f1 = PMap.find n fl in
+				if not (unify f1.cf_type (apply_params c.cl_types tl f2.cf_type)) then raise Not_found;
+			) c.cl_fields;
+			List.iter (fun (c,t) -> loop c t) c.cl_implements;
+			match c.cl_super with
+			| None -> ()
+			| Some (c,tl) -> loop c tl
+		in
+		(try
+			loop c tl;
+			true
+		with
+			Not_found -> false)
 	| TAnon (fl1,_) , TAnon (fl2,_) ->
 		(try
 			PMap.iter (fun n f2 ->
