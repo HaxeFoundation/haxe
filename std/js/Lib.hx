@@ -34,6 +34,10 @@ class Lib {
 		untyped __js__("alert")(js.Boot.__string_rec(v,""));
 	}
 
+	public static function eval( code : String ) : Dynamic {
+		return untyped __js__("eval")(code);
+	}
+
 	public static function setErrorHandler( f : String -> String -> Int -> Bool ) {
 		untyped onerror = f;
 	}
