@@ -1,5 +1,13 @@
 2006-03-??: beta 4
 	fixed javascript events case
+	fixed invalid use of physeq
+	fixed + type inference
+	added -altfmt
+	allowed anonymous <: class subtyping
+	relaxed unifications of expressions in "for" and "while"
+	more methods in List
+	syntax changes : mandatory parenthesis for "for" and "while"
+	allowed any kind of identifier almost everywhere
 
 2006-03-11: beta 3
 	javascript generator
