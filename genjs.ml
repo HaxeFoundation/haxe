@@ -258,10 +258,14 @@ and gen_expr ctx e =
 			match t with
 			| None -> 
 				last := true; 
+				print ctx "var %s = $e" v;
+				newline ctx;
 				gen_expr ctx e;
 				bend();
 				newline ctx;
 			| Some t ->
+				print ctx "var %s = $e" v;
+				newline ctx;
 				spr ctx "if( js.Boot.__instanceof($e,";
 				gen_value ctx (mk (TType t) (mk_mono()) e.epos);
 				spr ctx ") ) ";
