@@ -8,6 +8,7 @@
 	more methods in List
 	syntax changes : mandatory parenthesis for "for" and "while"
 	allowed any kind of identifier almost everywhere
+	moved tools, flash, js and neko inside "std".
 
 2006-03-11: beta 3
 	javascript generator
