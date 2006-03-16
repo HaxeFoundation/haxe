@@ -44,7 +44,7 @@ class Boot {
 					var i;
 					var str = "[";
 					s += "    ";
-					for i in 0...l
+					for( i in 0...l )
 						str += (if (i > 0) "," else "")+__string_rec(o[i],s);
 					s = s.substring(4);
 					str += "]";
@@ -58,7 +58,7 @@ class Boot {
 				if( typeof(o) == "movieclip" )
 					str = "MC("+o._name+") "+str;
 				s += "    ";
-				for k in (__keys__(o)).iterator() {
+				for( k in (__keys__(o)).iterator() ) {
 					if( str.length != 2 )
 						str += ",\n";
 					if( k == "__construct__" && __typeof__(o[k]) == "function" )
@@ -176,7 +176,7 @@ class Boot {
 					p : 0,
 					a : childNodes,
 					next : function() {
-						while true {
+						while( true ) {
 							var x = this.a[this.p];
 							if( x == null )
 								return null;

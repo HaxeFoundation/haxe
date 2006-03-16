@@ -82,28 +82,19 @@ class Reflect {
 	public static function field( o : Dynamic, field : String ) : Dynamic {
 		untyped
 		#if flash
-			{
-				var f = o[field];
-				if( f == null && !this.hasOwnProperty.call(o,f) )
-					throw ("No such field : " + field);
-				return f;
-			}
+			return o[field]
 		#else js
-			{
-				var f = o[field];
-				if( f == null && !o.hasOwnProperty(f) )
-					throw ("No such field : " + field);
-				return f;
+			try {
+				return o[field];
+			} catch( e : Dynamic ) {
+				return null;
 			}
 		#else neko
 			{
 				if( __dollar__typeof(o) != __dollar__tobject )
-					throw ("No such field : " + field);
+					return null;
 				var fh = __dollar__hash(field.__s);
-				var f = __dollar__objget(o,fh);
-				if( f == null && !__dollar__objfield(o,fh) )
-					throw ("No such field : " + field);
-				return f;
+				return __dollar__objget(o,fh);
 			}
 		#else error
 		#end
@@ -163,9 +154,9 @@ class Reflect {
 	public static function isFunction( f : Dynamic ) : Bool {
 		return untyped
 		#if flash
-			f.call == _global["Function"].call
+			f.call == _global["Function"].call && f.__interfaces__ == null
 		#else js
-			f.call == isFunction.call
+			f.call == isFunction.call && f.__interfaces__ == null
 		#else neko
 			__dollar__typeof(f) == __dollar__tfunction
 		#else error

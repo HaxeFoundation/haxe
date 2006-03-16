@@ -110,6 +110,10 @@ let rec psep sep f = parser
 let ident = parser
 	| [< '(Const (Ident i),_) >] -> i
 
+let any_ident = parser
+	| [< '(Const (Ident i),_) >] -> i
+	| [< '(Const (Type t),_) >] -> t
+
 let log m s =
 	prerr_endline m
 
@@ -214,7 +218,7 @@ and parse_class_field s =
 	match s with parser
 	| [< l = parse_cf_rights []; doc = get_doc; s >] ->
 		match s with parser
-		| [< '(Kwd Var,p1); '(Const (Ident name),_); t = parse_type_opt; s >] ->			
+		| [< '(Kwd Var,p1); name = any_ident; t = parse_type_opt; s >] ->			
 			let e , p2 = (match s with parser
 			| [< '(Binop OpAssign,_) when List.mem AStatic l; e = expr; p2 = semicolon >] -> Some e , p2
 			| [< '(Semicolon,p2) >] -> None , p2
@@ -243,6 +247,7 @@ and parse_cf_rights l = parser
 
 and parse_fun_name = parser
 	| [< '(Const (Ident name),_) >] -> name
+	| [< '(Const (Type name),_) >] -> name
 	| [< '(Kwd New,_) >] -> "new"
 
 and parse_fun_param = parser
@@ -276,10 +281,10 @@ and parse_block_elt = parser
 	| [< e = expr; _ = semicolon >] -> e
 
 and parse_obj_decl = parser
-	| [< '(Comma,_); '(Const (Ident name),_); '(DblDot,_); e = expr >] -> (name,e)
+	| [< '(Comma,_); name = any_ident; '(DblDot,_); e = expr >] -> (name,e)
 
 and parse_var_decl = parser
-	| [< '(Const (Ident name),_); t = parse_type_opt; s >] ->
+	| [< name = any_ident; t = parse_type_opt; s >] ->
 		match s with parser
 		| [< '(Binop OpAssign,_); e = expr >] -> (name,t,Some e)
 		| [< >] -> (name,t,None)
@@ -301,12 +306,9 @@ and expr = parser
 		expr_next (EFunction f, punion p1 (pos e)) s
 	| [< '(Unop op,p1) when is_prefix op; e = expr >] -> make_unop op e p1
 	| [< '(Binop OpSub,p1); e = expr >] -> make_unop Neg e p1
-	| [< '(Kwd For,p); s >] ->
-		(match s with parser
-		| [< '(POpen,_); '(Const (Ident name),_); '(Kwd In,_); it = expr; '(PClose,_); e = expr; s >] -> expr_next (EFor (name,it,e),punion p (pos e)) s
-		| [< '(Const (Ident name),_); '(Kwd In,_); it = expr; e = expr; s >] -> expr_next (EFor (name,it,e),punion p (pos e)) s
-		| [< >] -> serror())
-	| [< '(Kwd If,p); cond = expr; e1 = expr; s >] ->
+	| [< '(Kwd For,p); '(POpen,_); name = any_ident; '(Kwd In,_); it = expr; '(PClose,_); e = expr; s >] ->
+		expr_next (EFor (name,it,e),punion p (pos e)) s
+	| [< '(Kwd If,p); '(POpen,_); cond = expr; '(PClose,_); e1 = expr; s >] ->
 		let e2 , s = (match s with parser
 			| [< '(Kwd Else,_); e2 = expr; s >] -> Some e2 , s
 			| [< >] -> 
@@ -324,8 +326,8 @@ and expr = parser
 	| [< '(Kwd Return,p); e = popt expr >] -> (EReturn e, match e with None -> p | Some e -> punion p (pos e))
 	| [< '(Kwd Break,p) >] -> (EBreak,p)
 	| [< '(Kwd Continue,p) >] -> (EContinue,p)
-	| [< '(Kwd While,p1); cond = expr; e = expr; s >] -> expr_next (EWhile (cond,e,NormalWhile),punion p1 (pos e)) s
-	| [< '(Kwd Do,p1); e = expr; '(Kwd While,_); cond = expr; s >] -> expr_next (EWhile (cond,e,DoWhile),punion p1 (pos e)) s
+	| [< '(Kwd While,p1); '(POpen,_); cond = expr; '(PClose,_); e = expr; s >] -> expr_next (EWhile (cond,e,NormalWhile),punion p1 (pos e)) s
+	| [< '(Kwd Do,p1); e = expr; '(Kwd While,_); '(POpen,_); cond = expr; '(PClose,_); s >] -> expr_next (EWhile (cond,e,DoWhile),punion p1 (pos e)) s
 	| [< '(Kwd Switch,p1); e = expr; '(BrOpen,_); cases , def = parse_switch_cases; '(BrClose,p2); s >] -> expr_next (ESwitch (e,cases,def),punion p1 p2) s
 	| [< '(Kwd Try,p1); e = expr; cl = plist parse_catch; s >] -> expr_next (ETry (e,cl),p1) s
 	| [< '(IntInterval i,p1); e2 = expr >] -> make_binop OpInterval (EConst (Int i),p1) e2
@@ -376,7 +378,7 @@ and parse_switch_cases = parser
 		[] , None
 
 and parse_catch = parser
-	| [< '(Kwd Catch,_); '(POpen,_); '(Const (Ident name),_); '(DblDot,_); t = parse_type_path; '(PClose,_); e = expr >] -> (name,t,e)
+	| [< '(Kwd Catch,_); '(POpen,_); name = any_ident; '(DblDot,_); t = parse_type_path; '(PClose,_); e = expr >] -> (name,t,e)
 
 let parse code file =
 	let old = Lexer.save() in

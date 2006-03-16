@@ -57,6 +57,7 @@ type error_msg =
 	| Cannot_unify of t * t
 	| Custom of string
 	| Protect of error_msg
+	| Unknown_ident of string 
 	| Stack of error_msg * error_msg
 
 exception Error of error_msg * pos
@@ -66,6 +67,7 @@ let rec error_msg = function
 	| Cannot_unify (t1,t2) -> 
 		let ctx = print_context() in
 		s_type ctx t1 ^ " should be " ^ s_type ctx t2
+	| Unknown_ident s -> "Unknown identifier : " ^ s
 	| Custom s -> s
 	| Stack (m1,m2) -> error_msg m1 ^ "\n" ^ error_msg m2
 	| Protect m -> error_msg m
@@ -410,12 +412,15 @@ let rec class_field c i =
 				let t , f = class_field c i in
 				apply_params c.cl_types params t , f
 
+let type_local ctx i p =
+	(* local lookup *)
+	let t = PMap.find i ctx.locals in
+	let i = (try PMap.find i ctx.locals_map with Not_found -> i) in
+	mk (TLocal i) t p	
+
 let type_ident ctx i p =
 	try
-		(* local loookup *)
-		let t = PMap.find i ctx.locals in
-		let i = (try PMap.find i ctx.locals_map with Not_found -> i) in
-		mk (TLocal i) t p
+		type_local ctx i p
 	with Not_found -> try
 		(* member variable lookup *)
 		if ctx.in_static then raise Not_found;
@@ -446,7 +451,7 @@ let type_ident ctx i p =
 	with Not_found ->
 		if ctx.untyped then mk (TLocal i) (mk_mono()) p else begin
 			if ctx.in_static && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
-			error ("Unknown identifier " ^ i) p 
+			raise (Error (Unknown_ident i,p))
 		end
 
 let type_type ctx tpath p =
@@ -498,9 +503,18 @@ let type_constant ctx c p =
 	| Ident "here" ->
 		let infos = mk_infos ctx p [] in
 		(!type_expr_ref) ctx ~need_val:true infos
-	| Ident s -> type_ident ctx s p
+	| Ident s ->
+		type_ident ctx s p
 	| Type s ->
-		type_type ctx ([],s) p
+		try
+			type_local ctx s p
+		with
+			Not_found -> 
+		try
+			type_type ctx ([],s) p
+		with
+			Error (Module_not_found ([],s2),_) when s = s2 ->
+				type_ident ctx s p
 
 let check_assign ctx e =
 	match e.eexpr with
@@ -834,16 +848,6 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			| _ :: l -> loop l
 		in
 		mk (TBlock l) (loop l) p
-	| EType (pack,s) ->
-		let rec loop (e,p) =
-			match e with
-			| EField (e,s) -> s :: loop e
-			| EConst (Ident i) -> [i]
-			| EConst (Type i) -> error ("Invalid package identifier : " ^ i) p
-			| _ -> assert false
-		in
-		let pack = List.rev (loop pack)	in
-		type_type ctx (pack,s) p
 	| EParenthesis e ->
 		let e = type_expr ctx ~need_val e in
 		mk (TParenthesis e) e.etype p
@@ -1051,11 +1055,54 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				error (s_type (print_context()) t ^ " cannot be called") e.epos
 		) in
 		mk (TCall (e,el)) t p
-	| EField (e,i) ->
-		let e = type_expr ctx e in
-		let t = type_field ctx e.etype i p in
-		mk (TField (e,i)) t p
+	| EField _
+	| EType _ ->
+		let fields path e =
+			List.fold_left (fun e (f,_,p) -> 
+				let t = type_field ctx e.etype f p in
+				mk (TField (e,f)) t p
+			) e path
+		in
+		let type_path path =
+			let rec loop acc path =
+				match path with
+				| [] ->
+					(match List.rev acc with
+					| [] -> assert false
+					| (name,true,p) :: path -> fields path (type_constant ctx (Type name) p)
+					| (name,false,p) :: path -> fields path (type_constant ctx (Ident name) p))
+				| (_,false,_) as x :: path ->
+					loop (x :: acc) path
+				| (name,true,p) :: path ->
+					let pack = List.rev_map (fun (x,_,_) -> x) acc in
+					let e = type_type ctx (pack,name) p in
+					fields path e
+			in
+			match path with
+			| [] -> assert false
+			| (name,_,p) :: pnext ->
+				try
+					fields pnext (type_local ctx name p)
+				with
+					Not_found -> loop [] path
+		in
+		let rec loop acc e =
+			match fst e with
+			| EField (e,s) ->
+				loop ((s,false,p) :: acc) e
+			| EType (e,s) ->
+				loop ((s,true,p) :: acc) e
+			| EConst (Ident i) ->
+				type_path ((i,false,p) :: acc)
+			| EConst (Type i) ->
+				type_path ((i,true,p) :: acc)
+			| _ ->
+				fields acc (type_expr ctx e)
+		in
+		loop [] (e,p)
 	| ENew (t,el) ->
+		let name = (match t.tpackage with [] -> t.tname | x :: _ -> x) in
+		if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;
 		let t = load_normal_type ctx t p true in
 		let el = List.map (type_expr ctx) el in
 		let c , params , t = (match t with

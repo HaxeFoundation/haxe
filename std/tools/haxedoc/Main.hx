@@ -174,7 +174,7 @@ private class DocClass {
 		var s = new StringBuf();
 		var curp = path.split(".");
 		s.add("<div class=\"classname\">");
-		s.add(if isEnum "enum " else "class ");
+		s.add(if( isEnum ) "enum " else "class ");
 		s.add(path);
 		if( params.length > 0 ) {
 			s.add("&lt;");

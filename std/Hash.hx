@@ -109,7 +109,7 @@ class Hash<T> {
 		var s = new StringBuf();
 		s.add("{");
 		var it = keys();
-		for i in it {
+		for( i in it ) {
 			s.add(i);
 			s.add(" => ");
 			s.add(get(i));

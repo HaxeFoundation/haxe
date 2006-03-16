@@ -165,7 +165,7 @@ class Boot {
 					p : 0,
 					a : childNodes,
 					next : function() {
-						while true {
+						while( true ) {
 							var x = this.a[this.p];
 							if( x == null )
 								return null;

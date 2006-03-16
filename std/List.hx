@@ -129,7 +129,7 @@ class List<T> {
 		var s = new StringBuf();
 		var it = iterator();
 		s.add("{");
-		for i in it {
+		for( i in it ) {
 			s.add(i);
 			if( it.hasNext() )
 				s.add(", ");
