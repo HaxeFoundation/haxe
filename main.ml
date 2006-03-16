@@ -101,7 +101,7 @@ try
 	Hashtbl.iter (Hashtbl.add Parser.defines) base_defines;
 	Plugin.verbose := false;
 	Typer.forbidden_packages := ["js"; "neko"; "flash"];
-	Plugin.class_path := [base_path;base_path ^ "std/";"";"/"];
+	Plugin.class_path := [base_path ^ "std/";"";"/"];
 	let check_targets() =
 		if !target <> No then failwith "Multiple targets";
 	in
