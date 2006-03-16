@@ -1073,10 +1073,14 @@ and type_expr ctx ?(need_val=true) (e,p) =
 					| (name,false,p) :: path -> fields path (type_constant ctx (Ident name) p))
 				| (_,false,_) as x :: path ->
 					loop (x :: acc) path
-				| (name,true,p) :: path ->
+				| (name,true,p) as x :: path ->					
 					let pack = List.rev_map (fun (x,_,_) -> x) acc in
-					let e = type_type ctx (pack,name) p in
-					fields path e
+					try
+						let e = type_type ctx (pack,name) p in
+						fields path e
+					with 
+						Error (Module_not_found m,_) when m = (pack,name) ->
+							loop ((List.rev path) @ x :: acc) []
 			in
 			match path with
 			| [] -> assert false
