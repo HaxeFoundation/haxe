@@ -8,7 +8,8 @@
 	more methods in List
 	syntax changes : mandatory parenthesis for "for" and "while"
 	allowed any kind of identifier almost everywhere
-	moved tools, flash, js and neko inside "std".
+	moved tools, flash, js and neko inside "std"
+	no need for 0x in flash header bgcolor
 
 2006-03-11: beta 3
 	javascript generator
