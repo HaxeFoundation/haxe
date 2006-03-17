@@ -142,7 +142,6 @@ class Boot {
 	private static function __init(current) {
 		untyped {
 			var obj = _global["Object"];
-			var flash = current["flash"];
 			if( flash.text == null )
 				flash.text = __new__(obj);
 			flash.text.StyleSheet = TextField["StyleSheet"];
