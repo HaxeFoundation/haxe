@@ -24,15 +24,6 @@
  */
 package tools;
 
-interface JsResultEvent {
-	var onResult : Dynamic -> Void;
-}
-
-enum JsResult {
-	value( d : Dynamic );
-	delayed( r : JsResultEvent );
-}
-
 class Unserializer {
 
 	var buf : String;
@@ -107,6 +98,7 @@ class Unserializer {
 					throw "Invalid string length";
 				var s = buf.substr(pos,len);
 				pos += len;
+				s = s.split("\\\"").join("\"").split("\\r").join("\r").split("\n").join("\\n").split("\\\\").join("\\");
 				cache.push(s);
 				return s;
 			}
@@ -195,6 +187,7 @@ class Serializer {
 	function serializeString( s : String ) {
 		if( serializeRef(s) )
 			return;
+		s = s.split("\\").join("\\\\").split("\n").join("\\n").split("\r").join("\\r").split("\"").join("\\\"");
 		buf.add("s");
 		buf.add(s.length);
 		buf.add(":");
@@ -302,29 +295,31 @@ class JsProxy implements Dynamic<JsProxy> {
 		path = new Array();
 	}
 
-	public function call( args : Array<String> ) : JsResult {
+	public function eval( result : Dynamic -> Void ) {		
+		#if flash8
+		untyped flash.external.ExternalInterface._initJS();
+		var v = untyped flash.external.ExternalInterface._evalJS("tools.JsProxy.__eval(\""+path.join(".")+"\")");
+		result(unserialize(v));
+		#else js
+		throw "Unimplemented";
+		#else error
+		#end		
+	}
+
+	public function call( args : Array<String>, result : Dynamic -> Void ) : Void {
 		var s = new Serializer();
 		s.serialize(path);
 		s.serialize(args);
 		var data = s.toString();
-		var onResult = null;
-		var v : String;
 		#if flash8
 		untyped flash.external.ExternalInterface._initJS();
-		var code = data.split("\\").join("\\\\").split("\n").join("\\n").split("\r").join("\\r").split("\"").join("\\\"");
-		v = untyped flash.external.ExternalInterface._evalJS("JsProxy.__incoming(\""+code+"\")");
+		var code = data.split("\\").join("\\\\").split("\"").join("\\\"");
+		var v = untyped flash.external.ExternalInterface._evalJS("tools.JsProxy.__call(\""+code+"\")");
+		result(unserialize(v));
 		#else js
 		throw "Unimplemented";
 		#else error
 		#end
-		if( onResult != null )
-			return delayed(onResult);
-		var exc = (v.charAt(0) == "x");
-		var u = new Unserializer(if( exc ) v.substr(1,v.length-1) else v);
-		var v = u.unserialize();
-		if( exc )
-			throw v;
-		return value(v);
 	}
 
 	function __resolve(field) {
@@ -334,8 +329,17 @@ class JsProxy implements Dynamic<JsProxy> {
 		return s;
 	}
 
+	static function unserialize(v : String) : Dynamic {
+		var exc = (v.charAt(0) == "x");
+		var u = new Unserializer(if( exc ) v.substr(1,v.length-1) else v);
+		var v = u.unserialize();
+		if( exc )
+			throw v;
+		return v;
+	}
+
 #if js
-	static function __incoming( code : String ) : String {
+	static function __call( code : String ) : String {
 		var s = new Unserializer(code);
 		var p = s.unserialize();
 		var args = s.unserialize();
@@ -348,6 +352,19 @@ class JsProxy implements Dynamic<JsProxy> {
 				throw ("No such method "+opath+"."+m);
 			var s = new Serializer();
 			s.serialize(Reflect.callMethod(o,f,args));
+			return s.toString();
+		} catch( e : Dynamic ) {
+			var s = new Serializer();
+			s.serialize(e);
+			return "x"+s.toString();
+		}
+	}
+
+	static function __eval( path : String ) : String {
+		try {
+			var s = new Serializer();
+			var v = js.Lib.eval(path);
+			s.serialize(v);
 			return s.toString();
 		} catch( e : Dynamic ) {
 			var s = new Serializer();
