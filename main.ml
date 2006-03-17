@@ -145,7 +145,7 @@ try
 				| [width; height; fps] ->
 					(int_of_string width,int_of_string height,float_of_string fps,0xFFFFFF)
 				| [width; height; fps; color] ->
-					(int_of_string width, int_of_string height, float_of_string fps, int_of_string color)
+					(int_of_string width, int_of_string height, float_of_string fps, int_of_string ("0x" ^ color))
 				| _ -> raise Exit)
 			with
 				_ -> raise (Arg.Bad "Invalid SWF header format")
