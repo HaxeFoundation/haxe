@@ -306,7 +306,7 @@ class JsProxy implements Dynamic<JsProxy> {
 		#end		
 	}
 
-	public function call( args : Array<String>, result : Dynamic -> Void ) : Void {
+	public function call( args : Array<Dynamic>, result : Dynamic -> Void ) : Void {
 		var s = new Serializer();
 		s.serialize(path);
 		s.serialize(args);
