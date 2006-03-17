@@ -140,11 +140,11 @@ class Boot {
 			}
 			switch( cl ) {
 			case Int:
-				return (Math.ceil(o) == o) && isFinite(o);
+				return (Math.ceil(o) === o) && isFinite(o);
 			case Float:
 				return __js__("typeof(o)") == "number";
 			case Bool:
-				return (o == true || o == false);
+				return (o === true || o === false);
 			case String:
 				return __js__("typeof(o)") == "string";
 			default:
