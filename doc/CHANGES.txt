@@ -10,6 +10,7 @@
 	allowed any kind of identifier almost everywhere
 	moved tools, flash, js and neko inside "std"
 	no need for 0x in flash header bgcolor
+	added -res
 
 2006-03-11: beta 3
 	javascript generator
