@@ -423,6 +423,25 @@ let no_value ctx retval =
 	   a real value was pushed *)
 	if retval then ctx.stack_size <- ctx.stack_size + 1
 
+let gen_try ctx =
+	let tdata = {
+		tr_style = TryRegister 0;
+		tr_trylen = 0;
+		tr_catchlen = None;
+		tr_finallylen = None;
+	} in
+	write ctx (ATry tdata);
+	let start = ctx.code_pos in
+	(fun() ->
+		let jump_end = jmp ctx in
+		tdata.tr_trylen <- ctx.code_pos - start;
+		let start = ctx.code_pos in
+		(fun() ->
+			if ctx.code_pos <> start then tdata.tr_catchlen <- Some (ctx.code_pos - start);
+			jump_end()
+		)
+	)
+
 (* -------------------------------------------------------------- *)
 (* Generation *)
 
@@ -507,18 +526,9 @@ let rec gen_access ctx forcall e =
 		VarObj
 
 and gen_try_catch ctx retval e catchs =
-	let tdata = {
-		tr_style = TryRegister 0;
-		tr_trylen = 0;
-		tr_catchlen = None;
-		tr_finallylen = None;
-	} in
-	write ctx (ATry tdata);
-	let start = ctx.code_pos in
+	let start_try = gen_try ctx in
 	gen_expr ctx retval e;
-	let jump_end = jmp ctx in
-	tdata.tr_trylen <- ctx.code_pos - start;
-	let start = ctx.code_pos in
+	let end_try = start_try() in
 	let end_throw = ref true in
 	let jumps = List.map (fun (name,t,e) ->	
 		if not !end_throw then
@@ -573,9 +583,8 @@ and gen_try_catch ctx retval e catchs =
 		push ctx [VReg 0];
 		write ctx AThrow;
 	end;
-	if catchs <> [] then tdata.tr_catchlen <- Some (ctx.code_pos - start);
 	List.iter (fun j -> j()) jumps;
-	jump_end();
+	end_try()
 
 and gen_switch ctx retval e cases def =
 	gen_expr ctx true e;
@@ -1266,7 +1275,19 @@ let generate file ver header infile types hres =
 	List.iter (fun t -> gen_type_def ctx t) types;
 	gen_type_map ctx;
 	gen_boot ctx hres;
+	let global_try = gen_try ctx in
 	List.iter (gen_class_static_init ctx) (List.rev ctx.statics);
+	let end_try = global_try() in
+	(* flash.Boot.__trace(exc) *)
+	let id = gen_type ctx (["flash"],"Boot") false in
+	push ctx [VStr "fileName"; VStr "<static init>"; VStr "lineNumber"; VInt 0; VInt 2];
+	write ctx AObject;
+	ctx.stack_size <- ctx.stack_size - 4;
+	push ctx [VReg 0; VInt 2; VStr id];
+	write ctx AEval;
+	push ctx [VStr "__trace"];
+	call ctx VarObj 2;
+	end_try();
 	let idents = ctx.idents in
 	let idents = Hashtbl.fold (fun ident pos acc -> (ident,pos) :: acc) idents [] in
 	let idents = List.sort (fun (_,p1) (_,p2) -> compare p1 p2) idents in
