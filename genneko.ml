@@ -221,13 +221,14 @@ and gen_expr e =
 		(ENext (
 			(EVars ["@tmp",Some (gen_expr e)],p),
 			(ESwitch (
-				(EArray (ident p "@tmp",int p 0),p),
+				field p (ident p "@tmp") "tag",
 				List.map (fun (s,el,e2) ->
-					let count = ref 0 in
+					let count = ref (-1) in
 					let e = match el with
 						| None -> gen_expr e2
 						| Some el ->
 							(EBlock [
+								(EVars ["@tmp",Some (field p (ident p "@tmp") "args")],p);
 								(EVars (List.map (fun (v,_) -> incr count; v , Some (EArray (ident p "@tmp",int p (!count)),p)) el),p);
 								(gen_expr e2)
 							],p)
@@ -302,22 +303,34 @@ let gen_class c =
 	),p) in
 	(EBlock [eclass; estat; call p (builtin p "objsetproto") [clpath; esuper]; (EBinop ("=",field p clpath "__class__",stpath),p)],p)	
 
-let gen_enum_constr c =
+let gen_enum_constr path c =
 	let p = pos c.ef_pos in
-	c.ef_name , (match follow c.ef_type with
-		| TFun (params,_) -> 
+	(EBinop ("=",field p path c.ef_name, match follow c.ef_type with
+		| TFun (params,_) ->
 			let params = List.map fst params in
-			(EFunction (params,array p (str p c.ef_name :: List.map (ident p) params)),p)
+			(EFunction (params,
+				(EObject [
+					"tag" , str p c.ef_name;
+					"__enum__" , path;
+					"args" , array p (List.map (ident p) params);
+					"__string" , ident p "@enum_to_string"
+				],p)
+			),p)
 		| _ ->
-			array p [str p c.ef_name]
-	)
+			(EObject [
+				"tag" , str p c.ef_name;
+				"__enum__" , path;
+				"__string" , ident p "@enum_to_string"
+			],p)
+	),p)
 
 let gen_enum e =
 	let p = pos e.e_pos in
-	(EBinop ("=",
-		gen_type_path p e.e_path,
-		(EObject (pmap_list gen_enum_constr e.e_constrs),p)
-	),null_pos)
+	let path = gen_type_path p e.e_path in
+	(EBlock (
+		(EBinop ("=",path, call p (builtin p "new") [null p]),p) ::		
+		pmap_list (gen_enum_constr path) e.e_constrs
+	),p)
 
 let gen_type t =
 	match t with
@@ -379,11 +392,14 @@ let gen_boot hres =
 
 let generate file types hres =
 	let h = Hashtbl.create 0 in
+	let enum_str = (EBinop ("=",ident null_pos "@enum_to_string",(EFunction ([],
+		call null_pos (field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__enum_str") [this null_pos]
+	),null_pos)),null_pos) in
 	let packs = List.concat (List.map (gen_packages h) types) in
 	let methods = List.map gen_type types in
 	let boot = gen_boot hres in
 	let vars = List.concat (List.map gen_static_vars types) in
-	let e = (EBlock (packs @ methods @ boot :: vars), null_pos) in
+	let e = (EBlock (enum_str :: packs @ methods @ boot :: vars), null_pos) in
 	let neko_file = Filename.chop_extension file ^ ".neko" in
 	let ch = IO.output_channel (open_out neko_file) in
 	(if !Plugin.verbose then Nxml.write_fmt else Nxml.write) ch (Nxml.to_xml e);

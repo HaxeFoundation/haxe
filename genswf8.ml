@@ -1029,22 +1029,33 @@ let gen_class_field ctx f =
 	| Some e ->	gen_expr ctx true e);
 	setvar ctx VarObj
 
-let gen_enum_field ctx f =
-	let ename = mk (TConst (TString f.ef_name)) f.ef_type Ast.null_pos in
+let gen_enum_field ctx id f =
 	push ctx [VReg 0; VStr f.ef_name];
 	(match follow f.ef_type with
 	| TFun (args,r) ->
-		let e = mk (TReturn (Some (mk (TArrayDecl (ename :: 
-			List.map (fun (n,t) -> mk (TLocal n) t Ast.null_pos) args
-		)) r Ast.null_pos))) (mk_mono()) Ast.null_pos in
-		let fdat = {
-			tf_args = args;
-			tf_type = r;
-			tf_expr = e;
-		} in
-		gen_expr ctx true (mk (TFunction fdat) (mk_mono()) Ast.null_pos);
+		ctx.regs <- PMap.empty;
+		ctx.reg_count <- 1;
+		let rargs = List.map (fun _ -> alloc_reg ctx , "") args in
+		let nregs = List.length rargs + 1 in
+		let tf = func ctx false false rargs in
+		push ctx (List.map (fun (r,_) -> VReg r) (List.rev rargs));		
+		push ctx [VStr f.ef_name; VInt nregs];
+		write ctx AInitArray;
+		write ctx ADup;
+		push ctx [VStr "__enum__"; VStr id];
+		write ctx AEval;
+		write ctx AObjSet;
+		ctx.stack_size <- ctx.stack_size - nregs;
+		write ctx AReturn;
+		tf();
 	| t ->
-		gen_expr ctx true (mk (TArrayDecl [ename]) t Ast.null_pos));
+		push ctx [VStr f.ef_name; VInt 1];
+		write ctx AInitArray;
+		ctx.stack_size <- ctx.stack_size - 1;
+		write ctx ADup;
+		push ctx [VStr "__enum__"; VReg 0];
+		write ctx AObjSet;
+	);
 	write ctx AObjSet
 
 let gen_path ctx (p,t) is_extern =
@@ -1134,7 +1145,7 @@ let gen_type_def ctx t =
 		write ctx ANew;
 		write ctx (ASetReg 0);
 		setvar ctx VarStr;
-		PMap.iter (fun _ f -> gen_enum_field ctx f) e.e_constrs
+		PMap.iter (fun _ f -> gen_enum_field ctx id f) e.e_constrs
 
 let gen_boot ctx hres =
 	let id = gen_type ctx (["flash"],"Boot") false in

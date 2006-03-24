@@ -26,6 +26,21 @@ package neko;
 
 class Boot {
 
+	private static function __enum_str(e : Dynamic) {
+		if( e.args == null )
+			return e.tag;
+		var s = e.tag + untyped "(".__s;
+		var i = 0;
+		var l = untyped __dollar__asize(e.args);
+		while( i < l ) {
+			if( i == 0 )
+				s += e.args[i];
+			else
+				s += untyped ",".__s + e.args[i];
+			i += 1;
+		}
+		return s + untyped ")".__s;
+	}
 
 	private static function __instanceof(o,cl) {
 		untyped {

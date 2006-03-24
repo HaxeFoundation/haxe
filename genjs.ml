@@ -524,9 +524,11 @@ let generate_enum ctx e =
 		(match f.ef_type with
 		| TFun (args,_) ->
 			let sargs = String.concat "," (List.map fst args) in
-			print ctx "function(%s) { return [\"%s\",%s]; }" sargs f.ef_name sargs;
+			print ctx "function(%s) { var $x = [\"%s\",%s]; $x.__enum__ = %s; return $x; }" sargs f.ef_name sargs p;
 		| _ ->
-			print ctx "[\"%s\"]" f.ef_name
+			print ctx "[\"%s\"]" f.ef_name;
+			newline ctx;
+			print ctx "%s%s.__enum__ = %s" p (field f.ef_name) p;
 		);
 		newline ctx
 	) e.e_constrs

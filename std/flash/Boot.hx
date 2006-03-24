@@ -40,13 +40,25 @@ class Boot {
 			switch( t ) {
 			case "object":
 				if( __instanceof__(o,Array) ) {
+					if( o.__enum__ != null ) {
+						if( o.length == 1 )
+							return o[0];
+						var str = o[0]+"(";
+						s += "    ";
+						for( i in 1...o.length ) {
+							if( i != 1 )
+								str += "," + __string_rec(o[i],s);
+							else
+								str += __string_rec(o[i],s);
+						}
+						return str + ")";
+					}
 					var l = o.length;
 					var i;
 					var str = "[";
 					s += "    ";
 					for( i in 0...l )
 						str += (if (i > 0) "," else "")+__string_rec(o[i],s);
-					s = s.substring(4);
 					str += "]";
 					return str;
 				}

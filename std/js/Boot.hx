@@ -70,6 +70,19 @@ class Boot {
 			switch( t ) {
 			case "object":
 				if( __js__("o instanceof Array") ) {
+					if( o.__enum__ != null ) {
+						if( o.length == 1 )
+							return o[0];
+						var str = o[0]+"(";
+						s += "    ";
+						for( i in 1...o.length ) {
+							if( i != 1 )
+								str += "," + __string_rec(o[i],s);
+							else
+								str += __string_rec(o[i],s);
+						}
+						return str + ")";
+					}
 					var l = o.length;
 					var i;
 					var str = "[";
