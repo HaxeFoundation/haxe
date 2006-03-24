@@ -97,6 +97,7 @@ try
 	let swf_header = ref None in
 	let current = ref argv_start in
 	let next = ref (fun() -> ()) in
+	let hres = Hashtbl.create 0 in
 	Hashtbl.clear Parser.defines;
 	Hashtbl.iter (Hashtbl.add Parser.defines) base_defines;
 	Plugin.verbose := false;
@@ -150,6 +151,16 @@ try
 			with
 				_ -> raise (Arg.Bad "Invalid SWF header format")
 		),"<header> : define SWF header (width:height:fps:color)");
+		("-res",Arg.String (fun res ->
+			match ExtString.String.nsplit res "@" with
+			| [file; name] ->
+				let file = (try Plugin.find_file file with Not_found -> file) in
+				let data = Std.input_file ~bin:true file in
+				if Hashtbl.mem hres name then failwith ("Duplicate resource name " ^ name);
+				Hashtbl.add hres name data
+			| _ ->
+				raise (Arg.Bad "Invalid Resource format : should be file@name")
+		),"<file@name> : add a named resource file");
 		("-v",Arg.Unit (fun () -> Plugin.verbose := true),": turn on verbose mode");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
 		("-altfmt", Arg.Unit (fun() -> alt_format := true),": use alternative error output format");
@@ -206,13 +217,13 @@ try
 		| No -> ()
 		| Swf file ->
 			if !Plugin.verbose then print_endline ("Generating swf : " ^ file);
-			Genswf.generate file (!swf_version) (!swf_header) (!swf_in) types
+			Genswf.generate file (!swf_version) (!swf_header) (!swf_in) types hres
 		| Neko file ->
 			if !Plugin.verbose then print_endline ("Generating neko : " ^ file);
-			Genneko.generate file types
+			Genneko.generate file types hres
 		| Js file ->
 			if !Plugin.verbose then print_endline ("Generating js : " ^ file);
-			Genjs.generate file types
+			Genjs.generate file types hres
 		);
 		(match !xml_out with
 		| None -> ()

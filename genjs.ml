@@ -540,7 +540,7 @@ let generate_type ctx = function
 	| TClassDecl c -> if not c.cl_extern then generate_class ctx c
 	| TEnumDecl e -> generate_enum ctx e
 
-let generate file types =
+let generate file types hres =
 	let ctx = {
 		buf = Buffer.create 16000;
 		packages = Hashtbl.create 0;
@@ -550,6 +550,12 @@ let generate file types =
 		in_value = false;
 	} in
 	List.iter (generate_type ctx) types;
+	print ctx "js.Boot.__res = {}";
+	newline ctx;
+	Hashtbl.iter (fun name data ->
+		print ctx "js.Boot.__res[\"%s\"] = \"%s\"" (Ast.s_escape name) (Ast.s_escape data);
+		newline ctx;
+	) hres;
 	print ctx "js.Boot.__init()";
 	newline ctx;
 	List.iter (generate_static ctx) (List.rev ctx.statics);

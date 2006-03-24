@@ -426,6 +426,17 @@ let no_value ctx retval =
 (* -------------------------------------------------------------- *)
 (* Generation *)
 
+let rec gen_big_string ctx s =
+	let len = String.length s in
+	let max = 65000 in
+	if len <= max then
+		write ctx (APush [PString s])
+	else begin
+		write ctx (APush [PString (String.sub s 0 max)]);
+		gen_big_string ctx (String.sub s max (len - max));
+		write ctx AAdd;
+	end
+
 let rec gen_constant ctx c p =
 	match c with
 	| TInt s -> (try push ctx [VInt32 (Int32.of_string s)] with _ -> gen_constant ctx (TFloat s) p)
@@ -1116,7 +1127,7 @@ let gen_type_def ctx t =
 		setvar ctx VarStr;
 		PMap.iter (fun _ f -> gen_enum_field ctx f) e.e_constrs
 
-let gen_boot ctx =
+let gen_boot ctx hres =
 	let id = gen_type ctx (["flash"],"Boot") false in
 	(* r0 = Boot *)
 	push ctx [VStr id];
@@ -1128,7 +1139,23 @@ let gen_boot ctx =
 	write ctx AEval;
 	push ctx [VInt 1; VReg 0; VStr "__init"];
 	call ctx VarObj 0;
-	write ctx APop
+	write ctx APop;
+	(* r0.__res = hres *)
+	push ctx [VReg 0; VStr "__res"];
+	let count = ref 0 in
+	Hashtbl.iter (fun name data ->
+		(try 
+			ignore(String.index data '\000');
+			failwith ("Resource " ^ name ^ " does contain \\0 character than can't be used in Flash");
+		with Not_found -> ());
+		push ctx [VStr name];
+		gen_big_string ctx data;
+		incr count;
+	) hres;
+	push ctx [VInt (!count)];
+	write ctx AObject;
+	ctx.stack_size <- ctx.stack_size - (!count * 2);
+	write ctx AObjSet
 
 let gen_type_map ctx =
 	let packs = Hashtbl.create 0 in
@@ -1186,7 +1213,7 @@ let gen_type_map ctx =
 			write ctx AEval;
 			setvar ctx k
 		end
-	) ctx.types
+	) ctx.types	
 
 let to_utf8 str =
 	try
@@ -1216,7 +1243,7 @@ let convert_header ver (w,h,fps,bg) =
 let default_header ver =
 	convert_header ver (400,300,30.,0xFFFFFF)
 
-let generate file ver header infile types =
+let generate file ver header infile types hres =
 	let ctx = {
 		opcodes = DynArray.create();
 		code_pos = 0;
@@ -1238,7 +1265,7 @@ let generate file ver header infile types =
 	write ctx (AStringPool []);
 	List.iter (fun t -> gen_type_def ctx t) types;
 	gen_type_map ctx;
-	gen_boot ctx;
+	gen_boot ctx hres;
 	List.iter (gen_class_static_init ctx) (List.rev ctx.statics);
 	let idents = ctx.idents in
 	let idents = Hashtbl.fold (fun ident pos acc -> (ident,pos) :: acc) idents [] in

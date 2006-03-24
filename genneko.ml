@@ -366,14 +366,19 @@ let gen_packages h t =
 	in
 	loop [] (fst (type_path t))
 
-let gen_boot() =
-	call null_pos (field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__init") []
+let gen_boot hres =
+	let loop name data acc = (name , gen_constant null_pos (TString data)) :: acc in
+	let objres = (EObject (Hashtbl.fold loop hres []),null_pos) in
+	(EBlock [
+		call null_pos (field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__init") [];
+		EBinop ("=",field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__res",objres),null_pos;
+	],null_pos)
 
-let generate file types =
+let generate file types hres =
 	let h = Hashtbl.create 0 in
 	let packs = List.concat (List.map (gen_packages h) types) in
 	let methods = List.map gen_type types in
-	let boot = gen_boot() in
+	let boot = gen_boot hres in
 	let vars = List.concat (List.map gen_static_vars types) in
 	let e = (EBlock (packs @ methods @ boot :: vars), null_pos) in
 	let neko_file = Filename.chop_extension file ^ ".neko" in
