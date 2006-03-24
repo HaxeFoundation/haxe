@@ -177,7 +177,7 @@ let rec s_type ctx t =
 	| TFun ([],t) ->
 		"Void -> " ^ s_type ctx t
 	| TFun (l,t) ->
-		String.concat " -> " (List.map (fun (s,t) -> s ^ " : " ^ match t with TFun _ -> "(" ^ s_type ctx t ^ ")" | _ -> s_type ctx t) l) ^ " -> " ^ s_type ctx t
+		String.concat " -> " (List.map (fun (s,t) -> (if s = "" then "" else s ^ " : ") ^ match t with TFun _ -> "(" ^ s_type ctx t ^ ")" | _ -> s_type ctx t) l) ^ " -> " ^ s_type ctx t
 	| TAnon (fl,name) ->
 		(match name with
 		| Some s -> s
