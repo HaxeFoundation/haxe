@@ -11,6 +11,7 @@
 	moved tools, flash, js and neko inside "std"
 	no need for 0x in flash header bgcolor
 	added -res
+	fixed type parameter contraint holes
 
 2006-03-11: beta 3
 	javascript generator
