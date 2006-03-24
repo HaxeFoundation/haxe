@@ -12,6 +12,8 @@
 	no need for 0x in flash header bgcolor
 	added -res
 	fixed type parameter contraint holes
+	Std.is Dynamic always returns true
+	added Enum.toString 
 
 2006-03-11: beta 3
 	javascript generator
