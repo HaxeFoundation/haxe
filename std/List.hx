@@ -75,6 +75,13 @@ class List<T> {
 		}
 	}
 
+	public function isEmpty() : Bool {
+		return switch h {
+		case empty : true;
+		default : false;
+		}
+	}
+
 	public function remove( v : T ) : Bool {
 		var loop;
 		var found = { ref : false };
