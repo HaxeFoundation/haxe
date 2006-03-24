@@ -103,7 +103,7 @@ class Boot {
 			case Float:
 				return __typeof__(o) == "number";
 			case Bool:
-				return (o == true || o == false);
+				return (o === true || o === false);
 			case String:
 				return __typeof__(o) == "string";
 			case Dynamic:
