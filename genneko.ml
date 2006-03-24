@@ -327,7 +327,10 @@ let gen_type t =
 		else
 			gen_class c
 	| TEnumDecl e -> 
-		gen_enum e
+		if e.e_path = ([],"Bool") then
+			null (pos e.e_pos)
+		else
+			gen_enum e
 
 let gen_static_vars t =
 	match t with
@@ -385,4 +388,8 @@ let generate file types hres =
 	let ch = IO.output_channel (open_out neko_file) in
 	(if !Plugin.verbose then Nxml.write_fmt else Nxml.write) ch (Nxml.to_xml e);
 	IO.close_out ch;
-	if Sys.command ("nekoc " ^ neko_file) = 0 && not (!Plugin.verbose) then Sys.remove neko_file
+	if Sys.command ("nekoc " ^ neko_file) = 0 && not (!Plugin.verbose) then Sys.remove neko_file;
+	if !Plugin.verbose then begin
+		if Sys.command ("nekoc -p " ^ neko_file) <> 0 then failwith "Failed to print neko code";
+		Sys.remove neko_file;
+	end
