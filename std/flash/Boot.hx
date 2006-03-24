@@ -173,7 +173,7 @@ class Boot {
 			Node.prototype.nodes = function() {
 				return untyped {
 					p : 0,
-					a : childNodes,
+					a : this.childNodes,
 					next : function() {
 						while( true ) {
 							var x = this.a[this.p];
