@@ -79,4 +79,14 @@ class Lambda<A,B> {
 		return first;
 	}
 
+	/**
+		Count the number of elements in an [Iterator]
+	**/
+	public static function count( it : Iterator<A> ) {
+		var n = 0;
+		for( _ in it )
+			++n;
+		return n;
+	}
+
 }
