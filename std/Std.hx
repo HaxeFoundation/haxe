@@ -202,4 +202,19 @@ class Std {
 		#end
 	}
 
+	/**
+		Return the given resource stored using -res, or null if not defined.
+	**/
+	public static function resource( name : String ) : String {
+		return untyped
+		#if flash
+		flash.Boot.__res[name];
+		#else neko
+		__dollar__objget(neko.Boot.__res,__dollar__hash(name.__s));
+		#else js
+		js.Boot.__res[name];
+		#else error
+		#end
+	}
+
 }
