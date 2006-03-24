@@ -204,10 +204,10 @@ and parse_type_anonymous = parser
 and parse_enum s = 
 	doc := None;
 	match s with parser
-	| [< '(Const (Ident name),p); doc = get_doc; s >] ->
+	| [< name = any_ident; doc = get_doc; s >] ->
 		match s with parser
-		| [< '(POpen,_); l = psep Comma parse_enum_param; '(PClose,_); _ = semicolon; >] -> (name,doc,l,p)
-		| [< '(Semicolon,_) >] -> (name,doc,[],p)
+		| [< '(POpen,_); l = psep Comma parse_enum_param; '(PClose,_); p = semicolon; >] -> (name,doc,l,p)
+		| [< '(Semicolon,p) >] -> (name,doc,[],p)
 		| [< >] -> serror()
 
 and parse_enum_param = parser
