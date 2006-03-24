@@ -267,6 +267,7 @@ let type_type_params ctx path p (n,flags) =
 	| l ->
 		(* build a phantom class *)
 		let c = mk_class (fst path @ [snd path],n) p None true in
+		c.cl_locked <- true;
 		set_heritance ctx c (List.map (fun t -> HImplements t) l) p;
 		let add_field ctypes params _ f =
 			let f = { f with cf_type = apply_params ctypes params f.cf_type } in

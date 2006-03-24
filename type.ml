@@ -93,6 +93,7 @@ and tclass = {
 	cl_private : bool;
 	mutable cl_extern : bool;
 	mutable cl_interface : bool;
+	mutable cl_locked : bool;
 	mutable cl_types : (string * t) list;
 	mutable cl_super : (tclass * t list) option;
 	mutable cl_implements : (tclass * t list) list;
@@ -142,6 +143,7 @@ let mk_class path pos doc priv =
 		cl_private = priv;
 		cl_extern = false;
 		cl_interface = false;
+		cl_locked = false;
 		cl_types = [];
 		cl_super = None;
 		cl_implements = [];
@@ -374,7 +376,7 @@ let rec unify a b =
 		in
 		(try
 			loop c tl;
-			true
+			not c.cl_locked
 		with
 			Not_found -> false)
 	| TAnon (fl1,_) , TAnon (fl2,_) ->
