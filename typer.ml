@@ -167,7 +167,11 @@ let rec load_normal_type ctx t p allow_no_params =
 			| TEnumDecl e -> e.e_types , e.e_path , (fun t -> TEnum (e,t))
 		in
 		if allow_no_params && t.tparams = [] then
-			f (List.map (fun _ -> mk_mono()) types)
+			f (List.map (fun (name,t) -> 
+				match follow t with
+				| TEnum _ -> mk_mono()
+				| _ -> error ("Type parameter " ^ name ^ " need constraint") p
+			) types)
 		else if path = ([],"Dynamic") then
 			match t.tparams with
 			| [] -> t_dynamic
