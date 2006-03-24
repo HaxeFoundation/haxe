@@ -156,7 +156,7 @@ class Reflect {
 		#if flash
 			f.call == _global["Function"].call && f.__interfaces__ == null
 		#else js
-			f.call == isFunction.call && f.__interfaces__ == null
+			f != null && f.call == isFunction.call && f.__interfaces__ == null
 		#else neko
 			__dollar__typeof(f) == __dollar__tfunction
 		#else error
