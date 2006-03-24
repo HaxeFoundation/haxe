@@ -541,7 +541,7 @@ let type_matching ctx (enum,params) (e,p) ecases =
 			Not_found -> error ("This constructor is not part of the enum " ^ s_type_path enum.e_path) p
 	in
 	match e with
-	| EConst (Ident name) ->
+	| EConst (Ident name) | EConst (Type name) ->
 		let c = constr name in
 		(match c.ef_type with
 			| TFun (l,_) -> needs (List.length l)
@@ -549,7 +549,8 @@ let type_matching ctx (enum,params) (e,p) ecases =
 			| _ -> assert false
 		);
 		(name,None)
-	| ECall ((EConst (Ident name),_),el) ->
+	| ECall ((EConst (Ident name),_),el)
+	| ECall ((EConst (Type name),_),el) ->
 		let c = constr name in
 		let args = (match c.ef_type with
 			| TFun (l,_) -> 
@@ -560,7 +561,7 @@ let type_matching ctx (enum,params) (e,p) ecases =
 		) in
 		let idents = List.map2 (fun (e,_) t -> 
 			match e with 
-			| EConst (Ident name) ->
+			| EConst (Ident name) | EConst (Type name) ->
 				let name = add_local ctx name t in
 				name , t
 			| _ -> invalid()
@@ -753,8 +754,10 @@ and type_switch ctx e cases def need_val p =
 	let rec lookup_enum l =
 		match l with
 		| [] -> None
+		| (ECall ((EConst (Type name),p),_),_) :: l
 		| (ECall ((EConst (Ident name),p),_),_) :: l
-		| (EConst (Ident name),p) :: l ->
+		| (EConst (Ident name),p) :: l
+		| (EConst (Type name),p) :: l ->
 			(try 
 				let e = type_ident ctx name p in
 				(match e.eexpr with
