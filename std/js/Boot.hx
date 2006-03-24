@@ -147,6 +147,8 @@ class Boot {
 				return (o === true || o === false);
 			case String:
 				return __js__("typeof(o)") == "string";
+			case Dynamic:
+				return true;
 			default:
 				return false;
 			}

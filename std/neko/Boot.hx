@@ -29,6 +29,8 @@ class Boot {
 
 	private static function __instanceof(o,cl) {
 		untyped {
+			if( cl == Dynamic )
+				return true;
 			switch __dollar__typeof(o) {
 			case __dollar__tint: return (cl == Int || cl == Float);
 			case __dollar__tfloat: return cl == Float;
@@ -64,8 +66,9 @@ class Boot {
 			Date = NekoDate__;
 			Int = __dollar__new(null);
 			Float = __dollar__new(null);
-			Bool.true = true;
-			Bool.false = false;
+			Bool = __dollar__new(null);
+			__dollar__objset(Bool,__dollar__hash("true".__s),true);
+			__dollar__objset(Bool,__dollar__hash("false".__s),false);
 		}
 	}
 
