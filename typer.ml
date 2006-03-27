@@ -463,7 +463,11 @@ let type_type ctx tpath p =
 	match load_type_def ctx p tpath with
 	| TClassDecl c ->
 		let pub = is_parent c ctx.curclass in
-		let types = List.map (fun _ -> mk_mono()) c.cl_types in
+		let types = List.map (fun (_,t) -> 
+			match follow t with
+			| TEnum _ -> mk_mono()
+			| _ -> t
+		) c.cl_types in
 		let fl = PMap.fold (fun f acc -> 
 			PMap.add f.cf_name { 
 				cf_name = f.cf_name;
@@ -1253,11 +1257,17 @@ let init_class ctx c p types herits fields =
 	let loop_cf f p =
 		match f with
 		| FVar (name,doc,access,t,e) ->
+			let stat = List.mem AStatic access in
 			let t = (match t with
 				| None -> 
-					if not (List.mem AStatic access) then error ("Type required for member variable " ^ name) p;
+					if not stat then error ("Type required for member variable " ^ name) p;
 					mk_mono()
-				| Some t -> load_type ctx p t
+				| Some t ->					
+					let old = ctx.type_params in
+					if stat then ctx.type_params <- [];
+					let t = load_type ctx p t in
+					if stat then ctx.type_params <- old;
+					t
 			) in
 			let cf = {
 				cf_name = name;
