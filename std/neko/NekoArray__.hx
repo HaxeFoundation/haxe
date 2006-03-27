@@ -265,7 +265,14 @@ class NekoArray__<T> implements Array<T> {
 	}
 
 	private function __set( pos, v ) {
-		untyped this.__a[pos] = v;
+		untyped {
+			var a = this.__a;
+			if( __dollar__asize(a) <= pos ) {
+				this.__resize(pos+1);
+				a = this.__a;
+			}
+			a[pos] = v;
+		}
 	}
 
 	private function __resize(l) {
