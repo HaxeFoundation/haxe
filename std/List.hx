@@ -83,22 +83,22 @@ class List<T> {
 	}
 
 	public function remove( v : T ) : Bool {
+		var found = false;
 		var loop;
-		var found = { ref : false };
 		loop = function(h) {
 			return switch h {
 			case empty:
 				empty;
 			case cons(v2,h):
 				if( v2 == v ) {
-					found.ref = true;
+					found = true;
 					h;
 				} else
 					cons(v2,loop(h));
 			}
 		};
 		h = loop(h);
-		return found.ref;
+		return found;
 	}
 
 	public function length() {
