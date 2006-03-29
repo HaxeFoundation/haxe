@@ -33,7 +33,14 @@ let s_path = function
 
 let kwds = 
 	let h = Hashtbl.create 0 in
-	List.iter (fun s -> Hashtbl.add h s ()) ["instanceof";"int";"true";"false"];
+	List.iter (fun s -> Hashtbl.add h s ()) [
+		"abstract"; "as"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class"; "continue"; "const";
+		"debugger"; "default"; "delete"; "do"; "double"; "else"; "enum"; "export"; "extends"; "false"; "final";
+		"finally"; "float"; "for"; "function"; "goto"; "if"; "implements"; "import"; "in"; "instanceof"; "int";
+        "interface"; "is"; "long"; "namespace"; "native"; "new"; "null"; "package"; "private"; "protected"; 
+		"public"; "return"; "short"; "static"; "super"; "switch"; "synchronized"; "this"; "throw"; "throws";
+		"transient"; "true"; "try"; "typeof"; "use"; "var"; "void"; "volatile"; "while"; "with"
+	];
 	h
 
 let field s = if Hashtbl.mem kwds s then "[\"" ^ s ^ "\"]" else "." ^ s
