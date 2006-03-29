@@ -61,7 +61,7 @@ extern class TextField
 	function replaceText(beginIndex:Float,endIndex:Float,newText:String):Void;
 	function replaceSel(newText:String):Void;
 	function getTextFormat(beginIndex:Float,endIndex:Float):TextFormat;
-	function setTextFormat():Void;
+	function setTextFormat( tf : TextFormat ):Void;
 	function removeTextField():Void;
 	function getNewTextFormat():TextFormat;
 	function setNewTextFormat(tf:TextFormat):Void;
