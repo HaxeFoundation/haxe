@@ -15,6 +15,8 @@
 	Std.is Dynamic always returns true
 	added Enum.toString 
 	neko : env locals can be modified in inner functions
+	completed js keywords list in generator
+	added Reflect.typeof
 
 2006-03-11: beta 3
 	javascript generator
