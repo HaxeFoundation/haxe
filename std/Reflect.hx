@@ -23,7 +23,79 @@
  * DAMAGE.
  */
 
+enum BasicType {
+	TNull;
+	TInt;
+	TFloat;
+	TBool;
+	TObject;
+	TEnum;
+	TFunction;
+	TUnknown;
+}
+
 class Reflect {
+
+	public static function typeof( v : Dynamic ) : BasicType {
+		untyped {
+		#if flash
+			var t = __typeof__(v);
+			if( t == "number" ) {
+				if( Math.ceil(v) == v && isFinite(v) )
+					return TInt;
+				return TFloat;
+			}
+			if( v == true || v == false )
+				return TBool;
+			if( v == null )
+				return TNull;
+			if( t == "function" ) {
+				if( v.__interfaces__ == null )
+					return TFunction;
+				return TObject;
+			}
+			if( t == "object" ) {
+				if( v.__enum__ != null )
+					return TEnum;
+				return TObject;
+			}
+			return TUnknown;
+		#else neko
+			return switch( __dollar__typeof(v) ) {
+			case __dollar__tint: TInt;
+			case __dollar__tfloat: TFloat;
+			case __dollar__tbool: TBool;
+			case __dollar__tfunction: TFunction;
+			case __dollar__tobject: if( v.__enum__ == null ) TObject else TEnum;
+			case __dollar__tnull: TNull;
+			default: TUnknown;
+			}
+		#else js
+			var t = __js__("typeof")(v);
+			if( t == "number" ) {
+				if( Math.ceil(v) == v && isFinite(v) )
+					return TInt;
+				return TFloat;
+			}
+			if( v == true || v == false )
+				return TBool;
+			if( v == null )
+				return TNull;
+			if( t == "function" ) {
+				if( v.__interfaces__ == null )
+					return TFunction;
+				return TObject;
+			}
+			if( t == "object" ) {
+				if( v.__enum__ != null )
+					return TEnum;
+				return TObject;
+			}
+			return TUnknown;
+	 	#else error
+	 	#end
+		}
+	}
 
 	public static function empty() : {} {
 		return untyped
