@@ -54,7 +54,7 @@ class Reflect {
 					return TFunction;
 				return TObject;
 			}
-			if( t == "object" ) {
+			if( t == "object" || t == "string" ) {
 				if( v.__enum__ != null )
 					return TEnum;
 				return TObject;
@@ -86,7 +86,7 @@ class Reflect {
 					return TFunction;
 				return TObject;
 			}
-			if( t == "object" ) {
+			if( t == "object" || t == "string" ) {
 				if( v.__enum__ != null )
 					return TEnum;
 				return TObject;
