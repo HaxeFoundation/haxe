@@ -21,6 +21,11 @@ open Type
 open Nast
 open Nxml
 
+type context = {
+	mutable locals : (string , bool) PMap.t;
+	mutable curblock : texpr list;
+}
+
 let error msg p =
 	raise (Typer.Error (Typer.Custom msg,p))
 
@@ -29,6 +34,57 @@ let pos p =
 		psource = p.pfile;
 		pline = Lexer.get_error_line p;
 	}
+
+let add_local ctx v p =
+	let rec loop flag e =
+		match e.eexpr with
+		| TLocal a ->
+			if flag && a = v then raise Exit
+		| TFunction f ->
+			if not (List.exists (fun (a,_) -> a = v) f.tf_args) then loop true f.tf_expr
+		| TVars l -> 
+			if List.exists (fun (a,_,_) -> a = v) l then raise Not_found;
+			Type.iter (loop flag) e
+		| TFor (a,e1,e2) ->
+			loop flag e1;
+			if a <> v then loop flag e2
+		| TMatch (e,_,cases,eo) ->
+			loop flag e;
+			(match eo with None -> () | Some e -> loop flag e);
+			List.iter (fun (_,vars,e) ->
+				match vars with
+				| Some l when List.exists (fun (a,_) -> a = v) l -> ()
+				| _ -> loop flag e
+			) cases
+		| TBlock l ->
+			(try
+				List.iter (loop flag) l
+			with
+				Not_found -> ())
+		| TTry (e,catchs) ->
+			loop flag e;
+			List.iter (fun (a,_,e) -> if a <> v then loop flag e) catchs
+		| _ -> 
+			Type.iter (loop flag) e
+	in
+	let isref = (try
+		List.iter (loop false) ctx.curblock;
+		false
+	with
+		| Not_found -> false
+		| Exit -> true
+	) in
+	ctx.locals <- PMap.add v isref ctx.locals;
+	isref
+
+let block ctx curblock =
+	let l = ctx.locals in
+	let b = ctx.curblock in
+	ctx.curblock <- curblock;
+	(fun() ->
+		ctx.locals <- l;
+		ctx.curblock <- b;
+	)
 
 let null p =
 	(EConst Null,p)
@@ -81,45 +137,45 @@ let gen_constant p c =
 	| TThis -> this p 
 	| TSuper -> assert false
 
-let rec gen_binop p op e1 e2 =
+let rec gen_binop ctx p op e1 e2 =
 	let gen_op str =
-		(EBinop (str,gen_expr e1,gen_expr e2),p)
+		(EBinop (str,gen_expr ctx e1,gen_expr ctx e2),p)
 	in
 	match op with
-	| OpPhysEq -> (EBinop ("==", call p (builtin p "pcompare") [gen_expr e1; gen_expr e2], int p 0),p)
-	| OpPhysNotEq ->  (EBinop ("!=", call p (builtin p "pcompare") [gen_expr e1; gen_expr e2], int p 0),p)
+	| OpPhysEq -> (EBinop ("==", call p (builtin p "pcompare") [gen_expr ctx e1; gen_expr ctx e2], int p 0),p)
+	| OpPhysNotEq ->  (EBinop ("!=", call p (builtin p "pcompare") [gen_expr ctx e1; gen_expr ctx e2], int p 0),p)
 	| _ -> gen_op (Ast.s_binop op)
 
-and gen_unop p op flag e =	
+and gen_unop ctx p op flag e =	
 	match op with
-	| Increment -> (EBinop ((if flag = Prefix then "+=" else "++="), gen_expr e , int p 1),p)
-	| Decrement -> (EBinop ((if flag = Prefix then "-=" else "--="), gen_expr e , int p 1),p)
-	| Not -> call p (builtin p "not") [gen_expr e]
-	| Neg -> (EBinop ("-",int p 0, gen_expr e),p)
+	| Increment -> (EBinop ((if flag = Prefix then "+=" else "++="), gen_expr ctx e , int p 1),p)
+	| Decrement -> (EBinop ((if flag = Prefix then "-=" else "--="), gen_expr ctx e , int p 1),p)
+	| Not -> call p (builtin p "not") [gen_expr ctx e]
+	| Neg -> (EBinop ("-",int p 0, gen_expr ctx e),p)
 	| NegBits -> error "Operation not available" e.epos
 
-and gen_call p e el =
+and gen_call ctx p e el =
 	match e.eexpr , el with
 	| TConst TSuper , _ ->
 		let c = (match follow e.etype with TInst (c,_) -> c | _ -> assert false) in
 		call p (builtin p "call") [
 			field p (gen_type_path p c.cl_path) "__construct__";
 			this p;
-			array p (List.map gen_expr el)
+			array p (List.map (gen_expr ctx) el)
 		]
 	| TField ({ eexpr = TConst TSuper; etype = t },f) , _ ->
 		let c = (match follow t with TInst (c,_) -> c | _ -> assert false) in
 		call p (builtin p "call") [
 			field p (gen_type_path p (fst c.cl_path,"@" ^ snd c.cl_path)) f;
 			this p;
-			array p (List.map gen_expr el)
+			array p (List.map (gen_expr ctx) el)
 		]
 	| TMember s , el ->
-		call p (field p (this p) s) (List.map gen_expr el)
+		call p (field p (this p) s) (List.map (gen_expr ctx) el)
 	| TField (e,f) , el ->
-		call p (field p (gen_expr e) f) (List.map gen_expr el)
+		call p (field p (gen_expr ctx e) f) (List.map (gen_expr ctx) el)
 	| _ , _ ->
-		call p (gen_expr e) (List.map gen_expr el)
+		call p (gen_expr ctx e) (List.map (gen_expr ctx) el)
 
 and gen_closure p t e f =
 	match follow t with
@@ -136,57 +192,105 @@ and gen_closure p t e f =
 	| _ -> 
 		field p e f
 
-and gen_expr e = 
+and gen_expr ctx e = 
 	let p = pos e.epos in
 	match e.eexpr with
 	| TConst c ->
 		gen_constant p c
 	| TLocal s ->
-		ident p s
+		let isref = try PMap.find s ctx.locals with Not_found -> false in
+		if isref then
+			(EArray (ident p s,int p 0),p)
+		else
+			ident p s
 	| TMember s ->
 		gen_closure p e.etype (this p) s		
 	| TEnumField (e,f) ->
 		field p (gen_type_path p e.e_path) f
 	| TArray (e1,e2) ->
-		(EArray (gen_expr e1,gen_expr e2),p)
+		(EArray (gen_expr ctx e1,gen_expr ctx e2),p)
 	| TBinop (op,e1,e2) ->
-		gen_binop p op e1 e2
+		gen_binop ctx p op e1 e2
 	| TField (e2,f) ->
-		gen_closure p e.etype (gen_expr e2) f
+		gen_closure p e.etype (gen_expr ctx e2) f
 	| TType t ->
 		gen_type_path p (type_path t)
 	| TParenthesis e ->
-		(EParenthesis (gen_expr e),p)
+		(EParenthesis (gen_expr ctx e),p)
 	| TObjectDecl fl ->
-		(EObject (List.map (fun (f,e) -> f , gen_expr e) fl),p)
+		(EObject (List.map (fun (f,e) -> f , gen_expr ctx e) fl),p)
 	| TArrayDecl el ->
-		call p (field p (ident p "Array") "new1") [array p (List.map gen_expr el); int p (List.length el)]
+		call p (field p (ident p "Array") "new1") [array p (List.map (gen_expr ctx) el); int p (List.length el)]
 	| TCall (e,el) ->
-		gen_call p e el
+		gen_call ctx p e el
 	| TNew (c,_,params) ->
-		call p (field p (gen_type_path p c.cl_path) "new") (List.map gen_expr params)
+		call p (field p (gen_type_path p c.cl_path) "new") (List.map (gen_expr ctx) params)
 	| TUnop (op,flag,e) ->
-		gen_unop p op flag e
+		gen_unop ctx p op flag e
 	| TVars vl ->
-		(EVars (List.map (fun (v,_,e) -> v , (match e with None -> None | Some e -> Some (gen_expr e))) vl),p)
+		(EVars (List.map (fun (v,_,e) -> 
+			let isref = add_local ctx v p in
+			let e = (match e with 
+				| None -> 
+					if isref then 
+						Some (call p (builtin p "array") [null p])
+					else
+						None 
+				| Some e -> 
+					let e = gen_expr ctx e in
+					if isref then
+						Some (call p (builtin p "array") [e])
+					else
+						Some e
+			) in	
+			v , e
+		) vl),p)
 	| TFunction f ->
-		(EFunction (List.map fst f.tf_args, gen_expr f.tf_expr),p)
+		let b = block ctx [f.tf_expr] in		
+		let inits = List.fold_left (fun acc (a,_) -> 
+			if add_local ctx a p then 
+				(a, Some (call p (builtin p "array") [ident p a])) :: acc
+			else
+				acc
+		) [] f.tf_args in
+		let e = gen_expr ctx f.tf_expr in
+		let e = (match inits with [] -> e | _ -> (EBlock [(EVars (List.rev inits),p);e],p)) in
+		let e = (EFunction (List.map fst f.tf_args, e),p) in
+		b();
+		e
 	| TBlock el ->
-		(EBlock (List.map gen_expr el), p)
+		let b = block ctx el in		
+		let rec loop = function
+			| [] -> []
+			| e :: l ->
+				ctx.curblock <- l;
+				let e = gen_expr ctx e in
+				e :: loop l
+		in
+		let e = (EBlock (loop el), p) in
+		b();
+		e
 	| TFor (v, it, e) ->
+		let it = gen_expr ctx it in
+		let b = block ctx [e] in
+		let isref = add_local ctx v p in
+		let e = gen_expr ctx e in
+		b();
+		let next = call p (field p (ident p "@tmp") "next") [] in
+		let next = (if isref then call p (builtin p "array") [next] else next) in
 		(EBlock 
-			[(EVars ["@tmp", Some (gen_expr it)],p);
+			[(EVars ["@tmp", Some it],p);
 			(EWhile (call p (field p (ident p "@tmp") "hasNext") [],
 				(EBlock [
-					(EVars [v, Some (call p (field p (ident p "@tmp") "next") [])],p);
-					gen_expr e
+					(EVars [v, Some next],p);
+					e
 				],p)
 			,NormalWhile),p)]
 		,p)	
 	| TIf (cond,e1,e2) ->
-		(EIf (gen_expr cond,gen_expr e1,(match e2 with None -> None | Some e -> Some (gen_expr e))),p)
+		(EIf (gen_expr ctx cond,gen_expr ctx e1,(match e2 with None -> None | Some e -> Some (gen_expr ctx e))),p)
 	| TWhile (econd,e,flag) ->
-		(EWhile (gen_expr econd, gen_expr e, match flag with Ast.NormalWhile -> NormalWhile | Ast.DoWhile -> DoWhile),p)
+		(EWhile (gen_expr ctx econd, gen_expr ctx e, match flag with Ast.NormalWhile -> NormalWhile | Ast.DoWhile -> DoWhile),p)
 	| TTry (e,catchs) ->
 		let rec loop = function
 			| [] -> call p (builtin p "rethrow") [ident p "@tmp"]
@@ -202,59 +306,75 @@ and gen_expr e =
 					| None -> (EConst True,p)
 					| Some path -> call p (field p (gen_type_path p (["neko"],"Boot")) "__instanceof") [ident p "@tmp"; gen_type_path p path]
 				) in
+				let b = block ctx [e] in
+				let isref = add_local ctx v p in
+				let id = ident p "@tmp" in
+				let id = (if isref then call p (builtin p "array") [id] else id) in
+				let e = gen_expr ctx e in
+				b();
 				(EIf (cond,(EBlock [
-					EVars [v,Some (ident p "@tmp")],p;
-					gen_expr e;
+					EVars [v,Some id],p;
+					e;
 				],p),Some e2),p)
 		in
 		let catchs = loop catchs in
-		(ETry (gen_expr e,"@tmp",catchs),p)
+		(ETry (gen_expr ctx e,"@tmp",catchs),p)
 	| TReturn eo ->
-		(EReturn (match eo with None -> None | Some e -> Some (gen_expr e)),p)
+		(EReturn (match eo with None -> None | Some e -> Some (gen_expr ctx e)),p)
 	| TBreak ->
 		(EBreak None,p)
 	| TContinue ->
 		(EContinue,p)
 	| TThrow e ->
-		call p (builtin p "throw") [gen_expr e]
+		call p (builtin p "throw") [gen_expr ctx e]
 	| TMatch (e,_,cases,eo) ->
 		(ENext (
-			(EVars ["@tmp",Some (gen_expr e)],p),
+			(EVars ["@tmp",Some (gen_expr ctx e)],p),
 			(ESwitch (
 				field p (ident p "@tmp") "tag",
 				List.map (fun (s,el,e2) ->
 					let count = ref (-1) in
 					let e = match el with
-						| None -> gen_expr e2
+						| None -> gen_expr ctx e2
 						| Some el ->
+							let b = block ctx [e2] in
+							let vars = List.map (fun (v,_) -> 
+								incr count; 
+								let isref = add_local ctx v p in
+								let e = (EArray (ident p "@tmp",int p (!count)),p) in
+								let e = (if isref then call p (builtin p "array") [e] else e) in
+								v , Some e
+							) el in
+							let e2 = gen_expr ctx e2 in
+							b();
 							(EBlock [
 								(EVars ["@tmp",Some (field p (ident p "@tmp") "args")],p);
-								(EVars (List.map (fun (v,_) -> incr count; v , Some (EArray (ident p "@tmp",int p (!count)),p)) el),p);
-								(gen_expr e2)
+								(EVars vars,p);
+								e2
 							],p)
 					in
 					str p s , e
 				) cases,
-				(match eo with None -> None | Some e -> Some (gen_expr e))
+				(match eo with None -> None | Some e -> Some (gen_expr ctx e))
 			),p)
 		),p)
 	| TSwitch (e,cases,eo) ->
 		(ESwitch (
-			gen_expr e,
-			List.map (fun (e1,e2) -> gen_expr e1, gen_expr e2) cases,
-			(match eo with None -> None | Some e -> Some (gen_expr e))
+			gen_expr ctx e,
+			List.map (fun (e1,e2) -> gen_expr ctx e1, gen_expr ctx e2) cases,
+			(match eo with None -> None | Some e -> Some (gen_expr ctx e))
 		),p)
 
-let gen_method p c acc =
+let gen_method ctx p c acc =
 	match c.cf_expr with
 	| None -> 
 		(c.cf_name, null p) :: acc
 	| Some e ->
 		match e.eexpr with
-		| TFunction _ -> ((if c.cf_name = "new" then "__construct__" else c.cf_name), gen_expr e) :: acc
+		| TFunction _ -> ((if c.cf_name = "new" then "__construct__" else c.cf_name), gen_expr ctx e) :: acc
 		| _ -> (c.cf_name, null p) :: acc
 
-let gen_class c =	
+let gen_class ctx c =	
 	let p = pos c.cl_pos in
 	let clpath = gen_type_path p (fst c.cl_path,"@" ^ snd c.cl_path) in
 	let stpath = gen_type_path p c.cl_path in
@@ -264,7 +384,7 @@ let gen_class c =
 		(match follow f.cf_type with
 		| TFun (args,_) ->
 			let params = List.map fst args in
-			gen_method p f ["new",(EFunction (params,(EBlock [
+			gen_method ctx p f ["new",(EFunction (params,(EBlock [
 				(EVars ["@o",Some (call p (builtin p "new") [null p])],p);
 				(call p (builtin p "objsetproto") [ident p "@o"; clpath]);
 				(call p (builtin p "call") [field p (this p) "__construct__"; ident p "@o"; array p (List.map (ident p) params)]);
@@ -294,12 +414,12 @@ let gen_class c =
 			("__prototype__",clpath) ::
 			("__super__", match c.cl_super with None -> null p | Some _ -> field p esuper "__class__") ::
 			("__interfaces__", interf) ::
-			PMap.fold (gen_method p) c.cl_statics fnew
+			PMap.fold (gen_method ctx p) c.cl_statics fnew
 		),p)
 	),p) in
 	let eclass = (EBinop ("=",
 		clpath,
-		(EObject (PMap.fold (gen_method p) c.cl_fields fstring),p)
+		(EObject (PMap.fold (gen_method ctx p) c.cl_fields fstring),p)
 	),p) in
 	(EBlock [eclass; estat; call p (builtin p "objsetproto") [clpath; esuper]; (EBinop ("=",field p clpath "__class__",stpath),p)],p)	
 
@@ -332,20 +452,20 @@ let gen_enum e =
 		pmap_list (gen_enum_constr path) e.e_constrs
 	),p)
 
-let gen_type t =
+let gen_type ctx t =
 	match t with
 	| TClassDecl c -> 
 		if c.cl_extern then
 			null (pos c.cl_pos)
 		else
-			gen_class c
+			gen_class ctx c
 	| TEnumDecl e -> 
 		if e.e_path = ([],"Bool") then
 			null (pos e.e_pos)
 		else
 			gen_enum e
 
-let gen_static_vars t =
+let gen_static_vars ctx t =
 	match t with
 	| TEnumDecl _ -> []
 	| TClassDecl c ->
@@ -362,7 +482,7 @@ let gen_static_vars t =
 						let p = pos e.epos in
 						(EBinop ("=",
 							(field p (gen_type_path p c.cl_path) f.cf_name),
-							gen_expr e
+							gen_expr ctx e
 						),p) :: acc
 			) c.cl_ordered_statics []
 
@@ -391,14 +511,18 @@ let gen_boot hres =
 	],null_pos)
 
 let generate file types hres =
+	let ctx = {
+		curblock = [];
+		locals = PMap.empty;
+	} in
 	let h = Hashtbl.create 0 in
 	let enum_str = (EBinop ("=",ident null_pos "@enum_to_string",(EFunction ([],
 		call null_pos (field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__enum_str") [this null_pos]
 	),null_pos)),null_pos) in
 	let packs = List.concat (List.map (gen_packages h) types) in
-	let methods = List.map gen_type types in
+	let methods = List.map (gen_type ctx) types in
 	let boot = gen_boot hres in
-	let vars = List.concat (List.map gen_static_vars types) in
+	let vars = List.concat (List.map (gen_static_vars ctx) types) in
 	let e = (EBlock (enum_str :: packs @ methods @ boot :: vars), null_pos) in
 	let neko_file = Filename.chop_extension file ^ ".neko" in
 	let ch = IO.output_channel (open_out neko_file) in
