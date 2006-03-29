@@ -14,6 +14,7 @@
 	fixed type parameter contraint holes
 	Std.is Dynamic always returns true
 	added Enum.toString 
+	neko : env locals can be modified in inner functions
 
 2006-03-11: beta 3
 	javascript generator
