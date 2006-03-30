@@ -34,7 +34,7 @@ class ResultSet implements Iterator<Dynamic> {
 	private function new(r) {
 		__r = r;
 		length = result_get_length(r);
-		nfields = result_get_nfields(r);
+		nfields = try result_get_nfields(r) catch( e : Dynamic ) 0;
 	}
 
 	public function hasNext() {
