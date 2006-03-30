@@ -56,12 +56,18 @@ extern class TextField
 	var wordWrap:Bool;
 	var mouseWheelEnabled:Bool;
 
+#if flash8
+	var antiAliasType:String;
+	var gridFitType:String;
+	var sharpness:Float;
+#end
+
 	var styleSheet:flash.text.StyleSheet;
 
 	function replaceText(beginIndex:Float,endIndex:Float,newText:String):Void;
 	function replaceSel(newText:String):Void;
 	function getTextFormat(beginIndex:Float,endIndex:Float):TextFormat;
-	function setTextFormat( tf : TextFormat ):Void;
+	function setTextFormat( begin : Dynamic, end : Dynamic, tf : TextFormat ):Void;
 	function removeTextField():Void;
 	function getNewTextFormat():TextFormat;
 	function setNewTextFormat(tf:TextFormat):Void;
