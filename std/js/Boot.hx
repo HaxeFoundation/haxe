@@ -109,7 +109,7 @@ class Boot {
 					// strange error on IE
 					return "???";
 				}
-				if( tostr != __js__("Object.toString") ) {
+				if( tostr != null && tostr != __js__("Object.toString") ) {
 					var s2 = o.toString();
 					if( s2 != "[object Object]")
 						return s2;
