@@ -23,6 +23,7 @@ type ctx = {
 	packages : (string list,unit) Hashtbl.t;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
+	mutable inits : texpr list;
 	mutable tabs : string;
 	mutable in_value : bool;
 }
@@ -569,7 +570,15 @@ let generate_static ctx (c,f,e) =
 	newline ctx
 
 let generate_type ctx = function
-	| TClassDecl c -> if not c.cl_extern then generate_class ctx c
+	| TClassDecl c -> 
+		(try
+			let f = PMap.find "__init__" c.cl_statics in
+			match f.cf_expr with
+			| Some { eexpr = TFunction f } -> ctx.inits <- f.tf_expr :: ctx.inits
+			| _ -> ()
+		with
+			Not_found -> ());
+		if not c.cl_extern then generate_class ctx c
 	| TEnumDecl e -> generate_enum ctx e
 
 let generate file types hres =
@@ -577,6 +586,7 @@ let generate file types hres =
 		buf = Buffer.create 16000;
 		packages = Hashtbl.create 0;
 		statics = [];
+		inits = [];
 		current = null_class;
 		tabs = "";
 		in_value = false;
@@ -592,6 +602,10 @@ let generate file types hres =
 	) hres;
 	print ctx "js.Boot.__init()";
 	newline ctx;
+	List.iter (fun e -> 
+		gen_expr ctx e;
+		newline ctx;
+	) (List.rev ctx.inits);
 	List.iter (generate_static ctx) (List.rev ctx.statics);
 	let ch = open_out file in
 	output_string ch (Buffer.contents ctx.buf);

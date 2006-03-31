@@ -1334,7 +1334,7 @@ let init_class ctx c p types herits fields =
 				t
 			) in
 			let delay = (
-				if c.cl_extern || c.cl_interface then
+				if (c.cl_extern || c.cl_interface) && cf.cf_name <> "__init__" then
 					(fun() -> ())
 				else begin
 					cf.cf_type <- TLazy r;
