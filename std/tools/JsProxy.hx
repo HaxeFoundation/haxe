@@ -295,7 +295,7 @@ class JsProxy implements Dynamic<JsProxy> {
 		path = new Array();
 	}
 
-	public function eval( result : Dynamic -> Void ) {		
+	public function eval( result : Dynamic -> Void ) {
 		#if flash8
 		untyped flash.external.ExternalInterface._initJS();
 		var v = untyped flash.external.ExternalInterface._evalJS("tools.JsProxy.__eval(\""+path.join(".")+"\")");
@@ -303,7 +303,7 @@ class JsProxy implements Dynamic<JsProxy> {
 		#else js
 		throw "Unimplemented";
 		#else error
-		#end		
+		#end
 	}
 
 	public function call( args : Array<Dynamic>, result : Dynamic -> Void ) : Void {
@@ -327,6 +327,10 @@ class JsProxy implements Dynamic<JsProxy> {
 		s.path = path.copy();
 		s.path.push(field);
 		return s;
+	}
+
+	public static function jsTrace(msg,here) {
+		(new tools.JsProxy()).js.Boot.__trace.call([msg,here],null);
 	}
 
 	static function unserialize(v : String) : Dynamic {
