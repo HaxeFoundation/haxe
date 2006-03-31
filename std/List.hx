@@ -65,6 +65,15 @@ class List<T> {
 		h = cons(item,h);
 	}
 
+	public function first() : T {
+		return switch h {
+		case empty:
+			null;
+		case cons(it,h):
+			it;
+		}
+	}
+
 	public function pop() : T {
 		return switch h {
 		case empty:
