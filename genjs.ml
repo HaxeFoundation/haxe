@@ -107,6 +107,12 @@ let rec gen_call ctx e el =
 			concat ctx "," (gen_value ctx) params;
 			spr ctx "])";
 		);
+	| TField (e,s) , el ->
+		gen_value ctx e;
+		spr ctx (field s);
+		spr ctx "(";
+		concat ctx "," (gen_value ctx) el;
+		spr ctx ")"		
 	| TLocal "__new__" , { eexpr = TConst (TString cl) } :: params ->
 		print ctx "new %s(" cl;
 		concat ctx "," (gen_value ctx) params;
@@ -137,13 +143,26 @@ and gen_expr ctx e =
 		spr ctx "[";
 		gen_value ctx e2;
 		spr ctx "]";
+	| TBinop (op,{ eexpr = TField (e1,s) },e2) ->
+		gen_value ctx e1;
+		spr ctx (field s);
+		print ctx " %s " (Ast.s_binop op);
+		gen_value ctx e2;
 	| TBinop (op,e1,e2) ->
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
 		gen_value ctx e2;
-	| TField (e,s) ->
-		gen_value ctx e;
-		spr ctx (field s)
+	| TField (x,s) ->
+		(match follow e.etype with
+		| TFun _ -> 
+			spr ctx "$closure(";
+			gen_value ctx x;
+			spr ctx ",";
+			gen_constant ctx (TString s);
+			spr ctx ")";
+		| _ -> 
+			gen_value ctx x;
+			spr ctx (field s))
 	| TType t ->
 		spr ctx (s_path (t_path t))
 	| TParenthesis e ->

@@ -95,11 +95,14 @@ class Boot {
 
 	private static function __closure(f,o) {
 		untyped {
+			var m = o[f];
+			if( m == null )
+				return null;
 			var f2 = function() {
 				var me = __arguments__.callee;
 				return me.f.apply(me.o,__arguments__);
 			};
-			f2.f = o[f];
+			f2.f = m;
 			f2.o = o;
 			return f2;
 		}

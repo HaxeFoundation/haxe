@@ -182,12 +182,17 @@ and gen_closure p t e f =
 	| TFun (args,_) ->
 		let n = ref 0 in
 		let args = List.map (fun _ -> incr n; "p" ^ string_of_int (!n)) args in
+		let tmp = ident p "@tmp" in
+		let ifun = ident p "@fun" in
 		EBlock [
-			(EVars ["@tmp", Some e; "@fun", Some (field p (ident p "@tmp") f)] , p);
-			(EFunction (args,(EBlock [
-				(EBinop ("=",this p,ident p "@tmp"),p);
-				(EReturn (Some (call p (ident p "@fun") (List.map (ident p) args))),p)
-			],p)),p)
+			(EVars ["@tmp", Some e; "@fun", Some (field p tmp f)] , p);
+			(EIf ((EBinop ("==",ifun,null p),p),
+				null p,
+				Some (EFunction (args,(EBlock [
+					(EBinop ("=",this p,tmp),p);
+					(EReturn (Some (call p ifun (List.map (ident p) args))),p)
+				],p)),p)
+			),p)
 		] , p
 	| _ -> 
 		field p e f

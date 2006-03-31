@@ -58,6 +58,15 @@ class Boot {
 		}
 	}
 
+	private static function __closure(o,f) {
+		untyped {
+			var m = o[f];
+			if( m == null )
+				return null;
+			return function() { return m.apply(o,arguments); };
+		}
+	}
+
 	private static function __string_rec(o,s) {
 		untyped {
 			if( o == null )
@@ -95,7 +104,7 @@ class Boot {
 				}
 				var tostr;
 				try {
-					tostr = o.toString;
+					tostr = untyped o.toString;
 				} catch( e : Dynamic ) {
 					// strange error on IE
 					return "???";
@@ -266,6 +275,7 @@ class Boot {
 			Float = __js__("Number");
 			Bool["true"] = true;
 			Bool["false"] = false;
+			__js__("$closure = js.Boot.__closure");
 		}
 	}
 
