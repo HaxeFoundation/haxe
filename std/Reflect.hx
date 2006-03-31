@@ -34,8 +34,46 @@ enum BasicType {
 	TUnknown;
 }
 
+/**
+	A class contains meta data about the class instance and an access to the prototype.
+**/
+interface Class {
+
+	/**
+		The complete class name
+	**/
+	var __name__ : Array<String>;
+
+	/**
+		The Class constructor, or [null] if the class does not have one
+	**/
+	var __construct__ : Dynamic;
+
+	/**
+		The superclass which the class extends, or [null] if the class does not extend any class
+	**/
+	var __super__ : Class;
+
+	/**
+		The list of interfaces implemented by this class.
+	**/
+	var __interfaces__ : Array<Class>;
+
+	/**
+		The class prototype, containing all class fields
+	**/
+	var prototype : Dynamic;
+}
+
+/**
+	The Reflect API is a way to manipulate values dynamicly through an
+	abstract interface in an untyped manner. Use with care.
+**/
 class Reflect {
 
+	/**
+		Returns the basic type of any value.
+	**/
 	public static function typeof( v : Dynamic ) : BasicType {
 		untyped {
 		#if flash
@@ -97,6 +135,9 @@ class Reflect {
 		}
 	}
 
+	/**
+		Creates an empty object.
+	**/
 	public static function empty() : {} {
 		return untyped
 		#if flash
@@ -110,6 +151,9 @@ class Reflect {
 			;
 	}
 
+	/**
+		Creates an instance of the given class with the list of constructor arguments.
+	**/
 	public static function createInstance( cl : Dynamic, args : Array<Dynamic> ) : Dynamic {
 		return untyped
 		#if flash
@@ -138,6 +182,9 @@ class Reflect {
 			;
 	}
 
+	/**
+		Tells if an object has a field set. This doesn't take into account the object prototype (class methods).
+	**/
 	public static function hasField( o : Dynamic, field : String ) : Bool {
 		return untyped
 		#if flash
@@ -151,6 +198,9 @@ class Reflect {
 			;
 	}
 
+	/**
+		Returns the field of an object, or null if [o] is not an object or doesn't have this field.
+	**/
 	public static function field( o : Dynamic, field : String ) : Dynamic {
 		untyped
 		#if flash
@@ -173,6 +223,9 @@ class Reflect {
 			;
 	}
 
+	/**
+		Set an object field value.
+	**/
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
 		untyped
 		#if flash
@@ -186,6 +239,9 @@ class Reflect {
 		#end
 	}
 
+	/**
+		Call a method with the given object and arguments.
+	**/
 	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic {
 		return untyped
 		#if flash
@@ -199,12 +255,31 @@ class Reflect {
 			;
 	}
 
+	/**
+		Returns the list of fields of an object, excluding its prototype (class methods).
+	**/
 	public static function fields( o : Dynamic ) : Array<String> {
-		return untyped
+		return untyped {
 		#if flash
-			__keys__(o)
+			var a = __keys__(o);
+			var i = 0;
+			while( i < a.length ) {
+				if( !this.hasOwnProperty.call(o,a[i]) )
+					a.splice(i,1);
+				else
+					++i;
+			}
+			a;
 		#else js
-			js.Boot.__keys(o)
+			var a = js.Boot.__keys(o);
+			var i = 0;
+			while( i < a.length ) {
+				if( !o.hasOwnProperty(a[i]) )
+					a.splice(i,1);
+				else
+					++i;
+			}
+			a;
 		#else neko
 			if( __dollar__typeof(o) != __dollar__tobject )
 				new Array<String>();
@@ -220,9 +295,33 @@ class Reflect {
 			}
 		#else error
 		#end
-			;
+		}
 	}
 
+	/**
+		Returns the class of an object
+	**/
+	public static function getClass( o : Dynamic ) : Class {
+		return untyped
+		#if flash
+			o.__class__;
+		#else js
+			if( o == null )
+				null;
+			else
+				o.__class__;
+		#else neko
+			if( __dollar__typeof(o) != __dollar__tobject )
+				null;
+			else
+				o.__class__;
+		#else error
+		#end
+	}
+
+	/**
+		Tells if a value is a function or not.
+	**/
 	public static function isFunction( f : Dynamic ) : Bool {
 		return untyped
 		#if flash
@@ -236,6 +335,9 @@ class Reflect {
 			;
 	}
 
+	/**
+		Delete an object field.
+	**/
 	public static function deleteField( o : Dynamic, f : String ) {
 		#if flash
 			untyped __delete__(o,f)
