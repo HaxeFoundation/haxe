@@ -26,19 +26,30 @@ package neko;
 
 class Boot {
 
+	private static function __tmp_str() {
+		return untyped "<...>".__s;
+	}
+
 	private static function __enum_str(e : Dynamic) {
 		if( e.args == null )
 			return e.tag;
 		var s = e.tag + untyped "(".__s;
 		var i = 0;
 		var l = untyped __dollar__asize(e.args);
+		var old = e.__string;
+		e.__string = __tmp_str;
 		while( i < l ) {
-			if( i == 0 )
-				s += e.args[i];
-			else
-				s += untyped ",".__s + e.args[i];
+			if( i != 0 )
+				s += untyped ",".__s;
+			try {
+				s += untyped __dollar__string(e.args[i]);
+			} catch( e : Dynamic ) {
+				e.__string = old;
+				throw e;
+			}
 			i += 1;
 		}
+		e.__string = old;
 		return s + untyped ")".__s;
 	}
 
