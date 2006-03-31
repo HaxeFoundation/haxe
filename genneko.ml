@@ -328,8 +328,8 @@ and gen_expr ctx e =
 	| TThrow e ->
 		call p (builtin p "throw") [gen_expr ctx e]
 	| TMatch (e,_,cases,eo) ->
-		(ENext (
-			(EVars ["@tmp",Some (gen_expr ctx e)],p),
+		(EBlock [
+			(EVars ["@tmp",Some (gen_expr ctx e)],p);
 			(ESwitch (
 				field p (ident p "@tmp") "tag",
 				List.map (fun (s,el,e2) ->
@@ -357,7 +357,7 @@ and gen_expr ctx e =
 				) cases,
 				(match eo with None -> None | Some e -> Some (gen_expr ctx e))
 			),p)
-		),p)
+		],p)
 	| TSwitch (e,cases,eo) ->
 		(ESwitch (
 			gen_expr ctx e,
