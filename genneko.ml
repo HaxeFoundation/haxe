@@ -371,6 +371,8 @@ let gen_method ctx p c acc =
 		(c.cf_name, null p) :: acc
 	| Some e ->
 		match e.eexpr with
+		| TCall ({ eexpr = TField ({ eexpr = TType (TClassDecl { cl_path = (["neko"],"Lib") }) }, "load")},[{ eexpr = TConst (TString m) };{ eexpr = TConst (TString f) };{ eexpr = TConst (TInt n) }]) ->
+			(c.cf_name, call (pos e.epos) (EField (builtin p "loader","loadprim"),p) [(EBinop ("+",(EBinop ("+",str p m,str p "@"),p),str p f),p); (EConst (Int (int_of_string n)),p)]) :: acc
 		| TFunction _ -> ((if c.cf_name = "new" then "__construct__" else c.cf_name), gen_expr ctx e) :: acc
 		| _ -> (c.cf_name, null p) :: acc
 
@@ -528,8 +530,9 @@ let generate file types hres =
 	let ch = IO.output_channel (open_out neko_file) in
 	(if !Plugin.verbose then Nxml.write_fmt else Nxml.write) ch (Nxml.to_xml e);
 	IO.close_out ch;
-	if Sys.command ("nekoc " ^ neko_file) = 0 && not (!Plugin.verbose) then Sys.remove neko_file;
 	if !Plugin.verbose then begin
 		if Sys.command ("nekoc -p " ^ neko_file) <> 0 then failwith "Failed to print neko code";
 		Sys.remove neko_file;
-	end
+		Sys.rename (Filename.chop_extension file ^ "2.neko") neko_file;
+	end;
+	if Sys.command ("nekoc " ^ neko_file) = 0 && not (!Plugin.verbose) then Sys.remove neko_file
