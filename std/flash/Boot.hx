@@ -136,7 +136,7 @@ class Boot {
 				tf.selectable = false;
 				root.__trace_lines = new Array<String>();
 			}
-			var s = inf.fileName+":"+inf.lineNumber+": "+__string_rec(v,"");
+			var s = inf.fileName+(if( inf.lineNumber == null ) "" else ":"+inf.lineNumber)+": "+__string_rec(v,"");
 			var lines = root.__trace_lines.concat(s.split("\n"));
 			root.__trace_lines = lines;
 			var nlines = Stage.height / 16;
