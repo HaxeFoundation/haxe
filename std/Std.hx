@@ -61,7 +61,7 @@ class Std {
 		#if flash
 		flash.Boot.__string_rec(s,"");
 		#else neko
-		__dollar__string(s);
+		new String(__dollar__string(s));
 		#else js
 		js.Boot.__string_rec(s,"");
 		#else error
