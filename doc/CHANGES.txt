@@ -19,6 +19,9 @@
 	added Reflect.typeof
 	prioritize neko.Lib.load static calls
 	fixed bugs in for...in optimization with continue
+	fixed Reflect fields, added documentation, added Class
+	added javascript closures, fixed null closures on flash and Neko
+	added javascript __init__ statics and js.XMLHttpRequest
 
 2006-03-11: beta 3
 	javascript generator
