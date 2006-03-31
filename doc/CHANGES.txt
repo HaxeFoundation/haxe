@@ -18,6 +18,7 @@
 	completed js keywords list in generator
 	added Reflect.typeof
 	prioritize neko.Lib.load static calls
+	fixed bugs in for...in optimization with continue
 
 2006-03-11: beta 3
 	javascript generator
