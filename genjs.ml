@@ -505,6 +505,10 @@ let generate_class ctx c =
 		print ctx "%s.__construct__ = null" p;
 	);
 	newline ctx;
+	print ctx "%s.__name__ = [%s]" p (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst c.cl_path @ [snd c.cl_path])));	
+	newline ctx;
+	print ctx "%s.toString = $class_str" p;
+	newline ctx;
 	(match c.cl_super with
 	| None -> ()
 	| Some (csup,_) ->
@@ -558,6 +562,8 @@ let generate file types hres =
 		tabs = "";
 		in_value = false;
 	} in
+	print ctx "$class_str = function() { return this.__name__.join(\".\"); }";
+	newline ctx;
 	List.iter (generate_type ctx) types;
 	print ctx "js.Boot.__res = {}";
 	newline ctx;

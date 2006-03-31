@@ -1100,6 +1100,17 @@ let gen_type_def ctx t =
 			push ctx [VReg 0; VStr "__construct__"; VReg 0];
 			setvar ctx VarObj
 		end;
+		push ctx [VReg 0; VStr "__name__"];
+		let name = fst c.cl_path @ [snd c.cl_path] in
+		let nitems = List.length name in
+		push ctx (List.map (fun s -> VStr s) (List.rev name));
+		push ctx [VInt nitems];
+		write ctx AInitArray;
+		ctx.stack_size <- ctx.stack_size - nitems;
+		setvar ctx VarObj;
+		push ctx [VReg 0; VStr "toString"; VStr "@class_str"];
+		write ctx AEval;
+		setvar ctx VarObj;
 		(match c.cl_super with
 		| None ->
 			push ctx [VReg 0; VStr "__super__"; VNull];
@@ -1283,6 +1294,16 @@ let generate file ver header infile types hres =
 		statics = [];
 	} in
 	write ctx (AStringPool []);
+	push ctx [VStr "@class_str"];
+	let f = func ctx false false [] in
+	push ctx [VStr "."; VInt 1; VThis; VStr "__name__"];
+	getvar ctx VarObj;	
+	push ctx [VStr "join"];
+	call ctx VarObj 1;
+	write ctx AReturn;
+	ctx.reg_max <- ctx.reg_max + 1;
+	f();
+	write ctx ASet;
 	List.iter (fun t -> gen_type_def ctx t) types;
 	gen_type_map ctx;
 	gen_boot ctx hres;
@@ -1291,9 +1312,9 @@ let generate file ver header infile types hres =
 	let end_try = global_try() in
 	(* flash.Boot.__trace(exc) *)
 	let id = gen_type ctx (["flash"],"Boot") false in
-	push ctx [VStr "fileName"; VStr "<static init>"; VStr "lineNumber"; VInt 0; VInt 2];
+	push ctx [VStr "fileName"; VStr "(uncaught exception)"; VInt 1];
 	write ctx AObject;
-	ctx.stack_size <- ctx.stack_size - 4;
+	ctx.stack_size <- ctx.stack_size - 2;
 	push ctx [VReg 0; VInt 2; VStr id];
 	write ctx AEval;
 	push ctx [VStr "__trace"];

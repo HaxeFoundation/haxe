@@ -413,8 +413,9 @@ let gen_class ctx c =
 	let estat = (EBinop ("=",
 		stpath,
 		(EObject (
-			("__prototype__",clpath) ::
-			("__super__", match c.cl_super with None -> null p | Some _ -> field p esuper "__class__") ::
+			("prototype",clpath) ::
+			("__string", ident p "@class_to_string") ::
+			("__super__", match c.cl_super with None -> null p | Some (c,_) -> gen_type_path p c.cl_path) ::
 			("__interfaces__", interf) ::
 			PMap.fold (gen_method ctx p) c.cl_statics fnew
 		),p)
@@ -512,6 +513,18 @@ let gen_boot hres =
 		EBinop ("=",field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__res",objres),null_pos;
 	],null_pos)
 
+let gen_name acc t =
+	match t with
+	| TEnumDecl _ -> acc
+	| TClassDecl c -> 
+		if c.cl_extern then
+			acc
+		else
+			let p = pos c.cl_pos in
+			let name = fst c.cl_path @ [snd c.cl_path] in
+			let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant p (TString n)) name); int p (List.length name)] in
+			(EBinop ("=",field p (gen_type_path p c.cl_path) "__name__",arr),p) :: acc
+
 let generate file types hres =
 	let ctx = {
 		curblock = [];
@@ -521,11 +534,15 @@ let generate file types hres =
 	let enum_str = (EBinop ("=",ident null_pos "@enum_to_string",(EFunction ([],
 		call null_pos (field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__enum_str") [this null_pos]
 	),null_pos)),null_pos) in
+	let class_str = (EBinop ("=",ident null_pos "@class_to_string",(EFunction ([],
+		field null_pos (call null_pos (field null_pos (field null_pos (this null_pos) "__name__") "join") [gen_constant null_pos (TString ".")]) "__s"
+	),null_pos)),null_pos) in
 	let packs = List.concat (List.map (gen_packages h) types) in
+	let names = List.fold_left gen_name [] types in
 	let methods = List.map (gen_type ctx) types in
 	let boot = gen_boot hres in
 	let vars = List.concat (List.map (gen_static_vars ctx) types) in
-	let e = (EBlock (enum_str :: packs @ methods @ boot :: vars), null_pos) in
+	let e = (EBlock (enum_str :: class_str :: packs @ methods @ boot :: names @ vars), null_pos) in
 	let neko_file = Filename.chop_extension file ^ ".neko" in
 	let ch = IO.output_channel (open_out neko_file) in
 	(if !Plugin.verbose then Nxml.write_fmt else Nxml.write) ch (Nxml.to_xml e);
