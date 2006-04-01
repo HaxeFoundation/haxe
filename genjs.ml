@@ -48,7 +48,7 @@ let field s = if Hashtbl.mem kwds s then "[\"" ^ s ^ "\"]" else "." ^ s
 let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
 
 let spr ctx s = Buffer.add_string ctx.buf s
-let print ctx = Printf.ksprintf (fun s -> Buffer.add_string ctx.buf s)
+let print ctx = Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
 
 let unsupported p = 
 	raise (Typer.Error (Typer.Custom "This expression cannot be compiled to Javascript",p))
