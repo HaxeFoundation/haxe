@@ -50,7 +50,8 @@ let keywords =
 		[Function;Class;Static;Var;If;Else;While;Do;For;
 		Break;Return;Continue;Extends;Implements;Import;
 		Switch;Case;Default;Public;Private;Try;Untyped;
-		Catch;New;This;Throw;Extern;Enum;In;Interface];
+		Catch;New;This;Throw;Extern;Enum;In;Interface;
+		Cast];
 	h
 
 let init file =

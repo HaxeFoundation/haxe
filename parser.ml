@@ -293,6 +293,7 @@ and expr = parser
 	| [< '(BrOpen,p1); e = block1; '(BrClose,p2) >] -> (e,punion p1 p2)
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
+	| [< '(Kwd Cast,p1); '(POpen,_); e = expr; '(Comma,_); t = parse_type_path; '(PClose,p2); s >] -> expr_next (ECast (e,t),punion p1 p2) s
 	| [< '(Kwd Throw,p); e = expr >] -> (EThrow e,p)
 	| [< '(Kwd New,p1); t = parse_type_path_normal; '(POpen,_); al = psep Comma expr; '(PClose,p2); s >] -> expr_next (ENew (t,al),punion p1 p2) s
 	| [< '(POpen,p1); e = expr; '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s

@@ -409,7 +409,7 @@ let rec unify a b =
 			| None -> ()
 			| Some (c,tl) -> loop c tl
 		in
-		if c.cl_locked then error [cannot_unify a b]
+		if c.cl_locked then error [cannot_unify a b];
 		(try
 			loop c tl;
 		with

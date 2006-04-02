@@ -1187,6 +1187,11 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			etype = mk_mono();
 			epos = e.epos;
 		}
+	| ECast (e,t) ->
+		type_expr ctx (ETry ((EThrow e,p),[
+			("e",t,(EConst (Ident "e"),p));
+			("e",TPNormal { tpackage = []; tname = "Dynamic"; tparams = [] },(EThrow (EConst (String "Class cast error"),p),p))
+		]),p)
 
 and type_function ctx t static constr f p =
 	let locals = save_locals ctx in

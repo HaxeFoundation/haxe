@@ -1,4 +1,4 @@
-(*
+7(*
  *  Haxe Compiler
  *  Copyright (c)2005 Nicolas Cannasse
  *
@@ -54,6 +54,7 @@ type keyword =
 	| In
 	| Interface
 	| Untyped
+	| Cast
 	
 type binop =
 	| OpAdd
@@ -167,6 +168,7 @@ and expr_def =
 	| EContinue
 	| EUntyped of expr
 	| EThrow of expr
+	| ECast of expr * type_path
 
 and expr = expr_def * pos
 
@@ -276,6 +278,7 @@ let s_keyword = function
 	| In -> "in"
 	| Interface -> "interface"
 	| Untyped -> "untyped"
+	| Cast -> "cast"
 
 let rec s_binop = function
 	| OpAdd -> "+"
