@@ -39,7 +39,7 @@ class Std {
 	public static var nan = 0.0 / 0.0;
 
 	/**
-		Tells is a value v is of the type t.
+		Tells if a value v is of the type t.
 	**/
 	public static function is( v : Dynamic, t : Dynamic ) : Bool {
 		return untyped
@@ -146,7 +146,7 @@ class Std {
 			if( s == 0 )
 				return null;
 			else
-				return __dollar__sget(s,0);
+				return __dollar__sget(x.__s,0);
 		}
 		#else js
 		if( x == "" )
