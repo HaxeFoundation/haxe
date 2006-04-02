@@ -31,20 +31,53 @@ extern class Array<T> {
 
 	function concat( a : Array<T> ) : Array<T>;
 	function join( sep : String ) : String;
+
+	/**
+		Removes the last element of the array and returns it.
+	**/
 	function pop() : T;
+
+	/**
+		Adds the element [x] at the end of the array.
+	**/
 	function push(x : T) : Int;
+
 	function reverse() : Array<T>;
+
+	/**
+		Removes the first element and returns it.
+	**/
 	function shift() : T;
+
+	/**
+		Copies the range of the array starting at [pos] up to,
+		but not including, [end]. Both [pos] and [end] can be
+		negative to count from the end: -1 is the last item in
+		the array.
+	**/
 	function slice( pos : Int, end : Int ) : Array<T>; // sub
 	function sort( f : T -> T -> Int ) : Void;
+
+	/**
+		Removes [len] elements starting from [pos].
+	**/
 	function splice( pos : Int, len : Int ) : Array<T>; // removed elts
 	// no toSource (js specific)
 	function toString() : String;
+
+	/**
+		Adds the element [x] at the start of the array.
+	**/
 	function unshift( x : T ) : Void;
 	// no valueOf (js specific)
 
-	/** added **/
+	/* added */
 	function insert( pos : Int, x : T ) : Void;
+
+	/**
+		Removes the first occurence of [x].
+		Returns false if [x] was not present.
+	**/
 	function remove( x : T ) : Bool;
 	function copy() : Array<T>;
 	function iterator() : Iterator<T>;
