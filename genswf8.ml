@@ -31,6 +31,7 @@ type context = {
 	(* management *)
 	idents : (string,int) Hashtbl.t;
 	types : (module_path,(string * bool)) Hashtbl.t;
+	mutable movieclips : module_path list;
 	mutable statics : (string * string * texpr) list;
 	mutable regs : (string,int option) PMap.t;
 	mutable reg_count : int;
@@ -1087,6 +1088,16 @@ let gen_type_def ctx t =
 		let id = gen_type ctx c.cl_path false in
 		let have_constr = ref false in
 		push ctx [VStr id];
+		let rec loop s =
+			match s.cl_super with
+			| None -> ()
+			| Some (s,_) ->
+				if s.cl_path = (["flash"],"MovieClip") then
+					ctx.movieclips <- c.cl_path :: ctx.movieclips
+				else
+					loop s
+		in
+		loop c;
 		(match c.cl_constructor with
 		| Some { cf_expr = Some e } ->
 			have_constr := true;
@@ -1187,6 +1198,16 @@ let gen_boot ctx hres =
 	write ctx AObject;
 	ctx.stack_size <- ctx.stack_size - (!count * 2);
 	write ctx AObjSet
+
+let gen_movieclip ctx m =
+	let id = gen_type ctx m false in
+	push ctx [VStr id];
+	write ctx AEval;
+	push ctx [VStr (s_type_path m); VInt 2; VStr "Object"];
+	write ctx AEval;
+	push ctx [VStr "registerClass"];
+	call ctx VarObj 2;
+	write ctx APop
 
 let gen_type_map ctx =
 	let packs = Hashtbl.create 0 in
@@ -1292,6 +1313,7 @@ let generate file ver header infile types hres =
 		loop_stack = 0;
 		fun_stack = 0;
 		statics = [];
+		movieclips = [];
 	} in
 	write ctx (AStringPool []);
 	push ctx [VStr "@class_str"];
@@ -1307,6 +1329,7 @@ let generate file ver header infile types hres =
 	List.iter (fun t -> gen_type_def ctx t) types;
 	gen_type_map ctx;
 	gen_boot ctx hres;
+	List.iter (fun m -> gen_movieclip ctx m) ctx.movieclips;
 	let global_try = gen_try ctx in
 	List.iter (gen_class_static_init ctx) (List.rev ctx.statics);
 	let end_try = global_try() in
@@ -1330,12 +1353,19 @@ let generate file ver header infile types hres =
 		tdata = d;
 	} in
 	let tagcode = tag (TDoAction ctx.opcodes) in
+	let base_id = ref 0x5000 in
+	let tagclips() = List.fold_left (fun acc m ->
+		incr base_id;
+		tag ~ext:true (TClip { c_id = !base_id; c_frame_count = 1; c_tags = [] }) ::
+		tag ~ext:true (TExport [{ exp_id = !base_id; exp_name = s_type_path m }]) ::
+		acc
+	) [] ctx.movieclips in
 	let swf = (match infile with
 		| None ->
 			let header , bg = (match header with None -> default_header ver | Some h -> convert_header ver h) in
 			let tagbg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
 			let tagshow = tag TShowFrame in
-			(header,[tagbg;tagcode;tagshow])
+			(header,tagbg :: tagclips() @ [tagcode;tagshow])
 		| Some file ->
 			let file = (try Plugin.find_file file with Not_found -> failwith ("File not found : " ^ file)) in
 			let ch = IO.input_channel (open_in_bin file) in
@@ -1346,8 +1376,14 @@ let generate file ver header infile types hres =
 				| [] ->
 					failwith ("Frame 1 not found in " ^ file)
 				| ({ tdata = TShowFrame } as t) :: l ->
-					tagcode :: t :: l
+					tagclips() @ tagcode :: t :: l
 				| t :: l -> 
+					(match t.tdata with
+					| TExport l -> 
+						List.iter (fun e -> 
+							ctx.movieclips <- List.filter (fun x -> s_type_path x <> e.exp_name) ctx.movieclips
+						) l
+					| _ -> ());
 					t :: loop l
 			in
 			(header , loop swf)
