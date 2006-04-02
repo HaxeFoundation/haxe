@@ -180,10 +180,7 @@ class Boot {
 	private static function __init() {
 		untyped {
 			Lib.isIE = (document.all != null);
-			if( Lib.isIE )
-				Node = __js__("Object");
-			Node.element_node = 1;
-			Node.text_node = 3;
+			if( !Lib.isIE )
 			Node.prototype.nodes = function() {
 				return untyped {
 					p : 0,

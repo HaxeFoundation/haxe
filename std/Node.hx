@@ -25,8 +25,8 @@
 
 extern class Node {
 
-	static var element_node : Int = 1;
-	static var text_node : Int = 3;
+	static var ELEMENT_NODE : Int = 1;
+	static var TEXT_NODE : Int = 3;
 
 	var nodeName : String;
 	var nodeValue : String;

@@ -464,7 +464,7 @@ class DocView {
 	}
 
 	static function displayHtml(html : Node) {
-		if( html.nodeType != Node.element_node ) {
+		if( html.nodeType != Node.ELEMENT_NODE ) {
 			print(html.toString());
 			return;
 		}

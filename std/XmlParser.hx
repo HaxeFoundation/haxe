@@ -54,7 +54,7 @@ class XmlParser {
 				cur : x,
 				xml : function(name,att) {
 					var x = new Node();
-					x.nodeType = Node.element_node;
+					x.nodeType = Node.ELEMENT_NODE;
 					x.nodeName = new String(name);
 					x.childNodes = new Array<Node>();
 					x.parentNode = untyped this.cur;
@@ -73,14 +73,14 @@ class XmlParser {
 				},
 				cdata : function(text) {
 					var x = new Node();
-					x.nodeType = Node.text_node;
+					x.nodeType = Node.TEXT_NODE;
 					x.nodeValue = new String(text);
 					x.parentNode = untyped this.cur;
 					untyped this.cur.childNodes.push(x);
 				},
 				pcdata : function(text) {
 					var x = new Node();
-					x.nodeType = Node.text_node;
+					x.nodeType = Node.TEXT_NODE;
 					x.nodeValue = new String(text);
 					x.parentNode = untyped this.cur;
 					untyped this.cur.childNodes.push(x);

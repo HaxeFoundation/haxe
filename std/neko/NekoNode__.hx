@@ -27,8 +27,8 @@ package neko;
 
 class NekoNode__ implements Node {
 
-	public static var element_node : Int = 1;
-	public static var text_node : Int = 3;
+	public static var ELEMENT_NODE : Int = 1;
+	public static var TEXT_NODE : Int = 3;
 
 	public var nodeName : String;
 	public var nodeValue : String;
@@ -67,7 +67,7 @@ class NekoNode__ implements Node {
 	}
 
 	public function toString() {
-		if( nodeType == text_node )
+		if( nodeType == TEXT_NODE )
 			return nodeValue;
 		var s = new StringBuf();
 		if( nodeName != null ) {
@@ -110,7 +110,7 @@ class NekoNode__ implements Node {
 					if( x == null )
 						return null;
 					this.p++;
-					if( x.nodeType == 1 )
+					if( x.nodeType == ELEMENT_NODE )
 						return x;
 				}
 				return null;

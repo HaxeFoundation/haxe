@@ -167,8 +167,6 @@ class Boot {
 			flash.system.Security = System.security;
 			flash.system.IME = System["IME"];
 			Node = _global["XMLNode"];
-			Node.element_node = 1;
-			Node.text_node = 3;
 			Node.prototype.removeChild = Node.prototype.removeNode;
 			Node.prototype.replaceChild = function(cnew,cold) {
 				this.insertBefore(cnew,cold);
