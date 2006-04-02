@@ -111,11 +111,12 @@ import flash.text.TextRenderer;
 #if neko
 
 import neko.Boot;
-import neko.Lib;
-import neko.Web;
 import neko.File;
 import neko.FileSystem;
+import neko.Lib;
+import neko.Stack;
 import neko.Sys;
+import neko.Web;
 
 import neko.db.Mysql;
 import neko.db.Connection;
@@ -162,5 +163,6 @@ import js.Submit;
 import js.Text;
 import js.Textarea;
 import js.Window;
+import js.XMLHttpRequest;
 
 #end
