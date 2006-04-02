@@ -323,6 +323,14 @@ and gen_expr ctx e =
 				],p),Some e2),p)
 		in
 		let catchs = loop catchs in
+		let catchs = (EBlock [
+			(EIf (
+				(EBinop ("==",call p (builtin p "typeof") [ident p "@tmp"],builtin p "tstring"),p),
+				(EBinop ("=",ident p "@tmp",call p (field p (ident p "String") "new") [ident p "@tmp"]),p),
+				None
+			),p);
+			catchs;
+		],p) in
 		(ETry (gen_expr ctx e,"@tmp",catchs),p)
 	| TReturn eo ->
 		(EReturn (match eo with None -> None | Some e -> Some (gen_expr ctx e)),p)
