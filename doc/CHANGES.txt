@@ -1,4 +1,4 @@
-2006-03-??: beta 4
+2006-04-02: beta 4
 	fixed javascript events case
 	fixed invalid use of physeq
 	fixed + type inference
@@ -22,6 +22,12 @@
 	fixed Reflect fields, added documentation, added Class
 	added javascript closures, fixed null closures on flash and Neko
 	added javascript __init__ statics and js.XMLHttpRequest
+	added neko.Stack
+	fixed bug in Std.ord
+	convert neko string to haxe string on catch
+	automaticaly creates empty clips for classes extending flash.MovieClip
+	unify stack : several meaningful unification errors
+	added cast operation and keyword
 
 2006-03-11: beta 3
 	javascript generator
