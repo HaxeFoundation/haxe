@@ -43,7 +43,7 @@ extern class XMLHttpRequest {
 	function open( method : String, url : String, sync : Bool ) : Void;
 	function send( content : String ) : Void;
 
-	static function __init__() : Void {
+	private static function __init__() : Void {
 		untyped
 		js["XMLHttpRequest"] = if( js.Lib.isIE )
 			function() { return __new__("ActiveXObject","Microsoft.XMLHTTP"); }
