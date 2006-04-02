@@ -26,7 +26,7 @@ package neko;
 
 class NekoMath__
 {
-	static var pi = Lib.load("std","math_pi",0)();
+	static var PI = Lib.load("std","math_pi",0)();
 	static var abs = Lib.load("std","math_abs",1);
 	static function min(a,b) { return if( a < b ) a else b; }
 	static function max(a,b) { return if( a < b ) b else a; }

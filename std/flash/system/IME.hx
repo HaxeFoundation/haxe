@@ -1,17 +1,15 @@
 package flash.system;
 
-#if use_ime
-
 extern class IME {
 
-	static var _ALPHANUMERIC_FULL : String;
-	static var _ALPHANUMERIC_HALF : String;
-	static var _CHINESE : String;
-	static var _JAPANESE_HIRAGANA : String;
-	static var _JAPANESE_KATAKANA_FULL : String;
-	static var _JAPANESE_KATAKANA_HALF : String;
-	static var _KOREAN : String;
-	static var _UNKNOWN : String;
+	static var ALPHANUMERIC_FULL : String;
+	static var ALPHANUMERIC_HALF : String;
+	static var CHINESE : String;
+	static var JAPANESE_HIRAGANA : String;
+	static var JAPANESE_KATAKANA_FULL : String;
+	static var JAPANESE_KATAKANA_HALF : String;
+	static var KOREAN : String;
+	static var UNKNOWN : String;
 
 	static function getEnabled() : Bool;
 	static function setEnabled(enabled:Bool) : Bool;
@@ -22,5 +20,3 @@ extern class IME {
 	static function addListener(listener:Dynamic) : Void;
 	static function removeListener(listener:Dynamic) : Bool;
 }
-
-#end

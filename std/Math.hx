@@ -25,7 +25,7 @@
 
 extern class Math
 {
-	static var pi : Float;
+	static var PI : Float;
 
 	static function abs(value:Float):Float;
 	static function min(value1:Float,value2:Float):Float;

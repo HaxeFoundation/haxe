@@ -165,20 +165,7 @@ class Boot {
 			flash.system = __new__(obj);
 			flash.system.Capabilities = System.capabilities;
 			flash.system.Security = System.security;
-			Math.pi = Math["PI"];
-
-			#if use_ime
 			flash.system.IME = System["IME"];
-			flash.system.IME._ALPHANUMERIC_FULL = System["IME"]["ALPHANUMERIC_FULL"];
-			flash.system.IME._ALPHANUMERIC_HALF = System["IME"]["ALPHANUMERIC_HALF"];
-			flash.system.IME._CHINESE = System["IME"]["CHINESE"];
-			flash.system.IME._JAPANESE_HIRAGANA = System["IME"]["JAPANESE_HIRAGANA"];
-			flash.system.IME._JAPANESE_KATAKANA_FULL = System["IME"]["JAPANESE_KATAKANA_FULL"];
-			flash.system.IME._JAPANESE_KATAKANA_HALF = System["IME"]["JAPANESE_KATAKANA_HALF"];
-			flash.system.IME._KOREAN = System["IME"]["KOREAN"];
-			flash.system.IME._UNKNOWN = System["IME"]["UNKNOWN"];
-			#end
-
 			Node = _global["XMLNode"];
 			Node.element_node = 1;
 			Node.text_node = 3;
