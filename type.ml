@@ -330,20 +330,46 @@ let rec type_eq param a b =
    it's also the one that is pointed by the position.
    It's actually a typecheck of  A :> B where some mutations can happen *)
 
+type unify_error =
+	| Cannot_unify of t * t
+	| Invalid_field_type of string
+	| Has_no_field of t * string
+
+exception Unify_error of unify_error list
+
+let cannot_unify a b = Cannot_unify (a,b)
+let invalid_field n = Invalid_field_type n
+let has_no_field t n = Has_no_field (t,n)
+let error l = raise (Unify_error l)
+
+let unify_types a b tl1 tl2 =
+	List.iter2 (fun ta tb ->
+		if not (type_eq true ta tb) then error [cannot_unify a b; cannot_unify ta tb]
+	) tl1 tl2
+
 let rec unify a b =
 	if a == b then
-		true
+		()
 	else match a, b with
 	| TLazy f , _ -> unify (!f()) b
 	| _ , TLazy f -> unify a (!f())
-	| TMono t , _ -> (match !t with None -> link t a b | Some t -> unify t b)
-	| _ , TMono t -> (match !t with None -> link t b a | Some t -> unify a t)
-	| TEnum (a,tl1) , TEnum (b,tl2) -> a == b && List.for_all2 (type_eq true) tl1 tl2
+	| TMono t , _ -> 
+		(match !t with 
+		| None -> if not (link t a b) then error [cannot_unify a b] 
+		| Some t -> unify t b)
+	| _ , TMono t -> 
+		(match !t with
+		| None -> if not (link t b a) then error [cannot_unify a b]
+		| Some t -> unify a t)
+	| TEnum (ea,tl1) , TEnum (eb,tl2) -> 
+		if ea != eb then error [cannot_unify a b];
+		unify_types a b tl1 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		let rec loop c tl =
-			if c == c2 then
-				List.for_all2 (type_eq true) tl tl2
-			else (match c.cl_super with
+			if c == c2 then begin
+				unify_types a b tl tl2;
+				true
+			end else (match c.cl_super with
 				| None -> false
 				| Some (cs,tls) ->
 					loop cs (List.map (apply_params c.cl_types tl) tls)
@@ -351,49 +377,72 @@ let rec unify a b =
 				loop cs (List.map (apply_params c.cl_types tl) tls)
 			) c.cl_implements
 		in
-		loop c1 tl1
+		if not (loop c1 tl1) then error [cannot_unify a b]
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
-		unify r1 r2 && List.for_all2 (fun (_,t1) (_,t2) -> unify t1 t2) l2 l1 (* contravariance *)
+		(try
+			unify r1 r2;
+			List.iter2 (fun (_,t1) (_,t2) -> unify t1 t2) l2 l1 (* contravariance *)
+		with
+			Unify_error l -> error (cannot_unify a b :: l))
 	| TInst (c,tl) , TAnon (fl,_) ->
 		(try
 			PMap.iter (fun n f2 ->
-				let f1 = PMap.find n c.cl_fields in				
-				if not (unify (apply_params c.cl_types tl f1.cf_type) f2.cf_type) then raise Not_found;
-			) fl;
-			true
+				let f1 = (try PMap.find n c.cl_fields with Not_found -> error [has_no_field a n]) in
+				try 
+					unify (apply_params c.cl_types tl f1.cf_type) f2.cf_type
+				with
+					Unify_error l -> error (invalid_field n :: l)
+			) fl
 		with
-			Not_found -> false)
+			Unify_error l -> error (cannot_unify a b :: l))
 	| TAnon (fl,_) , TInst (c,tl) ->
 		let rec loop c tl =
 			PMap.iter (fun n f2 ->
-				let f1 = PMap.find n fl in
-				if not (unify f1.cf_type (apply_params c.cl_types tl f2.cf_type)) then raise Not_found;
+				let f1 = (try PMap.find n fl with Not_found -> error [has_no_field a n]) in
+				try
+					unify f1.cf_type (apply_params c.cl_types tl f2.cf_type)
+				with
+					Unify_error l -> error (invalid_field n :: l)
 			) c.cl_fields;
 			List.iter (fun (c,t) -> loop c t) c.cl_implements;
 			match c.cl_super with
 			| None -> ()
 			| Some (c,tl) -> loop c tl
 		in
+		if c.cl_locked then error [cannot_unify a b]
 		(try
 			loop c tl;
-			not c.cl_locked
 		with
-			Not_found -> false)
+			Unify_error l -> error (cannot_unify a b :: l))
 	| TAnon (fl1,_) , TAnon (fl2,_) ->
 		(try
 			PMap.iter (fun n f2 ->
-				let f1 = PMap.find n fl1 in
-				if not (unify f1.cf_type f2.cf_type) then raise Not_found;
-			) fl2;
-			true
+				let f1 = (try PMap.find n fl1 with Not_found -> error [has_no_field a n]) in
+				try
+					unify f1.cf_type f2.cf_type
+				with
+					Unify_error l -> error (invalid_field n :: l)
+			) fl2;			
 		with
-			Not_found -> false)
+			Unify_error l -> error (cannot_unify a b :: l))
 	| TDynamic t , _ ->
-		t == a || (match b with TDynamic t2 -> t2 == b || type_eq true t t2 | _ -> false)
+		if t == a then
+			()
+		else (match b with 
+		| TDynamic t2 ->
+			if t2 != b && not (type_eq true t t2) then error [cannot_unify a b; cannot_unify t t2];
+		| _ ->
+			error [cannot_unify a b])
 	| _ , TDynamic t ->
-		t == b || (match a with TDynamic t2 -> t2 == a || type_eq true t t2 | _ -> false)
+		if t == b then
+			()
+		else (match a with 
+		| TDynamic t2 -> 
+			if t2 != a && not (type_eq true t t2) then error [cannot_unify a b; cannot_unify t t2]
+		| _ -> 
+			error [cannot_unify a b])
 	| _ , _ ->
-		false
+		error [cannot_unify a b]
 
 let rec iter f e =
 	match e.eexpr with

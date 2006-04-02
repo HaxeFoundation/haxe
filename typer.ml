@@ -54,7 +54,7 @@ type switch_mode =
 
 type error_msg =
 	| Module_not_found of module_path
-	| Cannot_unify of t * t
+	| Unify of unify_error list
 	| Custom of string
 	| Protect of error_msg
 	| Unknown_ident of string 
@@ -62,11 +62,19 @@ type error_msg =
 
 exception Error of error_msg * pos
 
+let unify_error_msg ctx = function
+	| Cannot_unify (t1,t2) ->
+		s_type ctx t1 ^ " should be " ^ s_type ctx t2
+	| Invalid_field_type s ->
+		"Invalid type for field " ^ s ^ " :"
+	| Has_no_field (t,n) ->
+		s_type ctx t ^ " has no field " ^ n
+
 let rec error_msg = function
 	| Module_not_found m -> "Class not found : " ^ s_type_path m
-	| Cannot_unify (t1,t2) -> 
+	| Unify l -> 
 		let ctx = print_context() in
-		s_type ctx t1 ^ " should be " ^ s_type ctx t2
+		String.concat "\n" (List.map (unify_error_msg ctx) l)
 	| Unknown_ident s -> "Unknown identifier : " ^ s
 	| Custom s -> s
 	| Stack (m1,m2) -> error_msg m1 ^ "\n" ^ error_msg m2
@@ -82,7 +90,11 @@ let type_expr_ref = ref (fun _ ?need_val _ -> assert false)
 let load ctx m p = (!load_ref) ctx m p
 
 let unify ctx t1 t2 p =
-	if not (unify t1 t2) && not ctx.untyped then raise (Error (Cannot_unify (t1,t2),p))
+	try
+		unify t1 t2
+	with
+		Unify_error l ->
+			if not ctx.untyped then raise (Error (Unify l,p))
 
 let save_locals ctx =
 	let locals = ctx.locals in
@@ -709,7 +721,7 @@ let rec type_binop ctx op e1 e2 p =
 		(try
 			unify ctx e1.etype e2.etype p
 		with
-			Error (Cannot_unify _,_) -> unify ctx e2.etype e1.etype p);
+			Error (Unify _,_) -> unify ctx e2.etype e1.etype p);
 		mk_op (t_bool ctx)
 	| OpBoolAnd
 	| OpBoolOr ->
@@ -886,7 +898,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			if not (!dyn) then (try
 				unify ctx e.etype pt e.epos;
 			with 
-				Error (Cannot_unify _,_) -> dyn := true);
+				Error (Unify _,_) -> dyn := true);
 			e
 		) el in
 		let t = if !dyn then begin
@@ -983,7 +995,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				unify ctx e1.etype e2.etype p;
 				e2.etype
 			with
-				Error (Cannot_unify _,_) ->
+				Error (Unify _,_) ->
 					unify ctx e2.etype e1.etype p;
 					e1.etype
 			) in
