@@ -4,7 +4,7 @@ extern class TextFormat
 {
 	var font:String;
 	var size:Float;
-	var color:Float;
+	var color:Int;
 	var url:String;
 	var target:String;
 	var bold:Bool;
@@ -18,7 +18,7 @@ extern class TextFormat
 	var blockIndent:Float;
 	var tabStops:Array<Dynamic>;
 	var bullet:Bool;
-	function new(font:String,size:Float,textColor:Float,
+	function new(font:String,size:Float,textColor:Int,
                     	bold:Bool,italic:Bool,underline:Bool,
                     	url:String,window:String,align:String,
                     	leftMargin:Float,rightMargin:Float,indent:Float,leading:Float) : Void;
