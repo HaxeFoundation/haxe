@@ -1000,14 +1000,22 @@ and type_expr ctx ?(need_val=true) (e,p) =
 					e1.etype
 			) in
 			mk (TIf (e,e1,Some e2)) t p)
-	| EWhile (cond,e,flag) ->
+	| EWhile (cond,e,NormalWhile) ->
 		let old_loop = ctx.in_loop in
 		let cond = type_expr ctx cond in
 		unify ctx cond.etype (t_bool ctx) cond.epos;
 		ctx.in_loop <- true;
 		let e = type_expr ~need_val:false ctx e in
 		ctx.in_loop <- old_loop;
-		mk (TWhile (cond,e,flag)) (t_void ctx) p
+		mk (TWhile (cond,e,NormalWhile)) (t_void ctx) p
+	| EWhile (cond,e,DoWhile) ->
+		let old_loop = ctx.in_loop in
+		ctx.in_loop <- true;
+		let e = type_expr ~need_val:false ctx e in
+		ctx.in_loop <- old_loop;
+		let cond = type_expr ctx cond in
+		unify ctx cond.etype (t_bool ctx) cond.epos;
+		mk (TWhile (cond,e,DoWhile)) (t_void ctx) p
 	| ESwitch (e,cases,def) ->
 		type_switch ctx e cases def need_val p
 	| EReturn e ->
