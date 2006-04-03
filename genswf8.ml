@@ -918,9 +918,10 @@ and gen_expr_2 ctx retval e =
 		let loop_end = begin_loop ctx in
 		let p = pos ctx in
 		gen_expr ctx false e;
+		let cont_pos = ctx.code_pos in
 		gen_expr ctx true cond;
 		p true;
-		loop_end ctx.code_pos
+		loop_end cont_pos
 	| TReturn None ->
 		pop ctx (ctx.stack_size - ctx.fun_stack) false;
 		write ctx (APush [PUndefined]);
