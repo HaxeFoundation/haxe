@@ -65,6 +65,7 @@ extern class Document extends HtmlDom {
 	function close() : Void;
 	function getElementById( id : String ) : HtmlDom;
 	function getElementsByName( name : String ) : HtmlCollection<HtmlDom>;
+	function createElement( name : String ) : HtmlDom;
 
 	var onclick : Event -> Void;
 	var ondblclick : Event -> Void;
