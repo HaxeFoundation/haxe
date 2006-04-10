@@ -2,6 +2,7 @@
 	fixed bug : continue in do...while
 	changed typing order for do...while (infer condition after block)
 	fixed JS "catch" generation
+	fixed extending flash.* extern class
 
 2006-04-02: beta 4
 	fixed javascript events case
