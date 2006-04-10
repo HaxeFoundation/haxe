@@ -1128,11 +1128,12 @@ let gen_type_def ctx t =
 			push ctx [VReg 0; VStr "__super__"; VNull];
 			setvar ctx VarObj
 		| Some (csuper,_) ->
+			let path = (match csuper.cl_path with (["flash"],x) when csuper.cl_extern -> ([],x) | p -> p) in
 			push ctx [VReg 0; VStr "__super__"];
-			gen_path ctx csuper.cl_path csuper.cl_extern;
+			gen_path ctx path csuper.cl_extern;
 			setvar ctx VarObj;
 			push ctx [VReg 0];
-			gen_path ctx csuper.cl_path csuper.cl_extern;
+			gen_path ctx path csuper.cl_extern;
 			write ctx AExtends;
 		);
 		(match c.cl_implements with
