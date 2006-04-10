@@ -155,6 +155,8 @@ class Reflect {
 		Creates an instance of the given class with the list of constructor arguments.
 	**/
 	public static function createInstance( cl : Dynamic, args : Array<Dynamic> ) : Dynamic {
+		if( args.length > 5 )
+			throw "Too many arguments";
 		return untyped
 		#if flash
 			switch( args.length ) {
@@ -171,7 +173,7 @@ class Reflect {
 			case 5:
 				__new__(cl,args[0],args[1],args[2],args[3],args[4]);
 			default:
-				throw "Too many arguments";
+				null;
 			}
 		#else neko
 			__dollar__call(__dollar__objget(cl,__dollar__hash("new".__s)),cl,args.__a)
