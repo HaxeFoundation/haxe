@@ -43,7 +43,7 @@ extern class MovieClip implements Dynamic
 	function swapDepths(mc : Dynamic) : Void;
 	function localToGlobal(pt : Dynamic) : Void;
 	function globalToLocal(pt : Dynamic) : Void;
-	function hitTest() : Bool;
+	function hitTest(x : Dynamic, y : Dynamic) : Bool;
 	function getBounds(bounds  :  Dynamic) : Dynamic;
 	function getBytesLoaded() : Float;
 	function getBytesTotal() : Float;
