@@ -285,25 +285,31 @@ and gen_expr ctx e =
 			match t with
 			| None -> 
 				last := true; 
+				spr ctx "{";
+				let bend = open_block ctx in
+				newline ctx;
 				print ctx "var %s = $e" v;
 				newline ctx;
 				gen_expr ctx e;
 				bend();
 				newline ctx;
+				spr ctx "}"
 			| Some t ->
-				print ctx "var %s = $e" v;
-				newline ctx;
 				spr ctx "if( js.Boot.__instanceof($e,";
 				gen_value ctx (mk (TType t) (mk_mono()) e.epos);
-				spr ctx ") ) ";
-				gen_expr ctx e;
+				spr ctx ") ) {";
+				let bend = open_block ctx in
 				newline ctx;
+				print ctx "var %s = $e" v;
+				newline ctx;
+				gen_expr ctx e;
+				bend();
+				newline ctx;
+				spr ctx "} else "
 		) catchs;
-		if not !last then begin
-			spr ctx "throw($e)";
-			bend();
-			newline ctx;
-		end;		
+		if not !last then spr ctx "throw($e)";		
+		bend();
+		newline ctx;
 		spr ctx "}";
 	| TMatch (e,_,cases,def) ->
 		spr ctx "var $e = ";
