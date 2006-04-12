@@ -210,6 +210,8 @@ and gen_expr ctx e =
 		field p (gen_type_path p e.e_path) f
 	| TArray (e1,e2) ->
 		(EArray (gen_expr ctx e1,gen_expr ctx e2),p)
+	| TBinop (OpAssign,{ eexpr = TField (e1,f) },e2) ->
+		(EBinop ("=",field p (gen_expr ctx e1) f,gen_expr ctx e2),p)
 	| TBinop (op,e1,e2) ->
 		gen_binop ctx p op e1 e2
 	| TField (e2,f) ->
