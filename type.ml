@@ -323,7 +323,8 @@ let rec type_eq param a b =
 		let keys2 = PMap.fold (fun f acc -> f :: acc) fl2 [] in
 		(try
 			List.iter2 (fun f1 f2 ->
-				if f1.cf_name <> f2.cf_name || not (type_eq param f1.cf_type f2.cf_type) then raise Not_found
+				if f1.cf_name <> f2.cf_name || not (type_eq param f1.cf_type f2.cf_type) then raise Not_found;
+				if f1.cf_get <> f2.cf_get || f1.cf_set <> f2.cf_set then raise Not_found;
 			) keys1 keys2;
 			true
 		with
@@ -340,11 +341,13 @@ type unify_error =
 	| Cannot_unify of t * t
 	| Invalid_field_type of string
 	| Has_no_field of t * string
+	| Invalid_access of string * bool
 
 exception Unify_error of unify_error list
 
 let cannot_unify a b = Cannot_unify (a,b)
 let invalid_field n = Invalid_field_type n
+let invalid_access n get = Invalid_access (n,get)
 let has_no_field t n = Has_no_field (t,n)
 let error l = raise (Unify_error l)
 
@@ -394,6 +397,8 @@ let rec unify a b =
 		(try
 			PMap.iter (fun n f2 ->
 				let f1 = (try PMap.find n c.cl_fields with Not_found -> error [has_no_field a n]) in
+				if f1.cf_get <> f2.cf_get then error [invalid_access n true];
+				if f1.cf_set <> f2.cf_set then error [invalid_access n false];
 				try 
 					unify (apply_params c.cl_types tl f1.cf_type) f2.cf_type
 				with
@@ -405,6 +410,8 @@ let rec unify a b =
 		let rec loop c tl =
 			PMap.iter (fun n f2 ->
 				let f1 = (try PMap.find n fl with Not_found -> error [has_no_field a n]) in
+				if f1.cf_get <> f2.cf_get then error [invalid_access n true];
+				if f1.cf_set <> f2.cf_set then error [invalid_access n false];
 				try
 					unify f1.cf_type (apply_params c.cl_types tl f2.cf_type)
 				with
@@ -424,8 +431,10 @@ let rec unify a b =
 		(try
 			PMap.iter (fun n f2 ->
 				let f1 = (try PMap.find n fl1 with Not_found -> error [has_no_field a n]) in
+				if f1.cf_get <> f2.cf_get then error [invalid_access n true];
+				if f1.cf_set <> f2.cf_set then error [invalid_access n false];
 				try
-					unify f1.cf_type f2.cf_type
+					unify f1.cf_type f2.cf_type;
 				with
 					Unify_error l -> error (invalid_field n :: l)
 			) fl2;			

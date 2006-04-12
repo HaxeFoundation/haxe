@@ -75,6 +75,8 @@ let unify_error_msg ctx = function
 		"Invalid type for field " ^ s ^ " :"
 	| Has_no_field (t,n) ->
 		s_type ctx t ^ " has no field " ^ n
+	| Invalid_access (f,get) ->
+		"Inconsistent " ^ (if get then "getter" else "setter") ^ " for field " ^ f
 
 let rec error_msg = function
 	| Module_not_found m -> "Class not found : " ^ s_type_path m
@@ -1418,7 +1420,7 @@ let check_interfaces c p () =
 		PMap.iter (fun i f ->
 			try
 				let t , f2 = class_field c i in
-				if f2.cf_public <> f.cf_public then error ("Field " ^ i ^ " has different access than in " ^ s_type_path intf.cl_path) p;
+				if f2.cf_public <> f.cf_public || f2.cf_get <> f.cf_get || f2.cf_set <> f.cf_set then error ("Field " ^ i ^ " has different access than in " ^ s_type_path intf.cl_path) p;
 				if not (type_eq false f2.cf_type (apply_params intf.cl_types params f.cf_type)) then error ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
 			with
 				Not_found ->
