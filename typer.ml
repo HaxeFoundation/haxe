@@ -52,7 +52,7 @@ type context = {
 type access_kind =
 	| AccNo of string
 	| AccExpr of texpr
-	| AccSet of (texpr -> texpr) * t
+	| AccSet of texpr * string * t * string
 
 type switch_mode =
 	| CMatch of (string * (string * t) list option)
@@ -128,6 +128,16 @@ let add_local ctx v t =
 	in
 	loop 0
 
+let gen_local ctx t =
+	let rec loop n =
+		let nv = (if n = 0 then "_g" else "_g" ^ string_of_int n) in
+		if PMap.mem nv ctx.locals || PMap.mem nv ctx.locals_map_inv then
+			loop (n+1)
+		else
+			nv
+	in
+	add_local ctx (loop 0) t
+
 let exc_protect f =
 	let rec r = ref (fun() ->
 		try
@@ -156,14 +166,14 @@ let field_access ctx get f t e p =
 		| TInst (c,_) when is_parent c ctx.curclass ->
 			AccExpr (mk (TField (e,f.cf_name)) t p)
 		| _ ->
-			error ("The access to field " ^ f.cf_name ^ " is restricted") p)
+			AccNo f.cf_name)
 	| NormalAccess ->
 		AccExpr (mk (TField (e,f.cf_name)) t p)
 	| MethodAccess m ->
 		if get then
 			AccExpr (mk (TCall (mk (TField (e,m)) (mk_mono()) p,[])) t p)
 		else
-			AccSet ((fun v -> mk (TCall (mk (TField (e,m)) (mk_mono()) p,[v])) t p),t)
+			AccSet (e,m,t,f.cf_name)
 
 let acc_get g p =
 	match g with
@@ -706,10 +716,46 @@ let classify t =
 	| _ -> KOther
 
 let rec type_binop ctx op e1 e2 p =
+	match op with
+	| OpAssign ->
+		let e1 = type_access ctx (fst e1) (snd e1) false in
+		let e2 = type_expr ctx e2 in
+		(match e1 with
+		| AccNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
+		| AccExpr e1 ->
+			unify ctx e2.etype e1.etype p;
+			check_assign ctx e1;
+			mk (TBinop (op,e1,e2)) e1.etype p
+		| AccSet (e,m,t,_) ->
+			unify ctx e2.etype t p;
+			mk (TCall (mk (TField (e,m)) (mk_mono()) p,[e2])) t p)
+	| OpAssignOp op ->
+		(match type_access ctx (fst e1) (snd e1) false with
+		| AccNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
+		| AccExpr e ->
+			let eop = type_binop ctx op e1 e2 p in
+			(match eop.eexpr with
+			| TBinop (_,_,e2) ->
+				unify ctx e2.etype e.etype p;
+				check_assign ctx e;
+				mk (TBinop (OpAssignOp op,e,e2)) e.etype p;
+			| _ ->				
+				assert false)
+		| AccSet (e,m,t,f) ->
+			let l = save_locals ctx in
+			let v = gen_local ctx e.etype in
+			let ev = mk (TLocal v) e.etype p in
+			let get = type_binop ctx op (EField ((EConst (Ident v),p),f),p) e2 p in
+			unify ctx get.etype t p;
+			l();
+			mk (TBlock [
+				mk (TVars [v,e.etype,Some e]) (t_void ctx) p;
+				mk (TCall (mk (TField (ev,m)) (mk_mono()) p,[get])) t p
+			]) t p)
+	| _ ->
 	let e1 = type_expr ctx e1 in
 	let e2 = type_expr ctx e2 in
 	let mk_op t = mk (TBinop (op,e1,e2)) t p in
-	let rec loop op =
 	match op with
 	| OpAdd ->
 		mk_op (match classify e1.etype, classify e2.etype with
@@ -793,35 +839,58 @@ let rec type_binop ctx op e1 e2 p =
 		unify ctx e1.etype i e1.epos;
 		unify ctx e2.etype i e2.epos;
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[e1;e2])) t p
-	| OpAssign ->
-		unify ctx e2.etype e1.etype p;
-		check_assign ctx e1;
-		mk_op e1.etype
-	| OpAssignOp op ->
-		loop op
-	in
-	loop op
+	| OpAssign
+	| OpAssignOp _ ->
+		assert false
 
 and type_unop ctx op flag e p =
-	let e = type_expr ctx e in
-	let t = (match op with
-	| Not ->
-		let b = t_bool ctx in
-		unify ctx e.etype b e.epos;
-		b
-	| Increment
-	| Decrement
-	| Neg
-	| NegBits ->
-		if op = Increment || op = Decrement then check_assign ctx e;
-		if is_float e.etype then
-			t_float ctx
-		else begin
-			unify ctx e.etype (t_int ctx) e.epos;
-			t_int ctx
-		end
-	) in
-	mk (TUnop (op,flag,e)) t p
+	let set = (op = Increment || op = Decrement) in
+	let acc = type_access ctx (fst e) (snd e) (not set) in
+	match acc with
+	| AccExpr e -> 
+		let t = (match op with
+		| Not ->
+			let b = t_bool ctx in
+			unify ctx e.etype b e.epos;
+			b
+		| Increment
+		| Decrement
+		| Neg
+		| NegBits ->
+			if set then check_assign ctx e;
+			if is_float e.etype then
+				t_float ctx
+			else begin
+				unify ctx e.etype (t_int ctx) e.epos;
+				t_int ctx
+			end
+		) in
+		mk (TUnop (op,flag,e)) t p
+	| AccNo s ->
+		error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
+	| AccSet (e,m,t,f) ->
+		let l = save_locals ctx in
+		let v = gen_local ctx e.etype in
+		let v2 = gen_local ctx t in
+		let ev = mk (TLocal v) e.etype p in
+		let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
+		let one = (EConst (Int "1"),p) in
+		let get = type_binop ctx op (EField ((EConst (Ident v),p),f),p) one p in
+		unify ctx get.etype t p;
+		l();
+		match flag with
+		| Prefix ->
+			mk (TBlock [
+				mk (TVars [v,e.etype,Some e]) (t_void ctx) p;
+				mk (TCall (mk (TField (ev,m)) (mk_mono()) p,[get])) t p
+			]) t p
+		| Postfix ->
+			let ev2 = mk (TLocal v2) t p in
+			mk (TBlock [
+				mk (TVars [v,e.etype,Some e; v2,t,Some get]) (t_void ctx) p;
+				mk (TCall (mk (TField (ev,m)) (mk_mono()) p,[ev2])) t p;
+				ev2
+			]) t p
 
 and type_switch ctx e cases def need_val p =
 	let e = type_expr ctx e in
@@ -1084,8 +1153,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				| TContinue -> raise Exit
 				| _ -> iter loop e
 			in
-			let max = add_local ctx "max" i2.etype in
-			let n = add_local ctx "n" i1.etype in
+			let max = gen_local ctx i2.etype in
+			let n = gen_local ctx i1.etype in
 			let e2 = type_expr ~need_val:false ctx e2 in
 			let has_cont = (try loop e2; false with Exit -> true) in
 			let i , block = (if has_cont then begin
@@ -1481,6 +1550,7 @@ let init_class ctx c p types herits fields =
 					check_set := check_method set (TFun (["",ret],ret));
 					MethodAccess set
 			) in
+			if set = NormalAccess && (match get with MethodAccess _ -> true | _ -> false) then error "Unsupported property combination" p;
 			let cf = {
 				cf_name = name;
 				cf_doc = doc;
