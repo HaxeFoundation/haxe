@@ -136,7 +136,6 @@ and gen_expr ctx e =
 	match e.eexpr with
 	| TConst c -> gen_constant ctx c
 	| TLocal s -> spr ctx (ident s)
-	| TMember s -> print ctx "this%s" (field s)
 	| TEnumField (e,s) ->
 		print ctx "%s%s" (s_path e.e_path) (field s)
 	| TArray (e1,e2) -> 
@@ -402,7 +401,6 @@ and gen_value ctx e =
 	match e.eexpr with
 	| TConst _
 	| TLocal _
-	| TMember _
 	| TEnumField _
 	| TArray _
 	| TBinop _

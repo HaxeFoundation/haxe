@@ -19,6 +19,11 @@
  
 type module_path = string list * string
 
+type field_access =
+	| NormalAccess
+	| NoAccess
+	| MethodAccess of string
+
 type t = 
 	| TMono of t option ref
 	| TEnum of tenum * t list
@@ -46,7 +51,6 @@ and tfunc = {
 and texpr_expr =
 	| TConst of tconstant
 	| TLocal of string
-	| TMember of string
 	| TEnumField of tenum * string
 	| TArray of texpr * texpr
 	| TBinop of Ast.binop * texpr * texpr
@@ -83,6 +87,8 @@ and tclass_field = {
 	mutable cf_type : t;
 	cf_public : bool;
 	cf_doc : Ast.documentation;
+	cf_get : field_access;
+	cf_set : field_access;
 	mutable cf_expr : texpr option;
 }
 
@@ -448,7 +454,6 @@ let rec iter f e =
 	match e.eexpr with
 	| TConst _
 	| TLocal _
-	| TMember _
 	| TEnumField _
 	| TBreak
 	| TContinue

@@ -170,8 +170,6 @@ and gen_call ctx p e el =
 			this p;
 			array p (List.map (gen_expr ctx) el)
 		]
-	| TMember s , el ->
-		call p (field p (this p) s) (List.map (gen_expr ctx) el)
 	| TField (e,f) , el ->
 		call p (field p (gen_expr ctx e) f) (List.map (gen_expr ctx) el)
 	| _ , _ ->
@@ -208,8 +206,6 @@ and gen_expr ctx e =
 			(EArray (ident p s,int p 0),p)
 		else
 			ident p s
-	| TMember s ->
-		gen_closure p e.etype (this p) s		
 	| TEnumField (e,f) ->
 		field p (gen_type_path p e.e_path) f
 	| TArray (e1,e2) ->

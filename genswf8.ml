@@ -487,11 +487,6 @@ let rec gen_access ctx forcall e =
 			VarReg 2
 	| TConst TThis ->
 		VarReg 1
-	| TMember f ->
-		push ctx [VReg 1; VStr f];
-		(match follow e.etype with
-		| TFun _ -> VarClosure
-		| _ -> VarObj)
 	| TLocal "__arguments__" ->
 		push ctx [VStr "arguments"];
 		VarStr
@@ -824,7 +819,6 @@ and gen_expr_2 ctx retval e =
 	| TField _
 	| TArray _
 	| TLocal _
-	| TMember _ 
 	| TType _
 	| TEnumField _ ->	
 		getvar ctx (gen_access ctx false e)
