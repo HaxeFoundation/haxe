@@ -81,13 +81,15 @@ let open_block ctx =
 	ctx.tabs <- "\t" ^ ctx.tabs;
 	(fun() -> ctx.tabs <- oldt)
 
+let this ctx = if ctx.in_value then "$this" else "this"
+
 let gen_constant ctx = function
 	| TInt s
 	| TFloat s -> spr ctx s
 	| TString s -> print ctx "\"%s\"" (Ast.s_escape s)
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "null"
-	| TThis -> spr ctx "this"
+	| TThis -> spr ctx (this ctx)
 	| TSuper -> assert false
 
 let rec gen_call ctx e el =
@@ -96,7 +98,7 @@ let rec gen_call ctx e el =
 		(match ctx.current.cl_super with
 		| None -> assert false
 		| Some (c,_) ->
-			print ctx "%s.apply(this,[" (s_path c.cl_path);
+			print ctx "%s.apply(%s,[" (s_path c.cl_path) (this ctx);
 			concat ctx "," (gen_value ctx) params;
 			spr ctx "])";
 		);
@@ -104,7 +106,7 @@ let rec gen_call ctx e el =
 		(match ctx.current.cl_super with
 		| None -> assert false
 		| Some (c,_) ->
-			print ctx "%s.prototype%s.apply(this,[" (s_path c.cl_path) (field name);
+			print ctx "%s.prototype%s.apply(%s,[" (s_path c.cl_path) (field name) (this ctx);
 			concat ctx "," (gen_value ctx) params;
 			spr ctx "])";
 		);
@@ -375,7 +377,7 @@ and gen_value ctx e =
 	let value block =
 		let old = ctx.in_value in
 		ctx.in_value <- true;
-		spr ctx "function() ";
+		spr ctx "function($this) ";
 		let b = if block then begin
 			spr ctx "{";
 			let b = open_block ctx in
@@ -395,7 +397,7 @@ and gen_value ctx e =
 				spr ctx "}";
 			end;
 			ctx.in_value <- old;
-			spr ctx "()"
+			print ctx "(%s)" (this ctx)
 		)
 	in
 	match e.eexpr with
