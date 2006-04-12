@@ -563,4 +563,5 @@ let generate file types hres =
 		Sys.remove neko_file;
 		Sys.rename (Filename.chop_extension file ^ "2.neko") neko_file;
 	end;
-	if Sys.command ("nekoc " ^ neko_file) = 0 && not (!Plugin.verbose) then Sys.remove neko_file
+	if Sys.command ("nekoc " ^ neko_file) <> 0 then failwith "Neko compilation failure";
+	Sys.remove neko_file
