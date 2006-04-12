@@ -82,7 +82,7 @@ let make_path f =
 	in
 	loop cl
 
-let base_defines = Hashtbl.copy Parser.defines
+let base_defines = !Plugin.defines
 
 let rec init argv argv_start =
 try	
@@ -98,8 +98,7 @@ try
 	let current = ref argv_start in
 	let next = ref (fun() -> ()) in
 	let hres = Hashtbl.create 0 in
-	Hashtbl.clear Parser.defines;
-	Hashtbl.iter (Hashtbl.add Parser.defines) base_defines;
+	Plugin.defines := base_defines;
 	Plugin.verbose := false;
 	Typer.forbidden_packages := ["js"; "neko"; "flash"];
 	Plugin.class_path := [base_path ^ "std/";"";"/"];
@@ -138,7 +137,7 @@ try
 			classes := cpath :: !classes
 		),"<class> : select startup class");
 		("-D",Arg.String (fun def ->
-			Hashtbl.add Parser.defines def ();
+			Plugin.define def;
 		),"<var> : define the macro variable");
 		("-fheader",Arg.String (fun h ->
 			try
@@ -196,14 +195,14 @@ try
 	| No ->
 		()
 	| Swf _ ->
-		Hashtbl.add Parser.defines "flash" ();
-		if Hashtbl.mem Parser.defines "flash6" then swf_version := 6
-		else if Hashtbl.mem Parser.defines "flash7" then swf_version := 7
-		else Hashtbl.add Parser.defines "flash8" ();
+		Plugin.define "flash";
+		if Plugin.defined "flash6" then swf_version := 6
+		else if Plugin.defined "flash7" then swf_version := 7
+		else Plugin.define "flash8";
 	| Neko _ ->
-		Hashtbl.add Parser.defines "neko" ();
+		Plugin.define "neko";
 	| Js _ ->
-		Hashtbl.add Parser.defines "js" ();
+		Plugin.define "js";
 	);
 	if !classes = [([],"Std")] then begin
 		Arg.usage args_spec usage

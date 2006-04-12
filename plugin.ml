@@ -21,6 +21,11 @@ let verbose = ref false
 
 let class_path = ref ([] : string list)
 
+let defines = ref (PMap.add "true" () PMap.empty)
+
+let defined v = PMap.mem v (!defines)
+let define v = defines := PMap.add v () (!defines)
+
 let find_file f =
 	let rec loop = function
 		| [] -> raise Not_found

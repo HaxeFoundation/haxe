@@ -45,11 +45,6 @@ let last_token s =
 
 let serror() = raise (Stream.Error "")
 
-let defines =
-	let h = Hashtbl.create 0 in
-	Hashtbl.add h "true" ();
-	h
-
 let priority = function
 	| OpAssign | OpAssignOp _ -> -4
 	| OpBoolOr -> -3
@@ -426,7 +421,7 @@ let parse code file =
 		match Lexer.token code with
 		| (Const (Ident s),p) ->
 			if s = "error" then error Unimplemented p;
-			if Hashtbl.mem defines s then
+			if Plugin.defined s then
 				mstack := p :: !mstack
 			else
 				skip_tokens true		
