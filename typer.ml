@@ -149,17 +149,6 @@ let mk_infos ctx p params =
 			("methodName", (EConst (String ctx.curmethod),p)) :: params
 	) ,p)
 
-let field_get ctx e f acc p =
-	match acc with
-	| NoAccess ->
-		(match follow e.etype with
-		| TInst (c,_) when is_parent c ctx.curclass ->
-			TField (e,f)
-		| _ ->
-			error ("The access to field " ^ f ^ " is restricted") p)
-	| NormalAccess -> TField (e,f)
-	| MethodAccess m -> TCall (mk (TField (e,m)) (mk_mono()) p,[])
-
 let field_access ctx get f t e p =
 	match if get then f.cf_get else f.cf_set with
 	| NoAccess ->
@@ -599,17 +588,8 @@ let type_constant ctx c p =
 	| Int i -> mk (TConst (TInt i)) (t_int ctx) p
 	| Float f -> mk (TConst (TFloat f)) (t_float ctx) p
 	| String s -> mk (TConst (TString s)) (t_string ctx) p
-	| Ident s -> acc_get (type_ident ctx s p true) p
-	| Type s ->
-		try
-			type_local ctx s p
-		with
-			Not_found ->
-		try
-			type_type ctx ([],s) p
-		with
-			Error (Module_not_found ([],s2),_) when s = s2 ->
-				acc_get (type_ident ctx s p true) p
+	| Ident _
+	| Type _ -> assert false
 
 let check_assign ctx e =
 	match e.eexpr with
@@ -661,18 +641,21 @@ let type_matching ctx (enum,params) (e,p) ecases =
 	| _ ->
 		invalid()
 
-let type_field ctx t i p get =
+let type_field ctx e i p get =
 	let no_field() =
-		if ctx.untyped then NormalAccess , mk_mono() else error (s_type (print_context()) t ^ " have no field " ^ i) p
+		if ctx.untyped then 
+			AccExpr (mk (TField (e,i)) (mk_mono()) p)
+		else
+			error (s_type (print_context()) e.etype ^ " have no field " ^ i) p
 	in
-	match follow t with
+	match follow e.etype with
 	| TInst (c,params) ->
 		let priv = is_parent c ctx.curclass in
 		let rec loop c params =
 			try
 				let f = PMap.find i c.cl_fields in
 				if not f.cf_public && not priv && not ctx.untyped then error ("Cannot access to private field " ^ i) p;
-				(if get then f.cf_get else f.cf_set) , apply_params c.cl_types params f.cf_type
+				field_access ctx get f (apply_params c.cl_types params f.cf_type) e p
 			with
 				Not_found ->
 					match c.cl_super with
@@ -682,7 +665,7 @@ let type_field ctx t i p get =
 		let rec loop_dyn c params =
 			match c.cl_dynamic with
 			| Some t ->
-				NormalAccess , apply_params c.cl_types params t
+				AccExpr (mk (TField (e,i)) (apply_params c.cl_types params t) p)
 			| None ->
 				match c.cl_super with
 				| None -> raise Not_found
@@ -695,12 +678,12 @@ let type_field ctx t i p get =
 		with Not_found ->
 			no_field())
 	| TDynamic t ->
-		NormalAccess, t
+		AccExpr (mk (TField (e,i)) t p)
 	| TAnon (fl,_) ->
 		(try
 			let f = PMap.find i fl in
 			if not f.cf_public && not ctx.untyped then error ("Cannot access to private field " ^ i) p;
-			(if get then f.cf_get else f.cf_set) , f.cf_type
+			field_access ctx get f f.cf_type e p
 		with Not_found -> no_field())
 	| t ->
 		no_field()
@@ -917,8 +900,78 @@ and type_switch ctx e cases def need_val p =
 		in
 		mk (TMatch (e,enum,List.map matchs cases,def)) t p
 
+and type_access ctx e p get =
+	match e with
+	| EConst (Ident s) -> 
+		type_ident ctx s p get
+	| EConst (Type s) ->
+		(try
+			let e = type_local ctx s p in
+			AccExpr e
+		with Not_found -> try
+			let e = type_type ctx ([],s) p in
+			AccExpr e
+		with Error (Module_not_found ([],s2),_) when s = s2 ->
+			type_ident ctx s p get)
+	| EField _ 
+	| EType _ ->
+		let fields path e =
+			List.fold_left (fun e (f,_,p) ->
+				let e = acc_get (e true) p in
+				type_field ctx e f p
+			) e path
+		in
+		let type_path path =
+			let rec loop acc path =
+				match path with
+				| [] ->
+					(match List.rev acc with
+					| [] -> assert false
+					| (name,true,p) :: path -> fields path (type_access ctx (EConst (Type name)) p)
+					| (name,false,p) :: path -> fields path (type_access ctx (EConst (Ident name)) p))
+				| (_,false,_) as x :: path ->
+					loop (x :: acc) path
+				| (name,true,p) as x :: path ->
+					let pack = List.rev_map (fun (x,_,_) -> x) acc in
+					try
+						let e = type_type ctx (pack,name) p in
+						fields path (fun _ -> AccExpr e)
+					with
+						Error (Module_not_found m,_) when m = (pack,name) ->
+							loop ((List.rev path) @ x :: acc) []
+			in
+			match path with
+			| [] -> assert false
+			| (name,_,p) :: pnext ->
+				try
+					fields pnext (fun _ -> AccExpr (type_local ctx name p))
+				with
+					Not_found -> loop [] path
+		in
+		let rec loop acc e =
+			match fst e with
+			| EField (e,s) ->
+				loop ((s,false,p) :: acc) e
+			| EType (e,s) ->
+				loop ((s,true,p) :: acc) e
+			| EConst (Ident i) ->
+				type_path ((i,false,p) :: acc)
+			| EConst (Type i) ->
+				type_path ((i,true,p) :: acc)
+			| _ ->
+				fields acc (type_access ctx (fst e) (snd e))
+		in
+		loop [] (e,p) get
+	| _ ->
+		AccExpr (type_expr ctx (e,p))
+
 and type_expr ctx ?(need_val=true) (e,p) =
 	match e with
+	| EField _
+	| EType _ 
+	| EConst (Ident _)
+	| EConst (Type _) ->
+		acc_get (type_access ctx e p true) p
 	| EConst c ->
 		type_constant ctx c p
 	| EArray (e1,e2) ->
@@ -1008,12 +1061,11 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				unify ctx e1.etype t e1.epos;
 				e1
 			with _ ->
-				let acc , it = type_field ctx e1.etype "iterator" e1.epos true in
-				match follow it with
-				| TFun ([],it) as ft ->
+				let acc = acc_get (type_field ctx e1 "iterator" e1.epos true) e1.epos in
+				match follow acc.etype with
+				| TFun ([],it) ->
 					unify ctx it t e1.epos;
-					let fe = mk (field_get ctx e1 "iterator" acc p) ft e1.epos in
-					mk (TCall (fe,[])) t e1.epos
+					mk (TCall (acc,[])) t e1.epos
 				| _ ->
 					error "The field iterator is not a method" e1.epos
 			)
@@ -1182,55 +1234,6 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				error (s_type (print_context()) t ^ " cannot be called") e.epos
 		) in
 		mk (TCall (e,el)) t p
-	| EField _
-	| EType _ ->
-		let fields path e =
-			List.fold_left (fun e (f,_,p) ->
-				let acc , t = type_field ctx e.etype f p true in
-				mk (field_get ctx e f acc p) t p
-			) e path
-		in
-		let type_path path =
-			let rec loop acc path =
-				match path with
-				| [] ->
-					(match List.rev acc with
-					| [] -> assert false
-					| (name,true,p) :: path -> fields path (type_constant ctx (Type name) p)
-					| (name,false,p) :: path -> fields path (type_constant ctx (Ident name) p))
-				| (_,false,_) as x :: path ->
-					loop (x :: acc) path
-				| (name,true,p) as x :: path ->
-					let pack = List.rev_map (fun (x,_,_) -> x) acc in
-					try
-						let e = type_type ctx (pack,name) p in
-						fields path e
-					with
-						Error (Module_not_found m,_) when m = (pack,name) ->
-							loop ((List.rev path) @ x :: acc) []
-			in
-			match path with
-			| [] -> assert false
-			| (name,_,p) :: pnext ->
-				try
-					fields pnext (type_local ctx name p)
-				with
-					Not_found -> loop [] path
-		in
-		let rec loop acc e =
-			match fst e with
-			| EField (e,s) ->
-				loop ((s,false,p) :: acc) e
-			| EType (e,s) ->
-				loop ((s,true,p) :: acc) e
-			| EConst (Ident i) ->
-				type_path ((i,false,p) :: acc)
-			| EConst (Type i) ->
-				type_path ((i,true,p) :: acc)
-			| _ ->
-				fields acc (type_expr ctx e)
-		in
-		loop [] (e,p)
 	| ENew (t,el) ->
 		let name = (match t.tpackage with [] -> t.tname | x :: _ -> x) in
 		if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;
