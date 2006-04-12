@@ -25,7 +25,7 @@
 
 extern class String {
 
-	var length : Int;
+	property length(default,null) : Int;
 
 	function new(string:String) : Void;
 

@@ -26,7 +26,7 @@ package neko;
 
 class NekoArray__<T> implements Array<T> {
 
-	public var length : Int;
+	public property length(default,null) : Int;
 
 	private function new() {
 		untyped {
@@ -39,7 +39,7 @@ class NekoArray__<T> implements Array<T> {
 		untyped {
 			if( __dollar__typeof(a) != __dollar__tarray )
 				__dollar__throw(a);
-			var inst = new Array<Dynamic>();
+			var inst = new NekoArray__<Dynamic>();
 			inst.__a = a;
 			inst.length = l;
 			return inst;

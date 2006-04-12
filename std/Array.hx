@@ -25,7 +25,7 @@
 
 extern class Array<T> {
 
-	var length : Int;
+	property length(default,null) : Int;
 
 	function new() : Void;
 

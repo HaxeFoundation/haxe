@@ -28,7 +28,7 @@ class NekoString__ implements String {
 
 	private static var __split : Dynamic = Lib.load("std","string_split",2);
 
-	public var length : Int;
+	public property length(default,null) : Int;
 
 	private function new(s) {
 		untyped {
