@@ -114,6 +114,10 @@ let any_ident = parser
 	| [< '(Const (Ident i),_) >] -> i
 	| [< '(Const (Type t),_) >] -> t
 
+let property_ident = parser
+	| [< i = any_ident >] -> i
+	| [< '(Kwd Default,_) >] -> "default"
+
 let log m s =
 	prerr_endline m
 
@@ -225,6 +229,8 @@ and parse_class_field s =
 			| [< >] -> serror()
 			) in
 			(FVar (name,doc,l,t,e),punion p1 p2)
+		| [< '(Const (Ident "property"),p1); name = any_ident; '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_type_path; p2 = semicolon >] ->
+			(FProp (name,doc,l,i1,i2,t),punion p1 p2)
 		| [< '(Kwd Function,p1); name = parse_fun_name; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->			
 			let e = (match s with parser
 				| [< e = expr >] -> e

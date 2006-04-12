@@ -1,4 +1,4 @@
-7(*
+(*
  *  Haxe Compiler
  *  Copyright (c)2005 Nicolas Cannasse
  *
@@ -182,6 +182,7 @@ type access =
 type class_field =
 	| FVar of string * documentation * access list * type_path option * expr option
 	| FFun of string * documentation * access list * func
+	| FProp of string * documentation * access list * string * string * type_path
 
 type enum_param =
 	| EPrivate
