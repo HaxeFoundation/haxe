@@ -3,6 +3,10 @@
 	changed typing order for do...while (infer condition after block)
 	fixed JS "catch" generation
 	fixed extending flash.* extern class
+	fixed bug in neko generator w/ closures
+	fixed bug in js generator (return switch need correct "this" context)
+	fixed bug in for x in a...b : invalid local variables overridding
+	added properties
 
 2006-04-02: beta 4
 	fixed javascript events case
