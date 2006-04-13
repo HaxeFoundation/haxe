@@ -65,6 +65,73 @@ class StringTools {
 		return( slen >= elen && s.substr(slen-elen,elen) == end );
 	}
 
+	public static function isSpace( s : String, pos : Int ) : Bool {
+		var c = s.charCodeAt( pos );
+		return (c >= 9 && c <= 13) || c == 32;
+	}
+
+	public static function ltrim( s : String ) : String {
+		var l = s.length;
+		var r = 0;
+		while( r < l && isSpace(s,r) ){
+			r++;
+		}
+		if( r > 0 )
+			return s.substr(r, l-r);
+		else
+			return s;
+	}
+
+	public static function rtrim( s : String ) : String {
+		var l = s.length;
+		var r = 0;
+		while( r < l && isSpace(s,r) ){
+			r++;
+		}
+		if( r > 0 )
+			return s.substr(0, l-r);
+		else
+			return s;
+	}
+
+	public static function trim( s : String ) : String {
+		return ltrim(rtrim(s));
+	}
+
+	public static function rpad( s : String, c : String, l : Int ) : String {
+		var sl = s.length;
+		var cl = c.length;
+		while( sl < l ){
+			if( l - sl < cl ){
+				s += c.substr(0,l-sl);
+				sl = l;
+			}else{
+				s += c;
+				sl += cl;
+			}
+		}
+		return s;
+	}
+
+	public static function lpad( s : String, c : String, l : Int ) : String {
+		var ns = "";
+		var sl = s.length;
+		if( sl >= l ) return s;
+
+		var cl = c.length;
+		while( sl < l ){
+			if( l - sl < cl ){
+				ns += c.substr(0,l-sl);
+				sl = l;
+			}else{
+				ns += c;
+				sl += cl;
+			}
+		}
+		return ns+s;
+	}
+
+
 	#if neko
 	private static var _urlEncode = neko.Lib.load("std","url_encode",1);
 	private static var _urlDecode = neko.Lib.load("std","url_decode",1);
