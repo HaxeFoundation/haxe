@@ -56,6 +56,7 @@ class ListIter<T> implements Iterator<T> {
 class List<T> {
 
 	private var h : Cell<T>;
+	public property length(getLength,null) : Int;
 
 	public function new() {
 		h = empty;
@@ -110,7 +111,7 @@ class List<T> {
 		return found;
 	}
 
-	public function length() {
+	public function getLength() {
 		var c = 0;
 		var h = this.h;
 		while( true ) {
