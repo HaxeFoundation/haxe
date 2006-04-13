@@ -1155,8 +1155,6 @@ let gen_type_def ctx t =
 		getvar ctx VarObj;
 		write ctx (ASetReg 1);
 		write ctx APop;
-		push ctx [VReg 0; VStr "__prototype__"; VReg 1];
-		setvar ctx VarObj;
 		push ctx [VReg 1; VStr "__class__"; VReg 0];
 		setvar ctx VarObj;
 		List.iter (gen_class_static_field ctx id) c.cl_ordered_statics;
