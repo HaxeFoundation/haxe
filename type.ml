@@ -509,3 +509,32 @@ let rec iter f e =
 		List.iter (fun (_,_,e) -> f e) catches
 	| TReturn eo ->
 		(match eo with None -> () | Some e -> f e)
+
+let s_expr e =
+	match e.eexpr with
+	| TConst _ -> "Const"
+	| TLocal s -> "Local:" ^ s
+	| TEnumField (_,s) -> "EnumField:" ^ s
+	| TArray _ -> "Array"
+	| TBinop (op,_,_) -> "Binop:" ^ Ast.s_binop op
+	| TField (_,f) -> "Field:" ^ f
+	| TType _ -> "Type"
+	| TParenthesis _ -> "Parent"
+	| TObjectDecl _ -> "ObjDecl"
+	| TArrayDecl _ -> "ArrayDecl"
+	| TCall _ -> "Call"
+	| TNew _ -> "New"
+	| TUnop (op,_,_) -> "Unop:" ^ Ast.s_unop op
+	| TFunction _ -> "Function"
+	| TVars _ -> "Vars"
+	| TBlock _ -> "Block"
+	| TFor _ -> "For"
+	| TIf _ -> "If"
+	| TWhile _ -> "While"
+	| TSwitch _ -> "Switch"
+	| TMatch _ -> "Match"
+	| TTry _ -> "Try"
+	| TReturn _ -> "Return"
+	| TBreak -> "Break"
+	| TContinue -> "Continue"
+	| TThrow _ -> "Throw"
