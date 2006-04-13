@@ -188,16 +188,21 @@ class Reflect {
 		Tells if an object has a field set. This doesn't take into account the object prototype (class methods).
 	**/
 	public static function hasField( o : Dynamic, field : String ) : Bool {
-		return untyped
+		untyped{
 		#if flash
-			this.hasOwnProperty.call(o,field)
+			return this.hasOwnProperty.call(o,field);
 		#else js
-			o.hasOwnProperty(field)
+			if( o.hasOwnProperty != null )
+				return o.hasOwnProperty(field);
+			var arr = fields(o);
+			for( t in arr.iterator() )
+				if( t == field ) return true;
+			return false;
 		#else neko
-			__dollar__typeof(o) == __dollar__tobject && __dollar__objfield(o,__dollar__hash(field.__s))
+			return __dollar__typeof(o) == __dollar__tobject && __dollar__objfield(o,__dollar__hash(field.__s));
 		#else error
 		#end
-			;
+		}
 	}
 
 	/**
