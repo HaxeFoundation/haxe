@@ -287,13 +287,24 @@ class Reflect {
 				new Array<String>();
 			else {
 				var a = __dollar__objfields(o);
-				var i = 0;
+				var i = 0, j = 0;
 				var l = __dollar__asize(a);
+				var t__string = __dollar__hash("__string".__s);
+				var t__proto = __dollar__hash("prototype".__s);
 				while( i < l ) {
-					a[i] = new String(__dollar__field(a[i]));
+					var x = a[i];
+					if( x != t__string && x != t__proto ) {
+						a[j] = new String(__dollar__field(x));
+						j++;
+					}
 					i++;
 				}
-				Array.new1(a,l);
+				i = j;
+				while( i < l ) {
+					a[i] = null;
+					i++;
+				}
+				Array.new1(a,j);
 			}
 		#else error
 		#end
