@@ -569,7 +569,9 @@ let generate_class ctx c =
 	print ctx "%s.toString = $class_str" p;
 	newline ctx;
 	(match c.cl_super with
-	| None -> ()
+	| None ->
+		print ctx "%s.__super__ = null" p;
+		newline ctx;
 	| Some (csup,_) ->
 		let psup = s_path csup.cl_path in
 		print ctx "%s.__super__ = %s" p psup;
