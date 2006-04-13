@@ -763,6 +763,10 @@ and gen_call ctx e el =
 	| TLocal "__typeof__" , [e] ->
 		gen_expr ctx true e;
 		write ctx ATypeOf
+	| TLocal "__delete__" , [e1; e2] ->
+		gen_expr ctx true e1;
+		gen_expr ctx true e2;
+		write ctx ADeleteObj
 	| TLocal "__random__" , [e] ->
 		gen_expr ctx true e;
 		write ctx ARandom
