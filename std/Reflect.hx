@@ -290,10 +290,9 @@ class Reflect {
 				var i = 0, j = 0;
 				var l = __dollar__asize(a);
 				var t__string = __dollar__hash("__string".__s);
-				var t__proto = __dollar__hash("prototype".__s);
 				while( i < l ) {
 					var x = a[i];
-					if( x != t__string && x != t__proto ) {
+					if( x != t__string ) {
 						a[j] = new String(__dollar__field(x));
 						j++;
 					}
