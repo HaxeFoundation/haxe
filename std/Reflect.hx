@@ -261,6 +261,7 @@ class Reflect {
 		Returns the list of fields of an object, excluding its prototype (class methods).
 	**/
 	public static function fields( o : Dynamic ) : Array<String> {
+		if( o == null ) return new Array();
 		return untyped {
 		#if flash
 			var a = __keys__(o);
@@ -273,14 +274,23 @@ class Reflect {
 			}
 			a;
 		#else js
-			var a = js.Boot.__keys(o);
+			var a = new Array();
+			var t;
+			try{ t = o.__proto__; }catch(e : Dynamic){ t = null; }
+			if( t != null ) o.__proto__ = null;
+			untyped __js__("
+				for(var i in o)
+					a.push(i);
+			");
+			if( t != null ) o.__proto__ = t;
 			var i = 0;
-			while( i < a.length ) {
-				if( !o.hasOwnProperty(a[i]) )
-					a.splice(i,1);
-				else
-					++i;
-			}
+			if( o.hasOwnProperty != null )
+				while( i < a.length ) {
+					if( !o.hasOwnProperty(a[i]) )
+						a.splice(i,1);
+					else
+						++i;
+				}
 			a;
 		#else neko
 			if( __dollar__typeof(o) != __dollar__tobject )
