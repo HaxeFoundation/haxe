@@ -88,6 +88,23 @@ class NekoString__ implements String {
 	}
 
 	public function substr( pos, len ) {
+		if( len == null ) return "";
+		
+		var sl = untyped __dollar__ssize(this.__s);
+
+		if( pos == null ) pos = 0;
+		
+		if( pos < 0 ){
+			pos = sl + pos;
+			if( pos < 0 ) pos = 0;
+		}else if( len < 0 ){
+			len = sl + len - pos;
+		}
+
+		if( pos + len > sl ){
+			len = sl - pos;
+		}
+
 		return untyped new String(__dollar__ssub(this.__s,pos,len));
 	}
 
