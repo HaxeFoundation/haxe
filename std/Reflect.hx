@@ -365,13 +365,21 @@ class Reflect {
 	/**
 		Delete an object field.
 	**/
-	public static function deleteField( o : Dynamic, f : String ) {
+	public static function deleteField( o : Dynamic, f : String ) : Bool {
 		#if flash
-			untyped __delete__(o,f)
+			untyped {
+				if( this.hasOwnProperty.call(o,f) == null ) return false;
+				__delete__(o,f);
+				return true;
+			}
 		#else js
-			untyped delete(o[f])
+			untyped {
+				if( !hasField(o,f) ) return false;
+				untyped delete(o[f]);
+				return true;
+			}
 		#else neko
-			untyped __dollar__objremove(o,f.__s)
+			return untyped __dollar__objremove(o,f.__s)
 		#else error
 		#end
 			;
