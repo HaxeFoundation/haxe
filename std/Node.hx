@@ -59,6 +59,11 @@ extern class Node {
 	function replaceChild( newChild : Node, oldChild : Node ) : Void;
 
 
+#if js
+	// currently disabled, need to find a good way to add this
+#else true
 	/* added for haXe */
 	function nodes() : Iterator<Node>;
+#end
+
 }

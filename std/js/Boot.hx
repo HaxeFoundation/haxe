@@ -180,32 +180,6 @@ class Boot {
 	private static function __init() {
 		untyped {
 			Lib.isIE = (document.all != null);
-			if( !Lib.isIE )
-			Node.prototype.nodes = function() {
-				return untyped {
-					p : 0,
-					a : childNodes,
-					next : function() {
-						while( true ) {
-							var x = this.a[this.p];
-							if( x == null )
-								return null;
-							this.p++;
-							if( x.nodeType == 1 )
-								return x;
-						}
-						return null;
-					},
-					hasNext : function() {
-						var x = this.next();
-						if( x != null ) {
-							this.p--;
-							return true;
-						}
-						return false;
-					}
-				};
-			};
 			Array.prototype.copy = Array.prototype.slice;
 			Array.prototype.insert = function(i,x) {
 				this.splice(i,0,x);
