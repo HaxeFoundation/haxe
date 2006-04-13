@@ -26,15 +26,6 @@ package js;
 
 class Boot {
 
-	private static function __keys(o) {
-		var a = new Array();
-		untyped __js__("
-			for(var i in o)
-				a.push(i);
-		");
-		return a;
-	}
-
 	private static function __unhtml(s : String) {
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
 	}
