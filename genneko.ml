@@ -426,7 +426,8 @@ let gen_class ctx c =
 		stpath,
 		(EObject (
 			("prototype",clpath) ::
-			("__string", ident p "@class_to_string") ::
+			("toString", ident p "@class_to_string") ::
+			("__string", ident p "@class_to_string2") ::
 			("__super__", match c.cl_super with None -> null p | Some (c,_) -> gen_type_path p c.cl_path) ::
 			("__interfaces__", interf) ::
 			PMap.fold (gen_method ctx p) c.cl_statics fnew
@@ -551,7 +552,10 @@ let generate file types hres =
 		call null_pos (field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__enum_str") [this null_pos]
 	),null_pos)),null_pos) in
 	let class_str = (EBinop ("=",ident null_pos "@class_to_string",(EFunction ([],
-		field null_pos (call null_pos (field null_pos (field null_pos (this null_pos) "__name__") "join") [gen_constant null_pos (TString ".")]) "__s"
+		call null_pos (field null_pos (field null_pos (this null_pos) "__name__") "join") [gen_constant null_pos (TString ".")]
+	),null_pos)),null_pos) in
+	let class_str2 = (EBinop ("=",ident null_pos "@class_to_string2",(EFunction ([],
+		field null_pos (call null_pos (field null_pos (this null_pos) "toString") []) "__s"
 	),null_pos)),null_pos) in
 	let packs = List.concat (List.map (gen_packages h) types) in
 	let names = List.fold_left gen_name [] types in
@@ -559,7 +563,7 @@ let generate file types hres =
 	let boot = gen_boot hres in
 	let inits = List.map (gen_expr ctx) (List.rev ctx.inits) in
 	let vars = List.concat (List.map (gen_static_vars ctx) types) in
-	let e = (EBlock (enum_str :: class_str :: packs @ methods @ boot :: names @ inits @ vars), null_pos) in
+	let e = (EBlock (enum_str :: class_str :: class_str2 :: packs @ methods @ boot :: names @ inits @ vars), null_pos) in
 	let neko_file = Filename.chop_extension file ^ ".neko" in
 	let ch = IO.output_channel (open_out neko_file) in
 	(if !Plugin.verbose then Nxml.write_fmt else Nxml.write) ch (Nxml.to_xml e);
@@ -570,4 +574,4 @@ let generate file types hres =
 		Sys.rename (Filename.chop_extension file ^ "2.neko") neko_file;
 	end;
 	if Sys.command ("nekoc " ^ neko_file) <> 0 then failwith "Neko compilation failure";
-	Sys.remove neko_file
+	if not !Plugin.verbose then Sys.remove neko_file
