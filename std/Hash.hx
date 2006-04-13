@@ -69,6 +69,21 @@ class Hash<T> {
 		#end
 	}
 
+	public function remove( key : String ) : Bool {
+		#if flash
+		if( !exists(key) ) return false;
+		untyped __delete__(h,key);
+		return true;
+		#else js
+		if( !exists(key) ) return false;
+		untyped __js__("delete this.h[key]");
+		return true;
+		#else neko
+		return untyped __dollar__hremove(h,key.__s,null);
+		#else error
+		#end
+	}
+
 	public function keys() : Iterator<String> {
 		#if flash
 		return untyped (__keys__(h)).iterator();
