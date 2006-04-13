@@ -49,9 +49,9 @@ class List<T> {
 
 	public function push( item : T ) {
 		var x = #if neko
-			untyped __dollar__array(item,q)
+			untyped __dollar__array(item,h)
 		#else true
-			[item,q]
+			[item,h]
 		#end;
 		h = x;
 		if( q == null )
