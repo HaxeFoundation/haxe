@@ -23,136 +23,145 @@
  * DAMAGE.
  */
 
-enum Cell<T> {
-	empty;
-	cons( item : T, next : Cell<T> );
-}
-
-class ListIter<T> implements Iterator<T> {
-
-	private var h : Cell<T>;
-
-	public function new( h : Cell<T> ) {
-		this.h = h;
-	}
-
-	public function hasNext() : Bool {
-		return (h != empty);
-	}
-
-	public function next() : T {
-		return switch h {
-		case empty:
-			null;
-		case cons(it,h):
-			this.h = h;
-			it;
-		}
-	}
-
-}
-
-
 class List<T> {
 
-	private var h : Cell<T>;
-	public property length(getLength,null) : Int;
+	private var h : Array<Dynamic>;
+	private var q : Array<Dynamic>;
+	public property length(default,null) : Int;
 
 	public function new() {
-		h = empty;
+		length = 0;
 	}
 
-	public function push( item : T ) : Void {
-		h = cons(item,h);
+	public function add( item : T ) {
+		var x = #if neko
+			untyped __dollar__array(item,null)
+		#else true
+			[item,null]
+		#end;
+		if( h == null )
+			h = x;
+		else
+			q[1] = x;
+		q = x;
+		length++;
+	}
+
+	public function push( item : T ) {
+		var x = #if neko
+			untyped __dollar__array(item,q)
+		#else true
+			[item,q]
+		#end;
+		h = x;
+		if( h == null )
+			q = h;
+		length++;
 	}
 
 	public function first() : T {
-		return switch h {
-		case empty:
-			null;
-		case cons(it,h):
-			it;
-		}
+		return if( h == null ) null else h[0];
+	}
+
+	public function last() : T {
+		return if( q == null ) null else q[0];
 	}
 
 	public function pop() : T {
-		return switch h {
-		case empty:
-			null;
-		case cons(it,h):
-			this.h = h;
-			it;
-		}
+		if( h == null )
+			return null;
+		var x = h[0];
+		h = h[1];
+		if( h == null )
+			q = null;
+		length--;
+		return x;
 	}
 
 	public function isEmpty() : Bool {
-		return switch h {
-		case empty : true;
-		default : false;
-		}
+		return (h != null);
 	}
 
 	public function remove( v : T ) : Bool {
-		var found = false;
-		var loop;
-		loop = function(h) {
-			return switch h {
-			case empty:
-				empty;
-			case cons(v2,h):
-				if( v2 == v ) {
-					found = true;
-					h;
-				} else
-					cons(v2,loop(h));
+		var prev = null;
+		var l = h;
+		while( l != null ) {
+			if( l[0] == v ) {
+				if( prev == null )
+					h = l[1];
+				else
+					prev[1] = l[1];
+				if( q == cur )
+					q = prev;
+				length--;
+				return true;
 			}
-		};
-		h = loop(h);
-		return found;
-	}
-
-	public function getLength() {
-		var c = 0;
-		var h = this.h;
-		while( true ) {
-			switch( h ) {
-			case empty: break;
-			case cons(_,h2): h = h2; c++;
-			}
-		}
-		return c;
-	}
-
-	public function has(x) {
-		var h = this.h;
-		while( true ) {
-			switch( h ) {
-			case empty:
-				break;
-			case cons(x2,h2):
-				if( x == x2 )
-					return true;
-				h = h2;
-			}
+			prev = l;
+			l = l[1];
 		}
 		return false;
 	}
 
 	public function iterator() : Iterator<T> {
-		return new ListIter<T>(h);
+		return {
+			h : h,
+			hasNext : function() {
+				return untyped (this.h != null);
+			},
+			next : function() {
+				untyped {
+					if( this.h == null )
+						return null;
+					var x = this.h[0];
+					this.h = this.h[1];
+					return x;
+				}
+			}
+		}
 	}
 
 	public function toString() {
 		var s = new StringBuf();
-		var it = iterator();
+		var first = true;
+		var l = h;
 		s.add("{");
-		for( i in it ) {
-			s.add(i);
-			if( it.hasNext() )
+		while( l != null ) {
+			if( first )
+				first = false;
+			else
 				s.add(", ");
+			s.add(l[0]);
+			l = l[1];
 		}
 		s.add("}");
 		return s.toString();
+	}
+
+	public function join(sep : String) {
+		var s = new StringBuf();
+		var first = true;
+		var l = h;
+		while( l != null ) {
+			if( first )
+				first = false;
+			else
+				s.add(sep);
+			s.add(l[0]);
+			l = l[1];
+		}
+		return s.toString();
+	}
+
+	public function filter( f : T -> Bool ) {
+		var l2 = new List();
+		var l = h;
+		while( l != null ) {
+			var v = l[0];
+			l = l[1];
+			if( f(v) )
+				l2.add(v);
+		}
+		return l2;
 	}
 
 }
