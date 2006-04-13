@@ -31,7 +31,7 @@ class Hash<T> {
 		#else neko
 		h = untyped __dollar__hnew(0);
 		#else js
-		h = untyped __new__("Object");
+		h = untyped __js__("{}");
 		#else error
 		#end
 	}
@@ -62,7 +62,7 @@ class Hash<T> {
 		#if flash
 		return untyped h.hasOwnProperty(key);
 		#else js
-		return untyped h.hasOwnProperty(key);
+		return Reflect.hasField(h,key);
 		#else neko
 		return untyped __dollar__hmem(h,key.__s,null);
 		#else error
@@ -71,13 +71,11 @@ class Hash<T> {
 
 	public function remove( key : String ) : Bool {
 		#if flash
-		if( !exists(key) ) return false;
+		if( untyped !h.hasOwnProperty(key) ) return false;
 		untyped __delete__(h,key);
 		return true;
 		#else js
-		if( !exists(key) ) return false;
-		untyped __js__("delete this.h[key]");
-		return true;
+		return Reflect.deleteField(h,key);
 		#else neko
 		return untyped __dollar__hremove(h,key.__s,null);
 		#else error
@@ -88,7 +86,7 @@ class Hash<T> {
 		#if flash
 		return untyped (__keys__(h)).iterator();
 		#else js
-		return untyped js.Boot.__keys(h).iterator();
+		return Reflect.fields(h).iterator();
 		#else neko
 		var l = new List<String>();
 		untyped __dollar__hiter(h,function(k,_) { l.push(new String(k)); });
@@ -99,19 +97,19 @@ class Hash<T> {
 
 	public function iterator() : Iterator<T> {
 		#if flash
-		return untyped({
+		return untyped {
 			ref : h,
 			it : keys(),
 			hasNext : function() { return this.it.hasNext(); },
 			next : function() { var i = this.it.next(); return this.ref[i]; }
-		});
+		};
 		#else js
-		return untyped({
+		return untyped {
 			ref : h,
 			it : keys(),
 			hasNext : function() { return this.it.hasNext(); },
 			next : function() { var i = this.it.next(); return this.ref[i]; }
-		});
+		};
 		#else neko
 		var l = new List<T>();
 		untyped __dollar__hiter(h,function(_,v) { l.push(v); });
