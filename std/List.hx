@@ -54,8 +54,8 @@ class List<T> {
 			[item,q]
 		#end;
 		h = x;
-		if( h == null )
-			q = h;
+		if( q == null )
+			q = x;
 		length++;
 	}
 
