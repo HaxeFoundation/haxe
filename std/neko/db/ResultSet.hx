@@ -26,15 +26,21 @@ package neko.db;
 
 class ResultSet implements Iterator<Dynamic> {
 
-	public var length : Int;
-	public var nfields : Int;
+	public property length(getLength,null) : Int;
+	public property nfields(getNFields,null) : Int;
 	private var __r : Void;
 	private var cache : Dynamic;
 
 	private function new(r) {
 		__r = r;
-		length = result_get_length(r);
-		nfields = try result_get_nfields(r) catch( e : Dynamic ) 0;
+	}
+
+	private function getLength() {
+		return result_get_length(__r);
+	}
+
+	private function getNFields() {
+		return result_get_nfields(__r);
 	}
 
 	public function hasNext() {
@@ -64,6 +70,13 @@ class ResultSet implements Iterator<Dynamic> {
 			}
 		}
 		return c;
+	}
+
+	public function results() : List<Dynamic> {
+		var l = new List();
+		while( hasNext() )
+			l.add(next());
+		return l;
 	}
 
 	public function getResult( n : Int ) {
