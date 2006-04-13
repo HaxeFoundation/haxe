@@ -91,7 +91,7 @@ class List<T> {
 					h = l[1];
 				else
 					prev[1] = l[1];
-				if( q == cur )
+				if( q == l )
 					q = prev;
 				length--;
 				return true;
