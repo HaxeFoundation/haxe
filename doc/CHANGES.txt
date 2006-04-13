@@ -7,6 +7,7 @@
 	fixed bug in js generator (return switch need correct "this" context)
 	fixed bug in for x in a...b : invalid local variables overridding
 	added properties
+	fixed bug in js generator : while...switch...break
 
 2006-04-02: beta 4
 	fixed javascript events case
