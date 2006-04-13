@@ -26,6 +26,7 @@ type ctx = {
 	mutable inits : texpr list;
 	mutable tabs : string;
 	mutable in_value : bool;
+	mutable handle_break : bool;
 }
 
 let s_path = function
@@ -48,7 +49,7 @@ let field s = if Hashtbl.mem kwds s then "[\"" ^ s ^ "\"]" else "." ^ s
 let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
 
 let spr ctx s = Buffer.add_string ctx.buf s
-let print ctx = Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
+let print ctx = Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)			
 
 let unsupported p = 
 	raise (Typer.Error (Typer.Custom "This expression cannot be compiled to Javascript",p))
@@ -80,6 +81,32 @@ let open_block ctx =
 	let oldt = ctx.tabs in
 	ctx.tabs <- "\t" ^ ctx.tabs;
 	(fun() -> ctx.tabs <- oldt)
+
+let rec iter_switch_break in_switch e =	
+	match e.eexpr with
+	| TFunction _ | TWhile _ | TFor _ -> ()
+	| TSwitch _ | TMatch _ when not in_switch -> iter_switch_break true e
+	| TBreak when in_switch -> raise Exit
+	| _ -> iter (iter_switch_break in_switch) e
+
+let handle_break ctx e =
+	let old_handle = ctx.handle_break in
+	try
+		iter_switch_break false e;
+		ctx.handle_break <- false;
+		(fun() -> ctx.handle_break <- old_handle)
+	with
+		Exit ->
+			spr ctx "try {";
+			let b = open_block ctx in
+			newline ctx;
+			ctx.handle_break <- true;
+			(fun() ->
+				b();
+				ctx.handle_break <- old_handle;
+				newline ctx;
+				spr ctx "} catch( e ) { if( e != \"__break__\" ) throw e; }";
+			)
 
 let this ctx = if ctx.in_value then "$this" else "this"
 
@@ -181,7 +208,7 @@ and gen_expr ctx e =
 			gen_value ctx e);
 	| TBreak ->
 		if ctx.in_value then unsupported e.epos;
-		spr ctx "break"
+		if ctx.handle_break then spr ctx "throw \"__break__\"" else spr ctx "break"
 	| TContinue ->
 		if ctx.in_value then unsupported e.epos;
 		spr ctx "continue"
@@ -240,20 +267,25 @@ and gen_expr ctx e =
 		gen_value ctx e;
 		spr ctx (Ast.s_unop op)
 	| TWhile (cond,e,Ast.NormalWhile) ->
+		let handle_break = handle_break ctx e in
 		spr ctx "while";
 		gen_value ctx (parent cond);
 		spr ctx " ";
 		gen_expr ctx e;
+		handle_break();
 	| TWhile (cond,e,Ast.DoWhile) ->
+		let handle_break = handle_break ctx e in
 		spr ctx "do ";
 		gen_expr ctx e;
 		spr ctx " while";
 		gen_value ctx (parent cond);		
+		handle_break();
 	| TObjectDecl fields ->
 		spr ctx "{ ";
 		concat ctx ", " (fun (f,e) -> print ctx "%s : " f; gen_value ctx e) fields;
 		spr ctx "}"
 	| TFor (v,it,e) ->
+		let handle_break = handle_break ctx e in
 		spr ctx "var $it = ";
 		gen_value ctx it;
 		newline ctx;
@@ -261,7 +293,8 @@ and gen_expr ctx e =
 		newline ctx;
 		gen_expr ctx e;
 		newline ctx;
-		spr ctx "}"
+		spr ctx "}";
+		handle_break();
 	| TTry (e,catchs) ->
 		spr ctx "try ";
 		gen_expr ctx e;
@@ -596,6 +629,7 @@ let generate file types hres =
 		current = null_class;
 		tabs = "";
 		in_value = false;
+		handle_break = false;
 	} in
 	print ctx "$class_str = function() { return this.__name__.join(\".\"); }";
 	newline ctx;
