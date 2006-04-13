@@ -609,14 +609,10 @@ let generate_static ctx (c,f,e) =
 	newline ctx
 
 let generate_type ctx = function
-	| TClassDecl c -> 
-		(try
-			let f = PMap.find "__init__" c.cl_statics in
-			match f.cf_expr with
-			| Some { eexpr = TFunction f } -> ctx.inits <- f.tf_expr :: ctx.inits
-			| _ -> ()
-		with
-			Not_found -> ());
+	| TClassDecl c ->
+		(match c.cl_init with
+		| None -> ()
+		| Some e -> ctx.inits <- e :: ctx.inits);
 		if not c.cl_extern then generate_class ctx c
 	| TEnumDecl e -> generate_enum ctx e
 

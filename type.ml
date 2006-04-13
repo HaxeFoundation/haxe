@@ -108,6 +108,7 @@ and tclass = {
 	mutable cl_ordered_statics : tclass_field list;
 	mutable cl_dynamic : t option;
 	mutable cl_constructor : tclass_field option;
+	mutable cl_init : texpr option;
 }
 
 and tenum_field = {
@@ -158,6 +159,7 @@ let mk_class path pos doc priv =
 		cl_statics = PMap.empty;
 		cl_dynamic = None;
 		cl_constructor = None;
+		cl_init = None;
 	}
 
 let null_class = mk_class ([],"") Ast.null_pos None true

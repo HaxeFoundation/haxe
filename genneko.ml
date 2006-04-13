@@ -24,6 +24,7 @@ open Nxml
 type context = {
 	mutable locals : (string , bool) PMap.t;
 	mutable curblock : texpr list;
+	mutable inits : texpr list;
 }
 
 let error msg p =
@@ -469,6 +470,9 @@ let gen_enum e =
 let gen_type ctx t =
 	match t with
 	| TClassDecl c -> 
+		(match c.cl_init with
+		| None -> ()
+		| Some e -> ctx.inits <- e :: ctx.inits);
 		if c.cl_extern then
 			null (pos c.cl_pos)
 		else
@@ -538,6 +542,7 @@ let gen_name acc t =
 
 let generate file types hres =
 	let ctx = {
+		inits = [];
 		curblock = [];
 		locals = PMap.empty;
 	} in
@@ -552,8 +557,9 @@ let generate file types hres =
 	let names = List.fold_left gen_name [] types in
 	let methods = List.map (gen_type ctx) types in
 	let boot = gen_boot hres in
+	let inits = List.map (gen_expr ctx) (List.rev ctx.inits) in
 	let vars = List.concat (List.map (gen_static_vars ctx) types) in
-	let e = (EBlock (enum_str :: class_str :: packs @ methods @ boot :: names @ vars), null_pos) in
+	let e = (EBlock (enum_str :: class_str :: packs @ methods @ boot :: names @ inits @ vars), null_pos) in
 	let neko_file = Filename.chop_extension file ^ ".neko" in
 	let ch = IO.output_channel (open_out neko_file) in
 	(if !Plugin.verbose then Nxml.write_fmt else Nxml.write) ch (Nxml.to_xml e);

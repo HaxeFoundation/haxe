@@ -323,13 +323,6 @@ let type_type_params ctx path p (n,flags) =
 		let c = mk_class (fst path @ [snd path],n) p None true in
 		c.cl_locked <- true;
 		set_heritance ctx c (List.map (fun t -> HImplements t) l) p;
-		let add_field ctypes params _ f =
-			let f = { f with cf_type = apply_params ctypes params f.cf_type } in
-			c.cl_fields <- PMap.add f.cf_name f c.cl_fields
-		in
-		List.iter (fun (cl,params) ->
-			PMap.iter (add_field cl.cl_types params) cl.cl_fields
-		) c.cl_implements;
 		TInst (c,[])
 	) in
 	n , t
@@ -663,11 +656,27 @@ let type_field ctx e i p get =
 	match follow e.etype with
 	| TInst (c,params) ->
 		let priv = is_parent c ctx.curclass in
-		let rec loop c params =
+		let find i c = 
 			try
 				let f = PMap.find i c.cl_fields in
+				f , f.cf_type
+			with Not_found ->
+				let rec loop = function
+					| [] -> raise Not_found
+					| (c,tl) :: l ->
+						try
+							let f = PMap.find i c.cl_fields in
+							f , apply_params c.cl_types tl f.cf_type
+						with
+							Not_found -> loop l
+				in
+				loop c.cl_implements
+		in		
+		let rec loop c params =
+			try
+				let f, t = find i c in
 				if not f.cf_public && not priv && not ctx.untyped then error ("Cannot access to private field " ^ i) p;
-				field_access ctx get f (apply_params c.cl_types params f.cf_type) e p
+				field_access ctx get f (apply_params c.cl_types params t) e p
 			with
 				Not_found ->
 					match c.cl_super with
@@ -1512,6 +1521,7 @@ let init_class ctx c p types herits fields =
 					tf_type = ret;
 					tf_expr = e;
 				} in
+				if stat && name = "__init__" then c.cl_init <- Some e;
 				cf.cf_expr <- Some (mk (TFunction f) t p);
 				t
 			) in
@@ -1569,7 +1579,7 @@ let init_class ctx c p types herits fields =
 		if constr then begin
 			if c.cl_constructor <> None then error "Duplicate constructor" p;
 			c.cl_constructor <- Some f;
-		end else begin
+		end else if not static || f.cf_name <> "__init__" then begin
 			if PMap.mem f.cf_name (if static then c.cl_statics else c.cl_fields) then error ("Duplicate class field declaration : " ^ f.cf_name) p;
 			if static then begin
 				c.cl_statics <- PMap.add f.cf_name f c.cl_statics;
@@ -1847,6 +1857,9 @@ let types ctx main =
     and walk_class p c =
 		(match c.cl_super with None -> () | Some (c,_) -> loop_class p c);
 		List.iter (fun (c,_) -> loop_class p c) c.cl_implements;
+		(match c.cl_init with
+		| None -> ()
+		| Some e -> walk_expr p e);
 		PMap.iter (fun _ f ->
 			match f.cf_expr with
 			| None -> ()

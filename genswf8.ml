@@ -32,6 +32,7 @@ type context = {
 	idents : (string,int) Hashtbl.t;
 	types : (module_path,(string * bool)) Hashtbl.t;
 	mutable movieclips : module_path list;
+	mutable inits : texpr list;
 	mutable statics : (string * string * texpr) list;
 	mutable regs : (string,int option) PMap.t;
 	mutable reg_count : int;
@@ -1077,6 +1078,9 @@ let gen_path ctx (p,t) is_extern =
 let gen_type_def ctx t =
 	match t with
 	| TClassDecl c ->
+		(match c.cl_init with
+		| None -> ()
+		| Some e -> ctx.inits <- e :: ctx.inits);
 		if c.cl_extern then
 			()
 		else
@@ -1310,6 +1314,7 @@ let generate file ver header infile types hres =
 		fun_stack = 0;
 		statics = [];
 		movieclips = [];
+		inits = [];
 	} in
 	write ctx (AStringPool []);
 	push ctx [VStr "@class_str"];
@@ -1327,6 +1332,7 @@ let generate file ver header infile types hres =
 	gen_boot ctx hres;
 	List.iter (fun m -> gen_movieclip ctx m) ctx.movieclips;
 	let global_try = gen_try ctx in
+	List.iter (gen_expr ctx false) (List.rev ctx.inits);
 	List.iter (gen_class_static_init ctx) (List.rev ctx.statics);
 	let end_try = global_try() in
 	(* flash.Boot.__trace(exc) *)
