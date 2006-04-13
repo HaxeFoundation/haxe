@@ -268,6 +268,16 @@ class Boot {
 					s = "0" + s;
 				return this.getFullYear()+"-"+m+"-"+d+" "+h+":"+mi+":"+s;
 			};
+			var oldsub = String.prototype.substr;
+			String.prototype.substr = function(pos,len){
+				if( pos < 0 ){
+					pos = this.length + pos;
+					if( pos < 0 ) pos = 0;
+				}else if( len < 0 ){
+					len = this.length + len - pos;
+				}
+				return oldsub.apply(this,[pos,len]);
+			};
 			Int = __new__("Object");
 			Float = __js__("Number");
 			Bool["true"] = true;
