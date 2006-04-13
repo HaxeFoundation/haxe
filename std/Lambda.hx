@@ -40,6 +40,16 @@ class Lambda<A,B> {
 	}
 
 	/**
+		Creates a [List] from an [Iterator]
+	**/
+	public static function list( it : Iterator<A> ) : List<A> {
+		var l = new List<A>();
+		for(i in it)
+			l.add(i);
+		return l;
+	}
+
+	/**
 		Creates a new [Iterator] that will apply the function 'f' to all
 		elements of the iterator 'it'.
 	**/
@@ -60,13 +70,24 @@ class Lambda<A,B> {
 	}
 
 	/**
-		Creates an [Array] 'b' from an [Array] 'a' by applying the function 'f'
+		Creates an [Array] from an [Array] 'a' by applying the function 'f'
 		on all elements of 'a'.
 	**/
 	public static function amap(a : Array<A>,f : A -> B) : Array<B> {
 		var b = new Array();
 		for( x in a )
 			b.push(f(x));
+		return b;
+	}
+
+	/**
+		Creates a [List] from a [List] 'l' by applying the function 'f'
+		on all elements of 'l'.
+	**/
+	public static function lmap(l : List<A>,f : A -> B) : List<B> {
+		var b = new List();
+		for( x in l )
+			b.add(f(x));
 		return b;
 	}
 
