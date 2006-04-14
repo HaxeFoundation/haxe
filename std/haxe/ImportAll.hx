@@ -121,6 +121,9 @@ import neko.Web;
 import neko.db.Mysql;
 import neko.db.Connection;
 import neko.db.ResultSet;
+import neko.db.Object;
+import neko.db.Manager;
+import neko.db.Loop;
 
 import tools.DocView;
 
@@ -150,7 +153,6 @@ import js.Lib;
 import js.Link;
 import js.Location;
 import js.Navigator;
-import js.Object;
 import js.Option;
 import js.Password;
 import js.Radio;
