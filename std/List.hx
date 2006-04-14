@@ -164,4 +164,14 @@ class List<T> {
 		return l2;
 	}
 
+	public function map<X>(f : T -> X) : List<X> {
+		var b = new List();
+		var l = h;
+		while( l != null ) {
+			var v = l[0];
+			l = l[1];
+			b.add(f(v));
+		}
+		return b;
+	}
 }

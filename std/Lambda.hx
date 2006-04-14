@@ -81,17 +81,6 @@ class Lambda<A,B> {
 	}
 
 	/**
-		Creates a [List] from a [List] 'l' by applying the function 'f'
-		on all elements of 'l'.
-	**/
-	public static function lmap(l : List<A>,f : A -> B) : List<B> {
-		var b = new List();
-		for( x in l )
-			b.add(f(x));
-		return b;
-	}
-
-	/**
 		Functional 'fold' using an [Iterator]
 	**/
 	public static function fold( it : Iterator<A>, f : A -> B -> B, first : B ) : B {
