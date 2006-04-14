@@ -375,7 +375,7 @@ class Reflect {
 		#else js
 			untyped {
 				if( !hasField(o,f) ) return false;
-				untyped delete(o[f]);
+				__js__("delete")(o[f]);
 				return true;
 			}
 		#else neko
