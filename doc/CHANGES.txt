@@ -17,6 +17,8 @@
 	fixed neko class.__interfaces__
 	added "assigning a value to itself" error
 	added automatic PosInfos when is last parameter
+	added polymorphic methods
+	added check_flash_args support
 
 2006-04-02: beta 4
 	fixed javascript events case
