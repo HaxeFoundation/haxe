@@ -537,8 +537,11 @@ let gen_name acc t =
 		else
 			let p = pos c.cl_pos in
 			let name = fst c.cl_path @ [snd c.cl_path] in
+			let interf = field p (gen_type_path p c.cl_path) "__interfaces__" in
 			let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant p (TString n)) name); int p (List.length name)] in
-			(EBinop ("=",field p (gen_type_path p c.cl_path) "__name__",arr),p) :: acc
+			(EBinop ("=",field p (gen_type_path p c.cl_path) "__name__",arr),p) :: 
+			(EBinop ("=",interf, call p (field p (ident p "Array") "new1") [interf; int p (List.length c.cl_implements)]),p) ::
+			acc
 
 let generate file types hres =
 	let ctx = {
