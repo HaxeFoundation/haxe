@@ -428,7 +428,7 @@ let rec return_flow e =
 let unify_call_params ctx t el args p =
 	let error flag =
 		if flag && is_flash_extern t then
-			() (* allow fewer args for flash API only *)
+			el (* allow fewer args for flash API only *)
 		else
 			let argstr = "Function require " ^ (if args = [] then "no argument" else "arguments : " ^ String.concat ", " (List.map fst args)) in
 			error ((if flag then "Not enough" else "Too many") ^ " arguments\n" ^ argstr) p;
@@ -436,7 +436,14 @@ let unify_call_params ctx t el args p =
 	let rec loop l l2 =
 		match l , l2 with
 		| [] , [] ->
-			()
+			el
+		| [] , [(_,t)] ->
+			(match follow t with
+			| TInst ({ cl_path = ([],"PosInfos") },[]) -> 
+				let infos = mk_infos ctx p [] in
+				let e = (!type_expr_ref) ctx ~need_val:true infos in
+				el @ [e]
+			| _ -> error true)
 		| [] , _ ->
 			error true
 		| _ , [] ->
@@ -505,8 +512,9 @@ let type_ident ctx i p get =
 			AccNo i
 	| "here" ->
 		let infos = mk_infos ctx p [] in
+		let e = (!type_expr_ref) ctx ~need_val:true infos in
 		if get then
-			AccExpr ((!type_expr_ref) ctx ~need_val:true infos)
+			AccExpr { e with etype = load_core_type ctx "PosInfos" }
 		else
 			AccNo i
 	| _ ->
@@ -1287,31 +1295,32 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	| ECall ((EConst (Ident "super"),sp),el) ->
 		let el = List.map (type_expr ctx) el in
 		if ctx.in_static || not ctx.in_constructor then error "Cannot call superconstructor outside class constructor" p;
-		let t = (match ctx.curclass.cl_super with
+		let el, t = (match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
 			let f = (match c.cl_constructor with Some f -> f | None -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
-			(match apply_params c.cl_types params f.cf_type with
+			let el = (match apply_params c.cl_types params f.cf_type with
 			| TFun (args,_) ->
 				unify_call_params ctx (TInst (c,[])) el args p;
 			| _ ->
-				error "Constructor is not a function" p);
-			TInst (c,params)
+				error "Constructor is not a function" p
+			) in
+			el , TInst (c,params)
 		) in
 		mk (TCall (mk (TConst TSuper) t sp,el)) (t_void ctx) p
 	| ECall (e,el) ->
 		let e = type_expr ctx e in
 		let el = List.map (type_expr ctx) el in
-		let t = (match follow e.etype with
+		let el , t = (match follow e.etype with
 		| TFun (args,r) ->
-			unify_call_params ctx (match e.eexpr with TField (e,_) -> e.etype | _ -> t_dynamic) el args p;
-			r
+			let el = unify_call_params ctx (match e.eexpr with TField (e,_) -> e.etype | _ -> t_dynamic) el args p in
+			el , r
 		| TMono _ ->
 			let t = mk_mono() in
 			unify ctx (TFun (List.map (fun e -> "",e.etype) el,t)) e.etype e.epos;
-			t
+			el, t
 		| t ->
-			if t == t_dynamic then
+			el, if t == t_dynamic then
 				t_dynamic
 			else if ctx.untyped then
 				mk_mono()
@@ -1324,16 +1333,17 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;
 		let t = load_normal_type ctx t p true in
 		let el = List.map (type_expr ctx) el in
-		let c , params , t = (match t with
+		let el, c , params , t = (match t with
 		| TInst (c,params) ->
 			let f = (match c.cl_constructor with Some f -> f | None -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then error "Cannot access private constructor" p;
-			(match apply_params c.cl_types params f.cf_type with
+			let el = (match apply_params c.cl_types params f.cf_type with
 			| TFun (args,r) ->
 				unify_call_params ctx t el args p
 			| _ ->
-				error "Constructor is not a function" p);
-			c , params , t
+				error "Constructor is not a function" p
+			) in
+			el , c , params , t
 		| _ ->
 			error (s_type (print_context()) t ^ " cannot be constructed") p
 		) in
