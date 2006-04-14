@@ -736,6 +736,11 @@ let rec type_binop ctx op e1 e2 p =
 		| AccExpr e1 ->
 			unify ctx e2.etype e1.etype p;
 			check_assign ctx e1;
+			(match e1.eexpr , e2.eexpr with
+			| TLocal i1 , TLocal i2 
+			| TField ({ eexpr = TConst TThis },i1) , TField ({ eexpr = TConst TThis },i2) when i1 = i2 ->
+				error "Assigning a value to itself" p
+			| _ , _ -> ());
 			mk (TBinop (op,e1,e2)) e1.etype p
 		| AccSet (e,m,t,_) ->
 			unify ctx e2.etype t p;
