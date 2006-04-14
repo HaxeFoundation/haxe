@@ -13,6 +13,7 @@
 	bug fixes in Reflect.fields
 	added Hash.remove, changed Hash/JS implementation
 	added flash __delete__ support
+	added neko.db.Object, Manager, Loop
 
 2006-04-02: beta 4
 	fixed javascript events case
