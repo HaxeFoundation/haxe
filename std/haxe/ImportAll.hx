@@ -35,6 +35,7 @@ import List;
 import Log;
 import Math;
 import Node;
+import PosInfos;
 import Reflect;
 import Std;
 import StdTypes;
