@@ -97,6 +97,11 @@ let type_expr_ref = ref (fun _ ?need_val _ -> assert false)
 
 let load ctx m p = (!load_ref) ctx m p
 
+let field_type f =
+	match f.cf_params with
+	| [] -> f.cf_type 
+	| l -> apply_params l (List.map (fun _ -> mk_mono()) l) f.cf_type
+
 let unify ctx t1 t2 p =
 	try
 		unify t1 t2
@@ -262,6 +267,7 @@ and load_type ctx p t =
 				cf_public = true;
 				cf_get = NormalAccess;
 				cf_set = NormalAccess;
+				cf_params = [];
 				cf_expr = None;
 				cf_doc = None;
 			} acc
@@ -367,7 +373,7 @@ let is_flash_extern t =
 	match follow t with
 	| TInst (c,_) ->
 		(match fst c.cl_path with
-		| "flash" :: _ -> c.cl_extern
+		| "flash" :: _ -> c.cl_extern && not (Plugin.defined "check_flash_args")
 		| _ -> false)
 	| _ -> false
 
@@ -462,7 +468,7 @@ let unify_call_params ctx t el args p =
 let rec class_field c i =
 	try
 		let f = PMap.find i c.cl_fields in
-		f.cf_type , f
+		field_type f , f
 	with
 		Not_found ->
 			match c.cl_super with
@@ -530,7 +536,7 @@ let type_ident ctx i p get =
 		(* static variable lookup *)
 		let f = PMap.find i ctx.curclass.cl_statics in
 		let tt = mk (TType (TClassDecl ctx.curclass)) (mk_mono()) p in
-		field_access ctx get f f.cf_type tt p
+		field_access ctx get f (field_type f) tt p
 	with Not_found -> try
 		(* lookup imported *)
 		let rec loop l =
@@ -576,6 +582,7 @@ let type_type ctx tpath p =
 				cf_type = apply_params c.cl_types types f.cf_type;
 				cf_get = f.cf_get;
 				cf_set = f.cf_set;
+				cf_params = f.cf_params;
 				cf_doc = None;
 				cf_expr = None;
 			} acc
@@ -592,6 +599,7 @@ let type_type ctx tpath p =
 				cf_set = NoAccess;
 				cf_doc = None;
 				cf_expr = None;
+				cf_params = [];
 			} acc
 		) e.e_constrs PMap.empty in
 		mk (TType (TEnumDecl e)) (TAnon (fl,Some ("#" ^ s_type_path e.e_path))) p
@@ -667,14 +675,14 @@ let type_field ctx e i p get =
 		let find i c = 
 			try
 				let f = PMap.find i c.cl_fields in
-				f , f.cf_type
+				f , field_type f
 			with Not_found ->
 				let rec loop = function
 					| [] -> raise Not_found
 					| (c,tl) :: l ->
 						try
 							let f = PMap.find i c.cl_fields in
-							f , apply_params c.cl_types tl f.cf_type
+							f , apply_params c.cl_types tl (field_type f)
 						with
 							Not_found -> loop l
 				in
@@ -712,7 +720,7 @@ let type_field ctx e i p get =
 		(try
 			let f = PMap.find i fl in
 			if not f.cf_public && not ctx.untyped then error ("Cannot access to private field " ^ i) p;
-			field_access ctx get f f.cf_type e p
+			field_access ctx get f (field_type f) e p
 		with Not_found -> no_field())
 	| t ->
 		no_field()
@@ -1010,7 +1018,7 @@ and type_access ctx e p get =
 	| EType _ ->
 		let fields path e =
 			List.fold_left (fun e (f,_,p) ->
-				let e = acc_get (e true) p in
+				let e = acc_get (e true) p in				
 				type_field ctx e f p
 			) e path
 		in
@@ -1108,6 +1116,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				cf_set = NormalAccess;
 				cf_expr = None;
 				cf_doc = None;
+				cf_params = [];
 			} in
 			((f,e) :: l, PMap.add f cf acc)
 		in
@@ -1299,7 +1308,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
 			let f = (match c.cl_constructor with Some f -> f | None -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
-			let el = (match apply_params c.cl_types params f.cf_type with
+			let el = (match follow (apply_params c.cl_types params (field_type f)) with
 			| TFun (args,_) ->
 				unify_call_params ctx (TInst (c,[])) el args p;
 			| _ ->
@@ -1337,7 +1346,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		| TInst (c,params) ->
 			let f = (match c.cl_constructor with Some f -> f | None -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then error "Cannot access private constructor" p;
-			let el = (match apply_params c.cl_types params f.cf_type with
+			let el = (match follow (apply_params c.cl_types params (field_type f)) with
 			| TFun (args,r) ->
 				unify_call_params ctx t el args p
 			| _ ->
@@ -1432,7 +1441,7 @@ let check_overloading c p () =
 		| Some (c,_) ->
 			try
 				let f2 = PMap.find f.cf_name c.cl_fields in
-				if not (type_eq false f.cf_type f2.cf_type) then error ("Field " ^ f.cf_name ^ " overload parent class with different or incomplete type") p;
+				if not (type_eq false (field_type f) (field_type f2)) then error ("Field " ^ f.cf_name ^ " overload parent class with different or incomplete type") p;
 				if f.cf_public <> f2.cf_public then error ("Field " ^ f.cf_name ^ " has different access right than previous one") p;
 			with
 				Not_found -> loop c.cl_super f
@@ -1445,7 +1454,7 @@ let check_interfaces c p () =
 			try
 				let t , f2 = class_field c i in
 				if f2.cf_public <> f.cf_public || f2.cf_get <> f.cf_get || f2.cf_set <> f.cf_set then error ("Field " ^ i ^ " has different access than in " ^ s_type_path intf.cl_path) p;
-				if not (type_eq false f2.cf_type (apply_params intf.cl_types params f.cf_type)) then error ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
+				if not (type_eq false (field_type f2) (apply_params intf.cl_types params (field_type f))) then error ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
 			with
 				Not_found ->
 					error ("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing") p
@@ -1466,7 +1475,7 @@ let init_class ctx c p types herits fields =
 	let is_public access =
 		if c.cl_extern || c.cl_interface then not (List.mem APrivate access) else List.mem APublic access
 	in
-	let type_opt p t =
+	let type_opt ctx p t =
 		match t with
 		| None when c.cl_extern || c.cl_interface ->
 			error "Type required for extern classes and interfaces" p
@@ -1496,6 +1505,7 @@ let init_class ctx c p types herits fields =
 				cf_set = NormalAccess;
 				cf_expr = None;
 				cf_public = is_public access;
+				cf_params = [];
 			} in
 			let delay = (match e with
 				| None -> (fun() -> ())
@@ -1511,9 +1521,20 @@ let init_class ctx c p types herits fields =
 					(fun () -> ignore(!r()))
 			) in
 			List.mem AStatic access, false, cf, delay
-		| FFun (name,doc,access,f) ->
-			let ret = type_opt p f.f_type in
-			let args = List.map (fun (name,t) -> name , type_opt p t) f.f_args in
+		| FFun (name,doc,access,params,f) ->
+			let params = List.map (fun (n,flags) -> 
+				match flags with
+				| [] -> type_type_params ctx c.cl_path p (n,[])
+				| _ -> error "This notation is not allowed because it can't be checked" p
+			) params in
+			let ctx = { ctx with 
+				curclass = c;
+				curmethod = name;
+				tthis = tthis;
+				type_params = params @ ctx.type_params;
+			} in
+			let ret = type_opt ctx p f.f_type in
+			let args = List.map (fun (name,t) -> name , type_opt ctx p t) f.f_args in
 			let t = TFun (args,ret) in
 			let stat = List.mem AStatic access in
 			let constr = (name = "new") in
@@ -1525,8 +1546,8 @@ let init_class ctx c p types herits fields =
 				cf_set = NormalAccess;
 				cf_expr = None;
 				cf_public = is_public access;
+				cf_params = params;
 			} in
-			let ctx = { ctx with curclass = c; curmethod = name; tthis = tthis } in
 			let r = exc_protect (fun r ->
 				r := (fun() -> t);
 				if !Plugin.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
@@ -1586,6 +1607,7 @@ let init_class ctx c p types herits fields =
 				cf_expr = None;
 				cf_type = ret;
 				cf_public = is_public access;
+				cf_params = [];
 			} in
 			List.mem AStatic access, false, cf, (fun() -> (!check_get)(); (!check_set)())
 	in
@@ -1608,9 +1630,9 @@ let init_class ctx c p types herits fields =
 	(* define an default inherited constructor *)
 	(match c.cl_constructor, c.cl_super with
 	| None , Some ({ cl_constructor = Some f } as csuper, cparams) ->
-		(match follow f.cf_type with
+		(match follow (field_type f) with
 		| TFun (args,r) ->
-			let t = f.cf_type in
+			let t = field_type f in
 			let n = ref 0 in
 			let args = List.map (fun (_,t) -> incr n; "p" ^ string_of_int (!n) , t) args in
 			let eargs = List.map (fun (n,t) -> mk (TLocal n) t p) args in
@@ -1627,6 +1649,7 @@ let init_class ctx c p types herits fields =
 				cf_doc = None;
 				cf_expr = Some (mk (TFunction func) t p);
 				cf_public = f.cf_public;
+				cf_params = f.cf_params;
 			}
 		| _ -> assert false)
 	| _ , _ ->
@@ -1895,7 +1918,7 @@ let types ctx main =
 		| TClassDecl c ->
 			try
 				let f = PMap.find "main" c.cl_statics in
-				match follow f.cf_type with
+				match follow (field_type f) with
 				| TFun ([],_) -> ()
 				| _ -> error ("Invalid -main : " ^ s_type_path cl ^ " has invalid main function") null_pos
 			with
@@ -1910,6 +1933,7 @@ let types ctx main =
 			cf_get = NormalAccess;
 			cf_set = NormalAccess;
 			cf_doc = None;
+			cf_params = [];
 			cf_expr = Some (mk (TCall (mk (TField (mk (TType t) (mk_mono()) null_pos,"main")) (mk_mono()) null_pos,[])) (mk_mono()) null_pos);
 		} in
 		c.cl_statics <- PMap.add "init" f c.cl_statics;

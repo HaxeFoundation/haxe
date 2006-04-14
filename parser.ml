@@ -226,7 +226,7 @@ and parse_class_field s =
 			(FVar (name,doc,l,t,e),punion p1 p2)
 		| [< '(Const (Ident "property"),p1); name = any_ident; '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_type_path; p2 = semicolon >] ->
 			(FProp (name,doc,l,i1,i2,t),punion p1 p2)
-		| [< '(Kwd Function,p1); name = parse_fun_name; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->			
+		| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_type_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->			
 			let e = (match s with parser
 				| [< e = expr >] -> e
 				| [< '(Semicolon,p) >] -> (EBlock [],p)
@@ -237,7 +237,7 @@ and parse_class_field s =
 				f_type = t;
 				f_expr = e;
 			} in
-			(FFun (name,doc,l,f),punion p1 (pos e))
+			(FFun (name,doc,l,pl,f),punion p1 (pos e))
 		| [< >] -> if l = [] then raise Stream.Failure else serror()
 
 and parse_cf_rights l = parser

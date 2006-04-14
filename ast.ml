@@ -172,6 +172,8 @@ and expr_def =
 
 and expr = expr_def * pos
 
+type type_param = string * type_path_normal list
+
 type documentation = string option
 
 type access =
@@ -181,7 +183,7 @@ type access =
 
 type class_field =
 	| FVar of string * documentation * access list * type_path option * expr option
-	| FFun of string * documentation * access list * func
+	| FFun of string * documentation * access list * type_param list * func
 	| FProp of string * documentation * access list * string * string * type_path
 
 type enum_param =
@@ -193,8 +195,6 @@ type type_param_flag =
 	| HPrivate
 	| HExtends of type_path_normal
 	| HImplements of type_path_normal
-
-type type_param = string * type_path_normal list
 
 type type_def =
 	| EClass of string * documentation * type_param list * type_param_flag list * (class_field * pos) list

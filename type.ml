@@ -89,6 +89,7 @@ and tclass_field = {
 	cf_doc : Ast.documentation;
 	cf_get : field_access;
 	cf_set : field_access;
+	cf_params : (string * t) list;
 	mutable cf_expr : texpr option;
 }
 
@@ -257,6 +258,9 @@ let rec link e a b =
 
 (* substitute parameters with other types *)
 let apply_params cparams params t =
+	match cparams with
+	| [] -> t
+	| _ ->
 	let rec loop l1 l2 =
 		match l1, l2 with
 		| [] , [] -> []
@@ -274,9 +278,13 @@ let apply_params cparams params t =
 			| None -> t
 			| Some t -> loop t)
 		| TEnum (e,tl) ->
-			TEnum (e,List.map loop tl)
+			(match tl with
+			| [] -> t
+			| _ -> TEnum (e,List.map loop tl))
 		| TInst (c,tl) ->
 			(match tl with
+			| [] ->
+				t
 			| [TMono r] ->
 				(match !r with
 				| Some tt when t == tt -> 
