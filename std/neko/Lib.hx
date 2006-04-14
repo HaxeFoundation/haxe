@@ -34,4 +34,8 @@ class Lib {
 		untyped __dollar__print(v);
 	}
 
+	public static function rethrow( e : Dynamic ) : Void {
+		untyped __dollar__rethrow(e);
+	}
+
 }
