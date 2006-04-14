@@ -14,6 +14,9 @@
 	added Hash.remove, changed Hash/JS implementation
 	added flash __delete__ support
 	added neko.db.Object, Manager, Loop
+	fixed neko class.__interfaces__
+	added "assigning a value to itself" error
+	added automatic PosInfos when is last parameter
 
 2006-04-02: beta 4
 	fixed javascript events case
