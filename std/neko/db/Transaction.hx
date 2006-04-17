@@ -24,7 +24,7 @@
  */
 package neko.db;
 
-class Loop {
+class Transaction {
 
 	private static function initialize() {
 		var l = Manager.init_list;

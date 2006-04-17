@@ -124,7 +124,7 @@ import neko.db.Connection;
 import neko.db.ResultSet;
 import neko.db.Object;
 import neko.db.Manager;
-import neko.db.Loop;
+import neko.db.Transaction;
 
 import tools.DocView;
 
