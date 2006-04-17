@@ -1,4 +1,4 @@
-2006-05-??: 1.0
+2006-04-17: beta 5
 	fixed bug : continue in do...while
 	changed typing order for do...while (infer condition after block)
 	fixed JS "catch" generation
@@ -13,7 +13,7 @@
 	bug fixes in Reflect.fields
 	added Hash.remove, changed Hash/JS implementation
 	added flash __delete__ support
-	added neko.db.Object, Manager, Loop
+	added neko.db.Object, Manager, Transaction
 	fixed neko class.__interfaces__
 	added "assigning a value to itself" error
 	added automatic PosInfos when is last parameter
