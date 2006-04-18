@@ -193,10 +193,10 @@ class NekoArray__<T> implements Array<T> {
 			while( i < half ) {
 				var tmp = a[i];
 				a[i] = a[l-i];
-				a[l-1] = tmp;
+				a[l-i] = tmp;
 				i += 1;
 			}
-			return Array.new1(a,l);
+			return Array.new1(a,l+1);
 		}
 	}
 
