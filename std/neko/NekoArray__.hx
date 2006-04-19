@@ -69,12 +69,7 @@ class NekoArray__<T> implements Array<T> {
 			p : 0,
 			l : this.length,
 			hasNext : function() {
-				while( this.p < this.l ) {
-					if( this.a[this.p] != null )
-						return true;
-					this.p += 1;
-				}
-				return false;
+				return this.p < this.l;
 			},
 			next : function() {
 				var i = this.p;
@@ -90,12 +85,7 @@ class NekoArray__<T> implements Array<T> {
 			p : 0,
 			l : this.length,
 			hasNext : function() {
-				while( this.p < this.l ) {
-					if( this.a[this.p] != null )
-						return true;
-					this.p += 1;
-				}
-				return false;
+				return this.p < this.l;
 			},
 			next : function() {
 				var i = this.a[this.p];
@@ -107,7 +97,13 @@ class NekoArray__<T> implements Array<T> {
 
 	public function insert( pos, x ) {
 		untyped {
-			this.__resize(if( length < pos ) pos + 1 else length + 1);
+			if( pos < 0 ){
+				pos = this.length + pos;
+				if( pos < 0 ) pos = 0;
+			}
+			if( length < pos ) pos = length;
+			this.__resize(this.length+1);
+			__dollar__ablit(this.__a,pos+1,this.__a,pos,this.length-pos-1);
 			this.__a[pos] = x;
 		}
 	}
@@ -216,7 +212,16 @@ class NekoArray__<T> implements Array<T> {
 	}
 
 	public function slice( pos, end ) {
+		if( pos < 0 ){
+			pos = this.length + pos;
+			if( pos < 0 )
+				pos = 0;
+		}
+		if( end < 0 ){
+			end = this.length + end;
+		}
 		var len = end - pos;
+		if( len < 0 || pos + len > this.length ) return new Array();
 		return untyped Array.new1(__dollar__asub(this.__a,pos,len),len);
 	}
 
@@ -246,6 +251,11 @@ class NekoArray__<T> implements Array<T> {
 	}
 
 	public function splice( pos, len ) {
+		if( len < 0 ) return new Array();
+		if( pos < 0 ){
+			pos = this.length + pos;
+			if( pos < 0 ) pos = 0;
+		}
 		untyped {
 			var a = this.__a;
 			var ret = Array.new1(__dollar__asub(a,pos,len),len);
