@@ -85,13 +85,14 @@ class StringTools {
 	public static function rtrim( s : String ) : String {
 		var l = s.length;
 		var r = 0;
-		while( r < l && isSpace(s,r) ){
+		while( r < l && isSpace(s,l-r-1) ){
 			r++;
 		}
-		if( r > 0 )
+		if( r > 0 ){
 			return s.substr(0, l-r);
-		else
+		}else{
 			return s;
+		}
 	}
 
 	public static function trim( s : String ) : String {
