@@ -145,7 +145,14 @@ class Reflect {
 		#else neko
 			__dollar__new(null)
 		#else js
-			__new__("Object")
+			{
+				var h = __js__("{}");
+				if( h["__proto__"] != null ){
+					h.__proto__ = null;
+					__js__("delete")(h["__proto__"]);
+				}
+				h;
+			}
 		#else error
 		#end
 			;

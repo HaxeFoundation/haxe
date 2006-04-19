@@ -31,11 +31,7 @@ class Hash<T> {
 		#else neko
 		h = untyped __dollar__hnew(0);
 		#else js
-		h = untyped __js__("{}");
-		untyped if( h["__proto__"] != null ){
-			h.__proto__ = null;
-			__js__("delete")(h["__proto__"]);
-		}
+		h = Reflect.empty();
 		#else error
 		#end
 	}
