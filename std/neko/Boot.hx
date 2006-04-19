@@ -66,7 +66,7 @@ class Boot {
 				while( c != null ) {
 					if( __dollar__pcompare(cl,c) == 0 )
 						return true;
-					var il = c.__interfaces__;
+					var il = c.__interfaces__.__a;
 					var i = 0;
 					var l = __dollar__asize(il);
 					while( i < l ) {
