@@ -32,6 +32,10 @@ class Hash<T> {
 		h = untyped __dollar__hnew(0);
 		#else js
 		h = untyped __js__("{}");
+		untyped if( h["__proto__"] != null ){
+			h.__proto__ = null;
+			__js__("delete")(h["__proto__"]);
+		}
 		#else error
 		#end
 	}
