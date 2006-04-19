@@ -30,6 +30,58 @@ extern class Date
 	function toString():String;
 
 	static function now() : Date;
+
+	private static function __init__() : Void untyped {
+	#if js
+		Date.now = function() {
+			return __new__(Date);
+		};
+		Date.prototype.toString = function() {
+			var m = this.getMonth() + 1;
+			var d = this.getDate();
+			var h = this.getHours();
+			var mi = this.getMinutes();
+			var s = this.getSeconds();
+			if( d < 10 )
+				d = "0" + d;
+			if( m < 10 )
+				m = "0" + m;
+			if( h < 10 )
+				h = "0" + h;
+			if( mi < 10 )
+				mi = "0" + mi;
+			if( s < 10 )
+				s = "0" + s;
+			return this.getFullYear()+"-"+m+"-"+d+" "+h+":"+mi+":"+s;
+		};
+	#else flash
+		Date.now = function() {
+			return __new__(Date);
+		};
+		Date.prototype.toString = function() {
+			var m = this.getMonth() + 1;
+			var d = this.getDate();
+			var h = this.getHours();
+			var mi = this.getMinutes();
+			var s = this.getSeconds();
+			if( d < 10 )
+				d = "0" + d;
+			if( m < 10 )
+				m = "0" + m;
+			if( h < 10 )
+				h = "0" + h;
+			if( mi < 10 )
+				mi = "0" + mi;
+			if( s < 10 )
+				s = "0" + s;
+			return this.getFullYear()+"-"+m+"-"+d+" "+h+":"+mi+":"+s;
+		};
+	#else neko
+		Date = neko.NekoDate__;
+	#else error
+	#end
+	}
+
 }
 
 

@@ -24,7 +24,7 @@
  */
 package neko;
 
-class NekoDate__ implements Date
+class NekoDate__ //implements Date
 {
 	private var __t : Void;
 

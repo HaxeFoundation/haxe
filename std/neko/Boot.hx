@@ -89,7 +89,6 @@ class Boot {
 			Array = NekoArray__;
 			Node = NekoNode__;
 			Math = NekoMath__;
-			Date = NekoDate__;
 			Int = __dollar__new(null);
 			Float = __dollar__new(null);
 			Bool = __dollar__new(null);
