@@ -44,10 +44,7 @@ class EReg {
 		#else js
 		untyped {
 			r.m = r.exec(s);
-			if( r.m == null )
-				return false;
-			trace(r.m);
-			return true;
+			return (r.m != null);
 		}
 		#else flash
 		throw "EReg::match not implemented";
