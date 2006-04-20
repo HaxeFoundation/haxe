@@ -33,9 +33,8 @@ class Socket {
 
 	private var __s : Void;
 
-	public function new(udp : Bool) {
-		__s = socket_new(udp);
-		return __s;
+	public function new() {
+		__s = socket_new(false);
 	}
 
 	public function close() : Void {
@@ -137,7 +136,7 @@ class Socket {
 			}
 		}
 		var neko_array = socket_select(f(read),f(write),f(others), timeout);
-		
+
 		var g = function( a ) : Array<Socket> {
 			if( a == null ) return null;
 
@@ -151,7 +150,7 @@ class Socket {
 			}
 			return r;
 		}
-		
+
 		return {
 			read: g(neko_array[0]),
 			write: g(neko_array[1]),
