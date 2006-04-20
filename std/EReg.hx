@@ -22,7 +22,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package tools;
 
 class EReg {
 
@@ -33,6 +32,8 @@ class EReg {
 		this.r = regexp_new(untyped r.__s);
 		#else js
 		this.r = untyped __new__("RegExp",r);
+		#else flash
+		throw "EReg::new not implemented";
 		#else error
 		#end
 	}
@@ -45,17 +46,12 @@ class EReg {
 			r.m = r.exec(s);
 			if( r.m == null )
 				return false;
-			r.m.push(__js__("RegExp.$1"));
-			r.m.push(__js__("RegExp.$2"));
-			r.m.push(__js__("RegExp.$3"));
-			r.m.push(__js__("RegExp.$4"));
-			r.m.push(__js__("RegExp.$5"));
-			r.m.push(__js__("RegExp.$6"));
-			r.m.push(__js__("RegExp.$7"));
-			r.m.push(__js__("RegExp.$8"));
-			r.m.push(__js__("RegExp.$9"));
+			trace(r.m);
 			return true;
 		}
+		#else flash
+		throw "EReg::match not implemented";
+		return false;
 		#else error
 		#end
 	}
@@ -64,17 +60,26 @@ class EReg {
 		#if neko
 		return new String(regexp_matched(r,n));
 		#else js
-		return untyped if( r.m != null ) r.m[n] else throw "EReg::matched";
+		return untyped if( r.m != null && n >= 0 && n < r.m.length ) r.m[n] else throw "EReg::matched";
+		#else flash
+		throw "EReg::matched not implemented";
+		return "";
 		#else error
 		#end
 	}
 
-#if neko
-	public function matchedPos( n : Int) : { pos : Int, len : Int } {
-		return regexp_matched_pos(r,n);
+	public function matchedPos() : { pos : Int, len : Int } {
+		#if neko
+		return regexp_matched_pos(r,0);
+		#else js
+		if( untyped r.m == null ) throw "EReg::matchedPos";
+		return untyped { pos : r.m.index, len : r.m[0].length };
+		#else flash
+		throw "EReg::matchedPos not implemented";
+		return null;
+		#else error
+		#end
 	}
-	// not available in JS....
-#end
 
 #if neko
 	static var regexp_new = neko.Lib.load("regexp","regexp_new",1);
