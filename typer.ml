@@ -256,6 +256,7 @@ let rec load_normal_type ctx t p allow_no_params =
 
 and load_type ctx p t =
 	match t with
+	| TPParent t -> load_type ctx p t
 	| TPNormal t -> load_normal_type ctx t p false
 	| TPAnonymous l ->
 		let rec loop acc (n,t) =

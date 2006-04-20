@@ -186,9 +186,11 @@ let rec s_type ctx t =
 	| TInst (c,tl) ->
 		Ast.s_type_path c.cl_path ^ s_type_params ctx tl
 	| TFun ([],t) ->
-		"Void -> " ^ s_type ctx t
+		"Void -> " ^ s_fun ctx t false
 	| TFun (l,t) ->
-		String.concat " -> " (List.map (fun (s,t) -> (if s = "" then "" else s ^ " : ") ^ match t with TFun _ -> "(" ^ s_type ctx t ^ ")" | _ -> s_type ctx t) l) ^ " -> " ^ s_type ctx t
+		String.concat " -> " (List.map (fun (s,t) -> 
+			(if s = "" then "" else s ^ " : ") ^ s_fun ctx t true
+		) l) ^ " -> " ^ s_fun ctx t false
 	| TAnon (fl,name) ->
 		(match name with
 		| Some s -> s
@@ -199,6 +201,12 @@ let rec s_type ctx t =
 		"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
 	| TLazy f ->		
 		s_type ctx (!f())
+
+and s_fun ctx t void =
+	match t with
+	| TFun _ -> "(" ^ s_type ctx t ^ ")"
+	| TEnum ({ e_path = ([],"Void") },[]) when void -> "(" ^ s_type ctx t ^ ")"
+	| _ -> s_type ctx t
 
 and s_type_params ctx = function
 	| [] -> ""

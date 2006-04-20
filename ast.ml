@@ -137,6 +137,7 @@ and type_path =
 	| TPNormal of type_path_normal
 	| TPFunction of type_path list * type_path
 	| TPAnonymous of (string * type_path) list
+	| TPParent of type_path
 
 type func = {
 	f_args : (string * type_path option) list;

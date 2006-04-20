@@ -171,7 +171,7 @@ and parse_type_opt = parser
 	| [< >] -> None
 
 and parse_type_path = parser
-	| [< '(POpen,_); t = parse_type_path; '(PClose,_); s >] -> parse_type_path_next t s
+	| [< '(POpen,_); t = parse_type_path; '(PClose,_); s >] -> parse_type_path_next (TPParent t) s
 	| [< '(BrOpen,_); l = psep Comma parse_type_anonymous; '(BrClose,_); s >] -> parse_type_path_next (TPAnonymous l) s
 	| [< t = parse_type_path_normal; s >] -> parse_type_path_next (TPNormal t) s
 
