@@ -609,6 +609,11 @@ let type_constant ctx c p =
 	| Int i -> mk (TConst (TInt i)) (t_int ctx) p
 	| Float f -> mk (TConst (TFloat f)) (t_float ctx) p
 	| String s -> mk (TConst (TString s)) (t_string ctx) p
+	| Regexp (r,opt) ->
+		let str = mk (TConst (TString r)) (t_string ctx) p in
+		let opt = mk (TConst (TString opt)) (t_string ctx) p in
+		let t = load_core_type ctx "EReg" in
+		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[str;opt])) t p
 	| Ident _
 	| Type _ -> assert false
 

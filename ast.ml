@@ -95,6 +95,7 @@ type constant =
 	| String of string
 	| Ident of string
 	| Type of string
+	| Regexp of string * string
 
 type token =
 	| Eof
@@ -247,6 +248,7 @@ let s_constant = function
 	| String s -> "\"" ^ s_escape s ^ "\""
 	| Ident s -> s
 	| Type s -> s
+	| Regexp (r,o) -> "~/" ^ r ^ "/"
 	
 let s_keyword = function
 	| Function -> "function"

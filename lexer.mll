@@ -24,8 +24,10 @@ open Ast
 type error_msg =
 	| Invalid_character of char
 	| Unterminated_string
+	| Unterminated_regexp
 	| Unclosed_comment
 	| Invalid_escape
+	| Invalid_option
 
 exception Error of error_msg * pos
 
@@ -33,8 +35,10 @@ let error_msg = function
 	| Invalid_character c when int_of_char c > 32 && int_of_char c < 128 -> Printf.sprintf "Invalid character '%c'" c
 	| Invalid_character c -> Printf.sprintf "Invalid character 0x%.2X" (int_of_char c)
 	| Unterminated_string -> "Unterminated string"
+	| Unterminated_regexp -> "Unterminated regular expression"
 	| Unclosed_comment -> "Unclosed comment"
 	| Invalid_escape -> "Invalid escape sequence"
+	| Invalid_option -> "Invalid regular expression option"
 
 let cur_file = ref ""
 let all_lines = Hashtbl.create 0
@@ -207,6 +211,13 @@ rule token = parse
 			let str = (try unescape (contents()) with Exit -> error Invalid_escape pmin) in
 			mk_tok (Const (String str)) pmin pmax;
 		}
+	| "~/" {
+			reset();
+			let pmin = lexeme_start lexbuf in
+			let options, pmax = (try regexp lexbuf with Exit -> error Unterminated_regexp pmin) in
+			let str = contents() in
+			mk_tok (Const (Regexp (str,options))) pmin pmax;
+		}
 	| '#' ident { 
 			let v = lexeme lexbuf in
 			let v = String.sub v 1 (String.length v - 1) in
@@ -240,3 +251,19 @@ and string2 = parse
 	| "\\'" { store lexbuf; string2 lexbuf }
 	| "'" { lexeme_end lexbuf }
 	| [^'\'' '\\' '\r' '\n']+ { store lexbuf; string2 lexbuf }
+
+and regexp = parse
+	| eof { raise Exit }
+	| '\n' | '\r' | "\r\n" { newline lexbuf; store lexbuf; regexp lexbuf }
+	| "\\/" { add "/"; regexp lexbuf }
+	| "\\\\" | '\\' { store lexbuf; regexp lexbuf }
+	| '/' { regexp_options lexbuf, lexeme_end lexbuf }
+	| [^ '\\' '/' '\r' '\n']+ { store lexbuf; regexp lexbuf }
+
+and regexp_options = parse
+	| 'g' | 'i' | 'm' | 's' { 
+			let l = lexeme lexbuf in
+			l ^ regexp_options lexbuf
+		}
+	| ['a' - 'z'] { error Invalid_option (lexeme_start lexbuf) }
+	| "" { "" }
