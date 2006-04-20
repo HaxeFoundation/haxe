@@ -26,12 +26,19 @@
 class EReg {
 
 	var r : Void;
+	#if neko
+	var global : Bool;
+	#end
 
-	public function new( r : String ) {
+	public function new( r : String, opt : String ) {
 		#if neko
-		this.r = regexp_new(untyped r.__s);
+		var a = opt.split("g");
+		global = a.length != 1;
+		if( global )
+			opt = a.join("");
+		this.r = regexp_new_options(untyped r.__s, untyped opt.__s);
 		#else js
-		this.r = untyped __new__("RegExp",r);
+		this.r = untyped __new__("RegExp",r,opt);
 		#else flash
 		throw "EReg::new not implemented";
 		#else error
@@ -78,8 +85,74 @@ class EReg {
 		#end
 	}
 
+	public function split( s : String ) : Array<String> {
+		#if neko
+		var pos = 0;
+		var len = s.length;
+		var a = new Array();
+		do {
+			if( !regexp_match(r,untyped s.__s,pos,len) )
+				break;
+			var p = regexp_matched_pos(r,0);
+			a.push(s.substr(pos,p.pos - pos));
+			var tot = p.pos + p.len - pos;
+			pos += tot;
+			len -= tot;
+		} while( global );
+		a.push(s.substr(pos,len));
+		return a;
+		#else js
+		var d = "#__delim__#";
+		return untyped s.replace(r,d).split(d);
+		#else flash
+		throw "EReg::split not implemented";
+		return null;
+		#else error
+		#end
+	}
+
+	public function replace( s : String, by : String ) : String {
+		#if neko
+		var b = new StringBuf();
+		var pos = 0;
+		var len = s.length;
+		var a = by.split("$");
+		do {
+			if( !regexp_match(r,untyped s.__s,pos,len) )
+				break;
+			var p = regexp_matched_pos(r,0);
+			b.addSub(s,pos,p.pos-pos);
+			b.add(a[0]);
+			for( i in 1...a.length ) {
+				var k = a[i];
+				var c = k.charCodeAt(0);
+				// 1...9
+				if( c >= 49 && c <= 57 ) {
+					var p = regexp_matched_pos(r,c-48);
+					b.addSub(s,p.pos,p.len);
+				} else if( c == null ) {
+					b.add("$");
+					i += 1;
+				} else
+					b.add("$"+k);
+			}
+			var tot = p.pos + p.len - pos;
+			pos += tot;
+			len -= tot;
+		} while( global );
+		b.addSub(s,pos,len);
+		return b.toString();
+		#else js
+		return untyped s.replace(r,by);
+		#else flash
+		throw "EReg::replace not implemented";
+		return null;
+		#else error
+		#end
+	}
+
 #if neko
-	static var regexp_new = neko.Lib.load("regexp","regexp_new",1);
+	static var regexp_new_options = neko.Lib.load("regexp","regexp_new_options",2);
 	static var regexp_match = neko.Lib.load("regexp","regexp_match",4);
 	static var regexp_matched = neko.Lib.load("regexp","regexp_matched",2);
 	static var regexp_matched_pos = neko.Lib.load("regexp","regexp_matched_pos",2);
