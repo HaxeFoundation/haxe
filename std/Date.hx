@@ -30,11 +30,17 @@ extern class Date
 	function toString():String;
 
 	static function now() : Date;
+	static function fromTime( t : Float ) : Date;
 
 	private static function __init__() : Void untyped {
 	#if js
 		Date.now = function() {
 			return __new__(Date);
+		};
+		Date.fromTime = function(t){
+			var d = __new__(Date);
+			d.setTime( t );
+			return d;
 		};
 		Date.prototype.toString = function() {
 			var m = this.getMonth() + 1;
@@ -57,6 +63,11 @@ extern class Date
 	#else flash
 		Date.now = function() {
 			return __new__(Date);
+		};
+		Date.fromTime = function(t){
+			var d = __new__(Date);
+			d.setTime( t );
+			return d;
 		};
 		Date.prototype.toString = function() {
 			var m = this.getMonth() + 1;
