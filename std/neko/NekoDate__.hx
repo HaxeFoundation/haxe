@@ -29,13 +29,12 @@ class NekoDate__ //implements Date
 	private var __t : Void;
 
 	public function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) {
-		__t = date_now();
-		date_set_day(__t,year,month,day);
-		date_set_hour(__t,hour,min,sec);
+		__t = date_set_day(0,year,month+1,day);
+		__t = date_set_hour(__t,hour,min,sec);
 	}
 
 	public function getTime() : Float {
-		return int32_to_float(__t) * 100;
+		return int32_to_float(__t) * 1000;
 	}
 
 	public function toString():String {
@@ -44,6 +43,14 @@ class NekoDate__ //implements Date
 
 	private static function now() {
 		return new1(date_now());
+	}
+
+	private static function fromTime( t : Float ){
+		t /= 1000;
+		var i1 = untyped __dollar__int((t%65536));
+		var i2 = untyped __dollar__int(t/65536);
+		var i = int32_add(i1,int32_shl(i2,16));
+		return new1(i);
 	}
 
 	private static function new1(t) {
@@ -58,6 +65,8 @@ class NekoDate__ //implements Date
 	static var date_set_hour = Lib.load("std","date_set_hour",4);
 	static var date_set_day = Lib.load("std","date_set_day",4);
 	static var int32_to_float = Lib.load("std","int32_to_float",1);
+	static var int32_add = Lib.load("std","int32_add",2);
+	static var int32_shl = Lib.load("std","int32_shl",2);
 
 }
 
