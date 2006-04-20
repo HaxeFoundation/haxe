@@ -33,7 +33,7 @@ class Web {
 	/**
 		Returns the GET and POST parameters.
 	**/
-	public static function params() {
+	public static function getParams() {
 		var p = _get_params();
 		var h = new Hash<String>();
 		var k = "";
@@ -144,7 +144,7 @@ class Web {
 		Set the main entry point function used to handle requests.
 		Setting it back to null will disable code caching.
 	**/
-	public static function setMain( f : Void -> Void ) {
+	public static function cacheModule( f : Void -> Void ) {
 		_set_main(f);
 	}
 
