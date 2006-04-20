@@ -469,7 +469,7 @@ class DocView {
 			return;
 		}
 		if( html.nodeName == "data" ) {
-			var h = Web.params();
+			var h = Web.getParams();
 			var clname = h.get("class");
 			if( clname == "index" )
 				clname = null;
