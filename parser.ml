@@ -24,6 +24,7 @@ type error_msg =
 	| Missing_semicolon
 	| Unclosed_macro
 	| Unimplemented
+	| Missing_type
 
 exception Error of error_msg * pos
 
@@ -33,6 +34,7 @@ let error_msg = function
 	| Missing_semicolon -> "Missing ;"
 	| Unclosed_macro -> "Unclosed macro"
 	| Unimplemented -> "Not implemented for current platform"
+	| Missing_type -> "Missing type declaration"
 
 let error m p = raise (Error (m,p))
 
@@ -380,7 +382,10 @@ and parse_switch_cases = parser
 		[] , None
 
 and parse_catch = parser
-	| [< '(Kwd Catch,_); '(POpen,_); name = any_ident; '(DblDot,_); t = parse_type_path; '(PClose,_); e = expr >] -> (name,t,e)
+	| [< '(Kwd Catch,_); '(POpen,_); name = any_ident; s >] ->
+		match s with parser
+		| [< '(DblDot,_); t = parse_type_path; '(PClose,_); e = expr >] -> (name,t,e)
+		| [< '(_,p) >] -> error Missing_type p
 
 let parse code file =
 	let old = Lexer.save() in
