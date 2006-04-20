@@ -26,6 +26,8 @@
 // std
 import Array;
 import Date;
+import DateTools;
+import EReg;
 import Hash;
 import ImportAll;
 import IntIter;
@@ -34,6 +36,7 @@ import Lambda;
 import List;
 import Log;
 import Math;
+import Md5;
 import Node;
 import PosInfos;
 import Reflect;
@@ -60,6 +63,8 @@ import flash.Microphone;
 import flash.Mouse;
 import flash.MovieClip;
 import flash.MovieClipLoader;
+import flash.NetConnection;
+import flash.NetStream;
 import flash.PrintJob;
 import flash.Selection;
 import flash.SharedObject;
@@ -69,10 +74,9 @@ import flash.System;
 import flash.TextField;
 import flash.TextFormat;
 import flash.TextSnapshot;
+import flash.Timer;
 import flash.Video;
 import flash.XMLSocket;
-import flash.NetStream;
-import flash.NetConnection;
 
 import flash.text.StyleSheet;
 import flash.system.Capabilities;
@@ -115,6 +119,7 @@ import neko.Boot;
 import neko.File;
 import neko.FileSystem;
 import neko.Lib;
+import neko.Socket;
 import neko.Stack;
 import neko.Sys;
 import neko.Web;
@@ -132,9 +137,11 @@ import tools.DocView;
 
 #if js
 
+import js.Boot;
+import js.Lib;
+
 import js.Anchor;
 import js.Body;
-import js.Boot;
 import js.Button;
 import js.Checkbox;
 import js.Document;
@@ -150,7 +157,6 @@ import js.HtmlCollection;
 import js.HtmlDom;
 import js.IFrame;
 import js.Image;
-import js.Lib;
 import js.Link;
 import js.Location;
 import js.Navigator;
