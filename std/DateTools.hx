@@ -1,0 +1,123 @@
+/*
+ * Copyright (c) 2005, The haXe Project Contributors
+ * All rights reserved.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *   - Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   - Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE HAXE PROJECT CONTRIBUTORS "AS IS" AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE HAXE PROJECT CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+ * DAMAGE.
+ */
+
+class DateTools {
+	
+	#if neko
+	#else true
+	private static function __jsflash_format_get( d : Date, e : String ) : String {
+		return switch( e ){
+			case "%":
+				"%";
+			case "C":
+				untyped StringTools.lpad(Std.string(Math.floor(d.getFullYear()/100)),"0",2);
+			case "d":
+				untyped StringTools.lpad(Std.string(d.getDate()),"0",2);
+			case "D":
+				__jsflash_format(d,"%m/%d/%y");
+			case "e":
+				untyped Std.string(d.getDate());
+			case "H":
+				untyped StringTools.lpad(Std.string(d.getHours()),"0",2);
+			case "I":
+				untyped StringTools.lpad(Std.string(d.getHours()%12),"0",2);
+			case "k":
+				untyped StringTools.lpad(Std.string(d.getHours())," ",2);
+			case "l":
+				untyped StringTools.lpad(Std.string(d.getHours()%12)," ",2);
+			case "m":
+				untyped StringTools.lpad(Std.string(d.getMonth()+1),"0",2);
+			case "M":
+				untyped StringTools.lpad(Std.string(d.getMinutes()),"0",2);
+			case "n":
+				"\n";
+			case "p":
+				untyped if( d.getHours() > 11 ) "PM"; else "AM";
+			case "r":
+				__jsflash_format(d,"%I:%M:%S %p");
+			case "R":
+				__jsflash_format(d,"%H:%M");
+			case "s":
+				Std.string(Std.int(d.getTime()/1000));
+			case "S":
+				untyped StringTools.lpad(Std.string(d.getSeconds()),"0",2);
+			case "t":
+				"\t";
+			case "T":
+				__jsflash_format(d,"%H:%M:%S");
+			case "u":
+				untyped{
+					var t = d.getDay();
+					if( t == 0 ) "7"; else Std.string(t);
+				}
+			case "w":
+				untyped Std.string(d.getDay());
+			case "y":
+				untyped StringTools.lpad(Std.string(d.getFullYear()%100),"0",2);
+			case "Y":
+				untyped Std.string(d.getFullYear());
+			default:
+				throw "Date.format %"+e+"- not implemented yet.";
+		}
+	}
+	
+	private static function __jsflash_format( d : Date, f : String ) : String {
+		var r = new StringBuf();
+		var p = 0;
+		while( true ){
+			var np = f.indexOf("%", p);
+			if( np < 0 )
+				break;
+			
+			r.add( f.substr(p,np-p) );
+			r.add( __jsflash_format_get(d, f.substr(np+1,1) ) );
+			
+			p = np+2;
+		}
+		return r.toString();
+	}
+	#end
+
+	#if neko
+		static var date_format = neko.Lib.load("std","date_format",2);
+	#end
+
+
+	public static function format( d : Date, f : String ) : String {
+		#if neko
+			untyped return new String(date_format(d.__t, f.__s));
+		#else js
+			return __jsflash_format(d, f );
+		#else flash
+			return __jsflash_format(d, f );
+		#else error
+		#end
+	}
+
+	public static function delta( d : Date, t : Float ) : Date {
+		return Date.fromTime( d.getTime() + t );
+	}
+	
+}
