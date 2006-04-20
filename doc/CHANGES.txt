@@ -4,6 +4,7 @@
 	added "Missing type" error for catchs.
 	added regular expressions (still missing Flash implementation)
 	fixed type printing and parenthesis in type declarations
+	different behavior when elements removed during Array.iteration
 
 2006-04-17: beta 5
 	fixed bug : continue in do...while
