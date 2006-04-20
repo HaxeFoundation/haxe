@@ -83,7 +83,7 @@ class Socket {
 
 	public function accept() : Socket {
 		var s = socket_accept(__s);
-		var so = new Socket(false);
+		var so = new Socket();
 		so.close();
 		so.__s = s;
 		return so;
