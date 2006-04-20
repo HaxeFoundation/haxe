@@ -216,10 +216,9 @@ class Boot {
 			Array.prototype.iterator = function() {
 				return {
 					cur : 0,
-					max : this.length,
 					arr : this,
 					hasNext : function() {
-						return this.cur < this.max;
+						return this.cur < this.arr.length;
 					},
 					next : function() {
 						return this.arr[this.cur++];
@@ -229,9 +228,9 @@ class Boot {
 			Array.prototype.indexes = function() {
 				return {
 					cur : 0,
-					max : this.length,
+					arr : this,
 					hasNext : function() {
-						return this.cur < this.max;
+						return this.cur < this.arr.length;
 					},
 					next : function() {
 						return this.cur++;

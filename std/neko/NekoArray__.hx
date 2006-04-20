@@ -65,30 +65,26 @@ class NekoArray__<T> implements Array<T> {
 
 	public function indexes() {
 		return untyped {
-			a : this.__a,
+			a : this,
 			p : 0,
-			l : this.length,
 			hasNext : function() {
-				return this.p < this.l;
+				return this.p < this.a.length;
 			},
 			next : function() {
-				var i = this.p;
-				this.p += 1;
-				return i;
+				return this.p++;
 			}
 		};
 	}
 
 	public function iterator() {
 		return untyped {
-			a : this.__a,
+			a : this,
 			p : 0,
-			l : this.length,
 			hasNext : function() {
-				return this.p < this.l;
+				return this.p < this.a.length;
 			},
 			next : function() {
-				var i = this.a[this.p];
+				var i = this.a.__a[this.p];
 				this.p += 1;
 				return i;
 			}
