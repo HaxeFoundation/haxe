@@ -1,3 +1,7 @@
+2006-??-??: 1.0 ?
+	added the Socket class
+	fixed a bug of returned value in neko with 6 or more parameters
+
 2006-04-17: beta 5
 	fixed bug : continue in do...while
 	changed typing order for do...while (infer condition after block)
