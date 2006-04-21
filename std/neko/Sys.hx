@@ -26,6 +26,21 @@ package neko;
 
 class Sys {
 
+	public static function args() : Array<String> untyped {
+		var a = __dollar__loader.args;
+		if( __dollar__typeof(a) != __dollar__tarray )
+			return [];
+		var r = new Array();
+		var i = 0;
+		var l = __dollar__asize(a);
+		while( i <  l ) {
+			if( __dollar__typeof(a[i]) == __dollar__tstring )
+				r.push(new String(a[i]));
+			i += 1;
+		}
+		return r;
+	}
+
 	public static function getEnv( s : String ) {
 		return new String(get_env(untyped s.__s));
 	}
