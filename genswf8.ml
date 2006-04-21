@@ -290,6 +290,7 @@ let open_block ctx =
 let begin_loop ctx =
 	let old_breaks = ctx.breaks in
 	let old_cont = ctx.continues in
+	let old_stack = ctx.loop_stack in
 	ctx.breaks <- [];
 	ctx.continues <- [];
 	ctx.loop_stack <- ctx.stack_size;
@@ -298,6 +299,7 @@ let begin_loop ctx =
 		List.iter (fun f -> f pos) ctx.continues;
 		ctx.breaks <- old_breaks;
 		ctx.continues <- old_cont;
+		ctx.loop_stack <- old_stack;
 	)
 
 let alloc_reg ctx =
@@ -366,7 +368,7 @@ let cfind flag cst e =
 			true
 
 let define_var ctx v ef exprs =
-	if List.exists (cfind false (TLocal v)) ctx.cur_block then begin
+	if List.exists (cfind false (TLocal v)) exprs then begin
 		push ctx [VStr v];
 		ctx.regs <- PMap.add v None ctx.regs;
 		match ef with
@@ -985,7 +987,7 @@ and gen_expr_2 ctx retval e =
 		define_var ctx v (Some (fun() -> 
 			push ctx [VInt 0; VReg r; VStr "next"];
 			call ctx VarObj 0;
-		)) ctx.cur_block;
+		)) [e];
 		gen_expr ctx false e;
 		j_begin false;
 		j_end();
