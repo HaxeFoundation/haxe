@@ -26,17 +26,6 @@ package neko.db;
 
 class Transaction {
 
-	private static function initialize() {
-		var l = Manager.init_list;
-		Manager.init_list = new List();
-		for( m in l ) {
-			var rl : Void -> Array<Dynamic> = untyped m.class_proto.RELATIONS;
-			if( rl != null )
-				for( r in rl() )
-					m.__initRelation(r);
-		}
-	}
-
 	private static function isDeadlock(e) {
 		return false;
 	}
@@ -60,7 +49,7 @@ class Transaction {
 	}
 
 	public static function main( dbparams, dbname, mainFun : Void -> Void, logError : Dynamic -> Void ) {
-		initialize();
+		Manager.initialize();
 		Manager.cnx = Mysql.connect(dbparams);
 		Manager.cnx.selectDB(dbname);
 		Manager.cnx.request("START TRANSACTION");
@@ -68,7 +57,7 @@ class Transaction {
 		Manager.cnx.request("COMMIT");
 		Manager.cnx.close();
 		Manager.cnx = null;
-		Manager.object_cache = new Hash();
+		Manager.cleanup();
 	}
 
 }

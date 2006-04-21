@@ -30,8 +30,8 @@ class Manager<T : Object> {
 
 	/* ----------------------------- STATICS ------------------------------ */
 	public static var cnx : Connection = null;
-	public static var init_list : List<Manager<Object>> = new List();
-	public static var object_cache : Hash<Object> = new Hash();
+	private static var object_cache : Hash<Object> = new Hash();
+	private static var init_list : List<Manager<Object>> = new List();
 	private static var cache_field = "__cache__";
 
 	/* ---------------------------- BASIC API ----------------------------- */
@@ -363,7 +363,22 @@ class Manager<T : Object> {
 		return l2;
 	}
 
-	public function __initRelation(r : { prop : String, key : String, manager : Manager<Object> } ) {
+	public static function initialize() {
+		var l = init_list;
+		init_list = new List();
+		for( m in l ) {
+			var rl : Void -> Array<Dynamic> = untyped m.class_proto.RELATIONS;
+			if( rl != null )
+				for( r in rl() )
+					m.initRelation(r);
+		}
+	}
+
+	public static function cleanup() {
+		object_cache = new Hash();
+	}
+
+	function initRelation(r : { prop : String, key : String, manager : Manager<Object> } ) {
 		// setup getter/setter
 		var manager = r.manager;
 		var hprop = r.prop;
