@@ -7,6 +7,8 @@
 	different behavior when elements removed during Array.iteration
 	fixed genswf : local variables used in for...function
 	improved type parameters structure coherency
+	enable usage of Spod without Transaction
+	implemented neko.db.Transaction.isDeadlock
 
 2006-04-17: beta 5
 	fixed bug : continue in do...while
