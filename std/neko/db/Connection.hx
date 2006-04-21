@@ -37,9 +37,16 @@ class Connection {
 	}
 
 	public function request( s : String ) : ResultSet {
-		var r = sql_request(this.__c,untyped s.__s);
-		untyped ResultSet.result_set_conv_date(r,function(d) { return Date.new1(d); });
-		return untyped new ResultSet(r);
+		try {
+			var r = sql_request(this.__c,untyped s.__s);
+			untyped ResultSet.result_set_conv_date(r,function(d) { return Date.new1(d); });
+			return untyped new ResultSet(r);
+		} catch( e : Dynamic ) {
+			untyped if( __dollar__typeof(e) == __dollar__tobject && __dollar__typeof(e.msg) == __dollar__tstring )
+				e.msg = new String(e.msg);
+			untyped __dollar__rethrow(e);
+			return null;
+		}
 	}
 
 	public function close() {
