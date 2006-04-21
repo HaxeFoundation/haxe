@@ -238,7 +238,7 @@ let rec load_normal_type ctx t p allow_no_params =
 			if List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;
 			let params = List.map2 (fun t (_,t2) ->
 				let t = load_type ctx p t in
-				(match t2 with
+				(match follow t2 with
 				| TInst (c,[]) ->
 					(match c.cl_super with
 					| None -> ()
@@ -329,8 +329,14 @@ let type_type_params ctx path p (n,flags) =
 		(* build a phantom class *)
 		let c = mk_class (fst path @ [snd path],n) p None true in
 		c.cl_locked <- true;
-		set_heritance ctx c (List.map (fun t -> HImplements t) l) p;
-		TInst (c,[])
+		let t = TInst (c,[]) in
+		let r = exc_protect (fun r ->
+			r := (fun _ -> t);
+			set_heritance ctx c (List.map (fun t -> HImplements t) l) p;
+			t
+		) in
+		ctx.delays := [(fun () -> ignore(!r()))] :: !(ctx.delays);
+		TLazy r
 	) in
 	n , t
 
@@ -1470,9 +1476,7 @@ let check_interfaces c p () =
 (* ---------------------------------------------------------------------- *)
 (* PASS 1 & 2 : Module and Class Structure *)
 
-let init_class ctx c p types herits fields =
-	ctx.type_params <- [];
-	c.cl_types <- List.map (type_type_params ctx c.cl_path p) types;
+let init_class ctx c p herits fields =
 	ctx.type_params <- c.cl_types;
 	c.cl_extern <- List.mem HExtern herits;
 	c.cl_interface <- List.mem HInterface herits;
@@ -1727,20 +1731,36 @@ let type_module ctx m tdecls =
 		untyped = false;
 	} in
 	let delays = ref [] in
+	let get_class name = 
+		let c = List.find (fun d -> match d with TClassDecl { cl_path = _ , n } -> n = name | _ -> false) m.mtypes in
+		match c with TClassDecl c -> c | _ -> assert false
+	in
+	let get_enum name = 
+		let e = List.find (fun d -> match d with TEnumDecl { e_path = _ , n } -> n = name | _ -> false) m.mtypes in
+		match e with TEnumDecl e -> e | _ -> assert false
+	in
+	(* here is an additional PASS 1 phase, which handle the type parameters declaration, with lazy contraints *)
+	List.iter (fun (d,p) ->
+		match d with
+		| EImport _ -> ()
+		| EClass (name,_,types,_,_) ->
+			let c = get_class name in
+			c.cl_types <- List.map (type_type_params ctx c.cl_path p) types;
+		| EEnum (name,_,types,_,_) ->
+			let e = get_enum name in
+			e.e_types <- List.map (type_type_params ctx e.e_path p) types;
+	) tdecls;
+	(* back to PASS2 *)
 	List.iter (fun (d,p) ->
 		match d with
 		| EImport t ->
 			let m = load ctx t p in
 			ctx.local_types <- ctx.local_types @ (List.filter (fun t -> not (t_private t)) m.mtypes)
-		| EClass (name,_,types,herits,fields) ->
-			let c = List.find (fun d -> match d with TClassDecl { cl_path = _ , n } -> n = name | _ -> false) m.mtypes in
-			let c = (match c with TClassDecl c -> c | _ -> assert false) in
-			delays := !delays @ check_overloading c p :: check_interfaces c p :: init_class ctx c p types herits fields
-		| EEnum (name,_,types,_,constrs) ->
-			let e = List.find (fun d -> match d with TEnumDecl { e_path = _ , n } -> n = name | _ -> false) m.mtypes in
-			let e = (match e with TEnumDecl e -> e | _ -> assert false) in
-			ctx.type_params <- [];
-			e.e_types <- List.map (type_type_params ctx e.e_path p) types;
+		| EClass (name,_,_,herits,fields) ->
+			let c = get_class name in
+			delays := !delays @ check_overloading c p :: check_interfaces c p :: init_class ctx c p herits fields
+		| EEnum (name,_,_,_,constrs) ->
+			let e = get_enum name in
 			ctx.type_params <- e.e_types;
 			let et = TEnum (e,List.map snd e.e_types) in
 			List.iter (fun (c,doc,t,p) ->
