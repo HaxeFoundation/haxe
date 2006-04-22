@@ -174,6 +174,10 @@ class Socket {
 		return new String(host_local());
 	}
 
+	static function __init__() {
+		Lib.load("std","socket_init",0)();
+	}
+
 	private static var socket_new = Lib.load("std","socket_new",1);
 	private static var socket_close = Lib.load("std","socket_close",1);
 	private static var socket_send_char = Lib.load("std","socket_send_char",2);
