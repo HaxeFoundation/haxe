@@ -90,11 +90,13 @@ class Socket {
 	}
 
 	public function peer() : { host : Host, port : Int } {
-		return socket_peer(__s);
+		var a = socket_peer(__s);
+		return { host : a[0], port : a[1] };
 	}
 
 	public function host() : { host : Host, port : Int } {
-		return socket_host(__s);
+		var a = socket_host(__s);
+		return { host : a[0], port : a[1] };
 	}
 
 	public function setTimeout(timeout : Int) {
@@ -108,10 +110,8 @@ class Socket {
 	public function readUntil( end : Int ) : String {
 		var buf = new StringBuf();
 		var last : Int;
-		do {
-			last = socket_recv_char(__s);
-			buf.add( last );
-		}while( last != end );
+		while( (last = socket_recv_char(__s)) != end )
+			buf.addChar( last );
 		return buf.toString();
 	}
 
