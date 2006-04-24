@@ -26,6 +26,10 @@ package neko.db;
 
 import Reflect;
 
+/**
+	SPOD Manager : the persistent object database manager. See the tutorial on
+	haXe website to learn how to use SPOD.
+**/
 class Manager<T : Object> {
 
 	/* ----------------------------- STATICS ------------------------------ */
@@ -342,7 +346,7 @@ class Manager<T : Object> {
 		return object(s.toString(),lock);
 	}
 
-	function object( sql : String, lock : Bool ) : T {
+	public function object( sql : String, lock : Bool ) : T {
 		var r = cnx.request(sql).next();
 		if( r == null )
 			return null;
@@ -351,7 +355,7 @@ class Manager<T : Object> {
 		return r;
 	}
 
-	function objects( sql : String, lock : Bool ) : List<T> {
+	public function objects( sql : String, lock : Bool ) : List<T> {
 		var me = this;
 		var l = cnx.request(sql).results();
 		var l2 = new List<T>();
@@ -362,6 +366,8 @@ class Manager<T : Object> {
 		}
 		return l2;
 	}
+
+	/* --------------------------- INIT / CLEANUP ------------------------- */
 
 	public static function initialize() {
 		var l = init_list;

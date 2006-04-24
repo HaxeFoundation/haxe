@@ -24,6 +24,10 @@
  */
 package neko.db;
 
+/**
+	SPOD Object : the persistent object base type. See the tutorial on haXe
+	website to learn how to use SPOD.
+**/
 class Object {
 
 /*
@@ -39,6 +43,7 @@ class Object {
 */
 
 	var local_manager : neko.db.Manager<neko.db.Object>;
+
 
 	public function new() {
 	}
