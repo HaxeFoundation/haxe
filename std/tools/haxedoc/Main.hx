@@ -505,9 +505,10 @@ class DocView {
 	public static function main() {
 		var hdata = try neko.File.getContent(Web.getCwd()+"template.xml") catch( e : Dynamic ) default_template;
 		var html = XmlParser.parse(hdata).firstChild;
-		loadFile("flash.xml");
-		loadFile("neko.xml");
-		loadFile("js.xml");
+		var baseDir = "../data/media/";
+		loadFile(baseDir+"flash.xml");
+		loadFile(baseDir+"neko.xml");
+		loadFile(baseDir+"js.xml");
 		sortEntries(entries);
 		Url.base = "/api/";
 		Url.buffer = new StringBuf();
