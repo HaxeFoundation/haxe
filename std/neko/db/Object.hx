@@ -29,7 +29,7 @@ class Object {
 /*
 	(optional)
 	static var TABLE_NAME = "TableName";
-	static var TABLE_ID = ["id"];
+	static var TABLE_IDS = ["id"];
 	static var PRIVATE_FIELDS = ["my_priv_field"];
 	static function RELATIONS() {
 		return [{ key : "uid", prop : "user", manager : User.manager }];
