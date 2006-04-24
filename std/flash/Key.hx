@@ -1,5 +1,12 @@
 package flash;
 
+#if flash_strict
+private extern interface KeyListener {
+	function onKeyDown() : Void;
+	function onKeyUp() : Void;
+}
+#end
+
 extern class Key
 {
 	static var ALT : Int = 18;
@@ -22,11 +29,19 @@ extern class Key
 	static var BACKSPACE : Int = 8;
 	static var CAPSLOCK : Int = 20;
 
+	// hide : static property _listeners(default,null) : Array<Dynamic>;
+
 	static function getAscii():Int;
 	static function getCode():Int;
 	static function isDown(code:Int):Bool;
 	static function isToggled(code:Int):Bool;
 
+#if flash_strict
+	static function addListener(listener:KeyListener):Void;
+	static function removeListener(listener:KeyListener):Bool;
+#else true
 	static function addListener(listener:Dynamic):Void;
 	static function removeListener(listener:Dynamic):Bool;
+#end
+
 }

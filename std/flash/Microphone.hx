@@ -2,20 +2,21 @@ package flash;
 
 extern class Microphone
 {
-	static var names:Array<Dynamic>;
-	static function get(index:Float):Microphone;
 
-	var gain:Float;
-	var index:Float;
-	var activityLevel:Float;
-	var name:String;
-	var silenceLevel:Float;
-	var silenceTimeOut:Float;
-	var rate:Float;
-	var useEchoSuppression:Bool;
-	var muted:Bool;
+	static property names(default,null) : Array<String>;
+	static function get(index:Int) : Microphone;
 
-	function setSilenceLevel(silenceLevel:Float,timeOut:Float):Void;
+	property activityLevel(default,null) : Float;
+	property gain(default,null) : Float;
+	property index(default,null) : Int;
+	property muted(default,null) : Bool;
+	property name(default,null) : String;
+	property silenceLevel(default,null) : Int;
+	property silenceTimeOut(default,null) : Float;
+	property rate(default,null) : Float;
+	property useEchoSuppression(default,null) : Bool;
+
+	function setSilenceLevel(silenceLevel:Int,timeOut:Float):Void;
 	function setRate(rate:Float):Void;
 	function setGain(gain:Float):Void;
 	function setUseEchoSuppression(useEchoSuppression:Bool):Void;

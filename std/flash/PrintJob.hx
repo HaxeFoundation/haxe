@@ -6,9 +6,9 @@ extern class PrintJob
 	function addPage(target:Dynamic, printArea:Dynamic, options:Dynamic, frameNum:Float):Bool;
 	function send():Void;
 
-	var paperWidth:Float;
-	var paperHeight:Float;
-	var pageWidth:Float;
-	var pageHeight:Float;
-	var orientation:String;
+	property paperWidth(default,null) : Float;
+	property paperHeight(default,null) : Float;
+	property pageWidth(default,null) : Float;
+	property pageHeight(default,null) : Float;
+	property orientation(default,null) : String;
 }

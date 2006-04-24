@@ -1,14 +1,18 @@
 package flash;
 
-extern class MovieClip implements Dynamic
+extern class MovieClip
+#if flash_strict
+#else true
+implements Dynamic
+#end
 {
 	var useHandCursor : Bool;
 	var enabled : Bool;
 	var focusEnabled : Bool;
 	var tabChildren : Bool;
 	var tabEnabled : Bool;
-	var tabIndex : Float;
-	var hitArea : Dynamic;
+	var tabIndex : Int;
+	var hitArea : MovieClip;
 	var trackAsMenu : Bool;
 
 	var _x : Float;
@@ -25,10 +29,10 @@ extern class MovieClip implements Dynamic
 	var _target : String;
 	var _rotation : Float;
 	var _name : String;
-	var _framesloaded : Float;
-	var _droptarget : String;
-	var _currentframe : Float;
-	var _totalframes : Float;
+	property _droptarget(default,null) : String;
+	property _currentframe(default,null) : Int;
+	property _totalframes(default,null) : Int;
+	property _framesloaded(default,null) : Int;
 	var _quality : String;
 	var _focusrect : Bool;
 	var _soundbuftime : Float;
@@ -39,51 +43,67 @@ extern class MovieClip implements Dynamic
 	function unloadMovie() : Void;
 	function loadVariables(url : String, method : String) : Void;
 	function loadMovie(url : String, method : String) : Void;
-	function attachMovie(id : String, name : String, depth : Float, initDynamic : Dynamic) : MovieClip;
+	function attachMovie(id : String, name : String, depth : Int, initObject : Dynamic) : MovieClip;
 	function swapDepths(mc : Dynamic) : Void;
-	function localToGlobal(pt : Dynamic) : Void;
-	function globalToLocal(pt : Dynamic) : Void;
-	function hitTest(x : Dynamic, y : Dynamic) : Bool;
-	function getBounds(bounds  :  Dynamic) : Dynamic;
-	function getBytesLoaded() : Float;
-	function getBytesTotal() : Float;
+	// function swapDepths( mc : String ) : Void;
+	// function swapDepths( mc : MovieClip ) : Void;
+	// function swapDepths( depth : Int ) : Void;
+	function localToGlobal(pt : { x : Float, y : Float } ) : Void;
+	function globalToLocal(pt : { x : Float, y : Float } ) : Void;
+	function hitTest(x : Dynamic, y : Dynamic, shape : Bool) : Bool;
+	// function hitTest( x : Float, y : Float, shape : Bool ) : Bool;
+	// function hitTest( mc : MovieClip ) : Bool;
+	function getBounds(bounds  :  MovieClip) : { xMin : Float, xMax : Float, yMin : Float, yMax : Float };
+	// don't allow function getBounds( bounds : String )
+	function getBytesLoaded() : Int;
+	function getBytesTotal() : Int;
 	function attachAudio(id : Dynamic) : Void;
 	function attachVideo(id : Dynamic) : Void;
-	function getDepth() : Float;
-	function getInstanceAtDepth(depth : Float) : MovieClip;
-	function getNextHighestDepth() : Float;
-	function setMask(mc : Dynamic) : Void;
+	function getDepth() : Int;
+	function getInstanceAtDepth(depth : Int) : MovieClip;
+	function getNextHighestDepth() : Int;
+	function setMask(mc : MovieClip) : Void;
+	// don't allow setMask( mc : String ) : Void
 	function play() : Void;
 	function stop() : Void;
 	function nextFrame() : Void;
 	function prevFrame() : Void;
 	function gotoAndPlay(frame : Dynamic) : Void;
+	// frame : String | Int
 	function gotoAndStop(frame : Dynamic) : Void;
-	function duplicateMovieClip(name : String, depth : Float, initDynamic : Dynamic) : MovieClip;
+	// frame : String | Int
+	function duplicateMovieClip(name : String, depth : Int, initObject : Dynamic) : MovieClip;
 	function removeMovieClip() : Void;
 	function startDrag(lockCenter : Bool, left : Float, top : Float, right : Float, bottom : Float) : Void;
 	function stopDrag() : Void;
-	function createEmptyMovieClip(name : String, depth : Float) : MovieClip;
-	function beginFill(rgb : Float, alpha : Float) : Void;
+	function createEmptyMovieClip(name : String, depth : Int) : MovieClip;
+	function beginFill(rgb : Int, alpha : Float) : Void;
+
+#if flash8
+	function beginGradientFill(fillType : String, colors : Array<Int>, alphas : Array<Float>, ratios : Array<Float>, matrix : Dynamic, spreadMethod : String, interpolationMethod : String, focalPointRatio : Float ) : Void;
+#else true
 	function beginGradientFill(fillType : String, colors : Array<Int>, alphas : Array<Float>, ratios : Array<Float>, matrix : Dynamic) : Void;
+#end
+	// matrix : flash.geom.Matrix | Anonymous object a...i | Anonymous object (matrixType x,y,w,h,r)
+
 	function moveTo(x : Float, y : Float) : Void;
 	function lineTo(x : Float, y : Float) : Void;
 	function curveTo(controlX : Float, controlY : Float, anchorX : Float, anchorY : Float) : Void;
 #if flash8
-	function lineStyle(thickness : Float, rgb : Float, alpha : Float, pixelHinting : Bool, noScale : String, capsStyle : String, jointStyle : String, miterLimit : Float) : Void;
+	function lineStyle(thickness : Float, rgb : Int, alpha : Float, pixelHinting : Bool, noScale : String, capsStyle : String, jointStyle : String, miterLimit : Float) : Void;
 #else true
-	function lineStyle(thickness : Float, rgb : Float, alpha : Float) : Void;
+	function lineStyle(thickness : Float, rgb : Int, alpha : Float) : Void;
 #end
 	function endFill() : Void;
 	function clear() : Void;
 
 #if flash8
-	function createTextField(instanceName : String, depth : Float, x : Float, y : Float, width : Float, height : Float) : TextField;
+	function createTextField(instanceName : String, depth : Int, x : Float, y : Float, width : Float, height : Float) : TextField;
 #else true
-	function createTextField(instanceName : String, depth : Float, x : Float, y : Float, width : Float, height : Float) : Void;
+	function createTextField(instanceName : String, depth : Int, x : Float, y : Float, width : Float, height : Float) : Void;
 #end
 	function getTextSnapshot() : TextSnapshot;
-	function getSWFVersion() : Float;
+	function getSWFVersion() : Int;
 
 	function onData() : Void;
 	function onDragOut() : Void;
@@ -108,12 +128,13 @@ extern class MovieClip implements Dynamic
 	var filters : Array<flash.filters.BitmapFilter>;
 	var blendMode : Dynamic;
 	var cacheAsBitmap : Bool;
-	var opaqueBackground : Float;
+	var opaqueBackground : Int;
 	var scrollRect : Dynamic;
 	var transform : flash.geom.Transform;
 	var scale9Grid : flash.geom.Rectangle<Float>;
-	function getRect( bounds : Dynamic ) : Dynamic;
-	function attachBitmap( bmp : flash.display.BitmapData, depth : Float, pixelSnapping : String, smoothing : Bool ) : Void;
+	function getRect( bounds : MovieClip ) : { xMin : Float, yMin : Float, xMax : Float, yMax : Float };
+	// don't allow bounds : String
+	function attachBitmap( bmp : flash.display.BitmapData, depth : Int, pixelSnapping : String, smoothing : Bool ) : Void;
 #end
 
 }

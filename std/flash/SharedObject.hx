@@ -20,5 +20,3 @@ extern class SharedObject
 
 	var data:Dynamic;
 }
-
-

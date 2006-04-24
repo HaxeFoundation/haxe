@@ -13,3 +13,9 @@ ImportAll
 -js all.js
 -xml js.xml
 ImportAll
+
+--next
+-swf all.swf
+-D flash_strict
+-xml flash_strict.xml
+ImportAll

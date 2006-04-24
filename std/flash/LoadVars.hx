@@ -1,23 +1,30 @@
 package flash;
 
-extern class LoadVars implements Dynamic<String>
+extern class LoadVars
+#if flash_strict
+#else true
+implements Dynamic<String>
+#end
 {
 	var contentType:String;
 	var loaded:Bool;
-	var _customHeaders:Array<String>;
 
 	function new() : Void;
 
-	function addRequestHeader(header:Dynamic, headerValue:String):Void;
+	function addRequestHeader(header:String, headerValue:String):Void;
+	// don't allow : function addRequestHeader( headers : Array<String> ) : Void;
+
 	function load(url:String):Bool;
 	function send(url:String,target:String,method:String):Bool;
 	function sendAndLoad(url:String,target:String,method:String):Bool;
-	function getBytesLoaded():Float;
-	function getBytesTotal():Float;
+	function getBytesLoaded():Int;
+	function getBytesTotal():Int;
 	function decode(queryString:String):Void;
 	function toString():String;
 
 	function onLoad(success:Bool):Void;
 	function onData(src:String):Void;
+	function onHTTPStatus( status : Int ) : Void;
 
+	// undocumented var _customHeaders:Array<String>;
 }

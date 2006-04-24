@@ -1,17 +1,39 @@
 package flash;
 
+#if flash_strict
+extern private interface MclListener {
+
+	function onLoadInit(target:MovieClip) : Void;
+	function onLoadStart(target:MovieClip) : Void;
+	function onLoadProgress(target:MovieClip, loaded : Int, total : Int) : Void;
+	function onLoadComplete(target:MovieClip, httpStatus : Int) : Void;
+	function onLoadError(target:MovieClip, error:String, httpStatus : Int) : Void;
+
+}
+#end
+
 extern class MovieClipLoader
 {
+	// don't allow target : String
+	// and target : Int (_levelX ?)
+
 	function new() : Void;
-	function addListener(listener:Dynamic):Bool;
-	function getProgress(target:Dynamic):Dynamic;
-	function loadClip(url:String, target:Dynamic):Bool;
-	function removeListener(listener:Dynamic):Bool;
-	function unloadClip(target:Dynamic):Bool;
+	function getProgress(target:MovieClip): { bytesLoaded : Int, bytesTotal : Int };
+	function loadClip(url:String, target:MovieClip):Bool;
+	function unloadClip(target:MovieClip):Bool;
 
 	function onLoadInit(target:MovieClip) : Void;
 	function onLoadStart(target:MovieClip) : Void;
 	function onLoadProgress(target:MovieClip, loaded : Int, total : Int) : Void;
 	function onLoadComplete(target:MovieClip) : Void;
 	function onLoadError(target:MovieClip, error:String) : Void;
+
+#if flash_strict
+	function addListener(listener:MclListener):Bool;
+	function removeListener(listener:MclListener):Bool;
+#else true
+	function addListener(listener:Dynamic):Bool;
+	function removeListener(listener:Dynamic):Bool;
+#end
+
 }

@@ -15,10 +15,10 @@ extern class TextField
 	var _target:String;
 	var _rotation:Float;
 	var _name:String;
-	var _framesloaded:Float;
+	var _framesloaded:Int;
 	var _droptarget:String;
-	var _currentframe:Float;
-	var _totalframes:Float;
+	var _currentframe:Int;
+	var _totalframes:Int;
 	var _quality:String;
 	var _focusrect:Bool;
 	var _soundbuftime:Float;
@@ -27,17 +27,17 @@ extern class TextField
 
 	var autoSize:Dynamic;
 	var background:Bool;
-	var backgroundColor:Float;
+	var backgroundColor:Int;
 	var border:Bool;
-	var borderColor:Float;
+	var borderColor:Int;
 	var bottomScroll:Float;
 	var condenseWhite:Bool;
 	var embedFonts:Bool;
 	var hscroll:Float;
 	var html:Bool;
 	var htmlText:String;
-	var length:Float;
-	var maxChars:Float;
+	var length:Int;
+	var maxChars:Int;
 	var maxhscroll:Float;
 	var maxscroll:Float;
 	var multiline:Bool;
@@ -46,9 +46,9 @@ extern class TextField
 	var scroll:Float;
 	var selectable:Bool;
 	var tabEnabled:Bool;
-	var tabIndex:Float;
+	var tabIndex:Int;
 	var text:String;
-	var textColor:Float;
+	var textColor:Int;
 	var textHeight:Float;
 	var textWidth:Float;
 	var type:String;
@@ -64,14 +64,14 @@ extern class TextField
 
 	var styleSheet:flash.text.StyleSheet;
 
-	function replaceText(beginIndex:Float,endIndex:Float,newText:String):Void;
+	function replaceText(beginIndex:Int,endIndex:Int,newText:String):Void;
 	function replaceSel(newText:String):Void;
-	function getTextFormat(beginIndex:Float,endIndex:Float):TextFormat;
+	function getTextFormat(beginIndex:Int,endIndex:Int):TextFormat;
 	function setTextFormat( begin : Dynamic, end : Dynamic, tf : TextFormat ):Void;
 	function removeTextField():Void;
 	function getNewTextFormat():TextFormat;
 	function setNewTextFormat(tf:TextFormat):Void;
-	function getDepth():Float;
+	function getDepth():Int;
 	function addListener(listener:Dynamic):Bool;
 	function removeListener(listener:Dynamic):Bool;
 	static function getFontList():Array<Dynamic>;

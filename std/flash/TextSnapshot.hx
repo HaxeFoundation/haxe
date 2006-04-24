@@ -2,14 +2,14 @@ package flash;
 
 extern class TextSnapshot
 {
-	function findText(startIndex:Float, textToFind:String, caseSensitive:Bool):Float;
-	function getCount():Float;
-	function getSelected(start:Float, end:Float):Bool;
+	function findText(startIndex:Int, textToFind:String, caseSensitive:Bool):Float;
+	function getCount():Int;
+	function getSelected(start:Int, end:Int):Bool;
 	function getSelectedText(includeLineEndings:Bool):String;
-	function getText(start:Float, end:Float, includeLineEndings:Bool):String;
+	function getText(start:Int, end:Int, includeLineEndings:Bool):String;
 	function hitTestTextNearPos(x:Float, y:Float, closeDist:Float):Float;
-	function setSelectColor(color:Float):Void;
-	function setSelected(start:Float, end:Float, select:Bool):Void;
+	function setSelectColor(color:Int):Void;
+	function setSelected(start:Int, end:Int, select:Bool):Void;
 }
 
 
