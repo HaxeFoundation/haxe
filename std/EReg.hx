@@ -33,7 +33,7 @@ class EReg {
 	public function new( r : String, opt : String ) {
 		#if neko
 		var a = opt.split("g");
-		global = a.length != 1;
+		global = a.length > 1;
 		if( global )
 			opt = a.join("");
 		this.r = regexp_new_options(untyped r.__s, untyped opt.__s);
