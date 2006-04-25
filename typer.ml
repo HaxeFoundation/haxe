@@ -1670,7 +1670,7 @@ let type_module ctx m tdecls =
 	(* PASS 1 : build module structure - does not load any module or type - should be atomic ! *)
 	let decls = ref [] in
 	let decl_with_name name p priv =
-		let tpath = if priv then (fst m @ [snd m], name) else (fst m, name) in
+		let tpath = if priv then (fst m @ ["_" ^ snd m], name) else (fst m, name) in
 		if priv then begin
 			if List.exists (fun t -> tpath = t_path t) (!decls) then error ("Type name " ^ name ^ " is alreday defined in this module") p;
 			tpath
