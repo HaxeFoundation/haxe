@@ -1308,7 +1308,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		else
 		let params = (match el with [] -> [] | _ -> ["customParams",(EArrayDecl el , p)]) in
 		let infos = mk_infos ctx p params in
-		type_expr ctx (ECall ((EField ((EConst (Type "Log"),p),"trace"),p),[e;EUntyped infos,p]),p)
+		type_expr ctx (ECall ((EField ((EType ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[e;EUntyped infos,p]),p)
 	| ECall ((EConst (Ident "type"),_),[e]) ->
 		let e = type_expr ctx e in
 		ctx.warn (s_type (print_context()) e.etype) e.epos;
