@@ -222,8 +222,11 @@ and gen_expr ctx e =
 		newline ctx;
 		print ctx "}";
 	| TFunction f ->
+		let old = ctx.in_value in 
+		ctx.in_value <- false;
 		print ctx "function(%s) " (String.concat "," (List.map ident (List.map fst f.tf_args)));
 		gen_expr ctx (block f.tf_expr);
+		ctx.in_value <- old;
 	| TCall (e,el) ->
 		gen_call ctx e el
 	| TArrayDecl el ->
