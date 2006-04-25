@@ -9,6 +9,9 @@
 	improved type parameters structure coherency
 	enable usage of Spod without Transaction
 	implemented neko.db.Transaction.isDeadlock
+	slighly relaxed one of the javascript generator constraint
+	added haxe.Template
+	moved Log , PosInfos and ImportAll to haxe package
 
 2006-04-17: beta 5
 	fixed bug : continue in do...while
