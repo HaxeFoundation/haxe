@@ -452,7 +452,7 @@ let unify_call_params ctx t el args p =
 			el
 		| [] , [(_,t)] ->
 			(match follow t with
-			| TInst ({ cl_path = ([],"PosInfos") },[]) -> 
+			| TInst ({ cl_path = (["haxe"],"PosInfos") },[]) -> 
 				let infos = mk_infos ctx p [] in
 				let e = (!type_expr_ref) ctx ~need_val:true infos in
 				el @ [e]
@@ -527,7 +527,7 @@ let type_ident ctx i p get =
 		let infos = mk_infos ctx p [] in
 		let e = (!type_expr_ref) ctx ~need_val:true infos in
 		if get then
-			AccExpr { e with etype = load_core_type ctx "PosInfos" }
+			AccExpr { e with etype = load_normal_type ctx { tpackage = ["haxe"]; tname = "PosInfos"; tparams = [] } p false }
 		else
 			AccNo i
 	| _ ->
