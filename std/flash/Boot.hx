@@ -225,18 +225,6 @@ class Boot {
 					}
 				}
 			};
-			Array.prototype.indexes = function() {
-				return {
-					cur : 0,
-					arr : this,
-					hasNext : function() {
-						return this.cur < this.arr.length;
-					},
-					next : function() {
-						return this.cur++;
-					}
-				}
-			};
 			// copy base classes from root to flash package
 			// we can't make a loop since we need to assign short-type-ids
 			flash.Accessibility = _global["Accessibility"];

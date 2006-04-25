@@ -199,18 +199,6 @@ class Boot {
 					}
 				}
 			};
-			Array.prototype.indexes = function() {
-				return {
-					cur : 0,
-					arr : this,
-					hasNext : function() {
-						return this.cur < this.arr.length;
-					},
-					next : function() {
-						return this.cur++;
-					}
-				}
-			};
 			var oldsub = String.prototype.substr;
 			String.prototype.substr = function(pos,len){
 				if( pos < 0 ){

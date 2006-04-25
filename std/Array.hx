@@ -81,6 +81,5 @@ extern class Array<T> {
 	function remove( x : T ) : Bool;
 	function copy() : Array<T>;
 	function iterator() : Iterator<T>;
-	function indexes() : Iterator<Int>;
 
 }

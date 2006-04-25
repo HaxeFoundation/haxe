@@ -63,19 +63,6 @@ class NekoArray__<T> implements Array<T> {
 		return untyped Array.new1(__dollar__acopy(this.__a),this.length);
 	}
 
-	public function indexes() {
-		return untyped {
-			a : this,
-			p : 0,
-			hasNext : function() {
-				return this.p < this.a.length;
-			},
-			next : function() {
-				return this.p++;
-			}
-		};
-	}
-
 	public function iterator() {
 		return untyped {
 			a : this,
