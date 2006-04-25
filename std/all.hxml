@@ -1,21 +1,21 @@
 -neko all.n
 -xml neko.xml
-ImportAll
+haxe.ImportAll
 
 --next
 
 -swf all.swf
 -xml flash.xml
-ImportAll
+haxe.ImportAll
 
 --next
 
 -js all.js
 -xml js.xml
-ImportAll
+haxe.ImportAll
 
 --next
 -swf all.swf
 -D flash_strict
 -xml flash_strict.xml
-ImportAll
+haxe.ImportAll

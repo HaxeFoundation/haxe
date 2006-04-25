@@ -22,6 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
+package haxe;
 
 // std
 import Array;
@@ -29,16 +30,13 @@ import Date;
 import DateTools;
 import EReg;
 import Hash;
-import ImportAll;
 import IntIter;
 import Iterator;
 import Lambda;
 import List;
-import Log;
 import Math;
 import Md5;
 import Node;
-import PosInfos;
 import Reflect;
 import Std;
 import StdTypes;
@@ -46,6 +44,11 @@ import String;
 import StringBuf;
 import StringTools;
 import XmlParser;
+
+import haxe.ImportAll;
+import haxe.Log;
+import haxe.PosInfos;
+import haxe.Template;
 
 // flash
 #if flash
