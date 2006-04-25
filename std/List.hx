@@ -79,7 +79,7 @@ class List<T> {
 	}
 
 	public function isEmpty() : Bool {
-		return (h != null);
+		return (h == null);
 	}
 
 	public function remove( v : T ) : Bool {
