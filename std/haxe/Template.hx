@@ -128,7 +128,7 @@ class Template {
 					throw "Unclosed 'else'";
 			} else { // elseif
 				t.p = t.p.substr(4,t.p.length - 4);
-				eelse = parseBlock(tokens);
+				eelse = parse(tokens);
 			}
 			return OpIf(e,eif,eelse);
 		}
@@ -205,12 +205,16 @@ class Template {
 		return makePath(function() { return Reflect.field(e(),f); },l);
 	}
 
-	function makeExpr( l : List<{ p : String, s : Bool }> ) : Void -> Dynamic {
+	function makeExpr( l ) {
+		return makePath(makeExpr2(l),l);
+	}
+
+	function makeExpr2( l : List<{ p : String, s : Bool }> ) : Void -> Dynamic {
 		var p = l.pop();
 		if( p == null )
 			throw "<eof>";
 		if( p.s )
-			return makePath(makeConst(p.p),l);
+			return makeConst(p.p);
 		switch( p.p ) {
 		case "(":
 			var e1 = makeExpr(l);
@@ -270,12 +274,15 @@ class Template {
 				run(e);
 		case OpForeach(e,loop):
 			var v = e();
-			if( Reflect.hasField(v,"hasNext") ) {
-				// ok
-			} else if( Reflect.hasField(v,"iterator") )
-				v = v.iterator();
-			else
+			try {
+				if( v.hasNext == null ) {
+					var x = v.iterator();
+					if( x.hasNext == null ) throw null;
+					v = x;
+				}
+			} catch( e : Dynamic ) {
 				throw "Cannot iter on " + v;
+			}
 			stack.push(context);
 			for( ctx in v ) {
 				context = ctx;
