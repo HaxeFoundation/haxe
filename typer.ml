@@ -714,7 +714,11 @@ let type_field ctx e i p get =
 		let rec loop_dyn c params =
 			match c.cl_dynamic with
 			| Some t ->
-				AccExpr (mk (TField (e,i)) (apply_params c.cl_types params t) p)
+				let t = apply_params c.cl_types params t in
+				if PMap.mem "__resolve" c.cl_fields then
+					AccExpr (mk (TCall (mk (TField (e,"__resolve")) (mk_mono()) p,[type_constant ctx (String i) p])) t p)
+				else
+					AccExpr (mk (TField (e,i)) t p)
 			| None ->
 				match c.cl_super with
 				| None -> raise Not_found
