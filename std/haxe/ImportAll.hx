@@ -45,10 +45,13 @@ import StringBuf;
 import StringTools;
 import XmlParser;
 
+import haxe.Connection;
 import haxe.ImportAll;
 import haxe.Log;
 import haxe.PosInfos;
+import haxe.Serializer;
 import haxe.Template;
+import haxe.Unserializer;
 
 // flash
 #if flash
