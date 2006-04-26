@@ -14,6 +14,7 @@
 	moved Log , PosInfos and ImportAll to haxe package
 	completed private class/interface/enum support
 	removed Array.indexes
+	added __resolve compile-time support when class implement Dynamic
 
 2006-04-17: beta 5
 	fixed bug : continue in do...while
