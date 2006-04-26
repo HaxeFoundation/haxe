@@ -679,7 +679,7 @@ let type_field ctx e i p get =
 		if ctx.untyped then 
 			AccExpr (mk (TField (e,i)) (mk_mono()) p)
 		else
-			error (s_type (print_context()) e.etype ^ " have no field " ^ i) p
+			error (s_type (print_context()) e.etype ^ " has no field " ^ i) p
 	in
 	match follow e.etype with
 	| TInst (c,params) ->
