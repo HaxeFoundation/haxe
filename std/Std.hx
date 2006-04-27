@@ -195,7 +195,7 @@ class Std {
 		#if flash
 		__random__(x);
 		#else neko
-		Math._rand_int(Math._rnd,x);
+		Math._rand_int(Math.__rnd,x);
 		#else js
 		Math.floor(Math.random()*x);
 		#else error
