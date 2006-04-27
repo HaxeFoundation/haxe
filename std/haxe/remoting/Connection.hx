@@ -53,6 +53,54 @@ class Connection implements Dynamic<Connection> {
 	#end
 	}
 
+	public function call( params : Array<Dynamic> ) : Dynamic {
+		var p = __path.copy();
+		var f = p.pop();
+		var path = p.join(":");
+		var s = new Serializer();
+		s.serialize(params);
+		var params = s.toString();
+	#if flash
+		var s = flash.external.ExternalInterface.call("haxe.Connection.doCall",path,f,params);
+		if( s == null )
+			throw "Failed to call JS method "+__path.join(".");
+		return new Unserializer(s).unserialize();
+	#else js
+		var s = __data.doCall(path,f,params);
+		if( s == null )
+			throw "Failed to call Flash method "+__path.join(".");
+		return new Unserializer(s).unserialize();
+	#else neko
+		throw "Connection::call is not implemented";
+		return null;
+	#else error
+	#end
+	}
+
+
+	static function doCall( path : String, f : String, params : String ) : String {
+		try {
+			var params = new Unserializer(params).unserialize();
+			#if flash
+			var obj = flash.Lib.eval(path);
+			#else js
+			var obj = js.Lib.eval(path);
+			#else true
+			var obj = null;
+			#end
+			var fun = Reflect.field(obj,f);
+			if( fun == null )
+				throw "Invalid call : "+path+"."+f;
+			var v = Reflect.callMethod(obj,fun,params);
+			var s = new Serializer();
+			s.serialize(v);
+			return s.toString();
+		} catch( e : Dynamic ) {
+			var s = new Serializer();
+			s.serializeException(e);
+			return s.toString();
+		}
+	}
 
 	// ---- platform-specific ----
 
@@ -60,6 +108,7 @@ class Connection implements Dynamic<Connection> {
 
 	static function __init__() {
 		flash.external.ExternalInterface.addCallback("asEval",null,asEval);
+		flash.external.ExternalInterface.addCallback("doCall",null,doCall);
 	}
 
 	static function asEval( s : String ) : String {
@@ -72,7 +121,7 @@ class Connection implements Dynamic<Connection> {
 	static function jsEval( s : String ) : Dynamic {
 		var s = flash.external.ExternalInterface.call("haxe.Connection.jsEval",s);
 		if( s == null )
-			return null;
+			throw "Failed to evaluate "+s;
 		return new Unserializer(s).unserialize();
 	}
 
