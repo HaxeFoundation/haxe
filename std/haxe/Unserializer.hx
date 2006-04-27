@@ -43,6 +43,8 @@ class Unserializer {
  		var s = false;
  		while( true ) {
  			var c = buf.charCodeAt(pos) - 48;
+ 			if( Std.isNaN(c) )
+ 				break;
  			if( c == -3 ) {
  				s = true;
  				pos++;
