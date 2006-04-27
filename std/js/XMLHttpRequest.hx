@@ -40,7 +40,7 @@ extern class XMLHttpRequest {
 	function getAllResponseHeaders() : String;
 	function getResponseHeader( name : String ) : String;
 	function setRequestHeader( name : String, value : String ) : Void;
-	function open( method : String, url : String, sync : Bool ) : Void;
+	function open( method : String, url : String, async : Bool ) : Void;
 	function send( content : String ) : Void;
 
 	private static function __init__() : Void {
