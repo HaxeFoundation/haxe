@@ -24,7 +24,10 @@ implements Dynamic<String>
 
 	function onLoad(success:Bool):Void;
 	function onData(src:String):Void;
+
+	#if flash8
 	function onHTTPStatus( status : Int ) : Void;
+	#end
 
 	// undocumented var _customHeaders:Array<String>;
 }
