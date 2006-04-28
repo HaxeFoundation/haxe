@@ -47,32 +47,46 @@ class Connection implements Dynamic<Connection> {
 		var s = __data.asEval(__path.join("."));
 		return new Unserializer(s).unserialize();
 	#else neko
-		throw "Connection::eval is not implemented";
-		return null;
+		var cnx = AsyncConnection.urlConnect(__data);
+		var result = null;
+		untyped cnx.__path = __path;
+		cnx.onError = function(err) { throw err; };
+		cnx.eval(function(d) { result = d; });
+		return result;
 	#else error
 	#end
 	}
 
 	public function call( params : Array<Dynamic> ) : Dynamic {
+	#if flash
 		var p = __path.copy();
 		var f = p.pop();
 		var path = p.join(":");
 		var s = new Serializer();
 		s.serialize(params);
 		var params = s.toString();
-	#if flash
 		var s = flash.external.ExternalInterface.call("haxe.Connection.doCall",path,f,params);
 		if( s == null )
 			throw "Failed to call JS method "+__path.join(".");
 		return new Unserializer(s).unserialize();
 	#else js
+		var p = __path.copy();
+		var f = p.pop();
+		var path = p.join(":");
+		var s = new Serializer();
+		s.serialize(params);
+		var params = s.toString();
 		var s = __data.doCall(path,f,params);
 		if( s == null )
 			throw "Failed to call Flash method "+__path.join(".");
 		return new Unserializer(s).unserialize();
 	#else neko
-		throw "Connection::call is not implemented";
-		return null;
+		var cnx = AsyncConnection.urlConnect(__data);
+		var result = null;
+		untyped cnx.__path = __path;
+		cnx.onError = function(err) { throw err; };
+		cnx.call(params,function(d) { result = d; });
+		return result;
 	#else error
 	#end
 	}
@@ -164,6 +178,12 @@ class Connection implements Dynamic<Connection> {
 			throw "Could not find flash object '"+objId+"'";
 		if( x.asEval == null ) throw "The flash object is not ready or does not contain haxe.Connection";
 		return new Connection(x,[]);
+	}
+
+	#else neko
+
+	public static function urlConnect( url : String ) : Connection {
+		return new Connection(url,[]);
 	}
 
 	#end
