@@ -169,11 +169,11 @@ let mk_infos ctx p params =
 let field_access ctx get f t e p =
 	match if get then f.cf_get else f.cf_set with
 	| NoAccess ->
+		let normal = AccExpr (mk (TField (e,f.cf_name)) t p) in
 		(match follow e.etype with
-		| TInst (c,_) when is_parent c ctx.curclass ->
-			AccExpr (mk (TField (e,f.cf_name)) t p)
+		| TInst (c,_) when is_parent c ctx.curclass -> normal			
 		| _ ->
-			AccNo f.cf_name)
+			if ctx.untyped then normal else AccNo f.cf_name)
 	| NormalAccess ->
 		AccExpr (mk (TField (e,f.cf_name)) t p)
 	| MethodAccess m ->
