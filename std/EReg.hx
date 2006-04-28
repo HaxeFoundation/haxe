@@ -27,6 +27,7 @@ class EReg {
 
 	var r : Void;
 	#if neko
+	var last : String;
 	var global : Bool;
 	#end
 
@@ -47,10 +48,17 @@ class EReg {
 
 	public function match( s : String ) : Bool {
 		#if neko
-		return regexp_match(r,untyped s.__s,0,s.length);
+		var p = regexp_match(r,untyped s.__s,0,s.length);
+		if( p )
+			last = s;
+		else
+			last = null;
+		return p;
 		#else js
 		untyped {
 			r.m = r.exec(s);
+			r.l = RegExp.leftContext;
+			r.r = RegExp.rightContext;
 			return (r.m != null);
 		}
 		#else flash
@@ -68,6 +76,35 @@ class EReg {
 		#else flash
 		throw "EReg::matched not implemented";
 		return "";
+		#else error
+		#end
+	}
+
+	public function matchedLeft() : String {
+		#if neko
+		var p = regexp_matched_pos(r,0);
+		return new String(last.substr(0,p.pos));
+		#else js
+		if( untyped r.m == null ) throw "EReg::matchedLeft";
+		return untyped r.l;
+		#else flash
+		throw "EReg::matchedLeft not implemented";
+		return null;
+		#else error
+		#end
+	}
+
+	public function matchedRight() : String {
+		#if neko
+		var p = regexp_matched_pos(r,0);
+		var sz = p.pos+p.len;
+		return new String(last.substr(sz,last.length-sz));
+		#else js
+		if( untyped r.m == null ) throw "EReg::matchedRight";
+		return untyped r.r;
+		#else flash
+		throw "EReg::matchedRight not implemented";
+		return null;
 		#else error
 		#end
 	}
