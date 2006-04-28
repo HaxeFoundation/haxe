@@ -27,10 +27,9 @@ package haxe;
 class Http {
 
 	public var url : String;
-	public var status : Int;
 #if neko
 	var responseHeaders : Hash<String>;
-#end	
+#end
 	var headers : Hash<String>;
 	var params : Hash<String>;
 
@@ -55,7 +54,7 @@ class Http {
 		r.onreadystatechange = function() {
 			if( r.readyState != 4 )
 				return;
-			me.status = r.status;
+			me.onStatus(r.status);
 			if( r.status >= 200 && r.status < 400 )
 				me.onData(r.responseText);
 			else switch( r.status ) {
@@ -105,7 +104,7 @@ class Http {
 		r.onHTTPStatus = function(status) {
 			// on Firefox 1.5, Flash calls onHTTPStatus with 0 (!??)
 			if( status != 0 )
-				me.status = status;
+				me.onStatus(status);
 		};
 		untyped ASSetPropFlags(r,"onHTTPStatus",7);
 		#end
@@ -231,6 +230,9 @@ class Http {
 	}
 
 	public function onError( msg : String ) {
+	}
+
+	public function onStatus( status : Int ) {
 	}
 
 }
