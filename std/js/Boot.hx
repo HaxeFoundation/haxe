@@ -108,11 +108,12 @@ class Boot {
 				var k;
 				var str = "{\n";
 				s += "\t";
+				var hasp = (o.hasOwnProperty != null);
 				__js__("for( var k in o ) { ");
+					if( hasp && !o.hasOwnProperty(k) )
+						__js__("continue");
 					if( str.length != 2 )
 						str += ", \n";
-					if( k == "__class__" && o[k].__interfaces__ != null )
-						__js__("continue");
 					if( k == "__construct__" && __js__("typeof(o[k])") == "function" )
 						str += s + k + " : <function>";
 					else
