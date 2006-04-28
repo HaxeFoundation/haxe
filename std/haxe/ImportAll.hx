@@ -43,8 +43,10 @@ import StdTypes;
 import String;
 import StringBuf;
 import StringTools;
+import Xml;
 import XmlParser;
 
+import haxe.AsyncConnection;
 import haxe.Connection;
 import haxe.ImportAll;
 import haxe.Log;
@@ -125,6 +127,7 @@ import neko.Boot;
 import neko.File;
 import neko.FileSystem;
 import neko.Lib;
+import neko.RemoteServer;
 import neko.Socket;
 import neko.Stack;
 import neko.Sys;
