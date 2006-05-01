@@ -1081,6 +1081,16 @@ let gen_path ctx (p,t) is_extern =
 		push ctx [VStr id];
 		write ctx AEval
 
+let init_name ctx path enum =
+	push ctx [VReg 0; VStr (if enum then "__ename__" else "__name__")];
+	let name = fst path @ [snd path] in
+	let nitems = List.length name in
+	push ctx (List.map (fun s -> VStr s) (List.rev name));
+	push ctx [VInt nitems];
+	write ctx AInitArray;
+	ctx.stack_size <- ctx.stack_size - nitems;
+	setvar ctx VarObj
+
 let gen_type_def ctx t =
 	match t with
 	| TClassDecl c ->
@@ -1116,14 +1126,7 @@ let gen_type_def ctx t =
 			push ctx [VReg 0; VStr "__construct__"; VReg 0];
 			setvar ctx VarObj
 		end;
-		push ctx [VReg 0; VStr "__name__"];
-		let name = fst c.cl_path @ [snd c.cl_path] in
-		let nitems = List.length name in
-		push ctx (List.map (fun s -> VStr s) (List.rev name));
-		push ctx [VInt nitems];
-		write ctx AInitArray;
-		ctx.stack_size <- ctx.stack_size - nitems;
-		setvar ctx VarObj;
+		init_name ctx c.cl_path false;
 		push ctx [VReg 0; VStr "toString"; VStr "@class_str"];
 		write ctx AEval;
 		setvar ctx VarObj;
@@ -1171,6 +1174,7 @@ let gen_type_def ctx t =
 		write ctx ANew;
 		write ctx (ASetReg 0);
 		setvar ctx VarStr;
+		init_name ctx e.e_path true;
 		PMap.iter (fun _ f -> gen_enum_field ctx id f) e.e_constrs
 
 let gen_boot ctx hres =

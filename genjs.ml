@@ -592,7 +592,7 @@ let generate_class ctx c =
 let generate_enum ctx e =
 	let p = s_path e.e_path in
 	generate_package_create ctx e.e_path;
-	print ctx "%s = new Object()" p;	
+	print ctx "%s = { __ename__ : [%s] }" p (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst e.e_path @ [snd e.e_path])));
 	newline ctx;
 	PMap.iter (fun _ f ->
 		print ctx "%s%s = " p (field f.ef_name);
