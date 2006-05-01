@@ -32,6 +32,10 @@ class Hash<T> {
 		h = untyped __dollar__hnew(0);
 		#else js
 		h = Reflect.empty();
+		untyped {
+			if( h.__proto__ != null )
+				delete(h.__proto__);
+		}
 		#else error
 		#end
 	}
