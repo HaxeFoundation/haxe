@@ -22,6 +22,7 @@
 	added enum.__ename__
 	fixed Std.is(e,enum)
 	fixed infinite loop in neko EReg split/replace and epsilon matching
+	added neko native serialization support
 
 2006-04-17: beta 5
 	fixed bug : continue in do...while
