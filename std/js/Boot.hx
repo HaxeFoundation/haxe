@@ -164,6 +164,8 @@ class Boot {
 			case Dynamic:
 				return true;
 			default:
+				if( o.__enum__ == cl )
+					return true;
 				return false;
 			}
 		}
