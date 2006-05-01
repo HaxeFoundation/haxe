@@ -18,7 +18,9 @@
 	added haxe Remoting
 	added "module with different case" error (for windows)
 	added Reflect.resolveClass, Reflect.setPrototype
-	added access to classes by name in genneko 
+	added access to classes by name in genneko
+	added enum.__ename__
+	fixed Std.is(e,enum)
 
 2006-04-17: beta 5
 	fixed bug : continue in do...while
