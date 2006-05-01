@@ -17,6 +17,8 @@
 	added __resolve compile-time support when class implement Dynamic
 	added haxe Remoting
 	added "module with different case" error (for windows)
+	added Reflect.resolveClass, Reflect.setPrototype
+	added access to classes by name in genneko 
 
 2006-04-17: beta 5
 	fixed bug : continue in do...while
