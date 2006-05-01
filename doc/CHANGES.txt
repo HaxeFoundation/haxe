@@ -21,6 +21,7 @@
 	added access to classes by name in genneko
 	added enum.__ename__
 	fixed Std.is(e,enum)
+	fixed infinite loop in neko EReg split/replace and epsilon matching
 
 2006-04-17: beta 5
 	fixed bug : continue in do...while
