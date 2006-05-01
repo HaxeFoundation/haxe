@@ -76,6 +76,8 @@ class Boot {
 					}
 					c = c.__super__;
 				}
+				if( o.__enum__ == cl )
+					return true;
 				return false;
 			default:
 				return false;
