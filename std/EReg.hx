@@ -127,14 +127,21 @@ class EReg {
 		var pos = 0;
 		var len = s.length;
 		var a = new Array();
+		var first = true;
 		do {
 			if( !regexp_match(r,untyped s.__s,pos,len) )
 				break;
 			var p = regexp_matched_pos(r,0);
+			if( p.len == 0 && !first ) {
+				if( len == 0 )
+					break;
+				p.pos += 1;
+			}
 			a.push(s.substr(pos,p.pos - pos));
 			var tot = p.pos + p.len - pos;
 			pos += tot;
 			len -= tot;
+			first = false;
 		} while( global );
 		a.push(s.substr(pos,len));
 		return a;
@@ -154,10 +161,16 @@ class EReg {
 		var pos = 0;
 		var len = s.length;
 		var a = by.split("$");
+		var first = true;
 		do {
 			if( !regexp_match(r,untyped s.__s,pos,len) )
 				break;
 			var p = regexp_matched_pos(r,0);
+			if( p.len == 0 && !first ) {
+				if( len == 0 )
+					break;
+				p.pos += 1;
+			}
 			b.addSub(s,pos,p.pos-pos);
 			b.add(a[0]);
 			for( i in 1...a.length ) {
@@ -177,6 +190,7 @@ class EReg {
 			var tot = p.pos + p.len - pos;
 			pos += tot;
 			len -= tot;
+			first = false;
 		} while( global );
 		b.addSub(s,pos,len);
 		return b.toString();
