@@ -1671,7 +1671,7 @@ let init_class ctx c p herits fields =
 		());
 	fl
 
-let type_module ctx m tdecls =
+let type_module ctx m tdecls loadp =
 	(* PASS 1 : build module structure - does not load any module or type - should be atomic ! *)
 	let decls = ref [] in
 	let decl_with_name name p priv =
@@ -1681,6 +1681,7 @@ let type_module ctx m tdecls =
 			tpath
 		end else try
 			let m2 = Hashtbl.find ctx.types tpath in
+			if String.lowercase (s_type_path m2) = String.lowercase (s_type_path m) then error ("Module " ^ s_type_path m2 ^ " is loaded with a different case") loadp;
 			error ("Type name " ^ s_type_path tpath ^ " is redefined from module " ^ s_type_path m2) p
 		with
 			Not_found ->
@@ -1803,7 +1804,7 @@ let load ctx m p =
 				else
 					error ("Invalid package : " ^ spack (fst m) ^ " should be " ^ spack pack) p
 			end;
-			type_module ctx m decls
+			type_module ctx m decls p
 
 let context warn =
 	let empty =	{
