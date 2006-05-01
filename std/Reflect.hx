@@ -371,6 +371,36 @@ class Reflect {
 		return cl;
 	}
 
+
+	/**
+		Evaluates an enum from a name
+	**/
+	public static function resolveEnum( name : Array<String> ) : Dynamic {
+		var e : Dynamic;
+		untyped {
+		#if flash
+			e = __eval__(name.join("."));
+		#else js
+			e = eval(name.join("."));
+		#else neko
+			e = untyped field(neko.Boot.__classes,name[0]);
+			var i = 1;
+			while( e != null && i < name.length ) {
+				e = field(cl,name[i]);
+				i += 1;
+			}
+		#else error
+		#end
+		}
+		if( e == null || e.__ename__ == null )
+			return null;
+		return e;
+	}
+
+
+	/**
+		Change the class prototype of an object
+	**/
 	public static function setPrototype( obj : Dynamic, proto : Dynamic ) {
 		#if flash
 			obj.__proto__ = proto;
