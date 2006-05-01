@@ -145,14 +145,7 @@ class Reflect {
 		#else neko
 			__dollar__new(null)
 		#else js
-			{
-				var h = __js__("{}");
-				if( h["__proto__"] != null ){
-					h.__proto__ = null;
-					__js__("delete")(h["__proto__"]);
-				}
-				h;
-			}
+			__js__("{}")
 		#else error
 		#end
 			;
@@ -349,6 +342,42 @@ class Reflect {
 				null;
 			else
 				o.__class__;
+		#else error
+		#end
+	}
+
+	/**
+		Evaluates a class from a name
+	**/
+	public static function resolveClass( name : Array<String> ) : Class {
+		var cl : Class;
+		untyped {
+		#if flash
+			cl = __eval__(name.join("."));
+		#else js
+			cl = eval(name.join("."));
+		#else neko
+			cl = untyped field(neko.Boot.__classes,name[0]);
+			var i = 1;
+			while( cl != null && i < name.length ) {
+				cl = field(cl,name[i]);
+				i += 1;
+			}
+		#else error
+		#end
+		}
+		if( cl == null || cl.__interfaces__ == null )
+			return null;
+		return cl;
+	}
+
+	public static function setPrototype( obj : Dynamic, proto : Dynamic ) {
+		#if flash
+			obj.__proto__ = proto;
+		#else js
+			obj.__proto__ = proto;
+		#else neko
+			untyped __dollar__objsetproto(obj,proto);
 		#else error
 		#end
 	}
