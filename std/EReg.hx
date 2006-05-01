@@ -167,6 +167,7 @@ class EReg {
 				if( c >= 49 && c <= 57 ) {
 					var p = regexp_matched_pos(r,c-48);
 					b.addSub(s,p.pos,p.len);
+					b.addSub(k,1,k.length - 1);
 				} else if( c == null ) {
 					b.add("$");
 					i += 1;
