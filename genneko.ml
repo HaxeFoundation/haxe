@@ -544,7 +544,11 @@ let gen_boot hres =
 
 let gen_name acc t =
 	match t with
-	| TEnumDecl _ -> acc
+	| TEnumDecl e ->
+		let p = pos e.e_pos in
+		let name = fst e.e_path @ [snd e.e_path] in
+		let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant p (TString n)) name); int p (List.length name)] in
+		(EBinop ("=",field p (gen_type_path p e.e_path) "__name__",arr),p) :: acc		
 	| TClassDecl c -> 
 		if c.cl_extern then
 			acc
