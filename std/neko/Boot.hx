@@ -85,6 +85,45 @@ class Boot {
 		}
 	}
 
+	private static function __serialize(o) {
+		untyped {
+			if( o.__class__ != null ) {
+				var n = o.__class__.__name__;
+				var x = __dollar__amake(n.length);
+				for( i in 0...n.length )
+					x[i] = n[i].__s;
+				return x;
+			}
+			if( o.__enum__ != null ) {
+				var n = o.__enum__.__ename__;
+				var x = __dollar__amake(n.length);
+				for( i in 0...n.length )
+					x[i] = n[i].__s;
+				return x;
+			}
+			throw "Can't serialize";
+		}
+	}
+
+	private static function __unserialize(v) {
+		untyped {
+			if( __dollar__typeof(v) != __dollar__tarray )
+				throw "Invalid serialized class data";
+			for( i in 0...__dollar__asize(v) )
+				if( __dollar__typeof(v[i]) != __dollar__tstring )
+					throw "Invalid serialized class data";
+			var cl = neko.Boot.__classes;
+			for( i in 0...__dollar__asize(v) ) {
+				cl = __dollar__objget(cl,__dollar__hash(v[i]));
+				if( cl == null )
+					throw ("Class not found " + neko.Lib.string(v));
+			}
+			if( cl.__name__ != null || cl.__ename__ != null )
+				return cl.prototype;
+			throw "Invalid class " + Std.string(v);
+		}
+	}
+
 	private static function __init() {
 		untyped {
 			String = NekoString__;
@@ -96,6 +135,7 @@ class Boot {
 			Bool = __dollar__new(null);
 			__dollar__objset(Bool,__dollar__hash("true".__s),true);
 			__dollar__objset(Bool,__dollar__hash("false".__s),false);
+			__dollar__exports.__unserialize = __unserialize;
 		}
 	}
 
