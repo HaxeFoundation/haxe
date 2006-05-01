@@ -38,4 +38,15 @@ class Lib {
 		untyped __dollar__rethrow(e);
 	}
 
+	public static function serialize( v : Dynamic ) : String {
+		return new String(__serialize(v));
+	}
+
+	public static function unserialize( s : String ) : Dynamic {
+		return untyped __unserialize(s.__s,__dollar__loader);
+	}
+
+	static var __serialize = load("std","serialize",1);
+	static var __unserialize = load("std","unserialize",2);
+
 }
