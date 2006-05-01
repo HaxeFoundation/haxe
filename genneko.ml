@@ -420,7 +420,8 @@ let gen_class ctx c =
 		| _ -> []
 	with Not_found -> 
 		[]
-	) in	
+	) in
+	let fserialize = "__serialize" , ident p "@serialize" in
 	let interf = array p (List.map (fun (c,_) -> gen_type_path p c.cl_path) c.cl_implements) in
 	let estat = (EBinop ("=",
 		stpath,
@@ -434,7 +435,7 @@ let gen_class ctx c =
 	),p) in
 	let eclass = (EBinop ("=",
 		clpath,
-		(EObject (PMap.fold (gen_method ctx p) c.cl_fields fstring),p)
+		(EObject (PMap.fold (gen_method ctx p) c.cl_fields (fserialize :: fstring)),p)
 	),p) in
 	let emeta = (EBinop ("=",field p clpath "__class__",stpath),p) ::
 		match c.cl_path with
@@ -449,18 +450,20 @@ let gen_enum_constr path c =
 		| TFun (params,_) ->
 			let params = List.map fst params in
 			(EFunction (params,
-				(EObject [
-					"tag" , str p c.ef_name;
-					"__enum__" , path;
-					"args" , array p (List.map (ident p) params);
-					"__string" , ident p "@enum_to_string"
+				(EBlock [
+					(EVars ["@tmp",Some (EObject [
+						"tag" , str p c.ef_name;
+						"args" , array p (List.map (ident p) params);
+					],p)],p);
+					call p (builtin p "objsetproto") [ident p "@tmp"; field p path "prototype"];
+					ident p "@tmp";
 				],p)
 			),p)
 		| _ ->
-			(EObject [
-				"tag" , str p c.ef_name;
-				"__enum__" , path;
-				"__string" , ident p "@enum_to_string"
+			(EBlock [
+				(EVars ["@tmp",Some (EObject ["tag" , str p c.ef_name],p)],p);
+				call p (builtin p "objsetproto") [ident p "@tmp"; field p path "prototype"];
+				ident p "@tmp";
 			],p)
 	),p)
 
@@ -468,7 +471,12 @@ let gen_enum e =
 	let p = pos e.e_pos in
 	let path = gen_type_path p e.e_path in
 	(EBlock (
-		(EBinop ("=",path, call p (builtin p "new") [null p]),p) ::		
+		(EBinop ("=",path, call p (builtin p "new") [null p]),p) ::
+		(EBinop ("=",field p path "prototype", (EObject [
+			"__enum__" , path;
+			"__serialize" , ident p "@serialize";
+			"__string" , ident p "@enum_to_string"
+		],p)),p) ::
 		pmap_list (gen_enum_constr path) e.e_constrs @
 		match e.e_path with
 		| [] , name -> [EBinop ("=",field p (ident p "@classes") name,ident p name),p]
@@ -568,20 +576,19 @@ let generate file types hres =
 		locals = PMap.empty;
 	} in
 	let h = Hashtbl.create 0 in
-	let classes = (EBinop ("=",ident null_pos "@classes", call null_pos (builtin null_pos "new") [null null_pos]),null_pos) in
-	let enum_str = (EBinop ("=",ident null_pos "@enum_to_string",(EFunction ([],
-		call null_pos (field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__enum_str") [this null_pos]
-	),null_pos)),null_pos) in
-	let class_str = (EBinop ("=",ident null_pos "@class_to_string",(EFunction ([],
-		field null_pos (call null_pos (field null_pos (field null_pos (this null_pos) "__name__") "join") [gen_constant null_pos (TString ".")]) "__s"
-	),null_pos)),null_pos) in
+	let header = ENeko (
+		"@classes = $new(null);" ^
+		"@enum_to_string = function() { return neko.Boot.__enum_str(this); };" ^
+		"@class_to_string = function() { return this.__name__.join(String.new(\".\")); };" ^
+		"@serialize = function() { return neko.Boot.__serialize(this); };"
+	) , { psource = "<header>"; pline = 1; } in
 	let packs = List.concat (List.map (gen_package h) types) in
 	let names = List.fold_left gen_name [] types in
 	let methods = List.map (gen_type ctx) types in
 	let boot = gen_boot hres in
 	let inits = List.map (gen_expr ctx) (List.rev ctx.inits) in
 	let vars = List.concat (List.map (gen_static_vars ctx) types) in
-	let e = (EBlock (classes :: enum_str :: class_str :: packs @ methods @ boot :: names @ inits @ vars), null_pos) in
+	let e = (EBlock (header :: packs @ methods @ boot :: names @ inits @ vars), null_pos) in
 	let neko_file = Filename.chop_extension file ^ ".neko" in
 	let ch = IO.output_channel (open_out neko_file) in
 	(if !Plugin.verbose then Nxml.write_fmt else Nxml.write) ch (Nxml.to_xml e);
