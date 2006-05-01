@@ -56,6 +56,8 @@ class Serializer {
 		o : object
 		g : object end
 		r : reference
+		c : class
+		w : enum
 	*/
 
 	function serializeString( s : String ) {
@@ -78,6 +80,27 @@ class Serializer {
 		}
 		cache.push(v);
 		return false;
+	}
+
+	function serializeEnum(v : Dynamic) {
+		buf.add("w");
+		serialize(v.__enum__.__ename__);
+		#if neko
+		serializeString(new String(v.tag));
+		if( v.args == null )
+			buf.add(0);
+		else {
+			var l : Int = untyped __dollar__asize(v.args);
+			buf.add(l);
+			for( i in 0...l )
+				serialize(v.args[i]);
+		}
+		#else true
+		serializeString(v[0]);
+		buf.add(v.length - 1);
+		for( i in 1...v.length )
+			serialize(v[i]);
+		#end
 	}
 
 	public function serialize( v : Dynamic ) {
@@ -112,6 +135,14 @@ class Serializer {
 		if( Std.is(v,Array) ) {
 			if( serializeRef(v) )
 				return;
+			#if neko
+			#else true
+			var e = v.__enum__;
+			if( e != null && e.__ename__ != null ) {
+				serializeEnum(v);
+				return;
+			}
+			#end
 			var ucount = 0;
 			buf.add("a");
 			for( i in 0...v.length ) {
@@ -149,8 +180,20 @@ class Serializer {
 			return;
 		if( Reflect.isFunction(v) )
 			throw "Cannot serialize function";
-
-		buf.add("o");
+		var c = v.__class__;
+		if( c != null && c.__name__ != null ) {
+			buf.add("c");
+			serialize(c.__name__);
+		} else {
+			#if neko
+			var e = v.__enum__;
+			if( e != null && e.__ename__ != null ) {
+				serializeEnum(v);
+				return;
+			}
+			#end
+			buf.add("o");
+		}
 		var fl = Reflect.fields(v);
 		for( f in fl ) {
 			serializeString(f);

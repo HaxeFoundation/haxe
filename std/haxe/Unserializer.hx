@@ -42,15 +42,16 @@ class Unserializer {
  		var k = 0;
  		var s = false;
  		while( true ) {
- 			var c = buf.charCodeAt(pos) - 48;
- 			if( Std.isNaN(c) )
- 				break;
- 			if( c == -3 ) {
+ 			var c = buf.charCodeAt(pos);
+			if( c == null )
+				break;
+ 			if( c == 45 ) { // negative sign
  				s = true;
  				pos++;
  				continue;
  			}
- 			if( c < 0 || c >= 10 )
+			c -= 48;
+ 			if( c < 0 || c > 9 )
  				break;
  			k = k * 10 + c;
  			pos++;
@@ -59,6 +60,24 @@ class Unserializer {
  			k *= -1;
  		return k;
  	}
+
+	function unserializeObject() : Dynamic {
+ 		var o = Reflect.empty();
+ 		cache.push(o);
+ 		while( true ) {
+ 			if( pos >= length )
+ 				throw "Invalid object";
+ 			if( buf.charCodeAt(pos) == 103 ) /*g*/
+ 				break;
+ 			var k = unserialize();
+ 			if( !Std.is(k,String) )
+ 				throw "Invalid object key";
+ 			var v = unserialize();
+ 			Reflect.setField(o,k,v);
+ 		}
+ 		pos++;
+ 		return o;
+	}
 
  	public function unserialize() : Dynamic {
  		switch( buf.charCodeAt(pos++) ) {
@@ -124,21 +143,7 @@ class Unserializer {
  			pos++;
  			return a;
  		case 111: // o
- 			var o = Reflect.empty();
- 			cache.push(o);
- 			while( true ) {
- 				if( pos >= length )
- 					throw "Invalid object";
- 				if( buf.charCodeAt(pos) == 103 ) /*g*/
- 					break;
- 				var k = unserialize();
- 				if( !Std.is(k,String) )
- 					throw "Invalid object key";
- 				var v = unserialize();
- 				Reflect.setField(o,k,v);
- 			}
- 			pos++;
- 			return o;
+			return unserializeObject();
  		case 114: // r
  			var n = readDigits();
  			if( n < 0 || n >= cache.length )
@@ -146,6 +151,61 @@ class Unserializer {
  			return cache[n];
  		case 120: // x
 			throw unserialize();
+		case 99: // c
+			var a : Array<String> = unserialize();
+            if( !Std.is(a,Array) )
+				throw "Invalid class name";
+			for(s in a)
+				if( !Std.is(s,String) )
+					throw "Invalid class name";
+			var cl = Reflect.resolveClass(a);
+			if( cl == null )
+				throw "Class not found " + a.join(".");
+			var o = unserializeObject();
+			Reflect.setPrototype(o,cl.prototype);
+			return o;
+		case 119: // w
+			var a : Array<String> = unserialize();
+            if( !Std.is(a,Array) )
+				throw "Invalid enum name";
+			for(s in a)
+				if( !Std.is(s,String) )
+					throw "Invalid enum name";
+			var e = Reflect.resolveEnum(a);
+			if( e == null )
+				throw "Enum not found " + a.join(".");
+			var tag = unserialize();
+			if( !Std.is(tag,String) )
+				throw "Invalid enum tag";
+			var constr = Reflect.field(e,tag);
+			if( constr == null )
+				throw "Unknown enum tag "+a.join(".")+"."+tag;
+			var nargs = readDigits();
+			var args = null;
+			if( nargs > 0 ) {
+				args = new Array();
+				while( nargs > 0 ) {
+					args.push(unserialize());
+					nargs -= 1;
+				}
+			}
+			#if neko
+				var v = {
+					tag : untyped tag.__s,
+					__string : function() { return untyped neko.Boot.__enum_str(this); },
+					__enum__ : e
+				};
+				if( args != null )
+					untyped v.args = args.__a;
+				return v;
+			#else true
+				if( args == null )
+					args = [tag];
+				else
+					args.unshift(tag);
+				untyped args.__enum__ = e;
+				return args; 
+			#end
  		default:
  		}
  		pos--;
