@@ -436,7 +436,12 @@ let gen_class ctx c =
 		clpath,
 		(EObject (PMap.fold (gen_method ctx p) c.cl_fields fstring),p)
 	),p) in
-	(EBlock [eclass; estat; call p (builtin p "objsetproto") [clpath; esuper]; (EBinop ("=",field p clpath "__class__",stpath),p)],p)	
+	let emeta = (EBinop ("=",field p clpath "__class__",stpath),p) ::
+		match c.cl_path with
+		| [] , name -> [(EBinop ("=",field p (ident p "@classes") name,ident p name),p)]
+		| _ -> []
+	in
+	(EBlock ([eclass; estat; call p (builtin p "objsetproto") [clpath; esuper]] @ emeta),p)	
 
 let gen_enum_constr path c =
 	let p = pos c.ef_pos in
@@ -464,7 +469,10 @@ let gen_enum e =
 	let path = gen_type_path p e.e_path in
 	(EBlock (
 		(EBinop ("=",path, call p (builtin p "new") [null p]),p) ::		
-		pmap_list (gen_enum_constr path) e.e_constrs
+		pmap_list (gen_enum_constr path) e.e_constrs @
+		match e.e_path with
+		| [] , name -> [EBinop ("=",field p (ident p "@classes") name,ident p name),p]
+		| _ -> []
 	),p)
 
 let gen_type ctx t =
@@ -504,7 +512,7 @@ let gen_static_vars ctx t =
 						),p) :: acc
 			) c.cl_ordered_statics []
 
-let gen_packages h t =
+let gen_package h t =
 	let rec loop acc p =
 		match p with
 		| [] -> []
@@ -512,9 +520,14 @@ let gen_packages h t =
 			let path = acc @ [x] in
 			if not (Hashtbl.mem h path) then begin
 				let p = pos (match t with TClassDecl c -> c.cl_pos | TEnumDecl e -> e.e_pos) in
-				let e = (EBinop ("=",gen_type_path p (acc,x),call p (builtin p "new") [null p]),p) in
+				let e = (EBinop ("=",gen_type_path p (acc,x),call p (builtin p "new") [null p]),p) in				
 				Hashtbl.add h path ();
-				e :: loop path l
+				(match acc with
+				| [] ->
+					let reg = (EBinop ("=",field p (ident p "@classes") x,ident p x),p) in
+					e :: reg :: loop path l
+				| _ ->
+					e :: loop path l)
 			end else
 				loop path l
 	in
@@ -526,6 +539,7 @@ let gen_boot hres =
 	(EBlock [
 		call null_pos (field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__init") [];
 		EBinop ("=",field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__res",objres),null_pos;
+		EBinop ("=",field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__classes",ident null_pos "@classes"),null_pos;
 	],null_pos)
 
 let gen_name acc t =
@@ -550,19 +564,20 @@ let generate file types hres =
 		locals = PMap.empty;
 	} in
 	let h = Hashtbl.create 0 in
+	let classes = (EBinop ("=",ident null_pos "@classes", call null_pos (builtin null_pos "new") [null null_pos]),null_pos) in
 	let enum_str = (EBinop ("=",ident null_pos "@enum_to_string",(EFunction ([],
 		call null_pos (field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__enum_str") [this null_pos]
 	),null_pos)),null_pos) in
 	let class_str = (EBinop ("=",ident null_pos "@class_to_string",(EFunction ([],
 		field null_pos (call null_pos (field null_pos (field null_pos (this null_pos) "__name__") "join") [gen_constant null_pos (TString ".")]) "__s"
 	),null_pos)),null_pos) in
-	let packs = List.concat (List.map (gen_packages h) types) in
+	let packs = List.concat (List.map (gen_package h) types) in
 	let names = List.fold_left gen_name [] types in
 	let methods = List.map (gen_type ctx) types in
 	let boot = gen_boot hres in
 	let inits = List.map (gen_expr ctx) (List.rev ctx.inits) in
 	let vars = List.concat (List.map (gen_static_vars ctx) types) in
-	let e = (EBlock (enum_str :: class_str :: packs @ methods @ boot :: names @ inits @ vars), null_pos) in
+	let e = (EBlock (classes :: enum_str :: class_str :: packs @ methods @ boot :: names @ inits @ vars), null_pos) in
 	let neko_file = Filename.chop_extension file ^ ".neko" in
 	let ch = IO.output_channel (open_out neko_file) in
 	(if !Plugin.verbose then Nxml.write_fmt else Nxml.write) ch (Nxml.to_xml e);
