@@ -115,7 +115,7 @@ class FlashXml__ {
 
 	public function firstElement(){
 		var e = __x.firstChild;
-		while( e != null && e.nodeType != 3 )
+		while( e != null && e.nodeType != 1 )
 			e = e.nextSibling;
 		return convert(e);
 	}
