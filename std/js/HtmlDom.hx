@@ -24,8 +24,26 @@
  */
 package js;
 
-extern class HtmlDom extends Node {
+extern class HtmlDom {
 
 	var style : Style;
+	var attributes : HtmlCollection<HtmlDom>; // on IE6 also ?
+	var nodeName : String;
+	var nodeType : Int;
+	var nodeValue : String;
+
+	var parentNode : HtmlDom;
+	var childNodes : Array<HtmlDom>;
+	var firstChild : HtmlDom;
+	var lastChild : HtmlDom;
+	var nextSibling : HtmlDom;
+	var previousSibling : HtmlDom;
+
+	function appendChild( child : HtmlDom ) : Void;
+	function cloneNode( deep : HtmlDom ) : HtmlDom;
+	function hasChildNodes() : Bool;
+	function insertBefore( newChild : HtmlDom, refChild : HtmlDom ) : Void;
+	function removeChild( child : HtmlDom ) : Void;
+	function replaceChild( child : HtmlDom, oldChild : HtmlDom ) : Void;
 
 }

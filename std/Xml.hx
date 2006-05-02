@@ -28,7 +28,7 @@ enum XmlType {
 
 extern class Xml {
 
-	static property Node(default,null) : XmlType;
+	static property Element(default,null) : XmlType;
 	static property PCData(default,null) : XmlType;
 	static property CData(default,null) : XmlType;
 	static property Comment(default,null) : XmlType;
@@ -38,7 +38,7 @@ extern class Xml {
 
 	static function parse( s : String ) : Xml;
 
-	static function createNode( name : String ) : Xml;
+	static function createElement( name : String ) : Xml;
 	static function createPCData( data : String ) : Xml;
 	static function createCData( data : String ) : Xml;
 	static function createComment( data : String ) : Xml;
@@ -67,11 +67,11 @@ extern class Xml {
 
 	// children method : only works for Node and Document
 	// exception if child is Document (can't add Documents together)
-	function iterator() : Iterator<Xml>; // all children
-	function nodes() : Iterator<Xml>; // only nodes
-	function nodesNamed( name : String ) : Iterator<Xml>; // only nodes with this nodeName
+	function iterator() : Iterator<Xml>;
+	function elements() : Iterator<Xml>;
+	function elementsNamed( name : String ) : Iterator<Xml>; // only nodes with this nodeName
 	function firstChild() : Xml;
-	function firstNode() : Xml;
+	function firstElement() : Xml;
 	function addChild( x : Xml ) : Void;
 	function removeChild( x : Xml ) : Bool;
 	function insertChild( x : Xml, pos : Int ) : Void;
@@ -88,7 +88,7 @@ extern class Xml {
 		#else error
 		#end
 
-		Node = "node";
+		Element = "element";
 		PCData = "pcdata";
 		CData = "cdata";
 		Comment = "comment";

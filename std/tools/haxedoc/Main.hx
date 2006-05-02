@@ -257,15 +257,15 @@ class DocView {
 
 	static var entries = new Array();
 
-	static function processType( x : Node ) {
+	static function processType( x : Xml ) {
 		var p = new Array();
 		switch( x.nodeName )  {
 		case "unknown":
 			return tunknown;
 		case "c":
-			return tclass(x.attributes.path,Lambda.amap(Lambda.array(x.nodes()),processType));
+			return tclass(x.get("path"),Lambda.amap(Lambda.array(x.elements()),processType));
 		case "e":
-			var path = x.attributes.path.split(".");
+			var path = x.get("path").split(".");
 			if( path.length >= 2 ) {
 				var c = path[path.length-2].charAt(0);
 				if( c >= "A" && c <= "Z" ) {
@@ -273,10 +273,10 @@ class DocView {
 					return tparam(path.join("."),name);
 				}
 			}
-			return tenum(x.attributes.path,Lambda.amap(Lambda.array(x.nodes()),processType));
+			return tenum(x.get("path"),Lambda.amap(Lambda.array(x.elements()),processType));
 		case "f":
-			var params = x.attributes.a.split(":");
-			var it = x.nodes();
+			var params = x.get("a").split(":");
+			var it = x.elements();
 			var pl = Lambda.amap(Lambda.array(params.iterator()),function(name) {
 				return {
 					name : name,
@@ -285,49 +285,49 @@ class DocView {
 			});
 			return tfunction(pl,processType(it.next()));
 		case "a":
-			var fields = Lambda.amap(Lambda.array(x.nodes()),function(x : Node) {
-				return { name : x.nodeName, t : processType(x.nodes().next()) };
+			var fields = Lambda.amap(Lambda.array(x.elements()),function(x : Xml) {
+				return { name : x.nodeName, t : processType(x.firstElement()) };
 			});
 			return tanon(fields);
 		case "d":
-			var x = x.nodes().next();
+			var x = x.firstElement();
 			return tdynamic( if( x == null) null else processType(x) );
 		default:
 			throw ("Unknown type "+x.nodeName);
 		}
 	}
 
-	static function processField( c : DocClass, x : Node ) {
-		var stat = try Reflect.field(x.attributes,"static") == "1" catch( e : Dynamic ) false;
-		var nl = x.nodes();
+	static function processField( c : DocClass, x : Xml ) {
+		var stat = x.get("static") == "1";
+		var nl = x.elements();
 		var t = processType(nl.next());
 		var f = new DocField(x.nodeName,stat,t);
 		f.parent = c;
 		var doc = nl.next();
 		if( doc != null )
-			f.doc = doc.firstChild.nodeValue;
+			f.doc = doc.firstChild().nodeValue;
 		return f;
 	}
 
-	static function processClass(x : Node) {
-		var path = x.attributes.path;
-		if( try Reflect.field(x.attributes,"private") == "1" catch( e : Dynamic ) false )
+	static function processClass(x : Xml) {
+		var path = x.get("path");
+		if( x.get("private") == "1" )
 			return;
 		if( StringTools.endsWith(path,"__") )
 			return;
 		if( findEntry(entries,path.split(".")) != null )
 			return;
 		var c = new DocClass(path,x.nodeName != "class");
-		c.params = x.attributes.params.split(":");
+		c.params = x.get("params").split(":");
 		if( c.isEnum ) {
-			for( m in x.nodes() ) {
+			for( m in x.elements() ) {
 				if( m.nodeName == "haxe:doc" ) {
-					c.doc = m.firstChild.nodeValue;
+					c.doc = m.firstChild().nodeValue;
 					continue;
 				}
-				var l = Lambda.array(m.nodes());
-				var t = if( m.attributes.a == null ) null else {
-					var names = m.attributes.a.split(":");
+				var l = Lambda.array(m.elements());
+				var t = if( m.get("a") == null ) null else {
+					var names = m.get("a").split(":");
 					var params = Lambda.amap(names,function(name) {
 						return {
 							name : name,
@@ -341,12 +341,12 @@ class DocView {
 				c.fields.push(f);
 			}
 		} else {
-			for( m in x.nodes() ) {
+			for( m in x.elements() ) {
 				if( m.nodeName == "haxe:doc" ) {
-					c.doc = m.firstChild.nodeValue;
+					c.doc = m.firstChild().nodeValue;
 					continue;
 				}
-				if( try Reflect.field(m.attributes,"public") == "1" catch( e : Dynamic ) false )
+				if( m.get("public") == "1" )
 					c.fields.push(processField(c,m));
 			}
 		}
@@ -454,8 +454,8 @@ class DocView {
 
 	static function loadFile(file) {
 		var data = neko.File.getContent(Web.getCwd()+file);
-		var x = XmlParser.parse(data).firstChild;
-		for( c in x.nodes() )
+		var x = Xml.parse(data).firstChild();
+		for( c in x.elements() )
 			processClass(c);
 	}
 
@@ -463,8 +463,8 @@ class DocView {
 		Url.buffer.add(s);
 	}
 
-	static function displayHtml(html : Node) {
-		if( html.nodeType != Node.ELEMENT_NODE ) {
+	static function displayHtml(html : Xml) {
+		if( html.nodeType != Xml.Element ) {
 			print(html.toString());
 			return;
 		}
@@ -492,8 +492,8 @@ class DocView {
 		}
 		print("<");
 		print(html.nodeName);
-		for( k in Reflect.fields(html.attributes) )
-			print(" "+k+"=\""+Reflect.field(html.attributes,k)+"\"");
+		for( k in html.attributes() )
+			print(" "+k+"=\""+html.get(k)+"\"");
 		print(">");
 		for( c in html.childNodes )
 			displayHtml(c);

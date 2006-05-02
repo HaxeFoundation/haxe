@@ -33,7 +33,7 @@ class NekoXml__ {
 	private var _nodeName : String;
 	private var _nodeValue : String;
 	private var _attributes : Dynamic<String>;
-	
+
 	private function new() {
 		_attributes = untyped Reflect.empty();
 		_children = new Array();
@@ -45,13 +45,13 @@ class NekoXml__ {
 
 	static function parse( xmlData : String ) : Xml {
 		var x = new NekoXml__();
-		
+
 		var parser = {
 			cur : x,
-			xml : function(name,att) {	
+			xml : function(name,att) {
 				var x : Dynamic = new NekoXml__();
 				untyped x._parentNode = this.cur;
-				x.nodeType = Xml.Node;
+				x.nodeType = Xml.Element;
 				x._nodeName = new String(name);
 				x._attributes = att;
 				untyped {
@@ -87,7 +87,7 @@ class NekoXml__ {
 					x.nodeType = Xml.Prolog;
 				}else{
 					x.nodeType = Xml.Comment;
-				}				
+				}
 				x._nodeValue = new String(text);
 				untyped this.cur.addChild(x);
 			},
@@ -108,10 +108,10 @@ class NekoXml__ {
 	}
 
 
-	static function createNode( name : String ) : Xml {
+	static function createElement( name : String ) : Xml {
 		var r = new NekoXml__();
 		untyped {
-			r.nodeType = Xml.Node;
+			r.nodeType = Xml.Element;
 			r.setNodeName( name );
 			return r;
 		}
@@ -165,13 +165,13 @@ class NekoXml__ {
 
 	public property nodeName(getNodeName,setNodeName) : String;
 	private function getNodeName() : String {
-		if( nodeType != Xml.Node )
+		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 
 		return _nodeName;
 	}
 	private function setNodeName( n : String ) : String {
-		if( nodeType != Xml.Node ) 
+		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 
 		return _nodeName = n;
@@ -179,54 +179,54 @@ class NekoXml__ {
 
 	public property nodeValue(getNodeValue,setNodeValue) : String;
 	private function getNodeValue() : String {
-		if( nodeType == Xml.Node || nodeType == Xml.Document ) 
+		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
 
 		return _nodeValue;
 	}
 	private function setNodeValue( v : String ) : String {
-		if( nodeType == Xml.Node || nodeType == Xml.Document ) 
+		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
-		
+
 		return _nodeValue = v;
 	}
 
 	public function get( att : String ) : String {
-		if( nodeType != Xml.Node ) 
+		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		
+
 		return Reflect.field( _attributes, att );
 	}
-	
+
 	public function set( att : String, value : String ) : Void {
-		if( nodeType != Xml.Node ) 
+		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		
+
 		Reflect.setField (_attributes, att, value );
 	}
-	
+
 	public function remove( att : String ) : Void{
-		if( nodeType != Xml.Node ) 
+		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		
+
 		Reflect.deleteField( _attributes, att );
 	}
-	
+
 	public function exists( att : String ) : Bool {
-		if( nodeType != Xml.Node ) 
+		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		
+
 		return Reflect.hasField( _attributes, att );
 	}
 
 	public function attributes() : Iterator<String> {
-		if( nodeType != Xml.Node ) 
+		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 
 		return Reflect.fields( _attributes ).iterator();
 	}
 
-	
+
 	public function iterator(){
 		return untyped {
 			cur: 0,
@@ -240,9 +240,9 @@ class NekoXml__ {
 		}
 	}
 
-	public function nodes(){
+	public function elements(){
 		var nextElement = untyped function( cur, x ) {
-			while( x[cur] != null && x[cur].nodeType != Xml.Node ){
+			while( x[cur] != null && x[cur].nodeType != Xml.Element ){
 				cur++;
 			}
 			return cur;
@@ -263,10 +263,10 @@ class NekoXml__ {
 		}
 	}
 
-	public function nodesNamed( name : String ){
+	public function elementsNamed( name : String ){
 		var nextElement = untyped function( cur, x ) {
 			var t = x[cur];
-			while( t != null && (t.nodeType != Xml.Node || t.nodeName != name) ){
+			while( t != null && (t.nodeType != Xml.Element || t.nodeName != name) ){
 				cur++;
 			}
 			return cur;
@@ -291,23 +291,23 @@ class NekoXml__ {
 		return _children[0];
 	}
 
-	public function firstNode() : Xml {
+	public function firstElement() : Xml {
 		var cur = 0;
-		while( _children[cur] != null && _children[cur].nodeType != Xml.Node ){
+		while( _children[cur] != null && _children[cur].nodeType != Xml.Element ){
 			cur++;
 		}
 
 		return _children[cur];
 	}
-	
+
 	public function addChild( x : Xml ) : Void {
 		_children.push( x );
 	}
-	
+
 	public function removeChild( x : Xml ) : Bool {
 		return _children.remove( x );
 	}
-	
+
 	public function insertChild( x : Xml, pos : Int ) : Void {
 		_children.insert( pos, x );
 	}
@@ -318,7 +318,7 @@ class NekoXml__ {
 
 		var s = new StringBuf();
 
-		if( nodeType == Xml.Node ) {
+		if( nodeType == Xml.Element ) {
 			s.add("<");
 			s.add(nodeName);
 			for( k in Reflect.fields(_attributes) ) {
@@ -334,11 +334,11 @@ class NekoXml__ {
 			}
 			s.add(">");
 		}
-	
+
 		for( x in iterator() )
 			s.add(x);
 
-		if( nodeType == Xml.Node ) {
+		if( nodeType == Xml.Element ) {
 			s.add("</");
 			s.add(nodeName);
 			s.add(">");

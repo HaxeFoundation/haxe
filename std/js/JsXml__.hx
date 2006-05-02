@@ -60,7 +60,7 @@ class JsXml__ {
 				if( r.match(str) ) {
 					switch( i ) {
 					case 0: // Node
-						var x = Xml.createNode(r.matched(1));
+						var x = Xml.createElement(r.matched(1));
 						current.addChild(x);
 						str = r.matchedRight();
 						while( eattribute.match(str) ) {
@@ -81,7 +81,6 @@ class JsXml__ {
 						current.addChild(x);
 						str = r.matchedRight();
 					case 2: // CData
-						
 						str = r.matchedRight();
 						if( !ecdata_end.match(str) )
 							throw "End of CDATA section not found";
@@ -109,7 +108,7 @@ class JsXml__ {
 						var x = Xml.createDocType(old.substr(0,pos));
 						current.addChild(x);
 					case 4: // End Node
-						untyped if( current._children != null && current._children.length == 0 ) {	
+						untyped if( current._children != null && current._children.length == 0 ) {
 							var e = Xml.createPCData("");
 							current.addChild(e);
 						}
@@ -148,10 +147,10 @@ class JsXml__ {
 	private function new(){
 	}
 
-	static function createNode( name : String ) : Xml {
+	static function createElement( name : String ) : Xml {
 		var r = new JsXml__();
 		untyped {
-			r.nodeType = Xml.Node;
+			r.nodeType = Xml.Element;
 			r._children = new Array();
 			r._attributes = new Hash();
 			r.setNodeName( name );
@@ -207,64 +206,56 @@ class JsXml__ {
 
 	public property nodeName(getNodeName,setNodeName) : String;
 	private function getNodeName() : String {
-		if( nodeType != Xml.Node )
+		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 
 		return _nodeName;
 	}
 	private function setNodeName( n : String ) : String {
-		if( nodeType != Xml.Node ) 
+		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-
 		return _nodeName = n;
 	}
 
 	public property nodeValue(getNodeValue,setNodeValue) : String;
 	private function getNodeValue() : String {
-		if( nodeType == Xml.Node || nodeType == Xml.Document ) 
+		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
-
 		return _nodeValue;
 	}
 	private function setNodeValue( v : String ) : String {
-		if( nodeType == Xml.Node || nodeType == Xml.Document ) 
+		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
-		
 		return _nodeValue = v;
 	}
 
 	public function get( att : String ) : String {
-		if( nodeType != Xml.Node ) 
+		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		
 		return _attributes.get( att );
 	}
-	
+
 	public function set( att : String, value : String ) : Void {
-		if( nodeType != Xml.Node ) 
+		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		
 		_attributes.set( att, value );
 	}
-	
+
 	public function remove( att : String ) : Void{
-		if( nodeType != Xml.Node ) 
+		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		
 		_attributes.remove( att );
 	}
-	
+
 	public function exists( att : String ) : Bool {
-		if( nodeType != Xml.Node ) 
+		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		
 		return _attributes.exists( att );
 	}
 
 	public function attributes() : Iterator<String> {
-		if( nodeType != Xml.Node ) 
+		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-
 		return _attributes.keys();
 	}
 
@@ -281,9 +272,9 @@ class JsXml__ {
 		}
 	}
 
-	public function nodes(){
+	public function elements(){
 		var nextElement = untyped function( cur, x ) {
-			while( x[cur] != null && x[cur].nodeType != Xml.Node ){
+			while( x[cur] != null && x[cur].nodeType != Xml.Element ){
 				cur++;
 			}
 			return cur;
@@ -304,10 +295,10 @@ class JsXml__ {
 		}
 	}
 
-	public function nodesNamed( name : String ){
+	public function elementsNamed( name : String ){
 		var nextElement = untyped function( cur, x ) {
 			var t = x[cur];
-			while( t != null && (t.nodeType != Xml.Node || t.nodeName != name) ){
+			while( t != null && (t.nodeType != Xml.Element || t.nodeName != name) ){
 				cur++;
 			}
 			return cur;
@@ -332,23 +323,21 @@ class JsXml__ {
 		return _children[0];
 	}
 
-	public function firstNode() : Xml {
+	public function firstElement() : Xml {
 		var cur = 0;
-		while( _children[cur] != null && _children[cur].nodeType != Xml.Node ){
+		while( _children[cur] != null && _children[cur].nodeType != Xml.Element )
 			cur++;
-		}
-
 		return _children[cur];
 	}
-	
+
 	public function addChild( x : Xml ) : Void {
 		_children.push( x );
 	}
-	
+
 	public function removeChild( x : Xml ) : Bool {
 		return _children.remove( x );
 	}
-	
+
 	public function insertChild( x : Xml, pos : Int ) : Void {
 		_children.insert( pos, x );
 	}
@@ -359,7 +348,7 @@ class JsXml__ {
 
 		var s = new StringBuf();
 
-		if( nodeType == Xml.Node ) {
+		if( nodeType == Xml.Element ) {
 			s.add("<");
 			s.add(nodeName);
 			for( k in _attributes.keys() ){
@@ -375,11 +364,11 @@ class JsXml__ {
 			}
 			s.add(">");
 		}
-	
+
 		for( x in iterator() )
 			s.add(x);
 
-		if( nodeType == Xml.Node ) {
+		if( nodeType == Xml.Element ) {
 			s.add("</");
 			s.add(nodeName);
 			s.add(">");
