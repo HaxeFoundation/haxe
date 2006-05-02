@@ -7,7 +7,7 @@ extern class XMLSocket {
 	function send( data : Dynamic ) : Bool;
 	function close() : Bool;
 	function onData( src : String ) : Void;
-	function onXML( src : Node ) : Void;
+	//function onXML( src : Xml ) : Void;
 	function onConnect( success : Bool ) : Void;
 	function onClose() : Void;
 }
