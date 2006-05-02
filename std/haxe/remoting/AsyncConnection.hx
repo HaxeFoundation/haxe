@@ -50,14 +50,19 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 		h.setHeader("X-Haxe-Remoting","eval");
 		h.setParameter("__x",__path.join("."));
 		h.onData = function(data : String) {
+			var ok = true;
+			var v;
 			try {
 				if( data.length < 3 || data.substr(0,3) != "hxr" )
 					throw "Invalid response : '"+data+"'";
 				var s = new Unserializer(data.substr(3,data.length-3));
-				onData(s.unserialize());
+				v = s.unserialize();
 			} catch( err : Dynamic ) {
+				ok = false;
 				me.onError(err);
 			}
+			if( ok )
+				onData(v);
 		};
 		h.onError = onError;
 		h.request(true);
@@ -72,14 +77,19 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 		h.setHeader("X-Haxe-Remoting","call");
 		h.setParameter("__x",s.toString());
 		h.onData = function(data : String) {
+			var ok = true;
+			var v;
 			try {
 				if( data.length < 3 || data.substr(0,3) != "hxr" )
 					throw "Invalid response : '"+data+"'";
 				var s = new Unserializer(data.substr(3,data.length-3));
-				onData(s.unserialize());
+				v = s.unserialize();
 			} catch( err : Dynamic ) {
+				ok = false;
 				me.onError(err);
 			}
+			if( ok )
+				onData(v);
 		};
 		h.onError = onError;
 		h.request(true);
