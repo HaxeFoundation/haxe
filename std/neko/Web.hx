@@ -92,7 +92,10 @@ class Web {
 		Retrieve a client header value sent with the request.
 	**/
 	public static function getClientHeader( k : String ) {
-		return new String(_get_client_header(untyped k.__s));
+		var v = _get_client_header(untyped k.__s);
+		if( v == null )
+			return null;
+		return new String(v);
 	}
 
 	/**
@@ -106,7 +109,10 @@ class Web {
 		Returns all the POST data (in case of file transfert for example).
 	**/
 	public static function getPostData() {
-		return new String(_get_post_data());
+		var v = _get_post_data();
+		if( v == null )
+			return null;
+		return new String(v);
 	}
 
 	/**
