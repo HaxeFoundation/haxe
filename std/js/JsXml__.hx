@@ -205,12 +205,13 @@ class JsXml__ {
 	}
 
 	public property nodeName(getNodeName,setNodeName) : String;
+
 	private function getNodeName() : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-
 		return _nodeName;
 	}
+
 	private function setNodeName( n : String ) : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
@@ -218,11 +219,13 @@ class JsXml__ {
 	}
 
 	public property nodeValue(getNodeValue,setNodeValue) : String;
+
 	private function getNodeValue() : String {
 		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
 		return _nodeValue;
 	}
+
 	private function setNodeValue( v : String ) : String {
 		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
@@ -264,7 +267,7 @@ class JsXml__ {
 			cur: 0,
 			x: this._children,
 			hasNext : function(){
-				return this.x[this.cur] != null;
+				return this.cur < this.x.length;
 			},
 			next : function(){
 				return this.x[this.cur++];
@@ -273,48 +276,64 @@ class JsXml__ {
 	}
 
 	public function elements(){
-		var nextElement = untyped function( cur, x ) {
-			while( x[cur] != null && x[cur].nodeType != Xml.Element ){
-				cur++;
-			}
-			return cur;
-		};
-
 		return untyped {
 			cur: 0,
 			x: this._children,
-			hasNext : function(){
-				this.cur = nextElement(this.cur,this.x);
-				return this.x[this.cur] != null;
+			hasNext : function() {
+				var k = this.cur;
+				var l = this.x.length;
+				while( k < l ) {
+					if( this.x[k].nodeType == Xml.Element )
+						break;
+					k += 1;
+				}
+				this.cur = k;
+				return k < l;
 			},
-			next : function(){
-				var r = nextElement(this.cur,this.x);
-				this.cur = nextElement(this.cur+1,this.x);
-				return this.x[r];
+			next : function() {
+				var k = this.cur;
+				var l = this.x.length;
+				while( k < l ) {
+					var n = this.x[k];
+					k += 1;
+					if( n.nodeType == Xml.Element ) {
+						this.cur = k;
+						return n;
+					}
+				}
+				return null;
 			}
 		}
 	}
 
-	public function elementsNamed( name : String ){
-		var nextElement = untyped function( cur, x ) {
-			var t = x[cur];
-			while( t != null && (t.nodeType != Xml.Element || t.nodeName != name) ){
-				cur++;
-			}
-			return cur;
-		};
-
+	public function elementsNamed( name : String ) {
 		return untyped {
 			cur: 0,
 			x: this._children,
-			hasNext : function(){
-				this.cur = nextElement(this.cur,this.x);
-				return this.x[this.cur] != null;
+			hasNext : function() {
+				var k = this.cur;
+				var l = this.x.length;
+				while( k < l ) {
+					var n = this.x[k];
+					if( n.nodeType == Xml.Element && n._nodeName == name )
+						break;
+					k++;
+				}
+				this.cur = k;
+				return k < l;
 			},
-			next : function(){
-				var r = nextElement(this.cur,this.x);
-				this.cur = nextElement(this.cur+1,this.x);
-				return this.x[r];
+			next : function() {
+				var k = this.cur;
+				var l = this.x.length;
+				while( k < l ) {
+					var n = this.x[k];
+					k++;
+					if( n.nodeType == Xml.Element && n._nodeName == name ) {
+						this.cur = k;
+						return n;
+					}					
+				}
+				return null;
 			}
 		}
 	}
@@ -325,9 +344,14 @@ class JsXml__ {
 
 	public function firstElement() : Xml {
 		var cur = 0;
-		while( _children[cur] != null && _children[cur].nodeType != Xml.Element )
+		var l = _children.length;
+		while( cur < l ) {
+			var n = _children[cur];
+			if( n.nodeType == Xml.Element )
+				return n;
 			cur++;
-		return _children[cur];
+		}
+		return null;
 	}
 
 	public function addChild( x : Xml ) : Void {
@@ -344,13 +368,13 @@ class JsXml__ {
 
 	public function toString() {
 		if( nodeType == Xml.PCData || nodeType == Xml.CData || nodeType == Xml.Comment || nodeType == Xml.DocType || nodeType == Xml.Prolog )
-			return nodeValue;
+			return _nodeValue;
 
 		var s = new StringBuf();
 
 		if( nodeType == Xml.Element ) {
 			s.add("<");
-			s.add(nodeName);
+			s.add(_nodeName);
 			for( k in _attributes.keys() ){
 				s.add(" ");
 				s.add(k);
@@ -370,7 +394,7 @@ class JsXml__ {
 
 		if( nodeType == Xml.Element ) {
 			s.add("</");
-			s.add(nodeName);
+			s.add(_nodeName);
 			s.add(">");
 		}
 		return s.toString();
