@@ -35,7 +35,7 @@ class JsXml__ {
 	static var ecomment = ~/^<!--/;
 	static var eprolog = ~/^<\?[^\?]+\?>/;
 
-	static var eattribute = ~/^[ \r\n\t]*([a-zA-Z0-9:-]+)[ \r\n\t]*=[ \r\n\t]*"([^"\n\r]+)"/;
+	static var eattribute = ~/^[ \r\n\t]*([a-zA-Z0-9:-]+)[ \r\n\t]*=[ \r\n\t]*"([^"\n\r]*)"/;
 	static var eclose = ~/^[ \r\n\t]*(>|(\/>))/;
 	static var ecdata_end = ~/\]\]>/;
 	static var edoctype_elt = ~/[\[|\]>]/;
