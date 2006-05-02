@@ -34,7 +34,7 @@ class Hash<T> {
 		h = Reflect.empty();
 		untyped if( h.__proto__ != null ) {
 			h.__proto__ = null;
-			delete(h.__proto__);
+			__js__("delete")(h.__proto__);
 		}
 		#else error
 		#end
