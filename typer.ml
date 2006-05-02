@@ -236,21 +236,17 @@ let rec load_normal_type ctx t p allow_no_params =
 			| _ -> error "Too many parameters for Dynamic" p
 		else begin
 			if List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;
+			let tparams = List.map (load_type ctx p) t.tparams in
 			let params = List.map2 (fun t (_,t2) ->
-				let t = load_type ctx p t in
 				(match follow t2 with
 				| TInst (c,[]) ->
-					(match c.cl_super with
-					| None -> ()
-					| Some (c,params) ->
-						unify ctx t (TInst (c,params)) p);
 					List.iter (fun (i,params) ->
-						unify ctx t (TInst (i,params)) p
+						unify ctx t (apply_params types tparams (TInst (i,params))) p
 					) c.cl_implements
 				| TEnum (c,[]) -> ()
 				| _ -> assert false);
 				t
-			) t.tparams types in
+			) tparams types in
 			f params
 		end
 
