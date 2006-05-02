@@ -79,11 +79,20 @@ extern class Xml {
 	function toString() : String;
 
 	static function __init__() : Void untyped {
+		#if neko
+			untyped Xml = neko.NekoXml__;
+		#else js
+			untyped Xml = js.JsXml__;
+		#else flash
+			untyped Xml = flash.FlashXml__;
+		#else error
+		#end
+
 		Node = "node";
 		PCData = "pcdata";
 		CData = "cdata";
 		Comment = "comment";
-		Doctype = "doctype";
+		DocType = "doctype";
 		Prolog = "prolog";
 		Document = "document";
 	}
