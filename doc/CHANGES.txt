@@ -1,3 +1,8 @@
+2006-05-??: 1.0
+	fixed small bug in JS Xml Parser ("" attributes)
+	added default Content-Type for haxe.Http in JS
+	haxe.AsyncConnection : onError should not be call if error occur in onData
+
 2006-05-02: RC1
 	added the Socket class
 	fixed a bug of returned value in neko with 6 or more parameters
