@@ -29,7 +29,7 @@ extern class XMLHttpRequest {
 	var onreadystatechange : Void -> Void;
 	var readyState : Int;
 	var responseText : String;
-	var responseXML : Node;
+	//var responseXML : Xml;
 	var status : Int;
 	var statusText : String;
 
@@ -45,10 +45,23 @@ extern class XMLHttpRequest {
 
 	private static function __init__() : Void {
 		untyped
-		js["XMLHttpRequest"] = if( js.Lib.isIE )
-			function() { return __new__("ActiveXObject","Microsoft.XMLHTTP"); }
-		else
-			__js__("XMLHttpRequest");
+		js["XMLHttpRequest"] = 
+			if( window.XMLHttpRequest )
+				__js__("XMLHttpRequest");
+			else if( window.ActiveXObject )
+				function() { 
+					try {
+						return __new__("ActiveXObject","Msxml2.XMLHTTP");
+					}catch(e:Dynamic){
+						try {
+							return __new__("ActiveXObject","Microsoft.XMLHTTP");
+						}catch(e:Dynamic){
+							throw "Unable to create XMLHttpRequest object.";
+						}
+					}
+				};
+			else 
+				throw "Unable to create XMLHttpRequest object.";
 	}
 
 }
