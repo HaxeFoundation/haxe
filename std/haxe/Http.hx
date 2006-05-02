@@ -87,6 +87,9 @@ class Http {
 			onError(e.toString());
 			return;
 		}
+		if( headers.get("Content-Type") == null && post )
+			r.setRequestHeader("Content-Type","application/x-www-form-urlencoded");
+			
 		for( h in headers.keys() )
 			r.setRequestHeader(h,headers.get(h));
 		r.send(uri);
