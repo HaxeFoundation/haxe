@@ -187,14 +187,14 @@ class FlashXml__ {
 			cur: this.__x.firstChild,
 			hasNext : function() {
 				var r = this.cur;
-				while( r != null && r.nodeType != 1 && r.nodeName != nodeName )
+				while( r != null && (r.nodeType != 1 || r.nodeName != nodeName) )
 					r = r.nextSibling;
 				this.cur = r;
 				return r != null;
 			},
 			next : function(){
 				var r = this.cur;
-				while( r != null && r.nodeType != 1 && r.nodeName != nodeName )
+				while( r != null && (r.nodeType != 1 || r.nodeName != nodeName) )
 					r = r.nextSibling;
 				if( r == null ) {
 					this.cur = null;
