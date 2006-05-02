@@ -132,6 +132,10 @@ class StringTools {
 		return ns+s;
 	}
 
+	public static function replace( s : String, sub : String, by : String ) : String {
+		return s.split(sub).join(by);
+	}
+
 
 	#if neko
 	private static var _urlEncode = neko.Lib.load("std","url_encode",1);
