@@ -43,8 +43,13 @@ class Unserializer {
  		var s = false;
  		while( true ) {
  			var c = buf.charCodeAt(pos);
-			if( c == null )
+ 			#if neko
+ 			if( c == null )
+ 				break;
+ 			#else true
+			if( Std.isNaN(c) )
 				break;
+			#end
  			if( c == 45 ) { // negative sign
  				s = true;
  				pos++;
@@ -204,7 +209,7 @@ class Unserializer {
 				else
 					args.unshift(tag);
 				untyped args.__enum__ = e;
-				return args; 
+				return args;
 			#end
  		default:
  		}
