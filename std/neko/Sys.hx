@@ -42,7 +42,10 @@ class Sys {
 	}
 
 	public static function getEnv( s : String ) {
-		return new String(get_env(untyped s.__s));
+		var v = get_env(untyped s.__s);
+		if( v == null )
+			return null;
+		return new String(v);
 	}
 
 	public static function putEnv( s : String, v : String ) {
