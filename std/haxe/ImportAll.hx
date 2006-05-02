@@ -44,7 +44,6 @@ import String;
 import StringBuf;
 import StringTools;
 import Xml;
-import XmlParser;
 
 import haxe.AsyncConnection;
 import haxe.Connection;
