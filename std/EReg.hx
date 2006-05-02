@@ -84,7 +84,7 @@ class EReg {
 	public function matchedLeft() : String {
 		#if neko
 		var p = regexp_matched_pos(r,0);
-		return new String(last.substr(0,p.pos));
+		return last.substr(0,p.pos);
 		#else js
 		untyped {
 			if( r.m == null ) throw "EReg::matchedLeft";
@@ -102,7 +102,7 @@ class EReg {
 		#if neko
 		var p = regexp_matched_pos(r,0);
 		var sz = p.pos+p.len;
-		return new String(last.substr(sz,last.length-sz));
+		return last.substr(sz,last.length-sz);
 		#else js
 		untyped {
 			if( r.m == null ) throw "EReg::matchedRight";
