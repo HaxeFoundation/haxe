@@ -50,7 +50,7 @@ class NekoXml__ {
 			cur : x,
 			xml : function(name,att) {
 				var x : Dynamic = new NekoXml__();
-				untyped x._parentNode = this.cur;
+				x._parentNode = untyped this.cur;
 				x.nodeType = Xml.Element;
 				x._nodeName = new String(name);
 				x._attributes = att;
@@ -62,38 +62,37 @@ class NekoXml__ {
 						__dollar__objset(att,f[i], new String(__dollar__objget(att,f[i])) );
 						i++;
 					}
+					this.cur.addChild(x);
+					this.cur = x;
 				}
-				untyped this.cur.addChild(x);
-				untyped this.cur = x;
 			},
 			cdata : function(text) {
 				var x : Dynamic = new NekoXml__();
-				untyped x._parentNode = this.cur;
+				x._parentNode = untyped this.cur;
 				x.nodeType = Xml.CData;
 				x._nodeValue = new String(text);
 				untyped this.cur.addChild(x);
 			},
 			pcdata : function(text) {
 				var x : Dynamic = new NekoXml__();
-				untyped x._parentNode = this.cur;
+				x._parentNode = untyped this.cur;
 				x.nodeType = Xml.PCData;
 				x._nodeValue = new String(text);
 				untyped this.cur.addChild(x);
 			},
-			comment : function(text:String) {
+			comment : function(text) {
 				var x : Dynamic = new NekoXml__();
-				untyped x._parentNode = this.cur;
-				if( text.charCodeAt(1) == 63 ){
+				x._parentNode = untyped this.cur;
+				if( untyped __dollar__sget(text,1) == 63 )
 					x.nodeType = Xml.Prolog;
-				}else{
+				else
 					x.nodeType = Xml.Comment;
-				}
 				x._nodeValue = new String(text);
 				untyped this.cur.addChild(x);
 			},
 			doctype : function(text) {
 				var x : Dynamic = new NekoXml__();
-				untyped x._parentNode = this.cur;
+				x._parentNode = untyped this.cur;
 				x.nodeType = Xml.DocType;
 				x._nodeValue = new String(text);
 				untyped this.cur.addChild(x);
@@ -104,7 +103,7 @@ class NekoXml__ {
 		};
 		untyped _parse(xmlData.__s,parser);
 		x.nodeType = Xml.Document;
-		untyped return x;
+		return untyped x;
 	}
 
 
@@ -112,7 +111,7 @@ class NekoXml__ {
 		var r = new NekoXml__();
 		untyped {
 			r.nodeType = Xml.Element;
-			r.setNodeName( name );
+			r._nodeName = name;
 			return r;
 		}
 	}
@@ -120,7 +119,7 @@ class NekoXml__ {
 		var r = new NekoXml__();
 		untyped {
 			r.nodeType = Xml.PCData;
-			r.setNodeValue( data );
+			r._nodeValue = data;
 			return r;
 		}
 	}
@@ -128,7 +127,7 @@ class NekoXml__ {
 		var r = new NekoXml__();
 		untyped {
 			r.nodeType = Xml.CData;
-			r.setNodeValue( data );
+			r._nodeValue = data;
 			return r;
 		}
 	}
@@ -136,7 +135,7 @@ class NekoXml__ {
 		var r = new NekoXml__();
 		untyped {
 			r.nodeType = Xml.Comment;
-			r.setNodeValue( data );
+			r._nodeValue = data;
 			return r;
 		}
 	}
@@ -144,7 +143,7 @@ class NekoXml__ {
 		var r = new NekoXml__();
 		untyped {
 			r.nodeType = Xml.DocType;
-			r.setNodeValue( data );
+			r._nodeValue = data;
 			return r;
 		}
 	}
@@ -152,14 +151,14 @@ class NekoXml__ {
 		var r = new NekoXml__();
 		untyped {
 			r.nodeType = Xml.Prolog;
-			r.setNodeValue( data );
+			r._nodeValue = data;
 			return r;
 		}
 	}
 	static function createDocument() : Xml{
 		var r = new NekoXml__();
 		r.nodeType = Xml.Document;
-		untyped return r;
+		return untyped r;
 	}
 
 
@@ -167,13 +166,11 @@ class NekoXml__ {
 	private function getNodeName() : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-
 		return _nodeName;
 	}
 	private function setNodeName( n : String ) : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-
 		return _nodeName = n;
 	}
 
@@ -181,48 +178,41 @@ class NekoXml__ {
 	private function getNodeValue() : String {
 		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
-
 		return _nodeValue;
 	}
 	private function setNodeValue( v : String ) : String {
 		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
-
 		return _nodeValue = v;
 	}
 
 	public function get( att : String ) : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-
 		return Reflect.field( _attributes, att );
 	}
 
 	public function set( att : String, value : String ) : Void {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-
 		Reflect.setField (_attributes, att, value );
 	}
 
 	public function remove( att : String ) : Void{
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-
 		Reflect.deleteField( _attributes, att );
 	}
 
 	public function exists( att : String ) : Bool {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-
 		return Reflect.hasField( _attributes, att );
 	}
 
 	public function attributes() : Iterator<String> {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-
 		return Reflect.fields( _attributes ).iterator();
 	}
 
@@ -232,7 +222,7 @@ class NekoXml__ {
 			cur: 0,
 			x: this._children,
 			hasNext : function(){
-				return this.x[this.cur] != null;
+				return this.cur < this.x.length;
 			},
 			next : function(){
 				return this.x[this.cur++];
@@ -240,49 +230,66 @@ class NekoXml__ {
 		}
 	}
 
-	public function elements(){
-		var nextElement = untyped function( cur, x ) {
-			while( x[cur] != null && x[cur].nodeType != Xml.Element ){
-				cur++;
-			}
-			return cur;
-		};
 
+	public function elements(){
 		return untyped {
 			cur: 0,
 			x: this._children,
-			hasNext : function(){
-				this.cur = nextElement(this.cur,this.x);
-				return this.x[this.cur] != null;
+			hasNext : function() {
+				var k = this.cur;
+				var l = this.x.length;
+				while( k < l ) {
+					if( this.x[k].nodeType == Xml.Element )
+						break;
+					k += 1;
+				}
+				this.cur = k;
+				return k < l;
 			},
-			next : function(){
-				var r = nextElement(this.cur,this.x);
-				this.cur = nextElement(this.cur+1,this.x);
-				return this.x[r];
+			next : function() {
+				var k = this.cur;
+				var l = this.x.length;
+				while( k < l ) {
+					var n = this.x[k];
+					k += 1;
+					if( n.nodeType == Xml.Element ) {
+						this.cur = k;
+						return n;
+					}
+				}
+				return null;
 			}
 		}
 	}
 
-	public function elementsNamed( name : String ){
-		var nextElement = untyped function( cur, x ) {
-			var t = x[cur];
-			while( t != null && (t.nodeType != Xml.Element || t.nodeName != name) ){
-				cur++;
-			}
-			return cur;
-		};
-
+	public function elementsNamed( name : String ) {
 		return untyped {
 			cur: 0,
 			x: this._children,
-			hasNext : function(){
-				this.cur = nextElement(this.cur,this.x);
-				return this.x[this.cur] != null;
+			hasNext : function() {
+				var k = this.cur;
+				var l = this.x.length;
+				while( k < l ) {
+					var n = this.x[k];
+					if( n.nodeType == Xml.Element && n._nodeName == name )
+						break;
+					k++;
+				}
+				this.cur = k;
+				return k < l;
 			},
-			next : function(){
-				var r = nextElement(this.cur,this.x);
-				this.cur = nextElement(this.cur+1,this.x);
-				return this.x[r];
+			next : function() {
+				var k = this.cur;
+				var l = this.x.length;
+				while( k < l ) {
+					var n = this.x[k];
+					k++;
+					if( n.nodeType == Xml.Element && n._nodeName == name ) {
+						this.cur = k;
+						return n;
+					}
+				}
+				return null;
 			}
 		}
 	}
@@ -292,12 +299,12 @@ class NekoXml__ {
 	}
 
 	public function firstElement() : Xml {
-		var cur = 0;
-		while( _children[cur] != null && _children[cur].nodeType != Xml.Element ){
-			cur++;
+		for( cur in 0..._children.length ) {
+			var n = _children[cur];
+			if( n.nodeType == Xml.Element )
+				return n;
 		}
-
-		return _children[cur];
+		return null;
 	}
 
 	public function addChild( x : Xml ) : Void {
@@ -314,13 +321,13 @@ class NekoXml__ {
 
 	public function toString() {
 		if( nodeType == Xml.PCData || nodeType == Xml.CData || nodeType == Xml.Comment || nodeType == Xml.DocType || nodeType == Xml.Prolog )
-			return nodeValue;
+			return _nodeValue;
 
 		var s = new StringBuf();
 
 		if( nodeType == Xml.Element ) {
 			s.add("<");
-			s.add(nodeName);
+			s.add(_nodeName);
 			for( k in Reflect.fields(_attributes) ) {
 				s.add(" ");
 				s.add(k);
@@ -340,7 +347,7 @@ class NekoXml__ {
 
 		if( nodeType == Xml.Element ) {
 			s.add("</");
-			s.add(nodeName);
+			s.add(_nodeName);
 			s.add(">");
 		}
 		return s.toString();
