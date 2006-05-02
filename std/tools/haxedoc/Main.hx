@@ -486,7 +486,8 @@ class DocView {
 			}
 			return;
 		}
-		if( html.childNodes.length == 0 ) {
+
+		if( !html.iterator().hasNext() ) {
 			print(html.toString());
 			return;
 		}
@@ -495,7 +496,7 @@ class DocView {
 		for( k in html.attributes() )
 			print(" "+k+"=\""+html.get(k)+"\"");
 		print(">");
-		for( c in html.childNodes )
+		for( c in html )
 			displayHtml(c);
 		print("</"+html.nodeName+">");
 	}
@@ -504,7 +505,7 @@ class DocView {
 
 	public static function main() {
 		var hdata = try neko.File.getContent(Web.getCwd()+"template.xml") catch( e : Dynamic ) default_template;
-		var html = XmlParser.parse(hdata).firstChild;
+		var html = Xml.parse(hdata).firstChild();
 		var baseDir = "../data/media/";
 		loadFile(baseDir+"flash.xml");
 		loadFile(baseDir+"neko.xml");
