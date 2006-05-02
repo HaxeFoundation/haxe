@@ -22,7 +22,7 @@ extern class TextFormat
                     	bold:Bool,italic:Bool,underline:Bool,
                     	url:String,window:String,align:String,
                     	leftMargin:Float,rightMargin:Float,indent:Float,leading:Float) : Void;
-	function getTextExtent(text:String):Dynamic;
+	function getTextExtent(text:String, width : Float):Dynamic;
 }
 
 
