@@ -1,4 +1,4 @@
-2006-??-??: 1.0 ?
+2006-05-02: RC1
 	added the Socket class
 	fixed a bug of returned value in neko with 6 or more parameters
 	added "Missing type" error for catchs.
