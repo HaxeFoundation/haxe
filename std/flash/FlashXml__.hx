@@ -123,89 +123,85 @@ class FlashXml__ {
 	private function setNodeName( n : String ) : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-
-		untyped {
-			return __x.nodeName = n;
-		}
+		return __x.nodeName = n;
 	}
 
 	private function setNodeValue( v : String ) : String {
 		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
-
-		untyped {
-			return __x.nodeValue = v;
-		}
+		return __x.nodeValue = v;
 	}
 
 	private function getNodeName() : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-
 		return __x.nodeName;
 	}
 
 	private function getNodeValue() : String {
 		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
-
 		return __x.nodeValue;
 	}
 
 	public function iterator(){
 		return untyped {
-			cur: this.firstChild(),
+			cur: this.__x.firstChild,
 			hasNext : function(){
 				return this.cur != null;
 			},
 			next : function(){
-				var r = this.cur;
-				this.cur = convert(this.cur.__x.nextSibling);
+				var r = convert(this.cur);
+				this.cur = this.cur.nextSibling;
 				return r;
 			}
 		}
 	}
 
 	public function elements(){
-		var nextElement = untyped function( e ) {
-			while( e != null && e.nodeType != Xml.Element ){
-				e = convert(e.__x.nextSibling);
-			}
-			return e;
-		};
-
 		return untyped {
-			cur: this.firstChild(),
-			hasNext : function(){
-				this.cur = nextElement(this.cur);
-				return this.cur != null;
+			cur: this.__x.firstChild,
+			hasNext : function() {
+				var r = this.cur;
+				while( r != null && r.nodeType != 1 )
+					r = r.nextSibling;
+				this.cur = r;
+				return r != null;
 			},
 			next : function(){
-				var r = nextElement(this.cur);
-				this.cur = if( r == null ) null; else nextElement(convert(r.__x.nextSibling));
-				return r;
+				var r = this.cur;
+				while( r != null && r.nodeType != 1 )
+					r = r.nextSibling;
+				if( r == null ) {
+					this.cur = null;
+					return null;
+				}
+				this.cur = r.nextSibling;
+				return convert(r);
 			}
 		}
 	}
 
 	public function elementsNamed( nodeName : String ){
-		var nextElement = untyped function( e ) {
-			while( e != null && (e.nodeType != Xml.Element || e.nodeName != nodeName) ){
-				e = convert(e.__x.nextSibling);
-			}
-			return e;
-		};
-
 		return untyped {
-			cur: this.__x.firstChild(),
-			hasNext : function(){
-				this.cur = nextElement(this.cur);
-				return this.cur != null;
+			cur: this.__x.firstChild,
+			hasNext : function() {
+				var r = this.cur;
+				while( r != null && r.nodeType != 1 && r.nodeName != nodeName )
+					r = r.nextSibling;
+				this.cur = r;
+				return r != null;
 			},
 			next : function(){
-				var r = nextElement(this.cur);
-				this.cur = if( r == null ) null; else nextElement((r.__x.nextSibling));
-				return r;
+				var r = this.cur;
+				while( r != null && r.nodeType != 1 && r.nodeName != nodeName )
+					r = r.nextSibling;
+				if( r == null ) {
+					this.cur = null;
+					return null;
+				}
+				this.cur = r.nextSibling;
+				return convert(r);
 			}
 		}
 	}
@@ -213,35 +209,30 @@ class FlashXml__ {
 	public function get( k : String ) : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-
 		return Reflect.field(__x.attributes,k);
 	}
 
 	public function set( k : String, v : String ) : Void {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-
 		return Reflect.setField(__x.attributes,k,v);
 	}
 
 	public function exists( k : String ) : Bool {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-
 		return Reflect.hasField(__x.attributes,k);
 	}
 
 	public function remove( k : String ) : Void {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-
 		Reflect.deleteField(__x.attributes,k);
 	}
 
 	public function attributes() : Iterator<String> {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-
 		return untyped __keys__(__x.attributes).iterator();
 	}
 
@@ -252,7 +243,6 @@ class FlashXml__ {
 	public function removeChild( child : Xml ) : Bool {
 		untyped if( child.__x.parentNode != __x )
 			return false;
-
 		untyped child.__x.removeNode();
 		return true;
 	}
@@ -260,9 +250,8 @@ class FlashXml__ {
 	public function insertChild( x : Xml, pos : Int ) : Void {
 		var i = 0;
 		for( c in iterator() ){
-			if( i == pos ){
+			if( i == pos )
 				untyped __x.insertBefore(x.__x,c.__x);
-			}
 			i++;
 		}
 	}
@@ -270,9 +259,8 @@ class FlashXml__ {
 	public function toString() {
 		if( nodeType == Xml.Document ){
 			var s = "";
-			for( c in iterator() ){
+			for( c in iterator() )
 				untyped s += c.__x.toString();
-			}
 			return s;
 		}
 		if( nodeType == Xml.CData )
