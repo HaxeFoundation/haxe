@@ -46,6 +46,7 @@ import Xml;
 
 import haxe.AsyncConnection;
 import haxe.Connection;
+import haxe.Http;
 import haxe.ImportAll;
 import haxe.Log;
 import haxe.PosInfos;
@@ -131,11 +132,11 @@ import neko.Stack;
 import neko.Sys;
 import neko.Web;
 
-import neko.db.Mysql;
 import neko.db.Connection;
-import neko.db.ResultSet;
-import neko.db.Object;
 import neko.db.Manager;
+import neko.db.Mysql;
+import neko.db.Object;
+import neko.db.ResultSet;
 import neko.db.Transaction;
 
 import tools.DocView;
@@ -157,7 +158,7 @@ import js.FileUpload;
 import js.Form;
 import js.FormElement;
 import js.Frame;
-import js.FrameSet;
+import js.Frameset;
 import js.Hidden;
 import js.History;
 import js.HtmlCollection;
