@@ -263,7 +263,11 @@ and parse_type_params = parser
 and parse_type_param = parser
 	| [< '(Const (Type name),_); s >] ->
 		match s with parser
-		| [< '(DblDot,_); l = psep Comma parse_type_path_normal >] -> (name,l)
+		| [< '(DblDot,_); s >] ->
+			(match s with parser
+			| [< '(POpen,_); l = psep Comma parse_type_path_normal; '(PClose,_) >] -> (name,l)
+			| [< t = parse_type_path_normal >] -> (name,[t])
+			| [< >] -> serror())
 		| [< >] -> (name,[])
 
 and parse_class_herit = parser
