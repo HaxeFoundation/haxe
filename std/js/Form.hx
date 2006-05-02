@@ -26,7 +26,7 @@ package js;
 
 extern class Form extends HtmlDom {
 
-	var elements : HtmlCollection<HtmlDom>;
+	var elements : HtmlCollection<FormElement>;
 
 	var acceptCharset : String;
 	var action : String;
