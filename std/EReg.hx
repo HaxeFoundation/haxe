@@ -57,6 +57,7 @@ class EReg {
 		#else js
 		untyped {
 			r.m = r.exec(s);
+			r.s = s;
 			r.l = RegExp.leftContext;
 			r.r = RegExp.rightContext;
 			return (r.m != null);
@@ -85,8 +86,11 @@ class EReg {
 		var p = regexp_matched_pos(r,0);
 		return new String(last.substr(0,p.pos));
 		#else js
-		if( untyped r.m == null ) throw "EReg::matchedLeft";
-		return untyped r.l;
+		untyped {
+			if( r.m == null ) throw "EReg::matchedLeft";
+			if( r.l == null ) return r.s.substr(0,r.m.index);
+			return r.l;
+		}
 		#else flash
 		throw "EReg::matchedLeft not implemented";
 		return null;
@@ -100,8 +104,14 @@ class EReg {
 		var sz = p.pos+p.len;
 		return new String(last.substr(sz,last.length-sz));
 		#else js
-		if( untyped r.m == null ) throw "EReg::matchedRight";
-		return untyped r.r;
+		untyped {
+			if( r.m == null ) throw "EReg::matchedRight";
+			if( r.r == null ) {
+				var sz = r.m.index+r.m[0].length;
+				return r.s.substr(sz,r.s.length-sz);
+			}
+			return r.r;
+		}
 		#else flash
 		throw "EReg::matchedRight not implemented";
 		return null;
