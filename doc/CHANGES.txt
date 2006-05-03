@@ -4,6 +4,7 @@
 	haxe.AsyncConnection : onError should not be call if error occur in onData
 	fixed infinite loop if haxe.Unserializer.readDigits reach eof on JS/Flash
 	fixed bugs in neko.Web and neko.Sys (some methods returning "null" instead of null)
+	added neko.Socket.setBlocking for nonblocking sockets
 
 2006-05-02: RC1
 	added the Socket class
