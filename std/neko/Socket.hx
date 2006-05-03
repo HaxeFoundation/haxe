@@ -119,6 +119,10 @@ class Socket {
 		return readUntil( 10 );
 	}
 
+	public function setBlocking( b : Bool ) {
+		socket_set_blocking(__s,b);
+	}
+
 	// STATICS
 	public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, timeout : Int) : {read: Array<Socket>,write: Array<Socket>,others: Array<Socket>} {
 		var c = untyped __dollar__hnew( 1 );
@@ -199,5 +203,6 @@ class Socket {
 	private static var socket_host = Lib.load("std","socket_host",1);
 	private static var socket_set_timeout = Lib.load("std","socket_set_timeout",2);
 	private static var socket_shutdown = Lib.load("std","socket_shutdown",3);
+	private static var socket_set_blocking = Lib.load("std","socket_set_blocking",2);
 
 }
