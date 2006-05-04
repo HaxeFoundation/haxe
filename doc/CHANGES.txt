@@ -7,6 +7,7 @@
 	added neko.Socket.setBlocking for nonblocking sockets
 	fixed bug in js generator when using cascading iterators
 	fixed typing bug when overloading parametrized method
+	fixed bug in js generator when "try" without curly braces.
 
 2006-05-02: RC1
 	added the Socket class
