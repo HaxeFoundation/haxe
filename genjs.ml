@@ -303,7 +303,9 @@ and gen_expr ctx e =
 		handle_break();
 	| TTry (e,catchs) ->
 		spr ctx "try ";
-		gen_expr ctx e;
+		(match e.eexpr with
+		| TBlock _ -> gen_expr ctx e
+		| _ -> gen_expr ctx (mk (TBlock [e]) e.etype e.epos));
 		newline ctx;
 		let id = ctx.id_counter in
 		ctx.id_counter <- ctx.id_counter + 1;
