@@ -27,6 +27,7 @@ type ctx = {
 	mutable tabs : string;
 	mutable in_value : bool;
 	mutable handle_break : bool;
+	mutable id_counter : int;
 }
 
 let s_path = function
@@ -289,10 +290,12 @@ and gen_expr ctx e =
 		spr ctx "}"
 	| TFor (v,it,e) ->
 		let handle_break = handle_break ctx e in
-		spr ctx "var $it = ";
+		let id = ctx.id_counter in
+		ctx.id_counter <- ctx.id_counter + 1;
+		print ctx "var $it%d = " id;
 		gen_value ctx it;
 		newline ctx;
-		print ctx "while( $it.hasNext() ) { var %s = $it.next()" (ident v);
+		print ctx "while( $it%d.hasNext() ) { var %s = $it%d.next()" id (ident v) id;
 		newline ctx;
 		gen_expr ctx e;
 		newline ctx;
@@ -302,7 +305,9 @@ and gen_expr ctx e =
 		spr ctx "try ";
 		gen_expr ctx e;
 		newline ctx;
-		spr ctx "catch( $e ) {";
+		let id = ctx.id_counter in
+		ctx.id_counter <- ctx.id_counter + 1;
+		print ctx "catch( $e%d ) {" id;
 		let bend = open_block ctx in
 		newline ctx;
 		let last = ref false in
@@ -325,26 +330,26 @@ and gen_expr ctx e =
 				spr ctx "{";
 				let bend = open_block ctx in
 				newline ctx;
-				print ctx "var %s = $e" v;
+				print ctx "var %s = $e%d" v id;
 				newline ctx;
 				gen_expr ctx e;
 				bend();
 				newline ctx;
 				spr ctx "}"
 			| Some t ->
-				spr ctx "if( js.Boot.__instanceof($e,";
+				print ctx "if( js.Boot.__instanceof($e%d," id;
 				gen_value ctx (mk (TType t) (mk_mono()) e.epos);
 				spr ctx ") ) {";
 				let bend = open_block ctx in
 				newline ctx;
-				print ctx "var %s = $e" v;
+				print ctx "var %s = $e%d" v id;
 				newline ctx;
 				gen_expr ctx e;
 				bend();
 				newline ctx;
 				spr ctx "} else "
 		) catchs;
-		if not !last then spr ctx "throw($e)";		
+		if not !last then print ctx "throw($e%d)" id;		
 		bend();
 		newline ctx;
 		spr ctx "}";
@@ -631,6 +636,7 @@ let generate file types hres =
 		tabs = "";
 		in_value = false;
 		handle_break = false;
+		id_counter = 0;
 	} in
 	print ctx "$class_str = function() { return this.__name__.join(\".\"); }";
 	newline ctx;
