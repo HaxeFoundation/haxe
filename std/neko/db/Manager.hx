@@ -46,7 +46,7 @@ class Manager<T : Object> {
 
 	public function new( cl : Dynamic ) {
 		// get basic infos
-		table_name = if( cl.TABLE_NAME != null ) cl.TABLE_NAME else cl.__name__.join("_");
+		table_name = quoteField(if( cl.TABLE_NAME != null ) cl.TABLE_NAME else cl.__name__.join("_"));
 		table_keys = if( cl.TABLE_IDS != null ) cl.TABLE_IDS else ["id"];
 		class_proto = cl;
 
@@ -267,7 +267,8 @@ class Manager<T : Object> {
 	}
 
 	function quoteField(f : String) {
-		if( f == "read" || f == "desc" || f == "out" )
+		var fsmall = f.toLowerCase();
+		if( fsmall == "read" || fsmall == "desc" || fsmall == "out" || fsmall == "group" )
 			return "`"+f+"`";
 		return f;
 	}
