@@ -54,10 +54,16 @@ class Http {
 		r.onreadystatechange = function() {
 			if( r.readyState != 4 )
 				return;
-			me.onStatus(r.status);
-			if( r.status >= 200 && r.status < 400 )
+			var s = try r.status catch( e : Dynamic ) null;
+			if( s == untyped __js__("undefined") )
+				s = null;
+			if( s != null )
+				me.onStatus(s);
+			if( s != null && s >= 200 && s < 400 )
 				me.onData(r.responseText);
-			else switch( r.status ) {
+			else switch( s ) {
+			case null:
+				me.onError("Failed to connect or resolve host");
 			case 12029:
 				me.onError("Failed to connect to host");
 			case 12007:
