@@ -1447,19 +1447,19 @@ let type_static_var ctx t e p =
 	e
 
 let check_overloading c p () =
-	let rec loop s f =
-		match s with
-		| None -> ()
-		| Some (c,params) ->
+	match c.cl_super with
+	| None -> ()
+	| Some (csup,params) ->
+		PMap.iter (fun i f -> 
 			try
-				let f2 = PMap.find f.cf_name c.cl_fields in
-				let ft2 = apply_params c.cl_types params (field_type f2) in
-				if not (type_eq false (field_type f) ft2) then error ("Field " ^ f.cf_name ^ " overload parent class with different or incomplete type") p;
-				if f.cf_public <> f2.cf_public then error ("Field " ^ f.cf_name ^ " has different visibility (public/private) than previous one") p;
+				let t , f2 = class_field csup i in
+				let t = apply_params csup.cl_types params t in
+				if f.cf_public <> f2.cf_public then error ("Field " ^ i ^ " has different visibility (public/private) than superclass one") p;
+				if f2.cf_get <> f.cf_get || f2.cf_set <> f.cf_set then error ("Field " ^ i ^ " has different property access than in superclass") p;
+				if not (type_eq false (field_type f) t) then error ("Field " ^ i ^ " overload parent class with different or incomplete type") p;
 			with
-				Not_found -> loop c.cl_super f
-	in
-	PMap.iter (fun _ f -> loop c.cl_super f) c.cl_fields
+				Not_found -> ()
+		) c.cl_fields
 
 let check_interfaces c p () =
 	List.iter (fun (intf,params) ->
