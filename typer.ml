@@ -1450,10 +1450,11 @@ let check_overloading c p () =
 	let rec loop s f =
 		match s with
 		| None -> ()
-		| Some (c,_) ->
+		| Some (c,params) ->
 			try
 				let f2 = PMap.find f.cf_name c.cl_fields in
-				if not (type_eq false (field_type f) (field_type f2)) then error ("Field " ^ f.cf_name ^ " overload parent class with different or incomplete type") p;
+				let ft2 = apply_params c.cl_types params (field_type f2) in
+				if not (type_eq false (field_type f) ft2) then error ("Field " ^ f.cf_name ^ " overload parent class with different or incomplete type") p;
 				if f.cf_public <> f2.cf_public then error ("Field " ^ f.cf_name ^ " has different visibility (public/private) than previous one") p;
 			with
 				Not_found -> loop c.cl_super f
