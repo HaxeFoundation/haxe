@@ -46,6 +46,10 @@ class Lib {
 		return untyped __unserialize(s.__s,__dollar__loader);
 	}
 
+	public static function makeString( size : Int ) : String {
+		return new String(untyped __dollar__smake(size));
+	}
+
 	static var __serialize = load("std","serialize",1);
 	static var __unserialize = load("std","unserialize",2);
 
