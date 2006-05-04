@@ -1285,7 +1285,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let catches = List.map (fun (v,t,e) ->
 			let t = load_type ctx (pos e) t in
 			(match follow t with
-			| TInst (_,params) ->
+			| TInst (_,params) | TEnum (_,params) ->
 				List.iter (fun pt ->
 					if pt != t_dynamic then error "Catch class parameter must be Dynamic" p;
 				) params;
