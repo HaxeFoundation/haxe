@@ -974,7 +974,7 @@ and type_switch ctx e cases def need_val p =
 			unify ctx e.etype e1.etype e1.epos;
 			CExpr e1
 		) in
-		let e2 = type_expr ctx e2 in
+		let e2 = type_expr ctx ~need_val e2 in
 		locals();
 		if need_val then unify ctx e2.etype t e2.epos;
 		(e1,e2)
@@ -993,7 +993,7 @@ and type_switch ctx e cases def need_val p =
 			);
 			None
 		| Some e ->
-			let e = type_expr ctx e in
+			let e = type_expr ctx ~need_val e in
 			if need_val then unify ctx e.etype t e.epos;
 			Some e
 	) in
