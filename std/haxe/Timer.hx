@@ -40,7 +40,7 @@ class Timer {
 		#else js
 			var id = arr.length;
 			arr[id] = this;
-			timerId = untyped window.setInterval("js.Timer.arr["+id+"].run();",time);
+			timerId = untyped window.setInterval("haxe.Timer.arr["+id+"].run();",time);
 		#else error
 		#end
 	}
