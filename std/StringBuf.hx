@@ -80,17 +80,6 @@ class StringBuf {
 		#end
 	}
 
-	public function length() : Int {
-		#if neko
-		return __length(b);
-		#else flash
-		return b.length;
-		#else js
-		return b.length;
-		#else error
-		#end
-	}
-
 	private var b : Dynamic;
 
 #if neko
@@ -99,7 +88,6 @@ class StringBuf {
 	static var __add_char : Dynamic = neko.Lib.load("std","buffer_add_char",2);
 	static var __add_sub : Dynamic = neko.Lib.load("std","buffer_add_sub",4);
 	static var __string : Dynamic = neko.Lib.load("std","buffer_string",1);
-	static var __length = neko.Lib.load("std","buffer_length",1);
 #end
 
 }
