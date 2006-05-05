@@ -244,4 +244,19 @@ class Http {
 	public function onStatus( status : Int ) {
 	}
 
+#if neko
+	public static function request( url : String ) : String {
+		var h = new Http(url);
+		var r = null;
+		h.onData = function(d){
+			r = d;
+		}
+		h.onError = function(e){
+			throw e;
+		}
+		h.request(false);
+		return r;
+	}
+#end
+
 }
