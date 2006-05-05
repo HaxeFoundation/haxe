@@ -50,6 +50,10 @@ class Lib {
 		return new String(untyped __dollar__smake(size));
 	}
 
+	public static function copyBytes( dst : String, dst_pos : Int, src : String, src_pos : Int, len : Int ) : Void {
+		untyped __dollar__sblit(dst.__s,dst_pos,src.__s,src_pos,len);
+	}
+
 	static var __serialize = load("std","serialize",1);
 	static var __unserialize = load("std","unserialize",2);
 
