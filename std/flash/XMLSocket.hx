@@ -3,7 +3,7 @@ package flash;
 extern class XMLSocket {
 
 	function new() : Void;
-	function connect( url : String, port : Int ) : Bool;
+	function connect( url : String, port : Int ) : Void;
 	function send( data : Dynamic ) : Bool;
 	function close() : Bool;
 	function onData( src : String ) : Void;
