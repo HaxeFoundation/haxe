@@ -27,15 +27,15 @@ import Xml;
 
 class JsXml__ {
 
-	static var enode = ~/^<([a-zA-Z0-9:-]+)/;
+	static var enode = ~/^<([a-zA-Z0-9:_-]+)/;
 	static var ecdata = ~/^<!\[CDATA\[/i;
 	static var edoctype = ~/^<!DOCTYPE/i;
-	static var eend = ~/^<\/([a-zA-Z0-9:-]+)>/;
+	static var eend = ~/^<\/([a-zA-Z0-9:_-]+)>/;
 	static var epcdata = ~/^[^<]+/;
 	static var ecomment = ~/^<!--/;
 	static var eprolog = ~/^<\?[^\?]+\?>/;
 
-	static var eattribute = ~/^[ \r\n\t]*([a-zA-Z0-9:-]+)[ \r\n\t]*=[ \r\n\t]*"([^"\n\r]*)"/;
+	static var eattribute = ~/^[ \r\n\t]*([a-zA-Z0-9:_-]+)[ \r\n\t]*=[ \r\n\t]*"([^"\n\r]*)"/;
 	static var eclose = ~/^[ \r\n\t]*(>|(\/>))/;
 	static var ecdata_end = ~/\]\]>/;
 	static var edoctype_elt = ~/[\[|\]>]/;
@@ -339,7 +339,7 @@ class JsXml__ {
 					if( n.nodeType == Xml.Element && n._nodeName == name ) {
 						this.cur = k;
 						return n;
-					}					
+					}
 				}
 				return null;
 			}
