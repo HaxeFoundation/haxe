@@ -114,9 +114,15 @@ class Manager<T : Object> {
 				addQuote(s,d);
 			}
 		}
+		if( first )
+			s.add("TRUE");
 		if( lock )
-			s.add("FOR UPDATE");
+			s.add(" FOR UPDATE");
 		return objects(s.toString(),lock);
+	}
+
+	public function all(lock) : List<T> {
+		return objects("SELECT * FROM "+if( lock ) table_name + " FOR UPDATE" else table_name,lock);
 	}
 
 	public function count() : Int {
