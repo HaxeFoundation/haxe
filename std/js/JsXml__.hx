@@ -47,14 +47,6 @@ class JsXml__ {
 	public var _attributes : Hash<String>;
 	public var _children : Array<Xml>;
 
-	private static function unescape( s : String ) : String {
-		return s.split("&lt;").join("<").split("&gt;").join(">").split("&quot;").join("\"").split("&amp;").join("&");
-	}
-
-	private static function escape( s : String ) : String {
-		return s.split("&").join("&amp;").split("\"").join("&quot;").split("<").join("&lt;").split(">").join("&gt;");
-	}
-
 	public static function parse( str : String ) : Xml {
 		var rules = [enode,epcdata,ecdata,edoctype,eend,ecomment,eprolog];
 		var nrules = rules.length;
@@ -72,7 +64,7 @@ class JsXml__ {
 						current.addChild(x);
 						str = r.matchedRight();
 						while( eattribute.match(str) ) {
-							x.set(eattribute.matched(1),unescape(eattribute.matched(2)));
+							x.set(eattribute.matched(1),eattribute.matched(2));
 							str = eattribute.matchedRight();
 						}
 						if( !eclose.match(str) ) {
@@ -85,7 +77,7 @@ class JsXml__ {
 						}
 						str = eclose.matchedRight();
 					case 1: // PCData
-						var x = Xml.createPCData(unescape(r.matched(0)));
+						var x = Xml.createPCData(r.matched(0));
 						current.addChild(x);
 						str = r.matchedRight();
 					case 2: // CData
@@ -376,7 +368,7 @@ class JsXml__ {
 
 	public function toString() {
 		if( nodeType == Xml.PCData )
-			return escape(_nodeValue);
+			return _nodeValue;
 		if( nodeType == Xml.CData )
 			return "<![CDATA["+_nodeValue+"]]>";
 		if( nodeType == Xml.Comment || nodeType == Xml.DocType || nodeType == Xml.Prolog )
@@ -391,7 +383,7 @@ class JsXml__ {
 				s.add(" ");
 				s.add(k);
 				s.add("=\"");
-				s.add(escape(_attributes.get(k)));
+				s.add(_attributes.get(k));
 				s.add("\"");
 			}
 			if( _children.length == 0 ) {

@@ -43,14 +43,6 @@ class NekoXml__ {
 
 	private static var _parse = neko.Lib.load("std","parse_xml",2);
 
-	private static function unescape( s : String ) : String {
-		return s.split("&lt;").join("<").split("&gt;").join(">").split("&quot;").join("\"").split("&amp;").join("&");
-	}
-
-	private static function escape( s : String ) : String {
-		return s.split("&").join("&amp;").split("\"").join("&quot;").split("<").join("&lt;").split(">").join("&gt;");
-	}
-
 	static function parse( xmlData : String ) : Xml {
 		var x = new NekoXml__();
 
@@ -67,7 +59,7 @@ class NekoXml__ {
 					var i = 0;
 					var l = __dollar__asize(f);
 					while( i < l ) {
-						__dollar__objset(att,f[i], unescape(new String(__dollar__objget(att,f[i]))) );
+						__dollar__objset(att,f[i], new String(__dollar__objget(att,f[i]))) ;
 						i++;
 					}
 					this.cur.addChild(x);
@@ -85,7 +77,7 @@ class NekoXml__ {
 				var x : Dynamic = new NekoXml__();
 				x._parentNode = untyped this.cur;
 				x.nodeType = Xml.PCData;
-				x._nodeValue = unescape(new String(text));
+				x._nodeValue = new String(text);
 				untyped this.cur.addChild(x);
 			},
 			comment : function(text) {
@@ -329,7 +321,7 @@ class NekoXml__ {
 
 	public function toString() {
 		if( nodeType == Xml.PCData )
-			return escape(_nodeValue);
+			return _nodeValue;
 		if( nodeType == Xml.CData )
 			return "<![CDATA["+_nodeValue+"]]>";
 		if( nodeType == Xml.Comment || nodeType == Xml.DocType || nodeType == Xml.Prolog )
@@ -344,7 +336,7 @@ class NekoXml__ {
 				s.add(" ");
 				s.add(k);
 				s.add("=\"");
-				s.add(escape(Reflect.field(_attributes,k)));
+				s.add(Reflect.field(_attributes,k));
 				s.add("\"");
 			}
 			if( _children.length == 0 ) {
