@@ -31,7 +31,7 @@ class StringTools {
 		#else neko
 		return new String(_urlEncode(untyped s.__s));
 		#else js
-		return untyped escape(s);
+		return untyped encodeURIComponent(s);
 		#else error
 		#end
 	}
@@ -42,7 +42,7 @@ class StringTools {
 		#else neko
 		return new String(_urlDecode(untyped s.__s));
 		#else js
-		return untyped unescape(s.split("+").join(" "));
+		return untyped decodeURIComponent(s.split("+").join(" "));
 		#else error
 		#end
 	}
