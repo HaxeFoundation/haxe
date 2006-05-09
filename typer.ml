@@ -28,6 +28,7 @@ type context = {
 	warn : string -> pos -> unit;
 	mutable std : module_def;
 	mutable untyped : bool;
+	mutable isproxy : bool;
 	(* per-module *)
 	current : module_def;
 	mutable local_types : module_type list;
@@ -94,8 +95,44 @@ let error msg p = raise (Error (Custom msg,p))
 
 let load_ref : (context -> module_path -> pos -> module_def) ref = ref (fun _ _ _ -> assert false)
 let type_expr_ref = ref (fun _ ?need_val _ -> assert false)
+let type_module_ref = ref (fun _ _ _ _ -> assert false)
 
 let load ctx m p = (!load_ref) ctx m p
+
+let context warn =
+	let empty =	{
+		mpath = [] , "";
+		mtypes = [];
+	} in
+	let ctx = {
+		modules = Hashtbl.create 0;
+		types = Hashtbl.create 0;
+		delays = ref [];
+		in_constructor = false;
+		in_static = false;
+		in_loop = false;
+		untyped = false;
+		isproxy = false;
+		ret = mk_mono();
+		warn = warn;
+		locals = PMap.empty;
+		locals_map = PMap.empty;
+		locals_map_inv = PMap.empty;
+		local_types = [];
+		type_params = [];
+		curmethod = "";
+		curclass = null_class;
+		tthis = mk_mono();
+		current = empty;
+		std = empty;
+	} in
+	ctx.std <- (try
+		load ctx ([],"StdTypes") null_pos
+	with
+		Error (Module_not_found ([],"StdTypes"),_) ->
+			error "Standard library not found" null_pos
+	);
+	ctx
 
 let field_type f =
 	match f.cf_params with
@@ -282,10 +319,81 @@ let load_type_opt ctx p t =
 	| None -> mk_mono()
 	| Some t -> load_type ctx p t
 
+let rec reverse_type t =
+	match t with
+	| TEnum (e,params) ->
+		TPNormal { tpackage = fst e.e_path; tname = snd e.e_path; tparams = List.map reverse_type params }
+	| TInst (c,params) ->
+		TPNormal { tpackage = fst c.cl_path; tname = snd c.cl_path; tparams = List.map reverse_type params }
+	| TFun (params,ret) ->
+		TPFunction (List.map (fun (_,t) -> reverse_type t) params,reverse_type ret)
+	| TAnon (fields,None) ->
+		TPAnonymous (PMap.fold (fun f acc -> (f.cf_name , reverse_type f.cf_type) :: acc) fields [])
+	| TDynamic t2 ->
+		TPNormal { tpackage = []; tname = "Dynamic"; tparams = if t == t2 then [] else [reverse_type t2] }
+	| _ ->
+		raise Exit
+
+let extend_remoting ctx c t p async =
+	if c.cl_super <> None then error "Cannot extend several classes" p;
+	let ctx2 = context ctx.warn in
+	ctx2.isproxy <- true;
+	let ct = load_normal_type ctx2 t p false in
+	let tvoid = TPNormal { tpackage = []; tname = "Void"; tparams = [] } in
+	let make_field name args ret =				
+		try
+			let targs = List.map (fun (a,t) -> a, Some (reverse_type t)) args in
+			let tret = reverse_type ret in
+			let eargs = [EArrayDecl (List.map (fun (a,_) -> (EConst (Ident a),p)) args),p] in
+			let targs , tret , eargs = if async then 
+				match tret with
+				| TPNormal { tpackage = []; tname = "Void" } -> targs , tvoid , eargs @ [EConst (Ident "null"),p]
+				| _ -> targs @ ["__callb",Some (TPFunction ([tret],tvoid))] , tvoid , eargs @ [EUntyped (EConst (Ident "__callb"),p),p]
+			else 
+				targs, tret , eargs
+			in
+			(FFun (name,None,[APublic],[], {
+				f_args = targs;
+				f_type = Some tret;
+				f_expr = (EBlock [
+					(EReturn (Some (ECall (
+						(EField ((EField ((EConst (Ident "__cnx"),p),name),p),"call"),p),eargs						
+					),p)),p)
+				],p);
+			}),p)
+		with
+			Exit -> error ("Field " ^ name ^ " type is not complete and cannot be used by RemotingProxy") p
+	in
+	let class_fields = (match ct with
+		| TInst (c,params) ->
+			(FVar ("__cnx",None,[],Some (TPNormal { tpackage = ["haxe"]; tname = if async then "AsyncConnection" else "Connection"; tparams = [] }),None),p) ::
+			(FFun ("new",None,[],[],{ f_args = ["c",None]; f_type = None; f_expr = (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p) }),p) ::
+			PMap.fold (fun f acc ->						
+				if not f.cf_public then
+					acc
+				else match follow f.cf_type with
+				| TFun (args,ret) when f.cf_get = NormalAccess && f.cf_set = NormalAccess && f.cf_params = [] ->
+					make_field f.cf_name args ret :: acc
+				| _ -> acc
+			) c.cl_fields []
+		| _ -> 
+			error "Remoting type parameter should be a class" p
+	) in
+	let class_decl = (EClass (t.tname,None,[],[],class_fields),p) in
+	let m = (!type_module_ref) ctx ("Remoting" :: t.tpackage,t.tname) [class_decl] p in
+	c.cl_super <- Some (match m.mtypes with
+		| [TClassDecl c] -> (c,[])
+		| _ -> assert false
+	)
+
 let set_heritance ctx c herits p =
 	let rec loop = function
 		| HPrivate | HExtern | HInterface ->
 			()
+		| HExtends { tpackage = ["haxe"]; tname = "RemotingProxy"; tparams = [TPNormal t] } ->
+			extend_remoting ctx c t p false
+		| HExtends { tpackage = ["haxe"]; tname = "AsyncRemotingProxy"; tparams = [TPNormal t] } ->
+			extend_remoting ctx c t p true
 		| HExtends t ->
 			if c.cl_super <> None then error "Cannot extend several classes" p;
 			let t = load_normal_type ctx t p false in
@@ -1574,7 +1682,7 @@ let init_class ctx c p herits fields =
 				t
 			) in
 			let delay = (
-				if (c.cl_extern || c.cl_interface) && cf.cf_name <> "__init__" then
+				if (c.cl_extern || c.cl_interface || ctx.isproxy) && cf.cf_name <> "__init__" then
 					(fun() -> ())
 				else begin
 					cf.cf_type <- TLazy r;
@@ -1721,6 +1829,7 @@ let type_module ctx m tdecls loadp =
 		tthis = ctx.tthis;
 		std = ctx.std;
 		ret = ctx.ret;
+		isproxy = ctx.isproxy;
 		current = m;
 		locals = PMap.empty;
 		locals_map = PMap.empty;
@@ -1802,40 +1911,6 @@ let load ctx m p =
 					error ("Invalid package : " ^ spack (fst m) ^ " should be " ^ spack pack) p
 			end;
 			type_module ctx m decls p
-
-let context warn =
-	let empty =	{
-		mpath = [] , "";
-		mtypes = [];
-	} in
-	let ctx = {
-		modules = Hashtbl.create 0;
-		types = Hashtbl.create 0;
-		delays = ref [];
-		in_constructor = false;
-		in_static = false;
-		in_loop = false;
-		untyped = false;
-		ret = mk_mono();
-		warn = warn;
-		locals = PMap.empty;
-		locals_map = PMap.empty;
-		locals_map_inv = PMap.empty;
-		local_types = [];
-		type_params = [];
-		curmethod = "";
-		curclass = null_class;
-		tthis = mk_mono();
-		current = empty;
-		std = empty;
-	} in
-	ctx.std <- (try
-		load ctx ([],"StdTypes") null_pos
-	with
-		Error (Module_not_found ([],"StdTypes"),_) ->
-			error "Standard library not found" null_pos
-	);
-	ctx
 
 let rec finalize ctx =
 	let delays = List.concat !(ctx.delays) in
@@ -1974,3 +2049,5 @@ let types ctx main =
 ;;
 load_ref := load;
 type_expr_ref := type_expr;
+type_module_ref := type_module;
+
