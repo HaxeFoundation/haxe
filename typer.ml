@@ -335,6 +335,7 @@ let rec reverse_type t =
 		raise Exit
 
 let extend_remoting ctx c t p async =
+	if ctx.isproxy then error "Cascading proxys can result in infinite loops, please use conditional compilation to prevent this proxy access" p;
 	if c.cl_super <> None then error "Cannot extend several classes" p;
 	let ctx2 = context ctx.warn in
 	ctx2.isproxy <- true;
