@@ -22,11 +22,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package neko;
+package neko.remoting;
 
-class RemoteServer {
+class Server {
 
 	var objects : Hash<Dynamic>;
+	var prefix : String;
 
 	public function new() {
 		objects = new Hash();
@@ -36,7 +37,11 @@ class RemoteServer {
 		objects.set(name,obj);
 	}
 
-	function resolvePath( path : Array<String> ) {
+	public function setPrivatePrefix( p : String ) {
+		prefix = p;
+	}
+
+	public function resolvePath( path : Array<String> ) {
 		var objname = path.shift();
 		if( objname == null )
 			throw "Empty path";
@@ -44,18 +49,18 @@ class RemoteServer {
 		if( obj == null )
 			throw "Object '"+objname+"' is not accessible";
 		for( x in path ) {
-			if( obj == null )
-				throw null;
+			if( obj == null || (prefix != null && x.indexOf(prefix,0) == 0) )
+				return null;
 			obj = Reflect.field(obj,x);
 		}
 		return obj;
 	}
 
 	public function handleRequest() {
-		var kind = Web.getClientHeader("X-Haxe-Remoting");
+		var kind = neko.Web.getClientHeader("X-Haxe-Remoting");
 		if( kind == null )
 			return false;
-		var v = Web.getParams().get("__x");
+		var v = neko.Web.getParams().get("__x");
 		try {
 			if( v == null )
 				throw "Missing remoting data";
