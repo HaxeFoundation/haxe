@@ -154,19 +154,73 @@ class Web {
 		_set_main(f);
 	}
 
-	private static var _set_main = Lib.load("mod_neko","cgi_set_main",1);
-	private static var _get_host_name = Lib.load("mod_neko","get_host_name",0);
-	private static var _get_client_ip = Lib.load("mod_neko","get_client_ip",0);
-	private static var _get_uri = Lib.load("mod_neko","get_uri",0);
-	private static var _cgi_redirect = Lib.load("mod_neko","redirect",1);
-	private static var _cgi_set_header = Lib.load("mod_neko","set_header",2);
-	private static var _set_return_code = Lib.load("mod_neko","set_return_code",1);
-	private static var _get_client_header = Lib.load("mod_neko","get_client_header",1);
-	private static var _get_params_string = Lib.load("mod_neko","get_params_string",0);
-	private static var _get_post_data = Lib.load("mod_neko","get_post_data",0);
-	private static var _get_params = Lib.load("mod_neko","get_params",0);
-	private static var _get_cookies = Lib.load("mod_neko","get_cookies",0);
-	private static var _set_cookie = Lib.load("mod_neko","set_cookie",2);
-	private static var _get_cwd = Lib.load("mod_neko","cgi_get_cwd",0);
+	public static property isModNeko(default,null) : Bool;
+
+	static var _set_main : Dynamic;
+	static var _get_host_name : Dynamic;
+	static var _get_client_ip : Dynamic;
+	static var _get_uri : Dynamic;
+	static var _cgi_redirect : Dynamic;
+	static var _cgi_set_header : Dynamic;
+	static var _set_return_code : Dynamic;
+	static var _get_client_header : Dynamic;
+	static var _get_params_string : Dynamic;
+	static var _get_post_data : Dynamic;
+	static var _get_params : Dynamic;
+	static var _get_cookies : Dynamic;
+	static var _set_cookie : Dynamic;
+	static var _get_cwd : Dynamic;
+
+	static function __init__() {
+		var get_env = Lib.load("std","get_env",1);
+		untyped isModNeko = (get_env("MOD_NEKO".__s) != null);
+		if( isModNeko ) {
+			_set_main = Lib.load("mod_neko","cgi_set_main",1);
+			_get_host_name = Lib.load("mod_neko","get_host_name",0);
+			_get_client_ip = Lib.load("mod_neko","get_client_ip",0);
+			_get_uri = Lib.load("mod_neko","get_uri",0);
+			_cgi_redirect = Lib.load("mod_neko","redirect",1);
+			_cgi_set_header = Lib.load("mod_neko","set_header",2);
+			_set_return_code = Lib.load("mod_neko","set_return_code",1);
+			_get_client_header = Lib.load("mod_neko","get_client_header",1);
+			_get_params_string = Lib.load("mod_neko","get_params_string",0);
+			_get_post_data = Lib.load("mod_neko","get_post_data",0);
+			_get_params = Lib.load("mod_neko","get_params",0);
+			_get_cookies = Lib.load("mod_neko","get_cookies",0);
+			_set_cookie = Lib.load("mod_neko","set_cookie",2);
+			_get_cwd = Lib.load("mod_neko","cgi_get_cwd",0);
+		} else {
+			var a0 = untyped __dollar__loader.args[0];
+			if( a0 != null ) a0 = new String(a0);
+			_set_main = function(f) { };
+			_get_host_name = function() { return untyped "localhost".__s; };
+			_get_client_ip = function() { return untyped "127.0.0.1".__s; };
+			_get_uri = function() {
+				return untyped (if( a0 == null ) "/" else "/?"+a0).__s;
+			};
+			_cgi_redirect = function(v) { Lib.print("Location: "+v+"\n"); };
+			_cgi_set_header = function(h,v) { };
+			_set_return_code = function(i) { };
+			_get_client_header = function(h) { return null; };
+			_get_params_string = function() {
+				return untyped (if( a0 == null ) "" else a0).__s;
+			};
+			_get_post_data = function() { return null; };
+			_get_params = function() {
+				var l = null;
+				if( a0 == null )
+					return null;
+				for( p in a0.split(";") ) {
+					var k = p.split("=");
+					if( k.length == 2 )
+						l = untyped [k[0].__s,k[1].__s,l];
+				}
+				return l;
+			};
+			_get_cookies = function() { return null; }
+			_set_cookie = function(k,v) { };
+			_get_cwd = Lib.load("std","get_cwd",0);
+		}
+	}
 
 }
