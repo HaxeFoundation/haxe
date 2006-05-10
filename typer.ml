@@ -433,7 +433,6 @@ let type_type_params ctx path p (n,flags) =
 	| l ->
 		(* build a phantom class *)
 		let c = mk_class (fst path @ [snd path],n) p None true in
-		c.cl_locked <- true;
 		let t = TInst (c,[]) in
 		let r = exc_protect (fun r ->
 			r := (fun _ -> t);

@@ -100,7 +100,6 @@ and tclass = {
 	cl_private : bool;
 	mutable cl_extern : bool;
 	mutable cl_interface : bool;
-	mutable cl_locked : bool;
 	mutable cl_types : (string * t) list;
 	mutable cl_super : (tclass * t list) option;
 	mutable cl_implements : (tclass * t list) list;
@@ -151,7 +150,6 @@ let mk_class path pos doc priv =
 		cl_private = priv;
 		cl_extern = false;
 		cl_interface = false;
-		cl_locked = false;
 		cl_types = [];
 		cl_super = None;
 		cl_implements = [];
@@ -440,7 +438,7 @@ let rec unify a b =
 			| None -> ()
 			| Some (c,tl) -> loop c tl
 		in
-		if c.cl_locked then error [cannot_unify a b];
+		if not c.cl_interface then error [cannot_unify a b];
 		(try
 			loop c tl;
 		with
