@@ -10,6 +10,7 @@
 	fixed bug in js generator when "try" without curly braces.
 	allowed enum catching
 	added remoting proxys
+	allowed neko.Web API commandline emulation outside mod_neko
 
 2006-05-02: RC1
 	added the Socket class
