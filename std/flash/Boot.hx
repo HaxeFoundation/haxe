@@ -114,7 +114,7 @@ class Boot {
 				return true;
 			switch( cl ) {
 			case Int:
-				return (Math.ceil(o) == o) && isFinite(o);
+				return (Math.ceil(o) == o) && isFinite(o) && (o !== true) && (o !== false);
 			case Float:
 				return __typeof__(o) == "number";
 			case Bool:
