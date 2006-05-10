@@ -49,6 +49,10 @@ class SocketBuffer {
 		buffer = neko.Lib.makeString(START_SIZE);
 	}
 
+	public function lastRead() {
+		return lastread;
+	}
+
 	public function onData( data : String ) {
 	}
 
