@@ -181,7 +181,8 @@ and parse_type_path = parser
 	| [< '(POpen,_); t = parse_type_path; '(PClose,_); s >] -> parse_type_path_next (TPParent t) s
 	| [< '(BrOpen,_); s >] ->
 		let l = (match s with parser
-			| [< name = any_ident >] -> parse_type_anonymous_resume name s
+			| [< '(Const (Ident name),_) when name <> "property" >] -> parse_type_anonymous_resume name s
+			| [< '(Const (Type name),_) >] -> parse_type_anonymous_resume name s
 			| [< l = plist parse_signature_field; '(BrClose,_) >] -> l
 			| [< >] -> serror()
 		) in
