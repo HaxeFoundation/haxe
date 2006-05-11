@@ -538,6 +538,7 @@ and gen_try_catch ctx retval e catchs =
 			| TInst (c,_) -> Some (TClassDecl c)
 			| TFun _
 			| TLazy _
+			| TSign _
 			| TAnon _ ->
 				assert false
 			| TMono _

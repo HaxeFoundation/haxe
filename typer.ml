@@ -139,7 +139,7 @@ let context warn =
 let field_type f =
 	match f.cf_params with
 	| [] -> f.cf_type 
-	| l -> apply_params l (List.map (fun _ -> mk_mono()) l) f.cf_type
+	| l -> monomorphs l f.cf_type
 
 let unify ctx t1 t2 p =
 	try
@@ -261,12 +261,7 @@ let rec load_normal_type ctx t p allow_no_params =
 		let types , path , f = match load_type_def ctx p (t.tpackage,t.tname) with
 			| TClassDecl c -> c.cl_types , c.cl_path , (fun t -> TInst (c,t))
 			| TEnumDecl e -> e.e_types , e.e_path , (fun t -> TEnum (e,t))
-			| TSignatureDecl s -> s.s_types , s.s_path , (fun t -> 
-				let fields = PMap.map (fun f -> 
-					{ f with cf_type = apply_params s.s_types t f.cf_type }
-				) s.s_fields in
-				TAnon (fields,t,Some (s_type_path s.s_path))
-			)
+			| TSignatureDecl s -> s.s_types , s.s_path , (fun t -> TSign(s,t))
 		in
 		if allow_no_params && t.tparams = [] then
 			f (List.map (fun (name,t) ->
@@ -300,21 +295,37 @@ and load_type ctx p t =
 	| TPParent t -> load_type ctx p t
 	| TPNormal t -> load_normal_type ctx t p false
 	| TPAnonymous l ->
-		let rec loop acc (n,t) =
-			let t = load_type ctx p t in
+		let rec loop acc (n,f,p) =
 			if PMap.mem n acc then error ("Duplicate field declaration : " ^ n) p;
+			let t , get, set = (match f with
+				| AFVar t ->
+					load_type ctx p t, NormalAccess, NormalAccess
+				| AFFun (tl,t) ->
+					let t = load_type ctx p t in
+					let args = List.map (fun (name,t) -> name , load_type ctx p t) tl in
+					TFun (args,t), NormalAccess, NormalAccess
+				| AFProp (t,i1,i2) ->					
+					let access m get = 
+						match m with
+						| "null" -> NoAccess
+						| "default" -> NormalAccess
+						| "dynamic" -> MethodAccess ((if get then "get_"  else "set_") ^ n)
+						| _ -> MethodAccess m
+					in
+					load_type ctx p t, access i1 true, access i2 false
+			) in
 			PMap.add n {
 				cf_name = n;
 				cf_type = t;
 				cf_public = true;
-				cf_get = NormalAccess;
-				cf_set = NormalAccess;
+				cf_get = get;
+				cf_set = set;
 				cf_params = [];
 				cf_expr = None;
 				cf_doc = None;
 			} acc
 		in
-		TAnon (List.fold_left loop PMap.empty l,[],None)
+		TAnon (List.fold_left loop PMap.empty l)		
 	| TPFunction (args,r) ->
 		match args with
 		| [TPNormal { tpackage = []; tparams = []; tname = "Void" }] ->
@@ -333,13 +344,14 @@ let rec reverse_type t =
 		TPNormal { tpackage = fst e.e_path; tname = snd e.e_path; tparams = List.map reverse_type params }
 	| TInst (c,params) ->
 		TPNormal { tpackage = fst c.cl_path; tname = snd c.cl_path; tparams = List.map reverse_type params }
+	| TSign (s,params) ->
+		TPNormal { tpackage = fst s.s_path; tname = snd s.s_path; tparams = List.map reverse_type params }
 	| TFun (params,ret) ->
 		TPFunction (List.map (fun (_,t) -> reverse_type t) params,reverse_type ret)
-	| TAnon (fields,[],None) ->
-		TPAnonymous (PMap.fold (fun f acc -> (f.cf_name , reverse_type f.cf_type) :: acc) fields [])
-	| TAnon (_,params,Some name) when name.[0] != '#' ->
-		let path = List.rev (ExtString.String.nsplit "." name) in
-		TPNormal { tpackage = List.rev (List.tl path); tname = List.hd path; tparams = List.map reverse_type params }
+	| TAnon fields ->
+		TPAnonymous (PMap.fold (fun f acc -> 			
+			(f.cf_name , AFVar (reverse_type f.cf_type), null_pos) :: acc
+		) fields [])
 	| TDynamic t2 ->
 		TPNormal { tpackage = []; tname = "Dynamic"; tparams = if t == t2 then [] else [reverse_type t2] }
 	| _ ->
@@ -517,10 +529,7 @@ let t_iterator ctx =
 		show();
 		if List.length s.s_types <> 1 then assert false;
 		let pt = mk_mono() in
-		let fields = PMap.map (fun f -> 
-			{ f with cf_type = apply_params s.s_types [pt] f.cf_type }
-		) s.s_fields in
-		TAnon (fields,[pt],Some "Iterator") , pt
+		apply_params s.s_types [pt] s.s_type, pt
 	| _ ->
 		assert false
 
@@ -569,8 +578,18 @@ let unify_call_params ctx t el args p =
 		| [] , [] ->
 			el
 		| [] , [(_,t)] ->
-			(match follow t with
-			| TAnon (_,[],Some "haxe.PosInfos") ->
+			let rec loop t =
+				match t with
+				| TMono r ->
+					(match !r with
+					| Some t -> loop t
+					| _ -> t)
+				| TLazy f ->
+					loop (!f())
+				| _ -> t
+			in
+			(match loop t with
+			| TSign ({ s_path = ["haxe"] , "PosInfos" },[]) ->
 				let infos = mk_infos ctx p [] in
 				let e = (!type_expr_ref) ctx ~need_val:true infos in
 				el @ [e]
@@ -700,26 +719,22 @@ let type_type ctx tpath p =
 			| TEnum _ -> mk_mono()
 			| _ -> t
 		) c.cl_types in
-		let fl = PMap.fold (fun f acc ->
-			PMap.add f.cf_name {
-				cf_name = f.cf_name;
-				cf_public = f.cf_public || pub;
-				cf_type = apply_params c.cl_types types f.cf_type;
-				cf_get = f.cf_get;
-				cf_set = f.cf_set;
-				cf_params = f.cf_params;
-				cf_doc = None;
-				cf_expr = None;
-			} acc
-		) c.cl_statics PMap.empty in
-		mk (TType (TClassDecl c)) (TAnon (fl,types,Some ("#" ^ s_type_path c.cl_path))) p
+		let s_tmp = {
+			s_path = fst c.cl_path, "#" ^ snd c.cl_path;
+			s_doc = None;
+			s_pos = c.cl_pos;
+			s_type = TAnon (if pub then PMap.map (fun f -> { f with cf_public = true }) c.cl_statics else c.cl_statics);
+			s_private = true;
+			s_types = c.cl_types;
+		} in
+		mk (TType (TClassDecl c)) (TSign (s_tmp,types)) p
 	| TEnumDecl e ->
 		let types = List.map (fun _ -> mk_mono()) e.e_types in
 		let fl = PMap.fold (fun f acc ->
 			PMap.add f.ef_name {
 				cf_name = f.ef_name;
 				cf_public = true;
-				cf_type = apply_params e.e_types types f.ef_type;
+				cf_type = f.ef_type;
 				cf_get = NormalAccess;
 				cf_set = NoAccess;
 				cf_doc = None;
@@ -727,7 +742,15 @@ let type_type ctx tpath p =
 				cf_params = [];
 			} acc
 		) e.e_constrs PMap.empty in
-		mk (TType (TEnumDecl e)) (TAnon (fl,types,Some ("#" ^ s_type_path e.e_path))) p
+		let s_tmp = {
+			s_path = fst e.e_path, "#" ^ snd e.e_path;
+			s_doc = None;
+			s_pos = e.e_pos;
+			s_type = TAnon fl;
+			s_private = true;
+			s_types = e.e_types;
+		} in
+		mk (TType (TEnumDecl e)) (TSign (s_tmp,types)) p
 	| TSignatureDecl _ ->
 		error (s_type_path tpath ^ " is not a value") p
 
@@ -852,7 +875,7 @@ let type_field ctx e i p get =
 			no_field())
 	| TDynamic t ->
 		AccExpr (mk (TField (e,i)) t p)
-	| TAnon (fl,_,_) ->
+	| TAnon fl ->
 		(try
 			let f = PMap.find i fl in
 			if not f.cf_public && not ctx.untyped then error ("Cannot access to private field " ^ i) p;
@@ -1257,7 +1280,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			((f,e) :: l, PMap.add f cf acc)
 		in
 		let fields , types = List.fold_left loop ([],PMap.empty) fl in
-		mk (TObjectDecl fields) (TAnon (types,[],None)) p
+		mk (TObjectDecl fields) (TAnon types) p
 	| EArrayDecl el ->
 		let t , pt = t_array ctx in
 		let dyn = ref ctx.untyped in
@@ -1838,7 +1861,7 @@ let type_module ctx m tdecls loadp =
 				s_doc = doc;
 				s_private = priv;
 				s_types = [];
-				s_fields = PMap.empty;
+				s_type = mk_mono();
 			} in
 			decls := TSignatureDecl s :: !decls
 	) tdecls;
@@ -1917,12 +1940,25 @@ let type_module ctx m tdecls loadp =
 				) in
 				e.e_constrs <- PMap.add c { ef_name = c; ef_type = t; ef_pos = p; ef_doc = doc } e.e_constrs
 			) constrs
-		| ESignature (name,_,_,_,fields) ->
+		| ESignature (name,_,_,_,t) ->
 			let s = get_sign name in
-			let ctmp = mk_class s.s_path s.s_pos None false in
-			ctmp.cl_types <- s.s_types;
-			delays := !delays @ init_class ctx ctmp p [HInterface] fields;
-			s.s_fields <- ctmp.cl_fields
+			ctx.type_params <- s.s_types;
+			let rec loop t =
+				match t with
+				| TSign (s2,_) ->
+					if s == s2 then
+						error "Do you know you're not supposed to do that ?" p
+					else
+						loop s2.s_type
+				| TMono r ->
+					(match !r with
+					| None -> ()
+					| Some t -> loop t)
+				| _ -> ()
+			in
+			let t = load_type ctx p t in
+			loop t;
+			unify ctx s.s_type t p;
 	) tdecls;
 	(* PASS 3 : type checking, delayed until all modules and types are built *)
 	ctx.delays := !delays :: !(ctx.delays);

@@ -28,8 +28,9 @@ type t =
 	| TMono of t option ref
 	| TEnum of tenum * t list
 	| TInst of tclass * t list
+	| TSign of tsignature * t list
 	| TFun of (string * t) list * t
-	| TAnon of (string, tclass_field) PMap.t * t list * string option
+	| TAnon of (string, tclass_field) PMap.t
 	| TDynamic of t
 	| TLazy of (unit -> t) ref
 
@@ -133,7 +134,7 @@ and tsignature = {
 	s_doc : Ast.documentation;
 	s_private : bool;
 	mutable s_types : (string * t) list;
-	mutable s_fields : (string, tclass_field) PMap.t;
+	mutable s_type : t;
 }
 
 and module_type = 
@@ -195,18 +196,17 @@ let rec s_type ctx t =
 		Ast.s_type_path e.e_path ^ s_type_params ctx tl
 	| TInst (c,tl) ->
 		Ast.s_type_path c.cl_path ^ s_type_params ctx tl
+	| TSign (s,tl) ->
+		Ast.s_type_path s.s_path ^ s_type_params ctx tl
 	| TFun ([],t) ->
 		"Void -> " ^ s_fun ctx t false
 	| TFun (l,t) ->
 		String.concat " -> " (List.map (fun (s,t) -> 
 			(if s = "" then "" else s ^ " : ") ^ s_fun ctx t true
 		) l) ^ " -> " ^ s_fun ctx t false
-	| TAnon (fl,tl,name) ->
-		(match name with
-		| Some s -> s ^ s_type_params ctx tl
-		| None ->
-			let fl = PMap.fold (fun f acc -> (" " ^ f.cf_name ^ " : " ^ s_type ctx f.cf_type) :: acc) fl [] in
-			"{" ^ String.concat "," fl ^ " }");
+	| TAnon fl ->
+		let fl = PMap.fold (fun f acc -> (" " ^ f.cf_name ^ " : " ^ s_type ctx f.cf_type) :: acc) fl [] in
+		"{" ^ String.concat "," fl ^ " }"
 	| TDynamic t2 ->
 		"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
 	| TLazy f ->		
@@ -222,16 +222,6 @@ and s_type_params ctx = function
 	| [] -> ""
 	| l -> "<" ^ String.concat ", " (List.map (s_type ctx) l) ^ ">"
 
-let rec follow t =
-	match t with
-	| TMono r ->
-		(match !r with
-		| Some t -> follow t
-		| _ -> t)
-	| TLazy f ->		
-		follow (!f())
-	| _ -> t
-
 let rec is_parent csup c =
 	if c == csup then
 		true
@@ -245,8 +235,7 @@ let rec link e a b =
 			true
 		else match t with
 		| TMono t -> (match !t with None -> false | Some t -> loop t)
-		| TEnum (_,tl) -> List.exists loop tl
-		| TInst (_,tl) -> List.exists loop tl
+		| TEnum (_,tl) | TInst (_,tl) | TSign (_,tl) -> List.exists loop tl
 		| TFun (tl,t) -> List.exists (fun (_,t) -> loop t) tl || loop t
 		| TDynamic t2 ->
 			if t == t2 then
@@ -255,8 +244,7 @@ let rec link e a b =
 				loop t2
 		| TLazy f ->
 			loop (!f())
-		| TAnon (fl,tl,_) ->
-			List.exists loop tl ||
+		| TAnon fl ->
 			try
 				PMap.iter (fun _ f -> if loop f.cf_type then raise Exit) fl;
 				false
@@ -295,6 +283,10 @@ let apply_params cparams params t =
 			(match tl with
 			| [] -> t
 			| _ -> TEnum (e,List.map loop tl))
+		| TSign (s,tl) ->
+			(match tl with
+			| [] -> t
+			| _ -> TSign (s,List.map loop tl))
 		| TInst (c,tl) ->
 			(match tl with
 			| [] ->
@@ -312,8 +304,8 @@ let apply_params cparams params t =
 				TInst (c,List.map loop tl))
 		| TFun (tl,r) ->
 			TFun (List.map (fun (s,t) -> s, loop t) tl,loop r)
-		| TAnon (fl,tl,name) ->
-			TAnon (PMap.map (fun f -> { f with cf_type = loop f.cf_type }) fl,List.map loop tl,name)
+		| TAnon fl ->
+			TAnon (PMap.map (fun f -> { f with cf_type = loop f.cf_type }) fl)
 		| TLazy f ->
 			loop (!f())
 		| TDynamic t2 ->
@@ -323,6 +315,18 @@ let apply_params cparams params t =
 				TDynamic (loop t2)
 	in
 	loop t
+
+let rec follow t =
+	match t with
+	| TMono r ->
+		(match !r with
+		| Some t -> follow t
+		| _ -> t)
+	| TLazy f ->
+		follow (!f())
+	| TSign (s,tl) ->
+		follow (apply_params s.s_types tl s.s_type)
+	| _ -> t
 
 let monomorphs eparams t =
 	apply_params eparams (List.map (fun _ -> mk_mono()) eparams) t
@@ -335,6 +339,8 @@ let rec type_eq param a b =
 	| _ , TLazy f -> type_eq param a (!f())
 	| TMono t , _ -> (match !t with None -> link t a b | Some t -> type_eq param t b)
 	| _ , TMono t -> (match !t with None -> link t b a | Some t -> type_eq param a t)
+	| TSign (s,tl) , _ -> type_eq param (apply_params s.s_types tl s.s_type) b
+	| _ , TSign (s,tl) -> type_eq param a (apply_params s.s_types tl s.s_type)
 	| TEnum (a,tl1) , TEnum (b,tl2) -> a == b && List.for_all2 (type_eq param) tl1 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) -> 
 		c1 == c2 && List.for_all2 (type_eq param) tl1 tl2
@@ -342,7 +348,7 @@ let rec type_eq param a b =
 		type_eq param r1 r2 && List.for_all2 (fun (_,t1) (_,t2) -> type_eq param t1 t2) l1 l2
 	| TDynamic a , TDynamic b ->
 		type_eq param a b
-	| TAnon (fl1,_,_), TAnon (fl2,_,_) ->
+	| TAnon fl1, TAnon fl2 ->
 		let keys1 = PMap.fold (fun f acc -> f :: acc) fl1 [] in
 		let keys2 = PMap.fold (fun f acc -> f :: acc) fl2 [] in
 		(try
@@ -399,6 +405,10 @@ let rec unify a b =
 		(match !t with
 		| None -> if not (link t b a) then error [cannot_unify a b]
 		| Some t -> unify a t)
+	| TSign (s,tl) , _ ->
+		unify (apply_params s.s_types tl s.s_type) b
+	| _ , TSign (s,tl) ->
+		unify a (apply_params s.s_types tl s.s_type)
 	| TEnum (ea,tl1) , TEnum (eb,tl2) -> 
 		if ea != eb then error [cannot_unify a b];
 		unify_types a b tl1 tl2
@@ -422,7 +432,7 @@ let rec unify a b =
 			List.iter2 (fun (_,t1) (_,t2) -> unify t1 t2) l2 l1 (* contravariance *)
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
-	| TInst (c,tl) , TAnon (fl,_,_) ->
+	| TInst (c,tl) , TAnon fl ->
 		(try
 			PMap.iter (fun n f2 ->
 				let f1 = (try PMap.find n c.cl_fields with Not_found -> error [has_no_field a n]) in
@@ -436,7 +446,7 @@ let rec unify a b =
 			) fl
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
-	| TAnon (fl1,_,_) , TAnon (fl2,_,_) ->
+	| TAnon fl1, TAnon fl2 ->
 		(try
 			PMap.iter (fun n f2 ->
 				let f1 = (try PMap.find n fl1 with Not_found -> error [has_no_field a n]) in

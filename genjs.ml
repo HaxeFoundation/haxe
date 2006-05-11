@@ -320,6 +320,7 @@ and gen_expr ctx e =
 			| TInst (c,_) -> Some (TClassDecl c)
 			| TFun _
 			| TLazy _
+			| TSign _
 			| TAnon _ ->
 				assert false
 			| TMono _

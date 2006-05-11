@@ -46,8 +46,9 @@ let rec gen_type t =
 	| TMono m -> (match !m with None -> tag "unknown" | Some t -> gen_type t)
 	| TEnum (e,params) -> node "e" [gen_path e.e_path] (List.map gen_type params)
 	| TInst (c,params) -> node "c" [gen_path c.cl_path] (List.map gen_type params)
+	| TSign (s,params) -> node "s" [gen_path s.s_path] (List.map gen_type params)
 	| TFun (args,r) -> node "f" ["a",String.concat ":" (List.map fst args)] (List.map gen_type (List.map snd args @ [r]))
-	| TAnon (fields,_,_) -> node "a" [] (pmap (fun f -> node f.cf_name [] [gen_type f.cf_type]) fields)
+	| TAnon fields -> node "a" [] (pmap (fun f -> node f.cf_name [] [gen_type f.cf_type]) fields)
 	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
 	| TLazy f -> gen_type (!f())
 
@@ -83,8 +84,8 @@ let gen_type t =
 		node "enum" (gen_type_params e.e_private e.e_path e.e_types e.e_pos) (pmap gen_constr e.e_constrs @ doc)
 	| TSignatureDecl s ->
 		let doc = gen_doc_opt s.s_doc in
-		let fields = pmap (gen_field []) s.s_fields in
-		node "signature" (gen_type_params false s.s_path [] s.s_pos) (fields @ doc)
+		let t = [] in
+		node "signature" (gen_type_params false s.s_path [] s.s_pos) (t @ doc)
 
 let att_str att = 
 	String.concat "" (List.map (fun (a,v) -> Printf.sprintf " %s=\"%s\"" a v) att)

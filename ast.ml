@@ -133,10 +133,15 @@ type type_path_normal = {
 	tparams : type_path list;
 }
 
+and anonymous_field = 
+	| AFVar of type_path
+	| AFProp of type_path * string * string
+	| AFFun of (string * type_path) list * type_path
+
 and type_path = 
 	| TPNormal of type_path_normal
 	| TPFunction of type_path list * type_path
-	| TPAnonymous of (string * type_path) list
+	| TPAnonymous of (string * anonymous_field * pos) list
 	| TPParent of type_path
 
 type func = {
@@ -201,7 +206,7 @@ type type_param_flag =
 type type_def =
 	| EClass of string * documentation * type_param list * type_param_flag list * (class_field * pos) list
 	| EEnum of string * documentation * type_param list * enum_param list * (string * documentation * (string * type_path) list * pos) list
-	| ESignature of string * documentation * type_param list * enum_param list * (class_field * pos) list
+	| ESignature of string * documentation * type_param list * enum_param list * type_path
 	| EImport of (string list * string)
 
 type type_decl = type_def * pos
