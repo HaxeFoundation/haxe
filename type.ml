@@ -70,7 +70,7 @@ and texpr_expr =
 	| TIf of texpr * texpr * texpr option
 	| TWhile of texpr * texpr * Ast.while_flag
 	| TSwitch of texpr * (texpr * texpr) list * texpr option
-	| TMatch of texpr * (tenum * t list) * (string * (string * t) list option * texpr) list * texpr option
+	| TMatch of texpr * (tenum * t list) * (string * (string option * t) list option * texpr) list * texpr option
 	| TTry of texpr * (string * t * texpr) list
 	| TReturn of texpr option
 	| TBreak

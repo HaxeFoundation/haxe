@@ -368,13 +368,16 @@ and gen_expr ctx e =
 			(match params with 
 			| None | Some [] -> ()
 			| Some l -> 
-				let n = ref 1 in
-				spr ctx "var ";
-				concat ctx ", " (fun (v,_) -> 
-					print ctx "%s = $e[%d]" v (!n);
-					incr n;
-				) l;
-				newline ctx);
+				let n = ref 0 in
+				let l = List.fold_left (fun acc (v,_) -> incr n; match v with None -> acc | Some v -> (v,!n) :: acc) [] l in
+				match l with
+				| [] -> ()
+				| l ->
+					spr ctx "var ";
+					concat ctx ", " (fun (v,n) -> 
+						print ctx "%s = $e[%d]" v n;
+					) l;
+					newline ctx);
 			gen_expr ctx (block e);
 			print ctx "break";
 			newline ctx

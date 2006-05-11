@@ -56,7 +56,7 @@ type access_kind =
 	| AccSet of texpr * string * t * string
 
 type switch_mode =
-	| CMatch of (string * (string * t) list option)
+	| CMatch of (string * (string option * t) list option)
 	| CExpr of texpr
 
 type error_msg =
@@ -808,9 +808,11 @@ let type_matching ctx (enum,params) (e,p) ecases =
 		) in
 		let idents = List.map2 (fun (e,_) t ->
 			match e with
+			| EConst (Ident "_") ->
+				None , t
 			| EConst (Ident name) | EConst (Type name) ->
 				let name = add_local ctx name t in
-				name , t
+				Some name , t
 			| _ -> invalid()
 		) el args in
 		(name,Some idents)

@@ -657,10 +657,13 @@ and gen_match ctx retval e cases def =
 		let n = ref 0 in
 		List.iter (fun (a,t) ->
 			incr n;
-			define_var ctx a (Some (fun() ->
-				push ctx [VReg renum; VInt !n];
-				write ctx AObjGet
-			)) [e]
+			match a with
+			| None -> ()
+			| Some a ->
+				define_var ctx a (Some (fun() ->
+					push ctx [VReg renum; VInt !n];
+					write ctx AObjGet
+				)) [e]
 		) (match args with None -> [] | Some l -> l);
 		gen_expr ctx retval e;
 		if retval then ctx.stack_size <- ctx.stack_size - 1;

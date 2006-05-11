@@ -54,7 +54,7 @@ let add_local ctx v p =
 			(match eo with None -> () | Some e -> loop flag e);
 			List.iter (fun (_,vars,e) ->
 				match vars with
-				| Some l when List.exists (fun (a,_) -> a = v) l -> ()
+				| Some l when List.exists (fun (a,_) -> a = Some v) l -> ()
 				| _ -> loop flag e
 			) cases
 		| TBlock l ->
@@ -350,13 +350,17 @@ and gen_expr ctx e =
 						| None -> gen_expr ctx e2
 						| Some el ->
 							let b = block ctx [e2] in
-							let vars = List.map (fun (v,_) -> 
+							let vars = List.fold_left (fun acc (v,_) -> 								
 								incr count; 
-								let isref = add_local ctx v p in
-								let e = (EArray (ident p "@tmp",int p (!count)),p) in
-								let e = (if isref then call p (builtin p "array") [e] else e) in
-								v , Some e
-							) el in
+								match v with
+								| None ->
+									acc
+								| Some v ->
+									let isref = add_local ctx v p in
+									let e = (EArray (ident p "@tmp",int p (!count)),p) in
+									let e = (if isref then call p (builtin p "array") [e] else e) in
+									(v , Some e) :: acc
+							) [] el in
 							let e2 = gen_expr ctx e2 in
 							b();
 							(EBlock [
