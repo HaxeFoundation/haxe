@@ -78,6 +78,8 @@ let unify_error_msg ctx = function
 		s_type ctx t ^ " has no field " ^ n
 	| Invalid_access (f,get) ->
 		"Inconsistent " ^ (if get then "getter" else "setter") ^ " for field " ^ f
+	| Invalid_visibility n ->
+		"The field " ^ n ^ " is not public"
 
 let rec error_msg = function
 	| Module_not_found m -> "Class not found : " ^ s_type_path m

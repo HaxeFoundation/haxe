@@ -365,12 +365,14 @@ type unify_error =
 	| Invalid_field_type of string
 	| Has_no_field of t * string
 	| Invalid_access of string * bool
+	| Invalid_visibility of string
 
 exception Unify_error of unify_error list
 
 let cannot_unify a b = Cannot_unify (a,b)
 let invalid_field n = Invalid_field_type n
 let invalid_access n get = Invalid_access (n,get)
+let invalid_visibility n = Invalid_visibility n
 let has_no_field t n = Has_no_field (t,n)
 let error l = raise (Unify_error l)
 
@@ -378,6 +380,9 @@ let unify_types a b tl1 tl2 =
 	List.iter2 (fun ta tb ->
 		if not (type_eq true ta tb) then error [cannot_unify a b; cannot_unify ta tb]
 	) tl1 tl2
+
+let unify_access a1 a2 =
+	a1 = a2 || (a1 = NormalAccess && a2 = NoAccess)
 
 let rec unify a b =
 	if a == b then
@@ -420,8 +425,9 @@ let rec unify a b =
 		(try
 			PMap.iter (fun n f2 ->
 				let f1 = (try PMap.find n c.cl_fields with Not_found -> error [has_no_field a n]) in
-				if f1.cf_get <> f2.cf_get then error [invalid_access n true];
-				if f1.cf_set <> f2.cf_set then error [invalid_access n false];
+				if not (unify_access f1.cf_get f2.cf_get) then error [invalid_access n true];
+				if not (unify_access f1.cf_set f2.cf_set) then error [invalid_access n false];
+				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
 				try 
 					unify (apply_params c.cl_types tl f1.cf_type) f2.cf_type
 				with
@@ -433,8 +439,9 @@ let rec unify a b =
 		(try
 			PMap.iter (fun n f2 ->
 				let f1 = (try PMap.find n fl1 with Not_found -> error [has_no_field a n]) in
-				if f1.cf_get <> f2.cf_get then error [invalid_access n true];
-				if f1.cf_set <> f2.cf_set then error [invalid_access n false];
+				if not (unify_access f1.cf_get f2.cf_get) then error [invalid_access n true];
+				if not (unify_access f1.cf_set f2.cf_set) then error [invalid_access n false];
+				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
 				try
 					unify f1.cf_type f2.cf_type;
 				with
