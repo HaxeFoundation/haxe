@@ -406,9 +406,15 @@ let rec unify a b =
 		| None -> if not (link t b a) then error [cannot_unify a b]
 		| Some t -> unify a t)
 	| TSign (s,tl) , _ ->
-		unify (apply_params s.s_types tl s.s_type) b
+		(try 
+			unify (apply_params s.s_types tl s.s_type) b
+		with 
+			Unify_error l -> error (cannot_unify a b :: l))
 	| _ , TSign (s,tl) ->
-		unify a (apply_params s.s_types tl s.s_type)
+		(try 
+			unify a (apply_params s.s_types tl s.s_type)
+		with 
+			Unify_error l -> error (cannot_unify a b :: l))	
 	| TEnum (ea,tl1) , TEnum (eb,tl2) -> 
 		if ea != eb then error [cannot_unify a b];
 		unify_types a b tl1 tl2
