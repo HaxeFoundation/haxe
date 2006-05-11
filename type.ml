@@ -429,27 +429,6 @@ let rec unify a b =
 			) fl
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
-	| TAnon (fl,_) , TInst (c,tl) ->
-		let rec loop c tl =
-			PMap.iter (fun n f2 ->
-				let f1 = (try PMap.find n fl with Not_found -> error [has_no_field a n]) in
-				if f1.cf_get <> f2.cf_get then error [invalid_access n true];
-				if f1.cf_set <> f2.cf_set then error [invalid_access n false];
-				try
-					unify f1.cf_type (apply_params c.cl_types tl f2.cf_type)
-				with
-					Unify_error l -> error (invalid_field n :: l)
-			) c.cl_fields;
-			List.iter (fun (c,t) -> loop c t) c.cl_implements;
-			match c.cl_super with
-			| None -> ()
-			| Some (c,tl) -> loop c tl
-		in
-		if not c.cl_interface then error [cannot_unify a b];
-		(try
-			loop c tl;
-		with
-			Unify_error l -> error (cannot_unify a b :: l))
 	| TAnon (fl1,_) , TAnon (fl2,_) ->
 		(try
 			PMap.iter (fun n f2 ->
