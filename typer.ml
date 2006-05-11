@@ -333,7 +333,7 @@ let rec reverse_type t =
 		TPNormal { tpackage = fst c.cl_path; tname = snd c.cl_path; tparams = List.map reverse_type params }
 	| TFun (params,ret) ->
 		TPFunction (List.map (fun (_,t) -> reverse_type t) params,reverse_type ret)
-	| TAnon (fields,None) ->
+	| TAnon (fields,_) ->
 		TPAnonymous (PMap.fold (fun f acc -> (f.cf_name , reverse_type f.cf_type) :: acc) fields [])
 	| TDynamic t2 ->
 		TPNormal { tpackage = []; tname = "Dynamic"; tparams = if t == t2 then [] else [reverse_type t2] }
@@ -508,11 +508,14 @@ let t_array ctx =
 let t_iterator ctx =
 	let show = hide_types ctx in
 	match load_type_def ctx null_pos ([],"Iterator") with
-	| TClassDecl c ->
+	| TSignatureDecl s ->
 		show();
-		if List.length c.cl_types <> 1 then assert false;
+		if List.length s.s_types <> 1 then assert false;
 		let pt = mk_mono() in
-		TInst (c,[pt]) , pt
+		let fields = PMap.map (fun f -> 
+			{ f with cf_type = apply_params s.s_types [pt] f.cf_type }
+		) s.s_fields in
+		TAnon (fields,Some "Iterator") , pt
 	| _ ->
 		assert false
 
@@ -562,7 +565,7 @@ let unify_call_params ctx t el args p =
 			el
 		| [] , [(_,t)] ->
 			(match follow t with
-			| TInst ({ cl_path = (["haxe"],"PosInfos") },[]) -> 
+			| TAnon (_,Some "haxe.PosInfos") ->
 				let infos = mk_infos ctx p [] in
 				let e = (!type_expr_ref) ctx ~need_val:true infos in
 				el @ [e]
