@@ -13,6 +13,7 @@
 	allowed neko.Web API commandline emulation outside mod_neko
 	remove subtyping Anon :> Instance
 	added signatures, Iterator is now a signature
+	getter/setter and public/private unification
 
 2006-05-02: RC1
 	added the Socket class
