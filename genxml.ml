@@ -47,7 +47,7 @@ let rec gen_type t =
 	| TEnum (e,params) -> node "e" [gen_path e.e_path] (List.map gen_type params)
 	| TInst (c,params) -> node "c" [gen_path c.cl_path] (List.map gen_type params)
 	| TFun (args,r) -> node "f" ["a",String.concat ":" (List.map fst args)] (List.map gen_type (List.map snd args @ [r]))
-	| TAnon (fields,_) -> node "a" [] (pmap (fun f -> node f.cf_name [] [gen_type f.cf_type]) fields)
+	| TAnon (fields,_,_) -> node "a" [] (pmap (fun f -> node f.cf_name [] [gen_type f.cf_type]) fields)
 	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
 	| TLazy f -> gen_type (!f())
 

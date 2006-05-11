@@ -29,7 +29,7 @@ type t =
 	| TEnum of tenum * t list
 	| TInst of tclass * t list
 	| TFun of (string * t) list * t
-	| TAnon of (string, tclass_field) PMap.t * string option
+	| TAnon of (string, tclass_field) PMap.t * t list * string option
 	| TDynamic of t
 	| TLazy of (unit -> t) ref
 
@@ -201,9 +201,9 @@ let rec s_type ctx t =
 		String.concat " -> " (List.map (fun (s,t) -> 
 			(if s = "" then "" else s ^ " : ") ^ s_fun ctx t true
 		) l) ^ " -> " ^ s_fun ctx t false
-	| TAnon (fl,name) ->
+	| TAnon (fl,tl,name) ->
 		(match name with
-		| Some s -> s
+		| Some s -> s ^ s_type_params ctx tl
 		| None ->
 			let fl = PMap.fold (fun f acc -> (" " ^ f.cf_name ^ " : " ^ s_type ctx f.cf_type) :: acc) fl [] in
 			"{" ^ String.concat "," fl ^ " }");
@@ -255,7 +255,8 @@ let rec link e a b =
 				loop t2
 		| TLazy f ->
 			loop (!f())
-		| TAnon (fl,_) ->
+		| TAnon (fl,tl,_) ->
+			List.exists loop tl ||
 			try
 				PMap.iter (fun _ f -> if loop f.cf_type then raise Exit) fl;
 				false
@@ -311,8 +312,8 @@ let apply_params cparams params t =
 				TInst (c,List.map loop tl))
 		| TFun (tl,r) ->
 			TFun (List.map (fun (s,t) -> s, loop t) tl,loop r)
-		| TAnon (fl,name) ->
-			TAnon (PMap.map (fun f -> { f with cf_type = loop f.cf_type }) fl,name)
+		| TAnon (fl,tl,name) ->
+			TAnon (PMap.map (fun f -> { f with cf_type = loop f.cf_type }) fl,List.map loop tl,name)
 		| TLazy f ->
 			loop (!f())
 		| TDynamic t2 ->
@@ -341,7 +342,7 @@ let rec type_eq param a b =
 		type_eq param r1 r2 && List.for_all2 (fun (_,t1) (_,t2) -> type_eq param t1 t2) l1 l2
 	| TDynamic a , TDynamic b ->
 		type_eq param a b
-	| TAnon (fl1,_), TAnon (fl2,_) ->
+	| TAnon (fl1,_,_), TAnon (fl2,_,_) ->
 		let keys1 = PMap.fold (fun f acc -> f :: acc) fl1 [] in
 		let keys2 = PMap.fold (fun f acc -> f :: acc) fl2 [] in
 		(try
@@ -421,7 +422,7 @@ let rec unify a b =
 			List.iter2 (fun (_,t1) (_,t2) -> unify t1 t2) l2 l1 (* contravariance *)
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
-	| TInst (c,tl) , TAnon (fl,_) ->
+	| TInst (c,tl) , TAnon (fl,_,_) ->
 		(try
 			PMap.iter (fun n f2 ->
 				let f1 = (try PMap.find n c.cl_fields with Not_found -> error [has_no_field a n]) in
@@ -435,7 +436,7 @@ let rec unify a b =
 			) fl
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
-	| TAnon (fl1,_) , TAnon (fl2,_) ->
+	| TAnon (fl1,_,_) , TAnon (fl2,_,_) ->
 		(try
 			PMap.iter (fun n f2 ->
 				let f1 = (try PMap.find n fl1 with Not_found -> error [has_no_field a n]) in
