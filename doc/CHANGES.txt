@@ -12,6 +12,7 @@
 	added remoting proxys
 	allowed neko.Web API commandline emulation outside mod_neko
 	fixed type hole : Anon :> Instance only if interface
+	added signatures
 
 2006-05-02: RC1
 	added the Socket class
