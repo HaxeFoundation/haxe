@@ -24,7 +24,7 @@
  */
 package neko.db;
 
-class ResultSet implements Iterator<Dynamic> {
+class ResultSet {
 
 	public property length(getLength,null) : Int;
 	public property nfields(getNFields,null) : Int;

@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-class IntIter implements Iterator<Int> {
+class IntIter {
 
 	var min : Int;
 	var max : Int;
@@ -34,13 +34,11 @@ class IntIter implements Iterator<Int> {
 	}
 
 	public function hasNext() {
-		return min != max;
+		return min < max;
 	}
 
 	public function next() {
-		if( min < max )
-			return min++;
-		return min--;
+		return min++;
 	}
 
 }
