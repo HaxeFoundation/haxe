@@ -14,6 +14,7 @@
 	remove subtyping Anon :> Instance
 	added signatures, Iterator is now a signature
 	getter/setter and public/private unification
+	allowed anonymous declaration with interface-style syntax
 
 2006-05-02: RC1
 	added the Socket class
