@@ -131,6 +131,8 @@ and tsignature = {
 	s_path : module_path;
 	s_pos : Ast.pos;
 	s_doc : Ast.documentation;
+	s_private : bool;
+	mutable s_types : (string * t) list;
 	mutable s_fields : (string, tclass_field) PMap.t;
 }
 
@@ -173,8 +175,8 @@ let null_class = mk_class ([],"") Ast.null_pos None true
 
 let t_private = function
 	| TClassDecl c -> c.cl_private
-	| TEnumDecl  e -> e.e_private
-	| TSignatureDecl _ -> false
+	| TEnumDecl e -> e.e_private
+	| TSignatureDecl s -> s.s_private
 
 let t_path = function
 	| TClassDecl c -> c.cl_path

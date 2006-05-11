@@ -259,7 +259,12 @@ let rec load_normal_type ctx t p allow_no_params =
 		let types , path , f = match load_type_def ctx p (t.tpackage,t.tname) with
 			| TClassDecl c -> c.cl_types , c.cl_path , (fun t -> TInst (c,t))
 			| TEnumDecl e -> e.e_types , e.e_path , (fun t -> TEnum (e,t))
-			| TSignatureDecl s -> [] , s.s_path , (fun _ -> TAnon (s.s_fields,Some (s_type_path s.s_path)))
+			| TSignatureDecl s -> s.s_types , s.s_path , (fun t -> 
+				let fields = PMap.map (fun f -> 
+					{ f with cf_type = apply_params s.s_types t f.cf_type }
+				) s.s_fields in
+				TAnon (fields,Some (s_type_path s.s_path))
+			)
 		in
 		if allow_no_params && t.tparams = [] then
 			f (List.map (fun (name,t) ->
@@ -1816,12 +1821,15 @@ let type_module ctx m tdecls loadp =
 				e_constrs = PMap.empty;
 			} in
 			decls := TEnumDecl e :: !decls
-		| ESignature (name,doc,_) ->
-			let path = decl_with_name name p false in
+		| ESignature (name,doc,_,flags,_) ->			
+			let priv = List.mem EPrivate flags in
+			let path = decl_with_name name p priv in
 			let s = {
 				s_path = path;
 				s_pos = p;
 				s_doc = doc;
+				s_private = priv;
+				s_types = [];
 				s_fields = PMap.empty;
 			} in
 			decls := TSignatureDecl s :: !decls
@@ -1877,8 +1885,9 @@ let type_module ctx m tdecls loadp =
 		| EEnum (name,_,types,_,_) ->
 			let e = get_enum name in
 			e.e_types <- List.map (type_type_params ctx e.e_path p) types;
-		| ESignature _ ->
-			()
+		| ESignature (name,_,types,_,_) ->
+			let s = get_sign name in
+			s.s_types <- List.map (type_type_params ctx s.s_path p) types;
 	) tdecls;
 	(* back to PASS2 *)
 	List.iter (fun (d,p) ->
@@ -1900,9 +1909,10 @@ let type_module ctx m tdecls loadp =
 				) in
 				e.e_constrs <- PMap.add c { ef_name = c; ef_type = t; ef_pos = p; ef_doc = doc } e.e_constrs
 			) constrs
-		| ESignature (name,_,fields) ->
+		| ESignature (name,_,_,_,fields) ->
 			let s = get_sign name in
 			let ctmp = mk_class s.s_path s.s_pos None false in
+			ctmp.cl_types <- s.s_types;
 			delays := !delays @ init_class ctx ctmp p [HInterface] fields;
 			s.s_fields <- ctmp.cl_fields
 	) tdecls;

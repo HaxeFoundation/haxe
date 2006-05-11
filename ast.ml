@@ -201,7 +201,7 @@ type type_param_flag =
 type type_def =
 	| EClass of string * documentation * type_param list * type_param_flag list * (class_field * pos) list
 	| EEnum of string * documentation * type_param list * enum_param list * (string * documentation * (string * type_path) list * pos) list
-	| ESignature of string * documentation * (class_field * pos) list
+	| ESignature of string * documentation * type_param list * enum_param list * (class_field * pos) list
 	| EImport of (string list * string)
 
 type type_decl = type_def * pos
