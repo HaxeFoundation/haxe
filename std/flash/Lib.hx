@@ -50,8 +50,8 @@ class Lib {
 			__geturl__(url,target,"GET");
 	}
 
-	public static function fscommand( cmd : String ) {
-		untyped __geturl__("FSCommand:"+cmd,"");
+	public static function fscommand( cmd : String, param : Dynamic ) {
+		untyped __geturl__("FSCommand:"+cmd,if( param == null ) "" else param);
 	}
 
 	public static function print( cmd : String, kind : String ) {
