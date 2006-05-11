@@ -1,7 +1,7 @@
 package flash;
 
 #if flash_strict
-private extern interface KeyListener {
+signature KeyListener {
 	function onKeyDown() : Void;
 	function onKeyUp() : Void;
 }

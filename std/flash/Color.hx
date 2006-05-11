@@ -1,7 +1,7 @@
 package flash;
 
 #if flash_strict
-private extern interface ColorTransform {
+signature ColorTransform {
 	var ra : Float;
 	var rb : Float;
 	var ga : Float;

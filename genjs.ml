@@ -627,6 +627,7 @@ let generate_type ctx = function
 		| Some e -> ctx.inits <- e :: ctx.inits);
 		if not c.cl_extern then generate_class ctx c
 	| TEnumDecl e -> generate_enum ctx e
+	| TSignatureDecl _ -> ()
 
 let generate file types hres =
 	let ctx = {

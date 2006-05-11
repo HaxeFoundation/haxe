@@ -149,6 +149,7 @@ and parse_type_decl s =
 		match s with parser 
 		| [< n , p1 = parse_enum_params; doc = get_doc; '(Const (Type name),_); tl = parse_type_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] -> (EEnum (name,doc,tl,List.map snd c @ n,l), punion p1 p2)
 		| [< n , p1 = parse_class_params; doc = get_doc; '(Const (Type name),_); tl = parse_type_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = plist parse_class_field; '(BrClose,p2) >] -> (EClass (name,doc,tl,List.map fst c @ n @ hl,fl), punion p1 p2)
+		| [< '(Const (Ident "signature"),p1); doc = get_doc; '(Const (Type name),_); '(BrOpen,_); fl = plist parse_signature_field; '(BrClose,p2) >] -> (ESignature (name,doc,fl), punion p1 p2)
 
 and parse_package s = psep Dot ident s
 
@@ -217,7 +218,7 @@ and parse_enum_param = parser
 and parse_class_field s =
 	doc := None;
 	match s with parser
-	| [< l = parse_cf_rights []; doc = get_doc; s >] ->
+	| [< l = parse_cf_rights true []; doc = get_doc; s >] ->
 		match s with parser
 		| [< '(Kwd Var,p1); name = any_ident; t = parse_type_opt; s >] ->			
 			let e , p2 = (match s with parser
@@ -242,10 +243,27 @@ and parse_class_field s =
 			(FFun (name,doc,l,pl,f),punion p1 (pos e))
 		| [< >] -> if l = [] then raise Stream.Failure else serror()
 
-and parse_cf_rights l = parser
-	| [< '(Kwd Static,_) when not(List.mem AStatic l); l = parse_cf_rights (AStatic :: l) >] -> l
-	| [< '(Kwd Public,_) when not(List.mem APublic l || List.mem APrivate l); l = parse_cf_rights (APublic :: l) >] -> l
-	| [< '(Kwd Private,_) when not(List.mem APublic l || List.mem APrivate l); l = parse_cf_rights (APrivate :: l) >] -> l
+and parse_signature_field s =
+	doc := None;
+	match s with parser
+	| [< l = parse_cf_rights false []; doc = get_doc; s >] ->
+		match s with parser
+		| [< '(Kwd Var,p1); name = any_ident; t = parse_type_opt; p2 = semicolon >] -> (FVar (name,doc,l,t,None),punion p1 p2)
+		| [< '(Const (Ident "property"),p1); name = any_ident; '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_type_path; p2 = semicolon >] ->
+			(FProp (name,doc,l,i1,i2,t),punion p1 p2)
+		| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_type_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; p2 = semicolon >] ->
+			let f = {
+				f_args = al;
+				f_type = t;
+				f_expr = (EBlock [],p2);
+			} in
+			(FFun (name,doc,l,pl,f),punion p1 p2)
+		| [< >] -> if l = [] then raise Stream.Failure else serror()
+
+and parse_cf_rights allow_static l = parser
+	| [< '(Kwd Static,_) when allow_static; l = parse_cf_rights false (AStatic :: l) >] -> l
+	| [< '(Kwd Public,_) when not(List.mem APublic l || List.mem APrivate l); l = parse_cf_rights allow_static (APublic :: l) >] -> l
+	| [< '(Kwd Private,_) when not(List.mem APublic l || List.mem APrivate l); l = parse_cf_rights allow_static (APrivate :: l) >] -> l
 	| [< >] -> l
 
 and parse_fun_name = parser

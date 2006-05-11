@@ -516,6 +516,7 @@ let rec gen_access ctx forcall e =
 		push ctx [VStr (match t with
 			| TClassDecl c -> gen_type ctx c.cl_path c.cl_extern
 			| TEnumDecl e -> gen_type ctx e.e_path false
+			| TSignatureDecl _ -> assert false
 		)];
 		VarStr
 	| _ ->
@@ -1176,6 +1177,8 @@ let gen_type_def ctx t =
 		setvar ctx VarStr;
 		init_name ctx e.e_path true;
 		PMap.iter (fun _ f -> gen_enum_field ctx id f) e.e_constrs
+	| TSignatureDecl _ ->
+		()
 
 let gen_boot ctx hres =
 	let id = gen_type ctx (["flash"],"Boot") false in

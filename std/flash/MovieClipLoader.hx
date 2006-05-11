@@ -1,7 +1,7 @@
 package flash;
 
 #if flash_strict
-extern private interface MclListener {
+signature MclListener {
 
 	function onLoadInit(target:MovieClip) : Void;
 	function onLoadStart(target:MovieClip) : Void;

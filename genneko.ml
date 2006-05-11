@@ -218,7 +218,7 @@ and gen_expr ctx e =
 	| TField (e2,f) ->
 		gen_closure p e.etype (gen_expr ctx e2) f
 	| TType t ->
-		gen_type_path p (type_path t)
+		gen_type_path p (t_path t)
 	| TParenthesis e ->
 		(EParenthesis (gen_expr ctx e),p)
 	| TObjectDecl fl ->
@@ -498,10 +498,12 @@ let gen_type ctx t =
 			null (pos e.e_pos)
 		else
 			gen_enum e
+	| TSignatureDecl s ->
+		null (pos s.s_pos)
 
 let gen_static_vars ctx t =
 	match t with
-	| TEnumDecl _ -> []
+	| TEnumDecl _ | TSignatureDecl _ -> []
 	| TClassDecl c ->
 		if c.cl_extern then
 			[]
@@ -527,7 +529,7 @@ let gen_package h t =
 		| x :: l ->
 			let path = acc @ [x] in
 			if not (Hashtbl.mem h path) then begin
-				let p = pos (match t with TClassDecl c -> c.cl_pos | TEnumDecl e -> e.e_pos) in
+				let p = pos (match t with TClassDecl c -> c.cl_pos | TEnumDecl e -> e.e_pos | TSignatureDecl s -> s.s_pos) in
 				let e = (EBinop ("=",gen_type_path p (acc,x),call p (builtin p "new") [null p]),p) in				
 				Hashtbl.add h path ();
 				(match acc with
@@ -539,7 +541,7 @@ let gen_package h t =
 			end else
 				loop path l
 	in
-	loop [] (fst (type_path t))
+	loop [] (fst (t_path t))
 
 let gen_boot hres =
 	let loop name data acc = (name , gen_constant null_pos (TString data)) :: acc in
@@ -568,6 +570,8 @@ let gen_name acc t =
 			(EBinop ("=",field p (gen_type_path p c.cl_path) "__name__",arr),p) :: 
 			(EBinop ("=",interf, call p (field p (ident p "Array") "new1") [interf; int p (List.length c.cl_implements)]),p) ::
 			acc
+	| TSignatureDecl _ ->
+		acc
 
 let generate file types hres =
 	let ctx = {

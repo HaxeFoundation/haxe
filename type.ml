@@ -127,9 +127,17 @@ and tenum = {
 	mutable e_constrs : (string , tenum_field) PMap.t;
 }
 
+and tsignature = {
+	s_path : module_path;
+	s_pos : Ast.pos;
+	s_doc : Ast.documentation;
+	mutable s_fields : (string, tclass_field) PMap.t;
+}
+
 and module_type = 
 	| TClassDecl of tclass
 	| TEnumDecl of tenum
+	| TSignatureDecl of tsignature
 
 type module_def = {
 	mpath : module_path;		
@@ -166,10 +174,12 @@ let null_class = mk_class ([],"") Ast.null_pos None true
 let t_private = function
 	| TClassDecl c -> c.cl_private
 	| TEnumDecl  e -> e.e_private
+	| TSignatureDecl _ -> false
 
 let t_path = function
 	| TClassDecl c -> c.cl_path
 	| TEnumDecl  e -> e.e_path
+	| TSignatureDecl s -> s.s_path
 
 let print_context() = ref []
 
@@ -209,11 +219,6 @@ and s_fun ctx t void =
 and s_type_params ctx = function
 	| [] -> ""
 	| l -> "<" ^ String.concat ", " (List.map (s_type ctx) l) ^ ">"
-
-let type_path t =
-	match t with 
-	| TClassDecl c -> c.cl_path
-	| TEnumDecl e -> e.e_path
 
 let rec follow t =
 	match t with
