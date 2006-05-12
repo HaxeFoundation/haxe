@@ -56,6 +56,9 @@ class Stack {
 		return makeStack(untyped __dollar__excstack());
 	}
 
+	/**
+		Returns a representation of the stack as a printable string.
+	**/
 	public static function toString( stack : Array<StackItem> ) {
 		var b = new StringBuf();
 		for( s in stack )
