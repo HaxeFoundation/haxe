@@ -202,6 +202,13 @@ class Boot {
 					}
 				}
 			};
+			var cca = String.prototype.charCodeAt;
+			String.prototype.charCodeAt = function(i) {
+				var x = cca.call(this,i);
+				if( isNaN(x) )
+					return null;
+				return x;
+			};
 			var oldsub = String.prototype.substr;
 			String.prototype.substr = function(pos,len){
 				if( pos < 0 ){
