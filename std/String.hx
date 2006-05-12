@@ -23,15 +23,32 @@
  * DAMAGE.
  */
 
+/**
+	The basic String class.
+**/
 extern class String {
 
+	/**
+		The number of characters in the String.
+	**/
 	property length(default,null) : Int;
 
 	function new(string:String) : Void;
 
+	/**
+		Returns an String where all characters have been uppercased.
+	**/
 	function toUpperCase() : String;
+
+	/**
+		Returns an String where all characters have been lowercased.
+	**/
 	function toLowerCase() : String;
 
+	/**
+		Returns the character at the given [index].
+		Returns the empty String if
+	**/
 	function charAt( index : Int) : String;
 	function charCodeAt( index : Int) : Int;
 

@@ -23,8 +23,15 @@
  * DAMAGE.
  */
 
+/**
+	A String buffer is an efficient way to build a big string by
+	appending small elements together.
+**/
 class StringBuf {
 
+	/**
+		Creates a new string buffer.
+	**/
 	public function new() {
 		#if neko
 		b = __make();
@@ -36,6 +43,9 @@ class StringBuf {
 		#end
 	}
 
+	/**
+		Adds the representation of any value to the string buffer.
+	**/
 	public function add( x : Dynamic ) {
 		#if neko
 		__add(b,x);
@@ -47,6 +57,9 @@ class StringBuf {
 		#end
 	}
 
+	/**
+		Adds a part of a string to the string buffer.
+	**/
 	public function addSub( s : String, pos : Int, len : Int ) {
 		#if neko
 		__add_sub(b,untyped s.__s,pos,len);
@@ -58,6 +71,9 @@ class StringBuf {
 		#end
 	}
 
+	/**
+		Adds a character to the string buffer.
+	**/
 	public function addChar( c : Int ) {
 		#if neko
 		__add_char(b,c);
@@ -69,6 +85,10 @@ class StringBuf {
 		#end
 	}
 
+	/**
+		Returns the content of the string buffer.
+		The buffer is not emptied by this operation.
+	**/
 	public function toString() : String {
 		#if neko
 		return new String(__string(b));

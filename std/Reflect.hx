@@ -23,6 +23,9 @@
  * DAMAGE.
  */
 
+/**
+	The different kind of basic types.
+**/
 enum BasicType {
 	TNull;
 	TInt;

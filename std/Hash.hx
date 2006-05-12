@@ -23,8 +23,16 @@
  * DAMAGE.
  */
 
+/**
+	Hashtable over a set of elements, using [String] as keys.
+	Other kind of keys are not possible on all platforms since they
+	can't always be implemented efficiently.
+**/
 class Hash<T> {
 
+	/**
+		Creates a new empty hashtable.
+	**/
 	public function new() : Void {
 		#if flash
 		h = untyped __new__(_global["Object"]);
@@ -40,6 +48,9 @@ class Hash<T> {
 		#end
 	}
 
+	/**
+		Set a value for the given key.
+	**/
 	public function set( key : String, value : T ) : Void {
 		#if flash
 		untyped h[key] = value;
@@ -51,6 +62,9 @@ class Hash<T> {
 		#end
 	}
 
+	/**
+		Get a value for the given key.
+	**/
 	public function get( key : String ) : T {
 		#if flash
 		return untyped h[key];
@@ -62,6 +76,11 @@ class Hash<T> {
 		#end
 	}
 
+	/**
+		Tells if a value exists for the given key.
+		In particular, it's useful to tells if a key has
+		a [null] value versus no value.
+	**/
 	public function exists( key : String ) : Bool {
 		#if flash
 		return untyped h.hasOwnProperty(key);
@@ -73,6 +92,10 @@ class Hash<T> {
 		#end
 	}
 
+	/**
+		Removes a hashtable entry. Returns [true] if
+		there was such entry.
+	**/
 	public function remove( key : String ) : Bool {
 		#if flash
 		if( untyped !h.hasOwnProperty(key) ) return false;
@@ -86,6 +109,9 @@ class Hash<T> {
 		#end
 	}
 
+	/**
+		Returns an iterator of all keys in the hashtable.
+	**/
 	public function keys() : Iterator<String> {
 		#if flash
 		return untyped (__keys__(h)).iterator();
@@ -99,6 +125,9 @@ class Hash<T> {
 		#end
 	}
 
+	/**
+		Returns an iterator of all values in the hashtable.
+	**/
 	public function iterator() : Iterator<T> {
 		#if flash
 		return untyped {
@@ -121,6 +150,10 @@ class Hash<T> {
 		#else error
 		#end
 	}
+
+	/**
+		Returns an displayable representation of the hashtable content.
+	**/
 
 	public function toString() {
 		var s = new StringBuf();

@@ -23,16 +23,31 @@
  * DAMAGE.
  */
 
+/**
+	A linked-list of elements. The list is composed of two-elements arrays
+	that are chained together. It's optimized so that adding or removing an
+	element doesn't imply to copy the whole array content everytime.
+**/
 class List<T> {
 
 	private var h : Array<Dynamic>;
 	private var q : Array<Dynamic>;
+
+	/**
+		The number of elements in this list.
+	**/
 	public property length(default,null) : Int;
 
+	/**
+		Creates a new empty list.
+	**/
 	public function new() {
 		length = 0;
 	}
 
+	/**
+		Add an element at the end of the list.
+	**/
 	public function add( item : T ) {
 		var x = #if neko
 			untyped __dollar__array(item,null)
@@ -47,6 +62,9 @@ class List<T> {
 		length++;
 	}
 
+	/**
+		Push an element at the beginning of the list.
+	**/
 	public function push( item : T ) {
 		var x = #if neko
 			untyped __dollar__array(item,h)
@@ -59,14 +77,28 @@ class List<T> {
 		length++;
 	}
 
+	/**
+		Returns the first element of the list, or null
+		if the list is empty.
+	**/
 	public function first() : T {
 		return if( h == null ) null else h[0];
 	}
 
+	/**
+		Returns the last element of the list, or null
+		if the list is empty.
+	**/
 	public function last() : T {
 		return if( q == null ) null else q[0];
 	}
 
+
+	/**
+		Removes the first element of the list and
+		returns it or simply returns null if the
+		list is empty.
+	**/
 	public function pop() : T {
 		if( h == null )
 			return null;
@@ -78,10 +110,17 @@ class List<T> {
 		return x;
 	}
 
+	/**
+		Tells if a list is empty.
+	**/
 	public function isEmpty() : Bool {
 		return (h == null);
 	}
 
+	/**
+		Remove the first element that is [== v] from the list.
+		Returns [true] if an element was removed, [false] otherwise.
+	**/
 	public function remove( v : T ) : Bool {
 		var prev = null;
 		var l = h;
@@ -102,6 +141,9 @@ class List<T> {
 		return false;
 	}
 
+	/**
+		Returns an iterator on the elements of the list.
+	**/
 	public function iterator() : Iterator<T> {
 		return {
 			h : h,
@@ -120,6 +162,9 @@ class List<T> {
 		}
 	}
 
+	/**
+		Returns a displayable representation of the String.
+	**/
 	public function toString() {
 		var s = new StringBuf();
 		var first = true;
@@ -137,6 +182,9 @@ class List<T> {
 		return s.toString();
 	}
 
+	/**
+		Join the element of the list by using the separator [sep].
+	**/
 	public function join(sep : String) {
 		var s = new StringBuf();
 		var first = true;
@@ -152,6 +200,10 @@ class List<T> {
 		return s.toString();
 	}
 
+	/**
+		Returns a list filtered with [f]. The returned list
+		will contain all elements [x] for which [f(x) = true].
+	**/
 	public function filter( f : T -> Bool ) {
 		var l2 = new List();
 		var l = h;
@@ -164,6 +216,10 @@ class List<T> {
 		return l2;
 	}
 
+	/**
+		Returns a new list where all elements have been converted
+		by the function [f].
+	**/
 	public function map<X>(f : T -> X) : List<X> {
 		var b = new List();
 		var l = h;

@@ -22,7 +22,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
+
+/**
+	Creates a MD5 of a String.
+**/
 class Md5 {
+
 	public static function encode( s : String ) : String{
 		#if neko
 			untyped return new String(base_encode(make_md5(s.__s),"0123456789abcdef".__s));
@@ -33,12 +38,12 @@ class Md5 {
 		#else error
 		#end
 	}
-	
+
 	#if neko
 	static var base_encode = neko.Lib.load("std","base_encode",2);
 	static var make_md5 = neko.Lib.load("std","make_md5",1);
 	#else true
-	
+
 /*
  * A JavaScript implementation of the RSA Data Security, Inc. MD5 Message
  * Digest Algorithm, as defined in RFC 1321.
@@ -53,13 +58,13 @@ class Md5 {
 		return (msb31 << 1) | lsb;
 	}
 
-	private static function bitXOR(a, b){   
+	private static function bitXOR(a, b){
 		var lsb = (a & 0x1) ^ (b & 0x1);
 		var msb31 = (a >>> 1) ^ (b >>> 1);
 		return (msb31 << 1) | lsb;
 	}
 
-	private static function bitAND(a, b){   
+	private static function bitAND(a, b){
 		var lsb = (a & 0x1) & (b & 0x1);
 		var msb31 = (a >>> 1) & (b >>> 1);
 		return (msb31 << 1) | lsb;
@@ -70,7 +75,7 @@ class Md5 {
 		var msw = (x >> 16)+(y >> 16)+(lsw >> 16);
 		return (msw << 16) | (lsw & 0xFFFF);
 	}
-	
+
 	private static function rhex( num ){
 		var str = "";
 		var hex_chr = "0123456789abcdef";
@@ -126,7 +131,7 @@ class Md5 {
 	}
 
 	private static function __jsflash_encode(str:String):String{
-	
+
 		var x = str2blks(str);
 		var a =  1732584193;
 		var b = -271733879;
@@ -134,7 +139,7 @@ class Md5 {
 		var d =  271733878;
 
 		var step;
-		
+
 		var i = 0;
 		while( i < x.length )  {
 			var olda = a;
@@ -158,7 +163,7 @@ class Md5 {
 			a = ff(a, b, c, d, x[i+12], 7 ,  1804603682);
 			d = ff(d, a, b, c, x[i+13], 12, -40341101);
 			c = ff(c, d, a, b, x[i+14], 17, -1502002290);
-			b = ff(b, c, d, a, x[i+15], 22,  1236535329);    
+			b = ff(b, c, d, a, x[i+15], 22,  1236535329);
 			a = gg(a, b, c, d, x[i+ 1], 5 , -165796510);
 			d = gg(d, a, b, c, x[i+ 6], 9 , -1069501632);
 			c = gg(c, d, a, b, x[i+11], 14,  643717713);
@@ -217,8 +222,8 @@ class Md5 {
 		}
 		return rhex(a) + rhex(b) + rhex(c) + rhex(d);
 	}
-	
+
 	#end
 
-	
+
 }

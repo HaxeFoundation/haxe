@@ -23,13 +23,31 @@
  * DAMAGE.
  */
 
+/**
+	An Array is a storage for values. You can access it using indexes or
+	with its API. On the server side, it's often better to use a [List] which
+	is less memory and CPU consuming, unless you really need indexed access.
+**/
 extern class Array<T> {
 
+	/**
+		The length of the Array
+	**/
 	property length(default,null) : Int;
 
+	/**
+		Creates a new Array.
+	**/
 	function new() : Void;
 
+	/**
+		Returns a new Array by appending [a] to [this].
+	**/
 	function concat( a : Array<T> ) : Array<T>;
+
+	/**
+		Returns a representation of an array with [sep] for separating each element.
+	**/
 	function join( sep : String ) : String;
 
 	/**
@@ -42,6 +60,9 @@ extern class Array<T> {
 	**/
 	function push(x : T) : Int;
 
+	/**
+		Reverse the order of elements of the Array.
+	**/
 	function reverse() : Array<T>;
 
 	/**
@@ -56,6 +77,12 @@ extern class Array<T> {
 		the array.
 	**/
 	function slice( pos : Int, end : Int ) : Array<T>; // sub
+
+	/**
+		Sort the Array according to the comparison function [f].
+		[f(x,y)] should return [0] if [x == y], [>0] if [x > y]
+		and [<0] if [x < y].
+	**/
 	function sort( f : T -> T -> Int ) : Void;
 
 	/**
@@ -63,6 +90,10 @@ extern class Array<T> {
 	**/
 	function splice( pos : Int, len : Int ) : Array<T>; // removed elts
 	// no toSource (js specific)
+
+	/**
+		Returns a displayable representation of the Array content.
+	**/
 	function toString() : String;
 
 	/**
@@ -71,7 +102,10 @@ extern class Array<T> {
 	function unshift( x : T ) : Void;
 	// no valueOf (js specific)
 
-	/* added */
+	/**
+		Inserts the element [x] at the position [pos].
+		All elements after [pos] are moved one index ahead.
+	**/
 	function insert( pos : Int, x : T ) : Void;
 
 	/**
@@ -79,7 +113,16 @@ extern class Array<T> {
 		Returns false if [x] was not present.
 	**/
 	function remove( x : T ) : Bool;
+
+	/**
+		Returns a copy of the Array. The values are not
+		copied, only the Array structure.
+	**/
 	function copy() : Array<T>;
+
+	/**
+		Returns an iterator of Array values.
+	**/
 	function iterator() : Iterator<T>;
 
 }

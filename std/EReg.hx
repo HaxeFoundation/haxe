@@ -23,6 +23,11 @@
  * DAMAGE.
  */
 
+/**
+	Regular expressions are a way to find regular patterns into
+	Strings. Have a look at the tutorial on haXe website to learn
+	how to use them.
+**/
 class EReg {
 
 	var r : Void;
@@ -31,6 +36,10 @@ class EReg {
 	var global : Bool;
 	#end
 
+	/**
+		Creates a new regular expression with pattern [r] and
+		options [opt].
+	**/
 	public function new( r : String, opt : String ) {
 		#if neko
 		var a = opt.split("g");
@@ -46,6 +55,10 @@ class EReg {
 		#end
 	}
 
+	/**
+		Tells if the regular expression matches the String.
+		Updates the internal state accordingly.
+	**/
 	public function match( s : String ) : Bool {
 		#if neko
 		var p = regexp_match(r,untyped s.__s,0,s.length);
@@ -69,6 +82,11 @@ class EReg {
 		#end
 	}
 
+	/**
+		Returns a matched group or throw an expection if there
+		is no such group. If [n = 0], the whole matched substring
+		is returned.
+	**/
 	public function matched( n : Int ) : String {
 		#if neko
 		return new String(regexp_matched(r,n));
@@ -81,6 +99,10 @@ class EReg {
 		#end
 	}
 
+	/**
+		Returns the part of the string that was as the left of
+		of the matched substring.
+	**/
 	public function matchedLeft() : String {
 		#if neko
 		var p = regexp_matched_pos(r,0);
@@ -98,6 +120,10 @@ class EReg {
 		#end
 	}
 
+	/**
+		Returns the part of the string that was as the right of
+		of the matched substring.
+	**/
 	public function matchedRight() : String {
 		#if neko
 		var p = regexp_matched_pos(r,0);
@@ -119,6 +145,10 @@ class EReg {
 		#end
 	}
 
+	/**
+		Returns the position of the matched substring within the
+		original matched string.
+	**/
 	public function matchedPos() : { pos : Int, len : Int } {
 		#if neko
 		return regexp_matched_pos(r,0);
@@ -132,6 +162,10 @@ class EReg {
 		#end
 	}
 
+	/**
+		Split a string by using the regular expression to match
+		the separators.
+	**/
 	public function split( s : String ) : Array<String> {
 		#if neko
 		var pos = 0;
@@ -165,6 +199,11 @@ class EReg {
 		#end
 	}
 
+	/**
+		Replaces a pattern by another string. The [by] format can
+		contains [$1] to [$9] that will correspond to groups matched
+		while replacing. [$$] means the [$] character.
+	**/
 	public function replace( s : String, by : String ) : String {
 		#if neko
 		var b = new StringBuf();

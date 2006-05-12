@@ -23,8 +23,14 @@
  * DAMAGE.
  */
 
+/**
+	The DateTools class contains some extra functionalities for [Date]
+	manipulation. It's stored in a different class in order to prevent
+	the standard [Date] of being bloated and thus increasing the size of
+	each application using it.
+**/
 class DateTools {
-	
+
 	#if neko
 	#else true
 	private static function __jsflash_format_get( d : Date, e : String ) : String {
@@ -32,7 +38,7 @@ class DateTools {
 			case "%":
 				"%";
 			case "C":
-				untyped StringTools.lpad(Std.string(Math.floor(d.getFullYear()/100)),"0",2);
+				untyped StringTools.lpad(Std.string(Std.int(d.getFullYear()/100)),"0",2);
 			case "d":
 				untyped StringTools.lpad(Std.string(d.getDate()),"0",2);
 			case "D":
@@ -82,7 +88,7 @@ class DateTools {
 				throw "Date.format %"+e+"- not implemented yet.";
 		}
 	}
-	
+
 	private static function __jsflash_format( d : Date, f : String ) : String {
 		var r = new StringBuf();
 		var p = 0;
@@ -90,12 +96,13 @@ class DateTools {
 			var np = f.indexOf("%", p);
 			if( np < 0 )
 				break;
-			
+
 			r.add( f.substr(p,np-p) );
 			r.add( __jsflash_format_get(d, f.substr(np+1,1) ) );
-			
+
 			p = np+2;
 		}
+		r.add(f.substr(p,f.length-p));
 		return r.toString();
 	}
 	#end
@@ -104,7 +111,13 @@ class DateTools {
 		static var date_format = neko.Lib.load("std","date_format",2);
 	#end
 
-
+	/**
+		Format the date [d] according to the format [f]. The format
+		is compatible with the [strftime] standard format, except that there
+		is no support in Flash and JS for day and months names (due to lack
+		of proper internationalization API). On haXe/Neko/Windows, some
+		formats are not supported.
+	**/
 	public static function format( d : Date, f : String ) : String {
 		#if neko
 			untyped return new String(date_format(d.__t, f.__s));
@@ -116,8 +129,11 @@ class DateTools {
 		#end
 	}
 
+	/**
+		Returns a Date which time has been changed by [t] seconds.
+	**/
 	public static function delta( d : Date, t : Float ) : Date {
 		return Date.fromTime( d.getTime() + t );
 	}
-	
+
 }

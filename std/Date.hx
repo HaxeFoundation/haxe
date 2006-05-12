@@ -23,13 +23,39 @@
  * DAMAGE.
  */
 
+/**
+	The Date class is used for date manipulation. There is some extra functions
+	available in the [DateTools] class.
+**/
 extern class Date
 {
+	/**
+		Creates a new date object.
+	**/
 	function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void;
+
+	/**
+		Returns the timestamp of the date. It's the number of milliseconds
+		elapsed since 1st January 1970.
+	**/
 	function getTime() : Float;
+
+	/**
+		Returns a string representation for the Date, by using the
+		standard format [YYYY-MM-DD HH:MM:SS]. See [DateTools.format] for
+		other formating rules.
+	**/
 	function toString():String;
 
+	/**
+		Returns a Date representing the current local time.
+	**/
 	static function now() : Date;
+
+	/**
+		Returns a Date from a timestamp [t] which is the number of
+		milliseconds elapsed since 1st January 1970.
+	**/
 	static function fromTime( t : Float ) : Date;
 
 	private static function __init__() : Void untyped {

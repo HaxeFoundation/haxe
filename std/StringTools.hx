@@ -23,8 +23,18 @@
  * DAMAGE.
  */
 
+
+/**
+	The StringTools class contains some extra functionalities for [String]
+	manipulation. It's stored in a different class in order to prevent
+	the standard [String] of being bloated and thus increasing the size of
+	each application using it.
+**/
 class StringTools {
 
+	/**
+		Encode an URL by using the standard format.
+	**/
 	public static function urlEncode( s : String ) : String {
 		#if flash
 		return untyped _global.escape(s);
@@ -36,6 +46,9 @@ class StringTools {
 		#end
 	}
 
+	/**
+		Decode an URL using the standard format.
+	**/
 	public static function urlDecode( s : String ) : String {
 		#if flash
 		return untyped _global.unescape(s);
@@ -47,29 +60,47 @@ class StringTools {
 		#end
 	}
 
-	public static function unhtml( s : String ) : String {
+	/**
+		Escape HTML special characters of the string.
+	**/
+	public static function htmlEscape( s : String ) : String {
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
 	}
 
-	public static function rehtml( s : String ) : String {
+	/**
+		Unescape HTML special characters of the string.
+	**/
+	public static function htmlUnescape( s : String ) : String {
 		return s.split("&gt;").join(">").split("&lt;").join("<").split("&amp;").join("&");
 	}
 
+	/**
+		Tells if the string [s] starts with the string [start].
+	**/
 	public static function startsWith( s : String, start : String ) {
 		return( s.length >= start.length && s.substr(0,start.length) == start );
 	}
 
+	/**
+		Tells if the string [s] ends with the string [end].
+	**/
 	public static function endsWith( s : String, end : String ) {
 		var elen = end.length;
 		var slen = s.length;
 		return( slen >= elen && s.substr(slen-elen,elen) == end );
 	}
 
+	/**
+		Tells if the character in the string [s] at position [pos] is a space.
+	**/
 	public static function isSpace( s : String, pos : Int ) : Bool {
 		var c = s.charCodeAt( pos );
 		return (c >= 9 && c <= 13) || c == 32;
 	}
 
+	/**
+		Removes spaces at the left of the String [s].
+	**/
 	public static function ltrim( s : String ) : String {
 		var l = s.length;
 		var r = 0;
@@ -82,6 +113,9 @@ class StringTools {
 			return s;
 	}
 
+	/**
+		Removes spaces at the right of the String [s].
+	**/
 	public static function rtrim( s : String ) : String {
 		var l = s.length;
 		var r = 0;
@@ -95,10 +129,16 @@ class StringTools {
 		}
 	}
 
+	/**
+		Removes spaces at the beginning and the end of the String [s].
+	**/
 	public static function trim( s : String ) : String {
 		return ltrim(rtrim(s));
 	}
 
+	/**
+		Pad the string [s] by appending [c] at its right until it reach [l] characters.
+	**/
 	public static function rpad( s : String, c : String, l : Int ) : String {
 		var sl = s.length;
 		var cl = c.length;
@@ -114,6 +154,9 @@ class StringTools {
 		return s;
 	}
 
+	/**
+		Pad the string [s] by appending [c] at its left until it reach [l] characters.
+	**/
 	public static function lpad( s : String, c : String, l : Int ) : String {
 		var ns = "";
 		var sl = s.length;
@@ -132,6 +175,9 @@ class StringTools {
 		return ns+s;
 	}
 
+	/**
+		Replace all occurences of the string [sub] in the string [s] by the string [by].
+	**/
 	public static function replace( s : String, sub : String, by : String ) : String {
 		return s.split(sub).join(by);
 	}

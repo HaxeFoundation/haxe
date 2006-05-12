@@ -23,9 +23,18 @@
  * DAMAGE.
  */
 
+/**
+	An abstract type representing the type of the Xml
+	Node. You can compare it to [Xml] statics and can
+	use [Std.string(t)] to get a string reprensation
+	of the type.
+**/
 enum XmlType {
 }
 
+/**
+	Xml class and parsing.
+**/
 extern class Xml {
 
 	static property Element(default,null) : XmlType;

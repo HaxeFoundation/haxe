@@ -23,11 +23,18 @@
  * DAMAGE.
  */
 
+/**
+	Integer iterator. Used for interval implementation.
+**/
 class IntIter {
 
 	var min : Int;
 	var max : Int;
 
+	/**
+		Iterate from [min] (inclusive) to [max] (exclusive).
+		If [max <= min], the iterator will not act as a countdown.
+	**/
 	public function new( min : Int, max : Int ) {
 		this.min = min;
 		this.max = max;
