@@ -31,7 +31,7 @@ enum SocketError {
 
 class SocketBuffer {
 
-	public static var START_SIZE = 31;
+	public static var START_SIZE = 256;
 	public static var MAX_SIZE = 4096;
 
 	var buffer : String;

@@ -120,7 +120,7 @@ class SocketConnection extends AsyncConnection {
 		#end
 	}
 
-	public static function processMessage( sc : SocketConnection, data : String ) {
+	public static function processMessage( sc : SocketConnection, data : String, throwExc : Bool ) {
 		var f : Dynamic -> Void;
 		var val : Dynamic;
 		var s = new Unserializer(data);
@@ -182,6 +182,14 @@ class SocketConnection extends AsyncConnection {
 			sendMessage(sc.__data,s.toString());
 		} catch( e : Dynamic ) {
 			sc.onError(e);
+			return;
+		}
+		if( exc && throwExc ) {
+			#if neko
+			neko.Lib.rethrow(val);
+			#else true
+			throw val;
+			#end
 		}
 	}
 
@@ -199,7 +207,7 @@ class SocketConnection extends AsyncConnection {
 	public static function socketConnect( s : flash.XMLSocket ) {
 		var sc = new SocketConnection(s,[]);
 		sc.__funs = new List();
-		s.onData = function(data : String) { processMessage(sc,data.substr(2,data.length-2)); };
+		s.onData = function(data : String) { processMessage(sc,data.substr(2,data.length-2),false); };
 		return sc;
 	}
 
