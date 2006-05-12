@@ -20,6 +20,7 @@
 	fixed neko charAt(outside) => ""
 	added errors for strings containing \0 in JS and Flash
 	added HAXE_LIBRARY_PATH environment variable support
+	fixed interfaces inheritance : can't extend, can implement (type-sums)
 
 2006-05-02: RC1
 	added the Socket class
