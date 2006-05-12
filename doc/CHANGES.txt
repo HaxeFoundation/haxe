@@ -1,4 +1,4 @@
-2006-05-11: 1.0
+2006-05-??: 1.0
 	fixed small bugs in JS Xml Parser (empty attribute, newlines in attributes)
 	added default Content-Type for haxe.Http in JS
 	haxe.AsyncConnection : onError should not be call if error occur in onData
@@ -16,6 +16,9 @@
 	getter/setter and public/private unification
 	allowed anonymous declaration with interface-style syntax (for signatures)
 	optimized code generated for underscore in enum matches parameters
+	fixed flash/js String.charCodeAt(outside) => null
+	fixed neko charAt(outside) => ""
+	added errors for strings containing \0 in JS and Flash
 
 2006-05-02: RC1
 	added the Socket class
