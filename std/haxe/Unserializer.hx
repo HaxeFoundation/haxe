@@ -47,7 +47,7 @@ class Unserializer {
  			if( c == null )
  				break;
  			#else true
-			if( Std.isNaN(c) )
+			if( Math.isNaN(c) )
 				break;
 			#end
  			if( c == 45 ) { // negative sign
@@ -112,11 +112,11 @@ class Unserializer {
  				throw ("Invalid float "+s);
  			return f;
  		case 107: // k
- 			return Std.nan;
+ 			return Math.NaN;
  		case 109: // m
- 			return -Std.infinity;
+ 			return Math.NEGATIVE_INFINITY;
  		case 112: // p
- 			return Std.infinity;
+ 			return Math.POSITIVE_INFINITY;
  		case 115: // s
  			var len = readDigits();
  			if( buf.charAt(pos++) == ":" ) {

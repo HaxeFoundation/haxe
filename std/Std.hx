@@ -29,16 +29,6 @@
 class Std {
 
 	/**
-		The infinity Float value.
-	**/
-	public static var infinity = 1.0 / 0.0;
-
-	/**
-		The not-a-number Float value.
-	**/
-	public static var nan = 0.0 / 0.0;
-
-	/**
 		Tells if a value v is of the type t.
 	**/
 	public static function is( v : Dynamic, t : Dynamic ) : Bool {
@@ -153,36 +143,6 @@ class Std {
 			return null;
 		else
 			return x.charCodeAt(0);
-		#else error
-		#end
-	}
-
-	/**
-		Tells if a Float value is finite.
-	**/
-	public static function isFinite(i : Float) : Bool {
-		return untyped
-		#if flash
-		_global.isFinite(i);
-		#else neko
-		!__dollar__isinfinite(i);
-		#else js
-		__js__("isFinite")(i);
-		#else error
-		#end
-	}
-
-	/**
-		Tells if a Float value is not-a-number.
-	**/
-	public static function isNaN(i : Float) : Bool {
-		return untyped
-		#if flash
-		_global.isNaN(i);
-		#else neko
-		__dollar__isnan(i);
-		#else js
-		__js__("isNaN")(i);
 		#else error
 		#end
 	}

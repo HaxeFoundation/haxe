@@ -26,7 +26,11 @@ package neko;
 
 class NekoMath__
 {
-	static var PI = Lib.load("std","math_pi",0)();
+	static var PI;
+	static var NaN;
+	static var POSITIVE_INFINITY;
+	static var NEGATIVE_INFINITY;
+
 	static var abs = Lib.load("std","math_abs",1);
 	static function min(a,b) { return if( a < b ) a else b; }
 	static function max(a,b) { return if( a < b ) b else a; }
@@ -45,10 +49,22 @@ class NekoMath__
 	static var acos = Lib.load("std","math_acos",1);
 	static var pow = Lib.load("std","math_pow",2);
 
-	static var __rnd = Lib.load("std","random_new",0)();
+	static var __rnd;
 	static var _rand_float = Lib.load("std","random_float",1);
 	static var _rand_int = Lib.load("std","random_int",2);
 	static function random() { return _rand_float(__rnd); }
+
+	static function isNaN(f) { return untyped __dollar__isnan(f); }
+	static function isFinite(f) { return !untyped __dollar__isinfinite(f); }
+
+	static function __init__() {
+	 	__rnd = Lib.load("std","random_new",0)();
+	 	PI = Lib.load("std","math_pi",0)();
+	 	NaN = 0.0 / 0.0;
+	 	POSITIVE_INFINITY = 1.0 / 0.0;
+	 	NEGATIVE_INFINITY = -POSITIVE_INFINITY;
+	}
+
 }
 
 

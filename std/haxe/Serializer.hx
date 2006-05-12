@@ -118,9 +118,9 @@ class Serializer {
 			return;
 		}
 		if( Std.is(v,Float) ) {
-			if( Std.isNaN(v) )
+			if( Math.isNaN(v) )
 				buf.add("k");
-			else if( !Std.isFinite(v) )
+			else if( !Math.isFinite(v) )
 				buf.add(if( v < 0 ) "m" else "p");
 			else {
 				buf.add("d");

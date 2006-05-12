@@ -128,7 +128,6 @@ class Boot {
 		untyped {
 			String = NekoString__;
 			Array = NekoArray__;
-			Math = NekoMath__;
 			Int = __dollar__new(null);
 			Float = __dollar__new(null);
 			Bool = __dollar__new(null);

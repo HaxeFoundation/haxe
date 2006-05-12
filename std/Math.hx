@@ -26,6 +26,9 @@
 extern class Math
 {
 	static var PI : Float;
+	static var NaN : Float;
+	static var NEGATIVE_INFINITY : Float;
+	static var POSITIVE_INFINITY : Float;
 
 	static function abs(value:Float):Float;
 	static function min(value1:Float,value2:Float):Float;
@@ -45,6 +48,38 @@ extern class Math
 	static function acos(value:Float):Float;
 	static function pow(value1:Float,value2:Float):Float;
 	static function random() : Float;
+
+	static function isFinite( f : Float ) : Bool;
+	static function isNaN( f : Float ) : Bool;
+
+	private static function __init__() : Void untyped {
+	#if neko
+		Math = neko.NekoMath__;
+	#else true
+		NaN = Number.NaN;
+		NEGATIVE_INFINITY = Number.NEGATIVE_INFINITY;
+		POSITIVE_INFINITY = Number.POSITIVE_INFINITY;
+		isFinite = function(i) {
+			return
+			#if flash
+			_global.isFinite(i);
+			#else js
+			__js__("isFinite")(i);
+			#else error
+			#end
+		};
+		isNaN = function(i) {
+			return
+			#if flash
+			_global.isNaN(i);
+			#else js
+			__js__("isNaN")(i);
+			#else error
+			#end
+		};
+	#end
+	}
+
 }
 
 
