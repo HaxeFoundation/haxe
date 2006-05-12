@@ -41,9 +41,13 @@ class NekoString__ implements String {
 
 	public function charAt(p) {
 		untyped {
-			var s = __dollar__smake(1);
-			__dollar__sset(s,0,__dollar__sget(this.__s,p));
-			return new String(s);
+			try {
+				var s = __dollar__smake(1);
+				__dollar__sset(s,0,__dollar__sget(this.__s,p));
+				return new String(s);
+			} catch( e : Dynamic ) {
+				return "";
+			}
 		}
 	}
 
@@ -89,11 +93,11 @@ class NekoString__ implements String {
 
 	public function substr( pos, len ) {
 		if( len == null ) return "";
-		
+
 		var sl = untyped __dollar__ssize(this.__s);
 
 		if( pos == null ) pos = 0;
-		
+
 		if( pos < 0 ){
 			pos = sl + pos;
 			if( pos < 0 ) pos = 0;
