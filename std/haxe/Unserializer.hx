@@ -43,13 +43,8 @@ class Unserializer {
  		var s = false;
  		while( true ) {
  			var c = buf.charCodeAt(pos);
- 			#if neko
  			if( c == null )
  				break;
- 			#else true
-			if( Math.isNaN(c) )
-				break;
-			#end
  			if( c == 45 ) { // negative sign
  				s = true;
  				pos++;
