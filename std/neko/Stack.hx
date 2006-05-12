@@ -56,6 +56,26 @@ class Stack {
 		return makeStack(untyped __dollar__excstack());
 	}
 
+	public static function toString( stack : Array<StackItem> ) {
+		var b = new StringBuf();
+		for( s in stack )
+			switch( s ) {
+			case CFunction:
+				b.add("Called from a C function\n");
+			case Module(m):
+				b.add("Called from module ");
+				b.add(m);
+				b.add("\n");
+			case FilePos(name,line):
+				b.add("Called from ");
+				b.add(name);
+				b.add(" line ");
+				b.add(line);
+				b.add("\n");
+			}
+		return b.toString();
+	}
+
 	private static function makeStack(s) {
 		var a = new Array();
 		var l = untyped __dollar__asize(s);
