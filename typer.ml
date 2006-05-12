@@ -425,8 +425,9 @@ let set_heritance ctx c herits p =
 			| TInst (cl,params) ->
 				if is_parent c cl then error "Recursive class" p;
 				if c.cl_interface then error "Cannot extend an interface" p;
+				if cl.cl_interface then error "Cannot extend by using an interface" p;
 				c.cl_super <- Some (cl,params)
-			| _ -> error "Should extend a class" p)
+			| _ -> error "Should extend by using a class" p)
 		| HImplements t ->
 			let t = load_normal_type ctx t p false in
 			(match t with
@@ -436,7 +437,7 @@ let set_heritance ctx c herits p =
 			| TDynamic t ->
 				if c.cl_dynamic <> None then error "Cannot have several dynamics" p;
 				c.cl_dynamic <- Some t
-			| _ -> error "Should implement a class" p)
+			| _ -> error "Should implement by using an interface or a class" p)
 	in
 	List.iter loop herits
 
@@ -1610,19 +1611,26 @@ let check_overloading c p () =
 				Not_found -> ()
 		) c.cl_fields
 
+let rec check_interface c p intf params =
+	PMap.iter (fun i f ->
+		try
+			let t , f2 = class_field c i in
+			if f2.cf_public <> f.cf_public then error ("Field " ^ i ^ " has different visibility (public/private) than in " ^ s_type_path intf.cl_path) p;
+			if f2.cf_get <> f.cf_get || f2.cf_set <> f.cf_set then error ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path) p;
+			let t1 = apply_params intf.cl_types params (field_type f) in
+			let t2 = field_type f2 in			
+			if not (type_eq false t2 t1) then error ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;			
+		with
+			Not_found ->
+				if not c.cl_interface then error ("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing") p
+	) intf.cl_fields;
+	List.iter (fun (i2,p2) ->
+		check_interface c p i2 (List.map (apply_params intf.cl_types params) p2)
+	) intf.cl_implements
+
+
 let check_interfaces c p () =
-	List.iter (fun (intf,params) ->
-		PMap.iter (fun i f ->
-			try
-				let t , f2 = class_field c i in
-				if f2.cf_public <> f.cf_public then error ("Field " ^ i ^ " has different visibility (public/private) than in " ^ s_type_path intf.cl_path) p;
-				if f2.cf_get <> f.cf_get || f2.cf_set <> f.cf_set then error ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path) p;
-				if not (type_eq false (field_type f2) (apply_params intf.cl_types params (field_type f))) then error ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
-			with
-				Not_found ->
-					error ("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing") p
-		) intf.cl_fields;
-	) c.cl_implements
+	List.iter (fun (intf,params) -> check_interface c p intf params) c.cl_implements
 
 (* ---------------------------------------------------------------------- *)
 (* PASS 1 & 2 : Module and Class Structure *)
