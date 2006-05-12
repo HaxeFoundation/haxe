@@ -196,6 +196,13 @@ class Boot {
 					}
 				}
 			};
+			var cca = String.prototype.charCodeAt;
+			String.prototype.charCodeAt = function(i) {
+				var x = cca.call(this,i);
+				if( x <= 0 ) // fast NaN
+					return null;
+				return x;
+			};
 			// copy base classes from root to flash package
 			// we can't make a loop since we need to assign short-type-ids
 			flash.Accessibility = _global["Accessibility"];
