@@ -101,7 +101,21 @@ try
 	Plugin.defines := base_defines;
 	Plugin.verbose := false;
 	Typer.forbidden_packages := ["js"; "neko"; "flash"];
-	Plugin.class_path := [base_path ^ "std/";"";"/"];
+	(try
+		let p = Sys.getenv "HAXE_LIBRARY_PATH" in
+		let rec loop = function
+			| drive :: path :: l ->	
+				if String.length drive = 1 && ((drive.[0] >= 'a' && drive.[0] <= 'z') || (drive.[0] >= 'A' && drive.[0] <= 'Z')) then
+					(drive ^ ":" ^ path) :: loop l
+				else
+					drive :: loop (path :: l)
+			| l ->
+				l
+		in
+		Plugin.class_path := loop (ExtString.String.nsplit p ":")
+	with
+		Not_found -> 
+			Plugin.class_path := [base_path ^ "std/";"";"/"]);
 	let check_targets() =
 		if !target <> No then failwith "Multiple targets";
 	in
