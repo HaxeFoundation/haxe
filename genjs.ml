@@ -52,8 +52,7 @@ let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
 let spr ctx s = Buffer.add_string ctx.buf s
 let print ctx = Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)			
 
-let unsupported p = 
-	raise (Typer.Error (Typer.Custom "This expression cannot be compiled to Javascript",p))
+let unsupported = Typer.error "This expression cannot be compiled to Javascript"
 
 let newline ctx = 
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
@@ -111,10 +110,12 @@ let handle_break ctx e =
 
 let this ctx = if ctx.in_value then "$this" else "this"
 
-let gen_constant ctx = function
+let gen_constant ctx p = function
 	| TInt s
 	| TFloat s -> spr ctx s
-	| TString s -> print ctx "\"%s\"" (Ast.s_escape s)
+	| TString s -> 
+		if String.contains s '\000' then Typer.error "A String cannot contain \\0 characters" p;
+		print ctx "\"%s\"" (Ast.s_escape s)
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "null"
 	| TThis -> spr ctx (this ctx)
@@ -164,7 +165,7 @@ let rec gen_call ctx e el =
 
 and gen_expr ctx e =
 	match e.eexpr with
-	| TConst c -> gen_constant ctx c
+	| TConst c -> gen_constant ctx e.epos c
 	| TLocal s -> spr ctx (ident s)
 	| TEnumField (e,s) ->
 		print ctx "%s%s" (s_path e.e_path) (field s)
@@ -188,7 +189,7 @@ and gen_expr ctx e =
 			spr ctx "$closure(";
 			gen_value ctx x;
 			spr ctx ",";
-			gen_constant ctx (TString s);
+			gen_constant ctx e.epos (TString s);
 			spr ctx ")";
 		| _ -> 
 			gen_value ctx x;
@@ -651,6 +652,7 @@ let generate file types hres =
 	print ctx "js.Boot.__res = {}";
 	newline ctx;
 	Hashtbl.iter (fun name data ->
+		if String.contains data '\000' then failwith ("Resource " ^ name ^ " contains \\0 characters that can't be used in JavaScript");
 		print ctx "js.Boot.__res[\"%s\"] = \"%s\"" (Ast.s_escape name) (Ast.s_escape data);
 		newline ctx;
 	) hres;

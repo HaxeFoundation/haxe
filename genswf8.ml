@@ -464,7 +464,9 @@ let rec gen_constant ctx c p =
 	match c with
 	| TInt s -> (try push ctx [VInt32 (Int32.of_string s)] with _ -> gen_constant ctx (TFloat s) p)
 	| TFloat s -> push ctx [VFloat (try float_of_string s with _ -> error p)]
-	| TString s -> push ctx [VStr s]
+	| TString s -> 
+		if String.contains s '\000' then Typer.error "A String cannot contain \\0 characters" p;
+		push ctx [VStr s]
 	| TBool b -> write ctx (APush [PBool b])
 	| TNull -> push ctx [VNull]
 	| TThis
@@ -1201,10 +1203,7 @@ let gen_boot ctx hres =
 	push ctx [VReg 0; VStr "__res"];
 	let count = ref 0 in
 	Hashtbl.iter (fun name data ->
-		(try 
-			ignore(String.index data '\000');
-			failwith ("Resource " ^ name ^ " does contain \\0 character than can't be used in Flash");
-		with Not_found -> ());
+		if String.contains data '\000' then failwith ("Resource " ^ name ^ " contains \\0 character than can't be used in Flash");		
 		push ctx [VStr name];
 		gen_big_string ctx data;
 		incr count;
