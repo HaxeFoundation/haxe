@@ -1639,7 +1639,7 @@ let init_class ctx c p herits fields =
 	let type_opt ctx p t =
 		match t with
 		| None when c.cl_extern || c.cl_interface ->
-			error "Type required for extern classes, interfaces and signatures" p
+			error "Type required for extern classes and interfaces" p
 		| _ ->
 			load_type_opt ctx p t
 	in
