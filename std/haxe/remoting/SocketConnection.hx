@@ -56,7 +56,7 @@ class SocketConnection extends AsyncConnection {
 		s.serialize(true);
 		s.serialize(false);
 		s.serialize(__path);
-		s.serialize(params);		
+		s.serialize(params);
 		sendMessage(__data,s.toString());
 		__funs.add(onData);
 	}
@@ -134,7 +134,7 @@ class SocketConnection extends AsyncConnection {
 				if( f == null )
 					return null;
 			}
-		} catch( e : Dynamic ) {			
+		} catch( e : Dynamic ) {
 			sc.onError(e);
 			return null;
 		}
@@ -207,10 +207,19 @@ class SocketConnection extends AsyncConnection {
 	public static function socketConnect( s : flash.XMLSocket ) {
 		var sc = new SocketConnection(s,[]);
 		sc.__funs = new List();
+		// we can't deliver directly the message
+		// since it might trigger a blocking action on JS side
+		// and in that case this will trigger a Flash bug
+		// where a new onData is called is a parallel thread
+		// ...with the buffer of the previous onData (!)
 		s.onData = function(data : String) {
-			var e = processMessage(sc,data.substr(2,data.length-2));
-			if( e != null )
-				throw e.exc;
+			var t = new haxe.Timer(0);
+			t.run = function() {
+				t.stop();
+				var e = processMessage(sc,data.substr(2,data.length-2));
+				if( e != null )
+					throw e.exc;
+			};
 		};
 		return sc;
 	}
