@@ -361,8 +361,11 @@ let extend_remoting ctx c t p async =
 	if ctx.isproxy then error "Cascading proxys can result in infinite loops, please use conditional compilation to prevent this proxy access" p;
 	if c.cl_super <> None then error "Cannot extend several classes" p;
 	let ctx2 = context ctx.warn in
+	let fb = !forbidden_packages in
+	forbidden_packages := [];
 	ctx2.isproxy <- true;
-	let ct = load_normal_type ctx2 t p false in
+	let ct = (try load_normal_type ctx2 t p false with e -> forbidden_packages := fb; raise e) in
+	forbidden_packages := fb;
 	let tvoid = TPNormal { tpackage = []; tname = "Void"; tparams = [] } in
 	let make_field name args ret =				
 		try
