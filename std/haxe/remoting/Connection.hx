@@ -61,7 +61,7 @@ class Connection implements Dynamic<Connection> {
 	#if flash
 		var p = __path.copy();
 		var f = p.pop();
-		var path = p.join(":");
+		var path = p.join(".");
 		var s = new Serializer();
 		s.serialize(params);
 		var params = s.toString();
@@ -72,7 +72,7 @@ class Connection implements Dynamic<Connection> {
 	#else js
 		var p = __path.copy();
 		var f = p.pop();
-		var path = p.join(":");
+		var path = p.join(".");
 		var s = new Serializer();
 		s.serialize(params);
 		var params = s.toString();
