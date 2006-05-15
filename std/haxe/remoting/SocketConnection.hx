@@ -120,7 +120,7 @@ class SocketConnection extends AsyncConnection {
 		#end
 	}
 
-	public static function processMessage( sc : SocketConnection, data : String, throwExc : Bool ) {
+	public static function processMessage( sc : SocketConnection, data : String ) {
 		var f : Dynamic -> Void;
 		var val : Dynamic;
 		var s = new Unserializer(data);
@@ -132,15 +132,19 @@ class SocketConnection extends AsyncConnection {
 				f = sc.__funs.pop();
 				val = s.unserialize();
 				if( f == null )
-					return;
+					return null;
 			}
 		} catch( e : Dynamic ) {			
 			sc.onError(e);
-			return;
+			return null;
 		}
 		if( f != null ) {
-			f(val);
-			return;
+			try {
+				f(val);
+				return null;
+			} catch( val : Dynamic ) {
+				return { exc : null };
+			}
 		}
 		// ---------------------------
 		var exc = false;
@@ -182,15 +186,11 @@ class SocketConnection extends AsyncConnection {
 			sendMessage(sc.__data,s.toString());
 		} catch( e : Dynamic ) {
 			sc.onError(e);
-			return;
+			return null;
 		}
-		if( exc && throwExc ) {
-			#if neko
-			neko.Lib.rethrow(val);
-			#else true
-			throw val;
-			#end
-		}
+		if( exc )
+			return { exc : val };
+		return null;
 	}
 
 	#if neko
@@ -207,7 +207,11 @@ class SocketConnection extends AsyncConnection {
 	public static function socketConnect( s : flash.XMLSocket ) {
 		var sc = new SocketConnection(s,[]);
 		sc.__funs = new List();
-		s.onData = function(data : String) { processMessage(sc,data.substr(2,data.length-2),false); };
+		s.onData = function(data : String) {
+			var e = processMessage(sc,data.substr(2,data.length-2));
+			if( e != null )
+				throw e.exc;
+		};
 		return sc;
 	}
 
