@@ -454,8 +454,9 @@ let rec gen_big_string ctx s =
 	let max = 65000 in
 	if len <= max then
 		write ctx (APush [PString s])
-	else begin
+	else begin		
 		write ctx (APush [PString (String.sub s 0 max)]);
+		ctx.opt_push <- false;
 		gen_big_string ctx (String.sub s max (len - max));
 		write ctx AAdd;
 	end
