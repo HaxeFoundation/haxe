@@ -130,17 +130,19 @@ class Unserializer {
  				if( pos >= length )
  					throw "Invalid array";
  				var c = buf.charCodeAt(pos);
- 				if( c == 104 ) /*h*/
+ 				if( c == 104 ) { /*h*/
+					pos++;
  					break;
+				}
  				if( c == 117 ) { /*u*/
+					pos++;
  					var n = readDigits();
  					if( n <= 0 )
- 						throw "Invalid array nulls";
+ 						throw "Invalid array null counter";
  					a[a.length+n-1] = null;
  				} else
  					a.push(unserialize());
- 			}
- 			pos++;
+ 			} 			
  			return a;
  		case 111: // o
 			return unserializeObject();
