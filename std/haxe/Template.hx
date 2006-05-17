@@ -24,11 +24,6 @@
  */
 package haxe;
 
-#if flash
-	#if error
-	#end
-#end
-
 private enum TemplateExpr {
 	OpVar( v : String );
 	OpExpr( expr :  Void -> Dynamic );
