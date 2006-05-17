@@ -50,6 +50,7 @@ class Serializer {
 		m : -Inf
 		p : +Inf
 		s : string
+		j : utf8 string
 		a : array
 		u : array nulls
 		h : array end
@@ -60,10 +61,43 @@ class Serializer {
 		w : enum
 	*/
 
+	public function bytes(s : String) {
+		#if neko
+		return s.length;
+		#else true
+		var b = s.length;
+		for( i in 0...s.length ) {
+			var c = s.charCodeAt(i);
+			if( c < 0x7F )
+				continue;
+			if( c < 0x7FF ) {
+				b++;
+				continue;
+			}
+			if( c < 0xFFFF ) {
+				b += 2;
+				continue;
+			}
+			b += 3;
+		}
+		return b;
+		#end
+	}
+
 	function serializeString( s : String ) {
 		if( serializeRef(s) )
 			return;
-		s = s.split("\\").join("\\\\").split("\n").join("\\n").split("\r").join("\\r").split("\"").join("\\\"");
+		for( i in 0...s.length ) {
+			var c = s.charCodeAt(i);
+			if( c > 0x7F || c == 13 || c == 10 ) {
+				s = s.split("\\").join("\\\\").split("\n").join("\\n").split("\r").join("\\r");
+				buf.add("j");
+				buf.add(bytes(s));
+				buf.add(":");
+				buf.add(s);
+				return;
+			}
+		}
 		buf.add("s");
 		buf.add(s.length);
 		buf.add(":");

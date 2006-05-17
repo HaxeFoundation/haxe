@@ -114,15 +114,46 @@ class Unserializer {
  			return Math.POSITIVE_INFINITY;
  		case 115: // s
  			var len = readDigits();
- 			if( buf.charAt(pos++) == ":" ) {
- 				if( length - pos < len )
- 					throw "Invalid string length";
- 				var s = buf.substr(pos,len);
- 				pos += len;
- 				s = s.split("\\\"").join("\"").split("\\r").join("\r").split("\\n").join("\n").split("\\\\").join("\\");
- 				cache.push(s);
- 				return s;
- 			}
+ 			if( buf.charAt(pos++) != ":" || length - pos < len )
+				throw "Invalid string length";
+ 			var s = buf.substr(pos,len);
+ 			pos += len;
+			cache.push(s);
+			return s;
+ 		case 106: // j
+ 			var len = readDigits();
+ 			if( buf.charAt(pos++) != ":" )
+ 				throw "Invalid string length";
+ 			#if neko
+			if( length - pos < len )
+				throw "Invalid string length";
+ 			var s = buf.substr(pos,len);
+ 			pos += len;
+ 			#else true
+ 			var old = pos;
+ 			var max = pos + len;
+ 			while( pos < max ) {
+				var c = buf.charCodeAt(pos++);
+				if( c < 0x7F )
+					continue;
+				if( c < 0x7FF ) {
+					max--;
+					continue;
+				}
+				if( c < 0xFFFF ) {
+					max -= 2;
+					continue;
+				}
+				max -= 3;
+			}
+			len = max - old;
+			if( pos != max || length - old < len )
+				throw "Invalid string length";
+			var s = buf.substr(old,len);
+ 			#end
+ 			s = s.split("\\r").join("\r").split("\\n").join("\n").split("\\\\").join("\\");
+ 			cache.push(s);
+ 			return s;
  		case 97: // a
  			var a = new Array<Dynamic>();
  			cache.push(a);
