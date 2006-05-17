@@ -29,6 +29,8 @@ class Http {
 	public var url : String;
 #if neko
 	var responseHeaders : Hash<String>;
+#else js
+	private var async : Bool;
 #end
 	var headers : Hash<String>;
 	var params : Hash<String>;
@@ -37,6 +39,9 @@ class Http {
 		this.url = url;
 		headers = new Hash();
 		params = new Hash();
+		#if js
+		async = true;
+		#end
 	}
 
 	public function setHeader( header : String, value : String ) {
@@ -51,7 +56,7 @@ class Http {
 		var me = this;
 	#if js
 		var r = new js.XMLHttpRequest();
-		r.onreadystatechange = function() {
+		var onreadystatechange = function() {
 			if( r.readyState != 4 )
 				return;
 			var s = try r.status catch( e : Dynamic ) null;
@@ -72,6 +77,7 @@ class Http {
 				me.onError("Http Error #"+r.status);
 			}
 		};
+		r.onreadystatechange = onreadystatechange;
 		var uri = null;
 		for( p in params.keys() ) {
 			if( uri == null )
@@ -82,13 +88,13 @@ class Http {
 		}
 		try {
 			if( post )
-				r.open("POST",url,true);
+				r.open("POST",url,async);
 			else if( uri != null ) {
 				var question = url.split("?").length <= 1;
-				r.open("GET",url+(if( question ) "?" else "&")+uri,true);
+				r.open("GET",url+(if( question ) "?" else "&")+uri,async);
 				uri = null;
 			} else
-				r.open("GET",url,true);
+				r.open("GET",url,async);
 		} catch( e : Dynamic ) {
 			onError(e.toString());
 			return;
@@ -99,6 +105,8 @@ class Http {
 		for( h in headers.keys() )
 			r.setRequestHeader(h,headers.get(h));
 		r.send(uri);
+		if( !async )
+			onreadystatechange();
 	#else flash
 		var r = new flash.LoadVars();
 		// on Firefox 1.5, onData is not called if host/port invalid (!)
@@ -244,9 +252,13 @@ class Http {
 	public function onStatus( status : Int ) {
 	}
 
-#if neko
+#if flash
+#else true
 	public static function request( url : String ) : String {
 		var h = new Http(url);
+	#if js
+		h.async = false;
+	#end
 		var r = null;
 		h.onData = function(d){
 			r = d;
