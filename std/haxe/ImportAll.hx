@@ -139,6 +139,7 @@ import neko.Lib;
 import neko.Socket;
 import neko.Stack;
 import neko.Sys;
+import neko.Utf8;
 import neko.Web;
 
 import neko.db.Connection;
