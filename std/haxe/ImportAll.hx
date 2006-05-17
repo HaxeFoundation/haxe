@@ -30,6 +30,7 @@ import Date;
 import DateTools;
 import EReg;
 import Hash;
+import IntHash;
 import IntIter;
 import Lambda;
 import List;
@@ -44,6 +45,7 @@ import StringTools;
 import Xml;
 
 import haxe.AsyncConnection;
+import haxe.AsyncDebugConnection;
 import haxe.AsyncRemotingProxy;
 import haxe.Connection;
 import haxe.Http;
