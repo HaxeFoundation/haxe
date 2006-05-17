@@ -1,3 +1,7 @@
+2006-06-??: 1.1
+	added neko.Utf8
+	Serializer/Unserializer now support utf8 strings
+
 2006-05-17: 1.0
 	fixed small bugs in JS Xml Parser (empty attribute, newlines in attributes)
 	added default Content-Type for haxe.Http in JS
