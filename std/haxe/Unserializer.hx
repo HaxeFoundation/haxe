@@ -119,7 +119,7 @@ class Unserializer {
  					throw "Invalid string length";
  				var s = buf.substr(pos,len);
  				pos += len;
- 				s = s.split("\\\"").join("\"").split("\\r").join("\r").split("\n").join("\\n").split("\\\\").join("\\");
+ 				s = s.split("\\\"").join("\"").split("\\r").join("\r").split("\\n").join("\n").split("\\\\").join("\\");
  				cache.push(s);
  				return s;
  			}
@@ -142,7 +142,7 @@ class Unserializer {
  					a[a.length+n-1] = null;
  				} else
  					a.push(unserialize());
- 			} 			
+ 			}
  			return a;
  		case 111: // o
 			return unserializeObject();
