@@ -22,11 +22,13 @@ open Type
 type xml = 
 	| Node of string * (string * string) list * xml list
 	| PCData of string
+	| CData of string
 
 let tag name = Node (name,[],[])
 let xml name att = Node (name,att,[])
 let node name att childs = Node (name,att,childs)
 let pcdata s = PCData s
+let cdata s = CData s
 
 let pmap f m = 
 	PMap.fold (fun x acc -> f x :: acc) m []
@@ -34,7 +36,9 @@ let pmap f m =
 let gen_path (p,n) =
 	("path",String.concat "." (p @ [n]))
 
-let gen_doc s = node "haxe:doc" [] [pcdata s]
+let gen_doc s = 
+	let f = if String.contains s '<' || String.contains s '>' || String.contains s '&' then	cdata else pcdata in
+	node "haxe:doc" [] [f s]
 
 let gen_doc_opt d =
 	match d with 
@@ -94,8 +98,10 @@ let rec write_xml ch tabs x =
 	match x with
 	| Node (name,att,[]) -> 
 		IO.printf ch "%s<%s%s/>" tabs name (att_str att)
-	| Node (name,att,[PCData s]) -> 
-		IO.printf ch "%s<%s%s>%s</%s>" tabs name (att_str att) s name
+	| Node (name,att,[x]) -> 
+		IO.printf ch "%s<%s%s>" tabs name (att_str att);
+		write_xml ch "" x;
+		IO.printf ch "</%s>" name;
 	| Node (name,att,childs) ->
 		IO.printf ch "%s<%s%s>\n" tabs name (att_str att);
 		List.iter (fun x ->
@@ -104,7 +110,9 @@ let rec write_xml ch tabs x =
 		) childs;
 		IO.printf ch "%s</%s>" tabs name
 	| PCData s ->
-		assert false
+		IO.printf ch "%s" s
+	| CData s ->
+		IO.printf ch "<![CDATA[%s]]>" s
 
 let generate file types =
 	let x = node "haxe" [] (List.map gen_type types) in
