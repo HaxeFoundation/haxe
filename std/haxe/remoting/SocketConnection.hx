@@ -103,6 +103,23 @@ class SocketConnection extends AsyncConnection {
 
 	static function sendMessage( __data : Dynamic, msg : String ) {
 		var len = msg.length + 3;
+		#if neko
+		#else true
+		for( i in 0...msg.length ) {
+			var c = msg.charCodeAt(i);
+			if( c < 0x7F )
+				continue;
+			if( c < 0x7FF ) {
+				len++;
+				continue;
+			}
+			if( c < 0xFFFF ) {
+				len += 2;
+				continue;
+			}
+			len += 3;
+		}
+		#end
 		var c1 = encodeChar(len>>6);
 		if( c1 == null )
 			throw "Message is too big";
