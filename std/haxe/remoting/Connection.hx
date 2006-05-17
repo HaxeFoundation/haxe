@@ -64,7 +64,7 @@ class Connection implements Dynamic<Connection> {
 		var path = p.join(".");
 		var s = new Serializer();
 		s.serialize(params);
-		var params = s.toString();
+		var params = s.toString().split("\\").join("\\\\");
 		var s = flash.external.ExternalInterface.call("haxe.Connection.doCall",path,f,params);
 		if( s == null )
 			throw "Failed to call JS method "+__path.join(".");
@@ -108,7 +108,13 @@ class Connection implements Dynamic<Connection> {
 			var v = Reflect.callMethod(obj,fun,params);
 			var s = new Serializer();
 			s.serialize(v);
+			#if flash
+			return s.toString().split("\\").join("\\\\");
+			#else js
 			return s.toString();
+			#else true
+			return null;
+			#end
 		} catch( e : Dynamic ) {
 			var s = new Serializer();
 			s.serializeException(e);
