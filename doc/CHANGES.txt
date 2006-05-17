@@ -22,6 +22,7 @@
 	added HAXE_LIBRARY_PATH environment variable support
 	fixed interfaces inheritance : can't extend, can implement (type-sums)
 	fixed fixed >64K resource bug in SWF
+	fixed newline problems with Flash/JS Connection
 
 2006-05-02: RC1
 	added the Socket class
