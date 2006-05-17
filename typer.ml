@@ -105,6 +105,7 @@ let context warn =
 	let empty =	{
 		mpath = [] , "";
 		mtypes = [];
+		mimports = [];
 	} in
 	let ctx = {
 		modules = Hashtbl.create 0;
@@ -407,7 +408,9 @@ let extend_remoting ctx c t p async =
 			error "Remoting type parameter should be a class" p
 	) in
 	let class_decl = (EClass (t.tname,None,[],[],class_fields),p) in
-	let m = (!type_module_ref) ctx ("Remoting" :: t.tpackage,t.tname) [class_decl] p in
+	let m = (try Hashtbl.find ctx2.modules (t.tpackage,t.tname) with Not_found -> assert false) in
+	let mdecl = (List.map (fun m -> (EImport m.mpath,p)) m.mimports) @ [class_decl] in
+	let m = (!type_module_ref) ctx ("Remoting" :: t.tpackage,t.tname) mdecl p in
 	c.cl_super <- Some (match m.mtypes with
 		| [TClassDecl c] -> (c,[])
 		| _ -> assert false
@@ -1881,6 +1884,7 @@ let type_module ctx m tdecls loadp =
 	let m = {
 		mpath = m;
 		mtypes = List.rev !decls;
+		mimports = [];
 	} in
 	Hashtbl.add ctx.modules m.mpath m;
 	(* PASS 2 : build types structure - does not type any expression ! *)
@@ -1937,8 +1941,9 @@ let type_module ctx m tdecls loadp =
 	List.iter (fun (d,p) ->
 		match d with
 		| EImport t ->
-			let m = load ctx t p in
-			ctx.local_types <- ctx.local_types @ (List.filter (fun t -> not (t_private t)) m.mtypes)
+			let md = load ctx t p in
+			m.mimports <- md :: m.mimports;
+			ctx.local_types <- ctx.local_types @ (List.filter (fun t -> not (t_private t)) md.mtypes)
 		| EClass (name,_,_,herits,fields) ->
 			let c = get_class name in
 			delays := !delays @ check_overloading c p :: check_interfaces c p :: init_class ctx c p herits fields
@@ -1975,6 +1980,7 @@ let type_module ctx m tdecls loadp =
 	) tdecls;
 	(* PASS 3 : type checking, delayed until all modules and types are built *)
 	ctx.delays := !delays :: !(ctx.delays);
+	m.mimports <- List.rev m.mimports;
 	m
 
 let load ctx m p =
