@@ -1621,8 +1621,8 @@ let rec check_interface c p intf params =
 	PMap.iter (fun i f ->
 		try
 			let t , f2 = class_field c i in
-			if f2.cf_public <> f.cf_public then error ("Field " ^ i ^ " has different visibility (public/private) than in " ^ s_type_path intf.cl_path) p;
-			if f2.cf_get <> f.cf_get || f2.cf_set <> f.cf_set then error ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path) p;
+			if f.cf_public && not f2.cf_public then error ("Field " ^ i ^ " should be public as requested by " ^ s_type_path intf.cl_path) p;
+			if not(unify_access f2.cf_get f.cf_get) then error ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path) p;
 			let t1 = apply_params intf.cl_types params (field_type f) in
 			let t2 = field_type f2 in			
 			if not (type_eq false t2 t1) then error ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;			
