@@ -3,6 +3,8 @@
 	Serializer/Unserializer now support utf8 strings
 	allowed subtyping of prop accesses public/private when implementing an interface
 	removed "eval" from Remoting APIs (only calls - more easy to handle).
+	added flash6 support
+	fixed Std.is on different platforms (interfaces implements interface)
 
 2006-05-17: 1.0
 	fixed small bugs in JS Xml Parser (empty attribute, newlines in attributes)
