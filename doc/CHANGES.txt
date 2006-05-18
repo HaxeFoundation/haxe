@@ -5,6 +5,7 @@
 	removed "eval" from Remoting APIs (only calls - more easy to handle).
 	added flash6 support
 	fixed Std.is on different platforms (interfaces implements interface)
+	added AsyncConnection.amfConnect for flash
 
 2006-05-17: 1.0
 	fixed small bugs in JS Xml Parser (empty attribute, newlines in attributes)
