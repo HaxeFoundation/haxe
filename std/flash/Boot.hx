@@ -108,10 +108,27 @@ class Boot {
 		}
 	}
 
+	#if flash6
+	private static function __interfLoop(intf : Dynamic,cl : Dynamic) {
+		if( intf == null )
+			return false;
+		for( i in 0...intf.length ) {
+			var i = intf[i];
+			if( i == cl || __interfLoop(i.__interfaces__,cl) )
+				return true;
+		}
+		return false;
+	}
+	#end
+
 	private static function __instanceof(o,cl) {
 		untyped {
 			if( __instanceof__(o,cl) )
 				return true;
+			#if flash6
+			if( __interfLoop(o.__class__.__interfaces__,cl) )
+				return true;
+			#end
 			switch( cl ) {
 			case Int:
 				return (Math.ceil(o) === o) && isFinite(o) && (o !== true) && (o !== false);
