@@ -51,7 +51,7 @@ class AsyncDebugConnection implements AsyncConnection, implements Dynamic<AsyncD
 		s.onError = function(e) { me.onError(e); };
 		s.onCall = function(p,pa) { me.onCall(p,pa); };
 		s.onResult = function(p,pa,r) { me.onResult(p,pa,r); };
-		me.onErrorDisplay = function(p,pa,e) { me.onErrorDisplay(p,pa,e); };
+		s.onErrorDisplay = function(p,pa,e) { me.onErrorDisplay(p,pa,e); };
 		return s;
 	}
 
