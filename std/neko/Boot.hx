@@ -53,6 +53,22 @@ class Boot {
 		return s + untyped ")".__s;
 	}
 
+	private static function __interfLoop(cc : Dynamic,cl : Dynamic) {
+		if( cc == null )
+			return false;
+		if( cc == cl )
+			return true;
+		var intf = cc.__interfaces__;
+		if( intf == null )
+			return false;
+		for( i in 0...intf.length ) {
+			var i = intf[i];
+			if( i == cl || __interfLoop(i,cl) )
+				return true;
+		}
+		return __interfLoop(cc.__super__,cl);
+	}
+
 	private static function __instanceof(o,cl) {
 		untyped {
 			if( cl == Dynamic )
@@ -62,23 +78,7 @@ class Boot {
 			case __dollar__tfloat: return cl == Float;
 			case __dollar__tbool: return cl == Bool;
 			case __dollar__tobject:
-				var c = o.__class__;
-				while( c != null ) {
-					if( __dollar__pcompare(cl,c) == 0 )
-						return true;
-					var il = c.__interfaces__.__a;
-					var i = 0;
-					var l = __dollar__asize(il);
-					while( i < l ) {
-						if( __dollar__pcompare(cl,il[i]) == 0 )
-							return true;
-						i += 1;
-					}
-					c = c.__super__;
-				}
-				if( o.__enum__ == cl )
-					return true;
-				return false;
+				return __interfLoop(o.__class__,cl);
 			default:
 				return false;
 			}

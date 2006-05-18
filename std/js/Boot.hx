@@ -134,26 +134,26 @@ class Boot {
 		}
 	}
 
+	private static function __interfLoop(cc : Dynamic,cl : Dynamic) {
+		if( cc == null )
+			return false;
+		if( cc == cl )
+			return true;
+		var intf = cc.__interfaces__;
+		if( intf == null )
+			return false;
+		for( i in 0...intf.length ) {
+			var i = intf[i];
+			if( i == cl || __interfLoop(i,cl) )
+				return true;
+		}
+		return __interfLoop(cc.__super__,cl);
+	}
+
 	private static function __instanceof(o,cl) {
 		untyped {
-			try {
-				if( __js__("o instanceof cl") )
-					return true;
-			} catch( e : Dynamic ) {
-			}
-			var c = o.__class__;
-			while( c != null ) {
-				if( c == cl )
-					return true;
-				var il = c.__interfaces__;
-				var i = 0;
-				while( i < il.length ) {
-					if( il[i] == cl )
-						return true;
-					i++;
-				}
-				c = c.__super__;
-			}
+			if( __interfLoop(o.__class__,cl) )
+				return true;
 			switch( cl ) {
 			case Int:
 				return (Math.ceil(o) === o) && isFinite(o);
