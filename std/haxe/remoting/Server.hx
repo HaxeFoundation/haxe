@@ -57,36 +57,25 @@ class Server {
 	}
 
 	public function handleRequest() {
-		var kind = neko.Web.getClientHeader("X-Haxe-Remoting");
-		if( kind == null )
+		if( neko.Web.getClientHeader("X-Haxe-Remoting") == null )
 			return false;
 		var v = neko.Web.getParams().get("__x");
 		try {
 			if( v == null )
 				throw "Missing remoting data";
-			if( kind == "eval" ) {
-				var obj = resolvePath(v.split("."));
-				var s = new haxe.Serializer();
-				s.serialize(obj);
-				neko.Lib.print("hxr");
-				neko.Lib.print(s.toString());
-			}
-			if( kind == "call" ) {
-				var u = new haxe.Unserializer(v);
-				var path = u.unserialize();
-				var args = u.unserialize();
-				var f = path.pop();
-				var obj = resolvePath(path);
-				var funptr = Reflect.field(obj,f);
-				if( !Reflect.isFunction(funptr) )
-					throw "Calling not-a-function '"+f+"'";
-                var v = Reflect.callMethod(obj,funptr,args);
-				var s = new haxe.Serializer();
-				s.serialize(v);
-				neko.Lib.print("hxr");
-				neko.Lib.print(s.toString());
-			}
-			throw "Unsupported remoting kind '"+kind+"'";
+			var u = new haxe.Unserializer(v);
+			var path = u.unserialize();
+			var args = u.unserialize();
+			var f = path.pop();
+			var obj = resolvePath(path);
+			var funptr = Reflect.field(obj,f);
+			if( !Reflect.isFunction(funptr) )
+				throw "Calling not-a-function '"+f+"'";
+			var v = Reflect.callMethod(obj,funptr,args);
+			var s = new haxe.Serializer();
+			s.serialize(v);
+			neko.Lib.print("hxr");
+			neko.Lib.print(s.toString());
 		} catch( e : Dynamic ) {
 			var s = new haxe.Serializer();
 			s.serializeException(e);

@@ -27,38 +27,59 @@ package haxe;
 class AsyncDebugConnection implements AsyncConnection, implements Dynamic<AsyncDebugConnection> {
 
 	var __data : Dynamic;
-	var __path : Array<String>; // not used here
+	var __path : Array<String>; // not used there
+	var lastCalls : List<{ path : Array<String>, params : Array<Dynamic> }>;
 
 	public function new(cnx) {
 		__data = cnx;
+		lastCalls = new List();
 		onError = cnx.onError;
 		var me = this;
 		cnx.onError = function(e) {
+			var l = me.lastCalls.pop();
+			if( l != null )
+				me.onErrorDisplay(l.path,l.params,e);
 			me.onError(e);
 		}
 	}
 
 	function __resolve(field : String) : AsyncConnection {
 		var s = new AsyncDebugConnection(__data.__resolve(field));
-		s.onError = onError;
+		s.lastCalls = lastCalls;
+		// late binding of events
+		var me = this;
+		s.onError = function(e) { me.onError(e); };
+		s.onCall = function(p,pa) { me.onCall(p,pa); };
+		s.onResult = function(p,pa,r) { me.onResult(p,pa,r); };
+		me.onErrorDisplay = function(p,pa,e) { me.onErrorDisplay(p,pa,e); };
 		return s;
 	}
 
 	public function onError( err : Dynamic ) {
 	}
 
-	public function onTrace( t : String ) {
-		trace(t);
+	public function onErrorDisplay( path : Array<String>, params : Array<Dynamic>, err : Dynamic ) {
+		trace(path.join(".")+"("+params.join(",")+") = ERROR "+Std.string(err));
 	}
 
-	public function eval( onData : Dynamic -> Void ) : Void {
-		onTrace(__data.__path.join("."));
-		__data.eval(onData);
+	public function onCall( path : Array<String>, params : Array<Dynamic> ) {
+	}
+
+	public function onResult( path : Array<String>, params : Array<Dynamic>, result : Dynamic ) {
+		trace(path.join(".")+"("+params.join(",")+") = "+Std.string(result));
 	}
 
 	public function call( params : Array<Dynamic>, onData : Dynamic -> Void ) : Void {
-		onTrace(__data.__path.join(".")+"("+params.join(",")+")");
-		__data.call(params,onData);
+		lastCalls.add({ path : __data.__path, params : params });
+		onCall(__data.__path,params);
+		var me = this;
+		__data.call(params,function(r) {
+			var x = me.lastCalls.pop();
+			if( x != null )
+				me.onResult(x.path,x.params,r);
+			if( onData != null )
+				onData(r);
+		});
 	}
 
 }

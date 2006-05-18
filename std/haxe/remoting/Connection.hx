@@ -40,23 +40,6 @@ class Connection implements Dynamic<Connection> {
 		return s;
 	}
 
-	public function eval() : Dynamic {
-	#if flash
-		return jsEval(__path.join("."));
-	#else js
-		var s = __data.asEval(__path.join("."));
-		return new Unserializer(s).unserialize();
-	#else neko
-		var cnx = AsyncConnection.urlConnect(__data);
-		var result = null;
-		untyped cnx.__path = __path;
-		cnx.onError = function(err) { throw err; };
-		cnx.eval(function(d) { result = d; });
-		return result;
-	#else error
-	#end
-	}
-
 	public function call( params : Array<Dynamic> ) : Dynamic {
 	#if flash
 		var p = __path.copy();
@@ -127,62 +110,28 @@ class Connection implements Dynamic<Connection> {
 	#if flash
 
 	static function __init__() {
-		flash.external.ExternalInterface.addCallback("asEval",null,asEval);
 		flash.external.ExternalInterface.addCallback("doCall",null,doCall);
-	}
-
-	static function asEval( s : String ) : String {
-		var v = flash.Lib.eval(s);
-		var s = new Serializer();
-		s.serialize(v);
-		return s.toString();
-	}
-
-	static function jsEval( s : String ) : Dynamic {
-		var s = flash.external.ExternalInterface.call("haxe.Connection.jsEval",s);
-		if( s == null )
-			throw "Failed to evaluate "+s;
-		return new Unserializer(s).unserialize();
 	}
 
 	public static function jsConnect() : Connection {
 		if( !flash.external.ExternalInterface.available )
 			throw "External Interface not available";
-		if( jsEval("0") != 0 )
+		if( flash.external.ExternalInterface.call("haxe.Connection.jsRemoting") != "yes" )
 			throw "haxe.Connection is not available in JavaScript";
 		return new Connection(null,[]);
 	}
 
 	#else js
 
-	static function jsEval( s : String ) : String {
-		var v;
-		var e = false;
-		try {
-			v = js.Lib.eval(s);
-		} catch( exc : Dynamic ) {
-			v = exc;
-			e = true;
-		}
-		try {
-			var s = new Serializer();
-			if( e )
-				s.serializeException(v);
-			else
-				s.serialize(v);
-			var r = s.toString();
-			return r;
-		} catch( e : Dynamic ) {
-			js.Lib.alert(e);
-			return null;
-		}
+	static function jsRemoting() {
+		return "yes";
 	}
 
 	public static function flashConnect( objId : String ) : Connection {
 		var x : Dynamic = untyped window.document[objId];
 		if( x == null )
 			throw "Could not find flash object '"+objId+"'";
-		if( x.asEval == null ) throw "The flash object is not ready or does not contain haxe.Connection";
+		if( x.doCall == null ) throw "The flash object is not ready or does not contain haxe.Connection";
 		return new Connection(x,[]);
 	}
 

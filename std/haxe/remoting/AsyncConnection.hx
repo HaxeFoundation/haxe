@@ -44,37 +44,13 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 	public function onError( err : Dynamic ) {
 	}
 
-	public function eval( onData : Dynamic -> Void ) : Void {
-		var h = new Http(__data);
-		var me = this;
-		h.setHeader("X-Haxe-Remoting","eval");
-		h.setParameter("__x",__path.join("."));
-		h.onData = function(data : String) {
-			var ok = true;
-			var v;
-			try {
-				if( data.length < 3 || data.substr(0,3) != "hxr" )
-					throw "Invalid response : '"+data+"'";
-				var s = new Unserializer(data.substr(3,data.length-3));
-				v = s.unserialize();
-			} catch( err : Dynamic ) {
-				ok = false;
-				me.onError(err);
-			}
-			if( ok )
-				onData(v);
-		};
-		h.onError = onError;
-		h.request(true);
-	}
-
 	public function call( params : Array<Dynamic>, onData : Dynamic -> Void ) : Void {
 		var h = new Http(__data);
 		var me = this;
 		var s = new Serializer();
 		s.serialize(__path);
 		s.serialize(params);
-		h.setHeader("X-Haxe-Remoting","call");
+		h.setHeader("X-Haxe-Remoting","1");
 		h.setParameter("__x",s.toString());
 		h.onData = function(data : String) {
 			var ok = true;

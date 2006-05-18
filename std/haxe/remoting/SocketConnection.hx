@@ -42,19 +42,9 @@ class SocketConnection extends AsyncConnection {
 		return s;
 	}
 
-	public function eval( onData : Dynamic -> Void ) : Void {
-		var s = new haxe.Serializer();
-		s.serialize(true);
-		s.serialize(true);
-		s.serialize(__path);
-		sendMessage(__data,s.toString());
-		__funs.add(onData);
-	}
-
 	public function call( params : Array<Dynamic>, onData : Dynamic -> Void ) : Void {
 		var s = new haxe.Serializer();
 		s.serialize(true);
-		s.serialize(false);
 		s.serialize(__path);
 		s.serialize(params);
 		sendMessage(__data,s.toString());
@@ -166,29 +156,19 @@ class SocketConnection extends AsyncConnection {
 		// ---------------------------
 		var exc = false;
 		try {
-			var iseval : Bool = s.unserialize();
 			var path : Array<String> = s.unserialize();
-			if( iseval ) {
-				#if flash
-				val = flash.Lib.eval(path.join("."));
-				#else neko
-				val = sc.__r.resolvePath(path);
-				#else error
-				#end
-			} else {
-				var args = s.unserialize();
-				var fname = path.pop();
-				#if flash
-				var obj = flash.Lib.eval(path.join("."));
-				#else neko
-				var obj = sc.__r.resolvePath(path);
-				#else error
-				#end
-				var fptr = Reflect.field(obj,fname);
-				if( !Reflect.isFunction(fptr) )
-					throw "Calling not-a-function '"+fname+"'";
-				val = Reflect.callMethod(obj,fptr,args);
-			}
+			var args = s.unserialize();
+			var fname = path.pop();
+			#if flash
+			var obj = flash.Lib.eval(path.join("."));
+			#else neko
+			var obj = sc.__r.resolvePath(path);
+			#else error
+			#end
+			var fptr = Reflect.field(obj,fname);
+			if( !Reflect.isFunction(fptr) )
+				throw "Calling not-a-function '"+fname+"'";
+			val = Reflect.callMethod(obj,fptr,args);
 		} catch( e : Dynamic ) {
 			val = e;
 			exc = true;
