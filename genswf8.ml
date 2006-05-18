@@ -38,6 +38,7 @@ type context = {
 	mutable reg_count : int;
 	mutable reg_max : int;
 	mutable fun_stack : int;
+	version : int;
 
 	(* loops *)
 	mutable cur_block : texpr list;
@@ -254,6 +255,23 @@ let getvar ctx = function
 		call ctx VarStr 2
 
 let func ctx need_super need_args args =
+	if ctx.version = 6 then
+		let f = {
+			f_name = "";
+			Swf.f_args = List.map snd args;
+			f_codelen = 0;
+		} in
+		write ctx (AFunction f);
+		let start_pos = ctx.code_pos in
+		let old_stack = ctx.fun_stack in
+		ctx.fun_stack <- ctx.stack_size;
+		(fun() ->
+			let delta = ctx.code_pos - start_pos in
+			f.f_codelen <- delta;
+			if ctx.fun_stack <> ctx.stack_size then assert false;
+			ctx.fun_stack <- old_stack;
+		)
+	else
 	let default_flags = ThisRegister :: (if need_args then [] else [ArgumentsNoVar]) in
 	let f = {
 		f2_name = "";
@@ -368,7 +386,7 @@ let cfind flag cst e =
 			true
 
 let define_var ctx v ef exprs =
-	if List.exists (cfind false (TLocal v)) exprs then begin
+	if ctx.version = 6 || List.exists (cfind false (TLocal v)) exprs then begin
 		push ctx [VStr v];
 		ctx.regs <- PMap.add v None ctx.regs;
 		match ef with
@@ -485,14 +503,21 @@ let rec gen_access ctx forcall e =
 	match e.eexpr with
 	| TConst TSuper ->
 		(* for superconstructor *)
-		if forcall then begin
+		if ctx.version = 6 then begin
+			push ctx [VStr "super"];
+			VarStr
+		end else if forcall then begin
 			push ctx [VSuper];
 			write ctx (APush [PUndefined]);
 			VarObj
 		end else
 			VarReg 2
 	| TConst TThis ->
-		VarReg 1
+		if ctx.version = 6 then begin
+			push ctx [VStr "this"];
+			VarStr
+		end else
+			VarReg 1
 	| TLocal "__arguments__" ->
 		push ctx [VStr "arguments"];
 		VarStr
@@ -882,7 +907,7 @@ and gen_expr_2 ctx retval e =
 		ctx.regs <- PMap.empty;
 		ctx.reg_count <- (if reg_super then 2 else 1);
 		let rargs = List.map (fun (a,t) ->
-			let no_reg = cfind false (TLocal a) f.tf_expr in
+			let no_reg = ctx.version = 6 || cfind false (TLocal a) f.tf_expr in
 			if no_reg then begin
 				ctx.regs <- PMap.add a None ctx.regs;
 				0 , a
@@ -1147,9 +1172,26 @@ let gen_type_def ctx t =
 			push ctx [VReg 0; VStr "__super__"];
 			gen_path ctx path csuper.cl_extern;
 			setvar ctx VarObj;
-			push ctx [VReg 0];
-			gen_path ctx path csuper.cl_extern;
-			write ctx AExtends;
+			if ctx.version = 6 then begin
+				(* myclass.prototype.__proto__ = superclass.prototype *)
+				push ctx [VReg 0; VStr "prototype"];
+				getvar ctx VarObj;
+				push ctx [VStr "__proto__"];
+				gen_path ctx path csuper.cl_extern;
+				push ctx [VStr "prototype"];
+				getvar ctx VarObj;
+				setvar ctx VarObj;
+				(* myclass.prototype.__constructor__ = superclass *)
+				push ctx [VReg 0; VStr "prototype"];
+				getvar ctx VarObj;
+				push ctx [VStr "__constructor__"];
+				gen_path ctx path csuper.cl_extern;
+				setvar ctx VarObj
+			end else begin
+				push ctx [VReg 0];
+				gen_path ctx path csuper.cl_extern;
+				write ctx AExtends;
+			end;
 		);
 		(match c.cl_implements with
 		| [] ->
@@ -1164,10 +1206,12 @@ let gen_type_def ctx t =
 			write ctx AInitArray;
 			setvar ctx VarObj;
 			ctx.stack_size <- ctx.stack_size - nimpl;
-			List.iter (fun (c,_) -> gen_path ctx c.cl_path c.cl_extern) l;
-			push ctx [VInt nimpl; VReg 0];
-			write ctx AImplements;
-			ctx.stack_size <- ctx.stack_size - nimpl);
+			if ctx.version > 6 then begin
+				List.iter (fun (c,_) -> gen_path ctx c.cl_path c.cl_extern) l;
+				push ctx [VInt nimpl; VReg 0];
+				write ctx AImplements;
+				ctx.stack_size <- ctx.stack_size - nimpl;
+			end);
 		push ctx [VReg 0; VStr "prototype"];
 		getvar ctx VarObj;
 		write ctx (ASetReg 1);
@@ -1330,12 +1374,19 @@ let generate file ver header infile types hres =
 		statics = [];
 		movieclips = [];
 		inits = [];
+		version = ver;
 	} in
 	write ctx (AStringPool []);
 	push ctx [VStr "@class_str"];
 	let f = func ctx false false [] in
-	push ctx [VStr "."; VInt 1; VThis; VStr "__name__"];
-	getvar ctx VarObj;	
+	push ctx [VStr "."; VInt 1];
+	if ctx.version = 6 then begin
+		push ctx [VStr "this"];
+		write ctx AEval;
+	end else
+		push ctx [VThis];
+	push ctx [VStr "__name__"];
+	getvar ctx VarObj;
 	push ctx [VStr "join"];
 	call ctx VarObj 1;
 	write ctx AReturn;
