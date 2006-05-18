@@ -109,15 +109,16 @@ class Boot {
 	}
 
 	#if flash6
-	private static function __interfLoop(intf : Dynamic,cl : Dynamic) {
+	private static function __interfLoop(cc : Dynamic,cl : Dynamic) {
+		var intf = cc.__interfaces__;
 		if( intf == null )
 			return false;
 		for( i in 0...intf.length ) {
 			var i = intf[i];
-			if( i == cl || __interfLoop(i.__interfaces__,cl) )
+			if( i == cl || __interfLoop(i,cl) )
 				return true;
 		}
-		return false;
+		return __interfLoop(cc.__super__,cl);
 	}
 	#end
 
@@ -126,7 +127,7 @@ class Boot {
 			if( __instanceof__(o,cl) )
 				return true;
 			#if flash6
-			if( __interfLoop(o.__class__.__interfaces__,cl) )
+			if( __interfLoop(o.__class__,cl) )
 				return true;
 			#end
 			switch( cl ) {
