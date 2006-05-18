@@ -57,4 +57,25 @@ class Timer {
 
 	public function run(){
 	}
+
+	public static function delayed( f : Void -> Void, time : Int ) : Void -> Void {
+		return function() {
+			var t = new haxe.Timer(time);
+			t.run = function() {
+				t.stop();
+				f();
+			};
+		};
+	}
+
+	public static function delayedArg<T>( f : T -> Void, time : Int ) : T -> Void {
+		return function(arg) {
+			var t = new haxe.Timer(time);
+			t.run = function() {
+				t.stop();
+				f(arg);
+			};
+		};
+	}
+
 }
