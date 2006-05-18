@@ -36,7 +36,9 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 
 	function __resolve(field) {
 		var s = new AsyncConnection(__data,__path.copy());
-		s.onError = onError;
+		// late binding
+		var me = this;
+		s.onError = function(e) { me.onError(e); };
 		s.__path.push(field);
 		return s;
 	}
@@ -45,6 +47,16 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 	}
 
 	public function call( params : Array<Dynamic>, onData : Dynamic -> Void ) : Void {
+		#if flash
+		if( __data.connect ) {
+			var me = this;
+			__data.call(__path.join("."),{
+				onStatus : function(e) { me.onError(e); },
+				onResult : function(r) { onData(r); }
+			},params);
+			return;
+		}
+		#end
 		var h = new Http(__data);
 		var me = this;
 		var s = new Serializer();
@@ -74,5 +86,14 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 	public static function urlConnect( url : String ) {
 		return new AsyncConnection(url,[]);
 	}
+
+	#if flash
+	public static function amfConnect( gatewayUrl : String ) {
+		var c = new flash.NetConnection();
+		if( !c.connect(gatewayUrl) )
+			throw "Could not connected to gateway url "+gatewayUrl;
+		return new AsyncConnection(c,[]);
+	}
+	#end
 
 }
