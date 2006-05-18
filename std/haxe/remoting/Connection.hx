@@ -59,7 +59,7 @@ class Connection implements Dynamic<Connection> {
 		var s = new Serializer();
 		s.serialize(params);
 		var params = s.toString();
-		var s = __data.doCall(path,f,params);
+		var s = __data.remotingCall(path,f,params);
 		if( s == null )
 			throw "Failed to call Flash method "+__path.join(".");
 		return new Unserializer(s).unserialize();
@@ -110,7 +110,7 @@ class Connection implements Dynamic<Connection> {
 	#if flash
 
 	static function __init__() {
-		flash.external.ExternalInterface.addCallback("doCall",null,doCall);
+		flash.external.ExternalInterface.addCallback("remotingCall",null,doCall);
 	}
 
 	public static function jsConnect() : Connection {
@@ -131,7 +131,7 @@ class Connection implements Dynamic<Connection> {
 		var x : Dynamic = untyped window.document[objId];
 		if( x == null )
 			throw "Could not find flash object '"+objId+"'";
-		if( x.doCall == null ) throw "The flash object is not ready or does not contain haxe.Connection";
+		if( x.remotingCall == null ) throw "The flash object is not ready or does not contain haxe.Connection";
 		return new Connection(x,[]);
 	}
 
