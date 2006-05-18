@@ -32,7 +32,9 @@ class Boot {
 
 	private static function __trace(v,i) {
 		untyped {
-			var msg = i.fileName+":"+i.lineNumber+": "+__unhtml(__string_rec(v,""))+"<br/>";
+			var msg = if( i != null ) i.fileName+":"+i.lineNumber+": " else "";
+			msg += __unhtml(__string_rec(v,""))+"<br/>";
+
 			var d = document.getElementById("haxe:trace");
 			if( d == null )
 				alert("No haxe:trace element defined\n"+msg);
