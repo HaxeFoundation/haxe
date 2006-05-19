@@ -152,8 +152,13 @@ class Boot {
 
 	private static function __instanceof(o,cl) {
 		untyped {
-			if( __interfLoop(o.__class__,cl) )
-				return true;
+			try {
+				if( __js__("o instanceof cl") )
+					return true;
+				if( __interfLoop(o.__class__,cl) )
+					return true;
+			} catch( e : Dynamic ) {
+			}
 			switch( cl ) {
 			case Int:
 				return (Math.ceil(o) === o) && isFinite(o);
