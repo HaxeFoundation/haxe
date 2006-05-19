@@ -1435,8 +1435,9 @@ let generate file ver header infile types hres =
 	let idents = ctx.idents in
 	let idents = Hashtbl.fold (fun ident pos acc -> (ident,pos) :: acc) idents [] in
 	let idents = List.sort (fun (_,p1) (_,p2) -> compare p1 p2) idents in
-	if List.length idents >= 1 lsl 16 then failwith "The SWF can't handle more than a number 64K of identifers and literal strings. Try reducing this number by using external data files loaded at runtime";
-	DynArray.set ctx.opcodes 0 (AStringPool (List.map (fun (id,_) -> to_utf8 id) idents));
+	let idents = AStringPool (List.map (fun (id,_) -> to_utf8 id) idents) in
+	if ActionScript.action_length idents >= 1 lsl 16 then failwith "The SWF can't handle more than a total size of 64K of identifers and literal strings. Try reducing this number by using external data files loaded at runtime";
+	DynArray.set ctx.opcodes 0 idents;
 	let tag ?(ext=false) d = {
 		tid = 0;
 		textended = ext;
