@@ -29,10 +29,10 @@ implements Dynamic
 	var _target : String;
 	var _rotation : Float;
 	var _name : String;
-	property _droptarget(default,null) : String;
-	property _currentframe(default,null) : Int;
-	property _totalframes(default,null) : Int;
-	property _framesloaded(default,null) : Int;
+	var _droptarget(default,null) : String;
+	var _currentframe(default,null) : Int;
+	var _totalframes(default,null) : Int;
+	var _framesloaded(default,null) : Int;
 	var _quality : String;
 	var _focusrect : Bool;
 	var _soundbuftime : Float;

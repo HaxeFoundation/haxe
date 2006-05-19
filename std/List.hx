@@ -36,7 +36,7 @@ class List<T> {
 	/**
 		The number of elements in this list.
 	**/
-	public property length(default,null) : Int;
+	public var length(default,null) : Int;
 
 	/**
 		Creates a new empty list.

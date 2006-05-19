@@ -26,8 +26,8 @@ package neko.db;
 
 class ResultSet {
 
-	public property length(getLength,null) : Int;
-	public property nfields(getNFields,null) : Int;
+	public var length(getLength,null) : Int;
+	public var nfields(getNFields,null) : Int;
 	private var __r : Void;
 	private var cache : Dynamic;
 

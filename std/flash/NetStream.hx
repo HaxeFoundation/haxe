@@ -2,12 +2,12 @@ package flash;
 
 extern class NetStream
 {
-	property bufferLength(default,null) : Float;
-	property bufferTime(default,null) : Float;
-	property bytesLoaded(default,null) : Int;
-	property bytesTotal(default,null) : Int;
-	property time(default,null) : Float;
-	property currentFps(default,null) : Float;
+	var bufferLength(default,null) : Float;
+	var bufferTime(default,null) : Float;
+	var bytesLoaded(default,null) : Int;
+	var bytesTotal(default,null) : Int;
+	var time(default,null) : Float;
+	var currentFps(default,null) : Float;
 
 	// not documented ?
 	var liveDelay : Float;

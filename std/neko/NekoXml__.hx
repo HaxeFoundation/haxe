@@ -28,7 +28,7 @@ import Xml;
 class NekoXml__ {
 
 	private var _children : Array<Xml>;
-	public property nodeType(default,null) : XmlType;
+	public var nodeType(default,null) : XmlType;
 
 	private var _nodeName : String;
 	private var _nodeValue : String;
@@ -162,7 +162,7 @@ class NekoXml__ {
 	}
 
 
-	public property nodeName(getNodeName,setNodeName) : String;
+	public var nodeName(getNodeName,setNodeName) : String;
 	private function getNodeName() : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
@@ -174,7 +174,7 @@ class NekoXml__ {
 		return _nodeName = n;
 	}
 
-	public property nodeValue(getNodeValue,setNodeValue) : String;
+	public var nodeValue(getNodeValue,setNodeValue) : String;
 	private function getNodeValue() : String {
 		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";

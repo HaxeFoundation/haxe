@@ -154,7 +154,7 @@ class Web {
 		_set_main(f);
 	}
 
-	public static property isModNeko(default,null) : Bool;
+	public static var isModNeko(default,null) : Bool;
 
 	static var _set_main : Dynamic;
 	static var _get_host_name : Dynamic;

@@ -181,8 +181,7 @@ and parse_type_path = parser
 	| [< '(POpen,_); t = parse_type_path; '(PClose,_); s >] -> parse_type_path_next (TPParent t) s
 	| [< '(BrOpen,_); s >] ->
 		let l = (match s with parser
-			| [< '(Const (Ident name),_) when name <> "property" >] -> parse_type_anonymous_resume name s
-			| [< '(Const (Type name),_) >] -> parse_type_anonymous_resume name s
+			| [< name = any_ident >] -> parse_type_anonymous_resume name s
 			| [< l = plist parse_signature_field; '(BrClose,_) >] -> l
 			| [< >] -> serror()
 		) in
@@ -241,15 +240,17 @@ and parse_class_field s =
 	match s with parser
 	| [< l = parse_cf_rights true []; doc = get_doc; s >] ->
 		match s with parser
-		| [< '(Kwd Var,p1); name = any_ident; t = parse_type_opt; s >] ->			
-			let e , p2 = (match s with parser
-			| [< '(Binop OpAssign,_) when List.mem AStatic l; e = expr; p2 = semicolon >] -> Some e , p2
-			| [< '(Semicolon,p2) >] -> None , p2
-			| [< >] -> serror()
-			) in
-			(FVar (name,doc,l,t,e),punion p1 p2)
-		| [< '(Const (Ident "property"),p1); name = any_ident; '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_type_path; p2 = semicolon >] ->
-			(FProp (name,doc,l,i1,i2,t),punion p1 p2)
+		| [< '(Kwd Var,p1); name = any_ident; s >] ->
+			(match s with parser
+			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_type_path; p2 = semicolon >] ->
+				(FProp (name,doc,l,i1,i2,t),punion p1 p2)
+			| [< t = parse_type_opt; s >] ->
+				let e , p2 = (match s with parser
+				| [< '(Binop OpAssign,_) when List.mem AStatic l; e = expr; p2 = semicolon >] -> Some e , p2
+				| [< '(Semicolon,p2) >] -> None , p2
+				| [< >] -> serror()
+				) in
+				(FVar (name,doc,l,t,e),punion p1 p2))
 		| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_type_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->			
 			let e = (match s with parser
 				| [< e = expr >] -> e

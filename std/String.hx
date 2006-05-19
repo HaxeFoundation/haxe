@@ -31,7 +31,7 @@ extern class String {
 	/**
 		The number of characters in the String.
 	**/
-	property length(default,null) : Int;
+	var length(default,null) : Int;
 
 	function new(string:String) : Void;
 

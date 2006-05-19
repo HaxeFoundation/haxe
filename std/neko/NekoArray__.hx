@@ -26,7 +26,7 @@ package neko;
 
 class NekoArray__<T> implements Array<T> {
 
-	public property length(default,null) : Int;
+	public var length(default,null) : Int;
 
 	private function new() {
 		untyped {

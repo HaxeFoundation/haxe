@@ -41,7 +41,7 @@ class JsXml__ {
 	static var edoctype_elt = ~/[\[|\]>]/;
 	static var ecomment_end = ~/-->/;
 
-	public property nodeType(default,null) : XmlType;
+	public var nodeType(default,null) : XmlType;
 	public var _nodeName : String;
 	public var _nodeValue : String;
 	public var _attributes : Hash<String>;
@@ -204,7 +204,7 @@ class JsXml__ {
 		untyped return r;
 	}
 
-	public property nodeName(getNodeName,setNodeName) : String;
+	public var nodeName(getNodeName,setNodeName) : String;
 
 	private function getNodeName() : String {
 		if( nodeType != Xml.Element )
@@ -218,7 +218,7 @@ class JsXml__ {
 		return _nodeName = n;
 	}
 
-	public property nodeValue(getNodeValue,setNodeValue) : String;
+	public var nodeValue(getNodeValue,setNodeValue) : String;
 
 	private function getNodeValue() : String {
 		if( nodeType == Xml.Element || nodeType == Xml.Document )

@@ -2,26 +2,26 @@ package flash;
 
 extern class Camera {
 
-	static property names(default,null) : Array<String>;
+	static var names(default,null) : Array<String>;
 	static function get( index : Int ) : Camera;
 
-	property bandwidth(default,null) : Int;
+	var bandwidth(default,null) : Int;
 
-	property fps(default,null) : Float;
-	property currentFps(default,null) : Float;
+	var fps(default,null) : Float;
+	var currentFps(default,null) : Float;
 
-	property width(default,null) : Int;
-	property height(default,null) : Int;
+	var width(default,null) : Int;
+	var height(default,null) : Int;
 
-	property index(default,null) : Int;
+	var index(default,null) : Int;
 
-	property activityLevel(default,null) : Float;
-	property motionLevel(default,null) : Float;
+	var activityLevel(default,null) : Float;
+	var motionLevel(default,null) : Float;
 
-	property muted(default,null) : Bool;
-	property name(default,null) : String;
+	var muted(default,null) : Bool;
+	var name(default,null) : String;
 
-	property quality(default,null) : Int;
+	var quality(default,null) : Int;
 
 	function setMode(width:Int,height:Int,fps:Float,favorArea:Bool):Void;
 	function setMotionLevel(motionLevel:Float,timeOut:Float):Void;

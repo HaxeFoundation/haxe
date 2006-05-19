@@ -27,9 +27,9 @@ import Xml;
 
 class FlashXml__ {
 
-	public property nodeName(getNodeName,setNodeName) : String;
-	public property nodeValue(getNodeValue,setNodeValue) : String;
-	public property nodeType(default,null) : XmlType;
+	public var nodeName(getNodeName,setNodeName) : String;
+	public var nodeValue(getNodeValue,setNodeValue) : String;
+	public var nodeType(default,null) : XmlType;
 
 	private var __x : Dynamic;
 

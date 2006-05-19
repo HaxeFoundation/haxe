@@ -37,13 +37,13 @@ enum XmlType {
 **/
 extern class Xml {
 
-	static property Element(default,null) : XmlType;
-	static property PCData(default,null) : XmlType;
-	static property CData(default,null) : XmlType;
-	static property Comment(default,null) : XmlType;
-	static property DocType(default,null) : XmlType;
-	static property Prolog(default,null) : XmlType;
-	static property Document(default,null) : XmlType;
+	static var Element(default,null) : XmlType;
+	static var PCData(default,null) : XmlType;
+	static var CData(default,null) : XmlType;
+	static var Comment(default,null) : XmlType;
+	static var DocType(default,null) : XmlType;
+	static var Prolog(default,null) : XmlType;
+	static var Document(default,null) : XmlType;
 
 	static function parse( s : String ) : Xml;
 
@@ -55,15 +55,15 @@ extern class Xml {
 	static function createProlog( data : String ) : Xml;
 	static function createDocument() : Xml;
 
-	property nodeType(default,null) : XmlType;
+	var nodeType(default,null) : XmlType;
 
 	// nodeName : only works for Node
-	property nodeName(getNodeName,setNodeName) : String;
+	var nodeName(getNodeName,setNodeName) : String;
 	private function getNodeName() : String;
 	private function setNodeName( name : String ) : String;
 
 	// nodeValue : only works for not Node and not Document
-	property nodeValue(getNodeValue,setNodeValue) : String;
+	var nodeValue(getNodeValue,setNodeValue) : String;
 	private function getNodeValue() : String;
 	private function setNodeValue( name : String ) : String;
 
