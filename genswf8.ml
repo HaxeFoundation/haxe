@@ -39,6 +39,8 @@ type context = {
 	mutable reg_max : int;
 	mutable fun_stack : int;
 	version : int;
+	mutable curclass : (string list * string);
+	mutable curmethod : string;
 
 	(* loops *)
 	mutable cur_block : texpr list;
@@ -99,6 +101,11 @@ let stack_delta = function
 	| AObjCall | ACall | ANewMethod -> assert false
 	| AStringPool _ -> 0
 	| op -> failwith ("Unknown stack delta for " ^ (ActionScript.action_string (fun _ -> "") 0 op))
+
+let overflow ctx =
+	failwith ("In or near the method " ^ s_type_path ctx.curclass ^ "." ^ ctx.curmethod ^
+	" too much code is causing an overflow that can't be handled by the SWF format. " ^ 
+	"Please split your code in several methods so it can be correctly compiled.")
 
 let write ctx op =
 	let write b op =
@@ -268,6 +275,8 @@ let func ctx need_super need_args args =
 		(fun() ->
 			let delta = ctx.code_pos - start_pos in
 			f.f_codelen <- delta;
+			let codesize = ActionScript.jump_index_to_size ctx.opcodes (start_pos-1) delta in
+			if codesize >= 1 lsl 16 then overflow ctx;
 			if ctx.fun_stack <> ctx.stack_size then assert false;
 			ctx.fun_stack <- old_stack;
 		)
@@ -290,6 +299,8 @@ let func ctx need_super need_args args =
 		let delta = ctx.code_pos - start_pos in
 		f.f2_codelen <- delta;
 		f.f2_nregs <- ctx.reg_max + 1;
+		let codesize = ActionScript.jump_index_to_size ctx.opcodes (start_pos-1) delta in
+		if codesize >= 1 lsl 16 then overflow ctx;
 		if ctx.fun_stack <> ctx.stack_size then assert false;
 		ctx.fun_stack <- old_stack;
 		ctx.reg_max <- old_rmax;
@@ -1046,12 +1057,15 @@ let gen_class_static_field ctx cclass f =
 		match e.eexpr with
 		| TFunction _ ->
 			push ctx [VReg 0; VStr f.cf_name];
+			ctx.curmethod <- f.cf_name;
 			gen_expr ctx true e;
 			setvar ctx VarObj
 		| _ ->
 			ctx.statics <- (cclass,f.cf_name,e) :: ctx.statics
 
 let gen_class_static_init ctx (cclass,name,e) =
+	ctx.curclass <- ([],cclass);
+	ctx.curmethod <- name;
 	push ctx [VStr cclass];
 	write ctx AEval;
 	push ctx [VStr name];
@@ -1061,8 +1075,11 @@ let gen_class_static_init ctx (cclass,name,e) =
 let gen_class_field ctx f =
 	push ctx [VReg 1; VStr f.cf_name];
 	(match f.cf_expr with
-	| None -> push ctx [VNull]
-	| Some e ->	gen_expr ctx true e);
+	| None ->
+		push ctx [VNull]
+	| Some e ->	
+		ctx.curmethod <- f.cf_name;
+		gen_expr ctx true e);
 	setvar ctx VarObj
 
 let gen_enum_field ctx id f =
@@ -1146,9 +1163,11 @@ let gen_type_def ctx t =
 					loop s
 		in
 		loop c;
+		ctx.curclass <- c.cl_path;
 		(match c.cl_constructor with
 		| Some { cf_expr = Some e } ->
 			have_constr := true;
+			ctx.curmethod <- "new";
 			gen_expr ctx true e
 		| _ ->
 			let f = func ctx true false [] in
@@ -1375,6 +1394,8 @@ let generate file ver header infile types hres =
 		movieclips = [];
 		inits = [];
 		version = ver;
+		curclass = ([],"");
+		curmethod = "";
 	} in
 	write ctx (AStringPool []);
 	push ctx [VStr "@class_str"];
