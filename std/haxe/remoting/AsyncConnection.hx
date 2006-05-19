@@ -50,10 +50,13 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 		#if flash
 		if( __data.connect ) {
 			var me = this;
-			__data.call(__path.join("."),{
+			var p = params.copy();
+			p.unshift({
 				onStatus : function(e) { me.onError(e); },
 				onResult : function(r) { onData(r); }
-			},params);
+			});
+			p.unshift(__path.join("."));
+			__data.call.apply(__data,p);
 			return;
 		}
 		#end
