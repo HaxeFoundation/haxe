@@ -64,8 +64,8 @@ class Server {
 			if( v == null )
 				throw "Missing remoting data";
 			var u = new haxe.Unserializer(v);
-			var path = u.unserialize();
-			var args = u.unserialize();
+			var path : Array<String> = u.unserialize();
+			var args : Array<Dynamic> = u.unserialize();
 			var f = path.pop();
 			var obj = resolvePath(path);
 			var funptr = Reflect.field(obj,f);

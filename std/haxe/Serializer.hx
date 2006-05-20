@@ -171,7 +171,7 @@ class Serializer {
 				return;
 			#if neko
 			#else true
-			var e = v.__enum__;
+			var e : Dynamic = v.__enum__;
 			if( e != null && e.__ename__ != null ) {
 				serializeEnum(v);
 				return;
@@ -214,13 +214,13 @@ class Serializer {
 			return;
 		if( Reflect.isFunction(v) )
 			throw "Cannot serialize function";
-		var c = v.__class__;
+		var c : Dynamic = v.__class__;
 		if( c != null && c.__name__ != null ) {
 			buf.add("c");
 			serialize(c.__name__);
 		} else {
 			#if neko
-			var e = v.__enum__;
+			var e : Dynamic = v.__enum__;
 			if( e != null && e.__ename__ != null ) {
 				serializeEnum(v);
 				return;

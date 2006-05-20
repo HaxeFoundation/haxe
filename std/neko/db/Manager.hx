@@ -58,7 +58,7 @@ class Manager<T : Object> {
 
 		// get the proto fields not marked private (excluding methods)
 		table_fields = new List();
-		var proto = class_proto.prototype;
+		var proto : Dynamic = class_proto.prototype;
 		for( f in Reflect.fields(proto) ) {
 			var isfield = !Reflect.isFunction(Reflect.field(proto,f));
 			if( isfield )

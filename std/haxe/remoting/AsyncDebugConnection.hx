@@ -30,7 +30,7 @@ class AsyncDebugConnection implements AsyncConnection, implements Dynamic<AsyncD
 	var __path : Array<String>; // not used there
 	var lastCalls : List<{ path : Array<String>, params : Array<Dynamic> }>;
 
-	public function new(cnx) {
+	public function new(cnx : AsyncConnection) {
 		__data = cnx;
 		lastCalls = new List();
 		onError = cnx.onError;

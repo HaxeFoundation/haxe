@@ -91,7 +91,7 @@ class FileSystem {
 	}
 
 	public static function readDir( path : String ) : Array<String> {
-		var l = sys_read_dir(untyped path.__s);
+		var l : Array<Dynamic> = sys_read_dir(untyped path.__s);
 		var a = new Array();
 		while( l != null ) {
 			a.push(new String(l[0]));

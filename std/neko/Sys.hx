@@ -89,7 +89,7 @@ class Sys {
 	}
 
 	public static function environment() : Hash<String> {
-		var l = sys_env();
+		var l : Array<Dynamic> = sys_env();
 		var h = new Hash();
 		while( l != null ) {
 			h.set(new String(l[0]),new String(l[1]));

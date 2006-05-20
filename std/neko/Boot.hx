@@ -58,7 +58,7 @@ class Boot {
 			return false;
 		if( cc == cl )
 			return true;
-		var intf = cc.__interfaces__;
+		var intf : Dynamic = cc.__interfaces__;
 		if( intf == null )
 			return false;
 		for( i in 0...intf.length ) {

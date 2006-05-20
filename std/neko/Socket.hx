@@ -90,12 +90,12 @@ class Socket {
 	}
 
 	public function peer() : { host : Host, port : Int } {
-		var a = socket_peer(__s);
+		var a : Dynamic = socket_peer(__s);
 		return { host : a[0], port : a[1] };
 	}
 
 	public function host() : { host : Host, port : Int } {
-		var a = socket_host(__s);
+		var a : Dynamic = socket_host(__s);
 		return { host : a[0], port : a[1] };
 	}
 

@@ -29,7 +29,7 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 	var __data : Dynamic;
 	var __path : Array<String>;
 
-	function new( data, path ) {
+	function new( data : Dynamic, path ) {
 		__data = data;
 		__path = path;
 	}

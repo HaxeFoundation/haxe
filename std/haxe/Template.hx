@@ -228,18 +228,18 @@ class Template {
 			if( p2 == null || p2.p != ")" )
 				throw p2.p;
 			return switch( p.p ) {
-			case "+": function() { return e1() + e2(); };
-			case "-": function() { return e1() - e2(); };
-			case "*": function() { return e1() * e2(); };
-			case "/": function() { return e1() / e2(); };
-			case ">": function() { return e1() > e2(); };
-			case "<": function() { return e1() < e2(); };
-			case ">=": function() { return e1() >= e2(); };
-			case "<=": function() { return e1() <= e2(); };
-			case "==": function() { return e1() == e2(); };
-			case "!=": function() { return e1() != e2(); };
-			case "&&": function() { return e1() && e2(); };
-			case "||": function() { return e1() || e2(); };
+			case "+": function() { return untyped e1() + e2(); };
+			case "-": function() { return untyped e1() - e2(); };
+			case "*": function() { return untyped e1() * e2(); };
+			case "/": function() { return untyped e1() / e2(); };
+			case ">": function() { return untyped e1() > e2(); };
+			case "<": function() { return untyped e1() < e2(); };
+			case ">=": function() { return untyped e1() >= e2(); };
+			case "<=": function() { return untyped e1() <= e2(); };
+			case "==": function() { return untyped e1() == e2(); };
+			case "!=": function() { return untyped e1() != e2(); };
+			case "&&": function() { return untyped e1() && e2(); };
+			case "||": function() { return untyped e1() || e2(); };
 			default: throw "operation "+p.p;
 			}
 		case "!":
@@ -273,10 +273,10 @@ class Template {
 			for( e in l )
 				run(e);
 		case OpForeach(e,loop):
-			var v = e();
+			var v : Dynamic = e();
 			try {
 				if( v.hasNext == null ) {
-					var x = v.iterator();
+					var x : Dynamic = v.iterator();
 					if( x.hasNext == null ) throw null;
 					v = x;
 				}

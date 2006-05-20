@@ -114,7 +114,7 @@ class FlashXml__ {
 	}
 
 	public function firstElement(){
-		var e = __x.firstChild;
+		var e : Dynamic = __x.firstChild;
 		while( e != null && e.nodeType != 1 )
 			e = e.nextSibling;
 		return convert(e);
