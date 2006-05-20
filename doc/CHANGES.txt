@@ -8,6 +8,7 @@
 	added AsyncConnection.amfConnect for flash
 	added SWF overflow checks
 	changed "property" to "var"
+	don't allow monorph unification with Dynamic (more safe)
 
 2006-05-17: 1.0
 	fixed small bugs in JS Xml Parser (empty attribute, newlines in attributes)
