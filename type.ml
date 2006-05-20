@@ -254,10 +254,10 @@ let rec link e a b =
 	in
 	if loop b then
 		false
-	else begin
-		e := Some b;
-		true
-	end
+	else
+		match b with
+		| TDynamic _ -> true
+		| _ -> e := Some b; true
 
 (* substitute parameters with other types *)
 let apply_params cparams params t =
