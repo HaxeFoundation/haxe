@@ -2,9 +2,9 @@ package flash;
 
 extern class Sound
 {
-	var duration:Float;
-	var id3:Dynamic;
-	var position:Float;
+	var duration(default,null):Float;
+	var id3(default,null):Dynamic;
+	var position(default,null):Float;
 
 	function new(target:Dynamic) : Void;
 
@@ -21,10 +21,6 @@ extern class Sound
 	function stop(linkageID:String):Void;
 	function attachSound(id:String):Void;
 	function start(secondOffset:Float, loops:Float):Void;
-	function getDuration():Float;
-	function setDuration(value:Float):Void;
-	function getPosition():Float;
-	function setPosition(value:Float):Void;
 	function loadSound(url:String, isStreaming:Bool):Void;
 	function getBytesLoaded():Float;
 	function getBytesTotal():Float;
