@@ -9,6 +9,8 @@
 	added SWF overflow checks
 	changed "property" to "var"
 	don't allow monorph unification with Dynamic (more safe)
+	allowed multiple parsing and typing errors
+	review and completed commandline options
 
 2006-05-17: 1.0
 	fixed small bugs in JS Xml Parser (empty attribute, newlines in attributes)
