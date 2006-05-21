@@ -69,6 +69,12 @@ let parse_error e p =
 	warn (Parser.error_msg e) p;
 	has_error := true
 
+let file_extension f = 
+	let cl = ExtString.String.nsplit f "." in
+	match List.rev cl with
+	| [] -> ""
+	| x :: _ -> x
+
 let make_path f =
 	let cl = ExtString.String.nsplit f "." in
 	let cl = (match List.rev cl with
@@ -93,6 +99,9 @@ let make_path f =
 				x :: path , name
 	in
 	loop cl
+
+
+let delete_file f = try Sys.remove f with _ -> ()
 
 let base_defines = !Plugin.defines
 
@@ -132,6 +141,7 @@ try
 	let check_targets() =
 		if !target <> No then failwith "Multiple targets";
 	in
+	let define f = Arg.Unit (fun () -> Plugin.define f) in
 	let args_spec = [
 		("-cp",Arg.String (fun path ->
 			Plugin.class_path := normalize_path path :: !Plugin.class_path
@@ -146,6 +156,20 @@ try
 			Typer.forbidden_packages := ["js"; "neko"];
 			target := Swf file
 		),"<file> : compile code to Flash SWF file");
+		("-swf-version",Arg.Int (fun v -> 
+			swf_version := v;
+		),"<version> : change the SWF version (6,7,8,9)");
+		("-swf-header",Arg.String (fun h ->
+			try
+				swf_header := Some (match ExtString.String.nsplit h ":" with
+				| [width; height; fps] ->
+					(int_of_string width,int_of_string height,float_of_string fps,0xFFFFFF)
+				| [width; height; fps; color] ->
+					(int_of_string width, int_of_string height, float_of_string fps, int_of_string ("0x" ^ color))
+				| _ -> raise Exit)
+			with
+				_ -> raise (Arg.Bad "Invalid SWF header format")
+		),"<header> : define SWF header (width:height:fps:color)");
 		("-swf-lib",Arg.String (fun file ->
 			swf_in := Some file
 		),"<file> : add the SWF library to the compiled SWF");
@@ -165,19 +189,8 @@ try
 		),"<class> : select startup class");
 		("-D",Arg.String (fun def ->
 			Plugin.define def;
-		),"<var> : define the macro variable");
-		("-fheader",Arg.String (fun h ->
-			try
-				swf_header := Some (match ExtString.String.nsplit h ":" with
-				| [width; height; fps] ->
-					(int_of_string width,int_of_string height,float_of_string fps,0xFFFFFF)
-				| [width; height; fps; color] ->
-					(int_of_string width, int_of_string height, float_of_string fps, int_of_string ("0x" ^ color))
-				| _ -> raise Exit)
-			with
-				_ -> raise (Arg.Bad "Invalid SWF header format")
-		),"<header> : define SWF header (width:height:fps:color)");
-		("-res",Arg.String (fun res ->
+		),"<var> : define a conditional compilation flag");
+		("-resource",Arg.String (fun res ->
 			match ExtString.String.nsplit res "@" with
 			| [file; name] ->
 				let file = (try Plugin.find_file file with Not_found -> file) in
@@ -189,12 +202,15 @@ try
 		),"<file@name> : add a named resource file");
 		("-v",Arg.Unit (fun () -> Plugin.verbose := true),": turn on verbose mode");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
-		("-altfmt", Arg.Unit (fun() -> alt_format := true),": use alternative error output format");
+		("--flash-strict", define "flash_strict", ": more type strict flash API");
+		("--no-flash-opt-args", define "no_flash_opt_args" , ": don't allow optional parameters for flash api");
+		("--no-traces", define "no_traces", ": don't compile trace calls in the program");
 		("--next", Arg.Unit (fun() -> 
 			let p = !current in
 			current := Array.length argv;
 			next := (fun() -> init argv p);
 		), ": separate several haxe compilations");
+		("--altfmt", Arg.Unit (fun() -> alt_format := true),": use alternative error output format");
 	] in
 	let rec args_callback cl =
 		match List.rev (ExtString.String.nsplit cl ".") with
@@ -221,14 +237,17 @@ try
 	(match !target with
 	| No ->
 		()
-	| Swf _ ->
+	| Swf file ->
+		(* check file extension. In case of wrong commandline, we don't want
+		   to accidentaly delete a source file. *)
+		if file_extension file = "swf" then delete_file file;	
 		Plugin.define "flash";
-		if Plugin.defined "flash6" then swf_version := 6
-		else if Plugin.defined "flash7" then swf_version := 7
-		else Plugin.define "flash8";
-	| Neko _ ->
+		Plugin.define ("flash"  ^ string_of_int !swf_version);
+	| Neko file ->
+		if file_extension file = "n" then delete_file file;
 		Plugin.define "neko";
-	| Js _ ->
+	| Js file ->
+		if file_extension file = "js" then delete_file file;
 		Plugin.define "js";
 	);
 	if !classes = [([],"Std")] then begin
