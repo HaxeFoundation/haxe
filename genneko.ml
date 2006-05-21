@@ -365,7 +365,7 @@ and gen_expr ctx e =
 							b();
 							(EBlock [
 								(EVars ["@tmp",Some (field p (ident p "@tmp") "args")],p);
-								(EVars vars,p);
+								(match vars with [] -> null p | _ -> EVars vars,p);
 								e2
 							],p)
 					in
@@ -601,10 +601,11 @@ let generate file types hres =
 	let ch = IO.output_channel (open_out neko_file) in
 	(if !Plugin.verbose then Nxml.write_fmt else Nxml.write) ch (Nxml.to_xml e);
 	IO.close_out ch;
+	let command cmd = try Sys.command cmd with _ -> -1 in
 	if !Plugin.verbose then begin
-		if Sys.command ("nekoc -p " ^ neko_file) <> 0 then failwith "Failed to print neko code";
+		if command ("nekoc -p " ^ neko_file) <> 0 then failwith "Failed to print neko code";
 		Sys.remove neko_file;
 		Sys.rename (Filename.chop_extension file ^ "2.neko") neko_file;
 	end;
-	if Sys.command ("nekoc " ^ neko_file) <> 0 then failwith "Neko compilation failure";
+	if command ("nekoc " ^ neko_file) <> 0 then failwith "Neko compilation failure";
 	if not !Plugin.verbose then Sys.remove neko_file
