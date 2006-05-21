@@ -20,12 +20,21 @@
 open Ast
 open Type
 
+type error_msg =
+	| Module_not_found of module_path
+	| Unify of unify_error list
+	| Custom of string
+	| Protect of error_msg
+	| Unknown_ident of string
+	| Stack of error_msg * error_msg
+
 type context = {
 	(* shared *)
 	types : (module_path, module_path) Hashtbl.t;
 	modules : (module_path , module_def) Hashtbl.t;
 	delays : (unit -> unit) list list ref;
 	warn : string -> pos -> unit;
+	error : error_msg -> pos -> unit;
 	mutable std : module_def;
 	mutable untyped : bool;
 	mutable isproxy : bool;
@@ -59,14 +68,6 @@ type switch_mode =
 	| CMatch of (string * (string option * t) list option)
 	| CExpr of texpr
 
-type error_msg =
-	| Module_not_found of module_path
-	| Unify of unify_error list
-	| Custom of string
-	| Protect of error_msg
-	| Unknown_ident of string
-	| Stack of error_msg * error_msg
-
 exception Error of error_msg * pos
 
 let unify_error_msg ctx = function
@@ -95,13 +96,15 @@ let forbidden_packages = ref []
 
 let error msg p = raise (Error (Custom msg,p))
 
+let display_error ctx msg p = ctx.error (Custom msg) p
+
 let load_ref : (context -> module_path -> pos -> module_def) ref = ref (fun _ _ _ -> assert false)
 let type_expr_ref = ref (fun _ ?need_val _ -> assert false)
 let type_module_ref = ref (fun _ _ _ _ -> assert false)
 
 let load ctx m p = (!load_ref) ctx m p
 
-let context warn =
+let context err warn =
 	let empty =	{
 		mpath = [] , "";
 		mtypes = [];
@@ -118,6 +121,7 @@ let context warn =
 		isproxy = false;
 		ret = mk_mono();
 		warn = warn;
+		error = err;
 		locals = PMap.empty;
 		locals_map = PMap.empty;
 		locals_map_inv = PMap.empty;
@@ -144,7 +148,14 @@ let field_type f =
 
 let unify ctx t1 t2 p =
 	try
-		unify t1 t2
+		Type.unify t1 t2
+	with
+		Unify_error l ->
+			if not ctx.untyped then ctx.error (Unify l) p
+
+let unify_raise ctx t1 t2 p =
+	try
+		Type.unify t1 t2
 	with
 		Unify_error l ->
 			if not ctx.untyped then raise (Error (Unify l,p))
@@ -361,7 +372,7 @@ let rec reverse_type t =
 let extend_remoting ctx c t p async =
 	if ctx.isproxy then error "Cascading proxys can result in infinite loops, please use conditional compilation to prevent this proxy access" p;
 	if c.cl_super <> None then error "Cannot extend several classes" p;
-	let ctx2 = context ctx.warn in
+	let ctx2 = context ctx.error ctx.warn in
 	let fb = !forbidden_packages in
 	forbidden_packages := [];
 	ctx2.isproxy <- true;
@@ -540,8 +551,9 @@ let t_iterator ctx =
 	| _ ->
 		assert false
 
-let rec return_flow e =
-	let error() = error "A return is missing here" e.epos in
+let rec return_flow ctx e =
+	let error() = display_error ctx "A return is missing here" e.epos; raise Exit in
+	let return_flow = return_flow ctx in
 	match e.eexpr with
 	| TReturn _ | TThrow _ -> ()
 	| TParenthesis e ->
@@ -578,7 +590,8 @@ let unify_call_params ctx t el args p =
 			el (* allow fewer args for flash API only *)
 		else
 			let argstr = "Function require " ^ (if args = [] then "no argument" else "arguments : " ^ String.concat ", " (List.map fst args)) in
-			error ((if flag then "Not enough" else "Too many") ^ " arguments\n" ^ argstr) p;
+			display_error ctx ((if flag then "Not enough" else "Too many") ^ " arguments\n" ^ argstr) p;
+			el
 	in
 	let rec loop l l2 =
 		match l , l2 with
@@ -828,10 +841,8 @@ let type_matching ctx (enum,params) (e,p) ecases =
 
 let type_field ctx e i p get =
 	let no_field() =
-		if ctx.untyped then 
-			AccExpr (mk (TField (e,i)) (mk_mono()) p)
-		else
-			error (s_type (print_context()) e.etype ^ " has no field " ^ i) p
+		if not ctx.untyped then display_error ctx (s_type (print_context()) e.etype ^ " has no field " ^ i) p;
+		AccExpr (mk (TField (e,i)) (mk_mono()) p)
 	in
 	match follow e.etype with
 	| TInst (c,params) ->
@@ -855,7 +866,7 @@ let type_field ctx e i p get =
 		let rec loop c params =
 			try
 				let f, t = find i c in
-				if not f.cf_public && not priv && not ctx.untyped then error ("Cannot access to private field " ^ i) p;
+				if not f.cf_public && not priv && not ctx.untyped then display_error ctx ("Cannot access to private field " ^ i) p;
 				field_access ctx get f (apply_params c.cl_types params t) e p
 			with
 				Not_found ->
@@ -887,7 +898,7 @@ let type_field ctx e i p get =
 	| TAnon fl ->
 		(try
 			let f = PMap.find i fl in
-			if not f.cf_public && not ctx.untyped then error ("Cannot access to private field " ^ i) p;
+			if not f.cf_public && not ctx.untyped then display_error ctx ("Cannot access to private field " ^ i) p;
 			field_access ctx get f (field_type f) e p
 		with Not_found -> no_field())
 	| t ->
@@ -1023,7 +1034,7 @@ let rec type_binop ctx op e1 e2 p =
 	| OpLt
 	| OpLte ->
 		(try
-			unify ctx e1.etype e2.etype p
+			unify_raise ctx e1.etype e2.etype p
 		with
 			Error (Unify _,_) -> unify ctx e2.etype e1.etype p);
 		mk_op (t_bool ctx)
@@ -1145,7 +1156,7 @@ and type_switch ctx e cases def need_val p =
 				) e.e_constrs [] in
 				match l with
 				| [] -> ()
-				| _ -> error ("Some constructors are not matched : " ^ String.concat "," l) p
+				| _ -> display_error ctx ("Some constructors are not matched : " ^ String.concat "," l) p
 			);
 			None
 		| Some e ->
@@ -1256,10 +1267,17 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let locals = save_locals ctx in
 		let rec loop = function
 			| [] -> []
-			| [e] -> [type_expr ctx ~need_val e]
-			| e :: l ->
-				let e = type_expr ctx ~need_val:false e in
-				e :: loop l
+			| [e] -> 
+				(try
+					[type_expr ctx ~need_val e]
+				with
+					Error (e,p) -> ctx.error e p; [])
+			| e :: l ->	
+				try
+					let e = type_expr ctx ~need_val:false e in
+					e :: loop l
+				with
+					Error (e,p) -> ctx.error e p; loop l
 		in
 		let l = loop l in
 		locals();
@@ -1296,7 +1314,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let el = List.map (fun e ->
 			let e = type_expr ctx e in
 			if not (!dyn) then (try
-				unify ctx e.etype pt e.epos;
+				unify_raise ctx e.etype pt e.epos;
 			with
 				Error (Unify _,_) -> dyn := true);
 			e
@@ -1328,9 +1346,9 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		| TAnon _
 		| TInst _ ->
 			(try
-				unify ctx e1.etype t e1.epos;
+				unify_raise ctx e1.etype t e1.epos;
 				e1
-			with _ ->
+			with Error (Unify _,_) ->
 				let acc = acc_get (type_field ctx e1 "iterator" e1.epos true) e1.epos in
 				match follow acc.etype with
 				| TFun ([],it) ->
@@ -1392,7 +1410,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		| Some e2 ->
 			let e2 = type_expr ctx ~need_val e2 in
 			let t = if not need_val then t_void ctx else (try
-				unify ctx e1.etype e2.etype p;
+				unify_raise ctx e1.etype e2.etype p;
 				e2.etype
 			with
 				Error (Unify _,_) ->
@@ -1575,7 +1593,7 @@ and type_function ctx t static constr f p =
 	in
 	let have_ret = (try loop e; false with Exit -> true) in
 	if have_ret then
-		return_flow e
+		(try return_flow ctx e with Exit -> ())
 	else
 		unify ctx r (t_void ctx) p;
 	let rec loop e =
@@ -1602,7 +1620,7 @@ let type_static_var ctx t e p =
 	unify ctx e.etype t p;
 	e
 
-let check_overloading c p () =
+let check_overloading ctx c p () =
 	match c.cl_super with
 	| None -> ()
 	| Some (csup,params) ->
@@ -1610,33 +1628,40 @@ let check_overloading c p () =
 			try
 				let t , f2 = class_field csup i in
 				let t = apply_params csup.cl_types params t in
-				if f.cf_public <> f2.cf_public then error ("Field " ^ i ^ " has different visibility (public/private) than superclass one") p;
-				if f2.cf_get <> f.cf_get || f2.cf_set <> f.cf_set then error ("Field " ^ i ^ " has different property access than in superclass") p;
-				if not (type_eq false (field_type f) t) then error ("Field " ^ i ^ " overload parent class with different or incomplete type") p;
+				if f.cf_public <> f2.cf_public then
+					display_error ctx ("Field " ^ i ^ " has different visibility (public/private) than superclass one") p
+				else if f2.cf_get <> f.cf_get || f2.cf_set <> f.cf_set then
+					display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p
+				else if not (type_eq false (field_type f) t) then 
+					display_error ctx ("Field " ^ i ^ " overload parent class with different or incomplete type") p
 			with
 				Not_found -> ()
 		) c.cl_fields
 
-let rec check_interface c p intf params =
+let rec check_interface ctx c p intf params =
 	PMap.iter (fun i f ->
 		try
 			let t , f2 = class_field c i in
-			if f.cf_public && not f2.cf_public then error ("Field " ^ i ^ " should be public as requested by " ^ s_type_path intf.cl_path) p;
-			if not(unify_access f2.cf_get f.cf_get) then error ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path) p;
-			let t1 = apply_params intf.cl_types params (field_type f) in
-			let t2 = field_type f2 in			
-			if not (type_eq false t2 t1) then error ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;			
+			if f.cf_public && not f2.cf_public then
+				display_error ctx ("Field " ^ i ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
+			else if not(unify_access f2.cf_get f.cf_get) then
+				display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path) p
+			else
+				let t1 = apply_params intf.cl_types params (field_type f) in
+				let t2 = field_type f2 in
+				if not (type_eq false t2 t1) then
+					display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
 		with
 			Not_found ->
-				if not c.cl_interface then error ("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing") p
+				if not c.cl_interface then display_error ctx ("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing") p
 	) intf.cl_fields;
 	List.iter (fun (i2,p2) ->
-		check_interface c p i2 (List.map (apply_params intf.cl_types params) p2)
+		check_interface ctx c p i2 (List.map (apply_params intf.cl_types params) p2)
 	) intf.cl_implements
 
 
-let check_interfaces c p () =
-	List.iter (fun (intf,params) -> check_interface c p intf params) c.cl_implements
+let check_interfaces ctx c p () =
+	List.iter (fun (intf,params) -> check_interface ctx c p intf params) c.cl_implements
 
 (* ---------------------------------------------------------------------- *)
 (* PASS 1 & 2 : Module and Class Structure *)
@@ -1653,7 +1678,8 @@ let init_class ctx c p herits fields =
 	let type_opt ctx p t =
 		match t with
 		| None when c.cl_extern || c.cl_interface ->
-			error "Type required for extern classes and interfaces" p
+			display_error ctx "Type required for extern classes and interfaces" p;
+			t_dynamic
 		| _ ->
 			load_type_opt ctx p t
 	in
@@ -1752,7 +1778,7 @@ let init_class ctx c p herits fields =
 			let check_method m t () =
 				try
 					let t2, _ = class_field c m in
-					unify ctx t2 t p;
+					unify_raise ctx t2 t p;
 				with
 					| Error (Unify l,_) -> raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
 					| Not_found -> error ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
@@ -1893,6 +1919,7 @@ let type_module ctx m tdecls loadp =
 		delays = ctx.delays;
 		types = ctx.types;
 		warn = ctx.warn;
+		error = ctx.error;
 		curclass = ctx.curclass;
 		tthis = ctx.tthis;
 		std = ctx.std;
@@ -1946,7 +1973,7 @@ let type_module ctx m tdecls loadp =
 			ctx.local_types <- ctx.local_types @ (List.filter (fun t -> not (t_private t)) md.mtypes)
 		| EClass (name,_,_,herits,fields) ->
 			let c = get_class name in
-			delays := !delays @ check_overloading c p :: check_interfaces c p :: init_class ctx c p herits fields
+			delays := !delays @ check_overloading ctx c p :: check_interfaces ctx c p :: init_class ctx c p herits fields
 		| EEnum (name,_,_,_,constrs) ->
 			let e = get_enum name in
 			ctx.type_params <- e.e_types;

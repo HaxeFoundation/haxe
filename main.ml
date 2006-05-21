@@ -26,6 +26,7 @@ type target =
 
 let prompt = ref false
 let alt_format = ref false
+let has_error = ref false
 
 let normalize_path p =
 	let l = String.length p in
@@ -49,13 +50,24 @@ let warn msg p =
 		prerr_endline (sprintf "%s %s" epos msg)
 	end
 
-let report msg p =
-	warn msg p;
+let do_exit() =
 	if !prompt then begin
 		print_endline "Press enter to exit...";
 		ignore(read_line());
 	end;
 	exit 1
+
+let report msg p =
+	warn msg p;
+	do_exit()
+
+let type_error e p =
+	warn (Typer.error_msg e) p;
+	has_error := true
+
+let parse_error e p =
+	warn (Parser.error_msg e) p;
+	has_error := true
 
 let make_path f =
 	let cl = ExtString.String.nsplit f "." in
@@ -101,6 +113,7 @@ try
 	Plugin.defines := base_defines;
 	Plugin.verbose := false;
 	Typer.forbidden_packages := ["js"; "neko"; "flash"];
+	Parser.display_error := parse_error;
 	(try
 		let p = Sys.getenv "HAXE_LIBRARY_PATH" in
 		let rec loop = function
@@ -222,7 +235,7 @@ try
 		Arg.usage args_spec usage
 	end else begin
 		if !Plugin.verbose then print_endline ("Classpath : " ^ (String.concat ";" !Plugin.class_path));
-		let ctx = Typer.context warn in
+		let ctx = Typer.context type_error warn in
 		List.iter (fun cpath -> ignore(Typer.load ctx cpath Ast.null_pos)) (List.rev !classes);
 		Typer.finalize ctx;
 		let types = Typer.types ctx (!main_class) in
@@ -244,6 +257,7 @@ try
 			if !Plugin.verbose then print_endline ("Generating xml : " ^ file);
 			Genxml.generate file types);
 	end;
+	if !has_error then do_exit();
 	(!next)();
 with
 	| Exit -> ()

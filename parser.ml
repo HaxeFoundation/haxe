@@ -37,6 +37,7 @@ let error_msg = function
 	| Missing_type -> "Missing type declaration"
 
 let error m p = raise (Error (m,p))
+let display_error : (error_msg -> pos -> unit) ref = ref (fun _ _ -> assert false)
 
 let cache = ref (DynArray.create())
 let doc = ref None
@@ -315,9 +316,30 @@ and block1 = parser
 
 and block2 name ident p = parser
 	| [< '(DblDot,_); e = expr; l = plist parse_obj_decl; _ = popt comma >] -> EObjectDecl ((name,e) :: l)
-	| [< e = expr_next (EConst (if ident then Ident name else Type name),p); _ = semicolon; b = block >] -> EBlock (e :: b)
+	| [< e = expr_next (EConst (if ident then Ident name else Type name),p); s >] ->
+		try 
+			let _ = semicolon s in
+			let b = block s in
+			EBlock (e :: b)
+		with
+			| Error (e,p) ->
+				(!display_error) e p;
+				EBlock (block s)
 
-and block s = plist parse_block_elt s
+and block s =
+	try 
+		let e = parse_block_elt s in
+		e :: block s
+	with
+		| Stream.Failure ->
+			[]
+		| Stream.Error _ ->
+			let tk , pos = (match Stream.peek s with None -> last_token s | Some t -> t) in
+			(!display_error) (Unexpected tk) pos;
+			block s
+        | Error (e,p) ->
+			(!display_error) e p;
+			block s
 
 and parse_block_elt = parser
 	| [< '(Kwd Var,p1); vl = psep Comma parse_var_decl; p2 = semicolon >] -> (EVars vl,punion p1 p2)
