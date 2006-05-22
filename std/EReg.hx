@@ -256,7 +256,7 @@ class EReg {
 	static var regexp_new_options = neko.Lib.load("regexp","regexp_new_options",2);
 	static var regexp_match = neko.Lib.load("regexp","regexp_match",4);
 	static var regexp_matched = neko.Lib.load("regexp","regexp_matched",2);
-	static var regexp_matched_pos = neko.Lib.load("regexp","regexp_matched_pos",2);
+	static var regexp_matched_pos : Dynamic -> Int -> { pos : Int, len : Int } = neko.Lib.load("regexp","regexp_matched_pos",2);
 #end
 
 }
