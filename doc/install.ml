@@ -37,8 +37,11 @@ let exe_ext = match os_type with "Win32" | "Cygwin" -> ".exe" | _ -> ""
 let zlib = match os_type with 
 	| "Win32" -> "zlib.lib" 
 	| _ -> 
-		let osx = "/usr/lib/libz.dylib" in
-		if Sys.file_exists osx then osx else "/usr/lib/libz.so.1"
+		try 
+			List.find Sys.file_exists ["/usr/lib/libz.dylib";"/usr/lib/libz.so.1";"/lib/libz.so.1"]
+		with
+			Not_found ->
+				failwith "LibZ was not found on your system, please install it or modify the search directories in the install script"
 
 let msg m =
 	prerr_endline m;
