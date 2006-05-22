@@ -37,6 +37,7 @@ class Manager<T : Object> {
 	private static var object_cache : Hash<Object> = new Hash();
 	private static var init_list : List<Manager<Object>> = new List();
 	private static var cache_field = "__cache__";
+	private static var no_update = function() { throw "Cannot update not locked object"; }
 
 	/* ---------------------------- BASIC API ----------------------------- */
 	var table_name : String;
@@ -254,16 +255,12 @@ class Manager<T : Object> {
 
 	/* ---------------------------- INTERNAL API -------------------------- */
 
-	function makeObject( x : T, lock : Bool ) {
-		var x2 = getFromCache(x);
-		if( x2 != null )
-			return x2;
+	function cacheObject( x : T, lock : Bool ) {
 		addToCache(x);
 		untyped __dollar__objsetproto(x,class_proto.prototype);
 		Reflect.setField(x,cache_field,untyped __dollar__new(x));
 		if( !lock )
-			x.update = function() { throw "Cannot update not locked object"; }
-		return x;
+			x.update = no_update;
 	}
 
 	function make( x : T ) {
@@ -357,7 +354,10 @@ class Manager<T : Object> {
 		var r = cnx.request(sql).next();
 		if( r == null )
 			return null;
-		r = makeObject(r,lock);
+		var c = getFromCache(r,lock);
+		if( c != null )
+			return c;
+		cacheObject(r,lock);
 		make(r);
 		return r;
 	}
@@ -367,9 +367,14 @@ class Manager<T : Object> {
 		var l = cnx.request(sql).results();
 		var l2 = new List<T>();
 		for( x in l ) {
-			x = makeObject(x,lock);
-			make(x);
-			l2.add(x);
+			var c = getFromCache(x,lock);
+			if( c != null )
+				l2.add(c);
+			else {
+				cacheObject(x,lock);
+				make(x);
+				l2.add(x);
+			}
 		}
 		return l2;
 	}
@@ -444,8 +449,12 @@ class Manager<T : Object> {
 		object_cache.set(makeCacheKey(x),x);
 	}
 
-	function getFromCache( x : T ) : T {
-		return untyped object_cache.get(makeCacheKey(x));
+	function getFromCache( x : T, lock : Bool ) : T {
+		var c : Dynamic = object_cache.get(makeCacheKey(x));
+		// restore update method since now the object is locked
+		if( c != null && lock && c.update == no_update )
+			c.update = class_proto.prototype.update;
+		return c;
 	}
 
 }
