@@ -37,6 +37,30 @@ class NekoDate__ //implements Date
 		return int32_to_float(__t) * 1000;
 	}
 
+	public function getFullYear() : Int {
+		return date_get_day(__t).y;
+	}
+
+	public function getMonth() : Int {
+		return date_get_day(__t).m -1;
+	}
+
+	public function getDate() : Int {
+		return date_get_day(__t).d;
+	}
+
+	public function getHours() : Int {
+		return date_get_hour(__t).h;
+	}
+
+	public function getMinutes() : Int {
+		return date_get_hour(__t).m;
+	}
+
+	public function getSeconds() : Int {
+		return date_get_hour(__t).s;
+	}
+
 	public function toString():String {
 		return new String(date_format(__t,null));
 	}
@@ -64,6 +88,8 @@ class NekoDate__ //implements Date
 	static var date_format = Lib.load("std","date_format",2);
 	static var date_set_hour = Lib.load("std","date_set_hour",4);
 	static var date_set_day = Lib.load("std","date_set_day",4);
+	static var date_get_day : Dynamic -> {y:Int, m:Int, d:Int} = Lib.load("std","date_get_day",1);
+	static var date_get_hour : Dynamic -> {h:Int, m:Int, s:Int} = Lib.load("std","date_get_hour",1);
 	static var int32_to_float = Lib.load("std","int32_to_float",1);
 	static var int32_add = Lib.load("std","int32_add",2);
 	static var int32_shl = Lib.load("std","int32_shl",2);

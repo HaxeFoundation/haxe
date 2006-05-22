@@ -40,6 +40,13 @@ extern class Date
 	**/
 	function getTime() : Float;
 
+	function getHours() : Int;
+	function getMinutes() : Int;
+	function getSeconds() : Int;
+	function getFullYear() : Int;
+	function getMonth() : Int;
+	function getDate() : Int;
+
 	/**
 		Returns a string representation for the Date, by using the
 		standard format [YYYY-MM-DD HH:MM:SS]. See [DateTools.format] for
