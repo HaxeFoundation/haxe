@@ -43,12 +43,16 @@ class SocketConnection extends AsyncConnection {
 	}
 
 	public function call( params : Array<Dynamic>, onData : Dynamic -> Void ) : Void {
-		var s = new haxe.Serializer();
-		s.serialize(true);
-		s.serialize(__path);
-		s.serialize(params);
-		sendMessage(__data,s.toString());
-		__funs.add(onData);
+		try {
+			var s = new haxe.Serializer();
+			s.serialize(true);
+			s.serialize(__path);
+			s.serialize(params);
+			sendMessage(__data,s.toString());
+			__funs.add(onData);
+		} catch( e : Dynamic ) {
+			onError(e);
+		}
 	}
 
 	static function decodeChar(c) {
