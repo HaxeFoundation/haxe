@@ -128,9 +128,10 @@ let gen_type_path p (path,t) =
 		let epath = List.fold_left (fun e path -> field p e path) (ident p path) l in
 		field p epath t
 
-let gen_constant p c =
+let gen_constant pe c =
+	let p = pos pe in
 	match c with
-	| TInt i -> (try int p (int_of_string i) with _ -> (EConst (Float i),p))
+	| TInt i -> (try int p (Int32.to_int i) with _ -> Typer.error "This integer is too big to be compiled to a Neko 31-bit integer. Please use a Float instead" pe)
 	| TFloat f -> (EConst (Float f),p)
 	| TString s -> call p (field p (ident p "String") "new") [str p s]
 	| TBool b -> (EConst (if b then True else False),p)
@@ -200,7 +201,7 @@ and gen_expr ctx e =
 	let p = pos e.epos in
 	match e.eexpr with
 	| TConst c ->
-		gen_constant p c
+		gen_constant e.epos c
 	| TLocal s ->
 		let isref = try PMap.find s ctx.locals with Not_found -> false in
 		if isref then
@@ -388,7 +389,7 @@ let gen_method ctx p c acc =
 	| Some e ->
 		match e.eexpr with
 		| TCall ({ eexpr = TField ({ eexpr = TType (TClassDecl { cl_path = (["neko"],"Lib") }) }, "load")},[{ eexpr = TConst (TString m) };{ eexpr = TConst (TString f) };{ eexpr = TConst (TInt n) }]) ->
-			(c.cf_name, call (pos e.epos) (EField (builtin p "loader","loadprim"),p) [(EBinop ("+",(EBinop ("+",str p m,str p "@"),p),str p f),p); (EConst (Int (int_of_string n)),p)]) :: acc
+			(c.cf_name, call (pos e.epos) (EField (builtin p "loader","loadprim"),p) [(EBinop ("+",(EBinop ("+",str p m,str p "@"),p),str p f),p); (EConst (Int (Int32.to_int n)),p)]) :: acc
 		| TFunction _ -> ((if c.cf_name = "new" then "__construct__" else c.cf_name), gen_expr ctx e) :: acc
 		| _ -> (c.cf_name, null p) :: acc
 
@@ -548,7 +549,7 @@ let gen_package h t =
 	loop [] (fst (t_path t))
 
 let gen_boot hres =
-	let loop name data acc = (name , gen_constant null_pos (TString data)) :: acc in
+	let loop name data acc = (name , gen_constant Ast.null_pos (TString data)) :: acc in
 	let objres = (EObject (Hashtbl.fold loop hres []),null_pos) in
 	(EBlock [
 		call null_pos (field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__init") [];
@@ -561,7 +562,7 @@ let gen_name acc t =
 	| TEnumDecl e ->
 		let p = pos e.e_pos in
 		let name = fst e.e_path @ [snd e.e_path] in
-		let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant p (TString n)) name); int p (List.length name)] in
+		let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant e.e_pos (TString n)) name); int p (List.length name)] in
 		(EBinop ("=",field p (gen_type_path p e.e_path) "__ename__",arr),p) :: acc
 	| TClassDecl c -> 
 		if c.cl_extern then
@@ -570,7 +571,7 @@ let gen_name acc t =
 			let p = pos c.cl_pos in
 			let name = fst c.cl_path @ [snd c.cl_path] in
 			let interf = field p (gen_type_path p c.cl_path) "__interfaces__" in
-			let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant p (TString n)) name); int p (List.length name)] in
+			let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant c.cl_pos (TString n)) name); int p (List.length name)] in
 			(EBinop ("=",field p (gen_type_path p c.cl_path) "__name__",arr),p) :: 
 			(EBinop ("=",interf, call p (field p (ident p "Array") "new1") [interf; int p (List.length c.cl_implements)]),p) ::
 			acc

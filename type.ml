@@ -35,7 +35,7 @@ type t =
 	| TLazy of (unit -> t) ref
 
 and tconstant =
-	| TInt of string
+	| TInt of int32
 	| TFloat of string
 	| TString of string
 	| TBool of bool

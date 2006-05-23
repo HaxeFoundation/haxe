@@ -111,7 +111,7 @@ let handle_break ctx e =
 let this ctx = if ctx.in_value then "$this" else "this"
 
 let gen_constant ctx p = function
-	| TInt s
+	| TInt i -> print ctx "%ld" i
 	| TFloat s -> spr ctx s
 	| TString s -> 
 		if String.contains s '\000' then Typer.error "A String cannot contain \\0 characters" p;

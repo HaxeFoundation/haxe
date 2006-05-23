@@ -776,7 +776,11 @@ let type_type ctx tpath p =
 
 let type_constant ctx c p =
 	match c with
-	| Int i -> mk (TConst (TInt i)) (t_int ctx) p
+	| Int s -> 
+		(try 
+			mk (TConst (TInt (Int32.of_string s))) (t_int ctx) p
+		with
+			_ -> mk (TConst (TFloat s)) (t_float ctx) p)
 	| Float f -> mk (TConst (TFloat f)) (t_float ctx) p
 	| String s -> mk (TConst (TString s)) (t_string ctx) p
 	| Regexp (r,opt) ->
@@ -1076,7 +1080,9 @@ and type_unop ctx op flag e p =
 				t_int ctx
 			end
 		) in
-		mk (TUnop (op,flag,e)) t p
+		(match op, e.eexpr with
+		| Neg , TConst (TInt i) -> mk (TConst (TInt (Int32.neg i))) t p
+		| _ -> mk (TUnop (op,flag,e)) t p)
 	| AccNo s ->
 		error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
 	| AccSet (e,m,t,f) ->
@@ -1338,7 +1344,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			let v = add_local ctx v t in
 			v , t , e
 		) vl in
-		mk (TVars vl) (t_void ctx) p
+		mk (TVars vl) (t_void ctx) p	
 	| EFor (i,e1,e2) ->
 		let e1 = type_expr ctx e1 in
 		let t, pt = t_iterator ctx in
@@ -1372,6 +1378,10 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				| TContinue -> raise Exit
 				| _ -> iter loop e
 			in
+			(match i1.eexpr , i2.eexpr with
+			| TConst (TInt a), TConst (TInt b) when Int32.compare b a <= 0 ->
+				error "Range operate can't iterate backwards" p
+			| _ -> ());
 			let max = gen_local ctx i2.etype in
 			let n = gen_local ctx i1.etype in
 			let e2 = type_expr ~need_val:false ctx e2 in

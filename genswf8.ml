@@ -492,7 +492,7 @@ let rec gen_big_string ctx s =
 
 let rec gen_constant ctx c p =
 	match c with
-	| TInt s -> (try push ctx [VInt32 (Int32.of_string s)] with _ -> gen_constant ctx (TFloat s) p)
+	| TInt i -> push ctx [VInt32 i]
 	| TFloat s -> push ctx [VFloat (try float_of_string s with _ -> error p)]
 	| TString s -> 
 		if String.contains s '\000' then Typer.error "A String cannot contain \\0 characters" p;
