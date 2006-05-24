@@ -15,6 +15,7 @@
 	remoting proxy constructor is now public
 	fixed -swf-header override the swflib background color
 	moved all remoting classes into the haxe.remoting package
+	added haxe.remoting.LocalConnection
 
 2006-05-17: 1.0
 	fixed small bugs in JS Xml Parser (empty attribute, newlines in attributes)
