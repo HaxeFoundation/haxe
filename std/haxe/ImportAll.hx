@@ -44,26 +44,31 @@ import StringBuf;
 import StringTools;
 import Xml;
 
-import haxe.AsyncConnection;
-import haxe.AsyncDebugConnection;
-import haxe.AsyncRemotingProxy;
-import haxe.Connection;
 import haxe.Http;
 import haxe.ImportAll;
 import haxe.Log;
 import haxe.PosInfos;
-import haxe.RemotingProxy;
 import haxe.Serializer;
+import haxe.Template;
+import haxe.Timer;
+import haxe.Unserializer;
+
+import haxe.remoting.AsyncConnection;
+import haxe.remoting.AsyncDebugConnection;
+import haxe.remoting.AsyncProxy;
+import haxe.remoting.Connection;
+#if flash
+import haxe.remoting.LocalConnection;
+#end
+import haxe.remoting.Proxy;
+#if neko
+import haxe.remoting.Server;
+import haxe.remoting.SocketBuffer;
+#end
 #if js
 #else true
-import haxe.SocketConnection;
+import haxe.remoting.SocketConnection;
 #end
-import haxe.Template;
-#if neko
-#else true
-import haxe.Timer;
-#end
-import haxe.Unserializer;
 
 // flash
 #if flash
@@ -148,9 +153,6 @@ import neko.db.Mysql;
 import neko.db.Object;
 import neko.db.ResultSet;
 import neko.db.Transaction;
-
-import neko.remoting.Server;
-import neko.remoting.SocketBuffer;
 
 import tools.DocView;
 

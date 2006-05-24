@@ -22,13 +22,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package haxe;
+package haxe.remoting;
 
 class SocketConnection extends AsyncConnection {
 
 	var __funs : List<Dynamic -> Void>;
 	#if neko
-	var __r : neko.remoting.Server;
+	var __r : Server;
 	#end
 
 	function __resolve(field) : AsyncConnection {
@@ -135,7 +135,7 @@ class SocketConnection extends AsyncConnection {
 	public static function processMessage( sc : SocketConnection, data : String ) {
 		var f : Dynamic -> Void;
 		var val : Dynamic;
-		var s = new Unserializer(data);
+		var s = new haxe.Unserializer(data);
 		try {
 			var isrequest : Bool = s.unserialize();
 			if( !isrequest ) {
@@ -179,7 +179,7 @@ class SocketConnection extends AsyncConnection {
 			exc = true;
 		}
 		try {
-			var s = new Serializer();
+			var s = new haxe.Serializer();
 			s.serialize(false);
 			if( exc )
 				s.serializeException(val);
@@ -197,7 +197,7 @@ class SocketConnection extends AsyncConnection {
 
 	#if neko
 
-	public static function socketConnect( s : neko.Socket, r : neko.remoting.Server ) {
+	public static function socketConnect( s : neko.Socket, r : Server ) {
 		var sc = new SocketConnection(s,[]);
 		sc.__funs = new List();
 		sc.__r = r;

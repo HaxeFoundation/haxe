@@ -405,7 +405,7 @@ let extend_remoting ctx c t p async =
 	in
 	let class_fields = (match ct with
 		| TInst (c,params) ->
-			(FVar ("__cnx",None,[],Some (TPNormal { tpackage = ["haxe"]; tname = if async then "AsyncConnection" else "Connection"; tparams = [] }),None),p) ::
+			(FVar ("__cnx",None,[],Some (TPNormal { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = [] }),None),p) ::
 			(FFun ("new",None,[APublic],[],{ f_args = ["c",None]; f_type = None; f_expr = (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p) }),p) ::
 			PMap.fold (fun f acc ->						
 				if not f.cf_public then
@@ -431,9 +431,9 @@ let set_heritance ctx c herits p =
 	let rec loop = function
 		| HPrivate | HExtern | HInterface ->
 			()
-		| HExtends { tpackage = ["haxe"]; tname = "RemotingProxy"; tparams = [TPNormal t] } ->
+		| HExtends { tpackage = ["haxe";"remoting"]; tname = "Proxy"; tparams = [TPNormal t] } ->
 			extend_remoting ctx c t p false
-		| HExtends { tpackage = ["haxe"]; tname = "AsyncRemotingProxy"; tparams = [TPNormal t] } ->
+		| HExtends { tpackage = ["haxe";"remoting"]; tname = "AsyncProxy"; tparams = [TPNormal t] } ->
 			extend_remoting ctx c t p true
 		| HExtends t ->
 			if c.cl_super <> None then error "Cannot extend several classes" p;

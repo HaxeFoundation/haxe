@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package haxe;
+package haxe.remoting;
 
 class AsyncConnection implements Dynamic<AsyncConnection> {
 
@@ -67,9 +67,9 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 			return;
 		}
 		#end
-		var h = new Http(__data);
+		var h = new haxe.Http(__data);
 		var me = this;
-		var s = new Serializer();
+		var s = new haxe.Serializer();
 		s.serialize(__path);
 		s.serialize(params);
 		h.setHeader("X-Haxe-Remoting","1");
@@ -80,7 +80,7 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 			try {
 				if( data.length < 3 || data.substr(0,3) != "hxr" )
 					throw "Invalid response : '"+data+"'";
-				var s = new Unserializer(data.substr(3,data.length-3));
+				var s = new haxe.Unserializer(data.substr(3,data.length-3));
 				v = s.unserialize();
 			} catch( err : Dynamic ) {
 				ok = false;

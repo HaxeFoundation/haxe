@@ -22,16 +22,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package haxe;
+package haxe.remoting;
 
 /**
 	This class is magic. When you extend it with a class C, it will automaticaly
 	create a stub class with all public methods forwarding remoting messages over
 	the connection.
 **/
-class RemotingProxy<T> {
+class Proxy<T> {
 
-	var __cnx : haxe.Connection;
+	var __cnx : Connection;
 
 	function new( c ) {
 		__cnx = c;

@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package haxe;
+package haxe.remoting;
 
 class Connection implements Dynamic<Connection> {
 
@@ -45,24 +45,24 @@ class Connection implements Dynamic<Connection> {
 		var p = __path.copy();
 		var f = p.pop();
 		var path = p.join(".");
-		var s = new Serializer();
+		var s = new haxe.Serializer();
 		s.serialize(params);
 		var params = s.toString().split("\\").join("\\\\");
-		var s = flash.external.ExternalInterface.call("haxe.Connection.doCall",path,f,params);
+		var s = flash.external.ExternalInterface.call("haxe.remoting.Connection.doCall",path,f,params);
 		if( s == null )
 			throw "Failed to call JS method "+__path.join(".");
-		return new Unserializer(s).unserialize();
+		return new haxe.Unserializer(s).unserialize();
 	#else js
 		var p = __path.copy();
 		var f = p.pop();
 		var path = p.join(".");
-		var s = new Serializer();
+		var s = new haxe.Serializer();
 		s.serialize(params);
 		var params = s.toString();
 		var s = __data.remotingCall(path,f,params);
 		if( s == null )
 			throw "Failed to call Flash method "+__path.join(".");
-		return new Unserializer(s).unserialize();
+		return new haxe.Unserializer(s).unserialize();
 	#else neko
 		var cnx = AsyncConnection.urlConnect(__data);
 		var result = null;
@@ -77,7 +77,7 @@ class Connection implements Dynamic<Connection> {
 
 	static function doCall( path : String, f : String, params : String ) : String {
 		try {
-			var params = new Unserializer(params).unserialize();
+			var params = new haxe.Unserializer(params).unserialize();
 			#if flash
 			var obj = flash.Lib.eval(path);
 			#else js
@@ -89,7 +89,7 @@ class Connection implements Dynamic<Connection> {
 			if( fun == null )
 				throw "Invalid call : "+path+"."+f;
 			var v = Reflect.callMethod(obj,fun,params);
-			var s = new Serializer();
+			var s = new haxe.Serializer();
 			s.serialize(v);
 			#if flash
 			return s.toString().split("\\").join("\\\\");
@@ -99,7 +99,7 @@ class Connection implements Dynamic<Connection> {
 			return null;
 			#end
 		} catch( e : Dynamic ) {
-			var s = new Serializer();
+			var s = new haxe.Serializer();
 			s.serializeException(e);
 			return s.toString();
 		}
@@ -116,8 +116,8 @@ class Connection implements Dynamic<Connection> {
 	public static function jsConnect() : Connection {
 		if( !flash.external.ExternalInterface.available )
 			throw "External Interface not available";
-		if( flash.external.ExternalInterface.call("haxe.Connection.jsRemoting") != "yes" )
-			throw "haxe.Connection is not available in JavaScript";
+		if( flash.external.ExternalInterface.call("haxe.remoting.Connection.jsRemoting") != "yes" )
+			throw "haxe.remoting.Connection is not available in JavaScript";
 		return new Connection(null,[]);
 	}
 
