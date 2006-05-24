@@ -1461,11 +1461,21 @@ let generate file ver header infile types hres =
 			let file = (try Plugin.find_file file with Not_found -> failwith ("File not found : " ^ file)) in
 			let ch = IO.input_channel (open_in_bin file) in
 			let h, swf = (try Swf.parse ch with _ -> failwith ("The input swf " ^ file ^ " is corrupted")) in
-			let header = (match header with None -> h | Some h -> fst (convert_header ver h)) in
+			let header , tagbg = (match header with 
+				| None -> h , None 
+				| Some h -> 
+					let h , bg = convert_header ver h in
+					let tagbg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
+					h , Some tagbg
+			) in
 			IO.close_in ch;
 			let rec loop = function
 				| [] ->
 					failwith ("Frame 1 not found in " ^ file)
+				| ({ tdata = TSetBgColor _ } as t) :: l ->
+					(match tagbg with
+					| None -> t :: loop l
+					| Some bg -> bg :: loop l)
 				| ({ tdata = TShowFrame } as t) :: l ->
 					tagclips() @ tagcode :: t :: l
 				| t :: l -> 
