@@ -33,7 +33,9 @@ class SocketConnection extends AsyncConnection {
 
 	function __resolve(field) : AsyncConnection {
 		var s = new SocketConnection(__data,__path.copy());
-		s.onError = onError;
+		var me = this;
+		// late binding
+		s.onError = function(e) { me.onError(e); }
 		s.__funs = __funs;
 		#if neko
 		s.__r = __r;
