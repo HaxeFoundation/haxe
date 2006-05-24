@@ -66,6 +66,7 @@ let type_error e p =
 	has_error := true
 
 let parse_error e p =
+	Lexer.save_lines();
 	warn (Parser.error_msg e) p;
 	has_error := true
 
