@@ -11,6 +11,8 @@
 	don't allow monorph unification with Dynamic (more safe)
 	allowed multiple parsing and typing errors
 	review and completed commandline options
+	error on backwards constant integer iterators
+	remoting proxy constructor is now public
 
 2006-05-17: 1.0
 	fixed small bugs in JS Xml Parser (empty attribute, newlines in attributes)
