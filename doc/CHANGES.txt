@@ -1,4 +1,4 @@
-2006-05-25: 1.1
+2006-05-25: 1.01
 	added neko.Utf8
 	Serializer/Unserializer now support utf8 strings
 	allowed subtyping of prop accesses public/private when implementing an interface
