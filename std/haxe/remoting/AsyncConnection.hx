@@ -28,22 +28,29 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 
 	var __data : Dynamic;
 	var __path : Array<String>;
+	var __error : { ref : Dynamic -> Void };
+	public var onError(getErrorHandler,setErrorHandler) : Dynamic -> Void;
 
 	function new( data : Dynamic, path ) {
 		__data = data;
 		__path = path;
+		__error = { ref : function(e) { } };
 	}
 
 	function __resolve(field) {
 		var s = new AsyncConnection(__data,__path.copy());
-		// late binding
-		var me = this;
-		s.onError = function(e) { me.onError(e); };
+		s.__error = __error;
 		s.__path.push(field);
 		return s;
 	}
 
-	public function onError( err : Dynamic ) {
+	function getErrorHandler() {
+		return __error.ref;
+	}
+
+	function setErrorHandler(f) {
+		__error.ref = f;
+		return f;
 	}
 
 	public function call( params : Array<Dynamic>, onData : Dynamic -> Void ) : Void {
@@ -52,7 +59,7 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 			var me = this;
 			var p = params.copy();
 			p.unshift({
-				onStatus : function(e) { me.onError(e); },
+				onStatus : function(e) { me.__error.ref(e); },
 				onResult : function(r) { onData(r); }
 			});
 			p.unshift(__path.join("."));
@@ -77,12 +84,12 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 				v = s.unserialize();
 			} catch( err : Dynamic ) {
 				ok = false;
-				me.onError(err);
+				me.__error.ref(err);
 			}
 			if( ok )
 				onData(v);
 		};
-		h.onError = onError;
+		h.onError = function(e) { me.__error.ref(e); };
 		h.request(true);
 	}
 

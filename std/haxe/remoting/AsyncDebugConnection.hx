@@ -24,38 +24,38 @@
  */
 package haxe;
 
-class AsyncDebugConnection implements AsyncConnection, implements Dynamic<AsyncDebugConnection> {
+class AsyncDebugConnection extends AsyncConnection, implements Dynamic<AsyncDebugConnection> {
 
-	var __data : Dynamic;
-	var __path : Array<String>; // not used there
 	var lastCalls : List<{ path : Array<String>, params : Array<Dynamic> }>;
 
 	public function new(cnx : AsyncConnection) {
-		__data = cnx;
+		super(cnx,[]);
 		lastCalls = new List();
-		onError = cnx.onError;
+		__error = cnx.__error;
+		setErrorHandler(__error.ref);
+	}
+
+	function setErrorHandler(f) {
 		var me = this;
-		cnx.onError = function(e) {
+		__error.ref = function(e) {
 			var l = me.lastCalls.pop();
 			if( l != null )
 				me.onErrorDisplay(l.path,l.params,e);
-			me.onError(e);
+			f(e);
 		}
+		return f;
 	}
 
 	function __resolve(field : String) : AsyncConnection {
 		var s = new AsyncDebugConnection(__data.__resolve(field));
 		s.lastCalls = lastCalls;
+		s.__error = __error;
 		// late binding of events
 		var me = this;
-		s.onError = function(e) { me.onError(e); };
 		s.onCall = function(p,pa) { me.onCall(p,pa); };
 		s.onResult = function(p,pa,r) { me.onResult(p,pa,r); };
 		s.onErrorDisplay = function(p,pa,e) { me.onErrorDisplay(p,pa,e); };
 		return s;
-	}
-
-	public function onError( err : Dynamic ) {
 	}
 
 	public function onErrorDisplay( path : Array<String>, params : Array<Dynamic>, err : Dynamic ) {

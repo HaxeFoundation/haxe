@@ -34,8 +34,7 @@ class SocketConnection extends AsyncConnection {
 	function __resolve(field) : AsyncConnection {
 		var s = new SocketConnection(__data,__path.copy());
 		var me = this;
-		// late binding
-		s.onError = function(e) { me.onError(e); }
+		s.__error = __error;
 		s.__funs = __funs;
 		#if neko
 		s.__r = __r;
@@ -53,7 +52,7 @@ class SocketConnection extends AsyncConnection {
 			sendMessage(__data,s.toString());
 			__funs.add(onData);
 		} catch( e : Dynamic ) {
-			onError(e);
+			__error.ref(e);
 		}
 	}
 
@@ -148,7 +147,7 @@ class SocketConnection extends AsyncConnection {
 					return null;
 			}
 		} catch( e : Dynamic ) {
-			sc.onError(e);
+			sc.__error.ref(e);
 			return null;
 		}
 		if( f != null ) {
@@ -188,7 +187,7 @@ class SocketConnection extends AsyncConnection {
 				s.serialize(val);
 			sendMessage(sc.__data,s.toString());
 		} catch( e : Dynamic ) {
-			sc.onError(e);
+			sc.__error.ref(e);
 			return null;
 		}
 		if( exc )
@@ -220,6 +219,7 @@ class SocketConnection extends AsyncConnection {
 			t.run = function() {
 				t.stop();
 				var e = processMessage(sc,data.substr(2,data.length-2));
+				// error happened in response handler, not in request
 				if( e != null )
 					throw e.exc;
 			};
