@@ -3,7 +3,7 @@ package flash;
 extern class LocalConnection
 #if flash_strict
 #else true
-implements Dynamic<String>
+implements Dynamic
 #end
 {
 	function new() : Void;
