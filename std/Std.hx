@@ -73,18 +73,27 @@ class Std {
 	}
 
 	/**
-		Convert a String to an Int, parsing different possible representations
+		Convert a String to an Int, parsing different possible representations. Returns [null] if could not be parsed.
 	**/
 	public static function parseInt( x : String ) : Int {
-		return untyped
+		untyped {
 		#if flash
-		_global.parseInt(x);
+		var v = _global.parseInt(x);
+		if( Math.isNaN(v) )
+			return null;
+		return v;
 		#else neko
-		__dollar__int(x.__s);
+		if( __dollar__typeof(x) != __dollar__tobject )
+			return null;
+		return __dollar__int(x.__s);
 		#else js
-		__js__("parseInt")(x);
+		var v = __js__("parseInt")(x);
+		if( Math.isNaN(v) )
+			return null;
+		return v;
 		#else error
 		#end
+		}
 	}
 
 	/**
