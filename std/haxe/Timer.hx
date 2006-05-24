@@ -30,7 +30,6 @@ class Timer {
 	#else js
 		private static var arr = new Array<Timer>();
 		private var timerId : Int;
-	#else error
 	#end
 
 	public function new( time : Int ){
@@ -41,7 +40,8 @@ class Timer {
 			var id = arr.length;
 			arr[id] = this;
 			timerId = untyped window.setInterval("haxe.Timer.arr["+id+"].run();",time);
-		#else error
+		#else neko
+			throw "Not implemented";
 		#end
 	}
 
@@ -51,7 +51,7 @@ class Timer {
 			id = null;
 		#else js
 			untyped window.clearInterval(timerId);
-		#else error
+		#else neko
 		#end
 	}
 
