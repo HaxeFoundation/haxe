@@ -10,7 +10,7 @@ implements Dynamic
 	var uri : String;
 
 	function new() : Void;
-	function connect( targetURI : String, p1 : Dynamic, p2 : Dynamic, p3 : Dynamic, p4 : Dynamic, p5 : Dynamic, p6 : Dynamic ) : Bool;
+	function connect( targetURI : String ) : Bool;
 	function call( remoteMethod : String, resultObject : Dynamic, p1 : Dynamic, p2 : Dynamic, p3 : Dynamic, p4 : Dynamic, p5 : Dynamic, p6 : Dynamic) : Void;
 	function addHeader( header : String, mustUnderstand : Bool, object : Dynamic ) : Void;
 	function close() : Void;
