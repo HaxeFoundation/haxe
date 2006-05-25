@@ -181,12 +181,13 @@ and parse_type_opt = parser
 and parse_type_path = parser
 	| [< '(POpen,_); t = parse_type_path; '(PClose,_); s >] -> parse_type_path_next (TPParent t) s
 	| [< '(BrOpen,_); s >] ->
-		let l = (match s with parser
-			| [< name = any_ident >] -> parse_type_anonymous_resume name s
-			| [< l = plist parse_signature_field; '(BrClose,_) >] -> l
+		let t = (match s with parser
+			| [< name = any_ident >] -> TPAnonymous (parse_type_anonymous_resume name s)
+			| [< '(Binop OpGt,_); t = parse_type_path_normal; '(Comma,_); l = psep Comma parse_type_anonymous; '(BrClose,_) >] -> TPExtend (t,l)
+			| [< l = plist parse_signature_field; '(BrClose,_) >] -> TPAnonymous l
 			| [< >] -> serror()
 		) in
-		parse_type_path_next (TPAnonymous l) s
+		parse_type_path_next t s
 	| [< t = parse_type_path_normal; s >] -> parse_type_path_next (TPNormal t) s
 
 and parse_type_path_normal s = parse_type_path1 [] s
@@ -358,7 +359,13 @@ and expr = parser
 	| [< '(BrOpen,p1); e = block1; '(BrClose,p2) >] -> (e,punion p1 p2)
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
-	| [< '(Kwd Cast,p1); '(POpen,_); e = expr; '(Comma,_); t = parse_type_path; '(PClose,p2); s >] -> expr_next (ECast (e,t),punion p1 p2) s
+	| [< '(Kwd Cast,p1); s >] ->
+		(match s with parser
+		| [< '(POpen,_); e = expr; s >] ->
+			(match s with parser
+			| [< '(Comma,_); t = parse_type_path; '(PClose,p2); s >] -> expr_next (ECast (e,Some t),punion p1 p2) s
+			| [< >] -> expr_next (ECast (e,None),punion p1 (pos e)) s)
+		| [< e = expr; s >] -> expr_next (ECast (e,None),punion p1 (pos e)) s)
 	| [< '(Kwd Throw,p); e = expr >] -> (EThrow e,p)
 	| [< '(Kwd New,p1); t = parse_type_path_normal; '(POpen,_); al = psep Comma expr; '(PClose,p2); s >] -> expr_next (ENew (t,al),punion p1 p2) s
 	| [< '(POpen,p1); e = expr; '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s

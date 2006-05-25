@@ -143,6 +143,7 @@ and type_path =
 	| TPFunction of type_path list * type_path
 	| TPAnonymous of (string * anonymous_field * pos) list
 	| TPParent of type_path
+	| TPExtend of type_path_normal * (string * anonymous_field * pos) list
 
 type func = {
 	f_args : (string * type_path option) list;
@@ -175,7 +176,7 @@ and expr_def =
 	| EContinue
 	| EUntyped of expr
 	| EThrow of expr
-	| ECast of expr * type_path
+	| ECast of expr * type_path option
 
 and expr = expr_def * pos
 

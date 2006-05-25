@@ -306,6 +306,23 @@ and load_type ctx p t =
 	match t with
 	| TPParent t -> load_type ctx p t
 	| TPNormal t -> load_normal_type ctx t p false
+	| TPExtend (t,l) ->
+		(match load_type ctx p (TPAnonymous l) with
+		| TAnon l ->
+			(match load_normal_type ctx t p false with
+			| TInst (c,pl) ->
+				let t = TAnon (PMap.foldi PMap.add c.cl_fields l) in
+				let s = {
+					s_path = (fst c.cl_path,"+" ^ snd c.cl_path);
+					s_pos = p;
+					s_doc = None;
+					s_private = false;
+					s_types = c.cl_types;
+					s_type = t;
+				} in
+				TSign (s,pl)
+			| _ -> error "Cannot extend not-a-class" p)
+		| _ -> assert false)
 	| TPAnonymous l ->
 		let rec loop acc (n,f,p) =
 			if PMap.mem n acc then error ("Duplicate field declaration : " ^ n) p;
@@ -1577,10 +1594,15 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			epos = e.epos;
 		}
 	| ECast (e,t) ->
-		type_expr ctx (ETry ((EThrow e,p),[
-			("e",t,(EConst (Ident "e"),p));
-			("e",TPNormal { tpackage = []; tname = "Dynamic"; tparams = [] },(EThrow (EConst (String "Class cast error"),p),p))
-		]),p)
+		match t with
+		| None ->
+			let e = type_expr ctx e in
+			{ e with etype = mk_mono() }
+		| Some t ->
+			type_expr ctx (ETry ((EThrow e,p),[
+				("e",t,(EConst (Ident "e"),p));
+				("e",TPNormal { tpackage = []; tname = "Dynamic"; tparams = [] },(EThrow (EConst (String "Class cast error"),p),p))
+			]),p)
 
 and type_function ctx t static constr f p =
 	let locals = save_locals ctx in

@@ -1,6 +1,8 @@
 2006-06-??: 1.02
 	fixed stack overflow when recursive class <: recursive signature
 	improved a bit commandline : allow several hxml arguments
+	added {> Class, fields... } types declarations
+	added cast without type (less dangerous than untyped)
 
 2006-05-25: 1.01
 	added neko.Utf8
