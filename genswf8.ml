@@ -1472,6 +1472,13 @@ let generate file ver header infile types hres =
 			let rec loop = function
 				| [] ->
 					failwith ("Frame 1 not found in " ^ file)
+				| { tdata = TUnknown (0x1A,_) } :: l  (*// PlaceObject2 *)
+				| { tdata = TUnknown (0x46,_) } :: l  (*// PlaceObject3 *)
+				| { tdata = TPlaceObject2 _ } :: l
+				| { tdata = TPlaceObject3 _ } :: l
+				| { tdata = TRemoveObject2 _ } :: l
+				| { tdata = TRemoveObject _ } :: l when not (Plugin.defined "flash_use_stage") ->
+					loop l
 				| ({ tdata = TSetBgColor _ } as t) :: l ->
 					(match tagbg with
 					| None -> t :: loop l

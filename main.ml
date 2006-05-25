@@ -207,6 +207,7 @@ try
 		("--flash-strict", define "flash_strict", ": more type strict flash API");
 		("--no-flash-opt-args", define "no_flash_opt_args" , ": don't allow optional parameters for flash api");
 		("--no-traces", define "no_traces", ": don't compile trace calls in the program");
+		("--flash-use-stage", define "flash_use_stage", ": place objects found on the stage of the SWF lib");
 		("--next", Arg.Unit (fun() -> 
 			let p = !current in
 			current := Array.length argv;
