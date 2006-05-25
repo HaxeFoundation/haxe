@@ -3,27 +3,37 @@
 <head>
 <title>haXe API Documentation</title>
 
+<script type="text/javascript">
+<!--
+	function toggle(id) {
+		var e = document.getElementById(id);
+		e.isopen = !e.isopen;
+		e.style.display = e.isopen?"block":"none";
+	}
+-->
+</script>
+
 <style type="text/css">
 body {
 	text-align: center;
 	font-family: Trebuchet MS, sans-serif;
-	background-color : #D0DEC3;
+	background-color : #7D7E86;
 }
 
 .document {
 	width : 800px;
 	position : relative;
 	margin : 10px auto 5px auto;
-	border : solid 2px #666;
+	border : solid 2px #CFD0D4;
 	text-align : justify;
-	background-color: white;
+	background-color: #F6FAFD;
 }
 
 .title {
 	font-size: 35;
 	font-weight: bold;
 	text-align: center;
-	background-color : #fb0;
+	background-color : #FFD473;
 	color : white;
 }
 
@@ -33,14 +43,23 @@ ul.entry {
 	padding-left : 30px;
 }
 
+.package_content {
+	display : none;
+}
+
 a {
-	color : #fb0;
+	color : #FFBB00;
 	font-weight : bold;
 	text-decoration : none;
 }
 
 a:hover {
-	color : #ea0;
+	color : #FFAE00;
+	text-decoration : underline;
+}
+
+a.package {
+	color : black;
 }
 
 .index {
