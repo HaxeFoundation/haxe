@@ -6,7 +6,7 @@ cp -R ../std haxe-release
 
 cd haxe-release\std
 rm -rf CVS .cvsignore */CVS */.cvsignore */*/CVS */*/.cvsignore */*/*/CVS */*/*/.cvsignore
-rm -rf all.n all.js all.swf *.xml tools/docview.n
+rm -rf all.n all.js all.swf *.xml tools/docview.n tools/index.html tools/content
 
 cd ..\..\..\..\neko\bin
 cp gc.dll neko.dll neko.exe nekoc.exe nekotools.exe *.ndll ../../haxe/doc/haxe-release
