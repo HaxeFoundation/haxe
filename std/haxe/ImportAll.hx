@@ -57,6 +57,7 @@ import haxe.remoting.AsyncConnection;
 import haxe.remoting.AsyncDebugConnection;
 import haxe.remoting.AsyncProxy;
 import haxe.remoting.Connection;
+import haxe.remoting.DelayedConnection;
 #if flash
 import haxe.remoting.LocalConnection;
 #end
