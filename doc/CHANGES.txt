@@ -3,6 +3,8 @@
 	improved a bit commandline : allow several hxml arguments
 	added {> Class, fields... } types declarations
 	added cast without type (less dangerous than untyped)
+	no stage objects by default, added --flash-use-stage
+	added haxe.remoting.DelayedConnection
 
 2006-05-25: 1.01
 	added neko.Utf8
