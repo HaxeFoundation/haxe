@@ -9,7 +9,7 @@ rm -rf CVS .cvsignore */CVS */.cvsignore */*/CVS */*/.cvsignore */*/*/CVS */*/*/
 rm -rf all.n all.js all.swf *.xml tools/docview.n
 
 cd ..\..\..\..\neko\bin
-cp neko.dll neko.exe nekoc.exe nekotools.exe *.ndll ../../haxe/doc/haxe-release
+cp gc.dll neko.dll neko.exe nekoc.exe nekotools.exe *.ndll ../../haxe/doc/haxe-release
 
 echo The magic script is done, it's release time !
 pause
