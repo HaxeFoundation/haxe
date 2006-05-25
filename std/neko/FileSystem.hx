@@ -79,7 +79,7 @@ class FileSystem {
 	}
 
 	public static function createDir( path : String ) {
-		sys_create_dir( untyped path.__s );
+		sys_create_dir( untyped path.__s, 493 );
 	}
 
 	public static function deleteFile( path : String ) {
