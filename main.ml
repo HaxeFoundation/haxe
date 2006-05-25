@@ -118,6 +118,7 @@ try
 	let swf_version = ref 8 in
 	let swf_header = ref None in
 	let current = ref argv_start in
+	let has_hxml = ref false in
 	let next = ref (fun() -> ()) in
 	let hres = Hashtbl.create 0 in
 	Plugin.defines := base_defines;
@@ -229,10 +230,17 @@ try
 						_ -> [l]
 				else
 					[l]
-			) lines) in
-			init (Array.of_list (cl :: args)) 0;
-			raise Exit
-		| _ -> classes := make_path cl :: !classes
+			) lines) in			
+			let cur = !next in
+			let verb = !Plugin.verbose in
+			next := (fun() ->
+				cur();
+				if verb then print_endline ("Executing " ^ cl ^ " : " ^ String.concat " " (List.tl args));
+				init (Array.of_list (cl :: args)) 0
+			);
+			has_hxml := true;
+		| _ ->
+			classes := make_path cl :: !classes
 	in
 	Arg.parse_argv ~current argv args_spec args_callback usage;
 	(match !target with
@@ -252,7 +260,7 @@ try
 		Plugin.define "js";
 	);
 	if !classes = [([],"Std")] then begin
-		Arg.usage args_spec usage
+		if not !has_hxml then Arg.usage args_spec usage
 	end else begin
 		if !Plugin.verbose then print_endline ("Classpath : " ^ (String.concat ";" !Plugin.class_path));
 		let ctx = Typer.context type_error warn in
@@ -279,8 +287,7 @@ try
 	end;
 	if !has_error then do_exit();
 	(!next)();
-with
-	| Exit -> ()
+with	
 	| Lexer.Error (m,p) -> report (Lexer.error_msg m) p
 	| Parser.Error (m,p) -> report (Parser.error_msg m) p
 	| Typer.Error (m,p) -> report (Typer.error_msg m) p
