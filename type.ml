@@ -384,6 +384,8 @@ let invalid_visibility n = Invalid_visibility n
 let has_no_field t n = Has_no_field (t,n)
 let error l = raise (Unify_error l)
 
+let unify_stack = ref []
+
 let unify_types a b tl1 tl2 =
 	List.iter2 (fun ta tb ->
 		if not (type_eq true ta tb) then error [cannot_unify a b; cannot_unify ta tb]
@@ -412,10 +414,16 @@ let rec unify a b =
 		with 
 			Unify_error l -> error (cannot_unify a b :: l))
 	| _ , TSign (s,tl) ->
-		(try 
-			unify a (apply_params s.s_types tl s.s_type)
-		with 
-			Unify_error l -> error (cannot_unify a b :: l))	
+		if not (List.exists (fun (a2,s2) -> a == a2 && s == s2) (!unify_stack)) then begin
+			try 
+				unify_stack := (a,s) :: !unify_stack;
+				unify a (apply_params s.s_types tl s.s_type);
+				unify_stack := List.tl !unify_stack;
+			with 
+				Unify_error l ->
+					unify_stack := List.tl !unify_stack;
+					error (cannot_unify a b :: l)
+		end
 	| TEnum (ea,tl1) , TEnum (eb,tl2) -> 
 		if ea != eb then error [cannot_unify a b];
 		unify_types a b tl1 tl2
