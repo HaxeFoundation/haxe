@@ -29,9 +29,11 @@ import neko.Web;
 
 private class Url {
 	public static var base : String;
+	public static var extension : String = "";
+	public static var index : String;
 	public static var buffer : StringBuf;
 	public static function make( params, css, text ) {
-		return "<a href=\""+base + params+"\" class=\""+css+"\">"+text+"</a>";
+		return "<a href=\""+base + params + extension+"\" class=\""+css+"\">"+text+"</a>";
 	}
 }
 
@@ -44,6 +46,7 @@ private enum DocType {
 	tfunction( params : Array<{ name : String, t : DocType }>, ret : DocType );
 	tparam( classpath : String, name : String );
 	tconstr( fields : Array<{ name : String, t : DocType }> );
+	tsign( name : String, params : Array<DocType> );
 }
 
 private class DocField {
@@ -92,6 +95,21 @@ private class DocField {
 		case tunknown:
 			return "Unknown";
 		case tclass(name,params):
+			var ps = "";
+			if( params.length != 0 ) {
+				ps = "&lt;";
+				var first = true;
+				for( p in params ) {
+					if( first )
+						first = false;
+					else
+						ps += ",";
+					ps += typeToString(p,curp);
+				}
+				ps += "&gt;";
+			}
+			return link(name,curp)+ps;
+		case tsign(name,params):
 			var ps = "";
 			if( params.length != 0 ) {
 				ps = "&lt;";
@@ -264,6 +282,8 @@ class DocView {
 			return tunknown;
 		case "c":
 			return tclass(x.get("path"),Lambda.amap(Lambda.array(x.elements()),processType));
+		case "s":
+			return tsign(x.get("path"),Lambda.amap(Lambda.array(x.elements()),processType));
 		case "e":
 			var path = x.get("path").split(".");
 			if( path.length >= 2 ) {
@@ -315,8 +335,10 @@ class DocView {
 			return;
 		if( StringTools.endsWith(path,"__") )
 			return;
-		if( findEntry(entries,path.split(".")) != null )
+		if( findEntry(entries,path.split(".")) != null ) {
+			// MERGE ?
 			return;
+		}
 		var c = new DocClass(path,x.nodeName != "class");
 		c.params = x.get("params").split(":");
 		if( c.isEnum ) {
@@ -441,9 +463,9 @@ class DocView {
 		for( e in p ) {
 			switch e {
 			case epackage(name,p):
-				print("<li>"+name);
+				print('<li><a href="#" class="package" onclick="toggle(\''+name+'\')">'+name+"</a><div id=\""+name+"\" class=\"package_content\">");
 				display(p);
-				print("</li>");
+				print("</div></li>");
 			case eclass(c):
 				if( c.fields.length > 0 )
 					print("<li>"+Url.make(c.path.split(".").join("/"),"entry",c.name)+"</li>");
@@ -463,14 +485,12 @@ class DocView {
 		Url.buffer.add(s);
 	}
 
-	static function displayHtml(html : Xml) {
+	static function displayHtml(html : Xml,clname : String) {
 		if( html.nodeType != Xml.Element ) {
 			print(html.toString());
 			return;
 		}
 		if( html.nodeName == "data" ) {
-			var h = Web.getParams();
-			var clname = h.get("class");
 			if( clname == "index" )
 				clname = null;
 			if( clname == null )
@@ -480,9 +500,9 @@ class DocView {
 				var c = findEntry(entries,clname.split("."));
 				if( c == null )
 					throw ("Class not found : "+clname);
-				print(Url.make("index","index","Index"));
+				print(Url.make(Url.index,"index","Index"));
 				print(c.toString());
-				print(Url.make("index","index","Index"));
+				print(Url.make(Url.index,"index","Index"));
 			}
 			return;
 		}
@@ -497,24 +517,70 @@ class DocView {
 			print(" "+k+"=\""+html.get(k)+"\"");
 		print(">");
 		for( c in html )
-			displayHtml(c);
+			displayHtml(c,clname);
 		print("</"+html.nodeName+">");
 	}
 
 	static var default_template = "<html><body><data/></body></html>";
 
+	static function save(html,clname,file) {
+		Url.buffer = new StringBuf();
+		displayHtml(html,clname);
+		var f = neko.File.write(file,false);
+		f.write(Url.buffer.toString());
+		f.close();
+		neko.Lib.print(".");
+	}
+
+	static function generateEntry(html,e,path) {
+		switch( e ) {
+		case eclass(c): save(html,c.path,path+c.name+".html");
+		case epackage(name,entries):
+			var old = Url.base;
+			Url.base = "../"+Url.base;
+			path += name + "/";
+			try neko.FileSystem.createDir(path) catch( e : Dynamic ) { }
+			for( e in entries )
+				generateEntry(html,e,path);
+			Url.base = old;
+		}
+	}
+
+	static function generateAll(html) {
+		Url.extension = ".html";
+		Url.base = "content/";
+		Url.index = "index";
+		save(html,null,"index.html");
+		Url.base = "";
+		Url.index = "../index";
+		try neko.FileSystem.createDir("content") catch( e : Dynamic ) { }
+		for( e in entries )
+			generateEntry(html,e,"content/");
+	}
+
 	public static function main() {
 		var hdata = try neko.File.getContent(Web.getCwd()+"template.xml") catch( e : Dynamic ) default_template;
 		var html = Xml.parse(hdata).firstChild();
-		var baseDir = "../data/media/";
-		loadFile(baseDir+"flash.xml");
-		loadFile(baseDir+"neko.xml");
-		loadFile(baseDir+"js.xml");
-		sortEntries(entries);
-		Url.base = "/api/";
-		Url.buffer = new StringBuf();
-		displayHtml(html);
-		Lib.print(Url.buffer.toString());
+		if( neko.Web.isModNeko ) {
+			var baseDir = "../data/media/";
+			Url.base = "/api/";
+			Url.index = "";
+			loadFile(baseDir+"flash.xml");
+			loadFile(baseDir+"neko.xml");
+			loadFile(baseDir+"js.xml");
+			sortEntries(entries);
+
+			var h = Web.getParams();
+			var clname = h.get("class");
+			Url.buffer = new StringBuf();
+			displayHtml(html,clname);
+			Lib.print(Url.buffer.toString());
+		} else {
+			for( x in neko.Sys.args() )
+				loadFile(x);
+			sortEntries(entries);
+			generateAll(html);
+		}
 	}
 
 }
