@@ -33,7 +33,7 @@ type context = {
 	types : (module_path,(string * bool)) Hashtbl.t;
 	mutable movieclips : module_path list;
 	mutable inits : texpr list;
-	mutable statics : (string * string * texpr) list;
+	mutable statics : (string * bool * string * texpr) list;
 	mutable regs : (string,int option) PMap.t;
 	mutable reg_count : int;
 	mutable reg_max : int;
@@ -177,17 +177,18 @@ let is_protected_name path ext =
 	| [] , "Array" | [] , "Math" | [] , "Date" | [] , "String" | [] , "Bool" -> true
 	| _ -> false
 
-let rec is_protected ctx t =
+let rec is_protected ctx t check_mt =
 	match t with
 	| TInst (c,_) ->
-		is_protected_name c.cl_path c.cl_extern
+		is_protected_name c.cl_path c.cl_extern 
+		|| (check_mt && List.exists (fun (i,_) -> i.cl_path = (["mt"],"Protect")) c.cl_implements)
 	| TMono r -> 
 		(match !r with
 		| None -> true
-		| Some t -> is_protected ctx t)
+		| Some t -> is_protected ctx t check_mt)
 	| TSign (s,_) ->
 		(match s.s_static with
-		| None -> is_protected ctx s.s_type
+		| None -> is_protected ctx s.s_type check_mt
 		| Some c -> is_protected_name c.cl_path c.cl_extern)
 	| _ -> false
 
@@ -569,7 +570,7 @@ let rec gen_access ctx forcall e =
 		access_local ctx s
 	| TField (e2,f) ->
 		gen_expr ctx true e2;
-		push ctx [VStr (f,is_protected ctx e2.etype)];
+		push ctx [VStr (f,is_protected ctx e2.etype true)];
 		(match follow e.etype with
 		| TFun _ -> VarClosure
 		| _ -> VarObj)
@@ -586,7 +587,7 @@ let rec gen_access ctx forcall e =
 		| _ -> VarObj)
 	| TType t ->
 		let str , flag = (match t with
-			| TClassDecl c -> gen_type ctx c.cl_path c.cl_extern , is_protected ctx (TInst (c,[]))
+			| TClassDecl c -> gen_type ctx c.cl_path c.cl_extern , is_protected ctx (TInst (c,[])) false
 			| TEnumDecl e -> gen_type ctx e.e_path false , false
 			| TSignatureDecl _ -> assert false
 		) in
@@ -1032,7 +1033,7 @@ and gen_expr_2 ctx retval e =
 		let nargs = List.length el in
 		List.iter (gen_expr ctx true) (List.rev el);
 		push ctx [VInt nargs];
-		push ctx [VStr (gen_type ctx c.cl_path c.cl_extern,is_protected ctx (TInst (c,[])))];
+		push ctx [VStr (gen_type ctx c.cl_path c.cl_extern,is_protected ctx (TInst (c,[])) false)];
 		new_call ctx VarStr nargs
 	| TSwitch (e,cases,def) ->
 		gen_switch ctx retval e cases def
@@ -1089,32 +1090,32 @@ and gen_expr ctx retval e =
 		if not retval then write ctx APop;
 	end else if retval then stack_error e.epos
 
-let gen_class_static_field ctx cclass f =
+let gen_class_static_field ctx cclass flag f =
 	match f.cf_expr with
 	| None ->
-		push ctx [VReg 0; VStr (f.cf_name,false); VNull];
+		push ctx [VReg 0; VStr (f.cf_name,flag); VNull];
 		setvar ctx VarObj
 	| Some e ->
 		match e.eexpr with
 		| TFunction _ ->
-			push ctx [VReg 0; VStr (f.cf_name,false)];
+			push ctx [VReg 0; VStr (f.cf_name,flag)];
 			ctx.curmethod <- f.cf_name;
 			gen_expr ctx true e;
 			setvar ctx VarObj
 		| _ ->
-			ctx.statics <- (cclass,f.cf_name,e) :: ctx.statics
+			ctx.statics <- (cclass,flag,f.cf_name,e) :: ctx.statics
 
-let gen_class_static_init ctx (cclass,name,e) =
+let gen_class_static_init ctx (cclass,flag,name,e) =
 	ctx.curclass <- ([],cclass);
 	ctx.curmethod <- name;
 	push ctx [VStr (cclass,false)];
 	write ctx AEval;
-	push ctx [VStr (name,false)];
+	push ctx [VStr (name,flag)];
 	gen_expr ctx true e;
 	setvar ctx VarObj
 
-let gen_class_field ctx f =
-	push ctx [VReg 1; VStr (f.cf_name,false)];
+let gen_class_field ctx f flag =
+	push ctx [VReg 1; VStr (f.cf_name,flag)];
 	(match f.cf_expr with
 	| None ->
 		push ctx [VNull]
@@ -1279,8 +1280,9 @@ let gen_type_def ctx t =
 		write ctx APop;
 		push ctx [VReg 1; VStr ("__class__",false); VReg 0];
 		setvar ctx VarObj;
-		List.iter (gen_class_static_field ctx id) c.cl_ordered_statics;
-		PMap.iter (fun _ f -> gen_class_field ctx f) c.cl_fields;
+		let flag = is_protected ctx (TInst (c,[])) true in
+		List.iter (gen_class_static_field ctx id flag) c.cl_ordered_statics;
+		PMap.iter (fun _ f -> gen_class_field ctx f flag) c.cl_fields;
 	| TEnumDecl e ->
 		let id = gen_type ctx e.e_path false in
 		push ctx [VStr (id,false); VInt 0; VStr ("Object",true)];
@@ -1376,7 +1378,7 @@ let gen_type_map ctx =
 	in
 	Hashtbl.iter (fun (p,t) (n,ext) ->
 		if ext then begin
-			push ctx [VStr (n,false)];
+			push ctx [VStr (n,is_protected_name (p,t) true)];
 			gen_path ctx (p,t) true;
 			write ctx ASet
 		end else begin
