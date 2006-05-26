@@ -29,7 +29,7 @@ type context = {
 	mutable ident_count : int;
 
 	(* management *)
-	idents : (string,int) Hashtbl.t;
+	idents : (string * bool,int) Hashtbl.t;
 	types : (module_path,(string * bool)) Hashtbl.t;
 	mutable movieclips : module_path list;
 	mutable inits : texpr list;
@@ -51,6 +51,7 @@ type context = {
 
 let error p = Typer.error "Invalid expression" p
 let stack_error p = Typer.error "Stack error" p
+let protect_all = ref true
 
 (* -------------------------------------------------------------- *)
 (* Bytecode Helpers *)
@@ -62,7 +63,7 @@ type kind =
 	| VarClosure
 
 type push_style =
-	| VStr of string
+	| VStr of string * bool
 	| VInt of int
 	| VInt32 of int32
 	| VFloat of float
@@ -159,16 +160,48 @@ let new_call ctx kind n  =
 	ctx.code_pos <- ctx.code_pos + 1;
 	ctx.stack_size <- ctx.stack_size - n
 
+let always_protected = function
+	| "prototype" | "toString" | "__resolve" -> true
+	| _ -> false
+
+let unprotect a =
+	if !protect_all || always_protected a then 
+		a
+	else
+		"@" ^ a
+
+let is_protected_name path ext =
+	match path with
+	| ["flash"] , "Boot" -> false
+	| "flash" :: _ , _ -> ext
+	| [] , "Array" | [] , "Math" | [] , "Date" | [] , "String" | [] , "Bool" -> true
+	| _ -> false
+
+let rec is_protected ctx t =
+	match t with
+	| TInst (c,_) ->
+		is_protected_name c.cl_path c.cl_extern
+	| TMono r -> 
+		(match !r with
+		| None -> true
+		| Some t -> is_protected ctx t)
+	| TSign (s,_) ->
+		(match s.s_static with
+		| None -> is_protected ctx s.s_type
+		| Some c -> is_protected_name c.cl_path c.cl_extern)
+	| _ -> false
+
 let push ctx items =
 	write ctx (APush (List.map (fun i ->
 		match i with
-		| VStr str ->
+		| VStr (str,flag) ->
+			let flag = if not flag && (!protect_all || always_protected str) then true else flag in
 			let n = (try
-				Hashtbl.find ctx.idents str
+				Hashtbl.find ctx.idents (str,flag)
 			with Not_found ->
 				let n = ctx.ident_count in
 				ctx.ident_count <- n + 1;
-				Hashtbl.add ctx.idents str n;
+				Hashtbl.add ctx.idents (str,flag) n;
 				n
 			) in
 			if n <= 0xFF then 
@@ -258,7 +291,7 @@ let getvar ctx = function
 	| VarStr -> write ctx AEval
 	| VarObj -> write ctx AObjGet
 	| VarClosure ->
-		push ctx [VInt 2; VStr "@closure"];
+		push ctx [VInt 2; VStr ("@closure",true)];
 		call ctx VarStr 2
 
 let func ctx need_super need_args args =
@@ -398,7 +431,7 @@ let cfind flag cst e =
 
 let define_var ctx v ef exprs =
 	if ctx.version = 6 || List.exists (cfind false (TLocal v)) exprs then begin
-		push ctx [VStr v];
+		push ctx [VStr (v,false)];
 		ctx.regs <- PMap.add v None ctx.regs;
 		match ef with
 		| None -> 
@@ -496,18 +529,18 @@ let rec gen_constant ctx c p =
 	| TFloat s -> push ctx [VFloat (try float_of_string s with _ -> error p)]
 	| TString s -> 
 		if String.contains s '\000' then Typer.error "A String cannot contain \\0 characters" p;
-		push ctx [VStr s]
+		push ctx [VStr (s,true)]
 	| TBool b -> write ctx (APush [PBool b])
 	| TNull -> push ctx [VNull]
 	| TThis
 	| TSuper -> assert false
 
 let access_local ctx s =
-	match (try PMap.find s ctx.regs with Not_found -> None) with
-	| None ->
-		push ctx [VStr s];
+	match (try PMap.find s ctx.regs , false with Not_found -> None , true) with
+	| None , flag ->
+		push ctx [VStr (s,flag)];
 		VarStr
-	| Some r ->
+	| Some r , _ ->
 		VarReg r
 
 let rec gen_access ctx forcall e =
@@ -515,7 +548,7 @@ let rec gen_access ctx forcall e =
 	| TConst TSuper ->
 		(* for superconstructor *)
 		if ctx.version = 6 then begin
-			push ctx [VStr "super"];
+			push ctx [VStr ("super",true)];
 			VarStr
 		end else if forcall then begin
 			push ctx [VSuper];
@@ -525,18 +558,18 @@ let rec gen_access ctx forcall e =
 			VarReg 2
 	| TConst TThis ->
 		if ctx.version = 6 then begin
-			push ctx [VStr "this"];
+			push ctx [VStr ("this",true)];
 			VarStr
 		end else
 			VarReg 1
 	| TLocal "__arguments__" ->
-		push ctx [VStr "arguments"];
+		push ctx [VStr ("arguments",true)];
 		VarStr
 	| TLocal s ->
 		access_local ctx s
 	| TField (e2,f) ->
 		gen_expr ctx true e2;
-		push ctx [VStr f];
+		push ctx [VStr (f,is_protected ctx e2.etype)];
 		(match follow e.etype with
 		| TFun _ -> VarClosure
 		| _ -> VarObj)
@@ -545,18 +578,19 @@ let rec gen_access ctx forcall e =
 		gen_expr ctx true eb;
 		VarObj
 	| TEnumField (en,f) ->
-		push ctx [VStr (gen_type ctx en.e_path false)];
+		push ctx [VStr (gen_type ctx en.e_path false,false)];
 		write ctx AEval;
-		push ctx [VStr f];
+		push ctx [VStr (f,false)];
 		(match follow e.etype with
 		| TFun _ -> VarClosure
 		| _ -> VarObj)
 	| TType t ->
-		push ctx [VStr (match t with
-			| TClassDecl c -> gen_type ctx c.cl_path c.cl_extern
-			| TEnumDecl e -> gen_type ctx e.e_path false
+		let str , flag = (match t with
+			| TClassDecl c -> gen_type ctx c.cl_path c.cl_extern , is_protected ctx (TInst (c,[]))
+			| TEnumDecl e -> gen_type ctx e.e_path false , false
 			| TSignatureDecl _ -> assert false
-		)];
+		) in
+		push ctx [VStr (str,flag)];
 		VarStr
 	| _ ->
 		if not forcall then error e.epos;
@@ -588,28 +622,28 @@ and gen_try_catch ctx retval e catchs =
 		| None -> 
 			end_throw := false;
 			(* @exc.pop() *)			
-			push ctx [VInt 0;VStr "@exc"];
+			push ctx [VInt 0;VStr ("@exc",true)];
 			write ctx AEval;
-			push ctx [VStr "pop"];
+			push ctx [VStr ("pop",true)];
 			call ctx VarObj 0;
 			write ctx APop;
-			push ctx [VStr name;VReg 0];
+			push ctx [VStr (name,false);VReg 0];
 			write ctx ALocalAssign;
 			gen_expr ctx retval e;			
 			(fun() -> ())
 		| Some t ->
 			getvar ctx (gen_access ctx false (mk (TType t) (mk_mono()) e.epos));
-			push ctx [VReg 0; VInt 2; VStr "@instanceof"];
+			push ctx [VReg 0; VInt 2; VStr ("@instanceof",true)];
 			call ctx VarStr 2;
 			write ctx ANot;
 			let c = cjmp ctx in
 			(* @exc.pop() *)
-			push ctx [VInt 0;VStr "@exc"];
+			push ctx [VInt 0;VStr ("@exc",true)];
 			write ctx AEval;
-			push ctx [VStr "pop"];
+			push ctx [VStr ("pop",true)];
 			call ctx VarObj 0;
 			write ctx APop;
-			push ctx [VStr name; VReg 0];
+			push ctx [VStr (name,false); VReg 0];
 			write ctx ALocalAssign;
 			gen_expr ctx retval e;
 			c
@@ -673,11 +707,11 @@ and gen_match ctx retval e cases def =
 			write ctx APop;
 			[]
 		| [(constr,args,e)] ->
-			push ctx [VStr constr];
+			push ctx [VStr (constr,false)];
 			write ctx APhysEqual;
 			[cjmp ctx,args,e]
 		| (constr,args,e) :: l ->
-			push ctx [VStr constr];
+			push ctx [VStr (constr,false)];
 			write ctx APhysEqual;
 			let j = cjmp ctx in
 			push ctx [VReg rtag];
@@ -836,7 +870,7 @@ and gen_call ctx e el =
 		new_call ctx k nargs
 	| TLocal "__keys__", [e] ->
 		let r = alloc_reg ctx in
-		push ctx [VInt 0; VStr "Array"];
+		push ctx [VInt 0; VStr ("Array",true)];
 		new_call ctx VarStr 0;
 		write ctx (ASetReg r);
 		write ctx APop;
@@ -848,13 +882,15 @@ and gen_call ctx e el =
 		push ctx [VNull];
 		write ctx AEqual;
 		let jump_end = cjmp ctx in
-		push ctx [VReg 0; VInt 1; VReg r; VStr "push"];
+		push ctx [VReg 0; VInt 1; VReg r; VStr ("push",true)];
 		call ctx VarObj 1;
 		write ctx APop;
 		loop false;
 		jump_end();
 		push ctx [VReg r];
 		free_reg ctx r e.epos;
+	| TLocal "__unprotect__", [{ eexpr = TConst (TString s) }] ->
+		push ctx [VStr (s,false)]
 	| _ , _ ->
 		let nargs = List.length el in
 		List.iter (gen_expr ctx true) (List.rev el);
@@ -906,7 +942,7 @@ and gen_expr_2 ctx retval e =
 	| TObjectDecl fl ->
 		let nfields = List.length fl in
 		List.iter (fun (s,v) ->
-			push ctx [VStr s];
+			push ctx [VStr (s,false)];
 			gen_expr ctx true v
 		) fl;
 		push ctx [VInt nfields];
@@ -915,13 +951,18 @@ and gen_expr_2 ctx retval e =
 	| TFunction f ->
 		let block = open_block ctx in
 		let reg_super = cfind true (TConst TSuper) f.tf_expr in
-		ctx.regs <- PMap.empty;
+		(* only keep None bindings, for protect *)
+		ctx.regs <- PMap.foldi (fun v x acc -> 
+			match x with 
+			| None -> PMap.add v None acc
+			| Some _ -> acc
+		) ctx.regs PMap.empty;
 		ctx.reg_count <- (if reg_super then 2 else 1);
 		let rargs = List.map (fun (a,t) ->
 			let no_reg = ctx.version = 6 || cfind false (TLocal a) f.tf_expr in
 			if no_reg then begin
 				ctx.regs <- PMap.add a None ctx.regs;
-				0 , a
+				0 , unprotect a
 			end else begin 
 				let r = alloc_reg ctx in
 				ctx.regs <- PMap.add a (Some r) ctx.regs;
@@ -991,7 +1032,7 @@ and gen_expr_2 ctx retval e =
 		let nargs = List.length el in
 		List.iter (gen_expr ctx true) (List.rev el);
 		push ctx [VInt nargs];
-		push ctx [VStr (gen_type ctx c.cl_path c.cl_extern)];
+		push ctx [VStr (gen_type ctx c.cl_path c.cl_extern,is_protected ctx (TInst (c,[])))];
 		new_call ctx VarStr nargs
 	| TSwitch (e,cases,def) ->
 		gen_switch ctx retval e cases def
@@ -999,9 +1040,9 @@ and gen_expr_2 ctx retval e =
 		(* call @exc.push(e) *)
 		gen_expr ctx true e;
 		write ctx (ASetReg 0);
-		push ctx [VInt 1; VStr "@exc"];
+		push ctx [VInt 1; VStr ("@exc",true)];
 		write ctx AEval;
-		push ctx [VStr "push"];
+		push ctx [VStr ("push",true)];
 		call ctx VarObj 1;
 		write ctx APop;
 		push ctx [VReg 0];
@@ -1023,13 +1064,13 @@ and gen_expr_2 ctx retval e =
 		let loop_end = begin_loop ctx in
 		let cont_pos = ctx.code_pos in
 		let j_begin = pos ctx in
-		push ctx [VInt 0; VReg r; VStr "hasNext"];
+		push ctx [VInt 0; VReg r; VStr ("hasNext",false)];
 		call ctx VarObj 0;
 		write ctx ANot;
 		let j_end = cjmp ctx in
 		let b = open_block ctx in
 		define_var ctx v (Some (fun() -> 
-			push ctx [VInt 0; VReg r; VStr "next"];
+			push ctx [VInt 0; VReg r; VStr ("next",false)];
 			call ctx VarObj 0;
 		)) [e];
 		gen_expr ctx false e;
@@ -1051,12 +1092,12 @@ and gen_expr ctx retval e =
 let gen_class_static_field ctx cclass f =
 	match f.cf_expr with
 	| None ->
-		push ctx [VReg 0; VStr f.cf_name; VNull];
+		push ctx [VReg 0; VStr (f.cf_name,false); VNull];
 		setvar ctx VarObj
 	| Some e ->
 		match e.eexpr with
 		| TFunction _ ->
-			push ctx [VReg 0; VStr f.cf_name];
+			push ctx [VReg 0; VStr (f.cf_name,false)];
 			ctx.curmethod <- f.cf_name;
 			gen_expr ctx true e;
 			setvar ctx VarObj
@@ -1066,14 +1107,14 @@ let gen_class_static_field ctx cclass f =
 let gen_class_static_init ctx (cclass,name,e) =
 	ctx.curclass <- ([],cclass);
 	ctx.curmethod <- name;
-	push ctx [VStr cclass];
+	push ctx [VStr (cclass,false)];
 	write ctx AEval;
-	push ctx [VStr name];
+	push ctx [VStr (name,false)];
 	gen_expr ctx true e;
 	setvar ctx VarObj
 
 let gen_class_field ctx f =
-	push ctx [VReg 1; VStr f.cf_name];
+	push ctx [VReg 1; VStr (f.cf_name,false)];
 	(match f.cf_expr with
 	| None ->
 		push ctx [VNull]
@@ -1083,7 +1124,7 @@ let gen_class_field ctx f =
 	setvar ctx VarObj
 
 let gen_enum_field ctx id f =
-	push ctx [VReg 0; VStr f.ef_name];
+	push ctx [VReg 0; VStr (f.ef_name,false)];
 	(match follow f.ef_type with
 	| TFun (args,r) ->
 		ctx.regs <- PMap.empty;
@@ -1092,50 +1133,51 @@ let gen_enum_field ctx id f =
 		let nregs = List.length rargs + 1 in
 		let tf = func ctx false false rargs in
 		push ctx (List.map (fun (r,_) -> VReg r) (List.rev rargs));		
-		push ctx [VStr f.ef_name; VInt nregs];
+		push ctx [VStr (f.ef_name,false); VInt nregs];
 		write ctx AInitArray;
 		write ctx ADup;
-		push ctx [VStr "__enum__"; VStr id];
+		push ctx [VStr ("__enum__",false); VStr (id,false)];
 		write ctx AEval;
 		write ctx AObjSet;
 		ctx.stack_size <- ctx.stack_size - nregs;
 		write ctx AReturn;
 		tf();
 	| t ->
-		push ctx [VStr f.ef_name; VInt 1];
+		push ctx [VStr (f.ef_name,false); VInt 1];
 		write ctx AInitArray;
 		ctx.stack_size <- ctx.stack_size - 1;
 		write ctx ADup;
-		push ctx [VStr "__enum__"; VReg 0];
+		push ctx [VStr ("__enum__",false); VReg 0];
 		write ctx AObjSet;
 	);
 	write ctx AObjSet
 
 let gen_path ctx (p,t) is_extern =
 	if is_extern then begin
+	let flag = is_protected_name (p,t) is_extern in
 	match p with
 	| [] ->
-		push ctx [VStr t];
+		push ctx [VStr (t,flag)];
 		write ctx AEval
 	| p :: l -> 
-		push ctx [VStr p];
+		push ctx [VStr (p,flag)];
 		write ctx AEval;
 		List.iter (fun p ->
-			push ctx [VStr p];
+			push ctx [VStr (p,flag)];
 			write ctx AObjGet;
 		) l;
-		push ctx [VStr t];
+		push ctx [VStr (t,flag)];
 		write ctx AObjGet
 	end else
 		let id = gen_type ctx (p,t) false in
-		push ctx [VStr id];
+		push ctx [VStr (id,false)];
 		write ctx AEval
 
 let init_name ctx path enum =
-	push ctx [VReg 0; VStr (if enum then "__ename__" else "__name__")];
+	push ctx [VReg 0; VStr ((if enum then "__ename__" else "__name__"),false)];
 	let name = fst path @ [snd path] in
 	let nitems = List.length name in
-	push ctx (List.map (fun s -> VStr s) (List.rev name));
+	push ctx (List.map (fun s -> VStr (s,false)) (List.rev name));
 	push ctx [VInt nitems];
 	write ctx AInitArray;
 	ctx.stack_size <- ctx.stack_size - nitems;
@@ -1152,7 +1194,7 @@ let gen_type_def ctx t =
 		else
 		let id = gen_type ctx c.cl_path false in
 		let have_constr = ref false in
-		push ctx [VStr id];
+		push ctx [VStr (id,false)];
 		let rec loop s =
 			match s.cl_super with
 			| None -> ()
@@ -1175,35 +1217,35 @@ let gen_type_def ctx t =
 		write ctx (ASetReg 0);
 		setvar ctx VarStr;
 		if !have_constr then begin
-			push ctx [VReg 0; VStr "__construct__"; VReg 0];
+			push ctx [VReg 0; VStr ("__construct__",false); VReg 0];
 			setvar ctx VarObj
 		end;
 		init_name ctx c.cl_path false;
-		push ctx [VReg 0; VStr "toString"; VStr "@class_str"];
+		push ctx [VReg 0; VStr ("toString",true); VStr ("@class_str",false)];
 		write ctx AEval;
 		setvar ctx VarObj;
 		(match c.cl_super with
 		| None ->
-			push ctx [VReg 0; VStr "__super__"; VNull];
+			push ctx [VReg 0; VStr ("__super__",false); VNull];
 			setvar ctx VarObj
 		| Some (csuper,_) ->
 			let path = (match csuper.cl_path with (["flash"],x) when csuper.cl_extern -> ([],x) | p -> p) in
-			push ctx [VReg 0; VStr "__super__"];
+			push ctx [VReg 0; VStr ("__super__",false)];
 			gen_path ctx path csuper.cl_extern;
 			setvar ctx VarObj;
 			if ctx.version = 6 then begin
 				(* myclass.prototype.__proto__ = superclass.prototype *)
-				push ctx [VReg 0; VStr "prototype"];
+				push ctx [VReg 0; VStr ("prototype",true)];
 				getvar ctx VarObj;
-				push ctx [VStr "__proto__"];
+				push ctx [VStr ("__proto__",true)];
 				gen_path ctx path csuper.cl_extern;
-				push ctx [VStr "prototype"];
+				push ctx [VStr ("prototype",true)];
 				getvar ctx VarObj;
 				setvar ctx VarObj;
 				(* myclass.prototype.__constructor__ = superclass *)
-				push ctx [VReg 0; VStr "prototype"];
+				push ctx [VReg 0; VStr ("prototype",true)];
 				getvar ctx VarObj;
-				push ctx [VStr "__constructor__"];
+				push ctx [VStr ("__constructor__",true)];
 				gen_path ctx path csuper.cl_extern;
 				setvar ctx VarObj
 			end else begin
@@ -1214,12 +1256,12 @@ let gen_type_def ctx t =
 		);
 		(match c.cl_implements with
 		| [] ->
-			push ctx [VReg 0; VStr "__interfaces__"; VInt 0];
+			push ctx [VReg 0; VStr ("__interfaces__",false); VInt 0];
 			write ctx AInitArray;
 			setvar ctx VarObj;
 		| l ->
 			let nimpl = List.length l in
-			push ctx [VReg 0; VStr "__interfaces__"];
+			push ctx [VReg 0; VStr ("__interfaces__",false)];
 			List.iter (fun (c,_) -> gen_path ctx c.cl_path c.cl_extern) l;
 			push ctx [VInt nimpl];
 			write ctx AInitArray;
@@ -1231,17 +1273,17 @@ let gen_type_def ctx t =
 				write ctx AImplements;
 				ctx.stack_size <- ctx.stack_size - nimpl;
 			end);
-		push ctx [VReg 0; VStr "prototype"];
+		push ctx [VReg 0; VStr ("prototype",true)];
 		getvar ctx VarObj;
 		write ctx (ASetReg 1);
 		write ctx APop;
-		push ctx [VReg 1; VStr "__class__"; VReg 0];
+		push ctx [VReg 1; VStr ("__class__",false); VReg 0];
 		setvar ctx VarObj;
 		List.iter (gen_class_static_field ctx id) c.cl_ordered_statics;
 		PMap.iter (fun _ f -> gen_class_field ctx f) c.cl_fields;
 	| TEnumDecl e ->
 		let id = gen_type ctx e.e_path false in
-		push ctx [VStr id; VInt 0; VStr "Object"];
+		push ctx [VStr (id,false); VInt 0; VStr ("Object",true)];
 		write ctx ANew;
 		write ctx (ASetReg 0);
 		setvar ctx VarStr;
@@ -1253,22 +1295,22 @@ let gen_type_def ctx t =
 let gen_boot ctx hres =
 	let id = gen_type ctx (["flash"],"Boot") false in
 	(* r0 = Boot *)
-	push ctx [VStr id];
+	push ctx [VStr (id,false)];
 	write ctx AEval;
 	write ctx (ASetReg 0);
 	write ctx APop;
 	(* r0.__init(eval("this")) *)
-	push ctx [VStr "this"];
+	push ctx [VStr ("this",true)];
 	write ctx AEval;
-	push ctx [VInt 1; VReg 0; VStr "__init"];
+	push ctx [VInt 1; VReg 0; VStr ("__init",false)];
 	call ctx VarObj 0;
 	write ctx APop;
 	(* r0.__res = hres *)
-	push ctx [VReg 0; VStr "__res"];
+	push ctx [VReg 0; VStr ("__res",false)];
 	let count = ref 0 in
 	Hashtbl.iter (fun name data ->
 		if String.contains data '\000' then failwith ("Resource " ^ name ^ " contains \\0 character than can't be used in Flash");		
-		push ctx [VStr name];
+		push ctx [VStr (name,true)];
 		gen_big_string ctx data;
 		incr count;
 	) hres;
@@ -1279,11 +1321,11 @@ let gen_boot ctx hres =
 
 let gen_movieclip ctx m =
 	let id = gen_type ctx m false in
-	push ctx [VStr id];
+	push ctx [VStr (id,false)];
 	write ctx AEval;
-	push ctx [VStr (s_type_path m); VInt 2; VStr "Object"];
+	push ctx [VStr (s_type_path m,true); VInt 2; VStr ("Object",true)];
 	write ctx AEval;
-	push ctx [VStr "registerClass"];
+	push ctx [VStr ("registerClass",true)];
 	call ctx VarObj 2;
 	write ctx APop
 
@@ -1294,7 +1336,7 @@ let gen_type_map ctx =
 			(if cur = "" then 
 				VarStr
 			else begin 
-				push ctx [VStr cur];
+				push ctx [VStr (cur,false)];
 				write ctx AEval;
 				VarObj
 			end)
@@ -1308,24 +1350,24 @@ let gen_type_map ctx =
 						p
 					else begin
 						let id = gen_ident() in
-						push ctx [VStr id; VStr cur];
+						push ctx [VStr (id,false); VStr (cur,false)];
 						write ctx AEval;
-						push ctx [VStr p];
+						push ctx [VStr (p,false)];
 						write ctx AObjGet;
 						write ctx ASet;
 						id
 					end) in
 					Hashtbl.add packs acc id;
-					push ctx [VStr id];
+					push ctx [VStr (id,false)];
 					write ctx AEval;
 					let defined = cjmp ctx in
-					push ctx [VStr id; VInt 0; VStr "Object"];
+					push ctx [VStr (id,false); VInt 0; VStr ("Object",true)];
 					write ctx ANew;
 					write ctx ASet;
 					if cur <> "" then begin
-						push ctx [VStr cur];
+						push ctx [VStr (cur,false)];
 						write ctx AEval;
-						push ctx [VStr p; VStr id];
+						push ctx [VStr (p,false); VStr (id,false)];
 						write ctx AEval;
 						write ctx AObjSet;
 					end;
@@ -1334,12 +1376,12 @@ let gen_type_map ctx =
 	in
 	Hashtbl.iter (fun (p,t) (n,ext) ->
 		if ext then begin
-			push ctx [VStr n];
+			push ctx [VStr (n,false)];
 			gen_path ctx (p,t) true;
 			write ctx ASet
 		end else begin
 			let k = loop [] "" p in
-			push ctx [VStr t;VStr n];
+			push ctx [VStr (t,false);VStr (n,false)];
 			write ctx AEval;
 			setvar ctx k
 		end
@@ -1398,17 +1440,18 @@ let generate file ver header infile types hres =
 		curmethod = "";
 	} in
 	write ctx (AStringPool []);
-	push ctx [VStr "@class_str"];
+	protect_all := not (Plugin.defined "swf-mark");
+	push ctx [VStr ("@class_str",false)];
 	let f = func ctx false false [] in
-	push ctx [VStr "."; VInt 1];
+	push ctx [VStr (".",true); VInt 1];
 	if ctx.version = 6 then begin
-		push ctx [VStr "this"];
+		push ctx [VStr ("this",true)];
 		write ctx AEval;
 	end else
 		push ctx [VThis];
-	push ctx [VStr "__name__"];
+	push ctx [VStr ("__name__",false)];
 	getvar ctx VarObj;
-	push ctx [VStr "join"];
+	push ctx [VStr ("join",true)];
 	call ctx VarObj 1;
 	write ctx AReturn;
 	ctx.reg_max <- ctx.reg_max + 1;
@@ -1424,18 +1467,23 @@ let generate file ver header infile types hres =
 	let end_try = global_try() in
 	(* flash.Boot.__trace(exc) *)
 	let id = gen_type ctx (["flash"],"Boot") false in
-	push ctx [VStr "fileName"; VStr "(uncaught exception)"; VInt 1];
+	push ctx [VStr ("fileName",false); VStr ("(uncaught exception)",true); VInt 1];
 	write ctx AObject;
 	ctx.stack_size <- ctx.stack_size - 2;
-	push ctx [VReg 0; VInt 2; VStr id];
+	push ctx [VReg 0; VInt 2; VStr (id,false)];
 	write ctx AEval;
-	push ctx [VStr "__trace"];
+	push ctx [VStr ("__trace",false)];
 	call ctx VarObj 2;
 	end_try();
 	let idents = ctx.idents in
 	let idents = Hashtbl.fold (fun ident pos acc -> (ident,pos) :: acc) idents [] in
-	let idents = List.sort (fun (_,p1) (_,p2) -> compare p1 p2) idents in
-	let idents = AStringPool (List.map (fun (id,_) -> to_utf8 id) idents) in
+	let idents = List.sort (fun (_,p1) (_,p2) -> compare p1 p2) idents in	
+	let idents = AStringPool (List.map (fun ((id,flag),_) -> 
+		if flag then
+			to_utf8 id
+		else
+			unprotect (to_utf8 id)
+	) idents) in
 	if ActionScript.action_length idents >= 1 lsl 16 then failwith "The SWF can't handle more than a total size of 64K of identifers and literal strings. Try reducing this number by using external data files loaded at runtime";
 	DynArray.set ctx.opcodes 0 idents;
 	let tag ?(ext=false) d = {
