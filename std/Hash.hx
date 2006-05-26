@@ -83,7 +83,7 @@ class Hash<T> {
 	**/
 	public function exists( key : String ) : Bool {
 		#if flash
-		return untyped h.hasOwnProperty(key);
+		return untyped h["hasOwnProperty"](key);
 		#else js
 		return Reflect.hasField(h,key);
 		#else neko
@@ -98,7 +98,7 @@ class Hash<T> {
 	**/
 	public function remove( key : String ) : Bool {
 		#if flash
-		if( untyped !h.hasOwnProperty(key) ) return false;
+		if( untyped !h["hasOwnProperty"](key) ) return false;
 		untyped __delete__(h,key);
 		return true;
 		#else js
@@ -133,8 +133,8 @@ class Hash<T> {
 		return untyped {
 			ref : h,
 			it : keys(),
-			hasNext : function() { return this.it.hasNext(); },
-			next : function() { var i = this.it.next(); return this.ref[i]; }
+			hasNext : function() { return this.it[__unprotect__("hasNext")](); },
+			next : function() { var i = this.it[__unprotect__("next")](); return this.ref[i]; }
 		};
 		#else js
 		return untyped {

@@ -193,7 +193,7 @@ class Reflect {
 	public static function hasField( o : Dynamic, field : String ) : Bool {
 		untyped{
 		#if flash
-			return this.hasOwnProperty.call(o,field);
+			return this["hasOwnProperty"]["call"](o,field);
 		#else js
 			if( o.hasOwnProperty != null )
 				return o.hasOwnProperty(field);
@@ -255,7 +255,7 @@ class Reflect {
 	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic {
 		return untyped
 		#if flash
-			func.apply(o,args)
+			func["apply"](o,args)
 		#else js
 			func.apply(o,args)
 		#else neko
@@ -421,7 +421,7 @@ class Reflect {
 	public static function isFunction( f : Dynamic ) : Bool {
 		return untyped
 		#if flash
-			f.call == _global["Function"].call && f.__interfaces__ == null
+			f["call"] == _global["Function"].call && f.__interfaces__ == null
 		#else js
 			f != null && f.call == isFunction.call && f.__interfaces__ == null
 		#else neko
@@ -437,7 +437,7 @@ class Reflect {
 	public static function deleteField( o : Dynamic, f : String ) : Bool {
 		#if flash
 			untyped {
-				if( this.hasOwnProperty.call(o,f) == null ) return false;
+				if( this["hasOwnProperty"].call(o,f) == null ) return false;
 				__delete__(o,f);
 				return true;
 			}

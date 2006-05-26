@@ -28,7 +28,7 @@ class Boot {
 
 	private static var exc : Array<Dynamic>;
 
-	private static function __string_rec(o,s) {
+	private static function __string_rec(o : Dynamic,s : String) {
 		untyped {
 			if( s.length >= 20 )
 				return "<...>"; // too much deep recursion
@@ -41,11 +41,11 @@ class Boot {
 			case "object":
 				if( __instanceof__(o,Array) ) {
 					if( o.__enum__ != null ) {
-						if( o.length == 1 )
+						if( o["length"] == 1 )
 							return o[0];
 						var str = o[0]+"(";
 						s += "    ";
-						for( i in 1...o.length ) {
+						for( i in 1...o["length"] ) {
 							if( i != 1 )
 								str += "," + __string_rec(o[i],s);
 							else
@@ -53,7 +53,7 @@ class Boot {
 						}
 						return str + ")";
 					}
-					var l = o.length;
+					var l = o["length"];
 					var i;
 					var str = "[";
 					s += "    ";
@@ -62,7 +62,7 @@ class Boot {
 					str += "]";
 					return str;
 				}
-				var s2 = o.toString();
+				var s2 = o["toString"]();
 				if( (__typeof__(s2) == "string" || __instanceof__(s2,String)) && s2 != "[object Object]" && s2 != "[type Function]" )
 					return s2;
 				var k;
@@ -73,7 +73,7 @@ class Boot {
 				for( k in (__keys__(o)).iterator() ) {
 					if( str.length != 2 )
 						str += ",\n";
-					if( k == "__construct__" && __typeof__(o[k]) == "function" )
+					if( k == __unprotect__("__construct__") && __typeof__(o[k]) == "function" )
 						str += s + k + " : <function>";
 					else
 						str += s + k + " : "+__string_rec(o[k],s);
@@ -160,7 +160,7 @@ class Boot {
 				root.__trace_lines = new Array<String>();
 			}
 			var s = inf.fileName+(if( inf.lineNumber == null ) "" else ":"+inf.lineNumber)+": "+__string_rec(v,"");
-			var lines = root.__trace_lines.concat(s.split("\n"));
+			var lines = root.__trace_lines["concat"](s.split("\n"));
 			root.__trace_lines = lines;
 			var nlines = Stage.height / 16;
 			if( lines.length > nlines )
@@ -179,23 +179,16 @@ class Boot {
 	private static function __init(current) {
 		untyped {
 			var obj = _global["Object"];
-			if( flash.text == null )
-				flash.text = __new__(obj);
-			flash.text.StyleSheet = TextField["StyleSheet"];
-			flash.system = __new__(obj);
-			flash.system.Capabilities = System.capabilities;
-			flash.system.Security = System.security;
-			flash.system.IME = System["IME"];
 			Array.prototype.copy = Array.prototype.slice;
 			Array.prototype.insert = function(i,x) {
-				this.splice(i,0,x);
+				this["splice"](i,0,x);
 			};
 			Array.prototype.remove = function(obj) {
 				var i = 0;
-				var l = this.length;
+				var l = this["length"];
 				while( i < l ) {
 					if( this[i] == obj ) {
-						this.splice(i,1);
+						this["splice"](i,1);
 						return true;
 					}
 					i++;
@@ -246,6 +239,11 @@ class Boot {
 			flash.XMLSocket = _global["XMLSocket"];
 			flash.NetConnection = _global["NetConnection"];
 			flash.NetStream = _global["NetStream"];
+
+			flash.text.StyleSheet = TextField["StyleSheet"];
+			flash.system.Capabilities = System.capabilities;
+			flash.system.Security = System.security;
+			flash.system.IME = System["IME"];
 
 			Lib._global = _global;
 			Lib._root = _root;

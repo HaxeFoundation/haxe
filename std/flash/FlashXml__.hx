@@ -41,13 +41,13 @@ class FlashXml__ {
 		r.__x = o;
 		o.__w = r;
 
-		r.nodeType = switch( o.nodeType ) {
+		r.nodeType = switch( untyped o["nodeType"] ) {
 			case 1:
 				Xml.Element;
 			case 3:
 				Xml.PCData;
 			default:
-				throw "unknow nodeType: "+o.nodeType;
+				throw "unknow nodeType: "+untyped o["nodeType"];
 		}
 
 		return untyped r;
@@ -110,43 +110,43 @@ class FlashXml__ {
 	}
 
 	public function firstChild(){
-		return convert(this.__x.firstChild);
+		return convert(this.__x[untyped "firstChild"]);
 	}
 
 	public function firstElement(){
-		var e : Dynamic = __x.firstChild;
+		var e : Dynamic = __x[untyped "firstChild"];
 		while( e != null && e.nodeType != 1 )
-			e = e.nextSibling;
+			e = e[untyped "nextSibling"];
 		return convert(e);
 	}
 
 	private function setNodeName( n : String ) : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		return __x.nodeName = n;
+		return __x[untyped "nodeName"] = n;
 	}
 
 	private function setNodeValue( v : String ) : String {
 		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
-		return __x.nodeValue = v;
+		return __x[untyped "nodeValue"] = v;
 	}
 
 	private function getNodeName() : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		return __x.nodeName;
+		return __x[untyped "nodeName"];
 	}
 
 	private function getNodeValue() : String {
 		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
-		return __x.nodeValue;
+		return __x[untyped "nodeValue"];
 	}
 
-	public function iterator(){
+	public function iterator() : Iterator<Xml> {
 		return untyped {
-			cur: this.__x.firstChild,
+			cur: this.__x[untyped "firstChild"],
 			hasNext : function(){
 				return this.cur != null;
 			},
@@ -158,9 +158,9 @@ class FlashXml__ {
 		}
 	}
 
-	public function elements(){
+	public function elements() : Iterator<Xml> {
 		return untyped {
-			cur: this.__x.firstChild,
+			cur: this.__x[untyped "firstChild"],
 			hasNext : function() {
 				var r = this.cur;
 				while( r != null && r.nodeType != 1 )
@@ -184,7 +184,7 @@ class FlashXml__ {
 
 	public function elementsNamed( nodeName : String ){
 		return untyped {
-			cur: this.__x.firstChild,
+			cur: this.__x[untyped "firstChild"],
 			hasNext : function() {
 				var r = this.cur;
 				while( r != null && (r.nodeType != 1 || r.nodeName != nodeName) )
@@ -209,62 +209,59 @@ class FlashXml__ {
 	public function get( k : String ) : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		return Reflect.field(__x.attributes,k);
+		return Reflect.field(__x[untyped "attributes"],k);
 	}
 
 	public function set( k : String, v : String ) : Void {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		return Reflect.setField(__x.attributes,k,v);
+		return Reflect.setField(__x[untyped "attributes"],k,v);
 	}
 
 	public function exists( k : String ) : Bool {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		return Reflect.hasField(__x.attributes,k);
+		return Reflect.hasField(__x[untyped "attributes"],k);
 	}
 
 	public function remove( k : String ) : Void {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		Reflect.deleteField(__x.attributes,k);
+		Reflect.deleteField(__x[untyped "attributes"],k);
 	}
 
 	public function attributes() : Iterator<String> {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		return untyped __keys__(__x.attributes).iterator();
+		return untyped __keys__(__x["attributes"]).iterator();
 	}
 
 	public function addChild( child : Xml ) {
-		untyped __x.appendChild(child.__x);
+		untyped __x[untyped "appendChild"](child.__x);
 	}
 
 	public function removeChild( child : Xml ) : Bool {
-		untyped if( child.__x.parentNode != __x )
+		untyped if( child.__x["parentNode"] != __x )
 			return false;
-		untyped child.__x.removeNode();
+		untyped child.__x["removeNode"]();
 		return true;
 	}
 
 	public function insertChild( x : Xml, pos : Int ) : Void {
-		var i = 0;
-		for( c in iterator() ){
-			if( i == pos )
-				untyped __x.insertBefore(x.__x,c.__x);
-			i++;
-		}
+		var c : Array<Dynamic> = __x[untyped "childNodes"];
+		if( pos <= c.length )
+			__x[untyped "insertBefore"](untyped x.__x,c[pos]);
 	}
 
 	public function toString() {
 		if( nodeType == Xml.Document ){
 			var s = "";
 			for( c in iterator() )
-				untyped s += c.__x.toString();
+				s += c.toString();
 			return s;
 		}
 		if( nodeType == Xml.CData )
-			return "<![CDATA["+__x.nodeValue+"]]>";
+			return "<![CDATA["+__x[untyped "nodeValue"]+"]]>";
 		return __x.toString();
 	}
 
