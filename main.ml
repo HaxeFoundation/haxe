@@ -121,6 +121,7 @@ try
 	let has_hxml = ref false in
 	let next = ref (fun() -> ()) in
 	let hres = Hashtbl.create 0 in
+	let excludes = ref [] in
 	Plugin.defines := base_defines;
 	Plugin.verbose := false;
 	Typer.forbidden_packages := ["js"; "neko"; "flash"];
@@ -202,6 +203,17 @@ try
 			| _ ->
 				raise (Arg.Bad "Invalid Resource format : should be file@name")
 		),"<file@name> : add a named resource file");
+		("-exclude",Arg.String (fun file ->
+			let file = (try Plugin.find_file file with Not_found -> file) in
+			let ch = open_in file in
+			let lines = Std.input_list ch in
+			close_in ch;
+			excludes := (List.map (fun l -> 
+				match List.rev (ExtString.String.nsplit l ".") with
+				| [] -> ([],"")
+				| x :: l -> (List.rev l,x)
+			) lines) @ !excludes;
+		),"<filename> : don't generate code for classes listed in this file");
 		("-v",Arg.Unit (fun () -> Plugin.verbose := true),": turn on verbose mode");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
 		("--flash-strict", define "flash_strict", ": more type strict flash API");
@@ -267,7 +279,7 @@ try
 		let ctx = Typer.context type_error warn in
 		List.iter (fun cpath -> ignore(Typer.load ctx cpath Ast.null_pos)) (List.rev !classes);
 		Typer.finalize ctx;
-		let types = Typer.types ctx (!main_class) in
+		let types = Typer.types ctx (!main_class) (!excludes) in
 		(match !target with
 		| No -> ()
 		| Swf file ->

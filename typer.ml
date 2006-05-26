@@ -2081,7 +2081,7 @@ type state =
 	| Done
 	| NotYet
 
-let types ctx main =
+let types ctx main excludes =
 	let types = ref [] in
 	let states = Hashtbl.create 0 in
 	let state p = try Hashtbl.find states p with Not_found -> NotYet in
@@ -2095,9 +2095,16 @@ let types ctx main =
 			prerr_endline ("Warning : maybe loop in static generation of " ^ s_type_path p);
 		| NotYet ->
 			Hashtbl.add states p Generating;
-			(match t with
-			| TClassDecl c -> walk_class p c
-			| TEnumDecl _ | TSignatureDecl _ -> ());
+			let t = (match t with
+			| TClassDecl c ->				
+				walk_class p c;
+				if List.mem c.cl_path excludes then
+					TClassDecl { c with cl_extern = true; cl_init = None }
+				else
+					t
+			| TEnumDecl _ | TSignatureDecl _ ->
+				t
+			) in
 			Hashtbl.replace states p Done;
 			types := t :: !types
 
