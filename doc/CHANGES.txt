@@ -5,6 +5,7 @@
 	added cast without type (less dangerous than untyped)
 	no stage objects by default, added --flash-use-stage
 	added haxe.remoting.DelayedConnection
+	added -exclude
 
 2006-05-25: 1.01
 	added neko.Utf8
