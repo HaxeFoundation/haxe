@@ -317,6 +317,7 @@ and load_type ctx p t =
 					s_pos = p;
 					s_doc = None;
 					s_private = false;
+					s_static = Some c;
 					s_types = c.cl_types;
 					s_type = t;
 				} in
@@ -716,7 +717,8 @@ let type_ident ctx i p get =
 	with Not_found -> try
 		(* static variable lookup *)
 		let f = PMap.find i ctx.curclass.cl_statics in
-		let tt = mk (TType (TClassDecl ctx.curclass)) (mk_mono()) p in
+		(* expr type is not accurate but needed for protect *)
+		let tt = mk (TType (TClassDecl ctx.curclass)) (TInst (ctx.curclass,[])) p in
 		field_access ctx get f (field_type f) tt p
 	with Not_found -> try
 		(* lookup imported *)
@@ -762,6 +764,7 @@ let type_type ctx tpath p =
 			s_pos = c.cl_pos;
 			s_type = TAnon (if pub then PMap.map (fun f -> { f with cf_public = true }) c.cl_statics else c.cl_statics);
 			s_private = true;
+			s_static = Some c;
 			s_types = c.cl_types;
 		} in
 		mk (TType (TClassDecl c)) (TSign (s_tmp,types)) p
@@ -785,6 +788,7 @@ let type_type ctx tpath p =
 			s_pos = e.e_pos;
 			s_type = TAnon fl;
 			s_private = true;
+			s_static = None;
 			s_types = e.e_types;
 		} in
 		mk (TType (TEnumDecl e)) (TSign (s_tmp,types)) p
@@ -1514,6 +1518,12 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let e = type_expr ctx e in
 		ctx.warn (s_type (print_context()) e.etype) e.epos;
 		e
+	| ECall ((EConst (Ident "__unprotect__"),_),[(EConst (String _),_) as e]) ->
+		let e = type_expr ctx e in
+		if Plugin.defined "flash" then
+			mk (TCall (mk (TLocal "__unprotect__") (mk_mono()) p,[e])) e.etype e.epos
+		else
+			e
 	| ECall ((EConst (Ident "super"),sp),el) ->
 		let el = List.map (type_expr ctx) el in
 		if ctx.in_static || not ctx.in_constructor then error "Cannot call superconstructor outside class constructor" p;
@@ -1935,6 +1945,7 @@ let type_module ctx m tdecls loadp =
 				s_doc = doc;
 				s_private = priv;
 				s_types = [];
+				s_static = None;
 				s_type = mk_mono();
 			} in
 			decls := TSignatureDecl s :: !decls
@@ -2181,19 +2192,21 @@ let types ctx main excludes =
 	| None -> ()
 	| Some cl ->
 		let t = load_type_def ctx null_pos cl in
-		(match t with
+		let cmain = (match t with
 		| TEnumDecl _ | TSignatureDecl _ ->
 			error ("Invalid -main : " ^ s_type_path cl ^ " is not a class") null_pos
 		| TClassDecl c ->
 			try
 				let f = PMap.find "main" c.cl_statics in
-				match follow (field_type f) with
+				(match follow (field_type f) with
 				| TFun ([],_) -> ()
-				| _ -> error ("Invalid -main : " ^ s_type_path cl ^ " has invalid main function") null_pos
+				| _ -> error ("Invalid -main : " ^ s_type_path cl ^ " has invalid main function") null_pos);
+				c
 			with
 				Not_found -> error ("Invalid -main : " ^ s_type_path cl ^ " does not have static function main") null_pos
-		);
+		) in
 		let path = ([],"@Main") in
+		let tmain = TInst (cmain,List.map snd cmain.cl_types) in
 		let c = mk_class path null_pos None true in
 		let f = {
 			cf_name = "init";
@@ -2203,7 +2216,7 @@ let types ctx main excludes =
 			cf_set = NormalAccess;
 			cf_doc = None;
 			cf_params = [];
-			cf_expr = Some (mk (TCall (mk (TField (mk (TType t) (mk_mono()) null_pos,"main")) (mk_mono()) null_pos,[])) (mk_mono()) null_pos);
+			cf_expr = Some (mk (TCall (mk (TField (mk (TType t) tmain null_pos,"main")) (mk_mono()) null_pos,[])) (mk_mono()) null_pos);
 		} in
 		c.cl_statics <- PMap.add "init" f c.cl_statics;
 		c.cl_ordered_statics <- f :: c.cl_ordered_statics;
