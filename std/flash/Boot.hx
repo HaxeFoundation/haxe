@@ -102,8 +102,8 @@ class Boot {
 				var me = __arguments__.callee;
 				return me.f.apply(me.o,__arguments__);
 			};
-			f2.f = m;
-			f2.o = o;
+			f2["f"] = m;
+			f2["o"] = o;
 			return f2;
 		}
 	}
