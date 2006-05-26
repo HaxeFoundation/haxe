@@ -258,6 +258,10 @@ class Boot {
 			current["@closure"] = untyped __closure;
 			exc = new Array();
 			current["@exc"] = exc;
+
+			// fix firefox default alignement
+			if( flash.Stage.align == "" )
+				flash.Stage.align = "LT";
 		}
 	}
 
