@@ -133,6 +133,7 @@ and tsignature = {
 	s_pos : Ast.pos;
 	s_doc : Ast.documentation;
 	s_private : bool;
+	s_static : tclass option;
 	mutable s_types : (string * t) list;
 	mutable s_type : t;
 }
