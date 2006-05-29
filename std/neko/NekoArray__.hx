@@ -117,6 +117,8 @@ class NekoArray__<T> implements Array<T> {
 
 	public function pop() {
 		untyped {
+			if( this.length == 0 )
+				return null;
 			this.length -= 1;
 			var x = this.__a[this.length];
 			this.__a[this.length] = null;
