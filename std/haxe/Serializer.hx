@@ -131,8 +131,9 @@ class Serializer {
 		}
 		#else true
 		serializeString(v[0]);
-		buf.add(v.length - 1);
-		for( i in 1...v.length )
+		var l = v[untyped "length"];
+		buf.add(l - 1);
+		for( i in 1...l )
 			serialize(v[i]);
 		#end
 	}
@@ -179,7 +180,7 @@ class Serializer {
 			#end
 			var ucount = 0;
 			buf.add("a");
-			for( i in 0...v.length ) {
+			for( i in 0...v[untyped "length"] ) {
 				if( v[i] == null )
 					ucount++;
 				else {
