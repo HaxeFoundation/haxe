@@ -6,6 +6,7 @@
 	no stage objects by default, added --flash-use-stage
 	added haxe.remoting.DelayedConnection
 	added -exclude
+	removed classpath from neko debug infos filenames
 
 2006-05-25: 1.01
 	added neko.Utf8
