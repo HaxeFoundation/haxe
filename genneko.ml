@@ -30,9 +30,27 @@ type context = {
 let error msg p =
 	raise (Typer.Error (Typer.Custom msg,p))
 
+let files = Hashtbl.create 0
+
 let pos p =
+	let file = (try
+		Hashtbl.find files p.pfile 
+	with Not_found -> try
+		let len = String.length p.pfile in
+		let base = List.find (fun path -> 
+			let l = String.length path in
+			len > l  && String.sub p.pfile 0 l = path
+		) (!Plugin.class_path) in
+		let l = String.length base in
+		let path = String.sub p.pfile l (len - l) in
+		Hashtbl.add files p.pfile path;
+		path
+	with Not_found ->
+		Hashtbl.add files p.pfile p.pfile;
+		p.pfile
+	) in
 	{
-		psource = p.pfile;
+		psource = file;
 		pline = Lexer.get_error_line p;
 	}
 
