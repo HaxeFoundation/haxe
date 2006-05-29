@@ -162,6 +162,8 @@ let new_call ctx kind n  =
 
 let always_protected = function
 	| "prototype" | "toString" | "__resolve" | "__constructor__" | "__proto__" -> true
+	(*// haxe.PosInfos *)
+	| "fileName" | "lineNumber" | "className" | "methodName" | "customParams" -> true
 	| s ->
 		if String.length s > 0 && s.[0] = '$' then
 			true
