@@ -118,6 +118,14 @@ class List<T> {
 	}
 
 	/**
+		Makes the list empty.
+	**/
+	public function clear() : Void {
+		h = null;
+		length = 0;
+	}
+
+	/**
 		Remove the first element that is [== v] from the list.
 		Returns [true] if an element was removed, [false] otherwise.
 	**/
