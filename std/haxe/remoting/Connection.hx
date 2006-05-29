@@ -29,8 +29,6 @@ class Connection implements Dynamic<Connection> {
 	var __data : Dynamic;
 	var __path : Array<String>;
 
-	static var cnx = __unprotect__("haxe")+__unprotect__("remoting")+__unprotect__("Connection");
-
 	function new( data, path ) {
 		__data = data;
 		__path = path;
@@ -50,7 +48,7 @@ class Connection implements Dynamic<Connection> {
 		var s = new haxe.Serializer();
 		s.serialize(params);
 		var params = s.toString().split("\\").join("\\\\");
-		var s = flash.external.ExternalInterface.call(cnx+"."+__unprotect__("doCall"),path,f,params);
+		var s = flash.external.ExternalInterface.call("haxe.remoting.Connection.doCall",path,f,params);
 		if( s == null )
 			throw "Failed to call JS method "+__path.join(".");
 		return new haxe.Unserializer(s).unserialize();
