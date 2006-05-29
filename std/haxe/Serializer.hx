@@ -180,7 +180,8 @@ class Serializer {
 			#end
 			var ucount = 0;
 			buf.add("a");
-			for( i in 0...v[untyped "length"] ) {
+			var l = #if neko v.length #else true v[untyped "length"] #end;
+			for( i in 0...l ) {
 				if( v[i] == null )
 					ucount++;
 				else {
