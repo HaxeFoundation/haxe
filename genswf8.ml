@@ -162,7 +162,11 @@ let new_call ctx kind n  =
 
 let always_protected = function
 	| "prototype" | "toString" | "__resolve" -> true
-	| _ -> false
+	| s ->
+		if String.length s > 0 && s.[0] = '$' then
+			true
+		else
+			false
 
 let unprotect a =
 	if !protect_all || always_protected a then 

@@ -139,12 +139,19 @@ let array p el =
 let pmap_list f p =
 	PMap.fold (fun v acc -> f v :: acc) p []
 
+let no_dollar t =
+	if t.[0] = '$' then
+		String.sub t 1 (String.length t - 1)
+	else
+		t
+
 let gen_type_path p (path,t) =
 	match path with
-	| [] -> ident p t
+	| [] -> 
+		ident p (no_dollar t)
 	| path :: l ->
 		let epath = List.fold_left (fun e path -> field p e path) (ident p path) l in
-		field p epath t
+		field p epath (no_dollar t)
 
 let gen_constant pe c =
 	let p = pos pe in

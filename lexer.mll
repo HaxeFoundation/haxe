@@ -119,6 +119,9 @@ let mk_ident lexbuf =
 	| s ->
 		mk lexbuf (try Kwd (Hashtbl.find keywords s) with Not_found -> Const (Ident s))
 
+let invalid_char lexbuf =
+	error (Invalid_character (lexeme_char lexbuf 0)) (lexeme_start lexbuf)
+
 }
 
 let ident = ['_' 'a'-'z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9']*
@@ -225,7 +228,15 @@ rule token = parse
 		}	
 	| ident { mk_ident lexbuf }
 	| idtype { mk lexbuf (Const (Type (lexeme lexbuf))) }
-	| _ { error (Invalid_character (lexeme_char lexbuf 0)) (lexeme_start lexbuf) }
+	| '$' ident {
+			if not (Plugin.defined "swf-mark") then invalid_char lexbuf;
+			mk_ident lexbuf
+		}
+	| '$' idtype {
+			if not (Plugin.defined "swf-mark") then invalid_char lexbuf;
+			mk lexbuf (Const (Type (lexeme lexbuf)))
+		}
+	| _ { invalid_char lexbuf }
 
 and comment = parse
 	| eof { raise Exit }
