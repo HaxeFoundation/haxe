@@ -161,7 +161,7 @@ let new_call ctx kind n  =
 	ctx.stack_size <- ctx.stack_size - n
 
 let always_protected = function
-	| "prototype" | "toString" | "__resolve" -> true
+	| "prototype" | "toString" | "__resolve" | "__constructor__" | "__proto__" -> true
 	| s ->
 		if String.length s > 0 && s.[0] = '$' then
 			true
