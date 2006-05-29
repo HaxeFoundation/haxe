@@ -469,7 +469,7 @@ let gen_class ctx c =
 	),p) in
 	let emeta = (EBinop ("=",field p clpath "__class__",stpath),p) ::
 		match c.cl_path with
-		| [] , name -> [(EBinop ("=",field p (ident p "@classes") name,ident p name),p)]
+		| [] , name -> [(EBinop ("=",field p (ident p "@classes") name,ident p (no_dollar name)),p)]
 		| _ -> []
 	in
 	(EBlock ([eclass; estat; call p (builtin p "objsetproto") [clpath; esuper]] @ emeta),p)	
@@ -499,7 +499,7 @@ let gen_enum_constr path c =
 
 let gen_enum e =
 	let p = pos e.e_pos in
-	let path = gen_type_path p e.e_path in
+	let path = gen_type_path p (fst e.e_path,no_dollar (snd e.e_path)) in
 	(EBlock (
 		(EBinop ("=",path, call p (builtin p "new") [null p]),p) ::
 		(EBinop ("=",field p path "prototype", (EObject [
@@ -509,7 +509,7 @@ let gen_enum e =
 		],p)),p) ::
 		pmap_list (gen_enum_constr path) e.e_constrs @
 		match e.e_path with
-		| [] , name -> [EBinop ("=",field p (ident p "@classes") name,ident p name),p]
+		| [] , name -> [EBinop ("=",field p (ident p "@classes") name,ident p (no_dollar name)),p]
 		| _ -> []
 	),p)
 
@@ -564,7 +564,7 @@ let gen_package h t =
 				Hashtbl.add h path ();
 				(match acc with
 				| [] ->
-					let reg = (EBinop ("=",field p (ident p "@classes") x,ident p x),p) in
+					let reg = (EBinop ("=",field p (ident p "@classes") x,ident p (no_dollar x)),p) in
 					e :: reg :: loop path l
 				| _ ->
 					e :: loop path l)
