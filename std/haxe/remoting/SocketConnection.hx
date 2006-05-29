@@ -172,7 +172,7 @@ class SocketConnection extends AsyncConnection {
 			#end
 			var fptr = Reflect.field(obj,fname);
 			if( !Reflect.isFunction(fptr) )
-				throw "Calling not-a-function '"+fname+"'";
+				throw "Calling not-a-function '"+path.join(".")+"."+fname+"'";
 			val = Reflect.callMethod(obj,fptr,args);
 		} catch( e : Dynamic ) {
 			val = e;
