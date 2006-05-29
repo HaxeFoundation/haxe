@@ -158,33 +158,16 @@ class Reflect {
 		Creates an instance of the given class with the list of constructor arguments.
 	**/
 	public static function createInstance( cl : Dynamic, args : Array<Dynamic> ) : Dynamic {
-		if( args.length > 5 )
-			throw "Too many arguments";
-		return untyped
 		#if flash
-			switch( args.length ) {
-			case 0:
-				__new__(cl);
-			case 1:
-				__new__(cl,args[0]);
-			case 2:
-				__new__(cl,args[0],args[1]);
-			case 3:
-				__new__(cl,args[0],args[1],args[2]);
-			case 4:
-				__new__(cl,args[0],args[1],args[2],args[3]);
-			case 5:
-				__new__(cl,args[0],args[1],args[2],args[3],args[4]);
-			default:
-				null;
-			}
+			var o = { __constructor__ : cl, __proto__ : cl.prototype };
+			return cl[untyped "apply"](o,args);
 		#else neko
-			__dollar__call(__dollar__objget(cl,__dollar__hash("new".__s)),cl,args.__a)
+			return untyped __dollar__call(__dollar__objget(cl,__dollar__hash("new".__s)),cl,args.__a);
 		#else js
-			__new__(cl,args[0],args[1],args[2],args[3],args[4])
+			var o = { __constructor__ : cl, __proto__ : cl.prototype };
+			return cl.apply(o,args);
 		#else error
 		#end
-			;
 	}
 
 	/**
