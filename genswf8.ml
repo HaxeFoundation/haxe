@@ -630,7 +630,10 @@ and gen_try_catch ctx retval e catchs =
 			write ctx APop;
 			push ctx [VStr (name,false);VReg 0];
 			write ctx ALocalAssign;
-			gen_expr ctx retval e;			
+			let block = open_block ctx in
+			ctx.regs <- PMap.add name None ctx.regs;
+			gen_expr ctx retval e;
+			block();
 			(fun() -> ())
 		| Some t ->
 			getvar ctx (gen_access ctx false (mk (TType t) (mk_mono()) e.epos));
@@ -646,7 +649,10 @@ and gen_try_catch ctx retval e catchs =
 			write ctx APop;
 			push ctx [VStr (name,false); VReg 0];
 			write ctx ALocalAssign;
+			let block = open_block ctx in
+			ctx.regs <- PMap.add name None ctx.regs;
 			gen_expr ctx retval e;
+			block();
 			c
 		) in
 		if retval then ctx.stack_size <- ctx.stack_size - 1;
