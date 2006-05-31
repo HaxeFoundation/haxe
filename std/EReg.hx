@@ -221,7 +221,8 @@ class EReg {
 				p.pos += 1;
 			}
 			b.addSub(s,pos,p.pos-pos);
-			b.add(a[0]);
+			if( a.length > 0 )
+				b.add(a[0]);
 			for( i in 1...a.length ) {
 				var k = a[i];
 				var c = k.charCodeAt(0);
