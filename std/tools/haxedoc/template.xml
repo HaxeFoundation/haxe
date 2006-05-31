@@ -80,6 +80,12 @@ a.package {
 	padding : 5 5 5 5;
 }
 
+.importmod {
+	margin-top : -20px;
+	margin-left: 20px;
+	color : #777;
+}
+
 dd {
 	margin : 0 20 20 40;
 	font-size : 12pt;
