@@ -159,20 +159,21 @@ private class DocField {
 				return link("Dynamic",curp);
 			return link("Dynamic",curp) + "&lt;" + typeToString(t,curp) + "&gt;";
 		case tfunction(params,ret):
-			var s = new StringBuf();
-			s.add("(");
-			var first = true;
-			for( p in params ) {
-				if( first )
-					first = false;
-				else
-					s.add(", ");
-				s.add(p.name);
-				s.add(" : ");
-				s.add(typeToString(p.t,curp));
+			var buf = new StringBuf();
+			if( params.length == 0 )
+				buf.add("Void -> ");
+			else {
+				for( p in params ) {
+					if( p.name != "" ) {
+						buf.add(p.name);
+						buf.add(" : ");
+					}
+					buf.add(funToString(p.t,true,curp));
+					buf.add(" -> ");
+				}
 			}
-			s.add(") : ");
-			return s.toString() + typeToString(ret,curp);
+			buf.add(funToString(ret,false,curp));
+			return buf.toString();
 		case tparam(cl,name):
 			return if( cl != parent.path ) link(cl,curp) + "." + name else name;
 		case tconstr(params):
@@ -194,76 +195,147 @@ private class DocField {
 		return null;
 	}
 
+	public function funToString( t, isarg, curp ) {
+		var parent =
+		switch( t ) {
+		case tfunction(_,_): true;
+		case tenum(name,_): isarg && name == "Void";
+		default: false;
+		}
+		if( parent )
+			return "(" + typeToString(t,curp) + ")";
+		else
+			return typeToString(t,curp);
+	}
+
+	public function methToString( t, curp ) {
+		switch( t ) {
+		case tfunction(params,ret):
+			var s = new StringBuf();
+			s.add("(");
+			var first = true;
+			for( p in params ) {
+				if( first )
+					first = false;
+				else
+					s.add(", ");
+				if( p.name == "" )
+					return typeToString(t,curp);
+				s.add(p.name);
+				s.add(" : ");
+				s.add(typeToString(p.t,curp));
+			}
+			s.add(") : ");
+			s.add(typeToString(ret,curp));
+			return s.toString();
+		default:
+			return typeToString(t,curp);
+		}
+	}
+
 }
 
 private class DocClass {
 
 	public var path : String;
+	public var module : String;
 	public var name : String;
 	public var doc : String;
-	public var isEnum : Bool;
 	public var params : Array<String>;
 	public var fields : Array<DocField>;
+	public var isPrivate : Bool;
 
-	public function new( path, e ) {
+	public function new( path ) {
 		this.path = path;
-		isEnum = e;
 		fields = new Array();
 		params = new Array();
+	}
+
+	function genName( s : StringBuf ) {
+		s.add("class ");
+		s.add(path);
+	}
+
+	function genBody( s : StringBuf, curp ) {
+		for( f in fields ) {
+			s.add("<dt>");
+			if( f.isStatic )
+				s.add("static ");
+			if( f.isVar() )
+				s.add("var ");
+			else
+				s.add("function ");
+			s.add(f.name);
+			if( f.isVar() )
+				s.add(" : ");
+			s.add(f.methToString(f.type,curp));
+			s.add("</dt>");
+			s.add("<dd>");
+			if( f.doc != null ) s.add(f.doc);
+			s.add("</dd>");
+		}
 	}
 
 	public function toString() {
 		var s = new StringBuf();
 		var curp = path.split(".");
 		s.add("<div class=\"classname\">");
-		s.add(if( isEnum ) "enum " else "class ");
-		s.add(path);
+		if( isPrivate )
+			s.add("private ");
+		genName(s);
 		if( params.length > 0 ) {
 			s.add("&lt;");
 			s.add(params.join(", "));
 			s.add("&gt;");
 		}
 		s.add("</div>");
+		if( module != null ) {
+			s.add("<div class=\"importmod\">");
+			s.add("import "+module);
+			s.add("</div>");
+		}
 		if( doc != null ) {
 			s.add("<div class=\"classdoc\">");
 			s.add(doc);
 			s.add("</div>");
 		}
 		s.add("<dl>");
-		if( isEnum ) {
-			for( f in fields ) {
-				s.add("<dt>");
-				s.add(f.name);
-				if( f.type != null )
-					s.add(f.typeToString(f.type,curp));
-				s.add("</dt>");
-				s.add("<dd>");
-				if( f.doc != null ) s.add(f.doc);
-				s.add("</dd>");
-			}
-		} else {
-			for( f in fields ) {
-				s.add("<dt>");
-				if( f.isStatic )
-					s.add("static ");
-				if( f.isVar() )
-					s.add("var ");
-				else
-					s.add("function ");
-				s.add(f.name);
-				if( f.isVar() )
-					s.add(" : ");
-				s.add(f.typeToString(f.type,curp));
-				s.add("</dt>");
-				s.add("<dd>");
-				if( f.doc != null ) s.add(f.doc);
-				s.add("</dd>");
-			}
-		}
+		genBody(s,curp);
 		s.add("</dl>");
 		return s.toString();
 	}
 
+}
+
+
+private class DocEnum extends DocClass {
+
+	function genName( s : StringBuf ) {
+		s.add("enum ");
+		s.add(path);
+	}
+
+	function genBody( s : StringBuf, curp ) {
+		for( f in fields ) {
+			s.add("<dt>");
+			s.add(f.name);
+			if( f.type != null )
+				s.add(f.methToString(f.type,curp));
+			s.add("</dt>");
+			s.add("<dd>");
+			if( f.doc != null ) s.add(f.doc);
+			s.add("</dd>");
+		}
+	}
+
+}
+
+private class DocSign extends DocClass {
+
+	function genName( s : StringBuf ) {
+		s.add("signature ");
+		s.add(path);
+	}
 }
 
 private enum DocEntry {
@@ -317,6 +389,11 @@ class DocView {
 		}
 	}
 
+	static function docFormat( doc : String ) : String {
+		doc = ~/\[([^\]]+)\]/g.replace(doc,"<code>$1</code>");
+		return doc;
+	}
+
 	static function processField( c : DocClass, x : Xml ) {
 		var stat = x.get("static") == "1";
 		var nl = x.elements();
@@ -325,26 +402,40 @@ class DocView {
 		f.parent = c;
 		var doc = nl.next();
 		if( doc != null )
-			f.doc = doc.firstChild().nodeValue;
+			f.doc = docFormat(doc.firstChild().nodeValue);
 		return f;
 	}
 
 	static function processClass(x : Xml) {
 		var path = x.get("path");
-		if( x.get("private") == "1" )
-			return;
 		if( StringTools.endsWith(path,"__") )
 			return;
 		if( findEntry(entries,path.split(".")) != null ) {
 			// MERGE ?
 			return;
 		}
-		var c = new DocClass(path,x.nodeName != "class");
-		c.params = x.get("params").split(":");
-		if( c.isEnum ) {
+		var c : DocClass;
+		switch( x.nodeName ) {
+		case "class":
+			c = new DocClass(path);
 			for( m in x.elements() ) {
 				if( m.nodeName == "haxe:doc" ) {
-					c.doc = m.firstChild().nodeValue;
+					c.doc = docFormat(m.firstChild().nodeValue);
+					continue;
+				}
+				if( m.get("public") == "1" )
+					c.fields.push(processField(c,m));
+			}
+		case "signature":
+			var s = new DocSign(path);
+			// TODO
+			c = s;
+		case "enum":
+			var e = new DocEnum(path);
+			c = e;
+			for( m in x.elements() ) {
+				if( m.nodeName == "haxe:doc" ) {
+					c.doc = docFormat(m.firstChild().nodeValue);
 					continue;
 				}
 				var l = Lambda.array(m.elements());
@@ -362,17 +453,18 @@ class DocView {
 				f.parent = c;
 				c.fields.push(f);
 			}
-		} else {
-			for( m in x.elements() ) {
-				if( m.nodeName == "haxe:doc" ) {
-					c.doc = m.firstChild().nodeValue;
-					continue;
-				}
-				if( m.get("public") == "1" )
-					c.fields.push(processField(c,m));
-			}
+		default:
+			throw x.nodeName;
 		}
+		c.isPrivate = x.get("private") == "1";
+		// original path
+		if( c.isPrivate )
+			c.path = ~/_[A-Za-z0-9]+\./.replace(c.path,"");
+		c.module = x.get("module");
+		c.params = x.get("params").split(":");
 		c.fields.sort(function(f1 : DocField,f2 : DocField) {
+			if( f1.isStatic && !f2.isStatic )
+				return 1;
 			var v1 = f1.isVar();
 			var v2 = f2.isVar();
 			if( v1 && !v2 )
@@ -467,7 +559,7 @@ class DocView {
 				display(p);
 				print("</div></li>");
 			case eclass(c):
-				if( c.fields.length > 0 )
+				if( !c.isPrivate )
 					print("<li>"+Url.make(c.path.split(".").join("/"),"entry",c.name)+"</li>");
 			}
 		}
