@@ -71,25 +71,27 @@ let gen_field att f =
 	let att = (match f.cf_expr with None -> att | Some e -> ("line",string_of_int (Lexer.get_error_line e.epos)) :: att) in
 	node f.cf_name (if f.cf_public then ("public","1") :: att else att) (gen_type f.cf_type :: gen_doc_opt f.cf_doc)
 
-let gen_type_params priv path params pos =
+let gen_type_params priv path params pos m =
 	let priv = (if priv then [("private","1")] else []) in
-	gen_path path :: ("params", String.concat ":" (List.map fst params)) :: ("file",pos.pfile) :: priv
+	let mpath = (if m.mpath <> path then [("module",snd (gen_path m.mpath))] else []) in
+	gen_path path :: ("params", String.concat ":" (List.map fst params)) :: ("file",pos.pfile) :: (priv @ mpath)
 
-let gen_type t =
+let gen_type ctx t =
+	let m = Typer.module_of_type ctx t in
 	match t with
 	| TClassDecl c -> 
 		let stats = pmap (gen_field ["static","1"]) c.cl_statics in
 		let fields = pmap (gen_field []) c.cl_fields in
 		let constr = (match c.cl_constructor with None -> [] | Some f -> [gen_field [] f]) in
 		let doc = gen_doc_opt c.cl_doc in
-		node "class" (gen_type_params c.cl_private c.cl_path c.cl_types c.cl_pos) (stats @ fields @ constr @ doc)
+		node "class" (gen_type_params c.cl_private c.cl_path c.cl_types c.cl_pos m) (stats @ fields @ constr @ doc)
 	| TEnumDecl e ->
 		let doc = gen_doc_opt e.e_doc in
-		node "enum" (gen_type_params e.e_private e.e_path e.e_types e.e_pos) (pmap gen_constr e.e_constrs @ doc)
+		node "enum" (gen_type_params e.e_private e.e_path e.e_types e.e_pos m) (pmap gen_constr e.e_constrs @ doc)
 	| TSignatureDecl s ->
 		let doc = gen_doc_opt s.s_doc in
 		let t = [] in
-		node "signature" (gen_type_params false s.s_path [] s.s_pos) (t @ doc)
+		node "signature" (gen_type_params s.s_private s.s_path s.s_types s.s_pos m) (t @ doc)
 
 let att_str att = 
 	String.concat "" (List.map (fun (a,v) -> Printf.sprintf " %s=\"%s\"" a v) att)
@@ -114,8 +116,8 @@ let rec write_xml ch tabs x =
 	| CData s ->
 		IO.printf ch "<![CDATA[%s]]>" s
 
-let generate file types =
-	let x = node "haxe" [] (List.map gen_type types) in
+let generate file ctx types =
+	let x = node "haxe" [] (List.map (gen_type ctx) types) in
 	let ch = IO.output_channel (open_out file) in
 	write_xml ch "" x;
 	IO.close_out ch

@@ -2087,6 +2087,19 @@ let rec finalize ctx =
 		List.iter (fun f -> f()) l;
 		finalize ctx
 
+let module_of_type ctx t =
+	let mfound = ref ctx.current in
+	try 
+		Hashtbl.iter (fun _ m ->
+			if List.mem t m.mtypes then begin
+				mfound := m;
+				raise Exit;
+			end;
+		) ctx.modules;
+		assert false;
+	with 
+		Exit -> !mfound
+
 type state =
 	| Generating
 	| Done

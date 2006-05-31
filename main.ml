@@ -296,7 +296,7 @@ try
 		| None -> ()
 		| Some file ->
 			if !Plugin.verbose then print_endline ("Generating xml : " ^ file);
-			Genxml.generate file types);
+			Genxml.generate file ctx types);
 	end;
 	if !has_error then do_exit();
 	(!next)();
