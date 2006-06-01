@@ -8,7 +8,8 @@
 	added -exclude
 	removed classpath from neko debug infos filenames
 	fixed bug in Neko empty Array.pop and Neko EReg.replace ""
-	improved DocView : formating, signatures, files generation
+	fixed nodeValue for Neko XML comments, doctype, prolog
+	improved DocView : formating, signatures, files generation	
 
 2006-05-25: 1.01
 	added neko.Utf8
