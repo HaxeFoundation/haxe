@@ -279,6 +279,7 @@ try
 		let ctx = Typer.context type_error warn in
 		List.iter (fun cpath -> ignore(Typer.load ctx cpath Ast.null_pos)) (List.rev !classes);
 		Typer.finalize ctx;
+		if !has_error then do_exit();
 		let types = Typer.types ctx (!main_class) (!excludes) in
 		(match !target with
 		| No -> ()
@@ -298,7 +299,6 @@ try
 			if !Plugin.verbose then print_endline ("Generating xml : " ^ file);
 			Genxml.generate file ctx types);
 	end;
-	if !has_error then do_exit();
 	(!next)();
 with	
 	| Lexer.Error (m,p) -> report (Lexer.error_msg m) p
