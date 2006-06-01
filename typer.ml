@@ -2096,7 +2096,12 @@ let module_of_type ctx t =
 				raise Exit;
 			end;
 		) ctx.modules;
-		assert false;
+		(* @Main, other generated classes ? *)
+		{
+			mtypes = [t];
+			mpath = t_path t;
+			mimports = [];
+		}
 	with 
 		Exit -> !mfound
 
@@ -2220,7 +2225,7 @@ let types ctx main excludes =
 		) in
 		let path = ([],"@Main") in
 		let tmain = TInst (cmain,List.map snd cmain.cl_types) in
-		let c = mk_class path null_pos None true in
+		let c = mk_class path null_pos None false in
 		let f = {
 			cf_name = "init";
 			cf_type = mk_mono();
