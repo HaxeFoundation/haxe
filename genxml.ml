@@ -33,8 +33,8 @@ let cdata s = CData s
 let pmap f m = 
 	PMap.fold (fun x acc -> f x :: acc) m []
 
-let gen_path (p,n) =
-	("path",String.concat "." (p @ [n]))
+let gen_path (p,n) priv =
+	("path",String.concat "." ((if n.[0] != '#' && priv then List.rev (List.tl (List.rev p)) else p) @ [n]))
 
 let gen_doc s = 
 	let f = if String.contains s '<' || String.contains s '>' || String.contains s '&' then	cdata else pcdata in
@@ -48,9 +48,9 @@ let gen_doc_opt d =
 let rec gen_type t =
 	match t with
 	| TMono m -> (match !m with None -> tag "unknown" | Some t -> gen_type t)
-	| TEnum (e,params) -> node "e" [gen_path e.e_path] (List.map gen_type params)
-	| TInst (c,params) -> node "c" [gen_path c.cl_path] (List.map gen_type params)
-	| TSign (s,params) -> node "s" [gen_path s.s_path] (List.map gen_type params)
+	| TEnum (e,params) -> node "e" [gen_path e.e_path e.e_private] (List.map gen_type params)
+	| TInst (c,params) -> node "c" [gen_path c.cl_path c.cl_private] (List.map gen_type params)
+	| TSign (s,params) -> node "s" [gen_path s.s_path s.s_private] (List.map gen_type params)
 	| TFun (args,r) -> node "f" ["a",String.concat ":" (List.map fst args)] (List.map gen_type (List.map snd args @ [r]))
 	| TAnon fields -> node "a" [] (pmap (fun f -> node f.cf_name [] [gen_type f.cf_type]) fields)
 	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
@@ -72,9 +72,9 @@ let gen_field att f =
 	node f.cf_name (if f.cf_public then ("public","1") :: att else att) (gen_type f.cf_type :: gen_doc_opt f.cf_doc)
 
 let gen_type_params priv path params pos m =
-	let priv = (if priv then [("private","1")] else []) in
-	let mpath = (if m.mpath <> path then [("module",snd (gen_path m.mpath))] else []) in
-	gen_path path :: ("params", String.concat ":" (List.map fst params)) :: ("file",pos.pfile) :: (priv @ mpath)
+	let mpriv = (if priv then [("private","1")] else []) in
+	let mpath = (if m.mpath <> path then [("module",snd (gen_path m.mpath false))] else []) in
+	gen_path path priv :: ("params", String.concat ":" (List.map fst params)) :: ("file",pos.pfile) :: (mpriv @ mpath)
 
 let gen_type ctx t =
 	let m = Typer.module_of_type ctx t in
@@ -90,8 +90,8 @@ let gen_type ctx t =
 		node "enum" (gen_type_params e.e_private e.e_path e.e_types e.e_pos m) (pmap gen_constr e.e_constrs @ doc)
 	| TSignatureDecl s ->
 		let doc = gen_doc_opt s.s_doc in
-		let t = [] in
-		node "signature" (gen_type_params s.s_private s.s_path s.s_types s.s_pos m) (t @ doc)
+		let t = gen_type s.s_type in
+		node "signature" (gen_type_params s.s_private s.s_path s.s_types s.s_pos m) (t :: doc)
 
 let att_str att = 
 	String.concat "" (List.map (fun (a,v) -> Printf.sprintf " %s=\"%s\"" a v) att)
