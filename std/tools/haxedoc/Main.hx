@@ -55,12 +55,13 @@ private class DocField {
 	public var isStatic : Bool;
 	public var type : DocType;
 	public var doc : String;
-	public var parent : DocClass;
+	var parent : DocClass;
 
-	public function new( name, s, t ) {
+	public function new( name, s, t, p ) {
 		this.name = name;
 		isStatic = s;
 		type = t;
+		parent = p;
 	}
 
 	public function isVar() {
@@ -74,11 +75,11 @@ private class DocField {
 		}
 	}
 
-	public function link(name : String, curpath : Array<String> ) {
+	public function link(name : String ) {
 		var path = name.split(".");
 		var local = true;
 		for( i in 0...path.length-1 ) {
-			if( path[i] != curpath[i] ) {
+			if( path[i] != parent.spath[i] ) {
 				local = false;
 				break;
 			}
@@ -90,55 +91,33 @@ private class DocField {
 		return Url.make(path.join("/"),"type",name);
 	}
 
-	public function typeToString(t,curp) {
+	function paramsToString( params : Array<DocType> ) {
+		if( params.length == 0 )
+			return "";
+		var ps = new StringBuf();
+		ps.add("&lt;");
+		var first = true;
+		for( p in params ) {
+			if( first )
+				first = false;
+			else
+				ps.add(",");
+			ps.add(typeToString(p));
+		}
+		ps.add("&gt;");
+		return ps.toString();
+	}
+
+	function typeToString(t) {
 		switch t {
 		case tunknown:
 			return "Unknown";
 		case tclass(name,params):
-			var ps = "";
-			if( params.length != 0 ) {
-				ps = "&lt;";
-				var first = true;
-				for( p in params ) {
-					if( first )
-						first = false;
-					else
-						ps += ",";
-					ps += typeToString(p,curp);
-				}
-				ps += "&gt;";
-			}
-			return link(name,curp)+ps;
+			return link(name)+paramsToString(params);
 		case tsign(name,params):
-			var ps = "";
-			if( params.length != 0 ) {
-				ps = "&lt;";
-				var first = true;
-				for( p in params ) {
-					if( first )
-						first = false;
-					else
-						ps += ",";
-					ps += typeToString(p,curp);
-				}
-				ps += "&gt;";
-			}
-			return link(name,curp)+ps;
+			return link(name)+paramsToString(params);
 		case tenum(name,params):
-			var ps = "";
-			if( params.length != 0 ) {
-				ps = "&lt;";
-				var first = true;
-				for( p in params ) {
-					if( first )
-						first = false;
-					else
-						ps += ",";
-					ps += typeToString(p,curp);
-				}
-				ps += "&gt;";
-			}
-			return link(name,curp)+ps;
+			return link(name)+paramsToString(params);
 		case tanon(fields):
 			var buf = new StringBuf();
 			var first = true;
@@ -150,14 +129,14 @@ private class DocField {
 					buf.add(", ");
 				buf.add(f.name);
 				buf.add(" : ");
-				buf.add(typeToString(f.t,curp));
+				buf.add(typeToString(f.t));
 			}
 			buf.add(" }");
 			return buf.toString();
 		case tdynamic(t):
 			if( t == null )
-				return link("Dynamic",curp);
-			return link("Dynamic",curp) + "&lt;" + typeToString(t,curp) + "&gt;";
+				return link("Dynamic");
+			return link("Dynamic") + "&lt;" + typeToString(t) + "&gt;";
 		case tfunction(params,ret):
 			var buf = new StringBuf();
 			if( params.length == 0 )
@@ -168,14 +147,14 @@ private class DocField {
 						buf.add(p.name);
 						buf.add(" : ");
 					}
-					buf.add(funToString(p.t,true,curp));
+					buf.add(funToString(p.t,true));
 					buf.add(" -> ");
 				}
 			}
-			buf.add(funToString(ret,false,curp));
+			buf.add(funToString(ret,false));
 			return buf.toString();
 		case tparam(cl,name):
-			return if( cl != parent.path ) link(cl,curp) + "." + name else name;
+			return if( cl != parent.path ) link(cl) + "." + name else name;
 		case tconstr(params):
 			var s = new StringBuf();
 			s.add("(");
@@ -187,7 +166,7 @@ private class DocField {
 					s.add(", ");
 				s.add(p.name);
 				s.add(" : ");
-				s.add(typeToString(p.t,curp));
+				s.add(typeToString(p.t));
 			}
 			s.add(")");
 			return s.toString();
@@ -195,7 +174,7 @@ private class DocField {
 		return null;
 	}
 
-	public function funToString( t, isarg, curp ) {
+	function funToString( t, isarg ) {
 		var parent =
 		switch( t ) {
 		case tfunction(_,_): true;
@@ -203,12 +182,12 @@ private class DocField {
 		default: false;
 		}
 		if( parent )
-			return "(" + typeToString(t,curp) + ")";
+			return "(" + typeToString(t) + ")";
 		else
-			return typeToString(t,curp);
+			return typeToString(t);
 	}
 
-	public function methToString( t, curp ) {
+	public function methToString( t ) {
 		switch( t ) {
 		case tfunction(params,ret):
 			var s = new StringBuf();
@@ -220,16 +199,16 @@ private class DocField {
 				else
 					s.add(", ");
 				if( p.name == "" )
-					return typeToString(t,curp);
+					return typeToString(t);
 				s.add(p.name);
 				s.add(" : ");
-				s.add(typeToString(p.t,curp));
+				s.add(typeToString(p.t));
 			}
 			s.add(") : ");
-			s.add(typeToString(ret,curp));
+			s.add(typeToString(ret));
 			return s.toString();
 		default:
-			return typeToString(t,curp);
+			return typeToString(t);
 		}
 	}
 
@@ -238,6 +217,7 @@ private class DocField {
 private class DocClass {
 
 	public var path : String;
+	public var spath : Array<String>;
 	public var module : String;
 	public var name : String;
 	public var doc : String;
@@ -247,6 +227,7 @@ private class DocClass {
 
 	public function new( path ) {
 		this.path = path;
+		spath = path.split(".");
 		fields = new Array();
 		params = new Array();
 	}
@@ -256,7 +237,7 @@ private class DocClass {
 		s.add(path);
 	}
 
-	function genBody( s : StringBuf, curp ) {
+	function genBody( s : StringBuf ) {
 		for( f in fields ) {
 			s.add("<dt>");
 			if( f.isStatic )
@@ -268,7 +249,7 @@ private class DocClass {
 			s.add(f.name);
 			if( f.isVar() )
 				s.add(" : ");
-			s.add(f.methToString(f.type,curp));
+			s.add(f.methToString(f.type));
 			s.add("</dt>");
 			s.add("<dd>");
 			if( f.doc != null ) s.add(f.doc);
@@ -278,7 +259,6 @@ private class DocClass {
 
 	public function toString() {
 		var s = new StringBuf();
-		var curp = path.split(".");
 		s.add("<div class=\"classname\">");
 		if( isPrivate )
 			s.add("private ");
@@ -300,7 +280,7 @@ private class DocClass {
 			s.add("</div>");
 		}
 		s.add("<dl>");
-		genBody(s,curp);
+		genBody(s);
 		s.add("</dl>");
 		return s.toString();
 	}
@@ -315,12 +295,12 @@ private class DocEnum extends DocClass {
 		s.add(path);
 	}
 
-	function genBody( s : StringBuf, curp ) {
+	function genBody( s : StringBuf ) {
 		for( f in fields ) {
 			s.add("<dt>");
 			s.add(f.name);
 			if( f.type != null )
-				s.add(f.methToString(f.type,curp));
+				s.add(f.methToString(f.type));
 			s.add("</dt>");
 			s.add("<dd>");
 			if( f.doc != null ) s.add(f.doc);
@@ -331,6 +311,18 @@ private class DocEnum extends DocClass {
 }
 
 private class DocSign extends DocClass {
+
+	public var t : DocType;
+
+	function genBody( s : StringBuf ) {
+		if( t == null ) {
+			super.genBody(s);
+			return;
+		}
+		s.add("<dt> = ");
+		s.add(new DocField("",false,t,this).methToString(t));
+		s.add("</dt>");
+	}
 
 	function genName( s : StringBuf ) {
 		s.add("signature ");
@@ -398,8 +390,7 @@ class DocView {
 		var stat = x.get("static") == "1";
 		var nl = x.elements();
 		var t = processType(nl.next());
-		var f = new DocField(x.nodeName,stat,t);
-		f.parent = c;
+		var f = new DocField(x.nodeName,stat,t,c);
 		var doc = nl.next();
 		if( doc != null )
 			f.doc = docFormat(doc.firstChild().nodeValue);
@@ -428,7 +419,16 @@ class DocView {
 			}
 		case "signature":
 			var s = new DocSign(path);
-			// TODO
+			var t = processType(x.firstElement());
+			switch( t ) {
+			case tanon(fields):
+				for( f in fields ) {
+					var f = new DocField(f.name,false,f.t,s);
+					s.fields.push(f);
+				}
+			default:
+				s.t = t;
+			}
 			c = s;
 		case "enum":
 			var e = new DocEnum(path);
@@ -449,17 +449,13 @@ class DocView {
 					});
 					tconstr(params);
 				}
-				var f = new DocField(m.nodeName,false,t);
-				f.parent = c;
+				var f = new DocField(m.nodeName,false,t,c);
 				c.fields.push(f);
 			}
 		default:
 			throw x.nodeName;
 		}
 		c.isPrivate = x.get("private") == "1";
-		// original path
-		if( c.isPrivate )
-			c.path = ~/_[A-Za-z0-9]+\./.replace(c.path,"");
 		c.module = x.get("module");
 		c.params = x.get("params").split(":");
 		c.fields.sort(function(f1 : DocField,f2 : DocField) {
@@ -559,8 +555,9 @@ class DocView {
 				display(p);
 				print("</div></li>");
 			case eclass(c):
-				if( !c.isPrivate )
-					print("<li>"+Url.make(c.path.split(".").join("/"),"entry",c.name)+"</li>");
+				if( c.isPrivate || c.path == "@Main" )
+					continue;
+				print("<li>"+Url.make(c.path.split(".").join("/"),"entry",c.name)+"</li>");
 			}
 		}
 		print("</ul>");
