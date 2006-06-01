@@ -41,7 +41,7 @@ class Server {
 		prefix = p;
 	}
 
-	public function resolvePath( path : Array<String> ) {
+	public function resolvePath( path : Array<String> ) : Dynamic {
 		var objname = path.shift();
 		if( objname == null )
 			throw "Empty path";
