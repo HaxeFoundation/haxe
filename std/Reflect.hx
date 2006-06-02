@@ -271,7 +271,8 @@ class Reflect {
 			if( t != null ) o.__proto__ = null;
 			untyped __js__("
 				for(var i in o)
-					a.push(i);
+					if( i != \"__proto__\" )
+						a.push(i);
 			");
 			if( t != null ) o.__proto__ = t;
 			var i = 0;
