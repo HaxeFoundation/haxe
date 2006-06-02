@@ -41,6 +41,7 @@ type context = {
 	version : int;
 	mutable curclass : (string list * string);
 	mutable curmethod : string;
+	mutable fun_pargs : (int * bool list) list;
 
 	(* loops *)
 	mutable cur_block : texpr list;
@@ -170,11 +171,7 @@ let always_protected = function
 		else
 			false
 
-let unprotect a =
-	if !protect_all || always_protected a then 
-		a
-	else
-		"@" ^ a
+let unprotect a = !protect_all || always_protected a
 
 let is_protected_name path ext =
 	match path with
@@ -971,18 +968,22 @@ and gen_expr_2 ctx retval e =
 			| Some _ -> acc
 		) ctx.regs PMap.empty;
 		ctx.reg_count <- (if reg_super then 2 else 1);
+		let pargs = ref [] in
 		let rargs = List.map (fun (a,t) ->
 			let no_reg = ctx.version = 6 || cfind false (TLocal a) f.tf_expr in
 			if no_reg then begin
 				ctx.regs <- PMap.add a None ctx.regs;
-				0 , unprotect a
+				pargs := unprotect a :: !pargs;
+				0 , a
 			end else begin 
 				let r = alloc_reg ctx in
 				ctx.regs <- PMap.add a (Some r) ctx.regs;
+				pargs := false :: !pargs;
 				r , ""
 			end
 		) f.tf_args in
 		let tf = func ctx reg_super (cfind true (TLocal "__arguments__") f.tf_expr) rargs in
+		ctx.fun_pargs <- (ctx.code_pos, List.rev !pargs) :: ctx.fun_pargs;
 		gen_expr ctx false f.tf_expr;
 		tf();
 		block();
@@ -1452,6 +1453,7 @@ let generate file ver header infile types hres =
 		version = ver;
 		curclass = ([],"");
 		curmethod = "";
+		fun_pargs = [];
 	} in
 	write ctx (AStringPool []);
 	protect_all := not (Plugin.defined "swf-mark");
@@ -1491,13 +1493,9 @@ let generate file ver header infile types hres =
 	end_try();
 	let idents = ctx.idents in
 	let idents = Hashtbl.fold (fun ident pos acc -> (ident,pos) :: acc) idents [] in
-	let idents = List.sort (fun (_,p1) (_,p2) -> compare p1 p2) idents in	
-	let idents = AStringPool (List.map (fun ((id,flag),_) -> 
-		if flag then
-			to_utf8 id
-		else
-			unprotect (to_utf8 id)
-	) idents) in
+	let idents = List.sort (fun (_,p1) (_,p2) -> compare p1 p2) idents in
+	let pidents = List.map (fun ((_,flag),_) -> flag) idents in
+	let idents = AStringPool (List.map (fun ((id,_),_) -> to_utf8 id) idents) in
 	if ActionScript.action_length idents >= 1 lsl 16 then failwith "The SWF can't handle more than a total size of 64K of identifers and literal strings. Try reducing this number by using external data files loaded at runtime";
 	DynArray.set ctx.opcodes 0 idents;
 	let tag ?(ext=false) d = {
@@ -1558,6 +1556,18 @@ let generate file ver header infile types hres =
 			in
 			(header , loop swf)
 	) in
+	if Plugin.defined "swf-mark" then begin
+		let ch = IO.output_channel (open_out_bin (Filename.chop_extension file ^ ".mark")) in
+		IO.write_i32 ch (List.length ctx.fun_pargs);
+		List.iter (fun (id,l) -> 
+			IO.write_i32 ch id;
+			IO.write_i32 ch (List.length l);
+			List.iter (fun f -> IO.write_byte ch (if f then 1 else 0)) l;
+		) ctx.fun_pargs;
+		IO.write_i32 ch (List.length pidents);
+		List.iter (fun f -> IO.write_byte ch (if f then 1 else 0)) pidents;		
+		IO.close_out ch;
+	end;
 	let ch = IO.output_channel (open_out_bin file) in
 	Swf.write ch swf;
 	IO.close_out ch
