@@ -35,7 +35,7 @@ class JsXml__ {
 	static var ecomment = ~/^<!--/;
 	static var eprolog = ~/^<\?[^\?]+\?>/;
 
-	static var eattribute = ~/^[ \r\n\t]*([a-zA-Z0-9:_-]+)[ \r\n\t]*=[ \r\n\t]*"([^"]*)"/;
+	static var eattribute = ~/^[ \r\n\t]*([a-zA-Z0-9:_-]+)[ \r\n\t]*=[ \r\n\t]*"([^"]*)"/; //"
 	static var eclose = ~/^[ \r\n\t]*(>|(\/>))/;
 	static var ecdata_end = ~/\]\]>/;
 	static var edoctype_elt = ~/[\[|\]>]/;
@@ -48,7 +48,7 @@ class JsXml__ {
 	public var _children : Array<Xml>;
 
 	public static function parse( str : String ) : Xml {
-		var rules = [enode,epcdata,ecdata,edoctype,eend,ecomment,eprolog];
+		var rules = [enode,epcdata,eend,ecdata,edoctype,ecomment,eprolog];
 		var nrules = rules.length;
 		var current = Xml.createDocument();
 
@@ -80,14 +80,25 @@ class JsXml__ {
 						var x = Xml.createPCData(r.matched(0));
 						current.addChild(x);
 						str = r.matchedRight();
-					case 2: // CData
+					case 2: // End Node
+						untyped if( current._children != null && current._children.length == 0 ) {
+							var e = Xml.createPCData("");
+							current.addChild(e);
+						}
+						untyped if( r.matched(1) != current._nodeName || stack.isEmpty() ) {
+							i = nrules;
+							break;
+						}
+						current = stack.pop();
+						str = r.matchedRight();
+					case 3: // CData
 						str = r.matchedRight();
 						if( !ecdata_end.match(str) )
 							throw "End of CDATA section not found";
 						var x = Xml.createCData(ecdata_end.matchedLeft());
 						current.addChild(x);
 						str = ecdata_end.matchedRight();
-					case 3: // DocType
+					case 4: // DocType
 						var pos = 0;
 						var count = 0;
 						var old = str;
@@ -107,17 +118,6 @@ class JsXml__ {
 						}
 						var x = Xml.createDocType(old.substr(0,pos));
 						current.addChild(x);
-					case 4: // End Node
-						untyped if( current._children != null && current._children.length == 0 ) {
-							var e = Xml.createPCData("");
-							current.addChild(e);
-						}
-						untyped if( r.matched(1) != current._nodeName || stack.isEmpty() ) {
-							i = nrules;
-							break;
-						}
-						current = stack.pop();
-						str = r.matchedRight();
 					case 5: // Comment
 						if( !ecomment_end.match(str) )
 							throw "Unclosed Comment";
