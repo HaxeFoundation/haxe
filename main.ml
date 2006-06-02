@@ -216,6 +216,10 @@ try
 		),"<filename> : don't generate code for classes listed in this file");
 		("-v",Arg.Unit (fun () -> Plugin.verbose := true),": turn on verbose mode");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
+		("-cmd", Arg.String (fun cmd ->
+			let old = !next in
+			next := (fun() -> old(); if Sys.command cmd <> 0 then failwith "Command failed")
+		),": run the specified command after successful compilation");
 		("--flash-strict", define "flash_strict", ": more type strict flash API");
 		("--no-flash-opt-args", define "no_flash_opt_args" , ": don't allow optional parameters for flash api");
 		("--no-traces", define "no_traces", ": don't compile trace calls in the program");
