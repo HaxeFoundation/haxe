@@ -165,7 +165,7 @@ let always_protected = function
 	(*// haxe.PosInfos *)
 	| "fileName" | "lineNumber" | "className" | "methodName" | "customParams" -> true
 	| s ->
-		if String.length s > 0 && s.[0] = '$' then
+		if String.length s > 0 && s.[0] = '_' then
 			true
 		else
 			false

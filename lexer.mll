@@ -124,8 +124,8 @@ let invalid_char lexbuf =
 
 }
 
-let ident = ['_' 'a'-'z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9']*
-let idtype = ['A' - 'Z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9']*
+let ident = ('_'* ['a'-'z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9']* | '_')
+let idtype = '_'* ['A'-'Z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9']*
 
 rule token = parse
 	| eof { mk lexbuf Eof }
@@ -228,14 +228,6 @@ rule token = parse
 		}	
 	| ident { mk_ident lexbuf }
 	| idtype { mk lexbuf (Const (Type (lexeme lexbuf))) }
-	| '$' ident {
-			if not (Plugin.defined "swf-mark") then invalid_char lexbuf;
-			mk_ident lexbuf
-		}
-	| '$' idtype {
-			if not (Plugin.defined "swf-mark") then invalid_char lexbuf;
-			mk lexbuf (Const (Type (lexeme lexbuf)))
-		}
 	| _ { invalid_char lexbuf }
 
 and comment = parse
