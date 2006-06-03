@@ -48,11 +48,7 @@ class Connection implements Dynamic<Connection> {
 		var s = new haxe.Serializer();
 		s.serialize(params);
 		var params = s.toString().split("\\").join("\\\\");
-		var s;
-		if( __data )
-			s = flash.external.ExternalInterface.call(path+"."+f,params);
-		else
-			s = flash.external.ExternalInterface.call("haxe.remoting.Connection.doCall",path,f,params);
+		var s = flash.external.ExternalInterface.call("haxe.remoting.Connection.doCall",path,f,params);
 		if( s == null )
 			throw "Failed to call JS method "+__path.join(".");
 		return new haxe.Unserializer(s).unserialize();
@@ -123,14 +119,6 @@ class Connection implements Dynamic<Connection> {
 		if( flash.external.ExternalInterface.call("haxe.remoting.Connection.jsRemoting") != "yes" )
 			throw "haxe.remoting.Connection is not available in JavaScript";
 		return new Connection(null,[]);
-	}
-
-	public static function desktopConnect() : Connection {
-		if( !flash.external.ExternalInterface.available )
-			throw "External Interface not available";
-		if( flash.external.ExternalInterface.call(":desktop",":available") != "yes" )
-			throw "Could not connect to the Desktop";
-		return new Connection(true,[]);
 	}
 
 	#else js
