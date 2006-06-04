@@ -148,6 +148,11 @@ import neko.Sys;
 import neko.Utf8;
 import neko.Web;
 
+import neko.zip.Compress;
+import neko.zip.File;
+import neko.zip.Flush;
+import neko.zip.Uncompress;
+
 import neko.db.Connection;
 import neko.db.Manager;
 import neko.db.Mysql;
