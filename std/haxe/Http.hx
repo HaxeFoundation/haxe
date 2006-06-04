@@ -29,6 +29,7 @@ class Http {
 	public var url : String;
 #if neko
 	var responseHeaders : Hash<String>;
+	var postData : String;
 #else js
 	private var async : Bool;
 #end
@@ -101,7 +102,7 @@ class Http {
 		}
 		if( headers.get("Content-Type") == null && post )
 			r.setRequestHeader("Content-Type","application/x-www-form-urlencoded");
-			
+
 		for( h in headers.keys() )
 			r.setRequestHeader(h,headers.get(h));
 		r.send(uri);
@@ -181,7 +182,7 @@ class Http {
 			b.add(uri);
 		}
 		b.add(" HTTP/1.1\r\nHost: "+host+"\r\n");
-		if( post && uri != null ) {
+		if( postData == null && post && uri != null ) {
 			if( headers.get("Content-Type") == null )
 				b.add("Content-Type: "+"application/x-www-form-urlencoded"+"\r\n");
 			b.add("Content-Length: "+uri.length+"\r\n");
@@ -192,9 +193,13 @@ class Http {
 			b.add(headers.get(h));
 			b.add("\r\n");
 		}
-		b.add("\r\n");
-		if( post && uri != null )
-			b.add(uri);
+		if( postData != null)
+			b.add(postData);
+		else {
+			b.add("\r\n");
+			if( post && uri != null )
+				b.add(uri);
+		}
 		try {
 			s.connect(neko.Socket.resolve(host),port);
 			s.write(b.toString());
