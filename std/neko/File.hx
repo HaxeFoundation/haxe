@@ -113,15 +113,15 @@ class File {
 	}
 
 	public static function read( path : String, binary : Bool ) {
-		return new File(untyped file_open(path.__s,(if( binary ) "r" else "rb").__s));
+		return new File(untyped file_open(path.__s,(if( binary ) "rb" else "r").__s));
 	}
 
 	public static function write( path : String, binary : Bool ) {
-		return new File(untyped file_open(path.__s,(if( binary ) "w" else "wb").__s));
+		return new File(untyped file_open(path.__s,(if( binary ) "wb" else "w").__s));
 	}
 
 	public static function append( path : String, binary : Bool ) {
-		return new File(untyped file_open(path.__s,(if( binary ) "a" else "ab").__s));
+		return new File(untyped file_open(path.__s,(if( binary ) "ab" else "a").__s));
 	}
 
 	private static var file_contents = Lib.load("std","file_contents",1);
