@@ -315,7 +315,7 @@ and load_type ctx p t =
 					let c2 = mk_class (fst c.cl_path,"+" ^ snd c.cl_path) p None false in
 					c2.cl_super <- Some (c,tl);
 					c2.cl_fields <- l;
-					TInst (c,[])
+					TInst (c2,[])
 				| TMono _ ->
 					error "Please ensure correct initialization of cascading signatures" p
 				| TAnon fields ->
