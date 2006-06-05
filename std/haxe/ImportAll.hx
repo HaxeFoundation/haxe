@@ -168,39 +168,7 @@ import tools.DocView;
 
 import js.Boot;
 import js.Lib;
-
-import js.Anchor;
-import js.Body;
-import js.Button;
-import js.Checkbox;
-import js.Document;
-import js.Event;
-import js.FileUpload;
-import js.Form;
-import js.FormElement;
-import js.Frame;
-import js.Frameset;
-import js.Hidden;
-import js.History;
-import js.HtmlCollection;
-import js.HtmlDom;
-import js.IFrame;
-import js.Image;
-import js.Link;
-import js.Location;
-import js.Navigator;
-import js.Option;
-import js.Password;
-import js.Radio;
-import js.Reset;
-import js.Screen;
-import js.Select;
-import js.Style;
-import js.StyleSheet;
-import js.Submit;
-import js.Text;
-import js.Textarea;
-import js.Window;
+import js.Dom;
 import js.XMLHttpRequest;
 
 #end

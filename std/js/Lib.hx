@@ -24,6 +24,8 @@
  */
 package js;
 
+import js.Dom;
+
 class Lib {
 
 	public static var isIE : Bool;
