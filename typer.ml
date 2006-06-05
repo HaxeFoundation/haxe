@@ -309,20 +309,20 @@ and load_type ctx p t =
 	| TPExtend (t,l) ->
 		(match load_type ctx p (TPAnonymous l) with
 		| TAnon l ->
-			(match load_normal_type ctx t p false with
-			| TInst (c,pl) ->
-				let t = TAnon (PMap.foldi PMap.add c.cl_fields l) in
-				let s = {
-					s_path = (fst c.cl_path,"+" ^ snd c.cl_path);
-					s_pos = p;
-					s_doc = None;
-					s_private = false;
-					s_static = Some c;
-					s_types = c.cl_types;
-					s_type = t;
-				} in
-				TSign (s,pl)
-			| _ -> error "Cannot extend not-a-class" p)
+			let rec loop t =
+				match follow t with
+				| TInst (c,tl) ->
+					let c2 = mk_class (fst c.cl_path,"+" ^ snd c.cl_path) p None false in
+					c2.cl_super <- Some (c,tl);
+					c2.cl_fields <- l;
+					TInst (c,[])
+				| TMono _ ->
+					error "Please ensure correct initialization of cascading signatures" p
+				| TAnon fields ->
+					TAnon (PMap.foldi PMap.add l fields)
+				| _ -> error "Cannot only extend classes and anonymous" p
+			in
+			loop (load_normal_type ctx t p false)
 		| _ -> assert false)
 	| TPAnonymous l ->
 		let rec loop acc (n,f,p) =

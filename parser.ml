@@ -183,7 +183,7 @@ and parse_type_path = parser
 	| [< '(BrOpen,_); s >] ->
 		let t = (match s with parser
 			| [< name = any_ident >] -> TPAnonymous (parse_type_anonymous_resume name s)
-			| [< '(Binop OpGt,_); t = parse_type_path_normal; '(Comma,_); l = psep Comma parse_type_anonymous; '(BrClose,_) >] -> TPExtend (t,l)
+			| [< '(Binop OpGt,_); t = parse_type_path_normal; '(Comma,_); l = plist parse_signature_field; '(BrClose,_) >] -> TPExtend (t,l)
 			| [< l = plist parse_signature_field; '(BrClose,_) >] -> TPAnonymous l
 			| [< >] -> serror()
 		) in
@@ -268,10 +268,10 @@ and parse_class_field s =
 		| [< >] -> if l = [] then raise Stream.Failure else serror()
 
 and parse_signature_field = parser
-	| [< '(Kwd Var,p1); name = any_ident; '(DblDot,_); t = parse_type_path; p2 = semicolon >] ->
-		(name,AFVar t,punion p1 p2)
-	| [< '(Const (Ident "property"),p1); name = any_ident; '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_type_path; p2 = semicolon >] ->
-		(name,AFProp (t,i1,i2),punion p1 p2)
+	| [< '(Kwd Var,p1); name = any_ident; s >] ->
+		(match s with parser
+		| [< '(DblDot,_); t = parse_type_path; p2 = semicolon >] -> (name,AFVar t,punion p1 p2)
+		| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_type_path; p2 = semicolon >] -> (name,AFProp (t,i1,i2),punion p1 p2))
 	| [< '(Kwd Function,p1); name = any_ident; '(POpen,_); al = psep Comma parse_fun_param_type; '(PClose,_); '(DblDot,_); t = parse_type_path; p2 = semicolon >] ->
 		(name,AFFun (al,t),punion p1 p2)
 
