@@ -11,6 +11,7 @@
 	fixed nodeValue for Neko XML comments, doctype, prolog
 	improved DocView : formating, signatures, files generation
 	added neko.zip package
+	fixed bug in neko.File binary flags
 
 2006-05-25: 1.01
 	added neko.Utf8
