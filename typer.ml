@@ -1823,7 +1823,7 @@ let init_class ctx c p herits fields =
 					unify_raise ctx t2 t p;
 				with
 					| Error (Unify l,_) -> raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
-					| Not_found -> error ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
+					| Not_found -> if not c.cl_interface then error ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
 			in
 			let get = (match get with
 				| "null" -> NoAccess
