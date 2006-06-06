@@ -29,7 +29,7 @@ extern class HtmlCollection<T> extends Array<T>, implements Dynamic<T> {
 }
 
 // the base signature for every DOM element
-signature Dom<T> {
+signature MetaDom<T> {
 	var nodeName : String;
 	var nodeType : Int;
 	var nodeValue : String;
@@ -49,10 +49,12 @@ signature Dom<T> {
 	function replaceChild( child : T, oldChild : T ) : Void;
 	function getAttribute( attr : String ) : String;
 	function setAttribute( attr : String, val : String ) : Void;
-	
+
 }
 
-signature HtmlDom {> Dom<HtmlDom>,
+signature Dom = MetaDom<Dom>
+
+signature HtmlDom {> MetaDom<HtmlDom>,
 	var id : String;
 	var title : String;
 	var lang : String;
