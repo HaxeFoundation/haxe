@@ -29,14 +29,10 @@ extern class HtmlCollection<T> extends Array<T>, implements Dynamic<T> {
 }
 
 // the base signature for every DOM element
-signature HtmlDom {
-
-	var style : Style;
-	var attributes : HtmlCollection<HtmlDom>; // on IE6 also ?
+signature Dom {
 	var nodeName : String;
 	var nodeType : Int;
 	var nodeValue : String;
-	var innerHTML : String;
 
 	var parentNode : HtmlDom;
 	var childNodes : Array<HtmlDom>;
@@ -53,7 +49,17 @@ signature HtmlDom {
 	function replaceChild( child : HtmlDom, oldChild : HtmlDom ) : Void;
 	function getAttribute( attr : String ) : String;
 	function setAttribute( attr : String, val : String ) : Void;
+	
+}
 
+signature HtmlDom {> Dom,
+	var id : String;
+	var title : String;
+	var lang : String;
+	var dir : String;
+	var innerHTML : String;
+
+	var style : Style;
 }
 
 signature FormElement = {> HtmlDom,
@@ -63,11 +69,6 @@ signature FormElement = {> HtmlDom,
 	var name : String;
 	var type : String;
 	var value : String;
-
-	#if w3c
-	#else true
-	var id : String;
-	#end
 
 	function blur() : Void;
 	function click() : Void;
@@ -86,8 +87,6 @@ signature Anchor = {> HtmlDom,
 
 	var accessKey : String;
 	var href : String;
-	var id : String;
-	var innerHTML : String;
 	var name: String;
 	var rel : String;
 	var rev : String;
@@ -117,7 +116,6 @@ signature Body = {> HtmlDom,
 
 	#if w3c
 	#else true
-	var id : String;
 	var scrollLeft : Int;
 	var scrollTop : Int;
 	#end
@@ -154,7 +152,6 @@ signature Document = {> HtmlDom,
 	var cookie : String;
 	var domain : String;
 	var referrer : String;
-	var title : String;
 
 	// TODO : var URL : String;
 
@@ -217,7 +214,6 @@ signature Form = {> HtmlDom,
 	var action : String;
 	var encoding : String;
 	var enctype : String;
-	var id : String;
 	var length : Int;
 	var method : String;
 	var name : String;
@@ -246,7 +242,6 @@ signature Frame = {> HtmlDom,
 
 	#if w3c
 	#else true
-	var id : String;
 	function blur() : Void;
 	function focus() : Void;
 	#end
@@ -260,10 +255,6 @@ signature Frame = {> HtmlDom,
 signature Frameset = {> HtmlDom,
 	var cols : Int;
 	var rows : Int;
-	#if w3c
-	#else true
-	var id : String;
-	#end
 
 	function blur() : Void;
 	function focus() : Void;
@@ -299,7 +290,6 @@ signature IFrame = {> HtmlDom,
 
 	#if w3c
 	#else true
-	var id : String;
 	var tabIndex : Int;
 	function blur() : Void;
 	function focus() : Void;
@@ -328,7 +318,6 @@ signature Image = {> HtmlDom,
 	#if w3c
 	#else true
 	var complete : Bool;
-	var id : String;
 	var lowsrc : String;
 	#end
 
@@ -359,7 +348,6 @@ signature Link = {> HtmlDom,
 
 	#if w3c
 	#else true
-	var id : String;
 	var name : String;
 	#end
 
