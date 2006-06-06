@@ -50,6 +50,7 @@ signature HtmlDom {
 	function insertBefore( newChild : HtmlDom, refChild : HtmlDom ) : Void;
 	function removeChild( child : HtmlDom ) : Void;
 	function replaceChild( child : HtmlDom, oldChild : HtmlDom ) : Void;
+	function getAttribute( attr : String ) : String;
 
 }
 
