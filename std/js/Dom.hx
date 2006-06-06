@@ -52,6 +52,7 @@ signature HtmlDom {
 	function removeChild( child : HtmlDom ) : Void;
 	function replaceChild( child : HtmlDom, oldChild : HtmlDom ) : Void;
 	function getAttribute( attr : String ) : String;
+	function setAttribute( attr : String, val : String ) : Void;
 
 }
 
