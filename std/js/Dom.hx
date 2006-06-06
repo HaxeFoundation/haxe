@@ -58,6 +58,7 @@ signature HtmlDom {> Dom,
 	var lang : String;
 	var dir : String;
 	var innerHTML : String;
+	var className : String;
 
 	var style : Style;
 }
