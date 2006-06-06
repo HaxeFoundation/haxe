@@ -29,30 +29,30 @@ extern class HtmlCollection<T> extends Array<T>, implements Dynamic<T> {
 }
 
 // the base signature for every DOM element
-signature Dom {
+signature Dom<T> {
 	var nodeName : String;
 	var nodeType : Int;
 	var nodeValue : String;
 
-	var parentNode : HtmlDom;
-	var childNodes : Array<HtmlDom>;
-	var firstChild : HtmlDom;
-	var lastChild : HtmlDom;
-	var nextSibling : HtmlDom;
-	var previousSibling : HtmlDom;
+	var parentNode : T;
+	var childNodes : Array<T>;
+	var firstChild : T;
+	var lastChild : T;
+	var nextSibling : T;
+	var previousSibling : T;
 
-	function appendChild( child : HtmlDom ) : Void;
-	function cloneNode( deep : HtmlDom ) : HtmlDom;
+	function appendChild( child : T ) : Void;
+	function cloneNode( deep : T ) : T;
 	function hasChildNodes() : Bool;
-	function insertBefore( newChild : HtmlDom, refChild : HtmlDom ) : Void;
-	function removeChild( child : HtmlDom ) : Void;
-	function replaceChild( child : HtmlDom, oldChild : HtmlDom ) : Void;
+	function insertBefore( newChild : T, refChild : T ) : Void;
+	function removeChild( child : T ) : Void;
+	function replaceChild( child : T, oldChild : T ) : Void;
 	function getAttribute( attr : String ) : String;
 	function setAttribute( attr : String, val : String ) : Void;
 	
 }
 
-signature HtmlDom {> Dom,
+signature HtmlDom {> Dom<HtmlDom>,
 	var id : String;
 	var title : String;
 	var lang : String;
