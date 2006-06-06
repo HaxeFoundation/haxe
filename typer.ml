@@ -233,6 +233,18 @@ let field_access ctx get f t e p =
 		else
 			AccSet (e,m,t,f.cf_name)
 
+let rec class_field c i =
+	try
+		let f = PMap.find i c.cl_fields in
+		field_type f , f
+	with
+		Not_found ->
+			match c.cl_super with
+			| None -> raise Not_found
+			| Some (c,params) ->
+				let t , f = class_field c i in
+				apply_params c.cl_types params t , f
+
 let acc_get g p =
 	match g with
 	| AccNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
@@ -313,12 +325,22 @@ and load_type ctx p t =
 				match follow t with
 				| TInst (c,tl) ->
 					let c2 = mk_class (fst c.cl_path,"+" ^ snd c.cl_path) p None false in
+					PMap.iter (fun f _ ->
+						try 
+							ignore(class_field c f);
+							error ("Cannot redefine field " ^ f) p
+						with
+							Not_found -> ()
+					) l;
 					c2.cl_super <- Some (c,tl);
 					c2.cl_fields <- l;
 					TInst (c2,[])
 				| TMono _ ->
 					error "Please ensure correct initialization of cascading signatures" p
 				| TAnon fields ->
+					PMap.iter (fun f _ ->
+						if PMap.mem f fields then error ("Cannot redefine field " ^ f) p
+					) l;
 					TAnon (PMap.foldi PMap.add l fields)
 				| _ -> error "Cannot only extend classes and anonymous" p
 			in
@@ -646,18 +668,6 @@ let unify_call_params ctx t el args p =
 			loop l l2
 	in
 	loop el args
-
-let rec class_field c i =
-	try
-		let f = PMap.find i c.cl_fields in
-		field_type f , f
-	with
-		Not_found ->
-			match c.cl_super with
-			| None -> raise Not_found
-			| Some (c,params) ->
-				let t , f = class_field c i in
-				apply_params c.cl_types params t , f
 
 let type_local ctx i p =
 	(* local lookup *)
