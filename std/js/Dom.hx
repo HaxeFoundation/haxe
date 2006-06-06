@@ -36,6 +36,7 @@ signature HtmlDom {
 	var nodeName : String;
 	var nodeType : Int;
 	var nodeValue : String;
+	var innerHTML : String;
 
 	var parentNode : HtmlDom;
 	var childNodes : Array<HtmlDom>;
