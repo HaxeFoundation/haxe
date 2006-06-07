@@ -237,6 +237,8 @@ try
 			let ch = (try open_in cl with _ -> failwith ("File not found " ^ cl)) in
 			let lines = Std.input_list ch in
 			let args = List.concat (List.map (fun l -> 
+				let len = String.length l in
+				let l = (if len != 0 && l.[len - 1] = '\r' then String.sub l 0 (len-1) else l) in
 				if l = "" || l.[0] = '#' then
 					[]
 				else if l.[0] = '-' then
