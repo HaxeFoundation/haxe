@@ -200,35 +200,16 @@ class Http {
 			if( post && uri != null )
 				b.add(uri);
 		}
+		var body;
 		try {
 			s.connect(neko.Socket.resolve(host),port);
 			s.write(b.toString());
-			s.waitForRead();
-			s.shutdown(false,true);
-			data = s.read();
+			body = readHttpResponse(s);
 			s.close();
-		} catch( e : Dynamic ) {
+		} catch( e : Int ) {
 			onError(Std.string(e));
 			return;
 		}
-		responseHeaders = new Hash();
-		var crlf = ~/\r\n\r\n/;
-		if( !crlf.match(data) ) {
-			onData(data);
-			return;
-		}
-		var header_end = crlf.matchedPos();
-		var headers = data.substr(0,header_end.pos).split("\r\n");
-		var response = headers.shift();
-		for( hline in headers ) {
-			var a = hline.split(": ");
-			var hname = a.shift();
-			if( a.length == 1 )
-				responseHeaders.set(hname,a[0]);
-			else
-				responseHeaders.set(hname,a.join(": "));
-		}
-		var body = data.substr(header_end.pos+4,data.length-(header_end.pos+4));
 		if( responseHeaders.get("Transfer-Encoding") == "chunked" )
 			body = unchunk(body);
 		onData(body);
@@ -246,6 +227,98 @@ class Http {
 		var sz = l+n+2;
 		return s.substr(l,n) + unchunk(s.substr(sz,s.length-sz));
 	}
+
+	function readHttpResponse( sock : neko.Socket ) : String {
+		// READ the HTTP header (until \r\n\r\n)
+		var b = new StringBuf();
+		var k = 4;
+		var s = neko.Lib.makeString(4);
+		sock.setTimeout(10000); // 10 seconds
+		while( true ) {
+			if( sock.receive(s,0,k) != k )
+				throw "Connection aborted early";
+			b.addSub(s,0,k);
+			switch( k ) {
+			case 1:
+				var c = s.charCodeAt(0);
+				if( c == 10 )
+					break;
+				if( c == 13 )
+					k = 3;
+				else
+					k = 4;
+			case 2:
+				var c = s.charCodeAt(1);
+				if( c == 10 ) {
+					if( s.charCodeAt(0) == 13 )
+						break;
+					k = 4;
+				} else if( c == 13 )
+					k = 3;
+				else
+					k = 4;
+			case 3:
+				var c = s.charCodeAt(2);
+				if( c == 10 ) {
+					if( s.charCodeAt(1) != 13 )
+						k = 4;
+					else if( s.charCodeAt(0) != 10 )
+						k = 2;
+					else
+						break;
+				} else if( c == 13 ) {
+					if( s.charCodeAt(1) != 10 || s.charCodeAt(0) != 13 )
+						k = 1;
+					else
+						k = 3;
+				} else
+					k = 4;
+			case 4:
+				var c = s.charCodeAt(3);
+				if( c == 10 ) {
+					if( s.charCodeAt(2) != 13 )
+						continue;
+					else if( s.charCodeAt(1) != 10 || s.charCodeAt(0) != 13 )
+						k = 2;
+					else
+						break;
+				} else if( c == 13 ) {
+					if( s.charCodeAt(2) != 10 || s.charCodeAt(1) != 13 )
+						k = 3;
+					else
+						k = 1;
+				}
+			}
+		}
+		var headers = b.toString().split("\r\n");
+		var response = headers.shift();
+		// remove the two lasts \r\n\r\n
+		headers.pop();
+		headers.pop();
+		responseHeaders = new Hash();
+		for( hline in headers ) {
+			var a = hline.split(": ");
+			var hname = a.shift();
+			if( a.length == 1 )
+				responseHeaders.set(hname,a[0]);
+			else
+				responseHeaders.set(hname,a.join(": "));
+		}
+		var size = Std.parseInt(responseHeaders.get("Content-Length"));
+		if( size == null ) {
+			sock.shutdown(false,true);
+			return sock.read();
+		}
+		var s = neko.Lib.makeString(size);
+		var pos = 0;
+		while( size > 0 ) {
+			var len = sock.receive(s,pos,size);
+			pos += len;
+			size -= len;
+		}
+		return s;
+	}
+
 #end
 
 	public function onData( data : String ) {
