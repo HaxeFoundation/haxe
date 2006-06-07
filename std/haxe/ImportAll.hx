@@ -158,6 +158,7 @@ import neko.db.Manager;
 import neko.db.Mysql;
 import neko.db.Object;
 import neko.db.ResultSet;
+import neko.db.Sqlite;
 import neko.db.Transaction;
 
 import tools.DocView;
