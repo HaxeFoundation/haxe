@@ -143,7 +143,7 @@ let context err warn =
 
 let field_type f =
 	match f.cf_params with
-	| [] -> f.cf_type 
+	| [] -> f.cf_type
 	| l -> monomorphs l f.cf_type
 
 let unify ctx t1 t2 p =
@@ -222,7 +222,7 @@ let field_access ctx get f t e p =
 	| NoAccess ->
 		let normal = AccExpr (mk (TField (e,f.cf_name)) t p) in
 		(match follow e.etype with
-		| TInst (c,_) when is_parent c ctx.curclass -> normal			
+		| TInst (c,_) when is_parent c ctx.curclass -> normal
 		| _ ->
 			if ctx.untyped then normal else AccNo f.cf_name)
 	| NormalAccess ->
@@ -326,7 +326,7 @@ and load_type ctx p t =
 				| TInst (c,tl) ->
 					let c2 = mk_class (fst c.cl_path,"+" ^ snd c.cl_path) p None false in
 					PMap.iter (fun f _ ->
-						try 
+						try
 							ignore(class_field c f);
 							error ("Cannot redefine field " ^ f) p
 						with
@@ -356,8 +356,8 @@ and load_type ctx p t =
 					let t = load_type ctx p t in
 					let args = List.map (fun (name,t) -> name , load_type ctx p t) tl in
 					TFun (args,t), NormalAccess, NormalAccess
-				| AFProp (t,i1,i2) ->					
-					let access m get = 
+				| AFProp (t,i1,i2) ->
+					let access m get =
 						match m with
 						| "null" -> NoAccess
 						| "default" -> NormalAccess
@@ -377,7 +377,7 @@ and load_type ctx p t =
 				cf_doc = None;
 			} acc
 		in
-		TAnon (List.fold_left loop PMap.empty l)		
+		TAnon (List.fold_left loop PMap.empty l)
 	| TPFunction (args,r) ->
 		match args with
 		| [TPNormal { tpackage = []; tparams = []; tname = "Void" }] ->
@@ -401,7 +401,7 @@ let rec reverse_type t =
 	| TFun (params,ret) ->
 		TPFunction (List.map (fun (_,t) -> reverse_type t) params,reverse_type ret)
 	| TAnon fields ->
-		TPAnonymous (PMap.fold (fun f acc -> 			
+		TPAnonymous (PMap.fold (fun f acc ->
 			(f.cf_name , AFVar (reverse_type f.cf_type), null_pos) :: acc
 		) fields [])
 	| TDynamic t2 ->
@@ -419,16 +419,16 @@ let extend_remoting ctx c t p async prot =
 	let ct = (try load_normal_type ctx2 t p false with e -> forbidden_packages := fb; raise e) in
 	forbidden_packages := fb;
 	let tvoid = TPNormal { tpackage = []; tname = "Void"; tparams = [] } in
-	let make_field name args ret =				
+	let make_field name args ret =
 		try
 			let targs = List.map (fun (a,t) -> a, Some (reverse_type t)) args in
 			let tret = reverse_type ret in
 			let eargs = [EArrayDecl (List.map (fun (a,_) -> (EConst (Ident a),p)) args),p] in
-			let targs , tret , eargs = if async then 
+			let targs , tret , eargs = if async then
 				match tret with
 				| TPNormal { tpackage = []; tname = "Void" } -> targs , tvoid , eargs @ [EConst (Ident "null"),p]
 				| _ -> targs @ ["__callb",Some (TPFunction ([tret],tvoid))] , tvoid , eargs @ [EUntyped (EConst (Ident "__callb"),p),p]
-			else 
+			else
 				targs, tret , eargs
 			in
 			let idname = EConst (String name) , p in
@@ -442,7 +442,7 @@ let extend_remoting ctx c t p async prot =
 								(EField ((EConst (Ident "__cnx"),p),"__resolve"),p),
 								[if prot then idname else ECall ((EConst (Ident "__unprotect__"),p),[idname]),p]
 							),p)
-						,"call"),p),eargs						
+						,"call"),p),eargs
 					),p),p)),p)
 				],p);
 			}),p)
@@ -453,7 +453,7 @@ let extend_remoting ctx c t p async prot =
 		| TInst (c,params) ->
 			(FVar ("__cnx",None,[],Some (TPNormal { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = [] }),None),p) ::
 			(FFun ("new",None,[APublic],[],{ f_args = ["c",None]; f_type = None; f_expr = (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p) }),p) ::
-			PMap.fold (fun f acc ->						
+			PMap.fold (fun f acc ->
 				if not f.cf_public then
 					acc
 				else match follow f.cf_type with
@@ -461,7 +461,7 @@ let extend_remoting ctx c t p async prot =
 					make_field f.cf_name args ret :: acc
 				| _ -> acc
 			) c.cl_fields []
-		| _ -> 
+		| _ ->
 			error "Remoting type parameter should be a class" p
 	) in
 	let class_decl = (EClass (t.tname,None,[],[],class_fields),p) in
@@ -815,8 +815,8 @@ let type_type ctx tpath p =
 
 let type_constant ctx c p =
 	match c with
-	| Int s -> 
-		(try 
+	| Int s ->
+		(try
 			mk (TConst (TInt (Int32.of_string s))) (t_int ctx) p
 		with
 			_ -> mk (TConst (TFloat s)) (t_float ctx) p)
@@ -890,7 +890,7 @@ let type_field ctx e i p get =
 	match follow e.etype with
 	| TInst (c,params) ->
 		let priv = is_parent c ctx.curclass in
-		let find i c = 
+		let find i c =
 			try
 				let f = PMap.find i c.cl_fields in
 				f , field_type f
@@ -905,7 +905,7 @@ let type_field ctx e i p get =
 							Not_found -> loop l
 				in
 				loop c.cl_implements
-		in		
+		in
 		let rec loop c params =
 			try
 				let f, t = find i c in
@@ -975,7 +975,7 @@ let rec type_binop ctx op e1 e2 p =
 			unify ctx e2.etype e1.etype p;
 			check_assign ctx e1;
 			(match e1.eexpr , e2.eexpr with
-			| TLocal i1 , TLocal i2 
+			| TLocal i1 , TLocal i2
 			| TField ({ eexpr = TConst TThis },i1) , TField ({ eexpr = TConst TThis },i2) when i1 = i2 ->
 				error "Assigning a value to itself" p
 			| _ , _ -> ());
@@ -993,7 +993,7 @@ let rec type_binop ctx op e1 e2 p =
 				unify ctx e2.etype e.etype p;
 				check_assign ctx e;
 				mk (TBinop (OpAssignOp op,e,e2)) e.etype p;
-			| _ ->				
+			| _ ->
 				assert false)
 		| AccSet (e,m,t,f) ->
 			let l = save_locals ctx in
@@ -1101,7 +1101,7 @@ and type_unop ctx op flag e p =
 	let set = (op = Increment || op = Decrement) in
 	let acc = type_access ctx (fst e) (snd e) (not set) in
 	match acc with
-	| AccExpr e -> 
+	| AccExpr e ->
 		let t = (match op with
 		| Not ->
 			let b = t_bool ctx in
@@ -1227,7 +1227,7 @@ and type_switch ctx e cases def need_val p =
 
 and type_access ctx e p get =
 	match e with
-	| EConst (Ident s) -> 
+	| EConst (Ident s) ->
 		type_ident ctx s p get
 	| EConst (Type s) ->
 		(try
@@ -1238,11 +1238,11 @@ and type_access ctx e p get =
 			AccExpr e
 		with Error (Module_not_found ([],s2),_) when s = s2 ->
 			type_ident ctx s p get)
-	| EField _ 
+	| EField _
 	| EType _ ->
 		let fields path e =
 			List.fold_left (fun e (f,_,p) ->
-				let e = acc_get (e true) p in				
+				let e = acc_get (e true) p in
 				type_field ctx e f p
 			) e path
 		in
@@ -1293,7 +1293,7 @@ and type_access ctx e p get =
 and type_expr ctx ?(need_val=true) (e,p) =
 	match e with
 	| EField _
-	| EType _ 
+	| EType _
 	| EConst (Ident _)
 	| EConst (Type _) ->
 		acc_get (type_access ctx e p true) p
@@ -1312,12 +1312,12 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let locals = save_locals ctx in
 		let rec loop = function
 			| [] -> []
-			| [e] -> 
+			| [e] ->
 				(try
 					[type_expr ctx ~need_val e]
 				with
 					Error (e,p) -> ctx.error e p; [])
-			| e :: l ->	
+			| e :: l ->
 				try
 					let e = type_expr ctx ~need_val:false e in
 					e :: loop l
@@ -1384,13 +1384,13 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				let v = add_local ctx v t in
 				v , t , e
 			with
-				Error (e,p) -> 
+				Error (e,p) ->
 					ctx.error e p;
 					let t = t_dynamic in
 					let v = add_local ctx v t in
 					v , t, None
 		) vl in
-		mk (TVars vl) (t_void ctx) p	
+		mk (TVars vl) (t_void ctx) p
 	| EFor (i,e1,e2) ->
 		let e1 = type_expr ctx e1 in
 		let t, pt = t_iterator ctx in
@@ -1691,7 +1691,7 @@ let check_overloading ctx c p () =
 	match c.cl_super with
 	| None -> ()
 	| Some (csup,params) ->
-		PMap.iter (fun i f -> 
+		PMap.iter (fun i f ->
 			try
 				let t , f2 = class_field csup i in
 				let t = apply_params csup.cl_types params t in
@@ -1699,7 +1699,7 @@ let check_overloading ctx c p () =
 					display_error ctx ("Field " ^ i ^ " has different visibility (public/private) than superclass one") p
 				else if f2.cf_get <> f.cf_get || f2.cf_set <> f.cf_set then
 					display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p
-				else if not (type_eq false (field_type f) t) then 
+				else if not (type_eq false (field_type f) t) then
 					display_error ctx ("Field " ^ i ^ " overload parent class with different or incomplete type") p
 			with
 				Not_found -> ()
@@ -1790,12 +1790,12 @@ let init_class ctx c p herits fields =
 			) in
 			List.mem AStatic access, false, cf, delay
 		| FFun (name,doc,access,params,f) ->
-			let params = List.map (fun (n,flags) -> 
+			let params = List.map (fun (n,flags) ->
 				match flags with
 				| [] -> type_type_params ctx c.cl_path p (n,[])
 				| _ -> error "This notation is not allowed because it can't be checked" p
 			) params in
-			let ctx = { ctx with 
+			let ctx = { ctx with
 				curclass = c;
 				curmethod = name;
 				tthis = tthis;
@@ -1961,7 +1961,7 @@ let type_module ctx m tdecls loadp =
 				e_constrs = PMap.empty;
 			} in
 			decls := TEnumDecl e :: !decls
-		| ESignature (name,doc,_,flags,_) ->			
+		| ESignature (name,doc,_,flags,_) ->
 			let priv = List.mem EPrivate flags in
 			let path = decl_with_name name p priv in
 			let s = {
@@ -2006,11 +2006,11 @@ let type_module ctx m tdecls loadp =
 		untyped = false;
 	} in
 	let delays = ref [] in
-	let get_class name = 
+	let get_class name =
 		let c = List.find (fun d -> match d with TClassDecl { cl_path = _ , n } -> n = name | _ -> false) m.mtypes in
 		match c with TClassDecl c -> c | _ -> assert false
 	in
-	let get_enum name = 
+	let get_enum name =
 		let e = List.find (fun d -> match d with TEnumDecl { e_path = _ , n } -> n = name | _ -> false) m.mtypes in
 		match e with TEnumDecl e -> e | _ -> assert false
 	in
@@ -2114,7 +2114,7 @@ let rec finalize ctx =
 
 let module_of_type ctx t =
 	let mfound = ref ctx.current in
-	try 
+	try
 		Hashtbl.iter (fun _ m ->
 			if List.mem t m.mtypes then begin
 				mfound := m;
@@ -2127,7 +2127,7 @@ let module_of_type ctx t =
 			mpath = t_path t;
 			mimports = [];
 		}
-	with 
+	with
 		Exit -> !mfound
 
 type state =
@@ -2150,12 +2150,13 @@ let types ctx main excludes =
 		| NotYet ->
 			Hashtbl.add states p Generating;
 			let t = (match t with
-			| TClassDecl c ->				
+			| TClassDecl c ->
 				walk_class p c;
-				if List.mem c.cl_path excludes then
-					TClassDecl { c with cl_extern = true; cl_init = None }
-				else
-					t
+				if List.mem c.cl_path excludes then begin
+					c.cl_extern <- true;
+					c.cl_init <- None;
+				end;
+				t
 			| TEnumDecl _ | TSignatureDecl _ ->
 				t
 			) in
