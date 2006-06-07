@@ -312,7 +312,7 @@ class Http {
 		var s = neko.Lib.makeString(size);
 		var pos = 0;
 		while( size > 0 ) {
-			var len = sock.receive(s,pos,size);
+			var len = sock.receive(s,pos,if( size > 1024 ) 1024 else size);
 			pos += len;
 			size -= len;
 		}
