@@ -63,6 +63,17 @@ signature HtmlDom {> MetaDom<HtmlDom>,
 	var className : String;
 
 	var style : Style;
+
+	#if w3c
+	#else true
+	var onscroll : Event -> Void;
+	var scrollTop : Int;
+	var scrollLeft : Int;
+	var scrollHeight(default,null) : Int;
+	var scrollWidth(default,null) : Int;
+	var clientHeight(default,null) : Int;
+	var clientWidth(default,null) : Int;
+	#end
 }
 
 signature FormElement = {> HtmlDom,
@@ -116,12 +127,6 @@ signature Body = {> HtmlDom,
 	var link : String;
 	var text : String;
 	var vLink : String;
-
-	#if w3c
-	#else true
-	var scrollLeft : Int;
-	var scrollTop : Int;
-	#end
 }
 
 signature Button = {> FormElement,
@@ -672,6 +677,7 @@ signature Window {
 	// FF1.5 resizeTo
 	function scrollBy( dx : Int, dy : Int ) : Void;
 	function scrollTo( x : Int, y : Int ) : Void;
+	function open( url : String, name : String, features : String ) : Window;
 	// setInterval
 	// setTimeout
 
