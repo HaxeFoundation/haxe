@@ -183,7 +183,10 @@ and parse_type_path = parser
 	| [< '(BrOpen,_); s >] ->
 		let t = (match s with parser
 			| [< name = any_ident >] -> TPAnonymous (parse_type_anonymous_resume name s)
-			| [< '(Binop OpGt,_); t = parse_type_path_normal; '(Comma,_); l = plist parse_signature_field; '(BrClose,_) >] -> TPExtend (t,l)
+			| [< '(Binop OpGt,_); t = parse_type_path_normal; '(Comma,_); s >] ->
+				(match s with parser
+				| [< name = any_ident; l = parse_type_anonymous_resume name >] -> TPExtend (t,l)
+				| [< l = plist parse_signature_field; '(BrClose,_) >] -> TPExtend (t,l))
 			| [< l = plist parse_signature_field; '(BrClose,_) >] -> TPAnonymous l
 			| [< >] -> serror()
 		) in
