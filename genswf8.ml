@@ -183,8 +183,12 @@ let is_protected_name path ext =
 let rec is_protected ctx t check_mt =
 	match t with
 	| TInst (c,_) ->
-		is_protected_name c.cl_path c.cl_extern 
-		|| (check_mt && List.exists (fun (i,_) -> i.cl_path = (["mt"],"Protect")) c.cl_implements)
+		let rec loop c = 
+			is_protected_name c.cl_path c.cl_extern 
+			|| (check_mt && List.exists (fun (i,_) -> i.cl_path = (["mt"],"Protect")) c.cl_implements)
+			|| match c.cl_super with None -> false | Some (c,_) -> loop c
+		in
+		loop c
 	| TMono r -> 
 		(match !r with
 		| None -> true
