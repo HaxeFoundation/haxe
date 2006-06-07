@@ -53,11 +53,12 @@ type context = {
 let error p = Typer.error "Invalid expression" p
 let stack_error p = Typer.error "Stack error" p
 let protect_all = ref true
+let extern_boot = ref false
 
 (* -------------------------------------------------------------- *)
 (* Bytecode Helpers *)
 
-type kind = 
+type kind =
 	| VarReg of int
 	| VarStr
 	| VarObj
@@ -86,7 +87,7 @@ let stack_delta = function
 	| AObject | AInitArray -> 0 (** calculated outside **)
 	| ASet -> -2
 	| APop -> -1
-	| AFunction _ | AFunction2 _ -> 1	
+	| AFunction _ | AFunction2 _ -> 1
 	| ADup -> 1
 	| AWith _ -> -1
 	| AObjGet -> -1
@@ -106,7 +107,7 @@ let stack_delta = function
 
 let overflow ctx =
 	failwith ("In or near the method " ^ s_type_path ctx.curclass ^ "." ^ ctx.curmethod ^
-	" too much code is causing an overflow that can't be handled by the SWF format. " ^ 
+	" too much code is causing an overflow that can't be handled by the SWF format. " ^
 	"Please split your code in several methods so it can be correctly compiled.")
 
 let write ctx op =
@@ -136,7 +137,7 @@ let call ctx kind n =
 		| VarReg r ->
 			write ctx (APush [PReg r;PUndefined]);
 			AObjCall , n + 2
-		| VarStr -> 
+		| VarStr ->
 			ACall , n + 1
 		| VarClosure | VarObj ->
 			AObjCall , n + 2
@@ -151,7 +152,7 @@ let new_call ctx kind n  =
 		| VarReg r ->
 			write ctx (APush [PReg r;PUndefined]);
 			ANewMethod , n + 2
-		| VarStr -> 
+		| VarStr ->
 			ANew , n + 1
 		| VarClosure | VarObj ->
 			ANewMethod , n + 2
@@ -175,7 +176,7 @@ let unprotect a = !protect_all || always_protected a
 
 let is_protected_name path ext =
 	match path with
-	| ["flash"] , "Boot" -> false
+	| ["flash"] , "Boot" | ["flash"] , "Lib" -> false
 	| "flash" :: _ , _ -> ext
 	| [] , "Array" | [] , "Math" | [] , "Date" | [] , "String" | [] , "Bool" -> true
 	| _ -> false
@@ -183,13 +184,13 @@ let is_protected_name path ext =
 let rec is_protected ctx t check_mt =
 	match t with
 	| TInst (c,_) ->
-		let rec loop c = 
-			is_protected_name c.cl_path c.cl_extern 
+		let rec loop c =
+			is_protected_name c.cl_path c.cl_extern
 			|| (check_mt && List.exists (fun (i,_) -> i.cl_path = (["mt"],"Protect")) c.cl_implements)
 			|| match c.cl_super with None -> false | Some (c,_) -> loop c
 		in
 		loop c
-	| TMono r -> 
+	| TMono r ->
 		(match !r with
 		| None -> true
 		| Some t -> is_protected ctx t check_mt)
@@ -212,7 +213,7 @@ let push ctx items =
 				Hashtbl.add ctx.idents (str,flag) n;
 				n
 			) in
-			if n <= 0xFF then 
+			if n <= 0xFF then
 				PStack n
 			else
 				PStack2 n
@@ -232,7 +233,7 @@ let push ctx items =
 			PReg n
 	) items))
 
-let pop ctx n dec =	
+let pop ctx n dec =
 	let rec loop n =
 		if n <> 0 then begin
 			write ctx APop;
@@ -281,14 +282,14 @@ let jmp_pos ctx cond =
 		DynArray.set ctx.opcodes op_pos (if cond then ACondJump delta else AJump delta);
 		ctx.opt_push <- false
 	)
-	
+
 
 let setvar ?(retval=false) ctx = function
 	| VarReg (-1) -> assert false (** true, false, null **)
 	| VarReg n -> write ctx (ASetReg n); if not retval then write ctx APop
 	| VarStr
 	| VarObj
-	| VarClosure as s -> 
+	| VarClosure as s ->
 		if retval then write ctx (ASetReg 0);
 		write ctx (if s = VarStr then ASet else AObjSet);
 		if retval then push ctx [VReg 0]
@@ -364,7 +365,7 @@ let begin_loop ctx =
 	ctx.breaks <- [];
 	ctx.continues <- [];
 	ctx.loop_stack <- ctx.stack_size;
-	(fun pos ->		
+	(fun pos ->
 		List.iter (fun f -> f()) ctx.breaks;
 		List.iter (fun f -> f pos) ctx.continues;
 		ctx.breaks <- old_breaks;
@@ -434,7 +435,7 @@ let cfind flag cst e =
 		(if flag then loop2 else loop) e;
 		false
 	with
-		Exit -> 
+		Exit ->
 			true
 
 let define_var ctx v ef exprs =
@@ -442,7 +443,7 @@ let define_var ctx v ef exprs =
 		push ctx [VStr (v,false)];
 		ctx.regs <- PMap.add v None ctx.regs;
 		match ef with
-		| None -> 
+		| None ->
 			write ctx ALocalVar
 		| Some f ->
 			f();
@@ -480,7 +481,7 @@ let gen_ident =
 	loop
 
 let gen_type ctx t extern =
-	if fst t = [] then 
+	if fst t = [] then
 		snd t , is_protected_name t extern
 	else try
 		let id , e = Hashtbl.find ctx.types t in
@@ -524,7 +525,7 @@ let rec gen_big_string ctx s =
 	let max = 65000 in
 	if len <= max then
 		write ctx (APush [PString s])
-	else begin		
+	else begin
 		write ctx (APush [PString (String.sub s 0 max)]);
 		ctx.opt_push <- false;
 		gen_big_string ctx (String.sub s max (len - max));
@@ -535,7 +536,7 @@ let rec gen_constant ctx c p =
 	match c with
 	| TInt i -> push ctx [VInt32 i]
 	| TFloat s -> push ctx [VFloat (try float_of_string s with _ -> error p)]
-	| TString s -> 
+	| TString s ->
 		if String.contains s '\000' then Typer.error "A String cannot contain \\0 characters" p;
 		push ctx [VStr (s,true)]
 	| TBool b -> write ctx (APush [PBool b])
@@ -612,7 +613,7 @@ and gen_try_catch ctx retval e catchs =
 	gen_expr ctx retval e;
 	let end_try = start_try() in
 	let end_throw = ref true in
-	let jumps = List.map (fun (name,t,e) ->	
+	let jumps = List.map (fun (name,t,e) ->
 		if not !end_throw then
 			(fun () -> ())
 		else let t = (match follow t with
@@ -628,9 +629,9 @@ and gen_try_catch ctx retval e catchs =
 				None
 		) in
 		let next_catch = (match t with
-		| None -> 
+		| None ->
 			end_throw := false;
-			(* @exc.pop() *)			
+			(* @exc.pop() *)
 			push ctx [VInt 0;VStr ("@exc",true)];
 			write ctx AEval;
 			push ctx [VStr ("pop",true)];
@@ -680,7 +681,7 @@ and gen_switch ctx retval e cases def =
 	let r = alloc_reg ctx in
 	write ctx (ASetReg r);
 	let rec loop = function
-		| [] -> 
+		| [] ->
 			write ctx APop;
 			[]
 		| [(e,x)] ->
@@ -704,7 +705,7 @@ and gen_switch ctx retval e cases def =
 		gen_expr ctx retval e;
 		if retval then ctx.stack_size <- ctx.stack_size - 1;
 		jmp ctx;
-	) dispatch in		
+	) dispatch in
 	jend();
 	free_reg ctx r e.epos;
 	List.iter (fun j -> j()) jends
@@ -718,7 +719,7 @@ and gen_match ctx retval e cases def =
 	let rtag = alloc_reg ctx in
 	write ctx (ASetReg rtag);
 	let rec loop = function
-		| [] -> 
+		| [] ->
 			write ctx APop;
 			[]
 		| [(constr,args,e)] ->
@@ -787,7 +788,7 @@ and gen_binop ctx retval op e1 e2 =
 	| OpPhysNotEq ->
 		gen APhysEqual;
 		write ctx ANot
-	| OpNotEq -> 
+	| OpNotEq ->
 		gen AEqual;
 		write ctx ANot
 	| OpGt -> gen AGreater
@@ -826,7 +827,7 @@ and gen_binop ctx retval op e1 e2 =
 
 and gen_unop ctx retval op flag e =
 	match op with
-	| Not -> 
+	| Not ->
 		gen_expr ctx true e;
 		write ctx ANot
 	| Neg ->
@@ -835,7 +836,7 @@ and gen_unop ctx retval op flag e =
 		write ctx ASubtract
 	| NegBits ->
 		gen_expr ctx true e;
-		push ctx [VInt (-1)]; 
+		push ctx [VInt (-1)];
 		write ctx AXor
 	| Increment
 	| Decrement ->
@@ -922,7 +923,7 @@ and gen_expr_2 ctx retval e =
 	| TArray _
 	| TLocal _
 	| TType _
-	| TEnumField _ ->	
+	| TEnumField _ ->
 		getvar ctx (gen_access ctx false e)
 	| TConst c ->
 		gen_constant ctx c e.epos
@@ -932,17 +933,17 @@ and gen_expr_2 ctx retval e =
 		let rec loop = function
 			| [] ->
 				if retval then push ctx [VNull]
-			| [e] -> 
+			| [e] ->
 				ctx.cur_block <- [];
 				gen_expr ctx retval e
-			| e :: l -> 
+			| e :: l ->
 				ctx.cur_block <- l;
 				gen_expr ctx false e;
 				loop l
 		in
 		let b = open_block ctx in
 		loop el;
-		b()	
+		b()
 	| TVars vl ->
 		List.iter (fun (v,t,e) ->
 			define_var ctx v (match e with None -> None | Some e -> Some (fun() -> gen_expr ctx true e)) ctx.cur_block
@@ -967,8 +968,8 @@ and gen_expr_2 ctx retval e =
 		let block = open_block ctx in
 		let reg_super = cfind true (TConst TSuper) f.tf_expr in
 		(* only keep None bindings, for protect *)
-		ctx.regs <- PMap.foldi (fun v x acc -> 
-			match x with 
+		ctx.regs <- PMap.foldi (fun v x acc ->
+			match x with
 			| None -> PMap.add v None acc
 			| Some _ -> acc
 		) ctx.regs PMap.empty;
@@ -980,7 +981,7 @@ and gen_expr_2 ctx retval e =
 				ctx.regs <- PMap.add a None ctx.regs;
 				pargs := unprotect a :: !pargs;
 				0 , a
-			end else begin 
+			end else begin
 				let r = alloc_reg ctx in
 				ctx.regs <- PMap.add a (Some r) ctx.regs;
 				pargs := false :: !pargs;
@@ -1089,7 +1090,7 @@ and gen_expr_2 ctx retval e =
 		write ctx ANot;
 		let j_end = cjmp ctx in
 		let b = open_block ctx in
-		define_var ctx v (Some (fun() -> 
+		define_var ctx v (Some (fun() ->
 			push ctx [VInt 0; VReg r; VStr ("next",false)];
 			call ctx VarObj 0;
 		)) [e];
@@ -1138,7 +1139,7 @@ let gen_class_field ctx f flag =
 	(match f.cf_expr with
 	| None ->
 		push ctx [VNull]
-	| Some e ->	
+	| Some e ->
 		ctx.curmethod <- f.cf_name;
 		gen_expr ctx true e);
 	setvar ctx VarObj
@@ -1152,7 +1153,7 @@ let gen_enum_field ctx id f =
 		let rargs = List.map (fun _ -> alloc_reg ctx , "") args in
 		let nregs = List.length rargs + 1 in
 		let tf = func ctx false false rargs in
-		push ctx (List.map (fun (r,_) -> VReg r) (List.rev rargs));		
+		push ctx (List.map (fun (r,_) -> VReg r) (List.rev rargs));
 		push ctx [VStr (f.ef_name,false); VInt nregs];
 		write ctx AInitArray;
 		write ctx ADup;
@@ -1179,7 +1180,7 @@ let gen_path ctx (p,t) is_extern =
 	| [] ->
 		push ctx [VStr (t,flag)];
 		write ctx AEval
-	| p :: l -> 
+	| p :: l ->
 		push ctx [VStr (p,flag)];
 		write ctx AEval;
 		List.iter (fun p ->
@@ -1214,6 +1215,7 @@ let gen_type_def ctx t =
 		else
 		let id , flag = gen_type ctx c.cl_path false in
 		let have_constr = ref false in
+		if c.cl_path = (["flash"] , "Boot") then extern_boot := false;
 		push ctx [VStr (id,flag)];
 		let rec loop s =
 			match s.cl_super with
@@ -1233,7 +1235,7 @@ let gen_type_def ctx t =
 			gen_expr ctx true e
 		| _ ->
 			let f = func ctx true false [] in
-			f());		
+			f());
 		write ctx (ASetReg 0);
 		setvar ctx VarStr;
 		if !have_constr then begin
@@ -1314,7 +1316,7 @@ let gen_type_def ctx t =
 		()
 
 let gen_boot ctx hres =
-	let id , flag = gen_type ctx (["flash"],"Boot") false in
+	let id , flag = gen_type ctx (["flash"],"Boot") (!extern_boot) in
 	(* r0 = Boot *)
 	push ctx [VStr (id,flag)];
 	write ctx AEval;
@@ -1330,7 +1332,7 @@ let gen_boot ctx hres =
 	push ctx [VReg 0; VStr ("__res",false)];
 	let count = ref 0 in
 	Hashtbl.iter (fun name data ->
-		if String.contains data '\000' then failwith ("Resource " ^ name ^ " contains \\0 character than can't be used in Flash");		
+		if String.contains data '\000' then failwith ("Resource " ^ name ^ " contains \\0 character than can't be used in Flash");
 		push ctx [VStr (name,true)];
 		gen_big_string ctx data;
 		incr count;
@@ -1354,9 +1356,9 @@ let gen_type_map ctx =
 	let packs = Hashtbl.create 0 in
 	let rec loop acc cur = function
 		| [] ->
-			(if cur = "" then 
+			(if cur = "" then
 				VarStr
-			else begin 
+			else begin
 				push ctx [VStr (cur,false)];
 				write ctx AEval;
 				VarObj
@@ -1406,14 +1408,14 @@ let gen_type_map ctx =
 			write ctx AEval;
 			setvar ctx k
 		end
-	) ctx.types	
+	) ctx.types
 
 let to_utf8 str =
 	try
 		UTF8.validate str;
 		str;
 	with
-		UTF8.Malformed_code -> 
+		UTF8.Malformed_code ->
 			let b = UTF8.Buf.create 0 in
 			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
 			UTF8.Buf.contents b
@@ -1463,6 +1465,7 @@ let generate file ver header infile types hres =
 	} in
 	write ctx (AStringPool []);
 	protect_all := not (Plugin.defined "swf-mark");
+	extern_boot := true;
 	push ctx [VStr ("@class_str",false)];
 	let f = func ctx false false [] in
 	push ctx [VStr (".",true); VInt 1];
@@ -1488,7 +1491,7 @@ let generate file ver header infile types hres =
 	List.iter (gen_class_static_init ctx) (List.rev ctx.statics);
 	let end_try = global_try() in
 	(* flash.Boot.__trace(exc) *)
-	let id , flag = gen_type ctx (["flash"],"Boot") false in
+	let id , flag = gen_type ctx (["flash"],"Boot") (!extern_boot) in
 	push ctx [VStr ("fileName",false); VStr ("(uncaught exception)",true); VInt 1];
 	write ctx AObject;
 	ctx.stack_size <- ctx.stack_size - 2;
@@ -1527,9 +1530,9 @@ let generate file ver header infile types hres =
 			let file = (try Plugin.find_file file with Not_found -> failwith ("File not found : " ^ file)) in
 			let ch = IO.input_channel (open_in_bin file) in
 			let h, swf = (try Swf.parse ch with _ -> failwith ("The input swf " ^ file ^ " is corrupted")) in
-			let header , tagbg = (match header with 
-				| None -> h , None 
-				| Some h -> 
+			let header , tagbg = (match header with
+				| None -> h , None
+				| Some h ->
 					let h , bg = convert_header ver h in
 					let tagbg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
 					h , Some tagbg
@@ -1551,10 +1554,10 @@ let generate file ver header infile types hres =
 					| Some bg -> bg :: loop l)
 				| ({ tdata = TShowFrame } as t) :: l ->
 					tagclips() @ tagcode :: t :: l
-				| t :: l -> 
+				| t :: l ->
 					(match t.tdata with
-					| TExport l -> 
-						List.iter (fun e -> 
+					| TExport l ->
+						List.iter (fun e ->
 							ctx.movieclips <- List.filter (fun x -> s_type_path x <> e.exp_name) ctx.movieclips
 						) l
 					| _ -> ());
@@ -1565,13 +1568,13 @@ let generate file ver header infile types hres =
 	if Plugin.defined "swf-mark" then begin
 		let ch = IO.output_channel (open_out_bin (Filename.chop_extension file ^ ".mark")) in
 		IO.write_i32 ch (List.length ctx.fun_pargs);
-		List.iter (fun (id,l) -> 
+		List.iter (fun (id,l) ->
 			IO.write_i32 ch id;
 			IO.write_i32 ch (List.length l);
 			List.iter (fun f -> IO.write_byte ch (if f then 1 else 0)) l;
 		) ctx.fun_pargs;
 		IO.write_i32 ch (List.length pidents);
-		List.iter (fun f -> IO.write_byte ch (if f then 1 else 0)) pidents;		
+		List.iter (fun f -> IO.write_byte ch (if f then 1 else 0)) pidents;
 		IO.close_out ch;
 	end;
 	let ch = IO.output_channel (open_out_bin file) in
