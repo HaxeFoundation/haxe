@@ -409,7 +409,7 @@ let rec reverse_type t =
 	| _ ->
 		raise Exit
 
-let extend_remoting ctx c t p async =
+let extend_remoting ctx c t p async prot =
 	if ctx.isproxy then error "Cascading proxys can result in infinite loops, please use conditional compilation to prevent this proxy access" p;
 	if c.cl_super <> None then error "Cannot extend several classes" p;
 	let ctx2 = context ctx.error ctx.warn in
@@ -431,13 +431,19 @@ let extend_remoting ctx c t p async =
 			else 
 				targs, tret , eargs
 			in
+			let idname = EConst (String name) , p in
 			(FFun (name,None,[APublic],[], {
 				f_args = targs;
 				f_type = Some tret;
 				f_expr = (EBlock [
-					(EReturn (Some (ECall (
-						(EField ((EField ((EConst (Ident "__cnx"),p),name),p),"call"),p),eargs						
-					),p)),p)
+					(EReturn (Some (EUntyped (ECall (
+						(EField (
+							(ECall (
+								(EField ((EConst (Ident "__cnx"),p),"__resolve"),p),
+								[if prot then idname else ECall ((EConst (Ident "__unprotect__"),p),[idname]),p]
+							),p)
+						,"call"),p),eargs						
+					),p),p)),p)
 				],p);
 			}),p)
 		with
@@ -472,9 +478,11 @@ let set_heritance ctx c herits p =
 		| HPrivate | HExtern | HInterface ->
 			()
 		| HExtends { tpackage = ["haxe";"remoting"]; tname = "Proxy"; tparams = [TPNormal t] } ->
-			extend_remoting ctx c t p false
+			extend_remoting ctx c t p false true
 		| HExtends { tpackage = ["haxe";"remoting"]; tname = "AsyncProxy"; tparams = [TPNormal t] } ->
-			extend_remoting ctx c t p true
+			extend_remoting ctx c t p true true
+		| HExtends { tpackage = ["mt"]; tname = "AsyncProxy"; tparams = [TPNormal t] } ->
+			extend_remoting ctx c t p true false
 		| HExtends t ->
 			if c.cl_super <> None then error "Cannot extend several classes" p;
 			let t = load_normal_type ctx t p false in
