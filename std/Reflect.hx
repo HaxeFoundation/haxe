@@ -160,12 +160,14 @@ class Reflect {
 	public static function createInstance( cl : Dynamic, args : Array<Dynamic> ) : Dynamic {
 		#if flash
 			var o = { __constructor__ : cl, __proto__ : cl.prototype };
-			return cl[untyped "apply"](o,args);
+			cl[untyped "apply"](o,args);
+			return o;
 		#else neko
 			return untyped __dollar__call(__dollar__objget(cl,__dollar__hash("new".__s)),cl,args.__a);
 		#else js
 			var o = { __constructor__ : cl, __proto__ : cl.prototype };
-			return cl.apply(o,args);
+			cl.apply(o,args);
+			return o;
 		#else error
 		#end
 	}
