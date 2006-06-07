@@ -106,7 +106,18 @@ let delete_file f = try Sys.remove f with _ -> ()
 
 let base_defines = !Plugin.defines
 
-let rec init argv argv_start =
+exception Hxml_found
+
+let rec process_params acc = function
+	| [] ->	
+		init (List.rev acc)
+	| "--next" :: l ->
+		init (List.rev acc);
+		process_params [] l
+	| x :: l ->
+		process_params (x :: acc) l
+
+and init params =
 try	
 	let usage = "Haxe Compiler 1.01 - (c)2005-2006 Motion-Twin\n Usage : haxe.exe [options] <class names...>\n Options :" in
 	let base_path = normalize_path (try Extc.executable_path() with _ -> "./") in
@@ -117,13 +128,10 @@ try
 	let main_class = ref None in
 	let swf_version = ref 8 in
 	let swf_header = ref None in
-	let current = ref argv_start in
-	let has_hxml = ref false in
-	let next = ref (fun() -> ()) in
 	let hres = Hashtbl.create 0 in
+	let cmds = ref [] in
 	let excludes = ref [] in
 	Plugin.defines := base_defines;
-	Plugin.verbose := false;
 	Typer.forbidden_packages := ["js"; "neko"; "flash"];
 	Parser.display_error := parse_error;
 	(try
@@ -217,26 +225,23 @@ try
 		("-v",Arg.Unit (fun () -> Plugin.verbose := true),": turn on verbose mode");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
 		("-cmd", Arg.String (fun cmd ->
-			let old = !next in
-			next := (fun() -> old(); if Sys.command cmd <> 0 then failwith "Command failed")
+			cmds := cmd :: !cmds
 		),": run the specified command after successful compilation");
 		("--flash-strict", define "flash_strict", ": more type strict flash API");
 		("--no-flash-opt-args", define "no_flash_opt_args" , ": don't allow optional parameters for flash api");
 		("--no-traces", define "no_traces", ": don't compile trace calls in the program");
 		("--flash-use-stage", define "flash_use_stage", ": place objects found on the stage of the SWF lib");
-		("--next", Arg.Unit (fun() -> 
-			let p = !current in
-			current := Array.length argv;
-			next := (fun() -> init argv p);
-		), ": separate several haxe compilations");
+		("--next", Arg.Unit (fun() -> assert false), ": separate several haxe compilations");
 		("--altfmt", Arg.Unit (fun() -> alt_format := true),": use alternative error output format");
 	] in
+	let current = ref 0 in
+	let args = Array.of_list ("" :: params) in
 	let rec args_callback cl =
 		match List.rev (ExtString.String.nsplit cl ".") with
 		| x :: _ when String.lowercase x = "hxml" ->
 			let ch = (try open_in cl with _ -> failwith ("File not found " ^ cl)) in
 			let lines = Std.input_list ch in
-			let args = List.concat (List.map (fun l -> 
+			let hxml_args = List.concat (List.map (fun l -> 
 				let len = String.length l in
 				let l = (if len != 0 && l.[len - 1] = '\r' then String.sub l 0 (len-1) else l) in
 				if l = "" || l.[0] = '#' then
@@ -249,19 +254,16 @@ try
 						_ -> [l]
 				else
 					[l]
-			) lines) in			
-			let cur = !next in
-			let verb = !Plugin.verbose in
-			next := (fun() ->
-				cur();
-				if verb then print_endline ("Executing " ^ cl ^ " : " ^ String.concat " " (List.tl args));
-				init (Array.of_list (cl :: args)) 0
-			);
-			has_hxml := true;
+			) lines) in
+			let p1 = Array.to_list (Array.sub args 1 (!current - 1)) in
+			let p2 = Array.to_list (Array.sub args (!current + 1) (Array.length args - !current - 1)) in
+			if !Plugin.verbose then print_endline ("Processing HXML : " ^ cl);
+			process_params [] (p1 @ hxml_args @ p2);
+			raise Hxml_found
 		| _ ->
 			classes := make_path cl :: !classes
 	in
-	Arg.parse_argv ~current argv args_spec args_callback usage;
+	Arg.parse_argv ~current args args_spec args_callback usage;
 	(match !target with
 	| No ->
 		()
@@ -279,7 +281,10 @@ try
 		Plugin.define "js";
 	);
 	if !classes = [([],"Std")] then begin
-		if not !has_hxml then Arg.usage args_spec usage
+		if !cmds = [] then begin
+			(*Arg.usage args_spec usage;*)
+			prerr_endline (String.concat "#" params);
+		end
 	end else begin
 		if !Plugin.verbose then print_endline ("Classpath : " ^ (String.concat ";" !Plugin.class_path));
 		let ctx = Typer.context type_error warn in
@@ -305,15 +310,22 @@ try
 			if !Plugin.verbose then print_endline ("Generating xml : " ^ file);
 			Genxml.generate file ctx types);
 	end;
-	(!next)();
+	List.iter (fun cmd ->
+		let len = String.length cmd in
+		if len > 3 && String.sub cmd 0 3 = "cd " then
+			Sys.chdir (String.sub cmd 3 (len - 3))
+		else
+			if Sys.command cmd <> 0 then failwith "Command failed"
+	) (List.rev !cmds)
 with	
 	| Lexer.Error (m,p) -> report (Lexer.error_msg m) p
 	| Parser.Error (m,p) -> report (Parser.error_msg m) p
 	| Typer.Error (m,p) -> report (Typer.error_msg m) p
 	| Failure msg | Arg.Bad msg -> report ("Error : " ^ msg) Ast.null_pos
+	| Hxml_found -> ()
 	| e -> report (Printexc.to_string e) Ast.null_pos
 
 ;;
 let time = Sys.time() in
-init Sys.argv 0;
+process_params [] (List.tl (Array.to_list Sys.argv));
 if !Plugin.verbose then print_endline ("Time spent : " ^ string_of_float (Sys.time() -. time));
