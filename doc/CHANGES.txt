@@ -13,6 +13,8 @@
 	added neko.zip package
 	fixed bug in neko.File binary flags
 	fixed problems when downloading large files using haxe.Http under Neko
+	neko.db.Connection and neko.db.ResultSet are now interfaces
+	added neko.db.Sqlite and neko sqlite ndll
 
 2006-05-25: 1.01
 	added neko.Utf8
