@@ -1372,16 +1372,23 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		mk (TArrayDecl el) t p
 	| EVars vl ->
 		let vl = List.map (fun (v,t,e) ->
-			let t = load_type_opt ctx p t in
-			let e = (match e with
-				| None -> None
-				| Some e ->
-					let e = type_expr ctx e in
-					unify ctx e.etype t p;
-					Some e
-			) in
-			let v = add_local ctx v t in
-			v , t , e
+			try
+				let t = load_type_opt ctx p t in
+				let e = (match e with
+					| None -> None
+					| Some e ->
+						let e = type_expr ctx e in
+						unify ctx e.etype t p;
+						Some e
+				) in
+				let v = add_local ctx v t in
+				v , t , e
+			with
+				Error (e,p) -> 
+					ctx.error e p;
+					let t = t_dynamic in
+					let v = add_local ctx v t in
+					v , t, None
 		) vl in
 		mk (TVars vl) (t_void ctx) p	
 	| EFor (i,e1,e2) ->
