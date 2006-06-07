@@ -137,7 +137,7 @@ try
 			| l ->
 				l
 		in
-		Plugin.class_path := loop (ExtString.String.nsplit p ":")
+		Plugin.class_path := List.map normalize_path (loop (ExtString.String.nsplit p ":"))
 	with
 		Not_found -> 
 			Plugin.class_path := [base_path ^ "std/";"";"/"]);
