@@ -15,6 +15,7 @@
 	fixed problems when downloading large files using haxe.Http under Neko
 	neko.db.Connection and neko.db.ResultSet are now interfaces
 	added neko.db.Sqlite and neko sqlite ndll
+	mod_neko2.ndll for Apache2 in Windows distribution
 
 2006-05-25: 1.01
 	added neko.Utf8
