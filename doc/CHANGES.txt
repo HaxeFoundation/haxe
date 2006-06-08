@@ -1,4 +1,4 @@
-2006-06-??: 1.02
+2006-06-08: 1.02
 	fixed stack overflow when recursive class <: recursive signature
 	improved a bit commandline : allow several hxml arguments
 	added {> Class, fields... } types declarations
