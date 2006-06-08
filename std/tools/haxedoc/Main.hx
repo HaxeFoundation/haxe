@@ -648,7 +648,15 @@ class DocView {
 	}
 
 	public static function main() {
-		var hdata = try neko.File.getContent(Web.getCwd()+"template.xml") catch( e : Dynamic ) default_template;
+		var hdata =
+			try
+				neko.File.getContent(Web.getCwd()+"template.xml")
+			catch( e : Dynamic ) try {
+				var p = ~/[\/\\]/g.split(neko.Sys.executablePath());
+				p.pop();
+				neko.File.getContent(p.join("/")+"/std/tools/template.xml");
+			} catch( e : Dynamic )
+				default_template;
 		var html = Xml.parse(hdata).firstChild();
 		if( neko.Web.isModNeko ) {
 			var baseDir = "../data/media/";
