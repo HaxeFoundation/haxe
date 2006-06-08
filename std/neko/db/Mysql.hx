@@ -24,6 +24,8 @@
  */
 package neko.db;
 
+import neko.db.Connection;
+
 private class MysqlResultSet implements ResultSet {
 
 	public var length(getLength,null) : Int;
@@ -136,6 +138,17 @@ private class MysqlConnection implements Connection {
 
 	public function quote( s : String ) {
 		return "'"+escape(s)+"'";
+	}
+
+	public function lastInsertId() {
+		return request("SELECT LAST_INSERT_ID()").getIntResult(0);
+	}
+
+	public function hasFeature( f ) {
+		switch( f ) {
+		case ForUpdate: return true;
+		}
+		return false;
 	}
 
 	private static var __use_date = Date;

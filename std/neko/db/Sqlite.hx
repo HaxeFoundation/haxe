@@ -24,6 +24,8 @@
  */
 package neko.db;
 
+import neko.db.Connection;
+
 private class SqliteConnection implements Connection {
 
 	var c : Void;
@@ -52,9 +54,21 @@ private class SqliteConnection implements Connection {
 		return "'"+escape(s)+"'";
 	}
 
+	public function lastInsertId() {
+		return _last_id(c);
+	}
+
+	public function hasFeature( f ) {
+		switch( f ) {
+		case ForUpdate: return false;
+		}
+		return false;
+	}
+
 	static var _connect = neko.Lib.load("sqlite","connect",1);
 	static var _close = neko.Lib.load("sqlite","close",1);
 	static var _request = neko.Lib.load("sqlite","request",2);
+	static var _last_id = neko.Lib.load("sqlite","last_insert_id",1);
 }
 
 

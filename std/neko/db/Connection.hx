@@ -24,6 +24,10 @@
  */
 package neko.db;
 
+enum Feature {
+	ForUpdate;
+}
+
 interface Connection {
 
 	function selectDB( db : String ) : Void;
@@ -31,5 +35,8 @@ interface Connection {
 	function close() : Void;
 	function escape( s : String ) : String;
 	function quote( s : String ) : String;
+	function lastInsertId() : Int;
+
+	function hasFeature( f : Feature ) : Bool;
 
 }

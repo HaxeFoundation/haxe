@@ -25,6 +25,7 @@
 package neko.db;
 
 import Reflect;
+import neko.db.Connection;
 
 /**
 	SPOD Manager : the persistent object database manager. See the tutorial on
@@ -33,11 +34,18 @@ import Reflect;
 class Manager<T : Object> {
 
 	/* ----------------------------- STATICS ------------------------------ */
-	public static var cnx : Connection = null;
+	public static var cnx(default,setConnection) : Connection;
 	private static var object_cache : Hash<Object> = new Hash();
 	private static var init_list : List<Manager<Object>> = new List();
 	private static var cache_field = "__cache__";
 	private static var no_update = function() { throw "Cannot update not locked object"; }
+	private static var FOR_UPDATE = "";
+
+	private static function setConnection( c : Connection ) {
+		Reflect.setField(Manager,"cnx",c);
+		FOR_UPDATE = if( c.hasFeature(ForUpdate) ) " FOR UPDATE" else "";
+		return c;
+	}
 
 	/* ---------------------------- BASIC API ----------------------------- */
 	var table_name : String;
@@ -91,7 +99,7 @@ class Manager<T : Object> {
 		s.add(table_name);
 		s.add(" WHERE ");
 		addKeys(s,keys);
-		s.add(" FOR UPDATE");
+		s.add(FOR_UPDATE);
 		return object(s.toString(),true);
 	}
 
@@ -118,12 +126,12 @@ class Manager<T : Object> {
 		if( first )
 			s.add("TRUE");
 		if( lock )
-			s.add(" FOR UPDATE");
+			s.add(FOR_UPDATE);
 		return objects(s.toString(),lock);
 	}
 
 	public function all(lock) : List<T> {
-		return objects("SELECT * FROM "+if( lock ) table_name + " FOR UPDATE" else table_name,lock);
+		return objects("SELECT * FROM " + table_name + if( lock ) FOR_UPDATE else "",lock);
 	}
 
 	public function count() : Int {
@@ -173,7 +181,7 @@ class Manager<T : Object> {
 		execute(s.toString());
 		// table with one key not defined : suppose autoincrement
 		if( table_keys.length == 1 && Reflect.field(x,table_keys[0]) == null )
-			Reflect.setField(x,table_keys[0],lastInsertId());
+			Reflect.setField(x,table_keys[0],cnx.lastInsertId());
 		addToCache(x);
 	}
 
@@ -307,17 +315,13 @@ class Manager<T : Object> {
 		return cnx.request(sql);
 	}
 
-	function lastInsertId() : Int {
-		return execute("SELECT LAST_INSERT_ID()").getIntResult(0);
-	}
-
 	function select( cond : String ) {
 		var s = new StringBuf();
 		s.add("SELECT * FROM ");
 		s.add(table_name);
 		s.add(" WHERE ");
 		s.add(cond);
-		s.add(" FOR UPDATE");
+		s.add(FOR_UPDATE);
 		return s.toString();
 	}
 
@@ -346,7 +350,7 @@ class Manager<T : Object> {
 		s.add(" = ");
 		addQuote(s,id);
 		if( lock )
-			s.add(" FOR UPDATE");
+			s.add(FOR_UPDATE);
 		return object(s.toString(),lock);
 	}
 
