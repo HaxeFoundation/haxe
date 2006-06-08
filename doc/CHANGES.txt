@@ -16,6 +16,9 @@
 	neko.db.Connection and neko.db.ResultSet are now interfaces
 	added neko.db.Sqlite and neko sqlite ndll
 	mod_neko2.ndll for Apache2 in Windows distribution
+	fixed bug in static properties method resolution
+	change js.Dom : use cascading signatures and improved api
+	added haxe.unit Unit test framework
 
 2006-05-25: 1.01
 	added neko.Utf8
