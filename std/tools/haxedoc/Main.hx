@@ -551,11 +551,13 @@ class DocView {
 		for( e in p ) {
 			switch e {
 			case epackage(name,p):
+				if( !filtered(name) )
+					continue;
 				print('<li><a href="#" class="package" onclick="toggle(\''+name+'\')">'+name+"</a><div id=\""+name+"\" class=\"package_content\">");
 				display(p);
 				print("</div></li>");
 			case eclass(c):
-				if( c.isPrivate || c.path == "@Main" )
+				if( c.isPrivate || c.path == "@Main" || !filtered(c.path) )
 					continue;
 				print("<li>"+Url.make(c.path.split(".").join("/"),"entry",c.name)+"</li>");
 			}
@@ -611,6 +613,16 @@ class DocView {
 	}
 
 	static var default_template = "<html><body><data/></body></html>";
+	static var filters = new List();
+
+	static function filtered(name) {
+		if( filters.isEmpty() )
+			return false;
+		for( x in filters )
+			if( StringTools.startsWith(name,x) )
+				return true;
+		return false;
+	}
 
 	static function save(html,clname,file) {
 		Url.buffer = new StringBuf();
@@ -623,8 +635,13 @@ class DocView {
 
 	static function generateEntry(html,e,path) {
 		switch( e ) {
-		case eclass(c): save(html,c.path,path+c.name+".html");
+		case eclass(c):
+			if( !filtered(c.path) )
+				return;
+			save(html,c.path,path+c.name+".html");
 		case epackage(name,entries):
+			if( !filtered(name) )
+				return;
 			var old = Url.base;
 			Url.base = "../"+Url.base;
 			path += name + "/";
@@ -673,8 +690,16 @@ class DocView {
 			displayHtml(html,clname);
 			Lib.print(Url.buffer.toString());
 		} else {
-			for( x in neko.Sys.args() )
-				loadFile(x);
+			var filter = false;
+			for( x in neko.Sys.args() ) {
+				if( x == "-f" )
+					filter = true;
+				else if( filter ) {
+					filters.add(x);
+					filter = false;
+				} else
+					loadFile(x);
+			}
 			sortEntries(entries);
 			generateAll(html);
 		}
