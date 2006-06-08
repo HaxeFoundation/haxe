@@ -1840,11 +1840,12 @@ let init_class ctx c p herits fields =
 			stat, constr, cf, delay
 		| FProp (name,doc,access,get,set,t) ->
 			let ret = load_type ctx p t in
+			let is_static = List.mem AStatic access in
 			let check_get = ref (fun() -> ()) in
 			let check_set = ref (fun() -> ()) in
 			let check_method m t () =
 				try
-					let t2, _ = class_field c m in
+					let t2 = (if is_static then (PMap.find m c.cl_statics).cf_type else fst (class_field c m)) in
 					unify_raise ctx t2 t p;
 				with
 					| Error (Unify l,_) -> raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
@@ -1877,7 +1878,7 @@ let init_class ctx c p herits fields =
 				cf_public = is_public access;
 				cf_params = [];
 			} in
-			List.mem AStatic access, false, cf, (fun() -> (!check_get)(); (!check_set)())
+			is_static, false, cf, (fun() -> (!check_get)(); (!check_set)())
 	in
 	let fl = List.map (fun (f,p) ->
 		let static , constr, f , delayed = loop_cf f p in
