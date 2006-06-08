@@ -71,6 +71,11 @@ import haxe.remoting.SocketBuffer;
 import haxe.remoting.SocketConnection;
 #end
 
+import haxe.unit.TestCase;
+import haxe.unit.TestResult;
+import haxe.unit.TestRunner;
+import haxe.unit.TestStatus;
+
 // flash
 #if flash
 
