@@ -50,10 +50,9 @@ class Transaction {
 		}
 	}
 
-	public static function main( dbparams, dbname, mainFun : Void -> Void, logError : Dynamic -> Void ) {
+	public static function main( cnx, mainFun : Void -> Void, logError : Dynamic -> Void ) {
 		Manager.initialize();
-		Manager.cnx = Mysql.connect(dbparams);
-		Manager.cnx.selectDB(dbname);
+		Manager.cnx = cnx;
 		Manager.cnx.request("START TRANSACTION");
 		runMainLoop(mainFun,logError,3);
 		Manager.cnx.request("COMMIT");

@@ -30,7 +30,6 @@ enum Feature {
 
 interface Connection {
 
-	function selectDB( db : String ) : Void;
 	function request( s : String ) : ResultSet;
 	function close() : Void;
 	function escape( s : String ) : String;

@@ -34,10 +34,6 @@ private class SqliteConnection implements Connection {
 		c = _connect(untyped file.__s);
 	}
 
-	public function selectDB( db : String ) {
-		c = _connect(untyped db.__s);
-	}
-
 	public function close() {
 		_close(c);
 	}

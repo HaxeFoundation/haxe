@@ -111,10 +111,6 @@ private class MysqlConnection implements Connection {
 		__c = c;
 	}
 
-	public function selectDB( db : String ) {
-		sql_select_db(this.__c,untyped db.__s);
-	}
-
 	public function request( s : String ) : ResultSet {
 		try {
 			var r = sql_request(this.__c,untyped s.__s);
@@ -152,7 +148,6 @@ private class MysqlConnection implements Connection {
 	}
 
 	private static var __use_date = Date;
-	private static var sql_select_db = neko.Lib.load("mysql","select_db",2);
 	private static var sql_request = neko.Lib.load("mysql","request",2);
 	private static var sql_close = neko.Lib.load("mysql","close",1);
 	private static var sql_escape = neko.Lib.load("mysql","escape",2);
@@ -165,7 +160,8 @@ class Mysql {
 		port : Int,
 		user : String,
 		pass : String,
-		socket : String
+		socket : String,
+		database : String
 	} ) : neko.db.Connection {
 		var o = untyped {
 			host : params.host.__s,
@@ -174,9 +170,12 @@ class Mysql {
 			pass : params.pass.__s,
 			socket : if( params.socket == null ) null else params.socket.__s
 		};
-		return new MysqlConnection(sql_connect(o));
+		var c = sql_connect(o);
+		sql_select_db(untyped database.__s);
+		return new MysqlConnection(c);
 	}
 
 	static var sql_connect = neko.Lib.load("mysql","connect",1);
+	private static var sql_select_db = neko.Lib.load("mysql","select_db",2);
 
 }
