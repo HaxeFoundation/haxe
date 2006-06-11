@@ -46,6 +46,8 @@ class Unserializer {
  			if( c == null )
  				break;
  			if( c == 45 ) { // negative sign
+ 				if( pos != 0 )
+ 					break;
  				s = true;
  				pos++;
  				continue;
