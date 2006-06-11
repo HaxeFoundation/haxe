@@ -171,7 +171,7 @@ class Mysql {
 			socket : if( params.socket == null ) null else params.socket.__s
 		};
 		var c = sql_connect(o);
-		sql_select_db(untyped database.__s);
+		sql_select_db(c,untyped params.database.__s);
 		return new MysqlConnection(c);
 	}
 
