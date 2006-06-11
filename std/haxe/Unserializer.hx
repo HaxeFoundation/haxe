@@ -41,12 +41,13 @@ class Unserializer {
  	function readDigits() {
  		var k = 0;
  		var s = false;
+ 		var fpos = pos;
  		while( true ) {
  			var c = buf.charCodeAt(pos);
  			if( c == null )
  				break;
  			if( c == 45 ) { // negative sign
- 				if( pos != 0 )
+ 				if( pos != fpos )
  					break;
  				s = true;
  				pos++;
