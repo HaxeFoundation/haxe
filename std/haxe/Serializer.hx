@@ -198,8 +198,12 @@ class Serializer {
 				}
 			}
 			if( ucount > 0 ) {
-				buf.add("u");
-				buf.add(ucount);
+				if( ucount == 1 )
+					buf.add("n");
+				else {
+					buf.add("u");
+					buf.add(ucount);
+				}
 			}
 			buf.add("h");
 			return;
