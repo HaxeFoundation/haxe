@@ -29,11 +29,11 @@ type context = {
 	mutable ident_count : int;
 
 	(* management *)
-	idents : (string * bool,int) Hashtbl.t;
-	types : (module_path,(string * bool)) Hashtbl.t;
+	packages : (string list,unit) Hashtbl.t;
+	idents : (string * bool,int) Hashtbl.t;	
 	mutable movieclips : module_path list;
 	mutable inits : texpr list;
-	mutable statics : (string * bool * string * texpr) list;
+	mutable statics : (tclass * bool * string * texpr) list;
 	mutable regs : (string,int option) PMap.t;
 	mutable reg_count : int;
 	mutable reg_max : int;
@@ -283,7 +283,6 @@ let jmp_pos ctx cond =
 		ctx.opt_push <- false
 	)
 
-
 let setvar ?(retval=false) ctx = function
 	| VarReg (-1) -> assert false (** true, false, null **)
 	| VarReg n -> write ctx (ASetReg n); if not retval then write ctx APop
@@ -303,6 +302,22 @@ let getvar ctx = function
 		push ctx [VInt 2; VStr ("@closure",true)];
 		call ctx VarStr 2
 
+let gen_path ctx (p,t) is_extern =
+	let flag = is_protected_name (p,t) is_extern in
+	match p with
+	| [] -> 
+		push ctx [VStr (t,flag)];
+		VarStr
+	| x :: l ->
+		push ctx [VStr (x,flag)];
+		write ctx AEval;
+		List.iter (fun x ->
+			push ctx [VStr (x,flag)];
+			write ctx AObjGet;
+		) l;
+		push ctx [VStr (t,flag)];
+		VarObj
+		
 let func ctx need_super need_args args =
 	if ctx.version = 6 then
 		let f = {
@@ -385,8 +400,6 @@ let free_reg ctx r p =
 (* -------------------------------------------------------------- *)
 (* Generation Helpers *)
 
-let idents_cache = Hashtbl.create 0
-
 let cfind flag cst e =
 	let vname = (match cst with TConst TSuper -> "super" | TLocal v -> v | _ -> assert false) in
 	let rec loop2 e =
@@ -457,41 +470,6 @@ let define_var ctx v ef exprs =
 			f();
 			setvar ctx (VarReg r)
 	end
-
-let gen_ident =
-	let rand_char() =
-		let n = Random.int 62 in
-		if n < 26 then Char.chr (n + int_of_char 'a') else
-		if n < 52 then Char.chr (n - 26 + int_of_char 'A') else
-		Char.chr (n - 52 + int_of_char '0')
-	in
-	let rec loop() =
-		let c = String.create 3 in
-		let pos = [|[|0;1;2|];[|0;2;1|];[|1;2;0|]|].(Random.int 3) in
-		c.[pos.(0)] <- rand_char();
-		c.[pos.(1)] <- rand_char();
-		c.[pos.(2)] <- '@';
-		if Hashtbl.mem idents_cache c then
-			loop()
-		else begin
-			Hashtbl.add idents_cache c ();
-			c
-		end;
-	in
-	loop
-
-let gen_type ctx t extern =
-	if fst t = [] then
-		snd t , is_protected_name t extern
-	else try
-		let id , e = Hashtbl.find ctx.types t in
-		if e <> extern then assert false;
-		id , false
-	with
-		Not_found ->
-			let id = gen_ident() in
-			Hashtbl.add ctx.types t (id,extern);
-			id, false
 
 let no_value ctx retval =
 	(* does not push a null but still increment the stack like if
@@ -587,21 +565,16 @@ let rec gen_access ctx forcall e =
 		gen_expr ctx true eb;
 		VarObj
 	| TEnumField (en,f) ->
-		let id , flag = gen_type ctx en.e_path false in
-		push ctx [VStr (id,flag)];
-		write ctx AEval;
+		getvar ctx (gen_path ctx en.e_path false);
 		push ctx [VStr (f,false)];
 		(match follow e.etype with
 		| TFun _ -> VarClosure
 		| _ -> VarObj)
 	| TType t ->
-		let str , flag = (match t with
-			| TClassDecl c -> gen_type ctx c.cl_path c.cl_extern
-			| TEnumDecl e -> gen_type ctx e.e_path false
-			| TSignatureDecl _ -> assert false
-		) in
-		push ctx [VStr (str,flag)];
-		VarStr
+		(match t with
+		| TClassDecl c -> gen_path ctx c.cl_path c.cl_extern
+		| TEnumDecl e -> gen_path ctx e.e_path false
+		| TSignatureDecl _ -> assert false)
 	| _ ->
 		if not forcall then error e.epos;
 		gen_expr ctx true e;
@@ -1052,9 +1025,8 @@ and gen_expr_2 ctx retval e =
 		let nargs = List.length el in
 		List.iter (gen_expr ctx true) (List.rev el);
 		push ctx [VInt nargs];
-		let id, flag = gen_type ctx c.cl_path c.cl_extern in
-		push ctx [VStr (id,flag)];
-		new_call ctx VarStr nargs
+		let acc = gen_path ctx c.cl_path c.cl_extern in
+		new_call ctx acc nargs
 	| TSwitch (e,cases,def) ->
 		gen_switch ctx retval e cases def
 	| TThrow e ->
@@ -1110,7 +1082,7 @@ and gen_expr ctx retval e =
 		if not retval then write ctx APop;
 	end else if retval then stack_error e.epos
 
-let gen_class_static_field ctx cclass flag f =
+let gen_class_static_field ctx c flag f =
 	match f.cf_expr with
 	| None ->
 		push ctx [VReg 0; VStr (f.cf_name,flag); VNull];
@@ -1123,13 +1095,12 @@ let gen_class_static_field ctx cclass flag f =
 			gen_expr ctx true e;
 			setvar ctx VarObj
 		| _ ->
-			ctx.statics <- (cclass,flag,f.cf_name,e) :: ctx.statics
+			ctx.statics <- (c,flag,f.cf_name,e) :: ctx.statics
 
-let gen_class_static_init ctx (cclass,flag,name,e) =
-	ctx.curclass <- ([],cclass);
+let gen_class_static_init ctx (c,flag,name,e) =
+	ctx.curclass <- c.cl_path;
 	ctx.curmethod <- name;
-	push ctx [VStr (cclass,false)];
-	write ctx AEval;
+	getvar ctx (gen_path ctx c.cl_path c.cl_extern);
 	push ctx [VStr (name,flag)];
 	gen_expr ctx true e;
 	setvar ctx VarObj
@@ -1144,7 +1115,7 @@ let gen_class_field ctx f flag =
 		gen_expr ctx true e);
 	setvar ctx VarObj
 
-let gen_enum_field ctx id f =
+let gen_enum_field ctx e f =
 	push ctx [VReg 0; VStr (f.ef_name,false)];
 	(match follow f.ef_type with
 	| TFun (args,r) ->
@@ -1157,8 +1128,7 @@ let gen_enum_field ctx id f =
 		push ctx [VStr (f.ef_name,false); VInt nregs];
 		write ctx AInitArray;
 		write ctx ADup;
-		push ctx [VStr ("__enum__",false); VStr (id,false)];
-		write ctx AEval;
+		push ctx [VStr ("__enum__",false); VThis];		
 		write ctx AObjSet;
 		ctx.stack_size <- ctx.stack_size - nregs;
 		write ctx AReturn;
@@ -1173,27 +1143,6 @@ let gen_enum_field ctx id f =
 	);
 	write ctx AObjSet
 
-let gen_path ctx (p,t) is_extern =
-	if is_extern then begin
-	let flag = is_protected_name (p,t) is_extern in
-	match p with
-	| [] ->
-		push ctx [VStr (t,flag)];
-		write ctx AEval
-	| p :: l ->
-		push ctx [VStr (p,flag)];
-		write ctx AEval;
-		List.iter (fun p ->
-			push ctx [VStr (p,flag)];
-			write ctx AObjGet;
-		) l;
-		push ctx [VStr (t,flag)];
-		write ctx AObjGet
-	end else
-		let id , flag = gen_type ctx (p,t) false in
-		push ctx [VStr (id,flag)];
-		write ctx AEval
-
 let init_name ctx path enum =
 	push ctx [VReg 0; VStr ((if enum then "__ename__" else "__name__"),false)];
 	let name = fst path @ [snd path] in
@@ -1204,19 +1153,59 @@ let init_name ctx path enum =
 	ctx.stack_size <- ctx.stack_size - nitems;
 	setvar ctx VarObj
 
+let gen_package ctx p =
+	let rec loop acc = function
+		| [] -> ()
+		| x :: l ->
+			let p = x :: acc in
+			if not (Hashtbl.mem ctx.packages p) then begin
+				(* create the package and copy the _global one if exists *)
+				Hashtbl.add ctx.packages p ();
+
+				(* create the package *)
+				let path = (List.rev acc,x) in
+				let acc = gen_path ctx path false in
+				push ctx [VInt 0; VStr ("Object",true)];
+				write ctx ANew;
+				write ctx (ASetReg 1);
+				setvar ctx acc;
+
+				(* copy the content of the _global package if exists *)
+				getvar ctx (gen_path ctx ("_global" :: fst path,snd path) false);
+				write ctx (ASetReg 2);
+				write ctx AEnum2;
+				ctx.stack_size <- ctx.stack_size + 1; (* fake *)
+				let back = pos ctx in
+				write ctx (ASetReg 0);
+				push ctx [VNull];
+				write ctx AEqual;
+				let jend = cjmp ctx in
+				push ctx [VReg 1; VReg 0];
+				push ctx [VReg 2; VReg 0];
+				write ctx AObjGet;
+				write ctx AObjSet;
+				back false;
+				jend();
+
+				write ctx APop;					
+			end;
+			loop p l
+	in
+	loop [] p	
+
 let gen_type_def ctx t =
 	match t with
 	| TClassDecl c ->
 		(match c.cl_init with
 		| None -> ()
 		| Some e -> ctx.inits <- e :: ctx.inits);
+		gen_package ctx (fst c.cl_path);
 		if c.cl_extern then
 			()
 		else
-		let id , flag = gen_type ctx c.cl_path false in
 		let have_constr = ref false in
-		if c.cl_path = (["flash"] , "Boot") then extern_boot := false;
-		push ctx [VStr (id,flag)];
+		if c.cl_path = (["flash"] , "Boot") then extern_boot := false;		
+		let acc = gen_path ctx c.cl_path false in
 		let rec loop s =
 			match s.cl_super with
 			| None -> ()
@@ -1237,7 +1226,7 @@ let gen_type_def ctx t =
 			let f = func ctx true false [] in
 			f());
 		write ctx (ASetReg 0);
-		setvar ctx VarStr;
+		setvar ctx acc;
 		if !have_constr then begin
 			push ctx [VReg 0; VStr ("__construct__",false); VReg 0];
 			setvar ctx VarObj
@@ -1253,14 +1242,14 @@ let gen_type_def ctx t =
 		| Some (csuper,_) ->
 			let path = (match csuper.cl_path with (["flash"],x) when csuper.cl_extern -> ([],x) | p -> p) in
 			push ctx [VReg 0; VStr ("__super__",false)];
-			gen_path ctx path csuper.cl_extern;
+			getvar ctx (gen_path ctx path csuper.cl_extern);
 			setvar ctx VarObj;
 			if ctx.version = 6 then begin
 				(* myclass.prototype.__proto__ = superclass.prototype *)
 				push ctx [VReg 0; VStr ("prototype",true)];
 				getvar ctx VarObj;
 				push ctx [VStr ("__proto__",true)];
-				gen_path ctx path csuper.cl_extern;
+				getvar ctx (gen_path ctx path csuper.cl_extern);
 				push ctx [VStr ("prototype",true)];
 				getvar ctx VarObj;
 				setvar ctx VarObj;
@@ -1268,11 +1257,11 @@ let gen_type_def ctx t =
 				push ctx [VReg 0; VStr ("prototype",true)];
 				getvar ctx VarObj;
 				push ctx [VStr ("__constructor__",true)];
-				gen_path ctx path csuper.cl_extern;
+				getvar ctx (gen_path ctx path csuper.cl_extern);
 				setvar ctx VarObj
 			end else begin
 				push ctx [VReg 0];
-				gen_path ctx path csuper.cl_extern;
+				getvar ctx (gen_path ctx path csuper.cl_extern);
 				write ctx AExtends;
 			end;
 		);
@@ -1284,13 +1273,13 @@ let gen_type_def ctx t =
 		| l ->
 			let nimpl = List.length l in
 			push ctx [VReg 0; VStr ("__interfaces__",false)];
-			List.iter (fun (c,_) -> gen_path ctx c.cl_path c.cl_extern) l;
+			List.iter (fun (c,_) -> getvar ctx (gen_path ctx c.cl_path c.cl_extern)) l;
 			push ctx [VInt nimpl];
 			write ctx AInitArray;
 			setvar ctx VarObj;
 			ctx.stack_size <- ctx.stack_size - nimpl;
 			if ctx.version > 6 then begin
-				List.iter (fun (c,_) -> gen_path ctx c.cl_path c.cl_extern) l;
+				List.iter (fun (c,_) -> getvar ctx (gen_path ctx c.cl_path c.cl_extern)) l;
 				push ctx [VInt nimpl; VReg 0];
 				write ctx AImplements;
 				ctx.stack_size <- ctx.stack_size - nimpl;
@@ -1302,24 +1291,27 @@ let gen_type_def ctx t =
 		push ctx [VReg 1; VStr ("__class__",false); VReg 0];
 		setvar ctx VarObj;
 		let flag = is_protected ctx (TInst (c,[])) true in
-		List.iter (gen_class_static_field ctx id flag) c.cl_ordered_statics;
+		List.iter (gen_class_static_field ctx c flag) c.cl_ordered_statics;
 		PMap.iter (fun _ f -> gen_class_field ctx f flag) c.cl_fields;
+	| TEnumDecl { e_path = ([],"Bool") } ->
+		()
+	| TEnumDecl e when PMap.is_empty e.e_constrs ->
+		()
 	| TEnumDecl e ->
-		let id , flag = gen_type ctx e.e_path false in
-		push ctx [VStr (id,flag); VInt 0; VStr ("Object",true)];
+		gen_package ctx (fst e.e_path);
+		let acc = gen_path ctx e.e_path false in
+		push ctx [VInt 0; VStr ("Object",true)];
 		write ctx ANew;
 		write ctx (ASetReg 0);
-		setvar ctx VarStr;
+		setvar ctx acc;
 		init_name ctx e.e_path true;
-		PMap.iter (fun _ f -> gen_enum_field ctx id f) e.e_constrs
+		PMap.iter (fun _ f -> gen_enum_field ctx e f) e.e_constrs
 	| TSignatureDecl _ ->
 		()
 
-let gen_boot ctx hres =
-	let id , flag = gen_type ctx (["flash"],"Boot") (!extern_boot) in
+let gen_boot ctx hres =	
 	(* r0 = Boot *)
-	push ctx [VStr (id,flag)];
-	write ctx AEval;
+	getvar ctx (gen_path ctx (["flash"],"Boot") (!extern_boot));
 	write ctx (ASetReg 0);
 	write ctx APop;
 	(* r0.__init(eval("this")) *)
@@ -1343,72 +1335,12 @@ let gen_boot ctx hres =
 	write ctx AObjSet
 
 let gen_movieclip ctx m =
-	let id , flag = gen_type ctx m false in
-	push ctx [VStr (id,flag)];
-	write ctx AEval;
+	getvar ctx (gen_path ctx m false);
 	push ctx [VStr (s_type_path m,true); VInt 2; VStr ("Object",true)];
 	write ctx AEval;
 	push ctx [VStr ("registerClass",true)];
 	call ctx VarObj 2;
 	write ctx APop
-
-let gen_type_map ctx =
-	let packs = Hashtbl.create 0 in
-	let rec loop acc cur = function
-		| [] ->
-			(if cur = "" then
-				VarStr
-			else begin
-				push ctx [VStr (cur,false)];
-				write ctx AEval;
-				VarObj
-			end)
-		| p :: l ->
-			let acc = p :: acc in
-			try
-				loop acc (Hashtbl.find packs acc) l
-			with
-				Not_found ->
-					let id = (if cur = "" then
-						p
-					else begin
-						let id = gen_ident() in
-						push ctx [VStr (id,false); VStr (cur,false)];
-						write ctx AEval;
-						push ctx [VStr (p,false)];
-						write ctx AObjGet;
-						write ctx ASet;
-						id
-					end) in
-					Hashtbl.add packs acc id;
-					push ctx [VStr (id,false)];
-					write ctx AEval;
-					let defined = cjmp ctx in
-					push ctx [VStr (id,false); VInt 0; VStr ("Object",true)];
-					write ctx ANew;
-					write ctx ASet;
-					if cur <> "" then begin
-						push ctx [VStr (cur,false)];
-						write ctx AEval;
-						push ctx [VStr (p,false); VStr (id,false)];
-						write ctx AEval;
-						write ctx AObjSet;
-					end;
-					defined();
-					loop acc id l
-	in
-	Hashtbl.iter (fun (p,t) (n,ext) ->
-		if ext then begin
-			push ctx [VStr (n,false)];
-			gen_path ctx (p,t) true;
-			write ctx ASet
-		end else begin
-			let k = loop [] "" p in
-			push ctx [VStr (t,false);VStr (n,false)];
-			write ctx AEval;
-			setvar ctx k
-		end
-	) ctx.types
 
 let to_utf8 str =
 	try
@@ -1446,7 +1378,7 @@ let generate file ver header infile types hres =
 		ident_count = 0;
 		opt_push = false;
 		idents = Hashtbl.create 0;
-		types = Hashtbl.create 0;
+		packages = Hashtbl.create 0;
 		regs = PMap.empty;
 		reg_count = 0;
 		reg_max = 0;
@@ -1483,21 +1415,18 @@ let generate file ver header infile types hres =
 	f();
 	write ctx ASet;
 	List.iter (fun t -> gen_type_def ctx t) types;
-	ignore(gen_type ctx (["flash"],"Boot") (!extern_boot));
-	gen_type_map ctx;
 	gen_boot ctx hres;
 	List.iter (fun m -> gen_movieclip ctx m) ctx.movieclips;
 	let global_try = gen_try ctx in
 	List.iter (gen_expr ctx false) (List.rev ctx.inits);
 	List.iter (gen_class_static_init ctx) (List.rev ctx.statics);
 	let end_try = global_try() in
-	(* flash.Boot.__trace(exc) *)
-	let id , flag = gen_type ctx (["flash"],"Boot") (!extern_boot) in
+	(* flash.Boot.__trace(exc) *)	
 	push ctx [VStr ("fileName",false); VStr ("(uncaught exception)",true); VInt 1];
 	write ctx AObject;
 	ctx.stack_size <- ctx.stack_size - 2;
-	push ctx [VReg 0; VInt 2; VStr (id,flag)];
-	write ctx AEval;
+	push ctx [VReg 0; VInt 2];
+	getvar ctx (gen_path ctx (["flash"],"Boot") (!extern_boot));
 	push ctx [VStr ("__trace",false)];
 	call ctx VarObj 2;
 	end_try();
