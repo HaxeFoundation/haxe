@@ -131,6 +131,7 @@ class Boot {
 			Int = __dollar__new(null);
 			Float = __dollar__new(null);
 			Bool = __dollar__new(null);
+			Dynamic = __dollar__new(null);
 			__dollar__objset(Bool,__dollar__hash("true".__s),true);
 			__dollar__objset(Bool,__dollar__hash("false".__s),false);
 			__dollar__exports.__unserialize = __unserialize;

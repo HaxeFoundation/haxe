@@ -524,7 +524,7 @@ let gen_type ctx t =
 		else
 			gen_class ctx c
 	| TEnumDecl e ->
-		if e.e_path = ([],"Bool") then
+		if e.e_path = ([],"Bool") || PMap.is_empty e.e_constrs then
 			null (pos e.e_pos)
 		else
 			gen_enum e
@@ -584,6 +584,8 @@ let gen_boot hres =
 
 let gen_name acc t =
 	match t with
+	| TEnumDecl e when PMap.is_empty e.e_constrs || e.e_path = ([],"Bool") ->
+		acc
 	| TEnumDecl e ->
 		let p = pos e.e_pos in
 		let name = fst e.e_path @ [snd e.e_path] in

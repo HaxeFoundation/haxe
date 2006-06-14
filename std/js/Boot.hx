@@ -227,7 +227,9 @@ class Boot {
 				return oldsub.apply(this,[pos,len]);
 			};
 			Int = __new__("Object");
+			Dynamic = __new__("Object");
 			Float = __js__("Number");
+			Bool = __new__("Object");
 			Bool["true"] = true;
 			Bool["false"] = false;
 			__js__("$closure = js.Boot.__closure");

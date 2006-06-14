@@ -631,6 +631,10 @@ let generate_type ctx = function
 		| None -> ()
 		| Some e -> ctx.inits <- e :: ctx.inits);
 		if not c.cl_extern then generate_class ctx c
+	| TEnumDecl { e_path = ([],"Bool") } ->
+		()
+	| TEnumDecl e when PMap.is_empty e.e_constrs ->
+		()
 	| TEnumDecl e -> generate_enum ctx e
 	| TSignatureDecl _ -> ()
 
