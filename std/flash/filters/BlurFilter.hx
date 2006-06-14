@@ -6,7 +6,7 @@ extern class BlurFilter extends BitmapFilter {
 	var blurX : Float;
 	var blurY : Float;
 
-	function new( bx : Float, by : Float, qual : Float ) : Void;
+	function new( ?blurX : Float, ?blurY : Float, ?quality : Float ) : Void;
 	function clone() : BlurFilter;
 
 }

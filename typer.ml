@@ -81,6 +81,8 @@ let unify_error_msg ctx = function
 		"Inconsistent " ^ (if get then "getter" else "setter") ^ " for field " ^ f
 	| Invalid_visibility n ->
 		"The field " ^ n ^ " is not public"
+	| Not_matching_optional ->
+		"Optional parameters can't be forced"
 
 let rec error_msg = function
 	| Module_not_found m -> "Class not found : " ^ s_type_path m
@@ -101,6 +103,8 @@ let display_error ctx msg p = ctx.error (Custom msg) p
 let load_ref : (context -> module_path -> pos -> module_def) ref = ref (fun _ _ _ -> assert false)
 let type_expr_ref = ref (fun _ ?need_val _ -> assert false)
 let type_module_ref = ref (fun _ _ _ _ -> assert false)
+
+let null p = mk (TConst TNull) (mk_mono()) p
 
 let load ctx m p = (!load_ref) ctx m p
 
@@ -354,7 +358,7 @@ and load_type ctx p t =
 					load_type ctx p t, NormalAccess, NormalAccess
 				| AFFun (tl,t) ->
 					let t = load_type ctx p t in
-					let args = List.map (fun (name,t) -> name , load_type ctx p t) tl in
+					let args = List.map (fun (name,o,t) -> name , o, load_type ctx p t) tl in
 					TFun (args,t), NormalAccess, NormalAccess
 				| AFProp (t,i1,i2) ->
 					let access m get =
@@ -383,7 +387,7 @@ and load_type ctx p t =
 		| [TPNormal { tpackage = []; tparams = []; tname = "Void" }] ->
 			TFun ([],load_type ctx p r)
 		| _ ->
-			TFun (List.map (fun t -> "",load_type ctx p t) args,load_type ctx p r)
+			TFun (List.map (fun t -> "",false,load_type ctx p t) args,load_type ctx p r)
 
 let load_type_opt ctx p t =
 	match t with
@@ -399,7 +403,7 @@ let rec reverse_type t =
 	| TSign (s,params) ->
 		TPNormal { tpackage = fst s.s_path; tname = snd s.s_path; tparams = List.map reverse_type params }
 	| TFun (params,ret) ->
-		TPFunction (List.map (fun (_,t) -> reverse_type t) params,reverse_type ret)
+		TPFunction (List.map (fun (_,_,t) -> reverse_type t) params,reverse_type ret)
 	| TAnon fields ->
 		TPAnonymous (PMap.fold (fun f acc ->
 			(f.cf_name , AFVar (reverse_type f.cf_type), null_pos) :: acc
@@ -421,13 +425,13 @@ let extend_remoting ctx c t p async prot =
 	let tvoid = TPNormal { tpackage = []; tname = "Void"; tparams = [] } in
 	let make_field name args ret =
 		try
-			let targs = List.map (fun (a,t) -> a, Some (reverse_type t)) args in
+			let targs = List.map (fun (a,o,t) -> a, o, Some (reverse_type t)) args in
 			let tret = reverse_type ret in
-			let eargs = [EArrayDecl (List.map (fun (a,_) -> (EConst (Ident a),p)) args),p] in
+			let eargs = [EArrayDecl (List.map (fun (a,_,_) -> (EConst (Ident a),p)) args),p] in
 			let targs , tret , eargs = if async then
 				match tret with
 				| TPNormal { tpackage = []; tname = "Void" } -> targs , tvoid , eargs @ [EConst (Ident "null"),p]
-				| _ -> targs @ ["__callb",Some (TPFunction ([tret],tvoid))] , tvoid , eargs @ [EUntyped (EConst (Ident "__callb"),p),p]
+				| _ -> targs @ ["__callb",true,Some (TPFunction ([tret],tvoid))] , tvoid , eargs @ [EUntyped (EConst (Ident "__callb"),p),p]
 			else
 				targs, tret , eargs
 			in
@@ -452,7 +456,7 @@ let extend_remoting ctx c t p async prot =
 	let class_fields = (match ct with
 		| TInst (c,params) ->
 			(FVar ("__cnx",None,[],Some (TPNormal { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = [] }),None),p) ::
-			(FFun ("new",None,[APublic],[],{ f_args = ["c",None]; f_type = None; f_expr = (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p) }),p) ::
+			(FFun ("new",None,[APublic],[],{ f_args = ["c",false,None]; f_type = None; f_expr = (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p) }),p) ::
 			PMap.fold (fun f acc ->
 				if not f.cf_public then
 					acc
@@ -573,7 +577,7 @@ let is_flash_extern t =
 	match follow t with
 	| TInst (c,_) ->
 		(match fst c.cl_path with
-		| "flash" :: _ -> c.cl_extern && not (Plugin.defined "no_flash_opt_args")
+		| "flash" :: _ -> c.cl_extern
 		| _ -> false)
 	| _ -> false
 
@@ -634,48 +638,54 @@ let rec return_flow ctx e =
 
 let unify_call_params ctx t el args p =
 	let error flag =
-		if flag && is_flash_extern t then
-			el (* allow fewer args for flash API only *)
-		else
-			let argstr = "Function require " ^ (if args = [] then "no argument" else "arguments : " ^ String.concat ", " (List.map fst args)) in
-			display_error ctx ((if flag then "Not enough" else "Too many") ^ " arguments\n" ^ argstr) p;
-			el
+		let format_arg = (fun (name,opt,_) -> (if opt then "?" else "") ^ name) in
+		let argstr = "Function require " ^ (if args = [] then "no argument" else "arguments : " ^ String.concat ", " (List.map format_arg args)) in
+		display_error ctx ((if flag then "Not enough" else "Too many") ^ " arguments\n" ^ argstr) p
 	in
-	let rec loop l l2 =
+	let rec loop acc l l2 =
 		match l , l2 with
 		| [] , [] ->
-			el
-		| [] , [(_,t)] ->
-			let rec loop t =
+			List.rev acc
+		| [] , [(_,false,t)] ->
+			let rec follow2 t =
 				match t with
 				| TMono r ->
 					(match !r with
-					| Some t -> loop t
+					| Some t -> follow2 t
 					| _ -> t)
 				| TLazy f ->
-					loop (!f())
+					follow2 (!f())
 				| _ -> t
 			in
-			(match loop t with
+			(match follow2 t with
 			| TSign ({ s_path = ["haxe"] , "PosInfos" },[]) ->
 				let infos = mk_infos ctx p [] in
 				let e = (!type_expr_ref) ctx ~need_val:true infos in
-				el @ [e]
-			| _ -> error true)
-		| [] , _ ->
-			error true
+				loop (e :: acc) [] []
+			| _ ->
+				error true;
+				loop (null p :: acc) [] [])
+		| [] , (_,opt,_) :: l ->
+			if not opt then error true;
+			if is_flash_extern t then 
+				loop acc [] l
+			else
+				loop (null p :: acc) [] l
 		| _ , [] ->
-			error false
-		| e :: l, (name,t) :: l2 ->
-			(try
-				unify ctx e.etype t e.epos;
+			error false;
+			List.rev acc
+		| e :: l, (name,opt,t) :: l2 ->
+			try
+				unify_raise ctx e.etype t e.epos;
+				loop (e :: acc) l l2
 			with
-				| Error (Protect _,_) as e -> raise e
-				| Error (m,p) -> raise (Error (Stack (m,Custom ("For function argument '" ^ name ^ "'")), p))
-			);
-			loop l l2
+				Error (Unify ul,_) ->
+					if opt then
+						loop (null p :: acc) (e :: l) l2
+					else
+						raise (Error (Stack (Unify ul,Custom ("For function argument '" ^ name ^ "'")), p))
 	in
-	loop el args
+	loop [] el args
 
 let type_local ctx i p =
 	(* local lookup *)
@@ -865,7 +875,7 @@ let type_matching ctx (enum,params) (e,p) ecases =
 		let args = (match c.ef_type with
 			| TFun (l,_) ->
 				if List.length l <> List.length el then needs (List.length l);
-				List.map (fun (_,t) -> apply_params enum.e_types params t) l
+				List.map (fun (_,_,t) -> apply_params enum.e_types params t) l
 			| TEnum _ -> error "This constructor does not take any paramter" p
 			| _ -> assert false
 		) in
@@ -1574,7 +1584,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			el , r
 		| TMono _ ->
 			let t = mk_mono() in
-			unify ctx (TFun (List.map (fun e -> "",e.etype) el,t)) e.etype e.epos;
+			unify ctx (TFun (List.map (fun e -> "",false,e.etype) el,t)) e.etype e.epos;
 			el, t
 		| t ->
 			el, if t == t_dynamic then
@@ -1609,7 +1619,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		type_unop ctx op flag e p
 	| EFunction f ->
 		let rt = load_type_opt ctx p f.f_type in
-		let args = List.map (fun (s,t) -> s , load_type_opt ctx p t) f.f_args in
+		let args = List.map (fun (s,opt,t) -> s , opt, load_type_opt ctx p t) f.f_args in
 		let ft = TFun (args,rt) in
 		let e , fargs = type_function ctx ft true false f p in
 		let f = {
@@ -1642,7 +1652,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 and type_function ctx t static constr f p =
 	let locals = save_locals ctx in
 	let fargs , r = (match t with
-		| TFun (args,r) -> List.map (fun (n,t) -> add_local ctx n t, t) args, r
+		| TFun (args,r) -> List.map (fun (n,opt,t) -> add_local ctx n t, opt, t) args, r
 		| _ -> assert false
 	) in
 	let old_ret = ctx.ret in
@@ -1802,7 +1812,7 @@ let init_class ctx c p herits fields =
 				type_params = params @ ctx.type_params;
 			} in
 			let ret = type_opt ctx p f.f_type in
-			let args = List.map (fun (name,t) -> name , type_opt ctx p t) f.f_args in
+			let args = List.map (fun (name,opt,t) -> name , opt, type_opt ctx p t) f.f_args in
 			let t = TFun (args,ret) in
 			let stat = List.mem AStatic access in
 			let constr = (name = "new") in
@@ -1864,7 +1874,7 @@ let init_class ctx c p herits fields =
 				| "dynamic" -> MethodAccess ("set_" ^ name)
 				| "default" -> NormalAccess
 				| _ ->
-					check_set := check_method set (TFun (["",ret],ret));
+					check_set := check_method set (TFun (["",false,ret],ret));
 					MethodAccess set
 			) in
 			if set = NormalAccess && (match get with MethodAccess _ -> true | _ -> false) then error "Unsupported property combination" p;
@@ -1903,8 +1913,8 @@ let init_class ctx c p herits fields =
 		| TFun (args,r) ->
 			let t = field_type f in
 			let n = ref 0 in
-			let args = List.map (fun (_,t) -> incr n; "p" ^ string_of_int (!n) , t) args in
-			let eargs = List.map (fun (n,t) -> mk (TLocal n) t p) args in
+			let args = List.map (fun (_,b,t) -> incr n; "p" ^ string_of_int (!n) , b, t) args in
+			let eargs = List.map (fun (n,_,t) -> mk (TLocal n) t p) args in
 			let func = {
 				tf_args = args;
 				tf_type = t;
@@ -2050,7 +2060,7 @@ let type_module ctx m tdecls loadp =
 			List.iter (fun (c,doc,t,p) ->
 				let t = (match t with
 					| [] -> et
-					| l -> TFun (List.map (fun (s,t) -> s, load_type ctx p t) l, et)
+					| l -> TFun (List.map (fun (s,t) -> s, false, load_type ctx p t) l, et)
 				) in
 				e.e_constrs <- PMap.add c { ef_name = c; ef_type = t; ef_pos = p; ef_doc = doc } e.e_constrs
 			) constrs

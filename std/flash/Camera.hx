@@ -3,7 +3,7 @@ package flash;
 extern class Camera {
 
 	static var names(default,null) : Array<String>;
-	static function get( index : Int ) : Camera;
+	static function get( ?index : Int ) : Camera;
 
 	var bandwidth(default,null) : Int;
 
@@ -23,12 +23,12 @@ extern class Camera {
 
 	var quality(default,null) : Int;
 
-	function setMode(width:Int,height:Int,fps:Float,favorArea:Bool):Void;
-	function setMotionLevel(motionLevel:Float,timeOut:Float):Void;
-	function setQuality(bandwidth:Int,quality:Int):Void;
+	function setMode( width:Int, height:Int, ?fps:Float, ?favorArea:Bool ):Void;
+	function setMotionLevel( motionLevel:Float , ?timeOut:Float ):Void;
+	function setQuality( bandwidth:Int, quality:Int ):Void;
 
-	function onActivity(active:Bool):Void;
-	function onStatus(infoObject:Dynamic):Void;
+	function onActivity( active:Bool ):Void;
+	function onStatus( infoObject:Dynamic ):Void;
 
 	// ? not documented ?
 

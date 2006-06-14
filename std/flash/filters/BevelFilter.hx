@@ -15,7 +15,7 @@ extern class BevelFilter extends BitmapFilter {
 	var angle : Float;
 	var distance : Float;
 
-	function new(distance : Float, angle : Float, highlightColor : Float, highlightAlpha : Float, shadowColor : Float, shadowAlpha : Float, blurX : Float, blurY : Float, strength : Float, quality : Float, type : String, knockout : Bool) : Void;
+	function new( ?distance : Float, ?angle : Float, ?highlightColor : Float, ?highlightAlpha : Float, ?shadowColor : Float, ?shadowAlpha : Float, ?blurX : Float, ?blurY : Float, ?strength : Float, ?quality : Float, ?type : String, ?knockout : Bool) : Void;
 	function clone() : BevelFilter;
 
 }

@@ -14,7 +14,7 @@ extern class DropShadowFilter extends BitmapFilter {
 	var angle : Float;
 	var distance : Float;
 
-	function new(distance : Float, angle : Float, color : Float, alpha : Float, blurX : Float, blurY : Float, strength : Float, quality : Float, inner : Bool, knockout : Bool, hideObject : Bool) : Void;
+	function new( ?distance : Float, ?angle : Float, ?color : Float, ?alpha : Float, ?blurX : Float, ?blurY : Float, ?strength : Float, ?quality : Float, ?inner : Bool, ?knockout : Bool, ?hideObject : Bool ) : Void;
 	function clone() : DropShadowFilter;
 
 }

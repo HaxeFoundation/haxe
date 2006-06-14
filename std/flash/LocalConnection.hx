@@ -9,7 +9,7 @@ implements Dynamic
 	function new() : Void;
 
 	function connect(connectionName:String):Bool;
-	function send(connectionName:String, methodName:String, p1 : Dynamic, p2 : Dynamic, p3 : Dynamic, p4 : Dynamic, p5 : Dynamic, p6 : Dynamic ):Bool;
+	function send(connectionName:String, methodName:String, ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic, ?p6 : Dynamic ):Bool;
 
 	function close():Void;
 	function domain():String;

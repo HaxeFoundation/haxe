@@ -392,7 +392,7 @@ let cfind flag cst e =
 	let rec loop2 e =
 		match e.eexpr with
 		| TFunction f ->
-			if not flag && not (List.exists (fun (a,_) -> a = vname) f.tf_args) then loop2 f.tf_expr
+			if not flag && not (List.exists (fun (a,_,_) -> a = vname) f.tf_args) then loop2 f.tf_expr
 		| TBlock _ ->
 			(try
 				iter loop2 e;
@@ -415,7 +415,7 @@ let cfind flag cst e =
 	let rec loop e =
 		match e.eexpr with
 		| TFunction f ->
-			if not (List.exists (fun (a,_) -> a = vname) f.tf_args) then loop2 f.tf_expr
+			if not (List.exists (fun (a,_,_) -> a = vname) f.tf_args) then loop2 f.tf_expr
 		| TBlock _ ->
 			(try
 				iter loop e;
@@ -975,7 +975,7 @@ and gen_expr_2 ctx retval e =
 		) ctx.regs PMap.empty;
 		ctx.reg_count <- (if reg_super then 2 else 1);
 		let pargs = ref [] in
-		let rargs = List.map (fun (a,t) ->
+		let rargs = List.map (fun (a,_,t) ->
 			let no_reg = ctx.version = 6 || cfind false (TLocal a) f.tf_expr in
 			if no_reg then begin
 				ctx.regs <- PMap.add a None ctx.regs;
@@ -1483,6 +1483,7 @@ let generate file ver header infile types hres =
 	f();
 	write ctx ASet;
 	List.iter (fun t -> gen_type_def ctx t) types;
+	ignore(gen_type ctx (["flash"],"Boot") (!extern_boot));
 	gen_type_map ctx;
 	gen_boot ctx hres;
 	List.iter (fun m -> gen_movieclip ctx m) ctx.movieclips;

@@ -52,7 +52,7 @@ extern class String {
 	function charAt( index : Int) : String;
 	function charCodeAt( index : Int) : Int;
 
-	function indexOf( value : String, startIndex : Int ) : Int;
+	function indexOf( value : String, ?startIndex : Int ) : Int;
 	function lastIndexOf( value : String, startIndex : Int ) : Int;
 	function split( delimiter : String ) : Array<String>;
 	function substr( pos : Int, len : Int ) : String;

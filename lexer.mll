@@ -45,12 +45,12 @@ let all_lines = Hashtbl.create 0
 let lines = ref []
 let buf = Buffer.create 100
 
-let error e pos = 
+let error e pos =
 	raise (Error (e,{ pmin = pos; pmax = pos; pfile = !cur_file }))
 
 let keywords =
 	let h = Hashtbl.create 3 in
-	List.iter (fun k -> Hashtbl.add h (s_keyword k) k) 
+	List.iter (fun k -> Hashtbl.add h (s_keyword k) k)
 		[Function;Class;Static;Var;If;Else;While;Do;For;
 		Break;Return;Continue;Extends;Implements;Import;
 		Switch;Case;Default;Public;Private;Try;Untyped;
@@ -72,7 +72,7 @@ let save() =
 let restore file =
 	save_lines();
 	cur_file := file;
-	lines := Hashtbl.find all_lines file 
+	lines := Hashtbl.find all_lines file
 
 let newline lexbuf =
 	lines :=  (lexeme_end lexbuf) :: !lines
@@ -111,7 +111,7 @@ let add c = Buffer.add_string buf c
 let mk_tok t pmin pmax =
 	t , { pfile = !cur_file; pmin = pmin; pmax = pmax }
 
-let mk lexbuf t = 
+let mk lexbuf t =
 	mk_tok t (lexeme_start lexbuf) (lexeme_end lexbuf)
 
 let mk_ident lexbuf =
@@ -130,7 +130,7 @@ let idtype = '_'* ['A'-'Z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9']*
 rule token = parse
 	| eof { mk lexbuf Eof }
 	| "\239\187\191" { token lexbuf }
-	| [' ' '\t']+ { token lexbuf } 
+	| [' ' '\t']+ { token lexbuf }
 	| "\r\n" { newline lexbuf; token lexbuf }
 	| '\n' | '\r' { newline lexbuf; token lexbuf }
 	| "0x" ['0'-'9' 'a'-'f' 'A'-'F']+ { mk lexbuf (Const (Int (lexeme lexbuf))) }
@@ -139,7 +139,7 @@ rule token = parse
 	| '.' ['0'-'9']+ { mk lexbuf (Const (Float (lexeme lexbuf))) }
 	| ['0'-'9']+ ['e' 'E'] ['+' '-']? ['0'-'9']+ { mk lexbuf (Const (Float (lexeme lexbuf))) }
 	| ['0'-'9']+ '.' ['0'-'9']* ['e' 'E'] ['+' '-']? ['0'-'9']+ { mk lexbuf (Const (Float (lexeme lexbuf))) }
-	| ['0'-'9']+ "..." { 
+	| ['0'-'9']+ "..." {
 			let s = lexeme lexbuf in
 			mk lexbuf (IntInterval (String.sub s 0 (String.length s - 3)))
 		}
@@ -194,6 +194,7 @@ rule token = parse
 	| "}" { mk lexbuf BrClose }
 	| "(" { mk lexbuf POpen }
 	| ")" { mk lexbuf PClose }
+	| "?" { mk lexbuf Question }
 	| "/*" {
 			reset();
 			let pmin = lexeme_start lexbuf in
@@ -221,11 +222,11 @@ rule token = parse
 			let str = contents() in
 			mk_tok (Const (Regexp (str,options))) pmin pmax;
 		}
-	| '#' ident { 
+	| '#' ident {
 			let v = lexeme lexbuf in
 			let v = String.sub v 1 (String.length v - 1) in
-			mk lexbuf (Macro v) 
-		}	
+			mk lexbuf (Macro v)
+		}
 	| ident { mk_ident lexbuf }
 	| idtype { mk lexbuf (Const (Type (lexeme lexbuf))) }
 	| _ { invalid_char lexbuf }
@@ -264,7 +265,7 @@ and regexp = parse
 	| [^ '\\' '/' '\r' '\n']+ { store lexbuf; regexp lexbuf }
 
 and regexp_options = parse
-	| 'g' | 'i' | 'm' | 's' { 
+	| 'g' | 'i' | 'm' | 's' {
 			let l = lexeme lexbuf in
 			l ^ regexp_options lexbuf
 		}

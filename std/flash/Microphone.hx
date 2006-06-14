@@ -4,7 +4,7 @@ extern class Microphone
 {
 
 	static var names(default,null) : Array<String>;
-	static function get(index:Int) : Microphone;
+	static function get(?index:Int) : Microphone;
 
 	var activityLevel(default,null) : Float;
 	var gain(default,null) : Float;
@@ -16,7 +16,7 @@ extern class Microphone
 	var rate(default,null) : Float;
 	var useEchoSuppression(default,null) : Bool;
 
-	function setSilenceLevel(silenceLevel:Int,timeOut:Float):Void;
+	function setSilenceLevel(silenceLevel:Int,?timeOut:Float):Void;
 	function setRate(rate:Float):Void;
 	function setGain(gain:Float):Void;
 	function setUseEchoSuppression(useEchoSuppression:Bool):Void;

@@ -18,9 +18,9 @@ extern class Sound
 	function setPan(value:Float):Void;
 	function setTransform(transformObject:Dynamic):Void;
 	function setVolume(value:Float):Void;
-	function stop(linkageID:String):Void;
+	function stop(?linkageID:String):Void;
 	function attachSound(id:String):Void;
-	function start(secondOffset:Float, loops:Float):Void;
+	function start(?secondOffset:Float, ?loops:Float):Void;
 	function loadSound(url:String, isStreaming:Bool):Void;
 	function getBytesLoaded():Float;
 	function getBytesTotal():Float;

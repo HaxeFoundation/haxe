@@ -4,7 +4,7 @@ extern class PrintJob
 {
 	function new() : Void;
 	function start():Bool;
-	function addPage(target:Dynamic, printArea:Dynamic, options:Dynamic, frameNum:Float):Bool;
+	function addPage(target:Dynamic, ?printArea:Dynamic, ?options:Dynamic, ?frameNum:Float):Bool;
 	function send():Void;
 
 	var paperWidth(default,null) : Float;

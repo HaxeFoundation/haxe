@@ -82,7 +82,7 @@ let rec make_binop op e ((v,p2) as e2) =
 	| _ ->
 		EBinop (op,e,e2) , punion (pos e) (pos e2)
 
-let rec make_unop op ((v,p2) as e) p1 = 
+let rec make_unop op ((v,p2) as e) p1 =
 	match v with
 	| EBinop (bop,e,e2) -> EBinop (bop, make_unop op e p1 , e2) , (punion p1 p2)
 	| _ ->
@@ -119,7 +119,7 @@ let property_ident = parser
 let log m s =
 	prerr_endline m
 
-let get_doc s = 
+let get_doc s =
 	let d = !doc in
 	doc := None;
 	d
@@ -132,22 +132,22 @@ let semicolon s =
 		match s with parser
 		| [< '(Semicolon,p) >] -> p
 		| [< >] -> snd (last_token s)
-	else 
+	else
 		match s with parser
 		| [< '(Semicolon,p) >] -> p
 		| [< s >] -> error Missing_semicolon (snd (last_token s))
 
-let rec	parse_file s = 
+let rec	parse_file s =
 	doc := None;
 	match s with parser
 	| [< '(Const (Ident "package"),_); p = parse_package; _ = semicolon; l = plist parse_type_decl; '(Eof,_); >] -> p , l
 	| [< l = plist parse_type_decl; '(Eof,_) >] -> [] , l
 
-and parse_type_decl s =	
+and parse_type_decl s =
 	match s with parser
 	| [< '(Kwd Import,p1); t = parse_type_path_normal; _ = semicolon >] -> (EImport (t.tpackage,t.tname), p1)
 	| [< c = parse_common_params; s >] ->
-		match s with parser 
+		match s with parser
 		| [< n , p1 = parse_enum_params; doc = get_doc; '(Const (Type name),_); tl = parse_type_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] -> (EEnum (name,doc,tl,List.map snd c @ n,l), punion p1 p2)
 		| [< n , p1 = parse_class_params; doc = get_doc; '(Const (Type name),_); tl = parse_type_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = plist parse_class_field; '(BrClose,p2) >] -> (EClass (name,doc,tl,List.map fst c @ n @ hl,fl), punion p1 p2)
 		| [< '(Const (Ident "signature"),p1); doc = get_doc; '(Const (Type name),p2); tl = parse_type_params; s >] ->
@@ -215,7 +215,7 @@ and parse_type_path_next t = parser
 			TPFunction (t :: args,r)
 		| _ ->
 			TPFunction ([t] , t2))
-	| [< >] -> t 
+	| [< >] -> t
 
 and parse_type_anonymous_resume name = parser
 	| [< '(DblDot,p); t = parse_type_path; s >] ->
@@ -228,7 +228,7 @@ and parse_type_anonymous_resume name = parser
 and parse_type_anonymous = parser
 	| [< name = any_ident; '(DblDot,p); t = parse_type_path >] -> (name, AFVar t, p)
 
-and parse_enum s = 
+and parse_enum s =
 	doc := None;
 	match s with parser
 	| [< name = any_ident; doc = get_doc; s >] ->
@@ -256,7 +256,7 @@ and parse_class_field s =
 				| [< >] -> serror()
 				) in
 				(FVar (name,doc,l,t,e),punion p1 p2))
-		| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_type_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->			
+		| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_type_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
 			let e = (match s with parser
 				| [< e = expr >] -> e
 				| [< '(Semicolon,p) >] -> (EBlock [],p)
@@ -290,10 +290,12 @@ and parse_fun_name = parser
 	| [< '(Kwd New,_) >] -> "new"
 
 and parse_fun_param = parser
-	| [< name = any_ident; t = parse_type_opt >] -> (name,t)
+	| [< '(Question,_); name = any_ident; t = parse_type_opt >] -> (name,true,t)
+	| [< name = any_ident; t = parse_type_opt >] -> (name,false,t)
 
 and parse_fun_param_type = parser
-	| [< name = any_ident; '(DblDot,_); t = parse_type_path >] -> (name,t)
+	| [< '(Question,_); name = any_ident; '(DblDot,_); t = parse_type_path >] -> (name,true,t)
+	| [< name = any_ident; '(DblDot,_); t = parse_type_path >] -> (name,false,t)
 
 and parse_type_params = parser
 	| [< '(Binop OpLt,_); l = psep Comma parse_type_param; '(Binop OpGt,_) >] -> l
@@ -321,7 +323,7 @@ and block1 = parser
 and block2 name ident p = parser
 	| [< '(DblDot,_); e = expr; l = plist parse_obj_decl; _ = popt comma >] -> EObjectDecl ((name,e) :: l)
 	| [< e = expr_next (EConst (if ident then Ident name else Type name),p); s >] ->
-		try 
+		try
 			let _ = semicolon s in
 			let b = block s in
 			EBlock (e :: b)
@@ -331,7 +333,7 @@ and block2 name ident p = parser
 				EBlock (block s)
 
 and block s =
-	try 
+	try
 		let e = parse_block_elt s in
 		e :: block s
 	with
@@ -373,7 +375,7 @@ and expr = parser
 	| [< '(Kwd New,p1); t = parse_type_path_normal; '(POpen,_); al = psep Comma expr; '(PClose,p2); s >] -> expr_next (ENew (t,al),punion p1 p2) s
 	| [< '(POpen,p1); e = expr; '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
 	| [< '(BkOpen,p1); l = psep Comma expr; _ = popt comma; '(BkClose,p2); s >] -> expr_next (EArrayDecl l, punion p1 p2) s
-	| [< '(Kwd Function,p1); '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; e = expr; s >] -> 
+	| [< '(Kwd Function,p1); '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; e = expr; s >] ->
 		let f = {
 			f_type = t;
 			f_args = al;
@@ -387,7 +389,7 @@ and expr = parser
 	| [< '(Kwd If,p); '(POpen,_); cond = expr; '(PClose,_); e1 = expr; s >] ->
 		let e2 , s = (match s with parser
 			| [< '(Kwd Else,_); e2 = expr; s >] -> Some e2 , s
-			| [< >] -> 
+			| [< >] ->
 				match Stream.npeek 2 s with
 				| [(Semicolon,_);(Kwd Else,_)] ->
 					Stream.junk s;
@@ -410,7 +412,7 @@ and expr = parser
 	| [< '(Kwd Untyped,p1); e = expr >] -> (EUntyped e,punion p1 (pos e))
 
 and expr_next e1 = parser
-	| [< '(Dot,_); s >] -> 
+	| [< '(Dot,_); s >] ->
 		(match s with parser
 		| [< '(Const (Ident f),p); s >] -> expr_next (EField (e1,f) , punion (pos e1) p) s
 		| [< '(Const (Type t),p); s >] -> expr_next (EType (e1,t) , punion (pos e1) p) s
@@ -423,7 +425,7 @@ and expr_next e1 = parser
 		(match s with parser
 		| [< '(Binop OpGt,_); s >] ->
 			(match s with parser
-			| [< '(Binop OpGt,_) >] -> 
+			| [< '(Binop OpGt,_) >] ->
 				(match s with parser
 				| [< '(Binop OpAssign,_); e2 = expr >] -> make_binop (OpAssignOp OpUShr) e1 e2
 				| [< e2 = expr >] -> make_binop OpUShr e1 e2
@@ -445,7 +447,7 @@ and expr_next e1 = parser
 	| [< >] -> e1
 
 and parse_switch_cases = parser
-	| [< '(Kwd Default,p1); '(DblDot,_); e = block1; l , def = parse_switch_cases >] -> 
+	| [< '(Kwd Default,p1); '(DblDot,_); e = block1; l , def = parse_switch_cases >] ->
 		(match def with None -> () | Some (e,p) -> error Duplicate_default p);
 		l , Some (e , p1)
 	| [< '(Kwd Case,p1); e = expr; '(DblDot,_); b = block1; l , def = parse_switch_cases >] ->
@@ -465,7 +467,7 @@ let parse code file =
 	let mstack = ref [] in
 	cache := DynArray.create();
 	doc := None;
-	Lexer.init file;	
+	Lexer.init file;
 	let rec next_token() =
 		let tk = Lexer.token code in
 		match fst tk with
@@ -473,21 +475,21 @@ let parse code file =
 			let l = String.length s in
 			if l > 2 && s.[0] = '*' && s.[l-1] = '*' then doc := Some (String.sub s 1 (l-2));
 			next_token()
-		| CommentLine s -> 
+		| CommentLine s ->
 			next_token()
 		| Macro "end" ->
 			(match !mstack with
 			| [] -> serror()
-			| _ :: l -> 
+			| _ :: l ->
 				mstack := l;
 				next_token())
 		| Macro "else" ->
 			(match !mstack with
 			| [] -> serror()
-			| _ :: l -> 
+			| _ :: l ->
 				mstack := l;
 				skip_tokens false;
-				next_token())			
+				next_token())
 		| Macro "if" ->
 			enter_macro();
 			next_token()
@@ -501,10 +503,10 @@ let parse code file =
 			if Plugin.defined s then
 				mstack := p :: !mstack
 			else
-				skip_tokens true		
+				skip_tokens true
 		| _ ->
 			serror()
-	
+
 	and skip_tokens test =
 		let rec loop() =
 			let tk = Lexer.token code in
@@ -525,7 +527,7 @@ let parse code file =
 		in
 		loop()
 	in
-	let s = Stream.from (fun _ -> 
+	let s = Stream.from (fun _ ->
 		let t = next_token() in
 		DynArray.add (!cache) t;
 		Some t
@@ -538,7 +540,7 @@ let parse code file =
 		l
 	with
 		| Stream.Error _
-		| Stream.Failure -> 
+		| Stream.Failure ->
 			let last = (match Stream.peek s with None -> last_token s | Some t -> t) in
 			Lexer.restore old;
 			cache := old_cache;

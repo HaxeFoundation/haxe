@@ -11,7 +11,7 @@ extern class GlowFilter extends BitmapFilter {
 	var alpha : Float;
 	var color : Float;
 
-	function new(color : Float, alpha : Float, blurX : Float, blurY : Float, strength : Float, quality : Float, inner : Bool, knockout : Bool) : Void;
+	function new( ?color : Float, ?alpha : Float, ?blurX : Float, ?blurY : Float, ?strength : Float, ?quality : Float, ?inner : Bool, ?knockout : Bool ) : Void;
 	function clone() : GlowFilter;
 
 }

@@ -38,7 +38,7 @@ class Lib {
 		return untyped __eval__(str);
 	}
 
-	public static function getURL( url : String, target : String, post : Bool ) {
+	public static function getURL( url : String, ?target : String, ?post : Bool ) {
 		untyped if( post == null ) {
 			if( target == null )
 				__geturl__(url,"_self");
@@ -50,11 +50,11 @@ class Lib {
 			__geturl__(url,target,"GET");
 	}
 
-	public static function fscommand( cmd : String, param : Dynamic ) {
+	public static function fscommand( cmd : String, ?param : Dynamic ) {
 		untyped __geturl__("FSCommand:"+cmd,if( param == null ) "" else param);
 	}
 
-	public static function print( cmd : String, kind : String ) {
+	public static function print( cmd : String, ?kind : String ) {
 		kind = if (kind == "bframe" || kind == "bmax") "print:#"+kind else "print:";
 		untyped __geturl__(kind,cmd);
 	}

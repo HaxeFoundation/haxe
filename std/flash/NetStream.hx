@@ -19,7 +19,7 @@ extern class NetStream
 	function play( name : String, start : Float, len : Float, reset : Dynamic ) : Void;
 	function receiveAudio( flag : Bool ) : Void;
 	function receiveVideo( flag : Dynamic ) : Void;
-	function pause( flag : Bool ) : Void;
+	function pause( ?flag : Bool ) : Void;
 	function seek( offset : Float ) : Void;
 	function close() : Void;
 	function attachAudio( theMicrophone : Microphone ) : Void;

@@ -18,11 +18,12 @@ extern class TextFormat
 	var blockIndent:Float;
 	var tabStops:Array<Dynamic>;
 	var bullet:Bool;
-	function new(font:String,size:Float,textColor:Int,
-                    	bold:Bool,italic:Bool,underline:Bool,
-                    	url:String,window:String,align:String,
-                    	leftMargin:Float,rightMargin:Float,indent:Float,leading:Float) : Void;
-	function getTextExtent(text:String, width : Float):Dynamic;
+	function new( ?font:String, ?size:Float, ?textColor:Int,
+                  ?bold:Bool, ?italic:Bool, ?underline:Bool,
+                  ?url:String, ?window:String, ?align:String,
+                  ?leftMargin:Float, ?rightMargin:Float, ?indent:Float,
+                  ?leading:Float ) : Void;
+	function getTextExtent(text:String, ?width : Float) : Dynamic;
 }
 
 

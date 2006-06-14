@@ -11,9 +11,9 @@ extern class FileReference {
 
 	function new() : Void;
 
-	function browse( typeList : Array<Dynamic> ) : Bool;
+	function browse( ?typeList : Array<Dynamic> ) : Bool;
 	function upload( url : String ) : Bool;
-	function download( url : String, defaultName : String ) : Bool;
+	function download( url : String, ?defaultName : String ) : Bool;
 	function cancel() : Void;
 
 	function addListener( listener : Dynamic ) : Void;

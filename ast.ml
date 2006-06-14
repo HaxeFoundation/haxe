@@ -55,7 +55,7 @@ type keyword =
 	| Interface
 	| Untyped
 	| Cast
-	
+
 type binop =
 	| OpAdd
 	| OpMult
@@ -118,6 +118,7 @@ type token =
 	| Arrow
 	| IntInterval of string
 	| Macro of string
+	| Question
 
 type unop_flag =
 	| Prefix
@@ -127,18 +128,18 @@ type while_flag =
 	| NormalWhile
 	| DoWhile
 
-type type_path_normal = { 
+type type_path_normal = {
 	tpackage : string list;
 	tname : string;
 	tparams : type_path list;
 }
 
-and anonymous_field = 
+and anonymous_field =
 	| AFVar of type_path
 	| AFProp of type_path * string * string
-	| AFFun of (string * type_path) list * type_path
+	| AFFun of (string * bool * type_path) list * type_path
 
-and type_path = 
+and type_path =
 	| TPNormal of type_path_normal
 	| TPFunction of type_path list * type_path
 	| TPAnonymous of (string * anonymous_field * pos) list
@@ -146,7 +147,7 @@ and type_path =
 	| TPExtend of type_path_normal * (string * anonymous_field * pos) list
 
 type func = {
-	f_args : (string * type_path option) list;
+	f_args : (string * bool * type_path option) list;
 	f_type : type_path option;
 	f_expr : expr;
 }
@@ -257,7 +258,7 @@ let s_constant = function
 	| Ident s -> s
 	| Type s -> s
 	| Regexp (r,o) -> "~/" ^ r ^ "/"
-	
+
 let s_keyword = function
 	| Function -> "function"
 	| Class -> "class"
@@ -345,8 +346,9 @@ let s_token = function
 	| Arrow -> "->"
 	| IntInterval s -> s ^ "..."
 	| Macro s -> "#" ^ s
+	| Question -> "?"
 
-let unescape s = 
+let unescape s =
 	let b = Buffer.create 0 in
 	let rec loop esc i =
 		if i = String.length s then

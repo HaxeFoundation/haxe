@@ -12,7 +12,7 @@ extern class ConvolutionFilter extends BitmapFilter {
 	var matrixX : Float;
 	var matrixY : Float;
 
-	function new(matrixX : Float, matrixY : Float, matrix : Array<Dynamic>, divisor : Float, bias : Float, preserveAlpha : Bool, clamp : Bool, color : Float, alpha : Float) : Void;
+	function new( ?matrixX : Float, ?matrixY : Float, ?matrix : Array<Dynamic>, ?divisor : Float, ?bias : Float, ?preserveAlpha : Bool, ?clamp : Bool, ?color : Float, ?alpha : Float) : Void;
 	function clone() : ConvolutionFilter;
 
 }

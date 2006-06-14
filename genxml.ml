@@ -19,7 +19,7 @@
 open Ast
 open Type
 
-type xml = 
+type xml =
 	| Node of string * (string * string) list * xml list
 	| PCData of string
 	| CData of string
@@ -30,20 +30,23 @@ let node name att childs = Node (name,att,childs)
 let pcdata s = PCData s
 let cdata s = CData s
 
-let pmap f m = 
+let pmap f m =
 	PMap.fold (fun x acc -> f x :: acc) m []
 
 let gen_path (p,n) priv =
 	("path",String.concat "." ((if n.[0] != '#' && priv then List.rev (List.tl (List.rev p)) else p) @ [n]))
 
-let gen_doc s = 
+let gen_doc s =
 	let f = if String.contains s '<' || String.contains s '>' || String.contains s '&' then	cdata else pcdata in
 	node "haxe:doc" [] [f s]
 
 let gen_doc_opt d =
-	match d with 
+	match d with
 	| None -> []
 	| Some s -> [gen_doc s]
+
+let gen_arg_name (name,opt,_) =
+	(if opt then "?" else "") ^ name
 
 let rec gen_type t =
 	match t with
@@ -51,21 +54,21 @@ let rec gen_type t =
 	| TEnum (e,params) -> node "e" [gen_path e.e_path e.e_private] (List.map gen_type params)
 	| TInst (c,params) -> node "c" [gen_path c.cl_path c.cl_private] (List.map gen_type params)
 	| TSign (s,params) -> node "s" [gen_path s.s_path s.s_private] (List.map gen_type params)
-	| TFun (args,r) -> node "f" ["a",String.concat ":" (List.map fst args)] (List.map gen_type (List.map snd args @ [r]))
+	| TFun (args,r) -> node "f" ["a",String.concat ":" (List.map gen_arg_name args)] (List.map gen_type (List.map (fun (_,_,t) -> t) args @ [r]))
 	| TAnon fields -> node "a" [] (pmap (fun f -> node f.cf_name [] [gen_type f.cf_type]) fields)
 	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
 	| TLazy f -> gen_type (!f())
 
 let gen_constr e =
 	let doc = gen_doc_opt e.ef_doc in
-	let args, t = (match follow e.ef_type with 
+	let args, t = (match follow e.ef_type with
 		| TFun (args,_) ->
-			["a",String.concat ":" (List.map fst args)] ,
-			List.map (fun (_,t) -> gen_type t) args @ doc
-		| _ -> 
+			["a",String.concat ":" (List.map gen_arg_name args)] ,
+			List.map (fun (_,_,t) -> gen_type t) args @ doc
+		| _ ->
 			[] , doc
 	) in
-	node e.ef_name args t 
+	node e.ef_name args t
 
 let gen_field att f =
 	let att = (match f.cf_expr with None -> att | Some e -> ("line",string_of_int (Lexer.get_error_line e.epos)) :: att) in
@@ -79,7 +82,7 @@ let gen_type_params priv path params pos m =
 let gen_type ctx t =
 	let m = Typer.module_of_type ctx t in
 	match t with
-	| TClassDecl c -> 
+	| TClassDecl c ->
 		let stats = pmap (gen_field ["static","1"]) c.cl_statics in
 		let fields = pmap (gen_field []) c.cl_fields in
 		let constr = (match c.cl_constructor with None -> [] | Some f -> [gen_field [] f]) in
@@ -93,14 +96,14 @@ let gen_type ctx t =
 		let t = gen_type s.s_type in
 		node "signature" (gen_type_params s.s_private s.s_path s.s_types s.s_pos m) (t :: doc)
 
-let att_str att = 
+let att_str att =
 	String.concat "" (List.map (fun (a,v) -> Printf.sprintf " %s=\"%s\"" a v) att)
 
 let rec write_xml ch tabs x =
 	match x with
-	| Node (name,att,[]) -> 
+	| Node (name,att,[]) ->
 		IO.printf ch "%s<%s%s/>" tabs name (att_str att)
-	| Node (name,att,[x]) -> 
+	| Node (name,att,[x]) ->
 		IO.printf ch "%s<%s%s>" tabs name (att_str att);
 		write_xml ch "" x;
 		IO.printf ch "</%s>" name;

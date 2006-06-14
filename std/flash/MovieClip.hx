@@ -39,18 +39,27 @@ implements Dynamic
 	var _url : String;
 	var _parent : MovieClip;
 
-	function getURL(url : String, window : String, method : String) : Void;
+	function getURL( url : String, ?window : String, ?method : String ) : Void;
 	function unloadMovie() : Void;
-	function loadVariables(url : String, method : String) : Void;
-	function loadMovie(url : String, method : String) : Void;
-	function attachMovie(id : String, name : String, depth : Int, initObject : Dynamic) : MovieClip;
+	function loadVariables( url : String, ?method : String ) : Void;
+	function loadMovie( url : String, ?method : String ) : Void;
+	function attachMovie(id : String, name : String, depth : Int, ?initObject : Dynamic) : MovieClip;
+
+	#if flash_strict
+	function swapDepths( depth : Int ) : Void;
+	#else true
 	function swapDepths(mc : Dynamic) : Void;
+	#end
 	// function swapDepths( mc : String ) : Void;
 	// function swapDepths( mc : MovieClip ) : Void;
 	// function swapDepths( depth : Int ) : Void;
+
 	function localToGlobal(pt : { x : Float, y : Float } ) : Void;
 	function globalToLocal(pt : { x : Float, y : Float } ) : Void;
-	function hitTest(x : Dynamic, y : Dynamic, shape : Bool) : Bool;
+
+	// optional param problem if called with a second Bool parameter
+	function hitTest( x_or_mc : Dynamic, ?y : Float, ?shape : Bool ) : Bool;
+
 	// function hitTest( x : Float, y : Float, shape : Bool ) : Bool;
 	// function hitTest( mc : MovieClip ) : Bool;
 	function getBounds(bounds  :  MovieClip) : { xMin : Float, xMax : Float, yMin : Float, yMax : Float };
@@ -72,15 +81,15 @@ implements Dynamic
 	// frame : String | Int
 	function gotoAndStop(frame : Dynamic) : Void;
 	// frame : String | Int
-	function duplicateMovieClip(name : String, depth : Int, initObject : Dynamic) : MovieClip;
+	function duplicateMovieClip(name : String, depth : Int, ?initObject : Dynamic) : MovieClip;
 	function removeMovieClip() : Void;
-	function startDrag(lockCenter : Bool, left : Float, top : Float, right : Float, bottom : Float) : Void;
+	function startDrag( lockCenter : Bool, ?left : Float, ?top : Float, ?right : Float, ?bottom : Float ) : Void;
 	function stopDrag() : Void;
 	function createEmptyMovieClip(name : String, depth : Int) : MovieClip;
-	function beginFill(rgb : Int, alpha : Float) : Void;
+	function beginFill(rgb : Int, ?alpha : Float) : Void;
 
 #if flash8
-	function beginGradientFill(fillType : String, colors : Array<Int>, alphas : Array<Float>, ratios : Array<Float>, matrix : Dynamic, spreadMethod : String, interpolationMethod : String, focalPointRatio : Float ) : Void;
+	function beginGradientFill(fillType : String, colors : Array<Int>, alphas : Array<Float>, ratios : Array<Float>, matrix : Dynamic, ?spreadMethod : String, ?interpolationMethod : String, ?focalPointRatio : Float ) : Void;
 #else true
 	function beginGradientFill(fillType : String, colors : Array<Int>, alphas : Array<Float>, ratios : Array<Float>, matrix : Dynamic) : Void;
 #end
@@ -90,9 +99,9 @@ implements Dynamic
 	function lineTo(x : Float, y : Float) : Void;
 	function curveTo(controlX : Float, controlY : Float, anchorX : Float, anchorY : Float) : Void;
 #if flash8
-	function lineStyle(thickness : Float, rgb : Int, alpha : Float, pixelHinting : Bool, noScale : String, capsStyle : String, jointStyle : String, miterLimit : Float) : Void;
+	function lineStyle(thickness : Float, rgb : Int, ?alpha : Float, ?pixelHinting : Bool, ?noScale : String, ?capsStyle : String, ?jointStyle : String, ?miterLimit : Float) : Void;
 #else true
-	function lineStyle(thickness : Float, rgb : Int, alpha : Float) : Void;
+	function lineStyle(thickness : Float, rgb : Int, ?alpha : Float) : Void;
 #end
 	function endFill() : Void;
 	function clear() : Void;
@@ -132,9 +141,14 @@ implements Dynamic
 	var scrollRect : Dynamic;
 	var transform : flash.geom.Transform;
 	var scale9Grid : flash.geom.Rectangle<Float>;
+
 	function getRect( bounds : MovieClip ) : { xMin : Float, yMin : Float, xMax : Float, yMax : Float };
 	// don't allow bounds : String
-	function attachBitmap( bmp : flash.display.BitmapData, depth : Int, pixelSnapping : String, smoothing : Bool ) : Void;
+
+
+	function attachBitmap( bmp : flash.display.BitmapData, depth : Int, ?pixelSnapping : String, ?smoothing : Bool ) : Void;
+	function beginBitmapFill( bmp : flash.display.BitmapData , ?matrix:flash.geom.Matrix, ?repeat:Bool, ?smoothing:Bool ) : Void;
+  	function lineGradientStyle( fillType:String, colors:Array<Int>, alphas:Array<Float>, ratios:Array<Float>, matrix:Dynamic, ?spreadMethod : String, ?interpolationMethod:String, ?focalPointRatio:Float ) : Void;
 #end
 
 }

@@ -57,9 +57,9 @@ class NekoString__ implements String {
 		}
 	}
 
-	public function indexOf( str, pos ) {
+	public function indexOf( str, ?pos ) {
 		untyped {
-			var p = __dollar__sfind(this.__s,pos,str.__s);
+			var p = try __dollar__sfind(this.__s,if( pos == null ) 0 else pos,str.__s) catch( e : Dynamic ) null;
 			if( p == null )
 				return -1;
 			return p;
@@ -69,9 +69,11 @@ class NekoString__ implements String {
 	public function lastIndexOf( str, pos ) {
 		untyped {
 			var last = -1;
+			if( pos == null )
+				pos = 0;
 			while( true ) {
-				var p = __dollar__sfind(this.__s,last + 1,str.__s);
-				if( p == null )
+				var p = try __dollar__sfind(this.__s,last+1,str.__s) catch( e : Dynamic ) null;
+				if( p == null || p > pos )
 					return last;
 				last = p;
 			}

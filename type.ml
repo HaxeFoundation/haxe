@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *)
- 
+
 type module_path = string list * string
 
 type field_access =
@@ -24,12 +24,12 @@ type field_access =
 	| NoAccess
 	| MethodAccess of string
 
-type t = 
+type t =
 	| TMono of t option ref
 	| TEnum of tenum * t list
 	| TInst of tclass * t list
 	| TSign of tsignature * t list
-	| TFun of (string * t) list * t
+	| TFun of (string * bool * t) list * t
 	| TAnon of (string, tclass_field) PMap.t
 	| TDynamic of t
 	| TLazy of (unit -> t) ref
@@ -44,7 +44,7 @@ and tconstant =
 	| TSuper
 
 and tfunc = {
-	tf_args : (string * t) list;
+	tf_args : (string * bool * t) list;
 	tf_type : t;
 	tf_expr : texpr;
 }
@@ -138,13 +138,13 @@ and tsignature = {
 	mutable s_type : t;
 }
 
-and module_type = 
+and module_type =
 	| TClassDecl of tclass
 	| TEnumDecl of tenum
 	| TSignatureDecl of tsignature
 
 type module_def = {
-	mpath : module_path;		
+	mpath : module_path;
 	mtypes : module_type list;
 	mutable mimports : module_def list;
 }
@@ -176,6 +176,8 @@ let mk_class path pos doc priv =
 
 let null_class = mk_class ([],"") Ast.null_pos None true
 
+let arg_name (name,_,_) = name
+
 let t_private = function
 	| TClassDecl c -> c.cl_private
 	| TEnumDecl e -> e.e_private
@@ -188,7 +190,7 @@ let t_path = function
 
 let print_context() = ref []
 
-let rec s_type ctx t = 
+let rec s_type ctx t =
 	match t with
 	| TMono r ->
 		(match !r with
@@ -203,15 +205,15 @@ let rec s_type ctx t =
 	| TFun ([],t) ->
 		"Void -> " ^ s_fun ctx t false
 	| TFun (l,t) ->
-		String.concat " -> " (List.map (fun (s,t) -> 
-			(if s = "" then "" else s ^ " : ") ^ s_fun ctx t true
+		String.concat " -> " (List.map (fun (s,b,t) ->
+			(if b then "?" else "") ^ (if s = "" then "" else s ^ " : ") ^ s_fun ctx t true
 		) l) ^ " -> " ^ s_fun ctx t false
 	| TAnon fl ->
 		let fl = PMap.fold (fun f acc -> (" " ^ f.cf_name ^ " : " ^ s_type ctx f.cf_type) :: acc) fl [] in
 		"{" ^ String.concat "," fl ^ " }"
 	| TDynamic t2 ->
 		"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
-	| TLazy f ->		
+	| TLazy f ->
 		s_type ctx (!f())
 
 and s_fun ctx t void =
@@ -238,7 +240,7 @@ let rec link e a b =
 		else match t with
 		| TMono t -> (match !t with None -> false | Some t -> loop t)
 		| TEnum (_,tl) | TInst (_,tl) | TSign (_,tl) -> List.exists loop tl
-		| TFun (tl,t) -> List.exists (fun (_,t) -> loop t) tl || loop t
+		| TFun (tl,t) -> List.exists (fun (_,_,t) -> loop t) tl || loop t
 		| TDynamic t2 ->
 			if t == t2 then
 				false
@@ -295,7 +297,7 @@ let apply_params cparams params t =
 				t
 			| [TMono r] ->
 				(match !r with
-				| Some tt when t == tt -> 
+				| Some tt when t == tt ->
 					(* for dynamic *)
 					let pt = mk_mono() in
 					let t = TInst (c,[pt]) in
@@ -305,7 +307,7 @@ let apply_params cparams params t =
 			| _ ->
 				TInst (c,List.map loop tl))
 		| TFun (tl,r) ->
-			TFun (List.map (fun (s,t) -> s, loop t) tl,loop r)
+			TFun (List.map (fun (s,o,t) -> s, o, loop t) tl,loop r)
 		| TAnon fl ->
 			TAnon (PMap.map (fun f -> { f with cf_type = loop f.cf_type }) fl)
 		| TLazy f ->
@@ -344,10 +346,10 @@ let rec type_eq param a b =
 	| TSign (s,tl) , _ -> type_eq param (apply_params s.s_types tl s.s_type) b
 	| _ , TSign (s,tl) -> type_eq param a (apply_params s.s_types tl s.s_type)
 	| TEnum (a,tl1) , TEnum (b,tl2) -> a == b && List.for_all2 (type_eq param) tl1 tl2
-	| TInst (c1,tl1) , TInst (c2,tl2) -> 
+	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		c1 == c2 && List.for_all2 (type_eq param) tl1 tl2
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
-		type_eq param r1 r2 && List.for_all2 (fun (_,t1) (_,t2) -> type_eq param t1 t2) l1 l2
+		type_eq param r1 r2 && List.for_all2 (fun (_,o1,t1) (_,o2,t2) -> o1 = o2 && type_eq param t1 t2) l1 l2
 	| TDynamic a , TDynamic b ->
 		type_eq param a b
 	| TAnon fl1, TAnon fl2 ->
@@ -375,6 +377,7 @@ type unify_error =
 	| Has_no_field of t * string
 	| Invalid_access of string * bool
 	| Invalid_visibility of string
+	| Not_matching_optional
 
 exception Unify_error of unify_error list
 
@@ -401,31 +404,31 @@ let rec unify a b =
 	else match a, b with
 	| TLazy f , _ -> unify (!f()) b
 	| _ , TLazy f -> unify a (!f())
-	| TMono t , _ -> 
-		(match !t with 
-		| None -> if not (link t a b) then error [cannot_unify a b] 
+	| TMono t , _ ->
+		(match !t with
+		| None -> if not (link t a b) then error [cannot_unify a b]
 		| Some t -> unify t b)
-	| _ , TMono t -> 
+	| _ , TMono t ->
 		(match !t with
 		| None -> if not (link t b a) then error [cannot_unify a b]
 		| Some t -> unify a t)
 	| TSign (s,tl) , _ ->
-		(try 
+		(try
 			unify (apply_params s.s_types tl s.s_type) b
-		with 
+		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| _ , TSign (s,tl) ->
 		if not (List.exists (fun (a2,s2) -> a == a2 && s == s2) (!unify_stack)) then begin
-			try 
+			try
 				unify_stack := (a,s) :: !unify_stack;
 				unify a (apply_params s.s_types tl s.s_type);
 				unify_stack := List.tl !unify_stack;
-			with 
+			with
 				Unify_error l ->
 					unify_stack := List.tl !unify_stack;
 					error (cannot_unify a b :: l)
 		end
-	| TEnum (ea,tl1) , TEnum (eb,tl2) -> 
+	| TEnum (ea,tl1) , TEnum (eb,tl2) ->
 		if ea != eb then error [cannot_unify a b];
 		unify_types a b tl1 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
@@ -445,7 +448,10 @@ let rec unify a b =
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
 		(try
 			unify r1 r2;
-			List.iter2 (fun (_,t1) (_,t2) -> unify t1 t2) l2 l1 (* contravariance *)
+			List.iter2 (fun (_,o1,t1) (_,o2,t2) ->
+				if o1 && not o2 then error [Not_matching_optional];
+				unify t1 t2
+			) l2 l1 (* contravariance *)
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| TInst (c,tl) , TAnon fl ->
@@ -455,7 +461,7 @@ let rec unify a b =
 				if not (unify_access f1.cf_get f2.cf_get) then error [invalid_access n true];
 				if not (unify_access f1.cf_set f2.cf_set) then error [invalid_access n false];
 				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
-				try 
+				try
 					unify (apply_params c.cl_types tl f1.cf_type) f2.cf_type
 				with
 					Unify_error l -> error (invalid_field n :: l)
@@ -473,13 +479,13 @@ let rec unify a b =
 					unify f1.cf_type f2.cf_type;
 				with
 					Unify_error l -> error (invalid_field n :: l)
-			) fl2;			
+			) fl2;
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| TDynamic t , _ ->
 		if t == a then
 			()
-		else (match b with 
+		else (match b with
 		| TDynamic t2 ->
 			if t2 != b && not (type_eq true t t2) then error [cannot_unify a b; cannot_unify t t2];
 		| _ ->
@@ -487,10 +493,10 @@ let rec unify a b =
 	| _ , TDynamic t ->
 		if t == b then
 			()
-		else (match a with 
-		| TDynamic t2 -> 
+		else (match a with
+		| TDynamic t2 ->
 			if t2 != a && not (type_eq true t t2) then error [cannot_unify a b; cannot_unify t t2]
-		| _ -> 
+		| _ ->
 			error [cannot_unify a b])
 	| _ , _ ->
 		error [cannot_unify a b]

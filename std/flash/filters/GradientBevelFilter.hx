@@ -14,7 +14,7 @@ extern class GradientBevelFilter extends BitmapFilter {
 	var angle : Float;
 	var distance : Float;
 
-	function new(distance : Float, angle : Float, colors : Array<Dynamic>, alphas : Array<Dynamic>, ratios : Array<Dynamic>, blurX : Float, blurY : Float, strength : Float, quality : Float, type : String, knockout : Bool) : Void;
+	function new( ?distance : Float, ?angle : Float, ?colors : Array<Dynamic>, ?alphas : Array<Dynamic>, ?ratios : Array<Dynamic>, ?blurX : Float, ?blurY : Float, ?strength : Float, ?quality : Float, ?type : String, ?knockout : Bool ) : Void;
 	function clone() : GradientBevelFilter;
 
 }

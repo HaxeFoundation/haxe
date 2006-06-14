@@ -10,7 +10,7 @@ extern class Matrix {
 	var tx : Float;
 	var ty : Float;
 
-	function new(a : Float, b : Float, c : Float, d : Float, tx : Float, ty : Float) : Void;
+	function new( ?a : Float, ?b : Float, ?c : Float, ?d : Float, ?tx : Float, ?ty : Float) : Void;
 
 	function transformPoint( p : Point<Float> ) : Point<Float>;
 	function deltaTransformPoint( p : Point<Float> ) : Void; // does not apply translation
@@ -23,8 +23,8 @@ extern class Matrix {
 	function concat( m : Matrix ) : Void;
 	function clone() : Matrix;
 
-	function createGradientBox( width : Float, height : Float, rot : Float, tx : Float, ty : Float ) : Void;
-	function createBox( scalex : Float, scaley : Float, rot : Float, tx : Float, ty : Float ) : Void;
+	function createGradientBox( width : Float, height : Float, ?rot : Float, ?tx : Float, ?ty : Float ) : Void;
+	function createBox( scalex : Float, scaley : Float, ?rot : Float, ?tx : Float, ?ty : Float ) : Void;
 
 
 }

@@ -34,10 +34,10 @@ let files = Hashtbl.create 0
 
 let pos p =
 	let file = (try
-		Hashtbl.find files p.pfile 
+		Hashtbl.find files p.pfile
 	with Not_found -> try
 		let len = String.length p.pfile in
-		let base = List.find (fun path -> 
+		let base = List.find (fun path ->
 			let l = String.length path in
 			len > l  && String.sub p.pfile 0 l = path
 		) (!Plugin.class_path) in
@@ -60,8 +60,8 @@ let add_local ctx v p =
 		| TLocal a ->
 			if flag && a = v then raise Exit
 		| TFunction f ->
-			if not (List.exists (fun (a,_) -> a = v) f.tf_args) then loop true f.tf_expr
-		| TVars l -> 
+			if not (List.exists (fun (a,_,_) -> a = v) f.tf_args) then loop true f.tf_expr
+		| TVars l ->
 			if List.exists (fun (a,_,_) -> a = v) l then raise Not_found;
 			Type.iter (loop flag) e
 		| TFor (a,e1,e2) ->
@@ -83,7 +83,7 @@ let add_local ctx v p =
 		| TTry (e,catchs) ->
 			loop flag e;
 			List.iter (fun (a,_,e) -> if a <> v then loop flag e) catchs
-		| _ -> 
+		| _ ->
 			Type.iter (loop flag) e
 	in
 	let isref = (try
@@ -134,7 +134,7 @@ let call p e el =
 	(ECall (e,el),p)
 
 let array p el =
-	call p (builtin p "array") el 
+	call p (builtin p "array") el
 
 let pmap_list f p =
 	PMap.fold (fun v acc -> f v :: acc) p []
@@ -147,7 +147,7 @@ let no_dollar t =
 
 let gen_type_path p (path,t) =
 	match path with
-	| [] -> 
+	| [] ->
 		ident p (no_dollar t)
 	| path :: l ->
 		let epath = List.fold_left (fun e path -> field p e path) (ident p path) l in
@@ -161,7 +161,7 @@ let gen_constant pe c =
 	| TString s -> call p (field p (ident p "String") "new") [str p s]
 	| TBool b -> (EConst (if b then True else False),p)
 	| TNull -> null p
-	| TThis -> this p 
+	| TThis -> this p
 	| TSuper -> assert false
 
 let rec gen_binop ctx p op e1 e2 =
@@ -173,7 +173,7 @@ let rec gen_binop ctx p op e1 e2 =
 	| OpPhysNotEq ->  (EBinop ("!=", call p (builtin p "pcompare") [gen_expr ctx e1; gen_expr ctx e2], int p 0),p)
 	| _ -> gen_op (Ast.s_binop op)
 
-and gen_unop ctx p op flag e =	
+and gen_unop ctx p op flag e =
 	match op with
 	| Increment -> (EBinop ((if flag = Prefix then "+=" else "++="), gen_expr ctx e , int p 1),p)
 	| Decrement -> (EBinop ((if flag = Prefix then "-=" else "--="), gen_expr ctx e , int p 1),p)
@@ -219,10 +219,10 @@ and gen_closure p t e f =
 				],p)),p)
 			),p)
 		] , p
-	| _ -> 
+	| _ ->
 		field p e f
 
-and gen_expr ctx e = 
+and gen_expr ctx e =
 	let p = pos e.epos in
 	match e.eexpr with
 	| TConst c ->
@@ -258,38 +258,38 @@ and gen_expr ctx e =
 	| TUnop (op,flag,e) ->
 		gen_unop ctx p op flag e
 	| TVars vl ->
-		(EVars (List.map (fun (v,_,e) -> 
+		(EVars (List.map (fun (v,_,e) ->
 			let isref = add_local ctx v p in
-			let e = (match e with 
-				| None -> 
-					if isref then 
+			let e = (match e with
+				| None ->
+					if isref then
 						Some (call p (builtin p "array") [null p])
 					else
-						None 
-				| Some e -> 
+						None
+				| Some e ->
 					let e = gen_expr ctx e in
 					if isref then
 						Some (call p (builtin p "array") [e])
 					else
 						Some e
-			) in	
+			) in
 			v , e
 		) vl),p)
 	| TFunction f ->
-		let b = block ctx [f.tf_expr] in		
-		let inits = List.fold_left (fun acc (a,_) -> 
-			if add_local ctx a p then 
+		let b = block ctx [f.tf_expr] in
+		let inits = List.fold_left (fun acc (a,_,_) ->
+			if add_local ctx a p then
 				(a, Some (call p (builtin p "array") [ident p a])) :: acc
 			else
 				acc
 		) [] f.tf_args in
 		let e = gen_expr ctx f.tf_expr in
 		let e = (match inits with [] -> e | _ -> (EBlock [(EVars (List.rev inits),p);e],p)) in
-		let e = (EFunction (List.map fst f.tf_args, e),p) in
+		let e = (EFunction (List.map arg_name f.tf_args, e),p) in
 		b();
 		e
 	| TBlock el ->
-		let b = block ctx el in		
+		let b = block ctx el in
 		let rec loop = function
 			| [] -> []
 			| e :: l ->
@@ -308,7 +308,7 @@ and gen_expr ctx e =
 		b();
 		let next = call p (field p (ident p "@tmp") "next") [] in
 		let next = (if isref then call p (builtin p "array") [next] else next) in
-		(EBlock 
+		(EBlock
 			[(EVars ["@tmp", Some it],p);
 			(EWhile (call p (field p (ident p "@tmp") "hasNext") [],
 				(EBlock [
@@ -316,7 +316,7 @@ and gen_expr ctx e =
 					e
 				],p)
 			,NormalWhile),p)]
-		,p)	
+		,p)
 	| TIf (cond,e1,e2) ->
 		(EIf (gen_expr ctx cond,gen_expr ctx e1,(match e2 with None -> None | Some e -> Some (gen_expr ctx e))),p)
 	| TWhile (econd,e,flag) ->
@@ -326,7 +326,7 @@ and gen_expr ctx e =
 			| [] -> call p (builtin p "rethrow") [ident p "@tmp"]
 			| (v,t,e) :: l ->
 				let e2 = loop l in
-				let path = (match follow t with 
+				let path = (match follow t with
 					| TInst (c,_) -> Some c.cl_path
 					| TEnum (e,_) -> Some e.e_path
 					| TDynamic _ -> None
@@ -376,8 +376,8 @@ and gen_expr ctx e =
 						| None -> gen_expr ctx e2
 						| Some el ->
 							let b = block ctx [e2] in
-							let vars = List.fold_left (fun acc (v,_) -> 								
-								incr count; 
+							let vars = List.fold_left (fun acc (v,_) ->
+								incr count;
 								match v with
 								| None ->
 									acc
@@ -409,7 +409,7 @@ and gen_expr ctx e =
 
 let gen_method ctx p c acc =
 	match c.cf_expr with
-	| None -> 
+	| None ->
 		(c.cf_name, null p) :: acc
 	| Some e ->
 		match e.eexpr with
@@ -418,7 +418,7 @@ let gen_method ctx p c acc =
 		| TFunction _ -> ((if c.cf_name = "new" then "__construct__" else c.cf_name), gen_expr ctx e) :: acc
 		| _ -> (c.cf_name, null p) :: acc
 
-let gen_class ctx c =	
+let gen_class ctx c =
 	let p = pos c.cl_pos in
 	let clpath = gen_type_path p (fst c.cl_path,"@" ^ snd c.cl_path) in
 	let stpath = gen_type_path p c.cl_path in
@@ -427,7 +427,7 @@ let gen_class ctx c =
 	| Some f ->
 		(match follow f.cf_type with
 		| TFun (args,_) ->
-			let params = List.map fst args in
+			let params = List.map arg_name args in
 			gen_method ctx p f ["new",(EFunction (params,(EBlock [
 				(EVars ["@o",Some (call p (builtin p "new") [null p])],p);
 				(call p (builtin p "objsetproto") [ident p "@o"; clpath]);
@@ -448,7 +448,7 @@ let gen_class ctx c =
 				EReturn (Some (field p (ident p "@s") "__s")),p;
 			],p)),p)]
 		| _ -> []
-	with Not_found -> 
+	with Not_found ->
 		[]
 	) in
 	let fserialize = "__serialize" , ident p "@serialize" in
@@ -472,13 +472,13 @@ let gen_class ctx c =
 		| [] , name -> [(EBinop ("=",field p (ident p "@classes") name,ident p (no_dollar name)),p)]
 		| _ -> []
 	in
-	(EBlock ([eclass; estat; call p (builtin p "objsetproto") [clpath; esuper]] @ emeta),p)	
+	(EBlock ([eclass; estat; call p (builtin p "objsetproto") [clpath; esuper]] @ emeta),p)
 
 let gen_enum_constr path c =
 	let p = pos c.ef_pos in
 	(EBinop ("=",field p path c.ef_name, match follow c.ef_type with
 		| TFun (params,_) ->
-			let params = List.map fst params in
+			let params = List.map arg_name params in
 			(EFunction (params,
 				(EBlock [
 					(EVars ["@tmp",Some (EObject [
@@ -515,7 +515,7 @@ let gen_enum e =
 
 let gen_type ctx t =
 	match t with
-	| TClassDecl c -> 
+	| TClassDecl c ->
 		(match c.cl_init with
 		| None -> ()
 		| Some e -> ctx.inits <- e :: ctx.inits);
@@ -523,7 +523,7 @@ let gen_type ctx t =
 			null (pos c.cl_pos)
 		else
 			gen_class ctx c
-	| TEnumDecl e -> 
+	| TEnumDecl e ->
 		if e.e_path = ([],"Bool") then
 			null (pos e.e_pos)
 		else
@@ -544,7 +544,7 @@ let gen_static_vars ctx t =
 				| Some e ->
 					match e.eexpr with
 					| TFunction _ -> acc
-					| _ -> 
+					| _ ->
 						let p = pos e.epos in
 						(EBinop ("=",
 							(field p (gen_type_path p c.cl_path) f.cf_name),
@@ -560,7 +560,7 @@ let gen_package h t =
 			let path = acc @ [x] in
 			if not (Hashtbl.mem h path) then begin
 				let p = pos (match t with TClassDecl c -> c.cl_pos | TEnumDecl e -> e.e_pos | TSignatureDecl s -> s.s_pos) in
-				let e = (EBinop ("=",gen_type_path p (acc,x),call p (builtin p "new") [null p]),p) in				
+				let e = (EBinop ("=",gen_type_path p (acc,x),call p (builtin p "new") [null p]),p) in
 				Hashtbl.add h path ();
 				(match acc with
 				| [] ->
@@ -589,7 +589,7 @@ let gen_name acc t =
 		let name = fst e.e_path @ [snd e.e_path] in
 		let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant e.e_pos (TString n)) name); int p (List.length name)] in
 		(EBinop ("=",field p (gen_type_path p e.e_path) "__ename__",arr),p) :: acc
-	| TClassDecl c -> 
+	| TClassDecl c ->
 		if c.cl_extern then
 			acc
 		else
@@ -597,7 +597,7 @@ let gen_name acc t =
 			let name = fst c.cl_path @ [snd c.cl_path] in
 			let interf = field p (gen_type_path p c.cl_path) "__interfaces__" in
 			let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant c.cl_pos (TString n)) name); int p (List.length name)] in
-			(EBinop ("=",field p (gen_type_path p c.cl_path) "__name__",arr),p) :: 
+			(EBinop ("=",field p (gen_type_path p c.cl_path) "__name__",arr),p) ::
 			(EBinop ("=",interf, call p (field p (ident p "Array") "new1") [interf; int p (List.length c.cl_implements)]),p) ::
 			acc
 	| TSignatureDecl _ ->

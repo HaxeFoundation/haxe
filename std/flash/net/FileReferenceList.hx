@@ -6,7 +6,7 @@ extern class FileReferenceList {
 
 	function new() : Void;
 
-	function browse( typeList : Array<Dynamic> ) : Bool;
+	function browse( ?typeList : Array<Dynamic> ) : Bool;
 	function addListener( listener : Dynamic ) : Void;
 	function removeListener( listener : Dynamic ) : Bool;
 

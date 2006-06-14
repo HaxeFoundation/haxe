@@ -15,8 +15,8 @@ implements Dynamic<String>
 	// don't allow : function addRequestHeader( headers : Array<String> ) : Void;
 
 	function load(url:String):Bool;
-	function send(url:String,target:String,method:String):Bool;
-	function sendAndLoad(url:String,targetObject:Dynamic,method:String):Bool;
+	function send(url:String,target:String,?method:String):Bool;
+	function sendAndLoad(url:String,targetObject:Dynamic,?method:String):Bool;
 	function getBytesLoaded():Int;
 	function getBytesTotal():Int;
 	function decode(queryString:String):Void;

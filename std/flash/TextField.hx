@@ -66,8 +66,11 @@ extern class TextField
 
 	function replaceText(beginIndex:Int,endIndex:Int,newText:String):Void;
 	function replaceSel(newText:String):Void;
-	function getTextFormat(beginIndex:Int,endIndex:Int):TextFormat;
-	function setTextFormat( begin : Dynamic, end : Dynamic, tf : TextFormat ):Void;
+	function getTextFormat(?beginIndex:Int,?endIndex:Int):TextFormat;
+
+	// wtf ?? optional first argument !
+	// if beginIndex and endIndex are null, does it works ?
+	function setTextFormat( begin : Dynamic, ?end : Dynamic, ?tf : TextFormat ):Void;
 	function removeTextField():Void;
 	function getNewTextFormat():TextFormat;
 	function setNewTextFormat(tf:TextFormat):Void;
