@@ -228,7 +228,6 @@ try
 			cmds := cmd :: !cmds
 		),": run the specified command after successful compilation");
 		("--flash-strict", define "flash_strict", ": more type strict flash API");
-		("--no-flash-opt-args", define "no_flash_opt_args" , ": don't allow optional parameters for flash api");
 		("--no-traces", define "no_traces", ": don't compile trace calls in the program");
 		("--flash-use-stage", define "flash_use_stage", ": place objects found on the stage of the SWF lib");
 		("--next", Arg.Unit (fun() -> assert false), ": separate several haxe compilations");
@@ -281,10 +280,7 @@ try
 		Plugin.define "js";
 	);
 	if !classes = [([],"Std")] then begin
-		if !cmds = [] then begin
-			(*Arg.usage args_spec usage;*)
-			prerr_endline (String.concat "#" params);
-		end
+		if !cmds = [] then Arg.usage args_spec usage;
 	end else begin
 		if !Plugin.verbose then print_endline ("Classpath : " ^ (String.concat ";" !Plugin.class_path));
 		let ctx = Typer.context type_error warn in
@@ -322,6 +318,7 @@ with
 	| Parser.Error (m,p) -> report (Parser.error_msg m) p
 	| Typer.Error (m,p) -> report (Typer.error_msg m) p
 	| Failure msg | Arg.Bad msg -> report ("Error : " ^ msg) Ast.null_pos
+	| Arg.Help msg -> print_string msg
 	| Hxml_found -> ()
 	| e -> report (Printexc.to_string e) Ast.null_pos
 
