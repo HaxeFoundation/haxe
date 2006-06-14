@@ -19,4 +19,7 @@ implements Dynamic
 	function onStatus(infoObject : Dynamic) : Void;
 	function onResult(infoObject : Dynamic) : Void;
 
+	private static function __init__() : Void untyped {
+		flash.NetConnection = _global["NetConnection"];
+	}
 }

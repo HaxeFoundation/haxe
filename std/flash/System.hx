@@ -7,6 +7,9 @@ extern class System
 	static function showSettings(?tabID:Float):Void;
 	static function setClipboard(text:String):Void;
 	static function onStatus(infoObject:Dynamic):Void;
+
+	private static function __init__() : Void untyped {
+		flash.System = _global["System"];
+	}
+
 }
-
-

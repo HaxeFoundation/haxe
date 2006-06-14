@@ -10,4 +10,9 @@ extern class XMLSocket {
 	//function onXML( src : Xml ) : Void;
 	function onConnect( success : Bool ) : Void;
 	function onClose() : Void;
+
+	private static function __init__() : Void untyped {
+		flash.XMLSocket = _global["XMLSocket"];
+	}
+
 }

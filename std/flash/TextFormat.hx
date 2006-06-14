@@ -24,6 +24,9 @@ extern class TextFormat
                   ?leftMargin:Float, ?rightMargin:Float, ?indent:Float,
                   ?leading:Float ) : Void;
 	function getTextExtent(text:String, ?width : Float) : Dynamic;
+
+	private static function __init__() : Void untyped {
+		flash.TextFormat = _global["TextFormat"];
+	}
+
 }
-
-

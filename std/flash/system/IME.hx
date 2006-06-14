@@ -19,4 +19,9 @@ extern class IME {
 	static function doConversion() : Bool;
 	static function addListener(listener:Dynamic) : Void;
 	static function removeListener(listener:Dynamic) : Bool;
+
+	private static function __init__() : Void untyped {
+		flash.system.IME = _global.System.IME;
+	}
+
 }

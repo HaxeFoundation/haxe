@@ -36,4 +36,8 @@ extern class MovieClipLoader
 	function removeListener(listener:Dynamic):Bool;
 #end
 
+	private static function __init__() : Void untyped {
+		flash.MovieClipLoader = _global["MovieClipLoader"];
+	}
+
 }

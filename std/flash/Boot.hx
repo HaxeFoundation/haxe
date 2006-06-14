@@ -176,9 +176,17 @@ class Boot {
 		}
 	}
 
-	private static function __init(current) {
-		untyped {
-			var obj = _global["Object"];
+	private static function __init(current) untyped {
+		// only if not set yet
+		if( !_global.haxeInitDone ) {
+			var obj = _global.Object;
+			_global.haxeInitDone = true;
+			_global.Int = __new__(obj);
+			_global.Bool = __new__(obj);
+			_global.Dynamic = __new__(obj);
+			_global.Bool["true"] = true;
+			_global.Bool["false"] = false;
+			_global.Float = _global.Number;
 			Array.prototype.copy = Array.prototype.slice;
 			Array.prototype.insert = function(i,x) {
 				this["splice"](i,0,x);
@@ -214,55 +222,21 @@ class Boot {
 					return null;
 				return x;
 			};
-			// copy base classes from root to flash package
-			// we can't make a loop since we need to assign short-type-ids
-			flash.Accessibility = _global["Accessibility"];
-			flash.Camera = _global["Camera"];
-			flash.Color = _global["Color"];
-			flash.Key = _global["Key"];
-			flash.LoadVars = _global["LoadVars"];
-			flash.LocalConnection = _global["LocalConnection"];
-			flash.Microphone = _global["Microphone"];
-			flash.Mouse = _global["Mouse"];
-			flash.MovieClip = _global["MovieClip"];
-			flash.MovieClipLoader = _global["MovieClipLoader"];
-			flash.PrintJob = _global["PrintJob"];
-			flash.Selection = _global["Selection"];
-			flash.SharedObject = _global["SharedObject"];
-			flash.Sound = _global["Sound"];
-			flash.Stage = _global["Stage"];
-			flash.System = _global["System"];
-			flash.TextField = _global["TextField"];
-			flash.TextFormat = _global["TextFormat"];
-			flash.TextSnapshot = _global["TextSnapshot"];
-			flash.Video = _global["Video"];
-			flash.XMLSocket = _global["XMLSocket"];
-			flash.NetConnection = _global["NetConnection"];
-			flash.NetStream = _global["NetStream"];
-
-			flash.text.StyleSheet = TextField["StyleSheet"];
-			flash.system.Capabilities = System.capabilities;
-			flash.system.Security = System.security;
-			flash.system.IME = System["IME"];
-
-			Lib._global = _global;
-			Lib._root = _root;
-			Lib.current = current;
-			Int = __new__(obj);
-			Bool = __new__(obj);
-			Bool["true"] = true;
-			Bool["false"] = false;
-			Float = _global["Number"];
-			// prevent closure creation by setting untyped
-			current["@instanceof"] = untyped __instanceof;
-			current["@closure"] = untyped __closure;
-			exc = new Array();
-			current["@exc"] = exc;
-
-			// fix firefox default alignement
-			if( flash.Stage.align == "" )
-				flash.Stage.align = "LT";
 		}
+		// create the array stack
+		if( exc == null )
+			exc = new Array();
+		// set the Lib variables
+		current.flash.Lib._global = _global;
+		current.flash.Lib._root = _root;
+		current.flash.Lib.current = current;
+		// prevent closure creation by setting untyped
+		current["@instanceof"] = untyped __instanceof;
+		current["@closure"] = untyped __closure;
+		current["@exc"] = exc;
+		// fix firefox default alignement
+		if( flash.Stage.align == "" )
+			flash.Stage.align = "LT";
 	}
 
 }

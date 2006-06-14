@@ -40,6 +40,8 @@ extern class Camera {
 	var motionTimeOut:Float;
 	var loopback:Bool;
 
+	private static function __init__() : Void untyped {
+		flash.Camera = _global["Camera"];
+	}
+
 }
-
-

@@ -10,6 +10,9 @@ extern class TextSnapshot
 	function hitTestTextNearPos(x:Float, y:Float, ?closeDist:Float):Float;
 	function setSelectColor(color:Int):Void;
 	function setSelected(start:Int, end:Int, select:Bool):Void;
+
+	private static function __init__() : Void untyped {
+		flash.TextSnapshot = _global["TextSnapshot"];
+	}
+
 }
-
-

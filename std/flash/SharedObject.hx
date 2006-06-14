@@ -24,4 +24,9 @@ extern class SharedObject
 	function clear() : Void;
 
 	var data:Dynamic;
+
+	private static function __init__() : Void untyped {
+		flash.SharedObject = _global["SharedObject"];
+	}
+
 }

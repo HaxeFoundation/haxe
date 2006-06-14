@@ -12,4 +12,9 @@ extern class PrintJob
 	var pageWidth(default,null) : Float;
 	var pageHeight(default,null) : Float;
 	var orientation(default,null) : String;
+
+	private static function __init__() : Void untyped {
+		flash.PrintJob = _global["PrintJob"];
+	}
+
 }

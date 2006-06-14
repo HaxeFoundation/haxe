@@ -151,6 +151,10 @@ implements Dynamic
   	function lineGradientStyle( fillType:String, colors:Array<Int>, alphas:Array<Float>, ratios:Array<Float>, matrix:Dynamic, ?spreadMethod : String, ?interpolationMethod:String, ?focalPointRatio:Float ) : Void;
 #end
 
+	private static function __init__() : Void untyped {
+		flash.MovieClip = _global["MovieClip"];
+	}
+
 }
 
 

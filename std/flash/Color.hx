@@ -28,4 +28,8 @@ extern class Color
 	function getTransform() : { ra : Float, rb : Float, ga : Float, gb : Float, ba : Float, bb : Float, aa : Float, ab : Float };
 #end
 
+	private static function __init__() : Void untyped {
+		flash.Color = _global["Color"];
+	}
+
 }

@@ -17,4 +17,9 @@ implements Dynamic
 	function allowInsecureDomain(domain:String):Bool;
 
 	function onStatus(infoObject:Dynamic):Void;
+
+	private static function __init__() : Void untyped {
+		flash.LocalConnection = _global["LocalConnection"];
+	}
+
 }

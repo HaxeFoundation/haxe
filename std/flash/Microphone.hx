@@ -23,7 +23,9 @@ extern class Microphone
 
 	function onActivity(active:Bool):Void;
 	function onStatus(infoObject:Dynamic):Void;
+
+	private static function __init__() : Void untyped {
+		flash.Microphone = _global["Microphone"];
+	}
+
 }
-
-
-

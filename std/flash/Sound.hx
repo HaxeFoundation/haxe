@@ -24,6 +24,9 @@ extern class Sound
 	function loadSound(url:String, isStreaming:Bool):Void;
 	function getBytesLoaded():Float;
 	function getBytesTotal():Float;
+
+	private static function __init__() : Void untyped {
+		flash.Sound = _global["Sound"];
+	}
+
 }
-
-

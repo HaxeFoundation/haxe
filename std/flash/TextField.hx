@@ -84,4 +84,8 @@ extern class TextField
 	function onScroller(scrolledField:TextField):Void;
 	function onSetFocus(oldFocus:Dynamic):Void;
 
+	private static function __init__() : Void untyped {
+		flash.TextField = _global["TextField"];
+	}
+
 }

@@ -30,4 +30,9 @@ implements Dynamic<String>
 	#end
 
 	// undocumented var _customHeaders:Array<String>;
+
+	private static function __init__() : Void untyped {
+		flash.LoadVars = _global["LoadVars"];
+	}
+
 }

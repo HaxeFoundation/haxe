@@ -21,6 +21,8 @@ extern class Mouse
 	static function removeListener(listener:Dynamic):Bool;
 #end
 
+	private static function __init__() : Void untyped {
+		flash.Mouse = _global["Mouse"];
+	}
+
 }
-
-

@@ -31,6 +31,8 @@ extern class NetStream
 	function onCuePoint( info : Dynamic ) : Void;
 #end
 
+	private static function __init__() : Void untyped {
+		flash.NetStream = _global["NetStream"];
+	}
+
 }
-
-

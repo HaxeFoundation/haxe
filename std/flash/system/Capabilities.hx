@@ -29,4 +29,9 @@ extern class Capabilities
 	static var avHardwareDisable:Bool;
 	static var localFileReadDisable:Bool;
 	static var windowlessDisable:Bool;
+
+	private static function __init__() : Void untyped {
+		flash.system.Capabilities = _global.System.capabilities;
+	}
+
 }
