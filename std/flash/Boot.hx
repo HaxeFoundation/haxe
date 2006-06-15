@@ -176,17 +176,19 @@ class Boot {
 		}
 	}
 
-	private static function __init(current) untyped {
+	private static function __init(current : Dynamic) untyped {
 		// only if not set yet
-		if( !_global.haxeInitDone ) {
+		var g : Dynamic = _global;
+		if( !g.haxeInitDone ) {
 			var obj = _global.Object;
-			_global.haxeInitDone = true;
-			_global.Int = __new__(obj);
-			_global.Bool = __new__(obj);
-			_global.Dynamic = __new__(obj);
-			_global.Bool["true"] = true;
-			_global.Bool["false"] = false;
-			_global.Float = _global.Number;
+			g.haxeInitDone = true;
+			g.Int = __new__(obj);
+			g.Bool = __new__(obj);
+			g.Dynamic = __new__(obj);
+			g.Bool = __new__(obj);
+			g.Bool[__unprotect__("true")] = true;
+			g.Bool[__unprotect__("false")] = false;
+			g.Float = _global.Number;
 			Array.prototype.copy = Array.prototype.slice;
 			Array.prototype.insert = function(i,x) {
 				this["splice"](i,0,x);
@@ -231,9 +233,9 @@ class Boot {
 		current.flash.Lib._root = _root;
 		current.flash.Lib.current = current;
 		// prevent closure creation by setting untyped
-		current["@instanceof"] = untyped __instanceof;
-		current["@closure"] = untyped __closure;
-		current["@exc"] = exc;
+		current[__unprotect__("@instanceof")] = untyped __instanceof;
+		current[__unprotect__("@closure")] = untyped __closure;
+		current[__unprotect__("@exc")] = exc;
 		// fix firefox default alignement
 		if( flash.Stage.align == "" )
 			flash.Stage.align = "LT";

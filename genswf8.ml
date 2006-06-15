@@ -178,7 +178,7 @@ let is_protected_name path ext =
 	match path with
 	| ["flash"] , "Boot" | ["flash"] , "Lib" -> false
 	| "flash" :: _ , _ -> ext
-	| [] , "Array" | [] , "Math" | [] , "Date" | [] , "String" | [] , "Bool" -> true
+	| [] , "Array" | [] , "Math" | [] , "Date" | [] , "String" -> true
 	| _ -> false
 
 let rec is_protected ctx t check_mt =
@@ -299,7 +299,7 @@ let getvar ctx = function
 	| VarStr -> write ctx AEval
 	| VarObj -> write ctx AObjGet
 	| VarClosure ->
-		push ctx [VInt 2; VStr ("@closure",true)];
+		push ctx [VInt 2; VStr ("@closure",false)];
 		call ctx VarStr 2
 
 let gen_path ctx (p,t) is_extern =
@@ -605,7 +605,7 @@ and gen_try_catch ctx retval e catchs =
 		| None ->
 			end_throw := false;
 			(* @exc.pop() *)
-			push ctx [VInt 0;VStr ("@exc",true)];
+			push ctx [VInt 0;VStr ("@exc",false)];
 			write ctx AEval;
 			push ctx [VStr ("pop",true)];
 			call ctx VarObj 0;
@@ -619,12 +619,12 @@ and gen_try_catch ctx retval e catchs =
 			(fun() -> ())
 		| Some t ->
 			getvar ctx (gen_access ctx false (mk (TType t) (mk_mono()) e.epos));
-			push ctx [VReg 0; VInt 2; VStr ("@instanceof",true)];
+			push ctx [VReg 0; VInt 2; VStr ("@instanceof",false)];
 			call ctx VarStr 2;
 			write ctx ANot;
 			let c = cjmp ctx in
 			(* @exc.pop() *)
-			push ctx [VInt 0;VStr ("@exc",true)];
+			push ctx [VInt 0;VStr ("@exc",false)];
 			write ctx AEval;
 			push ctx [VStr ("pop",true)];
 			call ctx VarObj 0;
@@ -1033,7 +1033,7 @@ and gen_expr_2 ctx retval e =
 		(* call @exc.push(e) *)
 		gen_expr ctx true e;
 		write ctx (ASetReg 0);
-		push ctx [VInt 1; VStr ("@exc",true)];
+		push ctx [VInt 1; VStr ("@exc",false)];
 		write ctx AEval;
 		push ctx [VStr ("push",true)];
 		call ctx VarObj 1;
