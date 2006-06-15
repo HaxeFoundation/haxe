@@ -194,6 +194,8 @@ let rec is_protected ctx t check_mt =
 		(match !r with
 		| None -> true
 		| Some t -> is_protected ctx t check_mt)
+	| TLazy f ->
+		is_protected ctx ((!f)()) check_mt
 	| TSign (s,_) ->
 		(match s.s_static with
 		| None -> is_protected ctx s.s_type check_mt
