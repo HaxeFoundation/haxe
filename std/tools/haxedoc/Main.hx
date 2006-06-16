@@ -617,7 +617,7 @@ class DocView {
 
 	static function filtered(name) {
 		if( filters.isEmpty() )
-			return false;
+			return true;
 		for( x in filters )
 			if( StringTools.startsWith(name,x) )
 				return true;
