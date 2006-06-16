@@ -76,6 +76,9 @@
 			RelativePath=".\plugin.ml">
 		</File>
 		<File
+			RelativePath=".\transform.ml">
+		</File>
+		<File
 			RelativePath=".\type.ml">
 		</File>
 		<File

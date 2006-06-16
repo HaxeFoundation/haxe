@@ -8,6 +8,7 @@
 	fixed bug in inheritend constructor type parameters
 	fixed bug in type_field with inherited type parameters
 	added haxe.Proxy
+	added code transformations for swf/js block variables
 	
 2006-06-08: 1.02
 	fixed stack overflow when recursive class <: recursive signature

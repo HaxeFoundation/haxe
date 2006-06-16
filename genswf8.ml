@@ -21,7 +21,7 @@ open Ast
 open Type
 
 type register =
-	| NoReg of bool
+	| NoReg
 	| Reg of int
 
 type context = {
@@ -410,61 +410,10 @@ let free_reg ctx r p =
 (* -------------------------------------------------------------- *)
 (* Generation Helpers *)
 
-let cfind flag cst e =
-	let vname = (match cst with TConst TSuper -> "super" | TLocal v -> v | _ -> assert false) in
-	let rec loop2 e =
-		match e.eexpr with
-		| TFunction f ->
-			if not flag && not (List.exists (fun (a,_,_) -> a = vname) f.tf_args) then loop2 f.tf_expr
-		| TBlock _ ->
-			(try
-				iter loop2 e;
-			with
-				Not_found -> ())
-		| TVars vl ->
-			List.iter (fun (v,t,e) ->
-				(match e with
-				| None -> ()
-				| Some e -> loop2 e);
-				if v = vname then raise Not_found;
-			) vl
-		| TConst TSuper ->
-			if vname = "super" then raise Exit
-		| TLocal v ->
-			if v = vname then raise Exit
-		| _ ->
-			iter loop2 e
-	in
-	let rec loop e =
-		match e.eexpr with
-		| TFunction f ->
-			if not (List.exists (fun (a,_,_) -> a = vname) f.tf_args) then loop2 f.tf_expr
-		| TBlock _ ->
-			(try
-				iter loop e;
-			with
-				Not_found -> ())
-		| TVars vl ->
-			List.iter (fun (v,t,e) ->
-				(match e with
-				| None -> ()
-				| Some e -> loop e);
-				if v = vname then raise Not_found;
-			) vl
-		| _ ->
-			iter loop e
-	in
-	try
-		(if flag then loop2 else loop) e;
-		false
-	with
-		Exit ->
-			true
-
 let define_var ctx v ef exprs =
-	if ctx.version = 6 || List.exists (cfind false (TLocal v)) exprs then begin
+	if ctx.version = 6 || List.exists (Transform.local_find false v) exprs then begin
 		push ctx [VStr (v,false)];
-		ctx.regs <- PMap.add v (NoReg ctx.in_loop) ctx.regs;
+		ctx.regs <- PMap.add v NoReg ctx.regs;
 		match ef with
 		| None ->
 			write ctx ALocalVar
@@ -533,8 +482,8 @@ let rec gen_constant ctx c p =
 	| TSuper -> assert false
 
 let access_local ctx s =
-	match (try PMap.find s ctx.regs , false with Not_found -> NoReg false , true) with
-	| NoReg _ , flag ->
+	match (try PMap.find s ctx.regs , false with Not_found -> NoReg, true) with
+	| NoReg , flag ->
 		push ctx [VStr (s,flag)];
 		VarStr
 	| Reg r , _ ->
@@ -614,35 +563,24 @@ and gen_try_catch ctx retval e catchs =
 		let next_catch = (match t with
 		| None ->
 			end_throw := false;
-			(* @exc.pop() *)
-			push ctx [VInt 0;VStr ("@exc",false)];
-			write ctx AEval;
-			push ctx [VStr ("pop",true)];
-			call ctx VarObj 0;
-			write ctx APop;
-			let block = open_block ctx in
-			define_var ctx name (Some (fun() -> push ctx [VReg 0])) [e];
-			gen_expr ctx retval e;
-			block();
 			(fun() -> ())
 		| Some t ->
 			getvar ctx (gen_access ctx false (mk (TType t) (mk_mono()) e.epos));
 			push ctx [VReg 0; VInt 2; VStr ("@instanceof",false)];
 			call ctx VarStr 2;
 			write ctx ANot;
-			let c = cjmp ctx in
-			(* @exc.pop() *)
-			push ctx [VInt 0;VStr ("@exc",false)];
-			write ctx AEval;
-			push ctx [VStr ("pop",true)];
-			call ctx VarObj 0;
-			write ctx APop;
-			let block = open_block ctx in
-			define_var ctx name (Some (fun() -> push ctx [VReg 0])) [e];
-			gen_expr ctx retval e;
-			block();
-			c
+			cjmp ctx
 		) in
+		(* @exc.pop() *)
+		push ctx [VInt 0;VStr ("@exc",false)];
+		write ctx AEval;
+		push ctx [VStr ("pop",true)];
+		call ctx VarObj 0;
+		write ctx APop;
+		let block = open_block ctx in
+		define_var ctx name (Some (fun() -> push ctx [VReg 0])) [e];
+		gen_expr ctx retval e;
+		block();
 		if retval then ctx.stack_size <- ctx.stack_size - 1;
 		let j = jmp ctx in
 		next_catch();
@@ -944,41 +882,22 @@ and gen_expr_2 ctx retval e =
 		write ctx AObject;
 		ctx.stack_size <- ctx.stack_size - (nfields * 2);
 	| TFunction f ->
-		let loop_params = PMap.foldi (fun v x acc ->
-			match x with
-			| NoReg loop ->
-				if loop && cfind true (TLocal v) f.tf_expr then
-					v :: acc
-				else
-					acc
-			| _ -> acc
-		) ctx.regs [] in
-		(match loop_params with
-		| _ :: _ ->
-			gen_expr ctx retval (mk (TCall (
-				(mk (TFunction {
-					tf_args = List.map (fun v -> v , false, t_dynamic) loop_params;
-					tf_type = t_dynamic;
-					tf_expr = mk (TReturn (Some e)) t_dynamic e.epos;
-				}) t_dynamic e.epos),
-				List.map (fun v -> mk (TLocal v) t_dynamic e.epos) loop_params)
-			) t_dynamic e.epos)
-		| _ ->
 		let block = open_block ctx in
-		let reg_super = cfind true (TConst TSuper) f.tf_expr in
+		let old_in_loop = ctx.in_loop in
+		let reg_super = Transform.local_find true "super" f.tf_expr in
 		(* only keep None bindings, for protect *)
 		ctx.regs <- PMap.foldi (fun v x acc ->
 			match x with
-			| NoReg _ -> PMap.add v x acc
+			| NoReg -> PMap.add v x acc
 			| Reg _ -> acc
 		) ctx.regs PMap.empty;
 		ctx.reg_count <- (if reg_super then 2 else 1);
 		ctx.in_loop <- false;
 		let pargs = ref [] in
 		let rargs = List.map (fun (a,_,t) ->
-			let no_reg = ctx.version = 6 || cfind false (TLocal a) f.tf_expr in
+			let no_reg = ctx.version = 6 || Transform.local_find false a f.tf_expr in
 			if no_reg then begin
-				ctx.regs <- PMap.add a (NoReg false) ctx.regs;
+				ctx.regs <- PMap.add a NoReg ctx.regs;
 				pargs := unprotect a :: !pargs;
 				0 , a
 			end else begin
@@ -988,11 +907,12 @@ and gen_expr_2 ctx retval e =
 				r , ""
 			end
 		) f.tf_args in
-		let tf = func ctx reg_super (cfind true (TLocal "__arguments__") f.tf_expr) rargs in
+		let tf = func ctx reg_super (Transform.local_find true "__arguments__" f.tf_expr) rargs in
 		ctx.fun_pargs <- (ctx.code_pos, List.rev !pargs) :: ctx.fun_pargs;
 		gen_expr ctx false f.tf_expr;
+		ctx.in_loop <- old_in_loop;
 		tf();
-		block());
+		block();
 	| TIf (cond,e,None) ->
 		if retval then assert false;
 		gen_expr ctx true cond;
@@ -1115,6 +1035,7 @@ let gen_class_static_field ctx c flag f =
 		push ctx [VReg 0; VStr (f.cf_name,flag); VNull];
 		setvar ctx VarObj
 	| Some e ->
+		let e = Transform.block_vars e in
 		match e.eexpr with
 		| TFunction _ ->
 			push ctx [VReg 0; VStr (f.cf_name,flag)];
@@ -1139,7 +1060,7 @@ let gen_class_field ctx f flag =
 		push ctx [VNull]
 	| Some e ->
 		ctx.curmethod <- f.cf_name;
-		gen_expr ctx true e);
+		gen_expr ctx true (Transform.block_vars e));
 	setvar ctx VarObj
 
 let gen_enum_field ctx e f =
@@ -1225,7 +1146,7 @@ let gen_type_def ctx t =
 	| TClassDecl c ->
 		(match c.cl_init with
 		| None -> ()
-		| Some e -> ctx.inits <- e :: ctx.inits);
+		| Some e -> ctx.inits <- Transform.block_vars e :: ctx.inits);
 		gen_package ctx (fst c.cl_path);
 		if c.cl_extern then
 			()
@@ -1248,7 +1169,7 @@ let gen_type_def ctx t =
 		| Some { cf_expr = Some e } ->
 			have_constr := true;
 			ctx.curmethod <- "new";
-			gen_expr ctx true e
+			gen_expr ctx true (Transform.block_vars e)
 		| _ ->
 			let f = func ctx true false [] in
 			f());

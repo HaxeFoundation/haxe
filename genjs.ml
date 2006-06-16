@@ -145,6 +145,13 @@ let rec gen_call ctx e el =
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
+	| TCall _ , el ->
+		spr ctx "(";
+		gen_value ctx e;
+		spr ctx ")";
+		spr ctx "(";
+		concat ctx "," (gen_value ctx) el;
+		spr ctx ")";
 	| TLocal "__new__" , { eexpr = TConst (TString cl) } :: params ->
 		print ctx "new %s(" cl;
 		concat ctx "," (gen_value ctx) params;
@@ -304,9 +311,7 @@ and gen_expr ctx e =
 		handle_break();
 	| TTry (e,catchs) ->
 		spr ctx "try ";
-		(match e.eexpr with
-		| TBlock _ -> gen_expr ctx e
-		| _ -> gen_expr ctx (mk (TBlock [e]) e.etype e.epos));
+		gen_expr ctx (block e);
 		newline ctx;
 		let id = ctx.id_counter in
 		ctx.id_counter <- ctx.id_counter + 1;
@@ -545,6 +550,7 @@ let gen_class_static_field ctx c f =
 		print ctx "%s%s = null" (s_path c.cl_path) (field f.cf_name);
 		newline ctx
 	| Some e ->
+		let e = Transform.block_vars e in
 		match e.eexpr with
 		| TFunction _ ->
 			print ctx "%s%s = " (s_path c.cl_path) (field f.cf_name);
@@ -560,7 +566,7 @@ let gen_class_field ctx c f =
 		print ctx "null";
 		newline ctx
 	| Some e ->
-		gen_value ctx e;
+		gen_value ctx (Transform.block_vars e);
 		newline ctx
 
 let generate_class ctx c =
@@ -570,7 +576,7 @@ let generate_class ctx c =
 	print ctx "%s = " p;
 	(match c.cl_constructor with
 	| Some { cf_expr = Some e } ->
-		gen_value ctx e;
+		gen_value ctx (Transform.block_vars e);
 		newline ctx;
 		print ctx "%s.__construct__ = %s" p p;
 	| _ ->
@@ -629,7 +635,7 @@ let generate_type ctx = function
 	| TClassDecl c ->
 		(match c.cl_init with
 		| None -> ()
-		| Some e -> ctx.inits <- e :: ctx.inits);
+		| Some e -> ctx.inits <- Transform.block_vars e :: ctx.inits);
 		if not c.cl_extern then generate_class ctx c
 	| TEnumDecl { e_path = ([],"Bool") } ->
 		()
