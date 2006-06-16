@@ -1908,10 +1908,10 @@ let init_class ctx c p herits fields =
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	(* define an default inherited constructor *)
 	(match c.cl_constructor, c.cl_super with
-	| None , Some ({ cl_constructor = Some f } as csuper, cparams) ->
-		(match follow (field_type f) with
-		| TFun (args,r) ->
-			let t = field_type f in
+	| None , Some ({ cl_constructor = Some f; cl_types = tl } as csuper, cparams) ->
+		let t = apply_params tl cparams (field_type f) in
+		(match follow t with
+		| TFun (args,r) ->			
 			let n = ref 0 in
 			let args = List.map (fun (_,b,t) -> incr n; "p" ^ string_of_int (!n) , b, t) args in
 			let eargs = List.map (fun (n,_,t) -> mk (TLocal n) t p) args in

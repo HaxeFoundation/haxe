@@ -5,6 +5,7 @@
 	removed --no-flash-opt-args
 	changed in SWF packages handling
 	fixed optional leading comma in anonymous object and array values
+	fixed bug in inheritend constructor type parameters
 
 2006-06-08: 1.02
 	fixed stack overflow when recursive class <: recursive signature
