@@ -20,6 +20,10 @@ open Swf
 open Ast
 open Type
 
+type register =
+	| NoReg of bool
+	| Reg of int
+
 type context = {
 	(* code *)
 	opcodes : actions;
@@ -30,11 +34,11 @@ type context = {
 
 	(* management *)
 	packages : (string list,unit) Hashtbl.t;
-	idents : (string * bool,int) Hashtbl.t;	
+	idents : (string * bool,int) Hashtbl.t;
 	mutable movieclips : module_path list;
 	mutable inits : texpr list;
 	mutable statics : (tclass * bool * string * texpr) list;
-	mutable regs : (string,int option) PMap.t;
+	mutable regs : (string,register) PMap.t;
 	mutable reg_count : int;
 	mutable reg_max : int;
 	mutable fun_stack : int;
@@ -48,6 +52,7 @@ type context = {
 	mutable breaks : (unit -> unit) list;
 	mutable continues : (int -> unit) list;
 	mutable loop_stack : int;
+	mutable in_loop : bool;
 }
 
 let error p = Typer.error "Invalid expression" p
@@ -307,7 +312,7 @@ let getvar ctx = function
 let gen_path ctx (p,t) is_extern =
 	let flag = is_protected_name (p,t) is_extern in
 	match p with
-	| [] -> 
+	| [] ->
 		push ctx [VStr (t,flag)];
 		VarStr
 	| x :: l ->
@@ -319,7 +324,7 @@ let gen_path ctx (p,t) is_extern =
 		) l;
 		push ctx [VStr (t,flag)];
 		VarObj
-		
+
 let func ctx need_super need_args args =
 	if ctx.version = 6 then
 		let f = {
@@ -379,15 +384,18 @@ let begin_loop ctx =
 	let old_breaks = ctx.breaks in
 	let old_cont = ctx.continues in
 	let old_stack = ctx.loop_stack in
+	let old_loop = ctx.in_loop in
 	ctx.breaks <- [];
 	ctx.continues <- [];
 	ctx.loop_stack <- ctx.stack_size;
+	ctx.in_loop <- true;
 	(fun pos ->
 		List.iter (fun f -> f()) ctx.breaks;
 		List.iter (fun f -> f pos) ctx.continues;
 		ctx.breaks <- old_breaks;
 		ctx.continues <- old_cont;
 		ctx.loop_stack <- old_stack;
+		ctx.in_loop <- old_loop;
 	)
 
 let alloc_reg ctx =
@@ -456,7 +464,7 @@ let cfind flag cst e =
 let define_var ctx v ef exprs =
 	if ctx.version = 6 || List.exists (cfind false (TLocal v)) exprs then begin
 		push ctx [VStr (v,false)];
-		ctx.regs <- PMap.add v None ctx.regs;
+		ctx.regs <- PMap.add v (NoReg ctx.in_loop) ctx.regs;
 		match ef with
 		| None ->
 			write ctx ALocalVar
@@ -465,7 +473,7 @@ let define_var ctx v ef exprs =
 			write ctx ALocalAssign
 	end else begin
 		let r = alloc_reg ctx in
-		ctx.regs <- PMap.add v (Some r) ctx.regs;
+		ctx.regs <- PMap.add v (Reg r) ctx.regs;
 		match ef with
 		| None -> ()
 		| Some f ->
@@ -525,11 +533,11 @@ let rec gen_constant ctx c p =
 	| TSuper -> assert false
 
 let access_local ctx s =
-	match (try PMap.find s ctx.regs , false with Not_found -> None , true) with
-	| None , flag ->
+	match (try PMap.find s ctx.regs , false with Not_found -> NoReg false , true) with
+	| NoReg _ , flag ->
 		push ctx [VStr (s,flag)];
 		VarStr
-	| Some r , _ ->
+	| Reg r , _ ->
 		VarReg r
 
 let rec gen_access ctx forcall e =
@@ -612,10 +620,8 @@ and gen_try_catch ctx retval e catchs =
 			push ctx [VStr ("pop",true)];
 			call ctx VarObj 0;
 			write ctx APop;
-			push ctx [VStr (name,false);VReg 0];
-			write ctx ALocalAssign;
 			let block = open_block ctx in
-			ctx.regs <- PMap.add name None ctx.regs;
+			define_var ctx name (Some (fun() -> push ctx [VReg 0])) [e];
 			gen_expr ctx retval e;
 			block();
 			(fun() -> ())
@@ -631,10 +637,8 @@ and gen_try_catch ctx retval e catchs =
 			push ctx [VStr ("pop",true)];
 			call ctx VarObj 0;
 			write ctx APop;
-			push ctx [VStr (name,false); VReg 0];
-			write ctx ALocalAssign;
 			let block = open_block ctx in
-			ctx.regs <- PMap.add name None ctx.regs;
+			define_var ctx name (Some (fun() -> push ctx [VReg 0])) [e];
 			gen_expr ctx retval e;
 			block();
 			c
@@ -940,25 +944,46 @@ and gen_expr_2 ctx retval e =
 		write ctx AObject;
 		ctx.stack_size <- ctx.stack_size - (nfields * 2);
 	| TFunction f ->
+		let loop_params = PMap.foldi (fun v x acc ->
+			match x with
+			| NoReg loop ->
+				if loop && cfind true (TLocal v) f.tf_expr then
+					v :: acc
+				else
+					acc
+			| _ -> acc
+		) ctx.regs [] in
+		(match loop_params with
+		| _ :: _ ->
+			gen_expr ctx retval (mk (TCall (
+				(mk (TFunction {
+					tf_args = List.map (fun v -> v , false, t_dynamic) loop_params;
+					tf_type = t_dynamic;
+					tf_expr = mk (TReturn (Some e)) t_dynamic e.epos;
+				}) t_dynamic e.epos),
+				List.map (fun v -> mk (TLocal v) t_dynamic e.epos) loop_params)
+			) t_dynamic e.epos)
+		| _ ->
 		let block = open_block ctx in
 		let reg_super = cfind true (TConst TSuper) f.tf_expr in
 		(* only keep None bindings, for protect *)
 		ctx.regs <- PMap.foldi (fun v x acc ->
 			match x with
-			| None -> PMap.add v None acc
-			| Some _ -> acc
+			| NoReg _ -> PMap.add v x acc
+			| Reg _ -> acc
 		) ctx.regs PMap.empty;
 		ctx.reg_count <- (if reg_super then 2 else 1);
+		ctx.in_loop <- false;
 		let pargs = ref [] in
 		let rargs = List.map (fun (a,_,t) ->
 			let no_reg = ctx.version = 6 || cfind false (TLocal a) f.tf_expr in
 			if no_reg then begin
-				ctx.regs <- PMap.add a None ctx.regs;
+				ctx.regs <- PMap.add a (NoReg false) ctx.regs;
 				pargs := unprotect a :: !pargs;
 				0 , a
 			end else begin
 				let r = alloc_reg ctx in
-				ctx.regs <- PMap.add a (Some r) ctx.regs;
+				ctx.regs <- PMap.add a (Reg r) ctx.regs;
 				pargs := false :: !pargs;
 				r , ""
 			end
@@ -967,7 +992,7 @@ and gen_expr_2 ctx retval e =
 		ctx.fun_pargs <- (ctx.code_pos, List.rev !pargs) :: ctx.fun_pargs;
 		gen_expr ctx false f.tf_expr;
 		tf();
-		block();
+		block());
 	| TIf (cond,e,None) ->
 		if retval then assert false;
 		gen_expr ctx true cond;
@@ -1130,7 +1155,7 @@ let gen_enum_field ctx e f =
 		push ctx [VStr (f.ef_name,false); VInt nregs];
 		write ctx AInitArray;
 		write ctx ADup;
-		push ctx [VStr ("__enum__",false); VThis];		
+		push ctx [VStr ("__enum__",false); VThis];
 		write ctx AObjSet;
 		ctx.stack_size <- ctx.stack_size - nregs;
 		write ctx AReturn;
@@ -1189,11 +1214,11 @@ let gen_package ctx p =
 				back false;
 				jend();
 
-				write ctx APop;					
+				write ctx APop;
 			end;
 			loop p l
 	in
-	loop [] p	
+	loop [] p
 
 let gen_type_def ctx t =
 	match t with
@@ -1206,7 +1231,7 @@ let gen_type_def ctx t =
 			()
 		else
 		let have_constr = ref false in
-		if c.cl_path = (["flash"] , "Boot") then extern_boot := false;		
+		if c.cl_path = (["flash"] , "Boot") then extern_boot := false;
 		let acc = gen_path ctx c.cl_path false in
 		let rec loop s =
 			match s.cl_super with
@@ -1311,7 +1336,7 @@ let gen_type_def ctx t =
 	| TSignatureDecl _ ->
 		()
 
-let gen_boot ctx hres =	
+let gen_boot ctx hres =
 	(* r0 = Boot *)
 	getvar ctx (gen_path ctx (["flash"],"Boot") (!extern_boot));
 	write ctx (ASetReg 0);
@@ -1396,6 +1421,7 @@ let generate file ver header infile types hres =
 		curclass = ([],"");
 		curmethod = "";
 		fun_pargs = [];
+		in_loop = false;
 	} in
 	write ctx (AStringPool []);
 	protect_all := not (Plugin.defined "swf-mark");
@@ -1423,7 +1449,7 @@ let generate file ver header infile types hres =
 	List.iter (gen_expr ctx false) (List.rev ctx.inits);
 	List.iter (gen_class_static_init ctx) (List.rev ctx.statics);
 	let end_try = global_try() in
-	(* flash.Boot.__trace(exc) *)	
+	(* flash.Boot.__trace(exc) *)
 	push ctx [VStr ("fileName",false); VStr ("(uncaught exception)",true); VInt 1];
 	write ctx AObject;
 	ctx.stack_size <- ctx.stack_size - 2;
