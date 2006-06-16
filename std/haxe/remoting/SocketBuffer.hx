@@ -53,6 +53,10 @@ class SocketBuffer {
 		return lastread;
 	}
 
+	public function bufferData() {
+	    return buffer.substr(lastpos,bufpos - lastpos);
+	}
+
 	public function onData( data : String ) {
 	}
 
