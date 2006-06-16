@@ -335,6 +335,8 @@ let rec follow t =
 let monomorphs eparams t =
 	apply_params eparams (List.map (fun _ -> mk_mono()) eparams) t
 
+let eq_stack = ref []
+
 let rec type_eq param a b =
 	if a == b || (param && b == t_dynamic) then
 		true
@@ -344,7 +346,15 @@ let rec type_eq param a b =
 	| TMono t , _ -> (match !t with None -> link t a b | Some t -> type_eq param t b)
 	| _ , TMono t -> (match !t with None -> link t b a | Some t -> type_eq param a t)
 	| TSign (s,tl) , _ -> type_eq param (apply_params s.s_types tl s.s_type) b
-	| _ , TSign (s,tl) -> type_eq param a (apply_params s.s_types tl s.s_type)
+	| _ , TSign (s,tl) ->
+		if List.exists (fun (a2,s2) -> a == a2 && s == s2) (!eq_stack) then
+			true
+		else begin
+			eq_stack := (a,s) :: !eq_stack;
+			let r = type_eq param a (apply_params s.s_types tl s.s_type) in
+			eq_stack := List.tl !eq_stack;
+			r
+		end
 	| TEnum (a,tl1) , TEnum (b,tl2) -> a == b && List.for_all2 (type_eq param) tl1 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
 		c1 == c2 && List.for_all2 (type_eq param) tl1 tl2
