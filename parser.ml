@@ -321,7 +321,7 @@ and block1 = parser
 	| [< b = block >] -> EBlock b
 
 and block2 name ident p = parser
-	| [< '(DblDot,_); e = expr; l = plist parse_obj_decl; _ = popt comma >] -> EObjectDecl ((name,e) :: l)
+	| [< '(DblDot,_); e = expr; l = parse_obj_decl >] -> EObjectDecl ((name,e) :: l)
 	| [< e = expr_next (EConst (if ident then Ident name else Type name),p); s >] ->
 		try
 			let _ = semicolon s in
@@ -352,7 +352,19 @@ and parse_block_elt = parser
 	| [< e = expr; _ = semicolon >] -> e
 
 and parse_obj_decl = parser
-	| [< '(Comma,_); name = any_ident; '(DblDot,_); e = expr >] -> (name,e)
+	| [< '(Comma,_); s >] ->
+		(match s with parser
+		| [< name = any_ident; '(DblDot,_); e = expr; l = parse_obj_decl >] -> (name,e) :: l
+		| [< >] -> [])
+	| [< >] -> []
+
+and parse_array_decl = parser 
+	| [< e = expr; s >] ->
+		(match s with parser
+		| [< '(Comma,_); l = parse_array_decl >] -> e :: l
+		| [< >] -> [e])
+	| [< >] ->
+		[]
 
 and parse_var_decl = parser
 	| [< name = any_ident; t = parse_type_opt; s >] ->
@@ -374,7 +386,7 @@ and expr = parser
 	| [< '(Kwd Throw,p); e = expr >] -> (EThrow e,p)
 	| [< '(Kwd New,p1); t = parse_type_path_normal; '(POpen,_); al = psep Comma expr; '(PClose,p2); s >] -> expr_next (ENew (t,al),punion p1 p2) s
 	| [< '(POpen,p1); e = expr; '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
-	| [< '(BkOpen,p1); l = psep Comma expr; _ = popt comma; '(BkClose,p2); s >] -> expr_next (EArrayDecl l, punion p1 p2) s
+	| [< '(BkOpen,p1); l = parse_array_decl; '(BkClose,p2); s >] -> expr_next (EArrayDecl l, punion p1 p2) s
 	| [< '(Kwd Function,p1); '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; e = expr; s >] ->
 		let f = {
 			f_type = t;
