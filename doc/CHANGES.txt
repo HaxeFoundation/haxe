@@ -6,7 +6,9 @@
 	changed in SWF packages handling
 	fixed optional leading comma in anonymous object and array values
 	fixed bug in inheritend constructor type parameters
-
+	fixed bug in type_field with inherited type parameters
+	added haxe.Proxy
+	
 2006-06-08: 1.02
 	fixed stack overflow when recursive class <: recursive signature
 	improved a bit commandline : allow several hxml arguments
