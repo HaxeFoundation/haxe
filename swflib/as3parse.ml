@@ -133,13 +133,18 @@ let as3_field_length f =
 	1 +
 	int_length f.f3_slot +
 	match f.f3_kind with
-	| A3FMethod id ->
-		idx_length id
+	| A3FMethod m ->
+		idx_length_nz m.m3_type
 	| A3FVar (id,v) ->
-		idx_length id +
+		idx_opt_length id +
 		match v with
 		| None -> 1
-		| Some _ -> assert false
+		| Some v ->
+			match v with
+			| A3VNull | A3VBool _ -> 2
+			| A3VString s -> 1 + idx_length s
+			| A3VInt s -> 1 + idx_length s
+			| A3VFloat s -> 1 + idx_length s
 
 let as3_class_length c =
 	idx_length c.cl3_name +
@@ -285,17 +290,40 @@ let read_field ctx ch =
 	let is_fun = IO.read_byte ch in
 	let slot = read_int ch in
 	let kind = (match is_fun with
-		| 0 ->
-			let t = index ctx.as3_types (read_int ch) in			
-			let value = (match IO.read_byte ch with
+		| 0x00 ->
+			let t = index_opt ctx.as3_types (read_int ch) in
+			let value = (match read_int ch with
 				| 0 -> None
-				| _ -> assert false
+				| idx ->
+					match IO.read_byte ch with
+					| 0x01 ->
+						Some (A3VString (index ctx.as3_idents idx))
+					| 0x03 ->
+						Some (A3VInt (index ctx.as3_ints idx))
+					| 0x06 ->
+						Some (A3VFloat (index ctx.as3_floats idx))
+					| 0x0A ->
+						if idx <> 0x0A then assert false;
+						Some (A3VBool false)
+					| 0x0B ->
+						if idx <> 0x0B then assert false;
+						Some (A3VBool true)
+					| 0x0C ->
+						if idx <> 0x0C then assert false;
+						Some A3VNull
+					| _ ->
+						assert false
 			) in
 			A3FVar (t,value)
-		| 1 ->
-			let meth = index ctx.as3_method_types (read_int ch) in
-			A3FMethod meth
-		| _ -> assert false
+		| 0x01 | 0x11 ->
+			let meth = index_nz ctx.as3_method_types (read_int ch) in
+			let final = is_fun land 0x10 <> 0 in
+			A3FMethod {
+				m3_type = meth; 
+				m3_final = final;
+			}
+		| _ ->			
+			assert false
 	) in
 	{
 		f3_name = name;
@@ -305,7 +333,7 @@ let read_field ctx ch =
 
 let read_class ctx ch =
 	let name = index ctx.as3_types (read_int ch) in	
-	let csuper = index ctx.as3_idents (read_int ch) in	
+	let csuper = index ctx.as3_types (read_int ch) in	
 	let flags = IO.read_byte ch in
 	let rights =
 		if flags land 8 <> 0 then 
@@ -474,17 +502,34 @@ let write_list2 ch f l =
 let write_field ch f =
 	write_index ch f.f3_name;
 	match f.f3_kind with
-	| A3FMethod id ->
-		IO.write_byte ch 1;
+	| A3FMethod m ->
+		IO.write_byte ch (0x01 lor (if m.m3_final then 0x10 else 0));
 		write_int ch f.f3_slot;
-		write_index ch id;		
+		write_index_nz ch m.m3_type;		
 	| A3FVar (id,v) ->
-		IO.write_byte ch 0;
+		IO.write_byte ch 0x00;
 		write_int ch f.f3_slot;
-		write_index ch id;
+		write_index_opt ch id;
 		match v with
-		| None -> IO.write_byte ch 0
-		| _ -> assert false
+		| None -> 
+			IO.write_byte ch 0x00
+		| Some v ->
+			match v with
+			| A3VNull ->
+				IO.write_byte ch 0x0C;
+				IO.write_byte ch 0x0C;
+			| A3VBool b ->
+				IO.write_byte ch (if b then 0x0B else 0x0A);
+				IO.write_byte ch (if b then 0x0B else 0x0A);
+			| A3VString s ->
+				write_index ch s;
+				IO.write_byte ch 0x01;
+			| A3VInt s ->
+				write_index ch s;
+				IO.write_byte ch 0x03;
+			| A3VFloat s ->
+				write_index ch s;
+				IO.write_byte ch 0x06
 
 let write_class ch c =
 	write_index ch c.cl3_name;
@@ -562,35 +607,51 @@ let method_str ctx m =
 		incr p;
 		let id = "p" ^ string_of_int !p in
 		(match a with None -> id | Some t -> type_str ctx (id ^ " : ") t)
-	) m.mt3_args)) (match m.mt3_ret with None -> "" | Some t -> type_str ctx ": " t)
+	) m.mt3_args)) (match m.mt3_ret with None -> "" | Some t -> " : " ^ type_str ctx "" t)
 
 let dump_field ctx ch stat f =
 	IO.printf ch "    ";
 	if stat then IO.printf ch "static ";	
 	match f.f3_kind with
 	| A3FVar (id, v) ->		
-		IO.printf ch "%s : %s" (type_str ctx "var " f.f3_name) (type_str ctx "" id);
+		IO.printf ch "%s" (type_str ctx "var " f.f3_name);
+		(match id with
+		| None -> ()
+		| Some id -> IO.printf ch " : %s" (type_str ctx "" id));
 		(match v with
 		| None -> ()
-		| Some v -> assert false);
+		| Some v -> 
+			IO.printf ch " = %s" (match v with
+				| A3VNull -> "null"
+				| A3VString s -> "\"" ^ ident_str ctx s ^ "\""
+				| A3VBool b -> if b then "true" else "false"
+				| A3VInt s -> Printf.sprintf "%ld" (iget ctx.as3_ints s)
+				| A3VFloat s -> Printf.sprintf "%f" (iget ctx.as3_floats s)
+			);
+		);
 		IO.printf ch ";\n"
-	| A3FMethod id ->
-		IO.printf ch "%s%s;\n" (type_str ctx "function " f.f3_name) (method_str ctx id)
+	| A3FMethod m ->
+		if m.m3_final then IO.printf ch "final ";
+		IO.printf ch "%s%s;\n" (type_str ctx "function " f.f3_name) (method_str ctx (no_nz m.m3_type))
 
 let dump_class ctx ch idx c =
-	let st = ctx.as3_statics.(idx) in
+	let st = if parse_statics then ctx.as3_statics.(idx) else { st3_slot = -1; st3_fields = [||] } in
 	if not c.cl3_sealed then IO.printf ch "dynamic ";
 	if c.cl3_final then IO.printf ch "final ";	
 	(match c.cl3_rights with
 	| None -> ()
 	| Some r -> IO.printf ch "%s " (base_right_str ctx r));
 	let kind = (if c.cl3_interface then "interface " else "class ") in
-	IO.printf ch "%s extends %s {\n" (type_str ctx kind c.cl3_name) (ident_str ctx c.cl3_super);
+	IO.printf ch "%s extends %s {\n" (type_str ctx kind c.cl3_name) (type_str ctx "" c.cl3_super);
 	Array.iter (dump_field ctx ch false) c.cl3_fields;
 	Array.iter (dump_field ctx ch true) st.st3_fields;
 	IO.printf ch "} [SLOT:%d] [STATIC:%d]\n" c.cl3_slot st.st3_slot
 
+let dump_type ctx ch idx _ =
+	IO.printf ch "T%d = %s\n" idx (type_str ctx "" (index ctx.as3_types (idx + 1)))
+
 let dump ch ctx =
 	IO.printf ch "--- AS3 %s ----\n" ctx.as3_frame;
+(*	Array.iteri (dump_type ctx ch) ctx.as3_types; *)
 	Array.iteri (dump_class ctx ch) ctx.as3_classes;	
 	IO.printf ch "\n"

@@ -27,13 +27,19 @@ type as3_method_type = {
 
 type as3_field_value =
 	| A3VNull
+	| A3VBool of bool
 	| A3VString of as3_ident index
 	| A3VInt of as3_int index
 	| A3VFloat of as3_float index
 
+type as3_method = {
+	m3_type : as3_method_type index_nz;
+	m3_final : bool;
+}
+
 type as3_field_kind =
-	| A3FMethod of as3_method_type index
-	| A3FVar of as3_type index * as3_field_value option
+	| A3FMethod of as3_method
+	| A3FVar of as3_type index option * as3_field_value option
 
 type as3_field = {
 	f3_name : as3_type index;
@@ -43,7 +49,7 @@ type as3_field = {
 
 type as3_class = {
 	cl3_name : as3_type index;
-	cl3_super : as3_ident index;
+	cl3_super : as3_type index;
 	cl3_sealed : bool;
 	cl3_final : bool;
 	cl3_interface : bool;
