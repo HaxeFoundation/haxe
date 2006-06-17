@@ -27,12 +27,12 @@
 	The [Lambda] class is a collection of functional methods in order to
 	use functional-style programming with haXe.
 **/
-class Lambda<A,B> {
+class Lambda {
 
 	/**
 		Creates an [Array] from an [Iterator]
 	**/
-	public static function array( it : Iterator<A> ) : Array<A> {
+	public static function array<A>( it : Iterator<A> ) : Array<A> {
 		var a = new Array<A>();
 		for(i in it)
 			a.push(i);
@@ -42,7 +42,7 @@ class Lambda<A,B> {
 	/**
 		Creates a [List] from an [Iterator]
 	**/
-	public static function list( it : Iterator<A> ) : List<A> {
+	public static function list<A>( it : Iterator<A> ) : List<A> {
 		var l = new List<A>();
 		for(i in it)
 			l.add(i);
@@ -53,9 +53,8 @@ class Lambda<A,B> {
 		Creates a new [Iterator] that will apply the function 'f' to all
 		elements of the iterator 'it'.
 	**/
-	public static function map( it : Iterator<A>, f : A -> B ) : Iterator<B> {
-		// untyped is required because anonymous objects are not interfaces
-		return untyped {
+	public static function map<A,B>( it : Iterator<A>, f : A -> B ) : Iterator<B> {
+		return {
 			hasNext : it.hasNext,
 			next : function() { return f(it.next()); }
 		}
@@ -64,7 +63,7 @@ class Lambda<A,B> {
 	/**
 		Call the function 'f' on all elements of the [Iterator] 'it'.
 	**/
-	public static function iter( it : Iterator<A>, f : A -> Void ) {
+	public static function iter<A>( it : Iterator<A>, f : A -> Void ) {
 		for( x in it )
 			f(x);
 	}
@@ -73,7 +72,7 @@ class Lambda<A,B> {
 		Creates an [Array] from an [Array] 'a' by applying the function 'f'
 		on all elements of 'a'.
 	**/
-	public static function amap(a : Array<A>,f : A -> B) : Array<B> {
+	public static function amap<A,B>(a : Array<A>,f : A -> B) : Array<B> {
 		var b = new Array();
 		for( x in a )
 			b.push(f(x));
@@ -83,7 +82,7 @@ class Lambda<A,B> {
 	/**
 		Functional 'fold' using an [Iterator]
 	**/
-	public static function fold( it : Iterator<A>, f : A -> B -> B, first : B ) : B {
+	public static function fold<A,B>( it : Iterator<A>, f : A -> B -> B, first : B ) : B {
 		for( x in it )
 			first = f(x,first);
 		return first;
@@ -92,7 +91,7 @@ class Lambda<A,B> {
 	/**
 		Count the number of elements in an [Iterator]
 	**/
-	public static function count( it : Iterator<A> ) {
+	public static function count<A>( it : Iterator<A> ) {
 		var n = 0;
 		for( _ in it )
 			++n;
