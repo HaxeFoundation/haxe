@@ -60,6 +60,9 @@ class SocketBuffer {
 	public function onData( data : String ) {
 	}
 
+	public function onXmlData( data : String ) {
+	}
+
 	public function read() {
 		var buflen = buffer.length;
 		var len = try sock.receive(buffer,bufpos,buflen-bufpos) catch( e : Dynamic ) { if( e == "Blocking" ) return; 0; };
@@ -67,7 +70,7 @@ class SocketBuffer {
 			throw ReadError;
 		lastread = neko.Sys.time();
 		bufpos += len;
-		while( process() ) {
+		while( process(len) ) {
 		}
 		if( bufpos == buflen ) {
 			// copy/expand buffer
@@ -87,6 +90,9 @@ class SocketBuffer {
 	}
 
 	function decodeMessageLength() {
+		// message starting with < : XML
+		if( buffer.charCodeAt(lastpos) == 60 )
+			return -1;
 		var c1 = decodeChar(buffer.charCodeAt(lastpos));
 		var c2 = decodeChar(buffer.charCodeAt(lastpos+1));
 		if( c1 == null || c2 == null )
@@ -113,23 +119,42 @@ class SocketBuffer {
 		return null;
 	}
 
-	function process() {
+	function process( nbytes ) {
 		var av_bytes = bufpos - lastpos;
 		if( av_bytes < 2 )
 			return false;
 		if( msglen == null )
 			msglen = decodeMessageLength();
-		if( av_bytes < msglen )
-			return false;
-		lastpos += 2;
-		msglen -= 3;
-		onData(buffer.substr(lastpos,msglen));
+		var isxml = false;
+		if( msglen == -1 ) {
+			// wait for \0
+			var i = nbytes;
+			while( i > 0 ) {
+				if( buffer.charCodeAt(bufpos - i) == 0 )
+					break;
+				i -= 1;
+			}
+			if( i == 0 )
+				return false;
+			msglen = av_bytes - i;
+			isxml = true;
+		} else {
+			if( av_bytes < msglen )
+				return false;
+			lastpos += 2;
+			msglen -= 3;
+		}
+		var msg = buffer.substr(lastpos,msglen);
 		lastpos += msglen + 1;
 		msglen = null;
 		if( lastpos == bufpos ) {
 			lastpos = 0;
 			bufpos = 0;
 		}
+		if( isxml )
+			onXmlData(msg);
+		else
+			onData(msg);
 		return true;
 	}
 
