@@ -15,7 +15,7 @@ type as3_base_right =
 type as3_rights = as3_base_right index_nz list
 
 type as3_type =
-	| A3TClassInterface of as3_ident index * as3_rights index_nz
+	| A3TClassInterface of as3_ident index * as3_base_right index
 	| A3TMethodVar of as3_ident index * as3_base_right index
 
 type as3_method_type = {
@@ -37,9 +37,15 @@ type as3_method = {
 	m3_final : bool;
 }
 
+type as3_var = {
+	v3_type : as3_type index option;
+	v3_value : as3_field_value option;
+	v3_const : bool;
+}
+
 type as3_field_kind =
 	| A3FMethod of as3_method
-	| A3FVar of as3_type index option * as3_field_value option
+	| A3FVar of as3_var
 
 type as3_field = {
 	f3_name : as3_type index;
@@ -49,7 +55,7 @@ type as3_field = {
 
 type as3_class = {
 	cl3_name : as3_type index;
-	cl3_super : as3_type index;
+	cl3_super : as3_type index option;
 	cl3_sealed : bool;
 	cl3_final : bool;
 	cl3_interface : bool;
