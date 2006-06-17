@@ -146,6 +146,7 @@ let as3_field_length f =
 			| A3VString s -> 1 + idx_length s
 			| A3VInt s -> 1 + idx_length s
 			| A3VFloat s -> 1 + idx_length s
+			| A3VNamespace s -> 1 + idx_length s
 
 let as3_class_length c =
 	idx_length c.cl3_name +
@@ -311,6 +312,9 @@ let read_field ctx ch =
 						Some (A3VInt (index ctx.as3_ints idx))
 					| 0x06 ->
 						Some (A3VFloat (index ctx.as3_floats idx))
+					| 0x08 ->
+						Printf.printf "%d" idx;
+						Some (A3VNamespace (index ctx.as3_base_rights idx))
 					| 0x0A ->
 						if idx <> 0x0A then assert false;
 						Some (A3VBool false)
@@ -561,6 +565,9 @@ let write_field ch f =
 			| A3VFloat s ->
 				write_index ch s;
 				IO.write_byte ch 0x06
+			| A3VNamespace s ->
+				write_index ch s;
+				IO.write_byte ch 0x08
 
 let write_class ch c =
 	write_index ch c.cl3_name;
@@ -667,13 +674,17 @@ let dump_field ctx ch stat f =
 				| A3VBool b -> if b then "true" else "false"
 				| A3VInt s -> Printf.sprintf "%ld" (iget ctx.as3_ints s)
 				| A3VFloat s -> Printf.sprintf "%f" (iget ctx.as3_floats s)
+				| A3VNamespace s -> base_right_str ctx s
 			);
 		);
+		if f.f3_slot <> 0 then IO.printf ch " = [SLOT:%d]" f.f3_slot;
 		IO.printf ch ";\n"
 	| A3FMethod m ->
 		if m.m3_final then IO.printf ch "final ";
 		if m.m3_override then IO.printf ch "override ";
-		IO.printf ch "%s%s;\n" (type_str ctx "function " f.f3_name) (method_str ctx (no_nz m.m3_type))
+		IO.printf ch "%s%s" (type_str ctx "function " f.f3_name) (method_str ctx (no_nz m.m3_type));
+		if f.f3_slot <> 0 then IO.printf ch " = [SLOT:%d]" f.f3_slot;
+		IO.printf ch ";\n"
 
 let dump_class ctx ch idx c =
 	let st = if parse_statics then ctx.as3_statics.(idx) else { st3_slot = -1; st3_fields = [||] } in

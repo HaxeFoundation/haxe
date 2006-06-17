@@ -30,6 +30,7 @@ type as3_field_value =
 	| A3VString of as3_ident index
 	| A3VInt of as3_int index
 	| A3VFloat of as3_float index
+	| A3VNamespace of as3_base_right index
 
 type as3_method = {
 	m3_type : as3_method_type index_nz;
