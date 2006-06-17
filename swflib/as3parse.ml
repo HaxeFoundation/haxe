@@ -312,8 +312,7 @@ let read_field ctx ch =
 						Some (A3VInt (index ctx.as3_ints idx))
 					| 0x06 ->
 						Some (A3VFloat (index ctx.as3_floats idx))
-					| 0x08 ->
-						Printf.printf "%d" idx;
+					| 0x08 ->						
 						Some (A3VNamespace (index ctx.as3_base_rights idx))
 					| 0x0A ->
 						if idx <> 0x0A then assert false;
