@@ -21,8 +21,7 @@ type as3_type =
 type as3_method_type = {
 	mt3_ret : as3_type index option;
 	mt3_args : as3_type index option list;
-	mt3_unk1 : char;
-	mt3_unk2 : char;
+	mt3_unk : int;	
 }
 
 type as3_field_value =
@@ -35,6 +34,7 @@ type as3_field_value =
 type as3_method = {
 	m3_type : as3_method_type index_nz;
 	m3_final : bool;
+	m3_override : bool;
 }
 
 type as3_var = {
@@ -70,6 +70,13 @@ type as3_static = {
 	st3_fields : as3_field array;
 }
 
+type as3_init = {
+	in3_slot : int;
+	in3_type : as3_type index;
+	in3_class : as3_class index_nz;
+	in3_unk : int;
+}
+
 type as3_tag = {
 	as3_frame : string;
 	as3_ints : as3_int array;
@@ -83,6 +90,7 @@ type as3_tag = {
 	(* ??? *)
 	mutable as3_classes : as3_class array;
 	mutable as3_statics : as3_static array;
+	mutable as3_inits : as3_init array;
 	mutable as3_unknown : string;
 
 	as3_original_data : string;

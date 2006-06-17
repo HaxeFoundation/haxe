@@ -24,6 +24,7 @@ let parse_types = true && parse_rights
 let parse_mtypes = true && parse_types
 let parse_classes = true && parse_mtypes
 let parse_statics = true && parse_classes
+let parse_inits = true && parse_statics
 
 let index (t : 'a array) (i : int) : 'a index =
 	if i <= 0 || i - 1 >= Array.length t then assert false;
@@ -159,6 +160,14 @@ let as3_static_length s =
 	int_length s.st3_slot +
 	list2_length as3_field_length s.st3_fields
 
+let as3_init_length i =
+	int_length i.in3_slot +
+	1 +
+	idx_length i.in3_type +
+	1 +
+	1 +
+	idx_length_nz i.in3_class
+
 let as3_length ctx =
 	let ei = as3_empty_index ctx in
 	4 +
@@ -176,7 +185,8 @@ let as3_length ctx =
 		1
 	+ if parse_classes then list2_length as3_class_length ctx.as3_classes
 	+ if parse_statics then Array.fold_left (fun acc x -> acc + as3_static_length x) 0 ctx.as3_statics
-	else 0 else 0 else 0 else 0 else 0 else 0) +
+	+ if parse_inits then list2_length as3_init_length ctx.as3_inits
+	else 0 else 0 else 0 else 0 else 0 else 0 else 0) +
 	String.length ctx.as3_unknown
 
 (* ************************************************************************ *)
@@ -268,13 +278,12 @@ let read_method_type ctx ch =
 	let targs = Array.to_list (Array.init nargs (fun _ ->
 		index_opt ctx.as3_types (read_int ch)
 	)) in
-	let unk1 = IO.read ch in
-	let unk2 = IO.read ch in
+	let unk = IO.read_byte ch in
+	if IO.read_byte ch <> 0 then assert false;
 	{
 		mt3_ret = tret;
 		mt3_args = targs;
-		mt3_unk1 = unk1;
-		mt3_unk2 = unk2;
+		mt3_unk = unk;		
 	}
 
 let read_list ch f =
@@ -319,12 +328,14 @@ let read_field ctx ch =
 				v3_value = value;
 				v3_const = is_fun = 0x06;
 			}
-		| 0x01 | 0x11 ->
+		| 0x01 | 0x11 | 0x21 | 0x31 ->
 			let meth = index_nz ctx.as3_method_types (read_int ch) in
-			let final = is_fun = 0x11 in
+			let final = is_fun land 0x10 <> 0 in
+			let override = is_fun land 0x20 <> 0 in
 			A3FMethod {
 				m3_type = meth;
 				m3_final = final;
+				m3_override = override;
 			}
 		| _ ->
 			assert false
@@ -369,6 +380,20 @@ let read_static ctx ch =
 		st3_fields = fields;
 	}
 
+let read_init ctx ch =
+	let slot = read_int ch in
+	if IO.read_byte ch <> 0x01 then assert false;
+	let ctype = index ctx.as3_types (read_int ch) in
+	if IO.read_byte ch <> 0x04 then assert false;
+	let unk = IO.read_byte ch in
+	let cl = index_nz ctx.as3_classes (read_int ch) in
+	{
+		in3_slot = slot;
+		in3_type = ctype;
+		in3_class = cl;
+		in3_unk = unk;
+	}
+
 let header_1 = 0x00000001
 let header_2 = 0x002E0010
 
@@ -395,6 +420,7 @@ let parse ch len =
 		as3_method_types = [||];
 		as3_classes = [||];
 		as3_statics = [||];
+		as3_inits = [||];
 		as3_unknown = "";
 		as3_original_data = data;
 	} in
@@ -405,6 +431,7 @@ let parse ch len =
 	end;
 	if parse_classes then ctx.as3_classes <- read_list2 ch (read_class ctx);
 	if parse_statics then ctx.as3_statics <- Array.map (fun _ -> read_static ctx ch) ctx.as3_classes;
+	if parse_inits then ctx.as3_inits <- read_list2 ch (read_init ctx);
 	ctx.as3_unknown <- IO.read_all ch;
 	if as3_length ctx <> len then assert false;
 	ctx
@@ -489,8 +516,8 @@ let write_method_type ch m =
 	write_int ch (List.length m.mt3_args);
 	write_index_opt ch m.mt3_ret;
 	List.iter (write_index_opt ch) m.mt3_args;
-	IO.write ch m.mt3_unk1;
-	IO.write ch m.mt3_unk2
+	IO.write_byte ch m.mt3_unk;
+	IO.write_byte ch 0x00
 
 let write_list ch f l =
 	match Array.length l with
@@ -507,7 +534,7 @@ let write_field ch f =
 	write_index ch f.f3_name;
 	match f.f3_kind with
 	| A3FMethod m ->
-		IO.write_byte ch (if m.m3_final then 0x11 else 0x01);
+		IO.write_byte ch (0x01 lor (if m.m3_final then 0x10 else 0) lor (if m.m3_override then 0x20 else 0));
 		write_int ch f.f3_slot;
 		write_index_nz ch m.m3_type;
 	| A3FVar v ->
@@ -556,6 +583,14 @@ let write_static ch s =
 	write_int ch s.st3_slot;
 	write_list2 ch write_field s.st3_fields
 
+let write_init ch i =
+	write_int ch i.in3_slot;
+	IO.write_byte ch 0x01;
+	write_index ch i.in3_type;
+	IO.write_byte ch 0x04;
+	IO.write_byte ch i.in3_unk;
+	write_index_nz ch i.in3_class
+
 let write ch1 ctx =
 	let ch = IO.output_string() in
 	let empty_index = as3_empty_index ctx in
@@ -575,6 +610,7 @@ let write ch1 ctx =
 	end;
 	if parse_classes then write_list2 ch write_class ctx.as3_classes;
 	if parse_statics then Array.iter (write_static ch) ctx.as3_statics;
+	if parse_inits then write_list2 ch write_init ctx.as3_inits;
 	IO.nwrite ch ctx.as3_unknown;
 	let str = IO.close_out ch in
 	if str <> ctx.as3_original_data then assert false;
@@ -636,6 +672,7 @@ let dump_field ctx ch stat f =
 		IO.printf ch ";\n"
 	| A3FMethod m ->
 		if m.m3_final then IO.printf ch "final ";
+		if m.m3_override then IO.printf ch "override ";
 		IO.printf ch "%s%s;\n" (type_str ctx "function " f.f3_name) (method_str ctx (no_nz m.m3_type))
 
 let dump_class ctx ch idx c =
@@ -659,6 +696,13 @@ let dump_class ctx ch idx c =
 	Array.iter (dump_field ctx ch true) st.st3_fields;
 	IO.printf ch "} [SLOT:%d] [STATIC:%d]\n\n" c.cl3_slot st.st3_slot
 
+let dump_init ctx ch idx i =
+	let c = iget ctx.as3_classes (no_nz i.in3_class) in 
+	IO.printf ch "init [SLOT:%d] = %s : %s [%d]\n" i.in3_slot (type_str ctx "" c.cl3_name) (type_str ctx "" i.in3_type) i.in3_unk
+
+let dump_ident ctx ch idx _ =
+	IO.printf ch "I%d = %s\n" idx (ident_str ctx (index ctx.as3_idents (idx + 1)))
+
 let dump_base_right ctx ch idx _ =
 	IO.printf ch "B%d = %s\n" idx (base_right_str ctx (index ctx.as3_base_rights (idx + 1)))
 
@@ -670,8 +714,10 @@ let dump_type ctx ch idx _ =
 
 let dump ch ctx =
 	IO.printf ch "\n---------------- AS3 %s -----------------\n\n" ctx.as3_frame;
+	Array.iteri (dump_ident ctx ch) ctx.as3_idents;
 	Array.iteri (dump_base_right ctx ch) ctx.as3_base_rights;
 	Array.iteri (dump_rights ctx ch) ctx.as3_rights;
 	Array.iteri (dump_type ctx ch) ctx.as3_types;
 	Array.iteri (dump_class ctx ch) ctx.as3_classes;
+	Array.iteri (dump_init ctx ch) ctx.as3_inits;
 	IO.printf ch "(%d/%d bytes)\n\n" (String.length ctx.as3_unknown) (String.length ctx.as3_original_data)
