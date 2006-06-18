@@ -27,6 +27,7 @@ let parse_metadata = true && parse_mtypes
 let parse_classes = true && parse_metadata
 let parse_statics = true && parse_classes
 let parse_inits = true && parse_statics
+let parse_functions = true && parse_inits
 
 let magic_index (i : int) : 'a index =
 	Obj.magic i
@@ -189,6 +190,17 @@ let as3_metadata_length m =
 	idx_length m.meta3_name +
 	list2_length (fun (i1,i2) -> idx_length i1 + idx_length i2) m.meta3_data
 
+let as3_function_length f =
+	idx_length_nz f.fun3_id +
+	int_length f.fun3_unk1 +
+	int_length f.fun3_unk2 +
+	int_length f.fun3_unk3 +
+	int_length f.fun3_unk4 +
+	int_length (String.length f.fun3_code) +
+	String.length f.fun3_code +
+	1 +
+	1
+
 let as3_length ctx =
 	let ei = as3_empty_index ctx in
 	String.length ctx.as3_unknown +
@@ -206,7 +218,8 @@ let as3_length ctx =
 	+ if parse_classes then list2_length as3_class_length ctx.as3_classes
 	+ if parse_statics then Array.fold_left (fun acc x -> acc + as3_static_length x) 0 ctx.as3_statics
 	+ if parse_inits then list2_length as3_inits_length ctx.as3_inits
-	  else 0 else 0 else 0 else 0 else 0 else 0 else 0 else 0 else 0
+	+ if parse_functions then list2_length as3_function_length ctx.as3_functions
+	  else 0 else 0 else 0 else 0 else 0 else 0 else 0 else 0 else 0 else 0
 
 (* ************************************************************************ *)
 (* PARSING *)
@@ -461,6 +474,25 @@ let read_metadata ctx ch =
 		meta3_data = data;
 	}
 
+let read_function ctx ch =
+	let id = index_nz ctx.as3_method_types (read_int ch) in
+	let u1 = read_int ch in
+	let u2 = read_int ch in
+	let u3 = read_int ch in
+	let u4 = read_int ch in
+	let size = read_int ch in
+	let code = IO.nread ch size in
+	if read_int ch <> 0 then assert false;
+	if read_int ch <> 0 then assert false;
+	{
+		fun3_id = id;
+		fun3_unk1 = u1;
+		fun3_unk2 = u2;
+		fun3_unk3 = u3;
+		fun3_unk4 = u4;
+		fun3_code = code;
+	}
+
 let header_magic = 0x002E0010
 
 let parse ch len has_id =
@@ -493,6 +525,7 @@ let parse ch len has_id =
 		as3_classes = [||];
 		as3_statics = [||];
 		as3_inits = [||];
+		as3_functions = [||];
 		as3_unknown = "";
 		as3_original_data = data;
 	} in
@@ -502,7 +535,9 @@ let parse ch len has_id =
 	if parse_classes then ctx.as3_classes <- read_list2 ch (read_class ctx);
 	if parse_statics then ctx.as3_statics <- Array.map (fun _ -> read_static ctx ch) ctx.as3_classes;
 	if parse_inits then ctx.as3_inits <- read_list2 ch (read_inits ctx);
+	if parse_functions then ctx.as3_functions <- read_list2 ch (read_function ctx);
 	ctx.as3_unknown <- IO.read_all ch;
+	if parse_functions && String.length ctx.as3_unknown <> 0 then assert false;
 	if as3_length ctx <> len then assert false;
 	ctx
 
@@ -717,6 +752,17 @@ let write_metadata ch m =
 	write_list2 ch (fun _ (i1,_) -> write_index ch i1) m.meta3_data;
 	Array.iter (fun (_,i2) -> write_index ch i2) m.meta3_data
 
+let write_function ch f =
+	write_index_nz ch f.fun3_id;
+	write_int ch f.fun3_unk1;
+	write_int ch f.fun3_unk2;
+	write_int ch f.fun3_unk3;
+	write_int ch f.fun3_unk4;
+	write_int ch (String.length f.fun3_code);
+	IO.nwrite ch f.fun3_code;
+	write_int ch 0;
+	write_int ch 0
+
 let write ch1 ctx =
 	let ch = IO.output_string() in
 	let empty_index = as3_empty_index ctx in
@@ -738,6 +784,7 @@ let write ch1 ctx =
 	if parse_classes then write_list2 ch write_class ctx.as3_classes;
 	if parse_statics then Array.iter (write_static ch) ctx.as3_statics;
 	if parse_inits then write_list2 ch write_inits ctx.as3_inits;
+	if parse_functions then write_list2 ch write_function ctx.as3_functions;
 	IO.nwrite ch ctx.as3_unknown;
 	let str = IO.close_out ch in
 	if str <> ctx.as3_original_data then begin
@@ -881,6 +928,11 @@ let dump_inits ctx ch idx i =
 	Array.iter (dump_field ctx ch false) i.in3_fields;
 	IO.printf ch "}\n"
 
+let dump_function ctx ch idx f =
+	IO.printf ch "function #%d %s\n" (index_int (no_nz f.fun3_id) - 1) (method_str ctx (no_nz f.fun3_id));
+	IO.printf ch "    %d %d %d %d\n" f.fun3_unk1 f.fun3_unk2 f.fun3_unk3 f.fun3_unk4;
+	IO.printf ch "    %d bytes\n\n" (String.length f.fun3_code)
+
 let dump_ident ctx ch idx _ =
 	IO.printf ch "I%d = %s\n" idx (ident_str ctx (index ctx.as3_idents (idx + 1)))
 
@@ -903,12 +955,13 @@ let dump ch ctx =
 	(match ctx.as3_id with
 	| None -> IO.printf ch "\n---------------- AS3 -------------------------\n\n";
 	| Some (id,f) -> IO.printf ch "\n---------------- AS3 %s [%d] -----------------\n\n" f id);
-(*	Array.iteri (dump_ident ctx ch) ctx.as3_idents;
+	Array.iteri (dump_ident ctx ch) ctx.as3_idents;
 	Array.iteri (dump_base_right ctx ch) ctx.as3_base_rights;
 	Array.iteri (dump_rights ctx ch) ctx.as3_rights;
 	Array.iteri (dump_type ctx ch) ctx.as3_types;
 	Array.iteri (dump_method_type ctx ch) ctx.as3_method_types;
-	Array.iteri (dump_metadata ctx ch) ctx.as3_metadatas; *)
+	Array.iteri (dump_metadata ctx ch) ctx.as3_metadatas;
 	Array.iteri (dump_class ctx ch) ctx.as3_classes;
 	Array.iteri (dump_inits ctx ch) ctx.as3_inits;
+	Array.iteri (dump_function ctx ch) ctx.as3_functions;
 	IO.printf ch "(%d/%d bytes)\n\n" (String.length ctx.as3_unknown) (String.length ctx.as3_original_data)

@@ -99,6 +99,15 @@ type as3_inits = {
 	in3_fields : as3_field array;
 }
 
+type as3_function = {
+	fun3_id : as3_method_type index_nz;
+	fun3_unk1 : int;
+	fun3_unk2 : int;
+	fun3_unk3 : int;
+	fun3_unk4 : int;
+	fun3_code : string;		
+}
+
 type as3_tag = {
 	as3_id : (int * string) option;
 	as3_ints : as3_int array;
@@ -113,7 +122,8 @@ type as3_tag = {
 	mutable as3_classes : as3_class array;
 	mutable as3_statics : as3_static array;
 	mutable as3_inits : as3_inits array;
-	mutable as3_unknown : string;
+	mutable as3_functions : as3_function array;
 
+	mutable as3_unknown : string;
 	as3_original_data : string;
 }
