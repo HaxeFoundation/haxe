@@ -11,7 +11,7 @@ type as3_base_right =
 	| A3RPublic of as3_ident index option
 	| A3RInternal of as3_ident index option
 	| A3RProtected of as3_ident index
-	| A3RUnknown1 of as3_ident index option
+	| A3RUnknown1 of as3_ident index
 	| A3RUnknown2 of as3_ident index option
 
 type as3_rights = as3_base_right index list
@@ -38,14 +38,20 @@ type as3_method_type = {
 	mt3_var_args : bool;
 	mt3_unk : int;
 	mt3_dparams : as3_value list option;
-	mt3_pnames : as3_ident index_nz list option;
+	mt3_pnames : as3_ident index list option;
 	mt3_unk_flags : bool * bool * bool * bool;
 }
+
+type as3_method_kind =
+	| MK3Normal
+	| MK3Getter
+	| MK3Setter
 
 type as3_method = {
 	m3_type : as3_method_type index_nz;
 	m3_final : bool;
 	m3_override : bool;
+	m3_kind : as3_method_kind;
 }
 
 type as3_var = {
@@ -58,10 +64,17 @@ type as3_field_kind =
 	| A3FMethod of as3_method
 	| A3FVar of as3_var
 
+
+type as3_metadata = {
+	meta3_name : as3_ident index;
+	meta3_data : (as3_ident index * as3_ident index) array;
+}
+
 type as3_field = {
 	f3_name : as3_type index;
 	f3_slot : int;
 	f3_kind : as3_field_kind;
+	f3_metas : as3_metadata index_nz array option;
 }
 
 type as3_class = {
@@ -82,15 +95,19 @@ type as3_static = {
 }
 
 type as3_init = {
-	in3_slot : int;
 	in3_type : as3_type index;
 	in3_class : as3_class index_nz;
 	in3_unk : int;
+	in3_metas : as3_metadata index_nz array option;
+}
+
+type as3_inits = {
+	inl3_slot : int;
+	inl3_inits : as3_init array;
 }
 
 type as3_tag = {
-	as3_id : int;
-	as3_frame : string;
+	as3_id : (int * string) option;
 	as3_ints : as3_int array;
 	(* ??? *)
 	as3_floats : as3_float array;
@@ -99,10 +116,10 @@ type as3_tag = {
 	as3_rights : as3_rights array;
 	mutable as3_types : as3_type array;
 	mutable as3_method_types : as3_method_type array;
-	(* ??? *)
+	mutable as3_metadatas : as3_metadata array;
 	mutable as3_classes : as3_class array;
 	mutable as3_statics : as3_static array;
-	mutable as3_inits : as3_init array;
+	mutable as3_inits : as3_inits array;
 	mutable as3_unknown : string;
 
 	as3_original_data : string;
