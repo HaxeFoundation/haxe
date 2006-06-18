@@ -60,24 +60,24 @@ type as3_var = {
 	v3_const : bool;
 }
 
-type as3_field_kind =
-	| A3FMethod of as3_method
-	| A3FVar of as3_var
-
-
 type as3_metadata = {
 	meta3_name : as3_ident index;
 	meta3_data : (as3_ident index * as3_ident index) array;
 }
 
-type as3_field = {
+type as3_field_kind =
+	| A3FMethod of as3_method
+	| A3FVar of as3_var
+	| A3FClass of as3_class index_nz
+
+and as3_field = {
 	f3_name : as3_type index;
 	f3_slot : int;
 	f3_kind : as3_field_kind;
 	f3_metas : as3_metadata index_nz array option;
 }
 
-type as3_class = {
+and as3_class = {
 	cl3_name : as3_type index;
 	cl3_super : as3_type index option;
 	cl3_sealed : bool;
@@ -94,16 +94,9 @@ type as3_static = {
 	st3_fields : as3_field array;
 }
 
-type as3_init = {
-	in3_type : as3_type index;
-	in3_class : as3_class index_nz;
-	in3_unk : int;
-	in3_metas : as3_metadata index_nz array option;
-}
-
 type as3_inits = {
-	inl3_slot : int;
-	inl3_inits : as3_init array;
+	in3_slot : int;
+	in3_fields : as3_field array;
 }
 
 type as3_tag = {

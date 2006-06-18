@@ -160,6 +160,8 @@ let as3_field_length f =
 	(match f.f3_kind with
 	| A3FMethod m ->
 		idx_length_nz m.m3_type
+	| A3FClass c ->
+		idx_length_nz c
 	| A3FVar v ->
 		idx_opt_length v.v3_type + as3_value_length false v.v3_value) +
 	match f.f3_metas with
@@ -179,19 +181,9 @@ let as3_static_length s =
 	int_length s.st3_slot +
 	list2_length as3_field_length s.st3_fields
 
-
-let as3_init_length i =
-	idx_length i.in3_type +
-	1 +
-	1 +
-	idx_length_nz i.in3_class +
-	match i.in3_metas with
-	| None -> 0
-	| Some l -> list2_length idx_length_nz l
-
 let as3_inits_length i =
-	int_length i.inl3_slot +
-	list2_length as3_init_length i.inl3_inits
+	int_length i.in3_slot +
+	list2_length as3_field_length i.in3_fields
 
 let as3_metadata_length m =
 	idx_length m.meta3_name +
@@ -400,6 +392,9 @@ let read_field ctx ch =
 				m3_override = override;
 				m3_kind = (match is_fun land 0xF with 0x01 -> MK3Normal | 0x02 -> MK3Getter | 0x03 -> MK3Setter | _ -> assert false);
 			}
+		| 0x04 ->
+			let c = index_nz ctx.as3_classes (read_int ch) in
+			A3FClass c
 		| _ ->
 			assert false
 	) in
@@ -449,33 +444,12 @@ let read_static ctx ch =
 		st3_fields = fields;
 	}
 
-let read_init ctx ch =
-	let ctype = index ctx.as3_types (read_int ch) in
-	let k = IO.read_byte ch in
-	Printf.printf "%X " k;
-	if k land 0x80 <> 0 then assert false;
-	let has_meta = k land 0x40 <> 0 in
-	if k land 0x3F <> 0x04 then assert false;
-	let unk = IO.read_byte ch in
-	let cl = index_nz ctx.as3_classes (read_int ch) in
-	let metas = (if has_meta then
-		Some (read_list2 ch (fun _ -> index_nz ctx.as3_metadatas (read_int ch)))
-	else
-		None
-	) in
-	{
-		in3_type = ctype;
-		in3_class = cl;
-		in3_unk = unk;
-		in3_metas = metas;
-	}
-
 let read_inits ctx ch =
 	let slot = read_int ch in
-	let inits = read_list2 ch (read_init ctx) in
+	let fields = read_list2 ch (read_field ctx) in
 	{
-		inl3_slot = slot;
-		inl3_inits = inits;
+		in3_slot = slot;
+		in3_fields = fields;
 	}
 
 let read_metadata ctx ch =
@@ -699,6 +673,10 @@ let write_field ch f =
 		IO.write_byte ch (base lor flags);
 		write_int ch f.f3_slot;
 		write_index_nz ch m.m3_type;
+	| A3FClass c ->		
+		IO.write_byte ch (0x04 lor flags);
+		write_int ch f.f3_slot;
+		write_index_nz ch c
 	| A3FVar v ->
 		IO.write_byte ch (flags lor (if v.v3_const then 0x06 else 0x00));
 		write_int ch f.f3_slot;
@@ -730,19 +708,9 @@ let write_static ch s =
 	write_int ch s.st3_slot;
 	write_list2 ch write_field s.st3_fields
 
-let write_init ch i =
-	write_index ch i.in3_type;
-	IO.write_byte ch (match i.in3_metas with None -> 0x04 | Some _ -> 0x44);
-	IO.write_byte ch i.in3_unk;
-	write_index_nz ch i.in3_class;
-	match i.in3_metas with
-	| None -> ()
-	| Some l ->
-		write_list2 ch write_index_nz l
-
 let write_inits ch i =
-	write_int ch i.inl3_slot;
-	write_list2 ch write_init i.inl3_inits
+	write_int ch i.in3_slot;
+	write_list2 ch write_field i.in3_fields
 
 let write_metadata ch m =
 	write_index ch m.meta3_name;
@@ -833,7 +801,9 @@ let metadata_str ctx i =
 let method_str ctx m =
 	let m = iget ctx.as3_method_types m in
 	let pcount = ref 0 in
-	Printf.sprintf "(%s%s)%s%s" (String.concat ", " (List.map (fun a ->
+	Printf.sprintf "%s(%s%s)%s" 
+	(if m.mt3_native then " native " else "")
+	(String.concat ", " (List.map (fun a ->
 		let id = (match m.mt3_pnames with
 			| None -> "p" ^ string_of_int !pcount
 			| Some l -> ident_str ctx (List.nth l !pcount)
@@ -854,24 +824,24 @@ let method_str ctx m =
 		p
 	) m.mt3_args))
 	(if m.mt3_var_args then " ..." else "")
-	(match m.mt3_ret with None -> "" | Some t -> " : " ^ type_str ctx "" t)
-	(if m.mt3_native then " native" else "")
+	(match m.mt3_ret with None -> "" | Some t -> " : " ^ type_str ctx "" t)	
 
 let dump_field ctx ch stat f =
-	(match f.f3_metas with
+(*	(match f.f3_metas with
 	| None -> ()
 	| Some l -> Array.iter (fun i -> IO.printf ch "    [%s]\n" (metadata_str ctx (no_nz i))) l);
-	IO.printf ch "    ";
+*)	IO.printf ch "    ";
 	if stat then IO.printf ch "static ";
-	match f.f3_kind with
+	(match f.f3_kind with
 	| A3FVar v ->
 		IO.printf ch "%s" (type_str ctx (if v.v3_const then "const " else "var ") f.f3_name);
 		(match v.v3_type with
 		| None -> ()
 		| Some id -> IO.printf ch " : %s" (type_str ctx "" id));
 		if v.v3_value <> A3VNone then IO.printf ch " = %s" (value_str ctx v.v3_value);
-		if f.f3_slot <> 0 then IO.printf ch " = [SLOT:%d]" f.f3_slot;
-		IO.printf ch ";\n"
+	| A3FClass c ->
+		let c = iget ctx.as3_classes (no_nz c) in
+		IO.printf ch "%s = %s" (type_str ctx "CLASS " c.cl3_name) (type_str ctx "class " f.f3_name);
 	| A3FMethod m ->
 		if m.m3_final then IO.printf ch "final ";
 		if m.m3_override then IO.printf ch "override ";
@@ -881,8 +851,9 @@ let dump_field ctx ch stat f =
 			| MK3Setter -> "set "
 		) in
 		IO.printf ch "%s%s" (type_str ctx k f.f3_name) (method_str ctx (no_nz m.m3_type));
-		if f.f3_slot <> 0 then IO.printf ch " = [SLOT:%d]" f.f3_slot;
-		IO.printf ch ";\n"
+	);
+	if f.f3_slot <> 0 then IO.printf ch " = [SLOT:%d]" f.f3_slot;
+	IO.printf ch ";\n"
 
 let dump_class ctx ch idx c =
 	let st = if parse_statics then ctx.as3_statics.(idx) else { st3_slot = -1; st3_fields = [||] } in
@@ -905,16 +876,9 @@ let dump_class ctx ch idx c =
 	Array.iter (dump_field ctx ch true) st.st3_fields;
 	IO.printf ch "} [SLOT:%d] [STATIC:%d]\n\n" c.cl3_slot st.st3_slot
 
-let dump_init ctx ch i =
-	let c = iget ctx.as3_classes (no_nz i.in3_class) in
-	(match i.in3_metas with
-	| None -> ()
-	| Some l -> Array.iter (fun i -> IO.printf ch "    [%s]\n" (metadata_str ctx (no_nz i))) l);
-	IO.printf ch "    %s : %s [%d]\n" (type_str ctx "" c.cl3_name) (type_str ctx "" i.in3_type) i.in3_unk
-
 let dump_inits ctx ch idx i =
-	IO.printf ch "init [SLOT:%d] {\n" i.inl3_slot;
-	Array.iter (dump_init ctx ch) i.inl3_inits;
+	IO.printf ch "init [SLOT:%d] {\n" i.in3_slot;
+	Array.iter (dump_field ctx ch false) i.in3_fields;
 	IO.printf ch "}\n"
 
 let dump_ident ctx ch idx _ =
@@ -929,18 +893,22 @@ let dump_rights ctx ch idx _ =
 let dump_type ctx ch idx _ =
 	IO.printf ch "T%d = %s\n" idx (type_str ctx "" (index ctx.as3_types (idx + 1)))
 
+let dump_method_type ctx ch idx _ =
+	IO.printf ch "M%d = %s\n" idx (method_str ctx (index ctx.as3_method_types (idx + 1)))
+
 let dump_metadata ctx ch idx _ =
-	IO.printf ch "M%d = %s\n" idx (metadata_str ctx (index ctx.as3_metadatas (idx + 1)))
+	IO.printf ch "D%d = %s\n" idx (metadata_str ctx (index ctx.as3_metadatas (idx + 1)))
 
 let dump ch ctx =
 	(match ctx.as3_id with
 	| None -> IO.printf ch "\n---------------- AS3 -------------------------\n\n";
 	| Some (id,f) -> IO.printf ch "\n---------------- AS3 %s [%d] -----------------\n\n" f id);
-	Array.iteri (dump_ident ctx ch) ctx.as3_idents;
+(*	Array.iteri (dump_ident ctx ch) ctx.as3_idents;
 	Array.iteri (dump_base_right ctx ch) ctx.as3_base_rights;
 	Array.iteri (dump_rights ctx ch) ctx.as3_rights;
 	Array.iteri (dump_type ctx ch) ctx.as3_types;
-	Array.iteri (dump_metadata ctx ch) ctx.as3_metadatas;
+	Array.iteri (dump_method_type ctx ch) ctx.as3_method_types;
+	Array.iteri (dump_metadata ctx ch) ctx.as3_metadatas; *)
 	Array.iteri (dump_class ctx ch) ctx.as3_classes;
 	Array.iteri (dump_inits ctx ch) ctx.as3_inits;
 	IO.printf ch "(%d/%d bytes)\n\n" (String.length ctx.as3_unknown) (String.length ctx.as3_original_data)
