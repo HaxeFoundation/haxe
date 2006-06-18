@@ -7,30 +7,40 @@ type as3_int = int32
 type as3_float = float
 
 type as3_base_right =
-	| A3RPrivate
+	| A3RPrivate of as3_ident index option
 	| A3RPublic of as3_ident index option
 	| A3RInternal of as3_ident index option
 	| A3RProtected of as3_ident index
+	| A3RUnknown1 of as3_ident index option
+	| A3RUnknown2 of as3_ident index option
 
-type as3_rights = as3_base_right index_nz list
+type as3_rights = as3_base_right index list
 
 type as3_type =
 	| A3TClassInterface of as3_ident index * as3_base_right index
 	| A3TMethodVar of as3_ident index * as3_base_right index
+	| A3TUnknown1 of int * int
+	| A3TUnknown2 of int * int * int
 
-type as3_method_type = {
-	mt3_ret : as3_type index option;
-	mt3_args : as3_type index option list;
-	mt3_unk : int;	
-}
-
-type as3_field_value =
+type as3_value =
+	| A3VNone
 	| A3VNull
 	| A3VBool of bool
 	| A3VString of as3_ident index
 	| A3VInt of as3_int index
 	| A3VFloat of as3_float index
 	| A3VNamespace of as3_base_right index
+
+type as3_method_type = {
+	mt3_ret : as3_type index option;
+	mt3_args : as3_type index option list;
+	mt3_native : bool;
+	mt3_var_args : bool;
+	mt3_unk : int;
+	mt3_dparams : as3_value list option;
+	mt3_pnames : as3_ident index_nz list option;
+	mt3_unk_flags : bool * bool * bool * bool;
+}
 
 type as3_method = {
 	m3_type : as3_method_type index_nz;
@@ -40,7 +50,7 @@ type as3_method = {
 
 type as3_var = {
 	v3_type : as3_type index option;
-	v3_value : as3_field_value option;
+	v3_value : as3_value;
 	v3_const : bool;
 }
 
@@ -79,6 +89,7 @@ type as3_init = {
 }
 
 type as3_tag = {
+	as3_id : int;
 	as3_frame : string;
 	as3_ints : as3_int array;
 	(* ??? *)
