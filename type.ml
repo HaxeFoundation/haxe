@@ -311,7 +311,12 @@ let apply_params cparams params t =
 		| TAnon fl ->
 			TAnon (PMap.map (fun f -> { f with cf_type = loop f.cf_type }) fl)
 		| TLazy f ->
-			loop (!f())
+			let ft = !f() in
+			let ft2 = loop ft in
+			if ft == ft2 then
+				t
+			else
+				ft2
 		| TDynamic t2 ->
 			if t == t2 then
 				t
