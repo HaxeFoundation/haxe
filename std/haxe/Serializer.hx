@@ -247,5 +247,14 @@ class Serializer {
 		serialize(e);
 	}
 
+	/**
+		Serialize a single value and return the string.
+	**/
+	public static function run( v : Dynamic ) {
+		var s = new Serializer();
+		s.serialize(v);
+		return s.toString();
+	}
+
 }
 

@@ -268,4 +268,11 @@ class Unserializer {
  		throw ("Invalid char "+buf.charAt(pos)+" at position "+pos);
  	}
 
+	/**
+		Unserialize a single value and return it.
+	**/
+	public static function run( v : String ) {
+		return new Unserializer(v).unserialize();
+	}
+
 }
