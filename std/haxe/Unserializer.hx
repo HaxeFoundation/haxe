@@ -23,20 +23,40 @@
  * DAMAGE.
  */
 package haxe;
+import Reflect;
+
+signature TypeResolver {
+	resolveClass : Array<String> -> Class,
+	resolveEnum : Array<String> -> Dynamic
+}
 
 class Unserializer {
+
+	public static var DEFAULT_RESOLVER : TypeResolver = Reflect;
 
  	var buf : String;
  	var pos : Int;
  	var length : Int;
  	var cache : Array<Dynamic>;
+ 	var resolver : TypeResolver;
 
  	public function new( buf : String ) {
  		this.buf = buf;
  		length = buf.length;
  		pos = 0;
  		cache = new Array();
+ 		setResolver(DEFAULT_RESOLVER);
  	}
+
+ 	public function setResolver( r ) {
+		if( r == null )
+			resolver = {
+				resolveClass : function(_) { return null; },
+				resolveEnum : function(_) { return null; }
+			};
+		else
+			resolver = r;
+	}
 
  	function readDigits() {
  		var k = 0;
@@ -194,7 +214,7 @@ class Unserializer {
 			for(s in a)
 				if( !Std.is(s,String) )
 					throw "Invalid class name";
-			var cl = Reflect.resolveClass(a);
+			var cl = resolver.resolveClass(a);
 			if( cl == null )
 				throw "Class not found " + a.join(".");
 			var o = unserializeObject();
@@ -207,7 +227,7 @@ class Unserializer {
 			for(s in a)
 				if( !Std.is(s,String) )
 					throw "Invalid enum name";
-			var e = Reflect.resolveEnum(a);
+			var e = resolver.resolveEnum(a);
 			if( e == null )
 				throw "Enum not found " + a.join(".");
 			var tag = unserialize();
