@@ -218,6 +218,7 @@ class Boot {
 			};
 			var oldsub = String.prototype.substr;
 			String.prototype.substr = function(pos,len){
+				if( pos != null && pos != 0 && len < 0 ) return "";
 				if( pos < 0 ){
 					pos = this.length + pos;
 					if( pos < 0 ) pos = 0;
