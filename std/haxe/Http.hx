@@ -155,7 +155,7 @@ class Http {
 		var request = url_regexp.matched(4);
 		if( request == "" )
 			request = "/";
-		var port = if( portString == "" ) 80 else Std.parseInt(portString.substr(1,-1));
+		var port = if( portString == "" ) 80 else Std.parseInt(portString.substr(1,portString.length-1));
 		var s = new neko.Socket();
 		var data;
 
