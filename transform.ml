@@ -35,14 +35,14 @@ let rec map f e =
 		{ e with eexpr = TFor (v,f e1,f e2) }
 	| TWhile (e1,e2,flag) ->
 		{ e with eexpr = TWhile (f e1,f e2,flag) }
-	| TThrow e ->
-		{ e with eexpr = TThrow (f e) }
-	| TField (e,v) ->
-		{ e with eexpr = TField (f e,v) }
-	| TParenthesis e ->
-		{ e with eexpr = TParenthesis (f e) }
-	| TUnop (op,pre,e) ->
-		{ e with eexpr = TUnop (op,pre,f e) }
+	| TThrow e1 ->
+		{ e with eexpr = TThrow (f e1) }
+	| TField (e1,v) ->
+		{ e with eexpr = TField (f e1,v) }
+	| TParenthesis e1 ->
+		{ e with eexpr = TParenthesis (f e1) }
+	| TUnop (op,pre,e1) ->
+		{ e with eexpr = TUnop (op,pre,f e1) }
 	| TArrayDecl el ->
 		{ e with eexpr = TArrayDecl (List.map f el) }
 	| TNew (t,pl,el) ->
@@ -51,20 +51,20 @@ let rec map f e =
 		{ e with eexpr = TBlock (List.map f el) }
 	| TObjectDecl el ->
 		{ e with eexpr = TObjectDecl (List.map (fun (v,e) -> v, f e) el) }
-	| TCall (e,el) ->
-		{ e with eexpr = TCall (f e, List.map f el) }
+	| TCall (e1,el) ->
+		{ e with eexpr = TCall (f e1, List.map f el) }
 	| TVars vl ->
 		{ e with eexpr = TVars (List.map (fun (v,t,e) -> v , t , match e with None -> None | Some e -> Some (f e)) vl) }
 	| TFunction fu ->
 		{ e with eexpr = TFunction { fu with tf_expr = f fu.tf_expr } }
-	| TIf (e,e1,e2) ->
-		{ e with eexpr = TIf (f e,f e1,match e2 with None -> None | Some e -> Some (f e)) }
-	| TSwitch (e,cases,def) ->
-		{ e with eexpr = TSwitch (f e, List.map (fun (e1,e2) -> f e1, f e2) cases, match def with None -> None | Some e -> Some (f e)) }
-	| TMatch (e,t,cases,def) ->
-		{ e with eexpr = TMatch (f e, t, List.map (fun (c,l,e) -> c, l, f e) cases, match def with None -> None | Some e -> Some (f e)) }
-	| TTry (e,catches) ->
-		{ e with eexpr = TTry (f e, List.map (fun (v,t,e) -> v, t, f e) catches) }
+	| TIf (ec,e1,e2) ->
+		{ e with eexpr = TIf (f ec,f e1,match e2 with None -> None | Some e -> Some (f e)) }
+	| TSwitch (e1,cases,def) ->
+		{ e with eexpr = TSwitch (f e1, List.map (fun (e1,e2) -> f e1, f e2) cases, match def with None -> None | Some e -> Some (f e)) }
+	| TMatch (e1,t,cases,def) ->
+		{ e with eexpr = TMatch (f e1, t, List.map (fun (c,l,e) -> c, l, f e) cases, match def with None -> None | Some e -> Some (f e)) }
+	| TTry (e1,catches) ->
+		{ e with eexpr = TTry (f e1, List.map (fun (v,t,e) -> v, t, f e) catches) }
 	| TReturn eo ->
 		{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f e)) }
 
