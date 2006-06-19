@@ -440,4 +440,17 @@ class Reflect {
 			;
 	}
 
+	/**
+		Make a copy of an object.
+	**/
+	public static function copy( o : Dynamic ) : Dynamic {
+		var o2 = empty();
+		for( f in Reflect.fields(o) )
+			Reflect.setField(o2,f,Reflect.field(o,f));
+		var c = Reflect.getClass(o);
+		if( c != null )
+			Reflect.setPrototype(o2,c);
+		return o2;
+	}
+
 }
