@@ -146,7 +146,7 @@ and module_type =
 type module_def = {
 	mpath : module_path;
 	mtypes : module_type list;
-	mutable mimports : module_def list;
+	mutable mimports : (module_def * string option) list;
 }
 
 let mk e t p = { eexpr = e; etype = t; epos = p }

@@ -145,7 +145,7 @@ let rec	parse_file s =
 
 and parse_type_decl s =
 	match s with parser
-	| [< '(Kwd Import,p1); t = parse_type_path_normal; _ = semicolon >] -> (EImport (t.tpackage,t.tname), p1)
+	| [< '(Kwd Import,p1); p, t, s = parse_import; p2 = semicolon >] -> EImport (p,t,s) , punion p1 p2
 	| [< c = parse_common_params; s >] ->
 		match s with parser
 		| [< n , p1 = parse_enum_params; doc = get_doc; '(Const (Type name),_); tl = parse_type_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] -> (EEnum (name,doc,tl,List.map snd c @ n,l), punion p1 p2)
@@ -159,6 +159,13 @@ and parse_type_decl s =
 			(ESignature (name,doc,tl,List.map snd c,t), punion p1 p2)
 
 and parse_package s = psep Dot ident s
+
+and parse_import = parser
+	| [< '(Const (Ident k),_); '(Dot,_); p, t, s = parse_import >] -> (k :: p), t, s
+	| [< '(Const (Type t),_); s >] ->
+		[] , t , match s with parser
+			| [< '(Dot,_); '(Const (Type s),_) >] -> Some s
+			| [< >] -> None
 
 and parse_common_params = parser
 	| [< '(Kwd Private,_); l = parse_common_params >] -> (HPrivate, EPrivate) :: l

@@ -482,7 +482,7 @@ let extend_remoting ctx c t p async prot =
 	) in
 	let class_decl = (EClass (t.tname,None,[],[],class_fields),p) in
 	let m = (try Hashtbl.find ctx2.modules (t.tpackage,t.tname) with Not_found -> assert false) in
-	let mdecl = (List.map (fun m -> (EImport m.mpath,p)) m.mimports) @ [class_decl] in
+	let mdecl = (List.map (fun (m,t) -> (EImport (fst m.mpath, snd m.mpath, t),p)) m.mimports) @ [class_decl] in
 	let m = (!type_module_ref) ctx ("Remoting" :: t.tpackage,t.tname) mdecl p in
 	c.cl_super <- Some (match m.mtypes with
 		| [TClassDecl c] -> (c,[])
@@ -2080,10 +2080,19 @@ let type_module ctx m tdecls loadp =
 	(* back to PASS2 *)
 	List.iter (fun (d,p) ->
 		match d with
-		| EImport t ->
-			let md = load ctx t p in
-			m.mimports <- md :: m.mimports;
-			ctx.local_types <- ctx.local_types @ (List.filter (fun t -> not (t_private t)) md.mtypes)
+		| EImport (pack,name,topt) ->
+			let md = load ctx (pack,name) p in
+			let types = List.filter (fun t -> not (t_private t)) md.mtypes in
+			(match topt with
+			| None -> ctx.local_types <- ctx.local_types @ types
+			| Some t ->
+				try
+					let t = List.find (fun tdecl -> snd (t_path tdecl) = t) types in
+					ctx.local_types <- ctx.local_types @ [t]
+				with
+					Not_found -> error ("Module " ^ s_type_path (pack,name) ^ " does not define type " ^ name) p
+			);
+			m.mimports <- (md,topt) :: m.mimports;			
 		| EClass (name,_,_,herits,fields) ->
 			let c = get_class name in
 			delays := !delays @ check_overloading ctx c p :: check_interfaces ctx c p :: init_class ctx c p herits fields
