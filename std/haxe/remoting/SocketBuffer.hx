@@ -81,7 +81,7 @@ class SocketBuffer {
 				bufpos = bytes;
 			} else {
 				if( buflen * 2 > MAX_SIZE )
-					throw "assert";
+					throw InvalidMessage; // can only happens for Xml messages
 				var b2 = neko.Lib.makeString(buflen * 2);
 				neko.Lib.copyBytes(b2,0,buffer,0,bufpos);
 				buffer = b2;
