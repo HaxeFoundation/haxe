@@ -163,10 +163,19 @@ class Serializer {
 			}
 			return;
 		}
+		#if neko
+		var t = untyped __dollar__typeof(v);
+		if( t == untyped __dollar__tstring )
+			v = new String(v);
+		#end
 		if( Std.is(v,String) ) {
 			serializeString(v);
 			return;
 		}
+		#if neko
+		if( t == untyped __dollar__tarray )
+			t = untyped Array.new1(v,__dollar__asize(v));
+		#end
 		if( Std.is(v,Array) ) {
 			if( serializeRef(v) )
 				return;
@@ -220,6 +229,10 @@ class Serializer {
 			return;
 		if( Reflect.isFunction(v) )
 			throw "Cannot serialize function";
+		#if neko
+		if( t == untyped __dollar__tabstract )
+			throw "Cannot serialize abstract";
+		#end
 		var c : Dynamic = v.__class__;
 		if( c != null && c.__name__ != null ) {
 			buf.add("c");
