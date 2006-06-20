@@ -43,7 +43,8 @@ class Manager<T : Object> {
 
 	private static function setConnection( c : Connection ) {
 		Reflect.setField(Manager,"cnx",c);
-		FOR_UPDATE = if( c.hasFeature(ForUpdate) ) " FOR UPDATE" else "";
+		if( c != null )
+			FOR_UPDATE = if( c.hasFeature(ForUpdate) ) " FOR UPDATE" else "";
 		return c;
 	}
 
