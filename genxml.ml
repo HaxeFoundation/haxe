@@ -55,7 +55,7 @@ let rec gen_type t =
 	| TInst (c,params) -> node "c" [gen_path c.cl_path c.cl_private] (List.map gen_type params)
 	| TSign (s,params) -> node "s" [gen_path s.s_path s.s_private] (List.map gen_type params)
 	| TFun (args,r) -> node "f" ["a",String.concat ":" (List.map gen_arg_name args)] (List.map gen_type (List.map (fun (_,_,t) -> t) args @ [r]))
-	| TAnon fields -> node "a" [] (pmap (fun f -> node f.cf_name [] [gen_type f.cf_type]) fields)
+	| TAnon a -> node "a" [] (pmap (fun f -> node f.cf_name [] [gen_type f.cf_type]) a.a_fields)
 	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
 	| TLazy f -> gen_type (!f())
 

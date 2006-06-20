@@ -126,7 +126,7 @@ class Socket {
 	// STATICS
 	public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, timeout : Float) : {read: Array<Socket>,write: Array<Socket>,others: Array<Socket>} {
 		var c = untyped __dollar__hnew( 1 );
-		var f = function( a ){
+		var f = function( a : Array<Socket> ){
 			if( a == null ) return null;
 			untyped {
 				var r = __dollar__amake(a.length);

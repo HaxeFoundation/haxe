@@ -57,7 +57,7 @@ class NekoString__ implements String {
 		}
 	}
 
-	public function indexOf( str, ?pos ) {
+	public function indexOf( str : String, ?pos ) {
 		untyped {
 			var p = try __dollar__sfind(this.__s,if( pos == null ) 0 else pos,str.__s) catch( e : Dynamic ) null;
 			if( p == null )
@@ -66,7 +66,7 @@ class NekoString__ implements String {
 		}
 	}
 
-	public function lastIndexOf( str, pos ) {
+	public function lastIndexOf( str : String, pos ) {
 		untyped {
 			var last = -1;
 			if( pos == null )
@@ -81,7 +81,7 @@ class NekoString__ implements String {
 		}
 	}
 
-	public function split( delim ) {
+	public function split( delim : String ) {
 		untyped {
 			var l = __split(this.__s,delim.__s);
 			var a = new Array<String>();

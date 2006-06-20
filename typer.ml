@@ -54,6 +54,7 @@ type context = {
 	mutable locals : (string, t) PMap.t;
 	mutable locals_map : (string, string) PMap.t;
 	mutable locals_map_inv : (string, string) PMap.t;
+	mutable opened : bool ref list;
 }
 
 (* ---------------------------------------------------------------------- *)
@@ -136,6 +137,7 @@ let context err warn =
 		tthis = mk_mono();
 		current = empty;
 		std = empty;
+		opened = [];
 	} in
 	ctx.std <- (try
 		load ctx ([],"StdTypes") null_pos
@@ -336,7 +338,7 @@ and load_type ctx p t =
 	| TPNormal t -> load_normal_type ctx t p false
 	| TPExtend (t,l) ->
 		(match load_type ctx p (TPAnonymous l) with
-		| TAnon l ->
+		| TAnon a ->
 			let rec loop t =
 				match follow t with
 				| TInst (c,tl) ->
@@ -347,17 +349,17 @@ and load_type ctx p t =
 							error ("Cannot redefine field " ^ f) p
 						with
 							Not_found -> ()
-					) l;
+					) a.a_fields;
 					c2.cl_super <- Some (c,tl);
-					c2.cl_fields <- l;
+					c2.cl_fields <- a.a_fields;
 					TInst (c2,[])
 				| TMono _ ->
 					error "Please ensure correct initialization of cascading signatures" p
-				| TAnon fields ->
+				| TAnon a2 ->
 					PMap.iter (fun f _ ->
-						if PMap.mem f fields then error ("Cannot redefine field " ^ f) p
-					) l;
-					TAnon (PMap.foldi PMap.add l fields)
+						if PMap.mem f a2.a_fields then error ("Cannot redefine field " ^ f) p
+					) a.a_fields;
+					mk_anon (PMap.foldi PMap.add a.a_fields a2.a_fields)
 				| _ -> error "Cannot only extend classes and anonymous" p
 			in
 			loop (load_normal_type ctx t p false)
@@ -393,7 +395,7 @@ and load_type ctx p t =
 				cf_doc = None;
 			} acc
 		in
-		TAnon (List.fold_left loop PMap.empty l)
+		mk_anon (List.fold_left loop PMap.empty l)
 	| TPFunction (args,r) ->
 		match args with
 		| [TPNormal { tpackage = []; tparams = []; tname = "Void" }] ->
@@ -416,10 +418,10 @@ let rec reverse_type t =
 		TPNormal { tpackage = fst s.s_path; tname = snd s.s_path; tparams = List.map reverse_type params }
 	| TFun (params,ret) ->
 		TPFunction (List.map (fun (_,_,t) -> reverse_type t) params,reverse_type ret)
-	| TAnon fields ->
+	| TAnon a ->
 		TPAnonymous (PMap.fold (fun f acc ->
 			(f.cf_name , AFVar (reverse_type f.cf_type), null_pos) :: acc
-		) fields [])
+		) a.a_fields [])
 	| TDynamic t2 ->
 		TPNormal { tpackage = []; tname = "Dynamic"; tparams = if t == t2 then [] else [reverse_type t2] }
 	| _ ->
@@ -848,7 +850,7 @@ let type_type ctx tpath p =
 			s_path = fst c.cl_path, "#" ^ snd c.cl_path;
 			s_doc = None;
 			s_pos = c.cl_pos;
-			s_type = TAnon (if pub then PMap.map (fun f -> { f with cf_public = true }) c.cl_statics else c.cl_statics);
+			s_type = mk_anon (if pub then PMap.map (fun f -> { f with cf_public = true }) c.cl_statics else c.cl_statics);
 			s_private = true;
 			s_static = Some c;
 			s_types = c.cl_types;
@@ -872,7 +874,7 @@ let type_type ctx tpath p =
 			s_path = fst e.e_path, "#" ^ snd e.e_path;
 			s_doc = None;
 			s_pos = e.e_pos;
-			s_type = TAnon fl;
+			s_type = mk_anon fl;
 			s_private = true;
 			s_static = None;
 			s_types = e.e_types;
@@ -980,12 +982,26 @@ let type_field ctx e i p get =
 			no_field())
 	| TDynamic t ->
 		AccExpr (mk (TField (e,i)) t p)
-	| TAnon fl ->
+	| TAnon a ->
 		(try
-			let f = PMap.find i fl in
+			let f = PMap.find i a.a_fields in
 			if not f.cf_public && not ctx.untyped then display_error ctx ("Cannot access to private field " ^ i) p;
 			field_access ctx get f (field_type f) e p
-		with Not_found -> no_field())
+		with Not_found ->
+			if not !(a.a_open) then
+				no_field()
+			else
+			let f = mk_field i (mk_mono()) in
+			a.a_fields <- PMap.add i f a.a_fields;
+			field_access ctx get f (field_type f) e p
+		)
+	| TMono r ->
+		let f = mk_field i (mk_mono()) in
+		let x = ref true in
+		let t = TAnon { a_fields = PMap.add i f PMap.empty; a_open = x } in
+		ctx.opened <- x :: ctx.opened;
+		r := Some t;
+		field_access ctx get f (field_type f) e p
 	| t ->
 		no_field()
 
@@ -1381,20 +1397,11 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let rec loop (l,acc) (f,e) =
 			if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;
 			let e = type_expr ctx e in
-			let cf = {
-				cf_name = f;
-				cf_type = e.etype;
-				cf_public = true;
-				cf_get = NormalAccess;
-				cf_set = NormalAccess;
-				cf_expr = None;
-				cf_doc = None;
-				cf_params = [];
-			} in
+			let cf = mk_field f e.etype in
 			((f,e) :: l, PMap.add f cf acc)
 		in
 		let fields , types = List.fold_left loop ([],PMap.empty) fl in
-		mk (TObjectDecl fields) (TAnon types) p
+		mk (TObjectDecl fields) (mk_anon types) p
 	| EArrayDecl el ->
 		let t , pt = t_array ctx in
 		let dyn = ref ctx.untyped in
@@ -1682,7 +1689,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			]),p)
 
 and type_function ctx t static constr f p =
-	let locals = save_locals ctx in
+	let locals = save_locals ctx in	
 	let fargs , r = (match t with
 		| TFun (args,r) -> List.map (fun (n,opt,t) -> add_local ctx n t, opt, t) args, r
 		| _ -> assert false
@@ -1690,9 +1697,11 @@ and type_function ctx t static constr f p =
 	let old_ret = ctx.ret in
 	let old_static = ctx.in_static in
 	let old_constr = ctx.in_constructor in
+	let old_opened = ctx.opened in
 	ctx.in_static <- static;
 	ctx.in_constructor <- constr;
 	ctx.ret <- r;
+	ctx.opened <- [];
 	let e = type_expr ~need_val:false ctx f.f_expr in
 	let rec loop e =
 		match e.eexpr with
@@ -1718,9 +1727,11 @@ and type_function ctx t static constr f p =
 		with
 			Exit -> ());
 	locals();
+	List.iter (fun r -> r := false) ctx.opened;
 	ctx.ret <- old_ret;
 	ctx.in_static <- old_static;
 	ctx.in_constructor <- old_constr;
+	ctx.opened <- old_opened;
 	e , fargs
 
 let type_static_var ctx t e p =
@@ -1750,7 +1761,7 @@ let check_overloading ctx c p () =
 let rec check_interface ctx c p intf params =
 	PMap.iter (fun i f ->
 		try
-			let t , f2 = class_field c i in
+			let t , f2 = class_field c i in			
 			if f.cf_public && not f2.cf_public then
 				display_error ctx ("Field " ^ i ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
 			else if not(unify_access f2.cf_get f.cf_get) then
@@ -2049,6 +2060,7 @@ let type_module ctx m tdecls loadp =
 		in_static = false;
 		in_loop = false;
 		untyped = false;
+		opened = [];
 	} in
 	let delays = ref [] in
 	let get_class name =

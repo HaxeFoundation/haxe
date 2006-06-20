@@ -46,7 +46,7 @@ class NekoArray__<T> implements Array<T> {
 		}
 	}
 
-	public function concat(arr) {
+	public function concat(arr : Array<T>) : Array<T> {
 		untyped {
 			var a1 = this.__a;
 			var a2 = arr.__a;

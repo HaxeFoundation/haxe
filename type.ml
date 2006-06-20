@@ -30,7 +30,7 @@ type t =
 	| TInst of tclass * t list
 	| TSign of tsignature * t list
 	| TFun of (string * bool * t) list * t
-	| TAnon of (string, tclass_field) PMap.t
+	| TAnon of tanon
 	| TDynamic of t
 	| TLazy of (unit -> t) ref
 
@@ -47,6 +47,11 @@ and tfunc = {
 	tf_args : (string * bool * t) list;
 	tf_type : t;
 	tf_expr : texpr;
+}
+
+and tanon = {
+	mutable a_fields : (string, tclass_field) PMap.t;
+	a_open : bool ref;
 }
 
 and texpr_expr =
@@ -151,6 +156,21 @@ type module_def = {
 
 let mk e t p = { eexpr = e; etype = t; epos = p }
 
+let not_opened = ref false
+
+let mk_anon fl = TAnon { a_fields = fl; a_open = not_opened; }
+
+let mk_field name t = {
+	cf_name = name;
+	cf_type = t;
+	cf_doc = None;
+	cf_public = true;
+	cf_get = NormalAccess;
+	cf_set = NormalAccess;
+	cf_expr = None;
+	cf_params = [];
+}
+
 let mk_mono() = TMono (ref None)
 
 let rec t_dynamic = TDynamic t_dynamic
@@ -208,9 +228,9 @@ let rec s_type ctx t =
 		String.concat " -> " (List.map (fun (s,b,t) ->
 			(if b then "?" else "") ^ (if s = "" then "" else s ^ " : ") ^ s_fun ctx t true
 		) l) ^ " -> " ^ s_fun ctx t false
-	| TAnon fl ->
-		let fl = PMap.fold (fun f acc -> (" " ^ f.cf_name ^ " : " ^ s_type ctx f.cf_type) :: acc) fl [] in
-		"{" ^ String.concat "," fl ^ " }"
+	| TAnon a ->
+		let fl = PMap.fold (fun f acc -> (" " ^ f.cf_name ^ " : " ^ s_type ctx f.cf_type) :: acc) a.a_fields [] in
+		"{" ^ (if !(a.a_open) then "+" else "") ^  String.concat "," fl ^ " }"
 	| TDynamic t2 ->
 		"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
 	| TLazy f ->
@@ -248,9 +268,9 @@ let rec link e a b =
 				loop t2
 		| TLazy f ->
 			loop (!f())
-		| TAnon fl ->
+		| TAnon a ->
 			try
-				PMap.iter (fun _ f -> if loop f.cf_type then raise Exit) fl;
+				PMap.iter (fun _ f -> if loop f.cf_type then raise Exit) a.a_fields;
 				false
 			with
 				Exit -> true
@@ -308,8 +328,11 @@ let apply_params cparams params t =
 				TInst (c,List.map loop tl))
 		| TFun (tl,r) ->
 			TFun (List.map (fun (s,o,t) -> s, o, loop t) tl,loop r)
-		| TAnon fl ->
-			TAnon (PMap.map (fun f -> { f with cf_type = loop f.cf_type }) fl)
+		| TAnon a ->
+			TAnon {
+				a_fields = PMap.map (fun f -> { f with cf_type = loop f.cf_type }) a.a_fields;
+				a_open = a.a_open;
+			}
 		| TLazy f ->
 			let ft = !f() in
 			let ft2 = loop ft in
@@ -367,17 +390,27 @@ let rec type_eq param a b =
 		type_eq param r1 r2 && List.for_all2 (fun (_,o1,t1) (_,o2,t2) -> o1 = o2 && type_eq param t1 t2) l1 l2
 	| TDynamic a , TDynamic b ->
 		type_eq param a b
-	| TAnon fl1, TAnon fl2 ->
-		let keys1 = PMap.fold (fun f acc -> f :: acc) fl1 [] in
-		let keys2 = PMap.fold (fun f acc -> f :: acc) fl2 [] in
+	| TAnon a1, TAnon a2 ->
 		(try
-			List.iter2 (fun f1 f2 ->
-				if f1.cf_name <> f2.cf_name || not (type_eq param f1.cf_type f2.cf_type) then raise Not_found;
-				if f1.cf_get <> f2.cf_get || f1.cf_set <> f2.cf_set then raise Not_found;
-			) keys1 keys2;
+			PMap.iter (fun _ f1 ->
+				try
+					let f2 = PMap.find f1.cf_name a2.a_fields in
+					if not (type_eq param f1.cf_type f2.cf_type) then raise Exit;
+					if f1.cf_get <> f2.cf_get || f1.cf_set <> f2.cf_set then raise Exit;	
+				with
+					Not_found ->
+						if not !(a2.a_open) then raise Exit;
+						a2.a_fields <- PMap.add f1.cf_name f1 a2.a_fields
+			) a1.a_fields;
+			PMap.iter (fun _ f2 ->
+				if not (PMap.mem f2.cf_name a1.a_fields) then begin
+					if not !(a1.a_open) then raise Exit;
+					a1.a_fields <- PMap.add f2.cf_name f2 a1.a_fields
+				end;
+			) a2.a_fields;
 			true
 		with
-			_ -> false)
+			Exit -> false)
 	| _ , _ ->
 		false
 
@@ -469,7 +502,7 @@ let rec unify a b =
 			) l2 l1 (* contravariance *)
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
-	| TInst (c,tl) , TAnon fl ->
+	| TInst (c,tl) , TAnon an ->
 		(try
 			PMap.iter (fun n f2 ->
 				let f1 = (try PMap.find n c.cl_fields with Not_found -> error [has_no_field a n]) in
@@ -480,13 +513,15 @@ let rec unify a b =
 					unify (apply_params c.cl_types tl f1.cf_type) f2.cf_type
 				with
 					Unify_error l -> error (invalid_field n :: l)
-			) fl
+			) an.a_fields;
+			an.a_open := false;
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
-	| TAnon fl1, TAnon fl2 ->
+	| TAnon a1, TAnon a2 ->
 		(try
 			PMap.iter (fun n f2 ->
-				let f1 = (try PMap.find n fl1 with Not_found -> error [has_no_field a n]) in
+			try
+				let f1 = PMap.find n a1.a_fields in
 				if not (unify_access f1.cf_get f2.cf_get) then error [invalid_access n true];
 				if not (unify_access f1.cf_set f2.cf_set) then error [invalid_access n false];
 				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
@@ -494,7 +529,13 @@ let rec unify a b =
 					unify f1.cf_type f2.cf_type;
 				with
 					Unify_error l -> error (invalid_field n :: l)
-			) fl2;
+			with
+				Not_found ->
+					if not !(a1.a_open) then error [has_no_field a n];
+					a1.a_fields <- PMap.add n f2 a1.a_fields
+			) a2.a_fields;
+			a1.a_open := false;
+			a2.a_open := false;
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| TDynamic t , _ ->
