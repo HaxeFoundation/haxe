@@ -2103,7 +2103,7 @@ let type_module ctx m tdecls loadp =
 			List.iter (fun (c,doc,t,p) ->
 				let t = (match t with
 					| [] -> et
-					| l -> TFun (List.map (fun (s,t) -> s, false, load_type ctx p t) l, et)
+					| l -> TFun (List.map (fun (s,b,t) -> s, b, load_type ctx p t) l, et)
 				) in
 				e.e_constrs <- PMap.add c { ef_name = c; ef_type = t; ef_pos = p; ef_doc = doc } e.e_constrs
 			) constrs

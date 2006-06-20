@@ -11,6 +11,7 @@
 	added code transformations for swf/js block variables
 	fixed very tricky bug with constraint parameters used together with polymorphic methods
 	added selective import (import x.y.Class.InnerType)
+	added optional enum constructor parameters
 	
 2006-06-08: 1.02
 	fixed stack overflow when recursive class <: recursive signature

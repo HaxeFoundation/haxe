@@ -245,7 +245,8 @@ and parse_enum s =
 		| [< >] -> serror()
 
 and parse_enum_param = parser
-	| [< name = any_ident; '(DblDot,_); t = parse_type_path >] -> (name,t)
+	| [< '(Question,_); name = any_ident; '(DblDot,_); t = parse_type_path >] -> (name,true,t)
+	| [< name = any_ident; '(DblDot,_); t = parse_type_path >] -> (name,false,t)
 
 and parse_class_field s =
 	doc := None;
