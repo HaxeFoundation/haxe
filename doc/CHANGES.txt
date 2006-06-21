@@ -3,7 +3,7 @@
 	removed selectDB from the neko.db.Connection API
 	added optional parameters with selection
 	removed --no-flash-opt-args
-	changed in SWF packages handling
+	changes in SWF packages handling
 	fixed optional leading comma in anonymous object and array values
 	fixed bug in inheritend constructor type parameters
 	fixed bug in type_field with inherited type parameters
