@@ -633,12 +633,22 @@ let is_float t =
 	| _ ->
 		false
 
-let is_flash_extern t =
-	match follow t with
+let rec is_flash_extern t =
+	match t with
+	| TLazy f ->
+		is_flash_extern (!f())
+	| TMono r ->
+		(match !r with
+		| None -> false
+		| Some t -> is_flash_extern t)
 	| TInst (c,_) ->
 		(match fst c.cl_path with
 		| "flash" :: _ -> c.cl_extern
 		| _ -> false)
+	| TSign (s,_) ->
+		(match s.s_static with		
+		| Some { cl_extern = true; cl_path = "flash" :: _ , _ } -> true
+		| _ -> is_flash_extern s.s_type);
 	| _ -> false
 
 let t_array ctx =
