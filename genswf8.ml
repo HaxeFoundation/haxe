@@ -183,6 +183,7 @@ let is_protected_name path ext =
 	match path with
 	| ["flash"] , "Boot" | ["flash"] , "Lib" -> false
 	| "flash" :: _ , _ -> ext
+	| "_global" :: _ , _ -> true
 	| [] , "Array" | [] , "Math" | [] , "Date" | [] , "String" -> true
 	| _ -> false
 
@@ -1188,7 +1189,7 @@ let gen_type_def ctx t =
 			push ctx [VReg 0; VStr ("__super__",false); VNull];
 			setvar ctx VarObj
 		| Some (csuper,_) ->
-			let path = (match csuper.cl_path with (["flash"],x) when csuper.cl_extern -> ([],x) | p -> p) in
+			let path = (match csuper.cl_path with (["flash"],x) when csuper.cl_extern -> (["_global"],x) | p -> p) in
 			push ctx [VReg 0; VStr ("__super__",false)];
 			getvar ctx (gen_path ctx path csuper.cl_extern);
 			setvar ctx VarObj;
