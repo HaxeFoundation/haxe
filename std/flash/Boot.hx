@@ -152,7 +152,7 @@ class Boot {
 	private static function __trace(v,inf) {
 		untyped {
 			var root = flash.Lib.current;
-			var tf = root.__trace_txt;
+			var tf : flash.TextField = root.__trace_txt;
 			if( tf == null ) {
 				root.createTextField("__trace_txt",1048500,0,0,Stage.width,Stage.height);
 				tf = root.__trace_txt;
@@ -160,7 +160,7 @@ class Boot {
 				root.__trace_lines = new Array<String>();
 			}
 			var s = inf.fileName+(if( inf.lineNumber == null ) "" else ":"+inf.lineNumber)+": "+__string_rec(v,"");
-			var lines = root.__trace_lines["concat"](s.split("\n"));
+			var lines : Array<String> = root.__trace_lines["concat"](s.split("\n"));
 			root.__trace_lines = lines;
 			var nlines = Stage.height / 16;
 			if( lines.length > nlines )
