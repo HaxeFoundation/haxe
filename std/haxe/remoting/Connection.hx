@@ -87,7 +87,7 @@ class Connection implements Dynamic<Connection> {
 			#end
 			var fun = Reflect.field(obj,f);
 			if( fun == null )
-				throw "Invalid call : "+path+"."+f;
+				throw "Invalid remoting call : "+path+"."+f;
 			var v = Reflect.callMethod(obj,fun,params);
 			var s = new haxe.Serializer();
 			s.serialize(v);
