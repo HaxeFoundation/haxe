@@ -77,6 +77,10 @@ class NekoDate__ //implements Date
 		return new1(i);
 	}
 
+	private static function fromString( s : String ) {
+		return new1(date_new(untyped s.__s));
+	}
+
 	private static function new1(t) {
 		var d = new NekoDate__(2005,1,1,0,0,0);
 		d.__t = t;

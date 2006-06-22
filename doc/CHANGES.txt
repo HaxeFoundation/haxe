@@ -14,6 +14,9 @@
 	added optional enum constructor parameters
 	added opened anonymous types (no more Unknown has no field...)
 	fixed "MovieClip extends flash.MovieClip".
+	added Reflect.copy
+	added neko.Random
+	added Date.fromString
 	
 2006-06-08: 1.02
 	fixed stack overflow when recursive class <: recursive signature

@@ -36,7 +36,8 @@ extern class Date
 
 	/**
 		Returns the timestamp of the date. It's the number of milliseconds
-		elapsed since 1st January 1970.
+		elapsed since 1st January 1970. It might only have a per-second precision
+		depending on the platforms.
 	**/
 	function getTime() : Float;
 
@@ -65,64 +66,65 @@ extern class Date
 	**/
 	static function fromTime( t : Float ) : Date;
 
+	/**
+		Returns a Date from a formated string of one of the following formats :
+		[YYYY-MM-DD hh:mm:ss] or [YYYY-MM-DD] or [hh:mm:ss]. The first two formats
+		are expressed in local time, the third in UTC Epoch.
+	**/
+	static function fromString( s : String ) : Date;
+
 	private static function __init__() : Void untyped {
-	#if js
-		Date.now = function() {
-			return __new__(Date);
-		};
-		Date.fromTime = function(t){
-			var d = __new__(Date);
-			d.setTime( t );
-			return d;
-		};
-		Date.prototype.toString = function() {
-			var m = this.getMonth() + 1;
-			var d = this.getDate();
-			var h = this.getHours();
-			var mi = this.getMinutes();
-			var s = this.getSeconds();
-			if( d < 10 )
-				d = "0" + d;
-			if( m < 10 )
-				m = "0" + m;
-			if( h < 10 )
-				h = "0" + h;
-			if( mi < 10 )
-				mi = "0" + mi;
-			if( s < 10 )
-				s = "0" + s;
-			return this.getFullYear()+"-"+m+"-"+d+" "+h+":"+mi+":"+s;
-		};
-	#else flash
-		Date.now = function() {
-			return __new__(Date);
-		};
-		Date.fromTime = function(t){
-			var d = __new__(Date);
-			d.setTime( t );
-			return d;
-		};
-		Date.prototype.toString = function() {
-			var m = this.getMonth() + 1;
-			var d = this.getDate();
-			var h = this.getHours();
-			var mi = this.getMinutes();
-			var s = this.getSeconds();
-			if( d < 10 )
-				d = "0" + d;
-			if( m < 10 )
-				m = "0" + m;
-			if( h < 10 )
-				h = "0" + h;
-			if( mi < 10 )
-				mi = "0" + mi;
-			if( s < 10 )
-				s = "0" + s;
-			return this.getFullYear()+"-"+m+"-"+d+" "+h+":"+mi+":"+s;
-		};
-	#else neko
+	#if neko
 		Date = neko.NekoDate__;
-	#else error
+	#else true
+		Date.now = function() {
+			return __new__(Date);
+		};
+		Date.fromTime = function(t){
+			var d : Date = __new__(Date);
+			d.setTime( t );
+			return d;
+		};
+		Date.fromString = function(s : String) {
+			switch( s.length ) {
+			case 8: // hh:mm:ss
+				var k = s.split(":");
+				var d : Date = __new__(Date);
+				d.setTime(0);
+				d.setUTCHours(k[0]);
+				d.setUTCMinutes(k[1]);
+				d.setUTCSeconds(k[2]);
+				return d;
+			case 10: // YYYY-MM-DD
+				var k = s.split("-");
+				return new Date(k[0],k[1] - 1,k[2],0,0,0);
+			case 19: // YYYY-MM-DD hh:mm:ss
+				var k = s.split(" ");
+				var y = k[0].split("-");
+				var t = k[1].split(":");
+				return new Date(y[0],y[1] - 1,y[2],t[0],t[1],t[2]);
+			default:
+				throw "Invalid date format : " + s;
+			}
+		};
+		Date.prototype.toString = function() {
+			var m = this.getMonth() + 1;
+			var d = this.getDate();
+			var h = this.getHours();
+			var mi = this.getMinutes();
+			var s = this.getSeconds();
+			if( d < 10 )
+				d = "0" + d;
+			if( m < 10 )
+				m = "0" + m;
+			if( h < 10 )
+				h = "0" + h;
+			if( mi < 10 )
+				mi = "0" + mi;
+			if( s < 10 )
+				s = "0" + s;
+			return this.getFullYear()+"-"+m+"-"+d+" "+h+":"+mi+":"+s;
+		};
 	#end
 	}
 
