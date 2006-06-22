@@ -444,6 +444,9 @@ class Reflect {
 		Make a copy of an object.
 	**/
 	public static function copy( o : Dynamic ) : Dynamic {
+		#if neko
+		return untyped __dollar__new(o);
+		#else true
 		var o2 = empty();
 		for( f in Reflect.fields(o) )
 			Reflect.setField(o2,f,Reflect.field(o,f));
@@ -451,6 +454,7 @@ class Reflect {
 		if( c != null )
 			Reflect.setPrototype(o2,c);
 		return o2;
+		#end
 	}
 
 }
