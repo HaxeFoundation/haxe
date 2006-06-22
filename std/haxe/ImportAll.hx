@@ -147,6 +147,7 @@ import neko.Boot;
 import neko.File;
 import neko.FileSystem;
 import neko.Lib;
+import neko.Random;
 import neko.Socket;
 import neko.Stack;
 import neko.Sys;
