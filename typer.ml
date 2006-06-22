@@ -989,6 +989,7 @@ let type_field ctx e i p get =
 		with Not_found -> try
 			loop_dyn c params
 		with Not_found ->
+			if PMap.mem i c.cl_statics then error ("Cannot access static field " ^ i ^ " from a class instance") p;
 			no_field())
 	| TDynamic t ->
 		AccExpr (mk (TField (e,i)) t p)
