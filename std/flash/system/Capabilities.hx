@@ -31,7 +31,7 @@ extern class Capabilities
 	static var windowlessDisable:Bool;
 
 	private static function __init__() : Void untyped {
-		flash.system.Capabilities = _global.System.capabilities;
+		flash.system.Capabilities = _global["System"]["capabilities"];
 	}
 
 }

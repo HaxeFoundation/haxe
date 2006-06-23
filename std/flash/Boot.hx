@@ -70,7 +70,7 @@ class Boot {
 				if( typeof(o) == "movieclip" )
 					str = "MC("+o._name+") "+str;
 				s += "    ";
-				for( k in (__keys__(o)).iterator() ) {
+				for( k in (__keys__(o))["iterator"]() ) {
 					if( str.length != 2 )
 						str += ",\n";
 					if( k == __unprotect__("__construct__") && __typeof__(o[k]) == "function" )
@@ -149,7 +149,7 @@ class Boot {
 		}
 	}
 
-	private static function __trace(v,inf) {
+	private static function __trace(v,inf : haxe.PosInfos) {
 		untyped {
 			var root = flash.Lib.current;
 			var tf : flash.TextField = root.__trace_txt;
@@ -171,8 +171,9 @@ class Boot {
 
 	private static function __clear_trace() {
 		untyped {
-			_root.__trace_txt.removeTextField();
-			_root.__trace_lines = null;
+			var root = flash.Lib.current;
+			root.__trace_txt["removeTextField"]();
+			root.__trace_lines = null;
 		}
 	}
 
@@ -180,7 +181,7 @@ class Boot {
 		// only if not set yet
 		var g : Dynamic = _global;
 		if( !g.haxeInitDone ) {
-			var obj = _global.Object;
+			var obj = _global["Object"];
 			g.haxeInitDone = true;
 			g.Int = __new__(obj);
 			g.Bool = __new__(obj);
@@ -188,12 +189,12 @@ class Boot {
 			g.Bool = __new__(obj);
 			g.Bool[__unprotect__("true")] = true;
 			g.Bool[__unprotect__("false")] = false;
-			g.Float = _global.Number;
-			Array.prototype.copy = Array.prototype.slice;
-			Array.prototype.insert = function(i,x) {
+			g.Float = _global["Number"];
+			Array.prototype["copy"] = Array.prototype["slice"];
+			Array.prototype["insert"] = function(i,x) {
 				this["splice"](i,0,x);
 			};
-			Array.prototype.remove = function(obj) {
+			Array.prototype["remove"] = function(obj) {
 				var i = 0;
 				var l = this["length"];
 				while( i < l ) {
@@ -205,21 +206,21 @@ class Boot {
 				}
 				return false;
 			}
-			Array.prototype.iterator = function() {
+			Array.prototype["iterator"] = function() {
 				return {
 					cur : 0,
 					arr : this,
 					hasNext : function() {
-						return this.cur < this.arr.length;
+						return this.cur < this.arr["length"];
 					},
 					next : function() {
 						return this.arr[this.cur++];
 					}
 				}
 			};
-			var cca = String.prototype.charCodeAt;
-			String.prototype.charCodeAt = function(i) {
-				var x = cca.call(this,i);
+			var cca = String.prototype["charCodeAt"];
+			String.prototype["charCodeAt"] = function(i) {
+				var x = cca["call"](this,i);
 				if( x <= 0 ) // fast NaN
 					return null;
 				return x;

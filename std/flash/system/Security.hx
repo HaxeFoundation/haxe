@@ -7,7 +7,7 @@ extern class Security
 	static function loadPolicyFile(url:String):Void;
 
 	private static function __init__() : Void untyped {
-		flash.system.Security = _global.System.security;
+		flash.system.Security = _global["System"]["security"];
 	}
 
 }

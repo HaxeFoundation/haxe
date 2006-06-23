@@ -138,8 +138,8 @@ class IntHash<T> {
 		return untyped {
 			ref : h,
 			it : keys(),
-			hasNext : function() { return this.it.hasNext(); },
-			next : function() { var i = this.it.next(); return this.ref[i]; }
+			hasNext : function() { return this.it[__unprotect__("hasNext")](); },
+			next : function() { var i = this.it[__unprotect__("next")](); return this.ref[i]; }
 		};
 		#else js
 		return untyped {

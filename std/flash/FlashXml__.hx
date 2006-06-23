@@ -55,9 +55,9 @@ class FlashXml__ {
 
 	public static function parse( xmlData : String ) : Xml untyped {
 		var x = __new__(_global["XML"]);
-		x.parseXML(xmlData);
-		if( x.status != 0 )
-			throw ("Xml parse error #"+x.status);
+		x["parseXML"](xmlData);
+		if( x["status"] != 0 )
+			throw ("Xml parse error #"+x["status"]);
 
 		var r = convert(x);
 		untyped r.nodeType = Xml.Document;
@@ -65,7 +65,7 @@ class FlashXml__ {
 	}
 
 	public static function createDocument() : Xml {
-		var o = untyped __new__(_global["XML"]).createElement( "#document" );
+		var o = untyped __new__(_global["XML"])["createElement"]( "#document" );
 
 		var r = convert(o);
 		untyped r.nodeType = Xml.Document;
@@ -73,20 +73,20 @@ class FlashXml__ {
 	}
 
 	public static function createCData( s : String ) : Xml {
-		var o = untyped __new__(_global["XML"]).createTextNode( s );
+		var o = untyped __new__(_global["XML"])["createTextNode"]( s );
 		var x = convert(o);
 		untyped x.nodeType = Xml.CData;
 		return x;
 	}
 
 	public static function createPCData( s : String ) : Xml {
-		var o = untyped __new__(_global["XML"]).createTextNode( s );
+		var o = untyped __new__(_global["XML"])["createTextNode"]( s );
 
 		return convert(o);
 	}
 
 	public static function createElement( s : String ) : Xml {
-		var o = untyped __new__(_global["XML"]).createElement( s );
+		var o = untyped __new__(_global["XML"])["createElement"]( s );
 
 		return convert(o);
 	}
@@ -152,7 +152,7 @@ class FlashXml__ {
 			},
 			next : function(){
 				var r = convert(this.cur);
-				this.cur = this.cur.nextSibling;
+				this.cur = this.cur["nextSibling"];
 				return r;
 			}
 		}
@@ -163,20 +163,20 @@ class FlashXml__ {
 			cur: this.__x[untyped "firstChild"],
 			hasNext : function() {
 				var r = this.cur;
-				while( r != null && r.nodeType != 1 )
-					r = r.nextSibling;
+				while( r != null && r["nodeType"] != 1 )
+					r = r["nextSibling"];
 				this.cur = r;
 				return r != null;
 			},
 			next : function(){
 				var r = this.cur;
-				while( r != null && r.nodeType != 1 )
-					r = r.nextSibling;
+				while( r != null && r["nodeType"] != 1 )
+					r = r["nextSibling"];
 				if( r == null ) {
 					this.cur = null;
 					return null;
 				}
-				this.cur = r.nextSibling;
+				this.cur = r["nextSibling"];
 				return convert(r);
 			}
 		}
@@ -187,20 +187,20 @@ class FlashXml__ {
 			cur: this.__x[untyped "firstChild"],
 			hasNext : function() {
 				var r = this.cur;
-				while( r != null && (r.nodeType != 1 || r.nodeName != nodeName) )
-					r = r.nextSibling;
+				while( r != null && (r["nodeType"] != 1 || r["nodeName"] != nodeName) )
+					r = r["nextSibling"];
 				this.cur = r;
 				return r != null;
 			},
 			next : function(){
 				var r = this.cur;
-				while( r != null && (r.nodeType != 1 || r.nodeName != nodeName) )
-					r = r.nextSibling;
+				while( r != null && (r["nodeType"] != 1 || r["nodeName"] != nodeName) )
+					r = r["nextSibling"];
 				if( r == null ) {
 					this.cur = null;
 					return null;
 				}
-				this.cur = r.nextSibling;
+				this.cur = r["nextSibling"];
 				return convert(r);
 			}
 		}
@@ -233,7 +233,7 @@ class FlashXml__ {
 	public function attributes() : Iterator<String> {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		return untyped __keys__(__x["attributes"]).iterator();
+		return untyped __keys__(__x["attributes"])["iterator"]();
 	}
 
 	public function addChild( child : Xml ) {
