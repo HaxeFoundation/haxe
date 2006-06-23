@@ -68,7 +68,7 @@ class Lib {
 	}
 
 	public static function registerClass( name : String, cl : {} ) {
-		untyped _global["Object"].registerClass(name,cl);
+		untyped _global["Object"]["registerClass"](name,cl);
 	}
 
 	public static function throwException() {

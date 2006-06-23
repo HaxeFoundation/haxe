@@ -107,7 +107,7 @@ extern class Date
 				throw "Invalid date format : " + s;
 			}
 		};
-		Date.prototype.toString = function() {
+		Date.prototype["toString"] = function() {
 			var m = this.getMonth() + 1;
 			var d = this.getDate();
 			var h = this.getHours();
