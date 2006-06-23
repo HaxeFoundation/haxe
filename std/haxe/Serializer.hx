@@ -106,7 +106,7 @@ class Serializer {
 
 	function serializeRef(v) {
 		for( i in 0...cache.length ) {
-			if( cache[i] === v ) {
+			if( cache[i] == v ) {
 				buf.add("r");
 				buf.add(i);
 				return true;
