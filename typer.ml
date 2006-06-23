@@ -64,6 +64,7 @@ type access_kind =
 	| AccNo of string
 	| AccExpr of texpr
 	| AccSet of texpr * string * t * string
+	| AccSetField of texpr * string * t
 
 type switch_mode =
 	| CMatch of (string * (string option * t) list option)
@@ -267,7 +268,7 @@ let acc_get g p =
 	match g with
 	| AccNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
 	| AccExpr e -> e
-	| AccSet _ -> assert false
+	| AccSet _ | AccSetField _ -> assert false
 
 (** since load_type is used in PASS2 , it cannot access the structure of a type **)
 
@@ -973,8 +974,10 @@ let type_field ctx e i p get =
 			match c.cl_dynamic with
 			| Some t ->
 				let t = apply_params c.cl_types params t in
-				if PMap.mem "__resolve" c.cl_fields then
+				if get && PMap.mem "__resolve" c.cl_fields then
 					AccExpr (mk (TCall (mk (TField (e,"__resolve")) (mk_mono()) p,[type_constant ctx (String i) p])) t p)
+				else if not get && PMap.mem "__setfield" c.cl_fields then
+					AccSetField (e,i,t)
 				else
 					AccExpr (mk (TField (e,i)) t p)
 			| None ->
@@ -1049,6 +1052,9 @@ let rec type_binop ctx op e1 e2 p =
 				error "Assigning a value to itself" p
 			| _ , _ -> ());
 			mk (TBinop (op,e1,e2)) e1.etype p
+		| AccSetField (e,f,t) ->
+			unify ctx e2.etype t p;
+			mk (TCall (mk (TField (e,"__setfield")) (mk_mono()) p,[mk (TConst (TString f)) (mk_mono()) p; e2])) t p
 		| AccSet (e,m,t,_) ->
 			unify ctx e2.etype t p;
 			mk (TCall (mk (TField (e,m)) (mk_mono()) p,[e2])) t p)
@@ -1064,6 +1070,8 @@ let rec type_binop ctx op e1 e2 p =
 				mk (TBinop (OpAssignOp op,e,e2)) e.etype p;
 			| _ ->
 				assert false)
+		| AccSetField _ ->
+			error "This kind of operation is not supported" p
 		| AccSet (e,m,t,f) ->
 			let l = save_locals ctx in
 			let v = gen_local ctx e.etype in
@@ -1193,6 +1201,8 @@ and type_unop ctx op flag e p =
 		| _ -> mk (TUnop (op,flag,e)) t p)
 	| AccNo s ->
 		error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
+	| AccSetField _ ->
+		error "This kind of operation is not supported" p
 	| AccSet (e,m,t,f) ->
 		let l = save_locals ctx in
 		let v = gen_local ctx e.etype in
