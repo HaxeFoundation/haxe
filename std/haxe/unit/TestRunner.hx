@@ -32,23 +32,23 @@ class TestRunner {
 	private static function print( v : Dynamic ){
 		#if flash
 		untyped {
-						var root = flash.Lib.current;
-						var tf = root.__trace_txt;
-						if( tf == null ) {
-										root.createTextField("__trace_txt",1048500,0,0,Stage.width,Stage.height);
-										tf = root.__trace_txt;
-										tf.selectable = false;
-										tf.wordWrap = true;
-										root.__trace_lines = new Array<String>();
-						}
-						var s = flash.Boot.__string_rec(v,"");
-						tf.text += s;
-						var lines = tf.text.split("\n");
-						var nlines = Stage.height / 16;
-						if( lines.length > nlines ){
-										lines.splice(0,lines.length-nlines);
-							tf.text = lines.join("\n");
-						}
+			var root : flash.MovieClip = flash.Lib.current;
+			var tf : flash.TextField = root.__trace_txt;
+			if( tf == null ) {
+				root.createTextField("__trace_txt",1048500,0,0,flash.Stage.width,flash.Stage.height);
+				tf = root.__trace_txt;
+				tf.selectable = false;
+				tf.wordWrap = true;
+				root.__trace_lines = new Array<String>();
+			}
+			var s = flash.Boot.__string_rec(v,"");
+			tf.text += s;
+			var lines = tf.text.split("\n");
+			var nlines = flash.Stage.height / 16;
+			if( lines.length > nlines ){
+				lines.splice(0,lines.length-nlines);
+				tf.text = lines.join("\n");
+			}
 		}
 		#else neko
 		untyped __dollar__print(v);
