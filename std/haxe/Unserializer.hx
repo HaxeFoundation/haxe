@@ -84,9 +84,7 @@ class Unserializer {
  		return k;
  	}
 
-	function unserializeObject() : Dynamic {
- 		var o = Reflect.empty();
- 		cache.push(o);
+	function unserializeObject(o) {
  		while( true ) {
  			if( pos >= length )
  				throw "Invalid object";
@@ -99,7 +97,6 @@ class Unserializer {
  			Reflect.setField(o,k,v);
  		}
  		pos++;
- 		return o;
 	}
 
  	public function unserialize() : Dynamic {
@@ -199,7 +196,10 @@ class Unserializer {
  			}
  			return a;
  		case 111: // o
-			return unserializeObject();
+	 		var o = Reflect.empty();
+	 		cache.push(o);
+			unserializeObject(o);
+			return o;
  		case 114: // r
  			var n = readDigits();
  			if( n < 0 || n >= cache.length )
@@ -208,6 +208,8 @@ class Unserializer {
  		case 120: // x
 			throw unserialize();
 		case 99: // c
+	 		var o = Reflect.empty();
+	 		cache.push(o);
 			var a : Array<String> = unserialize();
             if( !Std.is(a,Array) )
 				throw "Invalid class name";
@@ -217,7 +219,7 @@ class Unserializer {
 			var cl = resolver.resolveClass(a);
 			if( cl == null )
 				throw "Class not found " + a.join(".");
-			var o = unserializeObject();
+			unserializeObject(o);
 			Reflect.setPrototype(o,cl.prototype);
 			return o;
 		case 119: // w
