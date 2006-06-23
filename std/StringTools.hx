@@ -37,7 +37,7 @@ class StringTools {
 	**/
 	public static function urlEncode( s : String ) : String {
 		#if flash
-		return untyped _global.escape(s);
+		return untyped _global["escape"](s);
 		#else neko
 		return new String(_urlEncode(untyped s.__s));
 		#else js
@@ -51,7 +51,7 @@ class StringTools {
 	**/
 	public static function urlDecode( s : String ) : String {
 		#if flash
-		return untyped _global.unescape(s);
+		return untyped _global["unescape"](s);
 		#else neko
 		return new String(_urlDecode(untyped s.__s));
 		#else js

@@ -56,13 +56,13 @@ extern class Math
 	#if neko
 		Math = neko.NekoMath__;
 	#else true
-		NaN = Number.NaN;
-		NEGATIVE_INFINITY = Number.NEGATIVE_INFINITY;
-		POSITIVE_INFINITY = Number.POSITIVE_INFINITY;
+		NaN = Number["NaN"];
+		NEGATIVE_INFINITY = Number["NEGATIVE_INFINITY"];
+		POSITIVE_INFINITY = Number["POSITIVE_INFINITY"];
 		isFinite = function(i) {
 			return
 			#if flash
-			_global.isFinite(i);
+			_global["isFinite"](i);
 			#else js
 			__js__("isFinite")(i);
 			#else error
@@ -71,7 +71,7 @@ extern class Math
 		isNaN = function(i) {
 			return
 			#if flash
-			_global.isNaN(i);
+			_global["isNaN"](i);
 			#else js
 			__js__("isNaN")(i);
 			#else error
