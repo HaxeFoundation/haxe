@@ -138,6 +138,24 @@ class Web {
 	public static function setCookie( k : String, v : String ) {
 		_set_cookie(untyped k.__s,untyped v.__s);
 	}
+	
+	/**
+		Returns an object with the authorization sent by the client (Basic scheme only).
+	**/
+	public static function getAuthorization() : { user : String, pass : String } {
+		var h = getClientHeader("Authorization");
+		var reg = ~/^Basic ([^=]+)=*$/;
+		if( h != null && reg.match(h) ){
+			var val = reg.matched(1);
+			untyped val = new String(_base_decode(val.__s,"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".__s));
+			var a = val.split(":");
+			if( a.length != 2 ){
+				throw "Unable to decode authorization.";
+			}
+			return {user: a[0],pass: a[1]};
+		}
+		return null;
+	}
 
 	/**
 		Get the current script directory in the local filesystem.
@@ -170,6 +188,7 @@ class Web {
 	static var _get_cookies : Dynamic;
 	static var _set_cookie : Dynamic;
 	static var _get_cwd : Dynamic;
+	static var _base_decode = Lib.load("std","base_decode",2);
 
 	static function __init__() {
 		var get_env = Lib.load("std","get_env",1);
