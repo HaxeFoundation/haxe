@@ -168,7 +168,7 @@ let new_call ctx kind n  =
 	ctx.stack_size <- ctx.stack_size - n
 
 let always_protected = function
-	| "prototype" | "toString" | "__resolve" | "__constructor__" | "__proto__" -> true
+	| "prototype" | "toString" | "__resolve" | "__constructor__" | "__proto__" | "iterator" -> true
 	(*// haxe.PosInfos *)
 	| "fileName" | "lineNumber" | "className" | "methodName" | "customParams" -> true
 	| s ->
@@ -198,7 +198,7 @@ let rec is_protected ctx t check_mt =
 		loop c
 	| TMono r ->
 		(match !r with
-		| None -> true
+		| None -> assert false
 		| Some t -> is_protected ctx t check_mt)
 	| TLazy f ->
 		is_protected ctx ((!f)()) check_mt

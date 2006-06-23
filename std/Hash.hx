@@ -114,7 +114,7 @@ class Hash<T> {
 	**/
 	public function keys() : Iterator<String> {
 		#if flash
-		return untyped (__keys__(h)).iterator();
+		return untyped (__keys__(h))["iterator"]();
 		#else js
 		return Reflect.fields(h).iterator();
 		#else neko
