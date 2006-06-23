@@ -99,8 +99,8 @@ class Boot {
 			if( m == null )
 				return null;
 			var f2 = function() {
-				var me = __arguments__.callee;
-				return me.f.apply(me.o,__arguments__);
+				var me = __arguments__["callee"];
+				return me["f"]["apply"](me["o"],__arguments__);
 			};
 			f2["f"] = m;
 			f2["o"] = o;
@@ -237,8 +237,8 @@ class Boot {
 		current[__unprotect__("@closure")] = untyped __closure;
 		current[__unprotect__("@exc")] = exc;
 		// fix firefox default alignement
-		if( flash.Stage.align == "" )
-			flash.Stage.align = "LT";
+		if( _global["Stage"]["align"] == "" )
+			_global["Stage"]["align"] = "LT";
 	}
 
 }
