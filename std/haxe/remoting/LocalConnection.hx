@@ -32,7 +32,7 @@ class LocalConnection extends AsyncConnection {
 
 	var __funs : List<Dynamic -> Void>;
 
-	function __resolve(field) : AsyncConnection {
+	override function __resolve(field) : AsyncConnection {
 		var s = new LocalConnection(__data,__path.copy());
 		s.__error = __error;
 		s.__funs = __funs;
@@ -40,7 +40,7 @@ class LocalConnection extends AsyncConnection {
 		return s;
 	}
 
-	public function call( params : Array<Dynamic>, onData : Dynamic -> Void ) : Void {
+	override public function call( params : Array<Dynamic>, onData : Dynamic -> Void ) : Void {
 		try {
 			var s = new haxe.Serializer();
 			var p = __path.copy();

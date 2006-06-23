@@ -1762,7 +1762,7 @@ let type_static_var ctx t e p =
 	unify ctx e.etype t p;
 	e
 
-let check_overloading ctx c p () =
+let check_overriding ctx c p () =
 	match c.cl_super with
 	| None -> ()
 	| Some (csup,params) ->
@@ -1770,7 +1770,11 @@ let check_overloading ctx c p () =
 			try
 				let t , f2 = class_field csup i in
 				let t = apply_params csup.cl_types params t in
-				if f.cf_public <> f2.cf_public then
+				ignore(follow f.cf_type); (* force evaluation *)
+				let p = (match f.cf_expr with None -> p | Some e -> e.epos) in
+				if not (List.mem i c.cl_overrides) then 
+					display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass") p
+				else if f.cf_public <> f2.cf_public then
 					display_error ctx ("Field " ^ i ^ " has different visibility (public/private) than superclass one") p
 				else if f2.cf_get <> f.cf_get || f2.cf_set <> f.cf_set then
 					display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p
@@ -1784,6 +1788,8 @@ let rec check_interface ctx c p intf params =
 	PMap.iter (fun i f ->
 		try
 			let t , f2 = class_field c i in			
+			ignore(follow f.cf_type); (* force evaluation *)
+			let p = (match f.cf_expr with None -> p | Some e -> e.epos) in
 			if f.cf_public && not f2.cf_public then
 				display_error ctx ("Field " ^ i ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
 			else if not(unify_access f2.cf_get f.cf_get) then
@@ -1865,7 +1871,7 @@ let init_class ctx c p herits fields =
 					cf.cf_type <- TLazy r;
 					(fun () -> ignore(!r()))
 			) in
-			List.mem AStatic access, false, cf, delay
+			access, false, cf, delay
 		| FFun (name,doc,access,params,f) ->
 			let params = List.map (fun (n,flags) ->
 				match flags with
@@ -1914,15 +1920,14 @@ let init_class ctx c p herits fields =
 					(fun() -> ignore((!r)()))
 				end
 			) in
-			stat, constr, cf, delay
+			access, constr, cf, delay
 		| FProp (name,doc,access,get,set,t) ->
-			let ret = load_type ctx p t in
-			let is_static = List.mem AStatic access in
+			let ret = load_type ctx p t in			
 			let check_get = ref (fun() -> ()) in
 			let check_set = ref (fun() -> ()) in
 			let check_method m t () =
 				try
-					let t2 = (if is_static then (PMap.find m c.cl_statics).cf_type else fst (class_field c m)) in
+					let t2 = (if List.mem AStatic access then (PMap.find m c.cl_statics).cf_type else fst (class_field c m)) in
 					unify_raise ctx t2 t p;
 				with
 					| Error (Unify l,_) -> raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
@@ -1955,20 +1960,23 @@ let init_class ctx c p herits fields =
 				cf_public = is_public access;
 				cf_params = [];
 			} in
-			is_static, false, cf, (fun() -> (!check_get)(); (!check_set)())
+			access, false, cf, (fun() -> (!check_get)(); (!check_set)())
 	in
 	let fl = List.map (fun (f,p) ->
-		let static , constr, f , delayed = loop_cf f p in
+		let access , constr, f , delayed = loop_cf f p in
+		let is_static = List.mem AStatic access in
 		if constr then begin
 			if c.cl_constructor <> None then error "Duplicate constructor" p;
 			c.cl_constructor <- Some f;
-		end else if not static || f.cf_name <> "__init__" then begin
-			if PMap.mem f.cf_name (if static then c.cl_statics else c.cl_fields) then error ("Duplicate class field declaration : " ^ f.cf_name) p;
-			if static then begin
+		end else if not is_static || f.cf_name <> "__init__" then begin
+			if PMap.mem f.cf_name (if is_static then c.cl_statics else c.cl_fields) then error ("Duplicate class field declaration : " ^ f.cf_name) p;
+			if is_static then begin
 				c.cl_statics <- PMap.add f.cf_name f c.cl_statics;
 				c.cl_ordered_statics <- f :: c.cl_ordered_statics;
-			end else
+			end else begin
 				c.cl_fields <- PMap.add f.cf_name f c.cl_fields;
+				if List.mem AOverride access then c.cl_overrides <- f.cf_name :: c.cl_overrides;
+			end;
 		end;
 		delayed
 	) fields in
@@ -2129,7 +2137,7 @@ let type_module ctx m tdecls loadp =
 			m.mimports <- (md,topt) :: m.mimports;			
 		| EClass (name,_,_,herits,fields) ->
 			let c = get_class name in
-			delays := !delays @ check_overloading ctx c p :: check_interfaces ctx c p :: init_class ctx c p herits fields
+			delays := !delays @ check_overriding ctx c p :: check_interfaces ctx c p :: init_class ctx c p herits fields
 		| EEnum (name,_,_,_,constrs) ->
 			let e = get_enum name in
 			ctx.type_params <- e.e_types;

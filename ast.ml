@@ -189,6 +189,7 @@ type access =
 	| APublic
 	| APrivate
 	| AStatic
+	| AOverride
 
 type class_field =
 	| FVar of string * documentation * access list * type_path option * expr option

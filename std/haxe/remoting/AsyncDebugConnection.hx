@@ -35,7 +35,7 @@ class AsyncDebugConnection extends AsyncConnection, implements Dynamic<AsyncDebu
 		setErrorHandler(__error.ref);
 	}
 
-	function setErrorHandler(f) {
+	override function setErrorHandler(f) {
 		var me = this;
 		__error.ref = function(e) {
 			var l = me.lastCalls.pop();
@@ -46,7 +46,7 @@ class AsyncDebugConnection extends AsyncConnection, implements Dynamic<AsyncDebu
 		return f;
 	}
 
-	function __resolve(field : String) : AsyncConnection {
+	override function __resolve(field : String) : AsyncConnection {
 		var s = new AsyncDebugConnection(__data.__resolve(field));
 		s.lastCalls = lastCalls;
 		s.__error = __error;
@@ -69,7 +69,7 @@ class AsyncDebugConnection extends AsyncConnection, implements Dynamic<AsyncDebu
 		trace(path.join(".")+"("+params.join(",")+") = "+Std.string(result));
 	}
 
-	public function call( params : Array<Dynamic>, onData : Dynamic -> Void ) : Void {
+	override public function call( params : Array<Dynamic>, onData : Dynamic -> Void ) : Void {
 		lastCalls.add({ path : __data.__path, params : params });
 		onCall(__data.__path,params);
 		var me = this;

@@ -290,12 +290,12 @@ private class DocClass {
 
 private class DocEnum extends DocClass {
 
-	function genName( s : StringBuf ) {
+	override function genName( s : StringBuf ) {
 		s.add("enum ");
 		s.add(path);
 	}
 
-	function genBody( s : StringBuf ) {
+	override function genBody( s : StringBuf ) {
 		for( f in fields ) {
 			s.add("<dt>");
 			s.add(f.name);
@@ -314,7 +314,7 @@ private class DocSign extends DocClass {
 
 	public var t : DocType;
 
-	function genBody( s : StringBuf ) {
+	override function genBody( s : StringBuf ) {
 		if( t == null ) {
 			super.genBody(s);
 			return;
@@ -324,7 +324,7 @@ private class DocSign extends DocClass {
 		s.add("</dt>");
 	}
 
-	function genName( s : StringBuf ) {
+	override function genName( s : StringBuf ) {
 		s.add("signature ");
 		s.add(path);
 	}

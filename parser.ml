@@ -276,7 +276,8 @@ and parse_class_field s =
 				f_expr = e;
 			} in
 			(FFun (name,doc,l,pl,f),punion p1 (pos e))
-		| [< >] -> if l = [] then raise Stream.Failure else serror()
+		| [< >] ->
+			if l = [] && doc = None then raise Stream.Failure else serror()
 
 and parse_signature_field = parser
 	| [< '(Kwd Var,p1); name = any_ident; s >] ->
@@ -290,6 +291,7 @@ and parse_cf_rights allow_static l = parser
 	| [< '(Kwd Static,_) when allow_static; l = parse_cf_rights false (AStatic :: l) >] -> l
 	| [< '(Kwd Public,_) when not(List.mem APublic l || List.mem APrivate l); l = parse_cf_rights allow_static (APublic :: l) >] -> l
 	| [< '(Kwd Private,_) when not(List.mem APublic l || List.mem APrivate l); l = parse_cf_rights allow_static (APrivate :: l) >] -> l
+	| [< '(Const (Ident "override"),_) when allow_static; l = parse_cf_rights false (AOverride :: l) >] -> l
 	| [< >] -> l
 
 and parse_fun_name = parser

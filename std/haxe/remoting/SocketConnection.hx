@@ -31,7 +31,7 @@ class SocketConnection extends AsyncConnection {
 	var __r : Server;
 	#end
 
-	function __resolve(field) : AsyncConnection {
+	override function __resolve(field) : AsyncConnection {
 		var s = new SocketConnection(__data,__path.copy());
 		var me = this;
 		s.__error = __error;
@@ -43,7 +43,7 @@ class SocketConnection extends AsyncConnection {
 		return s;
 	}
 
-	public function call( params : Array<Dynamic>, onData : Dynamic -> Void ) : Void {
+	override public function call( params : Array<Dynamic>, onData : Dynamic -> Void ) : Void {
 		try {
 			var s = new haxe.Serializer();
 			s.serialize(true);
