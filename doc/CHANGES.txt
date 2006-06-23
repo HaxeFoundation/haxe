@@ -18,6 +18,7 @@
 	added neko.Random
 	added Date.fromString
 	fixed bug in haxe.Unserializer, slighlty optimized haxe.Serializer
+	added __setfield magic (complete __resolve)
 	
 2006-06-08: 1.02
 	fixed stack overflow when recursive class <: recursive signature
