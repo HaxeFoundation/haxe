@@ -52,6 +52,11 @@ extern class String {
 	function charAt( index : Int) : String;
 	function charCodeAt( index : Int) : Int;
 
+	/**
+		Returns the index of first occurence of [value]
+		If [value] is not found, will return -1
+		The optional [startIndex] parameter allows you to specify which character to start searching. The position returned is still relative to the beginning of the string.
+	**/
 	function indexOf( value : String, ?startIndex : Int ) : Int;
 	function lastIndexOf( value : String, startIndex : Int ) : Int;
 	function split( delimiter : String ) : Array<String>;
