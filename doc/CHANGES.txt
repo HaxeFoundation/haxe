@@ -1,4 +1,4 @@
-2006-07-??: 1.03
+2006-06-23: 1.03
 	haxedoc executable now part of the distribution
 	removed selectDB from the neko.db.Connection API
 	added optional parameters with selection
@@ -19,6 +19,7 @@
 	added Date.fromString
 	fixed bug in haxe.Unserializer, slighlty optimized haxe.Serializer
 	added __setfield magic (complete __resolve)
+	added explicit override when overriding methods
 	
 2006-06-08: 1.02
 	fixed stack overflow when recursive class <: recursive signature
