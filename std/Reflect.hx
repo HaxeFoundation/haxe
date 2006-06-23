@@ -257,10 +257,10 @@ class Reflect {
 		if( o == null ) return new Array();
 		return untyped {
 		#if flash
-			var a = __keys__(o);
+			var a : Array<String> = __keys__(o);
 			var i = 0;
 			while( i < a.length ) {
-				if( !a.hasOwnProperty.call(o,a[i]) )
+				if( !a.hasOwnProperty["call"](o,a[i]) )
 					a.splice(i,1);
 				else
 					++i;
@@ -407,7 +407,7 @@ class Reflect {
 	public static function isFunction( f : Dynamic ) : Bool {
 		return untyped
 		#if flash
-			f["call"] == _global["Function"].call && f.__interfaces__ == null
+			f["call"] == _global["Function"]["call"] && f.__interfaces__ == null
 		#else js
 			f != null && f.call == isFunction.call && f.__interfaces__ == null
 		#else neko
@@ -423,7 +423,7 @@ class Reflect {
 	public static function deleteField( o : Dynamic, f : String ) : Bool {
 		#if flash
 			untyped {
-				if( this["hasOwnProperty"].call(o,f) == null ) return false;
+				if( this["hasOwnProperty"]["call"](o,f) == null ) return false;
 				__delete__(o,f);
 				return true;
 			}

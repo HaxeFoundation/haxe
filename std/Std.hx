@@ -78,7 +78,7 @@ class Std {
 	public static function parseInt( x : String ) : Int {
 		untyped {
 		#if flash
-		var v = _global.parseInt(x);
+		var v = _global["parseInt"](x);
 		if( Math.isNaN(v) )
 			return null;
 		return v;
@@ -102,7 +102,7 @@ class Std {
 	public static function parseFloat( x : String ) : Float {
 		return untyped
 		#if flash
-		_global.parseFloat(x);
+		_global["parseFloat"](x);
 		#else neko
 		__dollar__float(x.__s);
 		#else js
