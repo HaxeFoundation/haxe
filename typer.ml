@@ -1010,6 +1010,7 @@ let type_field ctx e i p get =
 			field_access ctx get f (field_type f) e p
 		)
 	| TMono r ->
+		if ctx.untyped && Plugin.defined "swf-mark" && Plugin.defined "flash" then ctx.warn "Mark" p;
 		let f = mk_field i (mk_mono()) in
 		let x = ref true in
 		let t = TAnon { a_fields = PMap.add i f PMap.empty; a_open = x } in
