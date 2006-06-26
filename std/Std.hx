@@ -83,7 +83,12 @@ class Std {
 			return null;
 		return v;
 		#else neko
-		if( __dollar__typeof(x) != __dollar__tobject )
+		var t = __dollar__typeof(x);
+		if( t == __dollar__tint )
+			return x;
+		if( t == __dollar__tfloat )
+			return __dollar__int(x);
+		if( t != __dollar__tobject )
 			return null;
 		return __dollar__int(x.__s);
 		#else js
