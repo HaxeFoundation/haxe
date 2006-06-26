@@ -61,8 +61,17 @@ class Socket {
 		socket_write(__s, untyped content.__s);
 	}
 
-	public function read() : String	{
-		return new String(socket_read(__s));
+	public function read( ?nbytes : Int ) : String	{
+		if( nbytes == null )
+			return new String(socket_read(__s));
+		var s = Lib.makeString(nbytes);
+		var p = 0;
+		while( nbytes > 0 ) {
+			var l = receive(s,p,nbytes);
+			p += l;
+			nbytes -= l;
+		}
+		return s;
 	}
 
 	public function connect(host : Host, port : Int) {
