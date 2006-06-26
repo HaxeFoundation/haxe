@@ -406,6 +406,7 @@ class Manager<T : Object> {
 		var manager = r.manager;
 		var hprop = "__"+r.prop;
 		var hkey = r.key;
+		if( manager == null || manager.table_keys == null ) throw ("Invalid manager for relation "+table_name+":"+r.prop);
 		if( manager.table_keys.length != 1 ) throw ("Relation "+r.prop+"("+r.key+") on a multiple key table");
 		Reflect.setField(class_proto.prototype,"get_"+r.prop,function() {
 			var othis = untyped this;
