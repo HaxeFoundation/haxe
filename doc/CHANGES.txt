@@ -1,3 +1,6 @@
+2006-??-??: 1.04
+	added macros in haxe.Template
+
 2006-06-23: 1.03
 	haxedoc executable now part of the distribution
 	removed selectDB from the neko.db.Connection API
