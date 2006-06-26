@@ -235,8 +235,9 @@ class Http {
 		var s = neko.Lib.makeString(4);
 		sock.setTimeout(10000); // 10 seconds
 		while( true ) {
-			if( sock.receive(s,0,k) != k )
-				throw "Connection aborted early";
+			var p = sock.receive(s,0,k);
+			while( p != k )
+				p += sock.receive(s,p,k - p);
 			b.addSub(s,0,k);
 			switch( k ) {
 			case 1:
