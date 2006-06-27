@@ -223,19 +223,28 @@ class EReg {
 			b.addSub(s,pos,p.pos-pos);
 			if( a.length > 0 )
 				b.add(a[0]);
-			for( i in 1...a.length ) {
-				var k = a[i];
-				var c = k.charCodeAt(0);
-				// 1...9
-				if( c >= 49 && c <= 57 ) {
-					var p = regexp_matched_pos(r,c-48);
-					b.addSub(s,p.pos,p.len);
-					b.addSub(k,1,k.length - 1);
-				} else if( c == null ) {
-					b.add("$");
-					i += 1;
-				} else
-					b.add("$"+k);
+				var dollarCount = false;
+				for( i in 1...a.length ) {
+					var k = a[i];
+					var c = k.charCodeAt(0);
+					// 1...9
+					if( c >= 49 && c <= 57 ) {
+						var p = regexp_matched_pos(r,c-48);
+						b.addSub(s,p.pos,p.len);
+						b.addSub(k,1,k.length - 1);
+	 					dollarCount = false;
+					} else if( c == null ) {
+						if (dollarCount){
+							b.add("$");
+							dollarCount = false;
+						}
+						else
+							dollarCount = true;
+					} else {
+						b.add("$"+k);
+						dollarCount = false;
+					}
+				}
 			}
 			var tot = p.pos + p.len - pos;
 			pos += tot;
