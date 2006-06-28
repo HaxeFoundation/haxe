@@ -108,7 +108,7 @@ class Socket {
 		return { host : a[0], port : a[1] };
 	}
 
-	public function setTimeout(timeout : Int) {
+	public function setTimeout( timeout : Float ) {
 		socket_set_timeout(__s, timeout);
 	}
 
