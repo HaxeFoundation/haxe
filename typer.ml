@@ -849,14 +849,20 @@ let type_ident ctx i p get =
 		end
 
 let type_type ctx tpath p =
-	match load_type_def ctx p tpath with
+	let rec loop t tparams =
+	match t with
 	| TClassDecl c ->
 		let pub = is_parent c ctx.curclass in
-		let types = List.map (fun (_,t) ->
-			match follow t with
-			| TEnum _ -> mk_mono()
-			| _ -> t
-		) c.cl_types in
+		let types = (match tparams with
+			| None -> 
+				List.map (fun (_,t) ->
+					match follow t with
+					| TEnum _ -> mk_mono()
+					| _ -> t
+				) c.cl_types
+			| Some l ->
+				l
+		) in
 		let s_tmp = {
 			s_path = fst c.cl_path, "#" ^ snd c.cl_path;
 			s_doc = None;
@@ -868,7 +874,7 @@ let type_type ctx tpath p =
 		} in
 		mk (TType (TClassDecl c)) (TSign (s_tmp,types)) p
 	| TEnumDecl e ->
-		let types = List.map (fun _ -> mk_mono()) e.e_types in
+		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_types | Some l -> l) in
 		let fl = PMap.fold (fun f acc ->
 			PMap.add f.ef_name {
 				cf_name = f.ef_name;
@@ -891,8 +897,16 @@ let type_type ctx tpath p =
 			s_types = e.e_types;
 		} in
 		mk (TType (TEnumDecl e)) (TSign (s_tmp,types)) p
-	| TSignatureDecl _ ->
-		error (s_type_path tpath ^ " is not a value") p
+	| TSignatureDecl s ->
+		match follow s.s_type with
+		| TEnum (e,params) ->
+			loop (TEnumDecl e) (Some params)
+		| TInst (c,params) ->
+			loop (TClassDecl c) (Some params)
+		| _ ->
+			error (s_type_path tpath ^ " is not a value") p
+	in
+	loop (load_type_def ctx p tpath) None
 
 let type_constant ctx c p =
 	match c with
@@ -1661,7 +1675,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;
 		let t = load_normal_type ctx t p true in
 		let el = List.map (type_expr ctx) el in
-		let el, c , params , t = (match t with
+		let el, c , params , t = (match follow t with
 		| TInst (c,params) ->
 			let f = (match c.cl_constructor with Some f -> f | None -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then error "Cannot access private constructor" p;
