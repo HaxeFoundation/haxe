@@ -125,7 +125,9 @@ class Socket {
 	}
 
 	public function readLine() : String {
-		return readUntil( 10 );
+		var s = readUntil( 10 );
+		if( s.substr(-1,1) == "\r" ) return s.substr(0,-1);
+		return s;
 	}
 
 	public function setBlocking( b : Bool ) {
