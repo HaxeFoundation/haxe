@@ -47,6 +47,7 @@ extern class Date
 	function getFullYear() : Int;
 	function getMonth() : Int;
 	function getDate() : Int;
+	function getDay() : Int;
 
 	/**
 		Returns a string representation for the Date, by using the

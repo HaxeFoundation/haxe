@@ -61,6 +61,11 @@ class NekoDate__ //implements Date
 		return date_get_hour(__t).s;
 	}
 
+	public function getDay() : Int {
+		var d = Std.parseInt( new String(date_format(__t,untyped "%u".__s)) );
+		return if( d == 7 ) 0 else d;
+	}
+
 	public function toString():String {
 		return new String(date_format(__t,null));
 	}
