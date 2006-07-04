@@ -135,5 +135,21 @@ class DateTools {
 	public static function delta( d : Date, t : Float ) : Date {
 		return Date.fromTime( d.getTime() + t );
 	}
+	
+	static var DAYS_OF_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+	/**
+		Returns the number of days in a month
+	**/
+	public static function getMonthDays( d : Date ) : Int {
+		var month = d.getMonth();
+		var year = d.getFullYear();
+
+		if (month != 1)
+			return DAYS_OF_MONTH[month];
+
+		var isB = ((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0);
+		return if (isB) 29 else 28;
+	}
 
 }
