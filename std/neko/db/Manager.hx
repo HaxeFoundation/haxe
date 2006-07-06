@@ -95,6 +95,9 @@ class Manager<T : Object> {
 	}
 
 	public function getWithKeys( keys : {} ) : T {
+		var x = getFromCache(untyped keys,false);
+		if( x != null )
+			return x;
 		var s = new StringBuf();
 		s.add("SELECT * FROM ");
 		s.add(table_name);
