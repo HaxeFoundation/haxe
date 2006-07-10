@@ -228,9 +228,14 @@ class EReg {
 				var c = k.charCodeAt(0);
 				// 1...9
 				if( c >= 49 && c <= 57 ) {
-					var p = regexp_matched_pos(r,c-48);
+					var p = try regexp_matched_pos(r,c-48) catch( e : String ) null;
+					if( p == null ){
+						b.add("$");
+						b.add(k);
+					}else{
 					b.addSub(s,p.pos,p.len);
 					b.addSub(k,1,k.length - 1);
+					}
 				} else if( c == null ) {
 					b.add("$");
 					i += 1;
