@@ -423,7 +423,7 @@ class Reflect {
 	public static function deleteField( o : Dynamic, f : String ) : Bool {
 		#if flash
 			untyped {
-				if( this["hasOwnProperty"]["call"](o,f) == null ) return false;
+				if( this["hasOwnProperty"]["call"](o,f) != true ) return false;
 				__delete__(o,f);
 				return true;
 			}
@@ -434,7 +434,7 @@ class Reflect {
 				return true;
 			}
 		#else neko
-			return untyped __dollar__objremove(o,f.__s)
+			return untyped __dollar__objremove(o,__dollar__hash(f.__s))
 		#else error
 		#end
 			;
