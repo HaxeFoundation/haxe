@@ -23,7 +23,7 @@ extern class NetStream
 	function seek( offset : Float ) : Void;
 	function close() : Void;
 	function attachAudio( theMicrophone : Microphone ) : Void;
-	function attachVideo( theCamera : Camera, snapshotMilliseconds : Float ) : Void;
+	function attachVideo( theCamera : Camera, ?snapshotMilliseconds : Float ) : Void;
 	function send( handlerName : String ) : Void;
 	function setBufferTime( bufferTime : Float ) : Void;
 
