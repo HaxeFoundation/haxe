@@ -22,23 +22,18 @@ extern class Camera {
 	var name(default,null) : String;
 
 	var quality(default,null) : Int;
+	var keyFrameInterval(default,null) : Int;
+	var loopback(default,null) : Bool;
+	var motionTimeOut(default,null) : Float;
 
 	function setMode( width:Int, height:Int, ?fps:Float, ?favorArea:Bool ):Void;
 	function setMotionLevel( motionLevel:Float , ?timeOut:Float ):Void;
-	function setQuality( bandwidth:Int, quality:Int ):Void;
+	function setQuality( bandwidth:Int, ?quality:Int ):Void;
+	function setKeyFrameInterval(keyFrameInterval:Int):Void;
+	function setLoopback(compress:Bool):Void;
 
 	function onActivity( active:Bool ):Void;
 	function onStatus( infoObject:Dynamic ):Void;
-
-	// ? not documented ?
-
-	function setKeyFrameInterval(keyFrameInterval:Float):Void;
-	function setLoopback(compress:Bool):Void;
-
-	var nativeModes:Array<Dynamic>;
-	var keyFrameInterval:Float;
-	var motionTimeOut:Float;
-	var loopback:Bool;
 
 	private static function __init__() : Void untyped {
 		flash.Camera = _global["Camera"];

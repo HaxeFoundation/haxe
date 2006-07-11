@@ -8,12 +8,13 @@ extern class SharedObject
 	static function getLocal(name:String,?localPath:String):SharedObject;
 	#end
 
-	static function getRemote(name:String,remotePath:String,persistence:Dynamic):SharedObject;
+	static function getRemote(name:String,remotePath:String,?persistence:Dynamic):SharedObject;
 	static function deleteAll(url:String) : Void;
 	static function getDiskUsage(url:String) : Int;
 
-	function send(handlerName:String):Void;
+	function send( handler : String, ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic ) : Void;
 	function flush(?minDiskSpace:Float):Dynamic;
+	function connect( cnx : NetConnection ) : Bool;
 	function close():Void;
 	function getSize():Float;
 	function setFps(updatesPerSecond:Float):Bool;

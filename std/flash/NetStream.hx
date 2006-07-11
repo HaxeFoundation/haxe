@@ -8,15 +8,13 @@ extern class NetStream
 	var bytesTotal(default,null) : Int;
 	var time(default,null) : Float;
 	var currentFps(default,null) : Float;
-
-	// not documented ?
-	var liveDelay : Float;
+	var liveDelay(default,null) : Float;
 
 	function new( connection : NetConnection ) : Void;
 	function onMetaData( info : Dynamic ) : Void;
 	function onStatus( info : Dynamic ) : Void;
-	function publish( name : Dynamic, type : String ) : Void;
-	function play( name : String, start : Float, len : Float, reset : Dynamic ) : Void;
+	function publish( name : Dynamic, ?type : String ) : Void;
+	function play( name : String, ?start : Float, ?len : Float, ?reset : Dynamic ) : Void;
 	function receiveAudio( flag : Bool ) : Void;
 	function receiveVideo( flag : Dynamic ) : Void;
 	function pause( ?flag : Bool ) : Void;
@@ -24,7 +22,7 @@ extern class NetStream
 	function close() : Void;
 	function attachAudio( theMicrophone : Microphone ) : Void;
 	function attachVideo( theCamera : Camera, ?snapshotMilliseconds : Float ) : Void;
-	function send( handlerName : String ) : Void;
+	function send( handlerName : String, ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic ) : Void;
 	function setBufferTime( bufferTime : Float ) : Void;
 
 #if flash8
