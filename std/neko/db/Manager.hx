@@ -38,7 +38,7 @@ class Manager<T : Object> {
 	private static var object_cache : Hash<Object> = new Hash();
 	private static var init_list : List<Manager<Object>> = new List();
 	private static var cache_field = "__cache__";
-	private static var no_update = function() { throw "Cannot update not locked object"; }
+	private static var no_update : Dynamic = function() { throw "Cannot update not locked object"; }
 	private static var FOR_UPDATE = "";
 
 	private static function setConnection( c : Connection ) {
@@ -86,28 +86,47 @@ class Manager<T : Object> {
 		init_list.add(untyped this);
 	}
 
-	public function get( id : Int ) : T {
-		return getGeneric(id,true);
+	public function get( id : Int, ?lock : Bool ) : T {
+		if( lock == null ) 
+			lock = true;
+		if( table_keys.length != 1 )
+			throw "Invalid number of keys";
+		if( id == null )
+			return null;
+		var x : Dynamic = untyped object_cache.get(id + table_name);
+		if( x != null && (!lock || x.update != no_update) )
+			return x;
+		var s = new StringBuf();
+		s.add("SELECT * FROM ");
+		s.add(table_name);
+		s.add(" WHERE ");
+		s.add(quoteField(table_keys[0]));
+		s.add(" = ");
+		addQuote(s,id);
+		if( lock )
+		s.add(FOR_UPDATE);
+		return object(s.toString(),lock);
 	}
 
-	public function getReadOnly( id : Int ) : T {
-		return getGeneric(id,false);
-	}
-
-	public function getWithKeys( keys : {} ) : T {
-		var x = getFromCache(untyped keys,false);
-		if( x != null )
+	public function getWithKeys( keys : {}, ?lock : Bool ) : T {
+		if( lock == null )
+			lock = true;
+		var x : Dynamic = getFromCache(untyped keys,false);
+		if( x != null && (!lock || x.update != no_update) )
 			return x;
 		var s = new StringBuf();
 		s.add("SELECT * FROM ");
 		s.add(table_name);
 		s.add(" WHERE ");
 		addKeys(s,keys);
-		s.add(FOR_UPDATE);
-		return object(s.toString(),true);
+		if( lock )
+			s.add(FOR_UPDATE);
+		return object(s.toString(),lock);
 	}
 
-	public function search( x : {}, lock : Bool ) : List<T> {
+	public function search( x : {}, ?lock : Bool ) : List<T> {
+		if( lock == null )
+			lock = true;
 		var s = new StringBuf();
 		s.add("SELECT * FROM ");
 		s.add(table_name);
@@ -134,7 +153,9 @@ class Manager<T : Object> {
 		return objects(s.toString(),lock);
 	}
 
-	public function all(lock) : List<T> {
+	public function all( ?lock: Bool ) : List<T> {
+		if( lock == null )
+			lock = true;
 		return objects("SELECT * FROM " + table_name + if( lock ) FOR_UPDATE else "",lock);
 	}
 
@@ -338,26 +359,6 @@ class Manager<T : Object> {
 		return s.toString();
 	}
 
-	function getGeneric( id : Int, lock : Bool ) : T {
-		if( table_keys.length != 1 )
-			throw "Invalid number of keys";
-		if( id == null )
-			return null;
-		var x : T = untyped object_cache.get(id + table_name);
-		if( x != null )
-			return x;
-		var s = new StringBuf();
-		s.add("SELECT * FROM ");
-		s.add(table_name);
-		s.add(" WHERE ");
-		s.add(quoteField(table_keys[0]));
-		s.add(" = ");
-		addQuote(s,id);
-		if( lock )
-			s.add(FOR_UPDATE);
-		return object(s.toString(),lock);
-	}
-
 	public function object( sql : String, lock : Bool ) : T {
 		var r = cnx.request(sql).next();
 		if( r == null )
@@ -404,11 +405,13 @@ class Manager<T : Object> {
 		object_cache = new Hash();
 	}
 
-	function initRelation(r : { prop : String, key : String, manager : Manager<Object> } ) {
+	function initRelation(r : { prop : String, key : String, manager : Manager<Object>, lock : Bool } ) {
 		// setup getter/setter
 		var manager = r.manager;
 		var hprop = "__"+r.prop;
 		var hkey = r.key;
+		var lock = r.lock;
+		if( lock == null ) lock = true;
 		if( manager == null || manager.table_keys == null ) throw ("Invalid manager for relation "+table_name+":"+r.prop);
 		if( manager.table_keys.length != 1 ) throw ("Relation "+r.prop+"("+r.key+") on a multiple key table");
 		Reflect.setField(class_proto.prototype,"get_"+r.prop,function() {
@@ -416,7 +419,7 @@ class Manager<T : Object> {
 			var f = Reflect.field(othis,hprop);
 			if( f != null )
 				return f;
-			f = manager.get(Reflect.field(othis,hkey));
+			f = manager.get(Reflect.field(othis,hkey),lock);
 			Reflect.setField(othis,hprop,f);
 			return f;
 		});
