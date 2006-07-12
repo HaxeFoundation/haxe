@@ -2,6 +2,7 @@
 	added macros in haxe.Template
 	allowed static variables access from a signature shortcut
 	allowed new Signature when signature is a class
+	fixed : modulo priority is now higher than mult and div
 
 2006-06-23: 1.03
 	haxedoc executable now part of the distribution
