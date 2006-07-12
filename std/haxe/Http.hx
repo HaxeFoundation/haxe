@@ -30,6 +30,7 @@ class Http {
 #if neko
 	var responseHeaders : Hash<String>;
 	var postData : String;
+	var status : Int;
 #else js
 	private var async : Bool;
 #end
@@ -206,8 +207,17 @@ class Http {
 			s.write(b.toString());
 			body = readHttpResponse(s);
 			s.close();
-		} catch( e : Int ) {
+		} catch( e : Dynamic ) {
 			onError(Std.string(e));
+			return;
+		}
+		if( status == 0 || status == null ){
+			onError("Response status error");
+			return;
+		}
+		onStatus(status);
+		if( status < 200 || status >= 400 ){
+			onError("Http Error #"+status);
 			return;
 		}
 		if( responseHeaders.get("Transfer-Encoding") == "chunked" )
@@ -293,6 +303,9 @@ class Http {
 		}
 		var headers = b.toString().split("\r\n");
 		var response = headers.shift();
+		var rp = response.split(" ");
+		status = Std.parseInt(rp[1]);
+		
 		// remove the two lasts \r\n\r\n
 		headers.pop();
 		headers.pop();
