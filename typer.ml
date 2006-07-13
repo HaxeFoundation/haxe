@@ -2167,21 +2167,7 @@ let type_module ctx m tdecls loadp =
 		| ESignature (name,_,_,_,t) ->
 			let s = get_sign name in
 			ctx.type_params <- s.s_types;
-			let rec loop t =
-				match t with
-				| TSign (s2,_) ->
-					if s == s2 then
-						error "Do you know you're not supposed to do that ?" p
-					else
-						loop s2.s_type
-				| TMono r ->
-					(match !r with
-					| None -> ()
-					| Some t -> loop t)
-				| _ -> ()
-			in
 			let t = load_type ctx p t in
-			loop t;
 			unify ctx s.s_type t p;
 	) tdecls;
 	(* PASS 3 : type checking, delayed until all modules and types are built *)
