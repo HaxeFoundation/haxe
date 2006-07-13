@@ -205,7 +205,7 @@ class Text2Xhtml {
 	}
 
 	public static function transform( str:String ) : String {
-		var transformer = new mt.Text2Xhtml();
+		var transformer = new Text2Xhtml();
 		return transformer.transform(str);
 	}
 
