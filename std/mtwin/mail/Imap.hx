@@ -1,5 +1,6 @@
 package mtwin.mail;
 
+import neko.Socket;
 import mtwin.mail.Exception;
 
 signature ImapConnectionInfo {
@@ -15,7 +16,6 @@ signature ImapMailbox {
 	hasChildren: Bool
 }
 
-import neko.Socket;
 
 class Imap {
 	public static var DEBUG = false;

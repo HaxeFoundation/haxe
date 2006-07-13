@@ -1,14 +1,7 @@
 package mtwin.mail;
 
 import neko.Socket;
-
-enum SmtpException extends mtwin.mail.Exception {
-	ConnectionError(host:String,port:Int);
-	MailFromError(e:String);
-	RcptToError(e:String);
-	DataError(e:String);
-	SendDataError;
-}
+import mtwin.mail.Exception;
 
 class Smtp {
 
@@ -28,21 +21,21 @@ class Smtp {
 		var ret = StringTools.trim(cnx.readLine());
 		if( ret.substr(0,3) != "250" ){
 			cnx.close();
-			throw MailFromError(ret);
+			throw SmtpMailFromError(ret);
 		}
 
 		cnx.write( "RCPT TO:<" + to + ">\r\n" );
 		ret = StringTools.trim(cnx.readLine());
 		if( ret.substr(0,3) != "250" ){
 			cnx.close();
-			throw RcptToError(ret);
+			throw SmtpRcptToError(ret);
 		}
 
 		cnx.write( "DATA\r\n" );
 		ret = StringTools.trim(cnx.readLine());
 		if( ret.substr(0,3) != "354" ){
 			cnx.close();
-			throw DataError(ret);
+			throw SmtpDataError(ret);
 		}
 
 		if( data.substr(data.length -2,2) != "\r\n" ) 
@@ -52,7 +45,7 @@ class Smtp {
 		ret = StringTools.trim(cnx.readLine());
 		if( ret.substr(0,3) != "250" ){
 			cnx.close();
-			throw SendDataError;
+			throw SmtpSendDataError;
 		}
 
 		cnx.write( "QUIT\r\n" );

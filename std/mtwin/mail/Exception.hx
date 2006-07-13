@@ -1,6 +1,6 @@
 package mtwin.mail;
 
-class Exception {
+enum Exception {
 	ConnectionError(host:String,port:Int);
 	SmtpMailFromError(e:String);
 	SmtpRcptToError(e:String);
