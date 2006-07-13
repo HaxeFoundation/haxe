@@ -166,7 +166,7 @@ signature Document = {> HtmlDom,
 	#if w3c
 	#else true
 	// not W3C , need infos : var embeds : HtmlCollection<Embed>;
-	var lastModified : Date;
+	// var lastModified : Date; // commented : does not include date by default
 	var stylesheets : HtmlCollection<StyleSheet>;
 	function focus() : Void;
 	function getElementsByTag( tag : String ) : HtmlCollection<HtmlDom>;
