@@ -1,11 +1,6 @@
 package mtwin.mail;
 
-enum ImapException extends mtwin.mail.Exception {
-	UnknowResponse(r:String);
-	ConnectionError(host:String, port:Int);
-	BadResponse(r:String);
-	FetchError(id:Int);
-}
+import mtwin.mail.Exception;
 
 signature ImapConnectionInfo {
 	host: String, 
@@ -221,7 +216,7 @@ class Imap {
 
 		var r = fetchRange( Std.string(id), section, useUid );
 		if( !r.exists(id) ){
-			throw new FetchError(id);
+			throw new ImapFetchError(id);
 		}
 		return r.get(id);
 	}

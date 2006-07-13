@@ -162,7 +162,7 @@ class Tools {
 			}else if( encoding == "b" ){
 				encoded = decodeBase64(encoded,"\r\n");
 			}else{
-				throw "mtwin.mail.MultiPart.headerDecode: Unknow transfer-encoding: "+encoding;
+				throw "Unknow transfer-encoding: "+encoding;
 			}
 
 			charsetOut = charsetOut.toLowerCase();
