@@ -365,6 +365,21 @@ let rec follow t =
 let monomorphs eparams t =
 	apply_params eparams (List.map (fun _ -> mk_mono()) eparams) t
 
+let rec fast_eq a b =
+	if a == b then 
+		true
+	else match a , b with
+	| TFun (l1,r1) , TFun (l2,r2) ->
+		List.for_all2 (fun (_,_,t1) (_,_,t2) -> fast_eq t1 t2) l1 l2 && fast_eq r1 r2
+	| TSign (s1,l1), TSign (s2,l2) ->
+		s1 == s2 && List.for_all2 fast_eq l1 l2
+	| TEnum (e1,l1), TEnum (e2,l2) ->
+		e1 == e2 && List.for_all2 fast_eq l1 l2
+	| TInst (c1,l1), TInst (c2,l2) ->
+		c1 == c2 && List.for_all2 fast_eq l1 l2
+	| _ , _ ->
+		false
+
 let eq_stack = ref []
 
 let rec type_eq param a b =
@@ -377,10 +392,10 @@ let rec type_eq param a b =
 	| _ , TMono t -> (match !t with None -> link t b a | Some t -> type_eq param a t)
 	| TSign (s,tl) , _ -> type_eq param (apply_params s.s_types tl s.s_type) b
 	| _ , TSign (s,tl) ->
-		if List.exists (fun (a2,s2) -> a == a2 && s == s2) (!eq_stack) then
+		if List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!eq_stack) then
 			true
 		else begin
-			eq_stack := (a,s) :: !eq_stack;
+			eq_stack := (a,b) :: !eq_stack;
 			let r = type_eq param a (apply_params s.s_types tl s.s_type) in
 			eq_stack := List.tl !eq_stack;
 			r
@@ -468,9 +483,9 @@ let rec unify a b =
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| _ , TSign (s,tl) ->
-		if not (List.exists (fun (a2,s2) -> a == a2 && s == s2) (!unify_stack)) then begin
+		if not (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!unify_stack)) then begin
 			try
-				unify_stack := (a,s) :: !unify_stack;
+				unify_stack := (a,b) :: !unify_stack;
 				unify a (apply_params s.s_types tl s.s_type);
 				unify_stack := List.tl !unify_stack;
 			with
