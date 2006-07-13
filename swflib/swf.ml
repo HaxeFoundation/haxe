@@ -449,6 +449,7 @@ type button_record = {
 	btr_depth : int;
 	btr_mpos : matrix;
 	btr_color : color_transform_alpha option;
+	btr_filters : filter list option;
 }
 
 type button_action = {
@@ -534,6 +535,8 @@ type tag_data =
 	| TFontGlyphs of font_glyphs
 	| TTextInfo of unknown
 	| TFont3 of font3
+	| TSwf9Name of (int * string)
+	| TActionScript3 of unknown (* As3.as3_tag *)
 	| TShape4 of shape
 	| TShape5 of int * string
 	| TUnknown of int * unknown

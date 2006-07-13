@@ -76,7 +76,7 @@ let rec read_count n f arg =
 
 let _nbits x =
 	if x < 0 then error "Negative nbits";
-	if x = 0 then 
+	if x = 0 then
 		0
 	else
 		let x = ref x in
@@ -87,7 +87,7 @@ let _nbits x =
 		done;
 		!nbits
 
-let rect_nbits r = 
+let rect_nbits r =
 	r.rect_nbits
 
 let bigrect_nbits r =
@@ -101,7 +101,7 @@ let rgba_nbits c =
 let cxa_nbits c =
 	c.cxa_nbits
 
-let matrix_part_nbits m = 
+let matrix_part_nbits m =
 	m.m_nbits
 
 let rgb_length = 3
@@ -152,7 +152,7 @@ let shape_fill_style_length s =
 	1 + match s with
 	| SFSSolid _ -> rgb_length
 	| SFSSolid3 _ -> rgba_length
-	| SFSLinearGradient (m,g) 
+	| SFSLinearGradient (m,g)
 	| SFSRadialGradient (m,g,None) -> matrix_length m + gradient_length g
 	| SFSRadialGradient (m,g,Some _) -> matrix_length m + gradient_length g + 2
 	| SFSBitmap b -> 2 + matrix_length b.sfb_mpos
@@ -165,7 +165,7 @@ let shape_array_length f s =
 	(if n < 0xFF then 1 else 3) + sum f s
 
 let shape_new_styles_length s =
-	shape_array_length shape_fill_style_length s.sns_fill_styles + 
+	shape_array_length shape_fill_style_length s.sns_fill_styles +
 	shape_array_length shape_line_style_length s.sns_line_styles +
 	1
 
@@ -177,31 +177,31 @@ let shape_records_length records =
 		nbits := !nbits + 6;
 		match r with
 		| SRStyleChange s ->
-			nbits := !nbits + 
+			nbits := !nbits +
 				opt_len (fun (n,_,_) -> 5 + n * 2) s.scsr_move +
 				opt_len (const !nfbits) s.scsr_fs0 +
 				opt_len (const !nfbits) s.scsr_fs1 +
 				opt_len (const !nlbits) s.scsr_ls;
 			(match s.scsr_new_styles with
 			| None -> ()
-			| Some s -> 
+			| Some s ->
 				nbits := (((!nbits + 7) / 8) + shape_new_styles_length s) * 8;
 				nfbits := s.sns_nfbits;
 				nlbits := s.sns_nlbits)
 		| SRCurvedEdge s ->
 			nbits := !nbits + s.scer_nbits * 4
 		| SRStraightEdge s ->
-			nbits := !nbits + 1 + (match s.sser_line with 
-								| None , None -> assert false 
-								| Some _ , None 
-								| None, Some _ -> 1 + s.sser_nbits 
+			nbits := !nbits + 1 + (match s.sser_line with
+								| None , None -> assert false
+								| Some _ , None
+								| None, Some _ -> 1 + s.sser_nbits
 								| Some _ , Some _ -> 2 * s.sser_nbits)
 	) records.srs_records;
 	nbits := !nbits + 6;
 	(!nbits + 7) / 8
 
 let shape_with_style_length s =
-	shape_array_length shape_fill_style_length s.sws_fill_styles + 
+	shape_array_length shape_fill_style_length s.sws_fill_styles +
 	shape_array_length shape_line_style_length s.sws_line_styles +
 	shape_records_length s.sws_records
 
@@ -213,26 +213,41 @@ let bitmap_lossless_length b =
 
 let morph_shape_length s =
 	2 + rect_length s.msh_start_bounds + rect_length s.msh_end_bounds + String.length s.msh_data
-	
+
 let text_record_length t r =
-	1 + opt_len (const 4) r.txr_font + 
-		opt_len color_length r.txr_color + 
-		opt_len (const 2) r.txr_dx + 
-		opt_len (const 2) r.txr_dy + 
+	1 + opt_len (const 4) r.txr_font +
+		opt_len color_length r.txr_color +
+		opt_len (const 2) r.txr_dx +
+		opt_len (const 2) r.txr_dy +
 		1 + ((((t.txt_ngbits + t.txt_nabits) * List.length r.txr_glyphs) + 7) / 8)
 
 let text_length t =
 	2 + big_rect_length t.txt_bounds + matrix_length t.txt_matrix + 2 + sum (text_record_length t) t.txt_records + 1
 
+let filters_length l =
+	1 + sum (fun f ->
+		1 + match f with
+		| FDropShadow s
+		| FBlur s
+		| FGlow s
+		| FBevel s
+		| FAdjustColor s ->
+			String.length s
+		| FGradientGlow fg
+		| FGradientBevel fg ->
+			1 + ((rgba_length + 1) * List.length fg.fgr_colors) + String.length fg.fgr_data
+	) l
+
 let button_record_length r =
 	1 + 2 + 2 + matrix_length r.btr_mpos + (match r.btr_color with None -> 0 | Some c -> cxa_length c)
+	+ opt_len filters_length r.btr_filters
 
 let button_action_length r =
 	2 + 2 + actions_length r.bta_actions
-	
+
 let button2_length b =
-	2 + 1 + 2 + 
-		1 + sum button_record_length b.bt2_records + 
+	2 + 1 + 2 +
+		1 + sum button_record_length b.bt2_records +
 		sum button_action_length b.bt2_actions
 
 let font2_length f =
@@ -250,27 +265,13 @@ let header_length h =
 	3 + 1 + rect_length h.h_size + 2 + 4
 
 let edit_text_length t =
-	2 + rect_length t.edt_bounds + 2 + 
-		opt_len (const 4) t.edt_font + 
+	2 + rect_length t.edt_bounds + 2 +
+		opt_len (const 4) t.edt_font +
 		opt_len (const rgba_length) t.edt_color +
 		opt_len (const 2) t.edt_maxlen +
 		opt_len (const edit_text_layout_length) t.edt_layout +
 		String.length t.edt_variable + 1 +
 		opt_len (fun s -> String.length s + 1) t.edt_text
-
-let filters_length l =
-	1 + sum (fun f ->
-		1 + match f with
-		| FDropShadow s
-		| FBlur s
-		| FGlow s
-		| FBevel s
-		| FAdjustColor s ->
-			String.length s
-		| FGradientGlow fg
-		| FGradientBevel fg ->
-			1 + ((rgba_length + 1) * List.length fg.fgr_colors) + String.length fg.fgr_data
-	) l
 
 let place_object_length p v3 =
 	3
@@ -300,7 +301,7 @@ let rec tag_data_length = function
 	| TRemoveObject _ ->
 		4
 	| TBitsJPEG b ->
-		2 + String.length b.jpg_data	
+		2 + String.length b.jpg_data
 	| TJPEGTables tab ->
 		String.length tab
 	| TSetBgColor _ ->
@@ -365,6 +366,11 @@ let rec tag_data_length = function
 		String.length s
 	| TFont3 f ->
 		font3_length f
+	| TSwf9Name (_,n) ->
+		4 + String.length n + 1
+	| TActionScript3 a ->
+		assert false
+		(* As3parse.as3_length a *)
 	| TShape4 s ->
 		shape_length s
 	| TShape5 (_,s) ->
@@ -372,7 +378,7 @@ let rec tag_data_length = function
 	| TUnknown (_,data) ->
 		String.length data
 
-and tag_length t = 
+and tag_length t =
 	let dlen = tag_data_length t.tdata in
 	dlen + 2 + (if t.textended || dlen >= 63 then 4 else 0)
 
@@ -480,7 +486,7 @@ let read_matrix ch =
 		scale = scale;
 		rotate = rotate;
 		trans = trans;
-	}	
+	}
 
 let read_cxa ch =
 	let b = input_bits ch in
@@ -573,7 +579,7 @@ let write_matrix ch m =
 	let b = output_bits ch in
 	let write_matrix_part m =
 		let nbits = matrix_part_nbits m in
-		write_bits b 5 nbits;		
+		write_bits b 5 nbits;
 		write_bits b nbits m.mx;
 		write_bits b nbits m.my;
 	in
@@ -600,15 +606,15 @@ let write_cxa ch c =
 	| None , None ->
 		write_bits b 2 0;
 		write_bits b 4 1; (* some strange MM thing... *)
-	| Some c , None -> 
+	| Some c , None ->
 		write_bits b 2 2;
 		write_bits b 4 nbits;
 		List.iter (write_bits b ~nbits) [c.r;c.g;c.b;c.a];
-	| None , Some c -> 
+	| None , Some c ->
 		write_bits b 2 1;
 		write_bits b 4 nbits;
 		List.iter (write_bits b ~nbits) [c.r;c.g;c.b;c.a];
-	| Some c1 , Some c2 -> 
+	| Some c1 , Some c2 ->
 		write_bits b 2 3;
 		write_bits b 4 nbits;
 		List.iter (write_bits b ~nbits) [c2.r;c2.g;c2.b;c2.a;c1.r;c1.g;c1.b;c1.a]
@@ -641,12 +647,12 @@ let parse_clip_events ch =
 	in
 	loop()
 
-let parse_shape_fill_style ch vshape =	
+let parse_shape_fill_style ch vshape =
 	let t = read_byte ch in
 	match t with
 	| 0x00 when vshape >= 3 -> SFSSolid3 (read_rgba ch)
 	| 0x00 -> SFSSolid (read_rgb ch)
-	| 0x10 -> 
+	| 0x10 ->
 		let m = read_matrix ch in
 		let g = read_gradient ch (vshape >= 3) in
 		SFSLinearGradient (m,g)
@@ -657,7 +663,7 @@ let parse_shape_fill_style ch vshape =
 	| 0x13 ->
 		let m = read_matrix ch in
 		let g = read_gradient ch (vshape >= 3) in
-		let i = IO.read_i16 ch in
+		let i = read_i16 ch in
 		SFSRadialGradient (m,g,Some i)
 	| 0x40
 	| 0x41
@@ -674,7 +680,7 @@ let parse_shape_fill_style ch vshape =
 	| _ ->
 		assert false
 
-let parse_shape_line_style ch vshape =	
+let parse_shape_line_style ch vshape =
 	let width = read_ui16 ch in
 	let color = (if vshape >= 3 then ColorRGBA (read_rgba ch) else ColorRGB (read_rgb ch)) in
 	let unk = (if vshape = 4 then Some (read_ui16 ch) else None) in
@@ -685,7 +691,7 @@ let parse_shape_line_style ch vshape =
 	}
 
 let parse_shape_array f ch vshape =
-	let n = (match read_byte ch with 0xFF -> read_ui16 ch | n -> n) in	
+	let n = (match read_byte ch with 0xFF -> read_ui16 ch | n -> n) in
 	read_count n (f ch) vshape
 
 let parse_shape_style_change_record ch b flags nlbits nfbits vshape =
@@ -700,10 +706,10 @@ let parse_shape_style_change_record ch b flags nlbits nfbits vshape =
 	let fs0 = (if flags land 2 <> 0 then Some (read_bits b !nfbits) else None) in
 	let fs1 = (if flags land 4 <> 0 then Some (read_bits b !nfbits) else None) in
 	let ls = (if flags land 8 <> 0 then Some (read_bits b !nlbits) else None) in
-	let styles = (if flags land 16 <> 0 then begin		
+	let styles = (if flags land 16 <> 0 then begin
 		IO.drop_bits b;
 		let fstyles = parse_shape_array parse_shape_fill_style ch vshape in
-		let lstyles = parse_shape_array parse_shape_line_style ch vshape in	
+		let lstyles = parse_shape_array parse_shape_line_style ch vshape in
 		let bits = read_byte ch in
 		nlbits := bits land 15;
 		nfbits := bits lsr 4;
@@ -738,10 +744,10 @@ let parse_shape_curved_edge_record b flags =
 		scer_ay = ay;
 	}
 
-let parse_shape_straight_edge_record b flags =	
+let parse_shape_straight_edge_record b flags =
 	let nbits = (flags land 15) + 2 in
 	let is_general = (read_bits b 1 = 1) in
-	let l = (if is_general then 
+	let l = (if is_general then
 		let dx = read_bits b nbits in
 		let dy = read_bits b nbits in
 		Some dx, Some dy
@@ -767,7 +773,7 @@ let parse_shape_records ch nlbits nfbits vshape =
 		if flags = 0 then
 			[]
 		else
-			let r = 
+			let r =
 				(if (flags land 32) = 0 then
 					SRStyleChange (parse_shape_style_change_record ch b flags nlbits nfbits vshape)
 				else if (flags land 48) = 32 then
@@ -795,7 +801,7 @@ let parse_shape_with_style ch vshape =
 			srs_records = records;
 		}
 	}
-		
+
 
 let parse_shape ch len vshape =
 	let id = read_ui16 ch in
@@ -855,7 +861,7 @@ let parse_text ch is_txt2 =
 			txg_index = indx;
 			txg_advanced = adv;
 		}
-	in		
+	in
 	let rec loop() =
 		let flags = read_byte ch in
 		if flags = 0 then
@@ -903,7 +909,7 @@ let parse_edit_text ch =
 	let id = read_ui16 ch in
 	let bounds = read_rect ch in
 	let flags = read_ui16 ch in
-	let font = (if flags land 1 <> 0 then 
+	let font = (if flags land 1 <> 0 then
 			let fid = read_ui16 ch in
 			let height = read_ui16 ch in
 			Some (fid, height)
@@ -970,51 +976,6 @@ let parse_morph_shape ch len =
 		msh_data = data;
 	}
 
-let rec parse_button_records ch color =
-	let flags = read_byte ch in
-	if flags = 0 then
-		[]
-	else
-		let cid = read_ui16 ch in
-		let depth = read_ui16 ch in
-		let mpos = read_matrix ch in
-		let cxa = (if color then Some (read_cxa ch) else None) in
-		let r = {
-			btr_flags = flags;
-			btr_cid = cid;
-			btr_depth = depth;
-			btr_mpos = mpos;
-			btr_color = cxa;
-		} in
-		r :: parse_button_records ch color
-
-let rec parse_button_actions ch =
-	let size = read_ui16 ch in	
-	let flags = read_ui16 ch in
-	let actions = parse_actions ch in
-	let bta = {
-		bta_flags = flags;
-		bta_actions = actions;
-	} in
-	if size = 0 then
-		[bta]
-	else
-		bta :: parse_button_actions ch
-
-let parse_button2 ch len =
-	let id = read_ui16 ch in
-	let flags = read_byte ch in
-	let track = (match flags with 0 -> false | 1 -> true | _ -> assert false) in
-	let offset = read_ui16 ch in	
-	let records = parse_button_records ch true in
-	let actions = (if offset = 0 then [] else parse_button_actions ch) in
-	{
-		bt2_id = id;
-		bt2_track_as_menu = track;
-		bt2_records = records;
-		bt2_actions = actions;
-	}
-
 let parse_filter_gradient ch =
 	let ncolors = read_byte ch in
 	let colors = read_count ncolors read_rgba ch in
@@ -1039,6 +1000,53 @@ let parse_filter ch =
 let parse_filters ch =
 	let nf = read_byte ch in
 	read_count nf parse_filter ch
+
+let rec parse_button_records ch color =
+	let flags = read_byte ch in
+	if flags = 0 then
+		[]
+	else
+		let cid = read_ui16 ch in
+		let depth = read_ui16 ch in
+		let mpos = read_matrix ch in
+		let cxa = (if color then Some (read_cxa ch) else None) in
+		let filters = (if flags land 16 = 0 then None else Some (parse_filters ch)) in
+		let r = {
+			btr_flags = flags;
+			btr_cid = cid;
+			btr_depth = depth;
+			btr_mpos = mpos;
+			btr_color = cxa;
+			btr_filters = filters;
+		} in
+		r :: parse_button_records ch color
+
+let rec parse_button_actions ch =
+	let size = read_ui16 ch in
+	let flags = read_ui16 ch in
+	let actions = parse_actions ch in
+	let bta = {
+		bta_flags = flags;
+		bta_actions = actions;
+	} in
+	if size = 0 then
+		[bta]
+	else
+		bta :: parse_button_actions ch
+
+let parse_button2 ch len =
+	let id = read_ui16 ch in
+	let flags = read_byte ch in
+	let track = (match flags with 0 -> false | 1 -> true | _ -> assert false) in
+	let offset = read_ui16 ch in
+	let records = parse_button_records ch true in
+	let actions = (if offset = 0 then [] else parse_button_actions ch) in
+	{
+		bt2_id = id;
+		bt2_track_as_menu = track;
+		bt2_records = records;
+		bt2_actions = actions;
+	}
 
 let parse_place_object ch v3 =
 	let f = read_byte ch in
@@ -1070,15 +1078,14 @@ let parse_place_object ch v3 =
 		po_bcache = bcache;
 	}
 
-let rec parse_tag ch =
-	let h = read_ui16 ch in
+let rec parse_tag ch h =
 	let id = h lsr 6 in
 	let len = h land 63 in
 	let len , extended = (
-		if len = 63 then 
+		if len = 63 then
 			let len = read_i32 ch in
 			len , len < 63
-		else 
+		else
 			len , false
 	) in
 	let t = (
@@ -1153,7 +1160,7 @@ let rec parse_tag ch =
 		| 0x18 ->
 			TProtect
 		| 0x1A when !full_parsing ->
-			TPlaceObject2 (parse_place_object ch false)			
+			TPlaceObject2 (parse_place_object ch false)
 		| 0x1C ->
 			let depth = read_ui16 ch in
 			TRemoveObject2 depth
@@ -1161,7 +1168,7 @@ let rec parse_tag ch =
 			TShape3 (parse_shape ch len 3)
 		| 0x21 when !full_parsing ->
 			TText2 (parse_text ch true)
-		| 0x22 ->
+		| 0x22 when !full_parsing ->
 			TButton2 (parse_button2 ch len)
 		| 0x23 ->
 			let id = read_ui16 ch in
@@ -1193,7 +1200,7 @@ let rec parse_tag ch =
 			let id = (if len = String.length label + 2 then Some (read ch) else None) in
 			TFrameLabel (label,id)
 		| 0x2D ->
-			TSoundStreamHead2 (nread ch len)		
+			TSoundStreamHead2 (nread ch len)
 		| 0x2E when !full_parsing ->
 			TMorphShape (parse_morph_shape ch len)
 		| 0x30 when !full_parsing ->
@@ -1219,29 +1226,41 @@ let rec parse_tag ch =
 			}
 		| 0x3C ->
 			TVideoStream (nread ch len)
-		| 0x3D -> 
+		| 0x3D ->
 			TVideoFrame (nread ch len)
 		(*// 0x3E TFontInfo2 *)
 		(*// 0x40 TEnableDebugger2 *)
 		(*// 0x41 TScriptLimits *)
 		(*// 0x42 TSetTabIndex *)
-		| 0x45 ->			
+		| 0x45 ->
 			TFlash8 (nread ch len)
 		| 0x46 when !full_parsing ->
 			TPlaceObject3 (parse_place_object ch true)
+		| 0x48 when !full_parsing ->
+			assert false
+			(* TActionScript3 (As3parse.parse ch len false) *)
 		| 0x49 when !full_parsing ->
 			TFontGlyphs (parse_font_glyphs ch len)
 		| 0x4A ->
 			TTextInfo (nread ch len)
 		| 0x4B when !full_parsing ->
 			TFont3 (parse_font3 ch len)
+		| 0x4C ->
+			let i = read_i32 ch in
+			let s = read_string ch in
+			let t = TSwf9Name (i,s) in
+			if tag_data_length t <> len then assert false;
+			t
+		| 0x52 when !full_parsing ->
+			assert false
+			(* TActionScript3 (As3parse.parse ch len true) *)
 		| 0x53 when !full_parsing ->
 			TShape4 (parse_shape ch len 4)
 		| 0x54 when !full_parsing ->
 			let id = read_ui16 ch in
 			TShape5 (id,nread ch (len - 2))
 		| _ ->
-			if !Swf.warnings then Printf.printf "Unknown tag 0x%.2X\n" id;
+			(*if !Swf.warnings then Printf.printf "Unknown tag 0x%.2X\n" id;*)
 			TUnknown (id,nread ch len)
 	) in
 (*	let len2 = tag_data_length t in
@@ -1254,7 +1273,8 @@ let rec parse_tag ch =
 
 and parse_tag_list ch =
 	let rec loop acc =
-		match parse_tag ch with
+		let h = (try read_ui16 ch with IO.No_more_input -> 0) in
+		match parse_tag ch h with
 		| { tdata = TEnd } -> List.rev acc
 		| t -> loop (t :: acc)
 	in
@@ -1320,6 +1340,8 @@ let rec tag_id = function
 	| TFontGlyphs _ -> 0x49
 	| TTextInfo _ -> 0x4A
 	| TFont3 _ -> 0x4B
+	| TSwf9Name _ -> 0x4C
+	| TActionScript3 a -> assert false (* (match a.As3.as3_id with None -> 0x48 | Some _ -> 0x52) *)
 	| TShape4 _ -> 0x53
 	| TShape5 _ -> 0x54
 	| TUnknown (id,_) -> id
@@ -1328,7 +1350,7 @@ let write_clip_event ch c =
 	write_event ch c.cle_events;
 	write_i32 ch (actions_length c.cle_actions + opt_len (const 1) c.cle_key);
 	opt (write ch) c.cle_key;
-	write_actions ch c.cle_actions	
+	write_actions ch c.cle_actions
 
 let write_clip_events ch event_list =
  	write_ui16 ch 0;
@@ -1339,7 +1361,7 @@ let write_clip_events ch event_list =
 
 let write_shape_fill_style ch s =
 	match s with
-	| SFSSolid c -> 
+	| SFSSolid c ->
 		write_byte ch 0x00;
 		write_rgb ch c
 	| SFSSolid3 c ->
@@ -1384,9 +1406,9 @@ let write_shape_array ch f sl =
 	List.iter (f ch) sl
 
 let write_shape_style_change_record ch b nlbits nfbits s =
-	let flags = make_flags [flag s.scsr_move; flag s.scsr_fs0; flag s.scsr_fs1; flag s.scsr_ls; flag s.scsr_new_styles] in	
+	let flags = make_flags [flag s.scsr_move; flag s.scsr_fs0; flag s.scsr_fs1; flag s.scsr_ls; flag s.scsr_new_styles] in
 	write_bits b 6 flags;
-	opt (fun (n,dx,dy) -> 
+	opt (fun (n,dx,dy) ->
 		write_bits b 5 n;
 		write_bits b n dx;
 		write_bits b n dy;
@@ -1525,37 +1547,6 @@ let write_font_glyphs ch t =
 	write_ui16 ch t.fgl_id;
 	nwrite ch t.fgl_data
 
-let write_button_record ch r =
-	write_byte ch r.btr_flags;
-	write_ui16 ch r.btr_cid;
-	write_ui16 ch r.btr_depth;
-	write_matrix ch r.btr_mpos;
-	match r.btr_color with
-	| None -> ()
-	| Some c -> 
-		write_cxa ch c
-
-let rec write_button_actions ch = function
-	| [] -> assert false
-	| [a] ->
-		write_ui16 ch 0;
-		write_ui16 ch a.bta_flags;
-		write_actions ch a.bta_actions
-	| a :: l ->
-		let size = button_action_length a in
-		write_ui16 ch size;
-		write_ui16 ch a.bta_flags;
-		write_actions ch a.bta_actions;
-		write_button_actions ch l
-
-let write_button2 ch b =
-	write_ui16 ch b.bt2_id;
-	write_byte ch (if b.bt2_track_as_menu then 1 else 0);
-	if b.bt2_actions <> [] then write_ui16 ch (3 + sum button_record_length b.bt2_records) else write_ui16 ch 0;
-	List.iter (write_button_record ch) b.bt2_records;
-	write_byte ch 0;
-	if b.bt2_actions <> [] then write_button_actions ch b.bt2_actions	
-
 let write_filter_gradient ch fg =
 	write_byte ch (List.length fg.fgr_colors);
 	List.iter (fun (c,_) -> write_rgba ch c) fg.fgr_colors;
@@ -1585,7 +1576,42 @@ let write_filter ch = function
 		write_byte ch 7;
 		write_filter_gradient ch fg
 
-let write_place_object ch p v3 =	
+let write_button_record ch r =
+	write_byte ch r.btr_flags;
+	write_ui16 ch r.btr_cid;
+	write_ui16 ch r.btr_depth;
+	write_matrix ch r.btr_mpos;
+	(match r.btr_color with
+	| None -> ()
+	| Some c ->
+		write_cxa ch c);
+	opt (fun l ->
+		write_byte ch (List.length l);
+		List.iter (write_filter ch) l
+	) r.btr_filters
+
+let rec write_button_actions ch = function
+	| [] -> assert false
+	| [a] ->
+		write_ui16 ch 0;
+		write_ui16 ch a.bta_flags;
+		write_actions ch a.bta_actions
+	| a :: l ->
+		let size = button_action_length a in
+		write_ui16 ch size;
+		write_ui16 ch a.bta_flags;
+		write_actions ch a.bta_actions;
+		write_button_actions ch l
+
+let write_button2 ch b =
+	write_ui16 ch b.bt2_id;
+	write_byte ch (if b.bt2_track_as_menu then 1 else 0);
+	if b.bt2_actions <> [] then write_ui16 ch (3 + sum button_record_length b.bt2_records) else write_ui16 ch 0;
+	List.iter (write_button_record ch) b.bt2_records;
+	write_byte ch 0;
+	if b.bt2_actions <> [] then write_button_actions ch b.bt2_actions
+
+let write_place_object ch p v3 =
 	write_byte ch (make_flags [
 		p.po_move;
 		flag p.po_cid;
@@ -1606,7 +1632,7 @@ let write_place_object ch p v3 =
 	opt (write_ui16 ch) p.po_clip_depth;
 	opt (write_clip_events ch) p.po_events;
 	if v3 then begin
-		opt (fun l -> 
+		opt (fun l ->
 			write_byte ch (List.length l);
 			List.iter (write_filter ch) l
 		) p.po_filters;
@@ -1616,7 +1642,7 @@ let write_place_object ch p v3 =
 
 let rec write_tag_data ch = function
 	| TEnd ->
-		()		
+		()
 	| TShowFrame ->
 		()
 	| TShape s ->
@@ -1648,16 +1674,16 @@ let rec write_tag_data ch = function
 	| TBitsJPEG2 b ->
 		write_ui16 ch b.jp2_id;
 		nwrite ch b.jp2_table;
-		nwrite ch b.jp2_data;		
+		nwrite ch b.jp2_data;
 	| TShape2 s ->
 		write_shape ch s
-	| TProtect -> 
+	| TProtect ->
 		()
 	| TPlaceObject2 p ->
 		write_place_object ch p false;
 	| TRemoveObject2 depth ->
 		write_ui16 ch depth;
-	| TShape3 s -> 
+	| TShape3 s ->
 		write_shape ch s
 	| TText2 t ->
 		write_text ch t
@@ -1710,6 +1736,12 @@ let rec write_tag_data ch = function
 		nwrite ch s
 	| TFont3 f ->
 		write_font3 ch f
+	| TSwf9Name (id,s) ->
+		write_i32 ch id;
+		write_string ch s;
+	| TActionScript3 a ->
+		assert false
+		(* As3parse.write ch a *)
 	| TShape4 s ->
 		write_shape ch s
 	| TShape5 (id,s) ->
@@ -1735,7 +1767,7 @@ let write ch (h,tags) =
 	write ch (char_of_int h.h_version);
 	let rec calc_len = function
 		| [] -> tag_length tag_end
-		| t :: l -> 
+		| t :: l ->
 			tag_length t + calc_len l
 	in
 	let len = calc_len tags in
