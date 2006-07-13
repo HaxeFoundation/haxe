@@ -5,13 +5,15 @@ import mtwin.mail.Exception;
 
 class Smtp {
 
-	public static function send( host : String, from : String, to : String, data : String ){
+	public static function send( host : String, from : String, to : String, data : String, ?port: Int ){
+		if( port == null ) port = 25;
+
 		var cnx = new Socket();
 		
 		try {
-			cnx.connect(Socket.resolve(host),25);
+			cnx.connect(Socket.resolve(host),port);
 		}catch( e : Dynamic ){
-			throw ConnectionError(hort,25);
+			throw ConnectionError(host,port);
 		}
 		
 		// get server init line
