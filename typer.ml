@@ -495,8 +495,9 @@ let extend_remoting ctx c t p async prot =
 let extend_proxy ctx c t p =
 	if c.cl_super <> None then error "Cannot extend several classes" p;
 	let tclass = load_normal_type ctx t p false in
+	let tdyn = TPNormal { tpackage = []; tname = "Dynamic"; tparams = []; } in
 	let make_field f args =		
-		let args = List.map (fun (name,o,_) -> name , o, None) args in
+		let args = List.map (fun (name,o,t) -> name , o, Some tdyn) args in
 		let eargs = List.map (fun (name,_,_) -> EConst (Ident name) , p) args in
 		f.cf_name , (FFun (f.cf_name,None,[if f.cf_public then APublic else APrivate],[], {
 			f_args = args;
