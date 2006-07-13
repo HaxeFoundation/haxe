@@ -109,7 +109,6 @@ type as3_function = {
 }
 
 type as3_tag = {
-	as3_id : (int * string) option;
 	as3_ints : as3_int array;
 	(* ??? *)
 	as3_floats : as3_float array;

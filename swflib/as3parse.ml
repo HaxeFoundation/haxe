@@ -204,7 +204,6 @@ let as3_function_length f =
 let as3_length ctx =
 	let ei = as3_empty_index ctx in
 	String.length ctx.as3_unknown +
-	(match ctx.as3_id with None -> 0 | Some (id,f) -> 4 + String.length f + 1) +
 	4 +
 	list_length as3_int_length ctx.as3_ints +
 	1 +
@@ -495,16 +494,9 @@ let read_function ctx ch =
 
 let header_magic = 0x002E0010
 
-let parse ch len has_id =
+let parse ch len =
 	let data = IO.nread ch len in
 	let ch = IO.input_string data in
-	let id = (if has_id then
-		let id = IO.read_i32 ch in
-		let frame = IO.read_string ch in
-		Some (id,frame)
-	else
-		None
-	) in
 	if IO.read_i32 ch <> header_magic then assert false;
 	let ints = read_list ch read_as3_int in
 	if IO.read_byte ch <> 0 then assert false;
@@ -513,7 +505,6 @@ let parse ch len has_id =
 	let base_rights = (if parse_base_rights then read_list ch (read_base_right idents) else [||]) in
 	let rights = (if parse_rights then read_list ch (read_rights base_rights) else [||]) in
 	let ctx = {
-		as3_id = id;
 		as3_ints = ints;
 		as3_floats = floats;
 		as3_idents = idents;
@@ -763,14 +754,9 @@ let write_function ch f =
 	write_int ch 0;
 	write_int ch 0
 
-let write ch1 ctx =
+let write ch1 ctx id =
 	let ch = IO.output_string() in
 	let empty_index = as3_empty_index ctx in
-	(match ctx.as3_id with
-	| None -> ()
-	| Some (id,frame) ->
-		IO.write_i32 ch id;
-		IO.write_string ch frame);
 	IO.write_i32 ch header_magic;
 	write_list ch write_as3_int ctx.as3_ints;
 	IO.write_byte ch 0;
@@ -791,7 +777,7 @@ let write ch1 ctx =
 		let l1 = String.length str in
 		let l2 = String.length ctx.as3_original_data in
 		let l = if l1 < l2 then l1 else l2 in
-		let frame = (match ctx.as3_id with None -> "<unknown>" | Some (_,f) -> f) in
+		let frame = (match id with None -> "<unknown>" | Some (_,f) -> f) in
 		for i = 0 to l - 1 do
 			if str.[i] <> ctx.as3_original_data.[i] then failwith (Printf.sprintf "Corrupted data in %s at 0x%X" frame i);
 		done;
@@ -951,8 +937,8 @@ let dump_method_type ctx ch idx _ =
 let dump_metadata ctx ch idx _ =
 	IO.printf ch "D%d = %s\n" idx (metadata_str ctx (index ctx.as3_metadatas (idx + 1)))
 
-let dump ch ctx =
-	(match ctx.as3_id with
+let dump ch ctx id =
+	(match id with
 	| None -> IO.printf ch "\n---------------- AS3 -------------------------\n\n";
 	| Some (id,f) -> IO.printf ch "\n---------------- AS3 %s [%d] -----------------\n\n" f id);
 	Array.iteri (dump_ident ctx ch) ctx.as3_idents;
