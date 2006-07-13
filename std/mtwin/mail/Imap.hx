@@ -104,7 +104,7 @@ class Imap {
 		try{
 			cnx.connect( Socket.resolve(host), port );
 		}catch( e : Dynamic ){
-			throw new ConnectionError(host,port);
+			throw ConnectionError(host,port);
 		}
 		debug("socket connected");
 		cnx.setTimeout( 1 );
@@ -114,7 +114,7 @@ class Imap {
 	function login( user : String, pass : String ){	
 		var r = command("LOGIN",user+" "+pass,true);
 		if( !r.success ){
-			throw new BadResponse(r.response);
+			throw BadResponse(r.response);
 		}
 	}
 	
@@ -127,7 +127,7 @@ class Imap {
 	public function select( mailbox : String ){
 		var r = command("SELECT",quote(mailbox),true);
 		if( !r.success ) 
-			throw new BadResponse(r.response);
+			throw BadResponse(r.response);
 		
 		var ret = {recent: 0,exists: 0,firstUnseen: null};
 		for( v in r.result ){
@@ -152,7 +152,7 @@ class Imap {
 			r = command("LIST","\".\" \""+pattern+"\"",true);
 		}
 		if( !r.success ){
-			throw new BadResponse(r.response);
+			throw BadResponse(r.response);
 		}
 
 		var ret = new List();
@@ -185,7 +185,7 @@ class Imap {
 		if( pattern == null ) pattern = "ALL";
 		var r = command("SEARCH",pattern,true);
 		if( !r.success ){
-			throw new BadResponse(r.response);
+			throw BadResponse(r.response);
 		}
 
 		var l = new List();
@@ -216,7 +216,7 @@ class Imap {
 
 		var r = fetchRange( Std.string(id), section, useUid );
 		if( !r.exists(id) ){
-			throw new ImapFetchError(id);
+			throw ImapFetchError(id);
 		}
 		return r.get(id);
 	}
@@ -281,10 +281,10 @@ class Imap {
 				if( resp == "OK" ){
 					break;
 				}else{
-					throw new BadResponse(l);
+					throw BadResponse(l);
 				}
 			}else{
-				throw new UnknowResponse(l);
+				throw UnknowResponse(l);
 			}
 		}
 		
