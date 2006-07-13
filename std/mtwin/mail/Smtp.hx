@@ -2,7 +2,12 @@ package mtwin.mail;
 
 import neko.Socket;
 
-class SmtpException extends mtwin.mail.Exception {
+enum SmtpException extends mtwin.mail.Exception {
+	ConnectionError(host:String,port:Int);
+	MailFromError(e:String);
+	RcptToError(e:String);
+	DataError(e:String);
+	SendDataError;
 }
 
 class Smtp {
@@ -13,7 +18,7 @@ class Smtp {
 		try {
 			cnx.connect(Socket.resolve(host),25);
 		}catch( e : Dynamic ){
-			throw new SmtpException("SMTP connection failed: "+e);
+			throw ConnectionError(hort,25);
 		}
 		
 		// get server init line
@@ -23,21 +28,21 @@ class Smtp {
 		var ret = StringTools.trim(cnx.readLine());
 		if( ret.substr(0,3) != "250" ){
 			cnx.close();
-			throw new SmtpException("SMTP error on FROM : " + ret);
+			throw MailFromError(ret);
 		}
 
 		cnx.write( "RCPT TO:<" + to + ">\r\n" );
 		ret = StringTools.trim(cnx.readLine());
 		if( ret.substr(0,3) != "250" ){
 			cnx.close();
-			throw new SmtpException("SMTP error on RCPT : " + ret);
+			throw RcptToError(ret);
 		}
 
 		cnx.write( "DATA\r\n" );
 		ret = StringTools.trim(cnx.readLine());
 		if( ret.substr(0,3) != "354" ){
 			cnx.close();
-			throw new SmtpException("SMTP error on DATA : " + ret);
+			throw DataError(ret);
 		}
 
 		if( data.substr(data.length -2,2) != "\r\n" ) 
@@ -47,7 +52,7 @@ class Smtp {
 		ret = StringTools.trim(cnx.readLine());
 		if( ret.substr(0,3) != "250" ){
 			cnx.close();
-			throw new SmtpException("SMTP error on mail content: " + ret);
+			throw SendDataError;
 		}
 
 		cnx.write( "QUIT\r\n" );

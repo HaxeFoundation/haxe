@@ -1,6 +1,10 @@
 package mtwin.mail;
 
-class ImapException extends mtwin.mail.Exception {
+enum ImapException extends mtwin.mail.Exception {
+	UnknowResponse(r:String);
+	ConnectionError(host:String, port:Int);
+	BadResponse(r:String);
+	FetchError(id:Int);
 }
 
 signature ImapConnectionInfo {
@@ -80,7 +84,7 @@ class Imap {
 						comment: REG_RESP.matched(3)
 					};
 				}else{
-					throw new ImapException("Unknow response : "+line);
+					throw UnknowResponse(line);
 				}
 			}else{
 				if( StringTools.startsWith(line,"* ") ){
@@ -105,7 +109,7 @@ class Imap {
 		try{
 			cnx.connect( Socket.resolve(host), port );
 		}catch( e : Dynamic ){
-			throw new ImapException("Unable to connect to imap server "+host+" on port "+port);
+			throw new ConnectionError(host,port);
 		}
 		debug("socket connected");
 		cnx.setTimeout( 1 );
@@ -115,7 +119,7 @@ class Imap {
 	function login( user : String, pass : String ){	
 		var r = command("LOGIN",user+" "+pass,true);
 		if( !r.success ){
-			throw new ImapException("Error on login: "+r.response);
+			throw new BadResponse(r.response);
 		}
 	}
 	
@@ -128,7 +132,7 @@ class Imap {
 	public function select( mailbox : String ){
 		var r = command("SELECT",quote(mailbox),true);
 		if( !r.success ) 
-			throw new ImapException("Unable to select "+mailbox+": "+r.response);
+			throw new BadResponse(r.response);
 		
 		var ret = {recent: 0,exists: 0,firstUnseen: null};
 		for( v in r.result ){
@@ -153,7 +157,7 @@ class Imap {
 			r = command("LIST","\".\" \""+pattern+"\"",true);
 		}
 		if( !r.success ){
-			throw new ImapException("Unable to list mailboxes (pattern: "+pattern+"): "+r.response);
+			throw new BadResponse(r.response);
 		}
 
 		var ret = new List();
@@ -186,7 +190,7 @@ class Imap {
 		if( pattern == null ) pattern = "ALL";
 		var r = command("SEARCH",pattern,true);
 		if( !r.success ){
-			throw new ImapException("Unable to search messages (pattern: "+pattern+"): "+r.response);
+			throw new BadResponse(r.response);
 		}
 
 		var l = new List();
@@ -217,7 +221,7 @@ class Imap {
 
 		var r = fetchRange( Std.string(id), section, useUid );
 		if( !r.exists(id) ){
-			throw new ImapException("fetchOne failed");
+			throw new FetchError(id);
 		}
 		return r.get(id);
 	}
@@ -282,10 +286,10 @@ class Imap {
 				if( resp == "OK" ){
 					break;
 				}else{
-					throw new ImapException("Error fetching messages : "+l);
+					throw new BadResponse(l);
 				}
 			}else{
-				throw new ImapException("Unknow response from fetch : "+l);
+				throw new UnknowResponse(l);
 			}
 		}
 		
