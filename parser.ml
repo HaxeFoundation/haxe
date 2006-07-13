@@ -57,8 +57,8 @@ let priority = function
 	| OpOr | OpAnd | OpXor -> 0
 	| OpShl | OpShr | OpUShr -> 1
 	| OpAdd | OpSub -> 2
-	| OpMod -> 3
-	| OpMult | OpDiv -> 4
+	| OpMult | OpDiv -> 3
+	| OpMod -> 4
 
 let is_not_assign = function
 	| OpAssign | OpAssignOp _ -> false
