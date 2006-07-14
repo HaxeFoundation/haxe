@@ -148,11 +148,6 @@ let context err warn =
 	);
 	ctx
 
-let field_type f =
-	match f.cf_params with
-	| [] -> f.cf_type
-	| l -> monomorphs l f.cf_type
-
 let unify ctx t1 t2 p =
 	try
 		Type.unify t1 t2
@@ -239,30 +234,6 @@ let field_access ctx get f t e p =
 			AccExpr (mk (TCall (mk (TField (e,m)) (mk_mono()) p,[])) t p)
 		else
 			AccSet (e,m,t,f.cf_name)
-
-let rec class_field c i =
-	try
-		let f = PMap.find i c.cl_fields in
-		field_type f , f
-	with Not_found -> try
-		let rec loop = function
-			| [] ->
-				raise Not_found
-			| (c,tl) :: l ->
-				try
-					let t , f = class_field c i in
-					apply_params c.cl_types tl t, f
-				with
-					Not_found -> loop l
-		in
-		loop c.cl_implements
-	with Not_found ->
-		match c.cl_super with
-		| None ->
-			raise Not_found
-		| Some (c,tl) ->
-			let t , f = class_field c i in
-			apply_params c.cl_types tl t , f
 
 let acc_get g p =
 	match g with

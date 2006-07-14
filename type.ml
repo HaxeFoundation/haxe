@@ -463,6 +463,35 @@ let unify_types a b tl1 tl2 =
 let unify_access a1 a2 =
 	a1 = a2 || (a1 = NormalAccess && a2 = NoAccess)
 
+let field_type f =
+	match f.cf_params with
+	| [] -> f.cf_type
+	| l -> monomorphs l f.cf_type
+
+let rec class_field c i =
+	try
+		let f = PMap.find i c.cl_fields in
+		field_type f , f
+	with Not_found -> try
+		let rec loop = function
+			| [] ->
+				raise Not_found
+			| (c,tl) :: l ->
+				try
+					let t , f = class_field c i in
+					apply_params c.cl_types tl t, f
+				with
+					Not_found -> loop l
+		in
+		loop c.cl_implements
+	with Not_found ->
+		match c.cl_super with
+		| None ->
+			raise Not_found
+		| Some (c,tl) ->
+			let t , f = class_field c i in
+			apply_params c.cl_types tl t , f
+
 let rec unify a b =
 	if a == b then
 		()
@@ -522,12 +551,12 @@ let rec unify a b =
 	| TInst (c,tl) , TAnon an ->
 		(try
 			PMap.iter (fun n f2 ->
-				let f1 = (try PMap.find n c.cl_fields with Not_found -> error [has_no_field a n]) in
+				let ft, f1 = (try class_field c n with Not_found -> error [has_no_field a n]) in
 				if not (unify_access f1.cf_get f2.cf_get) then error [invalid_access n true];
 				if not (unify_access f1.cf_set f2.cf_set) then error [invalid_access n false];
 				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
 				try
-					unify (apply_params c.cl_types tl f1.cf_type) f2.cf_type
+					unify (apply_params c.cl_types tl ft) f2.cf_type
 				with
 					Unify_error l -> error (invalid_field n :: l)
 			) an.a_fields;
