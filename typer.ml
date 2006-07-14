@@ -97,6 +97,7 @@ let rec error_msg = function
 	| Protect m -> error_msg m
 
 let forbidden_packages = ref []
+let check_override = ref false
 
 let error msg p = raise (Error (Custom msg,p))
 
@@ -1758,7 +1759,7 @@ let check_overriding ctx c p () =
 				let t = apply_params csup.cl_types params t in
 				ignore(follow f.cf_type); (* force evaluation *)
 				let p = (match f.cf_expr with None -> p | Some e -> e.epos) in
-				if not (List.mem i c.cl_overrides) then 
+				if !check_override && not (List.mem i c.cl_overrides) then
 					display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass") p
 				else if f.cf_public <> f2.cf_public then
 					display_error ctx ("Field " ^ i ^ " has different visibility (public/private) than superclass one") p
@@ -1767,7 +1768,8 @@ let check_overriding ctx c p () =
 				else if not (type_eq false (field_type f) t) then
 					display_error ctx ("Field " ^ i ^ " overload parent class with different or incomplete type") p
 			with
-				Not_found -> ()
+				Not_found ->
+					if List.mem i c.cl_overrides then display_error ctx ("Field " ^ i ^ " is declared 'override' but doesn't override any field") p
 		) c.cl_fields
 
 let rec check_interface ctx c p intf params =

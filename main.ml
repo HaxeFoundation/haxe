@@ -132,6 +132,7 @@ try
 	let cmds = ref [] in
 	let excludes = ref [] in
 	Plugin.defines := base_defines;
+	Typer.check_override := false;
 	Typer.forbidden_packages := ["js"; "neko"; "flash"];
 	Parser.display_error := parse_error;
 	(try
@@ -228,6 +229,9 @@ try
 			cmds := cmd :: !cmds
 		),": run the specified command after successful compilation");
 		("--flash-strict", define "flash_strict", ": more type strict flash API");
+		("--override", Arg.Unit (fun() -> 
+			Typer.check_override := true
+		),": ensure that overriden methods are declared with 'override'");
 		("--no-traces", define "no_traces", ": don't compile trace calls in the program");
 		("--flash-use-stage", define "flash_use_stage", ": place objects found on the stage of the SWF lib");
 		("--next", Arg.Unit (fun() -> assert false), ": separate several haxe compilations");
