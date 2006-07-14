@@ -183,7 +183,6 @@ let is_protected_name path ext =
 	match path with
 	| ["flash"] , "Boot" | ["flash"] , "Lib" -> false
 	| "flash" :: _ , _ -> ext
-	| "_global" :: _ , _ -> true
 	| [] , "Array" | [] , "Math" | [] , "Date" | [] , "String" -> true
 	| _ -> false
 
