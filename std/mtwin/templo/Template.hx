@@ -30,7 +30,7 @@ class Template {
 	public var execute : Dynamic -> String;
 
 	public function new( file:String ){
-		execute = if (File.OPTIMIZED) loadTemplate(nekoBin(file)) else fromFile(file);
+		execute = if (Loader.OPTIMIZED) loadTemplate(nekoBin(file)) else fromFile(file);
 	}
 
 	static function nekoId( path:String ) : String {
@@ -45,28 +45,28 @@ class Template {
 	}
 
 	static function nekoBin( path:String ) : String {
-		return File.TMP_DIR + nekoId(path) + ".n";
+		return Loader.TMP_DIR + nekoId(path) + ".n";
 	}
 
 	static function nekoSrc( path:String ) : String {
-		return File.TMP_DIR + nekoId(path) + ".neko";
+		return Loader.TMP_DIR + nekoId(path) + ".neko";
 	}
 
 	public static function fromFile( path:String ) : Dynamic -> String {
-		if (File.OPTIMIZED)
+		if (Loader.OPTIMIZED)
 			return loadTemplate(nekoBin(path));
-		if (File.MACROS != null && mtwin.templo.Preprocessor.macroFileStamp == null)
-			mtwin.templo.Preprocessor.registerMacroFile(File.BASE_DIR+File.MACROS);
+		if (Loader.MACROS != null && mtwin.templo.Preprocessor.macroFileStamp == null)
+			mtwin.templo.Preprocessor.registerMacroFile(Loader.BASE_DIR+Loader.MACROS);
 		var binPath = nekoBin(path);
 		if (neko.FileSystem.exists(binPath)){
 			var macroStamp  = mtwin.templo.Preprocessor.macroFileStamp;
-			var sourceStamp = neko.FileSystem.stat(File.BASE_DIR+"/"+path).mtime.getTime();
+			var sourceStamp = neko.FileSystem.stat(Loader.BASE_DIR+"/"+path).mtime.getTime();
 			var stamp       = neko.FileSystem.stat(binPath).mtime.getTime();
 			if ((stamp >= sourceStamp) && (macroStamp == null || macroStamp < stamp)){
 				return loadTemplate(binPath);
 			}
 		}
-		var content = neko.File.getContent(File.BASE_DIR+"/"+path);
+		var content = neko.File.getContent(Loader.BASE_DIR+"/"+path);
 		return fromString(content, nekoId(path));
 	}
 
@@ -94,10 +94,10 @@ class Template {
 		f.write(s);
 		f.close();
 
-		var r = neko.Sys.command("nekoc -o "+File.TMP_DIR+" "+path+" 2> "+File.TMP_DIR+"/nekoc.out");
+		var r = neko.Sys.command("nekoc -o "+Loader.TMP_DIR+" "+path+" 2> "+Loader.TMP_DIR+"/nekoc.out");
 		if (r != 0){
-			if (neko.FileSystem.exists(File.TMP_DIR+"/nekoc.out")){
-				throw "nekoc compilation of "+path+" failed ("+r+") : "+neko.File.getContent(File.TMP_DIR+"/nekoc.out");
+			if (neko.FileSystem.exists(Loader.TMP_DIR+"/nekoc.out")){
+				throw "nekoc compilation of "+path+" failed ("+r+") : "+neko.File.getContent(Loader.TMP_DIR+"/nekoc.out");
 			}
 			else {
 				throw "nekoc compilation of "+path+" failed ("+r+") -- no nekoc.out available";

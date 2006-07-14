@@ -29,7 +29,7 @@ import neko.Sys;
 import neko.File;
 import neko.FileSystem;
 
-class File {
+class Loader {
 
 	public static var BASE_DIR = "";
 	public static var TMP_DIR = "/tmp/";
@@ -69,7 +69,7 @@ class File {
 		else
 			result = Sys.command("temploc -m "+BASE_DIR+MACROS+" -o "+TMP_DIR+" -r "+BASE_DIR+" "+path+" 2> "+TMP_DIR+"temploc.out");
 		if( result != 0 )
-			throw "temploc compilation or "+path+" failed : "+neko.File.getContent(File.TMP_DIR+"temploc.out");
+			throw "temploc compilation or "+path+" failed : "+neko.File.getContent(Loader.TMP_DIR+"temploc.out");
 	}
 
 	static function loadTemplate( nPath:String ) : Dynamic -> String {

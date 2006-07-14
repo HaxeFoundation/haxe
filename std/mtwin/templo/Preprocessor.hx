@@ -48,8 +48,8 @@ class Preprocessor {
 	public static var macroFileStamp : Float;
 
 	public static function process( str:String ) : String {
-		if (macroFileStamp == null && File.MACROS != null)
-			registerMacroFile(File.BASE_DIR+File.MACROS);
+		if (macroFileStamp == null && Loader.MACROS != null)
+			registerMacroFile(Loader.BASE_DIR+Loader.MACROS);
 
 		var res = expandMacros(str);
 		res = escapeCdata1(res);
