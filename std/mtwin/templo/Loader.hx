@@ -23,13 +23,13 @@
  * DAMAGE.
  */
 
-package mtwin;
+package mtwin.templo;
 
 import neko.Sys;
 import neko.File;
 import neko.FileSystem;
 
-class Templo {
+class File {
 
 	public static var BASE_DIR = "";
 	public static var TMP_DIR = "/tmp/";
@@ -78,7 +78,7 @@ class Templo {
 			var oldCache = loader.cache;
 			loader.cache = __dollar__new(oldCache);
 			loader.String = String;
-			loader.iter = function(loop, fnc){ 
+			loader.iter = function(loop, fnc){
 				if (loop == null){
 					throw "repeat or foreach called on null value";
 				}
