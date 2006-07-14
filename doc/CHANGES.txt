@@ -6,6 +6,7 @@
 	fixed bug in haxe.Proxy generation
 	fixed more stack overflows with recursive signatures
 	fixed bug in class <: anonymous subtyping (inherited fields)
+	override is not mandatory by default (need --override)
 
 2006-06-23: 1.03
 	haxedoc executable now part of the distribution
