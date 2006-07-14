@@ -29,19 +29,21 @@ import mtwin.mail.Exception;
 
 signature ImapMailbox = {
 	name: String,
-	flags: List<String>,
+	flags: ImapFlags,
 	hasChildren: Bool
 }
 
 signature ImapFetchResponse = {
 	bodyType: String,
 	body: String,
-	flags: List<String>,
+	flags: ImapFlags,
 	uid: Int,
 	structure: ImapBodyStructure,
 	internalDate: String,
 	envelope: ImapEnvelope
 }
+
+signature ImapFlags = Array<String>
 
 enum ImapSection {
 	Flags;
@@ -64,6 +66,12 @@ enum ImapRange {
 	Single(i:Int);
 	Range(s:Int,e:Int);
 	Composite(l:Array<ImapRange>);
+}
+
+enum ImapFlagMode {
+	Add;
+	Remove;
+	Replace;
 }
 
 class Imap {
@@ -128,7 +136,7 @@ class Imap {
 		Login to server
 	**/
 	public function login( user : String, pass : String ){	
-		var r = command("LOGIN",user+" "+pass,true);
+		var r = command("LOGIN",user+" "+pass);
 		if( !r.success ){
 			throw BadResponse(r.response);
 		}
@@ -148,9 +156,9 @@ class Imap {
 	public function mailboxes( ?pattern : String ) : List<ImapMailbox> {
 		var r;
 		if( pattern == null ){
-			r = command("LIST","\".\" \"*\"",true);
+			r = command("LIST","\".\" \"*\"");
 		}else{
-			r = command("LIST","\".\" \""+pattern+"\"",true);
+			r = command("LIST","\".\" \""+pattern+"\"");
 		}
 		if( !r.success ){
 			throw BadResponse(r.response);
@@ -162,18 +170,14 @@ class Imap {
 				var name = REG_LIST_RESP.matched(2);
 				var flags = REG_LIST_RESP.matched(1).split(" ");
 
-				var t = {name: name,flags: new List(),hasChildren: false};
+				var t = {name: name,flags: flags,hasChildren: false};
 
 				for( v in flags ){
-					if( v == "" ) continue;
-					
 					if( v == "\\HasNoChildren" ){
 						t.hasChildren = false;
 					}else if( v == "\\HasChildren" ){
 						t.hasChildren = true;
 					}
-
-					t.flags.add( v );
 				}
 
 				ret.add(t);
@@ -186,7 +190,7 @@ class Imap {
 		Select a mailbox
 	**/
 	public function select( mailbox : String ){
-		var r = command("SELECT",quote(mailbox),true);
+		var r = command("SELECT",quote(mailbox));
 		if( !r.success ) 
 			throw BadResponse(r.response);
 		
@@ -205,11 +209,11 @@ class Imap {
 	}
 
 	/**
-		Search for messages. Pattern syntax described in RFC 2060, section 6.4.4
+		Search for messages. Pattern syntax described in RFC 3501, section 6.4.4
 	**/
 	public function search( ?pattern : String ){
 		if( pattern == null ) pattern = "ALL";
-		var r = command("SEARCH",pattern,true);
+		var r = command("SEARCH",pattern);
 		if( !r.success ){
 			throw BadResponse(r.response);
 		}
@@ -345,6 +349,54 @@ class Imap {
 		return ret;
 	}
 
+	public function append( mailbox : String, msg : String, ?flags : ImapFlags ){
+		var f = if( flags != null ) "("+flags.join(" ")+") " else "";
+		command("APPEND",quote(mailbox)+" "+f+"{"+msg.length+"}",false);
+		cnx.write( msg );
+		cnx.write( "\r\n" );
+		var r = read( StringTools.lpad(Std.string(count),"A000",4) );
+		if( !r.success )
+			throw BadResponse(r.response);
+	}
+
+	public function expunge(){
+		var r = command("EXPUNGE");
+		if( !r.success )
+			throw BadResponse(r.response);
+	}
+
+	public function flags( iRange : ImapRange, flags : ImapFlags, ?mode : ImapFlagMode, ?fetchResult : Bool ) : IntHash<Array<String>> {
+		if( mode == null ) mode = Add;
+		if( fetchResult == null ) fetchResult = false;
+		
+		var range = Tools.imapRangeString(iRange);
+		var elem = switch( mode ){
+			case Add: "+FLAGS";
+			case Remove: "-FLAGS";
+			case Replace: "FLAGS";
+		}
+		if( !fetchResult ){
+			elem += ".SILENT";
+		}
+
+		var r = command( "STORE", range + " " + elem + "("+flags.join(" ")+")");
+		if( !r.success ) throw BadResponse( r.response );
+		if( !fetchResult ) return null;
+
+		var ret = new IntHash();
+		for( line in r.result ){
+			if( REG_FETCH_MAIN.match(line) ){
+				var id = Std.parseInt(REG_FETCH_MAIN.matched(1));
+				if( REG_FETCH_FLAGS.match( REG_FETCH_MAIN.matchedRight() ) ){
+					ret.set(id,REG_FETCH_FLAGS.matched(1).split(" "));
+				}
+			}
+		}
+		return ret;
+	}
+
+	/////
+
 	function completeString( s ){
 		var reg = ~/(?<!\] )\{([0-9]+)\}$/;
 		while( reg.match( s ) ){
@@ -356,17 +408,17 @@ class Imap {
 		return s;
 	}
 
-	//
-
-	function command( command, args, r ){
+	function command( command : String, ?args : String , ?r : Bool ){
 		if( cnx == null )
 			throw NotConnected;
-
+		if( r == null ) r = true;
+		if( args == null ) args = "" else args = " "+args;
+		
 		count++;
 		var c = Std.string(count);
 		c = StringTools.lpad(c,"A000",4);
-		cnx.write( c+" "+command+" "+args+"\r\n" );
-		debug( "S: "+c+" "+command+" "+args );
+		cnx.write( c+" "+command+args+"\r\n" );
+		debug( "S: "+c+" "+command+args );
 
 		if( !r ){
 			return null;
