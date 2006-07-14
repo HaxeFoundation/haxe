@@ -39,10 +39,12 @@ class Hash<T> {
 		#else neko
 		h = untyped __dollar__hnew(0);
 		#else js
-		h = Reflect.empty();
-		untyped if( h.__proto__ != null ) {
-			h.__proto__ = null;
-			__js__("delete")(h.__proto__);
+		untyped {
+			h = __js__("{}");
+			if( h.__proto__ != null ) {
+				h.__proto__ = null;
+				__js__("delete")(h.__proto__);
+			}
 		}
 		#else error
 		#end
@@ -85,7 +87,7 @@ class Hash<T> {
 		#if flash
 		return untyped h["hasOwnProperty"](key);
 		#else js
-		return Reflect.hasField(h,key);
+		return untyped this.hasOwnProperty.call(h,key);
 		#else neko
 		return untyped __dollar__hmem(h,key.__s,null);
 		#else error
@@ -102,7 +104,10 @@ class Hash<T> {
 		untyped __delete__(h,key);
 		return true;
 		#else js
-		return Reflect.deleteField(h,key);
+		if( !exists(key) )
+			return false;
+		untyped __js__("delete")(h[key]);
+		return true;
 		#else neko
 		return untyped __dollar__hremove(h,key.__s,null);
 		#else error
@@ -116,7 +121,12 @@ class Hash<T> {
 		#if flash
 		return untyped (__keys__(h))["iterator"]();
 		#else js
-		return Reflect.fields(h).iterator();
+		var a = new Array<String>();
+		untyped __js__("
+			for(var i in this.h)
+				a.push(i);
+		");
+		return a.iterator();
 		#else neko
 		var l = new List<String>();
 		untyped __dollar__hiter(h,function(k,_) { l.push(new String(k)); });
