@@ -45,7 +45,7 @@ class Main {
 					if (value.charAt(value.length-1) == "/"){
 						value = value.substr(0, value.length-1);
 					}
-					mtwin.templo.Template.BASE_DIR = value;
+					File.BASE_DIR = value;
 					++i;
 
 				case "-o":
@@ -53,7 +53,7 @@ class Main {
 					if (value.charAt(value.length-1) != "/"){
 						value = value + "/";
 					}
-					mtwin.templo.Template.TMP_DIR = value;
+					File.TMP_DIR = value;
 					++i;
 
 				case "-m":
@@ -73,7 +73,7 @@ class Main {
 			neko.Lib.print("temploc - v"+VERSION+"\n");
 			neko.Lib.print(USAGE);
 		}
-		else if (mtwin.templo.Template.BASE_DIR == null){
+		else if (File.BASE_DIR == null){
 			var sampleFile = Lambda.array(files.iterator())[0];
 			var pslah = sampleFile.lastIndexOf("/",sampleFile.length);
 			var aslah = sampleFile.lastIndexOf("/",sampleFile.length);
@@ -82,7 +82,7 @@ class Main {
 				neko.Lib.print("missing template BASE_DIR\n");
 				throw USAGE;
 			}
-			mtwin.templo.Template.BASE_DIR = sampleFile.substr(0,pos);
+			File.BASE_DIR = sampleFile.substr(0,pos);
 		}
 	}
 
@@ -93,7 +93,7 @@ class Main {
 	static function main(){
 		parseArgs();
 		for (file in files){
-			file = StringTools.replace(file, mtwin.templo.Template.BASE_DIR+"/", "");
+			file = StringTools.replace(file, File.BASE_DIR+"/", "");
 			neko.Lib.print("* "+file+"...");
 			mtwin.templo.Template.fromFile(file);
 			neko.Lib.print(" done\n");

@@ -1,3 +1,4 @@
+-cp ../../
 -main mtwin.templo.Main
 -neko temploc.n
 -cmd nekotools boot temploc.n
