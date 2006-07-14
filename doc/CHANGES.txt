@@ -5,6 +5,7 @@
 	fixed : modulo priority is now higher than mult and div
 	fixed bug in haxe.Proxy generation
 	fixed more stack overflows with recursive signatures
+	fixed bug in class <: anonymous subtyping (inherited fields)
 
 2006-06-23: 1.03
 	haxedoc executable now part of the distribution
