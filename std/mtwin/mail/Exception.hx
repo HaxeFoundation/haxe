@@ -36,4 +36,6 @@ enum Exception {
 	UnknowResponse(r:String);
 	BadResponse(r:String);
 	ImapFetchError(id:Int);
+
+	ParseError(s:String);
 }

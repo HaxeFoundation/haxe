@@ -135,8 +135,8 @@ class ImapEnvelope {
 					var bs = b.toString();
 					if( bs == "NIL" )
 						addElement( null );
-					//else
-						//throw ParseError(bs);
+					else
+						throw ParseError(bs);
 			}
 		}
 		ret.__length = p;
