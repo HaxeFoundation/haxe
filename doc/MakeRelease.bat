@@ -18,7 +18,7 @@ cd ..
 
 rm -rf CVS .cvsignore */CVS */.cvsignore */*/CVS */*/.cvsignore */*/*/CVS */*/*/.cvsignore
 rm -rf all.n all.js all.swf *.xml tools/haxedoc.n tools/index.html tools/content tools/haxedoc.exe
-rm -rf mt
+rm -rf mt mtwin
 
 cd ..\..\..\..\neko\bin
 cp gc.dll neko.dll neko.exe nekoc.exe nekotools.exe *.ndll ../../haxe/doc/haxe-release

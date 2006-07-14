@@ -9,7 +9,7 @@ class Request {
 	public function new() {
 		pathInfoParts = Web.getURI().split( "/" );
 		pathInfoParts.shift();
-		setParams( Web.getParams() );
+		params = Web.getParams();
 	}
 
 	public function getPathInfoPart ( level ) : String {
@@ -35,7 +35,7 @@ class Request {
 			for( k in keys ){
 				Reflect.setField( ret, k, params.get(k) );
 			}
-		}		
+		}
 		return ret;
 	}
 
