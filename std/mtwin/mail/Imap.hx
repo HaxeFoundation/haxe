@@ -27,10 +27,20 @@ package mtwin.mail;
 import neko.Socket;
 import mtwin.mail.Exception;
 
-signature ImapMailbox {
+signature ImapMailbox = {
 	name: String,
 	flags: List<String>,
 	hasChildren: Bool
+}
+
+signature ImapFetchResponse = {
+	bodyType: String,
+	body: String,
+	flags: List<String>,
+	uid: Int,
+	structure: ImapBodyStructure,
+	internalDate: String,
+	envelope: ImapEnvelope
 }
 
 enum ImapSection {
@@ -58,6 +68,7 @@ enum ImapRange {
 
 class Imap {
 	public static var DEBUG = false;
+	public static var TIMEOUT = 5;
 
 	var cnx : Socket;
 	var count : Int;
@@ -71,6 +82,8 @@ class Imap {
 	static var REG_FETCH_FLAGS = ~/^FLAGS \(([ \\A-Za-z0-9$]*)\) */;
 	static var REG_FETCH_UID = ~/^UID ([0-9]+) */;
 	static var REG_FETCH_BODYSTRUCTURE = ~/^BODY(STRUCTURE)? \(/;
+	static var REG_FETCH_ENVELOPE = ~/^ENVELOPE \(/;
+	static var REG_FETCH_INTERNALDATE = ~/^INTERNALDATE "([^"]+)" */;
 	static var REG_FETCH_END = ~/^([A0-9]{4}) (OK|BAD|NO)/;
 	static var REG_LIST_RESP = ~/LIST \(([ \\A-Za-z0-9]*)\) "\." "([^"]+)"/;
 	static var REG_CRLF = ~/\r?\n/g;
@@ -96,8 +109,10 @@ class Imap {
 	/**
 		Connect to Imap Server
 	**/
-	public function connect( host : String, port : Int ){
+	public function connect( host : String, ?port : Int ){
 		if( cnx != null ) throw AlreadyConnected;
+
+		if( port == null ) port = 143;
 		cnx = new Socket();
 		try{
 			cnx.connect( Socket.resolve(host), port );
@@ -105,7 +120,7 @@ class Imap {
 			throw ConnectionError(host,port);
 		}
 		debug("socket connected");
-		cnx.setTimeout( 1 );
+		cnx.setTimeout( TIMEOUT );
 		cnx.readLine();
 	}
 
@@ -268,7 +283,7 @@ class Imap {
 				var o = if( ret.exists(id) ){
 					ret.get(id); 
 				}else {
-					var o = {type: null,content: null,flags: null,uid: null,structure: null};
+					var o = {bodyType: null,body: null,flags: null,uid: null,structure: null,internalDate: null,envelope: null};
 					ret.set(id,o);
 					o;
 				}
@@ -281,16 +296,25 @@ class Imap {
 					}else if( REG_FETCH_UID.match( s ) ){
 						o.uid = Std.parseInt(REG_FETCH_UID.matched(1));
 						s = REG_FETCH_UID.matchedRight();
+					}else if( REG_FETCH_INTERNALDATE.match( s ) ){
+						o.internalDate = REG_FETCH_INTERNALDATE.matched(1);
+						s = REG_FETCH_INTERNALDATE.matchedRight();
+					}else if( REG_FETCH_ENVELOPE.match( s ) ){
+						var t = REG_FETCH_ENVELOPE.matchedRight();
+						t = completeString(t);
+						o.envelope = ImapEnvelope.parse( t );
+						s = StringTools.ltrim(t.substr(o.envelope.__length,t.length));
 					}else if( REG_FETCH_BODYSTRUCTURE.match( s ) ){
-						var t = REG_FETCH_BODYSTRUCTURE.matchedRight().substr(0,-1);
+						var t = REG_FETCH_BODYSTRUCTURE.matchedRight();
+						t = completeString(t);
 						o.structure = ImapBodyStructure.parse( t );
-						break;
+						s = StringTools.ltrim(t.substr(o.structure.__length,t.length));
 					}else if( REG_FETCH_PART.match( s ) ){
-						var type = REG_FETCH_PART.matched(1);
 						var len = Std.parseInt(REG_FETCH_PART.matched(2));
 						
-						o.content = cnx.read( len );
-						o.type = type;
+						o.body = cnx.read( len );
+						o.bodyType = REG_FETCH_PART.matched(1);
+						
 						cnx.readLine();
 						break;
 					}else{
@@ -319,6 +343,17 @@ class Imap {
 		}
 
 		return ret;
+	}
+
+	function completeString( s ){
+		var reg = ~/(?<!\] )\{([0-9]+)\}$/;
+		while( reg.match( s ) ){
+			var len = Std.parseInt( reg.matched(1) );
+			var t = cnx.read( len );
+			var e = cnx.readLine();
+			s = s.substr(0,-reg.matchedPos().len)+"\""+t.split("\"").join("\\\"")+"\"" +e;
+		}
+		return s;
 	}
 
 	//
