@@ -1,4 +1,30 @@
+/*
+ * Copyright (c) 2006, Motion-Twin
+ * All rights reserved.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *   - Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   - Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY MOTION-TWIN "AS IS" AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE HAXE PROJECT CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+ * DAMAGE.
+ */
 package mtwin.mail;
+
+import mtwin.mail.Imap;
 
 class Tools {
 
@@ -31,15 +57,15 @@ class Tools {
 		return ret;
 	}
 
-	public static function encodeBase64( content : String , crlf : String ){
-		return StringTools.rtrim(chunkSplit(StringTools.baseEncode( content, BASE64 ), 76, crlf)) + "==";
+	public static function encodeBase64( content : String ){
+		return StringTools.rtrim(chunkSplit(StringTools.baseEncode( content, BASE64 ), 76, "\r\n")) + "==";
 	}
 
-	public static function decodeBase64( content : String, crlf ){
-		return StringTools.baseDecode( StringTools.replace(StringTools.replace(content,crlf,""),"=",""), BASE64 );
+	public static function decodeBase64( content : String ){
+		return StringTools.baseDecode( StringTools.replace(StringTools.replace(content,"\r\n",""),"=",""), BASE64 );
 	}
 
-	public static function encodeQuotedPrintable( content : String, crlf : String ) : String{
+	public static function encodeQuotedPrintable( content : String ) : String{
 		var rs = new List();
 		var lines = splitLines( content );
 		
@@ -77,7 +103,7 @@ class Tools {
 			rs.add(line);
 		}
 
-		return rs.join(crlf);
+		return rs.join("\r\n");
 	}
 
 	public static function decodeQuotedPrintable( str : String ){
@@ -160,7 +186,7 @@ class Tools {
 			if( encoding == "q" ){
 				encoded = decodeQuotedPrintable(StringTools.replace(encoded,"_"," "));
 			}else if( encoding == "b" ){
-				encoded = decodeBase64(encoded,"\r\n");
+				encoded = decodeBase64(encoded);
 			}else{
 				throw "Unknow transfer-encoding: "+encoding;
 			}
@@ -274,6 +300,58 @@ class Tools {
 		}
 		return ret;
 
+	}
+
+	public static function imapRangeString( r : ImapRange ) : String {
+		return switch( r ){
+			case Single(i): Std.string(i);
+			case Range(s,e): Std.string(s)+":"+Std.string(e);
+			case Composite(l):
+				var t = new List<String>();
+				for( e in l )
+					t.add(imapRangeString(e));
+				t.join(",");
+		}
+	}
+
+	public static function imapSectionString( a : Array<ImapSection> ) : String{
+		var r = new List();
+		
+		if( a == null || a.length < 1 )
+			return "";
+		
+		for( s in a ){
+			r.add( switch( s ){
+				case Flags: "FLAGS";
+				case Uid: "UID";
+				case BodyStructure: "BODYSTRUCTURE";
+				case Envelope: "ENVELOPE";
+				case InternalDate: "INTERNALDATE";
+				case Body(ss): "BODY["+imapBodySectionString(ss)+"]";
+				case BodyPeek(ss): "BODY.PEEK["+imapBodySectionString(ss)+"]";
+					
+			});
+		}
+		return "("+r.join(" ")+")";
+	}
+
+	static function imapBodySectionString( ss : ImapBodySection ){
+		if( ss == null )
+			return "";
+
+		return switch( ss ){
+			case Text: "TEXT";
+			case Header: "HEADER";
+			case Mime: "MIME";
+			case SubSection(id,nss):
+				var t = imapBodySectionString(nss);
+				if( id == null || id == "" ) 
+					t;
+				else if( t == "" )
+					id;
+				else
+					id+"."+t;
+		}
 	}
 
 }
