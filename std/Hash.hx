@@ -87,7 +87,15 @@ class Hash<T> {
 		#if flash
 		return untyped h["hasOwnProperty"](key);
 		#else js
-		return untyped this.hasOwnProperty.call(h,key);
+		try {
+			return untyped this.hasOwnProperty.call(h,key);
+		}catch(e:Dynamic){
+			untyped __js__("
+				for(var i in this.h)
+					if( i == key ) return true;
+			");
+			return false;
+		}
 		#else neko
 		return untyped __dollar__hmem(h,key.__s,null);
 		#else error
