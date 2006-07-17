@@ -265,7 +265,7 @@ class Imap {
 	}
 
 	/**
-		Fetch some messages
+		Fetch messages from the currently selected mailbox.
 	**/
 	public function fetchRange( iRange: ImapRange, ?iSection : Array<ImapSection>, ?useUid : Bool ){
 		if( iRange == null ) return null;
@@ -351,22 +351,31 @@ class Imap {
 		return ret;
 	}
 
-	public function append( mailbox : String, msg : String, ?flags : ImapFlags ){
+	/**
+		Append content as a new message at the end of mailbox.
+	**/
+	public function append( mailbox : String, content : String, ?flags : ImapFlags ){
 		var f = if( flags != null ) "("+flags.join(" ")+") " else "";
-		command("APPEND",quote(mailbox)+" "+f+"{"+msg.length+"}",false);
-		cnx.write( msg );
+		command("APPEND",quote(mailbox)+" "+f+"{"+content.length+"}",false);
+		cnx.write( content );
 		cnx.write( "\r\n" );
 		var r = read( StringTools.lpad(Std.string(count),"A000",4) );
 		if( !r.success )
 			throw BadResponse(r.response);
 	}
-
+	
+	/**
+		Remove permanently all messages flagged as \Deleted in the currently selected mailbox.
+	**/
 	public function expunge(){
 		var r = command("EXPUNGE");
 		if( !r.success )
 			throw BadResponse(r.response);
 	}
 
+	/**
+		Add, remove or replace flags on message(s) of the currently selected mailbox.
+	**/
 	public function flags( iRange : ImapRange, flags : ImapFlags, ?mode : ImapFlagMode, ?useUid : Bool, ?fetchResult : Bool ) : IntHash<Array<String>> {
 		if( mode == null ) mode = Add;
 		if( fetchResult == null ) fetchResult = false;
@@ -398,21 +407,33 @@ class Imap {
 		return ret;
 	}
 
+	/**
+		Create a new mailbox.
+	**/
 	public function create( mailbox : String ){
 		var r = command( "CREATE", quote(mailbox) );
 		if( !r.success ) throw BadResponse( r.response );
 	}
-
+	
+	/**
+		Delete a mailbox.
+	**/
 	public function delete( mailbox : String ){
 		var r = command( "DELETE", quote(mailbox) );
 		if( !r.success ) throw BadResponse( r.response );
 	}
 
+	/**
+		Rename a mailbox.
+	**/
 	public function rename( mailbox : String, newName : String ){
 		var r = command( "RENAME", quote(mailbox)+" "+quote(newName) );
 		if( !r.success ) throw BadResponse( r.response );
 	}
 
+	/**
+		Copy message(s) from the currently selected mailbox to the end of an other mailbox.
+	**/
 	public function copy( iRange : ImapRange, toMailbox : String, ?useUid : Bool ){
 		if( useUid == null ) useUid = false;
 
