@@ -1,3 +1,28 @@
+/*
+ * Copyright (c) 2006, Motion-Twin
+ * All rights reserved.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *   - Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   - Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY MOTION-TWIN "AS IS" AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE HAXE PROJECT CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+ * DAMAGE.
+ */
+
 package mtwin.web;
 
 import mtwin.web.Request;
@@ -169,72 +194,3 @@ class Handler<T> {
 		if (cb != null) cb();
 	}
 }
-
-
-/**
-
-
-// if your application is going to contain many handlers, you may whish to extends the Handler once to
-// override prepareTemplate(), isLogged(), isAdmin(), ....
-//
-class Handler<T> extends mtwin.web.Handler<T> {
-
-	override function prepareTemplate( t:String ){
-		//App.template = new mtwin.Templo(t);
-	}
-
-	override function isLogged(){
-		//return App.user != null;
-		return true;
-	}
-}
-
-// handler example
-//
-class UserHandler extends Handler<User> {
-
-	public function new(){
-		super();
-		free("preview", "preview.mtt", doPreview);
-		free("view", "userView.mtt", object(doUserView));
-		logged("view", "userView.mtt", object(owner(doUserView)));
-	}
-
-	override function isOwner( u:User ) {
-		// return App.user.id == u.id;
-		return true;
-	}
-
-	override function findObject( id:Int ) : User {
-		return User.get(id);
-	}
-
-	function doLogin(){
-		// ...
-	}
-	
-	function doView( u:User ){
-		// ...
-	}
-}
-
-// our main application handler which will dispatch requests
-// to sub handlers (or main functions)
-class MainHandler extends Handler<Void> {
-	public function new(){
-		super();
-		// /preview action
-		free("preview", "preview.mtt", doPreview);
-		// /user/* action are delayed to the UserHandler
-		handler("user", new UserHandler());
-	}
-}
-
-class App {
-	function main(){
-		var h = new MainHandler();
-		h.execute(new Request());
-	}
-}
-
-**/
