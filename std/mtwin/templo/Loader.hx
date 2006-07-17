@@ -98,10 +98,10 @@ class Loader {
 				var wrapCache = loader.cache;
 				loader.cache = __dollar__new(wrapCache);
 				var macro = function(path){
-					if (mtwin.Templo.OPTIMIZED == false){
-						mtwin.Templo.compileTemplate(new String(path));
+					if (mtwin.templo.Loader.OPTIMIZED == false){
+						mtwin.templo.Loader.compileTemplate(new String(path));
 					}
-					return loader.loadmodule(mtwin.Templo.tmpFileId(new String(path)).__s, loader);
+					return loader.loadmodule(mtwin.templo.Loader.tmpFileId(new String(path)).__s, loader);
 				}
 				var result = new String(code.template(macro, context));
 				loader.cache = wrapCache;
