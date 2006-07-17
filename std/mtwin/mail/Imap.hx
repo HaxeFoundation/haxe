@@ -211,9 +211,11 @@ class Imap {
 	/**
 		Search for messages. Pattern syntax described in RFC 3501, section 6.4.4
 	**/
-	public function search( ?pattern : String ){
+	public function search( ?pattern : String, ?useUid : Bool ){
 		if( pattern == null ) pattern = "ALL";
-		var r = command("SEARCH",pattern);
+		if( useUid == null ) useUid = false;
+
+		var r = command(if( useUid) "UID SEARCH" else "SEARCH",pattern);
 		if( !r.success ){
 			throw BadResponse(r.response);
 		}
@@ -365,9 +367,10 @@ class Imap {
 			throw BadResponse(r.response);
 	}
 
-	public function flags( iRange : ImapRange, flags : ImapFlags, ?mode : ImapFlagMode, ?fetchResult : Bool ) : IntHash<Array<String>> {
+	public function flags( iRange : ImapRange, flags : ImapFlags, ?mode : ImapFlagMode, ?useUid : Bool, ?fetchResult : Bool ) : IntHash<Array<String>> {
 		if( mode == null ) mode = Add;
 		if( fetchResult == null ) fetchResult = false;
+		if( useUid == null ) useUid = false;
 		
 		var range = Tools.imapRangeString(iRange);
 		var elem = switch( mode ){
@@ -379,7 +382,7 @@ class Imap {
 			elem += ".SILENT";
 		}
 
-		var r = command( "STORE", range + " " + elem + "("+flags.join(" ")+")");
+		var r = command( if( useUid ) "UID STORE" else "STORE", range + " " + elem + "("+flags.join(" ")+")");
 		if( !r.success ) throw BadResponse( r.response );
 		if( !fetchResult ) return null;
 
@@ -393,6 +396,29 @@ class Imap {
 			}
 		}
 		return ret;
+	}
+
+	public function create( mailbox : String ){
+		var r = command( "CREATE", quote(mailbox) );
+		if( !r.success ) throw BadResponse( r.response );
+	}
+
+	public function delete( mailbox : String ){
+		var r = command( "DELETE", quote(mailbox) );
+		if( !r.success ) throw BadResponse( r.response );
+	}
+
+	public function rename( mailbox : String, newName : String ){
+		var r = command( "RENAME", quote(mailbox)+" "+quote(newName) );
+		if( !r.success ) throw BadResponse( r.response );
+	}
+
+	public function copy( iRange : ImapRange, toMailbox : String, ?useUid : Bool ){
+		if( useUid == null ) useUid = false;
+
+		var range = Tools.imapRangeString(iRange);
+		var r = command(if(useUid) "UID COPY" else "COPY",range+" "+quote(toMailbox));
+		if( !r.success ) throw BadResponse( r.response );
 	}
 
 	/////
