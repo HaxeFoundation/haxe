@@ -34,10 +34,11 @@ signature ImapMailbox = {
 }
 
 signature ImapFetchResponse = {
+	id: Int,
+	uid: Int,
 	bodyType: String,
 	body: String,
 	flags: ImapFlags,
-	uid: Int,
 	structure: ImapBodyStructure,
 	internalDate: String,
 	envelope: ImapEnvelope
@@ -237,10 +238,10 @@ class Imap {
 	/**
 		Search for messages, fetch those found.
 	**/
-	public function fetchSearch( pattern : String, ?section : Array<ImapSection> ){
+	public function fetchSearch( pattern : String, ?section : Array<ImapSection> ) : List<ImapFetchResponse>{
 		if( section == null ) section = [BodyPeek(null)];
 		var r = search(pattern);
-		if( r.length == 0 ) return new IntHash();
+		if( r.length == 0 ) return new List();
 
 		var t = new Array<ImapRange>();
 		for( i in r ){
@@ -258,39 +259,41 @@ class Imap {
 		if( useUid == null ) useUid = false;
 
 		var r = fetchRange( Single(id), section, useUid );
-		if( !r.exists(id) ){
+		if( r.length != 1 ){
 			throw ImapFetchError(id);
 		}
-		return r.get(id);
+		return r.first();
 	}
 
 	/**
 		Fetch messages from the currently selected mailbox.
 	**/
-	public function fetchRange( iRange: ImapRange, ?iSection : Array<ImapSection>, ?useUid : Bool ){
+	public function fetchRange( iRange: ImapRange, ?iSection : Array<ImapSection>, ?useUid : Bool ) : List<ImapFetchResponse>{
 		if( iRange == null ) return null;
 		if( iSection == null ) iSection = [Body(null)];
 		if( useUid == null ) useUid = false;
 
 		var range = Tools.imapRangeString(iRange);
 		var section = Tools.imapSectionString(iSection);
-		
+
 		if( useUid )
 			command("UID FETCH",range+" "+section,false);
 		else
 			command("FETCH",range+" "+section,false);
 
-		var ret = new IntHash();
+		var tmp = new IntHash();
+		var ret = new List();
 		while( true ){
 			var l = cnx.readLine();
 			if( REG_FETCH_MAIN.match(l) ){
 				var id = Std.parseInt(REG_FETCH_MAIN.matched(1));
 				
-				var o = if( ret.exists(id) ){
-					ret.get(id); 
+				var o = if( tmp.exists(id) ){
+					tmp.get(id); 
 				}else {
-					var o = {bodyType: null,body: null,flags: null,uid: null,structure: null,internalDate: null,envelope: null};
-					ret.set(id,o);
+					var o = {bodyType: null,body: null,flags: null,uid: null,structure: null,internalDate: null,envelope: null,id: id};
+					tmp.set(id,o);
+					ret.add(o);
 					o;
 				}
 
@@ -340,14 +343,6 @@ class Imap {
 			}
 		}
 		
-		if( useUid ){
-			var old = ret;
-			ret = new IntHash();
-			for( e in old ){
-				ret.set(e.uid,e);
-			}
-		}
-
 		return ret;
 	}
 
@@ -441,6 +436,45 @@ class Imap {
 		var r = command(if(useUid) "UID COPY" else "COPY",range+" "+quote(toMailbox));
 		if( !r.success ) throw BadResponse( r.response );
 	}
+
+	public function sort( criteria : String, ?pattern : String, ?charset : String, ?useUid : Bool ){
+		if( pattern == null ) pattern = "ALL";
+		if( useUid == null ) useUid = false;
+		if( charset == null ) charset = "US-ASCII";
+
+		var r = command(if( useUid) "UID SORT" else "SORT","("+criteria+") "+charset+" "+pattern);
+		if( !r.success ){
+			throw BadResponse(r.response);
+		}
+
+		var l = new List();
+
+		for( v in r.result ){
+			if( StringTools.startsWith(v,"SORT ") ){
+				var t = v.substr(5,v.length-5).split(" ");
+				for( i in t ){
+					l.add( Std.parseInt(i) );
+				}
+			}
+		}
+
+		return l;
+	}
+
+	public function fetchSort( criteria : String, ?pattern : String ,?section : Array<ImapSection> ) : List<ImapFetchResponse>{
+		if( section == null ) section = [BodyPeek(null)];
+		if( pattern == null ) pattern = "ALL";
+		var r = sort(criteria);
+		if( r.length == 0 ) return new List();
+
+		var t = new Array<ImapRange>();
+		for( i in r ){
+			t.push(Single(i));
+		}
+
+		return fetchRange( Composite(t), section );
+	}
+
 
 	/////
 
