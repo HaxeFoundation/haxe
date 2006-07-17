@@ -109,8 +109,8 @@ class Text2Xhtml {
 	static var pre = ~/^\[pre\](.*?)\[\/pre\]/gsm;
 	static var em = ~/(?<!http:)\/\/(.*?)(?<!http:)\/\//gsm;
 	static var strong = ~/\*(.*?)\*/gm;
-	static var link = ~/\[(.*?):http:\/\/(.*?)\]/g;
-	static var http = ~/(?<!")http:\/\/(.*?)(\s|\.\s|$)/g; //"
+	static var link = ~/\[(.*?):(http|https|ftp):\/\/(.*?)\]/g;
+	static var http = ~/(?<!")(http|https|ftp):\/\/(.*?)(\s|\.\s|$)/g; //"
 	static var img = ~/@img (.*?)@/g;
 	static var li = ~/\n\n(- (.*?))+\n\n/gsm;
 	static var olli = ~/\n\n(\* (.*?))+\n\n/gsm;
@@ -252,9 +252,9 @@ s.write('swf@id');
 
 	function transformContent( str:String ) : String {
 		var helper = new StringHelper(str);
-		var links = helper.extract("link", link, "<a href=\"http://$2\">$1</a>");
+		var links = helper.extract("link", link, "<a href=\"$2://$3\">$1</a>");
 		var images = helper.extract("img", img, "<img src=\"$1\" alt=\"Image\"/>");
-		var https = helper.extract("http", http, "<a href=\"http://$1\">http://$1</a>$2");
+		var https = helper.extract("http", http, "<a href=\"$1://$2\">$1://$2</a>$3");
 		str = helper.str;
 
 		var pos = 0;
