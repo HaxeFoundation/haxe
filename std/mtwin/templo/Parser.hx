@@ -386,10 +386,6 @@ class Parser {
 		return StringTools.trim(res.split("&quot;").join("\"").split("&amp;").join("&"));
 	}
 
-	static function isExpressionKeyword( varName:String ) : Bool {
-		return varName == "true" || varName == "false" || varName == "null" || varName == "if" || varName == "else";
-	}
-
 	static function restoreCDATAHtmlEncoding( xml:Xml ){
 		if (xml.nodeType == Xml.Element || xml.nodeType == Xml.Document)
 			for (x in xml) restoreCDATAHtmlEncoding(x);
@@ -404,6 +400,12 @@ class Parser {
 		return {target:null, exp:exp};
 	}
 
+	static function isExpressionKeyword( varName:String ) : Bool {
+		return varName == "true" || varName == "false" || varName == "null" || varName == "if" || varName == "else";
+	}
+
+	// Quick and 'dirty' expression transformer, 
+    // This function transform a template expression into a neko compliant expression.
 	public static function parseExpression( exp:String ) : String {
 		var r_num = ~/[0-9]+/;
 		var r_digit = ~/[0-9.]+/;
@@ -438,13 +440,9 @@ class Parser {
 						state = states.member;
 					}
 					else if (r_op.match(c)){
-						if (c == '!'){
-							if (n == "="){
-							}
-							else {
-								result.add("false == ");
-								skip = true;
-							}
+						if (c == '!' && n != "="){
+							result.add("false == ");
+							skip = true;
 						}
 					}
 					else if (c == "("){
@@ -452,7 +450,6 @@ class Parser {
 						var sub = str.substr(i+1, end-i);
 						result.add("(");
 						result.add(parseExpression(sub));
-						//result.add(")");
 						i = end;
 						skip = true;
 					}
@@ -473,7 +470,6 @@ class Parser {
 					else if (c == "'"){
 						state = states.none;
 						result.add("\")");
-						//++i;
 						skip = true;
 					}
 					
@@ -489,7 +485,6 @@ class Parser {
 					else if (c == "\""){
 						state = states.none;
 						result.add("\")");
-						//++i;
 						skip = true;
 					}
 
@@ -529,9 +524,7 @@ class Parser {
 					}
 
 				case states.num:
-					if (r_digit.match(c)){
-					}
-					else {
+					if (!r_digit.match(c)){
 						state = states.none;
 					}
 					
@@ -553,14 +546,6 @@ class Parser {
 						result.add(argStr.join(","));
 						result.add(")");
 						i = end+1; skip = true;
-						/*
-						if (i < len && str.charAt(i) == "."){
-							state = states.member;
-						}
-						else {
-							state = states.none; // test a.foo().bar
-						}
-						*/
 					}
 					else if (c == "."){
 						if (getter){
