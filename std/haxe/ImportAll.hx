@@ -85,6 +85,8 @@ import flash.Lib;
 import flash.Accessibility;
 import flash.Camera;
 import flash.Color;
+import flash.ContextMenu;
+import flash.ContextMenuItem;
 import flash.Key;
 import flash.LoadVars;
 import flash.LocalConnection;
