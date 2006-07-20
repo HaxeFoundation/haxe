@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package mtwin.mail;
+package mtwin.mail.imap;
 
 import mtwin.mail.Exception;
 
@@ -31,18 +31,18 @@ signature Address = {
 	address: String
 }
 
-class ImapEnvelope {
+class Envelope {
 	public var __length : Int;
-	public var date : String;
-	public var subject : String;
-	public var from : List<Address>;
-	public var sender : List<Address>;
-	public var replyTo : List<Address>;
-	public var to : List<Address>;
-	public var cc : List<Address>;
-	public var bcc : List<Address>;
-	public var inReplyTo : String;
-	public var messageId : String;
+	public var date(default,null) : String;
+	public var subject(default,null) : String;
+	public var from(default,null) : List<Address>;
+	public var sender(default,null) : List<Address>;
+	public var replyTo(default,null) : List<Address>;
+	public var to(default,null) : List<Address>;
+	public var cc(default,null) : List<Address>;
+	public var bcc(default,null) : List<Address>;
+	public var inReplyTo(default,null) : String;
+	public var messageId(default,null) : String;
 
 	function new(){
 		
@@ -53,7 +53,7 @@ class ImapEnvelope {
 		var parCount = 0;
 		var p = 0;
 		var argPos = 0;
-		var ret = new ImapEnvelope();
+		var ret = new Envelope();
 		var tmp = {
 			alist: new List<Address>(),
 			buf: new Array<String>()

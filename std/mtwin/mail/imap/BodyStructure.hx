@@ -22,21 +22,21 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package mtwin.mail;
+package mtwin.mail.imap;
 
-class ImapBodyStructure {
-	public var ctype0: String;
-	public var ctype1: String;
-	public var params : Hash<String>;
-	public var parts: List<ImapBodyStructure>;
+class BodyStructure {
+	public var ctype0(default,null): String;
+	public var ctype1(default,null): String;
+	public var params(default,null) : Hash<String>;
+	public var parts(default,null): List<BodyStructure>;
 
 	// single-part specific
-	public var id: String;
-	public var description : String;
-	public var encoding : String;
-	public var size : Int;
-	public var disposition : String;
-	public var dispositionParams : Hash<String>;
+	public var id(default,null): String;
+	public var description(default,null) : String;
+	public var encoding(default,null) : String;
+	public var size(default,null) : Int;
+	public var disposition(default,null) : String;
+	public var dispositionParams(default,null) : Hash<String>;
 
 	//
 	public var __length : Int;
@@ -47,7 +47,7 @@ class ImapBodyStructure {
 		params = new Hash();
 	}
 
-	public function getMainPart( ?level : Int, ?priority : Int, ?cpriority : Int ) : ImapBodyStructure {
+	public function getMainPart( ?level : Int, ?priority : Int, ?cpriority : Int ) : BodyStructure {
 		if( level == null ) level = 0;
 		if( priority == null ) priority = 0;
 		if( cpriority == null ) cpriority = 0;
@@ -86,7 +86,7 @@ class ImapBodyStructure {
 		return null;
 	}
 
-	public function listAttachment( ?level : Int ) : List<ImapBodyStructure> {
+	public function listAttachment( ?level : Int ) : List<BodyStructure> {
 		if( level == null ) level = 0;
 		var ret = new List();
 		if( ctype0 != "multipart" ){
@@ -103,12 +103,12 @@ class ImapBodyStructure {
 		return ret;
 	}
 
-	public static function parse( s : String, ?id : String ) : ImapBodyStructure{
+	public static function parse( s : String, ?id : String ) : BodyStructure{
 		if( id == null ) id = "";
 		var len = s.length;
 		var parCount = 0;
 		var p = 0;
-		var ret = new ImapBodyStructure();
+		var ret = new BodyStructure();
 		ret.imapId = id;
 		var addPart = function( p ){
 			ret.parts.add( p );

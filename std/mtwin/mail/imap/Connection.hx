@@ -22,65 +22,36 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package mtwin.mail;
+package mtwin.mail.imap;
 
 import neko.Socket;
 import mtwin.mail.Exception;
+import mtwin.mail.imap.Tools;
 
-signature ImapMailbox = {
-	name: String,
-	flags: ImapFlags,
-	hasChildren: Bool
-}
-
-signature ImapFetchResponse = {
-	id: Int,
-	uid: Int,
-	bodyType: String,
-	body: String,
-	flags: ImapFlags,
-	structure: ImapBodyStructure,
-	internalDate: String,
-	envelope: ImapEnvelope
-}
-
-signature ImapFlags = Array<String>
-
-enum ImapSection {
-	Flags;
-	Uid;
-	BodyStructure;
-	Envelope;
-	InternalDate;
-	Body(ss:ImapBodySection);
-	BodyPeek(ss:ImapBodySection);
-}
-
-enum ImapBodySection {
-	Header;
-	Mime;
-	Text;
-	SubSection(id:String,ss:ImapBodySection);
-}
-
-enum ImapRange {
-	Single(i:Int);
-	Range(s:Int,e:Int);
-	Composite(l:Array<ImapRange>);
-}
-
-enum ImapFlagMode {
+enum FlagMode {
 	Add;
 	Remove;
 	Replace;
 }
 
-class Imap {
+signature FetchResponse = {
+	id: Int,
+	uid: Int,
+	bodyType: String,
+	body: String,
+	flags: Flags,
+	structure: BodyStructure,
+	internalDate: String,
+	envelope: Envelope
+}
+
+class Connection {
 	public static var DEBUG = false;
-	public static var TIMEOUT = 5;
+	public static var TIMEOUT = 25;
 
 	var cnx : Socket;
 	var count : Int;
+	var selected : String;
 
 	static var REG_RESP = ~/(OK|NO|BAD) (\[([^\]]+)\] )?(([A-Z]{2,}) )? ?(.*)/;
 	static var REG_EXISTS = ~/^([0-9]+) EXISTS$/;
@@ -154,46 +125,56 @@ class Imap {
 	/**
 		List mailboxes that match pattern (all mailboxes if pattern is null)
 	**/
-	public function mailboxes( ?pattern : String ) : List<ImapMailbox> {
-		var r;
-		if( pattern == null ){
-			r = command("LIST","\".\" \"*\"");
-		}else{
-			r = command("LIST","\".\" \""+pattern+"\"");
-		}
+	public function mailboxes( ?pattern : String ) : List<Mailbox> {
+		if( pattern == null ) pattern = "*";
+
+		var r = command("LIST",quote(".")+" "+quote(pattern));
 		if( !r.success ){
 			throw BadResponse(r.response);
 		}
 
-		var ret = new List();
+		var hash = new Hash();
 		for( v in r.result ){
 			if( REG_LIST_RESP.match(v) ){	
 				var name = REG_LIST_RESP.matched(2);
 				var flags = REG_LIST_RESP.matched(1).split(" ");
 
-				var t = {name: name,flags: flags,hasChildren: false};
-
-				for( v in flags ){
-					if( v == "\\HasNoChildren" ){
-						t.hasChildren = false;
-					}else if( v == "\\HasChildren" ){
-						t.hasChildren = true;
-					}
-				}
-
-				ret.add(t);
+				var t = Mailbox.init( this, name, flags );
+				hash.set(name,t);
 			}
 		}
+
+		var ret = new List();
+		for( t in hash ){
+			var a = t.name.split(".");
+			a.pop();
+			var p = a.join(".");
+			if( p.length > 0 && hash.exists(p) ){
+				var par = hash.get(p);
+				par.children.add( t );
+				untyped t.parent = par;
+			}else
+				ret.add( t );
+		}
+
 		return ret;
+	}
+
+	public function getMailbox( name : String ){
+		return mailboxes(name).first();
 	}
 
 	/**
 		Select a mailbox
 	**/
 	public function select( mailbox : String ){
+		if( selected == mailbox ) return null;
+
 		var r = command("SELECT",quote(mailbox));
 		if( !r.success ) 
 			throw BadResponse(r.response);
+
+		selected = mailbox;
 		
 		var ret = {recent: 0,exists: 0,firstUnseen: null};
 		for( v in r.result ){
@@ -212,7 +193,7 @@ class Imap {
 	/**
 		Search for messages. Pattern syntax described in RFC 3501, section 6.4.4
 	**/
-	public function search( ?pattern : String, ?useUid : Bool ){
+	public function search( ?pattern : String, ?useUid : Bool ) : List<Int> {
 		if( pattern == null ) pattern = "ALL";
 		if( useUid == null ) useUid = false;
 
@@ -235,46 +216,40 @@ class Imap {
 		return l;
 	}
 
-	/**
-		Search for messages, fetch those found.
-	**/
-	public function fetchSearch( pattern : String, ?section : Array<ImapSection> ) : List<ImapFetchResponse>{
-		if( section == null ) section = [BodyPeek(null)];
-		var r = search(pattern);
-		if( r.length == 0 ) return new List();
-
-		var t = new Array<ImapRange>();
-		for( i in r ){
-			t.push(Single(i));
-		}
-
-		return fetchRange( Composite(t), section );
-	}
-
-	/**
-		Fetch one message by its id ou uid
-	**/
-	public function fetchOne( id : Int, ?section : Array<ImapSection>, ?useUid : Bool ) {
-		if( section == null ) section = [BodyPeek(null)];
+	public function sort( criteria : String, ?pattern : String, ?charset : String, ?useUid : Bool ){
+		if( pattern == null ) pattern = "ALL";
 		if( useUid == null ) useUid = false;
+		if( charset == null ) charset = "US-ASCII";
 
-		var r = fetchRange( Single(id), section, useUid );
-		if( r.length != 1 ){
-			throw ImapFetchError(id);
+		var r = command(if( useUid) "UID SORT" else "SORT","("+criteria+") "+charset+" "+pattern);
+		if( !r.success ){
+			throw BadResponse(r.response);
 		}
-		return r.first();
+
+		var l = new List();
+
+		for( v in r.result ){
+			if( StringTools.startsWith(v,"SORT ") ){
+				var t = v.substr(5,v.length-5).split(" ");
+				for( i in t ){
+					l.add( Std.parseInt(i) );
+				}
+			}
+		}
+
+		return l;
 	}
 
 	/**
 		Fetch messages from the currently selected mailbox.
 	**/
-	public function fetchRange( iRange: ImapRange, ?iSection : Array<ImapSection>, ?useUid : Bool ) : List<ImapFetchResponse>{
+	public function fetchRange( iRange: Collection, ?iSection : Array<Section>, ?useUid : Bool ) : List<FetchResponse>{
 		if( iRange == null ) return null;
 		if( iSection == null ) iSection = [Body(null)];
 		if( useUid == null ) useUid = false;
 
-		var range = Tools.imapRangeString(iRange);
-		var section = Tools.imapSectionString(iSection);
+		var range = Tools.collString(iRange);
+		var section = Tools.sectionString(iSection);
 
 		if( useUid )
 			command("UID FETCH",range+" "+section,false);
@@ -311,12 +286,12 @@ class Imap {
 					}else if( REG_FETCH_ENVELOPE.match( s ) ){
 						var t = REG_FETCH_ENVELOPE.matchedRight();
 						t = completeString(t);
-						o.envelope = ImapEnvelope.parse( t );
+						o.envelope = Envelope.parse( t );
 						s = StringTools.ltrim(t.substr(o.envelope.__length,t.length));
 					}else if( REG_FETCH_BODYSTRUCTURE.match( s ) ){
 						var t = REG_FETCH_BODYSTRUCTURE.matchedRight();
 						t = completeString(t);
-						o.structure = ImapBodyStructure.parse( t );
+						o.structure = BodyStructure.parse( t );
 						s = StringTools.ltrim(t.substr(o.structure.__length,t.length));
 					}else if( REG_FETCH_PART.match( s ) ){
 						var len = Std.parseInt(REG_FETCH_PART.matched(2));
@@ -349,7 +324,7 @@ class Imap {
 	/**
 		Append content as a new message at the end of mailbox.
 	**/
-	public function append( mailbox : String, content : String, ?flags : ImapFlags ){
+	public function append( mailbox : String, content : String, ?flags : Flags ){
 		var f = if( flags != null ) "("+flags.join(" ")+") " else "";
 		command("APPEND",quote(mailbox)+" "+f+"{"+content.length+"}",false);
 		cnx.write( content );
@@ -371,12 +346,12 @@ class Imap {
 	/**
 		Add, remove or replace flags on message(s) of the currently selected mailbox.
 	**/
-	public function flags( iRange : ImapRange, flags : ImapFlags, ?mode : ImapFlagMode, ?useUid : Bool, ?fetchResult : Bool ) : IntHash<Array<String>> {
+	public function storeFlags( iRange : Collection, flags : Flags, ?mode : FlagMode, ?useUid : Bool, ?fetchResult : Bool ) : IntHash<Array<String>> {
 		if( mode == null ) mode = Add;
 		if( fetchResult == null ) fetchResult = false;
 		if( useUid == null ) useUid = false;
 		
-		var range = Tools.imapRangeString(iRange);
+		var range = Tools.collString(iRange);
 		var elem = switch( mode ){
 			case Add: "+FLAGS";
 			case Remove: "-FLAGS";
@@ -429,51 +404,14 @@ class Imap {
 	/**
 		Copy message(s) from the currently selected mailbox to the end of an other mailbox.
 	**/
-	public function copy( iRange : ImapRange, toMailbox : String, ?useUid : Bool ){
+	public function copy( iRange : Collection, toMailbox : String, ?useUid : Bool ){
 		if( useUid == null ) useUid = false;
 
-		var range = Tools.imapRangeString(iRange);
+		var range = Tools.collString(iRange);
 		var r = command(if(useUid) "UID COPY" else "COPY",range+" "+quote(toMailbox));
 		if( !r.success ) throw BadResponse( r.response );
 	}
 
-	public function sort( criteria : String, ?pattern : String, ?charset : String, ?useUid : Bool ){
-		if( pattern == null ) pattern = "ALL";
-		if( useUid == null ) useUid = false;
-		if( charset == null ) charset = "US-ASCII";
-
-		var r = command(if( useUid) "UID SORT" else "SORT","("+criteria+") "+charset+" "+pattern);
-		if( !r.success ){
-			throw BadResponse(r.response);
-		}
-
-		var l = new List();
-
-		for( v in r.result ){
-			if( StringTools.startsWith(v,"SORT ") ){
-				var t = v.substr(5,v.length-5).split(" ");
-				for( i in t ){
-					l.add( Std.parseInt(i) );
-				}
-			}
-		}
-
-		return l;
-	}
-
-	public function fetchSort( criteria : String, ?pattern : String ,?section : Array<ImapSection> ) : List<ImapFetchResponse>{
-		if( section == null ) section = [BodyPeek(null)];
-		if( pattern == null ) pattern = "ALL";
-		var r = sort(criteria);
-		if( r.length == 0 ) return new List();
-
-		var t = new Array<ImapRange>();
-		for( i in r ){
-			t.push(Single(i));
-		}
-
-		return fetchRange( Composite(t), section );
-	}
 
 
 	/////
