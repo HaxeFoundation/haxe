@@ -97,13 +97,13 @@ extern class Xml {
 		#else error
 		#end
 
-		Element = "element";
-		PCData = "pcdata";
-		CData = "cdata";
-		Comment = "comment";
-		DocType = "doctype";
-		Prolog = "prolog";
-		Document = "document";
+		Xml.Element = "element";
+		Xml.PCData = "pcdata";
+		Xml.CData = "cdata";
+		Xml.Comment = "comment";
+		Xml.DocType = "doctype";
+		Xml.Prolog = "prolog";
+		Xml.Document = "document";
 	}
 
 }
