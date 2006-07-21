@@ -65,6 +65,8 @@ class Connection {
 	static var REG_FETCH_ENVELOPE = ~/^ENVELOPE \(/;
 	static var REG_FETCH_INTERNALDATE = ~/^INTERNALDATE "([^"]+)" */;
 	static var REG_FETCH_END = ~/^([A0-9]{4}) (OK|BAD|NO)/;
+	static var REG_STATUS = ~/STATUS .*? \(([^)]+)\)/;
+	static var REG_STATUS_VAL = ~/^ ?([A-Z]+) (-?[0-9]+)/;
 	static var REG_LIST_RESP = ~/LIST \(([ \\A-Za-z0-9]*)\) "\." "([^"]+)"/;
 	static var REG_CRLF = ~/\r?\n/g;
 
@@ -108,7 +110,7 @@ class Connection {
 		Login to server
 	**/
 	public function login( user : String, pass : String ){	
-		var r = command("LOGIN",user+" "+pass);
+		var r = command("LOGIN",quote(user)+" "+quote(pass));
 		if( !r.success ){
 			throw BadResponse(r.response);
 		}
@@ -125,8 +127,9 @@ class Connection {
 	/**
 		List mailboxes that match pattern (all mailboxes if pattern is null)
 	**/
-	public function mailboxes( ?pattern : String ) : List<Mailbox> {
+	public function mailboxes( ?pattern : String, ?flat : Bool ) : List<Mailbox> {
 		if( pattern == null ) pattern = "*";
+		if( flat == null ) flat = false;
 
 		var r = command("LIST",quote(".")+" "+quote(pattern));
 		if( !r.success ){
@@ -153,8 +156,11 @@ class Connection {
 				var par = hash.get(p);
 				par.children.add( t );
 				untyped t.parent = par;
-			}else
+				if( flat ) ret.add( t );
+			}else{
 				ret.add( t );
+			}
+
 		}
 
 		return ret;
@@ -187,6 +193,23 @@ class Connection {
 			}
 		}
 
+		return ret;
+	}
+
+	public function status( mailbox : String ){
+		var r = command("STATUS",quote(mailbox)+" (MESSAGES RECENT UNSEEN)");
+		if( !r.success ) throw BadResponse( r.response );
+		
+		var ret = new Hash<Int>();	
+		if( REG_STATUS.match( r.result.first() ) ){
+			var t = REG_STATUS.matched(1);
+			while( REG_STATUS_VAL.match(t) ){
+				ret.set(REG_STATUS_VAL.matched(1),Std.parseInt(REG_STATUS_VAL.matched(2)));
+				t = REG_STATUS_VAL.matchedRight();
+			}
+		}else{
+			throw UnknowResponse(r.result.first());
+		}
 		return ret;
 	}
 
@@ -317,7 +340,7 @@ class Connection {
 				throw UnknowResponse(l);
 			}
 		}
-		
+
 		return ret;
 	}
 
