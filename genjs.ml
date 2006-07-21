@@ -170,6 +170,15 @@ let rec gen_call ctx e el =
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 
+and gen_value_op ctx e =
+	match e.eexpr with
+	| TBinop (op,_,_) when op = Ast.OpAnd || op = Ast.OpOr || op = Ast.OpXor ->
+		spr ctx "(";
+		gen_value ctx e;
+		spr ctx ")";
+	| _ ->
+		gen_value ctx e
+
 and gen_expr ctx e =
 	match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
@@ -182,14 +191,14 @@ and gen_expr ctx e =
 		gen_value ctx e2;
 		spr ctx "]";
 	| TBinop (op,{ eexpr = TField (e1,s) },e2) ->
-		gen_value ctx e1;
+		gen_value_op ctx e1;
 		spr ctx (field s);
 		print ctx " %s " (Ast.s_binop op);
-		gen_value ctx e2;
-	| TBinop (op,e1,e2) ->
-		gen_value ctx e1;
+		gen_value_op ctx e2;
+	| TBinop (op,e1,e2) ->		
+		gen_value_op ctx e1;
 		print ctx " %s " (Ast.s_binop op);
-		gen_value ctx e2;
+		gen_value_op ctx e2;
 	| TField (x,s) ->
 		(match follow e.etype with
 		| TFun _ ->
