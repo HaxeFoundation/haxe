@@ -1136,15 +1136,38 @@ let rec type_binop ctx op e1 e2 p =
 	| OpEq
 	| OpPhysEq
 	| OpPhysNotEq
-	| OpNotEq
-	| OpGt
-	| OpGte
-	| OpLt
-	| OpLte ->
+	| OpNotEq ->
 		(try
 			unify_raise ctx e1.etype e2.etype p
 		with
 			Error (Unify _,_) -> unify ctx e2.etype e1.etype p);
+		mk_op (t_bool ctx)
+	| OpGt
+	| OpGte
+	| OpLt
+	| OpLte ->		
+		(match classify e1.etype, classify e2.etype with
+		| KInt , KInt | KInt , KFloat | KFloat , KInt | KFloat , KFloat | KString , KString -> ()
+		| KInt , KUnk | KFloat , KUnk | KString , KUnk -> unify ctx e2.etype e1.etype e2.epos
+		| KUnk , KInt | KUnk , KFloat | KUnk , KString -> unify ctx e1.etype e2.etype e1.epos
+		| KUnk , KUnk ->
+			let t = t_int ctx in
+			unify ctx e1.etype t e1.epos;
+			unify ctx e2.etype t e2.epos;
+		| KDyn , KInt | KDyn , KFloat | KDyn , KString -> ()
+		| KInt , KDyn | KFloat , KDyn | KString , KDyn -> ()
+		| KDyn , KDyn -> ()
+		| KDyn , KUnk
+		| KUnk , KDyn		
+		| KString , KInt
+		| KString , KFloat
+		| KInt , KString
+		| KFloat , KString
+		| KOther , _ 
+		| _ , KOther ->
+			let pr = print_context() in
+			error ("Cannot compare " ^ s_type pr e1.etype ^ " and " ^ s_type pr e2.etype) p			
+		);
 		mk_op (t_bool ctx)
 	| OpBoolAnd
 	| OpBoolOr ->
@@ -1772,12 +1795,23 @@ let check_overriding ctx c p () =
 					if List.mem i c.cl_overrides then display_error ctx ("Field " ^ i ^ " is declared 'override' but doesn't override any field") p
 		) c.cl_fields
 
+let class_field_no_interf c i =
+	try
+		let f = PMap.find i c.cl_fields in
+		field_type f , f
+	with Not_found ->
+		match c.cl_super with
+		| None ->
+			raise Not_found
+		| Some (c,tl) ->
+			(* rec over class_field *)
+			let t , f = class_field c i in
+			apply_params c.cl_types tl t , f
+
 let rec check_interface ctx c p intf params =
-	let tmp = c.cl_implements in
-	c.cl_implements <- [];
 	PMap.iter (fun i f ->
 		try
-			let t , f2 = class_field c i in			
+			let t , f2 = class_field_no_interf c i in			
 			ignore(follow f.cf_type); (* force evaluation *)
 			let p = (match f.cf_expr with None -> p | Some e -> e.epos) in
 			if f.cf_public && not f2.cf_public then
@@ -1793,7 +1827,6 @@ let rec check_interface ctx c p intf params =
 			Not_found ->
 				if not c.cl_interface then display_error ctx ("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing") p
 	) intf.cl_fields;
-	c.cl_implements <- tmp;
 	List.iter (fun (i2,p2) ->
 		check_interface ctx c p i2 (List.map (apply_params intf.cl_types params) p2)
 	) intf.cl_implements
