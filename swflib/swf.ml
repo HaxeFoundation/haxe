@@ -536,7 +536,7 @@ type tag_data =
 	| TTextInfo of unknown
 	| TFont3 of font3
 	| TSwf9Name of (int * string)
-	| TActionScript3 of unknown (* As3.as3_tag *)
+	| TActionScript3 of (int * string) option * As3.as3_tag
 	| TShape4 of shape
 	| TShape5 of int * string
 	| TUnknown of int * unknown

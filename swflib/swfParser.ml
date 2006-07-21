@@ -368,9 +368,8 @@ let rec tag_data_length = function
 		font3_length f
 	| TSwf9Name (_,n) ->
 		4 + String.length n + 1
-	| TActionScript3 a ->
-		assert false
-		(* As3parse.as3_length a *)
+	| TActionScript3 (id,a) ->
+		(match id with None -> 0 | Some (id,f) -> 4 + String.length f + 1) + As3parse.as3_length a
 	| TShape4 s ->
 		shape_length s
 	| TShape5 (_,s) ->
@@ -1237,8 +1236,7 @@ let rec parse_tag ch h =
 		| 0x46 when !full_parsing ->
 			TPlaceObject3 (parse_place_object ch true)
 		| 0x48 when !full_parsing ->
-			assert false
-			(* TActionScript3 (As3parse.parse ch len false) *)
+			TActionScript3 (None , As3parse.parse ch len)
 		| 0x49 when !full_parsing ->
 			TFontGlyphs (parse_font_glyphs ch len)
 		| 0x4A ->
@@ -1252,8 +1250,9 @@ let rec parse_tag ch h =
 			if tag_data_length t <> len then assert false;
 			t
 		| 0x52 when !full_parsing ->
-			assert false
-			(* TActionScript3 (As3parse.parse ch len true) *)
+			let id = read_i32 ch in
+			let frame = read_string ch in
+			TActionScript3 (Some (id,frame), As3parse.parse ch len)
 		| 0x53 when !full_parsing ->
 			TShape4 (parse_shape ch len 4)
 		| 0x54 when !full_parsing ->
@@ -1341,7 +1340,8 @@ let rec tag_id = function
 	| TTextInfo _ -> 0x4A
 	| TFont3 _ -> 0x4B
 	| TSwf9Name _ -> 0x4C
-	| TActionScript3 a -> assert false (* (match a.As3.as3_id with None -> 0x48 | Some _ -> 0x52) *)
+	| TActionScript3 (None,_) -> 0x48
+	| TActionScript3 _ -> 0x52
 	| TShape4 _ -> 0x53
 	| TShape5 _ -> 0x54
 	| TUnknown (id,_) -> id
@@ -1739,9 +1739,8 @@ let rec write_tag_data ch = function
 	| TSwf9Name (id,s) ->
 		write_i32 ch id;
 		write_string ch s;
-	| TActionScript3 a ->
-		assert false
-		(* As3parse.write ch a *)
+	| TActionScript3 (id,a) ->
+		As3parse.write ch a id
 	| TShape4 s ->
 		write_shape ch s
 	| TShape5 (id,s) ->
