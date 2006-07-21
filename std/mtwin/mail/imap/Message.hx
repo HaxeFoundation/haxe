@@ -24,6 +24,7 @@
  */
 package mtwin.mail.imap;
 
+import mtwin.mail.Exception;
 import mtwin.mail.imap.Tools;
 import mtwin.mail.imap.Connection;
 
@@ -59,11 +60,13 @@ class Message {
 		internalDate = f.internalDate;
 	}
 
-	public function getSection( s : BodySection, ?markAsReed : Bool ){
+	public function getSection( ?subId : String, ?el : BodySection , ?markAsReed : Bool ){
 		var cnx = mailbox.select();
 		if( markAsReed == null ) markAsReed = false;
 		
-		var r = cnx.fetchRange( Single(uid), [if( markAsReed ) Body(s) else BodyPeek(s)], true );
+		var r = cnx.fetchRange( Single(uid), [if( markAsReed ) Body(SubSection(subId,el)) else BodyPeek(SubSection(subId,el))], true );
+		if( r.length != 1 )
+			throw ImapFetchError;
 		return r.first().body;
 	}
 
