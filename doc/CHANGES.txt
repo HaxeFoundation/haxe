@@ -10,6 +10,7 @@
 	added neko just-in-time
 	fixed bugs in haxe.Serializer and haxe.Unserializer (enum format change)
 	changed "signature" by "typedef" (more comprehensible)
+	restricted objects comparisons
 
 2006-06-23: 1.03
 	haxedoc executable now part of the distribution
