@@ -223,47 +223,56 @@ class Unserializer {
 			Reflect.setPrototype(o,cl.prototype);
 			return o;
 		case 119: // w
+			#if neko
+			var e : Dynamic = {
+				tag : null,
+				__string : function() { return untyped neko.Boot.__enum_str(this).__s; },
+				__enum__ : null
+			};
+			#else true
+			var e : Dynamic = new Array();
+			#end
+			cache.push(e);
 			var a : Array<String> = unserialize();
             if( !Std.is(a,Array) )
 				throw "Invalid enum name";
 			for(s in a)
 				if( !Std.is(s,String) )
 					throw "Invalid enum name";
-			var e = resolver.resolveEnum(a);
-			if( e == null )
+			var edecl = resolver.resolveEnum(a);
+			if( edecl == null )
 				throw "Enum not found " + a.join(".");
+			e.__enum__ = edecl;
 			var tag = unserialize();
 			if( !Std.is(tag,String) )
 				throw "Invalid enum tag";
-			var constr = Reflect.field(e,tag);
+			#if neko
+			e.tag = tag;
+			#else true
+			e.push(tag);
+			#end
+			var constr = Reflect.field(edecl,tag);
 			if( constr == null )
 				throw "Unknown enum tag "+a.join(".")+"."+tag;
+			if( buf.charCodeAt(pos++) != 58 ) // ':'
+				throw "Invalid enum format";
 			var nargs = readDigits();
-			var args = null;
 			if( nargs > 0 ) {
-				args = new Array();
+				#if neko
+				var i = 0;
+				e.args = untyped __dollar__amake(nargs);
+				#end
 				while( nargs > 0 ) {
-					args.push(unserialize());
+					#if neko
+					e.args[i] = unserialize();
+					i += 1;
+					#else true
+					e.push(unserialize());
+					#end
 					nargs -= 1;
 				}
 			}
-			#if neko
-				var v = {
-					tag : untyped tag.__s,
-					__string : function() { return untyped neko.Boot.__enum_str(this); },
-					__enum__ : e
-				};
-				if( args != null )
-					untyped v.args = args.__a;
-				return v;
-			#else true
-				if( args == null )
-					args = [tag];
-				else
-					args.unshift(tag);
-				untyped args.__enum__ = e;
-				return args;
-			#end
+			return e;
  		default:
  		}
  		pos--;

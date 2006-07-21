@@ -129,6 +129,7 @@ class Serializer {
 		serialize(v.__enum__.__ename__);
 		#if neko
 		serializeString(new String(v.tag));
+		buf.add(":");
 		if( v.args == null )
 			buf.add(0);
 		else {
@@ -139,6 +140,7 @@ class Serializer {
 		}
 		#else true
 		serializeString(v[0]);
+		buf.add(":");
 		var l = v[untyped "length"];
 		buf.add(l - 1);
 		for( i in 1...l )
