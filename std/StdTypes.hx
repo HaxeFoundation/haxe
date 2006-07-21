@@ -39,7 +39,7 @@ enum Bool {
 enum Dynamic<T> {
 }
 
-signature Iterator<T> {
+typedef Iterator<T> = {
 	function hasNext() : Bool;
 	function next() : T;
 }

@@ -201,7 +201,7 @@ and gen_expr ctx e =
 		| _ ->
 			gen_value ctx x;
 			spr ctx (field s))
-	| TType t ->
+	| TTypeExpr t ->
 		spr ctx (s_path (t_path t))
 	| TParenthesis e ->
 		spr ctx "(";
@@ -326,7 +326,7 @@ and gen_expr ctx e =
 			| TInst (c,_) -> Some (TClassDecl c)
 			| TFun _
 			| TLazy _
-			| TSign _
+			| TType _
 			| TAnon _ ->
 				assert false
 			| TMono _
@@ -347,7 +347,7 @@ and gen_expr ctx e =
 				spr ctx "}"
 			| Some t ->
 				print ctx "if( js.Boot.__instanceof($e%d," id;
-				gen_value ctx (mk (TType t) (mk_mono()) e.epos);
+				gen_value ctx (mk (TTypeExpr t) (mk_mono()) e.epos);
 				spr ctx ") ) {";
 				let bend = open_block ctx in
 				newline ctx;
@@ -460,7 +460,7 @@ and gen_value ctx e =
 	| TArray _
 	| TBinop _
 	| TField _
-	| TType _
+	| TTypeExpr _
 	| TParenthesis _
 	| TObjectDecl _
 	| TArrayDecl _
@@ -642,7 +642,7 @@ let generate_type ctx = function
 	| TEnumDecl e when PMap.is_empty e.e_constrs ->
 		()
 	| TEnumDecl e -> generate_enum ctx e
-	| TSignatureDecl _ -> ()
+	| TTypeDecl _ -> ()
 
 let generate file types hres =
 	let ctx = {

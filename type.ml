@@ -28,7 +28,7 @@ type t =
 	| TMono of t option ref
 	| TEnum of tenum * t list
 	| TInst of tclass * t list
-	| TSign of tsignature * t list
+	| TType of tdef * t list
 	| TFun of (string * bool * t) list * t
 	| TAnon of tanon
 	| TDynamic of t
@@ -61,7 +61,7 @@ and texpr_expr =
 	| TArray of texpr * texpr
 	| TBinop of Ast.binop * texpr * texpr
 	| TField of texpr * string
-	| TType of module_type
+	| TTypeExpr of module_type
 	| TParenthesis of texpr
 	| TObjectDecl of (string * texpr) list
 	| TArrayDecl of texpr list
@@ -134,20 +134,20 @@ and tenum = {
 	mutable e_constrs : (string , tenum_field) PMap.t;
 }
 
-and tsignature = {
-	s_path : module_path;
-	s_pos : Ast.pos;
-	s_doc : Ast.documentation;
-	s_private : bool;
-	s_static : tclass option;
-	mutable s_types : (string * t) list;
-	mutable s_type : t;
+and tdef = {
+	t_path : module_path;
+	t_pos : Ast.pos;
+	t_doc : Ast.documentation;
+	t_private : bool;
+	t_static : tclass option;
+	mutable t_types : (string * t) list;
+	mutable t_type : t;
 }
 
 and module_type =
 	| TClassDecl of tclass
 	| TEnumDecl of tenum
-	| TSignatureDecl of tsignature
+	| TTypeDecl of tdef
 
 type module_def = {
 	mpath : module_path;
@@ -203,12 +203,12 @@ let arg_name (name,_,_) = name
 let t_private = function
 	| TClassDecl c -> c.cl_private
 	| TEnumDecl e -> e.e_private
-	| TSignatureDecl s -> s.s_private
+	| TTypeDecl t -> t.t_private
 
 let t_path = function
 	| TClassDecl c -> c.cl_path
-	| TEnumDecl  e -> e.e_path
-	| TSignatureDecl s -> s.s_path
+	| TEnumDecl e -> e.e_path
+	| TTypeDecl t -> t.t_path
 
 let print_context() = ref []
 
@@ -222,8 +222,8 @@ let rec s_type ctx t =
 		Ast.s_type_path e.e_path ^ s_type_params ctx tl
 	| TInst (c,tl) ->
 		Ast.s_type_path c.cl_path ^ s_type_params ctx tl
-	| TSign (s,tl) ->
-		Ast.s_type_path s.s_path ^ s_type_params ctx tl
+	| TType (t,tl) ->
+		Ast.s_type_path t.t_path ^ s_type_params ctx tl
 	| TFun ([],t) ->
 		"Void -> " ^ s_fun ctx t false
 	| TFun (l,t) ->
@@ -261,7 +261,7 @@ let rec link e a b =
 			true
 		else match t with
 		| TMono t -> (match !t with None -> false | Some t -> loop t)
-		| TEnum (_,tl) | TInst (_,tl) | TSign (_,tl) -> List.exists loop tl
+		| TEnum (_,tl) | TInst (_,tl) | TType (_,tl) -> List.exists loop tl
 		| TFun (tl,t) -> List.exists (fun (_,_,t) -> loop t) tl || loop t
 		| TDynamic t2 ->
 			if t == t2 then
@@ -309,10 +309,10 @@ let apply_params cparams params t =
 			(match tl with
 			| [] -> t
 			| _ -> TEnum (e,List.map loop tl))
-		| TSign (s,tl) ->
+		| TType (t2,tl) ->
 			(match tl with
 			| [] -> t
-			| _ -> TSign (s,List.map loop tl))
+			| _ -> TType (t2,List.map loop tl))
 		| TInst (c,tl) ->
 			(match tl with
 			| [] ->
@@ -358,8 +358,8 @@ let rec follow t =
 		| _ -> t)
 	| TLazy f ->
 		follow (!f())
-	| TSign (s,tl) ->
-		follow (apply_params s.s_types tl s.s_type)
+	| TType (t,tl) ->
+		follow (apply_params t.t_types tl t.t_type)
 	| _ -> t
 
 let monomorphs eparams t =
@@ -371,8 +371,8 @@ let rec fast_eq a b =
 	else match a , b with
 	| TFun (l1,r1) , TFun (l2,r2) ->
 		List.for_all2 (fun (_,_,t1) (_,_,t2) -> fast_eq t1 t2) l1 l2 && fast_eq r1 r2
-	| TSign (s1,l1), TSign (s2,l2) ->
-		s1 == s2 && List.for_all2 fast_eq l1 l2
+	| TType (t1,l1), TType (t2,l2) ->
+		t1 == t2 && List.for_all2 fast_eq l1 l2
 	| TEnum (e1,l1), TEnum (e2,l2) ->
 		e1 == e2 && List.for_all2 fast_eq l1 l2
 	| TInst (c1,l1), TInst (c2,l2) ->
@@ -390,13 +390,13 @@ let rec type_eq param a b =
 	| _ , TLazy f -> type_eq param a (!f())
 	| TMono t , _ -> (match !t with None -> link t a b | Some t -> type_eq param t b)
 	| _ , TMono t -> (match !t with None -> link t b a | Some t -> type_eq param a t)
-	| TSign (s,tl) , _ -> type_eq param (apply_params s.s_types tl s.s_type) b
-	| _ , TSign (s,tl) ->
+	| TType (t,tl) , _ -> type_eq param (apply_params t.t_types tl t.t_type) b
+	| _ , TType (t,tl) ->
 		if List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!eq_stack) then
 			true
 		else begin
 			eq_stack := (a,b) :: !eq_stack;
-			let r = type_eq param a (apply_params s.s_types tl s.s_type) in
+			let r = type_eq param a (apply_params t.t_types tl t.t_type) in
 			eq_stack := List.tl !eq_stack;
 			r
 		end
@@ -506,16 +506,16 @@ let rec unify a b =
 		(match !t with
 		| None -> if not (link t b a) then error [cannot_unify a b]
 		| Some t -> unify a t)
-	| TSign (s,tl) , _ ->
+	| TType (t,tl) , _ ->
 		(try
-			unify (apply_params s.s_types tl s.s_type) b
+			unify (apply_params t.t_types tl t.t_type) b
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
-	| _ , TSign (s,tl) ->
+	| _ , TType (t,tl) ->
 		if not (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!unify_stack)) then begin
 			try
 				unify_stack := (a,b) :: !unify_stack;
-				unify a (apply_params s.s_types tl s.s_type);
+				unify a (apply_params t.t_types tl t.t_type);
 				unify_stack := List.tl !unify_stack;
 			with
 				Unify_error l ->
@@ -610,7 +610,7 @@ let rec iter f e =
 	| TEnumField _
 	| TBreak
 	| TContinue
-	| TType _ ->
+	| TTypeExpr _ ->
 		()
 	| TArray (e1,e2)
 	| TBinop (_,e1,e2)
@@ -653,32 +653,3 @@ let rec iter f e =
 		List.iter (fun (_,_,e) -> f e) catches
 	| TReturn eo ->
 		(match eo with None -> () | Some e -> f e)
-
-let s_expr e =
-	match e.eexpr with
-	| TConst _ -> "Const"
-	| TLocal s -> "Local:" ^ s
-	| TEnumField (_,s) -> "EnumField:" ^ s
-	| TArray _ -> "Array"
-	| TBinop (op,_,_) -> "Binop:" ^ Ast.s_binop op
-	| TField (_,f) -> "Field:" ^ f
-	| TType _ -> "Type"
-	| TParenthesis _ -> "Parent"
-	| TObjectDecl _ -> "ObjDecl"
-	| TArrayDecl _ -> "ArrayDecl"
-	| TCall _ -> "Call"
-	| TNew _ -> "New"
-	| TUnop (op,_,_) -> "Unop:" ^ Ast.s_unop op
-	| TFunction _ -> "Function"
-	| TVars _ -> "Vars"
-	| TBlock _ -> "Block"
-	| TFor _ -> "For"
-	| TIf _ -> "If"
-	| TWhile _ -> "While"
-	| TSwitch _ -> "Switch"
-	| TMatch _ -> "Match"
-	| TTry _ -> "Try"
-	| TReturn _ -> "Return"
-	| TBreak -> "Break"
-	| TContinue -> "Continue"
-	| TThrow _ -> "Throw"

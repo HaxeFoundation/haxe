@@ -40,7 +40,7 @@ enum BasicType {
 /**
 	A class contains meta data about the class instance and an access to the prototype.
 **/
-signature Class {
+typedef Class = {
 
 	/**
 		The complete class name

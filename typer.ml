@@ -276,7 +276,7 @@ let rec load_normal_type ctx t p allow_no_params =
 		let types , path , f = match load_type_def ctx p (t.tpackage,t.tname) with
 			| TClassDecl c -> c.cl_types , c.cl_path , (fun t -> TInst (c,t))
 			| TEnumDecl e -> e.e_types , e.e_path , (fun t -> TEnum (e,t))
-			| TSignatureDecl s -> s.s_types , s.s_path , (fun t -> TSign(s,t))
+			| TTypeDecl t -> t.t_types , t.t_path , (fun tl -> TType(t,tl))
 		in
 		if allow_no_params && t.tparams = [] then
 			f (List.map (fun (name,t) ->
@@ -387,8 +387,8 @@ let rec reverse_type t =
 		TPNormal { tpackage = fst e.e_path; tname = snd e.e_path; tparams = List.map reverse_type params }
 	| TInst (c,params) ->
 		TPNormal { tpackage = fst c.cl_path; tname = snd c.cl_path; tparams = List.map reverse_type params }
-	| TSign (s,params) ->
-		TPNormal { tpackage = fst s.s_path; tname = snd s.s_path; tparams = List.map reverse_type params }
+	| TType (t,params) ->
+		TPNormal { tpackage = fst t.t_path; tname = snd t.t_path; tparams = List.map reverse_type params }
 	| TFun (params,ret) ->
 		TPFunction (List.map (fun (_,_,t) -> reverse_type t) params,reverse_type ret)
 	| TAnon a ->
@@ -619,10 +619,10 @@ let rec is_flash_extern t =
 		(match fst c.cl_path with
 		| "flash" :: _ -> c.cl_extern
 		| _ -> false)
-	| TSign (s,_) ->
-		(match s.s_static with		
+	| TType (t,_) ->
+		(match t.t_static with		
 		| Some { cl_extern = true; cl_path = "flash" :: _ , _ } -> true
-		| _ -> is_flash_extern s.s_type);
+		| _ -> is_flash_extern t.t_type);
 	| _ -> false
 
 let t_array ctx =
@@ -639,11 +639,11 @@ let t_array ctx =
 let t_iterator ctx =
 	let show = hide_types ctx in
 	match load_type_def ctx null_pos ([],"Iterator") with
-	| TSignatureDecl s ->
+	| TTypeDecl t ->
 		show();
-		if List.length s.s_types <> 1 then assert false;
+		if List.length t.t_types <> 1 then assert false;
 		let pt = mk_mono() in
-		apply_params s.s_types [pt] s.s_type, pt
+		apply_params t.t_types [pt] t.t_type, pt
 	| _ ->
 		assert false
 
@@ -702,7 +702,7 @@ let unify_call_params ctx t el args p =
 				| _ -> t
 			in
 			(match follow2 t with
-			| TSign ({ s_path = ["haxe"] , "PosInfos" },[]) ->
+			| TType ({ t_path = ["haxe"] , "PosInfos" },[]) ->
 				let infos = mk_infos ctx p [] in
 				let e = (!type_expr_ref) ctx ~need_val:true infos in
 				loop (e :: acc) [] []
@@ -790,7 +790,7 @@ let type_ident ctx i p get =
 		(* static variable lookup *)
 		let f = PMap.find i ctx.curclass.cl_statics in
 		(* expr type is not accurate but needed for protect *)
-		let tt = mk (TType (TClassDecl ctx.curclass)) (TInst (ctx.curclass,[])) p in
+		let tt = mk (TTypeExpr (TClassDecl ctx.curclass)) (TInst (ctx.curclass,[])) p in
 		field_access ctx get f (field_type f) tt p
 	with Not_found -> try
 		(* lookup imported *)
@@ -799,7 +799,7 @@ let type_ident ctx i p get =
 			| [] -> raise Not_found
 			| t :: l ->
 				match t with
-				| TClassDecl _ | TSignatureDecl _ ->
+				| TClassDecl _ | TTypeDecl _ ->
 					loop l
 				| TEnumDecl e ->
 					try
@@ -836,16 +836,16 @@ let type_type ctx tpath p =
 			| Some l ->
 				l
 		) in
-		let s_tmp = {
-			s_path = fst c.cl_path, "#" ^ snd c.cl_path;
-			s_doc = None;
-			s_pos = c.cl_pos;
-			s_type = mk_anon (if pub then PMap.map (fun f -> { f with cf_public = true }) c.cl_statics else c.cl_statics);
-			s_private = true;
-			s_static = Some c;
-			s_types = c.cl_types;
+		let t_tmp = {
+			t_path = fst c.cl_path, "#" ^ snd c.cl_path;
+			t_doc = None;
+			t_pos = c.cl_pos;
+			t_type = mk_anon (if pub then PMap.map (fun f -> { f with cf_public = true }) c.cl_statics else c.cl_statics);
+			t_private = true;
+			t_static = Some c;
+			t_types = c.cl_types;
 		} in
-		mk (TType (TClassDecl c)) (TSign (s_tmp,types)) p
+		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,types)) p
 	| TEnumDecl e ->
 		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_types | Some l -> l) in
 		let fl = PMap.fold (fun f acc ->
@@ -860,18 +860,18 @@ let type_type ctx tpath p =
 				cf_params = [];
 			} acc
 		) e.e_constrs PMap.empty in
-		let s_tmp = {
-			s_path = fst e.e_path, "#" ^ snd e.e_path;
-			s_doc = None;
-			s_pos = e.e_pos;
-			s_type = mk_anon fl;
-			s_private = true;
-			s_static = None;
-			s_types = e.e_types;
+		let t_tmp = {
+			t_path = fst e.e_path, "#" ^ snd e.e_path;
+			t_doc = None;
+			t_pos = e.e_pos;
+			t_type = mk_anon fl;
+			t_private = true;
+			t_static = None;
+			t_types = e.e_types;
 		} in
-		mk (TType (TEnumDecl e)) (TSign (s_tmp,types)) p
-	| TSignatureDecl s ->
-		match follow s.s_type with
+		mk (TTypeExpr (TEnumDecl e)) (TType (t_tmp,types)) p
+	| TTypeDecl s ->
+		match follow s.t_type with
 		| TEnum (e,params) ->
 			loop (TEnumDecl e) (Some params)
 		| TInst (c,params) ->
@@ -902,7 +902,7 @@ let check_assign ctx e =
 	match e.eexpr with
 	| TLocal _ | TArray _ | TField _ ->
 		()
-	| TType _ when ctx.untyped ->
+	| TTypeExpr _ when ctx.untyped ->
 		()
 	| _ ->
 		error "Invalid assign" e.epos
@@ -2035,19 +2035,19 @@ let type_module ctx m tdecls loadp =
 				e_constrs = PMap.empty;
 			} in
 			decls := TEnumDecl e :: !decls
-		| ESignature (name,doc,_,flags,_) ->
+		| ETypedef (name,doc,_,flags,_) ->
 			let priv = List.mem EPrivate flags in
 			let path = decl_with_name name p priv in
-			let s = {
-				s_path = path;
-				s_pos = p;
-				s_doc = doc;
-				s_private = priv;
-				s_types = [];
-				s_static = None;
-				s_type = mk_mono();
+			let t = {
+				t_path = path;
+				t_pos = p;
+				t_doc = doc;
+				t_private = priv;
+				t_types = [];
+				t_static = None;
+				t_type = mk_mono();
 			} in
-			decls := TSignatureDecl s :: !decls
+			decls := TTypeDecl t :: !decls
 	) tdecls;
 	let m = {
 		mpath = m;
@@ -2089,9 +2089,9 @@ let type_module ctx m tdecls loadp =
 		let e = List.find (fun d -> match d with TEnumDecl { e_path = _ , n } -> n = name | _ -> false) m.mtypes in
 		match e with TEnumDecl e -> e | _ -> assert false
 	in
-	let get_sign name =
-		let s = List.find (fun d -> match d with TSignatureDecl { s_path = _ , n } -> n = name | _ -> false) m.mtypes in
-		match s with TSignatureDecl s -> s | _ -> assert false
+	let get_tdef name =
+		let s = List.find (fun d -> match d with TTypeDecl { t_path = _ , n } -> n = name | _ -> false) m.mtypes in
+		match s with TTypeDecl s -> s | _ -> assert false
 	in
 	(* here is an additional PASS 1 phase, which handle the type parameters declaration, with lazy contraints *)
 	List.iter (fun (d,p) ->
@@ -2103,9 +2103,9 @@ let type_module ctx m tdecls loadp =
 		| EEnum (name,_,types,_,_) ->
 			let e = get_enum name in
 			e.e_types <- List.map (type_type_params ctx e.e_path p) types;
-		| ESignature (name,_,types,_,_) ->
-			let s = get_sign name in
-			s.s_types <- List.map (type_type_params ctx s.s_path p) types;
+		| ETypedef (name,_,types,_,_) ->
+			let t = get_tdef name in
+			t.t_types <- List.map (type_type_params ctx t.t_path p) types;
 	) tdecls;
 	(* back to PASS2 *)
 	List.iter (fun (d,p) ->
@@ -2137,11 +2137,11 @@ let type_module ctx m tdecls loadp =
 				) in
 				e.e_constrs <- PMap.add c { ef_name = c; ef_type = t; ef_pos = p; ef_doc = doc } e.e_constrs
 			) constrs
-		| ESignature (name,_,_,_,t) ->
-			let s = get_sign name in
-			ctx.type_params <- s.s_types;
-			let t = load_type ctx p t in
-			unify ctx s.s_type t p;
+		| ETypedef (name,_,_,_,tt) ->
+			let t = get_tdef name in
+			ctx.type_params <- t.t_types;
+			let tt = load_type ctx p tt in
+			unify ctx t.t_type tt p;
 	) tdecls;
 	(* PASS 3 : type checking, delayed until all modules and types are built *)
 	ctx.delays := !delays :: !(ctx.delays);
@@ -2227,7 +2227,7 @@ let types ctx main excludes =
 					c.cl_init <- None;
 				end;
 				t
-			| TEnumDecl _ | TSignatureDecl _ ->
+			| TEnumDecl _ | TTypeDecl _ ->
 				t
 			) in
 			Hashtbl.replace states p Done;
@@ -2256,11 +2256,11 @@ let types ctx main excludes =
 
 	and walk_expr p e =
 		match e.eexpr with
-		| TType t ->
+		| TTypeExpr t ->
 			(match t with
 			| TClassDecl c -> loop_class p c
 			| TEnumDecl e -> loop_enum p e
-			| TSignatureDecl _ -> assert false)
+			| TTypeDecl _ -> assert false)
 		| TEnumField (e,_) ->
 			loop_enum p e
 		| TNew (c,_,_) ->
@@ -2274,10 +2274,10 @@ let types ctx main excludes =
 			(* static call for initializing a variable *)
 			let rec loop f =
 				match f.eexpr with
-				| TField ({ eexpr = TType t },name) ->
+				| TField ({ eexpr = TTypeExpr t },name) ->
 					(match t with
 					| TEnumDecl _ -> ()
-					| TSignatureDecl _ -> assert false
+					| TTypeDecl _ -> assert false
 					| TClassDecl c -> walk_static_call p c name)
 				| _ -> ()
 			in
@@ -2307,7 +2307,7 @@ let types ctx main excludes =
 	| Some cl ->
 		let t = load_type_def ctx null_pos cl in
 		let cmain = (match t with
-		| TEnumDecl _ | TSignatureDecl _ ->
+		| TEnumDecl _ | TTypeDecl _ ->
 			error ("Invalid -main : " ^ s_type_path cl ^ " is not a class") null_pos
 		| TClassDecl c ->
 			try
@@ -2330,7 +2330,7 @@ let types ctx main excludes =
 			cf_set = NormalAccess;
 			cf_doc = None;
 			cf_params = [];
-			cf_expr = Some (mk (TCall (mk (TField (mk (TType t) tmain null_pos,"main")) (mk_mono()) null_pos,[])) (mk_mono()) null_pos);
+			cf_expr = Some (mk (TCall (mk (TField (mk (TTypeExpr t) tmain null_pos,"main")) (mk_mono()) null_pos,[])) (mk_mono()) null_pos);
 		} in
 		c.cl_statics <- PMap.add "init" f c.cl_statics;
 		c.cl_ordered_statics <- f :: c.cl_ordered_statics;

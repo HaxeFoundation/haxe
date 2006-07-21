@@ -24,7 +24,7 @@
  */
 package neko;
 
-signature FileStat {
+typedef FileStat = {
 	var gid : Int;
 	var uid : Int;
 	var atime : Date;

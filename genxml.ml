@@ -53,7 +53,7 @@ let rec gen_type t =
 	| TMono m -> (match !m with None -> tag "unknown" | Some t -> gen_type t)
 	| TEnum (e,params) -> node "e" [gen_path e.e_path e.e_private] (List.map gen_type params)
 	| TInst (c,params) -> node "c" [gen_path c.cl_path c.cl_private] (List.map gen_type params)
-	| TSign (s,params) -> node "s" [gen_path s.s_path s.s_private] (List.map gen_type params)
+	| TType (t,params) -> node "t" [gen_path t.t_path t.t_private] (List.map gen_type params)
 	| TFun (args,r) -> node "f" ["a",String.concat ":" (List.map gen_arg_name args)] (List.map gen_type (List.map (fun (_,_,t) -> t) args @ [r]))
 	| TAnon a -> node "a" [] (pmap (fun f -> node f.cf_name [] [gen_type f.cf_type]) a.a_fields)
 	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
@@ -91,10 +91,10 @@ let gen_type ctx t =
 	| TEnumDecl e ->
 		let doc = gen_doc_opt e.e_doc in
 		node "enum" (gen_type_params e.e_private e.e_path e.e_types e.e_pos m) (pmap gen_constr e.e_constrs @ doc)
-	| TSignatureDecl s ->
-		let doc = gen_doc_opt s.s_doc in
-		let t = gen_type s.s_type in
-		node "signature" (gen_type_params s.s_private s.s_path s.s_types s.s_pos m) (t :: doc)
+	| TTypeDecl t ->
+		let doc = gen_doc_opt t.t_doc in
+		let tt = gen_type t.t_type in
+		node "typedef" (gen_type_params t.t_private t.t_path t.t_types t.t_pos m) (tt :: doc)
 
 let att_str att =
 	String.concat "" (List.map (fun (a,v) -> Printf.sprintf " %s=\"%s\"" a v) att)

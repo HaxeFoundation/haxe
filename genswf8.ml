@@ -201,9 +201,9 @@ let rec is_protected ctx t check_mt =
 		| Some t -> is_protected ctx t check_mt)
 	| TLazy f ->
 		is_protected ctx ((!f)()) check_mt
-	| TSign (s,_) ->
-		(match s.s_static with
-		| None -> is_protected ctx s.s_type check_mt
+	| TType (t,_) ->
+		(match t.t_static with
+		| None -> is_protected ctx t.t_type check_mt
 		| Some c -> is_protected_name c.cl_path c.cl_extern)
 	| _ -> false
 
@@ -529,11 +529,11 @@ let rec gen_access ctx forcall e =
 		(match follow e.etype with
 		| TFun _ -> VarClosure
 		| _ -> VarObj)
-	| TType t ->
+	| TTypeExpr t ->
 		(match t with
 		| TClassDecl c -> gen_path ctx c.cl_path c.cl_extern
 		| TEnumDecl e -> gen_path ctx e.e_path false
-		| TSignatureDecl _ -> assert false)
+		| TTypeDecl _ -> assert false)
 	| _ ->
 		if not forcall then error e.epos;
 		gen_expr ctx true e;
@@ -553,7 +553,7 @@ and gen_try_catch ctx retval e catchs =
 			| TInst (c,_) -> Some (TClassDecl c)
 			| TFun _
 			| TLazy _
-			| TSign _
+			| TType _
 			| TAnon _ ->
 				assert false
 			| TMono _
@@ -565,7 +565,7 @@ and gen_try_catch ctx retval e catchs =
 			end_throw := false;
 			(fun() -> ())
 		| Some t ->
-			getvar ctx (gen_access ctx false (mk (TType t) (mk_mono()) e.epos));
+			getvar ctx (gen_access ctx false (mk (TTypeExpr t) (mk_mono()) e.epos));
 			push ctx [VReg 0; VInt 2; VStr ("@instanceof",false)];
 			call ctx VarStr 2;
 			write ctx ANot;
@@ -839,7 +839,7 @@ and gen_expr_2 ctx retval e =
 	| TField _
 	| TArray _
 	| TLocal _
-	| TType _
+	| TTypeExpr _
 	| TEnumField _ ->
 		getvar ctx (gen_access ctx false e)
 	| TConst c ->
@@ -1254,7 +1254,7 @@ let gen_type_def ctx t =
 		setvar ctx acc;
 		init_name ctx e.e_path true;
 		PMap.iter (fun _ f -> gen_enum_field ctx e f) e.e_constrs
-	| TSignatureDecl _ ->
+	| TTypeDecl _ ->
 		()
 
 let gen_boot ctx hres =

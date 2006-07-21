@@ -24,7 +24,7 @@
  */
 package neko.zip;
 
-signature ZipEntry {
+typedef ZipEntry = {
 	var fileName : String;
 	var fileSize : Int;
 	var compressedSize : Int;

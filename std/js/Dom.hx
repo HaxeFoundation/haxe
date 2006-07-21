@@ -28,8 +28,8 @@ package js;
 extern class HtmlCollection<T> extends Array<T>, implements Dynamic<T> {
 }
 
-// the base signature for every DOM element
-signature MetaDom<T> {
+// the base typedef for every DOM element
+typedef MetaDom<T> = {
 	var nodeName : String;
 	var nodeType : Int;
 	var nodeValue : String;
@@ -52,9 +52,9 @@ signature MetaDom<T> {
 
 }
 
-signature Dom = MetaDom<Dom>
+typedef Dom = MetaDom<Dom>
 
-signature HtmlDom {> MetaDom<HtmlDom>,
+typedef HtmlDom = {> MetaDom<HtmlDom>,
 	var id : String;
 	var title : String;
 	var lang : String;
@@ -76,7 +76,7 @@ signature HtmlDom {> MetaDom<HtmlDom>,
 	#end
 }
 
-signature FormElement = {> HtmlDom,
+typedef FormElement = {> HtmlDom,
 
 	var disabled : Bool;
 	var form : Form;
@@ -94,7 +94,7 @@ signature FormElement = {> HtmlDom,
 
 }
 
-signature Anchor = {> HtmlDom,
+typedef Anchor = {> HtmlDom,
 
 	function blur() : Void;
 	function focus() : Void;
@@ -119,7 +119,7 @@ signature Anchor = {> HtmlDom,
 	var onfocus : Event -> Void;
 }
 
-signature Body = {> HtmlDom,
+typedef Body = {> HtmlDom,
 	// IE only, NO W3C var accessKey : String;
 	var aLink : String;
 	var background : String;
@@ -129,17 +129,17 @@ signature Body = {> HtmlDom,
 	var vLink : String;
 }
 
-signature Button = {> FormElement,
+typedef Button = {> FormElement,
 	var onmousedown : Event -> Void;
 	var onmouseup : Event -> Void;
 }
 
-signature Checkbox = {> FormElement,
+typedef Checkbox = {> FormElement,
 	var checked : Bool;
 	var defaultChecked : Bool;
 }
 
-signature Document = {> HtmlDom,
+typedef Document = {> HtmlDom,
 	var anchors : HtmlCollection<Anchor>;
 	// applets : Applet is deprecated in Dom2
 	var forms : HtmlCollection<Form>;
@@ -193,7 +193,7 @@ signature Document = {> HtmlDom,
 	var onresize : Event -> Void;
 }
 
-signature Event {
+typedef Event = {
 	var target : HtmlDom;
 	var type : String;
 
@@ -210,11 +210,11 @@ signature Event {
 	var cancelBubble : Bool;
 }
 
-signature FileUpload = {> FormElement,
+typedef FileUpload = {> FormElement,
 	var defaultValue : String;
 }
 
-signature Form = {> HtmlDom,
+typedef Form = {> HtmlDom,
 
 	var elements : HtmlCollection<FormElement>;
 
@@ -236,7 +236,7 @@ signature Form = {> HtmlDom,
 
 }
 
-signature Frame = {> HtmlDom,
+typedef Frame = {> HtmlDom,
 
 	var contentDocument : Document;
 	var frameBorder : String;
@@ -260,7 +260,7 @@ signature Frame = {> HtmlDom,
 	*/
 }
 
-signature Frameset = {> HtmlDom,
+typedef Frameset = {> HtmlDom,
 	var cols : Int;
 	var rows : Int;
 
@@ -273,18 +273,18 @@ signature Frameset = {> HtmlDom,
 	*/
 }
 
-signature Hidden = {> FormElement,
+typedef Hidden = {> FormElement,
 	var defaultValue : String;
 }
 
-signature History {
+typedef History = {
 	var length : Int;
 	function back() : Void;
 	function forward() : Void;
 	function go( p : Dynamic ) : Void;
 }
 
-signature IFrame = {> HtmlDom,
+typedef IFrame = {> HtmlDom,
 	var contentDocument : Document;
 	var frameBorder : String;
 	var height : Int;
@@ -309,7 +309,7 @@ signature IFrame = {> HtmlDom,
 	*/
 }
 
-signature Image = {> HtmlDom,
+typedef Image = {> HtmlDom,
 	var align : String;
 	var alt : String;
 	var border : String;
@@ -343,7 +343,7 @@ signature Image = {> HtmlDom,
 	var onload : Event -> Void;
 }
 
-signature Link = {> HtmlDom,
+typedef Link = {> HtmlDom,
 	var charset : String;
 	var disabled : Bool;
 	var href : String;
@@ -362,7 +362,7 @@ signature Link = {> HtmlDom,
 	var onload : Event -> Void;
 }
 
-signature Location {
+typedef Location = {
 	var hash : String;
 	var host : String;
 	var hostname : String;
@@ -377,7 +377,7 @@ signature Location {
 	function replace( url : String ) : Void;
 }
 
-signature Navigator {
+typedef Navigator = {
 	// var plugins : HtmlCollection<???>
 
 	var appCodeName : String;
@@ -400,13 +400,13 @@ signature Navigator {
 	function taintEnabled() : Bool;
 }
 
-signature Option = {> FormElement,
+typedef Option = {> FormElement,
 	var defaultSelected : String;
 	var selected : String;
 	var text : String;
 }
 
-signature Password = {> FormElement,
+typedef Password = {> FormElement,
 	var defaultValue : String;
 	var maxLength : Int;
 	var readOnly : Bool;
@@ -419,7 +419,7 @@ signature Password = {> FormElement,
 	var onkeypress : Event -> Void;
 }
 
-signature Radio = {> FormElement,
+typedef Radio = {> FormElement,
 	var checked : Bool;
 	var defaultChecked : Bool;
 	var size : Int;
@@ -427,11 +427,11 @@ signature Radio = {> FormElement,
 	function select() : Void;
 }
 
-signature Reset = {> FormElement,
+typedef Reset = {> FormElement,
 	function select() : Void;
 }
 
-signature Screen {
+typedef Screen = {
 	var availHeight : Int;
 	var availWidth : Int;
 	var colorDepth : Int;
@@ -450,7 +450,7 @@ signature Screen {
 	*/
 }
 
-signature Select = {> FormElement,
+typedef Select = {> FormElement,
 	var options : HtmlCollection<Option>;
 	var length : Int;
 	var multiple : Bool;
@@ -462,7 +462,7 @@ signature Select = {> FormElement,
 	var onChange : Void -> Void;
 }
 
-signature Style {
+typedef Style = {
 	// Position
 	var left : Int;
 	var bottom : Int;
@@ -597,7 +597,7 @@ signature Style {
 	var writingMode : Dynamic;
 }
 
-signature StyleSheet {
+typedef StyleSheet = {
 	var type : String;
 	var disabled : Bool;
 	var href : String;
@@ -605,12 +605,12 @@ signature StyleSheet {
 	// ??? more ???
 }
 
-signature Submit = {> FormElement,
+typedef Submit = {> FormElement,
 	function select() : Void;
 	var onselectstart : Event -> Void;
 }
 
-signature Text = {> FormElement,
+typedef Text = {> FormElement,
 	var defaultValue : String;
 	var maxLength : Int;
 	var readOnly : Bool;
@@ -625,7 +625,7 @@ signature Text = {> FormElement,
 	var onselect : Event -> Void;
 }
 
-signature Textarea = {> FormElement,
+typedef Textarea = {> FormElement,
 	var cols : Int;
 	var rows : Int;
 	var defaultValue : String;
@@ -643,7 +643,7 @@ signature Textarea = {> FormElement,
 	*/
 }
 
-signature Window {
+typedef Window = {
 
 	var history : History;
 	var location : Location;

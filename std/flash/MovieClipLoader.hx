@@ -1,7 +1,7 @@
 package flash;
 
 #if flash_strict
-signature MclListener {
+typedef MclListener = {
 
 	function onLoadInit(target:MovieClip) : Void;
 	function onLoadStart(target:MovieClip) : Void;

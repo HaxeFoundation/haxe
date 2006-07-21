@@ -46,7 +46,7 @@ private enum DocType {
 	tfunction( params : Array<{ name : String, t : DocType }>, ret : DocType );
 	tparam( classpath : String, name : String );
 	tconstr( fields : Array<{ name : String, t : DocType }> );
-	tsign( name : String, params : Array<DocType> );
+	ttype( name : String, params : Array<DocType> );
 }
 
 private class DocField {
@@ -114,7 +114,7 @@ private class DocField {
 			return "Unknown";
 		case tclass(name,params):
 			return link(name)+paramsToString(params);
-		case tsign(name,params):
+		case ttype(name,params):
 			return link(name)+paramsToString(params);
 		case tenum(name,params):
 			return link(name)+paramsToString(params);
@@ -310,7 +310,7 @@ private class DocEnum extends DocClass {
 
 }
 
-private class DocSign extends DocClass {
+private class DocTypedef extends DocClass {
 
 	public var t : DocType;
 
@@ -325,7 +325,7 @@ private class DocSign extends DocClass {
 	}
 
 	override function genName( s : StringBuf ) {
-		s.add("signature ");
+		s.add("typedef ");
 		s.add(path);
 	}
 }
@@ -346,8 +346,8 @@ class DocView {
 			return tunknown;
 		case "c":
 			return tclass(x.get("path"),Lambda.amap(Lambda.array(x.elements()),processType));
-		case "s":
-			return tsign(x.get("path"),Lambda.amap(Lambda.array(x.elements()),processType));
+		case "t":
+			return ttype(x.get("path"),Lambda.amap(Lambda.array(x.elements()),processType));
 		case "e":
 			var path = x.get("path").split(".");
 			if( path.length >= 2 ) {
@@ -417,8 +417,8 @@ class DocView {
 				if( m.get("public") == "1" )
 					c.fields.push(processField(c,m));
 			}
-		case "signature":
-			var s = new DocSign(path);
+		case "typedef":
+			var s = new DocTypedef(path);
 			var t = processType(x.firstElement());
 			switch( t ) {
 			case tanon(fields):

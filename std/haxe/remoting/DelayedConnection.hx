@@ -24,7 +24,7 @@
  */
 package haxe.remoting;
 
-private signature InternalData {
+private typedef InternalData = {
 	var ref : AsyncConnection;
 	var msg : Array<{ path : Array<String>, params : Array<Dynamic>, onData : Dynamic -> Void }>;
 }

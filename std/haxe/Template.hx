@@ -34,13 +34,13 @@ private enum TemplateExpr {
 	OpMacro( name : String, params : List<TemplateExpr> );
 }
 
-private signature Token {
+private typedef Token = {
 	var s : Bool;
 	var p : String;
 	var l : Array<String>;
 }
 
-private signature ExprToken {
+private typedef ExprToken = {
 	var s : Bool;
 	var p : String;
 }
@@ -113,7 +113,7 @@ class Template {
 					throw "Unclosed macro parenthesis";
 				parp++;
 			}
-			var params = data.substr(p.pos+p.len,parp - (p.pos+p.len) - 1).split(",");			
+			var params = data.substr(p.pos+p.len,parp - (p.pos+p.len) - 1).split(",");
 			tokens.add({ p : splitter.matched(2), s : false, l : params });
 			data = data.substr(parp,data.length - parp);
 		}
@@ -345,7 +345,7 @@ class Template {
 				}
 			}
 			buf = old;
-			try {				
+			try {
 				buf.add(Reflect.callMethod(null,v,pl));
 			} catch( e : Dynamic ) {
 				var msg = "Macro call "+m+" failed ("+Std.string(e)+")";

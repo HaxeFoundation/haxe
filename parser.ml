@@ -150,13 +150,7 @@ and parse_type_decl s =
 		match s with parser
 		| [< n , p1 = parse_enum_params; doc = get_doc; '(Const (Type name),_); tl = parse_type_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] -> (EEnum (name,doc,tl,List.map snd c @ n,l), punion p1 p2)
 		| [< n , p1 = parse_class_params; doc = get_doc; '(Const (Type name),_); tl = parse_type_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = plist parse_class_field; '(BrClose,p2) >] -> (EClass (name,doc,tl,List.map fst c @ n @ hl,fl), punion p1 p2)
-		| [< '(Const (Ident "signature"),p1); doc = get_doc; '(Const (Type name),p2); tl = parse_type_params; s >] ->
-			let t = (match s with parser
-				| [< '(Binop OpAssign,_); t = parse_type_path >] -> t
-				| [< t = parse_type_path >] -> t
-				| [< >] -> serror()
-			) in
-			(ESignature (name,doc,tl,List.map snd c,t), punion p1 p2)
+		| [< '(Const (Ident "typedef"),p1); doc = get_doc; '(Const (Type name),p2); tl = parse_type_params; '(Binop OpAssign,_); t = parse_type_path >] -> (ETypedef (name,doc,tl,List.map snd c,t), punion p1 p2)
 
 and parse_package s = psep Dot ident s
 

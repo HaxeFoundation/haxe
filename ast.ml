@@ -211,7 +211,7 @@ type enum_constructor = string * documentation * (string * bool * type_path) lis
 type type_def =
 	| EClass of string * documentation * type_param list * type_param_flag list * (class_field * pos) list
 	| EEnum of string * documentation * type_param list * enum_param list * enum_constructor list
-	| ESignature of string * documentation * type_param list * enum_param list * type_path
+	| ETypedef of string * documentation * type_param list * enum_param list * type_path
 	| EImport of string list * string * string option
 
 type type_decl = type_def * pos

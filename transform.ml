@@ -25,7 +25,7 @@ let rec map f e =
 	| TEnumField _
 	| TBreak
 	| TContinue
-	| TType _ ->
+	| TTypeExpr _ ->
 		e
 	| TArray (e1,e2) ->
 		{ e with eexpr = TArray (f e1,f e2) }

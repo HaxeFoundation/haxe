@@ -1,7 +1,7 @@
 package flash;
 
 #if flash_strict
-signature ColorTransform {
+typedef ColorTransform = {
 	var ra : Float;
 	var rb : Float;
 	var ga : Float;

@@ -25,7 +25,7 @@
 package haxe;
 import Reflect;
 
-signature TypeResolver {
+typedef TypeResolver = {
 	resolveClass : Array<String> -> Class,
 	resolveEnum : Array<String> -> Dynamic
 }

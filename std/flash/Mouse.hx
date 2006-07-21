@@ -1,7 +1,7 @@
 package flash;
 
 #if flash_strict
-signature MouseListener {
+typedef MouseListener = {
 	function onMouseDown() : Void;
 	function onMouseMove() : Void;
 	function onMouseUp() : Void;

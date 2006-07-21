@@ -1,7 +1,7 @@
 package flash;
 
 #if flash_strict
-signature KeyListener {
+typedef KeyListener = {
 	function onKeyDown() : Void;
 	function onKeyUp() : Void;
 }

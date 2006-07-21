@@ -24,7 +24,7 @@
  */
 package haxe;
 
-signature PosInfos {
+typedef PosInfos = {
 	var fileName : String;
 	var lineNumber : Int;
 	var className : String;

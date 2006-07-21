@@ -243,7 +243,7 @@ and gen_expr ctx e =
 		gen_binop ctx p op e1 e2
 	| TField (e2,f) ->
 		gen_closure p e.etype (gen_expr ctx e2) f
-	| TType t ->
+	| TTypeExpr t ->
 		gen_type_path p (t_path t)
 	| TParenthesis e ->
 		(EParenthesis (gen_expr ctx e),p)
@@ -413,7 +413,7 @@ let gen_method ctx p c acc =
 		(c.cf_name, null p) :: acc
 	| Some e ->
 		match e.eexpr with
-		| TCall ({ eexpr = TField ({ eexpr = TType (TClassDecl { cl_path = (["neko"],"Lib") }) }, "load")},[{ eexpr = TConst (TString m) };{ eexpr = TConst (TString f) };{ eexpr = TConst (TInt n) }]) ->
+		| TCall ({ eexpr = TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = (["neko"],"Lib") }) }, "load")},[{ eexpr = TConst (TString m) };{ eexpr = TConst (TString f) };{ eexpr = TConst (TInt n) }]) ->
 			(c.cf_name, call (pos e.epos) (EField (builtin p "loader","loadprim"),p) [(EBinop ("+",(EBinop ("+",str p m,str p "@"),p),str p f),p); (EConst (Int (Int32.to_int n)),p)]) :: acc
 		| TFunction _ -> ((if c.cf_name = "new" then "__construct__" else c.cf_name), gen_expr ctx e) :: acc
 		| _ -> (c.cf_name, null p) :: acc
@@ -528,12 +528,12 @@ let gen_type ctx t =
 			null (pos e.e_pos)
 		else
 			gen_enum e
-	| TSignatureDecl s ->
-		null (pos s.s_pos)
+	| TTypeDecl t ->
+		null (pos t.t_pos)
 
 let gen_static_vars ctx t =
 	match t with
-	| TEnumDecl _ | TSignatureDecl _ -> []
+	| TEnumDecl _ | TTypeDecl _ -> []
 	| TClassDecl c ->
 		if c.cl_extern then
 			[]
@@ -559,7 +559,7 @@ let gen_package h t =
 		| x :: l ->
 			let path = acc @ [x] in
 			if not (Hashtbl.mem h path) then begin
-				let p = pos (match t with TClassDecl c -> c.cl_pos | TEnumDecl e -> e.e_pos | TSignatureDecl s -> s.s_pos) in
+				let p = pos (match t with TClassDecl c -> c.cl_pos | TEnumDecl e -> e.e_pos | TTypeDecl t -> t.t_pos) in
 				let e = (EBinop ("=",gen_type_path p (acc,x),call p (builtin p "new") [null p]),p) in
 				Hashtbl.add h path ();
 				(match acc with
@@ -602,7 +602,7 @@ let gen_name acc t =
 			(EBinop ("=",field p (gen_type_path p c.cl_path) "__name__",arr),p) ::
 			(EBinop ("=",interf, call p (field p (ident p "Array") "new1") [interf; int p (List.length c.cl_implements)]),p) ::
 			acc
-	| TSignatureDecl _ ->
+	| TTypeDecl _ ->
 		acc
 
 let generate file types hres =
