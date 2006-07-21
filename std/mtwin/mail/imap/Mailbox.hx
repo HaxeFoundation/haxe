@@ -32,6 +32,7 @@ signature ImapMailbox = {
 package mtwin.mail.imap;
 
 import mtwin.mail.imap.Tools;
+import mtwin.mail.Exception;
 
 class Mailbox {
 	static var PREFETCH_SECTION = [Section.Uid,Section.InternalDate,Section.Envelope,Section.BodyStructure,Section.Flags];
@@ -40,11 +41,12 @@ class Mailbox {
 	public var name(default,null) : String;
 	var flags : Flags;
 	public var children : List<Mailbox>;
-	var parent : Mailbox;
+	public var parent(default,null) : Mailbox;
 
 	public var length(default,null) : Int;
 	public var firstUnseen(default,null) : Int;
 	public var recent(default,null) : Int;
+	public var unseen(default,null) : Int;
 
 	public static function init( c : Connection, n : String, f : Flags ){
 		return new Mailbox( c,n,f );
@@ -58,6 +60,8 @@ class Mailbox {
 	}
 
 	public function select(){
+		if( hasFlag("\\Noselect") ) throw NoSelect;
+
 		var r = cnx.select( name );
 		if( r != null ){
 			length = r.exists;
@@ -65,6 +69,13 @@ class Mailbox {
 			recent = r.recent;
 		}
 		return cnx;
+	}
+
+	public function hasFlag( f : String ){
+		for( e in flags ){
+			if( e == f ) return true;
+		}
+		return false;
 	}
 
 	public function list( ?start : Int, ?end : Int, ?fPrefetch : Bool ){
@@ -85,6 +96,15 @@ class Mailbox {
 			ret.add( t );
 		}
 		return ret;
+	}
+
+	public function syncStatus(){
+		if( hasFlag("\\Noselect") ) throw NoSelect;
+
+		var r = cnx.status( name );
+		length = r.get("MESSAGES");
+		unseen = r.get("UNSEEN");
+		recent = r.get("RECENT");
 	}
 
 	public function get( uid : Int, ?fPrefetch : Bool ){
