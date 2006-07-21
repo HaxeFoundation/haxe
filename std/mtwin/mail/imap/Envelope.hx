@@ -115,7 +115,7 @@ class Envelope {
 						b.add( c2 );
 						prev = c2;
 					}
-					addElement( b.toString() );
+					addElement( b.toString().split("\\\"").join("\"").split("\\\\").join("\\") );
 				case " ":
 					if( parCount == 0 ){
 						argPos++;
