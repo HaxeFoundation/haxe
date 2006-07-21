@@ -31,7 +31,8 @@ class BodyStructure {
 	public var parts(default,null): List<BodyStructure>;
 
 	// single-part specific
-	public var id(default,null): String;
+	public var id(default,null) : String;
+	public var contentId(default,null): String;
 	public var description(default,null) : String;
 	public var encoding(default,null) : String;
 	public var size(default,null) : Int;
@@ -40,7 +41,6 @@ class BodyStructure {
 
 	//
 	public var __length : Int;
-	public var imapId : String;
 
 	public function new(){
 		parts = new List();
@@ -103,13 +103,26 @@ class BodyStructure {
 		return ret;
 	}
 
+	public function hasAttachment(){
+		return listAttachment().length > 0;
+	}
+
+	public function findById( contentId : String ) : BodyStructure {
+		if( this.contentId == contentId ) return this;
+		for( part in parts ){
+			var r = part.findById( contentId );
+			if( r != null ) return r;
+		}
+		return null;
+	}
+
 	public static function parse( s : String, ?id : String ) : BodyStructure{
 		if( id == null ) id = "";
 		var len = s.length;
 		var parCount = 0;
 		var p = 0;
 		var ret = new BodyStructure();
-		ret.imapId = id;
+		ret.id = id;
 		var addPart = function( p ){
 			ret.parts.add( p );
 		};
@@ -144,7 +157,7 @@ class BodyStructure {
 								tmp.pName = null;
 							}
 						case 2:
-							ret.id = e;
+							ret.contentId = e;
 						case 3:
 							ret.description = e;
 						case 4:
@@ -200,7 +213,7 @@ class BodyStructure {
 						b.add( c2 );
 						prev = c2;
 					}
-					addElement( b.toString() );
+					addElement( b.toString().split("\\\"").join("\"").split("\\\\").join("\\") );
 				case " ":
 					if( parCount == 0 ){
 						tmp.argPos++;
