@@ -27,6 +27,7 @@ package mtwin.templo;
 
 class Template {
 
+	public static var compiledFiles : Hash<Bool> = new Hash();
 	public var execute : Dynamic -> String;
 
 	public function new( file:String ){
@@ -66,6 +67,7 @@ class Template {
 				return loadTemplate(binPath);
 			}
 		}
+		compiledFiles.set(path,true);
 		var content = neko.File.getContent(Loader.BASE_DIR+"/"+path);
 		return fromString(content, nekoId(path));
 	}

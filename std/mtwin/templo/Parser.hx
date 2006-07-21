@@ -85,7 +85,11 @@ class Parser {
 
 		var mtUse = extractAttribute(xml, MT_USE);
 		if (mtUse != null){
-			var f = mtwin.templo.Template.fromFile(mtUse); // ensure template is parsed (beware of cycle)
+			// ensure template is parsed (beware of cycle)
+			if (!mtwin.templo.Template.compiledFiles.exists(mtUse)){
+				mtwin.templo.Template.compiledFiles.set(mtUse, true);
+				var f = mtwin.templo.Template.fromFile(mtUse); 
+			}
 			out.add("tmp = __ctx.get($hash(\"__content__\"));\n");
 			out.add("__out = new_output_buffer(__out);\n");
 			parseNode(xml);
