@@ -1773,6 +1773,8 @@ let check_overriding ctx c p () =
 		) c.cl_fields
 
 let rec check_interface ctx c p intf params =
+	let tmp = c.cl_implements in
+	c.cl_implements <- [];
 	PMap.iter (fun i f ->
 		try
 			let t , f2 = class_field c i in			
@@ -1791,6 +1793,7 @@ let rec check_interface ctx c p intf params =
 			Not_found ->
 				if not c.cl_interface then display_error ctx ("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing") p
 	) intf.cl_fields;
+	c.cl_implements <- tmp;
 	List.iter (fun (i2,p2) ->
 		check_interface ctx c p i2 (List.map (apply_params intf.cl_types params) p2)
 	) intf.cl_implements
