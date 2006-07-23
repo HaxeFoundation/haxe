@@ -12,6 +12,7 @@
 	changed "signature" by "typedef" (more comprehensible)
 	restricted objects comparisons
 	fixed bug with js operator priority
+	improved performances for haxe.Serializer and haxe.Unserializer
 
 2006-06-23: 1.03
 	haxedoc executable now part of the distribution
