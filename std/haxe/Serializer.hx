@@ -28,10 +28,24 @@ class Serializer {
 
 	var buf : StringBuf;
 	var cache : Array<Dynamic>;
+	var shash : Hash<Int>;
+	var scount : Int;
 
 	public function new() {
 		buf = new StringBuf();
 		cache = new Array();
+		shash = new Hash();
+		scount = 0;
+	}
+
+	/**
+		Desactivate object caching. If you are sure that your value
+		does not contain multiple references to the same object or
+		circular references between objects, this should speedup
+		serialization.
+	**/
+	public function dontUseCache() {
+		cache = null;
 	}
 
 	public function toString() {
@@ -49,8 +63,8 @@ class Serializer {
 		k : NaN
 		m : -Inf
 		p : +Inf
-		s : string
-		j : utf8 string
+		s : utf8 string
+		j : utf8 escaped string
 		a : array
 		u : array nulls
 		h : array end
@@ -61,50 +75,31 @@ class Serializer {
 		w : enum
 	*/
 
-	public function bytes(s : String) {
-		#if neko
-		return s.length;
-		#else true
-		var b = s.length;
-		for( i in 0...s.length ) {
-			var c = s.charCodeAt(i);
-			if( c < 0x7F )
-				continue;
-			if( c < 0x7FF ) {
-				b++;
-				continue;
-			}
-			if( c < 0xFFFF ) {
-				b += 2;
-				continue;
-			}
-			b += 3;
-		}
-		return b;
-		#end
-	}
-
 	function serializeString( s : String ) {
-		if( serializeRef(s) )
+		var x = shash.get(s);
+		if( x != null ) {
+			buf.add("R");
+			buf.add(x);
 			return;
-		for( i in 0...s.length ) {
-			var c = s.charCodeAt(i);
-			if( c > 0x7F || c == 13 || c == 10 ) {
-				s = s.split("\\").join("\\\\").split("\n").join("\\n").split("\r").join("\\r");
-				buf.add("j");
-				buf.add(bytes(s));
-				buf.add(":");
-				buf.add(s);
-				return;
-			}
 		}
-		buf.add("s");
+		shash.set(s,scount++);
+		if( s.indexOf("\n") != -1 || s.indexOf("\r") != -1 ) {
+			buf.add("j");
+			s = s.split("\\").join("\\\\").split("\n").join("\\n").split("\r").join("\\r");
+		} else
+			buf.add("s");
+		#if neko
+		buf.add(neko.Utf8.length(s));
+		#else true
 		buf.add(s.length);
+		#end
 		buf.add(":");
 		buf.add(s);
 	}
 
 	function serializeRef(v) {
+		if( cache == null )
+			return false;
 		#if js
 		var vt = untyped __js__("typeof")(v);
 		#end

@@ -38,12 +38,14 @@ class Unserializer {
  	var pos : Int;
  	var length : Int;
  	var cache : Array<Dynamic>;
+ 	var scache : Array<String>;
  	var resolver : TypeResolver;
 
  	public function new( buf : String ) {
  		this.buf = buf;
  		length = buf.length;
  		pos = 0;
+ 		scache = new Array();
  		cache = new Array();
  		setResolver(DEFAULT_RESOLVER);
  	}
@@ -136,9 +138,14 @@ class Unserializer {
  			var len = readDigits();
  			if( buf.charAt(pos++) != ":" || length - pos < len )
 				throw "Invalid string length";
+			#if neko
+			var s = neko.Utf8.sub(buf,pos,len);
+			pos += s.length;
+			#else true
  			var s = buf.substr(pos,len);
  			pos += len;
-			cache.push(s);
+ 			#end
+			scache.push(s);
 			return s;
  		case 106: // j
  			var len = readDigits();
@@ -147,32 +154,14 @@ class Unserializer {
  			#if neko
 			if( length - pos < len )
 				throw "Invalid string length";
+ 			var s = neko.Utf8.sub(buf,pos,len);
+ 			pos += s.length;
+ 			#else true
  			var s = buf.substr(pos,len);
  			pos += len;
- 			#else true
- 			var old = pos;
- 			var max = pos + len;
- 			while( pos < max ) {
-				var c = buf.charCodeAt(pos++);
-				if( c < 0x7F )
-					continue;
-				if( c < 0x7FF ) {
-					max--;
-					continue;
-				}
-				if( c < 0xFFFF ) {
-					max -= 2;
-					continue;
-				}
-				max -= 3;
-			}
-			len = max - old;
-			if( pos != max || length - old < len )
-				throw "Invalid string length";
-			var s = buf.substr(old,len);
  			#end
  			s = s.split("\\r").join("\r").split("\\n").join("\n").split("\\\\").join("\\");
- 			cache.push(s);
+ 			scache.push(s);
  			return s;
  		case 97: // a
  			var a = new Array<Dynamic>();
@@ -205,6 +194,11 @@ class Unserializer {
  			if( n < 0 || n >= cache.length )
  				throw "Invalid reference";
  			return cache[n];
+ 		case 82: // R
+			var n = readDigits();
+			if( n < 0 || n >= scache.length )
+				throw "Invalid string reference";
+			return scache[n];
  		case 120: // x
 			throw unserialize();
 		case 99: // c
