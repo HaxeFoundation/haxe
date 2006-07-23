@@ -255,7 +255,7 @@ class Reflect {
 	**/
 	public static function fields( o : Dynamic ) : Array<String> {
 		if( o == null ) return new Array();
-		return untyped {
+		untyped {
 		#if flash
 			var a : Array<String> = __keys__(o);
 			var i = 0;
@@ -265,30 +265,28 @@ class Reflect {
 				else
 					++i;
 			}
-			a;
+			return a;
 		#else js
 			var a = new Array();
 			var t;
 			try{ t = o.__proto__; }catch(e : Dynamic){ t = null; }
-			if( t != null ) o.__proto__ = null;
-			untyped __js__("
-				for(var i in o)
-					if( i != \"__proto__\" )
-						a.push(i);
-			");
-			if( t != null ) o.__proto__ = t;
-			var i = 0;
-			if( o.hasOwnProperty != null )
-				while( i < a.length ) {
-					if( !o.hasOwnProperty(a[i]) )
-						a.splice(i,1);
-					else
-						++i;
-				}
-			a;
+			if( t != null ) {
+				untyped __js__("
+					for(var i in o)
+						if( o[i] !== t[i] && i != \"__proto__\" )
+							a.push(i);
+				");
+			} else {
+				untyped __js__("
+					for(var i in o)
+						if( o.hasOwnProperty(i) )
+							a.push(i);
+				");
+			}
+			return a;
 		#else neko
 			if( __dollar__typeof(o) != __dollar__tobject )
-				new Array<String>();
+				return new Array<String>();
 			else {
 				var a = __dollar__objfields(o);
 				var i = 0, j = 0;
@@ -307,7 +305,7 @@ class Reflect {
 					a[i] = null;
 					i++;
 				}
-				Array.new1(a,j);
+				return Array.new1(a,j);
 			}
 		#else error
 		#end
