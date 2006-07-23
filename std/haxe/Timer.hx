@@ -78,4 +78,15 @@ class Timer {
 		};
 	}
 
+	public static function stamp() : Float {
+		#if flash
+		return flash.Lib.getTimer() / 1000;
+		#else neko
+		return neko.Sys.time();
+		#else js
+		return Date.now().getTime() / 1000;
+		#else error
+		#end
+	}
+
 }
