@@ -268,20 +268,24 @@ class Reflect {
 			return a;
 		#else js
 			var a = new Array();
-			var t;
-			try{ t = o.__proto__; }catch(e : Dynamic){ t = null; }
-			if( t != null ) {
-				untyped __js__("
-					for(var i in o)
-						if( o[i] !== t[i] && i != \"__proto__\" )
-							a.push(i);
-				");
-			} else {
+			if( untyped o.hasOwnProperty ) {
 				untyped __js__("
 					for(var i in o)
 						if( o.hasOwnProperty(i) )
 							a.push(i);
 				");
+			} else {
+				var t;
+				try{ t = o.__proto__; } catch( e : Dynamic ) { t = null; }
+				if( t != null )
+					o.__proto__ = null;
+				untyped __js__("
+					for(var i in o)
+						if( i != \"__proto__\" )
+							a.push(i);
+				");
+				if( t != null )
+					o.__proto__ = t;
 			}
 			return a;
 		#else neko
