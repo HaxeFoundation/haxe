@@ -38,7 +38,7 @@ class IntHash<T> {
 		#else neko
 		h = untyped __dollar__hnew(0);
 		#else js
-		h = Reflect.empty();
+		h = untyped __js__("{}");
 		untyped if( h.__proto__ != null ) {
 			h.__proto__ = null;
 			__js__("delete")(h.__proto__);
@@ -84,7 +84,7 @@ class IntHash<T> {
 		#if flash
 		return untyped h.hasOwnProperty(key);
 		#else js
-		return Reflect.hasField(h,untyped key);
+		return untyped h[key] != null;
 		#else neko
 		return untyped __dollar__hmem(h,key,null);
 		#else error
@@ -101,7 +101,9 @@ class IntHash<T> {
 		untyped __delete__(h,key);
 		return true;
 		#else js
-		return Reflect.deleteField(h,untyped key);
+		if( untyped h[key] == null ) return false;
+		untyped  __js__("delete")(h[key]);
+		return true;
 		#else neko
 		return untyped __dollar__hremove(h,key,null);
 		#else error
@@ -118,10 +120,12 @@ class IntHash<T> {
 			l[x] = Std.int(l[x]);
 		return l.iterator();
 		#else js
-		var l = Reflect.fields(h);
-		for( x in 0...l.length )
-			l[x] = untyped Std.int(l[x]);
-		return untyped l.iterator();
+		var a = new Array();
+		untyped __js__("
+			for( x in this.h )
+				a.push(x);
+		");
+		return a.iterator();
 		#else neko
 		var l = new List<Int>();
 		untyped __dollar__hiter(h,function(k,_) { l.push(k); });
