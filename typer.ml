@@ -737,7 +737,67 @@ let type_local ctx i p =
 	let i = (try PMap.find i ctx.locals_map with Not_found -> i) in
 	mk (TLocal i) t p
 
-let type_ident ctx i p get =
+let type_type ctx tpath p =
+	let rec loop t tparams =
+	match t with
+	| TClassDecl c ->
+		let pub = is_parent c ctx.curclass in
+		let types = (match tparams with
+			| None -> 
+				List.map (fun (_,t) ->
+					match follow t with
+					| TEnum _ -> mk_mono()
+					| _ -> t
+				) c.cl_types
+			| Some l ->
+				l
+		) in
+		let t_tmp = {
+			t_path = fst c.cl_path, "#" ^ snd c.cl_path;
+			t_doc = None;
+			t_pos = c.cl_pos;
+			t_type = mk_anon (if pub then PMap.map (fun f -> { f with cf_public = true }) c.cl_statics else c.cl_statics);
+			t_private = true;
+			t_static = Some c;
+			t_types = c.cl_types;
+		} in
+		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,types)) p
+	| TEnumDecl e ->
+		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_types | Some l -> l) in
+		let fl = PMap.fold (fun f acc ->
+			PMap.add f.ef_name {
+				cf_name = f.ef_name;
+				cf_public = true;
+				cf_type = f.ef_type;
+				cf_get = NormalAccess;
+				cf_set = NoAccess;
+				cf_doc = None;
+				cf_expr = None;
+				cf_params = [];
+			} acc
+		) e.e_constrs PMap.empty in
+		let t_tmp = {
+			t_path = fst e.e_path, "#" ^ snd e.e_path;
+			t_doc = None;
+			t_pos = e.e_pos;
+			t_type = mk_anon fl;
+			t_private = true;
+			t_static = None;
+			t_types = e.e_types;
+		} in
+		mk (TTypeExpr (TEnumDecl e)) (TType (t_tmp,types)) p
+	| TTypeDecl s ->
+		match follow s.t_type with
+		| TEnum (e,params) ->
+			loop (TEnumDecl e) (Some params)
+		| TInst (c,params) ->
+			loop (TClassDecl c) (Some params)
+		| _ ->
+			error (s_type_path tpath ^ " is not a value") p
+	in
+	loop (load_type_def ctx p tpath) None
+
+let type_ident ctx i is_type p get =
 	match i with
 	| "true" ->
 		if get then
@@ -813,6 +873,11 @@ let type_ident ctx i p get =
 			AccExpr e
 		else
 			AccNo i
+	with Not_found -> try
+		(* lookup type *)
+		if not is_type then raise Not_found;
+		let e = (try type_type ctx ([],i) p with Error (Module_not_found ([],name),_) when name = i -> raise Not_found) in
+		AccExpr e
 	with Not_found ->
 		if ctx.untyped then
 			AccExpr (mk (TLocal i) (mk_mono()) p)
@@ -820,66 +885,6 @@ let type_ident ctx i p get =
 			if ctx.in_static && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
 			raise (Error (Unknown_ident i,p))
 		end
-
-let type_type ctx tpath p =
-	let rec loop t tparams =
-	match t with
-	| TClassDecl c ->
-		let pub = is_parent c ctx.curclass in
-		let types = (match tparams with
-			| None -> 
-				List.map (fun (_,t) ->
-					match follow t with
-					| TEnum _ -> mk_mono()
-					| _ -> t
-				) c.cl_types
-			| Some l ->
-				l
-		) in
-		let t_tmp = {
-			t_path = fst c.cl_path, "#" ^ snd c.cl_path;
-			t_doc = None;
-			t_pos = c.cl_pos;
-			t_type = mk_anon (if pub then PMap.map (fun f -> { f with cf_public = true }) c.cl_statics else c.cl_statics);
-			t_private = true;
-			t_static = Some c;
-			t_types = c.cl_types;
-		} in
-		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,types)) p
-	| TEnumDecl e ->
-		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_types | Some l -> l) in
-		let fl = PMap.fold (fun f acc ->
-			PMap.add f.ef_name {
-				cf_name = f.ef_name;
-				cf_public = true;
-				cf_type = f.ef_type;
-				cf_get = NormalAccess;
-				cf_set = NoAccess;
-				cf_doc = None;
-				cf_expr = None;
-				cf_params = [];
-			} acc
-		) e.e_constrs PMap.empty in
-		let t_tmp = {
-			t_path = fst e.e_path, "#" ^ snd e.e_path;
-			t_doc = None;
-			t_pos = e.e_pos;
-			t_type = mk_anon fl;
-			t_private = true;
-			t_static = None;
-			t_types = e.e_types;
-		} in
-		mk (TTypeExpr (TEnumDecl e)) (TType (t_tmp,types)) p
-	| TTypeDecl s ->
-		match follow s.t_type with
-		| TEnum (e,params) ->
-			loop (TEnumDecl e) (Some params)
-		| TInst (c,params) ->
-			loop (TClassDecl c) (Some params)
-		| _ ->
-			error (s_type_path tpath ^ " is not a value") p
-	in
-	loop (load_type_def ctx p tpath) None
 
 let type_constant ctx c p =
 	match c with
@@ -1249,7 +1254,7 @@ and type_switch ctx e cases def need_val p =
 		| (EConst (Ident name),p) :: l
 		| (EConst (Type name),p) :: l ->
 			(try
-				let e = acc_get (type_ident ctx name p true) p in
+				let e = acc_get (type_ident ctx name false p true) p in
 				(match e.eexpr with
 				| TEnumField (e,_) -> Some (e, List.map (fun _ -> mk_mono()) e.e_types)
 				| _ -> None)
@@ -1318,16 +1323,9 @@ and type_switch ctx e cases def need_val p =
 and type_access ctx e p get =
 	match e with
 	| EConst (Ident s) ->
-		type_ident ctx s p get
+		type_ident ctx s false p get
 	| EConst (Type s) ->
-		(try
-			let e = type_local ctx s p in
-			AccExpr e
-		with Not_found -> try
-			let e = type_type ctx ([],s) p in
-			AccExpr e
-		with Error (Module_not_found ([],s2),_) when s = s2 ->
-			type_ident ctx s p get)
+		type_ident ctx s true p get
 	| EField _
 	| EType _ ->
 		let fields path e =
