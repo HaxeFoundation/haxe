@@ -34,7 +34,7 @@ enum FlagMode {
 	Replace;
 }
 
-signature FetchResponse = {
+typedef FetchResponse = {
 	id: Int,
 	uid: Int,
 	bodyType: String,

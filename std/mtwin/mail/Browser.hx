@@ -24,7 +24,7 @@
  */
 package mtwin.mail;
 
-signature MainPart {
+typedef MainPart = {
 	ctype_primary: String,
 	ctype_secondary: String,
 	charset: String,

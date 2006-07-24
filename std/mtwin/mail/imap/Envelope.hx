@@ -26,7 +26,7 @@ package mtwin.mail.imap;
 
 import mtwin.mail.Exception;
 
-signature Address = {
+typedef Address = {
 	name: String,
 	address: String
 }

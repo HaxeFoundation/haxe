@@ -24,7 +24,7 @@
  */
 package mtwin.mail.imap;
 
-signature Flags = Array<String>
+typedef Flags = Array<String>
 
 enum Section {
 	Flags;

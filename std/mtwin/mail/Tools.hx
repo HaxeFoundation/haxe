@@ -24,8 +24,6 @@
  */
 package mtwin.mail;
 
-import mtwin.mail.Imap;
-
 class Tools {
 
 	static var BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
