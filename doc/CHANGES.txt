@@ -13,6 +13,7 @@
 	restricted objects comparisons
 	fixed bug with js operator priority
 	improved performances for haxe.Serializer and haxe.Unserializer
+	fixed bug in static variable lookup (should look class in the last case)
 
 2006-06-23: 1.03
 	haxedoc executable now part of the distribution
