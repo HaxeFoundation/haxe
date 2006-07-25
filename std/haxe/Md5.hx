@@ -22,6 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
+package haxe;
 
 /**
 	Creates a MD5 of a String.
