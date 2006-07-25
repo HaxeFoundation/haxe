@@ -28,13 +28,19 @@ class Server {
 
 	var objects : Hash<Dynamic>;
 	var prefix : String;
+	var log : String -> Void;
 
 	public function new() {
 		objects = new Hash();
+		log = null;
 	}
 
 	public function addObject( name : String, obj : Dynamic ) {
 		objects.set(name,obj);
+	}
+
+	public function setLogger( l ) {
+		log = l;
 	}
 
 	public function setPrivatePrefix( p : String ) {
@@ -77,6 +83,11 @@ class Server {
 			neko.Lib.print("hxr");
 			neko.Lib.print(s.toString());
 		} catch( e : Dynamic ) {
+			if( log != null ) {
+				log(neko.Stack.toString(neko.Stack.exceptionStack()));
+				log(Std.string(e));
+				log("\n\n");
+			}
 			var s = new haxe.Serializer();
 			s.serializeException(e);
 			neko.Lib.print("hxr");
