@@ -1,4 +1,4 @@
-2006-??-??: 1.04
+2006-07-25: 1.04
 	added macros in haxe.Template
 	allowed static variables access from a signature shortcut
 	allowed new Signature when signature is a class

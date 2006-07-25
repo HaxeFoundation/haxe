@@ -119,7 +119,7 @@ let rec process_params acc = function
 
 and init params =
 try	
-	let usage = "Haxe Compiler 1.03 - (c)2005-2006 Motion-Twin\n Usage : haxe.exe [options] <class names...>\n Options :" in
+	let usage = "Haxe Compiler 1.04 - (c)2005-2006 Motion-Twin\n Usage : haxe.exe [options] <class names...>\n Options :" in
 	let base_path = normalize_path (try Extc.executable_path() with _ -> "./") in
 	let classes = ref [([],"Std")] in
 	let target = ref No in
