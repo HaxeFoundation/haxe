@@ -179,7 +179,7 @@ class Serializer {
 		}
 		#if neko
 		if( t == untyped __dollar__tarray )
-			t = untyped Array.new1(v,__dollar__asize(v));
+			v = untyped Array.new1(v,__dollar__asize(v));
 		#end
 		if( Std.is(v,Array) ) {
 			if( serializeRef(v) )
