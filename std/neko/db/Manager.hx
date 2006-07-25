@@ -87,7 +87,7 @@ class Manager<T : Object> {
 	}
 
 	public function get( id : Int, ?lock : Bool ) : T {
-		if( lock == null ) 
+		if( lock == null )
 			lock = true;
 		if( table_keys.length != 1 )
 			throw "Invalid number of keys";
@@ -171,8 +171,8 @@ class Manager<T : Object> {
 		return cnx.request(sql).next();
 	}
 
-	public function results( sql : String ) : List<Dynamic> {
-		return cnx.request(sql).results();
+	public function results<T>( sql : String ) : List<T> {
+		return cast cnx.request(sql).results();
 	}
 
 	/* -------------------------- SPODOBJECT API -------------------------- */
