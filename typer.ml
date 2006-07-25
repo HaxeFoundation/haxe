@@ -710,8 +710,10 @@ let unify_call_params ctx t el args p =
 				error true;
 				loop (null p :: acc) [] [])
 		| [] , (_,opt,_) :: l ->
-			if not opt then error true;
-			if is_flash_extern t then 
+			if not opt then begin
+				error true;
+				List.rev acc
+			end else if is_flash_extern t then 
 				loop acc [] l
 			else
 				loop (null p :: acc) [] l
