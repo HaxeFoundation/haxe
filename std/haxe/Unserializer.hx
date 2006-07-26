@@ -276,7 +276,7 @@ class Unserializer {
 	/**
 		Unserialize a single value and return it.
 	**/
-	public static function run( v : String ) {
+	public static function run( v : String ) : Dynamic {
 		return new Unserializer(v).unserialize();
 	}
 
