@@ -1,5 +1,6 @@
 2006-??-??: 1.05
 	moved Md5 to haxe package.
+	some method renamed in neko.FileSystem.
 
 2006-07-25: 1.04
 	added macros in haxe.Template
