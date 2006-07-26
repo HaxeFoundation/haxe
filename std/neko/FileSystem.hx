@@ -78,7 +78,7 @@ class FileSystem {
 		return kind(path) == kdir;
 	}
 
-	public static function createDir( path : String ) {
+	public static function createDirectory( path : String ) {
 		sys_create_dir( untyped path.__s, 493 );
 	}
 
@@ -86,11 +86,11 @@ class FileSystem {
 		file_delete(untyped path.__s);
 	}
 
-	public static function deleteDir( path : String ) {
+	public static function deleteDirectory( path : String ) {
 		sys_remove_dir(untyped path.__s);
 	}
 
-	public static function readDir( path : String ) : Array<String> {
+	public static function readDirectory( path : String ) : Array<String> {
 		var l : Array<Dynamic> = sys_read_dir(untyped path.__s);
 		var a = new Array();
 		while( l != null ) {

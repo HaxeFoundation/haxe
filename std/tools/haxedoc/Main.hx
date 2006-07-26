@@ -645,7 +645,7 @@ class DocView {
 			var old = Url.base;
 			Url.base = "../"+Url.base;
 			path += name + "/";
-			try neko.FileSystem.createDir(path) catch( e : Dynamic ) { }
+			try neko.FileSystem.createDirectory(path) catch( e : Dynamic ) { }
 			for( e in entries )
 				generateEntry(html,e,path);
 			Url.base = old;
@@ -659,7 +659,7 @@ class DocView {
 		save(html,null,"index.html");
 		Url.base = "";
 		Url.index = "../index";
-		try neko.FileSystem.createDir("content") catch( e : Dynamic ) { }
+		try neko.FileSystem.createDirectory("content") catch( e : Dynamic ) { }
 		for( e in entries )
 			generateEntry(html,e,"content/");
 	}
