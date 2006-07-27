@@ -24,6 +24,7 @@
  */
 
 package mtwin.templo;
+import haxe.Md5;
 
 class Template {
 
