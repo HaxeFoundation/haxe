@@ -51,8 +51,9 @@ class Preprocessor {
 		if (macroFileStamp == null && Loader.MACROS != null)
 			registerMacroFile(Loader.BASE_DIR+Loader.MACROS);
 
-		var res = expandMacros(str);
+		var res = str;
 		res = escapeCdata1(res);
+		res = expandMacros(res);
 		res = res.split("::else::").join("</mt><mt mt:else=\"\">");
 		res = res.split("::end::").join("</mt>");
 		while (r_if.match(res)){
