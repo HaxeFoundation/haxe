@@ -24,6 +24,7 @@
  */
 
 package mtwin.text;
+import haxe.Md5;
 
 /**
 	Transform a plain text document into an XHTML document.
