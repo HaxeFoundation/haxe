@@ -207,9 +207,9 @@ class Preprocessor {
 	}
 
 	static function unescapeCdata1( str:String ) : String {
-		var res = str.split("<![CDATAX[").join("<![CDATA[");
+		var res = str.split("<![CDATAX[").join("<![CDATA["); //.split("]]>").join("]]>");
 		res = escapeCdata1(res);
-		res = res.split("<![CDATAX[").join("<![CDATA[").split("]]>").join("]]>");
+		res = res.split("<![CDATAX[").join("<![CDATA["); // .split("]]>").join("]]>");
 		res = res.split("<![COMMENT[").join("<!--").split("]]C>").join("-->");
 		return res;
 	}

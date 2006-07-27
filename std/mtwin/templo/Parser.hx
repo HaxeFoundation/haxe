@@ -448,6 +448,17 @@ class Parser {
 							result.add("false == ");
 							skip = true;
 						}
+						else if (c == "&" && n != "&" && n != "=" && len-i >= 5){
+							if (str.substr(i,5) == "&amp;"){
+								result.add("&"); i+=4; skip = true;
+							}
+							if (str.substr(i,4) == "&lt;"){ 
+								result.add("<"); i+=3; skip = true;
+							}
+							else if (str.substr(i,4) == "&gt;"){
+								result.add(">"); i+=3; skip = true;
+							}
+						}
 					}
 					else if (c == "("){
 						var end = findEndOfBracket(str, i);
