@@ -224,7 +224,7 @@ class Unserializer {
 				__enum__ : null
 			};
 			#else true
-			var e : Dynamic = new Array();
+			var e : Array<Dynamic> = new Array();
 			#end
 			cache.push(e);
 			var a : Array<String> = unserialize();
@@ -236,7 +236,7 @@ class Unserializer {
 			var edecl = resolver.resolveEnum(a);
 			if( edecl == null )
 				throw "Enum not found " + a.join(".");
-			e.__enum__ = edecl;
+			untyped e.__enum__ = edecl;
 			var tag : String = unserialize();
 			if( !Std.is(tag,String) )
 				throw "Invalid enum tag";
