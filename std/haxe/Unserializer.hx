@@ -237,11 +237,11 @@ class Unserializer {
 			if( edecl == null )
 				throw "Enum not found " + a.join(".");
 			e.__enum__ = edecl;
-			var tag = unserialize();
+			var tag : String = unserialize();
 			if( !Std.is(tag,String) )
 				throw "Invalid enum tag";
 			#if neko
-			e.tag = tag;
+			e.tag = untyped tag.__s;
 			#else true
 			e.push(tag);
 			#end
