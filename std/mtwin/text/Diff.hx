@@ -44,6 +44,7 @@ class Diff {
 	static var DOWN = 1;
 	static var RIGHT = 2;
 	static var DOWN_RIGHT = 3;
+	static var NO_NEW_LINE = "\n\\ No newline at end of file\n";
 
 	/**
 		This class uses a longest common subsequence algorithm which computes the distance between 
@@ -124,14 +125,41 @@ class Diff {
 		return stack;
 	}
 
+	static function split( txt:String ){
+		var res = new Array();
+		var old = 0;
+		var pos = txt.indexOf("\n", 0);
+		while (pos != -1){
+			res.push(txt.substr(old, pos+1-old));
+			old = pos+1;
+			pos = txt.indexOf("\n", old);
+		}
+		res.push(txt.substr(old, txt.length));
+		return res;
+	}
+
 	/**
 		Returns the difference between two strings.
 
 		The returned string may be used by the gnu diff/patch utilities.
 	**/
 	public static function diff( source:String, dest:String ) : String {
-		var sourceLines = source.split("\n");
-		var destLines = dest.split("\n");
+		var srcNoNewLine = false;		
+		var dstNoNewLine = false;
+
+		var sourceLines = split(source); // source.split("\n");
+		if (sourceLines[sourceLines.length-1].length > 0){
+			// no newline at end of file
+			sourceLines.push("");
+			srcNoNewLine = true;
+		}
+		
+		var destLines = split(dest); // dest.split("\n");
+		if (destLines[destLines.length-1].length > 0){
+			// no newline at end of file
+			destLines.push("");
+			dstNoNewLine = true;
+		}
 
 		var m = sourceLines.length;
 		var n = destLines.length;
@@ -151,8 +179,11 @@ class Diff {
 			op.add("\n");
 			for (i in (from-1)...to){
 				op.add("> "); 
-				op.add(destLines[i]); 
-				op.add("\n");
+				op.add(destLines[i]);
+				if (dstNoNewLine && i == destLines.length-2){
+					op.add(NO_NEW_LINE);
+					break;
+				}
 			}
 			return op.toString();
 		}
@@ -164,7 +195,10 @@ class Diff {
 			for (i in (from-1)...to){
 				op.add("< ");
 				op.add(sourceLines[i]);
-				op.add("\n");
+				if (srcNoNewLine && i == sourceLines.length-2){
+					op.add(NO_NEW_LINE);
+					break;
+				}
 			}
 			return op.toString();
 		}
@@ -178,13 +212,19 @@ class Diff {
 			for (i in (from-1)...to){
 				op.add("< ");
 				op.add(sourceLines[i]);
-				op.add("\n");
+				if (srcNoNewLine && i == sourceLines.length-2){
+					op.add(NO_NEW_LINE);
+					break;
+				}
 			}
 			op.add("---\n");
 			for (i in (byFrom-1)...byTo){
 				op.add("> ");
 				op.add(destLines[i]);
-				op.add("\n");
+				if (dstNoNewLine && i == destLines.length-2){
+					op.add(NO_NEW_LINE);
+					break;
+				}
 			}
 			return op.toString();
 		}
@@ -260,8 +300,12 @@ class Diff {
 							result.add(lines[counter]); result.add("\n");
 							counter++;
 						}
-						for (line in op.data){
-							result.add(line.substr(2, line.length)); result.add("\n");
+						for (i in 0...op.data.length){
+							var line = op.data[i];
+							if (line.substr(0,2) == "> "){
+								result.add(line.substr(2, line.length));
+								if (i == op.data.length-1 || op.data[i+1].substr(0,2) != "\\ ") result.add("\n");
+							}
 						}
 
 					case "d":
@@ -276,9 +320,11 @@ class Diff {
 							result.add(lines[counter]); result.add("\n");
 							counter++;
 						}
-						for (line in op.data){
+						for (i in 0...op.data.length){
+							var line = op.data[i];
 							if (line.substr(0,2) == "> "){
-								result.add(line.substr(2, line.length)); result.add("\n");
+								result.add(line.substr(2, line.length));
+								if (i == op.data.length-1 || op.data[i+1].substr(0,2) != "\\ ") result.add("\n");
 							}
 						}
 						counter = op.left[1];
@@ -325,8 +371,12 @@ class Diff {
 							result.add(lines[counter]); result.add("\n");
 							counter++;
 						}
-						for (line in op.data){
-							result.add(line.substr(2, line.length)); result.add("\n");
+						for (i in 0...op.data.length){
+							var line = op.data[i];
+							if (line.substr(0,2) == "< "){
+								result.add(line.substr(2, line.length));
+								if (i == op.data.length-1 || op.data[i+1].substr(0,2) != "\\ ") result.add("\n");
+							}
 						}
 
 					case "c": // unpatch => change reverse
@@ -334,9 +384,11 @@ class Diff {
 							result.add(lines[counter]); result.add("\n");
 							counter++;
 						}
-						for (line in op.data){
+						for (i in 0...op.data.length){
+							var line = op.data[i];
 							if (line.substr(0,2) == "< "){
-								result.add(line.substr(2, line.length)); result.add("\n");
+								result.add(line.substr(2, line.length));
+								if (i == op.data.length-1 || op.data[i+1].substr(0,2) != "\\ ") result.add("\n");
 							}
 						}
 						counter = op.right[1];
