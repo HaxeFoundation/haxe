@@ -243,7 +243,7 @@ class Http {
 		var b = new StringBuf();
 		var k = 4;
 		var s = neko.Lib.makeString(4);
-		sock.setTimeout(10000); // 10 seconds
+		sock.setTimeout(10); // 10 seconds
 		while( true ) {
 			var p = sock.receive(s,0,k);
 			while( p != k )
@@ -305,7 +305,7 @@ class Http {
 		var response = headers.shift();
 		var rp = response.split(" ");
 		status = Std.parseInt(rp[1]);
-		
+
 		// remove the two lasts \r\n\r\n
 		headers.pop();
 		headers.pop();
