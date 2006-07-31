@@ -180,7 +180,7 @@ class Diff {
 			for (i in (from-1)...to){
 				op.add("> "); 
 				op.add(destLines[i]);
-				if (dstNoNewLine && i == destLines.length-2){
+				if (dstNoNewLine && i == (destLines.length-2)){
 					op.add(NO_NEW_LINE);
 					break;
 				}
@@ -248,7 +248,8 @@ class Diff {
 
 				case RIGHT:
 					var end = stack.pop(); stack.push(end);
-					result.add(operationAdd(pos[0], end[1], pos[1]+1));
+					//result.add(operationAdd(pos[0], end[1], pos[1]+1));
+					result.add(operationAdd(pos[0], pos[1]+1, end[1]));
 
 				case END:
 					if (pos[0] < m){
