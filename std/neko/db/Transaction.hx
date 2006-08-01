@@ -37,13 +37,13 @@ class Transaction {
 			mainFun();
 		} catch( e : Dynamic ) {
 			if( count > 0 && isDeadlock(e) ) {
-				Manager.cnx.request("ROLLBACK"); // should be already done, but in case...
-				Manager.cnx.request("START TRANSACTION");
+				Manager.cnx.rollback(); // should be already done, but in case...
+				Manager.cnx.startTransaction();
 				runMainLoop(mainFun,logError,count-1);
 				return;
 			}
 			if( logError == null ) {
-				Manager.cnx.request("ROLLBACK");
+				Manager.cnx.rollback();
 				neko.Lib.rethrow(e);
 			}
 			logError(e); // should ROLLBACK if needed
@@ -53,9 +53,9 @@ class Transaction {
 	public static function main( cnx, mainFun : Void -> Void, logError : Dynamic -> Void ) {
 		Manager.initialize();
 		Manager.cnx = cnx;
-		Manager.cnx.request("START TRANSACTION");
+		Manager.cnx.startTransaction();
 		runMainLoop(mainFun,logError,3);
-		Manager.cnx.request("COMMIT");
+		Manager.cnx.commit();
 		Manager.cnx.close();
 		Manager.cnx = null;
 		Manager.cleanup();

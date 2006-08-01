@@ -147,6 +147,18 @@ private class MysqlConnection implements Connection {
 		return false;
 	}
 
+	public function startTransaction() {
+		request("START TRANSACTION");
+	}
+
+	public function commit() {
+		request("COMMIT");
+	}
+
+	public function rollback() {
+		request("ROLLBACK");
+	}
+
 	private static var __use_date = Date;
 	private static var sql_request = neko.Lib.load("mysql","request",2);
 	private static var sql_close = neko.Lib.load("mysql","close",1);

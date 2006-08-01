@@ -61,6 +61,18 @@ private class SqliteConnection implements Connection {
 		return false;
 	}
 
+	public function startTransaction() {
+		request("BEGIN TRANSACTION");
+	}
+
+	public function commit() {
+		request("COMMIT");
+	}
+
+	public function rollback() {
+		request("ROLLBACK");
+	}
+
 	static var _connect = neko.Lib.load("sqlite","connect",1);
 	static var _close = neko.Lib.load("sqlite","close",1);
 	static var _request = neko.Lib.load("sqlite","request",2);

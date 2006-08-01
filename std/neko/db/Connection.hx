@@ -38,4 +38,7 @@ interface Connection {
 
 	function hasFeature( f : Feature ) : Bool;
 
+	function startTransaction() : Void;
+	function commit() : Void;
+	function rollback() : Void;
 }
