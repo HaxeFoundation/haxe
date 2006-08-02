@@ -43,11 +43,11 @@ private class SqliteConnection implements Connection {
 	}
 
 	public function escape( s : String ) {
-		return s.split("\\").join("\\\\").split("'").join("\\'");
+		return s.split("'").join("''");
 	}
 
 	public function quote( s : String ) {
-		return "'"+escape(s)+"'";
+		return "x'"+new String(untyped _encode(s.__s,"0123456789ABCDEF".__s))+"'";
 	}
 
 	public function lastInsertId() {
@@ -73,6 +73,7 @@ private class SqliteConnection implements Connection {
 		request("ROLLBACK");
 	}
 
+	static var _encode = neko.Lib.load("std","base_encode",2);
 	static var _connect = neko.Lib.load("sqlite","connect",1);
 	static var _close = neko.Lib.load("sqlite","close",1);
 	static var _request = neko.Lib.load("sqlite","request",2);
