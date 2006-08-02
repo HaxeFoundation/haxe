@@ -191,13 +191,14 @@ let as3_metadata_length m =
 	list2_length (fun (i1,i2) -> idx_length i1 + idx_length i2) m.meta3_data
 
 let as3_function_length f =
+	let clen = sum As3code.length f.fun3_code in
 	idx_length_nz f.fun3_id +
 	int_length f.fun3_unk1 +
 	int_length f.fun3_unk2 +
 	int_length f.fun3_unk3 +
 	int_length f.fun3_unk4 +
-	int_length (String.length f.fun3_code) +
-	String.length f.fun3_code +
+	int_length clen +
+	clen +
 	1 +
 	1
 
@@ -480,7 +481,7 @@ let read_function ctx ch =
 	let u3 = read_int ch in
 	let u4 = read_int ch in
 	let size = read_int ch in
-	let code = IO.nread ch size in
+	let code = As3code.parse ch size in
 	if read_int ch <> 0 then assert false;
 	if read_int ch <> 0 then assert false;
 	{
@@ -749,8 +750,9 @@ let write_function ch f =
 	write_int ch f.fun3_unk2;
 	write_int ch f.fun3_unk3;
 	write_int ch f.fun3_unk4;
-	write_int ch (String.length f.fun3_code);
-	IO.nwrite ch f.fun3_code;
+	let clen = sum As3code.length f.fun3_code in
+	write_int ch clen;
+	List.iter (As3code.write ch) f.fun3_code;	
 	write_int ch 0;
 	write_int ch 0
 
@@ -834,7 +836,7 @@ let metadata_str ctx i =
 let method_str ctx m =
 	let m = iget ctx.as3_method_types m in
 	let pcount = ref 0 in
-	Printf.sprintf "%s(%s%s)%s" 
+	Printf.sprintf "%s(%s%s)%s [%d]" 
 	(if m.mt3_native then " native " else "")
 	(String.concat ", " (List.map (fun a ->
 		let id = (match m.mt3_pnames with
@@ -857,7 +859,8 @@ let method_str ctx m =
 		p
 	) m.mt3_args))
 	(if m.mt3_var_args then " ..." else "")
-	(match m.mt3_ret with None -> "" | Some t -> " : " ^ type_str ctx "" t)	
+	(match m.mt3_ret with None -> "" | Some t -> " : " ^ type_str ctx "" t)
+	m.mt3_unk
 
 let dump_field ctx ch stat f =
 (*	(match f.f3_metas with
@@ -917,7 +920,10 @@ let dump_inits ctx ch idx i =
 let dump_function ctx ch idx f =
 	IO.printf ch "function #%d %s\n" (index_int (no_nz f.fun3_id) - 1) (method_str ctx (no_nz f.fun3_id));
 	IO.printf ch "    %d %d %d %d\n" f.fun3_unk1 f.fun3_unk2 f.fun3_unk3 f.fun3_unk4;
-	IO.printf ch "    %d bytes\n\n" (String.length f.fun3_code)
+	List.iter (fun op ->
+		IO.printf ch "    %s\n" (As3code.dump op);
+	) f.fun3_code;
+	IO.printf ch "\n"
 
 let dump_ident ctx ch idx _ =
 	IO.printf ch "I%d = %s\n" idx (ident_str ctx (index ctx.as3_idents (idx + 1)))
@@ -937,10 +943,14 @@ let dump_method_type ctx ch idx _ =
 let dump_metadata ctx ch idx _ =
 	IO.printf ch "D%d = %s\n" idx (metadata_str ctx (index ctx.as3_metadatas (idx + 1)))
 
+let dump_int ctx ch idx i =
+	IO.printf ch "int %d = 0x%lX\n" (idx + 1) i
+
 let dump ch ctx id =
 	(match id with
 	| None -> IO.printf ch "\n---------------- AS3 -------------------------\n\n";
 	| Some (id,f) -> IO.printf ch "\n---------------- AS3 %s [%d] -----------------\n\n" f id);
+	Array.iteri (dump_int ctx ch) ctx.as3_ints;
 	Array.iteri (dump_ident ctx ch) ctx.as3_idents;
 	Array.iteri (dump_base_right ctx ch) ctx.as3_base_rights;
 	Array.iteri (dump_rights ctx ch) ctx.as3_rights;
@@ -951,3 +961,8 @@ let dump ch ctx id =
 	Array.iteri (dump_inits ctx ch) ctx.as3_inits;
 	Array.iteri (dump_function ctx ch) ctx.as3_functions;
 	IO.printf ch "(%d/%d bytes)\n\n" (String.length ctx.as3_unknown) (String.length ctx.as3_original_data)
+
+;;
+As3code.f_int_length := int_length;
+As3code.f_int_read := read_int;
+As3code.f_int_write := write_int;

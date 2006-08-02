@@ -1243,15 +1243,17 @@ let rec parse_tag ch h =
 			TTextInfo (nread ch len)
 		| 0x4B when !full_parsing ->
 			TFont3 (parse_font3 ch len)
-		| 0x4C ->
+		(*/*| 0x4C ->
 			let i = read_i32 ch in
 			let s = read_string ch in
 			let t = TSwf9Name (i,s) in
 			if tag_data_length t <> len then assert false;
 			t
+		*/*)
 		| 0x52 when !full_parsing ->
 			let id = read_i32 ch in
 			let frame = read_string ch in
+			let len = len - (4 + String.length frame + 1) in
 			TActionScript3 (Some (id,frame), As3parse.parse ch len)
 		| 0x53 when !full_parsing ->
 			TShape4 (parse_shape ch len 4)

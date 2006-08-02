@@ -6,6 +6,55 @@ type as3_ident = string
 type as3_int = int32
 type as3_float = float
 
+type as3_op_binop =
+	| A3Incr
+	| A3Decr
+	| A3Not
+	| A3BitNot
+	| A3OAdd
+	| A3OSub
+	| A3OMul
+	| A3ODiv
+	| A3OMod
+	| A3OShl
+	| A3OShr
+	| A3OUShr
+	| A3OAnd
+	| A3OOr
+	| A3OXor
+	| A3OEq
+	| A3OPhysEq
+	| A3OLt
+	| A3OLte
+	| A3OGt
+	| A3OGte
+	| A3Is
+	| A3As
+
+type as3_opcode =
+	| A3Null
+	| A3Undefined
+	| A3SmallInt of int
+	| A3Int of int
+	| A3True
+	| A3False
+	| A3Pop
+	| A3String of int
+	| A3IntRef of int
+	| A3Float of int
+	| A3RetVoid
+	| A3Ret
+	| A3Stack of int
+	| A3SetStack of int
+	| A3ToInt
+	| A3DebugUnk of int
+	| A3ToObject
+	| A3DebugStack of int * int * int * int
+	| A3DebugLine of int
+	| A3DebugFile of int
+	| A3Op of as3_op_binop
+	| A3Unk of char
+
 type as3_base_right =
 	| A3RPrivate of as3_ident index option
 	| A3RPublic of as3_ident index option
@@ -105,7 +154,7 @@ type as3_function = {
 	fun3_unk2 : int;
 	fun3_unk3 : int;
 	fun3_unk4 : int;
-	fun3_code : string;		
+	fun3_code : as3_opcode list;		
 }
 
 type as3_tag = {
