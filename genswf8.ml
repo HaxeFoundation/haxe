@@ -1319,6 +1319,7 @@ let default_header ver =
 	convert_header ver (400,300,30.,0xFFFFFF)
 
 let generate file ver header infile types hres =
+	let file , codeclip = (try let f , c = ExtString.String.split file "@" in f, Some c with Not_found -> file , None) in
 	let ctx = {
 		opcodes = DynArray.create();
 		code_pos = 0;
@@ -1391,8 +1392,23 @@ let generate file ver header infile types hres =
 		textended = ext;
 		tdata = d;
 	} in
-	let tagcode = tag (TDoAction ctx.opcodes) in
 	let base_id = ref 0x5000 in
+	let tagcode = (match codeclip with
+		| None -> [tag (TDoAction ctx.opcodes)]
+		| Some link -> 
+			incr base_id;
+			[
+				tag (TClip {
+					c_id = !base_id;
+					c_frame_count = 1;
+					c_tags = [
+						tag (TDoAction ctx.opcodes);
+						tag TShowFrame;
+					]
+			    });
+				tag (TExport [{ exp_id = !base_id; exp_name = link }]);
+			]
+	) in
 	let tagclips() = List.fold_left (fun acc m ->
 		incr base_id;
 		tag ~ext:true (TClip { c_id = !base_id; c_frame_count = 1; c_tags = [] }) ::
@@ -1404,7 +1420,7 @@ let generate file ver header infile types hres =
 			let header , bg = (match header with None -> default_header ver | Some h -> convert_header ver h) in
 			let tagbg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
 			let tagshow = tag TShowFrame in
-			(header,tagbg :: tagclips() @ [tagcode;tagshow])
+			(header,tagbg :: tagclips() @ tagcode @ [tagshow])
 		| Some file ->
 			let file = (try Plugin.find_file file with Not_found -> failwith ("File not found : " ^ file)) in
 			let ch = IO.input_channel (open_in_bin file) in
@@ -1432,7 +1448,7 @@ let generate file ver header infile types hres =
 					| None -> t :: loop l
 					| Some bg -> bg :: loop l)
 				| ({ tdata = TShowFrame } as t) :: l ->
-					tagclips() @ tagcode :: t :: l
+					tagclips() @ tagcode @ t :: l
 				| t :: l ->
 					(match t.tdata with
 					| TExport l ->
