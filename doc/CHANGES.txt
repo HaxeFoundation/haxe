@@ -4,6 +4,7 @@
 	added neko.remoting.Server.setLogger
 	fixed bug in haxe.Serializer on neko (was preventing List serialization)
 	fixed bug in haXe.Unserializer on neko (invalid enum tag)
+	fixed sqlite escape & quote
 
 2006-07-25: 1.04
 	added macros in haxe.Template
