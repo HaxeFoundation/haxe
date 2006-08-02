@@ -46,7 +46,7 @@ enum FileKind {
 class FileSystem {
 
 	public static function exists( path : String ) : Bool {
-		return file_exists(untyped path.__s);
+		return sys_exists(untyped path.__s);
 	}
 
 	public static function rename( path : String, newpath : String ) {
@@ -100,7 +100,7 @@ class FileSystem {
 		return a;
 	}
 
-	private static var file_exists = Lib.load("std","file_exists",1);
+	private static var sys_exists = Lib.load("std","sys_exists",1);
 	private static var file_delete = Lib.load("std","file_delete",1);
 	private static var sys_rename = Lib.load("std","sys_rename",2);
 	private static var sys_stat = Lib.load("std","sys_stat",1);
