@@ -1319,7 +1319,7 @@ let default_header ver =
 	convert_header ver (400,300,30.,0xFFFFFF)
 
 let generate file ver header infile types hres =
-	let file , codeclip = (try let f , c = ExtString.String.split file "@" in f, Some c with Not_found -> file , None) in
+	let file , codeclip = (try let f , c = ExtString.String.split file "@" in f, Some c with _ -> file , None) in
 	let ctx = {
 		opcodes = DynArray.create();
 		code_pos = 0;
