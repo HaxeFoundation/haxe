@@ -47,7 +47,9 @@ private class SqliteConnection implements Connection {
 	}
 
 	public function quote( s : String ) {
-		return "x'"+new String(untyped _encode(s.__s,"0123456789ABCDEF".__s))+"'";
+		if( s.indexOf("\000") >= 0 )
+			return "x'"+new String(untyped _encode(s.__s,"0123456789ABCDEF".__s))+"'";
+		return "'"+s.split("'").join("''")+"'";
 	}
 
 	public function lastInsertId() {
