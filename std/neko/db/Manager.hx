@@ -164,7 +164,7 @@ class Manager<T : Object> {
 	}
 
 	public function quote( s : String ) : String {
-		return "'" + cnx.escape( s ) + "'";
+		return cnx.quote( s );
 	}
 
 	public function result( sql : String ) : Dynamic {
@@ -311,13 +311,12 @@ class Manager<T : Object> {
 
 	function addQuote( s : StringBuf, v : Dynamic ) {
 		var t = untyped __dollar__typeof(v);
-		if( untyped (t == __dollar__tint || t == __dollar__tnull || t == __dollar__tbool) )
+		if( untyped (t == __dollar__tint || t == __dollar__tnull) )
 			s.add(v);
-		else {
-			s.add("'");
-			s.add(cnx.escape(Std.string(v)));
-			s.add("'");
-		}
+		else if( untyped t == __dollar__tbool )
+			s.add(if( v ) 1 else 0);
+		else
+			s.add(cnx.quote(Std.string(v)));
 	}
 
 	function addKeys( s : StringBuf, x : {} ) {
