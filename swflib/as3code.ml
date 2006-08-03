@@ -450,7 +450,7 @@ let dump ctx op =
 	| A3Dup -> "dup"
 	| A3IntRef n -> s "int [%ld]" ctx.as3_ints.(n - 1)
 	| A3Float n -> s "float [%f]" ctx.as3_floats.(n - 1)
-	| A3Context -> ".ctx"
+	| A3Context -> "ctx"
 	| A3Next (st1,st2) -> s "next %d %d" st1 st2
 	| A3String n -> s "string [%s]" (ident n)
 	| A3SuperCall (f,n) -> s "supercall %s (%d)" (field f) n
@@ -460,8 +460,8 @@ let dump ctx op =
 	| A3New (f,n) -> s "new %s (%d)" (field f) n
 	| A3Object n -> s "obj %d" n
 	| A3Array n -> s "array %d" n
-	| A3GetInf f -> s ".get %s" (field f)
-	| A3SetInf f -> s ".set %s" (field f)
+	| A3GetInf f -> s "iget %s" (field f)
+	| A3SetInf f -> s "iset %s" (field f)
 	| A3SetProp f -> s "setp %s" (field f)
 	| A3Stack n -> s "stack %d" n
 	| A3SetStack n -> s "setstack %d" n
