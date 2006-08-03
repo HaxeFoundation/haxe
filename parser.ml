@@ -514,7 +514,7 @@ let parse code file =
 
 	and enter_macro() =
 		match Lexer.token code with
-		| (Const (Ident s),p) ->
+		| (Const (Ident s),p) | (Const (Type s),p) ->
 			if s = "error" then error Unimplemented p;
 			if Plugin.defined s then
 				mstack := p :: !mstack
