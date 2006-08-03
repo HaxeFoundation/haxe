@@ -141,7 +141,7 @@ type as3_method_type = {
 	mt3_args : as3_type index option list;
 	mt3_native : bool;
 	mt3_var_args : bool;
-	mt3_debug_name : as3_ident index;
+	mt3_debug_name : as3_ident index option;
 	mt3_dparams : as3_value list option;
 	mt3_pnames : as3_ident index list option;
 	mt3_unk_flags : bool * bool * bool * bool;

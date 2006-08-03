@@ -143,7 +143,7 @@ let as3_method_type_length m =
 	1 +
 	idx_opt_length m.mt3_ret +
 	sum idx_opt_length m.mt3_args +
-	idx_length m.mt3_debug_name +
+	idx_opt_length m.mt3_debug_name +
 	1 +
 	(match m.mt3_dparams with None -> 0 | Some l -> 1 + sum (as3_value_length true) l) +
 	(match m.mt3_pnames with None -> 0 | Some l -> sum idx_length l)
@@ -345,7 +345,7 @@ let read_method_type ctx ch =
 	let nargs = IO.read_byte ch in
 	let tret = index_opt ctx.as3_types (read_int ch) in
 	let targs = Array.to_list (Array.init nargs (fun _ -> index_opt ctx.as3_types (read_int ch))) in
-	let dname = index ctx.as3_idents (read_int ch) in
+	let dname = index_opt ctx.as3_idents (read_int ch) in
 	let flags = IO.read_byte ch in
 	let dparams = (if flags land 0x08 <> 0 then
 		Some (Array.to_list (Array.init (IO.read_byte ch) (fun _ -> read_value ctx ch true)))
@@ -646,7 +646,7 @@ let write_method_type ch m =
 	IO.write_byte ch nargs;
 	write_index_opt ch m.mt3_ret;
 	List.iter (write_index_opt ch) m.mt3_args;
-	write_index ch m.mt3_debug_name;
+	write_index_opt ch m.mt3_debug_name;
 	let f1 , f2, f10, f40 = m.mt3_unk_flags in
 	let flags =
 		(if f1 then 0x01 else 0) lor
@@ -847,7 +847,7 @@ let method_str ?(slot=false) ctx m =
 	) m.mt3_args))
 	(if m.mt3_var_args then " ..." else "")
 	(match m.mt3_ret with None -> "" | Some t -> " : " ^ type_str ctx "" t)
-	^ (if slot then Printf.sprintf " '%s'" (ident_str ctx m.mt3_debug_name) else "")
+	^ (if slot then match m.mt3_debug_name with None -> "" | Some idx -> Printf.sprintf " '%s'" (ident_str ctx idx) else "")
 
 let dump_field ctx ch stat f =
 (*	(match f.f3_metas with
