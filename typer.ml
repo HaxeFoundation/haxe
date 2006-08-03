@@ -231,7 +231,9 @@ let field_access ctx get f t e p =
 	| NormalAccess ->
 		AccExpr (mk (TField (e,f.cf_name)) t p)
 	| MethodAccess m ->
-		if get then
+		if m = ctx.curmethod && e.eexpr = TConst TThis then
+			AccExpr (mk (TField (e,f.cf_name)) t p)
+		else if get then
 			AccExpr (mk (TCall (mk (TField (e,m)) (mk_mono()) p,[])) t p)
 		else
 			AccSet (e,m,t,f.cf_name)
