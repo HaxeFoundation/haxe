@@ -38,10 +38,15 @@ type as3_jump =
 	| J3False
 	| J3Eq
 	| J3Neq
+	| J3Lt
+	| J3Lte
+	| J3Gt
+	| J3Gte
 	| J3PhysEq
 	| J3PhysNeq
 
 type as3_op_binop =
+	| A3As
 	| A3Neg
 	| A3Incr
 	| A3Decr
@@ -65,13 +70,20 @@ type as3_op_binop =
 	| A3OGt
 	| A3OGte
 	| A3Is
-	| A3As
+	| A3In
+	| A3IIncr
+	| A3IDecr
 
 type as3_opcode =
 	| A3Throw
+	| A3GetSuper of type_index
+	| A3SetSuper of type_index
 	| A3RegReset of reg
 	| A3Nop
 	| A3Jump of as3_jump * int
+	| A3Switch of int * int list * int
+	| A3PopContext
+	| A3XmlOp3
 	| A3ForIn
 	| A3Null
 	| A3Undefined
@@ -80,28 +92,39 @@ type as3_opcode =
 	| A3Int of int
 	| A3True
 	| A3False
+	| A3NaN
 	| A3Pop
 	| A3Dup
+	| A3CatchDone
 	| A3String of int (* as3_ident index *)
 	| A3IntRef of int (* as3_int index *)
 	| A3Float of int (* as3_float index *)
 	| A3Context
 	| A3Next of reg * reg
 	| A3Function of int (* as3_method_type index *)
+	| A3StackCall of nargs
+	| A3StackNew of nargs
 	| A3SuperCall of type_index * nargs
 	| A3Call of type_index * nargs
 	| A3RetVoid
 	| A3Ret
 	| A3SuperConstr of nargs
 	| A3New of type_index * nargs
-	| A3Object of int
-	| A3Array of int
+	| A3SuperCallUnknown of type_index * nargs
+	| A3CallUnknown of type_index * nargs
+	| A3Object of nargs
+	| A3Array of nargs
 	| A3NewBlock
+	| A3ClassDef of int
+	| A3XmlOp1 of int
+	| A3Catch of int
 	| A3GetInf of type_index
 	| A3SetInf of type_index
+	| A3GetProp of type_index
 	| A3SetProp of type_index
 	| A3Reg of reg
 	| A3SetReg of reg
+	| A3PrepStackCall
 	| A3LoadBlock of int
 	| A3Get of type_index
 	| A3Set of type_index
@@ -112,9 +135,13 @@ type as3_opcode =
 	| A3ToUInt
 	| A3ToNumber
 	| A3ToBool
+	| A3XmlOp2
+	| A3Cast of type_index
 	| A3ToObject
+	| A3ToString
 	| A3Typeof
 	| A3InstanceOf
+	| A3IncrReg of reg
 	| A3This
 	| A3DebugReg of int * int * int * int
 	| A3DebugLine of int
@@ -133,7 +160,7 @@ type as3_base_right =
 type as3_rights = as3_base_right index list
 
 type as3_type =
-	| A3TClassInterface of as3_ident index * as3_base_right index
+	| A3TClassInterface of as3_ident index option * as3_base_right index
 	| A3TMethodVar of as3_ident index * as3_base_right index
 	| A3TUnknown1 of int * int
 	| A3TUnknown2 of int * int * int
@@ -178,7 +205,7 @@ type as3_var = {
 
 type as3_metadata = {
 	meta3_name : as3_ident index;
-	meta3_data : (as3_ident index * as3_ident index) array;
+	meta3_data : (as3_ident index option * as3_ident index) array;
 }
 
 type as3_field_kind =
@@ -210,6 +237,14 @@ type as3_static = {
 	st3_fields : as3_field array;
 }
 
+type as3_try_catch = {
+	tc3_start : int;
+	tc3_end : int;
+	tc3_handle : int;
+	tc3_type : as3_type index option;
+	tc3_name : as3_type index option;
+}
+
 type as3_function = {
 	fun3_id : as3_method_type index_nz;
 	fun3_unk1 : int;
@@ -217,6 +252,7 @@ type as3_function = {
 	fun3_unk3 : int;
 	fun3_unk4 : int;
 	fun3_code : as3_opcode list;
+	fun3_trys : as3_try_catch array;
 	fun3_locals : as3_field array;
 }
 

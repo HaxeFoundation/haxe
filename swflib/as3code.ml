@@ -58,6 +58,7 @@ let ops , ops_ids =
 	let h2 = Hashtbl.create 0 in
 	List.iter (fun (o,b) -> Hashtbl.add h b o; Hashtbl.add h2 o b)
 	[
+		A3As, 0x87;
 		A3Neg, 0x90;
 		A3Incr, 0x91;
 		A3Decr, 0x93;
@@ -80,12 +81,16 @@ let ops , ops_ids =
 		A3OLte, 0xAE;
 		A3OGt, 0xAF;
 		A3OGte, 0xB0;
-		A3As, 0x87;
 		A3Is, 0xB3;
+		A3In, 0xB4;
+		A3IIncr, 0xC0;
+		A3IDecr, 0xC1;
 	];
 	h , h2
 
 let length = function
+	| A3StackCall _
+	| A3StackNew _
 	| A3SmallInt _
 	| A3Object _
 	| A3RegReset _
@@ -93,7 +98,10 @@ let length = function
 	| A3LoadBlock _
 	| A3BlockGet _
 	| A3BlockSet _
+	| A3Catch _
+	| A3IncrReg _
 	-> 2
+	| A3XmlOp1 f
 	| A3Array f
 	| A3Int f
 	| A3String f
@@ -105,8 +113,13 @@ let length = function
 	| A3Delete f
 	| A3SetInf f
 	| A3GetInf f
+	| A3GetProp f
 	| A3SetProp f
+	| A3Cast f
 	| A3Function f
+	| A3ClassDef f
+	| A3GetSuper f
+	| A3SetSuper f
 	| A3DebugLine f ->
 		1 + int_length f
 	| A3Op _
@@ -114,15 +127,18 @@ let length = function
 	| A3Null
 	| A3True
 	| A3False
+	| A3NaN
 	| A3RetVoid
 	| A3Ret
 	| A3Pop
 	| A3Dup
+	| A3CatchDone
 	| A3ToObject
 	| A3ToInt
 	| A3ToUInt
 	| A3ToNumber
 	| A3ToBool
+	| A3ToString
 	| A3This
 	| A3Throw
 	| A3Nop
@@ -132,12 +148,19 @@ let length = function
 	| A3ForIn
 	| A3NewBlock
 	| A3ForEach
+	| A3PopContext
+	| A3XmlOp3
+	| A3XmlOp2
+	| A3PrepStackCall
 	| A3Unk _ -> 1
 	| A3DebugReg _ -> 5
 	| A3Reg n | A3SetReg n -> if n >= 1 && n <= 3 then 1 else 2
-	| A3SuperCall (f,_) | A3Call (f,_) | A3New (f,_) -> 2 + int_length f
+	| A3SuperCall (f,_) | A3Call (f,_) | A3New (f,_) | A3CallUnknown (f,_) | A3SuperCallUnknown(f,_) -> 2 + int_length f
 	| A3Jump _ -> 4
 	| A3Next _ -> 3
+	| A3Switch (_,cases,_) -> 
+		let ncases = List.length cases in
+		1 + 3 + int_length ncases + 3 * (ncases + 1)
 
 let jump ch kind =
 	A3Jump (kind,read_i24 ch)
@@ -149,6 +172,8 @@ let opcode ch =
 	| Some op -> Some (
 		match op with
 		| 0x03 -> A3Throw
+		| 0x04 -> A3GetSuper (read_int ch)
+		| 0x05 -> A3SetSuper (read_int ch)
 		| 0x08 -> A3RegReset (read_byte ch)
 		| 0x09 -> A3Nop
 		| 0x0C -> jump ch J3NotLt
@@ -160,8 +185,26 @@ let opcode ch =
 		| 0x12 -> jump ch J3False
 		| 0x13 -> jump ch J3Eq
 		| 0x14 -> jump ch J3Neq
+		| 0x15 -> jump ch J3Lt
+		| 0x16 -> jump ch J3Lte
+		| 0x17 -> jump ch J3Gt
+		| 0x18 -> jump ch J3Gte
 		| 0x19 -> jump ch J3PhysEq
 		| 0x1A -> jump ch J3PhysNeq
+		| 0x1B -> 
+			let def = read_i24 ch in
+			let rec loop n =
+				if n = 0 then
+					[]
+				else
+					let j = read_i24 ch in
+					j :: loop (n - 1)
+			in
+			let cases = loop (read_int ch) in
+			let def2 = read_i24 ch in
+			A3Switch (def,cases,def2)
+		| 0x1D -> A3PopContext
+		| 0x1C -> A3XmlOp3
 		| 0x1E -> A3ForIn
 		| 0x20 -> A3Null
 		| 0x21 -> A3Undefined
@@ -170,8 +213,10 @@ let opcode ch =
 		| 0x25 -> A3Int (read_int ch)
 		| 0x26 -> A3True
 		| 0x27 -> A3False
+		| 0x28 -> A3NaN
 		| 0x29 -> A3Pop
 		| 0x2A -> A3Dup
+		| 0x2B -> A3CatchDone
 		| 0x2C -> A3String (read_int ch)
 		| 0x2D -> A3IntRef (read_int ch)
 		| 0x2F -> A3Float (read_int ch)
@@ -181,6 +226,8 @@ let opcode ch =
 			let r2 = read_byte ch in
 			A3Next (r1,r2)
 		| 0x40 -> A3Function (read_int ch)
+		| 0x41 -> A3StackCall (read_byte ch)
+		| 0x42 -> A3StackNew (read_byte ch)
 		| 0x45 ->
 			let id = read_int ch in
 			let nargs = read_byte ch in
@@ -196,14 +243,27 @@ let opcode ch =
 			let id = read_int ch in
 			let nargs = read_byte ch in
 			A3New (id,nargs)
+		| 0x4E ->
+			let id = read_int ch in
+			let nargs = read_byte ch in
+			A3SuperCallUnknown (id,nargs)
+		| 0x4F ->
+			let id = read_int ch in
+			let nargs = read_byte ch in
+			A3CallUnknown (id,nargs)
 		| 0x55 -> A3Object (read_byte ch)
 		| 0x56 -> A3Array (read_int ch)
 		| 0x57 -> A3NewBlock
+		| 0x58 -> A3ClassDef (read_int ch)
+		| 0x59 -> A3XmlOp1 (read_int ch)
+		| 0x5A -> A3Catch (read_byte ch)
 		| 0x5D -> A3GetInf (read_int ch)
 		| 0x5E -> A3SetInf (read_int ch)
+		| 0x60 -> A3GetProp (read_int ch)
 		| 0x61 -> A3SetProp (read_int ch)
 		| 0x62 -> A3Reg (read_byte ch)
 		| 0x63 -> A3SetReg (read_byte ch)
+		| 0x64 -> A3PrepStackCall
 		| 0x65 -> A3LoadBlock (read_byte ch)
 		| 0x66 -> A3Get (read_int ch)
 		| 0x68 -> A3Set (read_int ch)
@@ -214,9 +274,13 @@ let opcode ch =
 		| 0x74 -> A3ToUInt
 		| 0x75 -> A3ToNumber
 		| 0x76 -> A3ToBool
+		| 0x78 -> A3XmlOp2
+		| 0x80 -> A3Cast (read_int ch)
 		| 0x82 -> A3ToObject
+		| 0x85 -> A3ToString
 		| 0x95 -> A3Typeof
 		| 0xB1 -> A3InstanceOf
+		| 0xC2 -> A3IncrReg (read_byte ch)
 		| 0xD0 -> A3This
 		| 0xD1 -> A3Reg 1
 		| 0xD2 -> A3Reg 2
@@ -236,6 +300,7 @@ let opcode ch =
 			try
 				A3Op (Hashtbl.find ops op)
 			with Not_found ->
+				Printf.printf "Unknown opcode 0x%.2X\n" op;
 				A3Unk (char_of_int op)
 	)
 
@@ -243,7 +308,7 @@ let parse ch len =
 	let data = nread ch len in
 	let ch = input_string data in
 	let rec loop acc =
-		match opcode ch with
+		match (try opcode ch with _ -> match acc with A3Unk '\xff' :: _ -> None | _ -> Some (A3Unk '\xff')) with
 		| None -> List.rev acc
 		| Some o -> loop (o :: acc)
 	in
@@ -252,6 +317,12 @@ let parse ch len =
 let write ch = function
 	| A3Throw ->
 		write_byte ch 0x03
+	| A3GetSuper f ->
+		write_byte ch 0x04;
+		write_int ch f
+	| A3SetSuper f ->
+		write_byte ch 0x05;
+		write_int ch f
 	| A3RegReset n ->
 		write_byte ch 0x08;
 		write_byte ch n
@@ -268,10 +339,24 @@ let write ch = function
 			| J3False -> 0x12
 			| J3Eq -> 0x13
 			| J3Neq -> 0x14
+			| J3Lt -> 0x15
+			| J3Lte -> 0x16
+			| J3Gt -> 0x17
+			| J3Gte -> 0x18
 			| J3PhysEq -> 0x19
 			| J3PhysNeq -> 0x1A
 		);
 		write_i24 ch n
+	| A3Switch (def,cases,def2) ->
+		write_byte ch 0x1B;
+		write_i24 ch def;
+		write_int ch (List.length cases);
+		List.iter (write_i24 ch) cases;
+		write_i24 ch def2
+	| A3XmlOp3 ->
+		write_byte ch 0x1C
+	| A3PopContext ->
+		write_byte ch 0x1D
 	| A3ForIn ->
 		write_byte ch 0x1E
 	| A3Null ->
@@ -290,10 +375,14 @@ let write ch = function
 		write_byte ch 0x26
 	| A3False ->
 		write_byte ch 0x27
+	| A3NaN ->
+		write_byte ch 0x28
 	| A3Pop ->
 		write_byte ch 0x29
 	| A3Dup ->
 		write_byte ch 0x2A
+	| A3CatchDone ->
+		write_byte ch 0x2B
 	| A3String s ->
 		write_byte ch 0x2C;
 		write_int ch s
@@ -312,6 +401,12 @@ let write ch = function
 	| A3Function f ->
 		write_byte ch 0x40;
 		write_int ch f
+	| A3StackCall n ->
+		write_byte ch 0x41;
+		write_byte ch n
+	| A3StackNew n ->
+		write_byte ch 0x42;
+		write_byte ch n
 	| A3SuperCall (f,n) ->
 		write_byte ch 0x45;
 		write_int ch f;
@@ -331,6 +426,14 @@ let write ch = function
 		write_byte ch 0x4A;
 		write_int ch f;
 		write_byte ch n
+	| A3SuperCallUnknown (f,n) ->
+		write_byte ch 0x4E;
+		write_int ch f;
+		write_byte ch n
+	| A3CallUnknown (f,n) ->
+		write_byte ch 0x4F;
+		write_int ch f;
+		write_byte ch n
 	| A3Object n ->
 		write_byte ch 0x55;
 		write_byte ch n
@@ -339,11 +442,23 @@ let write ch = function
 		write_byte ch n
 	| A3NewBlock ->
 		write_byte ch 0x57
+	| A3ClassDef f ->
+		write_byte ch 0x58;
+		write_int ch f
+	| A3XmlOp1 f ->
+		write_byte ch 0x59;
+		write_int ch f
+	| A3Catch n ->
+		write_byte ch 0x5A;
+		write_byte ch n
 	| A3GetInf f ->
 		write_byte ch 0x5D;
 		write_int ch f
 	| A3SetInf f ->
 		write_byte ch 0x5E;
+		write_int ch f
+	| A3GetProp f ->
+		write_byte ch 0x60;
 		write_int ch f
 	| A3SetProp f ->
 		write_byte ch 0x61;
@@ -370,6 +485,8 @@ let write ch = function
 		| _ ->
 			write_byte ch 0x63;
 			write_byte ch n)
+	| A3PrepStackCall ->
+		write_byte ch 0x64
 	| A3Get f ->
 		write_byte ch 0x66;
 		write_int ch f
@@ -390,12 +507,22 @@ let write ch = function
 		write_byte ch 0x75
 	| A3ToBool ->
 		write_byte ch 0x76
+	| A3XmlOp2 ->
+		write_byte ch 0x78
+	| A3Cast f ->
+		write_byte ch 0x80;
+		write_int ch f
 	| A3ToObject ->
 		write_byte ch 0x82
+	| A3ToString ->
+		write_byte ch 0x85
 	| A3Typeof ->
 		write_byte ch 0x95
 	| A3InstanceOf ->
 		write_byte ch 0xB1
+	| A3IncrReg r ->
+		write_byte ch 0xC2;
+		write_byte ch r
 	| A3This ->
 		write_byte ch 0xD0
 	| A3DebugReg (a,b,c,line) ->
@@ -416,6 +543,7 @@ let write ch = function
 		write ch x
 
 let dump_op = function
+	| A3As -> "as"
 	| A3Neg -> "neg"
 	| A3Incr -> "incr"
 	| A3Decr -> "decr"
@@ -438,8 +566,10 @@ let dump_op = function
 	| A3OLte -> "lte"
 	| A3OGt -> "gt"
 	| A3OGte -> "gte"
-	| A3As -> "as"
 	| A3Is -> "is"
+	| A3In -> "in"
+	| A3IIncr -> "iincr"
+	| A3IDecr -> "idecr"
 
 let dump_jump = function
 	| J3NotLt -> "-nlt"
@@ -451,6 +581,10 @@ let dump_jump = function
 	| J3False -> "-ifnot"
 	| J3Eq -> "-eq"
 	| J3Neq -> "-neq"
+	| J3Lt -> "-lt"
+	| J3Lte -> "-lte"
+	| J3Gt -> "-gt"
+	| J3Gte -> "-gte"
 	| J3PhysEq -> "-peq"
 	| J3PhysNeq -> "-pneq"
 
@@ -459,15 +593,20 @@ let dump ctx op =
 	let field n =
 		let t = ctx.as3_types.(n - 1) in
 		match t with
-		| A3TClassInterface (ident,_) -> "dynamic:" ^ iget ctx.as3_idents ident
+		| A3TClassInterface (Some ident,_) -> "dynamic:" ^ iget ctx.as3_idents ident		
 		| A3TMethodVar (ident,_) -> iget ctx.as3_idents ident
 		| _ -> "???"
 	in
 	match op with
 	| A3Throw -> "throw"
+	| A3GetSuper f -> s "super.%s" (field f)
+	| A3SetSuper f -> s "set super.%s" (field f)
 	| A3RegReset n -> s "reset %d" n
 	| A3Nop -> "nop"
 	| A3Jump (k,n) -> s "jump%s %d" (dump_jump k) n
+	| A3Switch (def,cases,def2) -> s "switch %d [%s] %d" def (String.concat "," (List.map (s "%d") cases)) def2
+	| A3XmlOp3 -> "xml3"
+	| A3PopContext -> "popctx"
 	| A3ForIn -> "forin"
 	| A3Null -> "null"
 	| A3Undefined -> "undefined"
@@ -476,28 +615,39 @@ let dump ctx op =
 	| A3Int n -> s "int %d" n
 	| A3True -> "true"
 	| A3False -> "false"
+	| A3NaN -> "nan"
 	| A3Pop -> "pop"
 	| A3Dup -> "dup"
+	| A3CatchDone -> "catch-done?"
 	| A3String n -> s "string [%s]" (ident n)
 	| A3IntRef n -> s "int [%ld]" ctx.as3_ints.(n - 1)
 	| A3Float n -> s "float [%f]" ctx.as3_floats.(n - 1)
 	| A3Context -> "ctx"
 	| A3Next (r1,r2) -> s "next %d %d" r1 r2
 	| A3Function f -> s "function #%d" f
+	| A3StackCall n -> s "stackcall (%d)" n
+	| A3StackNew n -> s "stacknew (%d)" n
 	| A3SuperCall (f,n) -> s "supercall %s (%d)" (field f) n
 	| A3Call (f,n) -> s "call %s (%d)" (field f) n
 	| A3RetVoid -> "ret void"
 	| A3Ret -> "ret"
 	| A3SuperConstr n -> s "superconstr %d" n
 	| A3New (f,n) -> s "new %s (%d)" (field f) n
+	| A3SuperCallUnknown (f,n) -> s "?supercall %s (%d)" (field f) n
+	| A3CallUnknown (f,n) -> s "?call %s (%d)" (field f) n
 	| A3Object n -> s "obj %d" n
 	| A3Array n -> s "array %d" n
 	| A3NewBlock -> "newblock"
+	| A3ClassDef n -> s "classdef %d" n
+	| A3XmlOp1 f -> s "xml1 %s" (field f)
+	| A3Catch n -> s "catch %d" n
 	| A3GetInf f -> s "iget %s" (field f)
 	| A3SetInf f -> s "iset %s" (field f)
+	| A3GetProp f -> s "getp %s" (field f)
 	| A3SetProp f -> s "setp %s" (field f)
 	| A3Reg n -> s "reg %d" n
 	| A3SetReg n -> s "setreg %d" n
+	| A3PrepStackCall -> "prepstackcall"
 	| A3LoadBlock n -> s "block %d" n
 	| A3Get f -> s "get %s" (field f)
 	| A3Set f -> s "set %s" (field f)
@@ -508,9 +658,13 @@ let dump ctx op =
 	| A3ToUInt -> "to_uint"
 	| A3ToNumber -> "to_number"
 	| A3ToBool -> "to_bool"
+	| A3XmlOp2 -> "xml2"
+	| A3Cast f -> s "cast %s" (field f)
 	| A3ToObject -> "to_obj"
+	| A3ToString -> "to_str"
 	| A3Typeof -> "typeof"
 	| A3InstanceOf -> "instanceof"
+	| A3IncrReg r -> s "incr-reg %d" r
 	| A3This -> "this"
 	| A3DebugReg (a,b,c,line) -> s ".reg %d %d %d line:%d" a b c line
 	| A3DebugLine l -> s ".line %d" l

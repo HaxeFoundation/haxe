@@ -28,6 +28,7 @@ let parse_classes = true && parse_metadata
 let parse_statics = true && parse_classes
 let parse_inits = true && parse_statics
 let parse_functions = true && parse_inits
+let parse_bytecode = true && parse_functions
 
 let magic_index (i : int) : 'a index =
 	Obj.magic i
@@ -123,7 +124,7 @@ let as3_type_length t =
 	1 +
 	match t with
 	| A3TClassInterface (id,r) ->
-		idx_length id + idx_length r
+		idx_opt_length id + idx_length r
 	| A3TMethodVar (id,r) ->
 		idx_length r + idx_length id
 	| A3TUnknown1 (_,i) ->
@@ -187,7 +188,14 @@ let as3_static_length s =
 
 let as3_metadata_length m =
 	idx_length m.meta3_name +
-	list2_length (fun (i1,i2) -> idx_length i1 + idx_length i2) m.meta3_data
+	list2_length (fun (i1,i2) -> idx_opt_length i1 + idx_length i2) m.meta3_data
+
+let as3_try_catch_length t =
+	int_length t.tc3_start +
+	int_length t.tc3_end +
+	int_length t.tc3_handle +
+	idx_opt_length t.tc3_type +
+	idx_opt_length t.tc3_name
 
 let as3_function_length f =
 	let clen = sum As3code.length f.fun3_code in
@@ -196,10 +204,10 @@ let as3_function_length f =
 	int_length f.fun3_unk2 +
 	int_length f.fun3_unk3 +
 	int_length f.fun3_unk4 +
-	list2_length as3_field_length f.fun3_locals +
 	int_length clen +
 	clen +
-	1
+	list2_length as3_try_catch_length f.fun3_trys +
+	list2_length as3_field_length f.fun3_locals
 
 let as3_length ctx =
 	let ei = as3_empty_index ctx in
@@ -299,7 +307,7 @@ let read_type ctx ch =
 	let k = IO.read_byte ch in
 	match k with
 	| 0x09 ->
-		let id = index ctx.as3_idents (read_int ch) in
+		let id = index_opt ctx.as3_idents (read_int ch) in
 		let rights = index ctx.as3_base_rights (read_int ch) in
 		A3TClassInterface (id,rights)
 	| 0x07 ->
@@ -312,6 +320,8 @@ let read_type ctx ch =
 		let i1 = read_int ch in
 		let i2 = read_int ch in
 		A3TUnknown2 (k,i1,i2)
+	| 0x0F ->
+		A3TUnknown1 (k,read_int ch)
 	| n ->
 		assert false
 
@@ -458,11 +468,25 @@ let read_static ctx ch =
 
 let read_metadata ctx ch =
 	let name = index ctx.as3_idents (read_int ch) in
-	let data = read_list2 ch (fun _ -> index ctx.as3_idents (read_int ch)) in
+	let data = read_list2 ch (fun _ -> index_opt ctx.as3_idents (read_int ch)) in
 	let data = Array.map (fun i1 -> i1 , index ctx.as3_idents (read_int ch)) data in
 	{
 		meta3_name = name;
 		meta3_data = data;
+	}
+
+let read_try_catch ctx ch =
+	let start = read_int ch in
+	let pend = read_int ch in
+	let handle = read_int ch in
+	let t = index_opt ctx.as3_types (read_int ch) in
+	let name = index_opt ctx.as3_types (read_int ch) in
+	{
+		tc3_start = start;
+		tc3_end = pend;
+		tc3_handle = handle;
+		tc3_type = t;
+		tc3_name = name;
 	}
 
 let read_function ctx ch =
@@ -472,8 +496,8 @@ let read_function ctx ch =
 	let u3 = read_int ch in
 	let u4 = read_int ch in
 	let size = read_int ch in
-	let code = As3code.parse ch size in
-	if read_int ch <> 0 then assert false; (* try...catch *)
+	let code = if parse_bytecode then As3code.parse ch size else Array.to_list (Array.init size (fun _ -> A3Unk (IO.read ch))) in
+	let trys = read_list2 ch (read_try_catch ctx) in
 	let local_funs = read_list2 ch (read_field ctx) in
 	{
 		fun3_id = id;
@@ -482,6 +506,7 @@ let read_function ctx ch =
 		fun3_unk3 = u3;
 		fun3_unk4 = u4;
 		fun3_code = code;
+		fun3_trys = trys;
 		fun3_locals = local_funs;
 	}
 
@@ -605,7 +630,7 @@ let write_rights ch l =
 let write_type ch = function
 	| A3TClassInterface (id,r) ->
 		IO.write_byte ch 0x09;
-		write_index ch id;
+		write_index_opt ch id;
 		write_index ch r;
 	| A3TMethodVar (id,r) ->
 		IO.write_byte ch 0x07;
@@ -730,8 +755,15 @@ let write_static ch s =
 
 let write_metadata ch m =
 	write_index ch m.meta3_name;
-	write_list2 ch (fun _ (i1,_) -> write_index ch i1) m.meta3_data;
+	write_list2 ch (fun _ (i1,_) -> write_index_opt ch i1) m.meta3_data;
 	Array.iter (fun (_,i2) -> write_index ch i2) m.meta3_data
+
+let write_try_catch ch t =
+	write_int ch t.tc3_start;
+	write_int ch t.tc3_end;
+	write_int ch t.tc3_handle;
+	write_index_opt ch t.tc3_type;
+	write_index_opt ch t.tc3_name
 
 let write_function ch f =
 	write_index_nz ch f.fun3_id;
@@ -742,7 +774,7 @@ let write_function ch f =
 	let clen = sum As3code.length f.fun3_code in
 	write_int ch clen;
 	List.iter (As3code.write ch) f.fun3_code;
-	write_int ch 0;
+	write_list2 ch write_try_catch f.fun3_trys;
 	write_list2 ch write_field f.fun3_locals
 
 let write ch1 ctx id =
@@ -802,7 +834,7 @@ let rights_str ctx i =
 
 let type_str ctx kind t =
 	match iget ctx.as3_types t with
-	| A3TClassInterface (id,r) -> Printf.sprintf "[%s %s%s]" (base_right_str ctx r) kind (ident_str ctx id)
+	| A3TClassInterface (id,r) -> Printf.sprintf "[%s %s%s]" (base_right_str ctx r) kind (match id with None -> "NO" | Some i -> ident_str ctx i)
 	| A3TMethodVar (id,r) -> Printf.sprintf "%s %s%s" (base_right_str ctx r) kind (ident_str ctx id)
 	| A3TUnknown1 (t,i) -> Printf.sprintf "unknown1:0x%X:%d" t i
 	| A3TUnknown2 (t,i1,i2) -> Printf.sprintf "unknown2:0x%X:%d:%d" t i1 i2
@@ -819,7 +851,7 @@ let value_str ctx v =
 
 let metadata_str ctx i =
 	let m = iget ctx.as3_metadatas i in
-	let data = List.map (fun (i1,i2) -> Printf.sprintf "%s=\"%s\"" (ident_str ctx i1) (ident_str ctx i2)) (Array.to_list m.meta3_data) in
+	let data = List.map (fun (i1,i2) -> Printf.sprintf "%s=\"%s\"" (match i1 with None -> "NO" | Some i -> ident_str ctx i) (ident_str ctx i2)) (Array.to_list m.meta3_data) in
 	Printf.sprintf "%s(%s)" (ident_str ctx m.meta3_name) (String.concat ", " data)
 
 let method_str ?(slot=false) ctx m =
@@ -906,10 +938,17 @@ let dump_static ctx ch idx s =
 	Array.iter (dump_field ctx ch false) s.st3_fields;
 	IO.printf ch "}\n\n"
 
+let dump_try_catch ctx ch t =
+	IO.printf ch "    try %d %d %d (%s) (%s)\n"
+		t.tc3_start t.tc3_end t.tc3_handle
+		(match t.tc3_type with None -> "*" | Some idx -> type_str ctx "" idx)
+		(match t.tc3_name with None -> "NO" | Some idx -> type_str ctx "" idx)
+
 let dump_function ctx ch idx f =
 	IO.printf ch "function #%d %s\n" (index_nz_int f.fun3_id) (method_str ~slot:true ctx (no_nz f.fun3_id));
 	IO.printf ch "    %d %d %d %d\n" f.fun3_unk1 f.fun3_unk2 f.fun3_unk3 f.fun3_unk4;
 	Array.iter (dump_field ctx ch false) f.fun3_locals;
+	Array.iter (dump_try_catch ctx ch) f.fun3_trys;
 	List.iter (fun op ->
 		IO.printf ch "    %s\n" (As3code.dump ctx op);
 	) f.fun3_code;
@@ -937,7 +976,7 @@ let dump_int ctx ch idx i =
 	IO.printf ch "INT %d = 0x%lX\n" (idx + 1) i
 
 let dump_float ctx ch idx f =
-	IO.printf ch "FLOAT %d = 0x%f\n" (idx + 1) f
+	IO.printf ch "FLOAT %d = %f\n" (idx + 1) f
 
 let dump ch ctx id =
 	(match id with
