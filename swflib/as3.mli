@@ -25,17 +25,17 @@ type as3_int = int32
 type as3_float = float
 
 type as3_jump =
-	| J3Lt
-	| J3Lte
-	| J3Gt
-	| J3Gte
+	| J3NotLt
+	| J3NotLte
+	| J3NotGt
+	| J3NotGte
 	| J3Always
-	| J3Backward
 	| J3True
-	| J3Neq
+	| J3False
 	| J3Eq
-	| J3PhysNeq
+	| J3Neq
 	| J3PhysEq
+	| J3PhysNeq
 
 type as3_op_binop =
 	| A3Incr

@@ -144,17 +144,17 @@ let opcode ch =
 		| 0x03 -> A3Throw
 		| 0x08 -> A3StackReset (read_byte ch)
 		| 0x09 -> A3Nop
-		| 0x0C -> jump ch J3Lt
-		| 0x0D -> jump ch J3Lte
-		| 0x0E -> jump ch J3Gt
-		| 0x0F -> jump ch J3Gte
+		| 0x0C -> jump ch J3NotLt
+		| 0x0D -> jump ch J3NotLte
+		| 0x0E -> jump ch J3NotGt
+		| 0x0F -> jump ch J3NotGte
 		| 0x10 -> jump ch J3Always
-		| 0x11 -> jump ch J3Backward
-		| 0x12 -> jump ch J3True
-		| 0x13 -> jump ch J3Neq
-		| 0x14 -> jump ch J3Eq
-		| 0x19 -> jump ch J3PhysNeq
-		| 0x1A -> jump ch J3PhysEq
+		| 0x11 -> jump ch J3True
+		| 0x12 -> jump ch J3False
+		| 0x13 -> jump ch J3Eq
+		| 0x14 -> jump ch J3Neq
+		| 0x19 -> jump ch J3PhysEq
+		| 0x1A -> jump ch J3PhysNeq
 		| 0x1E -> A3ForIn
 		| 0x20 -> A3Null
 		| 0x21 -> A3Undefined
@@ -246,17 +246,17 @@ let write ch = function
 		write_byte ch 0x09
 	| A3Jump (k,n) ->
 		write_byte ch (match k with
-			| J3Lt -> 0x0C
-			| J3Lte -> 0x0D
-			| J3Gt -> 0x0E
-			| J3Gte -> 0x0F
+			| J3NotLt -> 0x0C
+			| J3NotLte -> 0x0D
+			| J3NotGt -> 0x0E
+			| J3NotGte -> 0x0F
 			| J3Always -> 0x10
-			| J3Backward -> 0x11
-			| J3True -> 0x12
-			| J3Neq -> 0x13
-			| J3Eq -> 0x14
-			| J3PhysNeq -> 0x19
-			| J3PhysEq -> 0x1A
+			| J3True -> 0x11
+			| J3False -> 0x12
+			| J3Eq -> 0x13
+			| J3Neq -> 0x14
+			| J3PhysEq -> 0x19
+			| J3PhysNeq -> 0x1A
 		);
 		write_i24 ch n
 	| A3ForIn ->
@@ -412,17 +412,17 @@ let dump_op = function
 
 
 let dump_jump = function
-	| J3Lt -> "-lt"
-	| J3Lte -> "-lte"
-	| J3Gt -> "-gt"
-	| J3Gte -> "-gte"
+	| J3NotLt -> "-nlt"
+	| J3NotLte -> "-nlte"
+	| J3NotGt -> "-ngt"
+	| J3NotGte -> "-ngte"
 	| J3Always -> ""
-	| J3Backward -> "b"
 	| J3True -> "-if"
-	| J3Neq -> "-neq"
+	| J3False -> "-ifnot"
 	| J3Eq -> "-eq"
-	| J3PhysNeq -> "-pneq"
+	| J3Neq -> "-neq"
 	| J3PhysEq -> "-peq"
+	| J3PhysNeq -> "-pneq"
 
 let dump ctx op =
 	let ident n = ctx.as3_idents.(n - 1) in
