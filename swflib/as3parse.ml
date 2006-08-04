@@ -196,9 +196,9 @@ let as3_function_length f =
 	int_length f.fun3_unk2 +
 	int_length f.fun3_unk3 +
 	int_length f.fun3_unk4 +
+	list2_length as3_field_length f.fun3_locals +
 	int_length clen +
 	clen +
-	1 +
 	1
 
 let as3_length ctx =
@@ -474,7 +474,7 @@ let read_function ctx ch =
 	let size = read_int ch in
 	let code = As3code.parse ch size in
 	if read_int ch <> 0 then assert false; (* try...catch *)
-	if read_int ch <> 0 then assert false; (* with... / local functions... *)
+	let local_funs = read_list2 ch (read_field ctx) in
 	{
 		fun3_id = id;
 		fun3_unk1 = u1;
@@ -482,6 +482,7 @@ let read_function ctx ch =
 		fun3_unk3 = u3;
 		fun3_unk4 = u4;
 		fun3_code = code;
+		fun3_locals = local_funs;
 	}
 
 let header_magic = 0x002E0010
@@ -521,7 +522,8 @@ let parse ch len =
 	if parse_functions then ctx.as3_functions <- read_list2 ch (read_function ctx);
 	ctx.as3_unknown <- IO.read_all ch;
 	if parse_functions && String.length ctx.as3_unknown <> 0 then assert false;
-	if as3_length ctx <> len then assert false;
+	let len2 = as3_length ctx in
+	if len2 <> len then begin Printf.printf "%d != %d" len len2; assert false; end;
 	ctx
 
 (* ************************************************************************ *)
@@ -741,7 +743,7 @@ let write_function ch f =
 	write_int ch clen;
 	List.iter (As3code.write ch) f.fun3_code;
 	write_int ch 0;
-	write_int ch 0
+	write_list2 ch write_field f.fun3_locals
 
 let write ch1 ctx id =
 	let ch = IO.output_string() in
@@ -907,6 +909,7 @@ let dump_static ctx ch idx s =
 let dump_function ctx ch idx f =
 	IO.printf ch "function #%d %s\n" (index_nz_int f.fun3_id) (method_str ~slot:true ctx (no_nz f.fun3_id));
 	IO.printf ch "    %d %d %d %d\n" f.fun3_unk1 f.fun3_unk2 f.fun3_unk3 f.fun3_unk4;
+	Array.iter (dump_field ctx ch false) f.fun3_locals;
 	List.iter (fun op ->
 		IO.printf ch "    %s\n" (As3code.dump ctx op);
 	) f.fun3_code;

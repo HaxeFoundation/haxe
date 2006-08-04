@@ -24,6 +24,10 @@ type as3_ident = string
 type as3_int = int32
 type as3_float = float
 
+type reg = int
+type type_index = int
+type nargs = int
+
 type as3_jump =
 	| J3NotLt
 	| J3NotLte
@@ -38,6 +42,7 @@ type as3_jump =
 	| J3PhysNeq
 
 type as3_op_binop =
+	| A3Neg
 	| A3Incr
 	| A3Decr
 	| A3Not
@@ -64,7 +69,7 @@ type as3_op_binop =
 
 type as3_opcode =
 	| A3Throw
-	| A3StackReset of int
+	| A3RegReset of reg
 	| A3Nop
 	| A3Jump of as3_jump * int
 	| A3ForIn
@@ -81,22 +86,28 @@ type as3_opcode =
 	| A3IntRef of int (* as3_int index *)
 	| A3Float of int (* as3_float index *)
 	| A3Context
-	| A3Next of int * int (* stack1 * stack2 *)
-	| A3SuperCall of int * int (* as3_type index * nargs *)
-	| A3Call of int * int (* as3_type index * nargs *)
+	| A3Next of reg * reg
+	| A3Function of int (* as3_method_type index *)
+	| A3SuperCall of type_index * nargs
+	| A3Call of type_index * nargs
 	| A3RetVoid
 	| A3Ret
-	| A3New of int * int (* as3_type index * nargs *)
+	| A3SuperConstr of nargs
+	| A3New of type_index * nargs
 	| A3Object of int
 	| A3Array of int
-	| A3GetInf of int (* as3_type index *)
-	| A3SetInf of int (* as3_type index *)
-	| A3SetProp of int (* as3_type index *)
-	| A3Stack of int
-	| A3SetStack of int
-	| A3Get of int (* as3_type index *)
-	| A3Set of int (* as3_type index *)
-	| A3Delete of int (* as3_type index *)
+	| A3NewBlock
+	| A3GetInf of type_index
+	| A3SetInf of type_index
+	| A3SetProp of type_index
+	| A3Reg of reg
+	| A3SetReg of reg
+	| A3LoadBlock of int
+	| A3Get of type_index
+	| A3Set of type_index
+	| A3Delete of type_index
+	| A3BlockGet of int
+	| A3BlockSet of int
 	| A3ToInt
 	| A3ToUInt
 	| A3ToNumber
@@ -105,7 +116,7 @@ type as3_opcode =
 	| A3Typeof
 	| A3InstanceOf
 	| A3This
-	| A3DebugStack of int * int * int * int
+	| A3DebugReg of int * int * int * int
 	| A3DebugLine of int
 	| A3DebugFile of int (* as3_ident index *)
 	| A3Op of as3_op_binop
@@ -206,6 +217,7 @@ type as3_function = {
 	fun3_unk3 : int;
 	fun3_unk4 : int;
 	fun3_code : as3_opcode list;
+	fun3_locals : as3_field array;
 }
 
 type as3_tag = {
