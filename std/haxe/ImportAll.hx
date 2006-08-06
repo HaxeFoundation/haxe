@@ -141,6 +141,11 @@ import flash.net.FileReferenceList;
 import flash.system.IME;
 import flash.text.TextRenderer;
 
+import flash.forms.Button;
+import flash.forms.Component;
+import flash.forms.Container;
+import flash.forms.Position;
+
 #end
 
 #if neko
