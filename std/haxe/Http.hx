@@ -24,13 +24,22 @@
  */
 package haxe;
 
+#if neko
+typedef AsyncHttp = {
+	function total( bytes : Int ) : Void;
+	function write( s : String, pos : Int, len : Int ) : Void;
+	function done() : Void;
+}
+#end
+
 class Http {
 
 	public var url : String;
 #if neko
 	var responseHeaders : Hash<String>;
 	var postData : String;
-	var status : Int;
+	var chunk_size : Int;
+	var chunk_buf : String;
 #else js
 	private var async : Bool;
 #end
@@ -146,6 +155,25 @@ class Http {
 		if( !r.sendAndLoad(small_url,r,if( param ) { if( post ) "POST" else "GET"; } else null) )
 			onError("Failed to initialize Connection");
 	#else neko
+		var b = new StringBuf();
+		var me = this;
+		var api : AsyncHttp = {
+			total : function(t) {
+			},
+			write : function(s,p,l) {
+				b.addSub(s,p,l);
+			},
+			done : function() {
+				me.onData(b.toString());
+			}
+		};
+		asyncRequest(post,api);
+	#end
+	}
+
+#if neko
+
+	public function asyncRequest( post : Bool, api : AsyncHttp ) {
 		var url_regexp = ~/^(http:\/\/)?([a-zA-Z\.0-9-]+)(:[0-9]+)?(.*)$/;
 		if( !url_regexp.match(url) ) {
 			onError("Invalid URL");
@@ -201,44 +229,17 @@ class Http {
 			if( post && uri != null )
 				b.add(uri);
 		}
-		var body;
 		try {
 			s.connect(neko.Socket.resolve(host),port);
 			s.write(b.toString());
-			body = readHttpResponse(s);
+			readHttpResponse(api,s);
 			s.close();
 		} catch( e : Dynamic ) {
 			onError(Std.string(e));
-			return;
 		}
-		if( status == 0 || status == null ){
-			onError("Response status error");
-			return;
-		}
-		onStatus(status);
-		if( status < 200 || status >= 400 ){
-			onError("Http Error #"+status);
-			return;
-		}
-		if( responseHeaders.get("Transfer-Encoding") == "chunked" )
-			body = unchunk(body);
-		onData(body);
-	#end
 	}
 
-#if neko
-	static function unchunk( s : String ) : String {
-		var chunk = ~/^([0-9A-Fa-f]+)[ ]*\r\n/;
-		if( !chunk.match(s) )
-			return s;
-		var m = chunk.matched(1);
-		var l = chunk.matched(0).length;
-		var n = Std.parseInt("0x"+m);
-		var sz = l+n+2;
-		return s.substr(l,n) + unchunk(s.substr(sz,s.length-sz));
-	}
-
-	function readHttpResponse( sock : neko.Socket ) : String {
+	function readHttpResponse( api : AsyncHttp, sock : neko.Socket ) {
 		// READ the HTTP header (until \r\n\r\n)
 		var b = new StringBuf();
 		var k = 4;
@@ -304,7 +305,17 @@ class Http {
 		var headers = b.toString().split("\r\n");
 		var response = headers.shift();
 		var rp = response.split(" ");
-		status = Std.parseInt(rp[1]);
+		var status = Std.parseInt(rp[1]);
+
+		if( status == 0 || status == null ){
+			onError("Response status error");
+			return;
+		}
+		onStatus(status);
+		if( status < 200 || status >= 400 ){
+			onError("Http Error #"+status);
+			return;
+		}
 
 		// remove the two lasts \r\n\r\n
 		headers.pop();
@@ -319,18 +330,91 @@ class Http {
 				responseHeaders.set(hname,a.join(": "));
 		}
 		var size = Std.parseInt(responseHeaders.get("Content-Length"));
+		var chunked = responseHeaders.get("Transfer-Encoding") == "chunked";
+		var chunk_re = ~/^([0-9A-Fa-f]+)[ ]*\r\n/m;
+		chunk_size = null;
+		chunk_buf = null;
+
+		var bufsize = 1024;
+		var buf = neko.Lib.makeString(bufsize);
+		api.total(size);
 		if( size == null ) {
 			sock.shutdown(false,true);
-			return sock.read();
+			while( true ) {
+				var len = sock.receive(buf,0,bufsize);
+				if( len == 0 )
+					break;
+				if( chunked ) {
+					if( !readChunk(chunk_re,api,buf,len) )
+						break;
+				} else
+					api.write(buf,0,len);
+			}
+		} else {
+			while( size > 0 ) {
+				var len = sock.receive(buf,0,if( size > bufsize ) bufsize else size);
+				if( len == 0 ) {
+					onError("Transfert aborted");
+					return;
+				}
+				if( chunked ) {
+					if( !readChunk(chunk_re,api,buf,len) )
+						break;
+				} else
+					api.write(buf,0,len);
+				size -= len;
+			}
 		}
-		var s = neko.Lib.makeString(size);
-		var pos = 0;
-		while( size > 0 ) {
-			var len = sock.receive(s,pos,if( size > 1024 ) 1024 else size);
-			pos += len;
-			size -= len;
+		if( chunked && (chunk_size != null || chunk_buf != null) ) {
+			onError("Invalid chunk");
+			return;
 		}
-		return s;
+		api.done();
+	}
+
+	function readChunk(chunk_re : EReg, api : AsyncHttp, buf : String, len ) {
+		if( chunk_size == null ) {
+			if( chunk_buf != null ) {
+				buf = chunk_buf + buf.substr(0,len);
+				len += chunk_buf.length;
+				chunk_buf = null;
+			}
+			if( chunk_re.match(buf) ) {
+				var p = chunk_re.matchedPos();
+				if( p.len <= len ) {
+					chunk_size = Std.parseInt("0x"+chunk_re.matched(1));
+					len -= p.len;
+					readChunk(chunk_re,api,buf.substr(p.len,len),len);
+					return true;
+				}
+			}
+			// prevent buffer accumulation
+			if( len > 10 ) {
+				onError("Invalid chunk");
+				return false;
+			}
+			chunk_buf = buf.substr(0,len);
+			return true;
+		}
+		if( chunk_size > len ) {
+			chunk_size -= len;
+			api.write(buf,0,len);
+			return true;
+		}
+		var end = chunk_size + 2;
+		if( len >= end ) {
+			if( chunk_size > 0 )
+				api.write(buf,0,chunk_size);
+			len -= end;
+			chunk_size = null;
+			if( len == 0 )
+				return true;
+			return readChunk(chunk_re,api,buf.substr(end,len),len);
+		}
+		if( chunk_size > 0 )
+			api.write(buf,0,chunk_size);
+		chunk_size -= len;
+		return true;
 	}
 
 #end
