@@ -51,6 +51,13 @@
 				RelativePath="..\neko\libs\include\ocaml\nxml.ml">
 			</File>
 		</Filter>
+		<Filter
+			Name="AS3"
+			Filter="">
+			<File
+				RelativePath="..\..\mtcvs\swflib\as3.mli">
+			</File>
+		</Filter>
 		<File
 			RelativePath=".\ast.ml">
 		</File>
@@ -59,6 +66,9 @@
 		</File>
 		<File
 			RelativePath=".\genswf.ml">
+		</File>
+		<File
+			RelativePath=".\genswf9.ml">
 		</File>
 		<File
 			RelativePath=".\genxml.ml">

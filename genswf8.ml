@@ -1318,8 +1318,7 @@ let convert_header ver (w,h,fps,bg) =
 let default_header ver =
 	convert_header ver (400,300,30.,0xFFFFFF)
 
-let generate file ver header infile types hres =
-	let file , codeclip = (try let f , c = ExtString.String.split file "@" in f, Some c with _ -> file , None) in
+let generate_code file ver types hres =
 	let ctx = {
 		opcodes = DynArray.create();
 		code_pos = 0;
@@ -1387,24 +1386,42 @@ let generate file ver header infile types hres =
 	let idents = AStringPool (List.map (fun ((id,_),_) -> to_utf8 id) idents) in
 	if ActionScript.action_length idents >= 1 lsl 16 then failwith "The SWF can't handle more than a total size of 64K of identifers and literal strings. Try reducing this number by using external data files loaded at runtime";
 	DynArray.set ctx.opcodes 0 idents;
+	if Plugin.defined "swf-mark" then begin
+		let ch = IO.output_channel (open_out_bin (Filename.chop_extension file ^ ".mark")) in
+		IO.write_i32 ch (List.length ctx.fun_pargs);
+		List.iter (fun (id,l) ->
+			IO.write_i32 ch id;
+			IO.write_i32 ch (List.length l);
+			List.iter (fun f -> IO.write_byte ch (if f then 1 else 0)) l;
+		) ctx.fun_pargs;
+		IO.write_i32 ch (List.length pidents);
+		List.iter (fun f -> IO.write_byte ch (if f then 1 else 0)) pidents;
+		IO.close_out ch;
+	end;
+	[TDoAction ctx.opcodes] , ctx.movieclips
+
+let generate file ver header infile types hres =
+	let file , codeclip = (try let f , c = ExtString.String.split file "@" in f, Some c with _ -> file , None) in
+	let tag_code , movieclips = (if ver = 9 then
+			Genswf9.generate types hres , []
+		else
+			generate_code file ver types hres
+	) in
 	let tag ?(ext=false) d = {
 		tid = 0;
 		textended = ext;
 		tdata = d;
 	} in
 	let base_id = ref 0x5000 in
-	let tagcode = (match codeclip with
-		| None -> [tag (TDoAction ctx.opcodes)]
+	let tag_code = (match codeclip with
+		| None -> List.map tag tag_code
 		| Some link -> 
 			incr base_id;
 			[
 				tag (TClip {
 					c_id = !base_id;
 					c_frame_count = 1;
-					c_tags = [
-						tag (TDoAction ctx.opcodes);
-						tag TShowFrame;
-					]
+					c_tags = List.map tag tag_code @ [tag TShowFrame];
 			    });
 				tag (TExport [{ exp_id = !base_id; exp_name = link }]);
 			]
@@ -1414,13 +1431,15 @@ let generate file ver header infile types hres =
 		tag ~ext:true (TClip { c_id = !base_id; c_frame_count = 1; c_tags = [] }) ::
 		tag ~ext:true (TExport [{ exp_id = !base_id; exp_name = s_type_path m }]) ::
 		acc
-	) [] ctx.movieclips in
+	) [] movieclips in
+	let movieclips = ref movieclips in
 	let swf = (match infile with
 		| None ->
 			let header , bg = (match header with None -> default_header ver | Some h -> convert_header ver h) in
 			let tagbg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
+			let tagstart = (if ver >= 8 then [tag (TFlash8 "\x08\x00\x00\x00");tagbg] else [tagbg]) in
 			let tagshow = tag TShowFrame in
-			(header,tagbg :: tagclips() @ tagcode @ [tagshow])
+			(header,tagstart @ tagclips() @ tag_code @ [tagshow])
 		| Some file ->
 			let file = (try Plugin.find_file file with Not_found -> failwith ("File not found : " ^ file)) in
 			let ch = IO.input_channel (open_in_bin file) in
@@ -1448,30 +1467,18 @@ let generate file ver header infile types hres =
 					| None -> t :: loop l
 					| Some bg -> bg :: loop l)
 				| ({ tdata = TShowFrame } as t) :: l ->
-					tagclips() @ tagcode @ t :: l
+					tagclips() @ tag_code @ t :: l
 				| t :: l ->
 					(match t.tdata with
 					| TExport l ->
 						List.iter (fun e ->
-							ctx.movieclips <- List.filter (fun x -> s_type_path x <> e.exp_name) ctx.movieclips
+							movieclips := List.filter (fun x -> s_type_path x <> e.exp_name) (!movieclips)
 						) l
 					| _ -> ());
 					t :: loop l
 			in
 			(header , loop swf)
 	) in
-	if Plugin.defined "swf-mark" then begin
-		let ch = IO.output_channel (open_out_bin (Filename.chop_extension file ^ ".mark")) in
-		IO.write_i32 ch (List.length ctx.fun_pargs);
-		List.iter (fun (id,l) ->
-			IO.write_i32 ch id;
-			IO.write_i32 ch (List.length l);
-			List.iter (fun f -> IO.write_byte ch (if f then 1 else 0)) l;
-		) ctx.fun_pargs;
-		IO.write_i32 ch (List.length pidents);
-		List.iter (fun f -> IO.write_byte ch (if f then 1 else 0)) pidents;
-		IO.close_out ch;
-	end;
 	let ch = IO.output_channel (open_out_bin file) in
 	Swf.write ch swf;
 	IO.close_out ch
