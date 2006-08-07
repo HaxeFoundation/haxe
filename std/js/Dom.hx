@@ -464,12 +464,12 @@ typedef Select = {> FormElement,
 
 typedef Style = {
 	// Position
-	var left : Int;
-	var bottom : Int;
-	var height : Int;
-	var width : Int;
-	var top : Int;
-	var right : Int;
+	var left : String;
+	var bottom : String;
+	var height : String;
+	var width : String;
+	var top : String;
+	var right : String;
 	var zIndex : Int;
 	var position : Dynamic;
 
