@@ -270,7 +270,5 @@ type as3_tag = {
 	mutable as3_statics : as3_static array;
 	mutable as3_inits : as3_static array;
 	mutable as3_functions : as3_function array;
-
-	mutable as3_unknown : string;
-	as3_original_data : string;
+	mutable as3_unknown : string;	
 }

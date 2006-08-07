@@ -536,7 +536,6 @@ let parse ch len =
 		as3_inits = [||];
 		as3_functions = [||];
 		as3_unknown = "";
-		as3_original_data = data;
 	} in
 	if parse_types then ctx.as3_types <- read_list ch (read_type ctx);
 	if parse_mtypes then ctx.as3_method_types <- read_list2 ch (read_method_type ctx);
@@ -796,17 +795,6 @@ let write ch1 ctx id =
 	if parse_functions then write_list2 ch write_function ctx.as3_functions;
 	IO.nwrite ch ctx.as3_unknown;
 	let str = IO.close_out ch in
-	if str <> ctx.as3_original_data then begin
-		let l1 = String.length str in
-		let l2 = String.length ctx.as3_original_data in
-		let l = if l1 < l2 then l1 else l2 in
-		let frame = (match id with None -> "<unknown>" | Some (_,f) -> f) in
-		for i = 0 to l - 1 do
-			if str.[i] <> ctx.as3_original_data.[i] then failwith (Printf.sprintf "Corrupted data in %s at 0x%X" frame i);
-		done;
-		if l1 < l2 then failwith (Printf.sprintf "Missing %d bytes in %s" (l2 - l1) frame);
-		failwith (Printf.sprintf "Too many %d bytes in %s" (l1 - l2) frame);
-	end;
 	IO.nwrite ch1 str
 
 (* ************************************************************************ *)
@@ -995,7 +983,7 @@ let dump ch ctx id =
 	Array.iteri (dump_class ctx ch) ctx.as3_classes;
 	Array.iteri (dump_static ctx ch) ctx.as3_inits;
 	Array.iteri (dump_function ctx ch) ctx.as3_functions;
-	IO.printf ch "(%d/%d bytes)\n\n" (String.length ctx.as3_unknown) (String.length ctx.as3_original_data)
+	IO.printf ch "\n"
 
 ;;
 As3code.f_int_length := int_length;
