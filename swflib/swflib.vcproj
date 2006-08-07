@@ -45,6 +45,15 @@
 			RelativePath=".\actionScript.ml">
 		</File>
 		<File
+			RelativePath=".\as3.mli">
+		</File>
+		<File
+			RelativePath=".\as3code.ml">
+		</File>
+		<File
+			RelativePath=".\as3parse.ml">
+		</File>
+		<File
 			RelativePath=".\png.ml">
 		</File>
 		<File
