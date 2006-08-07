@@ -366,8 +366,8 @@ let rec tag_data_length = function
 		String.length s
 	| TFont3 f ->
 		font3_length f
-	| TSwf9Name (_,n) ->
-		4 + String.length n + 1
+	| TSwf9Name l ->
+		2 + sum (fun (_,s) -> String.length s + 1 + 2) l
 	| TActionScript3 (id,a) ->
 		(match id with None -> 0 | Some (id,f) -> 4 + String.length f + 1) + As3parse.as3_length a
 	| TShape4 s ->
@@ -1243,13 +1243,17 @@ let rec parse_tag ch h =
 			TTextInfo (nread ch len)
 		| 0x4B when !full_parsing ->
 			TFont3 (parse_font3 ch len)
-		(*/*| 0x4C ->
-			let i = read_i32 ch in
-			let s = read_string ch in
-			let t = TSwf9Name (i,s) in
-			if tag_data_length t <> len then assert false;
-			t
-		*/*)
+		| 0x4C ->
+			let i = read_ui16 ch in
+			let rec loop i =
+				if i = 0 then
+					[]
+				else
+					let a = read_ui16 ch in					
+					let s = read_string ch in					
+					(a,s) :: loop (i - 1)
+			in			
+			TSwf9Name (loop i)
 		| 0x52 when !full_parsing ->
 			let id = read_i32 ch in
 			let frame = read_string ch in
@@ -1738,9 +1742,9 @@ let rec write_tag_data ch = function
 		nwrite ch s
 	| TFont3 f ->
 		write_font3 ch f
-	| TSwf9Name (id,s) ->
-		write_i32 ch id;
-		write_string ch s;
+	| TSwf9Name l ->
+		write_ui16 ch (List.length l);
+		List.iter (fun (n,s) -> write_ui16 ch n; write_string ch s) l		
 	| TActionScript3 (id,a) ->
 		As3parse.write ch a id
 	| TShape4 s ->

@@ -535,7 +535,7 @@ type tag_data =
 	| TFontGlyphs of font_glyphs
 	| TTextInfo of unknown
 	| TFont3 of font3
-	| TSwf9Name of (int * string)
+	| TSwf9Name of (int * string) list
 	| TActionScript3 of (int * string) option * As3.as3_tag
 	| TShape4 of shape
 	| TShape5 of int * string
