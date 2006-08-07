@@ -2195,6 +2195,7 @@ let load ctx m p =
 				| [] , name -> name
 				| x :: l , name ->
 					if List.mem x (!forbidden_packages) then error ("You can't access the " ^ x ^ " package with current compilation flags") p;
+					let x = (match x with "flash" when Plugin.defined "flash9" -> "flash9" | _ -> x) in
 					String.concat "/" (x :: l) ^ "/" ^ name
 			) ^ ".hx" in
 			let file = (try Plugin.find_file file with Not_found -> raise (Error (Module_not_found m,p))) in
