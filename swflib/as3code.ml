@@ -95,8 +95,8 @@ let length = function
 	| A3Object _
 	| A3RegReset _
 	| A3SuperConstr _
-	| A3BlockGet _
-	| A3BlockSet _
+	| A3GetSlot _
+	| A3SetSlot _
 	| A3Catch _
 	| A3IncrReg _
 	-> 2
@@ -267,8 +267,8 @@ let opcode ch =
 		| 0x66 -> A3Get (read_int ch)
 		| 0x68 -> A3Set (read_int ch)
 		| 0x6A -> A3Delete (read_int ch)
-		| 0x6C -> A3BlockGet (read_byte ch)
-		| 0x6D -> A3BlockSet (read_byte ch)
+		| 0x6C -> A3GetSlot (read_byte ch)
+		| 0x6D -> A3SetSlot (read_byte ch)
 		| 0x73 -> A3ToInt
 		| 0x74 -> A3ToUInt
 		| 0x75 -> A3ToNumber
@@ -492,10 +492,10 @@ let write ch = function
 	| A3Delete f ->
 		write_byte ch 0x6A;
 		write_int ch f
-	| A3BlockGet n ->
+	| A3GetSlot n ->
 		write_byte ch 0x6C;
 		write_byte ch n
-	| A3BlockSet n ->
+	| A3SetSlot n ->
 		write_byte ch 0x6D;
 		write_byte ch n
 	| A3ToInt ->
@@ -650,8 +650,8 @@ let dump ctx op =
 	| A3Get f -> s "get %s" (field f)
 	| A3Set f -> s "set %s" (field f)
 	| A3Delete f -> s "delete %s" (field f)
-	| A3BlockGet n -> s "bget %d" n
-	| A3BlockSet n -> s "bset %d" n
+	| A3GetSlot n -> s "getslot %d" n
+	| A3SetSlot n -> s "setslot %d" n
 	| A3ToInt -> "to_int"
 	| A3ToUInt -> "to_uint"
 	| A3ToNumber -> "to_number"

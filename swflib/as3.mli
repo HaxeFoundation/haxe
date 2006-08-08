@@ -128,8 +128,8 @@ type as3_opcode =
 	| A3Get of type_index
 	| A3Set of type_index
 	| A3Delete of type_index
-	| A3BlockGet of int
-	| A3BlockSet of int
+	| A3GetSlot of int
+	| A3SetSlot of int
 	| A3ToInt
 	| A3ToUInt
 	| A3ToNumber
