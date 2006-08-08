@@ -308,7 +308,7 @@ let read_type ctx ch =
 	match k with
 	| 0x09 ->
 		let id = index_opt ctx.as3_idents (read_int ch) in
-		let rights = index ctx.as3_base_rights (read_int ch) in
+		let rights = index ctx.as3_rights (read_int ch) in
 		A3TClassInterface (id,rights)
 	| 0x07 ->
 		let rights = index ctx.as3_base_rights (read_int ch) in
@@ -822,7 +822,7 @@ let rights_str ctx i =
 
 let type_str ctx kind t =
 	match iget ctx.as3_types t with
-	| A3TClassInterface (id,r) -> Printf.sprintf "[%s %s%s]" (base_right_str ctx r) kind (match id with None -> "NO" | Some i -> ident_str ctx i)
+	| A3TClassInterface (id,r) -> Printf.sprintf "[%s %s%s]" (rights_str ctx r) kind (match id with None -> "NO" | Some i -> ident_str ctx i)
 	| A3TMethodVar (id,r) -> Printf.sprintf "%s %s%s" (base_right_str ctx r) kind (ident_str ctx id)
 	| A3TUnknown1 (t,i) -> Printf.sprintf "unknown1:0x%X:%d" t i
 	| A3TUnknown2 (t,i1,i2) -> Printf.sprintf "unknown2:0x%X:%d:%d" t i1 i2

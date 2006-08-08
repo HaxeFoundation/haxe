@@ -152,7 +152,7 @@ let length = function
 	| A3XmlOp2
 	| A3Unk _ -> 1
 	| A3DebugReg _ -> 5
-	| A3GetScope n -> if n = 0 then 1 else 2
+	| A3GetScope (n,b) -> if n = 0 && b then 1 else 2
 	| A3Reg n | A3SetReg n -> if n >= 1 && n <= 3 then 1 else 2
 	| A3SuperCall (f,_) | A3Call (f,_) | A3New (f,_) | A3CallUnknown (f,_) | A3SuperCallUnknown(f,_) -> 2 + int_length f
 	| A3Jump _ -> 4
@@ -262,8 +262,8 @@ let opcode ch =
 		| 0x61 -> A3SetProp (read_int ch)
 		| 0x62 -> A3Reg (read_byte ch)
 		| 0x63 -> A3SetReg (read_byte ch)
-		| 0x64 -> A3GetScope 0
-		| 0x65 -> A3GetScope (read_byte ch)
+		| 0x64 -> A3GetScope (0,true)
+		| 0x65 -> A3GetScope (read_byte ch,false)
 		| 0x66 -> A3Get (read_int ch)
 		| 0x68 -> A3Set (read_int ch)
 		| 0x6A -> A3Delete (read_int ch)
@@ -478,9 +478,9 @@ let write ch = function
 		| _ ->
 			write_byte ch 0x63;
 			write_byte ch n)
-	| A3GetScope 0 ->
+	| A3GetScope (0,true) ->
 		write_byte ch 0x64
-	| A3GetScope n ->		
+	| A3GetScope (n,_) ->		
 		write_byte ch 0x65;
 		write_byte ch n
 	| A3Get f ->
@@ -646,7 +646,7 @@ let dump ctx op =
 	| A3SetProp f -> s "setp %s" (field f)
 	| A3Reg n -> s "reg %d" n
 	| A3SetReg n -> s "setreg %d" n
-	| A3GetScope n -> s "getscope %d" n
+	| A3GetScope (n,_) -> s "getscope %d" n
 	| A3Get f -> s "get %s" (field f)
 	| A3Set f -> s "set %s" (field f)
 	| A3Delete f -> s "delete %s" (field f)

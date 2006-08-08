@@ -124,7 +124,7 @@ type as3_opcode =
 	| A3SetProp of type_index
 	| A3Reg of reg
 	| A3SetReg of reg
-	| A3GetScope of int
+	| A3GetScope of int * bool
 	| A3Get of type_index
 	| A3Set of type_index
 	| A3Delete of type_index
@@ -159,7 +159,7 @@ type as3_base_right =
 type as3_rights = as3_base_right index list
 
 type as3_type =
-	| A3TClassInterface of as3_ident index option * as3_base_right index
+	| A3TClassInterface of as3_ident index option * as3_rights index
 	| A3TMethodVar of as3_ident index * as3_base_right index
 	| A3TUnknown1 of int * int
 	| A3TUnknown2 of int * int * int
