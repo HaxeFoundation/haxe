@@ -201,9 +201,9 @@ let as3_function_length f =
 	let clen = sum As3code.length f.fun3_code in
 	idx_length_nz f.fun3_id +
 	int_length f.fun3_stack_size +
-	int_length f.fun3_unk2 +
+	int_length f.fun3_nregs +
 	int_length f.fun3_unk3 +
-	int_length f.fun3_unk4 +
+	int_length f.fun3_max_scope +
 	int_length clen +
 	clen +
 	list2_length as3_try_catch_length f.fun3_trys +
@@ -492,9 +492,9 @@ let read_try_catch ctx ch =
 let read_function ctx ch =
 	let id = index_nz ctx.as3_method_types (read_int ch) in
 	let ss = read_int ch in
-	let u2 = read_int ch in
+	let nregs = read_int ch in
 	let u3 = read_int ch in
-	let u4 = read_int ch in
+	let max_scope = read_int ch in
 	let size = read_int ch in
 	let code = if parse_bytecode then As3code.parse ch size else Array.to_list (Array.init size (fun _ -> A3Unk (IO.read ch))) in
 	let trys = read_list2 ch (read_try_catch ctx) in
@@ -502,9 +502,9 @@ let read_function ctx ch =
 	{
 		fun3_id = id;
 		fun3_stack_size = ss;
-		fun3_unk2 = u2;
+		fun3_nregs = nregs;
 		fun3_unk3 = u3;
-		fun3_unk4 = u4;
+		fun3_max_scope = max_scope;
 		fun3_code = code;
 		fun3_trys = trys;
 		fun3_locals = local_funs;
@@ -767,9 +767,9 @@ let write_try_catch ch t =
 let write_function ch f =
 	write_index_nz ch f.fun3_id;
 	write_int ch f.fun3_stack_size;
-	write_int ch f.fun3_unk2;
+	write_int ch f.fun3_nregs;
 	write_int ch f.fun3_unk3;
-	write_int ch f.fun3_unk4;
+	write_int ch f.fun3_max_scope;
 	let clen = sum As3code.length f.fun3_code in
 	write_int ch clen;
 	List.iter (As3code.write ch) f.fun3_code;
@@ -934,7 +934,7 @@ let dump_try_catch ctx ch t =
 
 let dump_function ctx ch idx f =
 	IO.printf ch "function #%d %s\n" (index_nz_int f.fun3_id) (method_str ~slot:true ctx (no_nz f.fun3_id));
-	IO.printf ch "    stack:%d ?:%d ?:%d ?:%d\n" f.fun3_stack_size f.fun3_unk2 f.fun3_unk3 f.fun3_unk4;
+	IO.printf ch "    stack:%d nregs:%d ?:%d nscopes:%d\n" f.fun3_stack_size f.fun3_nregs f.fun3_unk3 f.fun3_max_scope;
 	Array.iter (dump_field ctx ch false) f.fun3_locals;
 	Array.iter (dump_try_catch ctx ch) f.fun3_trys;
 	List.iter (fun op ->

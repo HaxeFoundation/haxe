@@ -82,7 +82,7 @@ type as3_opcode =
 	| A3Nop
 	| A3Jump of as3_jump * int
 	| A3Switch of int * int list * int
-	| A3PopContext
+	| A3PopScope
 	| A3XmlOp3
 	| A3ForIn
 	| A3Null
@@ -99,7 +99,7 @@ type as3_opcode =
 	| A3String of int (* as3_ident index *)
 	| A3IntRef of int (* as3_int index *)
 	| A3Float of int (* as3_float index *)
-	| A3Context
+	| A3Scope
 	| A3Next of reg * reg
 	| A3Function of int (* as3_method_type index *)
 	| A3StackCall of nargs
@@ -124,8 +124,7 @@ type as3_opcode =
 	| A3SetProp of type_index
 	| A3Reg of reg
 	| A3SetReg of reg
-	| A3PrepStackCall
-	| A3LoadBlock of int
+	| A3GetScope of int
 	| A3Get of type_index
 	| A3Set of type_index
 	| A3Delete of type_index
@@ -248,9 +247,9 @@ type as3_try_catch = {
 type as3_function = {
 	fun3_id : as3_method_type index_nz;
 	fun3_stack_size : int;
-	fun3_unk2 : int;
+	fun3_nregs : int;
 	fun3_unk3 : int;
-	fun3_unk4 : int;
+	fun3_max_scope : int;
 	fun3_code : as3_opcode list;
 	fun3_trys : as3_try_catch array;
 	fun3_locals : as3_field array;

@@ -88,14 +88,13 @@ let ops , ops_ids =
 	];
 	h , h2
 
-let length = function
+let length = function	
 	| A3StackCall _
 	| A3StackNew _
 	| A3SmallInt _
 	| A3Object _
 	| A3RegReset _
 	| A3SuperConstr _
-	| A3LoadBlock _
 	| A3BlockGet _
 	| A3BlockSet _
 	| A3Catch _
@@ -144,16 +143,16 @@ let length = function
 	| A3Nop
 	| A3Typeof
 	| A3InstanceOf
-	| A3Context
+	| A3Scope
 	| A3ForIn
 	| A3NewBlock
 	| A3ForEach
-	| A3PopContext
+	| A3PopScope
 	| A3XmlOp3
 	| A3XmlOp2
-	| A3PrepStackCall
 	| A3Unk _ -> 1
 	| A3DebugReg _ -> 5
+	| A3GetScope n -> if n = 0 then 1 else 2
 	| A3Reg n | A3SetReg n -> if n >= 1 && n <= 3 then 1 else 2
 	| A3SuperCall (f,_) | A3Call (f,_) | A3New (f,_) | A3CallUnknown (f,_) | A3SuperCallUnknown(f,_) -> 2 + int_length f
 	| A3Jump _ -> 4
@@ -203,7 +202,7 @@ let opcode ch =
 			let cases = loop (read_int ch) in
 			let def2 = read_i24 ch in
 			A3Switch (def,cases,def2)
-		| 0x1D -> A3PopContext
+		| 0x1D -> A3PopScope
 		| 0x1C -> A3XmlOp3
 		| 0x1E -> A3ForIn
 		| 0x20 -> A3Null
@@ -220,7 +219,7 @@ let opcode ch =
 		| 0x2C -> A3String (read_int ch)
 		| 0x2D -> A3IntRef (read_int ch)
 		| 0x2F -> A3Float (read_int ch)
-		| 0x30 -> A3Context
+		| 0x30 -> A3Scope
 		| 0x32 -> 
 			let r1 = read_byte ch in
 			let r2 = read_byte ch in
@@ -263,8 +262,8 @@ let opcode ch =
 		| 0x61 -> A3SetProp (read_int ch)
 		| 0x62 -> A3Reg (read_byte ch)
 		| 0x63 -> A3SetReg (read_byte ch)
-		| 0x64 -> A3PrepStackCall
-		| 0x65 -> A3LoadBlock (read_byte ch)
+		| 0x64 -> A3GetScope 0
+		| 0x65 -> A3GetScope (read_byte ch)
 		| 0x66 -> A3Get (read_int ch)
 		| 0x68 -> A3Set (read_int ch)
 		| 0x6A -> A3Delete (read_int ch)
@@ -355,7 +354,7 @@ let write ch = function
 		write_i24 ch def2
 	| A3XmlOp3 ->
 		write_byte ch 0x1C
-	| A3PopContext ->
+	| A3PopScope ->
 		write_byte ch 0x1D
 	| A3ForIn ->
 		write_byte ch 0x1E
@@ -392,7 +391,7 @@ let write ch = function
 	| A3Float f ->
 		write_byte ch 0x2F;
 		write_int ch f
-	| A3Context ->
+	| A3Scope ->
 		write_byte ch 0x30
 	| A3Next (r1,r2) ->
 		write_byte ch 0x32;
@@ -463,12 +462,6 @@ let write ch = function
 	| A3SetProp f ->
 		write_byte ch 0x61;
 		write_int ch f
-	| A3LoadBlock n ->
-		write_byte ch 0x65;
-		write_byte ch n
-	| A3Delete f ->
-		write_byte ch 0x6A;
-		write_int ch f
 	| A3Reg n ->
 		(match n with
 		| 1 -> write_byte ch 0xD1;
@@ -485,13 +478,19 @@ let write ch = function
 		| _ ->
 			write_byte ch 0x63;
 			write_byte ch n)
-	| A3PrepStackCall ->
+	| A3GetScope 0 ->
 		write_byte ch 0x64
+	| A3GetScope n ->		
+		write_byte ch 0x65;
+		write_byte ch n
 	| A3Get f ->
 		write_byte ch 0x66;
 		write_int ch f
 	| A3Set f ->
 		write_byte ch 0x68;
+		write_int ch f
+	| A3Delete f ->
+		write_byte ch 0x6A;
 		write_int ch f
 	| A3BlockGet n ->
 		write_byte ch 0x6C;
@@ -606,7 +605,7 @@ let dump ctx op =
 	| A3Jump (k,n) -> s "jump%s %d" (dump_jump k) n
 	| A3Switch (def,cases,def2) -> s "switch %d [%s] %d" def (String.concat "," (List.map (s "%d") cases)) def2
 	| A3XmlOp3 -> "xml3"
-	| A3PopContext -> "popctx"
+	| A3PopScope -> "popscope"
 	| A3ForIn -> "forin"
 	| A3Null -> "null"
 	| A3Undefined -> "undefined"
@@ -622,7 +621,7 @@ let dump ctx op =
 	| A3String n -> s "string [%s]" (ident n)
 	| A3IntRef n -> s "int [%ld]" ctx.as3_ints.(n - 1)
 	| A3Float n -> s "float [%f]" ctx.as3_floats.(n - 1)
-	| A3Context -> "ctx"
+	| A3Scope -> "scope"
 	| A3Next (r1,r2) -> s "next %d %d" r1 r2
 	| A3Function f -> s "function #%d" f
 	| A3StackCall n -> s "stackcall (%d)" n
@@ -647,8 +646,7 @@ let dump ctx op =
 	| A3SetProp f -> s "setp %s" (field f)
 	| A3Reg n -> s "reg %d" n
 	| A3SetReg n -> s "setreg %d" n
-	| A3PrepStackCall -> "prepstackcall"
-	| A3LoadBlock n -> s "block %d" n
+	| A3GetScope n -> s "getscope %d" n
 	| A3Get f -> s "get %s" (field f)
 	| A3Set f -> s "set %s" (field f)
 	| A3Delete f -> s "delete %s" (field f)
