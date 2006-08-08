@@ -2,18 +2,18 @@
 # http://tech.motion-twin.com
 .SUFFIXES : .ml .mli .cmo .cmi .cmx .mll .mly
 
-CFLAGS= -I ..\neko\libs\include\ocaml
+CFLAGS= -I ../neko/libs/include/ocaml
 LIBS=extLib.cmxa extc.cmxa swfLib.cmxa
-LFLAGS= -o haxe.exe -I ..\neko\libs\include\ocaml
+LFLAGS= -o haxe.exe -I ../neko/libs/include/ocaml
 
 all: haxe.exe
 
-haxe.exe: ..\neko\libs\include\ocaml\nast.cmx ast.cmx plugin.cmx ..\neko\libs\include\ocaml\nxml.cmx lexer.cmx type.cmx genswf9.cmx parser.cmx transform.cmx typer.cmx genneko.cmx genjs.cmx genswf.cmx genxml.cmx main.cmx
-	ocamlopt $(LFLAGS) $(LIBS) ..\neko\libs\include\ocaml\nast.cmx ast.cmx plugin.cmx ..\neko\libs\include\ocaml\nxml.cmx lexer.cmx type.cmx genswf9.cmx parser.cmx transform.cmx typer.cmx genneko.cmx genjs.cmx genswf.cmx genxml.cmx main.cmx
+haxe.exe: ../neko/libs/include/ocaml/nast.cmx ast.cmx plugin.cmx ../neko/libs/include/ocaml/nxml.cmx lexer.cmx type.cmx genswf9.cmx parser.cmx transform.cmx typer.cmx genneko.cmx genjs.cmx genswf.cmx genxml.cmx main.cmx
+	ocamlopt $(LFLAGS) $(LIBS) ../neko/libs/include/ocaml/nast.cmx ast.cmx plugin.cmx ../neko/libs/include/ocaml/nxml.cmx lexer.cmx type.cmx genswf9.cmx parser.cmx transform.cmx typer.cmx genneko.cmx genjs.cmx genswf.cmx genxml.cmx main.cmx
 
-genneko.cmx: typer.cmx type.cmx plugin.cmx ..\neko\libs\include\ocaml\nxml.cmx ..\neko\libs\include\ocaml\nast.cmx lexer.cmx ast.cmx
+genneko.cmx: typer.cmx type.cmx plugin.cmx ../neko/libs/include/ocaml/nxml.cmx ../neko/libs/include/ocaml/nast.cmx lexer.cmx ast.cmx
 
-..\neko\libs\include\ocaml\nxml.cmx: ..\neko\libs\include\ocaml\nast.cmx
+../neko/libs/include/ocaml/nxml.cmx: ../neko/libs/include/ocaml/nast.cmx
 
 genjs.cmx: typer.cmx type.cmx transform.cmx ast.cmx
 
@@ -40,14 +40,14 @@ typer.cmx: type.cmx plugin.cmx parser.cmx lexer.cmx ast.cmx
 
 clean:
 	rm -f haxe.exe
-	rm -f typer.obj typer.cmx typer.cmi type.obj type.cmx type.cmi transform.obj transform.cmx transform.cmi plugin.obj plugin.cmx plugin.cmi parser.obj parser.cmx parser.cmi main.obj main.cmx main.cmi lexer.obj lexer.cmx lexer.cmi lexer.ml genxml.obj genxml.cmx genxml.cmi genswf9.obj genswf9.cmx genswf9.cmi genswf.obj genswf.cmx genswf.cmi genjs.obj genjs.cmx genjs.cmi ast.obj ast.cmx ast.cmi ..\neko\libs\include\ocaml\nxml.obj ..\neko\libs\include\ocaml\nxml.cmx ..\neko\libs\include\ocaml\nxml.cmi ..\neko\libs\include\ocaml\nast.obj ..\neko\libs\include\ocaml\nast.cmx ..\neko\libs\include\ocaml\nast.cmi genneko.obj genneko.cmx genneko.cmi
+	rm -f typer.obj typer.cmx typer.cmi type.obj type.cmx type.cmi transform.obj transform.cmx transform.cmi plugin.obj plugin.cmx plugin.cmi parser.obj parser.cmx parser.cmi main.obj main.cmx main.cmi lexer.obj lexer.cmx lexer.cmi lexer.ml genxml.obj genxml.cmx genxml.cmi genswf9.obj genswf9.cmx genswf9.cmi genswf.obj genswf.cmx genswf.cmi genjs.obj genjs.cmx genjs.cmi ast.obj ast.cmx ast.cmi ../neko/libs/include/ocaml/nxml.obj ../neko/libs/include/ocaml/nxml.cmx ../neko/libs/include/ocaml/nxml.cmi ../neko/libs/include/ocaml/nast.obj ../neko/libs/include/ocaml/nast.cmx ../neko/libs/include/ocaml/nast.cmi genneko.obj genneko.cmx genneko.cmi
 
 # SUFFIXES
 .ml.cmo:
 	ocamlc $(CFLAGS) -c $<
 
 .ml.cmx:
-	ocamlopt $(CFLAGS) -c $<
+	ocamlopt $(CFLAGS) -c $< 2>&1 | sed 's/File "\([^"]\+\)", line \([0-9]\+\), \(.*\)/\1(\2): \3/'
 
 .mli.cmi:
 	ocamlc $(CFLAGS) $<
