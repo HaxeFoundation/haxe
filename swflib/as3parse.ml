@@ -200,7 +200,7 @@ let as3_try_catch_length t =
 let as3_function_length f =
 	let clen = sum As3code.length f.fun3_code in
 	idx_length_nz f.fun3_id +
-	int_length f.fun3_unk1 +
+	int_length f.fun3_stack_size +
 	int_length f.fun3_unk2 +
 	int_length f.fun3_unk3 +
 	int_length f.fun3_unk4 +
@@ -491,7 +491,7 @@ let read_try_catch ctx ch =
 
 let read_function ctx ch =
 	let id = index_nz ctx.as3_method_types (read_int ch) in
-	let u1 = read_int ch in
+	let ss = read_int ch in
 	let u2 = read_int ch in
 	let u3 = read_int ch in
 	let u4 = read_int ch in
@@ -501,7 +501,7 @@ let read_function ctx ch =
 	let local_funs = read_list2 ch (read_field ctx) in
 	{
 		fun3_id = id;
-		fun3_unk1 = u1;
+		fun3_stack_size = ss;
 		fun3_unk2 = u2;
 		fun3_unk3 = u3;
 		fun3_unk4 = u4;
@@ -766,7 +766,7 @@ let write_try_catch ch t =
 
 let write_function ch f =
 	write_index_nz ch f.fun3_id;
-	write_int ch f.fun3_unk1;
+	write_int ch f.fun3_stack_size;
 	write_int ch f.fun3_unk2;
 	write_int ch f.fun3_unk3;
 	write_int ch f.fun3_unk4;
@@ -921,8 +921,8 @@ let dump_class ctx ch idx c =
 	Array.iter (dump_field ctx ch true) st.st3_fields;
 	IO.printf ch "} constructor#%d statics#%d\n\n" (index_nz_int c.cl3_construct) (index_nz_int st.st3_method)
 
-let dump_static ctx ch idx s =
-	IO.printf ch "statics#%d {\n" (index_nz_int s.st3_method);
+let dump_init ctx ch idx s =
+	IO.printf ch "init #%d {\n" (index_nz_int s.st3_method);
 	Array.iter (dump_field ctx ch false) s.st3_fields;
 	IO.printf ch "}\n\n"
 
@@ -934,7 +934,7 @@ let dump_try_catch ctx ch t =
 
 let dump_function ctx ch idx f =
 	IO.printf ch "function #%d %s\n" (index_nz_int f.fun3_id) (method_str ~slot:true ctx (no_nz f.fun3_id));
-	IO.printf ch "    %d %d %d %d\n" f.fun3_unk1 f.fun3_unk2 f.fun3_unk3 f.fun3_unk4;
+	IO.printf ch "    stack:%d ?:%d ?:%d ?:%d\n" f.fun3_stack_size f.fun3_unk2 f.fun3_unk3 f.fun3_unk4;
 	Array.iter (dump_field ctx ch false) f.fun3_locals;
 	Array.iter (dump_try_catch ctx ch) f.fun3_trys;
 	List.iter (fun op ->
@@ -975,13 +975,14 @@ let dump ch ctx id =
 	Array.iteri (dump_ident ctx ch) ctx.as3_idents;
 	IO.printf ch "\n";
 	Array.iteri (dump_base_right ctx ch) ctx.as3_base_rights;
+	IO.printf ch "\n";
 	Array.iteri (dump_rights ctx ch) ctx.as3_rights;
 	IO.printf ch "\n";
 	Array.iteri (dump_type ctx ch) ctx.as3_types;
 	IO.printf ch "\n";
 (*	Array.iteri (dump_metadata ctx ch) ctx.as3_metadatas; *)
 	Array.iteri (dump_class ctx ch) ctx.as3_classes;
-	Array.iteri (dump_static ctx ch) ctx.as3_inits;
+	Array.iteri (dump_init ctx ch) ctx.as3_inits;
 	Array.iteri (dump_function ctx ch) ctx.as3_functions;
 	IO.printf ch "\n"
 

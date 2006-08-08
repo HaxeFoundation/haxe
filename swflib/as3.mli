@@ -247,7 +247,7 @@ type as3_try_catch = {
 
 type as3_function = {
 	fun3_id : as3_method_type index_nz;
-	fun3_unk1 : int;
+	fun3_stack_size : int;
 	fun3_unk2 : int;
 	fun3_unk3 : int;
 	fun3_unk4 : int;
