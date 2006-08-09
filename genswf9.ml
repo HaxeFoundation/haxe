@@ -29,6 +29,11 @@ type ('a,'b) gen_lookup = {
 type 'a lookup = ('a,'a index) gen_lookup
 type 'a lookup_nz = ('a,'a index_nz) gen_lookup
 
+type access =
+	| VReg of reg
+	| VId of type_index
+	| VArray
+
 type code_infos = {
 	mutable iregs : int;
 	mutable imaxregs : int;
@@ -213,8 +218,8 @@ let type_path ctx ?(getclass=false) (pack,name) =
 
 let ident ctx i = type_path ctx ([],i)
 
-let default_infos n =
-	{ ipos = 0; istack = 0; imax = 0; iregs = n; imaxregs = n; iscopes = 0; imaxscopes = 0 }
+let default_infos() =
+	{ ipos = 0; istack = 0; imax = 0; iregs = 0; imaxregs = 0; iscopes = 0; imaxscopes = 0 }
 
 let alloc_reg ctx =
 	let r = ctx.infos.iregs + 1 in
@@ -222,10 +227,9 @@ let alloc_reg ctx =
 	if ctx.infos.imaxregs < r then ctx.infos.imaxregs <- r;
 	r
 
-let alloc_reg_tmp ctx =
-	let r = ctx.infos.iregs + 1 in
-	if ctx.infos.imaxregs < r then ctx.infos.imaxregs <- r;
-	r
+let free_reg ctx r =
+	if ctx.infos.iregs <> r then assert false;
+	ctx.infos.iregs <- r - 1
 
 let open_block ctx =
 	let old_stack = ctx.infos.istack in
@@ -249,9 +253,9 @@ let begin_fun ctx args =
 	let old_locals = ctx.locals in
 	let old_code = ctx.code in
 	let old_infos = ctx.infos in
-	ctx.infos <- default_infos (List.length args);
+	ctx.infos <- default_infos();
 	ctx.code <- DynArray.create();
-	ctx.locals <- List.fold_left (fun acc name -> PMap.add name (alloc_reg ctx) acc) PMap.empty args;	
+	ctx.locals <- List.fold_left (fun acc name -> PMap.add name (alloc_reg ctx) acc) PMap.empty args;
 	(fun () ->
 		let f = {
 			fun3_id = add mt ctx.mtypes;
@@ -291,6 +295,45 @@ let gen_constant ctx c =
 	| TSuper ->
 		assert false
 
+let setvar ctx acc retval =
+	match acc with
+	| VReg r ->
+		if retval then write ctx A3Dup;
+		write ctx (A3SetReg r);
+	| VId id ->
+		if retval then begin				
+			let r = alloc_reg ctx in
+			write ctx A3Dup;
+			write ctx (A3SetReg r);
+			write ctx (A3Set id);
+			write ctx (A3Reg r);
+			free_reg ctx r
+		end else
+			write ctx (A3Set id)
+	| VArray ->
+		let id_aset = lookup (A3TArrayAccess ctx.gpublic) ctx.types in
+		if retval then begin
+			let r = alloc_reg ctx in
+			write ctx A3Dup;
+			write ctx (A3SetReg r);
+			write ctx (A3Set id_aset);
+			write ctx (A3Reg r);
+			free_reg ctx r
+		end else
+			write ctx (A3Set id_aset);
+		ctx.infos.istack <- ctx.infos.istack - 1
+
+let getvar ctx acc =
+	match acc with
+	| VReg r ->		
+		write ctx (A3Reg r);
+	| VId id ->
+		write ctx (A3Get id)
+	| VArray ->
+		let id_aget = lookup (A3TArrayAccess ctx.gpublic) ctx.types in
+		write ctx (A3Get id_aget);
+		ctx.infos.istack <- ctx.infos.istack - 1
+
 let no_value ctx retval =
 	(* does not push a null but still increment the stack like if
 	   a real value was pushed *)
@@ -304,19 +347,11 @@ let rec gen_expr_content ctx retval e =
 		gen_expr ctx true e;
 		write ctx A3Throw;
 		no_value ctx retval;
-	| TField (e,f) ->
-		gen_expr ctx true e;
-		write ctx (A3Get (ident ctx f))
 	| TTypeExpr t ->
 		write ctx (A3GetScope (0,true));
 		write ctx (A3Get (type_path ctx (t_path t)));
 	| TParenthesis e ->
 		gen_expr ctx retval e
-	| TLocal s ->
-		(try 
-			acc_ident ctx s
-		with
-			Not_found -> error e.epos)
 	| TEnumField (e,s) ->
 		write ctx (A3GetScope (0,true));
 		write ctx (A3Get (type_path ctx e.e_path));
@@ -358,11 +393,10 @@ let rec gen_expr_content ctx retval e =
 		gen_expr ctx true e;
 		write ctx A3Ret;
 		no_value ctx retval
-	| TArray (e,eindex) ->
-		gen_expr ctx true e;
-		gen_expr ctx true eindex;
-		write ctx (A3Get (lookup (A3TArrayAccess ctx.gpublic) ctx.types));
-		ctx.infos.istack <- ctx.infos.istack - 1;
+	| TField _
+	| TLocal _
+	| TArray _ ->
+		getvar ctx (gen_access ctx e)
 	| TBinop (op,e1,e2) ->
 		gen_binop ctx retval op e1 e2
 	| TCall (e,el) ->
@@ -399,9 +433,10 @@ let rec gen_expr_content ctx retval e =
 		gen_expr ctx true econd;
 		loop J3True;
 		if retval then write ctx A3Null
+	| TUnop (op,flag,e) ->
+		gen_unop ctx retval op flag e
 
 (*
-	| TUnop of Ast.unop * Ast.unop_flag * texpr	
 	| TFor of string * texpr * texpr
 	| TSwitch of texpr * (texpr * texpr) list * texpr option
 	| TMatch of texpr * (tenum * t list) * (string * (string option * t) list option * texpr) list * texpr option
@@ -414,6 +449,10 @@ let rec gen_expr_content ctx retval e =
 
 and gen_call ctx e el =
 	match e.eexpr with
+	| TConst TSuper ->
+		write ctx A3This;
+		List.iter (gen_expr ctx true) el;
+		write ctx (A3SuperConstr (List.length el));
 	| TField ({ eexpr = TConst TThis },f) ->
 		let id = ident ctx f in
 		write ctx (A3GetInf id);
@@ -428,7 +467,53 @@ and gen_call ctx e el =
 		write ctx (A3GetScope (0,true));
 		List.iter (gen_expr ctx true) el;
 		write ctx (A3StackCall (List.length el))
-		
+
+and gen_access ctx e =
+	match e.eexpr with
+	| TLocal i ->
+		VReg (try PMap.find i ctx.locals with Not_found -> error e.epos)
+	| TField (e,f) ->
+		let id = ident ctx f in
+		(match e.eexpr with 
+		| TConst TThis -> write ctx (A3GetInf id)
+		| _ -> gen_expr ctx true e);
+		VId id
+	| TArray (e,eindex) ->
+		gen_expr ctx true e;
+		gen_expr ctx true eindex;
+		VArray
+	| _ ->
+		error e.epos
+
+and gen_unop ctx retval op flag e =
+	match op with
+	| Not ->
+		gen_expr ctx true e;
+		write ctx (A3Op A3ONot);
+	| Neg ->
+		gen_expr ctx true e;
+		write ctx (A3Op A3ONeg);
+	| NegBits ->
+		gen_expr ctx true e;
+		write ctx (A3Op A3OBitNot);
+	| Increment
+	| Decrement ->
+		let incr = (op = Increment) in
+		let acc = gen_access ctx e in (* for set *)
+		getvar ctx (gen_access ctx e);
+		match flag with
+		| Postfix when retval ->
+			let r = alloc_reg ctx in
+			write ctx A3Dup;
+			write ctx (A3SetReg r);
+			write ctx (A3Op (if incr then A3OIncr else A3ODecr));
+			setvar ctx acc false;
+			write ctx (A3Reg r);
+			free_reg ctx r
+		| Postfix | Prefix ->
+			write ctx (A3Op (if incr then A3OIncr else A3ODecr));
+			setvar ctx acc retval
+
 and gen_binop ctx retval op e1 e2 =
 	let gen_op o =
 		gen_expr ctx true e1;
@@ -437,42 +522,9 @@ and gen_binop ctx retval op e1 e2 =
 	in
 	match op with
 	| OpAssign ->
-		(match e1.eexpr with
-		| TLocal i ->
-			let r = (try PMap.find i ctx.locals with Not_found -> error e1.epos) in
-			gen_expr ctx true e2;
-			write ctx (A3SetReg r);
-			if retval then write ctx (A3Reg r)
-		| TField (e,f) ->
-			let id = ident ctx f in
-			(match e.eexpr with 
-			| TConst TThis -> write ctx (A3SetInf id)
-			| _ -> gen_expr ctx true e);
-			gen_expr ctx true e2;
-			if retval then begin				
-				let r = alloc_reg_tmp ctx in
-				write ctx A3Dup;
-				write ctx (A3SetReg r);
-				write ctx (A3Set id);
-				write ctx (A3Reg r);				
-			end else
-				write ctx (A3Set id)
-		| TArray (e,eindex) ->
-			gen_expr ctx true e;
-			gen_expr ctx true eindex;
-			gen_expr ctx true e2;
-			let id_aset = lookup (A3TArrayAccess ctx.gpublic) ctx.types in
-			if retval then begin
-				let r = alloc_reg_tmp ctx in
-				write ctx A3Dup;
-				write ctx (A3SetReg r);
-				write ctx (A3Set id_aset);
-				write ctx (A3Reg r);				
-			end else
-				write ctx (A3Set id_aset);
-			ctx.infos.istack <- ctx.infos.istack - 1;
-		| _ ->
-			error e1.epos)
+		let acc = gen_access ctx e1 in
+		gen_expr ctx true e2;
+		setvar ctx acc retval
 	| OpBoolAnd ->
 		gen_expr ctx true e1;
 		write ctx A3Dup;
@@ -487,8 +539,10 @@ and gen_binop ctx retval op e1 e2 =
 		write ctx A3Pop;
 		gen_expr ctx true e2;
 		j();
-	| OpAssignOp _ ->
-		assert false
+	| OpAssignOp op ->
+		let acc = gen_access ctx e1 in
+		gen_binop ctx true op e1 e2;
+		setvar ctx acc retval
 	| OpAdd ->
 		gen_op A3OAdd
 	| OpMult ->
@@ -721,7 +775,7 @@ let generate types hres =
 
 		code = DynArray.create();
 		locals = PMap.empty;
-		infos = default_infos 0;
+		infos = default_infos();
 	} in	
 	List.iter (generate_type ctx) types;
 	Hashtbl.iter (fun _ _ -> assert false) hres;
