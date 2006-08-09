@@ -44,7 +44,7 @@ type as3_jump =
 	| J3PhysEq
 	| J3PhysNeq
 
-type as3_op_binop =
+type as3_op =
 	| A3OAs
 	| A3ONeg
 	| A3OIncr
@@ -146,7 +146,7 @@ and as3_opcode =
 	| A3DebugReg of int * int * int * int
 	| A3DebugLine of int
 	| A3DebugFile of as3_ident index
-	| A3Op of as3_op_binop
+	| A3Op of as3_op
 	| A3Unk of char
 
 and as3_base_right =
