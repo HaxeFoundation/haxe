@@ -9,7 +9,7 @@ LFLAGS= -o haxe.exe -I ../neko/libs/include/ocaml
 all: haxe.exe
 
 haxe.exe: ../neko/libs/include/ocaml/nast.cmx ast.cmx plugin.cmx ../neko/libs/include/ocaml/nxml.cmx lexer.cmx type.cmx genswf9.cmx parser.cmx transform.cmx typer.cmx genneko.cmx genjs.cmx genswf.cmx genxml.cmx main.cmx
-	ocamlopt $(LFLAGS) $(LIBS) ../neko/libs/include/ocaml/nast.cmx ast.cmx plugin.cmx ../neko/libs/include/ocaml/nxml.cmx lexer.cmx type.cmx genswf9.cmx parser.cmx transform.cmx typer.cmx genneko.cmx genjs.cmx genswf.cmx genxml.cmx main.cmx
+	ocamlopt $(LFLAGS) $(LIBS) ../neko/libs/include/ocaml/nast.cmx ast.cmx plugin.cmx ../neko/libs/include/ocaml/nxml.cmx lexer.cmx type.cmx parser.cmx transform.cmx typer.cmx genneko.cmx genjs.cmx genswf9.cmx genswf.cmx genxml.cmx main.cmx
 
 genneko.cmx: typer.cmx type.cmx plugin.cmx ../neko/libs/include/ocaml/nxml.cmx ../neko/libs/include/ocaml/nast.cmx lexer.cmx ast.cmx
 
@@ -19,7 +19,7 @@ genjs.cmx: typer.cmx type.cmx transform.cmx ast.cmx
 
 genswf.cmx: typer.cmx type.cmx transform.cmx plugin.cmx genswf9.cmx ast.cmx
 
-genswf9.cmx: type.cmx ast.cmx
+genswf9.cmx: type.cmx ast.cmx typer.cmx
 
 genxml.cmx: typer.cmx type.cmx lexer.cmx ast.cmx
 
