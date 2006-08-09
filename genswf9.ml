@@ -51,6 +51,7 @@ type context = {
 	mutable statics : as3_static list;
 	functions : as3_function lookup;
 	rpublic : as3_base_right index;
+	gpublic : as3_rights index;
 
 	(* per-function *)
 	mutable locals : (string,int) PMap.t;
@@ -58,17 +59,8 @@ type context = {
 	mutable infos : code_infos;	
 }
 
-let public = A3RPublic None
-let mt0 = {
-	mt3_ret = None;
-	mt3_args = [];
-	mt3_native = false;
-	mt3_var_args = false;
-	mt3_debug_name = None;
-	mt3_dparams = None;
-	mt3_pnames = None;
-	mt3_unk_flags = (false,false,false,false);
-}
+let error p = Typer.error "Invalid expression" p
+let stack_error p = Typer.error "Stack error" p
 
 let stack_delta = function
 	| A3Throw -> -1
@@ -107,8 +99,8 @@ let stack_delta = function
 	| A3New (_,n) -> -n
 	| A3SuperCallUnknown (_,n) -> -(n + 1)
 	| A3CallUnknown (_,n) -> -(n + 1)
-	| A3Object n -> -(n * 2)
-	| A3Array n -> -n
+	| A3Object n -> -(n * 2) + 1
+	| A3Array n -> -n + 1
 	| A3NewBlock -> 1
 	| A3ClassDef _ -> 0
 	| A3XmlOp1 _ -> assert false
@@ -120,7 +112,7 @@ let stack_delta = function
 	| A3Reg _ -> 1
 	| A3SetReg _ -> -1
 	| A3GetScope _ -> 1	
-	| A3Get _ -> 1
+	| A3Get _ -> 0
 	| A3Set _ -> -2
 	| A3Delete _ -> -1
 	| A3GetSlot _ -> 0
@@ -189,14 +181,11 @@ let write ctx op =
 		()
 
 let debug ctx ?file line =
-	(match file with None -> () | Some f -> write ctx (A3DebugFile (tid (string ctx f))));
+	(match file with None -> () | Some f -> write ctx (A3DebugFile (string ctx f)));
 	write ctx (A3DebugLine line)
 
 let acc_ident ctx i =
-	try
-		write ctx (A3Reg (PMap.find i ctx.locals))
-	with
-		Not_found -> assert false
+	write ctx (A3Reg (PMap.find i ctx.locals))
 
 let type_path ctx ?(getclass=false) (pack,name) =
 	let pid = string ctx (String.concat "." pack) in
@@ -206,7 +195,6 @@ let type_path ctx ?(getclass=false) (pack,name) =
 	tid
 
 let ident ctx i = type_path ctx ([],i)
-let tident ctx i = tid (ident ctx i)
 
 let default_infos n =
 	{ ipos = 0; istack = 0; imax = 0; iregs = n; imaxregs = n; iscopes = 0; imaxscopes = 0 }
@@ -241,8 +229,7 @@ let begin_fun ctx args =
 	let old_infos = ctx.infos in
 	ctx.infos <- default_infos (List.length args);
 	ctx.code <- DynArray.create();
-	ctx.locals <- List.fold_left (fun acc name -> PMap.add name (alloc_reg ctx) acc) PMap.empty args;
-	write ctx (A3DebugFile (tid (string ctx "test")));
+	ctx.locals <- List.fold_left (fun acc name -> PMap.add name (alloc_reg ctx) acc) PMap.empty args;	
 	(fun () ->
 		let f = {
 			fun3_id = add mt ctx.mtypes;
@@ -267,12 +254,12 @@ let gen_constant ctx c =
 		if Int32.compare i (-128l) > 0 && Int32.compare i 128l < 0 then
 			write ctx (A3SmallInt (Int32.to_int i))
 		else
-			write ctx (A3IntRef (tid (lookup i ctx.ints)))
+			write ctx (A3IntRef (lookup i ctx.ints))
 	| TFloat f ->
 		let f = float_of_string f in
-		write ctx (A3Float (tid (lookup f ctx.floats)))
+		write ctx (A3Float (lookup f ctx.floats))
 	| TString s ->
-		write ctx (A3String (tid (lookup s ctx.strings)))
+		write ctx (A3String (lookup s ctx.strings))
 	| TBool b ->
 		write ctx (if b then A3True else A3False)
 	| TNull ->
@@ -282,21 +269,104 @@ let gen_constant ctx c =
 	| TSuper ->
 		assert false
 
-let rec gen_expr ctx e =
+let no_value ctx retval =
+	(* does not push a null but still increment the stack like if
+	   a real value was pushed *)
+	if retval then ctx.infos.istack <- ctx.infos.istack + 1
+
+let rec gen_expr_content ctx retval e =
 	match e.eexpr with
 	| TConst c ->
 		gen_constant ctx c
 	| TThrow e ->
-		gen_expr ctx e;
-		write ctx A3Throw
+		gen_expr ctx true e;
+		write ctx A3Throw;
+		no_value ctx retval;
 	| TField (e,f) ->
-		gen_expr ctx e;
-		write ctx (A3Get (tid (type_path ctx ([],f))))
+		gen_expr ctx true e;
+		write ctx (A3Get (ident ctx f))
 	| TTypeExpr t ->
 		write ctx (A3GetScope (0,true));
-		write ctx (A3Get (tid (type_path ctx (t_path t))));
+		write ctx (A3Get (type_path ctx (t_path t)));
+	| TParenthesis e ->
+		gen_expr ctx retval e
+	| TLocal s ->
+		(try 
+			acc_ident ctx s
+		with
+			Not_found -> assert false)
+	| TEnumField (e,s) ->
+		write ctx (A3GetScope (0,true));
+		write ctx (A3Get (type_path ctx e.e_path));
+		write ctx (A3Get (ident ctx s));
+	| TObjectDecl fl ->
+		List.iter (fun (name,e) ->
+			write ctx (A3String (lookup name ctx.strings));
+			gen_expr ctx true e
+		) fl;
+		write ctx (A3Object (List.length fl))
+	| TArrayDecl el ->
+		List.iter (gen_expr ctx true) el;
+		write ctx (A3Array (List.length el))	
+	| TBlock el ->		
+		let rec loop = function
+			| [] -> if retval then write ctx A3Null
+			| [e] -> gen_expr ctx retval e
+			| e :: l ->
+				gen_expr ctx false e;
+				loop l
+		in
+		let b = open_block ctx in
+		loop el;
+		b();
+	| TVars vl ->
+		List.iter (fun (v,_,e) ->
+			let r = alloc_reg ctx in
+			ctx.locals <- PMap.add v r ctx.locals;
+			match e with
+			| None -> ()
+			| Some e ->
+				gen_expr ctx true e;
+				write ctx (A3SetReg r)
+		) vl
+	| TReturn None ->
+		write ctx A3RetVoid;
+		no_value ctx retval
+	| TReturn (Some e) ->
+		gen_expr ctx true e;
+		write ctx A3Ret;
+		no_value ctx retval
+	| TArray (e,eindex) ->
+		gen_expr ctx true e;
+		gen_expr ctx true eindex;
+		write ctx (A3Get (lookup (A3TArrayAccess ctx.gpublic) ctx.types));
+		ctx.infos.istack <- ctx.infos.istack - 1;
+
+(*
+	| TBinop of Ast.binop * texpr * texpr
+	| TCall of texpr * texpr list
+	| TNew of tclass * t list * texpr list
+	| TUnop of Ast.unop * Ast.unop_flag * texpr
+	| TFunction of tfunc
+	| TFor of string * texpr * texpr
+	| TIf of texpr * texpr * texpr option
+	| TWhile of texpr * texpr * Ast.while_flag
+	| TSwitch of texpr * (texpr * texpr) list * texpr option
+	| TMatch of texpr * (tenum * t list) * (string * (string option * t) list option * texpr) list * texpr option
+	| TTry of texpr * (string * t * texpr) list
+	| TBreak
+	| TContinue
+*)
 	| _ ->
 		assert false
+
+and gen_expr ctx retval e =
+	let old = ctx.infos.istack in
+	gen_expr_content ctx retval e;
+	if old <> ctx.infos.istack then begin
+		if old + 1 <> ctx.infos.istack then stack_error e.epos;
+		if not retval then write ctx A3Pop;
+	end else if retval then stack_error e.epos
 
 let generate_construct ctx args =
 	let f = begin_fun ctx args in
@@ -305,7 +375,7 @@ let generate_construct ctx args =
 	write ctx A3This;
 	write ctx A3Scope;
 	write ctx A3This;
-	List.iter (acc_ident ctx) args;
+	(try List.iter (acc_ident ctx) args with Not_found -> assert false);
 	write ctx (A3SuperConstr (List.length args));
 	write ctx A3RetVoid;
 	f()
@@ -313,15 +383,15 @@ let generate_construct ctx args =
 let generate_class_init ctx c slot =
 	write ctx (A3GetScope (0,true));
 	let path = (match c.cl_super with None -> ([],"Object") | Some (sup,_) -> sup.cl_path) in
-	write ctx (A3GetProp (tid (type_path ctx path)));
+	write ctx (A3GetProp (type_path ctx path));
 	write ctx A3Scope;
-	write ctx (A3GetProp (tid (type_path ~getclass:true ctx path)));
+	write ctx (A3GetProp (type_path ~getclass:true ctx path));
 	write ctx (A3ClassDef slot);
 	write ctx A3PopScope;
 	let r = alloc_reg ctx in
 	write ctx A3Dup;
 	write ctx (A3SetReg r);	
-	write ctx (A3Set (tid (type_path ctx c.cl_path)));
+	write ctx (A3Set (type_path ctx c.cl_path));
 	let nslot = ref 0 in
 	List.iter (fun f ->
 		incr nslot;
@@ -329,7 +399,7 @@ let generate_class_init ctx c slot =
 		| Some { eexpr = TFunction _ } | None -> ()
 		| Some e ->
 			write ctx (A3Reg r);
-			gen_expr ctx e;
+			gen_expr ctx true e;
 			write ctx (A3SetSlot !nslot);
 	) c.cl_ordered_statics
 
@@ -421,6 +491,7 @@ let generate_inits ctx types =
 let generate types hres =
 	let brights = new_lookup() in
 	let strings = new_lookup() in
+	let rights = new_lookup() in
 	let empty_id = lookup "" strings in
 	let rpublic = lookup (A3RPublic (Some empty_id)) brights in
 	let ctx = {
@@ -428,10 +499,11 @@ let generate types hres =
 		ints = new_lookup();
 		floats = new_lookup();
 		brights = brights;
-		rights = new_lookup();
+		rights = rights;
 		types = new_lookup();
 		mtypes = new_lookup_nz();
 		rpublic = rpublic;
+		gpublic = lookup [rpublic] rights;
 		classes = [];
 		statics = [];
 		functions = new_lookup();
@@ -439,8 +511,7 @@ let generate types hres =
 		code = DynArray.create();
 		locals = PMap.empty;
 		infos = default_infos 0;
-	} in
-	ignore(lookup [ctx.rpublic] ctx.rights);
+	} in	
 	List.iter (generate_type ctx) types;
 	Hashtbl.iter (fun _ _ -> assert false) hres;
 	let init = generate_inits ctx types in
