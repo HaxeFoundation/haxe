@@ -16,8 +16,9 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *)
-open As3
+open Ast
 open Type
+open As3
 
 type ('a,'b) gen_lookup = {
 	h : ('a,'b) Hashtbl.t;
@@ -68,7 +69,7 @@ let stack_delta = function
 	| A3SetSuper _ -> -1
 	| A3RegReset _ -> 0
 	| A3Nop -> 0
-	| A3Jump _ -> 0
+	| A3Jump (cond,_) -> if cond = J3Always then 0 else -1
 	| A3Switch _ -> -1
 	| A3PopScope -> 0
 	| A3XmlOp3 -> assert false
@@ -89,10 +90,10 @@ let stack_delta = function
 	| A3CatchDone -> assert false
 	| A3Scope -> -1
 	| A3Next _ -> 0
-	| A3StackCall n -> -(n + 2)
-	| A3StackNew n -> -(n + 2)
-	| A3SuperCall (_,n) -> -(n + 1)
-	| A3Call (_,n) -> -(n + 1)
+	| A3StackCall n -> -(n + 1)
+	| A3StackNew n -> -(n + 1)
+	| A3SuperCall (_,n) -> -n
+	| A3Call (_,n) -> -n
 	| A3RetVoid -> 0
 	| A3Ret -> -1
 	| A3SuperConstr n -> -(n + 1)
@@ -134,7 +135,7 @@ let stack_delta = function
 	| A3DebugFile _ -> 0
 	| A3Op op ->
 		(match op with
-		| A3Neg | A3Incr | A3Decr | A3Not | A3BitNot | A3IIncr | A3IDecr -> 0
+		| A3ONeg | A3OIncr | A3ODecr | A3ONot | A3OBitNot | A3OIIncr | A3OIDecr -> 0
 		| _ -> -1)
 	| A3Unk _ -> assert false
 
@@ -187,6 +188,22 @@ let debug ctx ?file line =
 let acc_ident ctx i =
 	write ctx (A3Reg (PMap.find i ctx.locals))
 
+let jump ctx cond =
+	let op = DynArray.length ctx.code in
+	write ctx (A3Jump (cond,-4));
+	let p = ctx.infos.ipos in
+	(fun () ->
+		let delta = ctx.infos.ipos - p in
+		DynArray.set ctx.code op (A3Jump (cond,delta))
+	)
+
+let jump_back ctx =
+	let p = ctx.infos.ipos in
+	(fun cond ->
+		let delta = p - ctx.infos.ipos in
+		write ctx (A3Jump (cond,delta))
+	)
+
 let type_path ctx ?(getclass=false) (pack,name) =
 	let pid = string ctx (String.concat "." pack) in
 	let nameid = string ctx name in
@@ -202,6 +219,11 @@ let default_infos n =
 let alloc_reg ctx =
 	let r = ctx.infos.iregs + 1 in
 	ctx.infos.iregs <- r;
+	if ctx.infos.imaxregs < r then ctx.infos.imaxregs <- r;
+	r
+
+let alloc_reg_tmp ctx =
+	let r = ctx.infos.iregs + 1 in
 	if ctx.infos.imaxregs < r then ctx.infos.imaxregs <- r;
 	r
 
@@ -294,7 +316,7 @@ let rec gen_expr_content ctx retval e =
 		(try 
 			acc_ident ctx s
 		with
-			Not_found -> assert false)
+			Not_found -> error e.epos)
 	| TEnumField (e,s) ->
 		write ctx (A3GetScope (0,true));
 		write ctx (A3Get (type_path ctx e.e_path));
@@ -341,16 +363,46 @@ let rec gen_expr_content ctx retval e =
 		gen_expr ctx true eindex;
 		write ctx (A3Get (lookup (A3TArrayAccess ctx.gpublic) ctx.types));
 		ctx.infos.istack <- ctx.infos.istack - 1;
+	| TBinop (op,e1,e2) ->
+		gen_binop ctx retval op e1 e2
+	| TCall (e,el) ->
+		gen_call ctx e el
+	| TNew (c,_,pl) ->
+		let id = type_path ctx c.cl_path in
+		write ctx (A3GetInf id);
+		List.iter (gen_expr ctx true) pl;
+		write ctx (A3New (id,List.length pl))
+	| TFunction f ->
+		write ctx (A3Function (generate_function ctx f true))
+	| TIf (e,e1,e2) ->
+		gen_expr ctx true e;
+		let j = jump ctx J3False in
+		gen_expr ctx retval e1;
+		(match e2 with
+		| None -> j()
+		| Some e ->
+			let jend = jump ctx J3Always in
+			j();
+			gen_expr ctx retval e;
+			jend())
+	| TWhile (econd,e,NormalWhile) ->
+		let loop = jump_back ctx in
+		gen_expr ctx true econd;
+		let jend = jump ctx J3False in
+		gen_expr ctx false e;
+		loop J3Always;
+		jend();
+		if retval then write ctx A3Null
+	| TWhile (econd,e,DoWhile) ->	
+		let loop = jump_back ctx in
+		gen_expr ctx false e;
+		gen_expr ctx true econd;
+		loop J3True;
+		if retval then write ctx A3Null
 
 (*
-	| TBinop of Ast.binop * texpr * texpr
-	| TCall of texpr * texpr list
-	| TNew of tclass * t list * texpr list
-	| TUnop of Ast.unop * Ast.unop_flag * texpr
-	| TFunction of tfunc
+	| TUnop of Ast.unop * Ast.unop_flag * texpr	
 	| TFor of string * texpr * texpr
-	| TIf of texpr * texpr * texpr option
-	| TWhile of texpr * texpr * Ast.while_flag
 	| TSwitch of texpr * (texpr * texpr) list * texpr option
 	| TMatch of texpr * (tenum * t list) * (string * (string option * t) list option * texpr) list * texpr option
 	| TTry of texpr * (string * t * texpr) list
@@ -358,6 +410,126 @@ let rec gen_expr_content ctx retval e =
 	| TContinue
 *)
 	| _ ->
+		assert false
+
+and gen_call ctx e el =
+	match e.eexpr with
+	| TField ({ eexpr = TConst TThis },f) ->
+		let id = ident ctx f in
+		write ctx (A3GetInf id);
+		List.iter (gen_expr ctx true) el;
+		write ctx (A3Call (id,List.length el));
+	| TField (e,f) ->
+		gen_expr ctx true e;
+		List.iter (gen_expr ctx true) el;
+		write ctx (A3Call (ident ctx f,List.length el));
+	| _ ->
+		gen_expr ctx true e;
+		write ctx (A3GetScope (0,true));
+		List.iter (gen_expr ctx true) el;
+		write ctx (A3StackCall (List.length el))
+		
+and gen_binop ctx retval op e1 e2 =
+	let gen_op o =
+		gen_expr ctx true e1;
+		gen_expr ctx true e2;
+		write ctx (A3Op o)
+	in
+	match op with
+	| OpAssign ->
+		(match e1.eexpr with
+		| TLocal i ->
+			let r = (try PMap.find i ctx.locals with Not_found -> error e1.epos) in
+			gen_expr ctx true e2;
+			write ctx (A3SetReg r);
+			if retval then write ctx (A3Reg r)
+		| TField (e,f) ->
+			let id = ident ctx f in
+			(match e.eexpr with 
+			| TConst TThis -> write ctx (A3SetInf id)
+			| _ -> gen_expr ctx true e);
+			gen_expr ctx true e2;
+			if retval then begin				
+				let r = alloc_reg_tmp ctx in
+				write ctx A3Dup;
+				write ctx (A3SetReg r);
+				write ctx (A3Set id);
+				write ctx (A3Reg r);				
+			end else
+				write ctx (A3Set id)
+		| TArray (e,eindex) ->
+			gen_expr ctx true e;
+			gen_expr ctx true eindex;
+			gen_expr ctx true e2;
+			let id_aset = lookup (A3TArrayAccess ctx.gpublic) ctx.types in
+			if retval then begin
+				let r = alloc_reg_tmp ctx in
+				write ctx A3Dup;
+				write ctx (A3SetReg r);
+				write ctx (A3Set id_aset);
+				write ctx (A3Reg r);				
+			end else
+				write ctx (A3Set id_aset);
+			ctx.infos.istack <- ctx.infos.istack - 1;
+		| _ ->
+			error e1.epos)
+	| OpBoolAnd ->
+		gen_expr ctx true e1;
+		write ctx A3Dup;
+		let j = jump ctx J3False in
+		write ctx A3Pop;
+		gen_expr ctx true e2;
+		j();
+	| OpBoolOr ->
+		gen_expr ctx true e1;
+		write ctx A3Dup;
+		let j = jump ctx J3True in
+		write ctx A3Pop;
+		gen_expr ctx true e2;
+		j();
+	| OpAssignOp _ ->
+		assert false
+	| OpAdd ->
+		gen_op A3OAdd
+	| OpMult ->
+		gen_op A3OMul
+	| OpDiv ->
+		gen_op A3ODiv
+	| OpSub ->
+		gen_op A3OSub
+	| OpEq ->
+		gen_op A3OEq
+	| OpPhysEq ->
+		gen_op A3OPhysEq
+	| OpNotEq ->
+		gen_op A3OEq;
+		write ctx (A3Op A3ONot)
+	| OpPhysNotEq ->
+		gen_op A3OPhysEq;
+		write ctx (A3Op A3ONot)
+	| OpGt ->
+		gen_op A3OGt
+	| OpGte ->
+		gen_op A3OGte
+	| OpLt ->
+		gen_op A3OLt
+	| OpLte ->
+		gen_op A3OLte
+	| OpAnd ->
+		gen_op A3OAnd
+	| OpOr ->
+		gen_op A3OOr
+	| OpXor ->
+		gen_op A3OXor
+	| OpShl ->
+		gen_op A3OShl
+	| OpShr ->
+		gen_op A3OShr
+	| OpUShr ->
+		gen_op A3OUShr
+	| OpMod ->
+		gen_op A3OMod
+	| OpInterval ->
 		assert false
 
 and gen_expr ctx retval e =
@@ -368,10 +540,18 @@ and gen_expr ctx retval e =
 		if not retval then write ctx A3Pop;
 	end else if retval then stack_error e.epos
 
+and generate_function ctx fdata stat =
+	let f = begin_fun ctx (List.map (fun (name,_,_) -> name) fdata.tf_args) in
+	if not stat then begin
+		write ctx A3This;
+		write ctx A3Scope;
+	end;
+	gen_expr ctx false fdata.tf_expr;
+	write ctx A3RetVoid;
+	f()
+
 let generate_construct ctx args =
 	let f = begin_fun ctx args in
-	write ctx A3NaN;
-	write ctx A3Throw;
 	write ctx A3This;
 	write ctx A3Scope;
 	write ctx A3This;
@@ -408,6 +588,22 @@ let generate_class_static ctx c =
 	write ctx A3RetVoid;
 	f()
 
+let generate_field_kind ctx f stat =
+	match f.cf_expr with
+	| Some { eexpr = TFunction f } ->
+		A3FMethod {
+			m3_type = generate_function ctx f stat;
+			m3_final = false;
+			m3_override = false;
+			m3_kind = MK3Normal;
+		}
+	| _ ->
+		A3FVar {
+			v3_type = None;
+			v3_value = A3VNone;
+			v3_const = false;
+		}
+
 let generate_class ctx c =
 	let name_id = type_path ctx c.cl_path in
 	let st_id = generate_class_static ctx c in
@@ -420,12 +616,27 @@ let generate_class ctx c =
 				| Some (csup,_) ->
 					match csup.cl_constructor with
 					| None -> loop csup
-					| Some co -> generate_construct ctx (match follow co.cf_type with TFun (l,_) -> List.map (fun (name,_,_) -> name) l | _ -> assert false)
+					| Some co -> 
+						let args = (match follow co.cf_type with 
+							| TFun (l,_) -> List.map (fun (name,_,_) -> name) l
+							| _ -> assert false
+						) in
+						generate_construct ctx args
 			in
 			loop c
-		| Some f -> assert false
+		| Some f ->
+			match f.cf_expr with
+			| Some { eexpr = TFunction f } -> generate_function ctx f false
+			| _ -> assert false
 	) in
-	let fields = [||] in
+	let fields = Array.of_list (PMap.fold (fun f acc ->
+		{
+			f3_name = ident ctx f.cf_name;
+			f3_slot = 0;
+			f3_kind = generate_field_kind ctx f false;
+			f3_metas = None;
+		} :: acc
+	) c.cl_fields []) in
 	let sc = {
 		cl3_name = name_id;
 		cl3_super = Some (type_path ctx (match c.cl_super with None -> [],"Object" | Some (c,_) -> c.cl_path));
@@ -445,7 +656,7 @@ let generate_class ctx c =
 			{
 				f3_name = ident ctx f.cf_name;
 				f3_slot = !st_count;
-				f3_kind = A3FVar { v3_type = None; v3_value = A3VNone; v3_const = false };				
+				f3_kind = generate_field_kind ctx f true;
 				f3_metas = None;
 			}
 		) c.cl_ordered_statics)
