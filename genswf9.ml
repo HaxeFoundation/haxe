@@ -63,6 +63,7 @@ type context = {
 	mutable locals : (string,int) PMap.t;
 	mutable code : as3_opcode DynArray.t;
 	mutable infos : code_infos;	
+	mutable trys : (int * int * int) list;
 }
 
 let error p = Typer.error "Invalid expression" p
@@ -151,6 +152,8 @@ let tid (x : 'a index) : int = Obj.magic x
 let new_lookup() = { h = Hashtbl.create 0; a = DynArray.create(); c = index_int }
 let new_lookup_nz() = { h = Hashtbl.create 0; a = DynArray.create(); c = index_nz_int }
 
+let jsize = As3code.length (A3Jump (J3Always,0))
+
 let lookup i w =
 	try
 		Hashtbl.find w.h i
@@ -203,9 +206,11 @@ let jump ctx cond =
 	)
 
 let jump_back ctx =
+	write ctx (A3Jump (J3Always,1));
 	let p = ctx.infos.ipos in
+	write ctx A3Nop;
 	(fun cond ->
-		let delta = p - ctx.infos.ipos in
+		let delta = p + -(ctx.infos.ipos + jsize) in
 		write ctx (A3Jump (cond,delta))
 	)
 
@@ -253,8 +258,10 @@ let begin_fun ctx args =
 	let old_locals = ctx.locals in
 	let old_code = ctx.code in
 	let old_infos = ctx.infos in
+	let old_trys = ctx.trys in
 	ctx.infos <- default_infos();
 	ctx.code <- DynArray.create();
+	ctx.trys <- [];
 	ctx.locals <- List.fold_left (fun acc name -> PMap.add name (alloc_reg ctx) acc) PMap.empty args;
 	(fun () ->
 		let f = {
@@ -264,13 +271,22 @@ let begin_fun ctx args =
 			fun3_unk3 = 1;
 			fun3_max_scope = ctx.infos.imaxscopes + 1;
 			fun3_code = DynArray.to_list ctx.code;
-			fun3_trys = [||];
+			fun3_trys = Array.of_list (List.map (fun (p,size,cp) ->
+				{
+					tc3_start = p;
+					tc3_end = size;
+					tc3_handle = cp;
+					tc3_type = None;
+					tc3_name = None;
+				}
+			) (List.rev ctx.trys));
 			fun3_locals = [||];
 		} in
 		ignore(add f ctx.functions);
 		ctx.locals <- old_locals;
 		ctx.code <- old_code;
 		ctx.infos <- old_infos;
+		ctx.trys <- old_trys;
 		f.fun3_id
 	)
 
@@ -280,7 +296,8 @@ let gen_constant ctx c =
 		if Int32.compare i (-128l) > 0 && Int32.compare i 128l < 0 then
 			write ctx (A3SmallInt (Int32.to_int i))
 		else
-			write ctx (A3IntRef (lookup i ctx.ints))
+			write ctx (A3IntRef (lookup i ctx.ints));
+		write ctx A3ToNumber
 	| TFloat f ->
 		let f = float_of_string f in
 		write ctx (A3Float (lookup f ctx.floats))
@@ -435,12 +452,62 @@ let rec gen_expr_content ctx retval e =
 		if retval then write ctx A3Null
 	| TUnop (op,flag,e) ->
 		gen_unop ctx retval op flag e
+	| TTry (e,cases) ->
+		let p = ctx.infos.ipos in
+		gen_expr ctx retval e;
+		let pend = ctx.infos.ipos in
+		let jend = jump ctx J3Always in		
+		let rec loop ncases = function
+			| [] -> []
+			| (ename,t,e) :: l ->
+				let old_locals = ctx.locals in
+				let r = alloc_reg ctx in
+				ctx.trys <- (p,pend,ctx.infos.ipos) :: ctx.trys;
+				ctx.infos.istack <- ctx.infos.istack + 1;
+				if ctx.infos.imax < ctx.infos.istack then ctx.infos.imax <- ctx.infos.istack;
+				write ctx A3This;
+				write ctx A3Scope;
+				write ctx (A3SetReg r);
+				ctx.locals <- PMap.add ename r ctx.locals;
+				gen_expr ctx retval e;
+				ctx.locals <- old_locals;
+				free_reg ctx r;				
+				match l with
+				| [] -> []
+				| _ -> 
+					let j = jump ctx J3Always in
+					j :: loop (ncases + 1) l
+		in
+		let loops = loop (List.length ctx.trys) cases in
+		List.iter (fun j -> j()) loops;
+		jend()
+	| TFor (v,it,e) ->
+		gen_expr ctx true it;
+		let r = alloc_reg ctx in
+		write ctx (A3SetReg r);
+		let start = jump_back ctx in
+		write ctx (A3Reg r);
+		write ctx (A3Call (ident ctx "hasNext",0));
+		let jend = jump ctx J3False in
+
+		let r2 = alloc_reg ctx in
+		let old_locals = ctx.locals in
+		write ctx (A3Reg r);
+		write ctx (A3Call (ident ctx "next",0));
+		write ctx (A3SetReg r2);
+		ctx.locals <- PMap.add v r2 ctx.locals;
+		gen_expr ctx false e;
+		ctx.locals <- old_locals;
+		free_reg ctx r2;
+
+		start J3Always;
+		jend();
+		free_reg ctx r;
+		if retval then write ctx (A3Reg r2)
 
 (*
-	| TFor of string * texpr * texpr
 	| TSwitch of texpr * (texpr * texpr) list * texpr option
 	| TMatch of texpr * (tenum * t list) * (string * (string option * t) list option * texpr) list * texpr option
-	| TTry of texpr * (string * t * texpr) list
 	| TBreak
 	| TContinue
 *)
@@ -453,6 +520,11 @@ and gen_call ctx e el =
 		write ctx A3This;
 		List.iter (gen_expr ctx true) el;
 		write ctx (A3SuperConstr (List.length el));
+	| TField ({ eexpr = TConst TSuper },f) ->
+		let id = ident ctx f in
+		write ctx (A3GetInf id);
+		List.iter (gen_expr ctx true) el;
+		write ctx (A3SuperCall (id,List.length el));
 	| TField ({ eexpr = TConst TThis },f) ->
 		let id = ident ctx f in
 		write ctx (A3GetInf id);
@@ -642,13 +714,19 @@ let generate_class_static ctx c =
 	write ctx A3RetVoid;
 	f()
 
-let generate_field_kind ctx f stat =
+let generate_field_kind ctx f c stat =
 	match f.cf_expr with
-	| Some { eexpr = TFunction f } ->
+	| Some { eexpr = TFunction fdata } ->
+		let rec loop c =
+			match c.cl_super with
+			| None -> false
+			| Some (c,_) ->
+				PMap.exists f.cf_name c.cl_fields || loop c
+		in
 		A3FMethod {
-			m3_type = generate_function ctx f stat;
+			m3_type = generate_function ctx fdata stat;
 			m3_final = false;
-			m3_override = false;
+			m3_override = not stat && loop c;
 			m3_kind = MK3Normal;
 		}
 	| _ ->
@@ -687,7 +765,7 @@ let generate_class ctx c =
 		{
 			f3_name = ident ctx f.cf_name;
 			f3_slot = 0;
-			f3_kind = generate_field_kind ctx f false;
+			f3_kind = generate_field_kind ctx f c false;
 			f3_metas = None;
 		} :: acc
 	) c.cl_fields []) in
@@ -710,7 +788,7 @@ let generate_class ctx c =
 			{
 				f3_name = ident ctx f.cf_name;
 				f3_slot = !st_count;
-				f3_kind = generate_field_kind ctx f true;
+				f3_kind = generate_field_kind ctx f c true;
 				f3_metas = None;
 			}
 		) c.cl_ordered_statics)
@@ -776,6 +854,7 @@ let generate types hres =
 		code = DynArray.create();
 		locals = PMap.empty;
 		infos = default_infos();
+		trys = [];
 	} in	
 	List.iter (generate_type ctx) types;
 	Hashtbl.iter (fun _ _ -> assert false) hres;
