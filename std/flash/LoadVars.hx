@@ -1,10 +1,6 @@
 package flash;
 
-extern class LoadVars
-#if flash_strict
-#else true
-implements Dynamic<String>
-#end
+extern class LoadVars implements Dynamic<String>
 {
 	var contentType:String;
 	var loaded:Bool;
