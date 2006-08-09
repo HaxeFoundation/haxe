@@ -31,9 +31,14 @@ let write_int (ch : 'a IO.output) i = (!f_int_write) (Obj.magic ch) i
 
 let int_index (x : 'a index) : int = Obj.magic x
 let index_int (x : int) : 'a index = Obj.magic x
+let int_index_nz (x : 'a index_nz) : int = Obj.magic x
+let index_nz_int (x : int) : 'a index_nz = Obj.magic x
 
 let read_index ch = index_int (read_int ch)
 let write_index ch i = write_int ch (int_index i)
+
+let read_index_nz ch = index_nz_int (read_int ch)
+let write_index_nz ch i = write_int ch (int_index_nz i)
 
 let iget (t : 'a array) (i : 'a index) : 'a =
 	t.(Obj.magic i - 1)
@@ -64,12 +69,12 @@ let ops , ops_ids =
 	let h2 = Hashtbl.create 0 in
 	List.iter (fun (o,b) -> Hashtbl.add h b o; Hashtbl.add h2 o b)
 	[
-		A3As, 0x87;
-		A3Neg, 0x90;
-		A3Incr, 0x91;
-		A3Decr, 0x93;
-		A3Not, 0x96;
-		A3BitNot, 0x97;
+		A3OAs, 0x87;
+		A3ONeg, 0x90;
+		A3OIncr, 0x91;
+		A3ODecr, 0x93;
+		A3ONot, 0x96;
+		A3OBitNot, 0x97;
 		A3OAdd, 0xA0;
 		A3OSub, 0xA1;
 		A3OMul, 0xA2;
@@ -87,10 +92,10 @@ let ops , ops_ids =
 		A3OLte, 0xAE;
 		A3OGt, 0xAF;
 		A3OGte, 0xB0;
-		A3Is, 0xB3;
-		A3In, 0xB4;
-		A3IIncr, 0xC0;
-		A3IDecr, 0xC1;
+		A3OIs, 0xB3;
+		A3OIn, 0xB4;
+		A3OIIncr, 0xC0;
+		A3OIDecr, 0xC1;
 	];
 	h , h2
 
@@ -119,7 +124,7 @@ let length = function
 	| A3Float f ->
 		1 + int_length (int_index f)
 	| A3Function f ->
-		1 + int_length (int_index f)	
+		1 + int_length (int_index_nz f)	
 	| A3Set f
 	| A3Get f
 	| A3Delete f
@@ -235,7 +240,7 @@ let opcode ch =
 			let r1 = read_byte ch in
 			let r2 = read_byte ch in
 			A3Next (r1,r2)
-		| 0x40 -> A3Function (read_index ch)
+		| 0x40 -> A3Function (read_index_nz ch)
 		| 0x41 -> A3StackCall (read_byte ch)
 		| 0x42 -> A3StackNew (read_byte ch)
 		| 0x45 ->
@@ -410,7 +415,7 @@ let write ch = function
 		write_byte ch r2
 	| A3Function f ->
 		write_byte ch 0x40;
-		write_index ch f
+		write_index_nz ch f
 	| A3StackCall n ->
 		write_byte ch 0x41;
 		write_byte ch n
@@ -553,12 +558,12 @@ let write ch = function
 		write ch x
 
 let dump_op = function
-	| A3As -> "as"
-	| A3Neg -> "neg"
-	| A3Incr -> "incr"
-	| A3Decr -> "decr"
-	| A3Not -> "not"
-	| A3BitNot -> "bitnot"
+	| A3OAs -> "as"
+	| A3ONeg -> "neg"
+	| A3OIncr -> "incr"
+	| A3ODecr -> "decr"
+	| A3ONot -> "not"
+	| A3OBitNot -> "bitnot"
 	| A3OAdd -> "add"
 	| A3OSub -> "sub"
 	| A3OMul -> "mul"
@@ -576,10 +581,10 @@ let dump_op = function
 	| A3OLte -> "lte"
 	| A3OGt -> "gt"
 	| A3OGte -> "gte"
-	| A3Is -> "is"
-	| A3In -> "in"
-	| A3IIncr -> "iincr"
-	| A3IDecr -> "idecr"
+	| A3OIs -> "is"
+	| A3OIn -> "in"
+	| A3OIIncr -> "iincr"
+	| A3OIDecr -> "idecr"
 
 let dump_jump = function
 	| J3NotLt -> "-nlt"
@@ -635,7 +640,7 @@ let dump ctx op =
 	| A3Float n -> s "float [%f]" ctx.as3_floats.(int_index n - 1)
 	| A3Scope -> "scope"
 	| A3Next (r1,r2) -> s "next %d %d" r1 r2
-	| A3Function f -> s "function #%d" (int_index f)
+	| A3Function f -> s "function #%d" (int_index_nz f)
 	| A3StackCall n -> s "stackcall (%d)" n
 	| A3StackNew n -> s "stacknew (%d)" n
 	| A3SuperCall (f,n) -> s "supercall %s (%d)" (field f) n

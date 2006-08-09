@@ -45,12 +45,12 @@ type as3_jump =
 	| J3PhysNeq
 
 type as3_op_binop =
-	| A3As
-	| A3Neg
-	| A3Incr
-	| A3Decr
-	| A3Not
-	| A3BitNot
+	| A3OAs
+	| A3ONeg
+	| A3OIncr
+	| A3ODecr
+	| A3ONot
+	| A3OBitNot
 	| A3OAdd
 	| A3OSub
 	| A3OMul
@@ -68,10 +68,10 @@ type as3_op_binop =
 	| A3OLte
 	| A3OGt
 	| A3OGte
-	| A3Is
-	| A3In
-	| A3IIncr
-	| A3IDecr
+	| A3OIs
+	| A3OIn
+	| A3OIIncr
+	| A3OIDecr
 
 type type_index = as3_type index
 
@@ -102,7 +102,7 @@ and as3_opcode =
 	| A3Float of as3_float index
 	| A3Scope
 	| A3Next of reg * reg
-	| A3Function of as3_method_type index
+	| A3Function of as3_method_type index_nz
 	| A3StackCall of nargs
 	| A3StackNew of nargs
 	| A3SuperCall of type_index * nargs
