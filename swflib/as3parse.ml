@@ -127,9 +127,11 @@ let as3_type_length t =
 		idx_opt_length id + idx_length r
 	| A3TMethodVar (id,r) ->
 		idx_length r + idx_length id
-	| A3TUnknown1 (_,i) ->
+	| A3TArrayAccess idx ->
+		idx_length idx
+	| A3TUnknown1 i ->
 		int_length i
-	| A3TUnknown2 (_,i1,i2) ->
+	| A3TUnknown2 (i1,i2) ->
 		int_length i1 + int_length i2
 
 let as3_value_length extra = function
@@ -315,13 +317,14 @@ let read_type ctx ch =
 		let id = index ctx.as3_idents (read_int ch) in
 		A3TMethodVar (id,rights)
 	| 0x1B ->
-		A3TUnknown1 (k,read_int ch)
+		let rights = index ctx.as3_rights (read_int ch) in
+		A3TArrayAccess rights
 	| 0x0E ->
 		let i1 = read_int ch in
 		let i2 = read_int ch in
-		A3TUnknown2 (k,i1,i2)
+		A3TUnknown2 (i1,i2)
 	| 0x0F ->
-		A3TUnknown1 (k,read_int ch)
+		A3TUnknown1 (read_int ch)
 	| n ->
 		assert false
 
@@ -635,11 +638,14 @@ let write_type ch = function
 		IO.write_byte ch 0x07;
 		write_index ch r;
 		write_index ch id
-	| A3TUnknown1 (t,i) ->
-		IO.write_byte ch t;
+	| A3TArrayAccess id ->
+		IO.write_byte ch 0x1B;
+		write_index ch id
+	| A3TUnknown1 i ->
+		IO.write_byte ch 0x0F;
 		write_int ch i
-	| A3TUnknown2 (t,i1,i2) ->
-		IO.write_byte ch t;
+	| A3TUnknown2 (i1,i2) ->
+		IO.write_byte ch 0x0E;
 		write_int ch i1;
 		write_int ch i2
 
@@ -824,8 +830,9 @@ let type_str ctx kind t =
 	match iget ctx.as3_types t with
 	| A3TClassInterface (id,r) -> Printf.sprintf "[%s %s%s]" (rights_str ctx r) kind (match id with None -> "NO" | Some i -> ident_str ctx i)
 	| A3TMethodVar (id,r) -> Printf.sprintf "%s %s%s" (base_right_str ctx r) kind (ident_str ctx id)
-	| A3TUnknown1 (t,i) -> Printf.sprintf "unknown1:0x%X:%d" t i
-	| A3TUnknown2 (t,i1,i2) -> Printf.sprintf "unknown2:0x%X:%d:%d" t i1 i2
+	| A3TArrayAccess id -> Printf.sprintf "array:(%s)" (rights_str ctx id)
+	| A3TUnknown1 i -> Printf.sprintf "unknown1:%d" i
+	| A3TUnknown2 (i1,i2) -> Printf.sprintf "unknown2:%d:%d" i1 i2
 
 let value_str ctx v =
 	match v with

@@ -25,7 +25,6 @@ type as3_int = int32
 type as3_float = float
 
 type reg = int
-type type_index = int
 type nargs = int
 
 type as3_jump =
@@ -74,7 +73,9 @@ type as3_op_binop =
 	| A3IIncr
 	| A3IDecr
 
-type as3_opcode =
+type type_index = as3_type index
+
+and as3_opcode =
 	| A3Throw
 	| A3GetSuper of type_index
 	| A3SetSuper of type_index
@@ -96,12 +97,12 @@ type as3_opcode =
 	| A3Pop
 	| A3Dup
 	| A3CatchDone
-	| A3String of int (* as3_ident index *)
-	| A3IntRef of int (* as3_int index *)
-	| A3Float of int (* as3_float index *)
+	| A3String of as3_ident index
+	| A3IntRef of as3_int index
+	| A3Float of as3_float index
 	| A3Scope
 	| A3Next of reg * reg
-	| A3Function of int (* as3_method_type index *)
+	| A3Function of as3_method_type index
 	| A3StackCall of nargs
 	| A3StackNew of nargs
 	| A3SuperCall of type_index * nargs
@@ -116,7 +117,7 @@ type as3_opcode =
 	| A3Array of nargs
 	| A3NewBlock
 	| A3ClassDef of int
-	| A3XmlOp1 of int
+	| A3XmlOp1 of type_index
 	| A3Catch of int
 	| A3GetInf of type_index
 	| A3SetInf of type_index
@@ -144,11 +145,11 @@ type as3_opcode =
 	| A3This
 	| A3DebugReg of int * int * int * int
 	| A3DebugLine of int
-	| A3DebugFile of int (* as3_ident index *)
+	| A3DebugFile of as3_ident index
 	| A3Op of as3_op_binop
 	| A3Unk of char
 
-type as3_base_right =
+and as3_base_right =
 	| A3RPrivate of as3_ident index option
 	| A3RPublic of as3_ident index option
 	| A3RInternal of as3_ident index option
@@ -156,15 +157,16 @@ type as3_base_right =
 	| A3RUnknown1 of as3_ident index
 	| A3RUnknown2 of as3_ident index option
 
-type as3_rights = as3_base_right index list
+and as3_rights = as3_base_right index list
 
-type as3_type =
+and as3_type =
 	| A3TClassInterface of as3_ident index option * as3_rights index
 	| A3TMethodVar of as3_ident index * as3_base_right index
-	| A3TUnknown1 of int * int
-	| A3TUnknown2 of int * int * int
+	| A3TArrayAccess of as3_rights index
+	| A3TUnknown1 of int
+	| A3TUnknown2 of int * int
 
-type as3_value =
+and as3_value =
 	| A3VNone
 	| A3VNull
 	| A3VBool of bool
@@ -173,7 +175,7 @@ type as3_value =
 	| A3VFloat of as3_float index
 	| A3VNamespace of as3_base_right index
 
-type as3_method_type = {
+and as3_method_type = {
 	mt3_ret : as3_type index option;
 	mt3_args : as3_type index option list;
 	mt3_native : bool;
