@@ -29,6 +29,7 @@ import js.Dom;
 class Lib {
 
 	public static var isIE : Bool;
+	public static var isOpera : Bool;
 	public static var document : Document = untyped __js__("document");
 	public static var window : Window = untyped __js__("window");
 

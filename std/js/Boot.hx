@@ -180,7 +180,8 @@ class Boot {
 
 	private static function __init() {
 		untyped {
-			Lib.isIE = (document.all != null);
+			Lib.isIE = (document.all != null && window.opera == null );
+			Lib.isOpera = (window.opera != null );
 			Array.prototype.copy = Array.prototype.slice;
 			Array.prototype.insert = function(i,x) {
 				this.splice(i,0,x);
