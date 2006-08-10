@@ -131,6 +131,7 @@ try
 	let hres = Hashtbl.create 0 in
 	let cmds = ref [] in
 	let excludes = ref [] in
+	let gen_hx = ref false in
 	Plugin.defines := base_defines;
 	Typer.check_override := false;
 	Typer.forbidden_packages := ["js"; "neko"; "flash"];
@@ -234,6 +235,10 @@ try
 		),": ensure that overriden methods are declared with 'override'");
 		("--no-traces", define "no_traces", ": don't compile trace calls in the program");
 		("--flash-use-stage", define "flash_use_stage", ": place objects found on the stage of the SWF lib");
+		("--gen-hx-classes", Arg.String (fun file ->
+			gen_hx := true;
+			Genswf9.genhx file
+		),"<file> : generate hx headers from SWF9 file");
 		("--next", Arg.Unit (fun() -> assert false), ": separate several haxe compilations");
 		("--altfmt", Arg.Unit (fun() -> alt_format := true),": use alternative error output format");
 	] in
@@ -284,7 +289,7 @@ try
 		Plugin.define "js";
 	);
 	if !classes = [([],"Std")] then begin
-		if !cmds = [] then Arg.usage args_spec usage;
+		if !cmds = [] && not !gen_hx then Arg.usage args_spec usage;
 	end else begin
 		if !Plugin.verbose then print_endline ("Classpath : " ^ (String.concat ";" !Plugin.class_path));
 		let ctx = Typer.context type_error warn in
