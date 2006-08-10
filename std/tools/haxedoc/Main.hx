@@ -332,7 +332,7 @@ private class DocTypedef extends DocClass {
 
 private enum DocEntry {
 	eclass( c : DocClass );
-	epackage( name : String, childs : Array<DocEntry> );
+	epackage( name : String, fullname : Array<String>, childs : Array<DocEntry> );
 }
 
 class DocView {
@@ -479,11 +479,12 @@ class DocView {
 		var pack = entries;
 		if( path.length > 0 ) {
 			c.name = path.pop();
+			var acc = new Array();
 			for( x in path ) {
 				var found = false;
 				for( p in pack ) {
 					switch p {
-					case epackage(name,p):
+					case epackage(name,_,p):
 						if( name == x ) {
 							pack = p;
 							found = true;
@@ -492,9 +493,10 @@ class DocView {
 					default:
 					}
 				}
+				acc.push(x);
 				if( !found ) {
 					var p = new Array();
-					pack.push(epackage(x,p));
+					pack.push(epackage(x,acc.copy(),p));
 					pack = p;
 				}
 			}
@@ -509,7 +511,7 @@ class DocView {
 			for( e in pack ) {
 				switch e {
 				case eclass(c): if( c.name.toLowerCase() == p.toLowerCase() ) return c;
-				case epackage(name,newpack):
+				case epackage(name,_,newpack):
 					if( name == p ) {
 						found = true;
 						pack = newpack;
@@ -526,11 +528,11 @@ class DocView {
 	static function sortEntries( p : Array<DocEntry> ) {
 		p.sort(function(e1 : DocEntry,e2 : DocEntry) {
 			var n1 = switch e1 {
-				case epackage(p,_) : " "+p;
+				case epackage(p,_,_) : " "+p;
 				case eclass(c) : c.name;
 			};
 			var n2 = switch e2 {
-				case epackage(p,_) : " "+p;
+				case epackage(p,_,_) : " "+p;
 				case eclass(c) : c.name;
 			};
 			if( n1 > n2 )
@@ -539,7 +541,7 @@ class DocView {
 		});
 		for( e in p ) {
 			switch e {
-			case epackage(_,p):
+			case epackage(_,_,p):
 				sortEntries(p);
 			default:
 			}
@@ -550,10 +552,10 @@ class DocView {
 		print("<ul class=\"entry\">");
 		for( e in p ) {
 			switch e {
-			case epackage(name,p):
+			case epackage(name,full,p):
 				if( !filtered(name) )
 					continue;
-				print('<li><a href="#" class="package" onclick="toggle(\''+name+'\')">'+name+"</a><div id=\""+name+"\" class=\"package_content\">");
+				print('<li><a href="#" class="package" onclick="toggle(\''+full.join("_")+'\')">'+name+"</a><div id=\""+full.join("_")+"\" class=\"package_content\">");
 				display(p);
 				print("</div></li>");
 			case eclass(c):
@@ -639,7 +641,7 @@ class DocView {
 			if( !filtered(c.path) )
 				return;
 			save(html,c.path,path+c.name+".html");
-		case epackage(name,entries):
+		case epackage(name,_,entries):
 			if( !filtered(name) )
 				return;
 			var old = Url.base;
