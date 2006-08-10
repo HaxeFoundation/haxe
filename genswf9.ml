@@ -1095,6 +1095,7 @@ let type_path ctx p =
 	| [] , "Number" -> [] , "Float"
 	| [] , "Array" -> [] , "Array<Dynamic>"
 	| [] , "void" -> [] , "Void"
+	| [] , "Function" -> [] , "Dynamic"
 	| path -> path
 
 let ident_rights ctx id =
