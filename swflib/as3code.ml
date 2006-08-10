@@ -149,6 +149,7 @@ let length = function
 	| A3Dup
 	| A3CatchDone
 	| A3ToObject
+	| A3ToXml
 	| A3ToInt
 	| A3ToUInt
 	| A3ToNumber
@@ -167,7 +168,7 @@ let length = function
 	| A3XmlOp3
 	| A3XmlOp2
 	| A3Unk _ -> 1
-	| A3DebugReg _ -> 5
+	| A3DebugReg (_,b,_,line) -> 3 + int_length b + int_length line
 	| A3GetScope (n,b) -> if n = 0 && b then 1 else 2
 	| A3Reg n | A3SetReg n -> if n >= 1 && n <= 3 then 1 else 2
 	| A3SuperCall (f,_) | A3Call (f,_) | A3New (f,_) | A3CallUnknown (f,_) | A3SuperCallUnknown(f,_) -> 2 + int_length (int_index f)
@@ -285,6 +286,7 @@ let opcode ch =
 		| 0x6A -> A3Delete (read_index ch)
 		| 0x6C -> A3GetSlot (read_byte ch)
 		| 0x6D -> A3SetSlot (read_byte ch)
+		| 0x71 -> A3ToXml
 		| 0x73 -> A3ToInt
 		| 0x74 -> A3ToUInt
 		| 0x75 -> A3ToNumber
@@ -305,9 +307,9 @@ let opcode ch =
 		| 0xD7 -> A3SetReg 3
 		| 0xEF ->
 			let a = read_byte ch in
-			let b = read_byte ch in
+			let b = read_int ch in
 			let c = read_byte ch in
-			let line = read_byte ch in
+			let line = read_int ch in
 			A3DebugReg (a,b,c,line)
 		| 0xF0 -> A3DebugLine (read_int ch)
 		| 0xF1 -> A3DebugFile (read_index ch)
@@ -514,6 +516,8 @@ let write ch = function
 	| A3SetSlot n ->
 		write_byte ch 0x6D;
 		write_byte ch n
+	| A3ToXml ->
+		write_byte ch 0x71
 	| A3ToInt ->
 		write_byte ch 0x73
 	| A3ToUInt ->
@@ -543,9 +547,9 @@ let write ch = function
 	| A3DebugReg (a,b,c,line) ->
 		write_byte ch 0xEF;
 		write_byte ch a;
-		write_byte ch b;
+		write_int ch b;
 		write_byte ch c;
-		write_byte ch line;
+		write_int ch line;
 	| A3DebugLine f ->
 		write_byte ch 0xF0;
 		write_int ch f;
@@ -669,6 +673,7 @@ let dump ctx op =
 	| A3Delete f -> s "delete %s" (field f)
 	| A3GetSlot n -> s "getslot %d" n
 	| A3SetSlot n -> s "setslot %d" n
+	| A3ToXml -> "to_xml"
 	| A3ToInt -> "to_int"
 	| A3ToUInt -> "to_uint"
 	| A3ToNumber -> "to_number"

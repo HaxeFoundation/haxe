@@ -131,6 +131,7 @@ and as3_opcode =
 	| A3Delete of type_index
 	| A3GetSlot of int
 	| A3SetSlot of int
+	| A3ToXml
 	| A3ToInt
 	| A3ToUInt
 	| A3ToNumber
