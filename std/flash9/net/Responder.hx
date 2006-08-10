@@ -1,5 +1,5 @@
 package flash.net;
 
 extern class Responder {
-	function new(result : Function, ?status : Function) : Void;
+	function new(result : Dynamic -> Void, ?status : Dynamic -> Void) : Void;
 }

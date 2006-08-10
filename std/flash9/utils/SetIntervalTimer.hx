@@ -1,8 +1,8 @@
 package flash.utils;
 
 extern class SetIntervalTimer extends flash.utils.Timer {
-	function new(closure : Function, delay : Float, repeats : Bool, rest : Array<Dynamic>) : Void;
-	private var closure : Function;
+	function new(closure : Dynamic, delay : Float, repeats : Bool, rest : Array<Dynamic>) : Void;
+	private var closure : Dynamic;
 	private var id : UInt;
 	private function onTimer(event : flash.events.Event) : Void;
 	private var rest : Array<Dynamic>;

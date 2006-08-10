@@ -9,7 +9,7 @@ extern class Timer extends flash.events.EventDispatcher {
 	var running(default,null) : Bool;
 	function start() : Void;
 	function stop() : Void;
-	private function _start(delay : Float, closure : Function) : Void;
+	private function _start(delay : Float, closure : Dynamic) : Void;
 	private function _timerDispatch() : Void;
 	private var m_delay : Float;
 	private var m_iteration : Int;

@@ -7,5 +7,5 @@ extern class Font {
 	var fontType(default,null) : String;
 	function hasGlyphs(str : String) : Bool;
 	static function enumerateFonts(?enumerateDeviceFonts : Bool) : Array<Dynamic>;
-	static function registerFont(font : Class) : Void;
+	static function registerFont(font : Dynamic) : Void;
 }

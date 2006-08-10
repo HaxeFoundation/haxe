@@ -1,6 +1,6 @@
 package flash.net;
 
-extern class Socket extends flash.events.EventDispatcher, implements Socket.as$97.IDataInput, implements Socket.as$97.IDataOutput {
+extern class Socket extends flash.events.EventDispatcher, implements flash.utils.IDataInput, implements flash.utils.IDataOutput {
 	function new(?host : String, ?port : Int) : Void;
 	var bytesAvailable(default,null) : UInt;
 	function close() : Void;
