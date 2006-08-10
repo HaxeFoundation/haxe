@@ -1991,6 +1991,7 @@ let init_class ctx c p herits fields =
 	let fl = List.map (fun (f,p) ->
 		let access , constr, f , delayed = loop_cf f p in
 		let is_static = List.mem AStatic access in
+		if is_static && f.cf_name = "name" && Plugin.defined "js" then error "This identifier cannot be used in Javascript for statics" p;
 		if constr then begin
 			if c.cl_constructor <> None then error "Duplicate constructor" p;
 			c.cl_constructor <- Some f;
@@ -2169,6 +2170,7 @@ let type_module ctx m tdecls loadp =
 			ctx.type_params <- e.e_types;
 			let et = TEnum (e,List.map snd e.e_types) in
 			List.iter (fun (c,doc,t,p) ->
+				if c = "name" && Plugin.defined "js" then error "This identifier cannot be used in Javascript" p;
 				let t = (match t with
 					| [] -> et
 					| l -> TFun (List.map (fun (s,b,t) -> s, b, load_type ctx p t) l, et)
