@@ -1,3 +1,4 @@
+
 -neko all.n
 -xml neko.xml
 --override
@@ -7,6 +8,7 @@ haxe.ImportAll
 
 -swf all.swf
 -xml flash.xml
+-D flash9doc
 --override
 haxe.ImportAll
 
@@ -18,8 +20,10 @@ haxe.ImportAll
 haxe.ImportAll
 
 --next
+
 -swf all.swf
 -D flash_strict
+-D flash9doc
 -xml flash_strict.xml
 --override
 haxe.ImportAll

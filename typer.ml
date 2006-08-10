@@ -2188,6 +2188,65 @@ let type_module ctx m tdecls loadp =
 	m.mimports <- List.rev m.mimports;
 	m
 
+let rec f9path p = {
+	tpackage = (match p.tpackage with "flash" :: l -> "flash9" :: l | l -> l);
+	tname = p.tname;
+	tparams = List.map f9t p.tparams;
+}
+
+and f9t = function
+	| TPNormal t -> TPNormal (f9path t)
+	| TPFunction (tl,t) -> TPFunction (List.map f9t tl,f9t t)
+	| TPAnonymous fields -> TPAnonymous (List.map f9a fields)
+	| TPParent t -> TPParent (f9t t)
+	| TPExtend (t,fields) -> TPExtend (f9path t,List.map f9a fields)
+
+and f9a (name,f,p) =
+	name , (match f with
+		| AFVar t -> AFVar (f9t t)
+		| AFProp (t,g,s) -> AFProp (f9t t,g,s)
+		| AFFun (pl,t) -> AFFun (List.map (fun (name,p,t) -> name, p, f9t t) pl,f9t t)
+	) , p
+
+let f9to = function
+	| None -> None
+	| Some t -> Some (f9t t)
+
+let f9decl (d,p) = 
+	(match d with
+	| EClass (name,doc,params,flags,fields) ->
+		EClass (name,doc,params,List.map (function
+			| HInterface
+			| HExtern
+			| HPrivate as f -> f
+			| HExtends p -> HExtends (f9path p)
+			| HImplements p -> HImplements (f9path p)
+		) flags,List.map (fun (f,p) ->
+			(match f with
+			| FVar (name,doc,acc,t,e) ->
+				FVar (name,doc,acc,f9to t,e)
+			| FFun (name,doc,acc,params,f) ->
+				FFun (name,doc,acc,params,{
+					f_args = List.map (fun (n,o,t) -> n , o, f9to t) f.f_args;
+					f_type = f9to f.f_type;
+					f_expr = f.f_expr;
+				})
+			| FProp (name,doc,acc,get,set,t) ->
+				FProp (name,doc,acc,get,set,f9t t)
+			) , p
+		) fields)
+	| EEnum (name,doc,params,flags,constrs) ->
+		EEnum (name,doc,params,flags,List.map (fun (name,doc,args,p) -> 
+			name, doc, List.map (fun (name,p,t) -> name, p, f9t t) args, p
+		) constrs)
+	| ETypedef (name,doc,params,flags,t) ->
+		ETypedef (name,doc,params,flags,f9t t)
+	| EImport ("flash" :: l,x,o) ->
+		EImport ("flash9" :: l,x,o)
+	| EImport _ ->
+		d
+	) , p
+
 let load ctx m p =
 	try
 		Hashtbl.find ctx.modules m
@@ -2203,6 +2262,7 @@ let load ctx m p =
 			let file = (try Plugin.find_file file with Not_found -> raise (Error (Module_not_found m,p))) in
 			let ch = (try open_in file with _ -> error ("Could not open " ^ file) p) in
 			let pack , decls = (try Parser.parse (Lexing.from_channel ch) file with e -> close_in ch; raise e) in
+			let pack , decls = (match pack , fst m with "flash" :: l , "flash9" :: l2 when l = l2 && Plugin.defined "flash9doc" -> fst m, List.map f9decl decls | _ -> pack , decls) in
 			close_in ch;
 			if !Plugin.verbose then print_endline ("Parsed " ^ file);
 			if pack <> fst m then begin
