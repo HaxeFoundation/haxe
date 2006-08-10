@@ -73,6 +73,11 @@ typedef HtmlDom = {> MetaDom<HtmlDom>,
 	var scrollWidth(default,null) : Int;
 	var clientHeight(default,null) : Int;
 	var clientWidth(default,null) : Int;
+	var offsetParent : HtmlDom;
+	var offsetLeft : Int;
+	var offsetTop : Int;
+	var offsetWidth : Int;
+	var offsetHeight : Int;
 	#end
 }
 
@@ -680,6 +685,14 @@ typedef Window = {
 	function open( url : String, name : String, features : String ) : Window;
 	// setInterval
 	// setTimeout
+
+	#if w3c
+	#else true
+	var innerWidth : Int;
+	var innerHeight : Int;
+	var outerWidth : Int;
+	var outerHeight : Int;
+	#end
 
 	/* IE only ?
 	clientInformation
