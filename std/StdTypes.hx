@@ -31,6 +31,10 @@ extern class Float { }
 
 extern class Int extends Float { }
 
+#if flash9
+typedef UInt = Int
+#end
+
 enum Bool {
 	true;
 	false;
