@@ -32,6 +32,7 @@ type 'a lookup_nz = ('a,'a index_nz) gen_lookup
 type access =
 	| VReg of reg
 	| VId of type_index
+	| VGlobal of type_index
 	| VArray
 
 type code_infos = {
@@ -63,7 +64,7 @@ type context = {
 	(* per-function *)
 	mutable locals : (string,int) PMap.t;
 	mutable code : as3_opcode DynArray.t;
-	mutable infos : code_infos;	
+	mutable infos : code_infos;
 	mutable trys : (int * int * int * t) list;
 	mutable breaks : (unit -> unit) list;
 	mutable continues : (int -> unit) list;
@@ -121,7 +122,7 @@ let stack_delta = function
 	| A3SetProp _ -> -1
 	| A3Reg _ -> 1
 	| A3SetReg _ -> -1
-	| A3GetScope _ -> 1	
+	| A3GetScope _ -> 1
 	| A3Get _ -> 0
 	| A3Set _ -> -2
 	| A3Delete _ -> -1
@@ -140,7 +141,7 @@ let stack_delta = function
 	| A3InstanceOf -> -1
 	| A3IncrReg _ -> 0
 	| A3This -> 1
-	| A3DebugReg _ 
+	| A3DebugReg _
 	| A3DebugLine _
 	| A3DebugFile _ -> 0
 	| A3Op op ->
@@ -180,7 +181,7 @@ let string ctx i = lookup i ctx.strings
 let write ctx op =
 	DynArray.add ctx.code op;
 	ctx.infos.ipos <- As3code.length op + ctx.infos.ipos;
-	let s = ctx.infos.istack + stack_delta op in	
+	let s = ctx.infos.istack + stack_delta op in
 	ctx.infos.istack <- s;
 	if s > ctx.infos.imax then ctx.infos.imax <- s;
 	match op with
@@ -221,7 +222,7 @@ let jump_back ctx =
 let type_path ctx ?(getclass=false) (pack,name) =
 	let pid = string ctx (String.concat "." pack) in
 	let nameid = string ctx name in
-	let pid = lookup (A3RPublic (Some pid)) ctx.brights in	
+	let pid = lookup (A3RPublic (Some pid)) ctx.brights in
 	let tid = lookup (if getclass then A3TClassInterface (Some nameid,lookup [pid] ctx.rights) else A3TMethodVar (nameid,pid)) ctx.types in
 	tid
 
@@ -292,8 +293,8 @@ let begin_fun ctx args =
 					tc3_start = p;
 					tc3_end = size;
 					tc3_handle = cp;
-					tc3_type = (match follow t with 
-						| TInst (c,_) -> Some (type_path ctx c.cl_path) 
+					tc3_type = (match follow t with
+						| TInst (c,_) -> Some (type_path ctx c.cl_path)
 						| TEnum (e,_) -> Some (type_path ctx e.e_path)
 						| TDynamic _ -> None
 						| _ -> assert false);
@@ -358,8 +359,11 @@ let setvar ctx acc retval =
 	| VReg r ->
 		if retval then write ctx A3Dup;
 		write ctx (A3SetReg r);
+	| VGlobal g ->
+		if retval then write ctx A3Dup;
+		write ctx (A3SetProp g);
 	| VId id ->
-		if retval then begin				
+		if retval then begin
 			let r = alloc_reg ctx in
 			write ctx A3Dup;
 			write ctx (A3SetReg r);
@@ -383,10 +387,12 @@ let setvar ctx acc retval =
 
 let getvar ctx acc =
 	match acc with
-	| VReg r ->		
-		write ctx (A3Reg r);
+	| VReg r ->
+		write ctx (A3Reg r)
 	| VId id ->
 		write ctx (A3Get id)
+	| VGlobal g ->		
+		write ctx (A3GetProp g)
 	| VArray ->
 		let id_aget = lookup (A3TArrayAccess ctx.gpublic) ctx.types in
 		write ctx (A3Get id_aget);
@@ -405,9 +411,8 @@ let rec gen_expr_content ctx retval e =
 		gen_expr ctx true e;
 		write ctx A3Throw;
 		no_value ctx retval;
-	| TTypeExpr t ->
-		write ctx (A3GetScope (0,true));
-		write ctx (A3Get (type_path ctx (t_path t)));
+	| TTypeExpr t ->		
+		write ctx (A3GetProp (type_path ctx ~getclass:true (t_path t)));
 	| TParenthesis e ->
 		gen_expr ctx retval e
 	| TEnumField (e,s) ->
@@ -422,8 +427,8 @@ let rec gen_expr_content ctx retval e =
 		write ctx (A3Object (List.length fl))
 	| TArrayDecl el ->
 		List.iter (gen_expr ctx true) el;
-		write ctx (A3Array (List.length el))	
-	| TBlock el ->		
+		write ctx (A3Array (List.length el))
+	| TBlock el ->
 		let rec loop = function
 			| [] -> if retval then write ctx A3Null
 			| [e] -> gen_expr ctx retval e
@@ -496,7 +501,7 @@ let rec gen_expr_content ctx retval e =
 		let p = ctx.infos.ipos in
 		gen_expr ctx retval e;
 		let pend = ctx.infos.ipos in
-		let jend = jump ctx J3Always in		
+		let jend = jump ctx J3Always in
 		let rec loop ncases = function
 			| [] -> []
 			| (ename,t,e) :: l ->
@@ -511,10 +516,10 @@ let rec gen_expr_content ctx retval e =
 				ctx.locals <- PMap.add ename r ctx.locals;
 				gen_expr ctx retval e;
 				ctx.locals <- old_locals;
-				free_reg ctx r;				
+				free_reg ctx r;
 				match l with
 				| [] -> []
-				| _ -> 
+				| _ ->
 					let j = jump ctx J3Always in
 					j :: loop (ncases + 1) l
 		in
@@ -555,7 +560,7 @@ let rec gen_expr_content ctx retval e =
 		pop ctx (ctx.infos.istack - ctx.infos.iloop);
 		let op = DynArray.length ctx.code in
 		write ctx (A3Jump (J3Always,-4));
-		let p = ctx.infos.ipos in		
+		let p = ctx.infos.ipos in
 		ctx.continues <- (fun target -> DynArray.set ctx.code op (A3Jump (J3Always,target - p))) :: ctx.continues;
 		no_value ctx retval
 
@@ -567,22 +572,30 @@ let rec gen_expr_content ctx retval e =
 		assert false
 
 and gen_call ctx e el =
-	match e.eexpr with
-	| TConst TSuper ->
+	match e.eexpr , el with
+	| TField ({ eexpr = TLocal "__global__" },f) , el ->
+		write ctx (A3GetInf (ident ctx f));
+		List.iter (gen_expr ctx true) el;
+		write ctx (A3Call (ident ctx f,List.length el))
+	| TLocal "__is__" , [e;t] ->
+		gen_expr ctx true e;
+		gen_expr ctx true t;
+		write ctx (A3Op A3OIs)
+	| TConst TSuper , _ ->
 		write ctx A3This;
 		List.iter (gen_expr ctx true) el;
 		write ctx (A3SuperConstr (List.length el));
-	| TField ({ eexpr = TConst TSuper },f) ->
+	| TField ({ eexpr = TConst TSuper },f) , _ ->
 		let id = ident ctx f in
 		write ctx (A3GetInf id);
 		List.iter (gen_expr ctx true) el;
 		write ctx (A3SuperCall (id,List.length el));
-	| TField ({ eexpr = TConst TThis },f) ->
+	| TField ({ eexpr = TConst TThis },f) , _ ->
 		let id = ident ctx f in
 		write ctx (A3GetInf id);
 		List.iter (gen_expr ctx true) el;
 		write ctx (A3Call (id,List.length el));
-	| TField (e,f) ->
+	| TField (e,f) , _ ->
 		gen_expr ctx true e;
 		List.iter (gen_expr ctx true) el;
 		write ctx (A3Call (ident ctx f,List.length el));
@@ -596,9 +609,11 @@ and gen_access ctx e =
 	match e.eexpr with
 	| TLocal i ->
 		VReg (try PMap.find i ctx.locals with Not_found -> error e.epos)
+	| TField ({ eexpr = TLocal "__global__" },f) ->
+		VGlobal (ident ctx f)
 	| TField (e,f) ->
 		let id = ident ctx f in
-		(match e.eexpr with 
+		(match e.eexpr with
 		| TConst TThis -> write ctx (A3GetInf id)
 		| _ -> gen_expr ctx true e);
 		VId id
@@ -631,11 +646,13 @@ and gen_unop ctx retval op flag e =
 			write ctx A3Dup;
 			write ctx (A3SetReg r);
 			write ctx (A3Op (if incr then A3OIncr else A3ODecr));
+			write ctx A3ToObject;
 			setvar ctx acc false;
 			write ctx (A3Reg r);
 			free_reg ctx r
 		| Postfix | Prefix ->
 			write ctx (A3Op (if incr then A3OIncr else A3ODecr));
+			write ctx A3ToObject;
 			setvar ctx acc retval
 
 and gen_binop ctx retval op e1 e2 =
@@ -750,23 +767,30 @@ let generate_class_init ctx c slot =
 	end;
 	write ctx (A3ClassDef slot);
 	if not c.cl_interface then write ctx A3PopScope;
+	write ctx (A3Set (type_path ctx c.cl_path))
+
+let generate_class_statics ctx c =
 	let r = alloc_reg ctx in
-	write ctx A3Dup;
-	write ctx (A3SetReg r);	
-	write ctx (A3Set (type_path ctx c.cl_path));
+	let first = ref true in
 	let nslot = ref 0 in
 	List.iter (fun f ->
 		incr nslot;
 		match f.cf_expr with
 		| Some { eexpr = TFunction _ } | None -> ()
 		| Some e ->
+			if !first then begin
+				write ctx (A3GetScope (0,true));
+				write ctx (A3Get (type_path ctx c.cl_path));
+				write ctx (A3SetReg r);
+				first := false;
+			end;
 			write ctx (A3Reg r);
 			gen_expr ctx true e;
 			write ctx (A3SetSlot !nslot);
 	) c.cl_ordered_statics;
 	free_reg ctx r
 
-let generate_enum_init ctx e slot =	
+let generate_enum_init ctx e slot =
 	let path = ([],"Object") in
 	let name_id = type_path ctx e.e_path in
 	write ctx (A3GetScope (0,true));
@@ -777,14 +801,14 @@ let generate_enum_init ctx e slot =
 	write ctx A3PopScope;
 	let r = alloc_reg ctx in
 	write ctx A3Dup;
-	write ctx (A3SetReg r);	
+	write ctx (A3SetReg r);
 	write ctx (A3Set name_id);
 	let nslot = ref 0 in
 	PMap.iter (fun _ f ->
 		incr nslot;
 		match f.ef_type with
 		| TFun _ -> ()
-		| _ ->	
+		| _ ->
 			write ctx (A3Reg r);
 			write ctx (A3GetInf name_id);
 			write ctx (A3String (lookup f.ef_name ctx.strings));
@@ -843,8 +867,8 @@ let generate_class ctx c =
 				| Some (csup,_) ->
 					match csup.cl_constructor with
 					| None -> loop csup
-					| Some co -> 
-						let args = (match follow co.cf_type with 
+					| Some co ->
+						let args = (match follow co.cf_type with
 							| TFun (l,_) -> List.map (fun (name,_,_) -> name) l
 							| _ -> assert false
 						) in
@@ -952,7 +976,7 @@ let generate_enum ctx e =
 							m3_override = false;
 							m3_kind = MK3Normal;
 						}
-					| _ -> 
+					| _ ->
 						A3FVar { v3_type = (Some name_id); v3_value = A3VNone; v3_const = false; }
 				);
 				f3_metas = None;
@@ -969,7 +993,7 @@ let generate_type ctx t =
 	| TEnumDecl e ->
 		match e.e_path with
 		| [] , "Bool" -> ()
-		| _ -> generate_enum ctx e			
+		| _ -> generate_enum ctx e
 
 let generate_inits ctx types =
 	let f = begin_fun ctx [] in
@@ -981,7 +1005,7 @@ let generate_inits ctx types =
 		| TClassDecl c when not c.cl_extern ->
 			incr slot;
 			generate_class_init ctx c (!slot - 1);
-			{ 
+			{
 				f3_name = type_path ctx c.cl_path;
 				f3_slot = !slot;
 				f3_kind = A3FClass (index_nz_int (!slot - 1));
@@ -999,12 +1023,34 @@ let generate_inits ctx types =
 		| _ ->
 			acc
 	) [] types in
-	write ctx A3RetVoid;	
+
+	(* define flash.Boot.init method *)
+	write ctx (A3GetScope (0,true));
+	write ctx (A3Get (type_path ctx (["flash"],"Boot")));
+	let finit = begin_fun ctx [] in
+	List.iter (fun t ->
+		match t with
+		| TClassDecl c ->
+			(match c.cl_init with
+			| None -> ()
+			| Some e -> gen_expr ctx false e);
+		| _ -> ()
+	) types;
+	List.iter (fun t ->
+		match t with
+		| TClassDecl c -> generate_class_statics ctx c
+		| _ -> ()
+	) types;
+	write ctx A3RetVoid;
+	write ctx (A3Function (finit()));
+	write ctx (A3Set (ident ctx "init"));
+
+	write ctx A3RetVoid;
 	{
 		st3_method = f();
 		st3_fields = Array.of_list (List.rev classes);
 	}
-	
+
 let generate types hres =
 	let brights = new_lookup() in
 	let strings = new_lookup() in
@@ -1029,8 +1075,8 @@ let generate types hres =
 		infos = default_infos();
 		trys = [];
 		breaks = [];
-		continues = [];		
-	} in	
+		continues = [];
+	} in
 	List.iter (generate_type ctx) types;
 	Hashtbl.iter (fun _ _ -> assert false) hres;
 	let init = generate_inits ctx types in
@@ -1048,15 +1094,22 @@ let generate types hres =
 		as3_inits = [|init|];
 		as3_functions = lookup_array ctx.functions;
 		as3_unknown = "";
-	} in
-	[Swf.TActionScript3 (None,a)]
+	} in	
+	[Swf.TActionScript3 (None,a); Swf.TSwf9Name [0,"flash.Boot"]]
 
-let ident ctx p = 
+
+(* ----------------------------------------------------------------------------------------
+
+	HX generation
+
+   ---------------------------------------------------------------------------------------- *)
+
+let ident ctx p =
 	As3code.iget ctx.as3_idents p
 
 let package ctx idx =
 	match As3code.iget ctx.as3_base_rights idx with
-	| A3RPrivate (Some id) 
+	| A3RPrivate (Some id)
 	| A3RPublic (Some id)
 	| A3RInternal (Some id)
 	| A3RProtected id
@@ -1117,7 +1170,7 @@ let rec create_dir acc = function
 		create_dir path l
 
 let value_type = function
-	| A3VNone 
+	| A3VNone
 	| A3VNull -> "Dynamic"
 	| A3VBool _ -> "Bool"
 	| A3VString _ -> "String"
@@ -1135,10 +1188,10 @@ let type_val ctx t v =
 		s_type_path (type_path ctx t)
 
 let has_getset ml f m =
-	List.exists (fun f2 ->		
+	List.exists (fun f2 ->
 		match f2.f3_kind with
 		| A3FMethod m2 when f.f3_name = f2.f3_name ->
-			(match m.m3_kind , m2.m3_kind with 
+			(match m.m3_kind , m2.m3_kind with
 			| MK3Getter , MK3Setter | MK3Setter , MK3Getter -> true
 			| _ -> false)
 		| _ -> false
@@ -1146,7 +1199,7 @@ let has_getset ml f m =
 
 let gen_method ctx ch name mt =
 	let m = As3code.iget ctx.as3_method_types (As3parse.no_nz mt) in
-	let ret = (match m.mt3_ret with 
+	let ret = (match m.mt3_ret with
 		| None -> "Void"
 		| Some t -> s_type_path (type_path ctx t)
 	) in
@@ -1172,8 +1225,8 @@ let gen_method ctx ch name mt =
 	IO.printf ch "function %s(%s%s) : %s;\n" name (String.concat ", " params) vargs ret
 
 let gen_fields ctx ch fields stat =
-	let fields = List.sort (fun f1 f2 -> compare (ident_rights ctx f1.f3_name) (ident_rights ctx f2.f3_name)) (Array.to_list fields) in	
-	List.iter (fun f ->		
+	let fields = List.sort (fun f1 f2 -> compare (ident_rights ctx f1.f3_name) (ident_rights ctx f2.f3_name)) (Array.to_list fields) in
+	List.iter (fun f ->
 		match f.f3_kind with
 		| A3FMethod m ->
 			if m.m3_override then
@@ -1182,8 +1235,8 @@ let gen_fields ctx ch fields stat =
 			let priv , name = ident_rights ctx f.f3_name in
 			(match m.m3_kind with
 			| MK3Normal ->
-				IO.printf ch "\t";				
-				if priv then IO.printf ch "private ";				
+				IO.printf ch "\t";
+				if priv then IO.printf ch "private ";
 				if stat then IO.printf ch "static ";
 				gen_method ctx ch name m.m3_type
 			| MK3Getter ->
@@ -1194,7 +1247,7 @@ let gen_fields ctx ch fields stat =
 				IO.printf ch "\t%s%svar %s%s : %s;\n" (if priv then "private " else "") (if stat then "static " else "") name set_str t
 			| MK3Setter ->
 				let get = has_getset fields f m in
-				if not get then begin					
+				if not get then begin
 					let m = As3code.iget ctx.as3_method_types (As3parse.no_nz m.m3_type) in
 					let t = (match m.mt3_ret with None -> "Dynamic" | Some t -> s_type_path (type_path ctx t)) in
 					IO.printf ch "\t%s%svar %s(null,default) : %s;\n" (if priv then "private " else "") (if stat then "static " else "") name t
@@ -1221,7 +1274,7 @@ let genhx_class ctx c s =
 	| Some p ->
 		match type_path ctx p with
 		| [] , "Dynamic" -> false
-		| path -> 
+		| path ->
 			IO.printf ch " extends %s" (s_type_path path);
 			true
 	) in
