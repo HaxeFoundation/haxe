@@ -73,6 +73,8 @@ type context = {
 let error p = Typer.error "Invalid expression" p
 let stack_error p = Typer.error "Stack error" p
 
+let tarray = ["flash"] , "FlashArray__"
+
 let stack_delta = function
 	| A3Throw -> -1
 	| A3GetSuper _ -> 1
@@ -219,12 +221,16 @@ let jump_back ctx =
 		write ctx (A3Jump (cond,delta))
 	)
 
-let type_path ctx ?(getclass=false) (pack,name) =
+let real_type_path ctx getclass (pack,name) =	
 	let pid = string ctx (String.concat "." pack) in
 	let nameid = string ctx name in
 	let pid = lookup (A3RPublic (Some pid)) ctx.brights in
 	let tid = lookup (if getclass then A3TClassInterface (Some nameid,lookup [pid] ctx.rights) else A3TMethodVar (nameid,pid)) ctx.types in
 	tid
+
+let type_path ctx ?(getclass=false) path =
+	let path = (match path with [] , "Array" -> tarray | _ -> path) in
+	real_type_path ctx getclass path
 
 let ident ctx i = type_path ctx ([],i)
 
@@ -261,12 +267,12 @@ let open_block ctx =
 		ctx.infos.iregs <- old_regs
 	)
 
-let begin_fun ctx args =
+let begin_fun ctx ?(varargs=false) args =
 	let mt = {
 		mt3_ret = None;
 		mt3_args = List.map (fun _ -> None) args;
 		mt3_native = false;
-		mt3_var_args = false;
+		mt3_var_args = varargs;
 		mt3_debug_name = None;
 		mt3_dparams = None;
 		mt3_pnames = None;
@@ -426,8 +432,10 @@ let rec gen_expr_content ctx retval e =
 		) fl;
 		write ctx (A3Object (List.length fl))
 	| TArrayDecl el ->
+		let id = type_path ctx tarray in
+		write ctx (A3GetInf id);
 		List.iter (gen_expr ctx true) el;
-		write ctx (A3Array (List.length el))
+		write ctx (A3New (id,List.length el))
 	| TBlock el ->
 		let rec loop = function
 			| [] -> if retval then write ctx A3Null
@@ -611,6 +619,13 @@ and gen_access ctx e =
 		VReg (try PMap.find i ctx.locals with Not_found -> error e.epos)
 	| TField ({ eexpr = TLocal "__global__" },f) ->
 		VGlobal (ident ctx f)
+	| TField ({ eexpr = TLocal "__native__" },f) ->
+		let nameid = string ctx f in
+		let adobeid = string ctx "http://adobe.com/AS3/2006/builtin" in
+		let pid = lookup (A3RUnknown1 adobeid) ctx.brights in
+		let id = lookup (A3TMethodVar (nameid,pid)) ctx.types in
+		write ctx (A3GetInf id);
+		VId id
 	| TField (e,f) ->
 		let id = ident ctx f in
 		(match e.eexpr with
@@ -761,9 +776,9 @@ let generate_class_init ctx c slot =
 		write ctx A3Null
 	else begin
 		let path = (match c.cl_super with None -> ([],"Object") | Some (sup,_) -> sup.cl_path) in
-		write ctx (A3GetProp (type_path ctx path));
+		write ctx (A3GetProp (real_type_path ctx false path));
 		write ctx A3Scope;
-		write ctx (A3GetProp (type_path ~getclass:true ctx path));
+		write ctx (A3GetProp (real_type_path ctx true path));
 	end;
 	write ctx (A3ClassDef slot);
 	if not c.cl_interface then write ctx A3PopScope;
@@ -830,7 +845,7 @@ let generate_field_kind ctx f c stat =
 		Some (A3FMethod {
 			m3_type = generate_function ctx fdata stat;
 			m3_final = false;
-			m3_override = not stat && loop c;
+			m3_override = not stat && (if c.cl_path = tarray then false else loop c);
 			m3_kind = MK3Normal;
 		})
 	| _ when c.cl_interface && not stat ->
@@ -841,6 +856,39 @@ let generate_field_kind ctx f c stat =
 			v3_value = A3VNone;
 			v3_const = false;
 		})
+
+let generate_array_constructor ctx =
+	let f = begin_fun ~varargs:true ctx [] in
+	write ctx A3This;
+	write ctx A3Scope;
+	let args = alloc_reg ctx in
+	let len = alloc_reg ctx in
+	let i = alloc_reg ctx in
+	let id_length = ident ctx "length" in
+	let id_array = lookup (A3TArrayAccess ctx.gpublic) ctx.types in
+	write ctx (A3SetInf id_length);
+	write ctx (A3Reg args);
+	write ctx (A3Get id_length);
+	write ctx A3Dup;
+	write ctx (A3SetReg len);
+	write ctx (A3Set id_length);
+	write ctx (A3SmallInt 0);
+	write ctx (A3SetReg i);
+	let loop = jump_back ctx in	
+	write ctx (A3Reg i);
+	write ctx (A3Reg len);
+	let exit = jump ctx J3Gte in
+	write ctx A3This;
+	write ctx (A3Reg i);
+	write ctx (A3Reg args);
+	write ctx (A3Reg i);
+	write ctx (A3Get id_array);
+	write ctx (A3Set id_array);
+	write ctx (A3IncrReg i);
+	loop J3Always;
+	exit();
+	write ctx A3RetVoid;
+	f()
 
 let generate_class ctx c =
 	let name_id = type_path ctx c.cl_path in
@@ -876,7 +924,9 @@ let generate_class ctx c =
 			in
 			loop c
 		| Some f ->
-			match f.cf_expr with
+			if c.cl_path = tarray then
+				generate_array_constructor ctx
+			else match f.cf_expr with
 			| Some { eexpr = TFunction f } -> generate_function ctx f false
 			| _ -> assert false
 	) in
@@ -893,8 +943,8 @@ let generate_class ctx c =
 	) c.cl_fields []) in
 	let sc = {
 		cl3_name = name_id;
-		cl3_super = (if c.cl_interface then None else Some (type_path ctx (match c.cl_super with None -> [],"Object" | Some (c,_) -> c.cl_path)));
-		cl3_sealed = true;
+		cl3_super = (if c.cl_interface then None else Some (real_type_path ctx false (match c.cl_super with None -> [],"Object" | Some (c,_) -> c.cl_path)));
+		cl3_sealed = c.cl_path <> tarray;
 		cl3_final = false;
 		cl3_interface = c.cl_interface;
 		cl3_rights = None;

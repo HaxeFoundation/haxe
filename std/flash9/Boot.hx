@@ -2,12 +2,13 @@ package flash;
 
 class Boot extends flash.display.MovieClip {
 
-	static var init;
-	static var tf;
+	static var init : Void -> Void;
+	static var tf : flash.text.TextField;
 	static var lines : Array<String>;
 
 	function new() {
 		super();
+		var ref = FlashArray__;
 		lines = new Array();
 		flash.Lib.current = this;
 		init();
