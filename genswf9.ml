@@ -68,12 +68,11 @@ type context = {
 	mutable trys : (int * int * int * t) list;
 	mutable breaks : (unit -> unit) list;
 	mutable continues : (int -> unit) list;
+	mutable in_static : bool;
 }
 
 let error p = Typer.error "Invalid expression" p
 let stack_error p = Typer.error "Stack error" p
-
-let tarray = ["flash"] , "FlashArray__"
 
 let stack_delta = function
 	| A3Throw -> -1
@@ -229,7 +228,6 @@ let real_type_path ctx getclass (pack,name) =
 	tid
 
 let type_path ctx ?(getclass=false) path =
-	let path = (match path with [] , "Array" -> tarray | _ -> path) in
 	real_type_path ctx getclass path
 
 let ident ctx i = type_path ctx ([],i)
@@ -432,10 +430,8 @@ let rec gen_expr_content ctx retval e =
 		) fl;
 		write ctx (A3Object (List.length fl))
 	| TArrayDecl el ->
-		let id = type_path ctx tarray in
-		write ctx (A3GetInf id);
 		List.iter (gen_expr ctx true) el;
-		write ctx (A3New (id,List.length el))
+		write ctx (A3Array (List.length el))
 	| TBlock el ->
 		let rec loop = function
 			| [] -> if retval then write ctx A3Null
@@ -598,7 +594,7 @@ and gen_call ctx e el =
 		write ctx (A3GetInf id);
 		List.iter (gen_expr ctx true) el;
 		write ctx (A3SuperCall (id,List.length el));
-	| TField ({ eexpr = TConst TThis },f) , _ ->
+	| TField ({ eexpr = TConst TThis },f) , _ when not ctx.in_static ->
 		let id = ident ctx f in
 		write ctx (A3GetInf id);
 		List.iter (gen_expr ctx true) el;
@@ -629,7 +625,7 @@ and gen_access ctx e =
 	| TField (e,f) ->
 		let id = ident ctx f in
 		(match e.eexpr with
-		| TConst TThis -> write ctx (A3GetInf id)
+		| TConst TThis when not ctx.in_static -> write ctx (A3GetInf id)
 		| _ -> gen_expr ctx true e);
 		VId id
 	| TArray (e,eindex) ->
@@ -751,13 +747,16 @@ and gen_expr ctx retval e =
 	end else if retval then stack_error e.epos
 
 and generate_function ctx fdata stat =
+	let old_stat = ctx.in_static in
+	ctx.in_static <- stat;
 	let f = begin_fun ctx (List.map (fun (name,_,_) -> name) fdata.tf_args) in
 	if not stat then begin
 		write ctx A3This;
 		write ctx A3Scope;
 	end;
-	gen_expr ctx false fdata.tf_expr;
+	gen_expr ctx false fdata.tf_expr;	
 	write ctx A3RetVoid;
+	ctx.in_static <- old_stat;
 	f()
 
 let generate_construct ctx args =
@@ -845,7 +844,7 @@ let generate_field_kind ctx f c stat =
 		Some (A3FMethod {
 			m3_type = generate_function ctx fdata stat;
 			m3_final = false;
-			m3_override = not stat && (if c.cl_path = tarray then false else loop c);
+			m3_override = not stat && loop c;
 			m3_kind = MK3Normal;
 		})
 	| _ when c.cl_interface && not stat ->
@@ -856,39 +855,6 @@ let generate_field_kind ctx f c stat =
 			v3_value = A3VNone;
 			v3_const = false;
 		})
-
-let generate_array_constructor ctx =
-	let f = begin_fun ~varargs:true ctx [] in
-	write ctx A3This;
-	write ctx A3Scope;
-	let args = alloc_reg ctx in
-	let len = alloc_reg ctx in
-	let i = alloc_reg ctx in
-	let id_length = ident ctx "length" in
-	let id_array = lookup (A3TArrayAccess ctx.gpublic) ctx.types in
-	write ctx (A3SetInf id_length);
-	write ctx (A3Reg args);
-	write ctx (A3Get id_length);
-	write ctx A3Dup;
-	write ctx (A3SetReg len);
-	write ctx (A3Set id_length);
-	write ctx (A3SmallInt 0);
-	write ctx (A3SetReg i);
-	let loop = jump_back ctx in	
-	write ctx (A3Reg i);
-	write ctx (A3Reg len);
-	let exit = jump ctx J3Gte in
-	write ctx A3This;
-	write ctx (A3Reg i);
-	write ctx (A3Reg args);
-	write ctx (A3Reg i);
-	write ctx (A3Get id_array);
-	write ctx (A3Set id_array);
-	write ctx (A3IncrReg i);
-	loop J3Always;
-	exit();
-	write ctx A3RetVoid;
-	f()
 
 let generate_class ctx c =
 	let name_id = type_path ctx c.cl_path in
@@ -924,9 +890,7 @@ let generate_class ctx c =
 			in
 			loop c
 		| Some f ->
-			if c.cl_path = tarray then
-				generate_array_constructor ctx
-			else match f.cf_expr with
+			match f.cf_expr with
 			| Some { eexpr = TFunction f } -> generate_function ctx f false
 			| _ -> assert false
 	) in
@@ -944,7 +908,7 @@ let generate_class ctx c =
 	let sc = {
 		cl3_name = name_id;
 		cl3_super = (if c.cl_interface then None else Some (real_type_path ctx false (match c.cl_super with None -> [],"Object" | Some (c,_) -> c.cl_path)));
-		cl3_sealed = c.cl_path <> tarray;
+		cl3_sealed = true;
 		cl3_final = false;
 		cl3_interface = c.cl_interface;
 		cl3_rights = None;
@@ -1126,6 +1090,7 @@ let generate types hres =
 		trys = [];
 		breaks = [];
 		continues = [];
+		in_static = false;
 	} in
 	List.iter (generate_type ctx) types;
 	Hashtbl.iter (fun _ _ -> assert false) hres;

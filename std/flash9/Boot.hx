@@ -8,7 +8,33 @@ class Boot extends flash.display.MovieClip {
 
 	function new() {
 		super();
-		var ref = FlashArray__;
+		untyped {
+			var aproto = Array.prototype;
+			aproto.copy = aproto.slice;
+			aproto.insert = function(i,x) {
+				this.splice(i,0,x);
+			};
+			aproto.remove = function(obj) {
+				for( i in 0...this.length )
+					if( this[i] == obj ) {
+						this.splice(i,1);
+						return true;
+					}
+				return false;
+			}
+			aproto.iterator = function() {
+				return {
+					cur : 0,
+					arr : this,
+					hasNext : function() {
+						return this.cur < this.arr.length;
+					},
+					next : function() {
+						return this.arr[this.cur++];
+					}
+				}
+			};
+		}
 		lines = new Array();
 		flash.Lib.current = this;
 		init();
