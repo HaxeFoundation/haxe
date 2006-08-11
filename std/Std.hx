@@ -77,7 +77,12 @@ class Std {
 	**/
 	public static function parseInt( x : String ) : Int {
 		untyped {
-		#if flash
+		#if flash9
+		var v = __global__.parseInt(x);
+		if( Math.isNaN(v) )
+			return null;
+		return v;
+		#else flash
 		var v = _global["parseInt"](x);
 		if( Math.isNaN(v) )
 			return null;
@@ -106,7 +111,9 @@ class Std {
 	**/
 	public static function parseFloat( x : String ) : Float {
 		return untyped
-		#if flash
+		#if flash9
+		__global__.parseFloat(x);
+		#else flash
 		_global["parseFloat"](x);
 		#else neko
 		__dollar__float(x.__s);
@@ -166,7 +173,9 @@ class Std {
 	**/
 	public static function random( x : Int ) : Int {
 		return untyped
-		#if flash
+		#if flash9
+		Math.floor(Math.random()*x);
+		#else flash
 		__random__(x);
 		#else neko
 		Math._rand_int(Math.__rnd,x);
@@ -181,7 +190,9 @@ class Std {
 	**/
 	public static function resource( name : String ) : String {
 		return untyped
-		#if flash
+		#if flash9
+		null;
+		#else flash
 		flash.Boot.__res[name];
 		#else neko
 		__dollar__objget(neko.Boot.__res,__dollar__hash(name.__s));
