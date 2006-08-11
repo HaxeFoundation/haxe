@@ -100,9 +100,9 @@ let ops , ops_ids =
 	h , h2
 
 let length = function	
+	| A3SmallInt _ -> 2
 	| A3StackCall n
 	| A3StackNew n
-	| A3SmallInt n
 	| A3Object n
 	| A3RegReset n
 	| A3SuperConstr n
