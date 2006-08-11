@@ -78,7 +78,7 @@ class Std {
 	public static function parseInt( x : String ) : Int {
 		untyped {
 		#if flash9
-		var v = __global__.parseInt(x);
+		var v = __global__["parseInt"](x);
 		if( Math.isNaN(v) )
 			return null;
 		return v;
@@ -112,7 +112,7 @@ class Std {
 	public static function parseFloat( x : String ) : Float {
 		return untyped
 		#if flash9
-		__global__.parseFloat(x);
+		__global__["parseFloat"](x);
 		#else flash
 		_global["parseFloat"](x);
 		#else neko

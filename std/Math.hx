@@ -57,9 +57,9 @@ extern class Math
 		Math = neko.NekoMath__;
 	#else true
 		#if flash9
-		NaN = __global__.Number.NaN;
-		NEGATIVE_INFINITY = __global__.Number.NEGATIVE_INFINITY;
-		POSITIVE_INFINITY = __global__.Number.POSITIVE_INFINITY;
+		NaN = __global__["Number"].NaN;
+		NEGATIVE_INFINITY = __global__["Number"].NEGATIVE_INFINITY;
+		POSITIVE_INFINITY = __global__["Number"].POSITIVE_INFINITY;
 		#else true
 		NaN = Number["NaN"];
 		NEGATIVE_INFINITY = Number["NEGATIVE_INFINITY"];
@@ -68,7 +68,7 @@ extern class Math
 		isFinite = function(i) {
 			return
 			#if flash9
-			__global__.isFinite(i);
+			__global__["isFinite"](i);
 			#else flash
 			_global["isFinite"](i);
 			#else js
@@ -79,7 +79,7 @@ extern class Math
 		isNaN = function(i) {
 			return
 			#if flash9
-			__global__.isNaN(i);
+			__global__["isNaN"](i);
 			#else flash
 			_global["isNaN"](i);
 			#else js

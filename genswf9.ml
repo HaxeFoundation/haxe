@@ -577,10 +577,6 @@ let rec gen_expr_content ctx retval e =
 
 and gen_call ctx e el =
 	match e.eexpr , el with
-	| TField ({ eexpr = TLocal "__global__" },f) , el ->
-		write ctx (A3GetInf (ident ctx f));
-		List.iter (gen_expr ctx true) el;
-		write ctx (A3Call (ident ctx f,List.length el))
 	| TLocal "__is__" , [e;t] ->
 		gen_expr ctx true e;
 		gen_expr ctx true t;
@@ -613,8 +609,6 @@ and gen_access ctx e =
 	match e.eexpr with
 	| TLocal i ->
 		VReg (try PMap.find i ctx.locals with Not_found -> error e.epos)
-	| TField ({ eexpr = TLocal "__global__" },f) ->
-		VGlobal (ident ctx f)
 	| TField ({ eexpr = TLocal "__native__" },f) ->
 		let nameid = string ctx f in
 		let adobeid = string ctx "http://adobe.com/AS3/2006/builtin" in
@@ -628,6 +622,10 @@ and gen_access ctx e =
 		| TConst TThis when not ctx.in_static -> write ctx (A3GetInf id)
 		| _ -> gen_expr ctx true e);
 		VId id
+	| TArray ({ eexpr = TLocal "__global__" },{ eexpr = TConst (TString s) }) ->
+		let path = (match List.rev (ExtString.String.nsplit s ".") with [] -> assert false | x :: l -> List.rev l, x) in
+		let id = type_path ctx path in
+		VGlobal id
 	| TArray (e,eindex) ->
 		gen_expr ctx true e;
 		gen_expr ctx true eindex;
