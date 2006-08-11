@@ -40,11 +40,15 @@ class Unserializer {
  	var cache : Array<Dynamic>;
  	var scache : Array<String>;
  	var resolver : TypeResolver;
+ 	#if neko
+ 	var upos : Int;
+ 	#end
 
  	public function new( buf : String ) {
  		this.buf = buf;
  		length = buf.length;
  		pos = 0;
+ 		upos = 0;
  		scache = new Array();
  		cache = new Array();
  		setResolver(DEFAULT_RESOLVER);
@@ -139,8 +143,9 @@ class Unserializer {
  			if( buf.charAt(pos++) != ":" || length - pos < len )
 				throw "Invalid string length";
 			#if neko
-			var s = neko.Utf8.sub(buf,pos,len);
+			var s = neko.Utf8.sub(buf,pos-upos,len);
 			pos += s.length;
+			upos += s.length - len;
 			#else true
  			var s = buf.substr(pos,len);
  			pos += len;
@@ -154,8 +159,9 @@ class Unserializer {
  			#if neko
 			if( length - pos < len )
 				throw "Invalid string length";
- 			var s = neko.Utf8.sub(buf,pos,len);
+ 			var s = neko.Utf8.sub(buf,pos-upos,len);
  			pos += s.length;
+ 			upos += s.length - len;
  			#else true
  			var s = buf.substr(pos,len);
  			pos += len;
