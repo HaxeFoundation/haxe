@@ -100,7 +100,7 @@ let stack_delta = function
 	| A3Switch _ -> -1
 	| A3PopScope -> 0
 	| A3XmlOp3 -> assert false
-	| A3ForIn | A3ForEach -> assert false
+	| A3ForIn | A3ForEach -> -1
 	| A3Null
 	| A3Undefined
 	| A3SmallInt _
@@ -116,7 +116,7 @@ let stack_delta = function
 	| A3Dup -> 1
 	| A3CatchDone -> assert false
 	| A3Scope -> -1
-	| A3Next _ -> 0
+	| A3Next _ -> 1
 	| A3StackCall n -> -(n + 1)
 	| A3StackNew n -> -(n + 1)
 	| A3SuperCall (_,n) -> -n
@@ -225,10 +225,10 @@ let jump ctx cond =
 	)
 
 let jump_back ctx =
-	write ctx (A3Jump (J3Always,1));
+	let j = jump ctx J3Always in
 	let p = ctx.infos.ipos in
 	write ctx A3Nop;
-	(fun cond ->
+	j , (fun cond ->
 		let delta = p + -(ctx.infos.ipos + jsize) in
 		write ctx (A3Jump (cond,delta))
 	)
@@ -601,7 +601,8 @@ let rec gen_expr_content ctx retval e =
 		let jstart = (match flag with NormalWhile -> (fun()->()) | DoWhile -> jump ctx J3Always) in
 		let end_loop = begin_loop ctx in
 		let continue_pos = ctx.infos.ipos + jsize in
-		let loop = jump_back ctx in
+		let here, loop = jump_back ctx in
+		here();
 		gen_expr ctx true econd;
 		let jend = jump ctx J3False in
 		jstart();
@@ -651,7 +652,8 @@ let rec gen_expr_content ctx retval e =
 		define_local ctx v [e];
 		let end_loop = begin_loop ctx in
 		let continue_pos = ctx.infos.ipos + jsize in
-		let start = jump_back ctx in
+		let here, start = jump_back ctx in
+		here();
 		write ctx (A3Reg r);
 		write ctx (A3Call (ident ctx "hasNext",0));
 		let jend = jump ctx J3False in
@@ -748,6 +750,30 @@ and gen_call ctx e el =
 		gen_expr ctx true e;
 		gen_expr ctx true t;
 		write ctx (A3Op A3OIs)
+	| TLocal "__keys__" , [e] ->
+		let racc = alloc_reg ctx in
+		let rcounter = alloc_reg ctx in
+		let rtmp = alloc_reg ctx in
+		write ctx (A3SmallInt 0);
+		write ctx (A3SetReg rcounter);
+		write ctx (A3Array 0);
+		write ctx (A3SetReg racc);
+		gen_expr ctx true e;
+		write ctx (A3SetReg rtmp);
+		let start, loop = jump_back ctx in
+		write ctx (A3Reg racc);		
+		write ctx (A3Reg rtmp);
+		write ctx (A3Reg rcounter);
+		write ctx A3ForIn;
+		write ctx (A3Call (ident ctx "push",1));
+		write ctx A3Pop;
+		start();
+		write ctx (A3Next (rtmp,rcounter));
+		loop J3True;
+		write ctx (A3Reg racc);
+		free_reg ctx rtmp;
+		free_reg ctx rcounter;
+		free_reg ctx racc;
 	| TConst TSuper , _ ->
 		write ctx A3This;
 		List.iter (gen_expr ctx true) el;
