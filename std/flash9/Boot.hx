@@ -34,14 +34,33 @@ class Boot extends flash.display.MovieClip {
 					}
 				}
 			};
+			Bool = __global__["Boolean"];
+			Int = __global__["int"];
+			Float = __global__["Number"];
+			Dynamic = { toString : function(){ return "Dynamic"; } };
+			var cca = String.prototype.charCodeAt;
+			String.prototype.charCodeAt = function(i) {
+				var x = cca.call(this,i);
+				if( __global__["isNaN"](x) )
+					return null;
+				return x;
+			};
 		}
 		lines = new Array();
 		flash.Lib.current = this;
 		init();
 	}
 
+	static function enum_to_string( e ) {
+		if( e.params == null )
+			return e.tag;
+		return e.tag+"("+e.params.join(",")+")";
+	}
+
 	static function __instanceof( v : Dynamic, t : Dynamic ) {
 		try {
+			if( t === untyped __global__["Dynamic"] )
+				return true;
 			return untyped __is__(v,t);
 		} catch( e : Dynamic ) {
 			return false;
