@@ -33,9 +33,7 @@ class Timer {
 	#end
 
 	public function new( time : Int ){
-		#if flash9
-			throw "Not implemented";
-		#else flash
+		#if flash
 			var me = this;
 			id = untyped _global["setInterval"](function() { me.run(); },time);
 		#else js
@@ -48,9 +46,7 @@ class Timer {
 	}
 
 	public function stop(){
-		#if flash9
-			throw "Not implemented";
-		#else flash
+		#if flash
 			untyped _global["clearInterval"](id);
 			id = null;
 		#else js
@@ -61,7 +57,7 @@ class Timer {
 
 	public function run(){
 	}
-/*
+
 	public static function delayed( f : Void -> Void, time : Int ) : Void -> Void {
 		return function() {
 			var t = new haxe.Timer(time);
@@ -81,9 +77,9 @@ class Timer {
 			};
 		};
 	}
-*/
+
 	public static function stamp() : Float {
-		#if flash9
+		#if flash
 		return flash.Lib.getTimer() / 1000;
 		#else neko
 		return neko.Sys.time();
