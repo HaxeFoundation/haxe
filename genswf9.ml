@@ -333,18 +333,24 @@ let begin_fun ctx ?(varargs=false) args el =
 			mt3_new_block = hasblock;
 			mt3_unk_flags = (false,false,false);
 		} in
-		let delta = (if hasblock then 0 else 2) in
+		let code , delta = (match DynArray.to_list ctx.code with
+			| (A3This :: A3Scope :: l) as all -> 
+				if hasblock then
+					A3This :: A3Scope :: A3NewBlock :: A3Scope :: l , 2
+				else if ctx.in_static then
+					l , -2
+				else
+					all , 0
+			| _ when hasblock -> assert false
+			| l -> l , 0
+		) in
 		let f = {
 			fun3_id = add mt ctx.mtypes;
 			fun3_stack_size = ctx.infos.imax;
 			fun3_nregs = ctx.infos.imaxregs + 1;
 			fun3_unk3 = 1;
 			fun3_max_scope = ctx.infos.imaxscopes + 1 + (if hasblock then 1 else 0);
-			fun3_code = (match DynArray.to_list ctx.code with
-				| A3This :: A3Scope :: l when hasblock -> A3This :: A3Scope :: A3NewBlock :: A3Scope :: l
-				| _ when hasblock -> assert false
-				| l -> l
-			);
+			fun3_code = code;
 			fun3_trys = Array.of_list (List.map (fun (p,size,cp,t) ->
 				{
 					tc3_start = p + delta;
@@ -659,12 +665,26 @@ let rec gen_expr_content ctx retval e =
 		let p = ctx.infos.ipos in
 		ctx.continues <- (fun target -> DynArray.set ctx.code op (A3Jump (J3Always,target - p))) :: ctx.continues;
 		no_value ctx retval
-
-(*
-	| TSwitch of texpr * (texpr * texpr) list * texpr option
-	| TMatch of texpr * (tenum * t list) * (string * (string option * t) list option * texpr) list * texpr option
-*)
-	| _ ->
+	| TSwitch (e,el,eo) ->
+		let r = alloc_reg ctx in
+		gen_expr ctx true e;
+		write ctx (A3SetReg r);
+		let prev = ref (fun () -> ()) in
+		let jend = List.map (fun (v,e) ->
+			(!prev)();
+			write ctx (A3Reg r);
+			gen_expr ctx true v;
+			prev := jump ctx J3Neq;
+			gen_expr ctx retval e;
+			jump ctx J3Always
+		) el in
+		(!prev)();
+		free_reg ctx r;
+		(match eo with
+		| None -> ()
+		| Some e -> gen_expr ctx retval e);
+		List.iter (fun j -> j()) jend;
+	| TMatch (e,_,cases,def) ->
 		assert false
 
 and gen_call ctx e el =
