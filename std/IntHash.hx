@@ -34,7 +34,7 @@ class IntHash<T> {
 	**/
 	public function new() : Void {
 		#if flash
-		h = untyped __new__(Object);
+		h = untyped __new__(_global["Object"]);
 		#else neko
 		h = untyped __dollar__hnew(0);
 		#else js
@@ -82,7 +82,7 @@ class IntHash<T> {
 	**/
 	public function exists( key : Int ) : Bool {
 		#if flash
-		return untyped h.hasOwnProperty(key);
+		return untyped h["hasOwnProperty"](key);
 		#else js
 		return untyped h[key] != null;
 		#else neko
@@ -97,7 +97,7 @@ class IntHash<T> {
 	**/
 	public function remove( key : Int ) : Bool {
 		#if flash
-		if( untyped !h.hasOwnProperty(key) ) return false;
+		if( untyped !h["hasOwnProperty"](key) ) return false;
 		untyped __delete__(h,key);
 		return true;
 		#else js
