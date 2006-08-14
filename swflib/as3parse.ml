@@ -375,10 +375,11 @@ let read_method_type ctx ch =
 		mt3_args = targs;
 		mt3_var_args = flags land 0x04 <> 0;
 		mt3_native = flags land 0x20 <> 0;
+		mt3_new_block = flags land 0x02 <> 0;
 		mt3_debug_name = dname;
 		mt3_dparams = dparams;
 		mt3_pnames = pnames;
-		mt3_unk_flags = (flags land 0x01 <> 0, flags land 0x02 <> 0, flags land 0x10 <> 0, flags land 0x40 <> 0);
+		mt3_unk_flags = (flags land 0x01 <> 0, flags land 0x10 <> 0, flags land 0x40 <> 0);
 	}
 
 let read_list ch f =
@@ -679,10 +680,10 @@ let write_method_type ch m =
 	write_index_opt ch m.mt3_ret;
 	List.iter (write_index_opt ch) m.mt3_args;
 	write_index_opt ch m.mt3_debug_name;
-	let f1 , f2, f10, f40 = m.mt3_unk_flags in
+	let f1 , f10, f40 = m.mt3_unk_flags in
 	let flags =
 		(if f1 then 0x01 else 0) lor
-		(if f2 then 0x02 else 0) lor
+		(if m.mt3_new_block then 0x02 else 0) lor
 		(if m.mt3_var_args then 0x04 else 0) lor
 		(if m.mt3_dparams <> None then 0x08 else 0) lor
 		(if f10 then 0x10 else 0) lor
@@ -849,7 +850,7 @@ let metadata_str ctx i =
 	let data = List.map (fun (i1,i2) -> Printf.sprintf "%s=\"%s\"" (match i1 with None -> "NO" | Some i -> ident_str ctx i) (ident_str ctx i2)) (Array.to_list m.meta3_data) in
 	Printf.sprintf "%s(%s)" (ident_str ctx m.meta3_name) (String.concat ", " data)
 
-let method_str ?(slot=false) ctx m =
+let method_str ?(infos=false) ctx m =
 	let m = iget ctx.as3_method_types m in
 	let pcount = ref 0 in
 	Printf.sprintf "%s(%s%s)%s"
@@ -876,7 +877,11 @@ let method_str ?(slot=false) ctx m =
 	) m.mt3_args))
 	(if m.mt3_var_args then " ..." else "")
 	(match m.mt3_ret with None -> "" | Some t -> " : " ^ type_str ctx "" t)
-	^ (if slot then match m.mt3_debug_name with None -> "" | Some idx -> Printf.sprintf " '%s'" (ident_str ctx idx) else "")
+	^ (if infos then begin
+		let name = (match m.mt3_debug_name with None -> "" | Some idx -> Printf.sprintf " '%s'" (ident_str ctx idx))  in
+		let a,b,c = m.mt3_unk_flags in
+		Printf.sprintf "%s nb:%b %b %b %b" name m.mt3_new_block a b c
+	end else "")
 
 let dump_field ctx ch stat f =
 (*	(match f.f3_metas with
@@ -940,7 +945,7 @@ let dump_try_catch ctx ch t =
 		(match t.tc3_name with None -> "NO" | Some idx -> type_str ctx "" idx)
 
 let dump_function ctx ch idx f =
-	IO.printf ch "function #%d %s\n" (index_nz_int f.fun3_id) (method_str ~slot:true ctx (no_nz f.fun3_id));
+	IO.printf ch "function #%d %s\n" (index_nz_int f.fun3_id) (method_str ~infos:true ctx (no_nz f.fun3_id));
 	IO.printf ch "    stack:%d nregs:%d ?:%d nscopes:%d\n" f.fun3_stack_size f.fun3_nregs f.fun3_unk3 f.fun3_max_scope;
 	Array.iter (dump_field ctx ch false) f.fun3_locals;
 	Array.iter (dump_try_catch ctx ch) f.fun3_trys;
@@ -962,7 +967,7 @@ let dump_type ctx ch idx _ =
 	IO.printf ch "T%d = %s\n" (idx + 1) (type_str ctx "" (index ctx.as3_types (idx + 1)))
 
 let dump_method_type ctx ch idx _ =
-	IO.printf ch "M%d = %s\n" (idx + 1) (method_str ~slot:true ctx (index ctx.as3_method_types (idx + 1)))
+	IO.printf ch "M%d = %s\n" (idx + 1) (method_str ~infos:true ctx (index ctx.as3_method_types (idx + 1)))
 
 let dump_metadata ctx ch idx _ =
 	IO.printf ch "D%d = %s\n" (idx + 1) (metadata_str ctx (index ctx.as3_metadatas (idx + 1)))
