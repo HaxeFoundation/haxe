@@ -52,6 +52,7 @@ class Connection {
 	var cnx : Socket;
 	var count : Int;
 	var selected : String;
+	var logged : Bool;
 
 	static var REG_RESP = ~/(OK|NO|BAD) (\[([^\]]+)\] )?(([A-Z]{2,}) )? ?(.*)/;
 	static var REG_EXISTS = ~/^([0-9]+) EXISTS$/;
@@ -74,10 +75,6 @@ class Connection {
 		return REG_CRLF.replace(s, "");
 	}
 
-	static function quote( s : String ) : String {
-		return "\""+s.split("\"").join("\\\"")+"\"";
-	}
-
 	static function debug(s:String){
 		if( DEBUG ) neko.Lib.print(Std.string(s)+"\n");
 	}
@@ -86,6 +83,7 @@ class Connection {
 
 	public function new(){
 		count = 0;
+		logged = false;
 	}
 
 	/**
@@ -104,22 +102,35 @@ class Connection {
 		debug("socket connected");
 		cnx.setTimeout( TIMEOUT );
 		cnx.readLine();
+		logged = false;
 	}
 
 	/**
 		Login to server
 	**/
 	public function login( user : String, pass : String ){	
-		var r = command("LOGIN",quote(user)+" "+quote(pass));
+		var r = command("LOGIN",Tools.quote(user)+" "+Tools.quote(pass));
 		if( !r.success ){
 			throw BadResponse(r.response);
 		}
+		logged = true;
+	}
+
+	/**
+		Logout
+	**/
+	function logout(){
+		if( !logged ) return;
+		var r = command("LOGOUT");
+		if( !r.success ) throw BadResponse(r.response);
+		logged = false;
 	}
 
 	/**
 		Close connection to server
 	**/
 	public function close(){
+		logout();
 		cnx.close();
 		cnx = null;
 	}
@@ -127,11 +138,11 @@ class Connection {
 	/**
 		List mailboxes that match pattern (all mailboxes if pattern is null)
 	**/
-	public function mailboxes( ?pattern : String, ?flat : Bool ) : List<Mailbox> {
+	public function mailboxes( ?pattern : String, ?flat : Bool ) : Array<Mailbox> {
 		if( pattern == null ) pattern = "*";
 		if( flat == null ) flat = false;
 
-		var r = command("LIST",quote(".")+" "+quote(pattern));
+		var r = command("LIST",Tools.quote(".")+" "+Tools.quote(pattern));
 		if( !r.success ){
 			throw BadResponse(r.response);
 		}
@@ -147,18 +158,18 @@ class Connection {
 			}
 		}
 
-		var ret = new List();
+		var ret = new Array();
 		for( t in hash ){
 			var a = t.name.split(".");
 			a.pop();
 			var p = a.join(".");
 			if( p.length > 0 && hash.exists(p) ){
 				var par = hash.get(p);
-				par.children.add( t );
+				par.children.push( t );
 				untyped t.parent = par;
-				if( flat ) ret.add( t );
+				if( flat ) ret.push( t );
 			}else{
-				ret.add( t );
+				ret.push( t );
 			}
 
 		}
@@ -167,7 +178,7 @@ class Connection {
 	}
 
 	public function getMailbox( name : String ){
-		return mailboxes(name).first();
+		return mailboxes(name)[0];
 	}
 
 	/**
@@ -176,7 +187,7 @@ class Connection {
 	public function select( mailbox : String ){
 		if( selected == mailbox ) return null;
 
-		var r = command("SELECT",quote(mailbox));
+		var r = command("SELECT",Tools.quote(mailbox));
 		if( !r.success ) 
 			throw BadResponse(r.response);
 
@@ -197,7 +208,7 @@ class Connection {
 	}
 
 	public function status( mailbox : String ){
-		var r = command("STATUS",quote(mailbox)+" (MESSAGES RECENT UNSEEN)");
+		var r = command("STATUS",Tools.quote(mailbox)+" (MESSAGES RECENT UNSEEN)");
 		if( !r.success ) throw BadResponse( r.response );
 		
 		var ret = new Hash<Int>();	
@@ -349,7 +360,7 @@ class Connection {
 	**/
 	public function append( mailbox : String, content : String, ?flags : Flags ){
 		var f = if( flags != null ) "("+flags.join(" ")+") " else "";
-		command("APPEND",quote(mailbox)+" "+f+"{"+content.length+"}",false);
+		command("APPEND",Tools.quote(mailbox)+" "+f+"{"+content.length+"}",false);
 		cnx.write( content );
 		cnx.write( "\r\n" );
 		var r = read( StringTools.lpad(Std.string(count),"A000",4) );
@@ -404,7 +415,7 @@ class Connection {
 		Create a new mailbox.
 	**/
 	public function create( mailbox : String ){
-		var r = command( "CREATE", quote(mailbox) );
+		var r = command( "CREATE", Tools.quote(mailbox) );
 		if( !r.success ) throw BadResponse( r.response );
 	}
 	
@@ -412,7 +423,7 @@ class Connection {
 		Delete a mailbox.
 	**/
 	public function delete( mailbox : String ){
-		var r = command( "DELETE", quote(mailbox) );
+		var r = command( "DELETE", Tools.quote(mailbox) );
 		if( !r.success ) throw BadResponse( r.response );
 	}
 
@@ -420,7 +431,7 @@ class Connection {
 		Rename a mailbox.
 	**/
 	public function rename( mailbox : String, newName : String ){
-		var r = command( "RENAME", quote(mailbox)+" "+quote(newName) );
+		var r = command( "RENAME", Tools.quote(mailbox)+" "+Tools.quote(newName) );
 		if( !r.success ) throw BadResponse( r.response );
 	}
 
@@ -431,7 +442,7 @@ class Connection {
 		if( useUid == null ) useUid = false;
 
 		var range = Tools.collString(iRange);
-		var r = command(if(useUid) "UID COPY" else "COPY",range+" "+quote(toMailbox));
+		var r = command(if(useUid) "UID COPY" else "COPY",range+" "+Tools.quote(toMailbox));
 		if( !r.success ) throw BadResponse( r.response );
 	}
 
