@@ -118,7 +118,7 @@ let stack_delta = function
 	| A3Scope -> -1
 	| A3Next _ -> 1
 	| A3StackCall n -> -(n + 1)
-	| A3StackNew n -> -(n + 1)
+	| A3StackNew n -> -n
 	| A3SuperCall (_,n) -> -n
 	| A3Call (_,n) -> -n
 	| A3RetVoid -> 0
@@ -586,13 +586,15 @@ let rec gen_expr_content ctx retval e =
 		write ctx (A3New (id,List.length pl))
 	| TFunction f ->
 		write ctx (A3Function (generate_function ctx f true))
-	| TIf (e,e1,e2) ->
+	| TIf (e,e1,e2) ->		
 		gen_expr ctx true e;
 		let j = jump ctx J3False in
 		gen_expr ctx retval e1;
 		(match e2 with
 		| None -> j()
-		| Some e ->
+		| Some e ->			
+			(* two expresssions, but one per branch *)
+			if retval then ctx.infos.istack <- ctx.infos.istack - 1;
 			let jend = jump ctx J3Always in
 			j();
 			gen_expr ctx retval e;
@@ -774,6 +776,10 @@ and gen_call ctx e el =
 		free_reg ctx rtmp;
 		free_reg ctx rcounter;
 		free_reg ctx racc;
+	| TLocal "__new__" , e :: el ->
+		gen_expr ctx true e;
+		List.iter (gen_expr ctx true) el;
+		write ctx (A3StackNew (List.length el)) 
 	| TConst TSuper , _ ->
 		write ctx A3This;
 		List.iter (gen_expr ctx true) el;
