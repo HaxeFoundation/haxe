@@ -19,7 +19,7 @@ genjs.cmx: typer.cmx type.cmx transform.cmx ast.cmx
 
 genswf.cmx: typer.cmx type.cmx transform.cmx plugin.cmx genswf9.cmx ast.cmx
 
-genswf9.cmx: type.cmx ast.cmx typer.cmx
+genswf9.cmx: type.cmx ast.cmx typer.cmx transform.cmx
 
 genxml.cmx: typer.cmx type.cmx lexer.cmx ast.cmx
 
