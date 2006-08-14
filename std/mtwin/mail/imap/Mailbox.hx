@@ -40,7 +40,7 @@ class Mailbox {
 	var cnx : Connection;
 	public var name(default,null) : String;
 	var flags : Flags;
-	public var children : List<Mailbox>;
+	public var children : Array<Mailbox>;
 	public var parent(default,null) : Mailbox;
 
 	public var length(default,null) : Int;
@@ -56,7 +56,7 @@ class Mailbox {
 		cnx = c;
 		name = n;
 		flags = f;
-		children = new List();
+		children = new Array();
 	}
 
 	public function select(){
