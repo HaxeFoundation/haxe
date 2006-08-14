@@ -70,6 +70,20 @@ class Message {
 		return r.first().body;
 	}
 
+	public function markAsDeleted(){
+		addFlag("\\Deleted");
+	}
+
+	public function addFlag( flag : String ){
+		var cnx = mailbox.select();
+		cnx.storeFlags(Single(uid), [flag], Add, true, false );
+	}
+
+	public function removeFlag( flag : String ){
+		var cnx = mailbox.select();
+		cnx.storeFlags(Single(uid), [flag], Remove, true, false );
+	}
+
 	public function copyTo( mb : Mailbox ){
 		var cnx = mailbox.select();
 		cnx.copy( Single(uid), mb.name, true );
