@@ -62,7 +62,11 @@ class Std {
 		Convert a Float to an Int, rounded down.
 	**/
 	public static function int( x : Float ) : Int {
+		#if flash9
+		return untyped __global__["int"](x);
+		#else true
 		return Math.floor(x);
+		#end
 	}
 
 	/**
