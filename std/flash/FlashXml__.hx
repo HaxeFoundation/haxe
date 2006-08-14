@@ -115,7 +115,7 @@ class FlashXml__ {
 
 	public function firstElement(){
 		var e : Dynamic = __x[untyped "firstChild"];
-		while( e != null && e.nodeType != 1 )
+		while( e != null && e[untyped "nodeType"] != 1 )
 			e = e[untyped "nextSibling"];
 		return convert(e);
 	}
