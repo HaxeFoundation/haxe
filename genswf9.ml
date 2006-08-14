@@ -890,9 +890,10 @@ and generate_function ctx fdata stat =
 	write ctx A3This;
 	write ctx A3Scope;
 	gen_expr ctx false fdata.tf_expr;	
-	write ctx A3RetVoid;
+	write ctx A3RetVoid;	
+	let id = f() in
 	ctx.in_static <- old_stat;
-	f()
+	id
 
 let generate_construct ctx args =
 	let f = begin_fun ctx args [] in
