@@ -125,7 +125,8 @@ and as3_opcode =
 	| A3SetProp of type_index
 	| A3Reg of reg
 	| A3SetReg of reg
-	| A3GetScope of int * bool
+	| A3GetScope0
+	| A3GetScope of int
 	| A3Get of type_index
 	| A3Set of type_index
 	| A3Delete of type_index

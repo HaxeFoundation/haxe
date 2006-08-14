@@ -168,7 +168,8 @@ let length = function
 	| A3XmlOp2
 	| A3Unk _ -> 1
 	| A3DebugReg (a,b,c,line) -> 1 + int_length a + int_length b + int_length c + int_length line
-	| A3GetScope (n,flag) -> if n = 0 && flag then 1 else (1 + int_length n)
+	| A3GetScope0 -> 1
+	| A3GetScope n -> 1 + int_length n
 	| A3Reg n | A3SetReg n -> if n >= 1 && n <= 3 then 1 else (1 + int_length n)
 	| A3SuperCall (f,n) | A3Call (f,n) | A3New (f,n) | A3CallUnknown (f,n) | A3SuperCallUnknown(f,n) -> 1 + int_length n + int_length (int_index f)
 	| A3Jump _ -> 4
@@ -278,8 +279,8 @@ let opcode ch =
 		| 0x61 -> A3SetProp (read_index ch)
 		| 0x62 -> A3Reg (read_int ch)
 		| 0x63 -> A3SetReg (read_int ch)
-		| 0x64 -> A3GetScope (0,true)
-		| 0x65 -> A3GetScope (read_int ch,false)
+		| 0x64 -> A3GetScope0
+		| 0x65 -> A3GetScope (read_int ch)
 		| 0x66 -> A3Get (read_index ch)
 		| 0x68 -> A3Set (read_index ch)
 		| 0x6A -> A3Delete (read_index ch)
@@ -495,9 +496,9 @@ let write ch = function
 		| _ ->
 			write_byte ch 0x63;
 			write_int ch n)
-	| A3GetScope (0,true) ->
+	| A3GetScope0 ->
 		write_byte ch 0x64
-	| A3GetScope (n,_) ->		
+	| A3GetScope n ->		
 		write_byte ch 0x65;
 		write_int ch n
 	| A3Get f ->
@@ -666,7 +667,8 @@ let dump ctx op =
 	| A3SetProp f -> s "setp %s" (field f)
 	| A3Reg n -> s "reg %d" n
 	| A3SetReg n -> s "setreg %d" n
-	| A3GetScope (n,_) -> s "getscope %d" n
+	| A3GetScope0 -> "getscope0"
+	| A3GetScope n -> s "getscope %d" n
 	| A3Get f -> s "get %s" (field f)
 	| A3Set f -> s "set %s" (field f)
 	| A3Delete f -> s "delete %s" (field f)
