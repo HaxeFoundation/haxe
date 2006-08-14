@@ -91,7 +91,24 @@ class Boot extends flash.display.MovieClip {
 	}
 
 	static function __string_rec( v : Dynamic, str : String ) {
-		return v + "";
+		if( untyped __global__["flash.utils.getQualifiedClassName"](v) == "Object" ) {
+			var k : Array<String> = untyped __keys__(v);
+			var s = "{";
+			var first = true;
+			for( i in 0...k.length ) {
+				var key = k[i];
+				if( first )
+					first = false;
+				else
+					s += ",";
+				s += " "+key+" : "+v[untyped key];
+			}
+			if( !first )
+				s += " ";
+			s += "}";
+			return s;
+		}
+		return new String(v);
 	}
 
 }
