@@ -228,7 +228,7 @@ class Unserializer {
 			#if neko
 			var e : Dynamic = {
 				tag : null,
-				__string : function() { return untyped neko.Boot.__enum_str(this).__s; },
+				__string : function() { return untyped neko.Boot.__enum_str(this); },
 				__enum__ : null
 			};
 			#else true
