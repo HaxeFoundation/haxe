@@ -49,7 +49,50 @@ enum Collection {
 	Composite(l:Array<Collection>);
 }
 
+/*
+enum Pattern {
+	All;
+	Answered;
+	Bcc(s:String);
+	Before(d:Date);
+	Body(s:String);
+	Cc(s:String);
+	Deleted;
+	Draft;
+	Flagged;
+	From(s:String);
+	Header(f:String,s:String);
+	Keyword(s:String);
+	Larger(s:Int);
+	New;
+	Not(p:Pattern);
+	Old;
+	On(d:Date);
+	Or(p1:Pattern,p2:Pattern);
+	Recent;
+	Seen;
+	SentBefore(d:Date);
+	SentOn(d:Date);
+	SentSince(d:Date);
+	Since(d:Date);
+	Smaller(s:Int);
+	Subject(s:String);
+	Text(s:String);
+	To(s:String);
+	Uid(c:Collection);
+	Unanswered;
+	Undeleted;
+	Undraft;
+	Unkeyword(s:String);
+	Unseen;
+}
+*/
+
 class Tools {
+	public static function quote( s : String ) : String {
+		return "\""+s.split("\"").join("\\\"")+"\"";
+	}
+
 	public static function listToColl( l : List<Int> ) : Collection {
 		var a = new Array();
 		for( e in l )
