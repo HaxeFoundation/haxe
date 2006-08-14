@@ -225,6 +225,9 @@ class Boot {
 					return null;
 				return x;
 			};
+			// create flash package (in for FP7 mark support)
+			if( _global["flash"] == null )
+				_global["flash"] = __new__(obj);
 		}
 		// create the array stack
 		if( exc == null )
