@@ -31,6 +31,9 @@
 class EReg {
 
 	var r : Void;
+	#if flash9
+	var result : {> Array<String>, index : Int, input : String };
+	#end
 	#if neko
 	var last : String;
 	var global : Bool;
@@ -49,6 +52,8 @@ class EReg {
 		this.r = regexp_new_options(untyped r.__s, untyped opt.__s);
 		#else js
 		this.r = untyped __new__("RegExp",r,opt);
+		#else flash9
+		this.r = untyped __new__(__global__["RegExp"],r,opt);
 		#else flash
 		throw "EReg::new not implemented";
 		#else error
@@ -75,6 +80,9 @@ class EReg {
 			r.r = RegExp.rightContext;
 			return (r.m != null);
 		}
+		#else flash9
+		result = untyped r.exec(s);
+		return (result != null);
 		#else flash
 		throw "EReg::match not implemented";
 		return false;
@@ -92,6 +100,8 @@ class EReg {
 		return new String(regexp_matched(r,n));
 		#else js
 		return untyped if( r.m != null && n >= 0 && n < r.m.length ) r.m[n] else throw "EReg::matched";
+		#else flash9
+		return untyped if( result != null && n >= 0 && n < result.length ) result[n] else throw "EReg::matched";
 		#else flash
 		throw "EReg::matched not implemented";
 		return "";
@@ -113,6 +123,9 @@ class EReg {
 			if( r.l == null ) return r.s.substr(0,r.m.index);
 			return r.l;
 		}
+		#else flash9
+		if( result == null ) throw "No string matched";
+		return result.input.substr(0,result.index);
 		#else flash
 		throw "EReg::matchedLeft not implemented";
 		return null;
@@ -138,6 +151,10 @@ class EReg {
 			}
 			return r.r;
 		}
+		#else flash9
+		if( result == null ) throw "No string matched";
+		var rl = result.index + result[0].length;
+		return result.input.substr(rl,result.input.length - rl);
 		#else flash
 		throw "EReg::matchedRight not implemented";
 		return null;
@@ -155,6 +172,9 @@ class EReg {
 		#else js
 		if( untyped r.m == null ) throw "EReg::matchedPos";
 		return untyped { pos : r.m.index, len : r.m[0].length };
+		#else flash9
+		if( result == null ) throw "No string matched";
+		return { pos : result.index, len : result[0].length };
 		#else flash
 		throw "EReg::matchedPos not implemented";
 		return null;
@@ -192,6 +212,8 @@ class EReg {
 		#else js
 		var d = "#__delim__#";
 		return untyped s.replace(r,d).split(d);
+		#else flash9
+		return untyped s.split(r);
 		#else flash
 		throw "EReg::split not implemented";
 		return null;
@@ -253,6 +275,8 @@ class EReg {
 		b.addSub(s,pos,len);
 		return b.toString();
 		#else js
+		return untyped s.replace(r,by);
+		#else flash9
 		return untyped s.replace(r,by);
 		#else flash
 		throw "EReg::replace not implemented";
