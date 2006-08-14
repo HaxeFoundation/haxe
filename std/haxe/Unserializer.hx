@@ -48,7 +48,9 @@ class Unserializer {
  		this.buf = buf;
  		length = buf.length;
  		pos = 0;
+ 		#if neko
  		upos = 0;
+ 		#end
  		scache = new Array();
  		cache = new Array();
  		setResolver(DEFAULT_RESOLVER);
