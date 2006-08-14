@@ -497,6 +497,11 @@ type edit_text = {
 	edt_outlines : bool;
 }
 
+type sandbox =
+	| SBLocal
+	| SBNetwork
+	| SBUnknown of int
+
 type tag_data =
 	| TEnd
 	| TShowFrame
@@ -530,7 +535,7 @@ type tag_data =
 	| TDoInitAction of do_init_action
 	| TVideoStream of unknown
 	| TVideoFrame of unknown
-	| TFlash8 of unknown
+	| TSandbox of sandbox
 	| TPlaceObject3 of place_object
 	| TFontGlyphs of font_glyphs
 	| TTextInfo of unknown

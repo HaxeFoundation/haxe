@@ -356,8 +356,8 @@ let rec tag_data_length = function
 		String.length s
 	| TVideoFrame s ->
 		String.length s
-	| TFlash8 s ->
-		String.length s
+	| TSandbox _ ->
+		4
 	| TPlaceObject3 p ->
 		place_object_length p true
 	| TFontGlyphs f ->
@@ -1231,8 +1231,12 @@ let rec parse_tag ch h =
 		(*// 0x40 TEnableDebugger2 *)
 		(*// 0x41 TScriptLimits *)
 		(*// 0x42 TSetTabIndex *)
-		| 0x45 ->
-			TFlash8 (nread ch len)
+		| 0x45 ->			
+			TSandbox (match IO.read_i32 ch with
+				| 0 -> SBLocal
+				| 1 -> SBNetwork
+				| n -> SBUnknown n
+			)
 		| 0x46 when !full_parsing ->
 			TPlaceObject3 (parse_place_object ch true)
 		| 0x48 when !full_parsing ->
@@ -1340,7 +1344,7 @@ let rec tag_id = function
 	| TDoInitAction _ -> 0x3B
 	| TVideoStream _ -> 0x3C
 	| TVideoFrame _ -> 0x3D
-	| TFlash8 _ -> 0x45
+	| TSandbox _ -> 0x45
 	| TPlaceObject3 _ -> 0x46
 	| TFontGlyphs _ -> 0x49
 	| TTextInfo _ -> 0x4A
@@ -1732,8 +1736,11 @@ let rec write_tag_data ch = function
 		nwrite ch s
 	| TVideoFrame s ->
 		nwrite ch s
-	| TFlash8 s ->
-		nwrite ch s
+	| TSandbox s ->
+		write_i32 ch (match s with
+		| SBLocal -> 0
+		| SBNetwork -> 1
+		| SBUnknown n -> n)
 	| TPlaceObject3 p ->
 		write_place_object ch p true;
 	| TFontGlyphs f ->
