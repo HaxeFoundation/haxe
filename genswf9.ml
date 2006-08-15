@@ -637,7 +637,6 @@ let rec gen_expr_content ctx retval e =
 			| [] -> []
 			| (ename,t,e) :: l ->
 				let b = open_block ctx [e] retval in
-				let r = alloc_reg ctx in
 				ctx.trys <- (p,pend,ctx.infos.ipos,t) :: ctx.trys;
 				ctx.infos.istack <- ctx.infos.istack + 1;
 				if ctx.infos.imax < ctx.infos.istack then ctx.infos.imax <- ctx.infos.istack;
@@ -645,10 +644,12 @@ let rec gen_expr_content ctx retval e =
 				write ctx A3Scope;
 				write ctx A3NewBlock;
 				write ctx A3Scope;
-				write ctx (A3SetReg r);
+				(match follow t with TDynamic _ -> () | _ -> write ctx A3ToObject);
 				define_local ctx ename [e];
+				let isreg , r = (try match PMap.find ename ctx.locals with LReg _ -> true, alloc_reg ctx | _ -> false, 0 with Not_found -> assert false) in
+				if not isreg then write ctx (A3SetReg r);
 				let acc = gen_local_access ctx ename e.epos Write in
-				write ctx (A3Reg r);
+				if not isreg then write ctx (A3Reg r);
 				setvar ctx acc false;
 				gen_expr ctx retval e;
 				b();
