@@ -33,7 +33,10 @@ class Timer {
 	#end
 
 	public function new( time : Int ){
-		#if flash
+		#if flash9
+			var me = this;
+			id = untyped __global__["flash.utils.setInterval"](function() { me.run(); },time);
+		#else flash
 			var me = this;
 			id = untyped _global["setInterval"](function() { me.run(); },time);
 		#else js
@@ -46,7 +49,10 @@ class Timer {
 	}
 
 	public function stop(){
-		#if flash
+		#if flash9
+			untyped __global__["flash.utils.clearInterval"](id);
+			id = null;
+		#else flash
 			untyped _global["clearInterval"](id);
 			id = null;
 		#else js
