@@ -30,7 +30,7 @@ lexer.cmx: ast.cmx
 
 main.cmx: typer.cmx plugin.cmx parser.cmx lexer.cmx genxml.cmx genswf.cmx genneko.cmx genjs.cmx ast.cmx
 
-parser.cmx: plugin.cmx lexer.cmx ast.cmx
+parser.cmx: parser.ml plugin.cmx lexer.cmx ast.cmx
 	ocamlopt -pp camlp4o $(CFLAGS) -c parser.ml 2>&1 | sed $(VCC_OUTPUT)
 
 transform.cmx: type.cmx
