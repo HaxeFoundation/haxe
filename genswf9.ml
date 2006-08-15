@@ -39,7 +39,7 @@ type 'a access =
 	| VArray
 	| VScope of int
 
-type local = 
+type local =
 	| LReg of reg
 	| LScope of int
 	| LGlobal of type_index
@@ -79,7 +79,7 @@ type context = {
 	mutable continues : (int -> unit) list;
 	mutable in_static : bool;
 	mutable curblock : texpr list;
-	mutable block_vars : (int * string) list;	
+	mutable block_vars : (int * string) list;
 }
 
 let error p = Typer.error "Invalid expression" p
@@ -91,7 +91,7 @@ let stack_delta = function
 	| A3SetSuper _ -> -1
 	| A3RegReset _ -> 0
 	| A3Nop -> 0
-	| A3Jump (cond,_) -> 
+	| A3Jump (cond,_) ->
 		(match cond with
 		| J3Always -> 0
 		| J3True
@@ -233,7 +233,7 @@ let jump_back ctx =
 		write ctx (A3Jump (cond,delta))
 	)
 
-let type_path ctx ?(getclass=false) (pack,name) =	
+let type_path ctx ?(getclass=false) (pack,name) =
 	let pid = string ctx (String.concat "." pack) in
 	let nameid = string ctx name in
 	let pid = lookup (A3RPublic (Some pid)) ctx.brights in
@@ -276,14 +276,14 @@ let pop ctx n =
 
 let define_local ctx name el =
 	let l = (if List.exists (Transform.local_find false name) el then begin
-			let pos = (try 
-				fst (List.find (fun (_,x) -> name = x) ctx.block_vars)				
+			let pos = (try
+				fst (List.find (fun (_,x) -> name = x) ctx.block_vars)
 			with
 				Not_found ->
 					let n = List.length ctx.block_vars + 1 in
 					ctx.block_vars <- (n,name) :: ctx.block_vars;
 					n
-			) in			
+			) in
 			LScope pos
 		end else
 			LReg (alloc_reg ctx)
@@ -330,7 +330,7 @@ let getvar ctx (acc : read access) =
 		write ctx (A3Reg r)
 	| VId id ->
 		write ctx (A3Get id)
-	| VGlobal g ->		
+	| VGlobal g ->
 		write ctx (A3GetProp g)
 	| VArray ->
 		let id_aget = lookup (A3TArrayAccess ctx.gpublic) ctx.types in
@@ -343,13 +343,13 @@ let open_block ctx el =
 	let old_stack = ctx.infos.istack in
 	let old_regs = ctx.infos.iregs in
 	let old_locals = ctx.locals in
-	let old_block = ctx.curblock in	
+	let old_block = ctx.curblock in
 	ctx.curblock <- el;
 	(fun() ->
 		if ctx.infos.istack <> old_stack then assert false;
 		ctx.infos.iregs <- old_regs;
 		ctx.locals <- old_locals;
-		ctx.curblock <- old_block;		
+		ctx.curblock <- old_block;
 	)
 
 let begin_fun ctx ?(varargs=false) args el stat =
@@ -369,9 +369,9 @@ let begin_fun ctx ?(varargs=false) args el stat =
 		| LReg _ -> acc
 		| LScope _ -> PMap.add name (LGlobal (type_path ctx ~getclass:true ([],name))) acc
 		| LGlobal _ -> PMap.add name l acc
-	) ctx.locals PMap.empty;	
-	List.iter (fun name -> 
-		define_local ctx name el;		
+	) ctx.locals PMap.empty;
+	List.iter (fun name ->
+		define_local ctx name el;
 		match gen_local_access ctx name null_pos Write with
 		| VReg _ -> ()
 		| acc ->
@@ -550,7 +550,7 @@ let rec gen_expr_content ctx retval e =
 		let rec loop = function
 			| [] ->
 				if retval then write ctx A3Null
-			| [e] -> 
+			| [e] ->
 				ctx.curblock <- [];
 				gen_expr ctx retval e
 			| e :: l ->
@@ -594,13 +594,13 @@ let rec gen_expr_content ctx retval e =
 		write ctx (A3New (id,List.length pl))
 	| TFunction f ->
 		write ctx (A3Function (generate_function ctx f true))
-	| TIf (e,e1,e2) ->		
+	| TIf (e,e1,e2) ->
 		gen_expr ctx true e;
 		let j = jump ctx J3False in
 		gen_expr ctx retval e1;
 		(match e2 with
 		| None -> j()
-		| Some e ->			
+		| Some e ->
 			(* two expresssions, but one per branch *)
 			if retval then ctx.infos.istack <- ctx.infos.istack - 1;
 			let jend = jump ctx J3Always in
@@ -771,7 +771,7 @@ and gen_call ctx e el =
 		gen_expr ctx true e;
 		write ctx (A3SetReg rtmp);
 		let start, loop = jump_back ctx in
-		write ctx (A3Reg racc);		
+		write ctx (A3Reg racc);
 		write ctx (A3Reg rtmp);
 		write ctx (A3Reg rcounter);
 		write ctx A3ForIn;
@@ -787,7 +787,7 @@ and gen_call ctx e el =
 	| TLocal "__new__" , e :: el ->
 		gen_expr ctx true e;
 		List.iter (gen_expr ctx true) el;
-		write ctx (A3StackNew (List.length el)) 
+		write ctx (A3StackNew (List.length el))
 	| TConst TSuper , _ ->
 		write ctx A3This;
 		List.iter (gen_expr ctx true) el;
@@ -925,8 +925,8 @@ and gen_expr ctx retval e =
 
 and generate_function ctx fdata stat =
 	let f = begin_fun ctx (List.map (fun (name,_,_) -> name) fdata.tf_args) [fdata.tf_expr] stat in
-	gen_expr ctx false fdata.tf_expr;	
-	write ctx A3RetVoid;	
+	gen_expr ctx false fdata.tf_expr;
+	write ctx A3RetVoid;
 	f()
 
 let generate_construct ctx args =
@@ -942,7 +942,7 @@ let generate_method ctx stat rproto f =
 	match f.cf_expr with
 	| Some { eexpr = TFunction fdata } ->
 		let fid = generate_function ctx fdata stat in
-		if stat then 
+		if stat then
 			write ctx A3Dup
 		else
 			(match !rproto with
@@ -958,7 +958,7 @@ let generate_method ctx stat rproto f =
 			);
 		write ctx (A3Function fid);
 		write ctx (A3Set (ident ctx f.cf_name));
-	| _ -> 
+	| _ ->
 		()
 
 let generate_class_init ctx c slot =
@@ -972,7 +972,7 @@ let generate_class_init ctx c slot =
 		write ctx A3Scope;
 		write ctx (A3GetProp (type_path ctx ~getclass:true path));
 	end;
-	write ctx (A3ClassDef slot);		
+	write ctx (A3ClassDef slot);
 	PMap.iter (fun name f -> generate_method ctx false rproto f) c.cl_fields;
 	List.iter (generate_method ctx true rproto) c.cl_ordered_statics;
 	if not c.cl_interface then write ctx A3PopScope;
@@ -1148,7 +1148,7 @@ let generate_enum ctx e =
 	write ctx (A3Set params_id);
 	write ctx A3RetVoid;
 	let construct = f() in
-	let f = begin_fun ctx [] [] true in	
+	let f = begin_fun ctx [] [] true in
 	write ctx (A3GetProp (type_path ctx ~getclass:true (["flash"],"Boot")));
 	write ctx A3This;
 	write ctx (A3Call (ident ctx "enum_to_string",1));
@@ -1325,7 +1325,7 @@ let generate types hres =
 		as3_inits = [|init|];
 		as3_functions = lookup_array ctx.functions;
 		as3_unknown = "";
-	} in	
+	} in
 	[Swf.TActionScript3 (None,a); Swf.TSwf9Name [0,"flash.Boot"]]
 
 
