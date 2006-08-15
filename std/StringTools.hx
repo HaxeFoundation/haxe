@@ -36,7 +36,9 @@ class StringTools {
 		Encode an URL by using the standard format.
 	**/
 	public static function urlEncode( s : String ) : String {
-		#if flash
+		#if flash9
+		return untyped __global__["encodeURIComponent"](s);
+		#else flash
 		return untyped _global["escape"](s);
 		#else neko
 		return new String(_urlEncode(untyped s.__s));
@@ -50,7 +52,9 @@ class StringTools {
 		Decode an URL using the standard format.
 	**/
 	public static function urlDecode( s : String ) : String {
-		#if flash
+		#if flash9
+		return untyped __global__["decodeURIComponent"](s.split("+").join(" "));
+		#else flash
 		return untyped _global["unescape"](s);
 		#else neko
 		return new String(_urlDecode(untyped s.__s));

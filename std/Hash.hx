@@ -34,7 +34,9 @@ class Hash<T> {
 		Creates a new empty hashtable.
 	**/
 	public function new() : Void {
-		#if flash
+		#if flash9
+		h = new flash.utils.Dictionary();
+		#else flash
 		h = untyped __new__(_global["Object"]);
 		#else neko
 		h = untyped __dollar__hnew(0);
@@ -84,7 +86,9 @@ class Hash<T> {
 		a [null] value versus no value.
 	**/
 	public function exists( key : String ) : Bool {
-		#if flash
+		#if flash9
+		return untyped h.hasOwnProperty(key);
+		#else flash
 		return untyped h["hasOwnProperty"](key);
 		#else js
 		try {
@@ -107,7 +111,11 @@ class Hash<T> {
 		there was such entry.
 	**/
 	public function remove( key : String ) : Bool {
-		#if flash
+		#if flash9
+		if( untyped !h.hasOwnProperty(key) ) return false;
+		untyped __delete__(h,key);
+		return true;
+		#else flash
 		if( untyped !h["hasOwnProperty"](key) ) return false;
 		untyped __delete__(h,key);
 		return true;
@@ -126,7 +134,9 @@ class Hash<T> {
 		Returns an iterator of all keys in the hashtable.
 	**/
 	public function keys() : Iterator<String> {
-		#if flash
+		#if flash9
+		return untyped (__keys__(h)).iterator();
+		#else flash
 		return untyped (__keys__(h))["iterator"]();
 		#else js
 		var a = new Array<String>();
@@ -147,7 +157,14 @@ class Hash<T> {
 		Returns an iterator of all values in the hashtable.
 	**/
 	public function iterator() : Iterator<T> {
-		#if flash
+		#if flash9
+		return untyped {
+			ref : h,
+			it : keys(),
+			hasNext : function() { return this.it.hasNext(); },
+			next : function() { var i = this.it.next(); return this.ref[i]; }
+		};
+		#else flash
 		return untyped {
 			ref : h,
 			it : keys(),
