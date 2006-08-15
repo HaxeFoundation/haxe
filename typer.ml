@@ -1861,10 +1861,16 @@ let init_class ctx c p herits fields =
 		| _ ->
 			load_type_opt ctx p t
 	in
+	let rec has_field f = function
+		| None -> false
+		| Some (c,_) ->
+			PMap.exists f c.cl_fields || has_field f c.cl_super || List.exists (fun i -> has_field f (Some i)) c.cl_implements
+	in
 	let loop_cf f p =
 		match f with
 		| FVar (name,doc,access,t,e) ->
 			let stat = List.mem AStatic access in
+			if not stat && has_field name c.cl_super then error ("Redefinition of variable " ^ name ^ " in subclass is not allowed") p;
 			let t = (match t with
 				| None ->
 					if not stat then error ("Type required for member variable " ^ name) p;
