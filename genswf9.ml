@@ -546,7 +546,7 @@ let rec gen_expr_content ctx retval e =
 			write ctx (A3String (lookup name ctx.strings));
 			gen_expr ctx true e
 		) fl;
-		write ctx (A3Object (List.length fl))	
+		write ctx (A3Object (List.length fl))
 	| TArrayDecl el ->
 		List.iter (gen_expr ctx true) el;
 		write ctx (A3Array (List.length el));
@@ -602,7 +602,7 @@ let rec gen_expr_content ctx retval e =
 	| TIf (e,e1,e2) ->
 		gen_expr ctx true e;
 		let j = jump ctx J3False in
-		gen_expr ctx retval e1;
+		gen_expr_obj ctx retval e1;
 		(match e2 with
 		| None -> j()
 		| Some e ->
@@ -610,7 +610,7 @@ let rec gen_expr_content ctx retval e =
 			if retval then ctx.infos.istack <- ctx.infos.istack - 1;
 			let jend = jump ctx J3Always in
 			j();
-			gen_expr ctx retval e;
+			gen_expr_obj ctx retval e;
 			jend())
 	| TWhile (econd,e,flag) ->
 		let jstart = (match flag with NormalWhile -> (fun()->()) | DoWhile -> jump ctx J3Always) in
@@ -640,7 +640,7 @@ let rec gen_expr_content ctx retval e =
 				let r = alloc_reg ctx in
 				ctx.trys <- (p,pend,ctx.infos.ipos,t) :: ctx.trys;
 				ctx.infos.istack <- ctx.infos.istack + 1;
-				if ctx.infos.imax < ctx.infos.istack then ctx.infos.imax <- ctx.infos.istack;				
+				if ctx.infos.imax < ctx.infos.istack then ctx.infos.imax <- ctx.infos.istack;
 				write ctx A3This;
 				write ctx A3Scope;
 				write ctx A3NewBlock;
@@ -708,15 +708,15 @@ let rec gen_expr_content ctx retval e =
 			write ctx (A3Reg r);
 			gen_expr ctx true v;
 			prev := jump ctx J3Neq;
-			gen_expr ctx retval e;
+			gen_expr_obj ctx retval e;
 			if retval then ctx.infos.istack <- ctx.infos.istack - 1;
 			jump ctx J3Always
 		) el in
 		(!prev)();
 		free_reg ctx r;
 		(match eo with
-		| None -> if retval then write ctx A3Null
-		| Some e -> gen_expr ctx retval e);
+		| None -> if retval then begin write ctx A3Null; write ctx A3ToObject; end
+		| Some e -> gen_expr_obj ctx retval e);
 		List.iter (fun j -> j()) jend;
 	| TMatch (e,_,cases,def) ->
 		let rparams = alloc_reg ctx in
@@ -751,15 +751,15 @@ let rec gen_expr_content ctx retval e =
 						setvar ctx acc false
 				) l
 			);
-			gen_expr ctx retval e;
+			gen_expr_obj ctx retval e;
 			b();
 			if retval then ctx.infos.istack <- ctx.infos.istack - 1;
 			jump ctx J3Always;
 		) cases in
 		(!prev)();
 		(match def with
-		| None -> if retval then write ctx A3Null
-		| Some e -> gen_expr ctx retval e);
+		| None -> if retval then begin write ctx A3Null; write ctx A3ToObject; end
+		| Some e -> gen_expr_obj ctx retval e);
 		List.iter (fun j -> j()) jend;
 		free_reg ctx rtag;
 		free_reg ctx rparams
@@ -871,18 +871,18 @@ and gen_binop ctx retval op e1 e2 =
 		gen_expr ctx true e2;
 		setvar ctx acc retval
 	| OpBoolAnd ->
-		gen_expr ctx true e1;
+		gen_expr_obj ctx true e1;
 		write ctx A3Dup;
 		let j = jump ctx J3False in
 		write ctx A3Pop;
-		gen_expr ctx true e2;
+		gen_expr_obj ctx true e2;
 		j();
 	| OpBoolOr ->
-		gen_expr ctx true e1;
+		gen_expr_obj ctx true e1;
 		write ctx A3Dup;
 		let j = jump ctx J3True in
 		write ctx A3Pop;
-		gen_expr ctx true e2;
+		gen_expr_obj ctx true e2;
 		j();
 	| OpAssignOp op ->
 		let acc = gen_access ctx e1 Write in
@@ -930,6 +930,10 @@ and gen_binop ctx retval op e1 e2 =
 		gen_op A3OMod
 	| OpInterval ->
 		assert false
+
+and gen_expr_obj ctx retval e =
+	gen_expr ctx retval e;
+	if retval then match DynArray.last ctx.code with A3ToObject -> () | _ -> write ctx A3ToObject
 
 and gen_expr ctx retval e =
 	let old = ctx.infos.istack in
