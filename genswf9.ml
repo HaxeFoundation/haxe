@@ -954,31 +954,7 @@ let generate_construct ctx args =
 	write ctx A3RetVoid;
 	f()
 
-let generate_method ctx stat rproto f =
-	match f.cf_expr with
-	| Some { eexpr = TFunction fdata } ->
-		let fid = generate_function ctx fdata stat in
-		if stat then
-			write ctx A3Dup
-		else
-			(match !rproto with
-			| None ->
-				let r = alloc_reg ctx in
-				write ctx A3Dup;
-				write ctx (A3Get (ident ctx "prototype"));
-				write ctx A3Dup;
-				write ctx (A3SetReg r);
-				rproto := Some r
-			| Some r ->
-				write ctx (A3Reg r)
-			);
-		write ctx (A3Function fid);
-		write ctx (A3Set (ident ctx f.cf_name));
-	| _ ->
-		()
-
 let generate_class_init ctx c slot =
-	let rproto = ref None in
 	write ctx A3GetScope0;
 	if c.cl_interface then
 		write ctx A3Null
@@ -989,10 +965,7 @@ let generate_class_init ctx c slot =
 		write ctx (A3GetProp (type_path ctx ~getclass:true path));
 	end;
 	write ctx (A3ClassDef slot);
-	PMap.iter (fun name f -> generate_method ctx false rproto f) c.cl_fields;
-	List.iter (generate_method ctx true rproto) c.cl_ordered_statics;
 	if not c.cl_interface then write ctx A3PopScope;
-	(match !rproto with None -> () | Some r -> free_reg ctx r);
 	write ctx (A3Set (type_path ctx c.cl_path))
 
 let generate_class_statics ctx c =
@@ -1047,14 +1020,18 @@ let generate_enum_init ctx e slot =
 let generate_field_kind ctx f c stat =
 	match f.cf_expr with
 	| Some { eexpr = TFunction fdata } ->
-		if not stat then
-			None
-		else
-			Some (A3FVar {
-				v3_type = None;
-				v3_value = A3VNone;
-				v3_const = false;
-			})
+		let rec loop c =
+			match c.cl_super with
+			| None -> false
+			| Some (c,_) ->
+				PMap.exists f.cf_name c.cl_fields || loop c
+		in
+		Some (A3FMethod {
+			m3_type = generate_function ctx fdata stat;
+			m3_final = false;
+			m3_override = not stat && loop c;
+			m3_kind = MK3Normal;
+		})
 	| _ when c.cl_interface && not stat ->
 		None
 	| _ ->
