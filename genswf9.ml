@@ -380,7 +380,7 @@ let begin_fun ctx ?(varargs=false) args el stat =
 			setvar ctx acc false
 	) args;
 	(fun () ->
-		let hasblock = ctx.block_vars <> [] in
+		let hasblock = ctx.block_vars <> [] || ctx.trys <> [] in
 		let mt = {
 			mt3_ret = None;
 			mt3_args = List.map (fun _ -> None) args;
@@ -640,11 +640,11 @@ let rec gen_expr_content ctx retval e =
 				let r = alloc_reg ctx in
 				ctx.trys <- (p,pend,ctx.infos.ipos,t) :: ctx.trys;
 				ctx.infos.istack <- ctx.infos.istack + 1;
-				if ctx.infos.imax < ctx.infos.istack then ctx.infos.imax <- ctx.infos.istack;
-				if not ctx.in_static then begin
-					write ctx A3This;
-					write ctx A3Scope;
-				end;
+				if ctx.infos.imax < ctx.infos.istack then ctx.infos.imax <- ctx.infos.istack;				
+				write ctx A3This;
+				write ctx A3Scope;
+				write ctx A3NewBlock;
+				write ctx A3Scope;
 				write ctx (A3SetReg r);
 				define_local ctx ename [e];
 				let acc = gen_local_access ctx ename e.epos Write in
@@ -802,6 +802,8 @@ and gen_call ctx e el =
 		gen_expr ctx true o;
 		gen_expr ctx true f;
 		write ctx (A3Delete (lookup (A3TArrayAccess ctx.gpublic) ctx.types))
+	| TLocal "__unprotect__" , [e] ->
+		gen_expr ctx true e
 	| TConst TSuper , _ ->
 		write ctx A3This;
 		List.iter (gen_expr ctx true) el;
