@@ -339,14 +339,14 @@ let getvar ctx (acc : read access) =
 	| VScope n ->
 		write ctx (A3GetSlot n)
 
-let open_block ctx el =
+let open_block ctx el retval =
 	let old_stack = ctx.infos.istack in
 	let old_regs = ctx.infos.iregs in
 	let old_locals = ctx.locals in
 	let old_block = ctx.curblock in
 	ctx.curblock <- el;
 	(fun() ->
-		if ctx.infos.istack <> old_stack then assert false;
+		if ctx.infos.istack <> old_stack + (if retval then 1 else 0) then assert false;
 		ctx.infos.iregs <- old_regs;
 		ctx.locals <- old_locals;
 		ctx.curblock <- old_block;
@@ -402,7 +402,7 @@ let begin_fun ctx ?(varargs=false) args el stat =
 		) in
 		let f = {
 			fun3_id = add mt ctx.mtypes;
-			fun3_stack_size = ctx.infos.imax;
+			fun3_stack_size = (if ctx.infos.imax = 0 && (hasblock || not stat) then 1 else ctx.infos.imax);
 			fun3_nregs = ctx.infos.imaxregs + 1;
 			fun3_unk3 = 1;
 			fun3_max_scope = ctx.infos.imaxscopes + 1 + (if hasblock then 2 else if not stat then 1 else 0);
@@ -558,7 +558,7 @@ let rec gen_expr_content ctx retval e =
 				gen_expr ctx false e;
 				loop l
 		in
-		let b = open_block ctx [] in
+		let b = open_block ctx [] retval in
 		loop el;
 		b();
 	| TVars vl ->
@@ -631,13 +631,15 @@ let rec gen_expr_content ctx retval e =
 		let rec loop ncases = function
 			| [] -> []
 			| (ename,t,e) :: l ->
-				let b = open_block ctx [e] in
+				let b = open_block ctx [e] retval in
 				let r = alloc_reg ctx in
 				ctx.trys <- (p,pend,ctx.infos.ipos,t) :: ctx.trys;
 				ctx.infos.istack <- ctx.infos.istack + 1;
 				if ctx.infos.imax < ctx.infos.istack then ctx.infos.imax <- ctx.infos.istack;
-				write ctx A3This;
-				write ctx A3Scope;
+				if not ctx.in_static then begin
+					write ctx A3This;
+					write ctx A3Scope;
+				end;
 				write ctx (A3SetReg r);
 				define_local ctx ename [e];
 				let acc = gen_local_access ctx ename e.epos Write in
@@ -645,6 +647,7 @@ let rec gen_expr_content ctx retval e =
 				setvar ctx acc false;
 				gen_expr ctx retval e;
 				b();
+				if retval then ctx.infos.istack <- ctx.infos.istack - 1;
 				match l with
 				| [] -> []
 				| _ ->
@@ -658,7 +661,7 @@ let rec gen_expr_content ctx retval e =
 		gen_expr ctx true it;
 		let r = alloc_reg ctx in
 		write ctx (A3SetReg r);
-		let b = open_block ctx [e] in
+		let b = open_block ctx [e] retval in
 		define_local ctx v [e];
 		let end_loop = begin_loop ctx in
 		let continue_pos = ctx.infos.ipos + jsize in
@@ -701,6 +704,7 @@ let rec gen_expr_content ctx retval e =
 			gen_expr ctx true v;
 			prev := jump ctx J3Neq;
 			gen_expr ctx retval e;
+			if retval then ctx.infos.istack <- ctx.infos.istack - 1;
 			jump ctx J3Always
 		) el in
 		(!prev)();
@@ -724,7 +728,7 @@ let rec gen_expr_content ctx retval e =
 			write ctx (A3Reg rtag);
 			write ctx (A3String (lookup tag ctx.strings));
 			prev := jump ctx J3Neq;
-			let b = open_block ctx [e] in
+			let b = open_block ctx [e] retval in
 			(match params with
 			| None -> ()
 			| Some l ->
@@ -744,6 +748,7 @@ let rec gen_expr_content ctx retval e =
 			);
 			gen_expr ctx retval e;
 			b();
+			if retval then ctx.infos.istack <- ctx.infos.istack - 1;
 			jump ctx J3Always;
 		) cases in
 		(!prev)();
