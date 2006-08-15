@@ -35,9 +35,11 @@ type context = {
 	delays : (unit -> unit) list list ref;
 	warn : string -> pos -> unit;
 	error : error_msg -> pos -> unit;
+	flash9 : bool;
 	mutable std : module_def;
 	mutable untyped : bool;
 	mutable isproxy : bool;
+	mutable super_call : bool;
 	(* per-module *)
 	current : module_def;
 	mutable local_types : module_type list;
@@ -121,11 +123,13 @@ let context err warn =
 		modules = Hashtbl.create 0;
 		types = Hashtbl.create 0;
 		delays = ref [];
+		flash9 = Plugin.defined "flash9";
 		in_constructor = false;
 		in_static = false;
 		in_loop = false;
 		untyped = false;
 		isproxy = false;
+		super_call = false;
 		ret = mk_mono();
 		warn = warn;
 		error = err;
@@ -350,7 +354,7 @@ and load_type ctx p t =
 				| AFFun (tl,t) ->
 					let t = load_type ctx p t in
 					let args = List.map (fun (name,o,t) -> name , o, load_type ctx p t) tl in
-					TFun (args,t), NormalAccess, (if Plugin.defined "flash9" then F9MethodAccess else NormalAccess)
+					TFun (args,t), NormalAccess, (if ctx.flash9 then F9MethodAccess else NormalAccess)
 				| AFProp (t,i1,i2) ->
 					let access m get =
 						match m with
@@ -822,11 +826,15 @@ let type_ident ctx i is_type p get =
 		else
 			AccNo i
 	| "super" ->
+		if not ctx.super_call then
+			AccNo i
+		else
 		let t = (match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a superclass" p
 		| Some (c,params) -> TInst(c,params)
 		) in
 		if ctx.in_static then error "Cannot access super from a static function" p;
+		ctx.super_call <- false;
 		if get then
 			AccExpr (mk (TConst TSuper) t p)
 		else
@@ -985,6 +993,7 @@ let type_field ctx e i p get =
 		in
 		(try
 			let t , f = class_field c i in
+			if ctx.flash9 && e.eexpr = TConst TSuper && f.cf_set = NormalAccess then error "Cannot access superclass variable for calling : needs to be a proper method" p;
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then display_error ctx ("Cannot access to private field " ^ i) p;
 			field_access ctx get f (apply_params c.cl_types params t) e p			
 		with Not_found -> try
@@ -1651,6 +1660,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		) in
 		mk (TCall (mk (TConst TSuper) t sp,el)) (t_void ctx) p
 	| ECall (e,el) ->
+		(match e with EField ((EConst (Ident "super"),_),_) , _ -> ctx.super_call <- true | _ -> ());
 		let e = type_expr ctx e in
 		let el = List.map (type_expr ctx) el in
 		let el , t = (match follow e.etype with
@@ -1928,7 +1938,7 @@ let init_class ctx c p herits fields =
 				cf_doc = doc;
 				cf_type = t;
 				cf_get = NormalAccess;
-				cf_set = (if Plugin.defined "flash9" && not (List.mem AF9Dynamic access) then F9MethodAccess else NormalAccess);				
+				cf_set = (if ctx.flash9 && not (List.mem AF9Dynamic access) then F9MethodAccess else NormalAccess);				
 				cf_expr = None;
 				cf_public = is_public access;
 				cf_params = params;
@@ -2114,6 +2124,7 @@ let type_module ctx m tdecls loadp =
 		std = ctx.std;
 		ret = ctx.ret;
 		isproxy = ctx.isproxy;
+		flash9 = ctx.flash9;
 		current = m;
 		locals = PMap.empty;
 		locals_map = PMap.empty;
@@ -2121,6 +2132,7 @@ let type_module ctx m tdecls loadp =
 		local_types = ctx.std.mtypes @ m.mtypes;
 		type_params = [];
 		curmethod = "";
+		super_call = false;
 		in_constructor = false;
 		in_static = false;
 		in_loop = false;
@@ -2264,7 +2276,7 @@ let load ctx m p =
 				| [] , name -> name
 				| x :: l , name ->
 					if List.mem x (!forbidden_packages) then error ("You can't access the " ^ x ^ " package with current compilation flags") p;
-					let x = (match x with "flash" when Plugin.defined "flash9" -> "flash9" | _ -> x) in
+					let x = (match x with "flash" when ctx.flash9 -> "flash9" | _ -> x) in
 					String.concat "/" (x :: l) ^ "/" ^ name
 			) ^ ".hx" in
 			let file = (try Plugin.find_file file with Not_found -> raise (Error (Module_not_found m,p))) in
