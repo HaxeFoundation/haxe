@@ -235,6 +235,7 @@ try
 		),": ensure that overriden methods are declared with 'override'");
 		("--no-traces", define "no_traces", ": don't compile trace calls in the program");
 		("--flash-use-stage", define "flash_use_stage", ": place objects found on the stage of the SWF lib");
+		("--flash-debug", define "flash_debug", ": add debug informations to the generated SWF");
 		("--gen-hx-classes", Arg.String (fun file ->
 			gen_hx := true;
 			Genswf9.genhx file

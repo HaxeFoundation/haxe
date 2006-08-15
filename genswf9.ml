@@ -69,6 +69,8 @@ type context = {
 	functions : as3_function lookup;
 	rpublic : as3_base_right index;
 	gpublic : as3_rights index;
+	debug : bool;
+	mutable last_line : int;
 
 	(* per-function *)
 	mutable locals : (string,local) PMap.t;
@@ -211,10 +213,6 @@ let write ctx op =
 	| _ ->
 		()
 
-let debug ctx ?file line =
-	(match file with None -> () | Some f -> write ctx (A3DebugFile (string ctx f)));
-	write ctx (A3DebugLine line)
-
 let jump ctx cond =
 	let op = DynArray.length ctx.code in
 	write ctx (A3Jump (cond,-4));
@@ -353,6 +351,13 @@ let open_block ctx el retval =
 		ctx.curblock <- old_block;
 	)
 
+let debug ctx p =
+	let line = Lexer.get_error_line p in
+	if ctx.last_line <> line then begin
+		write ctx (A3DebugLine line);
+		ctx.last_line <- line;
+	end
+
 let begin_fun ctx ?(varargs=false) args el stat =
 	let old_locals = ctx.locals in
 	let old_code = ctx.code in
@@ -360,11 +365,20 @@ let begin_fun ctx ?(varargs=false) args el stat =
 	let old_trys = ctx.trys in
 	let old_bvars = ctx.block_vars in
 	let old_static = ctx.in_static in
+	let last_line = ctx.last_line in
 	ctx.infos <- default_infos();
 	ctx.code <- DynArray.create();
 	ctx.trys <- [];
 	ctx.block_vars <- [];
 	ctx.in_static <- stat;
+	ctx.last_line <- -1;
+	(match el with
+	| [] -> ()
+	| e :: _ ->
+		if ctx.debug then begin
+			write ctx (A3DebugFile (lookup e.epos.pfile ctx.strings));
+			debug ctx e.epos
+		end);
 	ctx.locals <- PMap.foldi (fun name l acc ->
 		match l with
 		| LReg _ -> acc
@@ -437,6 +451,7 @@ let begin_fun ctx ?(varargs=false) args el stat =
 		ctx.trys <- old_trys;
 		ctx.block_vars <- old_bvars;
 		ctx.in_static <- old_static;
+		ctx.last_line <- last_line;
 		f.fun3_id
 	)
 
@@ -938,6 +953,7 @@ and gen_expr_obj ctx retval e =
 
 and gen_expr ctx retval e =
 	let old = ctx.infos.istack in
+	if ctx.debug then debug ctx e.epos;
 	gen_expr_content ctx retval e;
 	if old <> ctx.infos.istack then begin
 		if old + 1 <> ctx.infos.istack then stack_error e.epos;
@@ -1312,6 +1328,8 @@ let generate types hres =
 		curblock = [];
 		block_vars = [];
 		in_static = false;
+		debug = Plugin.defined "flash_debug";
+		last_line = -1;
 	} in
 	List.iter (generate_type ctx) types;
 	Hashtbl.iter (fun _ _ -> assert false) hres;
