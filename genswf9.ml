@@ -35,7 +35,7 @@ type write = Unused__ | Write
 type 'a access =
 	| VReg of reg
 	| VId of type_index
-	| VGlobal of type_index
+	| VGlobal of type_index * bool
 	| VArray
 	| VScope of int
 
@@ -298,14 +298,14 @@ let gen_local_access ctx name p (forset : 'a)  : 'a access =
 	| LScope n -> write ctx (A3GetScope 1); VScope n
 	| LGlobal id ->
 		if is_set forset then write ctx (A3SetInf id);
-		VGlobal id
+		VGlobal (id,false)
 
 let rec setvar ctx (acc : write access) retval =
 	match acc with
 	| VReg r ->
 		if retval then write ctx A3Dup;
 		write ctx (A3SetReg r);
-	| VGlobal g ->
+	| VGlobal (g,_) ->
 		if retval then write ctx A3Dup;
 		write ctx (A3SetProp g);
 	| VId _ | VArray | VScope _ when retval ->
@@ -330,8 +330,9 @@ let getvar ctx (acc : read access) =
 		write ctx (A3Reg r)
 	| VId id ->
 		write ctx (A3Get id)
-	| VGlobal g ->
-		write ctx (A3GetProp g)
+	| VGlobal (g,flag) ->
+		write ctx (A3GetProp g);
+		if flag then write ctx A3ToObject
 	| VArray ->
 		let id_aget = lookup (A3TArrayAccess ctx.gpublic) ctx.types in
 		write ctx (A3Get id_aget);
@@ -474,11 +475,14 @@ let gen_constant ctx c =
 		write ctx (A3String (lookup s ctx.strings));
 		write ctx A3ToObject
 	| TBool b ->
-		write ctx (if b then A3True else A3False)
+		write ctx (if b then A3True else A3False);
+		write ctx A3ToObject
 	| TNull ->
-		write ctx A3Null
+		write ctx A3Null;
+		write ctx A3ToObject
 	| TThis ->
-		write ctx A3This
+		write ctx A3This;
+		write ctx A3ToObject
 	| TSuper ->
 		assert false
 
@@ -511,7 +515,7 @@ let gen_access ctx e (forset : 'a) : 'a access =
 		let path = (match List.rev (ExtString.String.nsplit s ".") with [] -> assert false | x :: l -> List.rev l, x) in
 		let id = type_path ctx path in
 		if is_set forset then write ctx A3GetScope0;
-		VGlobal id
+		VGlobal (id,false)
 	| TArray (e,eindex) ->
 		gen_expr ctx true e;
 		gen_expr ctx true eindex;
@@ -519,7 +523,7 @@ let gen_access ctx e (forset : 'a) : 'a access =
 	| TTypeExpr t ->
 		let id = type_path ctx ~getclass:true (t_path t) in
 		if is_set forset then write ctx A3GetScope0;
-		VGlobal id
+		VGlobal (id,true)
 	| _ ->
 		error e.epos
 
@@ -542,10 +546,11 @@ let rec gen_expr_content ctx retval e =
 			write ctx (A3String (lookup name ctx.strings));
 			gen_expr ctx true e
 		) fl;
-		write ctx (A3Object (List.length fl))
+		write ctx (A3Object (List.length fl))	
 	| TArrayDecl el ->
 		List.iter (gen_expr ctx true) el;
-		write ctx (A3Array (List.length el))
+		write ctx (A3Array (List.length el));
+		write ctx A3ToObject
 	| TBlock el ->
 		let rec loop = function
 			| [] ->
