@@ -61,7 +61,7 @@ class Timer {
 		#end
 	}
 
-	public function run(){
+	public f9dynamic function run(){
 	}
 
 	public static function delayed( f : Void -> Void, time : Int ) : Void -> Void {
