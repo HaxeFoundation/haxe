@@ -156,7 +156,7 @@ let stack_delta = function
 	| A3ToBool -> 0
 	| A3XmlOp2 -> assert false
 	| A3Cast _ -> 0
-	| A3Typeof
+	| A3Typeof -> 0
 	| A3InstanceOf -> -1
 	| A3IncrReg _ -> 0
 	| A3This -> 1
@@ -820,6 +820,9 @@ and gen_call ctx e el =
 		write ctx (A3Delete (lookup (A3TArrayAccess ctx.gpublic) ctx.types))
 	| TLocal "__unprotect__" , [e] ->
 		gen_expr ctx true e
+	| TLocal "__typeof__", [e] ->
+		gen_expr ctx true e;
+		write ctx A3Typeof
 	| TConst TSuper , _ ->
 		write ctx A3This;
 		List.iter (gen_expr ctx true) el;
