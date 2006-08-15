@@ -788,6 +788,10 @@ and gen_call ctx e el =
 		gen_expr ctx true e;
 		List.iter (gen_expr ctx true) el;
 		write ctx (A3StackNew (List.length el))
+	| TLocal "__delete__" , [o;f] ->
+		gen_expr ctx true o;
+		gen_expr ctx true f;
+		write ctx (A3Delete (lookup (A3TArrayAccess ctx.gpublic) ctx.types))
 	| TConst TSuper , _ ->
 		write ctx A3This;
 		List.iter (gen_expr ctx true) el;
@@ -1031,13 +1035,7 @@ let generate_enum_init ctx e slot =
 let generate_field_kind ctx f c stat =
 	match f.cf_expr with
 	| Some { eexpr = TFunction fdata } ->
-		let rec loop c =
-			match c.cl_super with
-			| None -> false
-			| Some (c,_) ->
-				PMap.exists f.cf_name c.cl_fields || loop c
-		in
-		if not stat && loop c then
+		if not stat then
 			None
 		else
 			Some (A3FVar {
@@ -1107,7 +1105,7 @@ let generate_class ctx c =
 	let sc = {
 		cl3_name = name_id;
 		cl3_super = (if c.cl_interface then None else Some (type_path ctx (match c.cl_super with None -> [],"Object" | Some (c,_) -> c.cl_path)));
-		cl3_sealed = true;
+		cl3_sealed = false;
 		cl3_final = false;
 		cl3_interface = c.cl_interface;
 		cl3_rights = None;
