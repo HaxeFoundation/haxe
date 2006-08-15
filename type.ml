@@ -23,6 +23,7 @@ type field_access =
 	| NormalAccess
 	| NoAccess
 	| MethodAccess of string
+	| F9MethodAccess
 
 type t =
 	| TMono of t option ref
@@ -461,7 +462,7 @@ let unify_types a b tl1 tl2 =
 	) tl1 tl2
 
 let unify_access a1 a2 =
-	a1 = a2 || (a1 = NormalAccess && a2 = NoAccess)
+	a1 = a2 || (a1 = NormalAccess && (a2 = NoAccess || a2 = F9MethodAccess))
 
 let field_type f =
 	match f.cf_params with

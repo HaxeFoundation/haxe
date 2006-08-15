@@ -949,12 +949,18 @@ and generate_function ctx fdata stat =
 	write ctx A3RetVoid;
 	f()
 
-let generate_construct ctx args =
-	let f = begin_fun ctx args [] false in
-	write ctx A3This;
-	let r = ref 0 in
-	List.iter (fun _ -> incr r; write ctx (A3Reg !r)) args;
-	write ctx (A3SuperConstr (List.length args));
+let generate_construct ctx fdata cfields =
+	let f = begin_fun ctx (List.map (fun (name,_,_) -> name) fdata.tf_args) [fdata.tf_expr] false in
+	PMap.iter (fun _ f ->
+		match f.cf_expr with
+		| Some { eexpr = TFunction fdata } when f.cf_set = NormalAccess ->
+			let id = ident ctx f.cf_name in
+			write ctx (A3SetInf id);
+			write ctx (A3Function (generate_function ctx fdata false));
+			write ctx (A3Set id);
+		| _ -> ()
+	) cfields;
+	gen_expr ctx false fdata.tf_expr;
 	write ctx A3RetVoid;
 	f()
 
@@ -969,6 +975,14 @@ let generate_class_init ctx c slot =
 		write ctx (A3GetProp (type_path ctx ~getclass:true path));
 	end;
 	write ctx (A3ClassDef slot);
+	List.iter (fun f ->
+		match f.cf_expr with
+		| Some { eexpr = TFunction fdata } when f.cf_set = NormalAccess ->
+			write ctx A3Dup;
+			write ctx (A3Function (generate_function ctx fdata true));
+			write ctx (A3Set (ident ctx f.cf_name));
+		| _ -> ()
+	) c.cl_ordered_statics;
 	if not c.cl_interface then write ctx A3PopScope;
 	write ctx (A3Set (type_path ctx c.cl_path))
 
@@ -1030,12 +1044,19 @@ let generate_field_kind ctx f c stat =
 			| Some (c,_) ->
 				PMap.exists f.cf_name c.cl_fields || loop c
 		in
-		Some (A3FMethod {
-			m3_type = generate_function ctx fdata stat;
-			m3_final = false;
-			m3_override = not stat && loop c;
-			m3_kind = MK3Normal;
-		})
+		if f.cf_set = NormalAccess then
+			Some (A3FVar {
+				v3_type = None;
+				v3_value = A3VNone;
+				v3_const = false;
+			})	
+		else
+			Some (A3FMethod {
+				m3_type = generate_function ctx fdata stat;
+				m3_final = false;
+				m3_override = not stat && loop c;
+				m3_kind = MK3Normal;
+			})
 	| _ when c.cl_interface && not stat ->
 		None
 	| _ ->
@@ -1047,41 +1068,35 @@ let generate_field_kind ctx f c stat =
 
 let generate_class ctx c =
 	let name_id = type_path ctx c.cl_path in
-	let st_id = empty_method ctx in
+	let st_id = empty_method ctx in	
 	let cid = (match c.cl_constructor with
-		| None ->
-			let rec loop c =
-				match c.cl_super with
-				| None ->
-					if c.cl_interface then begin
-						let mt0 = {
-							mt3_ret = None;
-							mt3_args = [];
-							mt3_native = false;
-							mt3_var_args = false;
-							mt3_new_block = false;
-							mt3_debug_name = None;
-							mt3_dparams = None;
-							mt3_pnames = None;
-							mt3_unk_flags = (false,false,false);
-						} in
-						add mt0 ctx.mtypes
-					end else
-						generate_construct ctx []
-				| Some (csup,_) ->
-					match csup.cl_constructor with
-					| None -> loop csup
-					| Some co ->
-						let args = (match follow co.cf_type with
-							| TFun (l,_) -> List.map (fun (name,_,_) -> name) l
-							| _ -> assert false
-						) in
-						generate_construct ctx args
-			in
-			loop c
+		| None ->			
+			if c.cl_interface then begin
+				let mt0 = {
+					mt3_ret = None;
+					mt3_args = [];
+					mt3_native = false;
+					mt3_var_args = false;
+					mt3_new_block = false;
+					mt3_debug_name = None;
+					mt3_dparams = None;
+					mt3_pnames = None;
+					mt3_unk_flags = (false,false,false);
+				} in
+				add mt0 ctx.mtypes
+			end else
+				generate_construct ctx {
+					tf_args = [];
+					tf_type = t_dynamic;
+					tf_expr = {
+						eexpr = TBlock [];
+						etype = t_dynamic;
+						epos = null_pos;
+					}
+				} c.cl_fields
 		| Some f ->
 			match f.cf_expr with
-			| Some { eexpr = TFunction f } -> generate_function ctx f false
+			| Some { eexpr = TFunction fdata } -> generate_construct ctx fdata c.cl_fields
 			| _ -> assert false
 	) in
 	let fields = Array.of_list (PMap.fold (fun f acc ->
@@ -1098,7 +1113,7 @@ let generate_class ctx c =
 	let sc = {
 		cl3_name = name_id;
 		cl3_super = (if c.cl_interface then None else Some (type_path ctx (match c.cl_super with None -> [],"Object" | Some (c,_) -> c.cl_path)));
-		cl3_sealed = false;
+		cl3_sealed = true;
 		cl3_final = false;
 		cl3_interface = c.cl_interface;
 		cl3_rights = None;
@@ -1209,7 +1224,6 @@ let is_core_type = function
 	| [] , "Bool" | [] , "Void" | [] , "Dynamic" -> true
 	| _ -> false
 
-
 let generate_type ctx t =
 	match t with
 	| TClassDecl c -> if not c.cl_extern then generate_class ctx c
@@ -1263,7 +1277,6 @@ let generate_inits ctx types =
 	write ctx A3RetVoid;
 	write ctx (A3Function (finit()));
 	write ctx (A3Set (ident ctx "init"));
-
 	write ctx A3RetVoid;
 	{
 		st3_method = f();

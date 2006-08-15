@@ -286,6 +286,7 @@ and parse_cf_rights allow_static l = parser
 	| [< '(Kwd Public,_) when not(List.mem APublic l || List.mem APrivate l); l = parse_cf_rights allow_static (APublic :: l) >] -> l
 	| [< '(Kwd Private,_) when not(List.mem APublic l || List.mem APrivate l); l = parse_cf_rights allow_static (APrivate :: l) >] -> l
 	| [< '(Const (Ident "override"),_) when allow_static; l = parse_cf_rights false (AOverride :: l) >] -> l
+	| [< '(Const (Ident "f9dynamic"),_) when not (List.mem AF9Dynamic l); l = parse_cf_rights false (AF9Dynamic :: l) >] -> l
 	| [< >] -> l
 
 and parse_fun_name = parser

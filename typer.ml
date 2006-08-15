@@ -228,7 +228,9 @@ let field_access ctx get f t e p =
 		| TInst (c,_) when is_parent c ctx.curclass -> normal
 		| _ ->
 			if ctx.untyped then normal else AccNo f.cf_name)
-	| NormalAccess ->
+	| F9MethodAccess when not ctx.untyped ->
+		error "Cannot redefine method with Flash9 : please use 'f9dynamic' before method declaration" p
+	| NormalAccess | F9MethodAccess ->
 		AccExpr (mk (TField (e,f.cf_name)) t p)
 	| MethodAccess m ->
 		if m = ctx.curmethod && e.eexpr = TConst TThis then
@@ -348,7 +350,7 @@ and load_type ctx p t =
 				| AFFun (tl,t) ->
 					let t = load_type ctx p t in
 					let args = List.map (fun (name,o,t) -> name , o, load_type ctx p t) tl in
-					TFun (args,t), NormalAccess, NormalAccess
+					TFun (args,t), NormalAccess, (if Plugin.defined "flash9" then F9MethodAccess else NormalAccess)
 				| AFProp (t,i1,i2) ->
 					let access m get =
 						match m with
@@ -450,7 +452,7 @@ let extend_remoting ctx c t p async prot =
 				if not f.cf_public then
 					acc
 				else match follow f.cf_type with
-				| TFun (args,ret) when f.cf_get = NormalAccess && f.cf_set = NormalAccess && f.cf_params = [] ->
+				| TFun (args,ret) when f.cf_get = NormalAccess && (f.cf_set = NormalAccess || f.cf_set = F9MethodAccess) && f.cf_params = [] ->
 					make_field f.cf_name args ret :: acc
 				| _ -> acc
 			) c.cl_fields []
@@ -1920,7 +1922,7 @@ let init_class ctx c p herits fields =
 				cf_doc = doc;
 				cf_type = t;
 				cf_get = NormalAccess;
-				cf_set = NormalAccess;
+				cf_set = (if Plugin.defined "flash9" && not (List.mem AF9Dynamic access) then F9MethodAccess else NormalAccess);				
 				cf_expr = None;
 				cf_public = is_public access;
 				cf_params = params;
