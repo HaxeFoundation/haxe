@@ -202,23 +202,13 @@ class Reflect {
 				return new Array<String>();
 			else {
 				var a = __dollar__objfields(o);
-				var i = 0, j = 0;
+				var i = 0;
 				var l = __dollar__asize(a);
-				var t__string = __dollar__hash("__string".__s);
 				while( i < l ) {
-					var x = a[i];
-					if( x != t__string ) {
-						a[j] = new String(__dollar__field(x));
-						j++;
-					}
+					a[i] = new String(__dollar__field(a[i]));
 					i++;
 				}
-				i = j;
-				while( i < l ) {
-					a[i] = null;
-					i++;
-				}
-				return Array.new1(a,j);
+				return Array.new1(a,l);
 			}
 		#else error
 		#end
@@ -233,9 +223,9 @@ class Reflect {
 		#if flash9
 			f.call == __global__["Function"].prototype.call
 		#else flash
-			f["call"] == _global["Function"]["call"] && f.__interfaces__ == null
+			f["call"] == _global["Function"]["call"] && f.__name__ == null && f.__ename__ == null
 		#else js
-			f != null && f.call == isFunction.call && f.__interfaces__ == null
+			f != null && f.call == isFunction.call && f.__name__ == null && f.__ename__ == null
 		#else neko
 			__dollar__typeof(f) == __dollar__tfunction
 		#else error
