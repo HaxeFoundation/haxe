@@ -1,4 +1,4 @@
-2006-??-??: 1.05
+2006-08-16: 1.05
 	moved Md5 to haxe package.
 	some method renamed in neko.FileSystem.
 	added neko.remoting.Server.setLogger
@@ -13,6 +13,7 @@
 	metas : removed __construct__ and class.toString.
 	metas : __super__ and __interfaces__ now optional
 	added Type api (seperated from Reflect)
+	flash 9 support
 
 2006-07-25: 1.04
 	added macros in haxe.Template
