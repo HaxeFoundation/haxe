@@ -88,7 +88,7 @@ private class DocField {
 			var url = path.join("/");
 			return Url.make(url,"type",path.pop());
 		}
-		return Url.make(path.join("/"),"type",name);
+		return Url.make(path.join("/"),"type",DocClass.flash9(name));
 	}
 
 	function paramsToString( params : Array<DocType> ) {
@@ -232,9 +232,15 @@ private class DocClass {
 		params = new Array();
 	}
 
+	public static function flash9( p : String ) : String {
+		if( p.substr(0,7) == "flash9." )
+			return "flash."+p.substr(7,p.length-7);
+		return p;
+	}
+
 	function genName( s : StringBuf ) {
 		s.add("class ");
-		s.add(path);
+		s.add(flash9(path));
 	}
 
 	function genBody( s : StringBuf ) {
