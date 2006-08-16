@@ -17,7 +17,7 @@ mv haxedoc.exe ../..
 cd ..
 
 rm -rf CVS .cvsignore */CVS */.cvsignore */*/CVS */*/.cvsignore */*/*/CVS */*/*/.cvsignore
-rm -rf all.n all.js all.swf *.xml tools/haxedoc.n tools/index.html tools/content tools/haxedoc.exe
+rm -rf all.n all.js *.swf *.xml tools/haxedoc.n tools/index.html tools/content tools/haxedoc.exe
 rm -rf mt mtwin
 
 cd ..\..\..\..\neko\bin
