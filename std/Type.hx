@@ -19,7 +19,7 @@ class Type {
 	public static function getClass( o : Dynamic ) : Class untyped {
 		#if flash9
 			var cname = __global__["flash.utils.getQualifiedClassName"](o);
-			if( cname == "null" || cname == "Object" || cname.substr(0,8) == "builtin." )
+			if( cname == "null" || cname == "Object" || cname == "int" || cname == "Number" || cname == "Boolean" )
 				return null;
 			if( o.hasOwnProperty("prototype") )
 				return null;
@@ -28,10 +28,14 @@ class Type {
 				return null;
 			return c;
 		#else flash
+			if( Std.is(o,String) )
+				return String;
 			return o.__class__;
 		#else js
 			if( o == null )
 				return null;
+			if( Std.is(o,String) )
+				return String;
 			return o.__class__;
 		#else neko
 			if( __dollar__typeof(o) != __dollar__tobject )
@@ -50,9 +54,9 @@ class Type {
 	public static function getEnum( o : Dynamic ) : Enum untyped {
 		#if flash9
 			var cname = __global__["flash.utils.getQualifiedClassName"](o);
-			if( cname == "null" || cname == "Object" || cname.substr(0,8) == "builtin." )
+			if( cname == "null" || cname.substr(0,8) == "builtin." )
 				return null;
-			// getClass(Class) should be null
+			// getEnum(Enum) should be null
 			if( o.hasOwnProperty("prototype") )
 				return null;
 			var c = __global__["flash.utils.getDefinitionByName"](cname);
@@ -94,14 +98,10 @@ class Type {
 	**/
 	public static function getClassName( c : Class ) : String {
 		#if flash9
-			var n = untyped __global__["flash.utils.getQualifiedClassName"](c);
-			return switch( n ) {
-			case "int": "Int";
-			case "Number": "Float";
-			case "Boolean": "Bool";
-			default: n;
-			}
+			return untyped __global__["flash.utils.getQualifiedClassName"](c);
 		#else true
+			if( c == cast String )
+				return "String";
 			return untyped c.__name__.join(".");
 		#end
 	}
@@ -176,10 +176,10 @@ class Type {
 			e = eval(name);
 		#else neko
 			var path = name.split(".");
-			e = untyped field(neko.Boot.__classes,path[0]);
+			e = Reflect.field(neko.Boot.__classes,path[0]);
 			var i = 1;
 			while( e != null && i < path.length ) {
-				e = field(cl,path[i]);
+				e = Reflect.field(cl,path[i]);
 				i += 1;
 			}
 		#else error
@@ -204,6 +204,80 @@ class Type {
 		#else neko
 			untyped __dollar__objsetproto(obj,proto);
 		#else error
+		#end
+	}
+
+	#if flash9
+	static function describe( t : Dynamic, fact : Bool ) {
+		var fields = new Array();
+		var xml : Dynamic = untyped __global__["flash.utils.describeType"](t);
+		if( fact )
+			xml = xml.factory;
+		var methods = xml.child("method");
+		for( i in 0...methods.length() )
+			fields.push( Std.string(untyped methods[i].attribute("name")) );
+		var vars = xml.child("variable");
+		for( i in 0...vars.length() )
+			fields.push( Std.string(untyped vars[i].attribute("name")) );
+		return fields;
+	}
+	#end
+
+	/**
+		Returns the list of instance fields
+	**/
+	public static function getInstanceFields( c : Class ) : Array<String> {
+		#if flash9
+			return describe(c,true);
+		#else true
+			var a = Reflect.fields(untyped c.prototype);
+			c = untyped c.__super__;
+			while( c != null ) {
+				a = a.concat(Reflect.fields(untyped c.prototype));
+				c = untyped c.__super__;
+			}
+			while( a.remove("__class__") ) {
+				#if neko
+				a.remove("__serialize");
+				#end
+			}
+			return a;
+		#end
+	}
+
+	/**
+		Returns the list of class static fields
+	**/
+	public static function getClassFields( c : Class ) : Array<String> {
+		#if flash9
+			return describe(c,false);
+		#else true
+			var a = Reflect.fields(c);
+			a.remove("__name__");
+			a.remove("__interfaces__");
+			a.remove("__super__");
+			a.remove("__construct__");
+			#if neko
+			a.remove("prototype");
+			a.remove("new");
+			#end
+			return a;
+		#end
+	}
+
+	/**
+		Returns all the available constructor names for an enum.
+	**/
+	public static function getEnumConstructs( e : Enum ) : Array<String> {
+		#if flash9
+			return describe(e,false);
+		#else true
+			var a = Reflect.fields(e);
+			a.remove("__ename__");
+			#if neko
+			a.remove("prototype");
+			#end
+			return a;
 		#end
 	}
 
