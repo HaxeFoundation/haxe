@@ -29,7 +29,7 @@ import Reflect;
 class Transaction {
 
 	public static function isDeadlock(e : Dynamic) {
-		return Reflect.typeof(e) == TObject && Std.is(e.msg,String) && (~/Deadlock found/.match(e.msg) || ~/Lock wait timeout/.match(e.msg));
+		return Reflect.isObject(e) && Std.is(e.msg,String) && (~/Deadlock found/.match(e.msg) || ~/Lock wait timeout/.match(e.msg));
 	}
 
 	private static function runMainLoop(mainFun,logError,count) {

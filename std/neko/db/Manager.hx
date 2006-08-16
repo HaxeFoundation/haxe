@@ -52,7 +52,7 @@ class Manager<T : Object> {
 	var table_name : String;
 	var table_fields : List<String>;
 	var table_keys : Array<String>;
-	var class_proto : Class;
+	var class_proto : { prototype : Dynamic };
 
 	public function new( cl : Dynamic ) {
 		// get basic infos
