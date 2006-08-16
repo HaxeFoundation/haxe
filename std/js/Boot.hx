@@ -139,13 +139,12 @@ class Boot {
 		if( cc == cl )
 			return true;
 		var intf : Dynamic = cc.__interfaces__;
-		if( intf == null )
-			return false;
-		for( i in 0...intf.length ) {
-			var i : Dynamic = intf[i];
-			if( i == cl || __interfLoop(i,cl) )
-				return true;
-		}
+		if( intf != null )
+			for( i in 0...intf.length ) {
+				var i : Dynamic = intf[i];
+				if( i == cl || __interfLoop(i,cl) )
+					return true;
+			}
 		return __interfLoop(cc.__super__,cl);
 	}
 
