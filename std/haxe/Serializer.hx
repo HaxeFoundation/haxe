@@ -184,14 +184,6 @@ class Serializer {
 		if( Std.is(v,Array) ) {
 			if( serializeRef(v) )
 				return;
-			#if neko
-			#else true
-			var e : Dynamic = v.__enum__;
-			if( e != null && e.__ename__ != null ) {
-				serializeEnum(v);
-				return;
-			}
-			#end
 			var ucount = 0;
 			buf.add("a");
 			var l = #if neko v.length #else true v[untyped "length"] #end;
@@ -243,13 +235,11 @@ class Serializer {
 			buf.add("c");
 			serialize(c.__name__);
 		} else {
-			#if neko
 			var e : Dynamic = v.__enum__;
 			if( e != null && e.__ename__ != null ) {
 				serializeEnum(v);
 				return;
 			}
-			#end
 			buf.add("o");
 		}
 		var fl = Reflect.fields(v);
