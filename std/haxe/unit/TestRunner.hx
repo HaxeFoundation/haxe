@@ -29,15 +29,17 @@ class TestRunner {
 	var result : TestResult;
 	var cases  : List<TestCase>;
 
-#if flash
-	static var tf = null;
+#if flash9
+	static var tf : flash.text.TextField = null;
+#else flash
+	static var tf : flash.TextField = null;
 #end
 
 	private static function print( v : Dynamic ){
 		#if flash9
 		untyped {
 			if( tf == null ) {
-				var tf = new flash.text.TextField();
+				tf = new flash.text.TextField();
 				tf.selectable = false;
 				tf.width = flash.Lib.current.stage.stageWidth;
 				tf.autoSize = flash.text.TextFieldAutoSize.LEFT;
