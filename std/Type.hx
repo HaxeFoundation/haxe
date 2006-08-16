@@ -96,7 +96,8 @@ class Type {
 		#if flash9
 			return untyped __global__["flash.utils.getQualifiedClassName"](c);
 		#else true
-			return untyped c.__name__.join(".");
+			var a : Array<String> = untyped c.__name__;
+			return a.join(".");
 		#end
 	}
 
@@ -108,7 +109,8 @@ class Type {
 			var n = untyped __global__["flash.utils.getQualifiedClassName"](e);
 			return n;
 		#else true
-			return untyped e.__ename__.join(".");
+			var a : Array<String> = untyped e.__ename__;
+			return a.join(".");
 		#end
 	}
 

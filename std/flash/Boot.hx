@@ -125,11 +125,11 @@ class Boot {
 		untyped {
 			if( __instanceof__(o,cl) ) {
 				if( cl == Array )
-					return ( o.__enum__ == null );
+					return ( o[__unprotect__("__enum__")] == null );
 				return true;
 			}
 			#if flash6
-			if( __interfLoop(o.__class__,cl) )
+			if( __interfLoop(o[__unprotect__("__class__")],cl) )
 				return true;
 			#end
 			switch( cl ) {
@@ -220,7 +220,7 @@ class Boot {
 					}
 				}
 			};
-			String.prototype.__class__ = String;
+			String.prototype[__unprotect__("__class__")] = String;
 			String.__name__ = ["String"];
 			var cca = String.prototype["charCodeAt"];
 			String.prototype["charCodeAt"] = function(i) {
