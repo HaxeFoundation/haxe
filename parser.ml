@@ -485,8 +485,9 @@ let parse code file =
 	cache := DynArray.create();
 	doc := None;
 	Lexer.init file;
-	let rec next_token() =
-		let tk = Lexer.token code in
+	let rec next_token() = process_token (Lexer.token code) 
+
+	and process_token tk =		
 		match fst tk with
 		| Comment s ->
 			let l = String.length s in
@@ -496,58 +497,79 @@ let parse code file =
 			next_token()
 		| Macro "end" ->
 			(match !mstack with
-			| [] -> serror()
+			| [] -> raise Exit
 			| _ :: l ->
 				mstack := l;
 				next_token())
 		| Macro "else" ->
 			(match !mstack with
-			| [] -> serror()
+			| [] -> raise Exit
 			| _ :: l ->
 				mstack := l;
-				skip_tokens false;
-				next_token())
+				process_token (skip_tokens false))
 		| Macro "if" ->
-			enter_macro();
-			next_token()
+			process_token (enter_macro())
 		| _ ->
 			tk
 
 	and enter_macro() =
+		let ok , tk = eval_macro false in
+		if ok then begin
+			mstack := snd tk :: !mstack;
+			tk
+		end else
+			skip_tokens_loop true tk
+
+	and eval_macro allow_expr =
 		match Lexer.token code with
 		| (Const (Ident s),p) | (Const (Type s),p) ->
 			if s = "error" then error Unimplemented p;
-			if Plugin.defined s then
-				mstack := p :: !mstack
-			else
-				skip_tokens true
+			let ok = Plugin.defined s in
+			(match Lexer.token code with
+			| (Binop OpBoolOr,_) when allow_expr ->
+				let ok2 , tk = eval_macro allow_expr in
+				(ok || ok2) , tk
+			| (Binop OpBoolAnd,_) when allow_expr ->
+				let ok2 , tk = eval_macro allow_expr in
+				(ok && ok2) , tk
+			| tk ->
+				ok , tk)
+		| (Unop Not,_) ->
+			let ok , tk = eval_macro allow_expr in
+			not ok, tk
+		| (POpen,_) ->
+			let ok , tk = eval_macro true in
+			(match tk with
+			| (PClose,_) -> ok, Lexer.token code
+			| _ -> raise Exit)
 		| _ ->
-			serror()
+			raise Exit
 
-	and skip_tokens test =
-		let rec loop() =
-			let tk = Lexer.token code in
-			match fst tk with
-			| Macro "end"  ->
-				()
-			| Macro "else" when not test ->
-				loop()
-			| Macro "else" ->
-				enter_macro()
-			| Macro "if" ->
-				ignore(skip_tokens false);
-				loop()
-			| Eof ->
-				serror()
-			| _ ->
-				loop()
-		in
-		loop()
+	and skip_tokens_loop test tk =
+		match fst tk with
+		| Macro "end" ->			
+			Lexer.token code
+		| Macro "else" when not test ->			
+			skip_tokens test
+		| Macro "else" ->			
+			enter_macro()
+		| Macro "if" ->			
+			skip_tokens_loop test (skip_tokens false)
+		| Eof ->			
+			raise Exit
+		| _ ->			
+			skip_tokens test
+
+	and skip_tokens test = skip_tokens_loop test (Lexer.token code)
+
 	in
 	let s = Stream.from (fun _ ->
-		let t = next_token() in
-		DynArray.add (!cache) t;
-		Some t
+		try
+			let t = next_token() in
+			DynArray.add (!cache) t;
+			Some t
+		with
+			Exit -> None
 	) in
 	try
 		let l = parse_file s in
