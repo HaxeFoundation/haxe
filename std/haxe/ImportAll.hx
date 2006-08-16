@@ -24,9 +24,6 @@
  */
 package haxe;
 
-#if flash9
-#else true
-
 // std
 import Array;
 import Date;
@@ -56,6 +53,8 @@ import haxe.Template;
 import haxe.Timer;
 import haxe.Unserializer;
 
+#if !flash9
+
 import haxe.remoting.AsyncConnection;
 import haxe.remoting.AsyncDebugConnection;
 import haxe.remoting.AsyncProxy;
@@ -74,12 +73,12 @@ import haxe.remoting.SocketBuffer;
 import haxe.remoting.SocketConnection;
 #end
 
+#end // flash9
+
 import haxe.unit.TestCase;
 import haxe.unit.TestResult;
 import haxe.unit.TestRunner;
 import haxe.unit.TestStatus;
-
-#end
 
 #if flash9
 
