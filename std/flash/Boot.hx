@@ -123,8 +123,11 @@ class Boot {
 
 	private static function __instanceof(o,cl) {
 		untyped {
-			if( __instanceof__(o,cl) )
+			if( __instanceof__(o,cl) ) {
+				if( cl == Array )
+					return ( o.__enum__ == null );
 				return true;
+			}
 			#if flash6
 			if( __interfLoop(o.__class__,cl) )
 				return true;

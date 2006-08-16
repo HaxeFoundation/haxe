@@ -151,8 +151,11 @@ class Boot {
 	private static function __instanceof(o,cl) {
 		untyped {
 			try {
-				if( __js__("o instanceof cl") )
+				if( __js__("o instanceof cl") ) {
+					if( cl == Array )
+						return (o.__enum__ == null);
 					return true;
+				}
 				if( __interfLoop(o.__class__,cl) )
 					return true;
 			} catch( e : Dynamic ) {
