@@ -1426,13 +1426,13 @@ let generate file ver header infile types hres =
 				tag (TExport [{ exp_id = !base_id; exp_name = link }]);
 			]
 	) in
+	let movieclips = ref movieclips in
 	let tagclips() = List.fold_left (fun acc m ->
 		incr base_id;
 		tag ~ext:true (TClip { c_id = !base_id; c_frame_count = 1; c_tags = [] }) ::
 		tag ~ext:true (TExport [{ exp_id = !base_id; exp_name = s_type_path m }]) ::
 		acc
-	) [] movieclips in
-	let movieclips = ref movieclips in
+	) [] (!movieclips) in
 	let swf = (match infile with
 		| None ->
 			let header , bg = (match header with None -> default_header ver | Some h -> convert_header ver h) in
