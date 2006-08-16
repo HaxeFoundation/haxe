@@ -118,6 +118,54 @@ class Http {
 		r.send(uri);
 		if( !async )
 			onreadystatechange();
+	#else flash9
+		var loader = new flash.net.URLLoader();
+		loader.addEventListener( "complete", function(e){
+			me.onData( loader.data );
+		});
+		loader.addEventListener( "httpStatus", function(e){
+			// on Firefox 1.5, Flash calls onHTTPStatus with 0 (!??)
+			if( e.status != 0 )
+				me.onStatus( e.status );
+		});
+		loader.addEventListener( "ioError", function(e){
+			me.onError(e.text);
+		});
+		loader.addEventListener( "securityError", function(e){
+			me.onError(e.text);
+		});
+
+		// headers
+		var param = false;
+		var vars = new flash.net.URLVariables();
+		for( k in params.keys() ){
+			param = true;
+			Reflect.setField(vars,k,params.get(k));
+		}
+		var small_url = url;
+		if( param && !post ){
+			var k = url.split("?");
+			if( k.length > 1 ) {
+				small_url = k.shift();
+				vars.decode(k.join("?"));
+			}
+		}
+		// Bug in flash player 9 ???
+		var bug = small_url.split("xxx");
+		
+		var request = new flash.net.URLRequest( small_url );
+		for( k in headers.keys() ){
+			request.requestHeaders.push( new flash.net.URLRequestHeader(k,headers.get(k)) );
+		}
+
+		request.data = vars;
+		request.method = if( post ) "POST" else "GET";
+
+		try {
+			loader.load( request );
+		}catch( e : Dynamic ){
+			onError("Exception: "+Std.string(e));
+		}
 	#else flash
 		var r = new flash.LoadVars();
 		// on Firefox 1.5, onData is not called if host/port invalid (!)
@@ -419,13 +467,13 @@ class Http {
 
 #end
 
-	public function onData( data : String ) {
+	public f9dynamic function onData( data : String ) {
 	}
 
-	public function onError( msg : String ) {
+	public f9dynamic function onError( msg : String ) {
 	}
 
-	public function onStatus( status : Int ) {
+	public f9dynamic function onStatus( status : Int ) {
 	}
 
 #if flash
