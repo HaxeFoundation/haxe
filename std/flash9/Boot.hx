@@ -82,7 +82,8 @@ class Boot extends flash.display.MovieClip {
 			tf.autoSize = flash.text.TextFieldAutoSize.LEFT;
 		}
 		mc.addChild(tf); // on top
-		lines = lines.concat((pos.fileName+":"+pos.lineNumber+": "+__string_rec(v,"")).split("\n"));
+		var pstr = if( pos == null ) "(null)" else pos.fileName+":"+pos.lineNumber;
+		lines = lines.concat((pstr +": "+__string_rec(v,"")).split("\n"));
 		tf.text = lines.join("\n");
 		while( tf.height > mc.stage.stageHeight ) {
 			lines.shift();
@@ -91,7 +92,9 @@ class Boot extends flash.display.MovieClip {
 	}
 
 	static function __string_rec( v : Dynamic, str : String ) {
-		if( untyped __global__["flash.utils.getQualifiedClassName"](v) == "Object" ) {
+		var cname = untyped __global__["flash.utils.getQualifiedClassName"](v);
+		switch( cname ) {
+		case "Object":
 			var k : Array<String> = untyped __keys__(v);
 			var s = "{";
 			var first = true;
@@ -101,12 +104,24 @@ class Boot extends flash.display.MovieClip {
 					first = false;
 				else
 					s += ",";
-				s += " "+key+" : "+v[untyped key];
+				s += " "+key+" : "+__string_rec(v[untyped key],str);
 			}
 			if( !first )
 				s += " ";
 			s += "}";
 			return s;
+		case "Array":
+			var s = "[";
+			var i;
+			var first = true;
+			for( i in 0...v.length ) {
+				if( first )
+					first = false;
+				else
+					s += ",";
+				s += __string_rec(v[i],str);
+			}
+			return s+"]";
 		}
 		return new String(v);
 	}
