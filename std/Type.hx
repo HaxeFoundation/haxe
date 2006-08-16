@@ -28,14 +28,10 @@ class Type {
 				return null;
 			return c;
 		#else flash
-			if( Std.is(o,String) )
-				return String;
 			return o.__class__;
 		#else js
 			if( o == null )
 				return null;
-			if( Std.is(o,String) )
-				return String;
 			return o.__class__;
 		#else neko
 			if( __dollar__typeof(o) != __dollar__tobject )
@@ -100,8 +96,6 @@ class Type {
 		#if flash9
 			return untyped __global__["flash.utils.getQualifiedClassName"](c);
 		#else true
-			if( c == cast String )
-				return "String";
 			return untyped c.__name__.join(".");
 		#end
 	}
@@ -152,7 +146,7 @@ class Type {
 		#else error
 		#end
 		// ensure that this is a class
-		if( cl == null || cl.__interfaces__ == null )
+		if( cl == null || cl.__name__ == null )
 			return null;
 		}
 		return cl;
@@ -192,6 +186,7 @@ class Type {
 			}
 		#else error
 		#end
+		// ensure that this is an enum
 		if( e == null || e.__ename__ == null )
 			return null;
 		}
@@ -247,6 +242,7 @@ class Type {
 			while( a.remove("__class__") ) {
 				#if neko
 				a.remove("__serialize");
+				a.remove("__string");
 				#end
 			}
 			return a;
@@ -264,12 +260,11 @@ class Type {
 			a.remove("__name__");
 			a.remove("__interfaces__");
 			a.remove("__super__");
-			a.remove("__construct__");
 			#if js
-			a.remove("toString");
 			a.remove("prototype");
 			#end
 			#if neko
+			a.remove("__construct__");
 			a.remove("prototype");
 			a.remove("new");
 			#end
