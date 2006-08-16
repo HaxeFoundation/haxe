@@ -9,6 +9,7 @@
 	allowed event-driven neko http requests
 	forbidden "name" static in js
 	don't allow variable redeclaration in subclasses
+	added && || and ! in conditional compilation rules
 
 2006-07-25: 1.04
 	added macros in haxe.Template
