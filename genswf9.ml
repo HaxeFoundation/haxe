@@ -291,7 +291,7 @@ let define_local ctx name el =
 let is_set v = (Obj.magic v) = Write
 
 let gen_local_access ctx name p (forset : 'a)  : 'a access =
-	match (try PMap.find name ctx.locals with Not_found -> error p) with
+	match (try PMap.find name ctx.locals with Not_found -> Typer.error ("Unbound variable " ^ name) p) with
 	| LReg r -> VReg r
 	| LScope n -> write ctx (A3GetScope 1); VScope n
 	| LGlobal id ->
@@ -1206,49 +1206,54 @@ let generate_enum ctx e =
 		|];
 	} in
 	let st_count = ref 0 in
+	let constrs = PMap.fold (fun f acc ->
+		incr st_count;
+		{
+			f3_name = ident ctx f.ef_name;
+			f3_slot = !st_count;
+			f3_kind = (match f.ef_type with
+				| TFun (args,_) ->
+					let fdata = begin_fun ctx (List.map (fun (name,_,_) -> name) args) [] true in
+					write ctx (A3GetInf name_id);
+					write ctx (A3String (lookup f.ef_name ctx.strings));
+					let n = ref 0 in
+					List.iter (fun _ -> incr n; write ctx (A3Reg !n)) args;
+					write ctx (A3Array (!n));
+					write ctx (A3New (name_id,2));
+					write ctx A3Ret;
+					let fid = fdata() in
+					A3FMethod {
+						m3_type = fid;
+						m3_final = false;
+						m3_override = false;
+						m3_kind = MK3Normal;
+					}
+				| _ ->
+					A3FVar { v3_type = (Some name_id); v3_value = A3VNone; v3_const = false; }
+			);
+			f3_metas = None;
+		} :: acc
+	) e.e_constrs [] in
 	let st = {
 		st3_method = st_id;
-		st3_fields = Array.of_list (PMap.fold (fun f acc ->
-			incr st_count;
-			{
-				f3_name = ident ctx f.ef_name;
-				f3_slot = !st_count;
-				f3_kind = (match f.ef_type with
-					| TFun (args,_) ->
-						let fdata = begin_fun ctx (List.map (fun (name,_,_) -> name) args) [] true in
-						write ctx (A3GetInf name_id);
-						write ctx (A3String (lookup f.ef_name ctx.strings));
-						let n = ref 0 in
-						List.iter (fun _ -> incr n; write ctx (A3Reg !n)) args;
-						write ctx (A3Array (!n));
-						write ctx (A3New (name_id,2));
-						write ctx A3Ret;
-						let fid = fdata() in
-						A3FMethod {
-							m3_type = fid;
-							m3_final = false;
-							m3_override = false;
-							m3_kind = MK3Normal;
-						}
-					| _ ->
-						A3FVar { v3_type = (Some name_id); v3_value = A3VNone; v3_const = false; }
-				);
-				f3_metas = None;
-			} :: acc
-		) e.e_constrs [])
+		st3_fields = Array.of_list ({
+			f3_name = ident ctx "__isenum";
+			f3_slot = !st_count + 1;
+			f3_kind = A3FVar { v3_type = None; v3_value = A3VBool true; v3_const = true; };
+			f3_metas = None;
+		} :: constrs)
 	} in
 	ctx.classes <- sc :: ctx.classes;
 	ctx.statics <- st :: ctx.statics
 
-let is_core_type = function
-	| [] , "Bool" | [] , "Void" | [] , "Dynamic" -> true
-	| _ -> false
+let can_generate_enum e = 
+	e.e_path <> ([] , "Bool") && not (PMap.is_empty e.e_constrs)
 
 let generate_type ctx t =
 	match t with
 	| TClassDecl c -> if not c.cl_extern then generate_class ctx c
 	| TTypeDecl _ -> ()
-	| TEnumDecl e -> if not (is_core_type e.e_path) then generate_enum ctx e
+	| TEnumDecl e -> if can_generate_enum e then generate_enum ctx e
 
 let generate_inits ctx types =
 	let f = begin_fun ctx [] [] false in
@@ -1264,7 +1269,7 @@ let generate_inits ctx types =
 				f3_kind = A3FClass (index_nz_int (!slot - 1));
 				f3_metas = None;
 			} :: acc
-		| TEnumDecl e when not (is_core_type e.e_path) ->
+		| TEnumDecl e when can_generate_enum e ->
 			incr slot;
 			generate_enum_init ctx e (!slot - 1);
 			{
