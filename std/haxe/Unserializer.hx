@@ -23,16 +23,17 @@
  * DAMAGE.
  */
 package haxe;
-import Reflect;
+import Type.Class;
+import Type.Enum;
 
 typedef TypeResolver = {
-	resolveClass : Array<String> -> Class,
-	resolveEnum : Array<String> -> Dynamic
+	function resolveClass( name : String ) : Class;
+	function resolveEnum( name : String ) : Enum;
 }
 
 class Unserializer {
 
-	public static var DEFAULT_RESOLVER : TypeResolver = Reflect;
+	public static var DEFAULT_RESOLVER : TypeResolver = Type;
 
  	var buf : String;
  	var pos : Int;
@@ -218,11 +219,11 @@ class Unserializer {
 			for(s in a)
 				if( !Std.is(s,String) )
 					throw "Invalid class name";
-			var cl = resolver.resolveClass(a);
+			var cl = resolver.resolveClass(a.join("."));
 			if( cl == null )
 				throw "Class not found " + a.join(".");
 			unserializeObject(o);
-			Reflect.setPrototype(o,cl.prototype);
+			Type.setClass(o,cl);
 			return o;
 		case 119: // w
 			#if neko
@@ -241,7 +242,7 @@ class Unserializer {
 			for(s in a)
 				if( !Std.is(s,String) )
 					throw "Invalid enum name";
-			var edecl = resolver.resolveEnum(a);
+			var edecl = resolver.resolveEnum(a.join("."));
 			if( edecl == null )
 				throw "Enum not found " + a.join(".");
 			untyped e.__enum__ = edecl;
