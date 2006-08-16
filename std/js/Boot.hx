@@ -67,7 +67,7 @@ class Boot {
 			if( s.length >= 5 )
 				return "<...>"; // too much deep recursion
 			var t = __js__("typeof(o)");
-			if( t == "function" && o.__interfaces__ != null )
+			if( t == "function" && (o.__name__ != null || o.__ename__ != null) )
 				t = "object";
 			switch( t ) {
 			case "object":
@@ -107,19 +107,18 @@ class Boot {
 					if( s2 != "[object Object]")
 						return s2;
 				}
-				var k;
+				var k : String;
 				var str = "{\n";
 				s += "\t";
 				var hasp = (o.hasOwnProperty != null);
 				__js__("for( var k in o ) { ");
 					if( hasp && !o.hasOwnProperty(k) )
 						__js__("continue");
+					if( k == "prototype" || k == "__class__" || k == "__super__" || k == "__interfaces__" )
+						__js__("continue");
 					if( str.length != 2 )
 						str += ", \n";
-					if( k == "__construct__" && __js__("typeof(o[k])") == "function" )
-						str += s + k + " : <function>";
-					else
-						str += s + k + " : "+__string_rec(o[k],s);
+					str += s + k + " : "+__string_rec(o[k],s);
 				__js__("}");
 				s = s.substring(1);
 				str += "\n" + s + "}";
@@ -210,6 +209,8 @@ class Boot {
 					}
 				}
 			};
+			String.prototype.__class__ = String;
+			String.__name__ = ["String"];
 			var cca = String.prototype.charCodeAt;
 			String.prototype.charCodeAt = function(i) {
 				var x = cca.call(this,i);

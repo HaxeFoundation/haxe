@@ -35,7 +35,7 @@ class Boot {
 			var t = __typeof__(o);
 			if( t == "movieclip" )
 				t = "object";
-			else if( t == "function" && o.__interfaces__ != null )
+			else if( t == "function" && (o.__name__ != null || o.__ename__ != null) )
 				t = "object";
 			switch( t ) {
 			case "object":
@@ -71,12 +71,11 @@ class Boot {
 					str = "MC("+o._name+") "+str;
 				s += "    ";
 				for( k in (__keys__(o))["iterator"]() ) {
+					if( k == "prototype" || k == "__class__" || k == "__super__" || k == "__interfaces__" )
+						continue;
 					if( str.length != 2 )
 						str += ",\n";
-					if( k == __unprotect__("__construct__") && __typeof__(o[k]) == "function" )
-						str += s + k + " : <function>";
-					else
-						str += s + k + " : "+__string_rec(o[k],s);
+					str += s + k + " : "+__string_rec(o[k],s);
 				}
 				s = s.substring(4);
 				if( str.length != 2 )
@@ -110,9 +109,9 @@ class Boot {
 
 	#if flash6
 	private static function __interfLoop(cc : Dynamic,cl : Dynamic) {
-		var intf = cc.__interfaces__;
-		if( intf == null )
+		if( cc == null )
 			return false;
+		var intf = cc.__interfaces__;
 		for( i in 0...intf.length ) {
 			var i = intf[i];
 			if( i == cl || __interfLoop(i,cl) )
@@ -218,6 +217,8 @@ class Boot {
 					}
 				}
 			};
+			String.prototype.__class__ = String;
+			String.__name__ = ["String"];
 			var cca = String.prototype["charCodeAt"];
 			String.prototype["charCodeAt"] = function(i) {
 				var x = cca["call"](this,i);
