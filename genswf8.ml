@@ -1180,9 +1180,6 @@ let gen_type_def ctx t =
 			setvar ctx VarObj
 		end;
 		init_name ctx c.cl_path false;
-		push ctx [VReg 0; VStr ("toString",true); VStr ("@class_str",false)];
-		write ctx AEval;
-		setvar ctx VarObj;
 		(match c.cl_super with
 		| None ->
 			push ctx [VReg 0; VStr ("__super__",false); VNull];
@@ -1347,22 +1344,6 @@ let generate_code file ver types hres =
 	write ctx (AStringPool []);
 	protect_all := not (Plugin.defined "swf-mark");
 	extern_boot := true;
-	push ctx [VStr ("@class_str",false)];
-	let f = func ctx false false [] in
-	push ctx [VStr (".",true); VInt 1];
-	if ctx.version = 6 then begin
-		push ctx [VStr ("this",true)];
-		write ctx AEval;
-	end else
-		push ctx [VThis];
-	push ctx [VStr ("__name__",false)];
-	getvar ctx VarObj;
-	push ctx [VStr ("join",true)];
-	call ctx VarObj 1;
-	write ctx AReturn;
-	ctx.reg_max <- ctx.reg_max + 1;
-	f();
-	write ctx ASet;
 	List.iter (fun t -> gen_type_def ctx t) types;
 	gen_boot ctx hres;
 	List.iter (fun m -> gen_movieclip ctx m) ctx.movieclips;
