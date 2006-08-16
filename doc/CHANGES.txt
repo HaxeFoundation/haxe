@@ -10,6 +10,9 @@
 	forbidden "name" static in js
 	don't allow variable redeclaration in subclasses
 	added && || and ! in conditional compilation rules
+	metas : removed __construct__ and class.toString.
+	metas : __super__ and __interfaces__ now optional
+	added Type api (seperated from Reflect)
 
 2006-07-25: 1.04
 	added macros in haxe.Template
