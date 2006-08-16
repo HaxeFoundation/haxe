@@ -34,7 +34,9 @@ class Reflect {
 	**/
 	public static function empty() : {} {
 		return untyped
-		#if flash
+		#if flash9
+			__new__(__global__["Object"])
+		#else flash
 			__new__(_global["Object"])
 		#else neko
 			__dollar__new(null)
@@ -49,7 +51,9 @@ class Reflect {
 		Creates an instance of the given class with the list of constructor arguments.
 	**/
 	public static function createInstance( cl : Dynamic, args : Array<Dynamic> ) : Dynamic {
-		#if flash
+		#if flash9
+			throw "Not implemented";
+		#else flash
 			var o = { __constructor__ : cl, __proto__ : cl.prototype };
 			cl[untyped "apply"](o,args);
 			return o;
@@ -68,7 +72,9 @@ class Reflect {
 	**/
 	public static function hasField( o : Dynamic, field : String ) : Bool {
 		untyped{
-		#if flash
+		#if flash9
+			return o.hasOwnProperty( field );
+		#else flash
 			return this["hasOwnProperty"]["call"](o,field);
 		#else js
 			if( o.hasOwnProperty != null )
@@ -130,7 +136,9 @@ class Reflect {
 	**/
 	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic {
 		return untyped
-		#if flash
+		#if flash9
+			func.apply(o,args)
+		#else flash
 			func["apply"](o,args)
 		#else js
 			func.apply(o,args)
@@ -147,7 +155,17 @@ class Reflect {
 	public static function fields( o : Dynamic ) : Array<String> {
 		if( o == null ) return new Array();
 		untyped {
-		#if flash
+		#if flash9
+			var a : Array<String> = __keys__(o);
+			var i = 0;
+			while( i < a.length ){
+				if( !o.hasOwnProperty(a[i]) )
+					a.splice(i,1);
+				else
+					++i;
+			}
+			return a;
+		#else flash
 			var a : Array<String> = __keys__(o);
 			var i = 0;
 			while( i < a.length ) {
@@ -212,7 +230,9 @@ class Reflect {
 	**/
 	public static function isFunction( f : Dynamic ) : Bool {
 		return untyped
-		#if flash
+		#if flash9
+			f.call == __global__["Function"].prototype.call
+		#else flash
 			f["call"] == _global["Function"]["call"] && f.__interfaces__ == null
 		#else js
 			f != null && f.call == isFunction.call && f.__interfaces__ == null
@@ -227,7 +247,13 @@ class Reflect {
 		Delete an object field.
 	**/
 	public static function deleteField( o : Dynamic, f : String ) : Bool {
-		#if flash
+		#if flash9
+			untyped {
+				if( o.hasOwnProperty(f) != true ) return false;
+				__delete__(o,f);
+				return true;
+			}
+		#else flash
 			untyped {
 				if( this["hasOwnProperty"]["call"](o,f) != true ) return false;
 				__delete__(o,f);
@@ -256,9 +282,6 @@ class Reflect {
 		var o2 = empty();
 		for( f in Reflect.fields(o) )
 			Reflect.setField(o2,f,Reflect.field(o,f));
-		var c = Reflect.getClass(o);
-		if( c != null )
-			Reflect.setPrototype(o2,c);
 		return o2;
 		#end
 	}
