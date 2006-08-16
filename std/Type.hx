@@ -197,15 +197,15 @@ class Type {
 	/**
 		Change the class prototype of an object
 	**/
-	public static function setPrototype( obj : Dynamic, proto : Dynamic ) {
+	public static function setClass( obj : Dynamic, cl : Class ) untyped {
 		#if flash9
 			throw "Not implemented";
 		#else flash
-			obj.__proto__ = proto;
+			obj.__proto__ = cl.prototype;
 		#else js
-			obj.__proto__ = proto;
+			obj.__proto__ = cl.prototype;
 		#else neko
-			untyped __dollar__objsetproto(obj,proto);
+			__dollar__objsetproto(obj,cl.prototype);
 		#else error
 		#end
 	}
