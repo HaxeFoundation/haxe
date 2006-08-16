@@ -265,6 +265,10 @@ class Type {
 			a.remove("__interfaces__");
 			a.remove("__super__");
 			a.remove("__construct__");
+			#if js
+			a.remove("toString");
+			a.remove("prototype");
+			#end
 			#if neko
 			a.remove("prototype");
 			a.remove("new");
