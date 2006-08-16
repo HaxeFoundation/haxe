@@ -221,16 +221,48 @@ class Reflect {
 	public static function isFunction( f : Dynamic ) : Bool {
 		return untyped
 		#if flash9
-			f.call == __global__["Function"].prototype.call
+			try f.call == __global__["Function"].prototype.call catch( e : Dynamic ) false
 		#else flash
-			f["call"] == _global["Function"]["call"] && f.__name__ == null && f.__ename__ == null
+			f["call"] == _global["Function"]["call"] && f.__name__ == null
 		#else js
-			f != null && f.call == isFunction.call && f.__name__ == null && f.__ename__ == null
+			f != null && f.call == isFunction.call && f.__name__ == null
 		#else neko
 			__dollar__typeof(f) == __dollar__tfunction
 		#else error
 		#end
 			;
+	}
+
+	/**
+		Tells if a value is an object or not.
+
+	**/
+	public static function isObject( v : Dynamic ) : Bool untyped {
+		#if neko
+		return __dollar__typeof(v) == __dollar__tobject && v.__enum__ == null;
+		#else flash9
+		if( v == null )
+			return false;
+		var t = __typeof__(v);
+		if( t == "object" ) {
+			try {
+				if( v.__enum__ == true )
+					return false;
+			} catch( e : Dynamic ) {
+			}
+			return true;
+		}
+		return (t == "string");
+		#else flash
+		var t = __typeof__(v);
+		return (t == "string" || (t == "object" && !v.__enum__) || (t == "function" && v.__name__ != null));
+		#else js
+		if( v == null )
+			return false;
+		var t = __js__("typeof(v)");
+		return (t == "string" || (t == "object" && !v.__enum__) || (t == "function" && v.__name__ != null));
+		#else error
+		#end
 	}
 
 	/**
