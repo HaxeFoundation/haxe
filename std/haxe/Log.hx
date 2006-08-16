@@ -26,7 +26,7 @@ package haxe;
 
 class Log {
 
-	public static function trace( v : Dynamic, infos : PosInfos ) : Void {
+	public static f9dynamic function trace( v : Dynamic, infos : PosInfos ) : Void {
 		#if flash
 		untyped flash.Boot.__trace(v,infos);
 		#else neko
@@ -37,7 +37,7 @@ class Log {
 		#end
 	}
 
-	public static function clear() : Void {
+	public static f9dynamic function clear() : Void {
 		#if flash
 		untyped flash.Boot.__clear_trace();
 		#else js
