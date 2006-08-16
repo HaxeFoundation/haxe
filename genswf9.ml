@@ -611,7 +611,8 @@ let rec gen_expr_content ctx retval e =
 		let id = type_path ctx c.cl_path in
 		write ctx (A3GetInf id);
 		List.iter (gen_expr ctx true) pl;
-		write ctx (A3New (id,List.length pl))
+		write ctx (A3New (id,List.length pl));
+		write ctx A3ToObject
 	| TFunction f ->
 		write ctx (A3Function (generate_function ctx f true))
 	| TIf (e,e1,e2) ->
@@ -645,7 +646,7 @@ let rec gen_expr_content ctx retval e =
 		gen_unop ctx retval op flag e
 	| TTry (e,cases) ->
 		let p = ctx.infos.ipos in
-		gen_expr ctx retval e;
+		gen_expr_obj ctx retval e;
 		let pend = ctx.infos.ipos in
 		let jend = jump ctx J3Always in
 		let rec loop ncases = function
@@ -666,7 +667,7 @@ let rec gen_expr_content ctx retval e =
 				let acc = gen_local_access ctx ename e.epos Write in
 				if not isreg then write ctx (A3Reg r);
 				setvar ctx acc false;
-				gen_expr ctx retval e;
+				gen_expr_obj ctx retval e;
 				b();
 				if retval then ctx.infos.istack <- ctx.infos.istack - 1;
 				match l with
@@ -823,6 +824,10 @@ and gen_call ctx e el =
 	| TLocal "__typeof__", [e] ->
 		gen_expr ctx true e;
 		write ctx A3Typeof
+	| TLocal "__in__", [e; f] ->
+		gen_expr ctx true e;
+		gen_expr ctx true f;
+		write ctx (A3Op A3OIn)
 	| TConst TSuper , _ ->
 		write ctx A3This;
 		List.iter (gen_expr ctx true) el;
@@ -887,7 +892,7 @@ and gen_binop ctx retval op e1 e2 =
 	match op with
 	| OpAssign ->
 		let acc = gen_access ctx e1 Write in
-		gen_expr ctx true e2;
+		gen_expr_obj ctx true e2;
 		setvar ctx acc retval
 	| OpBoolAnd ->
 		gen_expr_obj ctx true e1;
@@ -906,6 +911,7 @@ and gen_binop ctx retval op e1 e2 =
 	| OpAssignOp op ->
 		let acc = gen_access ctx e1 Write in
 		gen_binop ctx true op e1 e2;
+		(match DynArray.last ctx.code with A3ToObject -> () | _ -> write ctx A3ToObject);
 		setvar ctx acc retval
 	| OpAdd ->
 		gen_op A3OAdd
@@ -1192,6 +1198,7 @@ let generate_enum ctx e =
 		cl3_fields = [|
 			{ f3_name = tag_id; f3_slot = 0; f3_kind = A3FVar { v3_type = None; v3_value = A3VNone; v3_const = false; }; f3_metas = None };
 			{ f3_name = params_id; f3_slot = 0; f3_kind = A3FVar { v3_type = None; v3_value = A3VNone; v3_const = false; }; f3_metas = None };
+			{ f3_name = ident ctx "__enum__"; f3_slot = 0; f3_kind = A3FVar { v3_type = None; v3_value = A3VBool true; v3_const = true }; f3_metas = None };
 			{
 				f3_name = ident ctx "toString";
 				f3_slot = 0;
