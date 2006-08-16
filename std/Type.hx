@@ -136,7 +136,11 @@ class Type {
 		#else flash
 			cl = __eval__(name);
 		#else js
-			cl = eval(name);
+			try {
+				cl = eval(name);
+			} catch( e : Dynamic ) {
+				cl = null;
+			}
 		#else neko
 			var path = name.split(".");
 			cl = Reflect.field(untyped neko.Boot.__classes,path[0]);
@@ -173,7 +177,11 @@ class Type {
 		#else flash
 			e = __eval__(name);
 		#else js
-			e = eval(name);
+			try {
+				e = eval(name);
+			} catch( e : Dynamic ) {
+				e = null;
+			}
 		#else neko
 			var path = name.split(".");
 			e = Reflect.field(neko.Boot.__classes,path[0]);
