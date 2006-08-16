@@ -142,7 +142,7 @@ class Type {
 			cl = Reflect.field(untyped neko.Boot.__classes,path[0]);
 			var i = 1;
 			while( cl != null && i < path.length ) {
-				cl = Reflect.field(cl,name[i]);
+				cl = Reflect.field(cl,path[i]);
 				i += 1;
 			}
 		#else error
