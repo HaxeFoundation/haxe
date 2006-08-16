@@ -463,6 +463,7 @@ let unify_types a b tl1 tl2 =
 
 let unify_access a1 a2 =
 	a1 = a2 || (a1 = NormalAccess && (a2 = NoAccess || a2 = F9MethodAccess))
+	|| (a1 = F9MethodAccess && a2 = NormalAccess) (* unsafe, but no inference of prop. set *)
 
 let field_type f =
 	match f.cf_params with
