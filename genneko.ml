@@ -452,15 +452,18 @@ let gen_class ctx c =
 		[]
 	) in
 	let fserialize = "__serialize" , ident p "@serialize" in
-	let interf = array p (List.map (fun (c,_) -> gen_type_path p c.cl_path) c.cl_implements) in
+	let others = (match c.cl_implements with
+		| [] -> []
+		| l -> ["__interfaces__",array p (List.map (fun (c,_) -> gen_type_path p c.cl_path) l)]
+	) @ (match c.cl_super with
+		| None -> []
+		| Some (c,_) -> ["__super__", gen_type_path p c.cl_path]
+	) in
 	let estat = (EBinop ("=",
 		stpath,
 		(EObject (
 			("prototype",clpath) ::
-			("__string", ident p "@class_to_string") ::
-			("__super__", match c.cl_super with None -> null p | Some (c,_) -> gen_type_path p c.cl_path) ::
-			("__interfaces__", interf) ::
-			PMap.fold (gen_method ctx p) c.cl_statics fnew
+			PMap.fold (gen_method ctx p) c.cl_statics (fnew @ others)
 		),p)
 	),p) in
 	let eclass = (EBinop ("=",
@@ -597,11 +600,13 @@ let gen_name acc t =
 		else
 			let p = pos c.cl_pos in
 			let name = fst c.cl_path @ [snd c.cl_path] in
-			let interf = field p (gen_type_path p c.cl_path) "__interfaces__" in
 			let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant c.cl_pos (TString n)) name); int p (List.length name)] in
 			(EBinop ("=",field p (gen_type_path p c.cl_path) "__name__",arr),p) ::
-			(EBinop ("=",interf, call p (field p (ident p "Array") "new1") [interf; int p (List.length c.cl_implements)]),p) ::
-			acc
+			(match c.cl_implements with
+			| [] -> acc
+			| l ->
+				let interf = field p (gen_type_path p c.cl_path) "__interfaces__" in
+				(EBinop ("=",interf, call p (field p (ident p "Array") "new1") [interf; int p (List.length l)]),p) :: acc)
 	| TTypeDecl _ ->
 		acc
 
@@ -615,7 +620,6 @@ let generate file types hres =
 	let header = ENeko (
 		"@classes = $new(null);" ^
 		"@enum_to_string = function() { return neko.Boot.__enum_str(this); };" ^
-		"@class_to_string = function() { return this.__name__.join(String.new(\".\")); };" ^
 		"@serialize = function() { return neko.Boot.__serialize(this); };"
 	) , { psource = "<header>"; pline = 1; } in
 	let packs = List.concat (List.map (gen_package h) types) in

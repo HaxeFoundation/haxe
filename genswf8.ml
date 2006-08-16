@@ -1175,15 +1175,9 @@ let gen_type_def ctx t =
 			f());
 		write ctx (ASetReg 0);
 		setvar ctx acc;
-		if !have_constr then begin
-			push ctx [VReg 0; VStr ("__construct__",false); VReg 0];
-			setvar ctx VarObj
-		end;
 		init_name ctx c.cl_path false;
 		(match c.cl_super with
-		| None ->
-			push ctx [VReg 0; VStr ("__super__",false); VNull];
-			setvar ctx VarObj
+		| None -> ()
 		| Some (csuper,_) ->
 			let path = (match csuper.cl_path with (["flash"],x) when csuper.cl_extern -> (["_global"],x) | p -> p) in
 			push ctx [VReg 0; VStr ("__super__",false)];
@@ -1211,10 +1205,7 @@ let gen_type_def ctx t =
 			end;
 		);
 		(match c.cl_implements with
-		| [] ->
-			push ctx [VReg 0; VStr ("__interfaces__",false); VInt 0];
-			write ctx AInitArray;
-			setvar ctx VarObj;
+		| [] -> ()
 		| l ->
 			let nimpl = List.length l in
 			push ctx [VReg 0; VStr ("__interfaces__",false)];
@@ -1396,7 +1387,7 @@ let generate file ver header infile types hres =
 	let base_id = ref 0x5000 in
 	let tag_code = (match codeclip with
 		| None -> List.map tag tag_code
-		| Some link -> 
+		| Some link ->
 			incr base_id;
 			[
 				tag (TClip {

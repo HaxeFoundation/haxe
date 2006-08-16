@@ -195,7 +195,7 @@ and gen_expr ctx e =
 		spr ctx (field s);
 		print ctx " %s " (Ast.s_binop op);
 		gen_value_op ctx e2;
-	| TBinop (op,e1,e2) ->		
+	| TBinop (op,e1,e2) ->
 		gen_value_op ctx e1;
 		print ctx " %s " (Ast.s_binop op);
 		gen_value_op ctx e2;
@@ -584,24 +584,13 @@ let generate_class ctx c =
 	generate_package_create ctx c.cl_path;
 	print ctx "%s = " p;
 	(match c.cl_constructor with
-	| Some { cf_expr = Some e } ->
-		gen_value ctx (Transform.block_vars e);
-		newline ctx;
-		print ctx "%s.__construct__ = %s" p p;
-	| _ ->
-		print ctx "function() { }";
-		newline ctx;
-		print ctx "%s.__construct__ = null" p;
-	);
+	| Some { cf_expr = Some e } -> gen_value ctx (Transform.block_vars e)
+	| _ -> print ctx "function() { }");
 	newline ctx;
 	print ctx "%s.__name__ = [%s]" p (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst c.cl_path @ [snd c.cl_path])));
 	newline ctx;
-	print ctx "%s.toString = $class_str" p;
-	newline ctx;
 	(match c.cl_super with
-	| None ->
-		print ctx "%s.__super__ = null" p;
-		newline ctx;
+	| None -> ()
 	| Some (csup,_) ->
 		let psup = s_path csup.cl_path in
 		print ctx "%s.__super__ = %s" p psup;
@@ -613,8 +602,11 @@ let generate_class ctx c =
 	PMap.iter (fun _ f -> gen_class_field ctx c f) c.cl_fields;
 	print ctx "%s.prototype.__class__ = %s" p p;
 	newline ctx;
-	print ctx "%s.__interfaces__ = [%s]" p (String.concat "," (List.map (fun (i,_) -> s_path i.cl_path) c.cl_implements));
-	newline ctx
+	match c.cl_implements with
+	| [] -> ()
+	| l ->
+		print ctx "%s.__interfaces__ = [%s]" p (String.concat "," (List.map (fun (i,_) -> s_path i.cl_path) l));
+		newline ctx
 
 let generate_enum ctx e =
 	let p = s_path e.e_path in
@@ -665,8 +657,6 @@ let generate file types hres =
 		handle_break = false;
 		id_counter = 0;
 	} in
-	print ctx "$class_str = function() { return this.__name__.join(\".\"); }";
-	newline ctx;
 	List.iter (generate_type ctx) types;
 	print ctx "js.Boot.__res = {}";
 	newline ctx;
