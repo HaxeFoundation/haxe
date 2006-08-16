@@ -29,26 +29,33 @@ class TestRunner {
 	var result : TestResult;
 	var cases  : List<TestCase>;
 
+#if flash
+	static var tf = null;
+#end
+
 	private static function print( v : Dynamic ){
-		#if flash
+		#if flash9
 		untyped {
-			var root : flash.MovieClip = flash.Lib.current;
-			var tf : flash.TextField = root.__trace_txt;
 			if( tf == null ) {
-				root.createTextField("__trace_txt",1048500,0,0,flash.Stage.width,flash.Stage.height);
-				tf = root.__trace_txt;
+				var tf = new flash.text.TextField();
+				tf.selectable = false;
+				tf.width = flash.Lib.current.stage.stageWidth;
+				tf.autoSize = flash.text.TextFieldAutoSize.LEFT;
+				flash.Lib.current.addChild(tf);
+			}
+			tf.text += v;
+		}
+		#else flash
+		untyped {
+			var root = flash.Lib.current;
+			if( tf == null ) {
+				root.createTextField("__tf",1048500,0,0,flash.Stage.width,flash.Stage.height);
+				tf = root.__tf;
 				tf.selectable = false;
 				tf.wordWrap = true;
-				root.__trace_lines = new Array<String>();
 			}
 			var s = flash.Boot.__string_rec(v,"");
 			tf.text += s;
-			var lines = tf.text.split("\n");
-			var nlines = flash.Stage.height / 16;
-			if( lines.length > nlines ){
-				lines.splice(0,lines.length-nlines);
-				tf.text = lines.join("\n");
-			}
 		}
 		#else neko
 		untyped __dollar__print(v);
@@ -63,6 +70,10 @@ class TestRunner {
 		}
 		#else error
 		#end
+	}
+
+	private static function customTrace( v, p : haxe.PosInfos ) {
+		print(p.fileName+":"+p.lineNumber+": "+Std.string(v)+"\n");
 	}
 
 	public function new() {
@@ -83,15 +94,19 @@ class TestRunner {
 	}
 
 	function runCase( t:TestCase ) : Void 	{
-		var fields = Reflect.fields( Reflect.getClass(t).prototype );
+		var old = haxe.Log.trace;
+		haxe.Log.trace = customTrace;
 
-		print( "Class: "+Reflect.getClass(t).__name__[0]+" ");
+		var cl = Type.getClass(t);
+		var fields = Type.getInstanceFields(cl);
+
+		print( "Class: "+Type.getClassName(cl)+" ");
 		for ( f in fields ){
 			var fname = f;
 			var field = Reflect.field(t, f);
 			if (StringTools.startsWith(fname,__unprotect__("test")) && Reflect.isFunction(field) ){
 				t.currentTest = new TestStatus();
-				t.currentTest.classname = Reflect.getClass(t).__name__.join(".");
+				t.currentTest.classname = Type.getClassName(cl);
 				t.currentTest.method = fname;
 				t.setup();
 
@@ -125,7 +140,7 @@ class TestRunner {
 					#if neko
 					t.currentTest.backtrace = neko.Stack.exceptionStack();
 					#else js
-					if( Reflect.typeof(e) == TObject ){
+					if( Reflect.isObject(e) ){
 						if( e.stack != null ){
 							t.currentTest.backtrace = e.stack;
 						}
@@ -138,5 +153,6 @@ class TestRunner {
 		}
 
 		print("\n");
+		haxe.Log.trace = old;
 	}
 }
