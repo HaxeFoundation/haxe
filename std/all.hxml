@@ -21,9 +21,19 @@ haxe.ImportAll
 
 --next
 
--swf all.swf
+-swf all_strict.swf
 -D flash_strict
 -D flash9doc
 -xml flash_strict.xml
+--override
+haxe.ImportAll
+
+
+--next
+
+-swf all9.swf
+-D flash_strict
+-xml flash9.xml
+-swf-version 9
 --override
 haxe.ImportAll
