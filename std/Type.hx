@@ -96,7 +96,10 @@ class Type {
 		if( c == null )
 			return null;
 		#if flash9
-			return untyped __global__["flash.utils.getQualifiedClassName"](c);
+			var name = untyped __global__["flash.utils.getQualifiedClassName"](c);
+			if( name == "flash::FlashXml__" )
+				return "Xml";
+			return name;
 		#else true
 			var a : Array<String> = untyped c.__name__;
 			return a.join(".");

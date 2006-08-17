@@ -89,14 +89,15 @@ extern class Xml {
 
 	static function __init__() : Void untyped {
 		#if neko
-			untyped Xml = neko.NekoXml__;
+		Xml = neko.NekoXml__;
 		#else js
-			untyped Xml = js.JsXml__;
+		Xml = js.JsXml__;
 		#else flash
-			untyped Xml = flash.FlashXml__;
+		Xml = flash.FlashXml__;
 		#else error
 		#end
 
+		Xml.__name__ = ["Xml"];
 		Xml.Element = "element";
 		Xml.PCData = "pcdata";
 		Xml.CData = "cdata";
