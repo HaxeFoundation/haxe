@@ -2,6 +2,7 @@
 	allowed extern enums
 	use only matching construct when parameters are matched
 	fixed bug preventing & char to be sent between JS and Flash remoting
+	improved flash9 api (more strict)
 
 2006-08-16: 1.05
 	moved Md5 to haxe package.
