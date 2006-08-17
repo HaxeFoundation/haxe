@@ -71,6 +71,11 @@ class TestResult {
 					buf.add(test.backtrace);
 					buf.add("\n");
 				}
+				#else flash9
+				if( test.backtrace != null ){
+					buf.add(test.backtrace);
+					buf.add("\n");
+				}
 				#end
 
 				buf.add("\n");

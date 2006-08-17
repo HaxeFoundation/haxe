@@ -147,6 +147,9 @@ class TestRunner {
 							t.currentTest.backtrace = e.stack;
 						}
 					}
+					#else flash9
+					if( e != null && Std.is(e,untyped __global__["Error"] ) )
+						t.currentTest.backtrace = e.getStackTrace();					
 					#end
 				}
 				result.add(t.currentTest);
