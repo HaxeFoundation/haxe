@@ -220,6 +220,8 @@ class Boot {
 					}
 				}
 			};
+			Array.prototype[__unprotect__("__class__")] = Array;
+			Array.__name__ = ["Array"];
 			String.prototype[__unprotect__("__class__")] = String;
 			String.__name__ = ["String"];
 			var cca = String.prototype["charCodeAt"];

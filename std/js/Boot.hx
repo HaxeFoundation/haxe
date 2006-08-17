@@ -213,6 +213,8 @@ class Boot {
 			};
 			String.prototype.__class__ = String;
 			String.__name__ = ["String"];
+			Array.prototype.__class__ = Array;
+			Array.__name__ = ["Array"];
 			var cca = String.prototype.charCodeAt;
 			String.prototype.charCodeAt = function(i) {
 				var x = cca.call(this,i);
