@@ -57,7 +57,7 @@ class TestCase {
 		}
 	}
 
-	function assertEquals( expected: Dynamic, actual: Dynamic,  c : PosInfos ) : Void 	{
+	function assertEquals<T>( expected: T , actual: T,  c : PosInfos ) : Void 	{
 		currentTest.done = true;
 		if (actual != expected){
 			currentTest.success = false;
