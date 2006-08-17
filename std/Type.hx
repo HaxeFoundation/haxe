@@ -93,6 +93,8 @@ class Type {
 		Returns the complete name of the class of an object
 	**/
 	public static function getClassName( c : Class ) : String {
+		if( c == null )
+			return null;
 		#if flash9
 			return untyped __global__["flash.utils.getQualifiedClassName"](c);
 		#else true
