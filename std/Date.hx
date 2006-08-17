@@ -126,9 +126,15 @@ extern class Date
 				s = "0" + s;
 			return this.getFullYear()+"-"+m+"-"+d+" "+h+":"+mi+":"+s;
 		};
+		#if flash9
+		#else flash
+		Date.prototype[__unprotect__("__class__")] = Date;
+		Date[__unprotect__("__name__")] = ["Date"];
+		#else true
+		Date.prototype.__class__ = Date;
+		Date.__name__ = ["Date"];
+		#end
 	#end
 	}
 
 }
-
-
