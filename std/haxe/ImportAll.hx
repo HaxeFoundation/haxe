@@ -256,6 +256,7 @@ import flash.Boot;
 import flash.Lib;
 
 import flash.Accessibility;
+import flash.Button;
 import flash.Camera;
 import flash.Color;
 import flash.ContextMenu;
