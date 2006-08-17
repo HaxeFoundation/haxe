@@ -28,9 +28,13 @@ class Type {
 				return null;
 			return c;
 		#else flash
+			if( o.__enum__ != null )
+				return null;
 			return o.__class__;
 		#else js
 			if( o == null )
+				return null;
+			if( o.__enum__ != null )
 				return null;
 			return o.__class__;
 		#else neko
