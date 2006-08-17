@@ -26,7 +26,6 @@
 package mtwin.web;
 
 import mtwin.web.Request;
-import Reflect.Class;
 
 enum ActionError {
 	UnknownAction(name:String);
