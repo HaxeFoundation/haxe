@@ -644,9 +644,10 @@ let rec gen_expr_content ctx retval e =
 		if retval then write ctx A3Null
 	| TUnop (op,flag,e) ->
 		gen_unop ctx retval op flag e
-	| TTry (e,cases) ->
+	| TTry (e2,cases) ->
+		if ctx.infos.istack <> 0 then Typer.error "Cannot compile try/catch as a right-side expression in Flash9" e.epos;
 		let p = ctx.infos.ipos in
-		gen_expr_obj ctx retval e;
+		gen_expr_obj ctx retval e2;
 		let pend = ctx.infos.ipos in
 		let jend = jump ctx J3Always in
 		let rec loop ncases = function
