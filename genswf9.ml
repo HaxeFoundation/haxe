@@ -1253,14 +1253,11 @@ let generate_enum ctx e =
 	ctx.classes <- sc :: ctx.classes;
 	ctx.statics <- st :: ctx.statics
 
-let can_generate_enum e = 
-	e.e_path <> ([] , "Bool") && not (PMap.is_empty e.e_constrs)
-
 let generate_type ctx t =
 	match t with
 	| TClassDecl c -> if not c.cl_extern then generate_class ctx c
 	| TTypeDecl _ -> ()
-	| TEnumDecl e -> if can_generate_enum e then generate_enum ctx e
+	| TEnumDecl e -> if not e.e_extern then generate_enum ctx e
 
 let generate_inits ctx types =
 	let f = begin_fun ctx [] [] false in
@@ -1276,7 +1273,7 @@ let generate_inits ctx types =
 				f3_kind = A3FClass (index_nz_int (!slot - 1));
 				f3_metas = None;
 			} :: acc
-		| TEnumDecl e when can_generate_enum e ->
+		| TEnumDecl e when not e.e_extern ->
 			incr slot;
 			generate_enum_init ctx e (!slot - 1);
 			{

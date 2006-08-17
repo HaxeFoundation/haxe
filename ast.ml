@@ -199,6 +199,7 @@ type class_field =
 
 type enum_param =
 	| EPrivate
+	| EExtern
 
 type type_param_flag =
 	| HInterface

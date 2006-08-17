@@ -25,7 +25,7 @@
 
 // standard haXe types
 
-enum Void { }
+extern enum Void { }
 
 extern class Float { }
 
@@ -37,12 +37,12 @@ typedef UInt = Int
 typedef UInt = Int
 #end
 
-enum Bool {
+extern enum Bool {
 	true;
 	false;
 }
 
-enum Dynamic<T> {
+extern enum Dynamic<T> {
 }
 
 typedef Iterator<T> = {

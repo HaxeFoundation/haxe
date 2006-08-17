@@ -163,15 +163,13 @@ and parse_import = parser
 
 and parse_common_params = parser
 	| [< '(Kwd Private,_); l = parse_common_params >] -> (HPrivate, EPrivate) :: l
+	| [< '(Kwd Extern,_); l = parse_common_params >] -> (HExtern, EExtern) :: l
 	| [< >] -> []
 
 and parse_enum_params = parser
-	| [< '(Kwd Private,_); l, p = parse_enum_params >] -> EPrivate :: l , p
 	| [< '(Kwd Enum,p) >] -> [] , p
 
 and parse_class_params = parser
-	| [< '(Kwd Extern,_); l, p = parse_class_params >] -> HExtern :: l , p
-	| [< '(Kwd Private,_); l, p = parse_class_params >] -> HPrivate :: l , p
 	| [< '(Kwd Class,p) >] -> [] , p
 	| [< '(Kwd Interface,p) >] -> [HInterface] , p
 

@@ -1229,9 +1229,7 @@ let gen_type_def ctx t =
 		let flag = is_protected ctx (TInst (c,[])) true in
 		List.iter (gen_class_static_field ctx c flag) c.cl_ordered_statics;
 		PMap.iter (fun _ f -> gen_class_field ctx f flag) c.cl_fields;
-	| TEnumDecl { e_path = ([],"Bool") } ->
-		()
-	| TEnumDecl e when PMap.is_empty e.e_constrs ->
+	| TEnumDecl e when e.e_extern ->
 		()
 	| TEnumDecl e ->
 		gen_package ctx (fst e.e_path);

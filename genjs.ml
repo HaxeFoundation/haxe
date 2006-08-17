@@ -638,9 +638,7 @@ let generate_type ctx = function
 		| None -> ()
 		| Some e -> ctx.inits <- Transform.block_vars e :: ctx.inits);
 		if not c.cl_extern then generate_class ctx c
-	| TEnumDecl { e_path = ([],"Bool") } ->
-		()
-	| TEnumDecl e when PMap.is_empty e.e_constrs ->
+	| TEnumDecl e when e.e_extern ->
 		()
 	| TEnumDecl e -> generate_enum ctx e
 	| TTypeDecl _ -> ()

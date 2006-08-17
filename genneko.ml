@@ -516,23 +516,23 @@ let gen_enum e =
 		| _ -> []
 	),p)
 
-let gen_type ctx t =
+let gen_type ctx t acc =
 	match t with
 	| TClassDecl c ->
 		(match c.cl_init with
 		| None -> ()
 		| Some e -> ctx.inits <- e :: ctx.inits);
 		if c.cl_extern then
-			null (pos c.cl_pos)
+			acc
 		else
-			gen_class ctx c
+			gen_class ctx c :: acc
 	| TEnumDecl e ->
-		if e.e_path = ([],"Bool") || PMap.is_empty e.e_constrs then
-			null (pos e.e_pos)
+		if e.e_extern then
+			acc
 		else
-			gen_enum e
+			gen_enum e :: acc
 	| TTypeDecl t ->
-		null (pos t.t_pos)
+		acc
 
 let gen_static_vars ctx t =
 	match t with
@@ -587,7 +587,7 @@ let gen_boot hres =
 
 let gen_name acc t =
 	match t with
-	| TEnumDecl e when PMap.is_empty e.e_constrs || e.e_path = ([],"Bool") ->
+	| TEnumDecl e when e.e_extern ->
 		acc
 	| TEnumDecl e ->
 		let p = pos e.e_pos in
@@ -624,7 +624,7 @@ let generate file types hres =
 	) , { psource = "<header>"; pline = 1; } in
 	let packs = List.concat (List.map (gen_package h) types) in
 	let names = List.fold_left gen_name [] types in
-	let methods = List.map (gen_type ctx) types in
+	let methods = List.fold_left (fun acc t -> gen_type ctx t acc) [] types in
 	let boot = gen_boot hres in
 	let inits = List.map (gen_expr ctx) (List.rev ctx.inits) in
 	let vars = List.concat (List.map (gen_static_vars ctx) types) in

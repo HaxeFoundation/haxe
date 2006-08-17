@@ -560,6 +560,7 @@ let type_type_params ctx path p (n,flags) =
 			e_path = (fst path @ [snd path],n);
 			e_pos = p;
 			e_private = true;
+			e_extern = true;
 			e_types = [];
 			e_constrs = PMap.empty;
 			e_doc = None;
@@ -2080,7 +2081,7 @@ let type_module ctx m tdecls loadp =
 			let path = decl_with_name name p priv in
 			let c = mk_class path p doc priv in
 			decls := TClassDecl c :: !decls
-		| EEnum (name,doc,_,flags,_) ->
+		| EEnum (name,doc,_,flags,l) ->
 			let priv = List.mem EPrivate flags in
 			let path = decl_with_name name p priv in
 			let e = {
@@ -2089,6 +2090,7 @@ let type_module ctx m tdecls loadp =
 				e_doc = doc;
 				e_types = [];
 				e_private = priv;
+				e_extern = List.mem EExtern flags || l = [];
 				e_constrs = PMap.empty;
 			} in
 			decls := TEnumDecl e :: !decls
