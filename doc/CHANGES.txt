@@ -1,3 +1,6 @@
+2006-??-??: 1.06
+	allowed extern enums
+
 2006-08-16: 1.05
 	moved Md5 to haxe package.
 	some method renamed in neko.FileSystem.
