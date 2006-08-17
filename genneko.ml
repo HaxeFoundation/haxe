@@ -624,7 +624,7 @@ let generate file types hres =
 	) , { psource = "<header>"; pline = 1; } in
 	let packs = List.concat (List.map (gen_package h) types) in
 	let names = List.fold_left gen_name [] types in
-	let methods = List.fold_left (fun acc t -> gen_type ctx t acc) [] types in
+	let methods = List.rev (List.fold_left (fun acc t -> gen_type ctx t acc) [] types) in
 	let boot = gen_boot hres in
 	let inits = List.map (gen_expr ctx) (List.rev ctx.inits) in
 	let vars = List.concat (List.map (gen_static_vars ctx) types) in
