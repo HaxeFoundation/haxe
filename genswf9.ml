@@ -588,7 +588,7 @@ let rec gen_expr_content ctx retval e =
 			| None -> ()
 			| Some e ->
 				let acc = gen_local_access ctx v e.epos Write in
-				gen_expr ctx true e;
+				gen_expr_obj ctx true e;
 				setvar ctx acc false)
 		) vl
 	| TReturn None ->
