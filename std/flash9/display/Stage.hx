@@ -1,14 +1,14 @@
 package flash.display;
 
-extern class Stage extends flash.display.DisplayObjectContainer {
+extern class Stage extends DisplayObjectContainer {
 	function new() : Void;
-	var align : String;
-	var focus : flash.display.InteractiveObject;
+	var align : StageAlign;
+	var focus : InteractiveObject;
 	var frameRate : Float;
 	function invalidate() : Void;
 	function isFocusInaccessible() : Bool;
-	var quality : String;
-	var scaleMode : String;
+	var quality : StageQuality;
+	var scaleMode : StageScaleMode;
 	var showDefaultContextMenu : Bool;
 	var stageFocusRect : Bool;
 	var stageHeight : Int;

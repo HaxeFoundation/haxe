@@ -9,7 +9,7 @@ extern class DisplayObjectContainer extends flash.display.InteractiveObject {
 	function getChildAt(index : Int) : flash.display.DisplayObject;
 	function getChildByName(name : String) : flash.display.DisplayObject;
 	function getChildIndex(child : flash.display.DisplayObject) : Int;
-	function getObjectsUnderPoint(point : flash.geom.Point) : Array<Dynamic>;
+	function getObjectsUnderPoint(point : flash.geom.Point) : Array<DisplayObject>;
 	var mouseChildren : Bool;
 	var numChildren(default,null) : Int;
 	function removeChild(child : flash.display.DisplayObject) : flash.display.DisplayObject;

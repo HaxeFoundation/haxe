@@ -1,8 +1,7 @@
 package flash.display;
 
 extern class LoaderInfo extends flash.events.EventDispatcher {
-	function new() : Void;
-	var actionScriptVersion(default,null) : UInt;
+	var actionScriptVersion(default,null) : ActionScriptVersion;
 	var applicationDomain(default,null) : flash.system.ApplicationDomain;
 	var bytesLoaded(default,null) : UInt;
 	var bytesTotal(default,null) : UInt;
@@ -17,7 +16,7 @@ extern class LoaderInfo extends flash.events.EventDispatcher {
 	var parentAllowsChild(default,null) : Bool;
 	var sameDomain(default,null) : Bool;
 	var sharedEvents(default,null) : flash.events.EventDispatcher;
-	var swfVersion(default,null) : UInt;
+	var swfVersion(default,null) : SWFVersion;
 	var url(default,null) : String;
 	var width(default,null) : Int;
 	private function _getArgs() : Dynamic;
