@@ -27,6 +27,7 @@ import Xml;
 
 class NekoXml__ {
 
+	static var __name__ = ["Xml"];
 	private var _children : Array<Xml>;
 	public var nodeType(default,null) : XmlType;
 

@@ -26,6 +26,7 @@ package neko;
 
 class NekoMath__
 {
+	static var __name__ = ["Math"];
 	static var PI;
 	static var NaN;
 	static var POSITIVE_INFINITY;

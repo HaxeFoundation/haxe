@@ -26,6 +26,7 @@ package neko;
 
 class NekoDate__ //implements Date
 {
+	static var __name__ = ["Date"];
 	private var __t : Void;
 
 	public function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) {
