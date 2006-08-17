@@ -1284,8 +1284,19 @@ and type_switch ctx e cases def need_val p =
 		| TMono _ -> lookup_enum (List.map fst cases)
 		| _ -> None
 	) in
-	(* does not treat Bool as an matchable enum, since it's a native type *)
-	let enum = (match enum with None | Some ({ e_path = ([],"Bool") },_) -> None | _ -> enum) in
+	(* does not use match when no case contain parameters (include Bool) *)
+	let enum = (match enum with 
+		| None -> None
+		| Some e ->
+			if List.exists (fun (e,_) -> 
+				match fst e with
+				| ECall _ -> true
+				| _ -> false
+			) cases then
+				Some e
+			else
+				None
+	) in
 	let ecases = ref PMap.empty in
 	let cases = List.map (fun (e1,e2) ->
 		let locals = save_locals ctx in

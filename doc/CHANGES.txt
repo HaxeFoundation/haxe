@@ -1,5 +1,6 @@
 2006-??-??: 1.06
 	allowed extern enums
+	use only matching construct when parameters are matched
 
 2006-08-16: 1.05
 	moved Md5 to haxe package.
