@@ -10,8 +10,8 @@ extern class PrintJob extends flash.events.EventDispatcher {
 	var paperWidth(default,null) : Int;
 	function send() : Void;
 	function start() : Bool;
-	private function _invoke(index : Dynamic /* ...arguments */) : Void;
-	private function invoke(index : UInt /* ...arguments */) : Void;
+	private function _invoke(index : Dynamic, ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic ) : Void;
+	private function invoke(index : UInt, ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic ) : Void;
 	private function toClassicRectangle(printArea : flash.geom.Rectangle) : Void;
 	private static var kAddPage : UInt;
 	private static var kGetOrientation : UInt;

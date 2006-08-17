@@ -4,7 +4,7 @@ extern class ExternalInterface {
 	function new() : Void;
 	static function addCallback(functionName : String, closure : Dynamic ) : Void;
 	static var available(default,null) : Bool;
-	static function call(functionName : String /* ...arguments */) : Void;
+	static function call(functionName : String, ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic ) : Void;
 	static var objectID(default,null) : String;
 	private static function _addCallback(functionName : String, closure : Dynamic) : Void;
 	private static function _argumentsToAS(obj : Dynamic) : Array<Dynamic>;

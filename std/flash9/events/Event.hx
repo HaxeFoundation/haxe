@@ -7,7 +7,7 @@ extern class Event {
 	function clone() : flash.events.Event;
 	var currentTarget(default,null) : Dynamic;
 	var eventPhase(default,null) : UInt;
-	function formatToString(className : String /* ...arguments */) : String;
+	function formatToString(className : String, ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic ) : String;
 	function isDefaultPrevented() : Bool;
 	function preventDefault() : Void;
 	function stopImmediatePropagation() : Void;

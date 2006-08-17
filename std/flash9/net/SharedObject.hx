@@ -10,11 +10,11 @@ extern class SharedObject extends flash.events.EventDispatcher {
 	function flush(?minDiskSpace : Int) : String;
 	var fps(null,default) : Void;
 	var objectEncoding : UInt;
-	function send( /* ...arguments */) : Void;
+	function send( ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic ) : Void;
 	function setDirty(propertyName : String) : Void;
 	function setProperty(propertyName : String, ?value : Dynamic) : Void;
 	var size(default,null) : UInt;
-	private function invoke(index : UInt /* ...arguments */) : Void;
+	private function invoke(index : UInt, ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic ) : Void;
 	private function invokeWithArgsArray(index : UInt, args : Array<Dynamic>) : Void;
 	static var defaultObjectEncoding : UInt;
 	static function deleteAll(url : String) : Int;

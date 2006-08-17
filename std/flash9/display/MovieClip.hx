@@ -2,7 +2,7 @@ package flash.display;
 
 extern class MovieClip extends flash.display.Sprite {
 	function new() : Void;
-	function addFrameScript( /* ...arguments */) : Void;
+	function addFrameScript( ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic ) : Void;
 	var currentFrame(default,null) : Int;
 	var currentLabel(default,null) : String;
 	var currentLabels(default,null) : Array<Dynamic>;
