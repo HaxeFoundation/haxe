@@ -1531,10 +1531,11 @@ let gen_fields ctx ch fields stat =
 	) fields
 
 let genhx_class ctx c s =
+	let base_path = "hxclasses" in
 	let pack , name = real_type_path ctx c.cl3_name in
 	prerr_string ("import " ^ s_type_path (pack,name));
-	create_dir "tmp" pack;
-	let f = open_out ("tmp/" ^ (match pack with [] -> "" | l -> String.concat "/" l ^ "/") ^ name ^ ".hx") in
+	create_dir "." (base_path :: pack);
+	let f = open_out (base_path ^ "/" ^ (match pack with [] -> "" | l -> String.concat "/" l ^ "/") ^ name ^ ".hx") in
 	let ch = IO.output_channel f in
 	if pack <> [] then IO.printf ch "package %s;\n\n" (String.concat "." pack);
 	IO.printf ch "extern %s %s" (if c.cl3_interface then "interface" else "class") name;
