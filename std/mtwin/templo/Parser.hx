@@ -339,7 +339,10 @@ class Parser {
 		var arg = "";
 		var len = str.length;
 		var cto = 0;
-		for (i in 0...len){
+		var string = false;
+		var dstring = false;
+		var i = 0;
+		while (i < len){
 			var c = str.charAt(i);
 			if (c == "("){ 
 				cto++; 
@@ -347,13 +350,28 @@ class Parser {
 			else if (c == ")"){ 
 				cto--; 
 			}
-			if (c == "," && cto == 0) {
+
+			if (c == "\\"){
+				arg += c;
+				arg += str.charAt(i+1);
+				i += 2;
+				continue;
+			}
+
+			if (c == "\"" && !string)
+				dstring = !dstring;
+
+			if (c == "'" && !dstring)
+				string = !string;
+
+			if (c == "," && cto == 0 && !string && !dstring){
 				res.add(StringTools.trim(arg));
 				arg = "";
 			}
 			else {
 				arg += c;
 			}
+			i++;
 		}
 		if (arg != ""){
 			res.add(StringTools.trim(arg));
@@ -422,7 +440,8 @@ class Parser {
 		var mark = 0;
 		var getter = false;
 		var len = str.length;
-		for (i in 0...len+1){
+		var i = 0;
+		while (i < len+1){
 			var skip = false;
 			var c = if (i == len) "\n" else str.charAt(i);
 			var n = if (i+1 >= len) "\n" else str.charAt(i+1);
@@ -475,13 +494,10 @@ class Parser {
 					
 				case states.string:
 					if (c == "\\" && n == "'"){ 
-						result.add("'");
+						result.add("\\'");
 						skip = true;
 						++i; 
 					}
-					else if (c == "\""){
-						result.add("\\");
-					}						
 					else if (c == "'"){
 						state = states.none;
 						result.add("\")");
@@ -489,12 +505,9 @@ class Parser {
 					}
 					
 				case states.dstring:
-					if (c == "\\" && n == "'"){
-						result.add("\\'");
+					if (c == "\\" && n == "\""){
+						result.add("\\\"");
 						skip = true;
-						++i;
-					}
-					else if (c == "\\" && n == "\""){
 						++i;
 					}
 					else if (c == "\""){
@@ -588,6 +601,7 @@ class Parser {
 			if (!skip && i < len && state != states.variable){
 				result.add(str.charAt(i));
 			}
+			++i;
 		}
 		return result.toString();
 	}
