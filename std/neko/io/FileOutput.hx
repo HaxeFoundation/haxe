@@ -61,8 +61,8 @@ class FileOutput extends Output {
 		file_close(__f);
 	}
 
-	public function seek( p : Int, pos : FileSeek ) : Int {
-		return file_seek(__f,p,switch( pos ) { case SeekBegin: 0; case SeekCur: 1; case SeekEnd: 2; });
+	public function seek( p : Int, pos : FileSeek ) {
+		file_seek(__f,p,switch( pos ) { case SeekBegin: 0; case SeekCur: 1; case SeekEnd: 2; });
 	}
 
 	public function tell() : Int {
