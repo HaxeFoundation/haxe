@@ -27,64 +27,46 @@ package neko.zip;
 typedef ZipEntry = {
 	var fileName : String;
 	var fileSize : Int;
-	var compressedSize : Int;
-	var compressedDataPos : Int;
+	var compressedData : String;
 }
 
 class File {
 
-	static function int32( data : String, p : Int ) {
-		var c1 = data.charCodeAt(p);
-		var c2 = data.charCodeAt(p+1);
-		var c3 = data.charCodeAt(p+2);
-		var c4 = data.charCodeAt(p+3);
-		return c1 | (c2 << 8) | (c3 << 16) | (c4 << 24);
-	}
-
-	static function int16( data : String, p : Int ) {
-		var c1 = data.charCodeAt(p);
-		var c2 = data.charCodeAt(p+1);
-		return c1 | (c2 << 8);
-	}
-
-	public static function unzip( data : String, f : ZipEntry ) : String {
+	public static function unzip( f : ZipEntry ) : String {
 		var c = new Uncompress(-15);
 		var s = neko.Lib.makeString(f.fileSize);
-		var r = c.run(data,f.compressedDataPos,s,0);
+		var r = c.run(f.compressedData,0,s,0);
 		c.close();
-		if( !r.done || r.read != f.compressedSize || r.write != f.fileSize )
+		if( !r.done || r.read != f.compressedData.length || r.write != f.fileSize )
 			throw "Invalid compressed data for "+f.fileName;
 		return s;
 	}
 
-	public static function read( data : String ) : List<ZipEntry> {
+	public static function read( data : neko.io.Input ) : List<ZipEntry> {
 		var p = 0;
 		var l = new List();
 		while( true ) {
-			var h = int32(data,p);
+			var h = data.readInt32();
 			if( h == 0x02014B50 || h == 0x06054B50 )
 				break;
 			if( h != 0x04034B50 )
 				throw "Invalid Zip Data";
-			p += 18;
-			var csize = int32(data,p);
-			p += 4;
-			var usize = int32(data,p);
-			p += 4;
-			var fnamelen = int16(data,p);
-			p += 2;
-			var elen = int16(data,p);
-			p += 2;
-			var fname = data.substr(p,fnamelen);
-			p += fnamelen;
-			p += elen;
+			data.skip(18);
+			var csize = data.readInt32();
+			data.skip(4);
+			var usize = data.readInt32();
+			data.skip(4);
+			var fnamelen = data.readInt16();
+			data.skip(2);
+			var elen = data.readInt16();
+			data.skip(2);
+			var fname = data.readBytes(fnamelen);
+			data.skip(elen);
 			l.add({
 				fileName : fname,
 				fileSize : usize,
-				compressedSize : csize,
-				compressedDataPos : p
+				compressedData : data.readBytes(csize)
 			});
-			p += csize;
 		}
 		return l;
 	}
