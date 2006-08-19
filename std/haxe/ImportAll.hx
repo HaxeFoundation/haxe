@@ -488,15 +488,25 @@ import flash.text.TextRenderer;
 #if neko
 
 import neko.Boot;
-import neko.File;
 import neko.FileSystem;
 import neko.Lib;
 import neko.Random;
-import neko.Socket;
 import neko.Stack;
 import neko.Sys;
 import neko.Utf8;
 import neko.Web;
+
+import neko.io.Error;
+import neko.io.File;
+import neko.io.FileInput;
+import neko.io.FileOutput;
+import neko.io.Input;
+import neko.io.Output;
+import neko.io.Socket;
+import neko.io.SocketInput;
+import neko.io.SocketOutput;
+import neko.io.StringInput;
+import neko.io.StringOutput;
 
 import neko.zip.Compress;
 import neko.zip.File;

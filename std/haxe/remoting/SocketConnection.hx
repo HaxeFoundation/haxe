@@ -120,11 +120,11 @@ class SocketConnection extends AsyncConnection {
 			throw "Message is too big";
 		var c2 = encodeChar(len&63);
 		#if neko
-		var s : neko.Socket = __data;
-		s.sendChar(c1);
-		s.sendChar(c2);
-		s.write(msg);
-		s.sendChar(0);
+		var s : neko.io.Socket = __data;
+		s.output.writeChar(c1);
+		s.output.writeChar(c2);
+		s.output.writeBytes(msg);
+		s.output.writeChar(0);
 		#else flash
 		var s : flash.XMLSocket = __data;
 		s.send(Std.chr(c1)+Std.chr(c2)+msg);
@@ -197,7 +197,7 @@ class SocketConnection extends AsyncConnection {
 
 	#if neko
 
-	public static function socketConnect( s : neko.Socket, r : Server ) {
+	public static function socketConnect( s : neko.io.Socket, r : Server ) {
 		var sc = new SocketConnection(s,[]);
 		sc.__funs = new List();
 		sc.__r = r;

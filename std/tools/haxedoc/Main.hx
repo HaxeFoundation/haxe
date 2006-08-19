@@ -574,7 +574,7 @@ class DocView {
 	}
 
 	static function loadFile(file) {
-		var data = neko.File.getContent(Web.getCwd()+file);
+		var data = neko.io.File.getContent(Web.getCwd()+file);
 		var x = Xml.parse(data).firstChild();
 		for( c in x.elements() )
 			processClass(c);
@@ -635,8 +635,8 @@ class DocView {
 	static function save(html,clname,file) {
 		Url.buffer = new StringBuf();
 		displayHtml(html,clname);
-		var f = neko.File.write(file,false);
-		f.write(Url.buffer.toString());
+		var f = neko.io.File.write(file,false);
+		f.writeBytes(Url.buffer.toString());
 		f.close();
 		neko.Lib.print(".");
 	}
@@ -675,11 +675,11 @@ class DocView {
 	public static function main() {
 		var hdata =
 			try
-				neko.File.getContent(Web.getCwd()+"template.xml")
+				neko.io.File.getContent(Web.getCwd()+"template.xml")
 			catch( e : Dynamic ) try {
 				var p = ~/[\/\\]/g.split(neko.Sys.executablePath());
 				p.pop();
-				neko.File.getContent(p.join("/")+"/std/tools/template.xml");
+				neko.io.File.getContent(p.join("/")+"/std/tools/template.xml");
 			} catch( e : Dynamic )
 				default_template;
 		var html = Xml.parse(hdata).firstChild();

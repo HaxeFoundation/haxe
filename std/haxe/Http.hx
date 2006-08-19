@@ -152,7 +152,7 @@ class Http {
 		}
 		// Bug in flash player 9 ???
 		var bug = small_url.split("xxx");
-		
+
 		var request = new flash.net.URLRequest( small_url );
 		for( k in headers.keys() ){
 			request.requestHeaders.push( new flash.net.URLRequestHeader(k,headers.get(k)) );
@@ -233,7 +233,7 @@ class Http {
 		if( request == "" )
 			request = "/";
 		var port = if( portString == "" ) 80 else Std.parseInt(portString.substr(1,portString.length-1));
-		var s = new neko.Socket();
+		var s = new neko.io.Socket();
 		var data;
 
 		var uri = null;
@@ -278,7 +278,7 @@ class Http {
 				b.add(uri);
 		}
 		try {
-			s.connect(neko.Socket.resolve(host),port);
+			s.connect(neko.io.Socket.resolve(host),port);
 			s.write(b.toString());
 			readHttpResponse(api,s);
 			s.close();
@@ -287,16 +287,16 @@ class Http {
 		}
 	}
 
-	function readHttpResponse( api : AsyncHttp, sock : neko.Socket ) {
+	function readHttpResponse( api : AsyncHttp, sock : neko.io.Socket ) {
 		// READ the HTTP header (until \r\n\r\n)
 		var b = new StringBuf();
 		var k = 4;
 		var s = neko.Lib.makeString(4);
 		sock.setTimeout(10); // 10 seconds
 		while( true ) {
-			var p = sock.receive(s,0,k);
+			var p = sock.input.read(s,0,k);
 			while( p != k )
-				p += sock.receive(s,p,k - p);
+				p += sock.input.read(s,p,k - p);
 			b.addSub(s,0,k);
 			switch( k ) {
 			case 1:
@@ -389,7 +389,7 @@ class Http {
 		if( size == null ) {
 			sock.shutdown(false,true);
 			while( true ) {
-				var len = sock.receive(buf,0,bufsize);
+				var len = sock.input.read(buf,0,bufsize);
 				if( len == 0 )
 					break;
 				if( chunked ) {
@@ -400,7 +400,7 @@ class Http {
 			}
 		} else {
 			while( size > 0 ) {
-				var len = sock.receive(buf,0,if( size > bufsize ) bufsize else size);
+				var len = sock.input.read(buf,0,if( size > bufsize ) bufsize else size);
 				if( len == 0 ) {
 					onError("Transfert aborted");
 					return;

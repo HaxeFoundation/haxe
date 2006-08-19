@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2005, The haXe Project Contributors
  * All rights reserved.
@@ -24,54 +25,42 @@
  *
  * Contributor: Lee McColl Sylvester
  */
-package neko;
+package neko.io;
+
+enum SocketHandle {
+}
 
 enum Host {
 }
 
 class Socket {
 
-	private var __s : Void;
+	private var __s : SocketHandle;
+	public var input(default,null) : SocketInput;
+	public var output(default,null) : SocketOutput;
 
 	public function new() {
 		__s = socket_new(false);
+		input = new SocketInput(__s);
+		output = new SocketOutput(__s);
 	}
 
 	public function close() : Void {
 		socket_close(__s);
-	}
-
-	public function sendChar(chr : Int) : Void {
-		socket_send_char(__s, chr);
-	}
-
-	public function send(buffer : String, pos : Int, len : Int) : Int {
-		return socket_send(__s, untyped buffer.__s, pos, len);
-	}
-
-	public function receive(buffer : String, pos : Int, len : Int) : Int {
-		return socket_recv(__s, untyped buffer.__s, pos, len);
-	}
-
-	public function receiveChar() : Int {
-		return socket_recv_char(__s);
-	}
-
-	public function write(content : String) {
-		socket_write(__s, untyped content.__s);
-	}
-
-	public function read( ?nbytes : Int ) : String	{
-		if( nbytes == null )
-			return new String(socket_read(__s));
-		var s = Lib.makeString(nbytes);
-		var p = 0;
-		while( nbytes > 0 ) {
-			var l = receive(s,p,nbytes);
-			p += l;
-			nbytes -= l;
+		untyped {
+			input.__s = null;
+			output.__s = null;
 		}
-		return s;
+		input.close();
+		output.close();
+	}
+
+	public function read() : String {
+		return socket_read(__s);
+	}
+
+	public function write( content : String ) {
+		socket_write(__s, untyped content.__s);
 	}
 
 	public function connect(host : Host, port : Int) {
@@ -114,20 +103,6 @@ class Socket {
 
 	public function waitForRead() {
 		select([this],null,null,null);
-	}
-
-	public function readUntil( end : Int ) : String {
-		var buf = new StringBuf();
-		var last : Int;
-		while( (last = socket_recv_char(__s)) != end )
-			buf.addChar( last );
-		return buf.toString();
-	}
-
-	public function readLine() : String {
-		var s = readUntil( 10 );
-		if( s.substr(-1,1) == "\r" ) return s.substr(0,-1);
-		return s;
 	}
 
 	public function setBlocking( b : Bool ) {
@@ -190,30 +165,26 @@ class Socket {
 	}
 
 	static function __init__() {
-		Lib.load("std","socket_init",0)();
+		neko.Lib.load("std","socket_init",0)();
 	}
 
-	private static var socket_new = Lib.load("std","socket_new",1);
-	private static var socket_close = Lib.load("std","socket_close",1);
-	private static var socket_send_char = Lib.load("std","socket_send_char",2);
-	private static var socket_send = Lib.load("std","socket_send",4);
-	private static var socket_recv = Lib.load("std","socket_recv",4);
-	private static var socket_recv_char = Lib.load("std","socket_recv_char",1);
-	private static var socket_write = Lib.load("std","socket_write",2);
-	private static var socket_read = Lib.load("std","socket_read",1);
-	private static var host_resolve = Lib.load("std","host_resolve",1);
-	private static var host_reverse = Lib.load("std","host_reverse",1);
-	private static var host_to_string = Lib.load("std","host_to_string",1);
-	private static var host_local = Lib.load("std","host_local",0);
-	private static var socket_connect = Lib.load("std","socket_connect",3);
-	private static var socket_listen = Lib.load("std","socket_listen",2);
-	private static var socket_select = Lib.load("std","socket_select",4);
-	private static var socket_bind = Lib.load("std","socket_bind",3);
-	private static var socket_accept = Lib.load("std","socket_accept",1);
-	private static var socket_peer = Lib.load("std","socket_peer",1);
-	private static var socket_host = Lib.load("std","socket_host",1);
-	private static var socket_set_timeout = Lib.load("std","socket_set_timeout",2);
-	private static var socket_shutdown = Lib.load("std","socket_shutdown",3);
-	private static var socket_set_blocking = Lib.load("std","socket_set_blocking",2);
+	private static var socket_new = neko.Lib.load("std","socket_new",1);
+	private static var socket_close = neko.Lib.load("std","socket_close",1);
+	private static var socket_write = neko.Lib.load("std","socket_write",2);
+	private static var socket_read = neko.Lib.load("std","socket_read",1);
+	private static var host_resolve = neko.Lib.load("std","host_resolve",1);
+	private static var host_reverse = neko.Lib.load("std","host_reverse",1);
+	private static var host_to_string = neko.Lib.load("std","host_to_string",1);
+	private static var host_local = neko.Lib.load("std","host_local",0);
+	private static var socket_connect = neko.Lib.load("std","socket_connect",3);
+	private static var socket_listen = neko.Lib.load("std","socket_listen",2);
+	private static var socket_select = neko.Lib.load("std","socket_select",4);
+	private static var socket_bind = neko.Lib.load("std","socket_bind",3);
+	private static var socket_accept = neko.Lib.load("std","socket_accept",1);
+	private static var socket_peer = neko.Lib.load("std","socket_peer",1);
+	private static var socket_host = neko.Lib.load("std","socket_host",1);
+	private static var socket_set_timeout = neko.Lib.load("std","socket_set_timeout",2);
+	private static var socket_shutdown = neko.Lib.load("std","socket_shutdown",3);
+	private static var socket_set_blocking = neko.Lib.load("std","socket_set_blocking",2);
 
 }

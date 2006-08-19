@@ -98,18 +98,6 @@ class Sys {
 		return h;
 	}
 
-	public static function stdin() : File {
-		return untyped new File(file_stdin());
-	}
-
-	public static function stdout() : File {
-		return untyped new File(file_stdout());
-	}
-
-	public static function stderr() : File {
-		return untyped new File(file_stderr());
-	}
-
 	private static var get_env = Lib.load("std","get_env",1);
 	private static var put_env = Lib.load("std","put_env",2);
 	private static var _sleep = Lib.load("std","sys_sleep",1);
@@ -122,8 +110,5 @@ class Sys {
 	private static var sys_time = Lib.load("std","sys_time",0);
 	private static var sys_exe_path = Lib.load("std","sys_exe_path",0);
 	private static var sys_env = Lib.load("std","sys_env",0);
-	private static var file_stdin = Lib.load("std","file_stdin",0);
-	private static var file_stdout = Lib.load("std","file_stdout",0);
-	private static var file_stderr = Lib.load("std","file_stderr",0);
 
 }
