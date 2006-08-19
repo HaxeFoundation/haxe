@@ -291,6 +291,7 @@ class MetaPart<T> {
 				}else{
 					var nbTab = Tools.countInitTab(ln);
 					if( nbTab > 0 ){
+						buf.add(" ");
 						buf.add( Tools.removeCRLF(ln.substr(nbTab,ln.length-nbTab)) );
 					}else{
 						head.add( buf.toString() );

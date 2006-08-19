@@ -186,6 +186,10 @@ class Browser extends MetaPart<Browser> {
 		return headers.exists( name );
 	}
 
+	public function getHeader( name, ?charset ){
+		return super.getHeader( Tools.formatHeaderTitle(name),charset );
+	}
+
 	function mkBody() : {ctype_primary: String,ctype_secondary: String,charset: String,content: String} {
 		var ctype = contentType.split("/");
 

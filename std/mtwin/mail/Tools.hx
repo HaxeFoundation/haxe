@@ -30,7 +30,7 @@ class Tools {
 	static var HEXA = "0123456789ABCDEF";
 
 
-	static var REG_HEADER_DECODE = ~/^(.*?)=\?([^\?]+)\?(Q|B)\?([^?]*)\?= ?(.*?)$/i;
+	static var REG_HEADER_DECODE = ~/^(.*?)=\?([^\?]+)\?(Q|B)\?([^?]*)\?=\s?(.*?)$/i;
 	static var REG_QP_LB = ~/=\\r?\\n/;
 	static var REG_QP = ~/=([A-Fa-f0-9]{1,2})/;
 	static var REG_START_TAB = ~/^(\t| )+/;
@@ -122,7 +122,7 @@ class Tools {
 
 	// TODO Protect address in "non ascii chars" <add@re.ss>
 	public static function headerQpEncode( ostr : String, initSize : Int, charset : String ){
-		var str = removeCRLF(ostr);
+		var str = ~/\r?\n\s*/.replace(ostr," ");
 		
 		var csl = charset.length;
 		var len = str.length;
@@ -166,13 +166,14 @@ class Tools {
 		quotedStr.add(line.toString());
 
 		if( !useQuoted ){
-			return ostr;
+			return wordWrap(ostr,75,"\r\n\t",initSize);
 		}else{
 			return "=?"+charset+"?Q?"+quotedStr.join("?=\r\n\t=?"+charset+"?Q?")+"?=";
 		}
 	}
 
 	public static function headerDecode( str : String, charsetOut : String ){
+		str = ~/\r?\n\s*/.replace(str," ");
 		while( REG_HEADER_DECODE.match(str) ){
 			var charset = StringTools.trim(REG_HEADER_DECODE.matched(2).toLowerCase());
 			var encoding = StringTools.trim(REG_HEADER_DECODE.matched(3).toLowerCase());
@@ -262,6 +263,7 @@ class Tools {
 	}
 
 	public static function formatHeader( name : String, content : String, charset : String ){
+		// TODO if To, From, Cc, Bcc, use a special encode to keep addresses
 		return name+": "+headerQpEncode(content,name.length,charset)+"\r\n";
 	}
 
@@ -298,6 +300,43 @@ class Tools {
 		}
 		return ret;
 
+	}
+
+	public static function wordWrap( str : String, ?length : Int, ?sep : String, ?initCur : Int ){
+		if( length == null ) length = 75;
+		if( sep == null ) sep = "\n";
+		if( initCur == null ) initCur = 0;
+		
+		var reg = ~/(.*?)(\s+)/;
+		var a = new Array();
+		while( reg.match(str) ){
+			var c = reg.matched(1);
+			var s = reg.matched(2);
+			var l = c.length+s.length;
+			a.push( c );
+			a.push( s );
+			str = str.substr(l,str.length-l);
+		}
+		a.push( str );
+
+		var sb = new StringBuf();
+		var cur = initCur;
+		for( i in 0...a.length ){
+			var e = a[i];
+			var l = e.length;
+			var cut = false;
+			if( cur+l > length ){
+				sb.add( sep );
+				cur = 0;
+				cut = true;
+			}
+			if( i % 2 != 1 || !cut ){
+				sb.add( e );
+				cur += l;
+			}
+		}
+
+		return sb.toString();
 	}
 
 }

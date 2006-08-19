@@ -24,6 +24,8 @@
  */
 package mtwin.mail.imap;
 
+import mtwin.mail.imap.Envelope;
+
 typedef Flags = Array<String>
 
 enum Section {
@@ -150,6 +152,20 @@ class Tools {
 				else
 					id+"."+t;
 		}
+	}
+
+	public static function addressListToString( l : List<Address>, ?charset : String ){
+		if( charset == null ) charset = "utf-8";
+		if( l == null ) return "";
+		var r = new List();
+		for( a in l ){
+			if( a.name != null ){
+				r.add("\""+mtwin.mail.Tools.headerDecode(a.name,charset).split("\"").join("\\\"")+"\" <"+a.address+">");
+			}else{
+				r.add(a.address);
+			}
+		}
+		return r.join(", ");
 	}
 
 }
