@@ -34,6 +34,8 @@ enum Error {
 	Blocked;
 	/** An operation has occured while the Input or Output has already been closed **/
 	Closed;
+	/** An operation is outside of its valid range **/
+	Overflow;
 	/** Other errors **/
 	Custom( e : Dynamic );
 }
