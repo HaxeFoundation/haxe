@@ -24,14 +24,6 @@
  */
 package haxe;
 
-#if neko
-typedef AsyncHttp = {
-	function total( bytes : Int ) : Void;
-	function write( s : String, pos : Int, len : Int ) : Void;
-	function done() : Void;
-}
-#end
-
 class Http {
 
 	public var url : String;
@@ -203,25 +195,18 @@ class Http {
 		if( !r.sendAndLoad(small_url,r,if( param ) { if( post ) "POST" else "GET"; } else null) )
 			onError("Failed to initialize Connection");
 	#else neko
-		var b = new StringBuf();
 		var me = this;
-		var api : AsyncHttp = {
-			total : function(t) {
-			},
-			write : function(s,p,l) {
-				b.addSub(s,p,l);
-			},
-			done : function() {
-				me.onData(b.toString());
-			}
+		var output = new neko.io.StringOutput();
+		output.close = function() {
+			me.onData(output.toString());
 		};
-		asyncRequest(post,api);
+		asyncRequest(post,output);
 	#end
 	}
 
 #if neko
 
-	public function asyncRequest( post : Bool, api : AsyncHttp ) {
+	public function asyncRequest( post : Bool, api : neko.io.Output ) {
 		var url_regexp = ~/^(http:\/\/)?([a-zA-Z\.0-9-]+)(:[0-9]+)?(.*)$/;
 		if( !url_regexp.match(url) ) {
 			onError("Invalid URL");
@@ -287,7 +272,7 @@ class Http {
 		}
 	}
 
-	function readHttpResponse( api : AsyncHttp, sock : neko.io.Socket ) {
+	function readHttpResponse( api : neko.io.Output, sock : neko.io.Socket ) {
 		// READ the HTTP header (until \r\n\r\n)
 		var b = new StringBuf();
 		var k = 4;
@@ -385,7 +370,7 @@ class Http {
 
 		var bufsize = 1024;
 		var buf = neko.Lib.makeString(bufsize);
-		api.total(size);
+		api.prepare(size);
 		if( size == null ) {
 			sock.shutdown(false,true);
 			while( true ) {
@@ -417,10 +402,10 @@ class Http {
 			onError("Invalid chunk");
 			return;
 		}
-		api.done();
+		api.close();
 	}
 
-	function readChunk(chunk_re : EReg, api : AsyncHttp, buf : String, len ) {
+	function readChunk(chunk_re : EReg, api : neko.io.Output, buf : String, len ) {
 		if( chunk_size == null ) {
 			if( chunk_buf != null ) {
 				buf = chunk_buf + buf.substr(0,len);
