@@ -89,4 +89,13 @@ class Output {
 			writeUInt16(x);
 	}
 
+	/**
+		Inform that we are about to write at least a specified number of bytes.
+		The underlying implementation can allocate proper working space depending
+		on this information, or simply ignore it. This is not a mandatory call
+		but a tip and is only used in some specific cases.
+	**/
+	public function prepare( nbytes : Int ) {
+	}
+
 }
