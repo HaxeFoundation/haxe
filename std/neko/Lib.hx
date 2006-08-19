@@ -38,8 +38,8 @@ class Lib {
 		untyped __dollar__print(v,"\n");
 	}
 
-	public static function rethrow( e : Dynamic ) : Void {
-		untyped __dollar__rethrow(e);
+	public static function rethrow( e : Dynamic ) : Dynamic {
+		return untyped __dollar__rethrow(e);
 	}
 
 	public static function serialize( v : Dynamic ) : String {
