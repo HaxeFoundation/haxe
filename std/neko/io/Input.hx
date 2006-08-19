@@ -100,4 +100,37 @@ class Input {
 		return s;
 	}
 
+	public function skip( nbytes : Int ) {
+		readBytes(nbytes);
+	}
+
+	public function readInt32() {
+		var ch1 = readChar();
+		var ch2 = readChar();
+		var ch3 = readChar();
+		var ch4 = readChar();
+		if( (ch4 & 128) != 0 ) {
+			if( ch4 & 64 == 0 ) throw Error.Overflow;
+			return ch1 | (ch2 << 8) | (ch3 << 16) | ((ch4 & 127) << 24);
+		} else {
+			if( ch4 & 64 != 0 ) throw Error.Overflow;
+			return ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
+		}
+	}
+
+	public function readUInt16() {
+		var ch1 = readChar();
+		var ch2 = readChar();
+		return ch1 | (ch2 << 8);
+	}
+
+	public function readInt16() {
+		var ch1 = readChar();
+		var ch2 = readChar();
+		var n = ch1 | (ch2 << 8);
+		if( ch2 & 128 != 0 )
+			return n - 65536;
+		return n;
+	}
+
 }

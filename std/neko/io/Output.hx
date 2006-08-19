@@ -68,4 +68,25 @@ class Output {
 		}
 	}
 
+	public function writeInt32( x : Int ) {
+		writeChar(x & 0xFF);
+		writeChar((x >> 8) & 0xFF);
+		writeChar((x >> 16) & 0xFF);
+		writeChar(x >>> 24);
+	}
+
+	public function writeUInt16( x : Int ) {
+		if( x < 0 || x > 0xFFFF ) throw Error.Overflow;
+		writeChar(x & 0xFF);
+		writeChar(x >> 8);
+	}
+
+	public function writeInt16( x : Int ) {
+		if( x < -0x7FFF || x > 0x7FFF ) throw Error.Overflow;
+		if( x < 0 )
+			writeUInt16(65536 + x);
+		else
+			writeUInt16(x);
+	}
+
 }
