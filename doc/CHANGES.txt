@@ -4,6 +4,8 @@
 	fixed bug preventing & char to be sent between JS and Flash remoting
 	improved flash9 api (more strict)
 	flash9 xml : use JS ReXml parser
+	added neko.io package (Input/Output)
+	moved neko.File and neko.Socket to neko.io package
 
 2006-08-16: 1.05
 	moved Md5 to haxe package.
