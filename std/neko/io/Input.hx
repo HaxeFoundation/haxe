@@ -138,7 +138,7 @@ class Input {
 		var ch3 = readChar();
 		var n = ch1 | (ch2 << 8) | (ch3 << 16);
 		if( ch3 & 128 != 0 )
-			return n - (1 << 24)
+			return n - (1 << 24);
 		return n;
 	}
 
