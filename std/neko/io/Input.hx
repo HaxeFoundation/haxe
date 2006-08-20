@@ -49,7 +49,7 @@ class Input {
 	public function close() {
 		read = function(_,_,_) { return throw Error.Closed; };
 		readChar = function() { return throw Error.Closed; };
-		close = function() { throw Error.Closed; };
+		close = function() { };
 	}
 
 
