@@ -69,6 +69,28 @@ class Output {
 		}
 	}
 
+	public function writeFloat( c : Float ) {
+		writeBytes(new String(_float_bytes(c,false)));
+	}
+
+	public function writeFloatB( c : Float ) {
+		writeBytes(new String(_float_bytes(c,true)));
+	}
+
+	public function writeDouble( c : Float ) {
+		writeBytes(new String(_double_bytes(c,false)));
+	}
+
+	public function writeDoubleB( c : Float ) {
+		writeBytes(new String(_double_bytes(c,true)));
+	}
+
+	public function writeInt8( c : Int ) {
+		if( c >= 128 || c < -128 )
+			throw Error.Overflow;
+		writeChar(c & 0xFF);
+	}
+
 	public function writeInt32( x : Int ) {
 		writeChar(x & 0xFF);
 		writeChar((x >> 8) & 0xFF);
@@ -98,5 +120,8 @@ class Output {
 	**/
 	public function prepare( nbytes : Int ) {
 	}
+
+	static var _float_bytes = neko.Lib.load("std","float_bytes",2);
+	static var _double_bytes = neko.Lib.load("std","double_bytes",2);
 
 }

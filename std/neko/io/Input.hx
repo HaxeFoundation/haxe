@@ -104,6 +104,22 @@ class Input {
 		readBytes(nbytes);
 	}
 
+	public function readFloat() {
+		return _float_of_bytes(untyped readBytes(4).__s,false);
+	}
+
+	public function readFloatB() {
+		return _float_of_bytes(untyped readBytes(4).__s,true);
+	}
+
+	public function readDouble() {
+		return _double_of_bytes(untyped readBytes(8).__s,false);
+	}
+
+	public function readDoubleB() {
+		return _double_of_bytes(untyped readBytes(8).__s,true);
+	}
+
 	public function readInt8() {
 		var n = readChar();
 		if( n >= 128 )
@@ -187,5 +203,8 @@ class Input {
 		if( ch1 >= 64 ) throw Error.Overflow;
 		return ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24);
 	}
+
+	static var _float_of_bytes = neko.Lib.load("std","float_of_bytes",2);
+	static var _double_of_bytes = neko.Lib.load("std","double_of_bytes",2);
 
 }
