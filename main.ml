@@ -236,6 +236,7 @@ try
 		("--no-traces", define "no_traces", ": don't compile trace calls in the program");
 		("--flash-use-stage", define "flash_use_stage", ": place objects found on the stage of the SWF lib");
 		("--flash-debug", define "flash_debug", ": add debug informations to the generated SWF");
+		("--neko-methods", define "neko_methods", ": use class+method instead of filename in neko debug infos");
 		("--gen-hx-classes", Arg.String (fun file ->
 			gen_hx := true;
 			Genswf9.genhx file

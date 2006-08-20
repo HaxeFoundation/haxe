@@ -22,6 +22,9 @@ open Nast
 open Nxml
 
 type context = {
+	methods : bool;
+	mutable curclass : string;
+	mutable curmethod : string;
 	mutable locals : (string , bool) PMap.t;
 	mutable curblock : texpr list;
 	mutable inits : texpr list;
@@ -32,22 +35,25 @@ let error msg p =
 
 let files = Hashtbl.create 0
 
-let pos p =
-	let file = (try
-		Hashtbl.find files p.pfile
-	with Not_found -> try
-		let len = String.length p.pfile in
-		let base = List.find (fun path ->
-			let l = String.length path in
-			len > l  && String.sub p.pfile 0 l = path
-		) (!Plugin.class_path) in
-		let l = String.length base in
-		let path = String.sub p.pfile l (len - l) in
-		Hashtbl.add files p.pfile path;
-		path
-	with Not_found ->
-		Hashtbl.add files p.pfile p.pfile;
-		p.pfile
+let pos ctx p =
+	let file = (match ctx.methods with
+		| true -> ctx.curclass ^ "::" ^ ctx.curmethod
+		| false ->
+			try
+				Hashtbl.find files p.pfile
+			with Not_found -> try
+				let len = String.length p.pfile in
+				let base = List.find (fun path ->
+					let l = String.length path in
+					len > l  && String.sub p.pfile 0 l = path
+				) (!Plugin.class_path) in
+				let l = String.length base in
+				let path = String.sub p.pfile l (len - l) in
+				Hashtbl.add files p.pfile path;
+				path
+			with Not_found ->
+				Hashtbl.add files p.pfile p.pfile;
+				p.pfile
 	) in
 	{
 		psource = file;
@@ -153,8 +159,8 @@ let gen_type_path p (path,t) =
 		let epath = List.fold_left (fun e path -> field p e path) (ident p path) l in
 		field p epath (no_dollar t)
 
-let gen_constant pe c =
-	let p = pos pe in
+let gen_constant ctx pe c =
+	let p = pos ctx pe in
 	match c with
 	| TInt i -> (try int p (Int32.to_int i) with _ -> Typer.error "This integer is too big to be compiled to a Neko 31-bit integer. Please use a Float instead" pe)
 	| TFloat f -> (EConst (Float f),p)
@@ -223,10 +229,10 @@ and gen_closure p t e f =
 		field p e f
 
 and gen_expr ctx e =
-	let p = pos e.epos in
+	let p = pos ctx e.epos in
 	match e.eexpr with
 	| TConst c ->
-		gen_constant e.epos c
+		gen_constant ctx e.epos c
 	| TLocal s ->
 		let isref = try PMap.find s ctx.locals with Not_found -> false in
 		if isref then
@@ -408,18 +414,21 @@ and gen_expr ctx e =
 		),p)
 
 let gen_method ctx p c acc =
+	ctx.curmethod <- c.cf_name;
 	match c.cf_expr with
 	| None ->
 		(c.cf_name, null p) :: acc
-	| Some e ->
+	| Some e ->		
 		match e.eexpr with
 		| TCall ({ eexpr = TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = (["neko"],"Lib") }) }, "load")},[{ eexpr = TConst (TString m) };{ eexpr = TConst (TString f) };{ eexpr = TConst (TInt n) }]) ->
-			(c.cf_name, call (pos e.epos) (EField (builtin p "loader","loadprim"),p) [(EBinop ("+",(EBinop ("+",str p m,str p "@"),p),str p f),p); (EConst (Int (Int32.to_int n)),p)]) :: acc
+			(c.cf_name, call (pos ctx e.epos) (EField (builtin p "loader","loadprim"),p) [(EBinop ("+",(EBinop ("+",str p m,str p "@"),p),str p f),p); (EConst (Int (Int32.to_int n)),p)]) :: acc
 		| TFunction _ -> ((if c.cf_name = "new" then "__construct__" else c.cf_name), gen_expr ctx e) :: acc
 		| _ -> (c.cf_name, null p) :: acc
 
 let gen_class ctx c =
-	let p = pos c.cl_pos in
+	ctx.curclass <- s_type_path c.cl_path;
+	ctx.curmethod <- "$init";
+	let p = pos ctx c.cl_pos in
 	let clpath = gen_type_path p (fst c.cl_path,"@" ^ snd c.cl_path) in
 	let stpath = gen_type_path p c.cl_path in
 	let esuper = match c.cl_super with None -> null p | Some (c,_) -> gen_type_path p (fst c.cl_path,"@" ^ snd c.cl_path) in
@@ -477,8 +486,9 @@ let gen_class ctx c =
 	in
 	(EBlock ([eclass; estat; call p (builtin p "objsetproto") [clpath; esuper]] @ emeta),p)
 
-let gen_enum_constr path c =
-	let p = pos c.ef_pos in
+let gen_enum_constr ctx path c =
+	ctx.curmethod <- c.ef_name;
+	let p = pos ctx c.ef_pos in
 	(EBinop ("=",field p path c.ef_name, match follow c.ef_type with
 		| TFun (params,_) ->
 			let params = List.map arg_name params in
@@ -500,8 +510,10 @@ let gen_enum_constr path c =
 			],p)
 	),p)
 
-let gen_enum e =
-	let p = pos e.e_pos in
+let gen_enum ctx e =
+	ctx.curclass <- s_type_path e.e_path;
+	ctx.curmethod <- "$init";
+	let p = pos ctx e.e_pos in
 	let path = gen_type_path p (fst e.e_path,no_dollar (snd e.e_path)) in
 	(EBlock (
 		(EBinop ("=",path, call p (builtin p "new") [null p]),p) ::
@@ -510,7 +522,7 @@ let gen_enum e =
 			"__serialize" , ident p "@serialize";
 			"__string" , ident p "@enum_to_string"
 		],p)),p) ::
-		pmap_list (gen_enum_constr path) e.e_constrs @
+		pmap_list (gen_enum_constr ctx path) e.e_constrs @
 		match e.e_path with
 		| [] , name -> [EBinop ("=",field p (ident p "@classes") name,ident p (no_dollar name)),p]
 		| _ -> []
@@ -530,7 +542,7 @@ let gen_type ctx t acc =
 		if e.e_extern then
 			acc
 		else
-			gen_enum e :: acc
+			gen_enum ctx e :: acc
 	| TTypeDecl t ->
 		acc
 
@@ -548,21 +560,23 @@ let gen_static_vars ctx t =
 					match e.eexpr with
 					| TFunction _ -> acc
 					| _ ->
-						let p = pos e.epos in
+						ctx.curclass <- s_type_path c.cl_path;
+						ctx.curmethod <- "$statics";
+						let p = pos ctx e.epos in
 						(EBinop ("=",
 							(field p (gen_type_path p c.cl_path) f.cf_name),
 							gen_expr ctx e
 						),p) :: acc
 			) c.cl_ordered_statics []
 
-let gen_package h t =
+let gen_package ctx h t =
 	let rec loop acc p =
 		match p with
 		| [] -> []
 		| x :: l ->
 			let path = acc @ [x] in
 			if not (Hashtbl.mem h path) then begin
-				let p = pos (match t with TClassDecl c -> c.cl_pos | TEnumDecl e -> e.e_pos | TTypeDecl t -> t.t_pos) in
+				let p = pos ctx (match t with TClassDecl c -> c.cl_pos | TEnumDecl e -> e.e_pos | TTypeDecl t -> t.t_pos) in
 				let e = (EBinop ("=",gen_type_path p (acc,x),call p (builtin p "new") [null p]),p) in
 				Hashtbl.add h path ();
 				(match acc with
@@ -576,8 +590,8 @@ let gen_package h t =
 	in
 	loop [] (fst (t_path t))
 
-let gen_boot hres =
-	let loop name data acc = (name , gen_constant Ast.null_pos (TString data)) :: acc in
+let gen_boot ctx hres =
+	let loop name data acc = (name , gen_constant ctx Ast.null_pos (TString data)) :: acc in
 	let objres = (EObject (Hashtbl.fold loop hres []),null_pos) in
 	(EBlock [
 		call null_pos (field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__init") [];
@@ -585,22 +599,22 @@ let gen_boot hres =
 		EBinop ("=",field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__classes",ident null_pos "@classes"),null_pos;
 	],null_pos)
 
-let gen_name acc t =
+let gen_name ctx acc t =
 	match t with
 	| TEnumDecl e when e.e_extern ->
 		acc
 	| TEnumDecl e ->
-		let p = pos e.e_pos in
+		let p = pos ctx e.e_pos in
 		let name = fst e.e_path @ [snd e.e_path] in
-		let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant e.e_pos (TString n)) name); int p (List.length name)] in
+		let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant ctx e.e_pos (TString n)) name); int p (List.length name)] in
 		(EBinop ("=",field p (gen_type_path p e.e_path) "__ename__",arr),p) :: acc
 	| TClassDecl c ->
 		if c.cl_extern then
 			acc
 		else
-			let p = pos c.cl_pos in
+			let p = pos ctx c.cl_pos in
 			let name = fst c.cl_path @ [snd c.cl_path] in
-			let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant c.cl_pos (TString n)) name); int p (List.length name)] in
+			let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant ctx c.cl_pos (TString n)) name); int p (List.length name)] in
 			(EBinop ("=",field p (gen_type_path p c.cl_path) "__name__",arr),p) ::
 			(match c.cl_implements with
 			| [] -> acc
@@ -612,6 +626,9 @@ let gen_name acc t =
 
 let generate file types hres =
 	let ctx = {
+		methods = Plugin.defined "neko_methods";
+		curclass = "$boot";
+		curmethod = "$init";
 		inits = [];
 		curblock = [];
 		locals = PMap.empty;
@@ -622,10 +639,10 @@ let generate file types hres =
 		"@enum_to_string = function() { return neko.Boot.__enum_str(this); };" ^
 		"@serialize = function() { return neko.Boot.__serialize(this); };"
 	) , { psource = "<header>"; pline = 1; } in
-	let packs = List.concat (List.map (gen_package h) types) in
-	let names = List.fold_left gen_name [] types in
+	let packs = List.concat (List.map (gen_package ctx h) types) in
+	let names = List.fold_left (gen_name ctx) [] types in
 	let methods = List.rev (List.fold_left (fun acc t -> gen_type ctx t acc) [] types) in
-	let boot = gen_boot hres in
+	let boot = gen_boot ctx hres in
 	let inits = List.map (gen_expr ctx) (List.rev ctx.inits) in
 	let vars = List.concat (List.map (gen_static_vars ctx) types) in
 	let e = (EBlock (header :: packs @ methods @ boot :: names @ inits @ vars), null_pos) in
