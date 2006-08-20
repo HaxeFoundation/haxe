@@ -52,7 +52,8 @@ class Output {
 	public function close() {
 		write = function(_,_,_) { return throw Error.Closed; };
 		writeChar = function(_) { throw Error.Closed; };
-		flush = close = function() { throw Error.Closed; };
+		flush = function() { throw Error.Closed; };
+		close = function() { };
 	}
 
 	/* ------------------ API ------------------ */
