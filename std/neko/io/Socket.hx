@@ -39,8 +39,8 @@ class Socket {
 	public var input(default,null) : SocketInput;
 	public var output(default,null) : SocketOutput;
 
-	public function new() {
-		__s = socket_new(false);
+	public function new( ?s ) {
+		__s = if( s == null ) socket_new(false) else s;
 		input = new SocketInput(__s);
 		output = new SocketOutput(__s);
 	}
@@ -80,11 +80,7 @@ class Socket {
 	}
 
 	public function accept() : Socket {
-		var s = socket_accept(__s);
-		var so = new Socket();
-		so.close();
-		so.__s = s;
-		return so;
+		return new Socket(socket_accept(__s));
 	}
 
 	public function peer() : { host : Host, port : Int } {
