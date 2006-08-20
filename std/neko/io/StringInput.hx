@@ -48,6 +48,8 @@ class StringInput extends Input {
 	}
 
 	public override function read( buf : String, bpos, blen ) : Int {
+		if( len == 0 )
+			throw Error.Eof;
 		if( len <= blen )
 			blen = len;
 		untyped __dollar__sblit(buf.__s,bpos,s.__s,pos,blen);
