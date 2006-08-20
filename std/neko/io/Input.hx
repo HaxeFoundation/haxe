@@ -104,6 +104,58 @@ class Input {
 		readBytes(nbytes);
 	}
 
+	public function readInt8() {
+		var n = readChar();
+		if( n >= 128 )
+			return n - 256;
+		return n;
+	}
+
+	public function readInt16() {
+		var ch1 = readChar();
+		var ch2 = readChar();
+		var n = ch1 | (ch2 << 8);
+		if( ch2 & 128 != 0 )
+			return n - 65536;
+		return n;
+	}
+
+	public function readUInt16() {
+		var ch1 = readChar();
+		var ch2 = readChar();
+		return ch1 | (ch2 << 8);
+	}
+
+	public function readUInt16B() {
+		var ch1 = readChar();
+		var ch2 = readChar();
+		return ch2 | (ch1 << 8);
+	}
+
+	public function readInt24() {
+		var ch1 = readChar();
+		var ch2 = readChar();
+		var ch3 = readChar();
+		var n = ch1 | (ch2 << 8) | (ch3 << 16);
+		if( ch3 & 128 != 0 )
+			return n - (1 << 24)
+		return n;
+	}
+
+	public function readUInt24() {
+		var ch1 = readChar();
+		var ch2 = readChar();
+		var ch3 = readChar();
+		return ch1 | (ch2 << 8) | (ch3 << 16);
+	}
+
+	public function readUInt24B() {
+		var ch1 = readChar();
+		var ch2 = readChar();
+		var ch3 = readChar();
+		return ch3 | (ch2 << 8) | (ch1 << 16);
+	}
+
 	public function readInt32() {
 		var ch1 = readChar();
 		var ch2 = readChar();
@@ -118,19 +170,22 @@ class Input {
 		}
 	}
 
-	public function readUInt16() {
+	public function readUInt32() {
 		var ch1 = readChar();
 		var ch2 = readChar();
-		return ch1 | (ch2 << 8);
+		var ch3 = readChar();
+		var ch4 = readChar();
+		if( ch4 >= 64 ) throw Error.Overflow;
+		return ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
 	}
 
-	public function readInt16() {
+	public function readUInt32B() {
 		var ch1 = readChar();
 		var ch2 = readChar();
-		var n = ch1 | (ch2 << 8);
-		if( ch2 & 128 != 0 )
-			return n - 65536;
-		return n;
+		var ch3 = readChar();
+		var ch4 = readChar();
+		if( ch1 >= 64 ) throw Error.Overflow;
+		return ch4 | (ch3 << 8) | (ch2 << 16) | (ch1 << 24);
 	}
 
 }
