@@ -30,29 +30,37 @@ class Logger extends Input {
 	var output : Output;
 	var autoFlush : Bool;
 
-	public function new(i,o,?flush) {
+	public function new(i,?o,?flush) {
 		input = i;
 		output = o;
-		autoFlush = if( flush == null ) true else flush;
+		autoFlush = if( flush == null ) output != null else flush;
+	}
+
+	public function logChar( c : Int ) {
+	}
+
+	public function logString( buf : String ) {
 	}
 
 	public override function readChar() {
 		var c = input.readChar();
-		output.writeChar(c);
+		logChar(c);
+		if( output != null ) output.writeChar(c);
 		if( autoFlush ) output.flush();
 		return c;
 	}
 
 	public override function read(buf,pos,len) {
 		var n = input.read(buf,pos,len);
-		output.write(buf,pos,n);
+		logString(buf.substr(pos,n));
+		if( output != null ) output.write(buf,pos,n);
 		if( autoFlush ) output.flush();
 		return n;
 	}
 
 	public override function close() {
 		input.close();
-		output.close();
+		if( output != null ) output.close();
 	}
 
 }
