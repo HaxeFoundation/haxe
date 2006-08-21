@@ -164,7 +164,7 @@ class Preprocessor {
 			throw "Macro file "+path+" does not exists";
 		}
 		macroFileStamp = neko.FileSystem.stat(path).mtime.getTime();
-		registerMacros(neko.File.getContent(path));
+		registerMacros(neko.io.File.getContent(path));
 	}
 
 	public static function registerMacros( str:String ){

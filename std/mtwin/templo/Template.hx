@@ -69,7 +69,7 @@ class Template {
 			}
 		}
 		compiledFiles.set(path,true);
-		var content = neko.File.getContent(Loader.BASE_DIR+"/"+path);
+		var content = neko.io.File.getContent(Loader.BASE_DIR+"/"+path);
 		return fromString(content, nekoId(path));
 	}
 
@@ -93,14 +93,14 @@ class Template {
 
 		s = "// generated from " + id + "\n//" + src.split("\n").join("//") + "\n" + s;
 
-		var f = neko.File.write(path, false);
-		f.write(s);
+		var f = neko.io.File.write(path, false);
+		f.writeBytes(s);
 		f.close();
 
 		var r = neko.Sys.command("nekoc -o "+Loader.TMP_DIR+" "+path+" 2> "+Loader.TMP_DIR+"/nekoc.out");
 		if (r != 0){
 			if (neko.FileSystem.exists(Loader.TMP_DIR+"/nekoc.out")){
-				throw "nekoc compilation of "+path+" failed ("+r+") : "+neko.File.getContent(Loader.TMP_DIR+"/nekoc.out");
+				throw "nekoc compilation of "+path+" failed ("+r+") : "+neko.io.File.getContent(Loader.TMP_DIR+"/nekoc.out");
 			}
 			else {
 				throw "nekoc compilation of "+path+" failed ("+r+") -- no nekoc.out available";
