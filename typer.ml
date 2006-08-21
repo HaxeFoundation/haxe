@@ -1507,31 +1507,21 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		ctx.in_loop <- true;
 		let e = (match e1.eexpr with
 		| TNew ({ cl_path = ([],"IntIter") },[],[i1;i2]) ->
-			let rec loop e =
-				match e.eexpr with
-				| TContinue -> raise Exit
-				| _ -> iter loop e
-			in
 			(match i1.eexpr , i2.eexpr with
 			| TConst (TInt a), TConst (TInt b) when Int32.compare b a <= 0 ->
 				error "Range operate can't iterate backwards" p
 			| _ -> ());
 			let max = gen_local ctx i2.etype in
 			let n = gen_local ctx i1.etype in
-			let e2 = type_expr ~need_val:false ctx e2 in
-			let has_cont = (try loop e2; false with Exit -> true) in
-			let i , block = (if has_cont then begin
-				n , [
+			let e2 = type_expr ~need_val:false ctx e2 in			
+			let block = [
 				mk (TVars [i,i1.etype,Some (mk (TLocal n) i1.etype p)]) (t_void ctx) p;
 				mk (TUnop (Increment,Prefix,mk (TLocal n) i1.etype p)) i1.etype p;
 				e2
-			] end else i , [
-				e2;
-				mk (TUnop (Increment,Prefix,mk (TLocal i) i1.etype p)) i1.etype p;
-			]) in
-			let ident = mk (TLocal i) i1.etype p in
+			] in
+			let ident = mk (TLocal n) i1.etype p in
 			mk (TBlock [
-				mk (TVars [i,i1.etype,Some i1;max,i2.etype,Some i2]) (t_void ctx) p;
+				mk (TVars [n,i1.etype,Some i1;max,i2.etype,Some i2]) (t_void ctx) p;
 				mk (TWhile (
 					mk (TBinop (OpLt, ident, mk (TLocal max) i2.etype p)) (t_bool ctx) p,
 					mk (TBlock block) (t_void ctx) p,
