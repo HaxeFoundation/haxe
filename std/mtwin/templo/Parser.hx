@@ -498,6 +498,9 @@ class Parser {
 						skip = true;
 						++i; 
 					}
+					else if (c == "\\" && n == "\""){
+						skip = true;
+					}
 					else if (c == "'"){
 						state = states.none;
 						result.add("\")");
@@ -509,6 +512,9 @@ class Parser {
 						result.add("\\\"");
 						skip = true;
 						++i;
+					}
+					else if (c == "\\" && n == "'"){
+						skip = true;
 					}
 					else if (c == "\""){
 						state = states.none;
