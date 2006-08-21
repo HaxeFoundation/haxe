@@ -28,6 +28,8 @@ import haxe.Md5;
 
 class Template {
 
+	static var VERSION = "0.9.0";
+
 	public static var compiledFiles : Hash<Bool> = new Hash();
 	public var execute : Dynamic -> String;
 
@@ -91,7 +93,7 @@ class Template {
 		var p = new mtwin.templo.Parser();
 		var s = p.parse(x);
 
-		s = "// generated from " + id + "\n//" + src.split("\n").join("//") + "\n" + s;
+		s = "// generated from " + id + "\n// temploc v"+mtwin.templo.Template.VERSION+"\n" + s;
 
 		var f = neko.io.File.write(path, false);
 		f.write(s);
