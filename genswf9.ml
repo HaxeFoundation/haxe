@@ -385,7 +385,7 @@ let begin_fun ctx ?(varargs=false) args el stat =
 		| LScope _ -> PMap.add name (LGlobal (type_path ctx ~getclass:true ([],name))) acc
 		| LGlobal _ -> PMap.add name l acc
 	) ctx.locals PMap.empty;
-	List.iter (fun name ->
+	List.iter (fun (name,_) ->
 		define_local ctx name el;
 		match gen_local_access ctx name null_pos Write with
 		| VReg _ -> ()
@@ -395,13 +395,19 @@ let begin_fun ctx ?(varargs=false) args el stat =
 	) args;
 	(fun () ->
 		let hasblock = ctx.block_vars <> [] || ctx.trys <> [] in
+		let dparams = ref None in
+		List.iter (fun (_,opt) ->
+			match !dparams with
+			| None -> if opt then dparams := Some [A3VNull]
+			| Some l -> dparams := Some (A3VNull :: l)
+		) args;
 		let mt = {
 			mt3_ret = None;
 			mt3_args = List.map (fun _ -> None) args;
 			mt3_native = false;
 			mt3_var_args = varargs;
 			mt3_debug_name = None;
-			mt3_dparams = None;
+			mt3_dparams = !dparams;
 			mt3_pnames = None;
 			mt3_new_block = hasblock;
 			mt3_unk_flags = (false,false,false);
@@ -971,13 +977,13 @@ and gen_expr ctx retval e =
 	end else if retval then stack_error e.epos
 
 and generate_function ctx fdata stat =
-	let f = begin_fun ctx (List.map (fun (name,_,_) -> name) fdata.tf_args) [fdata.tf_expr] stat in
+	let f = begin_fun ctx (List.map (fun (name,opt,_) -> name,opt) fdata.tf_args) [fdata.tf_expr] stat in
 	gen_expr ctx false fdata.tf_expr;
 	write ctx A3RetVoid;
 	f()
 
 let generate_construct ctx fdata cfields =
-	let f = begin_fun ctx (List.map (fun (name,_,_) -> name) fdata.tf_args) [fdata.tf_expr] false in
+	let f = begin_fun ctx (List.map (fun (name,opt,_) -> name,opt) fdata.tf_args) [fdata.tf_expr] false in
 	PMap.iter (fun _ f ->
 		match f.cf_expr with
 		| Some { eexpr = TFunction fdata } when f.cf_set = NormalAccess ->
@@ -1170,7 +1176,7 @@ let generate_class ctx c =
 let generate_enum ctx e =
 	let name_id = type_path ctx e.e_path in
 	let st_id = empty_method ctx in
-	let f = begin_fun ctx ["tag";"params"] [] false in
+	let f = begin_fun ctx [("tag",false);("params",false)] [] false in
 	let tag_id = ident ctx "tag" in
 	let params_id = ident ctx "params" in
 	write ctx (A3SetInf tag_id);
@@ -1221,7 +1227,7 @@ let generate_enum ctx e =
 			f3_slot = !st_count;
 			f3_kind = (match f.ef_type with
 				| TFun (args,_) ->
-					let fdata = begin_fun ctx (List.map (fun (name,_,_) -> name) args) [] true in
+					let fdata = begin_fun ctx (List.map (fun (name,opt,_) -> name,opt) args) [] true in
 					write ctx (A3GetInf name_id);
 					write ctx (A3String (lookup f.ef_name ctx.strings));
 					let n = ref 0 in
