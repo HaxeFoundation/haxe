@@ -77,6 +77,7 @@ extern class Date
 	private static function __init__() : Void untyped {
 	#if neko
 		Date = neko.NekoDate__;
+		neko.Boot.__classes.Date = Date;
 	#else true
 		Date.now = function() {
 			return __new__(Date);

@@ -145,19 +145,13 @@ let array p el =
 let pmap_list f p =
 	PMap.fold (fun v acc -> f v :: acc) p []
 
-let no_dollar t =
-	if t.[0] = '$' then
-		String.sub t 1 (String.length t - 1)
-	else
-		t
-
 let gen_type_path p (path,t) =
 	match path with
 	| [] ->
-		ident p (no_dollar t)
+		ident p t
 	| path :: l ->
 		let epath = List.fold_left (fun e path -> field p e path) (ident p path) l in
-		field p epath (no_dollar t)
+		field p epath t
 
 let gen_constant ctx pe c =
 	let p = pos ctx pe in
@@ -481,7 +475,7 @@ let gen_class ctx c =
 	),p) in
 	let emeta = (EBinop ("=",field p clpath "__class__",stpath),p) ::
 		match c.cl_path with
-		| [] , name -> [(EBinop ("=",field p (ident p "@classes") name,ident p (no_dollar name)),p)]
+		| [] , name -> [(EBinop ("=",field p (ident p "@classes") name,ident p name),p)]
 		| _ -> []
 	in
 	(EBlock ([eclass; estat; call p (builtin p "objsetproto") [clpath; esuper]] @ emeta),p)
@@ -514,7 +508,7 @@ let gen_enum ctx e =
 	ctx.curclass <- s_type_path e.e_path;
 	ctx.curmethod <- "$init";
 	let p = pos ctx e.e_pos in
-	let path = gen_type_path p (fst e.e_path,no_dollar (snd e.e_path)) in
+	let path = gen_type_path p (fst e.e_path,snd e.e_path) in
 	(EBlock (
 		(EBinop ("=",path, call p (builtin p "new") [null p]),p) ::
 		(EBinop ("=",field p path "prototype", (EObject [
@@ -524,7 +518,7 @@ let gen_enum ctx e =
 		],p)),p) ::
 		pmap_list (gen_enum_constr ctx path) e.e_constrs @
 		match e.e_path with
-		| [] , name -> [EBinop ("=",field p (ident p "@classes") name,ident p (no_dollar name)),p]
+		| [] , name -> [EBinop ("=",field p (ident p "@classes") name,ident p name),p]
 		| _ -> []
 	),p)
 
@@ -581,7 +575,7 @@ let gen_package ctx h t =
 				Hashtbl.add h path ();
 				(match acc with
 				| [] ->
-					let reg = (EBinop ("=",field p (ident p "@classes") x,ident p (no_dollar x)),p) in
+					let reg = (EBinop ("=",field p (ident p "@classes") x,ident p x),p) in
 					e :: reg :: loop path l
 				| _ ->
 					e :: loop path l)
@@ -594,9 +588,9 @@ let gen_boot ctx hres =
 	let loop name data acc = (name , gen_constant ctx Ast.null_pos (TString data)) :: acc in
 	let objres = (EObject (Hashtbl.fold loop hres []),null_pos) in
 	(EBlock [
-		call null_pos (field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__init") [];
 		EBinop ("=",field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__res",objres),null_pos;
 		EBinop ("=",field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__classes",ident null_pos "@classes"),null_pos;
+		call null_pos (field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__init") [];
 	],null_pos)
 
 let gen_name ctx acc t =

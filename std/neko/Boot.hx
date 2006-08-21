@@ -115,7 +115,7 @@ class Boot {
 			for( i in 0...__dollar__asize(v) ) {
 				cl = __dollar__objget(cl,__dollar__hash(v[i]));
 				if( cl == null )
-					throw ("Class not found " + neko.Lib.string(v));
+					throw ("Class not found " + Std.string(v));
 			}
 			if( cl.__name__ != null || cl.__ename__ != null )
 				return cl.prototype;
@@ -126,7 +126,9 @@ class Boot {
 	private static function __init() {
 		untyped {
 			String = NekoString__;
+			neko.Boot.__classes.String = String;
 			Array = NekoArray__;
+			neko.Boot.__classes.Array = Array;
 			Int = __dollar__new(null);
 			Float = __dollar__new(null);
 			Bool = __dollar__new(null);

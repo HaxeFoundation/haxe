@@ -90,6 +90,7 @@ extern class Xml {
 	static function __init__() : Void untyped {
 		#if neko
 		Xml = neko.NekoXml__;
+		neko.Boot.__classes.Xml = Xml;
 		#else js
 		Xml = js.JsXml__;
 		#else flash
