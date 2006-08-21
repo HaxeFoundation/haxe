@@ -115,6 +115,7 @@ class NekoString__ implements String {
 			len = sl - pos;
 		}
 
+		if( pos < 0 || len <= 0 ) return "";
 		return untyped new String(__dollar__ssub(this.__s,pos,len));
 	}
 
