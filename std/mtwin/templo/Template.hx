@@ -94,7 +94,7 @@ class Template {
 		s = "// generated from " + id + "\n//" + src.split("\n").join("//") + "\n" + s;
 
 		var f = neko.io.File.write(path, false);
-		f.writeBytes(s);
+		f.write(s);
 		f.close();
 
 		var r = neko.Sys.command("nekoc -o "+Loader.TMP_DIR+" "+path+" 2> "+Loader.TMP_DIR+"/nekoc.out");
