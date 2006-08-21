@@ -8,6 +8,7 @@
 	moved neko.File and neko.Socket to neko.io package
 	added --neko-methods
 	fixed flash optional arguments (when extending flash.MC)
+	fixed neko native serialization problems
 
 2006-08-16: 1.05
 	moved Md5 to haxe package.
