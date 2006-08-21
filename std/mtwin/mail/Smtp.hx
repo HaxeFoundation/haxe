@@ -41,24 +41,24 @@ class Smtp {
 		}
 		
 		// get server init line
-		cnx.readLine();
+		cnx.input.readLine();
 
 		cnx.write( "MAIL FROM:<" + from + ">\r\n" );
-		var ret = StringTools.trim(cnx.readLine());
+		var ret = StringTools.trim(cnx.input.readLine());
 		if( ret.substr(0,3) != "250" ){
 			cnx.close();
 			throw SmtpMailFromError(ret);
 		}
 
 		cnx.write( "RCPT TO:<" + to + ">\r\n" );
-		ret = StringTools.trim(cnx.readLine());
+		ret = StringTools.trim(cnx.input.readLine());
 		if( ret.substr(0,3) != "250" ){
 			cnx.close();
 			throw SmtpRcptToError(ret);
 		}
 
 		cnx.write( "DATA\r\n" );
-		ret = StringTools.trim(cnx.readLine());
+		ret = StringTools.trim(cnx.input.readLine());
 		if( ret.substr(0,3) != "354" ){
 			cnx.close();
 			throw SmtpDataError(ret);
@@ -68,7 +68,7 @@ class Smtp {
 			data += "\r\n";
 
 		cnx.write( data + ".\r\n" );
-		ret = StringTools.trim(cnx.readLine());
+		ret = StringTools.trim(cnx.input.readLine());
 		if( ret.substr(0,3) != "250" ){
 			cnx.close();
 			throw SmtpSendDataError;
