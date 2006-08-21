@@ -92,7 +92,7 @@ class MetaPart<T> {
 	public function setContentFromFile(filename:String,type:String){
 		var a = filename.split("/");
 		name = a.pop();
-		content = neko.File.getContent(filename);
+		content = neko.io.File.getContent(filename);
 		contentType = type;
 		setHeader("Content-Type",type+"; name=\""+name+"\"");
 		setHeader("Content-Disposition","attachment; filename=\""+name+"\"");

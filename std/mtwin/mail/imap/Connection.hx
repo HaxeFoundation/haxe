@@ -24,7 +24,7 @@
  */
 package mtwin.mail.imap;
 
-import neko.Socket;
+import neko.io.Socket;
 import mtwin.mail.Exception;
 import mtwin.mail.imap.Tools;
 
@@ -101,7 +101,7 @@ class Connection {
 		}
 		debug("socket connected");
 		cnx.setTimeout( TIMEOUT );
-		cnx.readLine();
+		cnx.input.readLine();
 		logged = false;
 	}
 
@@ -293,7 +293,7 @@ class Connection {
 		var tmp = new IntHash();
 		var ret = new List();
 		while( true ){
-			var l = cnx.readLine();
+			var l = cnx.input.readLine();
 			if( REG_FETCH_MAIN.match(l) ){
 				var id = Std.parseInt(REG_FETCH_MAIN.matched(1));
 				
@@ -330,10 +330,10 @@ class Connection {
 					}else if( REG_FETCH_PART.match( s ) ){
 						var len = Std.parseInt(REG_FETCH_PART.matched(2));
 						
-						o.body = cnx.read( len );
+						o.body = cnx.input.readBytes( len );
 						o.bodyType = REG_FETCH_PART.matched(1);
 						
-						cnx.readLine();
+						cnx.input.readLine();
 						break;
 					}else{
 						break;
@@ -454,8 +454,8 @@ class Connection {
 		var reg = ~/(?<!\] )\{([0-9]+)\}$/;
 		while( reg.match( s ) ){
 			var len = Std.parseInt( reg.matched(1) );
-			var t = cnx.read( len );
-			var e = cnx.readLine();
+			var t = cnx.input.readBytes( len );
+			var e = cnx.input.readLine();
 			s = s.substr(0,-reg.matchedPos().len)+"\""+t.split("\"").join("\\\"")+"\"" +e;
 		}
 		return s;
@@ -484,7 +484,7 @@ class Connection {
 		var resp = new List();
 		var sb : StringBuf = null;
 		while( true ){
-			var line = cnx.readLine();
+			var line = cnx.input.readLine();
 			debug("R: "+line);
 			line = rmCRLF(line);
 
