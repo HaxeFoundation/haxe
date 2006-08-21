@@ -46,7 +46,7 @@ class SocketOutput extends Output {
 
 	public override function writeBytes( buf : String, pos : Int, len : Int) : Int {
 		return try {
-			socket_send(__s, untyped buffer.__s, pos, len);
+			socket_send(__s, untyped buf.__s, pos, len);
 		} catch( e : Dynamic ) {
 			if( e == "Blocking" )
 				throw Error.Blocked;
