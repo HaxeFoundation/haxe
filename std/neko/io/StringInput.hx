@@ -58,13 +58,4 @@ class StringInput extends Input {
 		return blen;
 	}
 
-	public override function skip( nbytes : Int ) {
-		pos += nbytes;
-		len -= nbytes;
-		if( len < 0 ) {
-			len = 0;
-			throw Error.Eof;
-		}
-	}
-
 }

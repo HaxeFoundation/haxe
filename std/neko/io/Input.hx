@@ -49,7 +49,6 @@ class Input {
 	public function close() {
 		readBytes = function(_,_,_) { return throw Error.Closed; };
 		readChar = function() { return throw Error.Closed; };
-		skip = function(_) { throw Error.Closed; };
 		close = function() { };
 	}
 
@@ -99,10 +98,6 @@ class Input {
 		var s = readUntil( 10 );
 		if( s.substr(-1,1) == "\r" ) return s.substr(0,-1);
 		return s;
-	}
-
-	public function skip( nbytes : Int ) {
-		read(nbytes);
 	}
 
 	public function readFloat() {

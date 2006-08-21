@@ -70,7 +70,7 @@ class File {
 			var fnamelen = data.readInt16();
 			var elen = data.readInt16();
 			var fname = data.read(fnamelen);
-			data.skip(elen);
+			var ename = data.read(elen);
 			l.add({
 				fileName : fname,
 				fileSize : usize,
