@@ -616,24 +616,6 @@ let is_float t =
 	| _ ->
 		false
 
-let rec is_flash_extern t =
-	match t with
-	| TLazy f ->
-		is_flash_extern (!f())
-	| TMono r ->
-		(match !r with
-		| None -> false
-		| Some t -> is_flash_extern t)
-	| TInst (c,_) ->
-		(match fst c.cl_path with
-		| "flash" :: _ -> c.cl_extern
-		| _ -> false)
-	| TType (t,_) ->
-		(match t.t_static with		
-		| Some { cl_extern = true; cl_path = "flash" :: _ , _ } -> true
-		| _ -> is_flash_extern t.t_type);
-	| _ -> false
-
 let t_array ctx =
 	let show = hide_types ctx in
 	match load_type_def ctx null_pos ([],"Array") with
@@ -722,8 +704,8 @@ let unify_call_params ctx t el args p =
 			if not opt then begin
 				error true;
 				List.rev acc
-			end else if is_flash_extern t then 
-				loop acc [] l
+			end else if Plugin.defined "flash" then 
+				List.rev acc
 			else
 				loop (null p :: acc) [] l
 		| _ , [] ->
