@@ -133,6 +133,8 @@ class Text2Xhtml {
 	}
 
 	public function transform( str:String ) : String {
+		str = StringTools.replace(str, "\r\n", "\n");
+		str = StringTools.replace(str, "\r", "\n");
 		str = StringTools.htmlEscape(str);
 
 		var helper = new StringHelper(str);
