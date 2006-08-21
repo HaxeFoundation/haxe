@@ -47,7 +47,7 @@ class StringInput extends Input {
 		return c;
 	}
 
-	public override function read( buf : String, bpos, blen ) : Int {
+	public override function readBytes( buf : String, bpos, blen ) : Int {
 		if( len == 0 && blen > 0 )
 			throw Error.Eof;
 		if( len < blen )

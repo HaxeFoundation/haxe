@@ -60,12 +60,12 @@ class File {
 			data.skip(2);
 			var elen = data.readInt16();
 			data.skip(2);
-			var fname = data.readBytes(fnamelen);
+			var fname = data.read(fnamelen);
 			data.skip(elen);
 			l.add({
 				fileName : fname,
 				fileSize : usize,
-				compressedData : data.readBytes(csize)
+				compressedData : data.read(csize)
 			});
 		}
 		return l;

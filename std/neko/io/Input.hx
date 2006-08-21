@@ -35,7 +35,7 @@ class Input {
 		return throw "Not implemented";
 	}
 
-	public function read( s : String, p : Int, len : Int ) : Int {
+	public function readBytes( s : String, p : Int, len : Int ) : Int {
 		var k = len;
 		while( k > 0 ) {
 			var c = readChar();
@@ -47,8 +47,9 @@ class Input {
 	}
 
 	public function close() {
-		read = function(_,_,_) { return throw Error.Closed; };
+		readBytes = function(_,_,_) { return throw Error.Closed; };
 		readChar = function() { return throw Error.Closed; };
+		skip = function(_) { throw Error.Closed; };
 		close = function() { };
 	}
 
@@ -62,7 +63,7 @@ class Input {
 		var total = new StringBuf();
 		try {
 			while( true ) {
-				var len = read(buf,0,bufsize);
+				var len = readBytes(buf,0,bufsize);
 				if( len == 0 )
 					throw Error.Blocked;
 				total.addSub(buf,0,len);
@@ -74,11 +75,11 @@ class Input {
 		return total.toString();
 	}
 
-	public function readBytes( nbytes : Int ) : String {
+	public function read( nbytes : Int ) : String {
 		var s = neko.Lib.makeString(nbytes);
 		var p = 0;
 		while( nbytes > 0 ) {
-			var k = read(s,p,nbytes);
+			var k = readBytes(s,p,nbytes);
 			if( k == 0 ) throw Error.Blocked;
 			p += k;
 			nbytes -= k;
@@ -101,23 +102,23 @@ class Input {
 	}
 
 	public function skip( nbytes : Int ) {
-		readBytes(nbytes);
+		read(nbytes);
 	}
 
 	public function readFloat() {
-		return _float_of_bytes(untyped readBytes(4).__s,false);
+		return _float_of_bytes(untyped read(4).__s,false);
 	}
 
 	public function readFloatB() {
-		return _float_of_bytes(untyped readBytes(4).__s,true);
+		return _float_of_bytes(untyped read(4).__s,true);
 	}
 
 	public function readDouble() {
-		return _double_of_bytes(untyped readBytes(8).__s,false);
+		return _double_of_bytes(untyped read(8).__s,false);
 	}
 
 	public function readDoubleB() {
-		return _double_of_bytes(untyped readBytes(8).__s,true);
+		return _double_of_bytes(untyped read(8).__s,true);
 	}
 
 	public function readInt8() {

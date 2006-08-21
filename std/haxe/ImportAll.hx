@@ -501,6 +501,8 @@ import neko.io.File;
 import neko.io.FileInput;
 import neko.io.FileOutput;
 import neko.io.Input;
+import neko.io.Logger;
+import neko.io.Multiple;
 import neko.io.Output;
 import neko.io.Socket;
 import neko.io.SocketInput;

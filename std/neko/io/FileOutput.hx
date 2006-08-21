@@ -44,7 +44,7 @@ class FileOutput extends Output {
 		}
 	}
 
-	public override function write( s : String, p : Int, l : Int ) : Int {
+	public override function writeBytes( s : String, p : Int, l : Int ) : Int {
 		return try {
 			file_write(__f,untyped s.__s,p,l);
 		} catch( e : Dynamic ) {

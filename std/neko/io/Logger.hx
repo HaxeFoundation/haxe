@@ -50,10 +50,10 @@ class Logger extends Input {
 		return c;
 	}
 
-	public override function read(buf,pos,len) {
-		var n = input.read(buf,pos,len);
+	public override function readBytes(buf,pos,len) {
+		var n = input.readBytes(buf,pos,len);
 		logString(buf.substr(pos,n));
-		if( output != null ) output.write(buf,pos,n);
+		if( output != null ) output.writeBytes(buf,pos,n);
 		if( autoFlush ) output.flush();
 		return n;
 	}

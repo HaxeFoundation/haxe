@@ -65,7 +65,7 @@ class SocketBuffer {
 
 	public function read() {
 		var buflen = buffer.length;
-		var len = try sock.input.read(buffer,bufpos,buflen-bufpos) catch( e : Dynamic ) { if( e == neko.io.Error.Blocked ) return; 0; };
+		var len = try sock.input.readBytes(buffer,bufpos,buflen-bufpos) catch( e : Dynamic ) { if( e == neko.io.Error.Blocked ) return; 0; };
 		if( len == 0 )
 			throw ReadError;
 		lastread = neko.Sys.time();

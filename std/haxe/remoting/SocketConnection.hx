@@ -123,7 +123,7 @@ class SocketConnection extends AsyncConnection {
 		var s : neko.io.Socket = __data;
 		s.output.writeChar(c1);
 		s.output.writeChar(c2);
-		s.output.writeBytes(msg);
+		s.output.write(msg);
 		s.output.writeChar(0);
 		#else flash
 		var s : flash.XMLSocket = __data;

@@ -47,7 +47,7 @@ class FileInput extends Input {
 		}
 	}
 
-	public override function read( s : String, p : Int, l : Int ) : Int {
+	public override function readBytes( s : String, p : Int, l : Int ) : Int {
 		return try {
 			file_read(__f,untyped s.__s,p,l);
 		} catch( e : Dynamic ) {

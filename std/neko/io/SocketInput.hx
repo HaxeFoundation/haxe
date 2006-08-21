@@ -44,7 +44,7 @@ class SocketInput extends Input {
 		}
 	}
 
-	public override function read( buf : String, pos : Int, len : Int ) : Int {
+	public override function readBytes( buf : String, pos : Int, len : Int ) : Int {
 		return try {
 			socket_recv(__s,untyped buf.__s,pos,len);
 		} catch( e : Dynamic ) {

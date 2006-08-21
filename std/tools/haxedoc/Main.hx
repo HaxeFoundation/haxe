@@ -636,7 +636,7 @@ class DocView {
 		Url.buffer = new StringBuf();
 		displayHtml(html,clname);
 		var f = neko.io.File.write(file,false);
-		f.writeBytes(Url.buffer.toString());
+		f.write(Url.buffer.toString());
 		f.close();
 		neko.Lib.print(".");
 	}

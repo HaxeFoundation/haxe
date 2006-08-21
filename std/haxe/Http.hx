@@ -279,9 +279,9 @@ class Http {
 		var s = neko.Lib.makeString(4);
 		sock.setTimeout(10); // 10 seconds
 		while( true ) {
-			var p = sock.input.read(s,0,k);
+			var p = sock.input.readBytes(s,0,k);
 			while( p != k )
-				p += sock.input.read(s,p,k - p);
+				p += sock.input.readBytes(s,p,k - p);
 			b.addSub(s,0,k);
 			switch( k ) {
 			case 1:
@@ -374,18 +374,18 @@ class Http {
 		if( size == null ) {
 			sock.shutdown(false,true);
 			while( true ) {
-				var len = sock.input.read(buf,0,bufsize);
+				var len = sock.input.readBytes(buf,0,bufsize);
 				if( len == 0 )
 					break;
 				if( chunked ) {
 					if( !readChunk(chunk_re,api,buf,len) )
 						break;
 				} else
-					api.write(buf,0,len);
+					api.writeBytes(buf,0,len);
 			}
 		} else {
 			while( size > 0 ) {
-				var len = sock.input.read(buf,0,if( size > bufsize ) bufsize else size);
+				var len = sock.input.readBytes(buf,0,if( size > bufsize ) bufsize else size);
 				if( len == 0 ) {
 					onError("Transfert aborted");
 					return;
@@ -394,7 +394,7 @@ class Http {
 					if( !readChunk(chunk_re,api,buf,len) )
 						break;
 				} else
-					api.write(buf,0,len);
+					api.writeBytes(buf,0,len);
 				size -= len;
 			}
 		}
@@ -431,13 +431,13 @@ class Http {
 		}
 		if( chunk_size > len ) {
 			chunk_size -= len;
-			api.write(buf,0,len);
+			api.writeBytes(buf,0,len);
 			return true;
 		}
 		var end = chunk_size + 2;
 		if( len >= end ) {
 			if( chunk_size > 0 )
-				api.write(buf,0,chunk_size);
+				api.writeBytes(buf,0,chunk_size);
 			len -= end;
 			chunk_size = null;
 			if( len == 0 )
@@ -445,7 +445,7 @@ class Http {
 			return readChunk(chunk_re,api,buf.substr(end,len),len);
 		}
 		if( chunk_size > 0 )
-			api.write(buf,0,chunk_size);
+			api.writeBytes(buf,0,chunk_size);
 		chunk_size -= len;
 		return true;
 	}

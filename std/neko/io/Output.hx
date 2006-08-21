@@ -36,7 +36,7 @@ class Output {
 		throw "Not implemented";
 	}
 
-	public function write( s : String, p : Int, len : Int ) : Int {
+	public function writeBytes( s : String, p : Int, len : Int ) : Int {
 		var k = len;
 		while( k > 0 ) {
 			writeChar(untyped __dollar__sget(s.__s,p));
@@ -50,7 +50,7 @@ class Output {
 	}
 
 	public function close() {
-		write = function(_,_,_) { return throw Error.Closed; };
+		writeBytes = function(_,_,_) { return throw Error.Closed; };
 		writeChar = function(_) { throw Error.Closed; };
 		flush = function() { throw Error.Closed; };
 		close = function() { };
@@ -58,11 +58,11 @@ class Output {
 
 	/* ------------------ API ------------------ */
 
-	public function writeBytes( s : String ) : Void {
+	public function write( s : String ) : Void {
 		var l = s.length;
 		var p = 0;
 		while( l > 0 ) {
-			var k = write(s,p,l);
+			var k = writeBytes(s,p,l);
 			if( k == 0 ) throw Error.Blocked;
 			p += k;
 			l -= k;
@@ -70,19 +70,19 @@ class Output {
 	}
 
 	public function writeFloat( c : Float ) {
-		writeBytes(new String(_float_bytes(c,false)));
+		write(new String(_float_bytes(c,false)));
 	}
 
 	public function writeFloatB( c : Float ) {
-		writeBytes(new String(_float_bytes(c,true)));
+		write(new String(_float_bytes(c,true)));
 	}
 
 	public function writeDouble( c : Float ) {
-		writeBytes(new String(_double_bytes(c,false)));
+		write(new String(_double_bytes(c,false)));
 	}
 
 	public function writeDoubleB( c : Float ) {
-		writeBytes(new String(_double_bytes(c,true)));
+		write(new String(_double_bytes(c,true)));
 	}
 
 	public function writeInt8( c : Int ) {

@@ -36,7 +36,7 @@ class StringOutput extends Output {
 		b.addChar(c);
 	}
 
-	public override function write( buf, bpos, blen ) : Int {
+	public override function writeBytes( buf, bpos, blen ) : Int {
 		b.addSub(buf,bpos,blen);
 		return blen;
 	}
