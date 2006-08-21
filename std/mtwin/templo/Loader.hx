@@ -26,7 +26,7 @@
 package mtwin.templo;
 
 import neko.Sys;
-import neko.File;
+import neko.io.File;
 import neko.FileSystem;
 
 class Loader {
@@ -69,7 +69,7 @@ class Loader {
 		else
 			result = Sys.command("temploc -m "+BASE_DIR+MACROS+" -o "+TMP_DIR+" -r "+BASE_DIR+" "+path+" 2> "+TMP_DIR+"temploc.out");
 		if( result != 0 )
-			throw "temploc compilation or "+path+" failed : "+neko.File.getContent(Loader.TMP_DIR+"temploc.out");
+			throw "temploc compilation or "+path+" failed : "+neko.io.File.getContent(Loader.TMP_DIR+"temploc.out");
 	}
 
 	static function loadTemplate( nPath:String ) : Dynamic -> String {
