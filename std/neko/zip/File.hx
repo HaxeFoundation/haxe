@@ -27,17 +27,20 @@ package neko.zip;
 typedef ZipEntry = {
 	var fileName : String;
 	var fileSize : Int;
-	var compressedData : String;
+	var compressed : Bool;
+	var data : String;
 }
 
 class File {
 
 	public static function unzip( f : ZipEntry ) : String {
+		if( !f.compressed )
+			return f.data;
 		var c = new Uncompress(-15);
 		var s = neko.Lib.makeString(f.fileSize);
-		var r = c.run(f.compressedData,0,s,0);
+		var r = c.run(f.data,0,s,0);
 		c.close();
-		if( !r.done || r.read != f.compressedData.length || r.write != f.fileSize )
+		if( !r.done || r.read != f.data.length || r.write != f.fileSize )
 			throw "Invalid compressed data for "+f.fileName;
 		return s;
 	}
@@ -51,21 +54,28 @@ class File {
 				break;
 			if( h != 0x04034B50 )
 				throw "Invalid Zip Data";
-			data.skip(18);
+			var version = data.readUInt16();
+			var flags = data.readUInt16();
+			if( flags != 0 )
+				throw "Unsupported flags "+flags;
+			var compression = data.readUInt16();
+			var compressed = (compression != 0);
+			if( compressed && compression != 8 )
+				throw "Unsupported compression "+compression;
+			var lastmodTime = data.readUInt16();
+			var lastmodDate = data.readUInt16();
+			var crc32 = data.read(4);
 			var csize = data.readInt32();
-			data.skip(4);
 			var usize = data.readInt32();
-			data.skip(4);
 			var fnamelen = data.readInt16();
-			data.skip(2);
 			var elen = data.readInt16();
-			data.skip(2);
 			var fname = data.read(fnamelen);
 			data.skip(elen);
 			l.add({
 				fileName : fname,
 				fileSize : usize,
-				compressedData : data.read(csize)
+				compressed : compressed,
+				data : data.read(csize)
 			});
 		}
 		return l;
