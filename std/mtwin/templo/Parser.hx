@@ -494,7 +494,7 @@ class Parser {
 					
 				case states.string:
 					if (c == "\\" && n == "'"){ 
-						result.add("\\'");
+						result.add("'");
 						skip = true;
 						++i; 
 					}
