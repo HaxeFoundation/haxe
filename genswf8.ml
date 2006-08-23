@@ -1410,11 +1410,14 @@ let generate file ver header infile types hres =
 		else
 			[]
 	in
+	let sandbox() =
+		tag (TSandbox (if ver = 9 then SBUnknown 8 else SBLocal))
+	in
 	let swf = (match infile with
 		| None ->
 			let header , bg = (match header with None -> default_header ver | Some h -> convert_header ver h) in
 			let tagbg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
-			let tagstart = (if ver >= 8 then [tag (TSandbox (if ver = 9 then SBUnknown 8 else SBLocal));tagbg] else [tagbg]) in
+			let tagstart = (if ver >= 8 then [sandbox();tagbg] else [tagbg]) in
 			let tagshow = tag TShowFrame in
 			(header,tagstart @ tagclips() @ tag_code @ [tagshow])
 		| Some file ->
@@ -1429,6 +1432,7 @@ let generate file ver header infile types hres =
 					h , Some tagbg
 			) in
 			IO.close_in ch;
+			let no_sandbox = ref true in
 			let rec loop = function
 				| [] ->
 					failwith ("Frame 1 not found in " ^ file)
@@ -1458,11 +1462,14 @@ let generate file ver header infile types hres =
 						t :: loop l
 					end;
 				| ({ tdata = TSandbox s } as t) :: l when ver = 9 ->
+					no_sandbox := false;
 					{ t with tdata = TSandbox (SBUnknown 8) } :: loop l
 				| t :: l ->
 					t :: loop l
 			in
-			(header , loop swf)
+			let tags = loop swf in
+			let tags = (if !no_sandbox && ver >= 8 then sandbox() :: tags else tags) in
+			(header , tags)
 	) in
 	let ch = IO.output_channel (open_out_bin file) in
 	Swf.write ch swf;
