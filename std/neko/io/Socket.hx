@@ -64,7 +64,14 @@ class Socket {
 	}
 
 	public function connect(host : Host, port : Int) {
-		socket_connect(__s, host, port);
+		try {
+			socket_connect(__s, host, port);
+		} catch( s : String ) {
+			if( s == "std@socket_connect" )
+				throw "Failed to connect on "+reverse(host)+":"+port;
+			else
+				neko.Lib.rethrow(s);
+		}
 	}
 
 	public function listen(connections : Int) {
