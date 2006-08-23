@@ -25,15 +25,12 @@
 package neko.io;
 
 /**
-	The possible IO errors that can occur
+	This exception is raised when reading while data is no longer available in the [Input].
 **/
-enum Error {
-	/** The IO is set into nonblocking mode and some data cannot be read or written **/
-	Blocked;
-	/** An operation has occured while the Input or Output has already been closed **/
-	Closed;
-	/** An operation is outside of its valid range **/
-	Overflow;
-	/** Other errors **/
-	Custom( e : Dynamic );
+class Eof {
+	public function new() {
+	}
+	function toString() {
+		return "Eof";
+	}
 }

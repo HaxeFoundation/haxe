@@ -373,29 +373,37 @@ class Http {
 		api.prepare(size);
 		if( size == null ) {
 			sock.shutdown(false,true);
-			while( true ) {
-				var len = sock.input.readBytes(buf,0,bufsize);
-				if( len == 0 )
-					break;
-				if( chunked ) {
-					if( !readChunk(chunk_re,api,buf,len) )
-						break;
-				} else
-					api.writeBytes(buf,0,len);
+			try {
+				while( true ) {
+					var len = sock.input.readBytes(buf,0,bufsize);
+					if( chunked ) {
+						if( !readChunk(chunk_re,api,buf,len) )
+							break;
+					} else
+						api.writeBytes(buf,0,len);
+				}
+			} catch( e : neko.io.Eof ) {
+			} catch( e : Dynamic ) {
+				onError(e);
+				return;
 			}
 		} else {
-			while( size > 0 ) {
-				var len = sock.input.readBytes(buf,0,if( size > bufsize ) bufsize else size);
-				if( len == 0 ) {
-					onError("Transfert aborted");
-					return;
+			try {
+				while( size > 0 ) {
+					var len = sock.input.readBytes(buf,0,if( size > bufsize ) bufsize else size);
+					if( chunked ) {
+						if( !readChunk(chunk_re,api,buf,len) )
+							break;
+					} else
+						api.writeBytes(buf,0,len);
+					size -= len;
 				}
-				if( chunked ) {
-					if( !readChunk(chunk_re,api,buf,len) )
-						break;
-				} else
-					api.writeBytes(buf,0,len);
-				size -= len;
+			} catch( e : neko.io.Eof ) {
+				onError("Transfert aborted");
+				return;
+			} catch( e : Dynamic ) {
+				onError(e);
+				return;
 			}
 		}
 		if( chunked && (chunk_size != null || chunk_buf != null) ) {

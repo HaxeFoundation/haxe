@@ -40,7 +40,7 @@ class StringInput extends Input {
 
 	public override function readChar() {
 		if( this.len == 0 )
-			throw Error.Eof;
+			throw new Eof();
 		var c = untyped __dollar__sget(s.__s,pos);
 		pos += 1;
 		len -= 1;
@@ -49,7 +49,7 @@ class StringInput extends Input {
 
 	public override function readBytes( buf : String, bpos, blen ) : Int {
 		if( len == 0 && blen > 0 )
-			throw Error.Eof;
+			throw new Eof();
 		if( len < blen )
 			blen = len;
 		untyped __dollar__sblit(buf.__s,bpos,s.__s,pos,blen);

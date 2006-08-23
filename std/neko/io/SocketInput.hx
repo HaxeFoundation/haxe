@@ -39,20 +39,26 @@ class SocketInput extends Input {
 		} catch( e : Dynamic ) {
 			if( e == "Blocking" )
 				throw Error.Blocked;
+			else if( __s == null )
+				throw Error.Custom(e);
 			else
-				throw Error.Eof; // might also be closed socket
+				throw new Eof();
 		}
 	}
 
 	public override function readBytes( buf : String, pos : Int, len : Int ) : Int {
-		return try {
-			socket_recv(__s,untyped buf.__s,pos,len);
+		var r;
+		try {
+			r = socket_recv(__s,untyped buf.__s,pos,len);
 		} catch( e : Dynamic ) {
 			if( e == "Blocking" )
 				throw Error.Blocked;
 			else
-				throw Error.Eof; // might also be closed socket or invalid param...
+				throw Error.Custom(e);
 		}
+		if( r == 0 )
+			throw new Eof();
+		return r;
 	}
 
 	public override function close() {

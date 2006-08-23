@@ -41,7 +41,7 @@ class FileInput extends Input {
 			file_read_char(__f);
 		} catch( e : Dynamic ) {
 			if( untyped __dollar__typeof(e) == __dollar__tarray )
-				throw Error.Eof;
+				throw new Eof();
 			else
 				throw Error.Custom(e);
 		}
@@ -52,7 +52,7 @@ class FileInput extends Input {
 			file_read(__f,untyped s.__s,p,l);
 		} catch( e : Dynamic ) {
 			if( untyped __dollar__typeof(e) == __dollar__tarray )
-				throw Error.Eof;
+				throw new Eof();
 			else
 				throw Error.Custom(e);
 		}

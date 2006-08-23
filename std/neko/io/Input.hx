@@ -67,9 +67,7 @@ class Input {
 					throw Error.Blocked;
 				total.addSub(buf,0,len);
 			}
-		} catch( e : Error ) {
-			if( e != Error.Eof )
-				neko.Lib.rethrow(e);
+		} catch( e : Eof ) {
 		}
 		return total.toString();
 	}
