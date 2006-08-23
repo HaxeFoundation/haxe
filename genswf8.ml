@@ -1397,12 +1397,19 @@ let generate file ver header infile types hres =
 			]
 	) in
 	let movieclips = ref movieclips in
+	let f9clips = ref [{ f9_cid = None; f9_classname = "flash.Boot" }] in
 	let tagclips() = List.fold_left (fun acc m ->
 		incr base_id;
 		tag ~ext:true (TClip { c_id = !base_id; c_frame_count = 1; c_tags = [] }) ::
 		tag ~ext:true (TExport [{ exp_id = !base_id; exp_name = s_type_path m }]) ::
 		acc
 	) [] (!movieclips) in
+	let tagclips9() = 
+		if ver = 9 then
+			[tag (TF9Classes !f9clips)]
+		else
+			[]
+	in
 	let swf = (match infile with
 		| None ->
 			let header , bg = (match header with None -> default_header ver | Some h -> convert_header ver h) in
@@ -1437,14 +1444,22 @@ let generate file ver header infile types hres =
 					| None -> t :: loop l
 					| Some bg -> bg :: loop l)
 				| ({ tdata = TShowFrame } as t) :: l ->
-					tagclips() @ tag_code @ t :: l
-				| t :: l ->
-					(match t.tdata with
-					| TExport l ->
+					tagclips() @ tag_code @ tagclips9() @ t :: l
+				| ({ tdata = TExport el } as t) :: l ->
+					if ver = 9 then begin
+						List.iter (fun e ->
+							f9clips := { f9_cid = Some e.exp_id; f9_classname = e.exp_name } :: !f9clips
+						) el;
+						loop l
+					end else begin
 						List.iter (fun e ->
 							movieclips := List.filter (fun x -> s_type_path x <> e.exp_name) (!movieclips)
-						) l
-					| _ -> ());
+						) el;
+						t :: loop l
+					end;
+				| ({ tdata = TSandbox s } as t) :: l when ver = 9 ->
+					{ t with tdata = TSandbox (SBUnknown 8) } :: loop l
+				| t :: l ->
 					t :: loop l
 			in
 			(header , loop swf)
