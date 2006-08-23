@@ -3,29 +3,74 @@ package tools.haxlib;
 class SiteProxy extends haxe.remoting.Proxy<tools.haxlib.SiteApi> {
 }
 
+class Progress extends neko.io.Output {
+
+	var o : neko.io.Output;
+	var cur : Int;
+	var max : Int;
+
+	public function new(o) {
+		this.o = o;
+		cur = 0;
+	}
+
+	function bytes(n) {
+		cur += n;
+		if( max == null )
+			neko.Lib.print(cur+" bytes\r");
+		else
+			neko.Lib.print(cur+"/"+max+" ("+Std.int((cur*100.0)/max)+"%)\r");
+	}
+
+	public override function writeChar(c) {
+		o.writeChar(c);
+		bytes(1);
+	}
+
+	public override function writeBytes(s,p,l) {
+		var r = o.writeBytes(s,p,l);
+		bytes(r);
+		return r;
+	}
+
+	public override function close() {
+		o.close();
+		neko.Lib.print("Done                          \n");
+	}
+
+	public override function prepare(m) {
+		max = m;
+	}
+
+}
+
 class Main {
 
 	static var VERSION = 100;
 	static var SERVER = {
 		host : "localhost",
 		port : 2000,
+		dir : "",
 		url : "index.n"
 	};
 
 	var argcur : Int;
 	var args : Array<String>;
 	var commands : List<{ name : String, doc : String, f : Void -> Void }>;
+	var siteUrl : String;
 	var site : SiteProxy;
 
 	function new() {
 		argcur = 1;
 		args = neko.Sys.args();
 		commands = new List();
+		addCommand("install",install,"install a given library");
 		addCommand("search",search,"list libraries matching a word");
 		addCommand("infos",infos,"list informations on a given library");
 		addCommand("user",user,"list informations on a given user");
 		addCommand("submit",submit,"submit or update a library package");
-		site = new SiteProxy(haxe.remoting.Connection.urlConnect("http://"+SERVER.host+":"+SERVER.port+"/"+SERVER.url).api);
+		siteUrl = "http://"+SERVER.host+":"+SERVER.port+"/"+SERVER.dir;
+		site = new SiteProxy(haxe.remoting.Connection.urlConnect(siteUrl+SERVER.url).api);
 	}
 
 	function param( name ) {
@@ -74,8 +119,8 @@ class Main {
 	}
 
 	function infos() {
-		var prj = param("Library name");
-		var inf = site.infos(prj);
+		var lib = param("Library name");
+		var inf = site.infos(lib);
 		print("Name: "+inf.name);
 		print("Desc: "+inf.desc);
 		print("Website: "+inf.url);
@@ -144,7 +189,7 @@ class Main {
 		while( pos < data.length ) {
 			s.write(data.substr(pos,bufsize));
 			pos += bufsize;
-			neko.Lib.print( Std.int((pos * 100) / data.length) + "%\r" );
+			neko.Lib.print( Std.int((pos * 100.0) / data.length) + "%\r" );
 		}
 		s.shutdown(false,true);
 		s.input.readAll();
@@ -152,6 +197,38 @@ class Main {
 
 		var msg = site.processSubmit(id,password);
 		print(msg);
+	}
+
+	function install() {
+		var lib = param("Library name");
+		var inf = site.infos(lib);
+		if( inf.curversion == null )
+			throw "This project has not yet released a version";
+		var version = if( args.length > argcur ) args[argcur++] else inf.curversion;
+		var found = false;
+		for( v in inf.versions )
+			if( v.name == version ) {
+				found = true;
+				break;
+			}
+		if( !found )
+			throw "No such version "+version;
+
+		// download to temporary file
+		var filename = Datas.fileName(inf.name,version);
+		var out = neko.io.File.write(filename,true);
+		var progress = new Progress(out);
+		var h = new haxe.Http(siteUrl+Datas.REPOSITORY+"/"+filename);
+		h.onError = function(e) {
+			progress.close();
+			neko.FileSystem.deleteFile(filename);
+			throw e;
+		};
+		print("Downloading "+filename+"...");
+		h.asyncRequest(false,progress);
+
+		// end
+		// neko.FileSystem.deleteFile(filename);
 	}
 
 	// ----------------------------------
