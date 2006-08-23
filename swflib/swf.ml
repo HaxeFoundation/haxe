@@ -497,6 +497,11 @@ type edit_text = {
 	edt_outlines : bool;
 }
 
+type f9class = {
+	mutable f9_cid : int option;
+	f9_classname : string;
+}
+
 type sandbox =
 	| SBLocal
 	| SBNetwork
@@ -540,7 +545,7 @@ type tag_data =
 	| TFontGlyphs of font_glyphs
 	| TTextInfo of unknown
 	| TFont3 of font3
-	| TSwf9Name of (int * string) list
+	| TF9Classes of f9class list
 	| TActionScript3 of (int * string) option * As3.as3_tag
 	| TShape4 of shape
 	| TShape5 of int * string
