@@ -549,6 +549,7 @@ type tag_data =
 	| TActionScript3 of (int * string) option * As3.as3_tag
 	| TShape4 of shape
 	| TShape5 of int * string
+	| TF9Scene of string
 	| TUnknown of int * unknown
 
 and tag = {

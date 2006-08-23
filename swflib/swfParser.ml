@@ -374,6 +374,8 @@ let rec tag_data_length = function
 		shape_length s
 	| TShape5 (_,s) ->
 		2 + String.length s
+	| TF9Scene name ->
+		2 + String.length name + 1 + 1
 	| TUnknown (_,data) ->
 		String.length data
 
@@ -1271,6 +1273,13 @@ let rec parse_tag ch h =
 		| 0x54 when !full_parsing ->
 			let id = read_ui16 ch in
 			TShape5 (id,nread ch (len - 2))
+		| 0x56 ->
+			let n = read_ui16 ch in
+			if n <> 1 then assert false;
+			let name = read_string ch in
+			let k = read_byte ch in
+			if k <> 0 then assert false; 
+			TF9Scene name
 		| _ ->
 			(*if !Swf.warnings then Printf.printf "Unknown tag 0x%.2X\n" id;*)
 			TUnknown (id,nread ch len)
@@ -1357,6 +1366,7 @@ let rec tag_id = function
 	| TActionScript3 _ -> 0x52
 	| TShape4 _ -> 0x53
 	| TShape5 _ -> 0x54
+	| TF9Scene _ -> 0x56
 	| TUnknown (id,_) -> id
 
 let write_clip_event ch c =
@@ -1765,6 +1775,10 @@ let rec write_tag_data ch = function
 	| TShape5 (id,s) ->
 		write_ui16 ch id;
 		nwrite ch s
+	| TF9Scene s ->
+		write_ui16 ch 1;
+		write_string ch s;
+		write_byte ch 0;
 	| TUnknown (_,data) ->
 		nwrite ch data
 
