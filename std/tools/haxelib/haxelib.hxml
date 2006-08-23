@@ -1,0 +1,8 @@
+-main tools.haxlib.Site
+-neko index.n
+
+--next
+
+-main tools.haxlib.Main
+-neko haxlib.n
+-cmd nekotools boot haxlib.n
