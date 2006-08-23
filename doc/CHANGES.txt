@@ -11,6 +11,7 @@
 	fixed neko native serialization problems
 	variable modification does not have side effects in 'for x in a...b'
 	jit disabled by default for neko web server
+	enable flash7-8 libraries usage from flash9
 
 2006-08-16: 1.05
 	moved Md5 to haxe package.
