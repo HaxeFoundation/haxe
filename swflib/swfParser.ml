@@ -1769,7 +1769,13 @@ let rec write_tag_data ch = function
 			write_string ch c.f9_classname
 		) l		
 	| TActionScript3 (id,a) ->
-		As3parse.write ch a id
+		(match id with
+		| None -> ()
+		| Some (id,frame) ->
+			write_i32 ch id;
+			write_string ch frame;
+		);
+		As3parse.write ch a
 	| TShape4 s ->
 		write_shape ch s
 	| TShape5 (id,s) ->
