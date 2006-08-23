@@ -1368,7 +1368,7 @@ let generate types hres =
 		as3_functions = lookup_array ctx.functions;
 		as3_unknown = "";
 	} in
-	[Swf.TActionScript3 (None,a); Swf.TSwf9Name [0,"flash.Boot"]]
+	[Swf.TActionScript3 (Some (0,""),a)]
 
 
 (* ----------------------------------------------------------------------------------------
