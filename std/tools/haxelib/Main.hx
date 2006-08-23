@@ -69,25 +69,23 @@ class Main {
 		var word = param("Search word");
 		var l = site.search(word);
 		for( s in l )
-			print(s.fullname+" ("+s.name+")");
+			print(s.name);
 		print(l.length+" libraries found");
 	}
 
 	function infos() {
 		var prj = param("Library name");
 		var inf = site.infos(prj);
-		print("Id: "+inf.name);
-		print("Name: "+inf.fullname);
-		print("Dec: "+inf.desc);
+		print("Name: "+inf.name);
+		print("Desc: "+inf.desc);
 		print("Website: "+inf.url);
 		print("Owner: "+inf.owner);
-		print("Versions: ");
+		print("Version: "+inf.curversion);
+		print("Releases: ");
 		if( inf.versions.length == 0 )
 			print("  (no version released yet)");
-		for( v in inf.versions ) {
-			var cur = if( v.name == inf.curversion ) " *" else "  ";
-			print(cur+v.name+" : "+v.comments);
-		}
+		for( v in inf.versions )
+			print("   "+v.date+" "+v.name+" : "+v.comments);
 	}
 
 	function user() {
@@ -118,15 +116,7 @@ class Main {
 		var file = param("Package");
 		var data = neko.io.File.getContent(file);
 		var zip = neko.zip.File.read(new neko.io.StringInput(data));
-		var xmldata = null;
-		for( f in zip )
-			if( StringTools.endsWith(f.fileName,Datas.XML) ) {
-				xmldata = neko.zip.File.unzip(f);
-				break;
-			}
-		if( xmldata == null )
-			throw Datas.XML+" not found in package";
-		var infos = Datas.readInfos(xmldata);
+		var infos = Datas.readInfos(zip);
 		var password;
 		site.checkLibOwner(infos.lib,infos.user);
 		if( site.isNewUser(infos.user) )
@@ -150,6 +140,7 @@ class Main {
 		s.write("\r\n");
 		var pos = 0;
 		var bufsize = 1;
+		print("Sending data.... ");
 		while( pos < data.length ) {
 			s.write(data.substr(pos,bufsize));
 			pos += bufsize;
@@ -157,10 +148,10 @@ class Main {
 		}
 		s.shutdown(false,true);
 		s.input.readAll();
-		neko.Lib.print("Done!\n");
 		s.close();
 
-		site.processSubmit(id,password);
+		var msg = site.processSubmit(id,password);
+		print(msg);
 	}
 
 	// ----------------------------------

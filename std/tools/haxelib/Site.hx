@@ -7,8 +7,8 @@ class Site {
 
 	static var CWD = neko.Web.getCwd();
 	static var DB_FILE = CWD+"haxlib.db";
-	public static var TMP_DIR = CWD+"tmp/";
-	public static var REP_DIR = CWD+"files/";
+	public static var TMP_DIR = CWD+"tmp";
+	public static var REP_DIR = CWD+Datas.REPOSITORY;
 
 	static function setup() {
 		SiteDb.create(db);
@@ -23,9 +23,11 @@ class Site {
 	static function run() {
 		if( !neko.FileSystem.exists(TMP_DIR) )
 			neko.FileSystem.createDirectory(TMP_DIR);
+		if( !neko.FileSystem.exists(REP_DIR) )
+			neko.FileSystem.createDirectory(REP_DIR);
 
 		var server = new haxe.remoting.Server();
-		var log = neko.io.File.write(TMP_DIR+"log.txt",false);
+		var log = neko.io.File.append(TMP_DIR+"/log.txt",false);
 		var api =
 		server.setPrivatePrefix("db");
 		server.setLogger(log.write);
@@ -41,7 +43,7 @@ class Site {
 		}
 		var sid = Std.parseInt(neko.Web.getParams().get("submit"));
 		if( sid != null ) {
-			var file = neko.io.File.write(TMP_DIR+sid,true);
+			var file = neko.io.File.write(TMP_DIR+"/"+sid+".tmp",true);
 			var data = neko.Web.getPostData();
 			file.write(data);
 			file.close();

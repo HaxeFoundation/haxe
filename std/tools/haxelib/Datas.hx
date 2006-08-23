@@ -1,5 +1,7 @@
 package tools.haxlib;
 
+import neko.zip.File;
+
 typedef UserInfos = {
 	var name : String;
 	var fullname : String;
@@ -8,13 +10,13 @@ typedef UserInfos = {
 }
 
 typedef VersionInfos = {
+	var date : String;
 	var name : String;
 	var comments : String;
 }
 
 typedef LibraryInfos = {
 	var name : String;
-	var fullname : String;
 	var desc : String;
 	var url : String;
 	var owner : String;
@@ -34,7 +36,11 @@ typedef XmlInfos = {
 class Datas {
 
 
-	public static var XML = "haxlib.xml";
+	static var XML = "haxlib.xml";
+
+	public static var REPOSITORY = "files";
+	public static var alphanum = ~/^[A-Za-z0-9_.-]+$/;
+
 
 	static function requiredAttribute( x : Xml, name ) {
 		var v = x.get(name);
@@ -57,14 +63,32 @@ class Datas {
 		return v.nodeValue;
 	}
 
-	public static function readInfos( xmldata : String ) : XmlInfos {
+	public static function fileName( lib : String, ver : String ) {
+		return lib.split(".").join("-")+"-"+ver.split(".").join("-")+".zip";
+	}
+
+	public static function readInfos( zip : List<ZipEntry> ) : XmlInfos {
+		var xmldata = null;
+		for( f in zip )
+			if( StringTools.endsWith(f.fileName,XML) ) {
+				xmldata = neko.zip.File.unzip(f);
+				break;
+			}
+		if( xmldata == null )
+			throw XML+" not found in package";
 		var x = Xml.parse(xmldata).firstElement();
 		var lib = requiredAttribute(x,"name");
+		if( lib.length < 3 || !alphanum.match(lib) )
+			throw "Library name must contain at least 3 characters and only AZaz09_.- characters";
 		var url = requiredAttribute(x,"url");
 		var user = requiredAttribute(requiredNode(x,"user"),"name");
+		if( user.length < 3 || !alphanum.match(user) )
+			throw "User name must contain at least 3 characters and only AZaz09_.- characters";
 		var desc = requiredText(requiredNode(x,"description"));
 		var vnode = requiredNode(x,"version");
 		var version = requiredAttribute(vnode,"name");
+		if( version.length < 1 || !alphanum.match(version) )
+			throw "Version name must contain at least 1 character and only AZaz09_.- characters";
 		var vdesc = requiredText(vnode);
 		return {
 			lib : lib,
