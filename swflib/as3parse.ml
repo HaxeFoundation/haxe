@@ -783,7 +783,7 @@ let write_function ch f =
 	write_list2 ch write_try_catch f.fun3_trys;
 	write_list2 ch write_field f.fun3_locals
 
-let write ch1 ctx id =
+let write ch1 ctx =
 	let ch = IO.output_string() in
 	let empty_index = as3_empty_index ctx in
 	IO.write_i32 ch header_magic;
