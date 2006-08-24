@@ -74,7 +74,7 @@ class TestRunner {
 		#end
 	}
 
-	private static function customTrace( v, p : haxe.PosInfos ) {
+	private static function customTrace( v, ?p : haxe.PosInfos ) {
 		print(p.fileName+":"+p.lineNumber+": "+Std.string(v)+"\n");
 	}
 
