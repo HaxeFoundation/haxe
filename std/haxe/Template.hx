@@ -350,7 +350,7 @@ class Template {
 			} catch( e : Dynamic ) {
 				var msg = "Macro call "+m+" failed ("+Std.string(e)+")";
 				#if neko
-				untyped __dollar__rethrow(msg);
+				neko.Lib.rethrow(msg);
 				#else true
 				throw msg;
 				#end
