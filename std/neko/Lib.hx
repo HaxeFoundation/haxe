@@ -58,6 +58,67 @@ class Lib {
 		untyped __dollar__sblit(dst.__s,dst_pos,src.__s,src_pos,len);
 	}
 
+	public static function nekoToHaxe( v : Dynamic ) : Dynamic untyped {
+		switch( __dollar__typeof(v) ) {
+		case __dollar__tnull: return v;
+		case __dollar__tint: return v;
+		case __dollar__tfloat: return v;
+		case __dollar__tbool: return v;
+		case __dollar__tstring: return new String(v);
+		case __dollar__tarray:
+			var a = Array.new1(v,__dollar__asize(v));
+			for( i in 0...a.length )
+				a[i] = nekoToHaxe(a[i]);
+			return a;
+		case __dollar__tobject:
+			var f = __dollar__objfields(v);
+			var i = 0;
+			var l = __dollar__asize(f);
+			var o = __dollar__new(v);
+			if( __dollar__objgetproto(f) != null )
+				throw "Can't convert object prototype";
+			while( i < l ) {
+				__dollar__objset(o,f[i],nekoToHaxe(__dollar__objget(v,f[i])));
+				i += 1;
+			}
+			return o;
+		default:
+			throw "Can't convert "+string(v);
+		}
+	}
+
+	public static function haxeToNeko( v : Dynamic ) : Dynamic untyped {
+		switch( __dollar__typeof(v) ) {
+		case __dollar__tnull: return v;
+		case __dollar__tint: return v;
+		case __dollar__tfloat: return v;
+		case __dollar__tbool: return v;
+		case __dollar__tobject:
+			var cl = v.__class__;
+			if( cl == String )
+				return v.__s;
+			if( cl == Array ) {
+				var a = untyped __dollar__amake(v.length);
+				for( i in 0...a.length )
+					a[i] = haxeToNeko(v[i]);
+				return a;
+			}
+			if( cl != null || __dollar__objgetproto(v) != null )
+				throw "Can't convert "+string(v);
+			var f = __dollar__objfields(v);
+			var i = 0;
+			var l = __dollar__asize(f);
+			var o = __dollar__new(v);
+			while( i < l ) {
+				__dollar__objset(o,f[i],haxeToNeko(__dollar__objget(v,f[i])));
+				i += 1;
+			}
+			return o;
+		default:
+			throw "Can't convert "+string(v);
+		}
+	}
+
 	static var __serialize = load("std","serialize",1);
 	static var __unserialize = load("std","unserialize",2);
 
