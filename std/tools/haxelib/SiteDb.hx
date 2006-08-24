@@ -1,4 +1,4 @@
-package tools.haxlib;
+package tools.haxelib;
 
 class User extends neko.db.Object {
 

@@ -1,6 +1,6 @@
 #
 # compile DocView service
 #
--main tools.DocView
+-main tools.haxedoc.Main
 -neko haxedoc.n
 -cmd nekotools boot haxedoc.n

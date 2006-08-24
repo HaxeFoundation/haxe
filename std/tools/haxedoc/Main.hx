@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package tools;
+package tools.haxedoc;
 
 import neko.Lib;
 import neko.Web;
@@ -341,7 +341,7 @@ private enum DocEntry {
 	epackage( name : String, fullname : Array<String>, childs : Array<DocEntry> );
 }
 
-class DocView {
+class Main {
 
 	static var entries = new Array();
 
@@ -445,6 +445,8 @@ class DocView {
 					continue;
 				}
 				var l = Lambda.array(m.elements());
+				var last = l[l.length-1];
+				var doc = if( last == null || last.nodeName != "haxe:doc" ) null else docFormat(l.pop().firstChild().nodeValue);
 				var t = if( m.get("a") == null ) null else {
 					var names = m.get("a").split(":");
 					var params = Lambda.amap(names,function(name) {
@@ -456,6 +458,7 @@ class DocView {
 					tconstr(params);
 				}
 				var f = new DocField(m.nodeName,false,t,c);
+				f.doc = doc;
 				c.fields.push(f);
 			}
 		default:

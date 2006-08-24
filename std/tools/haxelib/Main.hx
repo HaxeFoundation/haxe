@@ -1,6 +1,6 @@
-package tools.haxlib;
+package tools.haxelib;
 
-class SiteProxy extends haxe.remoting.Proxy<tools.haxlib.SiteApi> {
+class SiteProxy extends haxe.remoting.Proxy<tools.haxelib.SiteApi> {
 }
 
 class Progress extends neko.io.Output {

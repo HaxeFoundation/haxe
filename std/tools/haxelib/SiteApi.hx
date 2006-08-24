@@ -1,6 +1,6 @@
-package tools.haxlib;
-import tools.haxlib.Datas;
-import tools.haxlib.SiteDb;
+package tools.haxelib;
+import tools.haxelib.Datas;
+import tools.haxelib.SiteDb;
 
 class SiteApi {
 

@@ -523,8 +523,6 @@ import neko.db.ResultSet;
 import neko.db.Sqlite;
 import neko.db.Transaction;
 
-import tools.DocView;
-
 #end
 
 #if js
@@ -535,3 +533,14 @@ import js.Dom;
 import js.XMLHttpRequest;
 
 #end
+
+// TOOLS
+
+#if neko
+
+import tools.haxedoc.Main;
+import tools.haxelib.Main;
+import tools.haxelib.Site;
+
+#end
+

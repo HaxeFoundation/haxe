@@ -1,12 +1,12 @@
-package tools.haxlib;
-import tools.haxlib.SiteDb;
+package tools.haxelib;
+import tools.haxelib.SiteDb;
 
 class Site {
 
 	static var db : neko.db.Connection;
 
 	static var CWD = neko.Web.getCwd();
-	static var DB_FILE = CWD+"haxlib.db";
+	static var DB_FILE = CWD+"haxelib.db";
 	public static var TMP_DIR = CWD+"tmp";
 	public static var REP_DIR = CWD+Datas.REPOSITORY;
 

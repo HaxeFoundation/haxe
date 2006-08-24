@@ -1,4 +1,4 @@
-package tools.haxlib;
+package tools.haxelib;
 
 import neko.zip.File;
 
@@ -36,7 +36,7 @@ typedef XmlInfos = {
 class Datas {
 
 
-	static var XML = "haxlib.xml";
+	static var XML = "haxelib.xml";
 
 	public static var REPOSITORY = "files";
 	public static var alphanum = ~/^[A-Za-z0-9_.-]+$/;

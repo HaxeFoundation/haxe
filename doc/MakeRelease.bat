@@ -10,14 +10,28 @@ cd haxe-release\std
 
 haxe all.hxml
 cd tools
-haxe docview.hxml
-haxedoc ../flash.xml ../neko.xml ../js.xml
-mv index.html content ../../doc
-mv haxedoc.exe ../..
+
+rem ---------- BUILD TOOLS -----------
+
+cd haxedoc
+haxe haxedoc.hxml
+haxedoc ../../flash.xml ../../neko.xml ../../js.xml
+mv index.html content ../../../doc
+mv haxedoc.exe ../../..
+cd ..
+
+cd haxelib
+haxe haxelib.hxml
+mv haxelib.exe ../../..
+cd ..
+
+rem ---------- DONE -----------
+
 cd ..
 
 rm -rf CVS .cvsignore */CVS */.cvsignore */*/CVS */*/.cvsignore */*/*/CVS */*/*/.cvsignore
-rm -rf all.n all.js *.swf *.xml tools/haxedoc.n tools/index.html tools/content tools/haxedoc.exe
+rm -rf all.n all.js *.swf *.xml 
+rm -rf tools/haxedoc/haxedoc.n tools/haxedoc/index.html tools/haxedoc/content tools/haxedoc/haxedoc.exe
 rm -rf mt mtwin
 
 cd ..\..\..\..\neko\bin
