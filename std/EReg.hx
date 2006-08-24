@@ -245,7 +245,8 @@ class EReg {
 			b.addSub(s,pos,p.pos-pos);
 			if( a.length > 0 )
 				b.add(a[0]);
-			for( i in 1...a.length ) {
+			var i = 1;
+			while( i < a.length ) {
 				var k = a[i];
 				var c = k.charCodeAt(0);
 				// 1...9
@@ -260,12 +261,13 @@ class EReg {
 					}
 				} else if( c == null ) {
 					b.add("$");
-					i += 1;
+					i++;
 					var k2 = a[i];
 					if( k2 != null && k2.length > 0 )
 						b.add(k2);
 				} else
 					b.add("$"+k);
+				i++;
 			}
 			var tot = p.pos + p.len - pos;
 			pos += tot;
