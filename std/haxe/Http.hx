@@ -340,15 +340,12 @@ class Http {
 		var rp = response.split(" ");
 		var status = Std.parseInt(rp[1]);
 
-		if( status == 0 || status == null ){
-			onError("Response status error");
-			return;
-		}
+		if( status == 0 || status == null )
+			throw "Response status error"
+
 		onStatus(status);
-		if( status < 200 || status >= 400 ){
-			onError("Http Error #"+status);
-			return;
-		}
+		if( status < 200 || status >= 400 )
+			throw "Http Error #"+status;
 
 		// remove the two lasts \r\n\r\n
 		headers.pop();
@@ -383,9 +380,6 @@ class Http {
 						api.writeBytes(buf,0,len);
 				}
 			} catch( e : neko.io.Eof ) {
-			} catch( e : Dynamic ) {
-				onError(e);
-				return;
 			}
 		} else {
 			try {
@@ -399,17 +393,11 @@ class Http {
 					size -= len;
 				}
 			} catch( e : neko.io.Eof ) {
-				onError("Transfert aborted");
-				return;
-			} catch( e : Dynamic ) {
-				onError(e);
-				return;
+				throw "Transfert aborted";
 			}
 		}
-		if( chunked && (chunk_size != null || chunk_buf != null) ) {
-			onError("Invalid chunk");
-			return;
-		}
+		if( chunked && (chunk_size != null || chunk_buf != null) )
+			throw "Invalid chunk";
 		api.close();
 	}
 
