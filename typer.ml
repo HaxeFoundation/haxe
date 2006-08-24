@@ -682,6 +682,26 @@ let unify_call_params ctx t el args p =
 		| ({ eexpr = TConst TNull },true) :: l -> no_opt l
 		| l -> List.map fst l
 	in
+	let rec default_value t =
+		let rec is_pos_infos = function
+			| TMono r ->
+				(match !r with
+				| Some t -> is_pos_infos t
+				| _ -> false)
+			| TLazy f ->
+				is_pos_infos (!f())
+			| TType ({ t_path = ["haxe"] , "PosInfos" },[]) ->
+				true
+			| _ ->
+				false
+		in
+		if is_pos_infos t then
+			let infos = mk_infos ctx p [] in
+			let e = (!type_expr_ref) ctx ~need_val:true infos in
+			(e, true)
+		else
+			(null p, true)
+	in
 	let rec loop acc l l2 =
 		match l , l2 with
 		| [] , [] ->
@@ -692,24 +712,8 @@ let unify_call_params ctx t el args p =
 		| [] , (_,false,_) :: _ ->
 			error true;
 			[]
-		| [] , (_,true,_) :: l ->
-			let rec follow2 t =
-				match t with
-				| TMono r ->
-					(match !r with
-					| Some t -> follow2 t
-					| _ -> t)
-				| TLazy f ->
-					follow2 (!f())
-				| _ -> t
-			in
-			(match follow2 t with
-			| TType ({ t_path = ["haxe"] , "PosInfos" },[]) ->
-				let infos = mk_infos ctx p [] in
-				let e = (!type_expr_ref) ctx ~need_val:true infos in
-				loop ((e,true) :: acc) [] l
-			| _ ->
-				loop ((null p,true) :: acc) [] l)
+		| [] , (_,true,t) :: l ->
+			loop (default_value t :: acc) [] l
 		| _ , [] ->
 			error false;
 			[]
@@ -720,7 +724,7 @@ let unify_call_params ctx t el args p =
 			with
 				Error (Unify ul,_) ->
 					if opt then
-						loop ((null p,true) :: acc) (e :: l) l2
+						loop (default_value t :: acc) (e :: l) l2
 					else
 						raise (Error (Stack (Unify ul,Custom ("For function argument '" ^ name ^ "'")), p))
 	in
