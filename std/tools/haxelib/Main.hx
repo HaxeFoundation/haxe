@@ -215,7 +215,8 @@ class Main {
 		var inf = site.infos(lib);
 		if( inf.curversion == null )
 			throw "This project has not yet released a version";
-		var version = if( args.length > argcur ) args[argcur++] else inf.curversion;
+		var reqversion = if( args.length > argcur ) args[argcur++] else null;
+		var version = if( reqversion != null ) reqversion else inf.curversion;
 		var found = false;
 		for( v in inf.versions )
 			if( v.name == version ) {
@@ -232,8 +233,13 @@ class Main {
 		safeDir(project);
 		project += "/";
 		var target = project+Datas.safe(version);
-		try neko.FileSystem.deleteDirectory(target) catch ( e : Dynamic ) { };
-		safeDir(target);
+		if( !safeDir(target) ) {
+			if( reqversion == null )
+				print(inf.name+" is up-to-date");
+			else
+				print("You already have "+inf.name+" version "+reqversion+" installed");
+			return;
+		}
 		target += "/";
 
 		// download to temporary file
@@ -312,8 +318,10 @@ class Main {
 		if( neko.FileSystem.exists(dir) ) {
 			if( !neko.FileSystem.isDirectory(dir) )
 				throw ("A file is preventing "+dir+" to be created");
-		} else
-			neko.FileSystem.createDirectory(dir);
+			return false;
+		}
+		neko.FileSystem.createDirectory(dir);
+		return true;
 	}
 
 	function getRepository( ?setup : Bool ) {
