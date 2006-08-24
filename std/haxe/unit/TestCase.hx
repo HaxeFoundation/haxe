@@ -37,7 +37,7 @@ class TestCase #if mt_build implements mt.Protect #end {
 	public function tearDown() : Void {
 	}
 
-	function assertTrue( b:Bool, c : PosInfos ) : Void {
+	function assertTrue( b:Bool, ?c : PosInfos ) : Void {
 		currentTest.done = true;
 		if (b == false){
 			currentTest.success = false;
@@ -47,7 +47,7 @@ class TestCase #if mt_build implements mt.Protect #end {
 		}
 	}
 
-	function assertFalse( b:Bool, c : PosInfos ) : Void {
+	function assertFalse( b:Bool, ?c : PosInfos ) : Void {
 		currentTest.done = true;
 		if (b == true){
 			currentTest.success = false;
@@ -57,7 +57,7 @@ class TestCase #if mt_build implements mt.Protect #end {
 		}
 	}
 
-	function assertEquals<T>( expected: T , actual: T,  c : PosInfos ) : Void 	{
+	function assertEquals<T>( expected: T , actual: T,  ?c : PosInfos ) : Void 	{
 		currentTest.done = true;
 		if (actual != expected){
 			currentTest.success = false;
