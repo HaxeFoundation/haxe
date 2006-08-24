@@ -13,6 +13,8 @@
 	jit disabled by default for neko web server
 	enable flash7-8 libraries usage from flash9
 	unknown identifier become "class not found" when representing a classpath
+	fixed bug in flash opt params
+	changed haxe.PosInfos handling
 
 2006-08-16: 1.05
 	moved Md5 to haxe package.
