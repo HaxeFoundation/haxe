@@ -8,10 +8,12 @@ class Progress extends neko.io.Output {
 	var o : neko.io.Output;
 	var cur : Int;
 	var max : Int;
+	var start : Float;
 
 	public function new(o) {
 		this.o = o;
 		cur = 0;
+		start = haxe.Timer.stamp();
 	}
 
 	function bytes(n) {
@@ -34,8 +36,13 @@ class Progress extends neko.io.Output {
 	}
 
 	public override function close() {
+		super.close();
 		o.close();
-		neko.Lib.print("Done                          \n");
+		var time = haxe.Timer.stamp() - start;
+		var speed = (cur / time) / 1024;
+		time = Std.int(time * 10) / 10;
+		speed = Std.int(speed * 10) / 10;
+		neko.Lib.print("Download complete : "+cur+" bytes in "+time+"s ("+speed+"KB/s)\n");
 	}
 
 	public override function prepare(m) {
@@ -47,6 +54,7 @@ class Progress extends neko.io.Output {
 class Main {
 
 	static var VERSION = 100;
+	static var REPNAME = "lib";
 	static var SERVER = {
 		host : "localhost",
 		port : 2000,
@@ -69,6 +77,7 @@ class Main {
 		addCommand("infos",infos,"list informations on a given library");
 		addCommand("user",user,"list informations on a given user");
 		addCommand("submit",submit,"submit or update a library package");
+		addCommand("setup",setup,"set the haxelib repository path");
 		siteUrl = "http://"+SERVER.host+":"+SERVER.port+"/"+SERVER.dir;
 		site = new SiteProxy(haxe.remoting.Connection.urlConnect(siteUrl+SERVER.url).api);
 	}
@@ -172,6 +181,7 @@ class Main {
 				throw "Invalid password for "+infos.user;
 		}
 
+		// query a submit id that will identify the file
 		var id = site.getSubmitId();
 
 		// directly send the file data over Http
@@ -195,6 +205,7 @@ class Main {
 		s.input.readAll();
 		s.close();
 
+		// ask the server to register the sent file
 		var msg = site.processSubmit(id,password);
 		print(msg);
 	}
@@ -214,21 +225,134 @@ class Main {
 		if( !found )
 			throw "No such version "+version;
 
+		var rep = getRepository();
+
+		// create/delete directories first
+		var project = rep+Datas.safe(inf.name);
+		safeDir(project);
+		project += "/";
+		var target = project+Datas.safe(version);
+		try neko.FileSystem.deleteDirectory(target) catch ( e : Dynamic ) { };
+		safeDir(target);
+		target += "/";
+
 		// download to temporary file
 		var filename = Datas.fileName(inf.name,version);
-		var out = neko.io.File.write(filename,true);
+		var filepath = rep+filename;
+		var out = neko.io.File.write(filepath,true);
 		var progress = new Progress(out);
 		var h = new haxe.Http(siteUrl+Datas.REPOSITORY+"/"+filename);
 		h.onError = function(e) {
 			progress.close();
-			neko.FileSystem.deleteFile(filename);
+			neko.FileSystem.deleteFile(filepath);
 			throw e;
 		};
 		print("Downloading "+filename+"...");
 		h.asyncRequest(false,progress);
 
+		// read zip content
+		var f = neko.io.File.read(filepath,true);
+		var zip = neko.zip.File.read(f);
+		f.close();
+
+		// locate haxelib.xml base path
+		var basepath = null;
+		for( f in zip ) {
+			if( StringTools.endsWith(f.fileName,Datas.XML) ) {
+				basepath = f.fileName.substr(0,f.fileName.length - Datas.XML.length);
+				break;
+			}
+		}
+		if( basepath == null )
+			throw "No "+Datas.XML+" found";
+
+		// unzip content
+		for( zipfile in zip ) {
+			var n = zipfile.fileName;
+			if( StringTools.startsWith(n,basepath) ) {
+				// remove basepath
+				n = n.substr(basepath.length,n.length-basepath.length);
+				if( n.charAt(0) == "/" || n.charAt(0) == "\\" || n.split("..").length > 1 )
+					throw "Invalid filename : "+n;
+				var dirs = ~/[\/\\]/.split(n);
+				var path = "";
+				var file = dirs.pop();
+				for( d in dirs ) {
+					path += d;
+					safeDir(target+path);
+					path += "/";
+				}
+				if( file == "" ) {
+					if( path != "" ) print("  Created "+path);
+					continue; // was just a directory
+				}
+				path += file;
+				print("  Install "+path);
+				var data = neko.zip.File.unzip(zipfile);
+				var f = neko.io.File.write(target+path,true);
+				f.write(data);
+				f.close();
+			}
+		}
+
+		// set current version
+		if( version == inf.curversion ) {
+			var f = neko.io.File.write(project+".current",true);
+			f.write(version);
+			f.close();
+			print("  Current version is now "+version);
+		}
+
 		// end
-		// neko.FileSystem.deleteFile(filename);
+		neko.FileSystem.deleteFile(filepath);
+		print("Done");
+	}
+
+	function safeDir( dir ) {
+		if( neko.FileSystem.exists(dir) ) {
+			if( !neko.FileSystem.isDirectory(dir) )
+				throw ("A file is preventing "+dir+" to be created");
+		} else
+			neko.FileSystem.createDirectory(dir);
+	}
+
+	function getRepository( ?setup : Bool ) {
+		var sys = neko.Sys.systemName();
+		if( sys == "Windows" ) {
+			var haxepath = neko.Sys.getEnv("HAXEPATH");
+			if( haxepath == null )
+				throw "HAXEPATH environment variable not defined, please run haxesetup.exe first";
+			var rep = haxepath+REPNAME;
+			safeDir(rep);
+			return rep+"\\";
+		}
+		var rep = try
+			neko.io.File.getContent("~/.haxelib")
+		catch( e : Dynamic ) try
+			neko.io.File.getContent("/etc/.haxelib")
+		catch( e : Dynamic )
+			if( setup ) {
+				if( sys == "Linux" ) "/usr/lib/haxe/"+REPNAME else "/usr/local/lib/haxe/"+REPNAME;
+			} else
+				throw "This is the first time you are runing haxelib. Please run haxelib setup first";
+		if( setup ) {
+			print("Please enter haxelib repository path with write access");
+			print("Hit enter for default ("+rep+")");
+			var line = param("Path");
+			if( line != "" )
+				rep = line;
+			if( !neko.FileSystem.exists(rep) )
+				neko.FileSystem.createDirectory(rep);
+			var f = neko.io.File.write("~/.haxelib",true);
+			f.write(rep);
+			f.close();
+		}
+		return rep+"/";
+	}
+
+	function setup() {
+		var path = getRepository(true);
+		print("haxelib repository is now "+path);
 	}
 
 	// ----------------------------------
