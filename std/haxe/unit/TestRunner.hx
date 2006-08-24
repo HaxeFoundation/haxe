@@ -106,7 +106,7 @@ class TestRunner {
 		for ( f in fields ){
 			var fname = f;
 			var field = Reflect.field(t, f);
-			if (StringTools.startsWith(fname,__unprotect__("test")) && Reflect.isFunction(field) ){
+			if (#if !test_all_methods StringTools.startsWith(fname,"test") && #end Reflect.isFunction(field) ){
 				t.currentTest = new TestStatus();
 				t.currentTest.classname = Type.getClassName(cl);
 				t.currentTest.method = fname;
@@ -149,7 +149,7 @@ class TestRunner {
 					}
 					#else flash9
 					if( e != null && Std.is(e,untyped __global__["Error"] ) )
-						t.currentTest.backtrace = e.getStackTrace();					
+						t.currentTest.backtrace = e.getStackTrace();
 					#end
 				}
 				result.add(t.currentTest);
