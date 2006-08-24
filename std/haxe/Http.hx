@@ -341,7 +341,7 @@ class Http {
 		var status = Std.parseInt(rp[1]);
 
 		if( status == 0 || status == null )
-			throw "Response status error"
+			throw "Response status error";
 
 		onStatus(status);
 		if( status < 200 || status >= 400 )
