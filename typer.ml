@@ -677,55 +677,50 @@ let unify_call_params ctx t el args p =
 		let argstr = "Function require " ^ (if args = [] then "no argument" else "arguments : " ^ String.concat ", " (List.map format_arg args)) in
 		display_error ctx ((if flag then "Not enough" else "Too many") ^ " arguments\n" ^ argstr) p
 	in
-	let rec no_null = function
+	let rec no_opt = function
 		| [] -> []
-		| { eexpr = TConst TNull } :: l -> no_null l
-		| l -> l
+		| ({ eexpr = TConst TNull },true) :: l -> no_opt l
+		| l -> List.map fst l
 	in
 	let rec loop acc l l2 =
 		match l , l2 with
 		| [] , [] ->
-			if Plugin.defined "flash" then begin
-				List.rev (no_null acc)
-			end else
-				List.rev acc
-		| [] , [(_,false,t)] ->
+			if Plugin.defined "flash" || Plugin.defined "js" then
+				List.rev (no_opt acc)
+			else
+				List.rev (List.map fst acc)
+		| [] , (_,false,_) :: _ ->
 			error true;
-			loop (null p :: acc) [] []
-		| [] , (_,opt,_) :: l ->
-			if not opt then begin
-				error true;
-				List.rev acc
-			end else begin
-				let rec follow2 t =
-					match t with
-					| TMono r ->
-						(match !r with
-						| Some t -> follow2 t
-						| _ -> t)
-					| TLazy f ->
-						follow2 (!f())
-					| _ -> t
-				in
-				(match follow2 t with
-				| TType ({ t_path = ["haxe"] , "PosInfos" },[]) ->
-					let infos = mk_infos ctx p [] in
-					let e = (!type_expr_ref) ctx ~need_val:true infos in
-					loop (e :: acc) [] l
-				| _ ->
-					loop (null p :: acc) [] l)
-			end
+			[]
+		| [] , (_,true,_) :: l ->
+			let rec follow2 t =
+				match t with
+				| TMono r ->
+					(match !r with
+					| Some t -> follow2 t
+					| _ -> t)
+				| TLazy f ->
+					follow2 (!f())
+				| _ -> t
+			in
+			(match follow2 t with
+			| TType ({ t_path = ["haxe"] , "PosInfos" },[]) ->
+				let infos = mk_infos ctx p [] in
+				let e = (!type_expr_ref) ctx ~need_val:true infos in
+				loop ((e,true) :: acc) [] l
+			| _ ->
+				loop ((null p,true) :: acc) [] l)
 		| _ , [] ->
 			error false;
-			List.rev acc
+			[]
 		| e :: l, (name,opt,t) :: l2 ->
 			try
 				unify_raise ctx e.etype t e.epos;
-				loop (e :: acc) l l2
+				loop ((e,false) :: acc) l l2
 			with
 				Error (Unify ul,_) ->
 					if opt then
-						loop (null p :: acc) (e :: l) l2
+						loop ((null p,true) :: acc) (e :: l) l2
 					else
 						raise (Error (Stack (Unify ul,Custom ("For function argument '" ^ name ^ "'")), p))
 	in
