@@ -36,8 +36,7 @@ typedef XmlInfos = {
 class Datas {
 
 
-	static var XML = "haxelib.xml";
-
+	public static var XML = "haxelib.xml";
 	public static var REPOSITORY = "files";
 	public static var alphanum = ~/^[A-Za-z0-9_.-]+$/;
 
@@ -63,8 +62,12 @@ class Datas {
 		return v.nodeValue;
 	}
 
+	public static function safe( name : String ) {
+		return name.split(".").join("-");
+	}
+
 	public static function fileName( lib : String, ver : String ) {
-		return lib.split(".").join("-")+"-"+ver.split(".").join("-")+".zip";
+		return safe(lib)+"-"+safe(ver)+".zip";
 	}
 
 	public static function readInfos( zip : List<ZipEntry> ) : XmlInfos {
