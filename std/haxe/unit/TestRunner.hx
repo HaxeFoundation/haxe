@@ -106,7 +106,7 @@ class TestRunner {
 		for ( f in fields ){
 			var fname = f;
 			var field = Reflect.field(t, f);
-			if (#if !test_all_methods StringTools.startsWith(fname,"test") && #end Reflect.isFunction(field) ){
+			if ( StringTools.startsWith(fname,"test") && Reflect.isFunction(field) ){
 				t.currentTest = new TestStatus();
 				t.currentTest.classname = Type.getClassName(cl);
 				t.currentTest.method = fname;

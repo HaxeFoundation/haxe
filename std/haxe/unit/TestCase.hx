@@ -25,12 +25,12 @@
 package haxe.unit;
 import haxe.PosInfos;
 
-class TestCase {
+class TestCase #if mt_build implements mt.Protect #end {
 	public var currentTest : TestStatus;
 
 	public function new( ) {
 	}
-	
+
 	public function setup() : Void {
 	}
 
