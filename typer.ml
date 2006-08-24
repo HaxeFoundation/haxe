@@ -677,37 +677,44 @@ let unify_call_params ctx t el args p =
 		let argstr = "Function require " ^ (if args = [] then "no argument" else "arguments : " ^ String.concat ", " (List.map format_arg args)) in
 		display_error ctx ((if flag then "Not enough" else "Too many") ^ " arguments\n" ^ argstr) p
 	in
+	let rec no_null = function
+		| [] -> []
+		| { eexpr = TConst TNull } :: l -> no_null l
+		| l -> l
+	in
 	let rec loop acc l l2 =
 		match l , l2 with
 		| [] , [] ->
-			List.rev acc
+			if Plugin.defined "flash" then begin
+				List.rev (no_null acc)
+			end else
+				List.rev acc
 		| [] , [(_,false,t)] ->
-			let rec follow2 t =
-				match t with
-				| TMono r ->
-					(match !r with
-					| Some t -> follow2 t
-					| _ -> t)
-				| TLazy f ->
-					follow2 (!f())
-				| _ -> t
-			in
-			(match follow2 t with
-			| TType ({ t_path = ["haxe"] , "PosInfos" },[]) ->
-				let infos = mk_infos ctx p [] in
-				let e = (!type_expr_ref) ctx ~need_val:true infos in
-				loop (e :: acc) [] []
-			| _ ->
-				error true;
-				loop (null p :: acc) [] [])
+			error true;
+			loop (null p :: acc) [] []
 		| [] , (_,opt,_) :: l ->
 			if not opt then begin
 				error true;
 				List.rev acc
-			end else if Plugin.defined "flash" then
-				List.rev acc
-			else
-				loop (null p :: acc) [] l
+			end else begin
+				let rec follow2 t =
+					match t with
+					| TMono r ->
+						(match !r with
+						| Some t -> follow2 t
+						| _ -> t)
+					| TLazy f ->
+						follow2 (!f())
+					| _ -> t
+				in
+				(match follow2 t with
+				| TType ({ t_path = ["haxe"] , "PosInfos" },[]) ->
+					let infos = mk_infos ctx p [] in
+					let e = (!type_expr_ref) ctx ~need_val:true infos in
+					loop (e :: acc) [] l
+				| _ ->
+					loop (null p :: acc) [] l)
+			end
 		| _ , [] ->
 			error false;
 			List.rev acc
