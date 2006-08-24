@@ -1419,7 +1419,7 @@ let generate file ver header infile types hres =
 			let tagbg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
 			let tagstart = (if ver >= 8 then [sandbox();tagbg] else [tagbg]) in
 			let tagshow = tag TShowFrame in
-			(header,tagstart @ tagclips() @ tag_code @ [tagshow])
+			(header,tagstart @ tagclips() @ tag_code @ tagclips9() @ [tagshow])
 		| Some file ->
 			let file = (try Plugin.find_file file with Not_found -> failwith ("File not found : " ^ file)) in
 			let ch = IO.input_channel (open_in_bin file) in
