@@ -250,7 +250,7 @@ class Type {
 				a = a.concat(Reflect.fields(untyped c.prototype));
 				c = untyped c.__super__;
 			}
-			while( a.remove("__class__") ) {
+			while( a.remove(__unprotect__("__class__")) ) {
 				#if neko
 				a.remove("__serialize");
 				a.remove("__string");
@@ -268,9 +268,9 @@ class Type {
 			return describe(c,false);
 		#else true
 			var a = Reflect.fields(c);
-			a.remove("__name__");
-			a.remove("__interfaces__");
-			a.remove("__super__");
+			a.remove(__unprotect__("__name__"));
+			a.remove(__unprotect__("__interfaces__"));
+			a.remove(__unprotect__("__super__"));
 			#if js
 			a.remove("prototype");
 			#end
@@ -291,7 +291,7 @@ class Type {
 			return describe(e,false);
 		#else true
 			var a = Reflect.fields(e);
-			a.remove("__ename__");
+			a.remove(__unprotect__("__ename__"));
 			#if neko
 			a.remove("prototype");
 			#end

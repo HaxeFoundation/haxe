@@ -221,9 +221,9 @@ class Boot {
 				}
 			};
 			Array.prototype[__unprotect__("__class__")] = Array;
-			Array.__name__ = ["Array"];
+			Array[__unprotect__("__name__")] = ["Array"];
 			String.prototype[__unprotect__("__class__")] = String;
-			String.__name__ = ["String"];
+			String[__unprotect__("__name__")] = ["String"];
 			var cca = String.prototype["charCodeAt"];
 			String.prototype["charCodeAt"] = function(i) {
 				var x = cca["call"](this,i);
