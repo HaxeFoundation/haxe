@@ -26,7 +26,7 @@ package haxe;
 
 class Log {
 
-	public static f9dynamic function trace( v : Dynamic, infos : PosInfos ) : Void {
+	public static f9dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
 		#if flash
 		untyped flash.Boot.__trace(v,infos);
 		#else neko
