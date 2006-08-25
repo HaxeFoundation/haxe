@@ -176,6 +176,7 @@ let tid (x : 'a index) : int = Obj.magic x
 let new_lookup() = { h = Hashtbl.create 0; a = DynArray.create(); c = index_int }
 let new_lookup_nz() = { h = Hashtbl.create 0; a = DynArray.create(); c = index_nz_int }
 
+let construct_string = "__skip__constructor__"
 let jsize = As3code.length (A3Jump (J3Always,0))
 
 let lookup i w =
@@ -983,7 +984,14 @@ and generate_function ctx fdata stat =
 	f()
 
 let generate_construct ctx fdata cfields =
-	let f = begin_fun ctx (List.map (fun (name,opt,_) -> name,opt) fdata.tf_args) [fdata.tf_expr] false in
+	let args = List.map (fun (name,opt,_) -> name,opt) fdata.tf_args in
+	let args = (match args with [] -> ["__p",true] | _ -> args) in
+	let f = begin_fun ctx args [fdata.tf_expr] false in
+	write ctx (A3Reg 1);
+	write ctx (A3String (string ctx construct_string));
+	let j = jump ctx J3PhysNeq in
+	write ctx A3RetVoid;
+	j();
 	PMap.iter (fun _ f ->
 		match f.cf_expr with
 		| Some { eexpr = TFunction fdata } when f.cf_set = NormalAccess ->
@@ -995,7 +1003,50 @@ let generate_construct ctx fdata cfields =
 	) cfields;
 	gen_expr ctx false fdata.tf_expr;
 	write ctx A3RetVoid;
-	f()
+	f() , List.length args
+
+let generate_reflect_construct ctx cid nargs =
+	(* generate
+	    function __construct__(args) {
+			return if( args == null )
+				new Class("__skip__constructor__",null,null,....);
+			else
+				new Class(args[0],args[1],....);
+		}
+    *)
+	let f = begin_fun ctx ["args",false] [] true in	
+	write ctx (A3GetInf cid);
+	write ctx (A3Reg 1);
+	write ctx A3Null;
+	write ctx A3ToObject;
+	let j = jump ctx J3PhysNeq in
+	write ctx (A3String (string ctx construct_string));
+	write ctx A3ToObject;
+	for i = 2 to nargs do
+		write ctx A3Null;
+		write ctx A3ToObject;
+	done;
+	let jend = jump ctx J3Always in
+	j();
+	for i = 1 to nargs do
+		write ctx (A3Reg 0);
+		write ctx (A3SmallInt i);
+		getvar ctx VArray;
+	done;
+	jend();
+	write ctx (A3New (cid,nargs));	
+	write ctx A3Ret;	
+	{
+		f3_name = ident ctx "__construct__";
+		f3_slot = 1;
+		f3_kind = A3FMethod {
+			m3_type = f();
+			m3_final = false;
+			m3_override = false;
+			m3_kind = MK3Normal;
+		};
+		f3_metas = None;
+	}
 
 let generate_class_init ctx c slot =
 	write ctx A3GetScope0;
@@ -1022,7 +1073,7 @@ let generate_class_init ctx c slot =
 let generate_class_statics ctx c =
 	let r = alloc_reg ctx in
 	let first = ref true in
-	let nslot = ref 0 in
+	let nslot = ref 1 in
 	List.iter (fun f ->
 		incr nslot;
 		match f.cf_expr with
@@ -1102,7 +1153,7 @@ let generate_field_kind ctx f c stat =
 let generate_class ctx c =
 	let name_id = type_path ctx c.cl_path in
 	let st_id = empty_method ctx in	
-	let cid = (match c.cl_constructor with
+	let cid , cnargs = (match c.cl_constructor with
 		| None ->			
 			if c.cl_interface then begin
 				let mt0 = {
@@ -1116,7 +1167,7 @@ let generate_class ctx c =
 					mt3_pnames = None;
 					mt3_unk_flags = (false,false,false);
 				} in
-				add mt0 ctx.mtypes
+				add mt0 ctx.mtypes, 0
 			end else
 				generate_construct ctx {
 					tf_args = [];
@@ -1157,10 +1208,11 @@ let generate_class ctx c =
 		cl3_construct = cid;
 		cl3_fields = fields;
 	} in
-	let st_count = ref 0 in
+	let st_count = ref 1 in
+	let f_construct = generate_reflect_construct ctx name_id cnargs in
 	let st = {
 		st3_method = st_id;
-		st3_fields = Array.of_list (List.map (fun f ->
+		st3_fields = Array.of_list (f_construct :: (List.map (fun f ->
 			incr st_count;
 			{
 				f3_name = ident ctx f.cf_name;
@@ -1168,7 +1220,7 @@ let generate_class ctx c =
 				f3_kind = (match generate_field_kind ctx f c true with None -> assert false | Some k -> k);
 				f3_metas = None;
 			}
-		) c.cl_ordered_statics)
+		) c.cl_ordered_statics))
 	} in
 	ctx.classes <- sc :: ctx.classes;
 	ctx.statics <- st :: ctx.statics
