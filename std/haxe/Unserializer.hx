@@ -235,6 +235,7 @@ class Unserializer {
 			#else true
 			var e : Array<Dynamic> = new Array();
 			#end
+			var cpos = cache.length;
 			cache.push(e);
 			var a : Array<String> = unserialize();
             if( !Std.is(a,Array) )
@@ -260,20 +261,22 @@ class Unserializer {
 			if( buf.charCodeAt(pos++) != 58 ) // ':'
 				throw "Invalid enum format";
 			var nargs = readDigits();
-			if( nargs > 0 ) {
+			if( nargs == 0 ) {
+				cache[cpos] = constr;
+				return constr;
+			}
+			#if neko
+			var i = 0;
+			e.args = untyped __dollar__amake(nargs);
+			#end
+			while( nargs > 0 ) {
 				#if neko
-				var i = 0;
-				e.args = untyped __dollar__amake(nargs);
+				e.args[i] = unserialize();
+				i += 1;
+				#else true
+				e.push(unserialize());
 				#end
-				while( nargs > 0 ) {
-					#if neko
-					e.args[i] = unserialize();
-					i += 1;
-					#else true
-					e.push(unserialize());
-					#end
-					nargs -= 1;
-				}
+				nargs -= 1;
 			}
 			return e;
  		default:
