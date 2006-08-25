@@ -221,17 +221,23 @@ class Type {
 
 
 	/**
-		Change the class prototype of an object
+		Similar to [Reflect.createInstance] excepts that the constructor is not called.
 	**/
-	public static function setClass( obj : Dynamic, cl : Class ) untyped {
+	public static function createEmptyInstance( cl : Class ) untyped {
 		#if flash9
-			throw "Not implemented";
+			return cl.__construct__.call(null,null);
 		#else flash
-			obj.__proto__ = cl.prototype;
+			var o : Dynamic = __new__(_global["Object"]);
+			o.__proto__ = cl.prototype;
+			return o;
 		#else js
-			obj.__proto__ = cl.prototype;
+			var o = __js__("{}");
+			o.__proto__ = cl.prototype;
+			return o;
 		#else neko
-			__dollar__objsetproto(obj,cl.prototype);
+			var o = __dollar__new(null);
+			__dollar__objsetproto(o,cl.prototype);
+			return o;
 		#else error
 		#end
 	}
@@ -280,7 +286,9 @@ class Type {
 	**/
 	public static function getClassFields( c : Class ) : Array<String> {
 		#if flash9
-			return describe(c,false);
+			var a = describe(c,false);
+			a.remove("__construct__");
+			return a;
 		#else true
 			var a = Reflect.fields(c);
 			a.remove(__unprotect__("__name__"));
