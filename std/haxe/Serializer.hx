@@ -55,26 +55,32 @@ class Serializer {
 	}
 
 	/* prefixes :
-		n : null
-		t : true
-		f : false
-		i : Int
-		z : zero
+		a : array
+		b : hash
+		c : class
 		d : Float
 		e : reserved (float exp)
-		k : NaN
-		m : -Inf
-		p : +Inf
-		s : utf8 string
-		j : utf8 escaped string
-		a : array
-		u : array nulls
-		h : array end
-		o : object
+		f : false
 		g : object end
+		h : array/list/hash end
+		i : Int
+		j : utf8 escaped string
+		k : NaN
+		l : list
+		m : -Inf
+		n : null
+		o : object
+		p : +Inf
+		q : inthash
 		r : reference
-		c : class
+		s : utf8 string
+		t : true
+		u : array nulls
+		v : date
 		w : enum
+		x : exception
+		y : *unused
+		z : zero
 	*/
 
 	function serializeString( s : String ) {
@@ -154,7 +160,7 @@ class Serializer {
 				return;
 			}
 			buf.add("i");
-			buf.add(Std.string(v));
+			buf.add(v);
 		case TFloat:
 			if( Math.isNaN(v) )
 				buf.add("k");
@@ -162,7 +168,7 @@ class Serializer {
 				buf.add(if( v < 0 ) "m" else "p");
 			else {
 				buf.add("d");
-				buf.add(Std.string(v));
+				buf.add(v);
 			}
 		case TBool:
 			buf.add(if( v ) "t" else "f");
@@ -201,6 +207,29 @@ class Serializer {
 						buf.add("u");
 						buf.add(ucount);
 					}
+				}
+				buf.add("h");
+			case cast List:
+				buf.add("l");
+				for( i in v.iterator() )
+					serialize(i);
+				buf.add("h");
+			case cast Date:
+				buf.add("v");
+				buf.add(v);
+			case cast Hash:
+				buf.add("b");
+				for( k in v.keys() ) {
+					serializeString(k);
+					serialize(v.get(k));
+				}
+				buf.add("h");
+			case cast IntHash:
+				buf.add("q");
+				for( k in v.keys() ) {
+					buf.add(":");
+					buf.add(k);
+					serialize(v.get(k));
 				}
 				buf.add("h");
 			default:

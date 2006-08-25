@@ -176,8 +176,6 @@ class Unserializer {
  			var a = new Array<Dynamic>();
  			cache.push(a);
  			while( true ) {
- 				if( pos >= length )
- 					throw "Invalid array";
  				var c = buf.charCodeAt(pos);
  				if( c == 104 ) { /*h*/
 					pos++;
@@ -186,8 +184,6 @@ class Unserializer {
  				if( c == 117 ) { /*u*/
 					pos++;
  					var n = readDigits();
- 					if( n <= 0 )
- 						throw "Invalid array null counter";
  					a[a.length+n-1] = null;
  				} else
  					a.push(unserialize());
@@ -245,6 +241,35 @@ class Unserializer {
 			var e = Reflect.callMethod(edecl,constr,args);
 			cache.push(e);
 			return e;
+		case 108: // l
+			var l = new List();
+			while( buf.charCodeAt(pos) != 104 /*h*/ )
+				l.add(unserialize());
+			pos++;
+			return l;
+		case 98: // b
+			var h = new Hash();
+			while( buf.charCodeAt(pos) != 104 /*h*/ ) {
+				var s = unserialize();
+				h.set(s,unserialize());
+			}
+			pos++;
+			return h;
+		case 113: // q
+			var h = new IntHash();
+			var c = buf.charCodeAt(pos++);
+			while( c == 58 ) { /*:*/
+				var i = readDigits();
+				h.set(i,unserialize());
+				c = buf.charCodeAt(pos++);
+			}
+			if( c != 104 )
+				throw "Invalid IntHash format";
+			return h;
+		case 118:
+			var d = Date.fromString(buf.substr(pos,19));
+			pos += 19;
+			return d;
  		default:
  		}
  		pos--;
