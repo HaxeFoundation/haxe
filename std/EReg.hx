@@ -55,7 +55,7 @@ class EReg {
 		#else flash9
 		this.r = untyped __new__(__global__["RegExp"],r,opt);
 		#else flash
-		throw "EReg::new not implemented";
+		throw "Regular expressions are not implemented for Flash <= 8";
 		#else error
 		#end
 	}
