@@ -207,7 +207,7 @@ class Type {
 			e = Reflect.field(neko.Boot.__classes,path[0]);
 			var i = 1;
 			while( e != null && i < path.length ) {
-				e = Reflect.field(cl,path[i]);
+				e = Reflect.field(e,path[i]);
 				i += 1;
 			}
 		#else error
