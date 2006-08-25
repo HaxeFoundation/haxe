@@ -156,18 +156,19 @@ class Boot {
 			var root = flash.Lib.current;
 			var tf : flash.TextField = root.__trace_txt;
 			if( tf == null ) {
-				root.createTextField("__trace_txt",1048500,0,0,Stage.width,Stage.height);
+				root.createTextField("__trace_txt",1048500,0,0,Stage.width,Stage.height+30);
 				tf = root.__trace_txt;
 				tf.selectable = false;
 				root.__trace_lines = new Array<String>();
 			}
 			var s = inf.fileName+(if( inf.lineNumber == null ) "" else ":"+inf.lineNumber)+": "+__string_rec(v,"");
 			var lines : Array<String> = root.__trace_lines["concat"](s.split("\n"));
-			root.__trace_lines = lines;
-			var nlines = Stage.height / 16;
-			if( lines.length > nlines )
-				lines.splice(0,lines.length-nlines);
 			tf.text = lines.join("\n");
+			while( tf.textHeight > Stage.height ) {
+				lines.shift();
+				tf.text = lines.join("\n");
+			}
+			root.__trace_lines = lines;
 		}
 	}
 
