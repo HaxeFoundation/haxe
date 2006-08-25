@@ -35,7 +35,7 @@ class TestRunner {
 	static var tf : flash.TextField = null;
 #end
 
-	private static function print( v : Dynamic ){
+	public static function print( v : Dynamic ) {
 		#if flash9
 		untyped {
 			if( tf == null ) {
@@ -51,13 +51,18 @@ class TestRunner {
 		untyped {
 			var root = flash.Lib.current;
 			if( tf == null ) {
-				root.createTextField("__tf",1048500,0,0,flash.Stage.width,flash.Stage.height);
+				root.createTextField("__tf",1048500,0,0,flash.Stage.width,flash.Stage.height+30);
 				tf = root.__tf;
 				tf.selectable = false;
 				tf.wordWrap = true;
 			}
 			var s = flash.Boot.__string_rec(v,"");
 			tf.text += s;
+			while( tf.textHeight > flash.Stage.height ) {
+				var lines = tf.text.split("\r");
+				lines.shift();
+				tf.text = lines.join("\n");
+			}
 		}
 		#else neko
 		untyped __dollar__print(v);

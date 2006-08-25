@@ -37,6 +37,10 @@ class TestCase #if mt_build implements mt.Protect #end {
 	public function tearDown() : Void {
 	}
 
+	function print( v : Dynamic ) {
+		haxe.unit.TestRunner.print(v);
+	}
+
 	function assertTrue( b:Bool, ?c : PosInfos ) : Void {
 		currentTest.done = true;
 		if (b == false){
