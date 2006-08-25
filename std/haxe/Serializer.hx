@@ -119,10 +119,24 @@ class Serializer {
 		return false;
 	}
 
+	#if flash9
+	// only the instance variables
+
+	function serializeClassFields(v,c) {
+		var xml : Dynamic = untyped __global__["flash.utils.describeType"](c).factory;
+		var vars = xml.child("variable");
+		for( i in 0...vars.length() ) {
+			var f = untyped vars[i].attribute("name").toString();
+			if( !v.hasOwnProperty(f) )
+				continue;
+			serializeString(f);
+			serialize(Reflect.field(v,f));
+		}
+		buf.add("g");
+	}
+	#end
+
 	function serializeFields(v) {
-		#if flash9
-		throw "TODO";
-		#end
 		for( f in Reflect.fields(v) ) {
 			serializeString(f);
 			serialize(Reflect.field(v,f));
@@ -190,9 +204,15 @@ class Serializer {
 				}
 				buf.add("h");
 			default:
+				cache.pop();
 				buf.add("c");
-				serialize(Type.getClassName(c).split("."));
+				serialize(Type.getClassName(c));
+				cache.push(v);
+				#if flash9
+				serializeClassFields(v,c);
+				#else true
 				serializeFields(v);
+				#end
 			}
 		case TObject:
 			if( useCache && serializeRef(v) )
@@ -202,8 +222,9 @@ class Serializer {
 		case TEnum(e):
 			if( useCache && serializeRef(v) )
 				return;
+			cache.pop();
 			buf.add("w");
-			serialize(Type.getEnumName(e).split("."));
+			serialize(Type.getEnumName(e));
 			#if neko
 			serializeString(new String(v.tag));
 			buf.add(":");
@@ -215,6 +236,17 @@ class Serializer {
 				for( i in 0...l )
 					serialize(v.args[i]);
 			}
+			#else flash9
+			serializeString(v.tag);
+			buf.add(":");
+			if( v.params == null )
+				buf.add(0);
+			else {
+				var l : Int = v.params.length;
+				buf.add(l);
+				for( i in 0...l )
+					serialize(v.params[i]);
+			}
 			#else true
 			serializeString(v[0]);
 			buf.add(":");
@@ -223,6 +255,7 @@ class Serializer {
 			for( i in 1...l )
 				serialize(v[i]);
 			#end
+			cache.push(v);
 		case TFunction:
 			throw "Cannot serialize function";
 		default:
