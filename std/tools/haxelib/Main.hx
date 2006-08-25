@@ -334,8 +334,9 @@ class Main {
 			safeDir(rep);
 			return rep+"\\";
 		}
+		var config = neko.Sys.getEnv("HOME")+"/.haxelib";
 		var rep = try
-			neko.io.File.getContent("~/.haxelib")
+			neko.io.File.getContent(config)
 		catch( e : Dynamic ) try
 			neko.io.File.getContent("/etc/.haxelib")
 		catch( e : Dynamic )
@@ -351,7 +352,7 @@ class Main {
 				rep = line;
 			if( !neko.FileSystem.exists(rep) )
 				neko.FileSystem.createDirectory(rep);
-			var f = neko.io.File.write("~/.haxelib",true);
+			var f = neko.io.File.write(config,true);
 			f.write(rep);
 			f.close();
 		}
