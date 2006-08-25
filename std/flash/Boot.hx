@@ -144,7 +144,7 @@ class Boot {
 			case Dynamic:
 				return true;
 			default:
-				if( o.__enum__ == cl )
+				if( o[__unprotect__("__enum__")] == cl )
 					return true;
 				return false;
 			}
