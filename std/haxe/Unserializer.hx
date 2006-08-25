@@ -211,73 +211,39 @@ class Unserializer {
  		case 120: // x
 			throw unserialize();
 		case 99: // c
-	 		var o = Reflect.empty();
-	 		cache.push(o);
-			var a : Array<String> = unserialize();
-            if( !Std.is(a,Array) )
-				throw "Invalid class name";
-			for(s in a)
-				if( !Std.is(s,String) )
-					throw "Invalid class name";
-			var cl = resolver.resolveClass(a.join("."));
+	 		var name = unserialize();
+			var cl = resolver.resolveClass(name);
 			if( cl == null )
-				throw "Class not found " + a.join(".");
+				throw "Class not found " + name;
+			var o = Type.createEmptyInstance(cl);
+			cache.push(o);
 			unserializeObject(o);
-			Type.setClass(o,cl);
 			return o;
 		case 119: // w
-			#if neko
-			var e : Dynamic = {
-				tag : null,
-				__string : function() { return untyped neko.Boot.__enum_str(this); },
-				__enum__ : null
-			};
-			#else true
-			var e : Array<Dynamic> = new Array();
-			#end
-			var cpos = cache.length;
-			cache.push(e);
-			var a : Array<String> = unserialize();
-            if( !Std.is(a,Array) )
-				throw "Invalid enum name";
-			for(s in a)
-				if( !Std.is(s,String) )
-					throw "Invalid enum name";
-			var edecl = resolver.resolveEnum(a.join("."));
+			var name = unserialize();
+			var edecl = resolver.resolveEnum(name);
 			if( edecl == null )
-				throw "Enum not found " + a.join(".");
-			untyped e.__enum__ = edecl;
+				throw "Enum not found " + name;
 			var tag : String = unserialize();
 			if( !Std.is(tag,String) )
 				throw "Invalid enum tag";
-			#if neko
-			e.tag = untyped tag.__s;
-			#else true
-			e.push(tag);
-			#end
 			var constr = Reflect.field(edecl,tag);
 			if( constr == null )
-				throw "Unknown enum tag "+a.join(".")+"."+tag;
+				throw "Unknown enum tag "+name+"."+tag;
 			if( buf.charCodeAt(pos++) != 58 ) // ':'
 				throw "Invalid enum format";
 			var nargs = readDigits();
 			if( nargs == 0 ) {
-				cache[cpos] = constr;
+				cache.push(constr);
 				return constr;
 			}
-			#if neko
-			var i = 0;
-			e.args = untyped __dollar__amake(nargs);
-			#end
+			var args = new Array();
 			while( nargs > 0 ) {
-				#if neko
-				e.args[i] = unserialize();
-				i += 1;
-				#else true
-				e.push(unserialize());
-				#end
+				args.push(unserialize());
 				nargs -= 1;
 			}
+			var e = Reflect.callMethod(edecl,constr,args);
+			cache.push(e);
 			return e;
  		default:
  		}
