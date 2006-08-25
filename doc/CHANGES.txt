@@ -6,15 +6,16 @@
 	flash9 xml : use JS ReXml parser
 	added neko.io package (Input/Output)
 	moved neko.File and neko.Socket to neko.io package
-	added --neko-methods
 	fixed flash optional arguments (when extending flash.MC)
 	fixed neko native serialization problems
 	variable modification does not have side effects in 'for x in a...b'
 	jit disabled by default for neko web server
 	enable flash7-8 libraries usage from flash9
 	unknown identifier become "class not found" when representing a classpath
-	fixed bug in flash opt params
 	changed haxe.PosInfos handling
+	added -debug (removed --flash-debug) effective on flash9 and neko only now
+	added Type.typeof
+	improved Serializer speed
 
 2006-08-16: 1.05
 	moved Md5 to haxe package.
