@@ -60,9 +60,8 @@ class Reflect {
 		#else neko
 			return untyped __dollar__call(__dollar__objget(cl,__dollar__hash("new".__s)),cl,args.__a);
 		#else js
-			var o = { __constructor__ : cl, __proto__ : cl.prototype };
-			cl.apply(o,args);
-			return o;
+			if( args.length >= 6 ) throw "Too many arguments";
+			return untyped __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5]);
 		#else error
 		#end
 	}

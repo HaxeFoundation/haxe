@@ -231,9 +231,7 @@ class Type {
 			o.__proto__ = cl.prototype;
 			return o;
 		#else js
-			var o = __js__("{}");
-			o.__proto__ = cl.prototype;
-			return o;
+			return __new__(cl,__js__("$_"));
 		#else neko
 			var o = __dollar__new(null);
 			__dollar__objsetproto(o,cl.prototype);

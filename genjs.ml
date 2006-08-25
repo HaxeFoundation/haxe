@@ -584,7 +584,15 @@ let generate_class ctx c =
 	generate_package_create ctx c.cl_path;
 	print ctx "%s = " p;
 	(match c.cl_constructor with
-	| Some { cf_expr = Some e } -> gen_value ctx (Transform.block_vars e)
+	| Some { cf_expr = Some e } -> 
+		(match Transform.block_vars e with
+		| { eexpr = TFunction f } ->
+			let args  = List.map arg_name f.tf_args in
+			let a, args = (match args with [] -> "p" , ["p"] | x :: _ -> x, args) in
+			print ctx "function(%s) { if( %s === $_ ) return; " (String.concat "," (List.map ident args)) a;
+			gen_expr ctx (block f.tf_expr);
+			print ctx "}";
+		| _ -> assert false)
 	| _ -> print ctx "function() { }");
 	newline ctx;
 	print ctx "%s.__name__ = [%s]" p (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst c.cl_path @ [snd c.cl_path])));
@@ -656,6 +664,8 @@ let generate file types hres =
 		id_counter = 0;
 	} in
 	List.iter (generate_type ctx) types;
+	print ctx "$_ = {}";
+	newline ctx;
 	print ctx "js.Boot.__res = {}";
 	newline ctx;
 	Hashtbl.iter (fun name data ->
