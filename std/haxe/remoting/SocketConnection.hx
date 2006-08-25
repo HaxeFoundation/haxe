@@ -23,6 +23,11 @@
  * DAMAGE.
  */
 package haxe.remoting;
+#if flash9
+import flash.net.XMLSocket;
+#else flash
+import flash.XMLSocket;
+#end
 
 class SocketConnection extends AsyncConnection {
 
@@ -126,7 +131,7 @@ class SocketConnection extends AsyncConnection {
 		s.output.write(msg);
 		s.output.writeChar(0);
 		#else flash
-		var s : flash.XMLSocket = __data;
+		var s : XMLSocket = __data;
 		s.send(Std.chr(c1)+Std.chr(c2)+msg);
 		#else error
 		#end
@@ -206,7 +211,7 @@ class SocketConnection extends AsyncConnection {
 
 	#else flash
 
-	public static function socketConnect( s : flash.XMLSocket ) {
+	public static function socketConnect( s : XMLSocket ) {
 		var sc = new SocketConnection(s,[]);
 		sc.__funs = new List();
 		// we can't deliver directly the message
