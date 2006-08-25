@@ -11,6 +11,21 @@ enum Class {
 enum Enum {
 }
 
+/**
+	The diffent possible runtime types of a value.
+**/
+enum ValueType {
+	TNull;
+	TInt;
+	TFloat;
+	TBool;
+	TObject;
+	TFunction;
+	TClass( c : Class );
+	TEnum( e : Enum );
+	TUnknown;
+}
+
 class Type {
 
 	/**
@@ -296,6 +311,86 @@ class Type {
 			a.remove("prototype");
 			#end
 			return a;
+		#end
+	}
+
+	/**
+		Returns the runtime type of a value.
+	**/
+	public static function typeof( v : Dynamic ) : ValueType untyped {
+		#if neko
+		return switch( __dollar__typeof(v) ) {
+		case __dollar__tnull: TNull;
+		case __dollar__tint: TInt;
+		case __dollar__tfloat: TFloat;
+		case __dollar__tbool: TBool;
+		case __dollar__tfunction: TFunction;
+		case __dollar__tobject:
+			var c = v.__class__;
+			if( c != null )
+				TClass(c);
+			else {
+				var e = v.__enum__;
+				if( e != null )
+					TEnum(e);
+				else
+					TObject;
+			}
+		default: TUnknown;
+		}
+		#else flash9
+		var cname = __global__["flash.utils.getQualifiedClassName"](v);
+		switch(cname) {
+		case "null": return TNull;
+		case "int": return TInt;
+		case "Number": return TFloat;
+		case "Boolean": return TBool;
+		case "Object": return TObject;
+		default:
+			try {
+				var c = __global__["flash.utils.getDefinitionByName"](cname);
+				if( v.hasOwnProperty("prototype") )
+					return TObject;
+				if( c.__isenum )
+					return TEnum(c);
+				return TClass(c);
+			} catch( e : Dynamic ) {
+				return TFunction;
+			}
+		}
+		#else (flash || js)
+		switch( #if flash __typeof__ #else true __js__("typeof") #end(v) ) {
+		#if flash
+		case "null": return TNull;
+		#end
+		case "boolean": return TBool;
+		case "string": return TClass(String);
+		case "number":
+			if( v+1 == v )
+				return TFloat;
+			if( Math.ceil(v) == v )
+				return TInt;
+			return TFloat;
+		case "object":
+			#if js
+			if( v == null )
+				return TNull;
+			#end
+			var e = v.__enum__;
+			if( e != null )
+				return TEnum(e);
+			var c = v.__class__;
+			if( c != null )
+				return TClass(c);
+			return TObject;
+		case "function":
+			if( v.__name__ != null )
+				return TObject;
+			return TFunction;
+		default:
+			return TUnknown;
+		}
+		#else error
 		#end
 	}
 
