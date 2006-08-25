@@ -30,10 +30,12 @@ class Serializer {
 	var cache : Array<Dynamic>;
 	var shash : Hash<Int>;
 	var scount : Int;
+	var useCache : Bool;
 
 	public function new() {
 		buf = new StringBuf();
 		cache = new Array();
+		useCache = true;
 		shash = new Hash();
 		scount = 0;
 	}
@@ -45,7 +47,7 @@ class Serializer {
 		serialization.
 	**/
 	public function dontUseCache() {
-		cache = null;
+		useCache = false;
 	}
 
 	public function toString() {
@@ -98,8 +100,6 @@ class Serializer {
 	}
 
 	function serializeRef(v) {
-		if( cache == null )
-			return false;
 		#if js
 		var vt = untyped __js__("typeof")(v);
 		#end
@@ -119,45 +119,29 @@ class Serializer {
 		return false;
 	}
 
-	function serializeEnum(v : Dynamic) {
-		buf.add("w");
-		serialize(v.__enum__.__ename__);
-		#if neko
-		serializeString(new String(v.tag));
-		buf.add(":");
-		if( v.args == null )
-			buf.add(0);
-		else {
-			var l : Int = untyped __dollar__asize(v.args);
-			buf.add(l);
-			for( i in 0...l )
-				serialize(v.args[i]);
-		}
-		#else true
-		serializeString(v[0]);
-		buf.add(":");
-		var l = v[untyped "length"];
-		buf.add(l - 1);
-		for( i in 1...l )
-			serialize(v[i]);
+	function serializeFields(v) {
+		#if flash9
+		throw "TODO";
 		#end
+		for( f in Reflect.fields(v) ) {
+			serializeString(f);
+			serialize(Reflect.field(v,f));
+		}
+		buf.add("g");
 	}
 
 	public function serialize( v : Dynamic ) {
-		if( v == null ) {
+		switch( Type.typeof(v) ) {
+		case TNull:
 			buf.add("n");
-			return;
-		}
-		if( Std.is(v,Int) ) {
+		case TInt:
 			if( v == 0 ) {
 				buf.add("z");
 				return;
 			}
 			buf.add("i");
 			buf.add(Std.string(v));
-			return;
-		}
-		if( Std.is(v,Float) ) {
+		case TFloat:
 			if( Math.isNaN(v) )
 				buf.add("k");
 			else if( !Math.isFinite(v) )
@@ -166,88 +150,84 @@ class Serializer {
 				buf.add("d");
 				buf.add(Std.string(v));
 			}
-			return;
-		}
-		#if neko
-		var t = untyped __dollar__typeof(v);
-		if( t == untyped __dollar__tstring )
-			v = new String(v);
-		#end
-		if( Std.is(v,String) ) {
-			serializeString(v);
-			return;
-		}
-		#if neko
-		if( t == untyped __dollar__tarray )
-			v = untyped Array.new1(v,__dollar__asize(v));
-		#end
-		if( Std.is(v,Array) ) {
-			if( serializeRef(v) )
+		case TBool:
+			buf.add(if( v ) "t" else "f");
+		case TClass(c):
+			if( c == cast String ) {
+				serializeString(v);
 				return;
-			var ucount = 0;
-			buf.add("a");
-			var l = #if neko v.length #else true v[untyped "length"] #end;
-			for( i in 0...l ) {
-				if( v[i] == null )
-					ucount++;
-				else {
-					if( ucount > 0 ) {
-						if( ucount == 1 )
-							buf.add("n");
-						else {
-							buf.add("u");
-							buf.add(ucount);
+			}
+			if( useCache && serializeRef(v) )
+				return;
+			switch( c ) {
+			case cast Array:
+				var ucount = 0;
+				buf.add("a");
+				var l = #if neko v.length #else true v[untyped "length"] #end;
+				for( i in 0...l ) {
+					if( v[i] == null )
+						ucount++;
+					else {
+						if( ucount > 0 ) {
+							if( ucount == 1 )
+								buf.add("n");
+							else {
+								buf.add("u");
+								buf.add(ucount);
+							}
+							ucount = 0;
 						}
-						ucount = 0;
+						serialize(v[i]);
 					}
-					serialize(v[i]);
 				}
-			}
-			if( ucount > 0 ) {
-				if( ucount == 1 )
-					buf.add("n");
-				else {
-					buf.add("u");
-					buf.add(ucount);
+				if( ucount > 0 ) {
+					if( ucount == 1 )
+						buf.add("n");
+					else {
+						buf.add("u");
+						buf.add(ucount);
+					}
 				}
+				buf.add("h");
+			default:
+				buf.add("c");
+				serialize(Type.getClassName(c).split("."));
+				serializeFields(v);
 			}
-			buf.add("h");
-			return;
-		}
-		if( v == true ) {
-			buf.add("t");
-			return;
-		}
-		if( v == false ) {
-			buf.add("f");
-			return;
-		}
-		if( serializeRef(v) )
-			return;
-		if( Reflect.isFunction(v) )
-			throw "Cannot serialize function";
-		#if neko
-		if( t == untyped __dollar__tabstract )
-			throw "Cannot serialize abstract";
-		#end
-		var c : Dynamic = v.__class__;
-		if( c != null && c.__name__ != null ) {
-			buf.add("c");
-			serialize(c.__name__);
-		} else {
-			var e : Dynamic = v.__enum__;
-			if( e != null && e.__ename__ != null ) {
-				serializeEnum(v);
+		case TObject:
+			if( useCache && serializeRef(v) )
 				return;
-			}
 			buf.add("o");
+			serializeFields(v);
+		case TEnum(e):
+			if( useCache && serializeRef(v) )
+				return;
+			buf.add("w");
+			serialize(Type.getEnumName(e).split("."));
+			#if neko
+			serializeString(new String(v.tag));
+			buf.add(":");
+			if( v.args == null )
+				buf.add(0);
+			else {
+				var l : Int = untyped __dollar__asize(v.args);
+				buf.add(l);
+				for( i in 0...l )
+					serialize(v.args[i]);
+			}
+			#else true
+			serializeString(v[0]);
+			buf.add(":");
+			var l = v[untyped "length"];
+			buf.add(l - 1);
+			for( i in 1...l )
+				serialize(v[i]);
+			#end
+		case TFunction:
+			throw "Cannot serialize function";
+		default:
+			throw "Cannot serialize "+Std.string(v);
 		}
-		var fl = Reflect.fields(v);
-		for( f in fl ) {
-			serializeString(f);
-			serialize(Reflect.field(v,f));
-		}
-		buf.add("g");
 	}
 
 	public function serializeException( e : Dynamic ) {
