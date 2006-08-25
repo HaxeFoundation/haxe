@@ -24,6 +24,11 @@
  */
 package mtwin.mail;
 
+typedef Address = {
+	name: String,
+	address: String
+}
+
 class Tools {
 
 	static var BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -337,6 +342,73 @@ class Tools {
 		}
 
 		return sb.toString();
+	}
+
+	// TODO routes & groups ?
+	static var REG_ADDRESS = ~/^((([^()<>@,;:\\"\[\]\s\p{Cc}]+)|"((\"|[^"])*)")+@[A-Z0-9][A-Z0-9-.]*)/i;
+	static var REG_ROUTE_ADDR = ~/^<((([^()<>@,;:\\"\[\]\s\p{Cc}]+)|"((\"|[^"])*)")+@[A-Z0-9][A-Z0-9-.]*)>/i;
+	static var REG_ATOM = ~/^([^()<>@,;:\\".\[\]\s\p{Cc}]+)/i;
+	static var REG_QSTRING = ~/^"((\"|[^"])*)"/;
+	static var REG_SEPARATOR = ~/,\s*/;
+	public static function parseAddress( str : String ) : Array<Address> {
+		var a = new Array();
+		var name = null;
+		var address = null;
+
+		str = StringTools.trim(str);
+		var s = str;
+
+		while( s.length > 0 ){
+			s = StringTools.ltrim(s);
+			if( REG_ADDRESS.match(s) ){
+				if( address != null ) throw Exception.ParseError(str+", near: "+s.substr(0,15));
+				address = REG_ADDRESS.matched(1);
+				s = REG_ADDRESS.matchedRight();
+			}else if( REG_ROUTE_ADDR.match(s) ){
+				if( address != null ) throw Exception.ParseError(str+", near: "+s.substr(0,15));
+				address = REG_ROUTE_ADDR.matched(1);
+				s = REG_ROUTE_ADDR.matchedRight();
+			}else if( REG_ATOM.match(s) ){
+				if( name != null ) name += " ";
+				else name = "";
+				name += REG_ATOM.matched(1);
+				s = REG_ATOM.matchedRight();
+			}else if( REG_QSTRING.match(s) ){
+				var t = REG_QSTRING.matched(1);
+				t = ~/\\(.)/g.replace(t,"$1");
+				if( name != null ) name += " ";
+				else name = "";
+				name += t;
+				s = REG_QSTRING.matchedRight();
+			}else if( REG_SEPARATOR.match(s) ){
+				if( address != null ){
+					a.push({name: if( name != null && name.length > 0 ) name else null, address: address});
+					address = null;
+					name = null;
+				}
+				s = REG_SEPARATOR.matchedRight();
+			}else{
+				throw Exception.ParseError(str+", near: "+s.substr(0,15));
+			}
+		}
+
+		if( address != null ){
+			a.push({name: if( name != null && name.length > 0 ) name else null, address: address});
+		}
+		return a;
+	}
+
+	public static function formatAddress( a : Array<Address> ){
+		var r = new List();
+		for( c in a ){
+			if( c.name == null || c.name == "" ) r.add(c.address);
+			else if( ~/^[A-Z0-9 ]*$/i.match(c.name) ) r.add(c.name+" <"+c.address+">");
+			else{
+				var quoted = c.name.split("\\").join("\\\\").split("\"").join("\\\"");
+				r.add("\""+quoted+"\" <"+c.address+">");
+			}
+		}
+		return r.join(",");
 	}
 
 }
