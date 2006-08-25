@@ -225,6 +225,7 @@ try
 			) lines) @ !excludes;
 		),"<filename> : don't generate code for classes listed in this file");
 		("-v",Arg.Unit (fun () -> Plugin.verbose := true),": turn on verbose mode");
+		("-debug", define "debug", ": add debug informations to the compiled code");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
 		("-cmd", Arg.String (fun cmd ->
 			cmds := cmd :: !cmds
@@ -235,8 +236,7 @@ try
 		),": ensure that overriden methods are declared with 'override'");
 		("--no-traces", define "no_traces", ": don't compile trace calls in the program");
 		("--flash-use-stage", define "flash_use_stage", ": place objects found on the stage of the SWF lib");
-		("--flash-debug", define "flash_debug", ": add debug informations to the generated SWF");
-		("--neko-methods", define "neko_methods", ": use class+method instead of filename in neko debug infos");
+		("--neko-source", define "neko_source", ": keep generated neko source");
 		("--gen-hx-classes", Arg.String (fun file ->
 			gen_hx := true;
 			Genswf9.genhx file

@@ -620,7 +620,7 @@ let gen_name ctx acc t =
 
 let generate file types hres =
 	let ctx = {
-		methods = Plugin.defined "neko_methods";
+		methods = Plugin.defined "debug";
 		curclass = "$boot";
 		curmethod = "$init";
 		inits = [];
@@ -642,13 +642,14 @@ let generate file types hres =
 	let e = (EBlock (header :: packs @ methods @ boot :: names @ inits @ vars), null_pos) in
 	let neko_file = Filename.chop_extension file ^ ".neko" in
 	let ch = IO.output_channel (open_out neko_file) in
-	(if !Plugin.verbose then Nxml.write_fmt else Nxml.write) ch (Nxml.to_xml e);
+	let source = Plugin.defined "neko_source" in
+	(if source then Nxml.write_fmt else Nxml.write) ch (Nxml.to_xml e);
 	IO.close_out ch;
 	let command cmd = try Sys.command cmd with _ -> -1 in
-	if !Plugin.verbose then begin
+	if source then begin
 		if command ("nekoc -p " ^ neko_file) <> 0 then failwith "Failed to print neko code";
 		Sys.remove neko_file;
 		Sys.rename (Filename.chop_extension file ^ "2.neko") neko_file;
 	end;
 	if command ("nekoc " ^ neko_file) <> 0 then failwith "Neko compilation failure";
-	if not !Plugin.verbose then Sys.remove neko_file
+	if not source then Sys.remove neko_file

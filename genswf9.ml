@@ -1347,7 +1347,7 @@ let generate types hres =
 		curblock = [];
 		block_vars = [];
 		in_static = false;
-		debug = Plugin.defined "flash_debug";
+		debug = Plugin.defined "debug";
 		last_line = -1;
 	} in
 	List.iter (generate_type ctx) types;
