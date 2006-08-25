@@ -16,6 +16,8 @@
 	added -debug (removed --flash-debug) effective on flash9 and neko only now
 	added Type.typeof
 	improved Serializer speed
+	added Serialization support for Date, Hash, IntHash, List
+	added flash9 and JS IE/Opera class reflection
 
 2006-08-16: 1.05
 	moved Md5 to haxe package.
