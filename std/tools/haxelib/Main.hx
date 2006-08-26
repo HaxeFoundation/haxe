@@ -72,12 +72,15 @@ class Main {
 		argcur = 1;
 		args = neko.Sys.args();
 		commands = new List();
-		addCommand("install",install,"install a given library");
-		addCommand("search",search,"list libraries matching a word");
-		addCommand("infos",infos,"list informations on a given library");
+		addCommand("install",install,"install a given project");
+//		addCommand("list",list,"list all installed projects");
+//		addCommand("update",update,"update all installed projects");
+		addCommand("search",search,"list projects matching a word");
+		addCommand("infos",infos,"list informations on a given project");
 		addCommand("user",user,"list informations on a given user");
-		addCommand("submit",submit,"submit or update a library package");
+		addCommand("submit",submit,"submit or update a project package");
 		addCommand("setup",setup,"set the haxelib repository path");
+		addCommand("config",config,"print the repository path");
 		siteUrl = "http://"+SERVER.host+":"+SERVER.port+"/"+SERVER.dir;
 		site = new SiteProxy(haxe.remoting.Connection.urlConnect(siteUrl+SERVER.url).api);
 	}
@@ -124,15 +127,15 @@ class Main {
 		var l = site.search(word);
 		for( s in l )
 			print(s.name);
-		print(l.length+" libraries found");
+		print(l.length+" projects found");
 	}
 
 	function infos() {
-		var lib = param("Library name");
-		var inf = site.infos(lib);
+		var prj = param("Project name");
+		var inf = site.infos(prj);
 		print("Name: "+inf.name);
 		print("Desc: "+inf.desc);
-		print("Website: "+inf.url);
+		print("Website: "+inf.website);
 		print("Owner: "+inf.owner);
 		print("Version: "+inf.curversion);
 		print("Releases: ");
@@ -148,10 +151,10 @@ class Main {
 		print("Id: "+inf.name);
 		print("Name: "+inf.fullname);
 		print("Mail: "+inf.email);
-		print("Libraries: ");
-		if( inf.libraries.length == 0 )
-			print("  (no libraries)");
-		for( p in inf.libraries )
+		print("Projects: ");
+		if( inf.projects.length == 0 )
+			print("  (no projects)");
+		for( p in inf.projects )
 			print("  "+p);
 	}
 
@@ -172,13 +175,13 @@ class Main {
 		var zip = neko.zip.File.read(new neko.io.StringInput(data));
 		var infos = Datas.readInfos(zip);
 		var password;
-		site.checkLibOwner(infos.lib,infos.user);
-		if( site.isNewUser(infos.user) )
-			password = register(infos.user);
+		site.checkOwner(infos.project,infos.owner);
+		if( site.isNewUser(infos.owner) )
+			password = register(infos.owner);
 		else {
 			password = haxe.Md5.encode(param("Password"));
-			if( !site.checkPassword(infos.user,password) )
-				throw "Invalid password for "+infos.user;
+			if( !site.checkPassword(infos.owner,password) )
+				throw "Invalid password for "+infos.owner;
 		}
 
 		// query a submit id that will identify the file
@@ -211,8 +214,8 @@ class Main {
 	}
 
 	function install() {
-		var lib = param("Library name");
-		var inf = site.infos(lib);
+		var prj = param("Project name");
+		var inf = site.infos(prj);
 		if( inf.curversion == null )
 			throw "This project has not yet released a version";
 		var reqversion = if( args.length > argcur ) args[argcur++] else null;
@@ -362,6 +365,10 @@ class Main {
 	function setup() {
 		var path = getRepository(true);
 		print("haxelib repository is now "+path);
+	}
+
+	function config() {
+		print(getRepository());
 	}
 
 	// ----------------------------------

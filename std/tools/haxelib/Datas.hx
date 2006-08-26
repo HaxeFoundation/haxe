@@ -6,7 +6,7 @@ typedef UserInfos = {
 	var name : String;
 	var fullname : String;
 	var email : String;
-	var libraries : Array<String>;
+	var projects : Array<String>;
 }
 
 typedef VersionInfos = {
@@ -15,22 +15,22 @@ typedef VersionInfos = {
 	var comments : String;
 }
 
-typedef LibraryInfos = {
+typedef ProjectInfos = {
 	var name : String;
 	var desc : String;
-	var url : String;
+	var website : String;
 	var owner : String;
 	var curversion : String;
 	var versions : Array<VersionInfos>;
 }
 
 typedef XmlInfos = {
-	var lib : String;
-	var url : String;
-	var user : String;
+	var project : String;
+	var website : String;
+	var owner : String;
 	var desc : String;
 	var version : String;
-	var versionDesc : String;
+	var versionComments : String;
 }
 
 class Datas {
@@ -79,10 +79,10 @@ class Datas {
 			}
 		if( xmldata == null )
 			throw XML+" not found in package";
-		var x = Xml.parse(xmldata).firstElement();
-		var lib = requiredAttribute(x,"name");
-		if( lib.length < 3 || !alphanum.match(lib) )
-			throw "Library name must contain at least 3 characters and only AZaz09_.- characters";
+		var x = requiredNode(Xml.parse(xmldata),"project");
+		var project = requiredAttribute(x,"name");
+		if( project.length < 3 || !alphanum.match(project) )
+			throw "Project name must contain at least 3 characters and only AZaz09_.- characters";
 		var url = requiredAttribute(x,"url");
 		var user = requiredAttribute(requiredNode(x,"user"),"name");
 		if( user.length < 3 || !alphanum.match(user) )
@@ -94,12 +94,12 @@ class Datas {
 			throw "Version name must contain at least 1 character and only AZaz09_.- characters";
 		var vdesc = requiredText(vnode);
 		return {
-			lib : lib,
-			url : url,
-			user : user,
+			project : project,
+			website : url,
+			owner : user,
 			desc : desc,
 			version : version,
-			versionDesc : vdesc,
+			versionComments : vdesc,
 		}
 	}
 

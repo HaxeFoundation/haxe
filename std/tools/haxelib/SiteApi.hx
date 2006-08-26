@@ -11,24 +11,24 @@ class SiteApi {
 	}
 
 	public function search( word : String ) : List<{ name : String }> {
-		return Lib.manager.containing(word);
+		return Project.manager.containing(word);
 	}
 
-	public function infos( lib : String ) : LibraryInfos {
-		var l = Lib.manager.search({ name : lib }).first();
-		if( l == null )
-			throw "No such library : "+lib;
-		var vl = Version.manager.search({ library : l.id });
+	public function infos( project : String ) : ProjectInfos {
+		var p = Project.manager.search({ name : project }).first();
+		if( p == null )
+			throw "No such Project : "+project;
+		var vl = Version.manager.search({ project : p.id });
 		var versions = new Array();
 		for( v in vl )
 			versions.push({ name : v.name, comments : v.comments, date : v.date });
 		return {
-			name : l.name,
-			curversion : if( l.version == null ) null else l.version.name,
-			desc : l.description,
+			name : p.name,
+			curversion : if( p.version == null ) null else p.version.name,
+			desc : p.description,
 			versions : versions,
-			owner : l.owner.name,
-			url : l.website,
+			owner : p.owner.name,
+			website : p.website,
 		};
 	}
 
@@ -36,15 +36,15 @@ class SiteApi {
 		var u = User.manager.search({ name : name }).first();
 		if( u == null )
 			throw "No such user : "+name;
-		var pl = Lib.manager.search({ owner : u.id });
-		var libraries = new Array();
+		var pl = Project.manager.search({ owner : u.id });
+		var projects = new Array();
 		for( p in pl )
-			libraries.push(p.name);
+			projects.push(p.name);
 		return {
 			name : u.name,
 			fullname : u.fullname,
 			email : u.email,
-			libraries : libraries,
+			projects : projects,
 		};
 	}
 
@@ -64,12 +64,12 @@ class SiteApi {
 		return User.manager.search({ name : name }).first() == null;
 	}
 
-	public function checkLibOwner( lib : String, user : String ) : Void {
-		var l = Lib.manager.search({ name : lib }).first();
-		if( l == null )
+	public function checkOwner( prj : String, user : String ) : Void {
+		var p = Project.manager.search({ name : prj }).first();
+		if( p == null )
 			return;
-		if( l.owner.name != user )
-			throw "Owner of "+l.name+" is '"+l.owner.name+"'";
+		if( p.owner.name != user )
+			throw "Owner of "+p.name+" is '"+p.owner.name+"'";
 	}
 
 	public function checkPassword( user : String, pass : String ) : Bool {
@@ -89,57 +89,57 @@ class SiteApi {
 		file.close();
 
 		var infos = Datas.readInfos(zip);
-		var u = User.manager.search({ name : infos.user }).first();
+		var u = User.manager.search({ name : infos.owner }).first();
 		if( u == null || u.pass != pass )
 			throw "Invalid username or password";
 
-		var l = Lib.manager.search({ name : infos.lib }).first();
-		if( l == null ) {
-			l = new Lib();
-			l.name = infos.lib;
-			l.description = infos.desc;
-			l.website = infos.url;
-			l.owner = u;
-			l.insert();
+		var p = Project.manager.search({ name : infos.project }).first();
+		if( p == null ) {
+			p = new Project();
+			p.name = infos.project;
+			p.description = infos.desc;
+			p.website = infos.website;
+			p.owner = u;
+			p.insert();
 			neko.FileSystem.deleteFile(path);
 			return "Project added : submit one more time to send a first version";
 		}
 
 		// check owner
-		if( l.owner != u )
+		if( p.owner != u )
 			throw "Invalid owner";
 
 		// update public infos
 		var update = false;
-		if( infos.desc != l.description || l.website != infos.url ) {
-			l.description = infos.desc;
-			l.website = infos.url;
-			l.update();
+		if( infos.desc != p.description || p.website != infos.website ) {
+			p.description = infos.desc;
+			p.website = infos.website;
+			p.update();
 			update = true;
 			neko.FileSystem.deleteFile(path);
 			return "Project infos updated : submit one more time to send a new version";
 		}
 
 		// check version
-		var vl = Version.manager.search({ library : l.id });
+		var vl = Version.manager.search({ project : p.id });
 		for( v in vl )
 			if( v.name == infos.version ) {
 				neko.FileSystem.deleteFile(path);
 				return "This version is already commited, please change version number";
 			}
 
-		neko.FileSystem.rename(path,Site.REP_DIR+"/"+Datas.fileName(l.name,infos.version));
+		neko.FileSystem.rename(path,Site.REP_DIR+"/"+Datas.fileName(p.name,infos.version));
 
 		var v = new Version();
-		v.library = l;
+		v.project = p;
 		v.name = infos.version;
-		v.comments = infos.versionDesc;
+		v.comments = infos.versionComments;
 		v.downloads = 0;
 		v.date = Date.now().toString();
 		v.insert();
 
-		l.version = v;
-		l.update();
+		p.version = v;
+		p.update();
 		return "Version "+v.name+" (id#"+v.id+") added";
 	}
 

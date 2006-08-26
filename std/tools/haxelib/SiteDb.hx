@@ -12,7 +12,7 @@ class User extends neko.db.Object {
 
 }
 
-class Lib extends neko.db.Object {
+class Project extends neko.db.Object {
 
 	static function RELATIONS() {
 		return [
@@ -21,7 +21,7 @@ class Lib extends neko.db.Object {
 		];
 	}
 
-	public static var manager = new LibraryManager(Lib);
+	public static var manager = new ProjectManager(Project);
 
 	public var id : Int;
 	public var name : String;
@@ -35,13 +35,13 @@ class Lib extends neko.db.Object {
 class Version extends neko.db.Object {
 
 	static function RELATIONS() {
-		return [{ key : "library", prop : "library", manager : Lib.manager }];
+		return [{ key : "project", prop : "project", manager : Project.manager }];
 	}
 
 	public static var manager = new neko.db.Manager<Version>(Version);
 
 	public var id : Int;
-	public var library(dynamic,dynamic) : Lib;
+	public var project(dynamic,dynamic) : Project;
 	public var name : String;
 	public var date : String; // sqlite does not have a proper 'date' type
 	public var comments : String;
@@ -49,11 +49,11 @@ class Version extends neko.db.Object {
 
 }
 
-class LibraryManager extends neko.db.Manager<Lib> {
+class ProjectManager extends neko.db.Manager<Project> {
 
 	public function containing( word ) {
 		word = quote("%"+word+"%");
-		return results("SELECT name FROM Lib WHERE name LIKE "+word+" OR description LIKE "+word);
+		return results("SELECT name FROM Project WHERE name LIKE "+word+" OR description LIKE "+word);
 	}
 
 }
@@ -71,9 +71,9 @@ class SiteDb {
 				email VARCHAR(50) NOT NULL
 			)
 		");
-		db.request("DROP TABLE IF EXISTS Lib");
+		db.request("DROP TABLE IF EXISTS Project");
 		db.request("
-			CREATE TABLE Lib (
+			CREATE TABLE Project (
 				id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 				owner INTEGER NOT NULL,
 				name VARCHAR(32) NOT NULL UNIQUE,
@@ -86,7 +86,7 @@ class SiteDb {
 		db.request("
 			CREATE TABLE Version (
 				id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-				library INTEGER NOT NULL,
+				project INTEGER NOT NULL,
 				downloads INTEGER NOT NULL,
 				date VARCHAR(19) NOT NULL,
 				name VARCHAR(32) NOT NULL,
