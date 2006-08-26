@@ -73,8 +73,9 @@ class Main {
 		args = neko.Sys.args();
 		commands = new List();
 		addCommand("install",install,"install a given project");
-//		addCommand("list",list,"list all installed projects");
-//		addCommand("update",update,"update all installed projects");
+		addCommand("list",list,"list all installed projects");
+		addCommand("update",update,"update all installed projects");
+		addCommand("remove",remove,"remove a given project/version");
 		addCommand("search",search,"list projects matching a word");
 		addCommand("infos",infos,"list informations on a given project");
 		addCommand("user",user,"list informations on a given user");
@@ -90,6 +91,12 @@ class Main {
 			return args[argcur++];
 		neko.Lib.print(name+" : ");
 		return neko.io.File.stdin().readLine();
+	}
+
+	function paramOpt() {
+		if( args.length > argcur )
+			return args[argcur++];
+		return null;
 	}
 
 	function addCommand( name, f, doc ) {
@@ -163,8 +170,11 @@ class Main {
 		print("Please enter the following informations for registration");
 		var email = param("Email");
 		var fullname = param("Fullname");
-		var pass = haxe.Md5.encode(param("Password"));
-		param("Enter to Confirm");
+		var pass = param("Password");
+		var pass2 = param("Confirm");
+		if( pass != pass2 )
+			throw "Password does not match";
+		pass = haxe.Md5.encode(pass);
 		site.register(name,pass,email,fullname);
 		return pass;
 	}
@@ -218,7 +228,7 @@ class Main {
 		var inf = site.infos(prj);
 		if( inf.curversion == null )
 			throw "This project has not yet released a version";
-		var reqversion = if( args.length > argcur ) args[argcur++] else null;
+		var reqversion = paramOpt();
 		var version = if( reqversion != null ) reqversion else inf.curversion;
 		var found = false;
 		for( v in inf.versions )
@@ -228,25 +238,25 @@ class Main {
 			}
 		if( !found )
 			throw "No such version "+version;
+		doInstall(inf.name,version,version == inf.curversion);
+	}
 
+	function doInstall( project, version, setcurrent ) {
 		var rep = getRepository();
 
 		// create/delete directories first
-		var project = rep+Datas.safe(inf.name);
-		safeDir(project);
-		project += "/";
-		var target = project+Datas.safe(version);
+		var pdir = rep+Datas.safe(project);
+		safeDir(pdir);
+		pdir += "/";
+		var target = pdir+Datas.safe(version);
 		if( !safeDir(target) ) {
-			if( reqversion == null )
-				print(inf.name+" is up-to-date");
-			else
-				print("You already have "+inf.name+" version "+reqversion+" installed");
+			print("You already have "+project+" version "+version+" installed");
 			return;
 		}
 		target += "/";
 
 		// download to temporary file
-		var filename = Datas.fileName(inf.name,version);
+		var filename = Datas.fileName(project,version);
 		var filepath = rep+filename;
 		var out = neko.io.File.write(filepath,true);
 		var progress = new Progress(out);
@@ -305,8 +315,8 @@ class Main {
 		}
 
 		// set current version
-		if( version == inf.curversion ) {
-			var f = neko.io.File.write(project+".current",true);
+		if( setcurrent ) {
+			var f = neko.io.File.write(pdir+".current",true);
 			f.write(version);
 			f.close();
 			print("  Current version is now "+version);
@@ -369,6 +379,78 @@ class Main {
 
 	function config() {
 		print(getRepository());
+	}
+
+	function list() {
+		var rep = getRepository();
+		for( p in neko.FileSystem.readDirectory(rep) ) {
+			var versions = neko.FileSystem.readDirectory(rep+p);
+			var current = neko.io.File.getContent(rep+p+"/.current");
+			versions.remove(".current");
+			for( i in 0...versions.length )
+				if( versions[i] == current ) {
+					versions[i] = "["+current+"]";
+					break;
+				}
+			print(p + ": "+versions.join(" "));
+		}
+	}
+
+	function update() {
+		var rep = getRepository();
+		var prompt = true;
+		var update = false;
+		for( p in neko.FileSystem.readDirectory(rep) ) {
+			var current = neko.io.File.getContent(rep+p+"/.current");
+			print("Checking "+p);
+			var inf = site.infos(p);
+			if( inf.curversion != current ) {
+				if( prompt ) {
+					var answer;
+					do {
+						neko.Lib.print("Update "+p+" to "+inf.curversion+" [y/n/a] ? ");
+						answer = neko.io.File.stdin().readLine();
+					} while( answer != "y" && answer != "n" && answer != "a" );
+					if( answer == "n" )
+						continue;
+					if( answer == "a" )
+						prompt = false;
+				}
+				doInstall(p,inf.curversion,true);
+				update = true;
+			}
+		}
+		if( update )
+			print("Done");
+		else
+			print("All projects are up-to-date");
+	}
+
+	function deleteRec(dir) {
+		for( p in neko.FileSystem.readDirectory(dir) ) {
+			var path = dir+"/"+p;
+			if( neko.FileSystem.isDirectory(path) )
+				deleteRec(path);
+			else
+				neko.FileSystem.deleteFile(path);
+		}
+		neko.FileSystem.deleteDirectory(dir);
+	}
+
+	function remove() {
+		var prj = param("Project");
+		var version = paramOpt();
+		var rep = getRepository();
+		var pdir = rep + Datas.safe(prj);
+
+		if( version == null ) {
+			if( !neko.FileSystem.exists(pdir) )
+				throw "Project "+prj+" is not installed";
+			deleteRec(pdir);
+			print("Project "+prj+" removed");
+			return;
+		}
+
 	}
 
 	// ----------------------------------
