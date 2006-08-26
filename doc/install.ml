@@ -38,7 +38,7 @@ let zlib = match os_type with
 	| "Win32" -> "zlib.lib" 
 	| _ -> 
 		try 
-			List.find Sys.file_exists ["/usr/lib/libz.dylib";"/usr/lib/libz.so.1";"/lib/libz.so.1"]
+			List.find Sys.file_exists ["/usr/lib/libz.dylib";"/usr/lib64/libz.so.1";"/usr/lib/libz.so.1";"/lib/libz.so.1"]
 		with
 			Not_found ->
 				failwith "LibZ was not found on your system, please install it or modify the search directories in the install script"
