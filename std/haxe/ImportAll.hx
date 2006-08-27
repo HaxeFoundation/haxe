@@ -75,6 +75,9 @@ import haxe.remoting.SocketConnection;
 
 #end // flash9
 
+import haxe.xml.Check;
+import haxe.xml.Fast;
+
 import haxe.unit.TestCase;
 import haxe.unit.TestResult;
 import haxe.unit.TestRunner;
