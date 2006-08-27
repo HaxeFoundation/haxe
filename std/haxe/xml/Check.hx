@@ -152,10 +152,20 @@ class Check {
 					continue;
 				var found = false;
 				for( r in rules ) {
-					var m = check(x,r);
+					var m = checkList([x].iterator(),r);
 					if( m == CMatch ) {
 						found = true;
-						rules.remove(r);
+						switch(r) {
+						case RMulti(rsub,one):
+							if( one ) {
+								var i;
+								for( i in 0...rules.length )
+									if( rules[i] == r )
+										rules[i] = RMulti(rsub);
+							}
+						default:
+							rules.remove(r);
+						}
 						break;
 					} else if( ordered && !isNullable(r) )
 						return m;
@@ -171,7 +181,7 @@ class Check {
 			if( one && !it.hasNext() )
 				return CMissing(r);
 			for( x in it ) {
-				var m = check(x,r);
+				var m = checkList([x].iterator(),r);
 				if( m != CMatch )
 					return m;
 			}
