@@ -30,6 +30,7 @@ class FlashXml__ {
 	public var nodeName(getNodeName,setNodeName) : String;
 	public var nodeValue(getNodeValue,setNodeValue) : String;
 	public var nodeType(default,null) : XmlType;
+	public var parent(getParent,null) : Xml;
 
 	private var __x : Dynamic;
 
@@ -144,7 +145,13 @@ class FlashXml__ {
 		return __x[untyped "nodeValue"];
 	}
 
+	private function getParent() : Xml {
+		return __x[untyped "parentNode"];
+	}
+
 	public function iterator() : Iterator<Xml> {
+		if( nodeType != Xml.Document && nodeType != Xml.Element )
+			throw "bad nodeType";
 		return untyped {
 			cur: this.__x[untyped "firstChild"],
 			hasNext : function(){
@@ -159,6 +166,8 @@ class FlashXml__ {
 	}
 
 	public function elements() : Iterator<Xml> {
+		if( nodeType != Xml.Document && nodeType != Xml.Element )
+			throw "bad nodeType";
 		return untyped {
 			cur: this.__x[untyped "firstChild"],
 			hasNext : function() {
@@ -183,6 +192,8 @@ class FlashXml__ {
 	}
 
 	public function elementsNamed( nodeName : String ){
+		if( nodeType != Xml.Document && nodeType != Xml.Element )
+			throw "bad nodeType";
 		return untyped {
 			cur: this.__x[untyped "firstChild"],
 			hasNext : function() {
@@ -237,10 +248,14 @@ class FlashXml__ {
 	}
 
 	public function addChild( child : Xml ) {
+		if( nodeType != Xml.Document && nodeType != Xml.Element )
+			throw "bad nodeType";
 		untyped __x[untyped "appendChild"](child.__x);
 	}
 
 	public function removeChild( child : Xml ) : Bool {
+		if( nodeType != Xml.Document && nodeType != Xml.Element )
+			throw "bad nodeType";
 		untyped if( child.__x["parentNode"] != __x )
 			return false;
 		untyped child.__x["removeNode"]();
@@ -248,6 +263,8 @@ class FlashXml__ {
 	}
 
 	public function insertChild( x : Xml, pos : Int ) : Void {
+		if( nodeType != Xml.Document && nodeType != Xml.Element )
+			throw "bad nodeType";
 		var c : Array<Dynamic> = __x[untyped "childNodes"];
 		if( pos <= c.length )
 			__x[untyped "insertBefore"](untyped x.__x,c[pos]);
