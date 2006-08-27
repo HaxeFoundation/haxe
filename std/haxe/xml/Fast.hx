@@ -73,7 +73,7 @@ class Fast {
 		att = new AttribAccess(x);
 	}
 
-	public function node() {
+	public function get() {
 		return __x;
 	}
 
