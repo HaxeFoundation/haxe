@@ -32,6 +32,7 @@ typedef XmlInfos = {
 	var desc : String;
 	var version : String;
 	var versionComments : String;
+	var dependencies : List<{ project : String, version : String }>;
 }
 
 class Datas {
@@ -62,7 +63,11 @@ class Datas {
 	}
 
 	public static function safe( name : String ) {
-		return name.split(".").join("-");
+		return name.split(".").join(",");
+	}
+
+	public static function unsafe( name : String ) {
+		return name.split(",").join(".");
 	}
 
 	public static function fileName( lib : String, ver : String ) {
@@ -87,6 +92,7 @@ class Datas {
 				RNode("user",[sname]),
 				RNode("description",[],RData()),
 				RNode("version",[sname],RData()),
+				RMulti(	RNode("depends",[sname,Att("version",FReg(alphanum),"")]) ),
 			])
 		);
 		var doc = Xml.parse(xmldata);
@@ -99,6 +105,9 @@ class Datas {
 		var user = p.node.user.att.name;
 		if( user.length < 3 )
 			throw "User name must contain at least 3 characters";
+		var deps = new List();
+		for( d in p.nodes.depends )
+			deps.add({ project : d.att.name, version : d.att.version });
 		return {
 			project : project,
 			owner : user,
@@ -106,6 +115,7 @@ class Datas {
 			desc : p.node.description.data,
 			version : p.node.version.att.name,
 			versionComments : p.node.version.data,
+			dependencies : deps,
 		}
 	}
 
