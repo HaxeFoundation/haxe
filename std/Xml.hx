@@ -75,12 +75,15 @@ extern class Xml {
 	function attributes() : Iterator<String>;
 
 	// children method : only works for Node and Document
-	// exception if child is Document (can't add Documents together)
+	var parent(getParent,null) : Xml;
+	private function getParent() : Xml;
+
 	function iterator() : Iterator<Xml>;
 	function elements() : Iterator<Xml>;
 	function elementsNamed( name : String ) : Iterator<Xml>; // only nodes with this nodeName
 	function firstChild() : Xml;
 	function firstElement() : Xml;
+	// exception if child is Document (can't add Documents together)
 	function addChild( x : Xml ) : Void;
 	function removeChild( x : Xml ) : Bool;
 	function insertChild( x : Xml, pos : Int ) : Void;
