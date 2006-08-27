@@ -66,11 +66,17 @@ class File {
 		return new FileOutput(file_stderr());
 	}
 
+	public static function getChar( echo : Bool ) : Int {
+		return getch(echo);
+	}
+
 	private static var file_stdin = neko.Lib.load("std","file_stdin",0);
 	private static var file_stdout = neko.Lib.load("std","file_stdout",0);
 	private static var file_stderr = neko.Lib.load("std","file_stderr",0);
 
 	private static var file_contents = neko.Lib.load("std","file_contents",1);
 	private static var file_open = neko.Lib.load("std","file_open",2);
+
+	private static var getch = neko.Lib.load("std","sys_getch",1);
 
 }
