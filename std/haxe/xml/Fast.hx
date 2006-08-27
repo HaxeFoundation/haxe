@@ -73,6 +73,10 @@ class Fast {
 		att = new AttribAccess(x);
 	}
 
+	public function node() {
+		return __x;
+	}
+
 	function name() {
 		return if( __x.nodeType == Xml.Document ) "Document" else __x.nodeName;
 	}

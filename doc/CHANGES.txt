@@ -18,6 +18,7 @@
 	improved Serializer speed
 	added Serialization support for Date, Hash, IntHash, List
 	added flash9 and JS IE/Opera class reflection
+	added haxe.xml.Check and haxe.xml.Fast
 
 2006-08-16: 1.05
 	moved Md5 to haxe package.
