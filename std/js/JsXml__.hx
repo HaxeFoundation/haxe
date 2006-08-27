@@ -42,10 +42,15 @@ class JsXml__ {
 	static var ecomment_end = ~/-->/;
 
 	public var nodeType(default,null) : XmlType;
-	public var _nodeName : String;
-	public var _nodeValue : String;
-	public var _attributes : Hash<String>;
-	public var _children : Array<Xml>;
+	public var nodeName(getNodeName,setNodeName) : String;
+	public var nodeValue(getNodeValue,setNodeValue) : String;
+	public var parent(getParent,null) : JsXml__;
+
+	var _nodeName : String;
+	var _nodeValue : String;
+	var _attributes : Hash<String>;
+	var _children : Array<JsXml__>;
+	var _parent : JsXml__;
 
 	public static function parse( str : String ) : Xml {
 		var rules = [enode,epcdata,eend,ecdata,edoctype,ecomment,eprolog];
@@ -147,64 +152,56 @@ class JsXml__ {
 	private function new(){
 	}
 
-	static function createElement( name : String ) : Xml {
+	static function createElement( name : String ) : JsXml__ {
 		var r = new JsXml__();
-		untyped {
-			r.nodeType = Xml.Element;
-			r._children = new Array();
-			r._attributes = new Hash();
-			r.setNodeName( name );
-			return r;
-		}
+		r.nodeType = Xml.Element;
+		r._children = new Array();
+		r._attributes = new Hash();
+		r.setNodeName( name );
+		return r;
 	}
-	static function createPCData( data : String ) : Xml {
+
+	static function createPCData( data : String ) : JsXml__ {
 		var r = new JsXml__();
-		untyped {
-			r.nodeType = Xml.PCData;
-			r.setNodeValue( data );
-			return r;
-		}
+		r.nodeType = Xml.PCData;
+		r.setNodeValue( data );
+		return r;
 	}
-	static function createCData( data : String ) : Xml{
+
+	static function createCData( data : String ) : JsXml__ {
 		var r = new JsXml__();
-		untyped {
-			r.nodeType = Xml.CData;
-			r.setNodeValue( data );
-			return r;
-		}
+		r.nodeType = Xml.CData;
+		r.setNodeValue( data );
+		return r;
 	}
-	static function createComment( data : String ) : Xml{
+
+	static function createComment( data : String ) : JsXml__ {
 		var r = new JsXml__();
-		untyped {
-			r.nodeType = Xml.Comment;
-			r.setNodeValue( data );
-			return r;
-		}
+		r.nodeType = Xml.Comment;
+		r.setNodeValue( data );
+		return r;
 	}
-	static function createDocType( data : String ) : Xml{
+
+	static function createDocType( data : String ) : JsXml__ {
 		var r = new JsXml__();
-		untyped {
-			r.nodeType = Xml.DocType;
-			r.setNodeValue( data );
-			return r;
-		}
+		r.nodeType = Xml.DocType;
+		r.setNodeValue( data );
+		return r;
 	}
-	static function createProlog( data : String ) : Xml{
+
+	static function createProlog( data : String ) : JsXml__ {
 		var r = new JsXml__();
-		untyped {
-			r.nodeType = Xml.Prolog;
-			r.setNodeValue( data );
-			return r;
-		}
+		r.nodeType = Xml.Prolog;
+		r.setNodeValue( data );
+		return r;
 	}
-	static function createDocument() : Xml{
+
+	static function createDocument() : JsXml__ {
 		var r = new JsXml__();
 		r.nodeType = Xml.Document;
 		r._children = new Array();
-		untyped return r;
+		return r;
 	}
-
-	public var nodeName(getNodeName,setNodeName) : String;
 
 	private function getNodeName() : String {
 		if( nodeType != Xml.Element )
@@ -218,8 +215,6 @@ class JsXml__ {
 		return _nodeName = n;
 	}
 
-	public var nodeValue(getNodeValue,setNodeValue) : String;
-
 	private function getNodeValue() : String {
 		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
@@ -230,6 +225,10 @@ class JsXml__ {
 		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
 		return _nodeValue = v;
+	}
+
+	private function getParent() {
+		return _parent;
 	}
 
 	public function get( att : String ) : String {
@@ -263,6 +262,7 @@ class JsXml__ {
 	}
 
 	public function iterator(){
+		if( _children == null ) throw "bad nodetype";
 		return untyped {
 			cur: 0,
 			x: this._children,
@@ -276,6 +276,7 @@ class JsXml__ {
 	}
 
 	public function elements(){
+		if( _children == null ) throw "bad nodetype";
 		return untyped {
 			cur: 0,
 			x: this._children,
@@ -307,6 +308,7 @@ class JsXml__ {
 	}
 
 	public function elementsNamed( name : String ) {
+		if( _children == null ) throw "bad nodetype";
 		return untyped {
 			cur: 0,
 			x: this._children,
@@ -338,11 +340,13 @@ class JsXml__ {
 		}
 	}
 
-	public function firstChild() : Xml {
+	public function firstChild() : JsXml__ {
+		if( _children == null ) throw "bad nodetype";
 		return _children[0];
 	}
 
-	public function firstElement() : Xml {
+	public function firstElement() : JsXml__ {
+		if( _children == null ) throw "bad nodetype";
 		var cur = 0;
 		var l = _children.length;
 		while( cur < l ) {
@@ -354,15 +358,25 @@ class JsXml__ {
 		return null;
 	}
 
-	public function addChild( x : Xml ) : Void {
+	public function addChild( x : JsXml__ ) : Void {
+		if( _children == null ) throw "bad nodetype";
+		if( x._parent != null ) x._parent._children.remove(x);
+		x._parent = this;
 		_children.push( x );
 	}
 
-	public function removeChild( x : Xml ) : Bool {
-		return _children.remove( x );
+	public function removeChild( x : JsXml__ ) : Bool {
+		if( _children == null ) throw "bad nodetype";
+		var b = _children.remove( x );
+		if( b )
+			x._parent = null;
+		return b;
 	}
 
-	public function insertChild( x : Xml, pos : Int ) : Void {
+	public function insertChild( x : JsXml__, pos : Int ) : Void {
+		if( _children == null ) throw "bad nodetype";
+		if( x._parent != null ) x._parent._children.remove(x);
+		x._parent = this;
 		_children.insert( pos, x );
 	}
 
