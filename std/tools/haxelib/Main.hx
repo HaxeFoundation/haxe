@@ -69,7 +69,6 @@ class Main {
 	var site : SiteProxy;
 
 	function new() {
-		argcur = 1;
 		args = neko.Sys.args();
 		commands = new List();
 		addCommand("install",install,"install a given project");
@@ -86,10 +85,18 @@ class Main {
 		site = new SiteProxy(haxe.remoting.Connection.urlConnect(siteUrl+SERVER.url).api);
 	}
 
-	function param( name ) {
+	function param( name, ?passwd ) {
 		if( args.length > argcur )
 			return args[argcur++];
 		neko.Lib.print(name+" : ");
+		if( passwd ) {
+			var s = new StringBuf();
+			var c;
+			while( (c = neko.io.File.getChar(false)) != 13 )
+				s.addChar(c);
+			print("");
+			return s.toString();
+		}
 		return neko.io.File.stdin().readLine();
 	}
 
@@ -115,12 +122,25 @@ class Main {
 	}
 
 	function run() {
-		var cmd = args[0];
+		var debug = false;
+		argcur = 0;
+		if( args[argcur] == "-debug" ) {
+			argcur++;
+			debug = true;
+		}
+		var cmd = args[argcur++];
 		if( cmd == null )
 			usage();
 		for( c in commands )
 			if( c.name == cmd ) {
-				c.f();
+				try {
+					c.f();
+				} catch( e : Dynamic ) {
+					if( debug )
+						neko.Lib.rethrow(e);
+					print(Std.string(e));
+					neko.Sys.exit(1);
+				}
 				return;
 			}
 		print("Unknown command "+cmd);
@@ -170,8 +190,8 @@ class Main {
 		print("Please enter the following informations for registration");
 		var email = param("Email");
 		var fullname = param("Fullname");
-		var pass = param("Password");
-		var pass2 = param("Confirm");
+		var pass = param("Password",true);
+		var pass2 = param("Confirm",true);
 		if( pass != pass2 )
 			throw "Password does not match";
 		pass = haxe.Md5.encode(pass);
@@ -189,10 +209,26 @@ class Main {
 		if( site.isNewUser(infos.owner) )
 			password = register(infos.owner);
 		else {
-			password = haxe.Md5.encode(param("Password"));
+			password = haxe.Md5.encode(param("Password",true));
 			if( !site.checkPassword(infos.owner,password) )
 				throw "Invalid password for "+infos.owner;
 		}
+
+		// check dependencies validity
+		for( d in infos.dependencies ) {
+			var infos = site.infos(d.project);
+			if( d.version == "" )
+				continue;
+			var found = false;
+			for( v in infos.versions )
+				if( v.name == d.version ) {
+					found = true;
+					break;
+				}
+			if( !found )
+				throw "Project "+d.project+" does not have version "+d.version;
+		}
+
 
 		// query a submit id that will identify the file
 		var id = site.getSubmitId();
@@ -315,7 +351,7 @@ class Main {
 		}
 
 		// set current version
-		if( setcurrent ) {
+		if( setcurrent || !neko.FileSystem.exists(pdir+".current") ) {
 			var f = neko.io.File.write(pdir+".current",true);
 			f.write(version);
 			f.close();
@@ -325,6 +361,15 @@ class Main {
 		// end
 		neko.FileSystem.deleteFile(filepath);
 		print("Done");
+
+		// process dependencies
+		var infos = Datas.readInfos(zip);
+		for( d in infos.dependencies ) {
+			print("Installing dependency "+d.project+" "+d.version);
+			if( d.version == "" )
+				d.version = site.infos(d.project).curversion;
+			doInstall(d.project,d.version,false);
+		}
 	}
 
 	function safeDir( dir ) {
@@ -387,12 +432,12 @@ class Main {
 			var versions = neko.FileSystem.readDirectory(rep+p);
 			var current = neko.io.File.getContent(rep+p+"/.current");
 			versions.remove(".current");
-			for( i in 0...versions.length )
-				if( versions[i] == current ) {
+			for( i in 0...versions.length ) {
+				versions[i] = Datas.unsafe(versions[i]);
+				if( versions[i] == current )
 					versions[i] = "["+current+"]";
-					break;
-				}
-			print(p + ": "+versions.join(" "));
+			}
+			print(Datas.unsafe(p) + ": "+versions.join(" "));
 		}
 	}
 
@@ -402,6 +447,7 @@ class Main {
 		var update = false;
 		for( p in neko.FileSystem.readDirectory(rep) ) {
 			var current = neko.io.File.getContent(rep+p+"/.current");
+			var p = Datas.unsafe(p);
 			print("Checking "+p);
 			var inf = site.infos(p);
 			if( inf.curversion != current ) {
