@@ -63,6 +63,8 @@ class Datas {
 	}
 
 	public static function safe( name : String ) {
+		if( !alphanum.match(name) )
+			throw "Invalid parameter : "+name;
 		return name.split(".").join(",");
 	}
 
@@ -83,7 +85,11 @@ class Datas {
 			}
 		if( xmldata == null )
 			throw XML+" not found in package";
+		return readData(xmldata);
 
+	}
+
+	public static function readData( xmldata : String ) : XmlInfos {
 		var sname = Att("name",FReg(alphanum));
 		var schema = RNode(
 			"project",
