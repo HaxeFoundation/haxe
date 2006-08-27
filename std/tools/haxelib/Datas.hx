@@ -1,6 +1,7 @@
 package tools.haxelib;
 
 import neko.zip.File;
+import haxe.xml.Check;
 
 typedef UserInfos = {
 	var name : String;
@@ -35,11 +36,9 @@ typedef XmlInfos = {
 
 class Datas {
 
-
 	public static var XML = "haxelib.xml";
 	public static var REPOSITORY = "files";
 	public static var alphanum = ~/^[A-Za-z0-9_.-]+$/;
-
 
 	static function requiredAttribute( x : Xml, name ) {
 		var v = x.get(name);
@@ -79,27 +78,34 @@ class Datas {
 			}
 		if( xmldata == null )
 			throw XML+" not found in package";
-		var x = requiredNode(Xml.parse(xmldata),"project");
-		var project = requiredAttribute(x,"name");
-		if( project.length < 3 || !alphanum.match(project) )
-			throw "Project name must contain at least 3 characters and only AZaz09_.- characters";
-		var url = requiredAttribute(x,"url");
-		var user = requiredAttribute(requiredNode(x,"user"),"name");
-		if( user.length < 3 || !alphanum.match(user) )
-			throw "User name must contain at least 3 characters and only AZaz09_.- characters";
-		var desc = requiredText(requiredNode(x,"description"));
-		var vnode = requiredNode(x,"version");
-		var version = requiredAttribute(vnode,"name");
-		if( version.length < 1 || !alphanum.match(version) )
-			throw "Version name must contain at least 1 character and only AZaz09_.- characters";
-		var vdesc = requiredText(vnode);
+
+		var sname = Att("name",FReg(alphanum));
+		var schema = RNode(
+			"project",
+			[ sname, Att("url") ],
+			RList([
+				RNode("user",[sname]),
+				RNode("description",[],RData()),
+				RNode("version",[sname],RData()),
+			])
+		);
+		var doc = Xml.parse(xmldata);
+		haxe.xml.Check.checkDocument(doc,schema);
+
+		var p = new haxe.xml.Fast(doc).node.project;
+		var project = p.att.name;
+		if( project.length < 3 )
+			throw "Project name must contain at least 3 characters";
+		var user = p.node.user.att.name;
+		if( user.length < 3 )
+			throw "User name must contain at least 3 characters";
 		return {
 			project : project,
-			website : url,
 			owner : user,
-			desc : desc,
-			version : version,
-			versionComments : vdesc,
+			website : p.att.url,
+			desc : p.node.description.data,
+			version : p.node.version.att.name,
+			versionComments : p.node.version.data,
 		}
 	}
 
