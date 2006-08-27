@@ -75,12 +75,14 @@ class Main {
 		addCommand("list",list,"list all installed projects");
 		addCommand("update",update,"update all installed projects");
 		addCommand("remove",remove,"remove a given project/version");
+		addCommand("set",set,"set the current version for a project");
 		addCommand("search",search,"list projects matching a word");
 		addCommand("infos",infos,"list informations on a given project");
 		addCommand("user",user,"list informations on a given user");
 		addCommand("submit",submit,"submit or update a project package");
 		addCommand("setup",setup,"set the haxelib repository path");
 		addCommand("config",config,"print the repository path");
+		addCommand("path",path,"give paths to libraries");
 		siteUrl = "http://"+SERVER.host+":"+SERVER.port+"/"+SERVER.dir;
 		site = new SiteProxy(haxe.remoting.Connection.urlConnect(siteUrl+SERVER.url).api);
 	}
@@ -497,6 +499,64 @@ class Main {
 			return;
 		}
 
+		var vdir = pdir + "/" + Datas.safe(version);
+		if( !neko.FileSystem.exists(vdir) )
+			throw "Project "+prj+" does not have version "+version+" installed";
+
+		var cur = neko.io.File.getContent(pdir+"/.current");
+		if( cur == version )
+			throw "Can't remove current version of project "+prj;
+		deleteRec(vdir);
+		print("Project "+prj+" version "+version+" removed");
+	}
+
+	function set() {
+		var prj = param("Project");
+		var version = param("Version");
+		var pdir = getRepository() + Datas.safe(prj);
+		var vdir = pdir + "/" + Datas.safe(version);
+		if( !neko.FileSystem.exists(vdir) )
+			throw "Project "+prj+" version "+version+" is not installed";
+		var f = neko.io.File.write(pdir+"/.current",true);
+		f.write(version);
+		f.close();
+		print("Project "+prj+" current version is now "+version);
+	}
+
+	function checkRec( prj : String, version : String, l : List<{ project : String, version : String }> ) {
+		var pdir = getRepository() + Datas.safe(prj);
+		if( !neko.FileSystem.exists(pdir) )
+			throw "Project "+prj+" is not installed";
+		var version = if( version != null ) version else neko.io.File.getContent(pdir+"/.current");
+		var vdir = pdir + "/" + Datas.safe(version);
+		if( !neko.FileSystem.exists(vdir) )
+			throw "Project "+prj+" version "+version+" is not installed";
+		for( p in l )
+			if( p.project == prj ) {
+				if( p.version == version )
+					return;
+				throw "Project "+prj+" has two version included "+version+" and "+p.version;
+			}
+		l.add({ project : prj, version : version });
+		var xml = neko.io.File.getContent(vdir+"/haxelib.xml");
+		var inf = Datas.readData(xml);
+		for( d in inf.dependencies )
+			checkRec(d.project,if( d.version == "" ) null else d.version,l);
+	}
+
+	function path() {
+		var list = new List();
+		while( argcur < args.length ) {
+			var a = args[argcur++].split(":");
+			checkRec(a[0],a[1],list);
+		}
+		var rep = getRepository();
+		for( d in list ) {
+			var dir = rep + Datas.safe(d.project)+"/"+Datas.safe(d.version)+"/";
+			if( dir.split(" ").length > 1 )
+				dir = '"' + dir + '"';
+			neko.Lib.println(dir);
+		}
 	}
 
 	// ----------------------------------
