@@ -28,33 +28,35 @@ import Xml;
 class NekoXml__ {
 
 	static var __name__ = ["Xml"];
-	private var _children : Array<Xml>;
+
+	public var nodeName(getNodeName,setNodeName) : String;
+	public var nodeValue(getNodeValue,setNodeValue) : String;
+	public var parent(getParent,null) : NekoXml__;
 	public var nodeType(default,null) : XmlType;
 
 	private var _nodeName : String;
 	private var _nodeValue : String;
 	private var _attributes : Dynamic<String>;
+	private var _children : Array<NekoXml__>;
+	private var _parent : NekoXml__;
 
 	private function new() {
-		_attributes = untyped Reflect.empty();
-		_children = new Array();
 	}
-
-	private var _parentNode : Xml;
 
 	private static var _parse = neko.Lib.load("std","parse_xml",2);
 
-	static function parse( xmlData : String ) : Xml {
+	static function parse( xmlData : String ) : NekoXml__ {
 		var x = new NekoXml__();
-
+		x._children = new Array();
 		var parser = {
 			cur : x,
 			xml : function(name,att) {
 				var x : Dynamic = new NekoXml__();
-				x._parentNode = untyped this.cur;
+				x._parent = untyped this.cur;
 				x.nodeType = Xml.Element;
 				x._nodeName = new String(name);
 				x._attributes = att;
+				x._children = new Array();
 				untyped {
 					var f = __dollar__objfields(att);
 					var i = 0;
@@ -69,21 +71,21 @@ class NekoXml__ {
 			},
 			cdata : function(text) {
 				var x : Dynamic = new NekoXml__();
-				x._parentNode = untyped this.cur;
+				x._parent = untyped this.cur;
 				x.nodeType = Xml.CData;
 				x._nodeValue = new String(text);
 				untyped this.cur.addChild(x);
 			},
 			pcdata : function(text) {
 				var x : Dynamic = new NekoXml__();
-				x._parentNode = untyped this.cur;
+				x._parent = untyped this.cur;
 				x.nodeType = Xml.PCData;
 				x._nodeValue = new String(text);
 				untyped this.cur.addChild(x);
 			},
 			comment : function(text) {
 				var x : Dynamic = new NekoXml__();
-				x._parentNode = untyped this.cur;
+				x._parent = untyped this.cur;
 				if( untyped __dollar__sget(text,0) == 63 ) {
 					x.nodeType = Xml.Prolog;
 					text = "<"+new String(text)+">";
@@ -96,98 +98,98 @@ class NekoXml__ {
 			},
 			doctype : function(text) {
 				var x : Dynamic = new NekoXml__();
-				x._parentNode = untyped this.cur;
+				x._parent = untyped this.cur;
 				x.nodeType = Xml.DocType;
 				x._nodeValue = "<!DOCTYPE"+new String(text)+">";
 				untyped this.cur.addChild(x);
 			},
 			done : function() {
-				untyped this.cur = this.cur._parentNode;
+				untyped this.cur = this.cur._parent;
 			}
 		};
 		untyped _parse(xmlData.__s,parser);
 		x.nodeType = Xml.Document;
-		return untyped x;
+		return x;
 	}
 
 
-	static function createElement( name : String ) : Xml {
+	static function createElement( name : String ) : NekoXml__ {
 		var r = new NekoXml__();
-		untyped {
-			r.nodeType = Xml.Element;
-			r._nodeName = name;
-			return r;
-		}
+		r.nodeType = Xml.Element;
+		r._nodeName = name;
+		r._attributes = cast Reflect.empty();
+		r._children = new Array();
+		return r;
 	}
-	static function createPCData( data : String ) : Xml {
+
+	static function createPCData( data : String ) : NekoXml__ {
 		var r = new NekoXml__();
-		untyped {
-			r.nodeType = Xml.PCData;
-			r._nodeValue = data;
-			return r;
-		}
+		r.nodeType = Xml.PCData;
+		r._nodeValue = data;
+		return r;
 	}
-	static function createCData( data : String ) : Xml{
+
+	static function createCData( data : String ) : NekoXml__ {
 		var r = new NekoXml__();
-		untyped {
-			r.nodeType = Xml.CData;
-			r._nodeValue = data;
-			return r;
-		}
+		r.nodeType = Xml.CData;
+		r._nodeValue = data;
+		return r;
 	}
-	static function createComment( data : String ) : Xml{
+
+	static function createComment( data : String ) : NekoXml__ {
 		var r = new NekoXml__();
-		untyped {
-			r.nodeType = Xml.Comment;
-			r._nodeValue = data;
-			return r;
-		}
+		r.nodeType = Xml.Comment;
+		r._nodeValue = data;
+		return r;
 	}
-	static function createDocType( data : String ) : Xml{
+
+	static function createDocType( data : String ) : NekoXml__ {
 		var r = new NekoXml__();
-		untyped {
-			r.nodeType = Xml.DocType;
-			r._nodeValue = data;
-			return r;
-		}
+		r.nodeType = Xml.DocType;
+		r._nodeValue = data;
+		return r;
 	}
-	static function createProlog( data : String ) : Xml{
+
+	static function createProlog( data : String ) : NekoXml__ {
 		var r = new NekoXml__();
-		untyped {
-			r.nodeType = Xml.Prolog;
-			r._nodeValue = data;
-			return r;
-		}
+		r.nodeType = Xml.Prolog;
+		r._nodeValue = data;
+		return r;
 	}
-	static function createDocument() : Xml{
+
+	static function createDocument() : NekoXml__ {
 		var r = new NekoXml__();
 		r.nodeType = Xml.Document;
-		return untyped r;
+		r._children = new Array();
+		return r;
 	}
 
-
-	public var nodeName(getNodeName,setNodeName) : String;
 	private function getNodeName() : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 		return _nodeName;
 	}
+
 	private function setNodeName( n : String ) : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 		return _nodeName = n;
 	}
 
-	public var nodeValue(getNodeValue,setNodeValue) : String;
 	private function getNodeValue() : String {
 		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
 		return _nodeValue;
 	}
+
 	private function setNodeValue( v : String ) : String {
 		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
 		return _nodeValue = v;
+	}
+
+	private function getParent() : NekoXml__ {
+		return _parent;
 	}
 
 	public function get( att : String ) : String {
@@ -220,8 +222,9 @@ class NekoXml__ {
 		return Reflect.fields( _attributes ).iterator();
 	}
 
-
-	public function iterator(){
+	public function iterator() {
+		if( _children == null )
+			throw "bad nodetype";
 		return untyped {
 			cur: 0,
 			x: this._children,
@@ -235,7 +238,9 @@ class NekoXml__ {
 	}
 
 
-	public function elements(){
+	public function elements() {
+		if( _children == null )
+			throw "bad nodetype";
 		return untyped {
 			cur: 0,
 			x: this._children,
@@ -267,6 +272,8 @@ class NekoXml__ {
 	}
 
 	public function elementsNamed( name : String ) {
+		if( _children == null )
+			throw "bad nodetype";
 		return untyped {
 			cur: 0,
 			x: this._children,
@@ -298,11 +305,15 @@ class NekoXml__ {
 		}
 	}
 
-	public function firstChild() : Xml {
+	public function firstChild() : NekoXml__ {
+		if( _children == null )
+			throw "bad nodetype";
 		return _children[0];
 	}
 
-	public function firstElement() : Xml {
+	public function firstElement() : NekoXml__ {
+		if( _children == null )
+			throw "bad nodetype";
 		for( cur in 0..._children.length ) {
 			var n = _children[cur];
 			if( n.nodeType == Xml.Element )
@@ -311,15 +322,27 @@ class NekoXml__ {
 		return null;
 	}
 
-	public function addChild( x : Xml ) : Void {
+	public function addChild( x : NekoXml__ ) : Void {
+		if( _children == null )
+			throw "bad nodetype";
+		if( x._parent != null ) x._parent._children.remove(x);
+		x._parent = this;
 		_children.push( x );
 	}
 
-	public function removeChild( x : Xml ) : Bool {
-		return _children.remove( x );
+	public function removeChild( x : NekoXml__ ) : Bool {
+		if( _children == null )
+			throw "bad nodetype";
+		var b = _children.remove( x );
+		if( b ) x._parent = null;
+		return b;
 	}
 
-	public function insertChild( x : Xml, pos : Int ) : Void {
+	public function insertChild( x : NekoXml__, pos : Int ) : Void {
+		if( _children == null )
+			throw "bad nodetype";
+		if( x._parent != null ) x._parent._children.remove(x);
+		x._parent = this;
 		_children.insert( pos, x );
 	}
 
