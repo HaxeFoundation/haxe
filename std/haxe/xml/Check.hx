@@ -278,7 +278,7 @@ class Check {
 	}
 
 	public static function checkNode( x : Xml, r : Rule ) {
-		var m = check(x,r);
+		var m = checkList([x].iterator(),r);
 		if( m == CMatch )
 			return;
 		throw makeError(m);
