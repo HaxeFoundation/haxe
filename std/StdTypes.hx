@@ -49,3 +49,5 @@ typedef Iterator<T> = {
 	function hasNext() : Bool;
 	function next() : T;
 }
+
+extern interface ArrayAccess<T> { }

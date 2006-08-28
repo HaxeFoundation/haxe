@@ -1,6 +1,6 @@
 package flash.utils;
 
-extern class ByteArray implements IDataInput, implements IDataOutput {
+extern class ByteArray implements IDataInput, implements IDataOutput, implements ArrayAccess<Int> {
 	function new() : Void;
 	var bytesAvailable(default,null) : UInt;
 	function compress() : Void;

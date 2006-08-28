@@ -627,6 +627,17 @@ let t_array ctx =
 	| _ ->
 		assert false
 
+let t_array_access ctx =
+	let show = hide_types ctx in
+	match load_type_def ctx null_pos ([],"ArrayAccess") with
+	| TClassDecl c ->
+		show();
+		if List.length c.cl_types <> 1 then assert false;
+		let pt = mk_mono() in
+		TInst (c,[pt]) , pt
+	| _ ->
+		assert false
+
 let t_iterator ctx =
 	let show = hide_types ctx in
 	match load_type_def ctx null_pos ([],"Iterator") with
@@ -1423,7 +1434,15 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let e2 = type_expr ctx e2 in
 		unify ctx e2.etype (t_int ctx) e2.epos;
 		let t , pt = t_array ctx in
-		unify ctx e1.etype t e1.epos;
+		let pt = (try
+			unify_raise ctx e1.etype t e1.epos;
+			pt
+		with
+			Error (Unify _,_) ->
+				let t, pt = t_array_access ctx in
+				unify ctx e1.etype t e1.epos;
+				pt
+		) in
 		mk (TArray (e1,e2)) pt p
     | EBinop (op,e1,e2) ->
 		type_binop ctx op e1 e2 p

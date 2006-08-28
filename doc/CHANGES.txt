@@ -21,6 +21,7 @@
 	added haxe.xml.Check and haxe.xml.Fast
 	added Xml.parent
 	added haxelib
+	added ArrayAccess interface
 
 2006-08-16: 1.05
 	moved Md5 to haxe package.
