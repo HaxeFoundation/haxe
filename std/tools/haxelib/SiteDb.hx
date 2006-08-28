@@ -27,6 +27,7 @@ class Project extends neko.db.Object {
 	public var name : String;
 	public var description : String;
 	public var website : String;
+	public var license : String;
 	public var owner(dynamic,dynamic) : User;
 	public var version(dynamic,dynamic) : Version;
 
