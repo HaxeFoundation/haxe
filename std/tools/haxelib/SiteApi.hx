@@ -29,6 +29,7 @@ class SiteApi {
 			versions : versions,
 			owner : p.owner.name,
 			website : p.website,
+			license : p.license,
 		};
 	}
 
@@ -99,6 +100,7 @@ class SiteApi {
 			p.name = infos.project;
 			p.description = infos.desc;
 			p.website = infos.website;
+			p.license = infos.license;
 			p.owner = u;
 			p.insert();
 			neko.FileSystem.deleteFile(path);

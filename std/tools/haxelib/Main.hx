@@ -165,6 +165,7 @@ class Main {
 		print("Name: "+inf.name);
 		print("Desc: "+inf.desc);
 		print("Website: "+inf.website);
+		print("License: "+inf.license);
 		print("Owner: "+inf.owner);
 		print("Version: "+inf.curversion);
 		print("Releases: ");

@@ -21,6 +21,7 @@ typedef ProjectInfos = {
 	var desc : String;
 	var website : String;
 	var owner : String;
+	var license : String;
 	var curversion : String;
 	var versions : Array<VersionInfos>;
 }
@@ -123,6 +124,7 @@ class Datas {
 			desc : p.node.description.data,
 			version : p.node.version.att.name,
 			versionComments : p.node.version.data,
+			license : p.att.license,
 			dependencies : deps,
 		}
 	}

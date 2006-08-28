@@ -78,6 +78,7 @@ class SiteDb {
 				id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 				owner INTEGER NOT NULL,
 				name VARCHAR(32) NOT NULL UNIQUE,
+				license VARCHAR(20) NOT NULL,
 				description TEXT NOT NULL,
 				website VARCHAR(100) NOT NULL,
 				version INT
