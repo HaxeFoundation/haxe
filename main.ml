@@ -131,7 +131,7 @@ try
 	let hres = Hashtbl.create 0 in
 	let cmds = ref [] in
 	let excludes = ref [] in
-	let libs = ref [] in
+	let libs = ref [] in	
 	let gen_hx = ref false in
 	Plugin.defines := base_defines;
 	Typer.check_override := false;
@@ -278,15 +278,21 @@ try
 	Arg.parse_argv ~current args args_spec args_callback usage;
 	(match !libs with
 	| [] -> ()
-	| l -> 
+	| l ->
+		libs := [];
 		let cmd = "haxelib path " ^ String.concat " " l in
 		let p = Unix.open_process_in cmd in
 		let lines = Std.input_list p in
 		let ret = Unix.close_process_in p in
-		let lines = List.map (fun l ->
+		let lines = List.fold_left (fun acc l ->			
 			let p = String.length l - 1 in
-			if l.[p] = '\r' then String.sub l 0 p else l
-		) lines in
+			let l = (if l.[p] = '\r' then String.sub l 0 p else l) in
+			if p > 3 && String.sub l 0 3 = "-L " then begin
+				libs := String.sub l 3 (String.length l - 3) :: !libs;
+				acc
+			end else
+				l :: acc
+		) [] lines in
 		if ret <> Unix.WEXITED 0 then failwith (String.concat "\n" lines);
 		Plugin.class_path := lines @ !Plugin.class_path;
 	);
@@ -322,7 +328,7 @@ try
 			Genswf.generate file (!swf_version) (!swf_header) (!swf_in) types hres
 		| Neko file ->
 			if !Plugin.verbose then print_endline ("Generating neko : " ^ file);
-			Genneko.generate file types hres
+			Genneko.generate file types hres !libs
 		| Js file ->
 			if !Plugin.verbose then print_endline ("Generating js : " ^ file);
 			Genjs.generate file types hres

@@ -554,6 +554,13 @@ class Main {
 		var rep = getRepository();
 		for( d in list ) {
 			var dir = rep + Datas.safe(d.project)+"/"+Datas.safe(d.version)+"/";
+			var ndir = dir + "ndll";
+			if( neko.FileSystem.exists(ndir) ) {
+				var sysdir = ndir+"/"+neko.Sys.systemName();
+				if( !neko.FileSystem.exists(sysdir) )
+					throw "Project "+d.project+" version "+d.version+" does not have a neko dll for your system";
+				neko.Lib.println("-L "+ndir+"/");
+			}
 			if( dir.split(" ").length > 1 )
 				dir = '"' + dir + '"';
 			neko.Lib.println(dir);

@@ -618,7 +618,14 @@ let gen_name ctx acc t =
 	| TTypeDecl _ ->
 		acc
 
-let generate file types hres =
+let generate_libs_init = function
+	| [] -> ""
+	| libs ->
+		List.fold_left (fun acc l ->
+			acc ^ "$loader.path = $array(\"" ^ Nast.escape l ^ "\" + @s,$loader.path);"
+		) "@s = $loader.loadprim(\"std@sys_string\",0)() + \"/\";" libs
+
+let generate file types hres libs =
 	let ctx = {
 		methods = Plugin.defined "debug";
 		curclass = "$boot";
@@ -631,7 +638,8 @@ let generate file types hres =
 	let header = ENeko (
 		"@classes = $new(null);" ^
 		"@enum_to_string = function() { return neko.Boot.__enum_str(this); };" ^
-		"@serialize = function() { return neko.Boot.__serialize(this); };"
+		"@serialize = function() { return neko.Boot.__serialize(this); };" ^ 
+		generate_libs_init libs
 	) , { psource = "<header>"; pline = 1; } in
 	let packs = List.concat (List.map (gen_package ctx h) types) in
 	let names = List.fold_left (gen_name ctx) [] types in
