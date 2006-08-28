@@ -294,6 +294,12 @@ class Serializer {
 
 	public function serializeException( e : Dynamic ) {
 		buf.add("x");
+		#if flash9
+		if( untyped __is__(e,__global__["Error"]) ) {
+			serialize(e.message);
+			return;
+		}
+		#end
 		serialize(e);
 	}
 
