@@ -116,7 +116,11 @@ class Connection implements Dynamic<Connection> {
 	#if flash
 
 	static function __init__() {
+		#if flash9
+		flash.external.ExternalInterface.addCallback("remotingCall",doCall);
+		#else true
 		flash.external.ExternalInterface.addCallback("remotingCall",null,doCall);
+		#end
 	}
 
 	public static function jsConnect() : Connection {
