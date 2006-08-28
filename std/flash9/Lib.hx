@@ -32,6 +32,26 @@ class Lib {
 		return untyped __global__["flash.utils.getTimer"]();
 	}
 
+	public static function eval( path : String ) : Dynamic {
+		var p = path.split(".");
+		var fields = new Array();
+		var o = null;
+		while( p.length > 0 ) {
+			try {
+				o = untyped __global__["flash.utils.getDefinitionByName"](p.join("."));
+			} catch( e : Dynamic ) {
+				fields.unshift(p.pop());
+			}
+			if( o != null )
+				break;
+		}
+		if( o == null )
+			return null;
+		for( f in fields )
+			o = untyped o[f];
+		return o;
+	}
+
 }
 
 
