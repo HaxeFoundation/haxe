@@ -30,6 +30,7 @@ typedef XmlInfos = {
 	var website : String;
 	var owner : String;
 	var desc : String;
+	var license : String;
 	var version : String;
 	var versionComments : String;
 	var dependencies : List<{ project : String, version : String }>;
@@ -40,6 +41,7 @@ class Datas {
 	public static var XML = "haxelib.xml";
 	public static var REPOSITORY = "files";
 	public static var alphanum = ~/^[A-Za-z0-9_.-]+$/;
+	static var LICENSES = ["GPL","LGPL","BSD","Public"];
 
 	static function requiredAttribute( x : Xml, name ) {
 		var v = x.get(name);
@@ -93,7 +95,7 @@ class Datas {
 		var sname = Att("name",FReg(alphanum));
 		var schema = RNode(
 			"project",
-			[ sname, Att("url") ],
+			[ sname, Att("url"), Att("license",FEnum(LICENSES)) ],
 			RList([
 				RNode("user",[sname]),
 				RNode("description",[],RData()),
