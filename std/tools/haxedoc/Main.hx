@@ -562,13 +562,13 @@ class Main {
 		for( e in p ) {
 			switch e {
 			case epackage(name,full,p):
-				if( !filtered(name) )
+				if( !filtered(full.join("."),true) )
 					continue;
 				print('<li><a href="#" class="package" onclick="toggle(\''+full.join("_")+'\')">'+name+"</a><div id=\""+full.join("_")+"\" class=\"package_content\">");
 				display(p);
 				print("</div></li>");
 			case eclass(c):
-				if( c.isPrivate || c.path == "@Main" || !filtered(c.path) )
+				if( c.isPrivate || c.path == "@Main" || !filtered(c.path,false) )
 					continue;
 				print("<li>"+Url.make(c.path.split(".").join("/"),"entry",c.name)+"</li>");
 			}
@@ -626,7 +626,9 @@ class Main {
 	static var default_template = "<html><body><data/></body></html>";
 	static var filters = new List();
 
-	static function filtered(name) {
+	static function filtered(name,pack) {
+		if( pack && name == "Remoting" )
+			return false;
 		if( filters.isEmpty() )
 			return true;
 		for( x in filters )
@@ -647,11 +649,11 @@ class Main {
 	static function generateEntry(html,e,path) {
 		switch( e ) {
 		case eclass(c):
-			if( !filtered(c.path) )
+			if( !filtered(c.path,false) )
 				return;
 			save(html,c.path,path+c.name+".html");
-		case epackage(name,_,entries):
-			if( !filtered(name) )
+		case epackage(name,full,entries):
+			if( !filtered(full.join("."),true) )
 				return;
 			var old = Url.base;
 			Url.base = "../"+Url.base;
