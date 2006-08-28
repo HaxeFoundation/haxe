@@ -53,14 +53,12 @@ import haxe.Template;
 import haxe.Timer;
 import haxe.Unserializer;
 
-#if !flash9
-
 import haxe.remoting.AsyncConnection;
 import haxe.remoting.AsyncDebugConnection;
 import haxe.remoting.AsyncProxy;
 import haxe.remoting.Connection;
 import haxe.remoting.DelayedConnection;
-#if flash
+#if (flash && !flash9)
 import haxe.remoting.LocalConnection;
 #end
 import haxe.remoting.Proxy;
@@ -68,12 +66,10 @@ import haxe.remoting.Proxy;
 import haxe.remoting.Server;
 import haxe.remoting.SocketBuffer;
 #end
-#if js
+#if (js || flash9)
 #else true
 import haxe.remoting.SocketConnection;
 #end
-
-#end // flash9
 
 import haxe.xml.Check;
 import haxe.xml.Fast;

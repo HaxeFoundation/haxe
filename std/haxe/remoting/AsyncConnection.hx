@@ -99,9 +99,14 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 
 	#if flash
 	public static function amfConnect( gatewayUrl : String ) {
+		#if flash9
+		var c = new flash.net.NetConnection();
+		c.connect(gatewayUrl);
+		#else true
 		var c = new flash.NetConnection();
 		if( !c.connect(gatewayUrl) )
 			throw "Could not connected to gateway url "+gatewayUrl;
+		#end
 		return new AsyncConnection(c,[]);
 	}
 	#end
