@@ -31,7 +31,17 @@ cd ..
 
 rm -rf CVS .cvsignore */CVS */.cvsignore */*/CVS */*/.cvsignore */*/*/CVS */*/*/.cvsignore
 rm -rf all.n all.js *.swf *.xml 
-rm -rf tools/haxedoc/haxedoc.n tools/haxedoc/index.html tools/haxedoc/content tools/haxedoc/haxedoc.exe
+cd tools
+
+cd haxedoc
+rm -rf haxedoc.n index.html content haxedoc.exe
+cd ..
+
+cd haxelib
+rm -rf *.bat *.zip *.db *.n tmp files
+cd ..
+
+cd ..
 rm -rf mt mtwin
 
 cd ..\..\..\..\neko\bin
