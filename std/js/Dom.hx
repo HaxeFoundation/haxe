@@ -406,8 +406,8 @@ typedef Navigator = {
 }
 
 typedef Option = {> FormElement,
-	var defaultSelected : String;
-	var selected : String;
+	var defaultSelected : Bool;
+	var selected : Bool;
 	var text : String;
 }
 
