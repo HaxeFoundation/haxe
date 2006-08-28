@@ -73,11 +73,11 @@ class Main {
 		commands = new List();
 		addCommand("install",install,"install a given project");
 		addCommand("list",list,"list all installed projects");
-		addCommand("update",update,"update all installed projects");
+		addCommand("upgrade",upgrade,"upgrade all installed projects");
 		addCommand("remove",remove,"remove a given project/version");
 		addCommand("set",set,"set the current version for a project");
 		addCommand("search",search,"list projects matching a word");
-		addCommand("infos",infos,"list informations on a given project");
+		addCommand("info",info,"list informations on a given project");
 		addCommand("user",user,"list informations on a given user");
 		addCommand("submit",submit,"submit or update a project package");
 		addCommand("setup",setup,"set the haxelib repository path");
@@ -159,7 +159,7 @@ class Main {
 		print(l.length+" projects found");
 	}
 
-	function infos() {
+	function info() {
 		var prj = param("Project name");
 		var inf = site.infos(prj);
 		print("Name: "+inf.name);
@@ -444,7 +444,7 @@ class Main {
 		}
 	}
 
-	function update() {
+	function upgrade() {
 		var rep = getRepository();
 		var prompt = true;
 		var update = false;
@@ -457,7 +457,7 @@ class Main {
 				if( prompt ) {
 					var answer;
 					do {
-						neko.Lib.print("Update "+p+" to "+inf.curversion+" [y/n/a] ? ");
+						neko.Lib.print("Upgrade "+p+" to "+inf.curversion+" [y/n/a] ? ");
 						answer = neko.io.File.stdin().readLine();
 					} while( answer != "y" && answer != "n" && answer != "a" );
 					if( answer == "n" )
@@ -553,13 +553,14 @@ class Main {
 		}
 		var rep = getRepository();
 		for( d in list ) {
-			var dir = rep + Datas.safe(d.project)+"/"+Datas.safe(d.version)+"/";
+			var pdir = Datas.safe(d.project)+"/"+Datas.safe(d.version)+"/";
+			var dir = rep + pdir;
 			var ndir = dir + "ndll";
 			if( neko.FileSystem.exists(ndir) ) {
 				var sysdir = ndir+"/"+neko.Sys.systemName();
 				if( !neko.FileSystem.exists(sysdir) )
 					throw "Project "+d.project+" version "+d.version+" does not have a neko dll for your system";
-				neko.Lib.println("-L "+ndir+"/");
+				neko.Lib.println("-L "+pdir+"ndll/");
 			}
 			if( dir.split(" ").length > 1 )
 				dir = '"' + dir + '"';

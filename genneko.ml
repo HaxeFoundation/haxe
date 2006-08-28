@@ -621,9 +621,18 @@ let gen_name ctx acc t =
 let generate_libs_init = function
 	| [] -> ""
 	| libs ->
+		let boot = 
+			"var @s = $loader.loadprim(\"std@sys_string\",0)();" ^
+			"var @env = $loader.loadprim(\"std@get_env\",1);" ^
+			"var @b = if( @s == \"Windows\" ) " ^
+				"@env(\"HAXEPATH\") + \"lib\\\\\"" ^
+				"else try $loader.loadprim(\"std@file_contents\",1)(@env(\"HOME\")+\"/.haxelib\")" ^
+				"catch e if( @s == \"Linux\" ) \"/usr/lib/haxe/lib/\" else \"/usr/local/lib/haxe/lib/\";" ^
+			"@s = @s + \"/\";"
+		in
 		List.fold_left (fun acc l ->
-			acc ^ "$loader.path = $array(\"" ^ Nast.escape l ^ "\" + @s,$loader.path);"
-		) "@s = $loader.loadprim(\"std@sys_string\",0)() + \"/\";" libs
+			acc ^ "$loader.path = $array(@b + \"" ^ Nast.escape l ^ "\" + @s,$loader.path);"
+		) boot libs
 
 let generate file types hres libs =
 	let ctx = {
