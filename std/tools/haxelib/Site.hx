@@ -28,10 +28,10 @@ class Site {
 
 		var server = new haxe.remoting.Server();
 		var log = neko.io.File.append(TMP_DIR+"/log.txt",false);
-		var api =
+		var api = new SiteApi(db);
 		server.setPrivatePrefix("db");
 		server.setLogger(log.write);
-		server.addObject("api",new SiteApi(db));
+		server.addObject("api",api);
 		var flag = server.handleRequest();
 		log.close();
 		if( flag )
