@@ -1,4 +1,4 @@
-2006-??-??: 1.06
+2006-08-28: 1.06
 	allowed extern enums
 	use only matching construct when parameters are matched
 	fixed bug preventing & char to be sent between JS and Flash remoting
