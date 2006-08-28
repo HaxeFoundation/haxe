@@ -246,7 +246,7 @@ class Main {
 		s.write("Content-Length: "+data.length+"\r\n");
 		s.write("\r\n");
 		var pos = 0;
-		var bufsize = 1;
+		var bufsize = 1024;
 		print("Sending data.... ");
 		while( pos < data.length ) {
 			s.write(data.substr(pos,bufsize));
