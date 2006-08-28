@@ -39,7 +39,11 @@ private class SqliteConnection implements Connection {
 	}
 
 	public function request( s : String ) : ResultSet {
-		return new SqliteResultSet(_request(c,untyped s.__s));
+		try {
+			return new SqliteResultSet(_request(c,untyped s.__s));
+		} catch( e : String ) {
+			throw "Error while executing "+s+" ("+e+")";
+		}
 	}
 
 	public function escape( s : String ) {
