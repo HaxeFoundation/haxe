@@ -332,7 +332,7 @@ class Main {
 				n = n.substr(basepath.length,n.length-basepath.length);
 				if( n.charAt(0) == "/" || n.charAt(0) == "\\" || n.split("..").length > 1 )
 					throw "Invalid filename : "+n;
-				var dirs = ~/[\/\\]/.split(n);
+				var dirs = ~/[\/\\]/g.split(n);
 				var path = "";
 				var file = dirs.pop();
 				for( d in dirs ) {
