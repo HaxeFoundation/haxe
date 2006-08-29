@@ -588,9 +588,9 @@ let gen_boot ctx hres =
 	let loop name data acc = (name , gen_constant ctx Ast.null_pos (TString data)) :: acc in
 	let objres = (EObject (Hashtbl.fold loop hres []),null_pos) in
 	(EBlock [
-		EBinop ("=",field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__res",objres),null_pos;
 		EBinop ("=",field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__classes",ident null_pos "@classes"),null_pos;
 		call null_pos (field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__init") [];
+		EBinop ("=",field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__res",objres),null_pos;
 	],null_pos)
 
 let gen_name ctx acc t =
