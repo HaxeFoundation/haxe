@@ -55,7 +55,7 @@ let keywords =
 		Break;Return;Continue;Extends;Implements;Import;
 		Switch;Case;Default;Public;Private;Try;Untyped;
 		Catch;New;This;Throw;Extern;Enum;In;Interface;
-		Cast];
+		Cast;Override;F9Dynamic;Typedef;Package];
 	h
 
 let init file =

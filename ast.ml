@@ -55,6 +55,10 @@ type keyword =
 	| Interface
 	| Untyped
 	| Cast
+	| Override
+	| Typedef
+	| F9Dynamic
+	| Package
 
 type binop =
 	| OpAdd
@@ -296,6 +300,10 @@ let s_keyword = function
 	| Interface -> "interface"
 	| Untyped -> "untyped"
 	| Cast -> "cast"
+	| Override -> "override"
+	| Typedef -> "typedef"
+	| F9Dynamic -> "f9dynamic"
+	| Package -> "package"
 
 let rec s_binop = function
 	| OpAdd -> "+"

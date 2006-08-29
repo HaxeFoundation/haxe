@@ -140,7 +140,7 @@ let semicolon s =
 let rec	parse_file s =
 	doc := None;
 	match s with parser
-	| [< '(Const (Ident "package"),_); p = parse_package; _ = semicolon; l = plist parse_type_decl; '(Eof,_); >] -> p , l
+	| [< '(Kwd Package,_); p = parse_package; _ = semicolon; l = plist parse_type_decl; '(Eof,_); >] -> p , l
 	| [< l = plist parse_type_decl; '(Eof,_) >] -> [] , l
 
 and parse_type_decl s =
@@ -150,7 +150,7 @@ and parse_type_decl s =
 		match s with parser
 		| [< n , p1 = parse_enum_params; doc = get_doc; '(Const (Type name),_); tl = parse_type_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] -> (EEnum (name,doc,tl,List.map snd c @ n,l), punion p1 p2)
 		| [< n , p1 = parse_class_params; doc = get_doc; '(Const (Type name),_); tl = parse_type_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = plist parse_class_field; '(BrClose,p2) >] -> (EClass (name,doc,tl,List.map fst c @ n @ hl,fl), punion p1 p2)
-		| [< '(Const (Ident "typedef"),p1); doc = get_doc; '(Const (Type name),p2); tl = parse_type_params; '(Binop OpAssign,_); t = parse_type_path >] -> (ETypedef (name,doc,tl,List.map snd c,t), punion p1 p2)
+		| [< '(Kwd Typedef,p1); doc = get_doc; '(Const (Type name),p2); tl = parse_type_params; '(Binop OpAssign,_); t = parse_type_path >] -> (ETypedef (name,doc,tl,List.map snd c,t), punion p1 p2)
 
 and parse_package s = psep Dot ident s
 
@@ -283,8 +283,8 @@ and parse_cf_rights allow_static l = parser
 	| [< '(Kwd Static,_) when allow_static; l = parse_cf_rights false (AStatic :: l) >] -> l
 	| [< '(Kwd Public,_) when not(List.mem APublic l || List.mem APrivate l); l = parse_cf_rights allow_static (APublic :: l) >] -> l
 	| [< '(Kwd Private,_) when not(List.mem APublic l || List.mem APrivate l); l = parse_cf_rights allow_static (APrivate :: l) >] -> l
-	| [< '(Const (Ident "override"),_) when allow_static; l = parse_cf_rights false (AOverride :: l) >] -> l
-	| [< '(Const (Ident "f9dynamic"),_) when not (List.mem AF9Dynamic l); l = parse_cf_rights false (AF9Dynamic :: l) >] -> l
+	| [< '(Kwd Override,_) when allow_static; l = parse_cf_rights false (AOverride :: l) >] -> l
+	| [< '(Kwd F9Dynamic,_) when not (List.mem AF9Dynamic l); l = parse_cf_rights false (AF9Dynamic :: l) >] -> l
 	| [< >] -> l
 
 and parse_fun_name = parser
