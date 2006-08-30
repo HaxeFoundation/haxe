@@ -1,6 +1,7 @@
 2006-??-??: 1.07
 	fixed resources in Neko
 	typedef, override, package and f9dynamic are now keywords
+	slighly changed error format output
 	(TODO) resources in Flash9
 
 2006-08-28: 1.06
