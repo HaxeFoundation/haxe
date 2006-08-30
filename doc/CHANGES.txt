@@ -2,6 +2,8 @@
 	fixed resources in Neko
 	typedef, override, package and f9dynamic are now keywords
 	slighly changed error format output
+	fixed "undefined" serialization
+	(TODO) -debug support for both Flash and JS
 	(TODO) resources in Flash9
 
 2006-08-28: 1.06
