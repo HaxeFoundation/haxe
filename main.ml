@@ -44,10 +44,10 @@ let warn msg p =
 			if !alt_format then
 				sprintf "%s(%d):" file line
 			else
-				sprintf "%s:%d: :" file line
+				sprintf "%s:%d:" file line
 		in
 		let epos = Lexer.get_error_pos error_printer p in
-		prerr_endline (sprintf "%s %s" epos msg)
+		prerr_endline (sprintf "%s : %s" epos msg)
 	end
 
 let do_exit() =
