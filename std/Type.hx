@@ -348,6 +348,7 @@ class Type {
 		var cname = __global__["flash.utils.getQualifiedClassName"](v);
 		switch(cname) {
 		case "null": return TNull;
+		case "void": return TNull; // undefined
 		case "int": return TInt;
 		case "Number": return TFloat;
 		case "Boolean": return TBool;
@@ -393,6 +394,8 @@ class Type {
 			if( v.__name__ != null )
 				return TObject;
 			return TFunction;
+		case "undefined":
+			return TNull;
 		default:
 			return TUnknown;
 		}
