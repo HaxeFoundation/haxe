@@ -563,8 +563,6 @@ class Main {
 					throw "Project "+d.project+" version "+d.version+" does not have a neko dll for your system";
 				neko.Lib.println("-L "+pdir+"ndll/");
 			}
-			if( dir.split(" ").length > 1 )
-				dir = '"' + dir + '"';
 			neko.Lib.println(dir);
 		}
 	}
