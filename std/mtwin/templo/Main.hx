@@ -30,15 +30,20 @@ class Main {
 	static var USAGE = "Usage: temploc -o </destination/dir> -m <macrofile.xml> -r </templates/repository> <files...>\n";
 	static var args : Array<String>;
 	static var files : List<String>;
+	static var silence : Bool = false;
 
 	static function parseArgs(){
 		files = new List();
 		args = neko.Sys.args();
-		for (i in 0...args.length){
+		var i = 0;
+		while (i < args.length){
 			var arg = args[i];
 			switch (arg){
 				case "-h":
 					throw USAGE;
+
+				case "-s":
+					silence = true;
 
 				case "-r":
 					var value = args[i+1];
@@ -57,13 +62,13 @@ class Main {
 					++i;
 
 				case "-m":
-					var macroFile = args[i+1];
-					mtwin.templo.Preprocessor.registerMacroFile(macroFile);
+					mtwin.templo.Preprocessor.registerMacroFile(args[i+1]);
 					++i;
 
 				default:
 					files.push(arg);
 			}
+			++i;
 		}
 		if (args.length == 0){
 			neko.Lib.print("temploc - v"+VERSION+"\n");
@@ -91,12 +96,13 @@ class Main {
 	}
 
 	static function main(){
+		Loader.MACROS = null;
 		parseArgs();
 		for (file in files){
 			file = StringTools.replace(file, Loader.BASE_DIR+"/", "");
-			neko.Lib.print("* "+file+"...");
+			if (!silence) neko.Lib.print("* "+file+"...");
 			mtwin.templo.Template.fromFile(file);
-			neko.Lib.print(" done\n");
+			if (!silence) neko.Lib.print(" done\n");
 		}
 	}
 }

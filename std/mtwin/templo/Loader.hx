@@ -64,10 +64,13 @@ class Loader {
 				return;
 		}
 		var result = 0;
+
+		var macroArg = if (MACROS == null) "" else "-m "+BASE_DIR+MACROS;
+
 		if (BASE_DIR == "")
-			result = Sys.command("temploc -m "+BASE_DIR+MACROS+" -o "+TMP_DIR+" "+path+" 2> "+TMP_DIR+"temploc.out");
+			result = Sys.command("temploc -s "+macroArg+" -o "+TMP_DIR+" "+path+" 2> "+TMP_DIR+"temploc.out");
 		else
-			result = Sys.command("temploc -m "+BASE_DIR+MACROS+" -o "+TMP_DIR+" -r "+BASE_DIR+" "+path+" 2> "+TMP_DIR+"temploc.out");
+			result = Sys.command("temploc -s "+macroArg+" -o "+TMP_DIR+" -r "+BASE_DIR+" "+path+" 2> "+TMP_DIR+"temploc.out");
 		if( result != 0 )
 			throw "temploc compilation or "+path+" failed : "+neko.io.File.getContent(Loader.TMP_DIR+"temploc.out");
 	}
