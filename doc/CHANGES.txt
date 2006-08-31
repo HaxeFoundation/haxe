@@ -3,6 +3,8 @@
 	typedef, override, package and f9dynamic are now keywords
 	slighly changed error format output
 	fixed "undefined" serialization
+	some fixes in haxelib
+	set default classpath for non windows systems
 	(TODO) -debug support for both Flash and JS
 	(TODO) resources in Flash9
 
