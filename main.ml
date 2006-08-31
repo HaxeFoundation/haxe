@@ -120,7 +120,6 @@ let rec process_params acc = function
 and init params =
 try	
 	let usage = "Haxe Compiler 1.06 - (c)2005-2006 Motion-Twin\n Usage : haxe.exe [options] <class names...>\n Options :" in
-	let base_path = normalize_path (try Extc.executable_path() with _ -> "./") in
 	let classes = ref [([],"Std")] in
 	let target = ref No in
 	let swf_in = ref None in
@@ -150,8 +149,12 @@ try
 		in
 		Plugin.class_path := List.map normalize_path (loop (ExtString.String.nsplit p ":"))
 	with
-		Not_found -> 
-			Plugin.class_path := [base_path ^ "std/";"";"/"]);
+		Not_found ->
+			if Sys.os_type = "Unix" then
+				Plugin.class_path := ["/usr/lib/haxe/std/";"/usr/local/lib/haxe/std/";"/"]
+			else
+				let base_path = normalize_path (try Extc.executable_path() with _ -> "./") in
+				Plugin.class_path := [base_path ^ "std/";"";"/"]);
 	let check_targets() =
 		if !target <> No then failwith "Multiple targets";
 	in
