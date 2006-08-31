@@ -416,7 +416,8 @@ class Main {
 			var f = neko.io.File.write(config,true);
 			f.write(rep);
 			f.close();
-		}
+		} else if( !neko.FileSystem.exists(rep) )
+			throw "haxelib Repository "+rep+" does not exists. Please run haxelib setup again";
 		return rep+"/";
 	}
 
