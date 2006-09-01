@@ -83,6 +83,7 @@ class Main {
 		addCommand("setup",setup,"set the haxelib repository path");
 		addCommand("config",config,"print the repository path");
 		addCommand("path",path,"give paths to libraries");
+		addCommand("run",run,"run the specified project with parameters");
 		siteUrl = "http://"+SERVER.host+":"+SERVER.port+"/"+SERVER.dir;
 		site = new SiteProxy(haxe.remoting.Connection.urlConnect(siteUrl+SERVER.url).api);
 	}
@@ -123,7 +124,7 @@ class Main {
 		neko.Sys.exit(1);
 	}
 
-	function run() {
+	function process() {
 		var debug = false;
 		argcur = 0;
 		if( args[argcur] == "-debug" ) {
@@ -567,6 +568,25 @@ class Main {
 		}
 	}
 
+	function run() {
+		var rep = getRepository();
+		var project = param("Project");
+		var pdir = rep + Datas.safe(project);
+		if( !neko.FileSystem.exists(pdir) )
+			throw "Project "+project+" is not installed";
+		pdir += "/";
+		var version = neko.io.File.getContent(pdir+".current");
+		var vdir = pdir + Datas.safe(version);
+		var rdir = vdir + "/run.n";
+		if( !neko.FileSystem.exists(rdir) )
+			throw "Project "+project+" version "+version+" does not have a run script";
+		neko.Sys.setCwd(vdir);
+		var cmd = "neko run.n";
+		for( i in argcur...args.length )
+			cmd += " "+args[i];
+		neko.Sys.exit(neko.Sys.command(cmd));
+	}
+
 	// ----------------------------------
 
 	static function print(str) {
@@ -574,7 +594,7 @@ class Main {
 	}
 
 	static function main() {
-		new Main().run();
+		new Main().process();
 	}
 
 }
