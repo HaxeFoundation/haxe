@@ -88,16 +88,22 @@ class Parser {
 		var mtUse = extractAttribute(xml, MT_USE);
 		if (mtUse != null){
 			// ensure template is parsed (beware of cycle)
+			/*
 			if (!mtwin.templo.Template.compiledFiles.exists(mtUse)){
 				mtwin.templo.Template.compiledFiles.set(mtUse, true);
 				var f = mtwin.templo.Template.fromFile(mtUse); 
 			}
+			*/
 			out.add("tmp = __ctx.get($hash(\"__content__\"));\n");
 			out.add("__out = new_output_buffer(__out);\n");
 			parseNode(xml);
 			out.add("__ctx.set($hash(\"__content__\"), __out.str());\n");
 			out.add("__out = __out.parent;\n");
-			out.add("mcr = macro(\""+mtUse+"\");\n");
+
+			if (StringTools.endsWith(mtUse, ".mtt"))
+				neko.Lib.println("WARNING: templo ::use:: changed the following use may be incorrect : '"+mtUse+"'");
+			//throw parseExpression(mtUse);
+			out.add("mcr = macro("+parseExpression(mtUse)+");\n");
 			out.add("__out.add(mcr.template(macro, __ctx));\n");
 			out.add("__ctx.set($hash(\"__content__\"), tmp);\n");
 			return;
