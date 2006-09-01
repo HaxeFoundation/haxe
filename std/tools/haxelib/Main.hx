@@ -250,8 +250,9 @@ class Main {
 		var bufsize = 1024;
 		print("Sending data.... ");
 		while( pos < data.length ) {
-			s.write(data.substr(pos,bufsize));
-			pos += bufsize;
+			var part = data.substr(pos,bufsize);
+			s.write(part);
+			pos += part.length;
 			neko.Lib.print( Std.int((pos * 100.0) / data.length) + "%\r" );
 		}
 		s.shutdown(false,true);
