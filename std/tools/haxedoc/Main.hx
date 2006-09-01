@@ -420,6 +420,14 @@ class Main {
 					c.doc = docFormat(m.firstChild().nodeValue);
 					continue;
 				}
+				if( m.nodeName == "extends" ) {
+					// TODO
+					continue;
+				}
+				if( m.nodeName == "implements" ) {
+					// TODO
+					continue;
+				}
 				if( m.get("public") == "1" )
 					c.fields.push(processField(c,m));
 			}
