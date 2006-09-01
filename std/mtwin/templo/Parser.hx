@@ -48,8 +48,10 @@ class Parser {
 	static var XHTML_ATTRS = ["compact","nowrap","ismap","declare","noshade","checked","disabled","readonly","multiple","selected","noresize","defer"];
 
 	var out : mtwin.templo.Generator;
+	var xhtmlMode : Bool;
 
-	public function new(){
+	public function new( ?isXhtml:Bool ){
+		xhtmlMode = (isXhtml == true);
 		out = new mtwin.templo.Generator();
 	}
 
@@ -164,10 +166,10 @@ class Parser {
 		var hasContent = (mtContent != null || xml.firstChild() != null);
 
 		var xhtmlEmpty = isXHTMLEmptyTag(xml.nodeName);
-		if (hasContent && xhtmlEmpty){
+		if (xhtmlMode && hasContent && xhtmlEmpty){
 			hasContent = false;
 		}
-		if (!hasContent && !xhtmlEmpty){
+		if (xhtmlMode && !hasContent && !xhtmlEmpty){
 			hasContent = true;
 		}
 		
@@ -320,14 +322,18 @@ class Parser {
 		out.writeHtml("]]>");
 	}
 
-	static function isBooleanAttribute( attName:String ) : Bool {
+	function isBooleanAttribute( attName:String ) : Bool {
+		if (!xhtmlMode)
+			return false;
 		for (f in XHTML_ATTRS){
 			if (f == attName) return true;
 		}
 		return false;
 	}
 
-	static function isXHTMLEmptyTag( tag:String ) : Bool {
+	function isXHTMLEmptyTag( tag:String ) : Bool {
+		if (!xhtmlMode)
+			return false;
 		for (f in XHTML_EMPTY){
 			if (f == tag) return true;
 		}

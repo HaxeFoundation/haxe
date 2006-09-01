@@ -72,10 +72,11 @@ class Template {
 		}
 		compiledFiles.set(path,true);
 		var content = neko.io.File.getContent(Loader.BASE_DIR+"/"+path);
-		return fromString(content, nekoId(path));
+		var isXhtml = StringTools.endsWith(path, ".mtt") || StringTools.endsWith(path,".html") || StringTools.endsWith(path,".tpl");
+		return fromString(content, nekoId(path), isXhtml);
 	}
 
-	public static function fromString( src:String, ?id:String ) : Dynamic -> String {
+	public static function fromString( src:String, ?id:String, ?isXhtml:Bool ) : Dynamic -> String {
 		if (id == null){
 			id = Md5.encode(src);
 		}
@@ -90,7 +91,7 @@ class Template {
 			throw { message:"Error in "+id+"\n"+Std.string(e), source:src };
 		}
 
-		var p = new mtwin.templo.Parser();
+		var p = new mtwin.templo.Parser(isXhtml == true);
 		var s = p.parse(x);
 
 		s = "// generated from " + id + "\n// temploc v"+mtwin.templo.Template.VERSION+"\n" + s;
