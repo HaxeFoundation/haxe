@@ -38,7 +38,7 @@ let gen_path (p,n) priv =
 
 let gen_doc s =
 	let f = if String.contains s '<' || String.contains s '>' || String.contains s '&' then	cdata else pcdata in
-	node "haxe:doc" [] [f s]
+	node "doc" [] [f s]
 
 let gen_doc_opt d =
 	match d with
