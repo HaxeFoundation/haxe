@@ -416,7 +416,7 @@ class Main {
 		case "class":
 			c = new DocClass(path);
 			for( m in x.elements() ) {
-				if( m.nodeName == "doc" ) {
+				if( m.nodeName == "haxe_doc" ) {
 					c.doc = docFormat(m.firstChild().nodeValue);
 					continue;
 				}
@@ -448,13 +448,13 @@ class Main {
 			var e = new DocEnum(path);
 			c = e;
 			for( m in x.elements() ) {
-				if( m.nodeName == "doc" ) {
+				if( m.nodeName == "haxe_doc" ) {
 					c.doc = docFormat(m.firstChild().nodeValue);
 					continue;
 				}
 				var l = Lambda.array(m.elements());
 				var last = l[l.length-1];
-				var doc = if( last == null || last.nodeName != "doc" ) null else docFormat(l.pop().firstChild().nodeValue);
+				var doc = if( last == null || last.nodeName != "haxe_doc" ) null else docFormat(l.pop().firstChild().nodeValue);
 				var t = if( m.get("a") == null ) null else {
 					var names = m.get("a").split(":");
 					var params = Lambda.amap(names,function(name) {
