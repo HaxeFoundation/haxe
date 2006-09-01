@@ -682,10 +682,10 @@ let rec return_flow ctx e =
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
 
-let unify_call_params ctx t el args p =
+let unify_call_params ctx name el args p =
 	let error flag =
 		let format_arg = (fun (name,opt,_) -> (if opt then "?" else "") ^ name) in
-		let argstr = "Function require " ^ (if args = [] then "no argument" else "arguments : " ^ String.concat ", " (List.map format_arg args)) in
+		let argstr = "Function " ^ (match name with None -> "" | Some n -> "'" ^ n ^ "' ") ^ "requires " ^ (if args = [] then "no arguments" else "arguments : " ^ String.concat ", " (List.map format_arg args)) in
 		display_error ctx ((if flag then "Not enough" else "Too many") ^ " arguments\n" ^ argstr) p
 	in
 	let rec no_opt = function
@@ -1677,7 +1677,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			let f = (match c.cl_constructor with Some f -> f | None -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
 			let el = (match follow (apply_params c.cl_types params (field_type f)) with
 			| TFun (args,_) ->
-				unify_call_params ctx (TInst (c,[])) el args p;
+				unify_call_params ctx (Some "new") el args p;
 			| _ ->
 				error "Constructor is not a function" p
 			) in
@@ -1690,7 +1690,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let el = List.map (type_expr ctx) el in
 		let el , t = (match follow e.etype with
 		| TFun (args,r) ->
-			let el = unify_call_params ctx (match e.eexpr with TField (e,_) -> e.etype | _ -> t_dynamic) el args p in
+			let el = unify_call_params ctx (match e.eexpr with TField (_,f) -> Some f | _ -> None) el args p in
 			el , r
 		| TMono _ ->
 			let t = mk_mono() in
@@ -1716,7 +1716,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then error "Cannot access private constructor" p;
 			let el = (match follow (apply_params c.cl_types params (field_type f)) with
 			| TFun (args,r) ->
-				unify_call_params ctx t el args p
+				unify_call_params ctx (Some "new") el args p
 			| _ ->
 				error "Constructor is not a function" p
 			) in
