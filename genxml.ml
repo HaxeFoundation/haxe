@@ -77,7 +77,10 @@ let gen_field att f =
 let gen_type_params priv path params pos m =
 	let mpriv = (if priv then [("private","1")] else []) in
 	let mpath = (if m.mpath <> path then [("module",snd (gen_path m.mpath false))] else []) in
-	gen_path path priv :: ("params", String.concat ":" (List.map fst params)) :: ("file",pos.pfile) :: (mpriv @ mpath)
+	gen_path path priv :: ("params", String.concat ":" (List.map fst params)) :: ("file",if pos == null_pos then "" else pos.pfile) :: (mpriv @ mpath)
+
+let gen_class_path name (c,pl) =
+	node name [("path",s_type_path c.cl_path)] (List.map gen_type pl)
 
 let gen_type ctx t =
 	let m = Typer.module_of_type ctx t in
@@ -86,8 +89,13 @@ let gen_type ctx t =
 		let stats = pmap (gen_field ["static","1"]) c.cl_statics in
 		let fields = pmap (gen_field []) c.cl_fields in
 		let constr = (match c.cl_constructor with None -> [] | Some f -> [gen_field [] f]) in
+		let impl = List.map (gen_class_path "implements") c.cl_implements in
+		let tree = (match c.cl_super with
+			| None -> impl
+			| Some x -> gen_class_path "extends" x :: impl
+		) in
 		let doc = gen_doc_opt c.cl_doc in
-		node "class" (gen_type_params c.cl_private c.cl_path c.cl_types c.cl_pos m) (stats @ fields @ constr @ doc)
+		node "class" (gen_type_params c.cl_private c.cl_path c.cl_types c.cl_pos m) (tree @ stats @ fields @ constr @ doc)
 	| TEnumDecl e ->
 		let doc = gen_doc_opt e.e_doc in
 		node "enum" (gen_type_params e.e_private e.e_path e.e_types e.e_pos m) (pmap gen_constr e.e_constrs @ doc)
