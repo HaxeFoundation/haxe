@@ -53,6 +53,14 @@ class File {
 	public static function append( path : String, binary : Bool ) {
 		return new FileOutput(untyped file_open(path.__s,(if( binary ) "ab" else "a").__s));
 	}
+	
+	public static function copy( src : String, dst : String ) {
+		var s = read(src,true);
+		var d = write(dst,true);
+		d.writeInput(s);
+		s.close();
+		d.close();
+	}
 
 	public static function stdin() {
 		return new FileInput(file_stdin());

@@ -120,6 +120,28 @@ class Output {
 	**/
 	public function prepare( nbytes : Int ) {
 	}
+	
+	public function writeInput( i : Input, ?bufsize : Int ) {
+		if( bufsize == null )
+			bufsize = 4096;
+		var buf = neko.Lib.makeString(bufsize);
+		try {
+			while( true ) {
+				var len = i.readBytes(buf,0,bufsize);
+				if( len == 0 )
+					throw Error.Blocked;
+				var p = 0;
+				while( len > 0 ) {
+					var k = writeBytes(buf,p,len);
+					if( k == 0 )
+						throw Error.Blocked;
+					p += k;
+					len -= k;
+				}
+			}
+		} catch( e : Eof ) {			
+		}
+	}
 
 	static var _float_bytes = neko.Lib.load("std","float_bytes",2);
 	static var _double_bytes = neko.Lib.load("std","double_bytes",2);
