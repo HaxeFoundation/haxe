@@ -403,8 +403,8 @@ class Diff {
 	}
 
 	public static function main(){
-		var src = neko.File.getContent("src.txt");
-		var dst = neko.File.getContent("dst.txt");
+		var src = neko.io.File.getContent("src.txt");
+		var dst = neko.io.File.getContent("dst.txt");
 		var diff = diff(src,dst);
 		neko.Lib.print(diff);
 		var patched = patch(src, diff);

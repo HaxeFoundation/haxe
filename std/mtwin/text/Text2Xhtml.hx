@@ -245,6 +245,7 @@ s.write('swf@id');
 				str = transformContent(str);
 			}
 			xml.nodeValue = str;
+			return;
 		}
 		if (xml.nodeType == Xml.Element && (xml.nodeName == "pre" || xml.nodeName == "t2x"))
 			return;
