@@ -435,13 +435,17 @@ class Main {
 	function list() {
 		var rep = getRepository();
 		for( p in neko.FileSystem.readDirectory(rep) ) {
-			var versions = neko.FileSystem.readDirectory(rep+p);
+			if( p.charAt(0) == "." )
+				continue;
+			var versions = new Array();
 			var current = neko.io.File.getContent(rep+p+"/.current");
-			versions.remove(".current");
-			for( i in 0...versions.length ) {
-				versions[i] = Datas.unsafe(versions[i]);
-				if( versions[i] == current )
-					versions[i] = "["+current+"]";
+			for( v in neko.FileSystem.readDirectory(rep+p) ) {
+				if( v.charAt(0) == "." )
+					continue;
+				v = Datas.unsafe(v);
+				if( v == current )
+					v = "["+v+"]";
+				versions.push(v);
 			}
 			print(Datas.unsafe(p) + ": "+versions.join(" "));
 		}
@@ -452,6 +456,8 @@ class Main {
 		var prompt = true;
 		var update = false;
 		for( p in neko.FileSystem.readDirectory(rep) ) {
+			if( p.charAt(0) == "." )
+				continue;
 			var current = neko.io.File.getContent(rep+p+"/.current");
 			var p = Datas.unsafe(p);
 			print("Checking "+p);
