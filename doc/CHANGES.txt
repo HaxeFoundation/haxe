@@ -5,6 +5,7 @@
 	fixed "undefined" serialization
 	some fixes in haxelib
 	set default classpath for non windows systems
+	added variance
 	(TODO) -debug support for both Flash and JS
 	(TODO) resources in Flash9
 
