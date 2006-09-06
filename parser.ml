@@ -146,11 +146,32 @@ let rec	parse_file s =
 and parse_type_decl s =
 	match s with parser
 	| [< '(Kwd Import,p1); p, t, s = parse_import; p2 = semicolon >] -> EImport (p,t,s) , punion p1 p2
-	| [< c = parse_common_params; s >] ->
+	| [< c = parse_common_flags; s >] ->
 		match s with parser
-		| [< n , p1 = parse_enum_params; doc = get_doc; '(Const (Type name),_); tl = parse_type_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] -> (EEnum (name,doc,tl,List.map snd c @ n,l), punion p1 p2)
-		| [< n , p1 = parse_class_params; doc = get_doc; '(Const (Type name),_); tl = parse_type_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = plist parse_class_field; '(BrClose,p2) >] -> (EClass (name,doc,tl,List.map fst c @ n @ hl,fl), punion p1 p2)
-		| [< '(Kwd Typedef,p1); doc = get_doc; '(Const (Type name),p2); tl = parse_type_params; '(Binop OpAssign,_); t = parse_type_path >] -> (ETypedef (name,doc,tl,List.map snd c,t), punion p1 p2)
+		| [< n , p1 = parse_enum_flags; doc = get_doc; '(Const (Type name),_); tl = parse_constraint_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] ->
+			(EEnum {
+				d_name = name;
+				d_doc = doc;
+				d_params = tl;
+				d_flags = List.map snd c @ n;
+				d_data = l
+			}, punion p1 p2)
+		| [< n , p1 = parse_class_flags; doc = get_doc; '(Const (Type name),_); tl = parse_constraint_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = plist parse_class_field; '(BrClose,p2) >] ->
+			(EClass {
+				d_name = name;
+				d_doc = doc;
+				d_params = tl;
+				d_flags = List.map fst c @ n @ hl;
+				d_data = fl;
+			}, punion p1 p2)
+		| [< '(Kwd Typedef,p1); doc = get_doc; '(Const (Type name),p2); tl = parse_constraint_params; '(Binop OpAssign,_); t = parse_type_path >] ->
+			(ETypedef {
+				d_name = name;
+				d_doc = doc;
+				d_params = tl;
+				d_flags = List.map snd c;
+				d_data = t;
+			}, punion p1 p2)
 
 and parse_package s = psep Dot ident s
 
@@ -161,15 +182,15 @@ and parse_import = parser
 			| [< '(Dot,_); '(Const (Type s),_) >] -> Some s
 			| [< >] -> None
 
-and parse_common_params = parser
-	| [< '(Kwd Private,_); l = parse_common_params >] -> (HPrivate, EPrivate) :: l
-	| [< '(Kwd Extern,_); l = parse_common_params >] -> (HExtern, EExtern) :: l
+and parse_common_flags = parser
+	| [< '(Kwd Private,_); l = parse_common_flags >] -> (HPrivate, EPrivate) :: l
+	| [< '(Kwd Extern,_); l = parse_common_flags >] -> (HExtern, EExtern) :: l
 	| [< >] -> []
 
-and parse_enum_params = parser
+and parse_enum_flags = parser
 	| [< '(Kwd Enum,p) >] -> [] , p
 
-and parse_class_params = parser
+and parse_class_flags = parser
 	| [< '(Kwd Class,p) >] -> [] , p
 	| [< '(Kwd Interface,p) >] -> [HInterface] , p
 
@@ -198,7 +219,7 @@ and parse_type_path1 pack = parser
 	| [< '(Const (Ident name),_); '(Dot,_); t = parse_type_path1 (name :: pack) >] -> t
 	| [< '(Const (Type name),_); s >] ->
 		let params = (match s with parser
-			| [< '(Binop OpLt,_); l = psep Comma parse_type_path; '(Binop OpGt,_) >] -> l
+			| [< '(Binop OpLt,_); l = psep Comma parse_type_path_variance; '(Binop OpGt,_) >] -> l
 			| [< >] -> []
 		) in
 		{
@@ -206,6 +227,12 @@ and parse_type_path1 pack = parser
 			tname = name;
 			tparams = params
 		}
+
+and parse_type_path_variance = parser
+	| [< '(Binop OpAdd,_); t = parse_type_path >] -> VCo, t
+	| [< '(Binop OpSub,_); t = parse_type_path >] -> VContra, t
+	| [< '(Binop OpMult,_); t = parse_type_path >] -> VBi, t
+	| [< t = parse_type_path >] -> VNo, t
 
 and parse_type_path_next t = parser
 	| [< '(Arrow,_); t2 = parse_type_path >] ->
@@ -256,7 +283,7 @@ and parse_class_field s =
 				| [< >] -> serror()
 				) in
 				(FVar (name,doc,l,t,e),punion p1 p2))
-		| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_type_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
+		| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
 			let e = (match s with parser
 				| [< e = expr >] -> e
 				| [< '(Semicolon,p) >] -> (EBlock [],p)
@@ -300,19 +327,23 @@ and parse_fun_param_type = parser
 	| [< '(Question,_); name = any_ident; '(DblDot,_); t = parse_type_path >] -> (name,true,t)
 	| [< name = any_ident; '(DblDot,_); t = parse_type_path >] -> (name,false,t)
 
-and parse_type_params = parser
-	| [< '(Binop OpLt,_); l = psep Comma parse_type_param; '(Binop OpGt,_) >] -> l
+and parse_constraint_params = parser
+	| [< '(Binop OpLt,_); l = psep Comma parse_constraint_param; '(Binop OpGt,_) >] -> l
 	| [< >] -> []
 
-and parse_type_param = parser
-	| [< '(Const (Type name),_); s >] ->
-		match s with parser
-		| [< '(DblDot,_); s >] ->
-			(match s with parser
-			| [< '(POpen,_); l = psep Comma parse_type_path_normal; '(PClose,_) >] -> (name,l)
-			| [< t = parse_type_path_normal >] -> (name,[t])
-			| [< >] -> serror())
-		| [< >] -> (name,[])
+and parse_constraint_param = parser
+	| [< '(Binop OpAdd,_); '(Const (Type name),_); s >] -> parse_constraint_param_next VCo name s
+	| [< '(Binop OpSub,_); '(Const (Type name),_); s >] -> parse_constraint_param_next VContra name s
+	| [< '(Binop OpMult,_); '(Const (Type name),_); s >] -> parse_constraint_param_next VBi name s
+	| [< '(Const (Type name),_); s >] -> parse_constraint_param_next VNo name s
+
+and parse_constraint_param_next v name = parser
+	| [< '(DblDot,_); s >] ->
+		(match s with parser
+		| [< '(POpen,_); l = psep Comma parse_type_path_normal; '(PClose,_) >] -> (v,name,l)
+		| [< t = parse_type_path_normal >] -> (v,name,[t])
+		| [< >] -> serror())
+	| [< >] -> (v,name,[])
 
 and parse_class_herit = parser
 	| [< '(Kwd Extends,_); t = parse_type_path_normal >] -> HExtends t
@@ -361,7 +392,7 @@ and parse_obj_decl = parser
 		| [< >] -> [])
 	| [< >] -> []
 
-and parse_array_decl = parser 
+and parse_array_decl = parser
 	| [< e = expr; s >] ->
 		(match s with parser
 		| [< '(Comma,_); l = parse_array_decl >] -> e :: l
@@ -483,9 +514,9 @@ let parse code file =
 	cache := DynArray.create();
 	doc := None;
 	Lexer.init file;
-	let rec next_token() = process_token (Lexer.token code) 
+	let rec next_token() = process_token (Lexer.token code)
 
-	and process_token tk =		
+	and process_token tk =
 		match fst tk with
 		| Comment s ->
 			let l = String.length s in
@@ -545,17 +576,17 @@ let parse code file =
 
 	and skip_tokens_loop test tk =
 		match fst tk with
-		| Macro "end" ->			
+		| Macro "end" ->
 			Lexer.token code
-		| Macro "else" when not test ->			
+		| Macro "else" when not test ->
 			skip_tokens test
-		| Macro "else" ->			
+		| Macro "else" ->
 			enter_macro()
-		| Macro "if" ->			
+		| Macro "if" ->
 			skip_tokens_loop test (skip_tokens false)
-		| Eof ->			
+		| Eof ->
 			raise Exit
-		| _ ->			
+		| _ ->
 			skip_tokens test
 
 	and skip_tokens test = skip_tokens_loop test (Lexer.token code)

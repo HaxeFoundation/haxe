@@ -51,3 +51,9 @@ typedef Iterator<T> = {
 }
 
 extern interface ArrayAccess<T> { }
+
+/**
+   Protected represent the type parameter that cannot be used when using variance annotations.
+*/
+extern enum Protected {	
+}

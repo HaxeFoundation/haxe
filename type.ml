@@ -16,6 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *)
+open Ast
 
 type module_path = string list * string
 
@@ -25,15 +26,19 @@ type field_access =
 	| MethodAccess of string
 	| F9MethodAccess
 
+type variance = Ast.variance
+
 type t =
 	| TMono of t option ref
-	| TEnum of tenum * t list
-	| TInst of tclass * t list
-	| TType of tdef * t list
+	| TEnum of tenum * tparams
+	| TInst of tclass * tparams
+	| TType of tdef * tparams
 	| TFun of (string * bool * t) list * t
 	| TAnon of tanon
 	| TDynamic of t
 	| TLazy of (unit -> t) ref
+
+and tparams = (variance * t) list
 
 and tconstant =
 	| TInt of int32
@@ -67,7 +72,7 @@ and texpr_expr =
 	| TObjectDecl of (string * texpr) list
 	| TArrayDecl of texpr list
 	| TCall of texpr * texpr list
-	| TNew of tclass * t list * texpr list
+	| TNew of tclass * tparams * texpr list
 	| TUnop of Ast.unop * Ast.unop_flag * texpr
 	| TFunction of tfunc
 	| TVars of (string * t * texpr option) list
@@ -76,7 +81,7 @@ and texpr_expr =
 	| TIf of texpr * texpr * texpr option
 	| TWhile of texpr * texpr * Ast.while_flag
 	| TSwitch of texpr * (texpr * texpr) list * texpr option
-	| TMatch of texpr * (tenum * t list) * (string * (string option * t) list option * texpr) list * texpr option
+	| TMatch of texpr * (tenum * tparams) * (string * (string option * t) list option * texpr) list * texpr option
 	| TTry of texpr * (string * t * texpr) list
 	| TReturn of texpr option
 	| TBreak
@@ -107,9 +112,9 @@ and tclass = {
 	cl_private : bool;
 	mutable cl_extern : bool;
 	mutable cl_interface : bool;
-	mutable cl_types : (string * t) list;
-	mutable cl_super : (tclass * t list) option;
-	mutable cl_implements : (tclass * t list) list;
+	mutable cl_types : (variance * string * t) list;
+	mutable cl_super : (tclass * tparams) option;
+	mutable cl_implements : (tclass * tparams) list;
 	mutable cl_fields : (string , tclass_field) PMap.t;
 	mutable cl_statics : (string, tclass_field) PMap.t;
 	mutable cl_ordered_statics : tclass_field list;
@@ -132,7 +137,7 @@ and tenum = {
 	e_doc : Ast.documentation;
 	e_private : bool;
 	e_extern : bool;
-	mutable e_types : (string * t) list;
+	mutable e_types : (variance * string * t) list;
 	mutable e_constrs : (string , tenum_field) PMap.t;
 }
 
@@ -142,7 +147,7 @@ and tdef = {
 	t_doc : Ast.documentation;
 	t_private : bool;
 	t_static : tclass option;
-	mutable t_types : (string * t) list;
+	mutable t_types : (variance * string * t) list;
 	mutable t_type : t;
 }
 
@@ -236,7 +241,7 @@ let rec s_type ctx t =
 		let fl = PMap.fold (fun f acc -> (" " ^ f.cf_name ^ " : " ^ s_type ctx f.cf_type) :: acc) a.a_fields [] in
 		"{" ^ (if !(a.a_open) then "+" else "") ^  String.concat "," fl ^ " }"
 	| TDynamic t2 ->
-		"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
+		"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [VNo,t2])
 	| TLazy f ->
 		s_type ctx (!f())
 
@@ -248,7 +253,13 @@ and s_fun ctx t void =
 
 and s_type_params ctx = function
 	| [] -> ""
-	| l -> "<" ^ String.concat ", " (List.map (s_type ctx) l) ^ ">"
+	| l -> "<" ^ String.concat ", " (List.map (fun (v,t) -> s_var v ^ s_type ctx t) l) ^ ">"
+
+and s_var = function
+	| VNo -> ""
+	| VCo -> "+"
+	| VContra -> "-"
+	| VBi -> "*"
 
 let rec is_parent csup c =
 	if c == csup then
@@ -263,7 +274,8 @@ let rec link e a b =
 			true
 		else match t with
 		| TMono t -> (match !t with None -> false | Some t -> loop t)
-		| TEnum (_,tl) | TInst (_,tl) | TType (_,tl) -> List.exists loop tl
+		| TEnum (e,tl) -> e.e_path = ([],"Protected") || List.exists (fun (_,t) -> loop t) tl
+		| TInst (_,tl) | TType (_,tl) -> List.exists (fun (_,t) -> loop t) tl
 		| TFun (tl,t) -> List.exists (fun (_,_,t) -> loop t) tl || loop t
 		| TDynamic t2 ->
 			if t == t2 then
@@ -294,63 +306,88 @@ let apply_params cparams params t =
 	let rec loop l1 l2 =
 		match l1, l2 with
 		| [] , [] -> []
-		| (_,t1) :: l1 , t2 :: l2 -> (t1,t2) :: loop l1 l2
+		| (_,_,t1) :: l1 , (v,t2) :: l2 -> (t1,(v,t2)) :: loop l1 l2
 		| _ -> assert false
 	in
+	let protect() =
+		TEnum ({
+			e_path = [] , "Protected";
+			e_pos = null_pos;
+			e_doc = None;
+			e_private = false;
+			e_extern = true;
+			e_types = [];
+			e_constrs = PMap.empty;
+		},[])
+	in
 	let subst = loop cparams params in
-	let rec loop t =
+	let rec loop v t =
 		try
-			List.assq t subst
+			let v2, t = List.assq t subst in
+			(match v2 with
+			| VCo when v <> VContra -> VBi, protect()
+			| VContra when v <> VCo -> VBi, protect()
+			| VBi -> VBi, protect()
+			| _ -> v2, t)
 		with Not_found ->
 		match t with
 		| TMono r ->
 			(match !r with
-			| None -> t
-			| Some t -> loop t)
+			| None -> v, t
+			| Some t -> loop v t)
 		| TEnum (e,tl) ->
-			(match tl with
+			v, (match tl with
 			| [] -> t
-			| _ -> TEnum (e,List.map loop tl))
+			| _ -> TEnum (e,List.map (vloop v) tl))
 		| TType (t2,tl) ->
-			(match tl with
+			v, (match tl with
 			| [] -> t
-			| _ -> TType (t2,List.map loop tl))
+			| _ -> TType (t2,List.map (vloop v) tl))
 		| TInst (c,tl) ->
-			(match tl with
+			v, (match tl with
 			| [] ->
 				t
-			| [TMono r] ->
+			| [mv,TMono r] ->
 				(match !r with
 				| Some tt when t == tt ->
 					(* for dynamic *)
 					let pt = mk_mono() in
-					let t = TInst (c,[pt]) in
+					let t = TInst (c,[mv,pt]) in
 					(match pt with TMono r -> r := Some t | _ -> assert false);
 					t
-				| _ -> TInst (c,List.map loop tl))
+				| _ -> TInst (c,List.map (vloop v) tl))
 			| _ ->
-				TInst (c,List.map loop tl))
+				TInst (c,List.map (vloop v) tl))
 		| TFun (tl,r) ->
-			TFun (List.map (fun (s,o,t) -> s, o, loop t) tl,loop r)
+			v, TFun (List.map (fun (s,o,t) -> s, o, snd (loop VCo t)) tl,snd (loop VContra r))
 		| TAnon a ->
-			TAnon {
-				a_fields = PMap.map (fun f -> { f with cf_type = loop f.cf_type }) a.a_fields;
+			v, TAnon {
+				a_fields = PMap.map (fun f -> { f with cf_type = snd (loop VCo f.cf_type) }) a.a_fields;
 				a_open = a.a_open;
 			}
 		| TLazy f ->
 			let ft = !f() in
-			let ft2 = loop ft in
+			let v , ft2 = loop v ft in
 			if ft == ft2 then
-				t
+				v, t
 			else
-				ft2
+				v, ft2
 		| TDynamic t2 ->
 			if t == t2 then
-				t
+				v, t
 			else
-				TDynamic (loop t2)
+				v, TDynamic (snd (loop VNo t2))
+	and vloop v (v2,t) =
+		(* only use the given variance position if no variance defined by default *)
+		let v, t = loop v t in
+		(* compute max. restricted variance based on both requested and found *)
+		(match v , v2 with
+		| _ , VBi | VBi , _ | VCo, VContra | VContra, VCo -> VBi
+		| VCo , VCo | VContra , VContra -> v
+		| VNo , _ -> v2
+		| _ , VNo -> v) , t
 	in
-	loop t
+	snd (loop VNo t)
 
 let rec follow t =
 	match t with
@@ -365,22 +402,25 @@ let rec follow t =
 	| _ -> t
 
 let monomorphs eparams t =
-	apply_params eparams (List.map (fun _ -> mk_mono()) eparams) t
+	apply_params eparams (List.map (fun (v,_,_) -> v , mk_mono()) eparams) t
 
 let rec fast_eq a b =
-	if a == b then 
+	if a == b then
 		true
 	else match a , b with
 	| TFun (l1,r1) , TFun (l2,r2) ->
 		List.for_all2 (fun (_,_,t1) (_,_,t2) -> fast_eq t1 t2) l1 l2 && fast_eq r1 r2
 	| TType (t1,l1), TType (t2,l2) ->
-		t1 == t2 && List.for_all2 fast_eq l1 l2
+		t1 == t2 && List.for_all2 fast_peq l1 l2
 	| TEnum (e1,l1), TEnum (e2,l2) ->
-		e1 == e2 && List.for_all2 fast_eq l1 l2
+		e1 == e2 && List.for_all2 fast_peq l1 l2
 	| TInst (c1,l1), TInst (c2,l2) ->
-		c1 == c2 && List.for_all2 fast_eq l1 l2
+		c1 == c2 && List.for_all2 fast_peq l1 l2
 	| _ , _ ->
 		false
+
+and fast_peq (_,a) (_,b) =
+	fast_eq a b
 
 let eq_stack = ref []
 
@@ -402,9 +442,9 @@ let rec type_eq param a b =
 			eq_stack := List.tl !eq_stack;
 			r
 		end
-	| TEnum (a,tl1) , TEnum (b,tl2) -> a == b && List.for_all2 (type_eq param) tl1 tl2
+	| TEnum (a,tl1) , TEnum (b,tl2) -> a == b && List.for_all2 (type_peq param) tl1 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
-		c1 == c2 && List.for_all2 (type_eq param) tl1 tl2
+		c1 == c2 && List.for_all2 (type_peq param) tl1 tl2
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
 		type_eq param r1 r2 && List.for_all2 (fun (_,o1,t1) (_,o2,t2) -> o1 = o2 && type_eq param t1 t2) l1 l2
 	| TDynamic a , TDynamic b ->
@@ -415,7 +455,7 @@ let rec type_eq param a b =
 				try
 					let f2 = PMap.find f1.cf_name a2.a_fields in
 					if not (type_eq param f1.cf_type f2.cf_type) then raise Exit;
-					if f1.cf_get <> f2.cf_get || f1.cf_set <> f2.cf_set then raise Exit;	
+					if f1.cf_get <> f2.cf_get || f1.cf_set <> f2.cf_set then raise Exit;
 				with
 					Not_found ->
 						if not !(a2.a_open) then raise Exit;
@@ -432,6 +472,10 @@ let rec type_eq param a b =
 			Exit -> false)
 	| _ , _ ->
 		false
+
+and type_peq params (_,a) (_,b) =
+	type_eq params a b
+
 
 (* perform unification with subtyping.
    the first type is always the most down in the class hierarchy
@@ -457,11 +501,6 @@ let error l = raise (Unify_error l)
 
 let unify_stack = ref []
 
-let unify_types a b tl1 tl2 =
-	List.iter2 (fun ta tb ->
-		if not (type_eq true ta tb) then error [cannot_unify a b; cannot_unify ta tb]
-	) tl1 tl2
-
 let unify_access a1 a2 =
 	a1 = a2 || (a1 = NormalAccess && (a2 = NoAccess || a2 = F9MethodAccess))
 	|| (a1 = F9MethodAccess && a2 = NormalAccess) (* unsafe, but no inference of prop. set *)
@@ -469,7 +508,7 @@ let unify_access a1 a2 =
 let field_type f =
 	match f.cf_params with
 	| [] -> f.cf_type
-	| l -> monomorphs l f.cf_type
+	| l -> monomorphs (List.map (fun (n,t) -> VNo, n, t) l) f.cf_type
 
 let rec class_field c i =
 	try
@@ -536,9 +575,9 @@ let rec unify a b =
 			end else (match c.cl_super with
 				| None -> false
 				| Some (cs,tls) ->
-					loop cs (List.map (apply_params c.cl_types tl) tls)
+					loop cs (List.map (fun (v,t) -> v , apply_params c.cl_types tl t) tls)
 			) || List.exists (fun (cs,tls) ->
-				loop cs (List.map (apply_params c.cl_types tl) tls)
+				loop cs (List.map (fun (v,t) -> v , apply_params c.cl_types tl t) tls)
 			) c.cl_implements
 		in
 		if not (loop c1 tl1) then error [cannot_unify a b]
@@ -605,6 +644,25 @@ let rec unify a b =
 			error [cannot_unify a b])
 	| _ , _ ->
 		error [cannot_unify a b]
+
+and unify_types a b tl1 tl2 =
+	try
+		List.iter2 (fun (va,ta) (vb,tb) ->
+			(match va, vb with
+			| VNo , _
+			| VCo , VCo
+			| VContra, VContra
+			| _ , VBi -> ()
+			| _  -> error []
+			);
+			match vb with
+			| VNo -> if not (type_eq true ta tb) then error [cannot_unify ta tb]
+			| VCo -> unify ta tb
+			| VContra -> unify tb ta
+			| VBi -> ()
+		) tl1 tl2
+	with
+		Unify_error l -> error ((cannot_unify a b) :: l)
 
 let rec iter f e =
 	match e.eexpr with

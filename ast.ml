@@ -132,10 +132,16 @@ type while_flag =
 	| NormalWhile
 	| DoWhile
 
+type variance =
+	| VNo
+	| VCo
+	| VContra
+	| VBi
+
 type type_path_normal = {
 	tpackage : string list;
 	tname : string;
-	tparams : type_path list;
+	tparams : (variance * type_path) list;
 }
 
 and anonymous_field =
@@ -185,7 +191,7 @@ and expr_def =
 
 and expr = expr_def * pos
 
-type type_param = string * type_path_normal list
+type type_param = variance * string * type_path_normal list
 
 type documentation = string option
 
@@ -201,11 +207,11 @@ type class_field =
 	| FFun of string * documentation * access list * type_param list * func
 	| FProp of string * documentation * access list * string * string * type_path
 
-type enum_param =
+type enum_flag =
 	| EPrivate
 	| EExtern
 
-type type_param_flag =
+type class_flag =
 	| HInterface
 	| HExtern
 	| HPrivate
@@ -214,10 +220,18 @@ type type_param_flag =
 
 type enum_constructor = string * documentation * (string * bool * type_path) list * pos
 
+type ('a,'b) definition = {
+	d_name : string;
+	d_doc : documentation;
+	d_params : type_param list;
+	d_flags : 'a list;
+	d_data : 'b;
+}
+
 type type_def =
-	| EClass of string * documentation * type_param list * type_param_flag list * (class_field * pos) list
-	| EEnum of string * documentation * type_param list * enum_param list * enum_constructor list
-	| ETypedef of string * documentation * type_param list * enum_param list * type_path
+	| EClass of (class_flag, (class_field * pos) list) definition
+	| EEnum of (enum_flag, enum_constructor list) definition
+	| ETypedef of (enum_flag, type_path) definition
 	| EImport of string list * string * string option
 
 type type_decl = type_def * pos

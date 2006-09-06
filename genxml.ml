@@ -51,13 +51,23 @@ let gen_arg_name (name,opt,_) =
 let rec gen_type t =
 	match t with
 	| TMono m -> (match !m with None -> tag "unknown" | Some t -> gen_type t)
-	| TEnum (e,params) -> node "e" [gen_path e.e_path e.e_private] (List.map gen_type params)
-	| TInst (c,params) -> node "c" [gen_path c.cl_path c.cl_private] (List.map gen_type params)
-	| TType (t,params) -> node "t" [gen_path t.t_path t.t_private] (List.map gen_type params)
+	| TEnum (e,params) -> node "e" [gen_path e.e_path e.e_private] (List.map gen_ptype params)
+	| TInst (c,params) -> node "c" [gen_path c.cl_path c.cl_private] (List.map gen_ptype params)
+	| TType (t,params) -> node "t" [gen_path t.t_path t.t_private] (List.map gen_ptype params)
 	| TFun (args,r) -> node "f" ["a",String.concat ":" (List.map gen_arg_name args)] (List.map gen_type (List.map (fun (_,_,t) -> t) args @ [r]))
 	| TAnon a -> node "a" [] (pmap (fun f -> node f.cf_name [] [gen_type f.cf_type]) a.a_fields)
 	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
 	| TLazy f -> gen_type (!f())
+
+and gen_ptype (v,t) =
+	match gen_type t with
+	| Node (name,att,c) as n ->
+		(match v with
+		| VNo -> n
+		| VBi -> Node (name,("v","*") :: att,c)
+		| VCo -> Node (name,("v","+") :: att,c)
+		| VContra -> Node (name,("v","-") :: att,c))
+	| _ -> assert false
 
 let gen_constr e =
 	let doc = gen_doc_opt e.ef_doc in
@@ -77,10 +87,10 @@ let gen_field att f =
 let gen_type_params priv path params pos m =
 	let mpriv = (if priv then [("private","1")] else []) in
 	let mpath = (if m.mpath <> path then [("module",snd (gen_path m.mpath false))] else []) in
-	gen_path path priv :: ("params", String.concat ":" (List.map fst params)) :: ("file",if pos == null_pos then "" else pos.pfile) :: (mpriv @ mpath)
+	gen_path path priv :: ("params", String.concat ":" (List.map (fun (_,n,_) -> n) params)) :: ("file",if pos == null_pos then "" else pos.pfile) :: (mpriv @ mpath)
 
 let gen_class_path name (c,pl) =
-	node name [("path",s_type_path c.cl_path)] (List.map gen_type pl)
+	node name [("path",s_type_path c.cl_path)] (List.map gen_ptype pl)
 
 let gen_type ctx t =
 	let m = Typer.module_of_type ctx t in
