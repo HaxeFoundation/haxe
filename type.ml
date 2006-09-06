@@ -306,6 +306,7 @@ let apply_params cparams params t =
 	let rec loop l1 l2 =
 		match l1, l2 with
 		| [] , [] -> []
+		| (a,b,TLazy f) :: l1, _ -> loop ((a,b,(!f)()) :: l1) l2
 		| (_,_,t1) :: l1 , (v,t2) :: l2 -> (t1,(v,t2)) :: loop l1 l2
 		| _ -> assert false
 	in
