@@ -2,10 +2,11 @@
 	fixed resources in Neko
 	typedef, override, package and f9dynamic are now keywords
 	slighly changed error format output
-	fixed "undefined" serialization
+	fixed "undefined" serialization and Type.typeof
 	some fixes in haxelib
 	set default classpath for non windows systems
 	added variance
+	fixed bug in bounded type parameters
 	(TODO) -debug support for both Flash and JS
 	(TODO) resources in Flash9
 
