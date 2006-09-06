@@ -5,7 +5,7 @@
 CFLAGS= -I ../neko/libs/include/ocaml
 LIBS=extLib.cmxa extc.cmxa swfLib.cmxa unix.cmxa
 LFLAGS= -o haxe.exe -I ../neko/libs/include/ocaml
-VCC_OUTPUT='s/File "\([^"]\+\)", line \([0-9]\+\), \(.*\)/\1(\2): \3/'
+OUTPUT=sed 's/File "\([^"]\+\)", line \([0-9]\+\), \(.*\)/\1(\2): \3/' tmp.cmi
 
 all: haxe.exe
 
@@ -31,7 +31,7 @@ lexer.cmx: ast.cmx
 main.cmx: typer.cmx plugin.cmx parser.cmx lexer.cmx genxml.cmx genswf.cmx genneko.cmx genjs.cmx ast.cmx
 
 parser.cmx: parser.ml plugin.cmx lexer.cmx ast.cmx
-	ocamlopt -pp camlp4o $(CFLAGS) -c parser.ml 2>&1 | sed $(VCC_OUTPUT)
+	(ocamlopt -pp camlp4o $(CFLAGS) -c parser.ml 2>tmp.cmi && $(OUTPUT)) || ($(OUTPUT) && exit 1)
 
 transform.cmx: type.cmx
 
@@ -48,7 +48,7 @@ clean:
 	ocamlc $(CFLAGS) -c $<
 
 .ml.cmx:
-	ocamlopt $(CFLAGS) -c $< 2>&1 | sed $(VCC_OUTPUT)
+	(ocamlopt $(CFLAGS) -c $< 2>tmp.cmi && $(OUTPUT)) || ($(OUTPUT) && exit 1)
 
 .mli.cmi:
 	ocamlc $(CFLAGS) $<
