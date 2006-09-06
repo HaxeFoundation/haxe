@@ -326,9 +326,9 @@ let apply_params cparams params t =
 		try
 			let v2, t = List.assq t subst in
 			(match v2 with
-			| VCo when v <> VContra -> VBi, protect()
-			| VContra when v <> VCo -> VBi, protect()
-			| VBi -> VBi, protect()
+			| VCo when v <> VContra -> VNo, protect()
+			| VContra when v <> VCo -> VNo, protect()
+			| VBi -> VNo, protect()
 			| _ -> v2, t)
 		with Not_found ->
 		match t with
@@ -379,14 +379,7 @@ let apply_params cparams params t =
 			else
 				v, TDynamic (snd (loop VNo t2))
 	and vloop v (v2,t) =
-		(* only use the given variance position if no variance defined by default *)
-		let v, t = loop v t in
-		(* compute max. restricted variance based on both requested and found *)
-		(match v , v2 with
-		| _ , VBi | VBi , _ | VCo, VContra | VContra, VCo -> VBi
-		| VCo , VCo | VContra , VContra -> v
-		| VNo , _ -> v2
-		| _ , VNo -> v) , t
+		loop v2 t
 	in
 	snd (loop VNo t)
 
