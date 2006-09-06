@@ -89,9 +89,9 @@ implements Dynamic
 	function beginFill(rgb : Int, ?alpha : Float) : Void;
 
 #if flash8
-	function beginGradientFill(fillType : String, colors : Array<Int>, alphas : Array<Float>, ratios : Array<Float>, matrix : Dynamic, ?spreadMethod : String, ?interpolationMethod : String, ?focalPointRatio : Float ) : Void;
+	function beginGradientFill(fillType : String, colors : Array<Int>, alphas : Array<+Float>, ratios : Array<+Float>, matrix : Dynamic, ?spreadMethod : String, ?interpolationMethod : String, ?focalPointRatio : Float ) : Void;
 #else true
-	function beginGradientFill(fillType : String, colors : Array<Int>, alphas : Array<Float>, ratios : Array<Float>, matrix : Dynamic) : Void;
+	function beginGradientFill(fillType : String, colors : Array<Int>, alphas : Array<+Float>, ratios : Array<+Float>, matrix : Dynamic) : Void;
 #end
 	// matrix : flash.geom.Matrix | Anonymous object a...i | Anonymous object (matrixType x,y,w,h,r)
 
@@ -134,7 +134,7 @@ implements Dynamic
 	function onUnload() : Void;
 
 #if flash8
-	var filters : Array<flash.filters.BitmapFilter>;
+	var filters : Array<+flash.filters.BitmapFilter>;
 	var blendMode : Dynamic;
 	var cacheAsBitmap : Bool;
 	var opaqueBackground : Int;
@@ -148,7 +148,7 @@ implements Dynamic
 
 	function attachBitmap( bmp : flash.display.BitmapData, depth : Int, ?pixelSnapping : String, ?smoothing : Bool ) : Void;
 	function beginBitmapFill( bmp : flash.display.BitmapData , ?matrix:flash.geom.Matrix, ?repeat:Bool, ?smoothing:Bool ) : Void;
-  	function lineGradientStyle( fillType:String, colors:Array<Int>, alphas:Array<Float>, ratios:Array<Float>, matrix:Dynamic, ?spreadMethod : String, ?interpolationMethod:String, ?focalPointRatio:Float ) : Void;
+  	function lineGradientStyle( fillType:String, colors:Array<Int>, alphas:Array<+Float>, ratios:Array<+Float>, matrix:Dynamic, ?spreadMethod : String, ?interpolationMethod:String, ?focalPointRatio:Float ) : Void;
 #end
 
 	private static function __init__() : Void untyped {

@@ -47,7 +47,7 @@ implements Dynamic
 	function getDepth() : Int;
 
 #if flash8
-	var filters : Array<flash.filters.BitmapFilter>;
+	var filters : Array<+flash.filters.BitmapFilter>;
 	var blendMode : Dynamic;
 	var cacheAsBitmap : Bool;
 	var scale9Grid : flash.geom.Rectangle<Float>;
