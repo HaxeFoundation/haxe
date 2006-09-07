@@ -55,6 +55,13 @@ type code_infos = {
 	mutable iloop : int;
 }
 
+type try_infos = {
+	tr_pos : int;
+	tr_end : int;
+	tr_catch_pos : int;
+	tr_type : t;
+}
+
 type context = {
 	(* globals *)
 	strings : string lookup;
@@ -76,12 +83,13 @@ type context = {
 	mutable locals : (string,local) PMap.t;
 	mutable code : as3_opcode DynArray.t;
 	mutable infos : code_infos;
-	mutable trys : (int * int * int * t) list;
+	mutable trys : try_infos list;
 	mutable breaks : (unit -> unit) list;
 	mutable continues : (int -> unit) list;
 	mutable in_static : bool;
 	mutable curblock : texpr list;
 	mutable block_vars : (int * string) list;
+	mutable try_scope_reg : int option;
 }
 
 let error p = Typer.error "Invalid expression" p
@@ -367,6 +375,7 @@ let begin_fun ctx ?(varargs=false) args el stat =
 	let old_bvars = ctx.block_vars in
 	let old_static = ctx.in_static in
 	let last_line = ctx.last_line in
+	let old_treg = ctx.try_scope_reg in
 	ctx.infos <- default_infos();
 	ctx.code <- DynArray.create();
 	ctx.trys <- [];
@@ -394,6 +403,13 @@ let begin_fun ctx ?(varargs=false) args el stat =
 			write ctx (A3Reg (alloc_reg ctx));
 			setvar ctx acc false
 	) args;
+	let rec loop_try e =
+		match e.eexpr with
+		| TFunction _ -> ()
+		| TTry _ -> raise Exit
+		| _ -> Type.iter loop_try e 
+	in
+	ctx.try_scope_reg <- (try List.iter loop_try el; None with Exit -> Some (alloc_reg ctx));
 	(fun () ->
 		let hasblock = ctx.block_vars <> [] || ctx.trys <> [] in
 		let dparams = ref None in
@@ -415,9 +431,13 @@ let begin_fun ctx ?(varargs=false) args el stat =
 		} in
 		let code = DynArray.to_list ctx.code in
 		let code , delta = (
-			if hasblock then
-				A3This :: A3Scope :: A3NewBlock :: A3Scope :: code , 4
-			else if not stat then
+			if hasblock then begin
+				let scope, delta = (match ctx.try_scope_reg with
+					| None -> A3Scope :: code , 4
+					| Some r -> A3Dup :: A3SetReg r :: A3Scope :: code, 5 + As3code.length (A3SetReg r)
+				) in
+				A3This :: A3Scope :: A3NewBlock :: scope, delta
+			end else if not stat then
 				A3This :: A3Scope :: code , 2
 			else
 				code , 0
@@ -429,12 +449,12 @@ let begin_fun ctx ?(varargs=false) args el stat =
 			fun3_unk3 = 1;
 			fun3_max_scope = ctx.infos.imaxscopes + 1 + (if hasblock then 2 else if not stat then 1 else 0);
 			fun3_code = code;
-			fun3_trys = Array.of_list (List.map (fun (p,size,cp,t) ->
+			fun3_trys = Array.of_list (List.map (fun t ->
 				{
-					tc3_start = p + delta;
-					tc3_end = size + delta;
-					tc3_handle = cp + delta;
-					tc3_type = (match follow t with
+					tc3_start = t.tr_pos + delta;
+					tc3_end = t.tr_end + delta;
+					tc3_handle = t.tr_catch_pos + delta;
+					tc3_type = (match follow t.tr_type with
 						| TInst (c,_) -> Some (fake_type_path ctx c.cl_path)
 						| TEnum (e,_) -> Some (fake_type_path ctx e.e_path)
 						| TDynamic _ -> None
@@ -459,6 +479,7 @@ let begin_fun ctx ?(varargs=false) args el stat =
 		ctx.block_vars <- old_bvars;
 		ctx.in_static <- old_static;
 		ctx.last_line <- last_line;
+		ctx.try_scope_reg <- old_treg;
 		f.fun3_id
 	)
 
@@ -661,12 +682,17 @@ let rec gen_expr_content ctx retval e =
 			| [] -> []
 			| (ename,t,e) :: l ->
 				let b = open_block ctx [e] retval in
-				ctx.trys <- (p,pend,ctx.infos.ipos,t) :: ctx.trys;
+				ctx.trys <- {
+					tr_pos = p;
+					tr_end = pend;
+					tr_catch_pos = ctx.infos.ipos;
+					tr_type = t;
+				} :: ctx.trys;
 				ctx.infos.istack <- ctx.infos.istack + 1;
 				if ctx.infos.imax < ctx.infos.istack then ctx.infos.imax <- ctx.infos.istack;
 				write ctx A3This;
 				write ctx A3Scope;
-				write ctx A3NewBlock;
+				write ctx (A3Reg (match ctx.try_scope_reg with None -> assert false | Some r -> r));
 				write ctx A3Scope;
 				(match follow t with TDynamic _ -> () | _ -> write ctx A3ToObject);
 				define_local ctx ename [e];
@@ -1401,6 +1427,7 @@ let generate types hres =
 		in_static = false;
 		debug = Plugin.defined "debug";
 		last_line = -1;
+		try_scope_reg = None;
 	} in
 	List.iter (generate_type ctx) types;
 	Hashtbl.iter (fun _ _ -> assert false) hres;
