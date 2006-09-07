@@ -7,6 +7,7 @@
 	set default classpath for non windows systems
 	added variance
 	fixed bug in bounded type parameters
+	fixed scope bug in try/catch with Flash9
 	(TODO) -debug support for both Flash and JS
 	(TODO) resources in Flash9
 
