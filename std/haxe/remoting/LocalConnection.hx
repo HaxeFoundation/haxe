@@ -48,8 +48,12 @@ class LocalConnection extends AsyncConnection {
 			if( f == null )
 				throw "No method specified";
 			s.serialize(params);
+			#if flash9
+			__data.send(__data.client.target,"remotingCall",p.join("."),f,s.toString());
+			#else true
 			if( !__data[untyped "send"](__data[untyped "target"],"remotingCall",p.join("."),f,s.toString()) )
 				throw "Remoting call failure";
+			#end
 			__funs.add(onData);
 		} catch( e : Dynamic ) {
 			__error.ref(e);
@@ -58,8 +62,12 @@ class LocalConnection extends AsyncConnection {
 
 	static function remotingCall( c : LocalConnection, path, f, args ) {
 		var r = untyped Connection.doCall(path,f,args);
+		#if flash9
+		c.__data.send(c.__data.client.target,"remotingResult",r);
+		#else true		
 		if( !c.__data[untyped "send"](c.__data[untyped "target"],"remotingResult",r) )
 			c.__error.ref("Remoting response failure");
+		#end
 	}
 
 	static function remotingResult( c : LocalConnection, r : String ) {
@@ -78,14 +86,48 @@ class LocalConnection extends AsyncConnection {
 		}
 		f(val);
 	}
+	
+	public function allowDomain( domain : String, ?insecure : Bool ) {
+		#if flash9
+		var cnx : flash.net.LocalConnection = __data;
+		#else true
+		var cnx : flash.LocalConnection = __data;
+		#end
+		if( insecure )
+			cnx.allowInsecureDomain(domain);
+		else
+			cnx.allowDomain(domain);
+	}
 
 	public static function connect( name : String ) {
+		#if flash9
+		var l = new flash.net.LocalConnection();
+		#else flash
 		var l = new flash.LocalConnection();
+		#end
 		var c = new LocalConnection(l,[]);
+		c.__funs = new List();
 		var recv = name+"_recv";
-		Reflect.setField(l,"remotingCall",function(path,f,args) { remotingCall(c,path,f,args); });
-		Reflect.setField(l,"remotingResult",function(r) { remotingResult(c,r); });
-		l.onStatus = function(s:Dynamic) { if( s[untyped "level"] != "status" ) c.__error.ref("Failed to send data on LocalConnection"); }
+		var api = {
+			remotingCall : function(path,f,args) { remotingCall(c,path,f,args); },
+			remotingResult : function(r) { remotingResult(c,r); },
+			onStatus : function(s:Dynamic) { if( s[untyped "level"] != "status" ) c.__error.ref("Failed to send data on LocalConnection"); },
+			target : null,
+		}
+		#if flash9
+		l.client = api;
+		l.addEventListener(flash.events.StatusEvent.STATUS, api.onStatus);
+		try {
+			api.target = recv;
+			l.connect(name);			
+		} catch( e : Dynamic ) {
+			api.target = name;
+			l.connect(recv);			
+		}		
+		#else true
+		Reflect.setField(l,"remotingCall",api.remotingCall);
+		Reflect.setField(l,"remotingResult",api.remotingResult);
+		l.onStatus = api.onStatus;
 		if( l.connect(name) )
 			untyped l.target = recv;
 		else {
@@ -93,6 +135,7 @@ class LocalConnection extends AsyncConnection {
 				throw "Could not assign a LocalConnection to the name "+name;
 			untyped l.target = name;
 		}
+		#end
 		return c;
 	}
 
