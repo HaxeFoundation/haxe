@@ -34,7 +34,7 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 	function new( data : Dynamic, path ) {
 		__data = data;
 		__path = path;
-		__error = { ref : function(e) { } };
+		__error = { ref : function(e) { throw e; } };
 	}
 
 	function __resolve(field) {
