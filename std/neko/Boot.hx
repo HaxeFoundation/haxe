@@ -77,6 +77,8 @@ class Boot {
 			case __dollar__tfloat: return cl == Float;
 			case __dollar__tbool: return cl == Bool;
 			case __dollar__tobject:
+				if( cl == null )
+					return false;
 				return __interfLoop(o.__class__,cl) || ( o.__enum__ == cl );
 			default:
 				return false;

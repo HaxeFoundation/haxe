@@ -159,6 +159,8 @@ class Boot {
 				if( __interfLoop(o.__class__,cl) )
 					return true;
 			} catch( e : Dynamic ) {
+				if( cl == null )
+					return false;
 			}
 			switch( cl ) {
 			case Int:

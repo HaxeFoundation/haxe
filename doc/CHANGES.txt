@@ -9,6 +9,7 @@
 	fixed bug in bounded type parameters
 	fixed scope bug in try/catch with Flash9
 	added remoting over XMLSocket and LocalConnection for Flash9
+	fixed Std.is(*,null) = false
 	(TODO) -debug support for both Flash and JS
 	(TODO) resources in Flash9
 

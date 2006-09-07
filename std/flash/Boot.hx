@@ -123,6 +123,8 @@ class Boot {
 
 	private static function __instanceof(o,cl) {
 		untyped {
+			if( !cl )
+				return false;
 			if( __instanceof__(o,cl) ) {
 				if( cl == Array )
 					return ( o[__unprotect__("__enum__")] == null );
