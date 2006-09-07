@@ -214,6 +214,13 @@ class SocketConnection extends AsyncConnection {
 	public static function socketConnect( s : XMLSocket ) {
 		var sc = new SocketConnection(s,[]);
 		sc.__funs = new List();
+		#if flash9
+		s.addEventListener(flash.events.DataEvent.DATA, function(e : flash.events.DataEvent) {
+			var e = processMessage(sc,e.data.substr(2,e.data.length-2));
+			if( e != null )
+				throw e.exc;
+		});
+		#else true
 		// we can't deliver directly the message
 		// since it might trigger a blocking action on JS side
 		// and in that case this will trigger a Flash bug
@@ -229,6 +236,7 @@ class SocketConnection extends AsyncConnection {
 					throw e.exc;
 			};
 		};
+		#end
 		return sc;
 	}
 
