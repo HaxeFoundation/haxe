@@ -134,7 +134,7 @@ implements Dynamic
 	function onUnload() : Void;
 
 #if flash8
-	var filters : Array<+flash.filters.BitmapFilter>;
+	var filters : Array<Dynamic>; // does not use variance here.
 	var blendMode : Dynamic;
 	var cacheAsBitmap : Bool;
 	var opaqueBackground : Int;
@@ -150,8 +150,6 @@ implements Dynamic
 	function beginBitmapFill( bmp : flash.display.BitmapData , ?matrix:flash.geom.Matrix, ?repeat:Bool, ?smoothing:Bool ) : Void;
   	function lineGradientStyle( fillType:String, colors:Array<Int>, alphas:Array<+Float>, ratios:Array<+Float>, matrix:Dynamic, ?spreadMethod : String, ?interpolationMethod:String, ?focalPointRatio:Float ) : Void;
 	
-	function addFilter( f : flash.filters.BitmapFilter ) : Void;
-	function removeFilter( f : flash.filters.BitmapFilter ) : Bool;
 #end
 
 // MT extension
@@ -160,17 +158,6 @@ implements Dynamic
 #end
 	private static function __init__() : Void untyped {
 		flash.MovieClip = _global["MovieClip"];
-		flash.MovieClip.prototype[cast "addFilter"] = function(f) {
-			var fl = this.filters;
-			fl.push(f);
-			this.filters = fl;
-		};
-		flash.MovieClip.prototype[cast "removeFilter"] = function(f) {
-			var fl = this.filters;
-			var b = fl.remove(f);
-			this.filters = fl;
-			return b;
-		};
 	}
 
 }

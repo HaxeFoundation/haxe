@@ -5,7 +5,7 @@ extern class DisplayObject extends flash.events.EventDispatcher, implements IBit
 	var alpha : Float;
 	var blendMode : BlendMode;
 	var cacheAsBitmap : Bool;
-	var filters : Array<+flash.filters.BitmapFilter>;
+	var filters : Array<Dynamic>; // does not use variance here
 	function getBounds(targetCoordinateSpace : DisplayObject) : flash.geom.Rectangle;
 	function getRect(targetCoordinateSpace : DisplayObject) : flash.geom.Rectangle;
 	function globalToLocal(point : flash.geom.Point) : flash.geom.Point;
