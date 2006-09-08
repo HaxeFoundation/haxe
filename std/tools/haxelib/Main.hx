@@ -84,6 +84,7 @@ class Main {
 		addCommand("config",config,"print the repository path");
 		addCommand("path",path,"give paths to libraries");
 		addCommand("run",run,"run the specified project with parameters");
+		addCommand("test",test,"install the specified package localy");
 		siteUrl = "http://"+SERVER.host+":"+SERVER.port+"/"+SERVER.dir;
 		site = new SiteProxy(haxe.remoting.Connection.urlConnect(siteUrl+SERVER.url).api);
 	}
@@ -285,16 +286,11 @@ class Main {
 	function doInstall( project, version, setcurrent ) {
 		var rep = getRepository();
 
-		// create/delete directories first
-		var pdir = rep+Datas.safe(project);
-		safeDir(pdir);
-		pdir += "/";
-		var target = pdir+Datas.safe(version);
-		if( !safeDir(target) ) {
+		// check if exists already
+		if( neko.FileSystem.exists(rep+Datas.safe(project)+"/"+Datas.safe(version)) ) {
 			print("You already have "+project+" version "+version+" installed");
 			return;
 		}
-		target += "/";
 
 		// download to temporary file
 		var filename = Datas.fileName(project,version);
@@ -310,10 +306,24 @@ class Main {
 		print("Downloading "+filename+"...");
 		h.asyncRequest(false,progress);
 
+		doInstallFile(filepath,setcurrent);
+	}
+
+	function doInstallFile(filepath,setcurrent,?nodelete) {
+
 		// read zip content
 		var f = neko.io.File.read(filepath,true);
 		var zip = neko.zip.File.read(f);
 		f.close();
+		var infos = Datas.readInfos(zip);
+
+		// create directories
+		var pdir = getRepository() + Datas.safe(infos.project);
+		safeDir(pdir);
+		pdir += "/";
+		var target = pdir + Datas.safe(infos.version);
+		safeDir(target);
+		target += "/";
 
 		// locate haxelib.xml base path
 		var basepath = null;
@@ -358,17 +368,17 @@ class Main {
 		// set current version
 		if( setcurrent || !neko.FileSystem.exists(pdir+".current") ) {
 			var f = neko.io.File.write(pdir+".current",true);
-			f.write(version);
+			f.write(infos.version);
 			f.close();
-			print("  Current version is now "+version);
+			print("  Current version is now "+infos.version);
 		}
 
 		// end
-		neko.FileSystem.deleteFile(filepath);
+		if( !nodelete )
+			neko.FileSystem.deleteFile(filepath);
 		print("Done");
 
 		// process dependencies
-		var infos = Datas.readInfos(zip);
 		for( d in infos.dependencies ) {
 			print("Installing dependency "+d.project+" "+d.version);
 			if( d.version == "" )
@@ -592,6 +602,11 @@ class Main {
 		for( i in argcur...args.length )
 			cmd += " "+args[i];
 		neko.Sys.exit(neko.Sys.command(cmd));
+	}
+
+	function test() {
+		var file = param("Package");
+		doInstallFile(file,true,true);
 	}
 
 	// ----------------------------------
