@@ -160,12 +160,12 @@ implements Dynamic
 #end
 	private static function __init__() : Void untyped {
 		flash.MovieClip = _global["MovieClip"];
-		flash.MovieClip.prototype.addFilter = function(f) {
+		flash.MovieClip.prototype[cast "addFilter"] = function(f) {
 			var fl = this.filters;
 			fl.push(f);
 			this.filters = fl;
 		};
-		flash.MovieClip.prototype.removeFilter = function(f) {
+		flash.MovieClip.prototype[cast "removeFilter"] = function(f) {
 			var fl = this.filters;
 			var b = fl.remove(f);
 			this.filters = fl;
