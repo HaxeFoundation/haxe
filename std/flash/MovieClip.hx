@@ -163,7 +163,7 @@ implements Dynamic
 		flash.MovieClip.prototype.addFilter = function(f) {
 			var fl = this.filters;
 			fl.push(f);
-			this.filters = f;		
+			this.filters = fl;
 		};
 		flash.MovieClip.prototype.removeFilter = function(f) {
 			var fl = this.filters;
