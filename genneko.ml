@@ -153,12 +153,19 @@ let gen_type_path p (path,t) =
 		let epath = List.fold_left (fun e path -> field p e path) (ident p path) l in
 		field p epath t
 
+let rec gen_big_string ctx p s =
+	let max = 1 lsl 16 - 1 in
+	if String.length s > max then
+		(EBinop ("+",str p (String.sub s 0 max),gen_big_string ctx p (String.sub s max (String.length s - max))),p)
+	else
+		str p s
+
 let gen_constant ctx pe c =
 	let p = pos ctx pe in
 	match c with
 	| TInt i -> (try int p (Int32.to_int i) with _ -> Typer.error "This integer is too big to be compiled to a Neko 31-bit integer. Please use a Float instead" pe)
 	| TFloat f -> (EConst (Float f),p)
-	| TString s -> call p (field p (ident p "String") "new") [str p s]
+	| TString s -> call p (field p (ident p "String") "new") [gen_big_string ctx p s]
 	| TBool b -> (EConst (if b then True else False),p)
 	| TNull -> null p
 	| TThis -> this p
