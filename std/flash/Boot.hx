@@ -178,9 +178,13 @@ class Boot {
 		var a : Array<String> = untyped __eval__("$s");
 		for( i in 0...a.length-1 )
 			s += "\nCalled from "+a[i];
+		var old = a.copy();
 		a.splice(0,a.length);
 		#end
-		__trace(__string_rec(v,"")+s,cast { fileName : "(uncaught exception)" });
+		if( untyped Lib.onerror != null )
+			untyped Lib.onerror(__string_rec(v,""),#if debug old #else true [] #end);
+		else
+			__trace(__string_rec(v,"")+s,cast { fileName : "(uncaught exception)" });
 	}
 
 	private static function __clear_trace() {

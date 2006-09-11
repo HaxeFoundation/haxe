@@ -29,6 +29,7 @@ class Lib {
 	public static var _global : Dynamic;
 	public static var _root : MovieClip;
 	public static var current : MovieClip;
+	static var onerror : String -> Array<String> -> Void;
 
 	public static function trace( str : String ) {
 		untyped __trace__(str);
@@ -69,6 +70,10 @@ class Lib {
 
 	public static function registerClass( name : String, cl : {} ) {
 		untyped _global["Object"]["registerClass"](name,cl);
+	}
+	
+	public static function setErrorHandler(f) {
+		onerror = f;
 	}
 
 }
