@@ -59,24 +59,14 @@ class TestResult {
 				buf.add(test.error);
 				buf.add("\n");
 				
-				#if neko
 				if (test.backtrace != null){
-					for ( si in test.backtrace ){
-						buf.add(si); buf.add("\n");
-					}
+					#if flash9
+					buf.add(test.backtrace);					
+					#else true
+					buf.add(haxe.Stack.toString(test.backtrace));					
+					#end
 					buf.add("\n");
 				}
-				#else js
-				if( test.backtrace != null ){
-					buf.add(test.backtrace);
-					buf.add("\n");
-				}
-				#else flash9
-				if( test.backtrace != null ){
-					buf.add(test.backtrace);
-					buf.add("\n");
-				}
-				#end
 
 				buf.add("\n");
 				failures++;
@@ -85,7 +75,7 @@ class TestResult {
 		buf.add("\n");
 		if (failures == 0)
 			buf.add("OK ");
-		else 
+		else
 			buf.add("FAILED ");
 
 		buf.add(m_tests.length);

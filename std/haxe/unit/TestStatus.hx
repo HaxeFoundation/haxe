@@ -23,9 +23,7 @@
  * DAMAGE.
  */
 package haxe.unit;
-#if neko
-import neko.Stack;
-#end
+import haxe.Stack;
 
 import haxe.PosInfos;
 
@@ -36,13 +34,7 @@ class TestStatus {
 	public var method : String;
 	public var classname : String;
 	public var posInfos : PosInfos;
-	#if neko
 	public var backtrace : Array<StackItem>;
-	#else js
-	public var backtrace : Dynamic;
-	#else flash9
-	public var backtrace : String;
-	#end
 
 	public function new() 	{
 		done = false;

@@ -130,9 +130,7 @@ class TestRunner {
 					}
 				}catch ( e : TestStatus ){
 					print("F");
-					#if neko
-					t.currentTest.backtrace = neko.Stack.exceptionStack();
-					#end
+					t.currentTest.backtrace = haxe.Stack.exceptionStack();
 				}catch ( e : Dynamic ){
 					print("E");
 					#if js
@@ -144,15 +142,8 @@ class TestRunner {
 					#else true
 					t.currentTest.error = "exception thrown : "+e;
 					#end
-					#if neko
-					t.currentTest.backtrace = neko.Stack.exceptionStack();
-					#else js
-					if( Reflect.isObject(e) ){
-						if( e.stack != null ){
-							t.currentTest.backtrace = e.stack;
-						}
-					}
-					#else flash9
+					t.currentTest.backtrace = haxe.Stack.exceptionStack();
+					#if flash9
 					if( e != null && Std.is(e,untyped __global__["Error"] ) )
 						t.currentTest.backtrace = e.getStackTrace();
 					#end
