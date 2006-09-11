@@ -84,7 +84,7 @@ class Server {
 			neko.Lib.print(s.toString());
 		} catch( e : Dynamic ) {
 			if( log != null ) {
-				log(neko.Stack.toString(neko.Stack.exceptionStack()));
+				log(haxe.Stack.toString(haxe.Stack.exceptionStack()));
 				log(Std.string(e));
 				log("\n\n");
 			}
