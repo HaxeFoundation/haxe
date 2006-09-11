@@ -116,7 +116,7 @@ class Main {
 
 	function usage() {
 		var vmin = Std.string(VERSION % 100);
-		var ver = Std.int(VERSION/100) + "." + if( vmin.length == 0 ) "0"+vmin else vmin;
+		var ver = Std.int(VERSION/100) + "." + if( vmin.length == 1 ) "0"+vmin else vmin;
 		print("Haxe Library Manager "+ver+" - (c)2006 Motion-Twin");
 		print(" Usage : haxlib [command] [options]");
 		print(" Commands :");
