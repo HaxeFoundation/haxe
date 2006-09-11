@@ -1,4 +1,4 @@
-2006-??-??: 1.07
+2006-09-11: 1.07
 	fixed resources in Neko
 	typedef, override, package and f9dynamic are now keywords
 	slighly changed error format output
@@ -12,6 +12,7 @@
 	fixed Std.is(*,null) = false
 	allowed >64K haXe/neko strings
 	-debug and stack traces support for Flash and JS
+	minor changes in xml output
 
 2006-08-28: 1.06
 	allowed extern enums
