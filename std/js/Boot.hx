@@ -76,7 +76,7 @@ class Boot {
 						if( o.length == 1 )
 							return o[0];
 						var str = o[0]+"(";
-						s += "    ";
+						s += "\t";
 						for( i in 1...o.length ) {
 							if( i != 1 )
 								str += "," + __string_rec(o[i],s);
@@ -88,10 +88,9 @@ class Boot {
 					var l = o.length;
 					var i;
 					var str = "[";
-					s += "    ";
+					s += "\t";
 					for( i in 0...l )
 						str += (if (i > 0) "," else "")+__string_rec(o[i],s);
-					s = s.substring(4);
 					str += "]";
 					return str;
 				}
