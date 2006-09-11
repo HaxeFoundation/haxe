@@ -194,3 +194,74 @@ let block_vars e =
 			map out_loop e
 	in
 	out_loop e
+
+let emk e = mk e t_dynamic Ast.null_pos
+
+let block e =
+	match e.eexpr with
+	| TBlock (_ :: _) -> e
+	| _ -> mk (TBlock [e]) e.etype e.epos
+
+let stack_var = "$s"
+let exc_stack_var = "$e"
+let stack_var_pos = "$spos"
+let stack_e = emk (TLocal stack_var)
+let stack_pop = emk (TCall (emk (TField (stack_e,"pop")),[]))
+
+let stack_push (c,m) =
+	emk (TCall (emk (TField (stack_e,"push")),[
+		emk (TConst (TString (Ast.s_type_path c.cl_path ^ "::" ^ m)))
+	]))
+
+let stack_save_pos =
+	emk (TVars [stack_var_pos, t_dynamic, Some (emk (TField (stack_e,"length")))])
+
+let stack_restore_pos =
+	let ev = emk (TLocal exc_stack_var) in
+	[
+	emk (TBinop (Ast.OpAssign, ev, emk (TArrayDecl [])));
+	emk (TWhile (
+		emk (TBinop (Ast.OpGte,
+			emk (TField (stack_e,"length")),
+			emk (TLocal stack_var_pos)
+		)),
+		emk (TCall (
+			emk (TField (ev,"unshift")),
+			[emk (TCall (
+				emk (TField (stack_e,"pop")),
+				[]
+			))]
+		)),
+		Ast.NormalWhile
+	));
+	emk (TCall (emk (TField (stack_e,"push")),[ emk (TArray (ev,emk (TConst (TInt 0l)))) ]))
+	]
+
+let stack_block ctx e =
+	let rec loop e =
+		match e.eexpr with
+		| TFunction _ ->
+			e
+		| TReturn (Some e) ->
+			mk (TBlock [
+				mk (TVars ["$tmp", t_dynamic, Some (loop e)]) t_dynamic e.epos;
+				stack_pop;
+				mk (TReturn (Some (mk (TLocal "$tmp") t_dynamic e.epos))) t_dynamic e.epos
+			]) e.etype e.epos
+		| TTry (v,cases) ->
+			let v = loop v in
+			let cases = List.map (fun (n,t,e) ->
+				let e = loop e in
+				let e = (match (block e).eexpr with
+					| TBlock l -> mk (TBlock (stack_restore_pos @ l)) e.etype e.epos
+					| _ -> assert false
+				) in
+				n , t , e
+			) cases in
+			mk (TTry (v,cases)) e.etype e.epos
+		| _ ->
+			map loop e
+	in
+	match (block e).eexpr with
+	| TBlock l -> mk (TBlock (stack_push ctx :: stack_save_pos :: List.map loop l @ [stack_pop])) e.etype e.epos
+	| _ -> assert false

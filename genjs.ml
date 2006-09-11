@@ -28,6 +28,8 @@ type ctx = {
 	mutable in_value : bool;
 	mutable handle_break : bool;
 	mutable id_counter : int;
+	debug : bool;
+	mutable curmethod : (string * bool);
 }
 
 let s_path = function
@@ -67,15 +69,18 @@ let rec concat ctx s f = function
 		spr ctx s;
 		concat ctx s f l
 
+let block = Transform.block
+
+let fun_block ctx f =
+	if ctx.debug then
+		Transform.stack_block (ctx.current,fst ctx.curmethod) f.tf_expr
+	else
+		block f.tf_expr
+
 let parent e =
 	match e.eexpr with
 	| TParenthesis _ -> e
 	| _ -> mk (TParenthesis e) e.etype e.epos
-
-let block e =
-	match e.eexpr with
-	| TBlock (_ :: _) -> e
-	| _ -> mk (TBlock [e]) e.etype e.epos
 
 let open_block ctx =
 	let oldt = ctx.tabs in
@@ -241,9 +246,15 @@ and gen_expr ctx e =
 		print ctx "}";
 	| TFunction f ->
 		let old = ctx.in_value in
+		let old_meth = ctx.curmethod in
 		ctx.in_value <- false;
+		if snd ctx.curmethod then
+			ctx.curmethod <- (fst ctx.curmethod ^ "@" ^ string_of_int (Lexer.get_error_line e.epos), true)
+		else
+			ctx.curmethod <- (fst ctx.curmethod, true);
 		print ctx "function(%s) " (String.concat "," (List.map ident (List.map arg_name f.tf_args)));
-		gen_expr ctx (block f.tf_expr);
+		gen_expr ctx (fun_block ctx f);
+		ctx.curmethod <- old_meth;
 		ctx.in_value <- old;
 	| TCall (e,el) ->
 		gen_call ctx e el
@@ -562,6 +573,7 @@ let gen_class_static_field ctx c f =
 		let e = Transform.block_vars e in
 		match e.eexpr with
 		| TFunction _ ->
+			ctx.curmethod <- (f.cf_name,false);
 			print ctx "%s%s = " (s_path c.cl_path) (field f.cf_name);
 			gen_value ctx e;
 			newline ctx
@@ -575,22 +587,24 @@ let gen_class_field ctx c f =
 		print ctx "null";
 		newline ctx
 	| Some e ->
+		ctx.curmethod <- (f.cf_name,false);
 		gen_value ctx (Transform.block_vars e);
 		newline ctx
 
 let generate_class ctx c =
 	ctx.current <- c;
+	ctx.curmethod <- ("new",true);
 	let p = s_path c.cl_path in
 	generate_package_create ctx c.cl_path;
 	print ctx "%s = " p;
 	(match c.cl_constructor with
-	| Some { cf_expr = Some e } -> 
+	| Some { cf_expr = Some e } ->
 		(match Transform.block_vars e with
 		| { eexpr = TFunction f } ->
 			let args  = List.map arg_name f.tf_args in
 			let a, args = (match args with [] -> "p" , ["p"] | x :: _ -> x, args) in
 			print ctx "function(%s) { if( %s === $_ ) return; " (String.concat "," (List.map ident args)) a;
-			gen_expr ctx (block f.tf_expr);
+			gen_expr ctx (fun_block ctx f);
 			print ctx "}";
 		| _ -> assert false)
 	| _ -> print ctx "function() { }");
@@ -661,13 +675,21 @@ let generate file types hres =
 		tabs = "";
 		in_value = false;
 		handle_break = false;
+		debug = Plugin.defined "debug";
 		id_counter = 0;
+		curmethod = ("",false);
 	} in
 	List.iter (generate_type ctx) types;
 	print ctx "$_ = {}";
 	newline ctx;
 	print ctx "js.Boot.__res = {}";
 	newline ctx;
+	if ctx.debug then begin
+		print ctx "%s = []" Transform.stack_var;
+		newline ctx;
+		print ctx "%s = []" Transform.exc_stack_var;
+		newline ctx;
+	end;
 	Hashtbl.iter (fun name data ->
 		if String.contains data '\000' then failwith ("Resource " ^ name ^ " contains \\0 characters that can't be used in JavaScript");
 		print ctx "js.Boot.__res[\"%s\"] = \"%s\"" (Ast.s_escape name) (Ast.s_escape data);

@@ -26,8 +26,6 @@ package flash;
 
 class Boot {
 
-	private static var exc : Array<Dynamic>;
-
 	private static function __string_rec(o : Dynamic,s : String) {
 		untyped {
 			if( s.length >= 20 )
@@ -174,6 +172,17 @@ class Boot {
 		}
 	}
 
+	static function __exc(v) {
+		var s = "";
+		#if debug
+		var a : Array<String> = untyped __eval__("$s");
+		for( i in 0...a.length-1 )
+			s += "\nCalled from "+a[i];
+		a.splice(0,a.length);
+		#end
+		__trace(__string_rec(v,"")+s,cast { fileName : "(uncaught exception)" });
+	}
+
 	private static function __clear_trace() {
 		untyped {
 			var root = flash.Lib.current;
@@ -238,9 +247,6 @@ class Boot {
 			if( _global["flash"] == null )
 				_global["flash"] = __new__(obj);
 		}
-		// create the array stack
-		if( exc == null )
-			exc = new Array();
 		// set the Lib variables
 		current.flash.Lib._global = _global;
 		current.flash.Lib._root = _root;
@@ -248,7 +254,6 @@ class Boot {
 		// prevent closure creation by setting untyped
 		current[__unprotect__("@instanceof")] = untyped __instanceof;
 		current[__unprotect__("@closure")] = untyped __closure;
-		current[__unprotect__("@exc")] = exc;
 		// fix firefox default alignement
 		if( _global["Stage"]["align"] == "" )
 			_global["Stage"]["align"] = "LT";

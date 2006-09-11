@@ -71,12 +71,6 @@ class Lib {
 		untyped _global["Object"]["registerClass"](name,cl);
 	}
 
-	public static function throwException() {
-		var exc : Array<Dynamic> = untyped Boot.exc;
-		if( exc.length != 0 )
-			throw(exc.pop());
-	}
-
 }
 
 

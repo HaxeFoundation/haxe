@@ -43,8 +43,9 @@ type context = {
 	mutable reg_max : int;
 	mutable fun_stack : int;
 	version : int;
-	mutable curclass : (string list * string);
-	mutable curmethod : string;
+	debug : bool;
+	mutable curclass : tclass;
+	mutable curmethod : (string * bool);
 	mutable fun_pargs : (int * bool list) list;
 
 	(* loops *)
@@ -111,7 +112,7 @@ let stack_delta = function
 	| op -> failwith ("Unknown stack delta for " ^ (ActionScript.action_string (fun _ -> "") 0 op))
 
 let overflow ctx =
-	failwith ("In or near the method " ^ s_type_path ctx.curclass ^ "." ^ ctx.curmethod ^
+	failwith ("In or near the method " ^ s_type_path ctx.curclass.cl_path ^ "." ^ fst ctx.curmethod ^
 	" too much code is causing an overflow that can't be handled by the SWF format. " ^
 	"Please split your code in several methods so it can be correctly compiled.")
 
@@ -411,7 +412,7 @@ let free_reg ctx r p =
 (* Generation Helpers *)
 
 let define_var ctx v ef exprs =
-	if ctx.version = 6 || List.exists (Transform.local_find false v) exprs then begin
+	if ctx.version = 6 || List.exists (Transform.local_find false v) exprs || v = Transform.stack_var_pos then begin
 		push ctx [VStr (v,false)];
 		ctx.regs <- PMap.add v NoReg ctx.regs;
 		match ef with
@@ -571,12 +572,6 @@ and gen_try_catch ctx retval e catchs =
 			write ctx ANot;
 			cjmp ctx
 		) in
-		(* @exc.pop() *)
-		push ctx [VInt 0;VStr ("@exc",false)];
-		write ctx AEval;
-		push ctx [VStr ("pop",true)];
-		call ctx VarObj 0;
-		write ctx APop;
 		let block = open_block ctx in
 		define_var ctx name (Some (fun() -> push ctx [VReg 0])) [e];
 		gen_expr ctx retval e;
@@ -884,7 +879,12 @@ and gen_expr_2 ctx retval e =
 	| TFunction f ->
 		let block = open_block ctx in
 		let old_in_loop = ctx.in_loop in
+		let old_meth = ctx.curmethod in
 		let reg_super = Transform.local_find true "super" f.tf_expr in
+		if snd ctx.curmethod then
+			ctx.curmethod <- (fst ctx.curmethod ^ "@" ^ string_of_int (Lexer.get_error_line e.epos), true)
+		else
+			ctx.curmethod <- (fst ctx.curmethod, true);
 		(* only keep None bindings, for protect *)
 		ctx.regs <- PMap.foldi (fun v x acc ->
 			match x with
@@ -909,8 +909,30 @@ and gen_expr_2 ctx retval e =
 		) f.tf_args in
 		let tf = func ctx reg_super (Transform.local_find true "__arguments__" f.tf_expr) rargs in
 		ctx.fun_pargs <- (ctx.code_pos, List.rev !pargs) :: ctx.fun_pargs;
-		gen_expr ctx false f.tf_expr;
+		if ctx.debug then begin
+			let start_try = gen_try ctx in
+			gen_expr ctx false (Transform.stack_block (ctx.curclass,fst ctx.curmethod) f.tf_expr);
+			let end_try = start_try() in
+			(* if $spos == 1 , then no upper call, so report as uncaught *)
+			push ctx [VInt 1; VStr (Transform.stack_var_pos,false)];
+			write ctx AEval;
+			write ctx AEqual;
+			write ctx ANot;
+			let j = cjmp ctx in
+			push ctx [VReg 0];
+			push ctx [VInt 1];
+			getvar ctx (gen_path ctx (["flash"],"Boot") (!extern_boot));
+			push ctx [VStr ("__exc",false)];
+			call ctx VarObj 1;
+			write ctx AReturn;
+			j();
+			push ctx [VReg 0];
+			write ctx AThrow;
+			end_try();
+		end else
+			gen_expr ctx false f.tf_expr;
 		ctx.in_loop <- old_in_loop;
+		ctx.curmethod <- old_meth;
 		tf();
 		block();
 	| TIf (cond,e,None) ->
@@ -977,15 +999,7 @@ and gen_expr_2 ctx retval e =
 	| TSwitch (e,cases,def) ->
 		gen_switch ctx retval e cases def
 	| TThrow e ->
-		(* call @exc.push(e) *)
 		gen_expr ctx true e;
-		write ctx (ASetReg 0);
-		push ctx [VInt 1; VStr ("@exc",false)];
-		write ctx AEval;
-		push ctx [VStr ("push",true)];
-		call ctx VarObj 1;
-		write ctx APop;
-		push ctx [VReg 0];
 		write ctx AThrow;
 		no_value ctx retval
 	| TTry (e,catchs) ->
@@ -1039,15 +1053,15 @@ let gen_class_static_field ctx c flag f =
 		match e.eexpr with
 		| TFunction _ ->
 			push ctx [VReg 0; VStr (f.cf_name,flag)];
-			ctx.curmethod <- f.cf_name;
+			ctx.curmethod <- (f.cf_name,false);
 			gen_expr ctx true e;
 			setvar ctx VarObj
 		| _ ->
 			ctx.statics <- (c,flag,f.cf_name,e) :: ctx.statics
 
 let gen_class_static_init ctx (c,flag,name,e) =
-	ctx.curclass <- c.cl_path;
-	ctx.curmethod <- name;
+	ctx.curclass <- c;
+	ctx.curmethod <- (name,false);
 	getvar ctx (gen_path ctx c.cl_path c.cl_extern);
 	push ctx [VStr (name,flag)];
 	gen_expr ctx true e;
@@ -1059,7 +1073,7 @@ let gen_class_field ctx f flag =
 	| None ->
 		push ctx [VNull]
 	| Some e ->
-		ctx.curmethod <- f.cf_name;
+		ctx.curmethod <- (f.cf_name,false);
 		gen_expr ctx true (Transform.block_vars e));
 	setvar ctx VarObj
 
@@ -1164,11 +1178,11 @@ let gen_type_def ctx t =
 					loop s
 		in
 		loop c;
-		ctx.curclass <- c.cl_path;
+		ctx.curclass <- c;
 		(match c.cl_constructor with
 		| Some { cf_expr = Some e } ->
 			have_constr := true;
-			ctx.curmethod <- "new";
+			ctx.curmethod <- ("new",false);
 			gen_expr ctx true (Transform.block_vars e)
 		| _ ->
 			let f = func ctx true false [] in
@@ -1325,14 +1339,23 @@ let generate_code file ver types hres =
 		movieclips = [];
 		inits = [];
 		version = ver;
-		curclass = ([],"");
-		curmethod = "";
+		curclass = null_class;
+		curmethod = ("",false);
 		fun_pargs = [];
 		in_loop = false;
+		debug = Plugin.defined "debug";
 	} in
 	write ctx (AStringPool []);
 	protect_all := not (Plugin.defined "swf-mark");
 	extern_boot := true;
+	if ctx.debug then begin
+		push ctx [VStr (Transform.stack_var,false); VInt 0];
+		write ctx AInitArray;
+		write ctx ALocalAssign;
+		push ctx [VStr (Transform.exc_stack_var,false); VInt 0];
+		write ctx AInitArray;
+		write ctx ALocalAssign;
+	end;
 	List.iter (fun t -> gen_type_def ctx t) types;
 	gen_boot ctx hres;
 	List.iter (fun m -> gen_movieclip ctx m) ctx.movieclips;
@@ -1341,13 +1364,11 @@ let generate_code file ver types hres =
 	List.iter (gen_class_static_init ctx) (List.rev ctx.statics);
 	let end_try = global_try() in
 	(* flash.Boot.__trace(exc) *)
-	push ctx [VStr ("fileName",false); VStr ("(uncaught exception)",true); VInt 1];
-	write ctx AObject;
-	ctx.stack_size <- ctx.stack_size - 2;
-	push ctx [VReg 0; VInt 2];
+	push ctx [VReg 0; VInt 1];
 	getvar ctx (gen_path ctx (["flash"],"Boot") (!extern_boot));
-	push ctx [VStr ("__trace",false)];
-	call ctx VarObj 2;
+	push ctx [VStr ("__exc",false)];
+	call ctx VarObj 1;
+	write ctx APop;
 	end_try();
 	let idents = ctx.idents in
 	let idents = Hashtbl.fold (fun ident pos acc -> (ident,pos) :: acc) idents [] in
@@ -1404,7 +1425,7 @@ let generate file ver header infile types hres =
 		tag ~ext:true (TExport [{ exp_id = !base_id; exp_name = s_type_path m }]) ::
 		acc
 	) [] (!movieclips) in
-	let tagclips9() = 
+	let tagclips9() =
 		if ver = 9 then
 			[tag (TF9Classes !f9clips)]
 		else

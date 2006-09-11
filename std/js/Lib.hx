@@ -32,6 +32,7 @@ class Lib {
 	public static var isOpera : Bool;
 	public static var document : Document = untyped __js__("document");
 	public static var window : Window = untyped __js__("window");
+	static var onerror : String -> Array<String> -> Bool = null;
 
 	public static function alert( v : Dynamic ) {
 		untyped __js__("alert")(js.Boot.__string_rec(v,""));
@@ -41,13 +42,38 @@ class Lib {
 		return untyped __js__("eval")(code);
 	}
 
-	public static function setErrorHandler( f : String -> String -> Int -> Bool ) {
-		untyped onerror = f;
+	public static function setErrorHandler( f ) {
+		onerror = f;
 	}
 
-	public static function defaultHandler( msg : String, url : String, line : Int ) {
-		alert("Error "+url+" ("+line+")\n\n"+msg);
-		return true;
+	static function __init__() untyped {
+		#if debug
+		__js__('
+			onerror = function(msg,url,line) {
+				var stack = $s.copy();
+				var f = js.Lib.onerror;
+				$s.splice(0,$s.length);
+				if( f == null ) {
+					var i = stack.length;
+					var s = "";
+					while( --i >= 0 )
+						s += "Called from "+stack[i]+"\\n";
+					alert(msg+"\\n\\n"+s);
+					return false;
+				}
+				return f(msg,stack);
+			}
+		');
+		#else true
+		__js__('
+			onerror = function(msg,url,line) {
+				var f = js.Lib.onerror;
+				if( f == null )
+					return false;
+				return f(msg,[url+":"+line]);
+			}
+		');
+		#end
 	}
 
 }
