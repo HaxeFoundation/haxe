@@ -12,7 +12,6 @@
 	fixed Std.is(*,null) = false
 	allowed >64K haXe/neko strings
 	-debug and stack traces support for Flash and JS
-	(TODO) resources in Flash9
 
 2006-08-28: 1.06
 	allowed extern enums
