@@ -53,7 +53,7 @@ class Progress extends neko.io.Output {
 
 class Main {
 
-	static var VERSION = 100;
+	static var VERSION = 101;
 	static var REPNAME = "lib";
 	static var SERVER = {
 		host : "lib.haxe.org",
