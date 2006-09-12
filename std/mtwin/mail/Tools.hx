@@ -345,9 +345,9 @@ class Tools {
 	}
 
 	// TODO routes & groups ?
-	static var REG_ADDRESS = ~/^((([^()<>@,;:\\"\[\]\s\p{Cc}]+)|"((\"|[^"])*)")+@[A-Z0-9][A-Z0-9-.]*)/i;
-	static var REG_ROUTE_ADDR = ~/^<((([^()<>@,;:\\"\[\]\s\p{Cc}]+)|"((\"|[^"])*)")+@[A-Z0-9][A-Z0-9-.]*)>/i;
-	static var REG_ATOM = ~/^([^()<>@,;:\\".\[\]\s\p{Cc}]+)/i;
+	static var REG_ADDRESS = ~/^((([^()<>@,;:\\"\[\]\s[:cntrl:]]+)|"((\"|[^"])*)")+@[A-Z0-9][A-Z0-9-.]*)/i;
+	static var REG_ROUTE_ADDR = ~/^<((([^()<>@,;:\\"\[\]\s[:cntrl:]]+)|"((\"|[^"])*)")+@[A-Z0-9][A-Z0-9-.]*)>/i;
+	static var REG_ATOM = ~/^([^()<>@,;:\\".\[\]\s[:cntrl:]]+)/i;
 	static var REG_QSTRING = ~/^"((\"|[^"])*)"/;
 	static var REG_SEPARATOR = ~/,\s*/;
 	public static function parseAddress( str : String ) : Array<Address> {
