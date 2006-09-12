@@ -1,3 +1,6 @@
+2006-??-??: 1.08
+	fixed bug in flash -debug
+
 2006-09-11: 1.07
 	fixed resources in Neko
 	typedef, override, package and f9dynamic are now keywords

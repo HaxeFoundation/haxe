@@ -412,7 +412,7 @@ let free_reg ctx r p =
 (* Generation Helpers *)
 
 let define_var ctx v ef exprs =
-	if ctx.version = 6 || List.exists (Transform.local_find false v) exprs || v = Transform.stack_var_pos then begin
+	if ctx.version = 6 || List.exists (Transform.local_find false v) exprs then begin
 		push ctx [VStr (v,false)];
 		ctx.regs <- PMap.add v NoReg ctx.regs;
 		match ef with
@@ -911,11 +911,11 @@ and gen_expr_2 ctx retval e =
 		ctx.fun_pargs <- (ctx.code_pos, List.rev !pargs) :: ctx.fun_pargs;
 		if ctx.debug then begin
 			let start_try = gen_try ctx in
-			gen_expr ctx false (Transform.stack_block (ctx.curclass,fst ctx.curmethod) f.tf_expr);
+			gen_expr ctx false (Transform.stack_block ~useadd:true (ctx.curclass,fst ctx.curmethod) f.tf_expr);
 			let end_try = start_try() in
 			(* if $spos == 1 , then no upper call, so report as uncaught *)
-			push ctx [VInt 1; VStr (Transform.stack_var_pos,false)];
-			write ctx AEval;
+			getvar ctx (access_local ctx Transform.stack_var_pos);
+			push ctx [VInt 1];
 			write ctx AEqual;
 			write ctx ANot;
 			let j = cjmp ctx in

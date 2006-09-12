@@ -1,4 +1,5 @@
 /*
+/*
  * Copyright (c) 2005, The haXe Project Contributors
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without
@@ -178,7 +179,7 @@ class Boot {
 		var a : Array<String> = untyped __eval__("$s");
 		for( i in 0...a.length-1 )
 			s += "\nCalled from "+a[i];
-		var old = a.copy();
+		var old = a.slice(0,a.length-1);
 		a.splice(0,a.length);
 		#end
 		if( untyped Lib.onerror != null )

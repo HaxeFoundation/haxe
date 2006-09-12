@@ -208,9 +208,16 @@ let stack_var_pos = "$spos"
 let stack_e = emk (TLocal stack_var)
 let stack_pop = emk (TCall (emk (TField (stack_e,"pop")),[]))
 
-let stack_push (c,m) =
+let stack_push useadd (c,m) =
 	emk (TCall (emk (TField (stack_e,"push")),[
-		emk (TConst (TString (Ast.s_type_path c.cl_path ^ "::" ^ m)))
+		if useadd then
+			emk (TBinop (
+				Ast.OpAdd,
+				emk (TConst (TString (Ast.s_type_path c.cl_path ^ "::"))),
+				emk (TConst (TString m))
+			))
+		else
+			emk (TConst (TString (Ast.s_type_path c.cl_path ^ "::" ^ m)))
 	]))
 
 let stack_save_pos =
@@ -237,7 +244,7 @@ let stack_restore_pos =
 	emk (TCall (emk (TField (stack_e,"push")),[ emk (TArray (ev,emk (TConst (TInt 0l)))) ]))
 	]
 
-let stack_block ctx e =
+let stack_block ?(useadd=false) ctx e =
 	let rec loop e =
 		match e.eexpr with
 		| TFunction _ ->
@@ -263,5 +270,5 @@ let stack_block ctx e =
 			map loop e
 	in
 	match (block e).eexpr with
-	| TBlock l -> mk (TBlock (stack_push ctx :: stack_save_pos :: List.map loop l @ [stack_pop])) e.etype e.epos
+	| TBlock l -> mk (TBlock (stack_push useadd ctx :: stack_save_pos :: List.map loop l @ [stack_pop])) e.etype e.epos
 	| _ -> assert false
