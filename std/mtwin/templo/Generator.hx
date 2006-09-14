@@ -48,13 +48,36 @@ class Generator {
 			buffer_new = $loader.loadprim("std@buffer_new", 0);
 			buffer_add = $loader.loadprim("std@buffer_add", 2);
 			buffer_string = $loader.loadprim("std@buffer_string", 1);
+			string_split = $loader.loadprim("std@string_split", 2);
+
+			replace = function( h, n, r ){
+				var l = string_split(h, n);
+				if (l[1] == null)
+					return h;
+				var res = buffer_new();
+				buffer_add(res, l[0]);
+				l = l[1];
+				while (l != null){
+					buffer_add(res, r);
+					buffer_add(res, l[0]);
+					l = l[1];
+				}
+				return buffer_string(res);
+			}
 
 			html_escape = function( data ){
-				var str = String.new($string(data));
-				if (str == null){
-					$throw("String.new returned null\n");
-				}
-				return str.split(String.new("&")).join(String.new("&amp;")).split(String.new("<")).join(String.new("&lt;")).split(String.new(">")).join(String.new("&gt;")).split(String.new("\\\"")).join(String.new("&quot;"));
+				var t = $typeof(data);
+				if (t == $tint)
+					return data;
+				if (t != $tstring)
+					data = $string(data);
+				if (data == "")
+					return data;
+				data = replace(data, "&", "&amp;");
+				data = replace(data, "<", "&lt;");
+				data = replace(data, ">", "&gt;");
+				data = replace(data, "\\\"", "&quot;");
+				return data;
 			}
 
 			is_true = function( data ){
@@ -167,12 +190,16 @@ class Generator {
 		out.add(code);
 	}
 
+	public static function hash( name:String ) : Int {
+		return untyped __dollar__hash(name.__s);
+	}
+
 	public function getVar( name:String ) : String {
-		return "__ctx.get($hash(\""+name+"\"))";
+		return "__ctx.get("+hash(name)+")";
 	}
 
 	public function setVar( name:String, exp:String ){
-		add("__ctx.set($hash(\""+name+"\"), "+exp+");\n");
+		add("__ctx.set("+hash(name)+", "+exp+");\n");
 	}
 
 	public function flushHtml(){

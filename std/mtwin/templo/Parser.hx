@@ -81,7 +81,7 @@ class Parser {
 			var parts = Lambda.array(mtSet.split("=").iterator());
 			var dest = StringTools.trim(parts.shift());
 			var exp = parseExpression( StringTools.trim(parts.join("=")) );
-			out.add("__ctx.set($hash(\""+dest+"\"), ("+exp+"));");
+			out.setVar(dest, "("+exp+")");
 			return;
 		}
 
@@ -94,10 +94,10 @@ class Parser {
 				var f = mtwin.templo.Template.fromFile(mtUse); 
 			}
 			*/
-			out.add("tmp = __ctx.get($hash(\"__content__\"));\n");
+			out.add("tmp = "+out.getVar("__content__")+";\n");
 			out.add("__out = new_output_buffer(__out);\n");
 			parseNode(xml);
-			out.add("__ctx.set($hash(\"__content__\"), __out.str());\n");
+			out.setVar("__content__", "__out.str()");
 			out.add("__out = __out.parent;\n");
 
 			if (StringTools.endsWith(mtUse, ".mtt"))
@@ -105,7 +105,7 @@ class Parser {
 			//throw parseExpression(mtUse);
 			out.add("mcr = macro("+parseExpression(mtUse)+");\n");
 			out.add("__out.add(mcr.template(macro, __ctx));\n");
-			out.add("__ctx.set($hash(\"__content__\"), tmp);\n");
+			out.setVar("__content__", "tmp");
 			return;
 		}
 		
@@ -113,7 +113,7 @@ class Parser {
 		if (mtFill != null){
 			out.add("__out = new_output_buffer(__out);\n");
 			parseNode(xml);
-			out.add("__ctx.set($hash(\""+StringTools.trim(mtFill)+"\"), String.new(__out.str()));\n");
+			out.setVar(StringTools.trim(mtFill), "String.new(__out.str())");
 			out.add("__out = __out.parent;\n");
 			return;
 		}
@@ -545,9 +545,9 @@ class Parser {
 							skip = true;
 						}
 						else {
-							result.add("__ctx.get($hash(\"");
-							result.add(variable);
-							result.add("\"))");
+							result.add("__ctx.get(");
+							result.add(Generator.hash(variable));
+							result.add(")");
 							state = states.member;
 							if (i < len && str.charAt(i+1) == "_"){
 								result.add(".get");
@@ -562,9 +562,9 @@ class Parser {
 							result.add(variable);
 						}
 						else {									
-							result.add("__ctx.get($hash(\"");
-							result.add(variable);
-							result.add("\"))");
+							result.add("__ctx.get(");
+							result.add(Generator.hash(variable));
+							result.add(")");
 						}
 						state = states.none;
 					}
