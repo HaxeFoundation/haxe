@@ -183,7 +183,7 @@ class MetaPart<T> {
 				boundary = "----=" + Tools.randomEight() + "_" + Tools.randomEight() + "." + Tools.randomEight();
 			}
 
-			setHeader("Content-Type",contentType+"; charset=\""+charset+"\";\r\n\tboundary=\""+boundary+"\"");
+			setHeader("Content-Type",contentType+"; charset=\""+charset+"\"; boundary=\""+boundary+"\"");
 		}else{
 			setHeader("Content-Type",contentType+"; charset=\""+charset+"\"");
 		}
