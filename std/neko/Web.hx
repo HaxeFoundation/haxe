@@ -46,6 +46,42 @@ class Web {
 	}
 
 	/**
+		Returns an Array of Strings built using GET / POST values of <param>[]
+
+		Example:
+	
+			myArray[]=foo
+			myArray[]=hello
+			myArray[5]=bar
+			myArray[3]=baz
+
+		neko.Web.getParamValues("myArray") = ["foo","hello",null,"baz",null,"bar"]
+	**/
+	public static function getParamValues( param : String ) : Array<String> {
+		var reg = new EReg("^"+param+"(\\[|%5B)([0-9]*?)(\\]|%5D)=(.*?)$", "");
+		var res = new Array<String>();
+		var explore = function(data:String){
+			if (data == null || data.length == 0)
+				return;
+			for (part in data.split("&")){
+				if (reg.match(part)){
+					var idx = reg.matched(2);
+					var val = StringTools.urlDecode(reg.matched(4));
+					if (idx == "")
+						res.push(val);
+					else
+						res[Std.parseInt(idx)] = val;
+				}			
+			}
+		}
+		explore(StringTools.replace(getParamsString(), ";", "&"));
+		explore(getPostData());
+		if (res.length == 0)
+			return null;
+		return res;
+	}
+
+	/**
 		Returns the local server host name
 	**/
 	public static function getHostName() {
