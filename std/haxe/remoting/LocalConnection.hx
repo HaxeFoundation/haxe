@@ -59,6 +59,15 @@ class LocalConnection extends AsyncConnection {
 			__error.ref(e);
 		}
 	}
+	
+	public function closeConnection() {
+		#if flash9
+		var cnx : flash.net.LocalConnection = __data;
+		#else true
+		var cnx : flash.LocalConnection = __data;
+		#end
+		cnx.close();
+	}
 
 	static function remotingCall( c : LocalConnection, path, f, args ) {
 		var r = untyped Connection.doCall(path,f,args);
