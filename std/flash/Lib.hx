@@ -73,7 +73,7 @@ class Lib {
 	}
 	
 	public static function keys( v : Dynamic ) : Array<String> {
-		return untyped __keys__(mc);
+		return untyped __keys__(v);
 	}
 	
 	public static function setErrorHandler(f) {
