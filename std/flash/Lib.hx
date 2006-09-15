@@ -72,6 +72,10 @@ class Lib {
 		untyped _global["Object"]["registerClass"](name,cl);
 	}
 	
+	public static function keys( v : Dynamic ) : Array<String> {
+		return untyped __keys__(mc);
+	}
+	
 	public static function setErrorHandler(f) {
 		onerror = f;
 	}
