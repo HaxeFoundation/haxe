@@ -284,15 +284,13 @@ class MetaPart<T> {
 				buf.add( Tools.removeCRLF(ln) );
 				buf.add("\r\n");
 			}else{
-				if( StringTools.trim(ln).length == 0 ){
+				if( Tools.removeCRLF(ln).length == 0 ){
 					inHead = false;
 					head.add( buf.toString() );
 					buf = new StringBuf();
 				}else{
-					var nbTab = Tools.countInitTab(ln);
-					if( nbTab > 0 ){
-						buf.add(" ");
-						buf.add( Tools.removeCRLF(ln.substr(nbTab,ln.length-nbTab)) );
+					if( ~/^\s/.match( ln )  ){
+						buf.add( Tools.removeCRLF(ln) );
 					}else{
 						head.add( buf.toString() );
 						buf = new StringBuf();

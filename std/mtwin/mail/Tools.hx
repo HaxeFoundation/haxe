@@ -38,7 +38,6 @@ class Tools {
 	static var REG_HEADER_DECODE = ~/^(.*?)=\?([^\?]+)\?(Q|B)\?([^?]*)\?=\s?(.*?)$/i;
 	static var REG_QP_LB = ~/=\\r?\\n/;
 	static var REG_QP = ~/=([A-Fa-f0-9]{1,2})/;
-	static var REG_START_TAB = ~/^(\t| )+/;
 	
 	public static function chunkSplit( str:String, length:Int, sep:String ){
 		var ret = "";
@@ -171,7 +170,7 @@ class Tools {
 		quotedStr.add(line.toString());
 
 		if( !useQuoted ){
-			return wordWrap(ostr,75,"\r\n\t",initSize);
+			return wordWrap(ostr,75,"\r\n",initSize,true);
 		}else{
 			return "=?"+charset+"?Q?"+quotedStr.join("?=\r\n\t=?"+charset+"?Q?")+"?=";
 		}
@@ -224,14 +223,6 @@ class Tools {
 		return arr.join("-");
 	}
 
-	public static function countInitTab( str : String ) : Int {
-		if( REG_START_TAB.match(str) ){
-			return REG_START_TAB.matched(0).length;
-		}else{
-			return 0;
-		}
-	}
-
 	public static function randomEight(){
 		var s = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
@@ -269,12 +260,12 @@ class Tools {
 
 	public static function formatHeader( name : String, content : String, charset : String ){
 		// TODO if To, From, Cc, Bcc, use a special encode to keep addresses
-		return name+": "+headerQpEncode(content,name.length,charset)+"\r\n";
+		return name+": "+headerQpEncode(content,name.length+2,charset)+"\r\n";
 	}
 
 	static var REG_MHEADER = ~/^([^;]+)(.*?)$/;
-	static var REG_PARAM1 = ~/^; *([a-zA-Z]+)="(([^"]|\\")+)"/;
-	static var REG_PARAM2 = ~/^; *([a-zA-Z]+)=([^;]+)/;
+	static var REG_PARAM1 = ~/^;\s*([a-zA-Z]+)="(([^"]|\\")+)"/;
+	static var REG_PARAM2 = ~/^;\s*([a-zA-Z]+)=([^;]+)/;
 	public static function parseComplexHeader( h : String ){
 		if( h == null ) return null;
 
@@ -307,10 +298,12 @@ class Tools {
 
 	}
 
-	public static function wordWrap( str : String, ?length : Int, ?sep : String, ?initCur : Int ){
+	public static function wordWrap( str : String, ?length : Int, ?sep : String, ?initCur : Int, ?keepSpace : Bool ){
 		if( length == null ) length = 75;
 		if( sep == null ) sep = "\n";
 		if( initCur == null ) initCur = 0;
+		if( keepSpace == null ) keepSpace = false;
+
 		
 		var reg = ~/(.*?)(\s+)/;
 		var a = new Array();
@@ -326,21 +319,40 @@ class Tools {
 
 		var sb = new StringBuf();
 		var cur = initCur;
+		var n = a[0];
 		for( i in 0...a.length ){
-			var e = a[i];
-			var l = e.length;
+			var e = n;
+			n = a[i+1];
+			
 			var cut = false;
-			if( cur+l > length ){
-				sb.add( sep );
-				cur = 0;
+			if( i%2 == 1 && cur + e.length + n.length > length ){
 				cut = true;
+				if( keepSpace ){
+					for( is in 0...e.length-1 ){
+						if( cur >= length ){
+							sb.add( sep );
+							cur = 0;
+						}
+						sb.add(e.substr(is,1));
+						cur++;
+					}
+					if( cur + 1 + n.length > length ){
+						sb.add(sep);
+						cur = 0;
+					}
+					sb.add(e.substr(-1,1));
+					cur++;
+				}else{
+					sb.add( sep );
+					cur = 0;
+				}
 			}
 			if( i % 2 != 1 || !cut ){
 				sb.add( e );
-				cur += l;
+				cur += e.length;
 			}
 		}
-
+		
 		return sb.toString();
 	}
 
