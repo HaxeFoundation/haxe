@@ -195,7 +195,7 @@ let block_vars e =
 	in
 	out_loop e
 
-let emk e = mk e t_dynamic Ast.null_pos
+let emk e = mk e (mk_mono()) Ast.null_pos
 
 let block e =
 	match e.eexpr with

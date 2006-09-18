@@ -198,7 +198,7 @@ let rec is_protected ctx t check_mt =
 		loop c
 	| TMono r ->
 		(match !r with
-		| None -> assert false
+		| None -> true (* in Transform.emk only *)
 		| Some t -> is_protected ctx t check_mt)
 	| TLazy f ->
 		is_protected ctx ((!f)()) check_mt
@@ -1351,10 +1351,10 @@ let generate_code file ver types hres =
 	if ctx.debug then begin
 		push ctx [VStr (Transform.stack_var,false); VInt 0];
 		write ctx AInitArray;
-		write ctx ALocalAssign;
+		write ctx ASet;
 		push ctx [VStr (Transform.exc_stack_var,false); VInt 0];
 		write ctx AInitArray;
-		write ctx ALocalAssign;
+		write ctx ASet;
 	end;
 	List.iter (fun t -> gen_type_def ctx t) types;
 	gen_boot ctx hres;
