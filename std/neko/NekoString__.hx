@@ -94,11 +94,10 @@ class NekoString__ implements String {
 		}
 	}
 
-	public function substr( pos, len ) {
-		if( len == null || len == 0 ) return "";
-
-		var sl = untyped __dollar__ssize(this.__s);
-
+	public function substr( pos, ?len ) {
+		var sl = length;		
+		if( len == 0 ) return "";
+		if( len == null ) len = sl - pos;
 		if( pos == null ) pos = 0;
 		if( pos != 0 && len < 0 ){
 			return "";
