@@ -225,7 +225,8 @@ class Boot {
 			};
 			var oldsub = String.prototype.substr;
 			String.prototype.substr = function(pos,len){
-				if( pos != null && pos != 0 && len < 0 ) return "";
+				if( pos != null && pos != 0 && len != null && len < 0 ) return "";
+				if( len == null ) len = this.length;
 				if( pos < 0 ){
 					pos = this.length + pos;
 					if( pos < 0 ) pos = 0;

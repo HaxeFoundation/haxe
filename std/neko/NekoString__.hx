@@ -67,11 +67,11 @@ class NekoString__ implements String {
 		}
 	}
 
-	public function lastIndexOf( str : String, pos ) {
+	public function lastIndexOf( str : String, ?pos ) {
 		untyped {
 			var last = -1;
 			if( pos == null )
-				pos = 0;
+				pos = __dollar__ssize(this.__s);
 			while( true ) {
 				var p = try __dollar__sfind(this.__s,last+1,str.__s) catch( e : Dynamic ) null;
 				if( p == null || p > pos )
@@ -95,9 +95,11 @@ class NekoString__ implements String {
 	}
 
 	public function substr( pos, ?len ) {
-		var sl = length;		
 		if( len == 0 ) return "";
-		if( len == null ) len = sl - pos;
+		var sl = length;
+
+		if( len == null ) len = sl;
+
 		if( pos == null ) pos = 0;
 		if( pos != 0 && len < 0 ){
 			return "";

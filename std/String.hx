@@ -58,7 +58,7 @@ extern class String {
 		The optional [startIndex] parameter allows you to specify which character to start searching. The position returned is still relative to the beginning of the string.
 	**/
 	function indexOf( value : String, ?startIndex : Int ) : Int;
-	function lastIndexOf( value : String, startIndex : Int ) : Int;
+	function lastIndexOf( value : String, ?startIndex : Int ) : Int;
 	function split( delimiter : String ) : Array<String>;
 	function substr( pos : Int, ?len : Int ) : String;
 
