@@ -92,14 +92,24 @@ private class SqliteResultSet implements ResultSet {
 	public var length(getLength,null) : Int;
 	public var nfields(getNFields,null) : Int;
 	var r : Void;
-	var cache : Dynamic;
+	var cache : List<Dynamic>;
 
 	public function new( r ) {
+		cache = new List();
 		this.r = r;
 		hasNext(); // execute the request
 	}
 
 	function getLength() {
+		if( nfields != 0 ) {
+			while( true ) {
+				var c = doNext();
+				if( c == null )
+					break;
+				cache.add(c);
+			}
+			return cache.length;
+		}
 		return result_get_length(r);
 	}
 
@@ -108,18 +118,22 @@ private class SqliteResultSet implements ResultSet {
 	}
 
 	public function hasNext() {
-		if( cache == null )
-			cache = next();
-		return (cache != null);
+		var c = next();
+		if( c == null )
+			return false;
+		cache.push(c);
+		return true;
 	}
 
 	public function next() : Dynamic {
-		var c = cache;
-		if( c != null ) {
-			cache = null;
+		var c = cache.pop();
+		if( c != null )
 			return c;
-		}
-		c = result_next(r);
+		return doNext();
+	}
+	
+	private function doNext() : Dynamic {
+		var c = result_next(r);
 		if( c == null )
 			return null;
 		untyped {
@@ -133,13 +147,17 @@ private class SqliteResultSet implements ResultSet {
 				i = i + 1;
 			}
 		}
-		return c;
+		return c;		
 	}
 
 	public function results() : List<Dynamic> {
 		var l = new List();
-		while( hasNext() )
-			l.add(next());
+		while( true ) {
+			var c = next();
+			if( c == null )
+				break;
+			l.add(c);
+		}
 		return l;
 	}
 
