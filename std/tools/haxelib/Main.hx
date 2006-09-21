@@ -393,7 +393,11 @@ class Main {
 				throw ("A file is preventing "+dir+" to be created");
 			return false;
 		}
-		neko.FileSystem.createDirectory(dir);
+		try {
+			neko.FileSystem.createDirectory(dir);
+		} catch( e : Dynamic ) {
+			throw "You don't have enough user rights to create the directory "+dir;
+		}
 		return true;
 	}
 
