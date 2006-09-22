@@ -1,5 +1,7 @@
 2006-??-??: 1.08
 	fixed bug in flash -debug
+	fixed Sqlite result .length
+	fixed missing "." in OSX/Linux default classpath
 
 2006-09-11: 1.07
 	fixed resources in Neko
