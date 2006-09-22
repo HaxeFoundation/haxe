@@ -1,7 +1,6 @@
 package flash.display;
 
 extern class Stage extends DisplayObjectContainer {
-	function new() : Void;
 	var align : StageAlign;
 	var focus : InteractiveObject;
 	var frameRate : Float;
