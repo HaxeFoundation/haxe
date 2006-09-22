@@ -633,7 +633,7 @@ let generate_libs_init = function
 			"var @env = $loader.loadprim(\"std@get_env\",1);" ^
 			"var @b = if( @s == \"Windows\" ) " ^
 				"@env(\"HAXEPATH\") + \"lib\\\\\"" ^
-				"else try $loader.loadprim(\"std@file_contents\",1)(@env(\"HOME\")+\"/.haxelib\")" ^
+				"else try $loader.loadprim(\"std@file_contents\",1)(@env(\"HOME\")+\"/.haxelib\") + \"/\"" ^
 				"catch e if( @s == \"Linux\" ) \"/usr/lib/haxe/lib/\" else \"/usr/local/lib/haxe/lib/\";" ^
 			"@s = @s + \"/\";"
 		in
