@@ -151,7 +151,7 @@ try
 	with
 		Not_found ->
 			if Sys.os_type = "Unix" then
-				Plugin.class_path := ["/usr/lib/haxe/std/";"/usr/local/lib/haxe/std/";"/"]
+				Plugin.class_path := ["/usr/lib/haxe/std/";"/usr/local/lib/haxe/std/";"";"/"]
 			else
 				let base_path = normalize_path (try Extc.executable_path() with _ -> "./") in
 				Plugin.class_path := [base_path ^ "std/";"";"/"]);
