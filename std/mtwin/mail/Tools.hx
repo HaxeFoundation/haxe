@@ -124,7 +124,6 @@ class Tools {
 		return ret.toString();
 	}
 
-	// TODO Protect address in "non ascii chars" <add@re.ss>
 	public static function headerQpEncode( ostr : String, initSize : Int, charset : String ){
 		var str = ~/\r?\n\s*/.replace(ostr," ");
 		
@@ -172,8 +171,39 @@ class Tools {
 		if( !useQuoted ){
 			return wordWrap(ostr,75,"\r\n",initSize,true);
 		}else{
-			return "=?"+charset+"?Q?"+quotedStr.join("?=\r\n\t=?"+charset+"?Q?")+"?=";
+			return "=?"+charset+"?Q?"+quotedStr.join("?=\r\n =?"+charset+"?Q?")+"?=";
 		}
+	}
+
+	public static function headerAddressEncode( ostr : String, initSize : Int, charset : String ){
+		var list = parseAddress(ostr);
+		var lret = new List();
+		for( a in list ){
+			var ret = new StringBuf();
+			var addr = a.address;
+			if( a.name != null ){	
+				var name = a.name;
+				if( ~/[\s,"']/.match( name ) )
+					name = "\""+name.split("\\").join("\\\\").split("\"").join("\\\"")+"\"";
+				var t = headerQpEncode(name,initSize,charset);
+				ret.add( t );
+				var p = t.lastIndexOf("\n");
+				if( p == -1 ) 
+					initSize += t.length;
+				else
+					initSize = t.length - p;
+				addr = " <"+a.address+">";
+			}
+
+			if( initSize + addr.length > 75 ){
+				ret.add("\r\n");
+				initSize = 0;
+			}
+			ret.add( addr );
+			initSize += addr.length;
+			lret.add( ret.toString() );
+		}
+		return lret.join(", ");
 	}
 
 	public static function headerDecode( str : String, charsetOut : String ){
@@ -259,8 +289,13 @@ class Tools {
 	}
 
 	public static function formatHeader( name : String, content : String, charset : String ){
-		// TODO if To, From, Cc, Bcc, use a special encode to keep addresses
-		return name+": "+headerQpEncode(content,name.length+2,charset)+"\r\n";
+		var lname = name.toLowerCase();
+		if( lname == "to" || lname == "from" || lname == "cc" || lname == "bcc" ){
+			return name+": "+headerAddressEncode(content,name.length+2,charset)+"\r\n";
+		}else{
+			return name+": "+headerQpEncode(content,name.length+2,charset)+"\r\n";
+		}
+		
 	}
 
 	static var REG_MHEADER = ~/^([^;]+)(.*?)$/;
@@ -360,7 +395,7 @@ class Tools {
 	static var REG_ADDRESS = ~/^((([^()<>@,;:\\"\[\]\s[:cntrl:]]+)|"((\"|[^"])*)")+@[A-Z0-9][A-Z0-9-.]*)/i;
 	static var REG_ROUTE_ADDR = ~/^<((([^()<>@,;:\\"\[\]\s[:cntrl:]]+)|"((\"|[^"])*)")+@[A-Z0-9][A-Z0-9-.]*)>/i;
 	static var REG_ATOM = ~/^([^()<>@,;:\\".\[\]\s[:cntrl:]]+)/i;
-	static var REG_QSTRING = ~/^"((\"|[^"])*)"/;
+	static var REG_QSTRING = ~/^"((\\"|[^"])*)"/;
 	static var REG_SEPARATOR = ~/,\s*/;
 	public static function parseAddress( str : String ) : Array<Address> {
 		var a = new Array();
