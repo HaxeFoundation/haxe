@@ -169,7 +169,8 @@ class Unserializer {
  			var s = buf.substr(pos,len);
  			pos += len;
  			#end
- 			s = s.split("\\r").join("\r").split("\\n").join("\n").split("\\\\").join("\\");
+			var delim = "##__delim__##";
+ 			s = s.split("\\\\").join(delim).split("\\r").join("\r").split("\\n").join("\n").split(delim).join("\\");
  			scache.push(s);
  			return s;
  		case 97: // a
