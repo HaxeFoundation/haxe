@@ -3,6 +3,7 @@
 	fixed Sqlite result .length
 	fixed missing "." in OSX/Linux default classpath
 	fixed haxelib NDLL autoloading on OSX
+	fixed bug in deserialization of "\\\r" sequence
 
 2006-09-11: 1.07
 	fixed resources in Neko
