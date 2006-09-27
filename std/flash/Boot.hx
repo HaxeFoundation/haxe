@@ -151,17 +151,27 @@ class Boot {
 			}
 		}
 	}
+	
+	private static function getTrace() : flash.TextField {
+		var root = flash.Lib.current;
+		var tf : flash.TextField = root.__trace_txt;
+		if( tf == null ) {
+			root.createTextField("__trace_txt",1048500,0,0,Stage.width,Stage.height+30);
+			tf = root.__trace_txt;
+			tf.selectable = false;
+			root.__trace_lines = new Array<String>();
+		}
+		return tf;
+	}
 
+	private static function __set_trace_color( rgb : Int ) {
+		getTrace().textColor = rgb;
+	}
+	
 	private static function __trace(v,inf : haxe.PosInfos) {
 		untyped {
 			var root = flash.Lib.current;
-			var tf : flash.TextField = root.__trace_txt;
-			if( tf == null ) {
-				root.createTextField("__trace_txt",1048500,0,0,Stage.width,Stage.height+30);
-				tf = root.__trace_txt;
-				tf.selectable = false;
-				root.__trace_lines = new Array<String>();
-			}
+			var tf = getTrace();
 			var s = inf.fileName+(if( inf.lineNumber == null ) "" else ":"+inf.lineNumber)+": "+__string_rec(v,"");
 			var lines : Array<String> = root.__trace_lines["concat"](s.split("\n"));
 			tf.text = lines.join("\n");

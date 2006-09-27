@@ -72,8 +72,12 @@ class Boot extends flash.display.MovieClip {
 		tf = null;
 		lines = new Array();
 	}
-
-	static function __trace( v : Dynamic, pos : haxe.PosInfos ) {
+	
+	static function __set_trace_color(rgb) {
+		getTrace().textColor = rgb;
+	}
+	
+	static function getTrace() {
 		var mc = flash.Lib.current;
 		if( tf == null ) {
 			tf = new flash.text.TextField();
@@ -82,10 +86,16 @@ class Boot extends flash.display.MovieClip {
 			tf.autoSize = flash.text.TextFieldAutoSize.LEFT;
 		}
 		mc.addChild(tf); // on top
+		return tf;
+	}
+
+	static function __trace( v : Dynamic, pos : haxe.PosInfos ) {
+		var tf = getTrace();
 		var pstr = if( pos == null ) "(null)" else pos.fileName+":"+pos.lineNumber;
 		lines = lines.concat((pstr +": "+__string_rec(v,"")).split("\n"));
 		tf.text = lines.join("\n");
-		while( tf.height > mc.stage.stageHeight ) {
+		var stage = flash.Lib.current.stage;
+		while( tf.height > stage.stageHeight ) {
 			lines.shift();
 			tf.text = lines.join("\n");
 		}

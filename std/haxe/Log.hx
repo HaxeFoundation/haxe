@@ -47,5 +47,11 @@ class Log {
 		#else error
 		#end
 	}
+	
+	#if flash
+	public static f9dynamic function setColor( rgb : Int ) {
+		untyped flash.Boot.__set_trace_color(rgb);
+	}
+	#end
 
 }
