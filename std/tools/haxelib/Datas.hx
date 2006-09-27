@@ -121,9 +121,9 @@ class Datas {
 			project : project,
 			owner : user,
 			website : p.att.url,
-			desc : p.node.description.data,
+			desc : p.node.description.innerData,
 			version : p.node.version.att.name,
-			versionComments : p.node.version.data,
+			versionComments : p.node.version.innerData,
 			license : p.att.license,
 			dependencies : deps,
 		}
