@@ -1,5 +1,4 @@
 /*
-/*
  * Copyright (c) 2005, The haXe Project Contributors
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without
@@ -152,7 +151,7 @@ class Boot {
 		}
 	}
 	
-	private static function getTrace() : flash.TextField {
+	private static function getTrace() : flash.TextField untyped {
 		var root = flash.Lib.current;
 		var tf : flash.TextField = root.__trace_txt;
 		if( tf == null ) {
