@@ -80,8 +80,19 @@ let gen_constr e =
 	) in
 	node e.ef_name args t
 
+
 let gen_field att f =
+	let add_get_set acc name att =
+		match acc with
+		| NormalAccess -> att
+		| NoAccess -> (name, "null") :: att
+		| MethodAccess m -> (name, if m = name ^ "_" ^ f.cf_name then "dynamic" else m) :: att
+		| F9MethodAccess -> (name,"f9dynamic") :: att
+	in
 	let att = (match f.cf_expr with None -> att | Some e -> ("line",string_of_int (Lexer.get_error_line e.epos)) :: att) in
+	let att = add_get_set f.cf_get "get" att in
+	let att = add_get_set f.cf_set "set" att in
+	let att = (match f.cf_params with [] -> att | l -> ("params", String.concat ":" (List.map (fun (n,_) -> n) l)) :: att) in
 	node f.cf_name (if f.cf_public then ("public","1") :: att else att) (gen_type f.cf_type :: gen_doc_opt f.cf_doc)
 
 let gen_type_params priv path params pos m =
@@ -105,7 +116,13 @@ let gen_type ctx t =
 			| Some x -> gen_class_path "extends" x :: impl
 		) in
 		let doc = gen_doc_opt c.cl_doc in
-		node "class" (gen_type_params c.cl_private c.cl_path c.cl_types c.cl_pos m) (tree @ stats @ fields @ constr @ doc)
+		let ext = (if c.cl_extern then [("extern","1")] else []) in
+		let interf = (if c.cl_interface then [("interface","1")] else []) in
+		let dynamic = (match c.cl_dynamic with
+			| None -> []
+			| Some t -> [node "haxe_dynamic" [] [gen_type t]]
+		) in
+		node "class" (gen_type_params c.cl_private c.cl_path c.cl_types c.cl_pos m @ ext @ interf) (tree @ stats @ fields @ constr @ doc @ dynamic)
 	| TEnumDecl e ->
 		let doc = gen_doc_opt e.e_doc in
 		node "enum" (gen_type_params e.e_private e.e_path e.e_types e.e_pos m) (pmap gen_constr e.e_constrs @ doc)
