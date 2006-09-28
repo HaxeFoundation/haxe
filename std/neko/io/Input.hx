@@ -98,19 +98,19 @@ class Input {
 		return s;
 	}
 
-	public function readFloat() {
+	public function readFloat() : Float {
 		return _float_of_bytes(untyped read(4).__s,false);
 	}
 
-	public function readFloatB() {
+	public function readFloatB() : Float {
 		return _float_of_bytes(untyped read(4).__s,true);
 	}
 
-	public function readDouble() {
+	public function readDouble() : Float {
 		return _double_of_bytes(untyped read(8).__s,false);
 	}
 
-	public function readDoubleB() {
+	public function readDoubleB() : Float {
 		return _double_of_bytes(untyped read(8).__s,true);
 	}
 
