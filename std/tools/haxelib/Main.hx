@@ -1,5 +1,11 @@
 package tools.haxelib;
 
+enum Answer {
+	Yes;
+	No;
+	Always;
+}
+
 class SiteProxy extends haxe.remoting.Proxy<tools.haxelib.SiteApi> {
 }
 
@@ -102,6 +108,18 @@ class Main {
 			return s.toString();
 		}
 		return neko.io.File.stdin().readLine();
+	}
+	
+	function ask( question ) {
+		while( true ) {
+			neko.Lib.print(question+" [y/n/a] ? ");			
+			switch( neko.io.File.stdin().readLine() ) {
+			case "n": return No;
+			case "y": return Yes;
+			case "a": return Always;
+			}
+		}
+		return null;
 	}
 
 	function paramOpt() {
@@ -289,6 +307,7 @@ class Main {
 		// check if exists already
 		if( neko.FileSystem.exists(rep+Datas.safe(project)+"/"+Datas.safe(version)) ) {
 			print("You already have "+project+" version "+version+" installed");
+			setCurrent(project,version,true);
 			return;
 		}
 
@@ -472,25 +491,20 @@ class Main {
 		for( p in neko.FileSystem.readDirectory(rep) ) {
 			if( p.charAt(0) == "." )
 				continue;
-			var current = neko.io.File.getContent(rep+p+"/.current");
 			var p = Datas.unsafe(p);
 			print("Checking "+p);
 			var inf = site.infos(p);
-			if( inf.curversion != current ) {
-				if( prompt ) {
-					var answer;
-					do {
-						neko.Lib.print("Upgrade "+p+" to "+inf.curversion+" [y/n/a] ? ");
-						answer = neko.io.File.stdin().readLine();
-					} while( answer != "y" && answer != "n" && answer != "a" );
-					if( answer == "n" )
-						continue;
-					if( answer == "a" )
-						prompt = false;
-				}
+			if( !neko.FileSystem.exists(rep+Datas.safe(p)+"/"+Datas.safe(inf.curversion)) ) {
+				if( prompt )
+					switch ask("Upgrade "+p+" to "+inf.curversion) {
+					case Yes:
+					case Always: prompt = false;
+					case No: continue;
+					}				
 				doInstall(p,inf.curversion,true);
 				update = true;
-			}
+			} else
+				setCurrent(p,inf.curversion,true);
 		}
 		if( update )
 			print("Done");
@@ -537,11 +551,20 @@ class Main {
 	function set() {
 		var prj = param("Project");
 		var version = param("Version");
+		setCurrent(prj,version,false);
+	}
+	
+	function setCurrent( prj : String, version : String, doAsk : Bool ) {
 		var pdir = getRepository() + Datas.safe(prj);
 		var vdir = pdir + "/" + Datas.safe(version);
 		if( !neko.FileSystem.exists(vdir) )
 			throw "Project "+prj+" version "+version+" is not installed";
-		var f = neko.io.File.write(pdir+"/.current",true);
+		var current = pdir+"/.current";
+		if( neko.io.File.getContent(current) == version )
+			return;
+		if( doAsk && ask("Set "+prj+" to version "+version) == No )
+			return;
+		var f = neko.io.File.write(current,true);
 		f.write(version);
 		f.close();
 		print("Project "+prj+" current version is now "+version);
