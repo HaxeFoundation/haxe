@@ -55,6 +55,9 @@ class Ftp {
 	public var debug : Bool;
 	var host : Host;
 	var port : Int;
+	var user : String;
+	var pass : String;
+	var acct : String;
 	var socket : Socket;
 	var srv : Socket;
 	var passiveMode : Bool;
@@ -79,6 +82,9 @@ class Ftp {
 		if (login == null) login = "anonymous";
 		if (pass == null) pass = "";
 		if (acct == null) acct = "";
+		this.user = login;
+		this.pass = pass;
+		this.acct = acct;
 		var res = command("USER "+login);
 		if (res.charAt(0) == "3") res = command("PASS "+pass);
 		if (res.charAt(0) == "3") res = command("ACCT "+acct);
@@ -211,6 +217,50 @@ class Ftp {
 		socket.close();
 		if (srv != null)
 			srv.close();
+	}
+
+	/**
+		Creates a new FTP connection dedicated to write to specified file.
+
+		Don't forget to close the neko.io.Output when done.
+	**/
+	public function write( remoteName:String ) : neko.io.Output {
+		var pwd = pwd();
+		var ftp = new Ftp(Socket.hostToString(host), port);
+		ftp.login(user, pass, acct);
+		ftp.cwd(pwd);
+		ftp.voidCommand("TYPE I");
+		var cnx = ftp.transferConnection("STOR "+remoteName);
+		var out = cnx.output;
+		untyped out.oldclose = out.close;
+		out.close = function(){
+			untyped out.oldclose();
+			ftp.voidResponse();
+			ftp.close();
+		}
+		return out;
+	}
+
+	/**
+		Creates a new FTP connection dedicated to read specified file.
+
+		Don't forget to close the neko.io.Output when done.
+	**/
+	public function read( remoteFileName:String ) : neko.io.Input {
+		var pwd = pwd();
+		var ftp = new Ftp(Socket.hostToString(host), port);
+		ftp.login(user, pass, acct);
+		ftp.cwd(pwd);
+		ftp.voidCommand("TYPE I");
+		var cnx = ftp.transferConnection("RETR "+remoteFileName);
+		var inp = cnx.input;
+		untyped inp.oldclose = inp.close;
+		inp.close = function(){
+			untyped inp.oldclose();
+			ftp.voidResponse();
+			ftp.close();
+		}
+		return inp;
 	}
 
 	function voidResponse() : String {
