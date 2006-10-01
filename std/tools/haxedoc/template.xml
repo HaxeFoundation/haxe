@@ -40,7 +40,7 @@ body {
 ul.entry {
 	list-style-type: circle;
 	font-weight : bold;
-	padding-left : 30px;
+	margin-left : 30px;
 }
 
 .package_content {
@@ -66,6 +66,10 @@ a.package {
 	margin-left : 10px;
 }
 
+.kwd {
+	color : #00A;
+}
+
 .classname {
 	font-size : 30;
 	font-weight : bold;
@@ -80,8 +84,7 @@ a.package {
 	padding : 5 5 5 5;
 }
 
-.importmod {
-	margin-top : -20px;
+.importmod, .extends, .implements, .typedef, .platforms {
 	margin-left: 20px;
 	color : #777;
 }
@@ -89,14 +92,14 @@ a.package {
 dd {
 	margin : 0 20 20 40;
 	font-size : 12pt;
+	color : #444;
 }
 
 dt {
 	margin-left : 20px;
-	margin-bottom : 10px;
+	margin-bottom : 5px;
 	text-align : left;
 	font-size : 10pt;
-	font-weight : bold;
 	font-family: Courier New, monospace;
 }
 

@@ -5,23 +5,64 @@ import haxe.xml.Fast;
 class XmlParser {
 	
 	public var root : TypeRoot;
-	var defplat : Platforms;
+	var curplatform : String;
 	
 	public function new() {
-		root = new List();
+		root = new Array();
 	}
 	
-	public function process( x : Xml, platform : String ) {
-		defplat = new List();
-		defplat.add(platform);		
-		xroot(new Fast(x),platform);
+	public function sort( ?l ) {
+		if( l == null ) l = root;
+		l.sort(function(e1,e2) {
+			var n1 = switch e1 {
+				case TPackage(p,_,_) : " "+p;
+				default: TypeApi.typeInfos(e1).path;
+			};
+			var n2 = switch e2 {
+				case TPackage(p,_,_) : " "+p;
+				default: TypeApi.typeInfos(e2).path;
+			};
+			if( n1 > n2 )
+				return 1;
+			return -1;
+		});
+		for( x in l )
+			switch( x ) {
+			case TPackage(_,_,l): sort(l);
+			case TClassdecl(c):
+				c.fields = sortFields(c.fields);
+				c.statics = sortFields(c.statics);
+			case TEnumdecl(e):
+			case TTypedecl(_):
+			}
 	}
 	
-	function mergeClasses( c : Class, c2 : Class, platform ) {		
+	function sortFields(fl) {
+		var a = Lambda.array(fl.iterator());
+		a.sort(function(f1 : ClassField,f2 : ClassField) {
+			var v1 = TypeApi.isVar(f1.type);
+			var v2 = TypeApi.isVar(f2.type);
+			if( v1 && !v2 )
+				return -1;
+			if( v2 && !v1 )
+				return 1;
+			if( f1.name > f2.name )
+				return 1;
+			return -1;
+		});
+		return Lambda.list(a.iterator());		
+	}
+	
+	public function process( x : Xml, platform ) {
+		curplatform = platform;
+		xroot(new Fast(x));
+	}
+	
+	function mergeClasses( c : Class, c2 : Class ) {		
 		// todo : compare supers & interfaces		
 		if( c.isInterface != c2.isInterface || c.isExtern != c2.isExtern )
 			return false;
-		c.platforms.add(platform);
+		c.platforms.add(curplatform);
 		
 		for( f2 in c2.fields ) {
 			var found = null;
@@ -33,7 +74,7 @@ class XmlParser {
 			if( found == null )
 				c.fields.add(f2);
 			else
-				found.platforms.add(platform);
+				found.platforms.add(curplatform);
 		}
 		for( f2 in c2.statics ) {
 			var found = null;
@@ -45,15 +86,15 @@ class XmlParser {
 			if( found == null )
 				c.statics.add(f2);
 			else
-				found.platforms.add(platform);
+				found.platforms.add(curplatform);
 		}
 		return true;
 	}
 
-	function mergeEnums( e : Enum, e2 : Enum, platform ) {
+	function mergeEnums( e : Enum, e2 : Enum ) {
 		if( e.isExtern != e2.isExtern )
 			return false;
-		e.platforms.add(platform);
+		e.platforms.add(curplatform);
 		for( c2 in e2.constructors ) {
 			var found = null;
 			for( c in e.constructors )
@@ -63,28 +104,29 @@ class XmlParser {
 				}
 			if( found == null )
 				return false; // don't allow by-platform constructor ?
-			found.platforms.add(platform);
+			found.platforms.add(curplatform);
 		}
 		return true;
 	}
 
-	function mergeTypedefs( t : Typedef, t2 : Typedef, platform ) {
+	function mergeTypedefs( t : Typedef, t2 : Typedef ) {
 		if( !TypeApi.typeEq(t.type,t2.type) )
 			return false;
-		t.platforms.add(platform);
+		t.platforms.add(curplatform);
 		return true;
 	}
 	
-	function merge( t : TypeTree, platform ) {		
+	function merge( t : TypeTree ) {
 		var inf = TypeApi.typeInfos(t);
 		var pack = inf.path.split(".");
 		var cur = root;
+		var curpack = new Array();
 		pack.pop();		
 		for( p in pack ) {
 			var found = false;
 			for( pk in cur )
 				switch( pk ) {
-				case TPackage(pname,subs):
+				case TPackage(pname,_,subs):
 					if( pname == p ) {
 						found = true;
 						cur = subs;
@@ -92,9 +134,10 @@ class XmlParser {
 					}
 				default:
 				}
+			curpack.push(p);
 			if( !found ) {
-				var pk = new List();
-				cur.add(TPackage(p,pk));
+				var pk = new Array();
+				cur.push(TPackage(p,curpack.join("."),pk));
 				cur = pk;
 			}
 		}
@@ -108,31 +151,31 @@ class XmlParser {
 					case TClassdecl(c):
 						switch( t ) {
 						case TClassdecl(c2):
-							if( mergeClasses(c,c2,platform) )
+							if( mergeClasses(c,c2) )
 								return;
 						default:
 						}
 					case TEnumdecl(e):
 						switch( t ) {
 						case TEnumdecl(e2):
-							if( mergeEnums(e,e2,platform) )
+							if( mergeEnums(e,e2) )
 								return;
 						default:
 						}
 					case TTypedecl(td):
 						switch( t ) {
 						case TTypedecl(td2):
-							if( mergeTypedefs(td,td2,platform) )
+							if( mergeTypedefs(td,td2) )
 								return;
 						default:
 						}
-					case TPackage(_,_):
+					case TPackage(_,_,_):
 					}
 				// we already have a mapping, but which is incompatible
-				throw "Incompatibilities between "+tinf.path+" in "+tinf.platforms.join(",")+" and "+platform;
+				throw "Incompatibilities between "+tinf.path+" in "+tinf.platforms.join(",")+" and "+curplatform;
 			}
 		}
-		cur.add(t);
+		cur.push(t);
 	}
 	
 	function mkPath( p : String ) : Path {
@@ -156,18 +199,18 @@ class XmlParser {
 		return throw "Invalid "+c.name;
 	}
 	
-	function xroot( x : Fast, platform ) {		
+	function xroot( x : Fast ) {		
 		for( c in x.elements )
 			switch( c.name ) {
 			case "class":
 				var cl = xclass(c);
-				merge(TClassdecl(cl),platform);
+				merge(TClassdecl(cl));
 			case "enum":
 				var e = xenum(c);
-				merge(TEnumdecl(e),platform);
+				merge(TEnumdecl(e));
 			case "typedef":
 				var td = xtypedef(c);
-				merge(TTypedecl(td),platform);
+				merge(TTypedecl(td));
 			default:
 				xerror(c);
 			}
@@ -216,7 +259,7 @@ class XmlParser {
 			fields : fields,
 			statics : statics,
 			dynamic : dynamic,
-			platforms : defplat,
+			platforms : defplat(),
 		};
 	}
 	
@@ -237,7 +280,7 @@ class XmlParser {
 			get : if( x.has.get ) mkRights(x.att.get) else RNormal,
 			set : if( x.has.set ) mkRights(x.att.set) else RNormal,
 			params : if( x.has.params ) mkTypeParams(x.att.params) else null,
-			platforms : defplat,
+			platforms : defplat(),
 		};
 	}
 
@@ -257,7 +300,7 @@ class XmlParser {
 			isExtern : x.x.exists("extern"),
 			params : mkTypeParams(x.att.params),
 			constructors : cl,
-			platforms : defplat,
+			platforms : defplat(),
 		};
 	}
 	
@@ -285,7 +328,7 @@ class XmlParser {
 			name : x.name,
 			args : args,
 			doc : if( xdoc == null ) null else new Fast(xdoc).innerData,
-			platforms : defplat,
+			platforms : defplat(),
 		};
 	}
 
@@ -304,7 +347,7 @@ class XmlParser {
 			isPrivate : x.x.exists("private"),
 			params : mkTypeParams(x.att.params),
 			type : t,
-			platforms : defplat,
+			platforms : defplat(),
 		};
 	}
 	
@@ -359,6 +402,13 @@ class XmlParser {
 		for( c in x.elements )
 			p.add(xtype(c));
 		return p;
+	}
+	
+	function defplat() {
+		var l = new List();
+		if( curplatform != null )
+			l.add(curplatform);
+		return l;
 	}
 
 }

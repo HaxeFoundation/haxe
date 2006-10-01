@@ -76,13 +76,13 @@ typedef Typedef = {> TypeInfos,
 }
 
 enum TypeTree {
-	TPackage( name : String, subs : List<TypeTree> );
+	TPackage( name : String, full : String, subs : Array<TypeTree> );
 	TClassdecl( c : Class );
 	TEnumdecl( e : Enum );
 	TTypedecl( t : Typedef );
 }
 
-typedef TypeRoot = List<TypeTree>
+typedef TypeRoot = Array<TypeTree>
 
 class TypeApi {
 	
@@ -92,9 +92,16 @@ class TypeApi {
 		case TClassdecl(c): inf = c;
 		case TEnumdecl(e): inf = e;
 		case TTypedecl(t): inf = t;
-		case TPackage(_,_): throw "Unexpected Package";
+		case TPackage(_,_,_): throw "Unexpected Package";
 		}
 		return inf;
+	}
+	
+	public static function isVar( t : Type ) {
+		return switch( t ) {
+		case TFunction(_,_): false;
+		default: true;
+		}
 	}
 	
 	static function leq<T>( f : T -> T -> Bool, l1 : List<T>, l2 : List<T> ) {

@@ -1,6 +1,5 @@
-#
-# compile DocView service
-#
--main tools.haxedoc.Main
+# haxedoc
 -neko haxedoc.n
+-main tools.haxedoc.Main
 -cmd nekotools boot haxedoc.n
+tools.haxedoc.XmlParser
