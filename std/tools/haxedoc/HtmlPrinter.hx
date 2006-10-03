@@ -374,10 +374,10 @@ class HtmlPrinter {
 				if( a.opt )
 					print("?");
 				print(a.name+" : ");
-				processType(a.t);
+				processTypeFun(a.t,true);
 				print(" -> ");
 			}
-			processType(ret);
+			processTypeFun(ret,false);
 		case TAnonymous(fields):
 			print("{ ");
 			var me = this;
@@ -395,6 +395,15 @@ class HtmlPrinter {
 				processPath("Dynamic",l);
 			}
 		}
+	}
+	
+	function processTypeFun( t : Type, isArg ) {
+		var parent =  switch( t ) { case TFunction(_,_): true; case TEnum(n,_): isArg && n == "Void"; default : false; };
+		if( parent )
+			print("(");
+		processType(t);
+		if( parent )
+			print(")");		
 	}
 	
 	function rightsStr(r) {
