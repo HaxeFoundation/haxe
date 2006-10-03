@@ -2,6 +2,8 @@ package flash;
 
 class Boot extends flash.display.MovieClip {
 
+	#if (!flash9doc)
+	
 	static var init : Void -> Void;
 	static var tf : flash.text.TextField;
 	static var lines : Array<String>;
@@ -139,5 +141,7 @@ class Boot extends flash.display.MovieClip {
 		}
 		return new String(v);
 	}
+	
+	#end
 
 }
