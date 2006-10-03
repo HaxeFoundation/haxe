@@ -145,6 +145,32 @@ let array p el =
 let pmap_list f p =
 	PMap.fold (fun v acc -> f v :: acc) p []
 
+let rec needs_return e =
+	match e with
+	| (EBlock l,_) ->
+		let rec loop = function
+			| [] -> true
+			| [x] -> needs_return x
+			| _ :: l -> loop l
+		in
+		loop l
+	| (EReturn _,_) ->
+		false
+	| _ ->
+		true
+
+let with_return e =
+	if needs_return e then
+		let p = snd e in
+		let ret = EReturn (Some (null p)),p in
+		match e with
+		| (EBlock l,_) ->
+			(EBlock (l @ [ret]),p)
+		| _ ->
+			(EBlock [e;ret] , p)
+	else
+		e
+
 let gen_type_path p (path,t) =
 	match path with
 	| [] ->
@@ -292,7 +318,7 @@ and gen_expr ctx e =
 		) [] f.tf_args in
 		let e = gen_expr ctx f.tf_expr in
 		let e = (match inits with [] -> e | _ -> (EBlock [(EVars (List.rev inits),p);e],p)) in
-		let e = (EFunction (List.map arg_name f.tf_args, e),p) in
+		let e = (EFunction (List.map arg_name f.tf_args, with_return e),p) in
 		b();
 		e
 	| TBlock el ->
@@ -365,7 +391,7 @@ and gen_expr ctx e =
 		],p) in
 		(ETry (gen_expr ctx e,"@tmp",catchs),p)
 	| TReturn eo ->
-		(EReturn (match eo with None -> None | Some e -> Some (gen_expr ctx e)),p)
+		(EReturn (match eo with None -> Some (null p) | Some e -> Some (gen_expr ctx e)),p)
 	| TBreak ->
 		(EBreak None,p)
 	| TContinue ->
