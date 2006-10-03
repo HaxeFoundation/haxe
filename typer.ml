@@ -1298,19 +1298,6 @@ and type_switch ctx e cases def need_val p =
 		| TMono _ -> lookup_enum (List.map fst cases)
 		| _ -> None
 	) in
-	(* does not use match when no case contain parameters (include Bool) *)
-	let enum = (match enum with
-		| None -> None
-		| Some e ->
-			if List.exists (fun (e,_) ->
-				match fst e with
-				| ECall _ -> true
-				| _ -> false
-			) cases then
-				Some e
-			else
-				None
-	) in
 	let ecases = ref PMap.empty in
 	let cases = List.map (fun (e1,e2) ->
 		let locals = save_locals ctx in
@@ -1353,13 +1340,23 @@ and type_switch ctx e cases def need_val p =
 			| _ -> assert false
 		in
 		mk (TSwitch (e,List.map exprs cases,def)) t p
-	| Some enum ->
+	| Some (en,enparams) ->
+		let has_params = ref false in
 		let matchs (c,e) =
 			match c with
-			| CMatch (c,p) -> (c,p,e)
+			| CMatch (c,p) ->
+				if p <> None then has_params := true;
+				(c,p,e)
 			| _ -> assert false
 		in
-		mk (TMatch (e,enum,List.map matchs cases,def)) t p
+		let constructs (c,_,e) =
+			let c = mk (TField (mk (TTypeExpr (TEnumDecl en)) (mk_mono()) p , c)) (TEnum (en,enparams)) p in
+			(c,e)
+		in
+		let cases = List.map matchs cases in
+		match !has_params with
+		| true -> mk (TMatch (e,(en,enparams),cases,def)) t p
+		| false -> mk (TSwitch (e,List.map constructs cases,def)) t p
 
 and type_access ctx e p get =
 	match e with
