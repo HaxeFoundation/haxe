@@ -132,7 +132,7 @@ class Boot {
 			if( __interfLoop(o[__unprotect__("__class__")],cl) )
 				return true;
 			#end
-			switch( cl ) {
+			switch( cast cl ) {
 			case Int:
 				return (Math.ceil(o) === o) && isFinite(o) && (o !== true) && (o !== false);
 			case Float:

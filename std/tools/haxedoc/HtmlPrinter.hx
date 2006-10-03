@@ -92,8 +92,8 @@ class HtmlPrinter {
 	}
 	
 	public function processHtml(t,html : Xml) {
-		switch( html.nodeType ) {
-		case Xml.Element:
+		var ht = html.nodeType;
+		if( ht == Xml.Element ) {
 			if( html.nodeName == "data" ) {
 				processPage(t);
 				return;
@@ -110,12 +110,11 @@ class HtmlPrinter {
 			for( x in html )
 				processHtml(t,x);
 			print("</"+html.nodeName+">");
-		case Xml.Document:
+		} else if( ht == Xml.Document )
 			for( x in html )
 				processHtml(t,x);
-		default:
+		else
 			print(html.toString());
-		}
 	}
 	
 	public function processPage(t) {

@@ -179,7 +179,7 @@ class Serializer {
 			}
 			if( useCache && serializeRef(v) )
 				return;
-			switch( c ) {
+			switch( cast c ) {
 			case cast Array:
 				var ucount = 0;
 				buf.add("a");
