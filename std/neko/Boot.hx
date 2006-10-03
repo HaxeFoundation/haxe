@@ -105,6 +105,15 @@ class Boot {
 			throw "Can't serialize";
 		}
 	}
+	
+	private static function __tagserialize(o) untyped {
+		var n = o.__enum__.__ename__;
+		var x = __dollar__amake(n.length + 1);
+		for( i in 0...n.length )
+			x[i] = n[i].__s;
+		x[n.length] = o.tag;
+		return x;
+	}
 
 	private static function __unserialize(v) {
 		untyped {
@@ -119,8 +128,12 @@ class Boot {
 				if( cl == null )
 					throw ("Class not found " + Std.string(v));
 			}
-			if( cl.__name__ != null || cl.__ename__ != null )
-				return cl.prototype;
+			if( __dollar__typeof(cl) == __dollar__tobject ) {
+				if( cl.__name__ != null || cl.__ename__ != null )
+					return cl.prototype;
+				if( cl.__enum__ != null && __dollar__typeof(cl.tag) == __dollar__tstring )
+					return cl;
+			}
 			throw "Invalid class " + Std.string(v);
 		}
 	}

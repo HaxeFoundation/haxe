@@ -505,8 +505,8 @@ let gen_enum_constr ctx path c =
 			),p)
 		| _ ->
 			(EBlock [
-				(EVars ["@tmp",Some (EObject ["tag" , str p c.ef_name],p)],p);
-				call p (builtin p "objsetproto") [ident p "@tmp"; field p path "prototype"];
+				(EVars ["@tmp",Some (EObject ["tag" , str p c.ef_name; "__serialize" , ident p "@tag_serialize"],p)],p);
+				call p (builtin p "objsetproto") [ident p "@tmp"; field p path "prototype"];				
 				ident p "@tmp";
 			],p)
 	),p)
@@ -655,6 +655,7 @@ let generate file types hres libs =
 		"@classes = $new(null);" ^
 		"@enum_to_string = function() { return neko.Boot.__enum_str(this); };" ^
 		"@serialize = function() { return neko.Boot.__serialize(this); };" ^ 
+		"@tag_serialize = function() { return neko.Boot.__tagserialize(this); };" ^ 
 		generate_libs_init libs
 	) , { psource = "<header>"; pline = 1; } in
 	let packs = List.concat (List.map (gen_package ctx h) types) in
