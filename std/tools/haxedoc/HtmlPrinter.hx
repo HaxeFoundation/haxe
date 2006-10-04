@@ -223,6 +223,9 @@ class HtmlPrinter {
 	function processClassField(platforms : Platforms,f : ClassField,stat) {
 		if( !f.isPublic )
 			return;
+		var oldParams = typeParams;
+		if( f.params != null )
+			typeParams = typeParams.concat(f.params);
 		print('<dt>');
 		if( stat ) keyword("static");
 		var isMethod = false;
@@ -233,17 +236,19 @@ class HtmlPrinter {
 				if( f.set == RF9Dynamic )
 					keyword("f9dynamic");
 				keyword("function");
-				print(f.name);				
+				print(f.name);
 				if( f.params != null )
-					print("&lt;"+f.params.join(", ")+"&gt;");				
+					print("&lt;"+f.params.join(", ")+"&gt;");
 				print("(");
 				var me = this;
 				display(args,function(a) {
 					if( a.opt )
 						me.print("?");
-					me.print(a.name);
-					me.print(" : ");
-					me.processType(a.t);					
+					if( a.name != null && a.name != "" ) {
+						me.print(a.name);
+						me.print(" : ");
+					}
+					me.processType(a.t);
 				},", ");
 				print(") : ");
 				processType(ret);
@@ -267,6 +272,8 @@ class HtmlPrinter {
 		print('<dd>');
 		processDoc(f.doc);
 		print('</dd>');
+		if( f.params != null )
+			typeParams = oldParams;
 	}
 	
 	function processEnum(e : Enum) {
@@ -372,7 +379,8 @@ class HtmlPrinter {
 			for( a in args ) {
 				if( a.opt )
 					print("?");
-				print(a.name+" : ");
+				if( a.name != null && a.name != "" )
+					print(a.name+" : ");
 				processTypeFun(a.t,true);
 				print(" -> ");
 			}
