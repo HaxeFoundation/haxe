@@ -364,9 +364,12 @@ class XmlParser {
 		case "f":
 			var args = new List();
 			var aname = x.att.a.split(":");
-			var elts = x.elements;
-			for( a in aname ) {
+			var eargs = aname.iterator();
+			for( e in x.elements ) {
 				var opt = false;
+				var a = eargs.next();
+				if( a == null )
+					a = "";
 				if( a.charAt(0) == "?" ) {
 					opt = true;
 					a = a.substr(1);
@@ -374,10 +377,12 @@ class XmlParser {
 				args.add({
 					name : a,
 					opt : opt,
-					t : xtype(elts.next()),
+					t : xtype(e),
 				});
 			}
-			TFunction(args,xtype(elts.next()));
+			var ret = args.last();
+			args.remove(ret);
+			TFunction(args,ret.t);
 		case "a":
 			var fields = new List();
 			for( f in x.elements )
