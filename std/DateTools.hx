@@ -130,7 +130,7 @@ class DateTools {
 	}
 
 	/**
-		Returns a Date which time has been changed by [t] seconds.
+		Returns a Date which time has been changed by [t] milliseconds.
 	**/
 	public static function delta( d : Date, t : Float ) : Date {
 		return Date.fromTime( d.getTime() + t );
