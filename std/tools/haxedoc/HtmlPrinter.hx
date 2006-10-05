@@ -146,7 +146,7 @@ class HtmlPrinter {
 			case TPackage(name,full,list):
 				if( filtered(full,true) )					
 					continue;
-				print('<li><a href="#" class="package" onclick="toggle(\'$id\')">$name</a><div id="$id" class="package_content">', { id : full.split(".").join("_"), name : name });
+				print('<li><a href="#" class="package" onclick="return toggle(\'$id\')">$name</a><div id="$id" class="package_content">', { id : full.split(".").join("_"), name : name });
 				var old = curpackage;
 				curpackage = full;
 				processPackage(name,list);

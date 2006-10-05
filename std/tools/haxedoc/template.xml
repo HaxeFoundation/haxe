@@ -9,6 +9,7 @@
 		var e = document.getElementById(id);
 		e.isopen = !e.isopen;
 		e.style.display = e.isopen?"block":"none";
+		return false;
 	}
 -->
 </script>
