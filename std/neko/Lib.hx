@@ -26,38 +26,81 @@ package neko;
 
 class Lib {
 
+	/**
+		Load and return a Neko primitive from a NDLL library.
+	**/
 	public static function load( lib : String, prim : String, nargs : Int ) : Dynamic {
 		return untyped __dollar__loader.loadprim((lib+"@"+prim).__s,nargs);
 	}
 
+	/**
+		Print the specified value on the default output.
+	**/
 	public static function print( v : Dynamic ) : Void {
 		untyped __dollar__print(v);
 	}
 
+	/**
+		Print the specified value on the default output followed by a newline character.
+	**/
 	public static function println( v : Dynamic ) : Void {
 		untyped __dollar__print(v,"\n");
 	}
 
+	/**
+		Rethrow an exception. This is useful when manually filtering an exception in order
+		to keep the previous exception stack.
+	**/
 	public static function rethrow( e : Dynamic ) : Dynamic {
 		return untyped __dollar__rethrow(e);
 	}
 
+	/**
+		Serialize using native Neko serialization. This will return a Binary string that can be
+		stored for long term usage. The serialized data is optimized for speed and not for size.
+	**/
 	public static function serialize( v : Dynamic ) : String {
 		return new String(__serialize(v));
 	}
 
+	/**
+		Unserialize a string using native Neko serialization. See [serialize].
+	**/
 	public static function unserialize( s : String ) : Dynamic {
 		return untyped __unserialize(s.__s,__dollar__loader);
 	}
+	
+	/**
+		Unserialize a string using native Neko serialization. See [serialize].
+		This function assume that all the serialized data was serialized with current
+		module, even if the module name was different. This can happen if you are unserializing
+		some data into mod_neko that was serialized on a different server using a different
+		file path.
+	**/
+	public static function localUnserialize( s : String ) : Dynamic {		
+		return untyped __unserialize(s.__s,{
+			loadmodule : function(m,l) { return __dollar__exports; },
+			loadprim : function(p,n) { return __dollar__loader.loadprim(p,n); }			
+		});
+	}
 
+	/**
+		Creates a raw string of [size] bytes.
+	**/
 	public static function makeString( size : Int ) : String {
 		return new String(untyped __dollar__smake(size));
 	}
 
+	/**
+		Copy bytes between two strings.
+	**/
 	public static function copyBytes( dst : String, dst_pos : Int, src : String, src_pos : Int, len : Int ) : Void {
 		untyped __dollar__sblit(dst.__s,dst_pos,src.__s,src_pos,len);
 	}
 
+	/**
+		Converts a Neko value to its haXe equivalent. Used for wrapping String and Arrays raw values into haXe Objects.
+	**/
 	public static function nekoToHaxe( v : Dynamic ) : Dynamic untyped {
 		switch( __dollar__typeof(v) ) {
 		case __dollar__tnull: return v;
@@ -87,6 +130,9 @@ class Lib {
 		}
 	}
 
+	/**
+		Converts a Neko value to its haXe equivalent. Used to unwrap String and Arrays Objects into raw Neko values.
+	**/
 	public static function haxeToNeko( v : Dynamic ) : Dynamic untyped {
 		switch( __dollar__typeof(v) ) {
 		case __dollar__tnull: return v;
