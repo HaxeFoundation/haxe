@@ -9,6 +9,7 @@
 	fixed neko native enum serialization
 	fixed "all constructors matched" for enums without params
 	fixed returned value semantics in neko (prevent remoting leak)
+	more documentation
 
 2006-09-11: 1.07
 	fixed resources in Neko
