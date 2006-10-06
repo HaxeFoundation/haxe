@@ -41,12 +41,39 @@ extern class Date
 	**/
 	function getTime() : Float;
 
+	/**
+		Returns the hours value of the date (0-23 range).
+	**/
 	function getHours() : Int;
+	
+	/**
+		Returns the minutes value of the date (0-59 range).
+	**/	
 	function getMinutes() : Int;
+	
+	/**
+		Returns the seconds of the date (0-59 range).
+	**/	
 	function getSeconds() : Int;
+	
+	/**
+		Returns the full year of the date.
+	**/	
 	function getFullYear() : Int;
+	
+	/**
+		Returns the month of the date (0-11 range).
+	**/	
 	function getMonth() : Int;
+	
+	/**
+		Returns the day of the date (1-31 range).
+	**/	
 	function getDate() : Int;
+	
+	/**
+		Returns the week day of the date (0-6 range).
+	**/
 	function getDay() : Int;
 
 	/**

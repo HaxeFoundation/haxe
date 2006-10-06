@@ -33,61 +33,192 @@ enum XmlType {
 }
 
 /**
-	Xml class and parsing.
+	The standard Xml class and parsing.
+	More API to manipulate XML are available in the [haxe.xml] package.
 **/
 extern class Xml {
 
+	/**
+		A type of Xml node.
+	**/
 	static var Element(default,null) : XmlType;
+
+	/**
+		A type of Xml node.
+	**/
 	static var PCData(default,null) : XmlType;
+
+	/**
+		A type of Xml node.
+	**/
 	static var CData(default,null) : XmlType;
+
+	/**
+		A type of Xml node.
+	**/
 	static var Comment(default,null) : XmlType;
+
+	/**
+		A type of Xml node.
+	**/
 	static var DocType(default,null) : XmlType;
+
+	/**
+		A type of Xml node.
+	**/
 	static var Prolog(default,null) : XmlType;
+
+	/**
+		A type of Xml node.
+	**/
 	static var Document(default,null) : XmlType;
 
+	/**
+		Parse a String into an Xml object.
+	**/
 	static function parse( s : String ) : Xml;
 
+	/**
+		Creates a node of the given type.
+	**/	
 	static function createElement( name : String ) : Xml;
+
+	/**
+		Creates a node of the given type.
+	**/	
 	static function createPCData( data : String ) : Xml;
+	
+	/**
+		Creates a node of the given type.
+	**/	
 	static function createCData( data : String ) : Xml;
+
+	/**
+		Creates a node of the given type.
+	**/	
 	static function createComment( data : String ) : Xml;
+
+	/**
+		Creates a node of the given type.
+	**/	
 	static function createDocType( data : String ) : Xml;
+
+	/**
+		Creates a node of the given type.
+	**/	
 	static function createProlog( data : String ) : Xml;
+
+	/**
+		Creates a node of the given type.
+	**/	
 	static function createDocument() : Xml;
 
+	/**
+		Returns the type of the Xml Node. This should be used before
+		accessing other functions since some might raise an exception
+		if the node type is not correct.
+	**/
 	var nodeType(default,null) : XmlType;
 
-	// nodeName : only works for Node
+	/**
+		Returns the node name of an Element.
+	**/
 	var nodeName(getNodeName,setNodeName) : String;
 	private function getNodeName() : String;
 	private function setNodeName( name : String ) : String;
 
-	// nodeValue : only works for not Node and not Document
+	/**
+		Returns the node value. Only works if the Xml node is not an Element or a Document.
+	**/
 	var nodeValue(getNodeValue,setNodeValue) : String;
 	private function getNodeValue() : String;
 	private function setNodeValue( name : String ) : String;
 
-	// attributes : only works for Node
+	/**
+		Get the given attribute of an Element node. Returns [null] if not found.
+		Attributes are case-sensitive.
+	**/
 	function get( att : String ) : String; // check case insensitivy
+
+	/**
+		Set the given attribute value for an Element node.
+		Attributes are case-sensitive.
+	**/
 	function set( att : String, value : String ) : Void;
+	
+	/**
+		Removes an attribute for an Element node.
+		Attributes are case-sensitive.
+	**/	
 	function remove( att : String ) : Void;
+	
+	/**
+		Tells if the Element node has a given attribute.
+		Attributes are case-sensitive.
+	**/	
 	function exists( att : String ) : Bool;
+	
+	/**
+		Returns an [Iterator] on all the attributes values.
+	**/	
 	function attributes() : Iterator<String>;
 
-	// children method : only works for Node and Document
+	/**
+		Returns the parent object in the Xml hierarchy.
+		The parent can be [null], an Element or a Document.
+	**/
 	var parent(getParent,null) : Xml;
 	private function getParent() : Xml;
 
+	/**
+		Returns an iterator of all child nodes.
+		Only works if the current node is an Element or a Document.
+	**/
 	function iterator() : Iterator<Xml>;
+
+	/**
+		Returns an iterator of all child nodes which are Elements.
+		Only works if the current node is an Element or a Document.
+	**/	
 	function elements() : Iterator<Xml>;
-	function elementsNamed( name : String ) : Iterator<Xml>; // only nodes with this nodeName
+	
+	/**
+		Returns an iterator of all child nodes which are Elements with the given nodeName.
+		Only works if the current node is an Element or a Document.
+	**/		
+	function elementsNamed( name : String ) : Iterator<Xml>;
+	
+	/**
+		Returns the first child node.
+	**/
 	function firstChild() : Xml;
+
+	/**
+		Returns the first child node which is an Element.
+	**/	
 	function firstElement() : Xml;
-	// exception if child is Document (can't add Documents together)
+
+	
+	/**
+		Adds a child node to the Document or Element.
+		One node can only be inside one given node which is indicated by the [parent] property.
+	**/	
 	function addChild( x : Xml ) : Void;
+
+	/**
+		Removes a child from the Document or Element.
+		Returns true if the child was successfuly removed.
+	**/	
 	function removeChild( x : Xml ) : Bool;
+	
+	/**
+		Inserts a child at the given position among the other childs.
+	**/
 	function insertChild( x : Xml, pos : Int ) : Void;
 
+	/**
+		Returns a String representation of the Xml node.
+	**/
 	function toString() : String;
 
 	static function __init__() : Void untyped {

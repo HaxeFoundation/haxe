@@ -23,6 +23,9 @@
  * DAMAGE.
  */
 
+/**
+	This class defines mathematical functions and constants.
+**/
 extern class Math
 {
 	static var PI : Float;

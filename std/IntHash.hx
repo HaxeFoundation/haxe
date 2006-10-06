@@ -44,7 +44,7 @@ class IntHash<T> {
 		untyped if( h.__proto__ != null ) {
 			h.__proto__ = null;
 			__js__("delete")(h.__proto__);
-		}
+		};
 		#else error
 		#end
 	}

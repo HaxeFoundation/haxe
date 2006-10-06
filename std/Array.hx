@@ -76,7 +76,7 @@ extern class Array<T> {
 		negative to count from the end: -1 is the last item in
 		the array.
 	**/
-	function slice( pos : Int, end : Int ) : Array<T>; // sub
+	function slice( pos : Int, end : Int ) : Array<T>;
 
 	/**
 		Sort the Array according to the comparison function [f].
@@ -86,10 +86,9 @@ extern class Array<T> {
 	function sort( f : T -> T -> Int ) : Void;
 
 	/**
-		Removes [len] elements starting from [pos].
+		Removes [len] elements starting from [pos] an returns them.
 	**/
-	function splice( pos : Int, len : Int ) : Array<T>; // removed elts
-	// no toSource (js specific)
+	function splice( pos : Int, len : Int ) : Array<T>;
 
 	/**
 		Returns a displayable representation of the Array content.
@@ -100,7 +99,6 @@ extern class Array<T> {
 		Adds the element [x] at the start of the array.
 	**/
 	function unshift( x : T ) : Void;
-	// no valueOf (js specific)
 
 	/**
 		Inserts the element [x] at the position [pos].
@@ -111,6 +109,7 @@ extern class Array<T> {
 	/**
 		Removes the first occurence of [x].
 		Returns false if [x] was not present.
+		Elements are compared by using standard equality.
 	**/
 	function remove( x : T ) : Bool;
 
@@ -121,7 +120,7 @@ extern class Array<T> {
 	function copy() : Array<T>;
 
 	/**
-		Returns an iterator of Array values.
+		Returns an iterator of the Array values.
 	**/
 	function iterator() : Iterator<T>;
 

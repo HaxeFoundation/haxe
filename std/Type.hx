@@ -1,18 +1,21 @@
 
 /**
 	An abstract type that represents a Class.
+	See [Type] for the haXe Reflection API.
 **/
 enum Class {
 }
 
 /**
 	An abstract type that represents an Enum.
+	See [Type] for the haXe Reflection API.
 **/
 enum Enum {
 }
 
 /**
 	The diffent possible runtime types of a value.
+	See [Type] for the haXe Reflection API.
 **/
 enum ValueType {
 	TNull;
@@ -26,10 +29,14 @@ enum ValueType {
 	TUnknown;
 }
 
+/**
+	The haXe Reflection API enables you to retreive informations about any value,
+	Classes and Enums at runtime.
+**/
 class Type {
 
 	/**
-		Returns the class of an object
+		Returns the class of a value or [null] if this value is not a Class instance.
 	**/
 	public static function getClass( o : Dynamic ) : Class untyped {
 		#if flash9
@@ -64,7 +71,7 @@ class Type {
 	}
 
 	/**
-		Returns the class of an object
+		Returns the enum of a value or [null] if this value is not an Enum instance.
 	**/
 	public static function getEnum( o : Dynamic ) : Enum untyped {
 		#if flash9
@@ -94,7 +101,7 @@ class Type {
 
 
 	/**
-		Returns the super-class of a class
+		Returns the super-class of a class, or null if no super class.
 	**/
 	public static function getSuperClass( c : Class ) : Class untyped {
 		#if flash9
@@ -109,7 +116,7 @@ class Type {
 
 
 	/**
-		Returns the complete name of the class of an object
+		Returns the complete name of a class.
 	**/
 	public static function getClassName( c : Class ) : String {
 		if( c == null )
@@ -126,7 +133,7 @@ class Type {
 	}
 
 	/**
-		Returns the complete name of the class of an object
+		Returns the complete name of an enum.
 	**/
 	public static function getEnumName( e : Enum ) : String {
 		#if flash9
@@ -139,7 +146,8 @@ class Type {
 	}
 
 	/**
-		Evaluates a class from a name
+		Evaluates a class from a name. The class must have been compiled
+		to be accessible.
 	**/
 	public static function resolveClass( name : String ) : Class {
 		var cl : Class;
@@ -180,7 +188,8 @@ class Type {
 
 
 	/**
-		Evaluates an enum from a name
+		Evaluates an enum from a name. The enum must have been compiled
+		to be accessible.
 	**/
 	public static function resolveEnum( name : String ) : Enum {
 		var e : Dynamic;
@@ -222,6 +231,7 @@ class Type {
 
 	/**
 		Similar to [Reflect.createInstance] excepts that the constructor is not called.
+		This enables you to create an instance without any side-effect.
 	**/
 	public static function createEmptyInstance( cl : Class ) untyped {
 		#if flash9
@@ -257,7 +267,7 @@ class Type {
 	#end
 
 	/**
-		Returns the list of instance fields
+		Returns the list of instance fields.
 	**/
 	public static function getInstanceFields( c : Class ) : Array<String> {
 		#if flash9
@@ -280,7 +290,7 @@ class Type {
 	}
 
 	/**
-		Returns the list of class static fields
+		Returns the list of a class static fields.
 	**/
 	public static function getClassFields( c : Class ) : Array<String> {
 		#if flash9

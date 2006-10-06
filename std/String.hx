@@ -33,6 +33,9 @@ extern class String {
 	**/
 	var length(default,null) : Int;
 
+	/**
+		Creates a copy from a given String.
+	**/
 	function new(string:String) : Void;
 
 	/**
@@ -46,22 +49,44 @@ extern class String {
 	function toLowerCase() : String;
 
 	/**
-		Returns the character at the given [index].
-		Returns the empty String if
+		Returns the character at the given position.
+		Returns the empty String if outside of String bounds.
 	**/
 	function charAt( index : Int) : String;
+	
+	/**
+		Returns the character code at the given position.
+		Returns [null] if outside of String bounds.
+	**/
 	function charCodeAt( index : Int) : Int;
 
 	/**
 		Returns the index of first occurence of [value]
-		If [value] is not found, will return -1
-		The optional [startIndex] parameter allows you to specify which character to start searching. The position returned is still relative to the beginning of the string.
+		Returns [1-1] if [value] is not found.
+		The optional [startIndex] parameter allows you to specify at which character to start searching.
+		The position returned is still relative to the beginning of the string.
 	**/
 	function indexOf( value : String, ?startIndex : Int ) : Int;
+
+	/**
+		Similar to [indexOf] but returns the latest index.
+	**/
 	function lastIndexOf( value : String, ?startIndex : Int ) : Int;
+
+	/**
+		Split the string using the specified delimiter.
+	**/
 	function split( delimiter : String ) : Array<String>;
+
+	/**
+		Returns a part of the String, taking [len] characters starting from [pos].
+		If [len] is not specified, it takes all the remaining characters.
+	**/
 	function substr( pos : Int, ?len : Int ) : String;
 
+	/**
+		Returns the String itself.
+	**/
 	function toString() : String;
 
 }
