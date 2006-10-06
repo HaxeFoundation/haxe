@@ -46,6 +46,10 @@ class XmlParser {
 				return -1;
 			if( v2 && !v1 )
 				return 1;
+			if( f1.name == "new" )
+				return -1;
+			if( f2.name == "new" )
+				return 1;
 			if( f1.name > f2.name )
 				return 1;
 			return -1;
