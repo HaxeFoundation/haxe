@@ -45,17 +45,10 @@ class Web {
 		return h;
 	}
 
-	/**
-		Returns an Array of Strings built using GET / POST values of <param>[]
-
-		Example:
-	
-			myArray[]=foo
-			myArray[]=hello
-			myArray[5]=bar
-			myArray[3]=baz
-
-		neko.Web.getParamValues("myArray") = ["foo","hello",null,"baz",null,"bar"]
+	/**		
+		Returns an Array of Strings built using GET / POST values.
+		If you have in your URL the parameters [a[&#93;=foo;a[&#93;=hello;a[5&#93;=bar;a[3&#93;=baz] then
+		[neko.Web.getParamValues("a")] will return [["foo","hello",null,"baz",null,"bar"]]
 	**/
 	public static function getParamValues( param : String ) : Array<String> {
 		var reg = new EReg("^"+param+"(\\[|%5B)([0-9]*?)(\\]|%5D)=(.*?)$", "");
