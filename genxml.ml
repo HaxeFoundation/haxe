@@ -80,7 +80,6 @@ let gen_constr e =
 	) in
 	node e.ef_name args t
 
-
 let gen_field att f =
 	let add_get_set acc name att =
 		match acc with
@@ -159,3 +158,12 @@ let generate file ctx types =
 	let ch = IO.output_channel (open_out file) in
 	write_xml ch "" x;
 	IO.close_out ch
+
+let gen_type_string ctx t =
+	let x = gen_type ctx t in
+	let ch = IO.output_string() in
+	write_xml ch "" x;
+	IO.close_out ch
+
+;;
+Typer.generate_meta_data := gen_type_string;

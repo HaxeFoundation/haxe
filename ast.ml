@@ -141,8 +141,12 @@ type variance =
 type type_path_normal = {
 	tpackage : string list;
 	tname : string;
-	tparams : (variance * type_path) list;
+	tparams : type_param_or_const list;
 }
+
+and type_param_or_const =
+	| TPType of variance * type_path
+	| TPConst of constant
 
 and anonymous_field =
 	| AFVar of type_path

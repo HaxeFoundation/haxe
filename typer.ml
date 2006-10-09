@@ -108,6 +108,7 @@ let display_error ctx msg p = ctx.error (Custom msg) p
 let load_ref : (context -> module_path -> pos -> module_def) ref = ref (fun _ _ _ -> assert false)
 let type_expr_ref = ref (fun _ ?need_val _ -> assert false)
 let type_module_ref = ref (fun _ _ _ _ -> assert false)
+let generate_meta_data = ref (fun _ _ -> assert false)
 
 let null p = mk (TConst TNull) (mk_mono()) p
 
@@ -295,16 +296,29 @@ let rec load_normal_type ctx t p allow_no_params =
 		else if path = ([],"Dynamic") then
 			match t.tparams with
 			| [] -> t_dynamic
-			| [_,t] -> TDynamic (load_type ctx p t)
+			| [TPType (_,t)] -> TDynamic (load_type ctx p t)
 			| _ -> error "Too many parameters for Dynamic" p
 		else begin
-			if List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;
-			let tparams = List.map (fun (v,t) -> v, load_type ctx p t) t.tparams in
-			let params = List.map2 (fun (v1,t) (v2,_,t2) ->
+			if List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;			
+			let tparams = List.map (fun t ->
+				match t with
+				| TPConst c ->
+					let name = (match c with 
+						| String s -> "S" ^ s
+						| Int i -> "I" ^ i
+						| Float f -> "F" ^ f
+						| _ -> assert false
+					) in
+					VNo, TEnum ({ e_path = ([],name); e_pos = p; e_doc = None; e_private = false; e_extern = true; e_types = []; e_constrs = PMap.empty },[]), true
+				| TPType (v1,t) -> v1, load_type ctx p t, false
+			) t.tparams in
+			let bparams = List.map (fun (v1,t,_) -> v1,t) tparams in
+			let params = List.map2 (fun (v1,t,isconst) (v2,name,t2) ->
+				if isconst <> (name = "Const") then error (if isconst then "Constant value unexpected here" else "Constant value excepted as type parameter") p;
 				(match follow t2 with
 				| TInst (c,[]) ->
 					List.iter (fun (i,params) ->
-						unify ctx t (apply_params types tparams (TInst (i,params))) p
+						unify ctx t (apply_params types bparams (TInst (i,params))) p
 					) c.cl_implements
 				| TEnum (c,[]) -> ()
 				| _ -> assert false);
@@ -404,12 +418,12 @@ let rec reverse_type t =
 			(f.cf_name , AFVar (reverse_type f.cf_type), null_pos) :: acc
 		) a.a_fields [])
 	| TDynamic t2 ->
-		TPNormal { tpackage = []; tname = "Dynamic"; tparams = if t == t2 then [] else [VNo,reverse_type t2] }
+		TPNormal { tpackage = []; tname = "Dynamic"; tparams = if t == t2 then [] else [TPType (VNo,reverse_type t2)] }
 	| _ ->
 		raise Exit
 
 and reverse_param (v,t) =
-	v , reverse_type t
+	TPType (v , reverse_type t)
 
 let extend_remoting ctx c t p async prot =
 	if ctx.isproxy then error "Cascading proxys can result in infinite loops, please use conditional compilation to prevent this proxy access" p;
@@ -517,7 +531,7 @@ let extend_proxy ctx c t p =
 		| _ ->
 			error "Proxy type parameter should be a class" p
 	) in
-	let tproxy = { tpackage = ["haxe"]; tname = "Proxy"; tparams = [VNo,TPNormal t] } in
+	let tproxy = { tpackage = ["haxe"]; tname = "Proxy"; tparams = [TPType (VNo,TPNormal t)] } in
 	let pname = "P" ^ t.tname in
 	let class_decl = (EClass {
 		d_name = pname;
@@ -536,13 +550,13 @@ let set_heritance ctx c herits p =
 	let rec loop = function
 		| HPrivate | HExtern | HInterface ->
 			()
-		| HExtends { tpackage = ["haxe";"remoting"]; tname = "Proxy"; tparams = [_,TPNormal t] } ->
+		| HExtends { tpackage = ["haxe";"remoting"]; tname = "Proxy"; tparams = [TPType(_,TPNormal t)] } ->
 			extend_remoting ctx c t p false true
-		| HExtends { tpackage = ["haxe";"remoting"]; tname = "AsyncProxy"; tparams = [_,TPNormal t] } ->
+		| HExtends { tpackage = ["haxe";"remoting"]; tname = "AsyncProxy"; tparams = [TPType(_,TPNormal t)] } ->
 			extend_remoting ctx c t p true true
-		| HExtends { tpackage = ["mt"]; tname = "AsyncProxy"; tparams = [_,TPNormal t] } ->
+		| HExtends { tpackage = ["mt"]; tname = "AsyncProxy"; tparams = [TPType(_,TPNormal t)] } ->
 			extend_remoting ctx c t p true false
-		| HExtends { tpackage = ["haxe"]; tname = "Proxy"; tparams = [_,TPNormal t] } when match c.cl_path with "Proxy" :: _ , _ -> false | _ -> true ->
+		| HExtends { tpackage = ["haxe"]; tname = "Proxy"; tparams = [TPType(_,TPNormal t)] } when match c.cl_path with "Proxy" :: _ , _ -> false | _ -> true ->
 			extend_proxy ctx c t p
 		| HExtends t ->
 			if c.cl_super <> None then error "Cannot extend several classes" p;
@@ -2255,7 +2269,11 @@ let type_module ctx m tdecls loadp =
 let rec f9path p = {
 	tpackage = (match p.tpackage with "flash" :: l -> "flash9" :: l | l -> l);
 	tname = p.tname;
-	tparams = List.map (fun (v,t) -> v, f9t t) p.tparams;
+	tparams = List.map (fun c -> 
+		match c with
+		| TPConst _ -> c
+		| TPType (v,t) -> TPType (v,f9t t)
+	) p.tparams;
 }
 
 and f9t = function
@@ -2377,6 +2395,13 @@ type state =
 	| Done
 	| NotYet
 
+let rec has_rtti c =
+	List.exists (function (t,pl) -> 
+		match t, pl with 
+		| { cl_path = ["haxe"],"Rtti" },[] -> true
+		| _ -> false
+	) c.cl_implements || (match c.cl_super with None -> false | Some (c,_) -> has_rtti c)
+
 let types ctx main excludes =
 	let types = ref [] in
 	let states = Hashtbl.create 0 in
@@ -2397,6 +2422,13 @@ let types ctx main excludes =
 				if List.mem c.cl_path excludes then begin
 					c.cl_extern <- true;
 					c.cl_init <- None;
+				end;				
+				if has_rtti c then begin
+					let f = mk_field "__rtti" (t_string ctx) in
+					let str = (!generate_meta_data) ctx t in
+					f.cf_expr <- Some (mk (TConst (TString str)) f.cf_type c.cl_pos);
+					c.cl_ordered_statics <- f :: c.cl_ordered_statics;
+					c.cl_statics <- PMap.add f.cf_name f c.cl_statics;
 				end;
 				t
 			| TEnumDecl _ | TTypeDecl _ ->

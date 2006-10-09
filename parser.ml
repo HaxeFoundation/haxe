@@ -229,10 +229,16 @@ and parse_type_path1 pack = parser
 		}
 
 and parse_type_path_variance = parser
-	| [< '(Binop OpAdd,_); t = parse_type_path >] -> VCo, t
-	| [< '(Binop OpSub,_); t = parse_type_path >] -> VContra, t
-	| [< '(Binop OpMult,_); t = parse_type_path >] -> VBi, t
-	| [< t = parse_type_path >] -> VNo, t
+	| [< '(Binop OpAdd,_); t = parse_type_path_or_const VCo >] -> t
+	| [< '(Binop OpSub,_); t = parse_type_path_or_const VContra >] -> t
+	| [< '(Binop OpMult,_); t = parse_type_path_or_const VBi >] -> t
+	| [< t = parse_type_path_or_const VNo >] -> t
+
+and parse_type_path_or_const v = parser
+	| [< '(Const (String s),_); >] -> TPConst (String s)
+	| [< '(Const (Int i),_); >] -> TPConst (Int i)
+	| [< '(Const (Float f),_); >] -> TPConst (Float f)
+	| [< t = parse_type_path >] -> TPType (v, t)
 
 and parse_type_path_next t = parser
 	| [< '(Arrow,_); t2 = parse_type_path >] ->
