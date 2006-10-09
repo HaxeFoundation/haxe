@@ -24,6 +24,15 @@
  */
 package haxe;
 
+#if neko
+private typedef AbstractSocket = {
+	var input(default,null) : neko.io.Input;
+	function setTimeout( t : Float ) : Void;	
+	function close() : Void;
+	function shutdown( read : Bool, write : Bool ) : Void;
+}
+#end
+
 class Http {
 
 	public var url : String;
@@ -206,12 +215,14 @@ class Http {
 
 #if neko
 
-	public function asyncRequest( post : Bool, api : neko.io.Output ) {
+	public function asyncRequest( post : Bool, api : neko.io.Output, ?sock : AbstractSocket  ) {
 		var url_regexp = ~/^(http:\/\/)?([a-zA-Z\.0-9-]+)(:[0-9]+)?(.*)$/;
 		if( !url_regexp.match(url) ) {
 			onError("Invalid URL");
 			return;
 		}
+		if( sock == null )
+			sock = new neko.io.Socket();
 		var host = url_regexp.matched(2);
 		var portString = url_regexp.matched(3);
 		var request = url_regexp.matched(4);
@@ -268,11 +279,12 @@ class Http {
 			readHttpResponse(api,s);
 			s.close();
 		} catch( e : Dynamic ) {
+			try s.close() catch( e : Dynamic ) { };
 			onError(Std.string(e));
 		}
 	}
 
-	function readHttpResponse( api : neko.io.Output, sock : neko.io.Socket ) {
+	function readHttpResponse( api : neko.io.Output, sock : AbstractSocket ) {
 		// READ the HTTP header (until \r\n\r\n)
 		var b = new StringBuf();
 		var k = 4;
