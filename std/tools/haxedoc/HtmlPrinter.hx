@@ -1,5 +1,5 @@
 package tools.haxedoc;
-import tools.haxedoc.Type;
+import haxe.rtti.Type;
 
 class HtmlPrinter {
 

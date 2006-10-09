@@ -23,11 +23,11 @@
  * DAMAGE.
  */
 package tools.haxedoc;
-import tools.haxedoc.Type;
+import haxe.rtti.Type;
 
 class Main {
 
-	static var parser = new XmlParser();
+	static var parser = new haxe.rtti.XmlParser();
 
 	static function loadFile(file,platform) {
 		var data = neko.io.File.getContent(neko.Web.getCwd()+file);

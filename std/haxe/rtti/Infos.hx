@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, The haXe Project Contributors
+ * Copyright (c) 2006, The haXe Project Contributors
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -22,50 +22,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package neko.db;
+package haxe.rtti;
 
 /**
-	SPOD Object : the persistent object base type. See the tutorial on haXe
-	website to learn how to use SPOD.
+	This is a magic interface. When a class implements [haxe.rtti.Infos], this class and all its
+	subclass will get an additional static field [__rtti] storing the class type informations.
 **/
-class Object implements haxe.rtti.Infos {
-
-/*
-	(optional)
-	static var TABLE_NAME = "TableName";
-	static var TABLE_IDS = ["id"];
-	static var PRIVATE_FIELDS = ["my_priv_field"];
-	static function RELATIONS() {
-		return [{ key : "uid", prop : "user", manager : User.manager }];
-	}
-
-	static var manager = new neko.db.Manager();
-*/
-
-	var local_manager : neko.db.Manager<neko.db.Object>;
-
-
-	public function new() {
-	}
-
-	public function insert() {
-		local_manager.doInsert(this);
-	}
-
-	public function update() {
-		local_manager.doUpdate(this);
-	}
-
-	public function sync() {
-		local_manager.doSync(this);
-	}
-
-	public function delete() {
-		local_manager.doDelete(this);
-	}
-
-	public function toString() {
-		return local_manager.objectToString(this);
-	}
-
+interface Infos {
 }

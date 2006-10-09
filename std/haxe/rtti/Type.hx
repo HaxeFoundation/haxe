@@ -1,4 +1,4 @@
-package tools.haxedoc;
+package haxe.rtti;
 
 typedef Path = String
 

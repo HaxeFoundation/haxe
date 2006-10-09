@@ -2398,7 +2398,7 @@ type state =
 let rec has_rtti c =
 	List.exists (function (t,pl) -> 
 		match t, pl with 
-		| { cl_path = ["haxe"],"Rtti" },[] -> true
+		| { cl_path = ["haxe";"rtti"],"Infos" },[] -> true
 		| _ -> false
 	) c.cl_implements || (match c.cl_super with None -> false | Some (c,_) -> has_rtti c)
 

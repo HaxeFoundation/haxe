@@ -72,6 +72,10 @@ import haxe.remoting.SocketBuffer;
 import haxe.remoting.SocketConnection;
 #end
 
+import haxe.rtti.Infos;
+import haxe.rtti.Type;
+import haxe.rtti.XmlParser;
+
 import haxe.xml.Check;
 import haxe.xml.Fast;
 

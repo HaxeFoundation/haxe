@@ -1,5 +1,5 @@
-package tools.haxedoc;
-import tools.haxedoc.Type;
+package haxe.rtti;
+import haxe.rtti.Type;
 import haxe.xml.Fast;
 
 class XmlParser {
@@ -10,7 +10,7 @@ class XmlParser {
 	public function new() {
 		root = new Array();
 	}
-	
+
 	public function sort( ?l ) {
 		if( l == null ) l = root;
 		l.sort(function(e1,e2) {
@@ -147,7 +147,11 @@ class XmlParser {
 		}
 		var prev = null;
 		for( ct in cur ) {
-			var tinf = try TypeApi.typeInfos(ct) catch( e : Dynamic ) continue;
+			var tinf;
+			try
+				tinf = TypeApi.typeInfos(ct)
+			catch( e : Dynamic )
+				continue;			
 			// compare params ?
 			if( tinf.path == inf.path ) {
 				if( tinf.module == inf.module && tinf.doc == inf.doc && tinf.isPrivate == inf.isPrivate )					
@@ -204,20 +208,19 @@ class XmlParser {
 	}
 	
 	function xroot( x : Fast ) {		
-		for( c in x.elements )
-			switch( c.name ) {
-			case "class":
-				var cl = xclass(c);
-				merge(TClassdecl(cl));
-			case "enum":
-				var e = xenum(c);
-				merge(TEnumdecl(e));
-			case "typedef":
-				var td = xtypedef(c);
-				merge(TTypedecl(td));
-			default:
-				xerror(c);
-			}
+		for( c in x.x.elements() )
+			merge(processElement(c));
+			
+	}
+	
+	public function processElement( x : Xml ) {
+		var c = new haxe.xml.Fast(x);
+		return switch( c.name ) {
+		case "class": TClassdecl(xclass(c));
+		case "enum": TEnumdecl(xenum(c));
+		case "typedef": TTypedecl(xtypedef(c));
+		default: xerror(c);
+		}
 	}
 	
 	function xpath( x : Fast ) : PathParams {
