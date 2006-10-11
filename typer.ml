@@ -1364,7 +1364,7 @@ and type_switch ctx e cases def need_val p =
 			| _ -> assert false
 		in
 		let constructs (c,_,e) =
-			let c = mk (TField (mk (TTypeExpr (TEnumDecl en)) (mk_mono()) p , c)) (TEnum (en,enparams)) p in
+			let c = mk (TField (mk (TTypeExpr (TEnumDecl en)) t_dynamic p , c)) (TEnum (en,enparams)) p in
 			(c,e)
 		in
 		let cases = List.map matchs cases in
