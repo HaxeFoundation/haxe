@@ -25,9 +25,13 @@
 package haxe;
 
 #if neko
+import neko.io.Socket.Host;
+
 private typedef AbstractSocket = {
 	var input(default,null) : neko.io.Input;
-	function setTimeout( t : Float ) : Void;	
+	function connect( host : Host, port : Int ) : Void;	
+	function setTimeout( t : Float ) : Void;
+	function write( str : String ) : Void;
 	function close() : Void;
 	function shutdown( read : Bool, write : Bool ) : Void;
 }
@@ -229,7 +233,6 @@ class Http {
 		if( request == "" )
 			request = "/";
 		var port = if( portString == "" ) 80 else Std.parseInt(portString.substr(1,portString.length-1));
-		var s = new neko.io.Socket();
 		var data;
 
 		var uri = null;
@@ -274,12 +277,12 @@ class Http {
 				b.add(uri);
 		}
 		try {
-			s.connect(neko.io.Socket.resolve(host),port);
-			s.write(b.toString());
-			readHttpResponse(api,s);
-			s.close();
+			sock.connect(neko.io.Socket.resolve(host),port);
+			sock.write(b.toString());
+			readHttpResponse(api,sock);
+			sock.close();
 		} catch( e : Dynamic ) {
-			try s.close() catch( e : Dynamic ) { };
+			try sock.close() catch( e : Dynamic ) { };
 			onError(Std.string(e));
 		}
 	}
@@ -363,15 +366,15 @@ class Http {
 		headers.pop();
 		headers.pop();
 		responseHeaders = new Hash();
+		var size = null;
 		for( hline in headers ) {
 			var a = hline.split(": ");
 			var hname = a.shift();
-			if( a.length == 1 )
-				responseHeaders.set(hname,a[0]);
-			else
-				responseHeaders.set(hname,a.join(": "));
-		}
-		var size = Std.parseInt(responseHeaders.get("Content-Length"));
+			var hval = if( a.length == 1 ) a[0] else a.join(": ");
+			responseHeaders.set(hname,hval);
+			if( hname.toLowerCase() == "content-length" )
+				size = Std.parseInt(hval);
+		}		
 		var chunked = responseHeaders.get("Transfer-Encoding") == "chunked";
 		var chunk_re = ~/^([0-9A-Fa-f]+)[ ]*\r\n/m;
 		chunk_size = null;
