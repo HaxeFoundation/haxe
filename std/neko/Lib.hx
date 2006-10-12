@@ -164,6 +164,10 @@ class Lib {
 			throw "Can't convert "+string(v);
 		}
 	}
+	
+	public static function getClasses() : Dynamic {
+		return untyped neko.Boot.__classes;
+	}
 
 	static var __serialize = load("std","serialize",1);
 	static var __unserialize = load("std","unserialize",2);
