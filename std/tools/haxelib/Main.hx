@@ -158,6 +158,14 @@ class Main {
 				try {
 					c.f();
 				} catch( e : Dynamic ) {
+					if( e == "std@host_resolve" ) {
+						print("Host "+SERVER.host+" was not found");
+						print("Please ensure that your internet connection is on");
+						print("If you don't have an internet connection or if you are behing a proxy");
+						print("please download manually the file from http://lib.haxe.org/files");
+						print("and run 'haxelib test <file>' to install the Library.");
+						neko.Sys.exit(1);
+					}
 					if( debug )
 						neko.Lib.rethrow(e);
 					print(Std.string(e));
