@@ -63,7 +63,7 @@ class Server {
 	}
 
 	public function handleRequest() {
-		if( neko.Web.getClientHeader("X-Haxe-Remoting") == null )
+		if( neko.Web.getClientHeader("X-Haxe-Remoting") == null && neko.Web.getClientHeader("x-haxe-remoting") == null )
 			return false;
 		var v = neko.Web.getParams().get("__x");
 		try {
