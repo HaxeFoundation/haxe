@@ -224,6 +224,8 @@ try
 			let lines = Std.input_list ch in
 			close_in ch;
 			excludes := (List.map (fun l -> 
+				let len = String.length l in
+				let l = (if len > 0 && l.[len-1] = '\r' then String.sub l 0 (len - 1) else l) in
 				match List.rev (ExtString.String.nsplit l ".") with
 				| [] -> ([],"")
 				| x :: l -> (List.rev l,x)
