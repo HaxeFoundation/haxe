@@ -11,6 +11,7 @@
 	fixed returned value semantics in neko (prevent remoting leak)
 	more documentation
 	added haxe.rtti package (classes can implement haxe.rtti.Infos)
+	fixed windows line endings in exclude files under linux/osx
 
 2006-09-11: 1.07
 	fixed resources in Neko
