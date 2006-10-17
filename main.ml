@@ -27,6 +27,7 @@ type target =
 let prompt = ref false
 let alt_format = ref false
 let has_error = ref false
+let auto_xml = ref false
 
 let normalize_path p =
 	let l = String.length p in
@@ -250,6 +251,7 @@ try
 		),"<file> : generate hx headers from SWF9 file");
 		("--next", Arg.Unit (fun() -> assert false), ": separate several haxe compilations");
 		("--altfmt", Arg.Unit (fun() -> alt_format := true),": use alternative error output format");
+		("--auto-xml", Arg.Unit (fun() -> auto_xml := true),": automatically create an XML for each target");
 	] in
 	let current = ref 0 in
 	let args = Array.of_list ("" :: params) in
@@ -325,16 +327,20 @@ try
 		List.iter (fun cpath -> ignore(Typer.load ctx cpath Ast.null_pos)) (List.rev !classes);
 		Typer.finalize ctx;
 		if !has_error then do_exit();
+		let do_auto_xml file = if !auto_xml then xml_out := Some (file ^ ".xml") in
 		let types = Typer.types ctx (!main_class) (!excludes) in
 		(match !target with
 		| No -> ()
 		| Swf file ->
+			do_auto_xml file;
 			if !Plugin.verbose then print_endline ("Generating swf : " ^ file);
 			Genswf.generate file (!swf_version) (!swf_header) (!swf_in) types hres
 		| Neko file ->
+			do_auto_xml file;
 			if !Plugin.verbose then print_endline ("Generating neko : " ^ file);
 			Genneko.generate file types hres !libs
 		| Js file ->
+			do_auto_xml file;
 			if !Plugin.verbose then print_endline ("Generating js : " ^ file);
 			Genjs.generate file types hres
 		);
