@@ -13,6 +13,7 @@
 	added haxe.rtti package (classes can implement haxe.rtti.Infos)
 	fixed windows line endings in exclude files under linux/osx
 	fixed small bug in "cast" syntax
+	added "callback" for partial function application
 
 2006-09-11: 1.07
 	fixed resources in Neko
