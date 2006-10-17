@@ -421,7 +421,7 @@ and expr = parser
 		| [< '(POpen,_); e = expr; s >] ->
 			(match s with parser
 			| [< '(Comma,_); t = parse_type_path; '(PClose,p2); s >] -> expr_next (ECast (e,Some t),punion p1 p2) s
-			| [< >] -> expr_next (ECast (e,None),punion p1 (pos e)) s)
+			| [< '(PClose,p2); s >] -> expr_next (ECast (e,None),punion p1 (pos e)) s)
 		| [< e = expr; s >] -> expr_next (ECast (e,None),punion p1 (pos e)) s)
 	| [< '(Kwd Throw,p); e = expr >] -> (EThrow e,p)
 	| [< '(Kwd New,p1); t = parse_type_path_normal; '(POpen,_); al = psep Comma expr; '(PClose,p2); s >] -> expr_next (ENew (t,al),punion p1 p2) s
