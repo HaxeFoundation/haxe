@@ -1688,6 +1688,39 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let params = (match el with [] -> [] | _ -> ["customParams",(EArrayDecl el , p)]) in
 		let infos = mk_infos ctx p params in
 		type_expr ctx (ECall ((EField ((EType ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[e;EUntyped infos,p]),p)
+	| ECall ((EConst (Ident "callback"),p),e :: params) ->
+		let e = type_expr ctx e in
+		let eparams = List.map (type_expr ctx) params in
+		(match follow e.etype with
+		| TFun (args,ret) ->
+			let rec loop args params eargs =
+				match args, params with
+				| _ , [] ->
+					let k = ref 0 in
+					let fun_arg = ("f",false,e.etype) in
+					let first_args = List.map (fun t -> incr k; "a" ^ string_of_int !k, false, t) (List.rev eargs) in
+					let missing_args = List.map (fun (_,opt,t) -> incr k; "a" ^ string_of_int !k, opt, t) args in
+					let vexpr (v,_,t) = mk (TLocal v) t p in
+					let func = mk (TFunction {
+						tf_args = missing_args;
+						tf_type = ret;
+						tf_expr = mk (TReturn (Some (
+							mk (TCall (vexpr fun_arg,List.map vexpr (first_args @ missing_args))) ret p
+						))) ret p;
+					}) (TFun (missing_args,ret)) p in
+					let func = mk (TFunction {
+						tf_args = fun_arg :: first_args;
+						tf_type = func.etype;
+						tf_expr = mk (TReturn (Some func)) e.etype p;
+					}) (TFun (first_args,func.etype)) p in
+					mk (TCall (func,e :: eparams)) (TFun (missing_args,ret)) p
+				| [], _ -> error "Too many callback arguments" p
+				| (_,_,t) :: args , e :: params ->
+					unify ctx e.etype t p;
+					loop args params (t :: eargs)
+			in
+			loop args eparams []
+		| _ -> error "First parameter of callback is not a function" p);
 	| ECall ((EConst (Ident "type"),_),[e]) ->
 		let e = type_expr ctx e in
 		ctx.warn (s_type (print_context()) e.etype) e.epos;
