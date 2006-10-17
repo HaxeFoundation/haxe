@@ -14,6 +14,7 @@
 	fixed windows line endings in exclude files under linux/osx
 	fixed small bug in "cast" syntax
 	added "callback" for partial function application
+	added --auto-xml for future haxeFD usage
 
 2006-09-11: 1.07
 	fixed resources in Neko
