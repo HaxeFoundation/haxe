@@ -104,6 +104,19 @@ class Output {
 		writeChar(x >> 8);
 	}
 
+	public function writeUInt16B( x : Int ) {
+		if( x < 0 || x > 0xFFFF ) throw Error.Overflow;
+		writeChar(x >> 8);
+		writeChar(x & 0xFF);
+	}
+	
+	public function writeUInt24B( x : Int ) {
+		if( x < 0 || x > 0xFFFFFF ) throw Error.Overflow;
+		writeChar(x >> 16);
+		writeChar((x >> 8) & 0xFF);
+		writeChar(x & 0xFF);
+	}
+	
 	public function writeInt16( x : Int ) {
 		if( x < -0x7FFF || x > 0x7FFF ) throw Error.Overflow;
 		if( x < 0 )
