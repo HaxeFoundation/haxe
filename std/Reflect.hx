@@ -220,11 +220,11 @@ class Reflect {
 	public static function isFunction( f : Dynamic ) : Bool {
 		return untyped
 		#if flash9
-			try f.call == __global__["Function"].prototype.call catch( e : Dynamic ) false
+			__typeof__(f) == "function"
 		#else flash
-			f["call"] == _global["Function"]["call"] && f.__name__ == null
+			__typeof__(f) == "function" && f.__name__ == null
 		#else js
-			f != null && f.call == isFunction.call && f.__name__ == null
+			__js__("typeof(f)") == "function" && f.__name__ == null
 		#else neko
 			__dollar__typeof(f) == __dollar__tfunction
 		#else error
