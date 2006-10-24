@@ -49,6 +49,7 @@ class Compress {
 		c.setFlushMode(Flush.FINISH);
 		var out = neko.Lib.makeString(_deflate_bound(c.s,s.length));
 		var r = c.run(s,0,out,0);
+		c.close();
 		if( !r.done || r.read != s.length )
 			throw "Compression failed";
 		return out.substr(0,r.write);
