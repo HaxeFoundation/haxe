@@ -39,6 +39,7 @@ class Http {
 
 	public var url : String;
 #if neko
+	public var noShutdown : Bool;
 	var responseHeaders : Hash<String>;
 	var postData : String;
 	var chunk_size : Int;
@@ -382,7 +383,8 @@ class Http {
 		var buf = neko.Lib.makeString(bufsize);
 		api.prepare(size);
 		if( size == null ) {
-			sock.shutdown(false,true);
+			if( !noShutdown )
+				sock.shutdown(false,true);
 			try {
 				while( true ) {
 					var len = sock.input.readBytes(buf,0,bufsize);
