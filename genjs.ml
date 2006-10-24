@@ -320,14 +320,14 @@ and gen_expr ctx e =
 		let handle_break = handle_break ctx e in
 		let id = ctx.id_counter in
 		ctx.id_counter <- ctx.id_counter + 1;
-		print ctx "var $it%d = " id;
+		print ctx "{ var $it%d = " id;
 		gen_value ctx it;
 		newline ctx;
 		print ctx "while( $it%d.hasNext() ) { var %s = $it%d.next()" id (ident v) id;
 		newline ctx;
 		gen_expr ctx e;
 		newline ctx;
-		spr ctx "}";
+		spr ctx "}}";
 		handle_break();
 	| TTry (e,catchs) ->
 		spr ctx "try ";
