@@ -26,7 +26,7 @@ class Site {
 		if( !neko.FileSystem.exists(REP_DIR) )
 			neko.FileSystem.createDirectory(REP_DIR);
 
-		var server = new haxe.remoting.Server();
+		var server = new neko.net.RemotingServer();
 		var log = neko.io.File.append(TMP_DIR+"/log.txt",false);
 		var api = new SiteApi(db);
 		server.setPrivatePrefix("db");

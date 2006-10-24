@@ -33,7 +33,7 @@ class SocketConnection extends AsyncConnection {
 
 	var __funs : List<Dynamic -> Void>;
 	#if neko
-	var __r : Server;
+	var __r : neko.net.RemotingServer;
 	#end
 
 	override function __resolve(field) : AsyncConnection {
@@ -202,7 +202,7 @@ class SocketConnection extends AsyncConnection {
 
 	#if neko
 
-	public static function socketConnect( s : neko.net.Socket, r : Server ) {
+	public static function socketConnect( s : neko.net.Socket, r : neko.net.RemotingServer ) {
 		var sc = new SocketConnection(s,[]);
 		sc.__funs = new List();
 		sc.__r = r;
