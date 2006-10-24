@@ -36,6 +36,42 @@ enum ValueType {
 class Type {
 
 	/**
+		Converts a value to an Enum or returns [null] if the value is not an Enum.
+	**/
+	public static function toEnum( t : Dynamic ) : Enum untyped {
+		try {
+		#if flash9
+			if( !t.__isenum )
+				return null;
+		#else true
+			if( t.__ename__ == null )
+				return null;
+		#end
+			return t;
+		} catch( e : Dynamic ) {
+			return null;
+		}
+	}
+	
+	/**
+		Converts a value to a Class or returns [null] if the value is not a Class.
+	**/
+	public static function toClass( t : Dynamic ) : Class untyped {
+		try {
+		#if flash9
+			if( !t.hasOwnProperty("prototype") )
+				return null;
+		#else true
+			if( t.__name__ == null )
+				return null;
+		#end
+			return t;
+		} catch( e : Dynamic ) {
+			return null;
+		}
+	}
+	
+	/**
 		Returns the class of a value or [null] if this value is not a Class instance.
 	**/
 	public static function getClass( o : Dynamic ) : Class untyped {
