@@ -63,12 +63,7 @@ import haxe.remoting.DelayedConnection;
 import haxe.remoting.LocalConnection;
 #end
 import haxe.remoting.Proxy;
-#if neko
-import haxe.remoting.Server;
-import haxe.remoting.SocketBuffer;
-#end
-#if js
-#else true
+#if !js
 import haxe.remoting.SocketConnection;
 #end
 
@@ -513,9 +508,6 @@ import neko.io.Input;
 import neko.io.Logger;
 import neko.io.Multiple;
 import neko.io.Output;
-import neko.io.Socket;
-import neko.io.SocketInput;
-import neko.io.SocketOutput;
 import neko.io.StringInput;
 import neko.io.StringOutput;
 
@@ -531,6 +523,13 @@ import neko.db.Object;
 import neko.db.ResultSet;
 import neko.db.Sqlite;
 import neko.db.Transaction;
+
+import neko.net.Host;
+import neko.net.RemotingServer;
+import neko.net.RemotingBuffer;
+import neko.net.Socket;
+import neko.net.SocketInput;
+import neko.net.SocketOutput;
 
 #end
 

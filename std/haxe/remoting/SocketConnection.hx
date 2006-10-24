@@ -125,7 +125,7 @@ class SocketConnection extends AsyncConnection {
 			throw "Message is too big";
 		var c2 = encodeChar(len&63);
 		#if neko
-		var s : neko.io.Socket = __data;
+		var s : neko.net.Socket = __data;
 		s.output.writeChar(c1);
 		s.output.writeChar(c2);
 		s.output.write(msg);
@@ -202,7 +202,7 @@ class SocketConnection extends AsyncConnection {
 
 	#if neko
 
-	public static function socketConnect( s : neko.io.Socket, r : Server ) {
+	public static function socketConnect( s : neko.net.Socket, r : Server ) {
 		var sc = new SocketConnection(s,[]);
 		sc.__funs = new List();
 		sc.__r = r;

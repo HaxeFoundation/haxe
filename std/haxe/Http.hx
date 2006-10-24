@@ -25,11 +25,9 @@
 package haxe;
 
 #if neko
-import neko.io.Socket.Host;
-
 private typedef AbstractSocket = {
 	var input(default,null) : neko.io.Input;
-	function connect( host : Host, port : Int ) : Void;	
+	function connect( host : neko.net.Host, port : Int ) : Void;
 	function setTimeout( t : Float ) : Void;
 	function write( str : String ) : Void;
 	function close() : Void;
@@ -226,7 +224,7 @@ class Http {
 			return;
 		}
 		if( sock == null )
-			sock = new neko.io.Socket();
+			sock = new neko.net.Socket();
 		var host = url_regexp.matched(2);
 		var portString = url_regexp.matched(3);
 		var request = url_regexp.matched(4);
@@ -277,7 +275,7 @@ class Http {
 				b.add(uri);
 		}
 		try {
-			sock.connect(neko.io.Socket.resolve(host),port);
+			sock.connect(new neko.net.Host(host),port);
 			sock.write(b.toString());
 			readHttpResponse(api,sock);
 			sock.close();
@@ -374,7 +372,7 @@ class Http {
 			responseHeaders.set(hname,hval);
 			if( hname.toLowerCase() == "content-length" )
 				size = Std.parseInt(hval);
-		}		
+		}
 		var chunked = responseHeaders.get("Transfer-Encoding") == "chunked";
 		var chunk_re = ~/^([0-9A-Fa-f]+)[ ]*\r\n/m;
 		chunk_size = null;

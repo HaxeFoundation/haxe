@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2005, The haXe Project Contributors
  * All rights reserved.
@@ -25,12 +24,9 @@
  *
  * Contributor: Lee McColl Sylvester
  */
-package neko.io;
+package neko.net;
 
 enum SocketHandle {
-}
-
-enum Host {
 }
 
 class Socket {
@@ -65,10 +61,10 @@ class Socket {
 
 	public function connect(host : Host, port : Int) {
 		try {
-			socket_connect(__s, host, port);
+			socket_connect(__s, host.__h, port);
 		} catch( s : String ) {
 			if( s == "std@socket_connect" )
-				throw "Failed to connect on "+(try reverse(host) catch( e : Dynamic ) hostToString(host))+":"+port;
+				throw "Failed to connect on "+(try host.reverse() catch( e : Dynamic ) host.toString())+":"+port;
 			else
 				neko.Lib.rethrow(s);
 		}
@@ -83,7 +79,7 @@ class Socket {
 	}
 
 	public function bind(host : Host, port : Int) {
-		socket_bind(__s, host, port);
+		socket_bind(__s, host.__h, port);
 	}
 
 	public function accept() : Socket {
@@ -151,22 +147,6 @@ class Socket {
 		};
 	}
 
-	public static function resolve(host : String) : Host {
-		return host_resolve(untyped host.__s);
-	}
-
-	public static function hostToString(host : Host) : String {
-		return new String(host_to_string(host));
-	}
-
-	public static function reverse( host : Host ) : String {
-		return new String(host_reverse(host));
-	}
-
-	public static function localhost() : String {
-		return new String(host_local());
-	}
-
 	static function __init__() {
 		neko.Lib.load("std","socket_init",0)();
 	}
@@ -175,10 +155,6 @@ class Socket {
 	private static var socket_close = neko.Lib.load("std","socket_close",1);
 	private static var socket_write = neko.Lib.load("std","socket_write",2);
 	private static var socket_read = neko.Lib.load("std","socket_read",1);
-	private static var host_resolve = neko.Lib.load("std","host_resolve",1);
-	private static var host_reverse = neko.Lib.load("std","host_reverse",1);
-	private static var host_to_string = neko.Lib.load("std","host_to_string",1);
-	private static var host_local = neko.Lib.load("std","host_local",0);
 	private static var socket_connect = neko.Lib.load("std","socket_connect",3);
 	private static var socket_listen = neko.Lib.load("std","socket_listen",2);
 	private static var socket_select = neko.Lib.load("std","socket_select",4);

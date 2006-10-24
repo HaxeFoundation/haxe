@@ -109,10 +109,10 @@ class Main {
 		}
 		return neko.io.File.stdin().readLine();
 	}
-	
+
 	function ask( question ) {
 		while( true ) {
-			neko.Lib.print(question+" [y/n/a] ? ");			
+			neko.Lib.print(question+" [y/n/a] ? ");
 			switch( neko.io.File.stdin().readLine() ) {
 			case "n": return No;
 			case "y": return Yes;
@@ -266,8 +266,8 @@ class Main {
 
 		// directly send the file data over Http
 		// we can't use haxe.Http because we want *sent* data progress
-		var s = new neko.io.Socket();
-		s.connect(neko.io.Socket.resolve(SERVER.host),SERVER.port);
+		var s = new neko.net.Socket();
+		s.connect(new neko.net.Host(SERVER.host),SERVER.port);
 		s.write("POST /"+SERVER.url+"?submit="+id);
 		s.write(" HTTP/1.1\r\nHost: "+SERVER.host+"\r\n");
 		s.write("Content-Type: application/octet-stream\r\n");
@@ -508,7 +508,7 @@ class Main {
 					case Yes:
 					case Always: prompt = false;
 					case No: continue;
-					}				
+					}
 				doInstall(p,inf.curversion,true);
 				update = true;
 			} else
@@ -561,7 +561,7 @@ class Main {
 		var version = param("Version");
 		setCurrent(prj,version,false);
 	}
-	
+
 	function setCurrent( prj : String, version : String, doAsk : Bool ) {
 		var pdir = getRepository() + Datas.safe(prj);
 		var vdir = pdir + "/" + Datas.safe(version);

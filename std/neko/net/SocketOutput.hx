@@ -22,10 +22,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package neko.io;
-import neko.io.Socket;
+package neko.net;
+import neko.net.Socket;
+import neko.io.Error;
 
-class SocketOutput extends Output {
+class SocketOutput extends neko.io.Output {
 
 	var __s : SocketHandle;
 
@@ -38,9 +39,9 @@ class SocketOutput extends Output {
 			socket_send_char(__s, c);
 		} catch( e : Dynamic ) {
 			if( e == "Blocking" )
-				throw Error.Blocked;
+				throw Blocked;
 			else
-				throw Error.Custom(e);
+				throw Custom(e);
 		}
 	}
 
@@ -49,9 +50,9 @@ class SocketOutput extends Output {
 			socket_send(__s, untyped buf.__s, pos, len);
 		} catch( e : Dynamic ) {
 			if( e == "Blocking" )
-				throw Error.Blocked;
+				throw Blocked;
 			else
-				throw Error.Custom(e);
+				throw Custom(e);
 		}
 	}
 
