@@ -527,6 +527,7 @@ import neko.db.Transaction;
 import neko.net.Host;
 import neko.net.RemotingServer;
 import neko.net.RemotingBuffer;
+import neko.net.ServerLoop;
 import neko.net.Socket;
 import neko.net.SocketInput;
 import neko.net.SocketOutput;
