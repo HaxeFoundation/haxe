@@ -47,7 +47,7 @@ class Compress {
 	public static function run( s : String, level : Int ) : String {
 		var c = new Compress(level);
 		c.setFlushMode(Flush.FINISH);
-		var out = neko.Lib.makeString(_deflate_bound(c.s,s.length) + 10000);
+		var out = neko.Lib.makeString(_deflate_bound(c.s,s.length));
 		var r = c.run(s,0,out,0);
 		if( !r.done || r.read != s.length )
 			throw "Compression failed";
