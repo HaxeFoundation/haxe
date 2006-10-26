@@ -91,17 +91,31 @@ class Preprocessor {
 	}
 
 	static function trimExtraSpaces( str:String ) : String {
-		var reg = ~/(\<mt .*?("|"\/)\>)(\s+)(\<)/g;
-		while (reg.match(str)) str = StringTools.replace(str, reg.matched(0), reg.matched(1)+reg.matched(4));
+		var reg = null;
 
-		reg = ~/(<\/mt>)(\s+)(<\/mt>)/g;
-		while (reg.match(str)) str = StringTools.replace(str, reg.matched(0), reg.matched(1)+reg.matched(3));
+		reg = ~/^\s+(<mt mt:[a-z]+="[^"]+"\/?>)\s*?\n/gm;
+		while (reg.match(str)) str = StringTools.replace(str, reg.matched(0), reg.matched(1));
 
-		reg = ~/(\&lt;mt .*?("|"\/)\&gt;)(\s+)(\&lt;)/g;
-		while (reg.match(str)) str = StringTools.replace(str, reg.matched(0), reg.matched(1)+reg.matched(4));
+		reg = ~/^\s+(<\/?mt>)\s*?\n/gm;
+		while (reg.match(str)) str = StringTools.replace(str, reg.matched(0), reg.matched(1));
 
-		reg = ~/(&lt;\/mt&gt;)(\s+)(&lt;\/mt&gt;)/g;
-		while (reg.match(str)) str = StringTools.replace(str, reg.matched(0), reg.matched(1)+reg.matched(3));
+		reg = ~/^\s+(&lt;mt mt:[a-z]+="[^"]+"\/?&gt;)\s*?\n/gm;
+		while (reg.match(str)) str = StringTools.replace(str, reg.matched(0), reg.matched(1));
+
+		reg = ~/^\s+(&lt;\/?mt&gt;)\s*?\n/gm;
+		while (reg.match(str)) str = StringTools.replace(str, reg.matched(0), reg.matched(1));
+
+		reg = ~/\s+((<|&lt;)mt mt:(set)="[^"]+"\/?(>|&gt;))\s+/g;
+		while (reg.match(str)) str = StringTools.replace(str, reg.matched(0), reg.matched(1));
+
+		reg = ~/(<mt mt:[^=]+="[^"]+"\/?>)\s+(<\/?mt)/g;
+		while (reg.match(str)) str = StringTools.replace(str, reg.matched(0), reg.matched(1)+reg.matched(2));
+
+		reg = ~/(&lt;mt mt:[^=]+="[^"]+"\/?&gt;)\s+(&lt;\/?mt)/g;
+		while (reg.match(str)) str = StringTools.replace(str, reg.matched(0), reg.matched(1)+reg.matched(2));
+		
+		reg = ~/(&lt;\/mt&gt;)\s+(&lt;\/?mt)/g;
+		while (reg.match(str)) str = StringTools.replace(str, reg.matched(0), reg.matched(1)+reg.matched(2));
 
 		return str;
 	}
