@@ -18,6 +18,7 @@
 	fixed Reflect.isFunction
 	minor bugfix in JS code generator
 	new neko.net package
+	allow recursive remoting proxys (skip instead of error)
 
 2006-09-11: 1.07
 	fixed resources in Neko
