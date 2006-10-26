@@ -87,7 +87,15 @@ class Preprocessor {
 		}
 		res = unescapeCdata1(res);
 		res = escapePrints(res);
-		return "<mt>" + res + "</mt>";
+		return trimExtraSpaces("<mt>" + res + "</mt>");
+	}
+
+	static function trimExtraSpaces( str:String ) : String {
+		var reg = ~/(\<mt [^>]+\>)(\s+)(\<)/g;
+		while (reg.match(str)){
+			str = StringTools.replace(str, reg.matched(0), reg.matched(1)+reg.matched(3));
+		}
+		return str;
 	}
 
 	public static function expandMacros( str:String ) : String {
