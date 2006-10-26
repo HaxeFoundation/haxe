@@ -91,9 +91,13 @@ class Preprocessor {
 	}
 
 	static function trimExtraSpaces( str:String ) : String {
-		var reg = ~/(\<mt [^>]+\>)(\s+)(\<)/g;
+		var reg = ~/(\<mt .*?("|"\/)\>)(\s+)(\<)/g;
 		while (reg.match(str)){
-			str = StringTools.replace(str, reg.matched(0), reg.matched(1)+reg.matched(3));
+			str = StringTools.replace(str, reg.matched(0), reg.matched(1)+reg.matched(4));
+		}
+		reg = ~/(\&lt;mt .*?("|"\/)\&gt;)(\s+)(\&lt;)/g;
+		while (reg.match(str)){
+			str = StringTools.replace(str, reg.matched(0), reg.matched(1)+reg.matched(4));
 		}
 		return str;
 	}
