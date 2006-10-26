@@ -426,8 +426,10 @@ and reverse_param (v,t) =
 	TPType (v , reverse_type t)
 
 let extend_remoting ctx c t p async prot =
-	if ctx.isproxy then error "Cascading proxys can result in infinite loops, please use conditional compilation to prevent this proxy access" p;
 	if c.cl_super <> None then error "Cannot extend several classes" p;
+	if ctx.isproxy then 
+		() (* skip this proxy generation, we shouldn't need it anyway *)
+	else
 	let ctx2 = context ctx.error ctx.warn in
 	let fb = !forbidden_packages in
 	forbidden_packages := [];
