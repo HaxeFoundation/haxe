@@ -120,7 +120,7 @@ let rec process_params acc = function
 
 and init params =
 try	
-	let usage = "Haxe Compiler 1.07 - (c)2005-2006 Motion-Twin\n Usage : haxe.exe [options] <class names...>\n Options :" in
+	let usage = "Haxe Compiler 1.08 - (c)2005-2006 Motion-Twin\n Usage : haxe.exe [options] <class names...>\n Options :" in
 	let classes = ref [([],"Std")] in
 	let target = ref No in
 	let swf_in = ref None in
