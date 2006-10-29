@@ -87,12 +87,12 @@ class Main {
 			default:
 				if( pack ) continue;
 				var inf = TypeApi.typeInfos(c);
-				if( inf.path == path.join(".") )
+				if( inf.path.toLowerCase() == path.join(".") )
 					return c;
 			}
 		return null;
 	}
-	
+
 	public static function main() {
 		if( neko.Web.isModNeko ) {
 			var h = neko.Web.getParams();
@@ -110,14 +110,14 @@ class Main {
 				f.write(str);
 				f.close();
 			}
-			var html = new HtmlPrinter("/api/","","");			
+			var html = new HtmlPrinter("/api/","","");
 			var clname = h.get("class");
 			if( clname == "index" )
 				clname = null;
 			if( clname == null )
 				html.process(TPackage("root","root",data));
 			else {
-				var clpath = clname.split("/").join(".").split(".");
+				var clpath = clname.toLowerCase().split("/").join(".").split(".");
 				var f = findClass(data,clpath,0);
 				if( f == null )
 					throw "Class not found : "+clpath.join(".");
