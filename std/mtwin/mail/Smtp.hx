@@ -25,6 +25,7 @@
 package mtwin.mail;
 
 import neko.net.Socket;
+import neko.net.Host;
 import mtwin.mail.Exception;
 
 class Smtp {

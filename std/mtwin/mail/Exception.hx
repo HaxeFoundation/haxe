@@ -31,6 +31,7 @@ enum Exception {
 	SmtpMailFromError(e:String);
 	SmtpRcptToError(e:String);
 	SmtpDataError(e:String);
+	SmtpAuthError(e:String);
 	SmtpSendDataError;
 
 	UnknowResponse(r:String);
