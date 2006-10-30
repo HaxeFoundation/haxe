@@ -40,56 +40,59 @@ class Smtp {
 			throw ConnectionError(host,port);
 		}
 		
+		var supportLoginAuth = false;
+
 		// get server init line
 		var ret = StringTools.trim(cnx.input.readLine());
 		if ( StringTools.endsWith(ret, "ESMTP" ) ) { //if server support extensions
 			//EHLO
 			cnx.write( "EHLO " + Socket.localhost() + "\r\n");
 			ret = "";
-			var supportLoginAuth = false;
 			
 			do {
 				ret = StringTools.trim(cnx.input.readLine());
 				if( ret.substr(0,3) != "250" ){
 					cnx.close();
-					throw SmtpMailFromError(ret);
+					throw BadResponse(ret);
 				} else if ( ret.substr(4, 4) == "AUTH" && ret.indexOf("LOGIN") != -1) {
 					supportLoginAuth = true;
 				}
 			} while(ret.substr(0,4) != "250 ");
-
-			if ( supportLoginAuth && user != null ) { //if server support AUTH LOGIN and we have user to login with
-				var base64Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"; 
-				cnx.write( "AUTH LOGIN\r\n" );
-				ret = StringTools.trim(cnx.input.readLine());
-				if( ret.substr(0,3) != "334" ){
-					cnx.close();
-					throw SmtpMailFromError(ret);
-				}
-				
-				cnx.write( StringTools.baseEncode(user, base64Alphabet) + "\r\n" );
-				ret = StringTools.trim(cnx.input.readLine());
-				if( ret.substr(0,3) != "334" ){
-					cnx.close();
-					throw SmtpMailFromError(ret);
-				}
-				cnx.write( StringTools.baseEncode(password, base64Alphabet) + "\r\n" );
-				ret = StringTools.trim(cnx.input.readLine());
-				if( ret.substr(0,3) != "235" ){
-					cnx.close();
-					throw SmtpMailFromError(ret);
-				}
-			}
 		} else {
 			//HELO
 			cnx.write( "HELO " + Socket.localhost() + "\r\n");
 			ret = StringTools.trim(cnx.input.readLine());
 			if( ret.substr(0,3) != "250" ){
 				cnx.close();
-				throw SmtpMailFromError(ret);
+				throw BadResponse(ret);
 			}
 		}
 
+		if ( user != null ) { //if we were asked to login
+			if ( supportLoginAuth ) { //if server support AUTH LOGIN
+				cnx.write( "AUTH LOGIN\r\n" );
+				ret = StringTools.trim(cnx.input.readLine());
+				if( ret.substr(0,3) != "334" ){
+					cnx.close();
+					throw SmtpAuthError(ret);
+				}
+				
+				cnx.write( Tools.encodeBase64(user) + "\r\n" );
+				ret = StringTools.trim(cnx.input.readLine());
+				if( ret.substr(0,3) != "334" ){
+					cnx.close();
+					throw SmtpAuthError(ret);
+				}
+				cnx.write( Tools.encodeBase64(password) + "\r\n" );
+				ret = StringTools.trim(cnx.input.readLine());
+				if( ret.substr(0,3) != "235" ){
+					cnx.close();
+					throw SmtpAuthError(ret);
+				}
+			} else {
+				throw SmtpAuthError("Authorization with 'login' method not supported by server");
+			}
+		}
 
 		cnx.write( "MAIL FROM:<" + from + ">\r\n" );
 		ret = StringTools.trim(cnx.input.readLine());
