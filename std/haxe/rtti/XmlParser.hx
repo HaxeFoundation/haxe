@@ -3,10 +3,10 @@ import haxe.rtti.Type;
 import haxe.xml.Fast;
 
 class XmlParser {
-	
+
 	public var root : TypeRoot;
 	var curplatform : String;
-	
+
 	public function new() {
 		root = new Array();
 	}
@@ -36,7 +36,7 @@ class XmlParser {
 			case TTypedecl(_):
 			}
 	}
-	
+
 	function sortFields(fl) {
 		var a = Lambda.array(fl.iterator());
 		a.sort(function(f1 : ClassField,f2 : ClassField) {
@@ -54,20 +54,21 @@ class XmlParser {
 				return 1;
 			return -1;
 		});
-		return Lambda.list(a.iterator());		
+		return Lambda.list(a.iterator());
 	}
-	
+
 	public function process( x : Xml, platform ) {
 		curplatform = platform;
 		xroot(new Fast(x));
 	}
-	
-	function mergeClasses( c : Class, c2 : Class ) {		
-		// todo : compare supers & interfaces		
+
+	function mergeClasses( c : Class, c2 : Class ) {
+		// todo : compare supers & interfaces
 		if( c.isInterface != c2.isInterface || c.isExtern != c2.isExtern )
 			return false;
-		c.platforms.add(curplatform);
-		
+		if( curplatform != null )
+			c.platforms.add(curplatform);
+
 		for( f2 in c2.fields ) {
 			var found = null;
 			for( f in c.fields )
@@ -77,7 +78,7 @@ class XmlParser {
 				}
 			if( found == null )
 				c.fields.add(f2);
-			else
+			else if( curplatform != null )
 				found.platforms.add(curplatform);
 		}
 		for( f2 in c2.statics ) {
@@ -89,7 +90,7 @@ class XmlParser {
 				}
 			if( found == null )
 				c.statics.add(f2);
-			else
+			else if( curplatform != null )
 				found.platforms.add(curplatform);
 		}
 		return true;
@@ -98,7 +99,8 @@ class XmlParser {
 	function mergeEnums( e : Enum, e2 : Enum ) {
 		if( e.isExtern != e2.isExtern )
 			return false;
-		e.platforms.add(curplatform);
+		if( curplatform != null )
+			e.platforms.add(curplatform);
 		for( c2 in e2.constructors ) {
 			var found = null;
 			for( c in e.constructors )
@@ -108,7 +110,8 @@ class XmlParser {
 				}
 			if( found == null )
 				return false; // don't allow by-platform constructor ?
-			found.platforms.add(curplatform);
+			if( curplatform != null )
+				found.platforms.add(curplatform);
 		}
 		return true;
 	}
@@ -116,16 +119,17 @@ class XmlParser {
 	function mergeTypedefs( t : Typedef, t2 : Typedef ) {
 		if( !TypeApi.typeEq(t.type,t2.type) )
 			return false;
-		t.platforms.add(curplatform);
+		if( curplatform != null )
+			t.platforms.add(curplatform);
 		return true;
 	}
-	
+
 	function merge( t : TypeTree ) {
 		var inf = TypeApi.typeInfos(t);
 		var pack = inf.path.split(".");
 		var cur = root;
 		var curpack = new Array();
-		pack.pop();		
+		pack.pop();
 		for( p in pack ) {
 			var found = false;
 			for( pk in cur )
@@ -151,10 +155,10 @@ class XmlParser {
 			try
 				tinf = TypeApi.typeInfos(ct)
 			catch( e : Dynamic )
-				continue;			
+				continue;
 			// compare params ?
 			if( tinf.path == inf.path ) {
-				if( tinf.module == inf.module && tinf.doc == inf.doc && tinf.isPrivate == inf.isPrivate )					
+				if( tinf.module == inf.module && tinf.doc == inf.doc && tinf.isPrivate == inf.isPrivate )
 					switch( ct ) {
 					case TClassdecl(c):
 						switch( t ) {
@@ -185,15 +189,15 @@ class XmlParser {
 		}
 		cur.push(t);
 	}
-	
+
 	function mkPath( p : String ) : Path {
 		return p;
 	}
-	
+
 	function mkTypeParams( p : String ) : TypeParams {
 		return p.split(":");
 	}
-	
+
 	function mkRights( r : String ) : Rights {
 		return switch( r ) {
 		case "null": RNo;
@@ -202,17 +206,17 @@ class XmlParser {
 		default: RMethod(r);
 		}
 	}
-	
+
 	function xerror( c : Fast ) : Dynamic {
 		return throw "Invalid "+c.name;
 	}
-	
-	function xroot( x : Fast ) {		
+
+	function xroot( x : Fast ) {
 		for( c in x.x.elements() )
 			merge(processElement(c));
-			
+
 	}
-	
+
 	public function processElement( x : Xml ) {
 		var c = new haxe.xml.Fast(x);
 		return switch( c.name ) {
@@ -222,7 +226,7 @@ class XmlParser {
 		default: xerror(c);
 		}
 	}
-	
+
 	function xpath( x : Fast ) : PathParams {
 		var path = mkPath(x.att.path);
 		var params = new List();
@@ -233,12 +237,12 @@ class XmlParser {
 			params : params,
 		};
 	}
-	
+
 	function xclass( x : Fast ) : Class {
 		var csuper = null;
 		var doc = null;
 		var dynamic = null;
-		var interfaces = new List();		
+		var interfaces = new List();
 		var fields = new List();
 		var statics = new List();
 		for( c in x.elements )
@@ -256,8 +260,8 @@ class XmlParser {
 		return {
 			path : mkPath(x.att.path),
 			module : if( x.has.module ) mkPath(x.att.module) else null,
-			doc : doc,			
-			isPrivate : x.x.exists("private"),	
+			doc : doc,
+			isPrivate : x.x.exists("private"),
 			isExtern : x.x.exists("extern"),
 			isInterface : x.x.exists("interface"),
 			params : mkTypeParams(x.att.params),
@@ -269,7 +273,7 @@ class XmlParser {
 			platforms : defplat(),
 		};
 	}
-	
+
 	function xclassfield( x : Fast ) : ClassField {
 		var e = x.elements;
 		var t = xtype(e.next());
@@ -277,7 +281,7 @@ class XmlParser {
 		for( c in e )
 			switch( c.name ) {
 			case "haxe_doc": doc = c.innerData;
-			default: xerror(c);			
+			default: xerror(c);
 			}
 		return {
 			name : x.name,
@@ -310,7 +314,7 @@ class XmlParser {
 			platforms : defplat(),
 		};
 	}
-	
+
 	function xenumfield( x : Fast ) : EnumField {
 		var args = null;
 		var xdoc = x.x.elementsNamed("haxe_doc").next();
@@ -357,7 +361,7 @@ class XmlParser {
 			platforms : defplat(),
 		};
 	}
-	
+
 	function xtype( x : Fast ) : Type {
 		return switch( x.name ) {
 		case "unknown":
@@ -400,7 +404,7 @@ class XmlParser {
 			TAnonymous(fields);
 		case "d":
 			var t = null;
-			var tx = x.x.firstElement();			
+			var tx = x.x.firstElement();
 			if( tx != null )
 				t = xtype(new Fast(tx));
 			TDynamic(t);
@@ -408,14 +412,14 @@ class XmlParser {
 			xerror(x);
 		}
 	}
-	
+
 	function xtypeparams( x : Fast ) : List<Type> {
 		var p = new List();
 		for( c in x.elements )
 			p.add(xtype(c));
 		return p;
 	}
-	
+
 	function defplat() {
 		var l = new List();
 		if( curplatform != null )
