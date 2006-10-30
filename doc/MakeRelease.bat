@@ -15,7 +15,7 @@ rem ---------- BUILD TOOLS -----------
 
 cd haxedoc
 haxe haxedoc.hxml
-haxedoc ../../flash.xml ../../neko.xml ../../js.xml
+haxedoc ../../flash.xml;flash ../../neko.xml;neko ../../js.xml;js
 mv index.html content ../../../doc
 mv haxedoc.exe ../../..
 cd ..
