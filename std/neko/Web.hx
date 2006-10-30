@@ -45,7 +45,7 @@ class Web {
 		return h;
 	}
 
-	/**		
+	/**
 		Returns an Array of Strings built using GET / POST values.
 		If you have in your URL the parameters [a[&#93;=foo;a[&#93;=hello;a[5&#93;=bar;a[3&#93;=baz] then
 		[neko.Web.getParamValues("a")] will return [["foo","hello",null,"baz",null,"bar"]]
@@ -64,7 +64,7 @@ class Web {
 						res.push(val);
 					else
 						res[Std.parseInt(idx)] = val;
-				}			
+				}
 			}
 		}
 		explore(StringTools.replace(getParamsString(), ";", "&"));
@@ -167,7 +167,7 @@ class Web {
 	public static function setCookie( k : String, v : String ) {
 		_set_cookie(untyped k.__s,untyped v.__s);
 	}
-	
+
 	/**
 		Returns an object with the authorization sent by the client (Basic scheme only).
 	**/
@@ -223,20 +223,26 @@ class Web {
 		var get_env = Lib.load("std","get_env",1);
 		untyped isModNeko = (get_env("MOD_NEKO".__s) != null);
 		if( isModNeko ) {
-			_set_main = Lib.load("mod_neko","cgi_set_main",1);
-			_get_host_name = Lib.load("mod_neko","get_host_name",0);
-			_get_client_ip = Lib.load("mod_neko","get_client_ip",0);
-			_get_uri = Lib.load("mod_neko","get_uri",0);
-			_cgi_redirect = Lib.load("mod_neko","redirect",1);
-			_cgi_set_header = Lib.load("mod_neko","set_header",2);
-			_set_return_code = Lib.load("mod_neko","set_return_code",1);
-			_get_client_header = Lib.load("mod_neko","get_client_header",1);
-			_get_params_string = Lib.load("mod_neko","get_params_string",0);
-			_get_post_data = Lib.load("mod_neko","get_post_data",0);
-			_get_params = Lib.load("mod_neko","get_params",0);
-			_get_cookies = Lib.load("mod_neko","get_cookies",0);
-			_set_cookie = Lib.load("mod_neko","set_cookie",2);
-			_get_cwd = Lib.load("mod_neko","cgi_get_cwd",0);
+			var lib = "mod_neko";
+			try {
+				_set_main = Lib.load(lib,"cgi_set_main",1);
+			} catch( e : Dynamic ) {
+				lib = "mod_neko2";
+				_set_main = Lib.load(lib,"cgi_set_main",1);
+			}
+			_get_host_name = Lib.load(lib,"get_host_name",0);
+			_get_client_ip = Lib.load(lib,"get_client_ip",0);
+			_get_uri = Lib.load(lib,"get_uri",0);
+			_cgi_redirect = Lib.load(lib,"redirect",1);
+			_cgi_set_header = Lib.load(lib,"set_header",2);
+			_set_return_code = Lib.load(lib,"set_return_code",1);
+			_get_client_header = Lib.load(lib,"get_client_header",1);
+			_get_params_string = Lib.load(lib,"get_params_string",0);
+			_get_post_data = Lib.load(lib,"get_post_data",0);
+			_get_params = Lib.load(lib,"get_params",0);
+			_get_cookies = Lib.load(lib,"get_cookies",0);
+			_set_cookie = Lib.load(lib,"set_cookie",2);
+			_get_cwd = Lib.load(lib,"cgi_get_cwd",0);
 		} else {
 			var a0 = untyped __dollar__loader.args[0];
 			if( a0 != null ) a0 = new String(a0);
