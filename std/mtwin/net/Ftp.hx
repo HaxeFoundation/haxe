@@ -25,8 +25,8 @@
 package mtwin.net;
 
 import neko.io.Eof;
-import neko.io.Socket;
-import neko.io.Socket.Host;
+import neko.net.Socket;
+import neko.net.Host;
 
 /**
 	Handles FTP protocol.	
@@ -68,7 +68,7 @@ class Ftp {
 	public function new( host:String, ?port:Int ){
 		debug = false;
 		passiveMode = true;
-		this.host = Socket.resolve(host);
+		this.host = new Host(host);
 		this.port = if (port != null) port else 21;
 		socket = new Socket();
 		socket.connect(this.host, this.port);
