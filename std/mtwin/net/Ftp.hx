@@ -226,7 +226,7 @@ class Ftp {
 	**/
 	public function write( remoteName:String ) : neko.io.Output {
 		var pwd = pwd();
-		var ftp = new Ftp(Socket.hostToString(host), port);
+		var ftp = new Ftp(host.toString(), port);
 		ftp.login(user, pass, acct);
 		ftp.cwd(pwd);
 		ftp.voidCommand("TYPE I");
