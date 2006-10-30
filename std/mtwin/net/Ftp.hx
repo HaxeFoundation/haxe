@@ -248,7 +248,7 @@ class Ftp {
 	**/
 	public function read( remoteFileName:String ) : neko.io.Input {
 		var pwd = pwd();
-		var ftp = new Ftp(Socket.hostToString(host), port);
+		var ftp = new Ftp(host.toString(), port);
 		ftp.login(user, pass, acct);
 		ftp.cwd(pwd);
 		ftp.voidCommand("TYPE I");
@@ -405,7 +405,7 @@ class Ftp {
 				break;
 		}
 		sock.listen(1);
-		var hostIp = StringTools.replace(Socket.hostToString(socket.host().host), ".", ",");
+		var hostIp = StringTools.replace(socket.host().host.toString(), ".", ",");
 		voidCommand("PORT "+hostIp+","+Std.int(port/256)+","+(port%256));
 		return sock;
 	}
