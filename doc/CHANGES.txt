@@ -19,6 +19,8 @@
 	minor bugfix in JS code generator
 	new neko.net package
 	allow recursive remoting proxys (skip instead of error)
+	added neko.Thread and neko.Lock MultiThread classes
+	added neko.net.ServerLoop for multiple clients handling
 
 2006-09-11: 1.07
 	fixed resources in Neko
