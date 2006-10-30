@@ -35,7 +35,7 @@ class Smtp {
 		var cnx = new Socket();
 		
 		try {
-			cnx.connect(Socket.resolve(host),port);
+			cnx.connect(new Host(host),port);
 		}catch( e : Dynamic ){
 			throw ConnectionError(host,port);
 		}
@@ -46,7 +46,7 @@ class Smtp {
 		var ret = StringTools.trim(cnx.input.readLine());
 		if ( StringTools.endsWith(ret, "ESMTP" ) ) { //if server support extensions
 			//EHLO
-			cnx.write( "EHLO " + Socket.localhost() + "\r\n");
+			cnx.write( "EHLO " + Host.localhost() + "\r\n");
 			ret = "";
 			
 			do {
@@ -60,7 +60,7 @@ class Smtp {
 			} while(ret.substr(0,4) != "250 ");
 		} else {
 			//HELO
-			cnx.write( "HELO " + Socket.localhost() + "\r\n");
+			cnx.write( "HELO " + Host.localhost() + "\r\n");
 			ret = StringTools.trim(cnx.input.readLine());
 			if( ret.substr(0,3) != "250" ){
 				cnx.close();
