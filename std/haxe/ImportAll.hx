@@ -497,6 +497,7 @@ import neko.FileSystem;
 import neko.Lib;
 import neko.Random;
 import neko.Sys;
+import neko.Thread;
 import neko.Utf8;
 import neko.Web;
 
