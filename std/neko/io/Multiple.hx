@@ -45,6 +45,19 @@ class Multiple extends Output {
 			o.writeChar(c);
 	}
 
+	public override function writeBytes(s,pos,len) {
+		for( o in l ) {
+			var l = len;
+			var p = pos;
+			do {
+				var k = o.writeBytes(s,p,l);
+				p += k;
+				l -= k;
+			} while( l > 0 );
+		}
+		return len;
+	}
+
 	public override function close() {
 		for( o in l )
 			o.close();
