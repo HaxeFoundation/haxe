@@ -533,6 +533,9 @@ import neko.net.Socket;
 import neko.net.SocketInput;
 import neko.net.SocketOutput;
 
+import neko.vm.Loader;
+import neko.vm.Module;
+
 #end
 
 #if js
