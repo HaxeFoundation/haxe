@@ -635,8 +635,14 @@ class Main {
 		neko.Sys.setCwd(vdir);
 		var cmd = "neko run.n";
 		for( i in argcur...args.length )
-			cmd += " "+args[i];
+			cmd += " "+escapeArg(args[i]);
 		neko.Sys.exit(neko.Sys.command(cmd));
+	}
+
+	function escapeArg( a : String ) {
+		if( a.indexOf(" ") == -1 )
+			return a;
+		return '"'+a+'"';
 	}
 
 	function test() {
