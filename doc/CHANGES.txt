@@ -5,7 +5,9 @@
 	fixed bug in SWF6 compilation
 	allowed either Mysql or Mysql5 usage
 	replaced db.Connection.hasFeature by db.Connection.dbName
-	(TODO) move neko.Thread to neko.vm.Thread
+	added Socket.custom field
+	moved neko.Thread to neko.vm.Thread
+	define haxe_109 (for api changes)
 
 2006-10-29: 1.08
 	fixed bug in flash -debug
