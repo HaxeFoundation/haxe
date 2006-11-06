@@ -160,7 +160,7 @@ class SocketConnection extends AsyncConnection {
 				f(val);
 				return null;
 			} catch( val : Dynamic ) {
-				return { exc : null };
+				return { exc : val };
 			}
 		}
 		// ---------------------------
