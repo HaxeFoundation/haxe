@@ -2,7 +2,7 @@
 # http://tech.motion-twin.com
 .SUFFIXES : .ml .mli .cmo .cmi .cmx .mll .mly
 
-CFLAGS= -I ../neko/libs/include/ocaml
+CFLAGS= -I ../neko/libs/include/ocaml -cclib -fno-stack-protector
 LIBS=extLib.cmxa extc.cmxa swfLib.cmxa unix.cmxa
 LFLAGS= -o haxe.exe -I ../neko/libs/include/ocaml
 OUTPUT=sed 's/File "\([^"]\+\)", line \([0-9]\+\), \(.*\)/\1(\2): \3/' tmp.cmi
