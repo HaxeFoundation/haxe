@@ -44,7 +44,7 @@ class Manager<T : Object> {
 	private static function setConnection( c : Connection ) {
 		Reflect.setField(Manager,"cnx",c);
 		if( c != null )
-			FOR_UPDATE = if( c.hasFeature(ForUpdate) ) " FOR UPDATE" else "";
+			FOR_UPDATE = if( c.dbName() == "MySQL" ) " FOR UPDATE" else "";
 		return c;
 	}
 

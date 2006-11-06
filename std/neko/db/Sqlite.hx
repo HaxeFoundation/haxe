@@ -60,11 +60,8 @@ private class SqliteConnection implements Connection {
 		return _last_id(c);
 	}
 
-	public function hasFeature( f ) {
-		switch( f ) {
-		case ForUpdate: return false;
-		}
-		return false;
+	public function dbName() {
+		return "SQLite";
 	}
 
 	public function startTransaction() {
@@ -131,7 +128,7 @@ private class SqliteResultSet implements ResultSet {
 			return c;
 		return doNext();
 	}
-	
+
 	private function doNext() : Dynamic {
 		var c = result_next(r);
 		if( c == null )
@@ -147,7 +144,7 @@ private class SqliteResultSet implements ResultSet {
 				i = i + 1;
 			}
 		}
-		return c;		
+		return c;
 	}
 
 	public function results() : List<Dynamic> {

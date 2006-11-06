@@ -26,6 +26,28 @@ package neko.db;
 
 import neko.db.Connection;
 
+private class D {
+
+	static function load(fun,args) : Dynamic {
+		return neko.Lib.load(lib,fun,args);
+	}
+
+	static var lib = try { neko.Lib.load("mysql5","connect",1); "mysql5"; } catch( e : Dynamic ) "mysql";
+	public static var connect = load("connect",1);
+	public static var select_db = load("select_db",2);
+	public static var request = load("request",2);
+	public static var close = load("close",1);
+	public static var escape = load("escape",2);
+	public static var result_get_length = load("result_get_length",1);
+	public static var result_get_nfields = load("result_get_nfields",1);
+	public static var result_next = load("result_next",1);
+	public static var result_get = load("result_get",2);
+	public static var result_get_int = load("result_get_int",2);
+	public static var result_get_float = load("result_get_float",2);
+	public static var result_set_conv_date = load("result_set_conv_date",2);
+
+}
+
 private class MysqlResultSet implements ResultSet {
 
 	public var length(getLength,null) : Int;
@@ -38,11 +60,11 @@ private class MysqlResultSet implements ResultSet {
 	}
 
 	private function getLength() {
-		return result_get_length(__r);
+		return D.result_get_length(__r);
 	}
 
 	private function getNFields() {
-		return result_get_nfields(__r);
+		return D.result_get_nfields(__r);
 	}
 
 	public function hasNext() {
@@ -57,7 +79,7 @@ private class MysqlResultSet implements ResultSet {
 			cache = null;
 			return c;
 		}
-		c = result_next(__r);
+		c = D.result_next(__r);
 		if( c == null )
 			return null;
 		untyped {
@@ -82,24 +104,16 @@ private class MysqlResultSet implements ResultSet {
 	}
 
 	public function getResult( n : Int ) {
-		return new String(result_get(__r,n));
+		return new String(D.result_get(__r,n));
 	}
 
 	public function getIntResult( n : Int ) : Int {
-		return result_get_int(__r,n);
+		return D.result_get_int(__r,n);
 	}
 
 	public function getFloatResult( n : Int ) : Float {
-		return result_get_float(__r,n);
+		return D.result_get_float(__r,n);
 	}
-
-	private static var result_get_length = neko.Lib.load("mysql","result_get_length",1);
-	private static var result_get_nfields = neko.Lib.load("mysql","result_get_nfields",1);
-	private static var result_next = neko.Lib.load("mysql","result_next",1);
-	private static var result_get = neko.Lib.load("mysql","result_get",2);
-	private static var result_get_int = neko.Lib.load("mysql","result_get_int",2);
-	private static var result_get_float = neko.Lib.load("mysql","result_get_float",2);
-	public static var result_set_conv_date = neko.Lib.load("mysql","result_set_conv_date",2);
 
 }
 
@@ -113,8 +127,8 @@ private class MysqlConnection implements Connection {
 
 	public function request( s : String ) : ResultSet {
 		try {
-			var r = sql_request(this.__c,untyped s.__s);
-			MysqlResultSet.result_set_conv_date(r,function(d) { return untyped Date.new1(d); });
+			var r = D.request(this.__c,untyped s.__s);
+			D.result_set_conv_date(r,function(d) { return untyped Date.new1(d); });
 			return new MysqlResultSet(r);
 		} catch( e : Dynamic ) {
 			untyped if( __dollar__typeof(e) == __dollar__tobject && __dollar__typeof(e.msg) == __dollar__tstring )
@@ -125,11 +139,11 @@ private class MysqlConnection implements Connection {
 	}
 
 	public function close() {
-		sql_close(__c);
+		D.close(__c);
 	}
 
 	public function escape( s : String ) {
-		return new String(sql_escape(__c,untyped s.__s));
+		return new String(D.escape(__c,untyped s.__s));
 	}
 
 	public function quote( s : String ) {
@@ -140,11 +154,8 @@ private class MysqlConnection implements Connection {
 		return request("SELECT LAST_INSERT_ID()").getIntResult(0);
 	}
 
-	public function hasFeature( f ) {
-		switch( f ) {
-		case ForUpdate: return true;
-		}
-		return false;
+	public function dbName() {
+		return "MySQL";
 	}
 
 	public function startTransaction() {
@@ -160,9 +171,6 @@ private class MysqlConnection implements Connection {
 	}
 
 	private static var __use_date = Date;
-	private static var sql_request = neko.Lib.load("mysql","request",2);
-	private static var sql_close = neko.Lib.load("mysql","close",1);
-	private static var sql_escape = neko.Lib.load("mysql","escape",2);
 }
 
 class Mysql {
@@ -182,12 +190,9 @@ class Mysql {
 			pass : params.pass.__s,
 			socket : if( params.socket == null ) null else params.socket.__s
 		};
-		var c = sql_connect(o);
-		sql_select_db(c,untyped params.database.__s);
+		var c = D.connect(o);
+		D.select_db(c,untyped params.database.__s);
 		return new MysqlConnection(c);
 	}
-
-	static var sql_connect = neko.Lib.load("mysql","connect",1);
-	private static var sql_select_db = neko.Lib.load("mysql","select_db",2);
 
 }

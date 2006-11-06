@@ -24,10 +24,6 @@
  */
 package neko.db;
 
-enum Feature {
-	ForUpdate;
-}
-
 interface Connection {
 
 	function request( s : String ) : ResultSet;
@@ -35,9 +31,7 @@ interface Connection {
 	function escape( s : String ) : String;
 	function quote( s : String ) : String;
 	function lastInsertId() : Int;
-
-	function hasFeature( f : Feature ) : Bool;
-
+	function dbName() : String;
 	function startTransaction() : Void;
 	function commit() : Void;
 	function rollback() : Void;
