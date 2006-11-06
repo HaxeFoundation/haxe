@@ -109,7 +109,7 @@ class Boot {
 	private static function __interfLoop(cc : Dynamic,cl : Dynamic) {
 		if( cc == null )
 			return false;
-		var intf = cc.__interfaces__;
+		var intf : Array<Dynamic> = cc.__interfaces__;
 		for( i in 0...intf.length ) {
 			var i = intf[i];
 			if( i == cl || __interfLoop(i,cl) )
@@ -150,7 +150,7 @@ class Boot {
 			}
 		}
 	}
-	
+
 	private static function getTrace() : flash.TextField untyped {
 		var root = flash.Lib.current;
 		var tf : flash.TextField = root.__trace_txt;
@@ -166,7 +166,7 @@ class Boot {
 	private static function __set_trace_color( rgb : Int ) {
 		getTrace().textColor = rgb;
 	}
-	
+
 	private static function __trace(v,inf : haxe.PosInfos) {
 		untyped {
 			var root = flash.Lib.current;
