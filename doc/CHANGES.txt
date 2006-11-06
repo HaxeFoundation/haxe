@@ -1,6 +1,10 @@
 2006-??-??: 1.09
 	added neko.vm.Module and neko.vm.Loader
 	haxelib : allowed spaces in "run" arguments
+	allowed Thread comparison
+	fixed bug in SWF6 compilation
+	allowed either Mysql or Mysql5 usage
+	replaced db.Connection.hasFeature by db.Connection.dbName
 	(TODO) move neko.Thread to neko.vm.Thread
 
 2006-10-29: 1.08
