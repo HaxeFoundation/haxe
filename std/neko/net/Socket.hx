@@ -34,6 +34,7 @@ class Socket {
 	private var __s : SocketHandle;
 	public var input(default,null) : SocketInput;
 	public var output(default,null) : SocketOutput;
+	public var custom : Dynamic;
 
 	public function new( ?s ) {
 		__s = if( s == null ) socket_new(false) else s;
