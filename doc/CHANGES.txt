@@ -10,6 +10,7 @@
 	define haxe_109 (for api changes)
 	fixes in haxe.remoting.Connection and haxe.Unserializer for F9 
 	added haxe.remoting.Connection.urlConnect for JS.
+	allowed private typedef fields.
 
 2006-10-29: 1.08
 	fixed bug in flash -debug
