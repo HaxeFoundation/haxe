@@ -213,7 +213,9 @@ class SocketConnection extends AsyncConnection {
 			var data = sock.input.read(len-3);
 			if( sock.input.readChar() != 0 )
 				throw "Invalid answer";
-			processMessage(cnx,data);
+			var r = processMessage(cnx,data);
+			if( r != null )
+				neko.Lib.rethrow(r.exc);
 		}
 	}
 
