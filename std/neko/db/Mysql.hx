@@ -131,10 +131,8 @@ private class MysqlConnection implements Connection {
 			D.result_set_conv_date(r,function(d) { return untyped Date.new1(d); });
 			return new MysqlResultSet(r);
 		} catch( e : Dynamic ) {
-			untyped if( __dollar__typeof(e) == __dollar__tobject && __dollar__typeof(e.msg) == __dollar__tstring ) {
-				e.msg = new String(e.msg);
-				e.file = new String(e.file);
-			}
+			untyped if( __dollar__typeof(e) == __dollar__tobject && __dollar__typeof(e.msg) == __dollar__tstring )
+				e = e.msg;
 			untyped __dollar__rethrow(e);
 			return null;
 		}
