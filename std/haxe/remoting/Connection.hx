@@ -69,7 +69,17 @@ class Connection implements Dynamic<Connection> {
 		var s = new haxe.Serializer();
 		s.serialize(params);
 		var params = s.toString();
-		var s = __data.remotingCall(path,f,params);
+		var s;
+		if( __data.remotingCall == null ) {
+			var h = new haxe.Http(__data);
+			untyped h.async = false;
+			h.onData = function(d) { s = d; };
+			h.onError = function(e) { throw e; };
+			h.setHeader("X-Haxe-Remoting","1");
+			h.setParameter("__x",params);
+			h.request(true);
+		} else
+			s = __data.remotingCall(path,f,params);
 		if( s == null )
 			throw "Failed to call Flash method "+__path.join(".");
 		return new haxe.Unserializer(s).unserialize();
@@ -147,6 +157,10 @@ class Connection implements Dynamic<Connection> {
 			throw "Could not find flash object '"+objId+"'";
 		if( x.remotingCall == null ) throw "The flash object is not ready or does not contain haxe.remoting.Connection";
 		return new Connection(x,[]);
+	}
+
+	public static function urlConnect( url : String ) : Connection {
+		return new Connection(url,[]);
 	}
 
 	#else neko
