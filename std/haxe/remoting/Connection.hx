@@ -40,7 +40,11 @@ class Connection implements Dynamic<Connection> {
 		return s;
 	}
 
-	#if flash
+	#if flash9
+	static function escapeString( s : String ) {
+		return s.split("\\").join("\\\\");
+	}
+	#else flash
 	static function escapeString( s : String ) {
 		return s.split("\\").join("\\\\").split("&").join("&amp;");
 	}
@@ -100,7 +104,7 @@ class Connection implements Dynamic<Connection> {
 			#if flash
 			return escapeString(s.toString());
 			#else js
-			return s.toString();
+			return s.toString()+"#";
 			#else true
 			return null;
 			#end
