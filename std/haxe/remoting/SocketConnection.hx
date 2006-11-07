@@ -210,7 +210,7 @@ class SocketConnection extends AsyncConnection {
 			if( c1 == null || c2 == null )
 				throw "Invalid answer";
 			var len = (c1 << 6) | c2;
-			var data = sock.input.read(len);
+			var data = sock.input.read(len-3);
 			if( sock.input.readChar() != 0 )
 				throw "Invalid answer";
 			processMessage(cnx,data);
