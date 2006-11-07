@@ -33,6 +33,7 @@ let os_type = Sys.os_type
 
 let obj_ext = match os_type with "Win32" -> ".obj" | _ -> ".o"
 let exe_ext = match os_type with "Win32" | "Cygwin" -> ".exe" | _ -> ""
+let ocamloptflags = match os_type with "Unix" -> "-cclib -fno-stack-protector " | _ -> ""
 
 let zlib = match os_type with 
 	| "Win32" -> "zlib.lib" 
@@ -56,7 +57,7 @@ let cvs root cmd =
 
 let ocamlc file =
 	if bytecode then command ("ocamlc -c " ^ file);
-	if native then command ("ocamlopt -c " ^ file)
+	if native then command ("ocamlopt -c " ^ ocamloptflags ^ file)
 
 let modules l ext =
 	String.concat " " (List.map (fun f -> f ^ ext) l)
