@@ -206,8 +206,8 @@ and parse_type_path = parser
 			| [< '(Binop OpGt,_); t = parse_type_path_normal; '(Comma,_); s >] ->
 				(match s with parser
 				| [< name = any_ident; l = parse_type_anonymous_resume name >] -> TPExtend (t,l)
-				| [< l = plist parse_signature_field; '(BrClose,_) >] -> TPExtend (t,l))
-			| [< l = plist parse_signature_field; '(BrClose,_) >] -> TPAnonymous l
+				| [< l = plist (parse_signature_field None); '(BrClose,_) >] -> TPExtend (t,l))
+			| [< l = plist (parse_signature_field None); '(BrClose,_) >] -> TPAnonymous l
 			| [< >] -> serror()
 		) in
 		parse_type_path_next t s
@@ -251,14 +251,14 @@ and parse_type_path_next t = parser
 
 and parse_type_anonymous_resume name = parser
 	| [< '(DblDot,p); t = parse_type_path; s >] ->
-		(name, AFVar t, p) ::
+		(name, None, AFVar t, p) ::
 		match s with parser
 		| [< '(BrClose,_) >] -> []
 		| [< '(Comma,_); l = psep Comma parse_type_anonymous; '(BrClose,_) >] -> l
 		| [< >] -> serror()
 
 and parse_type_anonymous = parser
-	| [< name = any_ident; '(DblDot,p); t = parse_type_path >] -> (name, AFVar t, p)
+	| [< name = any_ident; '(DblDot,p); t = parse_type_path >] -> (name, None, AFVar t, p)
 
 and parse_enum s =
 	doc := None;
@@ -304,13 +304,15 @@ and parse_class_field s =
 		| [< >] ->
 			if l = [] && doc = None then raise Stream.Failure else serror()
 
-and parse_signature_field = parser
+and parse_signature_field flag = parser
 	| [< '(Kwd Var,p1); name = any_ident; s >] ->
 		(match s with parser
-		| [< '(DblDot,_); t = parse_type_path; p2 = semicolon >] -> (name,AFVar t,punion p1 p2)
-		| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_type_path; p2 = semicolon >] -> (name,AFProp (t,i1,i2),punion p1 p2))
+		| [< '(DblDot,_); t = parse_type_path; p2 = semicolon >] -> (name,flag,AFVar t,punion p1 p2)
+		| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_type_path; p2 = semicolon >] -> (name,flag,AFProp (t,i1,i2),punion p1 p2))
 	| [< '(Kwd Function,p1); name = any_ident; '(POpen,_); al = psep Comma parse_fun_param_type; '(PClose,_); '(DblDot,_); t = parse_type_path; p2 = semicolon >] ->
-		(name,AFFun (al,t),punion p1 p2)
+		(name,flag,AFFun (al,t),punion p1 p2)
+	| [< '(Kwd Private,_) when flag = None; s >] -> parse_signature_field (Some false) s
+	| [< '(Kwd Public,_) when flag = None; s >] -> parse_signature_field (Some true) s
 
 and parse_cf_rights allow_static l = parser
 	| [< '(Kwd Static,_) when allow_static; l = parse_cf_rights false (AStatic :: l) >] -> l

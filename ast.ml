@@ -156,9 +156,9 @@ and anonymous_field =
 and type_path =
 	| TPNormal of type_path_normal
 	| TPFunction of type_path list * type_path
-	| TPAnonymous of (string * anonymous_field * pos) list
+	| TPAnonymous of (string * bool option * anonymous_field * pos) list
 	| TPParent of type_path
-	| TPExtend of type_path_normal * (string * anonymous_field * pos) list
+	| TPExtend of type_path_normal * (string * bool option * anonymous_field * pos) list
 
 type func = {
 	f_args : (string * bool * type_path option) list;

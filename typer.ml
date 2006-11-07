@@ -360,7 +360,7 @@ and load_type ctx p t =
 			loop (load_normal_type ctx t p false)
 		| _ -> assert false)
 	| TPAnonymous l ->
-		let rec loop acc (n,f,p) =
+		let rec loop acc (n,pub,f,p) =
 			if PMap.mem n acc then error ("Duplicate field declaration : " ^ n) p;
 			let t , get, set = (match f with
 				| AFVar t ->
@@ -382,7 +382,7 @@ and load_type ctx p t =
 			PMap.add n {
 				cf_name = n;
 				cf_type = t;
-				cf_public = true;
+				cf_public = (match pub with None -> true | Some p -> p);
 				cf_get = get;
 				cf_set = set;
 				cf_params = [];
@@ -415,7 +415,7 @@ let rec reverse_type t =
 		TPFunction (List.map (fun (_,_,t) -> reverse_type t) params,reverse_type ret)
 	| TAnon a ->
 		TPAnonymous (PMap.fold (fun f acc ->
-			(f.cf_name , AFVar (reverse_type f.cf_type), null_pos) :: acc
+			(f.cf_name , Some f.cf_public, AFVar (reverse_type f.cf_type), null_pos) :: acc
 		) a.a_fields [])
 	| TDynamic t2 ->
 		TPNormal { tpackage = []; tname = "Dynamic"; tparams = if t == t2 then [] else [TPType (VNo,reverse_type t2)] }
@@ -2318,8 +2318,8 @@ and f9t = function
 	| TPParent t -> TPParent (f9t t)
 	| TPExtend (t,fields) -> TPExtend (f9path t,List.map f9a fields)
 
-and f9a (name,f,p) =
-	name , (match f with
+and f9a (name,pub,f,p) =
+	name , pub, (match f with
 		| AFVar t -> AFVar (f9t t)
 		| AFProp (t,g,s) -> AFProp (f9t t,g,s)
 		| AFFun (pl,t) -> AFFun (List.map (fun (name,p,t) -> name, p, f9t t) pl,f9t t)
