@@ -170,7 +170,12 @@ class Unserializer {
  			pos += len;
  			#end
 			var delim = "##__delim__##";
- 			s = s.split("\\\\").join(delim).split("\\r").join("\r").split("\\n").join("\n").split(delim).join("\\");
+			#if flash9
+			var a = ~/\\\\/g.split(s);
+			#else true
+			var a = s.split("\\\\");
+			#end
+ 			s = a.join(delim).split("\\r").join("\r").split("\\n").join("\n").split(delim).join("\\");
  			scache.push(s);
  			return s;
  		case 97: // a
