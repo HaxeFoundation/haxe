@@ -8,6 +8,7 @@
 	added Socket.custom field
 	moved neko.Thread to neko.vm.Thread
 	define haxe_109 (for api changes)
+	fixes in haxe.remoting.Connection and haxe.Unserializer for F9 
 
 2006-10-29: 1.08
 	fixed bug in flash -debug
