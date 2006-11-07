@@ -435,7 +435,11 @@ class Main {
 			if( haxepath == null )
 				throw "HAXEPATH environment variable not defined, please run haxesetup.exe first";
 			var rep = haxepath+REPNAME;
-			safeDir(rep);
+			try {
+				safeDir(rep);
+			} catch( e : Dynamic ) {
+				throw "The directory defined by HAXEPATH does not exist, please run haxesetup.exe again";
+			}
 			return rep+"\\";
 		}
 		var config = neko.Sys.getEnv("HOME")+"/.haxelib";
