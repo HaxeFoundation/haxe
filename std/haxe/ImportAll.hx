@@ -497,7 +497,6 @@ import neko.FileSystem;
 import neko.Lib;
 import neko.Random;
 import neko.Sys;
-import neko.Thread;
 import neko.Utf8;
 import neko.Web;
 
@@ -532,9 +531,12 @@ import neko.net.ServerLoop;
 import neko.net.Socket;
 import neko.net.SocketInput;
 import neko.net.SocketOutput;
+import neko.net.ThreadServer;
 
 import neko.vm.Loader;
 import neko.vm.Module;
+import neko.vm.Thread;
+import neko.vm.Lock;
 
 #end
 
