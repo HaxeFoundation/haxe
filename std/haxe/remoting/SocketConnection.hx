@@ -61,6 +61,16 @@ class SocketConnection extends AsyncConnection {
 		}
 	}
 
+	public function closeConnection() {
+		#if neko
+		var s : neko.net.Socket = __data;
+		try s.close() catch( e : Dynamic ) { };
+		#else true
+		var s : XMLSocket = __data;
+		s.close();
+		#end
+	}
+
 	static function decodeChar(c) {
 		// A...Z
 		if( c >= 65 && c <= 90 )
