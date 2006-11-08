@@ -31,9 +31,8 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 		messageHeaderSize = 2;
 	}
 
-	public function newClientApi() {
+	public function initClientApi( cnx, server ) {
 		throw "Not implemented";
-		return null;
 	}
 
 	function decodeChar(c) {
@@ -56,7 +55,10 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 	}
 
 	public override function clientConnected( s : neko.net.Socket ) {
-		return haxe.remoting.SocketConnection.socketConnect(s,newClientApi());
+		var r = new neko.net.RemotingServer();
+		var cnx = haxe.remoting.SocketConnection.socketConnect(s,r);
+		initClientApi(cnx,r);
+		return cnx;
 	}
 
 	public override function readClientMessage( cnx, buf : String, pos : Int, len : Int ) {
@@ -65,7 +67,7 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 		var msgLen = (c1 << 6) | c2;
 		if( len < msgLen )
 			return null;
-		if( buf.charCodeAt(msgLen-1) != 0 )
+		if( buf.charCodeAt(pos + msgLen-1) != 0 )
 			throw "Truncated message";
 		return {
 			msg : buf.substr(pos+2,msgLen-3),
