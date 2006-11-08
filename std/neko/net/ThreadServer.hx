@@ -135,6 +135,11 @@ class ThreadServer<Client,Message> {
 			} catch( e : Dynamic ) {
 				logError(e);
 			}
+			try {
+				afterEvent();
+			} catch( e : Dynamic ) {
+				logError(e);
+			}
 		}
 	}
 
@@ -226,6 +231,9 @@ class ThreadServer<Client,Message> {
 	}
 
 	public function update() {
+	}
+
+	public function afterEvent() {
 	}
 
 }
