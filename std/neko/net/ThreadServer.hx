@@ -55,7 +55,7 @@ class ThreadServer<Client,Message> {
 
 	public function new() {
 		threads = new Array();
-		nthreads = 10;
+		nthreads = if( neko.Sys.systemName() == "Windows" ) 150 else 10;
 		messageHeaderSize = 1;
 		listen = 10;
 		connectLag = 0.5;
@@ -112,8 +112,9 @@ class ThreadServer<Client,Message> {
 				try {
 					readClientData(infos);
 				} catch( e : Dynamic ) {
+					try s.close() catch( e : Dynamic ) { };
 					t.socks.remove(s);
-					if( !Std.is(e,neko.io.Eof) )
+					if( !Std.is(e,neko.io.Eof) && !Std.is(e,neko.io.Error) )
 						logError(e);
 					work(callback(clientDisconnected,infos.client));
 				}
