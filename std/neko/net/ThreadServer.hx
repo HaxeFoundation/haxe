@@ -112,11 +112,10 @@ class ThreadServer<Client,Message> {
 				try {
 					readClientData(infos);
 				} catch( e : Dynamic ) {
-					try s.close() catch( e : Dynamic ) { };
 					t.socks.remove(s);
 					if( !Std.is(e,neko.io.Eof) && !Std.is(e,neko.io.Error) )
 						logError(e);
-					work(callback(clientDisconnected,infos.client));
+					work(callback(clientDisconnected,s,infos.client));
 				}
 			}
 		while( true ) {
@@ -207,8 +206,12 @@ class ThreadServer<Client,Message> {
 		try {
 			s.write(data);
 		} catch( e : Dynamic ) {
-			try s.close() catch( e : Dynamic ) { };
+			stopClient(s);
 		}
+	}
+
+	public function stopClient( s : neko.net.Socket ) {
+		try s.shutdown(true,true) catch( e : Dynamic ) { };
 	}
 
 	// --- CUSTOMIZABLE API ---
@@ -217,7 +220,8 @@ class ThreadServer<Client,Message> {
 		return null;
 	}
 
-	public function clientDisconnected( c : Client ) {
+	public function clientDisconnected( s : neko.net.Socket, c : Client ) {
+		try s.close() catch( e : Dynamic ) {};
 	}
 
 	public function readClientMessage( c : Client, buf : String, pos : Int, len : Int ) : { msg : Message, bytes : Int } {
