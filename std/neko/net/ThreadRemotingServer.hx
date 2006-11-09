@@ -86,7 +86,7 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 		if( r != null ) {
 			if( !Std.is(r.exc,neko.io.Eof) && !Std.is(r.exc,neko.io.Error) )
 				logError(r.exc);
-			stopClient(cnx.getSocket());
+			stopClient(haxe.remoting.SocketConnection.getSocket(cnx));
 		}
 	}
 
