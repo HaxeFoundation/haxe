@@ -57,6 +57,12 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 	public override function clientConnected( s : neko.net.Socket ) {
 		var r = new neko.net.RemotingServer();
 		var cnx = haxe.remoting.SocketConnection.socketConnect(s,r);
+		var me = this;
+		cnx.onError = function(e) {
+			if( !Std.is(e,neko.io.Eof) && !Std.is(e,neko.io.Error) )
+				me.logError(e);
+			me.stopClient(s);
+		};
 		initClientApi(cnx,r);
 		return cnx;
 	}
@@ -77,8 +83,11 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 
 	public override function clientMessage( cnx, msg : String ) {
 		var r = haxe.remoting.SocketConnection.processMessage(cnx,msg);
-		if( r != null )
-			neko.Lib.rethrow(r.exc);
+		if( r != null ) {
+			if( !Std.is(r.exc,neko.io.Eof) && !Std.is(r.exc,neko.io.Error) )
+				logError(r.exc);
+			stopClient(cnx.getSocket());
+		}
 	}
 
 }
