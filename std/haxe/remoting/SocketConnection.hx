@@ -212,9 +212,9 @@ class SocketConnection extends AsyncConnection {
 
 	#if neko
 
-	public static function readAnswers( cnx : SocketConnection, ?requests ) {
+	public static function readAnswers( cnx : SocketConnection ) {
 		var sock : neko.net.Socket = cnx.__data;
-		while( requests || cnx.__funs.length > 0 ) {
+		while( cnx.__funs.length > 0 ) {
 			var c1 = decodeChar(sock.input.readChar());
 			var c2 = decodeChar(sock.input.readChar());
 			if( c1 == null || c2 == null )
@@ -223,6 +223,8 @@ class SocketConnection extends AsyncConnection {
 			var data = sock.input.read(len-3);
 			if( sock.input.readChar() != 0 )
 				throw "Invalid answer";
+			if( !haxe.Unserializer.run(data) == true )
+				throw "Request received";
 			var r = processMessage(cnx,data);
 			if( r != null )
 				neko.Lib.rethrow(r.exc);
