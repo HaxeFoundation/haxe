@@ -115,7 +115,7 @@ class ThreadServer<Client,Message> {
 					t.socks.remove(s);
 					if( !Std.is(e,neko.io.Eof) && !Std.is(e,neko.io.Error) )
 						logError(e);
-					work(callback(clientDisconnected,s,infos.client));
+					work(callback(doClientDisconnected,s,infos.client));
 				}
 			}
 		while( true ) {
@@ -124,6 +124,11 @@ class ThreadServer<Client,Message> {
 				break;
 			t.socks.push(s);
 		}
+	}
+
+	function doClientDisconnected(s,c) {
+		try s.close() catch( e : Dynamic ) {};
+		clientDisconnected(c);
 	}
 
 	function runWorker() {
@@ -220,8 +225,7 @@ class ThreadServer<Client,Message> {
 		return null;
 	}
 
-	public function clientDisconnected( s : neko.net.Socket, c : Client ) {
-		try s.close() catch( e : Dynamic ) {};
+	public function clientDisconnected( c : Client ) {
 	}
 
 	public function readClientMessage( c : Client, buf : String, pos : Int, len : Int ) : { msg : Message, bytes : Int } {
