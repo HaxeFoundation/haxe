@@ -185,10 +185,7 @@ class ThreadServer<Client,Message> {
 		}
 	}
 
-	public function run( host, port ) {
-		sock = new neko.net.Socket();
-		sock.bind(new neko.net.Host(host),port);
-		sock.listen(listen);
+	public function init() {
 		worker = neko.vm.Thread.create(runWorker);
 		timer = neko.vm.Thread.create(runTimer);
 		for( i in 0...nthreads ) {
@@ -196,11 +193,21 @@ class ThreadServer<Client,Message> {
 			threads.push(t);
 			t.t = neko.vm.Thread.create(callback(runThread,t));
 		}
+	}
+
+	public function addSocket( s : neko.net.Socket ) {
+		s.setBlocking(false);
+		work(callback(addClient,s));
+	}
+
+	public function run( host, port ) {
+		sock = new neko.net.Socket();
+		sock.bind(new neko.net.Host(host),port);
+		sock.listen(listen);
+		init();
 		while( true ) {
 			try {
-				var cl = sock.accept();
-				cl.setBlocking(false);
-				work(callback(addClient,cl));
+				addSocket(sock.accept());
 			} catch( e : Dynamic ) {
 				logError(e);
 			}
