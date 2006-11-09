@@ -236,6 +236,10 @@ class SocketConnection extends AsyncConnection {
 		return sc;
 	}
 
+	public static function getSocket( cnx : SocketConnection ) : neko.net.Socket {
+		return cnx.__data;
+	}
+
 	#else flash
 
 	public static function socketConnect( s : XMLSocket ) {
@@ -265,6 +269,10 @@ class SocketConnection extends AsyncConnection {
 		};
 		#end
 		return sc;
+	}
+
+	public static function getSocket( cnx : SocketConnection ) : XMLSocket {
+		return cnx.__data;
 	}
 
 	#else error
