@@ -147,6 +147,11 @@ class SocketConnection extends AsyncConnection {
 		#end
 	}
 
+	/**
+		Returns an exception only if one occured either in an onData answer callback
+		or in a request callback (in that case, the exception is also sent through
+		the network). No exception should ever escape this method.
+	**/
 	public static function processMessage( sc : SocketConnection, data : String ) {
 		var f : Dynamic -> Void;
 		var val : Dynamic;
