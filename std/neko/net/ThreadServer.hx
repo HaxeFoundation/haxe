@@ -27,6 +27,7 @@ package neko.net;
 private typedef ThreadInfos = {
 	var id : Int;
 	var t : neko.vm.Thread;
+	var p : neko.net.Poll;
 	var socks : Array<neko.net.Socket>;
 }
 
@@ -52,6 +53,7 @@ class ThreadServer<Client,Message> {
 	public var maxBufferSize : Int;
 	public var messageHeaderSize : Int;
 	public var updateTime : Float;
+	public var maxSockPerThread : Int;
 
 	public function new() {
 		threads = new Array();
@@ -62,6 +64,7 @@ class ThreadServer<Client,Message> {
 		errorOutput = neko.io.File.stderr();
 		initialBufferSize = (1 << 10);
 		maxBufferSize = (1 << 16);
+		maxSockPerThread = 64;
 		updateTime = 1;
 	}
 
@@ -107,7 +110,7 @@ class ThreadServer<Client,Message> {
 
 	function loopThread( t : ThreadInfos ) {
 		if( t.socks.length > 0 )
-			for( s in neko.net.Socket.select(t.socks,null,null,connectLag).read ) {
+			for( s in t.p.poll(t.socks,connectLag) ) {
 				var infos : ClientInfos<Client> = s.custom;
 				try {
 					readClientData(infos);
@@ -189,7 +192,12 @@ class ThreadServer<Client,Message> {
 		worker = neko.vm.Thread.create(runWorker);
 		timer = neko.vm.Thread.create(runTimer);
 		for( i in 0...nthreads ) {
-			var t = { id : i, t : null, socks : new Array() };
+			var t = {
+				id : i,
+				t : null,
+				socks : new Array(),
+				p : new neko.net.Poll(maxSockPerThread),
+			};
 			threads.push(t);
 			t.t = neko.vm.Thread.create(callback(runThread,t));
 		}
