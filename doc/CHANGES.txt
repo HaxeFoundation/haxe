@@ -14,6 +14,7 @@
 	added neko.net.ThreadServer, ThreadRemotingServer and Poll
 	removed neko.net.RemotingBuffer
 	relaxed enums switchs (allow value in first case)
+	changed "cast" codegeneration (fix some F9 usages)
 
 2006-10-29: 1.08
 	fixed bug in flash -debug
