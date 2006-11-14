@@ -1309,22 +1309,33 @@ and type_switch ctx e cases def need_val p =
 		| _ ->
 			None
 	in
-	let enum = (match follow e.etype with
+	let enum = ref (match follow e.etype with
 		| TEnum (e,params) -> Some (e,params)
 		| TMono _ -> lookup_enum (List.map fst cases)
 		| _ -> None
 	) in
+	let first = ref true in
 	let ecases = ref PMap.empty in
+	let type_case e e1 =
+		let e1 = type_expr ctx e1 in
+		(* this inversion is needed *)
+		unify ctx e.etype e1.etype e1.epos;
+		CExpr e1
+	in
 	let cases = List.map (fun (e1,e2) ->
 		let locals = save_locals ctx in
-		let e1 = (match enum with
-		| Some e -> CMatch (type_matching ctx e e1 ecases)
+		let e1 = (match !enum with
+		| Some en -> 
+			(try 
+				CMatch (type_matching ctx en e1 ecases)
+			with
+				Error _ when !first ->
+					enum := None;
+					type_case e e1)
 		| None ->
-			let e1 = type_expr ctx e1 in
-			(* this inversion is needed *)
-			unify ctx e.etype e1.etype e1.epos;
-			CExpr e1
+			type_case e e1
 		) in
+		first := false;
 		let e2 = type_expr ctx ~need_val e2 in
 		locals();
 		if need_val then unify ctx e2.etype t e2.epos;
@@ -1332,7 +1343,7 @@ and type_switch ctx e cases def need_val p =
 	) cases in
 	let def = (match def with
 		| None ->
-			(match enum with
+		(match !enum with
 			| None -> ()
 			| Some (e,_) ->
 				let l = PMap.fold (fun c acc ->
@@ -1348,7 +1359,7 @@ and type_switch ctx e cases def need_val p =
 			if need_val then unify ctx e.etype t e.epos;
 			Some e
 	) in
-	match enum with
+	match !enum with
 	| None ->
 		let exprs (c,e) =
 			match c with
