@@ -24,7 +24,7 @@
  */
 package mtwin.mail.imap;
 
-import neko.io.Socket;
+import neko.net.Socket;
 import mtwin.mail.Exception;
 import mtwin.mail.imap.Tools;
 
@@ -95,7 +95,7 @@ class Connection {
 		if( port == null ) port = 143;
 		cnx = new Socket();
 		try{
-			cnx.connect( Socket.resolve(host), port );
+			cnx.connect( new neko.net.Host(host), port );
 		}catch( e : Dynamic ){
 			throw ConnectionError(host,port);
 		}
