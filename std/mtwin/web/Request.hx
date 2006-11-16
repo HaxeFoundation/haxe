@@ -92,6 +92,19 @@ class Request {
 		return Web.getClientHeader("Referer");
 	}
 
+	static var REG_IP = ~/^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)/;
+	public function getIP() : String{
+		var ip = Web.getClientIP();
+		var xf = Web.getClientHeader("X-Forwarded-For");
+		if( REG_IP.match( xf ) ){
+			var fip = REG_IP.matched(1);
+			if( !~/^(127\.0\.0\.1|192\.168\..*|172\.16\..*|10\..*|224\..*|240\..*)$/.match(fip) ){
+				ip = fip;
+			}
+		}
+		return ip;
+	}
+
 	public function exists( key ) {
 		return params.exists( key );
 	}
