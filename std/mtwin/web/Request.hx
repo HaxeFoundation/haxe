@@ -96,7 +96,7 @@ class Request {
 	public function getIP() : String{
 		var ip = Web.getClientIP();
 		var xf = Web.getClientHeader("X-Forwarded-For");
-		if( REG_IP.match( xf ) ){
+		if( xf != null && REG_IP.match( xf ) ){
 			var fip = REG_IP.matched(1);
 			if( !~/^(127\.0\.0\.1|192\.168\..*|172\.16\..*|10\..*|224\..*|240\..*)$/.match(fip) ){
 				ip = fip;
