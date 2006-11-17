@@ -108,7 +108,7 @@ class Connection {
 	/**
 		Login to server
 	**/
-	public function login( user : String, pass : String ){	
+	public function login( user : String, pass : String ){
 		var r = command("LOGIN",Tools.quote(user)+" "+Tools.quote(pass));
 		if( !r.success ){
 			throw BadResponse(r.response);
@@ -149,7 +149,7 @@ class Connection {
 
 		var hash = new Hash();
 		for( v in r.result ){
-			if( REG_LIST_RESP.match(v) ){	
+			if( REG_LIST_RESP.match(v) ){
 				var name = REG_LIST_RESP.matched(2);
 				var flags = REG_LIST_RESP.matched(1).split(" ");
 
@@ -178,7 +178,10 @@ class Connection {
 	}
 
 	public function getMailbox( name : String ){
-		return mailboxes(name)[0];
+		var m = mailboxes(name)[0];
+		if( m == null )
+			throw "No such mailbox "+name;
+		return m;
 	}
 
 	/**
@@ -188,11 +191,11 @@ class Connection {
 		if( selected == mailbox ) return null;
 
 		var r = command("SELECT",Tools.quote(mailbox));
-		if( !r.success ) 
+		if( !r.success )
 			throw BadResponse(r.response);
 
 		selected = mailbox;
-		
+
 		var ret = {recent: 0,exists: 0,firstUnseen: null};
 		for( v in r.result ){
 			if( REG_EXISTS.match(v) ){
@@ -210,8 +213,8 @@ class Connection {
 	public function status( mailbox : String ){
 		var r = command("STATUS",Tools.quote(mailbox)+" (MESSAGES RECENT UNSEEN)");
 		if( !r.success ) throw BadResponse( r.response );
-		
-		var ret = new Hash<Int>();	
+
+		var ret = new Hash<Int>();
 		if( REG_STATUS.match( r.result.first() ) ){
 			var t = REG_STATUS.matched(1);
 			while( REG_STATUS_VAL.match(t) ){
@@ -296,9 +299,9 @@ class Connection {
 			var l = cnx.input.readLine();
 			if( REG_FETCH_MAIN.match(l) ){
 				var id = Std.parseInt(REG_FETCH_MAIN.matched(1));
-				
+
 				var o = if( tmp.exists(id) ){
-					tmp.get(id); 
+					tmp.get(id);
 				}else {
 					var o = {bodyType: null,body: null,flags: null,uid: null,structure: null,internalDate: null,envelope: null,id: id};
 					tmp.set(id,o);
@@ -329,17 +332,17 @@ class Connection {
 						s = StringTools.ltrim(t.substr(o.structure.__length,t.length));
 					}else if( REG_FETCH_PART.match( s ) ){
 						var len = Std.parseInt(REG_FETCH_PART.matched(2));
-						
+
 						o.body = cnx.input.read( len );
 						o.bodyType = REG_FETCH_PART.matched(1);
-						
+
 						cnx.input.readLine();
 						break;
 					}else{
 						break;
 					}
 				}
-				
+
 			}else if( REG_FETCH_END.match(l) ){
 				var resp = REG_FETCH_END.matched(2);
 				if( resp == "OK" ){
@@ -367,7 +370,7 @@ class Connection {
 		if( !r.success )
 			throw BadResponse(r.response);
 	}
-	
+
 	/**
 		Remove permanently all messages flagged as \Deleted in the currently selected mailbox.
 	**/
@@ -384,7 +387,7 @@ class Connection {
 		if( mode == null ) mode = Add;
 		if( fetchResult == null ) fetchResult = false;
 		if( useUid == null ) useUid = false;
-		
+
 		var range = Tools.collString(iRange);
 		var elem = switch( mode ){
 			case Add: "+FLAGS";
@@ -418,7 +421,7 @@ class Connection {
 		var r = command( "CREATE", Tools.quote(mailbox) );
 		if( !r.success ) throw BadResponse( r.response );
 	}
-	
+
 	/**
 		Delete a mailbox.
 	**/
@@ -466,7 +469,7 @@ class Connection {
 			throw NotConnected;
 		if( r == null ) r = true;
 		if( args == null ) args = "" else args = " "+args;
-		
+
 		count++;
 		var c = Std.string(count);
 		c = StringTools.lpad(c,"A000",4);
@@ -479,7 +482,7 @@ class Connection {
 		return read(c);
 	}
 
-	
+
 	function read( c ){
 		var resp = new List();
 		var sb : StringBuf = null;
@@ -521,5 +524,5 @@ class Connection {
 			}
 		}
 		return null;
-	}	
+	}
 }
