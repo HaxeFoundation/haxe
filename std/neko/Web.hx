@@ -128,6 +128,19 @@ class Web {
 	}
 
 	/**
+		Retrieve all the client headers.
+	**/
+	public static function getClientHeaders() {
+		var v = _get_client_headers();
+		var a = new List();
+		while( v != null ) {
+			a.add({ header : new String(v[0]), value : new String(v[1]) });
+			v = cast v[2];
+		}
+		return a;
+	}
+
+	/**
 		Returns all the GET parameters String
 	**/
 	public static function getParamsString() {
@@ -135,7 +148,12 @@ class Web {
 	}
 
 	/**
-		Returns all the POST data (in case of file transfert for example).
+		Returns all the POST data. POST Data is always parsed as
+		being application/x-www-form-urlencoded and is stored into
+		the getParams hashtable. POST Data is maximimized to 256K
+		unless the content type is multipart/form-data. In that
+		case, you will have to use [getMultipart] or [parseMultipart]
+		methods.
 	**/
 	public static function getPostData() {
 		var v = _get_post_data();
@@ -201,6 +219,54 @@ class Web {
 		_set_main(f);
 	}
 
+	/**
+		Get the multipart paramaters as an hashtable. The data
+		cannot exceed the maximum size specified.
+	**/
+	public static function getMultipart( maxSize : Int ) : Hash<String> {
+		var h = new Hash();
+		var buf : StringBuf = null;
+		var curname = null;
+		parseMultipart(function(p,_) {
+			if( curname != null )
+				h.set(curname,buf.toString());
+			curname = p;
+			buf = new StringBuf();
+			maxSize -= p.length;
+			if( maxSize < 0 )
+				throw "Maximum size reached";
+		},function(str,pos,len) {
+			maxSize -= len;
+			if( maxSize < 0 )
+				throw "Maximum size reached";
+			buf.addSub(str,pos,len);
+		});
+		if( curname != null )
+			h.set(curname,buf.toString());
+		return h;
+	}
+
+	/**
+		Parse the multipart data. Call [onPart] when a new part is found
+		with the part name and the filename if present
+		and [onData] when some part data is readed. You can this way
+		directly save the data on hard drive in the case of a file upload.
+	**/
+	public static function parseMultipart( onPart : String -> String -> Void, onData : String -> Int -> Int -> Void ) : Void {
+		_parse_multipart(
+			function(p,f) { onPart(new String(p),if( f == null ) null else new String(f)); },
+			function(buf,pos,len) { onData(new String(buf),pos,len); }
+		);
+	}
+
+	/**
+		Flush the data sent to the client. By default on Apache, outgoing data is buffered so
+		this can be useful for displaying some long operation progress.
+	**/
+	public static function flush() : Void {
+		_flush();
+	}
+
 	public static var isModNeko(default,null) : Bool;
 
 	static var _set_main : Dynamic;
@@ -217,6 +283,9 @@ class Web {
 	static var _get_cookies : Dynamic;
 	static var _set_cookie : Dynamic;
 	static var _get_cwd : Dynamic;
+	static var _parse_multipart : Dynamic;
+	static var _flush : Dynamic;
+	static var _get_client_headers : Dynamic;
 	static var _base_decode = Lib.load("std","base_decode",2);
 
 	static function __init__() {
@@ -243,6 +312,9 @@ class Web {
 			_get_cookies = Lib.load(lib,"get_cookies",0);
 			_set_cookie = Lib.load(lib,"set_cookie",2);
 			_get_cwd = Lib.load(lib,"cgi_get_cwd",0);
+			_parse_multipart = Lib.load(lib,"parse_multipart_data",2);
+			_flush = Lib.load(lib,"cgi_flush",0);
+			_get_client_headers = Lib.load(lib,"get_client_headers",0);
 		} else {
 			var a0 = untyped __dollar__loader.args[0];
 			if( a0 != null ) a0 = new String(a0);
@@ -256,6 +328,7 @@ class Web {
 			_cgi_set_header = function(h,v) { };
 			_set_return_code = function(i) { };
 			_get_client_header = function(h) { return null; };
+			_get_client_headers = function() { return null; };
 			_get_params_string = function() {
 				return untyped (if( a0 == null ) "" else a0).__s;
 			};
@@ -274,6 +347,8 @@ class Web {
 			_get_cookies = function() { return null; }
 			_set_cookie = function(k,v) { };
 			_get_cwd = Lib.load("std","get_cwd",0);
+			_parse_multipart = function(a,b) { throw "Not supported"; };
+			_flush = function() { };
 		}
 	}
 
