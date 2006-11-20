@@ -366,7 +366,7 @@ class Ftp {
 		return null;
 	}
 
-	function retrieveBytes( cmd:String, callback:String->Int->Void, ?bufSize:Int, ?rest:String ) {
+	function retrieveBytes( cmd:String, cb:String->Int->Void, ?bufSize:Int, ?rest:String ) {
 		if (bufSize == null)
 			bufSize = 8192;
 		var res = voidCommand("TYPE I");
@@ -376,7 +376,7 @@ class Ftp {
 			try {
 				var buf = neko.Lib.makeString(bufSize);
 				rdd = cnx.input.readBytes(buf, 0, bufSize);
-				callback(buf, rdd);
+				cb(buf, rdd);
 			}
 			catch (eof:Eof){
 				rdd = 0;		
