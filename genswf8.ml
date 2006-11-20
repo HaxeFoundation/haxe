@@ -168,44 +168,34 @@ let new_call ctx kind n  =
 	ctx.code_pos <- ctx.code_pos + 1;
 	ctx.stack_size <- ctx.stack_size - n
 
-let always_protected = function
-	| "prototype" | "toString" | "__resolve" | "__constructor__" | "__proto__" | "iterator" -> true
-	(*// haxe.PosInfos *)
-	| "fileName" | "lineNumber" | "className" | "methodName" | "customParams" -> true
-	| s ->
-		if String.length s > 1 && s.[0] = '_' && s.[1] != '_' then
-			true
-		else
-			false
+let unprotect a = !protect_all || a = "" || a = "_" || (a.[0] = '_' && a.[1] != '_')
 
-let unprotect a = !protect_all || always_protected a
-
-let is_protected_name path ext =
+let is_protected_path path ext =
 	match path with
 	| ["flash"] , "Boot" | ["flash"] , "Lib" -> false
 	| "flash" :: _ , _ -> ext
 	| [] , "Array" | [] , "Math" | [] , "Date" | [] , "String" -> true
 	| _ -> false
 
-let rec is_protected ctx t check_mt =
+let rec is_protected ctx ?(stat=false) t field =
 	match t with
 	| TInst (c,_) ->
 		let rec loop c =
-			is_protected_name c.cl_path c.cl_extern
-			|| (check_mt && List.exists (fun (i,_) -> i.cl_path = (["mt"],"Protect")) c.cl_implements)
-			|| match c.cl_super with None -> false | Some (c,_) -> loop c
+			(is_protected_path c.cl_path c.cl_extern && PMap.mem field (if stat then c.cl_statics else c.cl_fields))
+			|| List.exists (fun (i,_) -> i.cl_path = (["mt"],"Protect")) c.cl_implements
+			|| (not stat && match c.cl_super with None -> false | Some (c,_) -> loop c)
 		in
 		loop c
 	| TMono r ->
 		(match !r with
 		| None -> true (* in Transform.emk only *)
-		| Some t -> is_protected ctx t check_mt)
+		| Some t -> is_protected ctx ~stat t field)
 	| TLazy f ->
-		is_protected ctx ((!f)()) check_mt
+		is_protected ctx ~stat ((!f)()) field
 	| TType (t,_) ->
 		(match t.t_static with
-		| None -> is_protected ctx t.t_type check_mt
-		| Some c -> is_protected_name c.cl_path c.cl_extern)
+		| None -> is_protected ctx ~stat t.t_type field
+		| Some c -> is_protected ctx ~stat:true (TInst (c,[])) field)
 	| _ -> false
 
 let push ctx items =
@@ -311,7 +301,7 @@ let getvar ctx = function
 		call ctx VarStr 2
 
 let gen_path ctx (p,t) is_extern =
-	let flag = is_protected_name (p,t) is_extern in
+	let flag = is_protected_path (p,t) is_extern in
 	match p with
 	| [] ->
 		push ctx [VStr (t,flag)];
@@ -516,7 +506,7 @@ let rec gen_access ctx forcall e =
 		access_local ctx s
 	| TField (e2,f) ->
 		gen_expr ctx true e2;
-		push ctx [VStr (f,is_protected ctx e2.etype true)];
+		push ctx [VStr (f,is_protected ctx e2.etype f)];
 		(match follow e.etype with
 		| TFun _ -> VarClosure
 		| _ -> VarObj)
@@ -1043,21 +1033,21 @@ and gen_expr ctx retval e =
 		if not retval then write ctx APop;
 	end else if retval then stack_error e.epos
 
-let gen_class_static_field ctx c flag f =
+let gen_class_static_field ctx c f =
 	match f.cf_expr with
 	| None ->
-		push ctx [VReg 0; VStr (f.cf_name,flag); VNull];
+		push ctx [VReg 0; VStr (f.cf_name,false); VNull];
 		setvar ctx VarObj
 	| Some e ->
 		let e = Transform.block_vars e in
 		match e.eexpr with
 		| TFunction _ ->
-			push ctx [VReg 0; VStr (f.cf_name,flag)];
+			push ctx [VReg 0; VStr (f.cf_name,false)];
 			ctx.curmethod <- (f.cf_name,false);
 			gen_expr ctx true e;
 			setvar ctx VarObj
 		| _ ->
-			ctx.statics <- (c,flag,f.cf_name,e) :: ctx.statics
+			ctx.statics <- (c,false,f.cf_name,e) :: ctx.statics
 
 let gen_class_static_init ctx (c,flag,name,e) =
 	ctx.curclass <- c;
@@ -1067,8 +1057,8 @@ let gen_class_static_init ctx (c,flag,name,e) =
 	gen_expr ctx true e;
 	setvar ctx VarObj
 
-let gen_class_field ctx f flag =
-	push ctx [VReg 1; VStr (f.cf_name,flag)];
+let gen_class_field ctx f =
+	push ctx [VReg 1; VStr (f.cf_name,false)];
 	(match f.cf_expr with
 	| None ->
 		push ctx [VNull]
@@ -1240,9 +1230,8 @@ let gen_type_def ctx t =
 		write ctx APop;
 		push ctx [VReg 1; VStr ("__class__",false); VReg 0];
 		setvar ctx VarObj;
-		let flag = is_protected ctx (TInst (c,[])) true in
-		List.iter (gen_class_static_field ctx c flag) c.cl_ordered_statics;
-		PMap.iter (fun _ f -> gen_class_field ctx f flag) c.cl_fields;
+		List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
+		PMap.iter (fun _ f -> gen_class_field ctx f) c.cl_fields;
 	| TEnumDecl e when e.e_extern ->
 		()
 	| TEnumDecl e ->
