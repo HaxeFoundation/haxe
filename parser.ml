@@ -418,6 +418,7 @@ and expr = parser
 	| [< '(BrOpen,p1); e = block1; '(BrClose,p2) >] -> (e,punion p1 p2)
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
+	| [< '(Kwd Callback,p); s >] -> expr_next (EConst (Ident "callback"),p) s
 	| [< '(Kwd Cast,p1); s >] ->
 		(match s with parser
 		| [< '(POpen,_); e = expr; s >] ->

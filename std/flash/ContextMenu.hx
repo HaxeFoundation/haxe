@@ -1,7 +1,7 @@
 package flash;
 
 extern class ContextMenu {
-	public function new( ?callback:Dynamic->ContextMenu->Void ) : Void;
+	public function new( ?callb:Dynamic->ContextMenu->Void ) : Void;
 	public function hideBuiltInItems():Void;
 	public function copy() : ContextMenu;
 

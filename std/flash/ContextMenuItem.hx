@@ -1,7 +1,7 @@
 package flash;
 
 extern class ContextMenuItem {
-	public function new(caption:String, callback:Dynamic->ContextMenuItem->Void, ?separatorBefore:Bool, ?enabled:Bool, ?visible:Bool) : Void;
+	public function new(caption:String, callb:Dynamic->ContextMenuItem->Void, ?separatorBefore:Bool, ?enabled:Bool, ?visible:Bool) : Void;
 	public function copy() : ContextMenuItem;
 
 	public function onSelect( v : Dynamic, c : ContextMenuItem ) : Void;

@@ -59,6 +59,7 @@ type keyword =
 	| Typedef
 	| F9Dynamic
 	| Package
+	| Callback
 
 type binop =
 	| OpAdd
@@ -322,6 +323,7 @@ let s_keyword = function
 	| Typedef -> "typedef"
 	| F9Dynamic -> "f9dynamic"
 	| Package -> "package"
+	| Callback -> "callback"
 
 let rec s_binop = function
 	| OpAdd -> "+"
