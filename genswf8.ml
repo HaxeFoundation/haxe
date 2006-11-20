@@ -170,11 +170,12 @@ let new_call ctx kind n  =
 
 let unprotect a = !protect_all || a = "" || a = "_" || (a.[0] = '_' && a.[1] != '_')
 
-let is_protected_path path ext =
+let rec is_protected_path path ext =
 	match path with
 	| ["flash"] , "Boot" | ["flash"] , "Lib" -> false
-	| "flash" :: _ , _ -> ext
+	| "flash" :: _ , _ | [] , "flash" -> ext
 	| [] , "Array" | [] , "Math" | [] , "Date" | [] , "String" -> true
+	| "_global" :: l , n -> is_protected_path (l,n) ext
 	| _ -> false
 
 let rec is_protected ctx ?(stat=false) t field =
@@ -300,17 +301,17 @@ let getvar ctx = function
 		push ctx [VInt 2; VStr ("@closure",false)];
 		call ctx VarStr 2
 
-let gen_path ctx (p,t) is_extern =
+let gen_path ctx ?(protect=false) (p,t) is_extern =
 	let flag = is_protected_path (p,t) is_extern in
 	match p with
 	| [] ->
 		push ctx [VStr (t,flag)];
 		VarStr
 	| x :: l ->
-		push ctx [VStr (x,flag)];
+		push ctx [VStr (x,protect && flag)];
 		write ctx AEval;
 		List.iter (fun x ->
-			push ctx [VStr (x,flag)];
+			push ctx [VStr (x,protect && flag)];
 			write ctx AObjGet;
 		) l;
 		push ctx [VStr (t,flag)];
@@ -1105,7 +1106,7 @@ let init_name ctx path enum =
 	ctx.stack_size <- ctx.stack_size - nitems;
 	setvar ctx VarObj
 
-let gen_package ctx p =
+let gen_package ctx path ext =
 	let rec loop acc = function
 		| [] -> ()
 		| x :: l ->
@@ -1123,7 +1124,7 @@ let gen_package ctx p =
 				setvar ctx acc;
 
 				(* copy the content of the _global package if exists *)
-				getvar ctx (gen_path ctx ("_global" :: fst path,snd path) false);
+				getvar ctx (gen_path ctx ~protect:true ("_global" :: fst path,snd path) ext);
 				write ctx (ASetReg 2);
 				write ctx AEnum2;
 				ctx.stack_size <- ctx.stack_size + 1; (* fake *)
@@ -1143,7 +1144,7 @@ let gen_package ctx p =
 			end;
 			loop p l
 	in
-	loop [] p
+	loop [] (fst path)
 
 let gen_type_def ctx t =
 	match t with
@@ -1151,7 +1152,7 @@ let gen_type_def ctx t =
 		(match c.cl_init with
 		| None -> ()
 		| Some e -> ctx.inits <- Transform.block_vars e :: ctx.inits);
-		gen_package ctx (fst c.cl_path);
+		gen_package ctx c.cl_path c.cl_extern;
 		if c.cl_extern then
 			()
 		else
@@ -1235,7 +1236,7 @@ let gen_type_def ctx t =
 	| TEnumDecl e when e.e_extern ->
 		()
 	| TEnumDecl e ->
-		gen_package ctx (fst e.e_path);
+		gen_package ctx e.e_path e.e_extern;
 		let acc = gen_path ctx e.e_path false in
 		push ctx [VInt 0; VStr ("Object",true)];
 		write ctx ANew;
