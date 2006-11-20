@@ -96,19 +96,7 @@ class LocalConnection extends AsyncConnection {
 		f(val);
 	}
 
-	public function allowDomain( domain : String, ?insecure : Bool ) {
-		#if flash9
-		var cnx : flash.net.LocalConnection = __data;
-		#else true
-		var cnx : flash.LocalConnection = __data;
-		#end
-		if( insecure )
-			cnx.allowInsecureDomain(domain);
-		else
-			cnx.allowDomain(domain);
-	}
-
-	public static function connect( name : String, ?allowDomain : String ) {
+	public static function connect( name : String, ?allowDomains : Array<String> ) {
 		#if flash9
 		var l = new flash.net.LocalConnection();
 		#else flash
@@ -137,8 +125,18 @@ class LocalConnection extends AsyncConnection {
 		Reflect.setField(l,"remotingCall",api.remotingCall);
 		Reflect.setField(l,"remotingResult",api.remotingResult);
 		l.onStatus = api.onStatus;
-		if( allowDomain != null )
-			l.allowDomain(allowDomain);
+		if( allowDomains != null )
+		#if flash9
+			for( d in allowDomains )
+				l.allowDomain(d);
+		#else true
+			l.allowDomain = function(dom) {
+				for( d in allowDomains )
+					if( d == dom )
+						return true;
+				return false;
+			};
+		#end
 		if( l.connect(name) )
 			untyped l.target = recv;
 		else {
