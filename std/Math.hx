@@ -28,10 +28,10 @@
 **/
 extern class Math
 {
-	static var PI : Float;
-	static var NaN : Float;
-	static var NEGATIVE_INFINITY : Float;
-	static var POSITIVE_INFINITY : Float;
+	static var PI(default,null) : Float;
+	static var NaN(default,null) : Float;
+	static var NEGATIVE_INFINITY(default,null) : Float;
+	static var POSITIVE_INFINITY(default,null) : Float;
 
 	static function abs(value:Float):Float;
 	static function min(value1:Float,value2:Float):Float;
@@ -64,11 +64,11 @@ extern class Math
 		NEGATIVE_INFINITY = __global__["Number"].NEGATIVE_INFINITY;
 		POSITIVE_INFINITY = __global__["Number"].POSITIVE_INFINITY;
 		#else true
-		NaN = Number["NaN"];
-		NEGATIVE_INFINITY = Number["NEGATIVE_INFINITY"];
-		POSITIVE_INFINITY = Number["POSITIVE_INFINITY"];
+		Math.NaN = Number["NaN"];
+		Math.NEGATIVE_INFINITY = Number["NEGATIVE_INFINITY"];
+		Math.POSITIVE_INFINITY = Number["POSITIVE_INFINITY"];
 		#end
-		isFinite = function(i) {
+		Math.isFinite = function(i) {
 			return
 			#if flash9
 			__global__["isFinite"](i);
@@ -79,7 +79,7 @@ extern class Math
 			#else error
 			#end
 		};
-		isNaN = function(i) {
+		Math.isNaN = function(i) {
 			return
 			#if flash9
 			__global__["isNaN"](i);
