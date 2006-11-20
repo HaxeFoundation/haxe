@@ -59,7 +59,7 @@ class LocalConnection extends AsyncConnection {
 			__error.ref(e);
 		}
 	}
-	
+
 	public function closeConnection() {
 		#if flash9
 		var cnx : flash.net.LocalConnection = __data;
@@ -73,7 +73,7 @@ class LocalConnection extends AsyncConnection {
 		var r = untyped Connection.doCall(path,f,args);
 		#if flash9
 		c.__data.send(c.__data.client.target,"remotingResult",r);
-		#else true		
+		#else true
 		if( !c.__data[untyped "send"](c.__data[untyped "target"],"remotingResult",r) )
 			c.__error.ref("Remoting response failure");
 		#end
@@ -95,7 +95,7 @@ class LocalConnection extends AsyncConnection {
 		}
 		f(val);
 	}
-	
+
 	public function allowDomain( domain : String, ?insecure : Bool ) {
 		#if flash9
 		var cnx : flash.net.LocalConnection = __data;
@@ -108,7 +108,7 @@ class LocalConnection extends AsyncConnection {
 			cnx.allowDomain(domain);
 	}
 
-	public static function connect( name : String ) {
+	public static function connect( name : String, ?allowDomain : String ) {
 		#if flash9
 		var l = new flash.net.LocalConnection();
 		#else flash
@@ -128,15 +128,17 @@ class LocalConnection extends AsyncConnection {
 		l.addEventListener(flash.events.StatusEvent.STATUS, api.onStatus);
 		try {
 			api.target = recv;
-			l.connect(name);			
+			l.connect(name);
 		} catch( e : Dynamic ) {
 			api.target = name;
-			l.connect(recv);			
-		}		
+			l.connect(recv);
+		}
 		#else true
 		Reflect.setField(l,"remotingCall",api.remotingCall);
 		Reflect.setField(l,"remotingResult",api.remotingResult);
 		l.onStatus = api.onStatus;
+		if( allowDomain != null )
+			l.allowDomain(allowDomain);
 		if( l.connect(name) )
 			untyped l.target = recv;
 		else {
