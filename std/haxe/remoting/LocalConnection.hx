@@ -51,7 +51,7 @@ class LocalConnection extends AsyncConnection {
 			#if flash9
 			__data.send(__data.client.target,"remotingCall",p.join("."),f,s.toString());
 			#else true
-			if( !__data[untyped "send"](__data[untyped "target"],"remotingCall",p.join("."),f,s.toString()) )
+			if( !__data[untyped "send"](__data.target,"remotingCall",p.join("."),f,s.toString()) )
 				throw "Remoting call failure";
 			#end
 			__funs.add(onData);
@@ -74,7 +74,7 @@ class LocalConnection extends AsyncConnection {
 		#if flash9
 		c.__data.send(c.__data.client.target,"remotingResult",r);
 		#else true
-		if( !c.__data[untyped "send"](c.__data[untyped "target"],"remotingResult",r) )
+		if( !c.__data[untyped "send"](c.__data.target,"remotingResult",r) )
 			c.__error.ref("Remoting response failure");
 		#end
 	}
