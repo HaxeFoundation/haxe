@@ -26,6 +26,8 @@ package flash;
 
 class Boot {
 
+	private static var def_color = 0;
+
 	private static function __string_rec(o : Dynamic,s : String) {
 		untyped {
 			if( s.length >= 20 )
@@ -158,6 +160,7 @@ class Boot {
 			root.createTextField("__trace_txt",1048500,0,0,Stage.width,Stage.height+30);
 			tf = root.__trace_txt;
 			tf.selectable = false;
+			tf.textColor = def_color;
 			root.__trace_lines = new Array<String>();
 		}
 		return tf;
@@ -165,6 +168,7 @@ class Boot {
 
 	private static function __set_trace_color( rgb : Int ) {
 		getTrace().textColor = rgb;
+		def_color = rgb;
 	}
 
 	private static function __trace(v,inf : haxe.PosInfos) {
