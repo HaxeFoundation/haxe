@@ -131,19 +131,7 @@ class Std {
 		Convert a character code into the corresponding single-char String.
 	**/
 	public static function chr( x : Int ) : String {
-		return untyped
-		#if flash
-		String["fromCharCode"](x);
-		#else neko
-		{
-			var s = __dollar__smake(1);
-			__dollar__sset(s,0,x);
-			new String(s);
-		}
-		#else js
-		String.fromCharCode(x);
-		#else error
-		#end
+		return String.fromCharCode(x);
 	}
 
 	/**

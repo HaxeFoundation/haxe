@@ -53,7 +53,7 @@ extern class String {
 		Returns the empty String if outside of String bounds.
 	**/
 	function charAt( index : Int) : String;
-	
+
 	/**
 		Returns the character code at the given position.
 		Returns [null] if outside of String bounds.
@@ -88,5 +88,7 @@ extern class String {
 		Returns the String itself.
 	**/
 	function toString() : String;
+
+	static function fromCharCode( code : Int ) : String;
 
 }
