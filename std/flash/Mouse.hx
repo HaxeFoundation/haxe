@@ -13,6 +13,10 @@ extern class Mouse
 {
 	static function show():Int;
 	static function hide():Int;
+	static function onMouseDown() : Void;
+	static function onMouseMove() : Void;
+	static function onMouseUp() : Void;
+
 #if flash_strict
 	static function addListener(listener:MouseListener):Void;
 	static function removeListener(listener:MouseListener):Bool;
@@ -23,6 +27,7 @@ extern class Mouse
 
 	private static function __init__() : Void untyped {
 		flash.Mouse = _global["Mouse"];
+		flash.Mouse.addListener(flash.Mouse);
 	}
 
 }

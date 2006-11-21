@@ -36,6 +36,9 @@ extern class Key
 	static function isDown(code:Int):Bool;
 	static function isToggled(code:Int):Bool;
 
+	static function onKeyDown() : Void;
+	static function onKeyUp() : Void;
+
 #if flash_strict
 	static function addListener(listener:KeyListener):Void;
 	static function removeListener(listener:KeyListener):Bool;
@@ -46,6 +49,7 @@ extern class Key
 
 	private static function __init__() : Void untyped {
 		flash.Key = _global["Key"];
+		flash.Key.addListener(flash.Key);
 	}
 
 }
