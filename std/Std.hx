@@ -133,7 +133,7 @@ class Std {
 	public static function chr( x : Int ) : String {
 		return untyped
 		#if flash
-		String.fromCharCode(x);
+		String["fromCharCode"](x);
 		#else neko
 		{
 			var s = __dollar__smake(1);
