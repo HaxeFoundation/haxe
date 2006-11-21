@@ -45,32 +45,32 @@ extern class Date
 		Returns the hours value of the date (0-23 range).
 	**/
 	function getHours() : Int;
-	
+
 	/**
 		Returns the minutes value of the date (0-59 range).
-	**/	
+	**/
 	function getMinutes() : Int;
-	
+
 	/**
 		Returns the seconds of the date (0-59 range).
-	**/	
+	**/
 	function getSeconds() : Int;
-	
+
 	/**
 		Returns the full year of the date.
-	**/	
+	**/
 	function getFullYear() : Int;
-	
+
 	/**
 		Returns the month of the date (0-11 range).
-	**/	
+	**/
 	function getMonth() : Int;
-	
+
 	/**
 		Returns the day of the date (1-31 range).
-	**/	
+	**/
 	function getDate() : Int;
-	
+
 	/**
 		Returns the week day of the date (0-6 range).
 	**/
@@ -111,7 +111,7 @@ extern class Date
 		};
 		Date.fromTime = function(t){
 			var d : Date = __new__(Date);
-			d.setTime( t );
+			d["setTime"]( t );
 			return d;
 		};
 		Date.fromString = function(s : String) {
@@ -119,10 +119,10 @@ extern class Date
 			case 8: // hh:mm:ss
 				var k = s.split(":");
 				var d : Date = __new__(Date);
-				d.setTime(0);
-				d.setUTCHours(k[0]);
-				d.setUTCMinutes(k[1]);
-				d.setUTCSeconds(k[2]);
+				d["setTime"](0);
+				d["setUTCHours"](k[0]);
+				d["setUTCMinutes"](k[1]);
+				d["setUTCSeconds"](k[2]);
 				return d;
 			case 10: // YYYY-MM-DD
 				var k = s.split("-");

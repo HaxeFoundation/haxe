@@ -1034,21 +1034,21 @@ and gen_expr ctx retval e =
 		if not retval then write ctx APop;
 	end else if retval then stack_error e.epos
 
-let gen_class_static_field ctx c f =
+let gen_class_static_field ctx c flag f =
 	match f.cf_expr with
 	| None ->
-		push ctx [VReg 0; VStr (f.cf_name,false); VNull];
+		push ctx [VReg 0; VStr (f.cf_name,flag); VNull];
 		setvar ctx VarObj
 	| Some e ->
 		let e = Transform.block_vars e in
 		match e.eexpr with
 		| TFunction _ ->
-			push ctx [VReg 0; VStr (f.cf_name,false)];
+			push ctx [VReg 0; VStr (f.cf_name,flag)];
 			ctx.curmethod <- (f.cf_name,false);
 			gen_expr ctx true e;
 			setvar ctx VarObj
 		| _ ->
-			ctx.statics <- (c,false,f.cf_name,e) :: ctx.statics
+			ctx.statics <- (c,flag,f.cf_name,e) :: ctx.statics
 
 let gen_class_static_init ctx (c,flag,name,e) =
 	ctx.curclass <- c;
@@ -1058,8 +1058,8 @@ let gen_class_static_init ctx (c,flag,name,e) =
 	gen_expr ctx true e;
 	setvar ctx VarObj
 
-let gen_class_field ctx f =
-	push ctx [VReg 1; VStr (f.cf_name,false)];
+let gen_class_field ctx flag f =
+	push ctx [VReg 1; VStr (f.cf_name,flag)];
 	(match f.cf_expr with
 	| None ->
 		push ctx [VNull]
@@ -1231,8 +1231,10 @@ let gen_type_def ctx t =
 		write ctx APop;
 		push ctx [VReg 1; VStr ("__class__",false); VReg 0];
 		setvar ctx VarObj;
-		List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
-		PMap.iter (fun _ f -> gen_class_field ctx f) c.cl_fields;
+		(* true if implements mt.Protect *)
+		let flag = is_protected ctx (TInst (c,[])) "" in
+		List.iter (gen_class_static_field ctx c flag) c.cl_ordered_statics;
+		PMap.iter (fun _ f -> gen_class_field ctx flag f) c.cl_fields;
 	| TEnumDecl e when e.e_extern ->
 		()
 	| TEnumDecl e ->

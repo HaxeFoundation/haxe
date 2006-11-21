@@ -78,7 +78,7 @@ class StringBuf {
 		#if neko
 		__add_char(b,c);
 		#else flash
-		b += untyped String.fromCharCode(c);
+		b += untyped String["fromCharCode"](c);
 		#else js
 		b += untyped String.fromCharCode(c);
 		#else error
