@@ -1055,8 +1055,8 @@ let generate_reflect_construct ctx cid nargs =
 	let jend = jump ctx J3Always in
 	j();
 	for i = 1 to nargs do
-		write ctx (A3Reg 0);
-		write ctx (A3SmallInt i);
+		write ctx (A3Reg 1);
+		write ctx (A3SmallInt (i - 1));
 		getvar ctx VArray;
 	done;
 	jend();

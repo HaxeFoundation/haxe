@@ -52,7 +52,7 @@ class Reflect {
 	**/
 	public static function createInstance( cl : Dynamic, args : Array<Dynamic> ) : Dynamic {
 		#if flash9
-			return cl.__construct__.call(null,[args]);
+			return cl.__construct__.call(null,args);
 		#else flash
 			var o = { __constructor__ : cl, __proto__ : cl.prototype };
 			cl[untyped "apply"](o,args);
