@@ -197,17 +197,20 @@ class NekoArray__<T> implements Array<T> {
 		}
 	}
 
-	public function slice( pos, end ) {
+	public function slice( pos, ?end ) {
 		if( pos < 0 ){
 			pos = this.length + pos;
 			if( pos < 0 )
 				pos = 0;
 		}
-		if( end < 0 ){
+		if( end == null )
+			end = this.length;
+		else if( end < 0 )
 			end = this.length + end;
-		}
+		if( end > this.length )
+			end = this.length;
 		var len = end - pos;
-		if( len < 0 || pos + len > this.length ) return new Array();
+		if( len < 0 ) return new Array();
 		return untyped Array.new1(__dollar__asub(this.__a,pos,len),len);
 	}
 
@@ -242,6 +245,11 @@ class NekoArray__<T> implements Array<T> {
 			pos = this.length + pos;
 			if( pos < 0 ) pos = 0;
 		}
+		if( pos > this.length ) {
+			pos = 0;
+			len = 0;
+		} else if( pos + len > this.length )
+			len = this.length - pos;
 		untyped {
 			var a = this.__a;
 			var ret = Array.new1(__dollar__asub(a,pos,len),len);

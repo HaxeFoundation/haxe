@@ -76,7 +76,7 @@ extern class Array<T> {
 		negative to count from the end: -1 is the last item in
 		the array.
 	**/
-	function slice( pos : Int, end : Int ) : Array<T>;
+	function slice( pos : Int, ?end : Int ) : Array<T>;
 
 	/**
 		Sort the Array according to the comparison function [f].
