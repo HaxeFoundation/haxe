@@ -172,7 +172,7 @@ class NekoString__ implements String {
 
 	static function fromCharCode( c : Int ) : String untyped {
 		var s = __dollar__smake(1);
-		__dollar__sset(s,0,x);
+		__dollar__sset(s,0,c);
 		return new String(s);
 	}
 
