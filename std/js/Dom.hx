@@ -378,7 +378,7 @@ typedef Location = {
 	var search : String;
 
 	function assign( url : String ) : Void;
-	function reload() : Void;
+	function reload( ?useCache : Bool ) : Void;
 	function replace( url : String ) : Void;
 }
 
