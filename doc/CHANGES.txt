@@ -1,4 +1,4 @@
-2006-??-??: 1.09
+2006-11-22: 1.09
 	added neko.vm.Module and neko.vm.Loader
 	haxelib : allowed spaces in "run" arguments
 	allowed Thread comparison

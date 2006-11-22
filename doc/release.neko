@@ -4,8 +4,10 @@ if( version == null )
 
 sys = $loader.loadprim("std@sys_string",0)();
 binext = "";
+curdir = "./";
 ext = switch( sys ) {
 	"Windows" => {
+		curdir = ".\\";
 		binext = ".exe";
 		""
 	}
@@ -49,7 +51,7 @@ chdir("tools");
 
 chdir("haxedoc");
 cmd("haxe haxedoc.hxml");
-cmd("./haxedoc \"../../flash.xml;flash\" \"../../neko.xml;neko\" \"../../js.xml;js\"");
+cmd(curdir+"haxedoc \"../../flash.xml;flash\" \"../../neko.xml;neko\" \"../../js.xml;js\"");
 cmd("mv index.html content ../../../doc");
 cmd("mv haxedoc"+binext+" ../../..");
 chdir("..");
