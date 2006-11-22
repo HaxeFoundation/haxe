@@ -20,6 +20,7 @@
 	"callback" is now a keyword
 	fixed stack overflow when typedef = Dynamic
 	fixed Reflect.createInstance on F9
+	Array : slice optional length, fixed neko slice & splice
 
 2006-10-29: 1.08
 	fixed bug in flash -debug
