@@ -312,9 +312,9 @@ class Web {
 			_get_cookies = Lib.load(lib,"get_cookies",0);
 			_set_cookie = Lib.load(lib,"set_cookie",2);
 			_get_cwd = Lib.load(lib,"cgi_get_cwd",0);
-			_parse_multipart = Lib.load(lib,"parse_multipart_data",2);
-			_flush = Lib.load(lib,"cgi_flush",0);
-			_get_client_headers = Lib.load(lib,"get_client_headers",0);
+			_parse_multipart = try Lib.load(lib,"parse_multipart_data",2) catch( e : Dynamic ) function(a,b) { throw "Please upgrade Neko"; };
+			_flush = try Lib.load(lib,"cgi_flush",0) catch( e : Dynamic ) function() { throw "Please upgrade Neko"; };
+			_get_client_headers = try Lib.load(lib,"get_client_headers",0) catch( e : Dynamic ) function() { throw "Please upgrade Neko"; };
 		} else {
 			var a0 = untyped __dollar__loader.args[0];
 			if( a0 != null ) a0 = new String(a0);
