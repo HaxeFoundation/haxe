@@ -73,7 +73,7 @@ class Std {
 		Convert any value to a Bool. Only 0, null and false are false, other values are true.
 	**/
 	public static function bool( x : Dynamic ) : Bool {
-		return x != 0 && x != null && x != false;
+		return (x !== 0 && x != null && x !== false);
 	}
 
 	/**
