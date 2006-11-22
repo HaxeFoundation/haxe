@@ -220,7 +220,7 @@ class Web {
 	}
 
 	/**
-		Get the multipart paramaters as an hashtable. The data
+		Get the multipart parameters as an hashtable. The data
 		cannot exceed the maximum size specified.
 	**/
 	public static function getMultipart( maxSize : Int ) : Hash<String> {
