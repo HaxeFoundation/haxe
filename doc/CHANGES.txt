@@ -18,6 +18,7 @@
 	change in POST data handling in mod_neko (max 256K, except multipart)
 	added neko.Web.getClientHeaders and neko.Web.flush
 	"callback" is now a keyword
+	fixed stack overflow when typedef = Dynamic
 
 2006-10-29: 1.08
 	fixed bug in flash -debug
