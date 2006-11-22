@@ -2324,7 +2324,12 @@ let type_module ctx m tdecls loadp =
 			let t = get_tdef d.d_name in
 			ctx.type_params <- List.map (fun (_,n,t) -> n, t) t.t_types;
 			let tt = load_type ctx p d.d_data in
-			unify ctx t.t_type tt p;
+			(match t.t_type with
+			| TMono r ->
+				(match !r with
+				| None -> r := Some tt;
+				| Some _ -> assert false);
+			| _ -> assert false);			
 	) tdecls;
 	(* PASS 3 : type checking, delayed until all modules and types are built *)
 	ctx.delays := !delays :: !(ctx.delays);
