@@ -1849,10 +1849,11 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			| x :: path -> (EType (List.fold_left (fun acc x -> (EField (acc,x),p)) (EConst (Ident x),p) path,name),p)
 		in
 		let cond = (ECall ((EField ((EConst (Type "Std"),p),"is"),p),[etmp;make_type tname]),p) in
-		type_expr ctx (EBlock [
+		let e = type_expr ctx (EBlock [
 			(EVars [("tmp",None,Some e)],p);
 			(EIf (cond,etmp,Some (EThrow (EConst (String "Class cast error"),p),p)),p);
-		],p)
+		],p) in
+		{ e with etype = t }
 
 and type_function ctx t static constr f p =
 	let locals = save_locals ctx in

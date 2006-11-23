@@ -1,3 +1,6 @@
+2006-??-??: 1.10
+	fix in haxe.remoting.SocketConnection.readAnswer
+
 2006-11-22: 1.09
 	added neko.vm.Module and neko.vm.Loader
 	haxelib : allowed spaces in "run" arguments
@@ -21,6 +24,7 @@
 	fixed stack overflow when typedef = Dynamic
 	fixed Reflect.createInstance on F9
 	Array : slice optional length, fixed neko slice & splice
+	+ fixed cast return type
 
 2006-10-29: 1.08
 	fixed bug in flash -debug
