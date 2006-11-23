@@ -227,8 +227,8 @@ class SocketConnection extends AsyncConnection {
 			var len = (c1 << 6) | c2;
 			var data = sock.input.read(len-3);
 			if( sock.input.readChar() != 0 )
-				throw "Invalid answer";
-			if( !haxe.Unserializer.run(data) == true )
+				throw "Invalid answeur";
+			if( !haxe.Unserializer.run(data) != true )
 				throw "Request received";
 			var r = processMessage(cnx,data);
 			if( r != null )
