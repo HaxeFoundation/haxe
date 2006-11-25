@@ -74,6 +74,11 @@ class Message {
 		addFlag("\\Deleted");
 	}
 
+	public function delete(){
+		markAsDeleted();
+		mailbox.expunge();
+	}
+
 	public function addFlag( flag : String ){
 		var cnx = mailbox.select();
 		cnx.storeFlags(Single(uid), [flag], Add, true, false );
