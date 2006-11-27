@@ -1268,24 +1268,29 @@ and type_unop ctx op flag e p =
 	| AccSet (e,m,t,f) ->
 		let l = save_locals ctx in
 		let v = gen_local ctx e.etype in
-		let v2 = gen_local ctx t in
 		let ev = mk (TLocal v) e.etype p in
 		let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
 		let one = (EConst (Int "1"),p) in
-		let get = type_binop ctx op (EField ((EConst (Ident v),p),f),p) one p in
-		unify ctx get.etype t p;
-		l();
+		let eget = (EField ((EConst (Ident v),p),f),p) in
 		match flag with
 		| Prefix ->
+			let get = type_binop ctx op eget one p in
+			unify ctx get.etype t p;
+			l();
 			mk (TBlock [
 				mk (TVars [v,e.etype,Some e]) (t_void ctx) p;
 				mk (TCall (mk (TField (ev,m)) (mk_mono()) p,[get])) t p
 			]) t p
 		| Postfix ->
+			let v2 = gen_local ctx t in
 			let ev2 = mk (TLocal v2) t p in
+			let get = type_expr ctx eget in
+			let plusone = type_binop ctx op (EConst (Ident v2),p) one p in
+			unify ctx get.etype t p;
+			l();
 			mk (TBlock [
 				mk (TVars [v,e.etype,Some e; v2,t,Some get]) (t_void ctx) p;
-				mk (TCall (mk (TField (ev,m)) (mk_mono()) p,[ev2])) t p;
+				mk (TCall (mk (TField (ev,m)) (mk_mono()) p,[plusone])) t p;
 				ev2
 			]) t p
 
