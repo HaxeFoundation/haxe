@@ -69,6 +69,14 @@ class Output {
 		}
 	}
 
+	public function writeFullBytes( s : String, pos : Int, len : Int ) {
+		while( len > 0 ) {
+			var k = writeBytes(s,pos,len);
+			pos += k;
+			len -= k;
+		}
+	}
+
 	public function writeFloat( c : Float ) {
 		write(new String(_float_bytes(c,false)));
 	}
@@ -109,14 +117,14 @@ class Output {
 		writeChar(x >> 8);
 		writeChar(x & 0xFF);
 	}
-	
+
 	public function writeUInt24B( x : Int ) {
 		if( x < 0 || x > 0xFFFFFF ) throw Error.Overflow;
 		writeChar(x >> 16);
 		writeChar((x >> 8) & 0xFF);
 		writeChar(x & 0xFF);
 	}
-	
+
 	public function writeInt16( x : Int ) {
 		if( x < -0x7FFF || x > 0x7FFF ) throw Error.Overflow;
 		if( x < 0 )
@@ -133,7 +141,7 @@ class Output {
 	**/
 	public function prepare( nbytes : Int ) {
 	}
-	
+
 	public function writeInput( i : Input, ?bufsize : Int ) {
 		if( bufsize == null )
 			bufsize = 4096;
@@ -152,7 +160,7 @@ class Output {
 					len -= k;
 				}
 			}
-		} catch( e : Eof ) {			
+		} catch( e : Eof ) {
 		}
 	}
 

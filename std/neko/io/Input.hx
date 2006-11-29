@@ -72,6 +72,14 @@ class Input {
 		return total.toString();
 	}
 
+	public function readFullBytes( s : String, pos : Int, len : Int ) {
+		while( len > 0 ) {
+			var k = readBytes(s,pos,len);
+			pos += k;
+			len -= k;
+		}
+	}
+
 	public function read( nbytes : Int ) : String {
 		var s = neko.Lib.makeString(nbytes);
 		var p = 0;
