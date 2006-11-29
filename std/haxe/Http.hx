@@ -27,6 +27,7 @@ package haxe;
 #if neko
 private typedef AbstractSocket = {
 	var input(default,null) : neko.io.Input;
+	var output(default,null) : neko.io.Output;
 	function connect( host : neko.net.Host, port : Int ) : Void;
 	function setTimeout( t : Float ) : Void;
 	function write( str : String ) : Void;
@@ -44,6 +45,7 @@ class Http {
 	var postData : String;
 	var chunk_size : Int;
 	var chunk_buf : String;
+	var file : { param : String, filename : String, io : neko.io.Input, size : Int };
 #else js
 	private var async : Bool;
 #end
@@ -209,14 +211,25 @@ class Http {
 	#else neko
 		var me = this;
 		var output = new neko.io.StringOutput();
+		var old = onError;
+		var err = false;
+		onError = function(e) {
+			err = true;
+			old(e);
+		}
 		output.close = function() {
-			me.onData(output.toString());
+			if( !err )
+				me.onData(output.toString());
 		};
 		asyncRequest(post,output);
 	#end
 	}
 
 #if neko
+
+	public function fileTransfert( argname : String, filename : String, file : neko.io.Input, size : Int ) {
+		this.file = { param : argname, filename : filename, io : file, size : size };
+	}
 
 	public function asyncRequest( post : Bool, api : neko.io.Output, ?sock : AbstractSocket  ) {
 		var url_regexp = ~/^(http:\/\/)?([a-zA-Z\.0-9-]+)(:[0-9]+)?(.*)$/;
@@ -234,13 +247,46 @@ class Http {
 		var port = if( portString == "" ) 80 else Std.parseInt(portString.substr(1,portString.length-1));
 		var data;
 
+		var multipart = (file != null);
+		var boundary = null;
 		var uri = null;
-		for( p in params.keys() ) {
-			if( uri == null )
-				uri = "";
-			else
-				uri += "&";
-			uri += StringTools.urlDecode(p)+"="+StringTools.urlEncode(params.get(p));
+		if( multipart ) {
+			post = true;
+			boundary = Std.string(Std.random(1000))+Std.string(Std.random(1000))+Std.string(Std.random(1000))+Std.string(Std.random(1000));
+			while( boundary.length < 38 )
+				boundary = "-" + boundary;
+			var b = new StringBuf();
+			for( p in params.keys() ) {
+				b.add("--");
+				b.add(boundary);
+				b.add("\r\n");
+				b.add('Content-Disposition: form-data; name="');
+				b.add(p);
+				b.add('"');
+				b.add("\r\n");
+				b.add("\r\n");
+				b.add(params.get(p));
+				b.add("\r\n");
+			}
+			b.add("--");
+			b.add(boundary);
+			b.add("\r\n");
+			b.add('Content-Disposition: form-data; name="');
+			b.add(file.param);
+			b.add('"; filename="');
+			b.add(file.filename);
+			b.add('"');
+			b.add("\r\n");
+			b.add("Content-Type: "+"application/octet-stream"+"\r\n"+"\r\n");
+			uri = b.toString();
+		} else {
+			for( p in params.keys() ) {
+				if( uri == null )
+					uri = "";
+				else
+					uri += "&";
+				uri += StringTools.urlEncode(p)+"="+StringTools.urlEncode(params.get(p));
+			}
 		}
 
 		var b = new StringBuf();
@@ -258,9 +304,20 @@ class Http {
 		}
 		b.add(" HTTP/1.1\r\nHost: "+host+"\r\n");
 		if( postData == null && post && uri != null ) {
-			if( headers.get("Content-Type") == null )
-				b.add("Content-Type: "+"application/x-www-form-urlencoded"+"\r\n");
-			b.add("Content-Length: "+uri.length+"\r\n");
+			if( multipart || headers.get("Content-Type") == null ) {
+				b.add("Content-Type: ");
+				if( multipart ) {
+					b.add("multipart/form-data");
+					b.add("; boundary=");
+					b.add(boundary);
+				} else
+					b.add("application/x-www-form-urlencoded");
+				b.add("\r\n");
+			}
+			if( multipart )
+				b.add("Content-Length: "+(uri.length+file.size+boundary.length+6)+"\r\n");
+			else
+				b.add("Content-Length: "+uri.length+"\r\n");
 		}
 		for( h in headers.keys() ) {
 			b.add(h);
@@ -278,6 +335,20 @@ class Http {
 		try {
 			sock.connect(new neko.net.Host(host),port);
 			sock.write(b.toString());
+			if( multipart ) {
+				var bufsize = 4096;
+				var buf = neko.Lib.makeString(bufsize);
+				while( file.size > 0 ) {
+					var size = if( file.size > bufsize ) bufsize else file.size;
+					var len = try file.io.readBytes(buf,0,size) catch( e : neko.io.Eof ) break;
+					sock.output.writeFullBytes(buf,0,len);
+					file.size -= len;
+				}
+				sock.write("\r\n");
+				sock.write("--");
+				sock.write(boundary);
+				sock.write("--");
+			}
 			readHttpResponse(api,sock);
 			sock.close();
 		} catch( e : Dynamic ) {
@@ -426,10 +497,15 @@ class Http {
 			if( chunk_re.match(buf) ) {
 				var p = chunk_re.matchedPos();
 				if( p.len <= len ) {
-					chunk_size = Std.parseInt("0x"+chunk_re.matched(1));
+					var cstr = chunk_re.matched(1);
+					chunk_size = Std.parseInt("0x"+cstr);
+					if( cstr == "0" ) {
+						chunk_size = null;
+						chunk_buf = null;
+						return false;
+					}
 					len -= p.len;
-					readChunk(chunk_re,api,buf.substr(p.len,len),len);
-					return true;
+					return readChunk(chunk_re,api,buf.substr(p.len,len),len);
 				}
 			}
 			// prevent buffer accumulation
