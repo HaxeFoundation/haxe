@@ -57,9 +57,40 @@ class Progress extends neko.io.Output {
 
 }
 
+class ProgressIn extends neko.io.Input {
+
+	var i : neko.io.Input;
+	var pos : Int;
+	var tot : Int;
+
+	public function new( i, tot ) {
+		this.i = i;
+		this.pos = 0;
+		this.tot = tot;
+	}
+
+	public function readChar() {
+		var c = i.readChar();
+		doRead(1);
+		return c;
+	}
+
+	public function readBytes(buf,pos,len) {
+		var k = i.readBytes(buf,pos,len);
+		doRead(k);
+		return k;
+	}
+
+	function doRead( nbytes : Int ) {
+		pos += nbytes;
+		neko.Lib.print( Std.int((pos * 100.0) / tot) + "%\r" );
+	}
+
+}
+
 class Main {
 
-	static var VERSION = 101;
+	static var VERSION = 102;
 	static var REPNAME = "lib";
 	static var SERVER = {
 		host : "lib.haxe.org",
@@ -265,26 +296,12 @@ class Main {
 		var id = site.getSubmitId();
 
 		// directly send the file data over Http
-		// we can't use haxe.Http because we want *sent* data progress
-		var s = new neko.net.Socket();
-		s.connect(new neko.net.Host(SERVER.host),SERVER.port);
-		s.write("POST /"+SERVER.url+"?submit="+id);
-		s.write(" HTTP/1.1\r\nHost: "+SERVER.host+"\r\n");
-		s.write("Content-Type: application/octet-stream\r\n");
-		s.write("Content-Length: "+data.length+"\r\n");
-		s.write("\r\n");
-		var pos = 0;
-		var bufsize = 1024;
+		var h = new haxe.Http("http://"+SERVER.host+":"+SERVER.port+"/"+SERVER.url);
+		h.onError = function(e) { throw e; };
+		h.onData = print;
+		h.fileTransfert("file",id,new ProgressIn(new neko.io.StringInput(data),data.length),data.length);
 		print("Sending data.... ");
-		while( pos < data.length ) {
-			var part = data.substr(pos,bufsize);
-			s.write(part);
-			pos += part.length;
-			neko.Lib.print( Std.int((pos * 100.0) / data.length) + "%\r" );
-		}
-		s.shutdown(false,true);
-		s.input.readAll();
-		s.close();
+		h.request(true);
 
 		// ask the server to register the sent file
 		var msg = site.processSubmit(id,password);

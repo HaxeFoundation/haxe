@@ -41,13 +41,22 @@ class Site {
 			neko.Lib.print("Setup done\n");
 			return;
 		}
-		var sid = Std.parseInt(neko.Web.getParams().get("submit"));
-		if( sid != null ) {
-			var file = neko.io.File.write(TMP_DIR+"/"+sid+".tmp",true);
-			var data = neko.Web.getPostData();
-			file.write(data);
+		var file = null;
+		var sid = null;
+		var bytes = 0;
+		neko.Web.parseMultipart(function(p,filename) {
+			if( p == "file" ) {
+				sid = Std.parseInt(filename);
+				file = neko.io.File.write(TMP_DIR+"/"+sid+".tmp",true);
+			} else
+				throw p+" not accepted";
+		},function(data,pos,len) {
+			bytes += len;
+			file.writeFullBytes(data,pos,len);
+		});
+		if( file != null ) {
 			file.close();
-			neko.Lib.print("File #"+sid+" accepted : "+data.length+" bytes written");
+			neko.Lib.print("File #"+sid+" accepted : "+bytes+" bytes written");
 			return;
 		}
 		neko.Lib.print("I'm haXLib");
