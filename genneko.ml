@@ -691,7 +691,7 @@ let generate file types hres libs =
 	let inits = List.map (gen_expr ctx) (List.rev ctx.inits) in
 	let vars = List.concat (List.map (gen_static_vars ctx) types) in
 	let e = (EBlock (header :: packs @ methods @ boot :: names @ inits @ vars), null_pos) in
-	let neko_file = Filename.chop_extension file ^ ".neko" in
+	let neko_file = (try Filename.chop_extension file with _ -> file) ^ ".neko" in
 	let ch = IO.output_channel (open_out neko_file) in
 	let source = Plugin.defined "neko_source" in
 	(if source then Nxml.write_fmt else Nxml.write) ch (Nxml.to_xml e);
