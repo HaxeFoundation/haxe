@@ -63,7 +63,7 @@ extern class Array<T> {
 	/**
 		Reverse the order of elements of the Array.
 	**/
-	function reverse() : Array<T>;
+	function reverse() : Void;
 
 	/**
 		Removes the first element and returns it.

@@ -169,7 +169,7 @@ class NekoArray__<T> implements Array<T> {
 		untyped {
 			var i = 0;
 			var l = this.length;
-			var a = __dollar__asub(this.__a,0,l);
+			var a = this.__a;
 			var half = __dollar__int(l / 2);
 			l -= 1;
 			while( i < half ) {
@@ -178,7 +178,6 @@ class NekoArray__<T> implements Array<T> {
 				a[l-i] = tmp;
 				i += 1;
 			}
-			return Array.new1(a,l+1);
 		}
 	}
 
