@@ -3,6 +3,7 @@
 	fix in postfix incr/decr and getter/setter
 	added haxe.Http.fileTransfert for Neko
 	fixed haxelib to 1.02 (use multipart file transfert)
+	fixed Array.reverse
 
 2006-11-22: 1.09
 	added neko.vm.Module and neko.vm.Loader
