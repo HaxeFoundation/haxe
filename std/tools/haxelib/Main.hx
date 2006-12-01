@@ -69,13 +69,13 @@ class ProgressIn extends neko.io.Input {
 		this.tot = tot;
 	}
 
-	public function readChar() {
+	public override function readChar() {
 		var c = i.readChar();
 		doRead(1);
 		return c;
 	}
 
-	public function readBytes(buf,pos,len) {
+	public override function readBytes(buf,pos,len) {
 		var k = i.readBytes(buf,pos,len);
 		doRead(k);
 		return k;
