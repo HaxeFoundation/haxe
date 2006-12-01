@@ -25,12 +25,19 @@
  package haxe.unit;
 
 class TestResult {
+
+	var m_tests : List<TestStatus>;
+	public var success(default,null) : Bool;
+
 	public function new() {
 		m_tests = new List();
+		success = true;
 	}
 
 	public function add( t:TestStatus ) : Void {
 		m_tests.add(t);
+		if( !t.success )
+			success = false;
 	}
 
 	public function toString() : String 	{
@@ -44,7 +51,7 @@ class TestResult {
 				buf.add(test.method);
 				buf.add("()");
 				buf.add("\n");
-				
+
 				buf.add("ERR: ");
 				if( test.posInfos != null ){
 					buf.add(test.posInfos.fileName);
@@ -58,12 +65,12 @@ class TestResult {
 				}
 				buf.add(test.error);
 				buf.add("\n");
-				
+
 				if (test.backtrace != null){
 					#if flash9
-					buf.add(test.backtrace);					
+					buf.add(test.backtrace);
 					#else true
-					buf.add(haxe.Stack.toString(test.backtrace));					
+					buf.add(haxe.Stack.toString(test.backtrace));
 					#end
 					buf.add("\n");
 				}
@@ -88,5 +95,4 @@ class TestResult {
 		return buf.toString();
 	}
 
-	var m_tests : List<TestStatus>;
 }

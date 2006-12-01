@@ -92,12 +92,13 @@ class TestRunner {
 		cases.add(c);
 	}
 
-	public function run() : Void {
+	public function run() : Bool {
 		result = new TestResult();
 		for ( c in cases ){
 			runCase(c);
 		}
 		print(result.toString());
+		return result.success;
 	}
 
 	function runCase( t:TestCase ) : Void 	{
