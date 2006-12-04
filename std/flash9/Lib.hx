@@ -52,7 +52,7 @@ class Lib {
 		return o;
 	}
 
-	public static function getURL( url : String, ?target : String ) {
+	public static function getURL( url : flash.net.URLRequest, ?target : String ) {
 		var f = untyped __global__["flash.net.navigateToURL"];
 		if( target == null )
 			f(url);
