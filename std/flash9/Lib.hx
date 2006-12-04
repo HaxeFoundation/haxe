@@ -52,6 +52,18 @@ class Lib {
 		return o;
 	}
 
+	public static function getURL( url : String, ?target : String ) {
+		var f = untyped __global__["flash.net.navigateToURL"];
+		if( target == null )
+			f(url);
+		else
+			(cast f)(url,target);
+	}
+
+	public static function fscommand( cmd : String, ?param : Dynamic ) {
+		untyped __global__["flash.system.fscommand"](cmd,param);
+	}
+
 }
 
 

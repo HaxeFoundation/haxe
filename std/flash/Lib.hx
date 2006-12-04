@@ -39,16 +39,8 @@ class Lib {
 		return untyped __eval__(str);
 	}
 
-	public static function getURL( url : String, ?target : String, ?post : Bool ) {
-		untyped if( post == null ) {
-			if( target == null )
-				__geturl__(url,"_self");
-			else
-				__geturl__(url,target);
-		} else if( post )
-			__geturl__(url,target,"POST");
-		else
-			__geturl__(url,target,"GET");
+	public static function getURL( url : String, ?target : String ) {
+		untyped __geturl__(url,if( target == null ) "_self" else target);
 	}
 
 	public static function fscommand( cmd : String, ?param : Dynamic ) {
@@ -71,11 +63,11 @@ class Lib {
 	public static function registerClass( name : String, cl : {} ) {
 		untyped _global["Object"]["registerClass"](name,cl);
 	}
-	
+
 	public static function keys( v : Dynamic ) : Array<String> {
 		return untyped __keys__(v);
 	}
-	
+
 	public static function setErrorHandler(f) {
 		onerror = f;
 	}
