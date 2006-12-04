@@ -206,7 +206,8 @@ and parse_type_path = parser
 			| [< '(Binop OpGt,_); t = parse_type_path_normal; '(Comma,_); s >] ->
 				(match s with parser
 				| [< name = any_ident; l = parse_type_anonymous_resume name >] -> TPExtend (t,l)
-				| [< l = plist (parse_signature_field None); '(BrClose,_) >] -> TPExtend (t,l))
+				| [< l = plist (parse_signature_field None); '(BrClose,_) >] -> TPExtend (t,l)
+				| [< >] -> serror())
 			| [< l = plist (parse_signature_field None); '(BrClose,_) >] -> TPAnonymous l
 			| [< >] -> serror()
 		) in
@@ -308,7 +309,8 @@ and parse_signature_field flag = parser
 	| [< '(Kwd Var,p1); name = any_ident; s >] ->
 		(match s with parser
 		| [< '(DblDot,_); t = parse_type_path; p2 = semicolon >] -> (name,flag,AFVar t,punion p1 p2)
-		| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_type_path; p2 = semicolon >] -> (name,flag,AFProp (t,i1,i2),punion p1 p2))
+		| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_type_path; p2 = semicolon >] -> (name,flag,AFProp (t,i1,i2),punion p1 p2)
+		| [< >] -> serror())
 	| [< '(Kwd Function,p1); name = any_ident; '(POpen,_); al = psep Comma parse_fun_param_type; '(PClose,_); '(DblDot,_); t = parse_type_path; p2 = semicolon >] ->
 		(name,flag,AFFun (al,t),punion p1 p2)
 	| [< '(Kwd Private,_) when flag = None; s >] -> parse_signature_field (Some false) s
@@ -424,8 +426,10 @@ and expr = parser
 		| [< '(POpen,_); e = expr; s >] ->
 			(match s with parser
 			| [< '(Comma,_); t = parse_type_path; '(PClose,p2); s >] -> expr_next (ECast (e,Some t),punion p1 p2) s
-			| [< '(PClose,p2); s >] -> expr_next (ECast (e,None),punion p1 (pos e)) s)
-		| [< e = expr; s >] -> expr_next (ECast (e,None),punion p1 (pos e)) s)
+			| [< '(PClose,p2); s >] -> expr_next (ECast (e,None),punion p1 (pos e)) s
+			| [< >] -> serror())
+		| [< e = expr; s >] -> expr_next (ECast (e,None),punion p1 (pos e)) s
+		| [< >] -> serror())
 	| [< '(Kwd Throw,p); e = expr >] -> (EThrow e,p)
 	| [< '(Kwd New,p1); t = parse_type_path_normal; '(POpen,_); al = psep Comma expr; '(PClose,p2); s >] -> expr_next (ENew (t,al),punion p1 p2) s
 	| [< '(POpen,p1); e = expr; '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
