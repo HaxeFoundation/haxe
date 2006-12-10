@@ -6,6 +6,7 @@
 	fixed Array.reverse
 	added flash.Lib.getURL and fscommand for Flash9
 	fixed some ignored parse errors
+	fixed minor syntax : immediate object access
 
 2006-11-22: 1.09
 	added neko.vm.Module and neko.vm.Loader
