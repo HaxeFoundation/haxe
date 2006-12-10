@@ -417,7 +417,11 @@ and parse_var_decl = parser
 		| [< >] -> (name,t,None)
 
 and expr = parser
-	| [< '(BrOpen,p1); e = block1; '(BrClose,p2) >] -> (e,punion p1 p2)
+	| [< '(BrOpen,p1); b = block1; '(BrClose,p2); s >] -> 
+		let e = (b,punion p1 p2) in
+		(match b with
+		| EObjectDecl _ -> expr_next e s
+		| _ -> e)
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
 	| [< '(Kwd Callback,p); s >] -> expr_next (EConst (Ident "callback"),p) s
