@@ -8,6 +8,7 @@
 	fixed some ignored parse errors
 	fixed minor syntax : immediate object access
 	allow extend/implements a typedef
+	fixed Flash9 AMF remoting
 
 2006-11-22: 1.09
 	added neko.vm.Module and neko.vm.Loader
