@@ -563,7 +563,7 @@ let set_heritance ctx c herits p =
 		| HExtends t ->
 			if c.cl_super <> None then error "Cannot extend several classes" p;
 			let t = load_normal_type ctx t p false in
-			(match t with
+			(match follow t with
 			| TInst (cl,params) ->
 				if is_parent c cl then error "Recursive class" p;
 				if c.cl_interface then error "Cannot extend an interface" p;
@@ -572,7 +572,7 @@ let set_heritance ctx c herits p =
 			| _ -> error "Should extend by using a class" p)
 		| HImplements t ->
 			let t = load_normal_type ctx t p false in
-			(match t with
+			(match follow t with
 			| TInst (cl,params) ->
 				if is_parent c cl then error "Recursive class" p;
 				c.cl_implements <- (cl, params) :: c.cl_implements
