@@ -56,7 +56,7 @@ type context = {
 	mutable locals : (string, t) PMap.t;
 	mutable locals_map : (string, string) PMap.t;
 	mutable locals_map_inv : (string, string) PMap.t;
-	mutable opened : bool ref list;
+	mutable opened : anon_status ref list;
 }
 
 (* ---------------------------------------------------------------------- *)
@@ -797,7 +797,7 @@ let type_type ctx tpath p =
 			t_path = fst c.cl_path, "#" ^ snd c.cl_path;
 			t_doc = None;
 			t_pos = c.cl_pos;
-			t_type = mk_anon (if pub then PMap.map (fun f -> { f with cf_public = true }) c.cl_statics else c.cl_statics);
+			t_type = if pub then mk_anon (PMap.map (fun f -> { f with cf_public = true }) c.cl_statics) else TAnon { a_fields = c.cl_statics; a_status = static_status };
 			t_private = true;
 			t_static = Some c;
 			t_types = c.cl_types;
@@ -1037,10 +1037,10 @@ let type_field ctx e i p get =
 	| TAnon a ->
 		(try
 			let f = PMap.find i a.a_fields in
-			if not f.cf_public && not ctx.untyped then display_error ctx ("Cannot access to private field " ^ i) p;
+			if !(a.a_status) <> Closed && not f.cf_public && not ctx.untyped then display_error ctx ("Cannot access to private field " ^ i) p;
 			field_access ctx get f (field_type f) e p
 		with Not_found ->
-			if not !(a.a_open) then
+			if is_closed a then
 				no_field()
 			else
 			let f = mk_field i (mk_mono()) in
@@ -1050,8 +1050,8 @@ let type_field ctx e i p get =
 	| TMono r ->
 		if ctx.untyped && Plugin.defined "swf-mark" && Plugin.defined "flash" then ctx.warn "Mark" p;
 		let f = mk_field i (mk_mono()) in
-		let x = ref true in
-		let t = TAnon { a_fields = PMap.add i f PMap.empty; a_open = x } in
+		let x = ref Opened in
+		let t = TAnon { a_fields = PMap.add i f PMap.empty; a_status = x } in
 		ctx.opened <- x :: ctx.opened;
 		r := Some t;
 		field_access ctx get f (field_type f) e p
@@ -1901,7 +1901,7 @@ and type_function ctx t static constr f p =
 		with
 			Exit -> ());
 	locals();
-	List.iter (fun r -> r := false) ctx.opened;
+	List.iter (fun r -> r := Closed) ctx.opened;
 	ctx.ret <- old_ret;
 	ctx.in_static <- old_static;
 	ctx.in_constructor <- old_constr;

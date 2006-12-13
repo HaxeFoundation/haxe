@@ -26,6 +26,11 @@ type field_access =
 	| MethodAccess of string
 	| F9MethodAccess
 
+type anon_status =
+	| Closed
+	| Opened
+	| Statics
+
 type variance = Ast.variance
 
 type t =
@@ -57,7 +62,7 @@ and tfunc = {
 
 and tanon = {
 	mutable a_fields : (string, tclass_field) PMap.t;
-	a_open : bool ref;
+	a_status : anon_status ref;
 }
 
 and texpr_expr =
@@ -164,9 +169,10 @@ type module_def = {
 
 let mk e t p = { eexpr = e; etype = t; epos = p }
 
-let not_opened = ref false
-
-let mk_anon fl = TAnon { a_fields = fl; a_open = not_opened; }
+let not_opened = ref Closed
+let static_status = ref Statics
+let is_closed a = !(a.a_status) <> Opened
+let mk_anon fl = TAnon { a_fields = fl; a_status = not_opened; }
 
 let mk_field name t = {
 	cf_name = name;
@@ -239,7 +245,7 @@ let rec s_type ctx t =
 		) l) ^ " -> " ^ s_fun ctx t false
 	| TAnon a ->
 		let fl = PMap.fold (fun f acc -> (" " ^ f.cf_name ^ " : " ^ s_type ctx f.cf_type) :: acc) a.a_fields [] in
-		"{" ^ (if !(a.a_open) then "+" else "") ^  String.concat "," fl ^ " }"
+		"{" ^ (if not (is_closed a) then "+" else "") ^  String.concat "," fl ^ " }"
 	| TDynamic t2 ->
 		"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [VNo,t2])
 	| TLazy f ->
@@ -364,7 +370,7 @@ let apply_params cparams params t =
 		| TAnon a ->
 			v, TAnon {
 				a_fields = PMap.map (fun f -> { f with cf_type = snd (loop VCo f.cf_type) }) a.a_fields;
-				a_open = a.a_open;
+				a_status = a.a_status;
 			}
 		| TLazy f ->
 			let ft = !f() in
@@ -452,12 +458,12 @@ let rec type_eq param a b =
 					if f1.cf_get <> f2.cf_get || f1.cf_set <> f2.cf_set then raise Exit;
 				with
 					Not_found ->
-						if not !(a2.a_open) then raise Exit;
+						if is_closed a2 then raise Exit;
 						a2.a_fields <- PMap.add f1.cf_name f1 a2.a_fields
 			) a1.a_fields;
 			PMap.iter (fun _ f2 ->
 				if not (PMap.mem f2.cf_name a1.a_fields) then begin
-					if not !(a1.a_open) then raise Exit;
+					if is_closed a1 then raise Exit;
 					a1.a_fields <- PMap.add f2.cf_name f2 a1.a_fields
 				end;
 			) a2.a_fields;
@@ -596,7 +602,7 @@ let rec unify a b =
 				with
 					Unify_error l -> error (invalid_field n :: l)
 			) an.a_fields;
-			an.a_open := false;
+			if !(an.a_status) = Opened then an.a_status := Closed;
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| TAnon a1, TAnon a2 ->
@@ -613,11 +619,11 @@ let rec unify a b =
 					Unify_error l -> error (invalid_field n :: l)
 			with
 				Not_found ->
-					if not !(a1.a_open) then error [has_no_field a n];
+					if is_closed a1 then error [has_no_field a n];
 					a1.a_fields <- PMap.add n f2 a1.a_fields
 			) a2.a_fields;
-			a1.a_open := false;
-			a2.a_open := false;
+			if !(a1.a_status) = Opened then a1.a_status := Closed;
+			if !(a2.a_status) = Opened then a2.a_status := Closed;
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| TDynamic t , _ ->
