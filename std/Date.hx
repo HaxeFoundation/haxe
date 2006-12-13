@@ -111,7 +111,11 @@ extern class Date
 		};
 		Date.fromTime = function(t){
 			var d : Date = __new__(Date);
+			#if flash9
+			d.setTime(t);
+			#else true
 			d["setTime"]( t );
+			#end
 			return d;
 		};
 		Date.fromString = function(s : String) {
@@ -119,10 +123,17 @@ extern class Date
 			case 8: // hh:mm:ss
 				var k = s.split(":");
 				var d : Date = __new__(Date);
+				#if flash9
+				d.setTime(0);
+				d.setUTCHours(k[0]);
+				d.setUTCMinutes(k[1]);
+				d.setUTCSeconds(k[2]);
+				#else true
 				d["setTime"](0);
 				d["setUTCHours"](k[0]);
 				d["setUTCMinutes"](k[1]);
 				d["setUTCSeconds"](k[2]);
+				#end
 				return d;
 			case 10: // YYYY-MM-DD
 				var k = s.split("-");
