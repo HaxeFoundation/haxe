@@ -700,7 +700,7 @@ let generate file types hres libs =
 	if source then begin
 		if command ("nekoc -p " ^ neko_file) <> 0 then failwith "Failed to print neko code";
 		Sys.remove neko_file;
-		Sys.rename (Filename.chop_extension file ^ "2.neko") neko_file;
+		Sys.rename ((try Filename.chop_extension file with _ -> file) ^ "2.neko") neko_file;
 	end;
 	if command ("nekoc " ^ neko_file) <> 0 then failwith "Neko compilation failure";
 	if not source then Sys.remove neko_file
