@@ -1543,7 +1543,9 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		) el in
 		let t = if !dyn then begin
 			let t , pt = t_array ctx VNo in
-			unify ctx t_dynamic pt p;
+			(match pt with
+			| TMono r -> r := Some t_dynamic;
+			| _ -> assert false);
 			t
 		end else t in
 		mk (TArrayDecl el) t p
