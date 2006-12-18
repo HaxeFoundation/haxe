@@ -37,6 +37,7 @@ class Transaction {
 			mainFun();
 		} catch( e : Dynamic ) {
 			if( count > 0 && isDeadlock(e) ) {
+				Manager.cleanup();
 				Manager.cnx.rollback(); // should be already done, but in case...
 				Manager.cnx.startTransaction();
 				runMainLoop(mainFun,logError,count-1);
