@@ -54,7 +54,9 @@ class Manager<T : Object> {
 	var table_keys : Array<String>;
 	var class_proto : { prototype : Dynamic };
 
-	public function new( cl : Dynamic ) {
+	public function new( classval : Class<neko.db.Object> ) {
+		var cl : Dynamic = classval;
+
 		// get basic infos
 		table_name = quoteField(if( cl.TABLE_NAME != null ) cl.TABLE_NAME else cl.__name__[cl.__name__.length-1]);
 		table_keys = if( cl.TABLE_IDS != null ) cl.TABLE_IDS else ["id"];
