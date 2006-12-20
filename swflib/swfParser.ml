@@ -158,7 +158,7 @@ let shape_fill_style_length s =
 	| SFSBitmap b -> 2 + matrix_length b.sfb_mpos
 
 let shape_line_style_length s =
-	2 + color_length s.sls_color + opt_len (fun (_,f) -> -2 + shape_fill_style_length f) s.sls_fill
+	2 + match s.sls_flags with None -> color_length s.sls_color | Some _ -> 2 + match s.sls_fill with None -> color_length s.sls_color | Some f -> shape_fill_style_length f
 
 let shape_array_length f s =
 	let n = List.length s in
@@ -649,7 +649,7 @@ let parse_clip_events ch =
 	loop()
 
 let parse_shape_fill_style ch vshape =
-	let t = read_byte ch in	
+	let t = read_byte ch in
 	match t with
 	| 0x00 when vshape >= 3 -> SFSSolid3 (read_rgba ch)
 	| 0x00 -> SFSSolid (read_rgb ch)
@@ -685,16 +685,19 @@ let parse_shape_line_style ch vshape =
 	let width = read_ui16 ch in
 	if vshape >= 4 then begin
 		let flags = read_ui16 ch in
+		let color = (flags = 0) in
 		{
 			sls_width = width;
-			sls_color = ColorRGBA { r = 0; g = 0; b = 0; a = 0 };
-			sls_fill = Some (flags,parse_shape_fill_style ch vshape);
+			sls_color = ColorRGBA (if color then read_rgba ch else { r = 0; g = 0; b = 0; a = 0 });
+			sls_fill = if color then None else Some (parse_shape_fill_style ch vshape);
+			sls_flags = Some flags;
 		}
 	end else 
 		{
 			sls_width = width;
 			sls_color = if vshape = 3 then ColorRGBA (read_rgba ch) else ColorRGB (read_rgb ch);
 			sls_fill = None;
+			sls_flags = None;
 		}
 
 let parse_shape_array f ch vshape =
@@ -1420,10 +1423,14 @@ let write_shape_fill_style ch s =
 
 let write_shape_line_style ch l =
 	write_ui16 ch l.sls_width;
+	(match l.sls_flags with
+	| None -> ()
+	| Some flags ->
+		write_ui16 ch flags);
 	match l.sls_fill with	
-	| None -> write_color ch l.sls_color;
-	| Some (flags,fill) -> 
-		write_ui16 ch flags;
+	| None ->
+		write_color ch l.sls_color;
+	| Some fill -> 
 		write_shape_fill_style ch fill
 
 let write_shape_array ch f sl =

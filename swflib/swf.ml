@@ -304,7 +304,8 @@ type shape_fill_style =
 type shape_line_style = {
 	sls_width : int;
 	sls_color : color;
-	sls_fill : (int * shape_fill_style) option;
+	sls_flags : int option;
+	sls_fill : shape_fill_style option;
 }
 
 type shape_new_styles = {
