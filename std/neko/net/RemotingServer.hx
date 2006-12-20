@@ -29,10 +29,12 @@ class RemotingServer {
 	var objects : Hash<Dynamic>;
 	var prefix : String;
 	var log : String -> Void;
+	var duc : Bool;
 
 	public function new() {
 		objects = new Hash();
 		log = null;
+		duc = false;
 	}
 
 	public function addObject( name : String, obj : Dynamic ) {
@@ -45,6 +47,10 @@ class RemotingServer {
 
 	public function setPrivatePrefix( p : String ) {
 		prefix = p;
+	}
+
+	public function dontUseCache() {
+		duc = true;
 	}
 
 	public function resolvePath( path : Array<String> ) : Dynamic {
@@ -79,6 +85,7 @@ class RemotingServer {
 				throw "Calling not-a-function '"+f+"'";
 			var v = Reflect.callMethod(obj,funptr,args);
 			var s = new haxe.Serializer();
+			if( duc ) s.dontUseCache();
 			s.serialize(v);
 			neko.Lib.print("hxr");
 			neko.Lib.print(s.toString());
@@ -89,6 +96,7 @@ class RemotingServer {
 				log("\n\n");
 			}
 			var s = new haxe.Serializer();
+			if( duc ) s.dontUseCache();
 			s.serializeException(e);
 			neko.Lib.print("hxr");
 			neko.Lib.print(s.toString());
