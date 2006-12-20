@@ -1,12 +1,5 @@
 
 /**
-	An abstract type that represents a Class.
-	See [Type] for the haXe Reflection API.
-**/
-enum Class {
-}
-
-/**
 	An abstract type that represents an Enum.
 	See [Type] for the haXe Reflection API.
 **/
@@ -24,7 +17,7 @@ enum ValueType {
 	TBool;
 	TObject;
 	TFunction;
-	TClass( c : Class );
+	TClass( c : Class<Dynamic> );
 	TEnum( e : Enum );
 	TUnknown;
 }
@@ -52,11 +45,11 @@ class Type {
 			return null;
 		}
 	}
-	
+
 	/**
 		Converts a value to a Class or returns [null] if the value is not a Class.
 	**/
-	public static function toClass( t : Dynamic ) : Class untyped {
+	public static function toClass( t : Dynamic ) : Class<Dynamic> untyped {
 		try {
 		#if flash9
 			if( !t.hasOwnProperty("prototype") )
@@ -70,11 +63,11 @@ class Type {
 			return null;
 		}
 	}
-	
+
 	/**
 		Returns the class of a value or [null] if this value is not a Class instance.
 	**/
-	public static function getClass( o : Dynamic ) : Class untyped {
+	public static function getClass<T>( o : T ) : Class<T> untyped {
 		#if flash9
 			var cname = __global__["flash.utils.getQualifiedClassName"](o);
 			if( cname == "null" || cname == "Object" || cname == "int" || cname == "Number" || cname == "Boolean" )
@@ -139,7 +132,7 @@ class Type {
 	/**
 		Returns the super-class of a class, or null if no super class.
 	**/
-	public static function getSuperClass( c : Class ) : Class untyped {
+	public static function getSuperClass<T>( c : Class<T> ) : Class<Dynamic> untyped {
 		#if flash9
 			var cname = __global__["flash.utils.getQualifiedSuperclassName"](c);
 			if( cname == "Object" )
@@ -154,7 +147,7 @@ class Type {
 	/**
 		Returns the complete name of a class.
 	**/
-	public static function getClassName( c : Class ) : String {
+	public static function getClassName( c : Class<Dynamic> ) : String {
 		if( c == null )
 			return null;
 		#if flash9
@@ -185,8 +178,8 @@ class Type {
 		Evaluates a class from a name. The class must have been compiled
 		to be accessible.
 	**/
-	public static function resolveClass( name : String ) : Class {
-		var cl : Class;
+	public static function resolveClass( name : String ) : Class<Dynamic> {
+		var cl : Class<Dynamic>;
 		untyped {
 		#if flash9
 			try {
@@ -269,7 +262,7 @@ class Type {
 		Similar to [Reflect.createInstance] excepts that the constructor is not called.
 		This enables you to create an instance without any side-effect.
 	**/
-	public static function createEmptyInstance( cl : Class ) untyped {
+	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped {
 		#if flash9
 			return cl.__construct__.call(null,null);
 		#else flash
@@ -305,7 +298,7 @@ class Type {
 	/**
 		Returns the list of instance fields.
 	**/
-	public static function getInstanceFields( c : Class ) : Array<String> {
+	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
 		#if flash9
 			return describe(c,true);
 		#else true
@@ -328,7 +321,7 @@ class Type {
 	/**
 		Returns the list of a class static fields.
 	**/
-	public static function getClassFields( c : Class ) : Array<String> {
+	public static function getClassFields( c : Class<Dynamic> ) : Array<String> {
 		#if flash9
 			var a = describe(c,false);
 			a.remove("__construct__");

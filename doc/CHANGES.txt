@@ -12,6 +12,7 @@
 	fixed Flash9 bugs in Date object
 	fixed dynamic Array typing bug
 	allowed typedef private field access
+	added Class<T> base class type
 
 2006-11-22: 1.09
 	added neko.vm.Module and neko.vm.Loader

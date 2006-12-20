@@ -50,12 +50,12 @@ class Reflect {
 	/**
 		Creates an instance of the given class with the list of constructor arguments.
 	**/
-	public static function createInstance( cl : Dynamic, args : Array<Dynamic> ) : Dynamic {
+	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped {
 		#if flash9
 			return cl.__construct__.call(null,args);
 		#else flash
 			var o = { __constructor__ : cl, __proto__ : cl.prototype };
-			cl[untyped "apply"](o,args);
+			cl["apply"](o,args);
 			return o;
 		#else neko
 			return untyped __dollar__call(__dollar__objget(cl,__dollar__hash("new".__s)),cl,args.__a);

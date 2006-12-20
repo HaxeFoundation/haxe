@@ -548,6 +548,8 @@ let rec unify a b =
 		(match !t with
 		| None -> if not (link t b a) then error [cannot_unify a b]
 		| Some t -> unify a t)
+	| TType ({ t_static = Some cl },params), TInst ({ cl_path = [],"Class" },[_,pt]) ->
+		unify (TInst (cl,params)) pt
 	| TType (t,tl) , _ ->
 		(try
 			unify (apply_params t.t_types tl t.t_type) b
