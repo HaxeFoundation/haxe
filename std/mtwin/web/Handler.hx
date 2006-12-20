@@ -66,6 +66,9 @@ class Handler<T> {
 		ReadOnly = false;
 	}
 
+	function initialize() {
+	}
+
 	public function execute( request:Request, ?pathLevel:Int ){
 		if (pathLevel == null)
 			pathLevel = 0;
@@ -83,6 +86,8 @@ class Handler<T> {
 
 		if (part == "")
 			part = STATIC_DEFAULT;
+
+		initialize();
 		if (actions.exists(part)){
 			actions.get(part)();
 			return;
@@ -100,12 +105,12 @@ class Handler<T> {
 		throw "not implemented";
 		return false;
 	}
-	
+
 	function isAdmin() : Bool {
 		throw "not implemented";
 		return false;
 	}
-	
+
 	function isModerator() : Bool {
 		throw "not implemented";
 		return false;
@@ -122,7 +127,7 @@ class Handler<T> {
 	}
 
 	// callback wrappers
-	
+
 	function object( cb:T->Void, ?lock:Bool ) : Void->Void {
 		if (lock == null) lock = ReadWrite;
 		var me = this;
