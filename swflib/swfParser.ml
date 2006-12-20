@@ -158,7 +158,7 @@ let shape_fill_style_length s =
 	| SFSBitmap b -> 2 + matrix_length b.sfb_mpos
 
 let shape_line_style_length s =
-	2 + color_length s.sls_color + opt_len (const 2) s.sls_unk
+	2 + color_length s.sls_color + opt_len (fun (_,f) -> -2 + shape_fill_style_length f) s.sls_fill
 
 let shape_array_length f s =
 	let n = List.length s in
@@ -649,7 +649,7 @@ let parse_clip_events ch =
 	loop()
 
 let parse_shape_fill_style ch vshape =
-	let t = read_byte ch in
+	let t = read_byte ch in	
 	match t with
 	| 0x00 when vshape >= 3 -> SFSSolid3 (read_rgba ch)
 	| 0x00 -> SFSSolid (read_rgb ch)
@@ -683,16 +683,22 @@ let parse_shape_fill_style ch vshape =
 
 let parse_shape_line_style ch vshape =
 	let width = read_ui16 ch in
-	let color = (if vshape >= 3 then ColorRGBA (read_rgba ch) else ColorRGB (read_rgb ch)) in
-	let unk = (if vshape = 4 then Some (read_ui16 ch) else None) in
-	{
-		sls_width = width;
-		sls_color = color;
-		sls_unk = unk;
-	}
+	if vshape >= 4 then begin
+		let flags = read_ui16 ch in
+		{
+			sls_width = width;
+			sls_color = ColorRGBA { r = 0; g = 0; b = 0; a = 0 };
+			sls_fill = Some (flags,parse_shape_fill_style ch vshape);
+		}
+	end else 
+		{
+			sls_width = width;
+			sls_color = if vshape = 3 then ColorRGBA (read_rgba ch) else ColorRGB (read_rgb ch);
+			sls_fill = None;
+		}
 
 let parse_shape_array f ch vshape =
-	let n = (match read_byte ch with 0xFF -> read_ui16 ch | n -> n) in
+	let n = (match read_byte ch with 0xFF -> read_ui16 ch | n -> n) in	
 	read_count n (f ch) vshape
 
 let parse_shape_style_change_record ch b flags nlbits nfbits vshape =
@@ -1414,10 +1420,11 @@ let write_shape_fill_style ch s =
 
 let write_shape_line_style ch l =
 	write_ui16 ch l.sls_width;
-	write_color ch l.sls_color;
-	match l.sls_unk with
-	| None -> ()
-	| Some i -> write_ui16 ch i
+	match l.sls_fill with	
+	| None -> write_color ch l.sls_color;
+	| Some (flags,fill) -> 
+		write_ui16 ch flags;
+		write_shape_fill_style ch fill
 
 let write_shape_array ch f sl =
 	let n = List.length sl in
