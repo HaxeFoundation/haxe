@@ -51,7 +51,7 @@ class DelayedConnection extends AsyncConnection, implements Dynamic<DelayedConne
 		return cnx;
 	}
 
-	override public function call( params, onData ) {
+	override public function call( params, ?onData ) {
 		var d : InternalData = __data;
 		d.msg.push({ path : __path, params : params, onData : onData });
 		process(d);

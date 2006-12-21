@@ -53,7 +53,7 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 		return f;
 	}
 
-	public function call( params : Array<Dynamic>, onData : Dynamic -> Void ) : Void {
+	public function call( params : Array<Dynamic>, ?onData : Dynamic -> Void ) : Void {
 		#if flash
 		if( __data.connect ) {
 			var me = this;

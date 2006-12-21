@@ -69,7 +69,7 @@ class AsyncDebugConnection extends AsyncConnection, implements Dynamic<AsyncDebu
 		trace(path.join(".")+"("+params.join(",")+") = "+Std.string(result));
 	}
 
-	override public function call( params : Array<Dynamic>, onData : Dynamic -> Void ) : Void {
+	override public function call( params : Array<Dynamic>, ?onData : Dynamic -> Void ) : Void {
 		lastCalls.add({ path : __data.__path, params : params });
 		onCall(__data.__path,params);
 		var me = this;

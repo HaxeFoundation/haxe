@@ -40,7 +40,7 @@ class LocalConnection extends AsyncConnection {
 		return s;
 	}
 
-	override public function call( params : Array<Dynamic>, onData : Dynamic -> Void ) : Void {
+	override public function call( params : Array<Dynamic>, ?onData : Dynamic -> Void ) : Void {
 		try {
 			var s = new haxe.Serializer();
 			var p = __path.copy();
