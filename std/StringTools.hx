@@ -260,6 +260,22 @@ class StringTools {
 		return out.toString();
 		#end
 	}
+	
+	/**
+		Encode a number into a hexadecimal representation, with an optional number of zeros for left padding.
+	**/
+	public static function hex( n : Int, ?digits : Int ) {
+		var s = "";
+		var hexChars = "0123456789ABCDEF";
+		do {
+			s = hexChars.charAt(n%16) + s;
+			n = Std.int(n/16);
+		} while( n > 0 );
+		if( digits != null )
+			while( s.length < digits )
+				s = "0"+s;
+		return s;
+	}
 
 	#if neko
 	private static var _urlEncode = neko.Lib.load("std","url_encode",1);
