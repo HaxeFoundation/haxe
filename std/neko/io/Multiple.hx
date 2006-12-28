@@ -27,9 +27,11 @@ package neko.io;
 class Multiple extends Output {
 
 	var l : List<Output>;
+	public var position(default,null) : Int;
 
 	public function new() {
 		l = new List();
+		position = 0;
 	}
 
 	public function add( o : Output ) {
@@ -43,6 +45,7 @@ class Multiple extends Output {
 	public override function writeChar(c) {
 		for( o in l )
 			o.writeChar(c);
+		position++;
 	}
 
 	public override function writeBytes(s,pos,len) {
@@ -55,6 +58,7 @@ class Multiple extends Output {
 				l -= k;
 			} while( l > 0 );
 		}
+		position += len;
 		return len;
 	}
 
