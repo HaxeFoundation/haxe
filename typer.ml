@@ -1358,7 +1358,7 @@ and type_switch ctx e cases def need_val p =
 				| [] -> ()
 				| _ -> display_error ctx ("Some constructors are not matched : " ^ String.concat "," l) p
 			);
-			None
+			if need_val then Some (null p) else None
 		| Some e ->
 			let e = type_expr ctx ~need_val e in
 			if need_val then unify ctx e.etype t e.epos;
@@ -1631,7 +1631,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		unify ctx e.etype (t_bool ctx) e.epos;
 		let e1 = type_expr ctx ~need_val e1 in
 		(match e2 with
-		| None -> mk (TIf (e,e1,None)) (t_void ctx) p
+		| None -> 
+			mk (TIf (e,e1,if need_val then Some (null p) else None)) (t_void ctx) p
 		| Some e2 ->
 			let e2 = type_expr ctx ~need_val e2 in
 			let t = if not need_val then t_void ctx else (try
