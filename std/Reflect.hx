@@ -48,25 +48,6 @@ class Reflect {
 	}
 
 	/**
-		Creates an instance of the given class with the list of constructor arguments.
-	**/
-	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped {
-		#if flash9
-			return cl.__construct__.call(null,args);
-		#else flash
-			var o = { __constructor__ : cl, __proto__ : cl.prototype };
-			cl["apply"](o,args);
-			return o;
-		#else neko
-			return untyped __dollar__call(__dollar__objget(cl,__dollar__hash("new".__s)),cl,args.__a);
-		#else js
-			if( args.length >= 6 ) throw "Too many arguments";
-			return untyped __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5]);
-		#else error
-		#end
-	}
-
-	/**
 		Tells if an object has a field set. This doesn't take into account the object prototype (class methods).
 	**/
 	public static function hasField( o : Dynamic, field : String ) : Bool {
@@ -304,6 +285,27 @@ class Reflect {
 		for( f in Reflect.fields(o) )
 			Reflect.setField(o2,f,Reflect.field(o,f));
 		return o2;
+		#end
+	}
+
+	/**
+		Transform a function taking an array of arguments into a function that can
+		be called with any number of arguments.
+	**/
+	static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
+		#if neko
+		return untyped __dollar__varargs(function(a) { return f(Array.new1(a,__dollar__asize(a))); });
+		#else flash9
+		return throw "Not implemented";
+		#else js
+		return function() untyped {
+			var a = new Array();
+			for( i in 0...arguments.length )
+				a.push(arguments[i]);
+			return f(a);
+		};
+		#else flash
+		return function() { return f(untyped __arguments__); };
 		#end
 	}
 
