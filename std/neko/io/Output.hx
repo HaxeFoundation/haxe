@@ -94,16 +94,17 @@ class Output {
 	}
 
 	public function writeInt8( c : Int ) {
-		if( c >= 128 || c < -128 )
+		if( c < -0x80 || c > 0x7F )
 			throw Error.Overflow;
 		writeChar(c & 0xFF);
 	}
 
-	public function writeInt32( x : Int ) {
-		writeChar(x & 0xFF);
-		writeChar((x >> 8) & 0xFF);
-		writeChar((x >> 16) & 0xFF);
-		writeChar(x >>> 24);
+	public function writeInt16( x : Int ) {
+		if( x < -0x8000 || x > 0x7FFF ) throw Error.Overflow;
+		if( x < 0 )
+			writeUInt16(0x10000 + x);
+		else
+			writeUInt16(x);
 	}
 
 	public function writeUInt16( x : Int ) {
@@ -118,6 +119,21 @@ class Output {
 		writeChar(x & 0xFF);
 	}
 
+	public function writeInt24( x : Int ) {
+		if( x < -0x800000 || x > 0x7FFFFF ) throw Error.Overflow;
+		if( x < 0 )
+			writeUInt24(0x1000000 + x);
+		else
+			writeUInt24(x);
+	}
+	
+	public function writeUInt24( x : Int ) {
+		if( x < 0 || x > 0xFFFFFF ) throw Error.Overflow;
+		writeChar(x & 0xFF);
+		writeChar((x >> 8) & 0xFF);
+		writeChar(x >> 16);
+	}
+	
 	public function writeUInt24B( x : Int ) {
 		if( x < 0 || x > 0xFFFFFF ) throw Error.Overflow;
 		writeChar(x >> 16);
@@ -125,14 +141,26 @@ class Output {
 		writeChar(x & 0xFF);
 	}
 
-	public function writeInt16( x : Int ) {
-		if( x < -0x7FFF || x > 0x7FFF ) throw Error.Overflow;
-		if( x < 0 )
-			writeUInt16(65536 + x);
-		else
-			writeUInt16(x);
+	public function writeInt32( x : Int ) {
+		writeChar(x & 0xFF);
+		writeChar((x >> 8) & 0xFF);
+		writeChar((x >> 16) & 0xFF);
+		writeChar(x >>> 24);
 	}
 
+	public function writeUInt32( x : Int ) {
+		if( x < 0 ) throw Error.Overflow;
+		writeInt32(x);
+	}
+	
+	public function writeUInt32B( x : Int ) {
+		if( x < 0 ) throw Error.Overflow;
+		writeChar(x >>> 24);
+		writeChar((x >> 16) & 0xFF);
+		writeChar((x >> 8) & 0xFF);
+		writeChar(x & 0xFF);
+	}
+	
 	/**
 		Inform that we are about to write at least a specified number of bytes.
 		The underlying implementation can allocate proper working space depending
