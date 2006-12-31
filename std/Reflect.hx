@@ -292,7 +292,7 @@ class Reflect {
 		Transform a function taking an array of arguments into a function that can
 		be called with any number of arguments.
 	**/
-	static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
+	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
 		#if neko
 		return untyped __dollar__varargs(function(a) { return f(Array.new1(a,__dollar__asize(a))); });
 		#else flash9
