@@ -17,6 +17,7 @@
 	fixed if/switch with no else/default compilation
 	moved Reflect.createInstance to Type
 	added Reflect.makeVarArgs
+	haXelib 1.03 : several developers per project + web interface
 
 2006-11-22: 1.09
 	added neko.vm.Module and neko.vm.Loader
