@@ -77,7 +77,7 @@ class Template {
 		return buf.toString();
 	}
 
-	function resolve( v : String ) : Dynamic {
+	public function resolve( v : String ) : Dynamic {
 		if( Reflect.hasField(context,v) )
 			return Reflect.field(context,v);
 		for( ctx in stack )
@@ -334,7 +334,6 @@ class Template {
 			var v : Dynamic = Reflect.field(macros,m);
 			var pl = new Array<Dynamic>();
 			var old = buf;
-			pl.push(resolve);
 			for( p in params ) {
 				switch( p ) {
 				case OpVar(v): pl.push(resolve(v));
@@ -346,9 +345,10 @@ class Template {
 			}
 			buf = old;
 			try {
-				buf.add(Reflect.callMethod(null,v,pl));
+				buf.add(Reflect.callMethod(macros,v,pl));
 			} catch( e : Dynamic ) {
-				var msg = "Macro call "+m+" failed ("+Std.string(e)+")";
+				var plstr = try pl.toString() catch( e : Dynamic ) "???";
+				var msg = "Macro call "+m+"("+plstr+") failed ("+Std.string(e)+")";
 				#if neko
 				neko.Lib.rethrow(msg);
 				#else true
