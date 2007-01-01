@@ -39,7 +39,7 @@ class Version extends neko.db.Object {
 		return [{ key : "project", prop : "project", manager : Project.manager }];
 	}
 
-	public static var manager = new neko.db.Manager<Version>(Version);
+	public static var manager = new VersionManager(Version);
 
 	public var id : Int;
 	public var project(dynamic,dynamic) : Project;
@@ -50,11 +50,44 @@ class Version extends neko.db.Object {
 
 }
 
+class Developer extends neko.db.Object {
+
+	static var TABLE_IDS = ["user","project"];
+	static function RELATIONS() {
+		return [
+			{ key : "user", prop : "user", manager : User.manager },
+			{ key : "project", prop : "project", manager : Project.manager },
+		];
+	}
+
+	public static var manager = new neko.db.Manager<Developer>(Developer);
+
+	public var user(dynamic,dynamic) : User;
+	public var project(dynamic,dynamic) : Project;
+
+}
+
 class ProjectManager extends neko.db.Manager<Project> {
 
 	public function containing( word ) {
 		word = quote("%"+word+"%");
 		return results("SELECT name FROM Project WHERE name LIKE "+word+" OR description LIKE "+word);
+	}
+
+	public function allByName() {
+		return objects("SELECT * FROM Project ORDER BY name COLLATE NOCASE",false);
+	}
+
+}
+
+class VersionManager extends neko.db.Manager<Version> {
+
+	public function latest( n : Int ) {
+		return objects("SELECT * FROM Version ORDER BY date DESC LIMIT "+n,false);
+	}
+
+	public function byProject( p : Project ) {
+		return objects("SELECT * FROM Version WHERE project = "+p.id+" ORDER BY date DESC",false);
 	}
 
 }
@@ -93,6 +126,13 @@ class SiteDb {
 				date VARCHAR(19) NOT NULL,
 				name VARCHAR(32) NOT NULL,
 				comments TEXT NOT NULL
+			)
+		");
+		db.request("DROP TABLE IF EXISTS Developer");
+		db.request("
+			CREATE TABLE Developer (
+				user INTEGER NOT NULL PRIMARY KEY,
+				project INTEGER NOT NULL PRIMARY KEY
 			)
 		");
 	}

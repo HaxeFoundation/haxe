@@ -52,6 +52,8 @@ class SiteApi {
 	public function register( name : String, pass : String, mail : String, fullname : String ) : Bool {
 		if( !Datas.alphanum.match(name) )
 			throw "Invalid user name, please use alphanumeric characters";
+		if( name.length < 3 )
+			throw "User name must be at least 3 characters";
 		var u = new User();
 		u.name = name;
 		u.pass = pass;
@@ -65,12 +67,14 @@ class SiteApi {
 		return User.manager.search({ name : name }).first() == null;
 	}
 
-	public function checkOwner( prj : String, user : String ) : Void {
+	public function checkDeveloper( prj : String, user : String ) : Void {
 		var p = Project.manager.search({ name : prj }).first();
 		if( p == null )
 			return;
-		if( p.owner.name != user )
-			throw "Owner of "+p.name+" is '"+p.owner.name+"'";
+		for( d in Developer.manager.search({ project : p.id }) )
+			if( d.user.name == user )
+				return;
+		throw "User '"+user+"' is not a developer of project '"+prj+"'";
 	}
 
 	public function checkPassword( user : String, pass : String ) : Bool {
@@ -82,7 +86,7 @@ class SiteApi {
 		return Std.string(Std.random(100000000));
 	}
 
-	public function processSubmit( id : String, pass : String ) : String {
+	public function processSubmit( id : String, user : String, pass : String ) : String {
 		var path = Site.TMP_DIR+"/"+Std.parseInt(id)+".tmp";
 
 		var file = try neko.io.File.read(path,true) catch( e : Dynamic ) throw "Invalid file id #"+id;
@@ -90,11 +94,20 @@ class SiteApi {
 		file.close();
 
 		var infos = Datas.readInfos(zip);
-		var u = User.manager.search({ name : infos.owner }).first();
+		var u = User.manager.search({ name : user }).first();
 		if( u == null || u.pass != pass )
 			throw "Invalid username or password";
 
+		var devs = infos.developers.map(function(user) {
+			var u = User.manager.search({ name : user }).first();
+			if( u == null )
+				throw "Unknown user '"+user+"'";
+			return u;
+		});
+
 		var p = Project.manager.search({ name : infos.project }).first();
+
+		// create project if needed
 		if( p == null ) {
 			p = new Project();
 			p.name = infos.project;
@@ -103,20 +116,43 @@ class SiteApi {
 			p.license = infos.license;
 			p.owner = u;
 			p.insert();
-			neko.FileSystem.deleteFile(path);
-			return "Project added : submit one more time to send a first version";
+			for( u in devs ) {
+				var d = new Developer();
+				d.user = u;
+				d.project = p;
+				d.insert();
+			}
 		}
 
-		// check owner
-		if( p.owner != u )
-			throw "Invalid owner";
+		// check submit rights
+		var pdevs = Developer.manager.search({ project : p.id });
+		var isdev = false;
+		for( d in pdevs )
+			if( d.user.id == u.id ) {
+				isdev = true;
+				break;
+			}
+		if( !isdev )
+			throw "You are not a developer of this project";
 
 		// update public infos
 		var update = false;
-		if( infos.desc != p.description || p.website != infos.website ) {
+		if( infos.desc != p.description || p.website != infos.website || pdevs.length != devs.length ) {
+			if( u.id != p.owner.id )
+				throw "Only project owner can modify project infos";
 			p.description = infos.desc;
 			p.website = infos.website;
 			p.update();
+			if( pdevs.length != devs.length ) {
+				for( d in pdevs )
+					d.delete();
+				for( u in devs ) {
+					var d = new Developer();
+					d.user = u;
+					d.project = p;
+					d.insert();
+				}
+			}
 			update = true;
 			neko.FileSystem.deleteFile(path);
 			return "Project infos updated : submit one more time to send a new version";

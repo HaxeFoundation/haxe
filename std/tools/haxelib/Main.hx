@@ -90,7 +90,7 @@ class ProgressIn extends neko.io.Input {
 
 class Main {
 
-	static var VERSION = 102;
+	static var VERSION = 103;
 	static var REPNAME = "lib";
 	static var SERVER = {
 		host : "lib.haxe.org",
@@ -116,6 +116,7 @@ class Main {
 		addCommand("search",search,"list projects matching a word");
 		addCommand("info",info,"list informations on a given project");
 		addCommand("user",user,"list informations on a given user");
+		addCommand("register",register,"register a new user");
 		addCommand("submit",submit,"submit or update a project package");
 		addCommand("setup",setup,"set the haxelib repository path");
 		addCommand("config",config,"print the repository path");
@@ -247,9 +248,12 @@ class Main {
 			print("  "+p);
 	}
 
-	function register(name) {
-		print("This is your first submission as '"+name+"'");
-		print("Please enter the following informations for registration");
+	function register() {
+		doRegister(param("User"));
+		print("Registration successful");
+	}
+
+	function doRegister(name) {
 		var email = param("Email");
 		var fullname = param("Fullname");
 		var pass = param("Password",true);
@@ -266,15 +270,20 @@ class Main {
 		var data = neko.io.File.getContent(file);
 		var zip = neko.zip.File.read(new neko.io.StringInput(data));
 		var infos = Datas.readInfos(zip);
+		var user = infos.developers.first();
 		var password;
-		site.checkOwner(infos.project,infos.owner);
-		if( site.isNewUser(infos.owner) )
-			password = register(infos.owner);
-		else {
+		if( site.isNewUser(user) ) {
+			print("This is your first submission as '"+user+"'");
+			print("Please enter the following informations for registration");
+			password = doRegister(user);
+		} else {
+			if( infos.developers.length > 1 )
+				user = param("User");
 			password = haxe.Md5.encode(param("Password",true));
-			if( !site.checkPassword(infos.owner,password) )
-				throw "Invalid password for "+infos.owner;
+			if( !site.checkPassword(user,password) )
+				throw "Invalid password for "+user;
 		}
+		site.checkDeveloper(infos.project,user);
 
 		// check dependencies validity
 		for( d in infos.dependencies ) {
@@ -291,7 +300,6 @@ class Main {
 				throw "Project "+d.project+" does not have version "+d.version;
 		}
 
-
 		// query a submit id that will identify the file
 		var id = site.getSubmitId();
 
@@ -304,7 +312,7 @@ class Main {
 		h.request(true);
 
 		// ask the server to register the sent file
-		var msg = site.processSubmit(id,password);
+		var msg = site.processSubmit(id,user,password);
 		print(msg);
 	}
 

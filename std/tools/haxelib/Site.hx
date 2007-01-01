@@ -59,15 +59,76 @@ class Site {
 			neko.Lib.print("File #"+sid+" accepted : "+bytes+" bytes written");
 			return;
 		}
-		neko.Lib.print("I'm haXLib");
+		display();
+	}
+
+	static function display() {
+		var data = neko.io.File.getContent(CWD + "website.mtt");
+		var page = new haxe.Template(data);
+		var ctx : Dynamic = Reflect.empty();
+		var macros = {
+			download : function( res, p, v ) {
+				return "/"+Datas.REPOSITORY+"/"+Datas.fileName(res(p).name,res(v).name);
+			}
+		};
+		fillContent(ctx);
+		neko.Lib.print( page.execute(ctx,macros) );
+	}
+
+	static function fillContent( ctx : Dynamic ) {
+		var uri = neko.Web.getURI().split("/");
+		if( uri[0] == "" )
+			uri.shift();
+		var act = uri.shift();
+		if( act == null || act == "" )
+			act = "index";
+		ctx.projects = Project.manager.allByName();
+		switch( act ) {
+		case "p":
+			var name = uri.shift();
+			var p = Project.manager.search({ name : name }).first();
+			if( p == null ) {
+				ctx.error = "Unknown project '"+name+"'";
+				return;
+			}
+			ctx.p = p;
+			ctx.owner = p.owner;
+			ctx.version = p.version;
+			ctx.versions = Version.manager.byProject(p);
+		case "u":
+			var name = uri.shift();
+			var u = User.manager.search({ name : name }).first();
+			if( u == null ) {
+				ctx.error = "Unknown user '"+name+"'";
+				return;
+			}
+			ctx.u = u;
+			ctx.uprojects = Developer.manager.search({ user : u.id }).map(function(d:Developer) { return d.project; });
+		case "index":
+			var vl = Version.manager.latest(10);
+			for( v in vl ) {
+				var p = v.project;
+			}
+			ctx.versions = vl;
+		default:
+			ctx.error = "Unknown action : "+act;
+			return;
+		}
+		Reflect.setField(ctx,"act_"+act,true);
 	}
 
 	static function main() {
+		var error = null;
 		initDatabase();
-		run();
+		try {
+			run();
+		} catch( e : Dynamic ) {
+			error = { e : e };
+		}
 		db.close();
 		neko.db.Manager.cleanup();
-		return;
+		if( error != null )
+			neko.Lib.rethrow(error.e);
 	}
 
 }
