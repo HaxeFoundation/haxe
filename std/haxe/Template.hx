@@ -77,12 +77,14 @@ class Template {
 		return buf.toString();
 	}
 
-	public function resolve( v : String ) : Dynamic {
+	function resolve( v : String ) : Dynamic {
 		if( Reflect.hasField(context,v) )
 			return Reflect.field(context,v);
 		for( ctx in stack )
 			if( Reflect.hasField(ctx,v) )
 				return Reflect.field(ctx,v);
+		if( v == "__current__" )
+			return context;
 		return Reflect.field(globals,v);
 	}
 
@@ -334,6 +336,7 @@ class Template {
 			var v : Dynamic = Reflect.field(macros,m);
 			var pl = new Array<Dynamic>();
 			var old = buf;
+			pl.push(resolve);
 			for( p in params ) {
 				switch( p ) {
 				case OpVar(v): pl.push(resolve(v));
