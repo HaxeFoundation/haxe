@@ -131,8 +131,8 @@ class SiteDb {
 		db.request("DROP TABLE IF EXISTS Developer");
 		db.request("
 			CREATE TABLE Developer (
-				user INTEGER NOT NULL PRIMARY KEY,
-				project INTEGER NOT NULL PRIMARY KEY
+				user INTEGER NOT NULL,
+				project INTEGER NOT NULL
 			)
 		");
 	}
