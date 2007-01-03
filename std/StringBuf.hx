@@ -46,13 +46,11 @@ class StringBuf {
 	/**
 		Adds the representation of any value to the string buffer.
 	**/
-	public function add( x : Dynamic ) {
+	public function add( ?x : Dynamic ) {
 		#if neko
 		__add(b,x);
-		#else flash
-		b += untyped flash.Boot.__string_rec(x,"");
-		#else js
-		b += untyped js.Boot.__string_rec(x,"");
+		#else true
+		b += x;
 		#else error
 		#end
 	}

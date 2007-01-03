@@ -408,7 +408,7 @@ class JsXml__ {
 		}
 
 		for( x in iterator() )
-			s.add(x);
+			s.add(x.toString());
 
 		if( nodeType == Xml.Element ) {
 			s.add("</");

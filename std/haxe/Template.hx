@@ -301,9 +301,9 @@ class Template {
 	function run( e : TemplateExpr ) {
 		switch( e ) {
 		case OpVar(v):
-			buf.add(resolve(v));
+			buf.add(Std.string(resolve(v)));
 		case OpExpr(e):
-			buf.add(e());
+			buf.add(Std.string(e()));
 		case OpIf(e,eif,eelse):
 			var v = e();
 			if( v == null || v == false ) {
@@ -348,7 +348,7 @@ class Template {
 			}
 			buf = old;
 			try {
-				buf.add(Reflect.callMethod(macros,v,pl));
+				buf.add(Std.string(Reflect.callMethod(macros,v,pl)));
 			} catch( e : Dynamic ) {
 				var plstr = try pl.toString() catch( e : Dynamic ) "???";
 				var msg = "Macro call "+m+"("+plstr+") failed ("+Std.string(e)+")";

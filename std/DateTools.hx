@@ -97,12 +97,12 @@ class DateTools {
 			if( np < 0 )
 				break;
 
-			r.add( f.substr(p,np-p) );
+			r.addSub(f,p,np-p);
 			r.add( __jsflash_format_get(d, f.substr(np+1,1) ) );
 
 			p = np+2;
 		}
-		r.add(f.substr(p,f.length-p));
+		r.addSub(f,p,f.length-p);
 		return r.toString();
 	}
 	#end
@@ -135,7 +135,7 @@ class DateTools {
 	public static function delta( d : Date, t : Float ) : Date {
 		return Date.fromTime( d.getTime() + t );
 	}
-	
+
 	static var DAYS_OF_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
 	/**

@@ -68,7 +68,7 @@ class TestResult {
 
 				if (test.backtrace != null){
 					#if flash9
-					buf.add(test.backtrace);
+					buf.add(Std.string(test.backtrace));
 					#else true
 					buf.add(haxe.Stack.toString(test.backtrace));
 					#end
