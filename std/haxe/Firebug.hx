@@ -26,16 +26,45 @@ package haxe;
 
 class Firebug {
 
+	public static function detect() : Bool {
+		#if js
+		try {
+			return untyped console != null && console.error != null;
+		} catch( e : Dynamic ) {
+			return false;
+		}
+		#else flash
+		if( !flash.external.ExternalInterface.available )
+			throw "External Interface not available";
+		return flash.external.ExternalInterface.call("console.error.toString") != null;
+		#end
+	}
+
 	public static function redirectTraces() {
 		haxe.Log.trace = trace;
+		#if flash8
+		flash.Lib.setErrorHandler(onError);
+		#else js
+		js.Lib.setErrorHandler(onError);
+		#end
+	}
+
+	public static function onError( err : String, stack : Array<String> ) {
+		var buf = err+"\n";
+		for( s in stack )
+			buf += "Called from "+s+"\n";
+		haxe.Firebug.trace(buf,null);
+		#if js
+		return true;
+		#end
 	}
 
 	public static function trace(v : Dynamic, ?inf : haxe.PosInfos ) {
-		var type = if( inf.customParams != null ) inf.customParams[0] else null;
+		var type = if( inf != null && inf.customParams != null ) inf.customParams[0] else null;
 		if( type != "warn" && type != "info" && type != "debug" && type != "error" )
-			type = "log";
+			type = if( inf == null ) "error" else "log";
 		#if flash
-			var out = "javascript:console."+ type +"('" + inf.fileName + ":" + inf.lineNumber + " : " + Std.string(v).split("\\").join("\\\\").split("'").join('\\"') + "');";
+			var out = "javascript:console."+ type +"('" + (if( inf == null ) "" else inf.fileName + ":" + inf.lineNumber + " : ") + Std.string(v).split("\\").join("\\\\").split("'").join('\\"').split("\n").join("\\n").split("\r").join("\\r").split("\t").join("\\t") + "');";
 			#if flash9
 			var l = new flash.net.URLLoader();
 			l.addEventListener( "ioError", function(e){} );
@@ -44,7 +73,7 @@ class Firebug {
 			flash.Lib.getURL(out);
 			#end // flash9
 		#else js
-			untyped console[type](inf.fileName+":"+inf.lineNumber+" : "+Std.string(v));
+			untyped console[type]( (if( inf == null ) "" else inf.fileName+":"+inf.lineNumber+" : ") + Std.string(v) );
 		#else error
 		#end
 	}
