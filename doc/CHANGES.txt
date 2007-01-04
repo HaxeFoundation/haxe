@@ -1,3 +1,7 @@
+2007-??-??: 1.11
+	changed StringBuf.add implementation
+	added haxe.Firebug
+
 2007-01-01: 1.10
 	fix in haxe.remoting.SocketConnection.readAnswer
 	fix in postfix incr/decr and getter/setter
