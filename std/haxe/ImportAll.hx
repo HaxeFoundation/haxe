@@ -53,6 +53,9 @@ import haxe.Stack;
 import haxe.Template;
 import haxe.Timer;
 import haxe.Unserializer;
+#if !neko
+import haxe.Firebug;
+#end
 
 import haxe.remoting.AsyncConnection;
 import haxe.remoting.AsyncDebugConnection;
