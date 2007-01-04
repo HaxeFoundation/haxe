@@ -280,7 +280,8 @@ class Ftp {
 	function command( command:String ) : String {
 		if (debug) trace("C> "+command);
 		socket.write(command + CRLF);
-		return getLine();
+		return getLines().pop();
+		//return getLine();
 	}
 
 	function getLine() : String {
@@ -298,7 +299,7 @@ class Ftp {
 		}
 		while (true){
 			line = getLine();
-			if (line.charAt(3) == "-"){
+			if (line.charAt(3) != "-"){
 				var code = line.substr(0, 3);
 				break;
 			}
