@@ -188,7 +188,7 @@ class IntHash<T> {
 		for( i in it ) {
 			s.add(i);
 			s.add(" => ");
-			s.add2(Std.string(get(i)));
+			s.add(Std.string(get(i)));
 			if( it.hasNext() )
 				s.add(", ");
 		}
