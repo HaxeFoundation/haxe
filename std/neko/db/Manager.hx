@@ -253,7 +253,7 @@ class Manager<T : Object> {
 
 	public function doSync( i : T ) {
 		object_cache.remove(makeCacheKey(i));
-		var i2 = getWithKeys(i);
+		var i2 = getWithKeys(i,(cast i).update != no_update);
 		// delete all fields
 		for( f in Reflect.fields(i) )
 			Reflect.deleteField(i,f);
