@@ -48,6 +48,7 @@ let warn msg p =
 				sprintf "%s:%d:" file line
 		in
 		let epos = Lexer.get_error_pos error_printer p in
+		let msg = String.concat ("\n" ^ epos ^ " : ") (ExtString.String.nsplit msg "\n") in
 		prerr_endline (sprintf "%s : %s" epos msg)
 	end
 
