@@ -1915,6 +1915,15 @@ let type_static_var ctx t e p =
 	unify ctx e.etype t p;
 	e
 
+let valid_redefinition ctx f t =
+	let ft = field_type f in
+	match follow ft , t with
+	| TFun (args,r) , TFun (targs,tr) when f.cf_expr <> None && List.length args = List.length targs ->
+		List.for_all2 (fun (_,o1,a1) (_,o2,a2) -> o1 = o2 && type_eq false a1 a2) args targs && 
+		(try unify_raise ctx r tr null_pos; true with Error (Unify _,_) -> false)
+	| _ , _ ->
+		type_eq false ft t
+
 let check_overriding ctx c p () =
 	match c.cl_super with
 	| None -> ()
@@ -1931,7 +1940,7 @@ let check_overriding ctx c p () =
 					display_error ctx ("Field " ^ i ^ " has different visibility (public/private) than superclass one") p
 				else if f2.cf_get <> f.cf_get || f2.cf_set <> f.cf_set then
 					display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p
-				else if not (type_eq false (field_type f) t) then
+				else if not (valid_redefinition ctx f t) then
 					display_error ctx ("Field " ^ i ^ " overload parent class with different or incomplete type") p
 			with
 				Not_found ->
@@ -1962,9 +1971,8 @@ let rec check_interface ctx c p intf params =
 			else if not(unify_access f2.cf_get f.cf_get) then
 				display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path) p
 			else
-				let t1 = apply_params intf.cl_types params (field_type f) in
-				let t2 = field_type f2 in
-				if not (type_eq false t2 t1) then
+				let t1 = apply_params intf.cl_types params (field_type f) in				
+				if not (valid_redefinition ctx f2 t1) then
 					display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
 		with
 			Not_found ->
