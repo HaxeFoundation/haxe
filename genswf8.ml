@@ -183,7 +183,7 @@ let rec is_protected ctx ?(stat=false) t field =
 	| TInst (c,_) ->
 		let rec loop c =
 			(is_protected_path c.cl_path c.cl_extern && PMap.mem field (if stat then c.cl_statics else c.cl_fields))
-			|| List.exists (fun (i,_) -> i.cl_path = (["mt"],"Protect")) c.cl_implements
+			|| List.exists (fun (i,_) -> i.cl_path = (["mt"],"Protect") || (not stat && loop i)) c.cl_implements
 			|| (not stat && match c.cl_super with None -> false | Some (c,_) -> loop c)
 		in
 		loop c
