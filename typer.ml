@@ -714,10 +714,13 @@ let rec return_flow ctx e =
 (* PASS 3 : type expression & check structure *)
 
 let unify_call_params ctx name el args p =
-	let error flag =
+	let error txt =
 		let format_arg = (fun (name,opt,_) -> (if opt then "?" else "") ^ name) in
 		let argstr = "Function " ^ (match name with None -> "" | Some n -> "'" ^ n ^ "' ") ^ "requires " ^ (if args = [] then "no arguments" else "arguments : " ^ String.concat ", " (List.map format_arg args)) in
-		display_error ctx ((if flag then "Not enough" else "Too many") ^ " arguments\n" ^ argstr) p
+		display_error ctx (txt ^ " arguments\n" ^ argstr) p
+	in
+	let arg_error ul name opt =
+		raise (Error (Stack (Unify ul,Custom ("For " ^ (if opt then "optional " else "") ^ "function argument '" ^ name ^ "'")), p))
 	in
 	let rec no_opt = function
 		| [] -> []
@@ -744,7 +747,7 @@ let unify_call_params ctx name el args p =
 		else
 			(null p, true)
 	in
-	let rec loop acc l l2 =
+	let rec loop acc l l2 skip =
 		match l , l2 with
 		| [] , [] ->
 			if Plugin.defined "flash" || Plugin.defined "js" then
@@ -752,25 +755,28 @@ let unify_call_params ctx name el args p =
 			else
 				List.rev (List.map fst acc)
 		| [] , (_,false,_) :: _ ->
-			error true;
+			error "Not enough";
 			[]
-		| [] , (_,true,t) :: l ->
-			loop (default_value t :: acc) [] l
+		| [] , (name,true,t) :: l ->
+			loop (default_value t :: acc) [] l skip
 		| _ , [] ->
-			error false;
+			(match List.rev skip with
+			| [] -> error "Too many"
+			| [name,ul] -> arg_error ul name true
+			| _ -> error "Invalid");
 			[]
 		| e :: l, (name,opt,t) :: l2 ->
 			try
 				unify_raise ctx e.etype t e.epos;
-				loop ((e,false) :: acc) l l2
+				loop ((e,false) :: acc) l l2 skip
 			with
 				Error (Unify ul,_) ->
 					if opt then
-						loop (default_value t :: acc) (e :: l) l2
+						loop (default_value t :: acc) (e :: l) l2 ((name,ul) :: skip)
 					else
-						raise (Error (Stack (Unify ul,Custom ("For function argument '" ^ name ^ "'")), p))
+						arg_error ul name false
 	in
-	loop [] el args
+	loop [] el args []
 
 let type_local ctx i p =
 	(* local lookup *)
@@ -1786,7 +1792,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			else if ctx.untyped then
 				mk_mono()
 			else
-				error (s_type (print_context()) t ^ " cannot be called") e.epos
+				error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
 		) in
 		mk (TCall (e,el)) t p
 	| ENew (t,el) ->
