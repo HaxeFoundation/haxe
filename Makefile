@@ -10,6 +10,10 @@ all:
 	ocamlc -c $(EXTC)/extc_stubs.c
 	ocamake $(FLAGS) $(FILES) $(LIBS)
 
+tools:
+	(cd std/tools/haxedoc && haxe haxedoc.hxml && cp haxedoc ../../..)
+	(cd std/tools/haxelib && haxe haxelib.hxml && cp haxelib ../../..) 
+
 clean:
 	ocamake $(FLAGS) -clean $(FILES) $(LIBS)
 	rm -rf extc_stubs.o

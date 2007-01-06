@@ -483,8 +483,14 @@ class Main {
 			var line = param("Path");
 			if( line != "" )
 				rep = line;
-			if( !neko.FileSystem.exists(rep) )
-				neko.FileSystem.createDirectory(rep);
+			if( !neko.FileSystem.exists(rep) ) {
+				try {
+					neko.FileSystem.createDirectory(rep);
+				} catch( e : Dynamic ) {
+					print("Failed to create directory '"+rep+"' ("+Std.string(e)+"), maybe you need appropriate user rights");
+					neko.Sys.exit(1);
+				}
+			}
 			var f = neko.io.File.write(config,true);
 			f.write(rep);
 			f.close();
