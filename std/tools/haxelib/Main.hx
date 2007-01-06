@@ -661,6 +661,7 @@ class Main {
 		var rdir = vdir + "/run.n";
 		if( !neko.FileSystem.exists(rdir) )
 			throw "Project "+project+" version "+version+" does not have a run script";
+		args.push(neko.Sys.getCwd());
 		neko.Sys.setCwd(vdir);
 		var cmd = "neko run.n";
 		for( i in argcur...args.length )
