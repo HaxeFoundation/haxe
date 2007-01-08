@@ -17,8 +17,8 @@
 			ConfigurationType="0">
 			<Tool
 				Name="VCNMakeTool"
-				BuildCommandLine="ocamake -g -pp camlp4o haxe.vcproj extLib.cma swfLib.cma"
-				ReBuildCommandLine="ocamake -all -g -pp camlp4o haxe.vcproj extLib.cma swfLib.cma"
+				BuildCommandLine="ocamake -g -pp camlp4o haxe.vcproj extLib.cma swfLib.cma unix.cma"
+				ReBuildCommandLine="ocamake -all -g -pp camlp4o haxe.vcproj extLib.cma swfLib.cma unix.cma"
 				CleanCommandLine="ocamake -clean -pp camlp4o haxe.vcproj"
 				Output="haxe.exe"/>
 		</Configuration>
