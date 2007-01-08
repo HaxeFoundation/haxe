@@ -59,6 +59,11 @@ class ProxyDetect {
 	static function detectFF( basedir : String ) {
 		var profile = neko.FileSystem.readDirectory(basedir).pop();
 		var prefs = neko.io.File.getContent(basedir+"/"+profile+"/prefs.js");
+		// enabled ?
+		var r = ~/user_pref\("network\.proxy\.type", 1);/;
+		if( !r.match(prefs) )
+			return null;
+		// prefs
 		var r = ~/user_pref\("network\.proxy\.http", "([^"]+)"\);/;
 		if( !r.match(prefs) )
 			return null;
