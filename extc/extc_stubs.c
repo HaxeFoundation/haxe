@@ -56,8 +56,8 @@ CAMLprim value zlib_deflate( value zv, value src, value spos, value slen, value 
 	value res;
 	int r;
 
-	z->next_in = String_val(src) + Int_val(spos);
-	z->next_out = String_val(dst) + Int_val(dpos);
+	z->next_in = (Bytef*)(String_val(src) + Int_val(spos));
+	z->next_out = (Bytef*)(String_val(dst) + Int_val(dpos));
 	z->avail_in = Int_val(slen);
 	z->avail_out = Int_val(dlen);
 	if( (r = deflate(z,Int_val(flush))) < 0 )
@@ -95,8 +95,8 @@ CAMLprim value zlib_inflate( value zv, value src, value spos, value slen, value 
 	value res;
 	int r;
 
-	z->next_in = String_val(src) + Int_val(spos);
-	z->next_out = String_val(dst) + Int_val(dpos);
+	z->next_in = (Bytef*)(String_val(src) + Int_val(spos));
+	z->next_out = (Bytef*)(String_val(dst) + Int_val(dpos));
 	z->avail_in = Int_val(slen);
 	z->avail_out = Int_val(dlen);
 	if( (r = inflate(z,Int_val(flush))) < 0 )
