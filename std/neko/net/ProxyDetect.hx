@@ -60,7 +60,7 @@ class ProxyDetect {
 		var profile = neko.FileSystem.readDirectory(basedir).pop();
 		var prefs = neko.io.File.getContent(basedir+"/"+profile+"/prefs.js");
 		// enabled ?
-		var r = ~/user_pref\("network\.proxy\.type", 1);/;
+		var r = ~/user_pref\("network\.proxy\.type", 1\);/;
 		if( !r.match(prefs) )
 			return null;
 		// prefs
