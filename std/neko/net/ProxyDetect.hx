@@ -102,6 +102,39 @@ class ProxyDetect {
 		return parseSettings(rproxy.matched(1));
 	}
 
+	static function parseOSXConfiguration(xml : Xml) : Dynamic {
+		switch( xml.nodeName ) {
+		case "dict":
+			var o = Reflect.empty();
+			var it = xml.elements();
+			for( x in it ) {
+				if( x.nodeName != "key" ) throw "Missing key";
+				var v = x.firstChild().nodeValue;
+				var r = parseOSXConfiguration(it.next());
+				Reflect.setField(o,v,r);
+			}
+			return o;
+		case "string":
+			return xml.firstChild().nodeValue;
+		case "integer":
+			return Std.parseInt(xml.firstChild().nodeValue);
+		default:
+			throw "Invalid value type '"+xml.nodeName+"'";
+		}
+	}
+
+	static function detectOSX() {
+		var prefs = neko.io.File.getContent("/Library/Preferences/SystemConfiguration/preferences.plist");
+		var xml = Xml.parse(prefs).firstElement().firstElement(); // plist/dict
+		var data : Dynamic = parseOSXConfiguration(xml);
+		for( nsname in Reflect.fields(data.NetworkServices) ) {
+			var ns : Dynamic = Reflect.field(data.NetworkServices,nsname);
+			if( ns.Proxies.HTTPEnable == 1 )
+				return { host : ns.Proxies.HTTPProxy, port : ns.Proxies.HTTPPort, auth : null };
+		}
+		return null;
+	}
+
 	static function detectAll() : ProxySettings {
 		switch( neko.Sys.systemName() ) {
 		case "Windows":
@@ -115,6 +148,9 @@ class ProxyDetect {
 				return detectIE();
 			}
 		case "Mac":
+			var p = detectOSX();
+			if( p != null )
+				return p;
 			var ffdir = neko.Sys.getEnv("HOME")+"/Library/Application Support/Firefox/Profiles";
 			return detectFF(ffdir);
 		default:
