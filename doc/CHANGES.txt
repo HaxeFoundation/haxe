@@ -5,6 +5,8 @@
 	display error position in front of each error line
 	improved error messages when optional arguments not matched
 	added neko.io.Path
+	added neko.net.ProxyDetect
+	bugfix in unify : prevent recursive anonymous objects
 
 2007-01-01: 1.10
 	fix in haxe.remoting.SocketConnection.readAnswer

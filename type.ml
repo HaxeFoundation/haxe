@@ -459,11 +459,13 @@ let rec type_eq param a b =
 				with
 					Not_found ->
 						if is_closed a2 then raise Exit;
+						if not (link (ref None) b f1.cf_type) then raise Exit;
 						a2.a_fields <- PMap.add f1.cf_name f1 a2.a_fields
 			) a1.a_fields;
 			PMap.iter (fun _ f2 ->
 				if not (PMap.mem f2.cf_name a1.a_fields) then begin
 					if is_closed a1 then raise Exit;
+					if not (link (ref None) a f2.cf_type) then raise Exit;
 					a1.a_fields <- PMap.add f2.cf_name f2 a1.a_fields
 				end;
 			) a2.a_fields;
@@ -622,6 +624,7 @@ let rec unify a b =
 			with
 				Not_found ->
 					if is_closed a1 then error [has_no_field a n];
+					if not (link (ref None) a f2.cf_type) then error [cannot_unify a b];
 					a1.a_fields <- PMap.add n f2 a1.a_fields
 			) a2.a_fields;
 			if !(a1.a_status) = Opened then a1.a_status := Closed;
