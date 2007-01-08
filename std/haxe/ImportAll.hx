@@ -511,6 +511,7 @@ import neko.io.Input;
 import neko.io.Logger;
 import neko.io.Multiple;
 import neko.io.Output;
+import neko.io.Path;
 import neko.io.StringInput;
 import neko.io.StringOutput;
 
@@ -528,6 +529,7 @@ import neko.db.Sqlite;
 import neko.db.Transaction;
 
 import neko.net.Host;
+import neko.net.ProxyDetect;
 import neko.net.RemotingServer;
 import neko.net.ServerLoop;
 import neko.net.Socket;
