@@ -57,7 +57,15 @@ class ProxyDetect {
 	}
 
 	static function detectFF( basedir : String ) {
-		var profile = neko.FileSystem.readDirectory(basedir).pop();
+		var files = try neko.FileSystem.readDirectory(basedir) catch( e : Dynamic ) throw "Invalid Firefox config directory "+basedir;
+		var profile = null;
+		for( f in files )
+			if( f.substr(-8) == ".default" ) {
+				profile = f;
+				break;
+			}
+		if( profile == null )
+			throw "Profile not found in "+basedir;
 		var prefs = neko.io.File.getContent(basedir+"/"+profile+"/prefs.js");
 		// enabled ?
 		var r = ~/user_pref\("network\.proxy\.type", 1\);/;
@@ -157,6 +165,9 @@ class ProxyDetect {
 			if( p != null )
 				return p;
 			var ffdir = neko.Sys.getEnv("HOME")+"/Library/Application Support/Firefox/Profiles";
+			return detectFF(ffdir);
+		case "Linux":
+			var ffdir = neko.Sys.getEnv("HOME")+"/.mozilla/firefox";
 			return detectFF(ffdir);
 		default:
 			throw "This system is not supported";
