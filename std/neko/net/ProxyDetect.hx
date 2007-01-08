@@ -118,6 +118,11 @@ class ProxyDetect {
 			return xml.firstChild().nodeValue;
 		case "integer":
 			return Std.parseInt(xml.firstChild().nodeValue);
+		case "array":
+			var a = new Array();
+			for( x in xml.elements() )
+				a.push(parseOSXConfiguration(x));
+			return a;
 		default:
 			throw "Invalid value type '"+xml.nodeName+"'";
 		}
