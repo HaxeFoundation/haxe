@@ -452,7 +452,6 @@ class Http {
 
 		var bufsize = 1024;
 		var buf = neko.Lib.makeString(bufsize);
-		api.prepare(size);
 		if( size == null ) {
 			if( !noShutdown )
 				sock.shutdown(false,true);
@@ -468,6 +467,7 @@ class Http {
 			} catch( e : neko.io.Eof ) {
 			}
 		} else {
+			api.prepare(size);
 			try {
 				while( size > 0 ) {
 					var len = sock.input.readBytes(buf,0,if( size > bufsize ) bufsize else size);
