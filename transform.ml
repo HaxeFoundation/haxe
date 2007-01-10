@@ -60,9 +60,9 @@ let rec map f e =
 	| TIf (ec,e1,e2) ->
 		{ e with eexpr = TIf (f ec,f e1,match e2 with None -> None | Some e -> Some (f e)) }
 	| TSwitch (e1,cases,def) ->
-		{ e with eexpr = TSwitch (f e1, List.map (fun (e1,e2) -> f e1, f e2) cases, match def with None -> None | Some e -> Some (f e)) }
+		{ e with eexpr = TSwitch (f e1, List.map (fun (el,e2) -> List.map f el, f e2) cases, match def with None -> None | Some e -> Some (f e)) }
 	| TMatch (e1,t,cases,def) ->
-		{ e with eexpr = TMatch (f e1, t, List.map (fun (c,l,e) -> c, l, f e) cases, match def with None -> None | Some e -> Some (f e)) }
+		{ e with eexpr = TMatch (f e1, t, List.map (fun (cl,params,e) -> cl, params, f e) cases, match def with None -> None | Some e -> Some (f e)) }
 	| TTry (e1,catches) ->
 		{ e with eexpr = TTry (f e1, List.map (fun (v,t,e) -> v, t, f e) catches) }
 	| TReturn eo ->
@@ -159,7 +159,7 @@ let block_vars e =
 			{ e with eexpr = TTry (e,cases) }
 		| TMatch (e,t,cases,def) ->
 			let e = in_loop vars e in
-			let cases = List.map (fun (c,params,e) ->
+			let cases = List.map (fun (cl,params,e) ->
 				let e = (match params with
 					| None -> in_loop vars e
 					| Some l ->
@@ -170,7 +170,7 @@ let block_vars e =
 						) (!vars) l in
 						in_loop (ref new_vars) e
 				) in
-				c , params , e
+				cl , params, e
 			) cases in
 			let def = (match def with None -> None | Some e -> Some (in_loop vars e)) in
 			{ e with eexpr = TMatch (e, t, cases, def) }

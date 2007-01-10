@@ -76,8 +76,8 @@ let add_local ctx v p =
 		| TMatch (e,_,cases,eo) ->
 			loop flag e;
 			(match eo with None -> () | Some e -> loop flag e);
-			List.iter (fun (_,vars,e) ->
-				match vars with
+			List.iter (fun (_,params,e) ->				
+				match params with
 				| Some l when List.exists (fun (a,_) -> a = Some v) l -> ()
 				| _ -> loop flag e
 			) cases
@@ -399,46 +399,93 @@ and gen_expr ctx e =
 	| TThrow e ->
 		call p (builtin p "throw") [gen_expr ctx e]
 	| TMatch (e,_,cases,eo) ->
-		(EBlock [
-			(EVars ["@tmp",Some (gen_expr ctx e)],p);
+		let etmp = (EVars ["@tmp",Some (gen_expr ctx e)],p) in
+		let etag = field p (ident p "@tmp") "tag" in
+		let gen_params params e =
+			match params with
+			| None ->
+				gen_expr ctx e
+			| Some el ->
+				let b = block ctx [e] in
+				let count = ref (-1) in
+				let vars = List.fold_left (fun acc (v,_) ->
+					incr count;
+					match v with
+					| None ->
+						acc
+					| Some v ->
+						let isref = add_local ctx v p in
+						let e = (EArray (ident p "@tmp",int p (!count)),p) in
+						let e = (if isref then call p (builtin p "array") [e] else e) in
+						(v , Some e) :: acc
+				) [] el in
+				let e = gen_expr ctx e in
+				b();
+				(EBlock [
+					(EVars ["@tmp",Some (field p (ident p "@tmp") "args")],p);
+					(match vars with [] -> null p | _ -> EVars vars,p);
+					e
+				],p)
+		in
+		(try
+		  (EBlock [
+			etmp;
 			(ESwitch (
-				field p (ident p "@tmp") "tag",
-				List.map (fun (s,el,e2) ->
-					let count = ref (-1) in
-					let e = match el with
-						| None -> gen_expr ctx e2
-						| Some el ->
-							let b = block ctx [e2] in
-							let vars = List.fold_left (fun acc (v,_) ->
-								incr count;
-								match v with
-								| None ->
-									acc
-								| Some v ->
-									let isref = add_local ctx v p in
-									let e = (EArray (ident p "@tmp",int p (!count)),p) in
-									let e = (if isref then call p (builtin p "array") [e] else e) in
-									(v , Some e) :: acc
-							) [] el in
-							let e2 = gen_expr ctx e2 in
-							b();
-							(EBlock [
-								(EVars ["@tmp",Some (field p (ident p "@tmp") "args")],p);
-								(match vars with [] -> null p | _ -> EVars vars,p);
-								e2
-							],p)
-					in
-					str p s , e
+				etag,
+				List.map (fun (cl,params,e2) ->
+					let cond = match cl with
+						| [s] -> str p s
+						| _ -> raise Exit
+					in					
+					cond , gen_params params e2
 				) cases,
 				(match eo with None -> None | Some e -> Some (gen_expr ctx e))
 			),p)
-		],p)
+		  ],p)
+		with
+			Exit ->
+				(EBlock [
+					etmp;
+					(EVars ["@tag",Some etag],p);
+					List.fold_left (fun acc (cl,params,e2) ->
+						let cond = (match cl with
+							| [] -> assert false
+							| c :: l ->
+								let eq c = (EBinop ("==",ident p "@tag",str p c),p) in
+								List.fold_left (fun acc c -> (EBinop ("||",acc,eq c),p)) (eq c) l
+						) in
+						EIf (cond,gen_params params e2,Some acc),p
+					) (match eo with None -> null p | Some e -> (gen_expr ctx e)) (List.rev cases)
+				],p)
+		)
 	| TSwitch (e,cases,eo) ->
-		(ESwitch (
-			gen_expr ctx e,
-			List.map (fun (e1,e2) -> gen_expr ctx e1, gen_expr ctx e2) cases,
-			(match eo with None -> None | Some e -> Some (gen_expr ctx e))
-		),p)
+		let e = gen_expr ctx e in
+		let eo = (match eo with None -> None | Some e -> Some (gen_expr ctx e)) in
+		try			
+			(ESwitch (
+				e,
+				List.map (fun (el,e2) ->
+					match List.map (gen_expr ctx) el with
+					| [] -> assert false
+					| [e] -> e, gen_expr ctx e2
+					| _ -> raise Exit
+				) cases,
+				eo
+			),p)
+		with
+			Exit ->
+				(EBlock [
+					(EVars ["@tmp",Some e],p);
+					List.fold_left (fun acc (el,e) ->
+						let cond = (match el with
+							| [] -> assert false
+							| e :: l ->
+								let eq e = (EBinop ("==",ident p "@tmp",gen_expr ctx e),p) in
+								List.fold_left (fun acc e -> (EBinop ("||",acc,eq e),p)) (eq e) l
+						) in
+						EIf (cond,gen_expr ctx e,Some acc),p
+					) (match eo with None -> null p | Some e -> e) (List.rev cases)
+				],p)
 
 let gen_method ctx p c acc =
 	ctx.curmethod <- c.cf_name;

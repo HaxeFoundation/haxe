@@ -8,6 +8,7 @@
 	added neko.net.ProxyDetect
 	bugfix in unify : prevent recursive anonymous objects
 	haxe.Http call "prepare" only if size is known
+	added multiple expressions in "case"
 
 2007-01-01: 1.10
 	fix in haxe.remoting.SocketConnection.readAnswer

@@ -513,8 +513,8 @@ and parse_switch_cases = parser
 	| [< '(Kwd Default,p1); '(DblDot,_); e = block1; l , def = parse_switch_cases >] ->
 		(match def with None -> () | Some (e,p) -> error Duplicate_default p);
 		l , Some (e , p1)
-	| [< '(Kwd Case,p1); e = expr; '(DblDot,_); b = block1; l , def = parse_switch_cases >] ->
-		(e,(b,p1)) :: l , def
+	| [< '(Kwd Case,p1); el = psep Comma expr; '(DblDot,_); b = block1; l , def = parse_switch_cases >] ->
+		(el,(b,p1)) :: l , def
 	| [< >] ->
 		[] , None
 

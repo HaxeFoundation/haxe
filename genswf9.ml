@@ -754,11 +754,23 @@ let rec gen_expr_content ctx retval e =
 		gen_expr ctx true e;
 		write ctx (A3SetReg r);
 		let prev = ref (fun () -> ()) in
-		let jend = List.map (fun (v,e) ->
+		let jend = List.map (fun (vl,e) ->
 			(!prev)();
-			write ctx (A3Reg r);
-			gen_expr ctx true v;
-			prev := jump ctx J3Neq;
+			let rec loop = function
+				| [] ->
+					assert false
+				| [v] ->
+					write ctx (A3Reg r);
+					gen_expr ctx true v;
+					prev := jump ctx J3Neq;					
+				| v :: l ->
+					write ctx (A3Reg r);
+					gen_expr ctx true v;
+					let j = jump ctx J3Eq in
+					loop l;
+					j()
+			in
+			loop vl;
 			gen_expr_obj ctx retval e;
 			if retval then ctx.infos.istack <- ctx.infos.istack - 1;
 			jump ctx J3Always
@@ -779,11 +791,23 @@ let rec gen_expr_content ctx retval e =
 		write ctx (A3Get (ident ctx "params"));
 		write ctx (A3SetReg rparams);
 		let prev = ref (fun () -> ()) in
-		let jend = List.map (fun (tag,params,e) ->
+		let jend = List.map (fun (cl,params,e) ->
 			(!prev)();
-			write ctx (A3Reg rtag);
-			write ctx (A3String (lookup tag ctx.strings));
-			prev := jump ctx J3Neq;
+			let rec loop = function
+				| [] ->
+					assert false
+				| [tag] ->
+					write ctx (A3Reg rtag);
+					write ctx (A3String (lookup tag ctx.strings));
+					prev := jump ctx J3Neq;					
+				| tag :: l ->
+					write ctx (A3Reg rtag);
+					write ctx (A3String (lookup tag ctx.strings));
+					let j = jump ctx J3Eq in
+					loop l;
+					j()
+			in
+			loop cl;
 			let b = open_block ctx [e] retval in
 			(match params with
 			| None -> ()

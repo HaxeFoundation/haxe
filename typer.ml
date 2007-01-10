@@ -963,7 +963,7 @@ let check_assign ctx e =
 	| _ ->
 		error "Invalid assign" e.epos
 
-let type_matching ctx (enum,params) (e,p) ecases =
+let type_matching ctx (enum,params) (e,p) ecases first_case =
 	let invalid() = error "Invalid enum matching" p in
 	let needs n = error ("This constructor needs " ^ string_of_int n ^ " parameters") p in
 	let constr name =
@@ -998,7 +998,7 @@ let type_matching ctx (enum,params) (e,p) ecases =
 			| EConst (Ident "_") ->
 				None , t
 			| EConst (Ident name) | EConst (Type name) ->
-				let name = add_local ctx name t in
+				let name = (if first_case then add_local ctx name t else PMap.find name ctx.locals_map) in
 				Some name , t
 			| _ -> invalid()
 		) el args in
@@ -1322,7 +1322,7 @@ and type_switch ctx e cases def need_val p =
 	in
 	let enum = ref (match follow e.etype with
 		| TEnum (e,params) -> Some (e,params)
-		| TMono _ -> lookup_enum (List.map fst cases)
+		| TMono _ -> lookup_enum (List.concat (List.map fst cases))
 		| _ -> None
 	) in
 	let first = ref true in
@@ -1333,24 +1333,29 @@ and type_switch ctx e cases def need_val p =
 		unify ctx e.etype e1.etype e1.epos;
 		CExpr e1
 	in
-	let cases = List.map (fun (e1,e2) ->
+	let cases = List.map (fun (el,e2) ->
 		let locals = save_locals ctx in
-		let e1 = (match !enum with
-		| Some en -> 
-			(try 
-				CMatch (type_matching ctx en e1 ecases)
-			with
-				Error _ when !first ->
-					enum := None;
-					type_case e e1)
-		| None ->
-			type_case e e1
-		) in
-		first := false;
+		let first_case = ref true in
+		let el = List.map (fun e1 ->
+			let v = (match !enum with
+			| Some en -> 
+				(try 
+					CMatch (type_matching ctx en e1 ecases !first_case)
+				with
+					Error _ when !first ->
+						enum := None;
+						type_case e e1)
+			| None ->
+				type_case e e1
+			) in
+			first_case := false;
+			first := false;
+			v
+		) el in		
 		let e2 = type_expr ctx ~need_val e2 in
 		locals();
 		if need_val then unify ctx e2.etype t e2.epos;
-		(e1,e2)
+		(el,e2)
 	) cases in
 	let def = (match def with
 		| None ->
@@ -1370,26 +1375,48 @@ and type_switch ctx e cases def need_val p =
 			if need_val then unify ctx e.etype t e.epos;
 			Some e
 	) in
+	let same_params p1 p2 =
+		match p1, p2 with
+		| None , None -> true
+		| Some l1, Some l2 when List.length l1 = List.length l2 ->
+			List.for_all2 (fun (n1,t1) (n2,t2) ->
+				let ctx = print_context() in
+				Printf.eprintf "%s %s %s %s\n" (match n1 with None -> "_" | Some s -> s) (s_type ctx t1) (match n2 with None -> "_" | Some s -> s) (s_type ctx t2);
+				n1 = n2 && type_eq false t1 t2
+			) l1 l2
+		| _ ->
+			false
+	in
 	match !enum with
 	| None ->
-		let exprs (c,e) =
-			match c with
-			| CExpr c -> c , e
-			| _ -> assert false
+		let exprs (el,e) =
+			List.map (fun c ->
+				match c with
+				| CExpr c -> c 
+				| _ -> assert false
+			) el , e
 		in
 		mk (TSwitch (e,List.map exprs cases,def)) t p
 	| Some (en,enparams) ->
 		let has_params = ref false in
-		let matchs (c,e) =
-			match c with
-			| CMatch (c,p) ->
-				if p <> None then has_params := true;
-				(c,p,e)
-			| _ -> assert false
+		let matchs (el,e) =
+			match el with
+			| CMatch (c,params) :: l ->
+				let cl = List.map (fun c ->
+					match c with
+					| CMatch (c,p) ->
+						if not (same_params p params) then display_error ctx "Constructors parameters differs : should be same name, same type, and same position" e.epos;
+						c
+					| _ -> assert false
+				) l in
+				if params <> None then has_params := true;
+				(c :: cl) , params, e
+			| _ ->
+				assert false
 		in
-		let constructs (c,_,e) =
-			let c = mk (TField (mk (TTypeExpr (TEnumDecl en)) t_dynamic p , c)) (TEnum (en,enparams)) p in
-			(c,e)
+		let constructs (el,_,e) =
+			let cl = List.map (fun c -> mk (TField (mk (TTypeExpr (TEnumDecl en)) t_dynamic p , c)) (TEnum (en,enparams)) p) el in
+			(cl,e)
 		in
 		let cases = List.map matchs cases in
 		match !has_params with

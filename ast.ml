@@ -185,7 +185,7 @@ and expr_def =
 	| EFor of string * expr * expr
 	| EIf of expr * expr * expr option
 	| EWhile of expr * expr * while_flag
-	| ESwitch of expr * (expr * expr) list * expr option
+	| ESwitch of expr * (expr list * expr) list * expr option
 	| ETry of expr * (string * type_path * expr) list
 	| EReturn of expr option
 	| EBreak

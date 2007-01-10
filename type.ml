@@ -85,8 +85,8 @@ and texpr_expr =
 	| TFor of string * texpr * texpr
 	| TIf of texpr * texpr * texpr option
 	| TWhile of texpr * texpr * Ast.while_flag
-	| TSwitch of texpr * (texpr * texpr) list * texpr option
-	| TMatch of texpr * (tenum * tparams) * (string * (string option * t) list option * texpr) list * texpr option
+	| TSwitch of texpr * (texpr list * texpr) list * texpr option
+	| TMatch of texpr * (tenum * tparams) * (string list * (string option * t) list option * texpr) list * texpr option
 	| TTry of texpr * (string * t * texpr) list
 	| TReturn of texpr option
 	| TBreak
@@ -708,7 +708,7 @@ let rec iter f e =
 		(match e2 with None -> () | Some e -> f e)
 	| TSwitch (e,cases,def) ->
 		f e;
-		List.iter (fun (e1,e2) -> f e1; f e2) cases;
+		List.iter (fun (el,e2) -> List.iter f el; f e2) cases;
 		(match def with None -> () | Some e -> f e)
 	| TMatch (e,_,cases,def) ->
 		f e;

@@ -583,28 +583,22 @@ and gen_switch ctx retval e cases def =
 	gen_expr ctx true e;
 	let r = alloc_reg ctx in
 	write ctx (ASetReg r);
-	let rec loop = function
-		| [] ->
-			write ctx APop;
-			[]
-		| [(e,x)] ->
+	let first = ref true in
+	let dispatch = List.map (fun (el,x) ->
+		List.map (fun e ->
+			if !first then first := false else push ctx [VReg r];
 			gen_expr ctx true e;
 			write ctx AEqual;
-			[cjmp ctx,x]
-		| (e,x) :: l ->
-			gen_expr ctx true e;
-			write ctx AEqual;
-			let j = cjmp ctx in
-			push ctx [VReg r];
-			(j,x) :: loop l
-	in
-	let dispatch = loop cases in
+			cjmp ctx
+		) el , x
+	) cases in
+	if !first then write ctx APop;
 	(match def with
 	| None -> if retval then push ctx [VNull]
 	| Some e -> gen_expr ctx retval e);
 	let jend = jmp ctx in
-	let jends = List.map (fun (j,e) ->
-		j();
+	let jends = List.map (fun (jl,e) ->
+		List.iter (fun j -> j()) jl;
 		gen_expr ctx retval e;
 		if retval then ctx.stack_size <- ctx.stack_size - 1;
 		jmp ctx;
@@ -621,31 +615,25 @@ and gen_match ctx retval e cases def =
 	write ctx AObjGet;
 	let rtag = alloc_reg ctx in
 	write ctx (ASetReg rtag);
-	let rec loop = function
-		| [] ->
-			write ctx APop;
-			[]
-		| [(constr,args,e)] ->
-			push ctx [VStr (constr,false)];
+	let first = ref true in
+	let dispatch = List.map (fun (cl,params,e) ->
+		List.map (fun c ->
+			if !first then first := false else push ctx [VReg rtag];
+			push ctx [VStr (c,false)];
 			write ctx APhysEqual;
-			[cjmp ctx,args,e]
-		| (constr,args,e) :: l ->
-			push ctx [VStr (constr,false)];
-			write ctx APhysEqual;
-			let j = cjmp ctx in
-			push ctx [VReg rtag];
-			(j,args,e) :: loop l
-	in
-	let dispatch = loop cases in
+			cjmp ctx
+		) cl, params, e
+	) cases in
+	if !first then write ctx APop;
 	free_reg ctx rtag e.epos;
 	(match def with
 	| None -> if retval then push ctx [VNull]
 	| Some e -> gen_expr ctx retval e);
 	let jend = jmp ctx in
-	let jends = List.map (fun (j,args,e) ->
+	let jends = List.map (fun (jl,args,e) ->
 		let regs = ctx.regs in
 		let nregs = ctx.reg_count in
-		j();
+		List.iter (fun j -> j()) jl;
 		let n = ref 0 in
 		List.iter (fun (a,t) ->
 			incr n;

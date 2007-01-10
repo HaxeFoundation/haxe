@@ -388,9 +388,11 @@ and gen_expr ctx e =
 		newline ctx;
 		spr ctx "switch( $e[0] ) {";
 		newline ctx;
-		List.iter (fun (constr,params,e) ->
-			print ctx "case \"%s\":" constr;
-			newline ctx;
+		List.iter (fun (cl,params,e) ->
+			List.iter (fun c ->
+				print ctx "case \"%s\":" c;
+				newline ctx;
+			) cl;
 			(match params with
 			| None | Some [] -> ()
 			| Some l ->
@@ -422,10 +424,12 @@ and gen_expr ctx e =
 		gen_value ctx (parent e);
 		spr ctx " {";
 		newline ctx;
-		List.iter (fun (e1,e2) ->
-			spr ctx "case ";
-			gen_value ctx e1;
-			spr ctx ":";
+		List.iter (fun (el,e2) ->
+			List.iter (fun e ->
+				spr ctx "case ";
+				gen_value ctx e;
+				spr ctx ":";
+			) el;
 			gen_expr ctx (block e2);
 			print ctx "break";
 			newline ctx;
