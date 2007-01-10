@@ -1376,16 +1376,15 @@ and type_switch ctx e cases def need_val p =
 			Some e
 	) in
 	let same_params p1 p2 =
-		match p1, p2 with
-		| None , None -> true
-		| Some l1, Some l2 when List.length l1 = List.length l2 ->
-			List.for_all2 (fun (n1,t1) (n2,t2) ->
-				let ctx = print_context() in
-				Printf.eprintf "%s %s %s %s\n" (match n1 with None -> "_" | Some s -> s) (s_type ctx t1) (match n2 with None -> "_" | Some s -> s) (s_type ctx t2);
-				n1 = n2 && type_eq false t1 t2
-			) l1 l2
-		| _ ->
-			false
+		let l1 = (match p1 with None -> [] | Some l -> l) in
+		let l2 = (match p2 with None -> [] | Some l -> l) in
+		let rec loop = function
+			| [] , [] -> true
+			| (n,_) :: l , [] | [] , (n,_) :: l -> n = None && loop (l,[])
+			| (n1,t1) :: l1, (n2,t2) :: l2 ->
+				n1 = n2 && (n1 = None || type_eq false t1 t2) && loop (l1,l2)
+		in
+		loop (l1,l2)
 	in
 	match !enum with
 	| None ->
