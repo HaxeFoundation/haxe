@@ -1401,15 +1401,17 @@ and type_switch ctx e cases def need_val p =
 		let matchs (el,e) =
 			match el with
 			| CMatch (c,params) :: l ->
+				let params = ref params in
 				let cl = List.map (fun c ->
 					match c with
 					| CMatch (c,p) ->
-						if not (same_params p params) then display_error ctx "Constructors parameters differs : should be same name, same type, and same position" e.epos;
+						if not (same_params p !params) then display_error ctx "Constructors parameters differs : should be same name, same type, and same position" e.epos;
+						if p <> None then params := p;
 						c
 					| _ -> assert false
 				) l in
-				if params <> None then has_params := true;
-				(c :: cl) , params, e
+				if !params <> None then has_params := true;
+				(c :: cl) , !params, e
 			| _ ->
 				assert false
 		in
