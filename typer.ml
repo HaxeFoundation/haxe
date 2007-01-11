@@ -2106,6 +2106,10 @@ let init_class ctx c p herits fields =
 			let t = TFun (args,ret) in
 			let stat = List.mem AStatic access in
 			let constr = (name = "new") in
+			if constr then (match f.f_type with 
+				| None | Some (TPNormal { tpackage = []; tname = "Void" }) -> ()
+				| _ -> error "A class constructor can't have a return value" p
+			);
 			let cf = {
 				cf_name = name;
 				cf_doc = doc;
