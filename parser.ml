@@ -41,6 +41,7 @@ let display_error : (error_msg -> pos -> unit) ref = ref (fun _ _ -> assert fals
 
 let cache = ref (DynArray.create())
 let doc = ref None
+let use_doc = ref false
 
 let last_token s =
 	let n = Stream.count s in
@@ -536,8 +537,10 @@ let parse code file =
 	and process_token tk =
 		match fst tk with
 		| Comment s ->
-			let l = String.length s in
-			if l > 2 && s.[0] = '*' && s.[l-1] = '*' then doc := Some (String.sub s 1 (l-2));
+			if !use_doc then begin
+				let l = String.length s in
+				if l > 0 && s.[0] = '*' then doc := Some (String.sub s 1 (l - (if l > 1 && s.[l-1] = '*' then 2 else 1)));
+			end;
 			next_token()
 		| CommentLine s ->
 			next_token()

@@ -141,6 +141,7 @@ try
 	Typer.check_override := false;
 	Typer.forbidden_packages := ["js"; "neko"; "flash"];
 	Parser.display_error := parse_error;
+	Parser.use_doc := false;
 	(try
 		let p = Sys.getenv "HAXE_LIBRARY_PATH" in
 		let rec loop = function
@@ -201,6 +202,7 @@ try
 			target := Neko file
 		),"<file> : compile code to Neko Binary");
 		("-xml",Arg.String (fun file ->
+			Parser.use_doc := true;
 			xml_out := Some file
 		),"<file> : generate XML types description");
 		("-main",Arg.String (fun cl ->
