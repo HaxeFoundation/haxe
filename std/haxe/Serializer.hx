@@ -26,6 +26,13 @@ package haxe;
 
 class Serializer {
 
+	/**
+		If the values you are serializing can contain
+		circular references or objects repetitions, you should
+		set USE_CACHE to true to prevent infinite loops.
+	**/
+	public static var USE_CACHE = false;
+
 	var buf : StringBuf;
 	var cache : Array<Dynamic>;
 	var shash : Hash<Int>;
@@ -35,19 +42,9 @@ class Serializer {
 	public function new() {
 		buf = new StringBuf();
 		cache = new Array();
-		useCache = true;
+		useCache = USE_CACHE;
 		shash = new Hash();
 		scount = 0;
-	}
-
-	/**
-		Desactivate object caching. If you are sure that your value
-		does not contain multiple references to the same object or
-		circular references between objects, this should speedup
-		serialization.
-	**/
-	public function dontUseCache() {
-		useCache = false;
 	}
 
 	public function toString() {
@@ -64,7 +61,7 @@ class Serializer {
 		g : object end
 		h : array/list/hash end
 		i : Int
-		j : utf8 escaped string
+		j :
 		k : NaN
 		l : list
 		m : -Inf
@@ -73,13 +70,13 @@ class Serializer {
 		p : +Inf
 		q : inthash
 		r : reference
-		s : utf8 string
+		s :
 		t : true
 		u : array nulls
 		v : date
 		w : enum
 		x : exception
-		y : *unused
+		y : urlencoded string
 		z : zero
 	*/
 
@@ -91,16 +88,9 @@ class Serializer {
 			return;
 		}
 		shash.set(s,scount++);
-		if( s.indexOf("\n") != -1 || s.indexOf("\r") != -1 ) {
-			buf.add("j");
-			s = s.split("\\").join("\\\\").split("\n").join("\\n").split("\r").join("\\r");
-		} else
-			buf.add("s");
-		#if neko
-		buf.add(neko.Utf8.length(s));
-		#else true
+		buf.add("y");
+		s = StringTools.urlEncode(s);
 		buf.add(s.length);
-		#end
 		buf.add(":");
 		buf.add(s);
 	}
@@ -173,13 +163,13 @@ class Serializer {
 		case TBool:
 			buf.add(if( v ) "t" else "f");
 		case TClass(c):
-			if( c == cast String ) {
+			if( c == String ) {
 				serializeString(v);
 				return;
 			}
 			if( useCache && serializeRef(v) )
 				return;
-			switch( cast c ) {
+			switch( c ) {
 			case cast Array:
 				var ucount = 0;
 				buf.add("a");
@@ -232,6 +222,19 @@ class Serializer {
 					serialize(v.get(k));
 				}
 				buf.add("h");
+			#if flash9
+			case cast flash.utils.ByteArray:
+				buf.add("y");
+				var b : flash.utils.ByteArray = v;
+				for( p in 0...b.length ) {
+					var c = b[p];
+					// 0-9a-zA-Z
+					if( (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) )
+						buf.add(String.fromCharCode(c));
+					else
+						buf.add("%"+(c>>4)+(c&15));
+				}
+			#end
 			default:
 				cache.pop();
 				buf.add("c");

@@ -134,49 +134,19 @@ class Unserializer {
  			if( f == null )
  				throw ("Invalid float "+s);
  			return f;
+		case 121: // y
+ 			var len = readDigits();
+ 			if( buf.charAt(pos++) != ":" || length - pos < len )
+ 				throw "Invalid string length";
+			var s = buf.substr(pos,len);
+			pos += len;
+			return StringTools.urlDecode(s);
  		case 107: // k
  			return Math.NaN;
  		case 109: // m
  			return Math.NEGATIVE_INFINITY;
  		case 112: // p
  			return Math.POSITIVE_INFINITY;
- 		case 115: // s
- 			var len = readDigits();
- 			if( buf.charAt(pos++) != ":" || length - pos < len )
-				throw "Invalid string length";
-			#if neko
-			var s = neko.Utf8.sub(buf,pos-upos,len);
-			pos += s.length;
-			upos += s.length - len;
-			#else true
- 			var s = buf.substr(pos,len);
- 			pos += len;
- 			#end
-			scache.push(s);
-			return s;
- 		case 106: // j
- 			var len = readDigits();
- 			if( buf.charAt(pos++) != ":" )
- 				throw "Invalid string length";
- 			#if neko
-			if( length - pos < len )
-				throw "Invalid string length";
- 			var s = neko.Utf8.sub(buf,pos-upos,len);
- 			pos += s.length;
- 			upos += s.length - len;
- 			#else true
- 			var s = buf.substr(pos,len);
- 			pos += len;
- 			#end
-			var delim = "##__delim__##";
-			#if flash9
-			var a = ~/\\\\/g.split(s);
-			#else true
-			var a = s.split("\\\\");
-			#end
- 			s = a.join(delim).split("\\r").join("\r").split("\\n").join("\n").split(delim).join("\\");
- 			scache.push(s);
- 			return s;
  		case 97: // a
  			var a = new Array<Dynamic>();
  			cache.push(a);
@@ -275,6 +245,44 @@ class Unserializer {
 			var d = Date.fromString(buf.substr(pos,19));
 			pos += 19;
 			return d;
+		// DEPRECATED
+ 		case 115: // s
+ 			var len = readDigits();
+ 			if( buf.charAt(pos++) != ":" || length - pos < len )
+				throw "Invalid string length";
+			#if neko
+			var s = neko.Utf8.sub(buf,pos-upos,len);
+			pos += s.length;
+			upos += s.length - len;
+			#else true
+ 			var s = buf.substr(pos,len);
+ 			pos += len;
+ 			#end
+			scache.push(s);
+			return s;
+ 		case 106: // j
+ 			var len = readDigits();
+ 			if( buf.charAt(pos++) != ":" )
+ 				throw "Invalid string length";
+ 			#if neko
+			if( length - pos < len )
+				throw "Invalid string length";
+ 			var s = neko.Utf8.sub(buf,pos-upos,len);
+ 			pos += s.length;
+ 			upos += s.length - len;
+ 			#else true
+ 			var s = buf.substr(pos,len);
+ 			pos += len;
+ 			#end
+			var delim = "##__delim__##";
+			#if flash9
+			var a = ~/\\\\/g.split(s);
+			#else true
+			var a = s.split("\\\\");
+			#end
+ 			s = a.join(delim).split("\\r").join("\r").split("\\n").join("\n").split(delim).join("\\");
+ 			scache.push(s);
+ 			return s;
  		default:
  		}
  		pos--;
