@@ -19,14 +19,14 @@ class HtmlPrinter {
 
 	static var default_template = "<html><body><data/></body></html>";
 	static var template = loadTemplate();
-	
+
 	public var baseUrl : String;
 	var indexUrl : String;
 	var fileExtension : String;
 	var curpackage : String;
 	var filters : List<String>;
 	var typeParams : TypeParams;
-		
+
 	public function new( baseUrl, fileExtension, indexUrl ) {
 		this.baseUrl = baseUrl;
 		this.fileExtension = fileExtension;
@@ -34,11 +34,11 @@ class HtmlPrinter {
 		filters = new List();
 		typeParams = new Array();
 	}
-	
+
 	public function output(str) {
 		neko.Lib.print(str);
 	}
-	
+
 	public function addFilter(f) {
 		filters.add(f);
 	}
@@ -49,11 +49,11 @@ class HtmlPrinter {
 				str = StringTools.replace(str, "$"+f, Std.string(Reflect.field(params, f)));
 		output(str);
 	}
-	
+
 	public function process(t) {
 		processHtml(t,template);
 	}
-	
+
 	public function filtered( path : Path, isPackage : Bool ) {
 		if( isPackage && path == "Remoting" )
 			return true;
@@ -66,11 +66,11 @@ class HtmlPrinter {
 				return false;
 		return true;
 	}
-	
+
 	function makeUrl( url, text, css ) {
 		return "<a href=\"" + baseUrl + url + fileExtension + "\" class=\""+css+"\">"+text+"</a>";
 	}
-	
+
 	function makePathUrl( path : Path, css ) {
 		var p = path.split(".");
 		var name = p.pop();
@@ -82,15 +82,20 @@ class HtmlPrinter {
 		p.push(name);
 		if( local )
 			return makeUrl(p.join("/"),name,css);
-		return makeUrl(p.join("/"),f9path(path),css);
+		return makeUrl(p.join("/"),fmtpath(path),css);
 	}
-	
-	function f9path(path : String) {
+
+	function fmtpath(path : String) {
 		if( path.substr(0,7) == "flash9." )
 			return "flash."+path.substr(7);
+		var pack = path.split(".");
+		if( pack.length > 1 && pack[pack.length-2].charAt(0) == "_" ) {
+			pack.splice(-2,1);
+			path = pack.join(".");
+		}
 		return path;
 	}
-	
+
 	public function processHtml(t,html : Xml) {
 		var ht = html.nodeType;
 		if( ht == Xml.Element ) {
@@ -116,7 +121,7 @@ class HtmlPrinter {
 		else
 			print(html.toString());
 	}
-	
+
 	public function processPage(t) {
 		switch(t) {
 		case TPackage(p,full,list):
@@ -134,24 +139,27 @@ class HtmlPrinter {
 			case TEnumdecl(e): processEnum(e);
 			case TTypedecl(t): processTypedef(t);
 			case TPackage(_,_,_): throw "ASSERT";
-			}			
+			}
 			print(head);
 		}
 	}
-	
+
 	function processPackage(name,list : Array<TypeTree> ) {
 		print('<ul class="entry">');
 		for( e in list ) {
 			switch e {
 			case TPackage(name,full,list):
-				if( filtered(full,true) )					
+				if( filtered(full,true) )
 					continue;
-				print('<li><a href="#" class="package" onclick="return toggle(\'$id\')">$name</a><div id="$id" class="package_content">', { id : full.split(".").join("_"), name : name });
+				var isPrivate = name.charAt(0) == "_";
+				if( !isPrivate )
+					print('<li><a href="#" class="package" onclick="return toggle(\'$id\')">$name</a><div id="$id" class="package_content">', { id : full.split(".").join("_"), name : name });
 				var old = curpackage;
 				curpackage = full;
 				processPackage(name,list);
 				curpackage = old;
-				print("</div></li>");
+				if( !isPrivate )
+					print("</div></li>");
 			default:
 				var i = TypeApi.typeInfos(e);
 				if( i.isPrivate || i.path == "@Main" || filtered(i.path,false) )
@@ -161,7 +169,7 @@ class HtmlPrinter {
 		}
 		print("</ul>");
 	}
-	
+
 	function processInfos(t : TypeInfos) {
 		if( t.module != null )
 			print('<div class="importmod">import $module</div>',{ module : t.module });
@@ -169,7 +177,7 @@ class HtmlPrinter {
 			print('<div class="platforms">Available in ');
 			display(t.platforms,output,", ");
 			print('</div>');
-		}		
+		}
 		if( t.doc != null ) {
 			print('<div class="classdoc">');
 			processDoc(t.doc);
@@ -177,7 +185,7 @@ class HtmlPrinter {
 		}
 	}
 
-	function processClass(c : Class) {		
+	function processClass(c : Class) {
 		print('<div class="classname">');
 		if( c.isExtern )
 			keyword("extern");
@@ -187,7 +195,7 @@ class HtmlPrinter {
 			keyword("interface");
 		else
 			keyword("class");
-		print(f9path(c.path));
+		print(fmtpath(c.path));
 		if( c.params.length != 0 ) {
 			print("&lt;");
 			print(c.params.join(", "));
@@ -219,7 +227,7 @@ class HtmlPrinter {
 			processClassField(c.platforms,f,true);
 		print('</dl>');
 	}
-	
+
 	function processClassField(platforms : Platforms,f : ClassField,stat) {
 		if( !f.isPublic )
 			return;
@@ -261,7 +269,7 @@ class HtmlPrinter {
 			if( f.get != RNormal || f.set != RNormal )
 				print("("+rightsStr(f.get)+","+rightsStr(f.set)+")");
 			print(" : ");
-			processType(f.type);			
+			processType(f.type);
 		}
 		if( f.platforms.length != platforms.length ) {
 			print('<div class="platforms">Available in ');
@@ -275,7 +283,7 @@ class HtmlPrinter {
 		if( f.params != null )
 			typeParams = oldParams;
 	}
-	
+
 	function processEnum(e : Enum) {
 		print('<div class="classname">');
 		if( e.isExtern )
@@ -283,7 +291,7 @@ class HtmlPrinter {
 		if( e.isPrivate )
 			keyword("private");
 		keyword("enum");
-		print(f9path(e.path));		
+		print(fmtpath(e.path));
 		if( e.params.length != 0 ) {
 			print("&lt;");
 			print(e.params.join(", "));
@@ -303,24 +311,24 @@ class HtmlPrinter {
 						me.print("?");
 					me.print(a.name);
 					me.print(" : ");
-					me.processType(a.t);					
+					me.processType(a.t);
 				},",");
 				print(")");
 			}
 			print("</dt>");
 			print("<dd>");
-			processDoc(c.doc);			
+			processDoc(c.doc);
 			print("</dd>");
 		}
 		print('</dl>');
 	}
-	
+
 	function processTypedef(t : Typedef) {
 		print('<div class="classname">');
 		if( t.isPrivate )
 			keyword("private");
 		keyword("typedef");
-		print(f9path(t.path));
+		print(fmtpath(t.path));
 		if( t.params.length != 0 ) {
 			print("&lt;");
 			print(t.params.join(", "));
@@ -350,7 +358,7 @@ class HtmlPrinter {
 			print('</div>');
 		}
 	}
-	
+
 	function processPath( path : Path, ?params : List<Type> ) {
 		print(makePathUrl(path,"type"));
 		if( params != null && !params.isEmpty() ) {
@@ -360,7 +368,7 @@ class HtmlPrinter {
 			print("&gt;");
 		}
 	}
-	
+
 	function processType( t : Type ) {
 		switch( t ) {
 		case TUnknown:
@@ -390,7 +398,7 @@ class HtmlPrinter {
 			var me = this;
 			display(fields,function(f) {
 				me.print(f.name+" : ");
-				me.processType(f.t);				
+				me.processType(f.t);
 			},", ");
 			print("}");
 		case TDynamic(t):
@@ -403,16 +411,16 @@ class HtmlPrinter {
 			}
 		}
 	}
-	
+
 	function processTypeFun( t : Type, isArg ) {
 		var parent =  switch( t ) { case TFunction(_,_): true; case TEnum(n,_): isArg && n == "Void"; default : false; };
 		if( parent )
 			print("(");
 		processType(t);
 		if( parent )
-			print(")");		
+			print(")");
 	}
-	
+
 	function rightsStr(r) {
 		return switch(r) {
 		case RNormal: "default";
@@ -422,18 +430,18 @@ class HtmlPrinter {
 		case RF9Dynamic: "f9dynamic";
 		}
 	}
-	
+
 	function keyword(w) {
 		print('<span class="kwd">'+w+' </span>');
 	}
-	
+
 	function processDoc(doc) {
 		if( doc == null )
 			return;
 		doc = ~/\[([^\]]+)\]/g.replace(doc,"<code>$1</code>");
 		print(doc);
 	}
-	
+
 	function display<T>( l : List<T>, f : T -> Void, sep : String ) {
 		var first = true;
 		for( x in l ) {
