@@ -9,6 +9,10 @@
 	bugfix in unify : prevent recursive anonymous objects
 	haxe.Http call "prepare" only if size is known
 	added multiple expressions in "case"
+	serialization : deprecated old string format, use urlEncode/Decode
+	added flash9 bytearray serialization (to binary string, for neko com)
+	fixed Type.typeof on some flash9 instances
+	no more dontUseCache (haxe.Serializer.USE_CACHE, default to false)
 
 2007-01-01: 1.10
 	fix in haxe.remoting.SocketConnection.readAnswer
