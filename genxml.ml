@@ -34,7 +34,7 @@ let pmap f m =
 	PMap.fold (fun x acc -> f x :: acc) m []
 
 let gen_path (p,n) priv =
-	("path",String.concat "." ((if n.[0] != '#' && priv then List.rev (List.tl (List.rev p)) else p) @ [n]))
+	("path",String.concat "." (p @ [n]))
 
 let gen_doc s =
 	let f = if String.contains s '<' || String.contains s '>' || String.contains s '&' then	cdata else pcdata in
