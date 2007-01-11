@@ -411,15 +411,16 @@ class Type {
 		case "Boolean": return TBool;
 		case "Object": return TObject;
 		default:
+			var c;
 			try {
-				var c = __global__["flash.utils.getDefinitionByName"](cname);
+				c = __global__["flash.utils.getDefinitionByName"](cname);
 				if( v.hasOwnProperty("prototype") )
 					return TObject;
 				if( c.__isenum )
 					return TEnum(c);
 				return TClass(c);
 			} catch( e : Dynamic ) {
-				return TFunction;
+				return if( c == null ) TFunction else TClass(c);
 			}
 		}
 		#else (flash || js)
