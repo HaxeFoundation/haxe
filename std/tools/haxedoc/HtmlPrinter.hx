@@ -336,11 +336,33 @@ class HtmlPrinter {
 		}
 		print('</div>');
 		processInfos(t);
-		switch( t.type ) {
+		if( t.platforms.length == 0 ) {
+			processTypedefType(t.type,t.platforms,t.platforms);
+			return;
+		}
+		var platforms = new List();
+		for( p in t.platforms )
+			platforms.add(p);
+		for( p in t.types.keys() ) {
+			var td = t.types.get(p);
+			var support = new List();
+			for( p2 in platforms )
+				if( TypeApi.typeEq(td,t.types.get(p2)) ) {
+					platforms.remove(p2);
+					support.add(p2);
+				}
+			if( support.length == 0 )
+				continue;
+			processTypedefType(td,t.platforms,support);
+		}
+	}
+
+	function processTypedefType(t,all,platforms) {
+		switch( t ) {
 		case TAnonymous(fields):
 			print('<dl>');
 			for( f in fields ) {
-				processClassField(t.platforms,{
+				processClassField(all,{
 					name : f.name,
 					type : f.t,
 					isPublic : true,
@@ -348,13 +370,18 @@ class HtmlPrinter {
 					get : RNormal,
 					set : RNormal,
 					params : null,
-					platforms : t.platforms,
+					platforms : platforms,
 				},false);
 			}
 			print('</dl>');
 		default:
+			if( all.length != platforms.length ) {
+				print('<div class="platforms">Defined in ');
+				display(platforms,output,", ");
+				print('</div>');
+			}
 			print('<div class="typedef">= ');
-			processType(t.type);
+			processType(t);
 			print('</div>');
 		}
 	}

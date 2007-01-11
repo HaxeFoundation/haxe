@@ -73,6 +73,7 @@ typedef Enum = {> TypeInfos,
 
 typedef Typedef = {> TypeInfos,
 	var type : Type;
+	var types : Hash<Type>; // by platform
 }
 
 enum TypeTree {
@@ -85,7 +86,7 @@ enum TypeTree {
 typedef TypeRoot = Array<TypeTree>
 
 class TypeApi {
-	
+
 	public static function typeInfos( t : TypeTree ) : TypeInfos {
 		var inf : TypeInfos;
 		switch( t ) {
@@ -96,14 +97,14 @@ class TypeApi {
 		}
 		return inf;
 	}
-	
+
 	public static function isVar( t : Type ) {
 		return switch( t ) {
 		case TFunction(_,_): false;
 		default: true;
 		}
 	}
-	
+
 	static function leq<T>( f : T -> T -> Bool, l1 : List<T>, l2 : List<T> ) {
 		var it = l2.iterator();
 		for( e1 in l1 ) {
@@ -117,7 +118,7 @@ class TypeApi {
 			return false;
 		return true;
 	}
-	
+
 	public static function rightsEq( r1 : Rights, r2 : Rights ) {
 		if( r1 == r2 )
 			return true;
@@ -132,7 +133,7 @@ class TypeApi {
 		}
 		return false;
 	}
-	
+
 	public static function typeEq( t1 : Type, t2 : Type ) {
 		switch( t1 ) {
 		case TUnknown: return t2 == TUnknown;
@@ -181,7 +182,7 @@ class TypeApi {
 		}
 		return false;
 	}
-	
+
 	public static function fieldEq( f1 : ClassField, f2 : ClassField ) {
 		if( f1.name != f2.name )
 			return false;
@@ -201,7 +202,7 @@ class TypeApi {
 			return false;
 		return true;
 	}
-	
+
 	public static function constructorEq( c1 : EnumField, c2: EnumField ) {
 		if( c1.name != c2.name )
 			return false;
@@ -213,5 +214,5 @@ class TypeApi {
 			return false;
 		return true;
 	}
-	
+
 }

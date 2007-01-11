@@ -117,10 +117,10 @@ class XmlParser {
 	}
 
 	function mergeTypedefs( t : Typedef, t2 : Typedef ) {
-		if( !TypeApi.typeEq(t.type,t2.type) )
+		if( curplatform == null )
 			return false;
-		if( curplatform != null )
-			t.platforms.add(curplatform);
+		t.platforms.add(curplatform);
+		t.types.set(curplatform,t2.type);
 		return true;
 	}
 
@@ -351,6 +351,9 @@ class XmlParser {
 				doc = c.innerData;
 			else
 				t = xtype(c);
+		var types = new Hash();
+		if( curplatform != null )
+			types.set(curplatform,t);
 		return {
 			path : mkPath(x.att.path),
 			module : if( x.has.module ) mkPath(x.att.module) else null,
@@ -358,6 +361,7 @@ class XmlParser {
 			isPrivate : x.x.exists("private"),
 			params : mkTypeParams(x.att.params),
 			type : t,
+			types : types,
 			platforms : defplat(),
 		};
 	}
