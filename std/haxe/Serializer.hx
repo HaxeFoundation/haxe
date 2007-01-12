@@ -206,7 +206,7 @@ class Serializer {
 				buf.add("h");
 			case cast Date:
 				buf.add("v");
-				buf.add(v);
+				buf.add(v.toString());
 			case cast Hash:
 				buf.add("b");
 				for( k in v.keys() ) {
