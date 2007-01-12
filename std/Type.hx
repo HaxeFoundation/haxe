@@ -420,6 +420,8 @@ class Type {
 					return TEnum(c);
 				return TClass(c);
 			} catch( e : Dynamic ) {
+				if( cname == "builtin.as$0::MethodClosure" || cname.indexOf("-") != -1 )
+					return TFunction;
 				return if( c == null ) TFunction else TClass(c);
 			}
 		}
@@ -459,6 +461,45 @@ class Type {
 		}
 		#else error
 		#end
+	}
+
+	/**
+		Recursively compare two enums constructors and parameters.
+	**/
+	public static function enumEq<T>( a : T, b : T ) : Bool untyped {
+		if( a == b )
+			return true;
+		#if neko
+		try {
+			if( a.__enum__ == null || a.tag != b.tag )
+				return false;
+		} catch( e : Dynamic ) {
+			return false;
+		}
+		for( i in 0...__dollar__asize(a.args) )
+			if( !enumEq(a.args[i],b.args[i]) )
+				return false;
+		#else flash9
+		try {
+			if( a.tag != b.tag )
+				return false;
+			for( i in 0...a.params.length )
+				if( !enumEq(a.params[i],b.params[i]) )
+					return false;
+		} catch( e : Dynamic ) {
+			return false;
+		}
+		#else true
+		if( a[0] != b[0] )
+			return false;
+		for( i in 1...a.length )
+			if( !enumEq(a[i],b[i]) )
+				return false;
+		var e = a.__enum__;
+		if( e != b.__enum__ || e == null )
+			return false;
+		#end
+		return true;
 	}
 
 }
