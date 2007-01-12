@@ -123,6 +123,7 @@ and tclass = {
 	mutable cl_fields : (string , tclass_field) PMap.t;
 	mutable cl_statics : (string, tclass_field) PMap.t;
 	mutable cl_ordered_statics : tclass_field list;
+	mutable cl_ordered_fields : tclass_field list;
 	mutable cl_dynamic : t option;
 	mutable cl_constructor : tclass_field option;
 	mutable cl_init : texpr option;
@@ -202,6 +203,7 @@ let mk_class path pos doc priv =
 		cl_implements = [];
 		cl_fields = PMap.empty;
 		cl_ordered_statics = [];
+		cl_ordered_fields = [];
 		cl_statics = PMap.empty;
 		cl_dynamic = None;
 		cl_constructor = None;

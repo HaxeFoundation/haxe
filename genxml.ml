@@ -106,8 +106,8 @@ let gen_type ctx t =
 	let m = Typer.module_of_type ctx t in
 	match t with
 	| TClassDecl c ->
-		let stats = pmap (gen_field ["static","1"]) c.cl_statics in
-		let fields = pmap (gen_field []) c.cl_fields in
+		let stats = List.map (gen_field ["static","1"]) c.cl_ordered_statics in
+		let fields = List.map (gen_field []) c.cl_ordered_fields in
 		let constr = (match c.cl_constructor with None -> [] | Some f -> [gen_field [] f]) in
 		let impl = List.map (gen_class_path "implements") c.cl_implements in
 		let tree = (match c.cl_super with

@@ -2197,12 +2197,14 @@ let init_class ctx c p herits fields =
 				c.cl_ordered_statics <- f :: c.cl_ordered_statics;
 			end else begin
 				c.cl_fields <- PMap.add f.cf_name f c.cl_fields;
+				c.cl_ordered_fields <- f :: c.cl_ordered_fields;
 				if List.mem AOverride access then c.cl_overrides <- f.cf_name :: c.cl_overrides;
 			end;
 		end;
 		delayed
 	) fields in
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
+	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
 	(* define an default inherited constructor *)
 	(match c.cl_constructor, c.cl_super with
 	| None , Some ({ cl_constructor = Some f; cl_types = tl } as csuper, cparams) ->
