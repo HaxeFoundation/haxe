@@ -88,9 +88,22 @@ class Serializer {
 			return;
 		}
 		shash.set(s,scount++);
+		#if old_serialize
+			if( s.indexOf("\n") != -1 || s.indexOf("\r") != -1 ) {
+				buf.add("j");
+				s = s.split("\\").join("\\\\").split("\n").join("\\n").split("\r").join("\\r");
+			} else
+				buf.add("s");
+			#if neko
+			buf.add(neko.Utf8.length(s));
+			#else true
+			buf.add(s.length);
+			#end
+		#else true
 		buf.add("y");
 		s = StringTools.urlEncode(s);
 		buf.add(s.length);
+		#end
 		buf.add(":");
 		buf.add(s);
 	}
