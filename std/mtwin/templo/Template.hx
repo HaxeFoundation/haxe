@@ -80,6 +80,11 @@ class Template {
 		if (id == null){
 			id = Md5.encode(src);
 		}
+	
+		// remove BOM	
+		if (StringTools.startsWith(src, "\xEF\xBB\xBF"))
+			src = src.substr(3);
+
 		src = mtwin.templo.Preprocessor.process(src);
 
 		var path = nekoSrc(id);
