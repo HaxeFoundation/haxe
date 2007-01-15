@@ -27,8 +27,8 @@ package mtwin.templo;
 
 class Preprocessor {
 
-	static var r_if      = ~/::if (.*?)::/g;
-	static var r_elseif  = ~/::elseif (.*?)::/;
+	static var r_if      = ~/::if([^_a-zA-Z0-9].*?)::/g;
+	static var r_elseif  = ~/::elseif([^_a-zA-Z0-9].*?)::/;
 	static var r_else    = ~/::else *?::/;
 	static var r_foreach = ~/::foreach (.*?)::/g;
 	static var r_fill    = ~/::fill (.*?)::/g;
@@ -57,10 +57,10 @@ class Preprocessor {
 		res = res.split("::else::").join("</mt><mt mt:else=\"\">");
 		res = res.split("::end::").join("</mt>");
 		while (r_if.match(res)){
-			res = res.split(r_if.matched(0)).join("<mt mt:if=\""+quote(r_if.matched(1))+"\">");
+			res = res.split(r_if.matched(0)).join("<mt mt:if=\""+quote(StringTools.trim(r_if.matched(1)))+"\">");
 		}
 		while (r_elseif.match(res)){
-			res = res.split(r_elseif.matched(0)).join("</mt><mt mt:elseif=\""+quote(r_elseif.matched(1))+"\">");
+			res = res.split(r_elseif.matched(0)).join("</mt><mt mt:elseif=\""+quote(StringTools.trim(r_elseif.matched(1)))+"\">");
 		}
 		while (r_foreach.match(res)){
 			res = res.split(r_foreach.matched(0)).join("<mt mt:foreach=\""+quote(r_foreach.matched(1))+"\">");
