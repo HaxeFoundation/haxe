@@ -99,9 +99,9 @@ implements Dynamic
 	function lineTo(x : Float, y : Float) : Void;
 	function curveTo(controlX : Float, controlY : Float, anchorX : Float, anchorY : Float) : Void;
 #if flash8
-	function lineStyle(thickness : Float, rgb : Int, ?alpha : Float, ?pixelHinting : Bool, ?noScale : String, ?capsStyle : String, ?jointStyle : String, ?miterLimit : Float) : Void;
+	function lineStyle( ?thickness : Float, ?rgb : Int, ?alpha : Float, ?pixelHinting : Bool, ?noScale : String, ?capsStyle : String, ?jointStyle : String, ?miterLimit : Float) : Void;
 #else true
-	function lineStyle(thickness : Float, rgb : Int, ?alpha : Float) : Void;
+	function lineStyle( ?thickness : Float, ?rgb : Int, ?alpha : Float) : Void;
 #end
 	function endFill() : Void;
 	function clear() : Void;
@@ -149,7 +149,7 @@ implements Dynamic
 	function attachBitmap( bmp : flash.display.BitmapData, depth : Int, ?pixelSnapping : String, ?smoothing : Bool ) : Void;
 	function beginBitmapFill( bmp : flash.display.BitmapData , ?matrix:flash.geom.Matrix, ?repeat:Bool, ?smoothing:Bool ) : Void;
   	function lineGradientStyle( fillType:String, colors:Array<Int>, alphas:Array<+Float>, ratios:Array<+Float>, matrix:Dynamic, ?spreadMethod : String, ?interpolationMethod:String, ?focalPointRatio:Float ) : Void;
-	
+
 #end
 
 // MT extension
