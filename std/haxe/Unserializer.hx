@@ -140,7 +140,9 @@ class Unserializer {
  				throw "Invalid string length";
 			var s = buf.substr(pos,len);
 			pos += len;
-			return StringTools.urlDecode(s);
+			s = StringTools.urlDecode(s);
+			scache.push(s);
+			return s;
  		case 107: // k
  			return Math.NaN;
  		case 109: // m
