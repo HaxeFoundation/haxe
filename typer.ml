@@ -57,6 +57,7 @@ type context = {
 	mutable locals_map : (string, string) PMap.t;
 	mutable locals_map_inv : (string, string) PMap.t;
 	mutable opened : anon_status ref list;
+	mutable param_type : t option;
 }
 
 (* ---------------------------------------------------------------------- *)
@@ -145,6 +146,7 @@ let context err warn =
 		current = empty;
 		std = empty;
 		opened = [];
+		param_type = None;
 	} in
 	ctx.std <- (try
 		load ctx ([],"StdTypes") null_pos
@@ -766,15 +768,29 @@ let unify_call_params ctx name el args p =
 			| _ -> error "Invalid");
 			[]
 		| e :: l, (name,opt,t) :: l2 ->
-			try
-				unify_raise ctx e.etype t e.epos;
-				loop ((e,false) :: acc) l l2 skip
+			let old = ctx.param_type in
+			let e = (try
+				ctx.param_type <- Some t;
+				let e = (!type_expr_ref) ctx e in
+				ctx.param_type <- old;
+				e
 			with
-				Error (Unify ul,_) ->
-					if opt then
-						loop (default_value t :: acc) (e :: l) l2 ((name,ul) :: skip)
-					else
-						arg_error ul name false
+				exc -> 
+					ctx.param_type <- old;
+					raise exc
+			) in
+			let rec inner_loop acc skip =
+				try
+					unify_raise ctx e.etype t e.epos;
+					loop ((e,false) :: acc) l l2 skip
+				with
+					Error (Unify ul,_) ->
+						if opt then
+							inner_loop (default_value t :: acc) ((name,ul) :: skip)
+						else
+							arg_error ul name false
+			in
+			inner_loop acc skip
 	in
 	loop [] el args []
 
@@ -1787,7 +1803,6 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		else
 			e
 	| ECall ((EConst (Ident "super"),sp),el) ->
-		let el = List.map (type_expr ctx) el in
 		if ctx.in_static || not ctx.in_constructor then error "Cannot call superconstructor outside class constructor" p;
 		let el, t = (match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a super" p
@@ -1805,16 +1820,17 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	| ECall (e,el) ->
 		(match e with EField ((EConst (Ident "super"),_),_) , _ -> ctx.super_call <- true | _ -> ());
 		let e = type_expr ctx e in
-		let el = List.map (type_expr ctx) el in
 		let el , t = (match follow e.etype with
 		| TFun (args,r) ->
 			let el = unify_call_params ctx (match e.eexpr with TField (_,f) -> Some f | _ -> None) el args p in
 			el , r
 		| TMono _ ->
 			let t = mk_mono() in
+			let el = List.map (type_expr ctx) el in
 			unify ctx (TFun (List.map (fun e -> "",false,e.etype) el,t)) e.etype e.epos;
 			el, t
 		| t ->
+			let el = List.map (type_expr ctx) el in
 			el, if t == t_dynamic then
 				t_dynamic
 			else if ctx.untyped then
@@ -1827,7 +1843,6 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let name = (match t.tpackage with [] -> t.tname | x :: _ -> x) in
 		if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;
 		let t = load_normal_type ctx t p true in
-		let el = List.map (type_expr ctx) el in
 		let el, c , params , t = (match follow t with
 		| TInst (c,params) ->
 			let f = (match c.cl_constructor with Some f -> f | None -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
@@ -1848,6 +1863,17 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	| EFunction f ->
 		let rt = load_type_opt ctx p f.f_type in
 		let args = List.map (fun (s,opt,t) -> s , opt, load_type_opt ctx p t) f.f_args in
+		(match ctx.param_type with
+		| None -> ()
+		| Some t -> 
+			match follow t with
+			| TFun (args2,_) when List.length args2 = List.length args ->
+				List.iter2 (fun (_,_,t1) (_,_,t2) ->
+					match follow t1 with
+					| TMono _ -> unify ctx t2 t1 p
+					| _ -> ()
+				) args args2;				
+			| _ -> ());
 		let ft = TFun (args,rt) in
 		let e , fargs = type_function ctx ft true false f p in
 		let f = {
@@ -2318,6 +2344,7 @@ let type_module ctx m tdecls loadp =
 		in_loop = false;
 		untyped = false;
 		opened = [];
+		param_type = None;
 	} in
 	let delays = ref [] in
 	let get_class name =
