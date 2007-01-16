@@ -715,6 +715,22 @@ let rec return_flow ctx e =
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
 
+let type_expr_with_type ctx e t =
+	match e with
+	| (EFunction _,_) ->
+		let old = ctx.param_type in
+		(try
+			ctx.param_type <- t;
+			let e = (!type_expr_ref) ctx e in
+			ctx.param_type <- old;
+			e
+		with
+			exc -> 
+				ctx.param_type <- old;
+				raise exc)
+	| _ ->
+		(!type_expr_ref) ctx e
+
 let unify_call_params ctx name el args p =
 	let error txt =
 		let format_arg = (fun (name,opt,_) -> (if opt then "?" else "") ^ name) in
@@ -767,30 +783,17 @@ let unify_call_params ctx name el args p =
 			| [name,ul] -> arg_error ul name true
 			| _ -> error "Invalid");
 			[]
-		| e :: l, (name,opt,t) :: l2 ->
-			let old = ctx.param_type in
-			let e = (try
-				ctx.param_type <- Some t;
-				let e = (!type_expr_ref) ctx e in
-				ctx.param_type <- old;
-				e
+		| ee :: l, (name,opt,t) :: l2 ->
+			let e = type_expr_with_type ctx ee (Some t) in
+			try
+				unify_raise ctx e.etype t e.epos;
+				loop ((e,false) :: acc) l l2 skip
 			with
-				exc -> 
-					ctx.param_type <- old;
-					raise exc
-			) in
-			let rec inner_loop acc skip =
-				try
-					unify_raise ctx e.etype t e.epos;
-					loop ((e,false) :: acc) l l2 skip
-				with
-					Error (Unify ul,_) ->
-						if opt then
-							inner_loop (default_value t :: acc) ((name,ul) :: skip)
-						else
-							arg_error ul name false
-			in
-			inner_loop acc skip
+				Error (Unify ul,_) ->
+					if opt then
+						loop (default_value t :: acc) (ee :: l) l2 ((name,ul) :: skip)
+					else
+						arg_error ul name false
 	in
 	loop [] el args []
 
@@ -1101,7 +1104,7 @@ let rec type_binop ctx op e1 e2 p =
 	match op with
 	| OpAssign ->
 		let e1 = type_access ctx (fst e1) (snd e1) false in
-		let e2 = type_expr ctx e2 in
+		let e2 = type_expr_with_type ctx e2 (match e1 with AccNo _ -> None | AccExpr e  | AccSetField (e,_,_) | AccSet(e,_,_,_) -> Some e.etype) in
 		(match e1 with
 		| AccNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
 		| AccExpr e1 ->
@@ -1606,7 +1609,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				let e = (match e with
 					| None -> None
 					| Some e ->
-						let e = type_expr ctx e in
+						let e = type_expr_with_type ctx e (Some t) in
 						unify ctx e.etype t p;
 						Some e
 				) in
@@ -1865,7 +1868,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let args = List.map (fun (s,opt,t) -> s , opt, load_type_opt ctx p t) f.f_args in
 		(match ctx.param_type with
 		| None -> ()
-		| Some t -> 
+		| Some t ->
+			ctx.param_type <- None;
 			match follow t with
 			| TFun (args2,_) when List.length args2 = List.length args ->
 				List.iter2 (fun (_,_,t1) (_,_,t2) ->

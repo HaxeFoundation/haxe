@@ -15,6 +15,7 @@
 	no more dontUseCache (haxe.Serializer.USE_CACHE, default to false)
 	small genxml/haxedoc improvements
 	added Type.enumEq
+	local function parameters are now inferred in several cases
 
 2007-01-01: 1.10
 	fix in haxe.remoting.SocketConnection.readAnswer

@@ -238,4 +238,28 @@ class List<T> {
 		}
 		return b;
 	}
+
+	/**
+		Tells if an element is in the list, the elements will
+		be tested using normal equality. A comparison method can be passed
+		instead of an element to perform a specific comparison.
+	**/
+	public function exists( ?elt : T, ?cmp : T -> Bool ) : Bool {
+		var l = h;
+		if( cmp != null ) {
+			while( l != null ) {
+				if( cmp(l[0]) )
+					return true;
+				l = l[1];
+			}
+			return false;
+		}
+		while( l != null ) {
+			if( elt == l[0] )
+				return true;
+			l = l[1];
+		}
+		return false;
+	}
+
 }
