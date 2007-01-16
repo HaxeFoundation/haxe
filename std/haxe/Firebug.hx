@@ -66,9 +66,7 @@ class Firebug {
 		#if flash
 			var out = "javascript:console."+ type +"('" + (if( inf == null ) "" else inf.fileName + ":" + inf.lineNumber + " : ") + Std.string(v).split("\\").join("\\\\").split("'").join('\\"').split("\n").join("\\n").split("\r").join("\\r").split("\t").join("\\t") + "');";
 			#if flash9
-			var l = new flash.net.URLLoader();
-			l.addEventListener( "ioError", function(e){} );
-			l.load(new flash.net.URLRequest(out));
+			flash.Lib.getURL(new flash.net.URLRequest(out), "_self");
 			#else true
 			flash.Lib.getURL(out);
 			#end // flash9
