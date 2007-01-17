@@ -105,7 +105,7 @@ let gen_class_path name (c,pl) =
 let rec exists f c =
 	try
 		let f2 = PMap.find f.cf_name c.cl_fields in
-		not (type_eq false f.cf_type f2.cf_type)
+		not (type_iseq f.cf_type f2.cf_type)
 	with
 		Not_found ->
 			match c.cl_super with

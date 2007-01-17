@@ -424,63 +424,6 @@ let rec fast_eq a b =
 and fast_peq (_,a) (_,b) =
 	fast_eq a b
 
-let eq_stack = ref []
-
-let rec type_eq param a b =
-	if a == b || (param && b == t_dynamic) then
-		true
-	else match a , b with
-	| TLazy f , _ -> type_eq param (!f()) b
-	| _ , TLazy f -> type_eq param a (!f())
-	| TMono t , _ -> (match !t with None -> link t a b | Some t -> type_eq param t b)
-	| _ , TMono t -> (match !t with None -> link t b a | Some t -> type_eq param a t)
-	| TType (t,tl) , _ -> type_eq param (apply_params t.t_types tl t.t_type) b
-	| _ , TType (t,tl) ->
-		if List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!eq_stack) then
-			true
-		else begin
-			eq_stack := (a,b) :: !eq_stack;
-			let r = type_eq param a (apply_params t.t_types tl t.t_type) in
-			eq_stack := List.tl !eq_stack;
-			r
-		end
-	| TEnum (a,tl1) , TEnum (b,tl2) -> a == b && List.for_all2 (type_peq param) tl1 tl2
-	| TInst (c1,tl1) , TInst (c2,tl2) ->
-		c1 == c2 && List.for_all2 (type_peq param) tl1 tl2
-	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
-		type_eq param r1 r2 && List.for_all2 (fun (_,o1,t1) (_,o2,t2) -> o1 = o2 && type_eq param t1 t2) l1 l2
-	| TDynamic a , TDynamic b ->
-		type_eq param a b
-	| TAnon a1, TAnon a2 ->
-		(try
-			PMap.iter (fun _ f1 ->
-				try
-					let f2 = PMap.find f1.cf_name a2.a_fields in
-					if not (type_eq param f1.cf_type f2.cf_type) then raise Exit;
-					if f1.cf_get <> f2.cf_get || f1.cf_set <> f2.cf_set then raise Exit;
-				with
-					Not_found ->
-						if is_closed a2 then raise Exit;
-						if not (link (ref None) b f1.cf_type) then raise Exit;
-						a2.a_fields <- PMap.add f1.cf_name f1 a2.a_fields
-			) a1.a_fields;
-			PMap.iter (fun _ f2 ->
-				if not (PMap.mem f2.cf_name a1.a_fields) then begin
-					if is_closed a1 then raise Exit;
-					if not (link (ref None) a f2.cf_type) then raise Exit;
-					a1.a_fields <- PMap.add f2.cf_name f2 a1.a_fields
-				end;
-			) a2.a_fields;
-			true
-		with
-			Exit -> false)
-	| _ , _ ->
-		false
-
-and type_peq params (_,a) (_,b) =
-	type_eq params a b
-
-
 (* perform unification with subtyping.
    the first type is always the most down in the class hierarchy
    it's also the one that is pointed by the position.
@@ -492,7 +435,8 @@ type unify_error =
 	| Has_no_field of t * string
 	| Invalid_access of string * bool
 	| Invalid_visibility of string
-	| Not_matching_optional
+	| Not_matching_optional of string
+	| Cant_force_optional
 
 exception Unify_error of unify_error list
 
@@ -502,6 +446,92 @@ let invalid_access n get = Invalid_access (n,get)
 let invalid_visibility n = Invalid_visibility n
 let has_no_field t n = Has_no_field (t,n)
 let error l = raise (Unify_error l)
+
+let eq_stack = ref []
+
+let rec type_eq param a b =
+	if a == b || (param && b == t_dynamic) then
+		()
+	else match a , b with
+	| TLazy f , _ -> type_eq param (!f()) b
+	| _ , TLazy f -> type_eq param a (!f())
+	| TMono t , _ ->
+		(match !t with
+		| None -> if not (link t a b) then error [cannot_unify a b]
+		| Some t -> type_eq param t b)
+	| _ , TMono t ->
+		(match !t with
+		| None -> if not (link t b a) then error [cannot_unify a b]
+		| Some t -> type_eq param a t)
+	| TType (t,tl) , _ -> type_eq param (apply_params t.t_types tl t.t_type) b
+	| _ , TType (t,tl) ->
+		if List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!eq_stack) then
+			()
+		else begin
+			eq_stack := (a,b) :: !eq_stack;
+			try
+				type_eq param a (apply_params t.t_types tl t.t_type);
+				eq_stack := List.tl !eq_stack;
+			with
+				Unify_error l ->
+					eq_stack := List.tl !eq_stack;
+					error (cannot_unify a b :: l)
+		end
+	| TEnum (e1,tl1) , TEnum (e2,tl2) ->
+		if e1 != e2 then error [cannot_unify a b];
+		List.iter2 (type_peq param) tl1 tl2
+	| TInst (c1,tl1) , TInst (c2,tl2) ->
+		if c1 != c2 then error [cannot_unify a b];
+		List.iter2 (type_peq param) tl1 tl2
+	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
+		(try
+			type_eq param r1 r2;
+			List.iter2 (fun (n,o1,t1) (_,o2,t2) ->
+				if o1 <> o2 then error [Not_matching_optional n];
+				type_eq param t1 t2
+			) l1 l2
+		with
+			Unify_error l -> error (cannot_unify a b :: l))
+	| TDynamic a , TDynamic b ->
+		type_eq param a b
+	| TAnon a1, TAnon a2 ->
+		(try
+			PMap.iter (fun n f1 ->
+				try
+					let f2 = PMap.find n a2.a_fields in
+					if f1.cf_get <> f2.cf_get then error [invalid_access n true];
+					if f1.cf_set <> f2.cf_set then error [invalid_access n false];
+					try
+						type_eq param f1.cf_type f2.cf_type
+					with
+						Unify_error l -> error (invalid_field n :: l)
+				with
+					Not_found ->
+						if is_closed a2 then error [has_no_field b n];
+						if not (link (ref None) b f1.cf_type) then error [cannot_unify a b];
+						a2.a_fields <- PMap.add n f1 a2.a_fields
+			) a1.a_fields;
+			PMap.iter (fun n f2 ->
+				if not (PMap.mem n a1.a_fields) then begin
+					if is_closed a1 then error [has_no_field a n];
+					if not (link (ref None) a f2.cf_type) then error [cannot_unify a b];
+					a1.a_fields <- PMap.add n f2 a1.a_fields
+				end;
+			) a2.a_fields;			
+		with
+			Unify_error l -> error (cannot_unify a b :: l))
+	| _ , _ ->
+		error [cannot_unify a b]
+
+and type_peq params (_,a) (_,b) =
+	type_eq params a b
+
+let type_iseq a b =
+	try
+		type_eq false a b;
+		true
+	with
+		Unify_error _ -> false
 
 let unify_stack = ref []
 
@@ -591,7 +621,7 @@ let rec unify a b =
 		(try
 			unify r1 r2;
 			List.iter2 (fun (_,o1,t1) (_,o2,t2) ->
-				if o1 && not o2 then error [Not_matching_optional];
+				if o1 && not o2 then error [Cant_force_optional];
 				unify t1 t2
 			) l2 l1 (* contravariance *)
 		with
@@ -638,7 +668,11 @@ let rec unify a b =
 			()
 		else (match b with
 		| TDynamic t2 ->
-			if t2 != b && not (type_eq true t t2) then error [cannot_unify a b; cannot_unify t t2];
+			if t2 != b then
+				(try 
+					type_eq true t t2
+				with
+					Unify_error l -> error (cannot_unify a b :: l));
 		| _ ->
 			error [cannot_unify a b])
 	| _ , TDynamic t ->
@@ -646,7 +680,11 @@ let rec unify a b =
 			()
 		else (match a with
 		| TDynamic t2 ->
-			if t2 != a && not (type_eq true t t2) then error [cannot_unify a b; cannot_unify t t2]
+			if t2 != a then
+				(try 
+					type_eq true t t2
+				with
+					Unify_error l -> error (cannot_unify a b :: l));
 		| _ ->
 			error [cannot_unify a b])
 	| _ , _ ->
@@ -663,7 +701,7 @@ and unify_types a b tl1 tl2 =
 			| _  -> error []
 			);
 			match vb with
-			| VNo -> if not (type_eq true ta tb) then error [cannot_unify ta tb]
+			| VNo -> type_eq true ta tb
 			| VCo -> unify ta tb
 			| VContra -> unify tb ta
 			| VBi -> ()

@@ -86,7 +86,9 @@ let unify_error_msg ctx = function
 		"Inconsistent " ^ (if get then "getter" else "setter") ^ " for field " ^ f
 	| Invalid_visibility n ->
 		"The field " ^ n ^ " is not public"
-	| Not_matching_optional ->
+	| Not_matching_optional n ->
+		"Optional attribute of parameter " ^ n ^ " differs"
+	| Cant_force_optional ->
 		"Optional parameters can't be forced"
 
 let rec error_msg = function
@@ -1401,7 +1403,7 @@ and type_switch ctx e cases def need_val p =
 			| [] , [] -> true
 			| (n,_) :: l , [] | [] , (n,_) :: l -> n = None && loop (l,[])
 			| (n1,t1) :: l1, (n2,t2) :: l2 ->
-				n1 = n2 && (n1 = None || type_eq false t1 t2) && loop (l1,l2)
+				n1 = n2 && (n1 = None || type_iseq t1 t2) && loop (l1,l2)
 		in
 		loop (l1,l2)
 	in
@@ -1983,8 +1985,11 @@ let valid_redefinition ctx f t =
 	let ft = field_type f in
 	match follow ft , t with
 	| TFun (args,r) , TFun (targs,tr) when f.cf_expr <> None && List.length args = List.length targs ->
-		List.for_all2 (fun (_,o1,a1) (_,o2,a2) -> o1 = o2 && type_eq false a1 a2) args targs && 
-		(try unify_raise ctx r tr null_pos; true with Error (Unify _,_) -> false)
+		List.iter2 (fun (n,o1,a1) (_,o2,a2) -> 
+			if o1 <> o2 then raise (Unify_error [Not_matching_optional n]);
+			type_eq false a1 a2
+		) args targs;
+		Type.unify r tr
 	| _ , _ ->
 		type_eq false ft t
 
@@ -2004,8 +2009,12 @@ let check_overriding ctx c p () =
 					display_error ctx ("Field " ^ i ^ " has different visibility (public/private) than superclass one") p
 				else if f2.cf_get <> f.cf_get || f2.cf_set <> f.cf_set then
 					display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p
-				else if not (valid_redefinition ctx f t) then
-					display_error ctx ("Field " ^ i ^ " overload parent class with different or incomplete type") p
+				else try
+					valid_redefinition ctx f t
+				with
+					Unify_error l ->
+						display_error ctx ("Field " ^ i ^ " overload parent class with different or incomplete type") p;
+						ctx.error (Unify l) p;
 			with
 				Not_found ->
 					if List.mem i c.cl_overrides then display_error ctx ("Field " ^ i ^ " is declared 'override' but doesn't override any field") p
@@ -2035,9 +2044,13 @@ let rec check_interface ctx c p intf params =
 			else if not(unify_access f2.cf_get f.cf_get) then
 				display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path) p
 			else
-				let t1 = apply_params intf.cl_types params (field_type f) in				
-				if not (valid_redefinition ctx f2 t1) then
-					display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
+				let t1 = apply_params intf.cl_types params (field_type f) in
+				try
+					valid_redefinition ctx f2 t1
+				with
+					Unify_error l ->
+						display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
+						ctx.error (Unify l) p;
 		with
 			Not_found ->
 				if not c.cl_interface then display_error ctx ("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing") p
