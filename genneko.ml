@@ -233,7 +233,8 @@ and gen_call ctx p e el =
 	| TField (e,f) , el ->
 		call p (field p (gen_expr ctx e) f) (List.map (gen_expr ctx) el)
 	| _ , _ ->
-		call p (gen_expr ctx e) (List.map (gen_expr ctx) el)
+		let e = (match gen_expr ctx e with EFunction _, _ as e -> (EBlock [e],p) | e -> e) in
+		call p e (List.map (gen_expr ctx) el)
 
 and gen_closure p t e f =
 	match follow t with
