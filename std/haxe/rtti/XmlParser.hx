@@ -38,7 +38,7 @@ class XmlParser {
 	}
 
 	function sortFields(fl) {
-		var a = Lambda.array(fl.iterator());
+		var a = Lambda.array(fl);
 		a.sort(function(f1 : ClassField,f2 : ClassField) {
 			var v1 = TypeApi.isVar(f1.type);
 			var v2 = TypeApi.isVar(f2.type);
@@ -54,7 +54,7 @@ class XmlParser {
 				return 1;
 			return -1;
 		});
-		return Lambda.list(a.iterator());
+		return Lambda.list(a);
 	}
 
 	public function process( x : Xml, platform ) {

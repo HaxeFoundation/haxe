@@ -74,6 +74,14 @@ typedef Iterator<T> = {
 }
 
 /**
+	An Iterable is a data structure which has an iterator() method.
+	See [Lambda] for generic functions on iterable structures.
+**/
+typedef Iterable<T> = {
+	function iterator() : Iterator<T>;
+}
+
+/**
 	ArrayAccess is used to indicate a class that can be accessed using brackets.
 	The type parameter represent the type of the elements stored.
 **/

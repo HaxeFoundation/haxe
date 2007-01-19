@@ -30,9 +30,9 @@
 class Lambda {
 
 	/**
-		Creates an [Array] from an [Iterator]
+		Creates an [Array] from an [Iterable]
 	**/
-	public static function array<A>( it : Iterator<A> ) : Array<A> {
+	public static function array<A>( it : Iterable<A> ) : Array<A> {
 		var a = new Array<A>();
 		for(i in it)
 			a.push(i);
@@ -40,9 +40,9 @@ class Lambda {
 	}
 
 	/**
-		Creates a [List] from an [Iterator]
+		Creates a [List] from an [Iterable]
 	**/
-	public static function list<A>( it : Iterator<A> ) : List<A> {
+	public static function list<A>( it : Iterable<A> ) : List<A> {
 		var l = new List<A>();
 		for(i in it)
 			l.add(i);
@@ -50,52 +50,95 @@ class Lambda {
 	}
 
 	/**
-		Creates a new [Iterator] that will apply the function 'f' to all
+		Creates a new [Iterable] by appling the function 'f' to all
 		elements of the iterator 'it'.
 	**/
-	public static function map<A,B>( it : Iterator<A>, f : A -> B ) : Iterator<B> {
-		return {
-			hasNext : it.hasNext,
-			next : function() { return f(it.next()); }
-		}
+	public static function map<A,B>( it : Iterable<A>, f : A -> B ) : List<B> {
+		var l = new List<B>();
+		for( x in it )
+			l.add(f(x));
+		return l;
 	}
 
 	/**
-		Call the function 'f' on all elements of the [Iterator] 'it'.
+		Tells if the element is part of an iterable
 	**/
-	public static function iter<A>( it : Iterator<A>, f : A -> Void ) {
+	public static function has<A>( it : Iterable<A>, elt : A, ?cmp : A -> A -> Bool ) : Bool {
+		if( cmp == null ) {
+			for( x in it )
+				if( x == elt )
+					return true;
+		} else {
+			for( x in it )
+				if( cmp(x,elt) )
+					return true;
+		}
+		return false;
+	}
+
+	/**
+		Tells if at least one element of the iterable if found by using the specific function.
+	**/
+	public static function exists<A>( it : Iterable<A>, f : A -> Bool ) {
+		for( x in it )
+			if( f(x) )
+				return true;
+		return false;
+	}
+
+	/**
+		Tells if all elements of the iterable have the specified property defined by [f].
+	**/
+	public static function foreach<A>( it : Iterable<A>, f : A -> Bool ) {
+		for( x in it )
+			if( !f(x) )
+				return false;
+		return true;
+	}
+
+	/**
+		Call the function 'f' on all elements of the [Iterable] 'it'.
+	**/
+	public static function iter<A>( it : Iterable<A>, f : A -> Void ) {
 		for( x in it )
 			f(x);
 	}
 
 	/**
-		Creates an [Array] from an [Array] 'a' by applying the function 'f'
-		on all elements of 'a'.
+		Return the list of elements matching the function 'f'
 	**/
-	public static function amap<A,B>(a : Array<A>,f : A -> B) : Array<B> {
-		var b = new Array();
-		for( x in a )
-			b.push(f(x));
-		return b;
+	public static function filter<A>( it : Iterable<A>, f : A -> Bool ) {
+		var l = new List<A>();
+		for( x in it )
+			if( f(x) )
+				l.add(x);
+		return l;
 	}
 
 	/**
-		Functional 'fold' using an [Iterator]
+		Functional 'fold' using an [Iterable]
 	**/
-	public static function fold<A,B>( it : Iterator<A>, f : A -> B -> B, first : B ) : B {
+	public static function fold<A,B>( it : Iterable<A>, f : A -> B -> B, first : B ) : B {
 		for( x in it )
 			first = f(x,first);
 		return first;
 	}
 
 	/**
-		Count the number of elements in an [Iterator]
+		Count the number of elements in an [Iterable]
 	**/
-	public static function count<A>( it : Iterator<A> ) {
+	public static function count<A>( it : Iterable<A> ) {
 		var n = 0;
 		for( _ in it )
 			++n;
 		return n;
+	}
+
+	/**
+		Tells if an iterable does not contain any element.
+	**/
+	public static function empty( it : Iterable<Dynamic> ) : Bool {
+		return !it.iterator().hasNext();
 	}
 
 }
