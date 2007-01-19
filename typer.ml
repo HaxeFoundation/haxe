@@ -75,6 +75,12 @@ type switch_mode =
 
 exception Error of error_msg * pos
 
+let access_str = function
+	| NormalAccess -> "default"
+	| NoAccess -> "null"
+	| MethodAccess m -> m
+	| F9MethodAccess -> "f9dynamic"
+
 let unify_error_msg ctx = function
 	| Cannot_unify (t1,t2) ->
 		s_type ctx t1 ^ " should be " ^ s_type ctx t2
@@ -82,8 +88,8 @@ let unify_error_msg ctx = function
 		"Invalid type for field " ^ s ^ " :"
 	| Has_no_field (t,n) ->
 		s_type ctx t ^ " has no field " ^ n
-	| Invalid_access (f,get) ->
-		"Inconsistent " ^ (if get then "getter" else "setter") ^ " for field " ^ f
+	| Invalid_access (f,get,a,b) ->
+		"Inconsistent " ^ (if get then "getter" else "setter") ^ " for field " ^ f ^ " : " ^ access_str a ^ " should be " ^ access_str b
 	| Invalid_visibility n ->
 		"The field " ^ n ^ " is not public"
 	| Not_matching_optional n ->
@@ -1070,13 +1076,31 @@ let type_field ctx e i p get =
 			if is_closed a then
 				no_field()
 			else
-			let f = mk_field i (mk_mono()) in
+			let f = {
+				cf_name = i;
+				cf_type = mk_mono();
+				cf_doc = None;
+				cf_public = true;
+				cf_get = NormalAccess;
+				cf_set = if get then NoAccess else NormalAccess;
+				cf_expr = None;
+				cf_params = [];
+			} in
 			a.a_fields <- PMap.add i f a.a_fields;
 			field_access ctx get f (field_type f) e p
 		)
 	| TMono r ->
 		if ctx.untyped && Plugin.defined "swf-mark" && Plugin.defined "flash" then ctx.warn "Mark" p;
-		let f = mk_field i (mk_mono()) in
+		let f = {
+			cf_name = i;
+			cf_type = mk_mono();
+			cf_doc = None;
+			cf_public = true;
+			cf_get = NormalAccess;
+			cf_set = if get then NoAccess else NormalAccess;
+			cf_expr = None;
+			cf_params = [];
+		} in
 		let x = ref Opened in
 		let t = TAnon { a_fields = PMap.add i f PMap.empty; a_status = x } in
 		ctx.opened <- x :: ctx.opened;
@@ -1987,11 +2011,11 @@ let valid_redefinition ctx f t =
 	| TFun (args,r) , TFun (targs,tr) when f.cf_expr <> None && List.length args = List.length targs ->
 		List.iter2 (fun (n,o1,a1) (_,o2,a2) -> 
 			if o1 <> o2 then raise (Unify_error [Not_matching_optional n]);
-			type_eq false a1 a2
+			type_eq EqStrict a1 a2
 		) args targs;
 		Type.unify r tr
 	| _ , _ ->
-		type_eq false ft t
+		type_eq EqStrict ft t
 
 let check_overriding ctx c p () =
 	match c.cl_super with

@@ -433,7 +433,7 @@ type unify_error =
 	| Cannot_unify of t * t
 	| Invalid_field_type of string
 	| Has_no_field of t * string
-	| Invalid_access of string * bool
+	| Invalid_access of string * bool * field_access * field_access
 	| Invalid_visibility of string
 	| Not_matching_optional of string
 	| Cant_force_optional
@@ -442,15 +442,24 @@ exception Unify_error of unify_error list
 
 let cannot_unify a b = Cannot_unify (a,b)
 let invalid_field n = Invalid_field_type n
-let invalid_access n get = Invalid_access (n,get)
+let invalid_access n get a b = Invalid_access (n,get,a,b)
 let invalid_visibility n = Invalid_visibility n
 let has_no_field t n = Has_no_field (t,n)
 let error l = raise (Unify_error l)
 
+let unify_access a1 a2 =
+	a1 = a2 || (a1 = NormalAccess && (a2 = NoAccess || a2 = F9MethodAccess))
+	|| (a1 = F9MethodAccess && a2 = NoAccess)
+
 let eq_stack = ref []
 
+type eq_kind =
+	| EqStrict
+	| EqRightDynamic
+	| EqBothDynamic
+
 let rec type_eq param a b =
-	if a == b || (param && b == t_dynamic) then
+	if a == b then
 		()
 	else match a , b with
 	| TLazy f , _ -> type_eq param (!f()) b
@@ -499,8 +508,8 @@ let rec type_eq param a b =
 			PMap.iter (fun n f1 ->
 				try
 					let f2 = PMap.find n a2.a_fields in
-					if f1.cf_get <> f2.cf_get then error [invalid_access n true];
-					if f1.cf_set <> f2.cf_set then error [invalid_access n false];
+					if f1.cf_get <> f2.cf_get && (param = EqStrict || not (unify_access f1.cf_get f2.cf_get)) then error [invalid_access n true f1.cf_get f2.cf_get];
+					if f1.cf_set <> f2.cf_set && (param = EqStrict || not (unify_access f1.cf_set f2.cf_set)) then error [invalid_access n false f1.cf_set f2.cf_set];
 					try
 						type_eq param f1.cf_type f2.cf_type
 					with
@@ -519,25 +528,26 @@ let rec type_eq param a b =
 				end;
 			) a2.a_fields;			
 		with
-			Unify_error l -> error (cannot_unify a b :: l))
+			Unify_error l -> error (cannot_unify a b :: l))	
 	| _ , _ ->
-		error [cannot_unify a b]
+		if b == t_dynamic && (param = EqRightDynamic || param = EqBothDynamic) then
+			()
+		else if a == t_dynamic && param = EqBothDynamic then
+			()
+		else
+			error [cannot_unify a b]
 
 and type_peq params (_,a) (_,b) =
 	type_eq params a b
 
 let type_iseq a b =
 	try
-		type_eq false a b;
+		type_eq EqStrict a b;
 		true
 	with
 		Unify_error _ -> false
 
 let unify_stack = ref []
-
-let unify_access a1 a2 =
-	a1 = a2 || (a1 = NormalAccess && (a2 = NoAccess || a2 = F9MethodAccess))
-	|| (a1 = F9MethodAccess && a2 = NormalAccess) (* unsafe, but no inference of prop. set *)
 
 let field_type f =
 	match f.cf_params with
@@ -630,11 +640,11 @@ let rec unify a b =
 		(try
 			PMap.iter (fun n f2 ->
 				let ft, f1 = (try class_field c n with Not_found -> error [has_no_field a n]) in
-				if not (unify_access f1.cf_get f2.cf_get) then error [invalid_access n true];
-				if not (unify_access f1.cf_set f2.cf_set) then error [invalid_access n false];
+				if not (unify_access f1.cf_get f2.cf_get) then error [invalid_access n true f1.cf_get f2.cf_get];
+				if not (unify_access f1.cf_set f2.cf_set) then error [invalid_access n false f1.cf_set f2.cf_set];
 				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
 				try
-					unify (apply_params c.cl_types tl ft) f2.cf_type
+					unify_with_access (apply_params c.cl_types tl ft) f2
 				with
 					Unify_error l -> error (invalid_field n :: l)
 			) an.a_fields;
@@ -646,11 +656,11 @@ let rec unify a b =
 			PMap.iter (fun n f2 ->
 			try
 				let f1 = PMap.find n a1.a_fields in
-				if not (unify_access f1.cf_get f2.cf_get) then error [invalid_access n true];
-				if not (unify_access f1.cf_set f2.cf_set) then error [invalid_access n false];
+				if not (unify_access f1.cf_get f2.cf_get) then error [invalid_access n true f1.cf_get f2.cf_get];
+				if not (unify_access f1.cf_set f2.cf_set) then error [invalid_access n false f1.cf_set f2.cf_set];
 				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
 				try
-					unify f1.cf_type f2.cf_type;
+					unify_with_access f1.cf_type f2;
 				with
 					Unify_error l -> error (invalid_field n :: l)
 			with
@@ -670,7 +680,7 @@ let rec unify a b =
 		| TDynamic t2 ->
 			if t2 != b then
 				(try 
-					type_eq true t t2
+					type_eq EqRightDynamic t t2
 				with
 					Unify_error l -> error (cannot_unify a b :: l));
 		| _ ->
@@ -682,7 +692,7 @@ let rec unify a b =
 		| TDynamic t2 ->
 			if t2 != a then
 				(try 
-					type_eq true t t2
+					type_eq EqRightDynamic t t2
 				with
 					Unify_error l -> error (cannot_unify a b :: l));
 		| _ ->
@@ -701,13 +711,19 @@ and unify_types a b tl1 tl2 =
 			| _  -> error []
 			);
 			match vb with
-			| VNo -> type_eq true ta tb
+			| VNo -> type_eq EqRightDynamic ta tb
 			| VCo -> unify ta tb
 			| VContra -> unify tb ta
 			| VBi -> ()
 		) tl1 tl2
 	with
 		Unify_error l -> error ((cannot_unify a b) :: l)
+
+and unify_with_access t f =
+	match f.cf_get, f.cf_set with
+	| NoAccess , _ -> unify f.cf_type t
+	| _ , NoAccess -> unify t f.cf_type
+	| _ , _ -> type_eq EqBothDynamic t f.cf_type
 
 let rec iter f e =
 	match e.eexpr with

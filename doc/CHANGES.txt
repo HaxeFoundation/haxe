@@ -19,6 +19,8 @@
 	optional RTTI for Spod Object
 	bugfix related to callback in neko code generator
 	more type error stack (now includes type parameters)
+	type system fixes in anonymous subtyping
+	added Iterable<T>, changed Lambda
 
 2007-01-01: 1.10
 	fix in haxe.remoting.SocketConnection.readAnswer
