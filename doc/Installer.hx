@@ -1,3 +1,4 @@
+
 class Installer {
 
 	static var SYS = neko.Sys.systemName();
@@ -149,6 +150,25 @@ class Installer {
 	}
 
 	function download( domain, file ) {
+		var str = new neko.io.StringOutput();
+		var progress = new Progress(str);
+		var me = this;
+		progress.update = function() {
+			var p = progress.cur * 100 / progress.max;
+			p = Std.int(p * 10) / 10;
+			neko.Lib.print("Downloading "+file+" ("+p+"%) \r");
+		};
+		var h = new haxe.Http("http://"+domain+"/_media/"+file);
+		h.onError = function(e) {
+			me.error(Std.string(e));
+			neko.Sys.exit(1);
+		};
+		display("Downloading "+file+"...");
+		h.asyncRequest(false,progress);
+
+		var f = neko.io.File.write(file,true);
+		f.write(str.toString());
+		f.close();
 	}
 
 	function installNeko( file ) {
@@ -159,6 +179,46 @@ class Installer {
 
 	static function main() {
 		new Installer().run();
+	}
+
+}
+
+// --------- TOOLS --------------
+
+class Progress extends neko.io.Output {
+
+	var o : neko.io.Output;
+	public var cur : Int;
+	public var max : Int;
+
+	public function new(o) {
+		this.o = o;
+		cur = 0;
+	}
+
+	public function update() {
+	}
+
+	public override function writeChar(c) {
+		o.writeChar(c);
+		cur++;
+		update();
+	}
+
+	public override function writeBytes(s,p,l) {
+		var r = o.writeBytes(s,p,l);
+		cur += r;
+		update();
+		return r;
+	}
+
+	public override function close() {
+		super.close();
+		o.close();
+	}
+
+	public override function prepare(m) {
+		max = m;
 	}
 
 }
