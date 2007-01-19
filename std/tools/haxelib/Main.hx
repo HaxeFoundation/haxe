@@ -693,6 +693,7 @@ class Main {
 	}
 
 	static function main() {
+		haxe.Http.PROXY = neko.net.ProxyDetect.detect();
 		new Main().process();
 	}
 
