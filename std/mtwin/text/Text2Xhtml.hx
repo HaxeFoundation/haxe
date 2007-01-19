@@ -213,7 +213,7 @@ class Text2Xhtml {
 	}
 
 	static function swfProcess(data:String){
-		var s = Lambda.array(data.split("@").iterator());
+		var s = Lambda.array(data.split("@"));
 		var id = Md5.encode(s[3]); // url
 		var str = "<div id=\"swf@id\"></div>
 <script type=\"text/javascript\">
@@ -238,7 +238,7 @@ s.write('swf@id');
 			if (noParagraph == null || noParagraph == false){
 				var paragraphs = str.split(paragraphSeparator);
 				var me = this;
-				paragraphs = Lambda.amap(paragraphs, function(p){ return "<p>"+me.transformContent(StringTools.trim(p))+"</p>\n"; });
+				var paragraphs = Lambda.map(paragraphs, function(p){ return "<p>"+me.transformContent(StringTools.trim(p))+"</p>\n"; });
 				str = paragraphs.join("\n");
 			}
 			else {
