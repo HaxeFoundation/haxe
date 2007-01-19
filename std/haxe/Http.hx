@@ -52,6 +52,10 @@ class Http {
 	var headers : Hash<String>;
 	var params : Hash<String>;
 
+	#if neko
+	public static var PROXY : { host : String, port : Int, auth : { user : String, pass : String } } = null;
+	#end
+
 	public function new( url : String ) {
 		this.url = url;
 		headers = new Hash();
@@ -294,7 +298,17 @@ class Http {
 			b.add("POST ");
 		else
 			b.add("GET ");
+
+		if( Http.PROXY != null ) {
+			b.add("http://");
+			b.add(host);
+			if( port != 80 ) {
+				b.add(":");
+				b.add(port);
+			}
+		}
 		b.add(request);
+
 		if( !post && uri != null ) {
 			if( request.indexOf("?",0) >= 0 )
 				b.add("&");
@@ -333,7 +347,10 @@ class Http {
 				b.add(uri);
 		}
 		try {
-			sock.connect(new neko.net.Host(host),port);
+			if( Http.PROXY != null )
+				sock.connect(new neko.net.Host(Http.PROXY.host),Http.PROXY.port);
+			else
+				sock.connect(new neko.net.Host(host),port);
 			sock.write(b.toString());
 			if( multipart ) {
 				var bufsize = 4096;
