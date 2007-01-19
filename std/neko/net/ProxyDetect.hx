@@ -176,7 +176,7 @@ class ProxyDetect {
 
 	static var save : { r : ProxySettings } = null;
 
-	static function detect() {
+	public static function detect() {
 		if( save == null )
 			save = { r : detectAll() };
 		return save.r;
