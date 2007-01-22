@@ -21,6 +21,7 @@
 	more type error stack (now includes type parameters)
 	type system fixes in anonymous subtyping
 	added Iterable<T>, changed Lambda
+	added TAR and GZIP support to neko.io.Zip
 
 2007-01-01: 1.10
 	fix in haxe.remoting.SocketConnection.readAnswer
