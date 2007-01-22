@@ -132,7 +132,7 @@ class Type {
 	/**
 		Returns the super-class of a class, or null if no super class.
 	**/
-	public static function getSuperClass<T>( c : Class<T> ) : Class<Dynamic> untyped {
+	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> untyped {
 		#if flash9
 			var cname = __global__["flash.utils.getQualifiedSuperclassName"](c);
 			if( cname == "Object" )
