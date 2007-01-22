@@ -171,10 +171,28 @@ class Installer {
 		f.close();
 	}
 
+	function unzip( file ) {
+		var ch = neko.io.File.read(file,true);
+		if( neko.io.Path.extension(file) == "zip" ) {
+			var entries = neko.zip.File.read(ch).map(function(z) {
+				return {
+					file : z.fileName,
+					data : function() { return neko.zip.File.unzip(z); }
+				};
+			});
+			ch.close();
+			return entries;
+		}
+		throw "TGZ not supported";
+		return null;
+	}
+
 	function installNeko( file ) {
+		var data = unzip(file);
 	}
 
 	function installHaxe( file) {
+		var data = unzip(file);
 	}
 
 	static function main() {
