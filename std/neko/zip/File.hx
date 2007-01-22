@@ -90,6 +90,32 @@ class File {
 		return l;
 	}
 
+	public static function readTar( i : neko.io.Input, ?gz : Bool ) : List<ZipEntry> {
+		if( gz ) {
+			var tmp = new neko.io.StringOutput();
+			readGZHeader(i);
+			readGZData(i,tmp);
+			i = new neko.io.StringInput(tmp.toString());
+		}
+		var l = new List();
+		while( true ) {
+			var e = readTarEntry(i);
+			if( e == null )
+				break;
+			var pad = Math.ceil(e.fileSize / 512) * 512 - e.fileSize;
+			var data = i.read(e.fileSize);
+			i.read(pad);
+			l.add({
+				fileName : e.fileName,
+				fileSize : e.fileSize,
+				compressed : false,
+				compressedSize : e.fileSize,
+				data : data,
+			});
+		}
+		return l;
+	}
+
 	public static function readGZHeader( i : neko.io.Input ) : String {
 		if( i.readChar() != 0x1F || i.readChar() != 0x8B )
 			throw "Invalid GZ header";
