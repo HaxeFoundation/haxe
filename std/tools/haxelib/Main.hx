@@ -268,7 +268,7 @@ class Main {
 	function submit() {
 		var file = param("Package");
 		var data = neko.io.File.getContent(file);
-		var zip = neko.zip.File.read(new neko.io.StringInput(data));
+		var zip = neko.zip.File.readZip(new neko.io.StringInput(data));
 		var infos = Datas.readInfos(zip);
 		var user = infos.developers.first();
 		var password;
@@ -365,7 +365,7 @@ class Main {
 
 		// read zip content
 		var f = neko.io.File.read(filepath,true);
-		var zip = neko.zip.File.read(f);
+		var zip = neko.zip.File.readZip(f);
 		f.close();
 		var infos = Datas.readInfos(zip);
 

@@ -90,7 +90,7 @@ class SiteApi {
 		var path = Site.TMP_DIR+"/"+Std.parseInt(id)+".tmp";
 
 		var file = try neko.io.File.read(path,true) catch( e : Dynamic ) throw "Invalid file id #"+id;
-		var zip = try neko.zip.File.read(file) catch( e : Dynamic ) { file.close(); neko.Lib.rethrow(e); };
+		var zip = try neko.zip.File.readZip(file) catch( e : Dynamic ) { file.close(); neko.Lib.rethrow(e); };
 		file.close();
 
 		var infos = Datas.readInfos(zip);
