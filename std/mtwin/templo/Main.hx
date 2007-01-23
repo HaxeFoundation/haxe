@@ -79,7 +79,7 @@ class Main {
 			neko.Lib.print(USAGE);
 		}
 		else if (Loader.BASE_DIR == null){
-			var sampleFile = Lambda.array(files.iterator())[0];
+			var sampleFile = Lambda.array(files)[0];
 			var pslah = sampleFile.lastIndexOf("/",sampleFile.length);
 			var aslah = sampleFile.lastIndexOf("/",sampleFile.length);
 			var pos = Std.int(Math.max(pslah, aslah));
