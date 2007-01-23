@@ -267,9 +267,9 @@ class Diff {
 		Creates a patch operation structure.
 	**/
 	static function parsePatchOp( left:String, op:String, right:String ): {op:String, left:Array<Int>, right:Array<Int>, data:Array<String>}{
-		var l = Lambda.amap(left.split(","), function(v){ return Std.parseInt(v); });
+		var l = Lambda.array(Lambda.map(left.split(","), function(v){ return Std.parseInt(v); }));
 		if (l.length == 1) l.push(l[0]);
-		var r = Lambda.amap(right.split(","), function(v){ return Std.parseInt(v); });
+		var r = Lambda.array(Lambda.map(right.split(","), function(v){ return Std.parseInt(v); }));
 		if (r.length == 1) r.push(r[0]);
 		return { op:op, left:l, right:r, data:[] };
 	}

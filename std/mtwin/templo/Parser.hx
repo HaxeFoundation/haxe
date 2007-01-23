@@ -78,7 +78,7 @@ class Parser {
 	function parseElement( xml:Xml ){
 		var mtSet = extractAttribute(xml, MT_SET);
 		if (mtSet != null){
-			var parts = Lambda.array(mtSet.split("=").iterator());
+			var parts = Lambda.array(mtSet.split("="));
 			var dest = StringTools.trim(parts.shift());
 			var exp = parseExpression( StringTools.trim(parts.join("=")) );
 			out.setVar(dest, "("+exp+")");
@@ -211,7 +211,7 @@ class Parser {
 
 	function doMtAttributes( att:String, xml:Xml ){
 		var overwritten = new Hash();
-		var parts = Lambda.array(splitExpression(att).iterator());
+		var parts = Lambda.array(splitExpression(att));
 		for (i in 0...parts.length){
 			var x = StringTools.trim(parts[i]);
 			var o = extractExpressionTarget(x);
@@ -584,7 +584,7 @@ class Parser {
 						}
 						var end = findEndOfBracket(str, i);
 						var sub = str.substr(i+1, end-i);
-						var argStr = Lambda.array(splitArguments(sub).iterator());
+						var argStr = Lambda.array(splitArguments(sub));
 						for (j in 0...argStr.length){
 							argStr[j] = parseExpression(argStr[j]);
 						}
