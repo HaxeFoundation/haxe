@@ -5,8 +5,11 @@ class Installer {
 	static var TMP = "tmp.txt";
 	static var NULL = if( SYS == "Windows" ) "NUL" else "/dev/null";
 
+	var baseDir : String;
+
 	function new() {
 		haxe.Http.PROXY = neko.net.ProxyDetect.detect();
+		baseDir = if( SYS == "Windows" ) neko.Sys.getEnv("ProgramFiles") + "/Motion-Twin" else "/usr/lib";
 	}
 
 	function newVersion(v1,v2) {
@@ -22,6 +25,7 @@ class Installer {
 
 	function error( txt ) {
 		neko.Lib.print(txt);
+		neko.Sys.exit(1);
 	}
 
 	function display( txt ) {
@@ -32,8 +36,23 @@ class Installer {
 		return v.major+"."+v.minor+if( v.build > 0 ) "."+v.build else "";
 	}
 
-	function run() {
+	function command( cmd ) {
+		display("Execute "+cmd);
+		if( neko.Sys.command(cmd) != 0 )
+			error("Command '"+cmd+"' failed !");
+	}
 
+	function run() {
+		// CLEANUP
+		var dirs = [
+			"/usr/local/lib/neko",
+			"/usr/local/lib/haxe",
+			"/opt/neko",
+			"/opt/haxe",
+		];
+		for( d in dirs )
+			if( neko.FileSystem.exists(d) )
+				error("A previous haXe/Neko version seems to be installed in '"+d+"', please remove it first");
 
 		// GET haxe Version
 		display("Getting Local haXe Version");
@@ -48,7 +67,6 @@ class Installer {
 				minor : Std.parseInt(r.matched(2)),
 				build : 0,
 			};
-
 
 		// GET Neko Version
 		display("Getting Local Neko Version");
@@ -87,10 +105,8 @@ class Installer {
 				};
 				break;
 			}
-		if( haxeFile == null ) {
+		if( haxeFile == null )
 			error("No haXe File found for your plaform");
-			return;
-		}
 
 		// GET Neko files list
 		display("Getting Latest Neko Version");
@@ -115,11 +131,10 @@ class Installer {
 				};
 				break;
 			}
-		if( nekoFile == null ) {
+		if( nekoFile == null )
 			error("No haXe File found for your plaform");
-			return;
-		}
 
+		// ASK QUESTIONS IF OK TO INSTALL
 		var needHaxe = newVersion(haxeVersion,haxeFile.version);
 		var needNeko = newVersion(nekoVersion,nekoFile.version);
 		if( !needHaxe && !needNeko ) {
@@ -136,20 +151,38 @@ class Installer {
 			}
 			if( needHaxe )
 				txt += "haXe "+version(haxeFile.version);
+			if( SYS != "Windows" )
+				txt += " (make sure you run this installer with sudo)";
 			if( !ask("Do you want to install "+txt+" ?") )
 				return;
 		}
+
+		// DOWNLOAD
 		if( needNeko )
 			download("nekovm.org",nekoFile.file);
 		if( needHaxe )
 			download("haxe.org",haxeFile.file);
-		if( needNeko )
-			installNeko(nekoFile.file);
-		if( needHaxe )
-			installHaxe(haxeFile.file);
+
+		// INSTALL
+		if( !neko.FileSystem.exists(baseDir) )
+			neko.FileSystem.createDirectory(baseDir);
+
+		if( needNeko ) {
+			copy(nekoFile.file,true);
+			installNeko();
+		}
+		if( needHaxe ) {
+			copy(haxeFile.file,false);
+			installHaxe();
+		}
 	}
 
 	function download( domain, file ) {
+		if( neko.FileSystem.exists(file) ) {
+			display("Using local version of "+file+", skipping download");
+			return;
+		}
+
 		var str = new neko.io.StringOutput();
 		var progress = new Progress(str);
 		var me = this;
@@ -173,26 +206,73 @@ class Installer {
 
 	function unzip( file ) {
 		var ch = neko.io.File.read(file,true);
-		if( neko.io.Path.extension(file) == "zip" ) {
-			var entries = neko.zip.File.read(ch).map(function(z) {
-				return {
-					file : z.fileName,
-					data : function() { return neko.zip.File.unzip(z); }
-				};
-			});
-			ch.close();
-			return entries;
+		var entries = if( neko.io.Path.extension(file) == "zip" ) neko.zip.File.readZip(ch) else neko.zip.File.readTar(ch);
+		ch.close();
+		return entries;
+	}
+
+	function copy( file, isNeko ) {
+		var data = unzip(file);
+		var dir = baseDir + "/" + if( isNeko ) "neko" else "haxe";
+		if( !neko.FileSystem.exists(dir) )
+			neko.FileSystem.createDirectory(dir);
+		if( !isNeko ) {
+			try {
+				removeRec(dir+"/std");
+			} catch( e : Dynamic ) {
+			}
 		}
-		throw "TGZ not supported";
-		return null;
+		for( f in data ) {
+			var path = f.fileName.split("/");
+			path.shift(); // base directory
+			if( path[path.length-1] == "" ) {
+				path.pop();
+				if( path.length == 0 )
+					continue;
+				var ddir = dir+"/"+path.join("/");
+				display("Installing directory "+path.join("/"));
+				if( !neko.FileSystem.exists(ddir) )
+					neko.FileSystem.createDirectory(ddir);
+				continue;
+			}
+			var ch = neko.io.File.write(dir+"/"+path.join("/"),true);
+			ch.write(neko.zip.File.unzip(f));
+			ch.close();
+		}
 	}
 
-	function installNeko( file ) {
-		var data = unzip(file);
+	function installNeko() {
+		if( SYS == "Windows" )
+			return;
+		command("rm -rf /usr/bin/neko /usr/bin/nekoc /usr/lib/libneko.so");
+		command("ln -s "+baseDir+"/neko/neko /usr/bin/neko");
+		command("ln -s "+baseDir+"/neko/nekoc /usr/bin/nekoc");
+		command("ln -s "+baseDir+"/neko/nekotools /usr/bin/nekotools");
+		if( SYS == "Mac" )
+			command("ln -s "+baseDir+"/neko/libneko.so /usr/lib/libneko.so");
+		else
+			command("ln -s "+baseDir+"/neko/libneko.dylib /usr/lib/libneko.dylib");
 	}
 
-	function installHaxe( file) {
-		var data = unzip(file);
+	function installHaxe() {
+		if( SYS == "Windows" ) {
+			command('"'+baseDir+'/haxe/haxesetup" -silent');
+			return;
+		}
+		command("rm -rf /usr/bin/haxe /usr/bin/haxelib /usr/bin/haxedoc");
+		command("ln -s "+baseDir+"/haxe/haxe /usr/bin/haxe");
+		command("ln -s "+baseDir+"/haxe/haxelib /usr/bin/haxelib");
+		command("ln -s "+baseDir+"/haxe/haxedoc /usr/bin/haxedoc");
+	}
+
+	function removeRec( file ) {
+		if( !neko.FileSystem.isDirectory(file) ) {
+			neko.FileSystem.deleteFile(file);
+			return;
+		}
+		for( f in neko.FileSystem.readDirectory(file) )
+			removeRec(file+"/"+f);
+		neko.FileSystem.deleteDirectory(file);
 	}
 
 	static function main() {
