@@ -27,6 +27,8 @@ package haxe.remoting;
 import flash.net.XMLSocket;
 #else flash
 import flash.XMLSocket;
+#else js
+import js.XMLSocket;
 #end
 
 class SocketConnection extends AsyncConnection {
@@ -140,7 +142,7 @@ class SocketConnection extends AsyncConnection {
 		s.output.writeChar(c2);
 		s.output.write(msg);
 		s.output.writeChar(0);
-		#else flash
+		#else (flash || js)
 		var s : XMLSocket = __data;
 		s.send(Std.chr(c1)+Std.chr(c2)+msg);
 		#else error
@@ -188,6 +190,8 @@ class SocketConnection extends AsyncConnection {
 			var obj = flash.Lib.eval(path.join("."));
 			#else neko
 			var obj = sc.__r.resolvePath(path);
+			#else js
+			var obj = js.Lib.eval(path.join("."));
 			#else error
 			#end
 			var fptr = Reflect.field(obj,fname);
@@ -247,7 +251,7 @@ class SocketConnection extends AsyncConnection {
 		return cnx.__data;
 	}
 
-	#else flash
+	#else (flash || js)
 
 	public static function socketConnect( s : XMLSocket ) {
 		var sc = new SocketConnection(s,[]);

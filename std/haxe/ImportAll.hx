@@ -64,6 +64,7 @@ import haxe.remoting.Connection;
 import haxe.remoting.DelayedConnection;
 #if flash
 import haxe.remoting.LocalConnection;
+import haxe.remoting.SocketWrapper;
 #end
 import haxe.remoting.Proxy;
 #if !js
@@ -551,6 +552,7 @@ import js.Boot;
 import js.Lib;
 import js.Dom;
 import js.XMLHttpRequest;
+import js.XMLSocket;
 
 #end
 
