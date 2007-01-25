@@ -44,7 +44,15 @@ int WINAPI WinMain( HINSTANCE inst, HINSTANCE prev, LPSTR lpCmdLine, int nCmdSho
 		strcpy(s,";%HAXEPATH%");
 		RegSetValueEx(k,"PATH",0,REG_EXPAND_SZ,(const BYTE*)kdata,(DWORD)(strlen(kdata)+1));
 	}
+	if( strstr(kdata,"%NEKO_INSTPATH%") == NULL ) {
+		s = kdata + strlen(kdata);
+		strcpy(s,";%NEKO_INSTPATH%");
+		RegSetValueEx(k,"PATH",0,REG_EXPAND_SZ,(const BYTE*)kdata,(DWORD)(strlen(kdata)+1));
+	}
 	RegSetValueEx(k,"HAXEPATH",0,REG_SZ,(const BYTE*)(path+1),(DWORD)strlen(path));
+	s[-1] = 0;
+	strcpy(strrchr(path,'\\'),"\\neko");
+	RegSetValueEx(k,"NEKO_INSTPATH",0,REG_SZ,(const BYTE*)(path+1),(DWORD)strlen(path));
 	RegCloseKey(k);
 
 	// inform running apps of env changes
@@ -52,6 +60,7 @@ int WINAPI WinMain( HINSTANCE inst, HINSTANCE prev, LPSTR lpCmdLine, int nCmdSho
 
 	delete kdata;
 	// register 
-	MessageBox(NULL,"Setup completed, you can start using haXe now","haxesetup",MB_OK | MB_ICONINFORMATION);
+	if( strcmp(lpCmdLine,"-silent") != 0 )
+		MessageBox(NULL,"Setup completed, you can start using haXe now","haxesetup",MB_OK | MB_ICONINFORMATION);
 	return 0;
 }
