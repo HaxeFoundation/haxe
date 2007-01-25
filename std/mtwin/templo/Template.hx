@@ -124,6 +124,7 @@ class Template {
 			var oldCache = loader.cache;
 			loader.cache = __dollar__new(oldCache);
 			loader.String = String;
+			loader.Array = Array;
 			loader.iter = function(loop, fnc){
 				if (loop == null){
 					throw "repeat or foreach called on null value";

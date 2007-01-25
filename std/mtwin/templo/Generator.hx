@@ -44,6 +44,7 @@ class Generator {
 		var result = new StringBuf();
 		result.add('
 			String = $loader.String;
+			Array = $loader.Array;
 			iter = $loader.iter;
 			buffer_new = $loader.loadprim("std@buffer_new", 0);
 			buffer_add = $loader.loadprim("std@buffer_add", 2);

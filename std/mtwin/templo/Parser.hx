@@ -391,6 +391,32 @@ class Parser {
 		return res;
 	}
 
+	static function findEndOfArray( str:String, pos:Int ) : { end:Int, n:Int } {
+		var len = str.length;
+		var n = 0;
+		var ctopen = 0;
+		for (i in (pos+1)...(len)){
+			var c = str.charAt(i);
+			if (c == "," && ctopen == 0){
+				n++;
+			}
+			if (c == "["){ 
+				ctopen++; 
+			}
+			else if (c == "]"){
+				if (ctopen == 0){
+					if (StringTools.trim(str.substr(pos+1, i-pos-1)) != "")
+						n++;
+					return { end:i-1, n:n };
+				}
+				else {
+					ctopen--;
+				}
+			}
+		}
+		return { end:-1, n:null };
+	}
+
 	static function findEndOfBracket( str:String, pos:Int ) : Int {
 		var len = str.length;
 		var ctopen = 0;
@@ -446,7 +472,7 @@ class Parser {
 		var r_var = ~/[\$a-zA-Z0-9_]/;
 		var r_op = ~/[!+-\/*<>=&|%]+/;  //*/
 		var result = new StringBuf();
-		var states = { none:0, string:1, dstring:2, variable:3, num:4, member:5 };
+		var states = { none:0, string:1, dstring:2, variable:3, num:4, member:5, array:6 };
 		var str = StringTools.trim(exp);
 		var state = states.none;
 		var mark = 0;
@@ -499,11 +525,25 @@ class Parser {
 						i = end;
 						skip = true;
 					}
+					else if (c == "["){
+						var def = findEndOfArray(str, i);
+						var sub = str.substr(i+1, def.end-i);
+						result.add("Array.new1($array(");
+						result.add(parseExpression(sub));
+						result.add("), ");
+						result.add(def.n);
+						i = def.end;
+						skip = true;
+					}
+					else if (c == "]"){
+						result.add(")");
+						skip = true;
+					}
 					else if (r_var.match(c)){
 						state = states.variable;
 						mark = i;
 					}
-					
+
 				case states.string:
 					if (c == "\\" && n == "'"){ 
 						result.add("'");
