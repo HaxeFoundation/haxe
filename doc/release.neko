@@ -83,13 +83,8 @@ chdir("../..");
 
 // PACKAGE
 
-if( sys == "Windows" ) {
-	// add neko
-	chdir("../../neko/bin");
-	cmd("cp gc.dll neko.dll neko.exe nekoc.exe nekotools.exe *.ndll ../../haxe/doc/"+dir);
-	chdir("../../haxe/doc");
+if( sys == "Windows" )
 	cmd("7z a -tzip "+dir+".zip "+dir);
-}
 else
 	cmd("tar -czf "+dir+".tar.gz "+dir);
 
