@@ -17,7 +17,7 @@ extern class TextFormat {
 	var letterSpacing : Dynamic;
 	var rightMargin : Dynamic;
 	var size : Dynamic;
-	var tabStops : Array<Dynamic>;
+	var tabStops : Array<UInt>;
 	var target : String;
 	var underline : Dynamic;
 	var url : String;

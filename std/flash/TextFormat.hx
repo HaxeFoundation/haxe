@@ -16,7 +16,7 @@ extern class TextFormat
 	var indent:Float;
 	var leading:Float;
 	var blockIndent:Float;
-	var tabStops:Array<Dynamic>;
+	var tabStops:Array<Int>;
 	var bullet:Bool;
 	function new( ?font:String, ?size:Float, ?textColor:Int,
                   ?bold:Bool, ?italic:Bool, ?underline:Bool,
