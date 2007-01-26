@@ -4,6 +4,7 @@ class Installer {
 	static var SYS = neko.Sys.systemName();
 	static var TMP = "tmp.txt";
 	static var NULL = if( SYS == "Windows" ) "NUL" else "/dev/null";
+	static var wnd : xcross.Winlog;
 
 	var baseDir : String;
 
@@ -19,17 +20,15 @@ class Installer {
 	}
 
 	function ask( txt ) {
-		neko.Lib.print(txt);
-		return true;
+		return xcross.Api.confirm("Question",txt);
 	}
 
 	function error( txt ) {
-		neko.Lib.print(txt);
-		neko.Sys.exit(1);
+		throw txt;
 	}
 
 	function display( txt ) {
-		neko.Lib.println(txt);
+		wnd.log(txt);
 	}
 
 	function version(v : { major : Int, minor : Int, build : Int } ) {
@@ -43,6 +42,20 @@ class Installer {
 	}
 
 	function run() {
+		try {
+			install();
+			xcross.Api.message("Done","Installation Completed");
+		} catch( e : Dynamic ) {
+			display("");
+			display("");
+			display("ERROR = "+Std.string(e));
+			display(haxe.Stack.toString(haxe.Stack.exceptionStack()));
+			xcross.Api.error("Error","Installation aborted");
+		}
+		wnd.enabled = true;
+	}
+
+	function install() {
 		// CLEANUP
 		var dirs = [
 			"/usr/local/lib/neko",
@@ -139,7 +152,7 @@ class Installer {
 		var needNeko = newVersion(nekoVersion,nekoFile.version);
 		if( !needHaxe && !needNeko ) {
 			if( !ask("Both your haXe and Neko versions are up-to-date, do you want to reinstall everything ?") )
-				return;
+				error("Installation Aborted");
 			needHaxe = true;
 			needNeko = true;
 		} else {
@@ -154,7 +167,7 @@ class Installer {
 			if( SYS != "Windows" )
 				txt += " (make sure you run this installer with sudo)";
 			if( !ask("Do you want to install "+txt+" ?") )
-				return;
+				error("Installation Aborted");
 		}
 
 		// DOWNLOAD
@@ -185,19 +198,19 @@ class Installer {
 
 		var str = new neko.io.StringOutput();
 		var progress = new Progress(str);
-		var me = this;
 		progress.update = function() {
 			var p = progress.cur * 100 / progress.max;
 			p = Std.int(p * 10) / 10;
-			neko.Lib.print("Downloading "+file+" ("+p+"%) \r");
+			wnd.logProgress("Downloading "+file+" ("+p+"%)");
 		};
-		var h = new haxe.Http("http://"+domain+"/_media/"+file);
+		var h = new haxe.Http("http://x"+domain+"/_media/"+file);
+		var me = this;
 		h.onError = function(e) {
 			me.error(Std.string(e));
-			neko.Sys.exit(1);
 		};
-		display("Downloading "+file+"...");
+		wnd.logProgress("Downloading "+file+"...");
 		h.asyncRequest(false,progress);
+		wnd.log("");
 
 		var f = neko.io.File.write(file,true);
 		f.write(str.toString());
@@ -276,7 +289,14 @@ class Installer {
 	}
 
 	static function main() {
-		new Installer().run();
+		wnd = new xcross.Winlog("haXe Installer");
+		wnd.button = "Exit";
+		wnd.enabled = false;
+		wnd.onClick = function() {
+			xcross.Api.stop();
+		};
+		neko.vm.Thread.create(new Installer().run);
+		xcross.Api.loop();
 	}
 
 }
