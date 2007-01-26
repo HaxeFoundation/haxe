@@ -708,9 +708,11 @@ let rec return_flow ctx e =
 	| TIf (_,e1,Some e2) ->
 		return_flow e1;
 		return_flow e2;
-	| TSwitch (_,cases,Some e) ->
+	| TSwitch (v,cases,Some e) ->
 		List.iter (fun (_,e) -> return_flow e) cases;
 		return_flow e
+	| TSwitch (e,cases,None) when (match follow e.etype with TEnum _ -> true | _ -> false) ->
+		List.iter (fun (_,e) -> return_flow e) cases;
 	| TMatch (_,_,cases,def) ->
 		List.iter (fun (_,_,e) -> return_flow e) cases;
 		(match def with None -> () | Some e -> return_flow e)
@@ -1347,7 +1349,7 @@ and type_unop ctx op flag e p =
 
 and type_switch ctx e cases def need_val p =
 	let e = type_expr ctx e in
-	let t = (if need_val then mk_mono() else t_void ctx) in
+	let t = ref (if need_val then mk_mono() else t_void ctx) in
 	let rec lookup_enum l =
 		match l with
 		| [] -> None
@@ -1367,9 +1369,25 @@ and type_switch ctx e cases def need_val p =
 	in
 	let enum = ref (match follow e.etype with
 		| TEnum (e,params) -> Some (e,params)
-		| TMono _ -> lookup_enum (List.concat (List.map fst cases))
+		| TMono r -> 
+			(match lookup_enum (List.concat (List.map fst cases)) with
+			| None -> None
+			| Some (en,params) as k -> 
+				r := Some (TEnum (en,params));
+				k)
 		| _ -> None
 	) in
+	let unify_val e =
+		if need_val then begin
+			try
+				unify_raise ctx e.etype (!t) e.epos;
+			with Error (Unify _,_) -> try				
+				unify_raise ctx (!t) e.etype e.epos;
+				t := e.etype;
+			with Error (Unify _,_) ->
+				unify ctx e.etype (!t) e.epos;
+		end;
+	in
 	let first = ref true in
 	let ecases = ref PMap.empty in
 	let type_case e e1 =
@@ -1399,7 +1417,7 @@ and type_switch ctx e cases def need_val p =
 		) el in		
 		let e2 = type_expr ctx ~need_val e2 in
 		locals();
-		if need_val then unify ctx e2.etype t e2.epos;
+		unify_val e2;
 		(el,e2)
 	) cases in
 	let def = (match def with
@@ -1417,7 +1435,7 @@ and type_switch ctx e cases def need_val p =
 			if need_val then Some (null p) else None
 		| Some e ->
 			let e = type_expr ctx ~need_val e in
-			if need_val then unify ctx e.etype t e.epos;
+			unify_val e;
 			Some e
 	) in
 	let same_params p1 p2 =
@@ -1431,6 +1449,7 @@ and type_switch ctx e cases def need_val p =
 		in
 		loop (l1,l2)
 	in
+	let t = !t in
 	match !enum with
 	| None ->
 		let exprs (el,e) =
@@ -1609,25 +1628,24 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		in
 		let fields , types = List.fold_left loop ([],PMap.empty) fl in
 		mk (TObjectDecl fields) (mk_anon types) p
-	| EArrayDecl el ->
-		let t , pt = t_array ctx VNo in
-		let dyn = ref ctx.untyped in
+	| EArrayDecl el ->		
+		let t = ref (mk_mono()) in		
 		let el = List.map (fun e ->
 			let e = type_expr ctx e in
-			if not (!dyn) then (try
-				unify_raise ctx e.etype pt e.epos;
-			with
-				Error (Unify _,_) -> dyn := true);
+			(try
+				unify_raise ctx e.etype (!t) e.epos;
+			with Error (Unify _,_) -> try
+				unify_raise ctx (!t) e.etype e.epos;
+				t := e.etype;
+			with Error (Unify _,_) ->
+				t := t_dynamic);
 			e
 		) el in
-		let t = if !dyn then begin
-			let t , pt = t_array ctx VNo in
-			(match pt with
-			| TMono r -> r := Some t_dynamic;
-			| _ -> assert false);
-			t
-		end else t in
-		mk (TArrayDecl el) t p
+		let at , pt = t_array ctx VNo in
+		(match pt with
+		| TMono r -> r := Some (!t);
+		| _ -> assert false);
+		mk (TArrayDecl el) at p
 	| EVars vl ->
 		let vl = List.map (fun (v,t,e) ->
 			try
@@ -2173,6 +2191,7 @@ let init_class ctx c p herits fields =
 			let t = TFun (args,ret) in
 			let stat = List.mem AStatic access in
 			let constr = (name = "new") in
+			if c.cl_interface && not stat && (match f.f_expr with EBlock [] , _ -> false | _ -> true) then error "An interface method cannot have a body" p;
 			if constr then (match f.f_type with 
 				| None | Some (TPNormal { tpackage = []; tname = "Void" }) -> ()
 				| _ -> error "A class constructor can't have a return value" p
@@ -2443,6 +2462,7 @@ let type_module ctx m tdecls loadp =
 					| [] -> et
 					| l -> TFun (List.map (fun (s,b,t) -> s, b, load_type ctx p t) l, et)
 				) in
+				if PMap.mem c e.e_constrs then error ("Duplicate constructor " ^ c) p;
 				e.e_constrs <- PMap.add c { ef_name = c; ef_type = t; ef_pos = p; ef_doc = doc } e.e_constrs
 			) d.d_data
 		| ETypedef d ->

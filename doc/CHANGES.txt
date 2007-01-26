@@ -22,6 +22,8 @@
 	type system fixes in anonymous subtyping
 	added Iterable<T>, changed Lambda
 	added TAR and GZIP support to neko.io.Zip
+	compute minimal array content type
+	fixes in enum switchs
 
 2007-01-01: 1.10
 	fix in haxe.remoting.SocketConnection.readAnswer
