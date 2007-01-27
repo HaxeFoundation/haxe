@@ -35,6 +35,7 @@ typedef FileStat = {
 	var nlink : Int;
 	var rdev : Int;
 	var size : Int;
+	var mode : Int;
 }
 
 enum FileKind {
