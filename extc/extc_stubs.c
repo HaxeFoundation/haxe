@@ -130,7 +130,7 @@ CAMLprim value executable_path(value u) {
 	return caml_copy_string(path);
 #elif __APPLE__
 	char path[MAXPATHLEN+1];
-	unsigned long path_len = MAXPATHLEN;
+	uint32_t path_len = MAXPATHLEN;
 	if ( _NSGetExecutablePath(path, &path_len) )
 		failwith("executable_path");
 	return caml_copy_string(path);
