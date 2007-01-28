@@ -98,7 +98,7 @@ class Installer {
 		// GET haXe files list
 		display("Getting Latest haXe Version");
 		var haxeFile = null;
-		var r = ~/^haxe-([0-9]+)\.([0-9]+)(|-linux|-osx)(\.zip|\.tar\.gz)$/;
+		var r = ~/^haxe-([0-9]+)\.([0-9]+)(-win|-linux|-osx)(\.zip|\.tar\.gz)$/;
 		for( f in haxe.Http.request("http://haxe.org/latest.n").split("\n") )
 			if( r.match(f) ) {
 				var pf = r.matched(3);
@@ -203,7 +203,7 @@ class Installer {
 			p = Std.int(p * 10) / 10;
 			wnd.logProgress("Downloading "+file+" ("+p+"%)");
 		};
-		var h = new haxe.Http("http://x"+domain+"/_media/"+file);
+		var h = new haxe.Http("http://"+domain+"/_media/"+file);
 		var me = this;
 		h.onError = function(e) {
 			me.error(Std.string(e));
