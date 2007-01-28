@@ -103,7 +103,7 @@ class Installer {
 			if( r.match(f) ) {
 				var pf = r.matched(3);
 				switch( SYS ) {
-				case "Windows": if( pf != "" ) continue;
+				case "Windows": if( pf != "-win" ) continue;
 				case "Linux": if( pf != "-linux" ) continue;
 				case "Mac": if( pf != "-osx" ) continue;
 				default: continue;

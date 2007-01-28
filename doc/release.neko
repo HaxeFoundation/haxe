@@ -9,7 +9,7 @@ ext = switch( sys ) {
 	"Windows" => {
 		curdir = ".\\";
 		binext = ".exe";
-		""
+		"-win"
 	}
 	"Mac" => "-osx"
 	"Linux" => "-linux"
