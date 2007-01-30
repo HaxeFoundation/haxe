@@ -70,6 +70,8 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 	public override function readClientMessage( cnx, buf : String, pos : Int, len : Int ) {
 		var c1 = decodeChar(buf.charCodeAt(pos));
 		var c2 = decodeChar(buf.charCodeAt(pos+1));
+		if( c1 == null || c2 == null )
+			throw "Invalid remoting message '"+buf.substr(pos,len)+"'";
 		var msgLen = (c1 << 6) | c2;
 		if( len < msgLen )
 			return null;
