@@ -267,6 +267,7 @@ import flash.Camera;
 import flash.Color;
 import flash.ContextMenu;
 import flash.ContextMenuItem;
+import flash.ExtendedKey;
 import flash.Key;
 import flash.LoadVars;
 import flash.LocalConnection;

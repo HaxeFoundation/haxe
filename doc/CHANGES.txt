@@ -1,3 +1,6 @@
+2007-??-??: 1.12
+	added flash lite support with -D flash_lite
+
 2007-01-28: 1.11
 	changed StringBuf.add implementation
 	added haxe.Firebug

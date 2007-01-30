@@ -9,6 +9,7 @@ haxe.ImportAll
 -swf all.swf
 -xml flash.xml
 -D flash9doc
+-D flash_lite
 --override
 haxe.ImportAll
 
@@ -23,6 +24,7 @@ haxe.ImportAll
 
 -swf all_strict.swf
 -D flash_strict
+-D flash_lite
 -D flash9doc
 -xml flash_strict.xml
 --override

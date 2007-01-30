@@ -24,6 +24,18 @@ extern class SharedObject
 
 	function clear() : Void;
 
+
+	#if flash_lite
+	/** flash lite only **/
+	static function getMaxSize():Float;
+
+	/** flash lite only **/
+	static function addListener():Void;
+
+	/** flash lite only **/
+	static function removeListener(soName:String):Void;
+	#end
+
 	var data:Dynamic;
 
 	private static function __init__() : Void untyped {

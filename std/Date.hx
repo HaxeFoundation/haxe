@@ -101,6 +101,15 @@ extern class Date
 	**/
 	static function fromString( s : String ) : Date;
 
+	#if flash_lite
+	/** flash lite only **/
+	function getLocaleLongDate():String;
+	/** flash lite only **/
+	function getLocaleShortDate():String;
+	/** flash lite only **/
+	function getLocaleTime():String;
+	#end
+
 	private static function __init__() : Void untyped {
 	#if neko
 		Date = neko.NekoDate__;
