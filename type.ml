@@ -299,7 +299,16 @@ let rec link e a b =
 			with
 				Exit -> true
 	in
-	if loop b then
+	let rec mono_loop t =
+		if t == a then
+			true
+		else match t with
+		| TMono t -> (match !t with None -> false | Some t -> loop t)
+		| _ -> false
+	in
+	if mono_loop b then
+		true
+	else if loop b then
 		false
 	else
 		match b with
@@ -526,9 +535,9 @@ let rec type_eq param a b =
 					if not (link (ref None) a f2.cf_type) then error [cannot_unify a b];
 					a1.a_fields <- PMap.add n f2 a1.a_fields
 				end;
-			) a2.a_fields;			
+			) a2.a_fields;
 		with
-			Unify_error l -> error (cannot_unify a b :: l))	
+			Unify_error l -> error (cannot_unify a b :: l))
 	| _ , _ ->
 		if b == t_dynamic && (param = EqRightDynamic || param = EqBothDynamic) then
 			()
@@ -679,7 +688,7 @@ let rec unify a b =
 		else (match b with
 		| TDynamic t2 ->
 			if t2 != b then
-				(try 
+				(try
 					type_eq EqRightDynamic t t2
 				with
 					Unify_error l -> error (cannot_unify a b :: l));
@@ -691,7 +700,7 @@ let rec unify a b =
 		else (match a with
 		| TDynamic t2 ->
 			if t2 != a then
-				(try 
+				(try
 					type_eq EqRightDynamic t t2
 				with
 					Unify_error l -> error (cannot_unify a b :: l));
