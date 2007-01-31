@@ -57,7 +57,7 @@ class ProxyDetect {
 	}
 
 	static function detectFF( basedir : String ) {
-		var files = try neko.FileSystem.readDirectory(basedir) catch( e : Dynamic ) throw "Invalid Firefox config directory "+basedir;
+		var files = try neko.FileSystem.readDirectory(basedir) catch( e : Dynamic ) return null;
 		var profile = null;
 		for( f in files )
 			if( f.substr(-8) == ".default" ) {
@@ -84,7 +84,10 @@ class ProxyDetect {
 	}
 
 	static function detectIE() {
-		var temp = neko.Sys.getEnv("TMP") + "/proxy.txt";
+		var dir = neko.Sys.getEnv("TMP");
+		if( dir == null )
+			dir = ".";
+		var temp = dir + "/proxy.txt";
 		if( neko.Sys.command('regedit /E "'+temp+'" "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings"') != 0 )
 			throw "Failed to call REGEDIT";
 		var content = neko.io.File.getContent(temp);
