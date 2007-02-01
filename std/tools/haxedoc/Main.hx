@@ -79,18 +79,22 @@ class Main {
 	static function findClass( t : TypeRoot, path : Array<String>, pos : Int ) {
 		var name = path[pos];
 		var pack = (pos != path.length - 1);
+		var def = null;
 		for( c in t )
 			switch( c ) {
 			case TPackage(pname,_,subs):
-				if( name == pname )
-					return if( pack ) findClass(subs,path,pos+1) else c;
+				if( name == pname ) {
+					if( pack )
+						return findClass(subs,path,pos+1);
+					def = c;
+				}
 			default:
 				if( pack ) continue;
 				var inf = TypeApi.typeInfos(c);
 				if( inf.path.toLowerCase() == path.join(".") )
 					return c;
 			}
-		return null;
+		return def;
 	}
 
 	public static function main() {
