@@ -644,6 +644,20 @@ class Parser {
 							skip = true;
 						}
 					}
+					else if (c == "["){
+						if (getter){
+							result.add("()");
+							getter = false;
+						}
+						var def = findEndOfArray(str, i);
+						var sub = str.substr(i+1, def.end-i);
+						result.add("[");
+						result.add(parseExpression(sub));
+						result.add("]");
+						i = def.end + 1;
+						skip = true;
+						state = states.none;
+					}
 					else {
 						if (getter){
 							result.add("()");
