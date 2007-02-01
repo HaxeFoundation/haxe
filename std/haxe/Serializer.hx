@@ -238,15 +238,19 @@ class Serializer {
 			#if flash9
 			case cast flash.utils.ByteArray:
 				buf.add("y");
+				var s = "";
 				var b : flash.utils.ByteArray = v;
 				for( p in 0...b.length ) {
 					var c = b[p];
 					// 0-9a-zA-Z
 					if( (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) )
-						buf.add(String.fromCharCode(c));
+						s += String.fromCharCode(c);
 					else
-						buf.add("%"+(c>>4)+(c&15));
+						s += "%"+(c>>4)+(c&15);
 				}
+				buf.add(s.length);
+				buf.add(":");
+				buf.add(s);
 			#end
 			default:
 				cache.pop();
