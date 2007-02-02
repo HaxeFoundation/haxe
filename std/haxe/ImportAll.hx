@@ -499,6 +499,7 @@ import flash.text.TextRenderer;
 
 import neko.Boot;
 import neko.FileSystem;
+import neko.Int32;
 import neko.Lib;
 import neko.Random;
 import neko.Sys;
