@@ -109,7 +109,7 @@ class ProxyDetect {
 		// value ?
 		var rproxy = ~/"ProxyServer"="([^"]+)"/;
 		if( !rproxy.match(content) )
-			throw "Could not find 'ProxyServer'";
+			return null;
 		return parseSettings(rproxy.matched(1));
 	}
 
