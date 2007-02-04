@@ -4,6 +4,7 @@
 	prevent some exceptions in neko.net.ProxyDetect
 	fixed ByteArray serialization
 	added neko.Int32
+	added -x for fast neko scripting
 
 2007-01-28: 1.11
 	changed StringBuf.add implementation
