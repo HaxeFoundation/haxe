@@ -813,6 +813,20 @@ let type_local ctx i p =
 	let i = (try PMap.find i ctx.locals_map with Not_found -> i) in
 	mk (TLocal i) t p
 
+let check_locals_masking ctx e =
+	let path = (match e.eexpr with
+		| TEnumField (e,_)
+		| TTypeExpr (TEnumDecl e) ->
+			Some e.e_path
+		| TTypeExpr (TClassDecl c) ->
+			Some c.cl_path
+		| _ -> None
+	) in
+	match path with
+	| Some ([],name) | Some (name::_,_) when PMap.mem name ctx.locals ->
+		error ("Local variable " ^ name ^ " is preventing usage of this type here") e.epos;
+	| _ -> ()
+
 let type_type ctx tpath p =
 	let rec loop t tparams =
 	match t with
@@ -871,7 +885,9 @@ let type_type ctx tpath p =
 		| _ ->
 			error (s_type_path tpath ^ " is not a value") p
 	in
-	loop (load_type_def ctx p tpath) None
+	let e = loop (load_type_def ctx p tpath) None in
+	check_locals_masking ctx e;
+	e
 
 let type_ident ctx i is_type p get =
 	match i with
@@ -931,6 +947,7 @@ let type_ident ctx i is_type p get =
 		let f = PMap.find i ctx.curclass.cl_statics in
 		(* expr type is not accurate but needed for protect *)
 		let tt = mk (TTypeExpr (TClassDecl ctx.curclass)) (TInst (ctx.curclass,[])) p in
+		check_locals_masking ctx tt;
 		field_access ctx get f (field_type f) tt p
 	with Not_found -> try
 		(* lookup imported *)
@@ -949,6 +966,7 @@ let type_ident ctx i is_type p get =
 						Not_found -> loop l
 		in
 		let e = loop ctx.local_types in
+		check_locals_masking ctx e;
 		if get then
 			AccExpr e
 		else
@@ -1887,11 +1905,11 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		) in
 		mk (TCall (e,el)) t p
 	| ENew (t,el) ->
-		let name = (match t.tpackage with [] -> t.tname | x :: _ -> x) in
-		if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;
 		let t = load_normal_type ctx t p true in
 		let el, c , params , t = (match follow t with
 		| TInst (c,params) ->
+			let name = (match c.cl_path with [], name -> name | x :: _ , _ -> x) in
+			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;
 			let f = (match c.cl_constructor with Some f -> f | None -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then error "Cannot access private constructor" p;
 			let el = (match follow (apply_params c.cl_types params (field_type f)) with
