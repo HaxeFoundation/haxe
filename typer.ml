@@ -309,11 +309,11 @@ let rec load_normal_type ctx t p allow_no_params =
 			| [TPType (_,t)] -> TDynamic (load_type ctx p t)
 			| _ -> error "Too many parameters for Dynamic" p
 		else begin
-			if List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;			
+			if List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;
 			let tparams = List.map (fun t ->
 				match t with
 				| TPConst c ->
-					let name = (match c with 
+					let name = (match c with
 						| String s -> "S" ^ s
 						| Int i -> "I" ^ i
 						| Float f -> "F" ^ f
@@ -437,7 +437,7 @@ and reverse_param (v,t) =
 
 let extend_remoting ctx c t p async prot =
 	if c.cl_super <> None then error "Cannot extend several classes" p;
-	if ctx.isproxy then 
+	if ctx.isproxy then
 		() (* skip this proxy generation, we shouldn't need it anyway *)
 	else
 	let ctx2 = context ctx.error ctx.warn in
@@ -735,7 +735,7 @@ let type_expr_with_type ctx e t =
 			ctx.param_type <- old;
 			e
 		with
-			exc -> 
+			exc ->
 				ctx.param_type <- old;
 				raise exc)
 	| _ ->
@@ -1387,10 +1387,10 @@ and type_switch ctx e cases def need_val p =
 	in
 	let enum = ref (match follow e.etype with
 		| TEnum (e,params) -> Some (e,params)
-		| TMono r -> 
+		| TMono r ->
 			(match lookup_enum (List.concat (List.map fst cases)) with
 			| None -> None
-			| Some (en,params) as k -> 
+			| Some (en,params) as k ->
 				r := Some (TEnum (en,params));
 				k)
 		| _ -> None
@@ -1399,7 +1399,7 @@ and type_switch ctx e cases def need_val p =
 		if need_val then begin
 			try
 				unify_raise ctx e.etype (!t) e.epos;
-			with Error (Unify _,_) -> try				
+			with Error (Unify _,_) -> try
 				unify_raise ctx (!t) e.etype e.epos;
 				t := e.etype;
 			with Error (Unify _,_) ->
@@ -1419,8 +1419,8 @@ and type_switch ctx e cases def need_val p =
 		let first_case = ref true in
 		let el = List.map (fun e1 ->
 			let v = (match !enum with
-			| Some en -> 
-				(try 
+			| Some en ->
+				(try
 					CMatch (type_matching ctx en e1 ecases !first_case)
 				with
 					Error _ when !first ->
@@ -1432,7 +1432,7 @@ and type_switch ctx e cases def need_val p =
 			first_case := false;
 			first := false;
 			v
-		) el in		
+		) el in
 		let e2 = type_expr ctx ~need_val e2 in
 		locals();
 		unify_val e2;
@@ -1473,7 +1473,7 @@ and type_switch ctx e cases def need_val p =
 		let exprs (el,e) =
 			List.map (fun c ->
 				match c with
-				| CExpr c -> c 
+				| CExpr c -> c
 				| _ -> assert false
 			) el , e
 		in
@@ -1646,8 +1646,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		in
 		let fields , types = List.fold_left loop ([],PMap.empty) fl in
 		mk (TObjectDecl fields) (mk_anon types) p
-	| EArrayDecl el ->		
-		let t = ref (mk_mono()) in		
+	| EArrayDecl el ->
+		let t = ref (mk_mono()) in
 		let el = List.map (fun e ->
 			let e = type_expr ctx e in
 			(try
@@ -1746,7 +1746,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		unify ctx e.etype (t_bool ctx) e.epos;
 		let e1 = type_expr ctx ~need_val e1 in
 		(match e2 with
-		| None -> 
+		| None ->
 			mk (TIf (e,e1,if need_val then Some (null p) else None)) (t_void ctx) p
 		| Some e2 ->
 			let e2 = type_expr ctx ~need_val e2 in
@@ -1938,7 +1938,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 					match follow t1 with
 					| TMono _ -> unify ctx t2 t1 p
 					| _ -> ()
-				) args args2;				
+				) args args2;
 			| _ -> ());
 		let ft = TFun (args,rt) in
 		let e , fargs = type_function ctx ft true false f p in
@@ -1974,7 +1974,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			| TInst (c,_) -> c.cl_path
 			| TEnum (e,_) -> e.e_path
 			| _ -> assert false);
-		| _ -> 
+		| _ ->
 			error "Cast type must be a class" p
 		) in
 		let make_type (path,name) =
@@ -2043,9 +2043,9 @@ let type_static_var ctx t e p =
 
 let valid_redefinition ctx f t =
 	let ft = field_type f in
-	match follow ft , t with
-	| TFun (args,r) , TFun (targs,tr) when f.cf_expr <> None && List.length args = List.length targs ->
-		List.iter2 (fun (n,o1,a1) (_,o2,a2) -> 
+	match follow ft , follow t with
+	| TFun (args,r) , TFun (targs,tr) when List.length args = List.length targs ->
+		List.iter2 (fun (n,o1,a1) (_,o2,a2) ->
 			if o1 <> o2 then raise (Unify_error [Not_matching_optional n]);
 			type_eq EqStrict a1 a2
 		) args targs;
@@ -2210,7 +2210,7 @@ let init_class ctx c p herits fields =
 			let stat = List.mem AStatic access in
 			let constr = (name = "new") in
 			if c.cl_interface && not stat && (match f.f_expr with EBlock [] , _ -> false | _ -> true) then error "An interface method cannot have a body" p;
-			if constr then (match f.f_type with 
+			if constr then (match f.f_type with
 				| None | Some (TPNormal { tpackage = []; tname = "Void" }) -> ()
 				| _ -> error "A class constructor can't have a return value" p
 			);
@@ -2492,7 +2492,7 @@ let type_module ctx m tdecls loadp =
 				(match !r with
 				| None -> r := Some tt;
 				| Some _ -> assert false);
-			| _ -> assert false);			
+			| _ -> assert false);
 	) tdecls;
 	(* PASS 3 : type checking, delayed until all modules and types are built *)
 	ctx.delays := !delays :: !(ctx.delays);
@@ -2502,7 +2502,7 @@ let type_module ctx m tdecls loadp =
 let rec f9path p = {
 	tpackage = (match p.tpackage with "flash" :: l -> "flash9" :: l | l -> l);
 	tname = p.tname;
-	tparams = List.map (fun c -> 
+	tparams = List.map (fun c ->
 		match c with
 		| TPConst _ -> c
 		| TPType (v,t) -> TPType (v,f9t t)
@@ -2629,8 +2629,8 @@ type state =
 	| NotYet
 
 let rec has_rtti c =
-	List.exists (function (t,pl) -> 
-		match t, pl with 
+	List.exists (function (t,pl) ->
+		match t, pl with
 		| { cl_path = ["haxe";"rtti"],"Infos" },[] -> true
 		| _ -> false
 	) c.cl_implements || (match c.cl_super with None -> false | Some (c,_) -> has_rtti c)
@@ -2655,7 +2655,7 @@ let types ctx main excludes =
 				if List.mem c.cl_path excludes then begin
 					c.cl_extern <- true;
 					c.cl_init <- None;
-				end;				
+				end;
 				if has_rtti c then begin
 					let f = mk_field "__rtti" (t_string ctx) in
 					let str = (!generate_meta_data) ctx t in
