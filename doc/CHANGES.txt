@@ -6,6 +6,7 @@
 	added neko.Int32
 	added -x for fast neko scripting
 	prevent locals from breaking class access (works with imports)
+	fix in function overriding subtyping
 
 2007-01-28: 1.11
 	changed StringBuf.add implementation
