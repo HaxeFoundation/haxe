@@ -5,6 +5,7 @@
 	fixed ByteArray serialization
 	added neko.Int32
 	added -x for fast neko scripting
+	prevent locals from breaking class access (works with imports)
 
 2007-01-28: 1.11
 	changed StringBuf.add implementation
