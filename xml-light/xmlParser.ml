@@ -148,6 +148,9 @@ let do_parse xparser source =
 	try
 		Xml_lexer.init source;
 		let s = { source = source; xparser = xparser; stack = Stack.create(); } in
+		let tk = pop s in
+		(* skip UTF8 BOM *)
+		if tk <> Xml_lexer.PCData "\239\187\191" then push tk s;
 		let x = read_xml s in
 		if xparser.check_eof && pop s <> Xml_lexer.Eof then raise (Internal_error EOFExpected);
 		Xml_lexer.close source;
