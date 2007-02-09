@@ -70,6 +70,9 @@ import haxe.remoting.Proxy;
 #if !js
 import haxe.remoting.SocketConnection;
 #end
+#if !neko
+import haxe.remoting.FlashJsConnection;
+#end
 
 import haxe.rtti.Infos;
 import haxe.rtti.Type;

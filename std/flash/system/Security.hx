@@ -7,7 +7,7 @@ extern class Security
 	static function loadPolicyFile(url:String):Void;
 
 	#if flash8
-	static function sandboxType(default,null) : String;
+	static var sandboxType(default,null) : String;
 	#end
 
 	private static function __init__() : Void untyped {
