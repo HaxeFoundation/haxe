@@ -141,18 +141,26 @@ class Connection implements Dynamic<Connection> {
 		#end
 	}
 
-	public static function jsConnect() : Connection {
+	public static function jsConnect( ?name : String ) : Connection {
 		if( !flash.external.ExternalInterface.available )
 			throw "External Interface not available";
 		if( flash.external.ExternalInterface.call("haxe.remoting.Connection.jsRemoting") != "yes" )
 			throw "haxe.remoting.Connection is not available in JavaScript";
-		return new Connection(null,[]);
+		return new Connection(null,if( name == null ) [] else ["_cnx",name]);
 	}
 
 	#else js
 
+	static function __init__() {
+		untyped __js__("_cnx = new Object()");
+	}
+
 	static function jsRemoting() {
 		return "yes";
+	}
+
+	public static function bind( name : String, obj : Dynamic ) {
+		untyped __js__("_cnx")[name] = obj;
 	}
 
 	public static function flashConnect( objId : String ) : Connection {
