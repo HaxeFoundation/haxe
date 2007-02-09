@@ -35,6 +35,7 @@ class DelayedConnection extends AsyncConnection, implements Dynamic<DelayedConne
 
 	override function __resolve( field : String ) : AsyncConnection {
 		var d = new DelayedConnection(__data,__path.copy());
+		d.__error = __error;
 		d.__path.push(field);
 		return d;
 	}
