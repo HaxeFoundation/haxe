@@ -8,6 +8,7 @@
 	prevent locals from breaking class access (works with imports)
 	fix in function overriding subtyping
 	added haxe.remoting.FlashJsConnection
+	fixed tar support in neko.zip.File
 
 2007-01-28: 1.11
 	changed StringBuf.add implementation
