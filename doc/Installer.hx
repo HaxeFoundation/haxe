@@ -63,7 +63,7 @@ class Installer {
 			display("");
 			display("ERROR = "+Std.string(e));
 			display(haxe.Stack.toString(haxe.Stack.exceptionStack()));
-			//xcross.Api.error("Error","Installation aborted");
+			xcross.Api.error("Error","Installation aborted");
 		}
 		wnd.enabled = true;
 	}
@@ -78,7 +78,7 @@ class Installer {
 		} catch( e : Dynamic ) {
 			if( xcross.Api.authorize() )
 				return false;
-			error("You don't have the rights to write in "+baseDir+", please run the installer using 'sudo'");
+			xcross.Api.error("Error","You don't have the rights to write in "+baseDir+", please run the installer using 'sudo'");
 			return false;
 		}
 	}
@@ -323,7 +323,7 @@ class Installer {
 		var haxelib = baseDir + "/haxe/lib";
 		if( !neko.FileSystem.exists(haxelib) ) {
 			neko.FileSystem.createDirectory(haxelib);
-			neko.Sys.command("chmod 666 "+haxelib);
+			neko.Sys.command("chmod 777 "+haxelib);
 		}
 	}
 
