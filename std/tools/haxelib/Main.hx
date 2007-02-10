@@ -473,9 +473,9 @@ class Main {
 		catch( e : Dynamic ) try
 			neko.io.File.getContent("/etc/.haxelib")
 		catch( e : Dynamic )
-			if( setup ) {
-				if( sys == "Linux" ) "/usr/lib/haxe/"+REPNAME else "/usr/local/lib/haxe/"+REPNAME;
-			} else
+			if( setup )
+				"/usr/lib/haxe/"+REPNAME;
+			else
 				throw "This is the first time you are runing haxelib. Please run haxelib setup first";
 		if( setup ) {
 			print("Please enter haxelib repository path with write access");
