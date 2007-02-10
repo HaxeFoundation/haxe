@@ -40,7 +40,7 @@ class Installer {
 
 	function display( txt ) {
 		wnd.log(txt);
-		neko.Sys.sleep(0.1);
+		neko.Sys.sleep(0.03);
 	}
 
 	function version(v : { major : Int, minor : Int, build : Int } ) {
@@ -56,6 +56,7 @@ class Installer {
 	function run() {
 		try {
 			install();
+			display("Installation Completed");
 			xcross.Api.message("Done","Installation Completed");
 		} catch( e : Dynamic ) {
 			display("");
@@ -65,6 +66,21 @@ class Installer {
 			//xcross.Api.error("Error","Installation aborted");
 		}
 		wnd.enabled = true;
+	}
+
+	function checkRights() {
+		try {
+			var tmp = baseDir + "/.tmp.haxe.inst";
+			var f = neko.io.File.write(tmp,true);
+			f.close();
+			neko.FileSystem.deleteFile(tmp);
+			return true;
+		} catch( e : Dynamic ) {
+			if( xcross.Api.authorize() )
+				return false;
+			error("You don't have the rights to write in "+baseDir+", please run the installer using 'sudo'");
+			return false;
+		}
 	}
 
 	function install() {
@@ -80,16 +96,6 @@ class Installer {
 				error("A previous haXe/Neko version seems to be installed in '"+d+"', please remove it first");
 		if( debug )
 			display("DEBUG MODE ON");
-
-		// SUDO
-		try {
-			var tmp = baseDir + "/.tmp.haxe.inst";
-			var f = neko.io.File.write(tmp,true);
-			f.close();
-			neko.FileSystem.deleteFile(tmp);
-		} catch( e : Dynamic ) {
-			error("You don't have the rights to write in "+baseDir+", please run the installer using 'sudo'");
-		}
 
 		// PROXY
 		var p = neko.net.ProxyDetect.detect();
@@ -279,9 +285,14 @@ class Installer {
 					neko.FileSystem.createDirectory(ddir);
 				continue;
 			}
-			var ch = neko.io.File.write(dir+"/"+path.join("/"),true);
+			var filename = dir + "/" + path.join("/");
+			var ch = neko.io.File.write(filename,true);
 			ch.write(neko.zip.File.unzip(f));
 			ch.close();
+			if( SYS != "Windows" ) {
+				var exe = neko.io.Path.extension(filename) == "";
+				neko.Sys.command("chmod "+(if( exe ) 755 else 644)+" "+filename);
+			}
 		}
 	}
 
@@ -308,6 +319,12 @@ class Installer {
 		link("haxe","haxe",binDir);
 		link("haxe","haxelib",binDir);
 		link("haxe","haxedoc",binDir);
+		// HAXELIB setup
+		var haxelib = baseDir + "/haxe/lib";
+		if( !neko.FileSystem.exists(haxelib) ) {
+			neko.FileSystem.createDirectory(haxelib);
+			neko.Sys.command("chmod 666 "+haxelib);
+		}
 	}
 
 	function removeRec( file ) {
@@ -321,14 +338,17 @@ class Installer {
 	}
 
 	static function main() {
+		var debug = neko.Sys.getEnv("INST_DEBUG") != null;
+		var i = new Installer(debug);
+		if( !i.checkRights() )
+			return;
 		wnd = new xcross.Winlog("haXe Installer");
 		wnd.button = "Exit";
 		wnd.enabled = false;
 		wnd.onClick = function() {
 			xcross.Api.stop();
 		};
-		var debug = neko.Sys.getEnv("INST_DEBUG") != null;
-		neko.vm.Thread.create(new Installer(debug).run);
+		neko.vm.Thread.create(i.run);
 		xcross.Api.loop();
 	}
 
