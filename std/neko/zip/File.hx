@@ -192,16 +192,17 @@ class File {
 	public static function readTarEntry( i : neko.io.Input ) {
 		var fname = i.readUntil(0);
 		if( fname.length == 0 ) {
-			if( i.read(511+512) != neko.Lib.makeString(511+512) )
-				throw "Invalid TAR end";
+			for( x in 0...511+512 )
+				if( i.readChar() != 0 )
+					throw "Invalid TAR end";
 			return null;
 		}
 		i.read(99 - fname.length); // skip
-		var fmod = parseOctal(i.readUntil(0));
-		var uid = parseOctal(i.readUntil(0));
-		var gid = parseOctal(i.readUntil(0));
-		var fsize = parseOctal(i.readUntil(0));
-		var mtime = i.readUntil(0);
+		var fmod = parseOctal(i.read(8));
+		var uid = parseOctal(i.read(8));
+		var gid = parseOctal(i.read(8));
+		var fsize = parseOctal(i.read(12));
+		var mtime = i.read(12);
 		var crc = i.read(8);
 		var type = i.readChar();
 		var lname = i.readUntil(0);
@@ -215,10 +216,10 @@ class File {
 		i.read(31 - uname.length);
 		var gname = i.readUntil(0);
 		i.read(31 - gname.length);
-		var devmaj = parseOctal(i.readUntil(0));
-		var devmin = parseOctal(i.readUntil(0));
+		var devmaj = parseOctal(i.read(8));
+		var devmin = parseOctal(i.read(8));
 		var prefix = i.readUntil(0);
-		i.read(167 - prefix.length);
+		i.read(166 - prefix.length);
 		return {
 			fileName : fname,
 			fileSize : fsize,
@@ -241,6 +242,8 @@ class File {
 		var i = 0;
 		for( p in 0...n.length ) {
 			var c = n.charCodeAt(p);
+			if( c == 0 )
+				break;
 			if( c < 48 || c > 55 )
 				throw "Invalid octal char";
 			i = (i * 8) + (c - 48);
