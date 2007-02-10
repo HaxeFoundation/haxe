@@ -7,10 +7,20 @@ class Installer {
 	static var wnd : xcross.Winlog;
 
 	var baseDir : String;
+	var binDir : String;
+	var libDir : String;
+	var debug : Bool;
 
-	function new() {
-		haxe.Http.PROXY = neko.net.ProxyDetect.detect();
-		baseDir = if( SYS == "Windows" ) neko.Sys.getEnv("ProgramFiles") + "/Motion-Twin" else "/usr/lib";
+	function new(dbg) {
+		debug = dbg;
+		if( debug ) {
+			libDir = "/usr/local/lib";
+			binDir = "/usr/local/bin";
+		} else {
+			libDir = "/usr/lib";
+			binDir = "/usr/bin";
+		}
+		baseDir = if( SYS == "Windows" ) neko.Sys.getEnv("ProgramFiles") + "/Motion-Twin" else libDir;
 	}
 
 	function newVersion(v1,v2) {
@@ -24,11 +34,13 @@ class Installer {
 	}
 
 	function error( txt ) {
-		throw txt;
+		xcross.Api.error("Error",txt);
+		throw "Installation aborted";
 	}
 
 	function display( txt ) {
 		wnd.log(txt);
+		neko.Sys.sleep(0.1);
 	}
 
 	function version(v : { major : Int, minor : Int, build : Int } ) {
@@ -50,7 +62,7 @@ class Installer {
 			display("");
 			display("ERROR = "+Std.string(e));
 			display(haxe.Stack.toString(haxe.Stack.exceptionStack()));
-			xcross.Api.error("Error","Installation aborted");
+			//xcross.Api.error("Error","Installation aborted");
 		}
 		wnd.enabled = true;
 	}
@@ -64,8 +76,29 @@ class Installer {
 			"/opt/haxe",
 		];
 		for( d in dirs )
-			if( neko.FileSystem.exists(d) )
+			if( !debug && neko.FileSystem.exists(d) )
 				error("A previous haXe/Neko version seems to be installed in '"+d+"', please remove it first");
+		if( debug )
+			display("DEBUG MODE ON");
+
+		// SUDO
+		try {
+			var tmp = baseDir + "/.tmp.haxe.inst";
+			var f = neko.io.File.write(tmp,true);
+			f.close();
+			neko.FileSystem.deleteFile(tmp);
+		} catch( e : Dynamic ) {
+			error("You don't have the rights to write in "+baseDir+", please run the installer using 'sudo'");
+		}
+
+		// PROXY
+		var p = neko.net.ProxyDetect.detect();
+		if( p == null )
+			display("No proxy found");
+		else {
+			display("Using proxy "+p.host+":"+p.port);
+			haxe.Http.PROXY = p;
+		}
 
 		// GET haxe Version
 		display("Getting Local haXe Version");
@@ -164,8 +197,6 @@ class Installer {
 			}
 			if( needHaxe )
 				txt += "haXe "+version(haxeFile.version);
-			if( SYS != "Windows" )
-				txt += " (make sure you run this installer with sudo)";
 			if( !ask("Do you want to install "+txt+" ?") )
 				error("Installation Aborted");
 		}
@@ -219,7 +250,7 @@ class Installer {
 
 	function unzip( file ) {
 		var ch = neko.io.File.read(file,true);
-		var entries = if( neko.io.Path.extension(file) == "zip" ) neko.zip.File.readZip(ch) else neko.zip.File.readTar(ch);
+		var entries = if( neko.io.Path.extension(file) == "zip" ) neko.zip.File.readZip(ch) else neko.zip.File.readTar(ch,true);
 		ch.close();
 		return entries;
 	}
@@ -254,17 +285,19 @@ class Installer {
 		}
 	}
 
+	function link( dir, file, dest ) {
+		command("rm -rf "+dest+"/"+file);
+		command("ln -s "+baseDir+"/"+dir+"/"+file+" "+dest+"/"+file);
+	}
+
 	function installNeko() {
 		if( SYS == "Windows" )
 			return;
-		command("rm -rf /usr/bin/neko /usr/bin/nekoc /usr/lib/libneko.so");
-		command("ln -s "+baseDir+"/neko/neko /usr/bin/neko");
-		command("ln -s "+baseDir+"/neko/nekoc /usr/bin/nekoc");
-		command("ln -s "+baseDir+"/neko/nekotools /usr/bin/nekotools");
-		if( SYS == "Mac" )
-			command("ln -s "+baseDir+"/neko/libneko.so /usr/lib/libneko.so");
-		else
-			command("ln -s "+baseDir+"/neko/libneko.dylib /usr/lib/libneko.dylib");
+		var so = if( SYS == "Mac" ) ".dylib" else ".so";
+		link("neko","neko",binDir);
+		link("neko","nekoc",binDir);
+		link("neko","nekotools",binDir);
+		link("neko","libneko"+so,libDir);
 	}
 
 	function installHaxe() {
@@ -272,10 +305,9 @@ class Installer {
 			command('"'+baseDir+'/haxe/haxesetup" -silent');
 			return;
 		}
-		command("rm -rf /usr/bin/haxe /usr/bin/haxelib /usr/bin/haxedoc");
-		command("ln -s "+baseDir+"/haxe/haxe /usr/bin/haxe");
-		command("ln -s "+baseDir+"/haxe/haxelib /usr/bin/haxelib");
-		command("ln -s "+baseDir+"/haxe/haxedoc /usr/bin/haxedoc");
+		link("haxe","haxe",binDir);
+		link("haxe","haxelib",binDir);
+		link("haxe","haxedoc",binDir);
 	}
 
 	function removeRec( file ) {
@@ -295,7 +327,8 @@ class Installer {
 		wnd.onClick = function() {
 			xcross.Api.stop();
 		};
-		neko.vm.Thread.create(new Installer().run);
+		var debug = neko.Sys.getEnv("INST_DEBUG") != null;
+		neko.vm.Thread.create(new Installer(debug).run);
 		xcross.Api.loop();
 	}
 
