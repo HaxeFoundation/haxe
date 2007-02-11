@@ -69,6 +69,8 @@ class Installer {
 	}
 
 	function checkRights() {
+		if( SYS == "Windows" )
+			return true;
 		try {
 			var tmp = baseDir + "/.tmp.haxe.inst";
 			var f = neko.io.File.write(tmp,true);
