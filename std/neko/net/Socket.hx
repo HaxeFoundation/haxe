@@ -109,6 +109,10 @@ class Socket {
 		socket_set_blocking(__s,b);
 	}
 
+	public static function newUdpSocket() {
+		return new Socket(socket_new(true));
+	}
+
 	// STATICS
 	public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, timeout : Float) : {read: Array<Socket>,write: Array<Socket>,others: Array<Socket>} {
 		var c = untyped __dollar__hnew( 1 );
