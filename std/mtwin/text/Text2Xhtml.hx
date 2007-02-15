@@ -122,7 +122,7 @@ class Text2Xhtml {
 	static var cite = ~/\[cite\](.*?)\[\/cite\]/gsm;
 	static var html = ~/\[html\](.*?)\[\/html\]/gsm;
 	static var haxe = ~/\[haxe\](.*?)\[\/haxe\]/gsm;
-	static var swf = ~/@swf ([0-9]+)x([0-9]+)x([0-9]+) (http:\/\/.*?)@/g;
+	static var swf = ~/@swf ([0-9]+)x([0-9]+)x([0-9]+) (.*?)@/g;
 
 	public var paragraphSeparator : String;
 	public var htmlEnabled : Bool;
