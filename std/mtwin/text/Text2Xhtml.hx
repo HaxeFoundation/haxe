@@ -64,9 +64,13 @@ import haxe.Md5;
 
 	Will generate a link : http://www.google.com.
 
-	Will generate a [link with name:http://www.google.com].
+	Will generate an internal link [link some name : /foo/bar/baz] with a name.
 
-	Some //emphased text// and some *strong text*.
+    Will generate a link with a name [link some name : http://example.com/foo/bar/baz] too.
+
+	Please notice that spaces around central ":" are requires !
+
+	Some //emphased text// and some **strong text**.
 
 	Now insert an image : @img http://www.foo.com/foo.jpg@
 
@@ -109,8 +113,8 @@ class Text2Xhtml {
 	static var rh3e = ~/^(.*?)\n-{4,}\s*?\n/gm;
 	static var pre = ~/^\[pre\](.*?)\[\/pre\]/gsm;
 	static var em = ~/(?<!http:)\/\/(.*?)(?<!http:)\/\//gsm;
-	static var strong = ~/\*(.*?)\*/gm;
-	static var link = ~/\[(.*?):(http|https|ftp):\/\/(.*?)\]/g;
+	static var strong = ~/\*\*(.*?)\*\*/gm;
+	static var link = ~/\[link (.*?) : (.*?)\]/g;
 	static var http = ~/(?<!")(http|https|ftp):\/\/(.*?)(\s|\.\s|$)/g; //"
 	static var img = ~/@img (.*?)@/g;
 	static var li = ~/\n\n(- (.*?))+\n\n/gsm;
@@ -256,7 +260,7 @@ s.write('swf@id');
 
 	function transformContent( str:String ) : String {
 		var helper = new StringHelper(str);
-		var links = helper.extract("link", link, "<a href=\"$2://$3\">$1</a>");
+		var links = helper.extract("link", link, "<a href=\"$2\">$1</a>");
 		var images = helper.extract("img", img, "<img src=\"$1\" alt=\"Image\"/>");
 		var https = helper.extract("http", http, "<a href=\"$1://$2\">$1://$2</a>$3");
 		str = helper.str;
