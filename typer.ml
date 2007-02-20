@@ -16,7 +16,6 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *)
-
 open Ast
 open Type
 
@@ -52,6 +51,7 @@ type context = {
 	mutable in_constructor : bool;
 	mutable in_static : bool;
 	mutable in_loop : bool;
+	mutable in_display : bool;
 	mutable ret : t;
 	mutable locals : (string, t) PMap.t;
 	mutable locals_map : (string, string) PMap.t;
@@ -74,6 +74,7 @@ type switch_mode =
 	| CExpr of texpr
 
 exception Error of error_msg * pos
+exception Display of t
 
 let access_str = function
 	| NormalAccess -> "default"
@@ -140,6 +141,7 @@ let context err warn =
 		untyped = false;
 		isproxy = false;
 		super_call = false;
+		in_display = false;
 		ret = mk_mono();
 		warn = warn;
 		error = err;
@@ -1543,7 +1545,9 @@ and type_access ctx e p get =
 									) (List.rev acc) in
 									raise (Error (Module_not_found (List.rev !path,name),p))
 								with
-									Not_found -> raise e)
+									Not_found ->
+										if ctx.in_display then raise (Parser.TypePath (List.map (fun (n,_,_) -> n) (List.rev acc)));
+										raise e)
 				| (_,false,_) as x :: path ->
 					loop (x :: acc) path
 				| (name,true,p) as x :: path ->
@@ -1988,6 +1992,27 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			(EIf (cond,etmp,Some (EThrow (EConst (String "Class cast error"),p),p)),p);
 		],p) in
 		{ e with etype = t }
+	| EDisplay e ->
+		let old = ctx.in_display in
+		ctx.in_display <- true;
+		let e = (try type_expr ctx e with Error (Unknown_ident n,_) -> raise (Parser.TypePath [n])) in
+		ctx.in_display <- old;
+		let t = (match follow e.etype with
+			| TInst (c,params) ->
+				let priv = is_parent c ctx.curclass in
+				let rec loop c params =
+					let m = (match c.cl_super with
+						| None -> PMap.empty
+						| Some (csup,cparams) -> loop csup cparams
+					) in
+					let m = PMap.fold (fun f m -> if priv || f.cf_public then PMap.add f.cf_name f m else m) c.cl_fields m in
+					PMap.map (fun f -> { f with cf_type = apply_params c.cl_types params f.cf_type }) m
+				in
+				let fields = loop c params in
+				TAnon { a_fields = fields; a_status = ref Closed; }
+			| t -> t
+		) in
+		raise (Display t)
 
 and type_function ctx t static constr f p =
 	let locals = save_locals ctx in
@@ -2419,6 +2444,7 @@ let type_module ctx m tdecls loadp =
 		super_call = false;
 		in_constructor = false;
 		in_static = false;
+		in_display = false;
 		in_loop = false;
 		untyped = false;
 		opened = [];

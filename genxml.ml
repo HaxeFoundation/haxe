@@ -112,7 +112,7 @@ let rec exists f c =
 			| None -> true
 			| Some (csup,_) -> exists f csup
 
-let gen_type ctx t =
+let gen_type_decl ctx t =
 	let m = Typer.module_of_type ctx t in
 	match t with
 	| TClassDecl c ->
@@ -168,13 +168,13 @@ let rec write_xml ch tabs x =
 		IO.printf ch "<![CDATA[%s]]>" s
 
 let generate file ctx types =
-	let x = node "haxe" [] (List.map (gen_type ctx) types) in
+	let x = node "haxe" [] (List.map (gen_type_decl ctx) types) in
 	let ch = IO.output_channel (open_out file) in
 	write_xml ch "" x;
 	IO.close_out ch
 
 let gen_type_string ctx t =
-	let x = gen_type ctx t in
+	let x = gen_type_decl ctx t in
 	let ch = IO.output_string() in
 	write_xml ch "" x;
 	IO.close_out ch

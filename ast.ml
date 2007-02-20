@@ -193,6 +193,7 @@ and expr_def =
 	| EUntyped of expr
 	| EThrow of expr
 	| ECast of expr * type_path option
+	| EDisplay of expr
 
 and expr = expr_def * pos
 

@@ -27,6 +27,7 @@ type error_msg =
 	| Missing_type
 
 exception Error of error_msg * pos
+exception TypePath of string list
 
 let error_msg = function
 	| Unexpected t -> "Unexpected "^(s_token t)
@@ -42,6 +43,7 @@ let display_error : (error_msg -> pos -> unit) ref = ref (fun _ _ -> assert fals
 let cache = ref (DynArray.create())
 let doc = ref None
 let use_doc = ref false
+let resume_display = ref false
 
 let last_token s =
 	let n = Stream.count s in
@@ -136,7 +138,9 @@ let semicolon s =
 	else
 		match s with parser
 		| [< '(Semicolon,p) >] -> p
-		| [< s >] -> error Missing_semicolon (snd (last_token s))
+		| [< s >] ->
+			let pos = snd (last_token s) in
+			if !resume_display then pos else error Missing_semicolon pos
 
 let rec	parse_file s =
 	doc := None;
@@ -146,7 +150,7 @@ let rec	parse_file s =
 
 and parse_type_decl s =
 	match s with parser
-	| [< '(Kwd Import,p1); p, t, s = parse_import; p2 = semicolon >] -> EImport (p,t,s) , punion p1 p2
+	| [< '(Kwd Import,p1); p, t, s = parse_import []; p2 = semicolon >] -> EImport (p,t,s) , punion p1 p2
 	| [< c = parse_common_flags; s >] ->
 		match s with parser
 		| [< n , p1 = parse_enum_flags; doc = get_doc; '(Const (Type name),_); tl = parse_constraint_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] ->
@@ -176,12 +180,18 @@ and parse_type_decl s =
 
 and parse_package s = psep Dot ident s
 
-and parse_import = parser
-	| [< '(Const (Ident k),_); '(Dot,_); p, t, s = parse_import >] -> (k :: p), t, s
+and parse_import acc = parser
+	| [< '(Const (Ident k),_); '(Dot,_); s >] ->
+		parse_import (k :: acc) s
 	| [< '(Const (Type t),_); s >] ->
-		[] , t , match s with parser
+		(List.rev acc , t , match s with parser
 			| [< '(Dot,_); '(Const (Type s),_) >] -> Some s
-			| [< >] -> None
+			| [< >] -> None)
+	| [< >] ->
+		if !resume_display then
+			raise  (TypePath (List.rev acc))
+		else
+			serror()
 
 and parse_common_flags = parser
 	| [< '(Kwd Private,_); l = parse_common_flags >] -> (HPrivate, EPrivate) :: l
@@ -229,6 +239,11 @@ and parse_type_path1 pack = parser
 			tname = name;
 			tparams = params
 		}
+	| [< >] ->
+		if !resume_display then
+			raise  (TypePath (List.rev pack))
+		else
+			serror()
 
 and parse_type_path_variance = parser
 	| [< '(Binop OpAdd,_); t = parse_type_path_or_const VCo >] -> t
@@ -418,7 +433,7 @@ and parse_var_decl = parser
 		| [< >] -> (name,t,None)
 
 and expr = parser
-	| [< '(BrOpen,p1); b = block1; '(BrClose,p2); s >] -> 
+	| [< '(BrOpen,p1); b = block1; '(BrClose,p2); s >] ->
 		let e = (b,punion p1 p2) in
 		(match b with
 		| EObjectDecl _ -> expr_next e s
@@ -476,13 +491,15 @@ and expr = parser
 	| [< '(Kwd Untyped,p1); e = expr >] -> (EUntyped e,punion p1 (pos e))
 
 and expr_next e1 = parser
-	| [< '(Dot,_); s >] ->
+	| [< '(Dot,p); s >] ->
 		(match s with parser
 		| [< '(Const (Ident f),p); s >] -> expr_next (EField (e1,f) , punion (pos e1) p) s
 		| [< '(Const (Type t),p); s >] -> expr_next (EType (e1,t) , punion (pos e1) p) s
-		| [< >] -> serror())
-	| [< '(POpen,p1); params = psep Comma expr; '(PClose,p2); s >] ->
-		expr_next (ECall (e1,params) , punion (pos e1) p2) s
+		| [< >] -> if !resume_display then (EDisplay e1, p) else serror())
+	| [< '(POpen,p1); params = psep Comma expr; s >] ->
+		(match s with parser
+		| [< '(PClose,p2); s >] -> expr_next (ECall (e1,params) , punion (pos e1) p2) s
+		| [< >] -> if !resume_display then (EDisplay e1,p1) else serror())
 	| [< '(BkOpen,_); e2 = expr; '(BkClose,p2); s >] ->
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
 	| [< '(Binop OpGt,_); s >] ->

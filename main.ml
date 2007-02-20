@@ -18,8 +18,8 @@
  *)
 open Printf
 
-type target = 
-	| No 
+type target =
+	| No
 	| Js of string
 	| Swf of string
 	| Neko of string
@@ -28,12 +28,13 @@ let prompt = ref false
 let alt_format = ref false
 let has_error = ref false
 let auto_xml = ref false
+let display = ref false
 
 let normalize_path p =
 	let l = String.length p in
 	if l = 0 then
 		"./"
-	else match p.[l-1] with 
+	else match p.[l-1] with
 		| '\\' | '/' -> p
 		| _ -> p ^ "/"
 
@@ -41,7 +42,7 @@ let warn msg p =
 	if p = Ast.null_pos then
 		prerr_endline msg
 	else begin
-		let error_printer file line = 
+		let error_printer file line =
 			if !alt_format then
 				sprintf "%s(%d):" file line
 			else
@@ -63,6 +64,18 @@ let report msg p =
 	warn msg p;
 	do_exit()
 
+let report_list l =
+	let htmlescape s =
+		let s = String.concat "&lt;" (ExtString.String.nsplit s "<") in
+		let s = String.concat "&gt;" (ExtString.String.nsplit s ">") in
+		s
+	in
+	prerr_endline "<list>";
+	List.iter (fun (n,t,d) ->
+		prerr_endline (Printf.sprintf "<i n=\"%s\"><t>%s</t><d>%s</d></i>" n (htmlescape t) (htmlescape d));
+	) l;
+	prerr_endline "</list>"
+
 let type_error e p =
 	warn (Typer.error_msg e) p;
 	has_error := true
@@ -72,7 +85,7 @@ let parse_error e p =
 	warn (Parser.error_msg e) p;
 	has_error := true
 
-let file_extension f = 
+let file_extension f =
 	let cl = ExtString.String.nsplit f "." in
 	match List.rev cl with
 	| [] -> ""
@@ -103,6 +116,22 @@ let make_path f =
 	in
 	loop cl
 
+let read_type_path p cp =
+	let classes = ref [] in
+	let packages = ref [] in
+	List.iter (fun path ->
+		let dir = path ^ String.concat "/" p in
+		let r = Sys.readdir dir in
+		Array.iter (fun f ->
+			if (Unix.stat (dir ^ "/" ^ f)).Unix.st_kind = Unix.S_DIR then begin
+				if f.[0] > 'a' && f.[0] < 'z' then packages := f :: !packages
+			end else if file_extension f = "hx" then begin
+				let c = Filename.chop_extension f in
+				if String.length c < 2 || String.sub c (String.length c - 2) 2 <> "__" then classes := c :: !classes;
+			end;
+		) r;
+	) cp;
+	List.sort compare (!packages), List.sort compare (!classes)
 
 let delete_file f = try Sys.remove f with _ -> ()
 
@@ -111,7 +140,7 @@ let base_defines = !Plugin.defines
 exception Hxml_found
 
 let rec process_params acc = function
-	| [] ->	
+	| [] ->
 		init (List.rev acc)
 	| "--next" :: l ->
 		init (List.rev acc);
@@ -120,7 +149,7 @@ let rec process_params acc = function
 		process_params (x :: acc) l
 
 and init params =
-try	
+try
 	let version = 111 in
 	let version_str = Printf.sprintf "%d.%.2d" (version / 100) (version mod 100) in
 	let usage = "Haxe Compiler " ^ version_str ^ " - (c)2005-2007 Motion-Twin\n Usage : haxe.exe [options] <class names...>\n Options :" in
@@ -134,7 +163,7 @@ try
 	let hres = Hashtbl.create 0 in
 	let cmds = ref [] in
 	let excludes = ref [] in
-	let libs = ref [] in	
+	let libs = ref [] in
 	let gen_hx = ref false in
 	Plugin.defines := base_defines;
 	Plugin.define ("haxe_" ^ string_of_int version);
@@ -145,7 +174,7 @@ try
 	(try
 		let p = Sys.getenv "HAXE_LIBRARY_PATH" in
 		let rec loop = function
-			| drive :: path :: l ->	
+			| drive :: path :: l ->
 				if String.length drive = 1 && ((drive.[0] >= 'a' && drive.[0] <= 'z') || (drive.[0] >= 'A' && drive.[0] <= 'Z')) then
 					(drive ^ ":" ^ path) :: loop l
 				else
@@ -179,7 +208,7 @@ try
 			Typer.forbidden_packages := ["js"; "neko"];
 			target := Swf file
 		),"<file> : compile code to Flash SWF file");
-		("-swf-version",Arg.Int (fun v -> 
+		("-swf-version",Arg.Int (fun v ->
 			swf_version := v;
 		),"<version> : change the SWF version (6,7,8,9)");
 		("-swf-header",Arg.String (fun h ->
@@ -241,7 +270,7 @@ try
 			let ch = open_in file in
 			let lines = Std.input_list ch in
 			close_in ch;
-			excludes := (List.map (fun l -> 
+			excludes := (List.map (fun l ->
 				let len = String.length l in
 				let l = (if len > 0 && l.[len-1] = '\r' then String.sub l 0 (len - 1) else l) in
 				match List.rev (ExtString.String.nsplit l ".") with
@@ -256,7 +285,7 @@ try
 			cmds := cmd :: !cmds
 		),": run the specified command after successful compilation");
 		("--flash-strict", define "flash_strict", ": more type strict flash API");
-		("--override", Arg.Unit (fun() -> 
+		("--override", Arg.Unit (fun() ->
 			Typer.check_override := true
 		),": ensure that overriden methods are declared with 'override'");
 		("--no-traces", define "no_traces", ": don't compile trace calls in the program");
@@ -269,6 +298,10 @@ try
 		("--next", Arg.Unit (fun() -> assert false), ": separate several haxe compilations");
 		("--altfmt", Arg.Unit (fun() -> alt_format := true),": use alternative error output format");
 		("--auto-xml", Arg.Unit (fun() -> auto_xml := true),": automatically create an XML for each target");
+		("--display", Arg.Unit (fun () ->
+			display := true;
+			Parser.resume_display := true;
+		),": display code tips");
 	] in
 	let current = ref 0 in
 	let args = Array.of_list ("" :: params) in
@@ -277,7 +310,7 @@ try
 		| x :: _ when String.lowercase x = "hxml" ->
 			let ch = (try open_in cl with _ -> failwith ("File not found " ^ cl)) in
 			let lines = Std.input_list ch in
-			let hxml_args = List.concat (List.map (fun l -> 
+			let hxml_args = List.concat (List.map (fun l ->
 				let len = String.length l in
 				let l = (if len != 0 && l.[len - 1] = '\r' then String.sub l 0 (len-1) else l) in
 				if l = "" || l.[0] = '#' then
@@ -308,7 +341,7 @@ try
 		let p = Unix.open_process_in cmd in
 		let lines = Std.input_list p in
 		let ret = Unix.close_process_in p in
-		let lines = List.fold_left (fun acc l ->			
+		let lines = List.fold_left (fun acc l ->
 			let p = String.length l - 1 in
 			let l = (if l.[p] = '\r' then String.sub l 0 p else l) in
 			if p > 3 && String.sub l 0 3 = "-L " then begin
@@ -326,7 +359,7 @@ try
 	| Swf file ->
 		(* check file extension. In case of wrong commandline, we don't want
 		   to accidentaly delete a source file. *)
-		if file_extension file = "swf" then delete_file file;	
+		if file_extension file = "swf" then delete_file file;
 		Plugin.define "flash";
 		Plugin.define ("flash"  ^ string_of_int !swf_version);
 	| Neko file ->
@@ -344,6 +377,10 @@ try
 		List.iter (fun cpath -> ignore(Typer.load ctx cpath Ast.null_pos)) (List.rev !classes);
 		Typer.finalize ctx;
 		if !has_error then do_exit();
+		if !display then begin
+			target := No;
+			auto_xml := false;
+		end;
 		let do_auto_xml file = if !auto_xml then xml_out := Some (file ^ ".xml") in
 		let types = Typer.types ctx (!main_class) (!excludes) in
 		(match !target with
@@ -374,13 +411,28 @@ try
 		else
 			if Sys.command cmd <> 0 then failwith "Command failed"
 	) (List.rev !cmds)
-with	
+with
 	| Lexer.Error (m,p) -> report (Lexer.error_msg m) p
 	| Parser.Error (m,p) -> report (Parser.error_msg m) p
 	| Typer.Error (m,p) -> report (Typer.error_msg m) p
 	| Failure msg | Arg.Bad msg -> report ("Error : " ^ msg) Ast.null_pos
 	| Arg.Help msg -> print_string msg
 	| Hxml_found -> ()
+	| Typer.Display t ->
+		let ctx = Type.print_context() in
+		(match Type.follow t with
+		| Type.TAnon a ->
+			report_list (PMap.fold (fun f acc ->
+				(f.Type.cf_name,Type.s_type ctx f.Type.cf_type,match f.Type.cf_doc with None -> "" | Some d -> d) :: acc
+			) a.Type.a_fields []);
+		| _ ->
+			prerr_string (Type.s_type ctx t));
+		exit 0;
+	| Parser.TypePath p ->
+		let packs, classes = read_type_path p (!Plugin.class_path) in
+		if packs = [] && classes = [] then report ("No classes found in " ^ String.concat "." p) Ast.null_pos;
+		report_list (List.map (fun f -> f,"","") (packs @ classes));
+		exit 0;
 	| e -> report (Printexc.to_string e) Ast.null_pos
 
 ;;
