@@ -9,6 +9,7 @@
 	fix in function overriding subtyping
 	added haxe.remoting.FlashJsConnection
 	fixed tar support in neko.zip.File
+	ide completion support using --display
 
 2007-01-28: 1.11
 	changed StringBuf.add implementation
