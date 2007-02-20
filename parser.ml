@@ -28,6 +28,7 @@ type error_msg =
 
 exception Error of error_msg * pos
 exception TypePath of string list
+exception Display of expr
 
 let error_msg = function
 	| Unexpected t -> "Unexpected "^(s_token t)
@@ -50,6 +51,9 @@ let last_token s =
 	DynArray.get (!cache) (if n = 0 then 0 else n - 1)
 
 let serror() = raise (Stream.Error "")
+
+let display e =
+	if !resume_display then raise (Display e) else serror()
 
 let priority = function
 	| OpAssign | OpAssignOp _ -> -4
@@ -161,7 +165,11 @@ and parse_type_decl s =
 				d_flags = List.map snd c @ n;
 				d_data = l
 			}, punion p1 p2)
-		| [< n , p1 = parse_class_flags; doc = get_doc; '(Const (Type name),_); tl = parse_constraint_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = plist parse_class_field; '(BrClose,p2) >] ->
+		| [< n , p1 = parse_class_flags; doc = get_doc; '(Const (Type name),_); tl = parse_constraint_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = parse_class_field_resume; s >] ->
+			let p2 = (match s with parser
+				| [< '(BrClose,p2) >] -> p2
+				| [< >] -> if !resume_display then p1 else serror()
+			) in
 			(EClass {
 				d_name = name;
 				d_doc = doc;
@@ -179,6 +187,43 @@ and parse_type_decl s =
 			}, punion p1 p2)
 
 and parse_package s = psep Dot ident s
+
+and parse_class_field_resume s =
+	if not !resume_display then
+		plist parse_class_field s
+	else
+		(* junk all tokens until we reach next variable/function or next type declaration *)
+		let rec loop() =
+			(match List.map fst (Stream.npeek 2 s) with
+			| Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Override :: _ ->
+				raise Exit
+			| [] | Eof :: _ | Kwd Extern :: _ | Kwd Class :: _ |Kwd Enum :: _ | Kwd Typedef :: _ ->
+				raise Not_found
+			| [Kwd Private; Kwd Function]
+			| [Kwd Private; Kwd Var] ->
+				raise Exit
+			| [Kwd Private; Kwd Class]
+			| [Kwd Private; Kwd Enum]
+			| [Kwd Private; Kwd Typedef] ->
+				raise Not_found	
+			| [Kwd Function; Const _]
+			| [Kwd Function; Kwd New] ->
+				raise Exit
+			| _ -> ());
+			Stream.junk s;
+			loop();	
+		in
+		try
+			loop();
+		with
+			| Not_found ->
+				[]
+			| Exit ->
+				try 
+					let c = parse_class_field s in
+					c :: parse_class_field_resume s
+				with
+					Stream.Error _ | Stream.Failure -> parse_class_field_resume s
 
 and parse_import acc = parser
 	| [< '(Const (Ident k),_); '(Dot,_); s >] ->
@@ -301,14 +346,14 @@ and parse_class_field s =
 				(FProp (name,doc,l,i1,i2,t),punion p1 p2)
 			| [< t = parse_type_opt; s >] ->
 				let e , p2 = (match s with parser
-				| [< '(Binop OpAssign,_) when List.mem AStatic l; e = expr; p2 = semicolon >] -> Some e , p2
+				| [< '(Binop OpAssign,_) when List.mem AStatic l; e = toplevel_expr; p2 = semicolon >] -> Some e , p2
 				| [< '(Semicolon,p2) >] -> None , p2
 				| [< >] -> serror()
 				) in
 				(FVar (name,doc,l,t,e),punion p1 p2))
 		| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
 			let e = (match s with parser
-				| [< e = expr >] -> e
+				| [< e = toplevel_expr >] -> e
 				| [< '(Semicolon,p) >] -> (EBlock [],p)
 				| [< >] -> serror()
 			) in
@@ -378,34 +423,36 @@ and parse_class_herit = parser
 and block1 = parser
 	| [< '(Const (Ident name),p); s >] -> block2 name true p s
 	| [< '(Const (Type name),p); s >] -> block2 name false p s
-	| [< b = block >] -> EBlock b
+	| [< b = block [] >] -> EBlock b
 
 and block2 name ident p = parser
 	| [< '(DblDot,_); e = expr; l = parse_obj_decl >] -> EObjectDecl ((name,e) :: l)
 	| [< e = expr_next (EConst (if ident then Ident name else Type name),p); s >] ->
 		try
 			let _ = semicolon s in
-			let b = block s in
+			let b = block [] s in
 			EBlock (e :: b)
 		with
 			| Error (e,p) ->
 				(!display_error) e p;
-				EBlock (block s)
+				EBlock (block [] s)
 
-and block s =
-	try
+and block acc s =
+	try		
 		let e = parse_block_elt s in
-		e :: block s
+		block (e :: acc) s
 	with
+		| Display e ->
+			display (EBlock (List.rev (e :: acc)),snd e)
 		| Stream.Failure ->
-			[]
+			List.rev acc
 		| Stream.Error _ ->
 			let tk , pos = (match Stream.peek s with None -> last_token s | Some t -> t) in
 			(!display_error) (Unexpected tk) pos;
-			block s
+			block acc s
         | Error (e,p) ->
 			(!display_error) e p;
-			block s
+			block acc s
 
 and parse_block_elt = parser
 	| [< '(Kwd Var,p1); vl = psep Comma parse_var_decl; p2 = semicolon >] -> (EVars vl,punion p1 p2)
@@ -463,8 +510,12 @@ and expr = parser
 		expr_next (EFunction f, punion p1 (pos e)) s
 	| [< '(Unop op,p1) when is_prefix op; e = expr >] -> make_unop op e p1
 	| [< '(Binop OpSub,p1); e = expr >] -> make_unop Neg e p1
-	| [< '(Kwd For,p); '(POpen,_); name = any_ident; '(Kwd In,_); it = expr; '(PClose,_); e = expr; s >] ->
-		expr_next (EFor (name,it,e),punion p (pos e)) s
+	| [< '(Kwd For,p); '(POpen,_); name = any_ident; '(Kwd In,_); it = expr; '(PClose,_); s >] ->
+		(try
+			let e = expr s in
+			expr_next (EFor (name,it,e),punion p (pos e)) s
+		with
+			Display e -> display (EFor (name,it,e),punion p (pos e)))
 	| [< '(Kwd If,p); '(POpen,_); cond = expr; '(PClose,_); e1 = expr; s >] ->
 		let e2 , s = (match s with parser
 			| [< '(Kwd Else,_); e2 = expr; s >] -> Some e2 , s
@@ -485,21 +536,21 @@ and expr = parser
 	| [< '(Kwd Continue,p) >] -> (EContinue,p)
 	| [< '(Kwd While,p1); '(POpen,_); cond = expr; '(PClose,_); e = expr; s >] -> expr_next (EWhile (cond,e,NormalWhile),punion p1 (pos e)) s
 	| [< '(Kwd Do,p1); e = expr; '(Kwd While,_); '(POpen,_); cond = expr; '(PClose,_); s >] -> expr_next (EWhile (cond,e,DoWhile),punion p1 (pos e)) s
-	| [< '(Kwd Switch,p1); e = expr; '(BrOpen,_); cases , def = parse_switch_cases; '(BrClose,p2); s >] -> expr_next (ESwitch (e,cases,def),punion p1 p2) s
-	| [< '(Kwd Try,p1); e = expr; cl = plist parse_catch; s >] -> expr_next (ETry (e,cl),p1) s
+	| [< '(Kwd Switch,p1); e = expr; '(BrOpen,_); cases , def = parse_switch_cases e []; '(BrClose,p2); s >] -> expr_next (ESwitch (e,cases,def),punion p1 p2) s
+	| [< '(Kwd Try,p1); e = expr; cl = plist (parse_catch e); s >] -> expr_next (ETry (e,cl),p1) s
 	| [< '(IntInterval i,p1); e2 = expr >] -> make_binop OpInterval (EConst (Int i),p1) e2
 	| [< '(Kwd Untyped,p1); e = expr >] -> (EUntyped e,punion p1 (pos e))
 
 and expr_next e1 = parser
 	| [< '(Dot,p); s >] ->
 		(match s with parser
-		| [< '(Const (Ident f),p); s >] -> expr_next (EField (e1,f) , punion (pos e1) p) s
-		| [< '(Const (Type t),p); s >] -> expr_next (EType (e1,t) , punion (pos e1) p) s
-		| [< >] -> if !resume_display then (EDisplay e1, p) else serror())
+		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
+		| [< '(Const (Type t),p2) when p.pmax = p2.pmin; s >] -> expr_next (EType (e1,t) , punion (pos e1) p2) s
+		| [< >] -> display (EDisplay e1,p))
 	| [< '(POpen,p1); params = psep Comma expr; s >] ->
 		(match s with parser
 		| [< '(PClose,p2); s >] -> expr_next (ECall (e1,params) , punion (pos e1) p2) s
-		| [< >] -> if !resume_display then (EDisplay e1,p1) else serror())
+		| [< >] -> display (EDisplay e1,p1))
 	| [< '(BkOpen,_); e2 = expr; '(BkClose,p2); s >] ->
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
 	| [< '(Binop OpGt,_); s >] ->
@@ -527,20 +578,33 @@ and expr_next e1 = parser
 		expr_next (EUnop (op,Postfix,e1), punion (pos e1) p) s
 	| [< >] -> e1
 
-and parse_switch_cases = parser
-	| [< '(Kwd Default,p1); '(DblDot,_); e = block1; l , def = parse_switch_cases >] ->
+and parse_switch_cases eswitch cases = parser
+	| [< '(Kwd Default,p1); '(DblDot,_); s >] ->
+		let b = (try block1 s with Display e -> display (ESwitch (eswitch,cases,Some e),p1)) in
+		let l , def = parse_switch_cases eswitch cases s in
 		(match def with None -> () | Some (e,p) -> error Duplicate_default p);
-		l , Some (e , p1)
-	| [< '(Kwd Case,p1); el = psep Comma expr; '(DblDot,_); b = block1; l , def = parse_switch_cases >] ->
-		(el,(b,p1)) :: l , def
+		l , Some (b,p1)
+	| [< '(Kwd Case,p1); el = psep Comma expr; '(DblDot,_); s >] ->
+		let b = (try block1 s with Display e -> display (ESwitch (eswitch,List.rev ((el,e) :: cases),None),p1)) in
+		parse_switch_cases eswitch ((el,(b,p1)) :: cases) s
 	| [< >] ->
-		[] , None
+		List.rev cases , None
 
-and parse_catch = parser
-	| [< '(Kwd Catch,_); '(POpen,_); name = any_ident; s >] ->
+and parse_catch etry = parser
+	| [< '(Kwd Catch,p); '(POpen,_); name = any_ident; s >] ->
 		match s with parser
-		| [< '(DblDot,_); t = parse_type_path; '(PClose,_); e = expr >] -> (name,t,e)
+		| [< '(DblDot,_); t = parse_type_path; '(PClose,_); s >] ->
+			(try
+				(name,t,expr s)
+			with
+				Display e -> display (ETry (etry,[name,t,e]),p))
 		| [< '(_,p) >] -> error Missing_type p
+
+and toplevel_expr s =
+	try
+		expr s
+	with
+		Display e -> e
 
 let parse code file =
 	let old = Lexer.save() in
