@@ -122,10 +122,15 @@ class ThreadServer<Client,Message> {
 				}
 			}
 		while( true ) {
-			var s = neko.vm.Thread.readMessage(t.socks.length == 0);
-			if( s == null )
+			var m : { s : neko.net.Socket, cnx : Bool } = neko.vm.Thread.readMessage(t.socks.length == 0);
+			if( m == null )
 				break;
-			t.socks.push(s);
+			if( m.cnx )
+				t.socks.push(m.s);
+			else if( t.socks.remove(m.s) ) {
+				var infos : ClientInfos<Client> = m.s.custom;
+				work(callback(doClientDisconnected,m.s,infos.client));
+			}
 		}
 	}
 
@@ -177,7 +182,7 @@ class ThreadServer<Client,Message> {
 			bufpos : 0,
 		};
 		sock.custom = infos;
-		infos.thread.t.sendMessage(sock);
+		infos.thread.t.sendMessage({ s : sock, cnx : true });
 	}
 
 	function runTimer() {
@@ -231,7 +236,9 @@ class ThreadServer<Client,Message> {
 	}
 
 	public function stopClient( s : neko.net.Socket ) {
+		var infos : ClientInfos<Client> = s.custom;
 		try s.shutdown(true,true) catch( e : Dynamic ) { };
+		infos.thread.t.sendMessage({ s : s, cnx : false });
 	}
 
 	// --- CUSTOMIZABLE API ---
