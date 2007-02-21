@@ -290,15 +290,11 @@ class Web {
 
 	static function __init__() {
 		var get_env = Lib.load("std","get_env",1);
-		untyped isModNeko = (get_env("MOD_NEKO".__s) != null);
+		var ver = untyped get_env("MOD_NEKO".__s);
+		untyped isModNeko = (ver != null);
 		if( isModNeko ) {
-			var lib = "mod_neko";
-			try {
-				_set_main = Lib.load(lib,"cgi_set_main",1);
-			} catch( e : Dynamic ) {
-				lib = "mod_neko2";
-				_set_main = Lib.load(lib,"cgi_set_main",1);
-			}
+			var lib = "mod_neko"+if( ver == untyped "1".__s ) "" else ver;
+			_set_main = Lib.load(lib,"cgi_set_main",1);
 			_get_host_name = Lib.load(lib,"get_host_name",0);
 			_get_client_ip = Lib.load(lib,"get_client_ip",0);
 			_get_uri = Lib.load(lib,"get_uri",0);
