@@ -534,7 +534,12 @@ and expr = parser
 	| [< '(Kwd Return,p); e = popt expr >] -> (EReturn e, match e with None -> p | Some e -> punion p (pos e))
 	| [< '(Kwd Break,p) >] -> (EBreak,p)
 	| [< '(Kwd Continue,p) >] -> (EContinue,p)
-	| [< '(Kwd While,p1); '(POpen,_); cond = expr; '(PClose,_); e = expr; s >] -> expr_next (EWhile (cond,e,NormalWhile),punion p1 (pos e)) s
+	| [< '(Kwd While,p1); '(POpen,_); cond = expr; '(PClose,_); s >] ->
+		(try
+			let e = expr s in
+			expr_next (EWhile (cond,e,NormalWhile),punion p1 (pos e)) s
+		with
+			Display e -> display (EWhile (cond,e,NormalWhile),punion p1 (pos e)))
 	| [< '(Kwd Do,p1); e = expr; '(Kwd While,_); '(POpen,_); cond = expr; '(PClose,_); s >] -> expr_next (EWhile (cond,e,DoWhile),punion p1 (pos e)) s
 	| [< '(Kwd Switch,p1); e = expr; '(BrOpen,_); cases , def = parse_switch_cases e []; '(BrClose,p2); s >] -> expr_next (ESwitch (e,cases,def),punion p1 p2) s
 	| [< '(Kwd Try,p1); e = expr; cl = plist (parse_catch e); s >] -> expr_next (ETry (e,cl),p1) s
