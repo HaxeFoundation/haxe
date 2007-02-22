@@ -64,7 +64,7 @@ class Manager<T : Object> {
 
 		// get the list of private fields
 		var apriv : Array<String> = cl.PRIVATE_FIELDS;
-		if( apriv == null ) apriv = new Array();
+		apriv = if( apriv == null ) new Array() else apriv.copy();
 		apriv.push("local_manager");
 		apriv.push("__class__");
 
@@ -306,7 +306,7 @@ class Manager<T : Object> {
 
 	function quoteField(f : String) {
 		var fsmall = f.toLowerCase();
-		if( fsmall == "read" || fsmall == "desc" || fsmall == "out" || fsmall == "group" )
+		if( fsmall == "read" || fsmall == "desc" || fsmall == "out" || fsmall == "group" || fsmall == "version" )
 			return "`"+f+"`";
 		return f;
 	}
