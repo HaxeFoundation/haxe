@@ -150,9 +150,10 @@ class Text2Xhtml {
 		str = StringTools.replace(str, "\r\n", "\n");
 		str = StringTools.replace(str, "\r", "\n");
 		str = StringTools.htmlEscape(str);
-		while (!StringTools.endsWith(str, "\n\n")){
+		while (!StringTools.endsWith(str, "\n\n"))
 			str += "\n";
-		}			
+		while (!StringTools.startsWith(str, "\n\n"))
+			str = "\n"+str;
 
 		var helper = new StringHelper(str);
 		var extractedPre = helper.extract("pre", pre, "<pre>$1</pre>");
