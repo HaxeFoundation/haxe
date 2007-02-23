@@ -25,23 +25,21 @@
  */
 package neko.net;
 
-enum HostHandle {
-}
 
 class Host {
 
-	public var __h : HostHandle;
+	public var ip(default,null) : neko.Int32;
 
 	public function new( name : String ) {
-		__h = host_resolve(untyped name.__s);
+		ip = host_resolve(untyped name.__s);
 	}
 
 	public function toString() : String {
-		return new String(host_to_string(__h));
+		return new String(host_to_string(ip));
 	}
 
 	public function reverse() {
-		return new String(host_reverse(__h));
+		return new String(host_reverse(ip));
 	}
 
 	public static function localhost() : String {

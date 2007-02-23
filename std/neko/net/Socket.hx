@@ -62,7 +62,7 @@ class Socket {
 
 	public function connect(host : Host, port : Int) {
 		try {
-			socket_connect(__s, host.__h, port);
+			socket_connect(__s, host.ip, port);
 		} catch( s : String ) {
 			if( s == "std@socket_connect" )
 				throw "Failed to connect on "+(try host.reverse() catch( e : Dynamic ) host.toString())+":"+port;
@@ -80,7 +80,7 @@ class Socket {
 	}
 
 	public function bind(host : Host, port : Int) {
-		socket_bind(__s, host.__h, port);
+		socket_bind(__s, host.ip, port);
 	}
 
 	public function accept() : Socket {
