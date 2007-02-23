@@ -359,14 +359,14 @@ try
 	| Swf file ->
 		(* check file extension. In case of wrong commandline, we don't want
 		   to accidentaly delete a source file. *)
-		if file_extension file = "swf" then delete_file file;
+		if not !display && file_extension file = "swf" then delete_file file;
 		Plugin.define "flash";
 		Plugin.define ("flash"  ^ string_of_int !swf_version);
 	| Neko file ->
-		if file_extension file = "n" then delete_file file;
+		if not !display && file_extension file = "n" then delete_file file;
 		Plugin.define "neko";
 	| Js file ->
-		if file_extension file = "js" then delete_file file;
+		if not !display && file_extension file = "js" then delete_file file;
 		Plugin.define "js";
 	);
 	if !classes = [([],"Std")] then begin
@@ -379,6 +379,7 @@ try
 		if !has_error then do_exit();
 		if !display then begin
 			target := No;
+			xml_out := None;
 			auto_xml := false;
 		end;
 		let do_auto_xml file = if !auto_xml then xml_out := Some (file ^ ".xml") in
@@ -404,7 +405,7 @@ try
 			if !Plugin.verbose then print_endline ("Generating xml : " ^ file);
 			Genxml.generate file ctx types);
 	end;
-	List.iter (fun cmd ->
+	if not !display then List.iter (fun cmd ->
 		let len = String.length cmd in
 		if len > 3 && String.sub cmd 0 3 = "cd " then
 			Sys.chdir (String.sub cmd 3 (len - 3))
