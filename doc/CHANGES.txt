@@ -10,6 +10,7 @@
 	added haxe.remoting.FlashJsConnection
 	fixed tar support in neko.zip.File
 	ide completion support using --display
+	give access to neko.net.Host ip (as Int32)
 
 2007-01-28: 1.11
 	changed StringBuf.add implementation
