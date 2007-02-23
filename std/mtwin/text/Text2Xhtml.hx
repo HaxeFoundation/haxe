@@ -50,6 +50,14 @@ import haxe.Md5;
 
 	--- h3 : line starts with 3 -
 
+
+	You may specify titles' ids using #myid# before your title text :
+
+	--- #anchorhere# my title
+
+	#anchorhere# my title
+	----
+
 	- list item 1
 	- list item 2
     - no sub level at this time
@@ -128,12 +136,14 @@ class Text2Xhtml {
 	public var htmlEnabled : Bool;
 	public var codeEnabled : Bool;
 	public var swfEnabled : Bool;
+	public var titleIdsEnabled : Bool;
 
 	public function new(){
 		paragraphSeparator = "\n\n";
 		htmlEnabled = true;
 		codeEnabled = true;
 		swfEnabled = true;
+		titleIdsEnabled = true;
 	}
 
 	public function transform( str:String ) : String {
@@ -157,6 +167,12 @@ class Text2Xhtml {
 		str = rh2e.replace(str, "<h2>$1</h2>");
 		str = rh3.replace(str, "<h3>$1</h3>");
 		str = rh3e.replace(str, "<h3>$1</h3>");
+
+		if (titleIdsEnabled){
+			str = (~/<h1>#(.*?)# (.*?)<\/h1>/g).replace(str, "<h1 id=\"$1\">$2</h1>");
+			str = (~/<h2>#(.*?)# (.*?)<\/h2>/g).replace(str, "<h2 id=\"$1\">$2</h2>");
+			str = (~/<h3>#(.*?)# (.*?)<\/h3>/g).replace(str, "<h3 id=\"$1\">$2</h3>");
+		}
 
 		while (olli.match(str)){
 			var list = olli.matched(0);
