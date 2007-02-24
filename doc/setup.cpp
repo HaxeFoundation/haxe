@@ -40,12 +40,12 @@ int WINAPI WinMain( HINSTANCE inst, HINSTANCE prev, LPSTR lpCmdLine, int nCmdSho
 	RegOpenKey(HKEY_LOCAL_MACHINE,"SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment",&k);
 	RegQueryValueEx(k,"PATH",NULL,&ktype,(LPBYTE)kdata,&ksize);
 	if( strstr(kdata,"%HAXEPATH%") == NULL ) {
-		s = kdata + strlen(kdata);
+		char *s = kdata + strlen(kdata);
 		strcpy(s,";%HAXEPATH%");
 		RegSetValueEx(k,"PATH",0,REG_EXPAND_SZ,(const BYTE*)kdata,(DWORD)(strlen(kdata)+1));
 	}
 	if( strstr(kdata,"%NEKO_INSTPATH%") == NULL ) {
-		s = kdata + strlen(kdata);
+		char *s = kdata + strlen(kdata);
 		strcpy(s,";%NEKO_INSTPATH%");
 		RegSetValueEx(k,"PATH",0,REG_EXPAND_SZ,(const BYTE*)kdata,(DWORD)(strlen(kdata)+1));
 	}
