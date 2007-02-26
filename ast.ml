@@ -194,6 +194,7 @@ and expr_def =
 	| EThrow of expr
 	| ECast of expr * type_path option
 	| EDisplay of expr
+	| EDisplayNew of type_path_normal
 
 and expr = expr_def * pos
 

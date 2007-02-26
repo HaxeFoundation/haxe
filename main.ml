@@ -70,12 +70,12 @@ let report msg p =
 	warn msg p;
 	do_exit()
 
+let htmlescape s =
+	let s = String.concat "&lt;" (ExtString.String.nsplit s "<") in
+	let s = String.concat "&gt;" (ExtString.String.nsplit s ">") in
+	s
+
 let report_list l =
-	let htmlescape s =
-		let s = String.concat "&lt;" (ExtString.String.nsplit s "<") in
-		let s = String.concat "&gt;" (ExtString.String.nsplit s ">") in
-		s
-	in
 	prerr_endline "<list>";
 	List.iter (fun (n,t,d) ->
 		prerr_endline (Printf.sprintf "<i n=\"%s\"><t>%s</t><d>%s</d></i>" n (htmlescape t) (htmlescape d));
@@ -436,10 +436,15 @@ with
 		(match Type.follow t with
 		| Type.TAnon a ->
 			report_list (PMap.fold (fun f acc ->
-				(f.Type.cf_name,Type.s_type ctx f.Type.cf_type,match f.Type.cf_doc with None -> "" | Some d -> d) :: acc
+				if not f.Type.cf_public then
+					acc
+				else
+					(f.Type.cf_name,Type.s_type ctx f.Type.cf_type,match f.Type.cf_doc with None -> "" | Some d -> d) :: acc
 			) a.Type.a_fields []);
 		| _ ->
-			prerr_string (Type.s_type ctx t));
+			prerr_endline "<type>";
+			prerr_endline (htmlescape (Type.s_type ctx t));
+			prerr_endline "</type>");
 		exit 0;
 	| Parser.TypePath p ->
 		let packs, classes = read_type_path p (!Plugin.class_path) in

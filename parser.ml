@@ -499,7 +499,11 @@ and expr = parser
 		| [< e = expr; s >] -> expr_next (ECast (e,None),punion p1 (pos e)) s
 		| [< >] -> serror())
 	| [< '(Kwd Throw,p); e = expr >] -> (EThrow e,p)
-	| [< '(Kwd New,p1); t = parse_type_path_normal; '(POpen,_); al = psep Comma expr; '(PClose,p2); s >] -> expr_next (ENew (t,al),punion p1 p2) s
+	| [< '(Kwd New,p1); t = parse_type_path_normal; '(POpen,p); s >] ->
+		if is_resuming p then display (EDisplayNew t,punion p1 p);
+		(match s with parser
+		| [< al = psep Comma expr; '(PClose,p2); s >] -> expr_next (ENew (t,al),punion p1 p2) s
+		| [< >] -> serror())
 	| [< '(POpen,p1); e = expr; '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
 	| [< '(BkOpen,p1); l = parse_array_decl; '(BkClose,p2); s >] -> expr_next (EArrayDecl l, punion p1 p2) s
 	| [< '(Kwd Function,p1); '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; e = expr; s >] ->

@@ -1887,7 +1887,9 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		) in
 		mk (TCall (mk (TConst TSuper) t sp,el)) (t_void ctx) p
 	| ECall (e,el) ->
-		(match e with EField ((EConst (Ident "super"),_),_) , _ -> ctx.super_call <- true | _ -> ());
+		(match e with 
+		| EField ((EConst (Ident "super"),_),_) , _ | EType ((EConst (Ident "super"),_),_) , _ -> ctx.super_call <- true
+		| _ -> ());
 		let e = type_expr ctx e in
 		let el , t = (match follow e.etype with
 		| TFun (args,r) ->
@@ -1910,7 +1912,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		mk (TCall (e,el)) t p
 	| ENew (t,el) ->
 		let t = load_normal_type ctx t p true in
-		let el, c , params , t = (match follow t with
+		let el, c , params = (match follow t with
 		| TInst (c,params) ->
 			let name = (match c.cl_path with [], name -> name | x :: _ , _ -> x) in
 			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;
@@ -1922,7 +1924,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			| _ ->
 				error "Constructor is not a function" p
 			) in
-			el , c , params , t
+			el , c , params
 		| _ ->
 			error (s_type (print_context()) t ^ " cannot be constructed") p
 		) in
@@ -2013,6 +2015,15 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			| t -> t
 		) in
 		raise (Display t)
+	| EDisplayNew t ->
+		let t = load_normal_type ctx t p true in
+		(match follow t with
+		| TInst (c,params) ->
+			let f = (match c.cl_constructor with Some f -> f | None -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
+			let t = apply_params c.cl_types params (field_type f) in
+			raise (Display t)
+		| _ -> 
+			error "Not a class" p)
 
 and type_function ctx t static constr f p =
 	let locals = save_locals ctx in
