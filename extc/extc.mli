@@ -20,3 +20,4 @@
 val zip : string -> string
 val unzip : string -> string
 val executable_path : unit -> string
+val get_full_path : string -> string

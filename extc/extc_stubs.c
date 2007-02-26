@@ -28,6 +28,7 @@
 #endif
 #ifdef __APPLE__
 #	include <sys/param.h>
+#	include <sys/syslimits.h>
 #	include <mach-o/dyld.h>
 #endif
 
@@ -146,5 +147,19 @@ CAMLprim value executable_path(value u) {
 	    path[length] = '\0';
 		return caml_copy_string(path);
 	}
+#endif
+}
+
+CAMLprim value get_full_path( value f ) {
+#ifdef _WIN32
+	char path[MAX_PATH];
+	if( GetFullPathName(String_val(f),MAX_PATH,path,NULL) == 0 )
+		failwith("get_full_path");
+	return caml_copy_string(path);
+#else
+	char path[PATH_MAX];
+	if( realpath(String_val(f),path) == NULL )
+		failwith("get_full_path");
+	return caml_copy_string(path);
 #endif
 }

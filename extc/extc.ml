@@ -25,7 +25,7 @@ type zflush =
 	| Z_SYNC_FLUSH
 	| Z_FULL_FLUSH
 	| Z_FINISH
-	
+
 
 type zresult = {
 	z_finish : bool;
@@ -42,6 +42,7 @@ external zlib_inflate : zstream -> src:string -> spos:int -> slen:int -> dst:str
 external zlib_inflate_end : zstream -> unit = "zlib_inflate_end"
 
 external _executable_path : string -> string = "executable_path"
+external get_full_path : string -> string = "get_full_path"
 
 let executable_path() =
 	let p = _executable_path Sys.argv.(0) in
