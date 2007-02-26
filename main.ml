@@ -79,7 +79,7 @@ let report_list l =
 	prerr_endline "<list>";
 	List.iter (fun (n,t,d) ->
 		prerr_endline (Printf.sprintf "<i n=\"%s\"><t>%s</t><d>%s</d></i>" n (htmlescape t) (htmlescape d));
-	) l;
+	) (List.sort (fun (a,_,_) (b,_,_) -> compare a b) l);
 	prerr_endline "</list>"
 
 let type_error e p =
