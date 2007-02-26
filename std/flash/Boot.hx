@@ -252,6 +252,7 @@ class Boot {
 			};
 			Array.prototype[__unprotect__("__class__")] = Array;
 			Array[__unprotect__("__name__")] = ["Array"];
+			_global["ASSetPropFlags"](Array.prototype,null,7);
 			String.prototype[__unprotect__("__class__")] = String;
 			String[__unprotect__("__name__")] = ["String"];
 			var cca = String.prototype["charCodeAt"];
