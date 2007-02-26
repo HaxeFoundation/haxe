@@ -26,6 +26,8 @@ let defines = ref (PMap.add "true" () PMap.empty)
 let defined v = PMap.mem v (!defines)
 let define v = defines := PMap.add v () (!defines)
 
+let get_full_path = ref (fun (s:string) -> s)
+
 let find_file f =
 	let rec loop = function
 		| [] -> raise Not_found

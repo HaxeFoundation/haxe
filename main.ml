@@ -30,6 +30,12 @@ let has_error = ref false
 let auto_xml = ref false
 let display = ref false
 
+let executable_path() =
+	Extc.executable_path()
+
+let get_full_path file =
+	Extc.get_full_path file
+
 let normalize_path p =
 	let l = String.length p in
 	if l = 0 then
@@ -188,7 +194,7 @@ try
 			if Sys.os_type = "Unix" then
 				Plugin.class_path := ["/usr/lib/haxe/std/";"/usr/local/lib/haxe/std/";"";"/"]
 			else
-				let base_path = normalize_path (try Extc.executable_path() with _ -> "./") in
+				let base_path = normalize_path (try executable_path() with _ -> "./") in
 				Plugin.class_path := [base_path ^ "std/";"";"/"]);
 	let check_targets() =
 		if !target <> No then failwith "Multiple targets";
@@ -298,9 +304,15 @@ try
 		("--next", Arg.Unit (fun() -> assert false), ": separate several haxe compilations");
 		("--altfmt", Arg.Unit (fun() -> alt_format := true),": use alternative error output format");
 		("--auto-xml", Arg.Unit (fun() -> auto_xml := true),": automatically create an XML for each target");
-		("--display", Arg.Unit (fun () ->
+		("--display", Arg.String (fun file_pos ->
+			let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
+			let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
 			display := true;
-			Parser.resume_display := true;
+			Parser.resume_display := {
+				Ast.pfile = (!Plugin.get_full_path) file;
+				Ast.pmin = pos;
+				Ast.pmax = pos;
+			};
 		),": display code tips");
 	] in
 	let current = ref 0 in
@@ -438,5 +450,6 @@ with
 
 ;;
 let time = Sys.time() in
+Plugin.get_full_path := get_full_path;
 process_params [] (List.tl (Array.to_list Sys.argv));
 if !Plugin.verbose then print_endline ("Time spent : " ^ string_of_float (Sys.time() -. time));

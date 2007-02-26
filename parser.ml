@@ -44,7 +44,7 @@ let display_error : (error_msg -> pos -> unit) ref = ref (fun _ _ -> assert fals
 let cache = ref (DynArray.create())
 let doc = ref None
 let use_doc = ref false
-let resume_display = ref false
+let resume_display = ref null_pos
 
 let last_token s =
 	let n = Stream.count s in
@@ -52,8 +52,13 @@ let last_token s =
 
 let serror() = raise (Stream.Error "")
 
-let display e =
-	if !resume_display then raise (Display e) else serror()
+let do_resume() = !resume_display <> null_pos
+
+let display e = raise (Display e)
+
+let is_resuming p = 
+	let p2 = !resume_display in
+	p.pmax = p2.pmin && (!Plugin.get_full_path) p.pfile = p2.pfile
 
 let priority = function
 	| OpAssign | OpAssignOp _ -> -4
@@ -144,7 +149,7 @@ let semicolon s =
 		| [< '(Semicolon,p) >] -> p
 		| [< s >] ->
 			let pos = snd (last_token s) in
-			if !resume_display then pos else error Missing_semicolon pos
+			if do_resume() then pos else error Missing_semicolon pos
 
 let rec	parse_file s =
 	doc := None;
@@ -168,7 +173,7 @@ and parse_type_decl s =
 		| [< n , p1 = parse_class_flags; doc = get_doc; '(Const (Type name),_); tl = parse_constraint_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = parse_class_field_resume; s >] ->
 			let p2 = (match s with parser
 				| [< '(BrClose,p2) >] -> p2
-				| [< >] -> if !resume_display then p1 else serror()
+				| [< >] -> if do_resume() then p1 else serror()
 			) in
 			(EClass {
 				d_name = name;
@@ -189,7 +194,7 @@ and parse_type_decl s =
 and parse_package s = psep Dot ident s
 
 and parse_class_field_resume s =
-	if not !resume_display then
+	if not (do_resume()) then
 		plist parse_class_field s
 	else
 		(* junk all tokens until we reach next variable/function or next type declaration *)
@@ -226,17 +231,13 @@ and parse_class_field_resume s =
 					Stream.Error _ | Stream.Failure -> parse_class_field_resume s
 
 and parse_import acc = parser
-	| [< '(Const (Ident k),_); '(Dot,_); s >] ->
+	| [< '(Const (Ident k),_); '(Dot,p); s >] ->
+		if is_resuming p then raise (TypePath (List.rev (k :: acc)));
 		parse_import (k :: acc) s
 	| [< '(Const (Type t),_); s >] ->
-		(List.rev acc , t , match s with parser
+		List.rev acc , t , match s with parser
 			| [< '(Dot,_); '(Const (Type s),_) >] -> Some s
-			| [< >] -> None)
-	| [< >] ->
-		if !resume_display then
-			raise  (TypePath (List.rev acc))
-		else
-			serror()
+			| [< >] -> None
 
 and parse_common_flags = parser
 	| [< '(Kwd Private,_); l = parse_common_flags >] -> (HPrivate, EPrivate) :: l
@@ -270,10 +271,10 @@ and parse_type_path = parser
 		parse_type_path_next t s
 	| [< t = parse_type_path_normal; s >] -> parse_type_path_next (TPNormal t) s
 
-and parse_type_path_normal s = parse_type_path1 [] s
+and parse_type_path_normal s = parse_type_path1 [] null_pos s
 
-and parse_type_path1 pack = parser
-	| [< '(Const (Ident name),_); '(Dot,_); t = parse_type_path1 (name :: pack) >] -> t
+and parse_type_path1 pack p = parser
+	| [< '(Const (Ident name),_); '(Dot,p); t = parse_type_path1 (name :: pack) p >] -> t
 	| [< '(Const (Type name),_); s >] ->
 		let params = (match s with parser
 			| [< '(Binop OpLt,_); l = psep Comma parse_type_path_variance; '(Binop OpGt,_) >] -> l
@@ -285,7 +286,7 @@ and parse_type_path1 pack = parser
 			tparams = params
 		}
 	| [< >] ->
-		if !resume_display then
+		if is_resuming p then
 			raise  (TypePath (List.rev pack))
 		else
 			serror()
@@ -548,14 +549,16 @@ and expr = parser
 
 and expr_next e1 = parser
 	| [< '(Dot,p); s >] ->
+		if is_resuming p then display (EDisplay e1,p);
 		(match s with parser
 		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
 		| [< '(Const (Type t),p2) when p.pmax = p2.pmin; s >] -> expr_next (EType (e1,t) , punion (pos e1) p2) s
-		| [< >] -> display (EDisplay e1,p))
-	| [< '(POpen,p1); params = psep Comma expr; s >] ->
+		| [< >] -> serror())
+	| [< '(POpen,p1); s >] ->
+		if is_resuming p1 then display (EDisplay e1,p1);
 		(match s with parser
-		| [< '(PClose,p2); s >] -> expr_next (ECall (e1,params) , punion (pos e1) p2) s
-		| [< >] -> display (EDisplay e1,p1))
+		| [< params = psep Comma expr; '(PClose,p2); s >] -> expr_next (ECall (e1,params) , punion (pos e1) p2) s
+		| [< >] -> serror())
 	| [< '(BkOpen,_); e2 = expr; '(BkClose,p2); s >] ->
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
 	| [< '(Binop OpGt,_); s >] ->
