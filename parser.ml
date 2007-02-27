@@ -271,10 +271,14 @@ and parse_type_path = parser
 		parse_type_path_next t s
 	| [< t = parse_type_path_normal; s >] -> parse_type_path_next (TPNormal t) s
 
-and parse_type_path_normal s = parse_type_path1 [] null_pos s
+and parse_type_path_normal s = parse_type_path1 [] s
 
-and parse_type_path1 pack p = parser
-	| [< '(Const (Ident name),_); '(Dot,p); t = parse_type_path1 (name :: pack) p >] -> t
+and parse_type_path1 pack = parser
+	| [< '(Const (Ident name),_); '(Dot,p); s >] ->
+		if is_resuming p then
+			raise  (TypePath (List.rev (name :: pack)))
+		else
+			parse_type_path1 (name :: pack) s
 	| [< '(Const (Type name),_); s >] ->
 		let params = (match s with parser
 			| [< '(Binop OpLt,_); l = psep Comma parse_type_path_variance; '(Binop OpGt,_) >] -> l
@@ -285,11 +289,6 @@ and parse_type_path1 pack p = parser
 			tname = name;
 			tparams = params
 		}
-	| [< >] ->
-		if is_resuming p then
-			raise  (TypePath (List.rev pack))
-		else
-			serror()
 
 and parse_type_path_variance = parser
 	| [< '(Binop OpAdd,_); t = parse_type_path_or_const VCo >] -> t
