@@ -678,11 +678,11 @@ typedef Window = {
 	function moveBy( dx : Int, dy : Int ) : Void;
 	function moveTo( x : Int, y : Int ) : Void;
 	function print() : Void;
-	function prompt( msg : String ) : String;
+	function prompt( msg : String, ?def : String ) : String;
 	// FF1.5 resizeTo
 	function scrollBy( dx : Int, dy : Int ) : Void;
 	function scrollTo( x : Int, y : Int ) : Void;
-	function open( url : String, name : String, features : String ) : Window;
+	function open( url : String, ?name : String, ?features : String ) : Window;
 	// setInterval
 	// setTimeout
 
