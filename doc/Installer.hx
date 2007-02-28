@@ -69,9 +69,9 @@ class Installer {
 	}
 
 	function checkRights() {
-		if( SYS == "Windows" )
-			return true;
 		try {
+			if( !neko.FileSystem.exists(baseDir) )
+				neko.FileSystem.createDirectory(baseDir);
 			var tmp = baseDir + "/.tmp.haxe.inst";
 			var f = neko.io.File.write(tmp,true);
 			f.close();
@@ -80,7 +80,12 @@ class Installer {
 		} catch( e : Dynamic ) {
 			if( xcross.Api.authorize() )
 				return false;
-			xcross.Api.error("Error","You don't have the rights to write in "+baseDir+", please run the installer using 'sudo'");
+			var msg;
+			if( SYS == "Windows" )
+				msg = "You don't have administrative access on this computer,\nplease login on an administrator account.\nOnce haxe is installed, execute '"+baseDir+"\\haxesetup' on your own account.";
+			else
+				msg = "You don't have the rights to write in "+baseDir+", please run the installer using 'sudo'";
+			xcross.Api.error("Error",msg);
 			return false;
 		}
 	}
@@ -216,9 +221,6 @@ class Installer {
 			download("haxe.org",haxeFile.file);
 
 		// INSTALL
-		if( !neko.FileSystem.exists(baseDir) )
-			neko.FileSystem.createDirectory(baseDir);
-
 		if( needNeko ) {
 			copy(nekoFile.file,true);
 			installNeko();
