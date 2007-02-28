@@ -20,6 +20,10 @@
 // this is a small program that do basic haXe setup on Windows
 #include <windows.h>
 
+static void Set( HKEY k, const char *name, DWORD t, const char *data ) {
+	RegSetValueEx(k,name,0,t,(const BYTE*)data,(DWORD)strlen(data)+1);
+}
+
 int WINAPI WinMain( HINSTANCE inst, HINSTANCE prev, LPSTR lpCmdLine, int nCmdShow ) {
 	char path[MAX_PATH];
 	*path = '"';
@@ -37,22 +41,23 @@ int WINAPI WinMain( HINSTANCE inst, HINSTANCE prev, LPSTR lpCmdLine, int nCmdSho
 	DWORD ktype;
 	DWORD ksize = 16000;
 	char *kdata = new char[16000];
-	RegOpenKey(HKEY_LOCAL_MACHINE,"SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment",&k);
+	memset(kdata,0,ksize);
+	RegOpenKey(HKEY_CURRENT_USER,"Environment",&k);	
 	RegQueryValueEx(k,"PATH",NULL,&ktype,(LPBYTE)kdata,&ksize);
 	if( strstr(kdata,"%HAXEPATH%") == NULL ) {
 		char *s = kdata + strlen(kdata);
 		strcpy(s,";%HAXEPATH%");
-		RegSetValueEx(k,"PATH",0,REG_EXPAND_SZ,(const BYTE*)kdata,(DWORD)(strlen(kdata)+1));
+		Set(k,"PATH",REG_EXPAND_SZ,kdata);		
 	}
 	if( strstr(kdata,"%NEKO_INSTPATH%") == NULL ) {
 		char *s = kdata + strlen(kdata);
 		strcpy(s,";%NEKO_INSTPATH%");
-		RegSetValueEx(k,"PATH",0,REG_EXPAND_SZ,(const BYTE*)kdata,(DWORD)(strlen(kdata)+1));
+		Set(k,"PATH",REG_EXPAND_SZ,kdata);
 	}
-	RegSetValueEx(k,"HAXEPATH",0,REG_SZ,(const BYTE*)(path+1),(DWORD)strlen(path));
+	Set(k,"HAXEPATH",REG_SZ,path + 1);	
 	s[-1] = 0;
 	strcpy(strrchr(path,'\\'),"\\neko");
-	RegSetValueEx(k,"NEKO_INSTPATH",0,REG_SZ,(const BYTE*)(path+1),(DWORD)strlen(path));
+	Set(k,"NEKO_INSTPATH",REG_SZ,path+1);
 	RegCloseKey(k);
 
 	// inform running apps of env changes (W2K/NT systems only ?)
