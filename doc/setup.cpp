@@ -55,8 +55,9 @@ int WINAPI WinMain( HINSTANCE inst, HINSTANCE prev, LPSTR lpCmdLine, int nCmdSho
 	RegSetValueEx(k,"NEKO_INSTPATH",0,REG_SZ,(const BYTE*)(path+1),(DWORD)strlen(path));
 	RegCloseKey(k);
 
-	// inform running apps of env changes
-	SendMessage(HWND_BROADCAST,WM_SETTINGCHANGE, 0, (LPARAM)"Environment");
+	// inform running apps of env changes (W2K/NT systems only ?)
+	DWORD unused;
+	SendMessageTimeout(HWND_BROADCAST,WM_SETTINGCHANGE, 0, (LPARAM)"Environment", SMTO_ABORTIFHUNG, 5000, &unused );
 
 	delete kdata;
 	// register 
