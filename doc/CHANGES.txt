@@ -13,6 +13,7 @@
 	give access to neko.net.Host ip (as Int32)
 	fixed bug when calling super.UpperCaseMethod()
 	hide additional flash Array methods
+	allow leading comma in anonymous types
 
 2007-01-28: 1.11
 	changed StringBuf.add implementation

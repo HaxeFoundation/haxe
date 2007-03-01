@@ -316,11 +316,12 @@ and parse_type_anonymous_resume name = parser
 		(name, None, AFVar t, p) ::
 		match s with parser
 		| [< '(BrClose,_) >] -> []
-		| [< '(Comma,_); l = psep Comma parse_type_anonymous; '(BrClose,_) >] -> l
+		| [< '(Comma,_) >] ->
+			(match s with parser
+			| [< '(BrClose,_) >] -> []
+			| [< name = any_ident; s >] -> parse_type_anonymous_resume name s
+			| [< >] -> serror());
 		| [< >] -> serror()
-
-and parse_type_anonymous = parser
-	| [< name = any_ident; '(DblDot,p); t = parse_type_path >] -> (name, None, AFVar t, p)
 
 and parse_enum s =
 	doc := None;
