@@ -430,12 +430,12 @@ and block2 name ident p = parser
 	| [< e = expr_next (EConst (if ident then Ident name else Type name),p); s >] ->
 		try
 			let _ = semicolon s in
-			let b = block [] s in
-			EBlock (e :: b)
+			let b = block [e] s in
+			EBlock b
 		with
-			| Error (e,p) ->
-				(!display_error) e p;
-				EBlock (block [] s)
+			| Error (err,p) ->
+				(!display_error) err p;
+				EBlock (block [e] s)
 
 and block acc s =
 	try		
