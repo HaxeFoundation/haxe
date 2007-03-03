@@ -129,11 +129,7 @@ class Unserializer {
  				else
  					break;
  			}
- 			var s = buf.substr(p1,pos-p1);
- 			var f = Std.parseFloat(s);
- 			if( f == null )
- 				throw ("Invalid float "+s);
- 			return f;
+ 			return Std.parseFloat(buf.substr(p1,pos-p1));
 		case 121: // y
  			var len = readDigits();
  			if( buf.charAt(pos++) != ":" || length - pos < len )

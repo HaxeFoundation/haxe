@@ -79,11 +79,11 @@ class Std {
 	/**
 		Convert a String to an Int, parsing different possible representations. Returns [null] if could not be parsed.
 	**/
-	public static function parseInt( x : String ) : Int {
+	public static function parseInt( x : String ) : Null<Int> {
 		untyped {
 		#if flash9
 		var v = __global__["parseInt"](x);
-		if( Math.isNaN(v) )
+		if( __global__["isNaN"](v) )
 			return null;
 		return v;
 		#else flash
@@ -137,7 +137,7 @@ class Std {
 	/**
 		Return the character code of the first character of the String, or null if the String is empty.
 	**/
-	public static function ord( x : String ) : Int {
+	public static function ord( x : String ) : Null<Int> {
 		#if flash
 		if( x == "" )
 			return null;

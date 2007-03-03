@@ -218,8 +218,9 @@ class Serializer {
 					serialize(i);
 				buf.add("h");
 			case cast Date:
+				var d : Date = v;
 				buf.add("v");
-				buf.add(v.toString());
+				buf.add(d.toString());
 			case cast Hash:
 				buf.add("b");
 				for( k in v.keys() ) {

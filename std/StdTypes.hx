@@ -49,6 +49,14 @@ typedef UInt = Int
 #end
 
 /**
+	[Null] can be useful in two cases. In order to document some methods
+	that accepts or can return a [null] value, or for the Flash9 compiler and AS3
+	generator to distinguish between base values that can be null and others that
+	can't.
+**/
+typedef Null<T> = T
+
+/**
 	The standard Boolean type is represented as an enum with two choices.
 **/
 extern enum Bool {

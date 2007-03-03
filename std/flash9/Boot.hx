@@ -3,16 +3,19 @@ package flash;
 class Boot extends flash.display.MovieClip {
 
 	#if (!flash9doc)
-	
+
 	static var init : Void -> Void;
 	static var tf : flash.text.TextField;
 	static var lines : Array<String>;
+	public static var skip_constructor = false;
 
-	function new() {
+	public function new(?mc:flash.display.MovieClip) {
 		super();
 		untyped {
 			var aproto = Array.prototype;
-			aproto.copy = aproto.slice;
+			aproto.copy = function() {
+				return this.slice();
+			};
 			aproto.insert = function(i,x) {
 				this.splice(i,0,x);
 			};
@@ -36,10 +39,12 @@ class Boot extends flash.display.MovieClip {
 					}
 				}
 			};
+			#if !as3gen
 			Bool = __global__["Boolean"];
 			Int = __global__["int"];
 			Float = __global__["Number"];
 			Dynamic = { toString : function(){ return "Dynamic"; } };
+			#end
 			var cca = String.prototype.charCodeAt;
 			String.prototype.charCodeAt = function(i) {
 				var x = cca.call(this,i);
@@ -49,37 +54,38 @@ class Boot extends flash.display.MovieClip {
 			};
 		}
 		lines = new Array();
-		flash.Lib.current = this;
-		init();
+		flash.Lib.current = if( mc == null ) this else mc;
+		if( init != null )
+			init();
 	}
 
-	static function enum_to_string( e ) {
+	public static function enum_to_string( e ) {
 		if( e.params == null )
 			return e.tag;
 		return e.tag+"("+e.params.join(",")+")";
 	}
 
-	static function __instanceof( v : Dynamic, t : Dynamic ) {
+	public static function __instanceof( v : Dynamic, t : Dynamic ) {
 		try {
 			if( t === untyped __global__["Dynamic"] )
 				return true;
 			return untyped __is__(v,t);
 		} catch( e : Dynamic ) {
-			return false;
 		}
+		return false;
 	}
 
-	static function __clear_trace() {
+	public static function __clear_trace() {
 		flash.Lib.current.removeChild(tf);
 		tf = null;
 		lines = new Array();
 	}
-	
-	static function __set_trace_color(rgb) {
+
+	public static function __set_trace_color(rgb) {
 		getTrace().textColor = rgb;
 	}
-	
-	static function getTrace() {
+
+	public static function getTrace() {
 		var mc = flash.Lib.current;
 		if( tf == null ) {
 			tf = new flash.text.TextField();
@@ -91,7 +97,7 @@ class Boot extends flash.display.MovieClip {
 		return tf;
 	}
 
-	static function __trace( v : Dynamic, pos : haxe.PosInfos ) {
+	public static function __trace( v : Dynamic, pos : haxe.PosInfos ) {
 		var tf = getTrace();
 		var pstr = if( pos == null ) "(null)" else pos.fileName+":"+pos.lineNumber;
 		lines = lines.concat((pstr +": "+__string_rec(v,"")).split("\n"));
@@ -103,7 +109,7 @@ class Boot extends flash.display.MovieClip {
 		}
 	}
 
-	static function __string_rec( v : Dynamic, str : String ) {
+	public static function __string_rec( v : Dynamic, str : String ) {
 		var cname = untyped __global__["flash.utils.getQualifiedClassName"](v);
 		switch( cname ) {
 		case "Object":
@@ -141,7 +147,7 @@ class Boot extends flash.display.MovieClip {
 		}
 		return new String(v);
 	}
-	
+
 	#end
 
 }

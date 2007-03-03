@@ -66,7 +66,7 @@ class IntHash<T> {
 	/**
 		Get a value for the given key.
 	**/
-	public function get( key : Int ) : T {
+	public function get( key : Int ) : Null<T> {
 		#if flash
 		return untyped h[key];
 		#else js

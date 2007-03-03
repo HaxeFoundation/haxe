@@ -69,7 +69,7 @@ class Hash<T> {
 	/**
 		Get a value for the given key.
 	**/
-	public function get( key : String ) : T {
+	public function get( key : String ) : Null<T> {
 		#if flash
 		return untyped h[key];
 		#else js

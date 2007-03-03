@@ -35,7 +35,7 @@ class Lib {
 	public static function eval( path : String ) : Dynamic {
 		var p = path.split(".");
 		var fields = new Array();
-		var o = null;
+		var o : Dynamic = null;
 		while( p.length > 0 ) {
 			try {
 				o = untyped __global__["flash.utils.getDefinitionByName"](p.join("."));

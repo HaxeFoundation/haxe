@@ -58,7 +58,7 @@ extern class String {
 		Returns the character code at the given position.
 		Returns [null] if outside of String bounds.
 	**/
-	function charCodeAt( index : Int) : Int;
+	function charCodeAt( index : Int) : Null<Int>;
 
 	/**
 		Returns the index of first occurence of [value]

@@ -53,7 +53,7 @@ extern class Array<T> {
 	/**
 		Removes the last element of the array and returns it.
 	**/
-	function pop() : T;
+	function pop() : Null<T>;
 
 	/**
 		Adds the element [x] at the end of the array.
@@ -68,7 +68,7 @@ extern class Array<T> {
 	/**
 		Removes the first element and returns it.
 	**/
-	function shift() : T;
+	function shift() : Null<T>;
 
 	/**
 		Copies the range of the array starting at [pos] up to,
@@ -122,6 +122,6 @@ extern class Array<T> {
 	/**
 		Returns an iterator of the Array values.
 	**/
-	function iterator() : Iterator<T>;
+	function iterator() : Iterator<Null<T>>;
 
 }

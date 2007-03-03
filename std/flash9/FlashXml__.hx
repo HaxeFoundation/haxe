@@ -41,6 +41,14 @@ class FlashXml__ {
 	static var edoctype_elt = ~/[\[|\]>]/;
 	static var ecomment_end = ~/-->/;
 
+	public static var Element : String;
+	public static var PCData : String;
+	public static var CData : String;
+	public static var Comment : String;
+	public static var DocType : String;
+	public static var Prolog : String;
+	public static var Document : String;
+
 	public var nodeType(default,null) : XmlType;
 	public var nodeName(getNodeName,setNodeName) : String;
 	public var nodeValue(getNodeValue,setNodeValue) : String;
@@ -152,7 +160,7 @@ class FlashXml__ {
 	private function new(){
 	}
 
-	static function createElement( name : String ) : FlashXml__ {
+	public static function createElement( name : String ) : FlashXml__ {
 		var r = new FlashXml__();
 		r.nodeType = Xml.Element;
 		r._children = new Array();
@@ -161,42 +169,42 @@ class FlashXml__ {
 		return r;
 	}
 
-	static function createPCData( data : String ) : FlashXml__ {
+	public static function createPCData( data : String ) : FlashXml__ {
 		var r = new FlashXml__();
 		r.nodeType = Xml.PCData;
 		r.setNodeValue( data );
 		return r;
 	}
 
-	static function createCData( data : String ) : FlashXml__ {
+	public static function createCData( data : String ) : FlashXml__ {
 		var r = new FlashXml__();
 		r.nodeType = Xml.CData;
 		r.setNodeValue( data );
 		return r;
 	}
 
-	static function createComment( data : String ) : FlashXml__ {
+	public static function createComment( data : String ) : FlashXml__ {
 		var r = new FlashXml__();
 		r.nodeType = Xml.Comment;
 		r.setNodeValue( data );
 		return r;
 	}
 
-	static function createDocType( data : String ) : FlashXml__ {
+	public static function createDocType( data : String ) : FlashXml__ {
 		var r = new FlashXml__();
 		r.nodeType = Xml.DocType;
 		r.setNodeValue( data );
 		return r;
 	}
 
-	static function createProlog( data : String ) : FlashXml__ {
+	public static function createProlog( data : String ) : FlashXml__ {
 		var r = new FlashXml__();
 		r.nodeType = Xml.Prolog;
 		r.setNodeValue( data );
 		return r;
 	}
 
-	static function createDocument() : FlashXml__ {
+	public static function createDocument() : FlashXml__ {
 		var r = new FlashXml__();
 		r.nodeType = Xml.Document;
 		r._children = new Array();

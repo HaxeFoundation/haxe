@@ -42,8 +42,8 @@ class Type {
 		#end
 			return t;
 		} catch( e : Dynamic ) {
-			return null;
 		}
+		return null;
 	}
 
 	/**
@@ -60,8 +60,8 @@ class Type {
 		#end
 			return t;
 		} catch( e : Dynamic ) {
-			return null;
 		}
+		return null;
 	}
 
 	/**
@@ -137,7 +137,7 @@ class Type {
 			var cname = __global__["flash.utils.getQualifiedSuperclassName"](c);
 			if( cname == "Object" )
 				return null;
-			return __global__["flash.utils.getDefinitionByName"](cname);
+			return __as__(__global__["flash.utils.getDefinitionByName"](cname),Class);
 		#else true
 			return c.__super__;
 		#end
@@ -151,10 +151,7 @@ class Type {
 		if( c == null )
 			return null;
 		#if flash9
-			var name = untyped __global__["flash.utils.getQualifiedClassName"](c);
-			if( name == "flash::FlashXml__" )
-				return "Xml";
-			return name;
+			return untyped __global__["flash.utils.getQualifiedClassName"](c);
 		#else true
 			var a : Array<String> = untyped c.__name__;
 			return a.join(".");
@@ -183,7 +180,7 @@ class Type {
 		untyped {
 		#if flash9
 			try {
-				cl = __global__["flash.utils.getDefinitionByName"](name);
+				cl = __as__(__global__["flash.utils.getDefinitionByName"](name),Class);
 				if( cl.__isenum )
 					return null;
 				return cl; // skip test below
@@ -282,7 +279,16 @@ class Type {
 	**/
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped {
 		#if flash9
-			return cl.__construct__.call(null,null);
+			try {
+				flash.Boot.skip_constructor = true;
+				var i = cl.__construct__.call(null,[]);
+				flash.Boot.skip_constructor = false;
+				return i;
+			} catch( e : Dynamic ) {
+				flash.Boot.skip_constructor = false;
+				throw e;
+			}
+			return null;
 		#else flash
 			var o : Dynamic = __new__(_global["Object"]);
 			o.__proto__ = cl.prototype;
@@ -425,6 +431,7 @@ class Type {
 				return if( c == null ) TFunction else TClass(c);
 			}
 		}
+		return null;
 		#else (flash || js)
 		switch( #if flash __typeof__ #else true __js__("typeof") #end(v) ) {
 		#if flash

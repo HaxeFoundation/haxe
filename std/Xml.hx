@@ -80,37 +80,37 @@ extern class Xml {
 
 	/**
 		Creates a node of the given type.
-	**/	
+	**/
 	static function createElement( name : String ) : Xml;
 
 	/**
 		Creates a node of the given type.
-	**/	
+	**/
 	static function createPCData( data : String ) : Xml;
-	
+
 	/**
 		Creates a node of the given type.
-	**/	
+	**/
 	static function createCData( data : String ) : Xml;
 
 	/**
 		Creates a node of the given type.
-	**/	
+	**/
 	static function createComment( data : String ) : Xml;
 
 	/**
 		Creates a node of the given type.
-	**/	
+	**/
 	static function createDocType( data : String ) : Xml;
 
 	/**
 		Creates a node of the given type.
-	**/	
+	**/
 	static function createProlog( data : String ) : Xml;
 
 	/**
 		Creates a node of the given type.
-	**/	
+	**/
 	static function createDocument() : Xml;
 
 	/**
@@ -145,22 +145,22 @@ extern class Xml {
 		Attributes are case-sensitive.
 	**/
 	function set( att : String, value : String ) : Void;
-	
+
 	/**
 		Removes an attribute for an Element node.
 		Attributes are case-sensitive.
-	**/	
+	**/
 	function remove( att : String ) : Void;
-	
+
 	/**
 		Tells if the Element node has a given attribute.
 		Attributes are case-sensitive.
-	**/	
+	**/
 	function exists( att : String ) : Bool;
-	
+
 	/**
 		Returns an [Iterator] on all the attributes values.
-	**/	
+	**/
 	function attributes() : Iterator<String>;
 
 	/**
@@ -179,15 +179,15 @@ extern class Xml {
 	/**
 		Returns an iterator of all child nodes which are Elements.
 		Only works if the current node is an Element or a Document.
-	**/	
+	**/
 	function elements() : Iterator<Xml>;
-	
+
 	/**
 		Returns an iterator of all child nodes which are Elements with the given nodeName.
 		Only works if the current node is an Element or a Document.
-	**/		
+	**/
 	function elementsNamed( name : String ) : Iterator<Xml>;
-	
+
 	/**
 		Returns the first child node.
 	**/
@@ -195,22 +195,22 @@ extern class Xml {
 
 	/**
 		Returns the first child node which is an Element.
-	**/	
+	**/
 	function firstElement() : Xml;
 
-	
+
 	/**
 		Adds a child node to the Document or Element.
 		One node can only be inside one given node which is indicated by the [parent] property.
-	**/	
+	**/
 	function addChild( x : Xml ) : Void;
 
 	/**
 		Removes a child from the Document or Element.
 		Returns true if the child was successfuly removed.
-	**/	
+	**/
 	function removeChild( x : Xml ) : Bool;
-	
+
 	/**
 		Inserts a child at the given position among the other childs.
 	**/
@@ -227,12 +227,16 @@ extern class Xml {
 		neko.Boot.__classes.Xml = Xml;
 		#else js
 		Xml = js.JsXml__;
+		#else flash9
+		var ref = flash.FlashXml__;
 		#else flash
 		Xml = flash.FlashXml__;
 		#else error
 		#end
 
+		#if !flash9
 		Xml.__name__ = ["Xml"];
+		#end
 		Xml.Element = "element";
 		Xml.PCData = "pcdata";
 		Xml.CData = "cdata";
