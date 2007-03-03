@@ -2,21 +2,23 @@
 # http://tech.motion-twin.com
 .SUFFIXES : .ml .mli .cmo .cmi .cmx .mll .mly
 
-CFLAGS= -I ../neko/libs/include/ocaml -cclib -fno-stack-protector
+CFLAGS= -I ../neko/libs/include/ocaml
 LIBS=extLib.cmxa extc.cmxa swfLib.cmxa unix.cmxa
 LFLAGS= -o haxe.exe -I ../neko/libs/include/ocaml
 OUTPUT=sed 's/File "\([^"]\+\)", line \([0-9]\+\), \(.*\)/\1(\2): \3/' tmp.cmi
 
 all: haxe.exe
 
-haxe.exe: ../neko/libs/include/ocaml/nast.cmx ast.cmx plugin.cmx ../neko/libs/include/ocaml/nxml.cmx lexer.cmx type.cmx genswf9.cmx parser.cmx transform.cmx typer.cmx genneko.cmx genjs.cmx genswf.cmx genxml.cmx main.cmx
-	ocamlopt $(LFLAGS) $(LIBS) ../neko/libs/include/ocaml/nast.cmx ast.cmx plugin.cmx ../neko/libs/include/ocaml/nxml.cmx lexer.cmx type.cmx parser.cmx transform.cmx typer.cmx genneko.cmx genjs.cmx genswf9.cmx genswf.cmx genxml.cmx main.cmx
+haxe.exe: ../neko/libs/include/ocaml/nast.cmx ast.cmx plugin.cmx ../neko/libs/include/ocaml/nxml.cmx lexer.cmx type.cmx genswf9.cmx parser.cmx transform.cmx typer.cmx genneko.cmx genjs.cmx genswf.cmx genxml.cmx genas3.cmx main.cmx
+	ocamlopt $(LFLAGS) $(LIBS) ../neko/libs/include/ocaml/nast.cmx ast.cmx plugin.cmx ../neko/libs/include/ocaml/nxml.cmx lexer.cmx type.cmx parser.cmx transform.cmx typer.cmx genneko.cmx genjs.cmx genswf9.cmx genswf.cmx genxml.cmx genas3.cmx main.cmx
 
 genneko.cmx: typer.cmx type.cmx plugin.cmx ../neko/libs/include/ocaml/nxml.cmx ../neko/libs/include/ocaml/nast.cmx lexer.cmx ast.cmx
 
 ../neko/libs/include/ocaml/nxml.cmx: ../neko/libs/include/ocaml/nast.cmx
 
 genjs.cmx: typer.cmx type.cmx transform.cmx ast.cmx
+
+genas3.cmx: typer.cmx type.cmx transform.cmx ast.cmx
 
 genswf.cmx: typer.cmx type.cmx transform.cmx plugin.cmx genswf9.cmx ast.cmx
 
@@ -28,7 +30,7 @@ lexer.cmx: lexer.ml
 
 lexer.cmx: ast.cmx
 
-main.cmx: typer.cmx plugin.cmx parser.cmx lexer.cmx genxml.cmx genswf.cmx genneko.cmx genjs.cmx ast.cmx
+main.cmx: typer.cmx plugin.cmx parser.cmx lexer.cmx genxml.cmx genswf.cmx genneko.cmx genjs.cmx genas3.cmx ast.cmx
 
 parser.cmx: parser.ml plugin.cmx lexer.cmx ast.cmx
 	(ocamlopt -pp camlp4o $(CFLAGS) -c parser.ml 2>tmp.cmi && $(OUTPUT)) || ($(OUTPUT) && exit 1)

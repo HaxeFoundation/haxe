@@ -14,6 +14,8 @@
 	fixed bug when calling super.UpperCaseMethod()
 	hide additional flash Array methods
 	allow leading comma in anonymous types
+	added haxe.Public interface
+	added AS3 code generator
 
 2007-01-28: 1.11
 	changed StringBuf.add implementation

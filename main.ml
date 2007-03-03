@@ -23,6 +23,7 @@ type target =
 	| Js of string
 	| Swf of string
 	| Neko of string
+	| As3 of string
 
 let prompt = ref false
 let alt_format = ref false
@@ -209,6 +210,13 @@ try
 			Typer.forbidden_packages := ["neko"; "flash"];
 			target := Js file
 		),"<file> : compile code to JavaScript file");
+		("-as3",Arg.String (fun dir ->
+			check_targets();
+			swf_version := 9;
+			Plugin.define "as3gen";
+			Typer.forbidden_packages := ["js"; "neko"];
+			target := As3 dir;
+		),"<directory> : generate AS3 code into target directory");
 		("-swf",Arg.String (fun file ->
 			check_targets();
 			Typer.forbidden_packages := ["js"; "neko"];
@@ -368,7 +376,7 @@ try
 	(match !target with
 	| No ->
 		()
-	| Swf file ->
+	| Swf file | As3 file ->
 		(* check file extension. In case of wrong commandline, we don't want
 		   to accidentaly delete a source file. *)
 		if not !display && file_extension file = "swf" then delete_file file;
@@ -410,6 +418,9 @@ try
 			do_auto_xml file;
 			if !Plugin.verbose then print_endline ("Generating js : " ^ file);
 			Genjs.generate file types hres
+		| As3 dir ->
+			if !Plugin.verbose then print_endline ("Generating AS3 in : " ^ dir);
+			Genas3.generate dir types
 		);
 		(match !xml_out with
 		| None -> ()

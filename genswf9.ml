@@ -184,7 +184,6 @@ let tid (x : 'a index) : int = Obj.magic x
 let new_lookup() = { h = Hashtbl.create 0; a = DynArray.create(); c = index_int }
 let new_lookup_nz() = { h = Hashtbl.create 0; a = DynArray.create(); c = index_nz_int }
 
-let construct_string = "__skip__constructor__"
 let jsize = As3code.length (A3Jump (J3Always,0))
 
 let lookup i w =
@@ -240,19 +239,19 @@ let jump_back ctx =
 		write ctx (A3Jump (cond,delta))
 	)
 
-let type_path ctx ?(getclass=false) (pack,name) =
+let type_path ctx ?(getclass=false) path =
+	let pack, name = (match path with
+		| [] , "Int" -> [] , "int"
+		| [] , "Float" -> [] , "Number"
+		| [] , "Bool" -> [] , "Boolean"
+		| ["flash"] , "FlashXml__" -> [] , "Xml"
+		| _ -> path
+	) in
 	let pid = string ctx (String.concat "." pack) in
 	let nameid = string ctx name in
 	let pid = lookup (A3RPublic (Some pid)) ctx.brights in
 	let tid = lookup (if getclass then A3TClassInterface (Some nameid,lookup [pid] ctx.rights) else A3TMethodVar (nameid,pid)) ctx.types in
 	tid
-
-let fake_type_path ctx ?(getclass=false) path =
-	type_path ctx ~getclass (match path with
-		| [] , "Int" -> [] , "int"
-		| [] , "Float" -> [] , "Number"
-		| [] , "Bool" -> [] , "Boolean"
-		| _ -> path)
 
 let ident ctx i = type_path ctx ([],i)
 
@@ -455,8 +454,8 @@ let begin_fun ctx ?(varargs=false) args el stat =
 					tc3_end = t.tr_end + delta;
 					tc3_handle = t.tr_catch_pos + delta;
 					tc3_type = (match follow t.tr_type with
-						| TInst (c,_) -> Some (fake_type_path ctx c.cl_path)
-						| TEnum (e,_) -> Some (fake_type_path ctx e.e_path)
+						| TInst (c,_) -> Some (type_path ctx c.cl_path)
+						| TEnum (e,_) -> Some (type_path ctx e.e_path)
 						| TDynamic _ -> None
 						| _ -> assert false);
 					tc3_name = None;
@@ -713,7 +712,7 @@ let rec gen_expr_content ctx retval e =
 		let loops = loop (List.length ctx.trys) cases in
 		List.iter (fun j -> j()) loops;
 		jend()
-	| TFor (v,it,e) ->
+	| TFor (v,_,it,e) ->
 		gen_expr ctx true it;
 		let r = alloc_reg ctx in
 		write ctx (A3SetReg r);
@@ -845,6 +844,10 @@ and gen_call ctx e el =
 		gen_expr ctx true e;
 		gen_expr ctx true t;
 		write ctx (A3Op A3OIs)
+	| TLocal "__as__" , [e;t] ->
+		gen_expr ctx true e;
+		gen_expr ctx true t;
+		write ctx (A3Op A3OAs)
 	| TLocal "__keys__" , [e] ->
 		let racc = alloc_reg ctx in
 		let rcounter = alloc_reg ctx in
@@ -1035,11 +1038,11 @@ and generate_function ctx fdata stat =
 
 let generate_construct ctx fdata cfields =
 	let args = List.map (fun (name,opt,_) -> name,opt) fdata.tf_args in
-	let args = (match args with [] -> ["__p",true] | _ -> args) in
 	let f = begin_fun ctx args [fdata.tf_expr] false in
-	write ctx (A3Reg 1);
-	write ctx (A3String (string ctx construct_string));
-	let j = jump ctx J3PhysNeq in
+	let id = ident ctx "skip_constructor" in
+	getvar ctx (VGlobal (type_path ctx (["flash"],"Boot"),true));
+	getvar ctx (VId id);
+	let j = jump ctx J3False in
 	write ctx A3RetVoid;
 	j();
 	PMap.iter (fun _ f ->
@@ -1058,32 +1061,16 @@ let generate_construct ctx fdata cfields =
 let generate_reflect_construct ctx cid nargs =
 	(* generate
 	    function __construct__(args) {
-			return if( args == null )
-				new Class("__skip__constructor__",null,null,....);
-			else
-				new Class(args[0],args[1],....);
+			return new Class(args[0],args[1],....);
 		}
     *)
 	let f = begin_fun ctx ["args",false] [] true in	
 	write ctx (A3GetInf cid);
-	write ctx (A3Reg 1);
-	write ctx A3Null;
-	write ctx A3ToObject;
-	let j = jump ctx J3PhysNeq in
-	write ctx (A3String (string ctx construct_string));
-	write ctx A3ToObject;
-	for i = 2 to nargs do
-		write ctx A3Null;
-		write ctx A3ToObject;
-	done;
-	let jend = jump ctx J3Always in
-	j();
 	for i = 1 to nargs do
 		write ctx (A3Reg 1);
 		write ctx (A3SmallInt (i - 1));
 		getvar ctx VArray;
 	done;
-	jend();
 	write ctx (A3New (cid,nargs));	
 	write ctx A3Ret;	
 	{
