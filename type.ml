@@ -82,7 +82,7 @@ and texpr_expr =
 	| TFunction of tfunc
 	| TVars of (string * t * texpr option) list
 	| TBlock of texpr list
-	| TFor of string * texpr * texpr
+	| TFor of string * t * texpr * texpr
 	| TIf of texpr * texpr * texpr option
 	| TWhile of texpr * texpr * Ast.while_flag
 	| TSwitch of texpr * (texpr list * texpr) list * texpr option
@@ -745,7 +745,7 @@ let rec iter f e =
 		()
 	| TArray (e1,e2)
 	| TBinop (_,e1,e2)
-	| TFor (_,e1,e2)
+	| TFor (_,_,e1,e2)
 	| TWhile (e1,e2,_) ->
 		f e1;
 		f e2;

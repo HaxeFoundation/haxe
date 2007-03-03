@@ -316,7 +316,7 @@ and gen_expr ctx e =
 		spr ctx "{ ";
 		concat ctx ", " (fun (f,e) -> print ctx "%s : " f; gen_value ctx e) fields;
 		spr ctx "}"
-	| TFor (v,it,e) ->
+	| TFor (v,_,it,e) ->
 		let handle_break = handle_break ctx e in
 		let id = ctx.id_counter in
 		ctx.id_counter <- ctx.id_counter + 1;

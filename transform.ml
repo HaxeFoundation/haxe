@@ -31,8 +31,8 @@ let rec map f e =
 		{ e with eexpr = TArray (f e1,f e2) }
 	| TBinop (op,e1,e2) ->
 		{ e with eexpr = TBinop (op,f e1,f e2) }
-	| TFor (v,e1,e2) ->
-		{ e with eexpr = TFor (v,f e1,f e2) }
+	| TFor (v,t,e1,e2) ->
+		{ e with eexpr = TFor (v,t,f e1,f e2) }
 	| TWhile (e1,e2,flag) ->
 		{ e with eexpr = TWhile (f e1,f e2,flag) }
 	| TThrow e1 ->

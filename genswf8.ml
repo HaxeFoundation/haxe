@@ -989,7 +989,7 @@ and gen_expr_2 ctx retval e =
 		gen_unop ctx retval op flag e
 	| TMatch (e,_,cases,def) ->
 		gen_match ctx retval e cases def
-	| TFor (v,it,e) ->
+	| TFor (v,_,it,e) ->
 		gen_expr ctx true it;
 		let r = alloc_reg ctx in
 		write ctx (ASetReg r);

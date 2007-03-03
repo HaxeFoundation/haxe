@@ -70,7 +70,7 @@ let add_local ctx v p =
 		| TVars l ->
 			if List.exists (fun (a,_,_) -> a = v) l then raise Not_found;
 			Type.iter (loop flag) e
-		| TFor (a,e1,e2) ->
+		| TFor (a,_,e1,e2) ->
 			loop flag e1;
 			if a <> v then loop flag e2
 		| TMatch (e,_,cases,eo) ->
@@ -334,7 +334,7 @@ and gen_expr ctx e =
 		let e = (EBlock (loop el), p) in
 		b();
 		e
-	| TFor (v, it, e) ->
+	| TFor (v, _, it, e) ->
 		let it = gen_expr ctx it in
 		let b = block ctx [e] in
 		let isref = add_local ctx v p in
