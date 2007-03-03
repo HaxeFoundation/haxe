@@ -34,7 +34,7 @@ class TestStatus {
 	public var method : String;
 	public var classname : String;
 	public var posInfos : PosInfos;
-	public var backtrace : Array<StackItem>;
+	public var backtrace : String;
 
 	public function new() 	{
 		done = false;

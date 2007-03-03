@@ -45,7 +45,7 @@ class TestRunner {
 				tf.autoSize = flash.text.TextFieldAutoSize.LEFT;
 				flash.Lib.current.addChild(tf);
 			}
-			tf.text += v;
+			tf.appendText(v);
 		}
 		#else flash
 		untyped {
@@ -101,6 +101,16 @@ class TestRunner {
 		return result.success;
 	}
 
+	function getBT( e : Dynamic ) {
+		#if flash9
+		if( e != null && Std.is(e,untyped __global__["Error"] ) )
+			return e.getStackTrace();
+		return null;
+		#else true
+		return haxe.Stack.toString(haxe.Stack.exceptionStack());
+		#end
+	}
+
 	function runCase( t:TestCase ) : Void 	{
 		var old = haxe.Log.trace;
 		haxe.Log.trace = customTrace;
@@ -131,7 +141,7 @@ class TestRunner {
 					}
 				}catch ( e : TestStatus ){
 					print("F");
-					t.currentTest.backtrace = haxe.Stack.exceptionStack();
+					t.currentTest.backtrace = getBT(e);
 				}catch ( e : Dynamic ){
 					print("E");
 					#if js
@@ -143,11 +153,7 @@ class TestRunner {
 					#else true
 					t.currentTest.error = "exception thrown : "+e;
 					#end
-					t.currentTest.backtrace = haxe.Stack.exceptionStack();
-					#if flash9
-					if( e != null && Std.is(e,untyped __global__["Error"] ) )
-						t.currentTest.backtrace = e.getStackTrace();
-					#end
+					t.currentTest.backtrace = getBT(e);
 				}
 				result.add(t.currentTest);
 				t.tearDown();

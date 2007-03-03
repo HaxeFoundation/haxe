@@ -25,7 +25,7 @@
 package haxe.unit;
 import haxe.PosInfos;
 
-class TestCase #if mt_build implements mt.Protect #end {
+class TestCase #if mt_build implements mt.Protect, #end implements haxe.Public  {
 	public var currentTest : TestStatus;
 
 	public function new( ) {
