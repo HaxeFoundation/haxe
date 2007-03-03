@@ -1740,7 +1740,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			]) (t_void ctx) p
 		| _ ->
 			let e2 = type_expr ~need_val:false ctx e2 in
-			mk (TFor (i,e1,e2)) (t_void ctx) p
+			mk (TFor (i,pt,e1,e2)) (t_void ctx) p
 		) in
 		ctx.in_loop <- old_loop;
 		old_locals();
@@ -2170,8 +2170,15 @@ let init_class ctx c p herits fields =
 	c.cl_interface <- List.mem HInterface herits;
 	set_heritance ctx c herits p;
 	let tthis = TInst (c,List.map (fun (v,_,t) -> v,t) c.cl_types) in
+	let rec extends_public c = 
+		List.exists (fun (c,_) -> c.cl_path = (["haxe"],"Public") || extends_public c) c.cl_implements ||
+		match c.cl_super with
+		| None -> false
+		| Some (c,_) -> extends_public c
+	in
+	let extends_public = extends_public c in
 	let is_public access =
-		if c.cl_extern || c.cl_interface then not (List.mem APrivate access) else List.mem APublic access
+		if c.cl_extern || c.cl_interface || extends_public then not (List.mem APrivate access) else List.mem APublic access
 	in
 	let type_opt ctx p t =
 		match t with
