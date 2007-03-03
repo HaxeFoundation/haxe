@@ -2363,7 +2363,7 @@ let init_class ctx c p herits fields =
 			let eargs = List.map (fun (n,_,t) -> mk (TLocal n) t p) args in
 			let func = {
 				tf_args = args;
-				tf_type = t;
+				tf_type = t_void ctx;
 				tf_expr = mk (TCall (mk (TConst TSuper) (TInst (csuper,cparams)) p,eargs)) r p;
 			} in
 			c.cl_constructor <- Some {
