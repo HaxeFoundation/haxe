@@ -30,7 +30,7 @@
 **/
 class EReg {
 
-	var r : Void;
+	var r : Dynamic;
 	#if flash9
 	var result : {> Array<String>, index : Int, input : String };
 	#end
