@@ -27,6 +27,7 @@
 #	include <unistd.h>
 #endif
 #ifdef __APPLE__
+#	include <limits.h>
 #	include <sys/param.h>
 #	include <sys/syslimits.h>
 #	include <mach-o/dyld.h>
