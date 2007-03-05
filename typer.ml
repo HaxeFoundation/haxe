@@ -2002,12 +2002,18 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let t = (match follow e.etype with
 			| TInst (c,params) ->
 				let priv = is_parent c ctx.curclass in
+				let merge ?(cond=(fun _ -> true)) a b =
+					PMap.foldi (fun k f m -> if cond f then PMap.add k f m else m) a b
+				in
 				let rec loop c params =
+					let m = List.fold_left (fun m (i,params) ->
+						merge m (loop i params)
+					) PMap.empty c.cl_implements in
 					let m = (match c.cl_super with
-						| None -> PMap.empty
-						| Some (csup,cparams) -> loop csup cparams
+						| None -> m
+						| Some (csup,cparams) -> merge m (loop csup cparams)
 					) in
-					let m = PMap.fold (fun f m -> if priv || f.cf_public then PMap.add f.cf_name f m else m) c.cl_fields m in
+					let m = merge ~cond:(fun f -> priv || f.cf_public) c.cl_fields m in
 					PMap.map (fun f -> { f with cf_type = apply_params c.cl_types params f.cf_type }) m
 				in
 				let fields = loop c params in
