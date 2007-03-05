@@ -47,7 +47,8 @@ class Http {
 	var chunk_buf : String;
 	var file : { param : String, filename : String, io : neko.io.Input, size : Int };
 #else js
-	private var async : Bool;
+	var async : Bool;
+	var postData : String;
 #end
 	var headers : Hash<String>;
 	var params : Hash<String>;
@@ -72,6 +73,12 @@ class Http {
 	public function setParameter( param : String, value : String ) {
 		params.set(param,value);
 	}
+
+	#if (neko || js)
+	public function setPostData( data : String ) {
+		postData = data;
+	}
+	#end
 
 	public function request( post : Bool ) : Void {
 		var me = this;
@@ -99,8 +106,10 @@ class Http {
 			}
 		};
 		r.onreadystatechange = onreadystatechange;
-		var uri = null;
-		for( p in params.keys() ) {
+		var uri = postData;
+		if( uri != null )
+			post = true;
+		else for( p in params.keys() ) {
 			if( uri == null )
 				uri = "";
 			else
@@ -120,7 +129,7 @@ class Http {
 			onError(e.toString());
 			return;
 		}
-		if( headers.get("Content-Type") == null && post )
+		if( headers.get("Content-Type") == null && post && postData == null )
 			r.setRequestHeader("Content-Type","application/x-www-form-urlencoded");
 
 		for( h in headers.keys() )
