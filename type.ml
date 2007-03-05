@@ -568,6 +568,13 @@ let rec class_field c i =
 		let f = PMap.find i c.cl_fields in
 		field_type f , f
 	with Not_found -> try
+		match c.cl_super with
+		| None ->
+			raise Not_found
+		| Some (c,tl) ->
+			let t , f = class_field c i in
+			apply_params c.cl_types tl t , f
+	with Not_found ->
 		let rec loop = function
 			| [] ->
 				raise Not_found
@@ -579,13 +586,6 @@ let rec class_field c i =
 					Not_found -> loop l
 		in
 		loop c.cl_implements
-	with Not_found ->
-		match c.cl_super with
-		| None ->
-			raise Not_found
-		| Some (c,tl) ->
-			let t , f = class_field c i in
-			apply_params c.cl_types tl t , f
 
 let rec unify a b =
 	if a == b then

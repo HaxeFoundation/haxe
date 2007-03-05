@@ -16,6 +16,7 @@
 	allow leading comma in anonymous types
 	added haxe.Public interface
 	added AS3 code generator
+	field lookup gives priority to superclass over interfaces
 
 2007-01-28: 1.11
 	changed StringBuf.add implementation
