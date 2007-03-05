@@ -24,10 +24,10 @@
 #ifdef _WIN32
 #	include <windows.h>
 #else
+#	include <limits.h>
 #	include <unistd.h>
 #endif
 #ifdef __APPLE__
-#	include <limits.h>
 #	include <sys/param.h>
 #	include <sys/syslimits.h>
 #	include <mach-o/dyld.h>
