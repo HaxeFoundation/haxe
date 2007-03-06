@@ -65,9 +65,9 @@ import haxe.Md5;
 	]
 
 	[
-	* ordered item 1
-	* ordered item 2
-	* no sub level at this time
+	* * ordered item 1
+	* * ordered item 2
+	* * no sub level at this time
 	]
 
 	[[pre]some preformatted code[/pre]]
