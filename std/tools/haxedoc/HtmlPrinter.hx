@@ -469,6 +469,10 @@ class HtmlPrinter {
 		// unixify line endings
 		doc = doc.split("\r\n").join("\n").split("\r").join("\n");
 
+		// trim stars
+		doc = ~/^([ \t]*)\*+/gm.replace(doc, "$1");
+		doc = ~/\**[ \t]*$/gm.replace(doc, "");
+
 		// process [] blocks
 		var rx = ~/\[/;
 		var tmp = new StringBuf();
@@ -511,10 +515,6 @@ class HtmlPrinter {
 			doc = parts[0];
 		else
 			doc = Lambda.map(parts,function(x) { return "<p>"+StringTools.trim(x)+"</p>"; }).join("\n");
-
-		// trim stars
-		doc = ~/^([ \t]*)\*+/gm.replace(doc, "$1");
-		doc = ~/\**[ \t]*$/gm.replace(doc, "");
 
 		// put back code parts
 		var i = 0;
