@@ -17,6 +17,9 @@
 	added haxe.Public interface
 	added AS3 code generator
 	field lookup gives priority to superclass over interfaces
+	improved haxedoc output
+	fixed bug in neko regexp split/replace when empty match at eol
+	fixed bug in flash 6-7-8 resources generation
 
 2007-01-28: 1.11
 	changed StringBuf.add implementation
