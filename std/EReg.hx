@@ -197,7 +197,7 @@ class EReg {
 				break;
 			var p = regexp_matched_pos(r,0);
 			if( p.len == 0 && !first ) {
-				if( len == 0 )
+				if( p.pos == s.length )
 					break;
 				p.pos += 1;
 			}
@@ -238,7 +238,7 @@ class EReg {
 				break;
 			var p = regexp_matched_pos(r,0);
 			if( p.len == 0 && !first ) {
-				if( len == 0 )
+				if( p.pos == s.length )
 					break;
 				p.pos += 1;
 			}
