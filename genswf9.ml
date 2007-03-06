@@ -1441,7 +1441,7 @@ let generate types hres =
 		try_scope_reg = None;
 	} in
 	List.iter (generate_type ctx) types;
-	Hashtbl.iter (fun _ _ -> assert false) hres;
+	Hashtbl.iter (fun _ _ -> failwith "Resources are not yet supported in Flash9") hres;
 	let init = generate_inits ctx types in
 	let a = {
 		as3_ints = lookup_array ctx.ints;
