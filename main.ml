@@ -126,6 +126,7 @@ let make_path f =
 let read_type_path p cp =
 	let classes = ref [] in
 	let packages = ref [] in
+	let p = (match p with "flash" :: l when Plugin.defined "flash9" -> "flash9" :: l | _ -> p) in
 	List.iter (fun path ->
 		let dir = path ^ String.concat "/" p in
 		let r = Sys.readdir dir in
