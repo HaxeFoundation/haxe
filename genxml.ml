@@ -169,7 +169,7 @@ let rec write_xml ch tabs x =
 
 let generate file ctx types =
 	let x = node "haxe" [] (List.map (gen_type_decl ctx) types) in
-	let ch = IO.output_channel (open_out file) in
+	let ch = IO.output_channel (open_out_bin file) in
 	write_xml ch "" x;
 	IO.close_out ch
 
