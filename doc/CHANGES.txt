@@ -1,4 +1,4 @@
-2007-??-??: 1.12
+2007-03-06: 1.12
 	added flash lite support with -D flash_lite
 	bugfix for Unknown<X> should Unknown<X>
 	prevent some exceptions in neko.net.ProxyDetect
