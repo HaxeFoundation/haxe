@@ -32,11 +32,12 @@ typedef LcsMatrix = Array<Array<Int>>
 
 	The diff text format is the same as the gnu diff utility format.
 
-	Usage:
-
+	Usage: [
 	var myDiff = Diff.diff(sourceString, modifiedString);
 	var modified = Diff.patch(sourceString, myDiff); // modified == modifiedString
 	var origin = Diff.unpatch(modified, myDiff); // origin == sourceString
+	]
+
 **/
 class Diff {
 
@@ -47,17 +48,17 @@ class Diff {
 	static var NO_NEW_LINE = "\n\\ No newline at end of file\n";
 
 	/**
-		This class uses a longest common subsequence algorithm which computes the distance between 
+		This class uses a longest common subsequence algorithm which computes the distance between
 		two array of strings and creates an optimal modification cursor.
 
 		The cursor is stored in a int matrix and starts at index 0:0.
 
-		The matrix is filled of END, DOWN, DOWN_RIGHT, RIGHT movements.
+		The matrix is filled of [END], [DOWN], [DOWN_RIGHT], [RIGHT] movements.
 
-		DOWN => the src line must be removed
-		DOWN_RIGHT => lines are equals, no operation required
-		RIGHT => the dst line must be inserted
-		END => end of files reached, if END is reached before [m,n], some lines must be removed or inserted 
+		[DOWN] => the src line must be removed
+		[DOWN_RIGHT] => lines are equals, no operation required
+		[RIGHT] => the dst line must be inserted
+		[END] => end of files reached, if END is reached before [m,n], some lines must be removed or inserted
 	**/
 	static function longestCommonSubsequence( src:Array<String>, dst:Array<String> ) : LcsMatrix {
 		var m = src.length;
@@ -65,13 +66,13 @@ class Diff {
 		var cursor = new Array();
 		var c = new Array();
 		for (i in 0...m+1) {
-			cursor[i] = new Array(); 
+			cursor[i] = new Array();
 			cursor[i][n] = 0;
-			c[i] = new Array(); 
-			c[i][n] = 0; 
+			c[i] = new Array();
+			c[i][n] = 0;
 		}
 		for (j in 0...n+1) {
-			cursor[m][j] = 0; 
+			cursor[m][j] = 0;
 			c[m][j] = 0;
 		}
 		var i = m-1;
@@ -112,12 +113,12 @@ class Diff {
 		while (true){
 			// direction changes, store this position
 			if (c[i][j] != prev)
-				stack.add([i,j]); 
+				stack.add([i,j]);
 			prev = c[i][j];
 			switch (c[i][j]){
 				case DOWN: i++;
 				case RIGHT: j++;
-				case DOWN_RIGHT: i++; j++; 
+				case DOWN_RIGHT: i++; j++;
 				case END: break;
 				default: throw "Unknown "+c[i][j]+" at "+i+":"+j; i=0; j=0;
 			}
@@ -144,7 +145,7 @@ class Diff {
 		The returned string may be used by the gnu diff/patch utilities.
 	**/
 	public static function diff( source:String, dest:String ) : String {
-		var srcNoNewLine = false;		
+		var srcNoNewLine = false;
 		var dstNoNewLine = false;
 
 		var sourceLines = split(source); // source.split("\n");
@@ -153,7 +154,7 @@ class Diff {
 			sourceLines.push("");
 			srcNoNewLine = true;
 		}
-		
+
 		var destLines = split(dest); // dest.split("\n");
 		if (destLines[destLines.length-1].length > 0){
 			// no newline at end of file
@@ -163,22 +164,22 @@ class Diff {
 
 		var m = sourceLines.length;
 		var n = destLines.length;
-		
+
 		var lcs = longestCommonSubsequence(sourceLines, destLines);
 		var stack = lcsToStack(lcs);
 
 		var cursorKind = function(p){
-			return lcs[p[0]][p[1]]; 
+			return lcs[p[0]][p[1]];
 		}
 
 		var operationAdd = function(after:Int, from:Int, to:Int){
 			var op = new StringBuf();
-			op.add(after); 
-			op.add("a"); 
+			op.add(after);
+			op.add("a");
 			if (from == to) op.add(from) else { op.add(from); op.add(","); op.add(to); }
 			op.add("\n");
 			for (i in (from-1)...to){
-				op.add("> "); 
+				op.add("> ");
 				op.add(destLines[i]);
 				if (dstNoNewLine && i == (destLines.length-2)){
 					op.add(NO_NEW_LINE);
@@ -236,8 +237,8 @@ class Diff {
 				case DOWN_RIGHT:
 
 				case DOWN:
-					var end = stack.pop(); 
-					if (cursorKind(end) == RIGHT){	
+					var end = stack.pop();
+					if (cursorKind(end) == RIGHT){
 						var del = stack.pop(); stack.push(del);
 						result.add(operationUpd(pos[0]+1, end[0], pos[1]+1, del[1]));
 					}

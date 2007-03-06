@@ -40,12 +40,13 @@ enum ActionError {
 /**
 	Generic class to handle web actions.
 
-	Add to your .htaccess :
+	Add to your .htaccess : [
 
 	<FilesMatch "^(actionName|actionName|...)$">
 	RewriteEngine On
 	RewriteRule (.*) /index.n
 	</FilesMatch>
+	]
 **/
 class Handler<T> {
 

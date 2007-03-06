@@ -29,26 +29,26 @@ import haxe.Md5;
 /**
 	Transform a plain text document into an XHTML document.
 
-	h1 : at least 4 * after the title
-	****
+	[h1 : at least 4 * after the title]
+	[****]
 
 	or
 
-	*** h1 : line starts with 3 *
+	[*** h1 : line starts with 3 *]
 
-	h2 : at least 4 = after the title
-	====
+	[h2 : at least 4 = after the title]
+	[====]
 
 	or
 
-	=== h2 : line starts with 3 =
+	[=== h2 : line starts with 3 =]
 
-	h3 : at least 4 - after the title
-	----
-	
-	or 
+	[h3 : at least 4 - after the title]
+	[----]
 
-	--- h3 : line starts with 3 -
+	or
+
+	[--- h3 : line starts with 3 -]
 
 
 	You may specify titles' ids using #myid# before your title text :
@@ -58,57 +58,59 @@ import haxe.Md5;
 	#anchorhere# my title
 	----
 
+	[
 	- list item 1
 	- list item 2
-    - no sub level at this time
+	- no sub level at this time
+	]
 
+	[
 	* ordered item 1
 	* ordered item 2
 	* no sub level at this time
+	]
 
-	[pre]
-	some preformatted code
-	[/pre]
+	[[pre]some preformatted code[/pre]]
 
-	Will generate a link : http://www.google.com.
+	[Will generate a link : http://www.google.com.]
 
-	Will generate an internal link [link some name : /foo/bar/baz] with a name.
+	[Will generate an internal link [link some name : /foo/bar/baz] with a name.]
 
     Will generate a link with a name [link some name : http://example.com/foo/bar/baz] too.
 
-	Please notice that spaces around central ":" are requires !
+	Please notice that spaces around central ":" are required !
 
-	Some //emphased text// and some **strong text**.
+	Some [//emphased text//] and some [**strong text**].
 
-	Now insert an image : @img http://www.foo.com/foo.jpg@
+	Now insert an image : [@img http://www.foo.com/foo.jpg@]
 
-	Inserting a Swf is easy : @swf WxHxV http://path/to/my/swf.swf@ where W means width, H means Height and V means flash Version, 
+	Inserting a Swf is easy : [@swf WxHxV http://path/to/my/swf.swf@] where W means width, H means Height and V means flash Version,
 	this feature uses the SWFObject javascript class to display the specified swf.
 
-	[html]
-	<p>This is some raw html you may like to insert manually to add some specific data like 
+	[[html]
+	<p>This is some raw html you may like to insert manually to add some specific data like
 	javascript or other stuff.</p>
 	<p>Raw html may produce parse exceptions thrown by the Text2Xhtml.transform(src) method.</p>
-	[/html]
+[/html]]
 
-	You can also insert [cite]some citations[/cite] !	
+	You can also insert [[cite]some citations[/cite]] !
 
 	That's almost everything for now :)
 
 	Ah i almost forgot the haxe colorizer :
 
-	[haxe]
-	class Foo {
-		// some comment
-		public function new(){
-		}
-
-		// ...
-
-		public static function foo(){
-		}
+	[[haxe]
+class Foo {
+	// some comment
+	public function new(){
 	}
-	[/haxe]
+
+	// ...
+
+	public static function foo(){
+	}
+}
+[/haxe]]
 
 **/
 class Text2Xhtml {
@@ -201,7 +203,7 @@ class Text2Xhtml {
 			result.add("</ul>\n");
 			str = StringTools.replace(str, list, result.toString());
 		}
-		
+
 		var xml = Xml.parse(str);
 		transformXml(xml);
 		str = xml.toString();
@@ -255,7 +257,7 @@ s.write('swf@id');
 		str = StringTools.replace(str, "@h", s[1]);
 		return str;
 	}
-	
+
 	function transformXml( xml:Xml, ?noParagraph:Bool ) {
 		if (xml.nodeType != Xml.Element && xml.nodeType != Xml.Document){
 			var str = xml.nodeValue;
@@ -298,7 +300,7 @@ s.write('swf@id');
 			pos = pos + repl.length;
 			token = findFirst(str.substr(pos, str.length-pos), [em,strong]);
 		}
-		
+
 		helper = new StringHelper(str);
 		helper.restore("link", links);
 		helper.restore("img", images);
@@ -331,7 +333,7 @@ s.write('swf@id');
 }
 
 class StringHelper {
-	
+
 	public var str : String;
 
 	public function new( s:String ){

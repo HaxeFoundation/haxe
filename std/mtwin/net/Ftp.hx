@@ -29,9 +29,9 @@ import neko.net.Socket;
 import neko.net.Host;
 
 /**
-	Handles FTP protocol.	
+	Handles FTP protocol.
 
-	Example:
+	Example: [
 
 		var ftp = new Ftp("my.ftp.com", 21);
 		ftp.login("myuser", "mypass");
@@ -47,6 +47,7 @@ import neko.net.Host;
 		fp.close();
 
 		ftp.close();
+	]
 **/
 class Ftp {
 
@@ -200,7 +201,7 @@ class Ftp {
 		voidResponse();
 	}
 
-	/** 
+	/**
 		Downloads remote file and write its content in output using neko.io.Output.writeBytes()
 	**/
 	public function get( output:neko.io.Output, remoteFileName:String, ?bufSize:Int ){
@@ -380,7 +381,7 @@ class Ftp {
 				cb(buf, rdd);
 			}
 			catch (eof:Eof){
-				rdd = 0;		
+				rdd = 0;
 			}
 			if (rdd < bufSize)
 				break;

@@ -47,7 +47,7 @@ class Web {
 
 	/**
 		Returns an Array of Strings built using GET / POST values.
-		If you have in your URL the parameters [a[&#93;=foo;a[&#93;=hello;a[5&#93;=bar;a[3&#93;=baz] then
+		If you have in your URL the parameters [a[]=foo;a[]=hello;a[]=bar;a[]=baz] then
 		[neko.Web.getParamValues("a")] will return [["foo","hello",null,"baz",null,"bar"]]
 	**/
 	public static function getParamValues( param : String ) : Array<String> {

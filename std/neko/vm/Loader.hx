@@ -31,21 +31,19 @@ enum LoaderHandle {
 }
 
 /**
-	<p>
 	Loaders can be used to dynamicly load Neko primitives stored in NDLL libraries.
-	</p>
-	<p>
+
+
 	Loaders can be used to dynamicly load other Neko modules (.n bytecode files).
 	Modules are referenced by names. To lookup the corresponding bytecode file, the
 	default loader first look in its cache, then eventually adds the .n extension
 	to the name and lookup the bytecode in its path.
-	</p>
-	<p>
+
+
 	Loaders can be used for sandbox security. When a Module is loaded with a given
 	Loader, this loader can manager the module security by filtering which
 	primitives can be loaded by this module or by rewrapping them at loading-time
 	with custom securized versions. Loaders are inherited in loaded submodules.
-	</p>
 **/
 class Loader {
 
@@ -131,7 +129,7 @@ class Loader {
 		way, the module is directly executed.
 	**/
 	public function loadModule( modName : String, ?loader : Loader ) : Module {
-		var exp = untyped l.loadmodule(modName.__s,if( loader == null ) l else loader.l);		
+		var exp = untyped l.loadmodule(modName.__s,if( loader == null ) l else loader.l);
 		return new Module(exp.__module);
 	}
 
