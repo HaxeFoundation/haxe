@@ -4,6 +4,8 @@ class FlashJsConnection extends haxe.remoting.AsyncConnection {
 
 	#if flash
 
+	static var pendingCalls = new Array();
+
 	override function __resolve( field : String ) : AsyncConnection {
 		var c = new FlashJsConnection(__data,__path.copy());
 		c.__error = __error;
@@ -20,7 +22,7 @@ class FlashJsConnection extends haxe.remoting.AsyncConnection {
 		var cnx : { private function escapeString(s : String) : String; } = haxe.remoting.Connection;
 		var params = cnx.escapeString(s.toString());
 		var me = this;
-		haxe.Timer.delayed(function() {
+		pendingCalls.push(function() {
 			var s = flash.external.ExternalInterface.call("haxe.remoting.FlashJsConnection.flashCall",me.__data,path,f,params);
 			var v = null;
 			try {
@@ -32,6 +34,9 @@ class FlashJsConnection extends haxe.remoting.AsyncConnection {
 			}
 			if( v != null )
 				onData(v.r);
+		});
+		haxe.Timer.delayed(function() {
+			pendingCalls.pop()();
 		},0)();
 	}
 
