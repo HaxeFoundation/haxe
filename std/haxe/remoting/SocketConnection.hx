@@ -162,7 +162,7 @@ class SocketConnection extends AsyncConnection {
 			var isrequest : Bool = s.unserialize();
 			if( !isrequest ) {
 				if( sc.__funs.isEmpty() )
-					throw "No response expected";
+					throw "No response expected ("+data+")";
 				f = sc.__funs.pop();
 				val = s.unserialize();
 				if( f == null )
