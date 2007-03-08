@@ -36,7 +36,7 @@ class FlashJsConnection extends haxe.remoting.AsyncConnection {
 				onData(v.r);
 		});
 		haxe.Timer.delayed(function() {
-			pendingCalls.pop()();
+			pendingCalls.shift()();
 		},0)();
 	}
 
