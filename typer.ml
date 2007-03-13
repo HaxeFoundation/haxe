@@ -2402,7 +2402,7 @@ let type_module ctx m tdecls loadp =
 			tpath
 		end else try
 			let m2 = Hashtbl.find ctx.types tpath in
-			if String.lowercase (s_type_path m2) = String.lowercase (s_type_path m) then error ("Module " ^ s_type_path m2 ^ " is loaded with a different case than " ^ s_type_path m) loadp;
+			if m <> m2 && String.lowercase (s_type_path m2) = String.lowercase (s_type_path m) then error ("Module " ^ s_type_path m2 ^ " is loaded with a different case than " ^ s_type_path m) loadp;
 			error ("Type name " ^ s_type_path tpath ^ " is redefined from module " ^ s_type_path m2) p
 		with
 			Not_found ->
