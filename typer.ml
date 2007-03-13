@@ -1803,18 +1803,23 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let e1 = type_expr ctx ~need_val e1 in
 		let catches = List.map (fun (v,t,e) ->
 			let t = load_type ctx (pos e) t in
-			(match follow t with
-			| TInst (_,params) | TEnum (_,params) ->
-				List.iter (fun (_,pt) ->
-					if pt != t_dynamic then error "Catch class parameter must be Dynamic" p;
-				) params;
-			| TDynamic _ -> ()
-			| _ -> error "Catch type must be a class" p);
+			let name = (match follow t with
+				| TInst ({ cl_path = path },params) | TEnum ({ e_path = path },params) ->
+					List.iter (fun (_,pt) ->
+						if pt != t_dynamic then error "Catch class parameter must be Dynamic" p;
+					) params;
+					(match path with
+					| x :: _ , _ -> x
+					| [] , name -> name)
+				| TDynamic _ -> ""
+				| _ -> error "Catch type must be a class" p
+			) in
 			let locals = save_locals ctx in
 			let v = add_local ctx v t in
 			let e = type_expr ctx ~need_val e in
 			locals();
 			if need_val then unify ctx e.etype e1.etype e.epos;
+			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this type here") e.epos;
 			v , t , e
 		) catches in
 		mk (TTry (e1,catches)) (if not need_val then t_void ctx else e1.etype) p

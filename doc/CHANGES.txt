@@ -1,3 +1,6 @@
+2007-??-??: 1.13
+	fixed bug with local variable masking package in catch type
+
 2007-03-06: 1.12
 	added flash lite support with -D flash_lite
 	bugfix for Unknown<X> should Unknown<X>
@@ -79,7 +82,7 @@
 	added Socket.custom field
 	moved neko.Thread to neko.vm.Thread
 	define haxe_109 (for api changes)
-	fixes in haxe.remoting.Connection and haxe.Unserializer for F9 
+	fixes in haxe.remoting.Connection and haxe.Unserializer for F9
 	added haxe.remoting.Connection.urlConnect for JS
 	allowed private typedef fields
 	added neko.net.ThreadServer, ThreadRemotingServer and Poll
@@ -216,7 +219,7 @@
 	fixed bug in haxe.Unserializer, slighlty optimized haxe.Serializer
 	added __setfield magic (complete __resolve)
 	added explicit override when overriding methods
-	
+
 2006-06-08: 1.02
 	fixed stack overflow when recursive class <: recursive signature
 	improved a bit commandline : allow several hxml arguments
@@ -350,7 +353,7 @@
 	added -res
 	fixed type parameter contraint holes
 	Std.is Dynamic always returns true
-	added Enum.toString 
+	added Enum.toString
 	neko : env locals can be modified in inner functions
 	completed js keywords list in generator
 	added Reflect.typeof
@@ -378,7 +381,7 @@
 	added "here" special identifier
 	neko Apis : File, FileSystem, Sys
 	added base JS API
-	
+
 2006-02-19: beta 2
 	renamed neko.db.Result to neko.db.ResultSet
 	added Date support for Mysql results
@@ -405,7 +408,7 @@
 	untyped accesses are monomorphs, not dynamics
 	generated __string check that toString() return an object
 	XmlParser and other APIs for Neko
-	fixed escaped chars in Neko generation 
+	fixed escaped chars in Neko generation
 	conservative static initialization order
 	allowed no type parameters for new Class
 	function types carry parameter names
@@ -435,10 +438,10 @@
 	added SWF "extends" support
 	added method closures
 	added some flash lowlevel operations (__xxx__)
-	added Log, LogInfos and trace 
+	added Log, LogInfos and trace
 	added Neko generation
 	fixed problems with conditional compilation macros
-	
+
 2005-11-30: alpha 3
 	added Flash extern classes
 	Boot initialization
@@ -447,7 +450,7 @@
 	added interfaces
 	changed iterators from closures to objects
 	added (XML)Node and XmlParser for Flash
-	
+
 2005-11-25: alpha 2
 	swf generation (missing iterators)
 	some typing fixes
