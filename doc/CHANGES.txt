@@ -1,5 +1,6 @@
 2007-??-??: 1.13
 	fixed bug with local variable masking package in catch type
+	fixed "Not_found" when enum params differs
 
 2007-03-06: 1.12
 	added flash lite support with -D flash_lite
