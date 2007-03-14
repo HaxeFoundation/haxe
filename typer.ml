@@ -1047,7 +1047,7 @@ let type_matching ctx (enum,params) (e,p) ecases first_case =
 			| EConst (Ident "_") ->
 				None , t
 			| EConst (Ident name) | EConst (Type name) ->
-				let name = (if first_case then add_local ctx name t else PMap.find name ctx.locals_map) in
+				let name = (if first_case then add_local ctx name t else try PMap.find name ctx.locals_map with Not_found -> name) in
 				Some name , t
 			| _ -> invalid()
 		) el args in
