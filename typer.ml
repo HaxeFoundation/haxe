@@ -2019,7 +2019,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 						| Some (csup,cparams) -> merge m (loop csup cparams)
 					) in
 					let m = merge ~cond:(fun f -> priv || f.cf_public) c.cl_fields m in
-					PMap.map (fun f -> { f with cf_type = apply_params c.cl_types params f.cf_type }) m
+					PMap.map (fun f -> { f with cf_type = apply_params c.cl_types params f.cf_type; cf_public = true; }) m
 				in
 				let fields = loop c params in
 				TAnon { a_fields = fields; a_status = ref Closed; }
@@ -2211,7 +2211,7 @@ let init_class ctx c p herits fields =
 			if not stat && has_field name c.cl_super then error ("Redefinition of variable " ^ name ^ " in subclass is not allowed") p;
 			let t = (match t with
 				| None ->
-					if not stat then error ("Type required for member variable " ^ name) p;
+					if not stat then display_error ctx ("Type required for member variable " ^ name) p;
 					mk_mono()
 				| Some t ->
 					let old = ctx.type_params in
