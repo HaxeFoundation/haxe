@@ -711,6 +711,16 @@ let generate_field ctx static f =
 	match f.cf_expr with
 	| Some { eexpr = TFunction fd } when f.cf_set = F9MethodAccess ->
 		print ctx "%s " rights;
+		let rec loop c =
+			match c.cl_super with
+			| None -> ()
+			| Some (c,_) ->
+				if PMap.mem f.cf_name c.cl_fields then
+					spr ctx "override "
+				else
+					loop c
+		in
+		if not static then loop ctx.curclass;
 		let h = gen_function_header ctx (Some (s_ident f.cf_name)) fd f.cf_params p in
 		gen_expr ctx (block fd.tf_expr);
 		h()
