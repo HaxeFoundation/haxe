@@ -481,6 +481,8 @@ let rec type_eq param a b =
 		(match !t with
 		| None -> if not (link t b a) then error [cannot_unify a b]
 		| Some t -> type_eq param a t)
+	| TType (t1,tl1), TType (t2,tl2) when t1 == t2 && List.length tl1 = List.length tl2 ->
+		List.iter2 (fun (_,t1) (_,t2) -> type_eq param t1 t2) tl1 tl2
 	| TType (t,tl) , _ -> type_eq param (apply_params t.t_types tl t.t_type) b
 	| _ , TType (t,tl) ->
 		if List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!eq_stack) then

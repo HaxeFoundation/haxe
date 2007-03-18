@@ -2,6 +2,7 @@
 	fixed bug with local variable masking package in catch type
 	fixed "Not_found" when enum params differs
 	added "override" for AS3 generator
+	fixed stack overflow in typedefs
 
 2007-03-06: 1.12
 	added flash lite support with -D flash_lite
