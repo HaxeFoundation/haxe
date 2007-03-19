@@ -193,9 +193,9 @@ let rec is_protected ctx ?(stat=false) t field =
 		| Some t -> is_protected ctx ~stat t field)
 	| TLazy f ->
 		is_protected ctx ~stat ((!f)()) field
-	| TType (t,_) ->
+	| TType (t,tl) ->
 		(match t.t_static with
-		| None -> is_protected ctx ~stat t.t_type field
+		| None -> is_protected ctx ~stat (apply_params t.t_types tl t.t_type) field
 		| Some c -> is_protected ctx ~stat:true (TInst (c,[])) field)
 	| _ -> false
 
