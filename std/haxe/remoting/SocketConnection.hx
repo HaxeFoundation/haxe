@@ -269,14 +269,12 @@ class SocketConnection extends AsyncConnection {
 		// where a new onData is called is a parallel thread
 		// ...with the buffer of the previous onData (!)
 		s.onData = function(data : String) {
-			var t = new haxe.Timer(0);
-			t.run = function() {
-				t.stop();
+			haxe.Timer.queue(function() {
 				var e = processMessage(sc,data.substr(2,data.length-2));
 				// error happened in response handler, not in request
 				if( e != null )
 					throw e.exc;
-			};
+			});
 		};
 		#end
 		return sc;

@@ -74,14 +74,12 @@ class Timer {
 		};
 	}
 
-	public static function delayedArg<T>( f : T -> Void, time : Int ) : T -> Void {
-		return function(arg) {
-			var t = new haxe.Timer(time);
-			t.run = function() {
-				t.stop();
-				f(arg);
-			};
-		};
+	private static var fqueue = new Array<Void -> Void>();
+	public static function queue( f : Void -> Void, ?time : Int ) : Void {
+		fqueue.push(f);
+		haxe.Timer.delayed(function() {
+			fqueue.shift()();
+		},if( time == null ) 0 else time);
 	}
 
 	public static function stamp() : Float {

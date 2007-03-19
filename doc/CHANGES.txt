@@ -3,6 +3,8 @@
 	fixed "Not_found" when enum params differs
 	added "override" for AS3 generator
 	fixed stack overflow in typedefs
+	added haxe.Timer.queue, removed delayedArg (use callback instead)
+	fixed haxe.remoting.SocketConnection (msg invertions might occur)
 
 2007-03-06: 1.12
 	added flash lite support with -D flash_lite
