@@ -79,7 +79,7 @@ class Timer {
 		fqueue.push(f);
 		haxe.Timer.delayed(function() {
 			fqueue.shift()();
-		},if( time == null ) 0 else time);
+		},if( time == null ) 0 else time)();
 	}
 
 	public static function stamp() : Float {
