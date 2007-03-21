@@ -1472,9 +1472,14 @@ and type_switch ctx e cases def need_val p =
 	let t = !t in
 	match !enum with
 	| None ->
+		let consts = Hashtbl.create 0 in
 		let exprs (el,e) =
 			List.map (fun c ->
 				match c with
+				| CExpr (({ eexpr = TConst c }) as e) ->
+					if Hashtbl.mem consts c then error "Duplicate constant in swtich" e.epos;
+					Hashtbl.add consts c true;
+					e
 				| CExpr c -> c
 				| _ -> assert false
 			) el , e
