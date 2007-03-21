@@ -54,6 +54,20 @@ private class HasAttribAccess implements Dynamic<Bool> {
 
 }
 
+private class HasNodeAccess implements Dynamic<Bool> {
+
+	var __x : Xml;
+
+	public function new( x : Xml ) {
+		__x = x;
+	}
+
+	function __resolve( name : String ) : Bool {
+		return __x.elementsNamed(name).hasNext();
+	}
+
+}
+
 private class NodeListAccess implements Dynamic<List<Fast>> {
 
 	var __x : Xml;
@@ -80,6 +94,7 @@ class Fast {
 	public var nodes(default,null) : NodeListAccess;
 	public var att(default,null) : AttribAccess;
 	public var has(default,null) : HasAttribAccess;
+	public var hasNode(default,null) : HasNodeAccess;
 	public var elements(getElements,null) : Iterator<Fast>;
 
 	public function new( x : Xml ) {
@@ -90,6 +105,7 @@ class Fast {
 		nodes = new NodeListAccess(x);
 		att = new AttribAccess(x);
 		has = new HasAttribAccess(x);
+		hasNode = new HasNodeAccess(x);
 	}
 
 	function getName() {
@@ -107,7 +123,7 @@ class Fast {
 			throw name+" does not have data";
 		return v.nodeValue;
 	}
-	
+
 	function getElements() {
 		var it = x.elements();
 		return {
