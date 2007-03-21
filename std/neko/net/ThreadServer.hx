@@ -155,7 +155,7 @@ class ThreadServer<Client,Message> {
 		}
 	}
 
-	function work( f : Void -> Void ) {
+	public function work( f : Void -> Void ) {
 		worker.sendMessage(f);
 	}
 
