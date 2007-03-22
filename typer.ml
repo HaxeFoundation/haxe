@@ -1477,7 +1477,7 @@ and type_switch ctx e cases def need_val p =
 			List.map (fun c ->
 				match c with
 				| CExpr (({ eexpr = TConst c }) as e) ->
-					if Hashtbl.mem consts c then error "Duplicate constant in swtich" e.epos;
+					if Hashtbl.mem consts c then error "Duplicate constant in switch" e.epos;
 					Hashtbl.add consts c true;
 					e
 				| CExpr c -> c
