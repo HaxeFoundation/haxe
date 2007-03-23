@@ -79,6 +79,16 @@ class Request {
 		return or;
 	}
 
+	public function getFloat( key : String, ?or : Float ) : Float {
+		if( params.exists(key) ){
+			var v = params.get(key);
+			if( v == "NULL" )
+				return null;
+			return Std.parseFloat(v);
+		}
+		return or;
+	}
+
 	public function getBool( key:String ) : Bool {
 		var val = params.get(key);
 		return (val != null) && (val == "1" || val == "true");
