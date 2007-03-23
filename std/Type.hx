@@ -509,5 +509,18 @@ class Type {
 		return true;
 	}
 
+	/**
+		Returns the constructor of an enum
+	**/
+	public static function enumConstructor( e : Dynamic ) : String {
+	#if neko
+		return new String(e.tag);
+	#else flash9
+		return e.tag;
+	#else true
+		return e[0];
+	#end
+	}
+
 }
 
