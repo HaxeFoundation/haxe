@@ -25,7 +25,7 @@
 package js;
 
 // allow both indexed and dot accessses
-extern class HtmlCollection<T> extends ArrayAccess<T>, implements Dynamic<T> {
+extern class HtmlCollection<T> implements ArrayAccess<T>, implements Dynamic<T> {
 	var length(default,null) : Int;
 }
 
