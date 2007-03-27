@@ -25,7 +25,8 @@
 package js;
 
 // allow both indexed and dot accessses
-extern class HtmlCollection<T> extends Array<T>, implements Dynamic<T> {
+extern class HtmlCollection<T> extends ArrayAccess<T>, implements Dynamic<T> {
+	var length(default,null) : Int;
 }
 
 // the base typedef for every DOM element
@@ -35,7 +36,7 @@ typedef MetaDom<T> = {
 	var nodeValue : String;
 
 	var parentNode : T;
-	var childNodes : Array<T>;
+	var childNodes : HtmlCollection<T>;
 	var firstChild : T;
 	var lastChild : T;
 	var nextSibling : T;
