@@ -64,7 +64,7 @@ typedef HtmlDom = {> MetaDom<HtmlDom>,
 
 	var style : Style;
 
-	function getElementsByTagName() : HtmlCollection<HtmlDom>;
+	function getElementsByTagName( tag : String ) : HtmlCollection<HtmlDom>;
 
 	#if w3c
 	#else true
