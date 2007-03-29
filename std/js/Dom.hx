@@ -50,7 +50,6 @@ typedef MetaDom<T> = {
 	function replaceChild( child : T, oldChild : T ) : Void;
 	function getAttribute( attr : String ) : String;
 	function setAttribute( attr : String, val : String ) : Void;
-
 }
 
 typedef Dom = MetaDom<Dom>
@@ -64,6 +63,8 @@ typedef HtmlDom = {> MetaDom<HtmlDom>,
 	var className : String;
 
 	var style : Style;
+
+	function getElementsByTagName() : HtmlCollection<HtmlDom>;
 
 	#if w3c
 	#else true
