@@ -7,6 +7,7 @@
 	fixed haxe.remoting.SocketConnection (msg invertions might occur)
 	add uniqueness check for switch constants
 	js : HtmlCollection and MetaDom.childNodes are not true Arrays
+	allowed semicolon after typedef declaration
 
 2007-03-06: 1.12
 	added flash lite support with -D flash_lite

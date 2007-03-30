@@ -182,7 +182,10 @@ and parse_type_decl s =
 				d_flags = List.map fst c @ n @ hl;
 				d_data = fl;
 			}, punion p1 p2)
-		| [< '(Kwd Typedef,p1); doc = get_doc; '(Const (Type name),p2); tl = parse_constraint_params; '(Binop OpAssign,_); t = parse_type_path >] ->
+		| [< '(Kwd Typedef,p1); doc = get_doc; '(Const (Type name),p2); tl = parse_constraint_params; '(Binop OpAssign,_); t = parse_type_path; s >] ->
+			(match s with parser
+			| [< '(Semicolon,_) >] -> ()
+			| [< >] -> ());
 			(ETypedef {
 				d_name = name;
 				d_doc = doc;
