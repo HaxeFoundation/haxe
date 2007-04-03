@@ -60,6 +60,7 @@ extern class TextField
 	var antiAliasType:String;
 	var gridFitType:String;
 	var sharpness:Float;
+	var filters : Array<Dynamic>;
 #end
 
 	var styleSheet:flash.text.StyleSheet;
