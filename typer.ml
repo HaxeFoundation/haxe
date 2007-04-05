@@ -2524,7 +2524,7 @@ let type_module ctx m tdecls loadp =
 					let t = List.find (fun tdecl -> snd (t_path tdecl) = t) types in
 					ctx.local_types <- ctx.local_types @ [t]
 				with
-					Not_found -> error ("Module " ^ s_type_path (pack,name) ^ " does not define type " ^ name) p
+					Not_found -> error ("Module " ^ s_type_path (pack,name) ^ " does not define type " ^ t) p
 			);
 			m.mimports <- (md,topt) :: m.mimports;
 		| EClass d ->
