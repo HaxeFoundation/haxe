@@ -168,16 +168,16 @@ class Text2Xhtml {
 
 		str = helper.str;
 		str = rh1.replace(str, "<h1>$1</h1>");
-		str = rh1e.replace(str, "<h1>$1</h1>");
+		str = rh1e.replace(str, "<h1>$1</h1>\n");
 		str = rh2.replace(str, "<h2>$1</h2>");
-		str = rh2e.replace(str, "<h2>$1</h2>");
+		str = rh2e.replace(str, "<h2>$1</h2>\n");
 		str = rh3.replace(str, "<h3>$1</h3>");
-		str = rh3e.replace(str, "<h3>$1</h3>");
+		str = rh3e.replace(str, "<h3>$1</h3>\n");
 
 		if (titleIdsEnabled){
-			str = (~/<h1>#(.*?)# (.*?)<\/h1>/g).replace(str, "<h1 id=\"$1\">$2</h1>");
-			str = (~/<h2>#(.*?)# (.*?)<\/h2>/g).replace(str, "<h2 id=\"$1\">$2</h2>");
-			str = (~/<h3>#(.*?)# (.*?)<\/h3>/g).replace(str, "<h3 id=\"$1\">$2</h3>");
+			str = (~/<h1>#(.*?)# (.*?)<\/h1>/g).replace(str, "<h1 id=\"$1\">$2</h1>\n");
+			str = (~/<h2>#(.*?)# (.*?)<\/h2>/g).replace(str, "<h2 id=\"$1\">$2</h2>\n");
+			str = (~/<h3>#(.*?)# (.*?)<\/h3>/g).replace(str, "<h3 id=\"$1\">$2</h3>\n");
 		}
 
 		while (olli.match(str)){
