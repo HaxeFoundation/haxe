@@ -193,7 +193,7 @@ class ThreadServer<Client,Message> {
 		}
 	}
 
-	public function init() {
+	function init() {
 		worker = neko.vm.Thread.create(runWorker);
 		timer = neko.vm.Thread.create(runTimer);
 		for( i in 0...nthreads ) {

@@ -73,7 +73,7 @@ class SocketConnection extends AsyncConnection {
 		#end
 	}
 
-	static function decodeChar(c) {
+	public static function decodeChar(c) {
 		// A...Z
 		if( c >= 65 && c <= 90 )
 			return c - 65;
@@ -92,7 +92,7 @@ class SocketConnection extends AsyncConnection {
 		return null;
 	}
 
-	static function encodeChar(c) {
+	public static function encodeChar(c) {
 		if( c < 0 )
 			return null;
 		// A...Z
@@ -113,7 +113,7 @@ class SocketConnection extends AsyncConnection {
 		return null;
 	}
 
-	static function sendMessage( __data : Dynamic, msg : String ) {
+	public static function sendMessage( __data : Dynamic, msg : String ) {
 		var len = msg.length + 3;
 		#if neko
 		#else true

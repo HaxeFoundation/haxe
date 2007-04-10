@@ -36,22 +36,7 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 	}
 
 	function decodeChar(c) {
-		// A...Z
-		if( c >= 65 && c <= 90 )
-			return c - 65;
-		// a...z
-		if( c >= 97 && c <= 122 )
-			return c - 97 + 26;
-		// 0...9
-		if( c >= 48 && c <= 57 )
-			return c - 48 + 52;
-		// +
-		if( c == 43 )
-			return 62;
-		// /
-		if( c == 47 )
-			return 63;
-		return null;
+		return haxe.remoting.SocketConnection.decodeChar(c);
 	}
 
 	public override function clientConnected( s : neko.net.Socket ) {
