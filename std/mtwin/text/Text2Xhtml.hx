@@ -287,6 +287,10 @@ s.write('swf@id');
 		var https = helper.extract("http", http, "<a href=\"$1://$2\">$1://$2</a>$3");
 		str = helper.str;
 
+		str = StringTools.replace(str, " !", "&nbsp;!");
+		str = StringTools.replace(str, " :", "&nbsp;:");
+		str = StringTools.replace(str, " ?", "&nbsp;?");
+
 		var pos = 0;
 		var token = findFirst(str, [em, strong, cite]);
 		while (token != null){
