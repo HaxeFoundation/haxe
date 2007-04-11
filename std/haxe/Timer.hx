@@ -25,9 +25,10 @@
 package haxe;
 
 class Timer {
-	#if flash
+	#if (flash || js)
 		private var id : Int;
-	#else js
+	#end
+	#if js
 		private static var arr = new Array<Timer>();
 		private var timerId : Int;
 	#end
@@ -40,7 +41,7 @@ class Timer {
 			var me = this;
 			id = untyped _global["setInterval"](function() { me.run(); },time);
 		#else js
-			var id = arr.length;
+			id = arr.length;
 			arr[id] = this;
 			timerId = untyped window.setInterval("haxe.Timer.arr["+id+"].run();",time);
 		#else neko
@@ -57,6 +58,14 @@ class Timer {
 			id = null;
 		#else js
 			untyped window.clearInterval(timerId);
+			arr[id] = null;
+			if( id == arr.length - 1 ) {
+				// compact array
+				var p = id - 1;
+				while( p >= 0 && arr[p] == null )
+					p--;
+				arr = arr.slice(0,p+1);
+			}
 		#else neko
 		#end
 	}

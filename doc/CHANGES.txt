@@ -11,6 +11,7 @@
 	fixed in-loop closure usage of "for" variable for Flash and JS
 	added neko.net.ThreadRemotingServer.onXml (to handle crossdomain xml)
 	more accurate stack trace for socket remoting
+	prevent some memory leak in haxe.Timer / JS
 
 2007-03-06: 1.12
 	added flash lite support with -D flash_lite
