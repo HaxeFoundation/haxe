@@ -9,6 +9,8 @@
 	js : HtmlCollection and MetaDom.childNodes are not true Arrays
 	allowed semicolon after typedef declaration
 	fixed in-loop closure usage of "for" variable for Flash and JS
+	added neko.net.ThreadRemotingServer.onXml (to handle crossdomain xml)
+	more accurate stack trace for socket remoting
 
 2007-03-06: 1.12
 	added flash lite support with -D flash_lite
