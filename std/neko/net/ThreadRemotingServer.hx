@@ -55,8 +55,18 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 	public override function readClientMessage( cnx, buf : String, pos : Int, len : Int ) {
 		var c1 = decodeChar(buf.charCodeAt(pos));
 		var c2 = decodeChar(buf.charCodeAt(pos+1));
-		if( c1 == null || c2 == null )
-			throw "Invalid remoting message '"+buf.substr(pos,len)+"'";
+		if( c1 == null || c2 == null ) {
+			if( buf.charCodeAt(pos) != 60 )
+				throw "Invalid remoting message '"+buf.substr(pos,len)+"'";
+			// XML handling
+			var p = buf.indexOf("\\0",pos);
+			if( p == -1 )
+				return null;
+			return {
+				msg : buf.substr(pos,p-pos),
+				bytes : p - pos + 1,
+			};
+		}
 		var msgLen = (c1 << 6) | c2;
 		if( len < msgLen )
 			return null;
@@ -68,7 +78,15 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 		};
 	}
 
+	public function onXml(cnx,data) {
+		throw "Unhandled XML data '"+data+"'";
+	}
+
 	public override function clientMessage( cnx, msg : String ) {
+		if( msg.charCodeAt(0) == 60 ) {
+			onXml(cnx,msg);
+			return;
+		}
 		var r = haxe.remoting.SocketConnection.processMessage(cnx,msg);
 		if( r != null ) {
 			if( !Std.is(r.exc,neko.io.Eof) && !Std.is(r.exc,neko.io.Error) )
