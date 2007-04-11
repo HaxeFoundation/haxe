@@ -59,7 +59,7 @@ class Timer {
 		#else js
 			untyped window.clearInterval(timerId);
 			arr[id] = null;
-			if( id == arr.length - 1 ) {
+			if( id > 100 && id == arr.length - 1 ) {
 				// compact array
 				var p = id - 1;
 				while( p >= 0 && arr[p] == null )
