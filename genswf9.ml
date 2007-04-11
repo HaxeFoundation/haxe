@@ -1036,6 +1036,9 @@ and generate_function ctx fdata stat =
 	write ctx A3RetVoid;
 	f()
 
+let generate_method ctx fdata stat =
+	generate_function ctx { fdata with tf_expr = Transform.block_vars fdata.tf_expr } stat
+
 let generate_construct ctx fdata cfields =
 	let args = List.map (fun (name,opt,_) -> name,opt) fdata.tf_args in
 	let f = begin_fun ctx args [fdata.tf_expr] false in
@@ -1050,11 +1053,11 @@ let generate_construct ctx fdata cfields =
 		| Some { eexpr = TFunction fdata } when f.cf_set = NormalAccess ->
 			let id = ident ctx f.cf_name in
 			write ctx (A3SetInf id);
-			write ctx (A3Function (generate_function ctx fdata false));
+			write ctx (A3Function (generate_method ctx fdata false));
 			write ctx (A3Set id);
 		| _ -> ()
 	) cfields;
-	gen_expr ctx false fdata.tf_expr;
+	gen_expr ctx false (Transform.block_vars fdata.tf_expr);
 	write ctx A3RetVoid;
 	f() , List.length args
 
@@ -1100,7 +1103,7 @@ let generate_class_init ctx c slot =
 		match f.cf_expr with
 		| Some { eexpr = TFunction fdata } when f.cf_set = NormalAccess ->
 			write ctx A3Dup;
-			write ctx (A3Function (generate_function ctx fdata true));
+			write ctx (A3Function (generate_method ctx fdata true));
 			write ctx (A3Set (ident ctx f.cf_name));
 		| _ -> ()
 	) c.cl_ordered_statics;
@@ -1123,7 +1126,7 @@ let generate_class_statics ctx c =
 				first := false;
 			end;
 			write ctx (A3Reg r);
-			gen_expr ctx true e;
+			gen_expr ctx true (Transform.block_vars e);
 			write ctx (A3SetSlot !nslot);
 	) c.cl_ordered_statics;
 	free_reg ctx r
@@ -1173,7 +1176,7 @@ let generate_field_kind ctx f c stat =
 			})	
 		else
 			Some (A3FMethod {
-				m3_type = generate_function ctx fdata stat;
+				m3_type = generate_method ctx fdata stat;
 				m3_final = false;
 				m3_override = not stat && loop c;
 				m3_kind = MK3Normal;
@@ -1391,7 +1394,7 @@ let generate_inits ctx types =
 		| TClassDecl c ->
 			(match c.cl_init with
 			| None -> ()
-			| Some e -> gen_expr ctx false e);
+			| Some e -> gen_expr ctx false (Transform.block_vars e));
 		| _ -> ()
 	) types;
 	List.iter (fun t ->

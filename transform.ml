@@ -150,6 +150,9 @@ let block_vars e =
 				add_var vars v;
 				v, t, e
 			) l) }
+		| TFor (v,t,i,e) ->
+			let new_vars = PMap.add v () (!vars) in
+			{ e with eexpr = TFor (v,t,in_loop vars i,in_loop (ref new_vars) e) }
 		| TTry (e,cases) ->
 			let e = in_loop vars e in
 			let cases = List.map (fun (v,t,e) ->
@@ -189,7 +192,7 @@ let block_vars e =
 	and out_loop e =
 		match e.eexpr with
 		| TFor _ | TWhile _ ->
-			map (in_loop (ref PMap.empty)) e
+			in_loop (ref PMap.empty) e
 		| _ ->
 			map out_loop e
 	in
