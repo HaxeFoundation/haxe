@@ -275,13 +275,13 @@ class Reflect {
 	}
 
 	/**
-		Make a copy of an object.
+		Make a copy of the fields of an object.
 	**/
-	public static function copy( o : Dynamic ) : Dynamic {
+	public static function copy<T>( o : T ) : T {
 		#if neko
 		return untyped __dollar__new(o);
 		#else true
-		var o2 = empty();
+		var o2 = cast empty();
 		for( f in Reflect.fields(o) )
 			Reflect.setField(o2,f,Reflect.field(o,f));
 		return o2;
