@@ -273,7 +273,11 @@ class SocketConnection extends AsyncConnection {
 				var e = processMessage(sc,data.substr(2,data.length-2));
 				// error happened in response handler, not in request
 				if( e != null )
+					#if neko
+					neko.Lib.rethrow(e.exc);
+					#else true
 					throw e.exc;
+					#end
 			});
 		};
 		#end
