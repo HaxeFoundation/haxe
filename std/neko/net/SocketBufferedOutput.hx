@@ -39,6 +39,10 @@ class SocketBufferedOutput extends neko.io.Output {
 		bytes = 0;
 	}
 
+	public function reset() {
+		bytes = 0;
+	}
+
 	public function writable() {
 		return bytes == 0;
 	}
