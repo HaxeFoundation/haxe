@@ -601,7 +601,20 @@ class Parser {
 						if (isExpressionKeyword(variable)){
 							result.add(variable);
 						}
-						else {									
+						else if (c == "["){
+							result.add("__ctx.get(");
+							result.add(Generator.hash(variable));
+							result.add(")");
+							var def = findEndOfArray(str, i);
+							var sub = str.substr(i+1, def.end-i);
+							result.add("[");
+							result.add(parseExpression(sub));
+							result.add("]");
+							i = def.end + 1;
+							skip = true;
+							state = states.none;
+						}
+						else {							
 							result.add("__ctx.get(");
 							result.add(Generator.hash(variable));
 							result.add(")");
