@@ -47,8 +47,12 @@ class ProxyDetect {
 				port : Std.parseInt(r.matched(4)),
 			};
 		var r = ~/^([^:]+):([0-9]+)$/;
-		if( !r.match(settings) )
-			throw "Invalid settings '"+settings+"'";
+		if( !r.match(settings) ) {
+			var r2 = ~/http=([^:]+):([0-9]+)/;
+			if( !r2.match(settings) )
+				throw "Invalid settings '"+settings+"'";
+			r = r2;
+		}
 		return {
 			host : r.matched(1),
 			port : Std.parseInt(r.matched(2)),
