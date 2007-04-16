@@ -61,6 +61,17 @@ class Lambda {
 	}
 
 	/**
+		Similar to [map], but also pass an index for each item iterated.
+	**/
+	public static function mapi<A,B>( it : Iterable<A>, f : Int -> A -> B ) : List<B> {
+		var l = new List<B>();
+		var i = 0;
+		for( x in it )
+			l.add(f(i++,x));
+		return l;
+	}
+
+	/**
 		Tells if the element is part of an iterable
 	**/
 	public static function has<A>( it : Iterable<A>, elt : A, ?cmp : A -> A -> Bool ) : Bool {
