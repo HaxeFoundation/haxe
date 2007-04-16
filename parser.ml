@@ -597,6 +597,8 @@ and expr_next e1 = parser
 		make_binop op e1 e2
 	| [< '(Unop op,p) when is_postfix e1 op; s >] ->
 		expr_next (EUnop (op,Postfix,e1), punion (pos e1) p) s
+	| [< '(Question,_); e2 = expr; '(DblDot,_); e3 = expr >] ->
+		(EIf (e1,e2,Some e3),punion (pos e1) (pos e3))
 	| [< >] -> e1
 
 and parse_switch_cases eswitch cases = parser
