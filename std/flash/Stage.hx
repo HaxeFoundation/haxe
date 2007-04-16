@@ -10,6 +10,8 @@ extern class Stage
 	static function addListener(listener:Dynamic):Void;
 	static function removeListener(listener:Dynamic):Void;
 
+	static var displayState : String;
+
 	private static function __init__() : Void untyped {
 		flash.Stage = _global["Stage"];
 	}
