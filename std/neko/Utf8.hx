@@ -26,6 +26,20 @@ package neko;
 
 class Utf8 {
 
+	var __b : Void;
+
+	public function new( ?size : Int ) {
+		__b = utf8_buf_alloc(if( size == null ) 1 else size);
+	}
+
+	public function addChar( c : Int ) {
+		utf8_buf_add(__b,c);
+	}
+
+	public function toString() {
+		return new String(utf8_buf_content(__b));
+	}
+
 	public static function encode( s : String ) : String {
 		s = untyped s.__s;
 		var sl = untyped __dollar__ssize(s);

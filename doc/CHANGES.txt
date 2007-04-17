@@ -14,6 +14,7 @@
 	prevent some memory leak in haxe.Timer / JS
 	added flash fullscreen support
 	added cond?a:b syntax support
+	added utf8 buffer api
 
 2007-03-06: 1.12
 	added flash lite support with -D flash_lite
