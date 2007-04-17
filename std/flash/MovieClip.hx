@@ -69,8 +69,7 @@ implements Dynamic
 	function attachAudio(id : Dynamic) : Void;
 	function attachVideo(id : Dynamic) : Void;
 	function getDepth() : Int;
-	function getInstanceAtDepth(depth : Int) : MovieClip;
-	function getNextHighestDepth() : Int;
+
 	function setMask(mc : MovieClip) : Void;
 	// don't allow setMask( mc : String ) : Void
 	function play() : Void;
@@ -87,6 +86,11 @@ implements Dynamic
 	function stopDrag() : Void;
 	function createEmptyMovieClip(name : String, depth : Int) : MovieClip;
 	function beginFill(rgb : Int, ?alpha : Float) : Void;
+
+#if !flash6
+	function getInstanceAtDepth(depth : Int) : MovieClip;
+	function getNextHighestDepth() : Int;
+#end
 
 #if flash8
 	function beginGradientFill(fillType : String, colors : Array<Int>, alphas : Array<+Float>, ratios : Array<+Float>, matrix : Dynamic, ?spreadMethod : String, ?interpolationMethod : String, ?focalPointRatio : Float ) : Void;
