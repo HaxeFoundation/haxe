@@ -101,7 +101,7 @@ let file_extension f =
 let make_path f =
 	let cl = ExtString.String.nsplit f "." in
 	let cl = (match List.rev cl with
-		| "hx" :: l -> List.rev l
+		| ["hx";path] -> ExtString.String.nsplit path "/"
 		| _ -> cl
 	) in
 	let error() = failwith ("Invalid class name " ^ f) in
