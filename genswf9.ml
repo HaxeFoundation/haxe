@@ -1515,17 +1515,17 @@ let type_path ctx p =
 	| [] , "Array" -> [] , "Array<Dynamic>"
 	| [] , "void" -> [] , "Void"
 	| [] , "Function" -> [] , "Dynamic"
+	| [] , "Class" -> [] , "Class<Dynamic>"
 	| path -> path
 
 let ident_rights ctx id =
 	match As3code.iget ctx.as3_types id with
 	| A3TMethodVar (id,r) ->
 		let name = ident ctx id in
-		let r = (match As3code.iget ctx.as3_base_rights r with
-			| A3RPublic _ | A3RUnknown1 _ -> false
-			| _ -> true
-		) in
-		r , name
+		(match As3code.iget ctx.as3_base_rights r with
+		| A3RUnknown1 i when As3code.iget ctx.as3_idents i = "http://www.adobe.com/2006/flex/mx/internal" -> false, "$" ^ name
+		| A3RPublic _ | A3RUnknown1 _ -> false , name
+		| _ -> true , name)
 	| _ -> false, "???"
 
 let rec create_dir acc = function
@@ -1593,12 +1593,14 @@ let gen_method ctx ch name mt =
 let gen_fields ctx ch fields stat =
 	let fields = List.sort (fun f1 f2 -> compare (ident_rights ctx f1.f3_name) (ident_rights ctx f2.f3_name)) (Array.to_list fields) in
 	List.iter (fun f ->
-		match f.f3_kind with
+		let priv , name = ident_rights ctx f.f3_name in
+		if name.[0] = '$' then
+			()
+		else match f.f3_kind with
 		| A3FMethod m ->
 			if m.m3_override then
 				()
 			else
-			let priv , name = ident_rights ctx f.f3_name in
 			(match m.m3_kind with
 			| MK3Normal ->
 				IO.printf ch "\t";
@@ -1621,8 +1623,7 @@ let gen_fields ctx ch fields stat =
 			)
 		| A3FVar v ->
 			let t = type_val ctx v.v3_type (Some v.v3_value) in
-			let priv , n = ident_rights ctx f.f3_name in
-			IO.printf ch "\t%s%svar %s : %s;\n" (if priv then "private " else "") (if stat then "static " else "") n t
+			IO.printf ch "\t%s%svar %s : %s;\n" (if priv then "private " else "") (if stat then "static " else "") name t
 		| A3FClass _ ->
 			IO.printf ch "\t// ????\n"
 	) fields
@@ -1630,7 +1631,15 @@ let gen_fields ctx ch fields stat =
 let genhx_class ctx c s =
 	let base_path = "hxclasses" in
 	let pack , name = real_type_path ctx c.cl3_name in
-	prerr_string ("import " ^ s_type_path (pack,name));
+	let skip = (match pack with
+		| [_;x] when String.length x > 3 && String.sub x 0 3 = "as$" -> true
+		| _ when name.[0] = '_' -> true
+		| _ -> false
+	) in
+	if skip then
+		prerr_endline ("// skip " ^ s_type_path (pack,name))
+	else
+	let () = prerr_string ("import " ^ s_type_path (pack,name)) in
 	create_dir "." (base_path :: pack);
 	let f = open_out (base_path ^ "/" ^ (match pack with [] -> "" | l -> String.concat "/" l ^ "/") ^ name ^ ".hx") in
 	let ch = IO.output_channel f in
