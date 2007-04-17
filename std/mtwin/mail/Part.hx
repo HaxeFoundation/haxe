@@ -81,7 +81,7 @@ class MetaPart<T> {
 	}
 
 	public function addPart( part : T ){
-		parts.push( part );
+		parts.add( part );
 	}
 
 	public function setContent( c : String ){
