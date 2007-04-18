@@ -25,12 +25,12 @@
 package haxe;
 
 class Timer {
-	#if (flash || js)
-		private var id : Int;
-	#end
+
+	private var id : Int;
+
 	#if js
-		private static var arr = new Array<Timer>();
-		private var timerId : Int;
+	private static var arr = new Array<Timer>();
+	private var timerId : Int;
 	#end
 
 	public function new( time : Int ){
@@ -50,12 +50,12 @@ class Timer {
 	}
 
 	public function stop(){
+		if( id == null )
+			return;
 		#if flash9
 			untyped __global__["flash.utils.clearInterval"](id);
-			id = null;
 		#else flash
 			untyped _global["clearInterval"](id);
-			id = null;
 		#else js
 			untyped window.clearInterval(timerId);
 			arr[id] = null;
@@ -68,6 +68,7 @@ class Timer {
 			}
 		#else neko
 		#end
+		id = null;
 	}
 
 	public f9dynamic function run(){
