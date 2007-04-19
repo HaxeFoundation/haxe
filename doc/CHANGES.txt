@@ -15,6 +15,7 @@
 	added flash fullscreen support
 	added cond?a:b syntax support
 	added utf8 buffer api
+	added haxelib "dev" mode
 
 2007-03-06: 1.12
 	added flash lite support with -D flash_lite
