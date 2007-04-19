@@ -18,12 +18,19 @@ extern class TextFormat
 	var blockIndent:Float;
 	var tabStops:Array<Int>;
 	var bullet:Bool;
+
 	function new( ?font:String, ?size:Float, ?textColor:Int,
                   ?bold:Bool, ?italic:Bool, ?underline:Bool,
                   ?url:String, ?window:String, ?align:String,
                   ?leftMargin:Float, ?rightMargin:Float, ?indent:Float,
                   ?leading:Float ) : Void;
+
+
+	#if flash8
+	var kerning : Bool;
+	var letterSpacing : Float;
 	function getTextExtent(text:String, ?width : Float) : Dynamic;
+	#end
 
 	private static function __init__() : Void untyped {
 		flash.TextFormat = _global["TextFormat"];
