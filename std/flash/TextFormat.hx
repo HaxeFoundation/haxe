@@ -29,6 +29,7 @@ extern class TextFormat
 	#if flash8
 	var kerning : Bool;
 	var letterSpacing : Float;
+	var display : String;
 	function getTextExtent(text:String, ?width : Float) : Dynamic;
 	#end
 
