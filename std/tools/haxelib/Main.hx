@@ -123,6 +123,7 @@ class Main {
 		addCommand("path",path,"give paths to libraries");
 		addCommand("run",run,"run the specified project with parameters");
 		addCommand("test",test,"install the specified package localy");
+		addCommand("dev",dev,"set the development directory for a given project");
 		siteUrl = "http://"+SERVER.host+":"+SERVER.port+"/"+SERVER.dir;
 		site = new SiteProxy(haxe.remoting.Connection.urlConnect(siteUrl+SERVER.url).api);
 	}
@@ -515,14 +516,17 @@ class Main {
 				continue;
 			var versions = new Array();
 			var current = neko.io.File.getContent(rep+p+"/.current");
+			var dev = try neko.io.File.getContent(rep+p+"/.dev") catch( e : Dynamic ) null;
 			for( v in neko.FileSystem.readDirectory(rep+p) ) {
 				if( v.charAt(0) == "." )
 					continue;
 				v = Datas.unsafe(v);
-				if( v == current )
+				if( dev == null && v == current )
 					v = "["+v+"]";
 				versions.push(v);
 			}
+			if( dev != null )
+				versions.push("[dev:"+dev+"]");
 			print(Datas.unsafe(p) + ": "+versions.join(" "));
 		}
 	}
@@ -644,6 +648,13 @@ class Main {
 		for( d in list ) {
 			var pdir = Datas.safe(d.project)+"/"+Datas.safe(d.version)+"/";
 			var dir = rep + pdir;
+			try {
+				dir = neko.io.File.getContent(rep+Datas.safe(d.project)+"/.dev");
+				if( dir.length == 0 || (dir.charAt(dir.length-1) != '/' && dir.charAt(dir.length-1) != '\\') )
+					dir += "/";
+				pdir = dir;
+			} catch( e : Dynamic ) {
+			}
 			var ndir = dir + "ndll";
 			if( neko.FileSystem.exists(ndir) ) {
 				var sysdir = ndir+"/"+neko.Sys.systemName();
@@ -652,6 +663,23 @@ class Main {
 				neko.Lib.println("-L "+pdir+"ndll/");
 			}
 			neko.Lib.println(dir);
+		}
+	}
+
+	function dev() {
+		var rep = getRepository();
+		var project = param("Project");
+		var dir = paramOpt();
+		var devfile = rep + Datas.safe(project)+"/.dev";
+		if( dir == null ) {
+			if( neko.FileSystem.exists(devfile) )
+				neko.FileSystem.deleteFile(devfile);
+			print("Development directory disabled");
+		} else {
+			var f = neko.io.File.write(devfile,false);
+			f.write(dir);
+			f.close();
+			print("Development directory set to "+dir);
 		}
 	}
 

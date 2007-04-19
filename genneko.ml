@@ -712,7 +712,8 @@ let generate_libs_init = function
 			"@s = @s + \"/\";"
 		in
 		List.fold_left (fun acc l ->
-			acc ^ "$loader.path = $array(@b + \"" ^ Nast.escape l ^ "\" + @s,$loader.path);"
+			let full_path = l.[0] = '/' || l.[1] = ':' in
+			acc ^ "$loader.path = $array(" ^ (if full_path then "" else "@b + ") ^ "\"" ^ Nast.escape l ^ "\" + @s,$loader.path);"
 		) boot libs
 
 let generate file types hres libs =
