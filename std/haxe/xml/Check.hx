@@ -178,13 +178,17 @@ class Check {
 					return CMissing(r);
 			return CMatch;
 		case RMulti(r,one):
-			if( one && !it.hasNext() )
-				return CMissing(r);
+			var found = false;
 			for( x in it ) {
+				if( isBlank(x) )
+					continue;
 				var m = checkList([x].iterator(),r);
 				if( m != CMatch )
 					return m;
+				found = true;
 			}
+			if( one && !found )
+				return CMissing(r);
 			return CMatch;
 		default:
 			var found = false;
