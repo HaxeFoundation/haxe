@@ -1,5 +1,9 @@
 package flash.geom;
 
+#if !flash8
+"This class is only accesible in Flash8"
+#end
+
 extern class Matrix {
 
 	// 3x2 affine 2D matrix

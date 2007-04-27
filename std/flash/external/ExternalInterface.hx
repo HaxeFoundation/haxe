@@ -1,5 +1,9 @@
 package flash.external;
 
+#if !flash8
+"This class is only accesible in Flash8"
+#end
+
 extern class ExternalInterface {
 
 	static var available : Bool;

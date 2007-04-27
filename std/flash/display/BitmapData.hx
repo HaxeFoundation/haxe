@@ -1,5 +1,9 @@
 package flash.display;
 
+#if !flash8
+"This class is only accesible in Flash8"
+#end
+
 import flash.geom.Rectangle;
 import flash.geom.Point;
 

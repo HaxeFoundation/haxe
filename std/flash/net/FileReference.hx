@@ -1,5 +1,9 @@
 package flash.net;
 
+#if !flash8
+"This class is only accesible in Flash8"
+#end
+
 extern class FileReference {
 
 	var creator : String;
