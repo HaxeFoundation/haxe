@@ -17,7 +17,7 @@ extern class Matrix {
 	function new( ?a : Float, ?b : Float, ?c : Float, ?d : Float, ?tx : Float, ?ty : Float) : Void;
 
 	function transformPoint( p : Point<Float> ) : Point<Float>;
-	function deltaTransformPoint( p : Point<Float> ) : Void; // does not apply translation
+	function deltaTransformPoint( p : Point<Float> ) : Point<Float>;
 	function toString() : String;
 	function scale( sx : Float, sy : Float ) : Void;
 	function translate( tx : Float, ty : Float ) : Void;
