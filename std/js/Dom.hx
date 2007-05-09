@@ -466,7 +466,7 @@ typedef Select = {> FormElement,
 
 	function remove( o : Option ) : Void;
 
-	var onChange : Void -> Void;
+	var onchange : Event -> Void;
 }
 
 typedef Style = {
