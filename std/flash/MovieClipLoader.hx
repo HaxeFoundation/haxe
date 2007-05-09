@@ -36,6 +36,10 @@ extern class MovieClipLoader
 	function removeListener(listener:Dynamic):Bool;
 #end
 
+#if flash_v9
+	var checkPolicyFile : Bool;
+#end
+
 	private static function __init__() : Void untyped {
 		flash.MovieClipLoader = _global["MovieClipLoader"];
 	}

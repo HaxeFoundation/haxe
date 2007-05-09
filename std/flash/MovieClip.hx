@@ -156,6 +156,10 @@ implements Dynamic
 
 #end
 
+#if flash_v9
+	var forceSmoothing : Bool;
+#end
+
 // MT extension
 #if flash_strict
 	var smc : flash.MovieClip;

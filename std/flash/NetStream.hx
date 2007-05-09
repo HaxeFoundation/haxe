@@ -10,6 +10,10 @@ extern class NetStream
 	var currentFps(default,null) : Float;
 	var liveDelay(default,null) : Float;
 
+#if flash_v9
+	var checkPolicyFile : Bool;
+#end
+
 	function new( connection : NetConnection ) : Void;
 	function onMetaData( info : Dynamic ) : Void;
 	function onStatus( info : Dynamic ) : Void;

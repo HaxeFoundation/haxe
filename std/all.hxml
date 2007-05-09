@@ -10,6 +10,7 @@ haxe.ImportAll
 -xml flash.xml
 -D flash9doc
 -D flash_lite
+-D flash_v9
 --override
 haxe.ImportAll
 
