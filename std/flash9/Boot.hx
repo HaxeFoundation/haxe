@@ -92,6 +92,7 @@ class Boot extends flash.display.MovieClip {
 			tf.selectable = false;
 			tf.width = mc.stage.stageWidth;
 			tf.autoSize = flash.text.TextFieldAutoSize.LEFT;
+			tf.mouseEnabled = false;
 		}
 		mc.addChild(tf); // on top
 		return tf;
