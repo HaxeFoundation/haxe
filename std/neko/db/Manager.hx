@@ -133,26 +133,31 @@ class Manager<T : Object> {
 		s.add("SELECT * FROM ");
 		s.add(table_name);
 		s.add(" WHERE ");
-		var first = true;
-		for( f in Reflect.fields(x) ) {
-			if( first )
-				first = false;
-			else
-				s.add(" AND ");
-			s.add(quoteField(f));
-			var d = Reflect.field(x,f);
-			if( d == null )
-				s.add(" IS NULL");
-			else {
-				s.add(" = ");
-				addQuote(s,d);
-			}
-		}
-		if( first )
-			s.add("TRUE");
+		addCondition(s,x);
 		if( lock )
 			s.add(FOR_UPDATE);
 		return objects(s.toString(),lock);
+	}
+
+	function addCondition(s : StringBuf,x) {
+		var first = true;
+		if( x != null )
+			for( f in Reflect.fields(x) ) {
+				if( first )
+					first = false;
+				else
+					s.add(" AND ");
+				s.add(quoteField(f));
+				var d = Reflect.field(x,f);
+				if( d == null )
+					s.add(" IS NULL");
+				else {
+					s.add(" = ");
+					addQuote(s,d);
+				}
+			}
+		if( first )
+			s.add("TRUE");
 	}
 
 	public function all( ?lock: Bool ) : List<T> {
@@ -161,8 +166,13 @@ class Manager<T : Object> {
 		return objects("SELECT * FROM " + table_name + if( lock ) FOR_UPDATE else "",lock);
 	}
 
-	public function count() : Int {
-		return execute("SELECT COUNT(*) FROM "+table_name).getIntResult(0);
+	public function count( ?x : {} ) : Int {
+		var s = new StringBuf();
+		s.add("SELECT COUNT(*) FROM ");
+		s.add(table_name);
+		s.add(" WHERE ");
+		addCondition(s,x);
+		return execute(s.toString()).getIntResult(0);
 	}
 
 	public function quote( s : String ) : String {
