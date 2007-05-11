@@ -1472,6 +1472,7 @@ let generate file ver header infile types hres =
 			let tags = (if !no_sandbox && ver >= 8 then sandbox() :: tags else tags) in
 			(header , tags)
 	) in
+	let swf = if ver = 8 && Plugin.defined "flash_v9" then ({ (fst swf) with h_version = 9 }, snd swf) else swf in
 	let ch = IO.output_channel (open_out_bin file) in
 	Swf.write ch swf;
 	IO.close_out ch
