@@ -1580,8 +1580,6 @@ and type_access ctx e p get =
 				loop ((s,true,p) :: acc) e
 			| EConst (Ident i) ->
 				type_path ((i,false,p) :: acc)
-			| EConst (Type i) ->
-				type_path ((i,true,p) :: acc)
 			| _ ->
 				fields acc (type_access ctx (fst e) (snd e))
 		in
