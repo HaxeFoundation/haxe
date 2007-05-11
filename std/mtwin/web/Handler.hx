@@ -142,12 +142,12 @@ class Handler<T> {
 		}
 	}
 
-	function owner( cb:T->Void ) : T->Void {
+	function owner<K>( cb:T->K ) : T->K {
 		var me = this;
 		return function(u:T){
 			if (!me.isOwner(u))
 				throw ActionReservedToObjectOwner;
-			cb(u);
+			return cb(u);
 		}
 	}
 
@@ -156,6 +156,13 @@ class Handler<T> {
 		return function(){
 			h.execute(me.request, me.level+1);
 		}
+	}
+
+	function objectHandler( cb : T -> Handler<Dynamic>, ?lock : Bool ) {
+		var me = this;
+		return object(function(u:T) {
+			me.handler(cb(u))();
+		},lock);
 	}
 
 	// action declarators
