@@ -522,5 +522,18 @@ class Type {
 	#end
 	}
 
+	/**
+		Returns the parameters of an enum
+	**/
+	public static function enumParameters( e : Dynamic ) : Array<Dynamic> {
+	#if neko
+		return if( e.args == null ) [] else e.args;
+	#else flash9
+		return if( e.params == null ) [] else e.params;
+	#else true
+		return e.slice(1);
+	#end
+	}
+
 }
 
