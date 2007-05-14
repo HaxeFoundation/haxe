@@ -16,6 +16,8 @@
 	added cond?a:b syntax support
 	added utf8 buffer api
 	added haxelib "dev" mode
+	renamed Http.asyncRequest to customRequest
+	add classes to Neko module export table
 
 2007-03-06: 1.12
 	added flash lite support with -D flash_lite

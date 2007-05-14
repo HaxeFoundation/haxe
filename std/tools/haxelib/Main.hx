@@ -357,7 +357,7 @@ class Main {
 			throw e;
 		};
 		print("Downloading "+filename+"...");
-		h.asyncRequest(false,progress);
+		h.customRequest(false,progress);
 
 		doInstallFile(filepath,setcurrent);
 	}

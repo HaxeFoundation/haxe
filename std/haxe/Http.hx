@@ -234,7 +234,7 @@ class Http {
 			if( !err )
 				me.onData(output.toString());
 		};
-		asyncRequest(post,output);
+		customRequest(post,output);
 	#end
 	}
 
@@ -244,7 +244,7 @@ class Http {
 		this.file = { param : argname, filename : filename, io : file, size : size };
 	}
 
-	public function asyncRequest( post : Bool, api : neko.io.Output, ?sock : AbstractSocket  ) {
+	public function customRequest( post : Bool, api : neko.io.Output, ?sock : AbstractSocket  ) {
 		var url_regexp = ~/^(http:\/\/)?([a-zA-Z\.0-9-]+)(:[0-9]+)?(.*)$/;
 		if( !url_regexp.match(url) ) {
 			onError("Invalid URL");

@@ -105,7 +105,7 @@ class Boot {
 			throw "Can't serialize";
 		}
 	}
-	
+
 	private static function __tagserialize(o) untyped {
 		var n = o.__enum__.__ename__;
 		var x = __dollar__amake(n.length + 1);
@@ -151,6 +151,7 @@ class Boot {
 			__dollar__objset(Bool,__dollar__hash("true".__s),true);
 			__dollar__objset(Bool,__dollar__hash("false".__s),false);
 			__dollar__exports.__unserialize = __unserialize;
+			__dollar__exports.__classes = neko.Boot.__classes;
 		}
 	}
 
