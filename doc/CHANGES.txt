@@ -18,6 +18,7 @@
 	added haxelib "dev" mode
 	renamed Http.asyncRequest to customRequest
 	add classes to Neko module export table
+	fixed parametrized enums for Flash6
 
 2007-03-06: 1.12
 	added flash lite support with -D flash_lite

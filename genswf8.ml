@@ -1062,10 +1062,17 @@ let gen_enum_field ctx e f =
 	| TFun (args,r) ->
 		ctx.regs <- PMap.empty;
 		ctx.reg_count <- 1;
-		let rargs = List.map (fun _ -> alloc_reg ctx , "") args in
+		let no_reg = ctx.version = 6 in
+		let rargs = List.map (fun (n,_,_) -> if no_reg then 0, n else alloc_reg ctx , "") args in
 		let nregs = List.length rargs + 1 in
 		let tf = func ctx false false rargs in
-		push ctx (List.map (fun (r,_) -> VReg r) (List.rev rargs));
+		List.iter (fun (r,name) -> 
+			if no_reg then begin
+				push ctx [VStr (name,false)];
+				write ctx AEval;
+			end else
+				push ctx [VReg r]
+		) (List.rev rargs);
 		push ctx [VStr (f.ef_name,false); VInt nregs];
 		write ctx AInitArray;
 		write ctx ADup;
