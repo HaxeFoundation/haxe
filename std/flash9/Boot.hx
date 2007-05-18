@@ -104,6 +104,8 @@ class Boot extends flash.display.MovieClip {
 		lines = lines.concat((pstr +": "+__string_rec(v,"")).split("\n"));
 		tf.text = lines.join("\n");
 		var stage = flash.Lib.current.stage;
+		if( stage == null )
+			throw "Loaded movie not ready to trace, wait a few frames";
 		while( tf.height > stage.stageHeight ) {
 			lines.shift();
 			tf.text = lines.join("\n");
