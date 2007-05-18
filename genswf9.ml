@@ -78,6 +78,7 @@ type context = {
 	gpublic : as3_rights index;
 	debug : bool;
 	mutable last_line : int;
+	boot : string;
 
 	(* per-function *)
 	mutable locals : (string,local) PMap.t;
@@ -245,6 +246,7 @@ let type_path ctx ?(getclass=false) path =
 		| [] , "Float" -> [] , "Number"
 		| [] , "Bool" -> [] , "Boolean"
 		| ["flash"] , "FlashXml__" -> [] , "Xml"
+		| ["flash"] , "Boot" -> [] , ctx.boot
 		| _ -> path
 	) in
 	let pid = string ctx (String.concat "." pack) in
@@ -1043,7 +1045,7 @@ let generate_construct ctx fdata cfields =
 	let args = List.map (fun (name,opt,_) -> name,opt) fdata.tf_args in
 	let f = begin_fun ctx args [fdata.tf_expr] false in
 	let id = ident ctx "skip_constructor" in
-	getvar ctx (VGlobal (type_path ctx (["flash"],"Boot"),true));
+	getvar ctx (VGlobal (type_path ctx ([],ctx.boot),true));
 	getvar ctx (VId id);
 	let j = jump ctx J3False in
 	write ctx A3RetVoid;
@@ -1237,7 +1239,7 @@ let generate_class ctx c =
 	let sc = {
 		cl3_name = name_id;
 		cl3_super = (if c.cl_interface then None else Some (type_path ctx (match c.cl_super with None -> [],"Object" | Some (c,_) -> c.cl_path)));
-		cl3_sealed = true;
+		cl3_sealed = c.cl_path <> (["flash"],"Boot");
 		cl3_final = false;
 		cl3_interface = c.cl_interface;
 		cl3_rights = None;
@@ -1280,7 +1282,7 @@ let generate_enum ctx e =
 	write ctx A3RetVoid;
 	let construct = f() in
 	let f = begin_fun ctx [] [] true in
-	write ctx (A3GetProp (type_path ctx ~getclass:true (["flash"],"Boot")));
+	write ctx (A3GetProp (type_path ctx ~getclass:true ([],ctx.boot)));
 	write ctx A3This;
 	write ctx (A3Call (ident ctx "enum_to_string",1));
 	write ctx A3Ret;
@@ -1387,7 +1389,7 @@ let generate_inits ctx types =
 
 	(* define flash.Boot.init method *)
 	write ctx A3GetScope0;
-	write ctx (A3Get (type_path ctx (["flash"],"Boot")));
+	write ctx (A3Get (type_path ctx ([],ctx.boot)));
 	let finit = begin_fun ctx [] [] true in
 	List.iter (fun t ->
 		match t with
@@ -1418,6 +1420,7 @@ let generate types hres =
 	let empty_id = lookup "" strings in
 	let rpublic = lookup (A3RPublic (Some empty_id)) brights in
 	let ctx = {
+		boot = "Boot_" ^ Printf.sprintf "%X" (Random.int 0xFFFFFF);
 		strings = strings;
 		ints = new_lookup();
 		floats = new_lookup();
@@ -1461,7 +1464,7 @@ let generate types hres =
 		as3_functions = lookup_array ctx.functions;
 		as3_unknown = "";
 	} in
-	[Swf.TActionScript3 (Some (0,""),a)]
+	[Swf.TActionScript3 (Some (0,""),a)], ctx.boot
 
 
 (* ----------------------------------------------------------------------------------------

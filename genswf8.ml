@@ -1380,10 +1380,12 @@ let generate_code file ver types hres =
 
 let generate file ver header infile types hres =
 	let file , codeclip = (try let f , c = ExtString.String.split file "@" in f, Some c with _ -> file , None) in
-	let tag_code , movieclips = (if ver = 9 then
-			Genswf9.generate types hres , []
+	let tag_code, boot_name , movieclips = (if ver = 9 then
+			let c, b = Genswf9.generate types hres in
+			c,b,[]
 		else
-			generate_code file ver types hres
+			let c, m = generate_code file ver types hres in
+			c,"",m
 	) in
 	let tag ?(ext=false) d = {
 		tid = 0;
@@ -1405,7 +1407,7 @@ let generate file ver header infile types hres =
 			]
 	) in
 	let movieclips = ref movieclips in
-	let f9clips = ref [{ f9_cid = None; f9_classname = "flash.Boot" }] in
+	let f9clips = ref [{ f9_cid = None; f9_classname = boot_name }] in
 	let tagclips() = List.fold_left (fun acc m ->
 		incr base_id;
 		tag ~ext:true (TClip { c_id = !base_id; c_frame_count = 1; c_tags = [] }) ::

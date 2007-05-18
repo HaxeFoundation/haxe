@@ -19,6 +19,8 @@
 	renamed Http.asyncRequest to customRequest
 	add classes to Neko module export table
 	fixed parametrized enums for Flash6
+	fixed bug with completion and interfaces
+	fixed --flash-use-stage in Flash9
 
 2007-03-06: 1.12
 	added flash lite support with -D flash_lite
