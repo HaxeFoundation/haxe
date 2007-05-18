@@ -75,7 +75,7 @@ class Thread {
 		In that state, the UI handled by this thread will be updated and
 		[sync] calls can be performed. The loop returns when [exitLoop] is
 		called for this thread.
-	**/
+	**
 	public static function osLoop() {
 		if( os_loop == null ) throw "Please call osInitialize() first";
 		os_loop();
@@ -84,7 +84,7 @@ class Thread {
 	/**
 		The function [f] will be called by this thread if it's in [osLoop].
 		[sync] returns immediatly. See [osInitialize] remarks.
-	**/
+	**
 	public function sync( f : Void -> Void ) {
 		os_sync(handle,f);
 	}
@@ -92,7 +92,7 @@ class Thread {
 	/**
 		The function [f] will be called by this thread and the calling thread
 		will wait until the result is available then return its value.
-	**/
+	**
 	public function syncResult<T>( f : Void -> T ) : T {
 		if( this == current() )
 			return f();
@@ -108,7 +108,7 @@ class Thread {
 
 	/**
 		Exit from [osLoop].
-	**/
+	**
 	public function exitLoop() {
 		os_loop_stop(handle);
 	}
@@ -117,7 +117,7 @@ class Thread {
 		If you want to use the [osLoop], [sync] and [syncResult] methods, you
 		need to call [osInitialize] before creating any thread or calling [current].
 		This will load [os.ndll] library and initialize UI methods for each thread.
-	**/
+	**
 	public static function osInitialize() {
 		os_loop = neko.Lib.load("os","os_loop",0);
 		os_loop_stop = neko.Lib.load("os","os_loop_stop",1);
@@ -127,6 +127,7 @@ class Thread {
 	static var os_loop = null;
 	static var os_loop_stop = null;
 	static var os_sync = null;
+	*/
 
 	static var thread_create = neko.Lib.load("std","thread_create",2);
 	static var thread_current = neko.Lib.load("std","thread_current",0);
