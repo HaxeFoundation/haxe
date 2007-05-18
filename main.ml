@@ -158,7 +158,7 @@ let rec process_params acc = function
 
 and init params =
 try
-	let version = 112 in
+	let version = 113 in
 	let version_str = Printf.sprintf "%d.%.2d" (version / 100) (version mod 100) in
 	let usage = "Haxe Compiler " ^ version_str ^ " - (c)2005-2007 Motion-Twin\n Usage : haxe.exe [options] <class names...>\n Options :" in
 	let classes = ref [([],"Std")] in
