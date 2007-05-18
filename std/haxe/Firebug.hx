@@ -66,7 +66,10 @@ class Firebug {
 		#if flash
 			var out = "javascript:console."+ type +"('" + (if( inf == null ) "" else inf.fileName + ":" + inf.lineNumber + " : ") + Std.string(v).split("\\").join("\\\\").split("'").join('\\"').split("\n").join("\\n").split("\r").join("\\r").split("\t").join("\\t") + "');";
 			#if flash9
-			flash.Lib.getURL(new flash.net.URLRequest(out), "_self");
+			// this is better then getURL because we can perform several traces per frame
+			var l = new flash.net.URLLoader();
+			l.addEventListener( "ioError", function(e){} );
+			l.load(new flash.net.URLRequest(out));
 			#else true
 			flash.Lib.getURL(out);
 			#end // flash9
