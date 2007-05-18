@@ -205,12 +205,13 @@ and parse_class_field_resume s =
 			(match List.map fst (Stream.npeek 2 s) with
 			| Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Override :: _ ->
 				raise Exit
-			| [] | Eof :: _ | Kwd Extern :: _ | Kwd Class :: _ |Kwd Enum :: _ | Kwd Typedef :: _ ->
+			| [] | Eof :: _ | Kwd Extern :: _ | Kwd Class :: _ | Kwd Interface :: _ | Kwd Enum :: _ | Kwd Typedef :: _ ->
 				raise Not_found
 			| [Kwd Private; Kwd Function]
 			| [Kwd Private; Kwd Var] ->
 				raise Exit
 			| [Kwd Private; Kwd Class]
+			| [Kwd Private; Kwd Interface]
 			| [Kwd Private; Kwd Enum]
 			| [Kwd Private; Kwd Typedef] ->
 				raise Not_found	
