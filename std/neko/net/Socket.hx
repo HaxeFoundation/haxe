@@ -152,10 +152,6 @@ class Socket {
 		};
 	}
 
-	static function __init__() {
-		neko.Lib.load("std","socket_init",0)();
-	}
-
 	private static var socket_new = neko.Lib.load("std","socket_new",1);
 	private static var socket_close = neko.Lib.load("std","socket_close",1);
 	private static var socket_write = neko.Lib.load("std","socket_write",2);
