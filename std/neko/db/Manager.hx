@@ -106,7 +106,7 @@ class Manager<T : Object> {
 		s.add(" = ");
 		addQuote(s,id);
 		if( lock )
-		s.add(FOR_UPDATE);
+			s.add(FOR_UPDATE);
 		return object(s.toString(),lock);
 	}
 
