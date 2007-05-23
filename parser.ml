@@ -620,7 +620,7 @@ and parse_catch etry = parser
 		| [< '(DblDot,_); t = parse_type_path; '(PClose,_); s >] ->
 			(try
 				match s with parser
-				| [< e = expr >] ->	(name,t,expr s)
+				| [< e = expr >] ->	(name,t,e)
 				| [< >] -> serror()
 			with
 				Display e -> display (ETry (etry,[name,t,e]),p))
