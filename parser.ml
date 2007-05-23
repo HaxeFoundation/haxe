@@ -619,7 +619,9 @@ and parse_catch etry = parser
 		match s with parser
 		| [< '(DblDot,_); t = parse_type_path; '(PClose,_); s >] ->
 			(try
-				(name,t,expr s)
+				match s with parser
+				| [< e = expr >] ->	(name,t,expr s)
+				| [< >] -> serror()
 			with
 				Display e -> display (ETry (etry,[name,t,e]),p))
 		| [< '(_,p) >] -> error Missing_type p
