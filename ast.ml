@@ -133,12 +133,6 @@ type while_flag =
 	| NormalWhile
 	| DoWhile
 
-type variance =
-	| VNo
-	| VCo
-	| VContra
-	| VBi
-
 type type_path_normal = {
 	tpackage : string list;
 	tname : string;
@@ -146,7 +140,7 @@ type type_path_normal = {
 }
 
 and type_param_or_const =
-	| TPType of variance * type_path
+	| TPType of type_path
 	| TPConst of constant
 
 and anonymous_field =
@@ -198,7 +192,7 @@ and expr_def =
 
 and expr = expr_def * pos
 
-type type_param = variance * string * type_path_normal list
+type type_param = string * type_path_normal list
 
 type documentation = string option
 

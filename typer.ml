@@ -300,15 +300,15 @@ let rec load_normal_type ctx t p allow_no_params =
 			| TTypeDecl t -> t.t_types , t.t_path , (fun tl -> TType(t,tl))
 		in
 		if allow_no_params && t.tparams = [] then
-			f (List.map (fun (v,name,t) ->
+			f (List.map (fun (name,t) ->
 				match follow t with
-				| TEnum _ -> v, mk_mono()
+				| TEnum _ -> mk_mono()
 				| _ -> error ("Type parameter " ^ name ^ " need constraint") p
 			) types)
 		else if path = ([],"Dynamic") then
 			match t.tparams with
 			| [] -> t_dynamic
-			| [TPType (_,t)] -> TDynamic (load_type ctx p t)
+			| [TPType t] -> TDynamic (load_type ctx p t)
 			| _ -> error "Too many parameters for Dynamic" p
 		else begin
 			if List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;
@@ -321,11 +321,11 @@ let rec load_normal_type ctx t p allow_no_params =
 						| Float f -> "F" ^ f
 						| _ -> assert false
 					) in
-					VNo, TEnum ({ e_path = ([],name); e_pos = p; e_doc = None; e_private = false; e_extern = true; e_types = []; e_constrs = PMap.empty },[]), true
-				| TPType (v1,t) -> v1, load_type ctx p t, false
+					TEnum ({ e_path = ([],name); e_pos = p; e_doc = None; e_private = false; e_extern = true; e_types = []; e_constrs = PMap.empty },[]), true
+				| TPType t -> load_type ctx p t, false
 			) t.tparams in
-			let bparams = List.map (fun (v1,t,_) -> v1,t) tparams in
-			let params = List.map2 (fun (v1,t,isconst) (v2,name,t2) ->
+			let bparams = List.map fst tparams in
+			let params = List.map2 (fun (t,isconst) (name,t2) ->
 				if isconst <> (name = "Const") then error (if isconst then "Constant value unexpected here" else "Constant value excepted as type parameter") p;
 				(match follow t2 with
 				| TInst (c,[]) ->
@@ -334,7 +334,7 @@ let rec load_normal_type ctx t p allow_no_params =
 					) c.cl_implements
 				| TEnum (c,[]) -> ()
 				| _ -> assert false);
-				(match v1 with VNo -> v2 | _ -> v1) , t
+				t
 			) tparams types in
 			f params
 		end
@@ -430,12 +430,12 @@ let rec reverse_type t =
 			(f.cf_name , Some f.cf_public, AFVar (reverse_type f.cf_type), null_pos) :: acc
 		) a.a_fields [])
 	| TDynamic t2 ->
-		TPNormal { tpackage = []; tname = "Dynamic"; tparams = if t == t2 then [] else [TPType (VNo,reverse_type t2)] }
+		TPNormal { tpackage = []; tname = "Dynamic"; tparams = if t == t2 then [] else [TPType (reverse_type t2)] }
 	| _ ->
 		raise Exit
 
-and reverse_param (v,t) =
-	TPType (v , reverse_type t)
+and reverse_param t =
+	TPType (reverse_type t)
 
 let extend_remoting ctx c t p async prot =
 	if c.cl_super <> None then error "Cannot extend several classes" p;
@@ -545,18 +545,18 @@ let extend_proxy ctx c t p =
 		| _ ->
 			error "Proxy type parameter should be a class" p
 	) in
-	let tproxy = { tpackage = ["haxe"]; tname = "Proxy"; tparams = [TPType (VNo,TPNormal t)] } in
+	let tproxy = { tpackage = ["haxe"]; tname = "Proxy"; tparams = [TPType (TPNormal t)] } in
 	let pname = "P" ^ t.tname in
 	let class_decl = (EClass {
 		d_name = pname;
 		d_doc = None;
-		d_params = List.map (fun (v,s,_) -> v,s,[]) c.cl_types;
+		d_params = List.map (fun (s,_) -> s,[]) c.cl_types;
 		d_flags = [HExtends tproxy; HImplements t];
 		d_data = class_fields;
 	},p) in
 	let m = (!type_module_ref) ctx ("Proxy" :: t.tpackage, pname) [class_decl] p in
 	c.cl_super <- Some (match m.mtypes with
-		| [TClassDecl c2] -> (c2,List.map (fun (v,_,t) -> v,t) c.cl_types)
+		| [TClassDecl c2] -> (c2,List.map snd c.cl_types)
 		| _ -> assert false
 	)
 
@@ -564,13 +564,13 @@ let set_heritance ctx c herits p =
 	let rec loop = function
 		| HPrivate | HExtern | HInterface ->
 			()
-		| HExtends { tpackage = ["haxe";"remoting"]; tname = "Proxy"; tparams = [TPType(_,TPNormal t)] } ->
+		| HExtends { tpackage = ["haxe";"remoting"]; tname = "Proxy"; tparams = [TPType(TPNormal t)] } ->
 			extend_remoting ctx c t p false true
-		| HExtends { tpackage = ["haxe";"remoting"]; tname = "AsyncProxy"; tparams = [TPType(_,TPNormal t)] } ->
+		| HExtends { tpackage = ["haxe";"remoting"]; tname = "AsyncProxy"; tparams = [TPType(TPNormal t)] } ->
 			extend_remoting ctx c t p true true
-		| HExtends { tpackage = ["mt"]; tname = "AsyncProxy"; tparams = [TPType(_,TPNormal t)] } ->
+		| HExtends { tpackage = ["mt"]; tname = "AsyncProxy"; tparams = [TPType(TPNormal t)] } ->
 			extend_remoting ctx c t p true false
-		| HExtends { tpackage = ["haxe"]; tname = "Proxy"; tparams = [TPType(_,TPNormal t)] } when match c.cl_path with "Proxy" :: _ , _ -> false | _ -> true ->
+		| HExtends { tpackage = ["haxe"]; tname = "Proxy"; tparams = [TPType(TPNormal t)] } when match c.cl_path with "Proxy" :: _ , _ -> false | _ -> true ->
 			extend_proxy ctx c t p
 		| HExtends t ->
 			if c.cl_super <> None then error "Cannot extend several classes" p;
@@ -595,7 +595,7 @@ let set_heritance ctx c herits p =
 	in
 	List.iter loop herits
 
-let type_type_params ctx path p (v,n,flags) =
+let type_type_params ctx path p (n,flags) =
 	let t = (match flags with
 	| [] ->
 		(* build a phantom enum *)
@@ -621,7 +621,7 @@ let type_type_params ctx path p (v,n,flags) =
 		ctx.delays := [(fun () -> ignore(!r()))] :: !(ctx.delays);
 		TLazy r
 	) in
-	v, n , t
+	n , t
 
 let hide_types ctx =
 	let old_locals = ctx.local_types in
@@ -659,25 +659,25 @@ let is_float t =
 	| _ ->
 		false
 
-let t_array ctx v =
+let t_array ctx =
 	let show = hide_types ctx in
 	match load_type_def ctx null_pos ([],"Array") with
 	| TClassDecl c ->
 		show();
 		if List.length c.cl_types <> 1 then assert false;
 		let pt = mk_mono() in
-		TInst (c,[v,pt]) , pt
+		TInst (c,[pt]) , pt
 	| _ ->
 		assert false
 
-let t_array_access ctx v =
+let t_array_access ctx =
 	let show = hide_types ctx in
 	match load_type_def ctx null_pos ([],"ArrayAccess") with
 	| TClassDecl c ->
 		show();
 		if List.length c.cl_types <> 1 then assert false;
 		let pt = mk_mono() in
-		TInst (c,[v,pt]) , pt
+		TInst (c,[pt]) , pt
 	| _ ->
 		assert false
 
@@ -688,7 +688,7 @@ let t_iterator ctx =
 		show();
 		if List.length t.t_types <> 1 then assert false;
 		let pt = mk_mono() in
-		apply_params t.t_types [VNo,pt] t.t_type, pt
+		apply_params t.t_types [pt] t.t_type, pt
 	| _ ->
 		assert false
 
@@ -836,8 +836,8 @@ let type_type ctx tpath p =
 		let pub = is_parent c ctx.curclass in
 		let types = (match tparams with
 			| None ->
-				List.map (fun (v,_,t) ->
-					v, match follow t with
+				List.map (fun (_,t) ->
+					match follow t with
 					| TEnum _ -> mk_mono()
 					| _ -> t
 				) c.cl_types
@@ -855,7 +855,7 @@ let type_type ctx tpath p =
 		} in
 		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,types)) p
 	| TEnumDecl e ->
-		let types = (match tparams with None -> List.map (fun (v,_,_) -> v,mk_mono()) e.e_types | Some l -> l) in
+		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_types | Some l -> l) in
 		let fl = PMap.fold (fun f acc ->
 			PMap.add f.ef_name {
 				cf_name = f.ef_name;
@@ -1380,7 +1380,7 @@ and type_switch ctx e cases def need_val p =
 			(try
 				let e = acc_get (type_ident ctx name false p true) p in
 				(match e.eexpr with
-				| TEnumField (e,_) -> Some (e, List.map (fun (v,_,_) -> v,mk_mono()) e.e_types)
+				| TEnumField (e,_) -> Some (e, List.map (fun _ -> mk_mono()) e.e_types)
 				| _ -> None)
 			with
 				Error (Custom _,_) -> lookup_enum l)
@@ -1589,15 +1589,15 @@ and type_access ctx e p get =
 		let e2 = type_expr ctx e2 in
 		unify ctx e2.etype (t_int ctx) e2.epos;
 		let pt = (try
-			let t , pt = t_array ctx VNo in
+			let t , pt = t_array ctx in
 			unify_raise ctx e1.etype t e1.epos;
 			pt
 		with Error (Unify _,_) -> try
-			let t , pt = t_array ctx (if get then VCo else VContra) in
+			let t , pt = t_array ctx in
 			unify_raise ctx e1.etype t e1.epos;
 			pt
 		with Error (Unify _,_) ->
-			let t, pt = t_array_access ctx (if get then VCo else VContra) in
+			let t, pt = t_array_access ctx in
 			unify ctx e1.etype t e1.epos;
 			pt
 		) in
@@ -1666,7 +1666,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				t := t_dynamic);
 			e
 		) el in
-		let at , pt = t_array ctx VNo in
+		let at , pt = t_array ctx in
 		(match pt with
 		| TMono r -> r := Some (!t);
 		| _ -> assert false);
@@ -1808,7 +1808,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			let t = load_type ctx (pos e) t in
 			let name = (match follow t with
 				| TInst ({ cl_path = path },params) | TEnum ({ e_path = path },params) ->
-					List.iter (fun (_,pt) ->
+					List.iter (fun pt ->
 						if pt != t_dynamic then error "Catch class parameter must be Dynamic" p;
 					) params;
 					(match path with
@@ -1895,7 +1895,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		) in
 		mk (TCall (mk (TConst TSuper) t sp,el)) (t_void ctx) p
 	| ECall (e,el) ->
-		(match e with 
+		(match e with
 		| EField ((EConst (Ident "super"),_),_) , _ | EType ((EConst (Ident "super"),_),_) , _ -> ctx.super_call <- true
 		| _ -> ());
 		let e = type_expr ctx e in
@@ -1981,7 +1981,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let t = load_type ctx (pos e) t in
 		let tname = (match follow t with
 		| TInst (_,params) | TEnum (_,params) ->
-			List.iter (fun (_,pt) ->
+			List.iter (fun pt ->
 				if pt != t_dynamic then error "Cast class parameter must be Dynamic" p;
 			) params;
 			(match follow t with
@@ -2036,7 +2036,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			let f = (match c.cl_constructor with Some f -> f | None -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
 			let t = apply_params c.cl_types params (field_type f) in
 			raise (Display t)
-		| _ -> 
+		| _ ->
 			error "Not a class" p)
 
 and type_function ctx t static constr f p =
@@ -2166,7 +2166,7 @@ let rec check_interface ctx c p intf params =
 				if not c.cl_interface then display_error ctx ("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing") p
 	) intf.cl_fields;
 	List.iter (fun (i2,p2) ->
-		check_interface ctx c p i2 (List.map (fun (v,t) -> v, apply_params intf.cl_types params t) p2)
+		check_interface ctx c p i2 (List.map (apply_params intf.cl_types params) p2)
 	) intf.cl_implements
 
 let check_interfaces ctx c p () =
@@ -2179,12 +2179,12 @@ let check_interfaces ctx c p () =
 (* PASS 1 & 2 : Module and Class Structure *)
 
 let init_class ctx c p herits fields =
-	ctx.type_params <- List.map (fun (_,n,t) -> n,t) c.cl_types;
+	ctx.type_params <- c.cl_types;
 	c.cl_extern <- List.mem HExtern herits;
 	c.cl_interface <- List.mem HInterface herits;
 	set_heritance ctx c herits p;
-	let tthis = TInst (c,List.map (fun (v,_,t) -> v,t) c.cl_types) in
-	let rec extends_public c = 
+	let tthis = TInst (c,List.map snd c.cl_types) in
+	let rec extends_public c =
 		List.exists (fun (c,_) -> c.cl_path = (["haxe"],"Public") || extends_public c) c.cl_implements ||
 		match c.cl_super with
 		| None -> false
@@ -2248,11 +2248,10 @@ let init_class ctx c p herits fields =
 			) in
 			access, false, cf, delay
 		| FFun (name,doc,access,params,f) ->
-			let params = List.map (fun (v,n,flags) ->
+			let params = List.map (fun (n,flags) ->
 				match flags with
 				| [] ->
-					let _, n, t = type_type_params ctx c.cl_path p (v,n,[]) in
-					n, t
+					type_type_params ctx c.cl_path p (n,[])
 				| _ -> error "This notation is not allowed because it can't be checked" p
 			) params in
 			let ctx = { ctx with
@@ -2530,8 +2529,8 @@ let type_module ctx m tdecls loadp =
 			delays := !delays @ check_overriding ctx c p :: check_interfaces ctx c p :: init_class ctx c p d.d_flags d.d_data
 		| EEnum d ->
 			let e = get_enum d.d_name in
-			ctx.type_params <- List.map (fun (_,n,t) -> n, t) e.e_types;
-			let et = TEnum (e,List.map (fun (v,_,t) -> v ,t) e.e_types) in
+			ctx.type_params <- e.e_types;
+			let et = TEnum (e,List.map snd e.e_types) in
 			List.iter (fun (c,doc,t,p) ->
 				if c = "name" && Plugin.defined "js" then error "This identifier cannot be used in Javascript" p;
 				let t = (match t with
@@ -2543,7 +2542,7 @@ let type_module ctx m tdecls loadp =
 			) d.d_data
 		| ETypedef d ->
 			let t = get_tdef d.d_name in
-			ctx.type_params <- List.map (fun (_,n,t) -> n, t) t.t_types;
+			ctx.type_params <- t.t_types;
 			let tt = load_type ctx p d.d_data in
 			(match t.t_type with
 			| TMono r ->
@@ -2563,7 +2562,7 @@ let rec f9path p = {
 	tparams = List.map (fun c ->
 		match c with
 		| TPConst _ -> c
-		| TPType (v,t) -> TPType (v,f9t t)
+		| TPType t -> TPType (f9t t)
 	) p.tparams;
 }
 
@@ -2815,7 +2814,7 @@ let types ctx main excludes =
 				Not_found -> error ("Invalid -main : " ^ s_type_path cl ^ " does not have static function main") null_pos
 		) in
 		let path = ([],"@Main") in
-		let tmain = TInst (cmain,List.map (fun (v,_,t) -> v,t) cmain.cl_types) in
+		let tmain = TInst (cmain,List.map snd cmain.cl_types) in
 		let c = mk_class path null_pos None false in
 		let f = {
 			cf_name = "init";

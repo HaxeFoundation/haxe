@@ -56,7 +56,7 @@ let do_resume() = !resume_display <> null_pos
 
 let display e = raise (Display e)
 
-let is_resuming p = 
+let is_resuming p =
 	let p2 = !resume_display in
 	p.pmax = p2.pmin && (!Plugin.get_full_path) p.pfile = p2.pfile
 
@@ -214,13 +214,13 @@ and parse_class_field_resume s =
 			| [Kwd Private; Kwd Interface]
 			| [Kwd Private; Kwd Enum]
 			| [Kwd Private; Kwd Typedef] ->
-				raise Not_found	
+				raise Not_found
 			| [Kwd Function; Const _]
 			| [Kwd Function; Kwd New] ->
 				raise Exit
 			| _ -> ());
 			Stream.junk s;
-			loop();	
+			loop();
 		in
 		try
 			loop();
@@ -228,7 +228,7 @@ and parse_class_field_resume s =
 			| Not_found ->
 				[]
 			| Exit ->
-				try 
+				try
 					let c = parse_class_field s in
 					c :: parse_class_field_resume s
 				with
@@ -285,7 +285,7 @@ and parse_type_path1 pack = parser
 			parse_type_path1 (name :: pack) s
 	| [< '(Const (Type name),_); s >] ->
 		let params = (match s with parser
-			| [< '(Binop OpLt,_); l = psep Comma parse_type_path_variance; '(Binop OpGt,_) >] -> l
+			| [< '(Binop OpLt,_); l = psep Comma parse_type_path_or_const; '(Binop OpGt,_) >] -> l
 			| [< >] -> []
 		) in
 		{
@@ -294,17 +294,11 @@ and parse_type_path1 pack = parser
 			tparams = params
 		}
 
-and parse_type_path_variance = parser
-	| [< '(Binop OpAdd,_); t = parse_type_path_or_const VCo >] -> t
-	| [< '(Binop OpSub,_); t = parse_type_path_or_const VContra >] -> t
-	| [< '(Binop OpMult,_); t = parse_type_path_or_const VBi >] -> t
-	| [< t = parse_type_path_or_const VNo >] -> t
-
-and parse_type_path_or_const v = parser
+and parse_type_path_or_const = parser
 	| [< '(Const (String s),_); >] -> TPConst (String s)
 	| [< '(Const (Int i),_); >] -> TPConst (Int i)
 	| [< '(Const (Float f),_); >] -> TPConst (Float f)
-	| [< t = parse_type_path >] -> TPType (v, t)
+	| [< t = parse_type_path >] -> TPType t
 
 and parse_type_path_next t = parser
 	| [< '(Arrow,_); t2 = parse_type_path >] ->
@@ -408,18 +402,14 @@ and parse_constraint_params = parser
 	| [< >] -> []
 
 and parse_constraint_param = parser
-	| [< '(Binop OpAdd,_); '(Const (Type name),_); s >] -> parse_constraint_param_next VCo name s
-	| [< '(Binop OpSub,_); '(Const (Type name),_); s >] -> parse_constraint_param_next VContra name s
-	| [< '(Binop OpMult,_); '(Const (Type name),_); s >] -> parse_constraint_param_next VBi name s
-	| [< '(Const (Type name),_); s >] -> parse_constraint_param_next VNo name s
-
-and parse_constraint_param_next v name = parser
-	| [< '(DblDot,_); s >] ->
-		(match s with parser
-		| [< '(POpen,_); l = psep Comma parse_type_path_normal; '(PClose,_) >] -> (v,name,l)
-		| [< t = parse_type_path_normal >] -> (v,name,[t])
-		| [< >] -> serror())
-	| [< >] -> (v,name,[])
+	| [< '(Const (Type name),_); s >] ->
+		match s with parser
+		| [< '(DblDot,_); s >] ->
+			(match s with parser
+			| [< '(POpen,_); l = psep Comma parse_type_path_normal; '(PClose,_) >] -> (name,l)
+			| [< t = parse_type_path_normal >] -> (name,[t])
+			| [< >] -> serror())
+		| [< >] -> (name,[])
 
 and parse_class_herit = parser
 	| [< '(Kwd Extends,_); t = parse_type_path_normal >] -> HExtends t
@@ -443,7 +433,7 @@ and block2 name ident p = parser
 				EBlock (block [e] s)
 
 and block acc s =
-	try		
+	try
 		let e = parse_block_elt s in
 		block (e :: acc) s
 	with
@@ -510,8 +500,8 @@ and expr = parser
 		| [< >] -> serror())
 	| [< '(POpen,p1); e = expr; '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
 	| [< '(BkOpen,p1); l = parse_array_decl; '(BkClose,p2); s >] -> expr_next (EArrayDecl l, punion p1 p2) s
-	| [< '(Kwd Function,p1); '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->		
-		let make e = 
+	| [< '(Kwd Function,p1); '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
+		let make e =
 			let f = {
 				f_type = t;
 				f_args = al;

@@ -40,14 +40,14 @@ let s_path ctx path p =
 	match path with
 	| ([],name) ->
 		(match name with
-		| "Int" -> "int"		
+		| "Int" -> "int"
 		| "Float" -> "Number"
 		| "Dynamic" -> "Object"
 		| "Bool" -> "Boolean"
 		| _ -> name)
 	| (["flash"],"FlashXml__") ->
 		"Xml"
-	| (pack,name) ->		
+	| (pack,name) ->
 		(try
 			let pack2 = Hashtbl.find ctx.imports name in
 			if pack2 <> pack then Typer.error ("The classes " ^ Ast.s_type_path (pack,name) ^ " and " ^ Ast.s_type_path (pack2,name) ^ " conflicts") p;
@@ -161,7 +161,7 @@ let parent e =
 	| TParenthesis _ -> e
 	| _ -> mk (TParenthesis e) e.etype e.epos
 
-let rec type_str ctx t p =	
+let rec type_str ctx t p =
 	match t with
 	| TEnum _ | TInst _ when List.memq t ctx.local_types ->
 		"*"
@@ -172,7 +172,7 @@ let rec type_str ctx t p =
 			| _ -> "Object"
 		) else
 			s_path ctx e.e_path p
-	| TInst (c,_) -> 
+	| TInst (c,_) ->
 		if (snd c.cl_path).[0] = '+' then "*" else s_path ctx c.cl_path p
 	| TFun _ ->
 		"Function"
@@ -185,7 +185,7 @@ let rec type_str ctx t p =
 		| [], "UInt" -> "uint"
 		| [] , "Null" ->
 			(match args with
-			| [_,t] ->
+			| [t] ->
 				(match follow t with
 				| TInst ({ cl_path = [],"Int" },_)
 				| TInst ({ cl_path = [],"Float" },_)
@@ -337,9 +337,9 @@ and gen_field_access ctx t s =
 		| [], "Date", "fromString"
 		| [], "Date", "toString"
 		| [], "String", "charCodeAt"
-		-> 
+		->
 			print ctx "[\"%s\"]" s
-		| _ -> 
+		| _ ->
 			print ctx ".%s" (s_ident s));
 	| _ ->
 		print ctx ".%s" (s_ident s)
@@ -418,7 +418,7 @@ and gen_expr ctx e =
 		b();
 	| TFunction f ->
 		let h = gen_function_header ctx None f [] e.epos in
-		gen_expr ctx (block f.tf_expr);		
+		gen_expr ctx (block f.tf_expr);
 		h();
 	| TCall (e,el) ->
 		gen_call ctx e el
@@ -484,7 +484,7 @@ and gen_expr ctx e =
 	| TFor (v,t,it,e) ->
 		let handle_break = handle_break ctx e in
 		let b = save_locals ctx in
-		let tmp = define_local ctx "$it" in		
+		let tmp = define_local ctx "$it" in
 		print ctx "{ var %s : * = " tmp;
 		gen_value ctx it;
 		newline ctx;
@@ -650,7 +650,7 @@ and gen_value ctx e =
 		let v = value true in
 		gen_expr ctx e;
 		v()
-	| TBlock el ->		
+	| TBlock el ->
 		let v = value true in
 		let rec loop = function
 			| [] ->
@@ -695,7 +695,7 @@ and gen_value ctx e =
 		)) e.etype e.epos);
 		v()
 
-let generate_boot_init ctx =	
+let generate_boot_init ctx =
 	print ctx "private static function init() : void {";
 	List.iter (gen_expr ctx) ctx.inits;
 	print ctx "}"
@@ -725,7 +725,7 @@ let generate_field ctx static f =
 		gen_expr ctx (block fd.tf_expr);
 		h()
 	| _ ->
-		if ctx.curclass.cl_path = (["flash"],"Boot") && f.cf_name = "init" then 
+		if ctx.curclass.cl_path = (["flash"],"Boot") && f.cf_name = "init" then
 			generate_boot_init ctx
 		else if not ctx.curclass.cl_interface then begin
 			print ctx "%s var %s : %s" rights (s_ident f.cf_name) (type_str ctx f.cf_type p);
@@ -747,7 +747,7 @@ let generate_class ctx c =
 	ctx.curclass <- c;
 	List.iter (define_getset ctx false) c.cl_ordered_fields;
 	List.iter (define_getset ctx true) c.cl_ordered_statics;
-	ctx.local_types <- List.map (fun (_,_,t) -> t) c.cl_types;
+	ctx.local_types <- List.map snd c.cl_types;
 	let pack = open_block ctx in
 	print ctx "\tpublic %s%s %s " (match c.cl_dynamic with None -> "" | Some _ -> "dynamic ") (if c.cl_interface then "interface" else "class") (snd c.cl_path);
 	(match c.cl_super with
@@ -792,7 +792,7 @@ let generate_class ctx c =
 	newline ctx
 
 let generate_main ctx c =
-	ctx.curclass <- c;	
+	ctx.curclass <- c;
 	let pack = open_block ctx in
 	print ctx "\tpublic class __main__ extends %s {" (s_path ctx (["flash";"display"],"MovieClip") c.cl_pos);
 	let cl = open_block ctx in
@@ -817,8 +817,8 @@ let generate_main ctx c =
 	print ctx "}";
 	newline ctx
 
-let generate_enum ctx e =	
-	ctx.local_types <- List.map (fun (_,_,t) -> t) e.e_types;
+let generate_enum ctx e =
+	ctx.local_types <- List.map snd e.e_types;
 	let pack = open_block ctx in
 	let ename = snd e.e_path in
 	print ctx "\tpublic class %s extends enum {" ename;
@@ -826,7 +826,7 @@ let generate_enum ctx e =
 	newline ctx;
 	print ctx "public static const __isenum : Boolean = true";
 	newline ctx;
-	print ctx "public function %s( t : String, p : Array = null ) : void { this.tag = t; this.params = p; }" ename;	
+	print ctx "public function %s( t : String, p : Array = null ) : void { this.tag = t; this.params = p; }" ename;
 	PMap.iter (fun _ c ->
 		newline ctx;
 		match c.ef_type with
@@ -852,7 +852,7 @@ let generate_enum ctx e =
 	newline ctx
 
 let generate_base_enum ctx =
-	let pack = open_block ctx in	
+	let pack = open_block ctx in
 	spr ctx "\tpublic class enum {";
 	let cl = open_block ctx in
 	newline ctx;
@@ -882,7 +882,7 @@ let generate dir types =
 			) in
 			(match c.cl_init with
 			| None -> ()
-			| Some e -> inits := e :: !inits);			
+			| Some e -> inits := e :: !inits);
 			if c.cl_extern then
 				()
 			else (match c.cl_path with
@@ -892,7 +892,7 @@ let generate dir types =
 				close ctx;
 			| ["flash"], "Boot" ->
 				boot := Some c;
-			| _ ->				
+			| _ ->
 				let ctx = init dir c.cl_path in
 				generate_class ctx c;
 				close ctx)

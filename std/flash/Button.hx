@@ -31,7 +31,7 @@ implements Dynamic
 	var _y : Float;
 	var _ymouse : Float;
 	var _yscale : Float;
-	
+
 	function onDragOut() : Void;
 	function onDragOver() : Void;
 	function onKeyDown() : Void;
@@ -43,11 +43,11 @@ implements Dynamic
 	function onRollOut() : Void;
 	function onRollOver() : Void;
 	function onSetFocus(oldFocus : Dynamic) : Void;
-	
+
 	function getDepth() : Int;
 
 #if flash8
-	var filters : Array<+flash.filters.BitmapFilter>;
+	var filters : Array<Dynamic>;
 	var blendMode : Dynamic;
 	var cacheAsBitmap : Bool;
 	var scale9Grid : flash.geom.Rectangle<Float>;
