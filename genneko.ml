@@ -609,7 +609,7 @@ let gen_type ctx t acc =
 		(match c.cl_init with
 		| None -> ()
 		| Some e -> ctx.inits <- e :: ctx.inits);
-		if c.cl_extern then
+		if c.cl_extern || c.cl_path = ([],"@Main") then
 			acc
 		else
 			gen_class ctx c :: acc
@@ -684,7 +684,7 @@ let gen_name ctx acc t =
 		let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant ctx e.e_pos (TString n)) name); int p (List.length name)] in
 		(EBinop ("=",field p (gen_type_path p e.e_path) "__ename__",arr),p) :: acc
 	| TClassDecl c ->
-		if c.cl_extern then
+		if c.cl_extern || c.cl_path = ([],"@Main") then
 			acc
 		else
 			let p = pos ctx c.cl_pos in
@@ -728,6 +728,7 @@ let generate file types hres libs =
 	let h = Hashtbl.create 0 in
 	let header = ENeko (
 		"@classes = $new(null);" ^
+		"@Main = $new(null);" ^
 		"@enum_to_string = function() { return neko.Boot.__enum_str(this); };" ^
 		"@serialize = function() { return neko.Boot.__serialize(this); };" ^ 
 		"@tag_serialize = function() { return neko.Boot.__tagserialize(this); };" ^ 
