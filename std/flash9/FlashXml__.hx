@@ -271,42 +271,42 @@ class FlashXml__ {
 
 	public function iterator(){
 		if( _children == null ) throw "bad nodetype";
-		return untyped {
-			cur: 0,
-			x: this._children,
+		var cur = 0;
+		var x = _children;
+		return {
 			hasNext : function(){
-				return this.cur < this.x.length;
+				return cur < x.length;
 			},
 			next : function(){
-				return this.x[this.cur++];
+				return x[cur++];
 			}
 		}
 	}
 
 	public function elements(){
 		if( _children == null ) throw "bad nodetype";
-		return untyped {
-			cur: 0,
-			x: this._children,
+		var cur = 0;
+		var x = _children;
+		return {
 			hasNext : function() {
-				var k = this.cur;
-				var l = this.x.length;
+				var k = cur;
+				var l = x.length;
 				while( k < l ) {
-					if( this.x[k].nodeType == Xml.Element )
+					if( x[k].nodeType == Xml.Element )
 						break;
 					k += 1;
 				}
-				this.cur = k;
+				cur = k;
 				return k < l;
 			},
 			next : function() {
-				var k = this.cur;
-				var l = this.x.length;
+				var k = cur;
+				var l = x.length;
 				while( k < l ) {
-					var n = this.x[k];
+					var n = x[k];
 					k += 1;
 					if( n.nodeType == Xml.Element ) {
-						this.cur = k;
+						cur = k;
 						return n;
 					}
 				}
@@ -317,29 +317,29 @@ class FlashXml__ {
 
 	public function elementsNamed( name : String ) {
 		if( _children == null ) throw "bad nodetype";
-		return untyped {
-			cur: 0,
-			x: this._children,
+		var cur = 0;
+		var x = _children;
+		return {
 			hasNext : function() {
-				var k = this.cur;
-				var l = this.x.length;
+				var k = cur;
+				var l = x.length;
 				while( k < l ) {
-					var n = this.x[k];
+					var n = x[k];
 					if( n.nodeType == Xml.Element && n._nodeName == name )
 						break;
 					k++;
 				}
-				this.cur = k;
+				cur = k;
 				return k < l;
 			},
 			next : function() {
-				var k = this.cur;
-				var l = this.x.length;
+				var k = cur;
+				var l = x.length;
 				while( k < l ) {
-					var n = this.x[k];
+					var n = x[k];
 					k++;
 					if( n.nodeType == Xml.Element && n._nodeName == name ) {
-						this.cur = k;
+						cur = k;
 						return n;
 					}
 				}
