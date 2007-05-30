@@ -141,7 +141,7 @@ class BodyStructure {
 							if( tmp.pName == null ) 
 								tmp.pName = e;
 							else{
-								ret.params.set(tmp.pName,e);
+								ret.params.set(tmp.pName.toLowerCase(),e);
 								tmp.pName = null;
 							}
 						case 4:
@@ -153,7 +153,7 @@ class BodyStructure {
 							if( tmp.pName == null ) 
 								tmp.pName = e;
 							else{
-								ret.params.set(tmp.pName,e);
+								ret.params.set(tmp.pName.toLowerCase(),e);
 								tmp.pName = null;
 							}
 						case 2:
