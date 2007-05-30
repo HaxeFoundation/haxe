@@ -68,7 +68,7 @@ class Connection {
 	static var REG_FETCH_END = ~/^([A0-9]{4}) (OK|BAD|NO)/;
 	static var REG_STATUS = ~/STATUS .*? \(([^)]+)\)/;
 	static var REG_STATUS_VAL = ~/^ ?([A-Z]+) (-?[0-9]+)/;
-	static var REG_LIST_RESP = ~/LIST \(([ \\A-Za-z0-9]*)\) "\." "([^"]+)"/;
+	static var REG_LIST_RESP = ~/LIST \(([ \\A-Za-z0-9]*)\) [A-z0-9".]* "?([^"]+)"?/;
 	static var REG_CRLF = ~/\r?\n/g;
 
 	static function rmCRLF(s){
@@ -142,7 +142,7 @@ class Connection {
 		if( pattern == null ) pattern = "*";
 		if( flat == null ) flat = false;
 
-		var r = command("LIST",Tools.quote(".")+" "+Tools.quote(pattern));
+		var r = command("LIST",Tools.quote("")+" "+Tools.quote(pattern));
 		if( !r.success ){
 			throw BadResponse(r.response);
 		}
@@ -398,7 +398,7 @@ class Connection {
 			elem += ".SILENT";
 		}
 
-		var r = command( if( useUid ) "UID STORE" else "STORE", range + " " + elem + "("+flags.join(" ")+")");
+		var r = command( if( useUid ) "UID STORE" else "STORE", range + " " + elem + " ("+flags.join(" ")+")");
 		if( !r.success ) throw BadResponse( r.response );
 		if( !fetchResult ) return null;
 
