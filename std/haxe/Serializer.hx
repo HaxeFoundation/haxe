@@ -241,13 +241,14 @@ class Serializer {
 				buf.add("y");
 				var s = "";
 				var b : flash.utils.ByteArray = v;
+				var CHARS = ["0","1","2","3","4","5","6","7","8","9","a","b","c","d","e","f"];
 				for( p in 0...b.length ) {
 					var c = b[p];
 					// 0-9a-zA-Z
 					if( (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) )
 						s += String.fromCharCode(c);
 					else
-						s += "%"+(c>>4)+(c&15);
+						s += "%"+CHARS[c>>4]+CHARS[c&15];
 				}
 				buf.add(s.length);
 				buf.add(":");
