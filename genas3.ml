@@ -28,7 +28,7 @@ type context = {
 	mutable in_value : string option;
 	mutable in_static : bool;
 	mutable handle_break : bool;
-	mutable imports : (string,string list) Hashtbl.t;
+	mutable imports : (string,string list list) Hashtbl.t;
 	mutable locals : (string,string) PMap.t;
 	mutable inv_locals : (string,string) PMap.t;
 	mutable local_types : t list;
@@ -48,12 +48,16 @@ let s_path ctx path p =
 	| (["flash"],"FlashXml__") ->
 		"Xml"
 	| (pack,name) ->
-		(try
-			let pack2 = Hashtbl.find ctx.imports name in
-			if pack2 <> pack then Typer.error ("The classes " ^ Ast.s_type_path (pack,name) ^ " and " ^ Ast.s_type_path (pack2,name) ^ " conflicts") p;
+		try
+			(match Hashtbl.find ctx.imports name with
+			| p :: _ when p = pack ->
+				name
+			| packs ->
+				if not (List.mem pack packs) then Hashtbl.replace ctx.imports name (packs @ [pack]);
+				Ast.s_type_path path)
 		with Not_found ->
-			Hashtbl.add ctx.imports name pack);
-		name
+			Hashtbl.add ctx.imports name [pack];
+			name
 
 let s_ident n =
 	match n with
@@ -76,6 +80,8 @@ let init dir path =
 	let dir = dir :: fst path in
 	create [] dir;
 	let ch = open_out (String.concat "/" dir ^ "/" ^ snd path ^ ".as") in
+	let imports = Hashtbl.create 0 in
+	Hashtbl.add imports (snd path) [fst path];
 	{
 		tabs = "";
 		ch = ch;
@@ -84,7 +90,7 @@ let init dir path =
 		in_value = None;
 		in_static = false;
 		handle_break = false;
-		imports = Hashtbl.create 0;
+		imports = imports;
 		curclass = null_class;
 		locals = PMap.empty;
 		inv_locals = PMap.empty;
@@ -96,8 +102,11 @@ let init dir path =
 
 let close ctx =
 	output_string ctx.ch (Printf.sprintf "package %s {\n" (String.concat "." (fst ctx.path)));
-	Hashtbl.iter (fun name pack ->
-		if ctx.path <> (pack,name) then output_string ctx.ch ("\timport " ^ Ast.s_type_path (pack,name) ^ ";\n");
+	Hashtbl.iter (fun name paths ->
+		List.iter (fun pack ->
+			let path = pack, name in
+			if path <> ctx.path then output_string ctx.ch ("\timport " ^ Ast.s_type_path path ^ ";\n");
+		) paths
 	) ctx.imports;
 	output_string ctx.ch (Buffer.contents ctx.buf);
 	close_out ctx.ch
@@ -727,7 +736,17 @@ let generate_field ctx static f =
 	| _ ->
 		if ctx.curclass.cl_path = (["flash"],"Boot") && f.cf_name = "init" then
 			generate_boot_init ctx
-		else if not ctx.curclass.cl_interface then begin
+		else if ctx.curclass.cl_interface then
+			match follow f.cf_type with
+			| TFun (args,r) ->
+				print ctx "function %s(" f.cf_name;
+				concat ctx "," (fun (arg,o,t) ->
+					print ctx "%s : %s" arg (type_str ctx t p);
+					if o then spr ctx " = null";
+				) args;
+				print ctx ") : %s " (type_str ctx r p);
+			| _ -> ()
+		else begin
 			print ctx "%s var %s : %s" rights (s_ident f.cf_name) (type_str ctx f.cf_type p);
 			match f.cf_expr with
 			| None -> ()
