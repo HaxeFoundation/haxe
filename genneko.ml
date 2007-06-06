@@ -753,4 +753,6 @@ let generate file types hres libs =
 		Sys.rename ((try Filename.chop_extension file with _ -> file) ^ "2.neko") neko_file;
 	end;
 	if command ("nekoc \"" ^ neko_file ^ "\"") <> 0 then failwith "Neko compilation failure";
+	let output = Filename.chop_extension neko_file ^ ".n" in
+	if output <> file then Sys.rename output file;
 	if not source then Sys.remove neko_file
