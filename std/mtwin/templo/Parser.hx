@@ -78,10 +78,19 @@ class Parser {
 	function parseElement( xml:Xml ){
 		var mtSet = extractAttribute(xml, MT_SET);
 		if (mtSet != null){
-			var parts = Lambda.array(mtSet.split("="));
-			var dest = StringTools.trim(parts.shift());
-			var exp = parseExpression( StringTools.trim(parts.join("=")) );
-			out.setVar(dest, "("+exp+")");
+			var incExp = ~/^([a-zA-Z_][a-zA-Z0-9_]*?)\s*?([\+\-\/*%])=\s*?(.*?)$/;
+			if (incExp.match(mtSet)){
+				var dest = StringTools.trim(incExp.matched(1));
+				var op = incExp.matched(2);
+				var exp = parseExpression(StringTools.trim(incExp.matched(3)));
+				out.setVar(dest, out.getVar(dest)+" "+op+" ("+exp+")");
+			}
+			else {
+				var parts = Lambda.array(mtSet.split("="));
+				var dest = StringTools.trim(parts.shift());
+				var exp = parseExpression(StringTools.trim(parts.join("=")));
+				out.setVar(dest, "("+exp+")");
+			}
 			return;
 		}
 
@@ -144,7 +153,9 @@ class Parser {
 
 		var mtForeach = extractAttribute(xml, MT_FOREACH);
 		if (mtForeach != null){
-			var o = extractExpressionTarget(mtForeach);		
+			var o = extractExpressionTarget(mtForeach);	
+			if (o.target == null)
+				throw "repeat/foreach requires two parameters (expression was '"+mtForeach+"')";
 			out.add("var loop = "+parseExpression(o.exp)+";\n");
 			out.add("__ctx.vars.repeat_"+o.target+" = new_repeat(loop);\n");
 			out.add("iter(loop, function(__item){\n");
@@ -519,6 +530,8 @@ class Parser {
 					}
 					else if (c == "("){
 						var end = findEndOfBracket(str, i);
+						if (end == -1)
+							throw "Missing end ) in expression '"+exp+"'";
 						var sub = str.substr(i+1, end-i);
 						result.add("(");
 						result.add(parseExpression(sub));
@@ -527,6 +540,8 @@ class Parser {
 					}
 					else if (c == "["){
 						var def = findEndOfArray(str, i);
+						if (def.end == -1)
+							throw "Missing end ] in expression '"+exp+"'";
 						var sub = str.substr(i+1, def.end-i);
 						result.add("Array.new1($array(");
 						result.add(parseExpression(sub));
@@ -606,6 +621,8 @@ class Parser {
 							result.add(Generator.hash(variable));
 							result.add(")");
 							var def = findEndOfArray(str, i);
+							if (def.end == -1)
+								throw "Missing end ] in expression '"+exp+"'";
 							var sub = str.substr(i+1, def.end-i);
 							result.add("[");
 							result.add(parseExpression(sub));
@@ -636,6 +653,8 @@ class Parser {
 							getter = false;
 						}
 						var end = findEndOfBracket(str, i);
+						if (end == -1)
+							throw "Missing end bracket in expression '"+exp+"'";
 						var sub = str.substr(i+1, end-i);
 						var argStr = Lambda.array(splitArguments(sub));
 						for (j in 0...argStr.length){
@@ -663,6 +682,8 @@ class Parser {
 							getter = false;
 						}
 						var def = findEndOfArray(str, i);
+						if (def.end == -1)
+							throw "Missing end ] in expression '"+exp+"'";
 						var sub = str.substr(i+1, def.end-i);
 						result.add("[");
 						result.add(parseExpression(sub));
