@@ -45,7 +45,14 @@ class Smtp {
 
 		// get server init line
 		var ret = StringTools.trim(cnx.input.readLine());
-		if ( ret.indexOf("ESMTP") != -1 )  { //if server support extensions
+		var esmtp = ret.indexOf("ESMTP") >= 0;
+		
+		
+		while (StringTools.startsWith(ret, "220-")) {
+			ret = StringTools.trim(cnx.input.readLine());
+		}
+		
+		if ( esmtp ) { //if server support extensions
 			//EHLO
 			cnx.write( "EHLO " + Host.localhost() + "\r\n");
 			ret = "";
