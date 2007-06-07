@@ -60,7 +60,12 @@ class Tools {
 	}
 
 	public static function encodeBase64( content : String ){
-		return StringTools.rtrim(chunkSplit(StringTools.baseEncode( content, BASE64 ), 76, "\r\n")) + "==";
+		var suffix = switch (content.length % 3) {
+			case 2: "=";
+			case 1: "==";
+			default: "";
+		}
+		return StringTools.rtrim(chunkSplit(StringTools.baseEncode( content, BASE64 ), 76, "\r\n")) + suffix;
 	}
 
 	public static function decodeBase64( content : String ){
