@@ -19,13 +19,22 @@ class Os {
 	}
 
 	public static function syncResult<T>( f : Void -> T ) : T {
+		if( isMainThread() )
+			return f();
 		var l = new Lock();
 		var tmp = null;
+		var exc = null;
 		_sync(function() {
-			tmp = f();
+			try {
+				tmp = f();
+			} catch( e : Dynamic ) {
+				exc = { v : e };
+			}
 			l.release();
 		});
 		l.wait();
+		if( exc != null )
+			throw exc.v;
 		return tmp;
 	}
 
