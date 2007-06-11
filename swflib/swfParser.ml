@@ -158,7 +158,11 @@ let shape_fill_style_length s =
 	| SFSBitmap b -> 2 + matrix_length b.sfb_mpos
 
 let shape_line_style_length s =
-	2 + match s.sls_flags with None -> color_length s.sls_color | Some _ -> 2 + match s.sls_fill with None -> color_length s.sls_color | Some f -> shape_fill_style_length f
+	2 + match s.sls_flags with 
+		| None -> color_length s.sls_color
+		| Some _ -> 
+			2 + (match s.sls_fill with None -> color_length s.sls_color | Some f -> shape_fill_style_length f)
+			  + opt_len (const 2) s.sls_miter
 
 let shape_array_length f s =
 	let n = List.length s in
@@ -685,12 +689,23 @@ let parse_shape_line_style ch vshape =
 	let width = read_ui16 ch in
 	if vshape >= 4 then begin
 		let flags = read_ui16 ch in
-		let color = (flags = 0) in
+		let fill = (flags land 8 <> 0) in
+		let miterjoin = (flags land 0x20 <> 0) in
+		let miter = (if miterjoin then Some (IO.read_ui16 ch) else None) in
+		let color = (if fill then { r = 0; g = 0; b = 0; a = 0 } else read_rgba ch) in
+		(*
+			let noVscale = (flags land 0x02 <> 0) in
+			let noHscale = (flags land 0x04 <> 0) in
+			let beveljoin = (flags land 0x10 <> 0) in
+			let nocap = (flags land 0x40 <> 0) in
+			let squarecap = (flags land 0x80 <> 0) in
+		*)
 		{
 			sls_width = width;
-			sls_color = ColorRGBA (if color then read_rgba ch else { r = 0; g = 0; b = 0; a = 0 });
-			sls_fill = if color then None else Some (parse_shape_fill_style ch vshape);
+			sls_color = ColorRGBA color;
+			sls_fill = if fill then Some (parse_shape_fill_style ch vshape) else None;
 			sls_flags = Some flags;
+			sls_miter = miter;
 		}
 	end else 
 		{
@@ -698,6 +713,7 @@ let parse_shape_line_style ch vshape =
 			sls_color = if vshape = 3 then ColorRGBA (read_rgba ch) else ColorRGB (read_rgb ch);
 			sls_fill = None;
 			sls_flags = None;
+			sls_miter = None;
 		}
 
 let parse_shape_array f ch vshape =
@@ -1423,10 +1439,8 @@ let write_shape_fill_style ch s =
 
 let write_shape_line_style ch l =
 	write_ui16 ch l.sls_width;
-	(match l.sls_flags with
-	| None -> ()
-	| Some flags ->
-		write_ui16 ch flags);
+	opt (write_ui16 ch) l.sls_flags;
+	opt (write_ui16 ch) l.sls_miter;
 	match l.sls_fill with	
 	| None ->
 		write_color ch l.sls_color;

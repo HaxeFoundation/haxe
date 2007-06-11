@@ -306,6 +306,7 @@ type shape_line_style = {
 	sls_color : color;
 	sls_flags : int option;
 	sls_fill : shape_fill_style option;
+	sls_miter : int option;
 }
 
 type shape_new_styles = {
