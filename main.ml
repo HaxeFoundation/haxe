@@ -248,13 +248,14 @@ try
 		("-x", Arg.String (fun file ->
 			check_targets();
 			Typer.forbidden_packages := ["js"; "flash"];
-			target := Neko file;
+			let neko_file = file ^ ".n" in
+			target := Neko neko_file;
 			if !main_class = None then begin
 				let cpath = make_path file in
 				main_class := Some cpath;
 				classes := cpath :: !classes
 			end;
-			cmds := ("neko " ^ file) :: !cmds;
+			cmds := ("neko " ^ neko_file) :: !cmds;
 		),"<file> : shortcut for compiling and executing a neko file");
 		("-xml",Arg.String (fun file ->
 			Parser.use_doc := true;
