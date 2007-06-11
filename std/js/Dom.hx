@@ -43,7 +43,7 @@ typedef MetaDom<T> = {
 	var previousSibling : T;
 
 	function appendChild( child : T ) : Void;
-	function cloneNode( deep : T ) : T;
+	function cloneNode( deep : Bool ) : T;
 	function hasChildNodes() : Bool;
 	function insertBefore( newChild : T, refChild : T ) : Void;
 	function removeChild( child : T ) : Void;
