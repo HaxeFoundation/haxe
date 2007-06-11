@@ -50,10 +50,10 @@ let s_path ctx path p =
 	| (pack,name) ->
 		try
 			(match Hashtbl.find ctx.imports name with
-			| p :: _ when p = pack ->
+			| [p] when p = pack ->
 				name
 			| packs ->
-				if not (List.mem pack packs) then Hashtbl.replace ctx.imports name (packs @ [pack]);
+				if not (List.mem pack packs) then Hashtbl.replace ctx.imports name (pack :: packs);
 				Ast.s_type_path path)
 		with Not_found ->
 			Hashtbl.add ctx.imports name [pack];
