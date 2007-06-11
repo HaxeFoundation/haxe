@@ -55,7 +55,7 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 
 	public function call( params : Array<Dynamic>, ?onData : Dynamic -> Void ) : Void {
 		#if flash
-		if( __data.connect ) {
+		if( Reflect.hasField(__data,"connect") ) {
 			var me = this;
 			var p = params.copy();
 			#if flash9
