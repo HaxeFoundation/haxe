@@ -11,7 +11,7 @@ class Ui {
 	}
 
 	public static function stopLoop() {
-		_stop_loop();
+		_sync(_stop_loop);
 	}
 
 	public static function sync( f : Void -> Void ) {
