@@ -1,6 +1,6 @@
 package neko.vm;
 
-class Os {
+class Ui {
 
 	public static function isMainThread() {
 		return _is_main_thread();
@@ -38,9 +38,9 @@ class Os {
 		return tmp;
 	}
 
-	static var _is_main_thread = neko.Lib.load("os","os_is_main",0);
-	static var _loop = neko.Lib.load("os","os_loop",0);
-	static var _stop_loop = neko.Lib.load("os","os_stop_loop",0);
-	static var _sync = neko.Lib.load("os","os_sync",1);
+	static var _is_main_thread = neko.Lib.load("ui","ui_is_main",0);
+	static var _loop = neko.Lib.load("ui","ui_loop",0);
+	static var _stop_loop = neko.Lib.load("ui","ui_stop_loop",0);
+	static var _sync = neko.Lib.load("ui","ui_sync",1);
 
 }

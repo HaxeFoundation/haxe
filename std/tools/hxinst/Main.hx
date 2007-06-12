@@ -351,10 +351,10 @@ class Main {
 		wnd.button = "Exit";
 		wnd.enabled = false;
 		wnd.onClick = function() {
-			neko.vm.Os.stopLoop();
+			neko.vm.Ui.stopLoop();
 		};
 		neko.vm.Thread.create(i.run);
-		neko.vm.Os.loop();
+		neko.vm.Ui.loop();
 	}
 
 }
