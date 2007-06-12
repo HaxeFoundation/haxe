@@ -1,0 +1,5 @@
+# Neko
+-neko hxinst.n
+-main tools.hxinst.Main
+-lib xcross
+-cmd haxelib run xcross hxinst.n
