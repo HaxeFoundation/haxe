@@ -77,6 +77,10 @@ chdir("haxelib");
 cmd("rm -rf *.bat *.zip *.db *.n tmp files");
 chdir("..");
 
+chdir("hxinst");
+cmd("rm -rf *.n *.zip *.dmg *.app hxinst-win.exe hxinst-linux");
+chdir("..");
+
 chdir("..");
 cmd("rm -rf mt mtwin");
 chdir("../..");
