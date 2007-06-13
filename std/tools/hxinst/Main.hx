@@ -3,7 +3,6 @@ package tools.hxinst;
 class Main {
 
 	static var SYS = neko.Sys.systemName();
-	static var TMP = "tmp.txt";
 	static var NULL = if( SYS == "Windows" ) "NUL" else "/dev/null";
 	static var wnd : xcross.Winlog;
 
@@ -52,6 +51,11 @@ class Main {
 		display("Execute "+cmd);
 		if( neko.Sys.command(cmd) != 0 )
 			error("Command '"+cmd+"' failed !");
+	}
+
+	function commandOutput( cmd ) {
+		var p = try new neko.io.Process(cmd,[]) catch( e : Dynamic ) return "";
+		return p.stderr.readAll() + p.stdout.readAll();
 	}
 
 	function run() {
@@ -116,9 +120,7 @@ class Main {
 
 		// GET haxe Version
 		display("Getting Local haXe Version");
-		neko.Sys.command("haxe 2>"+TMP);
-		var content = neko.io.File.getContent(TMP);
-		neko.FileSystem.deleteFile(TMP);
+		var content = commandOutput("haxe");
 		var r = ~/^Haxe Compiler ([0-9]+)\.([0-9]+)/;
 		var haxeVersion = null;
 		if( r.match(content) )
@@ -130,9 +132,7 @@ class Main {
 
 		// GET Neko Version
 		display("Getting Local Neko Version");
-		neko.Sys.command("neko >"+TMP+" 2>"+NULL);
-		var content = neko.io.File.getContent(TMP);
-		neko.FileSystem.deleteFile(TMP);
+		var content = commandOutput("neko");
 		var r = ~/^NekoVM ([0-9]+)\.([0-9]+)(\.([0-9]+))?/;
 		var nekoVersion = null;
 		if( r.match(content) )
