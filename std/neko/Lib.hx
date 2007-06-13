@@ -69,7 +69,7 @@ class Lib {
 	public static function unserialize( s : String ) : Dynamic {
 		return untyped __unserialize(s.__s,__dollar__loader);
 	}
-	
+
 	/**
 		Unserialize a string using native Neko serialization. See [serialize].
 		This function assume that all the serialized data was serialized with current
@@ -77,10 +77,10 @@ class Lib {
 		some data into mod_neko that was serialized on a different server using a different
 		file path.
 	**/
-	public static function localUnserialize( s : String ) : Dynamic {		
+	public static function localUnserialize( s : String ) : Dynamic {
 		return untyped __unserialize(s.__s,{
 			loadmodule : function(m,l) { return __dollar__exports; },
-			loadprim : function(p,n) { return __dollar__loader.loadprim(p,n); }			
+			loadprim : function(p,n) { return __dollar__loader.loadprim(p,n); }
 		});
 	}
 
@@ -145,7 +145,7 @@ class Lib {
 				return v.__s;
 			if( cl == Array ) {
 				var a = untyped __dollar__amake(v.length);
-				for( i in 0...a.length )
+				for( i in 0...v.length )
 					a[i] = haxeToNeko(v[i]);
 				return a;
 			}
@@ -164,7 +164,7 @@ class Lib {
 			throw "Can't convert "+string(v);
 		}
 	}
-	
+
 	public static function getClasses() : Dynamic {
 		return untyped neko.Boot.__classes;
 	}
