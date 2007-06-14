@@ -32,6 +32,11 @@ private class Stdin extends neko.io.Output {
 		this.p = p;
 	}
 
+	public override function close() {
+		super.close();
+		_stdin_close(p);
+	}
+
 	public override function writeChar(c) {
 		if( writeBytes(Std.chr(c),0,1) == 0 )
 			throw Error.Blocked;
