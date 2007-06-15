@@ -35,7 +35,7 @@ class Tools {
 	static var HEXA = "0123456789ABCDEF";
 
 
-	static var REG_HEADER_DECODE = ~/^(.*?)=\?([^\?]+)\?(Q|B)\?([^?]*)\?=\s?(.*?)$/i;
+	static var REG_HEADER_DECODE = ~/^(.*?)=\?([^\?]+)\?(Q|B)\?([^?]*)\?=(.*?)$/i;
 	static var REG_QP_LB = ~/=\\r?\\n/;
 	static var REG_QP = ~/=([A-Fa-f0-9]{1,2})/;
 	
@@ -129,8 +129,14 @@ class Tools {
 		return ret.toString();
 	}
 
-	public static function headerQpEncode( ostr : String, initSize : Int, charset : String ){
+	public static function headerQpEncode( ostr : String, initSize : Int, charset : String, ?cleanQuote : Bool ){
 		var str = ~/\r?\n\s*/.replace(ostr," ");
+		if( cleanQuote ){
+			if( str.substr(0,1) == "\"" )
+				str = str.substr(1,str.length-1);
+			if( str.substr(str.length-1,1) == "\"" )
+				str = str.substr(0,str.length-1);
+		}
 		
 		var csl = charset.length;
 		var len = str.length;
@@ -190,7 +196,7 @@ class Tools {
 				var name = a.name;
 				if( ~/[\s,"']/.match( name ) )
 					name = "\""+name.split("\\").join("\\\\").split("\"").join("\\\"")+"\"";
-				var t = headerQpEncode(name,initSize,charset);
+				var t = headerQpEncode(name,initSize,charset,true);
 				ret.add( t );
 				var p = t.lastIndexOf("\n");
 				if( p == -1 ) 

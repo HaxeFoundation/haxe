@@ -76,7 +76,7 @@ class MetaPart<T> {
 		headers = new Hash();
 	}
 
-	function getContentType(){
+	public function getContentType(){
 		return contentType;
 	}
 
@@ -185,6 +185,9 @@ class MetaPart<T> {
 
 			setHeader("Content-Type",contentType+"; charset=\""+charset+"\"; boundary=\""+boundary+"\"");
 		}else{
+			if( name != null )
+				setHeader("Content-Type",contentType+"; name=\""+name.split("\"").join("\\\"")+"\"");
+			else
 			setHeader("Content-Type",contentType+"; charset=\""+charset+"\"");
 		}
 
