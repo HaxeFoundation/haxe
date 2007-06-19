@@ -318,7 +318,11 @@ class Serializer {
 		buf.add("x");
 		#if flash9
 		if( untyped __is__(e,__global__["Error"]) ) {
-			serialize(e.message);
+			var s = e.getStackTrace();
+			if( s == null )
+				serialize(e.message);
+			else
+				serialize(s);
 			return;
 		}
 		#end
