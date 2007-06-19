@@ -45,8 +45,11 @@ class Lib {
 			if( o != null )
 				break;
 		}
-		if( o == null )
+		if( o == null ) {
+			if( path == "api" )
+				return untyped __global__["api"];
 			return null;
+		}
 		for( f in fields )
 			o = untyped o[f];
 		return o;
