@@ -834,16 +834,6 @@ let type_type ctx tpath p =
 	match t with
 	| TClassDecl c ->
 		let pub = is_parent c ctx.curclass in
-		let types = (match tparams with
-			| None ->
-				List.map (fun (_,t) ->
-					match follow t with
-					| TEnum _ -> mk_mono()
-					| _ -> t
-				) c.cl_types
-			| Some l ->
-				l
-		) in
 		let t_tmp = {
 			t_path = fst c.cl_path, "#" ^ snd c.cl_path;
 			t_doc = None;
@@ -851,11 +841,10 @@ let type_type ctx tpath p =
 			t_type = if pub then mk_anon (PMap.map (fun f -> { f with cf_public = true }) c.cl_statics) else TAnon { a_fields = c.cl_statics; a_status = static_status };
 			t_private = true;
 			t_static = Some c;
-			t_types = c.cl_types;
+			t_types = [];
 		} in
-		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,types)) p
+		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
 	| TEnumDecl e ->
-		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_types | Some l -> l) in
 		let fl = PMap.fold (fun f acc ->
 			PMap.add f.ef_name {
 				cf_name = f.ef_name;
@@ -875,9 +864,9 @@ let type_type ctx tpath p =
 			t_type = mk_anon fl;
 			t_private = true;
 			t_static = None;
-			t_types = e.e_types;
+			t_types = [];
 		} in
-		mk (TTypeExpr (TEnumDecl e)) (TType (t_tmp,types)) p
+		mk (TTypeExpr (TEnumDecl e)) (TType (t_tmp,[])) p
 	| TTypeDecl s ->
 		match follow s.t_type with
 		| TEnum (e,params) ->
