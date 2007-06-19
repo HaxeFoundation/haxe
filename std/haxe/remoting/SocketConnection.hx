@@ -194,7 +194,7 @@ class SocketConnection extends AsyncConnection {
 			var obj = js.Lib.eval(path.join("."));
 			#else error
 			#end
-			var fptr = Reflect.field(obj,fname);
+			var fptr = #if flash9 if( obj != null ) #end Reflect.field(obj,fname);
 			if( !Reflect.isFunction(fptr) )
 				throw "Calling not-a-function '"+path.join(".")+"."+fname+"'";
 			val = Reflect.callMethod(obj,fptr,args);
