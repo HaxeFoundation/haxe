@@ -2,22 +2,26 @@ package flash;
 
 import flash.events.MouseEvent;
 
-typedef MEvent = Event<MouseEvent,flash.display.DisplayObject>;
+typedef MEvent = Event<MouseEvent,flash.display.InteractiveObject>;
 
 class Event<T,Target : flash.events.EventDispatcher> {
 
 	var name : String;
+	var onAdd : Target -> Void;
 
-	function new(name) {
+	function new(name,onAdd) {
 		this.name = name;
+		this.onAdd = onAdd;
 	}
 
 	public function bind( t : Target, f : Void -> Void ) {
 		t.addEventListener(name,function(_) { f(); });
+		onAdd(t);
 	}
 
 	public function ebind( t : Target, f : T -> Void ) {
 		t.addEventListener(name,f);
+		onAdd(t);
 	}
 
 	public function lazyBind( t : Target, fval : Void -> Void ) {
@@ -26,6 +30,7 @@ class Event<T,Target : flash.events.EventDispatcher> {
 				t.addEventListener(name,function(_) {
 					Reflect.field(t,f)();
 				});
+				onAdd(t);
 				return;
 			}
 		throw "Function value for event "+name+" not found in "+t.toString();
@@ -35,9 +40,21 @@ class Event<T,Target : flash.events.EventDispatcher> {
 		return "Event:"+name;
 	}
 
-	public static var click = new MEvent(MouseEvent.CLICK);
-	public static var doubleClick = new MEvent(MouseEvent.DOUBLE_CLICK);
-	public static var over = new MEvent(MouseEvent.MOUSE_OVER);
-	public static var out = new MEvent(MouseEvent.MOUSE_OUT);
+	static function mouseEnable( t : flash.display.InteractiveObject ) {
+		t.mouseEnabled = true;
+	}
+
+	static function dcEnable( t : flash.display.InteractiveObject ) {
+		t.mouseEnabled = true;
+		t.doubleClickEnabled = true;
+	}
+
+	public static var click = new MEvent(MouseEvent.CLICK,mouseEnable);
+	public static var doubleClick = new MEvent(MouseEvent.DOUBLE_CLICK,dcEnable);
+	public static var over = new MEvent(MouseEvent.MOUSE_OVER,mouseEnable);
+	public static var out = new MEvent(MouseEvent.MOUSE_OUT,mouseEnable);
+	public static var down = new MEvent(MouseEvent.MOUSE_DOWN,mouseEnable);
+	public static var up = new MEvent(MouseEvent.MOUSE_UP,mouseEnable);
+	public static var move = new MEvent(MouseEvent.MOUSE_MOVE,mouseEnable);
 
 }
