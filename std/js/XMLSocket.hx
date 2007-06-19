@@ -25,7 +25,7 @@
 package js;
 
 /**
-	By compiling the [flash.SocketWrapper] into a SWF, you can create and use XMLSockets directly from Javascript.
+	By compiling the [haxe.remoting.SocketWrapper] into a SWF, you can create and use XMLSockets directly from Javascript.
 **/
 class XMLSocket {
 
