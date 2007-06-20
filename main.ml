@@ -173,6 +173,7 @@ try
 	let excludes = ref [] in
 	let libs = ref [] in
 	let gen_hx = ref false in
+	let no_output = ref false in
 	Plugin.defines := base_defines;
 	Plugin.define ("haxe_" ^ string_of_int version);
 	Typer.check_override := false;
@@ -318,12 +319,14 @@ try
 			let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
 			let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
 			display := true;
+			no_output := true;
 			Parser.resume_display := {
 				Ast.pfile = (!Plugin.get_full_path) file;
 				Ast.pmin = pos;
 				Ast.pmax = pos;
 			};
 		),": display code tips");
+		("--no-output", Arg.Unit (fun() -> no_output := true),": compiles but does not generate any file");
 	] in
 	let current = ref 0 in
 	let args = Array.of_list ("" :: params) in
@@ -381,14 +384,14 @@ try
 	| Swf file | As3 file ->
 		(* check file extension. In case of wrong commandline, we don't want
 		   to accidentaly delete a source file. *)
-		if not !display && file_extension file = "swf" then delete_file file;
+		if not !no_output && file_extension file = "swf" then delete_file file;
 		Plugin.define "flash";
 		Plugin.define ("flash"  ^ string_of_int !swf_version);
 	| Neko file ->
-		if not !display && file_extension file = "n" then delete_file file;
+		if not !no_output && file_extension file = "n" then delete_file file;
 		Plugin.define "neko";
 	| Js file ->
-		if not !display && file_extension file = "js" then delete_file file;
+		if not !no_output && file_extension file = "js" then delete_file file;
 		Plugin.define "js";
 	);
 	if !classes = [([],"Std")] then begin
@@ -400,10 +403,10 @@ try
 		Typer.finalize ctx;
 		if !has_error then do_exit();
 		if !display then begin
-			target := No;
 			xml_out := None;
 			auto_xml := false;
 		end;
+		if !no_output then target := No;
 		let do_auto_xml file = if !auto_xml then xml_out := Some (file ^ ".xml") in
 		let types = Typer.types ctx (!main_class) (!excludes) in
 		(match !target with
@@ -430,7 +433,7 @@ try
 			if !Plugin.verbose then print_endline ("Generating xml : " ^ file);
 			Genxml.generate file ctx types);
 	end;
-	if not !display then List.iter (fun cmd ->
+	if not !no_output then List.iter (fun cmd ->
 		let len = String.length cmd in
 		if len > 3 && String.sub cmd 0 3 = "cd " then
 			Sys.chdir (String.sub cmd 3 (len - 3))
