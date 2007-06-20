@@ -14,5 +14,5 @@ extern class Stage extends DisplayObjectContainer {
 	var stageWidth : Int;
 	private function requireOwnerPermissions() : Void;
 
-	var stageDisplayState : StageDisplayState;
+	var displayState : StageDisplayState;
 }
