@@ -64,6 +64,10 @@ class Request {
 		return ret;
 	}
 
+	public function set( key : String , value : String ) {
+		params.set(key,value);
+	}
+
 	public function get( key : String , ?or : String ) : String {
 		if( params.exists( key ) ) return params.get( key );
 		return or;
