@@ -46,8 +46,12 @@ class Lib {
 				break;
 		}
 		if( o == null ) {
+			#if !as3gen
+			// this is a small hack for a "api" global
+			// which can be used by some MT libraries
 			if( path == "api" )
 				return untyped __global__["api"];
+			#end
 			return null;
 		}
 		for( f in fields )

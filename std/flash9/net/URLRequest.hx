@@ -5,6 +5,6 @@ extern class URLRequest {
 	var contentType : String;
 	var data : Dynamic;
 	var method : String;
-	var requestHeaders : Array<Dynamic>;
+	var requestHeaders : Array<URLRequestHeader>;
 	var url : String;
 }
