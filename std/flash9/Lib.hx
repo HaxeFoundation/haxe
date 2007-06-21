@@ -71,6 +71,10 @@ class Lib {
 		untyped __global__["flash.system.fscommand"](cmd,param);
 	}
 
+	public static function trace( arg : Dynamic ) {
+		untyped __global__["trace"](arg);
+	}
+
 }
 
 
