@@ -90,14 +90,14 @@ class Socket {
 	public function peer() : { host : Host, port : Int } {
 		var a : Dynamic = socket_peer(__s);
 		var h = new Host("127.0.0.1");
-		h.ip = a[0];
+		untyped h.ip = a[0];
 		return { host : h, port : a[1] };
 	}
 
 	public function host() : { host : Host, port : Int } {
 		var a : Dynamic = socket_host(__s);
 		var h = new Host("127.0.0.1");
-		h.ip = a[0];
+		untyped h.ip = a[0];
 		return { host : h, port : a[1] };
 	}
 
