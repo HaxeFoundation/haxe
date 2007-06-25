@@ -57,4 +57,24 @@ class Event<T,Target : flash.events.EventDispatcher> {
 	public static var up = new MEvent(MouseEvent.MOUSE_UP,mouseEnable);
 	public static var move = new MEvent(MouseEvent.MOUSE_MOVE,mouseEnable);
 
+	public static function drag( t : flash.display.InteractiveObject, f : Void -> Void ) {
+		var stage = flash.Lib.current.stage;
+		var mouseX = stage.mouseX;
+		var mouseY = stage.mouseY;
+		var fevent = function(e) {
+			if( mouseX != stage.mouseX || mouseY != stage.mouseY ) {
+				mouseX = stage.mouseX;
+				mouseY = stage.mouseY;
+				f();
+			}
+		};
+		var stop;
+		stop = function(e) {
+			t.removeEventListener(flash.events.Event.ENTER_FRAME,fevent);
+			stage.removeEventListener(flash.events.MouseEvent.MOUSE_UP,stop);
+		};
+		t.addEventListener(flash.events.Event.ENTER_FRAME,fevent);
+		stage.addEventListener(flash.events.MouseEvent.MOUSE_UP,stop);
+	}
+
 }
