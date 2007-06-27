@@ -1,5 +1,12 @@
 package flash;
 
+private extern class MCBounds {
+	var xMin : Float;
+	var xMax : Float;
+	var yMin : Float;
+	var yMax : Float;
+}
+
 extern class MovieClip
 #if flash_strict
 #else true
@@ -62,7 +69,7 @@ implements Dynamic
 
 	// function hitTest( x : Float, y : Float, shape : Bool ) : Bool;
 	// function hitTest( mc : MovieClip ) : Bool;
-	function getBounds(bounds  :  MovieClip) : { xMin : Float, xMax : Float, yMin : Float, yMax : Float };
+	function getBounds(bounds  :  MovieClip) : MCBounds;
 	// don't allow function getBounds( bounds : String )
 	function getBytesLoaded() : Int;
 	function getBytesTotal() : Int;
@@ -146,7 +153,7 @@ implements Dynamic
 	var transform : flash.geom.Transform;
 	var scale9Grid : flash.geom.Rectangle<Float>;
 
-	function getRect( bounds : MovieClip ) : { xMin : Float, yMin : Float, xMax : Float, yMax : Float };
+	function getRect( bounds : MovieClip ) : MCBounds;
 	// don't allow bounds : String
 
 
