@@ -27,17 +27,17 @@ package mtwin.templo;
 
 class Preprocessor {
 
-	static var r_if      = ~/::if([^_a-zA-Z0-9].*?)::/g;
-	static var r_elseif  = ~/::elseif([^_a-zA-Z0-9].*?)::/;
+	static var r_if      = ~/::if([^_a-zA-Z0-9].*?)::/gs;
+	static var r_elseif  = ~/::elseif([^_a-zA-Z0-9].*?)::/gs;
 	static var r_else    = ~/::else *?::/;
-	static var r_foreach = ~/::foreach (.*?)::/g;
-	static var r_fill    = ~/::fill (.*?)::/g;
-	static var r_use     = ~/::use (.*?)::/g;
-	static var r_set     = ~/::set (.*?)::/g;
+	static var r_foreach = ~/::foreach (.*?)::/gs;
+	static var r_fill    = ~/::fill (.*?)::/gs;
+	static var r_use     = ~/::use (.*?)::/gs;
+	static var r_set     = ~/::set (.*?)::/gs;
 
-	static var r_cond    = ~/::cond (.*?)::/g;
-	static var r_repeat  = ~/::repeat (.*?)::/g;
-	static var r_attr    = ~/::attr (.*?)::/g;
+	static var r_cond    = ~/::cond (.*?)::/gs;
+	static var r_repeat  = ~/::repeat (.*?)::/gs;
+	static var r_attr    = ~/::attr (.*?)::/gs;
 
 	static var r_cdata     = ~/<!\[CDATA\[([^\0]*?)]]>/g;
 	static var r_comment   = ~/<!--([^\0]*?)-->/g;

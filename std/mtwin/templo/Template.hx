@@ -93,7 +93,19 @@ class Template {
 			x = Xml.parse(src);
 		}
 		catch (e:Dynamic){
-			throw { message:"Error in "+id+"\n"+Std.string(e), source:src };
+			var source : String = src;
+			var str = Std.string(e);
+			var reg = ~/Xml parse error : .* at line ([0-9]+)/gs;
+			if (reg.match(str)){
+				var margin = 10;
+				var line = Std.parseInt(reg.matched(1));
+				var lines = src.split("\n");
+				var start = Std.int(Math.max(0,line-margin));
+				var splice = lines.splice(start, line+margin);
+				var splice = Lambda.map(splice, function(s:String){ return (start++) + " : " + s; });
+				source = splice.join("\n");
+			}
+			throw { message:"Error in "+id+"\n"+str, source:source };
 		}
 
 		var p = new mtwin.templo.Parser(isXhtml == true);
