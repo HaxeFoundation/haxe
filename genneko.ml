@@ -492,7 +492,7 @@ let gen_method ctx p c acc =
 	ctx.curmethod <- c.cf_name;
 	match c.cf_expr with
 	| None ->
-		(c.cf_name, null p) :: acc
+		if c.cf_get = ResolveAccess then acc else (c.cf_name, null p) :: acc
 	| Some e ->		
 		match e.eexpr with
 		| TCall ({ eexpr = TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = (["neko"],"Lib") }) }, "load")},[{ eexpr = TConst (TString m) };{ eexpr = TConst (TString f) };{ eexpr = TConst (TInt n) }]) ->

@@ -1185,6 +1185,8 @@ let generate_field_kind ctx f c stat =
 			})
 	| _ when c.cl_interface && not stat ->
 		None
+	| _ when f.cf_get = ResolveAccess ->
+		None
 	| _ ->
 		Some (A3FVar {
 			v3_type = None;

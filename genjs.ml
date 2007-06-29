@@ -625,7 +625,7 @@ let generate_class ctx c =
 		newline ctx;
 	);
 	List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
-	PMap.iter (fun _ f -> gen_class_field ctx c f) c.cl_fields;
+	PMap.iter (fun _ f -> if f.cf_get <> ResolveAccess then gen_class_field ctx c f) c.cl_fields;
 	print ctx "%s.prototype.__class__ = %s" p p;
 	newline ctx;
 	match c.cl_implements with

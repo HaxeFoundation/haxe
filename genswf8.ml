@@ -1229,7 +1229,7 @@ let gen_type_def ctx t =
 		(* true if implements mt.Protect *)
 		let flag = is_protected ctx (TInst (c,[])) "" in
 		List.iter (gen_class_static_field ctx c flag) c.cl_ordered_statics;
-		PMap.iter (fun _ f -> gen_class_field ctx flag f) c.cl_fields;
+		PMap.iter (fun _ f -> if f.cf_get <> ResolveAccess then gen_class_field ctx flag f) c.cl_fields;
 	| TEnumDecl e when e.e_extern ->
 		()
 	| TEnumDecl e ->
