@@ -330,7 +330,7 @@ let rec load_normal_type ctx t p allow_no_params =
 			) t.tparams in
 			let bparams = List.map fst tparams in
 			let params = List.map2 (fun (t,isconst) (name,t2) ->
-				if isconst <> (name = "Const") then error (if isconst then "Constant value unexpected here" else "Constant value excepted as type parameter") p;
+				if isconst <> (name = "Const") && t != t_dynamic then error (if isconst then "Constant value unexpected here" else "Constant value excepted as type parameter") p;
 				(match follow t2 with
 				| TInst (c,[]) ->
 					List.iter (fun (i,params) ->
