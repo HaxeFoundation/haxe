@@ -23,6 +23,7 @@ type module_path = string list * string
 type field_access =
 	| NormalAccess
 	| NoAccess
+	| ResolveAccess
 	| MethodAccess of string
 	| F9MethodAccess
 

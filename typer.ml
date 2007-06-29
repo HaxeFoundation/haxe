@@ -81,6 +81,7 @@ let access_str = function
 	| NoAccess -> "null"
 	| MethodAccess m -> m
 	| F9MethodAccess -> "f9dynamic"
+	| ResolveAccess -> "resolve"
 
 let unify_error_msg ctx = function
 	| Cannot_unify (t1,t2) ->
@@ -256,6 +257,9 @@ let field_access ctx get f t e p =
 			AccExpr (mk (TCall (mk (TField (e,m)) (mk_mono()) p,[])) t p)
 		else
 			AccSet (e,m,t,f.cf_name)
+	| ResolveAccess ->
+		let fstring = mk (TConst (TString f.cf_name)) (mk_mono()) p in
+		AccExpr (mk (TCall (mk (TField (e,"__resolve")) (mk_mono()) p,[fstring])) t p)
 
 let acc_get g p =
 	match g with
@@ -560,6 +564,36 @@ let extend_proxy ctx c t p =
 		| _ -> assert false
 	)
 
+let extend_xml_proxy ctx c t file p =
+	let t = load_type ctx p t in
+	let file = (try Plugin.find_file file with Not_found -> file) in
+	try
+		let rec loop = function
+			| Xml.Element (_,attrs,childs) ->
+				(try
+					let id = List.assoc "id" attrs in
+					if PMap.mem id c.cl_fields then error ("Duplicate id " ^ id) p;
+					let f = {
+						cf_name = id;
+						cf_type = t;
+						cf_public = true;
+						cf_doc = None;
+						cf_get = ResolveAccess;
+						cf_set = NoAccess;
+						cf_params = [];
+						cf_expr = None;
+					} in
+					c.cl_fields <- PMap.add id f c.cl_fields;
+				with
+					Not_found -> ());
+				List.iter loop childs;
+			| Xml.PCData _ -> ()
+		in
+		loop (Xml.parse_file file)
+	with
+		| Xml.Error e -> error ("XML error " ^ Xml.error e) p
+		| Xml.File_not_found f -> error ("XML File not found : " ^ f) p
+
 let set_heritance ctx c herits p =
 	let rec loop = function
 		| HPrivate | HExtern | HInterface ->
@@ -574,6 +608,10 @@ let set_heritance ctx c herits p =
 			extend_proxy ctx c t p
 		| HExtends t ->
 			if c.cl_super <> None then error "Cannot extend several classes" p;
+			(match t with
+			| { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPConst(String file);TPType t] } -> 
+				extend_xml_proxy ctx c t file p
+			| _ -> ());
 			let t = load_normal_type ctx t p false in
 			(match follow t with
 			| TInst (cl,params) ->
