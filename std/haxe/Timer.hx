@@ -33,6 +33,8 @@ class Timer {
 	private var timerId : Int;
 	#end
 
+	#if !neko
+
 	public function new( time : Int ){
 		#if flash9
 			var me = this;
@@ -44,8 +46,6 @@ class Timer {
 			id = arr.length;
 			arr[id] = this;
 			timerId = untyped window.setInterval("haxe.Timer.arr["+id+"].run();",time);
-		#else neko
-			throw "Not implemented";
 		#end
 	}
 
@@ -91,6 +91,8 @@ class Timer {
 			fqueue.shift()();
 		},if( time == null ) 0 else time)();
 	}
+
+	#end
 
 	public static function stamp() : Float {
 		#if flash
