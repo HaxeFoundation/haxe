@@ -60,8 +60,8 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 			var p = params.copy();
 			#if flash9
 			p.unshift(new flash.net.Responder(
-				function(e) { me.__error.ref(e); },
-				function(r) { onData(r); }
+				function(r) { onData(r); },
+				function(e) { me.__error.ref(e); }
 			));
 			#else true
 			p.unshift({
