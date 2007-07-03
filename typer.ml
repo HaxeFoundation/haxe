@@ -2571,6 +2571,7 @@ let type_module ctx m tdecls loadp =
 			let t = get_tdef d.d_name in
 			ctx.type_params <- t.t_types;
 			let tt = load_type ctx p d.d_data in
+			if t.t_type == follow tt then error "Recursive typedef is not allowed" p;
 			(match t.t_type with
 			| TMono r ->
 				(match !r with
