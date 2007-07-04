@@ -239,7 +239,7 @@ typedef Form = {> HtmlDom,
 	function submit() : Void;
 
 	var onreset : Event -> Void;
-	var onsubmit : Event -> Void;
+	var onsubmit : Event -> Bool;
 
 }
 
