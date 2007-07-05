@@ -318,7 +318,7 @@ class Web {
 			_get_host_name = function() { return untyped "localhost".__s; };
 			_get_client_ip = function() { return untyped "127.0.0.1".__s; };
 			_get_uri = function() {
-				return untyped (if( a0 == null ) "/" else "/?"+a0).__s;
+				return untyped (if( a0 == null ) "/" else a0).__s;
 			};
 			_cgi_redirect = function(v) { Lib.print("Location: "+v+"\n"); };
 			_cgi_set_header = function(h,v) { };
