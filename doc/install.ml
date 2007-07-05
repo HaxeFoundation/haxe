@@ -35,10 +35,10 @@ let obj_ext = match os_type with "Win32" -> ".obj" | _ -> ".o"
 let exe_ext = match os_type with "Win32" | "Cygwin" -> ".exe" | _ -> ""
 let ocamloptflags = match os_type with "Unix" -> "-cclib -fno-stack-protector " | _ -> ""
 
-let zlib = match os_type with 
-	| "Win32" -> "zlib.lib" 
-	| _ -> 
-		try 
+let zlib = match os_type with
+	| "Win32" -> "zlib.lib"
+	| _ ->
+		try
 			List.find Sys.file_exists ["/usr/lib/libz.dylib";"/usr/lib64/libz.so.1";"/usr/lib/libz.so.1";"/lib/libz.so.1"]
 		with
 			Not_found ->
@@ -70,6 +70,7 @@ let download_libs() =
 	cvs motiontwin "co ocaml/swflib";
 	cvs motiontwin "co ocaml/extc";
 	cvs motiontwin "co ocaml/extlib-dev";
+	cvs motiontwin "co ocaml/xml-light";
 	cvs motiontwin "co neko/libs/include/ocaml"
 in
 
@@ -80,7 +81,7 @@ let download() =
 	download_libs();
 in
 
-let compile_libs() =	
+let compile_libs() =
 	(* EXTLIB *)
 	Sys.chdir "ocaml/extlib-dev";
 	command ("ocaml install.ml -nodoc -d .. " ^ (if bytecode then "-b " else "") ^ (if native then "-n" else ""));
@@ -103,6 +104,17 @@ let compile_libs() =
 	if bytecode then command ("ocamlc -a -o swflib.cma " ^ files);
 	if native then command ("ocamlopt -a -o swflib.cmxa " ^ files);
 	Sys.chdir "../..";
+
+	(* XML-LIGHT *)
+	Sys.chdir "ocaml/xml-light";
+	command ("ocamlyacc	xml_parser.mly");
+	command ("ocamlc xml.mli dtd.mli xml_parser.mli xml_lexer.mli");
+	command ("ocamllex xml_lexer.mll");
+	let files = "xml_parser.ml xml_lexer.ml dtd.ml xmlParser.mli xmlParser.ml xml.ml" in
+	if bytecode then command ("ocamlc -a -o xml-light.cma " ^ files);
+	if native then command ("ocamlopt -a -o xml-light.cmxa " ^ files);
+	Sys.chdir "../..";
+
 in
 
 let compile() =
@@ -120,8 +132,10 @@ let compile() =
 	ocamlc "-I ../ocaml -I ../neko/libs/include/ocaml ../neko/libs/include/ocaml/nast.ml ../neko/libs/include/ocaml/nxml.ml genneko.ml";
 	ocamlc "-I ../ocaml -I ../ocaml/extc main.ml";
 	let mlist = ["plugin";"ast";"lexer";"parser";"type";"typer";"transform";"genswf9";"genswf";"../neko/libs/include/ocaml/nast";"../neko/libs/include/ocaml/nxml";"genneko";"genxml";"genjs";"genas3";"main"] in
-	if bytecode then command ("ocamlc -custom -o ../bin/haxe-byte" ^ exe_ext ^ " ../ocaml/extLib.cma ../ocaml/extc/extc.cma ../ocaml/swflib/swflib.cma unix.cma " ^ modules mlist ".cmo");
-	if native then command ("ocamlopt -o ../bin/haxe" ^ exe_ext ^ " ../ocaml/extLib.cmxa ../ocaml/extc/extc.cmxa ../ocaml/swflib/swflib.cmxa unix.cmxa " ^ modules mlist ".cmx");
+	let libs = ["../ocaml/extLib";"extc/extc";"../ocaml/swflib/swflib";"unix"] in
+	let makelibs ext = " " ^ String.concat " " (List.map (fun l -> l ^ ext) libs) ^ " " in
+	if bytecode then command ("ocamlc -custom -o ../bin/haxe-byte" ^ exe_ext ^ makelibs ".cma" ^ modules mlist ".cmo");
+	if native then command ("ocamlopt -o ../bin/haxe" ^ exe_ext ^ makelibs ".cmxa" ^ modules mlist ".cmx");
 
 in
 let startdir = Sys.getcwd() in
@@ -130,6 +144,6 @@ try
 	compile();
 	Sys.chdir startdir;
 with
-	Failure msg -> 
+	Failure msg ->
 		Sys.chdir startdir;
 		prerr_endline msg; exit 1
