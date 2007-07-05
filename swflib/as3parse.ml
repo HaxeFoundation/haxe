@@ -260,6 +260,9 @@ let read_as3_int ch =
 	let big = Int32.shift_left (Int32.of_int e) 28 in
 	Int32.logor big small
 
+let read_as3_uint ch =
+	assert false
+
 let read_int ch =
 	Int32.to_int (read_as3_int ch)
 
@@ -521,13 +524,14 @@ let parse ch len =
 	let ch = IO.input_string data in
 	if IO.read_i32 ch <> header_magic then assert false;
 	let ints = read_list ch read_as3_int in
-	if IO.read_byte ch <> 0 then assert false;
+	let uints = read_list ch read_as3_uint in
 	let floats = read_list ch IO.read_double in
 	let idents = (if parse_idents then read_list ch read_ident else [||]) in
 	let base_rights = (if parse_base_rights then read_list ch (read_base_right idents) else [||]) in
 	let rights = (if parse_rights then read_list ch (read_rights base_rights) else [||]) in
 	let ctx = {
 		as3_ints = ints;
+		as3_uints = uints;
 		as3_floats = floats;
 		as3_idents = idents;
 		as3_base_rights = base_rights;

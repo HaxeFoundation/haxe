@@ -22,6 +22,7 @@ type 'a index_nz
 
 type as3_ident = string
 type as3_int = int32
+type as3_uint = int32
 type as3_float = float
 
 type reg = int
@@ -72,20 +73,27 @@ type as3_op =
 	| A3OIn
 	| A3OIIncr
 	| A3OIDecr
+	| A3OINeg
+	| A3OIAdd
+	| A3OISub
+	| A3OIMul
 
 type type_index = as3_type index
 
 and as3_opcode =
+	| A3BreakPoint
+	| A3Nop
 	| A3Throw
 	| A3GetSuper of type_index
 	| A3SetSuper of type_index
-	| A3RegReset of reg
-	| A3Nop
+	| A3RegKill of reg
+	| A3Label
 	| A3Jump of as3_jump * int
-	| A3Switch of int * int list * int
+	| A3Switch of int * int list
+	| A3PushWith
 	| A3PopScope
-	| A3XmlOp3
 	| A3ForIn
+	| A3HasNext
 	| A3Null
 	| A3Undefined
 	| A3ForEach
@@ -96,58 +104,75 @@ and as3_opcode =
 	| A3NaN
 	| A3Pop
 	| A3Dup
-	| A3CatchDone
+	| A3Swap
 	| A3String of as3_ident index
 	| A3IntRef of as3_int index
+	| A3UIntRef of as3_uint index
 	| A3Float of as3_float index
 	| A3Scope
+	| A3Namespace of as3_base_right index
 	| A3Next of reg * reg
 	| A3Function of as3_method_type index_nz
-	| A3StackCall of nargs
-	| A3StackNew of nargs
-	| A3SuperCall of type_index * nargs
-	| A3Call of type_index * nargs
+	| A3CallStack of nargs
+	| A3Construct of nargs
+	| A3CallMethod of unit index * nargs
+	| A3CallStatic of unit index * nargs
+	| A3CallSuper of type_index * nargs
+	| A3CallProperty of type_index * nargs
 	| A3RetVoid
 	| A3Ret
-	| A3SuperConstr of nargs
-	| A3New of type_index * nargs
-	| A3SuperCallUnknown of type_index * nargs
-	| A3CallUnknown of type_index * nargs
+	| A3ConstructSuper of nargs
+	| A3ConstructProperty of type_index * nargs
+	| A3CallPropLex of type_index * nargs
+	| A3CallSuperVoid of type_index * nargs
+	| A3CallPropVoid of type_index * nargs
 	| A3Object of nargs
 	| A3Array of nargs
 	| A3NewBlock
 	| A3ClassDef of int
-	| A3XmlOp1 of type_index
 	| A3Catch of int
-	| A3GetInf of type_index
-	| A3SetInf of type_index
-	| A3GetProp of type_index
+	| A3FindPropStrict of type_index
+	| A3FindProp of type_index
+	| A3FindDefinition of type_index
+	| A3GetLex of type_index
 	| A3SetProp of type_index
 	| A3Reg of reg
 	| A3SetReg of reg
-	| A3GetScope0
+	| A3GetGlobalScope
 	| A3GetScope of int
-	| A3Get of type_index
-	| A3Set of type_index
-	| A3Delete of type_index
+	| A3GetProp of type_index
+	| A3InitProp of type_index
+	| A3DeleteProp of type_index
 	| A3GetSlot of int
 	| A3SetSlot of int
+	| A3ToString
 	| A3ToXml
+	| A3ToXmlAttr
 	| A3ToInt
 	| A3ToUInt
 	| A3ToNumber
 	| A3ToBool
-	| A3XmlOp2
-	| A3Cast of type_index
 	| A3ToObject
-	| A3ToString
+	| A3CheckIsXml
+	| A3Cast of type_index
+	| A3AsAny
+	| A3AsString
+	| A3AsType of type_index
+	| A3AsObject
+	| A3IncrReg of reg
+	| A3DecrReg of reg
 	| A3Typeof
 	| A3InstanceOf
-	| A3IncrReg of reg
+	| A3IsType of type_index
+	| A3IncrIReg of reg
+	| A3DecrIReg of reg
 	| A3This
+	| A3SetThis
 	| A3DebugReg of int * int * int * int
 	| A3DebugLine of int
 	| A3DebugFile of as3_ident index
+	| A3BreakPointLine of int
+	| A3Timestamp
 	| A3Op of as3_op
 	| A3Unk of char
 
@@ -262,7 +287,7 @@ type as3_function = {
 
 type as3_tag = {
 	as3_ints : as3_int array;
-	(* ??? *)
+	as3_uints : as3_uint array;
 	as3_floats : as3_float array;
 	as3_idents : as3_ident array;
 	as3_base_rights : as3_base_right array;
@@ -274,5 +299,5 @@ type as3_tag = {
 	mutable as3_statics : as3_static array;
 	mutable as3_inits : as3_static array;
 	mutable as3_functions : as3_function array;
-	mutable as3_unknown : string;	
+	mutable as3_unknown : string;
 }
