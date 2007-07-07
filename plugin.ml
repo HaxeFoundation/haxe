@@ -39,3 +39,42 @@ let find_file f =
 				loop l
 	in
 	loop !class_path
+
+type timer_infos = {
+	name : string;
+	mutable start : float;
+	mutable total : float;
+}
+
+let times = ref true
+
+let get_time = Unix.gettimeofday
+let htimers = Hashtbl.create 0
+
+let new_timer name = 
+	try
+		let t = Hashtbl.find htimers name in
+		t.start <- get_time();
+		t
+	with Not_found ->
+		let t = { name = name; start = get_time(); total = 0.; } in
+		Hashtbl.add htimers name t;
+		t
+
+let curtime = ref None
+
+let timer name =
+	if not !times then
+		(function() -> ())
+	else
+	let t = new_timer name in
+	let old = !curtime in	
+	curtime := Some t;
+	(function() ->
+		let dt = get_time() -. t.start in
+		t.total <- t.total +. dt;		
+		curtime := old;
+		match !curtime with
+		| None -> ()
+		| Some ct -> ct.start <- ct.start +. dt
+	)

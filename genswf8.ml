@@ -1379,6 +1379,7 @@ let generate_code file ver types hres =
 	[TDoAction ctx.opcodes] , ctx.movieclips
 
 let generate file ver header infile types hres =
+	let t = Plugin.timer "generate swf" in
 	let file , codeclip = (try let f , c = ExtString.String.split file "@" in f, Some c with _ -> file , None) in
 	let tag_code, boot_name , movieclips = (if ver = 9 then
 			let c, b = Genswf9.generate types hres in
@@ -1482,9 +1483,12 @@ let generate file ver header infile types hres =
 			(header , tags)
 	) in
 	let swf = if ver = 8 && Plugin.defined "flash_v9" then ({ (fst swf) with h_version = 9 }, snd swf) else swf in
+	t();
+	let t = Plugin.timer "write swf" in
 	let ch = IO.output_channel (open_out_bin file) in
 	Swf.write ch swf;
-	IO.close_out ch
+	IO.close_out ch;
+	t();
 
 ;;
 SwfParser.init SwfZip.inflate SwfZip.deflate;

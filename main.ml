@@ -327,6 +327,7 @@ try
 			};
 		),": display code tips");
 		("--no-output", Arg.Unit (fun() -> no_output := true),": compiles but does not generate any file");
+		("--times", Arg.Unit (fun() -> Plugin.times := true),": mesure compilation times");
 	] in
 	let current = ref 0 in
 	let args = Array.of_list ("" :: params) in
@@ -398,9 +399,11 @@ try
 		if !cmds = [] && not !gen_hx then Arg.usage args_spec usage;
 	end else begin
 		if !Plugin.verbose then print_endline ("Classpath : " ^ (String.concat ";" !Plugin.class_path));
+		let t = Plugin.timer "typing" in
 		let ctx = Typer.context type_error warn in
 		List.iter (fun cpath -> ignore(Typer.load ctx cpath Ast.null_pos)) (List.rev !classes);
 		Typer.finalize ctx;
+		t();
 		if !has_error then do_exit();
 		if !display then begin
 			xml_out := None;
@@ -434,11 +437,13 @@ try
 			Genxml.generate file ctx types);
 	end;
 	if not !no_output then List.iter (fun cmd ->
+		let t = Plugin.timer "command" in
 		let len = String.length cmd in
 		if len > 3 && String.sub cmd 0 3 = "cd " then
 			Sys.chdir (String.sub cmd 3 (len - 3))
 		else
-			if Sys.command cmd <> 0 then failwith "Command failed"
+			if Sys.command cmd <> 0 then failwith "Command failed";
+		t();
 	) (List.rev !cmds)
 with
 	| Lexer.Error (m,p) -> report (Lexer.error_msg m) p
@@ -470,7 +475,17 @@ with
 	| e -> report (Printexc.to_string e) Ast.null_pos
 
 ;;
-let time = Sys.time() in
+let all = Plugin.timer "other" in
+Plugin.times := false;
 Plugin.get_full_path := get_full_path;
 process_params [] (List.tl (Array.to_list Sys.argv));
-if !Plugin.verbose then print_endline ("Time spent : " ^ string_of_float (Sys.time() -. time));
+all();
+if !Plugin.times then begin
+	let tot = ref 0. in
+	Hashtbl.iter (fun _ t -> tot := !tot +. t.Plugin.total) Plugin.htimers;
+	Printf.eprintf "Total time : %.3fs\n" !tot;
+	Printf.eprintf "------------------------------------\n";
+	Hashtbl.iter (fun _ t ->
+		Printf.eprintf "  %s : %.3fs, %.0f%%\n" t.Plugin.name t.Plugin.total (t.Plugin.total *. 100. /. !tot);
+	) Plugin.htimers;
+end;

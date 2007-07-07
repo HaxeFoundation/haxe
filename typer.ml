@@ -2668,7 +2668,9 @@ let load ctx m p =
 			) ^ ".hx" in
 			let file = (try Plugin.find_file file with Not_found -> raise (Error (Module_not_found m,p))) in
 			let ch = (try open_in_bin file with _ -> error ("Could not open " ^ file) p) in
-			let pack , decls = (try Parser.parse (Lexing.from_channel ch) file with e -> close_in ch; raise e) in
+			let t = Plugin.timer "parsing" in
+			let pack , decls = (try Parser.parse (Lexing.from_channel ch) file with e -> close_in ch; t(); raise e) in
+			t();
 			let pack , decls = (match pack , fst m with "flash" :: l , "flash9" :: l2 when l = l2 && Plugin.defined "flash9doc" -> fst m, List.map f9decl decls | _ -> pack , decls) in
 			close_in ch;
 			if !Plugin.verbose then print_endline ("Parsed " ^ file);

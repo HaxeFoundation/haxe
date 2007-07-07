@@ -725,6 +725,7 @@ let generate file types hres libs =
 		curblock = [];
 		locals = PMap.empty;
 	} in
+	let t = Plugin.timer "neko ast" in
 	let h = Hashtbl.create 0 in
 	let header = ENeko (
 		"@classes = $new(null);" ^
@@ -741,7 +742,9 @@ let generate file types hres libs =
 	let inits = List.map (gen_expr ctx) (List.rev ctx.inits) in
 	let vars = List.concat (List.map (gen_static_vars ctx) types) in
 	let e = (EBlock (header :: packs @ methods @ boot :: names @ inits @ vars), null_pos) in
+	t();
 	let neko_file = (try Filename.chop_extension file with _ -> file) ^ ".neko" in
+	let w = Plugin.timer "neko ast write" in
 	let ch = IO.output_channel (open_out neko_file) in
 	let source = Plugin.defined "neko_source" in
 	(if source then Nxml.write_fmt else Nxml.write) ch (Nxml.to_xml e);
@@ -752,7 +755,10 @@ let generate file types hres libs =
 		Sys.remove neko_file;
 		Sys.rename ((try Filename.chop_extension file with _ -> file) ^ "2.neko") neko_file;
 	end;
-	if command ("nekoc \"" ^ neko_file ^ "\"") <> 0 then failwith "Neko compilation failure";
+	w();
+	let c = Plugin.timer "neko compilation" in
+	if command ("nekoc " ^ (if !Plugin.times then "-time " else "") ^ "\"" ^ neko_file ^ "\"") <> 0 then failwith "Neko compilation failure";
+	c();
 	let output = Filename.chop_extension neko_file ^ ".n" in
 	if output <> file then Sys.rename output file;
 	if not source then Sys.remove neko_file

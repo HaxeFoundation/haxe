@@ -158,10 +158,14 @@ let rec write_xml ch tabs x =
 		IO.printf ch "<![CDATA[%s]]>" s
 
 let generate file ctx types =
+	let t = Plugin.timer "construct xml" in
 	let x = node "haxe" [] (List.map (gen_type_decl ctx) types) in
+	t();
+	let t = Plugin.timer "write xml" in
 	let ch = IO.output_channel (open_out_bin file) in
 	write_xml ch "" x;
-	IO.close_out ch
+	IO.close_out ch;
+	t()
 
 let gen_type_string ctx t =
 	let x = gen_type_decl ctx t in

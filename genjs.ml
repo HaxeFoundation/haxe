@@ -683,6 +683,7 @@ let generate file types hres =
 		id_counter = 0;
 		curmethod = ("",false);
 	} in
+	let t = Plugin.timer "generate js" in
 	List.iter (generate_type ctx) types;
 	print ctx "$_ = {}";
 	newline ctx;
@@ -708,4 +709,6 @@ let generate file types hres =
 	List.iter (generate_static ctx) (List.rev ctx.statics);
 	let ch = open_out file in
 	output_string ch (Buffer.contents ctx.buf);
-	close_out ch
+	close_out ch;
+	t()
+
