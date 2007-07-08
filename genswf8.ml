@@ -64,6 +64,10 @@ let extern_boot = ref false
 (* -------------------------------------------------------------- *)
 (* Bytecode Helpers *)
 
+type tmp_variable =
+	| TmpReg of int
+	| TmpVar of string * int
+
 type kind =
 	| VarReg of int
 	| VarStr
@@ -422,6 +426,39 @@ let define_var ctx v ef exprs =
 			setvar ctx (VarReg r)
 	end
 
+let alloc_tmp ctx =
+	let r = alloc_reg ctx in
+	if ctx.version = 6 then
+		let name = "$" ^ string_of_int r in		
+		define_var ctx name None [];
+		TmpVar (name,r);
+	else
+		TmpReg r
+
+let get_tmp ctx = function
+	| TmpVar (v,_) ->
+		push ctx [VStr (v,false)];
+		write ctx AEval;
+	| TmpReg r ->
+		push ctx [VReg r]
+
+let set_tmp ctx = function
+	| TmpVar (v,_) ->
+		write ctx ADup;
+		push ctx [VStr (v,false)];
+		write ctx ASwap;
+		write ctx ASet
+	| TmpReg r ->
+		write ctx (ASetReg r)
+
+let free_tmp ctx v p =
+	match v with
+	| TmpVar (v,r) ->
+		ctx.regs <- PMap.remove v ctx.regs;
+		free_reg ctx r p
+	| TmpReg r ->
+		free_reg ctx r p
+
 let no_value ctx retval =
 	(* does not push a null but still increment the stack like if
 	   a real value was pushed *)
@@ -579,14 +616,14 @@ and gen_try_catch ctx retval e catchs =
 	List.iter (fun j -> j()) jumps;
 	end_try()
 
-and gen_switch ctx retval e cases def =
+and gen_switch ctx retval e cases def =	
 	gen_expr ctx true e;
-	let r = alloc_reg ctx in
-	write ctx (ASetReg r);
+	let r = alloc_tmp ctx in
+	set_tmp ctx r;
 	let first = ref true in
 	let dispatch = List.map (fun (el,x) ->
 		List.map (fun e ->
-			if !first then first := false else push ctx [VReg r];
+			if !first then first := false else get_tmp ctx r;
 			gen_expr ctx true e;
 			write ctx AEqual;
 			cjmp ctx
@@ -604,28 +641,28 @@ and gen_switch ctx retval e cases def =
 		jmp ctx;
 	) dispatch in
 	jend();
-	free_reg ctx r e.epos;
+	free_tmp ctx r e.epos;
 	List.iter (fun j -> j()) jends
 
 and gen_match ctx retval e cases def =
 	gen_expr ctx true e;
-	let renum = alloc_reg ctx in
-	write ctx (ASetReg renum);
+	let renum = alloc_tmp ctx in
+	set_tmp ctx renum;
 	push ctx [VInt 0];
 	write ctx AObjGet;
-	let rtag = alloc_reg ctx in
-	write ctx (ASetReg rtag);
+	let rtag = alloc_tmp ctx in
+	set_tmp ctx rtag;
 	let first = ref true in
 	let dispatch = List.map (fun (cl,params,e) ->
 		List.map (fun c ->
-			if !first then first := false else push ctx [VReg rtag];
+			if !first then first := false else get_tmp ctx rtag;
 			push ctx [VStr (c,false)];
 			write ctx APhysEqual;
 			cjmp ctx
 		) cl, params, e
 	) cases in
 	if !first then write ctx APop;
-	free_reg ctx rtag e.epos;
+	free_tmp ctx rtag e.epos;
 	(match def with
 	| None -> if retval then push ctx [VNull]
 	| Some e -> gen_expr ctx retval e);
@@ -641,7 +678,8 @@ and gen_match ctx retval e cases def =
 			| None -> ()
 			| Some a ->
 				define_var ctx a (Some (fun() ->
-					push ctx [VReg renum; VInt !n];
+					get_tmp ctx renum;
+					push ctx [VInt !n];
 					write ctx AObjGet
 				)) [e]
 		) (match args with None -> [] | Some l -> l);
@@ -652,7 +690,7 @@ and gen_match ctx retval e cases def =
 		jmp ctx;
 	) dispatch in
 	jend();
-	free_reg ctx renum e.epos;
+	free_tmp ctx renum e.epos;
 	List.iter (fun j -> j()) jends
 
 and gen_binop ctx retval op e1 e2 =
@@ -776,10 +814,10 @@ and gen_call ctx e el =
 		let k = gen_access ctx true e in
 		new_call ctx k nargs
 	| TLocal "__keys__", [e] ->
-		let r = alloc_reg ctx in
+		let r = alloc_tmp ctx in
 		push ctx [VInt 0; VStr ("Array",true)];
 		new_call ctx VarStr 0;
-		write ctx (ASetReg r);
+		set_tmp ctx r;
 		write ctx APop;
 		gen_expr ctx true e;
 		write ctx AEnum2;
@@ -789,13 +827,15 @@ and gen_call ctx e el =
 		push ctx [VNull];
 		write ctx AEqual;
 		let jump_end = cjmp ctx in
-		push ctx [VReg 0; VInt 1; VReg r; VStr ("push",true)];
+		push ctx [VReg 0; VInt 1];
+		get_tmp ctx r;
+		push ctx [VStr ("push",true)];
 		call ctx VarObj 1;
 		write ctx APop;
 		loop false;
 		jump_end();
-		push ctx [VReg r];
-		free_reg ctx r e.epos;
+		get_tmp ctx r;
+		free_tmp ctx r e.epos;
 	| TLocal "__unprotect__", [{ eexpr = TConst (TString s) }] ->
 		push ctx [VStr (s,false)]
 	| _ , _ ->
@@ -991,19 +1031,23 @@ and gen_expr_2 ctx retval e =
 		gen_match ctx retval e cases def
 	| TFor (v,_,it,e) ->
 		gen_expr ctx true it;
-		let r = alloc_reg ctx in
-		write ctx (ASetReg r);
+		let r = alloc_tmp ctx in
+		set_tmp ctx r;
 		write ctx APop;
 		let loop_end = begin_loop ctx in
 		let cont_pos = ctx.code_pos in
 		let j_begin = pos ctx in
-		push ctx [VInt 0; VReg r; VStr ("hasNext",false)];
+		push ctx [VInt 0];
+		get_tmp ctx r;
+		push ctx [VStr ("hasNext",false)];
 		call ctx VarObj 0;
 		write ctx ANot;
 		let j_end = cjmp ctx in
 		let b = open_block ctx in
 		define_var ctx v (Some (fun() ->
-			push ctx [VInt 0; VReg r; VStr ("next",false)];
+			push ctx [VInt 0];
+			get_tmp ctx r;
+			push ctx [VStr ("next",false)];
 			call ctx VarObj 0;
 		)) [e];
 		gen_expr ctx false e;
@@ -1012,7 +1056,7 @@ and gen_expr_2 ctx retval e =
 		loop_end cont_pos;
 		if retval then getvar ctx (access_local ctx v);
 		b();
-		free_reg ctx r null_pos
+		free_tmp ctx r null_pos
 
 and gen_expr ctx retval e =
 	let old = ctx.stack_size in
