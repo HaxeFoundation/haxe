@@ -35,7 +35,7 @@ class FlashXml__ {
 	static var ecomment = ~/^<!--/;
 	static var eprolog = ~/^<\?[^\?]+\?>/;
 
-	static var eattribute = ~/^[ \r\n\t]*([a-zA-Z0-9:_-]+)[ \r\n\t]*=[ \r\n\t]*"([^"]*)"/; //"
+	static var eattribute = ~/^\s*([a-zA-Z0-9:_-]+)\s*=\s*(['"])(.*?)\2/; //"
 	static var eclose = ~/^[ \r\n\t]*(>|(\/>))/;
 	static var ecdata_end = ~/\]\]>/;
 	static var edoctype_elt = ~/[\[|\]>]/;
@@ -77,7 +77,7 @@ class FlashXml__ {
 						current.addChild(x);
 						str = r.matchedRight();
 						while( eattribute.match(str) ) {
-							x.set(eattribute.matched(1),eattribute.matched(2));
+							x.set(eattribute.matched(1),eattribute.matched(3));
 							str = eattribute.matchedRight();
 						}
 						if( !eclose.match(str) ) {
