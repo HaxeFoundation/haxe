@@ -42,6 +42,9 @@
 			Name="neko"
 			Filter="">
 			<File
+				RelativePath="..\neko\libs\include\ocaml\binast.ml">
+			</File>
+			<File
 				RelativePath=".\genneko.ml">
 			</File>
 			<File

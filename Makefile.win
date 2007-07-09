@@ -7,12 +7,16 @@ LIBS=extLib.cmxa extc.cmxa swfLib.cmxa unix.cmxa xml-light.cmxa
 LFLAGS= -o haxe.exe -I ../neko/libs/include/ocaml
 OUTPUT=sed 's/File "\([^"]\+\)", line \([0-9]\+\), \(.*\)/\1(\2): \3/' tmp.cmi
 
+FILES = ../neko/libs/include/ocaml/nast.cmx ast.cmx plugin.cmx ../neko/libs/include/ocaml/nxml.cmx ../neko/libs/include/ocaml/binast.cmx lexer.cmx type.cmx parser.cmx transform.cmx typer.cmx genswf9.cmx genneko.cmx genjs.cmx genswf.cmx genxml.cmx genas3.cmx main.cmx
+
 all: haxe.exe
 
-haxe.exe: ../neko/libs/include/ocaml/nast.cmx ast.cmx plugin.cmx ../neko/libs/include/ocaml/nxml.cmx lexer.cmx type.cmx genswf9.cmx parser.cmx transform.cmx typer.cmx genneko.cmx genjs.cmx genswf.cmx genxml.cmx genas3.cmx main.cmx
-	ocamlopt $(LFLAGS) $(LIBS) ../neko/libs/include/ocaml/nast.cmx ast.cmx plugin.cmx ../neko/libs/include/ocaml/nxml.cmx lexer.cmx type.cmx parser.cmx transform.cmx typer.cmx genneko.cmx genjs.cmx genswf9.cmx genswf.cmx genxml.cmx genas3.cmx main.cmx
+haxe.exe: $(FILES)
+	ocamlopt $(LFLAGS) $(LIBS) $(FILES)
 
-genneko.cmx: typer.cmx type.cmx plugin.cmx ../neko/libs/include/ocaml/nxml.cmx ../neko/libs/include/ocaml/nast.cmx lexer.cmx ast.cmx
+genneko.cmx: typer.cmx type.cmx plugin.cmx ../neko/libs/include/ocaml/binast.cmx ../neko/libs/include/ocaml/nast.cmx lexer.cmx ast.cmx
+
+../neko/libs/include/ocaml/binast.cmx: ../neko/libs/include/ocaml/nast.cmx
 
 ../neko/libs/include/ocaml/nxml.cmx: ../neko/libs/include/ocaml/nast.cmx
 
@@ -43,7 +47,7 @@ typer.cmx: type.cmx plugin.cmx parser.cmx lexer.cmx ast.cmx
 
 clean:
 	rm -f haxe.exe
-	rm -f typer.obj typer.cmx typer.cmi type.obj type.cmx type.cmi transform.obj transform.cmx transform.cmi plugin.obj plugin.cmx plugin.cmi parser.obj parser.cmx parser.cmi main.obj main.cmx main.cmi lexer.obj lexer.cmx lexer.cmi lexer.ml genxml.obj genxml.cmx genxml.cmi genswf9.obj genswf9.cmx genswf9.cmi genswf.obj genswf.cmx genswf.cmi genjs.obj genjs.cmx genjs.cmi ast.obj ast.cmx ast.cmi ../neko/libs/include/ocaml/nxml.obj ../neko/libs/include/ocaml/nxml.cmx ../neko/libs/include/ocaml/nxml.cmi ../neko/libs/include/ocaml/nast.obj ../neko/libs/include/ocaml/nast.cmx ../neko/libs/include/ocaml/nast.cmi genneko.obj genneko.cmx genneko.cmi
+	rm -f $(FILES) $(FILES:.cmx=.obj) $(FILES:.cmx=.cmi)
 
 # SUFFIXES
 .ml.cmo:
