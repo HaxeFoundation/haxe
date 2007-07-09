@@ -146,7 +146,7 @@ class FlashXml__ {
 	}
 
 	private function getParent() : Xml {
-		return __x[untyped "parentNode"];
+		return convert(__x[untyped "parentNode"]);
 	}
 
 	public function iterator() : Iterator<Xml> {
