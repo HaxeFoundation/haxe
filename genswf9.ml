@@ -799,7 +799,8 @@ and gen_call ctx e el =
 	| TLocal "__delete__" , [o;f] ->
 		gen_expr ctx true o;
 		gen_expr ctx true f;
-		write ctx (A3DeleteProp (lookup (A3TArrayAccess ctx.gpublic) ctx.types))
+		write ctx (A3DeleteProp (lookup (A3TArrayAccess ctx.gpublic) ctx.types));
+		ctx.infos.istack <- ctx.infos.istack - 1
 	| TLocal "__unprotect__" , [e] ->
 		gen_expr ctx true e
 	| TLocal "__typeof__", [e] ->

@@ -58,8 +58,10 @@ class Connection implements Dynamic<Connection> {
 		var s = new haxe.Serializer();
 		s.serialize(params);
 		var params = escapeString(s.toString());
+		#if (flash8 || flash9)
 		var s = flash.external.ExternalInterface.call("haxe.remoting.Connection.doCall",path,f,params);
 		if( s == null )
+		#end
 			throw "Failed to call JS method "+__path.join(".");
 		return new haxe.Unserializer(s).unserialize();
 	#else js
@@ -136,7 +138,7 @@ class Connection implements Dynamic<Connection> {
 	#end
 		#if flash9
 		flash.external.ExternalInterface.addCallback("remotingCall",doCall);
-		#else true
+		#else flash8
 		flash.external.ExternalInterface.addCallback("remotingCall",null,doCall);
 		#end
 	}
