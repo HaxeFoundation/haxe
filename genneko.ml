@@ -757,7 +757,7 @@ let generate file types hres libs =
 	end;
 	w();
 	let c = Plugin.timer "neko compilation" in
-	if command ("nekoc " ^ (if !Plugin.times then "-time " else "") ^ "\"" ^ neko_file ^ "\"") <> 0 then failwith "Neko compilation failure";
+	if command ("nekoc \"" ^ neko_file ^ "\"") <> 0 then failwith "Neko compilation failure";
 	c();
 	let output = Filename.chop_extension neko_file ^ ".n" in
 	if output <> file then Sys.rename output file;
