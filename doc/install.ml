@@ -129,7 +129,7 @@ let compile() =
 	ocamlc "-I ../ocaml plugin.ml ast.ml lexer.ml";
 	ocamlc "-I ../ocaml -pp camlp4o parser.ml";
 	ocamlc "-I ../ocaml -I ../ocaml/swflib -I ../ocaml/xml-light type.ml plugin.ml typer.ml transform.ml genswf9.ml genswf.ml genxml.ml genjs.ml genas3.ml";
-	ocamlc "-I ../ocaml -I ../neko/libs/include/ocaml ../neko/libs/include/ocaml/nast.ml ../neko/libs/include/ocaml/nxml.ml genneko.ml";
+	ocamlc "-I ../ocaml -I ../neko/libs/include/ocaml ../neko/libs/include/ocaml/nast.ml ../neko/libs/include/ocaml/nxml.ml ../neko/libs/include/ocaml/binast.ml genneko.ml";
 	ocamlc "-I ../ocaml -I ../ocaml/extc main.ml";
 	let mlist = ["plugin";"ast";"lexer";"parser";"type";"typer";"transform";"genswf9";"genswf";"../neko/libs/include/ocaml/nast";"../neko/libs/include/ocaml/nxml";"genneko";"genxml";"genjs";"genas3";"main"] in
 	let libs = ["../ocaml/extLib";"../ocaml/extc/extc";"../ocaml/swflib/swflib";"../ocaml/xml-light/xml-light";"unix"] in
