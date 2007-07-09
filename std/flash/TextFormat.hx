@@ -25,12 +25,12 @@ extern class TextFormat
                   ?leftMargin:Float, ?rightMargin:Float, ?indent:Float,
                   ?leading:Float ) : Void;
 
+	function getTextExtent(text:String, ?width : Float) : Dynamic;
 
 	#if flash8
 	var kerning : Bool;
 	var letterSpacing : Float;
 	var display : String;
-	function getTextExtent(text:String, ?width : Float) : Dynamic;
 	#end
 
 	private static function __init__() : Void untyped {
