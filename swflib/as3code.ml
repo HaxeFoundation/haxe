@@ -207,13 +207,9 @@ let stack_delta = function
 
 let length = function
 	| A3SmallInt _ -> 2
-	| A3CallStack n
 	| A3Construct n
 	| A3Object n
 	| A3RegKill n
-	| A3ConstructSuper n
-	| A3GetSlot n
-	| A3SetSlot n
 	| A3Catch n
 	| A3IncrReg n
 	| A3DecrReg n
@@ -221,10 +217,16 @@ let length = function
 	| A3DecrIReg n
 	| A3Array n
 	| A3Int n
-	| A3ClassDef n
+	| A3CallStack n
+	| A3ConstructSuper n
 	| A3BreakPointLine n
 	| A3DebugLine n ->
 		1 + int_length n
+	| A3GetSlot s
+	| A3SetSlot s ->
+		1 + int_length (int_index s)
+	| A3ClassDef n ->
+		1 + int_length (int_index n)
 	| A3String f
 	| A3DebugFile f ->
 		1 + int_length (int_index f)
@@ -235,7 +237,7 @@ let length = function
 	| A3Float f ->
 		1 + int_length (int_index f)
 	| A3Function f ->
-		1 + int_length (int_index_nz f)
+		1 + int_length (int_index f)
 	| A3Namespace f ->
 		1 + int_length (int_index f)
 	| A3GetProp f
@@ -292,13 +294,15 @@ let length = function
 	| A3Unk _ -> 1
 	| A3AsType n | A3IsType n ->
 		1 + int_length (int_index n)
-	| A3DebugReg (a,b,c,line) -> 1 + int_length a + int_length b + int_length c + int_length line
+	| A3DebugReg (name,reg,line) -> 1 + 1 + int_length (int_index name) + int_length reg + int_length line
 	| A3GetGlobalScope -> 1
 	| A3GetScope n -> 1 + int_length n
 	| A3Reg n | A3SetReg n -> if n >= 1 && n <= 3 then 1 else (1 + int_length n)
 	| A3CallSuper (f,n) | A3CallProperty (f,n) | A3ConstructProperty (f,n) | A3CallPropLex (f,n) | A3CallPropVoid (f,n) | A3CallSuperVoid (f,n) ->
 		1 + int_length n + int_length (int_index f)
-	| A3CallMethod (f,n) | A3CallStatic (f,n) ->
+	| A3CallMethod (f,n) ->
+		1 + int_length n + int_length (int_index f)
+	| A3CallStatic (f,n) ->
 		1 + int_length n + int_length (int_index f)
 	| A3Jump _ -> 4
 	| A3Next (a,b) -> 1 + int_length a + int_length b
@@ -379,7 +383,7 @@ let opcode ch =
 			let r2 = read_int ch in
 			A3Next (r1,r2)
 		(* 0x33 - 0x3F -> NONE *)
-		| 0x40 -> A3Function (read_index_nz ch)
+		| 0x40 -> A3Function (read_index ch)
 		| 0x41 -> A3CallStack (read_int ch)
 		| 0x42 -> A3Construct (read_int ch)
 		| 0x43 ->
@@ -423,7 +427,7 @@ let opcode ch =
 		| 0x55 -> A3Object (read_int ch)
 		| 0x56 -> A3Array (read_int ch)
 		| 0x57 -> A3NewBlock
-		| 0x58 -> A3ClassDef (read_int ch)
+		| 0x58 -> A3ClassDef (read_index ch)
 		(* 0x59 -> E4X *)
 		| 0x5A -> A3Catch (read_int ch)
 		(* 0x5B -> NONE *)
@@ -436,15 +440,15 @@ let opcode ch =
 		| 0x62 -> A3Reg (read_int ch)
 		| 0x63 -> A3SetReg (read_int ch)
 		| 0x64 -> A3GetGlobalScope
-		| 0x65 -> A3GetScope (read_int ch)
+		| 0x65 -> A3GetScope (IO.read_byte ch)
 		| 0x66 -> A3GetProp (read_index ch)
 		(* 0x67 -> NONE *)
 		| 0x68 -> A3InitProp (read_index ch)
 		(* 0x69 -> NONE *)
 		| 0x6A -> A3DeleteProp (read_index ch)
 		(* 0x6B -> NONE *)
-		| 0x6C -> A3GetSlot (read_int ch)
-		| 0x6D -> A3SetSlot (read_int ch)
+		| 0x6C -> A3GetSlot (read_index ch)
+		| 0x6D -> A3SetSlot (read_index ch)
 		(* 0x6E -> DEPRECATED getglobalslot *)
 		(* 0x6F -> DEPRECATED setglobalslot *)
 		| 0x70 -> A3ToString
@@ -498,11 +502,11 @@ let opcode ch =
 		| 0xD7 -> A3SetReg 3
 		(* 0xD8 - 0xEE -> NONE *)
 		| 0xEF ->
-			let a = read_int ch in
-			let b = read_int ch in
-			let c = read_int ch in
+			if IO.read_byte ch <> 1 then assert false;
+			let name = read_index ch in
+			let reg = read_int ch in
 			let line = read_int ch in
-			A3DebugReg (a,b,c,line)
+			A3DebugReg (name,reg,line)
 		| 0xF0 -> A3DebugLine (read_int ch)
 		| 0xF1 -> A3DebugFile (read_index ch)
 		| 0xF2 -> A3BreakPointLine (read_int ch)
@@ -623,7 +627,7 @@ let write ch = function
 		write_int ch r2
 	| A3Function f ->
 		write_byte ch 0x40;
-		write_index_nz ch f
+		write_index ch f
 	| A3CallStack n ->
 		write_byte ch 0x41;
 		write_int ch n
@@ -679,7 +683,7 @@ let write ch = function
 		write_byte ch 0x57
 	| A3ClassDef f ->
 		write_byte ch 0x58;
-		write_int ch f
+		write_index ch f
 	| A3Catch n ->
 		write_byte ch 0x5A;
 		write_int ch n
@@ -716,7 +720,7 @@ let write ch = function
 		write_byte ch 0x64
 	| A3GetScope n ->
 		write_byte ch 0x65;
-		write_int ch n
+		write_byte ch n
 	| A3GetProp f ->
 		write_byte ch 0x66;
 		write_index ch f
@@ -728,10 +732,10 @@ let write ch = function
 		write_index ch f
 	| A3GetSlot n ->
 		write_byte ch 0x6C;
-		write_int ch n
+		write_index ch n
 	| A3SetSlot n ->
 		write_byte ch 0x6D;
-		write_int ch n
+		write_index ch n
 	| A3ToString ->
 		write_byte ch 0x70
 	| A3ToXml ->
@@ -785,11 +789,11 @@ let write ch = function
 		write_byte ch 0xD0
 	| A3SetThis ->
 		write_byte ch 0xD4
-	| A3DebugReg (a,b,c,line) ->
+	| A3DebugReg (name,reg,line) ->
 		write_byte ch 0xEF;
-		write_int ch a;
-		write_int ch b;
-		write_int ch c;
+		write_byte ch 0x01;
+		write_index ch name;
+		write_int ch reg;
 		write_int ch line;
 	| A3DebugLine f ->
 		write_byte ch 0xF0;
@@ -860,11 +864,11 @@ let dump_jump = function
 let dump ctx op =
 	let ident n = ctx.as3_idents.(int_index n - 1) in
 	let field n =
-		let t = ctx.as3_types.(int_index n - 1) in
+		let t = ctx.as3_names.(int_index n - 1) in
 		match t with
-		| A3TClassInterface (Some ident,_) -> "[" ^ iget ctx.as3_idents ident ^ "]"
-		| A3TMethodVar (ident,_) -> iget ctx.as3_idents ident
-		| A3TArrayAccess idx -> "~array"
+		| A3MMultiName (Some ident,_) -> "[" ^ iget ctx.as3_idents ident ^ "]"
+		| A3MName (ident,_) -> iget ctx.as3_idents ident
+		| A3MMultiNameLate idx -> "~array"
 		| _ -> "???"
 	in
 	match op with
@@ -899,14 +903,14 @@ let dump ctx op =
 	| A3Scope -> "scope"
 	| A3Namespace f -> s "namespace [%d]" (int_index f)
 	| A3Next (r1,r2) -> s "next %d %d" r1 r2
-	| A3Function f -> s "function #%d" (int_index_nz f)
+	| A3Function f -> s "function #%d" (int_index f)
 	| A3CallStack n -> s "callstack (%d)" n
 	| A3Construct n -> s "construct (%d)" n
 	| A3CallMethod (f,n) -> s "callmethod %d (%d)" (int_index f) n
 	| A3CallStatic (f,n) -> s "callstatic %d (%d)" (int_index f) n
 	| A3CallSuper (f,n) -> s "callsuper %s (%d)" (field f) n
 	| A3CallProperty (f,n) -> s "callprop %s (%d)" (field f) n
-	| A3RetVoid -> "ret void"
+	| A3RetVoid -> "retvoid"
 	| A3Ret -> "ret"
 	| A3ConstructSuper n -> s "constructsuper %d" n
 	| A3ConstructProperty (f,n) -> s "constructprop %s (%d)" (field f) n
@@ -916,7 +920,7 @@ let dump ctx op =
 	| A3Object n -> s "object %d" n
 	| A3Array n -> s "array %d" n
 	| A3NewBlock -> "newblock"
-	| A3ClassDef n -> s "classdef %d" n
+	| A3ClassDef n -> s "classdef %d" (int_index n)
 	| A3Catch n -> s "catch %d" n
 	| A3FindPropStrict f -> s "findpropstrict %s" (field f)
 	| A3FindProp f -> s "findprop %s" (field f)
@@ -930,8 +934,8 @@ let dump ctx op =
 	| A3GetProp f -> s "getprop %s" (field f)
 	| A3InitProp f -> s "initprop %s" (field f)
 	| A3DeleteProp f -> s "deleteprop %s" (field f)
-	| A3GetSlot n -> s "getslot %d" n
-	| A3SetSlot n -> s "setslot %d" n
+	| A3GetSlot n -> s "getslot %d" (int_index n)
+	| A3SetSlot n -> s "setslot %d" (int_index n)
 	| A3ToString -> "tostring"
 	| A3ToXml -> "toxml"
 	| A3ToXmlAttr -> "toxmlattr"
@@ -955,7 +959,7 @@ let dump ctx op =
 	| A3DecrIReg r -> s "decrireg %d" r
 	| A3This -> "this"
 	| A3SetThis -> "setthis"
-	| A3DebugReg (a,b,c,line) -> s ".reg %d %d %d line:%d" a b c line
+	| A3DebugReg (name,reg,line) -> s ".reg %d:%s line:%d" reg (ident name) line
 	| A3DebugLine l -> s ".line %d" l
 	| A3DebugFile f -> s ".file %s" (ident f)
 	| A3BreakPointLine l -> s ".bkptline %d" l

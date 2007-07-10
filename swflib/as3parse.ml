@@ -19,10 +19,10 @@
 open As3
 
 let parse_idents = true
-let parse_base_rights = true && parse_idents
-let parse_rights = true && parse_base_rights
-let parse_types = true && parse_rights
-let parse_mtypes = true && parse_types
+let parse_namespaces = true && parse_idents
+let parse_ns_sets = true && parse_namespaces
+let parse_names = true && parse_ns_sets
+let parse_mtypes = true && parse_names
 let parse_metadata = true && parse_mtypes
 let parse_classes = true && parse_metadata
 let parse_statics = true && parse_classes
@@ -106,41 +106,45 @@ let as3_ident_length s =
 	let n = String.length s in
 	n + int_length n
 
-let as3_base_right_length ei = function
-	| A3RUnknown2 o
-	| A3RPrivate o ->
+let as3_namespace_length ei = function
+	| A3NStaticProtected o
+	| A3NPrivate o ->
 		1 + (match o with None -> int_length 0 | Some n -> idx_length n)
-	| A3RPublic o
-	| A3RInternal o ->
+	| A3NPublic o
+	| A3NInternal o ->
 		1 + idx_length (match o with None -> ei | Some n -> n)
-	| A3RUnknown1 n
-	| A3RProtected n ->
+	| A3NExplicit n
+	| A3NNamespace n
+	| A3NProtected n ->
 		1 + idx_length n
 
-let as3_rights_length l =
+let as3_ns_set_length l =
 	int_length (List.length l) + sum idx_length l
 
-let as3_type_length t =
+let rec as3_name_length t =
 	1 +
 	match t with
-	| A3TClassInterface (id,r) ->
+	| A3MMultiName (id,r) ->
 		idx_opt_length id + idx_length r
-	| A3TMethodVar (id,r) ->
+	| A3MName (id,r) ->
 		idx_length r + idx_length id
-	| A3TArrayAccess idx ->
+	| A3MRuntimeName i ->
+		idx_length i
+	| A3MRuntimeNameLate ->
+		0
+	| A3MMultiNameLate idx ->
 		idx_length idx
-	| A3TUnknown1 i ->
-		int_length i
-	| A3TUnknown2 (i1,i2) ->
-		int_length i1 + int_length i2
+	| A3MAttrib n ->
+		as3_name_length n - 1
 
 let as3_value_length extra = function
 	| A3VNone -> if extra then 2 else 1
 	| A3VNull | A3VBool _ -> 2
 	| A3VString s -> 1 + idx_length s
 	| A3VInt s -> 1 + idx_length s
+	| A3VUInt s -> 1 + idx_length s
 	| A3VFloat s -> 1 + idx_length s
-	| A3VNamespace s -> 1 + idx_length s
+	| A3VNamespace (_,s) -> 1 + idx_length s
 
 let as3_method_type_length m =
 	1 +
@@ -163,12 +167,14 @@ let list2_length f l =
 let as3_field_length f =
 	idx_length f.f3_name +
 	1 +
-	int_length f.f3_slot +
+	idx_length f.f3_slot +
 	(match f.f3_kind with
 	| A3FMethod m ->
 		idx_length_nz m.m3_type
 	| A3FClass c ->
 		idx_length_nz c
+	| A3FFunction id ->
+		idx_length_nz id
 	| A3FVar v ->
 		idx_opt_length v.v3_type + as3_value_length false v.v3_value) +
 	match f.f3_metas with
@@ -179,7 +185,7 @@ let as3_class_length c =
 	idx_length c.cl3_name +
 	idx_opt_length c.cl3_super +
 	1 +
-	(match c.cl3_rights with None -> 0 | Some r -> idx_length r) +
+	(match c.cl3_namespace with None -> 0 | Some r -> idx_length r) +
 	list2_length idx_length c.cl3_implements +
 	idx_length_nz c.cl3_construct +
 	list2_length as3_field_length c.cl3_fields
@@ -204,7 +210,7 @@ let as3_function_length f =
 	idx_length_nz f.fun3_id +
 	int_length f.fun3_stack_size +
 	int_length f.fun3_nregs +
-	int_length f.fun3_unk3 +
+	int_length f.fun3_init_scope +
 	int_length f.fun3_max_scope +
 	int_length clen +
 	clen +
@@ -219,9 +225,9 @@ let as3_length ctx =
 	1 +
 	list_length (fun _ -> 8) ctx.as3_floats
 	+ if parse_idents then list_length as3_ident_length ctx.as3_idents
-	+ if parse_base_rights then list_length (as3_base_right_length ei) ctx.as3_base_rights
-	+ if parse_rights then list_length as3_rights_length ctx.as3_rights
-	+ if parse_types then list_length as3_type_length ctx.as3_types
+	+ if parse_namespaces then list_length (as3_namespace_length ei) ctx.as3_namespaces
+	+ if parse_ns_sets then list_length as3_ns_set_length ctx.as3_nsets
+	+ if parse_names then list_length as3_name_length ctx.as3_names
 	+ if parse_mtypes then list2_length as3_method_type_length ctx.as3_method_types
 	+ if parse_metadata then list2_length as3_metadata_length ctx.as3_metadatas
 	+ if parse_classes then list2_length as3_class_length ctx.as3_classes
@@ -269,65 +275,79 @@ let read_int ch =
 let read_ident ch =
 	IO.nread ch (read_int ch)
 
-let read_base_right idents ch =
+let read_namespace idents ch =
 	let k = IO.read_byte ch in
 	let p = index_opt idents (read_int ch) in
 	match k with
 	| 0x05 ->
-		A3RPrivate p
+		A3NPrivate p
 	| 0x08 ->
 		(match p with
 		| None -> assert false
-		| Some idx -> A3RUnknown1 idx)
+		| Some idx -> A3NNamespace idx)
 	| 0x16 ->
 		(match p with
 		| None -> assert false
-		| Some p when iget idents p = "" -> A3RPublic None
-		| _ -> A3RPublic p)
+		| Some p when iget idents p = "" -> A3NPublic None
+		| _ -> A3NPublic p)
 	| 0x17 ->
 		(match p with
 		| None -> assert false
-		| Some p when iget idents p = "" -> A3RInternal None
-		| _ -> A3RInternal p)
+		| Some p when iget idents p = "" -> A3NInternal None
+		| _ -> A3NInternal p)
 	| 0x18 ->
 		(match p with
 		| None -> assert false
-		| Some idx -> A3RProtected idx)
+		| Some idx -> A3NProtected idx)
+	| 0x19 ->
+		(match p with
+		| None -> assert false
+		| Some idx -> A3NExplicit idx)
 	| 0x1A ->
-		A3RUnknown2 p
+		A3NStaticProtected p
 	| _ ->
 		assert false
 
-let read_rights base_rights ch =
+let read_ns_set namespaces ch =
 	let rec loop n =
 		if n = 0 then
 			[]
 		else
-			let r = index base_rights (read_int ch) in
+			let r = index namespaces (read_int ch) in
 			r :: loop (n - 1)
 	in
 	loop (IO.read_byte ch)
 
-let read_type ctx ch =
-	let k = IO.read_byte ch in
+let rec read_name ctx ?k ch =
+	let k = (match k with None -> IO.read_byte ch | Some k -> k) in
 	match k with
+	| 0x07 ->
+		let ns = index ctx.as3_namespaces (read_int ch) in
+		let id = index ctx.as3_idents (read_int ch) in
+		(* both ns and id can be 0 <=> '*' *)
+		A3MName (id,ns)
 	| 0x09 ->
 		let id = index_opt ctx.as3_idents (read_int ch) in
-		let rights = index ctx.as3_rights (read_int ch) in
-		A3TClassInterface (id,rights)
-	| 0x07 ->
-		let rights = index ctx.as3_base_rights (read_int ch) in
-		let id = index ctx.as3_idents (read_int ch) in
-		A3TMethodVar (id,rights)
-	| 0x1B ->
-		let rights = index ctx.as3_rights (read_int ch) in
-		A3TArrayAccess rights
+		let ns = index ctx.as3_nsets (read_int ch) in
+		A3MMultiName (id,ns)
+	| 0x0D ->
+		A3MAttrib (read_name ctx ~k:0x07 ch)
 	| 0x0E ->
-		let i1 = read_int ch in
-		let i2 = read_int ch in
-		A3TUnknown2 (i1,i2)
+		A3MAttrib (read_name ctx ~k:0x09 ch)
 	| 0x0F ->
-		A3TUnknown1 (read_int ch)
+		let id = index ctx.as3_idents (read_int ch) in
+		A3MRuntimeName id
+	| 0x10 ->
+		A3MAttrib (read_name ctx ~k:0x0F ch)
+	| 0x11 ->
+		A3MRuntimeNameLate
+	| 0x12 ->
+		A3MAttrib (read_name ctx ~k:0x11 ch)
+	| 0x1B ->
+		let ns = index ctx.as3_nsets (read_int ch) in
+		A3MMultiNameLate ns
+	| 0x1C ->
+		A3MAttrib (read_name ctx ~k:0x1B ch)
 	| n ->
 		assert false
 
@@ -341,10 +361,12 @@ let read_value ctx ch extra =
 		A3VString (index ctx.as3_idents idx)
 	| 0x03 ->
 		A3VInt (index ctx.as3_ints idx)
+	| 0x04 ->
+		A3VUInt (index ctx.as3_uints idx)
 	| 0x06 ->
 		A3VFloat (index ctx.as3_floats idx)
-	| 0x08 ->
-		A3VNamespace (index ctx.as3_base_rights idx)
+	| 0x08 | 0x16 | 0x17 | 0x18 | 0x19 | 0x1A | 0x05 as n->
+		A3VNamespace (n,index ctx.as3_namespaces idx)
 	| 0x0A ->
 		if idx <> 0x0A then assert false;
 		A3VBool false
@@ -359,8 +381,8 @@ let read_value ctx ch extra =
 
 let read_method_type ctx ch =
 	let nargs = IO.read_byte ch in
-	let tret = index_opt ctx.as3_types (read_int ch) in
-	let targs = Array.to_list (Array.init nargs (fun _ -> index_opt ctx.as3_types (read_int ch))) in
+	let tret = index_opt ctx.as3_names (read_int ch) in
+	let targs = Array.to_list (Array.init nargs (fun _ -> index_opt ctx.as3_names (read_int ch))) in
 	let dname = index_opt ctx.as3_idents (read_int ch) in
 	let flags = IO.read_byte ch in
 	let dparams = (if flags land 0x08 <> 0 then
@@ -382,7 +404,9 @@ let read_method_type ctx ch =
 		mt3_debug_name = dname;
 		mt3_dparams = dparams;
 		mt3_pnames = pnames;
-		mt3_unk_flags = (flags land 0x01 <> 0, flags land 0x10 <> 0, flags land 0x40 <> 0);
+		mt3_arguments_defined = flags land 0x01 <> 0;
+		mt3_uses_dxns = flags land 0x40 <> 0;
+		mt3_unused_flag = flags land 0x10 <> 0;
 	}
 
 let read_list ch f =
@@ -394,36 +418,37 @@ let read_list2 ch f =
 	Array.init (read_int ch) (fun _ -> f ch)
 
 let read_field ctx ch =
-	let name = index ctx.as3_types (read_int ch) in
-	let is_fun = IO.read_byte ch in
-	if is_fun land 0x80 <> 0 then assert false;
-	let has_meta = is_fun land 0x40 <> 0 in
-	let is_fun = is_fun land 0x3F in
-	let slot = read_int ch in
-	let kind = (match is_fun with
+	let name = index ctx.as3_names (read_int ch) in
+	let kind = IO.read_byte ch in
+	let has_meta = kind land 0x40 <> 0 in
+	let slot = magic_index (read_int ch) in
+	let kind = (match kind land 0xF with
 		| 0x00 | 0x06 ->
-			let t = index_opt ctx.as3_types (read_int ch) in
+			let t = index_opt ctx.as3_names (read_int ch) in
 			let value = read_value ctx ch false in
 			A3FVar {
 				v3_type = t;
 				v3_value = value;
-				v3_const = is_fun = 0x06;
+				v3_const = kind = 0x06;
 			}
-		| 0x02 | 0x12 | 0x22 | 0x32
-		| 0x03 | 0x13 | 0x23 | 0x33
-		| 0x01 | 0x11 | 0x21 | 0x31 ->
+		| 0x02
+		| 0x03
+		| 0x01 ->
 			let meth = index_nz ctx.as3_method_types (read_int ch) in
-			let final = is_fun land 0x10 <> 0 in
-			let override = is_fun land 0x20 <> 0 in
+			let final = kind land 0x10 <> 0 in
+			let override = kind land 0x20 <> 0 in
 			A3FMethod {
 				m3_type = meth;
 				m3_final = final;
 				m3_override = override;
-				m3_kind = (match is_fun land 0xF with 0x01 -> MK3Normal | 0x02 -> MK3Getter | 0x03 -> MK3Setter | _ -> assert false);
+				m3_kind = (match kind land 0xF with 0x01 -> MK3Normal | 0x02 -> MK3Getter | 0x03 -> MK3Setter | _ -> assert false);
 			}
 		| 0x04 ->
 			let c = index_nz ctx.as3_classes (read_int ch) in
 			A3FClass c
+		| 0x05 ->
+			let f = index_nz ctx.as3_method_types (read_int ch) in
+			A3FFunction f
 		| _ ->
 			assert false
 	) in
@@ -440,17 +465,17 @@ let read_field ctx ch =
 	}
 
 let read_class ctx ch =
-	let name = index ctx.as3_types (read_int ch) in
-	let csuper = index_opt ctx.as3_types (read_int ch) in
+	let name = index ctx.as3_names (read_int ch) in
+	let csuper = index_opt ctx.as3_names (read_int ch) in
 	let flags = IO.read_byte ch in
-	let rights =
+	let namespace =
 		if flags land 8 <> 0 then
-			let r = index ctx.as3_base_rights (read_int ch) in
+			let r = index ctx.as3_namespaces (read_int ch) in
 			Some r
 		else
 			None
 	in
-	let impls = read_list2 ch (fun _ -> index ctx.as3_types (read_int ch)) in
+	let impls = read_list2 ch (fun _ -> index ctx.as3_names (read_int ch)) in
 	let construct = index_nz ctx.as3_method_types (read_int ch) in
 	let fields = read_list2 ch (read_field ctx) in
 	{
@@ -459,7 +484,7 @@ let read_class ctx ch =
 		cl3_sealed = (flags land 1) <> 0;
 		cl3_final = (flags land 2) <> 0;
 		cl3_interface = (flags land 4) <> 0;
-		cl3_rights = rights;
+		cl3_namespace = namespace;
 		cl3_implements = impls;
 		cl3_construct = construct;
 		cl3_fields = fields;
@@ -486,8 +511,8 @@ let read_try_catch ctx ch =
 	let start = read_int ch in
 	let pend = read_int ch in
 	let handle = read_int ch in
-	let t = index_opt ctx.as3_types (read_int ch) in
-	let name = index_opt ctx.as3_types (read_int ch) in
+	let t = index_opt ctx.as3_names (read_int ch) in
+	let name = index_opt ctx.as3_names (read_int ch) in
 	{
 		tc3_start = start;
 		tc3_end = pend;
@@ -500,7 +525,7 @@ let read_function ctx ch =
 	let id = index_nz ctx.as3_method_types (read_int ch) in
 	let ss = read_int ch in
 	let nregs = read_int ch in
-	let u3 = read_int ch in
+	let init_scope = read_int ch in
 	let max_scope = read_int ch in
 	let size = read_int ch in
 	let code = if parse_bytecode then As3code.parse ch size else Array.to_list (Array.init size (fun _ -> A3Unk (IO.read ch))) in
@@ -510,7 +535,7 @@ let read_function ctx ch =
 		fun3_id = id;
 		fun3_stack_size = ss;
 		fun3_nregs = nregs;
-		fun3_unk3 = u3;
+		fun3_init_scope = init_scope;
 		fun3_max_scope = max_scope;
 		fun3_code = code;
 		fun3_trys = trys;
@@ -527,16 +552,16 @@ let parse ch len =
 	let uints = read_list ch read_as3_uint in
 	let floats = read_list ch IO.read_double in
 	let idents = (if parse_idents then read_list ch read_ident else [||]) in
-	let base_rights = (if parse_base_rights then read_list ch (read_base_right idents) else [||]) in
-	let rights = (if parse_rights then read_list ch (read_rights base_rights) else [||]) in
+	let namespaces = (if parse_namespaces then read_list ch (read_namespace idents) else [||]) in
+	let nsets = (if parse_ns_sets then read_list ch (read_ns_set namespaces) else [||]) in
 	let ctx = {
 		as3_ints = ints;
 		as3_uints = uints;
 		as3_floats = floats;
 		as3_idents = idents;
-		as3_base_rights = base_rights;
-		as3_rights = rights;
-		as3_types = [||];
+		as3_namespaces = namespaces;
+		as3_nsets = nsets;
+		as3_names = [||];
 		as3_method_types = [||];
 		as3_metadatas = [||];
 		as3_classes = [||];
@@ -545,7 +570,7 @@ let parse ch len =
 		as3_functions = [||];
 		as3_unknown = "";
 	} in
-	if parse_types then ctx.as3_types <- read_list ch (read_type ctx);
+	if parse_names then ctx.as3_names <- read_list ch (read_name ctx);
 	if parse_mtypes then ctx.as3_method_types <- read_list2 ch (read_method_type ctx);
 	if parse_metadata then ctx.as3_metadatas <- read_list2 ch (read_metadata ctx);
 	if parse_classes then ctx.as3_classes <- read_list2 ch (read_class ctx);
@@ -602,29 +627,32 @@ let write_as3_ident ch id =
 	write_int ch (String.length id);
 	IO.nwrite ch id
 
-let write_base_right empty_index ch = function
-	| A3RPrivate n ->
+let write_namespace empty_index ch = function
+	| A3NPrivate n ->
 		IO.write_byte ch 0x05;
 		(match n with
 		| None -> write_int ch 0
 		| Some n -> write_index ch n);
-	| A3RPublic n ->
+	| A3NPublic n ->
 		IO.write_byte ch 0x16;
 		(match n with
 		| None -> write_index ch empty_index
 		| Some n -> write_index ch n);
-	| A3RInternal n ->
+	| A3NInternal n ->
 		IO.write_byte ch 0x17;
 		(match n with
 		| None -> write_index ch empty_index
 		| Some n -> write_index ch n);
-	| A3RProtected n ->
+	| A3NProtected n ->
 		IO.write_byte ch 0x18;
 		write_index ch n
-	| A3RUnknown1 n ->
+	| A3NNamespace n ->
 		IO.write_byte ch 0x08;
 		write_index ch n
-	| A3RUnknown2 n ->
+	| A3NExplicit n ->
+		IO.write_byte ch 0x19;
+		write_index ch n
+	| A3NStaticProtected n ->
 		IO.write_byte ch 0x1A;
 		(match n with
 		| None -> write_int ch 0
@@ -634,25 +662,34 @@ let write_rights ch l =
 	IO.write_byte ch (List.length l);
 	List.iter (write_index ch) l
 
-let write_type ch = function
-	| A3TClassInterface (id,r) ->
-		IO.write_byte ch 0x09;
+let rec write_name ch ?k x =
+	let b n = match k with None -> n | Some v -> v in
+	match x with
+	| A3MMultiName (id,r) ->
+		IO.write_byte ch (b 0x09);
 		write_index_opt ch id;
 		write_index ch r;
-	| A3TMethodVar (id,r) ->
-		IO.write_byte ch 0x07;
+	| A3MName (id,r) ->
+		IO.write_byte ch (b 0x07);
 		write_index ch r;
 		write_index ch id
-	| A3TArrayAccess id ->
-		IO.write_byte ch 0x1B;
+	| A3MRuntimeName i ->
+		IO.write_byte ch (b 0x0F);
+		write_index ch i
+	| A3MRuntimeNameLate ->
+		IO.write_byte ch (b 0x11);
+	| A3MMultiNameLate id ->
+		IO.write_byte ch (b 0x1B);
 		write_index ch id
-	| A3TUnknown1 i ->
-		IO.write_byte ch 0x0F;
-		write_int ch i
-	| A3TUnknown2 (i1,i2) ->
-		IO.write_byte ch 0x0E;
-		write_int ch i1;
-		write_int ch i2
+	| A3MAttrib n ->
+		write_name ch ~k:(match n with
+			| A3MName _ -> 0x0D
+			| A3MMultiName _ -> 0x0E
+			| A3MRuntimeName _ -> 0x10
+			| A3MRuntimeNameLate -> 0x12
+			| A3MMultiNameLate _ -> 0x1C
+			| A3MAttrib _ -> assert false
+		) n
 
 let write_value ch extra v =
 	match v with
@@ -671,12 +708,15 @@ let write_value ch extra v =
 	| A3VInt s ->
 		write_index ch s;
 		IO.write_byte ch 0x03;
+	| A3VUInt s ->
+		write_index ch s;
+		IO.write_byte ch 0x04;
 	| A3VFloat s ->
 		write_index ch s;
 		IO.write_byte ch 0x06
-	| A3VNamespace s ->
+	| A3VNamespace (n,s) ->
 		write_index ch s;
-		IO.write_byte ch 0x08
+		IO.write_byte ch n
 
 let write_method_type ch m =
 	let nargs = List.length m.mt3_args in
@@ -684,15 +724,14 @@ let write_method_type ch m =
 	write_index_opt ch m.mt3_ret;
 	List.iter (write_index_opt ch) m.mt3_args;
 	write_index_opt ch m.mt3_debug_name;
-	let f1 , f10, f40 = m.mt3_unk_flags in
 	let flags =
-		(if f1 then 0x01 else 0) lor
+		(if m.mt3_arguments_defined then 0x01 else 0) lor
 		(if m.mt3_new_block then 0x02 else 0) lor
 		(if m.mt3_var_args then 0x04 else 0) lor
 		(if m.mt3_dparams <> None then 0x08 else 0) lor
-		(if f10 then 0x10 else 0) lor
+		(if m.mt3_unused_flag then 0x10 else 0) lor
 		(if m.mt3_native then 0x20 else 0) lor
-		(if f40 then 0x40 else 0) lor
+		(if m.mt3_uses_dxns then 0x40 else 0) lor
 		(if m.mt3_pnames <> None then 0x80 else 0)
 	in
 	IO.write_byte ch flags;
@@ -726,15 +765,19 @@ let write_field ch f =
 		let base = (match m.m3_kind with MK3Normal -> 0x01 | MK3Getter -> 0x02 | MK3Setter -> 0x03) in
 		let flags = flags lor (if m.m3_final then 0x10 else 0) lor (if m.m3_override then 0x20 else 0) in
 		IO.write_byte ch (base lor flags);
-		write_int ch f.f3_slot;
+		write_index ch f.f3_slot;
 		write_index_nz ch m.m3_type;
 	| A3FClass c ->
 		IO.write_byte ch (0x04 lor flags);
-		write_int ch f.f3_slot;
+		write_index ch f.f3_slot;
 		write_index_nz ch c
+	| A3FFunction i ->
+		IO.write_byte ch (0x05 lor flags);
+		write_index ch f.f3_slot;
+		write_index_nz ch i
 	| A3FVar v ->
 		IO.write_byte ch (flags lor (if v.v3_const then 0x06 else 0x00));
-		write_int ch f.f3_slot;
+		write_index ch f.f3_slot;
 		write_index_opt ch v.v3_type;
 		write_value ch false v.v3_value);
 	match f.f3_metas with
@@ -749,10 +792,10 @@ let write_class ch c =
 		(if c.cl3_sealed then 1 else 0) lor
 		(if c.cl3_final then 2 else 0) lor
 		(if c.cl3_interface then 4 else 0) lor
-		(if c.cl3_rights <> None then 8 else 0)
+		(if c.cl3_namespace <> None then 8 else 0)
 	in
 	IO.write_byte ch flags;
-	(match c.cl3_rights with
+	(match c.cl3_namespace with
 	| None -> ()
 	| Some r -> write_index ch r);
 	write_list2 ch write_index c.cl3_implements;
@@ -779,7 +822,7 @@ let write_function ch f =
 	write_index_nz ch f.fun3_id;
 	write_int ch f.fun3_stack_size;
 	write_int ch f.fun3_nregs;
-	write_int ch f.fun3_unk3;
+	write_int ch f.fun3_init_scope;
 	write_int ch f.fun3_max_scope;
 	let clen = sum As3code.length f.fun3_code in
 	write_int ch clen;
@@ -795,9 +838,9 @@ let write ch1 ctx =
 	IO.write_byte ch 0;
 	write_list ch IO.write_double ctx.as3_floats;
 	if parse_idents then write_list ch write_as3_ident ctx.as3_idents;
-	if parse_base_rights then write_list ch (write_base_right empty_index) ctx.as3_base_rights;
-	if parse_rights then write_list ch write_rights ctx.as3_rights;
-	if parse_types then write_list ch write_type ctx.as3_types;
+	if parse_namespaces then write_list ch (write_namespace empty_index) ctx.as3_namespaces;
+	if parse_ns_sets then write_list ch write_rights ctx.as3_nsets;
+	if parse_names then write_list ch (write_name ?k:None) ctx.as3_names;
 	if parse_mtypes then write_list2 ch write_method_type ctx.as3_method_types;
 	if parse_metadata then write_list2 ch write_metadata ctx.as3_metadatas;
 	if parse_classes then write_list2 ch write_class ctx.as3_classes;
@@ -814,30 +857,34 @@ let write ch1 ctx =
 let ident_str ctx i =
 	iget ctx.as3_idents i
 
-let base_right_str ctx i =
-	match iget ctx.as3_base_rights i with
-	| A3RPrivate None -> "private"
-	| A3RPrivate (Some n) -> "private:" ^ ident_str ctx n
-	| A3RPublic None -> "public"
-	| A3RPublic (Some n) -> "public:" ^ ident_str ctx n
-	| A3RInternal None -> "internal"
-	| A3RInternal (Some n) -> "internal:" ^ ident_str ctx n
-	| A3RProtected n -> "protected:" ^ ident_str ctx n
-	| A3RUnknown2 None -> "unknown2"
-	| A3RUnknown2 (Some n) -> "unknown2:" ^ ident_str ctx n
-	| A3RUnknown1 n -> "unknown1:" ^ ident_str ctx n
+let namespace_str ctx i =
+	match iget ctx.as3_namespaces i with
+	| A3NPrivate None -> "private"
+	| A3NPrivate (Some n) -> "private:" ^ ident_str ctx n
+	| A3NPublic None -> "public"
+	| A3NPublic (Some n) -> "public:" ^ ident_str ctx n
+	| A3NInternal None -> "internal"
+	| A3NInternal (Some n) -> "internal:" ^ ident_str ctx n
+	| A3NProtected n -> "protected:" ^ ident_str ctx n
+	| A3NExplicit n -> "explicit:" ^ ident_str ctx n
+	| A3NStaticProtected None -> "static_protected"
+	| A3NStaticProtected (Some n) -> "static_protectec:" ^ ident_str ctx n
+	| A3NNamespace n -> "namespace:" ^ ident_str ctx n
 
-let rights_str ctx i =
-	let l = iget ctx.as3_rights i in
-	String.concat " " (List.map (fun r -> base_right_str ctx r) l)
+let ns_set_str ctx i =
+	let l = iget ctx.as3_nsets i in
+	String.concat " " (List.map (fun r -> namespace_str ctx r) l)
 
-let type_str ctx kind t =
-	match iget ctx.as3_types t with
-	| A3TClassInterface (id,r) -> Printf.sprintf "[%s %s%s]" (rights_str ctx r) kind (match id with None -> "NO" | Some i -> ident_str ctx i)
-	| A3TMethodVar (id,r) -> Printf.sprintf "%s %s%s" (base_right_str ctx r) kind (ident_str ctx id)
-	| A3TArrayAccess id -> Printf.sprintf "array:(%s)" (rights_str ctx id)
-	| A3TUnknown1 i -> Printf.sprintf "unknown1:%d" i
-	| A3TUnknown2 (i1,i2) -> Printf.sprintf "unknown2:%d:%d" i1 i2
+let name_str ctx kind t =
+	let rec loop = function
+		| A3MName (id,r) -> Printf.sprintf "%s %s%s" (namespace_str ctx r) kind (ident_str ctx id)
+		| A3MMultiName (id,r) -> Printf.sprintf "[%s %s%s]" (ns_set_str ctx r) kind (match id with None -> "NO" | Some i -> ident_str ctx i)
+		| A3MRuntimeName id -> Printf.sprintf "'%s'" (ident_str ctx id)
+		| A3MRuntimeNameLate -> "RTLATE"
+		| A3MMultiNameLate id -> Printf.sprintf "late:(%s)" (ns_set_str ctx id)
+		| A3MAttrib n -> "attrib " ^ loop n
+	in
+	loop (iget ctx.as3_names t)
 
 let value_str ctx v =
 	match v with
@@ -846,8 +893,9 @@ let value_str ctx v =
 	| A3VString s -> "\"" ^ ident_str ctx s ^ "\""
 	| A3VBool b -> if b then "true" else "false"
 	| A3VInt s -> Printf.sprintf "%ld" (iget ctx.as3_ints s)
+	| A3VUInt s -> Printf.sprintf "%ld" (iget ctx.as3_uints s)
 	| A3VFloat s -> Printf.sprintf "%f" (iget ctx.as3_floats s)
-	| A3VNamespace s -> base_right_str ctx s
+	| A3VNamespace (_,s) -> "ns::" ^ namespace_str ctx s
 
 let metadata_str ctx i =
 	let m = iget ctx.as3_metadatas i in
@@ -864,7 +912,7 @@ let method_str ?(infos=false) ctx m =
 			| None -> "p" ^ string_of_int !pcount
 			| Some l -> ident_str ctx (List.nth l !pcount)
 		) in
-		let p = (match a with None -> id | Some t -> type_str ctx (id ^ " : ") t) in
+		let p = (match a with None -> id | Some t -> name_str ctx (id ^ " : ") t) in
 
 		let p = (match m.mt3_dparams with
 		| None -> p
@@ -880,11 +928,10 @@ let method_str ?(infos=false) ctx m =
 		p
 	) m.mt3_args))
 	(if m.mt3_var_args then " ..." else "")
-	(match m.mt3_ret with None -> "" | Some t -> " : " ^ type_str ctx "" t)
+	(match m.mt3_ret with None -> "" | Some t -> " : " ^ name_str ctx "" t)
 	^ (if infos then begin
 		let name = (match m.mt3_debug_name with None -> "" | Some idx -> Printf.sprintf " '%s'" (ident_str ctx idx))  in
-		let a,b,c = m.mt3_unk_flags in
-		Printf.sprintf "%s nb:%b %b %b %b" name m.mt3_new_block a b c
+		Printf.sprintf "%s blk:%b args:%b dxns:%b%s" name m.mt3_new_block m.mt3_arguments_defined m.mt3_uses_dxns (if m.mt3_unused_flag then " SPECIAL-FLAG" else "")
 	end else "")
 
 let dump_field ctx ch stat f =
@@ -895,14 +942,16 @@ let dump_field ctx ch stat f =
 	if stat then IO.printf ch "static ";
 	(match f.f3_kind with
 	| A3FVar v ->
-		IO.printf ch "%s" (type_str ctx (if v.v3_const then "const " else "var ") f.f3_name);
+		IO.printf ch "%s" (name_str ctx (if v.v3_const then "const " else "var ") f.f3_name);
 		(match v.v3_type with
 		| None -> ()
-		| Some id -> IO.printf ch " : %s" (type_str ctx "" id));
+		| Some id -> IO.printf ch " : %s" (name_str ctx "" id));
 		if v.v3_value <> A3VNone then IO.printf ch " = %s" (value_str ctx v.v3_value);
 	| A3FClass c ->
 		let c = iget ctx.as3_classes (no_nz c) in
-		IO.printf ch "%s = %s" (type_str ctx "CLASS " c.cl3_name) (type_str ctx "class " f.f3_name);
+		IO.printf ch "%s = %s" (name_str ctx "CLASS " c.cl3_name) (name_str ctx "class " f.f3_name);
+	| A3FFunction id ->
+		IO.printf ch "%s = %s" (method_str ~infos:false ctx (no_nz id)) (name_str ctx "method " f.f3_name);
 	| A3FMethod m ->
 		if m.m3_final then IO.printf ch "final ";
 		if m.m3_override then IO.printf ch "override ";
@@ -911,27 +960,27 @@ let dump_field ctx ch stat f =
 			| MK3Getter -> "get "
 			| MK3Setter -> "set "
 		) in
-		IO.printf ch "%s%s #%d" (type_str ctx k f.f3_name) (method_str ctx (no_nz m.m3_type)) (index_nz_int m.m3_type);
+		IO.printf ch "%s%s #%d" (name_str ctx k f.f3_name) (method_str ctx (no_nz m.m3_type)) (index_nz_int m.m3_type);
 	);
-	if f.f3_slot <> 0 then IO.printf ch " = [SLOT:%d]" f.f3_slot;
+	if index_int f.f3_slot <> 0 then IO.printf ch " = [SLOT:%d]" (index_int f.f3_slot);
 	IO.printf ch ";\n"
 
 let dump_class ctx ch idx c =
 	let st = if parse_statics then ctx.as3_statics.(idx) else { st3_method = magic_index_nz (-1); st3_fields = [||] } in
 	if not c.cl3_sealed then IO.printf ch "dynamic ";
 	if c.cl3_final then IO.printf ch "final ";
-	(match c.cl3_rights with
+	(match c.cl3_namespace with
 	| None -> ()
-	| Some r -> IO.printf ch "%s " (base_right_str ctx r));
+	| Some r -> IO.printf ch "%s " (namespace_str ctx r));
 	let kind = (if c.cl3_interface then "interface " else "class ") in
-	IO.printf ch "%s " (type_str ctx kind c.cl3_name);
+	IO.printf ch "%s " (name_str ctx kind c.cl3_name);
 	(match c.cl3_super with
 	| None -> ()
-	| Some s -> IO.printf ch "extends %s " (type_str ctx "" s));
+	| Some s -> IO.printf ch "extends %s " (name_str ctx "" s));
 	(match Array.to_list c.cl3_implements with
 	| [] -> ()
 	| l ->
-		IO.printf ch "implements %s " (String.concat ", " (List.map (fun i -> type_str ctx "" i) l)));
+		IO.printf ch "implements %s " (String.concat ", " (List.map (fun i -> name_str ctx "" i) l)));
 	IO.printf ch "{\n";
 	Array.iter (dump_field ctx ch false) c.cl3_fields;
 	Array.iter (dump_field ctx ch true) st.st3_fields;
@@ -945,12 +994,12 @@ let dump_init ctx ch idx s =
 let dump_try_catch ctx ch t =
 	IO.printf ch "    try %d %d %d (%s) (%s)\n"
 		t.tc3_start t.tc3_end t.tc3_handle
-		(match t.tc3_type with None -> "*" | Some idx -> type_str ctx "" idx)
-		(match t.tc3_name with None -> "NO" | Some idx -> type_str ctx "" idx)
+		(match t.tc3_type with None -> "*" | Some idx -> name_str ctx "" idx)
+		(match t.tc3_name with None -> "NO" | Some idx -> name_str ctx "" idx)
 
 let dump_function ctx ch idx f =
 	IO.printf ch "function #%d %s\n" (index_nz_int f.fun3_id) (method_str ~infos:true ctx (no_nz f.fun3_id));
-	IO.printf ch "    stack:%d nregs:%d ?:%d nscopes:%d\n" f.fun3_stack_size f.fun3_nregs f.fun3_unk3 f.fun3_max_scope;
+	IO.printf ch "    stack:%d nregs:%d scope:%d-%d\n" f.fun3_stack_size f.fun3_nregs f.fun3_init_scope f.fun3_max_scope;
 	Array.iter (dump_field ctx ch false) f.fun3_locals;
 	Array.iter (dump_try_catch ctx ch) f.fun3_trys;
 	List.iter (fun op ->
@@ -961,14 +1010,14 @@ let dump_function ctx ch idx f =
 let dump_ident ctx ch idx _ =
 	IO.printf ch "I%d = %s\n" (idx + 1) (ident_str ctx (index ctx.as3_idents (idx + 1)))
 
-let dump_base_right ctx ch idx _ =
-	IO.printf ch "B%d = %s\n" (idx + 1) (base_right_str ctx (index ctx.as3_base_rights (idx + 1)))
+let dump_namespace ctx ch idx _ =
+	IO.printf ch "N%d = %s\n" (idx + 1) (namespace_str ctx (index ctx.as3_namespaces (idx + 1)))
 
-let dump_rights ctx ch idx _ =
-	IO.printf ch "R%d = %s\n" (idx + 1) (rights_str ctx (index ctx.as3_rights (idx + 1)))
+let dump_ns_set ctx ch idx _ =
+	IO.printf ch "S%d = %s\n" (idx + 1) (ns_set_str ctx (index ctx.as3_nsets (idx + 1)))
 
-let dump_type ctx ch idx _ =
-	IO.printf ch "T%d = %s\n" (idx + 1) (type_str ctx "" (index ctx.as3_types (idx + 1)))
+let dump_name ctx ch idx _ =
+	IO.printf ch "T%d = %s\n" (idx + 1) (name_str ctx "" (index ctx.as3_names (idx + 1)))
 
 let dump_method_type ctx ch idx _ =
 	IO.printf ch "M%d = %s\n" (idx + 1) (method_str ~infos:true ctx (index ctx.as3_method_types (idx + 1)))
@@ -990,11 +1039,11 @@ let dump ch ctx id =
 	Array.iteri (dump_float ctx ch) ctx.as3_floats;
 	Array.iteri (dump_ident ctx ch) ctx.as3_idents;
 	IO.printf ch "\n";
-	Array.iteri (dump_base_right ctx ch) ctx.as3_base_rights;
+	Array.iteri (dump_namespace ctx ch) ctx.as3_namespaces;
 	IO.printf ch "\n";
-	Array.iteri (dump_rights ctx ch) ctx.as3_rights;
+	Array.iteri (dump_ns_set ctx ch) ctx.as3_nsets;
 	IO.printf ch "\n";
-	Array.iteri (dump_type ctx ch) ctx.as3_types;
+	Array.iteri (dump_name ctx ch) ctx.as3_names;
 	IO.printf ch "\n";
 (*	Array.iteri (dump_metadata ctx ch) ctx.as3_metadatas; *)
 	Array.iteri (dump_class ctx ch) ctx.as3_classes;
