@@ -34,15 +34,15 @@ type write = Unused__ | Write
 
 type 'a access =
 	| VReg of reg
-	| VId of type_index
-	| VGlobal of type_index * bool
+	| VId of as3_name
+	| VGlobal of as3_name * bool
 	| VArray
 	| VScope of int
 
 type local =
 	| LReg of reg
 	| LScope of int
-	| LGlobal of type_index
+	| LGlobal of as3_name
 
 type code_infos = {
 	mutable iregs : int;
@@ -67,15 +67,15 @@ type context = {
 	strings : string lookup;
 	ints : int32 lookup;
 	floats : float lookup;
-	brights : as3_base_right lookup;
-	rights : as3_rights lookup;
-	types : as3_type lookup;
+	namespaces : as3_namespace lookup;
+	nsets : as3_ns_set lookup;
+	names : as3_multi_name lookup;
 	mtypes : as3_method_type lookup_nz;
 	mutable classes : as3_class list;
 	mutable statics : as3_static list;
 	functions : as3_function lookup;
-	rpublic : as3_base_right index;
-	gpublic : as3_rights index;
+	rpublic : as3_namespace index;
+	gpublic : as3_ns_set index;
 	debug : bool;
 	mutable last_line : int;
 	boot : string;
@@ -169,8 +169,8 @@ let type_path ctx ?(getclass=false) path =
 	) in
 	let pid = string ctx (String.concat "." pack) in
 	let nameid = string ctx name in
-	let pid = lookup (A3RPublic (Some pid)) ctx.brights in
-	let tid = lookup (if getclass then A3TClassInterface (Some nameid,lookup [pid] ctx.rights) else A3TMethodVar (nameid,pid)) ctx.types in
+	let pid = lookup (A3NPublic (Some pid)) ctx.namespaces in
+	let tid = lookup (if getclass then A3MMultiName (Some nameid,lookup [pid] ctx.nsets) else A3MName (nameid,pid)) ctx.names in
 	tid
 
 let ident ctx i = type_path ctx ([],i)
@@ -244,7 +244,7 @@ let rec setvar ctx (acc : write access) retval =
 	| VId id ->
 		write ctx (A3InitProp id)
 	| VArray ->
-		let id_aset = lookup (A3TArrayAccess ctx.gpublic) ctx.types in
+		let id_aset = lookup (A3MMultiNameLate ctx.gpublic) ctx.names in
 		write ctx (A3InitProp id_aset);
 		ctx.infos.istack <- ctx.infos.istack - 1
 	| VScope n ->
@@ -260,7 +260,7 @@ let getvar ctx (acc : read access) =
 		write ctx (A3GetLex g);
 		if flag then write ctx A3AsAny
 	| VArray ->
-		let id_aget = lookup (A3TArrayAccess ctx.gpublic) ctx.types in
+		let id_aget = lookup (A3MMultiNameLate ctx.gpublic) ctx.names in
 		write ctx (A3GetProp id_aget);
 		ctx.infos.istack <- ctx.infos.istack - 1
 	| VScope n ->
@@ -326,7 +326,7 @@ let begin_fun ctx ?(varargs=false) args el stat =
 		match e.eexpr with
 		| TFunction _ -> ()
 		| TTry _ -> raise Exit
-		| _ -> Type.iter loop_try e 
+		| _ -> Type.iter loop_try e
 	in
 	ctx.try_scope_reg <- (try List.iter loop_try el; None with Exit -> Some (alloc_reg ctx));
 	(fun () ->
@@ -346,7 +346,9 @@ let begin_fun ctx ?(varargs=false) args el stat =
 			mt3_dparams = !dparams;
 			mt3_pnames = None;
 			mt3_new_block = hasblock;
-			mt3_unk_flags = (false,false,false);
+			mt3_unused_flag = false;
+			mt3_arguments_defined = false;
+			mt3_uses_dxns = false;
 		} in
 		let code = DynArray.to_list ctx.code in
 		let code , delta = (
@@ -365,7 +367,7 @@ let begin_fun ctx ?(varargs=false) args el stat =
 			fun3_id = add mt ctx.mtypes;
 			fun3_stack_size = (if ctx.infos.imax = 0 && (hasblock || not stat) then 1 else ctx.infos.imax);
 			fun3_nregs = ctx.infos.imaxregs + 1;
-			fun3_unk3 = 1;
+			fun3_init_scope = 1;
 			fun3_max_scope = ctx.infos.imaxscopes + 1 + (if hasblock then 2 else if not stat then 1 else 0);
 			fun3_code = code;
 			fun3_trys = Array.of_list (List.map (fun t ->
@@ -463,8 +465,8 @@ let gen_access ctx e (forset : 'a) : 'a access =
 	| TField ({ eexpr = TLocal "__native__" },f) ->
 		let nameid = string ctx f in
 		let adobeid = string ctx "http://adobe.com/AS3/2006/builtin" in
-		let pid = lookup (A3RUnknown1 adobeid) ctx.brights in
-		let id = lookup (A3TMethodVar (nameid,pid)) ctx.types in
+		let pid = lookup (A3NNamespace adobeid) ctx.namespaces in
+		let id = lookup (A3MName (nameid,pid)) ctx.names in
 		write ctx (A3FindPropStrict id);
 		VId id
 	| TField (e,f) ->
@@ -681,7 +683,7 @@ let rec gen_expr_content ctx retval e =
 				| [v] ->
 					write ctx (A3Reg r);
 					gen_expr ctx true v;
-					prev := jump ctx J3Neq;					
+					prev := jump ctx J3Neq;
 				| v :: l ->
 					write ctx (A3Reg r);
 					gen_expr ctx true v;
@@ -718,7 +720,7 @@ let rec gen_expr_content ctx retval e =
 				| [tag] ->
 					write ctx (A3Reg rtag);
 					write ctx (A3String (lookup tag ctx.strings));
-					prev := jump ctx J3Neq;					
+					prev := jump ctx J3Neq;
 				| tag :: l ->
 					write ctx (A3Reg rtag);
 					write ctx (A3String (lookup tag ctx.strings));
@@ -799,7 +801,7 @@ and gen_call ctx e el =
 	| TLocal "__delete__" , [o;f] ->
 		gen_expr ctx true o;
 		gen_expr ctx true f;
-		write ctx (A3DeleteProp (lookup (A3TArrayAccess ctx.gpublic) ctx.types));
+		write ctx (A3DeleteProp (lookup (A3MMultiNameLate ctx.gpublic) ctx.names));
 		ctx.infos.istack <- ctx.infos.istack - 1
 	| TLocal "__unprotect__" , [e] ->
 		gen_expr ctx true e
@@ -988,15 +990,15 @@ let generate_reflect_construct ctx cid nargs =
 			return new Class(args[0],args[1],....);
 		}
     *)
-	let f = begin_fun ctx ["args",false] [] true in	
+	let f = begin_fun ctx ["args",false] [] true in
 	write ctx (A3FindPropStrict cid);
 	for i = 1 to nargs do
 		write ctx (A3Reg 1);
 		write ctx (A3SmallInt (i - 1));
 		getvar ctx VArray;
 	done;
-	write ctx (A3ConstructProperty (cid,nargs));	
-	write ctx A3Ret;	
+	write ctx (A3ConstructProperty (cid,nargs));
+	write ctx A3Ret;
 	{
 		f3_name = ident ctx "__construct__";
 		f3_slot = 1;
@@ -1094,7 +1096,7 @@ let generate_field_kind ctx f c stat =
 				v3_type = None;
 				v3_value = A3VNone;
 				v3_const = false;
-			})	
+			})
 		else
 			Some (A3FMethod {
 				m3_type = generate_method ctx fdata stat;
@@ -1115,9 +1117,9 @@ let generate_field_kind ctx f c stat =
 
 let generate_class ctx c =
 	let name_id = type_path ctx c.cl_path in
-	let st_id = empty_method ctx in	
+	let st_id = empty_method ctx in
 	let cid , cnargs = (match c.cl_constructor with
-		| None ->			
+		| None ->
 			if c.cl_interface then begin
 				let mt0 = {
 					mt3_ret = None;
@@ -1128,7 +1130,9 @@ let generate_class ctx c =
 					mt3_debug_name = None;
 					mt3_dparams = None;
 					mt3_pnames = None;
-					mt3_unk_flags = (false,false,false);
+					mt3_arguments_defined = false;
+					mt3_uses_dxns = false;
+					mt3_unused_flag = false;
 				} in
 				add mt0 ctx.mtypes, 0
 			end else
@@ -1163,7 +1167,7 @@ let generate_class ctx c =
 		cl3_sealed = c.cl_path <> (["flash"],"Boot");
 		cl3_final = false;
 		cl3_interface = c.cl_interface;
-		cl3_rights = None;
+		cl3_namespace = None;
 		cl3_implements = Array.of_list (List.map (fun (c,_) ->
 			if not c.cl_interface then Typer.error "Can't implement class in Flash9" c.cl_pos;
 			type_path ctx c.cl_path
@@ -1214,7 +1218,7 @@ let generate_enum ctx e =
 		cl3_sealed = true;
 		cl3_final = false;
 		cl3_interface = false;
-		cl3_rights = None;
+		cl3_namespace = None;
 		cl3_implements = [||];
 		cl3_construct = construct;
 		cl3_fields = [|
@@ -1335,22 +1339,22 @@ let generate_inits ctx types =
 	}
 
 let generate types hres =
-	let brights = new_lookup() in
+	let namespaces = new_lookup() in
 	let strings = new_lookup() in
-	let rights = new_lookup() in
+	let nsets = new_lookup() in
 	let empty_id = lookup "" strings in
-	let rpublic = lookup (A3RPublic (Some empty_id)) brights in
+	let rpublic = lookup (A3NPublic (Some empty_id)) namespaces in
 	let ctx = {
 		boot = "Boot_" ^ Printf.sprintf "%X" (Random.int 0xFFFFFF);
 		strings = strings;
 		ints = new_lookup();
 		floats = new_lookup();
-		brights = brights;
-		rights = rights;
-		types = new_lookup();
+		namespaces = namespaces;
+		nsets = nsets;
+		names = new_lookup();
 		mtypes = new_lookup_nz();
 		rpublic = rpublic;
-		gpublic = lookup [rpublic] rights;
+		gpublic = lookup [rpublic] nsets;
 		classes = [];
 		statics = [];
 		functions = new_lookup();
@@ -1375,9 +1379,9 @@ let generate types hres =
 		as3_uints = [||];
 		as3_floats = lookup_array ctx.floats;
 		as3_idents = lookup_array ctx.strings;
-		as3_base_rights = lookup_array ctx.brights;
-		as3_rights = lookup_array ctx.rights;
-		as3_types = lookup_array ctx.types;
+		as3_namespaces = lookup_array ctx.namespaces;
+		as3_nsets = lookup_array ctx.nsets;
+		as3_names = lookup_array ctx.names;
 		as3_method_types = lookup_array ctx.mtypes;
 		as3_metadatas = [||];
 		as3_classes = Array.of_list (List.rev ctx.classes);
@@ -1399,36 +1403,43 @@ let ident ctx p =
 	As3code.iget ctx.as3_idents p
 
 let package ctx idx =
-	match As3code.iget ctx.as3_base_rights idx with
-	| A3RPrivate (Some id)
-	| A3RPublic (Some id)
-	| A3RInternal (Some id)
-	| A3RProtected id
-	| A3RUnknown1 id
-	| A3RUnknown2 (Some id) ->
+	match As3code.iget ctx.as3_namespaces idx with
+	| A3NPrivate (Some id)
+	| A3NPublic (Some id)
+	| A3NInternal (Some id)
+	| A3NProtected id
+	| A3NExplicit id
+	| A3NStaticProtected (Some id) ->
 		let pack = ident ctx id in
 		ExtString.String.nsplit pack "."
-	| A3RPrivate None | A3RPublic None | A3RInternal None | A3RUnknown2 None ->
+	| A3NNamespace id ->
+		["/* namespace " ^ ident ctx id ^ "*/"]
+	| A3NPrivate None | A3NPublic None | A3NInternal None | A3NStaticProtected None ->
 		[]
 
-let real_type_path ctx p =
-	match As3code.iget ctx.as3_types p with
-	| A3TMethodVar (id,pack) ->
-		let name = ident ctx id in
-		let pack = package ctx pack in
-		pack , name
-	| A3TClassInterface (Some id,pack) ->
-		let name = ident ctx id in
-		let pack = package ctx (List.hd (As3code.iget ctx.as3_rights pack)) in
-		pack , name
-	| A3TClassInterface (None,_) ->
-		[] , "$ClassInterfaceNone"
-	| A3TArrayAccess _ ->
-		[] , "$ArrayAccess"
-	| A3TUnknown1 _ ->
-		[] , "$Unknown1"
-	| A3TUnknown2 _ ->
-		[] , "$Unknown2"
+let rec real_type_path ctx p =
+	let rec loop = function
+		| A3MName (id,pack) ->
+			let name = ident ctx id in
+			let pack = package ctx pack in
+			pack , name
+		| A3MMultiName (Some id,pack) ->
+			let name = ident ctx id in
+			let pack = package ctx (List.hd (As3code.iget ctx.as3_nsets pack)) in
+			pack , name
+		| A3MMultiName (None,_) ->
+			[] , "$MultiName"
+		| A3MMultiNameLate _ ->
+			[] , "$MultiNameLate"
+		| A3MRuntimeName _ ->
+			[] , "$RuntimeName"
+		| A3MRuntimeNameLate ->
+			[] , "$RuntimeNameLate"
+		| A3MAttrib n ->
+			let path, name = loop n in
+			"$Attrib" :: path, name
+	in
+	loop (As3code.iget ctx.as3_names p)
 
 let type_path ctx p =
 	match real_type_path ctx p with
@@ -1444,12 +1455,12 @@ let type_path ctx p =
 	| path -> path
 
 let ident_rights ctx id =
-	match As3code.iget ctx.as3_types id with
-	| A3TMethodVar (id,r) ->
+	match As3code.iget ctx.as3_names id with
+	| A3MName (id,r) ->
 		let name = ident ctx id in
-		(match As3code.iget ctx.as3_base_rights r with
-		| A3RUnknown1 i when As3code.iget ctx.as3_idents i = "http://www.adobe.com/2006/flex/mx/internal" -> false, "$" ^ name
-		| A3RPublic _ | A3RUnknown1 _ -> false , name
+		(match As3code.iget ctx.as3_namespaces r with
+		| A3NNamespace i when As3code.iget ctx.as3_idents i = "http://www.adobe.com/2006/flex/mx/internal" -> false, "$" ^ name
+		| A3NPublic _ | A3NNamespace _ -> false , name
 		| _ -> true , name)
 	| _ -> false, "???"
 
@@ -1466,6 +1477,7 @@ let value_type = function
 	| A3VBool _ -> "Bool"
 	| A3VString _ -> "String"
 	| A3VInt _ -> "Int"
+	| A3VUInt _ -> "UInt"
 	| A3VFloat _ -> "Float"
 	| A3VNamespace _ -> "$Namespace"
 
@@ -1549,6 +1561,8 @@ let gen_fields ctx ch fields stat =
 		| A3FVar v ->
 			let t = type_val ctx v.v3_type (Some v.v3_value) in
 			IO.printf ch "\t%s%svar %s : %s;\n" (if priv then "private " else "") (if stat then "static " else "") name t
+		| A3FFunction _ ->
+			assert false
 		| A3FClass _ ->
 			IO.printf ch "\t// ????\n"
 	) fields
