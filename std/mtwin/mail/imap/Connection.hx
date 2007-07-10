@@ -323,12 +323,12 @@ class Connection {
 					}else if( REG_FETCH_ENVELOPE.match( s ) ){
 						var t = REG_FETCH_ENVELOPE.matchedRight();
 						t = completeString(t);
-						o.envelope = Envelope.parse( t );
+						o.envelope = mtwin.mail.imap.Envelope.parse( t );
 						s = StringTools.ltrim(t.substr(o.envelope.__length,t.length));
 					}else if( REG_FETCH_BODYSTRUCTURE.match( s ) ){
 						var t = REG_FETCH_BODYSTRUCTURE.matchedRight();
 						t = completeString(t);
-						o.structure = BodyStructure.parse( t );
+						o.structure = mtwin.mail.imap.BodyStructure.parse( t );
 						s = StringTools.ltrim(t.substr(o.structure.__length,t.length));
 					}else if( REG_FETCH_PART.match( s ) ){
 						var len = Std.parseInt(REG_FETCH_PART.matched(2));
