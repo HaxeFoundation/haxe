@@ -172,7 +172,7 @@ let stack_delta = function
 	| A3GetGlobalScope | A3GetScope _ -> 1
 	| A3GetProp _ -> 0
 	| A3InitProp _ -> -2
-	| A3DeleteProp _ -> 0 (* true/false *)
+	| A3DeleteProp _ -> -1 (* true/false *)
 	| A3GetSlot _ -> 0
 	| A3SetSlot _ -> -2
 	| A3ToString
