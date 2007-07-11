@@ -73,7 +73,7 @@ class SocketConnection extends AsyncConnection {
 		#end
 	}
 
-	public static function decodeChar(c) {
+	public static function decodeChar(c) : Null<Int> {
 		// A...Z
 		if( c >= 65 && c <= 90 )
 			return c - 65;
@@ -92,7 +92,7 @@ class SocketConnection extends AsyncConnection {
 		return null;
 	}
 
-	public static function encodeChar(c) {
+	public static function encodeChar(c) : Null<Int> {
 		if( c < 0 )
 			return null;
 		// A...Z

@@ -26,7 +26,7 @@ package haxe;
 
 class Timer {
 
-	private var id : Int;
+	private var id : Null<Int>;
 
 	#if js
 	private static var arr = new Array<Timer>();
@@ -89,7 +89,7 @@ class Timer {
 		fqueue.push(f);
 		haxe.Timer.delayed(function() {
 			fqueue.shift()();
-		},if( time == null ) 0 else time)();
+		},#if !flash9 if( time == null ) 0 else #end time)();
 	}
 
 	#end

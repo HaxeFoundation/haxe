@@ -288,7 +288,7 @@ class Template {
 		case "!":
 			var e = makeExpr(l);
 			return function() {
-				var v = e();
+				var v : Dynamic = e();
 				return (v == null || v == false);
 			};
 		case "-":
@@ -305,7 +305,7 @@ class Template {
 		case OpExpr(e):
 			buf.add(Std.string(e()));
 		case OpIf(e,eif,eelse):
-			var v = e();
+			var v : Dynamic = e();
 			if( v == null || v == false ) {
 				if( eelse != null ) run(eelse);
 			} else
