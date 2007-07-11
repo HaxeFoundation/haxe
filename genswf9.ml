@@ -53,11 +53,11 @@ type 'a access =
 	| VId of as3_name
 	| VGlobal of as3_name
 	| VArray
-	| VScope of int
+	| VScope of as3_slot
 
 type local =
 	| LReg of register
-	| LScope of int
+	| LScope of as3_slot
 	| LGlobal of as3_name
 
 type code_infos = {
@@ -105,7 +105,7 @@ type context = {
 	mutable continues : (int -> unit) list;
 	mutable in_static : bool;
 	mutable curblock : texpr list;
-	mutable block_vars : (int * string) list;
+	mutable block_vars : (as3_slot * string) list;
 	mutable try_scope_reg : register option;
 }
 
@@ -965,8 +965,7 @@ and gen_call ctx e el =
 	| TLocal "__delete__" , [o;f] ->
 		gen_expr ctx true o;
 		gen_expr ctx true f;
-		write ctx (A3DeleteProp (lookup (A3MMultiNameLate ctx.gpublic) ctx.names));
-		ctx.infos.istack <- ctx.infos.istack - 1
+		write ctx (A3DeleteProp (lookup (A3MMultiNameLate ctx.gpublic) ctx.names));		
 	| TLocal "__unprotect__" , [e] ->
 		gen_expr ctx true e
 	| TLocal "__typeof__", [e] ->
@@ -1176,7 +1175,7 @@ let generate_class_init ctx c slot =
 		write ctx A3Scope;
 		write ctx (A3GetLex (type_path ctx ~getclass:true path));
 	end;
-	write ctx (A3ClassDef slot);
+	write ctx (A3ClassDef (As3parse.magic_index slot));
 	List.iter (fun f ->
 		match f.cf_expr with
 		| Some { eexpr = TFunction fdata } when f.cf_set = NormalAccess ->
@@ -1216,7 +1215,7 @@ let generate_enum_init ctx e slot =
 	write ctx (A3GetLex (type_path ctx path));
 	write ctx A3Scope;
 	write ctx (A3GetLex (type_path ~getclass:true ctx path));
-	write ctx (A3ClassDef slot);
+	write ctx (A3ClassDef (As3parse.magic_index slot));
 	write ctx A3PopScope;
 	let r = alloc_reg ctx KDynamic in
 	write ctx A3Dup;
