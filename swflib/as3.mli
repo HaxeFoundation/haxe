@@ -24,7 +24,7 @@ type as3_ident = string
 type as3_int = int32
 type as3_uint = int32
 type as3_float = float
-type as3_slot = unit index
+type as3_slot = int
 
 type reg = int
 type nargs = int
@@ -113,7 +113,7 @@ and as3_opcode =
 	| A3Scope
 	| A3Namespace of as3_namespace index
 	| A3Next of reg * reg
-	| A3Function of as3_method_type index
+	| A3Function of as3_method_type index_nz
 	| A3CallStack of nargs
 	| A3Construct of nargs
 	| A3CallMethod of as3_slot * nargs

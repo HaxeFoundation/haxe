@@ -224,7 +224,7 @@ let length = function
 		1 + int_length n
 	| A3GetSlot s
 	| A3SetSlot s ->
-		1 + int_length (int_index s)
+		1 + int_length s
 	| A3ClassDef n ->
 		1 + int_length (int_index n)
 	| A3String f
@@ -237,7 +237,7 @@ let length = function
 	| A3Float f ->
 		1 + int_length (int_index f)
 	| A3Function f ->
-		1 + int_length (int_index f)
+		1 + int_length (int_index_nz f)
 	| A3Namespace f ->
 		1 + int_length (int_index f)
 	| A3GetProp f
@@ -301,7 +301,7 @@ let length = function
 	| A3CallSuper (f,n) | A3CallProperty (f,n) | A3ConstructProperty (f,n) | A3CallPropLex (f,n) | A3CallPropVoid (f,n) | A3CallSuperVoid (f,n) ->
 		1 + int_length n + int_length (int_index f)
 	| A3CallMethod (f,n) ->
-		1 + int_length n + int_length (int_index f)
+		1 + int_length n + int_length f
 	| A3CallStatic (f,n) ->
 		1 + int_length n + int_length (int_index f)
 	| A3Jump _ -> 4
@@ -383,11 +383,11 @@ let opcode ch =
 			let r2 = read_int ch in
 			A3Next (r1,r2)
 		(* 0x33 - 0x3F -> NONE *)
-		| 0x40 -> A3Function (read_index ch)
+		| 0x40 -> A3Function (read_index_nz ch)
 		| 0x41 -> A3CallStack (read_int ch)
 		| 0x42 -> A3Construct (read_int ch)
 		| 0x43 ->
-			let id = read_index ch in
+			let id = read_int ch in
 			let nargs = read_int ch in
 			A3CallMethod (id,nargs)
 		| 0x44 ->
@@ -447,8 +447,8 @@ let opcode ch =
 		(* 0x69 -> NONE *)
 		| 0x6A -> A3DeleteProp (read_index ch)
 		(* 0x6B -> NONE *)
-		| 0x6C -> A3GetSlot (read_index ch)
-		| 0x6D -> A3SetSlot (read_index ch)
+		| 0x6C -> A3GetSlot (read_int ch)
+		| 0x6D -> A3SetSlot (read_int ch)
 		(* 0x6E -> DEPRECATED getglobalslot *)
 		(* 0x6F -> DEPRECATED setglobalslot *)
 		| 0x70 -> A3ToString
@@ -627,7 +627,7 @@ let write ch = function
 		write_int ch r2
 	| A3Function f ->
 		write_byte ch 0x40;
-		write_index ch f
+		write_index_nz ch f
 	| A3CallStack n ->
 		write_byte ch 0x41;
 		write_int ch n
@@ -636,7 +636,7 @@ let write ch = function
 		write_int ch n
 	| A3CallMethod (f,n) ->
 		write_byte ch 0x43;
-		write_index ch f;
+		write_int ch f;
 		write_int ch n
 	| A3CallStatic (f,n) ->
 		write_byte ch 0x44;
@@ -732,10 +732,10 @@ let write ch = function
 		write_index ch f
 	| A3GetSlot n ->
 		write_byte ch 0x6C;
-		write_index ch n
+		write_int ch n
 	| A3SetSlot n ->
 		write_byte ch 0x6D;
-		write_index ch n
+		write_int ch n
 	| A3ToString ->
 		write_byte ch 0x70
 	| A3ToXml ->
@@ -903,10 +903,10 @@ let dump ctx op =
 	| A3Scope -> "scope"
 	| A3Namespace f -> s "namespace [%d]" (int_index f)
 	| A3Next (r1,r2) -> s "next %d %d" r1 r2
-	| A3Function f -> s "function #%d" (int_index f)
+	| A3Function f -> s "function #%d" (int_index_nz f)
 	| A3CallStack n -> s "callstack (%d)" n
 	| A3Construct n -> s "construct (%d)" n
-	| A3CallMethod (f,n) -> s "callmethod %d (%d)" (int_index f) n
+	| A3CallMethod (f,n) -> s "callmethod %d (%d)" f n
 	| A3CallStatic (f,n) -> s "callstatic %d (%d)" (int_index f) n
 	| A3CallSuper (f,n) -> s "callsuper %s (%d)" (field f) n
 	| A3CallProperty (f,n) -> s "callprop %s (%d)" (field f) n
@@ -934,8 +934,8 @@ let dump ctx op =
 	| A3GetProp f -> s "getprop %s" (field f)
 	| A3InitProp f -> s "initprop %s" (field f)
 	| A3DeleteProp f -> s "deleteprop %s" (field f)
-	| A3GetSlot n -> s "getslot %d" (int_index n)
-	| A3SetSlot n -> s "setslot %d" (int_index n)
+	| A3GetSlot n -> s "getslot %d" n
+	| A3SetSlot n -> s "setslot %d" n
 	| A3ToString -> "tostring"
 	| A3ToXml -> "toxml"
 	| A3ToXmlAttr -> "toxmlattr"

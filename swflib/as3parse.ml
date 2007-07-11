@@ -167,7 +167,7 @@ let list2_length f l =
 let as3_field_length f =
 	idx_length f.f3_name +
 	1 +
-	idx_length f.f3_slot +
+	int_length f.f3_slot +
 	(match f.f3_kind with
 	| A3FMethod m ->
 		idx_length_nz m.m3_type
@@ -421,7 +421,7 @@ let read_field ctx ch =
 	let name = index ctx.as3_names (read_int ch) in
 	let kind = IO.read_byte ch in
 	let has_meta = kind land 0x40 <> 0 in
-	let slot = magic_index (read_int ch) in
+	let slot = read_int ch in
 	let kind = (match kind land 0xF with
 		| 0x00 | 0x06 ->
 			let t = index_opt ctx.as3_names (read_int ch) in
@@ -765,19 +765,19 @@ let write_field ch f =
 		let base = (match m.m3_kind with MK3Normal -> 0x01 | MK3Getter -> 0x02 | MK3Setter -> 0x03) in
 		let flags = flags lor (if m.m3_final then 0x10 else 0) lor (if m.m3_override then 0x20 else 0) in
 		IO.write_byte ch (base lor flags);
-		write_index ch f.f3_slot;
+		write_int ch f.f3_slot;
 		write_index_nz ch m.m3_type;
 	| A3FClass c ->
 		IO.write_byte ch (0x04 lor flags);
-		write_index ch f.f3_slot;
+		write_int ch f.f3_slot;
 		write_index_nz ch c
 	| A3FFunction i ->
 		IO.write_byte ch (0x05 lor flags);
-		write_index ch f.f3_slot;
+		write_int ch f.f3_slot;
 		write_index_nz ch i
 	| A3FVar v ->
 		IO.write_byte ch (flags lor (if v.v3_const then 0x06 else 0x00));
-		write_index ch f.f3_slot;
+		write_int ch f.f3_slot;
 		write_index_opt ch v.v3_type;
 		write_value ch false v.v3_value);
 	match f.f3_metas with
@@ -962,7 +962,7 @@ let dump_field ctx ch stat f =
 		) in
 		IO.printf ch "%s%s #%d" (name_str ctx k f.f3_name) (method_str ctx (no_nz m.m3_type)) (index_nz_int m.m3_type);
 	);
-	if index_int f.f3_slot <> 0 then IO.printf ch " = [SLOT:%d]" (index_int f.f3_slot);
+	if f.f3_slot <> 0 then IO.printf ch " = [SLOT:%d]" f.f3_slot;
 	IO.printf ch ";\n"
 
 let dump_class ctx ch idx c =
