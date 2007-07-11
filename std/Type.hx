@@ -137,7 +137,7 @@ class Type {
 			var cname = __global__["flash.utils.getQualifiedSuperclassName"](c);
 			if( cname == "Object" )
 				return null;
-			return __as__(__global__["flash.utils.getDefinitionByName"](cname),Class);
+			return __global__["flash.utils.getDefinitionByName"](cname);
 		#else true
 			return c.__super__;
 		#end
@@ -180,7 +180,7 @@ class Type {
 		untyped {
 		#if flash9
 			try {
-				cl = __as__(__global__["flash.utils.getDefinitionByName"](name),Class);
+				cl = __global__["flash.utils.getDefinitionByName"](name);
 				if( cl.__isenum )
 					return null;
 				return cl; // skip test below
@@ -259,7 +259,15 @@ class Type {
 	**/
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped {
 		#if flash9
-			return cl.__construct__.call(null,args);
+			return switch( args.length ) {
+			case 0: __new__(cl);
+			case 1: __new__(cl,args[0]);
+			case 2: __new__(cl,args[0],args[1]);
+			case 3: __new__(cl,args[0],args[1],args[2]);
+			case 4: __new__(cl,args[0],args[1],args[2],args[3]);
+			case 5: __new__(cl,args[0],args[1],args[2],args[3],args[4]);
+			default: throw "Too many arguments";
+			}
 		#else flash
 			var o = { __constructor__ : cl, __proto__ : cl.prototype };
 			cl["apply"](o,args);
@@ -281,7 +289,7 @@ class Type {
 		#if flash9
 			try {
 				flash.Boot.skip_constructor = true;
-				var i = cl.__construct__.call(null,[]);
+				var i = __new__(cl);
 				flash.Boot.skip_constructor = false;
 				return i;
 			} catch( e : Dynamic ) {

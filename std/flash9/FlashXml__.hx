@@ -60,11 +60,10 @@ class FlashXml__ {
 	var _children : Array<FlashXml__>;
 	var _parent : FlashXml__;
 
-	public static function parse( str : String ) : Xml {
+	public static function parse( str : String ) : FlashXml__ {
 		var rules = [enode,epcdata,eend,ecdata,edoctype,ecomment,eprolog];
 		var nrules = rules.length;
-		var current = Xml.createDocument();
-
+		var current = createDocument();
 		var stack = new List();
 		while( str.length > 0 ) {
 			var i = 0;
@@ -73,7 +72,7 @@ class FlashXml__ {
 				if( r.match(str) ) {
 					switch( i ) {
 					case 0: // Node
-						var x = Xml.createElement(r.matched(1));
+						var x = createElement(r.matched(1));
 						current.addChild(x);
 						str = r.matchedRight();
 						while( eattribute.match(str) ) {
@@ -90,15 +89,15 @@ class FlashXml__ {
 						}
 						str = eclose.matchedRight();
 					case 1: // PCData
-						var x = Xml.createPCData(r.matched(0));
+						var x = createPCData(r.matched(0));
 						current.addChild(x);
 						str = r.matchedRight();
 					case 2: // End Node
-						untyped if( current._children != null && current._children.length == 0 ) {
-							var e = Xml.createPCData("");
+						if( current._children != null && current._children.length == 0 ) {
+							var e = createPCData("");
 							current.addChild(e);
 						}
-						untyped if( r.matched(1) != current._nodeName || stack.isEmpty() ) {
+						if( r.matched(1) != current._nodeName || stack.isEmpty() ) {
 							i = nrules;
 							break;
 						}
@@ -108,7 +107,7 @@ class FlashXml__ {
 						str = r.matchedRight();
 						if( !ecdata_end.match(str) )
 							throw "End of CDATA section not found";
-						var x = Xml.createCData(ecdata_end.matchedLeft());
+						var x = createCData(ecdata_end.matchedLeft());
 						current.addChild(x);
 						str = ecdata_end.matchedRight();
 					case 4: // DocType
@@ -129,17 +128,17 @@ class FlashXml__ {
 									break;
 							}
 						}
-						var x = Xml.createDocType(old.substr(0,pos));
+						var x = createDocType(old.substr(0,pos));
 						current.addChild(x);
 					case 5: // Comment
 						if( !ecomment_end.match(str) )
 							throw "Unclosed Comment";
 						var p = ecomment_end.matchedPos();
-						var x = Xml.createComment(str.substr(0,p.pos+p.len));
+						var x = createComment(str.substr(0,p.pos+p.len));
 						current.addChild(x);
 						str = ecomment_end.matchedRight();
 					case 6: // Prolog
-						var x = Xml.createProlog(r.matched(0));
+						var x = createProlog(r.matched(0));
 						current.addChild(x);
 						str = r.matchedRight();
 					}
@@ -154,7 +153,7 @@ class FlashXml__ {
 					throw ("Xml parse error : Unexpected "+str);
 			}
 		}
-		untyped return current;
+		return current;
 	}
 
 	private function new(){

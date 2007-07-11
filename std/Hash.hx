@@ -162,7 +162,7 @@ class Hash<T> {
 			ref : h,
 			it : keys(),
 			hasNext : function() { return this.it.hasNext(); },
-			next : function() { var i = this.it.next(); return this.ref[i]; }
+			next : function() { var i : Dynamic = this.it.next(); return this.ref[i]; }
 		};
 		#else flash
 		return untyped {

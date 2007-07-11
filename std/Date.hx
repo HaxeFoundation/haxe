@@ -163,11 +163,11 @@ extern class Date
 			var mi = this.getMinutes();
 			var s = this.getSeconds();
 			return this.getFullYear()
-				+"-"+(if( m < 10 ) "0"+m else m)
-				+"-"+(if( d < 10 ) "0"+d else d)
-				+" "+(if( h < 10 ) "0"+h else h)
-				+":"+(if( mi < 10 ) "0"+mi else mi)
-				+":"+(if( s < 10 ) "0"+s else s);
+				+"-"+(if( m < 10 ) "0"+m else ""+m)
+				+"-"+(if( d < 10 ) "0"+d else ""+d)
+				+" "+(if( h < 10 ) "0"+h else ""+h)
+				+":"+(if( mi < 10 ) "0"+mi else ""+mi)
+				+":"+(if( s < 10 ) "0"+s else ""+s);
 		};
 		#if flash9
 		#else flash
