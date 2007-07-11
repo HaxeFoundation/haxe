@@ -361,7 +361,8 @@ and load_type ctx p t =
 						with
 							Not_found -> ()
 					) a.a_fields;
-					c2.cl_extern <- true;
+					(* do NOT tag as extern - for protect *)
+					c2.cl_shadow <- true;
 					c2.cl_super <- Some (c,tl);
 					c2.cl_fields <- a.a_fields;
 					TInst (c2,[])
@@ -658,6 +659,7 @@ let type_type_params ctx path p (n,flags) =
 			t
 		) in
 		c.cl_extern <- true;
+		c.cl_shadow <- true;
 		ctx.delays := [(fun () -> ignore(!r()))] :: !(ctx.delays);
 		TLazy r
 	) in

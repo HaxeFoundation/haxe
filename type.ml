@@ -115,6 +115,7 @@ and tclass = {
 	cl_doc : Ast.documentation;
 	cl_private : bool;
 	mutable cl_extern : bool;
+	mutable cl_shadow : bool;
 	mutable cl_interface : bool;
 	mutable cl_types : (string * t) list;
 	mutable cl_super : (tclass * tparams) option;
@@ -196,6 +197,7 @@ let mk_class path pos doc priv =
 		cl_doc = doc;
 		cl_private = priv;
 		cl_extern = false;
+		cl_shadow = false;
 		cl_interface = false;
 		cl_types = [];
 		cl_super = None;
