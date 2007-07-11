@@ -353,7 +353,7 @@ and load_type ctx p t =
 			let rec loop t =
 				match follow t with
 				| TInst (c,tl) ->
-					let c2 = mk_class (fst c.cl_path,"+" ^ snd c.cl_path) p None false in
+					let c2 = mk_class (fst c.cl_path,"+" ^ snd c.cl_path) p None true in
 					PMap.iter (fun f _ ->
 						try
 							ignore(class_field c f);
@@ -361,6 +361,7 @@ and load_type ctx p t =
 						with
 							Not_found -> ()
 					) a.a_fields;
+					c2.cl_extern <- true;
 					c2.cl_super <- Some (c,tl);
 					c2.cl_fields <- a.a_fields;
 					TInst (c2,[])
@@ -656,6 +657,7 @@ let type_type_params ctx path p (n,flags) =
 			set_heritance ctx c (List.map (fun t -> HImplements t) l) p;
 			t
 		) in
+		c.cl_extern <- true;
 		ctx.delays := [(fun () -> ignore(!r()))] :: !(ctx.delays);
 		TLazy r
 	) in
