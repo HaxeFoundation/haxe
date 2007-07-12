@@ -126,6 +126,15 @@ class Manager<T : Object> {
 		return object(s.toString(),lock);
 	}
 
+	public function delete( x : {} ) {
+		var s = new StringBuf();
+		s.add("DELETE FROM ");
+		s.add(table_name);
+		s.add(" WHERE ");
+		addCondition(s,x);
+		execute(s.toString());
+	}
+
 	public function search( x : {}, ?lock : Bool ) : List<T> {
 		if( lock == null )
 			lock = true;
