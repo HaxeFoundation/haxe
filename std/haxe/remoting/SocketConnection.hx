@@ -23,13 +23,7 @@
  * DAMAGE.
  */
 package haxe.remoting;
-#if flash9
-import flash.net.XMLSocket;
-#else flash
-import flash.XMLSocket;
-#else js
-import js.XMLSocket;
-#end
+import haxe.remoting.SocketProtocol;
 
 class SocketConnection extends AsyncConnection {
 
@@ -40,7 +34,6 @@ class SocketConnection extends AsyncConnection {
 
 	override function __resolve(field) : AsyncConnection {
 		var s = new SocketConnection(__data,__path.copy());
-		var me = this;
 		s.__error = __error;
 		s.__funs = __funs;
 		#if neko
@@ -52,193 +45,71 @@ class SocketConnection extends AsyncConnection {
 
 	override public function call( params : Array<Dynamic>, ?onData : Dynamic -> Void ) : Void {
 		try {
-			var s = new haxe.Serializer();
-			s.serialize(true);
-			s.serialize(__path);
-			s.serialize(params);
-			sendMessage(__data,s.toString());
+			SocketProtocol.sendRequest(getSocket(),__path,params);
 			__funs.add(onData);
 		} catch( e : Dynamic ) {
 			__error.ref(e);
 		}
 	}
 
+	public function getSocket() : Socket {
+		return __data;
+	}
+
 	public function closeConnection() {
-		#if neko
-		var s : neko.net.Socket = __data;
-		try s.close() catch( e : Dynamic ) { };
-		#else true
-		var s : XMLSocket = __data;
-		s.close();
-		#end
+		try getSocket().close() catch( e : Dynamic ) { };
 	}
 
-	public static function decodeChar(c) : Null<Int> {
-		// A...Z
-		if( c >= 65 && c <= 90 )
-			return c - 65;
-		// a...z
-		if( c >= 97 && c <= 122 )
-			return c - 97 + 26;
-		// 0...9
-		if( c >= 48 && c <= 57 )
-			return c - 48 + 52;
-		// +
-		if( c == 43 )
-			return 62;
-		// /
-		if( c == 47 )
-			return 63;
-		return null;
-	}
-
-	public static function encodeChar(c) : Null<Int> {
-		if( c < 0 )
-			return null;
-		// A...Z
-		if( c < 26 )
-			return c + 65;
-		// a...z
-		if( c < 52 )
-			return (c - 26) + 97;
-		// 0...9
-		if( c < 62 )
-			return (c - 52) + 48;
-		// +
-		if( c == 62 )
-			return 43;
-		// /
-		if( c == 63 )
-			return 47;
-		return null;
-	}
-
-	public static function sendMessage( __data : Dynamic, msg : String ) {
-		var len = msg.length + 3;
-		#if neko
-		#else true
-		for( i in 0...msg.length ) {
-			var c = msg.charCodeAt(i);
-			if( c < 0x7F )
-				continue;
-			if( c < 0x7FF ) {
-				len++;
-				continue;
-			}
-			if( c < 0xFFFF ) {
-				len += 2;
-				continue;
-			}
-			len += 3;
-		}
-		#end
-		var c1 = encodeChar(len>>6);
-		if( c1 == null )
-			throw "Message is too big";
-		var c2 = encodeChar(len&63);
-		#if neko
-		var s : neko.net.Socket = __data;
-		s.output.writeChar(c1);
-		s.output.writeChar(c2);
-		s.output.write(msg);
-		s.output.writeChar(0);
-		#else (flash || js)
-		var s : XMLSocket = __data;
-		s.send(Std.chr(c1)+Std.chr(c2)+msg);
-		#else error
-		#end
-	}
-
-	/**
-		Returns an exception only if one occured either in an onData answer callback
-		or in a request callback (in that case, the exception is also sent through
-		the network). No exception should ever escape this method.
-	**/
-	public static function processMessage( sc : SocketConnection, data : String ) {
-		var f : Dynamic -> Void;
-		var val : Dynamic;
-		var s = new haxe.Unserializer(data);
+	public function processMessage( data : String ) {
+		var request;
 		try {
-			var isrequest : Bool = s.unserialize();
-			if( !isrequest ) {
-				if( sc.__funs.isEmpty() )
-					throw "No response expected ("+data+")";
-				f = sc.__funs.pop();
-				val = s.unserialize();
-				if( f == null )
-					return null;
-			}
+			request = SocketProtocol.isRequest(data);
 		} catch( e : Dynamic ) {
-			sc.__error.ref(e);
-			return null;
+			__error.ref(e); // protocol error
+			return;
 		}
-		if( f != null ) {
+		// request
+		if( request ) {
 			try {
-				f(val);
-				return null;
-			} catch( val : Dynamic ) {
-				return { exc : val };
+				var me = this;
+				var eval =
+					#if neko
+						__r.resolvePath
+					#else flash
+						function(path:Array<String>) { return flash.Lib.eval(path.join(".")); }
+					#else js
+						function(path:Array<String>) { return js.Lib.eval(path.join(".")); }
+					#end
+				;
+				SocketProtocol.processRequest(getSocket(),data,eval,function(path,name,args,e) {
+					// exception inside the called method
+					var astr, estr;
+					try astr = args.join(",") catch( e : Dynamic ) astr = "???";
+					try estr = Std.string(e) catch( e : Dynamic ) estr = "???";
+					var header = "Error in call to "+path.join(".")+"."+name+"("+astr+") : ";
+					me.__error.ref(header + estr);
+				});
+			} catch( e : Dynamic ) {
+				__error.ref(e); // protocol error or invalid object/method
 			}
+			return;
 		}
-		// ---------------------------
-		var exc = false;
+		// answer
+		var f, v;
 		try {
-			var path : Array<String> = s.unserialize();
-			var args = s.unserialize();
-			var fname = path.pop();
-			#if flash
-			var obj = flash.Lib.eval(path.join("."));
-			#else neko
-			var obj = sc.__r.resolvePath(path);
-			#else js
-			var obj = js.Lib.eval(path.join("."));
-			#else error
-			#end
-			var fptr = #if flash9 if( obj != null ) #end Reflect.field(obj,fname);
-			if( !Reflect.isFunction(fptr) )
-				throw "Calling not-a-function '"+path.join(".")+"."+fname+"'";
-			val = Reflect.callMethod(obj,fptr,args);
+			if( __funs.isEmpty() )
+				throw "No response excepted ("+data+")";
+			f = __funs.pop();
+			v = SocketProtocol.decodeAnswer(data);
 		} catch( e : Dynamic ) {
-			val = e;
-			exc = true;
+			__error.ref(e); // protocol error or answer exception
+			return;
 		}
-		try {
-			var s = new haxe.Serializer();
-			s.serialize(false);
-			if( exc )
-				s.serializeException(val);
-			else
-				s.serialize(val);
-			sendMessage(sc.__data,s.toString());
-		} catch( e : Dynamic ) {
-			sc.__error.ref(e);
-			return null;
-		}
-		if( exc )
-			return { exc : val };
-		return null;
+		if( f != null )
+			f(v); // answer callback exception
 	}
 
 	#if neko
-
-	public static function readAnswers( cnx : SocketConnection ) {
-		var sock : neko.net.Socket = cnx.__data;
-		while( cnx.__funs.length > 0 ) {
-			var c1 = decodeChar(sock.input.readChar());
-			var c2 = decodeChar(sock.input.readChar());
-			if( c1 == null || c2 == null )
-				throw "Invalid answer";
-			var len = (c1 << 6) | c2;
-			var data = sock.input.read(len-3);
-			if( sock.input.readChar() != 0 )
-				throw "Invalid answeur";
-			if( !haxe.Unserializer.run(data) != true )
-				throw "Request received";
-			var r = processMessage(cnx,data);
-			if( r != null )
-				neko.Lib.rethrow(r.exc);
-		}
-	}
 
 	public static function socketConnect( s : neko.net.Socket, r : neko.net.RemotingServer ) {
 		var sc = new SocketConnection(s,[]);
@@ -247,20 +118,14 @@ class SocketConnection extends AsyncConnection {
 		return sc;
 	}
 
-	public static function getSocket( cnx : SocketConnection ) : neko.net.Socket {
-		return cnx.__data;
-	}
-
 	#else (flash || js)
 
-	public static function socketConnect( s : XMLSocket ) {
+	public static function socketConnect( s : Socket ) {
 		var sc = new SocketConnection(s,[]);
 		sc.__funs = new List();
 		#if flash9
 		s.addEventListener(flash.events.DataEvent.DATA, function(e : flash.events.DataEvent) {
-			var e = processMessage(sc,e.data.substr(2,e.data.length-2));
-			if( e != null )
-				throw e.exc;
+			sc.processMessage(e.data.substr(2,e.data.length-2));
 		});
 		#else true
 		// we can't deliver directly the message
@@ -269,23 +134,13 @@ class SocketConnection extends AsyncConnection {
 		// where a new onData is called is a parallel thread
 		// ...with the buffer of the previous onData (!)
 		s.onData = function(data : String) {
+			trace(data);
 			haxe.Timer.queue(function() {
-				var e = processMessage(sc,data.substr(2,data.length-2));
-				// error happened in response handler, not in request
-				if( e != null )
-					#if neko
-					neko.Lib.rethrow(e.exc);
-					#else true
-					throw e.exc;
-					#end
+				sc.processMessage(data.substr(2,data.length-2));
 			});
 		};
 		#end
 		return sc;
-	}
-
-	public static function getSocket( cnx : SocketConnection ) : XMLSocket {
-		return cnx.__data;
 	}
 
 	#else error

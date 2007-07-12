@@ -13,6 +13,9 @@
 	added haxe.xml.Proxy
 	some flash6 fixes
 	allowed simplequotes for xml attributes in Flash9 and JS
+	flash9 optimizing compiler
+	new faster neko binary AST
+	added haxe.remoting.NekoSocketConnection and SocketProtocol
 
 2007-05-18: 1.13
 	fixed bug with local variable masking package in catch type

@@ -48,13 +48,14 @@ class RemotingServer {
 	}
 
 	public function resolvePath( path : Array<String> ) : Dynamic {
-		var objname = path.shift();
+		var it = path.iterator();
+		var objname = it.next();
 		if( objname == null )
 			throw "Empty path";
 		var obj = objects.get(objname);
 		if( obj == null )
 			throw "Object '"+objname+"' is not accessible";
-		for( x in path ) {
+		for( x in it ) {
 			if( obj == null || (prefix != null && x.indexOf(prefix,0) == 0) )
 				return null;
 			obj = Reflect.field(obj,x);

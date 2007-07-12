@@ -67,11 +67,13 @@ import haxe.remoting.LocalConnection;
 import haxe.remoting.SocketWrapper;
 #end
 import haxe.remoting.Proxy;
-#if !js
+import haxe.remoting.SocketProtocol;
 import haxe.remoting.SocketConnection;
-#end
 #if !neko
 import haxe.remoting.FlashJsConnection;
+#end
+#if neko
+import haxe.remoting.NekoSocketConnection;
 #end
 
 import haxe.rtti.Infos;

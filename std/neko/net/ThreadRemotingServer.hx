@@ -35,10 +35,6 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 		throw "Not implemented";
 	}
 
-	function decodeChar(c) {
-		return haxe.remoting.SocketConnection.decodeChar(c);
-	}
-
 	public override function clientConnected( s : neko.net.Socket ) {
 		var r = new neko.net.RemotingServer();
 		var cnx = haxe.remoting.SocketConnection.socketConnect(s,r);
@@ -53,8 +49,8 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 	}
 
 	public override function readClientMessage( cnx, buf : String, pos : Int, len : Int ) {
-		var c1 = decodeChar(buf.charCodeAt(pos));
-		var c2 = decodeChar(buf.charCodeAt(pos+1));
+		var c1 = haxe.remoting.SocketProtocol.decodeChar(buf.charCodeAt(pos));
+		var c2 = haxe.remoting.SocketProtocol.decodeChar(buf.charCodeAt(pos+1));
 		if( c1 == null || c2 == null ) {
 			if( buf.charCodeAt(pos) != 60 )
 				throw "Invalid remoting message '"+buf.substr(pos,len)+"'";
@@ -82,16 +78,17 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 		throw "Unhandled XML data '"+data+"'";
 	}
 
-	public override function clientMessage( cnx, msg : String ) {
+	public override function clientMessage( cnx : haxe.remoting.SocketConnection, msg : String ) {
 		if( msg.charCodeAt(0) == 60 ) {
 			onXml(cnx,msg);
 			return;
 		}
-		var r = haxe.remoting.SocketConnection.processMessage(cnx,msg);
-		if( r != null ) {
-			if( !Std.is(r.exc,neko.io.Eof) && !Std.is(r.exc,neko.io.Error) )
-				logError(r.exc);
-			stopClient(haxe.remoting.SocketConnection.getSocket(cnx));
+		try {
+			cnx.processMessage(msg);
+		} catch( e : Dynamic ) {
+			if( !Std.is(e,neko.io.Eof) && !Std.is(e,neko.io.Error) )
+				logError(e);
+			stopClient(cnx.getSocket());
 		}
 	}
 
