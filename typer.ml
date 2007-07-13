@@ -1741,6 +1741,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				| _ ->
 					error "The field iterator is not a method" e1.epos
 			)
+		| TMono _
 		| TDynamic _ ->
 			error "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e1.epos;
 		| _ ->

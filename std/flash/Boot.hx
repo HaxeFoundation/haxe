@@ -70,7 +70,8 @@ class Boot {
 				if( typeof(o) == "movieclip" )
 					str = "MC("+o._name+") "+str;
 				s += "    ";
-				for( k in (__keys__(o))["iterator"]() ) {
+				var keys : Array<String> = __keys__(o);
+				for( k in keys.iterator() ) {
 					if( k == "prototype" || k == "__class__" || k == "__super__" || k == "__interfaces__" )
 						continue;
 					if( str.length != 2 )

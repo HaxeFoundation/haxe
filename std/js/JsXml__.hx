@@ -261,7 +261,7 @@ class JsXml__ {
 		return _attributes.keys();
 	}
 
-	public function iterator(){
+	public function iterator() : Iterator<JsXml__> {
 		if( _children == null ) throw "bad nodetype";
 		return untyped {
 			cur: 0,

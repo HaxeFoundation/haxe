@@ -222,7 +222,7 @@ class NekoXml__ {
 		return Reflect.fields( _attributes ).iterator();
 	}
 
-	public function iterator() {
+	public function iterator() : Iterator<NekoXml__> {
 		if( _children == null )
 			throw "bad nodetype";
 		return untyped {
