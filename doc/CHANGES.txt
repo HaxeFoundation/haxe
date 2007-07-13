@@ -16,6 +16,7 @@
 	flash9 optimizing compiler
 	new faster neko binary AST
 	added haxe.remoting.NekoSocketConnection and SocketProtocol
+	don't allow for...in iteration with Dynamic or Unknown
 
 2007-05-18: 1.13
 	fixed bug with local variable masking package in catch type
