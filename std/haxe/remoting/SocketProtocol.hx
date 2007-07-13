@@ -97,7 +97,7 @@ class SocketProtocol {
 		return null;
 	}
 
-	public function messageLength( c1 : Int, c2 : Int ) {
+	public function messageLength( c1 : Int, c2 : Int ) : Null<Int> {
 		var e1 = decodeChar(c1);
 		var e2 = decodeChar(c2);
 		if( e1 == null || e2 == null )

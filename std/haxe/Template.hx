@@ -327,6 +327,7 @@ class Template {
 				throw "Cannot iter on " + v;
 			}
 			stack.push(context);
+			var v : Iterator<Dynamic> = v;
 			for( ctx in v ) {
 				context = ctx;
 				run(loop);

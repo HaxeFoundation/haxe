@@ -214,7 +214,8 @@ class Serializer {
 				buf.add("h");
 			case cast List:
 				buf.add("l");
-				for( i in v.iterator() )
+				var v : List<Dynamic> = v;
+				for( i in v )
 					serialize(i);
 				buf.add("h");
 			case cast Date:
@@ -223,6 +224,7 @@ class Serializer {
 				buf.add(d.toString());
 			case cast Hash:
 				buf.add("b");
+				var v : Hash<Dynamic> = v;
 				for( k in v.keys() ) {
 					serializeString(k);
 					serialize(v.get(k));
@@ -230,6 +232,7 @@ class Serializer {
 				buf.add("h");
 			case cast IntHash:
 				buf.add("q");
+				var v : IntHash<Dynamic> = v;
 				for( k in v.keys() ) {
 					buf.add(":");
 					buf.add(k);
