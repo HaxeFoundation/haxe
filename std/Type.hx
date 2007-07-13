@@ -69,12 +69,12 @@ class Type {
 	**/
 	public static function getClass<T>( o : T ) : Class<T> untyped {
 		#if flash9
-			var cname = __as__(__global__["flash.utils.getQualifiedClassName"](o),Class);
+			var cname = __global__["flash.utils.getQualifiedClassName"](o);
 			if( cname == "null" || cname == "Object" || cname == "int" || cname == "Number" || cname == "Boolean" )
 				return null;
 			if( o.hasOwnProperty("prototype") )
 				return null;
-			var c = __global__["flash.utils.getDefinitionByName"](cname);
+			var c = __as__(__global__["flash.utils.getDefinitionByName"](cname),Class);
 			if( c.__isenum )
 				return null;
 			return c;
@@ -104,13 +104,13 @@ class Type {
 	**/
 	public static function getEnum( o : Dynamic ) : Enum untyped {
 		#if flash9
-			var cname = __as__(__global__["flash.utils.getQualifiedClassName"](o),Class);
+			var cname = __global__["flash.utils.getQualifiedClassName"](o);
 			if( cname == "null" || cname.substr(0,8) == "builtin." )
 				return null;
 			// getEnum(Enum) should be null
 			if( o.hasOwnProperty("prototype") )
 				return null;
-			var c = __global__["flash.utils.getDefinitionByName"](cname);
+			var c = __as__(__global__["flash.utils.getDefinitionByName"](cname),Class);
 			if( !c.__isenum )
 				return null;
 			return c;
