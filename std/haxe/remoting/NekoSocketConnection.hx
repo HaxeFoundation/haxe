@@ -37,42 +37,46 @@ class NekoSocketConnection extends Connection {
 	}
 
 	override public function call( params : Array<Dynamic> ) : Dynamic {
-		var sock = getSocket();
-		SocketProtocol.sendRequest(sock,__path,params);
+		var proto = getProtocol();
+		proto.sendRequest(__path,params);
 		while( true ) {
-			var data = SocketProtocol.readMessage(sock.input);
-			if( SocketProtocol.isRequest(data) ) {
+			var data = proto.readMessage();
+			if( proto.isRequest(data) ) {
 				if( __r == null )
 					throw "Request received";
-				SocketProtocol.processRequest(sock,data,__r.resolvePath,onRequestError);
+				proto.processRequest(data,__r.resolvePath,onRequestError);
 				continue;
 			}
-			return SocketProtocol.decodeAnswer(data);
+			return proto.decodeAnswer(data);
 		}
 		return null;
 	}
 
 	public function processRequest() {
-		var sock = getSocket();
+		var proto = getProtocol();
 		if( __r == null )
 			throw "No RemotingServer defined";
-		var data = SocketProtocol.readMessage(sock.input);
-		SocketProtocol.processRequest(sock,data,__r.resolvePath,onRequestError);
+		var data = proto.readMessage();
+		proto.processRequest(data,__r.resolvePath,onRequestError);
 	}
 
 	public function onRequestError( path : Array<String>, method : String, args : Array<Dynamic>, exc : Dynamic ) {
 	}
 
-	public function getSocket() : Socket {
+	public function setProtocol( p : SocketProtocol ) {
+		__data = p;
+	}
+
+	public function getProtocol() : SocketProtocol {
 		return __data;
 	}
 
 	public function closeConnection() {
-		try getSocket().close() catch( e : Dynamic ) { };
+		try getProtocol().socket.close() catch( e : Dynamic ) { };
 	}
 
 	public static function socketConnect( s : neko.net.Socket, ?r : neko.net.RemotingServer ) {
-		var sc = new NekoSocketConnection(s,[]);
+		var sc = new NekoSocketConnection(new SocketProtocol(s),[]);
 		sc.__r = r;
 		return sc;
 	}

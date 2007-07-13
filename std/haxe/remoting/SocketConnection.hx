@@ -45,25 +45,30 @@ class SocketConnection extends AsyncConnection {
 
 	override public function call( params : Array<Dynamic>, ?onData : Dynamic -> Void ) : Void {
 		try {
-			SocketProtocol.sendRequest(getSocket(),__path,params);
+			getProtocol().sendRequest(__path,params);
 			__funs.add(onData);
 		} catch( e : Dynamic ) {
 			__error.ref(e);
 		}
 	}
 
-	public function getSocket() : Socket {
+	public function setProtocol( p : SocketProtocol ) {
+		__data = p;
+	}
+
+	public function getProtocol() : SocketProtocol {
 		return __data;
 	}
 
 	public function closeConnection() {
-		try getSocket().close() catch( e : Dynamic ) { };
+		try getProtocol().socket.close() catch( e : Dynamic ) { };
 	}
 
 	public function processMessage( data : String ) {
 		var request;
+		var proto = getProtocol();
 		try {
-			request = SocketProtocol.isRequest(data);
+			request = proto.isRequest(data);
 		} catch( e : Dynamic ) {
 			__error.ref(e); // protocol error
 			return;
@@ -81,7 +86,7 @@ class SocketConnection extends AsyncConnection {
 						function(path:Array<String>) { return js.Lib.eval(path.join(".")); }
 					#end
 				;
-				SocketProtocol.processRequest(getSocket(),data,eval,function(path,name,args,e) {
+				proto.processRequest(data,eval,function(path,name,args,e) {
 					// exception inside the called method
 					var astr, estr;
 					try astr = args.join(",") catch( e : Dynamic ) astr = "???";
@@ -100,7 +105,7 @@ class SocketConnection extends AsyncConnection {
 			if( __funs.isEmpty() )
 				throw "No response excepted ("+data+")";
 			f = __funs.pop();
-			v = SocketProtocol.decodeAnswer(data);
+			v = proto.decodeAnswer(data);
 		} catch( e : Dynamic ) {
 			__error.ref(e); // protocol error or answer exception
 			return;
@@ -112,7 +117,7 @@ class SocketConnection extends AsyncConnection {
 	#if neko
 
 	public static function socketConnect( s : neko.net.Socket, r : neko.net.RemotingServer ) {
-		var sc = new SocketConnection(s,[]);
+		var sc = new SocketConnection(new SocketProtocol(s),[]);
 		sc.__funs = new List();
 		sc.__r = r;
 		return sc;
@@ -121,10 +126,16 @@ class SocketConnection extends AsyncConnection {
 	#else (flash || js)
 
 	public static function socketConnect( s : Socket ) {
-		var sc = new SocketConnection(s,[]);
+		var sc = new SocketConnection(new SocketProtocol(s),[]);
 		sc.__funs = new List();
 		#if flash9
 		s.addEventListener(flash.events.DataEvent.DATA, function(e : flash.events.DataEvent) {
+			var data = e.data;
+			var msgLen = sc.getProtocol().messageLength(data.charCodeAt(0),data.charCodeAt(1));
+			if( msgLen == null || data.length != msgLen - 1 ) {
+				sc.__error.ref("Invalid message header");
+				return;
+			}
 			sc.processMessage(e.data.substr(2,e.data.length-2));
 		});
 		#else true
@@ -134,8 +145,12 @@ class SocketConnection extends AsyncConnection {
 		// where a new onData is called is a parallel thread
 		// ...with the buffer of the previous onData (!)
 		s.onData = function(data : String) {
-			trace(data);
 			haxe.Timer.queue(function() {
+				var msgLen = sc.getProtocol().messageLength(data.charCodeAt(0),data.charCodeAt(1));
+				if( msgLen == null || data.length != msgLen - 1 ) {
+					sc.__error.ref("Invalid message header");
+					return;
+				}
 				sc.processMessage(data.substr(2,data.length-2));
 			});
 		};

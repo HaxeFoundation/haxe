@@ -51,7 +51,13 @@ typedef Socket =
 **/
 class SocketProtocol {
 
-	public static function decodeChar(c) : Null<Int> {
+	public var socket : Socket;
+
+	public function new( sock ) {
+		this.socket = sock;
+	}
+
+	function decodeChar(c) : Null<Int> {
 		// A...Z
 		if( c >= 65 && c <= 90 )
 			return c - 65;
@@ -70,7 +76,7 @@ class SocketProtocol {
 		return null;
 	}
 
-	public static function encodeChar(c) : Null<Int> {
+	function encodeChar(c) : Null<Int> {
 		if( c < 0 )
 			return null;
 		// A...Z
@@ -91,49 +97,49 @@ class SocketProtocol {
 		return null;
 	}
 
-	public static function dataLength( c1 : Int, c2 : Int ) {
+	public function messageLength( c1 : Int, c2 : Int ) {
 		var e1 = decodeChar(c1);
 		var e2 = decodeChar(c2);
 		if( e1 == null || e2 == null )
-			throw "Invalid header";
-		return ((e1 << 6) | e2) - 3;
+			return null;
+		return (e1 << 6) | e2;
 	}
 
-	public static function sendRequest( sock : Socket, path : Array<String>, params : Array<Dynamic> ) {
+	public function sendRequest( path : Array<String>, params : Array<Dynamic> ) {
 		var s = new haxe.Serializer();
 		s.serialize(true);
 		s.serialize(path);
 		s.serialize(params);
-		sendMessage(sock,s.toString());
+		sendMessage(s.toString());
 	}
 
-	public static function sendAnswer( sock : Socket, answer : Dynamic, ?isException : Bool ) {
+	public function sendAnswer( answer : Dynamic, ?isException : Bool ) {
 		var s = new haxe.Serializer();
 		s.serialize(false);
 		if( isException )
 			s.serializeException(answer);
 		else
 			s.serialize(answer);
-		sendMessage(sock,s.toString());
+		sendMessage(s.toString());
 	}
 
-	public static function sendMessage( sock : Socket, msg : String ) {
+	public function sendMessage( msg : String ) {
 		var len = msg.length + 3;
 		var c1 = encodeChar(len>>6);
 		if( c1 == null )
 			throw "Message is too big";
 		var c2 = encodeChar(len&63);
 		#if neko
-		sock.output.writeChar(c1);
-		sock.output.writeChar(c2);
-		sock.output.write(msg);
-		sock.output.writeChar(0);
+		socket.output.writeChar(c1);
+		socket.output.writeChar(c2);
+		socket.output.write(msg);
+		socket.output.writeChar(0);
 		#else true
-		sock.send(Std.chr(c1)+Std.chr(c2)+msg);
+		socket.send(Std.chr(c1)+Std.chr(c2)+msg);
 		#end
 	}
 
-	public static function isRequest( data : String ) {
+	public function isRequest( data : String ) {
 		return switch( haxe.Unserializer.run(data) ) {
 		case true: true;
 		case false: false;
@@ -141,7 +147,7 @@ class SocketProtocol {
 		}
 	}
 
-	public static function processRequest( sock : Socket, data : String, eval : Array<String> -> Dynamic, ?onError : Array<String> -> String -> Array<Dynamic> -> Dynamic -> Void ) {
+	public function processRequest( data : String, eval : Array<String> -> Dynamic, ?onError : Array<String> -> String -> Array<Dynamic> -> Dynamic -> Void ) {
 		var s = new haxe.Unserializer(data);
 		var result : Dynamic;
 		var isException = false;
@@ -171,10 +177,10 @@ class SocketProtocol {
 			s.serializeException(result);
 		else
 			s.serialize(result);
-		sendMessage(sock,s.toString());
+		sendMessage(s.toString());
 	}
 
-	public static function decodeAnswer( data : String ) : Dynamic {
+	public function decodeAnswer( data : String ) : Dynamic {
 		var s = new haxe.Unserializer(data);
 		if( s.unserialize() != false )
 			throw "Not an answer";
@@ -183,11 +189,14 @@ class SocketProtocol {
 
 	#if neko
 
-	public static function readMessage( i : neko.io.Input ) {
-		var c1 = i.readChar();
-		var c2 = i.readChar();
-		var data = i.read(dataLength(c1,c2));
-		if( i.readChar() != 0 )
+	public function readMessage() {
+		var c1 = socket.input.readChar();
+		var c2 = socket.input.readChar();
+		var len = messageLength(c1,c2);
+		if( len == null )
+			throw "Invalid header";
+		var data = socket.input.read(len - 3);
+		if( socket.input.readChar() != 0 )
 			throw "Invalid message";
 		return data;
 	}
