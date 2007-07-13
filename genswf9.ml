@@ -719,11 +719,13 @@ let rec gen_expr_content ctx retval e =
 		write ctx (A3ConstructProperty (id,List.length pl))
 	| TFunction f ->
 		write ctx (A3Function (generate_function ctx f true))
-	| TIf (e,e1,e2) ->
-		gen_expr ctx true e;
+	| TIf (e0,e1,e2) ->
+		gen_expr ctx true e0;
 		let branch = begin_branch ctx in
 		let j = jump ctx J3False in
 		gen_expr ctx retval e1;
+		let t = classify ctx e.etype in
+		if retval && classify ctx e1.etype <> t then coerce ctx t;
 		(match e2 with
 		| None -> j()
 		| Some e ->
@@ -732,6 +734,7 @@ let rec gen_expr_content ctx retval e =
 			let jend = jump ctx J3Always in
 			j();
 			gen_expr ctx retval e;
+			if retval && classify ctx e.etype <> t then coerce ctx t;
 			jend());
 		branch();
 	| TWhile (econd,e,flag) ->
@@ -831,9 +834,10 @@ let rec gen_expr_content ctx retval e =
 		let p = ctx.infos.ipos in
 		ctx.continues <- (fun target -> DynArray.set ctx.code op (A3Jump (J3Always,target - p))) :: ctx.continues;
 		no_value ctx retval
-	| TSwitch (e,el,eo) ->
-		let r = alloc_reg ctx (classify ctx e.etype) in
-		gen_expr ctx true e;
+	| TSwitch (e0,el,eo) ->
+		let t = classify ctx e.etype in
+		let r = alloc_reg ctx (classify ctx e0.etype) in
+		gen_expr ctx true e0;
 		set_reg ctx r;
 		let branch = begin_branch ctx in
 		let prev = ref (fun () -> ()) in
@@ -855,20 +859,31 @@ let rec gen_expr_content ctx retval e =
 			in
 			loop vl;
 			gen_expr ctx retval e;
-			if retval then ctx.infos.istack <- ctx.infos.istack - 1;
+			if retval then begin
+				if classify ctx e.etype <> t then coerce ctx t;
+				ctx.infos.istack <- ctx.infos.istack - 1;
+			end;
 			jump ctx J3Always
 		) el in
 		(!prev)();
 		free_reg ctx r;
 		(match eo with
-		| None -> if retval then write ctx A3Null
-		| Some e -> gen_expr ctx retval e);
+		| None ->
+			if retval then begin
+				write ctx A3Null;
+				coerce ctx t;
+			end;
+		| Some e ->
+			gen_expr ctx retval e;
+			if retval && classify ctx e.etype <> t then coerce ctx t;
+		);
 		List.iter (fun j -> j()) jend;
 		branch();
-	| TMatch (e,_,cases,def) ->
+	| TMatch (e0,_,cases,def) ->
+		let t = classify ctx e.etype in
 		let rparams = alloc_reg ctx KDynamic in
 		let rtag = alloc_reg ctx KDynamic in
-		gen_expr ctx true e;
+		gen_expr ctx true e0;
 		write ctx A3Dup;
 		write ctx (A3GetProp (ident ctx "tag"));
 		set_reg ctx rtag;
@@ -913,13 +928,23 @@ let rec gen_expr_content ctx retval e =
 			);
 			gen_expr ctx retval e;
 			b();
-			if retval then ctx.infos.istack <- ctx.infos.istack - 1;
+			if retval then begin
+				ctx.infos.istack <- ctx.infos.istack - 1;
+				if classify ctx e.etype <> t then coerce ctx t;
+			end;
 			jump ctx J3Always;
 		) cases in
 		(!prev)();
 		(match def with
-		| None -> if retval then write ctx A3Null
-		| Some e -> gen_expr ctx retval e);
+		| None -> 
+			if retval then begin
+				write ctx A3Null;
+				coerce ctx t;
+			end;
+		| Some e -> 
+			gen_expr ctx retval e;
+			if retval && classify ctx e.etype <> t then coerce ctx t;
+		);
 		List.iter (fun j -> j()) jend;
 		branch();
 		free_reg ctx rtag;
