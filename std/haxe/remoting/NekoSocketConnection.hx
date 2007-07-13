@@ -47,7 +47,7 @@ class NekoSocketConnection extends Connection {
 				proto.processRequest(data,__r.resolvePath,onRequestError);
 				continue;
 			}
-			return proto.decodeAnswer(data);
+			return proto.processAnswer(data);
 		}
 		return null;
 	}

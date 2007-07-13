@@ -67,6 +67,7 @@ class SocketConnection extends AsyncConnection {
 	public function processMessage( data : String ) {
 		var request;
 		var proto = getProtocol();
+		data = proto.decodeData(data);
 		try {
 			request = proto.isRequest(data);
 		} catch( e : Dynamic ) {
@@ -105,7 +106,7 @@ class SocketConnection extends AsyncConnection {
 			if( __funs.isEmpty() )
 				throw "No response excepted ("+data+")";
 			f = __funs.pop();
-			v = proto.decodeAnswer(data);
+			v = proto.processAnswer(data);
 		} catch( e : Dynamic ) {
 			__error.ref(e); // protocol error or answer exception
 			return;

@@ -105,6 +105,14 @@ class SocketProtocol {
 		return (e1 << 6) | e2;
 	}
 
+	public function encodeMessageLength( len : Int ) {
+		var c1 = encodeChar(len>>6);
+		if( c1 == null )
+			throw "Message is too big";
+		var c2 = encodeChar(len&63);
+		return { c1 : c1, c2 : c2 };
+	}
+
 	public function sendRequest( path : Array<String>, params : Array<Dynamic> ) {
 		var s = new haxe.Serializer();
 		s.serialize(true);
@@ -124,19 +132,19 @@ class SocketProtocol {
 	}
 
 	public function sendMessage( msg : String ) {
-		var len = msg.length + 3;
-		var c1 = encodeChar(len>>6);
-		if( c1 == null )
-			throw "Message is too big";
-		var c2 = encodeChar(len&63);
+		var e = encodeMessageLength(msg.length + 3);
 		#if neko
-		socket.output.writeChar(c1);
-		socket.output.writeChar(c2);
+		socket.output.writeChar(e.c1);
+		socket.output.writeChar(e.c2);
 		socket.output.write(msg);
 		socket.output.writeChar(0);
 		#else true
-		socket.send(Std.chr(c1)+Std.chr(c2)+msg);
+		socket.send(Std.chr(e.c1)+Std.chr(e.c2)+msg);
 		#end
+	}
+
+	public function decodeData( data : String ) {
+		return data;
 	}
 
 	public function isRequest( data : String ) {
@@ -171,16 +179,10 @@ class SocketProtocol {
 				onError(path,fname,args,e);
 		}
 		// send back result/exception over network
-		var s = new haxe.Serializer();
-		s.serialize(false);
-		if( isException )
-			s.serializeException(result);
-		else
-			s.serialize(result);
-		sendMessage(s.toString());
+		sendAnswer(result,isException);
 	}
 
-	public function decodeAnswer( data : String ) : Dynamic {
+	public function processAnswer( data : String ) : Dynamic {
 		var s = new haxe.Unserializer(data);
 		if( s.unserialize() != false )
 			throw "Not an answer";
@@ -198,7 +200,7 @@ class SocketProtocol {
 		var data = socket.input.read(len - 3);
 		if( socket.input.readChar() != 0 )
 			throw "Invalid message";
-		return data;
+		return decodeData(data);
 	}
 
 	#end
