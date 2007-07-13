@@ -2285,7 +2285,7 @@ let init_class ctx c p herits fields =
 			let params = List.map (fun (n,flags) ->
 				match flags with
 				| [] ->
-					type_type_params ctx c.cl_path p (n,[])
+					type_type_params ctx ([],name) p (n,[])
 				| _ -> error "This notation is not allowed because it can't be checked" p
 			) params in
 			let ctx = { ctx with
