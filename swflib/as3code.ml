@@ -201,7 +201,7 @@ let stack_delta = function
 	| A3DebugFile _ -> 0
 	| A3Op op ->
 		(match op with
-		| A3ONeg | A3OIncr | A3ODecr | A3ONot | A3OBitNot | A3OIIncr | A3OIDecr -> 0
+		| A3ONeg | A3OINeg | A3OIncr | A3ODecr | A3ONot | A3OBitNot | A3OIIncr | A3OIDecr -> 0
 		| _ -> -1)
 	| A3Unk _ -> assert false
 
