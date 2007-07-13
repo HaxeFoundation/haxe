@@ -64,7 +64,11 @@ class Firebug {
 		if( type != "warn" && type != "info" && type != "debug" && type != "error" )
 			type = if( inf == null ) "error" else "log";
 		#if flash
-			var out = "javascript:console."+ type +"('" + (if( inf == null ) "" else inf.fileName + ":" + inf.lineNumber + " : ") + Std.string(v).split("\\").join("\\\\").split("'").join('\\"').split("\n").join("\\n").split("\r").join("\\r").split("\t").join("\\t") + "');";
+			var str = if( inf == null ) "" else inf.fileName + ":" + inf.lineNumber + " : ";
+			try	str += Std.string(v) catch( e : Dynamic ) str += "????";
+			str = str.split("\\").join("\\\\").split("'").join("\\'").split("\n").join("\\n").split("\r").join("\\r");
+			str = StringTools.urlEncode(str);
+			var out = "javascript:console."+ type +"('"+str+"');";
 			#if flash9
 			// this is better then getURL because we can perform several traces per frame
 			var l = new flash.net.URLLoader();
