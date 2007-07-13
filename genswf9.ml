@@ -1463,7 +1463,24 @@ let generate_type ctx t =
 	| TTypeDecl _ -> ()
 	| TEnumDecl e -> if not e.e_extern then generate_enum ctx e
 
-let generate_inits ctx types =
+let generate_resources ctx hres =
+	write ctx A3GetGlobalScope;
+	write ctx (A3GetProp (type_path ctx ([],ctx.boot)));
+	let id = type_path ctx (["flash";"utils"],"Dictionary") in
+	write ctx (A3FindPropStrict id);	
+	write ctx (A3ConstructProperty (id,0));
+	let r = alloc_reg ctx (KType id) in
+	set_reg ctx r;
+	Hashtbl.iter (fun name data ->
+		write ctx (A3Reg r.rid);
+		write ctx (A3String (lookup name ctx.strings));
+		write ctx (A3String (lookup data ctx.strings));
+		setvar ctx VArray false;
+	) hres;
+	write ctx (A3Reg r.rid);
+	write ctx (A3InitProp (ident ctx "__res"))
+
+let generate_inits ctx types hres =
 	let f = begin_fun ctx [] t_void [] false in
 	let slot = ref 0 in
 	let classes = List.fold_left (fun acc t ->
@@ -1510,6 +1527,10 @@ let generate_inits ctx types =
 	write ctx A3RetVoid;
 	write ctx (A3Function (finit()));
 	write ctx (A3InitProp (ident ctx "init"));
+
+	(* generate resources *)
+	generate_resources ctx hres;
+
 	write ctx A3RetVoid;
 	{
 		st3_method = f();
@@ -1549,9 +1570,8 @@ let generate types hres =
 		last_line = -1;
 		try_scope_reg = None;
 	} in
-	List.iter (generate_type ctx) types;
-	Hashtbl.iter (fun _ _ -> failwith "Resources are not yet supported in Flash9") hres;
-	let init = generate_inits ctx types in
+	List.iter (generate_type ctx) types;	
+	let init = generate_inits ctx types hres in
 	let a = {
 		as3_ints = lookup_array ctx.ints;
 		as3_uints = [||];

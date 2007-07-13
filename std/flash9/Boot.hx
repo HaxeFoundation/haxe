@@ -7,6 +7,7 @@ class Boot extends flash.display.MovieClip {
 	static var init : Void -> Void;
 	static var tf : flash.text.TextField;
 	static var lines : Array<String>;
+	static var __res : flash.utils.Dictionary;
 	public static var skip_constructor = false;
 
 	public function new(?mc:flash.display.MovieClip) {

@@ -183,7 +183,7 @@ class Std {
 	public static function resource( name : String ) : String {
 		return untyped
 		#if flash9
-		null;
+		flash.Boot.__res[name];
 		#else flash
 		flash.Boot.__res[name];
 		#else neko
