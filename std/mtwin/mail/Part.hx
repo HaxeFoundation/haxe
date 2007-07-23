@@ -140,7 +140,7 @@ class MetaPart<T> {
 
 	public function setDate( ?d : Date ){
 		if( d == null ) d = Date.now();
-		setHeader("Date",DateTools.format(d,"%a, %d %b %Y %H:%M:%S %z"));
+		setHeader("Date",mtwin.DateFormat.formatRfc822(d));
 	}
 
 	public function setContentId( ?cid : String ) : String {
