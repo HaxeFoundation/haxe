@@ -48,13 +48,24 @@ let gen_doc_opt d =
 let gen_arg_name (name,opt,_) =
 	(if opt then "?" else "") ^ name
 
+let rec follow_param t =
+	match t with
+	| TMono r ->
+		(match !r with
+		| Some t -> follow_param t
+		| _ -> t)
+	| TType ({ t_path = [],"Null" } as t,tl) ->
+		follow_param (apply_params t.t_types tl t.t_type)
+	| _ ->
+		t
+
 let rec gen_type t =
 	match t with
 	| TMono m -> (match !m with None -> tag "unknown" | Some t -> gen_type t)
 	| TEnum (e,params) -> node "e" [gen_path e.e_path e.e_private] (List.map gen_type params)
 	| TInst (c,params) -> node "c" [gen_path c.cl_path c.cl_private] (List.map gen_type params)
 	| TType (t,params) -> node "t" [gen_path t.t_path t.t_private] (List.map gen_type params)
-	| TFun (args,r) -> node "f" ["a",String.concat ":" (List.map gen_arg_name args)] (List.map gen_type (List.map (fun (_,_,t) -> t) args @ [r]))
+	| TFun (args,r) -> node "f" ["a",String.concat ":" (List.map gen_arg_name args)] (List.map gen_type (List.map (fun (_,opt,t) -> if opt then follow_param t else t) args @ [r]))
 	| TAnon a -> node "a" [] (pmap (fun f -> node f.cf_name [] [gen_type f.cf_type]) a.a_fields)
 	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
 	| TLazy f -> gen_type (!f())

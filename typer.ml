@@ -416,11 +416,6 @@ and load_type ctx p t =
 		| _ ->
 			TFun (List.map (fun t -> "",false,load_type ctx p t) args,load_type ctx p r)
 
-let load_type_opt ctx p t =
-	match t with
-	| None -> mk_mono()
-	| Some t -> load_type ctx p t
-
 let rec reverse_type t =
 	match t with
 	| TEnum (e,params) ->
@@ -768,6 +763,34 @@ let rec return_flow ctx e =
 
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
+
+let load_type_opt ?(param=false) ctx p t =
+	match t with
+	| None ->
+		if param && ctx.flash9 then
+			let show = hide_types ctx in
+			let t = load_normal_type ctx { tpackage = []; tname = "Null"; tparams = [] } null_pos true in
+			show();
+			t
+		else
+			mk_mono()
+	| Some t ->
+		let t = load_type ctx p t in
+		if not param || not ctx.flash9 then
+			t
+		else match follow t with
+		| TInst ({ cl_path = [],"Int" },_)
+		| TInst ({ cl_path = [],"Float" },_)
+		| TEnum ({ e_path = [],"Bool" },_) ->
+			let show = hide_types ctx in
+			(match load_type_def ctx null_pos ([],"Null") with
+			| TTypeDecl td ->
+				show();
+				if List.length td.t_types <> 1 then assert false;
+				TType (td,[t])
+			| _ ->				
+				assert false)			
+		| _ -> t
 
 let type_expr_with_type ctx e t =
 	match e with
@@ -1977,7 +2000,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		type_unop ctx op flag e p
 	| EFunction f ->
 		let rt = load_type_opt ctx p f.f_type in
-		let args = List.map (fun (s,opt,t) -> s , opt, load_type_opt ctx p t) f.f_args in
+		let args = List.map (fun (s,opt,t) -> s , opt, load_type_opt ~param:opt ctx p t) f.f_args in
 		(match ctx.param_type with
 		| None -> ()
 		| Some t ->
@@ -2230,13 +2253,13 @@ let init_class ctx c p herits fields =
 	let is_public access =
 		if c.cl_extern || c.cl_interface || extends_public then not (List.mem APrivate access) else List.mem APublic access
 	in
-	let type_opt ctx p t =
+	let type_opt ?param ctx p t =
 		match t with
 		| None when c.cl_extern || c.cl_interface ->
 			display_error ctx "Type required for extern classes and interfaces" p;
 			t_dynamic
 		| _ ->
-			load_type_opt ctx p t
+			load_type_opt ?param ctx p t
 	in
 	let rec has_field f = function
 		| None -> false
@@ -2297,7 +2320,7 @@ let init_class ctx c p herits fields =
 				type_params = params @ ctx.type_params;
 			} in
 			let ret = type_opt ctx p f.f_type in
-			let args = List.map (fun (name,opt,t) -> name , opt, type_opt ctx p t) f.f_args in
+			let args = List.map (fun (name,opt,t) -> name , opt, type_opt ~param:opt ctx p t) f.f_args in
 			let t = TFun (args,ret) in
 			let stat = List.mem AStatic access in
 			let constr = (name = "new") in

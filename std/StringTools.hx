@@ -264,7 +264,7 @@ class StringTools {
 	/**
 		Encode a number into a hexadecimal representation, with an optional number of zeros for left padding.
 	**/
-	public static function hex( n : Int, ?digits : Null<Int> ) {
+	public static function hex( n : Int, ?digits : Int ) {
 		var s = "";
 		var hexChars = "0123456789ABCDEF";
 		do {
