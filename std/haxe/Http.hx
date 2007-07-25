@@ -41,6 +41,7 @@ class Http {
 	public var url : String;
 #if neko
 	public var noShutdown : Bool;
+	public var cnxTimeout : Float;
 	var responseHeaders : Hash<String>;
 	var postData : String;
 	var chunk_size : Int;
@@ -63,6 +64,8 @@ class Http {
 		params = new Hash();
 		#if js
 		async = true;
+		#else neko
+		cnxTimeout = 10;
 		#end
 	}
 
@@ -388,7 +391,7 @@ class Http {
 		var b = new StringBuf();
 		var k = 4;
 		var s = neko.Lib.makeString(4);
-		sock.setTimeout(10); // 10 seconds
+		sock.setTimeout(cnxTimeout); // 10 seconds
 		while( true ) {
 			var p = sock.input.readBytes(s,0,k);
 			while( p != k )
