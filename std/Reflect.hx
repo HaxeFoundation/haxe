@@ -214,6 +214,28 @@ class Reflect {
 	}
 
 	/**
+		Compare two methods closures. Returns true if it's the same method of the same instance.
+		Does not work on Neko platform.
+	**/
+	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {
+		if( f1 == f2 )
+			return true;
+		if( !isFunction(f1) || !isFunction(f2) )
+			return false;
+		#if neko
+		return false; // compare already done
+		#else flash9
+		return false; // VM-level closures
+		#else flash
+		return untyped f1["f"] == f2["f"] && f1["o"] == f2["o"] && f1["f"] != null;
+		#else js
+		return f1.scope == f2.scope && f1.method == f2.method && f1.method != null;
+		#else true
+		return
+		#end
+	}
+
+	/**
 		Tells if a value is an object or not.
 
 	**/

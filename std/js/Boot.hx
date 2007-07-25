@@ -56,7 +56,10 @@ class Boot {
 			var m = o[f];
 			if( m == null )
 				return null;
-			return function() { return m.apply(o,arguments); };
+			var f = function() { return m.apply(o,arguments); };
+			f.scope = o;
+			f.method = m;
+			return f;
 		}
 	}
 
