@@ -66,15 +66,17 @@ class Firebug {
 		#if flash
 			var str = if( inf == null ) "" else inf.fileName + ":" + inf.lineNumber + " : ";
 			try	str += Std.string(v) catch( e : Dynamic ) str += "????";
+			#if flash9
+			// in Flash9, it is needed to use _self with getURL and
+			// only the latest call per frame is processed, so it's
+			// needed to use ExternalInterface (URLLoader displays
+			// security errors for remote files)
+			str = str.split("\\").join("\\\\");
+			flash.external.ExternalInterface.call("console."+type,str);
+			#else true
 			str = str.split("\\").join("\\\\").split("'").join("\\'").split("\n").join("\\n").split("\r").join("\\r");
 			str = StringTools.urlEncode(str);
 			var out = "javascript:console."+ type +"('"+str+"');";
-			#if flash9
-			// this is better then getURL because we can perform several traces per frame
-			var l = new flash.net.URLLoader();
-			l.addEventListener( "ioError", function(e){} );
-			l.load(new flash.net.URLRequest(out));
-			#else true
 			flash.Lib.getURL(out);
 			#end // flash9
 		#else js
