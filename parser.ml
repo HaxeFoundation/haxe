@@ -91,6 +91,9 @@ let rec make_binop op e ((v,p2) as e2) =
 	| EBinop (_op,_e,_e2) when can_swap _op op && (is_not_assign _op || is_not_assign op) ->
 		let _e = make_binop op e _e in
 		EBinop (_op,_e,_e2) , punion (pos _e) (pos _e2)
+	| ETernary (e1,e2,e3) when is_not_assign op ->
+		let e = make_binop op e e1 in
+		ETernary (e,e2,e3) , punion (pos e) (pos e3)
 	| _ ->
 		EBinop (op,e,e2) , punion (pos e) (pos e2)
 
@@ -589,7 +592,7 @@ and expr_next e1 = parser
 	| [< '(Unop op,p) when is_postfix e1 op; s >] ->
 		expr_next (EUnop (op,Postfix,e1), punion (pos e1) p) s
 	| [< '(Question,_); e2 = expr; '(DblDot,_); e3 = expr >] ->
-		(EIf (e1,e2,Some e3),punion (pos e1) (pos e3))
+		(ETernary (e1,e2,e3),punion (pos e1) (pos e3))
 	| [< >] -> e1
 
 and parse_switch_cases eswitch cases = parser

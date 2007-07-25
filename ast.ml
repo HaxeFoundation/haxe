@@ -189,6 +189,7 @@ and expr_def =
 	| ECast of expr * type_path option
 	| EDisplay of expr
 	| EDisplayNew of type_path_normal
+	| ETernary of expr * expr * expr
 
 and expr = expr_def * pos
 

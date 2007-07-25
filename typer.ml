@@ -1782,6 +1782,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		ctx.in_loop <- old_loop;
 		old_locals();
 		e
+	| ETernary (e1,e2,e3) ->
+		type_expr ctx ~need_val (EIf (e1,e2,Some e3),p)
 	| EIf (e,e1,e2) ->
 		let e = type_expr ctx e in
 		unify ctx e.etype (t_bool ctx) e.epos;
