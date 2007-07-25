@@ -436,7 +436,7 @@ let debug ctx p =
 		ctx.last_line <- line;
 	end
 
-let begin_fun ctx ?(varargs=false) args tret el stat =
+let begin_fun ctx args tret el stat =
 	let old_locals = ctx.locals in
 	let old_code = ctx.code in
 	let old_infos = ctx.infos in
@@ -473,6 +473,10 @@ let begin_fun ctx ?(varargs=false) args tret el stat =
 			write ctx (A3Reg r.rid);
 			setvar ctx acc false
 	) args;
+	let args, varargs = (match args with
+		| ["__arguments__",_,_] -> [], true
+		| _ -> args, false
+	) in
 	let rec loop_try e =
 		match e.eexpr with
 		| TFunction _ -> ()

@@ -296,7 +296,7 @@ class Reflect {
 		#if neko
 		return untyped __dollar__varargs(function(a) { return f(Array.new1(a,__dollar__asize(a))); });
 		#else flash9
-		return throw "Not implemented";
+		return function(__arguments__) { return f(__arguments__); };
 		#else js
 		return function() untyped {
 			var a = new Array();
