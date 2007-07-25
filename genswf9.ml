@@ -705,9 +705,11 @@ let rec gen_expr_content ctx retval e =
 		no_value ctx retval
 	| TField _
 	| TLocal _
-	| TTypeExpr _
-	| TArray _ ->
+	| TTypeExpr _ ->
 		getvar ctx (gen_access ctx e Read)
+	| TArray _ ->
+		getvar ctx (gen_access ctx e Read);
+		coerce ctx (classify ctx e.etype)
 	| TBinop (op,e1,e2) ->
 		gen_binop ctx retval op e1 e2
 	| TCall (e,el) ->
