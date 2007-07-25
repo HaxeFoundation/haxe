@@ -1,4 +1,4 @@
-2007-??-??: 1.14
+2007-07-25: 1.14
 	fixed no error when invalid "catch" expression
 	remove variance
 	fixed prototype bug in neko when "Main" class is defined
