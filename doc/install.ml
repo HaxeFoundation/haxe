@@ -35,8 +35,12 @@ let obj_ext = match os_type with "Win32" -> ".obj" | _ -> ".o"
 let exe_ext = match os_type with "Win32" | "Cygwin" -> ".exe" | _ -> ""
 let ocamloptflags = match os_type with "Unix" -> "-cclib -fno-stack-protector " | _ -> ""
 
+let zlib_path = match os_type with
+	| "Win32" -> "../ocaml/extc/zlib/"
+	| _ -> "./"
+
 let zlib = match os_type with
-	| "Win32" -> "zlib.lib"
+	| "Win32" -> zlib_path ^ "zlib.lib"
 	| _ ->
 		try
 			List.find Sys.file_exists ["/usr/lib/libz.dylib";"/usr/lib64/libz.so.1";"/usr/lib/libz.so.1";"/lib/libz.so.1"]
@@ -91,7 +95,7 @@ let compile_libs() =
 	(* EXTC *)
 	Sys.chdir "ocaml/extc";
 	let c_opts = (if Sys.ocaml_version < "3.08" then " -ccopt -Dcaml_copy_string=copy_string " else " ") in
-	command ("ocamlc" ^ c_opts ^ "extc_stubs.c");
+	command ("ocamlc" ^ c_opts ^ " -I ../" ^ zlib_path ^ " extc_stubs.c");
 
 	let options = "-cclib ../ocaml/extc/extc_stubs" ^ obj_ext ^ " -cclib " ^ zlib ^ " extc.mli extc.ml" in
 	if bytecode then command ("ocamlc -a -o extc.cma " ^ options);
