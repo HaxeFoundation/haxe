@@ -137,7 +137,7 @@ class Type {
 			var cname = __global__["flash.utils.getQualifiedSuperclassName"](c);
 			if( cname == "Object" )
 				return null;
-			return __global__["flash.utils.getDefinitionByName"](cname);
+			return __as__(__global__["flash.utils.getDefinitionByName"](cname),Class);
 		#else true
 			return c.__super__;
 		#end
@@ -180,7 +180,7 @@ class Type {
 		untyped {
 		#if flash9
 			try {
-				cl = __global__["flash.utils.getDefinitionByName"](name);
+				cl = __as__(__global__["flash.utils.getDefinitionByName"](name),Class);
 				if( cl.__isenum )
 					return null;
 				return cl; // skip test below
@@ -425,7 +425,7 @@ class Type {
 		case "Boolean": return TBool;
 		case "Object": return TObject;
 		default:
-			var c;
+			var c : Dynamic;
 			try {
 				c = __global__["flash.utils.getDefinitionByName"](cname);
 				if( v.hasOwnProperty("prototype") )
