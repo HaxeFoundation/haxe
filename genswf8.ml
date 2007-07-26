@@ -1426,7 +1426,10 @@ let generate file ver header infile types hres =
 	let t = Plugin.timer "generate swf" in
 	let file , codeclip = (try let f , c = ExtString.String.split file "@" in f, Some c with _ -> file , None) in
 	let tag_code, boot_name , movieclips = (if ver = 9 then
-			let c, b = Genswf9.generate types hres in
+			(* hack for an ocaml bug *)
+			let f (h:(string,string) Hashtbl.t) = Genswf9.generate types h in
+			let tmp : (string,string) Hashtbl.t = hres in
+			let c, b = f (Obj.magic tmp) in
 			c,b,[]
 		else
 			let c, m = generate_code file ver types hres in
