@@ -2,6 +2,7 @@
 	fixed bug with Enum.construct when Enum have type parameters
 	change with "untyped" : arguments types are checked (because of opt select)
 	haxedoc : fixed type parameters display
+	fix for JS and Flash9 XML parser : allow newlines in attributes
 
 2007-07-25: 1.14
 	fixed no error when invalid "catch" expression
