@@ -71,14 +71,20 @@ class HtmlPrinter {
 		return "<a href=\"" + baseUrl + url + fileExtension + "\" class=\""+css+"\">"+text+"</a>";
 	}
 
+	function prefix( arr : Array<String>, path : String ) {
+		var arr = arr.copy();
+		for( i in 0...arr.length )
+			arr[i] = path + "." + arr[i];
+		return arr;
+	}
+
 	function makePathUrl( path : Path, css ) {
 		var p = path.split(".");
 		var name = p.pop();
 		var local = (p.join(".") == curpackage);
-		if( local )
-			for( x in typeParams )
-				if( x == name )
-					return name;
+		for( x in typeParams )
+			if( x == path )
+				return name;
 		p.push(name);
 		if( local )
 			return makeUrl(p.join("/"),name,css);
@@ -130,7 +136,7 @@ class HtmlPrinter {
 			var head = '<a href="#" onclick="javascript:history.back(-1); return false" class="index">Back</a> | '+makeUrl(indexUrl,"Index","index");
 			print(head);
 			var inf = TypeApi.typeInfos(t);
-			typeParams = inf.params;
+			typeParams = prefix(inf.params,inf.path);
 			var p = inf.path.split(".");
 			p.pop();
 			curpackage = p.join(".");
@@ -233,7 +239,7 @@ class HtmlPrinter {
 			return;
 		var oldParams = typeParams;
 		if( f.params != null )
-			typeParams = typeParams.concat(f.params);
+			typeParams = typeParams.concat(prefix(f.params,f.name));
 		print('<dt>');
 		if( stat ) keyword("static");
 		var isMethod = false;
