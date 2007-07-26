@@ -30,7 +30,7 @@ class Boot {
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");
 	}
 
-	private static function __trace(v,i) {
+	private static function __trace(v,i : haxe.PosInfos) {
 		untyped {
 			var msg = if( i != null ) i.fileName+":"+i.lineNumber+": " else "";
 			msg += __unhtml(__string_rec(v,""))+"<br/>";
@@ -150,7 +150,7 @@ class Boot {
 		return __interfLoop(cc.__super__,cl);
 	}
 
-	private static function __instanceof(o,cl) {
+	private static function __instanceof(o : Dynamic,cl) {
 		untyped {
 			try {
 				if( __js__("o instanceof cl") ) {

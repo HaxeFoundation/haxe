@@ -146,12 +146,12 @@ extern class Date
 				return d;
 			case 10: // YYYY-MM-DD
 				var k = s.split("-");
-				return new Date(k[0],k[1] - 1,k[2],0,0,0);
+				return new Date(cast k[0],cast k[1] - 1,cast k[2],0,0,0);
 			case 19: // YYYY-MM-DD hh:mm:ss
 				var k = s.split(" ");
 				var y = k[0].split("-");
 				var t = k[1].split(":");
-				return new Date(y[0],y[1] - 1,y[2],t[0],t[1],t[2]);
+				return new Date(cast y[0],cast y[1] - 1,cast y[2],cast t[0],cast t[1],cast t[2]);
 			default:
 				throw "Invalid date format : " + s;
 			}

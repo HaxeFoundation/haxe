@@ -746,9 +746,8 @@ let generate file types hres libs =
 	let neko_file = (try Filename.chop_extension file with _ -> file) ^ ".neko" in
 	let w = Plugin.timer "neko ast write" in
 	let ch = IO.output_channel (open_out_bin neko_file) in
-	let source = Plugin.defined "neko_source" in
-	Binast.write ch e;
-	(*// Nxml.write ch (Nxml.to_xml e); *)
+	let source = Plugin.defined "neko_source" in	
+	if source then Nxml.write ch (Nxml.to_xml e) else Binast.write ch e;
 	IO.close_out ch;
 	let command cmd = try Sys.command cmd with _ -> -1 in
 	if source then begin

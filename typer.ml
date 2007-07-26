@@ -179,7 +179,8 @@ let unify_raise ctx t1 t2 p =
 		Type.unify t1 t2
 	with
 		Unify_error l ->
-			if not ctx.untyped then raise (Error (Unify l,p))
+			(* no untyped check *)
+			raise (Error (Unify l,p))
 
 let save_locals ctx =
 	let locals = ctx.locals in

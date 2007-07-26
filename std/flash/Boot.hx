@@ -122,7 +122,7 @@ class Boot {
 	}
 	#end
 
-	private static function __instanceof(o,cl) {
+	private static function __instanceof(o : Dynamic,cl) {
 		untyped {
 			if( !cl )
 				return false;

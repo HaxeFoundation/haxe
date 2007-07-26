@@ -27,7 +27,7 @@ extern class Mouse
 
 	private static function __init__() : Void untyped {
 		flash.Mouse = _global["Mouse"];
-		flash.Mouse.addListener(flash.Mouse);
+		flash.Mouse.addListener(cast flash.Mouse);
 	}
 
 }

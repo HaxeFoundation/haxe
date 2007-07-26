@@ -163,11 +163,11 @@ class NekoString__ implements String {
 	}
 
 	private function __add(s) {
-		return untyped new String(this.__s+__dollar__string(s));
+		return new String(untyped this.__s+__dollar__string(s));
 	}
 
 	private function __radd(s) {
-		return untyped new String(__dollar__string(s)+this.__s);
+		return new String(untyped __dollar__string(s)+this.__s);
 	}
 
 	static function fromCharCode( c : Int ) : String untyped {
