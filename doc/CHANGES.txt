@@ -1,3 +1,6 @@
+2007-??-??: 1.15
+	fixed bug with Enum.construct when Enum have type parameters
+
 2007-07-25: 1.14
 	fixed no error when invalid "catch" expression
 	remove variance
