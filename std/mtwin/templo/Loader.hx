@@ -82,15 +82,17 @@ class Loader {
 			loader.cache = __dollar__new(oldCache);
 			loader.String = String;
 			loader.Array = Array;
-			loader.iter = function(loop, fnc){
+			loader.iter = function(loop : Dynamic, fnc){
 				if (loop == null){
 					throw "repeat or foreach called on null value";
 				}
 				if (loop.iterator != null){
-					for (v in loop.iterator()){ fnc(v); }
+					var it : Iterable<Dynamic> = loop;
+					for (v in it) fnc(v);
 				}
 				else if (loop.hasNext != null && loop.next != null){
-					for (v in loop){ fnc(v); }
+					var it : Iterator<Dynamic> = loop;
+					for (v in it) fnc(v);
 				}
 				else {
 					throw "repeat or foreach called on non iterable object";

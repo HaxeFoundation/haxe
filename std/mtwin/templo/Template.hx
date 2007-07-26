@@ -80,8 +80,8 @@ class Template {
 		if (id == null){
 			id = Md5.encode(src);
 		}
-	
-		// remove BOM	
+
+		// remove BOM
 		if (StringTools.startsWith(src, "\xEF\xBB\xBF"))
 			src = src.substr(3);
 
@@ -124,7 +124,7 @@ class Template {
 		}
 		else {
 		    r = neko.Sys.command("nekoc -o "+Loader.TMP_DIR+" "+path+" 2> "+Loader.TMP_DIR+"nekoc.out");
-		} 
+		}
 		if (r != 0){
 			if (neko.FileSystem.exists(Loader.TMP_DIR+"nekoc.out")){
 				throw "nekoc compilation of "+path+" failed ("+r+") : "+neko.io.File.getContent(Loader.TMP_DIR+"nekoc.out");
@@ -144,15 +144,17 @@ class Template {
 			loader.cache = __dollar__new(oldCache);
 			loader.String = String;
 			loader.Array = Array;
-			loader.iter = function(loop, fnc){
+			loader.iter = function(loop : Dynamic, fnc){
 				if (loop == null){
 					throw "repeat or foreach called on null value";
 				}
 				if (loop.iterator != null){
-					for (v in loop.iterator()){ fnc(v); }
+					var it : Iterable<Dynamic> = loop;
+					for (v in it) fnc(v);
 				}
 				else if (loop.hasNext != null && loop.next != null){
-					for (v in loop){ fnc(v); }
+					var it : Iterator<Dynamic> = loop;
+					for (v in it) fnc(v);
 				}
 				else {
 					throw "repeat or foreach called on non iterable object";
