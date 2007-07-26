@@ -182,7 +182,9 @@ class Std {
 	**/
 	public static function resource( name : String ) : String {
 		return untyped
-		#if flash9
+		#if as3gen
+		throw "Not supported in AS3";
+		#else flash9
 		flash.Boot.__res[name];
 		#else flash
 		flash.Boot.__res[name];
