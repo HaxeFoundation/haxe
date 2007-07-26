@@ -150,7 +150,7 @@ class Template {
 				}
 				if (loop.iterator != null){
 					var it : Iterable<Dynamic> = loop;
-					for (v in it) fnc(v);
+					for (v in it.iterator()) fnc(v);
 				}
 				else if (loop.hasNext != null && loop.next != null){
 					var it : Iterator<Dynamic> = loop;
