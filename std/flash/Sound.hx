@@ -9,7 +9,7 @@ extern class Sound
 	var checkPolicyFile : Bool;
 #end
 
-	function new(target:Dynamic) : Void;
+	function new( ?target:Dynamic ) : Void;
 
 	function onLoad(success:Bool):Void;
 	function onSoundComplete():Void;
