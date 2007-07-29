@@ -171,6 +171,7 @@ type module_def = {
 let mk e t p = { eexpr = e; etype = t; epos = p }
 
 let not_opened = ref Closed
+let const_status = ref Closed
 let static_status = ref Statics
 let is_closed a = !(a.a_status) <> Opened
 let mk_anon fl = TAnon { a_fields = fl; a_status = not_opened; }
@@ -416,6 +417,7 @@ type unify_error =
 	| Cannot_unify of t * t
 	| Invalid_field_type of string
 	| Has_no_field of t * string
+	| Has_extra_field of t * string
 	| Invalid_access of string * bool * field_access * field_access
 	| Invalid_visibility of string
 	| Not_matching_optional of string
@@ -428,6 +430,7 @@ let invalid_field n = Invalid_field_type n
 let invalid_access n get a b = Invalid_access (n,get,a,b)
 let invalid_visibility n = Invalid_visibility n
 let has_no_field t n = Has_no_field (t,n)
+let has_extra_field t n = Has_extra_field (t,n)
 let error l = raise (Unify_error l)
 
 let unify_access a1 a2 =
@@ -648,9 +651,11 @@ let rec unify a b =
 			with
 				Not_found ->
 					if is_closed a1 then error [has_no_field a n];
-					if not (link (ref None) a f2.cf_type) then error [cannot_unify a b];
+					if not (link (ref None) a f2.cf_type) then error [];
 					a1.a_fields <- PMap.add n f2 a1.a_fields
 			) a2.a_fields;
+			if a1.a_status == const_status && not (PMap.is_empty a2.a_fields) then
+				PMap.iter (fun n _ -> if not (PMap.mem n a2.a_fields) then error [has_extra_field a n]) a1.a_fields;
 			if !(a1.a_status) = Opened then a1.a_status := Closed;
 			if !(a2.a_status) = Opened then a2.a_status := Closed;
 		with

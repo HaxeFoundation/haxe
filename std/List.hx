@@ -153,7 +153,7 @@ class List<T> {
 		Returns an iterator on the elements of the list.
 	**/
 	public function iterator() : Iterator<T> {
-		return {
+		return cast {
 			h : h,
 			hasNext : function() {
 				return untyped (this.h != null);

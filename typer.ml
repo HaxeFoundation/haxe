@@ -90,6 +90,8 @@ let unify_error_msg ctx = function
 		"Invalid type for field " ^ s ^ " :"
 	| Has_no_field (t,n) ->
 		s_type ctx t ^ " has no field " ^ n
+	| Has_extra_field (t,n) ->
+		s_type ctx t ^ " has extra field " ^ n
 	| Invalid_access (f,get,a,b) ->
 		"Inconsistent " ^ (if get then "getter" else "setter") ^ " for field " ^ f ^ " : " ^ access_str a ^ " should be " ^ access_str b
 	| Invalid_visibility n ->
@@ -1708,7 +1710,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			((f,e) :: l, PMap.add f cf acc)
 		in
 		let fields , types = List.fold_left loop ([],PMap.empty) fl in
-		mk (TObjectDecl fields) (mk_anon types) p
+		mk (TObjectDecl fields) (TAnon { a_fields = types; a_status = const_status }) p
 	| EArrayDecl el ->
 		let t = ref (mk_mono()) in
 		let el = List.map (fun e ->
