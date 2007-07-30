@@ -17,8 +17,9 @@ xml:
 
 universal: clean_haxe all
 	mv haxe haxe.intel
-	scp macmt:prog/lang/haxe/haxe haxe.ppc
+	-scp macmt:prog/lang/haxe/haxe haxe.ppc
 	lipo -create -arch i386 haxe.intel -arch ppc haxe.ppc -output haxe
+	chmod +x haxe
 
 clean_haxe:
 	rm -rf haxe
