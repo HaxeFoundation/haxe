@@ -45,7 +45,12 @@ class Envelope {
 	public var messageId(default,null) : String;
 
 	function new(){
+	}
 		
+	public function getDate(){
+		if( date == null )
+			return null;
+		return mtwin.DateFormat.parse(date);
 	}
 
 	public static function parse( s : String ){

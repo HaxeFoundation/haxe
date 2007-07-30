@@ -143,6 +143,13 @@ class MetaPart<T> {
 		setHeader("Date",mtwin.DateFormat.formatRfc822(d));
 	}
 
+	public function getDate(){
+		var d = getHeader("Date");
+		if( d == null )
+			return null;
+		return mtwin.DateFormat.parse(d);
+	}
+
 	public function setContentId( ?cid : String ) : String {
 		if( cid == null ){
 			var t = getHeader("Content-Id");
