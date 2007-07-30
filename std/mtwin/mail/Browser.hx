@@ -186,7 +186,7 @@ class Browser extends MetaPart<Browser> {
 		return headers.exists( name );
 	}
 
-	public function getHeader( name, ?charset ){
+	public override function getHeader( name, ?charset ){
 		return super.getHeader( Tools.formatHeaderTitle(name),charset );
 	}
 
