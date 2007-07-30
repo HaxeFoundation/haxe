@@ -124,6 +124,8 @@ class Mailbox {
 	}
 
 	public function prefetch( l : List<Message> ){
+		if( l.length == 0 )
+			return;
 		select();
 
 		var a = new Array();
