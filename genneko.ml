@@ -284,6 +284,7 @@ and gen_expr ctx e =
 	| TObjectDecl fl ->
 		(EObject (List.map (fun (f,e) -> f , gen_expr ctx e) fl),p)
 	| TArrayDecl el ->
+		if List.length el > 115 then error "This array declaration is too big, try to split it" e.epos;
 		call p (field p (ident p "Array") "new1") [array p (List.map (gen_expr ctx) el); int p (List.length el)]
 	| TCall (e,el) ->
 		gen_call ctx p e el
