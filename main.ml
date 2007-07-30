@@ -310,7 +310,7 @@ try
 		("--neko-source", define "neko_source", ": keep generated neko source");
 		("--gen-hx-classes", Arg.String (fun file ->
 			gen_hx := true;
-			Genswf9.genhx file
+			Genas3.genhx file
 		),"<file> : generate hx headers from SWF9 file");
 		("--next", Arg.Unit (fun() -> assert false), ": separate several haxe compilations");
 		("--altfmt", Arg.Unit (fun() -> alt_format := true),": use alternative error output format");
