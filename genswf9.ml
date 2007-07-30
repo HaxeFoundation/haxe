@@ -942,12 +942,12 @@ let rec gen_expr_content ctx retval e =
 		) cases in
 		(!prev)();
 		(match def with
-		| None -> 
+		| None ->
 			if retval then begin
 				write ctx A3Null;
 				coerce ctx t;
 			end;
-		| Some e -> 
+		| Some e ->
 			gen_expr ctx retval e;
 			if retval && classify ctx e.etype <> t then coerce ctx t;
 		);
@@ -996,7 +996,7 @@ and gen_call ctx e el =
 	| TLocal "__delete__" , [o;f] ->
 		gen_expr ctx true o;
 		gen_expr ctx true f;
-		write ctx (A3DeleteProp (lookup (A3MMultiNameLate ctx.gpublic) ctx.names));		
+		write ctx (A3DeleteProp (lookup (A3MMultiNameLate ctx.gpublic) ctx.names));
 	| TLocal "__unprotect__" , [e] ->
 		gen_expr ctx true e
 	| TLocal "__typeof__", [e] ->
@@ -1221,12 +1221,14 @@ let generate_class_init ctx c slot =
 let generate_class_statics ctx c =
 	let r = alloc_reg ctx KDynamic in
 	let first = ref true in
-	let nslot = ref 1 in
+	let nslot = ref 0 in
 	List.iter (fun f ->
-		incr nslot;
 		match f.cf_expr with
-		| Some { eexpr = TFunction _ } | None -> ()
+		| Some { eexpr = TFunction _ } -> ()
+		| None ->
+			incr nslot;
 		| Some e ->
+			incr nslot;
 			if !first then begin
 				write ctx A3GetGlobalScope;
 				write ctx (A3GetProp (type_path ctx c.cl_path));
@@ -1360,15 +1362,18 @@ let generate_class ctx c =
 		cl3_construct = cid;
 		cl3_fields = fields;
 	} in
-	let st_count = ref 1 in
+	let st_field_count = ref 0 in
+	let st_meth_count = ref 0 in
 	let st = {
 		st3_method = st_id;
 		st3_fields = Array.of_list (List.map (fun f ->
-			incr st_count;
+			let k = (match generate_field_kind ctx f c true with None -> assert false | Some k -> k) in
+			let count = (match k with A3FMethod _ -> st_meth_count | A3FVar _ -> st_field_count | _ -> assert false) in
+			incr count;
 			{
 				f3_name = ident ctx f.cf_name;
-				f3_slot = !st_count;
-				f3_kind = (match generate_field_kind ctx f c true with None -> assert false | Some k -> k);
+				f3_slot = !count;
+				f3_kind = k;
 				f3_metas = None;
 			}
 		) c.cl_ordered_statics)
@@ -1473,7 +1478,7 @@ let generate_resources ctx hres =
 	write ctx A3GetGlobalScope;
 	write ctx (A3GetProp (type_path ctx ([],ctx.boot)));
 	let id = type_path ctx (["flash";"utils"],"Dictionary") in
-	write ctx (A3FindPropStrict id);	
+	write ctx (A3FindPropStrict id);
 	write ctx (A3ConstructProperty (id,0));
 	let r = alloc_reg ctx (KType id) in
 	set_reg ctx r;
@@ -1576,7 +1581,7 @@ let generate types hres =
 		last_line = -1;
 		try_scope_reg = None;
 	} in
-	List.iter (generate_type ctx) types;	
+	List.iter (generate_type ctx) types;
 	let init = generate_inits ctx types hres in
 	let a = {
 		as3_ints = lookup_array ctx.ints;

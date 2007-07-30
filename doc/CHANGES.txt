@@ -6,6 +6,7 @@
 	disable Flash9 resources with AS3Gen
 	error on extra anonymous fields
 	error on too much big neko array declaration (neko 1.6 max_stack limit)
+	fixed Flash9 statics slots (FP 9,0,60 compatibility)
 
 2007-07-25: 1.14
 	fixed no error when invalid "catch" expression
