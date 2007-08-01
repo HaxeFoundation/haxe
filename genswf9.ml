@@ -1554,6 +1554,7 @@ let generate types hres =
 	let nsets = new_lookup() in
 	let empty_id = lookup "" strings in
 	let rpublic = lookup (A3NPublic (Some empty_id)) namespaces in
+	Random.self_init();
 	let ctx = {
 		boot = "Boot_" ^ Printf.sprintf "%X" (Random.int 0xFFFFFF);
 		strings = strings;
