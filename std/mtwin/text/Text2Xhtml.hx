@@ -82,6 +82,8 @@ import haxe.Md5;
 
 	Some [//emphased text//] and some [**strong text**].
 
+	An [abbr title : Abbreviation].
+
 	Now insert an image : [@img http://www.foo.com/foo.jpg@]
 
 	Inserting a Swf is easy : [@swf WxHxV http://path/to/my/swf.swf@] where W means width, H means Height and V means flash Version,
@@ -125,6 +127,7 @@ class Text2Xhtml {
 	static var em = ~/(?<!http:)\/\/(.*?)(?<!http:)\/\//gsm;
 	static var strong = ~/\*\*(.*?)\*\*/gm;
 	static var link = ~/\[link (.*?) : (.*?)\]/g;
+	static var abbr = ~/\[abbr (.*?) : (.*?)\]/g;
 	static var http = ~/(?<!")(http|https|ftp):\/\/(.*?)(\s|\.\s|$)/g; //"
 	static var img = ~/@img (.*?)@/g;
 	static var li = ~/\n\n(- (.*?))+\n\n/gsm;
@@ -282,6 +285,7 @@ s.write('swf@id');
 
 	function transformContent( str:String ) : String {
 		var helper = new StringHelper(str);
+		var abbrs = helper.extract("abbr", abbr, "<abbr title=\"$2\">$1</abbr>");
 		var links = helper.extract("link", link, "<a href=\"$2\">$1</a>");
 		var images = helper.extract("img", img, "<img src=\"$1\" alt=\"Image\"/>");
 		var https = helper.extract("http", http, "<a href=\"$1://$2\">$1://$2</a>$3");
@@ -306,6 +310,7 @@ s.write('swf@id');
 		}
 
 		helper = new StringHelper(str);
+		helper.restore("abbr", abbrs);
 		helper.restore("link", links);
 		helper.restore("img", images);
 		helper.restore("http", https);
