@@ -151,7 +151,8 @@ class Type {
 		if( c == null )
 			return null;
 		#if flash9
-			return untyped __global__["flash.utils.getQualifiedClassName"](c);
+			var str : String = untyped __global__["flash.utils.getQualifiedClassName"](c);
+			return str.split("::").join(".");
 		#else true
 			var a : Array<String> = untyped c.__name__;
 			return a.join(".");
