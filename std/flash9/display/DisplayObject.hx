@@ -18,7 +18,7 @@ extern class DisplayObject extends flash.events.EventDispatcher, implements IBit
 	var mouseX(default,null) : Float;
 	var mouseY(default,null) : Float;
 	var name : String;
-	var opaqueBackground : UInt;
+	var opaqueBackground : Null<UInt>;
 	var parent(default,null) : DisplayObjectContainer;
 	var root(default,null) : DisplayObject;
 	var rotation : Float;
