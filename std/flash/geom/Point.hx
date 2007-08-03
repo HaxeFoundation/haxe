@@ -20,8 +20,8 @@ extern class Point<T> {
 	function clone() : Point<T>;
 	function toString() : String;
 
-	static function distance( p1 : Point<T>, p2 : Point<T> ) : T;
-	static function interpolate( p1 : Point<T>, p2 : Point<T>, f : T ) : Point<T>;
-	static function polar( dist : T, angle : T ) : Point<T>;
+	static function distance<T>( p1 : Point<T>, p2 : Point<T> ) : T;
+	static function interpolate<T>( p1 : Point<T>, p2 : Point<T>, f : T ) : Point<T>;
+	static function polar<T>( dist : T, angle : T ) : Point<T>;
 
 }

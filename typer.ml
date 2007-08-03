@@ -2317,16 +2317,16 @@ let init_class ctx c p herits fields =
 					type_type_params ctx ([],name) p (n,[])
 				| _ -> error "This notation is not allowed because it can't be checked" p
 			) params in
+			let stat = List.mem AStatic access in
 			let ctx = { ctx with
 				curclass = c;
 				curmethod = name;
 				tthis = tthis;
-				type_params = params @ ctx.type_params;
+				type_params = if stat then params  else params @ ctx.type_params;
 			} in
 			let ret = type_opt ctx p f.f_type in
 			let args = List.map (fun (name,opt,t) -> name , opt, type_opt ~param:opt ctx p t) f.f_args in
 			let t = TFun (args,ret) in
-			let stat = List.mem AStatic access in
 			let constr = (name = "new") in
 			if c.cl_interface && not stat && (match f.f_expr with EBlock [] , _ -> false | _ -> true) then error "An interface method cannot have a body" p;
 			if constr then (match f.f_type with
