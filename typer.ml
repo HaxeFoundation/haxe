@@ -2598,7 +2598,7 @@ let type_module ctx m tdecls loadp =
 				if c = "name" && Plugin.defined "js" then error "This identifier cannot be used in Javascript" p;
 				let t = (match t with
 					| [] -> et
-					| l -> TFun (List.map (fun (s,b,t) -> s, b, load_type ctx p t) l, et)
+					| l -> TFun (List.map (fun (s,opt,t) -> s, opt, load_type_opt ~param:opt ctx p (Some t)) l, et)
 				) in
 				if PMap.mem c e.e_constrs then error ("Duplicate constructor " ^ c) p;
 				e.e_constrs <- PMap.add c { ef_name = c; ef_type = t; ef_pos = p; ef_doc = doc } e.e_constrs

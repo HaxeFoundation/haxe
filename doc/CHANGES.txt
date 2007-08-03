@@ -8,6 +8,7 @@
 	error on too much big neko array declaration (neko 1.6 max_stack limit)
 	fixed Flash9 statics slots (FP 9,0,60 compatibility)
 	fixed Flash9 Type.getClassName
+	optional enums arguments on Flash9 are now automatically Null
 
 2007-07-25: 1.14
 	fixed no error when invalid "catch" expression

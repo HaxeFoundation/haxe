@@ -75,7 +75,7 @@ let gen_constr e =
 	let args, t = (match follow e.ef_type with
 		| TFun (args,_) ->
 			["a",String.concat ":" (List.map gen_arg_name args)] ,
-			List.map (fun (_,_,t) -> gen_type t) args @ doc
+			List.map (fun (_,opt,t) -> gen_type (if opt then follow_param t else t)) args @ doc
 		| _ ->
 			[] , doc
 	) in
