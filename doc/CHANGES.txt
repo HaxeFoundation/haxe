@@ -11,6 +11,7 @@
 	optional enums arguments on Flash9 are now automatically Null
 	forbid usage of type parameters in static functions
 	fixed Std.int with negative numbers
+	fixed some F9 issues with haXe-specific Array, Date and Math methods
 
 2007-07-25: 1.14
 	fixed no error when invalid "catch" expression

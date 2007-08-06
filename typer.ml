@@ -906,7 +906,7 @@ let type_type ctx tpath p =
 			t_path = fst c.cl_path, "#" ^ snd c.cl_path;
 			t_doc = None;
 			t_pos = c.cl_pos;
-			t_type = if pub then mk_anon (PMap.map (fun f -> { f with cf_public = true }) c.cl_statics) else TAnon { a_fields = c.cl_statics; a_status = static_status };
+			t_type = if pub then mk_anon (PMap.map (fun f -> { f with cf_public = true }) c.cl_statics) else TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) };
 			t_private = true;
 			t_static = Some c;
 			t_types = [];

@@ -1027,10 +1027,29 @@ and gen_call ctx e el =
 		write ctx (A3FindPropStrict id);
 		List.iter (gen_expr ctx true) el;
 		write ctx (A3CallProperty (id,List.length el));
-	| TField (e,f) , _ ->
-		gen_expr ctx true e;
+	| TField (e1,f) , _ ->
+		gen_expr ctx true e1;
 		List.iter (gen_expr ctx true) el;
 		write ctx (A3CallProperty (ident ctx f,List.length el));
+		let coerce() =
+			match follow e.etype with
+			| TFun (_,r) -> coerce ctx (classify ctx r)
+			| _ -> ()
+		in
+		(match follow e1.etype with
+		| TInst ({ cl_path = [],"Array" },_) -> 
+			(match f with
+			| "copy" | "remove" -> coerce()
+			| _ -> ())
+		| TAnon a when (match !(a.a_status) with Statics { cl_path = ([],"Date") } -> true | _ -> false) ->
+			(match f with
+			| "now" | "fromString" | "fromTime"  -> coerce()
+			| _ -> ())
+		| TAnon a when (match !(a.a_status) with Statics { cl_path = ([],"Math") } -> true | _ -> false) ->
+			(match f with
+			| "isFinite" | "isNaN" -> coerce()
+			| _ -> ())
+		| _ -> ())
 	| TEnumField (e,f) , _ ->
 		let id = type_path ctx ~getclass:true e.e_path in
 		write ctx (A3GetLex id);

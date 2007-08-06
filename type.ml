@@ -27,11 +27,6 @@ type field_access =
 	| MethodAccess of string
 	| F9MethodAccess
 
-type anon_status =
-	| Closed
-	| Opened
-	| Statics
-
 type t =
 	| TMono of t option ref
 	| TEnum of tenum * tparams
@@ -58,6 +53,11 @@ and tfunc = {
 	tf_type : t;
 	tf_expr : texpr;
 }
+
+and anon_status =
+	| Closed
+	| Opened
+	| Statics of tclass
 
 and tanon = {
 	mutable a_fields : (string, tclass_field) PMap.t;
@@ -172,7 +172,6 @@ let mk e t p = { eexpr = e; etype = t; epos = p }
 
 let not_opened = ref Closed
 let const_status = ref Closed
-let static_status = ref Statics
 let is_closed a = !(a.a_status) <> Opened
 let mk_anon fl = TAnon { a_fields = fl; a_status = not_opened; }
 
