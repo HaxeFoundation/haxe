@@ -735,7 +735,7 @@ let rec gen_expr_content ctx retval e =
 		getvar ctx (gen_access ctx e Read);
 		coerce ctx (classify ctx e.etype)
 	| TBinop (op,e1,e2) ->
-		gen_binop ctx retval op e1 e2
+		gen_binop ctx retval op e1 e2 e.etype
 	| TCall (e,el) ->
 		gen_call ctx e el
 	| TNew (c,_,pl) ->
@@ -1118,13 +1118,20 @@ and gen_unop ctx retval op flag e =
 			write ctx (A3Op (if incr then A3OIncr else A3ODecr));
 			setvar ctx acc retval
 
-and gen_binop ctx retval op e1 e2 =
+and gen_binop ctx retval op e1 e2 t =
 	let gen_op ?iop o =
 		gen_expr ctx true e1;
 		gen_expr ctx true e2;
 		match iop with
-		| Some iop when classify ctx e1.etype = KInt && classify ctx e2.etype = KInt ->
-			write ctx (A3Op iop)
+		| Some iop -> 
+			let k1 = classify ctx e1.etype in
+			let k2 = classify ctx e2.etype in
+			if k1 = KInt && k2 = KInt then
+				write ctx (A3Op iop)
+			else begin
+				write ctx (A3Op o);
+				if o = A3OAdd then coerce ctx (classify ctx t);
+			end;
 		| _ ->
 			write ctx (A3Op o)
 	in
@@ -1151,7 +1158,7 @@ and gen_binop ctx retval op e1 e2 =
 		j();
 	| OpAssignOp op ->
 		let acc = gen_access ctx e1 Write in
-		gen_binop ctx true op e1 e2;
+		gen_binop ctx true op e1 e2 t;
 		setvar ctx acc retval
 	| OpAdd ->
 		gen_op ~iop:A3OIAdd A3OAdd
