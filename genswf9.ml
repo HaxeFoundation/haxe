@@ -263,6 +263,26 @@ let classify ctx t =
 
 let ident ctx i = type_path ctx ([],i)
 
+let as3 ctx p =
+	let pid = string ctx p in
+	let ns = string ctx "http://adobe.com/AS3/2006/builtin" in
+	let nsid = lookup (A3NNamespace ns) ctx.namespaces in
+	let tid = lookup (A3MName (pid,nsid)) ctx.names in
+	tid
+
+let property ctx p t =
+	match follow t with
+	| TInst ({ cl_path = [],"Array" },_) ->
+		(match p with
+		| "length" | "copy" | "insert" | "remove" | "iterator" -> ident ctx p
+		| _ -> as3 ctx p);
+	| TInst ({ cl_path = [],"String" },_) ->
+		(match p with
+		| "length" | "charCodeAt" (* use haXe version *) -> ident ctx p
+		| _ -> as3 ctx p);
+	| _ ->
+		ident ctx p
+
 let default_infos() =
 	{
 		ipos = 0;
@@ -631,7 +651,7 @@ let gen_access ctx e (forset : 'a) : 'a access =
 	| TLocal i ->
 		gen_local_access ctx i e.epos forset
 	| TField (e,f) ->
-		let id = ident ctx f in
+		let id = property ctx f e.etype in
 		(match e.eexpr with
 		| TConst TThis when not ctx.in_static -> write ctx (A3FindPropStrict id)
 		| _ -> gen_expr ctx true e);
@@ -1030,7 +1050,7 @@ and gen_call ctx e el =
 	| TField (e1,f) , _ ->
 		gen_expr ctx true e1;
 		List.iter (gen_expr ctx true) el;
-		write ctx (A3CallProperty (ident ctx f,List.length el));
+		write ctx (A3CallProperty (property ctx f e1.etype,List.length el));
 		let coerce() =
 			match follow e.etype with
 			| TFun (_,r) -> coerce ctx (classify ctx r)
@@ -1041,6 +1061,8 @@ and gen_call ctx e el =
 			(match f with
 			| "copy" | "remove" -> coerce()
 			| _ -> ())
+		| TInst ({ cl_path = [],"Date" },_) -> 
+			coerce() (* all date methods are typed as Number in AS3 and Int in haXe *) 
 		| TAnon a when (match !(a.a_status) with Statics { cl_path = ([],"Date") } -> true | _ -> false) ->
 			(match f with
 			| "now" | "fromString" | "fromTime"  -> coerce()
