@@ -1101,6 +1101,7 @@ and gen_unop ctx retval op flag e =
 		let acc = gen_access ctx e Write in (* for set *)
 		match acc with
 		| VReg r when not retval && r.rtype = KInt ->
+			if not r.rinit then r.rcond <- true;
 			write ctx (if incr then A3IncrIReg r.rid else A3DecrIReg r.rid)
 		| _ ->
 		getvar ctx (gen_access ctx e Read);
