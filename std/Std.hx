@@ -65,6 +65,7 @@ class Std {
 		#if flash9
 		return untyped __global__["int"](x);
 		#else true
+		if( x < 0 ) return Math.ceil(x);
 		return Math.floor(x);
 		#end
 	}

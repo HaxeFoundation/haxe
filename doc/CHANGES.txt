@@ -10,6 +10,7 @@
 	fixed Flash9 Type.getClassName
 	optional enums arguments on Flash9 are now automatically Null
 	forbid usage of type parameters in static functions
+	fixed Std.int with negative numbers
 
 2007-07-25: 1.14
 	fixed no error when invalid "catch" expression
