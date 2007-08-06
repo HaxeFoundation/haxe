@@ -26,6 +26,7 @@ package haxe;
 
 // std
 import Array;
+import Class;
 import Date;
 import DateTools;
 import EReg;
@@ -41,39 +42,43 @@ import StdTypes;
 import String;
 import StringBuf;
 import StringTools;
+import Type;
 import Xml;
 
+#if !neko
+import haxe.Firebug;
+#end
 import haxe.Http;
 import haxe.ImportAll;
 import haxe.Log;
 import haxe.Md5;
 import haxe.PosInfos;
+import haxe.Proxy;
 import haxe.Serializer;
 import haxe.Stack;
 import haxe.Template;
 import haxe.Timer;
 import haxe.Unserializer;
-#if !neko
-import haxe.Firebug;
-#end
 
 import haxe.remoting.AsyncConnection;
 import haxe.remoting.AsyncDebugConnection;
 import haxe.remoting.AsyncProxy;
 import haxe.remoting.Connection;
 import haxe.remoting.DelayedConnection;
-#if flash
-import haxe.remoting.LocalConnection;
-import haxe.remoting.SocketWrapper;
-#end
-import haxe.remoting.Proxy;
-import haxe.remoting.SocketProtocol;
-import haxe.remoting.SocketConnection;
 #if !neko
 import haxe.remoting.FlashJsConnection;
 #end
+#if flash
+import haxe.remoting.LocalConnection;
+#end
 #if neko
 import haxe.remoting.NekoSocketConnection;
+#end
+import haxe.remoting.Proxy;
+import haxe.remoting.SocketConnection;
+import haxe.remoting.SocketProtocol;
+#if flash
+import haxe.remoting.SocketWrapper;
 #end
 
 import haxe.rtti.Infos;
@@ -575,6 +580,7 @@ import js.XMLSocket;
 import tools.haxedoc.Main;
 import tools.haxelib.Main;
 import tools.haxelib.Site;
+//import tools.hxinst.Main -> needs xCross
 
 #end
 
