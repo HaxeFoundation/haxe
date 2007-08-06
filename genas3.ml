@@ -44,6 +44,7 @@ let s_path ctx path p =
 		| "Float" -> "Number"
 		| "Dynamic" -> "Object"
 		| "Bool" -> "Boolean"
+		| "Enum" -> "Class"
 		| _ -> name)
 	| (["flash"],"FlashXml__") ->
 		"Xml"
@@ -132,18 +133,6 @@ let spr ctx s = Buffer.add_string ctx.buf s
 let print ctx = Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
 
 let unsupported = Typer.error "This expression cannot be generated to AS3"
-
-let rec follow_not_stat t =
-	match t with
-	| TMono r ->
-		(match !r with
-		| Some t -> follow_not_stat t
-		| _ -> t)
-	| TLazy f ->
-		follow_not_stat (!f())
-	| TType (t,tl) when t.t_static = None ->
-		follow_not_stat (apply_params t.t_types tl t.t_type)
-	| _ -> t
 
 let newline ctx =
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
@@ -333,9 +322,8 @@ and gen_value_op ctx e =
 		gen_value ctx e
 
 and gen_field_access ctx t s =
-	match follow_not_stat t with
-	| TType ({ t_static = Some c },_) | TInst (c,_) ->
-		(match fst c.cl_path, snd c.cl_path, s with
+	let field c =
+		match fst c.cl_path, snd c.cl_path, s with
 		| [], "Math", "NaN"
 		| [], "Math", "NEGATIVE_INFINITY"
 		| [], "Math", "POSITIVE_INFINITY"
@@ -349,7 +337,14 @@ and gen_field_access ctx t s =
 		->
 			print ctx "[\"%s\"]" s
 		| _ ->
-			print ctx ".%s" (s_ident s));
+			print ctx ".%s" (s_ident s)
+	in
+	match follow t with
+	| TInst (c,_) -> field c
+	| TAnon a ->
+		(match !(a.a_status) with
+		| Statics c -> field c
+		| _ -> print ctx ".%s" (s_ident s))
 	| _ ->
 		print ctx ".%s" (s_ident s)
 

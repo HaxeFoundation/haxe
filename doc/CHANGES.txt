@@ -15,6 +15,7 @@
 	used AS3 namespace for F9 Array and String instance methods
 	fixed F9 with uninitialized integer registers
 	fixed F9 + operator with Dynamic/Null operands
+	added Enum subtyping
 
 2007-07-25: 1.14
 	fixed no error when invalid "catch" expression

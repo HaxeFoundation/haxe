@@ -193,6 +193,7 @@ let type_path ctx ?(getclass=false) path =
 		| [] , "Float" -> [] , "Number"
 		| [] , "Bool" -> [] , "Boolean"
 		| [] , "Void" -> [] , "void"
+		| [] , "Enum" -> [] , "Class"
 		| ["flash"] , "FlashXml__" -> [] , "Xml"
 		| ["flash"] , "Boot" -> [] , ctx.boot
 		| _ -> path

@@ -183,7 +183,7 @@ let rec is_protected_path path ext =
 	| _ -> false
 
 let rec is_protected ctx ?(stat=false) t field =
-	match t with
+	match follow t with
 	| TInst (c,_) ->
 		let rec loop c =
 			(is_protected_path c.cl_path c.cl_extern && PMap.mem field (if stat then c.cl_statics else c.cl_fields))
@@ -191,16 +191,10 @@ let rec is_protected ctx ?(stat=false) t field =
 			|| (not stat && match c.cl_super with None -> false | Some (c,_) -> loop c)
 		in
 		loop c
-	| TMono r ->
-		(match !r with
-		| None -> true (* in Transform.emk only *)
-		| Some t -> is_protected ctx ~stat t field)
-	| TLazy f ->
-		is_protected ctx ~stat ((!f)()) field
-	| TType (t,tl) ->
-		(match t.t_static with
-		| None -> is_protected ctx ~stat (apply_params t.t_types tl t.t_type) field
-		| Some c -> is_protected ctx ~stat:true (TInst (c,[])) field)
+	| TAnon a ->
+		(match !(a.a_status) with
+		| Statics c -> is_protected ctx ~stat:true (TInst (c,[])) field
+		| _ -> false)
 	| _ -> false
 
 let push ctx items =

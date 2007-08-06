@@ -906,9 +906,11 @@ let type_type ctx tpath p =
 			t_path = fst c.cl_path, "#" ^ snd c.cl_path;
 			t_doc = None;
 			t_pos = c.cl_pos;
-			t_type = if pub then mk_anon (PMap.map (fun f -> { f with cf_public = true }) c.cl_statics) else TAnon { a_fields = c.cl_statics; a_status = ref (Statics c) };
+			t_type = TAnon {
+				a_fields = if pub then PMap.map (fun f -> { f with cf_public = true }) c.cl_statics else c.cl_statics;
+				a_status = ref (Statics c);
+			};
 			t_private = true;
-			t_static = Some c;
 			t_types = [];
 		} in
 		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
@@ -930,9 +932,11 @@ let type_type ctx tpath p =
 			t_path = fst e.e_path, "#" ^ snd e.e_path;
 			t_doc = None;
 			t_pos = e.e_pos;
-			t_type = mk_anon fl;
+			t_type = TAnon {
+				a_fields = fl;
+				a_status = ref (EnumStatics e);
+			};
 			t_private = true;
-			t_static = None;
 			t_types = e.e_types;
 		} in
 		mk (TTypeExpr (TEnumDecl e)) (TType (t_tmp,types)) p
@@ -2503,8 +2507,7 @@ let type_module ctx m tdecls loadp =
 				t_pos = p;
 				t_doc = d.d_doc;
 				t_private = priv;
-				t_types = [];
-				t_static = None;
+				t_types = [];				
 				t_type = mk_mono();
 			} in
 			decls := TTypeDecl t :: !decls
