@@ -12,6 +12,7 @@
 	forbid usage of type parameters in static functions
 	fixed Std.int with negative numbers
 	fixed some F9 issues with haXe-specific Array, Date and Math methods
+	used AS3 namespace for F9 Array and String instance methods
 
 2007-07-25: 1.14
 	fixed no error when invalid "catch" expression
