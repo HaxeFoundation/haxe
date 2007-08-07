@@ -97,11 +97,8 @@ class DateFormat {
 		}
 
 		var ret = new Date(y,m-1,d,h,i,s);
-
-		if( REG_TZ.match(str) ){
-			timezoneConvert(ret,REG_TZ.matched(1));
-		}
-
+		if( REG_TZ.match(str) )
+			ret = timezoneConvert(ret,REG_TZ.matched(1));
 		return ret;
 	}
 
