@@ -61,6 +61,7 @@ extern class TextField
 	var gridFitType:String;
 	var sharpness:Float;
 	var filters : Array<Dynamic>;
+	var thickness:Float;
 #end
 
 	var styleSheet:flash.text.StyleSheet;
