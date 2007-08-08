@@ -111,20 +111,20 @@ class Envelope {
 					closeParenthesis();
 				case "\"":
 					var b = new StringBuf();
-					var prev = null;
+					var escape = false;
 					while( p < len ){
 						var c2 = s.charAt(p);
 						p++;
-						if( c2 == "\"" && prev != "\\" )
+						if( c2 == "\"" && !escape )
 							break;
+						escape = (c2 == "\\" && !escape );
+						if( !escape )
 						b.add( c2 );
-						prev = c2;
 					}
-					addElement( b.toString().split("\\\"").join("\"").split("\\\\").join("\\") );
+					addElement( b.toString() );
 				case " ":
-					if( parCount == 0 ){
+					if( parCount == 0 )
 						argPos++;
-					}
 				default:
 					var b = new StringBuf();
 					p--;
