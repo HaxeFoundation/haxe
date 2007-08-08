@@ -81,6 +81,8 @@ class Boot extends flash.display.MovieClip {
 	}
 
 	public static function __clear_trace() {
+		if( tf == null )
+			return;
 		flash.Lib.current.removeChild(tf);
 		tf = null;
 		lines = new Array();
