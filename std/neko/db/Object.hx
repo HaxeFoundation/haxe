@@ -42,7 +42,13 @@ class Object #if spod_rtti implements haxe.rtti.Infos #end {
 	static var manager = new neko.db.Manager();
 */
 
-	var local_manager : neko.db.Manager<neko.db.Object>;
+	var local_manager : {
+		private function doUpdate( o : Object ) : Void;
+		private function doInsert( o : Object ) : Void;
+		private function doSync( o : Object ) : Void;
+		private function doDelete( o : Object ) : Void;
+		private function objectToString( o : Object ) : String;
+	};
 
 
 	public function new() {

@@ -70,7 +70,7 @@ class Manager<T : Object> {
 
 		// get the proto fields not marked private (excluding methods)
 		table_fields = new List();
-		var proto : Dynamic = class_proto.prototype;
+		var proto : { local_manager : neko.db.Manager<T> } = class_proto.prototype;
 		for( f in Reflect.fields(proto) ) {
 			var isfield = !Reflect.isFunction(Reflect.field(proto,f));
 			if( isfield )
@@ -198,7 +198,7 @@ class Manager<T : Object> {
 
 	/* -------------------------- SPODOBJECT API -------------------------- */
 
-	public function doInsert( x : T ) {
+	function doInsert( x : T ) {
 		unmake(x);
 		var s = new StringBuf();
 		var fields = new List();
@@ -231,7 +231,7 @@ class Manager<T : Object> {
 		addToCache(x);
 	}
 
-	public function doUpdate( x : T ) {
+	function doUpdate( x : T ) {
 		unmake(x);
 		var s = new StringBuf();
 		s.add("UPDATE ");
@@ -260,7 +260,7 @@ class Manager<T : Object> {
 		execute(s.toString());
 	}
 
-	public function doDelete( x : T ) {
+	function doDelete( x : T ) {
 		var s = new StringBuf();
 		s.add("DELETE FROM ");
 		s.add(table_name);
@@ -270,7 +270,7 @@ class Manager<T : Object> {
 	}
 
 
-	public function doSync( i : T ) {
+	function doSync( i : T ) {
 		object_cache.remove(makeCacheKey(i));
 		var i2 = getWithKeys(i,(cast i).update != no_update);
 		// delete all fields
@@ -284,7 +284,7 @@ class Manager<T : Object> {
 		addToCache(i);
 	}
 
-	public function objectToString( it : T ) : String {
+	function objectToString( it : T ) : String {
 		var s = new StringBuf();
 		s.add(table_name);
 		if( table_keys.length == 1 ) {
