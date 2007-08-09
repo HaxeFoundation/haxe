@@ -210,8 +210,7 @@ class EReg {
 		a.push(s.substr(pos,len));
 		return a;
 		#else js
-		var d = "#__delim__#";
-		return untyped s.replace(r,d).split(d);
+		return untyped s.split(r);
 		#else flash9
 		return untyped s.split(r);
 		#else flash
