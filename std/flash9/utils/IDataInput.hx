@@ -1,7 +1,6 @@
 package flash.utils;
 
 extern interface IDataInput {
-	function new() : Void;
 	var bytesAvailable(default,null) : UInt;
 	var endian : String;
 	var objectEncoding : UInt;

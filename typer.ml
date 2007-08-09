@@ -2332,6 +2332,7 @@ let init_class ctx c p herits fields =
 			let args = List.map (fun (name,opt,t) -> name , opt, type_opt ~param:opt ctx p t) f.f_args in
 			let t = TFun (args,ret) in
 			let constr = (name = "new") in
+			if constr && c.cl_interface then error "An interface cannot have a constructor" p;
 			if c.cl_interface && not stat && (match f.f_expr with EBlock [] , _ -> false | _ -> true) then error "An interface method cannot have a body" p;
 			if constr then (match f.f_type with
 				| None | Some (TPNormal { tpackage = []; tname = "Void" }) -> ()

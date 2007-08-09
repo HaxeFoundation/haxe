@@ -1,7 +1,6 @@
 package flash.utils;
 
 extern interface IDataOutput {
-	function new() : Void;
 	var endian : String;
 	var objectEncoding : UInt;
 	function writeBoolean(value : Bool) : Void;
