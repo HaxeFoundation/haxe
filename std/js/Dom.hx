@@ -464,7 +464,7 @@ typedef Select = {> FormElement,
 	var selectedIndex : Int;
 	var size : Int;
 
-	function remove( o : Option ) : Void;
+	function remove( o : Dynamic ) : Void;
 
 	var onchange : Event -> Void;
 }
