@@ -11,7 +11,7 @@ class FlashJsConnection extends haxe.remoting.AsyncConnection {
 		return c;
 	}
 
-	override public function call( params, ?onData ) {
+	override public function call( params : Array<Dynamic>, ?onData : Dynamic -> Void ) {
 		var p = __path.copy();
 		var f = p.pop();
 		var path = p.join(".");
