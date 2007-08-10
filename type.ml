@@ -57,6 +57,7 @@ and tfunc = {
 and anon_status =
 	| Closed
 	| Opened
+	| Const
 	| Statics of tclass
 	| EnumStatics of tenum
 
@@ -171,7 +172,6 @@ type module_def = {
 let mk e t p = { eexpr = e; etype = t; epos = p }
 
 let not_opened = ref Closed
-let const_status = ref Closed
 let is_closed a = !(a.a_status) <> Opened
 let mk_anon fl = TAnon { a_fields = fl; a_status = not_opened; }
 
@@ -651,9 +651,12 @@ let rec unify a b =
 					if not (link (ref None) a f2.cf_type) then error [];
 					a1.a_fields <- PMap.add n f2 a1.a_fields
 			) a2.a_fields;
-			if a1.a_status == const_status && not (PMap.is_empty a2.a_fields) then
+			(match !(a1.a_status) with
+			| Const when not (PMap.is_empty a2.a_fields) ->
 				PMap.iter (fun n _ -> if not (PMap.mem n a2.a_fields) then error [has_extra_field a n]) a1.a_fields;
-			if !(a1.a_status) = Opened then a1.a_status := Closed;
+			| Opened ->
+				a1.a_status := Closed
+			| _ -> ());
 			if !(a2.a_status) = Opened then a2.a_status := Closed;
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
