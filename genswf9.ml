@@ -403,7 +403,7 @@ let rec setvar ctx (acc : write access) retval =
 		write ctx (A3InitProp id)
 	| VArray ->
 		let id_aset = lookup (A3MMultiNameLate ctx.gpublic) ctx.names in
-		write ctx (A3InitProp id_aset);
+		write ctx (A3SetProp id_aset);
 		ctx.infos.istack <- ctx.infos.istack - 1
 	| VScope n ->
 		write ctx (A3SetSlot n)
