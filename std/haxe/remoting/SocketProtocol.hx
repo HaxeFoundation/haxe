@@ -175,11 +175,12 @@ class SocketProtocol {
 		} catch( e : Dynamic ) {
 			result = e;
 			isException = true;
-			if( onError != null )
-				onError(path,fname,args,e);
 		}
 		// send back result/exception over network
 		sendAnswer(result,isException);
+		// send the error event
+		if( isException && onError != null )
+			onError(path,fname,args,result);
 	}
 
 	public function processAnswer( data : String ) : Dynamic {
