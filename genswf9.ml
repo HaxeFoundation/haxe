@@ -51,6 +51,7 @@ type register = {
 type 'a access =
 	| VReg of register
 	| VId of as3_name
+	| VCast of as3_name * tkind
 	| VGlobal of as3_name
 	| VArray
 	| VScope of as3_slot
@@ -392,14 +393,14 @@ let rec setvar ctx (acc : write access) retval =
 	| VGlobal g ->
 		if retval then write ctx A3Dup;
 		write ctx (A3SetProp g);
-	| VId _ | VArray | VScope _ when retval ->
+	| VId _ | VCast _ | VArray | VScope _ when retval ->
 		let r = alloc_reg ctx KDynamic in
 		write ctx A3Dup;
 		set_reg ctx r;
 		setvar ctx acc false;
 		write ctx (A3Reg r.rid);
 		free_reg ctx r
-	| VId id ->
+	| VId id | VCast (id,_) ->
 		write ctx (A3InitProp id)
 	| VArray ->
 		let id_aset = lookup (A3MMultiNameLate ctx.gpublic) ctx.names in
@@ -414,6 +415,9 @@ let getvar ctx (acc : read access) =
 		write ctx (A3Reg r.rid)
 	| VId id ->
 		write ctx (A3GetProp id)
+	| VCast (id,t) ->
+		write ctx (A3GetProp id);
+		coerce ctx t
 	| VGlobal g ->
 		write ctx (A3GetLex g);
 	| VArray ->
@@ -651,12 +655,15 @@ let gen_access ctx e (forset : 'a) : 'a access =
 	match e.eexpr with
 	| TLocal i ->
 		gen_local_access ctx i e.epos forset
-	| TField (e,f) ->
-		let id = property ctx f e.etype in
-		(match e.eexpr with
+	| TField (e1,f) ->
+		let id = property ctx f e1.etype in
+		(match e1.eexpr with
 		| TConst TThis when not ctx.in_static -> write ctx (A3FindPropStrict id)
-		| _ -> gen_expr ctx true e);
-		VId id
+		| _ -> gen_expr ctx true e1);
+		(match follow e1.etype with
+		| TInst _ | TEnum _ -> VId id
+		| TAnon a when (match !(a.a_status) with Statics _ | EnumStatics _ -> true | _ -> false) -> VId id
+		| _ -> VCast (id,classify ctx e.etype))
 	| TArray ({ eexpr = TLocal "__global__" },{ eexpr = TConst (TString s) }) ->
 		let path = (match List.rev (ExtString.String.nsplit s ".") with [] -> assert false | x :: l -> List.rev l, x) in
 		let id = type_path ctx path in
