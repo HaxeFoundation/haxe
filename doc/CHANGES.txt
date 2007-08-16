@@ -18,6 +18,7 @@
 	added Enum subtyping
 	fix with remoting threadserver and exceptions
 	fixed Flash9 dynamic runtime type field access
+	fixed very tricky typing bug with constructors inheritance
 
 2007-07-25: 1.14
 	fixed no error when invalid "catch" expression

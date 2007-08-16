@@ -32,6 +32,7 @@ type context = {
 	types : (module_path, module_path) Hashtbl.t;
 	modules : (module_path , module_def) Hashtbl.t;
 	delays : (unit -> unit) list list ref;
+	constructs : (module_path , access list * type_param list * func) Hashtbl.t;
 	warn : string -> pos -> unit;
 	error : error_msg -> pos -> unit;
 	flash9 : bool;
@@ -136,6 +137,7 @@ let context err warn =
 	let ctx = {
 		modules = Hashtbl.create 0;
 		types = Hashtbl.create 0;
+		constructs = Hashtbl.create 0;
 		delays = ref [];
 		flash9 = Plugin.defined "flash9";
 		in_constructor = false;
@@ -2435,33 +2437,30 @@ let init_class ctx c p herits fields =
 	) fields in
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
-	(* define an default inherited constructor *)
-	(match c.cl_constructor, c.cl_super with
-	| None , Some ({ cl_constructor = Some f; cl_types = tl } as csuper, cparams) ->
-		let t = apply_params tl cparams (field_type f) in
-		(match follow t with
-		| TFun (args,r) ->
-			let n = ref 0 in
-			let args = List.map (fun (_,b,t) -> incr n; "p" ^ string_of_int (!n) , b, t) args in
-			let eargs = List.map (fun (n,_,t) -> mk (TLocal n) t p) args in
-			let func = {
-				tf_args = args;
-				tf_type = t_void ctx;
-				tf_expr = mk (TCall (mk (TConst TSuper) (TInst (csuper,cparams)) p,eargs)) r p;
-			} in
-			c.cl_constructor <- Some {
-				cf_name = "new";
-				cf_type = t;
-				cf_get = NormalAccess;
-				cf_set = NoAccess;
-				cf_doc = None;
-				cf_expr = Some (mk (TFunction func) t p);
-				cf_public = f.cf_public;
-				cf_params = f.cf_params;
-			}
-		| _ -> assert false)
-	| _ , _ ->
-		());
+	(* 
+		define a default inherited constructor.
+		This is actually pretty tricky since we can't assume that the constructor of the
+		superclass has been defined yet because type structure is not stabilized wrt recursion.		
+	*)
+	let rec define_constructor ctx c =
+		try
+			Some (Hashtbl.find ctx.constructs c.cl_path)
+		with Not_found ->
+			match c.cl_super with
+			| None -> None
+			| Some (csuper,_) ->
+				match define_constructor ctx csuper with
+				| None -> None
+				| Some (acc,pl,f) as infos ->
+					let p = c.cl_pos in
+					let esuper = (ECall ((EConst (Ident "super"),p),List.map (fun (n,_,_) -> (EConst (Ident n),p)) f.f_args),p) in
+					let _, _, cf, delayed = loop_cf (FFun ("new",None,acc,pl,{ f with f_expr = esuper })) p in
+					c.cl_constructor <- Some cf;
+					Hashtbl.add ctx.constructs c.cl_path (acc,pl,f);
+					ctx.delays := [delayed] :: !(ctx.delays);
+					infos
+	in
+	ignore(define_constructor ctx c);
 	fl
 
 let type_module ctx m tdecls loadp =
@@ -2488,6 +2487,12 @@ let type_module ctx m tdecls loadp =
 			let priv = List.mem HPrivate d.d_flags in
 			let path = decl_with_name d.d_name p priv in
 			let c = mk_class path p d.d_doc priv in
+			(* store the constructor for later usage *)
+			List.iter (fun (cf,_) ->
+				match cf with
+				| FFun ("new",_,acc,pl,f) -> Hashtbl.add ctx.constructs path (acc,pl,f)
+				| _ -> ()
+			) d.d_data;
 			decls := TClassDecl c :: !decls
 		| EEnum d ->
 			let priv = List.mem EPrivate d.d_flags in
@@ -2525,6 +2530,7 @@ let type_module ctx m tdecls loadp =
 	let ctx = {
 		modules = ctx.modules;
 		delays = ctx.delays;
+		constructs = ctx.constructs;
 		types = ctx.types;
 		warn = ctx.warn;
 		error = ctx.error;
