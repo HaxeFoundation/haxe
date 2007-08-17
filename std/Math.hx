@@ -76,7 +76,8 @@ extern class Math
 			_global["isFinite"](i);
 			#else js
 			__js__("isFinite")(i);
-			#else error
+			#else true
+			false;
 			#end
 		};
 		Math.isNaN = function(i) {
@@ -87,7 +88,8 @@ extern class Math
 			_global["isNaN"](i);
 			#else js
 			__js__("isNaN")(i);
-			#else error
+			#else true
+			false;
 			#end
 		};
 	#end

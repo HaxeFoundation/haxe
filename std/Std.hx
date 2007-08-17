@@ -39,7 +39,8 @@ class Std {
 		neko.Boot.__instanceof(v,t);
 		#else js
 		js.Boot.__instanceof(v,t);
-		#else error
+		#else true
+		false;
 		#end
 	}
 
@@ -54,7 +55,8 @@ class Std {
 		new String(__dollar__string(s));
 		#else js
 		js.Boot.__string_rec(s,"");
-		#else error
+		#else true
+		"";
 		#end
 	}
 
@@ -106,7 +108,8 @@ class Std {
 		if( Math.isNaN(v) )
 			return null;
 		return v;
-		#else error
+		#else true
+		return 0;
 		#end
 		}
 	}
@@ -124,7 +127,8 @@ class Std {
 		__dollar__float(x.__s);
 		#else js
 		__js__("parseFloat")(x);
-		#else error
+		#else true
+		0;
 		#end
 	}
 
@@ -157,7 +161,8 @@ class Std {
 			return null;
 		else
 			return x.charCodeAt(0);
-		#else error
+		#else true
+		return null;
 		#end
 	}
 
@@ -174,7 +179,8 @@ class Std {
 		Math._rand_int(Math.__rnd,x);
 		#else js
 		Math.floor(Math.random()*x);
-		#else error
+		#else true
+		0;
 		#end
 	}
 
@@ -193,7 +199,8 @@ class Std {
 		__dollar__objget(neko.Boot.__res,__dollar__hash(name.__s));
 		#else js
 		js.Boot.__res[name];
-		#else error
+		#else true
+		null;
 		#end
 	}
 
