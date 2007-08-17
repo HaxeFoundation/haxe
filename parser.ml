@@ -528,13 +528,20 @@ and expr = parser
 		let e2 , s = (match s with parser
 			| [< '(Kwd Else,_); e2 = expr; s >] -> Some e2 , s
 			| [< >] ->
-				match Stream.npeek 2 s with
-				| [(Semicolon,_);(Kwd Else,_)] ->
-					Stream.junk s;
-					Stream.junk s;
-					(match s with parser
-					| [< e2 = expr; s >] -> Some e2, s
-					| [< >] -> serror())
+				(* 
+					we can't directly npeek 2 elements because this might
+					remove some documentation tag.
+				*)
+				match Stream.npeek 1 s with
+				| [(Semicolon,_)] ->
+					(match Stream.npeek 2 s with
+					| [(Semicolon,_); (Kwd Else,_)] ->
+						Stream.junk s;
+						Stream.junk s;
+						(match s with parser
+						| [< e2 = expr; s >] -> Some e2, s
+						| [< >] -> serror())
+					| _ -> None , s)
 				| _ ->
 					None , s
 		) in

@@ -19,6 +19,7 @@
 	fix with remoting threadserver and exceptions
 	fixed Flash9 dynamic runtime type field access
 	fixed very tricky typing bug with constructors inheritance
+	fixed some documentation related parser bug
 
 2007-07-25: 1.14
 	fixed no error when invalid "catch" expression
