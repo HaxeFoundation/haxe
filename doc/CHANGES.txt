@@ -20,6 +20,7 @@
 	fixed Flash9 dynamic runtime type field access
 	fixed very tricky typing bug with constructors inheritance
 	fixed some documentation related parser bug
+	fixed stack overflow with static setter
 
 2007-07-25: 1.14
 	fixed no error when invalid "catch" expression
