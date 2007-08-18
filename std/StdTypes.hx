@@ -94,9 +94,3 @@ typedef Iterable<T> = {
 	The type parameter represent the type of the elements stored.
 **/
 extern interface ArrayAccess<T> { }
-
-/**
-   Protected represent the type parameter that cannot be used when using variance annotations.
-**/
-extern enum Protected {
-}
