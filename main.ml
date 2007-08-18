@@ -129,7 +129,7 @@ let read_type_path p cp =
 	let p = (match p with "flash" :: l when Plugin.defined "flash9" -> "flash9" :: l | _ -> p) in
 	List.iter (fun path ->
 		let dir = path ^ String.concat "/" p in
-		let r = Sys.readdir dir in
+		let r = (try Sys.readdir dir with _ -> [||]) in
 		Array.iter (fun f ->
 			if (Unix.stat (dir ^ "/" ^ f)).Unix.st_kind = Unix.S_DIR then begin
 				if f.[0] > 'a' && f.[0] < 'z' then packages := f :: !packages
