@@ -546,6 +546,7 @@ import neko.db.Sqlite;
 import neko.db.Transaction;
 
 import neko.net.Host;
+import neko.net.Poll;
 import neko.net.ProxyDetect;
 import neko.net.RemotingServer;
 import neko.net.ServerLoop;
