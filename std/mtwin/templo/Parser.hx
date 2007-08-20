@@ -510,6 +510,11 @@ class Parser {
 					}
 					else if (c == "."){
 						state = states.member;
+						if (i < len && str.charAt(i+1) == "_"){
+							result.add(".get");
+							getter = true;
+							skip = true;
+						}
 					}
 					else if (r_op.match(c)){
 						if (c == '!' && n != "="){
