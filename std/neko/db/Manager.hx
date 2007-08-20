@@ -166,7 +166,7 @@ class Manager<T : Object> {
 				}
 			}
 		if( first )
-			s.add("TRUE");
+			s.add("1");
 	}
 
 	public function all( ?lock: Bool ) : List<T> {
