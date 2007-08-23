@@ -35,14 +35,15 @@ class Firebug {
 		}
 		#else flash
 		if( !flash.external.ExternalInterface.available )
-			throw "External Interface not available";
+			return false;
 		return flash.external.ExternalInterface.call("console.error.toString") != null;
 		#end
 	}
 
 	public static function redirectTraces() {
 		haxe.Log.trace = trace;
-		#if flash8
+		#if flash9
+		#else flash
 		flash.Lib.setErrorHandler(onError);
 		#else js
 		js.Lib.setErrorHandler(onError);
