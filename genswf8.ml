@@ -1484,7 +1484,7 @@ let generate file ver header infile types hres =
 					h , Some tagbg
 			) in
 			IO.close_in ch;
-			let no_sandbox = ref true in
+			let has_sandbox = ref false in
 			let rec loop = function
 				| [] ->
 					failwith ("Frame 1 not found in " ^ file)
@@ -1513,14 +1513,17 @@ let generate file ver header infile types hres =
 						) el;
 						t :: loop l
 					end;
-				| ({ tdata = TSandbox s } as t) :: l when ver = 9 ->
-					no_sandbox := false;
+				| ({ tdata = TSandbox _ } as t) :: l when ver = 9 ->
+					has_sandbox := true;
 					{ t with tdata = TSandbox (SBUnknown 8) } :: loop l
+				| ({ tdata = TSandbox _ } as t) :: l ->				
+					has_sandbox := true;
+					t :: loop l
 				| t :: l ->
 					t :: loop l
 			in
 			let tags = loop swf in
-			let tags = (if !no_sandbox && ver >= 8 then sandbox() :: tags else tags) in
+			let tags = (if not !has_sandbox && ver >= 8 then sandbox() :: tags else tags) in
 			(header , tags)
 	) in
 	let swf = if ver = 8 && Plugin.defined "flash_v9" then ({ (fst swf) with h_version = 9 }, snd swf) else swf in
