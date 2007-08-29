@@ -29,7 +29,7 @@ class NekoSocketConnection extends Connection {
 
 	var __r : neko.net.RemotingServer;
 
-	override function __resolve(field) : Connection {
+	public override function __resolve(field) : Connection {
 		var s = new NekoSocketConnection(__data,__path.copy());
 		s.__r = __r;
 		s.__path.push(field);

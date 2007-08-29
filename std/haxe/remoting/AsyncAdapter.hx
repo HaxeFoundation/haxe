@@ -25,33 +25,31 @@
 package haxe.remoting;
 
 /**
-	See [js.XMLSocket]
+	Build an AsyncConnection from a synchronized Connection.
 **/
-class SocketWrapper {
+class AsyncAdapter extends AsyncConnection {
 
-	static var sockets = Reflect.empty();
-
-	static function create( id : String ) {
-		#if flash9
-		throw "Not implemented";
-		#else true
-		var s = new flash.XMLSocket();
-		var cnx = haxe.remoting.Connection.jsConnect().js.XMLSocket.sockets.__resolve(id);
-		Reflect.setField(sockets,id,s);
-		s.onConnect = function(b) {
-			cnx.onConnect.call([b]);
-		};
-		s.onData = function(data) {
-			cnx.onData.call([data]);
-		};
-		s.onClose = function() {
-			cnx.onClose.call([]);
-		};
-		#end
+	public override function __resolve( name ) {
+		var s = new AsyncAdapter(__data.__resolve(name),null);
+		s.__error = __error;
+		return s;
 	}
 
-	static function destroy( id : String ) {
-		Reflect.deleteField(sockets,id);
+	public function call( params : Array<Dynamic>, ?onData : Dynamic -> Void ) : Void {
+		var ret;
+		try {
+			var c : Connection = __data;
+			ret = c.call(params);
+		} catch( e : Dynamic ) {
+			onError(e);
+			return;
+		}
+		if( onData != null )
+			onData(ret);
+	}
+
+	public static function create( c : Connection ) {
+		return new AsyncAdapter(c,null);
 	}
 
 }

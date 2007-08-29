@@ -40,8 +40,7 @@ class XMLSocket {
 		id = "s"+(ID++);
 		rcnx = haxe.remoting.Connection.flashConnect(flashObject).haxe.remoting.SocketWrapper;
 		rcnx.create.call([id]);
-		var cnx : { private function __resolve( id : String ) : haxe.remoting.Connection; } = rcnx.sockets;
-		this.cnx = cnx.__resolve(Std.string(id));
+		this.cnx = rcnx.sockets.__resolve(Std.string(id));
 		Reflect.setField(sockets,id,this);
 	}
 

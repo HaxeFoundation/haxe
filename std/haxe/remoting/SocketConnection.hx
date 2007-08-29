@@ -32,7 +32,7 @@ class SocketConnection extends AsyncConnection {
 	var __r : neko.net.RemotingServer;
 	#end
 
-	override function __resolve(field) : AsyncConnection {
+	public override function __resolve(field) : AsyncConnection {
 		var s = new SocketConnection(__data,__path.copy());
 		s.__error = __error;
 		s.__funs = __funs;

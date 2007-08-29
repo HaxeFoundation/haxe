@@ -32,7 +32,7 @@ class LocalConnection extends AsyncConnection {
 
 	var __funs : List<Dynamic -> Void>;
 
-	override function __resolve(field) : AsyncConnection {
+	public override function __resolve(field) : AsyncConnection {
 		var s = new LocalConnection(__data,__path.copy());
 		s.__error = __error;
 		s.__funs = __funs;

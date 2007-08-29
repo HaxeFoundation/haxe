@@ -23,6 +23,7 @@
 	fixed stack overflow with static setter
 	fixed package completion bug when -cp points to an not existing dir
 	fix duplicate sandboxes tags with -swf
+	__resolve in haXe Remoting is now public
 
 2007-07-25: 1.14
 	fixed no error when invalid "catch" expression

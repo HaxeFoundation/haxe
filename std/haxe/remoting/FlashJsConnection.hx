@@ -4,7 +4,7 @@ class FlashJsConnection extends haxe.remoting.AsyncConnection {
 
 	#if flash
 
-	override function __resolve( field : String ) : AsyncConnection {
+	public override function __resolve( field : String ) : AsyncConnection {
 		var c = new FlashJsConnection(__data,__path.copy());
 		c.__error = __error;
 		c.__path.push(field);

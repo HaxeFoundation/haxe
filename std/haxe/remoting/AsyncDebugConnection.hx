@@ -46,7 +46,7 @@ class AsyncDebugConnection extends AsyncConnection, implements Dynamic<AsyncDebu
 		return f;
 	}
 
-	override function __resolve(field : String) : AsyncConnection {
+	public override function __resolve(field : String) : AsyncConnection {
 		var s = new AsyncDebugConnection(__data.__resolve(field));
 		s.lastCalls = lastCalls;
 		s.__error = __error;

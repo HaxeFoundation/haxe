@@ -37,7 +37,7 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 		__error = { ref : function(e) { throw e; } };
 	}
 
-	function __resolve(field) {
+	public function __resolve(field) {
 		var s = new AsyncConnection(__data,__path.copy());
 		s.__error = __error;
 		s.__path.push(field);

@@ -34,7 +34,7 @@ class Connection implements Dynamic<Connection> {
 		__path = path;
 	}
 
-	function __resolve(field) {
+	public function __resolve(field) {
 		var s = new Connection(__data,__path.copy());
 		s.__path.push(field);
 		return s;
