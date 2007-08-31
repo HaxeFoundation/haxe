@@ -29,6 +29,8 @@ class Cookie {
 		for( e in a ){
 			e = StringTools.ltrim(e);
 			var t = e.split("=");
+			if( t.length < 2 )
+				continue;
 			h.set(t[0],StringTools.urlDecode(t[1]));
 		}
 		return h;
