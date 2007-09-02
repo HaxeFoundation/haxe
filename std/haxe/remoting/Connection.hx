@@ -59,11 +59,13 @@ class Connection implements Dynamic<Connection> {
 		s.serialize(params);
 		var params = escapeString(s.toString());
 		#if (flash8 || flash9)
-		var s = flash.external.ExternalInterface.call("haxe.remoting.Connection.doCall",path,f,params);
-		if( s == null )
+			var s = flash.external.ExternalInterface.call("haxe.remoting.Connection.doCall",path,f,params);
+			if( s == null )
+				throw "Failed to call JS method "+__path.join(".");
+			return new haxe.Unserializer(s).unserialize();
+		#else true
+			throw "JS method call is not supported on Flash < 8";
 		#end
-			throw "Failed to call JS method "+__path.join(".");
-		return new haxe.Unserializer(s).unserialize();
 	#else js
 		var p = __path.copy();
 		var f = p.pop();
