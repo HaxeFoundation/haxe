@@ -25,16 +25,21 @@ type register =
 	| Reg of int
 
 type context = {
+
+	(* segs *)
+	mutable segs : (actions * (string * bool, int) Hashtbl.t) list;
+
 	(* code *)
-	opcodes : actions;
+	mutable opcodes : actions;
 	mutable code_pos : int;
 	mutable stack_size : int;
 	mutable opt_push : bool;
 	mutable ident_count : int;
+	mutable ident_size : int;
 
 	(* management *)
 	packages : (string list,unit) Hashtbl.t;
-	idents : (string * bool,int) Hashtbl.t;
+	mutable idents : (string * bool,int) Hashtbl.t;
 	mutable movieclips : module_path list;
 	mutable inits : texpr list;
 	mutable statics : (tclass * bool * string * texpr) list;
@@ -207,6 +212,7 @@ let push ctx items =
 			with Not_found ->
 				let n = ctx.ident_count in
 				ctx.ident_count <- n + 1;
+				ctx.ident_size <- ctx.ident_size + 1 + String.length str;
 				Hashtbl.add ctx.idents (str,flag) n;
 				n
 			) in
@@ -396,6 +402,15 @@ let alloc_reg ctx =
 let free_reg ctx r p =
 	if r <> ctx.reg_count then stack_error p;
 	ctx.reg_count <- ctx.reg_count - 1
+
+let segment ctx =
+	ctx.segs <- (ctx.opcodes,ctx.idents) :: ctx.segs;
+	ctx.opcodes <- DynArray.create();
+	ctx.idents <- Hashtbl.create 0;
+	ctx.ident_count <- 0;
+	ctx.ident_size <- 0;
+	ctx.code_pos <- 0;
+	write ctx (AStringPool [])
 
 (* -------------------------------------------------------------- *)
 (* Generation Helpers *)
@@ -1180,6 +1195,7 @@ let gen_package ctx path ext =
 	loop [] (fst path)
 
 let gen_type_def ctx t =
+	if ctx.ident_size > 50000 then segment ctx;
 	match t with
 	| TClassDecl c ->
 		(match c.cl_init with
@@ -1325,6 +1341,15 @@ let to_utf8 str =
 			String.iter (fun c -> UTF8.Buf.add_char b (UChar.of_char c)) str;
 			UTF8.Buf.contents b
 
+let build_tag (opcodes,idents) =
+	let idents = Hashtbl.fold (fun ident pos acc -> (ident,pos) :: acc) idents [] in
+	let idents = List.sort (fun (_,p1) (_,p2) -> compare p1 p2) idents in
+	let pidents = List.map (fun ((_,flag),_) -> flag) idents in
+	let idents = AStringPool (List.map (fun ((id,_),_) -> to_utf8 id) idents) in
+	if ActionScript.action_length idents >= 1 lsl 16 then failwith "The SWF can't handle more than a total size of 64K of identifers and literal strings. Try reducing this number by using external data files loaded at runtime";
+	DynArray.set opcodes 0 idents;
+	TDoAction opcodes , pidents
+
 let convert_header ver (w,h,fps,bg) =
 	{
 		h_version = ver;
@@ -1345,10 +1370,12 @@ let default_header ver =
 
 let generate_code file ver types hres =
 	let ctx = {
+		segs = [];
 		opcodes = DynArray.create();
 		code_pos = 0;
 		stack_size = 0;
 		ident_count = 0;
+		ident_size = 0;
 		opt_push = false;
 		idents = Hashtbl.create 0;
 		packages = Hashtbl.create 0;
@@ -1395,14 +1422,11 @@ let generate_code file ver types hres =
 	call ctx VarObj 1;
 	write ctx APop;
 	end_try();
-	let idents = ctx.idents in
-	let idents = Hashtbl.fold (fun ident pos acc -> (ident,pos) :: acc) idents [] in
-	let idents = List.sort (fun (_,p1) (_,p2) -> compare p1 p2) idents in
-	let pidents = List.map (fun ((_,flag),_) -> flag) idents in
-	let idents = AStringPool (List.map (fun ((id,_),_) -> to_utf8 id) idents) in
-	if ActionScript.action_length idents >= 1 lsl 16 then failwith "The SWF can't handle more than a total size of 64K of identifers and literal strings. Try reducing this number by using external data files loaded at runtime";
-	DynArray.set ctx.opcodes 0 idents;
+	let segs = List.rev ((ctx.opcodes,ctx.idents) :: ctx.segs) in
+	let tags = List.map build_tag segs in
 	if Plugin.defined "swf-mark" then begin
+		if List.length segs > 0 then assert false;
+		let pidents = snd (List.hd tags) in
 		let ch = IO.output_channel (open_out_bin (Filename.chop_extension file ^ ".mark")) in
 		IO.write_i32 ch (List.length ctx.fun_pargs);
 		List.iter (fun (id,l) ->
@@ -1414,7 +1438,7 @@ let generate_code file ver types hres =
 		List.iter (fun f -> IO.write_byte ch (if f then 1 else 0)) pidents;
 		IO.close_out ch;
 	end;
-	[TDoAction ctx.opcodes] , ctx.movieclips
+	List.map fst tags , ctx.movieclips
 
 let generate file ver header infile types hres =
 	let t = Plugin.timer "generate swf" in
