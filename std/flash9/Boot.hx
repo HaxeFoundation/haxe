@@ -96,6 +96,9 @@ class Boot extends flash.display.MovieClip {
 		var mc = flash.Lib.current;
 		if( tf == null ) {
 			tf = new flash.text.TextField();
+			var format = tf.getTextFormat();
+			format.font = "_sans";
+			tf.defaultTextFormat = format;
 			tf.selectable = false;
 			tf.width = mc.stage.stageWidth;
 			tf.autoSize = flash.text.TextFieldAutoSize.LEFT;

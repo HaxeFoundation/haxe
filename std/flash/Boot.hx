@@ -160,6 +160,9 @@ class Boot {
 		if( tf == null ) {
 			root.createTextField("__trace_txt",1048500,0,0,Stage.width,Stage.height+30);
 			tf = root.__trace_txt;
+			var format = tf.getTextFormat();
+			format.font = "_sans";
+			tf.setNewTextFormat(format);
 			tf.selectable = false;
 			tf.textColor = def_color;
 			root.__trace_lines = new Array<String>();
