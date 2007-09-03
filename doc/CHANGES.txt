@@ -2,6 +2,7 @@
 	use _sans font for default flash traces (better Linux support)
 	fixed haxe.remoting.Connection compilation for Flash<8
 	added fix to prevent 64K identifiers limit on Flash<9
+	ensure order of anonymous fields initialization
 
 2007-08-29: 1.15
 	fixed bug with Enum.construct when Enum have type parameters

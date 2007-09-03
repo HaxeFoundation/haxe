@@ -1718,7 +1718,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let fields , types = List.fold_left loop ([],PMap.empty) fl in
 		let x = ref Const in
 		ctx.opened <- x :: ctx.opened;
-		mk (TObjectDecl fields) (TAnon { a_fields = types; a_status = x }) p
+		mk (TObjectDecl (List.rev fields)) (TAnon { a_fields = types; a_status = x }) p
 	| EArrayDecl el ->
 		let t = ref (mk_mono()) in
 		let el = List.map (fun e ->
