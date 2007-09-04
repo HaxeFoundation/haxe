@@ -1425,7 +1425,7 @@ let generate_code file ver types hres =
 	let segs = List.rev ((ctx.opcodes,ctx.idents) :: ctx.segs) in
 	let tags = List.map build_tag segs in
 	if Plugin.defined "swf-mark" then begin
-		if List.length segs > 0 then assert false;
+		if List.length segs > 1 then assert false;
 		let pidents = snd (List.hd tags) in
 		let ch = IO.output_channel (open_out_bin (Filename.chop_extension file ^ ".mark")) in
 		IO.write_i32 ch (List.length ctx.fun_pargs);
