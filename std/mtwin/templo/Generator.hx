@@ -40,9 +40,9 @@ class Generator {
 
 	public function toString() : String {
 		flushHtml();
-	
+
 		var result = new StringBuf();
-		result.add('
+		var headercode = '
 			String = $loader.String;
 			Array = $loader.Array;
 			iter = $loader.iter;
@@ -150,9 +150,10 @@ class Generator {
 				}
 				var __glb = __ctx;
 				var __out = new_output_buffer(null);
-				
+
 //--- HERE COMES THE TEMPLATE CODE ---
-');
+';
+		result.add(~/[\r\n]+/g.split(headercode).join("\n"));
 		result.add(out.toString());
 		result.add('//--- END OF TEMPLATE CODE ---
 				return __out.str();

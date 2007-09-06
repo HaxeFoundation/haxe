@@ -78,7 +78,7 @@ class Parser {
 	function parseElement( xml:Xml ){
 		var mtSet = extractAttribute(xml, MT_SET);
 		if (mtSet != null){
-			var incExp = ~/^([a-zA-Z_][a-zA-Z0-9_]*?)\s*?([\+\-\/*%])=\s*?(.*?)$/;
+			var incExp = ~/^([a-zA-Z_][a-zA-Z0-9_]*?)\s*?([\+\-\/*%])=\s*?(.*?)$/;  // */
 			if (incExp.match(mtSet)){
 				var dest = StringTools.trim(incExp.matched(1));
 				var op = incExp.matched(2);
@@ -100,7 +100,7 @@ class Parser {
 			/*
 			if (!mtwin.templo.Template.compiledFiles.exists(mtUse)){
 				mtwin.templo.Template.compiledFiles.set(mtUse, true);
-				var f = mtwin.templo.Template.fromFile(mtUse); 
+				var f = mtwin.templo.Template.fromFile(mtUse);
 			}
 			*/
 			out.add("tmp = "+out.getVar("__content__")+";\n");
@@ -117,7 +117,7 @@ class Parser {
 			out.setVar("__content__", "tmp");
 			return;
 		}
-		
+
 		var mtFill = extractAttribute(xml, MT_FILL);
 		if (mtFill != null){
 			out.add("__out = new_output_buffer(__out);\n");
@@ -126,7 +126,7 @@ class Parser {
 			out.add("__out = __out.parent;\n");
 			return;
 		}
-		
+
 		var mtIf = extractAttribute(xml, MT_IF);
 		if (mtIf != null){
 			out.add("if (is_true("+parseExpression(mtIf)+")){\n");
@@ -134,7 +134,7 @@ class Parser {
 			out.add("}\n");
 			return;
 		}
-		
+
 		var mtElseIf = extractAttribute(xml, MT_ELSEIF);
 		if (mtElseIf != null){
 			out.add("else if (is_true("+parseExpression(mtElseIf)+")){\n");
@@ -142,7 +142,7 @@ class Parser {
 			out.add("}\n");
 			return;
 		}
-		
+
 		var mtElse = extractAttribute(xml, MT_ELSE);
 		if (mtElse != null){
 			out.add("else {\n");
@@ -153,7 +153,7 @@ class Parser {
 
 		var mtForeach = extractAttribute(xml, MT_FOREACH);
 		if (mtForeach != null){
-			var o = extractExpressionTarget(mtForeach);	
+			var o = extractExpressionTarget(mtForeach);
 			if (o.target == null)
 				throw "repeat/foreach requires two parameters (expression was '"+mtForeach+"')";
 			out.add("var loop = "+parseExpression(o.exp)+";\n");
@@ -176,7 +176,7 @@ class Parser {
 		if (mtOmitTag == null && xml.nodeName == MT){
 			mtOmitTag = "true";
 		}
-		
+
 		var mtAttributes = extractAttribute(xml, MT_ATTRIBUTES);
 		var mtContent = extractAttribute(xml, MT_CONTENT);
 
@@ -189,7 +189,7 @@ class Parser {
 		if (xhtmlMode && !hasContent && !xhtmlEmpty){
 			hasContent = true;
 		}
-		
+
 		if (mtOmitTag == null){
 			out.writeHtml("<"+xml.nodeName);
 			if (mtAttributes != null){
@@ -198,7 +198,7 @@ class Parser {
 			else {
 				echoAttributes(xml);
 			}
-			if (hasContent){ 
+			if (hasContent){
 				out.writeHtml(">");
 			}
 			else {
@@ -206,7 +206,7 @@ class Parser {
 				return;
 			}
 		}
-		
+
 		if (mtContent != null){
 			echoExpression(mtContent);
 		}
@@ -214,7 +214,7 @@ class Parser {
 			for (child in xml)
 				parseNode(child);
 		}
-		
+
 		if (mtOmitTag == null && hasContent){
 			out.writeHtml("</" + xml.nodeName + ">");
 		}
@@ -367,11 +367,11 @@ class Parser {
 		var i = 0;
 		while (i < len){
 			var c = str.charAt(i);
-			if (c == "("){ 
-				cto++; 
+			if (c == "("){
+				cto++;
 			}
-			else if (c == ")"){ 
-				cto--; 
+			else if (c == ")"){
+				cto--;
 			}
 
 			if (c == "\\"){
@@ -411,8 +411,8 @@ class Parser {
 			if (c == "," && ctopen == 0){
 				n++;
 			}
-			if (c == "["){ 
-				ctopen++; 
+			if (c == "["){
+				ctopen++;
 			}
 			else if (c == "]"){
 				if (ctopen == 0){
@@ -433,8 +433,8 @@ class Parser {
 		var ctopen = 0;
 		for (i in (pos+1)...(len)){
 			var c = str.charAt(i);
-			if (c == "("){ 
-				ctopen++; 
+			if (c == "("){
+				ctopen++;
 			}
 			else if (c == ")"){
 				if (ctopen == 0){
@@ -475,7 +475,7 @@ class Parser {
 		return varName == "true" || varName == "false" || varName == "null" || varName == "if" || varName == "else";
 	}
 
-	// Quick and 'dirty' expression transformer, 
+	// Quick and 'dirty' expression transformer,
     // This function transform a template expression into a neko compliant expression.
 	public static function parseExpression( exp:String ) : String {
 		var r_num = ~/[0-9]+/;
@@ -525,7 +525,7 @@ class Parser {
 							if (str.substr(i,5) == "&amp;"){
 								result.add("&"); i+=4; skip = true;
 							}
-							if (str.substr(i,4) == "&lt;"){ 
+							if (str.substr(i,4) == "&lt;"){
 								result.add("<"); i+=3; skip = true;
 							}
 							else if (str.substr(i,4) == "&gt;"){
@@ -565,10 +565,10 @@ class Parser {
 					}
 
 				case states.string:
-					if (c == "\\" && n == "'"){ 
+					if (c == "\\" && n == "'"){
 						result.add("'");
 						skip = true;
-						++i; 
+						++i;
 					}
 					else if (c == "\\" && n == "\""){
 						skip = true;
@@ -578,7 +578,7 @@ class Parser {
 						result.add("\")");
 						skip = true;
 					}
-					
+
 				case states.dstring:
 					if (c == "\\" && n == "\""){
 						result.add("\\\"");
@@ -636,7 +636,7 @@ class Parser {
 							skip = true;
 							state = states.none;
 						}
-						else {							
+						else {
 							result.add("__ctx.get(");
 							result.add(Generator.hash(variable));
 							result.add(")");
@@ -648,7 +648,7 @@ class Parser {
 					if (!r_digit.match(c)){
 						state = states.none;
 					}
-					
+
 				case states.member:
 					if (r_var.match(c)){
 					}

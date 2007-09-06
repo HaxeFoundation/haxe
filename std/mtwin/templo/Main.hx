@@ -36,6 +36,7 @@ class Main {
 		files = new List();
 		args = neko.Sys.args();
 		var i = 0;
+		var macros = null;
 		while (i < args.length){
 			var arg = args[i];
 			switch (arg){
@@ -62,14 +63,17 @@ class Main {
 					++i;
 
 				case "-m":
-					mtwin.templo.Preprocessor.registerMacroFile(args[i+1]);
-					++i;
+					i++;
+					macros = args[i];
+					mtwin.templo.Preprocessor.registerMacroFile(macros);
 
 				default:
 					files.push(arg);
 			}
 			++i;
 		}
+		if( macros != null )
+			files.remove(macros);
 		if (args.length == 0){
 			neko.Lib.print("temploc - v"+VERSION+"\n");
 			neko.Lib.print(USAGE);
