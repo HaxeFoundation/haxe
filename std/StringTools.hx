@@ -265,15 +265,27 @@ class StringTools {
 		Encode a number into a hexadecimal representation, with an optional number of zeros for left padding.
 	**/
 	public static function hex( n : Int, ?digits : Int ) {
+		var neg = false;
+		if( n < 0 ) {
+			neg = true;
+			n = -n;
+		}
+		#if (flash || js)
+		var s : String = untyped n.toString(16);
+		s = s.toUpperCase();
+		#else true
 		var s = "";
 		var hexChars = "0123456789ABCDEF";
 		do {
 			s = hexChars.charAt(n%16) + s;
 			n = Std.int(n/16);
 		} while( n > 0 );
+		#end
 		if( digits != null )
 			while( s.length < digits )
 				s = "0"+s;
+		if( neg )
+			s = "-"+s;
 		return s;
 	}
 
