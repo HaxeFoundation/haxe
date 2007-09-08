@@ -51,6 +51,7 @@ class EReg {
 			opt = a.join("");
 		this.r = regexp_new_options(untyped r.__s, untyped opt.__s);
 		#else js
+		opt = opt.split("u").join(""); // 'u' (utf8) depends on page encoding
 		this.r = untyped __new__("RegExp",r,opt);
 		#else flash9
 		this.r = untyped __new__(__global__["RegExp"],r,opt);

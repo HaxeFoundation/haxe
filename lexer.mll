@@ -265,7 +265,7 @@ and regexp = parse
 	| [^ '\\' '/' '\r' '\n']+ { store lexbuf; regexp lexbuf }
 
 and regexp_options = parse
-	| 'g' | 'i' | 'm' | 's' {
+	| 'g' | 'i' | 'm' | 's' | 'u' {
 			let l = lexeme lexbuf in
 			l ^ regexp_options lexbuf
 		}
