@@ -86,7 +86,7 @@ class NekoArray__<T> implements Array<T> {
 				if( pos < 0 ) pos = 0;
 			}
 			if( length < pos ) pos = length;
-			this.__resize(this.length+1);
+			this.__double(this.length+1);
 			__dollar__ablit(this.__a,pos+1,this.__a,pos,this.length-pos-1);
 			this.__a[pos] = x;
 		}
@@ -130,7 +130,7 @@ class NekoArray__<T> implements Array<T> {
 	public function push(v) {
 		untyped {
 			var l = this.length;
-			this.__resize(l + 1);
+			this.__double(l + 1);
 			this.__a[l] = v;
 			return l;
 		}
@@ -139,7 +139,7 @@ class NekoArray__<T> implements Array<T> {
 	public function unshift(v ) {
 		untyped {
 			var l = this.length;
-			this.__resize(l + 1);
+			this.__double(l + 1);
 			var a = this.__a;
 			__dollar__ablit(a,1,a,0,l);
 			a[0] = v;
@@ -286,6 +286,23 @@ class NekoArray__<T> implements Array<T> {
 				return;
 			}
 			var a2 = __dollar__amake(l);
+			__dollar__ablit(a2,0,a,0,this.length);
+			this.__a = a2;
+			this.length = l;
+		}
+	}
+
+	private function __double(l) {
+		untyped {
+			var a = this.__a;
+			var sz = __dollar__asize(a);
+			if( sz >= l ) {
+				this.length = l;
+				return;
+			}
+			var big = sz * 2;
+			if( big < l ) big = l;
+			var a2 = __dollar__amake(big);
 			__dollar__ablit(a2,0,a,0,this.length);
 			this.__a = a2;
 			this.length = l;
