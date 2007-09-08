@@ -3,6 +3,10 @@
 	fixed haxe.remoting.Connection compilation for Flash<8
 	added fix to prevent 64K identifiers limit on Flash<9
 	ensure order of anonymous fields initialization
+	fixed haxe.remoting.Connection.urlConnect in JS
+	use amortized O(1) for Neko Array implementation
+	allowed 'u' utf8 for regexp (needs Neko 1.6.1 regexp.ndll on windows)
+	onclick and onsubmit JS events returns Bool
 
 2007-08-29: 1.15
 	fixed bug with Enum.construct when Enum have type parameters

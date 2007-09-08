@@ -96,7 +96,7 @@ typedef FormElement = {> HtmlDom,
 	function focus() : Void;
 
 	var onblur : Event -> Void;
-	var onclick : Event -> Void;
+	var onclick : Event -> Bool;
 	var onfocus : Event -> Void;
 
 }
