@@ -85,9 +85,9 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 			var ok = true;
 			var v;
 			try {
-				if( data.length < 3 || data.substr(0,3) != "hxr" )
+				if( data.substr(0,3) != "hxr" )
 					throw "Invalid response : '"+data+"'";
-				var s = new haxe.Unserializer(data.substr(3,data.length-3));
+				var s = new haxe.Unserializer(data.substr(3));
 				v = s.unserialize();
 			} catch( err : Dynamic ) {
 				ok = false;

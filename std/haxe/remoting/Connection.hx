@@ -67,26 +67,32 @@ class Connection implements Dynamic<Connection> {
 			throw "JS method call is not supported on Flash < 8";
 		#end
 	#else js
-		var p = __path.copy();
-		var f = p.pop();
-		var path = p.join(".");
 		var s = new haxe.Serializer();
-		s.serialize(params);
-		var params = s.toString();
-		var s;
+		var data;
 		if( __data.remotingCall == null ) {
 			var h = new haxe.Http(__data);
 			untyped h.async = false;
-			h.onData = function(d) { s = d; };
+			h.onData = function(d) { data = d; };
 			h.onError = function(e) { throw e; };
 			h.setHeader("X-Haxe-Remoting","1");
-			h.setParameter("__x",params);
+			s.serialize(__path);
+			s.serialize(params);
+			h.setParameter("__x",s.toString());
 			h.request(true);
-		} else
-			s = __data.remotingCall(path,f,params);
-		if( s == null )
-			throw "Failed to call Flash method "+__path.join(".");
-		return new haxe.Unserializer(s).unserialize();
+			if( data.substr(0,3) != "hxr" )
+                throw "Invalid response : '"+data+"'";
+			data = data.substr(3);
+		} else {
+			var p = __path.copy();
+			var f = p.pop();
+			var path = p.join(".");
+			s.serialize(params);
+			var params = s.toString();
+			data = __data.remotingCall(path,f,params);
+			if( data == null )
+				throw "Failed to call Flash method "+__path.join(".");
+		}
+		return new haxe.Unserializer(data).unserialize();
 	#else neko
 		var cnx = AsyncConnection.urlConnect(__data);
 		var result = null;
