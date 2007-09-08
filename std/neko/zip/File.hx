@@ -32,6 +32,8 @@ typedef ZipEntry = {
 	var data : String;
 }
 
+// see http://www.pkware.com/documents/casestudies/APPNOTE.TXT
+
 class File {
 
 	public static function unzip( f : ZipEntry ) : String {
@@ -54,7 +56,8 @@ class File {
 			throw "Invalid Zip Data";
 		var version = i.readUInt16();
 		var flags = i.readUInt16();
-		if( flags != 0 )
+		var extraFields = (flags & 8) != 0;
+		if( (flags & 0xFFF7) != 0 )
 			throw "Unsupported flags "+flags;
 		var compression = i.readUInt16();
 		var compressed = (compression != 0);
@@ -69,12 +72,21 @@ class File {
 		var elen = i.readInt16();
 		var fname = i.read(fnamelen);
 		var ename = i.read(elen);
+		var data;
+		if( extraFields ) {
+			// TODO : it is needed to directly read the compressed
+			// data streamed from the input (needs additional neko apis)
+			// then, we can set "compressed" to false, and then follows
+			// 12 bytes with real crc, csize and usize
+			throw "Zip format with extrafields is currently not supported";
+		} else
+			data = i.read(csize);
 		return {
 			fileName : fname,
 			fileSize : usize,
 			compressed : compressed,
 			compressedSize : csize,
-			data : null,
+			data : data,
 		};
 	}
 
@@ -84,7 +96,6 @@ class File {
 			var e = readZipEntry(i);
 			if( e == null )
 				break;
-			e.data = i.read(e.compressedSize);
 			l.add(e);
 		}
 		return l;
