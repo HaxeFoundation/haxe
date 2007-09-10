@@ -314,7 +314,7 @@ class Check {
 
 	public static function checkDocument( x : Xml, r : Rule ) {
 		if( x.nodeType != Xml.Document )
-			throw "Document excepted";
+			throw "Document expected";
 		var m = checkList(x.iterator(),r);
 		if( m == CMatch )
 			return;
