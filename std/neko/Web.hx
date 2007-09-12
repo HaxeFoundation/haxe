@@ -180,7 +180,7 @@ class Web {
 
 
 	/**
-		Set a Cookie value in the HTTP headers. Same remark as setClientHeader.
+		Set a Cookie value in the HTTP headers. Same remark as setHeader.
 	**/
 	public static function setCookie( k : String, v : String ) {
 		_set_cookie(untyped k.__s,untyped v.__s);
