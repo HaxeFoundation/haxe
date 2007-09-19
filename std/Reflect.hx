@@ -123,7 +123,7 @@ class Reflect {
 		#else js
 			func.apply(o,args)
 		#else neko
-			__dollar__call(func,o,args.__a)
+			__dollar__call(func,o,args.neko())
 		#else error
 		#end
 			;

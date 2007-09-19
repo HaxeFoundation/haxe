@@ -61,7 +61,7 @@ class NekoArray__<T> implements Array<T> {
 	}
 
 	public function copy() {
-		return untyped Array.new1(__dollar__acopy(this.__a),this.length);
+		return untyped Array.new1(__dollar__asub(this.__a,0,this.length),this.length);
 	}
 
 	public function iterator() {
@@ -94,10 +94,11 @@ class NekoArray__<T> implements Array<T> {
 
 	public function join(delim : String) {
 		var s = new StringBuf();
-		var it = iterator();
-		for( i in it ) {
-			s.add(i);
-			if( it.hasNext() )
+		var a = untyped this.__a;
+		var max = this.length - 1;
+		for( p in 0...this.length ) {
+			s.add(a[p]);
+			if( p != max )
 				s.add(delim);
 		}
 		return s.toString();
@@ -309,5 +310,16 @@ class NekoArray__<T> implements Array<T> {
 		}
 	}
 
+	private function __neko() {
+		untyped {
+			var a = this.__a;
+			var sz = __dollar__asize(a);
+			if( sz != this.length ) {
+				a = __dollar__asub(a,0,this.length);
+				this.__a = a;
+			}
+			return a;
+		}
+	}
 
 }
