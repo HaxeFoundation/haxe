@@ -37,6 +37,8 @@ class Firebug {
 		if( !flash.external.ExternalInterface.available )
 			return false;
 		return flash.external.ExternalInterface.call("console.error.toString") != null;
+		#else neko
+		return true;
 		#end
 	}
 
@@ -82,6 +84,10 @@ class Firebug {
 			#end // flash9
 		#else js
 			untyped console[type]( (if( inf == null ) "" else inf.fileName+":"+inf.lineNumber+" : ") + Std.string(v) );
+		#else neko
+			var str = inf.fileName + ":" + inf.lineNumber + " : ";
+			try str += Std.string(v) catch( e : Dynamic ) str += "???";
+			neko.Lib.print('<script type="text/javascript">console.'+type+'(decodeURIComponent("'+StringTools.urlEncode(str)+'"))</script>');
 		#else error
 		#end
 	}
