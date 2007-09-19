@@ -5,6 +5,7 @@
 	ensure order of anonymous fields initialization
 	fixed haxe.remoting.Connection.urlConnect in JS
 	use amortized O(1) for Neko Array implementation
+	ndlls libraries should now use .neko() instead of __a
 	allowed 'u' utf8 for regexp (needs Neko 1.6.1 regexp.ndll on windows)
 	onclick and onsubmit JS events returns Bool
 
