@@ -274,7 +274,7 @@ class Type {
 			cl["apply"](o,args);
 			return o;
 		#else neko
-			return untyped __dollar__call(__dollar__objget(cl,__dollar__hash("new".__s)),cl,args.neko());
+			return untyped __dollar__call(__dollar__objget(cl,__dollar__hash("new".__s)),cl,args.__neko());
 		#else js
 			if( args.length >= 6 ) throw "Too many arguments";
 			return untyped __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5]);
