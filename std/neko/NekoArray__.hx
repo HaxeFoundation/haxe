@@ -81,14 +81,16 @@ class NekoArray__<T> implements Array<T> {
 
 	public function insert( pos, x ) {
 		untyped {
-			if( pos < 0 ){
-				pos = this.length + pos;
+			var l = this.length;
+			if( pos < 0 ) {
+				pos = l + pos;
 				if( pos < 0 ) pos = 0;
 			}
-			if( length < pos ) pos = length;
-			this.__double(this.length+1);
-			__dollar__ablit(this.__a,pos+1,this.__a,pos,this.length-pos-1);
-			this.__a[pos] = x;
+			if( pos > l ) pos = l;
+			this.__double(l+1);
+			var a = this.__a;
+			__dollar__ablit(a,pos+1,a,pos,l-pos);
+			a[pos] = x;
 		}
 	}
 
@@ -271,25 +273,16 @@ class NekoArray__<T> implements Array<T> {
 	private function __set( pos, v ) {
 		untyped {
 			var a = this.__a;
-			if( __dollar__asize(a) <= pos ) {
-				this.__resize(pos+1);
-				a = this.__a;
+			if( this.length <= pos ) {
+				var l = pos + 1;
+				if( __dollar__asize(a) < l ) {
+					a = __dollar__amake(l);
+					__dollar__ablit(a,0,this.__a,0,this.length);
+					this.__a = a;
+				}
+				this.length = l;
 			}
 			a[pos] = v;
-		}
-	}
-
-	private function __resize(l) {
-		untyped {
-			var a = this.__a;
-			if( __dollar__asize(a) >= l ) {
-				this.length = l;
-				return;
-			}
-			var a2 = __dollar__amake(l);
-			__dollar__ablit(a2,0,a,0,this.length);
-			this.__a = a2;
-			this.length = l;
 		}
 	}
 
