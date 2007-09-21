@@ -38,6 +38,7 @@ class Tools {
 	static var REG_HEADER_DECODE = ~/^(.*?)=\?([^\?]+)\?(Q|B)\?([^?]*)\?=(.*?)$/i;
 	static var REG_QP_LB = ~/=\\r?\\n/;
 	static var REG_QP = ~/=([A-Fa-f0-9]{1,2})/;
+	static var REG_SPACES = ~/\s+/;
 	
 	public static function chunkSplit( str:String, length:Int, sep:String ){
 		var ret = "";
@@ -69,7 +70,8 @@ class Tools {
 	}
 
 	public static function decodeBase64( content : String ){
-		return StringTools.baseDecode( StringTools.replace(StringTools.replace(content,"\r\n",""),"=",""), BASE64 );
+		content = StringTools.replace(REG_SPACES.replace(content,""),"=","");
+		return try StringTools.baseDecode( content, BASE64 ) catch( e : Dynamic ) content;
 	}
 
 	public static function encodeQuotedPrintable( content : String ) : String{
