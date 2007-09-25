@@ -71,7 +71,8 @@ class SocketConnection extends AsyncConnection {
 		try {
 			request = proto.isRequest(data);
 		} catch( e : Dynamic ) {
-			__error.ref(e); // protocol error
+			var msg = Std.string(e) + " (in "+StringTools.urlEncode(data)+")";
+			__error.ref(msg); // protocol error
 			return;
 		}
 		// request
