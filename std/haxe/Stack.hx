@@ -115,7 +115,7 @@ class Stack {
 		return a;
 		#else flash9
 		#else true
-		var a : Array<String> = untyped #if flash __eval__(s) #else true __js__("eval")(s) #end;
+		var a : Array<String> = untyped #if flash __eval__(s) #else true try __js__("eval")(s) catch( e : Dynamic ) [] #end;
 		var m = new Array();
 		for( i in 0...a.length - if(s == "$s") 2 else 0 ) {
 			var d = a[i].split("::");
