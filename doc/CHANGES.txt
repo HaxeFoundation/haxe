@@ -9,6 +9,8 @@
 	allowed 'u' utf8 for regexp (needs Neko 1.6.1 regexp.ndll on windows)
 	onclick and onsubmit JS events returns Bool
 	fixed inherited constructor of extern class was always private
+	fixed Ereg.split without 'g' flag on JS/Flash9
+	fixed haxe.Stack in JS without -debug
 
 2007-08-29: 1.15
 	fixed bug with Enum.construct when Enum have type parameters

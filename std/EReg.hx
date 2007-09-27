@@ -210,10 +210,10 @@ class EReg {
 		} while( global );
 		a.push(s.substr(pos,len));
 		return a;
-		#else js
-		return untyped s.split(r);
-		#else flash9
-		return untyped s.split(r);
+		#else (js || flash9)
+		// we can't use directly s.split because it's ignoring the 'g' flag
+		var d = "#__delim__#";
+		return untyped s.replace(r,d).split(d);		
 		#else flash
 		throw "EReg::split not implemented";
 		return null;
@@ -276,9 +276,7 @@ class EReg {
 		} while( global );
 		b.addSub(s,pos,len);
 		return b.toString();
-		#else js
-		return untyped s.replace(r,by);
-		#else flash9
+		#else (js || flash9)
 		return untyped s.replace(r,by);
 		#else flash
 		throw "EReg::replace not implemented";
