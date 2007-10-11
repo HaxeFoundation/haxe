@@ -38,7 +38,7 @@ class Tools {
 	static var REG_HEADER_DECODE = ~/^(.*?)=\?([^\?]+)\?(Q|B)\?([^?]*)\?=(.*?)$/i;
 	static var REG_QP_LB = ~/=\\r?\\n/;
 	static var REG_QP = ~/=([A-Fa-f0-9]{1,2})/;
-	static var REG_SPACES = ~/\s+/;
+	static var REG_SPACES = ~/\s+/g;
 	
 	public static function chunkSplit( str:String, length:Int, sep:String ){
 		var ret = "";
