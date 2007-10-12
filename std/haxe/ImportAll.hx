@@ -53,7 +53,6 @@ import haxe.ImportAll;
 import haxe.Log;
 import haxe.Md5;
 import haxe.PosInfos;
-import haxe.Proxy;
 import haxe.Serializer;
 import haxe.Stack;
 import haxe.Template;

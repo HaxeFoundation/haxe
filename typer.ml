@@ -515,57 +515,6 @@ let extend_remoting ctx c t p async prot =
 		| _ -> assert false
 	)
 
-let extend_proxy ctx c t p =
-	if c.cl_super <> None then error "Cannot extend several classes" p;
-	let tclass = load_normal_type ctx t p false in
-	let tdyn = TPNormal { tpackage = []; tname = "Dynamic"; tparams = []; } in
-	let make_field f args =
-		let args = List.map (fun (name,o,t) -> name , o, Some tdyn) args in
-		let eargs = List.map (fun (name,_,_) -> EConst (Ident name) , p) args in
-		f.cf_name , (FFun (f.cf_name,None,[if f.cf_public then APublic else APrivate],[], {
-			f_args = args;
-			f_type = None;
-			f_expr = (EBlock [
-				(EReturn (Some (ECall (
-					(EConst (Ident "handleCall"),p),
-					[(ECall ((EConst (Ident "__unprotect__"),p),[EConst (String f.cf_name),p]),p); (EArrayDecl eargs,p)]
-				),p)),p)
-			],p);
-		}),p)
-	in
-	let class_fields = (match tclass with
-		| TInst (c,params) ->
-			let rec loop c =
-				PMap.fold (fun f acc ->
-					match follow f.cf_type with
-					| TFun (args,ret) ->
-						(try
-							ignore(List.assoc f.cf_name acc);
-							acc
-						with
-							Not_found -> make_field f args :: acc)
-					| _ -> acc
-				) c.cl_fields (match c.cl_super with None -> [] | Some (c,_) -> loop c)
-			in
-			List.map snd (loop c)
-		| _ ->
-			error "Proxy type parameter should be a class" p
-	) in
-	let tproxy = { tpackage = ["haxe"]; tname = "Proxy"; tparams = [TPType (TPNormal t)] } in
-	let pname = "P" ^ t.tname in
-	let class_decl = (EClass {
-		d_name = pname;
-		d_doc = None;
-		d_params = List.map (fun (s,_) -> s,[]) c.cl_types;
-		d_flags = [HExtends tproxy; HImplements t];
-		d_data = class_fields;
-	},p) in
-	let m = (!type_module_ref) ctx ("Proxy" :: t.tpackage, pname) [class_decl] p in
-	c.cl_super <- Some (match m.mtypes with
-		| [TClassDecl c2] -> (c2,List.map snd c.cl_types)
-		| _ -> assert false
-	)
-
 let extend_xml_proxy ctx c t file p =
 	let t = load_type ctx p t in
 	let file = (try Plugin.find_file file with Not_found -> file) in
@@ -606,8 +555,6 @@ let set_heritance ctx c herits p =
 			extend_remoting ctx c t p true true
 		| HExtends { tpackage = ["mt"]; tname = "AsyncProxy"; tparams = [TPType(TPNormal t)] } ->
 			extend_remoting ctx c t p true false
-		| HExtends { tpackage = ["haxe"]; tname = "Proxy"; tparams = [TPType(TPNormal t)] } when match c.cl_path with "Proxy" :: _ , _ -> false | _ -> true ->
-			extend_proxy ctx c t p
 		| HExtends t ->
 			if c.cl_super <> None then error "Cannot extend several classes" p;
 			(match t with
