@@ -72,7 +72,26 @@ class Sys {
 		return new String(sys_string());
 	}
 
-	public static function command( cmd : String ) : Int {
+	public static function escapeArgument( arg : String ) : String {
+		var ok = true;
+		for( i in 0...arg.length )
+			switch( arg.charCodeAt(i) ) {
+			case 32, 34: // [space] "
+				ok = false;
+			case 0, 13, 10: // [eof] [cr] [lf]
+				arg = arg.substr(0,i);
+			}
+		if( ok )
+			return arg;
+		return '"'+arg.split('"').join('\\"')+'"';
+	}
+
+	public static function command( cmd : String, ?args : Array<String> ) : Int {
+		if( args != null ) {
+			cmd = escapeArgument(cmd);
+			for( a in args )
+				cmd += " "+escapeArgument(a);
+		}
 		return sys_command(untyped cmd.__s);
 	}
 
