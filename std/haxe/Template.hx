@@ -69,7 +69,7 @@ class Template {
 	}
 
 	public function execute( context : Dynamic, ?macros : Dynamic ) {
-		this.macros = macros;
+		this.macros = if( macros == null ) Reflect.empty() else macros;
 		this.context = context;
 		stack = new List();
 		buf = new StringBuf();
@@ -351,7 +351,7 @@ class Template {
 			try {
 				buf.add(Std.string(Reflect.callMethod(macros,v,pl)));
 			} catch( e : Dynamic ) {
-				var plstr = try pl.toString() catch( e : Dynamic ) "???";
+				var plstr = try pl.join(",") catch( e : Dynamic ) "???";
 				var msg = "Macro call "+m+"("+plstr+") failed ("+Std.string(e)+")";
 				#if neko
 				neko.Lib.rethrow(msg);
