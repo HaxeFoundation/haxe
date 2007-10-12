@@ -59,6 +59,7 @@ import haxe.Template;
 import haxe.Timer;
 import haxe.Unserializer;
 
+import haxe.remoting.AsyncAdapter;
 import haxe.remoting.AsyncConnection;
 import haxe.remoting.AsyncDebugConnection;
 import haxe.remoting.AsyncProxy;

@@ -35,7 +35,7 @@ class AsyncAdapter extends AsyncConnection {
 		return s;
 	}
 
-	public function call( params : Array<Dynamic>, ?onData : Dynamic -> Void ) : Void {
+	public override function call( params : Array<Dynamic>, ?onData : Dynamic -> Void ) : Void {
 		var ret;
 		try {
 			var c : Connection = __data;
