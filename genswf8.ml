@@ -1362,7 +1362,7 @@ let convert_header ver (w,h,fps,bg) =
 		};
 		h_frame_count = 1;
 		h_fps = to_float16 fps;
-		h_compressed = true;
+		h_compressed = not (Plugin.defined "no-swf-compress");
 	} , bg
 
 let default_header ver =
