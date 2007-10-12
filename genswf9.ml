@@ -1408,7 +1408,7 @@ let generate_class ctx c =
 	let sc = {
 		cl3_name = name_id;
 		cl3_super = (if c.cl_interface then None else Some (type_path ctx (match c.cl_super with None -> [],"Object" | Some (c,_) -> c.cl_path)));
-		cl3_sealed = c.cl_path <> (["flash"],"Boot");
+		cl3_sealed = c.cl_path <> (["flash"],"Boot") && c.cl_dynamic = None;
 		cl3_final = false;
 		cl3_interface = c.cl_interface;
 		cl3_namespace = None;
