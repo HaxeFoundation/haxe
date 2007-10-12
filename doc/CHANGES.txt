@@ -11,6 +11,14 @@
 	fixed inherited constructor of extern class was always private
 	fixed Ereg.split without 'g' flag on JS/Flash9
 	fixed haxe.Stack in JS without -debug
+	added support for -D no-swf-compress
+	fixed ByteArray.readObject
+	fixed implements Dynamic in Flash9
+	removed neko.io.FileInput.eof, fixed neko.io.Input.readLine
+	fixed haxe.Template for Flash9
+	added neko.Sys.command optional array of arguments
+	removed haxe.Proxy
+	added flash.XMLRequest
 
 2007-08-29: 1.15
 	fixed bug with Enum.construct when Enum have type parameters

@@ -299,6 +299,7 @@ import flash.TextField;
 import flash.TextFormat;
 import flash.TextSnapshot;
 import flash.Video;
+import flash.XMLRequest;
 import flash.XMLSocket;
 
 import flash.text.StyleSheet;
