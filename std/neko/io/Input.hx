@@ -101,8 +101,19 @@ class Input {
 	}
 
 	public function readLine() : String {
-		var s = readUntil( 10 );
-		if( s.substr(-1,1) == "\r" ) return s.substr(0,-1);
+		var buf = new StringBuf();
+		var last : Int;
+		var s;
+		try {
+			while( (last = readChar()) != 10 )
+				buf.addChar( last );
+			s = buf.toString();
+			if( s.charCodeAt(s.length-1) == 13 ) s = s.substr(0,-1);
+		} catch( e : Eof ) {
+			s = buf.toString();
+			if( s.length == 0 )
+				neko.Lib.rethrow(e);
+		}
 		return s;
 	}
 
