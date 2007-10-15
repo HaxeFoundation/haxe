@@ -94,6 +94,9 @@ class Timer {
 
 	#end
 
+	/**
+		Returns a timestamp, in seconds
+	**/
 	public static function stamp() : Float {
 		#if flash
 		return flash.Lib.getTimer() / 1000;

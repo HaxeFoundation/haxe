@@ -19,6 +19,7 @@
 	added neko.Sys.command optional array of arguments
 	removed haxe.Proxy
 	added flash.XMLRequest
+	fixed Type.enumParameters for Neko
 
 2007-08-29: 1.15
 	fixed bug with Enum.construct when Enum have type parameters

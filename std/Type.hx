@@ -536,7 +536,7 @@ class Type {
 	**/
 	public static function enumParameters( e : Dynamic ) : Array<Dynamic> {
 	#if neko
-		return if( e.args == null ) [] else e.args;
+		return if( e.args == null ) [] else untyped Array.new1(e.args,__dollar__asize(e.args));
 	#else flash9
 		return if( e.params == null ) [] else e.params;
 	#else true
