@@ -517,11 +517,11 @@ and gen_expr ctx e =
 		print ctx "var %s : enum = " tmp;
 		gen_value ctx e;
 		newline ctx;
-		print ctx "switch( %s.tag ) {" tmp;
+		print ctx "switch( %s.index ) {" tmp;
 		newline ctx;
 		List.iter (fun (cl,params,e) ->
 			List.iter (fun c ->
-				print ctx "case \"%s\":" c;
+				print ctx "case %d:" c;
 				newline ctx;
 			) cl;
 			let b = save_locals ctx in
@@ -840,7 +840,7 @@ let generate_enum ctx e =
 	newline ctx;
 	print ctx "public static const __isenum : Boolean = true";
 	newline ctx;
-	print ctx "public function %s( t : String, p : Array = null ) : void { this.tag = t; this.params = p; }" ename;
+	print ctx "public function %s( t : String, index : int, p : Array = null ) : void { this.tag = t; this.index = index; this.params = p; }" ename;
 	PMap.iter (fun _ c ->
 		newline ctx;
 		match c.ef_type with
@@ -851,11 +851,11 @@ let generate_enum ctx e =
 				if o then spr ctx " = null";
 			) args;
 			print ctx ") : %s {" ename;
-			print ctx " return new %s(\"%s\",[" ename c.ef_name;
+			print ctx " return new %s(\"%s\",%d,[" ename c.ef_name c.ef_index;
 			concat ctx "," (fun (a,_,_) -> spr ctx a) args;
 			print ctx "]); }";
 		| _ ->
-			print ctx "public static var %s : %s = new %s(\"%s\")" c.ef_name ename ename c.ef_name;
+			print ctx "public static var %s : %s = new %s(\"%s\",%d)" c.ef_name ename ename c.ef_name c.ef_index;
 	) e.e_constrs;
 	cl();
 	newline ctx;
@@ -871,6 +871,8 @@ let generate_base_enum ctx =
 	let cl = open_block ctx in
 	newline ctx;
 	spr ctx "public var tag : String";
+	newline ctx;
+	spr ctx "public var index : int";
 	newline ctx;
 	spr ctx "public var params : Array";
 	cl();

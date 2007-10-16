@@ -71,7 +71,7 @@ type access_kind =
 	| AccSetField of texpr * string * t
 
 type switch_mode =
-	| CMatch of (string * (string option * t) list option)
+	| CMatch of (tenum_field * (string option * t) list option)
 	| CExpr of texpr
 
 exception Error of error_msg * pos
@@ -330,7 +330,7 @@ let rec load_normal_type ctx t p allow_no_params =
 						| Float f -> "F" ^ f
 						| _ -> assert false
 					) in
-					TEnum ({ e_path = ([],name); e_pos = p; e_doc = None; e_private = false; e_extern = true; e_types = []; e_constrs = PMap.empty },[]), true
+					TEnum ({ e_path = ([],name); e_pos = p; e_doc = None; e_private = false; e_extern = true; e_types = []; e_constrs = PMap.empty; e_names = [] },[]), true
 				| TPType t -> load_type ctx p t, false
 			) t.tparams in
 			let bparams = List.map fst tparams in
@@ -594,6 +594,7 @@ let type_type_params ctx path p (n,flags) =
 			e_types = [];
 			e_constrs = PMap.empty;
 			e_doc = None;
+			e_names = [];
 		} in
 		TEnum (e,[])
 	| l ->
@@ -1042,7 +1043,7 @@ let type_matching ctx (enum,params) (e,p) ecases first_case =
 			| TEnum _ -> ()
 			| _ -> assert false
 		);
-		(name,None)
+		(c,None)
 	| ECall ((EConst (Ident name),_),el)
 	| ECall ((EConst (Type name),_),el) ->
 		let c = constr name in
@@ -1062,7 +1063,7 @@ let type_matching ctx (enum,params) (e,p) ecases first_case =
 				Some name , t
 			| _ -> invalid()
 		) el args in
-		(name,Some idents)
+		(c,Some idents)
 	| _ ->
 		invalid()
 
@@ -1516,12 +1517,15 @@ and type_switch ctx e cases def need_val p =
 				assert false
 		in
 		let constructs (el,_,e) =
-			let cl = List.map (fun c -> mk (TField (mk (TTypeExpr (TEnumDecl en)) t_dynamic p , c)) (TEnum (en,enparams)) p) el in
+			let cl = List.map (fun c -> mk (TField (mk (TTypeExpr (TEnumDecl en)) t_dynamic p , c.ef_name)) (TEnum (en,enparams)) p) el in
 			(cl,e)
+		in
+		let indexes (el,vars,e) =
+			List.map (fun c -> c.ef_index) el, vars, e
 		in
 		let cases = List.map matchs cases in
 		match !has_params with
-		| true -> mk (TMatch (e,(en,enparams),cases,def)) t p
+		| true -> mk (TMatch (e,(en,enparams),List.map indexes cases,def)) t p
 		| false -> mk (TSwitch (e,List.map constructs cases,def)) t p
 
 and type_access ctx e p get =
@@ -2453,6 +2457,7 @@ let type_module ctx m tdecls loadp =
 				e_private = priv;
 				e_extern = List.mem EExtern d.d_flags || d.d_data = [];
 				e_constrs = PMap.empty;
+				e_names = [];
 			} in
 			decls := TEnumDecl e :: !decls
 		| ETypedef d ->
@@ -2554,15 +2559,26 @@ let type_module ctx m tdecls loadp =
 			let e = get_enum d.d_name in
 			ctx.type_params <- e.e_types;
 			let et = TEnum (e,List.map snd e.e_types) in
+			let names = ref [] in
+			let index = ref 0 in
 			List.iter (fun (c,doc,t,p) ->
 				if c = "name" && Plugin.defined "js" then error "This identifier cannot be used in Javascript" p;
 				let t = (match t with
 					| [] -> et
 					| l -> TFun (List.map (fun (s,opt,t) -> s, opt, load_type_opt ~param:opt ctx p (Some t)) l, et)
 				) in
-				if PMap.mem c e.e_constrs then error ("Duplicate constructor " ^ c) p;
-				e.e_constrs <- PMap.add c { ef_name = c; ef_type = t; ef_pos = p; ef_doc = doc } e.e_constrs
-			) d.d_data
+				if PMap.mem c e.e_constrs then error ("Duplicate constructor " ^ c) p;				
+				e.e_constrs <- PMap.add c {
+					ef_name = c;
+					ef_type = t;
+					ef_pos = p;
+					ef_doc = doc;
+					ef_index = !index;
+				} e.e_constrs;
+				incr index;
+				names := c :: !names;
+			) d.d_data;
+			e.e_names <- List.rev !names;
 		| ETypedef d ->
 			let t = get_tdef d.d_name in
 			ctx.type_params <- t.t_types;

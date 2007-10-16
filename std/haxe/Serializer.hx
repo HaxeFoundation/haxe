@@ -33,16 +33,24 @@ class Serializer {
 	**/
 	public static var USE_CACHE = false;
 
+	/**
+		Use constructor indexes for enums instead of names.
+		This is less reliable but more compact.
+	**/
+	public static var USE_ENUM_INDEX = false;
+
 	var buf : StringBuf;
 	var cache : Array<Dynamic>;
 	var shash : Hash<Int>;
 	var scount : Int;
 	var useCache : Bool;
+	var useEnumIndex : Bool;
 
 	public function new() {
 		buf = new StringBuf();
 		cache = new Array();
 		useCache = USE_CACHE;
+		useEnumIndex = USE_ENUM_INDEX;
 		shash = new Hash();
 		scount = 0;
 	}
@@ -61,7 +69,7 @@ class Serializer {
 		g : object end
 		h : array/list/hash end
 		i : Int
-		j :
+		j : enum (by index)
 		k : NaN
 		l : list
 		m : -Inf
@@ -89,16 +97,8 @@ class Serializer {
 		}
 		shash.set(s,scount++);
 		#if old_serialize
-			if( s.indexOf("\n") != -1 || s.indexOf("\r") != -1 ) {
-				buf.add("j");
-				s = s.split("\\").join("\\\\").split("\n").join("\\n").split("\r").join("\\r");
-			} else
-				buf.add("s");
-			#if neko
-			buf.add(neko.Utf8.length(s));
-			#else true
-			buf.add(s.length);
-			#end
+			// no more support for -D old_serialize due to 'j' reuse
+			#if error #end
 		#else true
 		buf.add("y");
 		s = StringTools.urlEncode(s);
@@ -277,10 +277,13 @@ class Serializer {
 			if( useCache && serializeRef(v) )
 				return;
 			cache.pop();
-			buf.add("w");
+			buf.add(useEnumIndex?"j":"w");
 			serialize(Type.getEnumName(e));
 			#if neko
-			serializeString(new String(v.tag));
+			if( useEnumIndex )
+				buf.add(v.index);
+			else
+				serializeString(new String(v.tag));
 			buf.add(":");
 			if( v.args == null )
 				buf.add(0);
@@ -291,7 +294,10 @@ class Serializer {
 					serialize(v.args[i]);
 			}
 			#else flash9
-			serializeString(v.tag);
+			if( useEnumIndex )
+				buf.add(v.index);
+			else
+				serializeString(v.tag);
 			buf.add(":");
 			if( v.params == null )
 				buf.add(0);
@@ -302,11 +308,14 @@ class Serializer {
 					serialize(v.params[i]);
 			}
 			#else true
-			serializeString(v[0]);
+			if( useEnumIndex )
+				buf.add(v[1]);
+			else
+				serializeString(v[0]);
 			buf.add(":");
 			var l = v[untyped "length"];
-			buf.add(l - 1);
-			for( i in 1...l )
+			buf.add(l - 2);
+			for( i in 2...l )
 				serialize(v[i]);
 			#end
 			cache.push(v);

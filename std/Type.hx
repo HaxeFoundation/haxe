@@ -380,15 +380,13 @@ class Type {
 		Returns all the available constructor names for an enum.
 	**/
 	public static function getEnumConstructs( e : Enum ) : Array<String> {
-		#if flash9
-			return describe(e,false);
-		#else true
+		#if neko
 			var a = Reflect.fields(e);
 			a.remove(__unprotect__("__ename__"));
-			#if neko
 			a.remove("prototype");
-			#end
 			return a;
+		#else true
+			return untyped e.__constructs__;
 		#end
 	}
 
@@ -508,7 +506,7 @@ class Type {
 		#else true
 		if( a[0] != b[0] )
 			return false;
-		for( i in 1...a.length )
+		for( i in 2...a.length )
 			if( !enumEq(a[i],b[i]) )
 				return false;
 		var e = a.__enum__;
@@ -540,7 +538,18 @@ class Type {
 	#else flash9
 		return if( e.params == null ) [] else e.params;
 	#else true
-		return e.slice(1);
+		return e.slice(2);
+	#end
+	}
+
+	/**
+		Returns the index of the constructor of an enum
+	**/
+	public static function enumIndex( e : Dynamic ) : Int {
+	#if (neko || flash9)
+		return e.index;
+	#else true
+		return e[1];
 	#end
 	}
 

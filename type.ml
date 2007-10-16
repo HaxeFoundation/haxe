@@ -87,7 +87,7 @@ and texpr_expr =
 	| TIf of texpr * texpr * texpr option
 	| TWhile of texpr * texpr * Ast.while_flag
 	| TSwitch of texpr * (texpr list * texpr) list * texpr option
-	| TMatch of texpr * (tenum * tparams) * (string list * (string option * t) list option * texpr) list * texpr option
+	| TMatch of texpr * (tenum * tparams) * (int list * (string option * t) list option * texpr) list * texpr option
 	| TTry of texpr * (string * t * texpr) list
 	| TReturn of texpr option
 	| TBreak
@@ -137,6 +137,7 @@ and tenum_field = {
 	ef_type : t;
 	ef_pos : Ast.pos;
 	ef_doc : Ast.documentation;
+	ef_index : int;
 }
 
 and tenum = {
@@ -147,6 +148,7 @@ and tenum = {
 	e_extern : bool;
 	mutable e_types : (string * t) list;
 	mutable e_constrs : (string , tenum_field) PMap.t;
+	mutable e_names : string list;
 }
 
 and tdef = {

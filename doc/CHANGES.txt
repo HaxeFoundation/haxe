@@ -20,6 +20,9 @@
 	removed haxe.Proxy
 	added flash.XMLRequest
 	fixed Type.enumParameters for Neko
+	guaranteed order of Type.getEnumConstructs same as code
+	used index-based dispatch for enums
+	added Type.enumIndex
 
 2007-08-29: 1.15
 	fixed bug with Enum.construct when Enum have type parameters

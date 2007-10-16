@@ -382,21 +382,21 @@ and gen_expr ctx e =
 		bend();
 		newline ctx;
 		spr ctx "}";
-	| TMatch (e,_,cases,def) ->
+	| TMatch (e,(estruct,_),cases,def) ->
 		spr ctx "var $e = ";
 		gen_value ctx e;
 		newline ctx;
-		spr ctx "switch( $e[0] ) {";
+		spr ctx "switch( $e[1] ) {";
 		newline ctx;
 		List.iter (fun (cl,params,e) ->
 			List.iter (fun c ->
-				print ctx "case \"%s\":" c;
+				print ctx "case %d:" c;
 				newline ctx;
 			) cl;
 			(match params with
 			| None | Some [] -> ()
 			| Some l ->
-				let n = ref 0 in
+				let n = ref 1 in
 				let l = List.fold_left (fun acc (v,_) -> incr n; match v with None -> acc | Some v -> (v,!n) :: acc) [] l in
 				match l with
 				| [] -> ()
@@ -637,16 +637,17 @@ let generate_class ctx c =
 let generate_enum ctx e =
 	let p = s_path e.e_path in
 	generate_package_create ctx e.e_path;
-	print ctx "%s = { __ename__ : [%s] }" p (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst e.e_path @ [snd e.e_path])));
+	let ename = List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst e.e_path @ [snd e.e_path]) in
+	print ctx "%s = { __ename__ : [%s], __constructs__ : [%s] }" p (String.concat "," ename) (String.concat "," (List.map (Printf.sprintf "\"%s\"") e.e_names));
 	newline ctx;
 	PMap.iter (fun _ f ->
 		print ctx "%s%s = " p (field f.ef_name);
 		(match f.ef_type with
 		| TFun (args,_) ->
 			let sargs = String.concat "," (List.map arg_name args) in
-			print ctx "function(%s) { var $x = [\"%s\",%s]; $x.__enum__ = %s; return $x; }" sargs f.ef_name sargs p;
+			print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s; return $x; }" sargs f.ef_name f.ef_index sargs p;
 		| _ ->
-			print ctx "[\"%s\"]" f.ef_name;
+			print ctx "[\"%s\",%d]" f.ef_name f.ef_index;
 			newline ctx;
 			print ctx "%s%s.__enum__ = %s" p (field f.ef_name) p;
 		);

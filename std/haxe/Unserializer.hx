@@ -107,6 +107,27 @@ class Unserializer {
  		pos++;
 	}
 
+	function unserializeEnum( edecl, tag ) {
+		var constr = Reflect.field(edecl,tag);
+		if( constr == null )
+			throw "Unknown enum tag "+Type.getEnumName(edecl)+"."+tag;
+		if( buf.charCodeAt(pos++) != 58 ) // ':'
+			throw "Invalid enum format";
+		var nargs = readDigits();
+		if( nargs == 0 ) {
+			cache.push(constr);
+			return constr;
+		}
+		var args = new Array();
+		while( nargs > 0 ) {
+			args.push(unserialize());
+			nargs -= 1;
+		}
+		var e = Reflect.callMethod(edecl,constr,args);
+		cache.push(e);
+		return e;
+	}
+
  	public function unserialize() : Dynamic {
  		switch( buf.charCodeAt(pos++) ) {
  		case 110: // n
@@ -193,27 +214,17 @@ class Unserializer {
 			var edecl = resolver.resolveEnum(name);
 			if( edecl == null )
 				throw "Enum not found " + name;
-			var tag : String = unserialize();
-			if( !Std.is(tag,String) )
-				throw "Invalid enum tag";
-			var constr = Reflect.field(edecl,tag);
-			if( constr == null )
-				throw "Unknown enum tag "+name+"."+tag;
-			if( buf.charCodeAt(pos++) != 58 ) // ':'
-				throw "Invalid enum format";
-			var nargs = readDigits();
-			if( nargs == 0 ) {
-				cache.push(constr);
-				return constr;
-			}
-			var args = new Array();
-			while( nargs > 0 ) {
-				args.push(unserialize());
-				nargs -= 1;
-			}
-			var e = Reflect.callMethod(edecl,constr,args);
-			cache.push(e);
-			return e;
+			return unserializeEnum(edecl,unserialize());
+ 		case 106: // j
+			var name = unserialize();
+			var edecl = resolver.resolveEnum(name);
+			if( edecl == null )
+				throw "Enum not found " + name;
+			var index = readDigits();
+			var tag = Type.getEnumConstructs(edecl)[index];
+			if( tag == null )
+				throw "Unknown enum index "+name+"@"+index;
+			return unserializeEnum(edecl,tag);
 		case 108: // l
 			var l = new List();
 			while( buf.charCodeAt(pos) != 104 /*h*/ )
@@ -258,29 +269,6 @@ class Unserializer {
  			#end
 			scache.push(s);
 			return s;
- 		case 106: // j
- 			var len = readDigits();
- 			if( buf.charAt(pos++) != ":" )
- 				throw "Invalid string length";
- 			#if neko
-			if( length - pos < len )
-				throw "Invalid string length";
- 			var s = neko.Utf8.sub(buf,pos-upos,len);
- 			pos += s.length;
- 			upos += s.length - len;
- 			#else true
- 			var s = buf.substr(pos,len);
- 			pos += len;
- 			#end
-			var delim = "##__delim__##";
-			#if flash9
-			var a = ~/\\\\/g.split(s);
-			#else true
-			var a = s.split("\\\\");
-			#end
- 			s = a.join(delim).split("\\r").join("\r").split("\\n").join("\n").split(delim).join("\\");
- 			scache.push(s);
- 			return s;
  		default:
  		}
  		pos--;

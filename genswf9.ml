@@ -130,9 +130,11 @@ let t_void = TEnum ({
 		e_extern = false;
 		e_types = [];
 		e_constrs = PMap.empty;
+		e_names = [];
 	},[])
 
 let t_string = TInst (mk_class ([],"String") null_pos None false,[])
+let t_int = TInst (mk_class ([],"Int") null_pos None false,[])
 
 let lookup i w =
 	try
@@ -916,11 +918,11 @@ let rec gen_expr_content ctx retval e =
 	| TMatch (e0,_,cases,def) ->
 		let t = classify ctx e.etype in
 		let rparams = alloc_reg ctx KDynamic in
-		let rtag = alloc_reg ctx KDynamic in
+		let rindex = alloc_reg ctx KInt in
 		gen_expr ctx true e0;
 		write ctx A3Dup;
-		write ctx (A3GetProp (ident ctx "tag"));
-		set_reg ctx rtag;
+		write ctx (A3GetProp (ident ctx "index"));
+		set_reg ctx rindex;
 		write ctx (A3GetProp (ident ctx "params"));
 		set_reg ctx rparams;
 		let branch = begin_branch ctx in
@@ -931,12 +933,12 @@ let rec gen_expr_content ctx retval e =
 				| [] ->
 					assert false
 				| [tag] ->
-					write ctx (A3Reg rtag.rid);
-					write ctx (A3String (lookup tag ctx.strings));
+					write ctx (A3Reg rindex.rid);
+					write ctx (A3Int tag);
 					prev := jump ctx J3Neq;
 				| tag :: l ->
-					write ctx (A3Reg rtag.rid);
-					write ctx (A3String (lookup tag ctx.strings));
+					write ctx (A3Reg rindex.rid);
+					write ctx (A3Int tag);
 					let j = jump ctx J3Eq in
 					loop l;
 					j()
@@ -981,7 +983,7 @@ let rec gen_expr_content ctx retval e =
 		);
 		List.iter (fun j -> j()) jend;
 		branch();
-		free_reg ctx rtag;
+		free_reg ctx rindex;
 		free_reg ctx rparams
 
 and gen_call ctx e el =
@@ -1320,10 +1322,15 @@ let generate_enum_init ctx e slot =
 			write ctx (A3Reg r.rid);
 			write ctx (A3FindPropStrict name_id);
 			write ctx (A3String (lookup f.ef_name ctx.strings));
+			write ctx (A3Int f.ef_index);
 			write ctx A3Null;
-			write ctx (A3ConstructProperty (name_id,2));
+			write ctx (A3ConstructProperty (name_id,3));
 			write ctx (A3SetSlot !nslot);
 	) e.e_constrs;
+	write ctx (A3Reg r.rid);
+	List.iter (fun n -> write ctx (A3String (lookup n ctx.strings))) e.e_names;
+	write ctx (A3Array (List.length e.e_names));
+	write ctx (A3SetSlot (!nslot + 1));
 	free_reg ctx r
 
 let generate_field_kind ctx f c stat =
@@ -1441,14 +1448,18 @@ let generate_class ctx c =
 let generate_enum ctx e =
 	let name_id = type_path ctx e.e_path in
 	let st_id = empty_method ctx in
-	let f = begin_fun ctx [("tag",false,t_string);("params",false,mk_mono())] t_void [] false in
+	let f = begin_fun ctx [("tag",false,t_string);("index",false,t_int);("params",false,mk_mono())] t_void [] false in
 	let tag_id = ident ctx "tag" in
+	let index_id = ident ctx "index" in
 	let params_id = ident ctx "params" in
 	write ctx (A3FindProp tag_id);
 	write ctx (A3Reg 1);
 	write ctx (A3InitProp tag_id);
-	write ctx (A3FindProp params_id);
+	write ctx (A3FindProp index_id);
 	write ctx (A3Reg 2);
+	write ctx (A3InitProp index_id);
+	write ctx (A3FindProp params_id);
+	write ctx (A3Reg 3);
 	write ctx (A3InitProp params_id);
 	write ctx A3RetVoid;
 	let construct = f() in
@@ -1469,6 +1480,7 @@ let generate_enum ctx e =
 		cl3_construct = construct;
 		cl3_fields = [|
 			{ f3_name = tag_id; f3_slot = 0; f3_kind = A3FVar { v3_type = None; v3_value = A3VNone; v3_const = false; }; f3_metas = None };
+			{ f3_name = index_id; f3_slot = 0; f3_kind = A3FVar { v3_type = None; v3_value = A3VNone; v3_const = false; }; f3_metas = None };
 			{ f3_name = params_id; f3_slot = 0; f3_kind = A3FVar { v3_type = None; v3_value = A3VNone; v3_const = false; }; f3_metas = None };
 			{ f3_name = ident ctx "__enum__"; f3_slot = 0; f3_kind = A3FVar { v3_type = None; v3_value = A3VBool true; v3_const = true }; f3_metas = None };
 			{
@@ -1495,10 +1507,11 @@ let generate_enum ctx e =
 					let fdata = begin_fun ctx args (TEnum (e,[])) [] true in
 					write ctx (A3FindPropStrict name_id);
 					write ctx (A3String (lookup f.ef_name ctx.strings));
+					write ctx (A3Int f.ef_index);
 					let n = ref 0 in
 					List.iter (fun _ -> incr n; write ctx (A3Reg !n)) args;
 					write ctx (A3Array (!n));
-					write ctx (A3ConstructProperty (name_id,2));
+					write ctx (A3ConstructProperty (name_id,3));
 					write ctx A3Ret;
 					let fid = fdata() in
 					A3FMethod {
@@ -1517,8 +1530,13 @@ let generate_enum ctx e =
 		st3_method = st_id;
 		st3_fields = Array.of_list ({
 			f3_name = ident ctx "__isenum";
-			f3_slot = !st_count + 1;
+			f3_slot = !st_count + 2;
 			f3_kind = A3FVar { v3_type = None; v3_value = A3VBool true; v3_const = true; };
+			f3_metas = None;
+		} :: {
+			f3_name = ident ctx "__constructs__";
+			f3_slot = !st_count + 1;
+			f3_kind = A3FVar { v3_type = None; v3_value = A3VNone; v3_const = false; };
 			f3_metas = None;
 		} :: constrs)
 	} in

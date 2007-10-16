@@ -402,7 +402,7 @@ and gen_expr ctx e =
 		call p (builtin p "throw") [gen_expr ctx e]
 	| TMatch (e,_,cases,eo) ->
 		let etmp = (EVars ["@tmp",Some (gen_expr ctx e)],p) in
-		let etag = field p (ident p "@tmp") "tag" in
+		let eindex = field p (ident p "@tmp") "index" in
 		let gen_params params e =
 			match params with
 			| None ->
@@ -433,10 +433,10 @@ and gen_expr ctx e =
 		  (EBlock [
 			etmp;
 			(ESwitch (
-				etag,
+				eindex,
 				List.map (fun (cl,params,e2) ->
 					let cond = match cl with
-						| [s] -> str p s
+						| [s] -> int p s
 						| _ -> raise Exit
 					in					
 					cond , gen_params params e2
@@ -448,12 +448,12 @@ and gen_expr ctx e =
 			Exit ->
 				(EBlock [
 					etmp;
-					(EVars ["@tag",Some etag],p);
+					(EVars ["@index",Some eindex],p);
 					List.fold_left (fun acc (cl,params,e2) ->
 						let cond = (match cl with
 							| [] -> assert false
 							| c :: l ->
-								let eq c = (EBinop ("==",ident p "@tag",str p c),p) in
+								let eq c = (EBinop ("==",ident p "@index",int p c),p) in
 								List.fold_left (fun acc c -> (EBinop ("||",acc,eq c),p)) (eq c) l
 						) in
 						EIf (cond,gen_params params e2,Some acc),p
@@ -572,6 +572,7 @@ let gen_enum_constr ctx path c =
 				(EBlock [
 					(EVars ["@tmp",Some (EObject [
 						"tag" , str p c.ef_name;
+						"index" , int p c.ef_index;
 						"args" , array p (List.map (ident p) params);
 					],p)],p);
 					call p (builtin p "objsetproto") [ident p "@tmp"; field p path "prototype"];
@@ -580,7 +581,7 @@ let gen_enum_constr ctx path c =
 			),p)
 		| _ ->
 			(EBlock [
-				(EVars ["@tmp",Some (EObject ["tag" , str p c.ef_name; "__serialize" , ident p "@tag_serialize"],p)],p);
+				(EVars ["@tmp",Some (EObject ["tag" , str p c.ef_name; "index", int p c.ef_index; "__serialize" , ident p "@tag_serialize"],p)],p);
 				call p (builtin p "objsetproto") [ident p "@tmp"; field p path "prototype"];				
 				ident p "@tmp";
 			],p)

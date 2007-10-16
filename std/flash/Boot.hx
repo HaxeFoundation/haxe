@@ -41,12 +41,12 @@ class Boot {
 			case "object":
 				if( __instanceof__(o,Array) ) {
 					if( o.__enum__ != null ) {
-						if( o["length"] == 1 )
+						if( o["length"] == 2 )
 							return o[0];
 						var str = o[0]+"(";
 						s += "    ";
-						for( i in 1...o["length"] ) {
-							if( i != 1 )
+						for( i in 2...o["length"] ) {
+							if( i != 2 )
 								str += "," + __string_rec(o[i],s);
 							else
 								str += __string_rec(o[i],s);

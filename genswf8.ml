@@ -657,7 +657,7 @@ and gen_match ctx retval e cases def =
 	gen_expr ctx true e;
 	let renum = alloc_tmp ctx in
 	set_tmp ctx renum;
-	push ctx [VInt 0];
+	push ctx [VInt 1];
 	write ctx AObjGet;
 	let rtag = alloc_tmp ctx in
 	set_tmp ctx rtag;
@@ -665,7 +665,7 @@ and gen_match ctx retval e cases def =
 	let dispatch = List.map (fun (cl,params,e) ->
 		List.map (fun c ->
 			if !first then first := false else get_tmp ctx rtag;
-			push ctx [VStr (c,false)];
+			push ctx [VInt c];
 			write ctx APhysEqual;
 			cjmp ctx
 		) cl, params, e
@@ -680,7 +680,7 @@ and gen_match ctx retval e cases def =
 		let regs = ctx.regs in
 		let nregs = ctx.reg_count in
 		List.iter (fun j -> j()) jl;
-		let n = ref 0 in
+		let n = ref 1 in
 		List.iter (fun (a,t) ->
 			incr n;
 			match a with
@@ -1117,7 +1117,7 @@ let gen_enum_field ctx e f =
 		ctx.reg_count <- 1;
 		let no_reg = ctx.version = 6 in
 		let rargs = List.map (fun (n,_,_) -> if no_reg then 0, n else alloc_reg ctx , "") args in
-		let nregs = List.length rargs + 1 in
+		let nregs = List.length rargs + 2 in
 		let tf = func ctx false false rargs in
 		List.iter (fun (r,name) -> 
 			if no_reg then begin
@@ -1126,7 +1126,7 @@ let gen_enum_field ctx e f =
 			end else
 				push ctx [VReg r]
 		) (List.rev rargs);
-		push ctx [VStr (f.ef_name,false); VInt nregs];
+		push ctx [VInt f.ef_index; VStr (f.ef_name,false); VInt nregs];
 		write ctx AInitArray;
 		write ctx ADup;
 		push ctx [VStr ("__enum__",false); VThis];
@@ -1135,9 +1135,9 @@ let gen_enum_field ctx e f =
 		write ctx AReturn;
 		tf();
 	| t ->
-		push ctx [VStr (f.ef_name,false); VInt 1];
+		push ctx [VInt f.ef_index; VStr (f.ef_name,false); VInt 2];
 		write ctx AInitArray;
-		ctx.stack_size <- ctx.stack_size - 1;
+		ctx.stack_size <- ctx.stack_size - 2;
 		write ctx ADup;
 		push ctx [VStr ("__enum__",false); VReg 0];
 		write ctx AObjSet;
@@ -1294,6 +1294,13 @@ let gen_type_def ctx t =
 		write ctx (ASetReg 0);
 		setvar ctx acc;
 		init_name ctx e.e_path true;
+		let nitems = List.length e.e_names in
+		push ctx [VReg 0; VStr ("__constructs__",true)];
+		List.iter (fun s -> push ctx [VStr (s,true)]) (List.rev e.e_names);
+		push ctx [VInt nitems];
+		write ctx AInitArray;
+		write ctx AObjSet;
+		ctx.stack_size <- ctx.stack_size - nitems;
 		PMap.iter (fun _ f -> gen_enum_field ctx e f) e.e_constrs
 	| TTypeDecl _ ->
 		()
