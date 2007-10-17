@@ -96,6 +96,7 @@ class Generator {
 				result.odd = true;
 				result.even = false;
 				if (data.get_length != null) result.size = data.get_length();
+				else if (data.length != null) result.size = data.length;
 				else if (data.size != null) result.size = data.size();
 				else result.size = null;
 				result.next = function(v){
