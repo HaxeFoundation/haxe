@@ -236,7 +236,7 @@ class Parser {
 				out.add("var value = "+exp+";\n");
 				out.add("if (value != false && value != null){\n");
 				out.add("__out.add(\" "+o.target+"=\\\"\");\n");
-				out.add("__out.add(value);\n");
+				out.add("__out.add(html_escape(value));\n");
 				out.add("__out.add(\"\\\"\");\n");
 				out.add("}");
 			}
