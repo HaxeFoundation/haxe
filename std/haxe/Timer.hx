@@ -89,7 +89,7 @@ class Timer {
 		fqueue.push(f);
 		haxe.Timer.delayed(function() {
 			fqueue.shift()();
-		},#if !flash9 if( time == null ) 0 else #end time)();
+		},if( time == null ) 0 else time)();
 	}
 
 	#end
