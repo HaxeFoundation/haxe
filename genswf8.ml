@@ -78,6 +78,7 @@ type kind =
 	| VarStr
 	| VarObj
 	| VarClosure
+	| VarVolatile
 
 type push_style =
 	| VStr of string * bool
@@ -156,6 +157,8 @@ let call ctx kind n =
 			ACall , n + 1
 		| VarClosure | VarObj ->
 			AObjCall , n + 2
+		| VarVolatile ->
+			assert false
 	) in
 	DynArray.add ctx.opcodes op;
 	ctx.opt_push <- false;
@@ -171,6 +174,8 @@ let new_call ctx kind n  =
 			ANew , n + 1
 		| VarClosure | VarObj ->
 			ANewMethod , n + 2
+		| VarVolatile ->
+			assert false
 	) in
 	DynArray.add ctx.opcodes op;
 	ctx.opt_push <- false;
@@ -286,6 +291,11 @@ let jmp_pos ctx cond =
 		ctx.opt_push <- false
 	)
 
+let init_array ctx n =
+	push ctx [VInt n];
+	write ctx AInitArray;
+	ctx.stack_size <- ctx.stack_size - n
+
 let setvar ?(retval=false) ctx = function
 	| VarReg (-1) -> assert false (** true, false, null **)
 	| VarReg n -> write ctx (ASetReg n); if not retval then write ctx APop
@@ -294,6 +304,11 @@ let setvar ?(retval=false) ctx = function
 	| VarClosure as s ->
 		if retval then write ctx (ASetReg 0);
 		write ctx (if s = VarStr then ASet else AObjSet);
+		if retval then push ctx [VReg 0]
+	| VarVolatile ->
+		if retval then write ctx (ASetReg 0);
+		init_array ctx 1;
+		write ctx AObjSet;
 		if retval then push ctx [VReg 0]
 
 let getvar ctx = function
@@ -304,6 +319,10 @@ let getvar ctx = function
 	| VarClosure ->
 		push ctx [VInt 2; VStr ("@closure",false)];
 		call ctx VarStr 2
+	| VarVolatile ->
+		write ctx AObjGet;
+		push ctx [VInt 0];
+		write ctx AObjGet
 
 let gen_path ctx ?(protect=false) (p,t) is_extern =
 	let flag = is_protected_path (p,t) is_extern in
@@ -556,7 +575,11 @@ let rec gen_access ctx forcall e =
 		push ctx [VStr (f,is_protected ctx e2.etype f)];
 		(match follow e.etype with
 		| TFun _ -> VarClosure
-		| _ -> VarObj)
+		| _ ->
+			if not !protect_all && Transform.is_volatile e.etype then
+				VarVolatile
+			else
+				VarObj)
 	| TArray (ea,eb) ->
 		gen_expr ctx true ea;
 		gen_expr ctx true eb;
@@ -890,11 +913,8 @@ and gen_expr_2 ctx retval e =
 		) vl;
 		if retval then push ctx [VNull]
 	| TArrayDecl el ->
-		let nitems = List.length el in
 		List.iter (gen_expr ctx true) (List.rev el);
-		push ctx [VInt nitems];
-		write ctx AInitArray;
-		ctx.stack_size <- ctx.stack_size - nitems;
+		init_array ctx (List.length el);
 	| TObjectDecl fl ->
 		let nfields = List.length fl in
 		List.iter (fun (s,v) ->
@@ -1126,18 +1146,16 @@ let gen_enum_field ctx e f =
 			end else
 				push ctx [VReg r]
 		) (List.rev rargs);
-		push ctx [VInt f.ef_index; VStr (f.ef_name,false); VInt nregs];
-		write ctx AInitArray;
+		push ctx [VInt f.ef_index; VStr (f.ef_name,false)];
+		init_array ctx nregs;
 		write ctx ADup;
 		push ctx [VStr ("__enum__",false); VThis];
 		write ctx AObjSet;
-		ctx.stack_size <- ctx.stack_size - nregs;
 		write ctx AReturn;
 		tf();
 	| t ->
-		push ctx [VInt f.ef_index; VStr (f.ef_name,false); VInt 2];
-		write ctx AInitArray;
-		ctx.stack_size <- ctx.stack_size - 2;
+		push ctx [VInt f.ef_index; VStr (f.ef_name,false)];
+		init_array ctx 2;
 		write ctx ADup;
 		push ctx [VStr ("__enum__",false); VReg 0];
 		write ctx AObjSet;
@@ -1147,11 +1165,8 @@ let gen_enum_field ctx e f =
 let init_name ctx path enum =
 	push ctx [VReg 0; VStr ((if enum then "__ename__" else "__name__"),false)];
 	let name = fst path @ [snd path] in
-	let nitems = List.length name in
 	push ctx (List.map (fun s -> VStr (s,false)) (List.rev name));
-	push ctx [VInt nitems];
-	write ctx AInitArray;
-	ctx.stack_size <- ctx.stack_size - nitems;
+	init_array ctx (List.length name);
 	setvar ctx VarObj
 
 let gen_package ctx path ext =
@@ -1264,10 +1279,8 @@ let gen_type_def ctx t =
 			let nimpl = List.length l in
 			push ctx [VReg 0; VStr ("__interfaces__",false)];
 			List.iter (fun (c,_) -> getvar ctx (gen_path ctx c.cl_path c.cl_extern)) l;
-			push ctx [VInt nimpl];
-			write ctx AInitArray;
+			init_array ctx nimpl;
 			setvar ctx VarObj;
-			ctx.stack_size <- ctx.stack_size - nimpl;
 			if ctx.version > 6 then begin
 				List.iter (fun (c,_) -> getvar ctx (gen_path ctx c.cl_path c.cl_extern)) l;
 				push ctx [VInt nimpl; VReg 0];
@@ -1294,13 +1307,10 @@ let gen_type_def ctx t =
 		write ctx (ASetReg 0);
 		setvar ctx acc;
 		init_name ctx e.e_path true;
-		let nitems = List.length e.e_names in
 		push ctx [VReg 0; VStr ("__constructs__",true)];
 		List.iter (fun s -> push ctx [VStr (s,true)]) (List.rev e.e_names);
-		push ctx [VInt nitems];
-		write ctx AInitArray;
+		init_array ctx (List.length e.e_names);
 		write ctx AObjSet;
-		ctx.stack_size <- ctx.stack_size - nitems;
 		PMap.iter (fun _ f -> gen_enum_field ctx e f) e.e_constrs
 	| TTypeDecl _ ->
 		()

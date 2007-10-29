@@ -275,3 +275,18 @@ let stack_block ?(useadd=false) ctx e =
 	match (block e).eexpr with
 	| TBlock l -> mk (TBlock (stack_push useadd ctx :: stack_save_pos :: List.map loop l @ [stack_pop])) e.etype e.epos
 	| _ -> assert false
+
+let rec is_volatile t =
+	match t with
+	| TMono r ->
+		(match !r with
+		| Some t -> is_volatile t
+		| _ -> false)
+	| TLazy f ->
+		is_volatile (!f())
+	| TType (t,tl) ->
+		(match t.t_path with
+		| ["mt";"flash"],"Volatile" -> true
+		| _ -> is_volatile (apply_params t.t_types tl t.t_type))
+	| _ ->
+		false
