@@ -507,7 +507,6 @@ let gen_class ctx c =
 	let p = pos ctx c.cl_pos in
 	let clpath = gen_type_path p (fst c.cl_path,"@" ^ snd c.cl_path) in
 	let stpath = gen_type_path p c.cl_path in
-	let esuper = match c.cl_super with None -> null p | Some (c,_) -> gen_type_path p (fst c.cl_path,"@" ^ snd c.cl_path) in
 	let fnew = (match c.cl_constructor with
 	| Some f ->
 		(match follow f.cf_type with
@@ -544,23 +543,31 @@ let gen_class ctx c =
 		| None -> []
 		| Some (c,_) -> ["__super__", gen_type_path p c.cl_path]
 	) in
-	let estat = (EBinop ("=",
-		stpath,
-		(EObject (
+	let build (f,e) = (EBinop ("=",field p (ident p "@tmp") f,e),p) in
+	let tmp = (EVars ["@tmp",Some (call p (builtin p "new") [null p])],p) in
+	let estat = (EBinop ("=", stpath, ident p "@tmp"),p) in
+	let sfields = List.map build
+		(
 			("prototype",clpath) ::
 			PMap.fold (gen_method ctx p) c.cl_statics (fnew @ others)
-		),p)
-	),p) in
-	let eclass = (EBinop ("=",
-		clpath,
-		(EObject (PMap.fold (gen_method ctx p) c.cl_fields (fserialize :: fstring)),p)
-	),p) in
+		)
+	in
+	let eclass = (EBinop ("=", clpath, ident p "@tmp"),p) in
+	let mfields = List.map build
+		(PMap.fold (gen_method ctx p) c.cl_fields (fserialize :: fstring))
+	in
 	let emeta = (EBinop ("=",field p clpath "__class__",stpath),p) ::
 		match c.cl_path with
 		| [] , name -> [(EBinop ("=",field p (ident p "@classes") name,ident p name),p)]
 		| _ -> []
 	in
-	(EBlock ([eclass; estat; call p (builtin p "objsetproto") [clpath; esuper]] @ emeta),p)
+	let eextends = (match c.cl_super with
+		| None -> []
+		| Some (c,_) ->
+			let esuper = gen_type_path p (fst c.cl_path,"@" ^ snd c.cl_path) in
+			[call p (builtin p "objsetproto") [clpath; esuper]]
+	) in
+	(EBlock (tmp :: eclass :: mfields @ tmp :: estat :: sfields @ eextends @ emeta),p)
 
 let gen_enum_constr ctx path c =
 	ctx.curmethod <- c.ef_name;
@@ -684,7 +691,11 @@ let gen_name ctx acc t =
 		let p = pos ctx e.e_pos in
 		let name = fst e.e_path @ [snd e.e_path] in
 		let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant ctx e.e_pos (TString n)) name); int p (List.length name)] in
-		(EBinop ("=",field p (gen_type_path p e.e_path) "__ename__",arr),p) :: acc
+		let path = gen_type_path p e.e_path in
+		let setname = (EBinop ("=",field p path "__ename__",arr),p) in
+		let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant ctx e.e_pos (TString n)) e.e_names); int p (List.length e.e_names)] in
+		let setconstrs = (EBinop ("=", field p path "__constructs__", arr),p) in
+		setname :: setconstrs :: acc
 	| TClassDecl c ->
 		if c.cl_extern || c.cl_path = ([],"@Main") then
 			acc

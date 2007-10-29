@@ -380,14 +380,7 @@ class Type {
 		Returns all the available constructor names for an enum.
 	**/
 	public static function getEnumConstructs( e : Enum ) : Array<String> {
-		#if neko
-			var a = Reflect.fields(e);
-			a.remove(__unprotect__("__ename__"));
-			a.remove("prototype");
-			return a;
-		#else true
-			return untyped e.__constructs__;
-		#end
+		return untyped e.__constructs__;
 	}
 
 	/**
