@@ -44,14 +44,14 @@ package haxe.xml;
 **/
 class Proxy<Const,T> {
 
-	var f : String -> T;
+	var __f : String -> T;
 
 	public function new(f) {
-		this.f = f;
+		this.__f = f;
 	}
 
 	function __resolve(k) {
-		return f(k);
+		return __f(k);
 	}
 
 }
