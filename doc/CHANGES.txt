@@ -23,6 +23,7 @@
 	guaranteed order of Type.getEnumConstructs same as code
 	used index-based dispatch for enums
 	added Type.enumIndex
+	fixed enum.toString for Flash and JS
 
 2007-08-29: 1.15
 	fixed bug with Enum.construct when Enum have type parameters
