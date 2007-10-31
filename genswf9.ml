@@ -1283,9 +1283,7 @@ let generate_class_statics ctx c =
 	let nslot = ref 0 in
 	List.iter (fun f ->
 		match f.cf_expr with
-		| Some { eexpr = TFunction _ } -> ()
-		| None ->
-			incr nslot;
+		| Some { eexpr = TFunction _ } when f.cf_set <> NormalAccess -> ()
 		| Some e ->
 			incr nslot;
 			if !first then begin
@@ -1297,6 +1295,8 @@ let generate_class_statics ctx c =
 			write ctx (A3Reg r.rid);
 			gen_expr ctx true (Transform.block_vars e);
 			write ctx (A3SetSlot !nslot);
+		| _ ->
+			incr nslot
 	) c.cl_ordered_statics;
 	free_reg ctx r
 
