@@ -38,6 +38,7 @@ let get_full_path file =
 	Extc.get_full_path file
 
 let normalize_path p =
+	let p = ExtString.String.strip p in
 	let l = String.length p in
 	if l = 0 then
 		"./"
@@ -273,12 +274,16 @@ try
 			Plugin.define def;
 		),"<var> : define a conditional compilation flag");
 		("-resource",Arg.String (fun res ->
-			match ExtString.String.nsplit res "@" with
+			match ExtString.String.nsplit (ExtString.String.strip res) "@" with
 			| [file; name] ->
 				let file = (try Plugin.find_file file with Not_found -> file) in
 				let data = Std.input_file ~bin:true file in
 				if Hashtbl.mem hres name then failwith ("Duplicate resource name " ^ name);
 				Hashtbl.add hres name data
+			| [file] ->
+				let file = (try Plugin.find_file file with Not_found -> file) in
+				let data = Std.input_file ~bin:true file in
+				Hashtbl.replace hres file data
 			| _ ->
 				raise (Arg.Bad "Invalid Resource format : should be file@name")
 		),"<file@name> : add a named resource file");
