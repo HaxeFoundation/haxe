@@ -1525,7 +1525,13 @@ let generate file ver header infile types hres =
 			[]
 	in
 	let sandbox() =
-		tag (TSandbox (if ver = 9 then SBUnknown 8 else SBLocal))
+		let net = Plugin.defined "network-sandbox" in
+		tag (TSandbox (match ver, net with
+			| 9, true -> SBUnknown 9
+			| 9, false -> SBUnknown 8
+			| _, true -> SBNetwork
+			| _, false -> SBLocal
+		))
 	in
 	let swf = (match infile with
 		| None ->
