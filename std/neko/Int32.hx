@@ -26,6 +26,28 @@ package neko;
 
 class Int32 {
 
+	public static function make( a : Int, b : Int ) {
+		return Int32.add(Int32.shl(cast a,16),cast b);
+	}
+
+	public static function read( i : neko.io.Input, ?b : Bool ) {
+		var f = if( b ) i.readUInt16B else i.readUInt16;
+		var a = f();
+		return if( b ) make(a,f()) else make(f(),a);
+	}
+
+	public static function write( o : neko.io.Output, i : Int32, ?b : Bool ) {
+		var low = cast Int32.and(i,cast 0xFFFF);
+		var high = cast Int32.ushr(i,16);
+		if( b ) {
+			o.writeUInt16B(high);
+			o.writeUInt16B(low);
+		} else {
+			o.writeUInt16(low);
+			o.writeUInt16(high);
+		}
+	}
+
 	public static var ofInt : Int -> Int32 = neko.Lib.load("std","int32_new",1);
 	public static var toInt : Int32 -> Int = neko.Lib.load("std","int32_to_int",1);
 	public static var toFloat : Int32 -> Float = neko.Lib.load("std","int32_to_float",1);
@@ -43,6 +65,6 @@ class Int32 {
 	public static var xor : Int32 -> Int32 -> Int32 = neko.Lib.load("std","int32_xor",2);
 	public static var neg : Int32 -> Int32 = neko.Lib.load("std","int32_neg",1);
 	public static var complement : Int32 -> Int32 = neko.Lib.load("std","int32_complement",1);
-	public static var compare : Int32 -> Int32 -> Int32 = neko.Lib.load("std","int32_compare",2);
+	public static var compare : Int32 -> Int32 -> Int = neko.Lib.load("std","int32_compare",2);
 
 }
