@@ -340,13 +340,13 @@ let gen_path ctx ?(protect=false) (p,t) is_extern =
 		push ctx [VStr (t,flag)];
 		VarObj
 
-let func ctx need_super need_args args =
+let begin_func ctx need_super need_args args =
 	if ctx.version = 6 then
 		let f = {
 			f_name = "";
 			Swf.f_args = List.map snd args;
 			f_codelen = 0;
-		} in
+		} in		
 		write ctx (AFunction f);
 		let start_pos = ctx.code_pos in
 		let old_stack = ctx.fun_stack in
@@ -955,7 +955,7 @@ and gen_expr_2 ctx retval e =
 				r , ""
 			end
 		) f.tf_args in
-		let tf = func ctx reg_super (Transform.local_find true "__arguments__" f.tf_expr) rargs in
+		let tf = begin_func ctx reg_super (Transform.local_find true "__arguments__" f.tf_expr) rargs in
 		ctx.fun_pargs <- (ctx.code_pos, List.rev !pargs) :: ctx.fun_pargs;
 		if ctx.debug then begin
 			let start_try = gen_try ctx in
@@ -1138,7 +1138,7 @@ let gen_enum_field ctx e f =
 		let no_reg = ctx.version = 6 in
 		let rargs = List.map (fun (n,_,_) -> if no_reg then 0, n else alloc_reg ctx , "") args in
 		let nregs = List.length rargs + 2 in
-		let tf = func ctx false false rargs in
+		let tf = begin_func ctx false false rargs in
 		List.iter (fun (r,name) -> 
 			if no_reg then begin
 				push ctx [VStr (name,false)];
@@ -1149,7 +1149,11 @@ let gen_enum_field ctx e f =
 		push ctx [VInt f.ef_index; VStr (f.ef_name,false)];
 		init_array ctx nregs;
 		write ctx ADup;
+		write ctx ADup;
 		push ctx [VStr ("__enum__",false); VThis];
+		write ctx AObjSet;
+		push ctx [VStr ("toString",false); VStr ("@estr",false)];
+		write ctx AEval;
 		write ctx AObjSet;
 		write ctx AReturn;
 		tf();
@@ -1157,7 +1161,11 @@ let gen_enum_field ctx e f =
 		push ctx [VInt f.ef_index; VStr (f.ef_name,false)];
 		init_array ctx 2;
 		write ctx ADup;
+		write ctx ADup;
 		push ctx [VStr ("__enum__",false); VReg 0];
+		write ctx AObjSet;
+		push ctx [VStr ("toString",false); VStr ("@estr",false)];
+		write ctx AEval;
 		write ctx AObjSet;
 	);
 	write ctx AObjSet
@@ -1240,7 +1248,7 @@ let gen_type_def ctx t =
 			ctx.curmethod <- ("new",false);
 			gen_expr ctx true (Transform.block_vars e)
 		| _ ->
-			let f = func ctx true false [] in
+			let f = begin_func ctx true false [] in
 			f());
 		write ctx (ASetReg 0);
 		setvar ctx acc;
@@ -1425,6 +1433,19 @@ let generate_code file ver types hres =
 		write ctx AInitArray;
 		write ctx ASet;
 	end;
+	(* ----- @estr = function() { return flash.Boot.__string_rec(this,""); } ---- *)
+	push ctx [VStr ("@estr",false)];
+	ctx.reg_count <- 1;
+	let f = begin_func ctx false false [] in
+	push ctx [VStr ("xx",false); VThis; VInt 2];
+	getvar ctx (gen_path ctx (["flash"],"Boot") false);
+	push ctx [VStr ("__string_rec",false)]; 
+	call ctx VarObj 2;
+	write ctx AReturn;
+	f();
+	write ctx ASet;
+	ctx.reg_count <- 0;
+	(* ---- *)
 	List.iter (fun t -> gen_type_def ctx t) types;
 	gen_boot ctx hres;
 	List.iter (fun m -> gen_movieclip ctx m) ctx.movieclips;

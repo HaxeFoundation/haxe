@@ -645,9 +645,11 @@ let generate_enum ctx e =
 		(match f.ef_type with
 		| TFun (args,_) ->
 			let sargs = String.concat "," (List.map arg_name args) in
-			print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s; return $x; }" sargs f.ef_name f.ef_index sargs p;
+			print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s; $x.toString = $estr; return $x; }" sargs f.ef_name f.ef_index sargs p;
 		| _ ->
 			print ctx "[\"%s\",%d]" f.ef_name f.ef_index;
+			newline ctx;
+			print ctx "%s%s.toString = $estr" p (field f.ef_name);
 			newline ctx;
 			print ctx "%s%s.__enum__ = %s" p (field f.ef_name) p;
 		);
@@ -685,6 +687,8 @@ let generate file types hres =
 		curmethod = ("",false);
 	} in
 	let t = Plugin.timer "generate js" in
+	print ctx "$estr = function() { return js.Boot.__string_rec(this,''); }";
+	newline ctx;
 	List.iter (generate_type ctx) types;
 	print ctx "$_ = {}";
 	newline ctx;
