@@ -257,7 +257,8 @@ let field_access ctx get f t e p =
 		AccExpr (mk (TField (e,f.cf_name)) t p)
 	| MethodAccess m ->
 		if m = ctx.curmethod && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
-			AccExpr (mk (TField (e,f.cf_name)) t p)
+			let prefix = if ctx.flash9 && Plugin.defined "as3gen" then "$" else "" in
+			AccExpr (mk (TField (e,prefix ^ f.cf_name)) t p)
 		else if get then
 			AccExpr (mk (TCall (mk (TField (e,m)) (mk_mono()) p,[])) t p)
 		else

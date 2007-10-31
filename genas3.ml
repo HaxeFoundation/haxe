@@ -63,6 +63,7 @@ let s_path ctx path p =
 let s_ident n =
 	match n with
 	| "is" -> "_is"
+	| "as" -> "_as"
 	| "int" -> "_int"
 	| "getTimer" -> "_getTimer"
 	| "typeof" -> "_typeof"
@@ -167,6 +168,7 @@ let rec type_str ctx t p =
 		if e.e_extern then (match e.e_path with
 			| [], "Void" -> "void"
 			| [], "Bool" -> "Boolean"
+			| "flash" :: _ , _ -> "String"
 			| _ -> "Object"
 		) else
 			s_path ctx e.e_path p
@@ -391,6 +393,10 @@ and gen_expr ctx e =
 		if ctx.in_value <> None then unsupported e.epos;
 		(match eo with
 		| None ->
+			spr ctx "return"
+		| Some e when (match follow e.etype with TEnum({ e_path = [],"Void" },[]) -> true | _ -> false) ->
+			gen_value ctx e;
+			newline ctx;
 			spr ctx "return"
 		| Some e ->
 			spr ctx "return ";
@@ -709,7 +715,7 @@ let generate_field ctx static f =
 	ctx.in_static <- static;
 	ctx.locals <- PMap.empty;
 	ctx.inv_locals <- PMap.empty;
-	let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static) in
+	let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static) || f.cf_name = "__resolve" in
 	let rights = (if static then "static " else "") ^ (if public then "public" else "protected") in
 	let p = ctx.curclass.cl_pos in
 	match f.cf_expr with
@@ -741,7 +747,28 @@ let generate_field ctx static f =
 				) args;
 				print ctx ") : %s " (type_str ctx r p);
 			| _ -> ()
-		else begin
+		else
+		if (match f.cf_get with MethodAccess m -> true | _ -> match f.cf_set with MethodAccess m -> true | _ -> false) then begin
+			let t = type_str ctx f.cf_type p in
+			let id = s_ident f.cf_name in
+			(match f.cf_get with
+			| NormalAccess ->
+				print ctx "%s function get %s() : %s { return $%s; }" rights id t id;
+				newline ctx
+			| MethodAccess m ->
+				print ctx "%s function get %s() : %s { return %s(); }" rights id t m;
+				newline ctx
+			| _ -> ());
+			(match f.cf_set with
+			| NormalAccess ->
+				print ctx "%s function set %s( __v : %s ) : void { $%s = __v; }" rights id t id;
+				newline ctx
+			| MethodAccess m ->
+				print ctx "%s function set %s( __v : %s ) : void { %s(__v); }" rights id t m;
+				newline ctx
+			| _ -> ());
+			print ctx "protected var $%s : %s" (s_ident f.cf_name) (type_str ctx f.cf_type p);
+		end else begin
 			print ctx "%s var %s : %s" rights (s_ident f.cf_name) (type_str ctx f.cf_type p);
 			match f.cf_expr with
 			| None -> ()
@@ -770,7 +797,7 @@ let generate_class ctx c =
 	(match c.cl_implements with
 	| [] -> ()
 	| l ->
-		spr ctx "implements ";
+		spr ctx (if c.cl_interface then "extends " else "implements ");
 		concat ctx ", " (fun (i,_) -> print ctx "%s" (s_path ctx i.cl_path c.cl_pos)) l);
 	spr ctx "{";
 	let cl = open_block ctx in
@@ -782,18 +809,8 @@ let generate_class ctx c =
 			cf_public = true;
 			cf_set = F9MethodAccess;
 		} in
-		let fd = (match f.cf_expr with Some { eexpr = TFunction f } -> f | _ -> assert false) in
 		ctx.constructor_block <- true;
 		generate_field ctx false f;
-		newline ctx;
-		print ctx "public static function __construct__(args:Array) : %s {" (snd c.cl_path);
-		newline ctx;
-		print ctx "\treturn new %s(" (snd c.cl_path);
-		let n = ref 0 in
-		concat ctx "," (fun _ -> print ctx "args[%d]" !n; incr n) fd.tf_args;
-		spr ctx ")";
-		newline ctx;
-		spr ctx "}";
 	);
 	List.iter (generate_field ctx false) c.cl_ordered_fields;
 	List.iter (generate_field ctx true) c.cl_ordered_statics;
@@ -1139,7 +1156,8 @@ let genhx_class ctx c s =
 		IO.printf ch " implements %s" (s_type_path (type_path ctx i));
 	) c.cl3_implements;
 	IO.printf ch " {\n";
-	IO.printf ch "\t"; gen_method ctx ch "new" c.cl3_construct;
+	IO.printf ch "\t";
+	if not c.cl3_interface then gen_method ctx ch "new" c.cl3_construct;
 	gen_fields ctx ch c.cl3_fields false;
 	gen_fields ctx ch s.st3_fields true;
 	IO.printf ch "}\n";
