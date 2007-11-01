@@ -414,6 +414,10 @@ let rec setvar ctx (acc : write access) retval =
 let getvar ctx (acc : read access) =
 	match acc with
 	| VReg r ->
+		if not r.rinit then begin
+			r.rinit <- true;
+			r.rcond <- true;
+		end;
 		write ctx (A3Reg r.rid)
 	| VId id ->
 		write ctx (A3GetProp id)
