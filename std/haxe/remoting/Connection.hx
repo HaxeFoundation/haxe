@@ -97,7 +97,7 @@ class Connection implements Dynamic<Connection> {
 		var cnx = AsyncConnection.urlConnect(__data);
 		var result = null;
 		untyped cnx.__path = __path;
-		cnx.onError = function(err) { throw err; };
+		cnx.onError = neko.Lib.rethrow;
 		cnx.call(params,function(d) { result = d; });
 		return result;
 	#else error
