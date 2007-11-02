@@ -1316,7 +1316,7 @@ let gen_type_def ctx t =
 		setvar ctx acc;
 		init_name ctx e.e_path true;
 		push ctx [VReg 0; VStr ("__constructs__",true)];
-		List.iter (fun s -> push ctx [VStr (s,true)]) (List.rev e.e_names);
+		List.iter (fun s -> push ctx [VStr (s,false)]) (List.rev e.e_names);
 		init_array ctx (List.length e.e_names);
 		write ctx AObjSet;
 		PMap.iter (fun _ f -> gen_enum_field ctx e f) e.e_constrs
