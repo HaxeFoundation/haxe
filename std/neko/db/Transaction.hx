@@ -56,7 +56,13 @@ class Transaction {
 		Manager.cnx = cnx;
 		Manager.cnx.startTransaction();
 		runMainLoop(mainFun,logError,3);
-		Manager.cnx.commit();
+		try {
+			Manager.cnx.commit();
+		} catch( e : String ) {
+			// sqlite can have errors on commit
+			if( ~/Database is busy/.match(e) )
+				logError(e);
+		}
 		Manager.cnx.close();
 		Manager.cnx = null;
 		Manager.cleanup();
