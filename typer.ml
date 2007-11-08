@@ -2407,7 +2407,8 @@ let init_class ctx c p herits fields =
 					let p = c.cl_pos in
 					let esuper = (ECall ((EConst (Ident "super"),p),List.map (fun (n,_,_) -> (EConst (Ident n),p)) f.f_args),p) in
 					let acc = (if csuper.cl_extern && acc = [] then [APublic] else acc) in
-					let _, _, cf, delayed = loop_cf (FFun ("new",None,acc,pl,{ f with f_expr = esuper })) p in
+					let fnew = { f with f_expr = esuper; f_args = List.map (fun (a,opt,_) -> a,opt,None) f.f_args } in
+					let _, _, cf, delayed = loop_cf (FFun ("new",None,acc,pl,fnew)) p in
 					c.cl_constructor <- Some cf;
 					Hashtbl.add ctx.constructs c.cl_path (acc,pl,f);
 					ctx.delays := [delayed] :: !(ctx.delays);
