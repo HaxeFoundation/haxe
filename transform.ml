@@ -16,7 +16,40 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *)
+open Ast
 open Type
+
+let rec iter f e =
+	match e.eexpr with
+	| TConst _
+	| TLocal _
+	| TEnumField _
+	| TBreak
+	| TContinue
+	| TTypeExpr _ -> ()
+	| TArray (e1,e2)
+	| TBinop (_,e1,e2)
+	| TFor (_,_,e1,e2)
+	| TWhile (e1,e2,_)
+		-> f e1; f e2
+	| TThrow e
+	| TField (e,_)
+	| TParenthesis e
+	| TUnop (_,_,e)
+	| TFunction { tf_expr = e }
+		-> f e
+	| TArrayDecl el 
+	| TNew (_,_,el)
+	| TBlock el
+		-> List.iter f el
+	| TObjectDecl el -> List.iter (fun (_,e) -> f e) el
+	| TCall (e,el) -> f e; List.iter f el
+	| TVars vl -> List.iter (fun (_,_,eo) -> match eo with None -> () | Some e -> f e) vl
+	| TIf (e,e1,e2) -> f e; f e1; (match e2 with None -> () | Some e -> f e)
+	| TSwitch (e,cases,def) -> f e; List.iter (fun (el,e) -> List.iter f el; f e) cases; (match def with None -> () | Some e -> f e)
+	| TMatch (e,_,cases,def) -> f e; List.iter (fun (_,_,e) -> f e) cases; (match def with None -> () | Some e -> f e)
+	| TTry (e,catches) -> f e; List.iter (fun (_,_,e) -> f e) catches
+	| TReturn eo -> (match eo with None -> () | Some e -> f e)
 
 let rec map f e =
 	match e.eexpr with
@@ -198,7 +231,7 @@ let block_vars e =
 	in
 	out_loop e
 
-let emk e = mk e (mk_mono()) Ast.null_pos
+let emk e = mk e (mk_mono()) null_pos
 
 let block e =
 	match e.eexpr with
@@ -215,12 +248,12 @@ let stack_push useadd (c,m) =
 	emk (TCall (emk (TField (stack_e,"push")),[
 		if useadd then
 			emk (TBinop (
-				Ast.OpAdd,
-				emk (TConst (TString (Ast.s_type_path c.cl_path ^ "::"))),
+				OpAdd,
+				emk (TConst (TString (s_type_path c.cl_path ^ "::"))),
 				emk (TConst (TString m))
 			))
 		else
-			emk (TConst (TString (Ast.s_type_path c.cl_path ^ "::" ^ m)))
+			emk (TConst (TString (s_type_path c.cl_path ^ "::" ^ m)))
 	]))
 
 let stack_save_pos =
@@ -229,9 +262,9 @@ let stack_save_pos =
 let stack_restore_pos =
 	let ev = emk (TLocal exc_stack_var) in
 	[
-	emk (TBinop (Ast.OpAssign, ev, emk (TArrayDecl [])));
+	emk (TBinop (OpAssign, ev, emk (TArrayDecl [])));
 	emk (TWhile (
-		emk (TBinop (Ast.OpGte,
+		emk (TBinop (OpGte,
 			emk (TField (stack_e,"length")),
 			emk (TLocal stack_var_pos)
 		)),
@@ -242,7 +275,7 @@ let stack_restore_pos =
 				[]
 			))]
 		)),
-		Ast.NormalWhile
+		NormalWhile
 	));
 	emk (TCall (emk (TField (stack_e,"push")),[ emk (TArray (ev,emk (TConst (TInt 0l)))) ]))
 	]
@@ -290,3 +323,41 @@ let rec is_volatile t =
 		| _ -> is_volatile (apply_params t.t_types tl t.t_type))
 	| _ ->
 		false
+
+let optimize_for_loop i pt e1 make_e2 p t_void t_bool gen_local error =
+	match e1.eexpr with
+	| TNew ({ cl_path = ([],"IntIter") },[],[i1;i2]) ->
+		(match i1.eexpr , i2.eexpr with
+		| TConst (TInt a), TConst (TInt b) when Int32.compare b a <= 0 -> error "Range operate can't iterate backwards" p
+		| _ -> ());
+		let rec check e =
+			match e.eexpr with
+			| TBinop (OpAssign,{ eexpr = TLocal l },_)
+			| TBinop (OpAssignOp _,{ eexpr = TLocal l },_)
+			| TUnop (Increment,_,{ eexpr = TLocal l })
+			| TUnop (Decrement,_,{ eexpr = TLocal l })  when l = i ->
+				error "Loop variable cannot be modified" e.epos
+			| TFunction f when List.exists (fun (l,_,_) -> l = i) f.tf_args ->
+				()
+			| _ ->
+				iter check e
+		in
+		let max = gen_local i2.etype in
+		let e2 = make_e2() in
+		check e2;
+		let ident = mk (TLocal i) i1.etype p in
+		let incr = mk (TUnop (Increment,Prefix,ident)) i1.etype p in
+		let block = match e2.eexpr with
+			| TBlock el -> mk (TBlock (el@[incr])) t_void e2.epos
+			| _ -> mk (TBlock [e2;incr]) t_void p
+		in
+		mk (TBlock [
+			mk (TVars [i,i1.etype,Some i1;max,i2.etype,Some i2]) t_void p;
+			mk (TWhile (
+				mk (TBinop (OpLt, ident, mk (TLocal max) i2.etype p)) t_bool p,
+				block,
+				NormalWhile
+			)) t_void p;
+		]) t_void p
+	| _ ->
+		mk (TFor (i,pt,e1,make_e2())) t_void p

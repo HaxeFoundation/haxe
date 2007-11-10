@@ -1739,33 +1739,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let old_locals = save_locals ctx in
 		let i = add_local ctx i pt in
 		ctx.in_loop <- true;
-		let e = (match e1.eexpr with
-		| TNew ({ cl_path = ([],"IntIter") },[],[i1;i2]) ->
-			(match i1.eexpr , i2.eexpr with
-			| TConst (TInt a), TConst (TInt b) when Int32.compare b a <= 0 ->
-				error "Range operate can't iterate backwards" p
-			| _ -> ());
-			let max = gen_local ctx i2.etype in
-			let n = gen_local ctx i1.etype in
-			let e2 = type_expr ~need_val:false ctx e2 in
-			let block = [
-				mk (TVars [i,i1.etype,Some (mk (TLocal n) i1.etype p)]) (t_void ctx) p;
-				mk (TUnop (Increment,Prefix,mk (TLocal n) i1.etype p)) i1.etype p;
-				e2
-			] in
-			let ident = mk (TLocal n) i1.etype p in
-			mk (TBlock [
-				mk (TVars [n,i1.etype,Some i1;max,i2.etype,Some i2]) (t_void ctx) p;
-				mk (TWhile (
-					mk (TBinop (OpLt, ident, mk (TLocal max) i2.etype p)) (t_bool ctx) p,
-					mk (TBlock block) (t_void ctx) p,
-					NormalWhile
-				)) (t_void ctx) p;
-			]) (t_void ctx) p
-		| _ ->
-			let e2 = type_expr ~need_val:false ctx e2 in
-			mk (TFor (i,pt,e1,e2)) (t_void ctx) p
-		) in
+		let e = Transform.optimize_for_loop i pt e1 (fun () -> type_expr ~need_val:false ctx e2) p (t_void ctx) (t_bool ctx) (gen_local ctx) error in
 		ctx.in_loop <- old_loop;
 		old_locals();
 		e

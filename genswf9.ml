@@ -189,7 +189,7 @@ let jump_back ctx =
 		write ctx (A3Jump (cond,delta))
 	)
 
-let type_path ctx ?(getclass=false) path =
+let type_path ctx path =
 	let pack, name = (match path with
 		| [] , "Int" -> [] , "int"
 		| [] , "UInt" -> [] , "uint"
@@ -204,7 +204,7 @@ let type_path ctx ?(getclass=false) path =
 	let pid = string ctx (String.concat "." pack) in
 	let nameid = string ctx name in
 	let pid = lookup (A3NPublic (Some pid)) ctx.namespaces in
-	let tid = lookup (if getclass then A3MMultiName (Some nameid,lookup [pid] ctx.nsets) else A3MName (nameid,pid)) ctx.names in
+	let tid = lookup (A3MName (nameid,pid)) ctx.names in
 	tid
 
 let rec follow_basic t =
@@ -492,7 +492,7 @@ let begin_fun ctx args tret el stat =
 	ctx.locals <- PMap.foldi (fun name l acc ->
 		match l with
 		| LReg _ -> acc
-		| LScope _ -> PMap.add name (LGlobal (type_path ctx ~getclass:true ([],name))) acc
+		| LScope _ -> PMap.add name (LGlobal (type_path ctx ([],name))) acc
 		| LGlobal _ -> PMap.add name l acc
 	) ctx.locals PMap.empty;
 	List.iter (fun (name,_,t) ->
@@ -680,7 +680,7 @@ let gen_access ctx e (forset : 'a) : 'a access =
 		gen_expr ctx true eindex;
 		VArray
 	| TTypeExpr t ->
-		let id = type_path ctx ~getclass:true (t_path t) in
+		let id = type_path ctx (t_path t) in
 		if is_set forset then write ctx A3GetGlobalScope;
 		VGlobal id
 	| _ ->
@@ -697,7 +697,7 @@ let rec gen_expr_content ctx retval e =
 	| TParenthesis e ->
 		gen_expr ctx retval e
 	| TEnumField (e,s) ->
-		let id = type_path ctx ~getclass:true e.e_path in
+		let id = type_path ctx e.e_path in
 		write ctx (A3GetLex id);
 		write ctx (A3GetProp (ident ctx s));
 	| TObjectDecl fl ->
@@ -751,7 +751,7 @@ let rec gen_expr_content ctx retval e =
 	| TBinop (op,e1,e2) ->
 		gen_binop ctx retval op e1 e2 e.etype
 	| TCall (e,el) ->
-		gen_call ctx e el
+		gen_call ctx retval e el
 	| TNew (c,_,pl) ->
 		let id = type_path ctx c.cl_path in
 		write ctx (A3FindPropStrict id);
@@ -990,7 +990,7 @@ let rec gen_expr_content ctx retval e =
 		free_reg ctx rindex;
 		free_reg ctx rparams
 
-and gen_call ctx e el =
+and gen_call ctx retval e el =
 	match e.eexpr , el with
 	| TLocal "__is__" , [e;t] ->
 		gen_expr ctx true e;
@@ -1060,34 +1060,37 @@ and gen_call ctx e el =
 		let id = ident ctx f in
 		write ctx (A3FindPropStrict id);
 		List.iter (gen_expr ctx true) el;
-		write ctx (A3CallProperty (id,List.length el));
+		write ctx (if retval then A3CallProperty (id,List.length el) else A3CallPropVoid (id,List.length el));
 	| TField (e1,f) , _ ->
 		gen_expr ctx true e1;
 		List.iter (gen_expr ctx true) el;
-		write ctx (A3CallProperty (property ctx f e1.etype,List.length el));
-		let coerce() =
-			match follow e.etype with
-			| TFun (_,r) -> coerce ctx (classify ctx r)
-			| _ -> ()
-		in
-		(match follow e1.etype with
-		| TInst ({ cl_path = [],"Array" },_) -> 
-			(match f with
-			| "copy" | "remove" -> coerce()
-			| _ -> ())
-		| TInst ({ cl_path = [],"Date" },_) -> 
-			coerce() (* all date methods are typed as Number in AS3 and Int in haXe *) 
-		| TAnon a when (match !(a.a_status) with Statics { cl_path = ([],"Date") } -> true | _ -> false) ->
-			(match f with
-			| "now" | "fromString" | "fromTime"  -> coerce()
-			| _ -> ())
-		| TAnon a when (match !(a.a_status) with Statics { cl_path = ([],"Math") } -> true | _ -> false) ->
-			(match f with
-			| "isFinite" | "isNaN" -> coerce()
-			| _ -> ())
-		| _ -> ())
+		if not retval then
+			write ctx (A3CallPropVoid (property ctx f e1.etype,List.length el))
+		else
+			let coerce() =
+				match follow e.etype with
+				| TFun (_,r) -> coerce ctx (classify ctx r)
+				| _ -> ()
+			in
+			write ctx (A3CallProperty (property ctx f e1.etype,List.length el));
+			(match follow e1.etype with
+			| TInst ({ cl_path = [],"Array" },_) -> 
+				(match f with
+				| "copy" | "remove" -> coerce()
+				| _ -> ())
+			| TInst ({ cl_path = [],"Date" },_) -> 
+				coerce() (* all date methods are typed as Number in AS3 and Int in haXe *) 
+			| TAnon a when (match !(a.a_status) with Statics { cl_path = ([],"Date") } -> true | _ -> false) ->
+				(match f with
+				| "now" | "fromString" | "fromTime"  -> coerce()
+				| _ -> ())
+			| TAnon a when (match !(a.a_status) with Statics { cl_path = ([],"Math") } -> true | _ -> false) ->
+				(match f with
+				| "isFinite" | "isNaN" -> coerce()
+				| _ -> ())
+			| _ -> ())		
 	| TEnumField (e,f) , _ ->
-		let id = type_path ctx ~getclass:true e.e_path in
+		let id = type_path ctx e.e_path in
 		write ctx (A3GetLex id);
 		List.iter (gen_expr ctx true) el;
 		write ctx (A3CallProperty (ident ctx f,List.length el));
@@ -1267,7 +1270,7 @@ let generate_class_init ctx c slot =
 		let path = (match c.cl_super with None -> ([],"Object") | Some (sup,_) -> sup.cl_path) in
 		write ctx (A3GetLex (type_path ctx path));
 		write ctx A3Scope;
-		write ctx (A3GetLex (type_path ctx ~getclass:true path));
+		write ctx (A3GetLex (type_path ctx path));
 	end;
 	write ctx (A3ClassDef (As3parse.magic_index slot));
 	List.iter (fun f ->
@@ -1310,7 +1313,7 @@ let generate_enum_init ctx e slot =
 	write ctx A3GetGlobalScope;
 	write ctx (A3GetLex (type_path ctx path));
 	write ctx A3Scope;
-	write ctx (A3GetLex (type_path ~getclass:true ctx path));
+	write ctx (A3GetLex (type_path ctx path));
 	write ctx (A3ClassDef (As3parse.magic_index slot));
 	write ctx A3PopScope;
 	let r = alloc_reg ctx KDynamic in
@@ -1355,7 +1358,7 @@ let generate_field_kind ctx f c stat =
 		else
 			Some (A3FMethod {
 				m3_type = generate_method ctx fdata stat;
-				m3_final = false;
+				m3_final = stat;
 				m3_override = not stat && loop c;
 				m3_kind = MK3Normal;
 			})
@@ -1468,7 +1471,7 @@ let generate_enum ctx e =
 	write ctx A3RetVoid;
 	let construct = f() in
 	let f = begin_fun ctx [] t_string [] true in
-	write ctx (A3GetLex (type_path ctx ~getclass:true ([],ctx.boot)));
+	write ctx (A3GetLex (type_path ctx ([],ctx.boot)));
 	write ctx A3This;
 	write ctx (A3CallProperty (ident ctx "enum_to_string",1));
 	write ctx A3Ret;
@@ -1477,7 +1480,7 @@ let generate_enum ctx e =
 		cl3_name = name_id;
 		cl3_super = Some (type_path ctx ([],"Object"));
 		cl3_sealed = true;
-		cl3_final = false;
+		cl3_final = true;
 		cl3_interface = false;
 		cl3_namespace = None;
 		cl3_implements = [||];
@@ -1492,7 +1495,7 @@ let generate_enum ctx e =
 				f3_slot = 0;
 				f3_kind = A3FMethod {
 					m3_type = tostring;
-					m3_final = false;
+					m3_final = true;
 					m3_override = false;
 					m3_kind = MK3Normal;
 				};
@@ -1520,7 +1523,7 @@ let generate_enum ctx e =
 					let fid = fdata() in
 					A3FMethod {
 						m3_type = fid;
-						m3_final = false;
+						m3_final = true;
 						m3_override = false;
 						m3_kind = MK3Normal;
 					}
