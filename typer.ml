@@ -1608,10 +1608,6 @@ and type_access ctx e p get =
 			let t , pt = t_array ctx in
 			unify_raise ctx e1.etype t e1.epos;
 			pt
-		with Error (Unify _,_) -> try
-			let t , pt = t_array ctx in
-			unify_raise ctx e1.etype t e1.epos;
-			pt
 		with Error (Unify _,_) ->
 			let t, pt = t_array_access ctx in
 			unify ctx e1.etype t e1.epos;
