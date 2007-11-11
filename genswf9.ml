@@ -761,9 +761,8 @@ let rec gen_expr_content ctx retval e =
 	| TFunction f ->
 		write ctx (A3Function (generate_function ctx f true))
 	| TIf (e0,e1,e2) ->
-		gen_expr ctx true e0;
+		let j = jump_expr ctx e0 false in
 		let branch = begin_branch ctx in
-		let j = jump ctx J3False in
 		gen_expr ctx retval e1;
 		let t = classify ctx e.etype in
 		if retval && classify ctx e1.etype <> t then coerce ctx t;
@@ -785,8 +784,7 @@ let rec gen_expr_content ctx retval e =
 		let continue_pos = ctx.infos.ipos + jsize in
 		let here, loop = jump_back ctx in
 		here();
-		gen_expr ctx true econd;
-		let jend = jump ctx J3False in
+		let jend = jump_expr ctx econd false in
 		jstart();
 		gen_expr ctx false e;
 		loop J3Always;
@@ -1160,16 +1158,14 @@ and gen_binop ctx retval op e1 e2 t =
 		setvar ctx acc retval
 	| OpBoolAnd ->
 		write ctx A3False;
-		gen_expr ctx true e1;
-		let j = jump ctx J3False in
+		let j = jump_expr ctx e1 false in
 		write ctx A3Pop;
 		gen_expr ctx true e2;
 		coerce ctx KBool;
 		j();
 	| OpBoolOr ->
 		write ctx A3True;
-		gen_expr ctx true e1;
-		let j = jump ctx J3True in
+		let j = jump_expr ctx e1 true in
 		write ctx A3Pop;
 		gen_expr ctx true e2;
 		coerce ctx KBool;
@@ -1235,6 +1231,31 @@ and generate_function ctx fdata stat =
 	gen_expr ctx false fdata.tf_expr;
 	write ctx A3RetVoid;
 	f()
+
+and jump_expr ctx e jif =
+	match e.eexpr with
+	| TParenthesis e -> jump_expr ctx e jif
+	| TBinop (op,e1,e2) ->
+		let j t f =
+			gen_expr ctx true e1;
+			gen_expr ctx true e2;
+			jump ctx (if jif then t else f)
+		in
+		(match op with
+		| OpEq -> j J3Eq J3Neq
+		| OpNotEq -> j J3Neq J3Eq
+		| OpPhysEq -> j J3PhysEq J3PhysNeq
+		| OpPhysNotEq -> j J3PhysNeq J3PhysEq
+		| OpGt -> j J3Gt J3NotGt
+		| OpGte -> j J3Gte J3NotGte
+		| OpLt -> j J3Lt J3NotLt
+		| OpLte -> j J3Lte J3NotLte
+		| _ ->
+			gen_expr ctx true e;
+			jump ctx (if jif then J3True else J3False))
+	| _ ->
+		gen_expr ctx true e;
+		jump ctx (if jif then J3True else J3False)
 
 let generate_method ctx fdata stat =
 	generate_function ctx { fdata with tf_expr = Transform.block_vars fdata.tf_expr } stat
