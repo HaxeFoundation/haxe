@@ -65,6 +65,7 @@ let error p = Typer.error "Invalid expression" p
 let stack_error p = Typer.error "Stack error" p
 let protect_all = ref true
 let extern_boot = ref false
+let debug_pass = ref ""
 
 (* -------------------------------------------------------------- *)
 (* Bytecode Helpers *)
@@ -1533,11 +1534,12 @@ let generate file ver header infile types hres =
 			| _, false -> SBLocal
 		))
 	in
+	let debug() = tag (TEnableDebugger2 !debug_pass) in
 	let swf = (match infile with
 		| None ->
 			let header , bg = (match header with None -> default_header ver | Some h -> convert_header ver h) in
 			let tagbg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
-			let tagstart = (if ver >= 8 then [sandbox();tagbg] else [tagbg]) in
+			let tagstart = (if ver >= 8 then [sandbox()] else []) @ (if ver = 9 && Plugin.defined "debug" then [debug()] else []) @ [tagbg] in
 			let tagshow = tag TShowFrame in
 			(header,tagstart @ tagclips() @ tag_code @ tagclips9() @ [tagshow])
 		| Some file ->
@@ -1553,6 +1555,7 @@ let generate file ver header infile types hres =
 			) in
 			IO.close_in ch;
 			let has_sandbox = ref false in
+			let has_debug = ref false in
 			let rec loop = function
 				| [] ->
 					failwith ("Frame 1 not found in " ^ file)
@@ -1581,17 +1584,18 @@ let generate file ver header infile types hres =
 						) el;
 						t :: loop l
 					end;
-				| ({ tdata = TSandbox _ } as t) :: l when ver = 9 ->
+				| { tdata = TSandbox _ } :: l ->
 					has_sandbox := true;
-					{ t with tdata = TSandbox (SBUnknown 8) } :: loop l
-				| ({ tdata = TSandbox _ } as t) :: l ->				
-					has_sandbox := true;
-					t :: loop l
+					sandbox() :: loop l
+				| ({ tdata = TEnableDebugger2 _ } as t) :: l ->
+					has_debug := true;
+					if Plugin.defined "debug" then t :: loop l else loop l
 				| t :: l ->
 					t :: loop l
 			in
 			let tags = loop swf in
 			let tags = (if not !has_sandbox && ver >= 8 then sandbox() :: tags else tags) in
+			let tags = (if not !has_debug && ver = 9 && Plugin.defined "debug" then debug() :: tags else tags) in
 			(header , tags)
 	) in
 	let swf = if ver = 8 && Plugin.defined "flash_v9" then ({ (fst swf) with h_version = 9 }, snd swf) else swf in

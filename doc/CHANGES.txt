@@ -4,6 +4,7 @@
 	fixed Sqlite transactions (commit and rollback now restart a transaction)
 	optimized a...b loops (tmp variable can't be modified)
 	several flash9 optimizations
+	flash9 debug support (with -debug)
 
 2007-10-31: 1.16
 	use _sans font for default flash traces (better Linux support)

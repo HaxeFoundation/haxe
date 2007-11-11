@@ -369,6 +369,7 @@ let define_local ctx ?(init=false) name t el =
 			LScope pos
 		end else
 			let r = alloc_reg ctx (classify ctx t) in
+			if ctx.debug then write ctx (A3DebugReg (string ctx name, r.rid-1, ctx.last_line));
 			r.rinit <- init;
 			LReg r
 	) in
