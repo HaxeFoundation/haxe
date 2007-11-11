@@ -280,6 +280,14 @@ let rec gen_call ctx e el =
 		gen_value ctx e1;
 		spr ctx " as ";
 		gen_value ctx e2;
+	| TLocal "__int__" , [e] ->
+		spr ctx "int(";
+		gen_value ctx e;
+		spr ctx ")";
+	| TLocal "__float__" , [e] ->
+		spr ctx "Number(";
+		gen_value ctx e;
+		spr ctx ")";
 	| TLocal "__typeof__", [e] ->
 		spr ctx "typeof ";
 		gen_value ctx e;

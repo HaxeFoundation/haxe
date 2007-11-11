@@ -65,7 +65,7 @@ class Std {
 	**/
 	public static function int( x : Float ) : Int {
 		#if flash9
-		return untyped __global__["int"](x);
+		return untyped __int__(x);
 		#else true
 		if( x < 0 ) return Math.ceil(x);
 		return Math.floor(x);

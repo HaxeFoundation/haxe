@@ -122,6 +122,8 @@ let new_lookup_nz() = { h = Hashtbl.create 0; a = DynArray.create(); c = index_n
 
 let jsize = As3code.length (A3Jump (J3Always,0))
 
+let ethis = mk (TConst TThis) (mk_mono()) null_pos
+
 let t_void = TEnum ({
 		e_path = [],"Void";
 		e_pos = null_pos;
@@ -468,7 +470,7 @@ let debug ctx p =
 		ctx.last_line <- line;
 	end
 
-let begin_fun ctx args tret el stat =
+let begin_fun ctx args tret el stat p =
 	let old_locals = ctx.locals in
 	let old_code = ctx.code in
 	let old_infos = ctx.infos in
@@ -483,13 +485,17 @@ let begin_fun ctx args tret el stat =
 	ctx.block_vars <- [];
 	ctx.in_static <- stat;
 	ctx.last_line <- -1;
-	(match el with
-	| [] -> ()
-	| e :: _ ->
-		if ctx.debug then begin
-			write ctx (A3DebugFile (lookup e.epos.pfile ctx.strings));
-			debug ctx e.epos
-		end);
+	if ctx.debug then begin
+		write ctx (A3DebugFile (lookup p.pfile ctx.strings));
+		debug ctx p
+	end;
+	let rec find_this e =
+		match e.eexpr with
+		| TFunction _ -> ()
+		| TConst TThis -> raise Exit
+		| _ -> Transform.iter find_this e
+	in
+	let this_reg = try List.iter find_this el; false with Exit -> true in
 	ctx.locals <- PMap.foldi (fun name l acc ->
 		match l with
 		| LReg _ -> acc
@@ -545,7 +551,7 @@ let begin_fun ctx args tret el stat =
 					| Some r -> [A3Dup; A3SetReg r.rid; A3Scope]
 				) in
 				A3This :: A3Scope :: A3NewBlock :: scope
-			end else if not stat then
+			end else if this_reg then
 				[A3This; A3Scope]
 			else
 				[]
@@ -567,10 +573,10 @@ let begin_fun ctx args tret el stat =
 		let delta = List.fold_left (fun acc r -> As3code.length r + acc) 0 extra in
 		let f = {
 			fun3_id = add mt ctx.mtypes;
-			fun3_stack_size = (if ctx.infos.imax = 0 && (hasblock || not stat) then 1 else ctx.infos.imax);
+			fun3_stack_size = (if ctx.infos.imax = 0 && (hasblock || this_reg) then 1 else ctx.infos.imax);
 			fun3_nregs = DynArray.length ctx.infos.iregs + 1;
 			fun3_init_scope = 1;
-			fun3_max_scope = ctx.infos.imaxscopes + 1 + (if hasblock then 2 else if not stat then 1 else 0);
+			fun3_max_scope = ctx.infos.imaxscopes + 1 + (if hasblock then 2 else if this_reg then 1 else 0);
 			fun3_code = extra @ code;
 			fun3_trys = Array.of_list (List.map (fun t ->
 				{
@@ -606,8 +612,8 @@ let begin_fun ctx args tret el stat =
 		f.fun3_id
 	)
 
-let empty_method ctx =
-	let f = begin_fun ctx [] t_void [] true in
+let empty_method ctx p =
+	let f = begin_fun ctx [] t_void [] true p in
 	write ctx A3RetVoid;
 	f()
 
@@ -999,6 +1005,12 @@ and gen_call ctx retval e el =
 		gen_expr ctx true e;
 		gen_expr ctx true t;
 		write ctx (A3Op A3OAs)
+	| TLocal "__int__", [e] ->
+		gen_expr ctx true e;
+		write ctx A3ToInt
+	| TLocal "__float__", [e] ->
+		gen_expr ctx true e;
+		write ctx A3ToNumber
 	| TLocal "__keys__" , [e] ->
 		let racc = alloc_reg ctx (KType (type_path ctx ([],"Array"))) in
 		let rcounter = alloc_reg ctx KInt in
@@ -1227,9 +1239,9 @@ and gen_expr ctx retval e =
 	end else if retval then stack_error e.epos
 
 and generate_function ctx fdata stat =
-	let f = begin_fun ctx fdata.tf_args fdata.tf_type [fdata.tf_expr] stat in
+	let f = begin_fun ctx fdata.tf_args fdata.tf_type [fdata.tf_expr] stat fdata.tf_expr.epos in
 	gen_expr ctx false fdata.tf_expr;
-	write ctx A3RetVoid;
+	(match follow fdata.tf_type with TEnum ({ e_path = [],"Void" },[]) -> write ctx A3RetVoid | _ -> ());
 	f()
 
 and jump_expr ctx e jif =
@@ -1262,7 +1274,7 @@ let generate_method ctx fdata stat =
 
 let generate_construct ctx fdata cfields =
 	(* make all args optional to allow no-param constructor *)
-	let f = begin_fun ctx (List.map (fun (a,o,t) -> a,true,t) fdata.tf_args) fdata.tf_type [fdata.tf_expr] false in
+	let f = begin_fun ctx (List.map (fun (a,o,t) -> a,true,t) fdata.tf_args) fdata.tf_type [fdata.tf_expr] false fdata.tf_expr.epos in
 	(* if skip_constructor, then returns immediatly *)
 	let id = ident ctx "skip_constructor" in
 	getvar ctx (VGlobal (type_path ctx ([],ctx.boot)));
@@ -1397,7 +1409,7 @@ let generate_field_kind ctx f c stat =
 
 let generate_class ctx c =
 	let name_id = type_path ctx c.cl_path in
-	let st_id = empty_method ctx in
+	let st_id = empty_method ctx c.cl_pos in
 	let cid , cnargs = (match c.cl_constructor with
 		| None ->
 			if c.cl_interface then begin
@@ -1476,8 +1488,8 @@ let generate_class ctx c =
 
 let generate_enum ctx e =
 	let name_id = type_path ctx e.e_path in
-	let st_id = empty_method ctx in
-	let f = begin_fun ctx [("tag",false,t_string);("index",false,t_int);("params",false,mk_mono())] t_void [] false in
+	let st_id = empty_method ctx e.e_pos in
+	let f = begin_fun ctx [("tag",false,t_string);("index",false,t_int);("params",false,mk_mono())] t_void [ethis] false e.e_pos in
 	let tag_id = ident ctx "tag" in
 	let index_id = ident ctx "index" in
 	let params_id = ident ctx "params" in
@@ -1492,7 +1504,7 @@ let generate_enum ctx e =
 	write ctx (A3InitProp params_id);
 	write ctx A3RetVoid;
 	let construct = f() in
-	let f = begin_fun ctx [] t_string [] true in
+	let f = begin_fun ctx [] t_string [] true e.e_pos in
 	write ctx (A3GetLex (type_path ctx ([],ctx.boot)));
 	write ctx A3This;
 	write ctx (A3CallProperty (ident ctx "enum_to_string",1));
@@ -1533,7 +1545,7 @@ let generate_enum ctx e =
 			f3_slot = !st_count;
 			f3_kind = (match f.ef_type with
 				| TFun (args,_) ->
-					let fdata = begin_fun ctx args (TEnum (e,[])) [] true in
+					let fdata = begin_fun ctx args (TEnum (e,[])) [] true f.ef_pos in
 					write ctx (A3FindPropStrict name_id);
 					write ctx (A3String (lookup f.ef_name ctx.strings));
 					write ctx (A3Int f.ef_index);
@@ -1596,7 +1608,7 @@ let generate_resources ctx hres =
 	write ctx (A3InitProp (ident ctx "__res"))
 
 let generate_inits ctx types hres =
-	let f = begin_fun ctx [] t_void [] false in
+	let f = begin_fun ctx [] t_void [ethis] false null_pos in
 	let slot = ref 0 in
 	let classes = List.fold_left (fun acc t ->
 		match t with
@@ -1625,7 +1637,7 @@ let generate_inits ctx types hres =
 	(* define flash.Boot.init method *)
 	write ctx A3GetGlobalScope;
 	write ctx (A3GetProp (type_path ctx ([],ctx.boot)));
-	let finit = begin_fun ctx [] t_void [] true in
+	let finit = begin_fun ctx [] t_void [] true null_pos in
 	List.iter (fun t ->
 		match t with
 		| TClassDecl c ->

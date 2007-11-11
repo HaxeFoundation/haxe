@@ -328,8 +328,11 @@ let optimize_for_loop i pt e1 make_e2 p t_void t_bool gen_local error =
 	match e1.eexpr with
 	| TNew ({ cl_path = ([],"IntIter") },[],[i1;i2]) ->
 		(match i1.eexpr , i2.eexpr with
-		| TConst (TInt a), TConst (TInt b) when Int32.compare b a <= 0 -> error "Range operate can't iterate backwards" p
+		| TConst (TInt a), TConst (TInt b) when Int32.compare b a <= 0 -> ignore(error "Range operate can't iterate backwards" p);
 		| _ -> ());
+		let max = gen_local i2.etype in
+		let ident = mk (TLocal i) i1.etype p in
+		let incr = mk (TUnop (Increment,Prefix,ident)) i1.etype p in
 		let rec check e =
 			match e.eexpr with
 			| TBinop (OpAssign,{ eexpr = TLocal l },_)
@@ -338,15 +341,13 @@ let optimize_for_loop i pt e1 make_e2 p t_void t_bool gen_local error =
 			| TUnop (Decrement,_,{ eexpr = TLocal l })  when l = i ->
 				error "Loop variable cannot be modified" e.epos
 			| TFunction f when List.exists (fun (l,_,_) -> l = i) f.tf_args ->
-				()
+				e
+			| TContinue ->
+				mk (TBlock [incr;e]) e.etype e.epos
 			| _ ->
-				iter check e
+				map check e
 		in
-		let max = gen_local i2.etype in
-		let e2 = make_e2() in
-		check e2;
-		let ident = mk (TLocal i) i1.etype p in
-		let incr = mk (TUnop (Increment,Prefix,ident)) i1.etype p in
+		let e2 = check (make_e2()) in
 		let block = match e2.eexpr with
 			| TBlock el -> mk (TBlock (el@[incr])) t_void e2.epos
 			| _ -> mk (TBlock [e2;incr]) t_void p
