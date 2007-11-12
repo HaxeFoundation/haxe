@@ -38,7 +38,6 @@ let get_full_path file =
 	Extc.get_full_path file
 
 let normalize_path p =
-	let p = ExtString.String.strip p in
 	let l = String.length p in
 	if l = 0 then
 		"./"
@@ -274,7 +273,7 @@ try
 			Plugin.define def;
 		),"<var> : define a conditional compilation flag");
 		("-resource",Arg.String (fun res ->
-			match ExtString.String.nsplit (ExtString.String.strip res) "@" with
+			match ExtString.String.nsplit res "@" with
 			| [file; name] ->
 				let file = (try Plugin.find_file file with Not_found -> file) in
 				let data = Std.input_file ~bin:true file in
@@ -341,9 +340,8 @@ try
 		| x :: _ when String.lowercase x = "hxml" ->
 			let ch = (try open_in cl with _ -> failwith ("File not found " ^ cl)) in
 			let lines = Std.input_list ch in
-			let hxml_args = List.concat (List.map (fun l ->
-				let len = String.length l in
-				let l = (if len != 0 && l.[len - 1] = '\r' then String.sub l 0 (len-1) else l) in
+			let hxml_args = List.concat (List.map (fun l ->				
+				let l = ExtString.String.strip l in
 				if l = "" || l.[0] = '#' then
 					[]
 				else if l.[0] = '-' then
