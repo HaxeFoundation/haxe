@@ -43,7 +43,7 @@ transform.cmx: type.cmx
 
 type.cmx: ast.cmx
 
-typer.cmx: type.cmx plugin.cmx parser.cmx lexer.cmx ast.cmx
+typer.cmx: type.cmx plugin.cmx parser.cmx lexer.cmx ast.cmx transform.cmx
 
 clean:
 	rm -f haxe.exe
