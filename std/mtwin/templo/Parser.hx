@@ -260,7 +260,8 @@ class Parser {
 		var result = new List();
 		var start = 0;
 		var len = exp.length;
-		for (i in 0...len){
+		var i = 0;
+		while( i < len ) {
 			if (exp.charAt(i) == ";"){
 				if (exp.charAt(i+1) == ";"){
 					++i;
@@ -270,6 +271,7 @@ class Parser {
 					start = i+1;
 				}
 			}
+			i++;
 		}
 		if (start < len){
 			result.push(exp.substr(start, len-start));
