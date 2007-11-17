@@ -733,6 +733,7 @@ let load_type_opt ?(param=false) ctx p t =
 		if not param || not ctx.flash9 then
 			t
 		else match follow t with
+		| TFun _
 		| TInst ({ cl_path = [],"Int" },_)
 		| TInst ({ cl_path = [],"Float" },_)
 		| TEnum ({ e_path = [],"Bool" },_) ->
