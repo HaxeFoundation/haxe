@@ -1241,7 +1241,31 @@ and gen_expr ctx retval e =
 and generate_function ctx fdata stat =
 	let f = begin_fun ctx fdata.tf_args fdata.tf_type [fdata.tf_expr] stat fdata.tf_expr.epos in
 	gen_expr ctx false fdata.tf_expr;
-	(match follow fdata.tf_type with TEnum ({ e_path = [],"Void" },[]) -> write ctx A3RetVoid | _ -> ());
+	(match follow fdata.tf_type with
+	| TEnum ({ e_path = [],"Void" },[]) -> write ctx A3RetVoid 
+	| _ ->
+		(* check that we have a return that can be accepted by Flash9 VM *)
+		let rec loop e =
+			match e.eexpr with
+			| TBlock [] -> false
+			| TBlock l -> loop (List.hd (List.rev l))
+			| TReturn None -> true
+			| TReturn (Some e) ->
+				let rec inner_loop e =
+					match e.eexpr with
+					| TSwitch _ | TMatch _ | TFor _ | TWhile _ | TTry _ -> false
+					| TIf _ -> loop e
+					| TParenthesis e -> inner_loop e
+					| _ -> true
+				in
+				inner_loop e
+			| TIf (_,e1,Some e2) -> loop e1 && loop e2
+			| TSwitch (_,_,Some e) -> loop e
+			| TParenthesis e -> loop e
+			| _ -> false
+		in
+		if not (loop fdata.tf_expr) then write ctx A3RetVoid;
+	);
 	f()
 
 and jump_expr ctx e jif =
