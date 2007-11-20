@@ -59,7 +59,10 @@ class Boot extends flash.display.MovieClip {
 			};
 		}
 		lines = new Array();
-		flash.Lib.current = if( mc == null ) this else mc;
+		var c = if( mc == null ) this else mc;
+		flash.Lib.current = c;
+		untyped if( c.stage != null && c.stage.align == "" )
+			c.stage.align = "TOP_LEFT";
 		if( init != null )
 			init();
 	}
