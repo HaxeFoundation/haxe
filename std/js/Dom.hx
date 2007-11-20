@@ -219,6 +219,7 @@ typedef Event = {
 
 typedef FileUpload = {> FormElement,
 	var defaultValue : String;
+	var onchange : Event -> Void;
 }
 
 typedef Form = {> HtmlDom,
@@ -717,5 +718,7 @@ typedef Window = {
 	show...()
 	*/
 
- 	// events : only on FF
+ 	// events
+	var onload : Event -> Void;
+
 }
