@@ -38,6 +38,7 @@ class Smtp {
 		try {
 			cnx.connect(new Host(host),port);
 		}catch( e : Dynamic ){
+			cnx.close();
 			throw ConnectionError(host,port);
 		}
 		

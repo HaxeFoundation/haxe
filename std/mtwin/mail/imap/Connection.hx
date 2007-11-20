@@ -97,6 +97,7 @@ class Connection {
 		try{
 			cnx.connect( new neko.net.Host(host), port );
 		}catch( e : Dynamic ){
+			cnx.close();
 			throw ConnectionError(host,port);
 		}
 		debug("socket connected");
