@@ -146,7 +146,9 @@ class Ftp {
 		Retrieve remote file size.
 	**/
 	public function fileSize( path:String ) : Int {
+		voidCommand("TYPE I");
 		var res = command("SIZE "+path);
+		voidCommand("TYPE A");
 		if (res.substr(0,3) != "213")
 			throw res;
 		res = StringTools.trim(res.substr(3,res.length));
@@ -331,7 +333,12 @@ class Ftp {
 			cnx.connect(host, tport);
 			if (rest != null) command("REST "+rest);
 			var res = command(cmd);
-			if (res.charAt(0) != "1")
+			// transfer complete there means nothing do do
+			if (res.substr(0,3) == "226"){
+				cnx.close();
+				return null;
+			}
+			else if (res.charAt(0) != "1")
 				throw res;
 		}
 		else {
@@ -351,6 +358,9 @@ class Ftp {
 	function retrieveLines( cmd:String, ?rest:String ) : Array<String> {
 		var res = command("TYPE A");
 		var cnx = transferConnection(cmd, rest);
+		// nothing to retrieve
+		if (cnx == null)
+			return [];
 		var lines = new Array();
 		while (true){
 			try {
@@ -373,7 +383,7 @@ class Ftp {
 			bufSize = 8192;
 		var res = voidCommand("TYPE I");
 		var cnx = transferConnection(cmd, rest);
-		while (true){
+		while (cnx != null){
 			var rdd = 0;
 			try {
 				var buf = neko.Lib.makeString(bufSize);
@@ -386,7 +396,8 @@ class Ftp {
 			if (rdd < bufSize)
 				break;
 		}
-		cnx.close();
+		if (cnx != null)
+			cnx.close();
 		voidResponse();
 	}
 
