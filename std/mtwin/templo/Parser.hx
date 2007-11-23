@@ -261,15 +261,25 @@ class Parser {
 		var start = 0;
 		var len = exp.length;
 		var i = 0;
-		while( i < len ) {
-			if (exp.charAt(i) == ";"){
-				if (exp.charAt(i+1) == ";"){
-					++i;
-				}
-				else {
-					result.push(exp.substr(start, i-start));
-					start = i+1;
-				}
+		var inString = false;
+		var inDString = false;
+		while( i < len ){
+			var c = exp.charAt(i);
+			if (inString || inDString){
+				if ( c == "\\" && ( (inString && exp.charAt(i+1) == "'") || (inDString && exp.charAt(i+1) == "\"") ) )
+					i = i + 1;
+				else if (inString && c == "'")
+					inString = false;
+				else if (inDString && c == "\"")
+					inDString = false;
+			}
+			else if (c == "'")
+				inString = true;
+			else if (c == "\"")
+				inDString = true;
+			else if (c == ";"){
+				result.push(exp.substr(start, i-start));
+				start = i+1;
 			}
 			i++;
 		}
