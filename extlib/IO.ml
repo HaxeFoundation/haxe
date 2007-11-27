@@ -83,7 +83,7 @@ let really_output o s p l' =
 	if p + l' > sl || p < 0 || l' < 0 then invalid_arg "IO.really_output";
    	let l = ref l' in
 	let p = ref p in
-	while !l > 0 do 
+	while !l > 0 do
 		let w = o.out_output s !p !l in
 		if w = 0 then raise Sys_blocked_io;
 		p := !p + w;
@@ -116,7 +116,7 @@ let really_nread i n =
 	if n < 0 then invalid_arg "IO.really_nread";
 	if n = 0 then ""
 	else
-	let s = String.create n 
+	let s = String.create n
 	in
 	ignore(really_input i s 0 n);
 	s
@@ -485,7 +485,7 @@ let write_ui16 ch n =
 	write_byte ch (n lsr 8)
 
 let write_i16 ch n =
-	if n < -0x7FFF || n > 0x7FFF then raise (Overflow "write_i16");
+	if n < -0x8000 || n > 0x7FFF then raise (Overflow "write_i16");
 	if n < 0 then
 		write_ui16 ch (65536 + n)
 	else
@@ -571,7 +571,7 @@ let write_ui16 ch n =
 	write_byte ch n
 
 let write_i16 ch n =
-	if n < -0x7FFF || n > 0x7FFF then raise (Overflow "write_i16");
+	if n < -0x8000 || n > 0x7FFF then raise (Overflow "write_i16");
 	if n < 0 then
 		write_ui16 ch (65536 + n)
 	else
@@ -644,7 +644,7 @@ let rec read_bits b n =
 			b.bits <- k;
 			b.nbits <- c;
 			d
-		end else begin			
+		end else begin
 			b.bits <- (b.bits lsl 8) lor k;
 			b.nbits <- b.nbits + 8;
 			read_bits b n;
