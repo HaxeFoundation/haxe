@@ -562,6 +562,7 @@ import neko.vm.Module;
 import neko.vm.Thread;
 import neko.vm.Lock;
 import neko.vm.Ui;
+import neko.vm.Gc;
 
 #end
 
