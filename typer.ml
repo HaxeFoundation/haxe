@@ -893,7 +893,8 @@ let type_type ctx tpath p =
 		} in
 		mk (TTypeExpr (TEnumDecl e)) (TType (t_tmp,types)) p
 	| TTypeDecl s ->
-		match follow s.t_type with
+		let t = apply_params s.t_types (List.map (fun _ -> mk_mono()) s.t_types) s.t_type in
+		match follow t with
 		| TEnum (e,params) ->
 			loop (TEnumDecl e) (Some params)
 		| TInst (c,params) ->
