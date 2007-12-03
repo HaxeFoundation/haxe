@@ -165,9 +165,9 @@ class Browser extends MetaPart<Browser> {
 		return null;
 	}
 
-	public function getAttachmentByCid( cid : String ) : {name: String,ctype: String,content: String }{
+	public function getAttachmentByCid( wid : String ) : {name: String,ctype: String,content: String }{
 		var cid = getHeader("Content-Id");
-		if( cid != null && StringTools.trim(cid) == "<"+cid+">" ){
+		if( cid != null && StringTools.trim(cid) == "<"+wid+">" ){
 			return {
 				name: name,
 				ctype: contentType,
@@ -175,7 +175,7 @@ class Browser extends MetaPart<Browser> {
 			};
 		}
 		for( part in parts ){
-			var t = part.getAttachmentByCid( cid );
+			var t = part.getAttachmentByCid( wid );
 			if( t != null ) return t;
 		}
 		return null;
@@ -188,6 +188,11 @@ class Browser extends MetaPart<Browser> {
 
 	public override function getHeader( name, ?charset ){
 		return super.getHeader( Tools.formatHeaderTitle(name),charset );
+	}
+
+	public function getAddress( name, ?charset ){
+		var e = getHeader(name,charset);
+		return Tools.parseAddress(e);
 	}
 
 	function mkBody() : {ctype_primary: String,ctype_secondary: String,charset: String,content: String} {
