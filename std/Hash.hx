@@ -50,14 +50,6 @@ class Hash<T> {
 		}
 		#else error
 		#end
-		// we have no way of deleting this property
-		// so it's better to have .get working even
-		// if it breaks .exists
-		// there's still __proto__ defined in flash8
-		// but we can't remove it without breaking 'exists'
-		#if flash
-		untyped h["constructor"] = null;
-		#end
 	}
 
 	/**
