@@ -174,7 +174,7 @@ typedef Document = {> HtmlDom,
 	#else true
 	// not W3C , need infos : var embeds : HtmlCollection<Embed>;
 	// var lastModified : Date; // commented : does not include date by default
-	var stylesheets : HtmlCollection<StyleSheet>;
+	var styleSheets : HtmlCollection<StyleSheet>;
 	function focus() : Void;
 	function getElementsByTag( tag : String ) : HtmlCollection<HtmlDom>;
 	#end
