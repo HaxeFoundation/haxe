@@ -259,7 +259,7 @@ class Serializer {
 			default:
 				cache.pop();
 				buf.add("c");
-				serialize(Type.getClassName(c));
+				serializeString(Type.getClassName(c));
 				cache.push(v);
 				#if flash9
 				serializeClassFields(v,c);
@@ -277,11 +277,12 @@ class Serializer {
 				return;
 			cache.pop();
 			buf.add(useEnumIndex?"j":"w");
-			serialize(Type.getEnumName(e));
+			serializeString(Type.getEnumName(e));
 			#if neko
-			if( useEnumIndex )
+			if( useEnumIndex ) {
+				buf.add(":");
 				buf.add(v.index);
-			else
+			} else
 				serializeString(new String(v.tag));
 			buf.add(":");
 			if( v.args == null )
@@ -293,9 +294,10 @@ class Serializer {
 					serialize(v.args[i]);
 			}
 			#else flash9
-			if( useEnumIndex )
+			if( useEnumIndex ) {
+				buf.add(":");
 				buf.add(v.index);
-			else
+			} else
 				serializeString(v.tag);
 			buf.add(":");
 			if( v.params == null )
@@ -307,9 +309,10 @@ class Serializer {
 					serialize(v.params[i]);
 			}
 			#else true
-			if( useEnumIndex )
+			if( useEnumIndex ) {
+				buf.add(":");
 				buf.add(v[1]);
-			else
+			} else
 				serializeString(v[0]);
 			buf.add(":");
 			var l = v[untyped "length"];

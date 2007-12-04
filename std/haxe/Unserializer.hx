@@ -220,6 +220,7 @@ class Unserializer {
 			var edecl = resolver.resolveEnum(name);
 			if( edecl == null )
 				throw "Enum not found " + name;
+			pos++; /* skip ':' */
 			var index = readDigits();
 			var tag = Type.getEnumConstructs(edecl)[index];
 			if( tag == null )
