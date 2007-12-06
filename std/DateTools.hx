@@ -152,4 +152,48 @@ class DateTools {
 		return if (isB) 29 else 28;
 	}
 
+	/**
+		Convert a number of seconds to a date-time
+	**/
+	public static function seconds( n : Float ) : Float {
+		return n * 1000.0;
+	}
+
+	/**
+		Convert a number of minutes to a date-time
+	**/
+	public static function minutes( n : Float ) : Float {
+		return n * 60.0 * 1000.0;
+	}
+
+	/**
+		Convert a number of hours to a date-time
+	**/
+	public static function hours( n : Float ) : Float {
+		return n * 60.0 * 60.0 * 1000.0;
+	}
+
+	/**
+		Convert a number of days to a date-time
+	**/
+	public static function days( n : Float ) : Float {
+		return n * 24.0 * 60.0 * 60.0 * 1000.0;
+	}
+
+	/**
+		Separate a date-time into several components
+	**/
+	public static function parse( t : Float ) {
+		var s = Std.int(t / 1000);
+		var m = Std.int(s / 60);
+		var h = Std.int(m / 60);
+		return {
+			ms : t % 1000,
+			seconds : s % 60,
+			minutes : m % 60,
+			hours : h % 24,
+			days : Std.int(h / 24),
+		};
+	}
+
 }
