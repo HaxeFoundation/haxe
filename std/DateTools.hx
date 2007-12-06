@@ -184,14 +184,14 @@ class DateTools {
 		Separate a date-time into several components
 	**/
 	public static function parse( t : Float ) {
-		var s = Std.int(t / 1000);
-		var m = Std.int(s / 60);
-		var h = Std.int(m / 60);
+		var s = t / 1000;
+		var m = s / 60;
+		var h = m / 60;
 		return {
 			ms : t % 1000,
-			seconds : s % 60,
-			minutes : m % 60,
-			hours : h % 24,
+			seconds : Std.int(s % 60),
+			minutes : Std.int(m % 60),
+			hours : Std.int(h % 24),
 			days : Std.int(h / 24),
 		};
 	}
