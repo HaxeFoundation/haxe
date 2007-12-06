@@ -196,4 +196,11 @@ class DateTools {
 		};
 	}
 
+	/**
+		Build a date-time from several components
+	**/
+	public static function make( o : { ms : Float, seconds : Int, minutes : Int, hours : Int, days : Int } ) {
+		return o.ms + 1000.0 * (o.seconds + 60.0 * (o.minutes + 60.0 * (o.hours + 24.0 * o.days)));
+	}
+
 }
