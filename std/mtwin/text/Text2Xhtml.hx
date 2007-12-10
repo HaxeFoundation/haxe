@@ -142,6 +142,7 @@ class Text2Xhtml {
 	public var codeEnabled : Bool;
 	public var swfEnabled : Bool;
 	public var titleIdsEnabled : Bool;
+	public var brEnabled : Bool;
 
 	public function new(){
 		paragraphSeparator = "\n\n";
@@ -149,6 +150,7 @@ class Text2Xhtml {
 		codeEnabled = true;
 		swfEnabled = true;
 		titleIdsEnabled = true;
+		brEnabled = false;
 	}
 
 	public function transform( str:String ) : String {
@@ -189,7 +191,10 @@ class Text2Xhtml {
 			result.add("\n<ol>\n");
 			var items = list.split("\n* ");
 			for (i in 1...items.length){
-				result.add("<li>"+StringTools.trim(items[i])+"</li>\n");
+				var content = StringTools.trim(items[i]);
+				if (brEnabled)
+					content = StringTools.replace(content, "\n", "<br/>");
+				result.add("<li>"+content+"</li>\n");
 			}
 			result.add("</ol>\n");
 			str = StringTools.replace(str, list, result.toString());
@@ -201,7 +206,10 @@ class Text2Xhtml {
 			result.add("\n<ul>\n");
 			var items = list.split("\n- ");
 			for (i in 1...items.length){
-				result.add("<li>"+StringTools.trim(items[i])+"</li>\n");
+				var content = StringTools.trim(items[i]);
+				if (brEnabled)
+					content = StringTools.replace(content, "\n", "<br/>");
+				result.add("<li>"+content+"</li>\n");
 			}
 			result.add("</ul>\n");
 			str = StringTools.replace(str, list, result.toString());
@@ -222,6 +230,8 @@ class Text2Xhtml {
 		str = helper.str;
 
 		// cleanup
+		str = StringTools.replace(str, "<p><br/>", "<p>");
+		str = StringTools.replace(str, "<br/></p>", "</p>");
 		str = StringTools.replace(str, "<p></p>", "");
 		str = StringTools.replace(str, "><p>", ">\n<p>");
 
@@ -267,7 +277,11 @@ s.write('swf@id');
 			if (noParagraph == null || noParagraph == false){
 				var paragraphs = str.split(paragraphSeparator);
 				var me = this;
-				var paragraphs = Lambda.map(paragraphs, function(p){ return "<p>"+me.transformContent(StringTools.trim(p))+"</p>\n"; });
+				var paragraphs = Lambda.map(paragraphs, function(p){ 
+					if (me.brEnabled)
+						p = StringTools.replace(p, "\n", "<br/>");
+					return "<p>"+me.transformContent(StringTools.trim(p))+"</p>\n"; 
+				});
 				str = paragraphs.join("\n");
 			}
 			else {
