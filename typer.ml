@@ -1749,7 +1749,10 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let e1 = type_expr ctx ~need_val e1 in
 		(match e2 with
 		| None ->
-			mk (TIf (e,e1,if need_val then Some (null p) else None)) (t_void ctx) p
+			if need_val then
+				mk (TIf (e,e1,Some (null p))) e1.etype p
+			else
+				mk (TIf (e,e1,None)) (t_void ctx) p
 		| Some e2 ->
 			let e2 = type_expr ctx ~need_val e2 in
 			let t = if not need_val then t_void ctx else (try

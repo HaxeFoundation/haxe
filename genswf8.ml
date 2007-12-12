@@ -1387,7 +1387,7 @@ let convert_header ver (w,h,fps,bg) =
 			bottom = h * 20;
 		};
 		h_frame_count = 1;
-		h_fps = to_float16 fps;
+		h_fps = to_float16 (if fps > 127.0 then 127.0 else fps);
 		h_compressed = not (Plugin.defined "no-swf-compress");
 	} , bg
 
@@ -1547,7 +1547,8 @@ let generate file ver header infile types hres =
 			let ch = IO.input_channel (open_in_bin file) in
 			let h, swf = (try Swf.parse ch with _ -> failwith ("The input swf " ^ file ^ " is corrupted")) in
 			let header , tagbg = (match header with
-				| None -> h , None
+				| None -> 
+					{ h with h_version = ver }, None
 				| Some h ->
 					let h , bg = convert_header ver h in
 					let tagbg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in

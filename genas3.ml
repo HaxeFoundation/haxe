@@ -65,6 +65,7 @@ let s_ident n =
 	| "is" -> "_is"
 	| "as" -> "_as"
 	| "int" -> "_int"
+	| "const" -> "_const"
 	| "getTimer" -> "_getTimer"
 	| "typeof" -> "_typeof"
 	| "parseInt" -> "_parseInt"
