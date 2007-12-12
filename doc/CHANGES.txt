@@ -10,6 +10,7 @@
 	fixed Null should not be a value
 	bugfix in serialization format with USE_ENUM_INDEXES
 	added apis in DateTools for time manipulation
+	bugfix in flash9 : strictly typed local vars used in local functions
 
 2007-10-31: 1.16
 	use _sans font for default flash traces (better Linux support)

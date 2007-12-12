@@ -106,7 +106,7 @@ type context = {
 	mutable continues : (int -> unit) list;
 	mutable in_static : bool;
 	mutable curblock : texpr list;
-	mutable block_vars : (as3_slot * string) list;
+	mutable block_vars : (as3_slot * string * t) list;
 	mutable try_scope_reg : register option;
 }
 
@@ -361,11 +361,12 @@ let pop ctx n =
 let define_local ctx ?(init=false) name t el =
 	let l = (if List.exists (Transform.local_find false name) el then begin
 			let pos = (try
-				fst (List.find (fun (_,x) -> name = x) ctx.block_vars)
+				let slot , _ , _ = (List.find (fun (_,x,_) -> name = x) ctx.block_vars) in
+				slot
 			with
 				Not_found ->
 					let n = List.length ctx.block_vars + 1 in
-					ctx.block_vars <- (n,name) :: ctx.block_vars;
+					ctx.block_vars <- (n,name,t) :: ctx.block_vars;
 					n
 			) in
 			LScope pos
@@ -591,11 +592,11 @@ let begin_fun ctx args tret el stat p =
 					tc3_name = None;
 				}
 			) (List.rev ctx.trys));
-			fun3_locals = Array.of_list (List.map (fun (id,name) ->
+			fun3_locals = Array.of_list (List.map (fun (id,name,t) ->
 				{
 					f3_name = ident ctx name;
 					f3_slot = id;
-					f3_kind = A3FVar { v3_type = None; v3_value = A3VNone; v3_const = false };
+					f3_kind = A3FVar { v3_type = Some (type_id ctx t); v3_value = A3VNone; v3_const = false };
 					f3_metas = None;
 				}
 			) ctx.block_vars);
