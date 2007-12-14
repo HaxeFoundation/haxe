@@ -4,7 +4,7 @@
 	fixed Sqlite transactions (commit and rollback now restart a transaction)
 	optimized a...b loops (tmp variable can't be modified)
 	several flash9 optimizations
-	flash9 debug support (with -debug)
+	flash9 debug support (with -D fdb)
 	set align to TopLeft if not defined for flash9
 	added neko.vm.Gc
 	fixed Null should not be a value

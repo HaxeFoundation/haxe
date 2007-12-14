@@ -26,8 +26,6 @@ type context = {
 	mutable code : tag_data list;
 }
 
-let debug_pass = ref ""
-
 let tag ?(ext=false) d = {
 	tid = 0;
 	textended = ext;
@@ -81,7 +79,7 @@ let generate file ver header infile types hres =
 			else
 				[]
 		) in
-		let debug = (if ver = 9 && Plugin.defined "debug" then [tag (TEnableDebugger2 !debug_pass)] else []) in
+		let debug = (if ver = 9 && Plugin.defined "fdb" then [tag (TEnableDebugger2 (0,""))] else []) in
 		let base_id = ref 0x5000 in
 		let clips = List.fold_left (fun acc m ->
 			incr base_id;
