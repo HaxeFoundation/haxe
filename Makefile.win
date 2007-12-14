@@ -2,9 +2,9 @@
 # http://tech.motion-twin.com
 .SUFFIXES : .ml .mli .cmo .cmi .cmx .mll .mly
 
-CFLAGS= -I ../neko/libs/include/ocaml
+CFLAGS=-g -I ../neko/libs/include/ocaml
 LIBS=extLib.cmxa extc.cmxa swfLib.cmxa unix.cmxa xml-light.cmxa
-LFLAGS= -o haxe.exe -I ../neko/libs/include/ocaml
+LFLAGS=-g -o haxe.exe -I ../neko/libs/include/ocaml
 OUTPUT=sed 's/File "\([^"]\+\)", line \([0-9]\+\), \(.*\)/\1(\2): \3/' tmp.cmi
 
 FILES = ../neko/libs/include/ocaml/nast.cmx ast.cmx plugin.cmx ../neko/libs/include/ocaml/nxml.cmx ../neko/libs/include/ocaml/binast.cmx lexer.cmx type.cmx parser.cmx transform.cmx typer.cmx genswf9.cmx genswf8.cmx genneko.cmx genjs.cmx genswf.cmx genxml.cmx genas3.cmx main.cmx
