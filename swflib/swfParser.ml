@@ -24,6 +24,7 @@ open IO
 (* TOOLS *)
 
 let full_parsing = ref true
+let force_as3_parsing = ref false
 let swf_version = ref 0
 let id_count = ref 0
 let tag_end = { tid = 0; textended = false; tdata = TEnd }
@@ -158,9 +159,9 @@ let shape_fill_style_length s =
 	| SFSBitmap b -> 2 + matrix_length b.sfb_mpos
 
 let shape_line_style_length s =
-	2 + match s.sls_flags with 
+	2 + match s.sls_flags with
 		| None -> color_length s.sls_color
-		| Some _ -> 
+		| Some _ ->
 			2 + (match s.sls_fill with None -> color_length s.sls_color | Some f -> shape_fill_style_length f)
 			  + opt_len (const 2) s.sls_miter
 
@@ -709,7 +710,7 @@ let parse_shape_line_style ch vshape =
 			sls_flags = Some flags;
 			sls_miter = miter;
 		}
-	end else 
+	end else
 		{
 			sls_width = width;
 			sls_color = if vshape = 3 then ColorRGBA (read_rgba ch) else ColorRGB (read_rgb ch);
@@ -719,7 +720,7 @@ let parse_shape_line_style ch vshape =
 		}
 
 let parse_shape_array f ch vshape =
-	let n = (match read_byte ch with 0xFF -> read_ui16 ch | n -> n) in	
+	let n = (match read_byte ch with 0xFF -> read_ui16 ch | n -> n) in
 	read_count n (f ch) vshape
 
 let parse_shape_style_change_record ch b flags nlbits nfbits vshape =
@@ -1264,7 +1265,7 @@ let rec parse_tag ch h =
 			TEnableDebugger2 pass_md5
 		(*// 0x41 TScriptLimits *)
 		(*// 0x42 TSetTabIndex *)
-		| 0x45 ->			
+		| 0x45 ->
 			TSandbox (match IO.read_i32 ch with
 				| 0 -> SBLocal
 				| 1 -> SBNetwork
@@ -1272,7 +1273,7 @@ let rec parse_tag ch h =
 			)
 		| 0x46 when !full_parsing ->
 			TPlaceObject3 (parse_place_object ch true)
-		| 0x48 when !full_parsing ->
+		| 0x48 when !full_parsing || !force_as3_parsing ->
 			TActionScript3 (None , As3parse.parse ch len)
 		| 0x49 when !full_parsing ->
 			TFontGlyphs (parse_font_glyphs ch len)
@@ -1292,9 +1293,9 @@ let rec parse_tag ch h =
 						f9_cid = if a = 0 then None else Some a;
 						f9_classname = s;
 					} :: loop (i - 1)
-			in			
+			in
 			TF9Classes (loop i)
-		| 0x52 when !full_parsing ->
+		| 0x52 when !full_parsing || !force_as3_parsing ->
 			let id = read_i32 ch in
 			let frame = read_string ch in
 			let len = len - (4 + String.length frame + 1) in
@@ -1309,7 +1310,7 @@ let rec parse_tag ch h =
 			if n <> 1 then assert false;
 			let name = read_string ch in
 			let k = read_byte ch in
-			if k <> 0 then assert false; 
+			if k <> 0 then assert false;
 			TF9Scene name
 		| _ ->
 			(*if !Swf.warnings then Printf.printf "Unknown tag 0x%.2X\n" id;*)
@@ -1448,10 +1449,10 @@ let write_shape_line_style ch l =
 	write_ui16 ch l.sls_width;
 	opt (write_ui16 ch) l.sls_flags;
 	opt (write_ui16 ch) l.sls_miter;
-	match l.sls_fill with	
+	match l.sls_fill with
 	| None ->
 		write_color ch l.sls_color;
-	| Some fill -> 
+	| Some fill ->
 		write_shape_fill_style ch fill
 
 let write_shape_array ch f sl =
@@ -1802,10 +1803,10 @@ let rec write_tag_data ch = function
 		write_font3 ch f
 	| TF9Classes l ->
 		write_ui16 ch (List.length l);
-		List.iter (fun c -> 
+		List.iter (fun c ->
 			write_ui16 ch (match c.f9_cid with None -> 0 | Some id -> id);
 			write_string ch c.f9_classname
-		) l		
+		) l
 	| TActionScript3 (id,a) ->
 		(match id with
 		| None -> ()
