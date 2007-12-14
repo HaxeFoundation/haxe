@@ -542,7 +542,7 @@ type tag_data =
 	| TDoInitAction of do_init_action
 	| TVideoStream of unknown
 	| TVideoFrame of unknown
-	| TEnableDebugger2 of string
+	| TEnableDebugger2 of int * string
 	| TSandbox of sandbox
 	| TPlaceObject3 of place_object
 	| TFontGlyphs of font_glyphs

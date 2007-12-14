@@ -361,7 +361,7 @@ let rec tag_data_length = function
 		String.length s
 	| TVideoFrame s ->
 		String.length s
-	| TEnableDebugger2 data ->
+	| TEnableDebugger2 (_,data) ->
 		2 + String.length data + 1
 	| TSandbox _ ->
 		4
@@ -1259,10 +1259,10 @@ let rec parse_tag ch h =
 			TVideoFrame (nread ch len)
 		(*// 0x3E TFontInfo2 *)
 		| 0x40 ->
-			let reserved0 = read_ui16 ch in
-			if reserved0 <> 0 then assert false;
+			let tag = read_ui16 ch in
+			(* 0 in general, 6517 for some swfs *)
 			let pass_md5 = read_string ch in
-			TEnableDebugger2 pass_md5
+			TEnableDebugger2 (tag,pass_md5)
 		(*// 0x41 TScriptLimits *)
 		(*// 0x42 TSetTabIndex *)
 		| 0x45 ->
@@ -1785,8 +1785,8 @@ let rec write_tag_data ch = function
 		nwrite ch s
 	| TVideoFrame s ->
 		nwrite ch s
-	| TEnableDebugger2 pass ->
-		write_ui16 ch 0;
+	| TEnableDebugger2 (tag,pass) ->
+		write_ui16 ch tag;
 		write_string ch pass
 	| TSandbox s ->
 		write_i32 ch (match s with
