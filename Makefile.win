@@ -7,7 +7,7 @@ LIBS=extLib.cmxa extc.cmxa swfLib.cmxa unix.cmxa xml-light.cmxa
 LFLAGS= -o haxe.exe -I ../neko/libs/include/ocaml
 OUTPUT=sed 's/File "\([^"]\+\)", line \([0-9]\+\), \(.*\)/\1(\2): \3/' tmp.cmi
 
-FILES = ../neko/libs/include/ocaml/nast.cmx ast.cmx plugin.cmx ../neko/libs/include/ocaml/nxml.cmx ../neko/libs/include/ocaml/binast.cmx lexer.cmx type.cmx parser.cmx transform.cmx typer.cmx genswf9.cmx genneko.cmx genjs.cmx genswf.cmx genxml.cmx genas3.cmx main.cmx
+FILES = ../neko/libs/include/ocaml/nast.cmx ast.cmx plugin.cmx ../neko/libs/include/ocaml/nxml.cmx ../neko/libs/include/ocaml/binast.cmx lexer.cmx type.cmx parser.cmx transform.cmx typer.cmx genswf9.cmx genswf8.cmx genneko.cmx genjs.cmx genswf.cmx genxml.cmx genas3.cmx main.cmx
 
 all: haxe.exe
 
@@ -24,9 +24,11 @@ genjs.cmx: typer.cmx type.cmx transform.cmx ast.cmx
 
 genas3.cmx: typer.cmx type.cmx transform.cmx ast.cmx
 
-genswf.cmx: typer.cmx type.cmx transform.cmx plugin.cmx genswf9.cmx ast.cmx
+genswf.cmx: typer.cmx type.cmx plugin.cmx genswf8.cmx genswf9.cmx
 
-genswf9.cmx: type.cmx ast.cmx typer.cmx transform.cmx
+genswf8.cmx: typer.cmx type.cmx transform.cmx plugin.cmx ast.cmx
+
+genswf9.cmx: type.cmx ast.cmx typer.cmx transform.cmx plugin.cmx
 
 genxml.cmx: typer.cmx type.cmx lexer.cmx ast.cmx
 

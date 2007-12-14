@@ -74,6 +74,9 @@
 			RelativePath=".\genswf.ml">
 		</File>
 		<File
+			RelativePath=".\genswf8.ml">
+		</File>
+		<File
 			RelativePath=".\genswf9.ml">
 		</File>
 		<File
