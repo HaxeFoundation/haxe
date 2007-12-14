@@ -226,7 +226,7 @@ let length = function
 	| A3SetSlot s ->
 		1 + int_length s
 	| A3ClassDef n ->
-		1 + int_length (int_index n)
+		1 + int_length (int_index_nz n)
 	| A3String f
 	| A3DebugFile f ->
 		1 + int_length (int_index f)
@@ -427,7 +427,7 @@ let opcode ch =
 		| 0x55 -> A3Object (read_int ch)
 		| 0x56 -> A3Array (read_int ch)
 		| 0x57 -> A3NewBlock
-		| 0x58 -> A3ClassDef (read_index ch)
+		| 0x58 -> A3ClassDef (read_index_nz ch)
 		(* 0x59 -> E4X *)
 		| 0x5A -> A3Catch (read_int ch)
 		(* 0x5B -> NONE *)
@@ -683,7 +683,7 @@ let write ch = function
 		write_byte ch 0x57
 	| A3ClassDef f ->
 		write_byte ch 0x58;
-		write_index ch f
+		write_index_nz ch f
 	| A3Catch n ->
 		write_byte ch 0x5A;
 		write_int ch n
@@ -920,7 +920,7 @@ let dump ctx op =
 	| A3Object n -> s "object %d" n
 	| A3Array n -> s "array %d" n
 	| A3NewBlock -> "newblock"
-	| A3ClassDef n -> s "classdef %d" (int_index n)
+	| A3ClassDef n -> s "classdef %d" (int_index_nz n)
 	| A3Catch n -> s "catch %d" n
 	| A3FindPropStrict f -> s "findpropstrict %s" (field f)
 	| A3FindProp f -> s "findprop %s" (field f)

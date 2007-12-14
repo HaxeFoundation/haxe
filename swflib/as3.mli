@@ -130,7 +130,7 @@ and as3_opcode =
 	| A3Object of nargs
 	| A3Array of nargs
 	| A3NewBlock
-	| A3ClassDef of unit index
+	| A3ClassDef of unit index_nz
 	| A3Catch of int
 	| A3FindPropStrict of as3_name
 	| A3FindProp of as3_name
@@ -204,7 +204,7 @@ and as3_value =
 	| A3VInt of as3_int index
 	| A3VUInt of as3_uint index
 	| A3VFloat of as3_float index
-	| A3VNamespace of int * as3_namespace index
+	| A3VNamespace of int * as3_namespace index (* int : kind of namespace *)
 
 and as3_method_type = {
 	mt3_ret : as3_name option;

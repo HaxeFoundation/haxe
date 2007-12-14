@@ -51,6 +51,12 @@
 			RelativePath=".\as3code.ml">
 		</File>
 		<File
+			RelativePath=".\as3hl.mli">
+		</File>
+		<File
+			RelativePath=".\as3hlparse.ml">
+		</File>
+		<File
 			RelativePath=".\as3parse.ml">
 		</File>
 		<File
