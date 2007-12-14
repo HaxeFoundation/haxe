@@ -1331,7 +1331,7 @@ let generate_class_init ctx c slot =
 		write ctx A3Scope;
 		write ctx (A3GetLex (type_path ctx path));
 	end;
-	write ctx (A3ClassDef (As3parse.magic_index slot));
+	write ctx (A3ClassDef (As3parse.magic_index_nz slot));
 	List.iter (fun f ->
 		match f.cf_expr with
 		| Some { eexpr = TFunction fdata } when f.cf_set = NormalAccess ->
@@ -1373,7 +1373,7 @@ let generate_enum_init ctx e slot =
 	write ctx (A3GetLex (type_path ctx path));
 	write ctx A3Scope;
 	write ctx (A3GetLex (type_path ctx path));
-	write ctx (A3ClassDef (As3parse.magic_index slot));
+	write ctx (A3ClassDef (As3parse.magic_index_nz slot));
 	write ctx A3PopScope;
 	let r = alloc_reg ctx KDynamic in
 	write ctx A3Dup;
