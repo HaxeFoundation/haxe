@@ -432,7 +432,10 @@ class Tools {
 				address = REG_ADDRESS.matched(1);
 				s = REG_ADDRESS.matchedRight();
 			}else if( REG_ROUTE_ADDR.match(s) ){
-				if( address != null ) throw Exception.ParseError(str+", near: "+s.substr(0,15));
+				if( address != null ){
+					if( name == null ) name = address;
+					else name += " "+address;
+				}
 				address = REG_ROUTE_ADDR.matched(1);
 				s = REG_ROUTE_ADDR.matchedRight();
 			}else if( REG_ATOM.match(s) ){
