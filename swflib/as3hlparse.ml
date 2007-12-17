@@ -19,6 +19,8 @@ let name ctx n = ctx.names.(idx n)
 let method_type ctx n = ctx.methods.(idx (no_nz n))
 let getclass ctx n = ctx.classes.(idx (no_nz n))
 
+let global_mark = ref 0
+
 let opt f ctx = function
 	| None -> None
 	| Some x -> Some (f ctx x)
@@ -161,9 +163,13 @@ let parse_field ctx f =
 		hlf_name = name ctx f.f3_name;
 		hlf_slot = f.f3_slot;
 		hlf_kind = parse_field_kind ctx f.f3_kind;
-		hlf_metas = match f.f3_metas with
+		hlf_metas =
+			match f.f3_metas with
 			| None -> None
-			| Some a -> Some (Array.map (fun i -> parse_metadata ctx (get ctx.as3.as3_metadatas (no_nz i))) a);
+			| Some a ->
+				Some (Array.map (fun i ->
+					parse_metadata ctx (get ctx.as3.as3_metadatas (no_nz i))
+				) a);
 	}
 
 let parse_static ctx s =
@@ -221,6 +227,7 @@ let parse_function ctx m f =
 	}
 
 let parse_method_type ctx m f =
+	incr global_mark;
 	{
 		hlmt_ret = opt name ctx m.mt3_ret;
 		hlmt_args = List.map (opt name ctx) m.mt3_args;
@@ -233,7 +240,8 @@ let parse_method_type ctx m f =
 		hlmt_debug_name = opt ident ctx m.mt3_debug_name;
 		hlmt_dparams = opt (fun ctx -> List.map (parse_value ctx)) ctx m.mt3_dparams;
 		hlmt_pnames = opt (fun ctx -> List.map (ident ctx)) ctx m.mt3_pnames;
-		hlmt_function = parse_function ctx m f; 
+		hlmt_function = parse_function ctx m f;
+		hlmt_mark = !global_mark;
 	}
 
 let parse_class ctx c s =
@@ -272,7 +280,7 @@ let parse t =
 	ctx.methods <- Array.mapi (fun i f ->
 		(* functions are supposed to be ordonned the same as method_types *)
 		let idx = idx (no_nz f.fun3_id) in
-		if idx <> i then assert false;	
+		if idx <> i then assert false;
 		parse_method_type ctx t.as3_method_types.(idx) f
 	) t.as3_functions;
 	ctx.classes <- Array.mapi (fun i c ->
@@ -284,3 +292,325 @@ let parse t =
 		m.hlmt_function.hlf_code <- List.map (parse_opcode ctx) f.fun3_code;
 	) t.as3_functions;
 	inits
+
+(* ************************************************************************ *)
+(*			FLATTEN															*)
+(* ************************************************************************ *)
+
+type ('hl,'item,'key) gen_lookup = {
+	h : ('key,int) Hashtbl.t;
+	a : 'item DynArray.t;
+	f : flatten_ctx -> 'hl -> 'item;
+	k : 'hl -> 'key;
+}
+
+and ('hl,'item) lookup = ('hl,'item,'hl) gen_lookup
+
+and flatten_ctx = {
+	fints : (hl_int,as3_int) lookup;
+	fuints : (hl_uint,as3_uint) lookup;
+	ffloats : (hl_float,as3_float) lookup;
+	fidents : (hl_ident,as3_ident) lookup;
+	fnamespaces : (hl_namespace,as3_namespace) lookup;
+	fnsets : (hl_ns_set,as3_ns_set) lookup;
+	fnames : (hl_name,as3_multi_name) lookup;
+	fmetas : (hl_metadata,as3_metadata) lookup;
+	fmethods : (hl_method,as3_method_type * as3_function,int) gen_lookup;
+	fclasses : (hl_class,as3_class * as3_static,hl_name) gen_lookup;
+}
+
+let new_gen_lookup f k =
+	{
+		h = Hashtbl.create 0;
+		a = DynArray.create();
+		f = f;
+		k = k;
+	}
+
+let new_lookup f = new_gen_lookup f (fun x -> x)
+
+let lookup_array l = DynArray.to_array l.a
+
+let lookup ctx (l:('a,'b,'k) gen_lookup) item : 'b index =
+	let key = l.k item in
+	let idx = try
+		Hashtbl.find l.h key
+	with Not_found ->
+		let idx = DynArray.length l.a in
+		(* set dummy value for recursion *)
+		DynArray.add l.a (Obj.magic 0);
+		Hashtbl.add l.h key (idx + 1);
+		DynArray.set l.a idx (l.f ctx item);
+		idx + 1
+	in
+	As3parse.magic_index idx
+
+let lookup_nz ctx l item =
+	As3parse.magic_index_nz (As3parse.index_int (lookup ctx l item) - 1)
+
+let lookup_ident ctx i = lookup ctx ctx.fidents i
+
+let lookup_name ctx n = lookup ctx ctx.fnames n
+
+let lookup_method ctx m : as3_method_type index_nz =
+	lookup_nz ctx ctx.fmethods m
+
+let lookup_class ctx c : as3_class index_nz =
+	lookup_nz ctx ctx.fclasses c
+
+let flatten_namespace ctx = function
+	| HNPrivate i -> A3NPrivate (opt lookup_ident ctx i)
+	| HNPublic i -> A3NPublic (opt lookup_ident ctx i)
+	| HNInternal i -> A3NInternal (opt lookup_ident ctx i)
+	| HNProtected i -> A3NProtected (lookup_ident ctx i)
+	| HNNamespace i -> A3NNamespace (lookup_ident ctx i)
+	| HNExplicit i -> A3NExplicit (lookup_ident ctx i)
+	| HNStaticProtected i -> A3NStaticProtected (opt lookup_ident ctx i)
+
+let flatten_ns_set ctx n =
+	List.map (lookup ctx ctx.fnamespaces) n
+
+let rec flatten_name ctx = function
+	| HMName (i,n) -> A3MName (lookup_ident ctx i,lookup ctx ctx.fnamespaces n)
+	| HMMultiName (i,ns) -> A3MMultiName (opt lookup_ident ctx i,lookup ctx ctx.fnsets ns)
+	| HMRuntimeName i -> A3MRuntimeName (lookup_ident ctx i)
+	| HMRuntimeNameLate -> A3MRuntimeNameLate
+	| HMMultiNameLate ns -> A3MMultiNameLate (lookup ctx ctx.fnsets ns)
+	| HMAttrib n -> A3MAttrib (flatten_name ctx n)
+
+let flatten_meta ctx m =
+	{
+		meta3_name = lookup_ident ctx m.hlmeta_name;
+		meta3_data = Array.map (fun (i,i2) -> opt lookup_ident ctx i, lookup_ident ctx i2) m.hlmeta_data;
+	}
+
+let flatten_value ctx = function
+	| HVNone -> A3VNone
+	| HVNull -> A3VNull
+	| HVBool b -> A3VBool b
+	| HVString s -> A3VString (lookup_ident ctx s)
+	| HVInt i -> A3VInt (lookup ctx ctx.fints i)
+	| HVUInt i -> A3VUInt (lookup ctx ctx.fuints i)
+	| HVFloat f -> A3VFloat (lookup ctx ctx.ffloats f)
+	| HVNamespace (n,ns) -> A3VNamespace (n,lookup ctx ctx.fnamespaces ns)
+
+let flatten_field ctx f =
+	{
+		f3_name = lookup_name ctx f.hlf_name;
+		f3_slot = f.hlf_slot;
+		f3_kind = (match f.hlf_kind with
+			| HFMethod m ->
+				A3FMethod {
+					m3_type = lookup_method ctx m.hlm_type;
+					m3_final = m.hlm_final;
+					m3_override = m.hlm_override;
+					m3_kind = m.hlm_kind;
+				}
+			| HFVar v ->
+				A3FVar {
+					v3_type = opt lookup_name ctx v.hlv_type;
+					v3_value = flatten_value ctx v.hlv_value;
+					v3_const = v.hlv_const;
+				}
+			| HFFunction f ->
+				A3FFunction (lookup_method ctx f)
+			| HFClass c ->
+				A3FClass (lookup_class ctx c)
+		);
+		f3_metas = opt (fun ctx -> Array.map (fun m -> lookup_nz ctx ctx.fmetas m)) ctx f.hlf_metas;
+	}
+
+let flatten_class ctx c =
+	{
+		cl3_name = lookup_name ctx c.hlc_name;
+		cl3_super = opt lookup_name ctx c.hlc_super;
+		cl3_sealed = c.hlc_sealed;
+		cl3_final = c.hlc_final;
+		cl3_interface = c.hlc_interface;
+		cl3_namespace = opt (fun ctx -> lookup ctx ctx.fnamespaces) ctx c.hlc_namespace;
+		cl3_implements = Array.map (lookup_name ctx) c.hlc_implements;
+		cl3_construct = lookup_method ctx c.hlc_construct;
+		cl3_fields = Array.map (flatten_field ctx) c.hlc_fields;
+	},
+	{
+		st3_method = lookup_method ctx c.hlc_static_construct;
+		st3_fields = Array.map (flatten_field ctx) c.hlc_static_fields;
+	}
+
+let flatten_opcode ctx = function
+	| HBreakPoint -> A3BreakPoint
+	| HNop -> A3Nop
+	| HThrow -> A3Throw
+	| HGetSuper n -> A3GetSuper (lookup_name ctx n)
+	| HSetSuper n -> A3SetSuper (lookup_name ctx n)
+	| HRegKill r -> A3RegKill r
+	| HLabel -> A3Label
+	| HJump (j,n) -> A3Jump (j,n)
+	| HSwitch (n,l) -> A3Switch (n,l)
+	| HPushWith -> A3PushWith
+	| HPopScope -> A3PopScope
+	| HForIn -> A3ForIn
+	| HHasNext -> A3HasNext
+	| HNull -> A3Null
+	| HUndefined -> A3Undefined
+	| HForEach -> A3ForEach
+	| HSmallInt n -> A3SmallInt n
+	| HInt n -> A3Int n
+	| HTrue -> A3True
+	| HFalse -> A3False
+	| HNaN -> A3NaN
+	| HPop -> A3Pop
+	| HDup -> A3Dup
+	| HSwap -> A3Swap
+	| HString s -> A3String (lookup_ident ctx s)
+	| HIntRef i -> A3IntRef (lookup ctx ctx.fints i)
+	| HUIntRef i -> A3UIntRef (lookup ctx ctx.fuints i)
+	| HFloat f -> A3Float (lookup ctx ctx.ffloats f)
+	| HScope -> A3Scope
+	| HNamespace n -> A3Namespace (lookup ctx ctx.fnamespaces n)
+	| HNext (r1,r2) -> A3Next (r1,r2)
+	| HFunction m -> A3Function (lookup_method ctx m)
+	| HCallStack n -> A3CallStack n
+	| HConstruct n -> A3Construct n
+	| HCallMethod (s,n) -> A3CallMethod (s,n)
+	| HCallStatic (m,n) -> A3CallStatic (no_nz (lookup_method ctx m),n)
+	| HCallSuper (i,n) -> A3CallSuper (lookup_name ctx i,n)
+	| HCallProperty (i,n) -> A3CallProperty (lookup_name ctx i,n)
+	| HRetVoid -> A3RetVoid
+	| HRet -> A3Ret
+	| HConstructSuper n -> A3ConstructSuper n
+	| HConstructProperty (i,n) -> A3ConstructProperty (lookup_name ctx i,n)
+	| HCallPropLex (i,n) -> A3CallPropLex (lookup_name ctx i,n)
+	| HCallSuperVoid (i,n) -> A3CallSuperVoid (lookup_name ctx i,n)
+	| HCallPropVoid (i,n)-> A3CallPropVoid (lookup_name ctx i,n)
+	| HObject n -> A3Object n
+	| HArray n -> A3Array n
+	| HNewBlock -> A3NewBlock
+	| HClassDef c -> A3ClassDef (As3parse.magic_index_nz (As3parse.index_nz_int (lookup_class ctx c)))
+	| HCatch n -> A3Catch n
+	| HFindPropStrict i -> A3FindPropStrict (lookup_name ctx i)
+	| HFindProp i -> A3FindProp (lookup_name ctx i)
+	| HFindDefinition i -> A3FindDefinition (lookup_name ctx i)
+	| HGetLex i -> A3GetLex (lookup_name ctx i)
+	| HSetProp i -> A3SetProp (lookup_name ctx i)
+	| HReg r -> A3Reg r
+	| HSetReg r -> A3SetReg r
+	| HGetGlobalScope -> A3GetGlobalScope
+	| HGetScope n -> A3GetScope n
+	| HGetProp n -> A3GetProp (lookup_name ctx n)
+	| HInitProp n -> A3InitProp (lookup_name ctx n)
+	| HDeleteProp n -> A3DeleteProp (lookup_name ctx n)
+	| HGetSlot s -> A3GetSlot s
+	| HSetSlot s -> A3SetSlot s
+	| HToString -> A3ToString
+	| HToXml -> A3ToXml
+	| HToXmlAttr -> A3ToXmlAttr
+	| HToInt -> A3ToInt
+	| HToUInt -> A3ToUInt
+	| HToNumber -> A3ToNumber
+	| HToBool -> A3ToBool
+	| HToObject -> A3ToObject
+	| HCheckIsXml -> A3CheckIsXml
+	| HCast n -> A3Cast (lookup_name ctx n)
+	| HAsAny -> A3AsAny
+	| HAsString -> A3AsString
+	| HAsType n -> A3AsType (lookup_name ctx n)
+	| HAsObject -> A3AsObject
+	| HIncrReg r -> A3IncrReg r
+	| HDecrReg r -> A3DecrReg r
+	| HTypeof -> A3Typeof
+	| HInstanceOf -> A3InstanceOf
+	| HIsType t -> A3IsType (lookup_name ctx t)
+	| HIncrIReg r -> A3IncrIReg r
+	| HDecrIReg r -> A3DecrIReg r
+	| HThis -> A3This
+	| HSetThis -> A3SetThis
+	| HDebugReg (i,r,l) -> A3DebugReg (lookup_ident ctx i,r,l)
+	| HDebugLine l -> A3DebugLine l
+	| HDebugFile f -> A3DebugFile (lookup_ident ctx f)
+	| HBreakPointLine n -> A3BreakPointLine n
+	| HTimestamp -> A3Timestamp
+	| HOp op -> A3Op op
+	| HUnk c -> A3Unk c
+
+let flatten_try ctx t =
+	{
+		tc3_start = t.hltc_start;
+		tc3_end = t.hltc_end;
+		tc3_handle = t.hltc_handle;
+		tc3_type = opt lookup_name ctx t.hltc_type;
+		tc3_name = opt lookup_name ctx t.hltc_name;
+	}
+
+let flatten_method ctx m =
+	let mid = lookup_method ctx m in
+	let f = m.hlmt_function in
+	{
+		mt3_ret = opt lookup_name ctx m.hlmt_ret;
+		mt3_args = List.map (opt lookup_name ctx) m.hlmt_args;
+		mt3_native = m.hlmt_native;
+		mt3_var_args = m.hlmt_var_args;
+		mt3_arguments_defined = m.hlmt_arguments_defined;
+		mt3_uses_dxns = m.hlmt_uses_dxns;
+		mt3_new_block = m.hlmt_new_block;
+		mt3_unused_flag = m.hlmt_unused_flag;
+		mt3_debug_name = opt lookup_ident ctx m.hlmt_debug_name;
+		mt3_dparams = opt (fun ctx -> List.map (flatten_value ctx)) ctx m.hlmt_dparams;
+		mt3_pnames = opt (fun ctx -> List.map (lookup_ident ctx)) ctx m.hlmt_pnames;
+	},
+	{
+		fun3_id = mid;
+		fun3_stack_size = f.hlf_stack_size;
+		fun3_nregs = f.hlf_nregs;
+		fun3_init_scope = f.hlf_init_scope;
+		fun3_max_scope = f.hlf_max_scope;
+		fun3_code = List.map (flatten_opcode ctx) f.hlf_code;
+		fun3_trys = Array.map (flatten_try ctx) f.hlf_trys;
+		fun3_locals = Array.mapi (fun i (n,t) ->
+			{
+				f3_name = lookup_name ctx n;
+				f3_slot = i;
+				f3_kind = A3FVar { v3_type = opt lookup_name ctx t; v3_value = A3VNone; v3_const = false  };
+				f3_metas = None;
+			}
+		) f.hlf_locals;
+	}
+
+let flatten_static ctx s =
+	{
+		st3_method = lookup_method ctx s.hls_method;
+		st3_fields = Array.map (flatten_field ctx) s.hls_fields;
+	}
+
+let flatten t =
+	let id _ x = x in
+	let rec ctx = {
+		fints = new_lookup id;
+		fuints = new_lookup id;
+		ffloats = new_lookup id;
+		fidents = new_lookup id;
+		fnamespaces = new_lookup flatten_namespace;
+		fnsets = new_lookup flatten_ns_set;
+		fnames = new_lookup flatten_name;
+		fmetas = new_lookup flatten_meta;
+		fmethods = new_gen_lookup flatten_method (fun m -> m.hlmt_mark);
+		fclasses = new_gen_lookup flatten_class (fun c -> c.hlc_name);
+	} in
+	ignore(lookup_ident ctx "");
+	let inits = List.map (flatten_static ctx) t in
+	{
+		as3_ints = lookup_array ctx.fints;
+		as3_uints = lookup_array ctx.fuints;
+		as3_floats = lookup_array ctx.ffloats;
+		as3_idents = lookup_array ctx.fidents;
+		as3_namespaces = lookup_array ctx.fnamespaces;
+		as3_nsets = lookup_array ctx.fnsets;
+		as3_names = lookup_array ctx.fnames;
+		as3_metadatas = lookup_array ctx.fmetas;
+		as3_method_types = Array.map fst (lookup_array ctx.fmethods);
+		as3_classes = Array.map fst (lookup_array ctx.fclasses);
+		as3_statics = Array.map snd (lookup_array ctx.fclasses);
+		as3_functions = Array.map snd (lookup_array ctx.fmethods);
+		as3_inits = Array.of_list inits;
+		as3_unknown = "";
+	}

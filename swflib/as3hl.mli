@@ -134,6 +134,7 @@ and hl_value =
 	| HVNamespace of int * hl_namespace
 
 and hl_method = {
+	hlmt_mark : int;
 	hlmt_ret : hl_name option;
 	hlmt_args : hl_name option list;
 	hlmt_native : bool;
