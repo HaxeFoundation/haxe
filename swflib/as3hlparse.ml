@@ -362,7 +362,7 @@ let parse_try_catch ctx t =
 		hltc_name = opt name ctx t.tc3_name;
 	}
 
-let parse_function ctx m f =
+let parse_function ctx f =
 	{
 		hlf_stack_size = f.fun3_stack_size;
 		hlf_nregs = f.fun3_nregs;
@@ -394,7 +394,7 @@ let parse_method_type ctx m f =
 		hlmt_debug_name = opt ident ctx m.mt3_debug_name;
 		hlmt_dparams = opt (fun ctx -> List.map (parse_value ctx)) ctx m.mt3_dparams;
 		hlmt_pnames = opt (fun ctx -> List.map (ident ctx)) ctx m.mt3_pnames;
-		hlmt_function = parse_function ctx m f;
+		hlmt_function = opt parse_function ctx f;
 	}
 
 let parse_class ctx c s =
@@ -432,19 +432,19 @@ let parse t =
 	ctx.namespaces <- Array.map (parse_namespace ctx) t.as3_namespaces;
 	ctx.nsets <- Array.map (parse_nset ctx) t.as3_nsets;
 	ctx.names <- Array.map (parse_name ctx) t.as3_names;
-	ctx.methods <- Array.mapi (fun i f ->
-		(* functions are supposed to be ordonned the same as method_types *)
-		let idx = idx (no_nz f.fun3_id) in
-		if idx <> i then assert false;
-		parse_method_type ctx t.as3_method_types.(idx) f
-	) t.as3_functions;
+	let hfunctions = Hashtbl.create 0 in
+	Array.iter (fun f -> Hashtbl.add hfunctions (idx (no_nz f.fun3_id)) f) t.as3_functions;
+	ctx.methods <- Array.mapi (fun i m ->
+		parse_method_type ctx t.as3_method_types.(i) (try Some (Hashtbl.find hfunctions i) with Not_found -> None);
+	) t.as3_method_types;
 	ctx.classes <- Array.mapi (fun i c ->
 		parse_class ctx c t.as3_statics.(i)
 	) t.as3_classes;
 	let inits = List.map (parse_static ctx) (Array.to_list t.as3_inits) in
 	Array.iter (fun f ->
-		let m = method_type ctx f.fun3_id in
-		m.hlmt_function.hlf_code <- parse_code ctx f.fun3_code m.hlmt_function.hlf_trys;
+		match (method_type ctx f.fun3_id).hlmt_function with
+		| None -> assert false
+		| Some fl -> fl.hlf_code <- parse_code ctx f.fun3_code fl.hlf_trys
 	) t.as3_functions;
 	inits
 
@@ -470,8 +470,9 @@ and flatten_ctx = {
 	fnsets : (hl_ns_set,as3_ns_set) lookup;
 	fnames : (hl_name,as3_multi_name) lookup;
 	fmetas : (hl_metadata,as3_metadata) lookup;
-	fmethods : (hl_method,as3_method_type * as3_function,int) gen_lookup;
+	fmethods : (hl_method,as3_method_type,int) gen_lookup;
 	fclasses : (hl_class,as3_class * as3_static,hl_name) gen_lookup;
+	mutable ffunctions : as3_function list;
 	mutable fjumps : int list;
 }
 
@@ -727,23 +728,8 @@ let flatten_code ctx hcode trys =
 	ctx.fjumps <- old;
 	code, trys
 
-let flatten_method ctx m =
-	let mid = lookup_method ctx m in
-	let f = m.hlmt_function in
+let flatten_function ctx f mid =
 	let code, trys = flatten_code ctx f.hlf_code f.hlf_trys in
-	{
-		mt3_ret = opt lookup_name ctx m.hlmt_ret;
-		mt3_args = List.map (opt lookup_name ctx) m.hlmt_args;
-		mt3_native = m.hlmt_native;
-		mt3_var_args = m.hlmt_var_args;
-		mt3_arguments_defined = m.hlmt_arguments_defined;
-		mt3_uses_dxns = m.hlmt_uses_dxns;
-		mt3_new_block = m.hlmt_new_block;
-		mt3_unused_flag = m.hlmt_unused_flag;
-		mt3_debug_name = opt lookup_ident ctx m.hlmt_debug_name;
-		mt3_dparams = opt (fun ctx -> List.map (flatten_value ctx)) ctx m.hlmt_dparams;
-		mt3_pnames = opt (fun ctx -> List.map (lookup_ident ctx)) ctx m.hlmt_pnames;
-	},
 	{
 		fun3_id = mid;
 		fun3_stack_size = f.hlf_stack_size;
@@ -760,6 +746,25 @@ let flatten_method ctx m =
 				f3_metas = None;
 			}
 		) f.hlf_locals;
+	}
+
+let flatten_method ctx m =
+	let mid = lookup_method ctx m in
+	(match m.hlmt_function with
+	| None -> ()
+	| Some f -> ctx.ffunctions <- flatten_function ctx f mid :: ctx.ffunctions);
+	{
+		mt3_ret = opt lookup_name ctx m.hlmt_ret;
+		mt3_args = List.map (opt lookup_name ctx) m.hlmt_args;
+		mt3_native = m.hlmt_native;
+		mt3_var_args = m.hlmt_var_args;
+		mt3_arguments_defined = m.hlmt_arguments_defined;
+		mt3_uses_dxns = m.hlmt_uses_dxns;
+		mt3_new_block = m.hlmt_new_block;
+		mt3_unused_flag = m.hlmt_unused_flag;
+		mt3_debug_name = opt lookup_ident ctx m.hlmt_debug_name;
+		mt3_dparams = opt (fun ctx -> List.map (flatten_value ctx)) ctx m.hlmt_dparams;
+		mt3_pnames = opt (fun ctx -> List.map (lookup_ident ctx)) ctx m.hlmt_pnames;
 	}
 
 let flatten_static ctx s =
@@ -782,6 +787,7 @@ let flatten t =
 		fmethods = new_gen_lookup flatten_method (fun m -> m.hlmt_mark);
 		fclasses = new_gen_lookup flatten_class (fun c -> c.hlc_name);
 		fjumps = [];
+		ffunctions = [];
 	} in
 	ignore(lookup_ident ctx "");
 	let inits = List.map (flatten_static ctx) t in
@@ -794,10 +800,10 @@ let flatten t =
 		as3_nsets = lookup_array ctx.fnsets;
 		as3_names = lookup_array ctx.fnames;
 		as3_metadatas = lookup_array ctx.fmetas;
-		as3_method_types = Array.map fst (lookup_array ctx.fmethods);
+		as3_method_types = lookup_array ctx.fmethods;
 		as3_classes = Array.map fst (lookup_array ctx.fclasses);
 		as3_statics = Array.map snd (lookup_array ctx.fclasses);
-		as3_functions = Array.map snd (lookup_array ctx.fmethods);
+		as3_functions = Array.of_list (List.rev ctx.ffunctions);
 		as3_inits = Array.of_list inits;
 		as3_unknown = "";
 	}
