@@ -866,7 +866,7 @@ let rec gen_expr_content ctx retval e =
 		branch();
 	| TMatch (e0,_,cases,def) ->
 		let t = classify ctx e.etype in
-		let rparams = alloc_reg ctx KDynamic in
+		let rparams = alloc_reg ctx (KType (type_path ctx ([],"Array"))) in
 		let rindex = alloc_reg ctx KInt in
 		gen_expr ctx true e0;
 		write ctx HDup;
@@ -875,24 +875,15 @@ let rec gen_expr_content ctx retval e =
 		write ctx (HGetProp (ident ctx "params"));
 		set_reg ctx rparams;
 		let branch = begin_branch ctx in
-		let prev = ref (fun () -> ()) in
-		let jend = List.map (fun (cl,params,e) ->
-			(!prev)();
-			let rec loop = function
-				| [] ->
-					assert false
-				| [tag] ->
-					write ctx (HReg rindex.rid);
-					write ctx (HInt tag);
-					prev := jump ctx J3Neq;
-				| tag :: l ->
-					write ctx (HReg rindex.rid);
-					write ctx (HInt tag);
-					let j = jump ctx J3Eq in
-					loop l;
-					j()
-			in
-			loop cl;
+		let jswitch = jump ctx J3Always in
+		let constructs = ref [] in
+		let max = ref 0 in
+		let jends = List.map (fun (cl,params,e) ->
+			List.iter (fun tag ->
+				if tag > !max then max := tag;
+				constructs := (tag,ctx.infos.ipos) :: !constructs;
+			) cl;
+			write ctx HLabel;
 			let b = open_block ctx [e] retval in
 			(match params with
 			| None -> ()
@@ -919,7 +910,8 @@ let rec gen_expr_content ctx retval e =
 			end;
 			jump ctx J3Always;
 		) cases in
-		(!prev)();
+		let def_pos = ctx.infos.ipos in
+		write ctx HLabel;
 		(match def with
 		| None ->
 			if retval then begin
@@ -930,9 +922,17 @@ let rec gen_expr_content ctx retval e =
 			gen_expr ctx retval e;
 			if retval && classify ctx e.etype <> t then coerce ctx t;
 		);
-		List.iter (fun j -> j()) jend;
-		branch();
+		let jdef = jump ctx J3Always in
+		jswitch();
+		write ctx (HReg rindex.rid);
 		free_reg ctx rindex;
+		let def = def_pos - ctx.infos.ipos in
+		let cases = Array.create (!max + 1) def in
+		List.iter (fun (tag,pos) -> Array.set cases tag (pos - ctx.infos.ipos)) !constructs;
+		write ctx (HSwitch (def,Array.to_list cases));
+		List.iter (fun j -> j()) jends;
+		jdef();
+		branch();
 		free_reg ctx rparams
 
 and gen_call ctx retval e el =
@@ -1533,7 +1533,7 @@ let generate_type ctx t =
 		else
 			Some (generate_class ctx c)
 	| TEnumDecl e ->
-		if not e.e_extern then
+		if e.e_extern then
 			None
 		else
 			Some (generate_enum ctx e)

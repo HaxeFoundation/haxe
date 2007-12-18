@@ -1501,7 +1501,6 @@ and type_switch ctx e cases def need_val p =
 		in
 		mk (TSwitch (e,List.map exprs cases,def)) t p
 	| Some (en,enparams) ->
-		let has_params = ref false in
 		let matchs (el,e) =
 			match el with
 			| CMatch (c,params) :: l ->
@@ -1514,22 +1513,15 @@ and type_switch ctx e cases def need_val p =
 						c
 					| _ -> assert false
 				) l in
-				if !params <> None then has_params := true;
 				(c :: cl) , !params, e
 			| _ ->
 				assert false
-		in
-		let constructs (el,_,e) =
-			let cl = List.map (fun c -> mk (TField (mk (TTypeExpr (TEnumDecl en)) t_dynamic p , c.ef_name)) (TEnum (en,enparams)) p) el in
-			(cl,e)
 		in
 		let indexes (el,vars,e) =
 			List.map (fun c -> c.ef_index) el, vars, e
 		in
 		let cases = List.map matchs cases in
-		match !has_params with
-		| true -> mk (TMatch (e,(en,enparams),List.map indexes cases,def)) t p
-		| false -> mk (TSwitch (e,List.map constructs cases,def)) t p
+		mk (TMatch (e,(en,enparams),List.map indexes cases,def)) t p		
 
 and type_access ctx e p get =
 	match e with
