@@ -209,7 +209,7 @@ let length = function
 	| A3Next (a,b) -> 1 + int_length a + int_length b
 	| A3Switch (_,cases) ->
 		let ncases = List.length cases in
-		1 + 3 + int_length (ncases + 1) + 3 * ncases
+		1 + 3 + int_length (ncases - 1) + 3 * ncases
 
 let jump ch kind =
 	A3Jump (kind,read_i24 ch)

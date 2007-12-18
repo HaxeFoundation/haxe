@@ -272,7 +272,8 @@ let parse_code ctx code trys =
 		Array.set hcode j (match Array.get hcode j with
 			| HJump (jc,n) ->
 				HJump (jc,codepos (pos + n) - j)
-			| HSwitch (n,infos) -> assert false
+			| HSwitch (n,infos) ->
+				HSwitch (codepos (pos + n) - j, List.map (fun n -> codepos (pos + n) - j) infos)
 			| _ -> assert false)
 	) ctx.jumps;
 	(* patch try/catches *)
@@ -729,8 +730,10 @@ let flatten_code ctx hcode trys =
 	(* patch jumps *)
 	List.iter (fun j ->
 		Array.set code j (match Array.get code j with
-			| A3Jump (jc,n) -> A3Jump (jc,positions.(j+n) - positions.(j+1))
-			| A3Switch (n,infos) -> assert false
+			| A3Jump (jc,n) ->
+				A3Jump (jc,positions.(j+n) - positions.(j+1))
+			| A3Switch (n,infos) -> 
+				A3Switch (positions.(j+n) - positions.(j),List.map (fun n -> positions.(j+n) - positions.(j)) infos)
 			| _ -> assert false);
 	) ctx.fjumps;
 	(* patch trys *)

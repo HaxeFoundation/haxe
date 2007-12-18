@@ -1002,8 +1002,10 @@ let dump_function ctx ch idx f =
 	IO.printf ch "    stack:%d nregs:%d scope:%d-%d\n" f.fun3_stack_size f.fun3_nregs f.fun3_init_scope f.fun3_max_scope;
 	Array.iter (dump_field ctx ch false) f.fun3_locals;
 	Array.iter (dump_try_catch ctx ch) f.fun3_trys;
+	let pos = ref 0 in
 	Array.iter (fun op ->
-		IO.printf ch "    %s\n" (As3code.dump ctx op);
+		IO.printf ch "%4d    %s\n" !pos (As3code.dump ctx op);
+		pos := !pos + As3code.length op;
 	) f.fun3_code;
 	IO.printf ch "\n"
 
