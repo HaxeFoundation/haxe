@@ -116,6 +116,7 @@ and hl_namespace =
 and hl_ns_set = hl_namespace list
 
 and hl_name =
+	| HMPath of hl_ident list * hl_ident
 	| HMName of hl_ident * hl_namespace
 	| HMMultiName of hl_ident option * hl_ns_set
 	| HMRuntimeName of hl_ident
