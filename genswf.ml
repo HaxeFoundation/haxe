@@ -18,12 +18,14 @@
  *)
 open Swf
 open As3
+open As3hl
 open Genswf9
 
 type context = {
 	mutable f8clips : string list;
 	mutable f9clips : f9class list;
 	mutable code : tag_data list;
+	mutable as3code : As3hl.hl_tag;
 }
 
 let tag ?(ext=false) d = {
@@ -56,11 +58,12 @@ let generate file ver header infile types hres =
 	let ctx = {
 		f8clips = [];
 		f9clips = [];
+		as3code = [];
 		code = [];
 	} in
 	if ver = 9 then begin
 		let code, boot = Genswf9.generate types hres in
-		ctx.code <- code;
+		ctx.as3code <- code;
 		ctx.f9clips <- [{ f9_cid = None; f9_classname = boot }];
 	end else begin
 		let code, clips = Genswf8.generate file ver types hres in
@@ -68,7 +71,7 @@ let generate file ver header infile types hres =
 		ctx.f8clips <- List.map Ast.s_type_path clips;
 	end;
 	let build_swf content =
-		let sandbox = (if ver >= 8 then 
+		let sandbox = (if ver >= 8 then
 				let net = Plugin.defined "network-sandbox" in
 				[tag (TSandbox (match ver, net with
 					| 9, true -> SBUnknown 9
@@ -100,8 +103,9 @@ let generate file ver header infile types hres =
 					tag (TExport [{ exp_id = !base_id; exp_name = link }]);
 				]
 		) in
+		let as3code = (match ctx.as3code with [] -> [] | l -> [tag (TActionScript3 (None,As3hlparse.flatten l))]) in
 		let clips9 = if ver = 9 then [tag (TF9Classes ctx.f9clips)] else [] in
-		sandbox @ debug @ content @ clips @ code @ clips9
+		sandbox @ debug @ content @ clips @ code @ as3code @ clips9
 	in
 	let swf = (match infile with
 		| None ->
@@ -114,7 +118,7 @@ let generate file ver header infile types hres =
 			let ch = IO.input_channel (open_in_bin file) in
 			let h, swf = (try Swf.parse ch with _ -> failwith ("The input swf " ^ file ^ " is corrupted")) in
 			let header , tagbg = (match header with
-				| None -> 
+				| None ->
 					{ h with h_version = ver }, None
 				| Some h ->
 					let h , bg = convert_header ver h in
@@ -147,7 +151,7 @@ let generate file ver header infile types hres =
 						) el;
 						loop acc l
 					end else begin
-						List.iter (fun e ->							
+						List.iter (fun e ->
 							ctx.f8clips <- List.filter (fun x -> x <> e.exp_name) ctx.f8clips
 						) el;
 						loop (t :: acc) l
@@ -159,8 +163,26 @@ let generate file ver header infile types hres =
 				| TF9Classes cl ->
 					ctx.f9clips <- cl @ ctx.f9clips;
 					loop acc l
-				| TActionScript3 _ ->
-					if ver = 9 then ctx.code <- t.tdata :: ctx.code;
+				| TActionScript3 (_,data) ->
+					if ver = 9 then begin
+						(* only keep classes that are not redefined in HX code *)
+						let inits = As3hlparse.parse data in
+						let inits = List.filter (fun i ->
+							if Array.length i.hls_fields <> 1 then
+								true
+							else
+								match i.hls_fields.(0).hlf_kind with
+								| HFClass c ->
+									let path = (match c.hlc_name with
+										| HMPath (pack,name) -> pack,name
+										| _ -> assert false
+									) in
+									not (List.exists (fun t -> Type.t_path t = path) types)
+								| _ ->
+									true
+						) inits in
+						ctx.as3code <- inits @ ctx.as3code;
+					end;
 					loop acc l
 				| _ ->
 					loop (t :: acc) l
