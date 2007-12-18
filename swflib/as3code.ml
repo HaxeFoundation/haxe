@@ -314,221 +314,218 @@ let jump ch kind =
 	A3Jump (kind,read_i24 ch)
 
 let opcode ch =
-	let op = (try Some (read_byte ch) with IO.No_more_input -> None) in
+	let op = (try read_byte ch with IO.No_more_input -> raise Exit) in
 	match op with
-	| None -> None
-	| Some op -> Some (
-		match op with
-		| 0x01 -> A3BreakPoint
-		| 0x02 -> A3Nop
-		| 0x03 -> A3Throw
-		| 0x04 -> A3GetSuper (read_index ch)
-		| 0x05 -> A3SetSuper (read_index ch)
-		(* 0x06 -> E4X *)
-		(* 0x07 -> E4X *)
-		| 0x08 -> A3RegKill (read_int ch)
-		| 0x09 -> A3Label
-		(* 0x0A -> NONE *)
-		(* 0x0B -> NONE *)
-		| 0x0C -> jump ch J3NotLt
-		| 0x0D -> jump ch J3NotLte
-		| 0x0E -> jump ch J3NotGt
-		| 0x0F -> jump ch J3NotGte
-		| 0x10 -> jump ch J3Always
-		| 0x11 -> jump ch J3True
-		| 0x12 -> jump ch J3False
-		| 0x13 -> jump ch J3Eq
-		| 0x14 -> jump ch J3Neq
-		| 0x15 -> jump ch J3Lt
-		| 0x16 -> jump ch J3Lte
-		| 0x17 -> jump ch J3Gt
-		| 0x18 -> jump ch J3Gte
-		| 0x19 -> jump ch J3PhysEq
-		| 0x1A -> jump ch J3PhysNeq
-		| 0x1B ->
-			let def = read_i24 ch in
-			let rec loop n =
-				if n = 0 then
-					[]
-				else
-					let j = read_i24 ch in
-					j :: loop (n - 1)
-			in
-			let cases = loop (read_int ch + 1) in
-			A3Switch (def,cases)
-		| 0x1C -> A3PushWith
-		| 0x1D -> A3PopScope
-		| 0x1E -> A3ForIn
-		| 0x1F -> A3HasNext
-		| 0x20 -> A3Null
-		| 0x21 -> A3Undefined
-		(* 0x22 -> NONE *)
-		| 0x23 -> A3ForEach
-		| 0x24 -> A3SmallInt (read_signed_byte ch)
-		| 0x25 -> A3Int (read_int ch)
-		| 0x26 -> A3True
-		| 0x27 -> A3False
-		| 0x28 -> A3NaN
-		| 0x29 -> A3Pop
-		| 0x2A -> A3Dup
-		| 0x2B -> A3Swap
-		| 0x2C -> A3String (read_index ch)
-		| 0x2D -> A3IntRef (read_index ch)
-		| 0x2E -> A3UIntRef (read_index ch)
-		| 0x2F -> A3Float (read_index ch)
-		| 0x30 -> A3Scope
-		| 0x31 -> A3Namespace (read_index ch)
-		| 0x32 ->
-			let r1 = read_int ch in
-			let r2 = read_int ch in
-			A3Next (r1,r2)
-		(* 0x33 - 0x3F -> NONE *)
-		| 0x40 -> A3Function (read_index_nz ch)
-		| 0x41 -> A3CallStack (read_int ch)
-		| 0x42 -> A3Construct (read_int ch)
-		| 0x43 ->
-			let id = read_int ch in
-			let nargs = read_int ch in
-			A3CallMethod (id,nargs)
-		| 0x44 ->
-			let id = read_index ch in
-			let nargs = read_int ch in
-			A3CallStatic (id,nargs)
-		| 0x45 ->
-			let id = read_index ch in
-			let nargs = read_int ch in
-			A3CallSuper (id,nargs)
-		| 0x46 ->
-			let id = read_index ch in
-			let nargs = read_int ch in
-			A3CallProperty (id,nargs)
-		| 0x47 -> A3RetVoid
-		| 0x48 -> A3Ret
-		| 0x49 -> A3ConstructSuper (read_int ch)
-		| 0x4A ->
-			let id = read_index ch in
-			let nargs = read_int ch in
-			A3ConstructProperty (id,nargs)
-		(* 0x4B -> NONE *)
-		| 0x4C ->
-			let id = read_index ch in
-			let nargs = read_int ch in
-			A3CallPropLex (id,nargs)
-		(* 0x4D -> NONE *)
-		| 0x4E ->
-			let id = read_index ch in
-			let nargs = read_int ch in
-			A3CallSuperVoid (id,nargs)
-		| 0x4F ->
-			let id = read_index ch in
-			let nargs = read_int ch in
-			A3CallPropVoid (id,nargs)
-		(* 0x50 - 0x54 -> NONE *)
-		| 0x55 -> A3Object (read_int ch)
-		| 0x56 -> A3Array (read_int ch)
-		| 0x57 -> A3NewBlock
-		| 0x58 -> A3ClassDef (read_index_nz ch)
-		(* 0x59 -> E4X *)
-		| 0x5A -> A3Catch (read_int ch)
-		(* 0x5B -> NONE *)
-		(* 0x5C -> NONE *)
-		| 0x5D -> A3FindPropStrict (read_index ch)
-		| 0x5E -> A3FindProp (read_index ch)
-		| 0x5F -> A3FindDefinition (read_index ch)
-		| 0x60 -> A3GetLex (read_index ch)
-		| 0x61 -> A3SetProp (read_index ch)
-		| 0x62 -> A3Reg (read_int ch)
-		| 0x63 -> A3SetReg (read_int ch)
-		| 0x64 -> A3GetGlobalScope
-		| 0x65 -> A3GetScope (IO.read_byte ch)
-		| 0x66 -> A3GetProp (read_index ch)
-		(* 0x67 -> NONE *)
-		| 0x68 -> A3InitProp (read_index ch)
-		(* 0x69 -> NONE *)
-		| 0x6A -> A3DeleteProp (read_index ch)
-		(* 0x6B -> NONE *)
-		| 0x6C -> A3GetSlot (read_int ch)
-		| 0x6D -> A3SetSlot (read_int ch)
-		(* 0x6E -> DEPRECATED getglobalslot *)
-		(* 0x6F -> DEPRECATED setglobalslot *)
-		| 0x70 -> A3ToString
-		| 0x71 -> A3ToXml
-		| 0x72 -> A3ToXmlAttr
-		| 0x73 -> A3ToInt
-		| 0x74 -> A3ToUInt
-		| 0x75 -> A3ToNumber
-		| 0x76 -> A3ToBool
-		| 0x77 -> A3ToObject
-		| 0x78 -> A3CheckIsXml
-		(* 0x79 -> NONE *)
-		| 0x80 -> A3Cast (read_index ch)
-		(* 0x81 -> DEPRECATED asbool *)
-		| 0x82 -> A3AsAny
-		(* 0x83 -> DEPRECATED asint *)
-		(* 0x84 -> DEPRECATED asnumber *)
-		| 0x85 -> A3AsString
-		| 0x86 -> A3AsType (read_index ch)
-		(* 0x87 -> OP *)
-		(* 0x88 -> DEPRECATED asuint *)
-		| 0x89 -> A3AsObject
-		(* 0x8A - 0x8F -> NONE *)
-		(* 0x90 - 0x91 -> OP *)
-		| 0x92 -> A3IncrReg (read_int ch)
-		(* 0x93 -> OP *)
-		| 0x94 -> A3DecrReg (read_int ch)
-		| 0x95 -> A3Typeof
-		(* 0x96 -> OP *)
-		(* 0x97 -> OP *)
-		(* 0x98 - 0x9F -> NONE *)
-		(* 0xA0 - 0xB0 -> OP *)
-		| 0xB1 -> A3InstanceOf
-		| 0xB2 -> A3IsType (read_index ch)
-		(* 0xB3 -> OP *)
-		(* 0xB4 -> OP *)
-		(* 0xB5 - 0xBF -> NONE *)
-		(* 0xC0 -> OP *)
-		(* 0xC1 -> OP *)
-		| 0xC2 -> A3IncrIReg (read_int ch)
-		| 0xC3 -> A3DecrIReg (read_int ch)
-		(* 0xC4 - 0xC7 -> OP *)
-		(* 0xC8 - 0xCF -> NONE *)
-		| 0xD0 -> A3This
-		| 0xD1 -> A3Reg 1
-		| 0xD2 -> A3Reg 2
-		| 0xD3 -> A3Reg 3
-		| 0xD4 -> A3SetThis
-		| 0xD5 -> A3SetReg 1
-		| 0xD6 -> A3SetReg 2
-		| 0xD7 -> A3SetReg 3
-		(* 0xD8 - 0xEE -> NONE *)
-		| 0xEF ->
-			if IO.read_byte ch <> 1 then assert false;
-			let name = read_index ch in
-			let reg = read_int ch in
-			let line = read_int ch in
-			A3DebugReg (name,reg,line)
-		| 0xF0 -> A3DebugLine (read_int ch)
-		| 0xF1 -> A3DebugFile (read_index ch)
-		| 0xF2 -> A3BreakPointLine (read_int ch)
-		| 0xF3 -> A3Timestamp
-		(* 0xF4 - 0xFF -> NONE *)
-		| _ ->
-			try
-				A3Op (Hashtbl.find ops op)
-			with Not_found ->
-				Printf.printf "Unknown opcode 0x%.2X\n" op;
-				A3Unk (char_of_int op)
-	)
+	| 0x01 -> A3BreakPoint
+	| 0x02 -> A3Nop
+	| 0x03 -> A3Throw
+	| 0x04 -> A3GetSuper (read_index ch)
+	| 0x05 -> A3SetSuper (read_index ch)
+	(* 0x06 -> E4X *)
+	(* 0x07 -> E4X *)
+	| 0x08 -> A3RegKill (read_int ch)
+	| 0x09 -> A3Label
+	(* 0x0A -> NONE *)
+	(* 0x0B -> NONE *)
+	| 0x0C -> jump ch J3NotLt
+	| 0x0D -> jump ch J3NotLte
+	| 0x0E -> jump ch J3NotGt
+	| 0x0F -> jump ch J3NotGte
+	| 0x10 -> jump ch J3Always
+	| 0x11 -> jump ch J3True
+	| 0x12 -> jump ch J3False
+	| 0x13 -> jump ch J3Eq
+	| 0x14 -> jump ch J3Neq
+	| 0x15 -> jump ch J3Lt
+	| 0x16 -> jump ch J3Lte
+	| 0x17 -> jump ch J3Gt
+	| 0x18 -> jump ch J3Gte
+	| 0x19 -> jump ch J3PhysEq
+	| 0x1A -> jump ch J3PhysNeq
+	| 0x1B ->
+		let def = read_i24 ch in
+		let rec loop n =
+			if n = 0 then
+				[]
+			else
+				let j = read_i24 ch in
+				j :: loop (n - 1)
+		in
+		let cases = loop (read_int ch + 1) in
+		A3Switch (def,cases)
+	| 0x1C -> A3PushWith
+	| 0x1D -> A3PopScope
+	| 0x1E -> A3ForIn
+	| 0x1F -> A3HasNext
+	| 0x20 -> A3Null
+	| 0x21 -> A3Undefined
+	(* 0x22 -> NONE *)
+	| 0x23 -> A3ForEach
+	| 0x24 -> A3SmallInt (read_signed_byte ch)
+	| 0x25 -> A3Int (read_int ch)
+	| 0x26 -> A3True
+	| 0x27 -> A3False
+	| 0x28 -> A3NaN
+	| 0x29 -> A3Pop
+	| 0x2A -> A3Dup
+	| 0x2B -> A3Swap
+	| 0x2C -> A3String (read_index ch)
+	| 0x2D -> A3IntRef (read_index ch)
+	| 0x2E -> A3UIntRef (read_index ch)
+	| 0x2F -> A3Float (read_index ch)
+	| 0x30 -> A3Scope
+	| 0x31 -> A3Namespace (read_index ch)
+	| 0x32 ->
+		let r1 = read_int ch in
+		let r2 = read_int ch in
+		A3Next (r1,r2)
+	(* 0x33 - 0x3F -> NONE *)
+	| 0x40 -> A3Function (read_index_nz ch)
+	| 0x41 -> A3CallStack (read_int ch)
+	| 0x42 -> A3Construct (read_int ch)
+	| 0x43 ->
+		let id = read_int ch in
+		let nargs = read_int ch in
+		A3CallMethod (id,nargs)
+	| 0x44 ->
+		let id = read_index ch in
+		let nargs = read_int ch in
+		A3CallStatic (id,nargs)
+	| 0x45 ->
+		let id = read_index ch in
+		let nargs = read_int ch in
+		A3CallSuper (id,nargs)
+	| 0x46 ->
+		let id = read_index ch in
+		let nargs = read_int ch in
+		A3CallProperty (id,nargs)
+	| 0x47 -> A3RetVoid
+	| 0x48 -> A3Ret
+	| 0x49 -> A3ConstructSuper (read_int ch)
+	| 0x4A ->
+		let id = read_index ch in
+		let nargs = read_int ch in
+		A3ConstructProperty (id,nargs)
+	(* 0x4B -> NONE *)
+	| 0x4C ->
+		let id = read_index ch in
+		let nargs = read_int ch in
+		A3CallPropLex (id,nargs)
+	(* 0x4D -> NONE *)
+	| 0x4E ->
+		let id = read_index ch in
+		let nargs = read_int ch in
+		A3CallSuperVoid (id,nargs)
+	| 0x4F ->
+		let id = read_index ch in
+		let nargs = read_int ch in
+		A3CallPropVoid (id,nargs)
+	(* 0x50 - 0x54 -> NONE *)
+	| 0x55 -> A3Object (read_int ch)
+	| 0x56 -> A3Array (read_int ch)
+	| 0x57 -> A3NewBlock
+	| 0x58 -> A3ClassDef (read_index_nz ch)
+	(* 0x59 -> E4X *)
+	| 0x5A -> A3Catch (read_int ch)
+	(* 0x5B -> NONE *)
+	(* 0x5C -> NONE *)
+	| 0x5D -> A3FindPropStrict (read_index ch)
+	| 0x5E -> A3FindProp (read_index ch)
+	| 0x5F -> A3FindDefinition (read_index ch)
+	| 0x60 -> A3GetLex (read_index ch)
+	| 0x61 -> A3SetProp (read_index ch)
+	| 0x62 -> A3Reg (read_int ch)
+	| 0x63 -> A3SetReg (read_int ch)
+	| 0x64 -> A3GetGlobalScope
+	| 0x65 -> A3GetScope (IO.read_byte ch)
+	| 0x66 -> A3GetProp (read_index ch)
+	(* 0x67 -> NONE *)
+	| 0x68 -> A3InitProp (read_index ch)
+	(* 0x69 -> NONE *)
+	| 0x6A -> A3DeleteProp (read_index ch)
+	(* 0x6B -> NONE *)
+	| 0x6C -> A3GetSlot (read_int ch)
+	| 0x6D -> A3SetSlot (read_int ch)
+	(* 0x6E -> DEPRECATED getglobalslot *)
+	(* 0x6F -> DEPRECATED setglobalslot *)
+	| 0x70 -> A3ToString
+	| 0x71 -> A3ToXml
+	| 0x72 -> A3ToXmlAttr
+	| 0x73 -> A3ToInt
+	| 0x74 -> A3ToUInt
+	| 0x75 -> A3ToNumber
+	| 0x76 -> A3ToBool
+	| 0x77 -> A3ToObject
+	| 0x78 -> A3CheckIsXml
+	(* 0x79 -> NONE *)
+	| 0x80 -> A3Cast (read_index ch)
+	(* 0x81 -> DEPRECATED asbool *)
+	| 0x82 -> A3AsAny
+	(* 0x83 -> DEPRECATED asint *)
+	(* 0x84 -> DEPRECATED asnumber *)
+	| 0x85 -> A3AsString
+	| 0x86 -> A3AsType (read_index ch)
+	(* 0x87 -> OP *)
+	(* 0x88 -> DEPRECATED asuint *)
+	| 0x89 -> A3AsObject
+	(* 0x8A - 0x8F -> NONE *)
+	(* 0x90 - 0x91 -> OP *)
+	| 0x92 -> A3IncrReg (read_int ch)
+	(* 0x93 -> OP *)
+	| 0x94 -> A3DecrReg (read_int ch)
+	| 0x95 -> A3Typeof
+	(* 0x96 -> OP *)
+	(* 0x97 -> OP *)
+	(* 0x98 - 0x9F -> NONE *)
+	(* 0xA0 - 0xB0 -> OP *)
+	| 0xB1 -> A3InstanceOf
+	| 0xB2 -> A3IsType (read_index ch)
+	(* 0xB3 -> OP *)
+	(* 0xB4 -> OP *)
+	(* 0xB5 - 0xBF -> NONE *)
+	(* 0xC0 -> OP *)
+	(* 0xC1 -> OP *)
+	| 0xC2 -> A3IncrIReg (read_int ch)
+	| 0xC3 -> A3DecrIReg (read_int ch)
+	(* 0xC4 - 0xC7 -> OP *)
+	(* 0xC8 - 0xCF -> NONE *)
+	| 0xD0 -> A3This
+	| 0xD1 -> A3Reg 1
+	| 0xD2 -> A3Reg 2
+	| 0xD3 -> A3Reg 3
+	| 0xD4 -> A3SetThis
+	| 0xD5 -> A3SetReg 1
+	| 0xD6 -> A3SetReg 2
+	| 0xD7 -> A3SetReg 3
+	(* 0xD8 - 0xEE -> NONE *)
+	| 0xEF ->
+		if IO.read_byte ch <> 1 then assert false;
+		let name = read_index ch in
+		let reg = read_int ch in
+		let line = read_int ch in
+		A3DebugReg (name,reg,line)
+	| 0xF0 -> A3DebugLine (read_int ch)
+	| 0xF1 -> A3DebugFile (read_index ch)
+	| 0xF2 -> A3BreakPointLine (read_int ch)
+	| 0xF3 -> A3Timestamp
+	(* 0xF4 - 0xFF -> NONE *)
+	| _ ->
+		try
+			A3Op (Hashtbl.find ops op)
+		with Not_found ->
+			Printf.printf "Unknown opcode 0x%.2X\n" op;
+			A3Unk (char_of_int op)
 
 let parse ch len =
 	let data = nread ch len in
 	let ch = input_string data in
-	let rec loop acc =
-		match (try opcode ch with _ -> match acc with A3Unk '\xff' :: _ -> None | _ -> Some (A3Unk '\xff')) with
-		| None -> List.rev acc
-		| Some o -> loop (o :: acc)
+	let a = DynArray.create() in
+	let rec loop() =
+		DynArray.add a (opcode ch);
+		loop();
 	in
-	loop []
+	(try loop() with Exit -> ());
+	DynArray.to_array a
 
 let write ch = function
 	| A3BreakPoint ->

@@ -287,7 +287,7 @@ type as3_function = {
 	fun3_nregs : int;
 	fun3_init_scope : int;
 	fun3_max_scope : int;
-	fun3_code : as3_opcode list;
+	fun3_code : as3_opcode array;
 	fun3_trys : as3_try_catch array;
 	fun3_locals : as3_field array;
 }

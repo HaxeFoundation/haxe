@@ -162,9 +162,9 @@ and hl_function = {
 	hlf_nregs : int;
 	hlf_init_scope : int;
 	hlf_max_scope : int;
-	mutable hlf_code : hl_opcode list;
+	mutable hlf_code : hl_opcode array;
 	hlf_trys : hl_try_catch array;
-	hlf_locals : (hl_name * hl_name option) array;
+	hlf_locals : (hl_name * hl_name option * hl_slot) array;
 }
 
 and hl_method_kind = as3_method_kind

@@ -8,6 +8,8 @@ type parse_ctx = {
 	mutable names : hl_name array;
 	mutable methods : hl_method array;
 	mutable classes : hl_class array;
+	mutable jumps : (int * int) list;
+	mutable pos : int;
 }
 
 let get = As3parse.iget
@@ -25,7 +27,7 @@ let opt f ctx = function
 	| None -> None
 	| Some x -> Some (f ctx x)
 
-let parse_opcode ctx = function
+let parse_opcode ctx i = function
 	| A3BreakPoint -> HBreakPoint
 	| A3Nop -> HNop
 	| A3Throw -> HThrow
@@ -33,8 +35,12 @@ let parse_opcode ctx = function
 	| A3SetSuper n -> HSetSuper (name ctx n)
 	| A3RegKill r -> HRegKill r
 	| A3Label -> HLabel
-	| A3Jump (j,n) -> HJump (j,n)
-	| A3Switch (n,infos) -> HSwitch(n,infos)
+	| A3Jump (j,n) -> 
+		ctx.jumps <- (i,ctx.pos) :: ctx.jumps;
+		HJump (j,n)
+	| A3Switch (n,infos) ->
+		ctx.jumps <- (i,ctx.pos) :: ctx.jumps;
+		HSwitch(n,infos)
 	| A3PushWith -> HPushWith
 	| A3PopScope -> HPopScope
 	| A3ForIn -> HForIn
@@ -120,6 +126,34 @@ let parse_opcode ctx = function
 	| A3Timestamp -> HTimestamp
 	| A3Op op -> HOp op
 	| A3Unk n -> HUnk n
+
+let parse_code ctx code =
+	let old = ctx.pos , ctx.jumps in
+	let indexes = DynArray.create() in
+	ctx.pos <- 0;
+	ctx.jumps <- [];
+	let hcode = Array.mapi (fun i op ->
+		let len = As3code.length op in
+		DynArray.add indexes i;
+		for k = 2 to len do DynArray.add indexes (-1); done;
+		ctx.pos <- ctx.pos + len;
+		parse_opcode ctx i op
+	) code in
+	(* in case we have a dead-jump at the end of code *)
+	DynArray.add indexes (Array.length code);
+	(* patch jumps *)
+	List.iter (fun (j,pos) ->
+		Array.set hcode j (match Array.get hcode j with
+			| HJump (jc,n) -> 
+				let idx = DynArray.get indexes (pos + n) in
+				if idx = -1 then assert false;
+				HJump (jc,idx - j)
+			| HSwitch (n,infos) -> assert false
+			| _ -> assert false)
+	) ctx.jumps;
+	ctx.pos <- fst old;
+	ctx.jumps <- snd old;
+	hcode
 
 let parse_metadata ctx m =
 	{
@@ -212,16 +246,14 @@ let parse_function ctx m f =
 		hlf_nregs = f.fun3_nregs;
 		hlf_init_scope = f.fun3_init_scope;
 		hlf_max_scope = f.fun3_max_scope;
-		hlf_code = []; (* keep for later *)
+		hlf_code = [||]; (* keep for later *)
 		hlf_trys = Array.map (parse_try_catch ctx) f.fun3_trys;
-		hlf_locals = Array.mapi (fun i f ->
-			(* locals are supposed to be ordoned *)
-			if f.f3_slot <> i then assert false;
+		hlf_locals = Array.map (fun f ->
 			if f.f3_metas <> None then assert false;
 			match f.f3_kind with
 			| A3FVar v ->
 				if v.v3_const || v.v3_value <> A3VNone then assert false;
-				name ctx f.f3_name , opt name ctx v.v3_type
+				name ctx f.f3_name , opt name ctx v.v3_type , f.f3_slot
 			| _ -> assert false
 		) f.fun3_locals;
 	}
@@ -273,6 +305,8 @@ let parse t =
 		names = [||];
 		methods = [||];
 		classes = [||];
+		jumps = [];
+		pos = 0;
 	} in
 	ctx.namespaces <- Array.map (parse_namespace ctx) t.as3_namespaces;
 	ctx.nsets <- Array.map (parse_nset ctx) t.as3_nsets;
@@ -289,7 +323,7 @@ let parse t =
 	let inits = List.map (parse_static ctx) (Array.to_list t.as3_inits) in
 	Array.iter (fun f ->
 		let m = method_type ctx f.fun3_id in
-		m.hlmt_function.hlf_code <- List.map (parse_opcode ctx) f.fun3_code;
+		m.hlmt_function.hlf_code <- parse_code ctx f.fun3_code;
 	) t.as3_functions;
 	inits
 
@@ -317,6 +351,7 @@ and flatten_ctx = {
 	fmetas : (hl_metadata,as3_metadata) lookup;
 	fmethods : (hl_method,as3_method_type * as3_function,int) gen_lookup;
 	fclasses : (hl_class,as3_class * as3_static,hl_name) gen_lookup;
+	mutable fjumps : int list;
 }
 
 let new_gen_lookup f k =
@@ -437,7 +472,7 @@ let flatten_class ctx c =
 		st3_fields = Array.map (flatten_field ctx) c.hlc_static_fields;
 	}
 
-let flatten_opcode ctx = function
+let flatten_opcode ctx i = function
 	| HBreakPoint -> A3BreakPoint
 	| HNop -> A3Nop
 	| HThrow -> A3Throw
@@ -445,8 +480,12 @@ let flatten_opcode ctx = function
 	| HSetSuper n -> A3SetSuper (lookup_name ctx n)
 	| HRegKill r -> A3RegKill r
 	| HLabel -> A3Label
-	| HJump (j,n) -> A3Jump (j,n)
-	| HSwitch (n,l) -> A3Switch (n,l)
+	| HJump (j,n) ->
+		ctx.fjumps <- i :: ctx.fjumps;
+		A3Jump (j,n)
+	| HSwitch (n,l) ->
+		ctx.fjumps <- i :: ctx.fjumps;
+		A3Switch (n,l)
 	| HPushWith -> A3PushWith
 	| HPopScope -> A3PopScope
 	| HForIn -> A3ForIn
@@ -533,6 +572,27 @@ let flatten_opcode ctx = function
 	| HOp op -> A3Op op
 	| HUnk c -> A3Unk c
 
+let flatten_code ctx hcode =
+	let positions = Array.create (Array.length hcode + 1) 0 in
+	let pos = ref 0 in
+	let old = ctx.fjumps in
+	ctx.fjumps <- [];	
+	let code = Array.mapi (fun i op ->
+		let op = flatten_opcode ctx i op in
+		pos := !pos + As3code.length op;
+		Array.set positions (i + 1) !pos;
+		op
+	) hcode in	
+	(* patch jumps *)
+	List.iter (fun j ->
+		Array.set code j (match Array.get code j with
+			| A3Jump (jc,n) -> A3Jump (jc,positions.(j+n) - positions.(j+1))
+			| A3Switch (n,infos) -> assert false
+			| _ -> assert false);
+	) ctx.fjumps;
+	ctx.fjumps <- old;
+	code
+
 let flatten_try ctx t =
 	{
 		tc3_start = t.hltc_start;
@@ -564,12 +624,12 @@ let flatten_method ctx m =
 		fun3_nregs = f.hlf_nregs;
 		fun3_init_scope = f.hlf_init_scope;
 		fun3_max_scope = f.hlf_max_scope;
-		fun3_code = List.map (flatten_opcode ctx) f.hlf_code;
+		fun3_code = flatten_code ctx f.hlf_code;
 		fun3_trys = Array.map (flatten_try ctx) f.hlf_trys;
-		fun3_locals = Array.mapi (fun i (n,t) ->
+		fun3_locals = Array.map (fun (n,t,s) ->
 			{
 				f3_name = lookup_name ctx n;
-				f3_slot = i;
+				f3_slot = s;
 				f3_kind = A3FVar { v3_type = opt lookup_name ctx t; v3_value = A3VNone; v3_const = false  };
 				f3_metas = None;
 			}
@@ -595,6 +655,7 @@ let flatten t =
 		fmetas = new_lookup flatten_meta;
 		fmethods = new_gen_lookup flatten_method (fun m -> m.hlmt_mark);
 		fclasses = new_gen_lookup flatten_class (fun c -> c.hlc_name);
+		fjumps = [];
 	} in
 	ignore(lookup_ident ctx "");
 	let inits = List.map (flatten_static ctx) t in
