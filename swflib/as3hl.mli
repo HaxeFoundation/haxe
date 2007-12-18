@@ -1,3 +1,21 @@
+(*
+ *  This file is part of SwfLib
+ *  Copyright (c)2004-2008 Nicolas Cannasse
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *)
 open As3
 
 type hl_ident = string
@@ -135,7 +153,7 @@ and hl_value =
 	| HVNamespace of int * hl_namespace
 
 and hl_method = {
-	hlmt_mark : int;
+	hlmt_mark : int; (* unique id, for internal usage *)
 	hlmt_ret : hl_name option;
 	hlmt_args : hl_name option list;
 	hlmt_native : bool;
@@ -147,7 +165,7 @@ and hl_method = {
 	hlmt_debug_name : hl_ident option;
 	hlmt_dparams : hl_value list option;
 	hlmt_pnames : hl_ident list option;
-	hlmt_function : hl_function option;
+	hlmt_function : hl_function option; (* None for interfaces constructors only *)
 }
 
 and hl_try_catch = {
