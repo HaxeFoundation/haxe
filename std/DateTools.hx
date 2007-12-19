@@ -45,14 +45,11 @@ class DateTools {
 				__jsflash_format(d,"%m/%d/%y");
 			case "e":
 				untyped Std.string(d.getDate());
-			case "H":
-				untyped StringTools.lpad(Std.string(d.getHours()),"0",2);
-			case "I":
-				untyped StringTools.lpad(Std.string(d.getHours()%12),"0",2);
-			case "k":
-				untyped StringTools.lpad(Std.string(d.getHours())," ",2);
-			case "l":
-				untyped StringTools.lpad(Std.string(d.getHours()%12)," ",2);
+			case "H","k":
+				untyped StringTools.lpad(Std.string(d.getHours()),if( e == "H" ) "0" else " ",2);
+			case "I","l":
+				var hour = d.getHours()%12;
+				untyped StringTools.lpad(Std.string(hour == 0 ? 12 : hour),if( e == "I" ) "0" else " ",2);
 			case "m":
 				untyped StringTools.lpad(Std.string(d.getMonth()+1),"0",2);
 			case "M":
