@@ -62,7 +62,11 @@ let generate file ver header infile types hres =
 		code = [];
 	} in
 	if ver = 9 then begin
-		let code, boot = Genswf9.generate types hres in
+		(* hack for an ocaml bug *)
+		(* instead of : let code, boot = Genswf9.generate types hres in *)
+		let f (h:(string,string) Hashtbl.t) = Genswf9.generate types h in
+		let tmp : (string,string) Hashtbl.t = hres in
+		let code, boot = f (Obj.magic tmp) in
 		ctx.as3code <- code;
 		ctx.f9clips <- [{ f9_cid = None; f9_classname = boot }];
 	end else begin

@@ -1561,27 +1561,30 @@ let generate_inits ctx types hres =
 	let f = begin_fun ctx [] t_void [ethis] false null_pos in
 	let slot = ref 0 in
 	let classes = List.fold_left (fun acc (t,hc) ->
-		match t with
-		| TClassDecl c when not c.cl_extern ->
-			incr slot;
-			generate_class_init ctx c hc;
-			{
-				hlf_name = type_path ctx c.cl_path;
-				hlf_slot = !slot;
-				hlf_kind = HFClass hc;
-				hlf_metas = None;
-			} :: acc
-		| TEnumDecl e when not e.e_extern ->
-			incr slot;
-			generate_enum_init ctx e hc;
-			{
-				hlf_name = type_path ctx e.e_path;
-				hlf_slot = !slot;
-				hlf_kind = HFClass hc;
-				hlf_metas = None;
-			} :: acc
-		| _ ->
-			acc
+		match hc with
+		| None -> acc
+		| Some hc ->
+			match t with
+			| TClassDecl c ->
+				incr slot;
+				generate_class_init ctx c hc;
+				{
+					hlf_name = type_path ctx c.cl_path;
+					hlf_slot = !slot;
+					hlf_kind = HFClass hc;
+					hlf_metas = None;
+				} :: acc
+			| TEnumDecl e ->
+				incr slot;
+				generate_enum_init ctx e hc;
+				{
+					hlf_name = type_path ctx e.e_path;
+					hlf_slot = !slot;
+					hlf_kind = HFClass hc;
+					hlf_metas = None;
+				} :: acc
+			| _ ->
+				acc
 	) [] types in
 
 	(* define flash.Boot.init method *)
@@ -1631,12 +1634,8 @@ let generate types hres =
 		last_line = -1;
 		try_scope_reg = None;
 	} in
-	let classes = List.fold_left (fun acc t ->
-		match generate_type ctx t with
-		| None -> acc
-		| Some hc -> (t,hc) :: acc
-	) [] types in
-	let init = generate_inits ctx (List.rev classes) hres in
+	let classes = List.map (fun t -> (t,generate_type ctx t)) types in
+	let init = generate_inits ctx classes hres in
 	[init], ctx.boot
 
 ;;
