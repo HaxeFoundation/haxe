@@ -219,23 +219,23 @@ let classify ctx t =
 	| TLazy _ ->
 		assert false
 
-let ident ctx i = type_path ctx ([],i)
+let ident i = HMPath ([],i)
 
 let as3 p =
 	HMName (p,HNNamespace "http://adobe.com/AS3/2006/builtin")
 
-let property ctx p t =
+let property p t =
 	match follow t with
 	| TInst ({ cl_path = [],"Array" },_) ->
 		(match p with
-		| "length" | "copy" | "insert" | "remove" | "iterator" -> ident ctx p
+		| "length" | "copy" | "insert" | "remove" | "iterator" -> ident p
 		| _ -> as3 p);
 	| TInst ({ cl_path = [],"String" },_) ->
 		(match p with
-		| "length" | "charCodeAt" (* use haXe version *) -> ident ctx p
+		| "length" | "charCodeAt" (* use haXe version *) -> ident p
 		| _ -> as3 p);
 	| _ ->
-		ident ctx p
+		ident p
 
 let default_infos() =
 	{
@@ -524,7 +524,7 @@ let begin_fun ctx args tret el stat p =
 					hltc_name = None;
 				}
 			) (List.rev ctx.trys));
-			hlf_locals = Array.of_list (List.map (fun (id,name,t) -> ident ctx name, Some (type_id ctx t), id) ctx.block_vars);
+			hlf_locals = Array.of_list (List.map (fun (id,name,t) -> ident name, Some (type_id ctx t), id) ctx.block_vars);
 		} in
 		let mt = {
 			hlmt_mark = As3hlparse.alloc_mark();
@@ -609,7 +609,7 @@ let gen_access ctx e (forset : 'a) : 'a access =
 	| TLocal i ->
 		gen_local_access ctx i e.epos forset
 	| TField (e1,f) ->
-		let id = property ctx f e1.etype in
+		let id = property f e1.etype in
 		(match e1.eexpr with
 		| TConst TThis when not ctx.in_static -> write ctx (HFindPropStrict id)
 		| _ -> gen_expr ctx true e1);
@@ -646,7 +646,7 @@ let rec gen_expr_content ctx retval e =
 	| TEnumField (e,s) ->
 		let id = type_path ctx e.e_path in
 		write ctx (HGetLex id);
-		write ctx (HGetProp (ident ctx s));
+		write ctx (HGetProp (ident s));
 	| TObjectDecl fl ->
 		List.iter (fun (name,e) ->
 			write ctx (HString name);
@@ -794,11 +794,11 @@ let rec gen_expr_content ctx retval e =
 		let here, start = jump_back ctx in
 		here();
 		write ctx (HReg r.rid);
-		write ctx (HCallProperty (ident ctx "hasNext",0));
+		write ctx (HCallProperty (ident "hasNext",0));
 		let jend = jump ctx J3False in
 		let acc = gen_local_access ctx v e.epos Write in
 		write ctx (HReg r.rid);
-		write ctx (HCallProperty (ident ctx "next",0));
+		write ctx (HCallProperty (ident "next",0));
 		setvar ctx acc false;
 		gen_expr ctx false e;
 		start J3Always;
@@ -870,9 +870,9 @@ let rec gen_expr_content ctx retval e =
 		let rindex = alloc_reg ctx KInt in
 		gen_expr ctx true e0;
 		write ctx HDup;
-		write ctx (HGetProp (ident ctx "index"));
+		write ctx (HGetProp (ident "index"));
 		set_reg ctx rindex;
-		write ctx (HGetProp (ident ctx "params"));
+		write ctx (HGetProp (ident "params"));
 		set_reg ctx rparams;
 		let branch = begin_branch ctx in
 		let jswitch = jump ctx J3Always in
@@ -951,7 +951,8 @@ and gen_call ctx retval e el =
 	| TLocal "__float__", [e] ->
 		gen_expr ctx true e;
 		write ctx HToNumber
-	| TLocal "__keys__" , [e] ->
+	| TLocal "__hkeys__" , [e2]
+	| TLocal "__keys__" , [e2] ->
 		let racc = alloc_reg ctx (KType (type_path ctx ([],"Array"))) in
 		let rcounter = alloc_reg ctx KInt in
 		let rtmp = alloc_reg ctx KDynamic in
@@ -959,14 +960,18 @@ and gen_call ctx retval e el =
 		set_reg ctx rcounter;
 		write ctx (HArray 0);
 		set_reg ctx racc;
-		gen_expr ctx true e;
+		gen_expr ctx true e2;
 		set_reg ctx rtmp;
 		let start, loop = jump_back ctx in
 		write ctx (HReg racc.rid);
 		write ctx (HReg rtmp.rid);
 		write ctx (HReg rcounter.rid);
 		write ctx HForIn;
-		write ctx (HCallPropVoid (ident ctx "push",1));
+		if e.eexpr = TLocal "__hkeys__" then begin
+			write ctx (HSmallInt 1);
+			write ctx (HCallProperty (as3 "substr",1));
+		end;
+		write ctx (HCallPropVoid (as3 "push",1));
 		start();
 		write ctx (HNext (rtmp.rid,rcounter.rid));
 		loop J3True;
@@ -1003,12 +1008,12 @@ and gen_call ctx retval e el =
 		List.iter (gen_expr ctx true) el;
 		write ctx (HConstructSuper (List.length el));
 	| TField ({ eexpr = TConst TSuper },f) , _ ->
-		let id = ident ctx f in
+		let id = ident f in
 		write ctx (HFindPropStrict id);
 		List.iter (gen_expr ctx true) el;
 		write ctx (HCallSuper (id,List.length el));
 	| TField ({ eexpr = TConst TThis },f) , _ when not ctx.in_static ->
-		let id = ident ctx f in
+		let id = ident f in
 		write ctx (HFindPropStrict id);
 		List.iter (gen_expr ctx true) el;
 		write ctx (if retval then HCallProperty (id,List.length el) else HCallPropVoid (id,List.length el));
@@ -1016,14 +1021,14 @@ and gen_call ctx retval e el =
 		gen_expr ctx true e1;
 		List.iter (gen_expr ctx true) el;
 		if not retval then
-			write ctx (HCallPropVoid (property ctx f e1.etype,List.length el))
+			write ctx (HCallPropVoid (property f e1.etype,List.length el))
 		else
 			let coerce() =
 				match follow e.etype with
 				| TFun (_,r) -> coerce ctx (classify ctx r)
 				| _ -> ()
 			in
-			write ctx (HCallProperty (property ctx f e1.etype,List.length el));
+			write ctx (HCallProperty (property f e1.etype,List.length el));
 			(match follow e1.etype with
 			| TInst ({ cl_path = [],"Array" },_) ->
 				(match f with
@@ -1044,7 +1049,7 @@ and gen_call ctx retval e el =
 		let id = type_path ctx e.e_path in
 		write ctx (HGetLex id);
 		List.iter (gen_expr ctx true) el;
-		write ctx (HCallProperty (ident ctx f,List.length el));
+		write ctx (HCallProperty (ident f,List.length el));
 	| _ ->
 		gen_expr ctx true e;
 		write ctx HGetGlobalScope;
@@ -1240,7 +1245,7 @@ let generate_construct ctx fdata cfields =
 	(* make all args optional to allow no-param constructor *)
 	let f = begin_fun ctx (List.map (fun (a,o,t) -> a,true,t) fdata.tf_args) fdata.tf_type [fdata.tf_expr] false fdata.tf_expr.epos in
 	(* if skip_constructor, then returns immediatly *)
-	let id = ident ctx "skip_constructor" in
+	let id = ident "skip_constructor" in
 	getvar ctx (VGlobal (type_path ctx ([],ctx.boot)));
 	getvar ctx (VId id);
 	let j = jump ctx J3False in
@@ -1250,7 +1255,7 @@ let generate_construct ctx fdata cfields =
 	PMap.iter (fun _ f ->
 		match f.cf_expr with
 		| Some { eexpr = TFunction fdata } when f.cf_set = NormalAccess ->
-			let id = ident ctx f.cf_name in
+			let id = ident f.cf_name in
 			write ctx (HFindProp id);
 			write ctx (HFunction (generate_method ctx fdata false));
 			write ctx (HInitProp id);
@@ -1276,7 +1281,7 @@ let generate_class_init ctx c hc =
 		| Some { eexpr = TFunction fdata } when f.cf_set = NormalAccess ->
 			write ctx HDup;
 			write ctx (HFunction (generate_method ctx fdata true));
-			write ctx (HInitProp (ident ctx f.cf_name));
+			write ctx (HInitProp (ident f.cf_name));
 		| _ -> ()
 	) c.cl_ordered_statics;
 	if not c.cl_interface then write ctx HPopScope;
@@ -1397,7 +1402,7 @@ let generate_class ctx c =
 		| None -> acc
 		| Some k ->
 			{
-				hlf_name = ident ctx f.cf_name;
+				hlf_name = ident f.cf_name;
 				hlf_slot = 0;
 				hlf_kind = k;
 				hlf_metas = None;
@@ -1424,7 +1429,7 @@ let generate_class ctx c =
 			let count = (match k with HFMethod _ -> st_meth_count | HFVar _ -> st_field_count | _ -> assert false) in
 			incr count;
 			{
-				hlf_name = ident ctx f.cf_name;
+				hlf_name = ident f.cf_name;
 				hlf_slot = !count;
 				hlf_kind = k;
 				hlf_metas = None;
@@ -1435,9 +1440,9 @@ let generate_class ctx c =
 let generate_enum ctx e =
 	let name_id = type_path ctx e.e_path in
 	let f = begin_fun ctx [("tag",false,t_string);("index",false,t_int);("params",false,mk_mono())] t_void [ethis] false e.e_pos in
-	let tag_id = ident ctx "tag" in
-	let index_id = ident ctx "index" in
-	let params_id = ident ctx "params" in
+	let tag_id = ident "tag" in
+	let index_id = ident "index" in
+	let params_id = ident "params" in
 	write ctx (HFindProp tag_id);
 	write ctx (HReg 1);
 	write ctx (HInitProp tag_id);
@@ -1452,14 +1457,14 @@ let generate_enum ctx e =
 	let f = begin_fun ctx [] t_string [] true e.e_pos in
 	write ctx (HGetLex (type_path ctx ([],ctx.boot)));
 	write ctx HThis;
-	write ctx (HCallProperty (ident ctx "enum_to_string",1));
+	write ctx (HCallProperty (ident "enum_to_string",1));
 	write ctx HRet;
 	let tostring = f() in
 	let st_count = ref 0 in
 	let constrs = PMap.fold (fun f acc ->
 		incr st_count;
 		{
-			hlf_name = ident ctx f.ef_name;
+			hlf_name = ident f.ef_name;
 			hlf_slot = !st_count;
 			hlf_kind = (match f.ef_type with
 				| TFun (args,_) ->
@@ -1498,9 +1503,9 @@ let generate_enum ctx e =
 			{ hlf_name = tag_id; hlf_slot = 0; hlf_kind = HFVar { hlv_type = None; hlv_value = HVNone; hlv_const = false; }; hlf_metas = None };
 			{ hlf_name = index_id; hlf_slot = 0; hlf_kind = HFVar { hlv_type = None; hlv_value = HVNone; hlv_const = false; }; hlf_metas = None };
 			{ hlf_name = params_id; hlf_slot = 0; hlf_kind = HFVar { hlv_type = None; hlv_value = HVNone; hlv_const = false; }; hlf_metas = None };
-			{ hlf_name = ident ctx "__enum__"; hlf_slot = 0; hlf_kind = HFVar { hlv_type = None; hlv_value = HVBool true; hlv_const = true }; hlf_metas = None };
+			{ hlf_name = ident "__enum__"; hlf_slot = 0; hlf_kind = HFVar { hlv_type = None; hlv_value = HVBool true; hlv_const = true }; hlf_metas = None };
 			{
-				hlf_name = ident ctx "toString";
+				hlf_name = ident "toString";
 				hlf_slot = 0;
 				hlf_kind = HFMethod {
 					hlm_type = tostring;
@@ -1513,12 +1518,12 @@ let generate_enum ctx e =
 		|];
 		hlc_static_construct = empty_method ctx e.e_pos;
 		hlc_static_fields = Array.of_list ({
-			hlf_name = ident ctx "__isenum";
+			hlf_name = ident "__isenum";
 			hlf_slot = !st_count + 2;
 			hlf_kind = HFVar { hlv_type = None; hlv_value = HVBool true; hlv_const = true; };
 			hlf_metas = None;
 		} :: {
-			hlf_name = ident ctx "__constructs__";
+			hlf_name = ident "__constructs__";
 			hlf_slot = !st_count + 1;
 			hlf_kind = HFVar { hlv_type = None; hlv_value = HVNone; hlv_const = false; };
 			hlf_metas = None;
@@ -1555,7 +1560,7 @@ let generate_resources ctx hres =
 		setvar ctx VArray false;
 	) hres;
 	write ctx (HReg r.rid);
-	write ctx (HInitProp (ident ctx "__res"))
+	write ctx (HInitProp (ident "__res"))
 
 let generate_inits ctx types hres =
 	let f = begin_fun ctx [] t_void [ethis] false null_pos in
@@ -1606,7 +1611,7 @@ let generate_inits ctx types hres =
 	) types;
 	write ctx HRetVoid;
 	write ctx (HFunction (finit()));
-	write ctx (HInitProp (ident ctx "init"));
+	write ctx (HInitProp (ident "init"));
 
 	(* generate resources *)
 	generate_resources ctx hres;

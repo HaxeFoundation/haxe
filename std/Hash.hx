@@ -57,9 +57,9 @@ class Hash<T> {
 	**/
 	public function set( key : String, value : T ) : Void {
 		#if flash
-		untyped h[key] = value;
+		untyped h["$"+key] = value;
 		#else js
-		untyped h[key] = value;
+		untyped h["$"+key] = value;
 		#else neko
 		untyped __dollar__hset(h,key.__s,value,null);
 		#else error
@@ -71,9 +71,9 @@ class Hash<T> {
 	**/
 	public function get( key : String ) : Null<T> {
 		#if flash
-		return untyped h[key];
+		return untyped h["$"+key];
 		#else js
-		return untyped h[key];
+		return untyped h["$"+key];
 		#else neko
 		return untyped __dollar__hget(h,key.__s,null);
 		#else error
@@ -87,11 +87,12 @@ class Hash<T> {
 	**/
 	public function exists( key : String ) : Bool {
 		#if flash9
-		return untyped h.hasOwnProperty(key);
+		return untyped h.hasOwnProperty("$"+key);
 		#else flash
-		return untyped h["hasOwnProperty"](key);
+		return untyped h["hasOwnProperty"]("$"+key);
 		#else js
 		try {
+			key = "$"+key;
 			return untyped this.hasOwnProperty.call(h,key);
 		}catch(e:Dynamic){
 			untyped __js__("
@@ -112,17 +113,19 @@ class Hash<T> {
 	**/
 	public function remove( key : String ) : Bool {
 		#if flash9
+		key = "$"+key;
 		if( untyped !h.hasOwnProperty(key) ) return false;
 		untyped __delete__(h,key);
 		return true;
 		#else flash
+		key = "$"+key;
 		if( untyped !h["hasOwnProperty"](key) ) return false;
 		untyped __delete__(h,key);
 		return true;
 		#else js
 		if( !exists(key) )
 			return false;
-		untyped __js__("delete")(h[key]);
+		untyped __js__("delete")(h["$"+key]);
 		return true;
 		#else neko
 		return untyped __dollar__hremove(h,key.__s,null);
@@ -135,14 +138,14 @@ class Hash<T> {
 	**/
 	public function keys() : Iterator<String> {
 		#if flash9
-		return untyped (__keys__(h)).iterator();
+		return untyped (__hkeys__(h)).iterator();
 		#else flash
-		return untyped (__keys__(h))["iterator"]();
+		return untyped (__hkeys__(h))["iterator"]();
 		#else js
 		var a = new Array<String>();
 		untyped __js__("
 			for(var i in this.h)
-				a.push(i);
+				a.push(i.substr(1));
 		");
 		return a.iterator();
 		#else neko

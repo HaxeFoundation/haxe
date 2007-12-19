@@ -846,13 +846,14 @@ and gen_call ctx e el =
 		push ctx [VInt nargs];
 		let k = gen_access ctx true e in
 		new_call ctx k nargs
-	| TLocal "__keys__", [e] ->
+	| TLocal "__keys__", [e2]
+	| TLocal "__hkeys__", [e2] ->
 		let r = alloc_tmp ctx in
 		push ctx [VInt 0; VStr ("Array",true)];
 		new_call ctx VarStr 0;
 		set_tmp ctx r;
 		write ctx APop;
-		gen_expr ctx true e;
+		gen_expr ctx true e2;
 		write ctx AEnum2;
 		ctx.stack_size <- ctx.stack_size + 1; (* fake *)
 		let loop = pos ctx in
@@ -860,7 +861,13 @@ and gen_call ctx e el =
 		push ctx [VNull];
 		write ctx AEqual;
 		let jump_end = cjmp ctx in
-		push ctx [VReg 0; VInt 1];
+		if e.eexpr = TLocal "__hkeys__" then begin			
+			push ctx [VInt 1; VInt 1; VReg 0; VStr ("substr",true)];
+			call ctx VarObj 1;
+		end else begin
+			push ctx [VReg 0];
+		end;
+		push ctx [VInt 1];
 		get_tmp ctx r;
 		push ctx [VStr ("push",true)];
 		call ctx VarObj 1;
@@ -868,7 +875,7 @@ and gen_call ctx e el =
 		loop false;
 		jump_end();
 		get_tmp ctx r;
-		free_tmp ctx r e.epos;
+		free_tmp ctx r e2.epos;
 	| TLocal "__unprotect__", [{ eexpr = TConst (TString s) }] ->
 		push ctx [VStr (s,false)]
 	| _ , _ ->
