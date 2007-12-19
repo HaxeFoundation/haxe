@@ -61,7 +61,9 @@ class MetaPart<T> {
 	var contentType : String;
 	var charset : String;
 	var boundary : String;
-	public var name : String;
+
+	var name : String;
+
 	var id : String;
 	var subPart : Bool;
 
@@ -78,6 +80,34 @@ class MetaPart<T> {
 
 	public function getContentType(){
 		return contentType;
+	}
+
+	public function getName( ?charsetOut : String ){
+		var r = name;
+		if( charsetOut != null && charsetOut != charset ){
+			var cslc = charsetOut.toLowerCase();
+			var charsetlc = charset.toLowerCase();
+			if( cslc != "utf-8" && charsetlc == "utf-8" ){
+				r =  Utf8.decode( r );
+			}else if( charsetlc != "utf-8" && cslc == "utf-8" ){
+				r =  Utf8.encode( r );
+			}
+		}
+
+		return r;
+	}
+
+	public function setName( n : String, ?cs : String ){
+		name = n;
+		if( cs != null && cs != charset ){
+			var cslc = cs.toLowerCase();
+			var charsetlc = charset.toLowerCase();
+			if( cslc != "utf-8" && charsetlc == "utf-8" ){
+				name =  Utf8.encode( name );
+			}else if( charsetlc != "utf-8" && cslc == "utf-8" ){
+				name =  Utf8.decode( name );
+			}
+		}
 	}
 
 	public function addPart( part : T ){
@@ -340,10 +370,6 @@ class MetaPart<T> {
 			if( hctype.params.exists("boundary") ){
 				boundary = hctype.params.get("boundary");
 			}
-
-			if( hctype.params.exists("name") ){
-				name = hctype.params.get("name");
-			}
 		}
 		
 		contentType = ctype0+"/"+ctype1;
@@ -374,10 +400,13 @@ class MetaPart<T> {
 			}
 		}
 
+		hctype = Tools.parseComplexHeader(getHeader("Content-Type"));
+		if( hctype != null && hctype.params.exists("name") )
+			name = hctype.params.get("name");
+
 		var cdispo = Tools.parseComplexHeader(getHeader("Content-Disposition"));
-		if( cdispo != null && cdispo.params.exists("filename") ){
+		if( cdispo != null && cdispo.params.exists("filename") )
 			name = cdispo.params.get("filename");
-		}
 	}
 
 	function splitContent(){

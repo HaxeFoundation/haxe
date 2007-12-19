@@ -47,15 +47,21 @@ class BodyStructure {
 		params = new Hash();
 	}
 
-	public function getMainPart( ?level : Int, ?priority : Int, ?cpriority : Int ) : BodyStructure {
+	public function getMainPart( ?preferHtml : Bool, ?level : Int, ?priority : Int, ?cpriority : Int ) : BodyStructure {
 		if( level == null ) level = 0;
 		if( priority == null ) priority = 0;
 		if( cpriority == null ) cpriority = 0;
+		if( preferHtml == null ) preferHtml = true;
 
 		if( ctype0 != "multipart" || (level == 0 && parts.length == 0) ){
 			if( level == 0 ) return this;
-			if( ctype1 == "html" ) return this;
-			if( ctype1 == "plain" && cpriority > 0 ) return this;
+			if( preferHtml ){
+				if( ctype1 == "html" ) return this;
+				if( ctype1 == "plain" && cpriority > 0 ) return this;
+			}else{
+				if( ctype1 == "plain" ) return this;
+				if( ctype1 == "html" && cpriority > 0 ) return this;
+			}
 		}else{
 			if( level == 0 ){
 				// multipart !
@@ -64,7 +70,7 @@ class BodyStructure {
 					do {
 						var r = null;
 						for( part in parts ){
-							r = part.getMainPart( level + 1, priority, cpriority );
+							r = part.getMainPart( preferHtml, level + 1, priority, cpriority );
 							if( r != null ) break;
 						}
 						if( r != null ) return r;
@@ -77,7 +83,7 @@ class BodyStructure {
 				if( ctype1 == "alternative" || priority > 0 ){
 					var r = null;
 					for( part in parts ){
-						r = part.getMainPart( level + 1, priority, cpriority );
+						r = part.getMainPart( preferHtml, level + 1, priority, cpriority );
 						if( r != null ) return r;
 					}
 				}

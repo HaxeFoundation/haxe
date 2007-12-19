@@ -35,7 +35,7 @@ class Tools {
 	static var HEXA = "0123456789ABCDEF";
 
 
-	static var REG_HEADER_DECODE = ~/^(.*?)=\?([^\?]+)\?(Q|B)\?([^?]*)\?=(.*?)$/i;
+	static var REG_HEADER_DECODE = ~/^(.*?)=\?([^\?]+)\?(Q|B)\?([^?]*)\?=\s*(.*?)$/i;
 	static var REG_QP_LB = ~/=\\r?\\n/;
 	static var REG_QP = ~/=([A-Fa-f0-9]{1,2})/;
 	static var REG_SPACES = ~/\s+/g;
@@ -209,8 +209,8 @@ class Tools {
 			}
 
 			if( initSize + addr.length > 75 ){
-				ret.add("\r\n");
-				initSize = 0;
+				ret.add("\r\n ");
+				initSize = 1;
 			}
 			ret.add( addr );
 			initSize += addr.length;
@@ -219,8 +219,42 @@ class Tools {
 		return lret.join(", ");
 	}
 
+	public static function headerComplexEncode( ostr : String, initSize : Int, charset : String ){
+		var e = parseComplexHeader(ostr);
+		var ret = new StringBuf();
+
+		var b = headerQpEncode(e.value,initSize,charset);
+		ret.add(b);
+			
+		for( k in e.params.keys() ){
+			ret.add(";");
+			initSize += 1;
+			var p = b.lastIndexOf("\n");
+			if( p == -1 )
+				initSize += b.length;
+			else
+				initSize = b.length - p;
+			
+			if( initSize + k.length + 3 > 75 ){
+				ret.add("\r\n ");
+				initSize = 1;
+			}else{
+				ret.add(" ");
+				initSize++;
+			}
+			ret.add(k);
+			ret.add("=\"");
+			initSize += k.length + 2;
+			b = headerQpEncode(e.params.get(k),initSize,charset);
+			ret.add(b);
+			ret.add("\"");
+		}
+
+		return ret.toString();
+	}
+
 	public static function headerDecode( str : String, charsetOut : String ){
-		str = ~/\r?\n\s*/.replace(str," ");
+		str = ~/\r?\n\s?/.replace(str," ");
 		while( REG_HEADER_DECODE.match(str) ){
 			var charset = StringTools.trim(REG_HEADER_DECODE.matched(2).toLowerCase());
 			var encoding = StringTools.trim(REG_HEADER_DECODE.matched(3).toLowerCase());
@@ -305,6 +339,8 @@ class Tools {
 		var lname = name.toLowerCase();
 		if( lname == "to" || lname == "from" || lname == "cc" || lname == "bcc" ){
 			return name+": "+headerAddressEncode(content,name.length+2,charset)+"\r\n";
+		}else if( lname.substr(0,8) == "content-" ){
+			return name+": "+headerComplexEncode(content,name.length+2,charset)+"\r\n";
 		}else{
 			return name+": "+headerQpEncode(content,name.length+2,charset)+"\r\n";
 		}
@@ -432,10 +468,7 @@ class Tools {
 				address = REG_ADDRESS.matched(1);
 				s = REG_ADDRESS.matchedRight();
 			}else if( REG_ROUTE_ADDR.match(s) ){
-				if( address != null ){
-					if( name == null ) name = address;
-					else name += " "+address;
-				}
+				if( address != null ) throw Exception.ParseError(str+", near: "+s.substr(0,15));
 				address = REG_ROUTE_ADDR.matched(1);
 				s = REG_ROUTE_ADDR.matchedRight();
 			}else if( REG_ATOM.match(s) ){
