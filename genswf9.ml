@@ -867,23 +867,37 @@ let rec gen_expr_content ctx retval e =
 	| TMatch (e0,_,cases,def) ->
 		let t = classify ctx e.etype in
 		let rparams = alloc_reg ctx (KType (type_path ctx ([],"Array"))) in
-		let rindex = alloc_reg ctx KInt in
+		let has_params = List.exists (fun (_,p,_) -> p <> None) cases in
 		gen_expr ctx true e0;
-		write ctx HDup;
+		if has_params then begin
+			write ctx HDup;
+			write ctx (HGetProp (ident "params"));
+			set_reg ctx rparams;
+		end;
 		write ctx (HGetProp (ident "index"));
-		set_reg ctx rindex;
-		write ctx (HGetProp (ident "params"));
-		set_reg ctx rparams;
+		write ctx HToInt;
 		let branch = begin_branch ctx in
-		let jswitch = jump ctx J3Always in
+		let switch_index = DynArray.length ctx.code in
+		let switch_pos = ctx.infos.ipos in
+		write ctx (HSwitch (0,[]));		
+		(match def with
+		| None ->
+			if retval then begin
+				write ctx HNull;
+				coerce ctx t;
+			end;
+		| Some e ->
+			gen_expr ctx retval e;
+			if retval && classify ctx e.etype <> t then coerce ctx t;
+		);
 		let constructs = ref [] in
 		let max = ref 0 in
 		let jends = List.map (fun (cl,params,e) ->
+			let j = jump ctx J3Always in
 			List.iter (fun tag ->
 				if tag > !max then max := tag;
 				constructs := (tag,ctx.infos.ipos) :: !constructs;
 			) cl;
-			write ctx HLabel;
 			let b = open_block ctx [e] retval in
 			(match params with
 			| None -> ()
@@ -908,30 +922,12 @@ let rec gen_expr_content ctx retval e =
 				ctx.infos.istack <- ctx.infos.istack - 1;
 				if classify ctx e.etype <> t then coerce ctx t;
 			end;
-			jump ctx J3Always;
+			j
 		) cases in
-		let def_pos = ctx.infos.ipos in
-		write ctx HLabel;
-		(match def with
-		| None ->
-			if retval then begin
-				write ctx HNull;
-				coerce ctx t;
-			end;
-		| Some e ->
-			gen_expr ctx retval e;
-			if retval && classify ctx e.etype <> t then coerce ctx t;
-		);
-		let jdef = jump ctx J3Always in
-		jswitch();
-		write ctx (HReg rindex.rid);
-		free_reg ctx rindex;
-		let def = def_pos - ctx.infos.ipos in
-		let cases = Array.create (!max + 1) def in
-		List.iter (fun (tag,pos) -> Array.set cases tag (pos - ctx.infos.ipos)) !constructs;
-		write ctx (HSwitch (def,Array.to_list cases));
-		List.iter (fun j -> j()) jends;
-		jdef();
+		let cases = Array.create (!max + 1) 1 in
+		List.iter (fun (tag,pos) -> Array.set cases tag (pos - switch_pos)) !constructs;
+		List.iter (fun j -> j()) jends;		
+		DynArray.set ctx.code switch_index (HSwitch (1,Array.to_list cases));
 		branch();
 		free_reg ctx rparams
 
