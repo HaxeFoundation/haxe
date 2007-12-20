@@ -60,7 +60,7 @@ class StringBuf {
 	**/
 	public function addSub( s : String, pos : Int, ?len : Int ) {
 		#if neko
-		__add_sub(b,untyped s.__s,pos,len);
+		__add_sub(b,untyped s.__s,pos,len == null ? s.length - pos : len);
 		#else flash9
 		if( len == null )
 			b += s.substr(pos);
