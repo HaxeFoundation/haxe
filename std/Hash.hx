@@ -163,14 +163,14 @@ class Hash<T> {
 		#if flash9
 		return untyped {
 			ref : h,
-			it : keys(),
+			it : __keys__(h).iterator(),
 			hasNext : function() { return this.it.hasNext(); },
 			next : function() { var i : Dynamic = this.it.next(); return this.ref[i]; }
 		};
 		#else flash
 		return untyped {
 			ref : h,
-			it : keys(),
+			it : __keys__(h)["iterator"](),
 			hasNext : function() { return this.it[__unprotect__("hasNext")](); },
 			next : function() { var i = this.it[__unprotect__("next")](); return this.ref[i]; }
 		};
@@ -179,7 +179,7 @@ class Hash<T> {
 			ref : h,
 			it : keys(),
 			hasNext : function() { return this.it.hasNext(); },
-			next : function() { var i = this.it.next(); return this.ref[i]; }
+			next : function() { var i = this.it.next(); return this.ref["$"+i]; }
 		};
 		#else neko
 		var l = new List<T>();
