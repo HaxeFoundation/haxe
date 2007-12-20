@@ -26,6 +26,7 @@ type context = {
 	mutable f9clips : f9class list;
 	mutable code : tag_data list;
 	mutable as3code : As3hl.hl_tag;
+	mutable genmethod : unit -> As3hl.hl_method;
 }
 
 let tag ?(ext=false) d = {
@@ -52,6 +53,58 @@ let convert_header ver (w,h,fps,bg) =
 let default_header ver =
 	convert_header ver (400,300,30.,0xFFFFFF)
 
+let getclass i =
+	if Array.length i.hls_fields <> 1 then
+		None
+	else match i.hls_fields.(0).hlf_kind with
+	| HFClass c ->
+		Some (match c.hlc_name with
+			| HMPath (pack,name) -> pack,name
+			| _ -> assert false)
+	| _ ->
+		None
+
+let build_movieclip ctx (pack,name) =
+	let name = HMPath (pack,name) in
+	let mc = HMPath (["flash";"display"],"MovieClip") in
+	let c = {
+		hlc_name = name;
+		hlc_super = Some mc;
+		hlc_sealed = false;
+		hlc_final = false;
+		hlc_interface = false;
+		hlc_namespace = None;
+		hlc_implements = [||];
+		hlc_construct = ctx.genmethod();
+		hlc_fields = [||];
+		hlc_static_construct = ctx.genmethod();
+		hlc_static_fields = [||];
+	} in
+	let init = ctx.genmethod() in
+	{
+		hls_method = { init with
+			hlmt_function = match init.hlmt_function with
+				| None -> assert false
+				| Some f -> Some { f with
+					hlf_stack_size = 2;
+					hlf_max_scope = 3;
+					hlf_code = [|
+						HThis;
+						HScope;
+						HGetGlobalScope;
+						HGetLex mc;
+						HScope;
+						HGetLex mc;
+						HClassDef c;
+						HPopScope;
+						HInitProp name;
+						HRetVoid;
+					|];
+				}
+		};
+		hls_fields = [|{ hlf_name = c.hlc_name; hlf_slot = 1; hlf_kind = HFClass c; hlf_metas = None }|];
+	}
+
 let generate file ver header infile types hres =
 	let t = Plugin.timer "generate swf" in
 	let file , codeclip = (try let f , c = ExtString.String.split file "@" in f, Some c with _ -> file , None) in
@@ -60,15 +113,23 @@ let generate file ver header infile types hres =
 		f9clips = [];
 		as3code = [];
 		code = [];
+		genmethod = (fun() -> assert false);
 	} in
 	if ver = 9 then begin
 		(* hack for an ocaml bug *)
 		(* instead of : let code, boot = Genswf9.generate types hres in *)
 		let f (h:(string,string) Hashtbl.t) = Genswf9.generate types h in
 		let tmp : (string,string) Hashtbl.t = hres in
-		let code, boot = f (Obj.magic tmp) in
-		ctx.as3code <- code;
-		ctx.f9clips <- [{ f9_cid = None; f9_classname = boot }];
+		let code, boot, m = f (Obj.magic tmp) in
+		ctx.as3code <- (match code with
+			| [i] when Array.length i.hls_fields = 0 ->
+				(* if we don't have any class defined, don't include Boot *)
+				[] 
+			| _ ->
+				ctx.f9clips <- [{ f9_cid = None; f9_classname = boot }];
+				code
+		);
+		ctx.genmethod <- m;
 	end else begin
 		let code, clips = Genswf8.generate file ver types hres in
 		ctx.code <- code;
@@ -107,8 +168,14 @@ let generate file ver header infile types hres =
 					tag (TExport [{ exp_id = !base_id; exp_name = link }]);
 				]
 		) in
+		List.iter (fun c ->
+			let path = ExtString.String.nsplit c.f9_classname "." in
+			let path = (match List.rev path with [] -> assert false | x :: l -> List.rev l, x) in
+			if c.f9_cid <> None && not (List.exists (fun i -> getclass i = Some path) ctx.as3code) then
+				ctx.as3code <- build_movieclip ctx path :: ctx.as3code;
+		) ctx.f9clips;
 		let as3code = (match ctx.as3code with [] -> [] | l -> [tag (TActionScript3 (None,As3hlparse.flatten l))]) in
-		let clips9 = if ver = 9 then [tag (TF9Classes ctx.f9clips)] else [] in
+		let clips9 = (if ver = 9 then [tag (TF9Classes ctx.f9clips)] else []) in
 		sandbox @ debug @ content @ clips @ code @ as3code @ clips9
 	in
 	let swf = (match infile with
@@ -165,25 +232,16 @@ let generate file ver header infile types hres =
 				| TSandbox _ ->
 					loop acc l
 				| TF9Classes cl ->
-					ctx.f9clips <- cl @ ctx.f9clips;
+					if ver = 9 then ctx.f9clips <- cl @ ctx.f9clips;
 					loop acc l
 				| TActionScript3 (_,data) ->
 					if ver = 9 then begin
 						(* only keep classes that are not redefined in HX code *)
 						let inits = As3hlparse.parse data in
 						let inits = List.filter (fun i ->
-							if Array.length i.hls_fields <> 1 then
-								true
-							else
-								match i.hls_fields.(0).hlf_kind with
-								| HFClass c ->
-									let path = (match c.hlc_name with
-										| HMPath (pack,name) -> pack,name
-										| _ -> assert false
-									) in
-									not (List.exists (fun t -> Type.t_path t = path) types)
-								| _ ->
-									true
+							match getclass i with
+							| None -> true
+							| Some path -> not (List.exists (fun t -> Type.t_path t = path) types)
 						) inits in
 						ctx.as3code <- inits @ ctx.as3code;
 					end;

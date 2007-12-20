@@ -1619,7 +1619,6 @@ let generate_inits ctx types hres =
 	}
 
 let generate types hres =
-	Random.self_init();
 	let ctx = {
 		boot = "Boot_" ^ Printf.sprintf "%X" (Random.int 0xFFFFFF);
 		code = DynArray.create();
@@ -1637,7 +1636,8 @@ let generate types hres =
 	} in
 	let classes = List.map (fun t -> (t,generate_type ctx t)) types in
 	let init = generate_inits ctx classes hres in
-	[init], ctx.boot
+	[init], ctx.boot, (fun () -> empty_method ctx null_pos)
 
 ;;
+Random.self_init();
 gen_expr_ref := gen_expr

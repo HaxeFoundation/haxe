@@ -18,6 +18,7 @@
 	always use match for enums (no switch even if constant)
 	fixed DateTools.format %I and %l in Flash/JS
 	securized Hash for JS and Flash
+	compiletime F9 class generation for F8 swflib
 
 2007-10-31: 1.16
 	use _sans font for default flash traces (better Linux support)
