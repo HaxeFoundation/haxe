@@ -75,6 +75,11 @@ class Lib {
 		untyped __global__["trace"](arg);
 	}
 
+	public static function attach( name : String ) : flash.display.MovieClip {
+		var cl = untyped __as__(__global__["flash.utils.getDefinitionByName"](name),Class);
+		return untyped __new__(cl);
+	}
+
 }
 
 
