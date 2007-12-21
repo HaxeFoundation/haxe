@@ -439,7 +439,7 @@ let begin_fun ctx args tret el stat p =
 	let rec find_this e =
 		match e.eexpr with
 		| TFunction _ -> ()
-		| TConst TThis -> raise Exit
+		| TConst TThis | TConst TSuper -> raise Exit
 		| _ -> Transform.iter find_this e
 	in
 	let this_reg = try List.iter find_this el; false with Exit -> true in
