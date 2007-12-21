@@ -2064,7 +2064,7 @@ and optimize_for_loop ctx i e1 e2 p =
 		let i = add_local ctx i t_int in
 		let ident = mk (TLocal i) t_int p in
 		let incr = mk (TUnop (Increment,Prefix,ident)) t_int p in
-		let rec check e =
+		let rec check cont e =
 			match e.eexpr with
 			| TBinop (OpAssign,{ eexpr = TLocal l },_)
 			| TBinop (OpAssignOp _,{ eexpr = TLocal l },_)
@@ -2073,12 +2073,14 @@ and optimize_for_loop ctx i e1 e2 p =
 				error "Loop variable cannot be modified" e.epos				
 			| TFunction f when List.exists (fun (l,_,_) -> l = i) f.tf_args ->
 				e
-			| TContinue ->
+			| TContinue when cont ->
 				mk (TBlock [incr;e]) e.etype e.epos
+			| TWhile _ | TFor _ ->
+				Transform.map (check false) e
 			| _ ->
-				Transform.map check e
+				Transform.map (check cont) e
 		in
-		let e2 = check (type_expr ~need_val:false ctx e2) in
+		let e2 = check true (type_expr ~need_val:false ctx e2) in
 		let block = match e2.eexpr with
 			| TBlock el -> mk (TBlock (el@[incr])) t_void e2.epos
 			| _ -> mk (TBlock [e2;incr]) t_void p
