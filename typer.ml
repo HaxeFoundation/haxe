@@ -1702,34 +1702,10 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		mk (TVars vl) (t_void ctx) p
 	| EFor (i,e1,e2) ->
 		let e1 = type_expr ctx e1 in
-		let t, pt = t_iterator ctx in
-		let e1 = (match follow e1.etype with
-		| TAnon _
-		| TInst _ ->
-			(try
-				unify_raise ctx e1.etype t e1.epos;
-				e1
-			with Error (Unify _,_) ->
-				let acc = acc_get (type_field ctx e1 "iterator" e1.epos true) e1.epos in
-				match follow acc.etype with
-				| TFun ([],it) ->
-					unify ctx it t e1.epos;
-					mk (TCall (acc,[])) t e1.epos
-				| _ ->
-					error "The field iterator is not a method" e1.epos
-			)
-		| TMono _
-		| TDynamic _ ->
-			error "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e1.epos;
-		| _ ->
-			unify ctx e1.etype t e1.epos;
-			e1
-		) in
 		let old_loop = ctx.in_loop in
 		let old_locals = save_locals ctx in
-		let i = add_local ctx i pt in
 		ctx.in_loop <- true;
-		let e = Transform.optimize_for_loop i pt e1 (fun () -> type_expr ~need_val:false ctx e2) p (t_void ctx) (t_bool ctx) (gen_local ctx) error in
+		let e = optimize_for_loop ctx i e1 e2 p in
 		ctx.in_loop <- old_loop;
 		old_locals();
 		e
@@ -2074,6 +2050,115 @@ and type_function ctx t static constr f p =
 	ctx.in_constructor <- old_constr;
 	ctx.opened <- old_opened;
 	e , fargs
+
+and optimize_for_loop ctx i e1 e2 p =
+	let t_void = t_void ctx in
+	match e1.eexpr with
+	| TNew ({ cl_path = ([],"IntIter") },[],[i1;i2]) ->
+		let t_int = t_int ctx in
+		let max = (match i1.eexpr , i2.eexpr with
+			| TConst (TInt a), TConst (TInt b) when Int32.compare b a <= 0 -> error "Range operate can't iterate backwards" p				
+			| _, TConst _ | _ , TLocal _ -> None
+			| _ -> Some (gen_local ctx t_int)
+		) in		
+		let i = add_local ctx i t_int in
+		let ident = mk (TLocal i) t_int p in
+		let incr = mk (TUnop (Increment,Prefix,ident)) t_int p in
+		let rec check e =
+			match e.eexpr with
+			| TBinop (OpAssign,{ eexpr = TLocal l },_)
+			| TBinop (OpAssignOp _,{ eexpr = TLocal l },_)
+			| TUnop (Increment,_,{ eexpr = TLocal l })
+			| TUnop (Decrement,_,{ eexpr = TLocal l })  when l = i ->
+				error "Loop variable cannot be modified" e.epos				
+			| TFunction f when List.exists (fun (l,_,_) -> l = i) f.tf_args ->
+				e
+			| TContinue ->
+				mk (TBlock [incr;e]) e.etype e.epos
+			| _ ->
+				Transform.map check e
+		in
+		let e2 = check (type_expr ~need_val:false ctx e2) in
+		let block = match e2.eexpr with
+			| TBlock el -> mk (TBlock (el@[incr])) t_void e2.epos
+			| _ -> mk (TBlock [e2;incr]) t_void p
+		in
+		(match max with
+		| None ->
+			mk (TBlock [
+				mk (TVars [i,i1.etype,Some i1]) t_void p;
+				mk (TWhile (
+					mk (TBinop (OpLt, ident, i2)) (t_bool ctx) p,
+					block,
+					NormalWhile
+				)) t_void p;
+			]) t_void p
+		| Some max ->
+			mk (TBlock [
+				mk (TVars [i,i1.etype,Some i1;max,i2.etype,Some i2]) t_void p;
+				mk (TWhile (
+					mk (TBinop (OpLt, ident, mk (TLocal max) i2.etype p)) (t_bool ctx) p,
+					block,
+					NormalWhile
+				)) t_void p;
+			]) t_void p)
+	| _  ->
+		match follow e1.etype with
+		| TInst({ cl_path = [],"Array" },[pt]) ->
+			let t_int = t_int ctx in
+			let i = add_local ctx i pt in
+			let index = gen_local ctx t_int in
+			let arr, avars = (match e1.eexpr with
+				| TLocal _ -> e1, []
+				| _ ->
+					let atmp = gen_local ctx e1.etype in
+					mk (TLocal atmp) e1.etype e1.epos, [atmp,e1.etype,Some e1]
+			) in
+			let iexpr = mk (TLocal index) t_int p in
+			let e2 = type_expr ~need_val:false ctx e2 in
+			let aget = mk (TVars [i,pt,Some (mk (TArray (arr,iexpr)) pt p)]) t_void p in
+			let incr = mk (TUnop (Increment,Prefix,iexpr)) t_int p in
+			let block = match e2.eexpr with
+				| TBlock el -> mk (TBlock (aget :: incr :: el)) t_void e2.epos
+				| _ -> mk (TBlock [aget;incr;e2]) t_void p
+			in
+			let ivar = index, t_int, Some (mk (TConst (TInt 0l)) t_int p) in			
+			mk (TBlock [
+				mk (TVars (ivar :: avars)) t_void p;
+				mk (TWhile (
+					mk (TBinop (OpLt, iexpr, mk (TField (arr,"length")) t_int p)) (t_bool ctx) p,
+					block,
+					NormalWhile
+				)) t_void p;
+			]) t_void p
+		| _ ->
+			let t, pt = t_iterator ctx in
+			let i = add_local ctx i pt in
+			let e1 = (match follow e1.etype with
+			| TAnon _
+			| TInst _ ->
+				(try
+					unify_raise ctx e1.etype t e1.epos;
+					e1
+				with Error (Unify _,_) ->
+					let acc = acc_get (type_field ctx e1 "iterator" e1.epos true) e1.epos in
+					match follow acc.etype with
+					| TFun ([],it) ->
+						unify ctx it t e1.epos;
+						mk (TCall (acc,[])) t e1.epos
+					| _ ->
+						error "The field iterator is not a method" e1.epos
+				)
+			| TMono _
+			| TDynamic _ ->
+				error "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e1.epos;
+			| _ ->
+				unify ctx e1.etype t e1.epos;
+				e1
+			) in
+			let e2 = type_expr ~need_val:false ctx e2 in
+			mk (TFor (i,pt,e1,e2)) t_void p
+
 
 let type_static_var ctx t e p =
 	ctx.in_static <- true;
