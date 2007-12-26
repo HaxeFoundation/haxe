@@ -143,6 +143,31 @@ let read_type_path p cp =
 
 let delete_file f = try Sys.remove f with _ -> ()
 
+let parse_hxml file =
+	let ch = (try open_in file with _ -> failwith ("File not found " ^ file)) in
+	let lines = Std.input_list ch in
+	close_in ch;
+	List.concat (List.map (fun l ->
+		let l = ExtString.String.strip l in
+		(*// disabled - need additional str.cmxa linkage
+			let renv = Str.regexp "%\\([A-Za-z0-9_]+\\)%" in
+			let l = Str.global_substitute renv (fun _ -> 
+			let e = Str.matched_group 1 l in
+			try Sys.getenv e with Not_found -> "%" ^ e ^ "%"
+		) l in  *)
+		if l = "" || l.[0] = '#' then
+			[]
+		else if l.[0] = '-' then
+			try
+				let a, b = ExtString.String.split l " " in
+				[a; b]
+			with
+				_ -> [l]
+		else
+			[l]
+	) lines)
+
+
 let base_defines = !Plugin.defines
 
 exception Hxml_found
@@ -338,21 +363,7 @@ try
 	let rec args_callback cl =
 		match List.rev (ExtString.String.nsplit cl ".") with
 		| x :: _ when String.lowercase x = "hxml" ->
-			let ch = (try open_in cl with _ -> failwith ("File not found " ^ cl)) in
-			let lines = Std.input_list ch in
-			let hxml_args = List.concat (List.map (fun l ->				
-				let l = ExtString.String.strip l in
-				if l = "" || l.[0] = '#' then
-					[]
-				else if l.[0] = '-' then
-					try
-						let a, b = ExtString.String.split l " " in
-						[a; b]
-					with
-						_ -> [l]
-				else
-					[l]
-			) lines) in
+			let hxml_args = parse_hxml cl in
 			let p1 = Array.to_list (Array.sub args 1 (!current - 1)) in
 			let p2 = Array.to_list (Array.sub args (!current + 1) (Array.length args - !current - 1)) in
 			if !Plugin.verbose then print_endline ("Processing HXML : " ^ cl);
