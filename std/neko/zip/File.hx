@@ -27,6 +27,7 @@ package neko.zip;
 typedef ZipEntry = {
 	var fileName : String;
 	var fileSize : Int;
+	var fileTime : Date;
 	var compressed : Bool;
 	var compressedSize : Int;
 	var data : String;
@@ -48,6 +49,18 @@ class File {
 		return s;
 	}
 
+	static function readZipDate( i : neko.io.Input ) {
+		var t = i.readUInt16();
+		var hour = (t >> 11) & 31;
+		var min = (t >> 5) & 63;
+		var sec = t & 31;
+		var d = i.readUInt16();
+		var year = d >> 9;
+		var month = (d >> 5) & 15;
+		var day = d & 31;
+		return new Date(year + 1980, month-1, day, hour, min, sec);
+	}
+
 	public static function readZipEntry( i : neko.io.Input ) : ZipEntry {
 		var h = i.readInt32();
 		if( h == 0x02014B50 || h == 0x06054B50 )
@@ -63,8 +76,7 @@ class File {
 		var compressed = (compression != 0);
 		if( compressed && compression != 8 )
 			throw "Unsupported compression "+compression;
-		var lastmodTime = i.readUInt16();
-		var lastmodDate = i.readUInt16();
+		var mtime = readZipDate(i);
 		var crc32 = i.read(4);
 		var csize = i.readInt32();
 		var usize = i.readInt32();
@@ -84,6 +96,7 @@ class File {
 		return {
 			fileName : fname,
 			fileSize : usize,
+			fileTime : mtime,
 			compressed : compressed,
 			compressedSize : csize,
 			data : data,
@@ -119,6 +132,7 @@ class File {
 			l.add({
 				fileName : e.fileName,
 				fileSize : e.fileSize,
+				fileTime : e.fileTime,
 				compressed : false,
 				compressedSize : e.fileSize,
 				data : data,
@@ -213,7 +227,9 @@ class File {
 		var uid = parseOctal(i.read(8));
 		var gid = parseOctal(i.read(8));
 		var fsize = parseOctal(i.read(12));
-		var mtime = i.read(12);
+		// read in two parts in order to prevent overflow
+		var mtime : Float = parseOctal(i.read(8));
+		mtime = mtime * 512.0 + parseOctal(i.read(4));
 		var crc = i.read(8);
 		var type = i.readChar();
 		var lname = i.readUntil(0);
@@ -234,6 +250,7 @@ class File {
 		return {
 			fileName : fname,
 			fileSize : fsize,
+			fileTime : Date.fromTime(mtime * 1000.0),
 		};
 	}
 
