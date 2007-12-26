@@ -124,7 +124,7 @@ let type_expr_ref = ref (fun _ ?need_val _ -> assert false)
 let type_module_ref = ref (fun _ _ _ _ -> assert false)
 let generate_meta_data = ref (fun _ _ -> assert false)
 
-let null p = mk (TConst TNull) (mk_mono()) p
+let null p t = mk (TConst TNull) t p
 
 let load ctx m p = (!load_ref) ctx m p
 
@@ -718,6 +718,25 @@ let rec return_flow ctx e =
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
 
+
+let make_nullable ctx t =
+	if not ctx.flash9 then
+		t
+	else match follow t with
+	| TFun _
+	| TInst ({ cl_path = ([],"Int") },[])
+	| TInst ({ cl_path = ([],"Float") },[])
+	| TEnum ({ e_path = ([],"Bool") },[]) ->
+		let show = hide_types ctx in
+		(match load_type_def ctx null_pos ([],"Null") with
+		| TTypeDecl td ->
+			show();
+			if List.length td.t_types <> 1 then assert false;
+			TType (td,[t])
+		| _ ->
+			assert false)
+	| _ -> t
+
 let load_type_opt ?(param=false) ctx p t =
 	match t with
 	| None ->
@@ -730,22 +749,7 @@ let load_type_opt ?(param=false) ctx p t =
 			mk_mono()
 	| Some t ->
 		let t = load_type ctx p t in
-		if not param || not ctx.flash9 then
-			t
-		else match follow t with
-		| TFun _
-		| TInst ({ cl_path = [],"Int" },_)
-		| TInst ({ cl_path = [],"Float" },_)
-		| TEnum ({ e_path = [],"Bool" },_) ->
-			let show = hide_types ctx in
-			(match load_type_def ctx null_pos ([],"Null") with
-			| TTypeDecl td ->
-				show();
-				if List.length td.t_types <> 1 then assert false;
-				TType (td,[t])
-			| _ ->				
-				assert false)			
-		| _ -> t
+		if param then make_nullable ctx t else t
 
 let type_expr_with_type ctx e t =
 	match e with
@@ -795,7 +799,7 @@ let unify_call_params ctx name el args p =
 			let e = (!type_expr_ref) ctx ~need_val:true infos in
 			(e, true)
 		else
-			(null p, true)
+			(null p t, true)
 	in
 	let rec loop acc l l2 skip =
 		match l , l2 with
@@ -1467,7 +1471,7 @@ and type_switch ctx e cases def need_val p =
 				| [] -> ()
 				| _ -> display_error ctx ("Some constructors are not matched : " ^ String.concat "," l) p
 			);
-			if need_val then Some (null p) else None
+			if need_val then Some (null p (mk_mono())) else None
 		| Some e ->
 			let e = type_expr ctx ~need_val e in
 			unify_val e;
@@ -1663,8 +1667,14 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		mk (TObjectDecl (List.rev fields)) (TAnon { a_fields = types; a_status = x }) p
 	| EArrayDecl el ->
 		let t = ref (mk_mono()) in
+		let is_null = ref false in
 		let el = List.map (fun e ->
 			let e = type_expr ctx e in
+			(match e.eexpr with
+			| TConst TNull when not !is_null ->
+				is_null := true;
+				t := make_nullable ctx !t;
+			| _ -> ());
 			(try
 				unify_raise ctx e.etype (!t) e.epos;
 			with Error (Unify _,_) -> try
@@ -1717,14 +1727,19 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let e1 = type_expr ctx ~need_val e1 in
 		(match e2 with
 		| None ->
-			if need_val then
-				mk (TIf (e,e1,Some (null p))) e1.etype p
-			else
+			if need_val then begin
+				let t = make_nullable ctx e1.etype in
+				mk (TIf (e,e1,Some (null p t))) t p
+			end else
 				mk (TIf (e,e1,None)) (t_void ctx) p
 		| Some e2 ->
 			let e2 = type_expr ctx ~need_val e2 in
 			let t = if not need_val then t_void ctx else (try
-				unify_raise ctx e1.etype e2.etype p;
+				let t = (match e2.eexpr with
+					| TConst TNull -> make_nullable ctx e1.etype
+					| _  -> e1.etype
+				) in
+				unify_raise ctx t e2.etype p;
 				e2.etype
 			with
 				Error (Unify _,_) ->
