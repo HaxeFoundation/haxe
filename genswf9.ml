@@ -230,14 +230,15 @@ let property p t =
 	match follow t with
 	| TInst ({ cl_path = [],"Array" },_) ->
 		(match p with
-		| "length" | "copy" | "insert" | "remove" | "iterator" -> ident p
-		| _ -> as3 p);
+		| "length" -> ident p, Some KInt
+		| "copy" | "insert" | "remove" | "iterator" -> ident p , None
+		| _ -> as3 p, None);
 	| TInst ({ cl_path = [],"String" },_) ->
 		(match p with
-		| "length" | "charCodeAt" (* use haXe version *) -> ident p
-		| _ -> as3 p);
+		| "length" | "charCodeAt" (* use haXe version *) -> ident p, None
+		| _ -> as3 p, None);
 	| _ ->
-		ident p
+		ident p, None
 
 let default_infos() =
 	{
@@ -611,11 +612,14 @@ let gen_access ctx e (forset : 'a) : 'a access =
 	| TLocal i ->
 		gen_local_access ctx i e.epos forset
 	| TField (e1,f) ->
-		let id = property f e1.etype in
+		let id, k = property f e1.etype in
 		(match e1.eexpr with
 		| TConst TThis when not ctx.in_static -> write ctx (HFindPropStrict id)
 		| _ -> gen_expr ctx true e1);
-		(match follow e1.etype with
+		(match k with
+		| Some t -> VCast (id,t)
+		| None ->
+		match follow e1.etype with
 		| TInst _ | TEnum _ -> VId id
 		| TAnon a when (match !(a.a_status) with Statics _ | EnumStatics _ -> true | _ -> false) -> VId id
 		| _ -> VCast (id,classify ctx e.etype))
@@ -1017,15 +1021,16 @@ and gen_call ctx retval e el =
 	| TField (e1,f) , _ ->
 		gen_expr ctx true e1;
 		List.iter (gen_expr ctx true) el;
+		let id , _ = property f e1.etype in
 		if not retval then
-			write ctx (HCallPropVoid (property f e1.etype,List.length el))
+			write ctx (HCallPropVoid (id,List.length el))
 		else
 			let coerce() =
 				match follow e.etype with
 				| TFun (_,r) -> coerce ctx (classify ctx r)
 				| _ -> ()
 			in
-			write ctx (HCallProperty (property f e1.etype,List.length el));
+			write ctx (HCallProperty (id,List.length el));
 			(match follow e1.etype with
 			| TInst ({ cl_path = [],"Array" },_) ->
 				(match f with
