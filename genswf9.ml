@@ -139,10 +139,9 @@ let jump ctx cond =
 	)
 
 let jump_back ctx =
-	let j = jump ctx J3Always in
 	let p = ctx.infos.ipos in
 	write ctx HLabel;
-	j , (fun cond ->
+	(fun cond ->
 		let delta = p - ctx.infos.ipos in
 		write ctx (HJump (cond,delta))
 	)
@@ -279,7 +278,7 @@ let coerce ctx t =
 		| KUInt -> HToUInt
 		| KFloat -> HToNumber
 		| KBool -> HToBool
-		| KType t -> HAsType t
+		| KType t -> HCast t
 		| KDynamic -> HAsAny
 	)
 
@@ -727,9 +726,8 @@ let rec gen_expr_content ctx retval e =
 		let jstart = (match flag with NormalWhile -> (fun()->()) | DoWhile -> jump ctx J3Always) in
 		let end_loop = begin_loop ctx in
 		let branch = begin_branch ctx in
-		let continue_pos = ctx.infos.ipos + 1 in
-		let here, loop = jump_back ctx in
-		here();
+		let continue_pos = ctx.infos.ipos in
+		let loop = jump_back ctx in
 		let jend = jump_expr ctx econd false in
 		jstart();
 		gen_expr ctx false e;
@@ -790,9 +788,8 @@ let rec gen_expr_content ctx retval e =
 		let b = open_block ctx [e] retval in
 		define_local ctx v t [e];
 		let end_loop = begin_loop ctx in
-		let continue_pos = ctx.infos.ipos + 1 in
-		let here, start = jump_back ctx in
-		here();
+		let continue_pos = ctx.infos.ipos in
+		let start = jump_back ctx in
 		write ctx (HReg r.rid);
 		write ctx (HCallProperty (ident "hasNext",0));
 		let jend = jump ctx J3False in
@@ -958,7 +955,8 @@ and gen_call ctx retval e el =
 		set_reg ctx racc;
 		gen_expr ctx true e2;
 		set_reg ctx rtmp;
-		let start, loop = jump_back ctx in
+		let start = jump ctx J3Always in
+		let loop = jump_back ctx in
 		write ctx (HReg racc.rid);
 		write ctx (HReg rtmp.rid);
 		write ctx (HReg rcounter.rid);
