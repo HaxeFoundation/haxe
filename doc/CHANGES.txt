@@ -19,6 +19,7 @@
 	securized Hash for JS and Flash
 	compiletime F9 class generation for F8 swflib
 	optimized for loops (Array and IntIter)
+	added #line support
 
 2007-10-31: 1.16
 	use _sans font for default flash traces (better Linux support)

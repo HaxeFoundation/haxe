@@ -41,6 +41,7 @@ let error_msg = function
 	| Invalid_option -> "Invalid regular expression option"
 
 let cur_file = ref ""
+let cur_line = ref 1
 let all_lines = Hashtbl.create 0
 let lines = ref []
 let buf = Buffer.create 100
@@ -60,6 +61,7 @@ let keywords =
 
 let init file =
 	cur_file := file;
+	cur_line := 1;
 	lines := []
 
 let save_lines() =
@@ -67,21 +69,23 @@ let save_lines() =
 
 let save() =
 	save_lines();
-	!cur_file
+	!cur_file, !cur_line
 
-let restore file =
+let restore (file,line) =
 	save_lines();
 	cur_file := file;
+	cur_line := line;
 	lines := Hashtbl.find all_lines file
 
 let newline lexbuf =
-	lines :=  (lexeme_end lexbuf) :: !lines
+	lines :=  (lexeme_end lexbuf,!cur_line) :: !lines;
+	incr cur_line
 
 let find_line p lines =
-	let rec loop n delta = function
-		| [] -> n , p - delta
-		| lp :: l when lp > p -> n , p - delta
-		| lp :: l -> loop (n+1) lp l
+	let rec loop line delta = function
+		| [] -> line + 1, p - delta
+		| (lp,line) :: l when lp > p -> line, p - delta
+		| (lp,line) :: l -> loop line lp l
 	in
 	loop 1 0 lines
 

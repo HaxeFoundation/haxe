@@ -665,6 +665,13 @@ let parse code file =
 				process_token (skip_tokens false))
 		| Macro "if" ->
 			process_token (enter_macro())
+		| Macro "line" ->
+			let line = (match next_token() with
+				| (Const (Int s),_) -> int_of_string s
+				| (t,p) -> error (Unexpected t) p
+			) in
+			Lexer.cur_line := line;
+			next_token();
 		| _ ->
 			tk
 
