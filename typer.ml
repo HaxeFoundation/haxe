@@ -2075,6 +2075,7 @@ and type_inline ctx f ethis params tret p =
 		| None -> None
 		| Some e -> Some (f e)
 	in
+	let has_vars = ref false in
 	let rec map term e =
 		match e.eexpr with
 		| TLocal s ->
@@ -2083,6 +2084,7 @@ and type_inline ctx f ethis params tret p =
 			incr this_count;
 			{ e with eexpr = TLocal vthis }
 		| TVars vl ->
+			has_vars := true;
 			let vl = List.map (fun (v,t,e) -> local v,t,opt (map false) e) vl in
 			{ e with eexpr = TVars vl }
 		| TReturn eo ->
@@ -2111,6 +2113,8 @@ and type_inline ctx f ethis params tret p =
 			{ e with eexpr = TBlock (loop l) }
 		| TParenthesis _ | TIf (_,_,Some _) | TSwitch (_,_,Some _) ->
 			Transform.map (map term) e
+		| TConst TSuper ->
+			error "Cannot inline function containing super" e.epos
 		| TFunction _ ->
 			error "Cannot inline functions containing closures" p
 		| _ ->
@@ -2143,12 +2147,13 @@ and type_inline ctx f ethis params tret p =
 		| _ -> Transform.map inline_params e
 	in
 	let e = (if PMap.is_empty subst then e else inline_params e) in
-	let init = (match vars with [] -> None | l -> Some (mk (TVars (List.rev l)) (t_void ctx) p)) in
-	Some (match e.eexpr, init with
-		| _ , None -> e
-		| TBlock l, Some init -> mk (TBlock (init :: l)) tret e.epos
-		| _, Some init -> mk (TBlock [init;e]) tret e.epos
-	)
+	let init = (match vars with [] -> None | l -> Some (mk (TVars (List.rev l)) (t_void ctx) p)) in	
+	if 	Plugin.defined "js" && (init <> None || !has_vars) then
+		None
+	else match e.eexpr, init with
+	| _ , None -> Some e
+	| TBlock l, Some init -> Some (mk (TBlock (init :: l)) tret e.epos)
+	| _, Some init -> Some (mk (TBlock [init;e]) tret e.epos)
 
 and type_function ctx t static constr f p =
 	let locals = save_locals ctx in

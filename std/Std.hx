@@ -63,7 +63,7 @@ class Std {
 	/**
 		Convert a Float to an Int, rounded down.
 	**/
-	public static function int( x : Float ) : Int {
+	public #if flash9 inline #end static function int( x : Float ) : Int {
 		#if flash9
 		return untyped __int__(x);
 		#else true
