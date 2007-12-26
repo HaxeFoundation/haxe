@@ -152,7 +152,6 @@ let type_path ctx path =
 		| [] , "UInt" -> [] , "uint"
 		| [] , "Float" -> [] , "Number"
 		| [] , "Bool" -> [] , "Boolean"
-		| [] , "Void" -> [] , "void"
 		| [] , "Enum" -> [] , "Class"
 		| ["flash"] , "FlashXml__" -> [] , "Xml"
 		| ["flash"] , "Boot" -> [] , ctx.boot
@@ -189,12 +188,16 @@ let type_id ctx t =
 	| TFun _ ->
 		type_path ctx ([],"Function")
 	| TEnum ({ e_path = ([],"Class") as path },_)
-	| TEnum ({ e_path = ([],"Void") as path },_)
 	| TEnum ({ e_path = ([],"Bool") as path },_)
 	| TType ({ t_path = ([],"UInt") as path },_) ->
 		type_path ctx path
 	| _ ->
-		type_path ctx ([],"Object")
+		HMPath ([],"Object")
+
+let type_void ctx t =
+	match follow t with
+	| TEnum ({ e_path = [],"Void" },_) -> HMPath ([],"void")
+	| _ -> type_id ctx t
 
 let classify ctx t =
 	match follow_basic t with
@@ -445,7 +448,7 @@ let begin_fun ctx args tret el stat p =
 	ctx.locals <- PMap.foldi (fun name l acc ->
 		match l with
 		| LReg _ -> acc
-		| LScope _ -> PMap.add name (LGlobal (type_path ctx ([],name))) acc
+		| LScope _ -> PMap.add name (LGlobal (ident name)) acc
 		| LGlobal _ -> PMap.add name l acc
 	) ctx.locals PMap.empty;
 	List.iter (fun (name,_,t) ->
@@ -527,7 +530,7 @@ let begin_fun ctx args tret el stat p =
 		} in
 		let mt = {
 			hlmt_mark = As3hlparse.alloc_mark();
-			hlmt_ret = Some (type_id ctx tret);
+			hlmt_ret = Some (type_void ctx tret);
 			hlmt_args = List.map (fun (_,_,t) -> Some (type_id ctx t)) args;
 			hlmt_native = false;
 			hlmt_var_args = varargs;
