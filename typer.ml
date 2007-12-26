@@ -69,6 +69,7 @@ type access_kind =
 	| AccExpr of texpr
 	| AccSet of texpr * string * t * string
 	| AccSetField of texpr * string * t
+	| AccInline of texpr * tclass_field * t
 
 type switch_mode =
 	| CMatch of (tenum_field * (string option * t) list option)
@@ -80,9 +81,11 @@ exception Display of t
 let access_str = function
 	| NormalAccess -> "default"
 	| NoAccess -> "null"
+	| NeverAccess -> "never"
 	| MethodAccess m -> m
 	| F9MethodAccess -> "f9dynamic"
 	| ResolveAccess -> "resolve"
+	| InlineAccess -> "inline"
 
 let unify_error_msg ctx = function
 	| Cannot_unify (t1,t2) ->
@@ -266,12 +269,22 @@ let field_access ctx get f t e p =
 	| ResolveAccess ->
 		let fstring = mk (TConst (TString f.cf_name)) (mk_mono()) p in
 		AccExpr (mk (TCall (mk (TField (e,"__resolve")) (mk_mono()) p,[fstring])) t p)
+	| NeverAccess ->
+		AccNo f.cf_name
+	| InlineAccess ->
+		AccInline (e,f,t)
 
 let acc_get g p =
 	match g with
 	| AccNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
 	| AccExpr e -> e
 	| AccSet _ | AccSetField _ -> assert false
+	| AccInline (e,f,t) ->
+		ignore(follow f.cf_type); (* force computing *)
+		match f.cf_expr with
+		| None -> error "Recursive inline is not supported" p
+		| Some { eexpr = TFunction _ } ->  mk (TField (e,f.cf_name)) t p
+		| Some e -> e
 
 (** since load_type is used in PASS2 , it cannot access the structure of a type **)
 
@@ -559,7 +572,7 @@ let set_heritance ctx c herits p =
 		| HExtends t ->
 			if c.cl_super <> None then error "Cannot extend several classes" p;
 			(match t with
-			| { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPConst(String file);TPType t] } -> 
+			| { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPConst(String file);TPType t] } ->
 				extend_xml_proxy ctx c t file p
 			| _ -> ());
 			let t = load_normal_type ctx t p false in
@@ -1171,7 +1184,7 @@ let rec type_binop ctx op e1 e2 p =
 	match op with
 	| OpAssign ->
 		let e1 = type_access ctx (fst e1) (snd e1) false in
-		let e2 = type_expr_with_type ctx e2 (match e1 with AccNo _ -> None | AccExpr e  | AccSetField (e,_,_) | AccSet(e,_,_,_) -> Some e.etype) in
+		let e2 = type_expr_with_type ctx e2 (match e1 with AccNo _ | AccInline _ -> None | AccExpr e | AccSetField (e,_,_) | AccSet(e,_,_,_) -> Some e.etype) in
 		(match e1 with
 		| AccNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
 		| AccExpr e1 ->
@@ -1188,7 +1201,9 @@ let rec type_binop ctx op e1 e2 p =
 			mk (TCall (mk (TField (e,"__setfield")) (mk_mono()) p,[mk (TConst (TString f)) (mk_mono()) p; e2])) t p
 		| AccSet (e,m,t,_) ->
 			unify ctx e2.etype t p;
-			mk (TCall (mk (TField (e,m)) (mk_mono()) p,[e2])) t p)
+			mk (TCall (mk (TField (e,m)) (mk_mono()) p,[e2])) t p
+		| AccInline _ ->
+			assert false)
 	| OpAssignOp op ->
 		(match type_access ctx (fst e1) (snd e1) false with
 		| AccNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
@@ -1213,7 +1228,9 @@ let rec type_binop ctx op e1 e2 p =
 			mk (TBlock [
 				mk (TVars [v,e.etype,Some e]) (t_void ctx) p;
 				mk (TCall (mk (TField (ev,m)) (mk_mono()) p,[get])) t p
-			]) t p)
+			]) t p
+		| AccInline _ ->
+			assert false)
 	| _ ->
 	let e1 = type_expr ctx e1 in
 	let e2 = type_expr ctx e2 in
@@ -1355,7 +1372,7 @@ and type_unop ctx op flag e p =
 		| _ -> mk (TUnop (op,flag,e)) t p)
 	| AccNo s ->
 		error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
-	| AccSetField _ ->
+	| AccSetField _ | AccInline _ ->
 		error "This kind of operation is not supported" p
 	| AccSet (e,m,t,f) ->
 		let l = save_locals ctx in
@@ -1525,7 +1542,7 @@ and type_switch ctx e cases def need_val p =
 			List.map (fun c -> c.ef_index) el, vars, e
 		in
 		let cases = List.map matchs cases in
-		mk (TMatch (e,(en,enparams),List.map indexes cases,def)) t p		
+		mk (TMatch (e,(en,enparams),List.map indexes cases,def)) t p
 
 and type_access ctx e p get =
 	match e with
@@ -1810,95 +1827,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	| EThrow e ->
 		let e = type_expr ctx e in
 		mk (TThrow e) (mk_mono()) p
-	| ECall ((EConst (Ident "trace"),p),e :: el) ->
-		if Plugin.defined "no_traces" then
-			mk (TConst TNull) (t_void ctx) p
-		else
-		let params = (match el with [] -> [] | _ -> ["customParams",(EArrayDecl el , p)]) in
-		let infos = mk_infos ctx p params in
-		type_expr ctx (ECall ((EField ((EType ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[e;EUntyped infos,p]),p)
-	| ECall ((EConst (Ident "callback"),p),e :: params) ->
-		let e = type_expr ctx e in
-		let eparams = List.map (type_expr ctx) params in
-		(match follow e.etype with
-		| TFun (args,ret) ->
-			let rec loop args params eargs =
-				match args, params with
-				| _ , [] ->
-					let k = ref 0 in
-					let fun_arg = ("f",false,e.etype) in
-					let first_args = List.map (fun t -> incr k; "a" ^ string_of_int !k, false, t) (List.rev eargs) in
-					let missing_args = List.map (fun (_,opt,t) -> incr k; "a" ^ string_of_int !k, opt, t) args in
-					let vexpr (v,_,t) = mk (TLocal v) t p in
-					let func = mk (TFunction {
-						tf_args = missing_args;
-						tf_type = ret;
-						tf_expr = mk (TReturn (Some (
-							mk (TCall (vexpr fun_arg,List.map vexpr (first_args @ missing_args))) ret p
-						))) ret p;
-					}) (TFun (missing_args,ret)) p in
-					let func = mk (TFunction {
-						tf_args = fun_arg :: first_args;
-						tf_type = func.etype;
-						tf_expr = mk (TReturn (Some func)) e.etype p;
-					}) (TFun (first_args,func.etype)) p in
-					mk (TCall (func,e :: eparams)) (TFun (missing_args,ret)) p
-				| [], _ -> error "Too many callback arguments" p
-				| (_,_,t) :: args , e :: params ->
-					unify ctx e.etype t p;
-					loop args params (t :: eargs)
-			in
-			loop args eparams []
-		| _ -> error "First parameter of callback is not a function" p);
-	| ECall ((EConst (Ident "type"),_),[e]) ->
-		let e = type_expr ctx e in
-		ctx.warn (s_type (print_context()) e.etype) e.epos;
-		e
-	| ECall ((EConst (Ident "__unprotect__"),_),[(EConst (String _),_) as e]) ->
-		let e = type_expr ctx e in
-		if Plugin.defined "flash" then
-			mk (TCall (mk (TLocal "__unprotect__") (mk_mono()) p,[e])) e.etype e.epos
-		else
-			e
-	| ECall ((EConst (Ident "super"),sp),el) ->
-		if ctx.in_static || not ctx.in_constructor then error "Cannot call superconstructor outside class constructor" p;
-		let el, t = (match ctx.curclass.cl_super with
-		| None -> error "Current class does not have a super" p
-		| Some (c,params) ->
-			let f = (match c.cl_constructor with Some f -> f | None -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
-			let el = (match follow (apply_params c.cl_types params (field_type f)) with
-			| TFun (args,_) ->
-				unify_call_params ctx (Some "new") el args p;
-			| _ ->
-				error "Constructor is not a function" p
-			) in
-			el , TInst (c,params)
-		) in
-		mk (TCall (mk (TConst TSuper) t sp,el)) (t_void ctx) p
 	| ECall (e,el) ->
-		(match e with
-		| EField ((EConst (Ident "super"),_),_) , _ | EType ((EConst (Ident "super"),_),_) , _ -> ctx.super_call <- true
-		| _ -> ());
-		let e = type_expr ctx e in
-		let el , t = (match follow e.etype with
-		| TFun (args,r) ->
-			let el = unify_call_params ctx (match e.eexpr with TField (_,f) -> Some f | _ -> None) el args p in
-			el , r
-		| TMono _ ->
-			let t = mk_mono() in
-			let el = List.map (type_expr ctx) el in
-			unify ctx (TFun (List.map (fun e -> "",false,e.etype) el,t)) e.etype e.epos;
-			el, t
-		| t ->
-			let el = List.map (type_expr ctx) el in
-			el, if t == t_dynamic then
-				t_dynamic
-			else if ctx.untyped then
-				mk_mono()
-			else
-				error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
-		) in
-		mk (TCall (e,el)) t p
+		type_call ctx e el p
 	| ENew (t,el) ->
 		let t = load_normal_type ctx t p true in
 		let el, c , params = (match follow t with
@@ -2020,6 +1950,206 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		| _ ->
 			error "Not a class" p)
 
+and type_call ctx e el p =
+	match e, el with
+	| (EConst (Ident "trace"),p) , e :: el ->
+		if Plugin.defined "no_traces" then
+			mk (TConst TNull) (t_void ctx) p
+		else
+		let params = (match el with [] -> [] | _ -> ["customParams",(EArrayDecl el , p)]) in
+		let infos = mk_infos ctx p params in
+		type_expr ctx (ECall ((EField ((EType ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[e;EUntyped infos,p]),p)
+	| (EConst (Ident "callback"),p) , e :: params ->
+		let e = type_expr ctx e in
+		let eparams = List.map (type_expr ctx) params in
+		(match follow e.etype with
+		| TFun (args,ret) ->
+			let rec loop args params eargs =
+				match args, params with
+				| _ , [] ->
+					let k = ref 0 in
+					let fun_arg = ("f",false,e.etype) in
+					let first_args = List.map (fun t -> incr k; "a" ^ string_of_int !k, false, t) (List.rev eargs) in
+					let missing_args = List.map (fun (_,opt,t) -> incr k; "a" ^ string_of_int !k, opt, t) args in
+					let vexpr (v,_,t) = mk (TLocal v) t p in
+					let func = mk (TFunction {
+						tf_args = missing_args;
+						tf_type = ret;
+						tf_expr = mk (TReturn (Some (
+							mk (TCall (vexpr fun_arg,List.map vexpr (first_args @ missing_args))) ret p
+						))) ret p;
+					}) (TFun (missing_args,ret)) p in
+					let func = mk (TFunction {
+						tf_args = fun_arg :: first_args;
+						tf_type = func.etype;
+						tf_expr = mk (TReturn (Some func)) e.etype p;
+					}) (TFun (first_args,func.etype)) p in
+					mk (TCall (func,e :: eparams)) (TFun (missing_args,ret)) p
+				| [], _ -> error "Too many callback arguments" p
+				| (_,_,t) :: args , e :: params ->
+					unify ctx e.etype t p;
+					loop args params (t :: eargs)
+			in
+			loop args eparams []
+		| _ -> error "First parameter of callback is not a function" p);
+	| (EConst (Ident "type"),_) , [e] ->
+		let e = type_expr ctx e in
+		ctx.warn (s_type (print_context()) e.etype) e.epos;
+		e
+	| (EConst (Ident "__unprotect__"),_) , [(EConst (String _),_) as e] ->
+		let e = type_expr ctx e in
+		if Plugin.defined "flash" then
+			mk (TCall (mk (TLocal "__unprotect__") (mk_mono()) p,[e])) e.etype e.epos
+		else
+			e
+	| (EConst (Ident "super"),sp) , el ->
+		if ctx.in_static || not ctx.in_constructor then error "Cannot call superconstructor outside class constructor" p;
+		let el, t = (match ctx.curclass.cl_super with
+		| None -> error "Current class does not have a super" p
+		| Some (c,params) ->
+			let f = (match c.cl_constructor with Some f -> f | None -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
+			let el = (match follow (apply_params c.cl_types params (field_type f)) with
+			| TFun (args,_) ->
+				unify_call_params ctx (Some "new") el args p;
+			| _ ->
+				error "Constructor is not a function" p
+			) in
+			el , TInst (c,params)
+		) in
+		mk (TCall (mk (TConst TSuper) t sp,el)) (t_void ctx) p
+	| _ ->
+		(match e with
+		| EField ((EConst (Ident "super"),_),_) , _ | EType ((EConst (Ident "super"),_),_) , _ -> ctx.super_call <- true
+		| _ -> ());
+		match type_access ctx (fst e) (snd e) true with
+		| AccInline (ethis,f,t) ->
+			let params, tret = (match follow t with
+				| TFun (args,r) -> unify_call_params ctx (Some f.cf_name) el args p, r
+				| _ -> error (s_type (print_context()) t ^ " cannot be called") p
+			) in
+			ignore(follow f.cf_type); (* force evaluation *)
+			(match f.cf_expr with
+			| Some { eexpr = TFunction fd } ->
+				(match type_inline ctx fd ethis params tret p with
+				| None -> mk (TCall (mk (TField (ethis,f.cf_name)) t p,params)) tret p
+				| Some e -> e)
+			| _ -> error "Recursive inline is not supported" p)
+		| acc ->
+			let e = acc_get acc p in
+			let el , t = (match follow e.etype with
+			| TFun (args,r) ->
+				let el = unify_call_params ctx (match e.eexpr with TField (_,f) -> Some f | _ -> None) el args p in
+				el , r
+			| TMono _ ->
+				let t = mk_mono() in
+				let el = List.map (type_expr ctx) el in
+				unify ctx (TFun (List.map (fun e -> "",false,e.etype) el,t)) e.etype e.epos;
+				el, t
+			| t ->
+				let el = List.map (type_expr ctx) el in
+				el, if t == t_dynamic then
+					t_dynamic
+				else if ctx.untyped then
+					mk_mono()
+				else
+					error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
+			) in
+			mk (TCall (e,el)) t p
+
+and type_inline ctx f ethis params tret p =
+	let locals = save_locals ctx in
+	let hcount = Hashtbl.create 0 in
+	let pnames = List.map (fun (name,_,t) ->
+		let name = add_local ctx name t in
+		Hashtbl.add hcount name (ref 0);
+		name
+	) f.tf_args in
+	let vthis = gen_local ctx ethis.etype in
+	let this_count = ref 0 in
+	let local i =
+		let i = (try PMap.find i ctx.locals_map with Not_found -> i) in
+		(try incr (Hashtbl.find hcount i) with Not_found -> ());
+		i
+	in
+	let opt f = function
+		| None -> None
+		| Some e -> Some (f e)
+	in
+	let rec map term e =
+		match e.eexpr with
+		| TLocal s ->
+			{ e with eexpr = TLocal (local s) }
+		| TConst TThis ->
+			incr this_count;
+			{ e with eexpr = TLocal vthis }
+		| TVars vl ->
+			let vl = List.map (fun (v,t,e) -> local v,t,opt (map false) e) vl in
+			{ e with eexpr = TVars vl }
+		| TReturn eo ->
+			if not term then error "Cannot inline a not final return" e.epos;
+			(match eo with
+			| None -> mk (TConst TNull) (mk_mono()) p
+			| Some e -> Transform.map (map term) e)
+		| TFor (v,t,e1,e2) ->
+			{ e with eexpr = TFor (local v,t,map false e1,map false e2) }
+		| TMatch (e,en,cases,def) ->
+			let term = (match def with None -> false | Some _ -> term) in
+			let cases = List.map (fun (i,vl,e) ->
+				i, opt (List.map (fun (n,t) -> opt local n, t)) vl, map term e
+			) cases in
+			{ e with eexpr = TMatch (map false e,en,cases,opt (map term) def) }
+		| TTry (e1,catches) ->
+			{ e with eexpr = TTry (map term e1,List.map (fun (v,t,e) -> local v,t,map term e) catches) }
+		| TBlock l ->
+			let rec loop = function
+				| [] -> []
+				| [e] -> [map term e]
+				| e :: l ->
+					let e = map false e in
+					e :: loop l
+			in
+			{ e with eexpr = TBlock (loop l) }
+		| TParenthesis _ | TIf (_,_,Some _) | TSwitch (_,_,Some _) ->
+			Transform.map (map term) e
+		| TFunction _ ->
+			error "Cannot inline functions containing closures" p
+		| _ ->
+			Transform.map (map false) e
+	in
+	let e = map true f.tf_expr in
+	locals();
+	let subst = ref PMap.empty in
+	Hashtbl.add hcount vthis this_count;
+	let vars = List.map2 (fun n e ->
+		let flag = (match e.eexpr with
+			| TLocal _ | TConst _ -> true
+			| _ ->
+				let used = !(Hashtbl.find hcount n) in
+				used <= 1
+		) in
+		(n,e.etype,e,flag)
+	) (vthis :: pnames) (ethis :: params) in
+	let vars = List.fold_left (fun acc (n,t,e,flag) ->
+		if flag then begin
+			subst := PMap.add n e !subst;
+			acc
+		end else
+			(n,t,Some e) :: acc
+	) [] vars in
+	let subst = !subst in
+	let rec inline_params e =
+		match e.eexpr with
+		| TLocal s -> (try PMap.find s subst with Not_found -> e)
+		| _ -> Transform.map inline_params e
+	in
+	let e = (if PMap.is_empty subst then e else inline_params e) in
+	let init = (match vars with [] -> None | l -> Some (mk (TVars (List.rev l)) (t_void ctx) p)) in
+	Some (match e.eexpr, init with
+		| _ , None -> e
+		| TBlock l, Some init -> mk (TBlock (init :: l)) tret e.epos
+		| _, Some init -> mk (TBlock [init;e]) tret e.epos
+	)
+
 and type_function ctx t static constr f p =
 	let locals = save_locals ctx in
 	let fargs , r = (match t with
@@ -2072,10 +2202,10 @@ and optimize_for_loop ctx i e1 e2 p =
 	| TNew ({ cl_path = ([],"IntIter") },[],[i1;i2]) ->
 		let t_int = t_int ctx in
 		let max = (match i1.eexpr , i2.eexpr with
-			| TConst (TInt a), TConst (TInt b) when Int32.compare b a <= 0 -> error "Range operate can't iterate backwards" p				
+			| TConst (TInt a), TConst (TInt b) when Int32.compare b a <= 0 -> error "Range operate can't iterate backwards" p
 			| _, TConst _ | _ , TLocal _ -> None
 			| _ -> Some (gen_local ctx t_int)
-		) in		
+		) in
 		let i = add_local ctx i t_int in
 		let ident = mk (TLocal i) t_int p in
 		let incr = mk (TUnop (Increment,Prefix,ident)) t_int p in
@@ -2085,7 +2215,7 @@ and optimize_for_loop ctx i e1 e2 p =
 			| TBinop (OpAssignOp _,{ eexpr = TLocal l },_)
 			| TUnop (Increment,_,{ eexpr = TLocal l })
 			| TUnop (Decrement,_,{ eexpr = TLocal l })  when l = i ->
-				error "Loop variable cannot be modified" e.epos				
+				error "Loop variable cannot be modified" e.epos
 			| TFunction f when List.exists (fun (l,_,_) -> l = i) f.tf_args ->
 				e
 			| TContinue when cont ->
@@ -2139,7 +2269,7 @@ and optimize_for_loop ctx i e1 e2 p =
 				| TBlock el -> mk (TBlock (aget :: incr :: el)) t_void e2.epos
 				| _ -> mk (TBlock [aget;incr;e2]) t_void p
 			in
-			let ivar = index, t_int, Some (mk (TConst (TInt 0l)) t_int p) in			
+			let ivar = index, t_int, Some (mk (TConst (TInt 0l)) t_int p) in
 			mk (TBlock [
 				mk (TVars (ivar :: avars)) t_void p;
 				mk (TWhile (
@@ -2209,6 +2339,8 @@ let check_overriding ctx c p () =
 					display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass") p
 				else if f.cf_public <> f2.cf_public then
 					display_error ctx ("Field " ^ i ^ " has different visibility (public/private) than superclass one") p
+				else if f2.cf_get = InlineAccess then
+					display_error ctx ("Field " ^ i ^ " is inlined and cannot be overridden") p
 				else if f2.cf_get <> f.cf_get || f2.cf_set <> f.cf_set then
 					display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p
 				else try
@@ -2303,7 +2435,10 @@ let init_class ctx c p herits fields =
 		match f with
 		| FVar (name,doc,access,t,e) ->
 			let stat = List.mem AStatic access in
+			let inline = List.mem AInline access in
 			if not stat && has_field name c.cl_super then error ("Redefinition of variable " ^ name ^ " in subclass is not allowed") p;
+			if inline && not stat then error "Inline variable must be static" p;
+			if inline && e = None then error "Inline variable must be initialized" p;
 			let t = (match t with
 				| None ->
 					if not stat then display_error ctx ("Type required for member variable " ^ name) p;
@@ -2319,8 +2454,8 @@ let init_class ctx c p herits fields =
 				cf_name = name;
 				cf_doc = doc;
 				cf_type = t;
-				cf_get = NormalAccess;
-				cf_set = NormalAccess;
+				cf_get = if inline then InlineAccess else NormalAccess;
+				cf_set = if inline then NeverAccess else NormalAccess;
 				cf_expr = None;
 				cf_public = is_public access;
 				cf_params = [];
@@ -2347,6 +2482,7 @@ let init_class ctx c p herits fields =
 				| _ -> error "This notation is not allowed because it can't be checked" p
 			) params in
 			let stat = List.mem AStatic access in
+			let inline = List.mem AInline access in
 			let ctx = { ctx with
 				curclass = c;
 				curmethod = name;
@@ -2367,8 +2503,8 @@ let init_class ctx c p herits fields =
 				cf_name = name;
 				cf_doc = doc;
 				cf_type = t;
-				cf_get = NormalAccess;
-				cf_set = (if ctx.flash9 && not (List.mem AF9Dynamic access) then F9MethodAccess else NormalAccess);
+				cf_get = if inline then InlineAccess else NormalAccess;
+				cf_set = (if inline then NeverAccess else if ctx.flash9 && not (List.mem AF9Dynamic access) then F9MethodAccess else NormalAccess);
 				cf_expr = None;
 				cf_public = is_public access;
 				cf_params = params;
@@ -2416,7 +2552,11 @@ let init_class ctx c p herits fields =
 					MethodAccess get
 			) in
 			let set = (match set with
-				| "null" -> NoAccess
+				| "null" ->
+					if ctx.flash9 && c.cl_extern && (match c.cl_path with "flash" :: _  , _ -> true | _ -> false) then
+						NeverAccess
+					else
+						NoAccess
 				| "dynamic" -> MethodAccess ("set_" ^ name)
 				| "default" -> NormalAccess
 				| _ ->
@@ -2458,10 +2598,10 @@ let init_class ctx c p herits fields =
 	) fields in
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
-	(* 
+	(*
 		define a default inherited constructor.
 		This is actually pretty tricky since we can't assume that the constructor of the
-		superclass has been defined yet because type structure is not stabilized wrt recursion.		
+		superclass has been defined yet because type structure is not stabilized wrt recursion.
 	*)
 	let rec define_constructor ctx c =
 		try
@@ -2545,7 +2685,7 @@ let type_module ctx m tdecls loadp =
 				t_pos = p;
 				t_doc = d.d_doc;
 				t_private = priv;
-				t_types = [];				
+				t_types = [];
 				t_type = mk_mono();
 			} in
 			decls := TTypeDecl t :: !decls
@@ -2644,7 +2784,7 @@ let type_module ctx m tdecls loadp =
 					| [] -> et
 					| l -> TFun (List.map (fun (s,opt,t) -> s, opt, load_type_opt ~param:opt ctx p (Some t)) l, et)
 				) in
-				if PMap.mem c e.e_constrs then error ("Duplicate constructor " ^ c) p;				
+				if PMap.mem c e.e_constrs then error ("Duplicate constructor " ^ c) p;
 				e.e_constrs <- PMap.add c {
 					ef_name = c;
 					ef_type = t;

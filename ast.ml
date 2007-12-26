@@ -60,6 +60,7 @@ type keyword =
 	| F9Dynamic
 	| Package
 	| Callback
+	| Inline
 
 type binop =
 	| OpAdd
@@ -203,6 +204,7 @@ type access =
 	| AStatic
 	| AOverride
 	| AF9Dynamic
+	| AInline
 
 type class_field =
 	| FVar of string * documentation * access list * type_path option * expr option
@@ -321,6 +323,7 @@ let s_keyword = function
 	| F9Dynamic -> "f9dynamic"
 	| Package -> "package"
 	| Callback -> "callback"
+	| Inline -> "inline"
 
 let rec s_binop = function
 	| OpAdd -> "+"

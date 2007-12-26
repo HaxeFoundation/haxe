@@ -84,8 +84,8 @@ let gen_constr e =
 let gen_field att f =
 	let add_get_set acc name att =
 		match acc with
-		| NormalAccess | ResolveAccess -> att
-		| NoAccess -> (name, "null") :: att
+		| NormalAccess | ResolveAccess | InlineAccess -> att
+		| NoAccess | NeverAccess -> (name, "null") :: att
 		| MethodAccess m -> (name, if m = name ^ "_" ^ f.cf_name then "dynamic" else m) :: att
 		| F9MethodAccess -> att
 	in

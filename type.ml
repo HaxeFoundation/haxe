@@ -26,6 +26,8 @@ type field_access =
 	| ResolveAccess
 	| MethodAccess of string
 	| F9MethodAccess
+	| NeverAccess
+	| InlineAccess
 
 type t =
 	| TMono of t option ref
