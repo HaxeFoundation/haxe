@@ -638,7 +638,7 @@ let generate_enum ctx e =
 	let p = s_path e.e_path in
 	generate_package_create ctx e.e_path;
 	let ename = List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst e.e_path @ [snd e.e_path]) in
-	print ctx "%s = { __ename__ : [%s], __constructs__ : [%s] }" p (String.concat "," ename) (String.concat "," (List.map (Printf.sprintf "\"%s\"") e.e_names));
+	print ctx "%s = { __ename__ : [%s], __constructs__ : [%s] }" p (String.concat "," ename) (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
 	newline ctx;
 	PMap.iter (fun _ f ->
 		print ctx "%s%s = " p (field f.ef_name);
