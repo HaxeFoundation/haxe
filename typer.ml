@@ -2211,10 +2211,9 @@ and optimize_for_loop ctx i e1 e2 p =
 			| _, TConst _ | _ , TLocal _ -> None
 			| _ -> Some (gen_local ctx t_int)
 		) in
+		let tmp = gen_local ctx t_int in
 		let i = add_local ctx i t_int in
-		let ident = mk (TLocal i) t_int p in
-		let incr = mk (TUnop (Increment,Prefix,ident)) t_int p in
-		let rec check cont e =
+		let rec check e =
 			match e.eexpr with
 			| TBinop (OpAssign,{ eexpr = TLocal l },_)
 			| TBinop (OpAssignOp _,{ eexpr = TLocal l },_)
@@ -2223,33 +2222,34 @@ and optimize_for_loop ctx i e1 e2 p =
 				error "Loop variable cannot be modified" e.epos
 			| TFunction f when List.exists (fun (l,_,_) -> l = i) f.tf_args ->
 				e
-			| TContinue when cont ->
-				mk (TBlock [incr;e]) e.etype e.epos
-			| TWhile _ | TFor _ ->
-				Transform.map (check false) e
+			| TFor (k,_,_,_) when k = i ->
+				e
 			| _ ->
-				Transform.map (check cont) e
+				Transform.map check e
 		in
-		let e2 = check true (type_expr ~need_val:false ctx e2) in
+		let e2 = check (type_expr ~need_val:false ctx e2) in
+		let etmp = mk (TLocal tmp) t_int p in
+		let incr = mk (TUnop (Increment,Postfix,etmp)) t_int p in
+		let init = mk (TVars [i,t_int,Some incr]) t_void p in
 		let block = match e2.eexpr with
-			| TBlock el -> mk (TBlock (el@[incr])) t_void e2.epos
-			| _ -> mk (TBlock [e2;incr]) t_void p
+			| TBlock el -> mk (TBlock (init :: el)) t_void e2.epos
+			| _ -> mk (TBlock [init;e2]) t_void p
 		in
 		(match max with
 		| None ->
 			mk (TBlock [
-				mk (TVars [i,i1.etype,Some i1]) t_void p;
+				mk (TVars [tmp,i1.etype,Some i1]) t_void p;
 				mk (TWhile (
-					mk (TBinop (OpLt, ident, i2)) (t_bool ctx) p,
+					mk (TBinop (OpLt, etmp, i2)) (t_bool ctx) p,
 					block,
 					NormalWhile
 				)) t_void p;
 			]) t_void p
 		| Some max ->
 			mk (TBlock [
-				mk (TVars [i,i1.etype,Some i1;max,i2.etype,Some i2]) t_void p;
+				mk (TVars [tmp,i1.etype,Some i1;max,i2.etype,Some i2]) t_void p;
 				mk (TWhile (
-					mk (TBinop (OpLt, ident, mk (TLocal max) i2.etype p)) (t_bool ctx) p,
+					mk (TBinop (OpLt, etmp, mk (TLocal max) i2.etype p)) (t_bool ctx) p,
 					block,
 					NormalWhile
 				)) t_void p;
