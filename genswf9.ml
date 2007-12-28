@@ -1245,7 +1245,7 @@ let generate_method ctx fdata stat =
 
 let generate_construct ctx fdata cfields =
 	(* make all args optional to allow no-param constructor *)
-	let f = begin_fun ctx (List.map (fun (a,o,t) -> a,true,t) fdata.tf_args) fdata.tf_type [fdata.tf_expr] false fdata.tf_expr.epos in
+	let f = begin_fun ctx (List.map (fun (a,o,t) -> a,true,t) fdata.tf_args) fdata.tf_type [ethis;fdata.tf_expr] false fdata.tf_expr.epos in
 	(* if skip_constructor, then returns immediatly *)
 	let id = ident "skip_constructor" in
 	getvar ctx (VGlobal (type_path ctx ([],ctx.boot)));
@@ -1356,7 +1356,7 @@ let generate_field_kind ctx f c stat =
 		in
 		if f.cf_set = NormalAccess then
 			Some (HFVar {
-				hlv_type = None;
+				hlv_type = Some (type_path ctx ([],"Function"));
 				hlv_value = HVNone;
 				hlv_const = false;
 			})
