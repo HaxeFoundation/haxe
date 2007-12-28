@@ -1075,14 +1075,15 @@ and gen_unop ctx retval op flag e =
 		let incr = (op = Increment) in
 		let acc = gen_access ctx e Write in (* for set *)
 		match acc with
-		| VReg r when not retval && r.rtype = KInt ->
+		| VReg r when r.rtype = KInt ->
 			if not r.rinit then r.rcond <- true;
+			if retval then getvar ctx (gen_access ctx e Read);
 			write ctx (if incr then HIncrIReg r.rid else HDecrIReg r.rid)
 		| _ ->
 		getvar ctx (gen_access ctx e Read);
 		match flag with
 		| Postfix when retval ->
-			let r = alloc_reg ctx KDynamic in
+			let r = alloc_reg ctx k in
 			write ctx HDup;
 			set_reg ctx r;
 			write ctx (HOp (if incr then A3OIncr else A3ODecr));
