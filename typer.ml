@@ -1348,8 +1348,7 @@ let rec type_binop ctx op e1 e2 p =
 and type_unop ctx op flag e p =
 	let set = (op = Increment || op = Decrement) in
 	let acc = type_access ctx (fst e) (snd e) (not set) in
-	match acc with
-	| AccExpr e ->
+	let access e =
 		let t = (match op with
 		| Not ->
 			let b = t_bool ctx in
@@ -1367,9 +1366,13 @@ and type_unop ctx op flag e p =
 				t_int ctx
 			end
 		) in
-		(match op, e.eexpr with
+		match op, e.eexpr with
 		| Neg , TConst (TInt i) -> mk (TConst (TInt (Int32.neg i))) t p
-		| _ -> mk (TUnop (op,flag,e)) t p)
+		| _ -> mk (TUnop (op,flag,e)) t p
+	in
+	match acc with
+	| AccExpr e -> access e
+	| AccInline _ when not set -> access (acc_get acc p)
 	| AccNo s ->
 		error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
 	| AccSetField _ | AccInline _ ->
