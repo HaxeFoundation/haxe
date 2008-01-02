@@ -325,7 +325,7 @@ class Manager<T : Object> {
 
 	function quoteField(f : String) {
 		var fsmall = f.toLowerCase();
-		if( fsmall == "read" || fsmall == "desc" || fsmall == "out" || fsmall == "group" || fsmall == "version" )
+		if( fsmall == "read" || fsmall == "desc" || fsmall == "out" || fsmall == "group" || fsmall == "version" || fsmall == "option" )
 			return "`"+f+"`";
 		return f;
 	}
