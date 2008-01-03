@@ -705,6 +705,9 @@ let rec gen_expr_content ctx retval e =
 		gen_binop ctx retval op e1 e2 e.etype
 	| TCall (e,el) ->
 		gen_call ctx retval e el
+	| TNew ({ cl_path = [],"Array" },_,[]) ->
+		(* it seems that [] is 4 time faster than new Array() *)
+		write ctx (HArray 0)
 	| TNew (c,_,pl) ->
 		let id = type_path ctx c.cl_path in
 		write ctx (HFindPropStrict id);
