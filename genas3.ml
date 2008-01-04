@@ -302,6 +302,16 @@ let rec gen_call ctx e el =
 		gen_value ctx e;
 		print ctx ") %s.push(%s)" ret tmp;
 		b();
+	| TLocal "__hkeys__", [e] ->
+		let ret = (match ctx.in_value with None -> assert false | Some r -> r) in
+		print ctx "%s = new Array()" ret;
+		newline ctx;
+		let b = save_locals ctx in
+		let tmp = define_local ctx "$k" in
+		print ctx "for(var %s : String in " tmp;
+		gen_value ctx e;
+		print ctx ") %s.push(%s.substr(1))" ret tmp;
+		b();
 	| TLocal "__new__", e :: args ->
 		spr ctx "new ";
 		gen_value ctx e;
@@ -638,7 +648,7 @@ and gen_value ctx e =
 		)
 	in
 	match e.eexpr with
-	| TCall ({ eexpr = TLocal "__keys__" },_) ->
+	| TCall ({ eexpr = TLocal "__keys__" },_) | TCall ({ eexpr = TLocal "__hkeys__" },_) ->
 		let v = value true in
 		gen_expr ctx e;
 		v()
