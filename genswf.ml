@@ -124,7 +124,7 @@ let generate file ver header infile types hres =
 		ctx.as3code <- (match code with
 			| [i] when Array.length i.hls_fields = 0 ->
 				(* if we don't have any class defined, don't include Boot *)
-				[] 
+				[]
 			| _ ->
 				ctx.f9clips <- [{ f9_cid = None; f9_classname = boot }];
 				code
@@ -171,7 +171,7 @@ let generate file ver header infile types hres =
 		List.iter (fun c ->
 			let path = ExtString.String.nsplit c.f9_classname "." in
 			let path = (match List.rev path with [] -> assert false | x :: l -> List.rev l, x) in
-			if c.f9_cid <> None && not (List.exists (fun i -> getclass i = Some path) ctx.as3code) then
+			if c.f9_cid <> None && not (List.exists (fun t -> Type.t_path t = path) types) then
 				ctx.as3code <- build_movieclip ctx path :: ctx.as3code;
 		) ctx.f9clips;
 		let as3code = (match ctx.as3code with [] -> [] | l -> [tag (TActionScript3 (None,As3hlparse.flatten l))]) in
