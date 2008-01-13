@@ -1176,7 +1176,8 @@ and gen_binop ctx retval op e1 e2 t =
 	| OpUShr ->
 		gen_op A3OUShr
 	| OpMod ->
-		gen_op A3OMod
+		gen_op A3OMod;
+		if	classify ctx e1.etype = KInt && classify ctx e2.etype = KInt then coerce ctx (classify ctx t);
 	| OpInterval ->
 		assert false
 

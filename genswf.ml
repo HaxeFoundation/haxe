@@ -20,6 +20,7 @@ open Swf
 open As3
 open As3hl
 open Genswf9
+open Type
 
 type context = {
 	mutable f8clips : string list;
@@ -105,6 +106,20 @@ let build_movieclip ctx (pack,name) =
 		hls_fields = [|{ hlf_name = c.hlc_name; hlf_slot = 1; hlf_kind = HFClass c; hlf_metas = None }|];
 	}
 
+let movieclip_exists types path =
+	let name = Ast.s_type_path path in
+	List.exists (function
+		| TClassDecl c when c.cl_path = path ->
+			(match c.cl_super with
+			| Some ({ cl_path = ["flash";"display"],"MovieClip" },[])
+			| Some ({ cl_path = ["flash";"display"],"Sprite" },[]) -> ()
+			| _ -> failwith ("The class " ^ name ^ " must either extends MovieClip or Sprite"));
+			not c.cl_extern
+		| TEnumDecl e when e.e_path = path -> failwith ("The clip " ^ name ^ " must be bound to a class")
+		| TTypeDecl t when t.t_path = path -> failwith ("The clip " ^ name ^ " must be bound to a class")
+		| _ -> false
+	) types
+
 let generate file ver header infile types hres =
 	let t = Plugin.timer "generate swf" in
 	let file , codeclip = (try let f , c = ExtString.String.split file "@" in f, Some c with _ -> file , None) in
@@ -171,7 +186,7 @@ let generate file ver header infile types hres =
 		List.iter (fun c ->
 			let path = ExtString.String.nsplit c.f9_classname "." in
 			let path = (match List.rev path with [] -> assert false | x :: l -> List.rev l, x) in
-			if c.f9_cid <> None && not (List.exists (fun t -> Type.t_path t = path) types) then
+			if c.f9_cid <> None && not (movieclip_exists types path) then
 				ctx.as3code <- build_movieclip ctx path :: ctx.as3code;
 		) ctx.f9clips;
 		let as3code = (match ctx.as3code with [] -> [] | l -> [tag (TActionScript3 (None,As3hlparse.flatten l))]) in
