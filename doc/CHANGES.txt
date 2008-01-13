@@ -1,4 +1,4 @@
-2007-??-??: 1.17
+2008-01-13: 1.17
 	fixed Int32.compare, added Int32.read and Int32.write
 	fixed type of unitialized registers in flash9
 	fixed Sqlite transactions (commit and rollback now restart a transaction)
