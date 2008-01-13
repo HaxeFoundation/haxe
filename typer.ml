@@ -2154,6 +2154,7 @@ and type_inline ctx f ethis params tret p =
 	if 	Plugin.defined "js" && (init <> None || !has_vars) then
 		None
 	else match e.eexpr, init with
+	| TBlock [e] , None -> Some { e with etype = tret; }
 	| _ , None -> Some { e with etype = tret; }
 	| TBlock l, Some init -> Some (mk (TBlock (init :: l)) tret e.epos)
 	| _, Some init -> Some (mk (TBlock [init;e]) tret e.epos)
