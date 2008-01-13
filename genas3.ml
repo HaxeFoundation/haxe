@@ -447,7 +447,10 @@ and gen_expr ctx e =
 		b();
 	| TFunction f ->
 		let h = gen_function_header ctx None f [] e.epos in
+		let old = ctx.in_static in
+		ctx.in_static <- true;
 		gen_expr ctx (block f.tf_expr);
+		ctx.in_static <- old;
 		h();
 	| TCall (e,el) ->
 		gen_call ctx e el
@@ -679,6 +682,8 @@ and gen_value ctx e =
 		let v = value true in
 		gen_expr ctx e;
 		v()
+	| TBlock [e] ->
+		gen_value ctx e
 	| TBlock el ->
 		let v = value true in
 		let rec loop = function

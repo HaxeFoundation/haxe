@@ -111,9 +111,8 @@ let movieclip_exists types path =
 	List.exists (function
 		| TClassDecl c when c.cl_path = path ->
 			(match c.cl_super with
-			| Some ({ cl_path = ["flash";"display"],"MovieClip" },[])
-			| Some ({ cl_path = ["flash";"display"],"Sprite" },[]) -> ()
-			| _ -> failwith ("The class " ^ name ^ " must either extends MovieClip or Sprite"));
+			| Some ({ cl_path = "flash" :: _ ,_ },[]) -> ()
+			| _ -> failwith ("The class " ^ name ^ " must either extends a flash.* class"));
 			not c.cl_extern
 		| TEnumDecl e when e.e_path = path -> failwith ("The clip " ^ name ^ " must be bound to a class")
 		| TTypeDecl t when t.t_path = path -> failwith ("The clip " ^ name ^ " must be bound to a class")
