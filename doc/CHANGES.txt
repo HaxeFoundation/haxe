@@ -1,6 +1,7 @@
 2008-??-??: 1.18
 	some optimization and bugfix for as3 codegen
 	bugfix : allow bitmaps and fonts classes for F9 library
+	bugfix : neko.Web.setCookie
 
 2008-01-13: 1.17
 	fixed Int32.compare, added Int32.read and Int32.write

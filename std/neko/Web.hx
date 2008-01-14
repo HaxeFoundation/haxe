@@ -185,7 +185,7 @@ class Web {
 	public static function setCookie( key : String, value : String, ?expire: Date, ?domain: String, ?path: String, ?secure: Bool ) {
 		var buf = new StringBuf();
 		buf.add(value);
-		addPair(buf, "expires=", DateTools.format(expire, "%a, %d-%b-%Y %H:%M:%S GMT"));
+		if( expire != null ) addPair(buf, "expires=", DateTools.format(expire, "%a, %d-%b-%Y %H:%M:%S GMT"));
 		addPair(buf, "domain=", domain);
 		addPair(buf, "path=", path);
 		if( secure ) addPair(buf, "secure", "");
