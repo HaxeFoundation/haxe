@@ -50,17 +50,32 @@ class Macro {
 		source = c;
 	}
 
+	public static function debug(x:String){}
+
 	public function expand( p:Array<String> ) : String {
 		if (params.length != p.length){
 			throw "macro "+name+" takes "+params.length+" arguments"+params.toString()+"\ngot: "+p.toString();
 		}
+
+		var hashReplace = new Hash();
+		
 		var res = source;
 		for (i in 0...params.length){
+			// Extract raw parameters ::myparam:: for later replacement,
+			// this is faster than trying to parse simple raw replacement like ::myparam::,
+			// an additional benefit is that this little replacement prevent the macro system from 
+			// becoming mad when a call parameter references a variable with the same name as one 
+			// of the macro arguments name (ex: macro(content) $$macro(::content::foo bar baz))
 			var replace = new EReg("::\\s*?"+params[i]+"\\s*?::", "g");
-			var tmp = replace.replace(res, StringTools.replace(p[i], "$","$$"));
-			res = tmp;
+			var key = "##__MP__"+i+"__##";
+			hashReplace.set(key, p[i]);	
+			res = replace.replace(res, key);
+			// old
+			// res = replace.replace(res, StringTools.replace(p[i], "$", "$$"));
+
+			// work on complex expressions ::myparam + 10 + 'foo bar baz'::
 			var isNum = R_NUM.match(p[i]);
-			var isVar = (R_VAR.match(p[i]) && R_VAR.matched(1).indexOf("::", 0) == -1);
+			var isVar = (R_VAR.match(p[i]) && R_VAR.matched(1).indexOf("::") == -1);
 			var pos = res.indexOf("::", 0);
 			while (pos != -1){
 				var end = res.indexOf("::", pos+2);
@@ -75,6 +90,10 @@ class Macro {
 				pos = res.indexOf("::", pos);
 			}
 		}
+
+		// Replace raw parameters
+		for (k in hashReplace.keys())
+			res = StringTools.replace(res, k, hashReplace.get(k));
 		return res;
 	}
 
