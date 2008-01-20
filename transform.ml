@@ -183,18 +183,18 @@ let block_vars e =
 				add_var vars v;
 				v, t, e
 			) l) }
-		| TFor (v,t,i,e) ->
+		| TFor (v,t,i,e1) ->
 			let new_vars = PMap.add v () (!vars) in
-			{ e with eexpr = TFor (v,t,in_loop vars i,in_loop (ref new_vars) e) }
-		| TTry (e,cases) ->
-			let e = in_loop vars e in
+			{ e with eexpr = TFor (v,t,in_loop vars i,in_loop (ref new_vars) e1) }
+		| TTry (e1,cases) ->
+			let e1 = in_loop vars e1 in
 			let cases = List.map (fun (v,t,e) ->
 				let new_vars = PMap.add v () (!vars) in
 				v , t, in_loop (ref new_vars) e
 			) cases in
-			{ e with eexpr = TTry (e,cases) }
-		| TMatch (e,t,cases,def) ->
-			let e = in_loop vars e in
+			{ e with eexpr = TTry (e1,cases) }
+		| TMatch (e1,t,cases,def) ->
+			let e1 = in_loop vars e1 in
 			let cases = List.map (fun (cl,params,e) ->
 				let e = (match params with
 					| None -> in_loop vars e
@@ -209,7 +209,7 @@ let block_vars e =
 				cl , params, e
 			) cases in
 			let def = (match def with None -> None | Some e -> Some (in_loop vars e)) in
-			{ e with eexpr = TMatch (e, t, cases, def) }
+			{ e with eexpr = TMatch (e1, t, cases, def) }
 		| TBlock l ->
 			let new_vars = (ref !vars) in
 			map (in_loop new_vars) e
