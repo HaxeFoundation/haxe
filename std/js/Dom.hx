@@ -66,9 +66,6 @@ typedef HtmlDom = {> MetaDom<HtmlDom>,
 
 	function getElementsByTagName( tag : String ) : HtmlCollection<HtmlDom>;
 
-	#if w3c
-	#else true
-	var onscroll : Event -> Void;
 	var scrollTop : Int;
 	var scrollLeft : Int;
 	var scrollHeight(default,null) : Int;
@@ -80,7 +77,25 @@ typedef HtmlDom = {> MetaDom<HtmlDom>,
 	var offsetTop : Int;
 	var offsetWidth : Int;
 	var offsetHeight : Int;
-	#end
+
+	function blur() : Void;
+	function click() : Void;
+	function focus() : Void;
+
+	var onscroll : Event -> Void;
+	var onblur : Event -> Void;
+	var onclick : Event -> Void;
+	var ondblclick : Event -> Void;
+	var onfocus : Event -> Void;
+	var onkeydown : Event -> Void;
+	var onkeypress : Event -> Void;
+	var onkeyup : Event -> Void;
+	var onmousedown : Event -> Void;
+	var onmousemove : Event -> Void;
+	var onmouseout : Event -> Void;
+	var onmouseover : Event -> Void;
+	var onmouseup : Event -> Void;
+	var onresize : Event -> Void;
 }
 
 typedef FormElement = {> HtmlDom,
@@ -91,20 +106,12 @@ typedef FormElement = {> HtmlDom,
 	var type : String;
 	var value : String;
 
-	function blur() : Void;
-	function click() : Void;
-	function focus() : Void;
-
-	var onblur : Event -> Void;
-	var onclick : Event -> Bool;
-	var onfocus : Event -> Void;
-
+	function select() : Void;
+	var onselect : Event -> Void;
+	var onchange : Event -> Void;
 }
 
 typedef Anchor = {> HtmlDom,
-
-	function blur() : Void;
-	function focus() : Void;
 
 	var accessKey : String;
 	var href : String;
@@ -122,8 +129,6 @@ typedef Anchor = {> HtmlDom,
 	var type : String;
 #end
 
-	var onblur : Event -> Void;
-	var onfocus : Event -> Void;
 }
 
 typedef Body = {> HtmlDom,
@@ -137,8 +142,6 @@ typedef Body = {> HtmlDom,
 }
 
 typedef Button = {> FormElement,
-	var onmousedown : Event -> Void;
-	var onmouseup : Event -> Void;
 }
 
 typedef Checkbox = {> FormElement,
@@ -175,7 +178,6 @@ typedef Document = {> HtmlDom,
 	// not W3C , need infos : var embeds : HtmlCollection<Embed>;
 	// var lastModified : Date; // commented : does not include date by default
 	var styleSheets : HtmlCollection<StyleSheet>;
-	function focus() : Void;
 	function getElementsByTag( tag : String ) : HtmlCollection<HtmlDom>;
 	#end
 
@@ -186,18 +188,6 @@ typedef Document = {> HtmlDom,
 	function getElementById( id : String ) : HtmlDom;
 	function getElementsByName( name : String ) : HtmlCollection<HtmlDom>;
 	function createElement( name : String ) : HtmlDom;
-
-	var onclick : Event -> Void;
-	var ondblclick : Event -> Void;
-	var onfocus : Event -> Void;
-	var onkeydown : Event -> Void;
-	var onkeyup : Event -> Void;
-	var onmousedown : Event -> Void;
-	var onmousemove : Event -> Void;
-	var onmouseout : Event -> Void;
-	var onmouseover : Event -> Void;
-	var onmouseup : Event -> Void;
-	var onresize : Event -> Void;
 }
 
 typedef Event = {
@@ -219,7 +209,6 @@ typedef Event = {
 
 typedef FileUpload = {> FormElement,
 	var defaultValue : String;
-	var onchange : Event -> Void;
 }
 
 typedef Form = {> HtmlDom,
@@ -241,7 +230,6 @@ typedef Form = {> HtmlDom,
 
 	var onreset : Event -> Void;
 	var onsubmit : Event -> Bool;
-
 }
 
 typedef Frame = {> HtmlDom,
@@ -255,30 +243,11 @@ typedef Frame = {> HtmlDom,
 	var noResize : Bool;
 	var scrolling : String;
 	var src : String;
-
-	#if w3c
-	#else true
-	function blur() : Void;
-	function focus() : Void;
-	#end
-
-	/* IE only
-	var onblur : Event -> Void;
-	var onfocus : Event -> Void;
-	*/
 }
 
 typedef Frameset = {> HtmlDom,
 	var cols : Int;
 	var rows : Int;
-
-	function blur() : Void;
-	function focus() : Void;
-
-	/* IE only ?
-	var onblur : Event -> Void;
-	var onfocus : Event -> Void;
-	*/
 }
 
 typedef Hidden = {> FormElement,
@@ -307,14 +276,7 @@ typedef IFrame = {> HtmlDom,
 	#if w3c
 	#else true
 	var tabIndex : Int;
-	function blur() : Void;
-	function focus() : Void;
 	#end
-
-	/* IE only ?
-	var onblur : Event -> Void;
-	var onfocus : Event -> Void;
-	*/
 }
 
 typedef Image = {> HtmlDom,
@@ -336,15 +298,6 @@ typedef Image = {> HtmlDom,
 	var complete : Bool;
 	var lowsrc : String;
 	#end
-
-	/* IE ONLY
-	function blur() : Void;
-	function click() : Void;
-	function focus() : Void;
-	var onblur : Event -> Void;
-	var onclick : Event -> Void;
-	var onfocus : Event -> Void;
-	*/
 
 	var onabort : Event -> Void;
 	var onerror : Event -> Void;
@@ -419,24 +372,15 @@ typedef Password = {> FormElement,
 	var maxLength : Int;
 	var readOnly : Bool;
 	var size : Int;
-
-	function select() : Void;
-
-	var onkeyup : Event -> Void;
-	var onkeydown : Event -> Void;
-	var onkeypress : Event -> Void;
 }
 
 typedef Radio = {> FormElement,
 	var checked : Bool;
 	var defaultChecked : Bool;
 	var size : Int;
-
-	function select() : Void;
 }
 
 typedef Reset = {> FormElement,
-	function select() : Void;
 }
 
 typedef Screen = {
@@ -466,8 +410,6 @@ typedef Select = {> FormElement,
 	var size : Int;
 
 	function remove( o : Int ) : Void;
-
-	var onchange : Event -> Void;
 }
 
 typedef Style = {
@@ -614,7 +556,6 @@ typedef StyleSheet = {
 }
 
 typedef Submit = {> FormElement,
-	function select() : Void;
 	var onselectstart : Event -> Void;
 }
 
@@ -623,14 +564,6 @@ typedef Text = {> FormElement,
 	var maxLength : Int;
 	var readOnly : Bool;
 	var size : Int;
-
-	function select() : Void;
-
-	var onchange : Event -> Void;
-	var onkeydown : Event -> Void;
-	var onkeypress : Event -> Void;
-	var onkeyup : Event -> Void;
-	var onselect : Event -> Void;
 }
 
 typedef Textarea = {> FormElement,
@@ -638,17 +571,6 @@ typedef Textarea = {> FormElement,
 	var rows : Int;
 	var defaultValue : String;
 	var readOnly : Bool;
-
-	function select() : Void;
-
-	var onchange : Event -> Void;
-
-	/* not on IE ?
-	var onkeydown : Event -> Void;
-	var onkeypress : Event -> Void;
-	var onkeyup : Event -> Void;
-	var onkelect : Event -> Void;
-	*/
 }
 
 typedef Window = {
@@ -720,5 +642,9 @@ typedef Window = {
 
  	// events
 	var onload : Event -> Void;
+	var onresize : Event -> Void;
+	var onscroll : Event -> Void;
+	var onunload : Event -> Void;
+	var onerror : Event -> Void;
 
 }

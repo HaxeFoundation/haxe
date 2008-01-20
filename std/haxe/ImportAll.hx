@@ -571,6 +571,7 @@ import neko.vm.Gc;
 import js.Boot;
 import js.Lib;
 import js.Dom;
+import js.Selection;
 import js.XMLHttpRequest;
 import js.XMLSocket;
 
