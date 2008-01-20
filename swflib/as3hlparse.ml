@@ -159,8 +159,8 @@ let parse_opcode ctx i = function
 	| A3Jump (j,n) ->
 		ctx.jumps <- (i,ctx.pos) :: ctx.jumps;
 		HJump (j,n)
-	| A3Switch (n,infos) ->
-		ctx.jumps <- (i,ctx.pos) :: ctx.jumps;
+	| A3Switch (n,infos) as op ->
+		ctx.jumps <- (i,ctx.pos - As3code.length op) :: ctx.jumps;
 		HSwitch(n,infos)
 	| A3PushWith -> HPushWith
 	| A3PopScope -> HPopScope
@@ -248,15 +248,19 @@ let parse_opcode ctx i = function
 	| A3Op op -> HOp op
 	| A3Unk n -> HUnk n
 
-let parse_code ctx code trys =
+let parse_code ctx f trys =
+	let code = f.fun3_code in
 	let old = ctx.pos , ctx.jumps in
 	let indexes = DynArray.create() in
 	ctx.pos <- 0;
 	ctx.jumps <- [];
-	let codepos x =
-		let idx = DynArray.get indexes x in
-		if idx = -1 then assert false;
-		idx
+	let codepos pos delta =
+		let id = (try DynArray.get indexes (pos + delta) with _ -> -1) in
+		if id = -1 then begin
+			Printf.eprintf "MISALIGNED JUMP AT %d %c %d IN #%d\n" pos (if delta < 0 then '-' else '+') (if delta < 0 then -delta else delta) (idx (no_nz f.fun3_id));
+			DynArray.get indexes pos; (* jump 0 *)
+		end else
+			id
 	in
 	let hcode = Array.mapi (fun i op ->
 		let len = As3code.length op in
@@ -271,17 +275,17 @@ let parse_code ctx code trys =
 	List.iter (fun (j,pos) ->
 		Array.set hcode j (match Array.get hcode j with
 			| HJump (jc,n) ->
-				HJump (jc,codepos (pos + n) - j)
+				HJump (jc,codepos pos n - j)
 			| HSwitch (n,infos) ->
-				HSwitch (codepos (pos + n) - j, List.map (fun n -> codepos (pos + n) - j) infos)
+				HSwitch (codepos pos n - j, List.map (fun n -> codepos pos n - j) infos)
 			| _ -> assert false)
 	) ctx.jumps;
 	(* patch try/catches *)
 	Array.iteri (fun i t ->
 		Array.set trys i {
-			hltc_start = codepos t.hltc_start;
-			hltc_end = codepos t.hltc_end;
-			hltc_handle = codepos t.hltc_handle;
+			hltc_start = codepos 0 t.hltc_start;
+			hltc_end = codepos 0 t.hltc_end;
+			hltc_handle = codepos 0 t.hltc_handle;
 			hltc_type = t.hltc_type;
 			hltc_name = t.hltc_name;
 		}
@@ -393,7 +397,9 @@ let parse_function ctx f =
 			if f.f3_metas <> None then assert false;
 			match f.f3_kind with
 			| A3FVar v ->
-				if v.v3_const || v.v3_value <> A3VNone then assert false;
+				if v.v3_const then assert false;
+				(* v3_value can be <> None if it's a fun parameter with a default value
+					- which looks like a bug of the AS3 compiler *)
 				name ctx f.f3_name , opt name ctx v.v3_type , f.f3_slot
 			| _ -> assert false
 		) f.fun3_locals;
@@ -463,7 +469,7 @@ let parse t =
 	Array.iter (fun f ->
 		match (method_type ctx f.fun3_id).hlmt_function with
 		| None -> assert false
-		| Some fl -> fl.hlf_code <- parse_code ctx f.fun3_code fl.hlf_trys
+		| Some fl -> fl.hlf_code <- parse_code ctx f fl.hlf_trys
 	) t.as3_functions;
 	inits
 
