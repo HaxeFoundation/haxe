@@ -1080,8 +1080,9 @@ and gen_unop ctx retval op flag e =
 		match acc with
 		| VReg r when r.rtype = KInt ->
 			if not r.rinit then r.rcond <- true;
-			if retval then getvar ctx (gen_access ctx e Read);
-			write ctx (if incr then HIncrIReg r.rid else HDecrIReg r.rid)
+			if retval && flag = Postfix then getvar ctx (gen_access ctx e Read);
+			write ctx (if incr then HIncrIReg r.rid else HDecrIReg r.rid);
+			if retval && flag = Prefix then getvar ctx (gen_access ctx e Read);
 		| _ ->
 		getvar ctx (gen_access ctx e Read);
 		match flag with

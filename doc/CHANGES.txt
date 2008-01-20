@@ -2,6 +2,8 @@
 	some optimization and bugfix for as3 codegen
 	bugfix : allow bitmaps and fonts classes for F9 library
 	bugfix : neko.Web.setCookie
+	bugfix : as3 switches in -swf-lib, and enable to "repair" corrupted as3 bytecode
+	fixed --i return value in flash9
 
 2008-01-13: 1.17
 	fixed Int32.compare, added Int32.read and Int32.write
