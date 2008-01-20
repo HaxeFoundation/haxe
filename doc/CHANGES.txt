@@ -5,6 +5,7 @@
 	bugfix : as3 switches in -swf-lib, and enable to "repair" corrupted as3 bytecode
 	fixed --i return value in flash9
 	fixed some transforms in flash9
+	added js.Selection
 
 2008-01-13: 1.17
 	fixed Int32.compare, added Int32.read and Int32.write
