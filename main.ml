@@ -486,7 +486,8 @@ with
 		if packs = [] && classes = [] then report ("No classes found in " ^ String.concat "." p) Ast.null_pos;
 		report_list (List.map (fun f -> f,"","") (packs @ classes));
 		exit 0;
-	| e -> report (Printexc.to_string e) Ast.null_pos
+	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) ->
+		report (Printexc.to_string e) Ast.null_pos
 
 ;;
 let all = Plugin.timer "other" in
