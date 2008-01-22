@@ -114,6 +114,7 @@ class Fast {
 	public var x(default,null) : Xml;
 	public var name(getName,null) : String;
 	public var innerData(getInnerData,null) : String;
+	public var innerHTML(getInnerHTML,null) : String;
 	public var node(default,null) : NodeAccess;
 	public var nodes(default,null) : NodeListAccess;
 	public var att(default,null) : AttribAccess;
@@ -146,6 +147,13 @@ class Fast {
 		if( v.nodeType != Xml.PCData && v.nodeType != Xml.CData )
 			throw name+" does not have data";
 		return v.nodeValue;
+	}
+
+	function getInnerHTML() {
+		var s = new StringBuf();
+		for( x in x )
+			s.add(x.toString());
+		return s.toString();
 	}
 
 	function getElements() {

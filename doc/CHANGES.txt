@@ -7,6 +7,7 @@
 	fixed some transforms in flash9
 	added js.Selection
 	simplified js.Dom (more events)
+	added haxe.xml.Fast.innerHTML
 
 2008-01-13: 1.17
 	fixed Int32.compare, added Int32.read and Int32.write
