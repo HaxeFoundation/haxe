@@ -214,6 +214,13 @@ class Reflect {
 	}
 
 	/**
+		Generic comparison function, does not work for methods, see [compareMethods]
+	**/
+	public static function compare<T>( a : T, b : T ) : Int {
+		return ( a == b ) ? 0 : (((cast a) > (cast b)) ? 1 : -1);
+	}
+
+	/**
 		Compare two methods closures. Returns true if it's the same method of the same instance.
 		Does not work on Neko platform.
 	**/
