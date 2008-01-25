@@ -41,10 +41,10 @@ class Macro {
 		name = n;
 		if (R_PARAMS.match(name)){
 			name = R_PARAMS.matched(1);	
-			var self = this;
-			var i = 0;
-			for (param in R_PARAMS.matched(2).split(",")){
-				params[i++] = StringTools.trim(param);
+			if (StringTools.trim(R_PARAMS.matched(2)) != ""){
+				var i = 0;
+				for (param in R_PARAMS.matched(2).split(","))
+					params[i++] = StringTools.trim(param);
 			}
 		}
 		source = c;
