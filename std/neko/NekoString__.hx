@@ -86,10 +86,14 @@ class NekoString__ implements String {
 		untyped {
 			var l = __split(this.__s,delim.__s);
 			var a = new Array<String>();
-			while( l != null ) {
+			if( l == null ) {
+				a.push("");
+				return a;
+			}
+			do {
 				a.push(new String(l[0]));
 				l = l[1];
-			}
+			} while( l != null );
 			return a;
 		}
 	}
