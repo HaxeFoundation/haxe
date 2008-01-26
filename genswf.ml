@@ -145,7 +145,7 @@ let generate file ver header infile types hres =
 				[]
 			| _ ->
 				ctx.f9clips <- [{ f9_cid = None; f9_classname = boot }];
-				code
+				List.rev code
 		);
 		ctx.genmethod <- m;
 	end else begin
@@ -192,7 +192,7 @@ let generate file ver header infile types hres =
 			if c.f9_cid <> None && not (movieclip_exists types path) then
 				ctx.as3code <- build_movieclip ctx path :: ctx.as3code;
 		) ctx.f9clips;
-		let as3code = (match ctx.as3code with [] -> [] | l -> [tag (TActionScript3 (None,As3hlparse.flatten l))]) in
+		let as3code = (match ctx.as3code with [] -> [] | l -> [tag (TActionScript3 (None,As3hlparse.flatten (List.rev l)))]) in
 		let clips9 = (if ver = 9 then [tag (TF9Classes ctx.f9clips)] else []) in
 		sandbox @ debug @ content @ clips @ code @ as3code @ clips9
 	in
@@ -261,7 +261,7 @@ let generate file ver header infile types hres =
 							| None -> true
 							| Some path -> not (List.exists (fun t -> Type.t_path t = path) types)
 						) inits in
-						ctx.as3code <- inits @ ctx.as3code;
+						ctx.as3code <- List.rev inits @ ctx.as3code;
 					end;
 					loop acc l
 				| _ ->
