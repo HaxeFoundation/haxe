@@ -11,6 +11,7 @@
 	added Reflect.compare
 	fixed "".split() in Neko (now returns [""] instead of [])
 	bugfix for swf-lib f9 classes ordering
+	added EReg.customReplace
 
 2008-01-13: 1.17
 	fixed Int32.compare, added Int32.read and Int32.write

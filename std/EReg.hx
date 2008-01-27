@@ -213,7 +213,7 @@ class EReg {
 		#else (js || flash9)
 		// we can't use directly s.split because it's ignoring the 'g' flag
 		var d = "#__delim__#";
-		return untyped s.replace(r,d).split(d);		
+		return untyped s.replace(r,d).split(d);
 		#else flash
 		throw "EReg::split not implemented";
 		return null;
@@ -283,6 +283,24 @@ class EReg {
 		return null;
 		#else error
 		#end
+	}
+
+	/**
+		For each occurence of the pattern in the string [s], the function [f] is called and
+		can return the string that needs to be replaced. All occurences are matched anyway,
+		and setting the [g] flag might cause some incorrect behavior on some platforms.
+	**/
+	public function customReplace( s : String, f : EReg -> String ) : String {
+		var buf = new StringBuf();
+		while( true ) {
+			if( !match(s) )
+				break;
+			buf.add(matchedLeft());
+			buf.add(f(this));
+			s = matchedRight();
+		}
+		buf.add(s);
+		return buf.toString();
 	}
 
 #if neko
