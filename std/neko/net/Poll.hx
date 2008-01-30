@@ -27,9 +27,38 @@ package neko.net;
 class Poll {
 
 	var d : Void;
+	public var readIndexes : ArrayAccess<Int>;
+	public var writeIndexes : ArrayAccess<Int>;
 
 	public function new( n : Int ) {
 		d = socket_poll_alloc(n);
+		readIndexes = writeIndexes = untyped __dollar__array(-1);
+	}
+
+	public function prepare( read : Array<Socket>, write : Array<Socket> ) {
+		untyped {
+			var r = __dollar__amake(read.length);
+			var w = __dollar__amake(write.length);
+			var i = 0;
+			var len = read.length;
+			while( i < len ) {
+				r[i] = read[i].__s;
+				i += 1;
+			}
+			i = 0;
+			len = write.length;
+			while( i < len ) {
+				w[i] = write[i].__s;
+				i += 1;
+			}
+			var k = socket_poll_prepare(d,r,w);
+			readIndexes = k[0];
+			writeIndexes = k[1];
+		}
+	}
+
+	public function events( ?t : Float ) {
+		socket_poll_events(d,t);
 	}
 
 	public function poll( a : Array<Socket>, ?t : Float ) : Array<Socket> {
@@ -56,5 +85,7 @@ class Poll {
 
 	static var socket_poll_alloc = neko.Lib.load("std","socket_poll_alloc",1);
 	static var socket_poll = neko.Lib.load("std","socket_poll",3);
+	static var socket_poll_prepare = neko.Lib.loadLazy("std","socket_poll_prepare",3);
+	static var socket_poll_events = neko.Lib.loadLazy("std","socket_poll_events",2);
 
 }

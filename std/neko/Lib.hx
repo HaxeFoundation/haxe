@@ -33,6 +33,14 @@ class Lib {
 		return untyped __dollar__loader.loadprim((lib+"@"+prim).__s,nargs);
 	}
 
+	public static function loadLazy(lib,prim,nargs) : Dynamic {
+		try {
+			return load(lib,prim,nargs);
+		} catch( e : Dynamic ) {
+			return untyped __dollar__varargs(function(_) { throw e; });
+		}
+	}
+
 	/**
 		Print the specified value on the default output.
 	**/
@@ -165,6 +173,9 @@ class Lib {
 		}
 	}
 
+	/**
+		Returns an object containing all compiled packages and classes.
+	**/
 	public static function getClasses() : Dynamic {
 		return untyped neko.Boot.__classes;
 	}
