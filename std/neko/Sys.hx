@@ -103,6 +103,10 @@ class Sys {
 		return sys_time();
 	}
 
+	public static function cpuTime() : Float {
+		return sys_cpu_time();
+	}
+
 	public static function executablePath() : String {
 		return new String(sys_exe_path());
 	}
@@ -127,6 +131,7 @@ class Sys {
 	private static var sys_command = Lib.load("std","sys_command",1);
 	private static var sys_exit = Lib.load("std","sys_exit",1);
 	private static var sys_time = Lib.load("std","sys_time",0);
+	private static var sys_cpu_time = Lib.load("std","sys_cpu_time",0);
 	private static var sys_exe_path = Lib.load("std","sys_exe_path",0);
 	private static var sys_env = Lib.load("std","sys_env",0);
 
