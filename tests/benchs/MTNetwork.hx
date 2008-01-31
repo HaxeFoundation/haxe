@@ -6,6 +6,7 @@ class Const {
 	public static var CLIENTS = 200;
 	public static var SOCKETS = 5;
 	public static var SERVERS = 16;
+	public static var USE_POLL = true;
 
 }
 
@@ -210,9 +211,12 @@ class MTNetwork {
 		sock.bind(Const.HOST,Const.PORT);
 		sock.listen(Const.CLIENTS * Const.SOCKETS);
 
-		var servers = new Array();
+		var servers = new Array<{ done : Bool, addClient : neko.net.Socket -> Void }>();
 		for( i in 0...Const.SERVERS )
-			servers.push(new ServerSelect(size));
+			if( Const.USE_POLL )
+				servers.push(new ServerEvents(size));
+			else
+				servers.push(new ServerSelect(size));
 
 		var clients = new Array();
 		for( i in 0...Const.CLIENTS )
