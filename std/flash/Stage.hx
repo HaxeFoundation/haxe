@@ -11,7 +11,13 @@ extern class Stage
 	static function removeListener(listener:Dynamic):Void;
 
 #if flash_v9
+	/**
+		Set to "fullScreen" in order to set Flash to fullscreen
+		(can only be done in Mouse/Keyboard event listener).
+		Don't forget allowfullscreen="true" in your SWF parameters.
+	**/
 	static var displayState : String;
+	static var fullScreenSourceRect : flash.geom.Rectangle<Int>;
 	static function onFullScreen( full : Bool ) : Void;
 #end
 
