@@ -979,10 +979,8 @@ let type_ident ctx i is_type p get =
 	with Not_found -> try
 		(* static variable lookup *)
 		let f = PMap.find i ctx.curclass.cl_statics in
-		(* expr type is not accurate but needed for protect *)
-		let tt = mk (TTypeExpr (TClassDecl ctx.curclass)) (TInst (ctx.curclass,[])) p in
-		check_locals_masking ctx tt;
-		field_access ctx get f (field_type f) tt p
+		let e = type_type ctx ctx.curclass.cl_path p in
+		field_access ctx get f (field_type f) e p
 	with Not_found -> try
 		(* lookup imported *)
 		let rec loop l =
