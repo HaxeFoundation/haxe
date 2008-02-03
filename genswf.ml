@@ -27,6 +27,7 @@ type context = {
 	mutable f9clips : f9class list;
 	mutable code : tag_data list;
 	mutable as3code : As3hl.hl_tag;
+	mutable hx9code : As3hl.hl_tag;
 	mutable genmethod : unit -> As3hl.hl_method;
 }
 
@@ -127,6 +128,7 @@ let generate file ver header infile types hres =
 		f8clips = [];
 		f9clips = [];
 		as3code = [];
+		hx9code = [];
 		code = [];
 		genmethod = (fun() -> assert false);
 	} in
@@ -136,13 +138,13 @@ let generate file ver header infile types hres =
 		let f (h:(string,string) Hashtbl.t) = Genswf9.generate types h in
 		let tmp : (string,string) Hashtbl.t = hres in
 		let code, boot, m = f (Obj.magic tmp) in
-		ctx.as3code <- (match code with
+		ctx.hx9code <- (match code with
 			| [i] when Array.length i.hls_fields = 0 ->
 				(* if we don't have any class defined, don't include Boot *)
 				[]
 			| _ ->
 				ctx.f9clips <- [{ f9_cid = None; f9_classname = boot }];
-				List.rev code
+				code
 		);
 		ctx.genmethod <- m;
 	end else begin
@@ -189,7 +191,7 @@ let generate file ver header infile types hres =
 			if c.f9_cid <> None && not (movieclip_exists types path) then
 				ctx.as3code <- build_movieclip ctx path :: ctx.as3code;
 		) ctx.f9clips;
-		let as3code = (match ctx.as3code with [] -> [] | l -> [tag (TActionScript3 (None,As3hlparse.flatten (List.rev l)))]) in
+		let as3code = (match ctx.as3code @ ctx.hx9code with [] -> [] | l -> [tag (TActionScript3 (None,As3hlparse.flatten l))]) in
 		let clips9 = (if ver = 9 then [tag (TF9Classes ctx.f9clips)] else []) in
 		sandbox @ debug @ content @ clips @ code @ as3code @ clips9
 	in
@@ -256,9 +258,14 @@ let generate file ver header infile types hres =
 						let inits = List.filter (fun i ->
 							match getclass i with
 							| None -> true
-							| Some path -> not (List.exists (fun t -> Type.t_path t = path) types)
+							| Some path ->
+								not (List.exists (function
+									| TClassDecl c -> c.cl_path = path && not c.cl_extern
+									| TEnumDecl e -> e.e_path = path && not e.e_extern
+									| TTypeDecl _ -> false
+								) types)
 						) inits in
-						ctx.as3code <- List.rev inits @ ctx.as3code;
+						ctx.as3code <- ctx.as3code @ inits;
 					end;
 					loop acc l
 				| _ ->
