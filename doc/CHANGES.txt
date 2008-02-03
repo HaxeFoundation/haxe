@@ -15,6 +15,7 @@
 	added neko.Lib.lazyLoad and improved neko.net.Poll for Neko 1.6.1
 	prevented static fields in interfaces
 	added neko.Sys.cpuTime()
+	fix for protected as3 classes
 
 2008-01-13: 1.17
 	fixed Int32.compare, added Int32.read and Int32.write

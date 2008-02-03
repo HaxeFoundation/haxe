@@ -58,10 +58,7 @@ let getclass i =
 	if Array.length i.hls_fields <> 1 then
 		None
 	else match i.hls_fields.(0).hlf_kind with
-	| HFClass c ->
-		Some (match c.hlc_name with
-			| HMPath (pack,name) -> pack,name
-			| _ -> assert false)
+	| HFClass { hlc_name = HMPath (pack,name) } -> Some (pack,name)
 	| _ ->
 		None
 
