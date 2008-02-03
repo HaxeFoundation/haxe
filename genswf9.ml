@@ -212,7 +212,8 @@ let classify ctx t =
 		KType (type_id ctx t)
 	| TType ({ t_path = [],"UInt" },_) ->
 		KUInt
-	| TFun _
+	| TFun _ ->
+		KType (HMPath ([],"Function"))
 	| TMono _
 	| TAnon _
 	| TType _
