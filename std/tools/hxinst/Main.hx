@@ -4,7 +4,9 @@ class Main {
 
 	static var SYS = neko.Sys.systemName();
 	static var NULL = if( SYS == "Windows" ) "NUL" else "/dev/null";
+	#if xcross
 	static var wnd : xcross.Winlog;
+	#end
 
 	var baseDir : String;
 	var binDir : String;
@@ -30,16 +32,36 @@ class Main {
 	}
 
 	function ask( txt ) {
+		#if xcross
 		return xcross.Api.confirm("Question",txt);
+		#else true
+		var answer = null;
+		while( true ) {
+			neko.Lib.print(txt+" [y/n] ");
+			switch( neko.io.File.stdin().readLine() ) {
+			case "n": answer = false; break;
+			case "y": answer = true; break;
+			}
+		}
+		return answer;
+		#end
 	}
 
 	function error( txt ) {
+		#if xcross
 		xcross.Api.error("Error",txt);
+		#else true
+		neko.io.File.stderr().write(txt+"\n");
+		#end
 		throw "Installation aborted";
 	}
 
 	function display( txt ) {
+		#if xcross
 		wnd.log(txt);
+		#else true
+		neko.Lib.println(txt);
+		#end
 		neko.Sys.sleep(0.03);
 	}
 
@@ -62,15 +84,21 @@ class Main {
 		try {
 			install();
 			display("Installation Completed");
+			#if xcross
 			xcross.Api.message("Done","Installation Completed");
+			#end
 		} catch( e : Dynamic ) {
 			display("");
 			display("");
 			display("ERROR = "+Std.string(e));
 			display(haxe.Stack.toString(haxe.Stack.exceptionStack()));
+			#if xcross
 			xcross.Api.error("Error","Installation aborted");
+			#end
 		}
+		#if xcross
 		wnd.enabled = true;
+		#end
 	}
 
 	function checkRights() {
@@ -83,14 +111,16 @@ class Main {
 			neko.FileSystem.deleteFile(tmp);
 			return true;
 		} catch( e : Dynamic ) {
+			#if xcross
 			if( xcross.Api.authorize() )
 				return false;
+			#end
 			var msg;
 			if( SYS == "Windows" )
 				msg = "You don't have administrative access on this computer,\nplease login on an administrator account.\nOnce haxe is installed, execute '"+baseDir+"\\haxesetup' on your own account.";
 			else
 				msg = "You don't have the rights to write in "+baseDir+", please run the installer using 'sudo'";
-			xcross.Api.error("Error",msg);
+			try error(msg) catch( e : Dynamic ) {};
 			return false;
 		}
 	}
@@ -231,6 +261,14 @@ class Main {
 			installHaxe();
 		}
 	}
+	
+	static function logProgress( txt ) {
+		#if xcross
+		wnd.logProgress(txt);
+		#else true
+		neko.Lib.print(txt+"\r");
+		#end
+	}
 
 	function download( domain, file ) {
 		if( neko.FileSystem.exists(file) ) {
@@ -243,16 +281,20 @@ class Main {
 		progress.update = function() {
 			var p = progress.cur * 100 / progress.max;
 			p = Std.int(p * 10) / 10;
-			wnd.logProgress("Downloading "+file+" ("+p+"%)");
+			logProgress("Downloading "+file+" ("+p+"%)");
 		};
 		var h = new haxe.Http("http://"+domain+"/_media/"+file);
 		var me = this;
 		h.onError = function(e) {
 			me.error(Std.string(e));
 		};
-		wnd.logProgress("Downloading "+file+"...");
+		logProgress("Downloading "+file+"...");
 		h.customRequest(false,progress);
+		#if xcross
 		wnd.log("");
+		#else true
+		neko.Lib.print("\n");
+		#end
 
 		var f = neko.io.File.write(file,true);
 		f.write(str.toString());
@@ -347,6 +389,7 @@ class Main {
 		var i = new Main(debug);
 		if( !i.checkRights() )
 			return;
+		#if xcross
 		wnd = new xcross.Winlog("haXe Installer");
 		wnd.button = "Exit";
 		wnd.enabled = false;
@@ -355,6 +398,9 @@ class Main {
 		};
 		neko.vm.Thread.create(i.run);
 		neko.vm.Ui.loop();
+		#else true
+		i.run();
+		#end
 	}
 
 }
