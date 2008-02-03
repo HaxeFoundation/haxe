@@ -16,6 +16,7 @@ implements Dynamic
 	var useHandCursor : Bool;
 	var enabled : Bool;
 	var focusEnabled : Bool;
+	//var menu : ContextMenu; rare, and we don't want to add __init__ for ContextMenu all the time
 	var tabChildren : Bool;
 	var tabEnabled : Bool;
 	var tabIndex : Int;
