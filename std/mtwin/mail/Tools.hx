@@ -446,7 +446,9 @@ class Tools {
 	static var REG_ATOM = ~/^([^()<>@,;:"\[\]\s[:cntrl:]]+)/i;
 	static var REG_QSTRING = ~/^"((\\"|[^"])*)"/;
 	static var REG_SEPARATOR = ~/,\s*/;
-	public static function parseAddress( str : String ) : Array<Address> {
+	public static function parseAddress( str : String, ?vrfy : Bool ) : Array<Address> {
+		if( vrfy == null )
+			vrfy = true;
 		var a = new Array();
 		var name = null;
 		var address = null;
@@ -464,11 +466,12 @@ class Tools {
 				name += t;
 				s = REG_QSTRING.matchedRight();
 			}else if( REG_ADDRESS.match(s) ){
-				if( address != null ) throw Exception.ParseError(str+", near: "+s.substr(0,15));
+				if( address != null && vrfy ) throw Exception.ParseError(str+", near: "+s.substr(0,15));
 				address = REG_ADDRESS.matched(1);
 				s = REG_ADDRESS.matchedRight();
 			}else if( REG_ROUTE_ADDR.match(s) ){
-				if( address != null ) throw Exception.ParseError(str+", near: "+s.substr(0,15));
+				if( address != null )
+					name = (name!=null)?name+" "+address : address;
 				address = REG_ROUTE_ADDR.matched(1);
 				s = REG_ROUTE_ADDR.matchedRight();
 			}else if( REG_ATOM.match(s) ){
@@ -483,13 +486,20 @@ class Tools {
 					name = null;
 				}
 				s = REG_SEPARATOR.matchedRight();
-			}else{
+			}else if( vrfy ){
 				throw Exception.ParseError(str+", near: "+s.substr(0,15));
+			}else{
+				break;
 			}
 		}
-
 		if( address != null ){
 			a.push({name: if( name != null && name.length > 0 ) name else null, address: address});
+		}
+		if( a.length == 0 ){
+			if( vrfy )
+				throw Exception.ParseError(str+", no address found");
+			else
+				a.push({name: null,address: null});
 		}
 		return a;
 	}

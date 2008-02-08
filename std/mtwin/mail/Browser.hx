@@ -198,7 +198,7 @@ class Browser extends MetaPart<Browser> {
 
 	public function getAddress( name, ?charset ){
 		var e = getHeader(name,charset);
-		return Tools.parseAddress(e);
+		return Tools.parseAddress(e,false);
 	}
 
 	function mkBody() : {ctype_primary: String,ctype_secondary: String,charset: String,content: String} {
