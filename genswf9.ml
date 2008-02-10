@@ -153,6 +153,8 @@ let type_path ctx path =
 		| [] , "Float" -> [] , "Number"
 		| [] , "Bool" -> [] , "Boolean"
 		| [] , "Enum" -> [] , "Class"
+		| ["flash";"xml"], "XML" -> [], "XML"
+		| ["flash";"xml"], "XMLList" -> [], "XMLList"
 		| ["flash"] , "FlashXml__" -> [] , "Xml"
 		| ["flash"] , "Boot" -> [] , ctx.boot
 		| _ -> path

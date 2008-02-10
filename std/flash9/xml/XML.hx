@@ -1,0 +1,54 @@
+package flash.xml;
+
+extern class XML {
+	function new(?value : Dynamic) : Void;
+	function addNamespace(ns : Dynamic) : XML;
+	function appendChild(child : Dynamic) : XML;
+	function attribute(arg : Dynamic) : XMLList;
+	function attributes() : XMLList;
+	function child(propertyName : Dynamic) : XMLList;
+	function childIndex() : Int;
+	function children() : XMLList;
+	function comments() : XMLList;
+	function contains(value : Dynamic) : Bool;
+	function copy() : XML;
+	function descendants(?name : String) : XMLList;
+	function elements(?name : String) : XMLList;
+	function hasComplexContent() : Bool;
+	function hasSimpleContent() : Bool;
+	function inScopeNamespaces() : Array<Dynamic>;
+	function insertChildAfter(child1 : Dynamic, child2 : Dynamic) : Void;
+	function insertChildBefore(child1 : Dynamic, child2 : Dynamic) : Void;
+	function length() : Int;
+	function localName() : Dynamic;
+	function name() : Dynamic;
+	function namespace(?prefix : Dynamic) : Void;
+	function namespaceDeclarations() : Array<Dynamic>;
+	function nodeKind() : String;
+	function normalize() : XML;
+	function notification() : Dynamic;
+	function parent() : Void;
+	function prependChild(value : Dynamic) : XML;
+	function processingInstructions(?name : String) : XMLList;
+	function removeNamespace(ns : Dynamic) : XML;
+	function replace(propertyName : Dynamic, value : Dynamic) : XML;
+	function setChildren(value : Dynamic) : XML;
+	function setLocalName(name : Dynamic) : Void;
+	function setName(name : Dynamic) : Void;
+	function setNamespace(ns : Dynamic) : Void;
+	function setNotification(f : Dynamic) : Void;
+	function text() : XMLList;
+	function toString() : String;
+	function toXMLString() : String;
+	function valueOf() : XML;
+
+	static var length : Int;
+	static var ignoreComments : Bool;
+	static var ignoreProcessingInstructions : Bool;
+	static var ignoreWhitespace : Bool;
+	static var prettyIndent : Int;
+	static var prettyPrinting : Bool;
+	static function defaultSettings() : Dynamic;
+	static function setSettings(?o : Dynamic) : Void;
+	static function settings() : Dynamic;
+}

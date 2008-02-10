@@ -1,7 +1,6 @@
 package flash.xml;
 
 extern class XMLNodeType {
-	function new() : Void;
 	static var CDATA_NODE : UInt;
 	static var COMMENT_NODE : UInt;
 	static var DOCUMENT_TYPE_NODE : UInt;
