@@ -254,6 +254,10 @@ let field_access ctx get f t e p =
 		let normal = AccExpr (mk (TField (e,f.cf_name)) t p) in
 		(match follow e.etype with
 		| TInst (c,_) when is_parent c ctx.curclass -> normal
+		| TAnon a ->
+			(match !(a.a_status) with
+			| Statics c2 when ctx.curclass == c2 -> normal
+			| _ -> if ctx.untyped then normal else AccNo f.cf_name)
 		| _ ->
 			if ctx.untyped then normal else AccNo f.cf_name)
 	| F9MethodAccess when not ctx.untyped ->
