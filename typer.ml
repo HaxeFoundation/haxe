@@ -36,6 +36,7 @@ type context = {
 	warn : string -> pos -> unit;
 	error : error_msg -> pos -> unit;
 	flash9 : bool;
+	doinline : bool;
 	mutable std : module_def;
 	mutable untyped : bool;
 	mutable isproxy : bool;
@@ -143,6 +144,7 @@ let context err warn =
 		constructs = Hashtbl.create 0;
 		delays = ref [];
 		flash9 = Plugin.defined "flash9";
+		doinline = not (Plugin.defined "no_inline");
 		in_constructor = false;
 		in_static = false;
 		in_loop = false;
@@ -2031,7 +2033,8 @@ and type_call ctx e el p =
 			ignore(follow f.cf_type); (* force evaluation *)
 			(match f.cf_expr with
 			| Some { eexpr = TFunction fd } ->
-				(match type_inline ctx fd ethis params tret p with
+				let i = if ctx.doinline then type_inline ctx fd ethis params tret p else None in
+				(match i with
 				| None -> mk (TCall (mk (TField (ethis,f.cf_name)) t p,params)) tret p
 				| Some e -> e)
 			| _ -> error "Recursive inline is not supported" p)
@@ -2718,6 +2721,7 @@ let type_module ctx m tdecls loadp =
 		ret = ctx.ret;
 		isproxy = ctx.isproxy;
 		flash9 = ctx.flash9;
+		doinline = ctx.doinline;
 		current = m;
 		locals = PMap.empty;
 		locals_map = PMap.empty;

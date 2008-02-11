@@ -357,6 +357,7 @@ try
 		),": display code tips");
 		("--no-output", Arg.Unit (fun() -> no_output := true),": compiles but does not generate any file");
 		("--times", Arg.Unit (fun() -> Plugin.times := true),": mesure compilation times");
+		("--no-inline", Arg.Unit (fun() -> Plugin.define "no_inline"),": disable inlining");
 	] in
 	let current = ref 0 in
 	let args = Array.of_list ("" :: params) in

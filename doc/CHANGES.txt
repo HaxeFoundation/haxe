@@ -18,6 +18,7 @@
 	fix for protected as3 classes
 	added support for flash9 XML (in flash.xml package)
 	added neko.vm.Tls for Neko 1.6.1
+	added --no-inline
 
 2008-01-13: 1.17
 	fixed Int32.compare, added Int32.read and Int32.write
