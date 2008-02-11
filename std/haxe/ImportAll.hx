@@ -564,6 +564,7 @@ import neko.net.ThreadServer;
 import neko.vm.Loader;
 import neko.vm.Module;
 import neko.vm.Thread;
+import neko.vm.Tls;
 import neko.vm.Lock;
 import neko.vm.Ui;
 import neko.vm.Gc;
