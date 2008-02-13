@@ -85,6 +85,9 @@ class Template {
 		if (StringTools.startsWith(src, "\xEF\xBB\xBF"))
 			src = src.substr(3);
 
+		str = StringTools.replace(src, "\r\n", "\n");
+		str = StringTools.replace(src, "\r", "\n");
+
 		src = mtwin.templo.Preprocessor.process(src);
 
 		var path = nekoSrc(id);
