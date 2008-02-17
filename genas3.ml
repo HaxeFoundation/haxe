@@ -1091,7 +1091,10 @@ let gen_method ctx ch name mt =
 	let params = List.map (fun a ->
 		let name = (match m.mt3_pnames with
 			| None -> "p" ^ string_of_int !p
-			| Some l -> ident ctx (List.nth l (!p))
+			| Some l ->
+				match List.nth l !p with
+				| None -> "p" ^ string_of_int !p
+				| Some i -> ident ctx i
 		) in
 		let opt_val = (match m.mt3_dparams with
 			| None -> None
