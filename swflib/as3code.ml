@@ -195,7 +195,7 @@ let length = function
 	| A3Unk _ -> 1
 	| A3AsType n | A3IsType n ->
 		1 + int_length (int_index n)
-	| A3DebugReg (name,reg,line) -> 1 + 1 + int_length (int_index name) + int_length reg + int_length line
+	| A3DebugReg (name,reg,line) -> 1 + 1 + int_length (int_index name) + int_length (reg - 1) + int_length line
 	| A3GetGlobalScope -> 1
 	| A3GetScope n -> 1 + int_length n
 	| A3Reg n | A3SetReg n -> if n >= 1 && n <= 3 then 1 else (1 + int_length n)
@@ -402,7 +402,7 @@ let opcode ch =
 	| 0xEF ->
 		if IO.read_byte ch <> 1 then assert false;
 		let name = read_index ch in
-		let reg = read_int ch in
+		let reg = read_int ch + 1 in
 		let line = read_int ch in
 		A3DebugReg (name,reg,line)
 	| 0xF0 -> A3DebugLine (read_int ch)
@@ -691,7 +691,7 @@ let write ch = function
 		write_byte ch 0xEF;
 		write_byte ch 0x01;
 		write_index ch name;
-		write_int ch reg;
+		write_int ch (reg - 1);
 		write_int ch line;
 	| A3DebugLine f ->
 		write_byte ch 0xF0;
