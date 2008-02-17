@@ -145,7 +145,7 @@ class Connection implements Dynamic<Connection> {
 	static function __init__() {
 	#end
 		#if flash9
-		function() { try flash.external.ExternalInterface.addCallback("remotingCall",doCall) catch( e : Dynamic ) {} }();
+		var _ = function() { try flash.external.ExternalInterface.addCallback("remotingCall",doCall) catch( e : Dynamic ) {} }();
 		#else flash8
 		flash.external.ExternalInterface.addCallback("remotingCall",null,doCall);
 		#end
