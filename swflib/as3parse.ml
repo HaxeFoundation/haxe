@@ -153,7 +153,7 @@ let as3_method_type_length m =
 	idx_opt_length m.mt3_debug_name +
 	1 +
 	(match m.mt3_dparams with None -> 0 | Some l -> 1 + sum (as3_value_length true) l) +
-	(match m.mt3_pnames with None -> 0 | Some l -> sum idx_length l)
+	(match m.mt3_pnames with None -> 0 | Some l -> sum idx_opt_length l)
 
 let list_length f l =
 	match Array.length l with
@@ -391,7 +391,7 @@ let read_method_type ctx ch =
 		None
 	) in
 	let pnames = (if flags land 0x80 <> 0 then
-		Some (Array.to_list (Array.init nargs (fun _ -> index ctx.as3_idents (read_int ch))))
+		Some (Array.to_list (Array.init nargs (fun _ -> index_opt ctx.as3_idents (read_int ch))))
 	else
 		None
 	) in
@@ -744,7 +744,7 @@ let write_method_type ch m =
 	| None -> ()
 	| Some l ->
 		if List.length l <> nargs then assert false;
-		List.iter (write_index ch) l
+		List.iter (write_index_opt ch) l
 
 let write_list ch f l =
 	match Array.length l with
@@ -910,7 +910,10 @@ let method_str ?(infos=false) ctx m =
 	(String.concat ", " (List.map (fun a ->
 		let id = (match m.mt3_pnames with
 			| None -> "p" ^ string_of_int !pcount
-			| Some l -> ident_str ctx (List.nth l !pcount)
+			| Some l -> 
+				match List.nth l !pcount with
+				| None -> "p" ^ string_of_int !pcount
+				| Some i -> ident_str ctx i
 		) in
 		let p = (match a with None -> id | Some t -> name_str ctx (id ^ " : ") t) in
 

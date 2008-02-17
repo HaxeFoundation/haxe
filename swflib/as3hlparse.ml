@@ -418,7 +418,7 @@ let parse_method_type ctx m f =
 		hlmt_unused_flag = m.mt3_unused_flag;
 		hlmt_debug_name = opt ident ctx m.mt3_debug_name;
 		hlmt_dparams = opt (fun ctx -> List.map (parse_value ctx)) ctx m.mt3_dparams;
-		hlmt_pnames = opt (fun ctx -> List.map (ident ctx)) ctx m.mt3_pnames;
+		hlmt_pnames = opt (fun ctx -> List.map (opt ident ctx)) ctx m.mt3_pnames;
 		hlmt_function = opt parse_function ctx f;
 	}
 
@@ -791,7 +791,7 @@ let flatten_method ctx m =
 		mt3_unused_flag = m.hlmt_unused_flag;
 		mt3_debug_name = opt lookup_ident ctx m.hlmt_debug_name;
 		mt3_dparams = opt (fun ctx -> List.map (flatten_value ctx)) ctx m.hlmt_dparams;
-		mt3_pnames = opt (fun ctx -> List.map (lookup_ident ctx)) ctx m.hlmt_pnames;
+		mt3_pnames = opt (fun ctx -> List.map (opt lookup_ident ctx)) ctx m.hlmt_pnames;
 	}
 
 let flatten_static ctx s =

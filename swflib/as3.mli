@@ -217,7 +217,7 @@ and as3_method_type = {
 	mt3_unused_flag : bool;
 	mt3_debug_name : as3_ident index option;
 	mt3_dparams : as3_value list option;
-	mt3_pnames : as3_ident index list option;
+	mt3_pnames : as3_ident index option list option;
 }
 
 type as3_method_kind =

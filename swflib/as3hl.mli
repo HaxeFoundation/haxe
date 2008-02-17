@@ -164,7 +164,7 @@ and hl_method = {
 	hlmt_unused_flag : bool;
 	hlmt_debug_name : hl_ident option;
 	hlmt_dparams : hl_value list option;
-	hlmt_pnames : hl_ident list option;
+	hlmt_pnames : hl_ident option list option;
 	hlmt_function : hl_function option; (* None for interfaces constructors only *)
 }
 
