@@ -44,6 +44,10 @@ class Boot extends flash.display.MovieClip {
 					}
 				}
 			};
+			aproto.setPropertyIsEnumerable("copy", false);
+			aproto.setPropertyIsEnumerable("insert", false);
+			aproto.setPropertyIsEnumerable("remove", false);
+			aproto.setPropertyIsEnumerable("iterator", false);
 			#if !as3gen
 			Bool = __global__["Boolean"];
 			Int = __global__["int"];
