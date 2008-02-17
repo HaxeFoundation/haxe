@@ -3075,31 +3075,31 @@ let types ctx main excludes =
 	| None -> ()
 	| Some cl ->
 		let t = load_type_def ctx null_pos cl in
-		let cmain = (match t with
+		let ft, r = (match t with
 		| TEnumDecl _ | TTypeDecl _ ->
 			error ("Invalid -main : " ^ s_type_path cl ^ " is not a class") null_pos
 		| TClassDecl c ->
 			try
 				let f = PMap.find "main" c.cl_statics in
-				(match follow (field_type f) with
-				| TFun ([],_) -> ()
-				| _ -> error ("Invalid -main : " ^ s_type_path cl ^ " has invalid main function") null_pos);
-				c
+				let t = field_type f in
+				(match follow t with
+				| TFun ([],r) -> t, r
+				| _ -> error ("Invalid -main : " ^ s_type_path cl ^ " has invalid main function") null_pos);				
 			with
 				Not_found -> error ("Invalid -main : " ^ s_type_path cl ^ " does not have static function main") null_pos
 		) in
 		let path = ([],"@Main") in
-		let tmain = TInst (cmain,List.map snd cmain.cl_types) in
+		let emain = type_type ctx cl null_pos in
 		let c = mk_class path null_pos None false in
 		let f = {
 			cf_name = "init";
-			cf_type = mk_mono();
+			cf_type = r;
 			cf_public = false;
 			cf_get = NormalAccess;
 			cf_set = NormalAccess;
 			cf_doc = None;
 			cf_params = [];
-			cf_expr = Some (mk (TCall (mk (TField (mk (TTypeExpr t) tmain null_pos,"main")) (mk_mono()) null_pos,[])) (mk_mono()) null_pos);
+			cf_expr = Some (mk (TCall (mk (TField (emain,"main")) ft null_pos,[])) r null_pos);
 		} in
 		c.cl_statics <- PMap.add "init" f c.cl_statics;
 		c.cl_ordered_statics <- f :: c.cl_ordered_statics;
