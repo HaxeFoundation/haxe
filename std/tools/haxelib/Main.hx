@@ -269,7 +269,7 @@ class Main {
 	function submit() {
 		var file = param("Package");
 		var data = neko.io.File.getContent(file);
-		var zip = neko.zip.File.readZip(new neko.io.StringInput(data));
+		var zip = neko.zip.Reader.readZip(new neko.io.StringInput(data));
 		var infos = Datas.readInfos(zip);
 		var user = infos.developers.first();
 		var password;
@@ -366,7 +366,7 @@ class Main {
 
 		// read zip content
 		var f = neko.io.File.read(filepath,true);
-		var zip = neko.zip.File.readZip(f);
+		var zip = neko.zip.Reader.readZip(f);
 		f.close();
 		var infos = Datas.readInfos(zip);
 
@@ -411,7 +411,7 @@ class Main {
 				}
 				path += file;
 				print("  Install "+path);
-				var data = neko.zip.File.unzip(zipfile);
+				var data = neko.zip.Reader.unzip(zipfile);
 				var f = neko.io.File.write(target+path,true);
 				f.write(data);
 				f.close();

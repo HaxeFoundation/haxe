@@ -538,7 +538,9 @@ import neko.io.StringInput;
 import neko.io.StringOutput;
 
 import neko.zip.Compress;
-import neko.zip.File;
+import neko.zip.CRC32;
+import neko.zip.Reader;
+import neko.zip.Writer;
 import neko.zip.Flush;
 import neko.zip.Uncompress;
 

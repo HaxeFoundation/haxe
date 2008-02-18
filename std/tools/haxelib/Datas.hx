@@ -1,6 +1,6 @@
 package tools.haxelib;
 
-import neko.zip.File;
+import neko.zip.Reader;
 import haxe.xml.Check;
 
 typedef UserInfos = {
@@ -83,7 +83,7 @@ class Datas {
 		var xmldata = null;
 		for( f in zip )
 			if( StringTools.endsWith(f.fileName,XML) ) {
-				xmldata = neko.zip.File.unzip(f);
+				xmldata = neko.zip.Reader.unzip(f);
 				break;
 			}
 		if( xmldata == null )

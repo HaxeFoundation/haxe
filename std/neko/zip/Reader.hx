@@ -31,11 +31,12 @@ typedef ZipEntry = {
 	var compressed : Bool;
 	var compressedSize : Int;
 	var data : String;
+	var crc32 : Null<neko.Int32>;
 }
 
 // see http://www.pkware.com/documents/casestudies/APPNOTE.TXT
 
-class File {
+class Reader {
 
 	public static function unzip( f : ZipEntry ) : String {
 		if( !f.compressed )
@@ -58,7 +59,7 @@ class File {
 		var year = d >> 9;
 		var month = (d >> 5) & 15;
 		var day = d & 31;
-		return new Date(year + 1980, month-1, day, hour, min, sec);
+		return new Date(year + 1980, month-1, day, hour, min, sec << 1);
 	}
 
 	public static function readZipEntry( i : neko.io.Input ) : ZipEntry {
@@ -68,6 +69,7 @@ class File {
 		if( h != 0x04034B50 )
 			throw "Invalid Zip Data";
 		var version = i.readUInt16();
+		trace(version);
 		var flags = i.readUInt16();
 		var extraFields = (flags & 8) != 0;
 		if( (flags & 0xFFF7) != 0 )
@@ -77,7 +79,7 @@ class File {
 		if( compressed && compression != 8 )
 			throw "Unsupported compression "+compression;
 		var mtime = readZipDate(i);
-		var crc32 = i.read(4);
+		var crc32 = neko.Int32.read(i);
 		var csize = i.readInt32();
 		var usize = i.readInt32();
 		var fnamelen = i.readInt16();
@@ -100,6 +102,7 @@ class File {
 			compressed : compressed,
 			compressedSize : csize,
 			data : data,
+			crc32 : crc32,
 		};
 	}
 
@@ -136,6 +139,7 @@ class File {
 				compressed : false,
 				compressedSize : e.fileSize,
 				data : data,
+				crc32 : null,
 			});
 		}
 		return l;
