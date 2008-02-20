@@ -1759,12 +1759,12 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		| Some e2 ->
 			let e2 = type_expr ctx ~need_val e2 in
 			let t = if not need_val then t_void ctx else (try
-				let t = (match e2.eexpr with
-					| TConst TNull -> make_nullable ctx e1.etype
-					| _  -> e1.etype
-				) in
-				unify_raise ctx t e2.etype p;
-				e2.etype
+				(match e1.eexpr, e2.eexpr with
+				| _ , TConst TNull -> make_nullable ctx e1.etype
+				| TConst TNull, _ -> make_nullable ctx e2.etype
+				| _  ->
+					unify_raise ctx e1.etype e2.etype p;
+					e2.etype)
 			with
 				Error (Unify _,_) ->
 					unify ctx e2.etype e1.etype p;
