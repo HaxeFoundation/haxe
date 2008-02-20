@@ -121,6 +121,24 @@ let movieclip_exists types path =
 		| _ -> false
 	) types
 
+let add_as3_code ctx data types =
+	(* only keep classes that are not redefined in HX code *)
+	let inits = As3hlparse.parse data in
+	let inits = List.filter (fun i ->
+		match getclass i with
+		| None -> true
+		| Some path ->
+			not (List.exists (function
+				| TClassDecl c -> c.cl_path = path && not c.cl_extern
+				| TEnumDecl e -> e.e_path = path && not e.e_extern
+				| TTypeDecl _ -> false
+			) types)
+	) inits in
+	ctx.as3code <- ctx.as3code @ inits
+
+let add_as3_clips ctx cl =
+	ctx.f9clips <- List.filter (fun c -> c.f9_cid <> None) cl @ ctx.f9clips
+
 let generate file ver header infile types hres =
 	let t = Plugin.timer "generate swf" in
 	let file , codeclip = (try let f , c = ExtString.String.split file "@" in f, Some c with _ -> file , None) in
@@ -249,24 +267,10 @@ let generate file ver header infile types hres =
 				| TSandbox _ ->
 					loop acc l
 				| TF9Classes cl ->
-					if ver = 9 then ctx.f9clips <- cl @ ctx.f9clips;
+					if ver = 9 then add_as3_clips ctx cl;
 					loop acc l
 				| TActionScript3 (_,data) ->
-					if ver = 9 then begin
-						(* only keep classes that are not redefined in HX code *)
-						let inits = As3hlparse.parse data in
-						let inits = List.filter (fun i ->
-							match getclass i with
-							| None -> true
-							| Some path ->
-								not (List.exists (function
-									| TClassDecl c -> c.cl_path = path && not c.cl_extern
-									| TEnumDecl e -> e.e_path = path && not e.e_extern
-									| TTypeDecl _ -> false
-								) types)
-						) inits in
-						ctx.as3code <- ctx.as3code @ inits;
-					end;
+					if ver = 9 then add_as3_code ctx data types;
 					loop acc l
 				| _ ->
 					loop (t :: acc) l
