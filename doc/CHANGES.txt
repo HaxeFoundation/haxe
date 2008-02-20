@@ -21,6 +21,7 @@
 	added --no-inline
 	renamed neko.zip.File to neko.zip.Reader
 	added neko.zip.Writer and neko.zip.CRC32
+	fixed multilevel Transform.block_vars
 
 2008-01-13: 1.17
 	fixed Int32.compare, added Int32.read and Int32.write

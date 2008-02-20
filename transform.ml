@@ -152,7 +152,7 @@ let local_find flag vname e =
 			true
 
 let block_vars e =
-	let add_var map v = map := PMap.add v () (!map) in
+	let add_var map v d = map := PMap.add v d (!map) in
 	let wrap e used =
 		match PMap.foldi (fun v _ acc -> v :: acc) used [] with
 		| [] -> e
@@ -166,66 +166,67 @@ let block_vars e =
 				List.map (fun v -> mk (TLocal v) t_dynamic e.epos) vars)
 			) t_dynamic e.epos
 	in
-	let rec in_fun vars used_locals e =
+	let rec in_fun vars depth used_locals e =
 		match e.eexpr with
 		| TLocal v ->
-			if PMap.mem v vars then add_var used_locals v
-		| TFunction _ ->
-			()
+			(try
+				if PMap.find v vars = depth then add_var used_locals v depth;				
+			with
+				Not_found -> ())
 		| _ ->
-			iter (in_fun vars used_locals) e
+			iter (in_fun vars depth used_locals) e
 
-	and in_loop vars e =
+	and in_loop vars depth e =
 		match e.eexpr with
 		| TVars l ->
 			{ e with eexpr = TVars (List.map (fun (v,t,e) ->
-				let e = (match e with None -> None | Some e -> Some (in_loop vars e)) in
-				add_var vars v;
+				let e = (match e with None -> None | Some e -> Some (in_loop vars depth e)) in
+				add_var vars v depth;
 				v, t, e
 			) l) }
 		| TFor (v,t,i,e1) ->
-			let new_vars = PMap.add v () (!vars) in
-			{ e with eexpr = TFor (v,t,in_loop vars i,in_loop (ref new_vars) e1) }
+			let new_vars = PMap.add v depth (!vars) in
+			{ e with eexpr = TFor (v,t,in_loop vars depth i,in_loop (ref new_vars) depth e1) }
 		| TTry (e1,cases) ->
-			let e1 = in_loop vars e1 in
+			let e1 = in_loop vars depth e1 in
 			let cases = List.map (fun (v,t,e) ->
-				let new_vars = PMap.add v () (!vars) in
-				v , t, in_loop (ref new_vars) e
+				let new_vars = PMap.add v depth (!vars) in
+				v , t, in_loop (ref new_vars) depth e
 			) cases in
 			{ e with eexpr = TTry (e1,cases) }
 		| TMatch (e1,t,cases,def) ->
-			let e1 = in_loop vars e1 in
+			let e1 = in_loop vars depth e1 in
 			let cases = List.map (fun (cl,params,e) ->
 				let e = (match params with
-					| None -> in_loop vars e
+					| None -> in_loop vars depth e
 					| Some l ->
 						let new_vars = List.fold_left (fun acc (v,t) ->
 							match v with
 							| None -> acc
-							| Some name -> PMap.add name () acc
+							| Some name -> PMap.add name depth acc
 						) (!vars) l in
-						in_loop (ref new_vars) e
+						in_loop (ref new_vars) depth e
 				) in
 				cl , params, e
 			) cases in
-			let def = (match def with None -> None | Some e -> Some (in_loop vars e)) in
+			let def = (match def with None -> None | Some e -> Some (in_loop vars depth e)) in
 			{ e with eexpr = TMatch (e1, t, cases, def) }
 		| TBlock l ->
 			let new_vars = (ref !vars) in
-			map (in_loop new_vars) e
+			map (in_loop new_vars depth) e
 		| TFunction _ ->
 			let new_vars = !vars in
 			let used = ref PMap.empty in
-			iter (in_fun new_vars used) e;
+			iter (in_fun new_vars depth used) e;
 			let e = wrap e (!used) in
 			let new_vars = ref (PMap.foldi (fun v _ acc -> PMap.remove v acc) (!used) new_vars) in
-			map (in_loop new_vars) e
+			map (in_loop new_vars (depth + 1)) e
 		| _ ->
-			map (in_loop vars) e
+			map (in_loop vars depth) e
 	and out_loop e =
 		match e.eexpr with
 		| TFor _ | TWhile _ ->
-			in_loop (ref PMap.empty) e
+			in_loop (ref PMap.empty) 0 e
 		| _ ->
 			map out_loop e
 	in
