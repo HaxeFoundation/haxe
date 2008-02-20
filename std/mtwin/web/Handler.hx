@@ -165,6 +165,17 @@ class Handler<T> {
 		},lock);
 	}
 
+
+	function instance<T>( h : T -> Void, get : Int -> Bool -> T, lock : Bool ) : Void -> Void {
+		var me = this;
+		return function() {
+			var id = Std.parseInt(me.request.getPathInfoPart(me.level+1));
+			var inst = get(id,lock);
+			if( inst == null ) throw ObjectNotFound(id);
+			h(inst);
+		};
+	}
+
 	// action declarators
 
 	function free( n:String, ?t:String, ?cb:Void->Void ){
