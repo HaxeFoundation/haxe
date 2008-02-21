@@ -579,6 +579,7 @@ import js.Boot;
 import js.Lib;
 import js.Dom;
 import js.Selection;
+import js.SWFObject;
 import js.XMLHttpRequest;
 import js.XMLSocket;
 
