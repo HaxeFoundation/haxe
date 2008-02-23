@@ -737,15 +737,36 @@ let rec return_flow ctx e =
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
 
+let rec nullable_basic = function
+	| TMono r ->
+		(match !r with None -> None | Some t -> nullable_basic t)
+	| TType ({ t_path = ([],"Null") },[t]) ->
+		(match follow t with
+		| TMono _
+		| TFun _
+		| TInst ({ cl_path = ([],"Int") },[])
+		| TInst ({ cl_path = ([],"Float") },[])
+		| TEnum ({ e_path = ([],"Bool") },[]) -> Some t
+		| _ -> None)
+	| TLazy f ->
+		nullable_basic (!f())
+	| TType (t,tl) ->
+		nullable_basic (apply_params t.t_types tl t.t_type)
+	| _ ->
+		None
 
 let make_nullable ctx t =
 	if not ctx.flash9 then
 		t
 	else match follow t with
+	| TMono _
 	| TFun _
 	| TInst ({ cl_path = ([],"Int") },[])
 	| TInst ({ cl_path = ([],"Float") },[])
 	| TEnum ({ e_path = ([],"Bool") },[]) ->
+		if nullable_basic t <> None then
+			t
+		else
 		let show = hide_types ctx in
 		(match load_type_def ctx null_pos ([],"Null") with
 		| TTypeDecl td ->
@@ -1443,11 +1464,16 @@ and type_switch ctx e cases def need_val p =
 	let unify_val e =
 		if need_val then begin
 			try
+				(match e.eexpr with
+				| TBlock [{ eexpr = TConst TNull }] -> t := make_nullable ctx !t;
+				| _ -> ());
 				unify_raise ctx e.etype (!t) e.epos;
+				if nullable_basic e.etype <> None then t := make_nullable ctx !t;
 			with Error (Unify _,_) -> try
 				unify_raise ctx (!t) e.etype e.epos;
-				t := e.etype;
+				t := if nullable_basic !t <> None then make_nullable ctx e.etype else e.etype;
 			with Error (Unify _,_) ->
+				(* will display the error *)
 				unify ctx e.etype (!t) e.epos;
 		end;
 	in
@@ -1764,11 +1790,11 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				| TConst TNull, _ -> make_nullable ctx e2.etype
 				| _  ->
 					unify_raise ctx e1.etype e2.etype p;
-					e2.etype)
+					if ctx.flash9 && nullable_basic e1.etype <> None then make_nullable ctx e2.etype else e2.etype)
 			with
 				Error (Unify _,_) ->
 					unify ctx e2.etype e1.etype p;
-					e1.etype
+					if ctx.flash9 && nullable_basic e2.etype <> None then make_nullable ctx e1.etype else e1.etype
 			) in
 			mk (TIf (e,e1,Some e2)) t p)
 	| EWhile (cond,e,NormalWhile) ->
