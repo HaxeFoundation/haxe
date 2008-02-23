@@ -69,7 +69,6 @@ class Reader {
 		if( h != 0x04034B50 )
 			throw "Invalid Zip Data";
 		var version = i.readUInt16();
-		trace(version);
 		var flags = i.readUInt16();
 		var extraFields = (flags & 8) != 0;
 		if( (flags & 0xFFF7) != 0 )
@@ -240,7 +239,7 @@ class Reader {
 		i.read(99 - lname.length); // skip
 		var ustar = i.read(8);
 		if( ustar != "ustar  \x00" && ustar != "ustar\x00\x00\x00" ) {
-			trace(StringTools.urlEncode(ustar));
+			//trace(StringTools.urlEncode(ustar));
 			throw "Not an tar ustar file";
 		}
 		var uname = i.readUntil(0);
