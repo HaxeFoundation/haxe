@@ -1,3 +1,6 @@
+2008-??-??: 1.19
+	fixed flash9 Array.toString
+
 2008-02-23: 1.18
 	some optimization and bugfix for as3 codegen
 	bugfix : allow bitmaps and fonts classes for F9 library

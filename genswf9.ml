@@ -234,7 +234,7 @@ let property p t =
 	| TInst ({ cl_path = [],"Array" },_) ->
 		(match p with
 		| "length" -> ident p, Some KInt
-		| "copy" | "insert" | "remove" | "iterator" -> ident p , None
+		| "copy" | "insert" | "remove" | "iterator" | "toString" -> ident p , None
 		| _ -> as3 p, None);
 	| TInst ({ cl_path = [],"String" },_) ->
 		(match p with
