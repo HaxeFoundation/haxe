@@ -383,7 +383,11 @@ class Ftp {
 			bufSize = 8192;
 		var res = voidCommand("TYPE I");
 		var cnx = transferConnection(cmd, rest);
+		var buf = neko.Lib.makeString(bufSize);
 		while (cnx != null){
+			var rdd = try cnx.input.readBytes(buf, 0, bufSize) catch(eof:Eof) break;
+			cb(buf, rdd);
+			/*
 			var rdd = 0;
 			try {
 				var buf = neko.Lib.makeString(bufSize);
@@ -395,6 +399,7 @@ class Ftp {
 			}
 			if (rdd < bufSize)
 				break;
+			*/
 		}
 		if (cnx != null)
 			cnx.close();
