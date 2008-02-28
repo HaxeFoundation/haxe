@@ -197,8 +197,9 @@ class Preprocessor {
 		registerMacros(neko.io.File.getContent(path));
 	}
 
-	public static function registerMacros( str:String ){
-		var src = str;
+	public static function registerMacros( src:String ){
+		src = StringTools.replace(src, "\r\n", "\n");
+		src = StringTools.replace(src, "\r", "\n");
 		var rFind = ~/<macro\s+name=['"](.*?)['"]\s*?>([^\0]*?)<\/macro>/g; //"
 		while (rFind.match(src)){
 			var pos = rFind.matchedPos();
