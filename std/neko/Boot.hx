@@ -43,9 +43,8 @@ class Boot {
 				s += untyped ",".__s;
 			try {
 				s += untyped __dollar__string(e.args[i]);
-			} catch( e : Dynamic ) {
-				e.__string = old;
-				throw e;
+			} catch( err : Dynamic ) {
+				s += __tmp_str();
 			}
 			i += 1;
 		}
