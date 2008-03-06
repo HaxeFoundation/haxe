@@ -12,7 +12,7 @@ extern class ObjectInput implements IDataInput {
 	function readFloat() : Float;
 	function readInt() : Int;
 	function readMultiByte(length : UInt, charSet : String) : String;
-	function readObject() : Void;
+	function readObject() : Dynamic;
 	function readShort() : Int;
 	function readUTF() : String;
 	function readUTFBytes(length : UInt) : String;
