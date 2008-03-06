@@ -1,5 +1,8 @@
 2008-??-??: 1.19
 	fixed flash9 Array.toString
+	fixed inline return bug
+	TODO haxe/f9 : inline code can give bad file in debug infos
+	TODO haxe/f9 var x = if( true ) Math.POSITIVE_INFINITY : 0.; VerifyError
 
 2008-02-23: 1.18
 	some optimization and bugfix for as3 codegen

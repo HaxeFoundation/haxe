@@ -2125,7 +2125,7 @@ and type_inline ctx f ethis params tret p =
 			if not term then error "Cannot inline a not final return" e.epos;
 			(match eo with
 			| None -> mk (TConst TNull) (mk_mono()) p
-			| Some e -> Transform.map (map term) e)
+			| Some e -> map term e)
 		| TFor (v,t,e1,e2) ->
 			{ e with eexpr = TFor (local v,t,map false e1,map false e2) }
 		| TMatch (e,en,cases,def) ->
