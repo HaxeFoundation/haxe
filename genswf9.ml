@@ -177,16 +177,16 @@ let type_id ctx t =
 	match follow_basic t with
 	| TEnum ({ e_path = path; e_extern = false },_) ->
 		type_path ctx path
-	| TInst ({ cl_shadow = true } as c,_) ->
-		(match c.cl_implements with
-		| [] ->
-			(match c.cl_super with
-			| None -> type_path ctx ([],"Object")
-			| Some (csup,_) -> type_path ctx csup.cl_path)
-		| [csup,_] -> type_path ctx csup.cl_path
-		| _ -> type_path ctx ([],"Object"))
 	| TInst (c,_) ->
-		type_path ctx c.cl_path
+		(match c.cl_kind with
+		| KTypeParameter ->
+			(match c.cl_implements with
+			| [csup,_] -> type_path ctx csup.cl_path
+			| _ -> type_path ctx ([],"Object"))
+		| KExtension (c,_) ->
+			type_path ctx c.cl_path
+		| _ ->
+			type_path ctx c.cl_path)
 	| TFun _ ->
 		type_path ctx ([],"Function")
 	| TEnum ({ e_path = ([],"Class") as path },_)
@@ -889,7 +889,7 @@ let rec gen_expr_content ctx retval e =
 		let branch = begin_branch ctx in
 		let switch_index = DynArray.length ctx.code in
 		let switch_pos = ctx.infos.ipos in
-		write ctx (HSwitch (0,[]));		
+		write ctx (HSwitch (0,[]));
 		(match def with
 		| None ->
 			if retval then begin
@@ -936,7 +936,7 @@ let rec gen_expr_content ctx retval e =
 		) cases in
 		let cases = Array.create (!max + 1) 1 in
 		List.iter (fun (tag,pos) -> Array.set cases tag (pos - switch_pos)) !constructs;
-		List.iter (fun j -> j()) jends;		
+		List.iter (fun j -> j()) jends;
 		DynArray.set ctx.code switch_index (HSwitch (1,Array.to_list cases));
 		branch();
 		free_reg ctx rparams
@@ -1252,16 +1252,18 @@ and jump_expr ctx e jif =
 let generate_method ctx fdata stat =
 	generate_function ctx { fdata with tf_expr = Transform.block_vars fdata.tf_expr } stat
 
-let generate_construct ctx fdata cfields =
+let generate_construct ctx fdata c =
 	(* make all args optional to allow no-param constructor *)
 	let f = begin_fun ctx (List.map (fun (a,o,t) -> a,true,t) fdata.tf_args) fdata.tf_type [ethis;fdata.tf_expr] false fdata.tf_expr.epos in
 	(* if skip_constructor, then returns immediatly *)
-	let id = ident "skip_constructor" in
-	getvar ctx (VGlobal (type_path ctx ([],ctx.boot)));
-	getvar ctx (VId id);
-	let j = jump ctx J3False in
-	write ctx HRetVoid;
-	j();
+	if c.cl_kind <> KGenericInstance then begin
+		let id = ident "skip_constructor" in
+		getvar ctx (VGlobal (type_path ctx ([],ctx.boot)));
+		getvar ctx (VId id);
+		let j = jump ctx J3False in
+		write ctx HRetVoid;
+		j();
+	end;
 	(* --- *)
 	PMap.iter (fun _ f ->
 		match f.cf_expr with
@@ -1271,7 +1273,7 @@ let generate_construct ctx fdata cfields =
 			write ctx (HFunction (generate_method ctx fdata false));
 			write ctx (HInitProp id);
 		| _ -> ()
-	) cfields;
+	) c.cl_fields;
 	gen_expr ctx false (Transform.block_vars fdata.tf_expr);
 	write ctx HRetVoid;
 	f() , List.length fdata.tf_args
@@ -1402,10 +1404,10 @@ let generate_class ctx c =
 						etype = t_void;
 						epos = null_pos;
 					}
-				} c.cl_fields
+				} c
 		| Some f ->
 			match f.cf_expr with
-			| Some { eexpr = TFunction fdata } -> generate_construct ctx fdata c.cl_fields
+			| Some { eexpr = TFunction fdata } -> generate_construct ctx fdata c
 			| _ -> assert false
 	) in
 	let fields = Array.of_list (PMap.fold (fun f acc ->

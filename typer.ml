@@ -324,15 +324,16 @@ let rec load_normal_type ctx t p allow_no_params =
 		pt
 	with Not_found ->
 		let types , path , f = match load_type_def ctx p (t.tpackage,t.tname) with
-			| TClassDecl c -> c.cl_types , c.cl_path , (fun t -> TInst (c,t))
+			| TClassDecl c ->
+				c.cl_types , c.cl_path , (match c.cl_kind with KGeneric -> build_generic ctx c allow_no_params p | _ -> (fun t -> TInst (c,t)))
 			| TEnumDecl e -> e.e_types , e.e_path , (fun t -> TEnum (e,t))
 			| TTypeDecl t -> t.t_types , t.t_path , (fun tl -> TType(t,tl))
 		in
 		if allow_no_params && t.tparams = [] then
 			f (List.map (fun (name,t) ->
 				match follow t with
-				| TEnum _ -> mk_mono()
-				| _ -> error ("Type parameter " ^ name ^ " need constraint") p
+				| TInst (c,_) -> if c.cl_implements = [] then mk_mono() else error ("Type parameter " ^ name ^ " need constraint") p
+				| _ -> assert false
 			) types)
 		else if path = ([],"Dynamic") then
 			match t.tparams with
@@ -344,24 +345,25 @@ let rec load_normal_type ctx t p allow_no_params =
 			let tparams = List.map (fun t ->
 				match t with
 				| TPConst c ->
-					let name = (match c with
-						| String s -> "S" ^ s
-						| Int i -> "I" ^ i
-						| Float f -> "F" ^ f
+					let name, const = (match c with
+						| String s -> "S" ^ s, TString s
+						| Int i -> "I" ^ i, TInt (Int32.of_string i)
+						| Float f -> "F" ^ f, TFloat f
 						| _ -> assert false
 					) in
-					TEnum ({ e_path = ([],name); e_pos = p; e_doc = None; e_private = false; e_extern = true; e_types = []; e_constrs = PMap.empty; e_names = [] },[]), true
-				| TPType t -> load_type ctx p t, false
+					let c = mk_class ([],name) p None false in
+					c.cl_kind <- KConstant const;
+					TInst (c,[])
+				| TPType t -> load_type ctx p t
 			) t.tparams in
-			let bparams = List.map fst tparams in
-			let params = List.map2 (fun (t,isconst) (name,t2) ->
+			let params = List.map2 (fun t (name,t2) ->
+				let isconst = (match t with TInst ({ cl_kind = KConstant _ },_) -> true | _ -> false) in
 				if isconst <> (name = "Const") && t != t_dynamic then error (if isconst then "Constant value unexpected here" else "Constant value excepted as type parameter") p;
 				(match follow t2 with
 				| TInst (c,[]) ->
 					List.iter (fun (i,params) ->
-						unify ctx t (apply_params types bparams (TInst (i,params))) p
+						unify ctx t (apply_params types tparams (TInst (i,params))) p
 					) c.cl_implements
-				| TEnum (c,[]) -> ()
 				| _ -> assert false);
 				t
 			) tparams types in
@@ -387,7 +389,7 @@ and load_type ctx p t =
 							Not_found -> ()
 					) a.a_fields;
 					(* do NOT tag as extern - for protect *)
-					c2.cl_shadow <- true;
+					c2.cl_kind <- KExtension (c,tl);
 					c2.cl_super <- Some (c,tl);
 					c2.cl_fields <- a.a_fields;
 					TInst (c2,[])
@@ -441,7 +443,100 @@ and load_type ctx p t =
 		| _ ->
 			TFun (List.map (fun t -> "",false,load_type ctx p t) args,load_type ctx p r)
 
-let rec reverse_type t =
+and build_generic ctx c allow p tl =
+	let pack = fst c.cl_path in
+	let recurse = ref false in
+	let name = String.concat "_" (snd c.cl_path :: (List.map (fun t ->
+		let t = follow t in
+		let path = (match t with
+			| TInst (c,_) -> if c.cl_kind = KTypeParameter then recurse := true; c.cl_path
+			| TEnum (e,_) -> e.e_path
+			| _ -> error "Type parameter must be a class or enum instance" p
+		) in
+		match path with
+		| [] , name -> name
+		| l , name -> String.concat "_" l ^ "_" ^ name
+	) tl)) in
+	if !recurse then begin
+		TInst (c,tl)
+	end else try
+		load_normal_type ctx { tpackage = pack; tname = name; tparams = [] } p allow
+	with Error(Module_not_found path,_) when path = (pack,name) ->
+		(* try to find the module in which the generic class was originally defined *)
+		let mpath = (if c.cl_private then match List.rev (fst c.cl_path) with [] -> assert false | x :: l -> List.rev l, String.sub x 1 (String.length x - 1) else c.cl_path) in
+		let m = try Hashtbl.find ctx.modules mpath with Not_found -> assert false in
+		let ctx = { ctx with local_types = m.mtypes @ ctx.local_types } in
+		let cg = mk_class (pack,name) c.cl_pos None false in
+		let mg = {
+			mpath = cg.cl_path;
+			mtypes = [TClassDecl cg];
+			mimports = [];
+		} in
+		Hashtbl.add ctx.modules mg.mpath mg;
+		let rec loop l1 l2 =
+			match l1, l2 with
+			| [] , [] -> []
+			| (x,TLazy f) :: l1, _ -> loop ((x,(!f)()) :: l1) l2
+			| (_,t1) :: l1 , t2 :: l2 -> (t1,t2) :: loop l1 l2
+			| _ -> assert false
+		in
+		let subst = loop c.cl_types tl in
+		let rec build_type t =
+			match t with
+			| TInst ({ cl_kind = KGeneric } as c,tl) ->
+				(* maybe loop, or generate cascading generics *)
+				load_type ctx p (reverse_type (TInst (c,List.map build_type tl)))
+			| _ ->
+				try List.assq t subst with Not_found -> Type.map build_type t
+		in
+		let rec build_expr e =
+			let t = build_type e.etype in
+			match e.eexpr with
+			| TFunction f ->
+				{
+					eexpr = TFunction {
+						tf_args = List.map (fun (n,o,t) -> n, o, build_type t) f.tf_args;
+						tf_type = build_type f.tf_type;
+						tf_expr = build_expr f.tf_expr;
+					};
+					etype = t;
+					epos = e.epos;
+				}
+			| TNew (c,tl,el) ->
+				let c, tl = (match follow t with TInst (c,tl) -> c, tl | _ -> assert false) in
+				{
+					eexpr = TNew (c,tl,List.map build_expr el);
+					etype = t;
+					epos = e.epos;
+				};
+			| TVars vl ->
+				{
+					eexpr = TVars (List.map (fun (v,t,eo) ->
+						v, build_type t, (match eo with None -> None | Some e -> Some (build_expr e))
+					) vl);
+					etype = t;
+					epos = e.epos;
+				}
+			(* there's still some 't' lefts in TFor, TMatch and TTry *)
+			| _ ->
+				Transform.map build_expr { e with etype = t }
+		in
+		let build_field f =
+			let t = build_type f.cf_type in
+			{ f with cf_type = t; cf_expr = (match f.cf_expr with None -> None | Some e -> Some (build_expr e)) }
+		in
+		if c.cl_super <> None || c.cl_init <> None || c.cl_dynamic <> None then error "This class can't be generic" p;
+		if c.cl_ordered_statics <> [] then error "A generic class can't have static fields" p;
+		cg.cl_constructor <- (match c.cl_constructor with None -> None | Some c -> Some (build_field c));
+		cg.cl_implements <- List.map (fun (i,tl) -> i, List.map build_type tl) c.cl_implements;
+		cg.cl_ordered_fields <- List.map (fun f ->
+			let f = build_field f in
+			cg.cl_fields <- PMap.add f.cf_name f cg.cl_fields;
+			f
+		) c.cl_ordered_fields;
+		TInst (cg,[])
+
+and reverse_type t =
 	match t with
 	| TEnum (e,params) ->
 		TPNormal { tpackage = fst e.e_path; tname = snd e.e_path; tparams = List.map reverse_param params }
@@ -573,6 +668,8 @@ let set_heritance ctx c herits p =
 			extend_remoting ctx c t p false true
 		| HExtends { tpackage = ["haxe";"remoting"]; tname = "AsyncProxy"; tparams = [TPType(TPNormal t)] } ->
 			extend_remoting ctx c t p true true
+		| HImplements { tpackage = ["haxe";"rtti"]; tname = "Generic"; tparams = [] } ->
+			c.cl_kind <- KGeneric
 		| HExtends { tpackage = ["mt"]; tname = "AsyncProxy"; tparams = [TPType(TPNormal t)] } ->
 			extend_remoting ctx c t p true false
 		| HExtends t ->
@@ -603,35 +700,19 @@ let set_heritance ctx c herits p =
 	List.iter loop herits
 
 let type_type_params ctx path p (n,flags) =
-	let t = (match flags with
-	| [] ->
-		(* build a phantom enum *)
-		let e = {
-			e_path = (fst path @ [snd path],n);
-			e_pos = p;
-			e_private = true;
-			e_extern = true;
-			e_types = [];
-			e_constrs = PMap.empty;
-			e_doc = None;
-			e_names = [];
-		} in
-		TEnum (e,[])
-	| l ->
-		(* build a phantom class *)
-		let c = mk_class (fst path @ [snd path],n) p None true in
-		let t = TInst (c,[]) in
+	let c = mk_class (fst path @ [snd path],n) p None false in
+	c.cl_kind <- KTypeParameter;
+	let t = TInst (c,[]) in
+	match flags with
+	| [] -> n, t
+	| _ ->
 		let r = exc_protect (fun r ->
 			r := (fun _ -> t);
-			set_heritance ctx c (List.map (fun t -> HImplements t) l) p;
+			set_heritance ctx c (List.map (fun t -> HImplements t) flags) p;
 			t
 		) in
-		c.cl_extern <- true;
-		c.cl_shadow <- true;
 		ctx.delays := [(fun () -> ignore(!r()))] :: !(ctx.delays);
-		TLazy r
-	) in
-	n , t
+		n, TLazy r
 
 let hide_types ctx =
 	let old_locals = ctx.local_types in
@@ -2181,7 +2262,7 @@ and type_inline ctx f ethis params tret p =
 		| _ -> Transform.map inline_params e
 	in
 	let e = (if PMap.is_empty subst then e else inline_params e) in
-	let init = (match vars with [] -> None | l -> Some (mk (TVars (List.rev l)) (t_void ctx) p)) in	
+	let init = (match vars with [] -> None | l -> Some (mk (TVars (List.rev l)) (t_void ctx) p)) in
 	if 	Plugin.defined "js" && (init <> None || !has_vars) then
 		None
 	else match e.eexpr, init with
@@ -2544,7 +2625,7 @@ let init_class ctx c p herits fields =
 				cf_doc = doc;
 				cf_type = t;
 				cf_get = if inline then InlineAccess else NormalAccess;
-				cf_set = (if inline then NeverAccess else if ctx.flash9 && not (List.mem AF9Dynamic access) then F9MethodAccess else NormalAccess);
+				cf_set = (if ctx.flash9 && not (List.mem AF9Dynamic access) then F9MethodAccess else if inline then NeverAccess else NormalAccess);
 				cf_expr = None;
 				cf_public = is_public access;
 				cf_params = params;
@@ -3110,7 +3191,7 @@ let types ctx main excludes =
 				let t = field_type f in
 				(match follow t with
 				| TFun ([],r) -> t, r
-				| _ -> error ("Invalid -main : " ^ s_type_path cl ^ " has invalid main function") null_pos);				
+				| _ -> error ("Invalid -main : " ^ s_type_path cl ^ " has invalid main function") null_pos);
 			with
 				Not_found -> error ("Invalid -main : " ^ s_type_path cl ^ " does not have static function main") null_pos
 		) in

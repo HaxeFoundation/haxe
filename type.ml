@@ -113,13 +113,21 @@ and tclass_field = {
 	mutable cf_expr : texpr option;
 }
 
+and tclass_kind =
+	| KNormal
+	| KTypeParameter
+	| KExtension of tclass * tparams
+	| KConstant of tconstant
+	| KGeneric
+	| KGenericInstance
+
 and tclass = {
 	cl_path : module_path;
 	cl_pos : Ast.pos;
 	cl_doc : Ast.documentation;
 	cl_private : bool;
+	mutable cl_kind : tclass_kind;
 	mutable cl_extern : bool;
-	mutable cl_shadow : bool;
 	mutable cl_interface : bool;
 	mutable cl_types : (string * t) list;
 	mutable cl_super : (tclass * tparams) option;
@@ -200,8 +208,8 @@ let mk_class path pos doc priv =
 		cl_pos = pos;
 		cl_doc = doc;
 		cl_private = priv;
+		cl_kind = KNormal;
 		cl_extern = false;
-		cl_shadow = false;
 		cl_interface = false;
 		cl_types = [];
 		cl_super = None;
@@ -313,6 +321,34 @@ let rec link e a b =
 		match b with
 		| TDynamic _ -> true
 		| _ -> e := Some b; true
+
+let map loop t =
+	match t with
+	| TMono r ->
+		(match !r with
+		| None -> t
+		| Some t -> loop t) (* erase*)
+	| TEnum (_,[]) | TInst (_,[]) | TType (_,[]) ->
+		t
+	| TEnum (e,tl) ->
+		TEnum (e, List.map loop tl)
+	| TInst (c,tl) ->
+		TInst (c, List.map loop tl)
+	| TType (t2,tl) ->
+		TType (t2,List.map loop tl)
+	| TFun (tl,r) ->
+		TFun (List.map (fun (s,o,t) -> s, o, loop t) tl,loop r)
+	| TAnon a ->
+		TAnon {
+			a_fields = PMap.map (fun f -> { f with cf_type = loop f.cf_type }) a.a_fields;
+			a_status = a.a_status;
+		}
+	| TLazy f ->
+		let ft = !f() in
+		let ft2 = loop ft in
+		if ft == ft2 then t else ft2
+	| TDynamic t2 ->
+		if t == t2 then	t else TDynamic (loop t2)
 
 (* substitute parameters with other types *)
 let apply_params cparams params t =
