@@ -70,13 +70,19 @@ class Handler<T> {
 	function initialize() {
 	}
 
+	function getObjectId( part:String ) : Int {
+		if (~/^[0-9]+$/.match(part))
+			return Std.parseInt(part);
+		return null;
+	}
+
 	public function execute( request:Request, ?pathLevel:Int ){
 		if (pathLevel == null)
 			pathLevel = 0;
 
 		var part = request.getPathInfoPart(pathLevel);
-		if (~/^[0-9]+$/.match(part)){
-			id = Std.parseInt(part);
+		this.id = getObjectId(part);
+		if( id != null ){
 			part = request.getPathInfoPart(++pathLevel);
 			if (part == "")
 				part = OBJECT_DEFAULT;
