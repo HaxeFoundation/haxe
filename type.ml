@@ -119,7 +119,7 @@ and tclass_kind =
 	| KExtension of tclass * tparams
 	| KConstant of tconstant
 	| KGeneric
-	| KGenericInstance
+	| KGenericInstance of tclass * tparams
 
 and tclass = {
 	cl_path : module_path;

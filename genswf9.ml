@@ -1256,14 +1256,15 @@ let generate_construct ctx fdata c =
 	(* make all args optional to allow no-param constructor *)
 	let f = begin_fun ctx (List.map (fun (a,o,t) -> a,true,t) fdata.tf_args) fdata.tf_type [ethis;fdata.tf_expr] false fdata.tf_expr.epos in
 	(* if skip_constructor, then returns immediatly *)
-	if c.cl_kind <> KGenericInstance then begin
+	(match c.cl_kind with
+	| KGenericInstance _ -> ()
+	| _ ->
 		let id = ident "skip_constructor" in
 		getvar ctx (VGlobal (type_path ctx ([],ctx.boot)));
 		getvar ctx (VId id);
 		let j = jump ctx J3False in
 		write ctx HRetVoid;
-		j();
-	end;
+		j());	
 	(* --- *)
 	PMap.iter (fun _ f ->
 		match f.cf_expr with

@@ -527,6 +527,7 @@ and build_generic ctx c allow p tl =
 		in
 		if c.cl_super <> None || c.cl_init <> None || c.cl_dynamic <> None then error "This class can't be generic" p;
 		if c.cl_ordered_statics <> [] then error "A generic class can't have static fields" p;
+		cg.cl_kind <- KGenericInstance (c,tl);
 		cg.cl_constructor <- (match c.cl_constructor with None -> None | Some c -> Some (build_field c));
 		cg.cl_implements <- List.map (fun (i,tl) -> i, List.map build_type tl) c.cl_implements;
 		cg.cl_ordered_fields <- List.map (fun f ->
@@ -2398,6 +2399,26 @@ and optimize_for_loop ctx i e1 e2 p =
 					block,
 					NormalWhile
 				)) t_void p;
+			]) t_void p
+		| TInst ({ cl_kind = KGenericInstance ({ cl_path = ["flash"],"FastList" },[t]) } as c,[]) ->
+			let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> assert false) in
+			let i = add_local ctx i t in
+			let cell = gen_local ctx tcell in
+			let cexpr = mk (TLocal cell) tcell p in
+			let e2 = type_expr ~need_val:false ctx e2 in
+			let evar = mk (TVars [i,t,Some (mk (TField (cexpr,"elt")) t p)]) t_void p in
+			let enext = mk (TBinop (OpAssign,cexpr,mk (TField (cexpr,"next")) tcell p)) tcell p in
+			let block = match e2.eexpr with
+				| TBlock el -> mk (TBlock (evar :: enext :: el)) t_void e2.epos
+				| _ -> mk (TBlock [evar;enext;e2]) t_void p
+			in
+			mk (TBlock [
+				mk (TVars [cell,tcell,Some (mk (TField (e1,"head")) tcell p)]) t_void p;
+				mk (TWhile (
+					mk (TBinop (OpNotEq, cexpr, mk (TConst TNull) tcell p)) (t_bool ctx) p,
+					block,
+					NormalWhile
+				)) t_void p
 			]) t_void p
 		| _ ->
 			let t, pt = t_iterator ctx in

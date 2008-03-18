@@ -54,7 +54,7 @@ class FastList<T> implements haxe.rtti.Generic {
 		Returns the first element of the list, or null
 		if the list is empty.
 	**/
-	public inline function first() : T {
+	public inline function first() : Null<T> {
 		return if( head == null ) null else head.elt;
 	}
 
@@ -63,7 +63,7 @@ class FastList<T> implements haxe.rtti.Generic {
 		returns it or simply returns null if the
 		list is empty.
 	**/
-	public inline function pop() : T {
+	public inline function pop() : Null<T> {
 		var k = head;
 		if( k== null )
 			return null;
