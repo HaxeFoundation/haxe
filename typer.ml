@@ -464,8 +464,8 @@ and build_generic ctx c allow p tl =
 	with Error(Module_not_found path,_) when path = (pack,name) ->
 		(* try to find the module in which the generic class was originally defined *)
 		let mpath = (if c.cl_private then match List.rev (fst c.cl_path) with [] -> assert false | x :: l -> List.rev l, String.sub x 1 (String.length x - 1) else c.cl_path) in
-		let m = try Hashtbl.find ctx.modules mpath with Not_found -> assert false in
-		let ctx = { ctx with local_types = m.mtypes @ ctx.local_types } in
+		let mtypes = try (Hashtbl.find ctx.modules mpath).mtypes with Not_found -> [] in
+		let ctx = { ctx with local_types = mtypes @ ctx.local_types } in
 		let cg = mk_class (pack,name) c.cl_pos None false in
 		let mg = {
 			mpath = cg.cl_path;
@@ -2400,7 +2400,7 @@ and optimize_for_loop ctx i e1 e2 p =
 					NormalWhile
 				)) t_void p;
 			]) t_void p
-		| TInst ({ cl_kind = KGenericInstance ({ cl_path = ["flash"],"FastList" },[t]) } as c,[]) ->
+		| TInst ({ cl_kind = KGenericInstance ({ cl_path = ["haxe"],"FastList" },[t]) } as c,[]) ->
 			let tcell = (try (PMap.find "head" c.cl_fields).cf_type with Not_found -> assert false) in
 			let i = add_local ctx i t in
 			let cell = gen_local ctx tcell in

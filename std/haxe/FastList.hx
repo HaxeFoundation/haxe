@@ -22,20 +22,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package flash;
+package haxe;
 
-private class Cell<T> implements haxe.rtti.Generic {
+class FastCell<T> #if flash9 implements haxe.rtti.Generic #end {
 	public var elt : T;
-	public var next : Cell<T>;
+	public var next : FastCell<T>;
 	public function new(elt,next) { this.elt = elt; this.next = next; }
 }
 
 /**
-	A linked-list of elements. A different class is created for each container used.
+	A linked-list of elements. A different class is created for each container used in platforms where it matters
 **/
-class FastList<T> implements haxe.rtti.Generic {
+class FastList<T> #if flash9 implements haxe.rtti.Generic #end {
 
-	public var head : Cell<T>;
+	public var head : FastCell<T>;
 
 	/**
 		Creates a new empty list.
@@ -47,7 +47,7 @@ class FastList<T> implements haxe.rtti.Generic {
 		Add an element at the head of the list.
 	**/
 	public inline function add( item : T ) {
-		head = new Cell<T>(item,head);
+		head = new FastCell<T>(item,head);
 	}
 
 	/**
