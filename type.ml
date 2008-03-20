@@ -306,16 +306,7 @@ let rec link e a b =
 			with
 				Exit -> true
 	in
-	let rec mono_loop t =
-		if t == a then
-			true
-		else match t with
-		| TMono t -> (match !t with None -> false | Some t -> loop t)
-		| _ -> false
-	in
-	if mono_loop b then
-		true
-	else if loop b then
+	if loop b then
 		false
 	else
 		match b with

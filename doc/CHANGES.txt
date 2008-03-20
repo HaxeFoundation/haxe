@@ -3,6 +3,7 @@
 	fixed inline return bug
 	added haxe.rtti.Generic behavior
 	added haxe.FastList
+	bugfix to prevent recursive anonymous
 	TODO haxe/f9 : inline code can give bad file in debug infos
 	TODO haxe/f9 var x = if( true ) Math.POSITIVE_INFINITY : 0.; VerifyError
 
