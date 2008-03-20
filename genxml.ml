@@ -84,14 +84,17 @@ let gen_constr e =
 let gen_field att f =
 	let add_get_set acc name att =
 		match acc with
-		| NormalAccess | ResolveAccess | InlineAccess -> att
+		| NormalAccess | ResolveAccess -> att
 		| NoAccess | NeverAccess -> (name, "null") :: att
 		| MethodAccess m -> (name, if m = name ^ "_" ^ f.cf_name then "dynamic" else m) :: att
 		| F9MethodAccess -> att
+		| InlineAccess -> assert false
 	in
 	let att = (match f.cf_expr with None -> att | Some e -> ("line",string_of_int (Lexer.get_error_line e.epos)) :: att) in
-	let att = add_get_set f.cf_get "get" att in
-	let att = add_get_set f.cf_set "set" att in
+	let att = (match f.cf_get with
+		| InlineAccess -> att
+		| g -> add_get_set f.cf_get "get" (add_get_set f.cf_set "set" att)
+	) in
 	let att = (match f.cf_params with [] -> att | l -> ("params", String.concat ":" (List.map (fun (n,_) -> n) l)) :: att) in
 	node f.cf_name (if f.cf_public then ("public","1") :: att else att) (gen_type f.cf_type :: gen_doc_opt f.cf_doc)
 

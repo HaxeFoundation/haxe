@@ -195,7 +195,10 @@ class XmlParser {
 	}
 
 	function mkTypeParams( p : String ) : TypeParams {
-		return p.split(":");
+		var pl = p.split(":");
+		if( pl[0] == "" )
+			return new Array();
+		return pl;
 	}
 
 	function mkRights( r : String ) : Rights {
