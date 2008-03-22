@@ -979,13 +979,12 @@ let type_type ctx tpath p =
 	let rec loop t tparams =
 	match t with
 	| TClassDecl c ->
-		let pub = is_parent c ctx.curclass in
 		let t_tmp = {
 			t_path = fst c.cl_path, "#" ^ snd c.cl_path;
 			t_doc = None;
 			t_pos = c.cl_pos;
 			t_type = TAnon {
-				a_fields = if pub then PMap.map (fun f -> { f with cf_public = true }) c.cl_statics else c.cl_statics;
+				a_fields = c.cl_statics;
 				a_status = ref (Statics c);
 			};
 			t_private = true;
@@ -1231,7 +1230,12 @@ let type_field ctx e i p get =
 	| TAnon a ->
 		(try
 			let f = PMap.find i a.a_fields in
-			if !(a.a_status) <> Closed && not f.cf_public && not ctx.untyped then display_error ctx ("Cannot access to private field " ^ i) p;
+			if not f.cf_public && not ctx.untyped then begin
+				match !(a.a_status) with
+				| Closed -> () (* always allow anon private fields access *)
+				| Statics c when is_parent c ctx.curclass -> ()
+				| _ -> display_error ctx ("Cannot access to private field " ^ i) p
+			end;
 			field_access ctx get f (field_type f) e p
 		with Not_found ->
 			if is_closed a then
