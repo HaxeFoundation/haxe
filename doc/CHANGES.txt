@@ -17,6 +17,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	fixes in genas3 + genswf9 for Dynamic/* in methods
 	{} is now an empty object and not an empty block
 	fixed some verify errors left in flash9
+	fixed private/protected differences in gen-hx-classes
 
 2008-02-23: 1.18
 	some optimization and bugfix for as3 codegen

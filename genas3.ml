@@ -1040,10 +1040,11 @@ let ident_rights ctx id =
 	| A3MName (id,r) ->
 		let name = ident ctx id in
 		(match As3code.iget ctx.as3_namespaces r with
-		| A3NNamespace i when As3code.iget ctx.as3_idents i = "http://www.adobe.com/2006/flex/mx/internal" -> false, "$" ^ name
-		| A3NPublic _ | A3NNamespace _ -> false , name
-		| _ -> true , name)
-	| _ -> false, "???"
+		| A3NNamespace i when As3code.iget ctx.as3_idents i = "http://www.adobe.com/2006/flex/mx/internal" -> false, false, "$" ^ name
+		| A3NPublic _ | A3NNamespace _ -> false , false, name
+		| A3NProtected _ -> false, true, name
+		| _ -> true , false, name)
+	| _ -> false, false, "???"
 
 let rec create_dir acc = function
 	| [] -> ()
@@ -1114,7 +1115,8 @@ let gen_method ctx ch name mt =
 let gen_fields ctx ch fields stat =
 	let fields = List.sort (fun f1 f2 -> compare (ident_rights ctx f1.f3_name) (ident_rights ctx f2.f3_name)) (Array.to_list fields) in
 	List.iter (fun f ->
-		let priv , name = ident_rights ctx f.f3_name in
+		let priv, prot, name = ident_rights ctx f.f3_name in
+		let rights = (if priv then "//" else "") ^ (if priv || prot then "private " else "") ^ (if stat then "static " else "") in
 		if name.[0] = '$' then
 			()
 		else match f.f3_kind with
@@ -1124,27 +1126,25 @@ let gen_fields ctx ch fields stat =
 			else
 			(match m.m3_kind with
 			| MK3Normal ->
-				IO.printf ch "\t";
-				if priv then IO.printf ch "private ";
-				if stat then IO.printf ch "static ";
-				gen_method ctx ch name m.m3_type
+				IO.printf ch "\t%s" rights;
+				gen_method ctx ch name m.m3_type				
 			| MK3Getter ->
 				let set = has_getset fields f m in
 				let set_str = if set then "" else "(default,null)" in
 				let m = As3code.iget ctx.as3_method_types (As3parse.no_nz m.m3_type) in
 				let t = (match m.mt3_ret with None -> "Dynamic" | Some t -> s_type_path (type_path ctx t)) in
-				IO.printf ch "\t%s%svar %s%s : %s;\n" (if priv then "private " else "") (if stat then "static " else "") name set_str t
+				IO.printf ch "\t%svar %s%s : %s;\n" rights name set_str t
 			| MK3Setter ->
 				let get = has_getset fields f m in
 				if not get then begin
 					let m = As3code.iget ctx.as3_method_types (As3parse.no_nz m.m3_type) in
 					let t = (match m.mt3_ret with None -> "Dynamic" | Some t -> s_type_path (type_path ctx t)) in
-					IO.printf ch "\t%s%svar %s(null,default) : %s;\n" (if priv then "private " else "") (if stat then "static " else "") name t
+					IO.printf ch "\t%svar %s(null,default) : %s;\n" rights name t
 				end;
 			)
 		| A3FVar v ->
 			let t = type_val ctx v.v3_type (Some v.v3_value) in
-			IO.printf ch "\t%s%svar %s : %s;\n" (if priv then "private " else "") (if stat then "static " else "") name t
+			IO.printf ch "\t%svar %s : %s;\n" rights name t
 		| A3FFunction _ ->
 			assert false
 		| A3FClass _ ->
