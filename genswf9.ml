@@ -744,16 +744,15 @@ let rec gen_expr_content ctx retval e =
 			jend());
 		branch();
 	| TWhile (econd,e,flag) ->
-		let jstart = (match flag with NormalWhile -> (fun()->()) | DoWhile -> jump ctx J3Always) in
+		let jstart = jump ctx J3Always in
 		let end_loop = begin_loop ctx in
 		let branch = begin_branch ctx in
-		let continue_pos = ctx.infos.ipos in
 		let loop = jump_back ctx in
-		let jend = jump_expr ctx econd false in
-		jstart();
+		if flag = DoWhile then jstart();
 		gen_expr ctx false e;
-		loop J3Always;
-		jend();
+		if flag = NormalWhile then jstart();
+		let continue_pos = ctx.infos.ipos in
+		let _ = jump_expr_gen ctx econd true (fun j -> loop j; (fun() -> ())) in
 		branch();
 		end_loop continue_pos;
 		if retval then write ctx HNull
@@ -1236,14 +1235,14 @@ and generate_function ctx fdata stat =
 	);
 	f()
 
-and jump_expr ctx e jif =
+and jump_expr_gen ctx e jif jfun =
 	match e.eexpr with
-	| TParenthesis e -> jump_expr ctx e jif
+	| TParenthesis e -> jump_expr_gen ctx e jif jfun
 	| TBinop (op,e1,e2) ->
 		let j t f =
 			gen_expr ctx true e1;
 			gen_expr ctx true e2;
-			jump ctx (if jif then t else f)
+			jfun (if jif then t else f)
 		in
 		(match op with
 		| OpEq -> j J3Eq J3Neq
@@ -1256,10 +1255,13 @@ and jump_expr ctx e jif =
 		| OpLte -> j J3Lte J3NotLte
 		| _ ->
 			gen_expr ctx true e;
-			jump ctx (if jif then J3True else J3False))
+			jfun (if jif then J3True else J3False))
 	| _ ->
 		gen_expr ctx true e;
-		jump ctx (if jif then J3True else J3False)
+		jfun (if jif then J3True else J3False)
+
+and jump_expr ctx e jif =
+	jump_expr_gen ctx e jif (jump ctx)
 
 let generate_method ctx fdata stat =
 	generate_function ctx { fdata with tf_expr = Transform.block_vars fdata.tf_expr } stat
