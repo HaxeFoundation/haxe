@@ -198,8 +198,9 @@ let type_id ctx t =
 
 let type_void ctx t =
 	match follow t with
-	| TEnum ({ e_path = [],"Void" },_) -> HMPath ([],"void")
-	| _ -> type_id ctx t
+	| TEnum ({ e_path = [],"Void" },_) -> Some (HMPath ([],"void"))
+	| TDynamic _ -> None
+	| _ -> Some (type_id ctx t)
 
 let classify ctx t =
 	match follow_basic t with
@@ -534,8 +535,8 @@ let begin_fun ctx args tret el stat p =
 		} in
 		let mt = {
 			hlmt_mark = As3hlparse.alloc_mark();
-			hlmt_ret = Some (type_void ctx tret);
-			hlmt_args = List.map (fun (_,_,t) -> Some (type_id ctx t)) args;
+			hlmt_ret = type_void ctx tret;
+			hlmt_args = List.map (fun (_,_,t) -> type_void ctx t) args;
 			hlmt_native = false;
 			hlmt_var_args = varargs;
 			hlmt_debug_name = None;
