@@ -196,11 +196,15 @@ let type_id ctx t =
 	| _ ->
 		HMPath ([],"Object")
 
+let type_opt ctx t =
+	match follow t with
+	| TDynamic _ -> None
+	| _ -> Some (type_id ctx t)
+
 let type_void ctx t =
 	match follow t with
 	| TEnum ({ e_path = [],"Void" },_) -> Some (HMPath ([],"void"))
-	| TDynamic _ -> None
-	| _ -> Some (type_id ctx t)
+	| _ -> type_opt ctx t
 
 let classify ctx t =
 	match follow_basic t with
@@ -523,20 +527,16 @@ let begin_fun ctx args tret el stat p =
 					hltc_start = t.tr_pos + delta;
 					hltc_end = t.tr_end + delta;
 					hltc_handle = t.tr_catch_pos + delta;
-					hltc_type = (match follow t.tr_type with
-						| TInst (c,_) -> Some (type_path ctx c.cl_path)
-						| TEnum (e,_) -> Some (type_path ctx e.e_path)
-						| TDynamic _ -> None
-						| _ -> assert false);
+					hltc_type = type_opt ctx t.tr_type;
 					hltc_name = None;
 				}
 			) (List.rev ctx.trys));
-			hlf_locals = Array.of_list (List.map (fun (id,name,t) -> ident name, Some (type_id ctx t), id) ctx.block_vars);
+			hlf_locals = Array.of_list (List.map (fun (id,name,t) -> ident name, type_opt ctx t, id) ctx.block_vars);
 		} in
 		let mt = {
 			hlmt_mark = As3hlparse.alloc_mark();
 			hlmt_ret = type_void ctx tret;
-			hlmt_args = List.map (fun (_,_,t) -> type_void ctx t) args;
+			hlmt_args = List.map (fun (_,_,t) -> type_opt ctx t) args;
 			hlmt_native = false;
 			hlmt_var_args = varargs;
 			hlmt_debug_name = None;
@@ -1386,7 +1386,7 @@ let generate_field_kind ctx f c stat =
 		None
 	| _ ->
 		Some (HFVar {
-			hlv_type = Some (type_id ctx f.cf_type);
+			hlv_type = type_opt ctx f.cf_type;
 			hlv_value = HVNone;
 			hlv_const = false;
 		})
