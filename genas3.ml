@@ -1084,7 +1084,7 @@ let has_getset ml f m =
 let gen_method ctx ch name mt =
 	let m = As3code.iget ctx.as3_method_types (As3parse.no_nz mt) in
 	let ret = (match m.mt3_ret with
-		| None -> "Void"
+		| None -> if name = "new" then "Void" else "Dynamic"
 		| Some t -> s_type_path (type_path ctx t)
 	) in
 	let p = ref 0 in
