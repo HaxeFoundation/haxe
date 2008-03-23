@@ -422,7 +422,7 @@ and parse_class_herit = parser
 and block1 = parser
 	| [< '(Const (Ident name),p); s >] -> block2 name true p s
 	| [< '(Const (Type name),p); s >] -> block2 name false p s
-	| [< b = block [] >] -> EBlock b
+	| [< b = block [] >] -> (match b with [] -> EObjectDecl [] | _ -> EBlock b)
 
 and block2 name ident p = parser
 	| [< '(DblDot,_); e = expr; l = parse_obj_decl >] -> EObjectDecl ((name,e) :: l)

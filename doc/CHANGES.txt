@@ -6,6 +6,7 @@
 	bugfix to prevent recursive anonymous
 	fixed some incorrectly reported "recursive inline" errors
 	fixes in genas3 + genswf9 for Dynamic/* in methods
+	{} is now an empty object and not an empty block
 	TODO haxe/f9 : inline code can give bad file in debug infos
 	TODO haxe/f9 var x = if( true ) Math.POSITIVE_INFINITY : 0.; VerifyError
 
