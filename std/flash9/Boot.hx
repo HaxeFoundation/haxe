@@ -111,7 +111,7 @@ class Boot extends flash.display.MovieClip {
 			format.font = "_sans";
 			tf.defaultTextFormat = format;
 			tf.selectable = false;
-			tf.width = mc.stage.stageWidth;
+			tf.width = if( mc.stage == null ) 800 else mc.stage.stageWidth;
 			tf.autoSize = flash.text.TextFieldAutoSize.LEFT;
 			tf.mouseEnabled = false;
 		}
@@ -126,7 +126,7 @@ class Boot extends flash.display.MovieClip {
 		tf.text = lines.join("\n");
 		var stage = flash.Lib.current.stage;
 		if( stage == null )
-			throw "Loaded movie not ready to trace, wait a few frames";
+			return;
 		while( tf.height > stage.stageHeight ) {
 			lines.shift();
 			tf.text = lines.join("\n");

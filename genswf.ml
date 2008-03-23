@@ -22,6 +22,12 @@ open As3hl
 open Genswf9
 open Type
 
+type swfinfos = {
+	mutable swf_version : int;
+	mutable swf_header : (int * int * float * int) option;
+	mutable swf_lib : string option;
+}
+
 type context = {
 	mutable f8clips : string list;
 	mutable f9clips : f9class list;
@@ -139,7 +145,8 @@ let add_as3_code ctx data types =
 let add_as3_clips ctx cl =
 	ctx.f9clips <- List.filter (fun c -> c.f9_cid <> None) cl @ ctx.f9clips
 
-let generate file ver header infile types hres =
+let generate file infos types hres =
+	let ver = infos.swf_version in
 	let t = Plugin.timer "generate swf" in
 	let file , codeclip = (try let f , c = ExtString.String.split file "@" in f, Some c with _ -> file , None) in
 	let ctx = {
@@ -213,9 +220,9 @@ let generate file ver header infile types hres =
 		let clips9 = (if ver = 9 then [tag (TF9Classes ctx.f9clips)] else []) in
 		sandbox @ debug @ content @ clips @ code @ as3code @ clips9
 	in
-	let swf = (match infile with
+	let swf = (match infos.swf_lib with
 		| None ->
-			let header , bg = (match header with None -> default_header ver | Some h -> convert_header ver h) in
+			let header , bg = (match infos.swf_header with None -> default_header ver | Some h -> convert_header ver h) in
 			let tagbg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
 			let tagshow = tag TShowFrame in
 			(header,build_swf [tagbg] @ [tagshow])
@@ -223,7 +230,7 @@ let generate file ver header infile types hres =
 			let file = (try Plugin.find_file file with Not_found -> failwith ("File not found : " ^ file)) in
 			let ch = IO.input_channel (open_in_bin file) in
 			let h, swf = (try Swf.parse ch with _ -> failwith ("The input swf " ^ file ^ " is corrupted")) in
-			let header , tagbg = (match header with
+			let header , tagbg = (match infos.swf_header with
 				| None ->
 					{ h with h_version = ver }, None
 				| Some h ->
