@@ -2059,6 +2059,11 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				in
 				let fields = loop c params in
 				TAnon { a_fields = fields; a_status = ref Closed; }
+			| TAnon a as t ->
+				(match !(a.a_status) with
+				| Statics c when is_parent c ctx.curclass ->
+					TAnon { a_fields = PMap.map (fun f -> { f with cf_public = true }) a.a_fields; a_status = ref Closed }
+				| _ -> t)
 			| t -> t
 		) in
 		raise (Display t)
