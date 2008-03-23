@@ -25,7 +25,7 @@ type field_access =
 	| NoAccess
 	| ResolveAccess
 	| MethodAccess of string
-	| F9MethodAccess
+	| MethodCantAccess
 	| NeverAccess
 	| InlineAccess
 
@@ -464,8 +464,8 @@ let has_extra_field t n = Has_extra_field (t,n)
 let error l = raise (Unify_error l)
 
 let unify_access a1 a2 =
-	a1 = a2 || (a1 = NormalAccess && (a2 = NoAccess || a2 = F9MethodAccess))
-	|| (a1 = F9MethodAccess && a2 = NoAccess)
+	a1 = a2 || (a1 = NormalAccess && (a2 = NoAccess || a2 = MethodCantAccess))
+	|| (a1 = MethodCantAccess && a2 = NoAccess)
 
 let eq_stack = ref []
 

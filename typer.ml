@@ -35,7 +35,8 @@ type context = {
 	constructs : (module_path , access list * type_param list * func) Hashtbl.t;
 	warn : string -> pos -> unit;
 	error : error_msg -> pos -> unit;
-	flash9 : bool;
+	fdynamic : bool;
+	fnullable : bool;
 	doinline : bool;
 	mutable std : module_def;
 	mutable untyped : bool;
@@ -84,7 +85,7 @@ let access_str = function
 	| NoAccess -> "null"
 	| NeverAccess -> "never"
 	| MethodAccess m -> m
-	| F9MethodAccess -> "f9dynamic"
+	| MethodCantAccess -> "f9dynamic"
 	| ResolveAccess -> "resolve"
 	| InlineAccess -> "inline"
 
@@ -138,12 +139,14 @@ let context err warn =
 		mtypes = [];
 		mimports = [];
 	} in
+	let f9 = Plugin.defined "flash9" in
 	let ctx = {
 		modules = Hashtbl.create 0;
 		types = Hashtbl.create 0;
 		constructs = Hashtbl.create 0;
 		delays = ref [];
-		flash9 = Plugin.defined "flash9";
+		fdynamic = f9 || Plugin.defined "php";
+		fnullable = f9;
 		doinline = not (Plugin.defined "no_inline");
 		in_constructor = false;
 		in_static = false;
@@ -260,13 +263,13 @@ let field_access ctx get f t e p =
 			| _ -> if ctx.untyped then normal else AccNo f.cf_name)
 		| _ ->
 			if ctx.untyped then normal else AccNo f.cf_name)
-	| F9MethodAccess when not ctx.untyped ->
-		error "Cannot redefine method with Flash9 : please use 'f9dynamic' before method declaration" p
-	| NormalAccess | F9MethodAccess ->
+	| MethodCantAccess when not ctx.untyped ->
+		error "Cannot rebind this method : please use 'f9dynamic' before method declaration" p
+	| NormalAccess | MethodCantAccess ->
 		AccExpr (mk (TField (e,f.cf_name)) t p)
 	| MethodAccess m ->
 		if m = ctx.curmethod && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
-			let prefix = if ctx.flash9 && Plugin.defined "as3gen" then "$" else "" in
+			let prefix = if Plugin.defined "as3gen" then "$" else "" in
 			AccExpr (mk (TField (e,prefix ^ f.cf_name)) t p)
 		else if get then
 			AccExpr (mk (TCall (mk (TField (e,m)) (mk_mono()) p,[])) t p)
@@ -413,7 +416,7 @@ and load_type ctx p t =
 				| AFFun (tl,t) ->
 					let t = load_type ctx p t in
 					let args = List.map (fun (name,o,t) -> name , o, load_type ctx p t) tl in
-					TFun (args,t), NormalAccess, (if ctx.flash9 then F9MethodAccess else NormalAccess)
+					TFun (args,t), NormalAccess, (if ctx.fdynamic then MethodCantAccess else NormalAccess)
 				| AFProp (t,i1,i2) ->
 					let access m get =
 						match m with
@@ -609,7 +612,7 @@ let extend_remoting ctx c t p async prot =
 				if not f.cf_public then
 					acc
 				else match follow f.cf_type with
-				| TFun (args,ret) when f.cf_get = NormalAccess && (f.cf_set = NormalAccess || f.cf_set = F9MethodAccess) && f.cf_params = [] ->
+				| TFun (args,ret) when f.cf_get = NormalAccess && (f.cf_set = NormalAccess || f.cf_set = MethodCantAccess) && f.cf_params = [] ->
 					make_field f.cf_name args ret :: acc
 				| _ -> acc
 			) c.cl_fields []
@@ -838,7 +841,7 @@ let rec nullable_basic = function
 		None
 
 let make_nullable ctx t =
-	if not ctx.flash9 then
+	if not ctx.fnullable then
 		t
 	else match follow t with
 	| TMono _
@@ -859,10 +862,10 @@ let make_nullable ctx t =
 			assert false)
 	| _ -> t
 
-let load_type_opt ?(param=false) ctx p t =
+let load_type_opt ?(opt=false) ctx p t =
 	match t with
 	| None ->
-		if param && ctx.flash9 then
+		if ctx.fnullable && opt then
 			let show = hide_types ctx in
 			let t = load_normal_type ctx { tpackage = []; tname = "Null"; tparams = [] } null_pos true in
 			show();
@@ -871,7 +874,7 @@ let load_type_opt ?(param=false) ctx p t =
 			mk_mono()
 	| Some t ->
 		let t = load_type ctx p t in
-		if param then make_nullable ctx t else t
+		if opt then make_nullable ctx t else t
 
 let type_expr_with_type ctx e t =
 	match e with
@@ -1217,7 +1220,7 @@ let type_field ctx e i p get =
 		in
 		(try
 			let t , f = class_field c i in
-			if ctx.flash9 && e.eexpr = TConst TSuper && f.cf_set = NormalAccess then error "Cannot access superclass variable for calling : needs to be a proper method" p;
+			if ctx.fdynamic && e.eexpr = TConst TSuper && f.cf_set = NormalAccess then error "Cannot access superclass variable for calling : needs to be a proper method" p;
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then display_error ctx ("Cannot access to private field " ^ i) p;
 			field_access ctx get f (apply_params c.cl_types params t) e p
 		with Not_found -> try
@@ -1876,11 +1879,11 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				| TConst TNull, _ -> make_nullable ctx e2.etype
 				| _  ->
 					unify_raise ctx e1.etype e2.etype p;
-					if ctx.flash9 && nullable_basic e1.etype <> None then make_nullable ctx e2.etype else e2.etype)
+					if ctx.fnullable && nullable_basic e1.etype <> None then make_nullable ctx e2.etype else e2.etype)
 			with
 				Error (Unify _,_) ->
 					unify ctx e2.etype e1.etype p;
-					if ctx.flash9 && nullable_basic e2.etype <> None then make_nullable ctx e1.etype else e1.etype
+					if ctx.fnullable && nullable_basic e2.etype <> None then make_nullable ctx e1.etype else e1.etype
 			) in
 			mk (TIf (e,e1,Some e2)) t p)
 	| EWhile (cond,e,NormalWhile) ->
@@ -1971,7 +1974,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		type_unop ctx op flag e p
 	| EFunction f ->
 		let rt = load_type_opt ctx p f.f_type in
-		let args = List.map (fun (s,opt,t) -> s , opt, load_type_opt ~param:opt ctx p t) f.f_args in
+		let args = List.map (fun (s,opt,t) -> s , opt, load_type_opt ~opt ctx p t) f.f_args in
 		(match ctx.param_type with
 		| None -> ()
 		| Some t ->
@@ -2564,13 +2567,13 @@ let init_class ctx c p herits fields =
 	let is_public access =
 		if c.cl_extern || c.cl_interface || extends_public then not (List.mem APrivate access) else List.mem APublic access
 	in
-	let type_opt ?param ctx p t =
+	let type_opt ?opt ctx p t =
 		match t with
 		| None when c.cl_extern || c.cl_interface ->
 			display_error ctx "Type required for extern classes and interfaces" p;
 			t_dynamic
 		| _ ->
-			load_type_opt ?param ctx p t
+			load_type_opt ?opt ctx p t
 	in
 	let rec has_field f = function
 		| None -> false
@@ -2636,7 +2639,7 @@ let init_class ctx c p herits fields =
 				type_params = if stat then params  else params @ ctx.type_params;
 			} in
 			let ret = type_opt ctx p f.f_type in
-			let args = List.map (fun (name,opt,t) -> name , opt, type_opt ~param:opt ctx p t) f.f_args in
+			let args = List.map (fun (name,opt,t) -> name , opt, type_opt ~opt ctx p t) f.f_args in
 			let t = TFun (args,ret) in
 			let constr = (name = "new") in
 			if constr && c.cl_interface then error "An interface cannot have a constructor" p;
@@ -2650,7 +2653,7 @@ let init_class ctx c p herits fields =
 				cf_doc = doc;
 				cf_type = t;
 				cf_get = if inline then InlineAccess else NormalAccess;
-				cf_set = (if ctx.flash9 && not (List.mem AF9Dynamic access) then F9MethodAccess else if inline then NeverAccess else NormalAccess);
+				cf_set = (if ctx.fdynamic && not (List.mem AF9Dynamic access) then MethodCantAccess else if inline then NeverAccess else NormalAccess);
 				cf_expr = None;
 				cf_public = is_public access;
 				cf_params = params;
@@ -2699,7 +2702,8 @@ let init_class ctx c p herits fields =
 			) in
 			let set = (match set with
 				| "null" ->
-					if ctx.flash9 && c.cl_extern && (match c.cl_path with "flash" :: _  , _ -> true | _ -> false) then
+					(* standard flash library read-only variables can't be accessed for writing, even in subclasses *)
+					if c.cl_extern && (match c.cl_path with "flash" :: _  , _ -> true | _ -> false) && Plugin.defined "flash9" then
 						NeverAccess
 					else
 						NoAccess
@@ -2856,7 +2860,8 @@ let type_module ctx m tdecls loadp =
 		std = ctx.std;
 		ret = ctx.ret;
 		isproxy = ctx.isproxy;
-		flash9 = ctx.flash9;
+		fdynamic = ctx.fdynamic;
+		fnullable = ctx.fnullable;
 		doinline = ctx.doinline;
 		current = m;
 		locals = PMap.empty;
@@ -2930,7 +2935,7 @@ let type_module ctx m tdecls loadp =
 				if c = "name" && Plugin.defined "js" then error "This identifier cannot be used in Javascript" p;
 				let t = (match t with
 					| [] -> et
-					| l -> TFun (List.map (fun (s,opt,t) -> s, opt, load_type_opt ~param:opt ctx p (Some t)) l, et)
+					| l -> TFun (List.map (fun (s,opt,t) -> s, opt, load_type_opt ~opt ctx p (Some t)) l, et)
 				) in
 				if PMap.mem c e.e_constrs then error ("Duplicate constructor " ^ c) p;
 				e.e_constrs <- PMap.add c {
@@ -3040,7 +3045,7 @@ let load ctx m p =
 				| [] , name -> name
 				| x :: l , name ->
 					if List.mem x (!forbidden_packages) then error ("You can't access the " ^ x ^ " package with current compilation flags") p;
-					let x = (match x with "flash" when ctx.flash9 -> "flash9" | _ -> x) in
+					let x = (match x with "flash" when Plugin.defined "flash9" -> "flash9" | _ -> x) in
 					String.concat "/" (x :: l) ^ "/" ^ name
 			) ^ ".hx" in
 			let file = (try Plugin.find_file file with Not_found -> raise (Error (Module_not_found m,p))) in

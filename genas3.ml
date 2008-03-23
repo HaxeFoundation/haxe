@@ -743,7 +743,7 @@ let generate_field ctx static f =
 	let rights = (if static then "static " else "") ^ (if public then "public" else "protected") in
 	let p = ctx.curclass.cl_pos in
 	match f.cf_expr with
-	| Some { eexpr = TFunction fd } when f.cf_set = F9MethodAccess ->
+	| Some { eexpr = TFunction fd } when f.cf_set = MethodCantAccess ->
 		print ctx "%s " rights;
 		let rec loop c =
 			match c.cl_super with
@@ -831,7 +831,7 @@ let generate_class ctx c =
 		let f = { f with
 			cf_name = snd c.cl_path;
 			cf_public = true;
-			cf_set = F9MethodAccess;
+			cf_set = MethodCantAccess;
 		} in
 		ctx.constructor_block <- true;
 		generate_field ctx false f;

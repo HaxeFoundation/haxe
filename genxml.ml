@@ -87,7 +87,7 @@ let gen_field att f =
 		| NormalAccess | ResolveAccess -> att
 		| NoAccess | NeverAccess -> (name, "null") :: att
 		| MethodAccess m -> (name, if m = name ^ "_" ^ f.cf_name then "dynamic" else m) :: att
-		| F9MethodAccess -> att
+		| MethodCantAccess -> att
 		| InlineAccess -> assert false
 	in
 	let att = (match f.cf_expr with None -> att | Some e -> ("line",string_of_int (Lexer.get_error_line e.epos)) :: att) in
