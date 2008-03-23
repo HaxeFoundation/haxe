@@ -1541,6 +1541,9 @@ and type_switch ctx e cases def need_val p =
 			None
 	in
 	let enum = ref (match follow e.etype with
+		| TEnum ({ e_path = [],"Bool" },_)		
+		| TEnum ({ e_path = ["flash"],_ ; e_extern = true },_) ->
+			None
 		| TEnum (e,params) -> Some (e,params)
 		| TMono r ->
 			(match lookup_enum (List.concat (List.map fst cases)) with
@@ -1593,6 +1596,7 @@ and type_switch ctx e cases def need_val p =
 			first := false;
 			v
 		) el in
+		if el = [] then error "Case must match at least one expression" (pos e2);
 		let e2 = type_expr ctx ~need_val e2 in
 		locals();
 		unify_val e2;

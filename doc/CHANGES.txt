@@ -5,6 +5,9 @@ TODO optimizer : optimizations and ast manipulation in a separate module
 TODO optimizer : when an object is only used localy, move its fields on the stack (allow inlined iterators)
 TODO optimizer : precompute constant expressions
 TODO optimizer : reduce expressions such as function()...() , [arr][0] or if(true) (for better inlining)
+TODO optimizer : move multiple statics access into local variables
+TODO optimizer : optimize switch on constants unless there is platform dispatch for it
+TODO inlining : allow inlined getter/setter
 TODO inlining : substitute class+function type parameters in order to have fully typed expressions
 
 2008-??-??: 1.19
@@ -18,6 +21,8 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	{} is now an empty object and not an empty block
 	fixed some verify errors left in flash9
 	fixed private/protected differences in gen-hx-classes
+	genswf9 : allowed to store a Class in a typed register
+	fixed switch-on-bool (don't use matching)
 
 2008-02-23: 1.18
 	some optimization and bugfix for as3 codegen
