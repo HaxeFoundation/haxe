@@ -31,6 +31,7 @@ type tkind =
 	| KBool
 	| KType of hl_name
 	| KDynamic
+	| KNone
 
 type register = {
 	rid : int;
@@ -221,8 +222,11 @@ let classify ctx t =
 		KUInt
 	| TFun _ ->
 		KType (HMPath ([],"Function"))
-	| TMono _
-	| TAnon _
+	| TAnon a ->
+		(match !(a.a_status) with
+		| Statics _ -> KNone
+		| _ -> KDynamic)
+	| TMono _	
 	| TType _
 	| TDynamic _ ->
 		KDynamic
@@ -285,6 +289,7 @@ let coerce ctx t =
 	   this type on the stack (as detected by the bytecode verifier)...
 	   maybe this get removed at JIT, so it's only useful to reduce codesize
 	*)
+	if t <> KNone then
 	write ctx (match t with
 		| KInt -> HToInt
 		| KUInt -> HToUInt
@@ -292,6 +297,7 @@ let coerce ctx t =
 		| KBool -> HToBool
 		| KType t -> HCast t
 		| KDynamic -> HAsAny
+		| KNone -> assert false
 	)
 
 let set_reg ctx r =
@@ -514,6 +520,7 @@ let begin_fun ctx args tret el stat p =
 			| KBool -> HFalse :: s
 			| KType t -> HNull :: HAsType t :: s
 			| KDynamic -> HNull :: HAsAny :: s
+			| KNone -> HNull :: s
 		) (DynArray.to_list ctx.infos.iregs)) in
 		let delta = List.length extra in
 		let f = {
