@@ -1127,17 +1127,21 @@ and gen_binop ctx retval op e1 e2 t =
 	| OpBoolAnd ->
 		write ctx HFalse;
 		let j = jump_expr ctx e1 false in
+		let b = begin_branch ctx in
 		write ctx HPop;
 		gen_expr ctx true e2;
 		coerce ctx KBool;
 		j();
+		b();
 	| OpBoolOr ->
 		write ctx HTrue;
 		let j = jump_expr ctx e1 true in
+		let b = begin_branch ctx in
 		write ctx HPop;
 		gen_expr ctx true e2;
 		coerce ctx KBool;
 		j();
+		b();
 	| OpAssignOp op ->
 		let acc = gen_access ctx e1 Write in
 		gen_binop ctx true op e1 e2 t;

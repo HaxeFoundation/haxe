@@ -1,3 +1,12 @@
+TODO genswf9 : inline code can give bad file in debug infos
+TODO genswf9 var x = if( true ) Math.POSITIVE_INFINITY : 0.; VerifyError
+TODO genswf9 : fast switch on ints
+TODO optimizer : optimizations and ast manipulation in a separate module
+TODO optimizer : when an object is only used localy, move its fields on the stack (allow inlined iterators)
+TODO optimizer : precompute constant expressions
+TODO optimizer : reduce expressions such as function()...() , [arr][0] or if(true) (for better inlining)
+TODO inlining : substitute class+function type parameters in order to have fully typed expressions
+
 2008-??-??: 1.19
 	fixed flash9 Array.toString
 	fixed inline return bug
@@ -7,8 +16,7 @@
 	fixed some incorrectly reported "recursive inline" errors
 	fixes in genas3 + genswf9 for Dynamic/* in methods
 	{} is now an empty object and not an empty block
-	TODO haxe/f9 : inline code can give bad file in debug infos
-	TODO haxe/f9 var x = if( true ) Math.POSITIVE_INFINITY : 0.; VerifyError
+	fixed some verify errors left in flash9
 
 2008-02-23: 1.18
 	some optimization and bugfix for as3 codegen
