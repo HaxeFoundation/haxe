@@ -143,6 +143,7 @@ class Text2Xhtml {
 	public var swfEnabled : Bool;
 	public var titleIdsEnabled : Bool;
 	public var brEnabled : Bool;
+	public var imgEnabled : Bool;
 
 	public function new(){
 		paragraphSeparator = "\n\n";
@@ -151,6 +152,7 @@ class Text2Xhtml {
 		swfEnabled = true;
 		titleIdsEnabled = true;
 		brEnabled = false;
+		imgEnabled = true;
 	}
 
 	public function transform( str:String ) : String {
@@ -301,7 +303,7 @@ s.write('swf@id');
 		var helper = new StringHelper(str);
 		var abbrs = helper.extract("abbr", abbr, "<abbr title=\"$2\">$1</abbr>");
 		var links = helper.extract("link", link, "<a href=\"$2\">$1</a>");
-		var images = helper.extract("img", img, "<img src=\"$1\" alt=\"Image\"/>");
+		var images = if (imgEnabled) helper.extract("img", img, "<img src=\"$1\" alt=\"Image\"/>") else null;
 		var https = helper.extract("http", http, "<a href=\"$1://$2\">$1://$2</a>$3");
 		str = helper.str;
 
@@ -326,7 +328,8 @@ s.write('swf@id');
 		helper = new StringHelper(str);
 		helper.restore("abbr", abbrs);
 		helper.restore("link", links);
-		helper.restore("img", images);
+		if (imgEnabled)
+			helper.restore("img", images);
 		helper.restore("http", https);
 		return helper.str;
 	}
