@@ -449,10 +449,18 @@ and load_type ctx p t =
 and build_generic ctx c allow p tl =
 	let pack = fst c.cl_path in
 	let recurse = ref false in
+	let rec check_recursive t =
+		match follow t with
+		| TInst (c,tl) ->
+			if c.cl_kind = KTypeParameter then recurse := true;
+			List.iter check_recursive tl;
+		| _ ->
+			()
+	in
 	let name = String.concat "_" (snd c.cl_path :: (List.map (fun t ->
-		let t = follow t in
-		let path = (match t with
-			| TInst (c,_) -> if c.cl_kind = KTypeParameter then recurse := true; c.cl_path
+		check_recursive t;
+		let path = (match follow t with
+			| TInst (c,_) -> c.cl_path
 			| TEnum (e,_) -> e.e_path
 			| _ -> error "Type parameter must be a class or enum instance" p
 		) in
