@@ -427,6 +427,26 @@ let begin_branch ctx =
 		(fun() -> ctx.infos.icond <- false)
 	end
 
+let begin_switch ctx =
+	let branch = begin_branch ctx in
+	let switch_index = DynArray.length ctx.code in
+	let switch_pos = ctx.infos.ipos in
+	write ctx (HSwitch (0,[]));
+	let constructs = ref [] in
+	let max = ref 0 in
+	let ftag tag = 
+		if tag > !max then max := tag;
+		constructs := (tag,ctx.infos.ipos) :: !constructs;
+	in
+	let fend() =
+		let cases = Array.create (!max + 1) 1 in
+		List.iter (fun (tag,pos) -> Array.set cases tag (pos - switch_pos)) !constructs;
+		DynArray.set ctx.code switch_index (HSwitch (1,Array.to_list cases));
+		branch();
+	in
+	fend, ftag
+
+
 let debug ctx p =
 	let line = Lexer.get_error_line p in
 	if ctx.last_line <> line then begin
@@ -838,6 +858,43 @@ let rec gen_expr_content ctx retval e =
 		no_value ctx retval
 	| TSwitch (e0,el,eo) ->
 		let t = classify ctx e.etype in
+		(try
+			(* generate optimized int switch *)
+			if t <> KInt && t <> KUInt then raise Exit;
+			let rec get_int e =
+				match e.eexpr with
+				| TConst (TInt n) -> Int32.to_int n
+				| TParenthesis e | TBlock [e] -> get_int e
+				| _ -> raise Not_found
+			in
+			List.iter (fun (vl,_) -> List.iter (fun v ->
+				let n = (try get_int v with _ -> raise Exit) in
+				if n < 0 || n > 512 then raise Exit;
+			) vl) el;
+			gen_expr ctx true e0;
+			let switch, case = begin_switch ctx in
+			(match eo with
+			| None ->
+				if retval then begin
+					write ctx HNull;
+					coerce ctx t;
+				end;
+			| Some e ->
+				gen_expr ctx retval e;
+				if retval && classify ctx e.etype <> t then coerce ctx t);
+			let jends = List.map (fun (vl,e) ->
+				let j = jump ctx J3Always in
+				List.iter (fun v -> case (get_int v)) vl;
+				gen_expr ctx retval e;
+				if retval then begin
+					ctx.infos.istack <- ctx.infos.istack - 1;
+					if classify ctx e.etype <> t then coerce ctx t;
+				end;
+				j
+			) el in
+			List.iter (fun j -> j()) jends;
+			switch();
+		with Exit ->
 		let r = alloc_reg ctx (classify ctx e0.etype) in
 		gen_expr ctx true e0;
 		set_reg ctx r;
@@ -880,7 +937,7 @@ let rec gen_expr_content ctx retval e =
 			if retval && classify ctx e.etype <> t then coerce ctx t;
 		);
 		List.iter (fun j -> j()) jend;
-		branch();
+		branch());
 	| TMatch (e0,_,cases,def) ->
 		let t = classify ctx e.etype in
 		let rparams = alloc_reg ctx (KType (type_path ctx ([],"Array"))) in
@@ -893,10 +950,7 @@ let rec gen_expr_content ctx retval e =
 		end;
 		write ctx (HGetProp (ident "index"));
 		write ctx HToInt;
-		let branch = begin_branch ctx in
-		let switch_index = DynArray.length ctx.code in
-		let switch_pos = ctx.infos.ipos in
-		write ctx (HSwitch (0,[]));
+		let switch,case = begin_switch ctx in
 		(match def with
 		| None ->
 			if retval then begin
@@ -905,16 +959,10 @@ let rec gen_expr_content ctx retval e =
 			end;
 		| Some e ->
 			gen_expr ctx retval e;
-			if retval && classify ctx e.etype <> t then coerce ctx t;
-		);
-		let constructs = ref [] in
-		let max = ref 0 in
-		let jends = List.map (fun (cl,params,e) ->
+			if retval && classify ctx e.etype <> t then coerce ctx t);
+		let jends = List.map (fun (cl,params,e) ->			
 			let j = jump ctx J3Always in
-			List.iter (fun tag ->
-				if tag > !max then max := tag;
-				constructs := (tag,ctx.infos.ipos) :: !constructs;
-			) cl;
+			List.iter case cl;
 			let b = open_block ctx [e] retval in
 			(match params with
 			| None -> ()
@@ -941,11 +989,8 @@ let rec gen_expr_content ctx retval e =
 			end;
 			j
 		) cases in
-		let cases = Array.create (!max + 1) 1 in
-		List.iter (fun (tag,pos) -> Array.set cases tag (pos - switch_pos)) !constructs;
+		switch();
 		List.iter (fun j -> j()) jends;
-		DynArray.set ctx.code switch_index (HSwitch (1,Array.to_list cases));
-		branch();
 		free_reg ctx rparams
 
 and gen_call ctx retval e el =
