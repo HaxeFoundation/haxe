@@ -284,6 +284,7 @@ let rec is_parent csup c =
 		| Some (c,_) -> is_parent csup c
 
 let rec link e a b =
+	(* tell if a is is b *)
 	let rec loop t =
 		if t == a then
 			true
@@ -306,8 +307,16 @@ let rec link e a b =
 			with
 				Exit -> true
 	in
+	(* tell if a ~= b *)
+	let rec loop2 t =
+		if t == a then
+			true
+		else match t with
+		| TMono t -> (match !t with None -> false | Some t -> loop2 t)
+		| _ -> false
+	in
 	if loop b then
-		false
+		loop2 b
 	else
 		match b with
 		| TDynamic _ -> true
