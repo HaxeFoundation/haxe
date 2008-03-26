@@ -1,5 +1,4 @@
 TODO genswf9 : inline code can give bad file in debug infos
-TODO genswf9 var x = if( true ) Math.POSITIVE_INFINITY : 0.; VerifyError
 TODO optimizer : optimizations and ast manipulation in a separate module
 TODO optimizer : when an object is only used localy, move its fields on the stack (allow inlined iterators)
 TODO optimizer : precompute constant expressions

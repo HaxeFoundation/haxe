@@ -226,7 +226,7 @@ let classify ctx t =
 		(match !(a.a_status) with
 		| Statics _ -> KNone
 		| _ -> KDynamic)
-	| TMono _	
+	| TMono _
 	| TType _
 	| TDynamic _ ->
 		KDynamic
@@ -242,13 +242,20 @@ let property p t =
 	match follow t with
 	| TInst ({ cl_path = [],"Array" },_) ->
 		(match p with
-		| "length" -> ident p, Some KInt
+		| "length" -> ident p, Some KInt (* UInt in the spec *)
 		| "copy" | "insert" | "remove" | "iterator" | "toString" -> ident p , None
 		| _ -> as3 p, None);
 	| TInst ({ cl_path = [],"String" },_) ->
 		(match p with
 		| "length" | "charCodeAt" (* use haXe version *) -> ident p, None
 		| _ -> as3 p, None);
+	| TAnon a ->
+		(match !(a.a_status) with
+		| Statics { cl_path = [], "Math" } ->
+			(match p with
+			| "POSITIVE_INFINITY" | "NEGATIVE_INFINITY" | "NaN" -> ident p, Some KFloat
+			| _ -> ident p, None)
+		| _ -> ident p, None)
 	| _ ->
 		ident p, None
 
@@ -434,7 +441,7 @@ let begin_switch ctx =
 	write ctx (HSwitch (0,[]));
 	let constructs = ref [] in
 	let max = ref 0 in
-	let ftag tag = 
+	let ftag tag =
 		if tag > !max then max := tag;
 		constructs := (tag,ctx.infos.ipos) :: !constructs;
 	in
@@ -651,7 +658,14 @@ let gen_access ctx e (forset : 'a) : 'a access =
 		| Some t -> VCast (id,t)
 		| None ->
 		match follow e1.etype with
-		| TInst _ | TEnum _ -> VId id
+		| TEnum _ -> VId id
+		| TInst (_,tl) ->
+			let et = follow e.etype in
+			(* if the return type is one of the type-parameters, then we need to cast it *)
+			if List.exists (fun t -> follow t == et) tl then
+				VCast (id, classify ctx et)
+			else
+				VId id
 		| TAnon a when (match !(a.a_status) with Statics _ | EnumStatics _ -> true | _ -> false) -> VId id
 		| _ -> VCast (id,classify ctx e.etype))
 	| TArray ({ eexpr = TLocal "__global__" },{ eexpr = TConst (TString s) }) ->
@@ -960,7 +974,7 @@ let rec gen_expr_content ctx retval e =
 		| Some e ->
 			gen_expr ctx retval e;
 			if retval && classify ctx e.etype <> t then coerce ctx t);
-		let jends = List.map (fun (cl,params,e) ->			
+		let jends = List.map (fun (cl,params,e) ->
 			let j = jump ctx J3Always in
 			List.iter case cl;
 			let b = open_block ctx [e] retval in
@@ -1096,13 +1110,17 @@ and gen_call ctx retval e el =
 				| _ -> ())
 			| TInst ({ cl_path = [],"Date" },_) ->
 				coerce() (* all date methods are typed as Number in AS3 and Int in haXe *)
-			| TAnon a when (match !(a.a_status) with Statics { cl_path = ([],"Date") } -> true | _ -> false) ->
-				(match f with
-				| "now" | "fromString" | "fromTime"  -> coerce()
-				| _ -> ())
-			| TAnon a when (match !(a.a_status) with Statics { cl_path = ([],"Math") } -> true | _ -> false) ->
-				(match f with
-				| "isFinite" | "isNaN" -> coerce()
+			| TAnon a ->
+				(match !(a.a_status) with
+				| Statics { cl_path = ([],"Date") } ->
+					(match f with
+					| "now" | "fromString" | "fromTime"  -> coerce()
+					| _ -> ())
+				| Statics { cl_path = ([],"Math") } ->
+					(match f with
+					| "isFinite" | "isNaN" -> coerce()
+					| "floor" | "ceil" | "round" -> coerce() (* AS3 state Number, while Int in haXe *)
+					| _ -> ())
 				| _ -> ())
 			| _ -> ())
 	| TEnumField (e,f) , _ ->
@@ -1323,7 +1341,7 @@ let generate_construct ctx fdata c =
 		getvar ctx (VId id);
 		let j = jump ctx J3False in
 		write ctx HRetVoid;
-		j());	
+		j());
 	(* --- *)
 	PMap.iter (fun _ f ->
 		match f.cf_expr with
