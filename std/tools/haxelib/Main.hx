@@ -460,6 +460,9 @@ class Main {
 			var haxepath = neko.Sys.getEnv("HAXEPATH");
 			if( haxepath == null )
 				throw "HAXEPATH environment variable not defined, please run haxesetup.exe first";
+			var last = haxepath.charAt(haxepath.length - 1);
+			if( last != "/" && last != "\\" )
+				haxepath += "/";
 			var rep = haxepath+REPNAME;
 			try {
 				safeDir(rep);
