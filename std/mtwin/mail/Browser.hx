@@ -57,8 +57,8 @@ class Browser extends MetaPart<Browser> {
 		return o;
 	} 
 
-	public function getMainPartCharset( cs : String ){
-		var r = getMainPart();
+	public function getMainPartCharset( cs : String, ?preferHtml : Bool ){
+		var r = getMainPart(preferHtml);
 		if( cs != r.charset ){
 			var cslc = cs.toLowerCase();
 			var charsetlc = r.charset.toLowerCase();
@@ -122,13 +122,22 @@ class Browser extends MetaPart<Browser> {
 		return null;
 	}
 
-	public function listAttachment( ?level : Int ){
+	public function listAttachment( ?level : Int, ?cs : String ){
+		if( cs == null )
+			cs = charset;
+		cs = cs.toLowerCase();
 		if( level == null ) level = 0;
 		var l = listAttachmentObjects( level );
 		var r = new List();
 		for( v in l ){
+			var name = v.name;
+			if( cs != "utf-8" && v.charset.toLowerCase() == "utf-8" ){
+				name =  Utf8.decode( name );
+			}else if( v.charset.toLowerCase() != "utf-8" && cs == "utf-8" ){
+				name =  Utf8.encode( name );
+			}
 			r.add({
-				name: v.name, 
+				name: name, 
 				id: v.id, 
 				type: v.contentType
 			});

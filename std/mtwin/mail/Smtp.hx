@@ -124,10 +124,18 @@ class Smtp {
 			throw SmtpDataError(ret);
 		}
 
-		if( data.substr(data.length -2,2) != "\r\n" ) 
-			data += "\r\n";
+		var a = ~/\r?\n/g.split(data);
+		var lastEmpty = false;
+		for( l in a ){
+			if( l.substr(0,1) == "." )
+				l = "."+l;
+			cnx.write(l);
+			cnx.write("\r\n");
+		}
+		if( a[a.length-1] != "" ) 
+			cnx.write("\r\n");
+		cnx.write( ".\r\n" );
 
-		cnx.write( data + ".\r\n" );
 		ret = StringTools.trim(cnx.input.readLine());
 		if( ret.substr(0,3) != "250" ){
 			cnx.close();
