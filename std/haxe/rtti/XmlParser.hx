@@ -62,7 +62,7 @@ class XmlParser {
 		xroot(new Fast(x));
 	}
 
-	function mergeClasses( c : Class, c2 : Class ) {
+	function mergeClasses( c : Classdef, c2 : Classdef ) {
 		// todo : compare supers & interfaces
 		if( c.isInterface != c2.isInterface || c.isExtern != c2.isExtern )
 			return false;
@@ -96,7 +96,7 @@ class XmlParser {
 		return true;
 	}
 
-	function mergeEnums( e : Enum, e2 : Enum ) {
+	function mergeEnums( e : Enumdef, e2 : Enumdef ) {
 		if( e.isExtern != e2.isExtern )
 			return false;
 		if( curplatform != null )
@@ -241,7 +241,7 @@ class XmlParser {
 		};
 	}
 
-	function xclass( x : Fast ) : Class {
+	function xclass( x : Fast ) : Classdef {
 		var csuper = null;
 		var doc = null;
 		var dynamic = null;
@@ -298,7 +298,7 @@ class XmlParser {
 		};
 	}
 
-	function xenum( x : Fast ) : Enum {
+	function xenum( x : Fast ) : Enumdef {
 		var cl = new List();
 		var doc = null;
 		for( c in x.elements )

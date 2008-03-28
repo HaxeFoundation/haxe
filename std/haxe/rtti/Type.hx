@@ -49,24 +49,24 @@ typedef TypeInfos = {
 	var platforms : Platforms;
 }
 
-typedef Class = {> TypeInfos,
+typedef Classdef = {> TypeInfos,
 	var isExtern : Bool;
 	var isInterface : Bool;
 	var superClass : PathParams;
 	var interfaces : List<PathParams>;
 	var fields : List<ClassField>;
 	var statics : List<ClassField>;
-	var dynamic : Type; // null
+	var dynamic : Null<Type>;
 }
 
 typedef EnumField = {
 	var name : String;
-	var args : List<{ name : String, opt : Bool, t : Type }>; // null
+	var args : Null<List<{ name : String, opt : Bool, t : Type }>>;
 	var doc : String;
 	var platforms : Platforms;
 }
 
-typedef Enum = {> TypeInfos,
+typedef Enumdef = {> TypeInfos,
 	var isExtern : Bool;
 	var constructors : List<EnumField>;
 }
@@ -78,8 +78,8 @@ typedef Typedef = {> TypeInfos,
 
 enum TypeTree {
 	TPackage( name : String, full : String, subs : Array<TypeTree> );
-	TClassdecl( c : Class );
-	TEnumdecl( e : Enum );
+	TClassdecl( c : Classdef );
+	TEnumdecl( e : Enumdef );
 	TTypedecl( t : Typedef );
 }
 
