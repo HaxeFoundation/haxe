@@ -273,9 +273,9 @@ class Tools {
 
 			charsetOut = charsetOut.toLowerCase();
 			if( charsetOut != "utf-8" && charset == "utf-8" ){
-				encoded =  neko.Utf8.decode( encoded );
+				encoded =  try neko.Utf8.decode( encoded ) catch( e : Dynamic ) encoded;
 			}else if( charset != "utf-8" && charsetOut == "utf-8" ){
-				encoded =  neko.Utf8.encode( encoded );
+				encoded =  try neko.Utf8.encode( encoded ) catch( e : Dynamic ) encoded;
 			}
 
 			str = start + encoded + end;

@@ -64,9 +64,9 @@ class Browser extends MetaPart<Browser> {
 			var charsetlc = r.charset.toLowerCase();
 
 			if( cslc != "utf-8" && charsetlc == "utf-8" ){
-				r.content =  Utf8.decode( r.content );
+				r.content =  try Utf8.decode( r.content ) catch( e : Dynamic ) r.content;
 			}else if( charsetlc != "utf-8" && cslc == "utf-8" ){
-				r.content =  Utf8.encode( r.content );
+				r.content =  try Utf8.encode( r.content ) catch( e : Dynamic ) r.content;
 			}
 			r.charset = cs;
 		}
@@ -132,9 +132,9 @@ class Browser extends MetaPart<Browser> {
 		for( v in l ){
 			var name = v.name;
 			if( cs != "utf-8" && v.charset.toLowerCase() == "utf-8" ){
-				name =  Utf8.decode( name );
+				name =  try Utf8.decode( name ) catch( e : Dynamic ) name;
 			}else if( v.charset.toLowerCase() != "utf-8" && cs == "utf-8" ){
-				name =  Utf8.encode( name );
+				name =  try Utf8.encode( name ) catch( e : Dynamic ) name;
 			}
 			r.add({
 				name: name, 
