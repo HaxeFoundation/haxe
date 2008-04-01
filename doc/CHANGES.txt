@@ -23,6 +23,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	fixed switch-on-bool (don't use matching)
 	genswf9 : optimized switch on ints
 	some renames in haxe.rtti.Type
+	added flash.Dictionary for F9
 
 2008-02-23: 1.18
 	some optimization and bugfix for as3 codegen
