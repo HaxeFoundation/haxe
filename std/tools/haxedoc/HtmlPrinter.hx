@@ -191,7 +191,7 @@ class HtmlPrinter {
 		}
 	}
 
-	function processClass(c : Class) {
+	function processClass(c : Classdef) {
 		print('<div class="classname">');
 		if( c.isExtern )
 			keyword("extern");
@@ -290,7 +290,7 @@ class HtmlPrinter {
 			typeParams = oldParams;
 	}
 
-	function processEnum(e : Enum) {
+	function processEnum(e : Enumdef) {
 		print('<div class="classname">');
 		if( e.isExtern )
 			keyword("extern");
