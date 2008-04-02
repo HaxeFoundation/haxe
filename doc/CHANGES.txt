@@ -1,4 +1,3 @@
-TODO genswf9 : inline code can give bad file in debug infos
 TODO optimizer : optimizations and ast manipulation in a separate module
 TODO optimizer : when an object is only used localy, move its fields on the stack (allow inlined iterators)
 TODO optimizer : precompute constant expressions
@@ -23,6 +22,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	genswf9 : optimized switch on ints
 	some renames in haxe.rtti.Type
 	added flash.Dictionary for F9
+	genswf9 : fixe debug filename with inline code
 
 2008-02-23: 1.18
 	some optimization and bugfix for as3 codegen

@@ -76,6 +76,7 @@ type context = {
 	(* globals *)
 	debug : bool;
 	mutable last_line : int;
+	mutable last_file : string;
 	boot : string;
 	(* per-function *)
 	mutable locals : (string,local) PMap.t;
@@ -456,6 +457,10 @@ let begin_switch ctx =
 
 let debug ctx p =
 	let line = Lexer.get_error_line p in
+	if ctx.last_file <> p.pfile then begin
+		write ctx (HDebugFile p.pfile);
+		ctx.last_file <- p.pfile;
+	end;
 	if ctx.last_line <> line then begin
 		write ctx (HDebugLine line);
 		ctx.last_line <- line;
@@ -476,10 +481,7 @@ let begin_fun ctx args tret el stat p =
 	ctx.block_vars <- [];
 	ctx.in_static <- stat;
 	ctx.last_line <- -1;
-	if ctx.debug then begin
-		write ctx (HDebugFile p.pfile);
-		debug ctx p
-	end;
+	if ctx.debug then debug ctx p;	
 	let rec find_this e =
 		match e.eexpr with
 		| TFunction _ -> ()
@@ -1727,6 +1729,7 @@ let generate types hres =
 		in_static = false;
 		debug = Plugin.defined "debug";
 		last_line = -1;
+		last_file = "";
 		try_scope_reg = None;
 	} in
 	let classes = List.map (fun t -> (t,generate_type ctx t)) types in
