@@ -4,7 +4,6 @@ TODO optimizer : when an object is only used localy, move its fields on the stac
 TODO optimizer : precompute constant expressions
 TODO optimizer : reduce expressions such as function()...() , [arr][0] or if(true) (for better inlining)
 TODO optimizer : move multiple statics access into local variables
-TODO optimizer : optimize switch on constants unless there is platform dispatch for it
 TODO inlining : allow inlined getter/setter
 TODO inlining : substitute class+function type parameters in order to have fully typed expressions
 
