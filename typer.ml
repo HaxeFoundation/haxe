@@ -1778,6 +1778,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		type_constant ctx c p
     | EBinop (op,e1,e2) ->
 		type_binop ctx op e1 e2 p
+	| EBlock [] when need_val ->
+		type_expr ctx (EObjectDecl [],p)
 	| EBlock l ->
 		let locals = save_locals ctx in
 		let rec loop = function
