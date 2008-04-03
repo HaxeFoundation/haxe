@@ -460,6 +460,7 @@ let debug ctx p =
 	if ctx.last_file <> p.pfile then begin
 		write ctx (HDebugFile p.pfile);
 		ctx.last_file <- p.pfile;
+		ctx.last_line <- -1;
 	end;
 	if ctx.last_line <> line then begin
 		write ctx (HDebugLine line);
@@ -481,6 +482,7 @@ let begin_fun ctx args tret el stat p =
 	ctx.block_vars <- [];
 	ctx.in_static <- stat;
 	ctx.last_line <- -1;
+	ctx.last_file <- "";
 	if ctx.debug then debug ctx p;	
 	let rec find_this e =
 		match e.eexpr with
