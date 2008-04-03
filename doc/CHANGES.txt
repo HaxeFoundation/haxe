@@ -24,6 +24,8 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	added flash.Dictionary for F9
 	genswf9 : fixe debug filename with inline code
 	fixed completion for packages starting with 'a' or 'z'
+	added flash9.Lib.as
+	prevent double Movieclip class declaration when linking flash9 lib
 
 2008-02-23: 1.18
 	some optimization and bugfix for as3 codegen

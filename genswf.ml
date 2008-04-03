@@ -110,8 +110,14 @@ let build_movieclip ctx (pack,name) =
 		hls_fields = [|{ hlf_name = c.hlc_name; hlf_slot = 1; hlf_kind = HFClass c; hlf_metas = None }|];
 	}
 
-let movieclip_exists types path =
+let movieclip_exists types inits path =
 	let name = Ast.s_type_path path in
+	let rec loop i n =
+		if n < 0 then false else
+		match i.hls_fields.(n).hlf_kind with
+		| HFClass { hlc_name = HMPath (p,n) } when (p,n) = path -> true
+		| _ -> loop i (n - 1)
+	in
 	List.exists (function
 		| TClassDecl c when c.cl_path = path ->
 			let rec check_super c =
@@ -125,7 +131,7 @@ let movieclip_exists types path =
 		| TEnumDecl e when e.e_path = path -> failwith ("The clip " ^ name ^ " must be bound to a class")
 		| TTypeDecl t when t.t_path = path -> failwith ("The clip " ^ name ^ " must be bound to a class")
 		| _ -> false
-	) types
+	) types || 	List.exists (fun i -> loop i (Array.length i.hls_fields - 1)) inits
 
 let add_as3_code ctx data types =
 	(* only keep classes that are not redefined in HX code *)
@@ -213,7 +219,7 @@ let generate file infos types hres =
 		List.iter (fun c ->
 			let path = ExtString.String.nsplit c.f9_classname "." in
 			let path = (match List.rev path with [] -> assert false | x :: l -> List.rev l, x) in
-			if c.f9_cid <> None && not (movieclip_exists types path) then
+			if c.f9_cid <> None && not (movieclip_exists types ctx.as3code path) then
 				ctx.as3code <- build_movieclip ctx path :: ctx.as3code;
 		) ctx.f9clips;
 		let as3code = (match ctx.as3code @ ctx.hx9code with [] -> [] | l -> [tag (TActionScript3 (None,As3hlparse.flatten l))]) in

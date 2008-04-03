@@ -80,6 +80,11 @@ class Lib {
 		return untyped __new__(cl);
 	}
 
+	public inline static function as<T>( v : Dynamic, c : Class<T> ) : Null<T> {
+		return untyped __as__(v,c);
+	}
+
+
 }
 
 
