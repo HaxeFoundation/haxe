@@ -133,7 +133,7 @@ let read_type_path p cp =
 		let r = (try Sys.readdir dir with _ -> [||]) in
 		Array.iter (fun f ->
 			if (Unix.stat (dir ^ "/" ^ f)).Unix.st_kind = Unix.S_DIR then begin
-				if f.[0] > 'a' && f.[0] < 'z' then packages := f :: !packages
+				if f.[0] >= 'a' && f.[0] <= 'z' then packages := f :: !packages
 			end else if file_extension f = "hx" then begin
 				let c = Filename.chop_extension f in
 				if String.length c < 2 || String.sub c (String.length c - 2) 2 <> "__" then classes := c :: !classes;
@@ -152,7 +152,7 @@ let parse_hxml file =
 		let l = ExtString.String.strip l in
 		(*// disabled - need additional str.cmxa linkage
 			let renv = Str.regexp "%\\([A-Za-z0-9_]+\\)%" in
-			let l = Str.global_substitute renv (fun _ -> 
+			let l = Str.global_substitute renv (fun _ ->
 			let e = Str.matched_group 1 l in
 			try Sys.getenv e with Not_found -> "%" ^ e ^ "%"
 		) l in  *)
