@@ -84,7 +84,7 @@ class FastList<T> #if flash9 implements haxe.rtti.Generic #end {
 		Remove the first element that is [== v] from the list.
 		Returns [true] if an element was removed, [false] otherwise.
 	**/
-	public inline function remove( v : T ) : Bool {
+	public function remove( v : T ) : Bool {
 		var prev = null;
 		var l = head;
 		while( l != null ) {
