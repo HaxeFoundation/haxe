@@ -607,6 +607,8 @@ let begin_loop ctx =
 	let old_breaks = ctx.breaks in
 	let old_conts = ctx.continues in
 	ctx.infos.iloop <- ctx.infos.istack;
+	ctx.breaks <- [];
+	ctx.continues <- [];
 	(fun cont_pos ->
 		if ctx.infos.istack <> ctx.infos.iloop then assert false;
 		List.iter (fun j -> j()) ctx.breaks;
