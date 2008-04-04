@@ -22,12 +22,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package flash;
+package flash.utils;
 
 /**
 	This is a typed version of the Flash9 Dictionary class.
 **/
-class Dictionary<K,T> extends flash.utils.Dictionary {
+class TypedDictionary<K,T> extends Dictionary {
 
 	public function get( k : K ) : T {
 		return this[cast k];
