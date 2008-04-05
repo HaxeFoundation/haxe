@@ -89,6 +89,7 @@ type context = {
 	mutable curblock : texpr list;
 	mutable block_vars : (hl_slot * string * t) list;
 	mutable try_scope_reg : register option;
+	mutable for_call : bool;
 }
 
 let error p = Typer.error "Invalid expression" p
@@ -243,22 +244,23 @@ let property p t =
 	match follow t with
 	| TInst ({ cl_path = [],"Array" },_) ->
 		(match p with
-		| "length" -> ident p, Some KInt (* UInt in the spec *)
-		| "copy" | "insert" | "remove" | "iterator" | "toString" -> ident p , None
-		| _ -> as3 p, None);
+		| "length" -> ident p, Some KInt, false (* UInt in the spec *)
+		| "copy" | "insert" | "remove" | "iterator" | "toString" -> ident p , None, true
+		| _ -> as3 p, None, false);
 	| TInst ({ cl_path = [],"String" },_) ->
 		(match p with
-		| "length" | "charCodeAt" (* use haXe version *) -> ident p, None
-		| _ -> as3 p, None);
+		| "length" (* Int in AS3/haXe *) -> ident p, None, false
+		| "charCodeAt" (* use haXe version *) -> ident p, None, true
+		| _ -> as3 p, None, false);
 	| TAnon a ->
 		(match !(a.a_status) with
 		| Statics { cl_path = [], "Math" } ->
 			(match p with
-			| "POSITIVE_INFINITY" | "NEGATIVE_INFINITY" | "NaN" -> ident p, Some KFloat
-			| _ -> ident p, None)
-		| _ -> ident p, None)
+			| "POSITIVE_INFINITY" | "NEGATIVE_INFINITY" | "NaN" -> ident p, Some KFloat, false
+			| _ -> ident p, None, false)
+		| _ -> ident p, None, false)
 	| _ ->
-		ident p, None
+		ident p, None, false
 
 let default_infos() =
 	{
@@ -656,7 +658,8 @@ let gen_access ctx e (forset : 'a) : 'a access =
 	| TLocal i ->
 		gen_local_access ctx i e.epos forset
 	| TField (e1,f) ->
-		let id, k = property f e1.etype in
+		let id, k, closure = property f e1.etype in
+		if closure && not ctx.for_call then Typer.error "In Flash9, this method cannot be accessed this way : please define a local function" e1.epos;
 		(match e1.eexpr with
 		| TConst TThis when not ctx.in_static -> write ctx (HFindPropStrict id)
 		| _ -> gen_expr ctx true e1);
@@ -1097,9 +1100,12 @@ and gen_call ctx retval e el =
 		List.iter (gen_expr ctx true) el;
 		write ctx (if retval then HCallProperty (id,List.length el) else HCallPropVoid (id,List.length el));
 	| TField (e1,f) , _ ->
+		let old = ctx.for_call in
+		ctx.for_call <- true;
 		gen_expr ctx true e1;
+		ctx.for_call <- old;
 		List.iter (gen_expr ctx true) el;
-		let id , _ = property f e1.etype in
+		let id , _, _ = property f e1.etype in
 		if not retval then
 			write ctx (HCallPropVoid (id,List.length el))
 		else
@@ -1735,6 +1741,7 @@ let generate types hres =
 		last_line = -1;
 		last_file = "";
 		try_scope_reg = None;
+		for_call = false;
 	} in
 	let classes = List.map (fun t -> (t,generate_type ctx t)) types in
 	let init = generate_inits ctx classes hres in
