@@ -24,7 +24,7 @@
  */
 package flash;
 
-class Boot extends flash.display.MovieClip {
+class Boot extends flash.display.MovieClip, implements Dynamic {
 
 	#if (!flash9doc)
 

@@ -1513,10 +1513,16 @@ let generate_class ctx c =
 	) c.cl_fields []) in
 	let st_field_count = ref 0 in
 	let st_meth_count = ref 0 in
+	let rec is_dynamic c =
+		if c.cl_dynamic <> None then true
+		else match c.cl_super with
+		| None -> false
+		| Some (c,_) -> is_dynamic c
+	in
 	{
 		hlc_name = name;
 		hlc_super = (if c.cl_interface then None else Some (type_path ctx (match c.cl_super with None -> [],"Object" | Some (c,_) -> c.cl_path)));
-		hlc_sealed = c.cl_path <> (["flash"],"Boot") && c.cl_dynamic = None;
+		hlc_sealed = not (is_dynamic c);
 		hlc_final = false;
 		hlc_interface = c.cl_interface;
 		hlc_namespace = None;
