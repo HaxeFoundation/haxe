@@ -1292,12 +1292,14 @@ type type_class =
 	| KUnk
 	| KDyn
 	| KOther
+	| KParam of t
 
 let classify t =
 	match follow t with
 	| TInst ({ cl_path = ([],"Int") },[]) -> KInt
 	| TInst ({ cl_path = ([],"Float") },[]) -> KFloat
 	| TInst ({ cl_path = ([],"String") },[]) -> KString
+	| TInst ({ cl_kind = KTypeParameter; cl_implements = [{ cl_path = ([],"Float")},[]] },[]) -> KParam t
 	| TMono r when !r = None -> KUnk
 	| TDynamic _ -> KDyn
 	| _ -> KOther
@@ -1387,6 +1389,14 @@ let rec type_binop ctx op e1 e2 p =
 			unify ctx e1.etype t e1.epos;
 			unify ctx e2.etype t e2.epos;
 			t
+		| KParam t1, KParam t2 when t1 == t2 ->
+			t1
+		| KParam t, KInt | KInt, KParam t ->
+			t
+		| KParam _, KFloat | KFloat, KParam _ | KParam _, KParam _ ->
+			t_float ctx
+		| KParam _, _
+		| _, KParam _
 		| KOther, _
 		| _ , KOther ->
 			let pr = print_context() in
@@ -1407,14 +1417,28 @@ let rec type_binop ctx op e1 e2 p =
 	| OpDiv
 	| OpSub ->
 		let i = t_int ctx in
-		let f1 = is_float e1.etype in
-		let f2 = is_float e2.etype in
-		if not f1 then unify ctx e1.etype i e1.epos;
-		if not f2 then unify ctx e2.etype i e2.epos;
-		if op <> OpDiv && not f1 && not f2 then
-			mk_op i
-		else
-			mk_op (t_float ctx)
+		let result = ref (if op = OpDiv then t_float ctx else i) in
+		(match classify e1.etype, classify e2.etype with
+		| KFloat, KFloat ->
+			result := t_float ctx
+		| KParam t1, KParam t2 when t1 == t2 ->
+			if op <> OpDiv then result := t1
+		| KParam _, KParam _ ->
+			result := t_float ctx
+		| KParam t, KInt | KInt, KParam t ->
+			if op <> OpDiv then result := t
+		| KParam _, KFloat | KFloat, KParam _ ->
+			result := t_float ctx
+		| KFloat, _ ->
+			unify ctx e2.etype i e2.epos;
+			result := t_float ctx
+		| _, KFloat ->
+			unify ctx e1.etype i e1.epos;
+			result := t_float ctx
+		| _ , _ ->
+			unify ctx e1.etype i e1.epos;
+			unify ctx e2.etype i e2.epos);
+		mk_op !result
 	| OpEq
 	| OpPhysEq
 	| OpPhysNotEq
@@ -1439,12 +1463,15 @@ let rec type_binop ctx op e1 e2 p =
 		| KDyn , KInt | KDyn , KFloat | KDyn , KString -> ()
 		| KInt , KDyn | KFloat , KDyn | KString , KDyn -> ()
 		| KDyn , KDyn -> ()
+		| KParam _ , x | x , KParam _ when x <> KString && x <> KOther -> ()
 		| KDyn , KUnk
 		| KUnk , KDyn
 		| KString , KInt
 		| KString , KFloat
 		| KInt , KString
 		| KFloat , KString
+		| KParam _ , _
+		| _ , KParam _
 		| KOther , _
 		| _ , KOther ->
 			let pr = print_context() in
