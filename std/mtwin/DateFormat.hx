@@ -90,6 +90,11 @@ class DateFormat {
 			return null;
 		}
 
+		if( y < 50 )
+			y += 2000;
+		else if( y < 100 )
+			y += 1900;
+
 		if( REG_HOUR.match(str) ){
 			h = Std.parseInt(REG_HOUR.matched(1));
 			i = Std.parseInt(REG_HOUR.matched(2));
