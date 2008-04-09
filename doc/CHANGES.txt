@@ -6,6 +6,9 @@ TODO optimizer : move multiple statics access into local variables
 TODO inlining : allow inlined getter/setter
 TODO inlining : substitute class+function type parameters in order to have fully typed expressions
 
+2008-??-??: 2.0
+	remove neko max array declaration (fixed in 1.7.0)
+
 2008-04-05: 1.19
 	fixed flash9 Array.toString
 	fixed inline return bug

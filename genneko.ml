@@ -76,7 +76,7 @@ let add_local ctx v p =
 		| TMatch (e,_,cases,eo) ->
 			loop flag e;
 			(match eo with None -> () | Some e -> loop flag e);
-			List.iter (fun (_,params,e) ->				
+			List.iter (fun (_,params,e) ->
 				match params with
 				| Some l when List.exists (fun (a,_) -> a = Some v) l -> ()
 				| _ -> loop flag e
@@ -284,7 +284,6 @@ and gen_expr ctx e =
 	| TObjectDecl fl ->
 		(EObject (List.map (fun (f,e) -> f , gen_expr ctx e) fl),p)
 	| TArrayDecl el ->
-		if List.length el > 115 then error "This array declaration is too big, try to split it" e.epos;
 		call p (field p (ident p "Array") "new1") [array p (List.map (gen_expr ctx) el); int p (List.length el)]
 	| TCall (e,el) ->
 		gen_call ctx p e el
@@ -438,7 +437,7 @@ and gen_expr ctx e =
 					let cond = match cl with
 						| [s] -> int p s
 						| _ -> raise Exit
-					in					
+					in
 					cond , gen_params params e2
 				) cases,
 				(match eo with None -> None | Some e -> Some (gen_expr ctx e))
@@ -463,7 +462,7 @@ and gen_expr ctx e =
 	| TSwitch (e,cases,eo) ->
 		let e = gen_expr ctx e in
 		let eo = (match eo with None -> None | Some e -> Some (gen_expr ctx e)) in
-		try			
+		try
 			(ESwitch (
 				e,
 				List.map (fun (el,e2) ->
@@ -494,7 +493,7 @@ let gen_method ctx p c acc =
 	match c.cf_expr with
 	| None ->
 		if c.cf_get = ResolveAccess then acc else (c.cf_name, null p) :: acc
-	| Some e ->		
+	| Some e ->
 		match e.eexpr with
 		| TCall ({ eexpr = TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = (["neko"],"Lib") }) }, "load")},[{ eexpr = TConst (TString m) };{ eexpr = TConst (TString f) };{ eexpr = TConst (TInt n) }]) ->
 			(c.cf_name, call (pos ctx e.epos) (EField (builtin p "loader","loadprim"),p) [(EBinop ("+",(EBinop ("+",str p m,str p "@"),p),str p f),p); (EConst (Int (Int32.to_int n)),p)]) :: acc
@@ -589,7 +588,7 @@ let gen_enum_constr ctx path c =
 		| _ ->
 			(EBlock [
 				(EVars ["@tmp",Some (EObject ["tag" , str p c.ef_name; "index", int p c.ef_index; "__serialize" , ident p "@tag_serialize"],p)],p);
-				call p (builtin p "objsetproto") [ident p "@tmp"; field p path "prototype"];				
+				call p (builtin p "objsetproto") [ident p "@tmp"; field p path "prototype"];
 				ident p "@tmp";
 			],p)
 	),p)
@@ -715,7 +714,7 @@ let gen_name ctx acc t =
 let generate_libs_init = function
 	| [] -> ""
 	| libs ->
-		let boot = 
+		let boot =
 			"var @s = $loader.loadprim(\"std@sys_string\",0)();" ^
 			"var @env = $loader.loadprim(\"std@get_env\",1);" ^
 			"var @b = if( @s == \"Windows\" ) " ^
@@ -744,8 +743,8 @@ let generate file types hres libs =
 		"@classes = $new(null);" ^
 		"@Main = $new(null);" ^
 		"@enum_to_string = function() { return neko.Boot.__enum_str(this); };" ^
-		"@serialize = function() { return neko.Boot.__serialize(this); };" ^ 
-		"@tag_serialize = function() { return neko.Boot.__tagserialize(this); };" ^ 
+		"@serialize = function() { return neko.Boot.__serialize(this); };" ^
+		"@tag_serialize = function() { return neko.Boot.__tagserialize(this); };" ^
 		generate_libs_init libs
 	) , { psource = "<header>"; pline = 1; } in
 	let packs = List.concat (List.map (gen_package ctx h) types) in
@@ -759,7 +758,7 @@ let generate file types hres libs =
 	let neko_file = (try Filename.chop_extension file with _ -> file) ^ ".neko" in
 	let w = Plugin.timer "neko ast write" in
 	let ch = IO.output_channel (open_out_bin neko_file) in
-	let source = Plugin.defined "neko_source" in	
+	let source = Plugin.defined "neko_source" in
 	if source then Nxml.write ch (Nxml.to_xml e) else Binast.write ch e;
 	IO.close_out ch;
 	let command cmd = try Sys.command cmd with _ -> -1 in
