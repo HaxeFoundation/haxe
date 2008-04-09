@@ -29,7 +29,7 @@ package flash.utils;
 **/
 class TypedDictionary<K,T> extends Dictionary {
 
-	public function get( k : K ) : T {
+	public function get( k : K ) : Null<T> {
 		return this[cast k];
 	}
 
