@@ -54,7 +54,7 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 			if( buf.charCodeAt(pos) != 60 )
 				throw "Invalid remoting message '"+buf.substr(pos,len)+"'";
 			// XML handling
-			var p = buf.indexOf("\\0",pos);
+			var p = buf.indexOf("\x00",pos);
 			if( p == -1 || p >= len )
 				return null;
 			p -= pos;
