@@ -2776,7 +2776,7 @@ let init_class ctx c p herits fields =
 		let access , constr, f , delayed = loop_cf f p in
 		let is_static = List.mem AStatic access in
 		if is_static && f.cf_name = "name" && Plugin.defined "js" then error "This identifier cannot be used in Javascript for statics" p;
-		if (is_static || constr) && c.cl_interface then error "You can't declare static fields in interfaces" p;
+		if (is_static || constr) && c.cl_interface && f.cf_name <> "__init__" then error "You can't declare static fields in interfaces" p;
 		if constr then begin
 			if c.cl_constructor <> None then error "Duplicate constructor" p;
 			c.cl_constructor <- Some f;
