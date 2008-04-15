@@ -172,7 +172,17 @@ let rec follow_basic t =
 		| _ -> t)
 	| TLazy f ->
 		follow_basic (!f())
-	| TType (t,tl) when t.t_path <> ([],"Null") && t.t_path <> ([],"UInt") ->
+	| TType ({ t_path = [],"Null" },[tp]) ->
+		(match follow tp with
+		| TMono _
+		| TFun _
+		| TInst ({ cl_path = ([],"Int") },[])
+		| TInst ({ cl_path = ([],"Float") },[])
+		| TEnum ({ e_path = ([],"Bool") },[]) -> t
+		| _ -> tp)
+	| TType ({ t_path = [],"UInt" },[]) ->
+		t
+	| TType (t,tl) ->
 		follow_basic (apply_params t.t_types tl t.t_type)
 	| _ -> t
 
