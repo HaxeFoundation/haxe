@@ -43,13 +43,14 @@ extern class XMLHttpRequest {
 	function open( method : String, url : String, async : Bool ) : Void;
 	function send( content : String ) : Void;
 
+	#if !jsfl
 	private static function __init__() : Void {
 		untyped
-		js["XMLHttpRequest"] = 
+		js["XMLHttpRequest"] =
 			if( window.XMLHttpRequest )
 				__js__("XMLHttpRequest");
 			else if( window.ActiveXObject )
-				function() { 
+				function() {
 					try {
 						return __new__("ActiveXObject","Msxml2.XMLHTTP");
 					}catch(e:Dynamic){
@@ -60,8 +61,9 @@ extern class XMLHttpRequest {
 						}
 					}
 				};
-			else 
+			else
 				throw "Unable to create XMLHttpRequest object.";
 	}
+	#end
 
 }

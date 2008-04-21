@@ -33,21 +33,29 @@ class Boot {
 	private static function __trace(v,i : haxe.PosInfos) {
 		untyped {
 			var msg = if( i != null ) i.fileName+":"+i.lineNumber+": " else "";
+			#if jsfl
+			msg += __string_rec(v,"");
+			fl.trace(msg);
+			#else true
 			msg += __unhtml(__string_rec(v,""))+"<br/>";
-
 			var d = document.getElementById("haxe:trace");
 			if( d == null )
 				alert("No haxe:trace element defined\n"+msg);
 			else
 				d.innerHTML += msg;
+			#end
 		}
 	}
 
 	private static function __clear_trace() {
 		untyped {
+			#if jsfl
+			fl.outputPanel.clear();
+			#else true
 			var d = document.getElementById("haxe:trace");
 			if( d != null )
 				d.innerHTML = "";
+			#end
 		}
 	}
 

@@ -10,6 +10,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	genneko : remove big array error (fixed in neko 1.7.1)
 	fixed neko.net.ThreadRemotingServer.onXML
 	genswf9 : fixed verify error with Null<Class> (was using dynamic access)
+	small patch for jsfl support
 
 2008-04-05: 1.19
 	fixed flash9 Array.toString
