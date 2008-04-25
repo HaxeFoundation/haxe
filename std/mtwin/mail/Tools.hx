@@ -115,6 +115,7 @@ class Tools {
 		return rs.join("\r\n");
 	}
 
+	static var REG_HEXA = ~/^[0-9A-F]{2}$/;
 	public static function decodeQuotedPrintable( str : String ){
 		str = ~/=\r?\n/g.replace(str,"");
 		var a = str.split("=");
@@ -125,7 +126,15 @@ class Tools {
 				first = false;
 				ret.add(t);
 			}else{
-				ret.add(StringTools.baseDecode(t.substr(0,2).toUpperCase(),HEXA) + t.substr(2,t.length - 2));
+				var h = t.substr(0,2).toUpperCase();
+				if( REG_HEXA.match(h) ){
+					ret.add(StringTools.baseDecode(h,HEXA));
+					ret.add(t.substr(2,t.length - 2));
+				}else{
+					ret.add("=");
+					ret.add(t);
+				}
+				
 			}			
 		}
 		return ret.toString();
