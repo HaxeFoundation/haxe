@@ -4,6 +4,8 @@ class DateFormat {
 	static var REG_STD = ~/([0-9]{4})-([0-9]{2})-([0-9]{2})/;
 	static var REG_A = ~/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) ([0-9]{1,2}), ([0-9]{2,4})/;
 	static var REG_B = ~/([0-9]{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) ([0-9]{2,4})/;
+	static var REG_A2 = ~/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) ([0-9]{1,2}) .*? ([0-9]{4})$/;
+	static var REG_B2 = ~/([0-9]{1,2}) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) .*? ([0-9]{4})$/;
 	static var REG_HOUR = ~/([0-9]{2}):([0-9]{2}):([0-9]{2})/;
 	static var REG_TZ = ~/(ADT|BST|NZT|NZST|IDLE|GST|EAST|JST|CCT|WAST|BT|EET|SWT|MEWT|MET|FWT|CET|IDLW|NT|HST|CAT|AHST|YST|AST|AT|WAT|WET|UTC|UT|GMT|EST|EDT|CST|CDT|MST|MDT|PST|PDT|YDT|HDT|MEST|MESZ|SST|FST|WADT|EADT|NZDT|[+-][0-9]{3,4}|[A-Z])$/;
 	static var REG_SIMPLE_TZ = ~/[+-][0-9]{3,4}/;
@@ -86,6 +88,14 @@ class DateFormat {
 			y = Std.parseInt(REG_B.matched(3));
 			d = Std.parseInt(REG_B.matched(1));
 			m = month(REG_B.matched(2));
+		}else if( REG_A2.match(str) ){
+			y = Std.parseInt(REG_A2.matched(3));
+			d = Std.parseInt(REG_A2.matched(2));
+			m = month(REG_A2.matched(1));
+		}else if( REG_B2.match(str) ){
+			y = Std.parseInt(REG_B2.matched(3));
+			d = Std.parseInt(REG_B2.matched(1));
+			m = month(REG_B2.matched(2));
 		}else{
 			return null;
 		}
