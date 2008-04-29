@@ -281,6 +281,13 @@ class Web {
 		_flush();
 	}
 
+	/**
+		Get the HTTP method used by the client. This api requires Neko 1.7.1+
+	**/
+	public static function getMethod() : String {
+		return new String(_get_http_method());
+	}
+
 	public static var isModNeko(default,null) : Bool;
 
 	static var _set_main : Dynamic;
@@ -300,6 +307,7 @@ class Web {
 	static var _parse_multipart : Dynamic;
 	static var _flush : Dynamic;
 	static var _get_client_headers : Dynamic;
+	static var _get_http_method : Dynamic;
 	static var _base_decode = Lib.load("std","base_decode",2);
 
 	static function __init__() {
@@ -322,6 +330,7 @@ class Web {
 			_get_cookies = Lib.load(lib,"get_cookies",0);
 			_set_cookie = Lib.load(lib,"set_cookie",2);
 			_get_cwd = Lib.load(lib,"cgi_get_cwd",0);
+			_get_http_method = Lib.loadLazy(lib,"get_http_method",0);
 			_parse_multipart = try Lib.load(lib,"parse_multipart_data",2) catch( e : Dynamic ) function(a,b) { throw "Please upgrade Neko"; };
 			_flush = try Lib.load(lib,"cgi_flush",0) catch( e : Dynamic ) function() { throw "Please upgrade Neko"; };
 			_get_client_headers = try Lib.load(lib,"get_client_headers",0) catch( e : Dynamic ) function() { throw "Please upgrade Neko"; };
@@ -357,6 +366,7 @@ class Web {
 			_get_cookies = function() { return null; }
 			_set_cookie = function(k,v) { };
 			_get_cwd = Lib.load("std","get_cwd",0);
+			_get_http_method = function() return untyped "GET".__s;
 			_parse_multipart = function(a,b) { throw "Not supported"; };
 			_flush = function() { };
 		}
