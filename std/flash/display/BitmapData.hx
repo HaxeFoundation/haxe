@@ -32,7 +32,7 @@ extern class BitmapData {
 	function pixelDissolve( src : BitmapData, srcRect : Rectangle<Int>, dst : Point<Int>, ?seed : Int, ?npixels : Int, ?fillColor : Int ) : Int;
 	function floodFill( x : Int, y : Int, color : Int ) : Void;
 	function getColorBoundsRect( mask : Int, color : Int, ?fillColor : Bool ) : Rectangle<Int>;
-	function perlinNoise( x : Int, y : Int, num : Int, seed : Int, stitch : Bool, noise : Bool, ?channels : Int, ?gray : Bool, ?offsets : Dynamic ) : Void;
+	function perlinNoise( x : Int, y : Int, num : Int, seed : Int, stitch : Bool, noise : Bool, ?channels : Int, ?gray : Bool, ?offsets : Array<Point<Float>> ) : Void;
 	function colorTransform( r : Rectangle<Int>, trans : flash.geom.ColorTransform ) : Void;
 	function hitTest( firstPoint : Point<Int>, firstAlpha : Int, object : Dynamic, ?secondPoint : Point<Int>, ?secondAlpha : Int ) : Bool;
 	function paletteMap( source : BitmapData, srcRect : Rectangle<Int>, dst : Point<Int>, ?reds : Array<Dynamic>, ?greens : Array<Dynamic>, ?blues : Array<Dynamic>, ?alphas : Array<Dynamic> ) : Void;
