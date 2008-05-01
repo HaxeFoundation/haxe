@@ -92,8 +92,10 @@ class ProxyDetect {
 		if( dir == null )
 			dir = ".";
 		var temp = dir + "/proxy.txt";
-		if( neko.Sys.command('regedit /E "'+temp+'" "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings"') != 0 )
-			throw "Failed to call REGEDIT";
+		if( neko.Sys.command('regedit /E "'+temp+'" "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings"') != 0 ) {
+			// might fail without appropriate rights
+			return null;
+		}
 		var content = neko.io.File.getContent(temp);
 		neko.FileSystem.deleteFile(temp);
 		// turn 16-bit string into 8-bit one
