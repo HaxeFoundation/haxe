@@ -71,8 +71,8 @@ class Site {
 				return "/"+Datas.REPOSITORY+"/"+Datas.fileName(res(p).name,res(v).name);
 			}
 		};
-		fillContent(ctx);
-		neko.Lib.print( page.execute(ctx,macros) );
+		if (fillContent(ctx))
+			neko.Lib.print( page.execute(ctx,macros) );
 	}
 
 	static function fillContent( ctx : Dynamic ) {
@@ -89,7 +89,7 @@ class Site {
 			var p = Project.manager.search({ name : name }).first();
 			if( p == null ) {
 				ctx.error = "Unknown project '"+name+"'";
-				return;
+				return true;
 			}
 			ctx.p = p;
 			ctx.owner = p.owner;
@@ -100,7 +100,7 @@ class Site {
 			var u = User.manager.search({ name : name }).first();
 			if( u == null ) {
 				ctx.error = "Unknown user '"+name+"'";
-				return;
+				return true;
 			}
 			ctx.u = u;
 			ctx.uprojects = Developer.manager.search({ user : u.id }).map(function(d:Developer) { return d.project; });
@@ -110,11 +110,62 @@ class Site {
 				var p = v.project;
 			}
 			ctx.versions = vl;
+		case "rss":
+			neko.Web.setHeader("Content-Type", "text/xml; charset=UTF-8");
+			neko.Lib.println('<?xml version="1.0" encoding="UTF-8"?>');
+			neko.Lib.print(buildRss().toString());
+			return false;
+
 		default:
 			ctx.error = "Unknown action : "+act;
-			return;
+			return true;
 		}
 		Reflect.setField(ctx,"act_"+act,true);
+		return true;
+	}
+
+	static function buildRss() : Xml {
+		var createChild = function(root:Xml, name:String){
+			var c = Xml.createElement(name);
+			root.addChild(c);
+			return c;
+		}
+		var createChildWithContent = function(root:Xml, name:String, content:String){
+			var e = Xml.createElement(name);
+			var c = Xml.createPCData(if (content != null) content else "");
+			e.addChild(c);
+			root.addChild(e);
+			return e;
+		}
+		var createChildWithCdata = function(root:Xml, name:String, content:String){
+			var e = Xml.createElement(name);
+			var c = Xml.createCData(if (content != null) content else "");
+			e.addChild(c);
+			root.addChild(e);
+			return e;
+		}
+		neko.Sys.setTimeLocale("en_US.UTF8");
+		var url = "http://"+neko.Web.getClientHeader("Host")+"/";
+		var rss = Xml.createElement("rss");
+		rss.set("version","2.0");
+		var channel = createChild(rss, "channel");
+		createChildWithContent(channel, "title", "haxe-libs");
+		createChildWithContent(channel, "link", url);
+		createChildWithContent(channel, "description", "lib.haxe.org RSS");
+		createChildWithContent(channel, "generator", "haxe");
+		createChildWithContent(channel, "language", "en");
+		for (v in Version.manager.latest(10)){
+			var project = v.project;
+			var item = createChild(channel, "item");
+			createChildWithContent(item, "title", StringTools.htmlEscape(project.name+" "+v.name));
+			createChildWithContent(item, "link", url+"/p/"+project.name);
+			createChildWithContent(item, "guid", url+"/p/"+project.name+"?v="+v.id);
+			var date = DateTools.format(Date.fromString(v.date), "%a, %e %b %Y %H:%M:%S %z");
+			createChildWithContent(item, "pubDate", date);
+			createChildWithContent(item, "author", project.owner.name);
+			createChildWithContent(item, "description", StringTools.htmlEscape(v.comments));
+		}
+		return rss;
 	}
 
 	static function main() {

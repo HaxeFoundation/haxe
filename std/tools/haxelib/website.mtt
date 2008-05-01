@@ -2,6 +2,7 @@
 
 <head>
 <title>lib.haxe.org</title>
+<link type="application/rss+xml" rel="alternate" title="RSS feed" href="/rss"/>
 <style type="text/css">
 
 /* structure */
