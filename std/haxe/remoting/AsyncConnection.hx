@@ -97,6 +97,9 @@ class AsyncConnection implements Dynamic<AsyncConnection> {
 				onData(v);
 		};
 		h.onError = function(e) { me.__error.ref(e); };
+		#if (neko && no_remoting_shutdown)
+		h.noShutdown = true;
+		#end
 		h.request(true);
 	}
 
