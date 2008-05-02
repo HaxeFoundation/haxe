@@ -201,9 +201,9 @@ typedef Event = {
 	var screenY : Int;
 	var button : Int;
 	var keyCode : Int;
-	var shiftKey : Int;
-	var ctrlKey : Int;
-	var altKey : Int;
+	var shiftKey : Bool;
+	var ctrlKey : Bool;
+	var altKey : Bool;
 	var cancelBubble : Bool;
 }
 
