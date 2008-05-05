@@ -261,6 +261,7 @@ let property p t =
 		(match p with
 		| "length" (* Int in AS3/haXe *) -> ident p, None, false
 		| "charCodeAt" (* use haXe version *) -> ident p, None, true
+		| "__charCodeAt" -> as3 "charCodeAt", Some KInt, false
 		| _ -> as3 p, None, false);
 	| TAnon a ->
 		(match !(a.a_status) with
