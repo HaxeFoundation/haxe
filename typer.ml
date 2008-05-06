@@ -2254,7 +2254,10 @@ and type_inline ctx f ethis params tret p =
 			{ e with eexpr = TLocal vthis }
 		| TVars vl ->
 			has_vars := true;
-			let vl = List.map (fun (v,t,e) -> local v,t,opt (map false) e) vl in
+			let vl = List.map (fun (v,t,e) ->
+				let e = opt (map false) e in
+				add_local ctx v t,t,e
+			) vl in
 			{ e with eexpr = TVars vl }
 		| TReturn eo ->
 			if not term then error "Cannot inline a not final return" e.epos;
@@ -2272,6 +2275,7 @@ and type_inline ctx f ethis params tret p =
 		| TTry (e1,catches) ->
 			{ e with eexpr = TTry (map term e1,List.map (fun (v,t,e) -> local v,t,map term e) catches) }
 		| TBlock l ->
+			let old = save_locals ctx in
 			let rec loop = function
 				| [] -> []
 				| [e] -> [map term e]
@@ -2279,7 +2283,9 @@ and type_inline ctx f ethis params tret p =
 					let e = map false e in
 					e :: loop l
 			in
-			{ e with eexpr = TBlock (loop l) }
+			let l = loop l in
+			old();
+			{ e with eexpr = TBlock l }
 		| TParenthesis _ | TIf (_,_,Some _) | TSwitch (_,_,Some _) ->
 			Transform.map (map term) e
 		| TConst TSuper ->
