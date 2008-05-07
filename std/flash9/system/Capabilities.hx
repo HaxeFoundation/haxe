@@ -2,6 +2,7 @@ package flash.system;
 
 extern class Capabilities {
 	function new() : Void;
+	static var _internal(default,null) : UInt;
 	static var avHardwareDisable(default,null) : Bool;
 	static var hasAccessibility(default,null) : Bool;
 	static var hasAudio(default,null) : Bool;

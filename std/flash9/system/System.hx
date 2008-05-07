@@ -8,4 +8,17 @@ extern class System {
 	static var useCodePage : Bool;
 	static var vmVersion(default,null) : String;
 	private static var theIME : flash.system.IME;
+
+	/** for FP 9.0.115+ debug only */
+	static function exit(code : UInt) : Void;
+
+	/** for FP 9.0.115+ debug only */
+	static function gc() : Void;
+
+	/** for FP 9.0.115+ debug only */
+	static function pause() : Void;
+
+	/** for FP 9.0.115+ debug only */
+	static function resume() : Void;
+	
 }

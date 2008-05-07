@@ -21,6 +21,7 @@ extern class NetStream extends flash.events.EventDispatcher {
 	function publish(?name : String, ?type : String) : Void;
 	function receiveAudio(flag : Bool) : Void;
 	function receiveVideo(flag : Bool) : Void;
+	function receiveVideoFPS(FPS : Float) : Void;
 	function resume() : Void;
 	function seek(offset : Float) : Void;
 	function send(handlerName : String, ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic ) : Void;

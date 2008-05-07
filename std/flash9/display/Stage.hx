@@ -15,4 +15,7 @@ extern class Stage extends DisplayObjectContainer {
 	private function requireOwnerPermissions() : Void;
 
 	var displayState : StageDisplayState;
+	var fullScreenHeight(default,null) : UInt;
+	var fullScreenSourceRect : flash.geom.Rectangle;
+	var fullScreenWidth(default,null) : UInt;
 }

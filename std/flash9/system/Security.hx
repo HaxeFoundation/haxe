@@ -12,5 +12,5 @@ extern class Security {
 	static var exactSettings : Bool;
 	static function loadPolicyFile(url : String) : Void;
 	static var sandboxType(default,null) : String;
-	static function showSettings(?panel : String) : Void;
+	static function showSettings(?panel : SecurityPanel) : Void;
 }

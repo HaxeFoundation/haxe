@@ -6,6 +6,10 @@ extern class ExternalInterface {
 	static var available(default,null) : Bool;
 	static function call(functionName : String, ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic ) : Dynamic;
 	static var objectID(default,null) : String;
+
+	/** added in FP 9.0.115 **/
+	static var marshallExceptions : Bool;
+
 	private static function _addCallback(functionName : String, closure : Dynamic) : Void;
 	private static function _argumentsToAS(obj : Dynamic) : Array<Dynamic>;
 	private static function _argumentsToXML(obj : Array<Dynamic>) : String;

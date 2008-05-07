@@ -20,7 +20,7 @@ extern class BitmapData implements IBitmapDrawable {
 	var height(default,null) : Int;
 	function hitTest(firstPoint : flash.geom.Point, firstAlphaThreshold : UInt, secondObject : Dynamic, ?secondBitmapDataPoint : flash.geom.Point, ?secondAlphaThreshold : UInt) : Bool;
 	function lock() : Void;
-	function merge(sourceBitmapData : BitmapData, sourceRect : flash.geom.Rectangle, destPoint : flash.geom.Point, redMultiplier : Float, greenMultiplier : Float, blueMultiplier : Float, alphaMultiplier : Float) : Void;
+	function merge(sourceBitmapData : BitmapData, sourceRect : flash.geom.Rectangle, destPoint : flash.geom.Point, redMultiplier : UInt, greenMultiplier : UInt, blueMultiplier : UInt, alphaMultiplier : UInt) : Void;
 	function noise(randomSeed : Int, ?low : UInt, ?high : UInt, ?channelOptions : UInt, ?grayScale : Bool) : Void;
 	function paletteMap(sourceBitmapData : BitmapData, sourceRect : flash.geom.Rectangle, destPoint : flash.geom.Point, ?redArray : Array<Int>, ?greenArray : Array<Int>, ?blueArray : Array<Int>, ?alphaArray : Array<Int>) : Void;
 	function perlinNoise(baseX : Float, baseY : Float, numOctaves : UInt, randomSeed : Int, stitch : Bool, fractalNoise : Bool, ?channelOptions : UInt, ?grayScale : Bool, ?offsets : Array<flash.geom.Point>) : Void;

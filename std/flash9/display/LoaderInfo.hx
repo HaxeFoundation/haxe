@@ -20,4 +20,11 @@ extern class LoaderInfo extends flash.events.EventDispatcher {
 	var url(default,null) : String;
 	var width(default,null) : Int;
 	private function _getArgs() : Dynamic;
+
+	/** new in FP 9.0.115 **/
+	var bytes(default,null) : flash.utils.ByteArray;
+
+	/** new in FP 9.0.115 **/
+	static function getLoaderInfoByDefinition(object : Dynamic) : flash.display.LoaderInfo;
+
 }

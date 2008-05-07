@@ -38,7 +38,14 @@ extern class Event {
 	static var TAB_ENABLED_CHANGE : String;
 	static var TAB_INDEX_CHANGE : String;
 	static var UNLOAD : String;
-	// player 9.0.28
+
+	/** added in FP 9.0.28 **/
 	static var ADDED_TO_STAGE : String;
+
+	/** added in FP 9.0.28 **/
 	static var REMOVED_FROM_STAGE : String;
+
+	/** added in FP 9.0.28 **/
+	static var FULLSCREEN : String;
+
 }

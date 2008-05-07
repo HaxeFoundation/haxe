@@ -3,7 +3,7 @@ package flash.accessibility;
 extern class AccessibilityImplementation {
 	function new() : Void;
 	function accDoDefaultAction(childID : UInt) : Void;
-	function accLocation(childID : UInt) : Void;
+	function accLocation(childID : UInt) : Dynamic;
 	function accSelect(operation : UInt, childID : UInt) : Void;
 	var errno : UInt;
 	function getChildIDArray() : Array<Dynamic>;
