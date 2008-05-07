@@ -13,6 +13,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	small patch for jsfl support
 	added __charCodeAt for very fast string operations on Flash9
 	bugfix with inlined local variables
+	upgraded flash9 api to flex3/player 9.0.115
 
 2008-04-05: 1.19
 	fixed flash9 Array.toString

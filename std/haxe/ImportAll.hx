@@ -265,6 +265,8 @@ import flash.utils.Proxy;
 import flash.utils.SetIntervalTimer;
 import flash.utils.Timer;
 import flash.utils.TypedDictionary;
+import flash.utils.QName;
+import flash.utils.Namespace;
 import flash.xml.XML;
 import flash.xml.XMLList;
 import flash.xml.XMLDocument;
@@ -272,6 +274,12 @@ import flash.xml.XMLNode;
 import flash.xml.XMLNodeType;
 import flash.xml.XMLParser;
 import flash.xml.XMLTag;
+import flash.trace.Trace;
+import flash.sampler.Api;
+import flash.sampler.DeleteObjectSample;
+import flash.sampler.NewObjectSample;
+import flash.sampler.Sample;
+import flash.sampler.StackFrame;
 
 #else flash
 
@@ -478,6 +486,8 @@ import flash9.utils.Proxy;
 import flash9.utils.SetIntervalTimer;
 import flash9.utils.Timer;
 import flash9.utils.TypedDictionary;
+import flash9.utils.QName;
+import flash9.utils.Namespace;
 import flash9.xml.XML;
 import flash9.xml.XMLList;
 import flash9.xml.XMLDocument;
@@ -485,6 +495,13 @@ import flash9.xml.XMLNode;
 import flash9.xml.XMLNodeType;
 import flash9.xml.XMLParser;
 import flash9.xml.XMLTag;
+import flash9.trace.Trace;
+import flash9.sampler.Api;
+import flash9.sampler.DeleteObjectSample;
+import flash9.sampler.NewObjectSample;
+import flash9.sampler.Sample;
+import flash9.sampler.StackFrame;
+
 
 #end
 
