@@ -176,7 +176,7 @@ class Main {
 		display("Getting Latest haXe Version");
 		var haxeFile = null;
 		var r = ~/^haxe-([0-9]+)\.([0-9]+)(-win|-linux|-osx)(\.zip|\.tar\.gz)$/;
-		for( f in haxe.Http.request("http://haxe.org/latest.n").split("\n") )
+		for( f in haxe.Http.request("http://haxe.org/wiki/latest").split("\n") )
 			if( r.match(f) ) {
 				var pf = r.matched(3);
 				switch( SYS ) {
@@ -247,9 +247,9 @@ class Main {
 
 		// DOWNLOAD
 		if( needNeko )
-			download("nekovm.org",nekoFile.file);
+			download("http://nekovm.org/_media",nekoFile.file);
 		if( needHaxe )
-			download("haxe.org",haxeFile.file);
+			download("http://haxe.org/file",haxeFile.file);
 
 		// INSTALL
 		if( needNeko ) {
@@ -261,7 +261,7 @@ class Main {
 			installHaxe();
 		}
 	}
-	
+
 	static function logProgress( txt ) {
 		#if xcross
 		wnd.logProgress(txt);
@@ -270,7 +270,7 @@ class Main {
 		#end
 	}
 
-	function download( domain, file ) {
+	function download( url, file ) {
 		if( neko.FileSystem.exists(file) ) {
 			display("Using local version of "+file+", skipping download");
 			return;
@@ -283,7 +283,7 @@ class Main {
 			p = Std.int(p * 10) / 10;
 			logProgress("Downloading "+file+" ("+p+"%)");
 		};
-		var h = new haxe.Http("http://"+domain+"/_media/"+file);
+		var h = new haxe.Http(url+"/"+file);
 		var me = this;
 		h.onError = function(e) {
 			me.error(Std.string(e));
@@ -303,7 +303,7 @@ class Main {
 
 	function unzip( file ) {
 		var ch = neko.io.File.read(file,true);
-		var entries = if( neko.io.Path.extension(file) == "zip" ) neko.zip.File.readZip(ch) else neko.zip.File.readTar(ch,true);
+		var entries = if( neko.io.Path.extension(file) == "zip" ) neko.zip.Reader.readZip(ch) else neko.zip.Reader.readTar(ch,true);
 		ch.close();
 		return entries;
 	}
@@ -334,7 +334,7 @@ class Main {
 			}
 			var filename = dir + "/" + path.join("/");
 			var ch = neko.io.File.write(filename,true);
-			ch.write(neko.zip.File.unzip(f));
+			ch.write(neko.zip.Reader.unzip(f));
 			ch.close();
 			if( SYS != "Windows" ) {
 				var exe = neko.io.Path.extension(filename) == "";
