@@ -157,7 +157,7 @@ class ProxyDetect {
 		var data : Dynamic = parseOSXConfiguration(xml);
 		for( nsname in Reflect.fields(data.NetworkServices) ) {
 			var ns : Dynamic = Reflect.field(data.NetworkServices,nsname);
-			if( ns.Proxies.HTTPEnable == 1 )
+			if( ns.Proxies != null && ns.Proxies.HTTPEnable == 1 )
 				return { host : ns.Proxies.HTTPProxy, port : ns.Proxies.HTTPPort, auth : null };
 		}
 		return null;
