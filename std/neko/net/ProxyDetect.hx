@@ -82,7 +82,7 @@ class ProxyDetect {
 		var host = r.matched(1);
 		var r = ~/user_pref\("network\.proxy\.http_port", ([0-9]+)\);/;
 		if( !r.match(prefs) )
-			throw "No http_port in prefs.js";
+			return null;
 		var port = r.matched(1);
 		return parseSettings(host+":"+port);
 	}
@@ -109,7 +109,7 @@ class ProxyDetect {
 		// enabled ?
 		var renabled = ~/"ProxyEnable"=dword:0000000(0|1)/;
 		if( !renabled.match(content) )
-			throw "Could not find 'ProxyEnable'";
+			return null;
 		if( renabled.matched(1) == "0" )
 			return null;
 		// value ?
