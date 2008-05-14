@@ -47,11 +47,7 @@ class Input {
 	}
 
 	public function close() {
-		readBytes = function(_,_,_) { return throw Error.Closed; };
-		readChar = function() { return throw Error.Closed; };
-		close = function() { };
 	}
-
 
 	/* ------------------ API ------------------ */
 

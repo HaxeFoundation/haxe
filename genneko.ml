@@ -20,9 +20,10 @@ open Ast
 open Type
 open Nast
 open Nxml
+open Common
 
 type context = {
-	methods : bool;
+	com : Common.context;	
 	mutable curclass : string;
 	mutable curmethod : string;
 	mutable locals : (string , bool) PMap.t;
@@ -36,17 +37,18 @@ let error msg p =
 let files = Hashtbl.create 0
 
 let pos ctx p =
-	let file = (match ctx.methods with
+	let file = (match ctx.com.debug with
 		| true -> ctx.curclass ^ "::" ^ ctx.curmethod
 		| false ->
 			try
 				Hashtbl.find files p.pfile
 			with Not_found -> try
+				(* lookup relative path *)
 				let len = String.length p.pfile in
 				let base = List.find (fun path ->
 					let l = String.length path in
-					len > l  && String.sub p.pfile 0 l = path
-				) (!Plugin.class_path) in
+					len > l && String.sub p.pfile 0 l = path
+				) ctx.com.Common.class_path in
 				let l = String.length base in
 				let path = String.sub p.pfile l (len - l) in
 				Hashtbl.add files p.pfile path;
@@ -728,16 +730,16 @@ let generate_libs_init = function
 			acc ^ "$loader.path = $array(" ^ (if full_path then "" else "@b + ") ^ "\"" ^ Nast.escape l ^ "\" + @s,$loader.path);"
 		) boot libs
 
-let generate file types hres libs =
+let generate com libs =
 	let ctx = {
-		methods = Plugin.defined "debug";
+		com = com;		
 		curclass = "$boot";
 		curmethod = "$init";
 		inits = [];
 		curblock = [];
 		locals = PMap.empty;
 	} in
-	let t = Plugin.timer "neko ast" in
+	let t = Common.timer "neko ast" in
 	let h = Hashtbl.create 0 in
 	let header = ENeko (
 		"@classes = $new(null);" ^
@@ -747,30 +749,30 @@ let generate file types hres libs =
 		"@tag_serialize = function() { return neko.Boot.__tagserialize(this); };" ^
 		generate_libs_init libs
 	) , { psource = "<header>"; pline = 1; } in
-	let packs = List.concat (List.map (gen_package ctx h) types) in
-	let names = List.fold_left (gen_name ctx) [] types in
-	let methods = List.rev (List.fold_left (fun acc t -> gen_type ctx t acc) [] types) in
-	let boot = gen_boot ctx hres in
+	let packs = List.concat (List.map (gen_package ctx h) com.types) in
+	let names = List.fold_left (gen_name ctx) [] com.types in
+	let methods = List.rev (List.fold_left (fun acc t -> gen_type ctx t acc) [] com.types) in
+	let boot = gen_boot ctx com.resources in
 	let inits = List.map (gen_expr ctx) (List.rev ctx.inits) in
-	let vars = List.concat (List.map (gen_static_vars ctx) types) in
+	let vars = List.concat (List.map (gen_static_vars ctx) com.types) in
 	let e = (EBlock (header :: packs @ methods @ boot :: names @ inits @ vars), null_pos) in
 	t();
-	let neko_file = (try Filename.chop_extension file with _ -> file) ^ ".neko" in
-	let w = Plugin.timer "neko ast write" in
+	let neko_file = (try Filename.chop_extension com.file with _ -> com.file) ^ ".neko" in
+	let w = Common.timer "neko ast write" in
 	let ch = IO.output_channel (open_out_bin neko_file) in
-	let source = Plugin.defined "neko_source" in
+	let source = Common.defined com "neko_source" in
 	if source then Nxml.write ch (Nxml.to_xml e) else Binast.write ch e;
 	IO.close_out ch;
 	let command cmd = try Sys.command cmd with _ -> -1 in
 	if source then begin
 		if command ("nekoc -p \"" ^ neko_file ^ "\"") <> 0 then failwith "Failed to print neko code";
 		Sys.remove neko_file;
-		Sys.rename ((try Filename.chop_extension file with _ -> file) ^ "2.neko") neko_file;
+		Sys.rename ((try Filename.chop_extension com.file with _ -> com.file) ^ "2.neko") neko_file;
 	end;
 	w();
-	let c = Plugin.timer "neko compilation" in
+	let c = Common.timer "neko compilation" in
 	if command ("nekoc \"" ^ neko_file ^ "\"") <> 0 then failwith "Neko compilation failure";
 	c();
 	let output = Filename.chop_extension neko_file ^ ".n" in
-	if output <> file then Sys.rename output file;
+	if output <> com.file then Sys.rename output com.file;
 	if not source then Sys.remove neko_file

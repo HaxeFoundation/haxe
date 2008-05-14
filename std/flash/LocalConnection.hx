@@ -13,10 +13,9 @@ implements Dynamic
 
 	function close():Void;
 	function domain():String;
-	function allowDomain(domain:String):Bool;
-	function allowInsecureDomain(domain:String):Bool;
-
-	function onStatus(infoObject:Dynamic):Void;
+	dynamic function allowDomain(domain:String):Bool;
+	dynamic function allowInsecureDomain(domain:String):Bool;
+	dynamic function onStatus(infoObject:Dynamic):Void;
 
 	private static function __init__() : Void untyped {
 		flash.LocalConnection = _global["LocalConnection"];

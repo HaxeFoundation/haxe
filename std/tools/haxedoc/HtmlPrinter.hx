@@ -35,7 +35,7 @@ class HtmlPrinter {
 		typeParams = new Array();
 	}
 
-	public function output(str) {
+	public dynamic function output(str) {
 		neko.Lib.print(str);
 	}
 
@@ -218,9 +218,9 @@ class HtmlPrinter {
 			processPath(i.path,i.params);
 			print('</div>');
 		}
-		if( c.dynamic != null ) {
+		if( c.tdynamic != null ) {
 			var d = new List();
-			d.add(c.dynamic);
+			d.add(c.tdynamic);
 			print('<div class="implements">implements ');
 			processPath("Dynamic",d);
 			print('</div>');

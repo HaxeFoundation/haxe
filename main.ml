@@ -18,25 +18,15 @@
  *)
 open Printf
 open Genswf
-
-type target =
-	| No
-	| Js of string
-	| Swf of string
-	| Neko of string
-	| As3 of string
+open Common
 
 let prompt = ref false
-let alt_format = ref false
 let has_error = ref false
-let auto_xml = ref false
 let display = ref false
+let measure_times = ref false
 
 let executable_path() =
 	Extc.executable_path()
-
-let get_full_path file =
-	Extc.get_full_path file
 
 let normalize_path p =
 	let l = String.length p in
@@ -50,12 +40,7 @@ let warn msg p =
 	if p = Ast.null_pos then
 		prerr_endline msg
 	else begin
-		let error_printer file line =
-			if !alt_format then
-				sprintf "%s(%d):" file line
-			else
-				sprintf "%s:%d:" file line
-		in
+		let error_printer file line = sprintf "%s:%d:" file line in
 		let epos = Lexer.get_error_pos error_printer p in
 		let msg = String.concat ("\n" ^ epos ^ " : ") (ExtString.String.nsplit msg "\n") in
 		prerr_endline (sprintf "%s : %s" epos msg)
@@ -124,10 +109,19 @@ let make_path f =
 	in
 	loop cl
 
-let read_type_path p cp =
+let read_type_path com p =
 	let classes = ref [] in
 	let packages = ref [] in
-	let p = (match p with "flash" :: l when Plugin.defined "flash9" -> "flash9" :: l | _ -> p) in
+	let p = (match p with 
+		| x :: l ->
+			(try
+				match PMap.find x com.package_rules with
+				| Directory d -> d :: l
+				| _ -> p
+			with
+				Not_found -> p)
+		| _ -> p
+	) in
 	List.iter (fun path ->
 		let dir = path ^ String.concat "/" p in
 		let r = (try Sys.readdir dir with _ -> [||]) in
@@ -139,7 +133,7 @@ let read_type_path p cp =
 				if String.length c < 2 || String.sub c (String.length c - 2) 2 <> "__" then classes := c :: !classes;
 			end;
 		) r;
-	) cp;
+	) com.class_path;
 	List.sort compare (!packages), List.sort compare (!classes)
 
 let delete_file f = try Sys.remove f with _ -> ()
@@ -168,9 +162,6 @@ let parse_hxml file =
 			[l]
 	) lines)
 
-
-let base_defines = !Plugin.defines
-
 exception Hxml_found
 
 let rec process_params acc = function
@@ -183,29 +174,23 @@ let rec process_params acc = function
 		process_params (x :: acc) l
 
 and init params =
-try
-	let version = 119 in
+	let version = 200 in
 	let version_str = Printf.sprintf "%d.%.2d" (version / 100) (version mod 100) in
 	let usage = "Haxe Compiler " ^ version_str ^ " - (c)2005-2008 Motion-Twin\n Usage : haxe.exe [options] <class names...>\n Options :" in
 	let classes = ref [([],"Std")] in
-	let target = ref No in
+	let com = Common.create() in
+try
 	let xml_out = ref None in
-	let main_class = ref None in
-	let swf_infos = {
-		swf_version = 8;
-		swf_header = None;
-		swf_lib = None;
-	} in
-	let hres = Hashtbl.create 0 in
+	let swf_header = ref None in
+	let swf_lib = ref None in	
 	let cmds = ref [] in
 	let excludes = ref [] in
 	let libs = ref [] in
-	let gen_hx = ref false in
+	let gen_as3 = ref false in
 	let no_output = ref false in
-	Plugin.defines := base_defines;
-	Plugin.define ("haxe_" ^ string_of_int version);
-	Typer.check_override := false;
-	Typer.forbidden_packages := ["js"; "neko"; "flash"];
+	let did_something = ref false in
+	let root_packages = ["neko"; "flash"; "flash9"; "js"; "php"] in
+	Common.define com ("haxe_" ^ string_of_int version);
 	Parser.display_error := parse_error;
 	Parser.use_doc := false;
 	(try
@@ -219,45 +204,45 @@ try
 			| l ->
 				l
 		in
-		Plugin.class_path := List.map normalize_path (loop (ExtString.String.nsplit p ":"))
+		com.class_path <- List.map normalize_path (loop (ExtString.String.nsplit p ":"))
 	with
 		Not_found ->
 			if Sys.os_type = "Unix" then
-				Plugin.class_path := ["/usr/lib/haxe/std/";"/usr/local/lib/haxe/std/";"";"/"]
+				com.class_path <- ["/usr/lib/haxe/std/";"/usr/local/lib/haxe/std/";"";"/"]
 			else
 				let base_path = normalize_path (try executable_path() with _ -> "./") in
-				Plugin.class_path := [base_path ^ "std/";"";"/"]);
-	let check_targets() =
-		if !target <> No then failwith "Multiple targets";
+				com.class_path <- [base_path ^ "std/";"";"/"]);
+	let set_platform pf name file = 
+		if com.platform <> Cross then failwith "Multiple targets";
+		com.platform <- pf;
+		com.file <- file;
+		let forbid acc p = if p = name then acc else PMap.add p Forbidden acc in
+		com.package_rules <- List.fold_left forbid com.package_rules root_packages;
+		Common.define com name; (* define platform name *)
 	in
-	let define f = Arg.Unit (fun () -> Plugin.define f) in
+	let define f = Arg.Unit (fun () -> Common.define com f) in
 	let args_spec = [
 		("-cp",Arg.String (fun path ->
-			Plugin.class_path := normalize_path path :: !Plugin.class_path
+			com.class_path <- normalize_path path :: com.class_path
 		),"<path> : add a directory to find source files");
-		("-js",Arg.String (fun file ->
-			check_targets();
-			Typer.forbidden_packages := ["neko"; "flash"];
-			target := Js file
-		),"<file> : compile code to JavaScript file");
+		("-js",Arg.String (set_platform Js "js"),"<file> : compile code to JavaScript file");
 		("-as3",Arg.String (fun dir ->
-			check_targets();
-			swf_infos.swf_version <- 9;
-			Plugin.define "as3gen";
-			Typer.forbidden_packages := ["js"; "neko"];
-			target := As3 dir;
+			set_platform Flash "flash" dir;
+			com.flash_version <- 9;
+			gen_as3 := true;
+			Common.define com "as3gen";
 		),"<directory> : generate AS3 code into target directory");
-		("-swf",Arg.String (fun file ->
-			check_targets();
-			Typer.forbidden_packages := ["js"; "neko"];
-			target := Swf file
-		),"<file> : compile code to Flash SWF file");
-		("-swf-version",Arg.Int (fun v ->
-			swf_infos.swf_version <- v;
+		("-swf",Arg.String (set_platform Flash "flash"),"<file> : compile code to Flash SWF file");
+		("-swf9",Arg.String (fun file ->
+			set_platform Flash "flash" file;
+			com.flash_version <- 9;
+		),"<file> : compile code to Flash9 SWF file");
+		("-swf-version",Arg.Int (fun v ->			
+			com.flash_version <- v;
 		),"<version> : change the SWF version (6,7,8,9)");
 		("-swf-header",Arg.String (fun h ->
 			try
-				swf_infos.swf_header <- Some (match ExtString.String.nsplit h ":" with
+				swf_header := Some (match ExtString.String.nsplit h ":" with
 				| [width; height; fps] ->
 					(int_of_string width,int_of_string height,float_of_string fps,0xFFFFFF)
 				| [width; height; fps; color] ->
@@ -267,22 +252,16 @@ try
 				_ -> raise (Arg.Bad "Invalid SWF header format")
 		),"<header> : define SWF header (width:height:fps:color)");
 		("-swf-lib",Arg.String (fun file ->
-			if swf_infos.swf_lib <> None then raise (Arg.Bad "Only one SWF Library is allowed");
-			swf_infos.swf_lib <- Some file
+			if !swf_lib <> None then raise (Arg.Bad "Only one SWF Library is allowed");
+			swf_lib := Some file
 		),"<file> : add the SWF library to the compiled SWF");
-		("-neko",Arg.String (fun file ->
-			check_targets();
-			Typer.forbidden_packages := ["js"; "flash"];
-			target := Neko file
-		),"<file> : compile code to Neko Binary");
+		("-neko",Arg.String (set_platform Neko "neko"),"<file> : compile code to Neko Binary");
 		("-x", Arg.String (fun file ->
-			check_targets();
-			Typer.forbidden_packages := ["js"; "flash"];
 			let neko_file = file ^ ".n" in
-			target := Neko neko_file;
-			if !main_class = None then begin
+			set_platform Neko "neko" neko_file;
+			if com.main_class = None then begin
 				let cpath = make_path file in
-				main_class := Some cpath;
+				com.main_class <- Some cpath;
 				classes := cpath :: !classes
 			end;
 			cmds := ("neko " ^ neko_file) :: !cmds;
@@ -292,31 +271,26 @@ try
 			xml_out := Some file
 		),"<file> : generate XML types description");
 		("-main",Arg.String (fun cl ->
-			if !main_class <> None then raise (Arg.Bad "Multiple -main");
+			if com.main_class <> None then raise (Arg.Bad "Multiple -main");
 			let cpath = make_path cl in
-			main_class := Some cpath;
+			com.main_class <- Some cpath;
 			classes := cpath :: !classes
 		),"<class> : select startup class");
 		("-lib",Arg.String (fun l -> libs := l :: !libs),"<library[:version]> : use an haxelib library");
-		("-D",Arg.String (fun def ->
-			Plugin.define def;
-		),"<var> : define a conditional compilation flag");
+		("-D",Arg.String (Common.define com),"<var> : define a conditional compilation flag");
 		("-resource",Arg.String (fun res ->
-			match ExtString.String.nsplit res "@" with
-			| [file; name] ->
-				let file = (try Plugin.find_file file with Not_found -> file) in
-				let data = Std.input_file ~bin:true file in
-				if Hashtbl.mem hres name then failwith ("Duplicate resource name " ^ name);
-				Hashtbl.add hres name data
-			| [file] ->
-				let file = (try Plugin.find_file file with Not_found -> file) in
-				let data = Std.input_file ~bin:true file in
-				Hashtbl.replace hres file data
-			| _ ->
-				raise (Arg.Bad "Invalid Resource format : should be file@name")
-		),"<file@name> : add a named resource file");
+			let file, name = (match ExtString.String.nsplit res "@" with
+				| [file; name] -> file, name
+				| [file] -> file, file
+				| _ -> raise (Arg.Bad "Invalid Resource format : should be file@name")
+			) in
+			let file = (try Common.find_file com file with Not_found -> file) in
+			let data = Std.input_file ~bin:true file in
+			if Hashtbl.mem com.resources name then failwith ("Duplicate resource name " ^ name);
+			Hashtbl.add com.resources name data
+		),"<file>[@name] : add a named resource file");
 		("-exclude",Arg.String (fun file ->
-			let file = (try Plugin.find_file file with Not_found -> file) in
+			let file = (try Common.find_file com file with Not_found -> file) in
 			let ch = open_in file in
 			let lines = Std.input_list ch in
 			close_in ch;
@@ -328,40 +302,36 @@ try
 				| x :: l -> (List.rev l,x)
 			) lines) @ !excludes;
 		),"<filename> : don't generate code for classes listed in this file");
-		("-v",Arg.Unit (fun () -> Plugin.verbose := true),": turn on verbose mode");
+		("-v",Arg.Unit (fun () -> com.verbose <- true),": turn on verbose mode");
 		("-debug", define "debug", ": add debug informations to the compiled code");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
 		("-cmd", Arg.String (fun cmd ->
 			cmds := cmd :: !cmds
 		),": run the specified command after successful compilation");
 		("--flash-strict", define "flash_strict", ": more type strict flash API");
-		("--override", Arg.Unit (fun() ->
-			Typer.check_override := true
-		),": ensure that overriden methods are declared with 'override'");
 		("--no-traces", define "no_traces", ": don't compile trace calls in the program");
 		("--flash-use-stage", define "flash_use_stage", ": place objects found on the stage of the SWF lib");
 		("--neko-source", define "neko_source", ": keep generated neko source");
 		("--gen-hx-classes", Arg.String (fun file ->
-			gen_hx := true;
-			Genas3.genhx file
+			com.file <- file;
+			Genas3.genhx com;
+			did_something := true;
 		),"<file> : generate hx headers from SWF9 file");
 		("--next", Arg.Unit (fun() -> assert false), ": separate several haxe compilations");
-		("--altfmt", Arg.Unit (fun() -> alt_format := true),": use alternative error output format");
-		("--auto-xml", Arg.Unit (fun() -> auto_xml := true),": automatically create an XML for each target");
 		("--display", Arg.String (fun file_pos ->
 			let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
 			let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
 			display := true;
 			no_output := true;
 			Parser.resume_display := {
-				Ast.pfile = (!Plugin.get_full_path) file;
+				Ast.pfile = Common.get_full_path file;
 				Ast.pmin = pos;
 				Ast.pmax = pos;
 			};
 		),": display code tips");
 		("--no-output", Arg.Unit (fun() -> no_output := true),": compiles but does not generate any file");
-		("--times", Arg.Unit (fun() -> Plugin.times := true),": mesure compilation times");
-		("--no-inline", Arg.Unit (fun() -> Plugin.define "no_inline"),": disable inlining");
+		("--times", Arg.Unit (fun() -> measure_times := true),": mesure compilation times");
+		("--no-inline", define "no_inline", ": disable inlining");
 	] in
 	let current = ref 0 in
 	let args = Array.of_list ("" :: params) in
@@ -371,7 +341,7 @@ try
 			let hxml_args = parse_hxml cl in
 			let p1 = Array.to_list (Array.sub args 1 (!current - 1)) in
 			let p2 = Array.to_list (Array.sub args (!current + 1) (Array.length args - !current - 1)) in
-			if !Plugin.verbose then print_endline ("Processing HXML : " ^ cl);
+			if com.verbose then print_endline ("Processing HXML : " ^ cl);
 			process_params [] (p1 @ hxml_args @ p2);
 			raise Hxml_found
 		| _ ->
@@ -396,67 +366,65 @@ try
 				l :: acc
 		) [] lines in
 		if ret <> Unix.WEXITED 0 then failwith (String.concat "\n" lines);
-		Plugin.class_path := lines @ !Plugin.class_path;
+		com.class_path <- lines @ com.class_path;
 	);
-	(match !target with
-	| No ->
-		()
-	| Swf file | As3 file ->
-		(* check file extension. In case of wrong commandline, we don't want
-		   to accidentaly delete a source file. *)
-		if not !no_output && file_extension file = "swf" then delete_file file;
-		Plugin.define "flash";
-		Plugin.define ("flash"  ^ string_of_int swf_infos.swf_version);
-	| Neko file ->
-		if not !no_output && file_extension file = "n" then delete_file file;
-		Plugin.define "neko";
-	| Js file ->
-		if not !no_output && file_extension file = "js" then delete_file file;
-		Plugin.define "js";
-	);
+	let ext = (match com.platform with
+		| Cross ->
+			(* no platform selected *)
+			no_output := true; ""
+		| Flash | Flash9 ->			
+			Common.define com ("flash" ^ string_of_int com.flash_version);
+			if com.flash_version >= 9 then begin
+				com.package_rules <- PMap.add "flash" (Directory "flash9") com.package_rules;
+				com.platform <- Flash9;
+			end;
+			"swf"
+		| Neko -> "n"
+		| Js -> "js"
+		| Php -> "php"
+	) in
+	(* check file extension. In case of wrong commandline, we don't want
+		to accidentaly delete a source file. *)
+	if not !no_output && file_extension com.file = ext then delete_file com.file;
 	if !classes = [([],"Std")] then begin
-		if !cmds = [] && not !gen_hx then Arg.usage args_spec usage;
+		if !cmds = [] && not !did_something then Arg.usage args_spec usage;
 	end else begin
-		if !Plugin.verbose then print_endline ("Classpath : " ^ (String.concat ";" !Plugin.class_path));
-		let t = Plugin.timer "typing" in
-		let ctx = Typer.context type_error warn in
+		if com.verbose then print_endline ("Classpath : " ^ (String.concat ";" com.class_path));
+		let t = Common.timer "typing" in
+		let ctx = Typer.context com type_error warn in
 		List.iter (fun cpath -> ignore(Typer.load ctx cpath Ast.null_pos)) (List.rev !classes);
 		Typer.finalize ctx;
 		t();
 		if !has_error then do_exit();
-		if !display then begin
-			xml_out := None;
-			auto_xml := false;
-		end;
-		if !no_output then target := No;
-		let do_auto_xml file = if !auto_xml then xml_out := Some (file ^ ".xml") in
-		let types = Typer.types ctx (!main_class) (!excludes) in
-		(match !target with
-		| No -> ()
-		| Swf file ->
-			do_auto_xml file;
-			if !Plugin.verbose then print_endline ("Generating swf : " ^ file);
-			Genswf.generate file swf_infos types hres
-		| Neko file ->
-			do_auto_xml file;
-			if !Plugin.verbose then print_endline ("Generating neko : " ^ file);
-			Genneko.generate file types hres !libs
-		| Js file ->
-			do_auto_xml file;
-			if !Plugin.verbose then print_endline ("Generating js : " ^ file);
-			Genjs.generate file types hres
-		| As3 dir ->
-			if !Plugin.verbose then print_endline ("Generating AS3 in : " ^ dir);
-			Genas3.generate dir types
+		if !display then xml_out := None;		
+		if !no_output then com.platform <- Cross;		
+		com.types <- Typer.types ctx com.main_class (!excludes);
+		(match com.platform with
+		| Cross ->
+			()
+		| Flash | Flash9 when !gen_as3 ->
+			if com.verbose then print_endline ("Generating AS3 in : " ^ com.file);
+			Genas3.generate com;
+		| Flash | Flash9 ->
+			if com.verbose then print_endline ("Generating swf : " ^ com.file);
+			Genswf.generate com !swf_header !swf_lib;
+		| Neko ->			
+			if com.verbose then print_endline ("Generating neko : " ^ com.file);
+			Genneko.generate com !libs;
+		| Js ->
+			if com.verbose then print_endline ("Generating js : " ^ com.file);
+			Genjs.generate com
+		| Php ->
+			assert false
 		);
 		(match !xml_out with
 		| None -> ()
 		| Some file ->
-			if !Plugin.verbose then print_endline ("Generating xml : " ^ file);
-			Genxml.generate file ctx types);
+			if com.verbose then print_endline ("Generating xml : " ^ com.file);
+			Genxml.generate com ctx);
 	end;
 	if not !no_output then List.iter (fun cmd ->
-		let t = Plugin.timer "command" in
+		let t = Common.timer "command" in
 		let len = String.length cmd in
 		if len > 3 && String.sub cmd 0 3 = "cd " then
 			Sys.chdir (String.sub cmd 3 (len - 3))
@@ -487,7 +455,7 @@ with
 			prerr_endline "</type>");
 		exit 0;
 	| Parser.TypePath p ->
-		let packs, classes = read_type_path p (!Plugin.class_path) in
+		let packs, classes = read_type_path com p in
 		if packs = [] && classes = [] then report ("No classes found in " ^ String.concat "." p) Ast.null_pos;
 		report_list (List.map (fun f -> f,"","") (packs @ classes));
 		exit 0;
@@ -495,17 +463,15 @@ with
 		report (Printexc.to_string e) Ast.null_pos
 
 ;;
-let all = Plugin.timer "other" in
-Plugin.times := false;
-Plugin.get_full_path := get_full_path;
+let all = Common.timer "other" in
 process_params [] (List.tl (Array.to_list Sys.argv));
 all();
-if !Plugin.times then begin
+if !measure_times then begin
 	let tot = ref 0. in
-	Hashtbl.iter (fun _ t -> tot := !tot +. t.Plugin.total) Plugin.htimers;
+	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
 	Printf.eprintf "Total time : %.3fs\n" !tot;
 	Printf.eprintf "------------------------------------\n";
 	Hashtbl.iter (fun _ t ->
-		Printf.eprintf "  %s : %.3fs, %.0f%%\n" t.Plugin.name t.Plugin.total (t.Plugin.total *. 100. /. !tot);
-	) Plugin.htimers;
+		Printf.eprintf "  %s : %.3fs, %.0f%%\n" t.name t.total (t.total *. 100. /. !tot);
+	) Common.htimers;
 end;

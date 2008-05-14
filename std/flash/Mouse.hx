@@ -13,9 +13,9 @@ extern class Mouse
 {
 	static function show():Int;
 	static function hide():Int;
-	static function onMouseDown() : Void;
-	static function onMouseMove() : Void;
-	static function onMouseUp() : Void;
+	static dynamic function onMouseDown() : Void;
+	static dynamic function onMouseMove() : Void;
+	static dynamic function onMouseUp() : Void;
 
 #if flash_strict
 	static function addListener(listener:MouseListener):Void;

@@ -58,7 +58,7 @@ class Object #if spod_rtti implements haxe.rtti.Infos #end {
 		local_manager.doInsert(this);
 	}
 
-	public function update() {
+	public dynamic function update() {
 		local_manager.doUpdate(this);
 	}
 

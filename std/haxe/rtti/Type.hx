@@ -56,7 +56,7 @@ typedef Classdef = {> TypeInfos,
 	var interfaces : List<PathParams>;
 	var fields : List<ClassField>;
 	var statics : List<ClassField>;
-	var dynamic : Null<Type>;
+	var tdynamic : Null<Type>;
 }
 
 typedef EnumField = {

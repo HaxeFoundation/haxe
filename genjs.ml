@@ -17,8 +17,10 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *)
 open Type
+open Common
 
 type ctx = {
+	com : Common.context;
 	buf : Buffer.t;
 	packages : (string list,unit) Hashtbl.t;
 	mutable current : tclass;
@@ -28,7 +30,6 @@ type ctx = {
 	mutable in_value : bool;
 	mutable handle_break : bool;
 	mutable id_counter : int;
-	debug : bool;
 	mutable curmethod : (string * bool);
 }
 
@@ -72,7 +73,7 @@ let rec concat ctx s f = function
 let block = Transform.block
 
 let fun_block ctx f =
-	if ctx.debug then
+	if ctx.com.debug then
 		Transform.stack_block (ctx.current,fst ctx.curmethod) f.tf_expr
 	else
 		block f.tf_expr
@@ -672,8 +673,9 @@ let generate_type ctx = function
 	| TEnumDecl e -> generate_enum ctx e
 	| TTypeDecl _ -> ()
 
-let generate file types hres =
+let generate com =
 	let ctx = {
+		com = com;
 		buf = Buffer.create 16000;
 		packages = Hashtbl.create 0;
 		statics = [];
@@ -682,19 +684,18 @@ let generate file types hres =
 		tabs = "";
 		in_value = false;
 		handle_break = false;
-		debug = Plugin.defined "debug";
 		id_counter = 0;
 		curmethod = ("",false);
 	} in
-	let t = Plugin.timer "generate js" in
+	let t = Common.timer "generate js" in
 	print ctx "$estr = function() { return js.Boot.__string_rec(this,''); }";
 	newline ctx;
-	List.iter (generate_type ctx) types;
+	List.iter (generate_type ctx) com.types;
 	print ctx "$_ = {}";
 	newline ctx;
 	print ctx "js.Boot.__res = {}";
 	newline ctx;
-	if ctx.debug then begin
+	if com.debug then begin
 		print ctx "%s = []" Transform.stack_var;
 		newline ctx;
 		print ctx "%s = []" Transform.exc_stack_var;
@@ -704,7 +705,7 @@ let generate file types hres =
 		if String.contains data '\000' then failwith ("Resource " ^ name ^ " contains \\0 characters that can't be used in JavaScript");
 		print ctx "js.Boot.__res[\"%s\"] = \"%s\"" (Ast.s_escape name) (Ast.s_escape data);
 		newline ctx;
-	) hres;
+	) com.resources;
 	print ctx "js.Boot.__init()";
 	newline ctx;
 	List.iter (fun e ->
@@ -712,7 +713,7 @@ let generate file types hres =
 		newline ctx;
 	) (List.rev ctx.inits);
 	List.iter (generate_static ctx) (List.rev ctx.statics);
-	let ch = open_out file in
+	let ch = open_out com.file in
 	output_string ch (Buffer.contents ctx.buf);
 	close_out ch;
 	t()

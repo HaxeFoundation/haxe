@@ -1,24 +1,19 @@
 
 -neko all.n
 -xml neko.xml
---override
 haxe.ImportAll
 
 --next
 
 -swf all.swf
 -xml flash.xml
--D flash9doc
 -D flash_lite
--D flash_v9
---override
 haxe.ImportAll
 
 --next
 
 -js all.js
 -xml js.xml
---override
 haxe.ImportAll
 
 --next
@@ -26,17 +21,12 @@ haxe.ImportAll
 -swf all_strict.swf
 -D flash_strict
 -D flash_lite
--D flash9doc
 -xml flash_strict.xml
---override
 haxe.ImportAll
 
 
 --next
 
--swf all9.swf
--D flash_strict
+-swf9 all9.swf
 -xml flash9.xml
--swf-version 9
---override
 haxe.ImportAll

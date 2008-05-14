@@ -11,7 +11,7 @@ extern class StyleSheet
 	function parseCSS(cssText:String):Bool;
 	function parse(cssText:String):Bool;
 	function load(url:String):Bool;
-	function onLoad(success:Bool):Void;
+	dynamic function onLoad(success:Bool):Void;
 
 	private static function __init__() : Void untyped {
 		flash.text.StyleSheet = _global["TextField"]["StyleSheet"];

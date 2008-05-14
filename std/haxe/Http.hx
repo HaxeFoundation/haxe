@@ -233,11 +233,9 @@ class Http {
 			err = true;
 			old(e);
 		}
-		output.close = function() {
-			if( !err )
-				me.onData(output.toString());
-		};
 		customRequest(post,output);
+		if( !err )
+			me.onData(output.toString());
 	#end
 	}
 
@@ -571,13 +569,13 @@ class Http {
 
 #end
 
-	public f9dynamic function onData( data : String ) {
+	public dynamic function onData( data : String ) {
 	}
 
-	public f9dynamic function onError( msg : String ) {
+	public dynamic function onError( msg : String ) {
 	}
 
-	public f9dynamic function onStatus( status : Int ) {
+	public dynamic function onStatus( status : Int ) {
 	}
 
 #if flash

@@ -36,8 +36,8 @@ extern class Key
 	static function isDown(code:Int):Bool;
 	static function isToggled(code:Int):Bool;
 
-	static function onKeyDown() : Void;
-	static function onKeyUp() : Void;
+	static dynamic function onKeyDown() : Void;
+	static dynamic function onKeyUp() : Void;
 
 #if flash_strict
 	static function addListener(listener:KeyListener):Void;

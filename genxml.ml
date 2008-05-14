@@ -18,6 +18,7 @@
  *)
 open Ast
 open Type
+open Common
 
 type xml =
 	| Node of string * (string * string) list * xml list
@@ -171,12 +172,12 @@ let rec write_xml ch tabs x =
 	| CData s ->
 		IO.printf ch "<![CDATA[%s]]>" s
 
-let generate file ctx types =
-	let t = Plugin.timer "construct xml" in
-	let x = node "haxe" [] (List.map (gen_type_decl ctx) types) in
+let generate com ctx =
+	let t = Common.timer "construct xml" in
+	let x = node "haxe" [] (List.map (gen_type_decl ctx) com.types) in
 	t();
-	let t = Plugin.timer "write xml" in
-	let ch = IO.output_channel (open_out_bin file) in
+	let t = Common.timer "write xml" in
+	let ch = IO.output_channel (open_out_bin com.file) in
 	write_xml ch "" x;
 	IO.close_out ch;
 	t()

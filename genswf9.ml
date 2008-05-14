@@ -20,6 +20,7 @@ open Ast
 open Type
 open As3
 open As3hl
+open Common
 
 type read = Read
 type write = Unused__ | Write
@@ -74,7 +75,7 @@ type try_infos = {
 
 type context = {
 	(* globals *)
-	debug : bool;
+	com : Common.context;
 	mutable last_line : int;
 	mutable last_file : string;
 	boot : string;
@@ -360,7 +361,7 @@ let define_local ctx ?(init=false) name t el =
 			LScope pos
 		end else
 			let r = alloc_reg ctx (classify ctx t) in
-			if ctx.debug then write ctx (HDebugReg (name, r.rid, ctx.last_line));
+			if ctx.com.debug then write ctx (HDebugReg (name, r.rid, ctx.last_line));
 			r.rinit <- init;
 			LReg r
 	) in
@@ -498,7 +499,7 @@ let begin_fun ctx args tret el stat p =
 	ctx.in_static <- stat;
 	ctx.last_line <- -1;
 	ctx.last_file <- "";
-	if ctx.debug then debug ctx p;	
+	if ctx.com.debug then debug ctx p;	
 	let rec find_this e =
 		match e.eexpr with
 		| TFunction _ -> ()
@@ -1286,7 +1287,7 @@ and gen_binop ctx retval op e1 e2 t =
 
 and gen_expr ctx retval e =
 	let old = ctx.infos.istack in
-	if ctx.debug then debug ctx e.epos;
+	if ctx.com.debug then debug ctx e.epos;
 	gen_expr_content ctx retval e;
 	if old <> ctx.infos.istack then begin
 		if old + 1 <> ctx.infos.istack then stack_error e.epos;
@@ -1667,7 +1668,7 @@ let generate_type ctx t =
 	| TTypeDecl _ ->
 		None
 
-let generate_resources ctx hres =
+let generate_resources ctx =
 	write ctx HGetGlobalScope;
 	write ctx (HGetProp (type_path ctx ([],ctx.boot)));
 	let id = type_path ctx (["flash";"utils"],"Dictionary") in
@@ -1680,11 +1681,11 @@ let generate_resources ctx hres =
 		write ctx (HString name);
 		write ctx (HString data);
 		setvar ctx VArray false;
-	) hres;
+	) ctx.com.resources;
 	write ctx (HReg r.rid);
 	write ctx (HInitProp (ident "__res"))
 
-let generate_inits ctx types hres =
+let generate_inits ctx types =
 	let f = begin_fun ctx [] t_void [ethis] false null_pos in
 	let slot = ref 0 in
 	let classes = List.fold_left (fun acc (t,hc) ->
@@ -1736,7 +1737,7 @@ let generate_inits ctx types hres =
 	write ctx (HInitProp (ident "init"));
 
 	(* generate resources *)
-	generate_resources ctx hres;
+	generate_resources ctx;
 
 	write ctx HRetVoid;
 	{
@@ -1744,8 +1745,9 @@ let generate_inits ctx types hres =
 		hls_fields = Array.of_list (List.rev classes);
 	}
 
-let generate types hres =
+let generate com =
 	let ctx = {
+		com = com;
 		boot = "Boot_" ^ Printf.sprintf "%X" (Random.int 0xFFFFFF);
 		code = DynArray.create();
 		locals = PMap.empty;
@@ -1756,14 +1758,13 @@ let generate types hres =
 		curblock = [];
 		block_vars = [];
 		in_static = false;
-		debug = Plugin.defined "debug";
 		last_line = -1;
 		last_file = "";
 		try_scope_reg = None;
 		for_call = false;
 	} in
-	let classes = List.map (fun t -> (t,generate_type ctx t)) types in
-	let init = generate_inits ctx classes hres in
+	let classes = List.map (fun t -> (t,generate_type ctx t)) com.types in
+	let init = generate_inits ctx classes in
 	[init], ctx.boot, (fun () -> empty_method ctx null_pos)
 
 ;;

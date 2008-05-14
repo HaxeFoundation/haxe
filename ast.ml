@@ -57,7 +57,7 @@ type keyword =
 	| Cast
 	| Override
 	| Typedef
-	| F9Dynamic
+	| Dynamic
 	| Package
 	| Callback
 	| Inline
@@ -203,7 +203,7 @@ type access =
 	| APrivate
 	| AStatic
 	| AOverride
-	| AF9Dynamic
+	| ADynamic
 	| AInline
 
 type class_field =
@@ -320,7 +320,7 @@ let s_keyword = function
 	| Cast -> "cast"
 	| Override -> "override"
 	| Typedef -> "typedef"
-	| F9Dynamic -> "f9dynamic"
+	| Dynamic -> "dynamic"
 	| Package -> "package"
 	| Callback -> "callback"
 	| Inline -> "inline"

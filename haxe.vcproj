@@ -68,6 +68,9 @@
 			RelativePath=".\ast.ml">
 		</File>
 		<File
+			RelativePath=".\common.ml">
+		</File>
+		<File
 			RelativePath=".\genas3.ml">
 		</File>
 		<File
@@ -93,9 +96,6 @@
 		</File>
 		<File
 			RelativePath=".\parser.ml">
-		</File>
-		<File
-			RelativePath=".\plugin.ml">
 		</File>
 		<File
 			RelativePath=".\transform.ml">

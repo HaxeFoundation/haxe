@@ -18,11 +18,11 @@ extern class LoadVars implements Dynamic<String>
 	function decode(queryString:String):Void;
 	function toString():String;
 
-	function onLoad(success:Bool):Void;
-	function onData(src:String):Void;
+	dynamic function onLoad(success:Bool):Void;
+	dynamic function onData(src:String):Void;
 
 	#if flash8
-	function onHTTPStatus( status : Int ) : Void;
+	dynamic function onHTTPStatus( status : Int ) : Void;
 	#end
 
 	// undocumented var _customHeaders:Array<String>;

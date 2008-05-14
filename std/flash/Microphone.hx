@@ -21,8 +21,8 @@ extern class Microphone
 	function setGain(gain:Float):Void;
 	function setUseEchoSuppression(useEchoSuppression:Bool):Void;
 
-	function onActivity(active:Bool):Void;
-	function onStatus(infoObject:Dynamic):Void;
+	dynamic function onActivity(active:Bool):Void;
+	dynamic function onStatus(infoObject:Dynamic):Void;
 
 	private static function __init__() : Void untyped {
 		flash.Microphone = _global["Microphone"];

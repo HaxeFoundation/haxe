@@ -17,6 +17,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *)
 open Type
+open Common
 
 type context = {
 	ch : out_channel;
@@ -924,7 +925,8 @@ let generate_base_enum ctx =
 	print ctx "}";
 	newline ctx
 
-let generate dir types =
+let generate com =
+	let dir = com.file in
 	let ctx = init dir ([],"enum") in
 	generate_base_enum ctx;
 	close ctx;
@@ -962,7 +964,7 @@ let generate dir types =
 				close ctx
 		| TTypeDecl t ->
 			()
-	) types;
+	) com.types;
 	match !boot with
 	| None -> assert false
 	| Some c ->
@@ -1191,8 +1193,8 @@ let genhx_class ctx c s =
 	prerr_endline ";";
 	IO.close_out ch
 
-let genhx file =
-	let file = (try Plugin.find_file file with Not_found -> failwith ("File not found : " ^ file)) in
+let genhx com =
+	let file = (try Common.find_file com com.file with Not_found -> failwith ("File not found : " ^ com.file)) in
 	let ch = IO.input_channel (open_in_bin file) in
 	SwfParser.full_parsing := true;
 	let _, swf = Swf.parse ch in

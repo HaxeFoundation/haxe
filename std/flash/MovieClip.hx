@@ -126,24 +126,24 @@ implements Dynamic
 	function getTextSnapshot() : TextSnapshot;
 	function getSWFVersion() : Int;
 
-	function onData() : Void;
-	function onDragOut() : Void;
-	function onDragOver() : Void;
-	function onEnterFrame() : Void;
-	function onKeyDown() : Void;
-	function onKeyUp() : Void;
-	function onKillFocus(newFocus : Dynamic) : Void;
-	function onLoad() : Void;
-	function onMouseDown() : Void;
-	function onMouseMove() : Void;
-	function onMouseUp() : Void;
-	function onPress() : Void;
-	function onRelease() : Void;
-	function onReleaseOutside() : Void;
-	function onRollOut() : Void;
-	function onRollOver() : Void;
-	function onSetFocus(oldFocus : Dynamic) : Void;
-	function onUnload() : Void;
+	dynamic function onData() : Void;
+	dynamic function onDragOut() : Void;
+	dynamic function onDragOver() : Void;
+	dynamic function onEnterFrame() : Void;
+	dynamic function onKeyDown() : Void;
+	dynamic function onKeyUp() : Void;
+	dynamic function onKillFocus(newFocus : Dynamic) : Void;
+	dynamic function onLoad() : Void;
+	dynamic function onMouseDown() : Void;
+	dynamic function onMouseMove() : Void;
+	dynamic function onMouseUp() : Void;
+	dynamic function onPress() : Void;
+	dynamic function onRelease() : Void;
+	dynamic function onReleaseOutside() : Void;
+	dynamic function onRollOut() : Void;
+	dynamic function onRollOver() : Void;
+	dynamic function onSetFocus(oldFocus : Dynamic) : Void;
+	dynamic function onUnload() : Void;
 
 #if flash8
 	var filters : Array<Dynamic>; // does not use variance here.

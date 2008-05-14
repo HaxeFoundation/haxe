@@ -81,10 +81,10 @@ extern class TextField
 	function removeListener(listener:Dynamic):Bool;
 	static function getFontList():Array<Dynamic>;
 
-	function onChanged(changedField:TextField):Void;
-	function onKillFocus(newFocus:Dynamic):Void;
-	function onScroller(scrolledField:TextField):Void;
-	function onSetFocus(oldFocus:Dynamic):Void;
+	dynamic function onChanged(changedField:TextField):Void;
+	dynamic function onKillFocus(newFocus:Dynamic):Void;
+	dynamic function onScroller(scrolledField:TextField):Void;
+	dynamic function onSetFocus(oldFocus:Dynamic):Void;
 
 	private static function __init__() : Void untyped {
 		flash.TextField = _global["TextField"];

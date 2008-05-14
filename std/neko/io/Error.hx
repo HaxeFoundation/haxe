@@ -30,8 +30,6 @@ package neko.io;
 enum Error {
 	/** The IO is set into nonblocking mode and some data cannot be read or written **/
 	Blocked;
-	/** An operation has occured while the Input or Output has already been closed **/
-	Closed;
 	/** An operation is outside of its valid range **/
 	Overflow;
 	/** Other errors **/

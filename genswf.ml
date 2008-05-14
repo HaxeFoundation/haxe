@@ -21,12 +21,7 @@ open As3
 open As3hl
 open Genswf9
 open Type
-
-type swfinfos = {
-	mutable swf_version : int;
-	mutable swf_header : (int * int * float * int) option;
-	mutable swf_lib : string option;
-}
+open Common
 
 type context = {
 	mutable f8clips : string list;
@@ -43,9 +38,9 @@ let tag ?(ext=false) d = {
 	tdata = d;
 }
 
-let convert_header ver (w,h,fps,bg) =
+let convert_header com (w,h,fps,bg) =
 	{
-		h_version = ver;
+		h_version = com.flash_version;
 		h_size = {
 			rect_nbits = if (max w h) >= 820 then 16 else 15;
 			left = 0;
@@ -55,11 +50,11 @@ let convert_header ver (w,h,fps,bg) =
 		};
 		h_frame_count = 1;
 		h_fps = to_float16 (if fps > 127.0 then 127.0 else fps);
-		h_compressed = not (Plugin.defined "no-swf-compress");
+		h_compressed = not (Common.defined com "no-swf-compress");
 	} , bg
 
-let default_header ver =
-	convert_header ver (400,300,30.,0xFFFFFF)
+let default_header com =
+	convert_header com (400,300,30.,0xFFFFFF)
 
 let getclass i =
 	if Array.length i.hls_fields <> 1 then
@@ -151,10 +146,10 @@ let add_as3_code ctx data types =
 let add_as3_clips ctx cl =
 	ctx.f9clips <- List.filter (fun c -> c.f9_cid <> None) cl @ ctx.f9clips
 
-let generate file infos types hres =
-	let ver = infos.swf_version in
-	let t = Plugin.timer "generate swf" in
-	let file , codeclip = (try let f , c = ExtString.String.split file "@" in f, Some c with _ -> file , None) in
+let generate com swf_header swf_lib =
+	let ver = com.flash_version in
+	let t = Common.timer "generate swf" in
+	let file , codeclip = (try let f , c = ExtString.String.split com.file "@" in f, Some c with _ -> com.file , None) in
 	let ctx = {
 		f8clips = [];
 		f9clips = [];
@@ -164,11 +159,7 @@ let generate file infos types hres =
 		genmethod = (fun() -> assert false);
 	} in
 	if ver = 9 then begin
-		(* hack for an ocaml bug *)
-		(* instead of : let code, boot = Genswf9.generate types hres in *)
-		let f (h:(string,string) Hashtbl.t) = Genswf9.generate types h in
-		let tmp : (string,string) Hashtbl.t = hres in
-		let code, boot, m = f (Obj.magic tmp) in
+		let code, boot, m = Genswf9.generate com in
 		ctx.hx9code <- (match code with
 			| [i] when Array.length i.hls_fields = 0 ->
 				(* if we don't have any class defined, don't include Boot *)
@@ -179,13 +170,13 @@ let generate file infos types hres =
 		);
 		ctx.genmethod <- m;
 	end else begin
-		let code, clips = Genswf8.generate file ver types hres in
+		let code, clips = Genswf8.generate com in
 		ctx.code <- code;
 		ctx.f8clips <- List.map Ast.s_type_path clips;
 	end;
 	let build_swf content =
 		let sandbox = (if ver >= 8 then
-				let net = Plugin.defined "network-sandbox" in
+				let net = Common.defined com "network-sandbox" in
 				[tag (TSandbox (match ver, net with
 					| 9, true -> SBUnknown 9
 					| 9, false -> SBUnknown 8
@@ -195,7 +186,7 @@ let generate file infos types hres =
 			else
 				[]
 		) in
-		let debug = (if ver = 9 && Plugin.defined "fdb" then [tag (TEnableDebugger2 (0,""))] else []) in
+		let debug = (if ver = 9 && Common.defined com "fdb" then [tag (TEnableDebugger2 (0,""))] else []) in
 		let base_id = ref 0x5000 in
 		let clips = List.fold_left (fun acc m ->
 			incr base_id;
@@ -219,28 +210,28 @@ let generate file infos types hres =
 		List.iter (fun c ->
 			let path = ExtString.String.nsplit c.f9_classname "." in
 			let path = (match List.rev path with [] -> assert false | x :: l -> List.rev l, x) in
-			if c.f9_cid <> None && not (movieclip_exists types ctx.as3code path) then
+			if c.f9_cid <> None && not (movieclip_exists com.types ctx.as3code path) then
 				ctx.as3code <- build_movieclip ctx path :: ctx.as3code;
 		) ctx.f9clips;
 		let as3code = (match ctx.as3code @ ctx.hx9code with [] -> [] | l -> [tag (TActionScript3 (None,As3hlparse.flatten l))]) in
 		let clips9 = (if ver = 9 then [tag (TF9Classes ctx.f9clips)] else []) in
 		sandbox @ debug @ content @ clips @ code @ as3code @ clips9
 	in
-	let swf = (match infos.swf_lib with
+	let swf = (match swf_lib with
 		| None ->
-			let header , bg = (match infos.swf_header with None -> default_header ver | Some h -> convert_header ver h) in
+			let header , bg = (match swf_header with None -> default_header com | Some h -> convert_header com h) in
 			let tagbg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
 			let tagshow = tag TShowFrame in
 			(header,build_swf [tagbg] @ [tagshow])
 		| Some file ->
-			let file = (try Plugin.find_file file with Not_found -> failwith ("File not found : " ^ file)) in
+			let file = (try Common.find_file com com.file with Not_found -> failwith ("File not found : " ^ file)) in
 			let ch = IO.input_channel (open_in_bin file) in
 			let h, swf = (try Swf.parse ch with _ -> failwith ("The input swf " ^ file ^ " is corrupted")) in
-			let header , tagbg = (match infos.swf_header with
+			let header , tagbg = (match swf_header with
 				| None ->
 					{ h with h_version = ver }, None
 				| Some h ->
-					let h , bg = convert_header ver h in
+					let h , bg = convert_header com h in
 					let tagbg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
 					h , Some tagbg
 			) in
@@ -255,7 +246,7 @@ let generate file infos types hres =
 				| TPlaceObject2 _
 				| TPlaceObject3 _
 				| TRemoveObject2 _
-				| TRemoveObject _ when not (Plugin.defined "flash_use_stage") ->
+				| TRemoveObject _ when not (Common.defined com "flash_use_stage") ->
 					loop acc l
 				| TSetBgColor _ ->
 					(match tagbg with
@@ -283,16 +274,15 @@ let generate file infos types hres =
 					if ver = 9 then add_as3_clips ctx cl;
 					loop acc l
 				| TActionScript3 (_,data) ->
-					if ver = 9 then add_as3_code ctx data types;
+					if ver = 9 then add_as3_code ctx data com.types;
 					loop acc l
 				| _ ->
 					loop (t :: acc) l
 			in
 			(header , loop [] swf)
 	) in
-	let swf = if ver = 8 && Plugin.defined "flash_v9" then ({ (fst swf) with h_version = 9 }, snd swf) else swf in
 	t();
-	let t = Plugin.timer "write swf" in
+	let t = Common.timer "write swf" in
 	let ch = IO.output_channel (open_out_bin file) in
 	Swf.write ch swf;
 	IO.close_out ch;

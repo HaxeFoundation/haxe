@@ -16,8 +16,8 @@ implements Dynamic
 	function close() : Void;
 
 	// events
-	function onStatus(infoObject : Dynamic) : Void;
-	function onResult(infoObject : Dynamic) : Void;
+	dynamic function onStatus(infoObject : Dynamic) : Void;
+	dynamic function onResult(infoObject : Dynamic) : Void;
 
 	private static function __init__() : Void untyped {
 		flash.NetConnection = _global["NetConnection"];

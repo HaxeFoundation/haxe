@@ -32,17 +32,17 @@ implements Dynamic
 	var _ymouse : Float;
 	var _yscale : Float;
 
-	function onDragOut() : Void;
-	function onDragOver() : Void;
-	function onKeyDown() : Void;
-	function onKeyUp() : Void;
-	function onKillFocus(newFocus : Dynamic) : Void;
-	function onPress() : Void;
-	function onRelease() : Void;
-	function onReleaseOutside() : Void;
-	function onRollOut() : Void;
-	function onRollOver() : Void;
-	function onSetFocus(oldFocus : Dynamic) : Void;
+	dynamic function onDragOut() : Void;
+	dynamic function onDragOver() : Void;
+	dynamic function onKeyDown() : Void;
+	dynamic function onKeyUp() : Void;
+	dynamic function onKillFocus(newFocus : Dynamic) : Void;
+	dynamic function onPress() : Void;
+	dynamic function onRelease() : Void;
+	dynamic function onReleaseOutside() : Void;
+	dynamic function onRollOut() : Void;
+	dynamic function onRollOver() : Void;
+	dynamic function onSetFocus(oldFocus : Dynamic) : Void;
 
 	function getDepth() : Int;
 

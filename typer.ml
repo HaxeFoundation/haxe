@@ -18,6 +18,7 @@
  *)
 open Ast
 open Type
+open Common
 
 type error_msg =
 	| Module_not_found of module_path
@@ -29,13 +30,13 @@ type error_msg =
 
 type context = {
 	(* shared *)
+	com : Common.context;
 	types : (module_path, module_path) Hashtbl.t;
 	modules : (module_path , module_def) Hashtbl.t;
 	delays : (unit -> unit) list list ref;
 	constructs : (module_path , access list * type_param list * func) Hashtbl.t;
 	warn : string -> pos -> unit;
 	error : error_msg -> pos -> unit;
-	fdynamic : bool;
 	fnullable : bool;
 	doinline : bool;
 	mutable std : module_def;
@@ -85,7 +86,7 @@ let access_str = function
 	| NoAccess -> "null"
 	| NeverAccess -> "never"
 	| MethodAccess m -> m
-	| MethodCantAccess -> "f9dynamic"
+	| MethodCantAccess -> "dynamic"
 	| ResolveAccess -> "resolve"
 	| InlineAccess -> "inline"
 
@@ -117,9 +118,6 @@ let rec error_msg = function
 	| Stack (m1,m2) -> error_msg m1 ^ "\n" ^ error_msg m2
 	| Protect m -> error_msg m
 
-let forbidden_packages = ref []
-let check_override = ref false
-
 let error msg p = raise (Error (Custom msg,p))
 
 let display_error ctx msg p = ctx.error (Custom msg) p
@@ -133,21 +131,21 @@ let null p t = mk (TConst TNull) t p
 
 let load ctx m p = (!load_ref) ctx m p
 
-let context err warn =
+let context com err warn =
 	let empty =	{
 		mpath = [] , "";
 		mtypes = [];
 		mimports = [];
 	} in
-	let f9 = Plugin.defined "flash9" in
+	let f9 = platform com Flash9 in
 	let ctx = {
+		com = com;
 		modules = Hashtbl.create 0;
 		types = Hashtbl.create 0;
 		constructs = Hashtbl.create 0;
 		delays = ref [];
-		fdynamic = f9 || Plugin.defined "php";
 		fnullable = f9;
-		doinline = not (Plugin.defined "no_inline");
+		doinline = not (Common.defined com "no_inline");
 		in_constructor = false;
 		in_static = false;
 		in_loop = false;
@@ -264,12 +262,12 @@ let field_access ctx get f t e p =
 		| _ ->
 			if ctx.untyped then normal else AccNo f.cf_name)
 	| MethodCantAccess when not ctx.untyped ->
-		error "Cannot rebind this method : please use 'f9dynamic' before method declaration" p
+		error "Cannot rebind this method : please use 'dynamic' before method declaration" p
 	| NormalAccess | MethodCantAccess ->
 		AccExpr (mk (TField (e,f.cf_name)) t p)
 	| MethodAccess m ->
 		if m = ctx.curmethod && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
-			let prefix = if Plugin.defined "as3gen" then "$" else "" in
+			let prefix = if Common.defined ctx.com "as3gen" then "$" else "" in
 			AccExpr (mk (TField (e,prefix ^ f.cf_name)) t p)
 		else if get then
 			AccExpr (mk (TCall (mk (TField (e,m)) (mk_mono()) p,[])) t p)
@@ -416,7 +414,7 @@ and load_type ctx p t =
 				| AFFun (tl,t) ->
 					let t = load_type ctx p t in
 					let args = List.map (fun (name,o,t) -> name , o, load_type ctx p t) tl in
-					TFun (args,t), NormalAccess, (if ctx.fdynamic then MethodCantAccess else NormalAccess)
+					TFun (args,t), NormalAccess, MethodCantAccess
 				| AFProp (t,i1,i2) ->
 					let access m get =
 						match m with
@@ -575,12 +573,13 @@ let extend_remoting ctx c t p async prot =
 	if ctx.isproxy then
 		() (* skip this proxy generation, we shouldn't need it anyway *)
 	else
-	let ctx2 = context ctx.error ctx.warn in
-	let fb = !forbidden_packages in
-	forbidden_packages := [];
+	let ctx2 = context ctx.com ctx.error ctx.warn in
+	(* remove forbidden packages *)
+	let rules = ctx.com.package_rules in
+	ctx.com.package_rules <- PMap.foldi (fun key r acc -> match r with Forbidden -> acc | _ -> PMap.add key r acc) rules PMap.empty;
 	ctx2.isproxy <- true;
-	let ct = (try load_normal_type ctx2 t p false with e -> forbidden_packages := fb; raise e) in
-	forbidden_packages := fb;
+	let ct = (try load_normal_type ctx2 t p false with e -> ctx.com.package_rules <- rules; raise e) in
+	ctx.com.package_rules <- rules;
 	let tvoid = TPNormal { tpackage = []; tname = "Void"; tparams = [] } in
 	let make_field name args ret =
 		try
@@ -644,7 +643,7 @@ let extend_remoting ctx c t p async prot =
 
 let extend_xml_proxy ctx c t file p =
 	let t = load_type ctx p t in
-	let file = (try Plugin.find_file file with Not_found -> file) in
+	let file = (try Common.find_file ctx.com file with Not_found -> file) in
 	try
 		let rec loop = function
 			| Xml.Element (_,attrs,childs) ->
@@ -937,7 +936,7 @@ let unify_call_params ctx name el args p =
 	let rec loop acc l l2 skip =
 		match l , l2 with
 		| [] , [] ->
-			if Plugin.defined "flash" || Plugin.defined "js" then
+			if Common.defined ctx.com "flash" || Common.defined ctx.com "js" then
 				List.rev (no_opt acc)
 			else
 				List.rev (List.map fst acc)
@@ -1228,7 +1227,7 @@ let type_field ctx e i p get =
 		in
 		(try
 			let t , f = class_field c i in
-			if ctx.fdynamic && e.eexpr = TConst TSuper && f.cf_set = NormalAccess then error "Cannot access superclass variable for calling : needs to be a proper method" p;
+			if e.eexpr = TConst TSuper && f.cf_set = NormalAccess && Common.platform ctx.com Flash9 then error "Cannot access superclass variable for calling : needs to be a proper method" p;
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then display_error ctx ("Cannot access to private field " ^ i) p;
 			field_access ctx get f (apply_params c.cl_types params t) e p
 		with Not_found -> try
@@ -1266,7 +1265,7 @@ let type_field ctx e i p get =
 			field_access ctx get f (field_type f) e p
 		)
 	| TMono r ->
-		if ctx.untyped && Plugin.defined "swf-mark" && Plugin.defined "flash" then ctx.warn "Mark" p;
+		if ctx.untyped && Common.defined ctx.com "swf-mark" && Common.defined ctx.com "flash" then ctx.warn "Mark" p;
 		let f = {
 			cf_name = i;
 			cf_type = mk_mono();
@@ -2121,7 +2120,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 and type_call ctx e el p =
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->
-		if Plugin.defined "no_traces" then
+		if Common.defined ctx.com "no_traces" then
 			mk (TConst TNull) (t_void ctx) p
 		else
 		let params = (match el with [] -> [] | _ -> ["customParams",(EArrayDecl el , p)]) in
@@ -2166,7 +2165,7 @@ and type_call ctx e el p =
 		e
 	| (EConst (Ident "__unprotect__"),_) , [(EConst (String _),_) as e] ->
 		let e = type_expr ctx e in
-		if Plugin.defined "flash" then
+		if Common.defined ctx.com "flash" then
 			mk (TCall (mk (TLocal "__unprotect__") (mk_mono()) p,[e])) e.etype e.epos
 		else
 			e
@@ -2323,7 +2322,7 @@ and type_inline ctx f ethis params tret p =
 	in
 	let e = (if PMap.is_empty subst then e else inline_params e) in
 	let init = (match vars with [] -> None | l -> Some (mk (TVars (List.rev l)) (t_void ctx) p)) in
-	if 	Plugin.defined "js" && (init <> None || !has_vars) then
+	if Common.defined ctx.com "js" && (init <> None || !has_vars) then
 		None
 	else match e.eexpr, init with
 	| TBlock [e] , None -> Some { e with etype = tret; }
@@ -2536,7 +2535,7 @@ let check_overriding ctx c p () =
 				let t = apply_params csup.cl_types params t in
 				ignore(follow f.cf_type); (* force evaluation *)
 				let p = (match f.cf_expr with None -> p | Some e -> e.epos) in
-				if !check_override && not (List.mem i c.cl_overrides) then
+				if not (List.mem i c.cl_overrides) then
 					display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass") p
 				else if f.cf_public <> f2.cf_public then
 					display_error ctx ("Field " ^ i ^ " has different visibility (public/private) than superclass one") p
@@ -2667,7 +2666,7 @@ let init_class ctx c p herits fields =
 					let ctx = { ctx with curclass = c; tthis = tthis } in
 					let r = exc_protect (fun r ->
 						r := (fun() -> t);
-						if !Plugin.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
+						if ctx.com.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
 						cf.cf_expr <- Some (type_static_var ctx t e p);
 						t
 					) in
@@ -2705,14 +2704,14 @@ let init_class ctx c p herits fields =
 				cf_doc = doc;
 				cf_type = t;
 				cf_get = if inline then InlineAccess else NormalAccess;
-				cf_set = (if ctx.fdynamic && not (List.mem AF9Dynamic access) then MethodCantAccess else if inline then NeverAccess else NormalAccess);
+				cf_set = (if not (List.mem ADynamic access) then MethodCantAccess else if inline then NeverAccess else NormalAccess);
 				cf_expr = None;
 				cf_public = is_public access;
 				cf_params = params;
 			} in
 			let r = exc_protect (fun r ->
 				r := (fun() -> t);
-				if !Plugin.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
+				if ctx.com.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
 				let e , fargs = type_function ctx t stat constr f p in
 				let f = {
 					tf_args = fargs;
@@ -2755,7 +2754,7 @@ let init_class ctx c p herits fields =
 			let set = (match set with
 				| "null" ->
 					(* standard flash library read-only variables can't be accessed for writing, even in subclasses *)
-					if c.cl_extern && (match c.cl_path with "flash" :: _  , _ -> true | _ -> false) && Plugin.defined "flash9" then
+					if c.cl_extern && (match c.cl_path with "flash" :: _  , _ -> true | _ -> false) && Common.defined ctx.com "flash9" then
 						NeverAccess
 					else
 						NoAccess
@@ -2781,7 +2780,7 @@ let init_class ctx c p herits fields =
 	let fl = List.map (fun (f,p) ->
 		let access , constr, f , delayed = loop_cf f p in
 		let is_static = List.mem AStatic access in
-		if is_static && f.cf_name = "name" && Plugin.defined "js" then error "This identifier cannot be used in Javascript for statics" p;
+		if is_static && f.cf_name = "name" && Common.defined ctx.com "js" then error "This identifier cannot be used in Javascript for statics" p;
 		if (is_static || constr) && c.cl_interface && f.cf_name <> "__init__" then error "You can't declare static fields in interfaces" p;
 		if constr then begin
 			if c.cl_constructor <> None then error "Duplicate constructor" p;
@@ -2901,6 +2900,7 @@ let type_module ctx m tdecls loadp =
 	Hashtbl.add ctx.modules m.mpath m;
 	(* PASS 2 : build types structure - does not type any expression ! *)
 	let ctx = {
+		com = ctx.com;
 		modules = ctx.modules;
 		delays = ctx.delays;
 		constructs = ctx.constructs;
@@ -2912,7 +2912,6 @@ let type_module ctx m tdecls loadp =
 		std = ctx.std;
 		ret = ctx.ret;
 		isproxy = ctx.isproxy;
-		fdynamic = ctx.fdynamic;
 		fnullable = ctx.fnullable;
 		doinline = ctx.doinline;
 		current = m;
@@ -2984,7 +2983,7 @@ let type_module ctx m tdecls loadp =
 			let names = ref [] in
 			let index = ref 0 in
 			List.iter (fun (c,doc,t,p) ->
-				if c = "name" && Plugin.defined "js" then error "This identifier cannot be used in Javascript" p;
+				if c = "name" && Common.defined ctx.com "js" then error "This identifier cannot be used in Javascript" p;
 				let t = (match t with
 					| [] -> et
 					| l -> TFun (List.map (fun (s,opt,t) -> s, opt, load_type_opt ~opt ctx p (Some t)) l, et)
@@ -3096,18 +3095,21 @@ let load ctx m p =
 			let file = (match m with
 				| [] , name -> name
 				| x :: l , name ->
-					if List.mem x (!forbidden_packages) then error ("You can't access the " ^ x ^ " package with current compilation flags") p;
-					let x = (match x with "flash" when Plugin.defined "flash9" -> "flash9" | _ -> x) in
+					let x = (try
+						match PMap.find x ctx.com.package_rules with
+						| Forbidden -> error ("You can't access the " ^ x ^ " package with current compilation flags") p;
+						| Directory d -> d
+						with Not_found -> x
+					) in
 					String.concat "/" (x :: l) ^ "/" ^ name
 			) ^ ".hx" in
-			let file = (try Plugin.find_file file with Not_found -> raise (Error (Module_not_found m,p))) in
+			let file = (try Common.find_file ctx.com file with Not_found -> raise (Error (Module_not_found m,p))) in
 			let ch = (try open_in_bin file with _ -> error ("Could not open " ^ file) p) in
-			let t = Plugin.timer "parsing" in
-			let pack , decls = (try Parser.parse (Lexing.from_channel ch) file with e -> close_in ch; t(); raise e) in
+			let t = Common.timer "parsing" in
+			let pack , decls = (try Parser.parse ctx.com (Lexing.from_channel ch) file with e -> close_in ch; t(); raise e) in
 			t();
-			let pack , decls = (match pack , fst m with "flash" :: l , "flash9" :: l2 when l = l2 && Plugin.defined "flash9doc" -> fst m, List.map f9decl decls | _ -> pack , decls) in
 			close_in ch;
-			if !Plugin.verbose then print_endline ("Parsed " ^ file);
+			if ctx.com.verbose then print_endline ("Parsed " ^ file);
 			if pack <> fst m then begin
 				let spack m = if m = [] then "<empty>" else String.concat "." m in
 				if p == Ast.null_pos then

@@ -61,13 +61,13 @@ class XMLSocket {
 		cnx.close.call([]);
 	}
 
-	public function onData( data : String ) {
+	public dynamic function onData( data : String ) {
 	}
 
-	public function onClose() {
+	public dynamic function onClose() {
 	}
 
-	public function onConnect( b : Bool ) {
+	public dynamic function onConnect( b : Bool ) {
 	}
 
 }

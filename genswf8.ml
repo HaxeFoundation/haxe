@@ -19,6 +19,7 @@
 open Swf
 open Ast
 open Type
+open Common
 
 type register =
 	| NoReg
@@ -38,7 +39,9 @@ type context = {
 	mutable ident_size : int;
 
 	(* management *)
+	com : Common.context;
 	packages : (string list,unit) Hashtbl.t;
+	flash6 : bool;
 	mutable idents : (string * bool,int) Hashtbl.t;
 	mutable movieclips : module_path list;
 	mutable inits : texpr list;
@@ -47,8 +50,6 @@ type context = {
 	mutable reg_count : int;
 	mutable reg_max : int;
 	mutable fun_stack : int;
-	version : int;
-	debug : bool;
 	mutable curclass : tclass;
 	mutable curmethod : (string * bool);
 	mutable fun_pargs : (int * bool list) list;
@@ -342,7 +343,7 @@ let gen_path ctx ?(protect=false) (p,t) is_extern =
 		VarObj
 
 let begin_func ctx need_super need_args args =
-	if ctx.version = 6 then
+	if ctx.flash6 then
 		let f = {
 			f_name = "";
 			Swf.f_args = List.map snd args;
@@ -436,7 +437,7 @@ let segment ctx =
 (* Generation Helpers *)
 
 let define_var ctx v ef exprs =
-	if ctx.version = 6 || List.exists (Transform.local_find false v) exprs then begin
+	if ctx.flash6 || List.exists (Transform.local_find false v) exprs then begin
 		push ctx [VStr (v,false)];
 		ctx.regs <- PMap.add v NoReg ctx.regs;
 		match ef with
@@ -457,7 +458,7 @@ let define_var ctx v ef exprs =
 
 let alloc_tmp ctx =
 	let r = alloc_reg ctx in
-	if ctx.version = 6 then
+	if ctx.flash6 then
 		let name = "$" ^ string_of_int r in		
 		define_var ctx name None [];
 		TmpVar (name,r);
@@ -551,7 +552,7 @@ let rec gen_access ctx forcall e =
 	match e.eexpr with
 	| TConst TSuper ->
 		(* for superconstructor *)
-		if ctx.version = 6 then begin
+		if ctx.flash6 then begin
 			push ctx [VStr ("super",true)];
 			VarStr
 		end else if forcall then begin
@@ -561,7 +562,7 @@ let rec gen_access ctx forcall e =
 		end else
 			VarReg 2
 	| TConst TThis ->
-		if ctx.version = 6 then begin
+		if ctx.flash6 then begin
 			push ctx [VStr ("this",true)];
 			VarStr
 		end else
@@ -951,7 +952,7 @@ and gen_expr_2 ctx retval e =
 		ctx.in_loop <- false;
 		let pargs = ref [] in
 		let rargs = List.map (fun (a,_,t) ->
-			let no_reg = ctx.version = 6 || Transform.local_find false a f.tf_expr in
+			let no_reg = ctx.flash6 || Transform.local_find false a f.tf_expr in
 			if no_reg then begin
 				ctx.regs <- PMap.add a NoReg ctx.regs;
 				pargs := unprotect a :: !pargs;
@@ -965,7 +966,7 @@ and gen_expr_2 ctx retval e =
 		) f.tf_args in
 		let tf = begin_func ctx reg_super (Transform.local_find true "__arguments__" f.tf_expr) rargs in
 		ctx.fun_pargs <- (ctx.code_pos, List.rev !pargs) :: ctx.fun_pargs;
-		if ctx.debug then begin
+		if ctx.com.debug then begin
 			let start_try = gen_try ctx in
 			gen_expr ctx false (Transform.stack_block ~useadd:true (ctx.curclass,fst ctx.curmethod) f.tf_expr);
 			let end_try = start_try() in
@@ -1143,7 +1144,7 @@ let gen_enum_field ctx e f =
 	| TFun (args,r) ->
 		ctx.regs <- PMap.empty;
 		ctx.reg_count <- 1;
-		let no_reg = ctx.version = 6 in
+		let no_reg = ctx.flash6 in
 		let rargs = List.map (fun (n,_,_) -> if no_reg then 0, n else alloc_reg ctx , "") args in
 		let nregs = List.length rargs + 2 in
 		let tf = begin_func ctx false false rargs in
@@ -1268,7 +1269,7 @@ let gen_type_def ctx t =
 			push ctx [VReg 0; VStr ("__super__",false)];
 			getvar ctx (gen_path ctx path csuper.cl_extern);
 			setvar ctx VarObj;
-			if ctx.version = 6 then begin
+			if ctx.flash6 then begin
 				(* myclass.prototype.__proto__ = superclass.prototype *)
 				push ctx [VReg 0; VStr ("prototype",true)];
 				getvar ctx VarObj;
@@ -1297,7 +1298,7 @@ let gen_type_def ctx t =
 			List.iter (fun (c,_) -> getvar ctx (gen_path ctx c.cl_path c.cl_extern)) l;
 			init_array ctx nimpl;
 			setvar ctx VarObj;
-			if ctx.version > 6 then begin
+			if not ctx.flash6 then begin
 				List.iter (fun (c,_) -> getvar ctx (gen_path ctx c.cl_path c.cl_extern)) l;
 				push ctx [VInt nimpl; VReg 0];
 				write ctx AImplements;
@@ -1383,7 +1384,7 @@ let build_tag (opcodes,idents) =
 	DynArray.set opcodes 0 idents;
 	TDoAction opcodes , pidents
 
-let convert_header ver (w,h,fps,bg) =
+let convert_header ctx ver (w,h,fps,bg) =
 	{
 		h_version = ver;
 		h_size = {
@@ -1395,14 +1396,16 @@ let convert_header ver (w,h,fps,bg) =
 		};
 		h_frame_count = 1;
 		h_fps = to_float16 (if fps > 127.0 then 127.0 else fps);
-		h_compressed = not (Plugin.defined "no-swf-compress");
+		h_compressed = not (Common.defined ctx "no-swf-compress");
 	} , bg
 
-let default_header ver =
-	convert_header ver (400,300,30.,0xFFFFFF)
+let default_header ctx ver =
+	convert_header ctx ver (400,300,30.,0xFFFFFF)
 
-let generate file ver types hres =
+let generate com =
 	let ctx = {
+		com = com;
+		flash6 = com.flash_version = 6;
 		segs = [];
 		opcodes = DynArray.create();
 		code_pos = 0;
@@ -1423,17 +1426,15 @@ let generate file ver types hres =
 		statics = [];
 		movieclips = [];
 		inits = [];
-		version = ver;
 		curclass = null_class;
 		curmethod = ("",false);
 		fun_pargs = [];
-		in_loop = false;
-		debug = Plugin.defined "debug";
+		in_loop = false;		
 	} in
 	write ctx (AStringPool []);
-	protect_all := not (Plugin.defined "swf-mark");
+	protect_all := not (Common.defined com "swf-mark");
 	extern_boot := true;
-	if ctx.debug then begin
+	if com.debug then begin
 		push ctx [VStr (Transform.stack_var,false); VInt 0];
 		write ctx AInitArray;
 		write ctx ASet;
@@ -1454,8 +1455,8 @@ let generate file ver types hres =
 	write ctx ASet;
 	ctx.reg_count <- 0;
 	(* ---- *)
-	List.iter (fun t -> gen_type_def ctx t) types;
-	gen_boot ctx hres;
+	List.iter (fun t -> gen_type_def ctx t) com.types;
+	gen_boot ctx com.resources;
 	List.iter (fun m -> gen_movieclip ctx m) ctx.movieclips;
 	let global_try = gen_try ctx in
 	List.iter (gen_expr ctx false) (List.rev ctx.inits);
@@ -1470,10 +1471,10 @@ let generate file ver types hres =
 	end_try();
 	let segs = List.rev ((ctx.opcodes,ctx.idents) :: ctx.segs) in
 	let tags = List.map build_tag segs in
-	if Plugin.defined "swf-mark" then begin
+	if Common.defined com "swf-mark" then begin
 		if List.length segs > 1 then assert false;
 		let pidents = snd (List.hd tags) in
-		let ch = IO.output_channel (open_out_bin (Filename.chop_extension file ^ ".mark")) in
+		let ch = IO.output_channel (open_out_bin (Filename.chop_extension com.file ^ ".mark")) in
 		IO.write_i32 ch (List.length ctx.fun_pargs);
 		List.iter (fun (id,l) ->
 			IO.write_i32 ch id;

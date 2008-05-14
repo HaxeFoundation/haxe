@@ -11,9 +11,9 @@ extern class Sound
 
 	function new( ?target:Dynamic ) : Void;
 
-	function onLoad(success:Bool):Void;
-	function onSoundComplete():Void;
-	function onID3():Void;
+	dynamic function onLoad(success:Bool):Void;
+	dynamic function onSoundComplete():Void;
+	dynamic function onID3():Void;
 
 	function getPan():Float;
 	function getTransform():Dynamic;

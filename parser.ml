@@ -58,7 +58,7 @@ let display e = raise (Display e)
 
 let is_resuming p =
 	let p2 = !resume_display in
-	p.pmax = p2.pmin && (!Plugin.get_full_path) p.pfile = p2.pfile
+	p.pmax = p2.pmin && Common.get_full_path p.pfile = p2.pfile
 
 let priority = function
 	| OpAssign | OpAssignOp _ -> -4
@@ -129,6 +129,7 @@ let any_ident = parser
 
 let property_ident = parser
 	| [< i = any_ident >] -> i
+	| [< '(Kwd Dynamic,_) >] -> "dynamic"
 	| [< '(Kwd Default,_) >] -> "default"
 
 let log m s =
@@ -383,8 +384,8 @@ and parse_cf_rights allow_static l = parser
 	| [< '(Kwd Static,_) when allow_static; l = parse_cf_rights false (AStatic :: l) >] -> l
 	| [< '(Kwd Public,_) when not(List.mem APublic l || List.mem APrivate l); l = parse_cf_rights allow_static (APublic :: l) >] -> l
 	| [< '(Kwd Private,_) when not(List.mem APublic l || List.mem APrivate l); l = parse_cf_rights allow_static (APrivate :: l) >] -> l
-	| [< '(Kwd Override,_) when allow_static; l = parse_cf_rights false (AOverride :: l) >] -> l
-	| [< '(Kwd F9Dynamic,_) when not (List.mem AF9Dynamic l); l = parse_cf_rights false (AF9Dynamic :: l) >] -> l
+	| [< '(Kwd Override,_) when not (List.mem AOverride l); l = parse_cf_rights false (AOverride :: l) >] -> l
+	| [< '(Kwd Dynamic,_) when not (List.mem ADynamic l); l = parse_cf_rights allow_static (ADynamic :: l) >] -> l
 	| [< '(Kwd Inline,_); l = parse_cf_rights allow_static (AInline :: l) >] -> l
 	| [< >] -> l
 
@@ -633,7 +634,7 @@ and toplevel_expr s =
 	with
 		Display e -> e
 
-let parse code file =
+let parse ctx code file =
 	let old = Lexer.save() in
 	let old_cache = !cache in
 	let mstack = ref [] in
@@ -688,7 +689,7 @@ let parse code file =
 		match Lexer.token code with
 		| (Const (Ident s),p) | (Const (Type s),p) ->
 			if s = "error" then error Unimplemented p;
-			let ok = Plugin.defined s in
+			let ok = Common.defined ctx s in
 			(match Lexer.token code with
 			| (Binop OpBoolOr,_) when allow_expr ->
 				let ok2 , tk = eval_macro allow_expr in

@@ -35,7 +35,7 @@ class TestRunner {
 	static var tf : flash.TextField = null;
 #end
 
-	public static f9dynamic function print( v : Dynamic ) {
+	public static dynamic function print( v : Dynamic ) {
 		#if flash9
 		untyped {
 			if( tf == null ) {

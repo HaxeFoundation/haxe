@@ -50,10 +50,6 @@ class Output {
 	}
 
 	public function close() {
-		writeBytes = function(_,_,_) { return throw Error.Closed; };
-		writeChar = function(_) { throw Error.Closed; };
-		flush = function() { throw Error.Closed; };
-		close = function() { };
 	}
 
 	/* ------------------ API ------------------ */
@@ -126,14 +122,14 @@ class Output {
 		else
 			writeUInt24(x);
 	}
-	
+
 	public function writeUInt24( x : Int ) {
 		if( x < 0 || x > 0xFFFFFF ) throw Error.Overflow;
 		writeChar(x & 0xFF);
 		writeChar((x >> 8) & 0xFF);
 		writeChar(x >> 16);
 	}
-	
+
 	public function writeUInt24B( x : Int ) {
 		if( x < 0 || x > 0xFFFFFF ) throw Error.Overflow;
 		writeChar(x >> 16);
@@ -152,7 +148,7 @@ class Output {
 		if( x < 0 ) throw Error.Overflow;
 		writeInt32(x);
 	}
-	
+
 	public function writeUInt32B( x : Int ) {
 		if( x < 0 ) throw Error.Overflow;
 		writeChar(x >>> 24);
@@ -160,7 +156,7 @@ class Output {
 		writeChar((x >> 8) & 0xFF);
 		writeChar(x & 0xFF);
 	}
-	
+
 	/**
 		Inform that we are about to write at least a specified number of bytes.
 		The underlying implementation can allocate proper working space depending

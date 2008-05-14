@@ -32,8 +32,8 @@ extern class Camera {
 	function setKeyFrameInterval(keyFrameInterval:Int):Void;
 	function setLoopback(compress:Bool):Void;
 
-	function onActivity( active:Bool ):Void;
-	function onStatus( infoObject:Dynamic ):Void;
+	dynamic function onActivity( active:Bool ):Void;
+	dynamic function onStatus( infoObject:Dynamic ):Void;
 
 	private static function __init__() : Void untyped {
 		flash.Camera = _global["Camera"];

@@ -22,11 +22,11 @@ extern class MovieClipLoader
 	function loadClip(url:String, target:MovieClip):Bool;
 	function unloadClip(target:MovieClip):Bool;
 
-	function onLoadInit(target:MovieClip) : Void;
-	function onLoadStart(target:MovieClip) : Void;
-	function onLoadProgress(target:MovieClip, loaded : Int, total : Int) : Void;
-	function onLoadComplete(target:MovieClip) : Void;
-	function onLoadError(target:MovieClip, error:String) : Void;
+	dynamic function onLoadInit(target:MovieClip) : Void;
+	dynamic function onLoadStart(target:MovieClip) : Void;
+	dynamic function onLoadProgress(target:MovieClip, loaded : Int, total : Int) : Void;
+	dynamic function onLoadComplete(target:MovieClip) : Void;
+	dynamic function onLoadError(target:MovieClip, error:String) : Void;
 
 #if flash_strict
 	function addListener(listener:MclListener):Bool;

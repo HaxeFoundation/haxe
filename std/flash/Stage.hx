@@ -18,7 +18,7 @@ extern class Stage
 	**/
 	static var displayState : String;
 	static var fullScreenSourceRect : flash.geom.Rectangle<Int>;
-	static function onFullScreen( full : Bool ) : Void;
+	static dynamic function onFullScreen( full : Bool ) : Void;
 #end
 
 	private static function __init__() : Void untyped {

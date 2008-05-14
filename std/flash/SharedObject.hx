@@ -19,8 +19,8 @@ extern class SharedObject
 	function getSize():Float;
 	function setFps(updatesPerSecond:Float):Bool;
 
-	function onStatus(infoObject:Dynamic):Void;
-	function onSync(objArray:Array<Dynamic>):Void;
+	dynamic function onStatus(infoObject:Dynamic):Void;
+	dynamic function onSync(objArray:Array<Dynamic>):Void;
 
 	function clear() : Void;
 

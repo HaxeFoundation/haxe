@@ -58,14 +58,14 @@ class AsyncDebugConnection extends AsyncConnection, implements Dynamic<AsyncDebu
 		return s;
 	}
 
-	public f9dynamic function onErrorDisplay( path : Array<String>, params : Array<Dynamic>, err : Dynamic ) {
+	public dynamic function onErrorDisplay( path : Array<String>, params : Array<Dynamic>, err : Dynamic ) {
 		trace(path.join(".")+"("+params.join(",")+") = ERROR "+Std.string(err));
 	}
 
-	public f9dynamic function onCall( path : Array<String>, params : Array<Dynamic> ) {
+	public dynamic function onCall( path : Array<String>, params : Array<Dynamic> ) {
 	}
 
-	public f9dynamic function onResult( path : Array<String>, params : Array<Dynamic>, result : Dynamic ) {
+	public dynamic function onResult( path : Array<String>, params : Array<Dynamic>, result : Dynamic ) {
 		trace(path.join(".")+"("+params.join(",")+") = "+Std.string(result));
 	}
 
