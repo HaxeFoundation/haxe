@@ -659,7 +659,7 @@ let parse ctx code file =
 			| _ :: l ->
 				mstack := l;
 				next_token())
-		| Macro "else" ->
+		| Macro "else" | Macro "elseif" ->
 			(match !mstack with
 			| [] -> raise Exit
 			| _ :: l ->
@@ -667,6 +667,8 @@ let parse ctx code file =
 				process_token (skip_tokens false))
 		| Macro "if" ->
 			process_token (enter_macro())
+		| Macro "error" ->
+			error Unimplemented (snd tk)
 		| Macro "line" ->
 			let line = (match next_token() with
 				| (Const (Int s),_) -> int_of_string s
@@ -688,7 +690,6 @@ let parse ctx code file =
 	and eval_macro allow_expr =
 		match Lexer.token code with
 		| (Const (Ident s),p) | (Const (Type s),p) ->
-			if s = "error" then error Unimplemented p;
 			let ok = Common.defined ctx s in
 			(match Lexer.token code with
 			| (Binop OpBoolOr,_) when allow_expr ->
@@ -714,9 +715,12 @@ let parse ctx code file =
 		match fst tk with
 		| Macro "end" ->
 			Lexer.token code
-		| Macro "else" when not test ->
+		| Macro "elseif" | Macro "else" when not test ->
 			skip_tokens test
 		| Macro "else" ->
+			mstack := snd tk :: !mstack;
+			Lexer.token code
+		| Macro "elseif" ->
 			enter_macro()
 		| Macro "if" ->
 			skip_tokens_loop test (skip_tokens false)

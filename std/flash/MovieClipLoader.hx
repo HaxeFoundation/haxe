@@ -31,14 +31,13 @@ extern class MovieClipLoader
 #if flash_strict
 	function addListener(listener:MclListener):Bool;
 	function removeListener(listener:MclListener):Bool;
-#else true
+#else
 	function addListener(listener:Dynamic):Bool;
 	function removeListener(listener:Dynamic):Bool;
 #end
 
-#if flash_v9
+	/** in FP 9 **/
 	var checkPolicyFile : Bool;
-#end
 
 	private static function __init__() : Void untyped {
 		flash.MovieClipLoader = _global["MovieClipLoader"];

@@ -64,7 +64,7 @@ class Lib {
 				return f(msg,stack);
 			}
 		');
-		#else true
+		#else
 		__js__('
 			onerror = function(msg,url,line) {
 				var f = js.Lib.onerror;

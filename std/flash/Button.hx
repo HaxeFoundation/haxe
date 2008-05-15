@@ -1,11 +1,7 @@
 package flash;
 
-extern class Button
-#if flash_strict
-#else true
-implements Dynamic
-#end
-{
+extern class Button #if !flash_strict implements Dynamic #end {
+
 	var _alpha : Float;
 	var enabled : Bool;
 	var _focusrect : Bool;

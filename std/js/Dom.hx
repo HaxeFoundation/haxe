@@ -173,13 +173,10 @@ typedef Document = {> HtmlDom,
 
 	// TODO : var URL : String;
 
-	#if w3c
-	#else true
 	// not W3C , need infos : var embeds : HtmlCollection<Embed>;
 	// var lastModified : Date; // commented : does not include date by default
 	var styleSheets : HtmlCollection<StyleSheet>;
 	function getElementsByTag( tag : String ) : HtmlCollection<HtmlDom>;
-	#end
 
 	function open() : Void;
 	function write( str : String ) : Void;
@@ -272,11 +269,6 @@ typedef IFrame = {> HtmlDom,
 	var name : String;
 	var scrolling : String;
 	var src : String;
-
-	#if w3c
-	#else true
-	var tabIndex : Int;
-	#end
 }
 
 typedef Image = {> HtmlDom,
@@ -293,11 +285,8 @@ typedef Image = {> HtmlDom,
 	var vspace : Int;
 	var width : Int;
 
-	#if w3c
-	#else true
 	var complete : Bool;
 	var lowsrc : String;
-	#end
 
 	var onabort : Event -> Void;
 	var onerror : Event -> Void;
@@ -314,12 +303,7 @@ typedef Link = {> HtmlDom,
 	var rev : String;
 	var target : String;
 	var type : String;
-
-	#if w3c
-	#else true
 	var name : String;
-	#end
-
 	var onload : Event -> Void;
 }
 
@@ -611,13 +595,10 @@ typedef Window = {
 	// setInterval
 	// setTimeout
 
-	#if w3c
-	#else true
 	var innerWidth : Int;
 	var innerHeight : Int;
 	var outerWidth : Int;
 	var outerHeight : Int;
-	#end
 
 	/* IE only ?
 	clientInformation

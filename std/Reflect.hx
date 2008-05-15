@@ -30,111 +30,78 @@
 class Reflect {
 
 	/**
-		Creates an empty object.
-	**/
-	public static function empty() : {} {
-		return untyped
-		#if flash9
-			__new__(__global__["Object"])
-		#else flash
-			__new__(_global["Object"])
-		#else neko
-			__dollar__new(null)
-		#else js
-			__js__("{}")
-		#else error
-		#end
-			;
-	}
-
-	/**
 		Tells if an object has a field set. This doesn't take into account the object prototype (class methods).
 	**/
-	public static function hasField( o : Dynamic, field : String ) : Bool {
-		untyped{
+	public static function hasField( o : Dynamic, field : String ) : Bool untyped {
 		#if flash9
 			return o.hasOwnProperty( field );
-		#else flash
+		#elseif flash
 			return this["hasOwnProperty"]["call"](o,field);
-		#else js
+		#elseif js
 			if( o.hasOwnProperty != null )
 				return o.hasOwnProperty(field);
 			var arr = fields(o);
 			for( t in arr.iterator() )
 				if( t == field ) return true;
 			return false;
-		#else neko
+		#elseif neko
 			return __dollar__typeof(o) == __dollar__tobject && __dollar__objfield(o,__dollar__hash(field.__s));
-		#else error
+		#else
+			return false;
 		#end
-		}
 	}
 
 	/**
 		Returns the field of an object, or null if [o] is not an object or doesn't have this field.
 	**/
-	public static function field( o : Dynamic, field : String ) : Dynamic {
-		untyped
+	public inline static function field( o : Dynamic, field : String ) : Dynamic untyped {
 		#if flash
-			return o[field]
-		#else js
-			try {
-				return o[field];
-			} catch( e : Dynamic ) {
-				return null;
-			}
-		#else neko
-			{
-				if( __dollar__typeof(o) != __dollar__tobject )
-					return null;
-				var fh = __dollar__hash(field.__s);
-				return __dollar__objget(o,fh);
-			}
-		#else error
+			return o[field];
+		#elseif js
+			return try o[field] catch( e : Dynamic ) null;
+		#elseif neko
+			return if( __dollar__typeof(o) != __dollar__tobject ) null else __dollar__objget(o,__dollar__hash(field.__s));
+		#else
+			return null;
 		#end
-			;
 	}
 
 	/**
 		Set an object field value.
 	**/
-	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void {
-		untyped
+	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
 		#if flash
 			o[field] = value;
-		#else js
+		#elseif js
 			o[field] = value;
-		#else neko
+		#elseif neko
 			if( __dollar__typeof(o) == __dollar__tobject )
 				__dollar__objset(o,__dollar__hash(field.__s),value);
-		#else error
 		#end
 	}
 
 	/**
 		Call a method with the given object and arguments.
 	**/
-	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic {
-		return untyped
+	public inline static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
 		#if flash9
-			func.apply(o,args)
-		#else flash
-			func["apply"](o,args)
-		#else js
-			func.apply(o,args)
-		#else neko
-			__dollar__call(func,o,args.__neko())
-		#else error
+			return func.apply(o,args);
+		#elseif flash
+			return func["apply"](o,args);
+		#elseif js
+			return func.apply(o,args);
+		#elseif neko
+			return __dollar__call(func,o,args.__neko());
+		#else
+			return null;
 		#end
-			;
 	}
 
 	/**
 		Returns the list of fields of an object, excluding its prototype (class methods).
 	**/
-	public static function fields( o : Dynamic ) : Array<String> {
+	public static function fields( o : Dynamic ) : Array<String> untyped {
 		if( o == null ) return new Array();
-		untyped {
 		#if flash9
 			var a : Array<String> = __keys__(o);
 			var i = 0;
@@ -145,7 +112,7 @@ class Reflect {
 					++i;
 			}
 			return a;
-		#else flash
+		#elseif flash
 			var a : Array<String> = __keys__(o);
 			var i = 0;
 			while( i < a.length ) {
@@ -155,10 +122,10 @@ class Reflect {
 					++i;
 			}
 			return a;
-		#else js
+		#elseif js
 			var a = new Array();
-			if( untyped o.hasOwnProperty ) {
-				untyped __js__("
+			if( o.hasOwnProperty ) {
+				__js__("
 					for(var i in o)
 						if( o.hasOwnProperty(i) )
 							a.push(i);
@@ -168,7 +135,7 @@ class Reflect {
 				try{ t = o.__proto__; } catch( e : Dynamic ) { t = null; }
 				if( t != null )
 					o.__proto__ = null;
-				untyped __js__("
+				__js__("
 					for(var i in o)
 						if( i != \"__proto__\" )
 							a.push(i);
@@ -177,7 +144,7 @@ class Reflect {
 					o.__proto__ = t;
 			}
 			return a;
-		#else neko
+		#elseif neko
 			if( __dollar__typeof(o) != __dollar__tobject )
 				return new Array<String>();
 			else {
@@ -190,34 +157,37 @@ class Reflect {
 				}
 				return Array.new1(a,l);
 			}
-		#else error
+		#else
+			return new Array();
 		#end
-		}
 	}
 
 	/**
 		Tells if a value is a function or not.
 	**/
-	public static function isFunction( f : Dynamic ) : Bool {
-		return untyped
+	public static function isFunction( f : Dynamic ) : Bool untyped {
 		#if flash9
-			__typeof__(f) == "function"
-		#else flash
-			__typeof__(f) == "function" && f.__name__ == null
-		#else js
-			__js__("typeof(f)") == "function" && f.__name__ == null
-		#else neko
-			__dollar__typeof(f) == __dollar__tfunction
-		#else error
+			return __typeof__(f) == "function";
+		#elseif flash
+			return __typeof__(f) == "function" && f.__name__ == null;
+		#elseif js
+			return __js__("typeof(f)") == "function" && f.__name__ == null;
+		#elseif neko
+			return __dollar__typeof(f) == __dollar__tfunction;
+		#else
+			return false;
 		#end
-			;
 	}
 
 	/**
 		Generic comparison function, does not work for methods, see [compareMethods]
 	**/
 	public static function compare<T>( a : T, b : T ) : Int {
+		#if neko
+		return untyped __dollar__compare(a,b);
+		#else
 		return ( a == b ) ? 0 : (((cast a) > (cast b)) ? 1 : -1);
+		#end
 	}
 
 	/**
@@ -230,15 +200,15 @@ class Reflect {
 		if( !isFunction(f1) || !isFunction(f2) )
 			return false;
 		#if neko
-		return false; // compare already done
-		#else flash9
-		return false; // VM-level closures
-		#else flash
-		return untyped f1["f"] == f2["f"] && f1["o"] == f2["o"] && f1["f"] != null;
-		#else js
-		return f1.scope == f2.scope && f1.method == f2.method && f1.method != null;
-		#else true
-		return
+			return false; // compare already done
+		#elseif flash9
+			return false; // VM-level closures
+		#elseif flash
+			return untyped f1["f"] == f2["f"] && f1["o"] == f2["o"] && f1["f"] != null;
+		#elseif js
+			return f1.scope == f2.scope && f1.method == f2.method && f1.method != null;
+		#else
+			return false;
 		#end
 	}
 
@@ -248,59 +218,54 @@ class Reflect {
 	**/
 	public static function isObject( v : Dynamic ) : Bool untyped {
 		#if neko
-		return __dollar__typeof(v) == __dollar__tobject && v.__enum__ == null;
-		#else flash9
-		if( v == null )
-			return false;
-		var t = __typeof__(v);
-		if( t == "object" ) {
-			try {
-				if( v.__enum__ == true )
-					return false;
-			} catch( e : Dynamic ) {
+			return __dollar__typeof(v) == __dollar__tobject && v.__enum__ == null;
+		#elseif flash9
+			if( v == null )
+				return false;
+			var t = __typeof__(v);
+			if( t == "object" ) {
+				try {
+					if( v.__enum__ == true )
+						return false;
+				} catch( e : Dynamic ) {
+				}
+				return true;
 			}
-			return true;
-		}
-		return (t == "string");
-		#else flash
-		var t = __typeof__(v);
-		return (t == "string" || (t == "object" && !v.__enum__) || (t == "function" && v.__name__ != null));
-		#else js
-		if( v == null )
+			return (t == "string");
+		#elseif flash
+			var t = __typeof__(v);
+			return (t == "string" || (t == "object" && !v.__enum__) || (t == "function" && v.__name__ != null));
+		#elseif js
+			if( v == null )
+				return false;
+			var t = __js__("typeof(v)");
+			return (t == "string" || (t == "object" && !v.__enum__) || (t == "function" && v.__name__ != null));
+		#else
 			return false;
-		var t = __js__("typeof(v)");
-		return (t == "string" || (t == "object" && !v.__enum__) || (t == "function" && v.__name__ != null));
-		#else error
 		#end
 	}
 
 	/**
 		Delete an object field.
 	**/
-	public static function deleteField( o : Dynamic, f : String ) : Bool {
+	public static function deleteField( o : Dynamic, f : String ) : Bool untyped {
 		#if flash9
-			untyped {
-				if( o.hasOwnProperty(f) != true ) return false;
-				__delete__(o,f);
-				return true;
-			}
-		#else flash
-			untyped {
-				if( this["hasOwnProperty"]["call"](o,f) != true ) return false;
-				__delete__(o,f);
-				return true;
-			}
-		#else js
-			untyped {
-				if( !hasField(o,f) ) return false;
-				__js__("delete")(o[f]);
-				return true;
-			}
-		#else neko
-			return untyped __dollar__objremove(o,__dollar__hash(f.__s))
-		#else error
+			if( o.hasOwnProperty(f) != true ) return false;
+			__delete__(o,f);
+			return true;
+		#elseif flash
+			if( this["hasOwnProperty"]["call"](o,f) != true ) return false;
+			__delete__(o,f);
+			return true;
+		#elseif js
+			if( !hasField(o,f) ) return false;
+			__js__("delete")(o[f]);
+			return true;
+		#elseif neko
+			return __dollar__objremove(o,__dollar__hash(f.__s));
+		#else
+			return false;
 		#end
-			;
 	}
 
 	/**
@@ -308,12 +273,12 @@ class Reflect {
 	**/
 	public static function copy<T>( o : T ) : T {
 		#if neko
-		return untyped __dollar__new(o);
-		#else true
-		var o2 = cast empty();
-		for( f in Reflect.fields(o) )
-			Reflect.setField(o2,f,Reflect.field(o,f));
-		return o2;
+			return untyped __dollar__new(o);
+		#else
+			var o2 : Dynamic = {};
+			for( f in Reflect.fields(o) )
+				Reflect.setField(o2,f,Reflect.field(o,f));
+			return o2;
 		#end
 	}
 
@@ -323,18 +288,20 @@ class Reflect {
 	**/
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
 		#if neko
-		return untyped __dollar__varargs(function(a) { return f(Array.new1(a,__dollar__asize(a))); });
-		#else flash9
-		return function(__arguments__) { return f(__arguments__); };
-		#else js
-		return function() untyped {
-			var a = new Array();
-			for( i in 0...arguments.length )
-				a.push(arguments[i]);
-			return f(a);
-		};
-		#else flash
-		return function() { return f(untyped __arguments__); };
+			return untyped __dollar__varargs(function(a) { return f(Array.new1(a,__dollar__asize(a))); });
+		#elseif flash9
+			return function(__arguments__) { return f(__arguments__); };
+		#elseif js
+			return function() untyped {
+				var a = new Array();
+				for( i in 0...arguments.length )
+					a.push(arguments[i]);
+				return f(a);
+			};
+		#elseif flash
+			return function() { return f(untyped __arguments__); };
+		#else
+			return null;
 		#end
 	}
 

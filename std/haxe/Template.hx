@@ -53,7 +53,7 @@ class Template {
 	static var expr_int = ~/^[0-9]+$/;
 	static var expr_float = ~/^([+-]?)(?=\d|,\d)\d*(,\d*)?([Ee]([+-]?\d+))?$/;
 
-	public static var globals = Reflect.empty();
+	public static var globals : Dynamic = {};
 
 	var expr : TemplateExpr;
 	var context : Dynamic;
@@ -69,7 +69,7 @@ class Template {
 	}
 
 	public function execute( context : Dynamic, ?macros : Dynamic ) {
-		this.macros = if( macros == null ) Reflect.empty() else macros;
+		this.macros = if( macros == null ) {} else macros;
 		this.context = context;
 		stack = new List();
 		buf = new StringBuf();
@@ -355,7 +355,7 @@ class Template {
 				var msg = "Macro call "+m+"("+plstr+") failed ("+Std.string(e)+")";
 				#if neko
 				neko.Lib.rethrow(msg);
-				#else true
+				#else
 				throw msg;
 				#end
 			}

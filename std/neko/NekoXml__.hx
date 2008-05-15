@@ -117,7 +117,7 @@ class NekoXml__ {
 		var r = new NekoXml__();
 		r.nodeType = Xml.Element;
 		r._nodeName = name;
-		r._attributes = cast Reflect.empty();
+		r._attributes = untyped __dollar__new(null);
 		r._children = new Array();
 		return r;
 	}

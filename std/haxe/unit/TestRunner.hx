@@ -31,13 +31,12 @@ class TestRunner {
 
 #if flash9
 	static var tf : flash.text.TextField = null;
-#else flash
+#elseif flash
 	static var tf : flash.TextField = null;
 #end
 
-	public static dynamic function print( v : Dynamic ) {
+	public static dynamic function print( v : Dynamic ) untyped {
 		#if flash9
-		untyped {
 			if( tf == null ) {
 				tf = new flash.text.TextField();
 				tf.selectable = false;
@@ -46,9 +45,7 @@ class TestRunner {
 				flash.Lib.current.addChild(tf);
 			}
 			tf.appendText(v);
-		}
-		#else flash
-		untyped {
+		#elseif flash
 			var root = flash.Lib.current;
 			if( tf == null ) {
 				root.createTextField("__tf",1048500,0,0,flash.Stage.width,flash.Stage.height+30);
@@ -63,19 +60,15 @@ class TestRunner {
 				lines.shift();
 				tf.text = lines.join("\n");
 			}
-		}
-		#else neko
-		untyped __dollar__print(v);
-		#else js
-		untyped {
+		#elseif neko
+			__dollar__print(v);
+		#elseif js
 			var msg = StringTools.htmlEscape(js.Boot.__string_rec(v,"")).split("\n").join("<br/>");
 			var d = document.getElementById("haxe:trace");
 			if( d == null )
 				alert("haxe:trace element not found")
 			else
 				d.innerHTML += msg;
-		}
-		#else error
 		#end
 	}
 
@@ -99,16 +92,6 @@ class TestRunner {
 		}
 		print(result.toString());
 		return result.success;
-	}
-
-	function getBT( e : Dynamic ) {
-		#if flash9
-		if( e != null && Std.is(e,untyped __global__["Error"] ) )
-			return e.getStackTrace();
-		return null;
-		#else true
-		return haxe.Stack.toString(haxe.Stack.exceptionStack());
-		#end
 	}
 
 	function runCase( t:TestCase ) : Void 	{
@@ -141,7 +124,7 @@ class TestRunner {
 					}
 				}catch ( e : TestStatus ){
 					print("F");
-					t.currentTest.backtrace = getBT(e);
+					t.currentTest.backtrace = haxe.Stack.toString(haxe.Stack.exceptionStack());
 				}catch ( e : Dynamic ){
 					print("E");
 					#if js
@@ -150,10 +133,10 @@ class TestRunner {
 					}else{
 						t.currentTest.error = "exception thrown : "+e;
 					}
-					#else true
+					#else
 					t.currentTest.error = "exception thrown : "+e;
 					#end
-					t.currentTest.backtrace = getBT(e);
+					t.currentTest.backtrace = haxe.Stack.toString(haxe.Stack.exceptionStack());
 				}
 				result.add(t.currentTest);
 				t.tearDown();

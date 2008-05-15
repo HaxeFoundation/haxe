@@ -51,16 +51,13 @@ class Request {
 	}
 
 	public function getParamsObject( ?keys : List<String> ) : Dynamic<String> {
-		var ret = cast Reflect.empty();
-		if( keys == null ){
-			for( k in params.keys() ){
+		var ret : Dynamic<String> = cast {};
+		if( keys == null )
+			for( k in params.keys() )
 				Reflect.setField( ret, k, params.get(k) );
-			}
-		}else{
-			for( k in keys ){
+		else
+			for( k in keys )
 				Reflect.setField( ret, k, params.get(k) );
-			}
-		}
 		return ret;
 	}
 

@@ -200,7 +200,7 @@ class Boot {
 		a.splice(0,a.length);
 		#end
 		if( untyped Lib.onerror != null )
-			untyped Lib.onerror(__string_rec(v,""),#if debug old #else true [] #end);
+			untyped Lib.onerror(__string_rec(v,""),#if debug old #else [] #end);
 		else
 			__trace(__string_rec(v,"")+s,cast { fileName : "(uncaught exception)" });
 	}

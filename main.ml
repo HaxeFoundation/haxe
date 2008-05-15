@@ -421,7 +421,7 @@ try
 		| None -> ()
 		| Some file ->
 			if com.verbose then print_endline ("Generating xml : " ^ com.file);
-			Genxml.generate com ctx);
+			Genxml.generate com ctx file);
 	end;
 	if not !no_output then List.iter (fun cmd ->
 		let t = Common.timer "command" in

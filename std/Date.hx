@@ -114,7 +114,7 @@ extern class Date
 	#if neko
 		Date = neko.NekoDate__;
 		neko.Boot.__classes.Date = Date;
-	#else true
+	#else
 		Date.now = function() {
 			return __new__(Date);
 		};
@@ -122,7 +122,7 @@ extern class Date
 			var d : Date = __new__(Date);
 			#if flash9
 			d.setTime(t);
-			#else true
+			#else
 			d["setTime"]( t );
 			#end
 			return d;
@@ -137,7 +137,7 @@ extern class Date
 				d.setUTCHours(k[0]);
 				d.setUTCMinutes(k[1]);
 				d.setUTCSeconds(k[2]);
-				#else true
+				#else
 				d["setTime"](0);
 				d["setUTCHours"](k[0]);
 				d["setUTCMinutes"](k[1]);
@@ -170,10 +170,10 @@ extern class Date
 				+":"+(if( s < 10 ) "0"+s else ""+s);
 		};
 		#if flash9
-		#else flash
+		#elseif flash
 		Date.prototype[__unprotect__("__class__")] = Date;
 		Date[__unprotect__("__name__")] = ["Date"];
-		#else true
+		#else
 		Date.prototype.__class__ = Date;
 		Date.__name__ = ["Date"];
 		#end

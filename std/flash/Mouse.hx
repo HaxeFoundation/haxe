@@ -20,7 +20,7 @@ extern class Mouse
 #if flash_strict
 	static function addListener(listener:MouseListener):Void;
 	static function removeListener(listener:MouseListener):Bool;
-#else true
+#else
 	static function addListener(listener:Dynamic):Void;
 	static function removeListener(listener:Dynamic):Bool;
 #end

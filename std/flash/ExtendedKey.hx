@@ -24,5 +24,6 @@ extern class ExtendedKey {
 
 }
 
-#else error
+#else
+	#error
 #end

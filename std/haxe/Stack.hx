@@ -44,13 +44,15 @@ class Stack {
 	**/
 	public static function callStack() : Array<StackItem> {
 		#if neko
-		var a = makeStack(untyped __dollar__callstack());
-		a.pop(); // remove Stack.callStack()
-		return a;
-		#else flash9
-		return null;
-		#else true
-		return makeStack("$s");
+			var a = makeStack(untyped __dollar__callstack());
+			a.pop(); // remove Stack.callStack()
+			return a;
+		#elseif flash9
+			return null;
+		#elseif (flash || js)
+			return makeStack("$s");
+		#else
+			return null;
 		#end
 	}
 
@@ -61,11 +63,13 @@ class Stack {
 	**/
 	public static function exceptionStack() : Array<StackItem> {
 		#if neko
-		return makeStack(untyped __dollar__excstack());
-		#else flash9
-		return null;		
-		#else true
-		return makeStack("$e");
+			return makeStack(untyped __dollar__excstack());
+		#elseif flash9
+			return null;
+		#elseif (flash ||js)
+			return makeStack("$e");
+		#else
+			return null;
 		#end
 	}
 
@@ -100,28 +104,31 @@ class Stack {
 
 	private static function makeStack(s) {
 		#if neko
-		var a = new Array();
-		var l = untyped __dollar__asize(s);
-		var i = 0;
-		while( i < l ) {
-			var x = s[i++];
-			if( x == null )
-				a.push(CFunction);
-			else if( untyped __dollar__typeof(x) == __dollar__tstring )
-				a.push(Module(new String(x)));
-			else
-				a.push(FilePos(new String(untyped x[0]),untyped x[1]));
-		}
-		return a;
-		#else flash9
-		#else true
-		var a : Array<String> = untyped #if flash __eval__(s) #else true try __js__("eval")(s) catch( e : Dynamic ) [] #end;
-		var m = new Array();
-		for( i in 0...a.length - if(s == "$s") 2 else 0 ) {
-			var d = a[i].split("::");
-			m.unshift(Method(d[0],d[1]));
-		}
-		return m;
+			var a = new Array();
+			var l = untyped __dollar__asize(s);
+			var i = 0;
+			while( i < l ) {
+				var x = s[i++];
+				if( x == null )
+					a.push(CFunction);
+				else if( untyped __dollar__typeof(x) == __dollar__tstring )
+					a.push(Module(new String(x)));
+				else
+					a.push(FilePos(new String(untyped x[0]),untyped x[1]));
+			}
+			return a;
+		#elseif flash9
+			return null;
+		#elseif (flash || js)
+			var a : Array<String> = untyped #if flash __eval__(s) #else try __js__("eval")(s) catch( e : Dynamic ) [] #end;
+			var m = new Array();
+			for( i in 0...a.length - if(s == "$s") 2 else 0 ) {
+				var d = a[i].split("::");
+				m.unshift(Method(d[0],d[1]));
+			}
+			return m;
+		#else
+			return null;
 		#end
 	}
 

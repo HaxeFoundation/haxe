@@ -13,8 +13,8 @@ typedef ColorTransform = {
 }
 #end
 
-extern class Color
-{
+extern class Color {
+
 	function new(target : MovieClip) : Void;
 
 	function setRGB(color:Int):Void;
@@ -23,7 +23,7 @@ extern class Color
 #if flash_strict
 	function setTransform(transformObject:ColorTransform):Void;
 	function getTransform():ColorTransform;
-#else true
+#else
 	function setTransform(transformObject:Dynamic):Void;
 	function getTransform() : { ra : Float, rb : Float, ga : Float, gb : Float, ba : Float, bb : Float, aa : Float, ab : Float };
 #end

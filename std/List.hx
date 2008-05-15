@@ -49,11 +49,7 @@ class List<T> {
 		Add an element at the end of the list.
 	**/
 	public function add( item : T ) {
-		var x = #if neko
-			untyped __dollar__array(item,null)
-		#else true
-			[item,null]
-		#end;
+		var x = #if neko untyped __dollar__array(item,null) #else [item] #end;
 		if( h == null )
 			h = x;
 		else
@@ -66,11 +62,7 @@ class List<T> {
 		Push an element at the beginning of the list.
 	**/
 	public function push( item : T ) {
-		var x = #if neko
-			untyped __dollar__array(item,h)
-		#else true
-			[item,h]
-		#end;
+		var x = #if neko untyped __dollar__array(item,h) #else [item,h] #end;
 		h = x;
 		if( q == null )
 			q = x;

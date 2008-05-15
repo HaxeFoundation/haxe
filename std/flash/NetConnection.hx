@@ -1,11 +1,7 @@
 package flash;
 
-extern class NetConnection
-#if flash_strict
-#else true
-implements Dynamic
-#end
-{
+extern class NetConnection #if !flash_strict implements Dynamic #end {
+
 	var isConnected(default,null) : Bool;
 	var uri(default,null) : String;
 

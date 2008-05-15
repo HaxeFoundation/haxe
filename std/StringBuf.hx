@@ -34,57 +34,51 @@ class StringBuf {
 	**/
 	public function new() {
 		#if neko
-		b = __make();
-		#else flash
-		b = "";
-		#else js
-		b = "";
-		#else error
+			b = __make();
+		#else
+			b = "";
 		#end
 	}
 
 	/**
 		Adds the representation of any value to the string buffer.
 	**/
-	public function add( ?x : Dynamic ) {
+	public inline function add( ?x : Dynamic ) {
 		#if neko
-		__add(b,x);
-		#else true
-		b += x;
-		#else error
+			__add(b,x);
+		#else
+			b += x;
 		#end
 	}
 
 	/**
 		Adds a part of a string to the string buffer.
 	**/
-	public function addSub( s : String, pos : Int, ?len : Int ) {
+	public inline function addSub( s : String, pos : Int, ?len : Int ) {
 		#if neko
-		__add_sub(b,untyped s.__s,pos,len == null ? s.length - pos : len);
-		#else flash9
-		if( len == null )
-			b += s.substr(pos);
-		else
+			__add_sub(b,untyped s.__s,pos,len == null ? s.length - pos : len);
+		#elseif flash9
+			if( len == null )
+				b += s.substr(pos);
+			else
+				b += s.substr(pos,len);
+		#else
 			b += s.substr(pos,len);
-		#else flash
-		b += s.substr(pos,len);
-		#else js
-		b += s.substr(pos,len);
-		#else error
 		#end
 	}
 
 	/**
 		Adds a character to the string buffer.
 	**/
-	public function addChar( c : Int ) {
+	public inline function addChar( c : Int ) untyped {
 		#if neko
-		__add_char(b,c);
-		#else flash
-		b += untyped String["fromCharCode"](c);
-		#else js
-		b += untyped String.fromCharCode(c);
-		#else error
+			__add_char(b,c);
+		#elseif flash9
+			b += __global__["String.fromCharCode"](c);
+		#elseif flash
+			b += String["fromCharCode"](c);
+		#else
+			b += String.fromCharCode(c);
 		#end
 	}
 
@@ -92,18 +86,15 @@ class StringBuf {
 		Returns the content of the string buffer.
 		The buffer is not emptied by this operation.
 	**/
-	public function toString() : String {
+	public inline function toString() : String {
 		#if neko
-		return new String(__string(b));
-		#else flash
-		return b;
-		#else js
-		return b;
-		#else error
+			return new String(__string(b));
+		#else
+			return b;
 		#end
 	}
 
-	private var b : Dynamic;
+	private var b : #if neko Dynamic #else String #end;
 
 #if neko
 	static var __make : Dynamic = neko.Lib.load("std","buffer_new",0);

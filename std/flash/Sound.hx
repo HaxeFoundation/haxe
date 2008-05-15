@@ -5,9 +5,9 @@ extern class Sound
 	var duration(default,null):Float;
 	var id3(default,null):Dynamic;
 	var position(default,null):Float;
-#if flash_v9
+
+	/** FP9 only **/
 	var checkPolicyFile : Bool;
-#end
 
 	function new( ?target:Dynamic ) : Void;
 

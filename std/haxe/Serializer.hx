@@ -115,7 +115,7 @@ class Serializer {
 			#if js
 			var ci = cache[i];
 			if( untyped __js__("typeof")(ci) == vt && ci == v ) {
-			#else true
+			#else
 			if( cache[i] == v ) {
 			#end
 				buf.add("r");
@@ -185,7 +185,10 @@ class Serializer {
 			case cast Array:
 				var ucount = 0;
 				buf.add("a");
-				var l = #if neko v.length #else true v[untyped "length"] #end;
+				#if flash9
+				var v : Array<Dynamic> = v;
+				#end
+				var l = #if (neko || flash9) v.length #else v[untyped "length"] #end;
 				for( i in 0...l ) {
 					if( v[i] == null )
 						ucount++;
@@ -263,7 +266,7 @@ class Serializer {
 				cache.push(v);
 				#if flash9
 				serializeClassFields(v,c);
-				#else true
+				#else
 				serializeFields(v);
 				#end
 			}
@@ -293,22 +296,22 @@ class Serializer {
 				for( i in 0...l )
 					serialize(v.args[i]);
 			}
-			#else flash9
+			#elseif flash9
 			if( useEnumIndex ) {
 				buf.add(":");
 				buf.add(v.index);
 			} else
 				serializeString(v.tag);
 			buf.add(":");
-			if( v.params == null )
+			var pl : Array<Dynamic> = v.params;
+			if( pl == null )
 				buf.add(0);
 			else {
-				var l : Int = v.params.length;
-				buf.add(l);
-				for( i in 0...l )
-					serialize(v.params[i]);
+				buf.add(pl.length);
+				for( p in pl )
+					serialize(p);
 			}
-			#else true
+			#else
 			if( useEnumIndex ) {
 				buf.add(":");
 				buf.add(v[1]);

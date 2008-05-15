@@ -19,6 +19,13 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	f9dynamic is now dynamic and is mandatory on all platforms
 	public/private/dynamic are inherited by default when overriding a method
 	added Bytes api
+	removed Reflect.empty() : use {} instead
+	changed #else by #elseif, added #else
+	flash9 : optimized Hash,IntHash,StringBuf (use typed value)
+	Reflect.field/setField/callMethod , Type.enumIndex and StringBuf methods are now inlined
+	optimized haxe.Md5 : don't use statics
+	allow up to 8 parameters in Reflect.createInstance
+	flash9 : some minor optimizations in haxe.Serializer
 
 2008-04-05: 1.19
 	fixed flash9 Array.toString

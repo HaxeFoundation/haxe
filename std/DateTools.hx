@@ -32,7 +32,8 @@
 class DateTools {
 
 	#if neko
-	#else true
+	static var date_format = neko.Lib.load("std","date_format",2);
+	#else
 	private static function __jsflash_format_get( d : Date, e : String ) : String {
 		return switch( e ){
 			case "%":
@@ -104,10 +105,6 @@ class DateTools {
 	}
 	#end
 
-	#if neko
-		static var date_format = neko.Lib.load("std","date_format",2);
-	#end
-
 	/**
 		Format the date [d] according to the format [f]. The format
 		is compatible with the [strftime] standard format, except that there
@@ -118,11 +115,12 @@ class DateTools {
 	public static function format( d : Date, f : String ) : String {
 		#if neko
 			untyped return new String(date_format(d.__t, f.__s));
-		#else js
+		#elseif js
 			return __jsflash_format(d, f );
-		#else flash
+		#elseif flash
 			return __jsflash_format(d, f );
-		#else error
+		#else
+			return null;
 		#end
 	}
 

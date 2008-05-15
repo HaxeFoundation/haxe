@@ -122,7 +122,7 @@ class ProxyDetect {
 	static function parseOSXConfiguration(xml : Xml) : Dynamic {
 		switch( xml.nodeName ) {
 		case "dict":
-			var o = Reflect.empty();
+			var o = {};
 			var it = xml.elements();
 			for( x in it ) {
 				if( x.nodeName != "key" ) throw "Missing key";

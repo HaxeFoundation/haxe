@@ -43,9 +43,8 @@ extern class BitmapData {
 	function dispose() : Void;
 	function generateFilterRect(sourceRect : Rectangle<Int>, filter : flash.filters.BitmapFilter ) : Rectangle<Int>;
 
-#if flash_v9
+	/** FP9 only **/
 	function compare( b : BitmapData ) : BitmapData; // WTF ?
-#end
 
 }
 

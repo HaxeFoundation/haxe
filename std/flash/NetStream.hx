@@ -10,9 +10,8 @@ extern class NetStream
 	var currentFps(default,null) : Float;
 	var liveDelay(default,null) : Float;
 
-#if flash_v9
+	/** FP9 only **/
 	var checkPolicyFile : Bool;
-#end
 
 	function new( connection : NetConnection ) : Void;
 	dynamic function onMetaData( info : Dynamic ) : Void;

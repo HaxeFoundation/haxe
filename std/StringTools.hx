@@ -35,32 +35,34 @@ class StringTools {
 	/**
 		Encode an URL by using the standard format.
 	**/
-	public static function urlEncode( s : String ) : String {
+	public static function urlEncode( s : String ) : String untyped {
 		#if flash9
-		return untyped __global__["encodeURIComponent"](s);
-		#else flash
-		return untyped _global["escape"](s);
-		#else neko
-		return new String(_urlEncode(untyped s.__s));
-		#else js
-		return untyped encodeURIComponent(s);
-		#else error
+			return __global__["encodeURIComponent"](s);
+		#elseif flash
+			return _global["escape"](s);
+		#elseif neko
+			return new String(_urlEncode(s.__s));
+		#elseif js
+			return encodeURIComponent(s);
+		#else
+			return null;
 		#end
 	}
 
 	/**
 		Decode an URL using the standard format.
 	**/
-	public static function urlDecode( s : String ) : String {
+	public static function urlDecode( s : String ) : String untyped {
 		#if flash9
-		return untyped __global__["decodeURIComponent"](s.split("+").join(" "));
-		#else flash
-		return untyped _global["unescape"](s);
-		#else neko
-		return new String(_urlDecode(untyped s.__s));
-		#else js
-		return untyped decodeURIComponent(s.split("+").join(" "));
-		#else error
+			return __global__["decodeURIComponent"](s.split("+").join(" "));
+		#elseif flash
+			return _global["unescape"](s);
+		#elseif neko
+			return new String(_urlDecode(s.__s));
+		#elseif js
+			return decodeURIComponent(s.split("+").join(" "));
+		#else
+			return null;
 		#end
 	}
 
@@ -191,33 +193,33 @@ class StringTools {
 	**/
 	public static function baseEncode( s : String, base : String ) : String {
 		#if neko
-		return new String(_baseEncode(untyped s.__s,untyped base.__s));
-		#else true
-		var len = base.length;
-		var nbits = 1;
-		while( len > 1 << nbits )
-			nbits++;
-		if( nbits > 8 || len != 1 << nbits )
-			throw "baseEncode: base must be a power of two.";
-		var size = Std.int((s.length * 8 + nbits - 1) / nbits);
-		var out = new StringBuf();
-		var buf = 0;
-		var curbits = 0;
-		var mask = ((1 << nbits) - 1);
-		var pin = 0;
-		while( size-- > 0 ){
-			while( curbits < nbits ){
-				curbits += 8;
-				buf <<= 8;
-				var t = s.charCodeAt(pin++);
-				if( t > 255 )
-					throw "baseEncode: bad chars";
-				buf |= t;
+			return new String(_baseEncode(untyped s.__s,untyped base.__s));
+		#else
+			var len = base.length;
+			var nbits = 1;
+			while( len > 1 << nbits )
+				nbits++;
+			if( nbits > 8 || len != 1 << nbits )
+				throw "baseEncode: base must be a power of two.";
+			var size = Std.int((s.length * 8 + nbits - 1) / nbits);
+			var out = new StringBuf();
+			var buf = 0;
+			var curbits = 0;
+			var mask = ((1 << nbits) - 1);
+			var pin = 0;
+			while( size-- > 0 ){
+				while( curbits < nbits ){
+					curbits += 8;
+					buf <<= 8;
+					var t = s.charCodeAt(pin++);
+					if( t > 255 )
+						throw "baseEncode: bad chars";
+					buf |= t;
+				}
+				curbits -= nbits;
+				out.addChar(base.charCodeAt((buf >> curbits) & mask));
 			}
-			curbits -= nbits;
-			out.addChar(base.charCodeAt((buf >> curbits) & mask));
-		}
-		return out.toString();
+			return out.toString();
 		#end
 	}
 
@@ -226,38 +228,38 @@ class StringTools {
 	**/
 	public static function baseDecode( s : String, base : String ) : String {
 		#if neko
-		return new String(_baseDecode(untyped s.__s,untyped base.__s));
-		#else true
-		var len = base.length;
-		var nbits = 1;
-		while( len > 1 << nbits )
-			nbits++;
-		if( nbits > 8 || len != 1 << nbits )
-			throw "baseDecode: base must be a power of two.";
-		var size = (s.length * 8 + nbits - 1) / nbits;
-		var tbl = new Array();
-		for( i in 0...256 )
-			tbl[i] = -1;
-		for( i in 0...len )
-			tbl[base.charCodeAt(i)] = i;
-		var size = (s.length * nbits) / 8;
-		var out = new StringBuf();
-		var buf = 0;
-		var curbits = 0;
-		var pin = 0;
-		while( size-- > 0 ){
-			while( curbits < 8 ){
-				curbits += nbits;
-				buf <<= nbits;
-				var i = tbl[s.charCodeAt(pin++)];
-				if( i == -1 )
-					throw "baseDecode: bad chars";
-				buf |= i;
+			return new String(_baseDecode(untyped s.__s,untyped base.__s));
+		#else
+			var len = base.length;
+			var nbits = 1;
+			while( len > 1 << nbits )
+				nbits++;
+			if( nbits > 8 || len != 1 << nbits )
+				throw "baseDecode: base must be a power of two.";
+			var size = (s.length * 8 + nbits - 1) / nbits;
+			var tbl = new Array();
+			for( i in 0...256 )
+				tbl[i] = -1;
+			for( i in 0...len )
+				tbl[base.charCodeAt(i)] = i;
+			var size = (s.length * nbits) / 8;
+			var out = new StringBuf();
+			var buf = 0;
+			var curbits = 0;
+			var pin = 0;
+			while( size-- > 0 ){
+				while( curbits < 8 ){
+					curbits += nbits;
+					buf <<= nbits;
+					var i = tbl[s.charCodeAt(pin++)];
+					if( i == -1 )
+						throw "baseDecode: bad chars";
+					buf |= i;
+				}
+				curbits -= 8;
+				out.addChar((buf >> curbits) & 0xFF);
 			}
-			curbits -= 8;
-			out.addChar((buf >> curbits) & 0xFF);
-		}
-		return out.toString();
+			return out.toString();
 		#end
 	}
 
@@ -271,15 +273,15 @@ class StringTools {
 			n = -n;
 		}
 		#if (flash || js)
-		var s : String = untyped n.toString(16);
-		s = s.toUpperCase();
-		#else true
-		var s = "";
-		var hexChars = "0123456789ABCDEF";
-		do {
-			s = hexChars.charAt(n%16) + s;
-			n = Std.int(n/16);
-		} while( n > 0 );
+			var s : String = untyped n.toString(16);
+			s = s.toUpperCase();
+		#else
+			var s = "";
+			var hexChars = "0123456789ABCDEF";
+			do {
+				s = hexChars.charAt(n%16) + s;
+				n = Std.int(n/16);
+			} while( n > 0 );
 		#end
 		if( digits != null )
 			while( s.length < digits )

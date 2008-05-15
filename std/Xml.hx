@@ -223,17 +223,15 @@ extern class Xml {
 
 	static function __init__() : Void untyped {
 		#if neko
-		Xml = neko.NekoXml__;
-		neko.Boot.__classes.Xml = Xml;
-		#else js
-		Xml = js.JsXml__;
-		#else flash9
-		var ref = flash.FlashXml__;
-		#else flash
-		Xml = flash.FlashXml__;
-		#else error
+			Xml = neko.NekoXml__;
+			neko.Boot.__classes.Xml = Xml;
+		#elseif js
+			Xml = js.JsXml__;
+		#elseif flash9
+			var ref = flash.FlashXml__; // force compile
+		#elseif flash
+			Xml = flash.FlashXml__;
 		#end
-
 		#if !flash9
 		Xml.__name__ = ["Xml"];
 		#end

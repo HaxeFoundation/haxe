@@ -29,23 +29,24 @@
 **/
 class IntHash<T> {
 
+	private var h : #if flash9 flash.utils.Dictionary #else Dynamic #end;
+
 	/**
 		Creates a new empty hashtable.
 	**/
 	public function new() : Void {
 		#if flash9
 		h = new flash.utils.Dictionary();
-		#else flash
+		#elseif flash
 		h = untyped __new__(_global["Object"]);
-		#else neko
+		#elseif neko
 		h = untyped __dollar__hnew(0);
-		#else js
+		#elseif js
 		h = untyped __js__("{}");
 		untyped if( h.__proto__ != null ) {
 			h.__proto__ = null;
 			__js__("delete")(h.__proto__);
 		};
-		#else error
 		#end
 	}
 
@@ -55,11 +56,10 @@ class IntHash<T> {
 	public function set( key : Int, value : T ) : Void {
 		#if flash
 		untyped h[key] = value;
-		#else js
+		#elseif js
 		untyped h[key] = value;
-		#else neko
+		#elseif neko
 		untyped __dollar__hset(h,key,value,null);
-		#else error
 		#end
 	}
 
@@ -69,11 +69,12 @@ class IntHash<T> {
 	public function get( key : Int ) : Null<T> {
 		#if flash
 		return untyped h[key];
-		#else js
+		#elseif js
 		return untyped h[key];
-		#else neko
+		#elseif neko
 		return untyped __dollar__hget(h,key,null);
-		#else error
+		#else
+		return null;
 		#end
 	}
 
@@ -85,13 +86,14 @@ class IntHash<T> {
 	public function exists( key : Int ) : Bool {
 		#if flash9
 		return untyped h.hasOwnProperty(key);
-		#else flash
+		#elseif flash
 		return untyped h["hasOwnProperty"](key);
-		#else js
+		#elseif js
 		return untyped h[key] != null;
-		#else neko
+		#elseif neko
 		return untyped __dollar__hmem(h,key,null);
-		#else error
+		#else
+		return false;
 		#end
 	}
 
@@ -104,17 +106,18 @@ class IntHash<T> {
 		if( untyped !h.hasOwnProperty(key) ) return false;
 		untyped __delete__(h,key);
 		return true;
-		#else flash
+		#elseif flash
 		if( untyped !h["hasOwnProperty"](key) ) return false;
 		untyped __delete__(h,key);
 		return true;
-		#else js
+		#elseif js
 		if( untyped h[key] == null ) return false;
 		untyped  __js__("delete")(h[key]);
 		return true;
-		#else neko
+		#elseif neko
 		return untyped __dollar__hremove(h,key,null);
-		#else error
+		#else
+		return false;
 		#end
 	}
 
@@ -124,23 +127,24 @@ class IntHash<T> {
 	public function keys() : Iterator<Int> {
 		#if flash9
 		return untyped (__keys__(h)).iterator();
-		#else flash
+		#elseif flash
 		var l : Array<Int> = untyped __keys__(h);
 		for( x in 0...l.length )
 			l[x] = Std.int(l[x]);
 		return l.iterator();
-		#else js
+		#elseif js
 		var a = new Array();
 		untyped __js__("
 			for( x in this.h )
 				a.push(x);
 		");
 		return a.iterator();
-		#else neko
+		#elseif neko
 		var l = new List<Int>();
 		untyped __dollar__hiter(h,function(k,_) { l.push(k); });
 		return l.iterator();
-		#else error
+		#else
+		return null;
 		#end
 	}
 
@@ -155,25 +159,26 @@ class IntHash<T> {
 			hasNext : function() { return this.it.hasNext(); },
 			next : function() { var i = this.it.next(); return this.ref[i]; }
 		};
-		#else flash
+		#elseif flash
 		return untyped {
 			ref : h,
 			it : keys(),
 			hasNext : function() { return this.it[__unprotect__("hasNext")](); },
 			next : function() { var i = this.it[__unprotect__("next")](); return this.ref[i]; }
 		};
-		#else js
+		#elseif js
 		return untyped {
 			ref : h,
 			it : keys(),
 			hasNext : function() { return this.it.hasNext(); },
 			next : function() { var i = this.it.next(); return this.ref[i]; }
 		};
-		#else neko
+		#elseif neko
 		var l = new List<T>();
 		untyped __dollar__hiter(h,function(_,v) { l.push(v); });
 		return l.iterator();
-		#else error
+		#else
+		return null;
 		#end
 	}
 
@@ -195,7 +200,5 @@ class IntHash<T> {
 		s.add("}");
 		return s.toString();
 	}
-
-	private var h : Dynamic;
 
 }

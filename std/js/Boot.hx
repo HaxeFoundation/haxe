@@ -36,7 +36,7 @@ class Boot {
 			#if jsfl
 			msg += __string_rec(v,"");
 			fl.trace(msg);
-			#else true
+			#else
 			msg += __unhtml(__string_rec(v,""))+"<br/>";
 			var d = document.getElementById("haxe:trace");
 			if( d == null )
@@ -51,7 +51,7 @@ class Boot {
 		untyped {
 			#if jsfl
 			fl.outputPanel.clear();
-			#else true
+			#else
 			var d = document.getElementById("haxe:trace");
 			if( d != null )
 				d.innerHTML = "";

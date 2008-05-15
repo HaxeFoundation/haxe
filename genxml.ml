@@ -172,12 +172,12 @@ let rec write_xml ch tabs x =
 	| CData s ->
 		IO.printf ch "<![CDATA[%s]]>" s
 
-let generate com ctx =
+let generate com ctx file =
 	let t = Common.timer "construct xml" in
 	let x = node "haxe" [] (List.map (gen_type_decl ctx) com.types) in
 	t();
 	let t = Common.timer "write xml" in
-	let ch = IO.output_channel (open_out_bin com.file) in
+	let ch = IO.output_channel (open_out_bin file) in
 	write_xml ch "" x;
 	IO.close_out ch;
 	t()

@@ -1,11 +1,7 @@
 package flash;
 
-extern class LocalConnection
-#if flash_strict
-#else true
-implements Dynamic
-#end
-{
+extern class LocalConnection #if !flash_strict implements Dynamic #end {
+
 	function new() : Void;
 
 	function connect(connectionName:String):Bool;

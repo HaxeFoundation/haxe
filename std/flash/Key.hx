@@ -42,7 +42,7 @@ extern class Key
 #if flash_strict
 	static function addListener(listener:KeyListener):Void;
 	static function removeListener(listener:KeyListener):Bool;
-#else true
+#else
 	static function addListener(listener:Dynamic):Void;
 	static function removeListener(listener:Dynamic):Bool;
 #end

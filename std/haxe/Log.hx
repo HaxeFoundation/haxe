@@ -29,22 +29,18 @@ class Log {
 	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
 		#if flash
 		untyped flash.Boot.__trace(v,infos);
-		#else neko
+		#elseif neko
 		untyped __dollar__print(infos.fileName+":"+infos.lineNumber+": ",v,"\n");
-		#else js
+		#elseif js
 		untyped js.Boot.__trace(v,infos);
-		#else error
 		#end
 	}
 
 	public static dynamic function clear() : Void {
 		#if flash
 		untyped flash.Boot.__clear_trace();
-		#else js
+		#elseif js
 		untyped js.Boot.__clear_trace();
-		#else neko
-		// nothing
-		#else error
 		#end
 	}
 

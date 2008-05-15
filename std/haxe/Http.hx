@@ -47,7 +47,7 @@ class Http {
 	var chunk_size : Int;
 	var chunk_buf : String;
 	var file : { param : String, filename : String, io : neko.io.Input, size : Int };
-#else js
+#elseif js
 	var async : Bool;
 	var postData : String;
 #end
@@ -64,7 +64,7 @@ class Http {
 		params = new Hash();
 		#if js
 		async = true;
-		#else neko
+		#elseif neko
 		cnxTimeout = 10;
 		#end
 	}
@@ -140,7 +140,7 @@ class Http {
 		r.send(uri);
 		if( !async )
 			onreadystatechange();
-	#else flash9
+	#elseif flash9
 		var loader = new flash.net.URLLoader();
 		loader.addEventListener( "complete", function(e){
 			me.onData( loader.data );
@@ -188,7 +188,7 @@ class Http {
 		}catch( e : Dynamic ){
 			onError("Exception: "+Std.string(e));
 		}
-	#else flash
+	#elseif flash
 		var r = new flash.LoadVars();
 		// on Firefox 1.5, onData is not called if host/port invalid (!)
 		r.onData = function(data) {
@@ -224,7 +224,7 @@ class Http {
 		}
 		if( !r.sendAndLoad(small_url,r,if( param ) { if( post ) "POST" else "GET"; } else null) )
 			onError("Failed to initialize Connection");
-	#else neko
+	#elseif neko
 		var me = this;
 		var output = new neko.io.StringOutput();
 		var old = onError;
@@ -578,8 +578,7 @@ class Http {
 	public dynamic function onStatus( status : Int ) {
 	}
 
-#if flash
-#else true
+#if !flash
 	public static function request( url : String ) : String {
 		var h = new Http(url);
 	#if js

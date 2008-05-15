@@ -35,11 +35,11 @@ class Std {
 		return untyped
 		#if flash
 		flash.Boot.__instanceof(v,t);
-		#else neko
+		#elseif neko
 		neko.Boot.__instanceof(v,t);
-		#else js
+		#elseif js
 		js.Boot.__instanceof(v,t);
-		#else true
+		#else
 		false;
 		#end
 	}
@@ -51,11 +51,11 @@ class Std {
 		return untyped
 		#if flash
 		flash.Boot.__string_rec(s,"");
-		#else neko
+		#elseif neko
 		new String(__dollar__string(s));
-		#else js
+		#elseif js
 		js.Boot.__string_rec(s,"");
-		#else true
+		#else
 		"";
 		#end
 	}
@@ -66,7 +66,7 @@ class Std {
 	public #if flash9 inline #end static function int( x : Float ) : Int {
 		#if flash9
 		return untyped __int__(x);
-		#else true
+		#else
 		if( x < 0 ) return Math.ceil(x);
 		return Math.floor(x);
 		#end
@@ -89,12 +89,12 @@ class Std {
 		if( __global__["isNaN"](v) )
 			return null;
 		return v;
-		#else flash
+		#elseif flash
 		var v = _global["parseInt"](x);
 		if( Math.isNaN(v) )
 			return null;
 		return v;
-		#else neko
+		#elseif neko
 		var t = __dollar__typeof(x);
 		if( t == __dollar__tint )
 			return x;
@@ -103,12 +103,12 @@ class Std {
 		if( t != __dollar__tobject )
 			return null;
 		return __dollar__int(x.__s);
-		#else js
+		#elseif js
 		var v = __js__("parseInt")(x);
 		if( Math.isNaN(v) )
 			return null;
 		return v;
-		#else true
+		#else
 		return 0;
 		#end
 		}
@@ -121,13 +121,13 @@ class Std {
 		return untyped
 		#if flash9
 		__global__["parseFloat"](x);
-		#else flash
+		#elseif flash
 		_global["parseFloat"](x);
-		#else neko
+		#elseif neko
 		__dollar__float(x.__s);
-		#else js
+		#elseif js
 		__js__("parseFloat")(x);
-		#else true
+		#else
 		0;
 		#end
 	}
@@ -148,7 +148,7 @@ class Std {
 			return null;
 		else
 			return x.charCodeAt(0);
-		#else neko
+		#elseif neko
 		untyped {
 			var s = __dollar__ssize(x.__s);
 			if( s == 0 )
@@ -156,12 +156,12 @@ class Std {
 			else
 				return __dollar__sget(x.__s,0);
 		}
-		#else js
+		#elseif js
 		if( x == "" )
 			return null;
 		else
 			return x.charCodeAt(0);
-		#else true
+		#else
 		return null;
 		#end
 	}
@@ -173,13 +173,13 @@ class Std {
 		return untyped
 		#if flash9
 		Math.floor(Math.random()*x);
-		#else flash
+		#elseif flash
 		__random__(x);
-		#else neko
+		#elseif neko
 		Math._rand_int(Math.__rnd,x);
-		#else js
+		#elseif js
 		Math.floor(Math.random()*x);
-		#else true
+		#else
 		0;
 		#end
 	}
@@ -191,15 +191,15 @@ class Std {
 		return untyped
 		#if as3gen
 		throw "Not supported in AS3";
-		#else flash9
+		#elseif flash9
 		flash.Boot.__res[name];
-		#else flash
+		#elseif flash
 		flash.Boot.__res[name];
-		#else neko
+		#elseif neko
 		__dollar__objget(neko.Boot.__res,__dollar__hash(name.__s));
-		#else js
+		#elseif js
 		js.Boot.__res[name];
-		#else true
+		#else
 		null;
 		#end
 	}

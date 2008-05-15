@@ -29,21 +29,18 @@ package haxe;
 **/
 class Md5 {
 
-	public static function encode( s : String ) : String{
+	public static function encode( s : String ) : String {
 		#if neko
-			untyped return new String(base_encode(make_md5(s.__s),"0123456789abcdef".__s));
-		#else flash
-			return __jsflash_encode(s);
-		#else js
-			return __jsflash_encode(s);
-		#else error
+			return untyped new String(base_encode(make_md5(s.__s),"0123456789abcdef".__s));
+		#else
+			return inst.doEncode(s);
 		#end
 	}
 
 	#if neko
 	static var base_encode = neko.Lib.load("std","base_encode",2);
 	static var make_md5 = neko.Lib.load("std","make_md5",1);
-	#else true
+	#else
 
 /*
  * A JavaScript implementation of the RSA Data Security, Inc. MD5 Message
@@ -53,31 +50,36 @@ class Md5 {
  * See http://pajhome.org.uk/site/legal.html for details.
  */
 
-	private static function bitOR(a, b){
+	static var inst = new Md5();
+
+	function new() {
+	}
+
+	function bitOR(a, b){
 		var lsb = (a & 0x1) | (b & 0x1);
 		var msb31 = (a >>> 1) | (b >>> 1);
 		return (msb31 << 1) | lsb;
 	}
 
-	private static function bitXOR(a, b){
+	function bitXOR(a, b){
 		var lsb = (a & 0x1) ^ (b & 0x1);
 		var msb31 = (a >>> 1) ^ (b >>> 1);
 		return (msb31 << 1) | lsb;
 	}
 
-	private static function bitAND(a, b){
+	function bitAND(a, b){
 		var lsb = (a & 0x1) & (b & 0x1);
 		var msb31 = (a >>> 1) & (b >>> 1);
 		return (msb31 << 1) | lsb;
 	}
 
-	private static function addme(x, y) {
+	function addme(x, y) {
 		var lsw = (x & 0xFFFF)+(y & 0xFFFF);
 		var msw = (x >> 16)+(y >> 16)+(lsw >> 16);
 		return (msw << 16) | (lsw & 0xFFFF);
 	}
 
-	private static function rhex( num ){
+	function rhex( num ){
 		var str = "";
 		var hex_chr = "0123456789abcdef";
 		for( j in 0...4 ){
@@ -87,7 +89,7 @@ class Md5 {
 		return str;
 	}
 
-	private static function str2blks( str : String ){
+	function str2blks( str : String ){
 		var nblk = ((str.length + 8) >> 6) + 1;
 		var blks = new Array();
 		for( i in 0...(nblk * 16) ) blks[i] = 0;
@@ -107,31 +109,31 @@ class Md5 {
 		return blks;
 	}
 
-	private static function rol(num, cnt){
+	function rol(num, cnt){
 		return (num << cnt) | (num >>> (32 - cnt));
 	}
 
-	private static function cmn(q, a, b, x, s, t){
+	function cmn(q, a, b, x, s, t){
 		return addme(rol((addme(addme(a, q), addme(x, t))), s), b);
 	}
 
-	private static function ff(a, b, c, d, x, s, t){
+	function ff(a, b, c, d, x, s, t){
 		return cmn(bitOR(bitAND(b, c), bitAND((~b), d)), a, b, x, s, t);
 	}
 
-	private static function gg(a, b, c, d, x, s, t){
+	function gg(a, b, c, d, x, s, t){
 		return cmn(bitOR(bitAND(b, d), bitAND(c, (~d))), a, b, x, s, t);
 	}
 
-	private static function hh(a, b, c, d, x, s, t){
+	function hh(a, b, c, d, x, s, t){
 		return cmn(bitXOR(bitXOR(b, c), d), a, b, x, s, t);
 	}
 
-	private static function ii(a, b, c, d, x, s, t){
+	function ii(a, b, c, d, x, s, t){
 		return cmn(bitXOR(c, bitOR(b, (~d))), a, b, x, s, t);
 	}
 
-	private static function __jsflash_encode(str:String):String{
+	function doEncode( str:String ) : String {
 
 		var x = str2blks(str);
 		var a =  1732584193;

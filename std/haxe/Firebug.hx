@@ -33,11 +33,11 @@ class Firebug {
 		} catch( e : Dynamic ) {
 			return false;
 		}
-		#else flash
+		#elseif flash
 		if( !flash.external.ExternalInterface.available )
 			return false;
 		return flash.external.ExternalInterface.call("console.error.toString") != null;
-		#else neko
+		#else
 		return true;
 		#end
 	}
@@ -45,9 +45,9 @@ class Firebug {
 	public static function redirectTraces() {
 		haxe.Log.trace = trace;
 		#if flash9
-		#else flash
+		#elseif flash
 		flash.Lib.setErrorHandler(onError);
-		#else js
+		#elseif js
 		js.Lib.setErrorHandler(onError);
 		#end
 	}
@@ -70,25 +70,24 @@ class Firebug {
 			var str = if( inf == null ) "" else inf.fileName + ":" + inf.lineNumber + " : ";
 			try	str += Std.string(v) catch( e : Dynamic ) str += "????";
 			#if flash9
-			// in Flash9, it is needed to use _self with getURL and
-			// only the latest call per frame is processed, so it's
-			// needed to use ExternalInterface (URLLoader displays
-			// security errors for remote files)
-			str = str.split("\\").join("\\\\");
-			flash.external.ExternalInterface.call("console."+type,str);
-			#else true
-			str = str.split("\\").join("\\\\").split("'").join("\\'").split("\n").join("\\n").split("\r").join("\\r");
-			str = StringTools.urlEncode(str);
-			var out = "javascript:console."+ type +"('"+str+"');";
-			flash.Lib.getURL(out);
+				// in Flash9, it is needed to use _self with getURL and
+				// only the latest call per frame is processed, so it's
+				// needed to use ExternalInterface (URLLoader displays
+				// security errors for remote files)
+				str = str.split("\\").join("\\\\");
+				flash.external.ExternalInterface.call("console."+type,str);
+			#else
+				str = str.split("\\").join("\\\\").split("'").join("\\'").split("\n").join("\\n").split("\r").join("\\r");
+				str = StringTools.urlEncode(str);
+				var out = "javascript:console."+ type +"('"+str+"');";
+				flash.Lib.getURL(out);
 			#end // flash9
-		#else js
+		#elseif js
 			untyped console[type]( (if( inf == null ) "" else inf.fileName+":"+inf.lineNumber+" : ") + Std.string(v) );
-		#else neko
+		#elseif neko
 			var str = inf.fileName + ":" + inf.lineNumber + " : ";
 			try str += Std.string(v) catch( e : Dynamic ) str += "???";
 			neko.Lib.print('<script type="text/javascript">console.'+type+'(decodeURIComponent("'+StringTools.urlEncode(str)+'"))</script>');
-		#else error
 		#end
 	}
 

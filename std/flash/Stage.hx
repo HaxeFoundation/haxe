@@ -10,7 +10,6 @@ extern class Stage
 	static function addListener(listener:Dynamic):Void;
 	static function removeListener(listener:Dynamic):Void;
 
-#if flash_v9
 	/**
 		Set to "fullScreen" in order to set Flash to fullscreen
 		(can only be done in Mouse/Keyboard event listener).
@@ -19,7 +18,6 @@ extern class Stage
 	static var displayState : String;
 	static var fullScreenSourceRect : flash.geom.Rectangle<Int>;
 	static dynamic function onFullScreen( full : Bool ) : Void;
-#end
 
 	private static function __init__() : Void untyped {
 		flash.Stage = _global["Stage"];

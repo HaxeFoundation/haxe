@@ -58,12 +58,12 @@ extern class Math
 	private static function __init__() : Void untyped {
 	#if neko
 		Math = neko.NekoMath__;
-	#else true
+	#else
 		#if flash9
 		NaN = __global__["Number"].NaN;
 		NEGATIVE_INFINITY = __global__["Number"].NEGATIVE_INFINITY;
 		POSITIVE_INFINITY = __global__["Number"].POSITIVE_INFINITY;
-		#else true
+		#else
 		Math.NaN = Number["NaN"];
 		Math.NEGATIVE_INFINITY = Number["NEGATIVE_INFINITY"];
 		Math.POSITIVE_INFINITY = Number["POSITIVE_INFINITY"];
@@ -72,11 +72,11 @@ extern class Math
 			return
 			#if flash9
 			__global__["isFinite"](i);
-			#else flash
+			#elseif flash
 			_global["isFinite"](i);
-			#else js
+			#elseif js
 			__js__("isFinite")(i);
-			#else true
+			#else
 			false;
 			#end
 		};
@@ -84,11 +84,11 @@ extern class Math
 			return
 			#if flash9
 			__global__["isNaN"](i);
-			#else flash
+			#elseif flash
 			_global["isNaN"](i);
-			#else js
+			#elseif js
 			__js__("isNaN")(i);
-			#else true
+			#else
 			false;
 			#end
 		};

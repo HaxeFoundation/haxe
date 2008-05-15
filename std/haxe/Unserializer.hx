@@ -184,7 +184,7 @@ class Unserializer {
  			}
  			return a;
  		case 111: // o
-	 		var o = Reflect.empty();
+	 		var o = {};
 	 		cache.push(o);
 			unserializeObject(o);
 			return o;
@@ -264,7 +264,7 @@ class Unserializer {
 			var s = neko.Utf8.sub(buf,pos-upos,len);
 			pos += s.length;
 			upos += s.length - len;
-			#else true
+			#else
  			var s = buf.substr(pos,len);
  			pos += len;
  			#end

@@ -8,8 +8,7 @@ private extern class MCBounds {
 }
 
 extern class MovieClip
-#if flash_strict
-#else true
+#if !flash_strict
 implements Dynamic
 #end
 {
@@ -55,7 +54,7 @@ implements Dynamic
 
 	#if flash_strict
 	function swapDepths( depth : Int ) : Void;
-	#else true
+	#else
 	function swapDepths(mc : Dynamic) : Void;
 	#end
 	// function swapDepths( mc : String ) : Void;
@@ -164,9 +163,10 @@ implements Dynamic
 
 #end
 
-#if flash_v9
+
+	/** FP9 only **/
 	var forceSmoothing : Bool;
-#end
+
 
 // MT extension
 #if flash_strict
