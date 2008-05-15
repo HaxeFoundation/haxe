@@ -224,7 +224,7 @@ let generate com swf_header swf_lib =
 			let tagshow = tag TShowFrame in
 			(header,build_swf [tagbg] @ [tagshow])
 		| Some file ->
-			let file = (try Common.find_file com com.file with Not_found -> failwith ("File not found : " ^ file)) in
+			let file = (try Common.find_file com file with Not_found -> failwith ("File not found : " ^ file)) in
 			let ch = IO.input_channel (open_in_bin file) in
 			let h, swf = (try Swf.parse ch with _ -> failwith ("The input swf " ^ file ^ " is corrupted")) in
 			let header , tagbg = (match swf_header with
