@@ -3,7 +3,7 @@
 class TestBytes extends Test {
 
 	function test() {
-		var b = Bytes.alloc(10);
+		var b = haxe.io.Bytes.alloc(10);
 		eq(b.length,10);
 		// get-set
 		for( i in 0...10 )
@@ -16,13 +16,13 @@ class TestBytes extends Test {
 		unspec(function() b.set(11,20));
 		unspec(function() b.set(0,1000));
 		// ofString
-		var b2 = Bytes.ofString("ABCD");
+		var b2 = haxe.io.Bytes.ofString("ABCD");
 		eq(b2.length,4);
 		eq(b2.get(0),"A".charCodeAt(0));
 		eq(b2.get(1),"B".charCodeAt(0));
 		eq(b2.get(2),"C".charCodeAt(0));
 		eq(b2.get(3),"D".charCodeAt(0));
-		var b3 = Bytes.ofString("é");
+		var b3 = haxe.io.Bytes.ofString("é");
 		eq(b3.length,2);
 		eq(b3.get(0),0xC3);
 		eq(b3.get(1),0xA9);
@@ -56,7 +56,7 @@ class TestBytes extends Test {
 		eq(b.get(6),"D".charCodeAt(0));
 		eq(b.get(7),0);
 		// readString
-		var bs = Bytes.ofString("One é accent");
+		var bs = haxe.io.Bytes.ofString("One é accent");
 		bs.set(3,0); // cut betwen "One" and "é"
 		eq(bs.readString(0,3),"One");
 		eq(bs.readString(4,bs.length-4),"é accent");
@@ -82,13 +82,25 @@ class TestBytes extends Test {
 		];
 		for( s1 in strings )
 			for( s2 in strings ) {
-				var c = Bytes.ofString(s1).compare(Bytes.ofString(s2));
+				var c = haxe.io.Bytes.ofString(s1).compare(haxe.io.Bytes.ofString(s2));
 				infos("compare "+s1+" and "+s2);
 				eq( c < 0, s1 < s2 );
 				eq( c > 0, s1 > s2 );
 				eq( c == 0, s1 == s2 );
 			}
 		infos(null);
+	}
+
+	function testBuffer() {
+		var out = new haxe.io.BytesBuffer();
+		for( i in 1...6 )
+			out.add(i);
+		out.addBytes( haxe.io.Bytes.ofString("ABCDEF"),1,3 );
+		var b = out.getBytes();
+		var str = "\x01\x02\x03\x04\x05BCD";
+		eq( b.length, str.length );
+		for( i in 0...str.length )
+			eq( b.get(i), str.charCodeAt(i) );
 	}
 
 }

@@ -22,15 +22,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
+package haxe.io;
 
 class Bytes {
 
 	public var length(default,null) : Int;
 	#if neko
 	var b : Void; // neko-string
-	#else flash9
+	#elseif flash9
 	var b : flash.utils.ByteArray;
-	#else true
+	#else
 	var b : Array<Int>;
 	#end
 
@@ -42,9 +43,9 @@ class Bytes {
 	public inline function get( pos : Int ) : Int {
 		#if neko
 		return untyped __dollar__sget(b,pos);
-		#else flash9
+		#elseif flash9
 		return b[pos];
-		#else true
+		#else
 		return b[pos];
 		#end
 	}
@@ -52,9 +53,9 @@ class Bytes {
 	public inline function set( pos : Int, v : Int ) : Void {
 		#if neko
 		untyped __dollar__sset(b,pos,v);
-		#else flash9
+		#elseif flash9
 		b[pos] = v;
-		#else true
+		#else
 		b[pos] = v;
 		#end
 	}
@@ -65,10 +66,10 @@ class Bytes {
 		#end
 		#if neko
 		try untyped __dollar__sblit(b,pos,src.b,srcpos,len) catch( e : Dynamic ) throw "Outside bounds";
-		#else flash9
+		#elseif flash9
 		b.position = pos;
 		b.writeBytes(src.b,srcpos,len);
-		#else true
+		#else
 		var b1 = b;
 		var b2 = src.b;
 		if( b1 == b2 && pos > srcpos ) {
@@ -87,7 +88,7 @@ class Bytes {
 	public function compare( other : Bytes ) : Int {
 		#if neko
 		return untyped __dollar__compare(b,other.b);
-		#else flash9
+		#elseif flash9
 		var len = (length < other.length) ? length : other.length;
 		var b1 = b;
 		var b2 = other.b;
@@ -103,7 +104,7 @@ class Bytes {
 			if( b1.readUnsignedByte() != b2.readUnsignedByte() )
 				return b1[b1.position-1] - b2[b2.position-1];
 		return length - other.length;
-		#else true
+		#else
 		var b1 = b;
 		var b2 = other.b;
 		var len = (length < other.length) ? length : other.length;
@@ -120,10 +121,10 @@ class Bytes {
 		#end
 		#if neko
 		return try new String(untyped __dollar__ssub(b,pos,len)) catch( e : Dynamic ) throw "Outside bounds";
-		#else flash9
+		#elseif flash9
 		b.position = pos;
 		return b.readUTFBytes(len);
-		#else true
+		#else
 		var s = "";
 		var b = b;
 		var fcc = String.fromCharCode;
@@ -152,10 +153,10 @@ class Bytes {
 	public function toString() : String {
 		#if neko
 		return new String(untyped __dollar__ssub(b,0,length));
-		#else flash9
+		#elseif flash9
 		b.position = 0;
 		return b.readUTFBytes(length);
-		#else true
+		#else
 		return readString(0,length);
 		#end
 	}
@@ -163,11 +164,11 @@ class Bytes {
 	public static function alloc( length : Int ) : Bytes {
 		#if neko
 		return new Bytes(length,untyped __dollar__smake(length));
-		#else flash9
+		#elseif flash9
 		var b = new flash.utils.ByteArray();
 		b.length = length;
 		return new Bytes(length,b);
-		#else true
+		#else
 		var a = new Array();
 		for( i in 0...length )
 			a.push(0);
@@ -178,11 +179,11 @@ class Bytes {
 	public static function ofString( s : String ) : Bytes {
 		#if neko
 		return new Bytes(s.length,untyped __dollar__ssub(s.__s,0,s.length));
-		#else flash9
+		#elseif flash9
 		var b = new flash.utils.ByteArray();
 		b.writeUTFBytes(s);
 		return new Bytes(b.length,b);
-		#else true
+		#else
 		var a = new Array();
 		// utf8-decode
 		for( i in 0...s.length ) {

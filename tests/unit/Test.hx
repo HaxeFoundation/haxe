@@ -6,10 +6,12 @@ class Test {
 	}
 
 	function eq<T>( v : T, v2 : T, ?pos : haxe.PosInfos ) {
+		count++;
 		if( v != v2 ) report(v+" != "+v2,pos);
 	}
 
 	function exc( f : Void -> Void, ?pos : haxe.PosInfos ) {
+		count++;
 		try {
 			f();
 			report("No exception occured",pos);
@@ -18,6 +20,7 @@ class Test {
 	}
 
 	function unspec( f : Void -> Void, ?pos : haxe.PosInfos ) {
+		count++;
 		try {
 			f();
 		} catch( e : Dynamic ) {
@@ -25,6 +28,7 @@ class Test {
 	}
 
 	function allow<T>( v : T, values : Array<T>, ?pos : haxe.PosInfos ) {
+		count++;
 		for( v2 in values )
 			if( v == v2 )
 				return;
@@ -35,6 +39,7 @@ class Test {
 		reportInfos = m;
 	}
 
+	static var count = 0;
 	static var reportInfos = null;
 	static var reportCount = 0;
 
@@ -54,6 +59,7 @@ class Test {
 		#end
 		var classes = [
 			new TestBytes(),
+			new TestIO(),
 		];
 		var current = null;
 		try {
@@ -63,7 +69,7 @@ class Test {
 					if( f.substr(0,4) == "test" )
 						Reflect.callMethod(inst,Reflect.field(inst,f),[]);
 			}
-			report("DONE",here);
+			report("DONE ["+count+" tests]",here);
 		} catch( e : Dynamic ) {
 			reportInfos = null;
 			var msg = "???";

@@ -60,11 +60,21 @@ import haxe.Template;
 import haxe.Timer;
 import haxe.Unserializer;
 
-import haxe.remoting.AsyncAdapter;
+import haxe.io.Bytes;
+import haxe.io.BytesBuffer;
+import haxe.io.Input;
+import haxe.io.Output;
+import haxe.io.Eof;
+import haxe.io.Error;
+import haxe.io.BytesInput;
+import haxe.io.BytesOutput;
+
+import haxe.remoting.Connection;
 import haxe.remoting.AsyncConnection;
+/*
+import haxe.remoting.AsyncAdapter;
 import haxe.remoting.AsyncDebugConnection;
 import haxe.remoting.AsyncProxy;
-import haxe.remoting.Connection;
 import haxe.remoting.DelayedConnection;
 #if !neko
 import haxe.remoting.FlashJsConnection;
@@ -81,6 +91,7 @@ import haxe.remoting.SocketProtocol;
 #if flash
 import haxe.remoting.SocketWrapper;
 #end
+*/
 
 import haxe.rtti.Infos;
 import haxe.rtti.Type;
@@ -281,7 +292,7 @@ import flash.sampler.NewObjectSample;
 import flash.sampler.Sample;
 import flash.sampler.StackFrame;
 
-#else flash
+#elseif flash
 
 import flash.Boot;
 import flash.Lib;
@@ -292,7 +303,9 @@ import flash.Camera;
 import flash.Color;
 import flash.ContextMenu;
 import flash.ContextMenuItem;
+#if flash_lite
 import flash.ExtendedKey;
+#end
 import flash.Key;
 import flash.LoadVars;
 import flash.LocalConnection;
@@ -392,12 +405,12 @@ import neko.db.Transaction;
 import neko.net.Host;
 import neko.net.Poll;
 import neko.net.ProxyDetect;
-import neko.net.RemotingServer;
+//import neko.net.RemotingServer;
 import neko.net.ServerLoop;
 import neko.net.Socket;
 import neko.net.SocketInput;
 import neko.net.SocketOutput;
-import neko.net.ThreadRemotingServer;
+//import neko.net.ThreadRemotingServer;
 import neko.net.ThreadServer;
 
 import neko.vm.Loader;
@@ -418,7 +431,7 @@ import js.Dom;
 import js.Selection;
 import js.SWFObject;
 import js.XMLHttpRequest;
-import js.XMLSocket;
+//import js.XMLSocket;
 
 #end
 
@@ -426,9 +439,9 @@ import js.XMLSocket;
 
 #if neko
 
-import tools.haxedoc.Main;
-import tools.haxelib.Main;
-import tools.haxelib.Site;
+//import tools.haxedoc.Main;
+//import tools.haxelib.Main;
+//import tools.haxelib.Site;
 //import tools.hxinst.Main -> needs xCross
 
 #end
