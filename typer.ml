@@ -2615,8 +2615,23 @@ let init_class ctx c p herits fields =
 		| Some (c,_) -> extends_public c
 	in
 	let extends_public = extends_public c in
-	let is_public access =
-		if c.cl_extern || c.cl_interface || extends_public then not (List.mem APrivate access) else List.mem APublic access
+	let is_public access parent =
+		if List.mem APrivate access then
+			false
+		else if List.mem APublic access then
+			true
+		else match parent with
+			| Some { cf_public = p } -> p
+			| _ -> c.cl_extern || c.cl_interface || extends_public
+	in
+	let rec get_parent c name = 
+		match c.cl_super with
+		| None -> None
+		| Some (csup,_) ->
+			try
+				Some (PMap.find name csup.cl_fields)
+			with
+				Not_found -> get_parent csup name
 	in
 	let type_opt ?opt ctx p t =
 		match t with
@@ -2657,7 +2672,7 @@ let init_class ctx c p herits fields =
 				cf_get = if inline then InlineAccess else NormalAccess;
 				cf_set = if inline then NeverAccess else NormalAccess;
 				cf_expr = None;
-				cf_public = is_public access;
+				cf_public = is_public access None;
 				cf_params = [];
 			} in
 			let delay = (match e with
@@ -2683,11 +2698,13 @@ let init_class ctx c p herits fields =
 			) params in
 			let stat = List.mem AStatic access in
 			let inline = List.mem AInline access in
+			let parent = (if not stat then get_parent c name else None) in
+			let dynamic = List.mem ADynamic access || (match parent with Some { cf_set = NormalAccess } -> true | _ -> false) in
 			let ctx = { ctx with
 				curclass = c;
 				curmethod = name;
 				tthis = tthis;
-				type_params = if stat then params  else params @ ctx.type_params;
+				type_params = if stat then params else params @ ctx.type_params;
 			} in
 			let ret = type_opt ctx p f.f_type in
 			let args = List.map (fun (name,opt,t) -> name , opt, type_opt ~opt ctx p t) f.f_args in
@@ -2704,9 +2721,9 @@ let init_class ctx c p herits fields =
 				cf_doc = doc;
 				cf_type = t;
 				cf_get = if inline then InlineAccess else NormalAccess;
-				cf_set = (if not (List.mem ADynamic access) then MethodCantAccess else if inline then NeverAccess else NormalAccess);
+				cf_set = (if inline then NeverAccess else if dynamic then NormalAccess else MethodCantAccess);
 				cf_expr = None;
-				cf_public = is_public access;
+				cf_public = is_public access parent;
 				cf_params = params;
 			} in
 			let r = exc_protect (fun r ->
@@ -2772,7 +2789,7 @@ let init_class ctx c p herits fields =
 				cf_set = set;
 				cf_expr = None;
 				cf_type = ret;
-				cf_public = is_public access;
+				cf_public = is_public access None;
 				cf_params = [];
 			} in
 			access, false, cf, (fun() -> (!check_get)(); (!check_set)())

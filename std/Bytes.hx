@@ -1,0 +1,210 @@
+/*
+ * Copyright (c) 2005-2008, The haXe Project Contributors
+ * All rights reserved.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *   - Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   - Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE HAXE PROJECT CONTRIBUTORS "AS IS" AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE HAXE PROJECT CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+ * DAMAGE.
+ */
+
+class Bytes {
+
+	public var length(default,null) : Int;
+	#if neko
+	var b : Void; // neko-string
+	#else flash9
+	var b : flash.utils.ByteArray;
+	#else true
+	var b : Array<Int>;
+	#end
+
+	function new(length,b) {
+		this.length = length;
+		this.b = b;
+	}
+
+	public inline function get( pos : Int ) : Int {
+		#if neko
+		return untyped __dollar__sget(b,pos);
+		#else flash9
+		return b[pos];
+		#else true
+		return b[pos];
+		#end
+	}
+
+	public inline function set( pos : Int, v : Int ) : Void {
+		#if neko
+		untyped __dollar__sset(b,pos,v);
+		#else flash9
+		b[pos] = v;
+		#else true
+		b[pos] = v;
+		#end
+	}
+
+	public function blit( pos : Int, src : Bytes, srcpos : Int, len : Int ) : Void {
+		#if !neko
+		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > length || srcpos + len > src.length ) throw "Outside bounds";
+		#end
+		#if neko
+		try untyped __dollar__sblit(b,pos,src.b,srcpos,len) catch( e : Dynamic ) throw "Outside bounds";
+		#else flash9
+		b.position = pos;
+		b.writeBytes(src.b,srcpos,len);
+		#else true
+		var b1 = b;
+		var b2 = src.b;
+		if( b1 == b2 && pos > srcpos ) {
+			var i = len;
+			while( i > 0 ) {
+				i--;
+				b1[i + pos] = b2[i + srcpos];
+			}
+			return;
+		}
+		for( i in 0...len )
+			b1[i+pos] = b2[i+srcpos];
+		#end
+	}
+
+	public function compare( other : Bytes ) : Int {
+		#if neko
+		return untyped __dollar__compare(b,other.b);
+		#else flash9
+		var len = (length < other.length) ? length : other.length;
+		var b1 = b;
+		var b2 = other.b;
+		b1.position = 0;
+		b2.position = 0;
+		for( i in 0...len>>2 )
+			if( b1.readUnsignedInt() != b2.readUnsignedInt() ) {
+				b1.position -= 4;
+				b2.position -= 4;
+				return b1.readUnsignedInt() - b2.readUnsignedInt();
+			}
+		for( i in 0...len & 3 )
+			if( b1.readUnsignedByte() != b2.readUnsignedByte() )
+				return b1[b1.position-1] - b2[b2.position-1];
+		return length - other.length;
+		#else true
+		var b1 = b;
+		var b2 = other.b;
+		var len = (length < other.length) ? length : other.length;
+		for( i in 0...len )
+			if( b1[i] != b2[i] )
+				return b1[i] - b2[i];
+		return length - other.length;
+		#end
+	}
+
+	public function readString( pos : Int, len : Int ) : String {
+		#if !neko
+		if( pos < 0 || len < 0 || pos + len > length ) throw "Outside bounds";
+		#end
+		#if neko
+		return try new String(untyped __dollar__ssub(b,pos,len)) catch( e : Dynamic ) throw "Outside bounds";
+		#else flash9
+		b.position = pos;
+		return b.readUTFBytes(len);
+		#else true
+		var s = "";
+		var b = b;
+		var fcc = String.fromCharCode;
+		var i = pos;
+		var max = pos+len;
+		// utf8-encode
+		while( i < max ) {
+			var c = b[i++];
+			if( c < 0x7F )
+				s += fcc(c);
+			else if( c < 0xE0 )
+				s += fcc( ((c & 0x3F) << 6) | (b[i++] & 0x7F) );
+			else if( c < 0xF0 ) {
+				var c2 = b[i++];
+				s += fcc( ((c & 0x1F) << 12) | ((c2 & 0x7F) << 6) | (b[i++] & 0x7F) );
+			} else {
+				var c2 = b[i++];
+				var c3 = b[i++];
+				s += fcc( ((c & 0x0F) << 18) | ((c2 & 0x7F) << 12) | ((c3 << 6) & 0x7F) | (b[i++] & 0x7F) );
+			}
+		}
+		return s;
+		#end
+	}
+
+	public function toString() : String {
+		#if neko
+		return new String(untyped __dollar__ssub(b,0,length));
+		#else flash9
+		b.position = 0;
+		return b.readUTFBytes(length);
+		#else true
+		return readString(0,length);
+		#end
+	}
+
+	public static function alloc( length : Int ) : Bytes {
+		#if neko
+		return new Bytes(length,untyped __dollar__smake(length));
+		#else flash9
+		var b = new flash.utils.ByteArray();
+		b.length = length;
+		return new Bytes(length,b);
+		#else true
+		var a = new Array();
+		for( i in 0...length )
+			a.push(0);
+		return new Bytes(length,a);
+		#end
+	}
+
+	public static function ofString( s : String ) : Bytes {
+		#if neko
+		return new Bytes(s.length,untyped __dollar__ssub(s.__s,0,s.length));
+		#else flash9
+		var b = new flash.utils.ByteArray();
+		b.writeUTFBytes(s);
+		return new Bytes(b.length,b);
+		#else true
+		var a = new Array();
+		// utf8-decode
+		for( i in 0...s.length ) {
+			var c : Int = untyped s.cca(i);
+			if( c < 0x7F )
+				a.push(c);
+			else if( c < 0x7FF ) {
+				a.push( 0xC0 | (c >> 6) );
+				a.push( 0x80 | (c & 63) );
+			} else if( c <= 0xFFFF ) {
+				a.push( 0xE0 | (c >> 12) );
+				a.push( 0x80 | ((c >> 6) & 63) );
+				a.push( 0x80 | (c & 63) );
+			} else {
+				a.push( 0xF0 | (c >> 18) );
+				a.push( 0x80 | ((c >> 12) & 63) );
+				a.push( 0x80 | ((c >> 6) & 63) );
+				a.push( 0x80 | (c & 63) );
+			}
+		}
+		return new Bytes(a.length,a);
+		#end
+	}
+
+}

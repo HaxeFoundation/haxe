@@ -1,0 +1,27 @@
+# Flash
+-swf unit8.swf
+-main unit.Test
+-debug
+-cp ..
+
+--next
+# Flash9
+-swf unit9.swf
+-swf-version 9
+-main unit.Test
+-debug
+-cp ..
+
+--next
+# JS
+-js unit.js
+unit.Test
+-debug
+-cp ..
+
+--next
+# Neko
+-neko unit.n
+-main unit.Test
+-debug
+-cp ..

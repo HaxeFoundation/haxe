@@ -260,6 +260,7 @@ class Boot {
 			String.prototype[__unprotect__("__class__")] = String;
 			String[__unprotect__("__name__")] = ["String"];
 			var cca = String.prototype["charCodeAt"];
+			String.prototype["cca"] = cca;
 			String.prototype["charCodeAt"] = function(i) {
 				var x = cca["call"](this,i);
 				if( x <= 0 ) // fast NaN

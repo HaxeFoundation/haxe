@@ -228,6 +228,7 @@ class Boot {
 			Array.prototype.__class__ = Array;
 			Array.__name__ = ["Array"];
 			var cca = String.prototype.charCodeAt;
+			String.prototype.cca = cca;
 			String.prototype.charCodeAt = function(i) {
 				var x = cca.call(this,i);
 				if( isNaN(x) )
