@@ -93,20 +93,6 @@ class Lib {
 	}
 
 	/**
-		Creates a raw string of [size] bytes.
-	**/
-	public static function makeString( size : Int ) : String {
-		return new String(untyped __dollar__smake(size));
-	}
-
-	/**
-		Copy bytes between two strings.
-	**/
-	public static function copyBytes( dst : String, dst_pos : Int, src : String, src_pos : Int, len : Int ) : Void {
-		untyped __dollar__sblit(dst.__s,dst_pos,src.__s,src_pos,len);
-	}
-
-	/**
 		Converts a Neko value to its haXe equivalent. Used for wrapping String and Arrays raw values into haXe Objects.
 	**/
 	public static function nekoToHaxe( v : Dynamic ) : Dynamic untyped {

@@ -26,8 +26,8 @@ package haxe;
 
 #if neko
 private typedef AbstractSocket = {
-	var input(default,null) : neko.io.Input;
-	var output(default,null) : neko.io.Output;
+	var input(default,null) : haxe.io.Input;
+	var output(default,null) : haxe.io.Output;
 	function connect( host : neko.net.Host, port : Int ) : Void;
 	function setTimeout( t : Float ) : Void;
 	function write( str : String ) : Void;
@@ -45,8 +45,8 @@ class Http {
 	var responseHeaders : Hash<String>;
 	var postData : String;
 	var chunk_size : Int;
-	var chunk_buf : String;
-	var file : { param : String, filename : String, io : neko.io.Input, size : Int };
+	var chunk_buf : haxe.io.Bytes;
+	var file : { param : String, filename : String, io : haxe.io.Input, size : Int };
 #elseif js
 	var async : Bool;
 	var postData : String;
@@ -226,7 +226,7 @@ class Http {
 			onError("Failed to initialize Connection");
 	#elseif neko
 		var me = this;
-		var output = new neko.io.StringOutput();
+		var output = new haxe.io.BytesOutput();
 		var old = onError;
 		var err = false;
 		onError = function(e) {
@@ -235,17 +235,17 @@ class Http {
 		}
 		customRequest(post,output);
 		if( !err )
-			me.onData(output.toString());
+			me.onData(new String(cast output.getBytes().getData()));
 	#end
 	}
 
 #if neko
 
-	public function fileTransfert( argname : String, filename : String, file : neko.io.Input, size : Int ) {
+	public function fileTransfert( argname : String, filename : String, file : haxe.io.Input, size : Int ) {
 		this.file = { param : argname, filename : filename, io : file, size : size };
 	}
 
-	public function customRequest( post : Bool, api : neko.io.Output, ?sock : AbstractSocket, ?method : String  ) {
+	public function customRequest( post : Bool, api : haxe.io.Output, ?sock : AbstractSocket, ?method : String  ) {
 		var url_regexp = ~/^(http:\/\/)?([a-zA-Z\.0-9-]+)(:[0-9]+)?(.*)$/;
 		if( !url_regexp.match(url) ) {
 			onError("Invalid URL");
@@ -367,10 +367,10 @@ class Http {
 			sock.write(b.toString());
 			if( multipart ) {
 				var bufsize = 4096;
-				var buf = neko.Lib.makeString(bufsize);
+				var buf = haxe.io.Bytes.alloc(bufsize);
 				while( file.size > 0 ) {
 					var size = if( file.size > bufsize ) bufsize else file.size;
-					var len = try file.io.readBytes(buf,0,size) catch( e : neko.io.Eof ) break;
+					var len = try file.io.readBytes(buf,0,size) catch( e : haxe.io.Eof ) break;
 					sock.output.writeFullBytes(buf,0,len);
 					file.size -= len;
 				}
@@ -387,20 +387,20 @@ class Http {
 		}
 	}
 
-	function readHttpResponse( api : neko.io.Output, sock : AbstractSocket ) {
+	function readHttpResponse( api : haxe.io.Output, sock : AbstractSocket ) {
 		// READ the HTTP header (until \r\n\r\n)
-		var b = new StringBuf();
+		var b = new haxe.io.BytesBuffer();
 		var k = 4;
-		var s = neko.Lib.makeString(4);
+		var s = haxe.io.Bytes.alloc(4);
 		sock.setTimeout(cnxTimeout); // 10 seconds
 		while( true ) {
 			var p = sock.input.readBytes(s,0,k);
 			while( p != k )
 				p += sock.input.readBytes(s,p,k - p);
-			b.addSub(s,0,k);
+			b.addBytes(s,0,k);
 			switch( k ) {
 			case 1:
-				var c = s.charCodeAt(0);
+				var c = s.get(0);
 				if( c == 10 )
 					break;
 				if( c == 13 )
@@ -408,9 +408,9 @@ class Http {
 				else
 					k = 4;
 			case 2:
-				var c = s.charCodeAt(1);
+				var c = s.get(1);
 				if( c == 10 ) {
-					if( s.charCodeAt(0) == 13 )
+					if( s.get(0) == 13 )
 						break;
 					k = 4;
 				} else if( c == 13 )
@@ -418,39 +418,39 @@ class Http {
 				else
 					k = 4;
 			case 3:
-				var c = s.charCodeAt(2);
+				var c = s.get(2);
 				if( c == 10 ) {
-					if( s.charCodeAt(1) != 13 )
+					if( s.get(1) != 13 )
 						k = 4;
-					else if( s.charCodeAt(0) != 10 )
+					else if( s.get(0) != 10 )
 						k = 2;
 					else
 						break;
 				} else if( c == 13 ) {
-					if( s.charCodeAt(1) != 10 || s.charCodeAt(0) != 13 )
+					if( s.get(1) != 10 || s.get(0) != 13 )
 						k = 1;
 					else
 						k = 3;
 				} else
 					k = 4;
 			case 4:
-				var c = s.charCodeAt(3);
+				var c = s.get(3);
 				if( c == 10 ) {
-					if( s.charCodeAt(2) != 13 )
+					if( s.get(2) != 13 )
 						continue;
-					else if( s.charCodeAt(1) != 10 || s.charCodeAt(0) != 13 )
+					else if( s.get(1) != 10 || s.get(0) != 13 )
 						k = 2;
 					else
 						break;
 				} else if( c == 13 ) {
-					if( s.charCodeAt(2) != 10 || s.charCodeAt(1) != 13 )
+					if( s.get(2) != 10 || s.get(1) != 13 )
 						k = 3;
 					else
 						k = 1;
 				}
 			}
 		}
-		var headers = b.toString().split("\r\n");
+		var headers = new String(cast b.getBytes().getData()).split("\r\n");
 		var response = headers.shift();
 		var rp = response.split(" ");
 		var status = Std.parseInt(rp[1]);
@@ -481,7 +481,7 @@ class Http {
 		chunk_buf = null;
 
 		var bufsize = 1024;
-		var buf = neko.Lib.makeString(bufsize);
+		var buf = haxe.io.Bytes.alloc(bufsize);
 		if( size == null ) {
 			if( !noShutdown )
 				sock.shutdown(false,true);
@@ -494,7 +494,7 @@ class Http {
 					} else
 						api.writeBytes(buf,0,len);
 				}
-			} catch( e : neko.io.Eof ) {
+			} catch( e : haxe.io.Eof ) {
 			}
 		} else {
 			api.prepare(size);
@@ -508,7 +508,7 @@ class Http {
 						api.writeBytes(buf,0,len);
 					size -= len;
 				}
-			} catch( e : neko.io.Eof ) {
+			} catch( e : haxe.io.Eof ) {
 				throw "Transfert aborted";
 			}
 		}
@@ -517,14 +517,17 @@ class Http {
 		api.close();
 	}
 
-	function readChunk(chunk_re : EReg, api : neko.io.Output, buf : String, len ) {
+	function readChunk(chunk_re : EReg, api : haxe.io.Output, buf : haxe.io.Bytes, len ) {
 		if( chunk_size == null ) {
 			if( chunk_buf != null ) {
-				buf = chunk_buf + buf.substr(0,len);
+				var b = new haxe.io.BytesBuffer();
+				b.add(chunk_buf);
+				b.addBytes(buf,0,len);
+				buf = b.getBytes();
 				len += chunk_buf.length;
 				chunk_buf = null;
 			}
-			if( chunk_re.match(buf) ) {
+			if( chunk_re.match(new String(cast buf.getData())) ) {
 				var p = chunk_re.matchedPos();
 				if( p.len <= len ) {
 					var cstr = chunk_re.matched(1);
@@ -535,7 +538,7 @@ class Http {
 						return false;
 					}
 					len -= p.len;
-					return readChunk(chunk_re,api,buf.substr(p.len,len),len);
+					return readChunk(chunk_re,api,buf.sub(p.len,len),len);
 				}
 			}
 			// prevent buffer accumulation
@@ -543,7 +546,7 @@ class Http {
 				onError("Invalid chunk");
 				return false;
 			}
-			chunk_buf = buf.substr(0,len);
+			chunk_buf = buf.sub(0,len);
 			return true;
 		}
 		if( chunk_size > len ) {
@@ -559,7 +562,7 @@ class Http {
 			chunk_size = null;
 			if( len == 0 )
 				return true;
-			return readChunk(chunk_re,api,buf.substr(end,len),len);
+			return readChunk(chunk_re,api,buf.sub(end,len),len);
 		}
 		if( chunk_size > 0 )
 			api.writeBytes(buf,0,chunk_size);

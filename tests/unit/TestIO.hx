@@ -39,6 +39,9 @@ class TestIO extends Test {
 		#end
 		o.writeByte(99);
 
+		var str = "Héllo World !";
+		o.writeString(str);
+
 		o.writeInt16(-12345);
 		exc(function() o.writeInt16(1 << 15));
 		exc(function() o.writeInt16(-((1 << 15)+1)));
@@ -90,6 +93,8 @@ class TestIO extends Test {
 		exc(function() i.readFloat());
 		#end
 		eq( i.readByte(), 99 );
+
+		eq( i.readString(haxe.io.Bytes.ofString(str).length), str );
 
 		eq( i.readInt16(), -12345 );
 		eq( i.readInt24(), -1234567 );

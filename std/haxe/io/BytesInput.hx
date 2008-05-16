@@ -139,6 +139,10 @@ class BytesInput extends Input {
 		return try cast b.readInt() catch( e : Dynamic ) throw new Eof();
 	}
 
+	override function readString( len : Int ) {
+		return try b.readUTFBytes(len) catch( e : Dynamic ) throw new Eof();
+	}
+
 	#end
 
 }

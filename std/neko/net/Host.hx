@@ -28,7 +28,7 @@ package neko.net;
 
 class Host {
 
-	public var ip(default,null) : neko.Int32;
+	public var ip(default,null) : haxe.Int32;
 
 	public function new( name : String ) {
 		ip = host_resolve(untyped name.__s);

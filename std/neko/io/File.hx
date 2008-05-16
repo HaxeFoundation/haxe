@@ -42,6 +42,10 @@ class File {
 		return new String(file_contents(untyped path.__s));
 	}
 
+	public static function getBytes( path : String ) {
+		return haxe.io.Bytes.ofString(getContent(path));
+	}
+
 	public static function read( path : String, binary : Bool ) {
 		return new FileInput(untyped file_open(path.__s,(if( binary ) "rb" else "r").__s));
 	}
@@ -53,7 +57,7 @@ class File {
 	public static function append( path : String, binary : Bool ) {
 		return new FileOutput(untyped file_open(path.__s,(if( binary ) "ab" else "a").__s));
 	}
-	
+
 	public static function copy( src : String, dst : String ) {
 		var s = read(src,true);
 		var d = write(dst,true);

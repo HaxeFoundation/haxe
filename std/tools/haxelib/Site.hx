@@ -30,7 +30,7 @@ class Site {
 		var log = neko.io.File.append(TMP_DIR+"/log.txt",false);
 		var api = new SiteApi(db);
 		server.setPrivatePrefix("db");
-		server.setLogger(log.write);
+		server.setLogger(log.writeString);
 		server.addObject("api",api);
 		var flag = server.handleRequest();
 		log.close();
@@ -65,7 +65,7 @@ class Site {
 	static function display() {
 		var data = neko.io.File.getContent(CWD + "website.mtt");
 		var page = new haxe.Template(data);
-		var ctx : Dynamic = Reflect.empty();
+		var ctx : Dynamic = {};
 		var macros = {
 			download : function( res, p, v ) {
 				return "/"+Datas.REPOSITORY+"/"+Datas.fileName(res(p).name,res(v).name);

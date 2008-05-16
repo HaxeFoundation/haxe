@@ -35,7 +35,7 @@ private typedef ClientInfos<Client> = {
 	var client : Client;
 	var sock : neko.net.Socket;
 	var thread : ThreadInfos;
-	var buf : String;
+	var buf : haxe.io.Bytes;
 	var bufpos : Int;
 }
 
@@ -48,7 +48,7 @@ class ThreadServer<Client,Message> {
 	public var listen : Int;
 	public var nthreads : Int;
 	public var connectLag : Float;
-	public var errorOutput : neko.io.Output;
+	public var errorOutput : haxe.io.Output;
 	public var initialBufferSize : Int;
 	public var maxBufferSize : Int;
 	public var messageHeaderSize : Int;
@@ -87,8 +87,8 @@ class ThreadServer<Client,Message> {
 				if( c.buf.length == maxBufferSize )
 					throw "Max buffer size reached";
 			}
-			var newbuf = neko.Lib.makeString(newsize);
-			neko.Lib.copyBytes(newbuf,0,c.buf,0,c.bufpos);
+			var newbuf = haxe.io.Bytes.alloc(newsize);
+			newbuf.blit(0,c.buf,0,c.bufpos);
 			c.buf = newbuf;
 			available = newsize - c.bufpos;
 		}
@@ -104,7 +104,7 @@ class ThreadServer<Client,Message> {
 			work(callback(clientMessage,c.client,m.msg));
 		}
 		if( pos > 0 )
-			neko.Lib.copyBytes(c.buf,0,c.buf,pos,len);
+			c.buf.blit(0,c.buf,pos,len);
 		c.bufpos = len;
 	}
 
@@ -116,7 +116,7 @@ class ThreadServer<Client,Message> {
 					readClientData(infos);
 				} catch( e : Dynamic ) {
 					t.socks.remove(s);
-					if( !Std.is(e,neko.io.Eof) && !Std.is(e,neko.io.Error) )
+					if( !Std.is(e,haxe.io.Eof) && !Std.is(e,haxe.io.Error) )
 						logError(e);
 					work(callback(doClientDisconnected,s,infos.client));
 				}
@@ -161,7 +161,7 @@ class ThreadServer<Client,Message> {
 
 	public function onError( e : Dynamic, stack ) {
 		var estr = try Std.string(e) catch( e2 : Dynamic ) "???" + try "["+Std.string(e2)+"]" catch( e : Dynamic ) "";
-		errorOutput.write( estr + "\n" + haxe.Stack.toString(stack) );
+		errorOutput.writeString( estr + "\n" + haxe.Stack.toString(stack) );
 		errorOutput.flush();
 	}
 
@@ -178,7 +178,7 @@ class ThreadServer<Client,Message> {
 			thread : threads[Std.random(nthreads)],
 			client : clientConnected(sock),
 			sock : sock,
-			buf : neko.Lib.makeString(initialBufferSize),
+			buf : haxe.io.Bytes.alloc(initialBufferSize),
 			bufpos : 0,
 		};
 		sock.custom = infos;
@@ -250,7 +250,7 @@ class ThreadServer<Client,Message> {
 	public function clientDisconnected( c : Client ) {
 	}
 
-	public function readClientMessage( c : Client, buf : String, pos : Int, len : Int ) : { msg : Message, bytes : Int } {
+	public function readClientMessage( c : Client, buf : haxe.io.Bytes, pos : Int, len : Int ) : { msg : Message, bytes : Int } {
 		return {
 			msg : null,
 			bytes : len,

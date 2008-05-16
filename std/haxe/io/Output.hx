@@ -222,6 +222,11 @@ class Output {
 		}
 	}
 
+	public function writeString( s : String ) {
+		var b = Bytes.ofString(s);
+		writeFullBytes(b,0,b.length);
+	}
+
 #if neko
 	static var _float_bytes = neko.Lib.load("std","float_bytes",2);
 	static var _double_bytes = neko.Lib.load("std","double_bytes",2);

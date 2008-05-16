@@ -9,9 +9,9 @@ enum Answer {
 class SiteProxy extends haxe.remoting.Proxy<tools.haxelib.SiteApi> {
 }
 
-class Progress extends neko.io.Output {
+class Progress extends haxe.io.Output {
 
-	var o : neko.io.Output;
+	var o : haxe.io.Output;
 	var cur : Int;
 	var max : Int;
 	var start : Float;
@@ -30,8 +30,8 @@ class Progress extends neko.io.Output {
 			neko.Lib.print(cur+"/"+max+" ("+Std.int((cur*100.0)/max)+"%)\r");
 	}
 
-	public override function writeChar(c) {
-		o.writeChar(c);
+	public override function writeByte(c) {
+		o.writeByte(c);
 		bytes(1);
 	}
 
@@ -57,9 +57,9 @@ class Progress extends neko.io.Output {
 
 }
 
-class ProgressIn extends neko.io.Input {
+class ProgressIn extends haxe.io.Input {
 
-	var i : neko.io.Input;
+	var i : haxe.io.Input;
 	var pos : Int;
 	var tot : Int;
 
@@ -69,8 +69,8 @@ class ProgressIn extends neko.io.Input {
 		this.tot = tot;
 	}
 
-	public override function readChar() {
-		var c = i.readChar();
+	public override function readByte() {
+		var c = i.readByte();
 		doRead(1);
 		return c;
 	}
@@ -268,8 +268,8 @@ class Main {
 
 	function submit() {
 		var file = param("Package");
-		var data = neko.io.File.getContent(file);
-		var zip = neko.zip.Reader.readZip(new neko.io.StringInput(data));
+		var data = neko.io.File.getBytes(file);
+		var zip = neko.zip.Reader.readZip(new haxe.io.BytesInput(data));
 		var infos = Datas.readInfos(zip);
 		var user = infos.developers.first();
 		var password;
@@ -308,7 +308,7 @@ class Main {
 		var h = new haxe.Http("http://"+SERVER.host+":"+SERVER.port+"/"+SERVER.url);
 		h.onError = function(e) { throw e; };
 		h.onData = print;
-		h.fileTransfert("file",id,new ProgressIn(new neko.io.StringInput(data),data.length),data.length);
+		h.fileTransfert("file",id,new ProgressIn(new haxe.io.BytesInput(data),data.length),data.length);
 		print("Sending data.... ");
 		h.request(true);
 
@@ -421,7 +421,7 @@ class Main {
 		// set current version
 		if( setcurrent || !neko.FileSystem.exists(pdir+".current") ) {
 			var f = neko.io.File.write(pdir+".current",true);
-			f.write(infos.version);
+			f.writeString(infos.version);
 			f.close();
 			print("  Current version is now "+infos.version);
 		}
@@ -496,7 +496,7 @@ class Main {
 				}
 			}
 			var f = neko.io.File.write(config,true);
-			f.write(rep);
+			f.writeString(rep);
 			f.close();
 		} else if( !neko.FileSystem.exists(rep) )
 			throw "haxelib Repository "+rep+" does not exists. Please run haxelib setup again";
@@ -615,7 +615,7 @@ class Main {
 		if( doAsk && ask("Set "+prj+" to version "+version) == No )
 			return;
 		var f = neko.io.File.write(current,true);
-		f.write(version);
+		f.writeString(version);
 		f.close();
 		print("Project "+prj+" current version is now "+version);
 	}
@@ -680,7 +680,7 @@ class Main {
 			print("Development directory disabled");
 		} else {
 			var f = neko.io.File.write(devfile,false);
-			f.write(dir);
+			f.writeString(dir);
 			f.close();
 			print("Development directory set to "+dir);
 		}

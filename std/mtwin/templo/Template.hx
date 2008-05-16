@@ -117,7 +117,7 @@ class Template {
 		s = "// generated from " + id + "\n// temploc v"+mtwin.templo.Template.VERSION+"\n" + s;
 
 		var f = neko.io.File.write(path, false);
-		f.write(s);
+		f.writeString(s);
 		f.close();
 
 		var r = null;

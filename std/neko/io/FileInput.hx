@@ -28,7 +28,7 @@ import neko.io.File;
 /**
 	Use [neko.io.File.read] to create a [FileInput]
 **/
-class FileInput extends Input {
+class FileInput extends haxe.io.Input {
 
 	private var __f : FileHandle;
 
@@ -36,25 +36,25 @@ class FileInput extends Input {
 		__f = f;
 	}
 
-	public override function readChar() : Int {
+	public override function readByte() : Int {
 		return try {
 			file_read_char(__f);
 		} catch( e : Dynamic ) {
 			if( untyped __dollar__typeof(e) == __dollar__tarray )
-				throw new Eof();
+				throw new haxe.io.Eof();
 			else
-				throw Error.Custom(e);
+				throw haxe.io.Error.Custom(e);
 		}
 	}
 
-	public override function readBytes( s : String, p : Int, l : Int ) : Int {
+	public override function readBytes( s : haxe.io.Bytes, p : Int, l : Int ) : Int {
 		return try {
-			file_read(__f,untyped s.__s,p,l);
+			file_read(__f,s.getData(),p,l);
 		} catch( e : Dynamic ) {
 			if( untyped __dollar__typeof(e) == __dollar__tarray )
-				throw new Eof();
+				throw new haxe.io.Eof();
 			else
-				throw Error.Custom(e);
+				throw haxe.io.Error.Custom(e);
 		}
 	}
 

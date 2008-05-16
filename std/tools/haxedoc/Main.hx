@@ -37,7 +37,7 @@ class Main {
 
 	static function save(html : HtmlPrinter,x,file) {
 		var f = neko.io.File.write(file,true);
-		html.output = f.write;
+		html.output = f.writeString;
 		html.process(x);
 		f.close();
 		neko.Lib.print(".");
@@ -111,7 +111,7 @@ class Main {
 				data = parser.root;
 				var str = neko.Lib.serialize(data);
 				var f = neko.io.File.write(dataFile,true);
-				f.write(str);
+				f.writeString(str);
 				f.close();
 			}
 			var html = new HtmlPrinter("/api/","","");

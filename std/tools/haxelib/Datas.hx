@@ -83,13 +83,12 @@ class Datas {
 		var xmldata = null;
 		for( f in zip )
 			if( StringTools.endsWith(f.fileName,XML) ) {
-				xmldata = neko.zip.Reader.unzip(f);
+				xmldata = neko.zip.Reader.unzip(f).toString();
 				break;
 			}
 		if( xmldata == null )
 			throw XML+" not found in package";
 		return readData(xmldata);
-
 	}
 
 	public static function readData( xmldata : String ) : XmlInfos {

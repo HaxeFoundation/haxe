@@ -24,12 +24,14 @@
  */
 package neko.io;
 
-private class Stdin extends neko.io.Output {
+private class Stdin extends haxe.io.Output {
 
 	var p : Void;
+	var buf : haxe.io.Bytes;
 
 	public function new(p) {
 		this.p = p;
+		buf = haxe.io.Bytes.alloc(1);
 	}
 
 	public override function close() {
@@ -37,16 +39,16 @@ private class Stdin extends neko.io.Output {
 		_stdin_close(p);
 	}
 
-	public override function writeChar(c) {
-		if( writeBytes(Std.chr(c),0,1) == 0 )
-			throw Error.Blocked;
+	public override function writeByte(c) {
+		buf.set(0,c);
+		writeBytes(buf,0,1);
 	}
 
-	public override function writeBytes( str : String, pos : Int, len : Int ) : Int {
+	public override function writeBytes( buf : haxe.io.Bytes, pos : Int, len : Int ) : Int {
 		try {
-			return _stdin_write(p,untyped str.__s,pos,len);
+			return _stdin_write(p,buf.getData(),pos,len);
 		} catch( e : Dynamic ) {
-			throw new Eof();
+			throw new haxe.io.Eof();
 		}
 	}
 
@@ -55,29 +57,29 @@ private class Stdin extends neko.io.Output {
 
 }
 
-private class Stdout extends neko.io.Input {
+private class Stdout extends haxe.io.Input {
 
 	var p : Void;
 	var out : Bool;
-	var buf : String;
+	var buf : haxe.io.Bytes;
 
 	public function new(p,out) {
 		this.p = p;
 		this.out = out;
-		buf = neko.Lib.makeString(1);
+		buf = haxe.io.Bytes.alloc(1);
 	}
 
-	public override function readChar() {
+	public override function readByte() {
 		if( readBytes(buf,0,1) == 0 )
-			throw Error.Blocked;
-		return buf.charCodeAt(0);
+			throw haxe.io.Error.Blocked;
+		return buf.get(0);
 	}
 
-	public override function readBytes( str : String, pos : Int, len : Int ) : Int {
+	public override function readBytes( str : haxe.io.Bytes, pos : Int, len : Int ) : Int {
 		try {
-			return (out?_stdout_read:_stderr_read)(p,untyped str.__s,pos,len);
+			return (out?_stdout_read:_stderr_read)(p,str.getData(),pos,len);
 		} catch( e : Dynamic ) {
-			throw new Eof();
+			throw new haxe.io.Eof();
 		}
 	}
 
@@ -89,9 +91,9 @@ private class Stdout extends neko.io.Input {
 class Process {
 
 	var p : Void;
-	public var stdout(default,null) : neko.io.Input;
-	public var stderr(default,null) : neko.io.Input;
-	public var stdin(default,null) : neko.io.Output;
+	public var stdout(default,null) : haxe.io.Input;
+	public var stderr(default,null) : haxe.io.Input;
+	public var stdin(default,null) : haxe.io.Output;
 
 	public function new( cmd : String, args : Array<String> ) {
 		p = try _run(untyped cmd.__s,neko.Lib.haxeToNeko(args)) catch( e : Dynamic ) throw "Process creation failure : "+cmd;

@@ -44,7 +44,7 @@ class Module {
 	public function new( m ) {
 		this.m = m;
 	}
-	
+
 	/**
 		Execute a module and returns its result (the latest evaluated expression).
 		A module can be executed several times but its globals are only initialized once
@@ -53,7 +53,7 @@ class Module {
 	public function execute() : Dynamic {
 		return _module_exec(m);
 	}
-	
+
 	/**
 		Returns the Module name. This is the name that the Module was loaded with by the Loader.
 	**/
@@ -70,28 +70,28 @@ class Module {
 
 	/**
 		Returns the codeSize of the Module.
-	**/	
+	**/
 	public function codeSize() : Int {
 		return _module_code_size(m);
 	}
 
 	/**
 		Returns the number of globals in this Module global table.
-	**/	
+	**/
 	public function globalsCount() : Int {
 		return _module_nglobals(m);
 	}
-	
+
 	/**
 		Get a Module global value.
-	**/	
+	**/
 	public function getGlobal( n : Int ) : Dynamic {
 		return _module_global_get(m,n);
 	}
 
 	/**
 		Set a Module global value.
-	**/		
+	**/
 	public function setGlobal( n : Int, v : Dynamic ) {
 		_module_global_set(m,n,v);
 	}
@@ -111,8 +111,8 @@ class Module {
 			h.set(f,Reflect.field(exp,f));
 		return h;
 	}
-	
-	
+
+
 	/**
 		The raw export table.
 	**/
@@ -127,52 +127,52 @@ class Module {
 		var exp = _module_exports(m);
 		Reflect.setField(exp,name,value);
 	}
-	
+
 	/**
 		Returns the local Module, which is the one in which this
 		method is included.
-	**/	
+	**/
 	public static function local() {
 		return new Module(untyped __dollar__exports.__module);
-	}	
+	}
 
 	/**
 		Reads a module from an Input by using the given Loader.
 		The module is initialized but has not yet been executed.
-	**/	
-	public static function read( i : neko.io.Input, l : Loader ) : Module {
+	**/
+	public static function read( i : haxe.io.Input, l : Loader ) : Module {
 		var m = _module_read(function(buf,pos,len) {
-			return i.readBytes(new String(buf),pos,len);
+			return i.readBytes(untyped new haxe.io.Bytes(len,buf),pos,len);
 		},l.l);
 		return new Module(m);
 	}
-	
+
 	/**
 		Reads a module from a name and using the specified seach path and loader.
 		The module is initialized but has not yet been executed.
-	**/		
+	**/
 	public static function readPath( name : String, path : Array<String>, loader : Loader ) {
 		var p = null;
 		var i = path.length;
 		while( --i >= 0 )
-			p = untyped __dollar__array(path[i].__s,p);		
+			p = untyped __dollar__array(path[i].__s,p);
 		var m = _module_read_path(p,untyped name.__s,loader.l);
 		return new Module(m);
 	}
-	
+
 	function __compare( other : Module ) {
 		return untyped __dollar__compare(this.m,other.m);
 	}
-	
+
 	static var _module_read = neko.Lib.load("std","module_read",2);
 	static var _module_read_path = neko.Lib.load("std","module_read_path",3);
 	static var _module_exec = neko.Lib.load("std","module_exec",1);
-	static var _module_name = neko.Lib.load("std","module_name",1);	
+	static var _module_name = neko.Lib.load("std","module_name",1);
 	static var _module_exports = neko.Lib.load("std","module_exports",1);
 	static var _module_loader = neko.Lib.load("std","module_loader",1);
 	static var _module_code_size = neko.Lib.load("std","module_code_size",1);
 	static var _module_nglobals = neko.Lib.load("std","module_nglobals",1);
 	static var _module_global_get = neko.Lib.load("std","module_global_get",2);
 	static var _module_global_set = neko.Lib.load("std","module_global_set",3);
-	
+
 }

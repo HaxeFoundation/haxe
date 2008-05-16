@@ -44,13 +44,26 @@ class BytesBuffer {
 		#end
 	}
 
-	public inline function add( byte : Int ) {
+	public inline function addByte( byte : Int ) {
 		#if neko
 		untyped StringBuf.__add_char(b,byte);
 		#elseif flash9
 		b.writeByte(byte);
 		#else
 		b.push(byte);
+		#end
+	}
+
+	public inline function add( src : Bytes ) {
+		#if neko
+		untyped StringBuf.__add(b,src.getData());
+		#elseif flash9
+		b.writeBytes(src.getData());
+		#else
+		var b1 = b;
+		var b2 = src.getData();
+		for( i in 0...src.length )
+			b.push(b2[i]);
 		#end
 	}
 

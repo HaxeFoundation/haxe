@@ -239,13 +239,13 @@ class Web {
 	**/
 	public static function getMultipart( maxSize : Int ) : Hash<String> {
 		var h = new Hash();
-		var buf : StringBuf = null;
+		var buf : haxe.io.BytesBuffer = null;
 		var curname = null;
 		parseMultipart(function(p,_) {
 			if( curname != null )
-				h.set(curname,buf.toString());
+				h.set(curname,new String(cast buf.getBytes().getData()));
 			curname = p;
-			buf = new StringBuf();
+			buf = new haxe.io.BytesBuffer();
 			maxSize -= p.length;
 			if( maxSize < 0 )
 				throw "Maximum size reached";
@@ -253,10 +253,10 @@ class Web {
 			maxSize -= len;
 			if( maxSize < 0 )
 				throw "Maximum size reached";
-			buf.addSub(str,pos,len);
+			buf.addBytes(str,pos,len);
 		});
 		if( curname != null )
-			h.set(curname,buf.toString());
+			h.set(curname,new String(cast buf.getBytes().getData()));
 		return h;
 	}
 
@@ -266,10 +266,10 @@ class Web {
 		and [onData] when some part data is readed. You can this way
 		directly save the data on hard drive in the case of a file upload.
 	**/
-	public static function parseMultipart( onPart : String -> String -> Void, onData : String -> Int -> Int -> Void ) : Void {
+	public static function parseMultipart( onPart : String -> String -> Void, onData : haxe.io.Bytes -> Int -> Int -> Void ) : Void {
 		_parse_multipart(
 			function(p,f) { onPart(new String(p),if( f == null ) null else new String(f)); },
-			function(buf,pos,len) { onData(new String(buf),pos,len); }
+			function(buf,pos,len) { onData(untyped new haxe.io.Bytes(__dollar__ssize(buf),buf),pos,len); }
 		);
 	}
 

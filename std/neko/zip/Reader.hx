@@ -30,19 +30,19 @@ typedef ZipEntry = {
 	var fileTime : Date;
 	var compressed : Bool;
 	var compressedSize : Int;
-	var data : String;
-	var crc32 : Null<neko.Int32>;
+	var data : haxe.io.Bytes;
+	var crc32 : Null<haxe.Int32>;
 }
 
 // see http://www.pkware.com/documents/casestudies/APPNOTE.TXT
 
 class Reader {
 
-	public static function unzip( f : ZipEntry ) : String {
+	public static function unzip( f : ZipEntry ) : haxe.io.Bytes {
 		if( !f.compressed )
 			return f.data;
 		var c = new Uncompress(-15);
-		var s = neko.Lib.makeString(f.fileSize);
+		var s = haxe.io.Bytes.alloc(f.fileSize);
 		var r = c.run(f.data,0,s,0);
 		c.close();
 		if( !r.done || r.read != f.data.length || r.write != f.fileSize )
@@ -50,7 +50,7 @@ class Reader {
 		return s;
 	}
 
-	static function readZipDate( i : neko.io.Input ) {
+	static function readZipDate( i : haxe.io.Input ) {
 		var t = i.readUInt16();
 		var hour = (t >> 11) & 31;
 		var min = (t >> 5) & 63;
@@ -62,8 +62,8 @@ class Reader {
 		return new Date(year + 1980, month-1, day, hour, min, sec << 1);
 	}
 
-	public static function readZipEntry( i : neko.io.Input ) : ZipEntry {
-		var h = i.readInt32();
+	public static function readZipEntry( i : haxe.io.Input ) : ZipEntry {
+		var h = i.readInt31();
 		if( h == 0x02014B50 || h == 0x06054B50 )
 			return null;
 		if( h != 0x04034B50 )
@@ -78,13 +78,13 @@ class Reader {
 		if( compressed && compression != 8 )
 			throw "Unsupported compression "+compression;
 		var mtime = readZipDate(i);
-		var crc32 = neko.Int32.read(i);
-		var csize = i.readInt32();
-		var usize = i.readInt32();
+		var crc32 = i.readInt32();
+		var csize = i.readUInt30();
+		var usize = i.readUInt30();
 		var fnamelen = i.readInt16();
 		var elen = i.readInt16();
-		var fname = i.read(fnamelen);
-		var ename = i.read(elen);
+		var fname = i.readString(fnamelen);
+		var ename = i.readString(elen);
 		var data;
 		if( extraFields ) {
 			// TODO : it is needed to directly read the compressed
@@ -105,7 +105,7 @@ class Reader {
 		};
 	}
 
-	public static function readZip( i : neko.io.Input ) : List<ZipEntry> {
+	public static function readZip( i : haxe.io.Input ) : List<ZipEntry> {
 		var l = new List();
 		while( true ) {
 			var e = readZipEntry(i);
@@ -116,12 +116,12 @@ class Reader {
 		return l;
 	}
 
-	public static function readTar( i : neko.io.Input, ?gz : Bool ) : List<ZipEntry> {
+	public static function readTar( i : haxe.io.Input, ?gz : Bool ) : List<ZipEntry> {
 		if( gz ) {
-			var tmp = new neko.io.StringOutput();
+			var tmp = new haxe.io.BytesOutput();
 			readGZHeader(i);
 			readGZData(i,tmp);
-			i = new neko.io.StringInput(tmp.toString());
+			i = new haxe.io.BytesInput(tmp.getBytes());
 		}
 		var l = new List();
 		while( true ) {
@@ -144,15 +144,15 @@ class Reader {
 		return l;
 	}
 
-	public static function readGZHeader( i : neko.io.Input ) : String {
-		if( i.readChar() != 0x1F || i.readChar() != 0x8B )
+	public static function readGZHeader( i : haxe.io.Input ) : String {
+		if( i.readByte() != 0x1F || i.readByte() != 0x8B )
 			throw "Invalid GZ header";
-		if( i.readChar() != 8 )
+		if( i.readByte() != 8 )
 			throw "Invalid compression method";
-		var flags = i.readChar();
+		var flags = i.readByte();
 		var mtime = i.read(4);
-		var xflags = i.readChar();
-		var os = i.readChar();
+		var xflags = i.readByte();
+		var os = i.readByte();
 		var fname = null;
 		var comments = null;
 		if( flags & 4 != 0 ) {
@@ -170,12 +170,12 @@ class Reader {
 		return fname;
 	}
 
-	public static function readGZData( i : neko.io.Input, o : neko.io.Output, ?bufsize : Int ) : Int {
+	public static function readGZData( i : haxe.io.Input, o : haxe.io.Output, ?bufsize : Int ) : Int {
 		if( bufsize == null ) bufsize = (1 << 16); // 65Ks
 		var u = new Uncompress(-15);
 		u.setFlushMode(Flush.SYNC);
-		var buf = neko.Lib.makeString(bufsize);
-		var out = neko.Lib.makeString(bufsize);
+		var buf = haxe.io.Bytes.alloc(bufsize);
+		var out = haxe.io.Bytes.alloc(bufsize);
 		var bufpos = bufsize;
 		var tsize = 0;
 		while( true ) {
@@ -186,9 +186,9 @@ class Reader {
 			var r = u.run(buf,bufpos,out,0);
 			if( r.read == 0 ) {
 				if( bufpos == 0 )
-					throw new neko.io.Eof();
+					throw new haxe.io.Eof();
 				var len = buf.length - bufpos;
-				neko.Lib.copyBytes(buf,0,buf,bufpos,len);
+				buf.blit(0,buf,bufpos,len);
 				buf = refill(i,buf,len);
 				bufpos = 0;
 			} else {
@@ -202,26 +202,26 @@ class Reader {
 		return tsize;
 	}
 
-	static function refill( i, buf : String, pos : Int ) {
+	static function refill( i, buf : haxe.io.Bytes, pos : Int ) {
 		try {
 			while( pos != buf.length ) {
 				var k = i.readBytes(buf,pos,buf.length-pos);
 				pos += k;
 			}
-		} catch( e : neko.io.Eof ) {
+		} catch( e : haxe.io.Eof ) {
 		}
 		if( pos == 0 )
-			throw new neko.io.Eof();
+			throw new haxe.io.Eof();
 		if( pos != buf.length )
-			buf = buf.substr(0,pos);
+			buf = buf.sub(0,pos);
 		return buf;
 	}
 
-	public static function readTarEntry( i : neko.io.Input ) {
+	public static function readTarEntry( i : haxe.io.Input ) {
 		var fname = i.readUntil(0);
 		if( fname.length == 0 ) {
 			for( x in 0...511+512 )
-				if( i.readChar() != 0 )
+				if( i.readByte() != 0 )
 					throw "Invalid TAR end";
 			return null;
 		}
@@ -234,10 +234,10 @@ class Reader {
 		var mtime : Float = parseOctal(i.read(8));
 		mtime = mtime * 512.0 + parseOctal(i.read(4));
 		var crc = i.read(8);
-		var type = i.readChar();
+		var type = i.readByte();
 		var lname = i.readUntil(0);
 		i.read(99 - lname.length); // skip
-		var ustar = i.read(8);
+		var ustar = i.readString(8);
 		if( ustar != "ustar  \x00" && ustar != "ustar\x00\x00\x00" ) {
 			//trace(StringTools.urlEncode(ustar));
 			throw "Not an tar ustar file";
@@ -257,9 +257,9 @@ class Reader {
 		};
 	}
 
-	public static function readTarData( i : neko.io.Input, o : neko.io.Output, size : Int, ?bufsize ) {
+	public static function readTarData( i : haxe.io.Input, o : haxe.io.Output, size : Int, ?bufsize ) {
 		if( bufsize == null ) bufsize = (1 << 16); // 65Ks
-		var buf = neko.Lib.makeString(bufsize);
+		var buf = haxe.io.Bytes.alloc(bufsize);
 		var pad = Math.ceil(size / 512) * 512 - size;
 		while( size > 0 ) {
 			var n = i.readBytes(buf,0,if( size > bufsize ) bufsize else size);
@@ -269,10 +269,10 @@ class Reader {
 		i.read(pad);
 	}
 
-	static function parseOctal( n : String ) {
+	static function parseOctal( n : haxe.io.Bytes ) {
 		var i = 0;
 		for( p in 0...n.length ) {
-			var c = n.charCodeAt(p);
+			var c = n.get(p);
 			if( c == 0 )
 				break;
 			if( c < 48 || c > 55 )

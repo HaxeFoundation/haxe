@@ -39,10 +39,8 @@ class Input {
 	public function readBytes( s : Bytes, pos : Int, len : Int ) : Int {
 		var k = len;
 		var b = s.getData();
-		#if !neko
 		if( pos < 0 || len < 0 || pos + len > s.length )
 			throw Error.OutsideBounds;
-		#end
 		while( k > 0 ) {
 			#if neko
 				untyped __dollar__sset(b,pos,readByte());
@@ -216,6 +214,16 @@ class Input {
 		var ch3 = readByte();
 		var ch4 = readByte();
 		return bigEndian ? haxe.Int32.make((ch1 << 8) | ch2,(ch3 << 8) | ch4) : haxe.Int32.make((ch4 << 8) | ch3,(ch2 << 8) | ch1);
+	}
+
+	public function readString( len : Int ) : String {
+		var b = Bytes.alloc(len);
+		readFullBytes(b,0,len);
+		#if neko
+		return new String(cast b.getData());
+		#else
+		return b.toString();
+		#end
 	}
 
 #if neko

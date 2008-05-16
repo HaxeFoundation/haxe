@@ -28,7 +28,7 @@ import neko.io.File;
 /**
 	Use [neko.io.File.write] to create a [FileOutput]
 **/
-class FileOutput extends Output {
+class FileOutput extends haxe.io.Output {
 
 	private var __f : FileHandle;
 
@@ -36,20 +36,12 @@ class FileOutput extends Output {
 		__f = f;
 	}
 
-	public override function writeChar( c : Int ) {
-		try {
-			file_write_char(__f,c);
-		} catch( e : Dynamic ) {
-			throw Error.Custom(e);
-		}
+	public override function writeByte( c : Int ) {
+		try file_write_char(__f,c) catch( e : Dynamic ) throw haxe.io.Error.Custom(e);
 	}
 
-	public override function writeBytes( s : String, p : Int, l : Int ) : Int {
-		return try {
-			file_write(__f,untyped s.__s,p,l);
-		} catch( e : Dynamic ) {
-			throw Error.Custom(e);
-		}
+	public override function writeBytes( s : haxe.io.Bytes, p : Int, l : Int ) : Int {
+		return try file_write(__f,s.getData(),p,l) catch( e : Dynamic ) throw haxe.io.Error.Custom(e);
 	}
 
 	public override function flush() {

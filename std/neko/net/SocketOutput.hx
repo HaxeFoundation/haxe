@@ -24,9 +24,9 @@
  */
 package neko.net;
 import neko.net.Socket;
-import neko.io.Error;
+import haxe.io.Error;
 
-class SocketOutput extends neko.io.Output {
+class SocketOutput extends haxe.io.Output {
 
 	var __s : SocketHandle;
 
@@ -34,7 +34,7 @@ class SocketOutput extends neko.io.Output {
 		__s = s;
 	}
 
-	public override function writeChar( c : Int ) {
+	public override function writeByte( c : Int ) {
 		try {
 			socket_send_char(__s, c);
 		} catch( e : Dynamic ) {
@@ -45,9 +45,9 @@ class SocketOutput extends neko.io.Output {
 		}
 	}
 
-	public override function writeBytes( buf : String, pos : Int, len : Int) : Int {
+	public override function writeBytes( buf : haxe.io.Bytes, pos : Int, len : Int) : Int {
 		return try {
-			socket_send(__s, untyped buf.__s, pos, len);
+			socket_send(__s, buf.getData(), pos, len);
 		} catch( e : Dynamic ) {
 			if( e == "Blocking" )
 				throw Blocked;

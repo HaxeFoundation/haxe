@@ -44,7 +44,7 @@ class BytesOutput extends Output {
 		#if flash9
 		b.writeByte(c);
 		#else
-		b.add(c);
+		b.addByte(c);
 		#end
 	}
 
@@ -111,6 +111,11 @@ class BytesOutput extends Output {
 		if( size > 0 )
 			b[size-1] = b[size-1];
 	}
+
+	override function writeString( s : String ) {
+		b.writeUTFBytes(s);
+	}
+
 	#end
 
 	public function getBytes() {

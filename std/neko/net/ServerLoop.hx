@@ -26,7 +26,7 @@ package neko.net;
 
 private typedef ServerClient<ClientData> = {
 	var sock : Socket;
-	var buffer : String;
+	var buffer : haxe.io.Bytes;
 	var bufbytes : Int;
 	var data : ClientData;
 }
@@ -115,7 +115,7 @@ class ServerLoop<ClientData> {
 		while sending the data, no exception will occur but the client will
 		be gracefully disconnected.
 	**/
-	public function clientWrite( s : Socket, buf : String, pos : Int, len : Int ) {
+	public function clientWrite( s : Socket, buf : haxe.io.Bytes, pos : Int, len : Int ) {
 		try {
 			while( len > 0 ) {
 				var nbytes = s.output.writeBytes(buf,pos,len);
@@ -133,7 +133,7 @@ class ServerLoop<ClientData> {
 		that needs to be removed from the buffer. It the data can't be handled (some
 		part of the message is missing for example), returns 0.
 	**/
-	public function processClientData( d : ClientData, buf : String, bufpos : Int, buflen : Int ) {
+	public function processClientData( d : ClientData, buf : haxe.io.Bytes, bufpos : Int, buflen : Int ) {
 		throw "ServerLoop::processClientData is not implemented";
 		return 0;
 	}
@@ -156,8 +156,8 @@ class ServerLoop<ClientData> {
 					throw "Max buffer size reached";
 				nsize = MAX_BUFSIZE;
 			}
-			var buf2 = neko.Lib.makeString(nsize);
-			neko.Lib.copyBytes(buf2,0,cl.buffer,0,buflen);
+			var buf2 = haxe.io.Bytes.alloc(nsize);
+			buf2.blit(0,cl.buffer,0,buflen);
 			buflen = nsize;
 			cl.buffer = buf2;
 		}
@@ -176,7 +176,7 @@ class ServerLoop<ClientData> {
 			cl.bufbytes -= nbytes;
 		}
 		if( pos > 0 )
-			neko.Lib.copyBytes(cl.buffer,0,cl.buffer,pos,cl.bufbytes);
+			cl.buffer.blit(0,cl.buffer,pos,cl.bufbytes);
 	}
 
 	/**
@@ -197,7 +197,7 @@ class ServerLoop<ClientData> {
 					cl = {
 						sock : sock,
 						data : null,
-						buffer : neko.Lib.makeString(DEFAULT_BUFSIZE),
+						buffer : haxe.io.Bytes.alloc(DEFAULT_BUFSIZE),
 						bufbytes : 0,
 					};
 					// bind the client
@@ -219,7 +219,7 @@ class ServerLoop<ClientData> {
 						readData(cl);
 						processData(cl);
 					} catch( e : Dynamic ) {
-						if( !Std.is(e,neko.io.Eof) )
+						if( !Std.is(e,haxe.io.Eof) )
 							onError(e);
 						closeConnection(cl.sock);
 					}

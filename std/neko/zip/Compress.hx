@@ -32,8 +32,8 @@ class Compress {
 		s = _deflate_init(level);
 	}
 
-	public function run( src : String, srcPos : Int, dst : String, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
-		return _deflate_buffer(s,untyped src.__s,srcPos,untyped dst.__s,dstPos);
+	public function run( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
+		return _deflate_buffer(s,src.getData(),srcPos,dst.getData(),dstPos);
 	}
 
 	public function setFlushMode( f : Flush ) {
@@ -44,15 +44,15 @@ class Compress {
 		_deflate_end(s);
 	}
 
-	public static function run( s : String, level : Int ) : String {
+	public static function run( s : haxe.io.Bytes, level : Int ) : haxe.io.Bytes {
 		var c = new Compress(level);
 		c.setFlushMode(Flush.FINISH);
-		var out = neko.Lib.makeString(_deflate_bound(c.s,s.length));
+		var out = haxe.io.Bytes.alloc(_deflate_bound(c.s,s.length));
 		var r = c.run(s,0,out,0);
 		c.close();
 		if( !r.done || r.read != s.length )
 			throw "Compression failed";
-		return out.substr(0,r.write);
+		return out.sub(0,r.write);
 	}
 
 	static var _deflate_init = neko.Lib.load("zlib","deflate_init",1);
