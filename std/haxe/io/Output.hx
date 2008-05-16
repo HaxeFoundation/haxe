@@ -223,7 +223,11 @@ class Output {
 	}
 
 	public function writeString( s : String ) {
+		#if neko
+		var b = untyped new Bytes(s.length,s.__s);
+		#else
 		var b = Bytes.ofString(s);
+		#end
 		writeFullBytes(b,0,b.length);
 	}
 
