@@ -58,7 +58,12 @@ class Reflect {
 		#if flash
 			return o[field];
 		#elseif js
-			return try o[field] catch( e : Dynamic ) null;
+			var v = null;
+			try {
+				v = o[field];
+			} catch( e : Dynamic ) {
+			}
+			return v;
 		#elseif neko
 			return if( __dollar__typeof(o) != __dollar__tobject ) null else __dollar__objget(o,__dollar__hash(field.__s));
 		#else
