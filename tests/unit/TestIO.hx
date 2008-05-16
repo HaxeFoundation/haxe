@@ -67,6 +67,9 @@ class TestIO extends Test {
 		exc(function() o.writeUInt30(-1));
 		exc(function() o.writeUInt30(0x40 << 24));
 
+		o.writeInt32(haxe.Int32.make(0xA0FF,0xEEDD));
+		o.writeInt32(haxe.Int32.make(0xC0FF,0xEEDD));
+
 		unspec(function() o.writeByte(-1));
 		unspec(function() o.writeByte(257));
 
@@ -95,6 +98,10 @@ class TestIO extends Test {
 		eq( i.readUInt16(), 0xFF55 );
 		eq( i.readUInt24(), 0xFF00EE );
 		eq( i.readUInt30(), 0x3FAABBCC );
+
+		eq( haxe.Int32.compare( i.readInt32() , haxe.Int32.make(0xA0FF,0xEEDD) ), 0 );
+		eq( haxe.Int32.compare( i.readInt32() , haxe.Int32.make(0xC0FF,0xEEDD) ), 0 );
+
 	}
 
 }

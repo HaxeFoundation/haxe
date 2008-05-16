@@ -6,6 +6,7 @@
   <files path="/">
     <file path="Test.hx" />
     <file path="TestBytes.hx" />
+    <file path="TestInt32.hx" />
     <file path="TestIO.hx" />
   </files>
 </haxe>

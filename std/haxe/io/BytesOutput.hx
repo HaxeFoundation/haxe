@@ -103,6 +103,10 @@ class BytesOutput extends Output {
 		b.writeInt(x);
 	}
 
+	override function writeInt32( x : haxe.Int32 ) {
+		b.writeInt(cast x);
+	}
+
 	override function prepare( size : Int ) {
 		if( size > 0 )
 			b[size-1] = b[size-1];

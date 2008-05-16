@@ -162,7 +162,7 @@ let type_path ctx path =
 		| ["flash";"utils"], "QName" -> [] , "QName"
 		| ["flash";"utils"], "Namespace" -> [] , "Namespace"
 		| ["flash"] , "FlashXml__" -> [] , "Xml"
-		| ["flash"] , "Boot" -> [] , ctx.boot
+		| ["flash"] , "Boot" -> [] , ctx.boot		
 		| _ -> path
 	) in
 	HMPath (pack,name)
@@ -179,6 +179,7 @@ let rec follow_basic t =
 		(match follow tp with
 		| TMono _
 		| TFun _
+		| TInst ({ cl_path = (["haxe"],"Int32") },[])
 		| TInst ({ cl_path = ([],"Int") },[])
 		| TInst ({ cl_path = ([],"Float") },[])
 		| TEnum ({ e_path = ([],"Bool") },[]) -> t
@@ -193,6 +194,8 @@ let type_id ctx t =
 	match follow_basic t with
 	| TEnum ({ e_path = path; e_extern = false },_) ->
 		type_path ctx path
+	| TInst ({ cl_path = ["haxe"],"Int32" },_) ->
+		type_path ctx ([],"Int")
 	| TInst (c,_) ->
 		(match c.cl_kind with
 		| KTypeParameter ->
@@ -224,7 +227,7 @@ let type_void ctx t =
 
 let classify ctx t =
 	match follow_basic t with
-	| TInst ({ cl_path = [],"Int" },_) ->
+	| TInst ({ cl_path = [],"Int" },_) | TInst ({ cl_path = ["haxe"],"Int32" },_) ->
 		KInt
 	| TInst ({ cl_path = [],"Float" },_) ->
 		KFloat

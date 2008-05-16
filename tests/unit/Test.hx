@@ -7,7 +7,7 @@ class Test {
 
 	function eq<T>( v : T, v2 : T, ?pos : haxe.PosInfos ) {
 		count++;
-		if( v != v2 ) report(v+" != "+v2,pos);
+		if( v != v2 ) report(v+" should be "+v2,pos);
 	}
 
 	function exc( f : Void -> Void, ?pos : haxe.PosInfos ) {
@@ -59,6 +59,7 @@ class Test {
 		#end
 		var classes = [
 			new TestBytes(),
+			new TestInt32(),
 			new TestIO(),
 		];
 		var current = null;
