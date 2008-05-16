@@ -19,6 +19,7 @@ class TestIO extends Test {
 		o.bigEndian = endian;
 		eq(o.bigEndian,endian);
 
+		o.prepare(4);
 		o.writeByte(0x00);
 		o.writeByte(0x01);
 		o.writeByte(0x02);
@@ -45,6 +46,14 @@ class TestIO extends Test {
 		exc(function() o.writeInt16(1 << 24));
 		exc(function() o.writeInt16(-((1 << 24)+1)));
 		o.writeInt31(-123456789);
+		#if neko
+		// in neko, we can't represent invalid 31 bits integers anyway
+		exc(function() throw "Overflow");
+		exc(function() throw "Overflow");
+		#else
+		exc(function() o.writeInt31(1 << 30));
+		exc(function() o.writeInt31(-((1 << 30) + 1)));
+		#end
 		o.writeInt8(-5);
 		exc(function() o.writeInt8(128));
 		exc(function() o.writeInt8(-129));
@@ -54,14 +63,16 @@ class TestIO extends Test {
 		o.writeUInt24(0xFF00EE);
 		exc(function() o.writeUInt24(1 << 24));
 		exc(function() o.writeUInt24(-1));
-		o.writeUInt31(0x3FAABBCC);
+		o.writeUInt30(0x3FAABBCC);
+		exc(function() o.writeUInt30(-1));
+		exc(function() o.writeUInt30(0x40 << 24));
 
 		unspec(function() o.writeByte(-1));
 		unspec(function() o.writeByte(257));
 
 		var i = new haxe.io.BytesInput(o.getBytes());
 		i.bigEndian = endian;
-		eq( i.readUInt31(), endian ? 0x00010203 : 0x03020100 );
+		eq( i.readUInt30(), endian ? 0x00010203 : 0x03020100 );
 		eq( i.read(b.length).compare(b) , 0 );
 		eq( i.readByte(), 55 );
 		eq( i.read(5).compare(b.sub(3,5)), 0 );
@@ -71,6 +82,7 @@ class TestIO extends Test {
 		eq( i.readDouble(), 1.23 );
 		eq( i.readFloat(), 1.2e10 );
 		#else
+		// these two are not implemented
 		exc(function() i.readDouble());
 		exc(function() i.readFloat());
 		#end
@@ -82,7 +94,7 @@ class TestIO extends Test {
 		eq( i.readInt8(), -5 );
 		eq( i.readUInt16(), 0xFF55 );
 		eq( i.readUInt24(), 0xFF00EE );
-		eq( i.readUInt31(), 0x3FAABBCC );
+		eq( i.readUInt30(), 0x3FAABBCC );
 	}
 
 }

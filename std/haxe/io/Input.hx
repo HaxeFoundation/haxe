@@ -197,11 +197,11 @@ class Input {
 			ch3 = readByte();
 			ch4 = readByte();
 		}
-		if( ((ch4 & 128) != 0) != ((ch4 & 64) != 0) ) throw Error.Overflow;
+		if( ((ch4 & 128) == 0) != ((ch4 & 64) == 0) ) throw Error.Overflow;
 		return ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
 	}
 
-	public function readUInt31() {
+	public function readUInt30() {
 		var ch1 = readByte();
 		var ch2 = readByte();
 		var ch3 = readByte();

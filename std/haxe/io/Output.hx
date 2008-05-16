@@ -89,35 +89,35 @@ class Output {
 		}
 	}
 
-	public function writeFloat( c : Float ) {
+	public function writeFloat( x : Float ) {
 		#if neko
-		write(untyped new Bytes(4,_float_bytes(c,bigEndian)));
+		write(untyped new Bytes(4,_float_bytes(x,bigEndian)));
 		#else
 		throw "Not implemented";
 		#end
 	}
 
-	public function writeDouble( c : Float ) {
+	public function writeDouble( x : Float ) {
 		#if neko
-		write(untyped new Bytes(8,_double_bytes(c,bigEndian)));
+		write(untyped new Bytes(8,_double_bytes(x,bigEndian)));
 		#else
 		throw "Not implemented";
 		#end
 	}
 
-	public function writeInt8( c : Int ) {
-		if( c < -0x80 || c > 0x7F )
+	public function writeInt8( x : Int ) {
+		if( x < -0x80 || x >= 0x80 )
 			throw Error.Overflow;
-		writeByte(c & 0xFF);
+		writeByte(x & 0xFF);
 	}
 
 	public function writeInt16( x : Int ) {
-		if( x < -0x8000 || x > 0x7FFF ) throw Error.Overflow;
+		if( x < -0x8000 || x >= 0x8000 ) throw Error.Overflow;
 		writeUInt16(x & 0xFFFF);
 	}
 
 	public function writeUInt16( x : Int ) {
-		if( x < 0 || x > 0xFFFF ) throw Error.Overflow;
+		if( x < 0 || x >= 0x10000 ) throw Error.Overflow;
 		if( bigEndian ) {
 			writeByte(x >> 8);
 			writeByte(x & 0xFF);
@@ -128,12 +128,12 @@ class Output {
 	}
 
 	public function writeInt24( x : Int ) {
-		if( x < -0x800000 || x > 0x7FFFFF ) throw Error.Overflow;
+		if( x < -0x800000 || x >= 0x800000 ) throw Error.Overflow;
 		writeUInt24(x & 0xFFFFFF);
 	}
 
 	public function writeUInt24( x : Int ) {
-		if( x < 0 || x > 0xFFFFFF ) throw Error.Overflow;
+		if( x < 0 || x >= 0x1000000 ) throw Error.Overflow;
 		if( bigEndian ) {
 			writeByte(x >> 16);
 			writeByte((x >> 8) & 0xFF);
@@ -146,10 +146,24 @@ class Output {
 	}
 
 	public function writeInt31( x : Int ) {
-		writeUInt31(x);
+		#if !neko
+		if( x < -0x40000000 || x >= 0x40000000 ) throw Error.Overflow;
+		#end
+		if( bigEndian ) {
+			writeByte(x >>> 24);
+			writeByte((x >> 16) & 0xFF);
+			writeByte((x >> 8) & 0xFF);
+			writeByte(x & 0xFF);
+		} else {
+			writeByte(x & 0xFF);
+			writeByte((x >> 8) & 0xFF);
+			writeByte((x >> 16) & 0xFF);
+			writeByte(x >>> 24);
+		}
 	}
 
-	public function writeUInt31( x : Int ) {
+	public function writeUInt30( x : Int ) {
+		if( x < 0 #if !neko || x >= 0x40000000 #end ) throw Error.Overflow;
 		if( bigEndian ) {
 			writeByte(x >>> 24);
 			writeByte((x >> 16) & 0xFF);

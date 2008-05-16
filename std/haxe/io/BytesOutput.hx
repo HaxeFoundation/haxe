@@ -26,39 +26,97 @@ package haxe.io;
 
 class BytesOutput extends Output {
 
+	#if flash9
+	var b : flash.utils.ByteArray;
+	#else
 	var b : BytesBuffer;
+	#end
 
 	public function new() {
+		#if flash9
+		b = new flash.utils.ByteArray();
+		#else
 		b = new BytesBuffer();
+		#end
 	}
 
 	override function writeByte(c) {
+		#if flash9
+		b.writeByte(c);
+		#else
 		b.add(c);
+		#end
 	}
 
-	override function writeBytes( buf, bpos, blen ) : Int {
-		b.addBytes(buf,bpos,blen);
-		return blen;
+	override function writeBytes( buf : Bytes, pos, len ) : Int {
+		#if flash9
+		if( pos < 0 || len < 0 || pos + len > buf.length ) throw Error.OutsideBounds;
+		b.writeBytes(buf.getData(),pos,len);
+		#else
+		b.addBytes(buf,pos,len);
+		#end
+		return len;
 	}
 
 	#if flash9
+	// optimized operations
+
 	override function setEndian(e) {
 		bigEndian = e;
-		untyped b.b.endian = e ? flash.utils.Endian.BIG_ENDIAN : flash.utils.Endian.LITTLE_ENDIAN;
+		b.endian = e ? flash.utils.Endian.BIG_ENDIAN : flash.utils.Endian.LITTLE_ENDIAN;
 		return e;
 	}
 
 	override function writeFloat( f : Float ) {
-		untyped b.b.writeFloat(f);
+		b.writeFloat(f);
 	}
 
 	override function writeDouble( f : Float ) {
-		untyped b.b.writeDouble(f);
+		b.writeDouble(f);
+	}
+
+	override function writeInt8( x : Int ) {
+		if( x < -0x80 || x >= 0x80 )
+			throw Error.Overflow;
+		b.writeByte(x);
+	}
+
+	override function writeInt16( x : Int ) {
+		if( x < -0x8000 || x >= 0x8000 ) throw Error.Overflow;
+		b.writeShort(x);
+	}
+
+	override function writeUInt16( x : Int ) {
+		if( x < 0 || x >= 0x10000 ) throw Error.Overflow;
+		b.writeShort(x);
+	}
+
+	override function writeInt31( x : Int ) {
+		#if !neko
+		if( x < -0x40000000 || x >= 0x40000000 ) throw Error.Overflow;
+		#end
+		b.writeInt(x);
+	}
+
+	override function writeUInt30( x : Int ) {
+		if( x < 0 || x >= 0x40000000 ) throw Error.Overflow;
+		b.writeInt(x);
+	}
+
+	override function prepare( size : Int ) {
+		if( size > 0 )
+			b[size-1] = b[size-1];
 	}
 	#end
 
 	public function getBytes() {
+		#if flash9
+		var bytes = b;
+		b = null;
+		return untyped new Bytes(bytes.length,bytes);
+		#else
 		return b.getBytes();
+		#end
 	}
 
 }
