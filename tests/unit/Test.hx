@@ -66,8 +66,10 @@ class Test {
 			for( inst in classes ) {
 				current = Type.getClass(inst);
 				for( f in Type.getInstanceFields(current) )
-					if( f.substr(0,4) == "test" )
+					if( f.substr(0,4) == "test" ) {
 						Reflect.callMethod(inst,Reflect.field(inst,f),[]);
+						reportInfos = null;
+					}
 			}
 			report("DONE ["+count+" tests]",here);
 		} catch( e : Dynamic ) {

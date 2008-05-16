@@ -27,13 +27,7 @@ package haxe.io;
 class Bytes {
 
 	public var length(default,null) : Int;
-	#if neko
-	var b : Void; // neko-string
-	#elseif flash9
-	var b : flash.utils.ByteArray;
-	#else
-	var b : Array<Int>;
-	#end
+	var b : BytesData;
 
 	function new(length,b) {
 		this.length = length;
@@ -62,10 +56,10 @@ class Bytes {
 
 	public function blit( pos : Int, src : Bytes, srcpos : Int, len : Int ) : Void {
 		#if !neko
-		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > length || srcpos + len > src.length ) throw "Outside bounds";
+		if( pos < 0 || srcpos < 0 || len < 0 || pos + len > length || srcpos + len > src.length ) throw Error.OutsideBounds;
 		#end
 		#if neko
-		try untyped __dollar__sblit(b,pos,src.b,srcpos,len) catch( e : Dynamic ) throw "Outside bounds";
+		try untyped __dollar__sblit(b,pos,src.b,srcpos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
 		#elseif flash9
 		b.position = pos;
 		b.writeBytes(src.b,srcpos,len);
@@ -82,6 +76,22 @@ class Bytes {
 		}
 		for( i in 0...len )
 			b1[i+pos] = b2[i+srcpos];
+		#end
+	}
+
+	public function sub( pos : Int, len : Int ) : Bytes {
+		#if !neko
+		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
+		#end
+		#if neko
+		return try new Bytes(len,untyped __dollar__ssub(b,pos,len)) catch( e : Dynamic ) throw Error.OutsideBounds;
+		#elseif flash9
+		b.position = pos;
+		var b2 = new flash.utils.ByteArray();
+		b.readBytes(b2,0,len);
+		return new Bytes(len,b2);
+		#else
+		return new Bytes(len,b.slice(pos,pos+len));
 		#end
 	}
 
@@ -117,10 +127,10 @@ class Bytes {
 
 	public function readString( pos : Int, len : Int ) : String {
 		#if !neko
-		if( pos < 0 || len < 0 || pos + len > length ) throw "Outside bounds";
+		if( pos < 0 || len < 0 || pos + len > length ) throw Error.OutsideBounds;
 		#end
 		#if neko
-		return try new String(untyped __dollar__ssub(b,pos,len)) catch( e : Dynamic ) throw "Outside bounds";
+		return try new String(untyped __dollar__ssub(b,pos,len)) catch( e : Dynamic ) throw Error.OutsideBounds;
 		#elseif flash9
 		b.position = pos;
 		return b.readUTFBytes(len);
@@ -159,6 +169,10 @@ class Bytes {
 		#else
 		return readString(0,length);
 		#end
+	}
+
+	public inline function getData() : BytesData {
+		return b;
 	}
 
 	public static function alloc( length : Int ) : Bytes {

@@ -48,7 +48,7 @@ class Stack {
 			a.pop(); // remove Stack.callStack()
 			return a;
 		#elseif flash9
-			return null;
+			return new Array();
 		#elseif (flash || js)
 			return makeStack("$s");
 		#else
@@ -65,7 +65,7 @@ class Stack {
 		#if neko
 			return makeStack(untyped __dollar__excstack());
 		#elseif flash9
-			return null;
+			return new Array();
 		#elseif (flash ||js)
 			return makeStack("$e");
 		#else

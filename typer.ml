@@ -275,7 +275,7 @@ let field_access ctx get f t e p =
 			AccSet (e,m,t,f.cf_name)
 	| ResolveAccess ->
 		let fstring = mk (TConst (TString f.cf_name)) (mk_mono()) p in
-		AccExpr (mk (TCall (mk (TField (e,"__resolve")) (mk_mono()) p,[fstring])) t p)
+		AccExpr (mk (TCall (mk (TField (e,"resolve")) (mk_mono()) p,[fstring])) t p)
 	| NeverAccess ->
 		AccNo f.cf_name
 	| InlineAccess ->
@@ -601,7 +601,7 @@ let extend_remoting ctx c t p async prot =
 					(EReturn (Some (EUntyped (ECall (
 						(EField (
 							(ECall (
-								(EField ((EConst (Ident "__cnx"),p),"__resolve"),p),
+								(EField ((EConst (Ident "__cnx"),p),"resolve"),p),
 								[if prot then idname else ECall ((EConst (Ident "__unprotect__"),p),[idname]),p]
 							),p)
 						,"call"),p),eargs
@@ -1214,8 +1214,8 @@ let type_field ctx e i p get =
 			match c.cl_dynamic with
 			| Some t ->
 				let t = apply_params c.cl_types params t in
-				if get && PMap.mem "__resolve" c.cl_fields then
-					AccExpr (mk (TCall (mk (TField (e,"__resolve")) (mk_mono()) p,[type_constant ctx (String i) p])) t p)
+				if get && PMap.mem "resolve" c.cl_fields then
+					AccExpr (mk (TCall (mk (TField (e,"resolve")) (mk_mono()) p,[type_constant ctx (String i) p])) t p)
 				else if not get && PMap.mem "__setfield" c.cl_fields then
 					AccSetField (e,i,t)
 				else

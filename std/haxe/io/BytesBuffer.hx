@@ -55,13 +55,16 @@ class BytesBuffer {
 	}
 
 	public inline function addBytes( src : Bytes, pos : Int, len : Int ) {
+		#if !neko
+		if( pos < 0 || len < 0 || pos + len > src.length ) throw Error.OutsideBounds;
+		#end
 		#if neko
-		untyped StringBuf.__add_sub(b,src.b,pos,len);
+		try untyped StringBuf.__add_sub(b,src.getData(),pos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
 		#elseif flash9
-		b.writeBytes(untyped src.b,pos,len);
+		b.writeBytes(src.getData(),pos,len);
 		#else
 		var b1 = b;
-		var b2 = untyped src.b;
+		var b2 = src.getData();
 		for( i in pos...pos+len )
 			b.push(b2[i]);
 		#end

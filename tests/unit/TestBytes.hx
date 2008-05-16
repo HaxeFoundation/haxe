@@ -77,9 +77,8 @@ class TestBytes extends Test {
 		// toString
 		eq(b2.toString(),"ABCD");
 		// compare
-		var strings = ["ABCD","ABDC","ABCDE","ABC","BC","AAAAAAAAA",
-			#if !flash8 "" #end // there is an error with empty string comparison in Flash8
-		];
+		var strings = ["ABCD","ABDC","ABCDE","ABC","BC","AAAAAAAAA"];
+		// NOTE : Flash<9 has a bug when comparing with the empty string
 		for( s1 in strings )
 			for( s2 in strings ) {
 				var c = haxe.io.Bytes.ofString(s1).compare(haxe.io.Bytes.ofString(s2));
@@ -89,6 +88,12 @@ class TestBytes extends Test {
 				eq( c == 0, s1 == s2 );
 			}
 		infos(null);
+		// sub
+		var bs = haxe.io.Bytes.ofString("ABCDEFGH");
+		eq( bs.sub(1,3).compare(haxe.io.Bytes.ofString("BCD")), 0 );
+		exc(function() bs.sub(-1,3));
+		exc(function() bs.sub(1,-1));
+		exc(function() bs.sub(1,10));
 	}
 
 	function testBuffer() {

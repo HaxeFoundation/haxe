@@ -26,6 +26,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	allow up to 8 parameters in Reflect.createInstance
 	flash9 : some minor optimizations in haxe.Serializer
 	added haxe.io package (removed things from neko.io)
+	__resolve becomes resolve (and should be documented)
 	TODO read/write int31+int32
 
 2008-04-05: 1.19

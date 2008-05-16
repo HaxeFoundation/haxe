@@ -40,10 +40,10 @@ class Output {
 
 	public function writeBytes( s : Bytes, pos : Int, len : Int ) : Int {
 		var k = len;
-		var b = untyped s.b;
+		var b = s.getData();
 		#if !neko
 		if( pos < 0 || len < 0 || pos + len > s.length )
-			throw Error.Custom("Outside bounds");
+			throw Error.OutsideBounds;
 		#end
 		while( k > 0 ) {
 			#if neko
@@ -112,10 +112,8 @@ class Output {
 	}
 
 	public function writeInt16( x : Int ) {
-		if( x < 0 )
-			writeUInt16(0x10000 + x);
-		else
-			writeUInt16(x);
+		if( x < -0x8000 || x > 0x7FFF ) throw Error.Overflow;
+		writeUInt16(x & 0xFFFF);
 	}
 
 	public function writeUInt16( x : Int ) {
@@ -130,10 +128,8 @@ class Output {
 	}
 
 	public function writeInt24( x : Int ) {
-		if( x < 0 )
-			writeUInt24(0x1000000 + x);
-		else
-			writeUInt24(x);
+		if( x < -0x800000 || x > 0x7FFFFF ) throw Error.Overflow;
+		writeUInt24(x & 0xFFFFFF);
 	}
 
 	public function writeUInt24( x : Int ) {

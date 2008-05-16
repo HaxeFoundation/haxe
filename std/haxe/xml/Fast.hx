@@ -32,7 +32,7 @@ private class NodeAccess implements Dynamic<Fast> {
 		__x = x;
 	}
 
-	function __resolve( name : String ) : Fast {
+	public function resolve( name : String ) : Fast {
 		var x = __x.elementsNamed(name).next();
 		if( x == null ) {
 			var xname = if( __x.nodeType == Xml.Document ) "Document" else __x.nodeName;
@@ -51,7 +51,7 @@ private class AttribAccess implements Dynamic<String> {
 		__x = x;
 	}
 
-	function __resolve( name : String ) : String {
+	public function resolve( name : String ) : String {
 		if( __x.nodeType == Xml.Document )
 			throw "Cannot access document attribute "+name;
 		var v = __x.get(name);
@@ -70,7 +70,7 @@ private class HasAttribAccess implements Dynamic<Bool> {
 		__x = x;
 	}
 
-	function __resolve( name : String ) : Bool {
+	public function resolve( name : String ) : Bool {
 		if( __x.nodeType == Xml.Document )
 			throw "Cannot access document attribute "+name;
 		return __x.exists(name);
@@ -86,7 +86,7 @@ private class HasNodeAccess implements Dynamic<Bool> {
 		__x = x;
 	}
 
-	function __resolve( name : String ) : Bool {
+	public function resolve( name : String ) : Bool {
 		return __x.elementsNamed(name).hasNext();
 	}
 
@@ -100,7 +100,7 @@ private class NodeListAccess implements Dynamic<List<Fast>> {
 		__x = x;
 	}
 
-	function __resolve( name : String ) : List<Fast> {
+	public function resolve( name : String ) : List<Fast> {
 		var l = new List();
 		for( x in __x.elementsNamed(name) )
 			l.add(new Fast(x));

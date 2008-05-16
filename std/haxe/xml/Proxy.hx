@@ -50,7 +50,7 @@ class Proxy<Const,T> {
 		this.__f = f;
 	}
 
-	function __resolve(k) {
+	public function resolve(k) {
 		return __f(k);
 	}
 

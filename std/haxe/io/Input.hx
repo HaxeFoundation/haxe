@@ -38,10 +38,10 @@ class Input {
 
 	public function readBytes( s : Bytes, pos : Int, len : Int ) : Int {
 		var k = len;
-		var b = untyped s.b;
+		var b = s.getData();
 		#if !neko
 		if( pos < 0 || len < 0 || pos + len > s.length )
-			throw Error.Custom("Outside bounds");
+			throw Error.OutsideBounds;
 		#end
 		while( k > 0 ) {
 			#if neko
@@ -197,13 +197,8 @@ class Input {
 			ch3 = readByte();
 			ch4 = readByte();
 		}
-		if( (ch4 & 128) != 0 ) {
-			if( ch4 & 64 == 0 ) throw Error.Overflow;
-			return ch1 | (ch2 << 8) | (ch3 << 16) | ((ch4 & 127) << 24);
-		} else {
-			if( ch4 & 64 != 0 ) throw Error.Overflow;
-			return ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
-		}
+		if( ((ch4 & 128) != 0) != ((ch4 & 64) != 0) ) throw Error.Overflow;
+		return ch1 | (ch2 << 8) | (ch3 << 16) | (ch4 << 24);
 	}
 
 	public function readUInt31() {

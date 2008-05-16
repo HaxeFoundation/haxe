@@ -24,41 +24,10 @@
  */
 package haxe.io;
 
-class BytesOutput extends Output {
-
-	var b : BytesBuffer;
-
-	public function new() {
-		b = new BytesBuffer();
-	}
-
-	override function writeByte(c) {
-		b.add(c);
-	}
-
-	override function writeBytes( buf, bpos, blen ) : Int {
-		b.addBytes(buf,bpos,blen);
-		return blen;
-	}
-
-	#if flash9
-	override function setEndian(e) {
-		bigEndian = e;
-		untyped b.b.endian = e ? flash.utils.Endian.BIG_ENDIAN : flash.utils.Endian.LITTLE_ENDIAN;
-		return e;
-	}
-
-	override function writeFloat( f : Float ) {
-		untyped b.b.writeFloat(f);
-	}
-
-	override function writeDouble( f : Float ) {
-		untyped b.b.writeDouble(f);
-	}
-	#end
-
-	public function getBytes() {
-		return b.getBytes();
-	}
-
-}
+#if neko
+	typedef BytesData =	Void; // neko-string
+#elseif flash9
+	typedef BytesData =	flash.utils.ByteArray;
+#else
+	typedef BytesData = Array<Int>;
+#end

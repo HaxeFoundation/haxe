@@ -26,47 +26,88 @@ package haxe.io;
 
 class BytesInput extends Input {
 
-	#if neko
-	var b : Void; // neko string
-	#else flash9
-	var b : flash.utils.ByteArray;
-	#else
-	var b : Array<Int>;
-	#end
+	var b : BytesData;
+	#if !flash9
 	var pos : Int;
 	var len : Int;
+	#end
 
 	public function new( b : Bytes, ?pos : Int, ?len : Int ) {
 		if( pos == null ) pos = 0;
 		if( len == null ) len = b.length - pos;
-		if( pos < 0 || len < 0 || pos + len > b.length )
-			throw "Outside bounds";
-		this.b = untyped b.b;
+		if( pos < 0 || len < 0 || pos + len > b.length ) throw Error.OutsideBounds;
+		#if flash9
+		var ba = b.getData();
+		ba.position = pos;
+		if( len != ba.bytesAvailable ) {
+			// truncate
+			this.b = new flash.utils.ByteArray();
+			ba.readBytes(this.b,0,len);
+		} else
+			this.b = ba;
+		this.b.endian = flash.utils.Endian.LITTLE_ENDIAN;
+		#else
+		this.b = b.getData();
 		this.pos = pos;
 		this.len = len;
-	}
-
-	public override function readChar() {
-		if( this.len == 0 )
-			throw new Eof();
-		#if neko
-		var c = untyped __dollar__sget(b.__s,pos++);
-		#else
-		var c = b[pos++];
 		#end
-		len--;
-		return c;
 	}
 
-	public override function readBytes( buf : Bytes, bpos, blen ) : Int {
-		if( len == 0 && blen > 0 )
-			throw new Eof();
-		if( len < blen )
-			blen = len;
-		untyped __dollar__sblit(buf.__s,bpos,s.__s,pos,blen);
-		pos += blen;
-		len -= blen;
-		return blen;
+	public override function readByte() : Int {
+		#if flash9
+			return try b.readUnsignedByte() catch( e : Dynamic ) throw new Eof();
+		#else
+			if( this.len == 0 )
+				throw new Eof();
+			len--;
+			#if neko
+			return untyped __dollar__sget(b,pos++);
+			#else
+			return b[pos++];
+			#end
+		#end
 	}
+
+	public override function readBytes( buf : Bytes, pos, len ) : Int {
+		#if !neko
+			if( pos < 0 || len < 0 || pos + len > b.length )
+				throw Error.OutsideBounds;
+		#end
+		#if flash9
+			try b.readBytes(buf.getData(),pos,len) catch( e : Dynamic ) throw new Eof();
+		#else
+			if( this.len == 0 && len > 0 )
+				throw new Eof();
+			if( this.len < len )
+				len = this.len;
+			#if neko
+			try untyped __dollar__sblit(buf.getData(),pos,b,this.pos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
+			#else
+			var b1 = b;
+			var b2 = buf.getData();
+			for( i in 0...len )
+				b2[pos+i] = b1[this.pos+i];
+			#end
+			this.pos += len;
+			this.len -= len;
+		#end
+		return len;
+	}
+
+	#if flash9
+	override function setEndian(e) {
+		bigEndian = e;
+		b.endian = e ? flash.utils.Endian.BIG_ENDIAN : flash.utils.Endian.LITTLE_ENDIAN;
+		return e;
+	}
+
+	override function readFloat() {
+		return try b.readFloat() catch( e : Dynamic ) throw new Eof();
+	}
+
+	override function readDouble() {
+		return try b.readDouble() catch( e : Dynamic ) throw new Eof();
+	}
+	#end
 
 }
