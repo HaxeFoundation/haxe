@@ -32,6 +32,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	removed neko.io.Input/Output/Eof/Error/Logger/Multiple/StringInput/StringOutput
 	changed neko apis to use haxe.io and Bytes instead of String buffers
 	fixed big bug in js/flash8 debug stack handling
+	complete rewrite of haxe.remoting package
 
 2008-04-05: 1.19
 	fixed flash9 Array.toString

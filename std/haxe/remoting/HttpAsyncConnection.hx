@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, The haXe Project Contributors
+ * Copyright (c) 2005-2008, The haXe Project Contributors
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,68 +24,56 @@
  */
 package haxe.remoting;
 
-class AsyncDebugConnection implements AsyncConnection, implements Dynamic<AsyncDebugConnection> {
+class HttpAsyncConnection implements AsyncConnection {
 
+	var __data : { url : String, error : Dynamic -> Void };
 	var __path : Array<String>;
-	var __cnx : AsyncConnection;
-	var __data : {
-		error : Dynamic -> Void,
-		oncall : Array<String> -> Array<Dynamic> -> Void,
-		onerror : Array<String> -> Array<Dynamic> -> Dynamic -> Void,
-		onresult : Array<String> -> Array<Dynamic> -> Dynamic -> Void,
-	};
 
-	function new(path,cnx,data) {
-		__path = path;
-		__cnx = cnx;
+	function new(data,path) {
 		__data = data;
+		__path = path;
 	}
 
 	public function resolve( name ) : AsyncConnection {
-		var cnx = new AsyncDebugConnection(__path.copy(),__cnx.resolve(name),__data);
-		cnx.__path.push(name);
-		return cnx;
+		var c = new HttpAsyncConnection(__data,__path.copy());
+		c.__path.push(name);
+		return c;
 	}
 
 	public function setErrorHandler(h) {
 		__data.error = h;
 	}
 
-	public function setErrorDebug(h) {
-		__data.onerror = h;
-	}
-
-	public function setResultDebug(h) {
-		__data.onresult = h;
-	}
-
-	public function setCallDebug(h) {
-		__data.oncall = h;
-	}
-
 	public function call( params : Array<Dynamic>, ?onResult : Dynamic -> Void ) {
-		var me = this;
-		__data.oncall(__path,params);
-		__cnx.setErrorHandler(function(e) {
-			me.__data.onerror(me.__path,params,e);
-			me.__data.error(e);
-		});
-		__cnx.call(params,function(r) {
-			me.__data.onresult(me.__path,params,r);
-			if( onResult != null ) onResult(r);
-		});
+		var h = new haxe.Http(__data.url);
+		#if (neko && no_remoting_shutdown)
+			h.noShutdown = true;
+		#end
+		var s = new haxe.Serializer();
+		s.serialize(__path);
+		s.serialize(params);
+		h.setHeader("X-Haxe-Remoting","1");
+		h.setParameter("__x",s.toString());
+		var error = __data.error;
+		h.onData = function( response : String ) {
+			var ok = true;
+			var ret;
+			try {
+				if( response.substr(0,3) != "hxr" ) throw "Invalid response : '"+response+"'";
+				var s = new haxe.Unserializer(response.substr(3));
+				ret = s.unserialize();
+			} catch( err : Dynamic ) {
+				ok = false;
+				error(err);
+			}
+			if( ok && onResult != null ) onResult(ret);
+		};
+		h.onError = error;
+		h.request(true);
 	}
 
-	public static function create( cnx : AsyncConnection ) {
-		var cnx = new AsyncDebugConnection([],cnx,{
-			error : function(e) throw e,
-			oncall : function(path,params) {},
-			onerror : null,
-			onresult : null,
-		});
-		cnx.setErrorDebug(function(path,params,e) trace(path.join(".")+"("+params.join(",")+") = ERROR "+Std.string(e)));
-		cnx.setResultDebug(function(path,params,e) trace(path.join(".")+"("+params.join(",")+") = "+Std.string(e)));
-		return cnx;
+	public static function urlConnect( url : String ) : AsyncConnection {
+		return new HttpAsyncConnection({ url : url, error : function(e) throw e },[]);
 	}
 
 }

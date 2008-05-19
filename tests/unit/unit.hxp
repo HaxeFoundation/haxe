@@ -1,12 +1,16 @@
 ﻿<haxe selected="0">
-  <output name="Flash" mode="swf" out="unit8.swf" class="unit.Test" lib="" cmd="unit.html" main="True" debug="True">-cp ..</output>
+  <output name="Flash" mode="swf" out="unit8.swf" class="unit.Test" lib="" cmd="http://dev.unit-tests/unit.html" main="True" debug="True">-cp ..</output>
   <output name="Flash9" mode="swf9" out="unit9.swf" class="unit.Test" lib="" cmd="" main="True" debug="True">-cp ..</output>
   <output name="JS" mode="js" out="unit.js" class="unit.Test" lib="" cmd="" main="False" debug="True">-cp ..</output>
   <output name="Neko" mode="neko" out="unit.n" class="unit.Test" lib="" cmd="" main="True" debug="True">-cp ..</output>
+  <output name="RemotingServer" mode="neko" out="remoting.n" class="unit.RemotingServer" lib="" cmd="" main="True" debug="False">-cp ..</output>
   <files path="/">
+    <file path="RemotingApi.hx" />
+    <file path="RemotingServer.hx" />
     <file path="Test.hx" />
     <file path="TestBytes.hx" />
     <file path="TestInt32.hx" />
     <file path="TestIO.hx" />
+    <file path="TestRemoting.hx" />
   </files>
 </haxe>

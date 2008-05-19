@@ -24,70 +24,72 @@
  */
 package haxe.remoting;
 
-class DelayedConnection implements AsyncConnection, implements Dynamic<AsyncConnection> {
+class AMFConnection implements AsyncConnection, implements Dynamic<AsyncConnection> {
 
-	public var connection(getConnection,setConnection) : AsyncConnection;
-
-	var __path : Array<String>;
 	var __data : {
-		cnx : AsyncConnection,
 		error : Dynamic -> Void,
-		cache : Array<{
-			path : Array<String>,
-			params : Array<Dynamic>,
-			onResult : Dynamic -> Void,
-			onError : Dynamic -> Void
-		}>,
+		#if flash9
+		cnx : flash.net.NetConnection,
+		#elseif flash
+		cnx : flash.NetConnection,
+		#else
+		cnx : Dynamic,
+		#end
 	};
+	var __path : Array<String>;
 
-	function new(data,path) {
+	function new( data, path ) {
 		__data = data;
 		__path = path;
+	}
+
+	public function resolve( name ) : AsyncConnection {
+		var s = new AMFConnection(__data,__path.copy());
+		s.__path.push(name);
+		return s;
 	}
 
 	public function setErrorHandler(h) {
 		__data.error = h;
 	}
 
-	public function resolve( name ) : AsyncConnection {
-		var d = new DelayedConnection(__data,__path.copy());
-		d.__path.push(name);
-		return d;
+	public function close() {
+		__data.cnx.close();
 	}
 
-	function getConnection() {
-		return __data.cnx;
+	public function call( params : Array<Dynamic>, ?onResult : Dynamic -> Void ) : Void {
+		if( onResult == null ) onResult = function(e) {};
+		var p = params.copy();
+		#if flash9
+		p.unshift(new flash.net.Responder(onResult,__data.error));
+		#else
+		p.unshift({ onStatus : __data.error, onResult : onResult });
+		#end
+		p.unshift(__path.join("."));
+		untyped __data.cnx.call.apply(__data,p);
 	}
 
-	function setConnection(cnx) {
-		__data.cnx = cnx;
-		process(this);
+	#if flash
+	public static function urlConnect( gatewayUrl : String ) {
+		#if flash9
+		var c = new flash.net.NetConnection();
+		var cnx = new AMFConnection({ cnx : c, error : function(e) throw e },[]);
+		c.addEventListener(flash.events.NetStatusEvent.NET_STATUS,function(e:flash.events.NetStatusEvent) {
+			cnx.__data.error(e);
+		});
+		c.connect(gatewayUrl);
 		return cnx;
+		#else
+		var c = new flash.NetConnection();
+		if( !c.connect(gatewayUrl) )
+			throw "Could not connected to gateway url "+gatewayUrl;
+		return new AMFConnection({ cnx : c, error : function(e) throw e },[]);
+		#end
 	}
 
-	public function call( params : Array<Dynamic>, ?onResult ) {
-		__data.cache.push({ path : __path, params : params, onResult : onResult, onError : __data.error });
-		process(this);
+	public static function connect( nc ) {
+		return new AMFConnection({ cnx : nc, error : function(e) throw e },[]);
 	}
-
-	static function process( d : DelayedConnection ) {
-		var cnx = d.__data.cnx;
-		if( cnx == null )
-			return;
-		while( true ) {
-			var m = d.__data.cache.shift();
-			if( m == null )
-				break;
-			var c = cnx;
-			for( p in m.path )
-				c = c.resolve(p);
-			c.setErrorHandler(m.onError);
-			c.call(m.params,m.onResult);
-		}
-	}
-
-	public static function create() {
-		return new DelayedConnection({ cnx : null, error : function(e) throw e, cache : new Array() },[]);
-	}
+	#end
 
 }

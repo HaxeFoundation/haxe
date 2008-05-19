@@ -26,6 +26,8 @@ package haxe;
 
 class Timer {
 
+	#if !neko
+
 	private var id : Null<Int>;
 
 	#if js
@@ -33,19 +35,17 @@ class Timer {
 	private var timerId : Int;
 	#end
 
-	#if !neko
-
-	public function new( time : Int ){
+	public function new( time_ms : Int ){
 		#if flash9
 			var me = this;
-			id = untyped __global__["flash.utils.setInterval"](function() { me.run(); },time);
+			id = untyped __global__["flash.utils.setInterval"](function() { me.run(); },time_ms);
 		#elseif flash
 			var me = this;
-			id = untyped _global["setInterval"](function() { me.run(); },time);
+			id = untyped _global["setInterval"](function() { me.run(); },time_ms);
 		#elseif js
 			id = arr.length;
 			arr[id] = this;
-			timerId = untyped window.setInterval("haxe.Timer.arr["+id+"].run();",time);
+			timerId = untyped window.setInterval("haxe.Timer.arr["+id+"].run();",time_ms);
 		#end
 	}
 
@@ -73,8 +73,8 @@ class Timer {
 	public dynamic function run() {
 	}
 
-	public static function delay( f : Void -> Void, time : Int ) {
-		var t = new haxe.Timer(time);
+	public static function delay( f : Void -> Void, time_ms : Int ) {
+		var t = new haxe.Timer(time_ms);
 		t.run = function() {
 			t.stop();
 			f();

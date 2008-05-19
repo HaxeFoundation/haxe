@@ -6,7 +6,11 @@
 	<script type="text/javascript" src="unit.js"></script>
 </head>
 
-<body bgcolor="#dddddd" onLoad="setTimeout('unit.Test.main()',100)">
+<body bgcolor="#dddddd" onLoad="setTimeout('unit.Test.main()',1000)">
+
+<p>
+	Note : These tests need to be run from a local domain called <code>dev.unit-tests</code> which is running mod_neko in this directory.
+</p>
 
 <table>
 <tr>
@@ -14,15 +18,15 @@
 
 <p>JS :</p>
 
-<div id="haxe:trace" style="{ background-color : white; width : 390px; padding : 5px; }">
-</div>
+<pre id="haxe:trace" style="{ background-color : white; height : 290px; width : 390px; padding : 5px; overflow : auto auto; }">
+</pre>
 
 </td>
 <td>
 
 <p>Neko :</p>
 
-<iframe src="http://dev.unit-tests/unit.n" style="{ border : none; background-color : white; width : 400px; }">
+<iframe src="http://dev.unit-tests/unit.n" style="{ border : none; background-color : white; width : 400px; height : 300px; }">
 </iframe>
 
 </td>
@@ -36,7 +40,7 @@
 <object	classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"
         width="400"
 	height="300"
-	id="haxe"
+	id="haxeFlash8"
 	align="middle">
 <param name="movie" value="unit8.swf"/>
 <param name="allowScriptAccess" value="always" />
@@ -48,7 +52,7 @@
        bgcolor="#ffffff"
        width="400"
        height="300"
-       name="haxe"
+       name="haxeFlash8"
        quality="high"
        align="middle"
        allowScriptAccess="always"
@@ -67,7 +71,7 @@ Flash 9 :
 <object	classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"
         width="400"
 	height="300"
-	id="haxe"
+	id="haxeFlash9"
 	align="middle">
 <param name="movie" value="unit9.swf"/>
 <param name="allowScriptAccess" value="always" />
@@ -79,7 +83,7 @@ Flash 9 :
        bgcolor="#ffffff"
        width="400"
        height="300"
-       name="haxe"
+       name="haxeFlash9"
        quality="high"
        align="middle"
        allowScriptAccess="always"

@@ -25,3 +25,9 @@ unit.Test
 -main unit.Test
 -debug
 -cp ..
+
+--next
+# RemotingServer
+-neko remoting.n
+-main unit.RemotingServer
+-cp ..

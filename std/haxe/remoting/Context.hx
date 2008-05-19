@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2007, The haXe Project Contributors
+ * Copyright (c) 2005-2008, The haXe Project Contributors
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,40 +24,35 @@
  */
 package haxe.remoting;
 
-/**
-	Build an AsyncConnection from a synchronized Connection.
-**/
-class AsyncAdapter implements AsyncConnection {
+class Context {
 
-	var __cnx : Connection;
-	var __error : { ref : Dynamic -> Void };
+	var objects : Hash<{ obj : Dynamic, rec : Bool }>;
 
-	function new(cnx,error) {
-		__cnx = cnx;
-		__error = error;
+	public function new() {
+		objects = new Hash();
 	}
 
-	public function resolve( name ) : AsyncConnection {
-		return new AsyncAdapter(__cnx.resolve(name),__error);
+	public function addObject( name : String, obj : {}, ?recursive ) {
+		objects.set(name,{ obj : obj, rec : recursive });
 	}
 
-	public function setErrorHandler(h) {
-		__error.ref = h;
-	}
-
-	public function call( params : Array<Dynamic>, ?onResult : Dynamic -> Void ) {
-		var ret;
-		try {
-			ret = __cnx.call(params);
-		} catch( e : Dynamic ) {
-			__error.ref(e);
-			return;
+	public function call( path : Array<String>, params : Array<Dynamic> ) : Dynamic {
+		if( path.length < 2 ) throw "Invalid path '"+path.join(".")+"'";
+		var inf = objects.get(path[0]);
+		if( inf == null )
+			throw "No such object "+path.join(".");
+		var o = inf.obj;
+		var m = Reflect.field(o,path[1]);
+		if( path.length > 2 ) {
+			if( !inf.rec ) throw "Can't access "+path.join(".");
+			for( i in 2...path.length ) {
+				o = m;
+				m = Reflect.field(o,path[i]);
+			}
 		}
-		if( onResult != null ) onResult(ret);
-	}
-
-	public static function create( cnx : Connection ) : AsyncConnection {
-		return new AsyncAdapter(cnx,{ ref : function(e) throw e });
+		if( !Reflect.isFunction(m) )
+			throw "No such method "+path.join(".");
+		return Reflect.callMethod(o,m,params);
 	}
 
 }

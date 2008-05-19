@@ -73,21 +73,22 @@ import haxe.io.Output;
 
 import haxe.remoting.Connection;
 import haxe.remoting.AsyncConnection;
-/*
+import haxe.remoting.ExternalConnection;
+import haxe.remoting.HttpConnection;
+import haxe.remoting.HttpAsyncConnection;
+import haxe.remoting.AMFConnection;
 import haxe.remoting.AsyncAdapter;
 import haxe.remoting.AsyncDebugConnection;
+import haxe.remoting.Proxy;
 import haxe.remoting.AsyncProxy;
-import haxe.remoting.DelayedConnection;
-#if !neko
-import haxe.remoting.FlashJsConnection;
-#end
-#if flash
 import haxe.remoting.LocalConnection;
-#end
+import haxe.remoting.DelayedConnection;
+import haxe.remoting.FlashJsConnection;
+
+/*
 #if neko
 import haxe.remoting.NekoSocketConnection;
 #end
-import haxe.remoting.Proxy;
 import haxe.remoting.SocketConnection;
 import haxe.remoting.SocketProtocol;
 #if flash

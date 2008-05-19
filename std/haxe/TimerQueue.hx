@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2007, The haXe Project Contributors
+ * Copyright (c) 2008, The haXe Project Contributors
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -22,42 +22,39 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package haxe.remoting;
+package haxe;
 
-/**
-	Build an AsyncConnection from a synchronized Connection.
-**/
-class AsyncAdapter implements AsyncConnection {
+#if neko
+#error
+#end
 
-	var __cnx : Connection;
-	var __error : { ref : Dynamic -> Void };
+class TimerQueue {
 
-	function new(cnx,error) {
-		__cnx = cnx;
-		__error = error;
+	var delay : Int;
+	var t : haxe.Timer;
+	var q : Array<Void->Void>;
+
+	public function new( ?delay ) {
+		this.delay = delay == null ? 1 : delay;
+		q = new Array();
 	}
 
-	public function resolve( name ) : AsyncConnection {
-		return new AsyncAdapter(__cnx.resolve(name),__error);
+	public function add(f) {
+		q.push(f);
+		if( t == null ) {
+			t = new haxe.Timer(delay);
+			t.run = process;
+		}
 	}
 
-	public function setErrorHandler(h) {
-		__error.ref = h;
-	}
-
-	public function call( params : Array<Dynamic>, ?onResult : Dynamic -> Void ) {
-		var ret;
-		try {
-			ret = __cnx.call(params);
-		} catch( e : Dynamic ) {
-			__error.ref(e);
+	function process() {
+		var f = q.shift();
+		if( f == null ) {
+			t.stop();
+			t = null;
 			return;
 		}
-		if( onResult != null ) onResult(ret);
-	}
-
-	public static function create( cnx : Connection ) : AsyncConnection {
-		return new AsyncAdapter(cnx,{ ref : function(e) throw e });
+		f();
 	}
 
 }
