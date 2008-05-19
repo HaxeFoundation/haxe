@@ -286,6 +286,11 @@ let stack_block ?(useadd=false) ctx e =
 		match e.eexpr with
 		| TFunction _ ->
 			e
+		| TReturn None | TReturn (Some { eexpr = TConst _ }) | TReturn (Some { eexpr = TLocal _ }) ->
+			mk (TBlock [
+				stack_pop;
+				e;
+			]) e.etype e.epos
 		| TReturn (Some e) ->
 			mk (TBlock [
 				mk (TVars ["$tmp", t_dynamic, Some (loop e)]) t_dynamic e.epos;
