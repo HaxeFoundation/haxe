@@ -39,6 +39,8 @@ class Serializer {
 	**/
 	public static var USE_ENUM_INDEX = false;
 
+	static var BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";
+
 	var buf : StringBuf;
 	var cache : Array<Dynamic>;
 	var shash : Hash<Int>;
@@ -78,7 +80,7 @@ class Serializer {
 		p : +Inf
 		q : inthash
 		r : reference
-		s :
+		s : bytes (base64)
 		t : true
 		u : array nulls
 		v : date
@@ -241,24 +243,39 @@ class Serializer {
 					serialize(v.get(k));
 				}
 				buf.add("h");
-			#if flash9
-			case cast flash.utils.ByteArray:
-				buf.add("y");
-				var s = "";
-				var b : flash.utils.ByteArray = v;
-				var CHARS = ["0","1","2","3","4","5","6","7","8","9","a","b","c","d","e","f"];
-				for( p in 0...b.length ) {
-					var c = b[p];
-					// 0-9a-zA-Z
-					if( (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) )
-						s += String.fromCharCode(c);
-					else
-						s += "%"+CHARS[c>>4]+CHARS[c&15];
+			case cast haxe.io.Bytes:
+				var v : haxe.io.Bytes = v;
+				#if neko
+				var chars = StringTools.baseEncode(new String(cast v.getData()),BASE64);
+				#else
+				var i = 0;
+				var max = v.length - 2;
+				var chars = "";
+				var b64 = BASE64;
+				while( i < max ) {
+					var b1 = v.get(i++);
+					var b2 = v.get(i++);
+					var b3 = v.get(i++);
+					chars += b64.charAt(b1 >> 2)
+						+ b64.charAt(((b1 << 4) | (b2 >> 4)) & 63)
+						+ b64.charAt(((b2 << 2) | (b3 >> 6)) & 63)
+						+ b64.charAt(b3 & 63);
 				}
-				buf.add(s.length);
+				if( i == max ) {
+					var b1 = v.get(i++);
+					var b2 = v.get(i++);
+					chars += b64.charAt(b1 >> 2)
+						+ b64.charAt(((b1 << 4) | (b2 >> 4)) & 63)
+						+ b64.charAt((b2 << 2) & 63);
+				} else if( i == max + 1 ) {
+					var b1 = v.get(i++);
+					chars += b64.charAt(b1 >> 2) + b64.charAt((b1 << 4) & 63);
+				}
+				#end
+				buf.add("s");
+				buf.add(chars.length);
 				buf.add(":");
-				buf.add(s);
-			#end
+				buf.add(chars);
 			default:
 				cache.pop();
 				buf.add("c");

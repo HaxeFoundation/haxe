@@ -10,6 +10,14 @@ class Test {
 		if( v != v2 ) report(v+" should be "+v2,pos);
 	}
 
+	function t( v, ?pos ) {
+		eq(v,true,pos);
+	}
+
+	function f( v, ?pos ) {
+		eq(v,false,pos);
+	}
+
 	function exc( f : Void -> Void, ?pos : haxe.PosInfos ) {
 		count++;
 		try {
@@ -144,6 +152,7 @@ class Test {
 			new TestBytes(),
 			new TestInt32(),
 			new TestIO(),
+			new TestSerialize(),
 			new TestRemoting(),
 		];
 		var current = null;
@@ -160,6 +169,7 @@ class Test {
 			asyncWaits.remove(null);
 			checkDone();
 		} catch( e : Dynamic ) {
+			asyncWaits.remove(null);
 			reportInfos = null;
 			var msg = "???";
 			var stack = haxe.Stack.toString(haxe.Stack.exceptionStack());

@@ -34,6 +34,23 @@ class Unserializer {
 
 	public static var DEFAULT_RESOLVER : TypeResolver = Type;
 
+	static var BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";
+	static var CODES = null;
+
+	static function initCodes() {
+		var codes =
+			#if flash9
+				new flash.utils.ByteArray();
+			#elseif neko
+				untyped __dollar__amake(BASE64.length);
+			#else
+				new Array();
+			#end
+		for( i in 0...BASE64.length )
+			codes[untyped BASE64.cca(i)] = i;
+		return codes;
+	}
+
  	var buf : String;
  	var pos : Int;
  	var length : Int;
@@ -167,6 +184,7 @@ class Unserializer {
  		case 112: // p
  			return Math.POSITIVE_INFINITY;
  		case 97: // a
+			var buf = buf;
  			var a = new Array<Dynamic>();
  			cache.push(a);
  			while( true ) {
@@ -228,12 +246,14 @@ class Unserializer {
 			return unserializeEnum(edecl,tag);
 		case 108: // l
 			var l = new List();
+			var buf = buf;
 			while( buf.charCodeAt(pos) != 104 /*h*/ )
 				l.add(unserialize());
 			pos++;
 			return l;
 		case 98: // b
 			var h = new Hash();
+			var buf = buf;
 			while( buf.charCodeAt(pos) != 104 /*h*/ ) {
 				var s = unserialize();
 				h.set(s,unserialize());
@@ -242,6 +262,7 @@ class Unserializer {
 			return h;
 		case 113: // q
 			var h = new IntHash();
+			var buf = buf;
 			var c = buf.charCodeAt(pos++);
 			while( c == 58 ) { /*:*/
 				var i = readDigits();
@@ -255,21 +276,47 @@ class Unserializer {
 			var d = Date.fromString(buf.substr(pos,19));
 			pos += 19;
 			return d;
-		// DEPRECATED
  		case 115: // s
  			var len = readDigits();
+			var buf = buf;
  			if( buf.charAt(pos++) != ":" || length - pos < len )
-				throw "Invalid string length";
+				throw "Invalid bytes length";
 			#if neko
-			var s = neko.Utf8.sub(buf,pos-upos,len);
-			pos += s.length;
-			upos += s.length - len;
+			var str =  StringTools.baseDecode(buf.substr(pos,len),BASE64);
+			var bytes = untyped new haxe.io.Bytes(str.length,str.__s);
 			#else
- 			var s = buf.substr(pos,len);
- 			pos += len;
+			var codes = CODES;
+			if( codes == null ) {
+				codes = initCodes();
+				CODES = codes;
+			}
+			var b = new haxe.io.BytesBuffer();
+			var i = pos;
+			var rest = len & 3;
+			var max = i + (len - rest);
+			while( i < max ) {
+				var c1 = codes[untyped buf.cca(i++)];
+				var c2 = codes[untyped buf.cca(i++)];
+				b.addByte((c1 << 2) | (c2 >> 4));
+				var c3 = codes[untyped buf.cca(i++)];
+				b.addByte(((c2 << 4) | (c3 >> 2)) #if !flash9 & 0xFF #end );
+				var c4 = codes[untyped buf.cca(i++)];
+				b.addByte(((c3 << 6) | c4) #if !flash9 & 0xFF #end );
+			}
+			if( rest >= 2 ) {
+				var c1 = codes[untyped buf.cca(i++)];
+				var c2 = codes[untyped buf.cca(i++)];
+				b.addByte((c1 << 2) | (c2 >> 4));
+				if( rest == 3 ) {
+					var c3 = codes[untyped buf.cca(i++)];
+					b.addByte(((c2 << 4) | (c3 >> 2)) #if !flash9 & 0xFF #end );
+				}
+			}
+			var bytes = b.getBytes();
  			#end
-			scache.push(s);
-			return s;
+			pos += len;
+			cache.push(bytes);
+			return bytes;
  		default:
  		}
  		pos--;
