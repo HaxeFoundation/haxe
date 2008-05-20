@@ -14,21 +14,21 @@ class Pop {
 		this.pass = pass;
 		this.port = port == null ? 110 : port;
 	}
-	
+
 	private function connect(){
 		if( sock == null ){
 			var s = new neko.net.Socket();
 			s.setTimeout(1);
 			s.connect(new neko.net.Host(host),port);
-			
+
 			// get server init line
 			s.input.readLine();
 
-			s.output.write("USER "+user+"\n");
+			s.output.writeString("USER "+user+"\n");
 			var ret = s.input.readLine();
 			if( ret.substr(0,3) != "+OK" ) throw "Pop USER failed: "+ret;
 
-			s.output.write("PASS "+pass+"\n");
+			s.output.writeString("PASS "+pass+"\n");
 			var ret = s.input.readLine();
 			if( ret.substr(0,3) != "+OK" ) throw "Pop PASS failed: "+ret;
 
@@ -39,7 +39,7 @@ class Pop {
 
 	public function close(){
 		if( sock != null ){
-			sock.output.write("QUIT\n");
+			sock.output.writeString("QUIT\n");
 			var ret = sock.input.readLine();
 			if( ret.substr(0,3) != "+OK" ) throw "Pop QUIT failed: "+ret;
 			sock.close();
@@ -51,7 +51,7 @@ class Pop {
 	public function list() : List<{id: Int,size: Int}> {
 		var cnx = connect();
 
-		cnx.output.write("LIST\n");
+		cnx.output.writeString("LIST\n");
 		var ret = new List();
 		var t : String;
 		do {
@@ -68,7 +68,7 @@ class Pop {
 	public function getMessage( id : Int ){
 		var cnx = connect();
 
-		cnx.output.write("RETR "+id+"\n");
+		cnx.output.writeString("RETR "+id+"\n");
 		var r = cnx.input.readLine();
 		if( r.substr(0,3) != "+OK" ) throw "Pop RETR failed: "+r;
 
@@ -88,7 +88,7 @@ class Pop {
 	public function delete( id : Int ){
 		var cnx = connect();
 
-		cnx.output.write("DELE "+id+"\n");
+		cnx.output.writeString("DELE "+id+"\n");
 		var r = cnx.input.readLine();
 		if( r.substr(0,3) != "+OK" ) throw "Pop DELE failed: "+r;
 	}

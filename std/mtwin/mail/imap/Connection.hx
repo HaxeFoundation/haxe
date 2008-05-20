@@ -334,7 +334,7 @@ class Connection {
 					}else if( REG_FETCH_PART.match( s ) ){
 						var len = Std.parseInt(REG_FETCH_PART.matched(2));
 
-						o.body = cnx.input.read( len );
+						o.body = cnx.input.readString( len );
 						o.bodyType = REG_FETCH_PART.matched(1);
 
 						cnx.input.readLine();
@@ -458,7 +458,7 @@ class Connection {
 		var reg = ~/(?<!\] )\{([0-9]+)\}$/;
 		while( reg.match( s ) ){
 			var len = Std.parseInt( reg.matched(1) );
-			var t = cnx.input.read( len );
+			var t = cnx.input.readString( len );
 			var e = cnx.input.readLine();
 			s = s.substr(0,-reg.matchedPos().len)+"\""+t.split("\"").join("\\\"")+"\"" +e;
 		}
