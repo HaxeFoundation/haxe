@@ -27,12 +27,14 @@ package haxe.remoting;
 typedef Socket =
 	#if flash9
 		flash.net.XMLSocket
-	#else flash
+	#elseif flash
 		flash.XMLSocket
-	#else js
+	#elseif js
 		js.XMLSocket
-	#else neko
+	#elseif neko
 		neko.net.Socket
+	#else
+		Dynamic
 	#end
 
 /**
@@ -52,9 +54,11 @@ typedef Socket =
 class SocketProtocol {
 
 	public var socket : Socket;
+	public var context : Context;
 
-	public function new( sock ) {
+	public function new( sock, ctx ) {
 		this.socket = sock;
+		this.context = ctx;
 	}
 
 	function decodeChar(c) : Null<Int> {
@@ -134,16 +138,17 @@ class SocketProtocol {
 	public function sendMessage( msg : String ) {
 		var e = encodeMessageLength(msg.length + 3);
 		#if neko
-		socket.output.writeChar(e.c1);
-		socket.output.writeChar(e.c2);
-		socket.output.write(msg);
-		socket.output.writeChar(0);
-		#else true
+		var o = socket.output;
+		o.writeByte(e.c1);
+		o.writeByte(e.c2);
+		o.writeString(msg);
+		o.writeByte(0);
+		#else
 		socket.send(Std.chr(e.c1)+Std.chr(e.c2)+msg);
 		#end
 	}
 
-	public function decodeData( data : String ) {
+	public dynamic function decodeData( data : String ) {
 		return data;
 	}
 
@@ -155,7 +160,7 @@ class SocketProtocol {
 		}
 	}
 
-	public function processRequest( data : String, eval : Array<String> -> Dynamic, ?onError : Array<String> -> String -> Array<Dynamic> -> Dynamic -> Void ) {
+	public function processRequest( data : String, ?onError : Array<String> -> Array<Dynamic> -> Dynamic -> Void ) {
 		var s = new haxe.Unserializer(data);
 		var result : Dynamic;
 		var isException = false;
@@ -163,15 +168,8 @@ class SocketProtocol {
 			throw "Not a request";
 		var path : Array<String> = s.unserialize();
 		var args : Array<Dynamic> = s.unserialize();
-		var fname = path.pop();
-		var obj = eval(path);
-		if( obj == null )
-			throw "Object does not exists '"+path.join(".")+"'";
-		var fptr = Reflect.field(obj,fname);
-		if( !Reflect.isFunction(fptr) )
-			throw "Calling not-a-function '"+path.join(".")+"."+fname+"'";
 		try {
-			result = Reflect.callMethod(obj,fptr,args);
+			result = context.call(path,args);
 		} catch( e : Dynamic ) {
 			result = e;
 			isException = true;
@@ -180,7 +178,7 @@ class SocketProtocol {
 		sendAnswer(result,isException);
 		// send the error event
 		if( isException && onError != null )
-			onError(path,fname,args,result);
+			onError(path,args,result);
 	}
 
 	public function processAnswer( data : String ) : Dynamic {
@@ -193,13 +191,14 @@ class SocketProtocol {
 	#if neko
 
 	public function readMessage() {
-		var c1 = socket.input.readChar();
-		var c2 = socket.input.readChar();
+		var i = socket.input;
+		var c1 = i.readByte();
+		var c2 = i.readByte();
 		var len = messageLength(c1,c2);
 		if( len == null )
 			throw "Invalid header";
-		var data = socket.input.read(len - 3);
-		if( socket.input.readChar() != 0 )
+		var data = i.readString(len - 3);
+		if( i.readByte() != 0 )
 			throw "Invalid message";
 		return decodeData(data);
 	}

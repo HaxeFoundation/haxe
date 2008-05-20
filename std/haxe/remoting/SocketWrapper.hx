@@ -23,35 +23,60 @@
  * DAMAGE.
  */
 package haxe.remoting;
+import haxe.remoting.SocketProtocol.Socket;
 
 /**
 	See [js.XMLSocket]
 **/
 class SocketWrapper {
 
-	static var sockets = Reflect.empty();
+	static var ID = 0;
 
-	static function create( id : String ) {
+	static function create( prefix : String ) : String {
+		var id = prefix + "WrappedSocket"+(ID++);
+		var s = new Socket();
+		var ctx = new Context();
+		var cnx = haxe.remoting.ExternalConnection.jsConnect(id,ctx);
+		ctx.addObject("sock",s);
+		ctx.addObject("api",{ close : cnx.close });
 		#if flash9
-		throw "Not implemented";
-		#else true
-		var s = new flash.XMLSocket();
-		var cnx = haxe.remoting.Connection.jsConnect().js.XMLSocket.sockets.__resolve(id);
-		Reflect.setField(sockets,id,s);
+		var connected = false;
+		s.addEventListener(flash.events.Event.CONNECT,function(_) {
+			connected = true;
+			cnx.api.onConnect.call([true]);
+		});
+		s.addEventListener(flash.events.SecurityErrorEvent.SECURITY_ERROR,function(_) {
+			if( connected )
+				cnx.api.onClose.call([]);
+			else
+				cnx.api.onConnect.call([false]);
+		});
+		s.addEventListener(flash.events.Event.CLOSE,function(_) {
+			cnx.api.onClose.call([]);
+		});
+		s.addEventListener(flash.events.DataEvent.DATA,function(e:flash.events.DataEvent) {
+			cnx.api.onData.call([e.data]);
+		});
+		#elseif flash
 		s.onConnect = function(b) {
-			cnx.onConnect.call([b]);
+			cnx.api.onConnect.call([b]);
 		};
 		s.onData = function(data) {
-			cnx.onData.call([data]);
+			cnx.api.onData.call([data]);
 		};
 		s.onClose = function() {
-			cnx.onClose.call([]);
+			cnx.api.onClose.call([]);
 		};
 		#end
+		return id;
 	}
 
-	static function destroy( id : String ) {
-		Reflect.deleteField(sockets,id);
+	static function init() {
+		var ctx = new Context();
+		ctx.addObject("api",{ create : create });
+		haxe.remoting.ExternalConnection.jsConnect("SocketWrapper",ctx);
 	}
+
+	static var _ = init();
 
 }

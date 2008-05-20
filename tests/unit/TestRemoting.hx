@@ -1,6 +1,13 @@
 package unit;
+import haxe.remoting.SocketProtocol;
+#if flash
+import haxe.remoting.SocketWrapper;
+#end
 
 class TestRemoting extends Test {
+
+	static var HOST = "dev.unit-tests";
+	static var PORT = 1999;
 
 	static var _ = init();
 	static var ecnx : haxe.remoting.ExternalConnection;
@@ -14,7 +21,7 @@ class TestRemoting extends Test {
 		#if flash
 		ecnx = haxe.remoting.ExternalConnection.jsConnect("cnx",ctx);
 		ecnx3 = haxe.remoting.ExternalConnection.jsConnect("unknown",ctx);
-		lcnx = haxe.remoting.LocalConnection.connect("local",ctx,["dev.unit-tests"]);
+		lcnx = haxe.remoting.LocalConnection.connect("local",ctx,[HOST]);
 		fjscnx = haxe.remoting.FlashJsConnection.connect(#if flash9 "haxeFlash8" #else "haxeFlash9" #end,"cnx",ctx);
 		#elseif js
 		ecnx = haxe.remoting.ExternalConnection.flashConnect("cnx","haxeFlash8",ctx);
@@ -24,6 +31,7 @@ class TestRemoting extends Test {
 	}
 
 	public function test() {
+		// external connection
 		#if (flash || js)
 		doTestConnection(ecnx);
 		#end
@@ -31,24 +39,79 @@ class TestRemoting extends Test {
 		#if js
 		doTestConnection(ecnx2);
 		#end
+
 		#if flash
+		// local connection
 		doTestAsyncConnection(lcnx);
+		// flash-flash through-js connection
 		doTestAsyncConnection(fjscnx);
 		#end
 		#if (js || neko)
-		var hcnx = haxe.remoting.HttpConnection.urlConnect("http://dev.unit-tests/remoting.n");
+		// http sync connection
+		var hcnx = haxe.remoting.HttpConnection.urlConnect("http://"+HOST+"/remoting.n");
 		doTestConnection(hcnx);
+		// test wrappers
 		var dcnx = haxe.remoting.AsyncDebugConnection.create(haxe.remoting.AsyncAdapter.create(hcnx));
 		dcnx.setErrorDebug(function(path,args,e) {});
 		dcnx.setResultDebug(function(path,args,ret) {});
 		dcnx.setCallDebug(function(path,args) {});
 		doTestAsyncConnection(dcnx);
 		#end
-		var hcnx = haxe.remoting.HttpAsyncConnection.urlConnect("http://dev.unit-tests/remoting.n");
+
+		// http async connection
+		var hcnx = haxe.remoting.HttpAsyncConnection.urlConnect("http://"+HOST+"/remoting.n");
 		doTestAsyncConnection(hcnx);
 		var dcnx = haxe.remoting.DelayedConnection.create();
 		dcnx.connection = hcnx;
 		doTestAsyncConnection(dcnx);
+
+		// socket connection
+		#if (flash || neko)
+		async( doConnect, new Socket(), true );
+		#elseif js
+		async( doConnect, new Socket("haxeFlash8"), true );
+		async( doConnect, new Socket("haxeFlash9"), true );
+		#end
+	}
+
+	function doConnect( s : Socket, onResult : Bool -> Void ) {
+		var me = this;
+		#if flash9
+		var connected = false;
+		s.addEventListener(flash.events.Event.CONNECT,function(e) {
+			connected = true;
+			me.doTestSocket(s);
+			onResult(true);
+		});
+		s.addEventListener(flash.events.SecurityErrorEvent.SECURITY_ERROR,function(e) {
+			onResult(false);
+		});
+		s.addEventListener(flash.events.Event.CLOSE,function(e) {
+			if( !connected )
+				onResult(false);
+		});
+		s.connect(HOST,PORT);
+		#elseif (flash || js)
+		s.onConnect = function(success) {
+			if( success ) me.doTestSocket(s);
+			onResult(success);
+		};
+		s.connect(HOST,PORT);
+		#elseif neko
+		var ret = try { s.connect(new neko.net.Host(HOST),PORT); true; } catch( e : Dynamic ) false;
+		if( ret ) doTestSocket(s);
+		onResult(ret);
+		#end
+	}
+
+	function doTestSocket( s : Socket ) {
+		#if neko
+		var scnx = haxe.remoting.NekoSocketConnection.create(s,new haxe.remoting.Context());
+		doTestConnection(scnx);
+		#else
+		var scnx = haxe.remoting.SocketConnection.create(s,new haxe.remoting.Context());
+		doTestAsyncConnection(scnx);
+		#end
 	}
 
 	function doTestConnection( cnx : haxe.remoting.Connection ) {

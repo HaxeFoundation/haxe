@@ -25,8 +25,8 @@ class RemotingApi {
 			throw v;
 	}
 
-	public static function context() {
-		var ctx = new haxe.remoting.Context();
+	public static function context( ?ctx ) {
+		if( ctx == null ) ctx = new haxe.remoting.Context();
 		ctx.addObject("api",new RemotingApi());
 		ctx.addObject("apirec",new RemotingApi(),true);
 		return ctx;

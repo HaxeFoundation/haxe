@@ -23,62 +23,63 @@
  * DAMAGE.
  */
 package haxe.remoting;
-import haxe.remoting.SocketProtocol;
 
-class NekoSocketConnection extends Connection {
+class NekoSocketConnection implements Connection, implements Dynamic<Connection> {
 
-	var __r : neko.net.RemotingServer;
+	var __path : Array<String>;
+	var __proto : SocketProtocol;
 
-	public override function __resolve(field) : Connection {
-		var s = new NekoSocketConnection(__data,__path.copy());
-		s.__r = __r;
-		s.__path.push(field);
+	function new(proto,path) {
+		__proto = proto;
+		__path = path;
+	}
+
+	public function resolve( name ) : Connection {
+		var s = new NekoSocketConnection(__proto,__path.copy());
+		s.__path.push(name);
 		return s;
 	}
 
-	override public function call( params : Array<Dynamic> ) : Dynamic {
-		var proto = getProtocol();
+	public function call( params : Array<Dynamic> ) : Dynamic {
+		var proto = __proto;
 		proto.sendRequest(__path,params);
 		while( true ) {
 			var data = proto.readMessage();
 			if( proto.isRequest(data) ) {
-				if( __r == null )
+				if( proto.context == null )
 					throw "Request received";
-				proto.processRequest(data,__r.resolvePath,onRequestError);
+				proto.processRequest(data,onRequestError);
 				continue;
 			}
 			return proto.processAnswer(data);
 		}
-		return null;
+		return null; // never reached
 	}
 
 	public function processRequest() {
-		var proto = getProtocol();
-		if( __r == null )
-			throw "No RemotingServer defined";
-		var data = proto.readMessage();
-		proto.processRequest(data,__r.resolvePath,onRequestError);
+		if( __proto.context == null )
+			throw "Can't process request";
+		var data = __proto.readMessage();
+		__proto.processRequest(data,onRequestError);
 	}
 
-	public function onRequestError( path : Array<String>, method : String, args : Array<Dynamic>, exc : Dynamic ) {
+	public function onRequestError( path : Array<String>, args : Array<Dynamic>, exc : Dynamic ) {
 	}
 
 	public function setProtocol( p : SocketProtocol ) {
-		__data = p;
+		__proto = p;
 	}
 
 	public function getProtocol() : SocketProtocol {
-		return __data;
+		return __proto;
 	}
 
-	public function closeConnection() {
-		try getProtocol().socket.close() catch( e : Dynamic ) { };
+	public function close() {
+		try __proto.socket.close() catch( e : Dynamic ) { };
 	}
 
-	public static function socketConnect( s : neko.net.Socket, ?r : neko.net.RemotingServer ) {
-		var sc = new NekoSocketConnection(new SocketProtocol(s),[]);
-		sc.__r = r;
-		return sc;
+	public static function create( s : neko.net.Socket, ?ctx : Context ) {
+		return new NekoSocketConnection(new SocketProtocol(s,ctx),[]);
 	}
 
 }

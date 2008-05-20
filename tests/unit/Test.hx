@@ -40,6 +40,10 @@ class Test {
 	}
 
 	function async<Args,T>( f : Args -> (T -> Void) -> Void, args : Args, v : T, ?pos : haxe.PosInfos ) {
+		if( asyncWaits.length >= AMAX ) {
+			asyncCache.push(callback(async,f,args,v,pos));
+			return;
+		}
 		asyncWaits.push(pos);
 		f(args,function(v2) {
 			count++;
@@ -54,19 +58,30 @@ class Test {
 	}
 
 	function asyncExc<Args>( seterror : (Dynamic -> Void) -> Void, f : Args -> (Dynamic -> Void) -> Void, args : Args, ?pos : haxe.PosInfos ) {
+		if( asyncWaits.length >= AMAX ) {
+			asyncCache.push(callback(asyncExc,seterror,f,args,pos));
+			return;
+		}
 		asyncWaits.push(pos);
 		seterror(function(e) {
 			count++;
-			if( !asyncWaits.remove(pos) )
+			if( asyncWaits.remove(pos) )
+				checkDone();
+			else
 				report("Multiple async events",pos);
 		});
 		f(args,function(v) {
 			count++;
-			if( asyncWaits.remove(pos) )
+			if( asyncWaits.remove(pos) ) {
 				report("No exception occured",pos);
-			else
+				checkDone();
+			} else
 				report("Multiple async events",pos);
 		});
+	}
+
+	function log( msg, ?pos : haxe.PosInfos ) {
+		haxe.Log.trace(msg,pos);
 	}
 
 	static var count = 0;
@@ -74,6 +89,9 @@ class Test {
 	static var reportCount = 0;
 	static var checkCount = 0;
 	static var asyncWaits = new Array<haxe.PosInfos>();
+	static var asyncCache = new Array<Void -> Void>();
+	static var AMAX = 3;
+	static var timer : haxe.Timer;
 
 	dynamic static function report( msg : String, pos : haxe.PosInfos ) {
 		if( reportInfos != null ) {
@@ -89,22 +107,39 @@ class Test {
 	}
 
 	static function checkDone() {
-		if( asyncWaits.length == 0 )
+		if( asyncWaits.length != 0 ) return;
+		if( asyncCache.length == 0 ) {
 			report("DONE ["+count+" tests]",here);
+			return;
+		}
+		resetTimer();
+		while( asyncCache.length > 0 && asyncWaits.length < AMAX )
+			asyncCache.shift()();
 	}
 
 	static function asyncTimeout() {
+		if( asyncWaits.length == 0 )
+			return;
 		for( pos in asyncWaits )
 			report("TIMEOUT",pos);
+		asyncWaits = new Array();
+		checkDone();
+	}
+
+	static function resetTimer() {
+		#if !neko
+		if( timer != null ) timer.stop();
+		timer = new haxe.Timer(10000);
+		timer.run = asyncTimeout;
+		#end
 	}
 
 	static function main() {
 		#if neko
 		if( neko.Web.isModNeko )
 			neko.Lib.print("<pre>");
-		#else
-		haxe.Timer.delay(asyncTimeout,10000);
 		#end
+		resetTimer();
 		var classes = [
 			new TestBytes(),
 			new TestInt32(),

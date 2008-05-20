@@ -31,50 +31,54 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 		messageHeaderSize = 2;
 	}
 
-	public function initClientApi( cnx, server ) {
+	public function initClientApi( cnx : haxe.remoting.SocketConnection, ctx : haxe.remoting.Context ) {
 		throw "Not implemented";
 	}
 
+	public function onXml( cnx : haxe.remoting.SocketConnection, data : String ) {
+		throw "Unhandled XML data '"+data+"'";
+	}
+
 	public override function clientConnected( s : neko.net.Socket ) {
-		var r = new neko.net.RemotingServer();
-		var cnx = haxe.remoting.SocketConnection.socketConnect(s,r);
+		var ctx = new haxe.remoting.Context();
+		var cnx = haxe.remoting.SocketConnection.create(s,ctx);
 		var me = this;
-		cnx.onError = function(e) {
-			if( !Std.is(e,neko.io.Eof) && !Std.is(e,neko.io.Error) )
+		cnx.setErrorHandler(function(e) {
+			if( !Std.is(e,haxe.io.Eof) && !Std.is(e,haxe.io.Error) )
 				me.logError(e);
 			me.stopClient(s);
-		};
-		initClientApi(cnx,r);
+		});
+		initClientApi(cnx,ctx);
 		return cnx;
 	}
 
-	public override function readClientMessage( cnx : haxe.remoting.SocketConnection, buf : String, pos : Int, len : Int ) {
-		var msgLen = cnx.getProtocol().messageLength(buf.charCodeAt(pos),buf.charCodeAt(pos+1));
+	override function readClientMessage( cnx : haxe.remoting.SocketConnection, buf : haxe.io.Bytes, pos : Int, len : Int ) {
+		var msgLen = cnx.getProtocol().messageLength(buf.get(pos),buf.get(pos+1));
 		if( msgLen == null ) {
-			if( buf.charCodeAt(pos) != 60 )
-				throw "Invalid remoting message '"+buf.substr(pos,len)+"'";
-			// XML handling
-			var p = buf.indexOf("\x00",pos);
-			if( p == -1 || p >= len )
+			if( buf.get(pos) != 60 )
+				throw "Invalid remoting message '"+buf.readString(pos,len)+"'";
+			var p = pos;
+			while( p < len ) {
+				if( buf.get(p) == 0 )
+					break;
+				p++;
+			}
+			if( p == len )
 				return null;
 			p -= pos;
 			return {
-				msg : buf.substr(pos,p),
+				msg : buf.readString(pos,p),
 				bytes : p + 1,
 			};
 		}
 		if( len < msgLen )
 			return null;
-		if( buf.charCodeAt(pos + msgLen-1) != 0 )
+		if( buf.get(pos + msgLen-1) != 0 )
 			throw "Truncated message";
 		return {
-			msg : buf.substr(pos+2,msgLen-3),
+			msg : buf.readString(pos+2,msgLen-3),
 			bytes : msgLen,
 		};
-	}
-
-	public function onXml(cnx,data) {
-		throw "Unhandled XML data '"+data+"'";
 	}
 
 	public override function clientMessage( cnx : haxe.remoting.SocketConnection, msg : String ) {
@@ -85,7 +89,7 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 		try {
 			cnx.processMessage(msg);
 		} catch( e : Dynamic ) {
-			if( !Std.is(e,neko.io.Eof) && !Std.is(e,neko.io.Error) )
+			if( !Std.is(e,haxe.io.Eof) && !Std.is(e,haxe.io.Error) )
 				logError(e);
 			stopClient(cnx.getProtocol().socket);
 		}

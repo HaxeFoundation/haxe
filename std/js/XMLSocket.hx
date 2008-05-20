@@ -29,36 +29,29 @@ package js;
 **/
 class XMLSocket {
 
-	static var sockets = Reflect.empty();
-	static var ID = 0;
-
-	var id : String;
-	var rcnx : haxe.remoting.Connection;
-	var cnx : haxe.remoting.Connection;
+	var cnx : haxe.remoting.ExternalConnection;
 
 	public function new( flashObject : String ) {
-		id = "s"+(ID++);
-		rcnx = haxe.remoting.Connection.flashConnect(flashObject).haxe.remoting.SocketWrapper;
-		rcnx.create.call([id]);
-		this.cnx = rcnx.sockets.__resolve(Std.string(id));
-		Reflect.setField(sockets,id,this);
-	}
-
-	public function destroy() {
-		rcnx.destroy.call([id]);
-		Reflect.deleteField(sockets,id);
+		var ctx = new haxe.remoting.Context();
+		var cnx = haxe.remoting.ExternalConnection.flashConnect("SocketWrapper",flashObject,ctx);
+		var sockId = cnx.api.create.call([flashObject]);
+		cnx.close();
+		ctx.addObject("api",this,false);
+		this.cnx = haxe.remoting.ExternalConnection.flashConnect(sockId,flashObject,ctx);
 	}
 
 	public function connect( host : String, port : Int ) {
-		cnx.connect.call([host,port]);
+		cnx.sock.connect.call([host,port]);
 	}
 
 	public function send( data : String ) {
-		cnx.send.call([data]);
+		cnx.sock.send.call([data]);
 	}
 
 	public function close() {
-		cnx.close.call([]);
+		cnx.sock.close.call([]);
+		cnx.api.destroy.call([]);
+		cnx.close();
 	}
 
 	public dynamic function onData( data : String ) {
