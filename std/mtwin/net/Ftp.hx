@@ -24,7 +24,6 @@
  */
 package mtwin.net;
 
-import neko.io.Eof;
 import neko.net.Socket;
 import neko.net.Host;
 
@@ -193,7 +192,7 @@ class Ftp {
 	/**
 		Reads input and upload its content to remoteName.
 	**/
-	public function put( input:neko.io.Input, remoteName:String, ?bufSize:Int ){
+	public function put( input:haxe.io.Input, remoteName:String, ?bufSize:Int ){
 		if (bufSize == null)
 			bufSize = 8192;
 		voidCommand("TYPE I");
@@ -206,10 +205,10 @@ class Ftp {
 	/**
 		Downloads remote file and write its content in output using neko.io.Output.writeBytes()
 	**/
-	public function get( output:neko.io.Output, remoteFileName:String, ?bufSize:Int ){
+	public function get( output:haxe.io.Output, remoteFileName:String, ?bufSize:Int ){
 		if (bufSize == null)
 			bufSize = 8192;
-		retrieveBytes("RETR "+remoteFileName, function(s:String, n:Int){ output.writeBytes(s,0,n); }, bufSize);
+		retrieveBytes("RETR "+remoteFileName, function(s:haxe.io.Bytes, n:Int){ output.writeBytes(s,0,n); }, bufSize);
 	}
 
 	/**
@@ -227,7 +226,7 @@ class Ftp {
 
 		Don't forget to close the neko.io.Output when done.
 	**/
-	public function write( remoteName:String ) : neko.io.Output {
+	public function write( remoteName:String ) : haxe.io.Output {
 		var pwd = pwd();
 		var ftp = new Ftp(host.toString(), port);
 		ftp.login(user, pass, acct);
@@ -235,9 +234,9 @@ class Ftp {
 		ftp.voidCommand("TYPE I");
 		var cnx = ftp.transferConnection("STOR "+remoteName);
 		var out = cnx.output;
-		untyped out.oldclose = out.close;
-		out.close = function(){
-			untyped out.oldclose();
+		var old = out.close;
+		(cast out).close = function(){
+			old();
 			ftp.voidResponse();
 			ftp.close();
 		}
@@ -249,7 +248,7 @@ class Ftp {
 
 		Don't forget to close the neko.io.Output when done.
 	**/
-	public function read( remoteFileName:String ) : neko.io.Input {
+	public function read( remoteFileName:String ) : haxe.io.Input {
 		var pwd = pwd();
 		var ftp = new Ftp(host.toString(), port);
 		ftp.login(user, pass, acct);
@@ -257,9 +256,9 @@ class Ftp {
 		ftp.voidCommand("TYPE I");
 		var cnx = ftp.transferConnection("RETR "+remoteFileName);
 		var inp = cnx.input;
-		untyped inp.oldclose = inp.close;
-		inp.close = function(){
-			untyped inp.oldclose();
+		var old = inp.close;
+		(cast inp).close = function(){
+			old();
 			ftp.voidResponse();
 			ftp.close();
 		}
@@ -367,7 +366,7 @@ class Ftp {
 				var line = cnx.input.readLine();
 				lines.push(line);
 			}
-			catch (eof:Eof){
+			catch (eof:haxe.io.Eof){
 				cnx.close();
 				voidResponse();
 				return lines;
@@ -378,14 +377,14 @@ class Ftp {
 		return null;
 	}
 
-	function retrieveBytes( cmd:String, cb:String->Int->Void, ?bufSize:Int, ?rest:String ) {
+	function retrieveBytes( cmd:String, cb:haxe.io.Bytes->Int->Void, ?bufSize:Int, ?rest:String ) {
 		if (bufSize == null)
 			bufSize = 8192;
 		var res = voidCommand("TYPE I");
 		var cnx = transferConnection(cmd, rest);
-		var buf = neko.Lib.makeString(bufSize);
+		var buf = haxe.io.Bytes.alloc(bufSize);
 		while (cnx != null){
-			var rdd = try cnx.input.readBytes(buf, 0, bufSize) catch(eof:Eof) break;
+			var rdd = try cnx.input.readBytes(buf, 0, bufSize) catch(eof:haxe.io.Eof) break;
 			cb(buf, rdd);
 			/*
 			var rdd = 0;

@@ -84,17 +84,15 @@ import haxe.remoting.AsyncProxy;
 import haxe.remoting.LocalConnection;
 import haxe.remoting.DelayedConnection;
 import haxe.remoting.FlashJsConnection;
-
-/*
 #if neko
 import haxe.remoting.NekoSocketConnection;
-#end
+#else
 import haxe.remoting.SocketConnection;
+#end
 import haxe.remoting.SocketProtocol;
 #if flash
 import haxe.remoting.SocketWrapper;
 #end
-*/
 
 import haxe.rtti.Infos;
 import haxe.rtti.Type;
@@ -400,12 +398,11 @@ import neko.db.Transaction;
 import neko.net.Host;
 import neko.net.Poll;
 import neko.net.ProxyDetect;
-//import neko.net.RemotingServer;
 import neko.net.ServerLoop;
 import neko.net.Socket;
 import neko.net.SocketInput;
 import neko.net.SocketOutput;
-//import neko.net.ThreadRemotingServer;
+import neko.net.ThreadRemotingServer;
 import neko.net.ThreadServer;
 
 import neko.vm.Loader;
@@ -426,7 +423,7 @@ import js.Dom;
 import js.Selection;
 import js.SWFObject;
 import js.XMLHttpRequest;
-//import js.XMLSocket;
+import js.XMLSocket;
 
 #end
 
@@ -434,9 +431,9 @@ import js.XMLHttpRequest;
 
 #if neko
 
-//import tools.haxedoc.Main;
-//import tools.haxelib.Main;
-//import tools.haxelib.Site;
+import tools.haxedoc.Main;
+import tools.haxelib.Main;
+import tools.haxelib.Site;
 //import tools.hxinst.Main -> needs xCross
 
 #end

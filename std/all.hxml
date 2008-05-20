@@ -1,11 +1,13 @@
 
 -neko all.n
+--no-output
 -xml neko.xml
 haxe.ImportAll
 
 --next
 
 -swf all.swf
+--no-output
 -xml flash.xml
 -D flash_lite
 haxe.ImportAll
@@ -13,12 +15,14 @@ haxe.ImportAll
 --next
 
 -js all.js
+--no-output
 -xml js.xml
 haxe.ImportAll
 
 --next
 
 -swf all_strict.swf
+--no-output
 -D flash_strict
 -D flash_lite
 -xml flash_strict.xml
@@ -28,5 +32,11 @@ haxe.ImportAll
 --next
 
 -swf9 all9.swf
+--no-output
 -xml flash9.xml
+haxe.ImportAll
+
+--next
+
+-xml cross.xml
 haxe.ImportAll

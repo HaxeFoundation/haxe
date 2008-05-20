@@ -31,11 +31,11 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 		messageHeaderSize = 2;
 	}
 
-	public function initClientApi( cnx : haxe.remoting.SocketConnection, ctx : haxe.remoting.Context ) {
+	public dynamic function initClientApi( cnx : haxe.remoting.SocketConnection, ctx : haxe.remoting.Context ) {
 		throw "Not implemented";
 	}
 
-	public function onXml( cnx : haxe.remoting.SocketConnection, data : String ) {
+	public dynamic function onXml( cnx : haxe.remoting.SocketConnection, data : String ) {
 		throw "Unhandled XML data '"+data+"'";
 	}
 

@@ -125,7 +125,7 @@ class Main {
 		addCommand("test",test,"install the specified package localy");
 		addCommand("dev",dev,"set the development directory for a given project");
 		siteUrl = "http://"+SERVER.host+":"+SERVER.port+"/"+SERVER.dir;
-		site = new SiteProxy(haxe.remoting.Connection.urlConnect(siteUrl+SERVER.url).api);
+		site = new SiteProxy(haxe.remoting.HttpConnection.urlConnect(siteUrl+SERVER.url).api);
 	}
 
 	function param( name, ?passwd ) {

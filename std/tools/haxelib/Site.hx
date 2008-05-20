@@ -26,15 +26,9 @@ class Site {
 		if( !neko.FileSystem.exists(REP_DIR) )
 			neko.FileSystem.createDirectory(REP_DIR);
 
-		var server = new neko.net.RemotingServer();
-		var log = neko.io.File.append(TMP_DIR+"/log.txt",false);
-		var api = new SiteApi(db);
-		server.setPrivatePrefix("db");
-		server.setLogger(log.writeString);
-		server.addObject("api",api);
-		var flag = server.handleRequest();
-		log.close();
-		if( flag )
+		var ctx = new haxe.remoting.Context();
+		ctx.addObject("api",new SiteApi(db));
+		if( haxe.remoting.HttpConnection.handleRequest(ctx) )
 			return;
 		if( neko.Sys.args()[0] == "setup" ) {
 			setup();

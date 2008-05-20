@@ -159,12 +159,6 @@ class ThreadServer<Client,Message> {
 		worker.sendMessage(f);
 	}
 
-	public function onError( e : Dynamic, stack ) {
-		var estr = try Std.string(e) catch( e2 : Dynamic ) "???" + try "["+Std.string(e2)+"]" catch( e : Dynamic ) "";
-		errorOutput.writeString( estr + "\n" + haxe.Stack.toString(stack) );
-		errorOutput.flush();
-	}
-
 	function logError( e : Dynamic ) {
 		var stack = haxe.Stack.exceptionStack();
 		if( neko.vm.Thread.current() == worker )
@@ -243,27 +237,33 @@ class ThreadServer<Client,Message> {
 
 	// --- CUSTOMIZABLE API ---
 
-	public function clientConnected( s : neko.net.Socket ) : Client {
+	public dynamic function onError( e : Dynamic, stack ) {
+		var estr = try Std.string(e) catch( e2 : Dynamic ) "???" + try "["+Std.string(e2)+"]" catch( e : Dynamic ) "";
+		errorOutput.writeString( estr + "\n" + haxe.Stack.toString(stack) );
+		errorOutput.flush();
+	}
+
+	public dynamic function clientConnected( s : neko.net.Socket ) : Client {
 		return null;
 	}
 
-	public function clientDisconnected( c : Client ) {
+	public dynamic function clientDisconnected( c : Client ) {
 	}
 
-	public function readClientMessage( c : Client, buf : haxe.io.Bytes, pos : Int, len : Int ) : { msg : Message, bytes : Int } {
+	public dynamic function readClientMessage( c : Client, buf : haxe.io.Bytes, pos : Int, len : Int ) : { msg : Message, bytes : Int } {
 		return {
 			msg : null,
 			bytes : len,
 		};
 	}
 
-	public function clientMessage( c : Client, msg : Message ) {
+	public dynamic function clientMessage( c : Client, msg : Message ) {
 	}
 
-	public function update() {
+	public dynamic function update() {
 	}
 
-	public function afterEvent() {
+	public dynamic function afterEvent() {
 	}
 
 }
