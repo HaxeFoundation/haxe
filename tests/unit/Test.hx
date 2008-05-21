@@ -177,7 +177,7 @@ class Test {
 			}
 			asyncWaits.remove(null);
 			checkDone();
-		} catch( e : Int ) {
+		} catch( e : Dynamic ) {
 			asyncWaits.remove(null);
 			var msg = "???";
 			var stack = haxe.Stack.toString(haxe.Stack.exceptionStack());
