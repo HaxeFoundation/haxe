@@ -222,4 +222,14 @@ class Bytes {
 		#end
 	}
 
+	public static function ofData( b : BytesData ) {
+		#if flash9
+		return new Bytes(b.length,b);
+		#elseif neko
+		return new Bytes(untyped __dollar__ssize(b),b);
+		#else
+		return new Bytes(b.length,b);
+		#end
+	}
+
 }

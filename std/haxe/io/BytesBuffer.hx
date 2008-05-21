@@ -92,7 +92,8 @@ class BytesBuffer {
 		var str = StringBuf.__string(b);
 		var bytes =  new Bytes(__dollar__ssize(str),str);
 		#elseif flash9
-		var bytes = new Bytes(b.position,b);
+		var bytes = new Bytes(b.length,b);
+		b.position = 0;
 		#else
 		var bytes = new Bytes(b.length,b);
 		#end
