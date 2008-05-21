@@ -48,6 +48,9 @@ class ContextAll extends Context {
 		var f = path2.pop();
 		var o = flash.Lib.eval(path2.join("."));
 		var m = Reflect.field(o,f);
+		#else
+		var o = null;
+		var m = null;
 		#end
 		if( m == null )
 			return super.call(path,params);

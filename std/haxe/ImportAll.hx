@@ -72,6 +72,8 @@ import haxe.io.Input;
 import haxe.io.Output;
 import haxe.io.StringInput;
 
+import haxe.remoting.Context;
+import haxe.remoting.ContextAll;
 import haxe.remoting.Connection;
 import haxe.remoting.AsyncConnection;
 import haxe.remoting.ExternalConnection;
