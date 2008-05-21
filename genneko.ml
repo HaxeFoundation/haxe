@@ -200,13 +200,7 @@ let gen_constant ctx pe c =
 	| TSuper -> assert false
 
 let rec gen_binop ctx p op e1 e2 =
-	let gen_op str =
-		(EBinop (str,gen_expr ctx e1,gen_expr ctx e2),p)
-	in
-	match op with
-	| OpPhysEq -> (EBinop ("==", call p (builtin p "pcompare") [gen_expr ctx e1; gen_expr ctx e2], int p 0),p)
-	| OpPhysNotEq ->  (EBinop ("!=", call p (builtin p "pcompare") [gen_expr ctx e1; gen_expr ctx e2], int p 0),p)
-	| _ -> gen_op (Ast.s_binop op)
+	(EBinop (Ast.s_binop op,gen_expr ctx e1,gen_expr ctx e2),p)
 
 and gen_unop ctx p op flag e =
 	match op with

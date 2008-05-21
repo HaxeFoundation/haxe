@@ -5,7 +5,7 @@ class Test {
 	public function new() {
 	}
 
-	function eq<T>( v : T, v2 : T, ?pos : haxe.PosInfos ) {
+	function eq<T>( v : T, v2 : T, ?pos ) {
 		count++;
 		if( v != v2 ) report(v+" should be "+v2,pos);
 	}
@@ -18,7 +18,7 @@ class Test {
 		eq(v,false,pos);
 	}
 
-	function exc( f : Void -> Void, ?pos : haxe.PosInfos ) {
+	function exc( f : Void -> Void, ?pos ) {
 		count++;
 		try {
 			f();
@@ -27,7 +27,7 @@ class Test {
 		}
 	}
 
-	function unspec( f : Void -> Void, ?pos : haxe.PosInfos ) {
+	function unspec( f : Void -> Void, ?pos ) {
 		count++;
 		try {
 			f();
@@ -35,7 +35,7 @@ class Test {
 		}
 	}
 
-	function allow<T>( v : T, values : Array<T>, ?pos : haxe.PosInfos ) {
+	function allow<T>( v : T, values : Array<T>, ?pos ) {
 		count++;
 		for( v2 in values )
 			if( v == v2 )
@@ -148,7 +148,16 @@ class Test {
 			neko.Lib.print("<pre>");
 		#end
 		resetTimer();
+		trace("START");
+		#if flash
+		var tf = untyped flash.Boot.getTrace();
+		tf.selectable = true;
+		#if flash9
+			tf.mouseEnabled = true;
+		#end
+		#end
 		var classes = [
+			new TestReflect(),
 			new TestBytes(),
 			new TestInt32(),
 			new TestIO(),
@@ -168,14 +177,14 @@ class Test {
 			}
 			asyncWaits.remove(null);
 			checkDone();
-		} catch( e : Dynamic ) {
+		} catch( e : Int ) {
 			asyncWaits.remove(null);
-			reportInfos = null;
 			var msg = "???";
 			var stack = haxe.Stack.toString(haxe.Stack.exceptionStack());
 			try msg = Std.string(e) catch( e : Dynamic ) {};
 			reportCount = 0;
 			report("ABORTED : "+msg+" in "+Type.getClassName(current),here);
+			reportInfos = null;
 			trace("STACK :\n"+stack);
 		}
 	}

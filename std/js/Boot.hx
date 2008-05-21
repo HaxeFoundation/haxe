@@ -174,19 +174,19 @@ class Boot {
 			}
 			switch( cl ) {
 			case Int:
-				return (Math.ceil(o) === o) && isFinite(o);
+				return __js__("Math.ceil(o) === o") && isFinite(o);
 			case Float:
 				return __js__("typeof(o)") == "number";
 			case Bool:
-				return (o === true || o === false);
+				return __js__("o === true || o === false");
 			case String:
 				return __js__("typeof(o)") == "string";
 			case Dynamic:
 				return true;
 			default:
-				if( o != null && o.__enum__ == cl )
-					return true;
-				return false;
+				if( o == null )
+					return false;
+				return o.__enum__ == cl || ( cl == Class && o.__name__ != null ) || ( cl == Enum && o.__ename__ != null );
 			}
 		}
 	}
@@ -223,10 +223,6 @@ class Boot {
 					}
 				}
 			};
-			String.prototype.__class__ = String;
-			String.__name__ = ["String"];
-			Array.prototype.__class__ = Array;
-			Array.__name__ = ["Array"];
 			var cca = String.prototype.charCodeAt;
 			String.prototype.cca = cca;
 			String.prototype.charCodeAt = function(i) {
@@ -247,12 +243,6 @@ class Boot {
 				}
 				return oldsub.apply(this,[pos,len]);
 			};
-			Int = __new__("Object");
-			Dynamic = __new__("Object");
-			Float = __js__("Number");
-			Bool = __new__("Object");
-			Bool["true"] = true;
-			Bool["false"] = false;
 			__js__("$closure = js.Boot.__closure");
 		}
 	}

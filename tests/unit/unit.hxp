@@ -7,12 +7,14 @@
   <files path="/">
     <file path="MyClass.hx" />
     <file path="MyEnum.hx" />
+    <file path="MySubClass.hx" />
     <file path="RemotingApi.hx" />
     <file path="RemotingServer.hx" />
     <file path="Test.hx" />
     <file path="TestBytes.hx" />
     <file path="TestInt32.hx" />
     <file path="TestIO.hx" />
+    <file path="TestReflect.hx" />
     <file path="TestRemoting.hx" />
     <file path="TestSerialize.hx" />
   </files>

@@ -747,10 +747,6 @@ and gen_binop ctx retval op e1 e2 =
 	| OpDiv -> gen ADivide
 	| OpSub -> gen ASubtract
 	| OpEq -> gen AEqual
-	| OpPhysEq -> gen APhysEqual
-	| OpPhysNotEq ->
-		gen APhysEqual;
-		write ctx ANot
 	| OpNotEq ->
 		gen AEqual;
 		write ctx ANot
@@ -877,6 +873,10 @@ and gen_call ctx e el =
 		jump_end();
 		get_tmp ctx r;
 		free_tmp ctx r e2.epos;
+	| TLocal "__physeq__" ,  [e1;e2] ->
+		gen_expr ctx true e1;
+		gen_expr ctx true e2;
+		write ctx APhysEqual;
 	| TLocal "__unprotect__", [{ eexpr = TConst (TString s) }] ->
 		push ctx [VStr (s,false)]
 	| _ , _ ->

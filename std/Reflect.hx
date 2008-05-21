@@ -55,7 +55,9 @@ class Reflect {
 		Returns the field of an object, or null if [o] is not an object or doesn't have this field.
 	**/
 	public inline static function field( o : Dynamic, field : String ) : Dynamic untyped {
-		#if flash
+		#if flash9
+			return (o == null) ? null : o[field];
+		#elseif flash
 			return o[field];
 		#elseif js
 			var v = null;

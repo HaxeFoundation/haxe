@@ -69,9 +69,7 @@ type binop =
 	| OpSub
 	| OpAssign
 	| OpEq
-	| OpPhysEq
 	| OpNotEq
-	| OpPhysNotEq
 	| OpGt
 	| OpGte
 	| OpLt
@@ -332,9 +330,7 @@ let rec s_binop = function
 	| OpSub -> "-"
 	| OpAssign -> "="
 	| OpEq -> "=="
-	| OpPhysEq -> "==="
 	| OpNotEq -> "!="
-	| OpPhysNotEq -> "!=="
 	| OpGte -> ">="
 	| OpLte -> "<="
 	| OpGt -> ">"

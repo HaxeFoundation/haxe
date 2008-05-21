@@ -68,7 +68,7 @@ extern enum Bool {
 	Dynamic is an internal compiler type which has special behavior.
 	See the haXe language reference for more informations.
 **/
-extern enum Dynamic<T> {
+extern class Dynamic<T> {
 }
 
 /**

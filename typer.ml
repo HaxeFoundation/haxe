@@ -923,6 +923,8 @@ let unify_call_params ctx name el args p =
 				is_pos_infos (!f())
 			| TType ({ t_path = ["haxe"] , "PosInfos" },[]) ->
 				true
+			| TType (t,tl) ->
+				is_pos_infos (apply_params t.t_types tl t.t_type)
 			| _ ->
 				false
 		in
@@ -1439,8 +1441,6 @@ let rec type_binop ctx op e1 e2 p =
 			unify ctx e2.etype i e2.epos);
 		mk_op !result
 	| OpEq
-	| OpPhysEq
-	| OpPhysNotEq
 	| OpNotEq ->
 		(try
 			unify_raise ctx e1.etype e2.etype p

@@ -16,6 +16,10 @@ class TestRemoting extends Test {
 	static var lcnx : haxe.remoting.LocalConnection;
 	static var fjscnx : haxe.remoting.FlashJsConnection;
 
+	static function staticMethod( a : Int, b : Int ) {
+		return a + b;
+	}
+
 	static function init() {
 		var ctx = RemotingApi.context();
 		#if flash
@@ -72,6 +76,14 @@ class TestRemoting extends Test {
 		async( doConnect, new Socket("haxeFlash8"), true );
 		async( doConnect, new Socket("haxeFlash9"), true );
 		#end
+
+		var actx = new haxe.remoting.ContextAll();
+		actx.addObject("fake",{ TestRemoting : TestRemoting },true);
+		eq( actx.call(["unit","TestRemoting","staticMethod"],[2,3]), 5 );
+		exc( function() actx.call(["unit2","TestRemoting","staticMethod"],[2,3]) );
+		exc( function() actx.call(["unit","TestRemoting2","staticMethod"],[2,3]) );
+		exc( function() actx.call(["unit","TestRemoting","staticMethod2"],[2,3]) );
+		eq( actx.call(["fake","TestRemoting","staticMethod"],[2,3]), 5 );
 	}
 
 	function doConnect( s : Socket, onResult : Bool -> Void ) {

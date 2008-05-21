@@ -1254,13 +1254,8 @@ and gen_binop ctx retval op e1 e2 t =
 		gen_op ~iop:A3OISub A3OSub
 	| OpEq ->
 		gen_op A3OEq
-	| OpPhysEq ->
-		gen_op A3OPhysEq
 	| OpNotEq ->
 		gen_op A3OEq;
-		write ctx (HOp A3ONot)
-	| OpPhysNotEq ->
-		gen_op A3OPhysEq;
 		write ctx (HOp A3ONot)
 	| OpGt ->
 		gen_op A3OGt
@@ -1339,8 +1334,6 @@ and jump_expr_gen ctx e jif jfun =
 		(match op with
 		| OpEq -> j J3Eq J3Neq
 		| OpNotEq -> j J3Neq J3Eq
-		| OpPhysEq -> j J3PhysEq J3PhysNeq
-		| OpPhysNotEq -> j J3PhysNeq J3PhysEq
 		| OpGt -> j J3Gt J3NotGt
 		| OpGte -> j J3Gte J3NotGte
 		| OpLt -> j J3Lt J3NotLt
@@ -1659,12 +1652,12 @@ let generate_enum ctx e =
 let generate_type ctx t =
 	match t with
 	| TClassDecl c ->
-		if c.cl_extern then
+		if c.cl_extern && c.cl_path <> ([],"Dynamic") then
 			None
 		else
 			Some (generate_class ctx c)
 	| TEnumDecl e ->
-		if e.e_extern then
+		if e.e_extern && e.e_path <> ([],"Void") then
 			None
 		else
 			Some (generate_enum ctx e)

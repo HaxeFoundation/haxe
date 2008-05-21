@@ -24,34 +24,33 @@
  */
 package haxe.remoting;
 
-class Context {
+class ContextAll extends Context {
 
-	var objects : Hash<{ obj : Dynamic, rec : Bool }>;
-
-	public function new() {
-		objects = new Hash();
-	}
-
-	public function addObject( name : String, obj : {}, ?recursive ) {
-		objects.set(name,{ obj : obj, rec : recursive });
-	}
-
-	public function call( path : Array<String>, params : Array<Dynamic> ) : Dynamic {
-		if( path.length < 2 ) throw "Invalid path '"+path.join(".")+"'";
-		var inf = objects.get(path[0]);
-		if( inf == null )
-			throw "No such object "+path[0];
-		var o = inf.obj;
-		var m = Reflect.field(o,path[1]);
-		if( path.length > 2 ) {
-			if( !inf.rec ) throw "Can't access "+path.join(".");
-			for( i in 2...path.length ) {
-				o = m;
-				m = Reflect.field(o,path[i]);
-			}
+	public override function call( path : Array<String>, params : Array<Dynamic> ) : Dynamic {
+		#if neko
+		var o : Dynamic = null;
+		var m : Dynamic = neko.Lib.getClasses();
+		for( p in path ) {
+			o = m;
+			m = Reflect.field(o,p);
 		}
-		if( !Reflect.isFunction(m) )
-			throw "No such method "+path.join(".");
+		#elseif js
+		var path2 = path.copy();
+		var f = path2.pop();
+		var o;
+		try {
+			o = js.Lib.eval(path2.join("."));
+		} catch( e : Dynamic ) {
+		}
+		var m = Reflect.field(o,f);
+		#elseif flash
+		var path2 = path.copy();
+		var f = path2.pop();
+		var o = flash.Lib.eval(path2.join("."));
+		var m = Reflect.field(o,f);
+		#end
+		if( m == null )
+			return super.call(path,params);
 		return Reflect.callMethod(o,m,params);
 	}
 

@@ -58,6 +58,7 @@ extern class Math
 	private static function __init__() : Void untyped {
 	#if neko
 		Math = neko.NekoMath__;
+		neko.Boot.__classes.Math = Math;
 	#else
 		#if flash9
 		NaN = __global__["Number"].NaN;
@@ -92,6 +93,9 @@ extern class Math
 			false;
 			#end
 		};
+	#end
+	#if !flash9
+		Math.__name__ = ["Math"];
 	#end
 	}
 

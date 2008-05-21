@@ -73,13 +73,6 @@ class Std {
 	}
 
 	/**
-		Convert any value to a Bool. Only 0, null and false are false, other values are true.
-	**/
-	public static function bool( x : Dynamic ) : Bool {
-		return (x !== 0 && x != null && x !== false);
-	}
-
-	/**
 		Convert a String to an Int, parsing different possible representations. Returns [null] if could not be parsed.
 	**/
 	public static function parseInt( x : String ) : Null<Int> {
@@ -191,8 +184,6 @@ class Std {
 		return untyped
 		#if as3gen
 		throw "Not supported in AS3";
-		#elseif flash9
-		flash.Boot.__res[name];
 		#elseif flash
 		flash.Boot.__res[name];
 		#elseif neko

@@ -78,7 +78,7 @@ class Boot {
 			case __dollar__tobject:
 				if( cl == null )
 					return false;
-				return __interfLoop(o.__class__,cl) || ( o.__enum__ == cl );
+				return __interfLoop(o.__class__,cl) || ( o.__enum__ == cl ) || (cl == Class && o.__name__ != null) || (cl == Enum && o.__ename__ != null );
 			default:
 				return false;
 			}
@@ -140,15 +140,7 @@ class Boot {
 	private static function __init() {
 		untyped {
 			String = NekoString__;
-			neko.Boot.__classes.String = String;
 			Array = NekoArray__;
-			neko.Boot.__classes.Array = Array;
-			Int = __dollar__new(null);
-			Float = __dollar__new(null);
-			Bool = __dollar__new(null);
-			Dynamic = __dollar__new(null);
-			__dollar__objset(Bool,__dollar__hash("true".__s),true);
-			__dollar__objset(Bool,__dollar__hash("false".__s),false);
 			__dollar__exports.__unserialize = __unserialize;
 			__dollar__exports.__classes = neko.Boot.__classes;
 		}

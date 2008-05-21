@@ -29,40 +29,6 @@ enum ValueType {
 class Type {
 
 	/**
-		Converts a value to an Enum or returns [null] if the value is not an Enum.
-	**/
-	public static function toEnum( t : Dynamic ) : Enum untyped {
-		try {
-			#if flash9
-				if( !t.__isenum ) return null;
-			#else
-				if( t.__ename__ == null ) return null;
-			#end
-			return t;
-		} catch( e : Dynamic ) {
-		}
-		return null;
-	}
-
-	/**
-		Converts a value to a Class or returns [null] if the value is not a Class.
-	**/
-	public static function toClass( t : Dynamic ) : Class<Dynamic> untyped {
-		try {
-			#if flash9
-				if( !t.hasOwnProperty("prototype") )
-					return null;
-			#else
-				if( t.__name__ == null )
-					return null;
-			#end
-			return t;
-		} catch( e : Dynamic ) {
-		}
-		return null;
-	}
-
-	/**
 		Returns the class of a value or [null] if this value is not a Class instance.
 	**/
 	public static function getClass<T>( o : T ) : Class<T> untyped {
@@ -152,6 +118,12 @@ class Type {
 			return null;
 		#if flash9
 			var str : String = untyped __global__["flash.utils.getQualifiedClassName"](c);
+			switch( str ) {
+			case "int": return "Int";
+			case "Number": return "Float";
+			case "Boolean": return "Bool";
+			default:
+			}
 			return str.split("::").join(".");
 		#else
 			var a : Array<String> = untyped c.__name__;
@@ -164,8 +136,7 @@ class Type {
 	**/
 	public static function getEnumName( e : Enum ) : String {
 		#if flash9
-			var n = untyped __global__["flash.utils.getQualifiedClassName"](e);
-			return n;
+			return getClassName(cast e);
 		#else
 			var a : Array<String> = untyped e.__ename__;
 			return a.join(".");
@@ -185,6 +156,10 @@ class Type {
 					return null;
 				return cl; // skip test below
 			} catch( e : Dynamic ) {
+				switch( name ) {
+				case "Int": return Int;
+				case "Float": return Float;
+				}
 				return null;
 			}
 		#elseif flash
@@ -224,6 +199,7 @@ class Type {
 					return null;
 				return e;
 			} catch( e : Dynamic ) {
+				if( name == "Bool" ) return Bool;
 				return null;
 			}
 		#elseif flash
@@ -546,6 +522,62 @@ class Type {
 			return e.index;
 		#else
 			return e[1];
+		#end
+	}
+
+	static function __init__() untyped {
+		#if js
+			String.prototype.__class__ = String;
+			String.__name__ = ["String"];
+			Array.prototype.__class__ = Array;
+			Array.__name__ = ["Array"];
+			Int = { __name__ : ["Int"] };
+			Dynamic = { __name__ : ["Dynamic"] };
+			Float = __js__("Number");
+			Float.__name__ = ["Float"];
+			Bool = { __ename__ : ["Bool"] };
+			Class = { __name__ : ["Class"] };
+			Enum = {};
+			Void = { __ename__ : ["Void"] };
+		#elseif flash9
+			#if !as3gen
+			Bool = __global__["Boolean"];
+			Int = __global__["int"];
+			Float = __global__["Number"];
+			#end
+		#elseif flash
+			var g = _global;
+			g.Int = { __name__ : ["Int"] };
+			g.Bool = { __ename__ : ["Bool"] };
+			g.Dynamic = { __name__ : ["Dynamic"] };
+			g.Class = { __name__ : ["Class"] };
+			g.Enum = {};
+			g.Void = { __ename__ : ["Void"] };
+			g.Float = _global["Number"];
+			g.Float[__unprotect__("__name__")] = ["Float"];
+			Array.prototype[__unprotect__("__class__")] = Array;
+			Array[__unprotect__("__name__")] = ["Array"];
+			String.prototype[__unprotect__("__class__")] = String;
+			String[__unprotect__("__name__")] = ["String"];
+			g["ASSetPropFlags"](Array.prototype,null,7);
+		#elseif neko
+			Int = { __name__ : ["Int"] };
+			Float = { __name__ : ["Float"] };
+			Bool = { __ename__ : ["Bool"] };
+			Dynamic = { __name__ : ["Dynamic"] };
+			Class = { __name__ : ["Class"] };
+			Enum = {};
+			Void = { __ename__ : ["Void"] };
+			var cl = neko.Boot.__classes;
+			cl.String = String;
+			cl.Array = Array;
+			cl.Int = Int;
+			cl.Float = Float;
+			cl.Bool = Bool;
+			cl.Dynamic = Dynamic;
+			cl.Class = Class;
+			cl.Enum = Enum;
+			cl.Void = Void;
 		#end
 	}
 

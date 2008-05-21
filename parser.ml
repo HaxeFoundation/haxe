@@ -65,7 +65,7 @@ let priority = function
 	| OpBoolOr -> -3
 	| OpBoolAnd -> -2
 	| OpInterval -> -2
-	| OpEq | OpNotEq | OpGt | OpLt | OpGte | OpLte | OpPhysEq | OpPhysNotEq -> -1
+	| OpEq | OpNotEq | OpGt | OpLt | OpGte | OpLte -> -1
 	| OpOr | OpAnd | OpXor -> 0
 	| OpShl | OpShr | OpUShr -> 1
 	| OpAdd | OpSub -> 2

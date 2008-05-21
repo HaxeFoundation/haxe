@@ -35,6 +35,13 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	fixed big bug in js/flash8 debug stack handling
 	complete rewrite of haxe.remoting package
 	haxe.io.Bytes serialization support
+	removed === and !==
+	removed Std.bool
+	fixed : Reflect.field(null) in flash9 doesn't throw an error anymore
+	removed Type.toClass and Type.toEnum
+	Dynamic type is now a class and not an enum
+	moved reflection support for core types from Boot to Type
+	fixed Type.getClassName/getEnumName/resolve for core flash9 types
 
 2008-04-05: 1.19
 	fixed flash9 Array.toString

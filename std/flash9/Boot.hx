@@ -72,12 +72,6 @@ class Boot extends flash.display.MovieClip, implements Dynamic {
 			aproto.setPropertyIsEnumerable("insert", false);
 			aproto.setPropertyIsEnumerable("remove", false);
 			aproto.setPropertyIsEnumerable("iterator", false);
-			#if !as3gen
-			Bool = __global__["Boolean"];
-			Int = __global__["int"];
-			Float = __global__["Number"];
-			Dynamic = { toString : function(){ return "Dynamic"; } };
-			#end
 			var cca = String.prototype.charCodeAt;
 			String.prototype.charCodeAt = function(i) {
 				var x = cca.call(this,i);
@@ -107,7 +101,7 @@ class Boot extends flash.display.MovieClip, implements Dynamic {
 
 	public static function __instanceof( v : Dynamic, t : Dynamic ) {
 		try {
-			if( t === untyped __global__["Dynamic"] )
+			if( t == Dynamic )
 				return true;
 			return untyped __is__(v,t);
 		} catch( e : Dynamic ) {

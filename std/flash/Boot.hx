@@ -137,19 +137,19 @@ class Boot {
 			#end
 			switch( cast cl ) {
 			case Int:
-				return (Math.ceil(o) === o) && isFinite(o) && (o !== true) && (o !== false);
+				return __physeq__(Math.ceil(o),o) && isFinite(o) && !(__physeq__(o,true) || __physeq__(o,false));
 			case Float:
 				return __typeof__(o) == "number";
 			case Bool:
-				return (o === true || o === false);
+				return __physeq__(o,true) || __physeq__(o,false);
 			case String:
 				return __typeof__(o) == "string";
 			case Dynamic:
 				return true;
 			default:
-				if( o[__unprotect__("__enum__")] == cl )
-					return true;
-				return false;
+				return o[__unprotect__("__enum__")] == cl ||
+					(cl == Class && o[__unprotect__("__name__")] != null) ||
+					(cl == Enum && o[__unprotect__("__ename__")] != null);
 			}
 		}
 	}
@@ -217,15 +217,7 @@ class Boot {
 		// only if not set yet
 		var g : Dynamic = _global;
 		if( !g.haxeInitDone ) {
-			var obj = _global["Object"];
 			g.haxeInitDone = true;
-			g.Int = __new__(obj);
-			g.Bool = __new__(obj);
-			g.Dynamic = __new__(obj);
-			g.Bool = __new__(obj);
-			g.Bool[__unprotect__("true")] = true;
-			g.Bool[__unprotect__("false")] = false;
-			g.Float = _global["Number"];
 			Array.prototype["copy"] = Array.prototype["slice"];
 			Array.prototype["insert"] = function(i,x) {
 				this["splice"](i,0,x);
@@ -254,11 +246,7 @@ class Boot {
 					}
 				}
 			};
-			Array.prototype[__unprotect__("__class__")] = Array;
-			Array[__unprotect__("__name__")] = ["Array"];
 			_global["ASSetPropFlags"](Array.prototype,null,7);
-			String.prototype[__unprotect__("__class__")] = String;
-			String[__unprotect__("__name__")] = ["String"];
 			var cca = String.prototype["charCodeAt"];
 			String.prototype["cca"] = cca;
 			String.prototype["charCodeAt"] = function(i) {
@@ -269,7 +257,7 @@ class Boot {
 			};
 			// create flash package (in for FP7 mark support)
 			if( _global["flash"] == null )
-				_global["flash"] = __new__(obj);
+				_global["flash"] = {};
 		}
 		// set the Lib variables
 		current.flash.Lib._global = _global;
