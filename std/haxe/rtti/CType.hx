@@ -4,19 +4,19 @@ typedef Path = String
 
 typedef Platforms = List<String>
 
-enum Type {
-	TUnknown;
-	TEnum( name : Path, params : List<Type> );
-	TClass( name : Path, params : List<Type> );
-	TTypedef( name : Path, params : List<Type> );
-	TFunction( args : List<{ name : String, opt : Bool, t : Type }>, ret : Type );
-	TAnonymous( fields : List<{ name : String, t : Type  }> );
-	TDynamic( ?t : Type );
+enum CType {
+	CUnknown;
+	CEnum( name : Path, params : List<CType> );
+	CClass( name : Path, params : List<CType> );
+	CTypedef( name : Path, params : List<CType> );
+	CFunction( args : List<{ name : String, opt : Bool, t : CType }>, ret : CType );
+	CAnonymous( fields : List<{ name : String, t : CType  }> );
+	CDynamic( ?t : CType );
 }
 
 typedef PathParams = {
 	var path : Path;
-	var params : List<Type>;
+	var params : List<CType>;
 }
 
 typedef TypeParams = Array<String> // no contraints
@@ -31,7 +31,7 @@ enum Rights {
 
 typedef ClassField = {
 	var name : String;
-	var type : Type;
+	var type : CType;
 	var isPublic : Bool;
 	var doc : String;
 	var get : Rights;
@@ -56,12 +56,12 @@ typedef Classdef = {> TypeInfos,
 	var interfaces : List<PathParams>;
 	var fields : List<ClassField>;
 	var statics : List<ClassField>;
-	var tdynamic : Null<Type>;
+	var tdynamic : Null<CType>;
 }
 
 typedef EnumField = {
 	var name : String;
-	var args : Null<List<{ name : String, opt : Bool, t : Type }>>;
+	var args : Null<List<{ name : String, opt : Bool, t : CType }>>;
 	var doc : String;
 	var platforms : Platforms;
 }
@@ -72,8 +72,8 @@ typedef Enumdef = {> TypeInfos,
 }
 
 typedef Typedef = {> TypeInfos,
-	var type : Type;
-	var types : Hash<Type>; // by platform
+	var type : CType;
+	var types : Hash<CType>; // by platform
 }
 
 enum TypeTree {
@@ -98,9 +98,9 @@ class TypeApi {
 		return inf;
 	}
 
-	public static function isVar( t : Type ) {
+	public static function isVar( t : CType ) {
 		return switch( t ) {
-		case TFunction(_,_): false;
+		case CFunction(_,_): false;
 		default: true;
 		}
 	}
@@ -134,46 +134,46 @@ class TypeApi {
 		return false;
 	}
 
-	public static function typeEq( t1 : Type, t2 : Type ) {
+	public static function typeEq( t1 : CType, t2 : CType ) {
 		switch( t1 ) {
-		case TUnknown: return t2 == TUnknown;
-		case TEnum(name,params):
+		case CUnknown: return t2 == CUnknown;
+		case CEnum(name,params):
 			switch( t2 ) {
-			case TEnum(name2,params2):
+			case CEnum(name2,params2):
 				return name == name2 && leq(typeEq,params,params2);
 			default:
 			}
-		case TClass(name,params):
+		case CClass(name,params):
 			switch( t2 ) {
-			case TClass(name2,params2):
+			case CClass(name2,params2):
 				return name == name2 && leq(typeEq,params,params2);
 			default:
 			}
-		case TTypedef(name,params):
+		case CTypedef(name,params):
 			switch( t2 ) {
-			case TTypedef(name2,params2):
+			case CTypedef(name2,params2):
 				return name == name2 && leq(typeEq,params,params2);
 			default:
 			}
-		case TFunction(args,ret):
+		case CFunction(args,ret):
 			switch( t2 ) {
-			case TFunction(args2,ret2):
+			case CFunction(args2,ret2):
 				return leq(function(a,b) {
 					return a.name == b.name && a.opt == b.opt && typeEq(a.t,b.t);
 				},args,args2) && typeEq(ret,ret2);
 			default:
 			}
-		case TAnonymous(fields):
+		case CAnonymous(fields):
 			switch( t2 ) {
-			case TAnonymous(fields2):
+			case CAnonymous(fields2):
 				return leq(function(a,b) {
 					return a.name == b.name && typeEq(a.t,b.t);
 				},fields,fields2);
 			default:
 			}
-		case TDynamic(t):
+		case CDynamic(t):
 			switch( t2 ) {
-			case TDynamic(t2):
+			case CDynamic(t2):
 				if( (t == null) != (t2 == null) )
 					return false;
 				return t == null || typeEq(t,t2);

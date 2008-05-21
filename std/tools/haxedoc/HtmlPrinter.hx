@@ -1,5 +1,5 @@
 package tools.haxedoc;
-import haxe.rtti.Type;
+import haxe.rtti.CType;
 
 class HtmlPrinter {
 
@@ -244,7 +244,7 @@ class HtmlPrinter {
 		if( stat ) keyword("static");
 		var isMethod = false;
 		switch( f.type ) {
-		case TFunction(args,ret):
+		case CFunction(args,ret):
 			if( f.get == RNormal && (f.set == RNormal || f.set == RF9Dynamic) ) {
 				isMethod = true;
 				if( f.set == RF9Dynamic )
@@ -365,7 +365,7 @@ class HtmlPrinter {
 
 	function processTypedefType(t,all,platforms) {
 		switch( t ) {
-		case TAnonymous(fields):
+		case CAnonymous(fields):
 			print('<dl>');
 			for( f in fields ) {
 				processClassField(all,{
@@ -392,7 +392,7 @@ class HtmlPrinter {
 		}
 	}
 
-	function processPath( path : Path, ?params : List<Type> ) {
+	function processPath( path : Path, ?params : List<CType> ) {
 		print(makePathUrl(path,"type"));
 		if( params != null && !params.isEmpty() ) {
 			print("&lt;");
@@ -402,17 +402,17 @@ class HtmlPrinter {
 		}
 	}
 
-	function processType( t : Type ) {
+	function processType( t : CType ) {
 		switch( t ) {
-		case TUnknown:
+		case CUnknown:
 			print("Unknown");
-		case TEnum(path,params):
+		case CEnum(path,params):
 			processPath(path,params);
-		case TClass(path,params):
+		case CClass(path,params):
 			processPath(path,params);
-		case TTypedef(path,params):
+		case CTypedef(path,params):
 			processPath(path,params);
-		case TFunction(args,ret):
+		case CFunction(args,ret):
 			if( args.isEmpty() ) {
 				processPath("Void");
 				print(" -> ");
@@ -426,7 +426,7 @@ class HtmlPrinter {
 				print(" -> ");
 			}
 			processTypeFun(ret,false);
-		case TAnonymous(fields):
+		case CAnonymous(fields):
 			print("{ ");
 			var me = this;
 			display(fields,function(f) {
@@ -434,7 +434,7 @@ class HtmlPrinter {
 				me.processType(f.t);
 			},", ");
 			print("}");
-		case TDynamic(t):
+		case CDynamic(t):
 			if( t == null )
 				processPath("Dynamic");
 			else {
@@ -445,8 +445,8 @@ class HtmlPrinter {
 		}
 	}
 
-	function processTypeFun( t : Type, isArg ) {
-		var parent =  switch( t ) { case TFunction(_,_): true; case TEnum(n,_): isArg && n == "Void"; default : false; };
+	function processTypeFun( t : CType, isArg ) {
+		var parent =  switch( t ) { case CFunction(_,_): true; case CEnum(n,_): isArg && n == "Void"; default : false; };
 		if( parent )
 			print("(");
 		processType(t);

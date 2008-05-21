@@ -1,5 +1,5 @@
 package haxe.rtti;
-import haxe.rtti.Type;
+import haxe.rtti.CType;
 import haxe.xml.Fast;
 
 class XmlParser {
@@ -369,16 +369,16 @@ class XmlParser {
 		};
 	}
 
-	function xtype( x : Fast ) : Type {
+	function xtype( x : Fast ) : CType {
 		return switch( x.name ) {
 		case "unknown":
-			TUnknown;
+			CUnknown;
 		case "e":
-			TEnum(mkPath(x.att.path),xtypeparams(x));
+			CEnum(mkPath(x.att.path),xtypeparams(x));
 		case "c":
-			TClass(mkPath(x.att.path),xtypeparams(x));
+			CClass(mkPath(x.att.path),xtypeparams(x));
 		case "t":
-			TTypedef(mkPath(x.att.path),xtypeparams(x));
+			CTypedef(mkPath(x.att.path),xtypeparams(x));
 		case "f":
 			var args = new List();
 			var aname = x.att.a.split(":");
@@ -400,7 +400,7 @@ class XmlParser {
 			}
 			var ret = args.last();
 			args.remove(ret);
-			TFunction(args,ret.t);
+			CFunction(args,ret.t);
 		case "a":
 			var fields = new List();
 			for( f in x.elements )
@@ -408,19 +408,19 @@ class XmlParser {
 					name : f.name,
 					t : xtype(new Fast(f.x.firstElement())),
 				});
-			TAnonymous(fields);
+			CAnonymous(fields);
 		case "d":
 			var t = null;
 			var tx = x.x.firstElement();
 			if( tx != null )
 				t = xtype(new Fast(tx));
-			TDynamic(t);
+			CDynamic(t);
 		default:
 			xerror(x);
 		}
 	}
 
-	function xtypeparams( x : Fast ) : List<Type> {
+	function xtypeparams( x : Fast ) : List<CType> {
 		var p = new List();
 		for( c in x.elements )
 			p.add(xtype(c));

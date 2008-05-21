@@ -98,7 +98,7 @@ import haxe.remoting.SocketWrapper;
 #end
 
 import haxe.rtti.Infos;
-import haxe.rtti.Type;
+import haxe.rtti.CType;
 import haxe.rtti.XmlParser;
 import haxe.rtti.Generic;
 

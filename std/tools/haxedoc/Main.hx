@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 package tools.haxedoc;
-import haxe.rtti.Type;
+import haxe.rtti.CType;
 
 class Main {
 

@@ -42,6 +42,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	Dynamic type is now a class and not an enum
 	moved reflection support for core types from Boot to Type
 	fixed Type.getClassName/getEnumName/resolve for core flash9 types
+	renamed haxe.rtti.Type to haxe.rtti.CType (with changes in prefix)
 
 2008-04-05: 1.19
 	fixed flash9 Array.toString
