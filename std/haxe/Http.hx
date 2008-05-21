@@ -235,7 +235,7 @@ class Http {
 		}
 		customRequest(post,output);
 		if( !err )
-			me.onData(new String(cast output.getBytes().getData()));
+			me.onData(neko.Lib.stringReference(output.getBytes()));
 	#end
 	}
 
@@ -450,7 +450,7 @@ class Http {
 				}
 			}
 		}
-		var headers = new String(cast b.getBytes().getData()).split("\r\n");
+		var headers = neko.Lib.stringReference(b.getBytes()).split("\r\n");
 		var response = headers.shift();
 		var rp = response.split(" ");
 		var status = Std.parseInt(rp[1]);
@@ -527,7 +527,7 @@ class Http {
 				len += chunk_buf.length;
 				chunk_buf = null;
 			}
-			if( chunk_re.match(new String(cast buf.getData())) ) {
+			if( chunk_re.match(neko.Lib.stringReference(buf)) ) {
 				var p = chunk_re.matchedPos();
 				if( p.len <= len ) {
 					var cstr = chunk_re.matched(1);

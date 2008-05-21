@@ -282,8 +282,8 @@ class Unserializer {
  			if( buf.charAt(pos++) != ":" || length - pos < len )
 				throw "Invalid bytes length";
 			#if neko
-			var str =  StringTools.baseDecode(buf.substr(pos,len),BASE64);
-			var bytes = untyped new haxe.io.Bytes(str.length,str.__s);
+			var str = StringTools.baseDecode(buf.substr(pos,len),BASE64);
+			var bytes = neko.Lib.bytesReference(str);
 			#else
 			var codes = CODES;
 			if( codes == null ) {

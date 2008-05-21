@@ -70,6 +70,7 @@ import haxe.io.Eof;
 import haxe.io.Error;
 import haxe.io.Input;
 import haxe.io.Output;
+import haxe.io.StringInput;
 
 import haxe.remoting.Connection;
 import haxe.remoting.AsyncConnection;

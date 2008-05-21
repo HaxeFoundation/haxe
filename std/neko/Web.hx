@@ -243,7 +243,7 @@ class Web {
 		var curname = null;
 		parseMultipart(function(p,_) {
 			if( curname != null )
-				h.set(curname,new String(cast buf.getBytes().getData()));
+				h.set(curname,neko.Lib.stringReference(buf.getBytes()));
 			curname = p;
 			buf = new haxe.io.BytesBuffer();
 			maxSize -= p.length;
@@ -256,7 +256,7 @@ class Web {
 			buf.addBytes(str,pos,len);
 		});
 		if( curname != null )
-			h.set(curname,new String(cast buf.getBytes().getData()));
+			h.set(curname,neko.Lib.stringReference(buf.getBytes()));
 		return h;
 	}
 

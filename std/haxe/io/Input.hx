@@ -220,7 +220,7 @@ class Input {
 		var b = Bytes.alloc(len);
 		readFullBytes(b,0,len);
 		#if neko
-		return new String(cast b.getData());
+		return neko.Lib.stringReference(b);
 		#else
 		return b.toString();
 		#end

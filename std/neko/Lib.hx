@@ -166,6 +166,20 @@ class Lib {
 		return untyped neko.Boot.__classes;
 	}
 
+	/**
+		Returns a string referencing the data contains in bytes.
+	**/
+	public inline static function stringReference( b : haxe.io.Bytes ) {
+		return new String( cast b.getData() );
+	}
+
+	/**
+		Returns bytes referencing the content of a string.
+	**/
+	public inline static function bytesReference( s : String ) : haxe.io.Bytes {
+		return untyped new haxe.io.Bytes( s.length, s.__s );
+	}
+
 	static var __serialize = load("std","serialize",1);
 	static var __unserialize = load("std","unserialize",2);
 

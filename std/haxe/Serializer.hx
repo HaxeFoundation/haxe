@@ -246,7 +246,7 @@ class Serializer {
 			case cast haxe.io.Bytes:
 				var v : haxe.io.Bytes = v;
 				#if neko
-				var chars = StringTools.baseEncode(new String(cast v.getData()),BASE64);
+				var chars = StringTools.baseEncode(neko.Lib.stringReference(v),BASE64);
 				#else
 				var i = 0;
 				var max = v.length - 2;

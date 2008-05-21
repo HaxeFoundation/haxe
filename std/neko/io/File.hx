@@ -43,7 +43,7 @@ class File {
 	}
 
 	public static function getBytes( path : String ) {
-		return haxe.io.Bytes.ofString(getContent(path));
+		return neko.Lib.bytesReference(getContent(path));
 	}
 
 	public static function read( path : String, binary : Bool ) {
