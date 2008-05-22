@@ -11,7 +11,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	fixed neko.net.ThreadRemotingServer.onXML
 	genswf9 : fixed verify error with Null<Class> (was using dynamic access)
 	small patch for jsfl support
-	added __charCodeAt for very fast string operations on Flash9
+	added .cca for faster string operations on Flash9/Flash/JS
 	bugfix with inlined local variables
 	upgraded flash9 api to flex3/player 9.0.115
 	override is now mandatory, no more --override
@@ -34,7 +34,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	changed neko apis to use haxe.io and Bytes instead of String buffers
 	fixed big bug in js/flash8 debug stack handling
 	complete rewrite of haxe.remoting package
-	haxe.io.Bytes serialization support
+	haxe.io.Bytes serialization support	(replace deprecated string support)
 	removed === and !==
 	removed Std.bool
 	fixed : Reflect.field(null) in flash9 doesn't throw an error anymore
@@ -43,6 +43,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	moved reflection support for core types from Boot to Type
 	fixed Type.getClassName/getEnumName/resolve for core flash9 types
 	renamed haxe.rtti.Type to haxe.rtti.CType (with changes in prefix)
+	added haxe.TimerQueue, added haxe.Timer.delay, remove haxe.Timer.delayed
 
 2008-04-05: 1.19
 	fixed flash9 Array.toString
