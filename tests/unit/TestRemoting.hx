@@ -77,6 +77,10 @@ class TestRemoting extends Test {
 		async( doConnect, new Socket("haxeFlash9"), true );
 		#end
 
+		#if swf_mark
+		return;
+		#end
+
 		var actx = new haxe.remoting.ContextAll();
 		actx.addObject("fake",{ TestRemoting : TestRemoting },true);
 		eq( actx.call(["unit","TestRemoting","staticMethod"],[2,3]), 5 );

@@ -1,6 +1,6 @@
 package unit;
 
-class Test {
+class Test #if swf_mark implements mt.Protect #end {
 
 	public function new() {
 	}
@@ -149,12 +149,13 @@ class Test {
 		#end
 		resetTimer();
 		trace("START");
-		#if flash
-		var tf = untyped flash.Boot.getTrace();
-		tf.selectable = true;
 		#if flash9
-			tf.mouseEnabled = true;
-		#end
+		var tf : flash.text.TextField = untyped flash.Boot.getTrace();
+		tf.selectable = true;
+		tf.mouseEnabled = true;
+		#elseif flash
+		var tf : flash.TextField = untyped flash.Boot.getTrace();
+		tf.selectable = true;
 		#end
 		var classes = [
 			new TestReflect(),

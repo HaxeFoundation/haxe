@@ -38,7 +38,9 @@ class SocketWrapper {
 		var ctx = new Context();
 		var cnx = haxe.remoting.ExternalConnection.jsConnect(id,ctx);
 		ctx.addObject("sock",s);
-		ctx.addObject("api",{ close : cnx.close });
+		var o = {};
+		Reflect.setField(o,"close",cnx.close);
+		ctx.addObject("api",o);
 		#if flash9
 		var connected = false;
 		s.addEventListener(flash.events.Event.CONNECT,function(_) {
@@ -73,7 +75,9 @@ class SocketWrapper {
 
 	static function init() {
 		var ctx = new Context();
-		ctx.addObject("api",{ create : create });
+		var o = {};
+		Reflect.setField(o,"create",create);
+		ctx.addObject("api",o);
 		haxe.remoting.ExternalConnection.jsConnect("SocketWrapper",ctx);
 	}
 

@@ -27,6 +27,8 @@ type register =
 
 type context = {
 
+	stack : Codegen.stack_context;
+
 	(* segs *)
 	mutable segs : (actions * (string * bool, int) Hashtbl.t) list;
 
@@ -190,7 +192,8 @@ let rec is_protected_path path ext =
 	match path with
 	| ["flash"] , "Boot" | ["flash"] , "Lib" -> false
 	| "flash" :: _ , _ | [] , "flash" -> ext
-	| [] , "Array" | [] , "Math" | [] , "Date" | [] , "String" -> true
+	| [] , "Array" | [] , "Math" | [] , "Date" | [] , "String" | [] , "Bool" -> true
+	| [] , "Int" | [] , "Float" | [] , "Xml" -> true
 	| "_global" :: l , n -> is_protected_path (l,n) ext
 	| _ -> false
 
@@ -541,7 +544,7 @@ let rec gen_constant ctx c p =
 	| TSuper -> assert false
 
 let access_local ctx s =
-	match (try PMap.find s ctx.regs , false with Not_found -> NoReg, true) with
+	match (try PMap.find s ctx.regs , false with Not_found -> NoReg, s <> "Enum") with
 	| NoReg , flag ->
 		push ctx [VStr (s,flag)];
 		VarStr
@@ -967,14 +970,13 @@ and gen_expr_2 ctx retval e =
 		let tf = begin_func ctx reg_super (Codegen.local_find true "__arguments__" f.tf_expr) rargs in
 		ctx.fun_pargs <- (ctx.code_pos, List.rev !pargs) :: ctx.fun_pargs;
 		if ctx.com.debug then begin
-			let cur = (ctx.curclass,fst ctx.curmethod) in
-			gen_expr ctx false (Codegen.stack_push true cur);
-			gen_expr ctx false Codegen.stack_save_pos;
+			gen_expr ctx false (ctx.stack.Codegen.stack_push ctx.curclass (fst ctx.curmethod));
+			gen_expr ctx false ctx.stack.Codegen.stack_save_pos;
 			let start_try = gen_try ctx in
-			gen_expr ctx false (Codegen.stack_block_loop f.tf_expr);
+			gen_expr ctx false (Codegen.stack_block_loop ctx.stack f.tf_expr);
 			let end_try = start_try() in
 			(* if $spos == 1 , then no upper call, so report as uncaught *)
-			getvar ctx (access_local ctx Codegen.stack_var_pos);
+			getvar ctx (access_local ctx ctx.stack.Codegen.stack_pos_var);
 			push ctx [VInt 1];
 			write ctx AEqual;
 			write ctx ANot;
@@ -1314,8 +1316,9 @@ let gen_type_def ctx t =
 		push ctx [VReg 1; VStr ("__class__",false); VReg 0];
 		setvar ctx VarObj;
 		(* true if implements mt.Protect *)
-		let flag = is_protected ctx (TInst (c,[])) "" in
+		let flag = is_protected ctx ~stat:true (TInst (c,[])) "" in
 		List.iter (gen_class_static_field ctx c flag) c.cl_ordered_statics;
+		let flag = is_protected ctx (TInst (c,[])) "" in
 		PMap.iter (fun _ f -> if f.cf_get <> ResolveAccess then gen_class_field ctx flag f) c.cl_fields;
 	| TEnumDecl e when e.e_extern ->
 		()
@@ -1408,6 +1411,7 @@ let default_header ctx ver =
 let generate com =
 	let ctx = {
 		com = com;
+		stack = Codegen.stack_init com true;
 		flash6 = com.flash_version = 6;
 		segs = [];
 		opcodes = DynArray.create();
@@ -1438,10 +1442,10 @@ let generate com =
 	protect_all := not (Common.defined com "swf-mark");
 	extern_boot := true;
 	if com.debug then begin
-		push ctx [VStr (Codegen.stack_var,false); VInt 0];
+		push ctx [VStr (ctx.stack.Codegen.stack_var,false); VInt 0];
 		write ctx AInitArray;
 		write ctx ASet;
-		push ctx [VStr (Codegen.exc_stack_var,false); VInt 0];
+		push ctx [VStr (ctx.stack.Codegen.stack_exc_var,false); VInt 0];
 		write ctx AInitArray;
 		write ctx ASet;
 	end;

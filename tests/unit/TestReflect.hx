@@ -10,11 +10,23 @@ class TestReflect extends Test {
 		Class,Enum,Void,Dynamic,
 	];
 
+	static inline function u( s : String ) : String {
+		#if (flash && !flash9)
+		return untyped __unprotect__(s);
+		#else
+		return s;
+		#end
+	}
+
+	static inline function u2( s : String, s2 ) : String {
+		return u(s)+"."+u(s2);
+	}
+
 	static var TNAMES = [
 		"null","Int","String","Bool","Float",
-		"Array","Hash","List","Date","Xml","Math",
-		"unit.MyEnum","unit.MyClass","unit.MySubClass",
-		"Class","Enum","Void","Dynamic",
+		"Array",u("Hash"),u("List"),"Date","Xml","Math",
+		u2("unit","MyEnum"),u2("unit","MyClass"),u2("unit","MySubClass"),
+		u("Class"),u("Enum"),u("Void"),u("Dynamic"),
 	];
 
 	public function testTypes() {
@@ -23,7 +35,7 @@ class TestReflect extends Test {
 			var name = TNAMES[i];
 			infos("type "+name);
 			f( t == null );
-			if( name == "Enum" ) {
+			if( name == u("Enum") ) {
 				// neither an enum or a class
 			} else if( t == MyEnum || t == Void || t == Bool ) {
 				eq( Type.getEnumName(t), name );

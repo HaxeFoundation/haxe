@@ -23,6 +23,25 @@ open Common
 open Typecore
 
 (* -------------------------------------------------------------------------- *)
+(* TOOLS *)
+
+let field e name t p =
+	mk (TField (e,name)) t p
+
+let fcall e name el ret p =
+	let ft = tfun (List.map (fun e -> e.etype) el) ret in
+	mk (TCall (field e name ft p,el)) ret p
+
+let string com str p =
+	mk (TConst (TString str)) com.type_api.tstring p
+
+let binop op a b t p =
+	mk (TBinop (op,a,b)) t p
+
+let index com e index t p =
+	mk (TArray (e,mk (TConst (TInt (Int32.of_int index))) com.type_api.tint p)) t p
+
+(* -------------------------------------------------------------------------- *)
 (* REMOTING PROXYS *)
 
 let rec reverse_type t =
@@ -414,83 +433,100 @@ let block_vars e =
 (* -------------------------------------------------------------------------- *)
 (* STACK MANAGEMENT EMULATION *)
 
-let emk e = mk e (mk_mono()) null_pos
+type stack_context = {
+	stack_var : string;
+	stack_exc_var : string;
+	stack_pos_var : string;
+	stack_pos : pos;
+	stack_expr : texpr;
+	stack_pop : texpr;
+	stack_save_pos : texpr;
+	stack_restore : texpr list;
+	stack_push : tclass -> string -> texpr;
+	stack_return : texpr -> texpr;
+}
 
-let stack_var = "$s"
-let exc_stack_var = "$e"
-let stack_var_pos = "$spos"
-let stack_e = emk (TLocal stack_var)
-let stack_pop = emk (TCall (emk (TField (stack_e,"pop")),[]))
+let stack_context_init com stack_var exc_var pos_var tmp_var use_add p =
+	let t = com.type_api in
+	let st = t.tarray t.tstring in
+	let stack_e = mk (TLocal stack_var) st p in
+	let exc_e = mk (TLocal exc_var) st p in	
+	let stack_pop = fcall stack_e "pop" [] t.tstring p in
+	let stack_push c m =
+		fcall stack_e "push" [
+			if use_add then
+				binop OpAdd (string com (s_type_path c.cl_path ^ "::") p) (string com m p) t.tstring p
+			else
+				string com (s_type_path c.cl_path ^ "::" ^ m) p
+		] t.tvoid p
+	in
+	let stack_return e =
+		mk (TBlock [
+			mk (TVars [tmp_var, e.etype, Some e]) t.tvoid e.epos;
+			stack_pop;
+			mk (TReturn (Some (mk (TLocal tmp_var) e.etype e.epos))) e.etype e.epos
+		]) e.etype e.epos
+	in
+	{
+		stack_var = stack_var;
+		stack_exc_var = exc_var;
+		stack_pos_var = pos_var;
+		stack_pos = p;
+		stack_expr = stack_e;
+		stack_pop = stack_pop;
+		stack_save_pos = mk (TVars [pos_var, t.tint, Some (field stack_e "length" t.tint p)]) t.tvoid p;
+		stack_push = stack_push;
+		stack_return = stack_return;
+		stack_restore = [
+			binop OpAssign exc_e (mk (TArrayDecl []) st p) st p;
+			mk (TWhile (
+				binop OpGte	(field stack_e "length" t.tint p) (mk (TLocal pos_var) t.tint p) t.tbool p,
+				fcall exc_e "unshift" [fcall stack_e "pop" [] t.tstring p] t.tvoid p,
+				NormalWhile
+			)) t.tvoid p;
+			fcall stack_e "push" [index com exc_e 0 t.tstring p] t.tvoid p
+		];
+	}
 
-let stack_push useadd (c,m) =
-	emk (TCall (emk (TField (stack_e,"push")),[
-		if useadd then
-			emk (TBinop (
-				OpAdd,
-				emk (TConst (TString (s_type_path c.cl_path ^ "::"))),
-				emk (TConst (TString m))
-			))
-		else
-			emk (TConst (TString (s_type_path c.cl_path ^ "::" ^ m)))
-	]))
+let stack_init com use_add =
+	stack_context_init com "$s" "$e" "$spos" "$tmp" use_add null_pos
 
-let stack_save_pos =
-	emk (TVars [stack_var_pos, t_dynamic, Some (emk (TField (stack_e,"length")))])
-
-let stack_restore_pos =
-	let ev = emk (TLocal exc_stack_var) in
-	[
-	emk (TBinop (OpAssign, ev, emk (TArrayDecl [])));
-	emk (TWhile (
-		emk (TBinop (OpGte,
-			emk (TField (stack_e,"length")),
-			emk (TLocal stack_var_pos)
-		)),
-		emk (TCall (
-			emk (TField (ev,"unshift")),
-			[emk (TCall (
-				emk (TField (stack_e,"pop")),
-				[]
-			))]
-		)),
-		NormalWhile
-	));
-	emk (TCall (emk (TField (stack_e,"push")),[ emk (TArray (ev,emk (TConst (TInt 0l)))) ]))
-	]
-
-let rec stack_block_loop e =
+let rec stack_block_loop ctx e =
 	match e.eexpr with
 	| TFunction _ ->
 		e
 	| TReturn None | TReturn (Some { eexpr = TConst _ }) | TReturn (Some { eexpr = TLocal _ }) ->
 		mk (TBlock [
-			stack_pop;
+			ctx.stack_pop;
 			e;
 		]) e.etype e.epos
-	| TReturn (Some e) ->
-		mk (TBlock [
-			mk (TVars ["$tmp", t_dynamic, Some (stack_block_loop e)]) t_dynamic e.epos;
-			stack_pop;
-			mk (TReturn (Some (mk (TLocal "$tmp") t_dynamic e.epos))) t_dynamic e.epos
-		]) e.etype e.epos
+	| TReturn (Some e) ->	
+		ctx.stack_return (stack_block_loop ctx e)
 	| TTry (v,cases) ->
-		let v = stack_block_loop v in
+		let v = stack_block_loop ctx v in
 		let cases = List.map (fun (n,t,e) ->
-			let e = stack_block_loop e in
+			let e = stack_block_loop ctx e in
 			let e = (match (mk_block e).eexpr with
-				| TBlock l -> mk (TBlock (stack_restore_pos @ l)) e.etype e.epos
+				| TBlock l -> mk (TBlock (ctx.stack_restore @ l)) e.etype e.epos
 				| _ -> assert false
 			) in
 			n , t , e
 		) cases in
 		mk (TTry (v,cases)) e.etype e.epos
 	| _ ->
-		map_expr stack_block_loop e
+		map_expr (stack_block_loop ctx) e
 
-let stack_block ?(useadd=false) ctx e =	
+let stack_block ctx c m e =	
 	match (mk_block e).eexpr with
-	| TBlock l -> mk (TBlock (stack_push useadd ctx :: stack_save_pos :: List.map stack_block_loop l @ [stack_pop])) e.etype e.epos
-	| _ -> assert false
+	| TBlock l -> 
+		mk (TBlock (
+			ctx.stack_push c m ::
+			ctx.stack_save_pos :: 
+			List.map (stack_block_loop ctx) l
+			@ [ctx.stack_pop]
+		)) e.etype e.epos
+	| _ ->
+		assert false
 
 (* -------------------------------------------------------------------------- *)
 (* MISC FEATURES *)

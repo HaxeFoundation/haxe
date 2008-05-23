@@ -23,6 +23,7 @@ type ctx = {
 	com : Common.context;
 	buf : Buffer.t;
 	packages : (string list,unit) Hashtbl.t;
+	stack : Codegen.stack_context;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
 	mutable inits : texpr list;
@@ -72,7 +73,7 @@ let rec concat ctx s f = function
 
 let fun_block ctx f =
 	if ctx.com.debug then
-		Codegen.stack_block (ctx.current,fst ctx.curmethod) f.tf_expr
+		Codegen.stack_block ctx.stack ctx.current (fst ctx.curmethod) f.tf_expr
 	else
 		mk_block f.tf_expr
 
@@ -674,6 +675,7 @@ let generate_type ctx = function
 let generate com =
 	let ctx = {
 		com = com;
+		stack = Codegen.stack_init com false;
 		buf = Buffer.create 16000;
 		packages = Hashtbl.create 0;
 		statics = [];
@@ -694,9 +696,9 @@ let generate com =
 	print ctx "js.Boot.__res = {}";
 	newline ctx;
 	if com.debug then begin
-		print ctx "%s = []" Codegen.stack_var;
+		print ctx "%s = []" ctx.stack.Codegen.stack_var;
 		newline ctx;
-		print ctx "%s = []" Codegen.exc_stack_var;
+		print ctx "%s = []" ctx.stack.Codegen.stack_exc_var;
 		newline ctx;
 	end;
 	Hashtbl.iter (fun name data ->

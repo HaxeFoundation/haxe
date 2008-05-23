@@ -546,15 +546,15 @@ class Type {
 			Float = __global__["Number"];
 			#end
 		#elseif flash
-			var g = _global;
-			g.Int = { __name__ : ["Int"] };
-			g.Bool = { __ename__ : ["Bool"] };
-			g.Dynamic = { __name__ : ["Dynamic"] };
-			g.Class = { __name__ : ["Class"] };
+			var g : Dynamic = _global;
+			g["Int"] = { __name__ : ["Int"] };
+			g["Bool"] = { __ename__ : ["Bool"] };
+			g.Dynamic = { __name__ : [__unprotect__("Dynamic")] };
+			g.Class = { __name__ : [__unprotect__("Class")] };
 			g.Enum = {};
-			g.Void = { __ename__ : ["Void"] };
-			g.Float = _global["Number"];
-			g.Float[__unprotect__("__name__")] = ["Float"];
+			g.Void = { __ename__ : [__unprotect__("Void")] };
+			g["Float"] = _global["Number"];
+			g["Float"][__unprotect__("__name__")] = ["Float"];
 			Array.prototype[__unprotect__("__class__")] = Array;
 			Array[__unprotect__("__name__")] = ["Array"];
 			String.prototype[__unprotect__("__class__")] = String;

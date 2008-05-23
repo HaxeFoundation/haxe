@@ -104,7 +104,11 @@ let create() =
 	}
 
 let defined ctx v = PMap.mem v ctx.defines
-let define ctx v = ctx.defines <- PMap.add v () ctx.defines
+
+let define ctx v =
+	ctx.defines <- PMap.add v () ctx.defines;
+	let v = String.concat "_" (ExtString.String.nsplit v "-") in
+	ctx.defines <- PMap.add v () ctx.defines
 
 let error msg p = raise (Abort (msg,p))
 

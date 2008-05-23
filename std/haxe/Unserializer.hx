@@ -35,14 +35,14 @@ class Unserializer {
 	public static var DEFAULT_RESOLVER : TypeResolver = Type;
 
 	static var BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:";
+
+	#if !neko
 	static var CODES = null;
 
 	static function initCodes() {
 		var codes =
 			#if flash9
 				new flash.utils.ByteArray();
-			#elseif neko
-				untyped __dollar__amake(BASE64.length);
 			#else
 				new Array();
 			#end
@@ -50,6 +50,7 @@ class Unserializer {
 			codes[untyped BASE64.cca(i)] = i;
 		return codes;
 	}
+	#end
 
  	var buf : String;
  	var pos : Int;
