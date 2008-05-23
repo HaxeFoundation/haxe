@@ -137,22 +137,23 @@ let compile() =
 		"../ocaml/xml-light/xml-light";
 		"unix"
 	] in
+	let neko = "../neko/libs/include/ocaml" in
 	let paths = [
 		"../ocaml";
 		"../ocaml/swflib";
 		"../ocaml/xml-light";
-		"../neko/libs/include/ocaml"
+		neko
 	] in
 	let mlist = [
 		"ast";"lexer";"type";"common";"parser";"typecore";
 		"genxml";"typeload";"codegen";"typer";
-		"nast";"binast";"nxml";
+		neko^"/nast";neko^"/binast";neko^"/nxml";
 		"genneko";"genas3";"genjs";"genswf8";"genswf9";"genswf";
 		"main";
 	] in
 	let path_str = String.concat " " (List.map (fun s -> "-I " ^ s) paths) in
 	let libs_str ext = " " ^ String.concat " " (List.map (fun l -> l ^ ext) libs) ^ " " in
-	ocamlc (path_str ^ " " ^ modules mlist ".ml");
+	ocamlc (path_str ^ " -pp camlp4o " ^ modules mlist ".ml");
 	if bytecode then command ("ocamlc -custom -o ../bin/haxe-byte" ^ exe_ext ^ libs_str ".cma" ^ modules mlist ".cmo");
 	if native then command ("ocamlopt -o ../bin/haxe" ^ exe_ext ^ libs_str ".cmxa" ^ modules mlist ".cmx");
 
