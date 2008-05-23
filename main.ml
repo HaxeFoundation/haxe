@@ -21,7 +21,6 @@ open Genswf
 open Common
 
 let prompt = ref false
-let has_error = ref false
 let display = ref false
 let measure_times = ref false
 
@@ -36,7 +35,7 @@ let normalize_path p =
 		| '\\' | '/' -> p
 		| _ -> p ^ "/"
 
-let warn msg p =
+let message msg p =
 	if p = Ast.null_pos then
 		prerr_endline msg
 	else begin
@@ -54,7 +53,7 @@ let do_exit() =
 	exit 1
 
 let report msg p =
-	warn msg p;
+	message msg p;
 	do_exit()
 
 let htmlescape s =
@@ -68,15 +67,6 @@ let report_list l =
 		prerr_endline (Printf.sprintf "<i n=\"%s\"><t>%s</t><d>%s</d></i>" n (htmlescape t) (htmlescape d));
 	) (List.sort (fun (a,_,_) (b,_,_) -> compare a b) l);
 	prerr_endline "</list>"
-
-let type_error e p =
-	warn (Typer.error_msg e) p;
-	has_error := true
-
-let parse_error e p =
-	Lexer.save_lines();
-	warn (Parser.error_msg e) p;
-	has_error := true
 
 let file_extension f =
 	let cl = ExtString.String.nsplit f "." in
@@ -186,12 +176,22 @@ try
 	let cmds = ref [] in
 	let excludes = ref [] in
 	let libs = ref [] in
+	let has_error = ref false in
 	let gen_as3 = ref false in
 	let no_output = ref false in
 	let did_something = ref false in
 	let root_packages = ["neko"; "flash"; "flash9"; "js"; "php"] in
 	Common.define com ("haxe_" ^ string_of_int version);
-	Parser.display_error := parse_error;
+	com.warning <- message;
+	com.error <- (fun msg p ->
+		message msg p;
+		has_error := true;
+	);
+	Parser.display_error := (fun e p ->
+		Lexer.save_lines();
+		message (Parser.error_msg e) p;
+		has_error := true;
+	);
 	Parser.use_doc := false;
 	(try
 		let p = Sys.getenv "HAXE_LIBRARY_PATH" in
@@ -391,8 +391,9 @@ try
 	end else begin
 		if com.verbose then print_endline ("Classpath : " ^ (String.concat ";" com.class_path));
 		let t = Common.timer "typing" in
-		let ctx = Typer.context com type_error warn in
-		List.iter (fun cpath -> ignore(Typer.load ctx cpath Ast.null_pos)) (List.rev !classes);
+		Typecore.type_expr_ref := (fun ctx e need_val -> Typer.type_expr ~need_val ctx e);
+		let ctx = Typer.create com in		
+		List.iter (fun cpath -> ignore(com.type_api.load_module cpath Ast.null_pos)) (List.rev !classes);
 		Typer.finalize ctx;
 		t();
 		if !has_error then do_exit();
@@ -421,7 +422,7 @@ try
 		| None -> ()
 		| Some file ->
 			if com.verbose then print_endline ("Generating xml : " ^ com.file);
-			Genxml.generate com ctx file);
+			Genxml.generate com file);
 	end;
 	if not !no_output then List.iter (fun cmd ->
 		let t = Common.timer "command" in
@@ -433,9 +434,10 @@ try
 		t();
 	) (List.rev !cmds)
 with
+	| Common.Abort (m,p) -> report m p
 	| Lexer.Error (m,p) -> report (Lexer.error_msg m) p
 	| Parser.Error (m,p) -> report (Parser.error_msg m) p
-	| Typer.Error (m,p) -> report (Typer.error_msg m) p
+	| Typecore.Error (m,p) -> report (Typecore.error_msg m) p
 	| Failure msg | Arg.Bad msg -> report ("Error : " ^ msg) Ast.null_pos
 	| Arg.Help msg -> print_string msg
 	| Hxml_found -> ()

@@ -43,7 +43,7 @@ type context = {
 	packages : (string list,unit) Hashtbl.t;
 	flash6 : bool;
 	mutable idents : (string * bool,int) Hashtbl.t;
-	mutable movieclips : module_path list;
+	mutable movieclips : path list;
 	mutable inits : texpr list;
 	mutable statics : (tclass * bool * string * texpr) list;
 	mutable regs : (string,register) PMap.t;
@@ -62,8 +62,8 @@ type context = {
 	mutable in_loop : bool;
 }
 
-let error p = Typer.error "Invalid expression" p
-let stack_error p = Typer.error "Stack error" p
+let invalid_expr p = error "Invalid expression" p
+let stack_error p = error "Stack error" p
 let protect_all = ref true
 let extern_boot = ref false
 let debug_pass = ref ""
@@ -437,7 +437,7 @@ let segment ctx =
 (* Generation Helpers *)
 
 let define_var ctx v ef exprs =
-	if ctx.flash6 || List.exists (Transform.local_find false v) exprs then begin
+	if ctx.flash6 || List.exists (Codegen.local_find false v) exprs then begin
 		push ctx [VStr (v,false)];
 		ctx.regs <- PMap.add v NoReg ctx.regs;
 		match ef with
@@ -531,9 +531,9 @@ let rec gen_big_string ctx s =
 let rec gen_constant ctx c p =
 	match c with
 	| TInt i -> push ctx [VInt32 i]
-	| TFloat s -> push ctx [VFloat (try float_of_string s with _ -> error p)]
+	| TFloat s -> push ctx [VFloat (try float_of_string s with _ -> invalid_expr p)]
 	| TString s ->
-		if String.contains s '\000' then Typer.error "A String cannot contain \\0 characters" p;
+		if String.contains s '\000' then error "A String cannot contain \\0 characters" p;
 		push ctx [VStr (s,true)]
 	| TBool b -> write ctx (APush [PBool b])
 	| TNull -> push ctx [VNull]
@@ -578,7 +578,7 @@ let rec gen_access ctx forcall e =
 		(match follow e.etype with
 		| TFun _ -> VarClosure
 		| _ ->
-			if not !protect_all && Transform.is_volatile e.etype then
+			if not !protect_all && Codegen.is_volatile e.etype then
 				VarVolatile
 			else
 				VarObj)
@@ -598,7 +598,7 @@ let rec gen_access ctx forcall e =
 		| TEnumDecl e -> gen_path ctx e.e_path false
 		| TTypeDecl _ -> assert false)
 	| _ ->
-		if not forcall then error e.epos;
+		if not forcall then invalid_expr e.epos;
 		gen_expr ctx true e;
 		write ctx (APush [PUndefined]);
 		VarObj
@@ -937,7 +937,7 @@ and gen_expr_2 ctx retval e =
 		let block = open_block ctx in
 		let old_in_loop = ctx.in_loop in
 		let old_meth = ctx.curmethod in
-		let reg_super = Transform.local_find true "super" f.tf_expr in
+		let reg_super = Codegen.local_find true "super" f.tf_expr in
 		if snd ctx.curmethod then
 			ctx.curmethod <- (fst ctx.curmethod ^ "@" ^ string_of_int (Lexer.get_error_line e.epos), true)
 		else
@@ -952,7 +952,7 @@ and gen_expr_2 ctx retval e =
 		ctx.in_loop <- false;
 		let pargs = ref [] in
 		let rargs = List.map (fun (a,_,t) ->
-			let no_reg = ctx.flash6 || Transform.local_find false a f.tf_expr in
+			let no_reg = ctx.flash6 || Codegen.local_find false a f.tf_expr in
 			if no_reg then begin
 				ctx.regs <- PMap.add a NoReg ctx.regs;
 				pargs := unprotect a :: !pargs;
@@ -964,14 +964,17 @@ and gen_expr_2 ctx retval e =
 				r , ""
 			end
 		) f.tf_args in
-		let tf = begin_func ctx reg_super (Transform.local_find true "__arguments__" f.tf_expr) rargs in
+		let tf = begin_func ctx reg_super (Codegen.local_find true "__arguments__" f.tf_expr) rargs in
 		ctx.fun_pargs <- (ctx.code_pos, List.rev !pargs) :: ctx.fun_pargs;
 		if ctx.com.debug then begin
+			let cur = (ctx.curclass,fst ctx.curmethod) in
+			gen_expr ctx false (Codegen.stack_push true cur);
+			gen_expr ctx false Codegen.stack_save_pos;
 			let start_try = gen_try ctx in
-			gen_expr ctx false (Transform.stack_block ~useadd:true (ctx.curclass,fst ctx.curmethod) f.tf_expr);
+			gen_expr ctx false (Codegen.stack_block_loop f.tf_expr);
 			let end_try = start_try() in
 			(* if $spos == 1 , then no upper call, so report as uncaught *)
-			getvar ctx (access_local ctx Transform.stack_var_pos);
+			getvar ctx (access_local ctx Codegen.stack_var_pos);
 			push ctx [VInt 1];
 			write ctx AEqual;
 			write ctx ANot;
@@ -1110,7 +1113,7 @@ let gen_class_static_field ctx c flag f =
 		push ctx [VReg 0; VStr (f.cf_name,flag); VNull];
 		setvar ctx VarObj
 	| Some e ->
-		let e = Transform.block_vars e in
+		let e = Codegen.block_vars e in
 		match e.eexpr with
 		| TFunction _ ->
 			push ctx [VReg 0; VStr (f.cf_name,flag)];
@@ -1135,7 +1138,7 @@ let gen_class_field ctx flag f =
 		push ctx [VNull]
 	| Some e ->
 		ctx.curmethod <- (f.cf_name,false);
-		gen_expr ctx true (Transform.block_vars e));
+		gen_expr ctx true (Codegen.block_vars e));
 	setvar ctx VarObj
 
 let gen_enum_field ctx e f =
@@ -1232,7 +1235,7 @@ let gen_type_def ctx t =
 	| TClassDecl c ->
 		(match c.cl_init with
 		| None -> ()
-		| Some e -> ctx.inits <- Transform.block_vars e :: ctx.inits);
+		| Some e -> ctx.inits <- Codegen.block_vars e :: ctx.inits);
 		gen_package ctx c.cl_path c.cl_extern;
 		if c.cl_extern then
 			()
@@ -1255,7 +1258,7 @@ let gen_type_def ctx t =
 		| Some { cf_expr = Some e } ->
 			have_constr := true;
 			ctx.curmethod <- ("new",false);
-			gen_expr ctx true (Transform.block_vars e)
+			gen_expr ctx true (Codegen.block_vars e)
 		| _ ->
 			let f = begin_func ctx true false [] in
 			f());
@@ -1435,10 +1438,10 @@ let generate com =
 	protect_all := not (Common.defined com "swf-mark");
 	extern_boot := true;
 	if com.debug then begin
-		push ctx [VStr (Transform.stack_var,false); VInt 0];
+		push ctx [VStr (Codegen.stack_var,false); VInt 0];
 		write ctx AInitArray;
 		write ctx ASet;
-		push ctx [VStr (Transform.exc_stack_var,false); VInt 0];
+		push ctx [VStr (Codegen.exc_stack_var,false); VInt 0];
 		write ctx AInitArray;
 		write ctx ASet;
 	end;

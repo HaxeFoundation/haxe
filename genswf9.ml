@@ -93,8 +93,8 @@ type context = {
 	mutable for_call : bool;
 }
 
-let error p = Typer.error "Invalid expression" p
-let stack_error p = Typer.error "Stack error" p
+let invalid_expr p = error "Invalid expression" p
+let stack_error p = error "Stack error" p
 
 let index_int (x : int) : 'a index = Obj.magic (x + 1)
 let index_nz_int (x : int) : 'a index_nz = Obj.magic x
@@ -351,7 +351,7 @@ let pop ctx n =
 	ctx.infos.istack <- old
 
 let define_local ctx ?(init=false) name t el =
-	let l = (if List.exists (Transform.local_find false name) el then begin
+	let l = (if List.exists (Codegen.local_find false name) el then begin
 			let pos = (try
 				let slot , _ , _ = (List.find (fun (_,x,_) -> name = x) ctx.block_vars) in
 				slot
@@ -373,7 +373,7 @@ let define_local ctx ?(init=false) name t el =
 let is_set v = (Obj.magic v) = Write
 
 let gen_local_access ctx name p (forset : 'a)  : 'a access =
-	match (try PMap.find name ctx.locals with Not_found -> Typer.error ("Unbound variable " ^ name) p) with
+	match (try PMap.find name ctx.locals with Not_found -> error ("Unbound variable " ^ name) p) with
 	| LReg r ->
 		VReg r
 	| LScope n ->
@@ -507,7 +507,7 @@ let begin_fun ctx args tret el stat p =
 		match e.eexpr with
 		| TFunction _ -> ()
 		| TConst TThis | TConst TSuper -> raise Exit
-		| _ -> Transform.iter find_this e
+		| _ -> Type.iter find_this e
 	in
 	let this_reg = try List.iter find_this el; false with Exit -> true in
 	ctx.locals <- PMap.foldi (fun name l acc ->
@@ -655,7 +655,7 @@ let gen_constant ctx c t p =
 		write ctx HNull;
 		(match classify ctx t with
 		| KInt | KBool | KUInt | KFloat ->
-			Typer.error ("In Flash9, null can't be used as basic type " ^ s_type (print_context()) t) p
+			error ("In Flash9, null can't be used as basic type " ^ s_type (print_context()) t) p
 		| x -> coerce ctx x)
 	| TThis ->
 		write ctx HThis
@@ -676,7 +676,7 @@ let gen_access ctx e (forset : 'a) : 'a access =
 		gen_local_access ctx i e.epos forset
 	| TField (e1,f) ->
 		let id, k, closure = property f e1.etype in
-		if closure && not ctx.for_call then Typer.error "In Flash9, this method cannot be accessed this way : please define a local function" e1.epos;
+		if closure && not ctx.for_call then error "In Flash9, this method cannot be accessed this way : please define a local function" e1.epos;
 		(match e1.eexpr with
 		| TConst TThis when not ctx.in_static -> write ctx (HFindPropStrict id)
 		| _ -> gen_expr ctx true e1);
@@ -708,7 +708,7 @@ let gen_access ctx e (forset : 'a) : 'a access =
 		if is_set forset then write ctx HGetGlobalScope;
 		VGlobal id
 	| _ ->
-		error e.epos
+		invalid_expr e.epos
 
 let rec gen_expr_content ctx retval e =
 	match e.eexpr with
@@ -819,7 +819,7 @@ let rec gen_expr_content ctx retval e =
 	| TUnop (op,flag,e) ->
 		gen_unop ctx retval op flag e
 	| TTry (e2,cases) ->
-		if ctx.infos.istack <> 0 then Typer.error "Cannot compile try/catch as a right-side expression in Flash9" e.epos;
+		if ctx.infos.istack <> 0 then error "Cannot compile try/catch as a right-side expression in Flash9" e.epos;
 		let branch = begin_branch ctx in
 		let p = ctx.infos.ipos in
 		gen_expr ctx retval e2;
@@ -1349,7 +1349,7 @@ and jump_expr ctx e jif =
 	jump_expr_gen ctx e jif (jump ctx)
 
 let generate_method ctx fdata stat =
-	generate_function ctx { fdata with tf_expr = Transform.block_vars fdata.tf_expr } stat
+	generate_function ctx { fdata with tf_expr = Codegen.block_vars fdata.tf_expr } stat
 
 let generate_construct ctx fdata c =
 	(* make all args optional to allow no-param constructor *)
@@ -1374,7 +1374,7 @@ let generate_construct ctx fdata c =
 			write ctx (HInitProp id);
 		| _ -> ()
 	) c.cl_fields;
-	gen_expr ctx false (Transform.block_vars fdata.tf_expr);
+	gen_expr ctx false (Codegen.block_vars fdata.tf_expr);
 	write ctx HRetVoid;
 	f() , List.length fdata.tf_args
 
@@ -1416,7 +1416,7 @@ let generate_class_statics ctx c =
 				first := false;
 			end;
 			write ctx (HReg r.rid);
-			gen_expr ctx true (Transform.block_vars e);
+			gen_expr ctx true (Codegen.block_vars e);
 			write ctx (HSetSlot !nslot);
 		| _ ->
 			incr nslot
@@ -1537,7 +1537,7 @@ let generate_class ctx c =
 		hlc_interface = c.cl_interface;
 		hlc_namespace = None;
 		hlc_implements = Array.of_list (List.map (fun (c,_) ->
-			if not c.cl_interface then Typer.error "Can't implement class in Flash9" c.cl_pos;
+			if not c.cl_interface then error "Can't implement class in Flash9" c.cl_pos;
 			type_path ctx c.cl_path
 		) c.cl_implements);
 		hlc_construct = cid;
@@ -1720,7 +1720,7 @@ let generate_inits ctx types =
 		| TClassDecl c ->
 			(match c.cl_init with
 			| None -> ()
-			| Some e -> gen_expr ctx false (Transform.block_vars e));
+			| Some e -> gen_expr ctx false (Codegen.block_vars e));
 		| _ -> ()
 	) types;
 	List.iter (fun (t,_) ->

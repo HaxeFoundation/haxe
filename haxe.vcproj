@@ -68,6 +68,9 @@
 			RelativePath=".\ast.ml">
 		</File>
 		<File
+			RelativePath=".\codegen.ml">
+		</File>
+		<File
 			RelativePath=".\common.ml">
 		</File>
 		<File
@@ -98,10 +101,13 @@
 			RelativePath=".\parser.ml">
 		</File>
 		<File
-			RelativePath=".\transform.ml">
+			RelativePath=".\type.ml">
 		</File>
 		<File
-			RelativePath=".\type.ml">
+			RelativePath=".\typecore.ml">
+		</File>
+		<File
+			RelativePath=".\typeload.ml">
 		</File>
 		<File
 			RelativePath=".\typer.ml">

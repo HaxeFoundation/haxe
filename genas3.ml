@@ -22,7 +22,7 @@ open Common
 type context = {
 	ch : out_channel;
 	buf : Buffer.t;
-	path : module_path;
+	path : path;
 	mutable get_sets : (string * bool,string) Hashtbl.t;
 	mutable curclass : tclass;
 	mutable tabs : string;
@@ -135,7 +135,7 @@ let define_local ctx l =
 let spr ctx s = Buffer.add_string ctx.buf s
 let print ctx = Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
 
-let unsupported = Typer.error "This expression cannot be generated to AS3"
+let unsupported p = error "This expression cannot be generated to AS3" p
 
 let newline ctx =
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
@@ -154,8 +154,6 @@ let open_block ctx =
 	let oldt = ctx.tabs in
 	ctx.tabs <- "\t" ^ ctx.tabs;
 	(fun() -> ctx.tabs <- oldt)
-
-let block = Transform.block
 
 let parent e =
 	match e.eexpr with
@@ -375,7 +373,7 @@ and gen_expr ctx e =
 	| TConst c ->
 		gen_constant ctx e.epos c
 	| TLocal s ->
-		spr ctx (try PMap.find s ctx.locals with Not_found -> Typer.error ("Unknown local " ^ s) e.epos)
+		spr ctx (try PMap.find s ctx.locals with Not_found -> error ("Unknown local " ^ s) e.epos)
 	| TEnumField (en,s) ->
 		print ctx "%s.%s" (s_path ctx en.e_path e.epos) (s_ident s)
 	| TArray ({ eexpr = TLocal "__global__" },{ eexpr = TConst (TString s) }) ->
@@ -450,7 +448,7 @@ and gen_expr ctx e =
 		let h = gen_function_header ctx None f [] e.epos in
 		let old = ctx.in_static in
 		ctx.in_static <- true;
-		gen_expr ctx (block f.tf_expr);
+		gen_expr ctx (mk_block f.tf_expr);
 		ctx.in_static <- old;
 		h();
 	| TCall (e,el) ->
@@ -531,13 +529,13 @@ and gen_expr ctx e =
 		handle_break();
 	| TTry (e,catchs) ->
 		spr ctx "try ";
-		gen_expr ctx (block e);
+		gen_expr ctx (mk_block e);
 		List.iter (fun (v,t,e) ->
 			newline ctx;
 			let b = save_locals ctx in
 			let v = define_local ctx v in
 			print ctx "catch( %s : %s )" v (type_str ctx t e.epos);
-			gen_expr ctx (block e);
+			gen_expr ctx (mk_block e);
 			b();
 		) catchs;
 	| TMatch (e,_,cases,def) ->
@@ -568,7 +566,7 @@ and gen_expr ctx e =
 						print ctx "%s : %s = %s.params[%d]" v (type_str ctx t e.epos) tmp n;
 					) l;
 					newline ctx);
-			gen_expr ctx (block e);
+			gen_expr ctx (mk_block e);
 			print ctx "break";
 			newline ctx;
 			b()
@@ -577,7 +575,7 @@ and gen_expr ctx e =
 		| None -> ()
 		| Some e ->
 			spr ctx "default:";
-			gen_expr ctx (block e);
+			gen_expr ctx (mk_block e);
 			print ctx "break";
 			newline ctx;
 		);
@@ -594,7 +592,7 @@ and gen_expr ctx e =
 				gen_value ctx e;
 				spr ctx ":";
 			) el;
-			gen_expr ctx (block e2);
+			gen_expr ctx (mk_block e2);
 			print ctx "break";
 			newline ctx;
 		) cases;
@@ -602,7 +600,7 @@ and gen_expr ctx e =
 		| None -> ()
 		| Some e ->
 			spr ctx "default:";
-			gen_expr ctx (block e);
+			gen_expr ctx (mk_block e);
 			print ctx "break";
 			newline ctx;
 		);
@@ -757,7 +755,7 @@ let generate_field ctx static f =
 		in
 		if not static then loop ctx.curclass;
 		let h = gen_function_header ctx (Some (s_ident f.cf_name)) fd f.cf_params p in
-		gen_expr ctx (block fd.tf_expr);
+		gen_expr ctx (mk_block fd.tf_expr);
 		h()
 	| _ ->
 		if ctx.curclass.cl_path = (["flash"],"Boot") && f.cf_name = "init" then

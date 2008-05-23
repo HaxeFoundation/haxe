@@ -130,16 +130,31 @@ let compile() =
 	(* HAXE *)
 	Sys.chdir "haxe";
 	command "ocamllex lexer.mll";
-	ocamlc "-I ../ocaml ast.ml type.ml common.ml lexer.ml";
-	ocamlc "-I ../ocaml -pp camlp4o parser.ml";
-	ocamlc "-I ../ocaml -I ../ocaml/swflib -I ../ocaml/xml-light transform.ml typer.ml genswf9.ml genswf8.ml genswf.ml genxml.ml genjs.ml genas3.ml";
-	ocamlc "-I ../ocaml -I ../neko/libs/include/ocaml ../neko/libs/include/ocaml/nast.ml ../neko/libs/include/ocaml/nxml.ml ../neko/libs/include/ocaml/binast.ml genneko.ml";
-	ocamlc "-I ../ocaml -I ../ocaml/extc main.ml";
-	let mlist = ["ast";"type";"common";"lexer";"parser";"transform";"typer";"genswf9";"genswf8";"genswf";"../neko/libs/include/ocaml/nast";"../neko/libs/include/ocaml/nxml";"../neko/libs/include/ocaml/binast";"genneko";"genxml";"genjs";"genas3";"main"] in
-	let libs = ["../ocaml/extLib";"../ocaml/extc/extc";"../ocaml/swflib/swflib";"../ocaml/xml-light/xml-light";"unix"] in
-	let makelibs ext = " " ^ String.concat " " (List.map (fun l -> l ^ ext) libs) ^ " " in
-	if bytecode then command ("ocamlc -custom -o ../bin/haxe-byte" ^ exe_ext ^ makelibs ".cma" ^ modules mlist ".cmo");
-	if native then command ("ocamlopt -o ../bin/haxe" ^ exe_ext ^ makelibs ".cmxa" ^ modules mlist ".cmx");
+	let libs = [
+		"../ocaml/extLib";
+		"../ocaml/extc/extc";
+		"../ocaml/swflib/swflib";
+		"../ocaml/xml-light/xml-light";
+		"unix"
+	] in
+	let paths = [
+		"../ocaml";
+		"../ocaml/swflib";
+		"../ocaml/xml-light";
+		"../neko/libs/include/ocaml"
+	] in
+	let mlist = [
+		"ast";"lexer";"type";"common";"parser";"typecore";
+		"genxml";"typeload";"codegen";"typer";
+		"nast";"binast";"nxml";
+		"genneko";"genas3";"genjs";"genswf8";"genswf9";"genswf";
+		"main";
+	] in
+	let path_str = String.concat " " (List.map (fun s -> "-I " ^ s) paths) in
+	let libs_str ext = " " ^ String.concat " " (List.map (fun l -> l ^ ext) libs) ^ " " in
+	ocamlc (path_str ^ " " ^ modules mlist ".ml");
+	if bytecode then command ("ocamlc -custom -o ../bin/haxe-byte" ^ exe_ext ^ libs_str ".cma" ^ modules mlist ".cmo");
+	if native then command ("ocamlopt -o ../bin/haxe" ^ exe_ext ^ libs_str ".cmxa" ^ modules mlist ".cmx");
 
 in
 let startdir = Sys.getcwd() in

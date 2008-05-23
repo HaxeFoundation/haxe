@@ -16,6 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *)
+open Type
 
 type package_rule =
 	| Forbidden
@@ -29,23 +30,49 @@ type platform =
 	| Flash9
 	| Php
 
+type pos = Ast.pos
+
+type context_type_api = {
+	(* basic types *)
+	mutable tvoid : t;
+	mutable tint : t;
+	mutable tfloat : t;
+	mutable tbool : t;
+	mutable tnull : t -> t;
+	mutable tstring : t;
+	mutable tarray : t -> t;
+	(* api *)
+	mutable load_module : path -> pos -> module_def;
+	mutable build_instance : module_type -> pos -> ((string * t) list * path * (t list -> t));
+	mutable on_inherit : tclass -> pos -> Ast.class_flag -> bool;
+	mutable on_generate : module_type -> unit;
+	mutable get_type_module : module_type -> module_def;
+}
+
 type context = {
 	(* config *)
 	mutable debug : bool;
 	mutable verbose : bool;
 	mutable platform : platform;
 	mutable class_path : string list;
-	mutable main_class : Type.module_path option; 
+	mutable main_class : Type.path option; 
 	mutable defines : (string,unit) PMap.t;
 	mutable package_rules : (string,package_rule) PMap.t;
+	mutable error : string -> pos -> unit;
+	mutable warning : string -> pos -> unit;
 	(* output *)
 	mutable file : string;
 	mutable flash_version : int;
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
+	(* typing *)
+	mutable type_api : context_type_api;
 }
 
+exception Abort of string * Ast.pos
+
 let create() =
+	let m = Type.mk_mono() in
 	{
 		debug = false;
 		verbose = false;
@@ -58,10 +85,28 @@ let create() =
 		types = [];
 		flash_version = 8;
 		resources = Hashtbl.create 0;
+		warning = (fun _ _ -> assert false);
+		error = (fun _ _ -> assert false);
+		type_api = {
+			tvoid = m;
+			tint = m;
+			tfloat = m;
+			tbool = m;
+			tnull = (fun _ -> assert false);
+			tstring = m;
+			tarray = (fun _ -> assert false);
+			load_module = (fun _ _ -> assert false);
+			build_instance = (fun _ _ -> assert false);
+			on_inherit = (fun _ _ _ -> true);
+			on_generate = (fun _ -> ());
+			get_type_module = (fun _ -> assert false);
+		};
 	}
 
 let defined ctx v = PMap.mem v ctx.defines
 let define ctx v = ctx.defines <- PMap.add v () ctx.defines
+
+let error msg p = raise (Abort (msg,p))
 
 let platform ctx p = ctx.platform = p
 

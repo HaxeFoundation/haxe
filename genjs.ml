@@ -55,7 +55,7 @@ let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
 let spr ctx s = Buffer.add_string ctx.buf s
 let print ctx = Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
 
-let unsupported = Typer.error "This expression cannot be compiled to Javascript"
+let unsupported p = error "This expression cannot be compiled to Javascript" p
 
 let newline ctx =
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
@@ -70,13 +70,11 @@ let rec concat ctx s f = function
 		spr ctx s;
 		concat ctx s f l
 
-let block = Transform.block
-
 let fun_block ctx f =
 	if ctx.com.debug then
-		Transform.stack_block (ctx.current,fst ctx.curmethod) f.tf_expr
+		Codegen.stack_block (ctx.current,fst ctx.curmethod) f.tf_expr
 	else
-		block f.tf_expr
+		mk_block f.tf_expr
 
 let parent e =
 	match e.eexpr with
@@ -120,7 +118,7 @@ let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
 	| TFloat s -> spr ctx s
 	| TString s ->
-		if String.contains s '\000' then Typer.error "A String cannot contain \\0 characters" p;
+		if String.contains s '\000' then error "A String cannot contain \\0 characters" p;
 		print ctx "\"%s\"" (Ast.s_escape s)
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "null"
@@ -332,7 +330,7 @@ and gen_expr ctx e =
 		handle_break();
 	| TTry (e,catchs) ->
 		spr ctx "try ";
-		gen_expr ctx (block e);
+		gen_expr ctx (mk_block e);
 		newline ctx;
 		let id = ctx.id_counter in
 		ctx.id_counter <- ctx.id_counter + 1;
@@ -407,7 +405,7 @@ and gen_expr ctx e =
 						print ctx "%s = $e[%d]" v n;
 					) l;
 					newline ctx);
-			gen_expr ctx (block e);
+			gen_expr ctx (mk_block e);
 			print ctx "break";
 			newline ctx
 		) cases;
@@ -415,7 +413,7 @@ and gen_expr ctx e =
 		| None -> ()
 		| Some e ->
 			spr ctx "default:";
-			gen_expr ctx (block e);
+			gen_expr ctx (mk_block e);
 			print ctx "break";
 			newline ctx;
 		);
@@ -431,7 +429,7 @@ and gen_expr ctx e =
 				gen_value ctx e;
 				spr ctx ":";
 			) el;
-			gen_expr ctx (block e2);
+			gen_expr ctx (mk_block e2);
 			print ctx "break";
 			newline ctx;
 		) cases;
@@ -439,7 +437,7 @@ and gen_expr ctx e =
 		| None -> ()
 		| Some e ->
 			spr ctx "default:";
-			gen_expr ctx (block e);
+			gen_expr ctx (mk_block e);
 			print ctx "break";
 			newline ctx;
 		);
@@ -575,7 +573,7 @@ let gen_class_static_field ctx c f =
 		print ctx "%s%s = null" (s_path c.cl_path) (field f.cf_name);
 		newline ctx
 	| Some e ->
-		let e = Transform.block_vars e in
+		let e = Codegen.block_vars e in
 		match e.eexpr with
 		| TFunction _ ->
 			ctx.curmethod <- (f.cf_name,false);
@@ -593,7 +591,7 @@ let gen_class_field ctx c f =
 		newline ctx
 	| Some e ->
 		ctx.curmethod <- (f.cf_name,false);
-		gen_value ctx (Transform.block_vars e);
+		gen_value ctx (Codegen.block_vars e);
 		newline ctx
 
 let generate_class ctx c =
@@ -604,7 +602,7 @@ let generate_class ctx c =
 	print ctx "%s = " p;
 	(match c.cl_constructor with
 	| Some { cf_expr = Some e } ->
-		(match Transform.block_vars e with
+		(match Codegen.block_vars e with
 		| { eexpr = TFunction f } ->
 			let args  = List.map arg_name f.tf_args in
 			let a, args = (match args with [] -> "p" , ["p"] | x :: _ -> x, args) in
@@ -666,7 +664,7 @@ let generate_type ctx = function
 	| TClassDecl c ->
 		(match c.cl_init with
 		| None -> ()
-		| Some e -> ctx.inits <- Transform.block_vars e :: ctx.inits);
+		| Some e -> ctx.inits <- Codegen.block_vars e :: ctx.inits);
 		if not c.cl_extern then generate_class ctx c
 	| TEnumDecl e when e.e_extern ->
 		()
@@ -696,9 +694,9 @@ let generate com =
 	print ctx "js.Boot.__res = {}";
 	newline ctx;
 	if com.debug then begin
-		print ctx "%s = []" Transform.stack_var;
+		print ctx "%s = []" Codegen.stack_var;
 		newline ctx;
-		print ctx "%s = []" Transform.exc_stack_var;
+		print ctx "%s = []" Codegen.exc_stack_var;
 		newline ctx;
 	end;
 	Hashtbl.iter (fun name data ->

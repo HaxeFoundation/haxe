@@ -201,7 +201,7 @@ class Bytes {
 		var a = new Array();
 		// utf8-decode
 		for( i in 0...s.length ) {
-			var c : Int = untyped s.cca(i);
+			var c : Int = untyped s["cca"](i);
 			if( c < 0x7F )
 				a.push(c);
 			else if( c < 0x7FF ) {

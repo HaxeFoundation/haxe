@@ -117,8 +117,8 @@ let rec exists f c =
 			| None -> true
 			| Some (csup,_) -> exists f csup
 
-let gen_type_decl ctx t =
-	let m = Typer.module_of_type ctx t in
+let gen_type_decl com t =
+	let m = com.type_api.get_type_module t in
 	match t with
 	| TClassDecl c ->
 		let stats = List.map (gen_field ["static","1"]) c.cl_ordered_statics in
@@ -172,9 +172,9 @@ let rec write_xml ch tabs x =
 	| CData s ->
 		IO.printf ch "<![CDATA[%s]]>" s
 
-let generate com ctx file =
+let generate com file =
 	let t = Common.timer "construct xml" in
-	let x = node "haxe" [] (List.map (gen_type_decl ctx) com.types) in
+	let x = node "haxe" [] (List.map (gen_type_decl com) com.types) in
 	t();
 	let t = Common.timer "write xml" in
 	let ch = IO.output_channel (open_out_bin file) in
@@ -188,5 +188,3 @@ let gen_type_string ctx t =
 	write_xml ch "" x;
 	IO.close_out ch
 
-;;
-Typer.generate_meta_data := gen_type_string;
