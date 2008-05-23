@@ -199,20 +199,6 @@ let load_core_type ctx name =
 	show();
 	t
 
-let is_int t =
-	match follow t with
-	| TInst (c,[]) ->
-		c.cl_path = ([],"Int")
-	| _ ->
-		false
-
-let is_float t =
-	match follow t with
-	| TInst (c,[]) ->
-		c.cl_path = ([],"Float")
-	| _ ->
-		false
-
 let t_array_access ctx =
 	let show = hide_types ctx in
 	match load_type_def ctx null_pos ([],"ArrayAccess") with
@@ -589,7 +575,7 @@ let init_class ctx c p herits fields =
 				t
 			) in
 			let delay = (
-				if (c.cl_extern || c.cl_interface || ctx.isproxy) && cf.cf_name <> "__init__" then
+				if (c.cl_extern || c.cl_interface) && cf.cf_name <> "__init__" then
 					(fun() -> ())
 				else begin
 					cf.cf_type <- TLazy r;
@@ -776,7 +762,6 @@ let type_module ctx m tdecls loadp =
 		tthis = ctx.tthis;
 		std = ctx.std;
 		ret = ctx.ret;
-		isproxy = ctx.isproxy;
 		doinline = ctx.doinline;
 		current = m;
 		locals = PMap.empty;

@@ -47,50 +47,47 @@ let mk_infos ctx p params =
 			("methodName", (EConst (String ctx.curmethod),p)) :: params
 	) ,p)
 
-let field_access ctx get f t e p =
-	match if get then f.cf_get else f.cf_set with
-	| NoAccess ->
-		let normal = AccExpr (mk (TField (e,f.cf_name)) t p) in
-		(match follow e.etype with
-		| TInst (c,_) when is_parent c ctx.curclass -> normal
-		| TAnon a ->
-			(match !(a.a_status) with
-			| Statics c2 when ctx.curclass == c2 -> normal
-			| _ -> if ctx.untyped then normal else AccNo f.cf_name)
-		| _ ->
-			if ctx.untyped then normal else AccNo f.cf_name)
-	| MethodCantAccess when not ctx.untyped ->
-		error "Cannot rebind this method : please use 'dynamic' before method declaration" p
-	| NormalAccess | MethodCantAccess ->
-		AccExpr (mk (TField (e,f.cf_name)) t p)
-	| MethodAccess m ->
-		if m = ctx.curmethod && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
-			let prefix = if Common.defined ctx.com "as3gen" then "$" else "" in
-			AccExpr (mk (TField (e,prefix ^ f.cf_name)) t p)
-		else if get then
-			AccExpr (mk (TCall (mk (TField (e,m)) (tfun [] t) p,[])) t p)
-		else
-			AccSet (e,m,t,f.cf_name)
-	| ResolveAccess ->
-		let fstring = mk (TConst (TString f.cf_name)) ctx.api.tstring p in
-		let tresolve = tfun [ctx.api.tstring] t in
-		AccExpr (mk (TCall (mk (TField (e,"resolve")) tresolve p,[fstring])) t p)
-	| NeverAccess ->
-		AccNo f.cf_name
-	| InlineAccess ->
-		AccInline (e,f,t)
+let check_locals_masking ctx e =
+	let path = (match e.eexpr with
+		| TEnumField (e,_)
+		| TTypeExpr (TEnumDecl e) ->
+			Some e.e_path
+		| TTypeExpr (TClassDecl c) ->
+			Some c.cl_path
+		| _ -> None
+	) in
+	match path with
+	| Some ([],name) | Some (name::_,_) when PMap.mem name ctx.locals ->
+		error ("Local variable " ^ name ^ " is preventing usage of this type here") e.epos;
+	| _ -> ()
 
-let acc_get g p =
-	match g with
-	| AccNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
-	| AccExpr e -> e
-	| AccSet _ -> assert false
-	| AccInline (e,f,t) ->
-		ignore(follow f.cf_type); (* force computing *)
-		match f.cf_expr with
-		| None -> error "Recursive inline is not supported" p
-		| Some { eexpr = TFunction _ } ->  mk (TField (e,f.cf_name)) t p
-		| Some e -> e
+let check_assign ctx e =
+	match e.eexpr with
+	| TLocal _ | TArray _ | TField _ ->
+		()
+	| TTypeExpr _ when ctx.untyped ->
+		()
+	| _ ->
+		error "Invalid assign" e.epos
+
+type type_class =
+	| KInt
+	| KFloat
+	| KString
+	| KUnk
+	| KDyn
+	| KOther
+	| KParam of t
+
+let classify t =
+	match follow t with
+	| TInst ({ cl_path = ([],"Int") },[]) -> KInt
+	| TInst ({ cl_path = ([],"Float") },[]) -> KFloat
+	| TInst ({ cl_path = ([],"String") },[]) -> KString
+	| TInst ({ cl_kind = KTypeParameter; cl_implements = [{ cl_path = ([],"Float")},[]] },[]) -> KParam t
+	| TMono r when !r = None -> KUnk
+	| TDynamic _ -> KDyn
+	| _ -> KOther
 
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
@@ -185,20 +182,6 @@ let type_local ctx i p =
 	let i = (try PMap.find i ctx.locals_map with Not_found -> i) in
 	mk (TLocal i) t p
 
-let check_locals_masking ctx e =
-	let path = (match e.eexpr with
-		| TEnumField (e,_)
-		| TTypeExpr (TEnumDecl e) ->
-			Some e.e_path
-		| TTypeExpr (TClassDecl c) ->
-			Some c.cl_path
-		| _ -> None
-	) in
-	match path with
-	| Some ([],name) | Some (name::_,_) when PMap.mem name ctx.locals ->
-		error ("Local variable " ^ name ^ " is preventing usage of this type here") e.epos;
-	| _ -> ()
-
 let type_type ctx tpath p =
 	let rec loop t tparams =
 	match t with
@@ -254,6 +237,51 @@ let type_type ctx tpath p =
 	let e = loop (Typeload.load_type_def ctx p tpath) None in
 	check_locals_masking ctx e;
 	e
+
+let acc_get g p =
+	match g with
+	| AccNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
+	| AccExpr e -> e
+	| AccSet _ -> assert false
+	| AccInline (e,f,t) ->
+		ignore(follow f.cf_type); (* force computing *)
+		match f.cf_expr with
+		| None -> error "Recursive inline is not supported" p
+		| Some { eexpr = TFunction _ } ->  mk (TField (e,f.cf_name)) t p
+		| Some e -> e
+
+let field_access ctx get f t e p =
+	match if get then f.cf_get else f.cf_set with
+	| NoAccess ->
+		let normal = AccExpr (mk (TField (e,f.cf_name)) t p) in
+		(match follow e.etype with
+		| TInst (c,_) when is_parent c ctx.curclass -> normal
+		| TAnon a ->
+			(match !(a.a_status) with
+			| Statics c2 when ctx.curclass == c2 -> normal
+			| _ -> if ctx.untyped then normal else AccNo f.cf_name)
+		| _ ->
+			if ctx.untyped then normal else AccNo f.cf_name)
+	| MethodCantAccess when not ctx.untyped ->
+		error "Cannot rebind this method : please use 'dynamic' before method declaration" p
+	| NormalAccess | MethodCantAccess ->
+		AccExpr (mk (TField (e,f.cf_name)) t p)
+	| MethodAccess m ->
+		if m = ctx.curmethod && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
+			let prefix = if Common.defined ctx.com "as3gen" then "$" else "" in
+			AccExpr (mk (TField (e,prefix ^ f.cf_name)) t p)
+		else if get then
+			AccExpr (mk (TCall (mk (TField (e,m)) (tfun [] t) p,[])) t p)
+		else
+			AccSet (e,m,t,f.cf_name)
+	| ResolveAccess ->
+		let fstring = mk (TConst (TString f.cf_name)) ctx.api.tstring p in
+		let tresolve = tfun [ctx.api.tstring] t in
+		AccExpr (mk (TCall (mk (TField (e,"resolve")) tresolve p,[fstring])) t p)
+	| NeverAccess ->
+		AccNo f.cf_name
+	| InlineAccess ->
+		AccInline (e,f,t)
 
 let type_ident ctx i is_type p get =
 	match i with
@@ -364,15 +392,6 @@ let type_constant ctx c p =
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[str;opt])) t p
 	| Ident _
 	| Type _ -> assert false
-
-let check_assign ctx e =
-	match e.eexpr with
-	| TLocal _ | TArray _ | TField _ ->
-		()
-	| TTypeExpr _ when ctx.untyped ->
-		()
-	| _ ->
-		error "Invalid assign" e.epos
 
 let type_matching ctx (enum,params) (e,p) ecases first_case =
 	let invalid() = error "Invalid enum matching" p in
@@ -495,25 +514,6 @@ let type_field ctx e i p get =
 		field_access ctx get f (field_type f) e p
 	| t ->
 		no_field()
-
-type type_class =
-	| KInt
-	| KFloat
-	| KString
-	| KUnk
-	| KDyn
-	| KOther
-	| KParam of t
-
-let classify t =
-	match follow t with
-	| TInst ({ cl_path = ([],"Int") },[]) -> KInt
-	| TInst ({ cl_path = ([],"Float") },[]) -> KFloat
-	| TInst ({ cl_path = ([],"String") },[]) -> KString
-	| TInst ({ cl_kind = KTypeParameter; cl_implements = [{ cl_path = ([],"Float")},[]] },[]) -> KParam t
-	| TMono r when !r = None -> KUnk
-	| TDynamic _ -> KDyn
-	| _ -> KOther
 
 let rec type_binop ctx op e1 e2 p =
 	match op with
@@ -710,7 +710,7 @@ and type_unop ctx op flag e p =
 		| Neg
 		| NegBits ->
 			if set then check_assign ctx e;
-			if Typeload.is_float e.etype then
+			if classify e.etype = KFloat then
 				ctx.api.tfloat
 			else begin
 				unify ctx e.etype ctx.api.tint e.epos;
@@ -1659,6 +1659,9 @@ and optimize_for_loop ctx i e1 e2 p =
 			let e2 = type_expr ~need_val:false ctx e2 in
 			mk (TFor (i,pt,e1,e2)) t_void p
 
+(* ---------------------------------------------------------------------- *)
+(* FINALIZATION *)
+
 let rec finalize ctx =
 	let delays = List.concat !(ctx.delays) in
 	ctx.delays := [];
@@ -1825,6 +1828,9 @@ let types ctx main excludes =
 	);
 	List.rev !types
 
+(* ---------------------------------------------------------------------- *)
+(* TYPER INITIALIZATION *)
+
 let create com =
 	let empty =	{
 		mpath = [] , "";
@@ -1843,7 +1849,6 @@ let create com =
 		in_static = false;
 		in_loop = false;
 		untyped = false;
-		isproxy = false;
 		super_call = false;
 		in_display = false;
 		ret = mk_mono();

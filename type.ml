@@ -188,9 +188,13 @@ let mk_block e =
 	| TBlock (_ :: _) -> e
 	| _ -> mk (TBlock [e]) e.etype e.epos
 
+let null t p = mk (TConst TNull) t p
+
 let mk_mono() = TMono (ref None)
 
 let rec t_dynamic = TDynamic t_dynamic
+
+let tfun pl r = TFun (List.map (fun t -> "",false,t) pl,r)
 
 let mk_class path pos doc priv =
 	{

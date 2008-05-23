@@ -30,7 +30,6 @@ type typer = {
 	doinline : bool;
 	mutable std : module_def;
 	mutable untyped : bool;
-	mutable isproxy : bool;
 	mutable super_call : bool;
 	(* per-module *)
 	current : module_def;
@@ -177,10 +176,6 @@ let rec is_null = function
 		is_null (apply_params t.t_types tl t.t_type)
 	| _ ->
 		false
-
-let null t p = mk (TConst TNull) t p
-
-let tfun pl r = TFun (List.map (fun t -> "",false,t) pl,r)
 
 let not_opened = ref Closed
 let mk_anon fl = TAnon { a_fields = fl; a_status = not_opened; }
