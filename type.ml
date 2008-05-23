@@ -188,21 +188,6 @@ let mk_block e =
 	| TBlock (_ :: _) -> e
 	| _ -> mk (TBlock [e]) e.etype e.epos
 
-let not_opened = ref Closed
-let is_closed a = !(a.a_status) <> Opened
-let mk_anon fl = TAnon { a_fields = fl; a_status = not_opened; }
-
-let mk_field name t = {
-	cf_name = name;
-	cf_type = t;
-	cf_doc = None;
-	cf_public = true;
-	cf_get = NormalAccess;
-	cf_set = NormalAccess;
-	cf_expr = None;
-	cf_params = [];
-}
-
 let mk_mono() = TMono (ref None)
 
 let rec t_dynamic = TDynamic t_dynamic
@@ -244,6 +229,8 @@ let t_path = function
 	| TTypeDecl t -> t.t_path
 
 let print_context() = ref []
+
+let is_closed a = !(a.a_status) <> Opened
 
 let rec s_type ctx t =
 	match t with

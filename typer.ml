@@ -983,7 +983,8 @@ and type_access ctx e p get =
 		let e2 = type_expr ctx e2 in
 		unify ctx e2.etype ctx.api.tint e2.epos;
 		let pt = (try
-			let t , pt = Typeload.t_array ctx in
+			let pt = mk_mono() in
+			let t = ctx.api.tarray pt in
 			unify_raise ctx e1.etype t e1.epos;
 			pt
 		with Error (Unify _,_) ->
@@ -1066,11 +1067,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				t := t_dynamic);
 			e
 		) el in
-		let at , pt = Typeload.t_array ctx in
-		(match pt with
-		| TMono r -> r := Some (!t);
-		| _ -> assert false);
-		mk (TArrayDecl el) at p
+		mk (TArrayDecl el) (ctx.api.tarray !t) p
 	| EVars vl ->
 		let vl = List.map (fun (v,t,e) ->
 			try

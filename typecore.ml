@@ -182,3 +182,16 @@ let null t p = mk (TConst TNull) t p
 
 let tfun pl r = TFun (List.map (fun t -> "",false,t) pl,r)
 
+let not_opened = ref Closed
+let mk_anon fl = TAnon { a_fields = fl; a_status = not_opened; }
+
+let mk_field name t = {
+	cf_name = name;
+	cf_type = t;
+	cf_doc = None;
+	cf_public = true;
+	cf_get = NormalAccess;
+	cf_set = NormalAccess;
+	cf_expr = None;
+	cf_params = [];
+}

@@ -186,7 +186,7 @@ and load_type ctx p t =
 let hide_types ctx =
 	let old_locals = ctx.local_types in
 	let old_type_params = ctx.type_params in
-	ctx.local_types <- (try (Hashtbl.find ctx.modules ([],"StdTypes")).mtypes with Not_found -> assert false);
+	ctx.local_types <- ctx.std.mtypes;
 	ctx.type_params <- [];
 	(fun() ->
 		ctx.local_types <- old_locals;
@@ -212,17 +212,6 @@ let is_float t =
 		c.cl_path = ([],"Float")
 	| _ ->
 		false
-
-let t_array ctx =
-	let show = hide_types ctx in
-	match load_type_def ctx null_pos ([],"Array") with
-	| TClassDecl c ->
-		show();
-		if List.length c.cl_types <> 1 then assert false;
-		let pt = mk_mono() in
-		TInst (c,[pt]) , pt
-	| _ ->
-		assert false
 
 let t_array_access ctx =
 	let show = hide_types ctx in
@@ -892,34 +881,38 @@ let type_module ctx m tdecls loadp =
 	m.mimports <- List.rev m.mimports;
 	m
 
+let parse_module ctx m p =
+	let file = (match m with
+		| [] , name -> name
+		| x :: l , name ->
+			let x = (try
+				match PMap.find x ctx.com.package_rules with
+				| Forbidden -> error ("You can't access the " ^ x ^ " package with current compilation flags") p;
+				| Directory d -> d
+				with Not_found -> x
+			) in
+			String.concat "/" (x :: l) ^ "/" ^ name
+	) ^ ".hx" in
+	let file = (try Common.find_file ctx.com file with Not_found -> raise (Error (Module_not_found m,p))) in
+	let ch = (try open_in_bin file with _ -> error ("Could not open " ^ file) p) in
+	let t = Common.timer "parsing" in
+	let pack , decls = (try Parser.parse ctx.com (Lexing.from_channel ch) file with e -> close_in ch; t(); raise e) in
+	t();
+	close_in ch;
+	if ctx.com.verbose then print_endline ("Parsed " ^ file);
+	if pack <> fst m then begin
+		let spack m = if m = [] then "<empty>" else String.concat "." m in
+		if p == Ast.null_pos then
+			error ("Invalid commandline class : " ^ s_type_path m ^ " should be " ^ s_type_path (pack,snd m)) p
+		else
+			error ("Invalid package : " ^ spack (fst m) ^ " should be " ^ spack pack) p
+	end;
+	decls
+
 let load_module ctx m p =
 	try
 		Hashtbl.find ctx.modules m
 	with
 		Not_found ->
-			let file = (match m with
-				| [] , name -> name
-				| x :: l , name ->
-					let x = (try
-						match PMap.find x ctx.com.package_rules with
-						| Forbidden -> error ("You can't access the " ^ x ^ " package with current compilation flags") p;
-						| Directory d -> d
-						with Not_found -> x
-					) in
-					String.concat "/" (x :: l) ^ "/" ^ name
-			) ^ ".hx" in
-			let file = (try Common.find_file ctx.com file with Not_found -> raise (Error (Module_not_found m,p))) in
-			let ch = (try open_in_bin file with _ -> error ("Could not open " ^ file) p) in
-			let t = Common.timer "parsing" in
-			let pack , decls = (try Parser.parse ctx.com (Lexing.from_channel ch) file with e -> close_in ch; t(); raise e) in
-			t();
-			close_in ch;
-			if ctx.com.verbose then print_endline ("Parsed " ^ file);
-			if pack <> fst m then begin
-				let spack m = if m = [] then "<empty>" else String.concat "." m in
-				if p == Ast.null_pos then
-					error ("Invalid commandline class : " ^ s_type_path m ^ " should be " ^ s_type_path (pack,snd m)) p
-				else
-					error ("Invalid package : " ^ spack (fst m) ^ " should be " ^ spack pack) p
-			end;
+			let decls = parse_module ctx m p in
 			type_module ctx m decls p

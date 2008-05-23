@@ -44,102 +44,69 @@ let index com e index t p =
 (* -------------------------------------------------------------------------- *)
 (* REMOTING PROXYS *)
 
-let rec reverse_type t =
-	match t with
-	| TEnum (e,params) ->
-		TPNormal { tpackage = fst e.e_path; tname = snd e.e_path; tparams = List.map reverse_param params }
-	| TInst (c,params) ->
-		TPNormal { tpackage = fst c.cl_path; tname = snd c.cl_path; tparams = List.map reverse_param params }
-	| TType (t,params) ->
-		TPNormal { tpackage = fst t.t_path; tname = snd t.t_path; tparams = List.map reverse_param params }
-	| TFun (params,ret) ->
-		TPFunction (List.map (fun (_,_,t) -> reverse_type t) params,reverse_type ret)
-	| TAnon a ->
-		TPAnonymous (PMap.fold (fun f acc ->
-			(f.cf_name , Some f.cf_public, AFVar (reverse_type f.cf_type), null_pos) :: acc
-		) a.a_fields [])
-	| TDynamic t2 ->
-		TPNormal { tpackage = []; tname = "Dynamic"; tparams = if t == t2 then [] else [TPType (reverse_type t2)] }
-	| _ ->
-		raise Exit
-
-and reverse_param t =
-	TPType (reverse_type t)
-
-(*/*
 let extend_remoting ctx c t p async prot =
 	if c.cl_super <> None then error "Cannot extend several classes" p;
-	if ctx.isproxy then
-		() (* skip this proxy generation, we shouldn't need it anyway *)
-	else
-	let ctx2 = context ctx.com in
 	(* remove forbidden packages *)
 	let rules = ctx.com.package_rules in
 	ctx.com.package_rules <- PMap.foldi (fun key r acc -> match r with Forbidden -> acc | _ -> PMap.add key r acc) rules PMap.empty;
-	ctx2.isproxy <- true;
-	let ct = (try load_normal_type ctx2 t p false with e -> ctx.com.package_rules <- rules; raise e) in
+	(* parse module *)
+	let path = (t.tpackage,t.tname) in
+	let decls = (try Typeload.parse_module ctx path p with e -> ctx.com.package_rules <- rules; raise e) in
 	ctx.com.package_rules <- rules;
+	let base_fields = [
+		(FVar ("__cnx",None,[],Some (TPNormal { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = [] }),None),p);
+		(FFun ("new",None,[APublic],[],{ f_args = ["c",false,None]; f_type = None; f_expr = (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p) }),p);
+	] in
 	let tvoid = TPNormal { tpackage = []; tname = "Void"; tparams = [] } in
-	let make_field name args ret =
-		try
-			let targs = List.map (fun (a,o,t) -> a, o, Some (reverse_type t)) args in
-			let tret = reverse_type ret in
-			let eargs = [EArrayDecl (List.map (fun (a,_,_) -> (EConst (Ident a),p)) args),p] in
-			let targs , tret , eargs = if async then
-				match tret with
-				| TPNormal { tpackage = []; tname = "Void" } -> targs , tvoid , eargs @ [EConst (Ident "null"),p]
-				| _ -> targs @ ["__callb",true,Some (TPFunction ([tret],tvoid))] , tvoid , eargs @ [EUntyped (EConst (Ident "__callb"),p),p]
-			else
-				targs, tret , eargs
+	let build_field is_public acc (f,p) =
+		match f with
+		| FFun ("new",_,_,_,_) ->
+			acc
+		| FFun (name,doc,acl,pl,f) when (is_public || List.mem APublic acl) && not (List.mem AStatic acl) ->
+			if List.exists (fun (_,_,t) -> t = None) f.f_args then error ("Field " ^ name ^ " type is not complete and cannot be used by RemotingProxy") p;
+			let eargs = [EArrayDecl (List.map (fun (a,_,_) -> (EConst (Ident a),p)) f.f_args),p] in
+			let ftype = (match f.f_type with Some (TPNormal { tpackage = []; tname = "Void" }) -> None | _ -> f.f_type) in
+			let fargs, eargs = if async then match ftype with
+				| Some tret -> f.f_args @ ["__callb",true,Some (TPFunction ([tret],tvoid))], eargs @ [EConst (Ident "__callb"),p]
+				| _ -> f.f_args, eargs @ [EConst (Ident "null"),p]
+			else 
+				f.f_args, eargs
 			in
-			let idname = EConst (String name) , p in
-			(FFun (name,None,[APublic],[], {
-				f_args = targs;
-				f_type = Some tret;
-				f_expr = (EBlock [
-					(EReturn (Some (EUntyped (ECall (
-						(EField (
-							(ECall (
-								(EField ((EConst (Ident "__cnx"),p),"resolve"),p),
-								[if prot then idname else ECall ((EConst (Ident "__unprotect__"),p),[idname]),p]
-							),p)
-						,"call"),p),eargs
-					),p),p)),p)
-				],p);
-			}),p)
-		with
-			Exit -> error ("Field " ^ name ^ " type is not complete and cannot be used by RemotingProxy") p
+			let id = (EConst (String name), p) in
+			let id = if prot then id else ECall ((EConst (Ident "__unprotect__"),p),[id]),p in 
+			let expr = ECall (
+				(EField (
+					(ECall ((EField ((EConst (Ident "__cnx"),p),"resolve"),p),[id]),p),
+					"call")
+				,p),eargs),p
+			in
+			let expr = if async || ftype = None then expr else (EReturn (Some expr),p) in
+			let f = {
+				f_args = fargs;
+				f_type = if async then None else ftype;
+				f_expr = (EBlock [expr],p);
+			} in
+			(FFun (name,None,[APublic],pl,f),p) :: acc
+		| _ -> acc
 	in
-	let class_fields = (match ct with
-		| TInst (c,params) ->
-			(FVar ("__cnx",None,[],Some (TPNormal { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = [] }),None),p) ::
-			(FFun ("new",None,[APublic],[],{ f_args = ["c",false,None]; f_type = None; f_expr = (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p) }),p) ::
-			PMap.fold (fun f acc ->
-				if not f.cf_public then
-					acc
-				else match follow f.cf_type with
-				| TFun (args,ret) when f.cf_get = NormalAccess && (f.cf_set = NormalAccess || f.cf_set = MethodCantAccess) && f.cf_params = [] ->
-					make_field f.cf_name args ret :: acc
-				| _ -> acc
-			) c.cl_fields []
-		| _ ->
-			error "Remoting type parameter should be a class" p
+	let new_name = (if async then "Async_" else "Remoting_") ^ t.tname in
+	let decls = List.map (fun d ->
+		match d with
+		| EClass c, p when c.d_name = t.tname ->
+			let is_public = List.mem HExtern c.d_flags || List.mem HInterface c.d_flags in
+			let fields = List.rev (List.fold_left (build_field is_public) base_fields c.d_data) in	
+			(EClass { c with d_flags = []; d_name = new_name; d_data = fields },p)
+		| _ -> d
+	) decls in
+	let m = Typeload.type_module ctx (t.tpackage,new_name) decls p in
+	let t = (try 
+		List.find (fun tdecl -> snd (t_path tdecl) = new_name) m.mtypes
+	with Not_found ->
+		error ("Module " ^ s_type_path path ^ " does not define type " ^ t.tname) p
 	) in
-	let class_decl = (EClass {
-		d_name = t.tname;
-		d_doc = None;
-		d_params = [];
-		d_flags = [];
-		d_data = class_fields;
-	},p) in
-	let m = (try Hashtbl.find ctx2.modules (t.tpackage,t.tname) with Not_found -> assert false) in
-	let mdecl = (List.map (fun (m,t) -> (EImport (fst m.mpath, snd m.mpath, t),p)) m.mimports) @ [class_decl] in
-	let m = (!type_module_ref) ctx ("Remoting" :: t.tpackage,t.tname) mdecl p in
-	c.cl_super <- Some (match m.mtypes with
-		| [TClassDecl c] -> (c,[])
-		| _ -> assert false
-	)
-*/*)
+	match t with
+	| TClassDecl c2 when c2.cl_types = [] -> c.cl_super <- Some (c2,[]);
+	| _ -> error "Remoting proxy must be a class without parameters" p
 
 (* -------------------------------------------------------------------------- *)
 (* HAXE.RTTI.GENERIC *)
@@ -166,15 +133,13 @@ let build_generic ctx c p tl =
 		| [] , name -> name
 		| l , name -> String.concat "_" l ^ "_" ^ name
 	) tl)) in
-	if !recurse then begin
-		TInst (c,tl)
-	end else try
+	if !recurse then
+		TInst (c,tl) (* build a normal instance *)
+	else try
 		Typeload.load_normal_type ctx { tpackage = pack; tname = name; tparams = [] } p false
 	with Error(Module_not_found path,_) when path = (pack,name) ->
-		(* try to find the module in which the generic class was originally defined *)
-		let mpath = (if c.cl_private then match List.rev (fst c.cl_path) with [] -> assert false | x :: l -> List.rev l, String.sub x 1 (String.length x - 1) else c.cl_path) in
-		let mtypes = try (Hashtbl.find ctx.modules mpath).mtypes with Not_found -> [] in
-		let ctx = { ctx with local_types = mtypes @ ctx.local_types } in
+		let m = (try Hashtbl.find ctx.modules (Hashtbl.find ctx.types_module c.cl_path) with Not_found -> assert false) in
+		let ctx = { ctx with local_types = m.mtypes @ ctx.local_types } in
 		let cg = mk_class (pack,name) c.cl_pos None false in
 		let mg = {
 			mpath = cg.cl_path;
@@ -192,9 +157,10 @@ let build_generic ctx c p tl =
 		let subst = loop c.cl_types tl in
 		let rec build_type t =
 			match t with
-			| TInst ({ cl_kind = KGeneric } as c,tl) ->
+			| TInst ({ cl_kind = KGeneric } as c2,tl2) ->
 				(* maybe loop, or generate cascading generics *)
-				Typeload.load_type ctx p (reverse_type (TInst (c,List.map build_type tl)))
+				let _, _, f = ctx.api.build_instance (TClassDecl c2) p in
+				f (List.map build_type tl2)
 			| _ ->
 				try List.assq t subst with Not_found -> Type.map build_type t
 		in
@@ -293,7 +259,6 @@ let build_instance ctx mtype p =
 
 let on_inherit ctx c p h =
 	match h with
-(*/*
 	| HExtends { tpackage = ["haxe";"remoting"]; tname = "Proxy"; tparams = [TPType(TPNormal t)] } ->
 		extend_remoting ctx c t p false true;
 		false
@@ -303,7 +268,6 @@ let on_inherit ctx c p h =
 	| HExtends { tpackage = ["mt"]; tname = "AsyncProxy"; tparams = [TPType(TPNormal t)] } ->
 		extend_remoting ctx c t p true false;
 		false
-*/*)
 	| HImplements { tpackage = ["haxe";"rtti"]; tname = "Generic"; tparams = [] } ->
 		c.cl_kind <- KGeneric;
 		false
