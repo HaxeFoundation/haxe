@@ -12,7 +12,7 @@ extern class LoaderInfo extends flash.events.EventDispatcher {
 	var height(default,null) : Int;
 	var loader(default,null) : flash.display.Loader;
 	var loaderURL(default,null) : String;
-	var parameters(default,null) : Dynamic;
+	var parameters(default,null) : Dynamic<String>;
 	var parentAllowsChild(default,null) : Bool;
 	var sameDomain(default,null) : Bool;
 	var sharedEvents(default,null) : flash.events.EventDispatcher;
