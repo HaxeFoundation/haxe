@@ -195,4 +195,63 @@ class Std {
 		#end
 	}
 
+	/**
+		Initialization the things needed for reflection
+	**/
+	static function __init__() untyped {
+		#if js
+			String.prototype.__class__ = String;
+			String.__name__ = ["String"];
+			Array.prototype.__class__ = Array;
+			Array.__name__ = ["Array"];
+			Int = { __name__ : ["Int"] };
+			Dynamic = { __name__ : ["Dynamic"] };
+			Float = __js__("Number");
+			Float.__name__ = ["Float"];
+			Bool = { __ename__ : ["Bool"] };
+			Class = { __name__ : ["Class"] };
+			Enum = {};
+			Void = { __ename__ : ["Void"] };
+		#elseif flash9
+			#if !as3gen
+			Bool = __global__["Boolean"];
+			Int = __global__["int"];
+			Float = __global__["Number"];
+			#end
+		#elseif flash
+			var g : Dynamic = _global;
+			g["Int"] = { __name__ : ["Int"] };
+			g["Bool"] = { __ename__ : ["Bool"] };
+			g.Dynamic = { __name__ : [__unprotect__("Dynamic")] };
+			g.Class = { __name__ : [__unprotect__("Class")] };
+			g.Enum = {};
+			g.Void = { __ename__ : [__unprotect__("Void")] };
+			g["Float"] = _global["Number"];
+			g["Float"][__unprotect__("__name__")] = ["Float"];
+			Array.prototype[__unprotect__("__class__")] = Array;
+			Array[__unprotect__("__name__")] = ["Array"];
+			String.prototype[__unprotect__("__class__")] = String;
+			String[__unprotect__("__name__")] = ["String"];
+			g["ASSetPropFlags"](Array.prototype,null,7);
+		#elseif neko
+			Int = { __name__ : ["Int"] };
+			Float = { __name__ : ["Float"] };
+			Bool = { __ename__ : ["Bool"] };
+			Dynamic = { __name__ : ["Dynamic"] };
+			Class = { __name__ : ["Class"] };
+			Enum = {};
+			Void = { __ename__ : ["Void"] };
+			var cl = neko.Boot.__classes;
+			cl.String = String;
+			cl.Array = Array;
+			cl.Int = Int;
+			cl.Float = Float;
+			cl.Bool = Bool;
+			cl.Dynamic = Dynamic;
+			cl.Class = Class;
+			cl.Enum = Enum;
+			cl.Void = Void;
+		#end
+	}
+
 }
