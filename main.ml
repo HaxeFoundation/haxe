@@ -302,7 +302,9 @@ try
 				| x :: l -> (List.rev l,x)
 			) lines) @ !excludes;
 		),"<filename> : don't generate code for classes listed in this file");
-		("-v",Arg.Unit (fun () -> com.verbose <- true),": turn on verbose mode");
+		("-v",Arg.Unit (fun () -> 
+			if not !display then com.verbose <- true
+		),": turn on verbose mode");
 		("-debug", Arg.Unit (fun() -> Common.define com "debug"; com.debug <- true), ": add debug informations to the compiled code");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
 		("-cmd", Arg.String (fun cmd ->

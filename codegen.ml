@@ -51,6 +51,14 @@ let extend_remoting ctx c t p async prot =
 	ctx.com.package_rules <- PMap.foldi (fun key r acc -> match r with Forbidden -> acc | _ -> PMap.add key r acc) rules PMap.empty;
 	(* parse module *)
 	let path = (t.tpackage,t.tname) in
+	let new_name = (if async then "Async_" else "Remoting_") ^ t.tname in
+	(* check if the proxy already exists *)
+	let t = (try
+		Typeload.load_type_def ctx p (fst path,new_name)
+	with
+		Error (Module_not_found _,p2) when p == p2 ->
+	(* build it *)
+	if ctx.com.verbose then print_endline ("Building proxy for " ^ s_type_path path);
 	let decls = (try Typeload.parse_module ctx path p with e -> ctx.com.package_rules <- rules; raise e) in
 	ctx.com.package_rules <- rules;
 	let base_fields = [
@@ -89,7 +97,6 @@ let extend_remoting ctx c t p async prot =
 			(FFun (name,None,[APublic],pl,f),p) :: acc
 		| _ -> acc
 	in
-	let new_name = (if async then "Async_" else "Remoting_") ^ t.tname in
 	let decls = List.map (fun d ->
 		match d with
 		| EClass c, p when c.d_name = t.tname ->
@@ -99,7 +106,7 @@ let extend_remoting ctx c t p async prot =
 		| _ -> d
 	) decls in
 	let m = Typeload.type_module ctx (t.tpackage,new_name) decls p in
-	let t = (try 
+	try 
 		List.find (fun tdecl -> snd (t_path tdecl) = new_name) m.mtypes
 	with Not_found ->
 		error ("Module " ^ s_type_path path ^ " does not define type " ^ t.tname) p

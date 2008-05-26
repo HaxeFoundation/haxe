@@ -191,6 +191,7 @@ let unprotect a = !protect_all || a = "" || a = "_" || (a.[0] = '_' && a.[1] != 
 let rec is_protected_path path ext =
 	match path with
 	| ["flash"] , "Boot" | ["flash"] , "Lib" -> false
+	| ["flash"],"__FlashXml" -> true
 	| "flash" :: _ , _ | [] , "flash" -> ext
 	| [] , "Array" | [] , "Math" | [] , "Date" | [] , "String" | [] , "Bool" -> true
 	| [] , "Int" | [] , "Float" | [] , "Xml" -> true
@@ -351,7 +352,7 @@ let begin_func ctx need_super need_args args =
 			f_name = "";
 			Swf.f_args = List.map snd args;
 			f_codelen = 0;
-		} in		
+		} in
 		write ctx (AFunction f);
 		let start_pos = ctx.code_pos in
 		let old_stack = ctx.fun_stack in
@@ -462,7 +463,7 @@ let define_var ctx v ef exprs =
 let alloc_tmp ctx =
 	let r = alloc_reg ctx in
 	if ctx.flash6 then
-		let name = "$" ^ string_of_int r in		
+		let name = "$" ^ string_of_int r in
 		define_var ctx name None [];
 		TmpVar (name,r);
 	else
@@ -526,7 +527,7 @@ let rec gen_big_string ctx s =
 	if len <= max then
 		write ctx (APush [PString s])
 	else begin
-		write ctx (APush [PString (String.sub s 0 max)]);		
+		write ctx (APush [PString (String.sub s 0 max)]);
 		gen_big_string ctx (String.sub s max (len - max));
 		write ctx AAdd;
 	end
@@ -653,7 +654,7 @@ and gen_try_catch ctx retval e catchs =
 	List.iter (fun j -> j()) jumps;
 	end_try()
 
-and gen_switch ctx retval e cases def =	
+and gen_switch ctx retval e cases def =
 	gen_expr ctx true e;
 	let r = alloc_tmp ctx in
 	set_tmp ctx r;
@@ -861,7 +862,7 @@ and gen_call ctx e el =
 		push ctx [VNull];
 		write ctx AEqual;
 		let jump_end = cjmp ctx in
-		if e.eexpr = TLocal "__hkeys__" then begin			
+		if e.eexpr = TLocal "__hkeys__" then begin
 			push ctx [VInt 1; VInt 1; VReg 0; VStr ("substr",true)];
 			call ctx VarObj 1;
 		end else begin
@@ -1153,7 +1154,7 @@ let gen_enum_field ctx e f =
 		let rargs = List.map (fun (n,_,_) -> if no_reg then 0, n else alloc_reg ctx , "") args in
 		let nregs = List.length rargs + 2 in
 		let tf = begin_func ctx false false rargs in
-		List.iter (fun (r,name) -> 
+		List.iter (fun (r,name) ->
 			if no_reg then begin
 				push ctx [VStr (name,false)];
 				write ctx AEval;
@@ -1436,7 +1437,7 @@ let generate com =
 		curclass = null_class;
 		curmethod = ("",false);
 		fun_pargs = [];
-		in_loop = false;		
+		in_loop = false;
 	} in
 	write ctx (AStringPool []);
 	protect_all := not (Common.defined com "swf-mark");
@@ -1455,7 +1456,7 @@ let generate com =
 	let f = begin_func ctx false false [] in
 	push ctx [VStr ("xx",false); VThis; VInt 2];
 	getvar ctx (gen_path ctx (["flash"],"Boot") false);
-	push ctx [VStr ("__string_rec",false)]; 
+	push ctx [VStr ("__string_rec",false)];
 	call ctx VarObj 2;
 	write ctx AReturn;
 	f();

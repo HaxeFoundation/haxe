@@ -49,7 +49,18 @@ let load_type_def ctx p tpath =
 	with
 		Not_found ->
 			let tpath, m = (try
-				if not no_pack || fst ctx.current.mpath = [] then raise Exit;
+				if not no_pack then raise Exit;
+				(match fst ctx.current.mpath with
+				| [] -> raise Exit
+				| x :: _ -> 
+					(* this can occur due to haxe remoting : a module can be
+						already defined in the "js" package and is not allowed
+						to access the js classes *)
+					try 
+						(match PMap.find x ctx.com.package_rules with
+						| Forbidden -> raise Exit
+						| _ -> ())
+					with Not_found -> ());
 				let tpath2 = fst ctx.current.mpath , snd tpath in
 				tpath2, ctx.api.load_module tpath2 p
 			with
@@ -872,7 +883,7 @@ let parse_module ctx m p =
 		| x :: l , name ->
 			let x = (try
 				match PMap.find x ctx.com.package_rules with
-				| Forbidden -> error ("You can't access the " ^ x ^ " package with current compilation flags") p;
+				| Forbidden -> error ("You can't access the " ^ x ^ " package with current compilation flags (for " ^ s_type_path m ^ ")") p;
 				| Directory d -> d
 				with Not_found -> x
 			) in
