@@ -1867,7 +1867,6 @@ let create com =
 	} in
 	ctx.api.load_module <- Typeload.load_module ctx;
 	ctx.api.build_instance <- Codegen.build_instance ctx;
-	ctx.api.on_inherit <- Codegen.on_inherit ctx;
 	ctx.api.on_generate <- Codegen.on_generate ctx;
 	ctx.api.get_type_module <- get_type_module ctx;
 	ctx.std <- (try

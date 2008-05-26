@@ -64,6 +64,7 @@ type error_msg =
 exception Error of error_msg * pos
 
 let type_expr_ref : (typer -> Ast.expr -> bool -> texpr) ref = ref (fun _ _ _ -> assert false)
+let build_inheritance : (typer -> Type.tclass -> Ast.pos -> Ast.class_flag -> bool) ref = ref (fun _ _ _ _ -> true)
 
 let unify_error_msg ctx = function
 	| Cannot_unify (t1,t2) ->

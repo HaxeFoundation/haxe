@@ -374,7 +374,7 @@ let set_heritance ctx c herits p =
 				c.cl_dynamic <- Some t
 			| _ -> error "Should implement by using an interface or a class" p)
 	in
-	List.iter loop (List.filter (ctx.api.on_inherit c p) herits)
+	List.iter loop (List.filter ((!build_inheritance) ctx c p) herits)
 
 let type_type_params ctx path p (n,flags) =
 	let c = mk_class (fst path @ [snd path],n) p None false in

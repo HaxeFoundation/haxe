@@ -44,7 +44,6 @@ type context_type_api = {
 	(* api *)
 	mutable load_module : path -> pos -> module_def;
 	mutable build_instance : module_type -> pos -> ((string * t) list * path * (t list -> t));
-	mutable on_inherit : tclass -> pos -> Ast.class_flag -> bool;
 	mutable on_generate : module_type -> unit;
 	mutable get_type_module : module_type -> module_def;
 }
@@ -97,7 +96,6 @@ let create() =
 			tarray = (fun _ -> assert false);
 			load_module = (fun _ _ -> assert false);
 			build_instance = (fun _ _ -> assert false);
-			on_inherit = (fun _ _ _ -> true);
 			on_generate = (fun _ -> ());
 			get_type_module = (fun _ -> assert false);
 		};

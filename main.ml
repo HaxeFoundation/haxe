@@ -392,6 +392,7 @@ try
 		if com.verbose then print_endline ("Classpath : " ^ (String.concat ";" com.class_path));
 		let t = Common.timer "typing" in
 		Typecore.type_expr_ref := (fun ctx e need_val -> Typer.type_expr ~need_val ctx e);
+		Typecore.build_inheritance := Codegen.on_inherit;
 		let ctx = Typer.create com in		
 		List.iter (fun cpath -> ignore(com.type_api.load_module cpath Ast.null_pos)) (List.rev !classes);
 		Typer.finalize ctx;
