@@ -231,6 +231,9 @@ extern class Xml {
 			var ref = flash.FlashXml__; // force compile
 		#elseif flash
 			Xml = flash.FlashXml__;
+			#if swf_mark
+			flash.Lib.current["Xml"] = Xml;
+			#end
 		#end
 		#if !flash9
 		Xml.__name__ = ["Xml"];
