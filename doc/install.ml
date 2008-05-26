@@ -142,6 +142,7 @@ let compile() =
 		"../ocaml";
 		"../ocaml/swflib";
 		"../ocaml/xml-light";
+		"../ocaml/extc";
 		neko
 	] in
 	let mlist = [
