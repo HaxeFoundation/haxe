@@ -191,10 +191,9 @@ let unprotect a = !protect_all || a = "" || a = "_" || (a.[0] = '_' && a.[1] != 
 let rec is_protected_path path ext =
 	match path with
 	| ["flash"] , "Boot" | ["flash"] , "Lib" -> false
-	| ["flash"],"__FlashXml" -> true
 	| "flash" :: _ , _ | [] , "flash" -> ext
 	| [] , "Array" | [] , "Math" | [] , "Date" | [] , "String" | [] , "Bool" -> true
-	| [] , "Int" | [] , "Float" | [] , "Xml" -> true
+	| [] , "Int" | [] , "Float" -> true
 	| "_global" :: l , n -> is_protected_path (l,n) ext
 	| _ -> false
 
