@@ -24,7 +24,7 @@
  */
 package haxe.remoting;
 
-class FlashJsConnection #if flash implements AsyncConnection #end {
+class FlashJsConnection #if flash implements AsyncConnection, implements Dynamic<AsyncConnection> #end {
 
 #if flash
 
@@ -104,7 +104,7 @@ class FlashJsConnection #if flash implements AsyncConnection #end {
 		}
 	}
 
-	public static function connect( objId : String, name : String, ctx : Context ) {
+	public static function connect( name : String, objId : String, ctx : Context ) {
 		if( !flash.external.ExternalInterface.available )
 			throw "External Interface not available";
 		#if flash9
