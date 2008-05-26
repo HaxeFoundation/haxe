@@ -58,6 +58,7 @@ type error_msg =
 	| Custom of string
 	| Protect of error_msg
 	| Unknown_ident of string
+	| Invalid_enum_matching
 	| Stack of error_msg * error_msg
 
 exception Error of error_msg * pos
@@ -88,6 +89,7 @@ let rec error_msg = function
 		let ctx = print_context() in
 		String.concat "\n" (List.map (unify_error_msg ctx) l)
 	| Unknown_ident s -> "Unknown identifier : " ^ s
+	| Invalid_enum_matching -> "Invalid enum matching case"
 	| Custom s -> s
 	| Stack (m1,m2) -> error_msg m1 ^ "\n" ^ error_msg m2
 	| Protect m -> error_msg m

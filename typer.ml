@@ -394,7 +394,7 @@ let type_constant ctx c p =
 	| Type _ -> assert false
 
 let type_matching ctx (enum,params) (e,p) ecases first_case =
-	let invalid() = error "Invalid enum matching" p in
+	let invalid() = raise (Error (Invalid_enum_matching,p)) in
 	let needs n = error ("This constructor needs " ^ string_of_int n ^ " parameters") p in
 	let constr name =
 		if PMap.mem name (!ecases) then error "This constructor has already been used" p;
@@ -823,7 +823,7 @@ and type_switch ctx e cases def need_val p =
 				(try
 					CMatch (type_matching ctx en e1 ecases !first_case)
 				with
-					Error _ when !first ->
+					Error (Invalid_enum_matching,_) when !first ->
 						enum := None;
 						type_case e e1)
 			| None ->
