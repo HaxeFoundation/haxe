@@ -447,7 +447,7 @@ let type_field ctx e i p get =
 			match c.cl_dynamic with
 			| Some t ->
 				let t = apply_params c.cl_types params t in
-				if get && PMap.mem "resolve" c.cl_fields then					
+				if get && PMap.mem "resolve" c.cl_fields then
 					AccExpr (mk (TCall (mk (TField (e,"resolve")) (tfun [ctx.api.tstring] t) p,[type_constant ctx (String i) p])) t p)
 				else
 					AccExpr (mk (TField (e,i)) t p)
@@ -532,7 +532,7 @@ let rec type_binop ctx op e1 e2 p =
 			| _ , _ -> ());
 			mk (TBinop (op,e1,e2)) e1.etype p
 		| AccSet (e,m,t,_) ->
-			unify ctx e2.etype t p;			
+			unify ctx e2.etype t p;
 			mk (TCall (mk (TField (e,m)) (tfun [t] t) p,[e2])) t p
 		| AccInline _ ->
 			assert false)
@@ -554,7 +554,7 @@ let rec type_binop ctx op e1 e2 p =
 			let ev = mk (TLocal v) e.etype p in
 			let get = type_binop ctx op (EField ((EConst (Ident v),p),f),p) e2 p in
 			unify ctx get.etype t p;
-			l();			
+			l();
 			mk (TBlock [
 				mk (TVars [v,e.etype,Some e]) ctx.api.tvoid p;
 				mk (TCall (mk (TField (ev,m)) (tfun [t] t) p,[get])) t p
@@ -660,7 +660,7 @@ let rec type_binop ctx op e1 e2 p =
 		| KInt , KInt | KInt , KFloat | KFloat , KInt | KFloat , KFloat | KString , KString -> ()
 		| KInt , KUnk | KFloat , KUnk | KString , KUnk -> unify ctx e2.etype e1.etype e2.epos
 		| KUnk , KInt | KUnk , KFloat | KUnk , KString -> unify ctx e1.etype e2.etype e1.epos
-		| KUnk , KUnk ->			
+		| KUnk , KUnk ->
 			unify ctx e1.etype ctx.api.tint e1.epos;
 			unify ctx e2.etype ctx.api.tint e2.epos;
 		| KDyn , KInt | KDyn , KFloat | KDyn , KString -> ()
@@ -702,7 +702,7 @@ and type_unop ctx op flag e p =
 	let acc = type_access ctx (fst e) (snd e) (not set) in
 	let access e =
 		let t = (match op with
-		| Not ->			
+		| Not ->
 			unify ctx e.etype ctx.api.tbool e.epos;
 			ctx.api.tbool
 		| Increment
@@ -773,12 +773,12 @@ and type_switch ctx e cases def need_val p =
 				| TEnumField (e,_) -> Some (e, List.map (fun _ -> mk_mono()) e.e_types)
 				| _ -> None)
 			with
-				Error (Custom _,_) -> lookup_enum l)
+				Error (Unknown_ident _,_) -> lookup_enum l)
 		| _ ->
 			None
 	in
 	let enum = ref (match follow e.etype with
-		| TEnum ({ e_path = [],"Bool" },_)		
+		| TEnum ({ e_path = [],"Bool" },_)
 		| TEnum ({ e_path = ["flash"],_ ; e_extern = true },_) ->
 			None
 		| TEnum (e,params) -> Some (e,params)

@@ -97,6 +97,8 @@ let rec error_msg = function
 
 let display_error ctx msg p = ctx.com.error msg p
 
+let error msg p = raise (Error (Custom msg,p))
+
 let type_expr ctx e need_val = (!type_expr_ref) ctx e need_val
 
 let unify ctx t1 t2 p =
