@@ -40,6 +40,13 @@ class Manager<T : Object> {
 	private static var cache_field = "__cache__";
 	private static var no_update : Dynamic = function() { throw "Cannot update not locked object"; }
 	private static var FOR_UPDATE = "";
+	private static var KEYWORDS = {
+		var h = new Hash();
+		for( k in ["read","write","desc","out","group","version","option",
+				"primary","exists","from","key","keys","limit","lock","use"] )
+			h.set(k,true);
+		h;
+	}
 
 	private static function setConnection( c : Connection ) {
 		Reflect.setField(Manager,"cnx",c);
@@ -324,10 +331,7 @@ class Manager<T : Object> {
 	}
 
 	function quoteField(f : String) {
-		var fsmall = f.toLowerCase();
-		if( fsmall == "read" || fsmall == "desc" || fsmall == "out" || fsmall == "group" || fsmall == "version" || fsmall == "option" )
-			return "`"+f+"`";
-		return f;
+		return KEYWORDS.exists(f.toLowerCase()) ? "`"+f+"`" : f;
 	}
 
 	function addQuote( s : StringBuf, v : Dynamic ) {
