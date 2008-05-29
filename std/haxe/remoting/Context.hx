@@ -55,4 +55,10 @@ class Context {
 		return Reflect.callMethod(o,m,params);
 	}
 
+	public static function share( name : String, obj : {} ) : Context {
+		var ctx = new Context();
+		ctx.addObject(name,obj);
+		return ctx;
+	}
+
 }
