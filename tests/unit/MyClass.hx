@@ -20,4 +20,8 @@ class MyClass {
 		val = v;
 	}
 
+	public function add(x,y) {
+		return val + x + y;
+	}
+
 }

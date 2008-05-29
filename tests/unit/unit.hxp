@@ -14,6 +14,7 @@
     <file path="TestBytes.hx" />
     <file path="TestInt32.hx" />
     <file path="TestIO.hx" />
+    <file path="TestMisc.hx" />
     <file path="TestReflect.hx" />
     <file path="TestRemoting.hx" />
     <file path="TestSerialize.hx" />

@@ -164,6 +164,7 @@ class Test #if swf_mark implements mt.Protect #end {
 			new TestIO(),
 			new TestSerialize(),
 			new TestRemoting(),
+			new TestMisc(),
 		];
 		var current = null;
 		try {

@@ -26,7 +26,7 @@ class TestRemoting extends Test {
 		ecnx = haxe.remoting.ExternalConnection.jsConnect("cnx",ctx);
 		ecnx3 = haxe.remoting.ExternalConnection.jsConnect("unknown",ctx);
 		lcnx = haxe.remoting.LocalConnection.connect("local",ctx,[HOST]);
-		fjscnx = haxe.remoting.FlashJsConnection.connect(#if flash9 "haxeFlash8" #else "haxeFlash9" #end,"cnx",ctx);
+		fjscnx = haxe.remoting.FlashJsConnection.connect("cnx",#if flash9 "haxeFlash8" #else "haxeFlash9" #end,ctx);
 		#elseif js
 		ecnx = haxe.remoting.ExternalConnection.flashConnect("cnx","haxeFlash8",ctx);
 		ecnx2 = haxe.remoting.ExternalConnection.flashConnect("cnx","haxeFlash9",ctx);
