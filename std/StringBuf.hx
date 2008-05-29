@@ -73,12 +73,10 @@ class StringBuf {
 	public inline function addChar( c : Int ) untyped {
 		#if neko
 			__add_char(b,c);
-		#elseif flash9
-			b += __global__["String.fromCharCode"](c);
+		#elseif (flash9 || js)
+			b += String.fromCharCode(c);
 		#elseif flash
 			b += String["fromCharCode"](c);
-		#else
-			b += String.fromCharCode(c);
 		#end
 	}
 
