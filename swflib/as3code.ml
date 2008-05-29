@@ -121,6 +121,7 @@ let length = function
 	| A3CallStack n
 	| A3ConstructSuper n
 	| A3BreakPointLine n
+	| A3ApplyType n
 	| A3DebugLine n ->
 		1 + int_length n
 	| A3GetSlot s
@@ -321,7 +322,9 @@ let opcode ch =
 		let id = read_index ch in
 		let nargs = read_int ch in
 		A3CallPropVoid (id,nargs)
-	(* 0x50 - 0x54 -> NONE *)
+	(* 0x50 - 0x52 -> NONE *)
+	| 0x53 -> A3ApplyType (read_int ch)
+	(* 0x54 -> NONE *)
 	| 0x55 -> A3Object (read_int ch)
 	| 0x56 -> A3Array (read_int ch)
 	| 0x57 -> A3NewBlock
@@ -571,6 +574,9 @@ let write ch = function
 		write_byte ch 0x4F;
 		write_index ch f;
 		write_int ch n
+	| A3ApplyType n ->
+		write_byte ch 0x53;
+		write_int ch n
 	| A3Object n ->
 		write_byte ch 0x55;
 		write_int ch n
@@ -815,6 +821,7 @@ let dump ctx op =
 	| A3CallPropLex (f,n) -> s "callproplex %s (%d)" (field f) n
 	| A3CallSuperVoid (f,n) -> s "callsupervoid %s (%d)" (field f) n
 	| A3CallPropVoid (f,n) -> s "callpropvoid %s (%d)" (field f) n
+	| A3ApplyType n -> s "applytype %d" n
 	| A3Object n -> s "object %d" n
 	| A3Array n -> s "array %d" n
 	| A3NewBlock -> "newblock"

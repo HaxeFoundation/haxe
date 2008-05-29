@@ -72,6 +72,7 @@ type hl_opcode =
 	| HCallPropLex of hl_name * nargs
 	| HCallSuperVoid of hl_name * nargs
 	| HCallPropVoid of hl_name * nargs
+	| HApplyType of nargs
 	| HObject of nargs
 	| HArray of nargs
 	| HNewBlock
@@ -141,6 +142,7 @@ and hl_name =
 	| HMRuntimeNameLate
 	| HMMultiNameLate of hl_ns_set
 	| HMAttrib of hl_name
+	| HMParams of hl_name * hl_name list
 
 and hl_value =
 	| HVNone

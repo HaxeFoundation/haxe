@@ -136,6 +136,8 @@ let rec as3_name_length t =
 		idx_length idx
 	| A3MAttrib n ->
 		as3_name_length n - 1
+	| A3MParams (id,pl) ->
+		idx_length id + 1 + (sum idx_length pl)
 
 let as3_value_length extra = function
 	| A3VNone -> if extra then 2 else 1
@@ -348,7 +350,18 @@ let rec read_name ctx ?k ch =
 		A3MMultiNameLate ns
 	| 0x1C ->
 		A3MAttrib (read_name ctx ~k:0x1B ch)
+	| 0x1D ->
+		let rec loop n =
+			if n = 0 then
+				[]
+			else
+				let name = magic_index (read_int ch) in
+				name :: loop (n - 1)
+		in
+		let id = magic_index (read_int ch) in
+		A3MParams (id,loop (IO.read_byte ch))
 	| n ->
+		prerr_endline (string_of_int n);
 		assert false
 
 let read_value ctx ch extra =
@@ -688,8 +701,13 @@ let rec write_name ch ?k x =
 			| A3MRuntimeName _ -> 0x10
 			| A3MRuntimeNameLate -> 0x12
 			| A3MMultiNameLate _ -> 0x1C
-			| A3MAttrib _ -> assert false
+			| A3MAttrib _ | A3MParams _ -> assert false
 		) n
+	| A3MParams (id,pl) ->
+		IO.write_byte ch (b 0x1D);
+		write_index ch id;
+		IO.write_byte ch (List.length pl);
+		List.iter (write_index ch) pl
 
 let write_value ch extra v =
 	match v with
@@ -875,7 +893,7 @@ let ns_set_str ctx i =
 	let l = iget ctx.as3_nsets i in
 	String.concat " " (List.map (fun r -> namespace_str ctx r) l)
 
-let name_str ctx kind t =
+let rec name_str ctx kind t =
 	let rec loop = function
 		| A3MName (id,r) -> Printf.sprintf "%s %s%s" (namespace_str ctx r) kind (ident_str ctx id)
 		| A3MMultiName (id,r) -> Printf.sprintf "[%s %s%s]" (ns_set_str ctx r) kind (match id with None -> "NO" | Some i -> ident_str ctx i)
@@ -883,6 +901,7 @@ let name_str ctx kind t =
 		| A3MRuntimeNameLate -> "RTLATE"
 		| A3MMultiNameLate id -> Printf.sprintf "late:(%s)" (ns_set_str ctx id)
 		| A3MAttrib n -> "attrib " ^ loop n
+		| A3MParams (id,pl) -> Printf.sprintf "%s<%s>" (name_str ctx kind id) (String.concat "," (List.map (name_str ctx kind) pl))
 	in
 	loop (iget ctx.as3_names t)
 

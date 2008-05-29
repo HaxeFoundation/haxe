@@ -127,6 +127,7 @@ and as3_opcode =
 	| A3CallPropLex of as3_name * nargs
 	| A3CallSuperVoid of as3_name * nargs
 	| A3CallPropVoid of as3_name * nargs
+	| A3ApplyType of nargs
 	| A3Object of nargs
 	| A3Array of nargs
 	| A3NewBlock
@@ -195,6 +196,7 @@ and as3_multi_name =
 	| A3MRuntimeNameLate
 	| A3MMultiNameLate of as3_ns_set index
 	| A3MAttrib of as3_multi_name
+	| A3MParams of as3_multi_name index * as3_multi_name index list
 
 and as3_value =
 	| A3VNone

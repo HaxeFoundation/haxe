@@ -100,6 +100,7 @@ let stack_delta = function
 	| HCallPropLex (_,n) -> -n
 	| HCallSuperVoid (_,n) -> -(n + 1)
 	| HCallPropVoid (_,n) -> -(n + 1)
+	| HApplyType n -> -n + 1
 	| HObject n -> -(n * 2) + 1
 	| HArray n -> -n + 1
 	| HNewBlock -> 1
@@ -198,6 +199,7 @@ let parse_opcode ctx i = function
 	| A3CallPropLex (p,n) -> HCallPropLex (name ctx p,n)
 	| A3CallSuperVoid (p,n) -> HCallSuperVoid (name ctx p,n)
 	| A3CallPropVoid (p,n) -> HCallPropVoid (name ctx p,n)
+	| A3ApplyType n -> HApplyType n
 	| A3Object n -> HObject n
 	| A3Array n -> HArray n
 	| A3NewBlock -> HNewBlock
@@ -362,7 +364,7 @@ let parse_namespace ctx = function
 
 let parse_nset ctx l = List.map (fun n -> ctx.namespaces.(idx n)) l
 
-let rec parse_name ctx = function
+let rec parse_name names ctx = function
 	| A3MName (id,ns) ->
 		(match ctx.namespaces.(idx ns) with
 		| HNPublic p ->
@@ -374,7 +376,8 @@ let rec parse_name ctx = function
 	| A3MRuntimeName id -> HMRuntimeName (ident ctx id)
 	| A3MRuntimeNameLate -> HMRuntimeNameLate
 	| A3MMultiNameLate ns -> HMMultiNameLate ctx.nsets.(idx ns)
-	| A3MAttrib multi -> HMAttrib (parse_name ctx multi)
+	| A3MAttrib multi -> HMAttrib (parse_name names ctx multi)
+	| A3MParams (id,pl) -> HMParams (parse_name names ctx names.(idx id),List.map (fun id -> parse_name names ctx names.(idx id)) pl)
 
 let parse_try_catch ctx t =
 	{
@@ -456,7 +459,7 @@ let parse t =
 	} in
 	ctx.namespaces <- Array.map (parse_namespace ctx) t.as3_namespaces;
 	ctx.nsets <- Array.map (parse_nset ctx) t.as3_nsets;
-	ctx.names <- Array.map (parse_name ctx) t.as3_names;
+	ctx.names <- Array.map (parse_name t.as3_names ctx) t.as3_names;
 	let hfunctions = Hashtbl.create 0 in
 	Array.iter (fun f -> Hashtbl.add hfunctions (idx (no_nz f.fun3_id)) f) t.as3_functions;
 	ctx.methods <- Array.mapi (fun i m ->
@@ -562,6 +565,7 @@ let rec flatten_name ctx = function
 	| HMRuntimeNameLate -> A3MRuntimeNameLate
 	| HMMultiNameLate ns -> A3MMultiNameLate (lookup ctx ctx.fnsets ns)
 	| HMAttrib n -> A3MAttrib (flatten_name ctx n)
+	| HMParams (i,nl) -> A3MParams (lookup_name ctx i,List.map (lookup_name ctx) nl)
 
 let flatten_meta ctx m =
 	{
@@ -672,6 +676,7 @@ let flatten_opcode ctx i = function
 	| HCallPropLex (i,n) -> A3CallPropLex (lookup_name ctx i,n)
 	| HCallSuperVoid (i,n) -> A3CallSuperVoid (lookup_name ctx i,n)
 	| HCallPropVoid (i,n)-> A3CallPropVoid (lookup_name ctx i,n)
+	| HApplyType n -> A3ApplyType n
 	| HObject n -> A3Object n
 	| HArray n -> A3Array n
 	| HNewBlock -> A3NewBlock
