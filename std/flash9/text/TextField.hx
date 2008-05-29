@@ -62,7 +62,7 @@ extern class TextField extends flash.display.InteractiveObject {
 	var type : String;
 	var useRichTextClipboard : Bool;
 	var wordWrap : Bool;
-	private function copyRichText() : String;
-	private function pasteRichText(richText : String) : Bool;
-	private static var richTextFields : Array<Dynamic>;
+	//private function copyRichText() : String;
+	//private function pasteRichText(richText : String) : Bool;
+	//private static var richTextFields : Array<Dynamic>;
 }

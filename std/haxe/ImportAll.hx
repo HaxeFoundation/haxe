@@ -441,3 +441,86 @@ import tools.haxelib.Site;
 
 #end
 
+#if flash10
+
+import flash.Vector;
+
+import flash.events.SamplesCallbackEvent;
+import flash.events.ShaderEvent;
+
+import flash.display.GraphicsBitmapFill;
+import flash.display.GraphicsEndFill;
+import flash.display.GraphicsGradientFill;
+import flash.display.GraphicsPath;
+import flash.display.GraphicsPathCommand;
+import flash.display.GraphicsPathWinding;
+import flash.display.GraphicsShaderFill;
+import flash.display.GraphicsSolidFill;
+import flash.display.GraphicsStroke;
+import flash.display.GraphicsTrianglePath;
+import flash.display.IGraphicsData;
+import flash.display.IGraphicsFill;
+import flash.display.IGraphicsPath;
+import flash.display.IGraphicsStroke;
+
+import flash.display.Shader;
+import flash.display.ShaderData;
+import flash.display.ShaderInput;
+import flash.display.ShaderJob;
+import flash.display.ShaderParameter;
+import flash.display.ShaderParameterType;
+import flash.display.ShaderPrecision;
+
+import flash.display.TriangleCulling;
+
+import flash.filters.ShaderFilter;
+
+import flash.geom.Matrix3D;
+import flash.geom.Orientation3D;
+import flash.geom.PerspectiveProjection;
+import flash.geom.Utils3D;
+import flash.geom.Vector3D;
+
+import flash.media.SoundCodec;
+
+import flash.net.NetStreamInfo;
+import flash.net.NetStreamPlayOptions;
+import flash.net.NetStreamPlayTransitions;
+
+import flash.text.engine.ContentElement;
+import flash.text.engine.TextJustifier;
+import flash.text.engine.SpaceJustifier;
+import flash.text.engine.EastAsianJustifier;
+import flash.text.engine.TypographicCase;
+import flash.text.engine.TabAlignment;
+import flash.text.engine.TabStop;
+import flash.text.engine.FontDescription;
+import flash.text.engine.GlyphRotation;
+import flash.text.engine.FontMetrics;
+import flash.text.engine.FontWeight;
+import flash.text.engine.GraphicElement;
+import flash.text.engine.BreakOpportunity;
+import flash.text.engine.TextRotation;
+import flash.text.engine.Kerning;
+import flash.text.engine.TextElement;
+import flash.text.engine.JustificationStyle;
+import flash.text.engine.ElementFormat;
+import flash.text.engine.LigatureLevel;
+import flash.text.engine.TextLineCreationResult;
+import flash.text.engine.TextBlock;
+import flash.text.engine.FontPosture;
+import flash.text.engine.GroupElement;
+import flash.text.engine.FontLookup;
+import flash.text.engine.DigitCase;
+import flash.text.engine.TextLineMirrorRegion;
+import flash.text.engine.LineJustification;
+import flash.text.engine.TextLineValidity;
+import flash.text.engine.TextBaseline;
+import flash.text.engine.TextLine;
+import flash.text.engine.DigitWidth;
+
+import flash.ui.ContextMenuClipboardItems;
+import flash.ui.MouseCursor;
+
+import flash.system.JPEGLoaderContext;
+#end

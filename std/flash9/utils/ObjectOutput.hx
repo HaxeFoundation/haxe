@@ -2,7 +2,7 @@ package flash.utils;
 
 extern class ObjectOutput implements IDataOutput {
 	function new() : Void;
-	var endian : String;
+	var endian : Endian;
 	var objectEncoding : UInt;
 	function writeBoolean(value : Bool) : Void;
 	function writeByte(value : Int) : Void;

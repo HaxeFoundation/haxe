@@ -35,6 +35,7 @@ haxe.ImportAll
 --no-output
 -xml flash9.xml
 haxe.ImportAll
+-D flash10
 
 --next
 

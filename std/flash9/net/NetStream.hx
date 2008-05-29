@@ -1,9 +1,7 @@
 package flash.net;
 
 extern class NetStream extends flash.events.EventDispatcher {
-	function new(connection : flash.net.NetConnection) : Void;
-	function attachAudio(microphone : flash.media.Microphone) : Void;
-	function attachCamera(theCamera : flash.media.Camera, ?snapshotMilliseconds : Int) : Void;
+
 	var audioCodec(default,null) : UInt;
 	var bufferLength(default,null) : Float;
 	var bufferTime : Float;
@@ -11,11 +9,23 @@ extern class NetStream extends flash.events.EventDispatcher {
 	var bytesTotal(default,null) : UInt;
 	var checkPolicyFile : Bool;
 	var client : Dynamic;
-	function close() : Void;
 	var currentFPS(default,null) : Float;
 	var decodedFrames(default,null) : UInt;
 	var liveDelay(default,null) : Float;
 	var objectEncoding(default,null) : UInt;
+	var soundTransform : flash.media.SoundTransform;
+	var time(default,null) : Float;
+	var videoCodec(default,null) : UInt;
+
+	#if flash10
+	function new(connection : flash.net.NetConnection, ?peerID : String ) : Void;
+	#else
+	function new(connection : flash.net.NetConnection) : Void;
+	#end
+
+	function attachAudio(microphone : flash.media.Microphone) : Void;
+	function attachCamera(theCamera : flash.media.Camera, ?snapshotMilliseconds : Int) : Void;
+	function close() : Void;
 	function pause() : Void;
 	function play( ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic ) : Void;
 	function publish(?name : String, ?type : String) : Void;
@@ -25,33 +35,20 @@ extern class NetStream extends flash.events.EventDispatcher {
 	function resume() : Void;
 	function seek(offset : Float) : Void;
 	function send(handlerName : String, ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic ) : Void;
-	var soundTransform : flash.media.SoundTransform;
-	var time(default,null) : Float;
 	function togglePause() : Void;
-	var videoCodec(default,null) : UInt;
-	private function call(stream : flash.net.NetStream, command : String, responder : flash.net.Responder, ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic ) : Void;
-	private function construct(connection : flash.net.NetConnection) : Void;
-	private function invoke(index : UInt, ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic ) : Void;
-	private function invokeWithArgsArray(index : UInt, p_arguments : Array<Dynamic>) : Void;
-	private function onResult(streamId : Int) : Void;
-	private function onStatus(info : Dynamic) : Void;
-	private static var kAttachAudio : UInt;
-	private static var kAttachVideo : UInt;
-	private static var kCall : UInt;
-	private static var kClose : UInt;
-	private static var kGetAudioCodecID : UInt;
-	private static var kGetBufferLength : UInt;
-	private static var kGetBufferTime : UInt;
-	private static var kGetBytesLoaded : UInt;
-	private static var kGetBytesTotal : UInt;
-	private static var kGetCurrentFps : UInt;
-	private static var kGetLiveDelay : UInt;
-	private static var kGetTime : UInt;
-	private static var kGetTotalFrames : UInt;
-	private static var kGetVideoCodecID : UInt;
-	private static var kSend : UInt;
-	private static var kSetAudioCodecID : UInt;
-	private static var kSetBufferTime : UInt;
-	private static var kSetTotalFrames : UInt;
-	private static var kSetVideoCodecID : UInt;
+
+	#if flash10
+	var maxPauseBufferTime : Float;
+	var farID(default,null) : String;
+	var farNonce(default,null) : String;
+	var info(default,null) : NetStreamInfo;
+	var nearNonce(default,null) : String;
+	var peerStreams(default,null) : Array<Dynamic>;
+
+	function onPeerConnect( subscriber : NetStream ) : Bool;
+	function play2( param : NetStreamPlayOptions ) : Void;
+
+	static var DIRECT_CONNECTIONS : String;
+	#end
+
 }

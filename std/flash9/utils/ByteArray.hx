@@ -1,13 +1,15 @@
 package flash.utils;
 
 extern class ByteArray implements IDataInput, implements IDataOutput, implements ArrayAccess<Int> {
-	function new() : Void;
+
 	var bytesAvailable(default,null) : UInt;
-	function compress() : Void;
-	var endian : String;
+	var endian : Endian;
 	var length : UInt;
 	var objectEncoding : UInt;
 	var position : UInt;
+
+	function new() : Void;
+	function compress() : Void;
 	function readBoolean() : Bool;
 	function readByte() : Int;
 	function readBytes(bytes : flash.utils.ByteArray, ?offset : UInt, ?length : UInt) : Void;
@@ -36,5 +38,13 @@ extern class ByteArray implements IDataInput, implements IDataOutput, implements
 	function writeUTF(value : String) : Void;
 	function writeUTFBytes(value : String) : Void;
 	function writeUnsignedInt(value : UInt) : Void;
+
+	#if flash10
+	function clear():Void;
+	function deflate():Void;
+	function inflate():Void;
+	#end
+
 	static var defaultObjectEncoding : UInt;
+
 }

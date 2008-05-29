@@ -1,9 +1,17 @@
 package flash.ui;
 
 extern class ContextMenu extends flash.events.EventDispatcher {
-	function new() : Void;
+
 	var builtInItems : flash.ui.ContextMenuBuiltInItems;
-	function clone() : flash.ui.ContextMenu;
 	var customItems : Array<Dynamic>;
+
+	function new() : Void;
+	function clone() : flash.ui.ContextMenu;
 	function hideBuiltInItems() : Void;
+
+	#if flash10
+	var clipboardItems : ContextMenuClipboardItems;
+	var clipboardMenu : Bool;
+	var link : flash.net.URLRequest;
+	#end
 }

@@ -1019,10 +1019,14 @@ let rec real_type_path ctx p =
 		| A3MAttrib n ->
 			let path, name = loop n in
 			"$Attrib" :: path, name
+		| A3MParams (n,pl) ->
+			let t = type_path ctx n in
+			let params = "<" ^ (String.concat "," (List.map (fun t -> s_type_path (type_path ctx t)) pl)) ^ ">" in
+			fst t, (snd t ^ params)
 	in
 	loop (As3code.iget ctx.as3_names p)
 
-let type_path ctx p =
+and type_path ctx p =
 	match real_type_path ctx p with
 	| [] , "Object" -> [] , "Dynamic"
 	| [] , "Boolean" -> [] , "Bool"
@@ -1033,6 +1037,7 @@ let type_path ctx p =
 	| [] , "void" -> [] , "Void"
 	| [] , "Function" -> [] , "Dynamic"
 	| [] , "Class" -> [] , "Class<Dynamic>"
+	| ["__AS3__";"vec"] , "Vector" -> ["flash"], "Vector"
 	| path -> path
 
 let ident_rights ctx id =

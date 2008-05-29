@@ -6,14 +6,8 @@ extern class DisplayObject extends flash.events.EventDispatcher, implements IBit
 	var blendMode : BlendMode;
 	var cacheAsBitmap : Bool;
 	var filters : Array<Dynamic>; // does not use variance here
-	function getBounds(targetCoordinateSpace : DisplayObject) : flash.geom.Rectangle;
-	function getRect(targetCoordinateSpace : DisplayObject) : flash.geom.Rectangle;
-	function globalToLocal(point : flash.geom.Point) : flash.geom.Point;
 	var height : Float;
-	function hitTestObject(obj : DisplayObject) : Bool;
-	function hitTestPoint(x : Float, y : Float, ?shapeFlag : Bool) : Bool;
 	var loaderInfo(default,null) : LoaderInfo;
-	function localToGlobal(point : flash.geom.Point) : flash.geom.Point;
 	var mask : DisplayObject;
 	var mouseX(default,null) : Float;
 	var mouseY(default,null) : Float;
@@ -32,5 +26,23 @@ extern class DisplayObject extends flash.events.EventDispatcher, implements IBit
 	var width : Float;
 	var x : Float;
 	var y : Float;
-	private function _hitTest(use_xy : Bool, x : Float, y : Float, useShape : Bool, hitTestObject : flash.display.DisplayObject) : Bool;
+
+	function getBounds(targetCoordinateSpace : DisplayObject) : flash.geom.Rectangle;
+	function getRect(targetCoordinateSpace : DisplayObject) : flash.geom.Rectangle;
+	function globalToLocal(point : flash.geom.Point) : flash.geom.Point;
+	function hitTestObject(obj : DisplayObject) : Bool;
+	function hitTestPoint(x : Float, y : Float, ?shapeFlag : Bool) : Bool;
+	function localToGlobal(point : flash.geom.Point) : flash.geom.Point;
+
+	#if flash10
+	var rotationX : Float;
+	var rotationY : Float;
+	var rotationZ : Float;
+	var scaleZ : Float;
+	var z : Float;
+	var blendShader(null,default) : Shader;
+
+	function globalToLocal3D( point : flash.geom.Point) : flash.geom.Vector3D;
+	function local3DToGlobal( point3d : flash.geom.Vector3D ) : flash.geom.Point;
+	#end
 }
