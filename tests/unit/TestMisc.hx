@@ -1,4 +1,4 @@
-package unit;
+﻿package unit;
 
 class TestMisc extends Test {
 
@@ -49,7 +49,7 @@ class TestMisc extends Test {
 		eq( haxe.Md5.encode(""), "d41d8cd98f00b204e9800998ecf8427e" );
 		eq( haxe.Md5.encode("hello"), "5d41402abc4b2a76b9719d911017c592" );
 		// depending of ISO/UTF8 native
-		allow( haxe.Md5.encode("h�llo"), ["1a722f7e6c801d9e470a10cb91ba406d","be50e8478cf24ff3595bc7307fb91b50"] );
+		allow( haxe.Md5.encode("héllo"), ["1a722f7e6c801d9e470a10cb91ba406d","be50e8478cf24ff3595bc7307fb91b50"] );
 	}
 
 }
