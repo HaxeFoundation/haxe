@@ -47,8 +47,10 @@ let s_path ctx path p =
 		| "Bool" -> "Boolean"
 		| "Enum" -> "Class"
 		| _ -> name)
-	| (["flash"],"FlashXml__") ->
+	| (["flash"],"FlashXml__") ->	
 		"Xml"
+	| (["flash"],"Error") ->
+		"Error"
 	| (pack,name) ->
 		try
 			(match Hashtbl.find ctx.imports name with
@@ -978,6 +980,13 @@ let generate com =
    ---------------------------------------------------------------------------------------- *)
 open As3
 
+type access =
+	| APublic
+	| AProtected
+	| APrivate
+
+let cur_package = ref []
+
 let s_type_path = Ast.s_type_path
 
 let ident ctx p =
@@ -1037,7 +1046,9 @@ and type_path ctx p =
 	| [] , "void" -> [] , "Void"
 	| [] , "Function" -> [] , "Dynamic"
 	| [] , "Class" -> [] , "Class<Dynamic>"
+	| [] , "Error" -> ["flash"], "Error"
 	| ["__AS3__";"vec"] , "Vector" -> ["flash"], "Vector"
+	| pack, cl when pack = !cur_package -> [], cl
 	| path -> path
 
 let ident_rights ctx id =
@@ -1045,11 +1056,11 @@ let ident_rights ctx id =
 	| A3MName (id,r) ->
 		let name = ident ctx id in
 		(match As3code.iget ctx.as3_namespaces r with
-		| A3NNamespace i when As3code.iget ctx.as3_idents i = "http://www.adobe.com/2006/flex/mx/internal" -> false, false, "$" ^ name
-		| A3NPublic _ | A3NNamespace _ -> false , false, name
-		| A3NProtected _ -> false, true, name
-		| _ -> true , false, name)
-	| _ -> false, false, "???"
+		| A3NNamespace i when As3code.iget ctx.as3_idents i = "http://www.adobe.com/2006/flex/mx/internal" -> APublic, "$" ^ name
+		| A3NPublic _ | A3NNamespace _ -> APublic, name
+		| A3NProtected _ -> AProtected, name
+		| _ -> APrivate, name)
+	| _ -> APublic, "???"
 
 let rec create_dir acc = function
 	| [] -> ()
@@ -1114,15 +1125,40 @@ let gen_method ctx ch name mt =
 		incr p;
 		(if opt_val <> None then "?" else "") ^ name ^ " : " ^ t
 	) m.mt3_args in
-	let vargs = if m.mt3_var_args then " /* ...arguments */" else "" in
+	let vargs = if m.mt3_var_args then
+		(if m.mt3_args = [] then "" else ",") ^ " ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic "
+	else
+		""
+	in
 	IO.printf ch "function %s(%s%s) : %s;\n" name (String.concat ", " params) vargs ret
 
-let gen_fields ctx ch fields stat =
-	let fields = List.sort (fun f1 f2 -> compare (ident_rights ctx f1.f3_name) (ident_rights ctx f2.f3_name)) (Array.to_list fields) in
+let is_fun = function
+	| A3FMethod m -> m.m3_kind = MK3Normal
+	| _ -> false
+
+let sort_fields ctx f1 f2 =
+	let acc1, name1 = ident_rights ctx f1.f3_name in
+	let acc2, name2 = ident_rights ctx f2.f3_name in
+	let fun1 = is_fun f1.f3_kind in
+	let fun2 = is_fun f2.f3_kind in
+	compare (acc1,fun1,name1) (acc2,fun2,name2)
+
+let gen_fields ctx ch fields stat construct =
+	let fields = List.sort (sort_fields ctx) (Array.to_list fields) in
+	let construct = ref construct in
+	let gen_construct() =
+		match !construct with
+		| None -> ()
+		| Some c ->
+			construct := None;
+			IO.printf ch "\t";
+			gen_method ctx ch "new" c;
+	in
 	List.iter (fun f ->
-		let priv, prot, name = ident_rights ctx f.f3_name in
-		let rights = (if priv then "//" else "") ^ (if priv || prot then "private " else "") ^ (if stat then "static " else "") in
-		if name.[0] = '$' then
+		let acc, name = ident_rights ctx f.f3_name in
+		let rights = (match acc with APrivate -> "//private " | AProtected -> "private " | APublic -> "") ^ (if stat then "static " else "") in
+		if acc <> APublic || is_fun f.f3_kind then gen_construct();		
+		if name.[0] = '$' || acc = APrivate then
 			()
 		else match f.f3_kind with
 		| A3FMethod m ->
@@ -1154,11 +1190,14 @@ let gen_fields ctx ch fields stat =
 			assert false
 		| A3FClass _ ->
 			IO.printf ch "\t// ????\n"
-	) fields
+	) fields;
+	gen_construct()
 
 let genhx_class ctx c s =
 	let base_path = "hxclasses" in
+	cur_package := [];
 	let pack , name = real_type_path ctx c.cl3_name in
+	cur_package := pack;
 	let skip = (match pack with
 		| [_;x] when String.length x > 3 && String.sub x 0 3 = "as$" -> true
 		| _ when name.[0] = '_' -> true
@@ -1172,7 +1211,24 @@ let genhx_class ctx c s =
 	let f = open_out (base_path ^ "/" ^ (match pack with [] -> "" | l -> String.concat "/" l ^ "/") ^ name ^ ".hx") in
 	let ch = IO.output_channel f in
 	if pack <> [] then IO.printf ch "package %s;\n\n" (String.concat "." pack);
-	IO.printf ch "extern %s %s" (if c.cl3_interface then "interface" else "class") name;
+	let enum_fields, isenum = (try
+		if Array.length c.cl3_fields > 0 || c.cl3_interface || Array.length s.st3_fields = 0 then raise Exit;
+		let etype = ref None in
+		let fields = List.map (fun f ->
+			(match f.f3_kind with
+			| A3FVar v ->
+				let t = type_val ctx v.v3_type (Some v.v3_value) in
+				(match !etype with
+				| None -> etype := Some t
+				| Some t2 -> if t <> t2 then raise Exit);
+			| _ -> raise Exit);
+			let prot, name = ident_rights ctx f.f3_name in
+			if prot <> APublic then raise Exit;
+			name
+		) (Array.to_list s.st3_fields) in
+		fields, true
+	with Exit -> [], false) in	
+	IO.printf ch "extern %s %s" (if isenum then "enum" else if c.cl3_interface then "interface" else "class") name;
 	let prev = ref (match c.cl3_super with
 	| None -> false
 	| Some p ->
@@ -1188,10 +1244,13 @@ let genhx_class ctx c s =
 		IO.printf ch " implements %s" (s_type_path (type_path ctx i));
 	) c.cl3_implements;
 	IO.printf ch " {\n";
-	IO.printf ch "\t";
-	if not c.cl3_interface then gen_method ctx ch "new" c.cl3_construct;
-	gen_fields ctx ch c.cl3_fields false;
-	gen_fields ctx ch s.st3_fields true;
+	if isenum then
+		List.iter (fun f -> IO.printf ch "\t%s;\n" f) (List.sort compare enum_fields)
+	else begin
+		let construct = (if not c.cl3_interface && Array.length c.cl3_fields > 0 then Some c.cl3_construct else None) in		
+		gen_fields ctx ch c.cl3_fields false construct;
+		gen_fields ctx ch s.st3_fields true None;
+	end;
 	IO.printf ch "}\n";
 	prerr_endline ";";
 	IO.close_out ch

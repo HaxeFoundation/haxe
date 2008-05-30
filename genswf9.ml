@@ -162,7 +162,8 @@ let type_path ctx path =
 		| ["flash";"utils"], "QName" -> [] , "QName"
 		| ["flash";"utils"], "Namespace" -> [] , "Namespace"
 		| ["flash"] , "FlashXml__" -> [] , "Xml"
-		| ["flash"] , "Boot" -> [] , ctx.boot		
+		| ["flash"] , "Boot" -> [] , ctx.boot
+		| ["flash"] , "Error" -> [], "Error"
 		| _ -> path
 	) in
 	HMPath (pack,name)
@@ -841,12 +842,19 @@ let rec gen_expr_content ctx retval e =
 				write ctx HScope;
 				write ctx (HReg (match ctx.try_scope_reg with None -> assert false | Some r -> r.rid));
 				write ctx HScope;
+				(* store the exception into local var, using a tmp register if needed *)
 				define_local ctx ename t [e];
-				let r = (try match PMap.find ename ctx.locals with LReg r -> Some (alloc_reg ctx r.rtype) | _ -> None with Not_found -> assert false) in
-				(match r with None -> () | Some r -> set_reg ctx r);
+				let r = (match try PMap.find ename ctx.locals with Not_found -> assert false with
+					| LReg _ -> None
+					| _ ->
+						let r = alloc_reg ctx (classify ctx t) in
+						set_reg ctx r;
+						Some r
+				) in				
 				let acc = gen_local_access ctx ename e.epos Write in
 				(match r with None -> () | Some r -> write ctx (HReg r.rid));
 				setvar ctx acc false;
+				(* ----- *)
 				gen_expr ctx retval e;
 				b();
 				if retval then ctx.infos.istack <- ctx.infos.istack - 1;
