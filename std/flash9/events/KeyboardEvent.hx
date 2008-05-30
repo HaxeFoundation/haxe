@@ -1,20 +1,14 @@
 package flash.events;
 
-extern class KeyboardEvent extends flash.events.Event {
-	function new(type : String, ?bubbles : Bool, ?cancelable : Bool, ?charCode : UInt, ?keyCode : UInt, ?keyLocation : UInt, ?ctrlKey : Bool, ?altKey : Bool, ?shiftKey : Bool) : Void;
+extern class KeyboardEvent extends Event {
 	var altKey : Bool;
 	var charCode : UInt;
 	var ctrlKey : Bool;
 	var keyCode : UInt;
-	var keyLocation : UInt;
+	var keyLocation : flash.ui.KeyLocation;
 	var shiftKey : Bool;
+	function new(type : String, ?bubbles : Bool, ?cancelable : Bool, ?charCode : UInt, ?keyCode : UInt, ?keyLocation : flash.ui.KeyLocation, ?ctrlKey : Bool, ?altKey : Bool, ?shiftKey : Bool) : Void;
 	function updateAfterEvent() : Void;
-	private var m_altKey : Bool;
-	private var m_charCode : UInt;
-	private var m_ctrlKey : Bool;
-	private var m_keyCode : UInt;
-	private var m_keyLocation : UInt;
-	private var m_shiftKey : Bool;
 	static var KEY_DOWN : String;
 	static var KEY_UP : String;
 }

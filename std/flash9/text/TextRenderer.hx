@@ -1,9 +1,8 @@
 package flash.text;
 
 extern class TextRenderer {
-	function new() : Void;
-	static var antiAliasType : String;
-	static var displayMode : String;
+	static var antiAliasType : AntiAliasType;
+	static var displayMode : TextDisplayMode;
 	static var maxLevel : Int;
-	static function setAdvancedAntiAliasingTable(fontName : String, fontStyle : String, colorType : String, advancedAntiAliasingTable : Array<Dynamic>) : Void;
+	static function setAdvancedAntiAliasingTable(fontName : String, fontStyle : FontStyle, colorType : TextColorType, advancedAntiAliasingTable : Array<Dynamic>) : Void;
 }

@@ -1,13 +1,12 @@
 package flash.text;
 
 extern class TextFormat {
-	function new(?font : String, ?size : Dynamic, ?color : Dynamic, ?bold : Dynamic, ?italic : Dynamic, ?underline : Dynamic, ?url : String, ?target : String, ?align : String, ?leftMargin : Dynamic, ?rightMargin : Dynamic, ?indent : Dynamic, ?leading : Dynamic) : Void;
-	var align : String;
+	var align : TextFormatAlign;
 	var blockIndent : Dynamic;
 	var bold : Dynamic;
 	var bullet : Dynamic;
 	var color : Dynamic;
-	var display : String;
+	var display : TextFormatDisplay;
 	var font : String;
 	var indent : Dynamic;
 	var italic : Dynamic;
@@ -21,4 +20,5 @@ extern class TextFormat {
 	var target : String;
 	var underline : Dynamic;
 	var url : String;
+	function new(?font : String, ?size : Dynamic, ?color : Dynamic, ?bold : Dynamic, ?italic : Dynamic, ?underline : Dynamic, ?url : String, ?target : String, ?align : String, ?leftMargin : Dynamic, ?rightMargin : Dynamic, ?indent : Dynamic, ?leading : Dynamic) : Void;
 }

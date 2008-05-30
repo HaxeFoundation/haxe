@@ -1,8 +1,6 @@
 package flash.ui;
 
 extern class ContextMenuBuiltInItems {
-	function new() : Void;
-	function clone() : flash.ui.ContextMenuBuiltInItems;
 	var forwardAndBack : Bool;
 	var loop : Bool;
 	var play : Bool;
@@ -11,4 +9,6 @@ extern class ContextMenuBuiltInItems {
 	var rewind : Bool;
 	var save : Bool;
 	var zoom : Bool;
+	function new() : Void;
+	function clone() : ContextMenuBuiltInItems;
 }

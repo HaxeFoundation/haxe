@@ -1,11 +1,11 @@
 package flash.xml;
 
-extern class XMLNodeType {
-	static var CDATA_NODE : UInt;
-	static var COMMENT_NODE : UInt;
-	static var DOCUMENT_TYPE_NODE : UInt;
-	static var ELEMENT_NODE : UInt;
-	static var PROCESSING_INSTRUCTION_NODE : UInt;
-	static var TEXT_NODE : UInt;
-	static var XML_DECLARATION : UInt;
+extern enum XMLNodeType {
+	CDATA_NODE;
+	COMMENT_NODE;
+	DOCUMENT_TYPE_NODE;
+	ELEMENT_NODE;
+	PROCESSING_INSTRUCTION_NODE;
+	TEXT_NODE;
+	XML_DECLARATION;
 }

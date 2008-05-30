@@ -1,9 +1,9 @@
 package flash.xml;
 
 extern class XMLTag {
-	function new() : Void;
 	var attrs : Dynamic;
 	var empty : Bool;
-	var type : UInt;
+	var type : XMLNodeType;
 	var value : String;
+	function new() : Void;
 }

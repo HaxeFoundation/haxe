@@ -1,7 +1,6 @@
 package flash.filters;
 
-extern class GlowFilter extends flash.filters.BitmapFilter {
-	function new(?color : UInt, ?alpha : Float, ?blurX : Float, ?blurY : Float, ?strength : Float, ?quality : Int, ?inner : Bool, ?knockout : Bool) : Void;
+extern class GlowFilter extends BitmapFilter {
 	var alpha : Float;
 	var blurX : Float;
 	var blurY : Float;
@@ -10,4 +9,5 @@ extern class GlowFilter extends flash.filters.BitmapFilter {
 	var knockout : Bool;
 	var quality : Int;
 	var strength : Float;
+	function new(?color : UInt, ?alpha : Float, ?blurX : Float, ?blurY : Float, ?strength : Float, ?quality : Int, ?inner : Bool, ?knockout : Bool) : Void;
 }

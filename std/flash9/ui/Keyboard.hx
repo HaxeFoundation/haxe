@@ -1,7 +1,6 @@
 package flash.ui;
 
 extern class Keyboard {
-	function new() : Void;
 	static var BACKSPACE : UInt;
 	static var CAPS_LOCK : UInt;
 	static var CONTROL : UInt;
@@ -52,6 +51,6 @@ extern class Keyboard {
 	static var TAB : UInt;
 	static var UP : UInt;
 	static var capsLock(default,null) : Bool;
-	static function isAccessible() : Bool;
 	static var numLock(default,null) : Bool;
+	static function isAccessible() : Bool;
 }

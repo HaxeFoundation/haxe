@@ -1,6 +1,6 @@
 package flash.filters;
 
-extern class ColorMatrixFilter extends flash.filters.BitmapFilter {
+extern class ColorMatrixFilter extends BitmapFilter {
+	var matrix : Array<Dynamic>;
 	function new(?matrix : Array<Dynamic>) : Void;
-	var matrix : Array<Float>;
 }

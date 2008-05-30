@@ -27,6 +27,7 @@ package flash;
 class Boot {
 
 	private static var def_color = 0;
+	private static var exception = null;
 
 	private static function __string_rec(o : Dynamic,s : String) {
 		untyped {

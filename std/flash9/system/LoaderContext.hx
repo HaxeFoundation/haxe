@@ -1,8 +1,8 @@
 package flash.system;
 
 extern class LoaderContext {
-	function new(?checkPolicyFile : Bool, ?applicationDomain : flash.system.ApplicationDomain, ?securityDomain : flash.system.SecurityDomain) : Void;
-	var applicationDomain : flash.system.ApplicationDomain;
+	var applicationDomain : ApplicationDomain;
 	var checkPolicyFile : Bool;
-	var securityDomain : flash.system.SecurityDomain;
+	var securityDomain : SecurityDomain;
+	function new(?checkPolicyFile : Bool, ?applicationDomain : ApplicationDomain, ?securityDomain : SecurityDomain) : Void;
 }

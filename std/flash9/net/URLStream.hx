@@ -7,7 +7,7 @@ extern class URLStream extends flash.events.EventDispatcher, implements flash.ut
 	var objectEncoding : UInt;
 	function new() : Void;
 	function close() : Void;
-	function load(request : flash.net.URLRequest) : Void;
+	function load(request : URLRequest) : Void;
 	function readBoolean() : Bool;
 	function readByte() : Int;
 	function readBytes(bytes : flash.utils.ByteArray, ?offset : UInt, ?length : UInt) : Void;

@@ -1,13 +1,13 @@
 package flash.utils;
 
 extern class ObjectInput implements IDataInput {
-	function new() : Void;
 	var bytesAvailable(default,null) : UInt;
 	var endian : Endian;
 	var objectEncoding : UInt;
+	function new() : Void;
 	function readBoolean() : Bool;
 	function readByte() : Int;
-	function readBytes(bytes : flash.utils.ByteArray, ?offset : UInt, ?length : UInt) : Void;
+	function readBytes(bytes : ByteArray, ?offset : UInt, ?length : UInt) : Void;
 	function readDouble() : Float;
 	function readFloat() : Float;
 	function readInt() : Int;

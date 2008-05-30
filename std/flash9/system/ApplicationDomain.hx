@@ -1,12 +1,11 @@
 package flash.system;
 
 extern class ApplicationDomain {
-	function new(?parentDomain : flash.system.ApplicationDomain) : Void;
+	var parentDomain(default,null) : ApplicationDomain;
+	function new(?parentDomain : ApplicationDomain) : Void;
 	function getDefinition(name : String) : Dynamic;
 	function hasDefinition(name : String) : Bool;
-	var parentDomain(default,null) : flash.system.ApplicationDomain;
-	static var currentDomain(default,null) : flash.system.ApplicationDomain;
-
+	static var currentDomain(default,null) : ApplicationDomain;
 	#if flash10
 	static var MIN_DOMAIN_MEMORY_LENGTH(default,null) : UInt;
 	var domainMemory : flash.utils.ByteArray;

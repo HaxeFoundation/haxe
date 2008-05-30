@@ -1,23 +1,23 @@
 package flash.geom;
 
 extern class Matrix {
-	function new(?a : Float, ?b : Float, ?c : Float, ?d : Float, ?tx : Float, ?ty : Float) : Void;
 	var a : Float;
 	var b : Float;
 	var c : Float;
-	function clone() : flash.geom.Matrix;
-	function concat(m : flash.geom.Matrix) : Void;
+	var d : Float;
+	var tx : Float;
+	var ty : Float;
+	function new(?a : Float, ?b : Float, ?c : Float, ?d : Float, ?tx : Float, ?ty : Float) : Void;
+	function clone() : Matrix;
+	function concat(m : Matrix) : Void;
 	function createBox(scaleX : Float, scaleY : Float, ?rotation : Float, ?tx : Float, ?ty : Float) : Void;
 	function createGradientBox(width : Float, height : Float, ?rotation : Float, ?tx : Float, ?ty : Float) : Void;
-	var d : Float;
-	function deltaTransformPoint(point : flash.geom.Point) : flash.geom.Point;
+	function deltaTransformPoint(point : Point) : Point;
 	function identity() : Void;
 	function invert() : Void;
 	function rotate(angle : Float) : Void;
 	function scale(sx : Float, sy : Float) : Void;
 	function toString() : String;
-	function transformPoint(point : flash.geom.Point) : flash.geom.Point;
+	function transformPoint(point : Point) : Point;
 	function translate(dx : Float, dy : Float) : Void;
-	var tx : Float;
-	var ty : Float;
 }

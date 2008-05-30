@@ -1,7 +1,6 @@
 package flash.net;
 
 extern class NetStream extends flash.events.EventDispatcher {
-
 	var audioCodec(default,null) : UInt;
 	var bufferLength(default,null) : Float;
 	var bufferTime : Float;

@@ -1,8 +1,7 @@
 package flash.events;
 
-extern class SyncEvent extends flash.events.Event {
-	function new(type : String, ?bubbles : Bool, ?cancelable : Bool, ?changeList : Array<Dynamic>) : Void;
+extern class SyncEvent extends Event {
 	var changeList : Array<Dynamic>;
-	private var m_changeList : Array<Dynamic>;
+	function new(type : String, ?bubbles : Bool, ?cancelable : Bool, ?changeList : Array<Dynamic>) : Void;
 	static var SYNC : String;
 }

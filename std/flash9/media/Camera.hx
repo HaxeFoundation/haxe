@@ -1,7 +1,6 @@
 package flash.media;
 
 extern class Camera extends flash.events.EventDispatcher {
-	function new() : Void;
 	var activityLevel(default,null) : Float;
 	var bandwidth(default,null) : Int;
 	var currentFPS(default,null) : Float;
@@ -15,13 +14,14 @@ extern class Camera extends flash.events.EventDispatcher {
 	var muted(default,null) : Bool;
 	var name(default,null) : String;
 	var quality(default,null) : Int;
+	var width(default,null) : Int;
+	function new() : Void;
 	function setCursor(value : Bool) : Void;
 	function setKeyFrameInterval(keyFrameInterval : Int) : Void;
 	function setLoopback(?compress : Bool) : Void;
 	function setMode(width : Int, height : Int, fps : Float, ?favorArea : Bool) : Void;
 	function setMotionLevel(motionLevel : Int, ?timeout : Int) : Void;
 	function setQuality(bandwidth : Int, quality : Int) : Void;
-	var width(default,null) : Int;
-	static function getCamera(?name : String) : flash.media.Camera;
 	static var names(default,null) : Array<Dynamic>;
+	static function getCamera(?name : String) : Camera;
 }

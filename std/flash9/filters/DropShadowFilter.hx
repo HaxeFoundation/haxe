@@ -1,7 +1,6 @@
 package flash.filters;
 
-extern class DropShadowFilter extends flash.filters.BitmapFilter {
-	function new(?distance : Float, ?angle : Float, ?color : UInt, ?alpha : Float, ?blurX : Float, ?blurY : Float, ?strength : Float, ?quality : Int, ?inner : Bool, ?knockout : Bool, ?hideObject : Bool) : Void;
+extern class DropShadowFilter extends BitmapFilter {
 	var alpha : Float;
 	var angle : Float;
 	var blurX : Float;
@@ -13,4 +12,5 @@ extern class DropShadowFilter extends flash.filters.BitmapFilter {
 	var knockout : Bool;
 	var quality : Int;
 	var strength : Float;
+	function new(?distance : Float, ?angle : Float, ?color : UInt, ?alpha : Float, ?blurX : Float, ?blurY : Float, ?strength : Float, ?quality : Int, ?inner : Bool, ?knockout : Bool, ?hideObject : Bool) : Void;
 }

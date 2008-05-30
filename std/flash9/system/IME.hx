@@ -1,10 +1,9 @@
 package flash.system;
 
 extern class IME extends flash.events.EventDispatcher {
-	function new() : Void;
 	static var constructOK(null,default) : Void;
-	static var conversionMode : String;
-	static function doConversion() : Void;
+	static var conversionMode : IMEConversionMode;
 	static var enabled : Bool;
+	static function doConversion() : Void;
 	static function setCompositionString(composition : String) : Void;
 }

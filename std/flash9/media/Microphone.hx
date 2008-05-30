@@ -1,7 +1,6 @@
 package flash.media;
 
 extern class Microphone extends flash.events.EventDispatcher {
-
 	var activityLevel(default,null) : Float;
 	var gain : Float;
 	var index(default,null) : Int;
@@ -10,20 +9,18 @@ extern class Microphone extends flash.events.EventDispatcher {
 	var rate : Int;
 	var silenceLevel(default,null) : Float;
 	var silenceTimeout(default,null) : Int;
-	var soundTransform : flash.media.SoundTransform;
+	var soundTransform : SoundTransform;
 	var useEchoSuppression(default,null) : Bool;
-
-	function new() : Void;
-	function setLoopBack(?state : Bool) : Void;
-	function setSilenceLevel(silenceLevel : Float, ?timeout : Int) : Void;
-	function setUseEchoSuppression(useEchoSuppression : Bool) : Void;
-
 	#if flash10
 	var codec : SoundCodec;
 	var encodeQuality : Int;
 	var framesPerPacket : Int;
 	#end
 
-	static function getMicrophone(?index : Int) : flash.media.Microphone;
+	function new() : Void;
+	function setLoopBack(?state : Bool) : Void;
+	function setSilenceLevel(silenceLevel : Float, ?timeout : Int) : Void;
+	function setUseEchoSuppression(useEchoSuppression : Bool) : Void;
 	static var names(default,null) : Array<Dynamic>;
+	static function getMicrophone(?index : Int) : Microphone;
 }

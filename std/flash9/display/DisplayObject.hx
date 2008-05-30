@@ -5,7 +5,7 @@ extern class DisplayObject extends flash.events.EventDispatcher, implements IBit
 	var alpha : Float;
 	var blendMode : BlendMode;
 	var cacheAsBitmap : Bool;
-	var filters : Array<Dynamic>; // does not use variance here
+	var filters : Array<Dynamic>;
 	var height : Float;
 	var loaderInfo(default,null) : LoaderInfo;
 	var mask : DisplayObject;
