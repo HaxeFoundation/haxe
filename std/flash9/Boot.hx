@@ -26,8 +26,6 @@ package flash;
 
 class Boot extends flash.display.MovieClip, implements Dynamic {
 
-	#if (!flash9doc)
-
 	static var init : Void -> Void;
 	static var tf : flash.text.TextField;
 	static var lines : Array<String>;
@@ -57,14 +55,14 @@ class Boot extends flash.display.MovieClip, implements Dynamic {
 				return false;
 			}
 			aproto.iterator = function() {
+				var cur = 0;
+				var arr : Array<Dynamic> = this;
 				return {
-					cur : 0,
-					arr : this,
 					hasNext : function() {
-						return this.cur < this.arr.length;
+						return cur < arr.length;
 					},
 					next : function() {
-						return this.arr[this.cur++];
+						return arr[cur++];
 					}
 				}
 			};
@@ -93,7 +91,7 @@ class Boot extends flash.display.MovieClip, implements Dynamic {
 			init();
 	}
 
-	public static function enum_to_string( e ) {
+	public static function enum_to_string( e : { tag : String, params : Array<Dynamic> } ) {
 		if( e.params == null )
 			return e.tag;
 		return e.tag+"("+e.params.join(",")+")";
@@ -190,6 +188,8 @@ class Boot extends flash.display.MovieClip, implements Dynamic {
 		return new String(v);
 	}
 
-	#end
+	static function __unprotect__( s : String ) {
+		return s;
+	}
 
 }

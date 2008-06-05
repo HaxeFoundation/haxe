@@ -1102,7 +1102,9 @@ and gen_call ctx retval e el =
 		gen_expr ctx true f;
 		write ctx (HDeleteProp dynamic_prop);
 	| TLocal "__unprotect__" , [e] ->
-		gen_expr ctx true e
+		write ctx (HGetLex (type_path ctx ([],ctx.boot)));
+		gen_expr ctx true e;
+		write ctx (HCallProperty (ident "__unprotect__",1));
 	| TLocal "__typeof__", [e] ->
 		gen_expr ctx true e;
 		write ctx HTypeof
@@ -1468,7 +1470,7 @@ let generate_enum_init ctx e hc =
 	write ctx (HReg r.rid);
 	List.iter (fun n -> write ctx (HString n)) e.e_names;
 	write ctx (HArray (List.length e.e_names));
-	write ctx (HSetSlot (!nslot + 1));
+	write ctx (HSetProp (ident "__constructs__"));
 	free_reg ctx r
 
 let generate_field_kind ctx f c stat =
@@ -1643,10 +1645,10 @@ let generate_enum ctx e =
 		hlc_implements = [||];
 		hlc_construct = construct;
 		hlc_fields = [|
-			{ hlf_name = tag_id; hlf_slot = 0; hlf_kind = HFVar { hlv_type = None; hlv_value = HVNone; hlv_const = false; }; hlf_metas = None };
-			{ hlf_name = index_id; hlf_slot = 0; hlf_kind = HFVar { hlv_type = None; hlv_value = HVNone; hlv_const = false; }; hlf_metas = None };
-			{ hlf_name = params_id; hlf_slot = 0; hlf_kind = HFVar { hlv_type = None; hlv_value = HVNone; hlv_const = false; }; hlf_metas = None };
-			{ hlf_name = ident "__enum__"; hlf_slot = 0; hlf_kind = HFVar { hlv_type = None; hlv_value = HVBool true; hlv_const = true }; hlf_metas = None };
+			{ hlf_name = tag_id; hlf_slot = 0; hlf_kind = HFVar { hlv_type = Some (HMPath ([],"String")); hlv_value = HVNone; hlv_const = false; }; hlf_metas = None };
+			{ hlf_name = index_id; hlf_slot = 0; hlf_kind = HFVar { hlv_type = Some (HMPath ([],"int")); hlv_value = HVNone; hlv_const = false; }; hlf_metas = None };
+			{ hlf_name = params_id; hlf_slot = 0; hlf_kind = HFVar { hlv_type = Some (HMPath ([],"Array")); hlv_value = HVNone; hlv_const = false; }; hlf_metas = None };
+			{ hlf_name = ident "__enum__"; hlf_slot = 0; hlf_kind = HFVar { hlv_type = Some (HMPath ([],"Boolean")); hlv_value = HVBool true; hlv_const = true }; hlf_metas = None };
 			{
 				hlf_name = ident "toString";
 				hlf_slot = 0;

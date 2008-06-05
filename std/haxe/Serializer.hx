@@ -133,10 +133,10 @@ class Serializer {
 	// only the instance variables
 
 	function serializeClassFields(v,c) {
-		var xml : Dynamic = untyped __global__["flash.utils.describeType"](c).factory;
-		var vars = xml.child("variable");
+		var xml : flash.xml.XML = untyped __global__["flash.utils.describeType"](c);
+		var vars = xml.factory[0].child("variable");
 		for( i in 0...vars.length() ) {
-			var f = untyped vars[i].attribute("name").toString();
+			var f = vars[i].attribute("name").toString();
 			if( !v.hasOwnProperty(f) )
 				continue;
 			serializeString(f);

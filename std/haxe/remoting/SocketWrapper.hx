@@ -74,6 +74,7 @@ class SocketWrapper {
 	}
 
 	static function init() {
+		if( !flash.external.ExternalInterface.available ) return;
 		var ctx = new Context();
 		var o = {};
 		Reflect.setField(o,"create",create);

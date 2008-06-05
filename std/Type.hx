@@ -291,17 +291,17 @@ class Type {
 	}
 
 	#if flash9
-	static function describe( t : Dynamic, fact : Bool ) {
+	static function describe( t : Dynamic, fact : Bool ) untyped {
 		var fields = new Array();
-		var xml : Dynamic = untyped __global__["flash.utils.describeType"](t);
+		var xml : flash.xml.XML = __global__["flash.utils.describeType"](t);
 		if( fact )
-			xml = xml.factory;
+			xml = xml.factory[0];
 		var methods = xml.child("method");
 		for( i in 0...methods.length() )
-			fields.push( Std.string(untyped methods[i].attribute("name")) );
+			fields.push( Std.string(methods[i].attribute("name")) );
 		var vars = xml.child("variable");
 		for( i in 0...vars.length() )
-			fields.push( Std.string(untyped vars[i].attribute("name")) );
+			fields.push( Std.string(vars[i].attribute("name")) );
 		return fields;
 	}
 	#end

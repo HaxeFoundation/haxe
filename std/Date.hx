@@ -157,12 +157,13 @@ extern class Date
 			}
 		};
 		Date.prototype["toString"] = function() {
-			var m = this.getMonth() + 1;
-			var d = this.getDate();
-			var h = this.getHours();
-			var mi = this.getMinutes();
-			var s = this.getSeconds();
-			return this.getFullYear()
+			var date : Date = this;
+			var m = date.getMonth() + 1;
+			var d = date.getDate();
+			var h = date.getHours();
+			var mi = date.getMinutes();
+			var s = date.getSeconds();
+			return date.getFullYear()
 				+"-"+(if( m < 10 ) "0"+m else ""+m)
 				+"-"+(if( d < 10 ) "0"+d else ""+d)
 				+" "+(if( h < 10 ) "0"+h else ""+h)

@@ -11,7 +11,7 @@ class TestReflect extends Test {
 	];
 
 	static inline function u( s : String ) : String {
-		#if (flash && !flash9)
+		#if flash
 		return untyped __unprotect__(s);
 		#else
 		return s;
@@ -26,7 +26,7 @@ class TestReflect extends Test {
 		"null","Int","String","Bool","Float",
 		"Array",u("Hash"),u("List"),"Date","Xml","Math",
 		u2("unit","MyEnum"),u2("unit","MyClass"),u2("unit","MySubClass"),
-		u("Class"),u("Enum"),u("Void"),u("Dynamic"),
+		#if !flash9 u #end("Class"),u("Enum"),u("Void"),u("Dynamic"),
 	];
 
 	public function testTypes() {
