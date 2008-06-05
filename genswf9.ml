@@ -487,6 +487,29 @@ let debug ctx p =
 		ctx.last_line <- line;
 	end
 
+let end_fun ctx args tret =
+	let dparams = ref None in
+	List.iter (fun (_,opt,t) ->
+		match !dparams with
+		| None -> if opt then dparams := Some [HVNone]
+		| Some l -> dparams := Some (HVNone :: l)
+	) args;
+	{
+		hlmt_mark = As3hlparse.alloc_mark();
+		hlmt_ret = type_void ctx tret;
+		hlmt_args = List.map (fun (_,_,t) -> type_opt ctx t) args;
+		hlmt_native = false;
+		hlmt_var_args = false;
+		hlmt_debug_name = None;
+		hlmt_dparams = !dparams;
+		hlmt_pnames = None;
+		hlmt_new_block = false;
+		hlmt_unused_flag = false;
+		hlmt_arguments_defined = false;
+		hlmt_uses_dxns = false;
+		hlmt_function = None;
+	}
+		
 let begin_fun ctx args tret el stat p =
 	let old_locals = ctx.locals in
 	let old_code = ctx.code in
@@ -539,12 +562,6 @@ let begin_fun ctx args tret el stat p =
 	ctx.try_scope_reg <- (try List.iter loop_try el; None with Exit -> Some (alloc_reg ctx KDynamic));
 	(fun () ->
 		let hasblock = ctx.block_vars <> [] || ctx.trys <> [] in
-		let dparams = ref None in
-		List.iter (fun (_,opt,t) ->
-			match !dparams with
-			| None -> if opt then dparams := Some [HVNone]
-			| Some l -> dparams := Some (HVNone :: l)
-		) args;
 		let code = DynArray.to_list ctx.code in
 		let extra = (
 			if hasblock then begin
@@ -591,19 +608,9 @@ let begin_fun ctx args tret el stat p =
 			) (List.rev ctx.trys));
 			hlf_locals = Array.of_list (List.map (fun (id,name,t) -> ident name, type_opt ctx t, id) ctx.block_vars);
 		} in
-		let mt = {
-			hlmt_mark = As3hlparse.alloc_mark();
-			hlmt_ret = type_void ctx tret;
-			hlmt_args = List.map (fun (_,_,t) -> type_opt ctx t) args;
-			hlmt_native = false;
+		let mt = { (end_fun ctx args tret) with
 			hlmt_var_args = varargs;
-			hlmt_debug_name = None;
-			hlmt_dparams = !dparams;
-			hlmt_pnames = None;
 			hlmt_new_block = hasblock;
-			hlmt_unused_flag = false;
-			hlmt_arguments_defined = false;
-			hlmt_uses_dxns = false;
 			hlmt_function = Some f;
 		} in
 		ctx.locals <- old_locals;
@@ -1487,7 +1494,16 @@ let generate_field_kind ctx f c stat =
 				hlm_kind = MK3Normal;
 			})
 	| _ when c.cl_interface && not stat ->
-		None
+		(match follow f.cf_type with
+		| TFun (args,tret) when f.cf_set = MethodCantAccess ->
+			Some (HFMethod {
+				hlm_type = end_fun ctx args tret;
+				hlm_final = false;
+				hlm_override = false;
+				hlm_kind = MK3Normal;
+			})
+		| _ ->
+			None)
 	| _ when f.cf_get = ResolveAccess ->
 		None
 	| _ ->

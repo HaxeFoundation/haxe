@@ -44,6 +44,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	fixed Type.getClassName/getEnumName/resolve for core flash9 types
 	renamed haxe.rtti.Type to haxe.rtti.CType (with changes in prefix)
 	added haxe.TimerQueue, added haxe.Timer.delay, remove haxe.Timer.delayed
+	flash9 : bugfix, generated interfaces were empty
 
 2008-04-05: 1.19
 	fixed flash9 Array.toString
