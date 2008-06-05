@@ -23,6 +23,7 @@ class TestRemoting extends Test {
 	static function init() {
 		var ctx = RemotingApi.context();
 		#if flash
+		if( !flash.external.ExternalInterface.available ) return;
 		ecnx = haxe.remoting.ExternalConnection.jsConnect("cnx",ctx);
 		ecnx3 = haxe.remoting.ExternalConnection.jsConnect("unknown",ctx);
 		lcnx = haxe.remoting.LocalConnection.connect("local",ctx,[HOST]);
@@ -35,6 +36,10 @@ class TestRemoting extends Test {
 	}
 
 	public function test() {
+		#if flash
+		if( !flash.external.ExternalInterface.available ) return;
+		#end
+
 		// external connection
 		#if (flash || js)
 		doTestConnection(ecnx);
