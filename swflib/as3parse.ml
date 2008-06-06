@@ -872,6 +872,8 @@ let write ch1 ctx =
 (* ************************************************************************ *)
 (* DUMP *)
 
+let dump_code_size = ref true
+
 let ident_str ctx i =
 	iget ctx.as3_idents i
 
@@ -1027,7 +1029,7 @@ let dump_function ctx ch idx f =
 	let pos = ref 0 in
 	Array.iter (fun op ->
 		IO.printf ch "%4d    %s\n" !pos (As3code.dump ctx op);
-		pos := !pos + As3code.length op;
+		if !dump_code_size then pos := !pos + As3code.length op else incr pos;
 	) f.fun3_code;
 	IO.printf ch "\n"
 
@@ -1059,7 +1061,7 @@ let dump ch ctx id =
 	(match id with
 	| None -> IO.printf ch "\n---------------- AS3 -------------------------\n\n";
 	| Some (id,f) -> IO.printf ch "\n---------------- AS3 %s [%d] -----------------\n\n" f id);
-	Array.iteri (dump_int ctx ch) ctx.as3_ints;
+(*	Array.iteri (dump_int ctx ch) ctx.as3_ints;
 	Array.iteri (dump_float ctx ch) ctx.as3_floats;
 	Array.iteri (dump_ident ctx ch) ctx.as3_idents;
 	IO.printf ch "\n";
@@ -1068,7 +1070,7 @@ let dump ch ctx id =
 	Array.iteri (dump_ns_set ctx ch) ctx.as3_nsets;
 	IO.printf ch "\n";
 	Array.iteri (dump_name ctx ch) ctx.as3_names;
-	IO.printf ch "\n";
+	IO.printf ch "\n"; *)
 (*	Array.iteri (dump_metadata ctx ch) ctx.as3_metadatas; *)
 	Array.iteri (dump_class ctx ch) ctx.as3_classes;
 	Array.iteri (dump_init ctx ch) ctx.as3_inits;

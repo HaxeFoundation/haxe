@@ -167,7 +167,7 @@ and hl_method = {
 	hlmt_debug_name : hl_ident option;
 	hlmt_dparams : hl_value list option;
 	hlmt_pnames : hl_ident option list option;
-	hlmt_function : hl_function option; (* None for interfaces constructors only *)
+	mutable hlmt_function : hl_function option; (* None for interfaces constructors only *)
 }
 
 and hl_try_catch = {
@@ -229,10 +229,10 @@ and hl_class = {
 	hlc_interface : bool;
 	hlc_namespace : hl_namespace option;
 	hlc_implements : hl_name array;
-	hlc_construct : hl_method;
-	hlc_fields : hl_field array;
-	hlc_static_construct : hl_method;
-	hlc_static_fields : hl_field array;
+	mutable hlc_construct : hl_method;
+	mutable hlc_fields : hl_field array;
+	mutable hlc_static_construct : hl_method;
+	mutable hlc_static_fields : hl_field array;
 }
 
 and hl_static = {
