@@ -259,7 +259,7 @@ let parse_code ctx f trys =
 	let codepos pos delta =
 		let id = (try DynArray.get indexes (pos + delta) with _ -> -1) in
 		if id = -1 then begin
-			Printf.eprintf "MISALIGNED JUMP AT %d %c %d IN #%d\n" pos (if delta < 0 then '-' else '+') (if delta < 0 then -delta else delta) (idx (no_nz f.fun3_id));
+			(*Printf.eprintf "MISALIGNED JUMP AT %d %c %d IN #%d\n" pos (if delta < 0 then '-' else '+') (if delta < 0 then -delta else delta) (idx (no_nz f.fun3_id));*)
 			DynArray.get indexes pos; (* jump 0 *)
 		end else
 			id
@@ -743,7 +743,7 @@ let flatten_code ctx hcode trys =
 		Array.set code j (match Array.get code j with
 			| A3Jump (jc,n) ->
 				A3Jump (jc,positions.(j+n) - positions.(j+1))
-			| A3Switch (n,infos) -> 
+			| A3Switch (n,infos) ->
 				A3Switch (positions.(j+n) - positions.(j),List.map (fun n -> positions.(j+n) - positions.(j)) infos)
 			| _ -> assert false);
 	) ctx.fjumps;
