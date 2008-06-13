@@ -207,6 +207,8 @@ class Browser extends MetaPart<Browser> {
 
 	public function getAddress( name, ?charset ){
 		var e = getHeader(name,charset);
+		if( e == null )
+			return null;
 		return Tools.parseAddress(e,false);
 	}
 
