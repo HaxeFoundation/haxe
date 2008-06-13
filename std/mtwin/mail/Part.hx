@@ -361,7 +361,10 @@ class MetaPart<T> {
 		if( hctype != null ){
 			var t = hctype.value.split("/");
 			ctype0 = StringTools.trim(t[0]).toLowerCase();
-			ctype1 = StringTools.trim(t[1]).toLowerCase();
+			if( t.length > 1 )
+				ctype1 = StringTools.trim(t[1]).toLowerCase();
+			else
+				ctype1 = "";
 
 			if( hctype.params.exists("charset") ){
 				charset = hctype.params.get("charset");
