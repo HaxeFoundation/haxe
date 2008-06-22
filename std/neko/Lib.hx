@@ -112,7 +112,7 @@ class Lib {
 			var i = 0;
 			var l = __dollar__asize(f);
 			var o = __dollar__new(v);
-			if( __dollar__objgetproto(f) != null )
+			if( __dollar__objgetproto(v) != null )
 				throw "Can't convert object prototype";
 			while( i < l ) {
 				__dollar__objset(o,f[i],nekoToHaxe(__dollar__objget(v,f[i])));
