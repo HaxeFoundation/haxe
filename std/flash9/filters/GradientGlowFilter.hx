@@ -11,6 +11,6 @@ extern class GradientGlowFilter extends BitmapFilter {
 	var quality : Int;
 	var ratios : Array<Dynamic>;
 	var strength : Float;
-	var type : String;
-	function new(?distance : Float, ?angle : Float, ?colors : Array<Dynamic>, ?alphas : Array<Dynamic>, ?ratios : Array<Dynamic>, ?blurX : Float, ?blurY : Float, ?strength : Float, ?quality : Int, ?type : String, ?knockout : Bool) : Void;
+	var type : BitmapFilterType;
+	function new(?distance : Float, ?angle : Float, ?colors : Array<Dynamic>, ?alphas : Array<Dynamic>, ?ratios : Array<Dynamic>, ?blurX : Float, ?blurY : Float, ?strength : Float, ?quality : Int, ?type : BitmapFilterType, ?knockout : Bool) : Void;
 }
