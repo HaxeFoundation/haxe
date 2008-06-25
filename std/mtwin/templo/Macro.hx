@@ -50,7 +50,7 @@ class Macro {
 		source = c;
 	}
 
-	public static function debug(x:String){}
+	dynamic public static function debug(x:String){}
 
 	public function expand( p:Array<String> ) : String {
 		if (params.length != p.length){
@@ -89,6 +89,13 @@ class Macro {
 				pos = end - exp.length + rep.length + 2;
 				pos = res.indexOf("::", pos);
 			}
+			// work on mt:*="" attributes
+			var param = params[i];
+			var paramValue = p[i];
+			var reg = ~/(mt:[a-z-]+=)(["'])(.*?)(\2)/sm;
+			res = reg.customReplace(res, function(r){
+				return r.matched(1) + r.matched(2) + replaceArgumentInExpression(r.matched(3), param, paramValue, isVar, isNum) + r.matched(4);
+			});
 		}
 
 		// Replace raw parameters
