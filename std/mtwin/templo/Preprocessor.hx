@@ -29,15 +29,15 @@ class Preprocessor {
 
 	static var r_if      = ~/::if([^_a-zA-Z0-9].*?)::/gs;
 	static var r_elseif  = ~/::elseif([^_a-zA-Z0-9].*?)::/gs;
-	static var r_else    = ~/::else *?::/;
-	static var r_foreach = ~/::foreach (.*?)::/gs;
-	static var r_fill    = ~/::fill (.*?)::/gs;
-	static var r_use     = ~/::use (.*?)::/gs;
-	static var r_set     = ~/::set (.*?)::/gs;
+	static var r_else    = ~/::else\s*?::/;
+	static var r_foreach = ~/::foreach\s+(.*?)::/gs;
+	static var r_fill    = ~/::fill\s+(.*?)::/gs;
+	static var r_use     = ~/::use\s+(.*?)::/gs;
+	static var r_set     = ~/::set\s+(.*?)::/gs;
 
-	static var r_cond    = ~/::cond (.*?)::/gs;
-	static var r_repeat  = ~/::repeat (.*?)::/gs;
-	static var r_attr    = ~/::attr (.*?)::/gs;
+	static var r_cond    = ~/::cond\s+(.*?)::/gs;
+	static var r_repeat  = ~/::repeat\s+(.*?)::/gs;
+	static var r_attr    = ~/::attr\s+(.*?)::/gs;
 
 	static var r_cdata     = ~/<!\[CDATA\[([^\0]*?)]]>/g;
 	static var r_comment   = ~/<!--([^\0]*?)-->/g;
