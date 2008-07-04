@@ -454,6 +454,7 @@ class Tools {
 	static var REG_ROUTE_ADDR = ~/^<((([^()<>@,;:\\"\[\]\s[:cntrl:]]+)|"((\"|[^"])*)")+@[A-Z0-9][A-Z0-9-.]*)>/i;
 	static var REG_ATOM = ~/^([^()<>@,;:"\[\]\s[:cntrl:]]+)/i;
 	static var REG_QSTRING = ~/^"((\\"|[^"])*)"/;
+	static var REG_COMMENT = ~/^\(((\\\)|[^)])*)\)/;
 	static var REG_SEPARATOR = ~/,\s*/;
 	public static function parseAddress( str : String, ?vrfy : Bool ) : Array<Address> {
 		if( vrfy == null )
@@ -488,6 +489,11 @@ class Tools {
 				else name = "";
 				name += REG_ATOM.matched(1);
 				s = REG_ATOM.matchedRight();
+			}else if( REG_COMMENT.match(s) ){
+				if( name != null ) name += " ";
+				else name = "";
+				name += REG_COMMENT.matched(1);
+				s = REG_COMMENT.matchedRight();
 			}else if( REG_SEPARATOR.match(s) ){
 				if( address != null ){
 					a.push({name: if( name != null && name.length > 0 ) name else null, address: address});
