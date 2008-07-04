@@ -41,6 +41,15 @@ let binop op a b t p =
 let index com e index t p =
 	mk (TArray (e,mk (TConst (TInt (Int32.of_int index))) com.type_api.tint p)) t p
 
+let concat e1 e2 =
+	let e = (match e1.eexpr, e2.eexpr with
+		| TBlock el1, TBlock el2 -> TBlock (el1@el2)
+		| TBlock el, _ -> TBlock (el @ [e2])
+		| _, TBlock el -> TBlock (e1 :: el)
+		| _ , _ -> TBlock [e1;e2]
+	) in
+	mk e e2.etype (punion e1.epos e2.epos)
+
 (* -------------------------------------------------------------------------- *)
 (* REMOTING PROXYS *)
 
@@ -303,6 +312,66 @@ let on_generate ctx t =
 		()
 
 (* -------------------------------------------------------------------------- *)
+(* LOCAL VARIABLES USAGE *)
+
+type usage =
+	| Block of ((usage -> unit) -> unit)
+	| Loop of ((usage -> unit) -> unit)
+	| Function of ((usage -> unit) -> unit)
+	| Declare of string * t
+	| Use of string
+
+let rec local_usage f e =
+	match e.eexpr with
+	| TLocal v ->
+		f (Use v)
+	| TVars l ->
+		List.iter (fun (v,t,e) ->
+			(match e with None -> () | Some e -> local_usage f e);
+			f (Declare (v,t));
+		) l
+	| TFunction tf ->
+		let cc f =
+			List.iter (fun (n,_,t) -> f (Declare (n,t))) tf.tf_args;
+			local_usage f tf.tf_expr;
+		in
+		f (Function cc)		
+	| TBlock l ->
+		f (Block (fun f -> List.iter (local_usage f) l))		
+	| TFor (v,t,it,e) ->
+		local_usage f it;
+		f (Loop (fun f ->
+			f (Declare (v,t));
+			local_usage f e;
+		))
+	| TWhile _ ->
+		f (Loop (fun f ->
+			iter (local_usage f) e
+		))
+	| TTry (e,catchs) ->
+		local_usage f e;
+		List.iter (fun (v,t,e) ->
+			f (Block (fun f ->
+				f (Declare (v,t));
+				local_usage f e;
+			))
+		) catchs;
+	| TMatch (e,_,cases,def) ->
+		local_usage f e;
+		List.iter (fun (_,vars,e) ->
+			let cc f = 
+				(match vars with
+				| None -> ()
+				| Some l ->	List.iter (fun (vo,t) -> match vo with None -> () | Some v -> f (Declare (v,t))) l);
+				local_usage f e;
+			in
+			f (Block cc)
+		) cases;
+		(match def with None -> () | Some e -> local_usage f e);
+	| _ ->
+		iter (local_usage f) e
+
+(* -------------------------------------------------------------------------- *)
 (* PER-BLOCK VARIABLES *)
 
 (*
@@ -310,96 +379,181 @@ let on_generate ctx t =
 	by value. It transforms the following expression :
 
 	for( x in array )
-		funs.push(function() return x);
+		funs.push(function() return x++);	
 
 	Into the following :
 
-	for( x in array )
-		funs.push(function(x) { function() return x; }(x));
+	for( _x in array ) {
+		var x = [_x];
+		funs.push(function(x) { function() return x[0]++; }(x));
+	}
 
-	This way, each value is captured independantly.	
+	This way, each value is captured independantly.
 *)
 
-let block_vars e =
-	let add_var map v d = map := PMap.add v d (!map) in
-	let wrap e used =
-		match PMap.foldi (fun v _ acc -> v :: acc) used [] with
-		| [] -> e
-		| vars ->
+let block_vars ctx e =
+
+	let uid = ref 0 in
+	let gen_unique() =
+		incr uid;
+		"$t" ^ string_of_int !uid;
+	in
+
+	let t = ctx.type_api in
+
+	let rec mk_init v vt vtmp pos =
+		let at = t.tarray vt in
+		mk (TVars [v,at,Some (mk (TArrayDecl [mk (TLocal vtmp) vt pos]) at pos)]) t.tvoid pos
+
+	and wrap used e =
+		match e.eexpr with
+		| TVars vl ->
+			let vl = List.map (fun (v,vt,e) ->
+				if PMap.mem v used then begin
+					let vt = t.tarray vt in					
+					v, vt, (match e with None -> None | Some e -> Some (mk (TArrayDecl [wrap used e]) (t.tarray e.etype) e.epos))
+				end else
+					v, vt, (match e with None -> None | Some e -> Some (wrap used e))
+			) vl in
+			{ e with eexpr = TVars vl }
+		| TLocal v when PMap.mem v used ->
+			mk (TArray ({ e with etype = t.tarray e.etype },mk (TConst (TInt 0l)) t.tint e.epos)) e.etype e.epos
+		| TFor (v,vt,it,expr) when PMap.mem v used ->			
+			let vtmp = gen_unique() in
+			let it = wrap used it in
+			let expr = wrap used expr in
+			mk (TFor (vtmp,vt,it,concat (mk_init v vt vtmp e.epos) expr)) e.etype e.epos
+		| TTry (expr,catchs) ->
+			let catchs = List.map (fun (v,t,e) ->
+				let e = wrap used e in
+				if PMap.mem v used then
+					let vtmp = gen_unique()	in				
+					vtmp, t, concat (mk_init v t vtmp e.epos) e
+				else
+					v, t, e
+			) catchs in
+			mk (TTry (wrap used expr,catchs)) e.etype e.epos
+		| TMatch (expr,enum,cases,def) ->
+			let cases = List.map (fun (il,vars,e) ->
+				let pos = e.epos in
+				let e = ref (wrap used e) in
+				let vars = match vars with
+					| None -> None
+					| Some l ->
+						Some (List.map (fun (vo,vt) ->
+							match vo with
+							| Some v when PMap.mem v used ->
+								let vtmp = gen_unique() in
+								e := concat (mk_init v vt vtmp pos) !e;
+								Some vtmp, vt
+							| _ -> vo, vt
+						) l)
+				in
+				il, vars, !e
+			) cases in
+			let def = match def with None -> None | Some e -> Some (wrap used e) in
+			mk (TMatch (wrap used expr,enum,cases,def)) e.etype e.epos
+		| TFunction f ->
+			(* 
+				list variables that are marked as used, but also used in that
+				function and which are not declared inside it !
+			*)
+			let fused = ref PMap.empty in
+			let tmp_used = ref (PMap.foldi PMap.add used PMap.empty) in
+			let rec browse = function
+				| Block f | Loop f | Function f -> f browse
+				| Use v -> 
+					(try 
+						fused := PMap.add v (PMap.find v !tmp_used) !fused;
+					with Not_found ->
+						())
+				| Declare (v,_) ->
+					tmp_used := PMap.remove v !tmp_used
+			in
+			local_usage browse e;			
+			let vars = PMap.foldi (fun v vt acc -> (v,t.tarray vt) :: acc) !fused [] in
+			(* in case the variable has been marked as used in a parallel scope... *)
+			let fexpr = ref (wrap used f.tf_expr) in
+			let fargs = List.map (fun (v,o,vt) ->
+				if PMap.mem v used then
+					let vtmp = gen_unique() in
+					fexpr := concat (mk_init v vt vtmp e.epos) !fexpr;
+					vtmp, o, vt
+				else
+					v, o, vt
+			) f.tf_args in
+			let e = { e with eexpr = TFunction { f with tf_args = fargs; tf_expr = !fexpr } } in
+			let args = List.map (fun (v,t) -> v, false, t) vars in
 			mk (TCall (
 				(mk (TFunction {
-					tf_args = List.map (fun v -> v , false, t_dynamic) vars;
-					tf_type = t_dynamic;
-					tf_expr = mk (TReturn (Some e)) t_dynamic e.epos;
-				}) t_dynamic e.epos),
-				List.map (fun v -> mk (TLocal v) t_dynamic e.epos) vars)
-			) t_dynamic e.epos
-	in
-	let rec in_fun vars depth used_locals e =
-		match e.eexpr with
-		| TLocal v ->
-			(try
-				if PMap.find v vars = depth then add_var used_locals v depth;				
-			with
-				Not_found -> ())
+					tf_args = args;
+					tf_type = e.etype;
+					tf_expr = mk (TReturn (Some e)) e.etype e.epos;
+				}) (TFun (args,e.etype)) e.epos),
+				List.map (fun (v,t) -> mk (TLocal v) t e.epos) vars)
+			) e.etype e.epos
 		| _ ->
-			iter (in_fun vars depth used_locals) e
+			map_expr (wrap used) e
 
-	and in_loop vars depth e =
-		match e.eexpr with
-		| TVars l ->
-			{ e with eexpr = TVars (List.map (fun (v,t,e) ->
-				let e = (match e with None -> None | Some e -> Some (in_loop vars depth e)) in
-				add_var vars v depth;
-				v, t, e
-			) l) }
-		| TFor (v,t,i,e1) ->
-			let new_vars = PMap.add v depth (!vars) in
-			{ e with eexpr = TFor (v,t,in_loop vars depth i,in_loop (ref new_vars) depth e1) }
-		| TTry (e1,cases) ->
-			let e1 = in_loop vars depth e1 in
-			let cases = List.map (fun (v,t,e) ->
-				let new_vars = PMap.add v depth (!vars) in
-				v , t, in_loop (ref new_vars) depth e
-			) cases in
-			{ e with eexpr = TTry (e1,cases) }
-		| TMatch (e1,t,cases,def) ->
-			let e1 = in_loop vars depth e1 in
-			let cases = List.map (fun (cl,params,e) ->
-				let e = (match params with
-					| None -> in_loop vars depth e
-					| Some l ->
-						let new_vars = List.fold_left (fun acc (v,t) ->
-							match v with
-							| None -> acc
-							| Some name -> PMap.add name depth acc
-						) (!vars) l in
-						in_loop (ref new_vars) depth e
-				) in
-				cl , params, e
-			) cases in
-			let def = (match def with None -> None | Some e -> Some (in_loop vars depth e)) in
-			{ e with eexpr = TMatch (e1, t, cases, def) }
-		| TBlock l ->
-			let new_vars = (ref !vars) in
-			map_expr (in_loop new_vars depth) e
-		| TFunction _ ->
-			let new_vars = !vars in
-			let used = ref PMap.empty in
-			iter (in_fun new_vars depth used) e;
-			let e = wrap e (!used) in
-			let new_vars = ref (PMap.foldi (fun v _ acc -> PMap.remove v acc) (!used) new_vars) in
-			map_expr (in_loop new_vars (depth + 1)) e
-		| _ ->
-			map_expr (in_loop vars depth) e
 	and out_loop e =
 		match e.eexpr with
 		| TFor _ | TWhile _ ->
-			in_loop (ref PMap.empty) 0 e
+			(*
+				collect variables that are declared in loop but used in subfunctions
+			*)
+			let vars = ref PMap.empty in
+			let used = ref PMap.empty in
+			let depth = ref 0 in
+			let rec collect_vars in_loop = function
+				| Block f ->
+					let old = !vars in
+					f (collect_vars in_loop);
+					vars := old;
+				| Loop f ->
+					let old = !vars in
+					f (collect_vars true);
+					vars := old;
+				| Function f ->
+					incr depth;
+					f (collect_vars false);
+					decr depth;
+				| Declare (v,t) ->
+					if in_loop then vars := PMap.add v (!depth,t) !vars;
+				| Use v ->
+					try
+						let d, t = PMap.find v (!vars) in
+						if d <> !depth then used := PMap.add v t !used;
+					with Not_found ->
+						()
+			in
+			local_usage (collect_vars false) e;
+			if PMap.is_empty !used then e else wrap !used e
 		| _ ->
 			map_expr out_loop e
 	in
-	out_loop e
+	match ctx.platform with
+	| Neko | Cross -> e
+	| _ -> out_loop e
+
+let post_process ctx =
+	List.iter (function
+		| TClassDecl c ->
+			let process_field f =
+				match f.cf_expr with
+				| None -> ()
+				| Some e -> f.cf_expr <- Some (block_vars ctx e)
+			in
+			List.iter process_field c.cl_ordered_fields;
+			List.iter process_field c.cl_ordered_statics;
+			(match c.cl_constructor with
+			| None -> ()
+			| Some f -> process_field f);
+			(match c.cl_init with
+			| None -> ()
+			| Some e -> c.cl_init <- Some (block_vars ctx e));
+		| TEnumDecl _ -> ()
+		| TTypeDecl _ -> ()
+	) ctx.types
 
 (* -------------------------------------------------------------------------- *)
 (* STACK MANAGEMENT EMULATION *)

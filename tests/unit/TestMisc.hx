@@ -23,28 +23,6 @@ class TestMisc extends Test {
 		eq( f(), 5 );
 	}
 
-	function testBlockVars() {
-		var a = new Array();
-		for( i in 0...10 )
-			a.push(function() return i);
-		for( i in 0...10 )
-			eq( a[i](), i );
-	}
-
-	function testScopeVar() {
-		var x = 4;
-		{
-			var x = "hello";
-			eq(x,"hello");
-			switch( MyEnum.C(66,"") ) {
-			case C(x,_):
-				eq(x,66);
-			default:
-			}
-		}
-		eq(x,4);
-	}
-
 	function testMD5() {
 		eq( haxe.Md5.encode(""), "d41d8cd98f00b204e9800998ecf8427e" );
 		eq( haxe.Md5.encode("hello"), "5d41402abc4b2a76b9719d911017c592" );

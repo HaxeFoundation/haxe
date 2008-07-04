@@ -16,7 +16,6 @@
 # JS
 -js unit.js
 unit.Test
--debug
 -cp ..
 
 --next

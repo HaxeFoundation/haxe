@@ -574,7 +574,6 @@ let gen_class_static_field ctx c f =
 		print ctx "%s%s = null" (s_path c.cl_path) (field f.cf_name);
 		newline ctx
 	| Some e ->
-		let e = Codegen.block_vars e in
 		match e.eexpr with
 		| TFunction _ ->
 			ctx.curmethod <- (f.cf_name,false);
@@ -592,7 +591,7 @@ let gen_class_field ctx c f =
 		newline ctx
 	| Some e ->
 		ctx.curmethod <- (f.cf_name,false);
-		gen_value ctx (Codegen.block_vars e);
+		gen_value ctx e;
 		newline ctx
 
 let generate_class ctx c =
@@ -603,7 +602,7 @@ let generate_class ctx c =
 	print ctx "%s = " p;
 	(match c.cl_constructor with
 	| Some { cf_expr = Some e } ->
-		(match Codegen.block_vars e with
+		(match e with
 		| { eexpr = TFunction f } ->
 			let args  = List.map arg_name f.tf_args in
 			let a, args = (match args with [] -> "p" , ["p"] | x :: _ -> x, args) in
@@ -665,7 +664,7 @@ let generate_type ctx = function
 	| TClassDecl c ->
 		(match c.cl_init with
 		| None -> ()
-		| Some e -> ctx.inits <- Codegen.block_vars e :: ctx.inits);
+		| Some e -> ctx.inits <- e :: ctx.inits);
 		if not c.cl_extern then generate_class ctx c
 	| TEnumDecl e when e.e_extern ->
 		()

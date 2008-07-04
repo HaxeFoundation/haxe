@@ -1366,7 +1366,7 @@ and jump_expr ctx e jif =
 	jump_expr_gen ctx e jif (jump ctx)
 
 let generate_method ctx fdata stat =
-	generate_function ctx { fdata with tf_expr = Codegen.block_vars fdata.tf_expr } stat
+	generate_function ctx fdata stat
 
 let generate_construct ctx fdata c =
 	(* make all args optional to allow no-param constructor *)
@@ -1391,7 +1391,7 @@ let generate_construct ctx fdata c =
 			write ctx (HInitProp id);
 		| _ -> ()
 	) c.cl_fields;
-	gen_expr ctx false (Codegen.block_vars fdata.tf_expr);
+	gen_expr ctx false fdata.tf_expr;
 	write ctx HRetVoid;
 	f() , List.length fdata.tf_args
 
@@ -1433,7 +1433,7 @@ let generate_class_statics ctx c =
 				first := false;
 			end;
 			write ctx (HReg r.rid);
-			gen_expr ctx true (Codegen.block_vars e);
+			gen_expr ctx true e;
 			write ctx (HSetSlot !nslot);
 		| _ ->
 			incr nslot
@@ -1746,7 +1746,7 @@ let generate_inits ctx types =
 		| TClassDecl c ->
 			(match c.cl_init with
 			| None -> ()
-			| Some e -> gen_expr ctx false (Codegen.block_vars e));
+			| Some e -> gen_expr ctx false e);
 		| _ -> ()
 	) types;
 	List.iter (fun (t,_) ->

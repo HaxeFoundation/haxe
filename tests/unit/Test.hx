@@ -18,6 +18,10 @@ class Test #if swf_mark implements mt.Protect #end {
 		eq(v,false,pos);
 	}
 
+	function assert( ?pos ) {
+		report("Assert",pos);
+	}
+
 	function exc( f : Void -> Void, ?pos ) {
 		count++;
 		try {
@@ -162,6 +166,7 @@ class Test #if swf_mark implements mt.Protect #end {
 			new TestBytes(),
 			new TestInt32(),
 			new TestIO(),
+			new TestLocals(),
 			new TestSerialize(),
 			new TestRemoting(),
 			new TestMisc(),

@@ -403,6 +403,7 @@ try
 		if !display then xml_out := None;		
 		if !no_output then com.platform <- Cross;		
 		com.types <- Typer.types ctx com.main_class (!excludes);
+		Codegen.post_process com;
 		(match com.platform with
 		| Cross ->
 			()

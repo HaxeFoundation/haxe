@@ -1115,7 +1115,6 @@ let gen_class_static_field ctx c flag f =
 		push ctx [VReg 0; VStr (f.cf_name,flag); VNull];
 		setvar ctx VarObj
 	| Some e ->
-		let e = Codegen.block_vars e in
 		match e.eexpr with
 		| TFunction _ ->
 			push ctx [VReg 0; VStr (f.cf_name,flag)];
@@ -1140,7 +1139,7 @@ let gen_class_field ctx flag f =
 		push ctx [VNull]
 	| Some e ->
 		ctx.curmethod <- (f.cf_name,false);
-		gen_expr ctx true (Codegen.block_vars e));
+		gen_expr ctx true e);
 	setvar ctx VarObj
 
 let gen_enum_field ctx e f =
@@ -1237,7 +1236,7 @@ let gen_type_def ctx t =
 	| TClassDecl c ->
 		(match c.cl_init with
 		| None -> ()
-		| Some e -> ctx.inits <- Codegen.block_vars e :: ctx.inits);
+		| Some e -> ctx.inits <- e :: ctx.inits);
 		gen_package ctx c.cl_path c.cl_extern;
 		if c.cl_extern then
 			()
@@ -1260,7 +1259,7 @@ let gen_type_def ctx t =
 		| Some { cf_expr = Some e } ->
 			have_constr := true;
 			ctx.curmethod <- ("new",false);
-			gen_expr ctx true (Codegen.block_vars e)
+			gen_expr ctx true e
 		| _ ->
 			let f = begin_func ctx true false [] in
 			f());
