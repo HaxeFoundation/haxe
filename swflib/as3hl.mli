@@ -155,7 +155,7 @@ and hl_value =
 	| HVNamespace of int * hl_namespace
 
 and hl_method = {
-	hlmt_mark : int; (* unique id, for internal usage *)
+	hlmt_index : int; (* used to sort methods (preserve order) *)
 	hlmt_ret : hl_name option;
 	hlmt_args : hl_name option list;
 	hlmt_native : bool;
@@ -222,6 +222,7 @@ and hl_field = {
 }
 
 and hl_class = {
+	hlc_index : int;
 	hlc_name : hl_name;
 	hlc_super : hl_name option;
 	hlc_sealed : bool;

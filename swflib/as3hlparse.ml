@@ -39,12 +39,6 @@ let name ctx n = ctx.names.(idx n)
 let method_type ctx n = ctx.methods.(idx (no_nz n))
 let getclass ctx n = ctx.classes.(idx (no_nz n))
 
-let global_mark = ref 0
-
-let alloc_mark() =
-	incr global_mark;
-	!global_mark
-
 let opt f ctx = function
 	| None -> None
 	| Some x -> Some (f ctx x)
@@ -408,9 +402,10 @@ let parse_function ctx f =
 		) f.fun3_locals;
 	}
 
-let parse_method_type ctx m f =
+let parse_method_type ctx idx f =
+	let m = ctx.as3.as3_method_types.(idx) in
 	{
-		hlmt_mark = alloc_mark();
+		hlmt_index = idx;
 		hlmt_ret = opt name ctx m.mt3_ret;
 		hlmt_args = List.map (opt name ctx) m.mt3_args;
 		hlmt_native = m.mt3_native;
@@ -425,8 +420,9 @@ let parse_method_type ctx m f =
 		hlmt_function = opt parse_function ctx f;
 	}
 
-let parse_class ctx c s =
+let parse_class ctx c s index =
 	{
+		hlc_index = index;
 		hlc_name = name ctx c.cl3_name;
 		hlc_super = opt name ctx c.cl3_super;
 		hlc_sealed = c.cl3_sealed;
@@ -463,10 +459,10 @@ let parse t =
 	let hfunctions = Hashtbl.create 0 in
 	Array.iter (fun f -> Hashtbl.add hfunctions (idx (no_nz f.fun3_id)) f) t.as3_functions;
 	ctx.methods <- Array.mapi (fun i m ->
-		parse_method_type ctx t.as3_method_types.(i) (try Some (Hashtbl.find hfunctions i) with Not_found -> None);
+		parse_method_type ctx i (try Some (Hashtbl.find hfunctions i) with Not_found -> None);
 	) t.as3_method_types;
 	ctx.classes <- Array.mapi (fun i c ->
-		parse_class ctx c t.as3_statics.(i)
+		parse_class ctx c t.as3_statics.(i) i
 	) t.as3_classes;
 	let inits = List.map (parse_static ctx) (Array.to_list t.as3_inits) in
 	Array.iter (fun f ->
@@ -480,14 +476,17 @@ let parse t =
 (*			FLATTEN															*)
 (* ************************************************************************ *)
 
-type ('hl,'item,'key) gen_lookup = {
-	h : ('key,int) Hashtbl.t;
+type ('hl,'item) lookup = {
+	h : ('hl,int) Hashtbl.t;
 	a : 'item DynArray.t;
 	f : flatten_ctx -> 'hl -> 'item;
-	k : 'hl -> 'key;
 }
 
-and ('hl,'item) lookup = ('hl,'item,'hl) gen_lookup
+and ('hl,'item) index_lookup = {
+	ordered_list : 'hl list;
+	ordered_array : 'item option DynArray.t;
+	map_f : flatten_ctx -> 'hl -> 'item;
+}
 
 and flatten_ctx = {
 	fints : (hl_int,as3_int) lookup;
@@ -498,37 +497,57 @@ and flatten_ctx = {
 	fnsets : (hl_ns_set,as3_ns_set) lookup;
 	fnames : (hl_name,as3_multi_name) lookup;
 	fmetas : (hl_metadata,as3_metadata) lookup;
-	fmethods : (hl_method,as3_method_type,int) gen_lookup;
-	fclasses : (hl_class,as3_class * as3_static,hl_name) gen_lookup;
+	fmethods : (hl_method,as3_method_type) index_lookup;
+	fclasses : (hl_class,as3_class * as3_static) index_lookup;
 	mutable ffunctions : as3_function list;
 	mutable fjumps : int list;
 }
 
-let new_gen_lookup f k =
+let new_lookup f =
 	{
 		h = Hashtbl.create 0;
 		a = DynArray.create();
 		f = f;
-		k = k;
 	}
 
-let new_lookup f = new_gen_lookup f (fun x -> x)
+let new_index_lookup l f =
+	{
+		ordered_list = l;
+		ordered_array = DynArray.init (List.length l) (fun _ -> None);
+		map_f = f;
+	}
 
 let lookup_array l = DynArray.to_array l.a
 
-let lookup ctx (l:('a,'b,'k) gen_lookup) item : 'b index =
-	let key = l.k item in
+let lookup_index_array l =
+	Array.map (function None -> assert false | Some x -> x) (DynArray.to_array l.ordered_array)
+
+let lookup ctx (l:('a,'b) lookup) item : 'b index =
 	let idx = try
-		Hashtbl.find l.h key
+		Hashtbl.find l.h item
 	with Not_found ->
 		let idx = DynArray.length l.a in
 		(* set dummy value for recursion *)
 		DynArray.add l.a (Obj.magic 0);
-		Hashtbl.add l.h key (idx + 1);
+		Hashtbl.add l.h item (idx + 1);
 		DynArray.set l.a idx (l.f ctx item);
 		idx + 1
 	in
 	As3parse.magic_index idx
+
+let lookup_index_nz ctx (l:('a,'b) index_lookup) item : 'c index_nz =
+	let rec loop n = function
+		| [] -> assert false
+		| x :: l ->
+			if x == item then n else loop (n + 1) l
+	in
+	let idx = loop 0 l.ordered_list in
+	if DynArray.get l.ordered_array idx = None then begin
+		(* set dummy value for recursion *)
+		DynArray.set l.ordered_array idx (Some (Obj.magic 0));
+		DynArray.set l.ordered_array idx (Some (l.map_f ctx item));
+	end;
+	As3parse.magic_index_nz idx
 
 let lookup_nz ctx l item =
 	As3parse.magic_index_nz (As3parse.index_int (lookup ctx l item) - 1)
@@ -538,10 +557,10 @@ let lookup_ident ctx i = lookup ctx ctx.fidents i
 let lookup_name ctx n = lookup ctx ctx.fnames n
 
 let lookup_method ctx m : as3_method_type index_nz =
-	lookup_nz ctx ctx.fmethods m
+	lookup_index_nz ctx ctx.fmethods m
 
 let lookup_class ctx c : as3_class index_nz =
-	lookup_nz ctx ctx.fclasses c
+	lookup_index_nz ctx ctx.fclasses c
 
 let flatten_namespace ctx = function
 	| HNPrivate i -> A3NPrivate (opt lookup_ident ctx i)
@@ -805,8 +824,45 @@ let flatten_static ctx s =
 		st3_fields = Array.map (flatten_field ctx) s.hls_fields;
 	}
 
+let rec browse_method ctx m =
+	let ml, _ = ctx in
+	if not (List.memq m !ml) then ml := m :: !ml;
+	match m.hlmt_function with
+	| None -> ()
+	| Some f ->
+		Array.iter (function
+			| HFunction f | HCallStatic (f,_) -> browse_method ctx f
+			| HClassDef _ -> () (* ignore, should be in fields list anyway *)
+			| _ -> ()
+		) f.hlf_code
+
+and browse_class ctx c =
+	let _, cl = ctx in
+	if not (List.memq c !cl) then cl := c :: !cl;
+	browse_method ctx c.hlc_construct;
+	browse_method ctx c.hlc_static_construct;
+	Array.iter (browse_field ctx) c.hlc_fields;
+	Array.iter (browse_field ctx) c.hlc_static_fields
+
+and browse_field ctx f =
+	match f.hlf_kind with
+	| HFMethod m -> browse_method ctx m.hlm_type
+	| HFVar _ -> ()
+	| HFFunction m -> browse_method ctx m
+	| HFClass c -> browse_class ctx c
+
 let flatten t =
 	let id _ x = x in
+	(* collect methods and classes, sort by index and force evaluation in order to keep order *)
+	let methods = ref [] in
+	let classes = ref [] in
+	let ctx = (methods,classes) in
+	List.iter (fun s ->
+		Array.iter (browse_field ctx) s.hls_fields;
+		browse_method ctx s.hls_method;
+	) t;
+	let methods = List.sort (fun m1 m2 -> m1.hlmt_index - m2.hlmt_index) !methods in
+	(* done *)
 	let rec ctx = {
 		fints = new_lookup id;
 		fuints = new_lookup id;
@@ -816,13 +872,14 @@ let flatten t =
 		fnsets = new_lookup flatten_ns_set;
 		fnames = new_lookup flatten_name;
 		fmetas = new_lookup flatten_meta;
-		fmethods = new_gen_lookup flatten_method (fun m -> m.hlmt_mark);
-		fclasses = new_gen_lookup flatten_class (fun c -> c.hlc_name);
+		fmethods = new_index_lookup methods flatten_method;
+		fclasses = new_index_lookup (List.rev !classes) flatten_class;
 		fjumps = [];
 		ffunctions = [];
 	} in
 	ignore(lookup_ident ctx "");
 	let inits = List.map (flatten_static ctx) t in
+	let classes = lookup_index_array ctx.fclasses in
 	{
 		as3_ints = lookup_array ctx.fints;
 		as3_uints = lookup_array ctx.fuints;
@@ -832,9 +889,9 @@ let flatten t =
 		as3_nsets = lookup_array ctx.fnsets;
 		as3_names = lookup_array ctx.fnames;
 		as3_metadatas = lookup_array ctx.fmetas;
-		as3_method_types = lookup_array ctx.fmethods;
-		as3_classes = Array.map fst (lookup_array ctx.fclasses);
-		as3_statics = Array.map snd (lookup_array ctx.fclasses);
+		as3_method_types = lookup_index_array ctx.fmethods;
+		as3_classes = Array.map fst classes;
+		as3_statics = Array.map snd classes;
 		as3_functions = Array.of_list (List.rev ctx.ffunctions);
 		as3_inits = Array.of_list inits;
 		as3_unknown = "";
