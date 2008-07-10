@@ -861,7 +861,7 @@ let flatten t =
 		Array.iter (browse_field ctx) s.hls_fields;
 		browse_method ctx s.hls_method;
 	) t;
-	let methods = List.sort (fun m1 m2 -> m1.hlmt_index - m2.hlmt_index) !methods in
+	let methods = List.sort (fun m1 m2 -> m1.hlmt_index - m2.hlmt_index) (List.rev !methods) in
 	(* done *)
 	let rec ctx = {
 		fints = new_lookup id;
