@@ -495,7 +495,7 @@ let end_fun ctx args tret =
 		| Some l -> dparams := Some (HVNone :: l)
 	) args;
 	{
-		hlmt_mark = As3hlparse.alloc_mark();
+		hlmt_index = 0;
 		hlmt_ret = type_void ctx tret;
 		hlmt_args = List.map (fun (_,_,t) -> type_opt ctx t) args;
 		hlmt_native = false;
@@ -1556,6 +1556,7 @@ let generate_class ctx c =
 		| Some (c,_) -> is_dynamic c
 	in
 	{
+		hlc_index = 0;
 		hlc_name = name;
 		hlc_super = (if c.cl_interface then None else Some (type_path ctx (match c.cl_super with None -> [],"Object" | Some (c,_) -> c.cl_path)));
 		hlc_sealed = not (is_dynamic c);
@@ -1636,6 +1637,7 @@ let generate_enum ctx e =
 		} :: acc
 	) e.e_constrs [] in
 	{
+		hlc_index = 0;
 		hlc_name = name_id;
 		hlc_super = Some (type_path ctx ([],"Object"));
 		hlc_sealed = true;
@@ -1665,7 +1667,7 @@ let generate_enum ctx e =
 		hlc_static_fields = Array.of_list ({
 			hlf_name = ident "__isenum";
 			hlf_slot = !st_count + 2;
-			hlf_kind = HFVar { hlv_type = None; hlv_value = HVBool true; hlv_const = true; };
+			hlf_kind = HFVar { hlv_type = Some (HMPath ([],"Boolean")); hlv_value = HVBool true; hlv_const = true; };
 			hlf_metas = None;
 		} :: {
 			hlf_name = ident "__constructs__";

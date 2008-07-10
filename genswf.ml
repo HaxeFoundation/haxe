@@ -68,6 +68,7 @@ let build_movieclip ctx (pack,name) =
 	let name = HMPath (pack,name) in
 	let mc = HMPath (["flash";"display"],"MovieClip") in
 	let c = {
+		hlc_index = 0;
 		hlc_name = name;
 		hlc_super = Some mc;
 		hlc_sealed = false;
