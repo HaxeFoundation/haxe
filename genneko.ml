@@ -216,6 +216,10 @@ and gen_call ctx p e el =
 			this p;
 			array p (List.map (gen_expr ctx) el)
 		]
+	| TLocal "__resources__", [] ->
+		call p (builtin p "array") (Hashtbl.fold (fun name data acc -> 
+			(EObject [("name",gen_constant ctx e.epos (TString name));("data",(EConst (String data),p))],p) :: acc
+		) ctx.com.resources [])
 	| TField ({ eexpr = TConst TSuper; etype = t },f) , _ ->
 		let c = (match follow t with TInst (c,_) -> c | _ -> assert false) in
 		call p (builtin p "call") [
@@ -670,13 +674,10 @@ let gen_package ctx h t =
 	in
 	loop [] (fst (t_path t))
 
-let gen_boot ctx hres =
-	let loop name data acc = (name , gen_constant ctx Ast.null_pos (TString data)) :: acc in
-	let objres = (EObject (Hashtbl.fold loop hres []),null_pos) in
+let gen_boot ctx =
 	(EBlock [
 		EBinop ("=",field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__classes",ident null_pos "@classes"),null_pos;
 		call null_pos (field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__init") [];
-		EBinop ("=",field null_pos (gen_type_path null_pos (["neko"],"Boot")) "__res",objres),null_pos;
 	],null_pos)
 
 let gen_name ctx acc t =
@@ -747,7 +748,7 @@ let generate com libs =
 	let packs = List.concat (List.map (gen_package ctx h) com.types) in
 	let names = List.fold_left (gen_name ctx) [] com.types in
 	let methods = List.rev (List.fold_left (fun acc t -> gen_type ctx t acc) [] com.types) in
-	let boot = gen_boot ctx com.resources in
+	let boot = gen_boot ctx in
 	let inits = List.map (gen_expr ctx) (List.rev ctx.inits) in
 	let vars = List.concat (List.map (gen_static_vars ctx) com.types) in
 	let e = (EBlock (header :: packs @ methods @ boot :: names @ inits @ vars), null_pos) in

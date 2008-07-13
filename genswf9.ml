@@ -1123,6 +1123,17 @@ and gen_call ctx retval e el =
 		gen_expr ctx true e;
 		gen_expr ctx true f;
 		write ctx (HOp A3OIn)
+	| TLocal "__resources__", [] ->
+		let count = ref 0 in
+		Hashtbl.iter (fun name data ->
+			incr count;
+			write ctx (HString "name");
+			write ctx (HString name);
+			write ctx (HString "data");
+			write ctx (HString data);
+			write ctx (HObject 2);
+		) ctx.com.resources;
+		write ctx (HArray !count)
 	| TArray ({ eexpr = TLocal "__global__" },{ eexpr = TConst (TString s) }), _ ->
 		(match gen_access ctx e Read with
 		| VGlobal id ->
@@ -1703,23 +1714,6 @@ let generate_type ctx t =
 	| TTypeDecl _ ->
 		None
 
-let generate_resources ctx =
-	write ctx HGetGlobalScope;
-	write ctx (HGetProp (type_path ctx ([],ctx.boot)));
-	let id = type_path ctx (["flash";"utils"],"Dictionary") in
-	write ctx (HFindPropStrict id);
-	write ctx (HConstructProperty (id,0));
-	let r = alloc_reg ctx (KType id) in
-	set_reg ctx r;
-	Hashtbl.iter (fun name data ->
-		write ctx (HReg r.rid);
-		write ctx (HString name);
-		write ctx (HString data);
-		setvar ctx VArray false;
-	) ctx.com.resources;
-	write ctx (HReg r.rid);
-	write ctx (HInitProp (ident "__res"))
-
 let generate_inits ctx types =
 	let f = begin_fun ctx [] t_void [ethis] false null_pos in
 	let slot = ref 0 in
@@ -1770,10 +1764,6 @@ let generate_inits ctx types =
 	write ctx HRetVoid;
 	write ctx (HFunction (finit()));
 	write ctx (HInitProp (ident "init"));
-
-	(* generate resources *)
-	generate_resources ctx;
-
 	write ctx HRetVoid;
 	{
 		hls_method = f();

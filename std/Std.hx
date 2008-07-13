@@ -126,40 +126,6 @@ class Std {
 	}
 
 	/**
-		Convert a character code into the corresponding single-char String.
-	**/
-	public static function chr( x : Int ) : String {
-		return String.fromCharCode(x);
-	}
-
-	/**
-		Return the character code of the first character of the String, or null if the String is empty.
-	**/
-	public static function ord( x : String ) : Null<Int> {
-		#if flash
-		if( x == "" )
-			return null;
-		else
-			return x.charCodeAt(0);
-		#elseif neko
-		untyped {
-			var s = __dollar__ssize(x.__s);
-			if( s == 0 )
-				return null;
-			else
-				return __dollar__sget(x.__s,0);
-		}
-		#elseif js
-		if( x == "" )
-			return null;
-		else
-			return x.charCodeAt(0);
-		#else
-		return null;
-		#end
-	}
-
-	/**
 		Return a random integer between 0 included and x excluded.
 	**/
 	public static function random( x : Int ) : Int {
@@ -174,24 +140,6 @@ class Std {
 		Math.floor(Math.random()*x);
 		#else
 		0;
-		#end
-	}
-
-	/**
-		Return the given resource stored using -res, or null if not defined.
-	**/
-	public static function resource( name : String ) : String {
-		return untyped
-		#if as3gen
-		throw "Not supported in AS3";
-		#elseif flash
-		flash.Boot.__res[name];
-		#elseif neko
-		__dollar__objget(neko.Boot.__res,__dollar__hash(name.__s));
-		#elseif js
-		js.Boot.__res[name];
-		#else
-		null;
 		#end
 	}
 

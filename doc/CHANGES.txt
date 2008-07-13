@@ -47,6 +47,8 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	flash9 : bugfix, generated interfaces were empty
 	fixed bug while writing block-vars in flash/js
 	added parameters default value (constants)
+	removed Std.resource, Std.ord, Std.chr
+	added haxe.Resource, allow binary data in resources
 
 2008-04-05: 1.19
 	fixed flash9 Array.toString

@@ -90,7 +90,7 @@ class BytesBuffer {
 	public function getBytes() : Bytes untyped {
 		#if neko
 		var str = StringBuf.__string(b);
-		var bytes =  new Bytes(__dollar__ssize(str),str);
+		var bytes = new Bytes(__dollar__ssize(str),str);
 		#elseif flash9
 		var bytes = new Bytes(b.length,b);
 		b.position = 0;

@@ -882,6 +882,19 @@ and gen_call ctx e el =
 		write ctx APhysEqual;
 	| TLocal "__unprotect__", [{ eexpr = TConst (TString s) }] ->
 		push ctx [VStr (s,false)]
+	| TLocal "__resources__", [] ->
+		let count = ref 0 in
+		Hashtbl.iter (fun name data ->
+			incr count;
+			push ctx [VStr ("name",false);VStr (name,true);VStr ("data",false)];
+			let parts = ExtString.String.nsplit data "\000" in
+			List.iter (gen_big_string ctx) (List.rev parts);
+			init_array ctx (List.length parts);
+			push ctx [VInt 2];
+			write ctx AObject;
+			ctx.stack_size <- ctx.stack_size - 4;
+		) ctx.com.resources;
+		init_array ctx !count
 	| _ , _ ->
 		let nargs = List.length el in
 		List.iter (gen_expr ctx true) (List.rev el);
@@ -1342,7 +1355,7 @@ let gen_type_def ctx t =
 	| TTypeDecl _ ->
 		()
 
-let gen_boot ctx hres =
+let gen_boot ctx =
 	(* r0 = Boot *)
 	getvar ctx (gen_path ctx (["flash"],"Boot") (!extern_boot));
 	write ctx (ASetReg 0);
@@ -1352,20 +1365,7 @@ let gen_boot ctx hres =
 	write ctx AEval;
 	push ctx [VInt 1; VReg 0; VStr ("__init",false)];
 	call ctx VarObj 0;
-	write ctx APop;
-	(* r0.__res = hres *)
-	push ctx [VReg 0; VStr ("__res",false)];
-	let count = ref 0 in
-	Hashtbl.iter (fun name data ->
-		if String.contains data '\000' then failwith ("Resource " ^ name ^ " contains \\0 character than can't be used in Flash");
-		push ctx [VStr (name,true)];
-		gen_big_string ctx data;
-		incr count;
-	) hres;
-	push ctx [VInt (!count)];
-	write ctx AObject;
-	ctx.stack_size <- ctx.stack_size - (!count * 2);
-	write ctx AObjSet
+	write ctx APop
 
 let gen_movieclip ctx m =
 	getvar ctx (gen_path ctx m false);
@@ -1467,7 +1467,7 @@ let generate com =
 	ctx.reg_count <- 0;
 	(* ---- *)
 	List.iter (fun t -> gen_type_def ctx t) com.types;
-	gen_boot ctx com.resources;
+	gen_boot ctx;
 	List.iter (fun m -> gen_movieclip ctx m) ctx.movieclips;
 	let global_try = gen_try ctx in
 	List.iter (gen_expr ctx false) (List.rev ctx.inits);

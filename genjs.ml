@@ -72,11 +72,12 @@ let rec concat ctx s f = function
 		concat ctx s f l
 
 let fun_block ctx f p =
+	let e = (match f.tf_expr with { eexpr = TBlock [{ eexpr = TBlock _ } as e] } -> e | e -> e) in
 	let e = List.fold_left (fun e (a,c,t) ->
 		match c with
 		| None | Some TNull -> e
 		| Some c -> Codegen.concat (Codegen.set_default ctx.com a c t p) e
-	) f.tf_expr f.tf_args in
+	) e f.tf_args in
 	if ctx.com.debug then
 		Codegen.stack_block ctx.stack ctx.current (fst ctx.curmethod) e
 	else
@@ -173,7 +174,18 @@ let rec gen_call ctx e el =
 		concat ctx "," (gen_value ctx) params;
 		spr ctx ")";
 	| TLocal "__js__", [{ eexpr = TConst (TString code) }] ->
-		spr ctx code
+		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
+	| TLocal "__resources__", [] ->
+		spr ctx "[";		
+		concat ctx "," (fun (name,data) ->
+			spr ctx "{ ";
+			spr ctx "name : ";
+			gen_constant ctx e.epos (TString name);
+			spr ctx ", data : [";
+			concat ctx "," (fun s -> gen_constant ctx e.epos (TString s)) (ExtString.String.nsplit data "\000");
+			spr ctx "]}"
+		) (Hashtbl.fold (fun name data acc -> (name,data) :: acc) ctx.com.resources []);
+		spr ctx "]";
 	| _ ->
 		gen_value ctx e;
 		spr ctx "(";
@@ -705,11 +717,6 @@ let generate com =
 		print ctx "%s = []" ctx.stack.Codegen.stack_exc_var;
 		newline ctx;
 	end;
-	Hashtbl.iter (fun name data ->
-		if String.contains data '\000' then failwith ("Resource " ^ name ^ " contains \\0 characters that can't be used in JavaScript");
-		print ctx "js.Boot.__res[\"%s\"] = \"%s\"" (Ast.s_escape name) (Ast.s_escape data);
-		newline ctx;
-	) com.resources;
 	print ctx "js.Boot.__init()";
 	newline ctx;
 	List.iter (fun e ->

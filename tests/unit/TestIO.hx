@@ -14,8 +14,8 @@ class TestIO extends Test {
 		eq( b.length, 12 );
 		b.set(1,0);
 
-
 		var o = new haxe.io.BytesOutput();
+
 		o.bigEndian = endian;
 		eq(o.bigEndian,endian);
 

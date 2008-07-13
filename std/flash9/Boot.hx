@@ -30,10 +30,6 @@ class Boot extends flash.display.MovieClip, implements Dynamic {
 	static var tf : flash.text.TextField;
 	static var lines : Array<String>;
 
-	#if !as3gen
-	static var __res : flash.utils.Dictionary;
-	#end
-
 	public static var skip_constructor = false;
 
 	public function new(?mc:flash.display.MovieClip) {

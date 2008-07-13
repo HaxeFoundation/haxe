@@ -134,8 +134,10 @@ class TestReflect extends Test {
 	}
 
 	function testConv() {
-		eq( Std.chr(65), "A" );
-		eq( Std.ord("A"), 65 );
+		eq( String.fromCharCode(65), "A" );
+		unspec(function() String.fromCharCode(1024));
+		eq( "A".charCodeAt(0), 65 );
+		eq( "".charCodeAt(0), null );
 		eq( Std.int(65), 65 );
 		eq( Std.int(65.456), 65 );
 		eq( Std.int(-65.456), -65 );

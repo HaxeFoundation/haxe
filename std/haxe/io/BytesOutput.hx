@@ -118,7 +118,7 @@ class BytesOutput extends Output {
 
 	#end
 
-	public function getBytes() {
+	public function getBytes() : Bytes {
 		#if flash9
 		var bytes = b;
 		b = null;

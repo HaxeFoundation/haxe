@@ -1,8 +1,17 @@
 ﻿<haxe selected="0">
-  <output name="Flash" mode="swf" out="unit8.swf" class="unit.Test" lib="" cmd="http://dev.unit-tests/unit.html" main="True" debug="True">-cp ..</output>
-  <output name="Flash9" mode="swf9" out="unit9.swf" class="unit.Test" lib="" cmd="" main="True" debug="True">-cp ..</output>
-  <output name="JS" mode="js" out="unit.js" class="unit.Test" lib="" cmd="" main="False" debug="False">-cp ..</output>
-  <output name="Neko" mode="neko" out="unit.n" class="unit.Test" lib="" cmd="" main="True" debug="True">-cp ..</output>
+  <output name="Flash" mode="swf" out="unit8.swf" class="unit.Test" lib="" cmd="http://dev.unit-tests/unit.html" main="True" debug="True">-cp ..
+-resource res1.txt
+-resource res2.bin</output>
+  <output name="Flash9" mode="swf9" out="unit9.swf" class="unit.Test" lib="" cmd="" main="True" debug="True">-cp ..
+-resource res1.txt
+-resource res2.bin</output>
+  <output name="JS" mode="js" out="unit.js" class="unit.Test" lib="" cmd="" main="False" debug="False">-cp ..
+-resource res1.txt
+-resource res2.bin</output>
+  <output name="Neko" mode="neko" out="unit.n" class="unit.Test" lib="" cmd="" main="True" debug="False">-cp ..
+-resource res1.txt
+-resource res2.bin
+</output>
   <output name="RemotingServer" mode="neko" out="remoting.n" class="unit.RemotingServer" lib="" cmd="" main="True" debug="False">-cp ..</output>
   <files path="/">
     <file path="MyClass.hx" />
@@ -18,6 +27,7 @@
     <file path="TestMisc.hx" />
     <file path="TestReflect.hx" />
     <file path="TestRemoting.hx" />
+    <file path="TestResource.hx" />
     <file path="TestSerialize.hx" />
   </files>
 </haxe>

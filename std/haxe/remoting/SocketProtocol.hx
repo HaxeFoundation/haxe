@@ -144,7 +144,7 @@ class SocketProtocol {
 		o.writeString(msg);
 		o.writeByte(0);
 		#else
-		socket.send(Std.chr(e.c1)+Std.chr(e.c2)+msg);
+		socket.send(String.fromCharCode(e.c1)+String.fromCharCode(e.c2)+msg);
 		#end
 	}
 

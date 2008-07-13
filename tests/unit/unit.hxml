@@ -3,6 +3,8 @@
 -main unit.Test
 -debug
 -cp ..
+-resource res1.txt
+-resource res2.bin
 
 --next
 # Flash9
@@ -11,19 +13,25 @@
 -main unit.Test
 -debug
 -cp ..
+-resource res1.txt
+-resource res2.bin
 
 --next
 # JS
 -js unit.js
 unit.Test
 -cp ..
+-resource res1.txt
+-resource res2.bin
 
 --next
 # Neko
 -neko unit.n
 -main unit.Test
--debug
 -cp ..
+-resource res1.txt
+-resource res2.bin
+
 
 --next
 # RemotingServer
