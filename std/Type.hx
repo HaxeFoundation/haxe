@@ -290,6 +290,21 @@ class Type {
 		#end
 	}
 
+	/**
+		Create an instance of an enum by using a constructor name and parameters.
+	**/
+	public static function createEnum( e : Enum, constr : String, ?params : Array<Dynamic> ) : Dynamic {
+		var f = Reflect.field(e,constr);
+		if( f == null ) throw "No such constructor "+constr;
+		if( Reflect.isFunction(f) ) {
+			if( params == null ) throw "Constructor "+constr+" need parameters";
+			return Reflect.callMethod(e,f,params);
+		}
+		if( params != null && params.length != 0 )
+			throw "Constructor "+constr+" does not need parameters";
+		return f;
+	}
+
 	#if flash9
 	static function describe( t : Dynamic, fact : Bool ) untyped {
 		var fields = new Array();

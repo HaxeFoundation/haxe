@@ -10,6 +10,7 @@ class MyClass {
 
 	public function new(v) {
 		val = v;
+		intValue = 55;
 	}
 
 	public function get() {

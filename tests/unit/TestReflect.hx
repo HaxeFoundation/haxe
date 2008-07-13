@@ -153,4 +153,24 @@ class TestReflect extends Test {
 		eq( Std.parseInt("0xFF"), 255 );
 	}
 
+	function testCreate() {
+		var i = Type.createInstance(MyClass,[33]);
+		t( Std.is(i,MyClass) );
+		eq( i.get(), 33 );
+		eq( i.intValue, 55 );
+		var i = Type.createEmptyInstance(MyClass);
+		t( Std.is(i,MyClass) );
+		eq( i.get(), #if flash9 0 #else null #end );
+		eq( i.intValue, #if flash9 0 #else null #end );
+		var e : MyEnum = Type.createEnum(MyEnum,"A");
+		eq( e, MyEnum.A );
+		var e : MyEnum = Type.createEnum(MyEnum,"C",[55,"hello"]);
+		switch( e ) {
+		case C(i,s): eq(i,55); eq(s,"hello");
+		default: assert();
+		}
+		exc( function() Type.createEnum(MyEnum,"A",[0]) );
+		exc( function() Type.createEnum(MyEnum,"C") );
+	}
+
 }
