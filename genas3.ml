@@ -226,27 +226,6 @@ let handle_break ctx e =
 
 let this ctx = if ctx.in_value <> None then "$this" else "this"
 
-let gen_function_header ctx name f params p =
-	let old = ctx.in_value in
-	let old_l = ctx.locals in
-	let old_li = ctx.inv_locals in
-	let old_t = ctx.local_types in
-	ctx.in_value <- None;
-	ctx.local_types <- List.map snd params @ ctx.local_types;
-	print ctx "function%s(" (match name with None -> "" | Some n -> " " ^ n);
-	concat ctx "," (fun (arg,o,t) ->
-		let arg = define_local ctx arg in
-		print ctx "%s : %s" arg (type_str ctx t p);
-		if o then spr ctx " = null";
-	) f.tf_args;
-	print ctx ") : %s " (type_str ctx f.tf_type p);
-	(fun () ->
-		ctx.in_value <- old;
-		ctx.locals <- old_l;
-		ctx.inv_locals <- old_li;
-		ctx.local_types <- old_t;
-	)
-
 let escape_bin s =
 	let b = Buffer.create 0 in
 	for i = 0 to String.length s - 1 do
@@ -264,6 +243,31 @@ let gen_constant ctx p = function
 	| TNull -> spr ctx "null"
 	| TThis -> spr ctx (this ctx)
 	| TSuper -> spr ctx "super"
+
+let gen_function_header ctx name f params p =
+	let old = ctx.in_value in
+	let old_l = ctx.locals in
+	let old_li = ctx.inv_locals in
+	let old_t = ctx.local_types in
+	ctx.in_value <- None;
+	ctx.local_types <- List.map snd params @ ctx.local_types;
+	print ctx "function%s(" (match name with None -> "" | Some n -> " " ^ n);
+	concat ctx "," (fun (arg,c,t) ->
+		let arg = define_local ctx arg in
+		print ctx "%s : %s" arg (type_str ctx t p);
+		match c with
+		| None -> ()
+		| Some c -> 
+			spr ctx " = ";
+			gen_constant ctx p c
+	) f.tf_args;
+	print ctx ") : %s " (type_str ctx f.tf_type p);
+	(fun () ->
+		ctx.in_value <- old;
+		ctx.locals <- old_l;
+		ctx.inv_locals <- old_li;
+		ctx.local_types <- old_t;
+	)
 
 let rec gen_call ctx e el =
 	match e.eexpr , el with

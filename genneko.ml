@@ -304,14 +304,18 @@ and gen_expr ctx e =
 		) vl),p)
 	| TFunction f ->
 		let b = block ctx [f.tf_expr] in
-		let inits = List.fold_left (fun acc (a,_,_) ->
+		let inits = List.fold_left (fun acc (a,c,t) ->
+			let acc = (match c with
+				| None | Some TNull -> acc
+				| Some c ->	gen_expr ctx (Codegen.set_default ctx.com a c t e.epos) :: acc
+			) in
 			if add_local ctx a p then
-				(a, Some (call p (builtin p "array") [ident p a])) :: acc
+				(EBinop ("=",ident p a,call p (builtin p "array") [ident p a]),p) :: acc
 			else
 				acc
 		) [] f.tf_args in
 		let e = gen_expr ctx f.tf_expr in
-		let e = (match inits with [] -> e | _ -> (EBlock [(EVars (List.rev inits),p);e],p)) in
+		let e = (match inits with [] -> e | _ -> EBlock (List.rev (e :: inits)),p) in
 		let e = (EFunction (List.map arg_name f.tf_args, with_return e),p) in
 		b();
 		e

@@ -72,7 +72,7 @@ let extend_remoting ctx c t p async prot =
 	ctx.com.package_rules <- rules;
 	let base_fields = [
 		(FVar ("__cnx",None,[],Some (TPNormal { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = [] }),None),p);
-		(FFun ("new",None,[APublic],[],{ f_args = ["c",false,None]; f_type = None; f_expr = (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p) }),p);
+		(FFun ("new",None,[APublic],[],{ f_args = ["c",false,None,None]; f_type = None; f_expr = (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p) }),p);
 	] in
 	let tvoid = TPNormal { tpackage = []; tname = "Void"; tparams = [] } in
 	let build_field is_public acc (f,p) =
@@ -80,11 +80,11 @@ let extend_remoting ctx c t p async prot =
 		| FFun ("new",_,_,_,_) ->
 			acc
 		| FFun (name,doc,acl,pl,f) when (is_public || List.mem APublic acl) && not (List.mem AStatic acl) ->
-			if List.exists (fun (_,_,t) -> t = None) f.f_args then error ("Field " ^ name ^ " type is not complete and cannot be used by RemotingProxy") p;
-			let eargs = [EArrayDecl (List.map (fun (a,_,_) -> (EConst (Ident a),p)) f.f_args),p] in
+			if List.exists (fun (_,_,t,_) -> t = None) f.f_args then error ("Field " ^ name ^ " type is not complete and cannot be used by RemotingProxy") p;
+			let eargs = [EArrayDecl (List.map (fun (a,_,_,_) -> (EConst (Ident a),p)) f.f_args),p] in
 			let ftype = (match f.f_type with Some (TPNormal { tpackage = []; tname = "Void" }) -> None | _ -> f.f_type) in
 			let fargs, eargs = if async then match ftype with
-				| Some tret -> f.f_args @ ["__callb",true,Some (TPFunction ([tret],tvoid))], eargs @ [EConst (Ident "__callb"),p]
+				| Some tret -> f.f_args @ ["__callb",true,Some (TPFunction ([tret],tvoid)),None], eargs @ [EConst (Ident "__callb"),p]
 				| _ -> f.f_args, eargs @ [EConst (Ident "null"),p]
 			else 
 				f.f_args, eargs
@@ -482,14 +482,14 @@ let block_vars ctx e =
 				else
 					v, o, vt
 			) f.tf_args in
-			let e = { e with eexpr = TFunction { f with tf_args = fargs; tf_expr = !fexpr } } in
-			let args = List.map (fun (v,t) -> v, false, t) vars in
+			let e = { e with eexpr = TFunction { f with tf_args = fargs; tf_expr = !fexpr } } in			
+			let args = List.map (fun (v,t) -> v, None, t) vars in
 			mk (TCall (
 				(mk (TFunction {
 					tf_args = args;
 					tf_type = e.etype;
 					tf_expr = mk (TReturn (Some e)) e.etype e.epos;
-				}) (TFun (args,e.etype)) e.epos),
+				}) (TFun (fun_args args,e.etype)) e.epos),
 				List.map (fun (v,t) -> mk (TLocal v) t e.epos) vars)
 			) e.etype e.epos
 		| _ ->
@@ -720,3 +720,7 @@ let rec is_volatile t =
 		| _ -> is_volatile (apply_params t.t_types tl t.t_type))
 	| _ ->
 		false
+
+let set_default ctx a c t p =
+	let ve = mk (TLocal a) t p in
+	mk (TIf (mk (TBinop (OpEq,ve,mk (TConst TNull) t p)) ctx.type_api.tbool p, mk (TBinop (OpAssign,ve,mk (TConst c) t p)) t p,None)) ctx.type_api.tvoid p

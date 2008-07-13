@@ -71,11 +71,16 @@ let rec concat ctx s f = function
 		spr ctx s;
 		concat ctx s f l
 
-let fun_block ctx f =
+let fun_block ctx f p =
+	let e = List.fold_left (fun e (a,c,t) ->
+		match c with
+		| None | Some TNull -> e
+		| Some c -> Codegen.concat (Codegen.set_default ctx.com a c t p) e
+	) f.tf_expr f.tf_args in
 	if ctx.com.debug then
-		Codegen.stack_block ctx.stack ctx.current (fst ctx.curmethod) f.tf_expr
+		Codegen.stack_block ctx.stack ctx.current (fst ctx.curmethod) e
 	else
-		mk_block f.tf_expr
+		mk_block e
 
 let parent e =
 	match e.eexpr with
@@ -253,7 +258,7 @@ and gen_expr ctx e =
 		else
 			ctx.curmethod <- (fst ctx.curmethod, true);
 		print ctx "function(%s) " (String.concat "," (List.map ident (List.map arg_name f.tf_args)));
-		gen_expr ctx (fun_block ctx f);
+		gen_expr ctx (fun_block ctx f e.epos);
 		ctx.curmethod <- old_meth;
 		ctx.in_value <- old;
 	| TCall (e,el) ->
@@ -607,7 +612,7 @@ let generate_class ctx c =
 			let args  = List.map arg_name f.tf_args in
 			let a, args = (match args with [] -> "p" , ["p"] | x :: _ -> x, args) in
 			print ctx "function(%s) { if( %s === $_ ) return; " (String.concat "," (List.map ident args)) a;
-			gen_expr ctx (fun_block ctx f);
+			gen_expr ctx (fun_block ctx f e.epos);
 			print ctx "}";
 		| _ -> assert false)
 	| _ -> print ctx "function() { }");

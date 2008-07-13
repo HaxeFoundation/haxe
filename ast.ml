@@ -155,7 +155,7 @@ and type_path =
 	| TPExtend of type_path_normal * (string * bool option * anonymous_field * pos) list
 
 type func = {
-	f_args : (string * bool * type_path option) list;
+	f_args : (string * bool * type_path option * constant option) list;
 	f_type : type_path option;
 	f_expr : expr;
 }

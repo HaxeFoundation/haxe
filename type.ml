@@ -51,7 +51,7 @@ and tconstant =
 	| TSuper
 
 and tfunc = {
-	tf_args : (string * bool * t) list;
+	tf_args : (string * tconstant option * t) list;
 	tf_type : t;
 	tf_expr : texpr;
 }
@@ -195,6 +195,8 @@ let mk_mono() = TMono (ref None)
 let rec t_dynamic = TDynamic t_dynamic
 
 let tfun pl r = TFun (List.map (fun t -> "",false,t) pl,r)
+
+let fun_args l = List.map (fun (a,c,t) -> a, c <> None, t) l
 
 let mk_class path pos doc priv =
 	{

@@ -489,10 +489,21 @@ let debug ctx p =
 
 let end_fun ctx args tret =
 	let dparams = ref None in
-	List.iter (fun (_,opt,t) ->
+	let constant_value = function
+		| None -> HVNone
+		| Some c ->
+			match c with
+			| TInt i -> HVInt i
+			| TFloat s -> HVFloat (float_of_string s)
+			| TString s -> HVString s
+			| TBool b -> HVBool b
+			| TNull -> HVNone
+			| TThis	| TSuper -> assert false
+	in		
+	List.iter (fun (_,c,t) ->
 		match !dparams with
-		| None -> if opt then dparams := Some [HVNone]
-		| Some l -> dparams := Some (HVNone :: l)
+		| None -> if c <> None then dparams := Some [constant_value c]
+		| Some l -> dparams := Some (constant_value c :: l)
 	) args;
 	{
 		hlmt_index = 0;
@@ -501,7 +512,7 @@ let end_fun ctx args tret =
 		hlmt_native = false;
 		hlmt_var_args = false;
 		hlmt_debug_name = None;
-		hlmt_dparams = !dparams;
+		hlmt_dparams = (match !dparams with None -> None | Some l -> Some (List.rev l));
 		hlmt_pnames = None;
 		hlmt_new_block = false;
 		hlmt_unused_flag = false;
@@ -1370,7 +1381,7 @@ let generate_method ctx fdata stat =
 
 let generate_construct ctx fdata c =
 	(* make all args optional to allow no-param constructor *)
-	let f = begin_fun ctx (List.map (fun (a,o,t) -> a,true,t) fdata.tf_args) fdata.tf_type [ethis;fdata.tf_expr] false fdata.tf_expr.epos in
+	let f = begin_fun ctx (List.map (fun (a,c,t) -> a,(match c with None -> Some TNull | _ -> c),t) fdata.tf_args) fdata.tf_type [ethis;fdata.tf_expr] false fdata.tf_expr.epos in
 	(* if skip_constructor, then returns immediatly *)
 	(match c.cl_kind with
 	| KGenericInstance _ -> ()
@@ -1499,7 +1510,7 @@ let generate_field_kind ctx f c stat =
 		(match follow f.cf_type with
 		| TFun (args,tret) when f.cf_set = MethodCantAccess ->
 			Some (HFMethod {
-				hlm_type = end_fun ctx args tret;
+				hlm_type = end_fun ctx (List.map (fun (a,opt,t) -> a, (if opt then Some TNull else None), t) args) tret;
 				hlm_final = false;
 				hlm_override = false;
 				hlm_kind = MK3Normal;
@@ -1585,7 +1596,7 @@ let generate_class ctx c =
 
 let generate_enum ctx e =
 	let name_id = type_path ctx e.e_path in
-	let f = begin_fun ctx [("tag",false,t_string);("index",false,t_int);("params",false,mk_mono())] t_void [ethis] false e.e_pos in
+	let f = begin_fun ctx [("tag",None,t_string);("index",None,t_int);("params",None,mk_mono())] t_void [ethis] false e.e_pos in
 	let tag_id = ident "tag" in
 	let index_id = ident "index" in
 	let params_id = ident "params" in
@@ -1614,7 +1625,7 @@ let generate_enum ctx e =
 			hlf_slot = !st_count;
 			hlf_kind = (match f.ef_type with
 				| TFun (args,_) ->
-					let fdata = begin_fun ctx args (TEnum (e,[])) [] true f.ef_pos in
+					let fdata = begin_fun ctx (List.map (fun (a,opt,t) -> a, (if opt then Some TNull else None), t) args) (TEnum (e,[])) [] true f.ef_pos in
 					write ctx (HFindPropStrict name_id);
 					write ctx (HString f.ef_name);
 					write ctx (HInt f.ef_index);

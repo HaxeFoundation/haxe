@@ -376,23 +376,6 @@ let type_ident ctx i is_type p get =
 			raise (Error (Unknown_ident i,p))
 		end
 
-let type_constant ctx c p =
-	match c with
-	| Int s ->
-		(try
-			mk (TConst (TInt (Int32.of_string s))) ctx.api.tint p
-		with
-			_ -> mk (TConst (TFloat s)) ctx.api.tfloat p)
-	| Float f -> mk (TConst (TFloat f)) ctx.api.tfloat p
-	| String s -> mk (TConst (TString s)) ctx.api.tstring p
-	| Regexp (r,opt) ->
-		let str = mk (TConst (TString r)) ctx.api.tstring p in
-		let opt = mk (TConst (TString opt)) ctx.api.tstring p in
-		let t = Typeload.load_core_type ctx "EReg" in
-		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[str;opt])) t p
-	| Ident _
-	| Type _ -> assert false
-
 let type_matching ctx (enum,params) (e,p) ecases first_case =
 	let invalid() = raise (Error (Invalid_enum_matching,p)) in
 	let needs n = error ("This constructor needs " ^ string_of_int n ^ " parameters") p in
@@ -448,7 +431,7 @@ let type_field ctx e i p get =
 			| Some t ->
 				let t = apply_params c.cl_types params t in
 				if get && PMap.mem "resolve" c.cl_fields then
-					AccExpr (mk (TCall (mk (TField (e,"resolve")) (tfun [ctx.api.tstring] t) p,[type_constant ctx (String i) p])) t p)
+					AccExpr (mk (TCall (mk (TField (e,"resolve")) (tfun [ctx.api.tstring] t) p,[Typeload.type_constant ctx (String i) p])) t p)
 				else
 					AccExpr (mk (TField (e,i)) t p)
 			| None ->
@@ -1004,8 +987,13 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	| EConst (Ident _)
 	| EConst (Type _) ->
 		acc_get (type_access ctx e p true) p
+	| EConst (Regexp (r,opt)) ->
+		let str = mk (TConst (TString r)) ctx.api.tstring p in
+		let opt = mk (TConst (TString opt)) ctx.api.tstring p in
+		let t = Typeload.load_core_type ctx "EReg" in
+		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[str;opt])) t p
 	| EConst c ->
-		type_constant ctx c p
+		Typeload.type_constant ctx c p
     | EBinop (op,e1,e2) ->
 		type_binop ctx op e1 e2 p
 	| EBlock [] when need_val ->
@@ -1214,7 +1202,11 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		type_unop ctx op flag e p
 	| EFunction f ->
 		let rt = Typeload.load_type_opt ctx p f.f_type in
-		let args = List.map (fun (s,opt,t) -> s , opt, Typeload.load_type_opt ~opt ctx p t) f.f_args in
+		let args = List.map (fun (s,opt,t,c) -> 
+			let t = Typeload.load_type_opt ctx p t in
+			let t, c = Typeload.type_function_param ctx t c opt p in
+			s , c, t
+		) f.f_args in
 		(match ctx.param_type with
 		| None -> ()
 		| Some t ->
@@ -1227,10 +1219,10 @@ and type_expr ctx ?(need_val=true) (e,p) =
 					| _ -> ()
 				) args args2;
 			| _ -> ());
-		let ft = TFun (args,rt) in
+		let ft = TFun (fun_args args,rt) in
 		let e , fargs = Typeload.type_function ctx ft true false f p in
 		let f = {
-			tf_args = fargs;
+			tf_args = args;
 			tf_type = rt;
 			tf_expr = e;
 		} in
@@ -1335,9 +1327,9 @@ and type_call ctx e el p =
 				match args, params with
 				| _ , [] ->
 					let k = ref 0 in
-					let fun_arg = ("f",false,e.etype) in
-					let first_args = List.map (fun t -> incr k; "a" ^ string_of_int !k, false, t) (List.rev eargs) in
-					let missing_args = List.map (fun (_,opt,t) -> incr k; "a" ^ string_of_int !k, opt, t) args in
+					let fun_arg = ("f",None,e.etype) in
+					let first_args = List.map (fun t -> incr k; "a" ^ string_of_int !k, None, t) (List.rev eargs) in
+					let missing_args = List.map (fun (_,opt,t) -> incr k; "a" ^ string_of_int !k, (if opt then Some TNull else None), t) args in
 					let vexpr (v,_,t) = mk (TLocal v) t p in
 					let func = mk (TFunction {
 						tf_args = missing_args;
@@ -1345,13 +1337,13 @@ and type_call ctx e el p =
 						tf_expr = mk (TReturn (Some (
 							mk (TCall (vexpr fun_arg,List.map vexpr (first_args @ missing_args))) ret p
 						))) ret p;
-					}) (TFun (missing_args,ret)) p in
+					}) (TFun (fun_args missing_args,ret)) p in
 					let func = mk (TFunction {
 						tf_args = fun_arg :: first_args;
 						tf_type = func.etype;
 						tf_expr = mk (TReturn (Some func)) e.etype p;
-					}) (TFun (first_args,func.etype)) p in
-					mk (TCall (func,e :: eparams)) (TFun (missing_args,ret)) p
+					}) (TFun (fun_args first_args,func.etype)) p in
+					mk (TCall (func,e :: eparams)) (TFun (fun_args missing_args,ret)) p
 				| [], _ -> error "Too many callback arguments" p
 				| (_,_,t) :: args , e :: params ->
 					unify ctx e.etype t p;

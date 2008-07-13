@@ -46,6 +46,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	added haxe.TimerQueue, added haxe.Timer.delay, remove haxe.Timer.delayed
 	flash9 : bugfix, generated interfaces were empty
 	fixed bug while writing block-vars in flash/js
+	added parameters default value (constants)
 
 2008-04-05: 1.19
 	fixed flash9 Array.toString

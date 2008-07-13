@@ -395,8 +395,12 @@ and parse_fun_name = parser
 	| [< '(Kwd New,_) >] -> "new"
 
 and parse_fun_param = parser
-	| [< '(Question,_); name = any_ident; t = parse_type_opt >] -> (name,true,t)
-	| [< name = any_ident; t = parse_type_opt >] -> (name,false,t)
+	| [< '(Question,_); name = any_ident; t = parse_type_opt; c = parse_fun_param_value >] -> (name,true,t,c)
+	| [< name = any_ident; t = parse_type_opt; c = parse_fun_param_value >] -> (name,false,t,c)
+
+and parse_fun_param_value = parser
+	| [< '(Binop OpAssign,_); '(Const c,_) >] -> Some c
+	| [< >] -> None
 
 and parse_fun_param_type = parser
 	| [< '(Question,_); name = any_ident; '(DblDot,_); t = parse_type_path >] -> (name,true,t)

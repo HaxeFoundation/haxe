@@ -21,6 +21,31 @@ open Type
 open Common
 open Typecore
 
+let type_constant ctx c p =
+	match c with
+	| Int s ->
+		(try
+			mk (TConst (TInt (Int32.of_string s))) ctx.api.tint p
+		with
+			_ -> mk (TConst (TFloat s)) ctx.api.tfloat p)
+	| Float f -> mk (TConst (TFloat f)) ctx.api.tfloat p
+	| String s -> mk (TConst (TString s)) ctx.api.tstring p
+	| Ident "true" -> mk (TConst (TBool true)) ctx.api.tbool p
+	| Ident "false" -> mk (TConst (TBool false)) ctx.api.tbool p
+	| Ident "null" -> mk (TConst TNull) (ctx.api.tnull (mk_mono())) p
+	| _ -> assert false
+
+let type_function_param ctx t c opt p =
+	match c with
+	| None ->
+		if opt then ctx.api.tnull t, Some TNull else t, None
+	| Some c ->
+		let c = (try type_constant ctx c p with _ -> error "Parameter default value should be constant" p) in
+		unify ctx t c.etype p;
+		match c.eexpr with
+		| TConst c -> t, Some c
+		| _ -> assert false
+
 let exc_protect f =
 	let rec r = ref (fun() ->
 		try
@@ -479,13 +504,13 @@ let init_class ctx c p herits fields =
 			with
 				Not_found -> get_parent csup name
 	in
-	let type_opt ?opt ctx p t =
+	let type_opt ctx p t =
 		match t with
 		| None when c.cl_extern || c.cl_interface ->
 			display_error ctx "Type required for extern classes and interfaces" p;
 			t_dynamic
 		| _ ->
-			load_type_opt ?opt ctx p t
+			load_type_opt ctx p t
 	in
 	let rec has_field f = function
 		| None -> false
@@ -553,8 +578,11 @@ let init_class ctx c p herits fields =
 				type_params = if stat then params else params @ ctx.type_params;
 			} in
 			let ret = type_opt ctx p f.f_type in
-			let args = List.map (fun (name,opt,t) -> name , opt, type_opt ~opt ctx p t) f.f_args in
-			let t = TFun (args,ret) in
+			let args = List.map (fun (name,opt,t,c) ->
+				let t, c = type_function_param ctx (type_opt ctx p t) c opt p in
+				name, c, t
+			) f.f_args in
+			let t = TFun (fun_args args,ret) in
 			let constr = (name = "new") in
 			if constr && c.cl_interface then error "An interface cannot have a constructor" p;
 			if c.cl_interface && not stat && (match f.f_expr with EBlock [] , _ -> false | _ -> true) then error "An interface method cannot have a body" p;
@@ -577,7 +605,7 @@ let init_class ctx c p herits fields =
 				if ctx.com.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
 				let e , fargs = type_function ctx t stat constr f p in
 				let f = {
-					tf_args = fargs;
+					tf_args = args;
 					tf_type = ret;
 					tf_expr = e;
 				} in
@@ -679,7 +707,7 @@ let init_class ctx c p herits fields =
 				| None -> None
 				| Some (acc,pl,f) as infos ->
 					let p = c.cl_pos in
-					let esuper = (ECall ((EConst (Ident "super"),p),List.map (fun (n,_,_) -> (EConst (Ident n),p)) f.f_args),p) in
+					let esuper = (ECall ((EConst (Ident "super"),p),List.map (fun (n,_,_,_) -> (EConst (Ident n),p)) f.f_args),p) in
 					let acc = (if csuper.cl_extern && acc = [] then [APublic] else acc) in
 					(* remove types that are superclass type-parameters *)
 					let replace_type = function
@@ -687,7 +715,7 @@ let init_class ctx c p herits fields =
 							None
 						| t -> t
 					in
-					let fnew = { f with f_expr = esuper; f_args = List.map (fun (a,opt,t) -> a,opt,replace_type t) f.f_args } in
+					let fnew = { f with f_expr = esuper; f_args = List.map (fun (a,opt,t,c) -> a,opt,replace_type t,c) f.f_args } in
 					let _, _, cf, delayed = loop_cf (FFun ("new",None,acc,pl,fnew)) p in
 					c.cl_constructor <- Some cf;
 					Hashtbl.add ctx.constructs c.cl_path (acc,pl,f);
