@@ -20,7 +20,7 @@ haxe.exe: $(FILES)
 
 ../neko/libs/include/ocaml/binast.cmx: ../neko/libs/include/ocaml/nast.cmx
 
-genneko.cmx: type.cmx ../neko/libs/include/ocaml/nxml.cmx ../neko/libs/include/ocaml/nast.cmx lexer.cmx common.cmx ../neko/libs/include/ocaml/binast.cmx ast.cmx
+genneko.cmx: type.cmx codegen.cmx ../neko/libs/include/ocaml/nxml.cmx ../neko/libs/include/ocaml/nast.cmx lexer.cmx common.cmx ../neko/libs/include/ocaml/binast.cmx ast.cmx
 
 ../neko/libs/include/ocaml/nxml.cmx: ../neko/libs/include/ocaml/nast.cmx
 
@@ -34,7 +34,7 @@ genas3.cmx: type.cmx codegen.cmx ../../mtcvs/swflib/swfParser.cmx ../../mtcvs/sw
 
 genjs.cmx: type.cmx codegen.cmx lexer.cmx common.cmx ast.cmx
 
-genswf.cmx: type.cmx ../../mtcvs/swflib/swfZip.cmx ../../mtcvs/swflib/swfParser.cmx ../../mtcvs/swflib/swf.cmx genswf9.cmx genswf8.cmx common.cmx ast.cmx ../../mtcvs/swflib/as3hlparse.cmx ../../mtcvs/swflib/as3hl.cmi ../../mtcvs/swflib/as3.cmi
+genswf.cmx: type.cmx codegen.cmx ../../mtcvs/swflib/swfZip.cmx ../../mtcvs/swflib/swfParser.cmx ../../mtcvs/swflib/swf.cmx genswf9.cmx genswf8.cmx common.cmx ast.cmx ../../mtcvs/swflib/as3hlparse.cmx ../../mtcvs/swflib/as3hl.cmi ../../mtcvs/swflib/as3.cmi
 
 genswf8.cmx: type.cmx codegen.cmx ../../mtcvs/swflib/swf.cmx lexer.cmx common.cmx ast.cmx ../../mtcvs/swflib/actionScript.cmx
 

@@ -125,4 +125,12 @@ class TestLocals extends Test {
 		}
 	}
 
+	function testPossibleBug() {
+		var funs = new Array();
+		for( i in 0...5 )
+			funs.push(function(i) return i);
+		for( k in 0...5 )
+			eq( funs[k](55), 55 );
+	}
+
 }

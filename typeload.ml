@@ -427,19 +427,16 @@ let type_type_params ctx path p (n,flags) =
 		ctx.delays := [(fun () -> ignore(!r()))] :: !(ctx.delays);
 		n, TLazy r
 
-let type_function ctx t static constr f p =
+let type_function ctx args ret static constr f p =
 	let locals = save_locals ctx in
-	let fargs , r = (match t with
-		| TFun (args,r) -> List.map (fun (n,opt,t) -> add_local ctx n t, opt, t) args, r
-		| _ -> assert false
-	) in
+	let fargs = List.map (fun (n,c,t) -> add_local ctx n t, c, t) args in
 	let old_ret = ctx.ret in
 	let old_static = ctx.in_static in
 	let old_constr = ctx.in_constructor in
 	let old_opened = ctx.opened in
 	ctx.in_static <- static;
 	ctx.in_constructor <- constr;
-	ctx.ret <- r;
+	ctx.ret <- ret;
 	ctx.opened <- [];
 	let e = type_expr ctx f.f_expr false in
 	let rec loop e =
@@ -452,7 +449,7 @@ let type_function ctx t static constr f p =
 	if have_ret then
 		(try return_flow ctx e with Exit -> ())
 	else
-		unify ctx r ctx.api.tvoid p;
+		unify ctx ret ctx.api.tvoid p;
 	let rec loop e =
 		match e.eexpr with
 		| TCall ({ eexpr = TConst TSuper },_) -> raise Exit
@@ -603,9 +600,9 @@ let init_class ctx c p herits fields =
 			let r = exc_protect (fun r ->
 				r := (fun() -> t);
 				if ctx.com.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
-				let e , fargs = type_function ctx t stat constr f p in
+				let e , fargs = type_function ctx args ret stat constr f p in
 				let f = {
-					tf_args = args;
+					tf_args = fargs;
 					tf_type = ret;
 					tf_expr = e;
 				} in

@@ -1220,9 +1220,9 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				) args args2;
 			| _ -> ());
 		let ft = TFun (fun_args args,rt) in
-		let e , fargs = Typeload.type_function ctx ft true false f p in
+		let e , fargs = Typeload.type_function ctx args rt true false f p in
 		let f = {
-			tf_args = args;
+			tf_args = fargs;
 			tf_type = rt;
 			tf_expr = e;
 		} in
