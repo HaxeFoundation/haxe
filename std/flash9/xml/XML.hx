@@ -27,7 +27,7 @@ extern class XML implements Dynamic<XMLList> {
 	function nodeKind() : String;
 	function normalize() : XML;
 	function notification() : Dynamic;
-	function parent() : Void;
+	function parent() : XML;
 	function prependChild(value : Dynamic) : XML;
 	function processingInstructions(?name : String) : XMLList;
 	function removeNamespace(ns : Dynamic) : XML;

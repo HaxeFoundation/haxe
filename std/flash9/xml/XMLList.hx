@@ -26,7 +26,7 @@ extern class XMLList implements ArrayAccess<XML> {
 	function namespaceDeclarations() : Array<Dynamic>;
 	function nodeKind() : String;
 	function normalize() : XMLList;
-	function parent() : Void;
+	function parent() : XML;
 	function prependChild(value : Dynamic) : XML;
 	function processingInstructions(?name : String) : XMLList;
 	function removeNamespace(ns : Dynamic) : XML;
