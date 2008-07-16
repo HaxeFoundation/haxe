@@ -63,6 +63,7 @@ class HttpAsyncConnection implements AsyncConnection {
 				var s = new haxe.Unserializer(response.substr(3));
 				ret = s.unserialize();
 			} catch( err : Dynamic ) {
+				ret = null;
 				ok = false;
 				error(err);
 			}

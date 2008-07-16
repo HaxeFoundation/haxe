@@ -41,6 +41,7 @@ class ContextAll extends Context {
 		try {
 			o = js.Lib.eval(path2.join("."));
 		} catch( e : Dynamic ) {
+			o = null;
 		}
 		var m = Reflect.field(o,f);
 		#elseif flash

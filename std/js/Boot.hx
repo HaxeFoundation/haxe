@@ -117,7 +117,7 @@ class Boot {
 					if( s2 != "[object Object]")
 						return s2;
 				}
-				var k : String;
+				var k : String = null;
 				var str = "{\n";
 				s += "\t";
 				var hasp = (o.hasOwnProperty != null);

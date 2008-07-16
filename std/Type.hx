@@ -178,6 +178,8 @@ class Type {
 				cl = Reflect.field(cl,path[i]);
 				i += 1;
 			}
+		#else
+			cl = null;
 		#end
 		// ensure that this is a class
 		if( cl == null || cl.__name__ == null )
@@ -207,7 +209,7 @@ class Type {
 		#elseif js
 			try {
 				e = eval(name);
-			} catch( e : Dynamic ) {
+			} catch( err : Dynamic ) {
 				e = null;
 			}
 		#elseif neko
@@ -218,6 +220,8 @@ class Type {
 				e = Reflect.field(e,path[i]);
 				i += 1;
 			}
+		#else
+			e = null;
 		#end
 		// ensure that this is an enum
 		if( e == null || e.__ename__ == null )
@@ -410,7 +414,7 @@ class Type {
 			case "Boolean": return TBool;
 			case "Object": return TObject;
 			default:
-				var c : Dynamic;
+				var c : Dynamic = null;
 				try {
 					c = __global__["flash.utils.getDefinitionByName"](cname);
 					if( v.hasOwnProperty("prototype") )

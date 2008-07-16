@@ -535,13 +535,140 @@ let block_vars ctx e =
 	| Neko | Cross -> e
 	| _ -> out_loop e
 
+(* -------------------------------------------------------------------------- *)
+(* CHECK LOCAL VARS INIT *)
+
+let check_local_vars_init e =
+	let intersect vl1 vl2 =
+		PMap.mapi (fun v t -> t && PMap.find v vl2) vl1
+	in
+	let join vars cvars =
+		List.iter (fun v -> vars := intersect !vars v) cvars
+	in
+	let restore vars old_vars declared =
+		(* restore variables declared in this block to their previous state *)
+		vars := List.fold_left (fun acc v ->
+			try	PMap.add v (PMap.find v old_vars) acc with Not_found -> PMap.remove v acc
+		) !vars declared;
+	in
+	let declared = ref [] in
+	let rec loop vars e =
+		match e.eexpr with
+		| TLocal name ->
+			let init = (try PMap.find name !vars with Not_found -> true) in
+			if not init then error ("Local variable " ^ name ^ " used without being initialized") e.epos;
+		| TVars vl ->
+			List.iter (fun (v,_,eo) -> 
+				let init = (match eo with None -> false | Some e -> loop vars e; true) in
+				declared := v :: !declared;
+				vars := PMap.add v init !vars
+			) vl
+		| TBlock el ->
+			let old = !declared in
+			let old_vars = !vars in
+			declared := [];
+			List.iter (loop vars) el;
+			restore vars old_vars (List.rev !declared);
+			declared := old;
+		| TBinop (OpAssign,{ eexpr = TLocal name },e) ->
+			loop vars e;
+			vars := PMap.add name true !vars
+		| TIf (e1,e2,eo) ->
+			loop vars e1;
+			let vbase = !vars in
+			loop vars e2;
+			(match eo with
+			| None -> vars := vbase
+			| Some e ->
+				let v1 = !vars in
+				vars := vbase;
+				loop vars e;
+				vars := intersect !vars v1)
+		| TWhile (cond,e,flag) ->
+			(match flag with
+			| NormalWhile ->
+				loop vars cond;
+				let old = !vars in
+				loop vars e;
+				vars := old;
+			| DoWhile ->
+				loop vars e;
+				loop vars cond)
+		| TFor (v,_,it,e) ->
+			loop vars it;
+			let old = !vars in
+			vars := PMap.add v true !vars;
+			loop vars e;
+			vars := old;
+		| TFunction f ->
+			let old = !vars in
+			vars := List.fold_left (fun acc (v,_,_) -> PMap.add v true acc) !vars f.tf_args;
+			loop vars f.tf_expr;
+			vars := old;
+		| TTry (e,catches) ->
+			let cvars = List.map (fun (v,_,e) ->
+				let old = !vars in
+				loop vars e;
+				let v = !vars in
+				vars := old;
+				v
+			) catches in
+			loop vars e;		
+			join vars cvars;
+		| TSwitch (e,cases,def) ->
+			loop vars e;
+			let cvars = List.map (fun (ec,e) ->
+				let old = !vars in
+				List.iter (loop vars) ec;
+				vars := old;
+				loop vars e;
+				let v = !vars in
+				vars := old;
+				v
+			) cases in
+			(match def with
+			| None -> ()
+			| Some e ->
+				loop vars e;
+				join vars cvars)
+		| TMatch (e,_,cases,def) ->
+			loop vars e;
+			let old = !vars in
+			let cvars = List.map (fun (_,vl,e) ->
+				vars := old;
+				let tvars = (match vl with
+					| None -> []
+					| Some vl -> List.map (fun (v,_) -> match v with None -> "" | Some v -> vars := PMap.add v true !vars; v) vl
+				) in
+				loop vars e;
+				restore vars old tvars;
+				!vars
+			) cases in
+			(match def with None -> () | Some e -> vars := old; loop vars e);
+			join vars cvars
+		(* mark all reachable vars as initialized, since we don't exit the block  *)
+		| TBreak | TContinue | TReturn None ->
+			vars := PMap.map (fun _ -> true) !vars
+		| TThrow e | TReturn (Some e) ->
+			loop vars e;
+			vars := PMap.map (fun _ -> true) !vars
+		| _ ->
+			Type.iter (loop vars) e
+	in
+	loop (ref PMap.empty) e
+
+(* -------------------------------------------------------------------------- *)
+(* POST PROCESS *)
+
 let post_process ctx =
 	List.iter (function
 		| TClassDecl c ->
 			let process_field f =
 				match f.cf_expr with
 				| None -> ()
-				| Some e -> f.cf_expr <- Some (block_vars ctx e)
+				| Some e ->
+					check_local_vars_init e; 
+					f.cf_expr <- Some (block_vars ctx e)
 			in
 			List.iter process_field c.cl_ordered_fields;
 			List.iter process_field c.cl_ordered_statics;
@@ -550,7 +677,9 @@ let post_process ctx =
 			| Some f -> process_field f);
 			(match c.cl_init with
 			| None -> ()
-			| Some e -> c.cl_init <- Some (block_vars ctx e));
+			| Some e ->
+				check_local_vars_init e;
+				c.cl_init <- Some (block_vars ctx e));
 		| TEnumDecl _ -> ()
 		| TTypeDecl _ -> ()
 	) ctx.types
