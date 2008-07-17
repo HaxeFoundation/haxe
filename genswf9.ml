@@ -499,7 +499,7 @@ let end_fun ctx args tret =
 			| TBool b -> HVBool b
 			| TNull -> HVNone
 			| TThis	| TSuper -> assert false
-	in		
+	in
 	List.iter (fun (_,c,t) ->
 		match !dparams with
 		| None -> if c <> None then dparams := Some [constant_value c]
@@ -520,7 +520,7 @@ let end_fun ctx args tret =
 		hlmt_uses_dxns = false;
 		hlmt_function = None;
 	}
-		
+
 let begin_fun ctx args tret el stat p =
 	let old_locals = ctx.locals in
 	let old_code = ctx.code in
@@ -537,7 +537,7 @@ let begin_fun ctx args tret el stat p =
 	ctx.in_static <- stat;
 	ctx.last_line <- -1;
 	ctx.last_file <- "";
-	if ctx.com.debug then debug ctx p;	
+	if ctx.com.debug then debug ctx p;
 	let rec find_this e =
 		match e.eexpr with
 		| TFunction _ -> ()
@@ -734,6 +734,11 @@ let rec gen_expr_content ctx retval e =
 	| TConst c ->
 		gen_constant ctx c e.etype e.epos
 	| TThrow e ->
+		getvar ctx (VGlobal (type_path ctx ([],ctx.boot)));
+		let id = type_path ctx (["flash"],"Error") in
+		write ctx (HFindPropStrict id);
+		write ctx (HConstructProperty (id,0));
+		setvar ctx (VId (ident "lastError")) false;
 		gen_expr ctx true e;
 		write ctx HThrow;
 		no_value ctx retval;
@@ -868,11 +873,27 @@ let rec gen_expr_content ctx retval e =
 						let r = alloc_reg ctx (classify ctx t) in
 						set_reg ctx r;
 						Some r
-				) in				
+				) in
 				let acc = gen_local_access ctx ename e.epos Write in
 				(match r with None -> () | Some r -> write ctx (HReg r.rid));
 				setvar ctx acc false;
 				(* ----- *)
+				let rec call_loop e =
+					match e.eexpr with
+					| TCall _ | TNew _ -> raise Exit
+					| TFunction _ -> ()
+					| _ -> Type.iter call_loop e
+				in
+				let has_call = (try call_loop e; false with Exit -> true) in
+				if has_call then begin
+					getvar ctx (gen_local_access ctx ename e.epos Read);
+					write ctx (HAsType (type_path ctx (["flash"],"Error")));
+					let j = jump ctx J3False in
+					getvar ctx (VGlobal (type_path ctx ([],ctx.boot)));
+					getvar ctx (gen_local_access ctx ename e.epos Read);
+					setvar ctx (VId (ident "lastError")) false;
+					j();
+				end;
 				gen_expr ctx retval e;
 				b();
 				if retval then ctx.infos.istack <- ctx.infos.istack - 1;

@@ -30,8 +30,9 @@ package haxe;
 enum StackItem {
 	CFunction;
 	Module( m : String );
-	FilePos( name : String, line : Int );
+	FilePos( s : Null<StackItem>, file : String, line : Int );
 	Method( classname : String, method : String );
+	Lambda( v : Int );
 }
 
 /**
@@ -45,10 +46,12 @@ class Stack {
 	public static function callStack() : Array<StackItem> {
 		#if neko
 			var a = makeStack(untyped __dollar__callstack());
-			a.pop(); // remove Stack.callStack()
+			a.shift(); // remove Stack.callStack()
 			return a;
 		#elseif flash9
-			return new Array();
+			var a = makeStack( new flash.Error().getStackTrace() );
+			a.shift(); // remove Stack.callstack()
+			return a;
 		#elseif (flash || js)
 			return makeStack("$s");
 		#else
@@ -65,7 +68,19 @@ class Stack {
 		#if neko
 			return makeStack(untyped __dollar__excstack());
 		#elseif flash9
-			return new Array();
+			var err : flash.Error = untyped flash.Boot.lastError;
+			if( err == null ) return new Array();
+			var a = makeStack( err.getStackTrace() );
+			var c = callStack();
+			var i = c.length - 1;
+			while( i > 0 ) {
+				if( Std.string(a[a.length-1]) == Std.string(c[i]) )
+					a.pop();
+				else
+					break;
+				i--;
+			}
+			return a;
 		#elseif (flash ||js)
 			return makeStack("$e");
 		#else
@@ -78,28 +93,37 @@ class Stack {
 	**/
 	public static function toString( stack : Array<StackItem> ) {
 		var b = new StringBuf();
-		for( s in stack )
-			switch( s ) {
-			case CFunction:
-				b.add("Called from a C function\n");
-			case Module(m):
-				b.add("Called from module ");
-				b.add(m);
-				b.add("\n");
-			case FilePos(name,line):
-				b.add("Called from ");
-				b.add(name);
-				b.add(" line ");
-				b.add(line);
-				b.add("\n");
-			case Method(cname,meth):
-				b.add("Called from ");
-				b.add(cname);
-				b.add(" method ");
-				b.add(meth);
-				b.add("\n");
-			}
+		for( s in stack ) {
+			b.add("\nCalled from ");
+			itemToString(b,s);
+		}
 		return b.toString();
+	}
+
+	private static function itemToString( b : StringBuf, s ) {
+		switch( s ) {
+		case CFunction:
+			b.add("a C function");
+		case Module(m):
+			b.add("module ");
+			b.add(m);
+		case FilePos(s,file,line):
+			if( s != null ) {
+				itemToString(b,s);
+				b.add(" (");
+			}
+			b.add(file);
+			b.add(" line ");
+			b.add(line);
+			if( s != null ) b.add(")");
+		case Method(cname,meth):
+			b.add(cname);
+			b.add(".");
+			b.add(meth);
+		case Lambda(n):
+			b.add("local function #");
+			b.add(n);
+		}
 	}
 
 	private static function makeStack(s) {
@@ -110,15 +134,34 @@ class Stack {
 			while( i < l ) {
 				var x = s[i++];
 				if( x == null )
-					a.push(CFunction);
+					a.unshift(CFunction);
 				else if( untyped __dollar__typeof(x) == __dollar__tstring )
-					a.push(Module(new String(x)));
+					a.unshift(Module(new String(x)));
 				else
-					a.push(FilePos(new String(untyped x[0]),untyped x[1]));
+					a.unshift(FilePos(null,new String(untyped x[0]),untyped x[1]));
 			}
 			return a;
 		#elseif flash9
-			return null;
+			var a = new Array();
+			var r = ~/at ([^\/]+?)\$?(\/[^\(]+)?\(\)(\[(.*?):([0-9]+)\])?/;
+			var rlambda = ~/^MethodInfo-([0-9]+)$/g;
+			while( r.match(s) ) {
+				var cl = r.matched(1).split("::").join(".");
+				var meth = r.matched(2);
+				var item;
+				if( meth == null ) {
+					if( rlambda.match(cl) )
+						item = Lambda(Std.parseInt(rlambda.matched(1)));
+					else
+						item = Method(cl,"new");
+				} else
+					item = Method(cl,meth.substr(1));
+				if( r.matched(3) != null )
+					item = FilePos( item, r.matched(4), Std.parseInt(r.matched(5)) );
+				a.push(item);
+				s = r.matchedRight();
+			}
+			return a;
 		#elseif (flash || js)
 			var a : Array<String> = untyped #if flash __eval__(s) #else try __js__("eval")(s) catch( e : Dynamic ) [] #end;
 			var m = new Array();

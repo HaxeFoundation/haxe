@@ -51,6 +51,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	added haxe.Resource, allow binary data in resources
 	added Type.createEnum
 	check that local variables get correctly initialized before usage
+	haxe.Stack support for flash9
 
 2008-04-05: 1.19
 	fixed flash9 Array.toString
