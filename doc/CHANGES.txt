@@ -6,7 +6,7 @@ TODO optimizer : move multiple statics access into local variables
 TODO inlining : allow inlined getter/setter
 TODO inlining : substitute class+function type parameters in order to have fully typed expressions
 
-2008-??-??: 2.0
+2008-07-17: 2.0-RC1
 	genneko : remove big array error (fixed in neko 1.7.1)
 	fixed neko.net.ThreadRemotingServer.onXML
 	genswf9 : fixed verify error with Null<Class> (was using dynamic access)
@@ -40,7 +40,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	fixed : Reflect.field(null) in flash9 doesn't throw an error anymore
 	removed Type.toClass and Type.toEnum
 	Dynamic type is now a class and not an enum
-	moved reflection support for core types from Boot to Type
+	moved reflection support for core types from Boot to Std
 	fixed Type.getClassName/getEnumName/resolve for core flash9 types
 	renamed haxe.rtti.Type to haxe.rtti.CType (with changes in prefix)
 	added haxe.TimerQueue, added haxe.Timer.delay, remove haxe.Timer.delayed
