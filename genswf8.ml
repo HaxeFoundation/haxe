@@ -992,6 +992,7 @@ and gen_expr_2 ctx retval e =
 			gen_expr ctx false ctx.stack.Codegen.stack_save_pos;
 			let start_try = gen_try ctx in
 			gen_expr ctx false (Codegen.stack_block_loop ctx.stack f.tf_expr);
+			gen_expr ctx false ctx.stack.Codegen.stack_pop;
 			let end_try = start_try() in
 			(* if $spos == 1 , then no upper call, so report as uncaught *)
 			getvar ctx (access_local ctx ctx.stack.Codegen.stack_pos_var);
