@@ -191,7 +191,7 @@ let rec follow_basic t =
 		follow_basic (apply_params t.t_types tl t.t_type)
 	| _ -> t
 
-let type_id ctx t =
+let rec type_id ctx t =
 	match follow_basic t with
 	| TEnum ({ e_path = path; e_extern = false },_) ->
 		type_path ctx path
@@ -203,8 +203,8 @@ let type_id ctx t =
 			(match c.cl_implements with
 			| [csup,_] -> type_path ctx csup.cl_path
 			| _ -> type_path ctx ([],"Object"))
-		| KExtension (c,_) ->
-			type_path ctx c.cl_path
+		| KExtension (c,params) ->
+			type_id ctx (TInst (c,params))
 		| _ ->
 			type_path ctx c.cl_path)
 	| TFun _ ->
