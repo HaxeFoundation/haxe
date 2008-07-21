@@ -10,7 +10,7 @@ OUTPUT=sed 's/File "\([^"]\+\)", line \([0-9]\+\), \(.*\)/\1(\2): \3/' tmp.cmi
 FILES = ast.cmx lexer.cmx type.cmx common.cmx parser.cmx typecore.cmx \
 	genxml.cmx typeload.cmx codegen.cmx typer.cmx \
 	../neko/libs/include/ocaml/nast.cmx ../neko/libs/include/ocaml/binast.cmx ../neko/libs/include/ocaml/nxml.cmx \
-	genneko.cmx genas3.cmx genjs.cmx genswf8.cmx genswf9.cmx genswf.cmx \
+	genneko.cmx genas3.cmx genjs.cmx genswf8.cmx genswf9.cmx genswf.cmx genphp.cmx \
 	main.cmx
 	
 all: haxe.exe
@@ -34,6 +34,8 @@ genas3.cmx: type.cmx codegen.cmx ../../mtcvs/swflib/swfParser.cmx ../../mtcvs/sw
 
 genjs.cmx: type.cmx codegen.cmx lexer.cmx common.cmx ast.cmx
 
+genphp.cmx: type.cmx codegen.cmx lexer.cmx common.cmx ast.cmx
+
 genswf.cmx: type.cmx codegen.cmx ../../mtcvs/swflib/swfZip.cmx ../../mtcvs/swflib/swfParser.cmx ../../mtcvs/swflib/swf.cmx genswf9.cmx genswf8.cmx common.cmx ast.cmx ../../mtcvs/swflib/as3hlparse.cmx ../../mtcvs/swflib/as3hl.cmi ../../mtcvs/swflib/as3.cmi
 
 genswf8.cmx: type.cmx codegen.cmx ../../mtcvs/swflib/swf.cmx lexer.cmx common.cmx ast.cmx ../../mtcvs/swflib/actionScript.cmx
@@ -48,7 +50,7 @@ lexer.cmx: ast.cmx
 
 main.cmx: typer.cmx typeload.cmx typecore.cmx type.cmx parser.cmx lexer.cmx genxml.cmx genswf.cmx genneko.cmx genjs.cmx genas3.cmx common.cmx ast.cmx
 
-parser.cmx: lexer.cmx common.cmx ast.cmx
+parser.cmx: parser.ml lexer.cmx common.cmx ast.cmx
 	(ocamlopt -pp camlp4o $(CFLAGS) -c parser.ml 2>tmp.cmi && $(OUTPUT)) || ($(OUTPUT) && exit 1)
 
 type.cmx: ast.cmx

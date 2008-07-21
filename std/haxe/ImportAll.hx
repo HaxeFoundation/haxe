@@ -46,9 +46,7 @@ import Type;
 import Xml;
 
 import haxe.FastList;
-#if !neko
 import haxe.Firebug;
-#end
 import haxe.Http;
 import haxe.ImportAll;
 import haxe.Log;
@@ -87,8 +85,8 @@ import haxe.remoting.AsyncProxy;
 import haxe.remoting.LocalConnection;
 import haxe.remoting.DelayedConnection;
 import haxe.remoting.FlashJsConnection;
-#if neko
-import haxe.remoting.NekoSocketConnection;
+#if (neko || php)
+import haxe.remoting.SyncSocketConnection;
 #else
 import haxe.remoting.SocketConnection;
 #end
@@ -444,7 +442,7 @@ import js.XMLSocket;
 import tools.haxedoc.Main;
 import tools.haxelib.Main;
 import tools.haxelib.Site;
-//import tools.hxinst.Main -> needs xCross
+import tools.hxinst.Main;
 
 #end
 
@@ -531,3 +529,33 @@ import flash.ui.MouseCursor;
 
 import flash.system.JPEGLoaderContext;
 #end
+
+#if php
+
+import php.Curl;
+import php.Exception;
+import php.FileSystem;
+import php.HException;
+import php.IniHash;
+import php.Lib;
+import php.Session;
+import php.Sys;
+import php.Utf8;
+import php.Web;
+
+import php.db.Connection;
+import php.db.DBase;
+import php.db.Manager;
+import php.db.Mysql;
+import php.db.Object;
+import php.db.ResultSet;
+import php.db.Sqlite;
+
+import php.io.File;
+import php.io.FileInput;
+import php.io.FileOutput;
+import php.io.Path;
+import php.io.Process;
+
+#end
+

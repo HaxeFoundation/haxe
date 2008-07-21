@@ -21,6 +21,9 @@
 -resource res2.bin
 </output>
   <output name="RemotingServer" mode="neko" out="remoting.n" class="unit.RemotingServer" lib="" cmd="" main="True" debug="False">-cp ..</output>
+  <output name="PHP" mode="php" out="php" class="unit.Test" lib="" cmd="" main="True" debug="False">-cp ..
+-resource res1.txt
+-resource res2.bin</output>
   <files path="/">
     <file path="MyClass.hx" />
     <file path="MyEnum.hx" />

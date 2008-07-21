@@ -23,8 +23,9 @@
  * DAMAGE.
  */
 package haxe.remoting;
+import haxe.remoting.SocketProtocol.Socket;
 
-class NekoSocketConnection implements Connection, implements Dynamic<Connection> {
+class SyncSocketConnection implements Connection, implements Dynamic<Connection> {
 
 	var __path : Array<String>;
 	var __proto : SocketProtocol;
@@ -35,7 +36,7 @@ class NekoSocketConnection implements Connection, implements Dynamic<Connection>
 	}
 
 	public function resolve( name ) : Connection {
-		var s = new NekoSocketConnection(__proto,__path.copy());
+		var s = new SyncSocketConnection(__proto,__path.copy());
 		s.__path.push(name);
 		return s;
 	}
@@ -78,8 +79,8 @@ class NekoSocketConnection implements Connection, implements Dynamic<Connection>
 		try __proto.socket.close() catch( e : Dynamic ) { };
 	}
 
-	public static function create( s : neko.net.Socket, ?ctx : Context ) {
-		return new NekoSocketConnection(new SocketProtocol(s,ctx),[]);
+	public static function create( s : Socket, ?ctx : Context ) {
+		return new SyncSocketConnection(new SocketProtocol(s,ctx),[]);
 	}
 
 }

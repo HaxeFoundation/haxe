@@ -45,9 +45,6 @@
 				RelativePath="..\neko\libs\include\ocaml\binast.ml">
 			</File>
 			<File
-				RelativePath=".\genneko.ml">
-			</File>
-			<File
 				RelativePath="..\neko\libs\include\ocaml\nast.ml">
 			</File>
 			<File
@@ -64,6 +61,34 @@
 				RelativePath="..\..\mtcvs\swflib\as3hl.mli">
 			</File>
 		</Filter>
+		<Filter
+			Name="gen"
+			Filter="">
+			<File
+				RelativePath=".\genas3.ml">
+			</File>
+			<File
+				RelativePath=".\genjs.ml">
+			</File>
+			<File
+				RelativePath=".\genneko.ml">
+			</File>
+			<File
+				RelativePath=".\genphp.ml">
+			</File>
+			<File
+				RelativePath=".\genswf.ml">
+			</File>
+			<File
+				RelativePath=".\genswf8.ml">
+			</File>
+			<File
+				RelativePath=".\genswf9.ml">
+			</File>
+			<File
+				RelativePath=".\genxml.ml">
+			</File>
+		</Filter>
 		<File
 			RelativePath=".\ast.ml">
 		</File>
@@ -72,24 +97,6 @@
 		</File>
 		<File
 			RelativePath=".\common.ml">
-		</File>
-		<File
-			RelativePath=".\genas3.ml">
-		</File>
-		<File
-			RelativePath=".\genjs.ml">
-		</File>
-		<File
-			RelativePath=".\genswf.ml">
-		</File>
-		<File
-			RelativePath=".\genswf8.ml">
-		</File>
-		<File
-			RelativePath=".\genswf9.ml">
-		</File>
-		<File
-			RelativePath=".\genxml.ml">
 		</File>
 		<File
 			RelativePath=".\lexer.mll">

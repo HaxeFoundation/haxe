@@ -6,6 +6,13 @@ TODO optimizer : move multiple statics access into local variables
 TODO inlining : allow inlined getter/setter
 TODO inlining : substitute class+function type parameters in order to have fully typed expressions
 
+2008-??-??: 2.0
+	fixed current package bug in inherited constructor type
+	delayed type-parameter constraints check (allow mutual rec extends for SPOD)
+	improved unclosed macro error reporting
+	haxe/PHP integeration
+	renamed NekoSocketConnection to SyncSocketConnection (php support)
+
 2008-07-17: 2.0-RC1
 	genneko : remove big array error (fixed in neko 1.7.1)
 	fixed neko.net.ThreadRemotingServer.onXML
@@ -52,9 +59,6 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	added Type.createEnum
 	check that local variables get correctly initialized before usage
 	haxe.Stack support for flash9
-	fixed current package bug in inherited constructor type
-	delayed type-parameter constraints check (allow mutual rec extends for SPOD)
-	improved unclosed macro error reporting
 
 2008-04-05: 1.19
 	fixed flash9 Array.toString

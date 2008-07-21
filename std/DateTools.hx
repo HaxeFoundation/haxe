@@ -34,7 +34,7 @@ class DateTools {
 	#if neko
 	static var date_format = neko.Lib.load("std","date_format",2);
 	#else
-	private static function __jsflash_format_get( d : Date, e : String ) : String {
+	private static function __format_get( d : Date, e : String ) : String {
 		return switch( e ){
 			case "%":
 				"%";
@@ -43,7 +43,7 @@ class DateTools {
 			case "d":
 				untyped StringTools.lpad(Std.string(d.getDate()),"0",2);
 			case "D":
-				__jsflash_format(d,"%m/%d/%y");
+				__format(d,"%m/%d/%y");
 			case "e":
 				untyped Std.string(d.getDate());
 			case "H","k":
@@ -60,9 +60,9 @@ class DateTools {
 			case "p":
 				untyped if( d.getHours() > 11 ) "PM"; else "AM";
 			case "r":
-				__jsflash_format(d,"%I:%M:%S %p");
+				__format(d,"%I:%M:%S %p");
 			case "R":
-				__jsflash_format(d,"%H:%M");
+				__format(d,"%H:%M");
 			case "s":
 				Std.string(Std.int(d.getTime()/1000));
 			case "S":
@@ -70,7 +70,7 @@ class DateTools {
 			case "t":
 				"\t";
 			case "T":
-				__jsflash_format(d,"%H:%M:%S");
+				__format(d,"%H:%M:%S");
 			case "u":
 				untyped{
 					var t = d.getDay();
@@ -87,7 +87,7 @@ class DateTools {
 		}
 	}
 
-	private static function __jsflash_format( d : Date, f : String ) : String {
+	private static function __format( d : Date, f : String ) : String {
 		var r = new StringBuf();
 		var p = 0;
 		while( true ){
@@ -96,7 +96,7 @@ class DateTools {
 				break;
 
 			r.addSub(f,p,np-p);
-			r.add( __jsflash_format_get(d, f.substr(np+1,1) ) );
+			r.add( __format_get(d, f.substr(np+1,1) ) );
 
 			p = np+2;
 		}
@@ -115,14 +115,8 @@ class DateTools {
 	public static function format( d : Date, f : String ) : String {
 		#if neko
 			untyped return new String(date_format(d.__t, f.__s));
-		#elseif js
-			return __jsflash_format(d, f );
-		#elseif flash
-			return __jsflash_format(d, f );
-		#elseif php
-			return __jsflash_format(d, f );
 		#else
-			return null;
+			return __format(d,f);
 		#end
 	}
 
