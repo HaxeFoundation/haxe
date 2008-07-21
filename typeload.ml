@@ -706,13 +706,7 @@ let init_class ctx c p herits fields =
 					let p = c.cl_pos in
 					let esuper = (ECall ((EConst (Ident "super"),p),List.map (fun (n,_,_,_) -> (EConst (Ident n),p)) f.f_args),p) in
 					let acc = (if csuper.cl_extern && acc = [] then [APublic] else acc) in
-					(* remove types that are superclass type-parameters *)
-					let replace_type = function
-						| Some (TPNormal { tpackage = []; tname = name; tparams = [] }) when List.exists (fun (param,_) -> name = param) csuper.cl_types ->
-							None
-						| t -> t
-					in
-					let fnew = { f with f_expr = esuper; f_args = List.map (fun (a,opt,t,c) -> a,opt,replace_type t,c) f.f_args } in
+					let fnew = { f with f_expr = esuper; f_args = List.map (fun (a,opt,t,def) -> a,opt,(if c.cl_extern then t else None),def) f.f_args } in
 					let _, _, cf, delayed = loop_cf (FFun ("new",None,acc,pl,fnew)) p in
 					c.cl_constructor <- Some cf;
 					Hashtbl.add ctx.constructs c.cl_path (acc,pl,f);
