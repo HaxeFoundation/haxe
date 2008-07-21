@@ -532,7 +532,6 @@ import flash.system.JPEGLoaderContext;
 
 #if php
 
-import php.Curl;
 import php.Exception;
 import php.FileSystem;
 import php.HException;
