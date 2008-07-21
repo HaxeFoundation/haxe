@@ -102,6 +102,9 @@ class FlashJsConnection #if flash implements AsyncConnection, implements Dynamic
 			s.serializeException(e);
 			return s.toString();
 		}
+		#if as3gen
+		return "";
+		#end
 	}
 
 	public static function connect( name : String, objId : String, ctx : Context ) {

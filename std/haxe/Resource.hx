@@ -29,11 +29,11 @@ class Resource {
 	static function cleanName(name : String) : String {
 		return ~/[\\\/:?"*<>|]/.replace(name, '_');
 	}
-	
+
 	static function getDir() {
 		return untyped __call__('dirname', __php__('__FILE__'))+"/../../res";
 	}
-	
+
 	static function getPath(name : String) {
 		return getDir()+'/'+cleanName(name);
 	}
@@ -44,11 +44,11 @@ class Resource {
 		if(a[0] == '..') a.shift();
 		return a;
 	}
-	
+
 	public static function getString( name : String ) {
 		return php.io.File.getContent(getPath(name));
 	}
-	
+
 	public static function getBytes( name : String ) {
 		return php.io.File.getBytes(getPath(name));
 	}
@@ -97,6 +97,8 @@ class Resource {
 		content = untyped Array.new1(tmp,__dollar__asize(tmp));
 		#elseif php
 		content = null;
+		#elseif as3gen
+		null;
 		#else
 		content = untyped __resources__();
 		#end

@@ -9,7 +9,7 @@ class TestRemoting extends Test {
 	static var HOST = "dev.unit-tests";
 	static var PORT = 1999;
 
-	static var _ = init();
+	static var _ : Dynamic = init();
 	static var ecnx : haxe.remoting.ExternalConnection;
 	static var ecnx2 : haxe.remoting.ExternalConnection;
 	static var ecnx3 : haxe.remoting.ExternalConnection;

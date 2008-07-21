@@ -231,6 +231,7 @@ try
 			com.flash_version <- 9;
 			gen_as3 := true;
 			Common.define com "as3gen";
+			Common.define com "no_inline";
 		),"<directory> : generate AS3 code into target directory");
 		("-swf",Arg.String (set_platform Flash "flash"),"<file> : compile code to Flash SWF file");
 		("-swf9",Arg.String (fun file ->

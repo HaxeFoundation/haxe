@@ -67,6 +67,8 @@ class Stack {
 	public static function exceptionStack() : Array<StackItem> {
 		#if neko
 			return makeStack(untyped __dollar__excstack());
+		#elseif as3gen
+			return new Array();
 		#elseif flash9
 			var err : flash.Error = untyped flash.Boot.lastError;
 			if( err == null ) return new Array();

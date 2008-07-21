@@ -8,8 +8,7 @@
 
 --next
 # Flash9
--swf unit9.swf
--swf-version 9
+-swf9 unit9.swf
 -main unit.Test
 -debug
 -cp ..
@@ -31,14 +30,6 @@ unit.Test
 -resource res2.bin
 
 --next
-# Php
--php php
--main unit.Test
--cp ..
--resource res1.txt
--resource res2.bin
-
---next
 # Neko
 -neko unit.n
 -main unit.Test
@@ -52,3 +43,11 @@ unit.Test
 -neko remoting.n
 -main unit.RemotingServer
 -cp ..
+
+--next
+# PHP
+-php php
+-main unit.Test
+-cp ..
+-resource res1.txt
+-resource res2.bin
