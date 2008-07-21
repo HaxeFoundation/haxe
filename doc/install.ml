@@ -149,7 +149,7 @@ let compile() =
 		"ast";"lexer";"type";"common";"parser";"typecore";
 		"genxml";"typeload";"codegen";"typer";
 		neko^"/nast";neko^"/binast";neko^"/nxml";
-		"genneko";"genas3";"genjs";"genswf8";"genswf9";"genswf";
+		"genneko";"genas3";"genjs";"genswf8";"genswf9";"genswf";"genphp";
 		"main";
 	] in
 	let path_str = String.concat " " (List.map (fun s -> "-I " ^ s) paths) in
