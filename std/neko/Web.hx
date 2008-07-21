@@ -288,6 +288,13 @@ class Web {
 		return new String(_get_http_method());
 	}
 
+	/**
+		Write a message into the web server log file. This api requires Neko 1.7.1+
+	**/
+	public static function logMessage( msg : String ) {
+		_log_message(untyped msg.__s);
+	}
+
 	public static var isModNeko(default,null) : Bool;
 
 	static var _set_main : Dynamic;
@@ -309,6 +316,7 @@ class Web {
 	static var _get_client_headers : Dynamic;
 	static var _get_http_method : Dynamic;
 	static var _base_decode = Lib.load("std","base_decode",2);
+	static var _log_message : Dynamic;
 
 	static function __init__() {
 		var get_env = Lib.load("std","get_env",1);
@@ -331,9 +339,10 @@ class Web {
 			_set_cookie = Lib.load(lib,"set_cookie",2);
 			_get_cwd = Lib.load(lib,"cgi_get_cwd",0);
 			_get_http_method = Lib.loadLazy(lib,"get_http_method",0);
-			_parse_multipart = try Lib.load(lib,"parse_multipart_data",2) catch( e : Dynamic ) function(a,b) { throw "Please upgrade Neko"; };
-			_flush = try Lib.load(lib,"cgi_flush",0) catch( e : Dynamic ) function() { throw "Please upgrade Neko"; };
-			_get_client_headers = try Lib.load(lib,"get_client_headers",0) catch( e : Dynamic ) function() { throw "Please upgrade Neko"; };
+			_parse_multipart = Lib.loadLazy(lib,"parse_multipart_data",2);
+			_flush = Lib.loadLazy(lib,"cgi_flush",0);
+			_get_client_headers = Lib.loadLazy(lib,"get_client_headers",0);
+			_log_message = Lib.loadLazy(lib,"log_message",1);
 		} else {
 			var a0 = untyped __dollar__loader.args[0];
 			if( a0 != null ) a0 = new String(a0);
@@ -369,6 +378,7 @@ class Web {
 			_get_http_method = function() return untyped "GET".__s;
 			_parse_multipart = function(a,b) { throw "Not supported"; };
 			_flush = function() { };
+			_log_message = function(s) { };
 		}
 	}
 
