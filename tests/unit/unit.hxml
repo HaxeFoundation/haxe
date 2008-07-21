@@ -17,6 +17,12 @@
 -resource res2.bin
 
 --next
+-as3 as3
+-cp ..
+-main unit.Test
+-cmd mxmlc -output unit9_as3.swf as3/__main__.as
+
+--next
 # JS
 -js unit.js
 unit.Test

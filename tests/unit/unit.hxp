@@ -4,16 +4,14 @@
 -resource res2.bin</output>
   <output name="Flash9" mode="swf9" out="unit9.swf" class="unit.Test" lib="" cmd="" main="True" debug="True">-cp ..
 -resource res1.txt
--resource res2.bin</output>
-  <output name="JS" mode="js" out="unit.js" class="unit.Test" lib="" cmd="" main="False" debug="False">-cp ..
--resource res1.txt
 -resource res2.bin
 
 --next
-# Php
--php out
--main unit.Test
+-as3 as3
 -cp ..
+-main unit.Test
+-cmd mxmlc -output unit9_as3.swf as3/__main__.as</output>
+  <output name="JS" mode="js" out="unit.js" class="unit.Test" lib="" cmd="" main="False" debug="False">-cp ..
 -resource res1.txt
 -resource res2.bin</output>
   <output name="Neko" mode="neko" out="unit.n" class="unit.Test" lib="" cmd="" main="True" debug="False">-cp ..
