@@ -53,6 +53,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	check that local variables get correctly initialized before usage
 	haxe.Stack support for flash9
 	fixed current package bug in inherited constructor type
+	delayed type-parameter constraints check (allow mutual rec extends for SPOD)
 
 2008-04-05: 1.19
 	fixed flash9 Array.toString

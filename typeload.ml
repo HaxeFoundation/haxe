@@ -135,13 +135,20 @@ let rec load_normal_type ctx t p allow_no_params =
 			let params = List.map2 (fun t (name,t2) ->
 				let isconst = (match t with TInst ({ cl_kind = KConstant _ },_) -> true | _ -> false) in
 				if isconst <> (name = "Const") && t != t_dynamic then error (if isconst then "Constant value unexpected here" else "Constant value excepted as type parameter") p;
-				(match follow t2 with
+				match follow t2 with
+				| TInst ({ cl_implements = [] }, []) ->
+					t
 				| TInst (c,[]) ->
-					List.iter (fun (i,params) ->
-						unify ctx t (apply_params types tparams (TInst (i,params))) p
-					) c.cl_implements
-				| _ -> assert false);
-				t
+					let r = exc_protect (fun r ->
+						r := (fun() -> t);
+						List.iter (fun (i,params) ->
+							unify ctx t (apply_params types tparams (TInst (i,params))) p
+						) c.cl_implements;
+						t
+					) in
+					ctx.delays := [(fun () -> ignore(!r()))] :: !(ctx.delays);
+					TLazy r
+				| _ -> assert false				
 			) tparams types in
 			f params
 		end
