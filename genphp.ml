@@ -1858,7 +1858,12 @@ let createmain com c =
 		is_call = false;
 		cwd = "";
 	} in
-	
+
+	spr ctx "if(version_compare(PHP_VERSION, '5.1.6', '<')) {
+    exit('Your current PHP version is: ' . PHP_VERSION . '. haXe/PHP generates code for version 5.1.6 or later');
+}";
+	newline ctx;
+	newline ctx;
 	spr ctx "require_once dirname(__FILE__).'/lib/php/Boot.class.php';\n\n";
 	(match c.cl_ordered_statics with
 	| [{ cf_expr = Some e }] ->

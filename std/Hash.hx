@@ -227,12 +227,4 @@ class Hash<T> {
 		s.add("}");
 		return s.toString();
 	}
-
-#if php
-	static public function fromAssociativeArray<T>(arr : Dynamic) : Hash<T> {
-		var h = new Hash<T>();
-		untyped __php__("foreach($arr as $k => $v) $h->set($k, $v)");
-		return h;
-	}
-#end
 }

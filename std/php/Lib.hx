@@ -55,6 +55,10 @@ class Lib {
 		var h = untyped __call__("fopen", file,  "r");
 		return untyped __call__("fpassthru", h);
 	}
+	
+	public static function hashOfAssociativeArray<T>(arr : Dynamic) : Hash<T> {
+		var h = new Hash<T>();
+		untyped __php__("foreach($arr as $k => $v) $h->set($k, $v)");
+		return h;
+	}
 }
-
-

@@ -81,6 +81,6 @@ class Sys {
 	}
 
 	public static function environment() : Hash<String> {
-		return Hash.fromAssociativeArray(untyped __php__("$_SERVER"));
+		return Lib.hashOfAssociativeArray(untyped __php__("$_SERVER"));
 	}
 }

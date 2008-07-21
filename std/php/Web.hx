@@ -13,7 +13,7 @@ class Web {
 		var a : Array<String> = untyped __php__("array_merge($_GET, $_POST)");
 		if(untyped __call__("get_magic_quotes_gpc"))
 			untyped __php__("foreach($a as $k => $v) $a[$k] = stripslashes($v)");
-		return Hash.fromAssociativeArray(a);
+		return Lib.hashOfAssociativeArray(a);
 	}
 
 	/**
@@ -153,7 +153,7 @@ class Web {
 	public static function getClientHeaders() {
 		if(_client_headers == null) {
 			_client_headers = new List();
-			var h = Hash.fromAssociativeArray(untyped __php__("$_SERVER"));			
+			var h = Lib.hashOfAssociativeArray(untyped __php__("$_SERVER"));			
 			for(k in h.keys()) {
 				if(k.substr(0,5) == "HTTP_") {
 					_client_headers.add({ header : k.substr(5), value : h.get(k)});
@@ -199,7 +199,7 @@ class Web {
 	public static function getCookies() {
 		var h = new Hash<String>();
 		var k = "";
-		var h1 = Hash.fromAssociativeArray(untyped __php__("$_COOKIE"));
+		var h1 = Lib.hashOfAssociativeArray(untyped __php__("$_COOKIE"));
 		for( k in h1.keys() ) {
 			h.set(k,h1.get(k));
 		}
