@@ -44,7 +44,9 @@ class TestRemoting extends Test {
 		#if (flash || js)
 		doTestConnection(ecnx);
 		#end
+		#if !php // accessing the properties of a null object generates a fatal error in php
 		exc(function() ecnx3.api.add.call([1,3]));
+		#end
 		#if js
 		doTestConnection(ecnx2);
 		#end
@@ -55,7 +57,7 @@ class TestRemoting extends Test {
 		// flash-flash through-js connection
 		doTestAsyncConnection(fjscnx);
 		#end
-		#if (js || neko)
+		#if (js || neko || php)
 		// http sync connection
 		var hcnx = haxe.remoting.HttpConnection.urlConnect("http://"+HOST+"/remoting.n");
 		doTestConnection(hcnx);
@@ -75,7 +77,7 @@ class TestRemoting extends Test {
 		doTestAsyncConnection(dcnx);
 
 		// socket connection
-		#if (flash || neko)
+		#if (flash || neko || php)
 		async( doConnect, new Socket(), true );
 		#elseif js
 		async( doConnect, new Socket("haxeFlash8"), true );
@@ -122,12 +124,19 @@ class TestRemoting extends Test {
 		var ret = try { s.connect(new neko.net.Host(HOST),PORT); true; } catch( e : Dynamic ) false;
 		if( ret ) doTestSocket(s);
 		onResult(ret);
+		#elseif php
+		var ret = try { s.connect(new php.net.Host(HOST),PORT); true; } catch( e : Dynamic ) false;
+		if( ret ) doTestSocket(s);
+		onResult(ret);
 		#end
 	}
 
 	function doTestSocket( s : Socket ) {
 		#if neko
 		var scnx = haxe.remoting.NekoSocketConnection.create(s,new haxe.remoting.Context());
+		doTestConnection(scnx);
+		#elseif php
+		var scnx = haxe.remoting.PhpSocketConnection.create(s,new haxe.remoting.Context());
 		doTestConnection(scnx);
 		#else
 		var scnx = haxe.remoting.SocketConnection.create(s,new haxe.remoting.Context());

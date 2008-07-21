@@ -25,10 +25,18 @@
 package haxe;
 
 #if neko
+import neko.net.Host;
+import neko.net.Socket;
+#elseif php
+import php.net.Host;
+import php.net.Socket;
+#end
+
+#if (neko || php)
 private typedef AbstractSocket = {
 	var input(default,null) : haxe.io.Input;
 	var output(default,null) : haxe.io.Output;
-	function connect( host : neko.net.Host, port : Int ) : Void;
+	function connect( host : Host, port : Int ) : Void;
 	function setTimeout( t : Float ) : Void;
 	function write( str : String ) : Void;
 	function close() : Void;
@@ -39,7 +47,7 @@ private typedef AbstractSocket = {
 class Http {
 
 	public var url : String;
-#if neko
+#if (neko || php)
 	public var noShutdown : Bool;
 	public var cnxTimeout : Float;
 	var responseHeaders : Hash<String>;
@@ -54,7 +62,7 @@ class Http {
 	var headers : Hash<String>;
 	var params : Hash<String>;
 
-	#if neko
+	#if (neko || php)
 	public static var PROXY : { host : String, port : Int, auth : { user : String, pass : String } } = null;
 	#end
 
@@ -64,7 +72,7 @@ class Http {
 		params = new Hash();
 		#if js
 		async = true;
-		#elseif neko
+		#elseif (neko || php)
 		cnxTimeout = 10;
 		#end
 	}
@@ -224,7 +232,7 @@ class Http {
 		}
 		if( !r.sendAndLoad(small_url,r,if( param ) { if( post ) "POST" else "GET"; } else null) )
 			onError("Failed to initialize Connection");
-	#elseif neko
+	#elseif (neko || php)
 		var me = this;
 		var output = new haxe.io.BytesOutput();
 		var old = onError;
@@ -235,11 +243,15 @@ class Http {
 		}
 		customRequest(post,output);
 		if( !err )
+		#if neko
 			me.onData(neko.Lib.stringReference(output.getBytes()));
+		#else
+			me.onData(output.getBytes().toString());
+		#end
 	#end
 	}
 
-#if neko
+#if (neko || php)
 
 	public function fileTransfert( argname : String, filename : String, file : haxe.io.Input, size : Int ) {
 		this.file = { param : argname, filename : filename, io : file, size : size };
@@ -252,7 +264,7 @@ class Http {
 			return;
 		}
 		if( sock == null )
-			sock = new neko.net.Socket();
+			sock = new Socket();
 		var host = url_regexp.matched(2);
 		var portString = url_regexp.matched(3);
 		var request = url_regexp.matched(4);
@@ -361,16 +373,19 @@ class Http {
 		}
 		try {
 			if( Http.PROXY != null )
-				sock.connect(new neko.net.Host(Http.PROXY.host),Http.PROXY.port);
+				sock.connect(new Host(Http.PROXY.host),Http.PROXY.port);
 			else
-				sock.connect(new neko.net.Host(host),port);
+				sock.connect(new Host(host),port);
 			sock.write(b.toString());
 			if( multipart ) {
 				var bufsize = 4096;
 				var buf = haxe.io.Bytes.alloc(bufsize);
 				while( file.size > 0 ) {
 					var size = if( file.size > bufsize ) bufsize else file.size;
-					var len = try file.io.readBytes(buf,0,size) catch( e : haxe.io.Eof ) break;
+					var len = 0;
+					try {
+						len = file.io.readBytes(buf,0,size);
+					} catch( e : haxe.io.Eof ) break;
 					sock.output.writeFullBytes(buf,0,len);
 					file.size -= len;
 				}
@@ -450,7 +465,11 @@ class Http {
 				}
 			}
 		}
+		#if neko
 		var headers = neko.Lib.stringReference(b.getBytes()).split("\r\n");
+		#else
+		var headers = b.getBytes().toString().split("\r\n");
+		#end
 		var response = headers.shift();
 		var rp = response.split(" ");
 		var status = Std.parseInt(rp[1]);
@@ -527,7 +546,11 @@ class Http {
 				len += chunk_buf.length;
 				chunk_buf = null;
 			}
+			#if neko
 			if( chunk_re.match(neko.Lib.stringReference(buf)) ) {
+			#else
+			if( chunk_re.match(buf.toString()) ) {
+			#end
 				var p = chunk_re.matchedPos();
 				if( p.len <= len ) {
 					var cstr = chunk_re.matched(1);
@@ -582,7 +605,11 @@ class Http {
 	}
 
 #if !flash
+	#if php
+	public static function requestUrl( url : String ) : String {
+	#else
 	public static function request( url : String ) : String {
+	#end
 		var h = new Http(url);
 	#if js
 		h.async = false;

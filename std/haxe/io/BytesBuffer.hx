@@ -97,7 +97,11 @@ class BytesBuffer {
 		#else
 		var bytes = new Bytes(b.length,b);
 		#end
+		#if php
+		untyped __call__('unset', b);
+		#else
 		b = null;
+		#end
 		return bytes;
 	}
 

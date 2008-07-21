@@ -119,6 +119,8 @@ class DateTools {
 			return __jsflash_format(d, f );
 		#elseif flash
 			return __jsflash_format(d, f );
+		#elseif php
+			return __jsflash_format(d, f );
 		#else
 			return null;
 		#end

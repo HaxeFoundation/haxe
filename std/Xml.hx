@@ -234,6 +234,8 @@ extern class Xml {
 			#if swf_mark
 			flash.Lib.current["Xml"] = Xml;
 			#end
+		#elseif php
+			Xml = php.PhpXml__;
 		#end
 		#if !flash9
 		Xml.__name__ = ["Xml"];

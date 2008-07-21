@@ -92,6 +92,8 @@ class Output {
 	public function writeFloat( x : Float ) {
 		#if neko
 		write(untyped new Bytes(4,_float_bytes(x,bigEndian)));
+		#elseif php
+		write(untyped Bytes.ofString(__call__('pack', 'f', x)));
 		#else
 		throw "Not implemented";
 		#end
@@ -100,6 +102,8 @@ class Output {
 	public function writeDouble( x : Float ) {
 		#if neko
 		write(untyped new Bytes(8,_double_bytes(x,bigEndian)));
+		#elseif php
+		write(untyped Bytes.ofString(__call__('pack', 'd', x)));
 		#else
 		throw "Not implemented";
 		#end

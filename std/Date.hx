@@ -114,6 +114,8 @@ extern class Date
 	#if neko
 		Date = neko.NekoDate__;
 		neko.Boot.__classes.Date = Date;
+	#elseif php
+		Date = php.PhpDate__;
 	#else
 		Date.now = function() {
 			return __new__(Date);

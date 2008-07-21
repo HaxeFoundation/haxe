@@ -134,6 +134,8 @@ class Bytes {
 		#elseif flash9
 		b.position = pos;
 		return b.readUTFBytes(len);
+		#elseif php
+		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", ["C*"], __call__("array_slice", b, pos, len)));
 		#else
 		var s = "";
 		var b = b;
@@ -166,6 +168,8 @@ class Bytes {
 		#elseif flash9
 		b.position = 0;
 		return b.readUTFBytes(length);
+		#elseif php
+		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", ["C*"], b));
 		#else
 		return readString(0,length);
 		#end
@@ -197,6 +201,9 @@ class Bytes {
 		var b = new flash.utils.ByteArray();
 		b.writeUTFBytes(s);
 		return new Bytes(b.length,b);
+		#elseif php
+		var a : Array<Int> = untyped __call__("array_values", __call__("unpack", "C*",  s));
+		return new Bytes(a.length,a);
 		#else
 		var a = new Array();
 		// utf8-decode

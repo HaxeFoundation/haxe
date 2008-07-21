@@ -38,6 +38,13 @@ class EReg {
 	var last : String;
 	var global : Bool;
 	#end
+	#if php
+	var pattern : String;
+	var options : String;
+	var re : String;
+	var last : String;
+	var matches : Array<Dynamic>;
+	#end
 
 	/**
 		Creates a new regular expression with pattern [r] and
@@ -55,6 +62,10 @@ class EReg {
 			this.r = untyped __new__("RegExp",r,opt);
 		#elseif flash9
 			this.r = untyped __new__(__global__["RegExp"],r,opt);
+		#elseif php
+			this.pattern = r;
+			this.options = opt;
+			this.re = "/" + untyped __php__("str_replace")("/", "\\/", r) + "/" + opt;
 		#else
 			throw "Regular expressions are not implemented for this platform";
 		#end
@@ -83,6 +94,13 @@ class EReg {
 		#elseif flash9
 			result = untyped r.exec(s);
 			return (result != null);
+		#elseif php
+			var p : Int = untyped __php__("preg_match")(re, s, matches, __php__("PREG_OFFSET_CAPTURE"));
+			if(p > 0)
+				last = s;
+			else
+				last = null;
+			return p > 0;
 		#else
 			return false;
 		#end
@@ -100,6 +118,9 @@ class EReg {
 			return untyped if( r.m != null && n >= 0 && n < r.m.length ) r.m[n] else throw "EReg::matched";
 		#elseif flash9
 			return untyped if( result != null && n >= 0 && n < result.length ) result[n] else throw "EReg::matched";
+		#elseif php
+			if(n >= 0 && n < matches.length) return matches[n][0];
+			else throw "EReg::matched";
 		#else
 			return null;
 		#end
@@ -122,13 +143,16 @@ class EReg {
 		#elseif flash9
 			if( result == null ) throw "No string matched";
 			return result.input.substr(0,result.index);
+		#elseif php
+			if( matches.length == 0 ) throw "No string matched";
+			return last.substr(0, matches[0][1]);
 		#else
 			return null;
 		#end
 	}
 
 	/**
-		Returns the part of the string that was as the right of
+		Returns the part of the string that was at the right of
 		of the matched substring.
 	**/
 	public function matchedRight() : String {
@@ -149,6 +173,9 @@ class EReg {
 			if( result == null ) throw "No string matched";
 			var rl = result.index + result[0].length;
 			return result.input.substr(rl,result.input.length - rl);
+		#elseif php
+			if( matches.length == 0 ) throw "No string matched";
+			return untyped __php__("substr")(last, matches[0][1] + __php__("strlen")(matches[0][0]));
 		#else
 			return null;
 		#end
@@ -167,6 +194,8 @@ class EReg {
 		#elseif flash9
 			if( result == null ) throw "No string matched";
 			return { pos : result.index, len : result[0].length };
+		#elseif php
+			return untyped { pos : matches[0][1], len : __php__("strlen")(matches[0][0]) };
 		#else
 			return null;
 		#end
@@ -203,6 +232,8 @@ class EReg {
 			// we can't use directly s.split because it's ignoring the 'g' flag
 			var d = "#__delim__#";
 			return untyped s.replace(r,d).split(d);
+		#elseif php
+			return untyped __php__("preg_split")(re, s);
 		#else
 			return null;
 		#end
@@ -265,6 +296,10 @@ class EReg {
 			return b.toString();
 		#elseif (js || flash9)
 			return untyped s.replace(r,by);
+		#elseif php
+			by = untyped __call__("str_replace", "$$", "\\$", by);
+			untyped __php__("if(!preg_match('/\\\\([^?].+?\\\\)/', $this->re)) $by = preg_replace('/\\$(\\d+)/', '\\\\\\$\\1', $by)");
+			return untyped __php__("preg_replace")(re, by, s);
 		#else
 			return null;
 		#end

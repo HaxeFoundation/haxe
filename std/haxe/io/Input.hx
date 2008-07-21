@@ -128,6 +128,8 @@ class Input {
 	public function readFloat() : Float {
 		#if neko
 			return _float_of_bytes(untyped read(4).b,bigEndian);
+		#elseif php
+			return untyped __call__('unpack', 'f', readString(4))[1];
 		#else
 			throw "Not implemented";
 			return 0;
@@ -137,6 +139,8 @@ class Input {
 	public function readDouble() : Float {
 		#if neko
 			return _double_of_bytes(untyped read(8).b,bigEndian);
+		#elseif php
+			return untyped __call__('unpack', 'd', readString(8))[1];
 		#else
 			throw "Not implemented";
 			return 0;

@@ -18,7 +18,7 @@ class TestResource extends Test {
 			eq( names[1], "res1.txt" );
 		}
 		eq( haxe.Resource.getString("res1.txt"), STR );
-		#if (neko || flash9)
+		#if (neko || flash9 || php)
 		// allow binary strings
 		eq( haxe.Resource.getString("res2.bin"), "Héllo\000World\000\000\000\000!" );
 		#else

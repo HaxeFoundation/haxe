@@ -35,7 +35,7 @@ class StringTools {
 	/**
 		Encode an URL by using the standard format.
 	**/
-	public static function urlEncode( s : String ) : String untyped {
+	public #if php inline #end static function urlEncode( s : String ) : String untyped {
 		#if flash9
 			return __global__["encodeURIComponent"](s);
 		#elseif flash
@@ -44,6 +44,8 @@ class StringTools {
 			return new String(_urlEncode(s.__s));
 		#elseif js
 			return encodeURIComponent(s);
+		#elseif php
+			return __call__("rawurlencode", s);
 		#else
 			return null;
 		#end
@@ -52,7 +54,7 @@ class StringTools {
 	/**
 		Decode an URL using the standard format.
 	**/
-	public static function urlDecode( s : String ) : String untyped {
+	public #if php inline #end static function urlDecode( s : String ) : String untyped {
 		#if flash9
 			return __global__["decodeURIComponent"](s.split("+").join(" "));
 		#elseif flash
@@ -61,6 +63,8 @@ class StringTools {
 			return new String(_urlDecode(s.__s));
 		#elseif js
 			return decodeURIComponent(s.split("+").join(" "));
+		#elseif php
+			return __call__("urldecode", s);
 		#else
 			return null;
 		#end
@@ -76,8 +80,12 @@ class StringTools {
 	/**
 		Unescape HTML special characters of the string.
 	**/
-	public static function htmlUnescape( s : String ) : String {
+	public #if php inline #end static function htmlUnescape( s : String ) : String {
+		#if php
+		return untyped __call__("htmlspecialchars_decode", s);
+		#else
 		return s.split("&gt;").join(">").split("&lt;").join("<").split("&amp;").join("&");
+		#end
 	}
 
 	/**
@@ -107,7 +115,10 @@ class StringTools {
 	/**
 		Removes spaces at the left of the String [s].
 	**/
-	public static function ltrim( s : String ) : String {
+	public #if php inline #end static function ltrim( s : String ) : String {
+		#if php
+		return untyped __call__("ltrim", s);
+		#else
 		var l = s.length;
 		var r = 0;
 		while( r < l && isSpace(s,r) ){
@@ -117,12 +128,16 @@ class StringTools {
 			return s.substr(r, l-r);
 		else
 			return s;
+		#end
 	}
 
 	/**
 		Removes spaces at the right of the String [s].
 	**/
-	public static function rtrim( s : String ) : String {
+	public #if php inline #end static function rtrim( s : String ) : String {
+		#if php
+		return untyped __call__("rtrim", s);
+		#else
 		var l = s.length;
 		var r = 0;
 		while( r < l && isSpace(s,l-r-1) ){
@@ -133,19 +148,27 @@ class StringTools {
 		}else{
 			return s;
 		}
+		#end
 	}
 
 	/**
 		Removes spaces at the beginning and the end of the String [s].
 	**/
-	public static function trim( s : String ) : String {
+	public #if php inline #end static function trim( s : String ) : String {
+		#if php
+		return untyped __call__("trim", s);
+		#else
 		return ltrim(rtrim(s));
+		#end
 	}
 
 	/**
 		Pad the string [s] by appending [c] at its right until it reach [l] characters.
 	**/
-	public static function rpad( s : String, c : String, l : Int ) : String {
+	public #if php inline #end static function rpad( s : String, c : String, l : Int ) : String {
+		#if php
+		return untyped __call__("str_pad", s, l, c, __php__("STR_PAD_RIGHT"));
+		#else
 		var sl = s.length;
 		var cl = c.length;
 		while( sl < l ){
@@ -158,12 +181,16 @@ class StringTools {
 			}
 		}
 		return s;
+		#end
 	}
 
 	/**
 		Pad the string [s] by appending [c] at its left until it reach [l] characters.
 	**/
-	public static function lpad( s : String, c : String, l : Int ) : String {
+	public #if php inline #end static function lpad( s : String, c : String, l : Int ) : String {
+		#if php
+		return untyped __call__("str_pad", s, l, c, __php__("STR_PAD_LEFT"));
+		#else
 		var ns = "";
 		var sl = s.length;
 		if( sl >= l ) return s;
@@ -179,13 +206,18 @@ class StringTools {
 			}
 		}
 		return ns+s;
+		#end
 	}
 
 	/**
 		Replace all occurences of the string [sub] in the string [s] by the string [by].
 	**/
-	public static function replace( s : String, sub : String, by : String ) : String {
+	public #if php inline #end static function replace( s : String, sub : String, by : String ) : String {
+		#if php
+		return untyped __call__("str_replace", sub, by, s);
+		#else
 		return s.split(sub).join(by);
+		#end
 	}
 
 	/**

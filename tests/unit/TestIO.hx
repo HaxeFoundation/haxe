@@ -33,7 +33,7 @@ class TestIO extends Test {
 		exc(function() o.writeBytes(b,3,20));
 
 		o.writeByte(98);
-		#if (neko || flash9)
+		#if (neko || flash9 || php)
 		o.writeDouble(1.23);
 		o.writeFloat(1.2e10);
 		#end
@@ -84,7 +84,7 @@ class TestIO extends Test {
 		eq( i.read(5).compare(b.sub(3,5)), 0 );
 
 		eq( i.readByte(), 98 );
-		#if (neko || flash9)
+		#if (neko || flash9 || php)
 		eq( i.readDouble(), 1.23 );
 		eq( i.readFloat(), 1.2e10 );
 		#else

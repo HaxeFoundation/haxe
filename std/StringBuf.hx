@@ -73,7 +73,7 @@ class StringBuf {
 	public inline function addChar( c : Int ) untyped {
 		#if neko
 			__add_char(b,c);
-		#elseif (flash9 || js)
+		#elseif (flash9 || js || php)
 			b += String.fromCharCode(c);
 		#elseif flash
 			b += String["fromCharCode"](c);

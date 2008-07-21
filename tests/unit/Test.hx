@@ -139,7 +139,8 @@ class Test #if swf_mark implements mt.Protect #end {
 	}
 
 	static function resetTimer() {
-		#if !neko
+		#if (neko || php)
+		#else
 		if( timer != null ) timer.stop();
 		timer = new haxe.Timer(10000);
 		timer.run = asyncTimeout;
@@ -150,6 +151,9 @@ class Test #if swf_mark implements mt.Protect #end {
 		#if neko
 		if( neko.Web.isModNeko )
 			neko.Lib.print("<pre>");
+		#elseif php
+		if( php.Web.isModNeko )
+			php.Lib.print("<pre>");
 		#end
 		resetTimer();
 		trace("START");

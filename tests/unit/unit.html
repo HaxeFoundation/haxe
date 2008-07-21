@@ -1,100 +1,110 @@
 <html>
-
 <head>
-	<title>haXe</title>
 	<meta http-equiv="Content-Type" content="text/html;charset=UTF-8" />
+	<title>haXe Tests</title>
+	<style>
+body {
+  font-family: Verdana;
+  font-size: 9pt;
+}
+	
+iframe {
+  border: 0; padding: 0; margin: 0;
+  width: 100%; height: 100%;
+}
+
+.label {
+  padding: 2px;
+  font-weight: bold;
+  background-color: #000000;
+  color: #ffffff;
+  text-align: center;
+}
+
+.window {
+  float:left;
+  border: 1px solid #000000;
+  margin: 0 4px 4px 0;
+}
+
+.window .cont {
+  width: 400px;
+  height: 300px;
+  overflow: auto;
+  font-family: monospace;
+  white-space: pre;
+}
+	</style>
 	<script type="text/javascript" src="unit.js"></script>
 </head>
-
-<body bgcolor="#dddddd" onLoad="setTimeout('unit.Test.main()',1000)">
-
-<p>
-	Note : These tests need to be run from a local domain called <code>dev.unit-tests</code> which is running mod_neko in this directory.
-</p>
-
-<table>
-<tr>
-<td>
-
-<p>JS :</p>
-
-<pre id="haxe:trace" style="{ background-color : white; height : 290px; width : 390px; padding : 5px; overflow : auto; }">
-</pre>
-
-</td>
-<td>
-
-<p>Neko :</p>
-
-<iframe src="http://dev.unit-tests/unit.n" style="{ border : none; background-color : white; width : 400px; height : 300px; }">
-</iframe>
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-<p>Flash 8 :</p>
-
-<object	classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"
-        width="400"
+<body>
+<p>Note : These tests need to be run from a local domain called <code>dev.unit-tests</code> which is running mod_neko in this directory.</p>
+<div class="window">
+  <div class="label">JavaScript</div>
+  <div id="haxe:trace" class="cont"></div>
+</div>
+<div class="window">
+  <div class="label">Neko</div>
+  <div id="neko_container" class="cont"><iframe src="unit.n"></iframe></div>
+</div>
+<div class="window">
+  <div class="label">Php</div>
+  <div id="php_container" class="cont"><iframe src="php/index.php"></iframe></div>
+</div>
+<div class="window">
+  <div class="label">Flash 8</div>
+  <object	classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"
+	width="400"
 	height="300"
 	id="haxeFlash8"
 	align="middle">
-<param name="movie" value="unit8.swf"/>
-<param name="allowScriptAccess" value="always" />
-<param name="quality" value="high" />
-<param name="scale" value="noscale" />
-<param name="salign" value="lt" />
-<param name="bgcolor" value="#ffffff"/>
-<embed src="unit8.swf"
-       bgcolor="#ffffff"
-       width="400"
-       height="300"
-       name="haxeFlash8"
-       quality="high"
-       align="middle"
-       allowScriptAccess="always"
-       type="application/x-shockwave-flash"
-       pluginspage="http://www.macromedia.com/go/getflashplayer"
-/>
-</object>
-
-</td>
-<td>
-
-<p>
-Flash 9 :
-</p>
-
-<object	classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"
-        width="400"
+    <param name="movie" value="unit8.swf"/>
+    <param name="allowScriptAccess" value="always" />
+    <param name="quality" value="high" />
+    <param name="scale" value="noscale" />
+    <param name="salign" value="lt" />
+    <param name="bgcolor" value="#ffffff"/>
+    <embed src="unit8.swf"
+      bgcolor="#ffffff"
+      width="400"
+      height="300"
+      name="haxeFlash8"
+      quality="high"
+      align="middle"
+      allowScriptAccess="always"
+      type="application/x-shockwave-flash"
+      pluginspage="http://www.macromedia.com/go/getflashplayer"
+    />
+  </object>
+</div>
+<div class="window">
+  <div class="label">Flash 9</div>
+  <object	classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000"
+	width="400"
 	height="300"
 	id="haxeFlash9"
 	align="middle">
-<param name="movie" value="unit9.swf"/>
-<param name="allowScriptAccess" value="always" />
-<param name="quality" value="high" />
-<param name="scale" value="noscale" />
-<param name="salign" value="lt" />
-<param name="bgcolor" value="#ffffff"/>
-<embed src="unit9.swf"
-       bgcolor="#ffffff"
-       width="400"
-       height="300"
-       name="haxeFlash9"
-       quality="high"
-       align="middle"
-       allowScriptAccess="always"
-       type="application/x-shockwave-flash"
-       pluginspage="http://www.macromedia.com/go/getflashplayer"
-/>
-</object>
-
-</td>
-</tr>
-</table>
-
+    <param name="movie" value="unit9.swf"/>
+    <param name="allowScriptAccess" value="always" />
+    <param name="quality" value="high" />
+    <param name="scale" value="noscale" />
+    <param name="salign" value="lt" />
+    <param name="bgcolor" value="#ffffff"/>
+    <embed src="unit9.swf"
+      bgcolor="#ffffff"
+      width="400"
+      height="300"
+      name="haxeFlash9"
+      quality="high"
+      align="middle"
+      allowScriptAccess="always"
+      type="application/x-shockwave-flash"
+      pluginspage="http://www.macromedia.com/go/getflashplayer"
+    />
+  </object>
+</div>
+<script type="text/javascript">
+setTimeout('unit.Test.main()', 1000)
+</script>
 </body>
 </html>

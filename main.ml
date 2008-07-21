@@ -256,6 +256,9 @@ try
 			swf_lib := Some file
 		),"<file> : add the SWF library to the compiled SWF");
 		("-neko",Arg.String (set_platform Neko "neko"),"<file> : compile code to Neko Binary");
+		("-php",Arg.String (fun dir ->
+			set_platform Php "php" dir;
+		),"<directory> : generate PHP code into target directory");
 		("-x", Arg.String (fun file ->
 			let neko_file = file ^ ".n" in
 			set_platform Neko "neko" neko_file;
@@ -334,6 +337,10 @@ try
 		("--no-output", Arg.Unit (fun() -> no_output := true),": compiles but does not generate any file");
 		("--times", Arg.Unit (fun() -> measure_times := true),": mesure compilation times");
 		("--no-inline", define "no_inline", ": disable inlining");
+		("--php-front",Arg.String (fun f ->
+			if com.php_front <> None then raise (Arg.Bad "Multiple --php-front");
+			com.php_front <- Some f;
+		),"<filename> : select the name for the php front file");
 	] in
 	let current = ref 0 in
 	let args = Array.of_list ("" :: params) in
@@ -420,7 +427,8 @@ try
 			if com.verbose then print_endline ("Generating js : " ^ com.file);
 			Genjs.generate com
 		| Php ->
-			assert false
+			if com.verbose then print_endline ("Generating PHP in : " ^ com.file);
+			Genphp.generate com;
 		);
 		(match !xml_out with
 		| None -> ()

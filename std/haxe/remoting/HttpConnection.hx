@@ -63,7 +63,7 @@ class HttpConnection implements Connection {
 		return new haxe.Unserializer(data).unserialize();
 	}
 
-	#if (js || neko)
+	#if (js || neko || php)
 
 	public static function urlConnect( url : String ) : Connection {
 		return new HttpConnection(url,[]);

@@ -30,7 +30,7 @@
 **/
 class Hash<T> {
 
-	private var h : #if flash9 flash.utils.Dictionary #else Dynamic #end;
+	private var h : #if flash9 flash.utils.Dictionary #elseif php ArrayAccess<T> #else Dynamic #end;
 
 	/**
 		Creates a new empty hashtable.
@@ -50,6 +50,8 @@ class Hash<T> {
 				__js__("delete")(h.__proto__);
 			}
 		}
+		#elseif php
+		h = untyped __call__('array');
 		#end
 	}
 
@@ -63,6 +65,8 @@ class Hash<T> {
 		untyped h["$"+key] = value;
 		#elseif neko
 		untyped __dollar__hset(h,key.__s,value,null);
+		#elseif php
+		untyped __php__("$this->h[$key] = $value");
 		#end
 	}
 
@@ -76,6 +80,9 @@ class Hash<T> {
 		return untyped h["$"+key];
 		#elseif neko
 		return untyped __dollar__hget(h,key.__s,null);
+		#elseif php
+		if(!exists(key)) return null;
+		return untyped h[key];
 		#else
 		return null;
 		#end
@@ -104,6 +111,8 @@ class Hash<T> {
 		}
 		#elseif neko
 		return untyped __dollar__hmem(h,key.__s,null);
+		#elseif php
+		return untyped __php__("array_key_exists")(key, h);
 		#else
 		return false;
 		#end
@@ -131,6 +140,8 @@ class Hash<T> {
 		return true;
 		#elseif neko
 		return untyped __dollar__hremove(h,key.__s,null);
+		#elseif php
+		return php.Boot.__array_remove_at(cast h, untyped key);
 		#else
 		return false;
 		#end
@@ -155,6 +166,8 @@ class Hash<T> {
 		var l = new List<String>();
 		untyped __dollar__hiter(h,function(k,_) { l.push(new String(k)); });
 		return l.iterator();
+		#elseif php
+		return php.Boot.__array_iterator(untyped __php__("array_keys")(h));
 		#else
 		return null;
 		#end
@@ -189,6 +202,8 @@ class Hash<T> {
 		var l = new List<T>();
 		untyped __dollar__hiter(h,function(_,v) { l.push(v); });
 		return l.iterator();
+		#elseif php
+		return php.Boot.__array_iterator(untyped __php__("array_values")(h));
 		#else
 		return null;
 		#end
@@ -213,4 +228,11 @@ class Hash<T> {
 		return s.toString();
 	}
 
+#if php
+	static public function fromAssociativeArray<T>(arr : Dynamic) : Hash<T> {
+		var h = new Hash<T>();
+		untyped __php__("foreach($arr as $k => $v) $h->set($k, $v)");
+		return h;
+	}
+#end
 }

@@ -532,7 +532,7 @@ let block_vars ctx e =
 			map_expr out_loop e
 	in
 	match ctx.platform with
-	| Neko | Cross -> e
+	| Neko | Php | Cross -> e
 	| _ -> out_loop e
 
 (* -------------------------------------------------------------------------- *)

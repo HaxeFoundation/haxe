@@ -59,6 +59,21 @@ class Type {
 			if( p == null )
 				return null;
 			return p.__class__;
+		#elseif php
+			if(o == null) return null;
+			untyped if(__call__("is_array",  o)) {
+				if(__call__("count", o) == 2 && __call__("is_callable", o)) return null;
+				return __php__("php_Boot::__ttype('Array')");
+			}
+			if(untyped __call__("is_string", o)) {
+				if(php.Boot.__is_lambda(untyped o)) return null;
+				return __php__("php_Boot::__ttype('String')");
+			}
+			var c = __php__("get_class")(o);
+			if(c == false || c == 'Anonymous' || __call__("is_subclass_of", c, "enum"))
+				return null;
+			else
+				return __php__("php_Boot::__ttype($c)");
 		#else
 			return null;
 		#end
@@ -89,6 +104,11 @@ class Type {
 			if( __dollar__typeof(o) != __dollar__tobject )
 				return null;
 			return o.__enum__;
+		#elseif php
+			if(!__php__("$o instanceof enum"))
+				return null;
+			else
+				return __php__("php_Boot::__ttype(get_class($o))");
 		#else
 			return null;
 		#end
@@ -104,6 +124,12 @@ class Type {
 			if( cname == "Object" )
 				return null;
 			return __as__(__global__["flash.utils.getDefinitionByName"](cname),Class);
+		#elseif php
+			var s = __php__("get_parent_class")(c.__tname__);
+			if(s == false)
+				return null;
+			else
+				return __php__("php_Boot::__ttype($s)");
 		#else
 			return c.__super__;
 		#end
@@ -125,6 +151,8 @@ class Type {
 			default:
 			}
 			return str.split("::").join(".");
+		#elseif php
+			return untyped c.__qname__;
 		#else
 			var a : Array<String> = untyped c.__name__;
 			return a.join(".");
@@ -137,6 +165,8 @@ class Type {
 	public static function getEnumName( e : Enum ) : String {
 		#if flash9
 			return getClassName(cast e);
+		#elseif php
+		  return untyped e.__qname__;
 		#else
 			var a : Array<String> = untyped e.__ename__;
 			return a.join(".");
@@ -148,7 +178,15 @@ class Type {
 		to be accessible.
 	**/
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
-		var cl : Class<Dynamic>;
+		#if php
+//			php.Boot.__require_once(StringTools.replace(name, '.', '/'));
+			var c = untyped __php__("php_Boot::__qtype($name)");
+			if(__php__("$c instanceof __classtype__"))
+				return c;
+			else
+				return null;
+		#else
+			var cl : Class<Dynamic>;
 		#if flash9
 			try {
 				cl = __as__(__global__["flash.utils.getDefinitionByName"](name),Class);
@@ -181,10 +219,11 @@ class Type {
 		#else
 			cl = null;
 		#end
-		// ensure that this is a class
-		if( cl == null || cl.__name__ == null )
-			return null;
-		return cl;
+			// ensure that this is a class
+			if( cl == null || cl.__name__ == null )
+				return null;
+			return cl;
+		#end
 	}
 
 
@@ -193,7 +232,14 @@ class Type {
 		to be accessible.
 	**/
 	public static function resolveEnum( name : String ) : Enum untyped {
-		var e : Dynamic;
+		#if php
+			var e = untyped __php__("php_Boot::__qtype($name)");
+			if(untyped __php__("$e instanceof __enumtype__"))
+				return e;
+			else
+				return null;
+		#else
+			var e : Dynamic;
 		#if flash9
 			try {
 				e = __global__["flash.utils.getDefinitionByName"](name);
@@ -223,10 +269,11 @@ class Type {
 		#else
 			e = null;
 		#end
-		// ensure that this is an enum
-		if( e == null || e.__ename__ == null )
-			return null;
-		return e;
+			// ensure that this is an enum
+			if( e == null || e.__ename__ == null )
+				return null;
+			return e;
+		#end
 	}
 
 	/**
@@ -258,6 +305,12 @@ class Type {
 			if( args.length > 8 )
 				throw "Too many arguments";
 			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7]);
+		#elseif php
+			if(cl.__qname__ == 'Array') return [];
+			if(cl.__qname__ == 'String') return args[0];
+			var c = cl.__rfl__();
+			if(c == null) return null;
+			return __php__("$inst = $c->getConstructor() ? $c->newInstanceArgs($args) : $c->newInstanceArgs()");
 		#else
 			return null;
 		#end
@@ -289,6 +342,29 @@ class Type {
 			var o = __dollar__new(null);
 			__dollar__objsetproto(o,cl.prototype);
 			return o;
+		#elseif php
+			if(cl.__qname__ == 'Array') return [];
+			if(cl.__qname__ == 'String') return '';
+			try {
+				php.Boot.skip_constructor = true;
+				var rfl = cl.__rfl__();
+				if(rfl == null) return null;
+				var m = __php__("$rfl->getConstructor()");
+				var nargs : Int = m.getNumberOfRequiredParameters();
+				var i;
+				if(nargs > 0) {
+					var args = __call__("array_fill", 0, m.getNumberOfRequiredParameters(), null);
+					i = __php__("$rfl->newInstanceArgs($args)");
+				} else {				
+					i = __php__("$rfl->newInstanceArgs(array())");
+				}
+				php.Boot.skip_constructor = false;
+				return i;
+			} catch( e : Dynamic ) {
+				php.Boot.skip_constructor = false;
+				throw "Unable to instantiate " + Std.string(cl);
+			}
+			return null;
 		#else
 			return null;
 		#end
@@ -331,6 +407,24 @@ class Type {
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
 		#if flash9
 			return describe(c,true);
+		#elseif php
+			if(untyped c.__qname__ == 'String') return ['substr', 'charAt', 'charCodeAt', 'indexOf', 'lastIndexOf', 'split', 'toLowerCase', 'toUpperCase', 'toString', 'length'];
+			if(untyped c.__qname__ == 'Array') return  ['push', 'concat', 'join', 'pop', 'reverse', 'shift', 'slice', 'sort', 'splice', 'toString', 'copy', 'unshift', 'insert', 'remove', 'iterator', 'length'];
+			untyped __php__("
+			$rfl = $c->__rfl__();
+			if($rfl === null) return array();
+			$ms = $rfl->getMethods();
+			$ps = $rfl->getProperties();
+			$r = array();
+			$internals = array('__construct', '__call', '__get', '__set', '__isset', '__unset', '__toString');
+			foreach($ms as $m) {
+				$n = $m->getName();				
+				if(!$m->isStatic() && ! in_array($n, $internals)) $r[] = $n;
+			}
+			foreach($ps as $p)
+				if(!$p->isStatic()) $r[] = $p->getName();
+			");
+			return untyped __php__("array_values(array_unique($r))");
 		#else
 			var a = Reflect.fields(untyped c.prototype);
 			c = untyped c.__super__;
@@ -356,6 +450,21 @@ class Type {
 			var a = describe(c,false);
 			a.remove("__construct__");
 			return a;
+		#elseif php
+			if(untyped c.__qname__ == 'String') return ['fromCharCode'];
+			if(untyped c.__qname__ == 'Array')  return [];
+			untyped __php__("
+			$rfl = $c->__rfl__();
+			if($rfl === null) return array();
+			$ms = $rfl->getMethods();
+			$ps = $rfl->getProperties();
+			$r = array();
+			foreach($ms as $m)
+				if($m->isStatic()) $r[] = $m->getName();
+			foreach($ps as $p)
+				if($p->isStatic()) $r[] = $p->getName();
+			");
+			return untyped __php__("$r");
 		#else
 			var a = Reflect.fields(c);
 			a.remove(__unprotect__("__name__"));
@@ -376,8 +485,20 @@ class Type {
 	/**
 		Returns all the available constructor names for an enum.
 	**/
-	public static function getEnumConstructs( e : Enum ) : Array<String> {
-		return untyped e.__constructs__;
+	public static function getEnumConstructs( e : Enum ) : Array<String> untyped {		
+		#if php
+			if(__php__("$e->__tname__ == 'Bool'")) return ['true', 'false'];
+			if(__php__("$e->__tname__ == 'Void'")) return [];
+			var rfl = __php__("new ReflectionClass($e->__tname__)");
+			var sps : ArrayAccess<Dynamic> = rfl.getStaticProperties();
+			var r : ArrayAccess<String> = __call__('array');
+			__php__("foreach($sps as $k => $v) $r[] = $k");
+			sps = rfl.getMethods();
+			__php__("foreach($sps as $m) { $n = $m->getName(); if($n != '__construct' && $n != '__toString') $r[] = $n; }");
+			return r;
+		#else
+			return untyped e.__constructs__;
+		#end
 	}
 
 	/**
@@ -463,6 +584,29 @@ class Type {
 			default:
 				return TUnknown;
 			}
+		#elseif php
+			if(v == null) return TNull;
+			if(__call__("is_array", v)) { 
+				if(__call__("is_callable", v)) return TFunction;
+				return TClass(Array);
+			}
+			if(__call__("is_string", v)) {
+				if(__call__("class_exists", v)) return TObject;
+				if(php.Boot.__is_lambda(v)) return TFunction;
+				return TClass(String);
+			}
+			if(__call__("is_bool", v)) return TBool;
+			if(__call__("is_int", v)) return TInt;
+			if(__call__("is_float", v)) return TFloat;
+			if(__php__("$v instanceof Anonymous"))  return TObject;    
+			if(__php__("$v instanceof __enumtype__"))  return TObject;  
+			if(__php__("$v instanceof __classtype__"))  return TObject;  
+    
+			var c = __php__("php_Boot::__ttype(get_class($v))");
+    
+			if(__php__("$c instanceof __enumtype__"))  return TEnum(cast c);
+			if(__php__("$c instanceof __classtype__")) return TClass(cast c);
+			return TUnknown;
 		#else
 			return TUnknown;
 		#end
@@ -494,6 +638,21 @@ class Type {
 			} catch( e : Dynamic ) {
 				return false;
 			}
+		#elseif php
+			try {
+				if( a.tag != b.tag )
+					return false;
+				for( i in 0...__call__("count", a.params))
+					if(getEnum(a.params[i]) != null) {
+						if(!enumEq(a.params[i],b.params[i]))
+							return false;
+					} else {
+						if(!php.Boot.__equal(a.params[i],b.params[i]))
+							return false;
+					}
+			} catch( e : Dynamic ) {
+				return false;
+			}
 		#else
 			if( a[0] != b[0] )
 				return false;
@@ -513,7 +672,7 @@ class Type {
 	public static function enumConstructor( e : Dynamic ) : String {
 		#if neko
 			return new String(e.tag);
-		#elseif flash9
+		#elseif (flash9 || php)
 			return e.tag;
 		#else
 			return e[0];
@@ -526,7 +685,7 @@ class Type {
 	public static function enumParameters( e : Dynamic ) : Array<Dynamic> {
 		#if neko
 			return if( e.args == null ) [] else untyped Array.new1(e.args,__dollar__asize(e.args));
-		#elseif flash9
+		#elseif (flash9 || php)
 			return if( e.params == null ) [] else e.params;
 		#else
 			return e.slice(2);
@@ -537,7 +696,7 @@ class Type {
 		Returns the index of the constructor of an enum
 	**/
 	public inline static function enumIndex( e : Dynamic ) : Int {
-		#if (neko || flash9)
+		#if (neko || flash9 || php)
 			return e.index;
 		#else
 			return e[1];

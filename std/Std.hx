@@ -39,6 +39,8 @@ class Std {
 		neko.Boot.__instanceof(v,t);
 		#elseif js
 		js.Boot.__instanceof(v,t);
+		#elseif php
+		php.Boot.__instanceof(v,t);
 		#else
 		false;
 		#end
@@ -55,6 +57,8 @@ class Std {
 		new String(__dollar__string(s));
 		#elseif js
 		js.Boot.__string_rec(s,"");
+		#elseif php
+		php.Boot.__string_rec(s);
 		#else
 		"";
 		#end
@@ -63,9 +67,11 @@ class Std {
 	/**
 		Convert a Float to an Int, rounded down.
 	**/
-	public #if flash9 inline #end static function int( x : Float ) : Int {
+	public #if (flash9 || php) inline #end static function int( x : Float ) : Int {
 		#if flash9
 		return untyped __int__(x);
+		#elseif php
+		return untyped __php__("intval")(x);
 		#else
 		if( x < 0 ) return Math.ceil(x);
 		return Math.floor(x);
@@ -101,6 +107,9 @@ class Std {
 		if( Math.isNaN(v) )
 			return null;
 		return v;
+		#elseif php
+		if(!__php__("is_numeric")(x)) return null;
+		return x.substr(0, 2).toLowerCase() == "0x" ? __php__("intval(substr($x, 2), 16)") : __php__("intval($x)");
 		#else
 		return 0;
 		#end
@@ -120,6 +129,8 @@ class Std {
 		__dollar__float(x.__s);
 		#elseif js
 		__js__("parseFloat")(x);
+		#elseif php
+		__php__("is_numeric($x) ? floatval($x) : acos(1.01)");
 		#else
 		0;
 		#end
@@ -138,6 +149,8 @@ class Std {
 		Math._rand_int(Math.__rnd,x);
 		#elseif js
 		Math.floor(Math.random()*x);
+		#elseif php
+		__call__("rand", 0, x-1);
 		#else
 		0;
 		#end

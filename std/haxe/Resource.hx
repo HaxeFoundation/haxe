@@ -25,7 +25,34 @@
 package haxe;
 
 class Resource {
+#if php
+	static function cleanName(name : String) : String {
+		return ~/[\\\/:?"*<>|]/.replace(name, '_');
+	}
+	
+	static function getDir() {
+		return untyped __call__('dirname', __php__('__FILE__'))+"/../../res";
+	}
+	
+	static function getPath(name : String) {
+		return getDir()+'/'+cleanName(name);
+	}
 
+	public static function listNames() : Array<String> {
+		var a = php.FileSystem.readDirectory(getDir());
+		if(a[0] == '.') a.shift();
+		if(a[0] == '..') a.shift();
+		return a;
+	}
+	
+	public static function getString( name : String ) {
+		return php.io.File.getContent(getPath(name));
+	}
+	
+	public static function getBytes( name : String ) {
+		return php.io.File.getBytes(getPath(name));
+	}
+#else
 	static var content : Array<{ name : String, data : #if (neko || flash9) String #else Array<String> #end }>;
 
 	public static function listNames() : Array<String> {
@@ -68,8 +95,11 @@ class Resource {
 		#if neko
 		var tmp = untyped __resources__();
 		content = untyped Array.new1(tmp,__dollar__asize(tmp));
+		#elseif php
+		content = null;
 		#else
 		content = untyped __resources__();
 		#end
 	}
+#end
 }

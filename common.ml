@@ -64,6 +64,7 @@ type context = {
 	mutable flash_version : int;
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
+	mutable php_front : string option;
 	(* typing *)
 	mutable type_api : context_type_api;
 }
@@ -84,6 +85,7 @@ let create() =
 		types = [];
 		flash_version = 8;
 		resources = Hashtbl.create 0;
+		php_front = None;
 		warning = (fun _ _ -> assert false);
 		error = (fun _ _ -> assert false);
 		type_api = {

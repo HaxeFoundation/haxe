@@ -33,6 +33,8 @@ class Log {
 		untyped __dollar__print(infos.fileName+":"+infos.lineNumber+": ",v,"\n");
 		#elseif js
 		untyped js.Boot.__trace(v,infos);
+		#elseif php
+		untyped php.Boot.__trace(v,infos);
 		#end
 	}
 

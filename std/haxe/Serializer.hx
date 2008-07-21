@@ -190,7 +190,7 @@ class Serializer {
 				#if flash9
 				var v : Array<Dynamic> = v;
 				#end
-				var l = #if (neko || flash9) v.length #else v[untyped "length"] #end;
+				var l = #if (neko || flash9) v.length #elseif php untyped __call__("count", v) #else v[untyped "length"] #end;
 				for( i in 0...l ) {
 					if( v[i] == null )
 						ucount++;
@@ -327,6 +327,21 @@ class Serializer {
 				buf.add(pl.length);
 				for( p in pl )
 					serialize(p);
+			}
+			#elseif php
+			if( useEnumIndex ) {
+				buf.add(":");
+				buf.add(v.index);
+			} else
+				serializeString(v.tag);
+			buf.add(":");
+			var l : Int = untyped __call__("count", v.params);
+			if( l == 0 || v.params == null)
+				buf.add(0);
+			else {
+				buf.add(l);
+				for( i in 0...l )
+					serialize(v.params[i]);
 			}
 			#else
 			if( useEnumIndex ) {

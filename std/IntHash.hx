@@ -29,7 +29,7 @@
 **/
 class IntHash<T> {
 
-	private var h : #if flash9 flash.utils.Dictionary #else Dynamic #end;
+	private var h : #if flash9 flash.utils.Dictionary #elseif php ArrayAccess<Int> #else Dynamic #end;
 
 	/**
 		Creates a new empty hashtable.
@@ -47,6 +47,8 @@ class IntHash<T> {
 			h.__proto__ = null;
 			__js__("delete")(h.__proto__);
 		};
+		#elseif php
+		h = untyped __call__('array');
 		#end
 	}
 
@@ -60,6 +62,8 @@ class IntHash<T> {
 		untyped h[key] = value;
 		#elseif neko
 		untyped __dollar__hset(h,key,value,null);
+		#elseif php
+		untyped __php__("$this->h[$key] = $value");
 		#end
 	}
 
@@ -73,6 +77,9 @@ class IntHash<T> {
 		return untyped h[key];
 		#elseif neko
 		return untyped __dollar__hget(h,key,null);
+		#elseif php
+		if(!exists(key)) return null;
+		return untyped h[key];
 		#else
 		return null;
 		#end
@@ -92,6 +99,8 @@ class IntHash<T> {
 		return untyped h[key] != null;
 		#elseif neko
 		return untyped __dollar__hmem(h,key,null);
+		#elseif php
+		return untyped __php__("array_key_exists")(key, h);
 		#else
 		return false;
 		#end
@@ -116,6 +125,8 @@ class IntHash<T> {
 		return true;
 		#elseif neko
 		return untyped __dollar__hremove(h,key,null);
+		#elseif php
+		return php.Boot.__array_remove_at(cast h, key);
 		#else
 		return false;
 		#end
@@ -143,6 +154,8 @@ class IntHash<T> {
 		var l = new List<Int>();
 		untyped __dollar__hiter(h,function(k,_) { l.push(k); });
 		return l.iterator();
+		#elseif php
+		return php.Boot.__array_iterator(untyped __php__("array_keys")(h));
 		#else
 		return null;
 		#end
@@ -177,6 +190,8 @@ class IntHash<T> {
 		var l = new List<T>();
 		untyped __dollar__hiter(h,function(_,v) { l.push(v); });
 		return l.iterator();
+		#elseif php
+		return php.Boot.__array_iterator(untyped __php__("array_values")(h));
 		#else
 		return null;
 		#end

@@ -59,6 +59,8 @@ extern class Math
 	#if neko
 		Math = neko.NekoMath__;
 		neko.Boot.__classes.Math = Math;
+	#elseif php
+		Math = php.PhpMath__;
 	#else
 		#if flash9
 		NaN = __global__["Number"].NaN;
@@ -94,7 +96,8 @@ extern class Math
 			#end
 		};
 	#end
-	#if !flash9
+	#if (flash9 || php)
+	#else
 		Math.__name__ = ["Math"];
 	#end
 	}

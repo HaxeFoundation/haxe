@@ -32,6 +32,8 @@ class Md5 {
 	public static function encode( s : String ) : String {
 		#if neko
 			return untyped new String(base_encode(make_md5(s.__s),"0123456789abcdef".__s));
+		#elseif php
+			return untyped __call__("md5", s);
 		#else
 			return inst.doEncode(s);
 		#end
@@ -40,7 +42,7 @@ class Md5 {
 	#if neko
 	static var base_encode = neko.Lib.load("std","base_encode",2);
 	static var make_md5 = neko.Lib.load("std","make_md5",1);
-	#else
+	#elseif !php
 
 /*
  * A JavaScript implementation of the RSA Data Security, Inc. MD5 Message
