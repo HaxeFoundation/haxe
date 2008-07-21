@@ -132,11 +132,8 @@ class TestRemoting extends Test {
 	}
 
 	function doTestSocket( s : Socket ) {
-		#if neko
-		var scnx = haxe.remoting.NekoSocketConnection.create(s,new haxe.remoting.Context());
-		doTestConnection(scnx);
-		#elseif php
-		var scnx = haxe.remoting.PhpSocketConnection.create(s,new haxe.remoting.Context());
+		#if (neko || php)
+		var scnx = haxe.remoting.SyncSocketConnection.create(s,new haxe.remoting.Context());
 		doTestConnection(scnx);
 		#else
 		var scnx = haxe.remoting.SocketConnection.create(s,new haxe.remoting.Context());
