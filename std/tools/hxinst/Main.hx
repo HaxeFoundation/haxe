@@ -34,7 +34,7 @@ class Main {
 	function ask( txt ) {
 		#if xcross
 		return xcross.Api.confirm("Question",txt);
-		#else true
+		#else
 		var answer = null;
 		while( true ) {
 			neko.Lib.print(txt+" [y/n] ");
@@ -50,8 +50,8 @@ class Main {
 	function error( txt ) {
 		#if xcross
 		xcross.Api.error("Error",txt);
-		#else true
-		neko.io.File.stderr().write(txt+"\n");
+		#else
+		neko.io.File.stderr().writeString(txt+"\n");
 		#end
 		throw "Installation aborted";
 	}
@@ -59,7 +59,7 @@ class Main {
 	function display( txt ) {
 		#if xcross
 		wnd.log(txt);
-		#else true
+		#else
 		neko.Lib.println(txt);
 		#end
 		neko.Sys.sleep(0.03);
@@ -77,7 +77,7 @@ class Main {
 
 	function commandOutput( cmd ) {
 		var p = try new neko.io.Process(cmd,[]) catch( e : Dynamic ) return "";
-		return p.stderr.readAll() + p.stdout.readAll();
+		return p.stderr.readAll().toString() + p.stdout.readAll().toString();
 	}
 
 	function run() {
@@ -144,8 +144,14 @@ class Main {
 		if( p == null )
 			display("No proxy found");
 		else {
-			display("Using proxy "+p.host+":"+p.port);
+			display("Testing proxy "+p.host+":"+p.port);
 			haxe.Http.PROXY = p;
+			try {
+				haxe.Http.request("http://google.com");
+			} catch( e : Dynamic ) {
+				display("Could not connect on Google, don't use the proxy");
+				haxe.Http.PROXY = p;
+			}
 		}
 
 		// GET haxe Version
@@ -265,7 +271,7 @@ class Main {
 	static function logProgress( txt ) {
 		#if xcross
 		wnd.logProgress(txt);
-		#else true
+		#else
 		neko.Lib.print(txt+"\r");
 		#end
 	}
@@ -276,7 +282,7 @@ class Main {
 			return;
 		}
 
-		var str = new neko.io.StringOutput();
+		var str = new haxe.io.BytesOutput();
 		var progress = new Progress(str);
 		progress.update = function() {
 			var p = progress.cur * 100 / progress.max;
@@ -292,12 +298,12 @@ class Main {
 		h.customRequest(false,progress);
 		#if xcross
 		wnd.log("");
-		#else true
+		#else
 		neko.Lib.print("\n");
 		#end
 
 		var f = neko.io.File.write(file,true);
-		f.write(str.toString());
+		f.write(str.getBytes());
 		f.close();
 	}
 
@@ -398,7 +404,7 @@ class Main {
 		};
 		neko.vm.Thread.create(i.run);
 		neko.vm.Ui.loop();
-		#else true
+		#else
 		i.run();
 		#end
 	}
@@ -407,9 +413,9 @@ class Main {
 
 // --------- TOOLS --------------
 
-class Progress extends neko.io.Output {
+class Progress extends haxe.io.Output {
 
-	var o : neko.io.Output;
+	var o : haxe.io.Output;
 	public var cur : Int;
 	public var max : Int;
 
@@ -418,11 +424,11 @@ class Progress extends neko.io.Output {
 		cur = 0;
 	}
 
-	public function update() {
+	public dynamic function update() {
 	}
 
-	public override function writeChar(c) {
-		o.writeChar(c);
+	public override function writeByte(c) {
+		o.writeByte(c);
 		cur++;
 		update();
 	}
