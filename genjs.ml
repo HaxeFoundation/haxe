@@ -29,6 +29,7 @@ type ctx = {
 	mutable inits : texpr list;
 	mutable tabs : string;
 	mutable in_value : bool;
+	mutable in_loop : bool;
 	mutable handle_break : bool;
 	mutable id_counter : int;
 	mutable curmethod : (string * bool);
@@ -101,11 +102,15 @@ let rec iter_switch_break in_switch e =
 	| _ -> iter (iter_switch_break in_switch) e
 
 let handle_break ctx e =
-	let old_handle = ctx.handle_break in
+	let old = ctx.in_loop, ctx.handle_break in
+	ctx.in_loop <- true;
 	try
 		iter_switch_break false e;
 		ctx.handle_break <- false;
-		(fun() -> ctx.handle_break <- old_handle)
+		(fun() ->
+			ctx.in_loop <- fst old;
+			ctx.handle_break <- snd old;
+		)
 	with
 		Exit ->
 			spr ctx "try {";
@@ -114,7 +119,8 @@ let handle_break ctx e =
 			ctx.handle_break <- true;
 			(fun() ->
 				b();
-				ctx.handle_break <- old_handle;
+				ctx.in_loop <- fst old;
+				ctx.handle_break <- snd old;
 				newline ctx;
 				spr ctx "} catch( e ) { if( e != \"__break__\" ) throw e; }";
 			)
@@ -176,7 +182,7 @@ let rec gen_call ctx e el =
 	| TLocal "__js__", [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
 	| TLocal "__resources__", [] ->
-		spr ctx "[";		
+		spr ctx "[";
 		concat ctx "," (fun (name,data) ->
 			spr ctx "{ ";
 			spr ctx "name : ";
@@ -247,10 +253,10 @@ and gen_expr ctx e =
 			spr ctx "return ";
 			gen_value ctx e);
 	| TBreak ->
-		if ctx.in_value then unsupported e.epos;
+		if not ctx.in_loop then unsupported e.epos;
 		if ctx.handle_break then spr ctx "throw \"__break__\"" else spr ctx "break"
 	| TContinue ->
-		if ctx.in_value then unsupported e.epos;
+		if not ctx.in_loop then unsupported e.epos;
 		spr ctx "continue"
 	| TBlock [] ->
 		spr ctx "null"
@@ -262,9 +268,10 @@ and gen_expr ctx e =
 		newline ctx;
 		print ctx "}";
 	| TFunction f ->
-		let old = ctx.in_value in
+		let old = ctx.in_value, ctx.in_loop in
 		let old_meth = ctx.curmethod in
 		ctx.in_value <- false;
+		ctx.in_loop <- false;
 		if snd ctx.curmethod then
 			ctx.curmethod <- (fst ctx.curmethod ^ "@" ^ string_of_int (Lexer.get_error_line e.epos), true)
 		else
@@ -272,7 +279,8 @@ and gen_expr ctx e =
 		print ctx "function(%s) " (String.concat "," (List.map ident (List.map arg_name f.tf_args)));
 		gen_expr ctx (fun_block ctx f e.epos);
 		ctx.curmethod <- old_meth;
-		ctx.in_value <- old;
+		ctx.in_value <- fst old;
+		ctx.in_loop <- snd old;
 	| TCall (e,el) ->
 		gen_call ctx e el
 	| TArrayDecl el ->
@@ -469,8 +477,9 @@ and gen_value ctx e =
 		)) e.etype e.epos
 	in
 	let value block =
-		let old = ctx.in_value in
+		let old = ctx.in_value, ctx.in_loop in
 		ctx.in_value <- true;
+		ctx.in_loop <- false;
 		spr ctx "function($this) ";
 		let b = if block then begin
 			spr ctx "{";
@@ -490,7 +499,8 @@ and gen_value ctx e =
 				newline ctx;
 				spr ctx "}";
 			end;
-			ctx.in_value <- old;
+			ctx.in_value <- fst old;
+			ctx.in_loop <- snd old;
 			print ctx "(%s)" (this ctx)
 		)
 	in
@@ -699,6 +709,7 @@ let generate com =
 		current = null_class;
 		tabs = "";
 		in_value = false;
+		in_loop = false;
 		handle_break = false;
 		id_counter = 0;
 		curmethod = ("",false);
