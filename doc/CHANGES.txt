@@ -13,6 +13,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	haxe/PHP integeration
 	renamed NekoSocketConnection to SyncSocketConnection (php support)
 	fixes in genAs3
+	fix for flash9 : always coerce call return type
 
 2008-07-17: 2.0-RC1
 	genneko : remove big array error (fixed in neko 1.7.1)

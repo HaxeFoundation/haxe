@@ -798,8 +798,8 @@ let rec gen_expr_content ctx retval e =
 		coerce ctx (classify ctx e.etype)
 	| TBinop (op,e1,e2) ->
 		gen_binop ctx retval op e1 e2 e.etype
-	| TCall (e,el) ->
-		gen_call ctx retval e el
+	| TCall (f,el) ->
+		gen_call ctx retval f el e.etype
 	| TNew ({ cl_path = [],"Array" },_,[]) ->
 		(* it seems that [] is 4 time faster than new Array() *)
 		write ctx (HArray 0)
@@ -1080,7 +1080,7 @@ let rec gen_expr_content ctx retval e =
 		List.iter (fun j -> j()) jends;
 		free_reg ctx rparams
 
-and gen_call ctx retval e el =
+and gen_call ctx retval e el r =
 	match e.eexpr , el with
 	| TLocal "__is__" , [e;t] ->
 		gen_expr ctx true e;
@@ -1171,11 +1171,16 @@ and gen_call ctx retval e el =
 		write ctx (HFindPropStrict id);
 		List.iter (gen_expr ctx true) el;
 		write ctx (HCallSuper (id,List.length el));
+		coerce ctx (classify ctx r);
 	| TField ({ eexpr = TConst TThis },f) , _ when not ctx.in_static ->
 		let id = ident f in
 		write ctx (HFindPropStrict id);
 		List.iter (gen_expr ctx true) el;
-		write ctx (if retval then HCallProperty (id,List.length el) else HCallPropVoid (id,List.length el));
+		if retval then begin
+			write ctx (HCallProperty (id,List.length el));
+			coerce ctx (classify ctx r);
+		end else
+			write ctx (HCallPropVoid (id,List.length el))
 	| TField (e1,f) , _ ->
 		let old = ctx.for_call in
 		ctx.for_call <- true;
@@ -1183,35 +1188,11 @@ and gen_call ctx retval e el =
 		ctx.for_call <- old;
 		List.iter (gen_expr ctx true) el;
 		let id , _, _ = property f e1.etype in
-		if not retval then
-			write ctx (HCallPropVoid (id,List.length el))
-		else
-			let coerce() =
-				match follow e.etype with
-				| TFun (_,r) -> coerce ctx (classify ctx r)
-				| _ -> ()
-			in
+		if retval then begin
 			write ctx (HCallProperty (id,List.length el));
-			(match follow e1.etype with
-			| TInst ({ cl_path = [],"Array" },_) ->
-				(match f with
-				| "copy" | "remove" -> coerce()
-				| _ -> ())
-			| TInst ({ cl_path = [],"Date" },_) ->
-				coerce() (* all date methods are typed as Number in AS3 and Int in haXe *)
-			| TAnon a ->
-				(match !(a.a_status) with
-				| Statics { cl_path = ([],"Date") } ->
-					(match f with
-					| "now" | "fromString" | "fromTime"  -> coerce()
-					| _ -> ())
-				| Statics { cl_path = ([],"Math") } ->
-					(match f with
-					| "isFinite" | "isNaN" -> coerce()
-					| "floor" | "ceil" | "round" -> coerce() (* AS3 state Number, while Int in haXe *)
-					| _ -> ())
-				| _ -> ())
-			| _ -> ())
+			coerce ctx (classify ctx r);
+		end else
+			write ctx (HCallPropVoid (id,List.length el))
 	| TEnumField (e,f) , _ ->
 		let id = type_path ctx e.e_path in
 		write ctx (HGetLex id);
@@ -1221,7 +1202,8 @@ and gen_call ctx retval e el =
 		gen_expr ctx true e;
 		write ctx HGetGlobalScope;
 		List.iter (gen_expr ctx true) el;
-		write ctx (HCallStack (List.length el))
+		write ctx (HCallStack (List.length el));
+		coerce ctx (classify ctx r)
 
 and gen_unop ctx retval op flag e =
 	let k = classify ctx e.etype in
