@@ -668,9 +668,9 @@ let parse ctx code file =
 			| [] -> raise Exit
 			| _ :: l ->
 				mstack := l;
-				process_token (skip_tokens false))
+				process_token (skip_tokens (snd tk) false))
 		| Macro "if" ->
-			process_token (enter_macro())
+			process_token (enter_macro (snd tk))
 		| Macro "error" ->
 			error Unimplemented (snd tk)
 		| Macro "line" ->
@@ -683,13 +683,13 @@ let parse ctx code file =
 		| _ ->
 			tk
 
-	and enter_macro() =
+	and enter_macro p =
 		let ok , tk = eval_macro false in
 		if ok then begin
-			mstack := snd tk :: !mstack;
+			mstack := p :: !mstack;
 			tk
 		end else
-			skip_tokens_loop true tk
+			skip_tokens_loop p true tk
 
 	and eval_macro allow_expr =
 		match Lexer.token code with
@@ -715,25 +715,25 @@ let parse ctx code file =
 		| _ ->
 			raise Exit
 
-	and skip_tokens_loop test tk =
+	and skip_tokens_loop p test tk =
 		match fst tk with
 		| Macro "end" ->
 			Lexer.token code
 		| Macro "elseif" | Macro "else" when not test ->
-			skip_tokens test
+			skip_tokens p test
 		| Macro "else" ->
 			mstack := snd tk :: !mstack;
 			Lexer.token code
 		| Macro "elseif" ->
-			enter_macro()
+			enter_macro (snd tk)
 		| Macro "if" ->
-			skip_tokens_loop test (skip_tokens false)
+			skip_tokens_loop p test (skip_tokens p false)
 		| Eof ->
-			raise Exit
+			error Unclosed_macro p
 		| _ ->
-			skip_tokens test
+			skip_tokens p test
 
-	and skip_tokens test = skip_tokens_loop test (Lexer.token code)
+	and skip_tokens p test = skip_tokens_loop p test (Lexer.token code)
 
 	in
 	let s = Stream.from (fun _ ->
