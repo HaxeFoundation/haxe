@@ -30,6 +30,7 @@
     <file path="RemotingServer.hx" />
     <file path="Test.hx" />
     <file path="TestBytes.hx" />
+    <file path="TestEReg.hx" />
     <file path="TestInt32.hx" />
     <file path="TestIO.hx" />
     <file path="TestLocals.hx" />
