@@ -585,16 +585,16 @@ let field_type f =
 	| [] -> f.cf_type
 	| l -> monomorphs l f.cf_type
 
-let rec class_field c i =
+let rec raw_class_field build_type c i =
 	try
 		let f = PMap.find i c.cl_fields in
-		field_type f , f
+		build_type f , f
 	with Not_found -> try
 		match c.cl_super with
 		| None ->
 			raise Not_found
 		| Some (c,tl) ->
-			let t , f = class_field c i in
+			let t , f = raw_class_field build_type c i in
 			apply_params c.cl_types tl t , f
 	with Not_found ->
 		let rec loop = function
@@ -602,12 +602,14 @@ let rec class_field c i =
 				raise Not_found
 			| (c,tl) :: l ->
 				try
-					let t , f = class_field c i in
+					let t , f = raw_class_field build_type c i in
 					apply_params c.cl_types tl t, f
 				with
 					Not_found -> loop l
 		in
 		loop c.cl_implements
+
+let class_field = raw_class_field field_type
 
 let rec unify a b =
 	if a == b then

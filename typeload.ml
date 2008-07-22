@@ -77,11 +77,11 @@ let load_type_def ctx p tpath =
 				if not no_pack then raise Exit;
 				(match fst ctx.current.mpath with
 				| [] -> raise Exit
-				| x :: _ -> 
+				| x :: _ ->
 					(* this can occur due to haxe remoting : a module can be
 						already defined in the "js" package and is not allowed
 						to access the js classes *)
-					try 
+					try
 						(match PMap.find x ctx.com.package_rules with
 						| Forbidden -> raise Exit
 						| _ -> ())
@@ -148,7 +148,7 @@ let rec load_normal_type ctx t p allow_no_params =
 					) in
 					ctx.delays := [(fun () -> ignore(!r()))] :: !(ctx.delays);
 					TLazy r
-				| _ -> assert false				
+				| _ -> assert false
 			) tparams types in
 			f params
 		end
@@ -271,26 +271,40 @@ let load_type_opt ?(opt=false) ctx p t =
 (* ---------------------------------------------------------------------- *)
 (* Structure check *)
 
-let valid_redefinition ctx f t =
-	let ft = field_type f in
-	match follow ft , follow t with
-	| TFun (args,r) , TFun (targs,tr) when List.length args = List.length targs ->
+let valid_redefinition ctx f1 t1 f2 t2 =
+	let valid t1 t2 =
+		type_eq EqStrict t1 t2;
+		if is_null t1 <> is_null t2 then raise (Unify_error [Cannot_unify (t1,t2)]);
+	in
+	let t1, t2 = (match f1.cf_params, f2.cf_params with
+		| [], [] -> t1, t2
+		| l1, l2 when List.length l1 = List.length l2 ->
+			let monos = List.map (fun _ -> mk_mono()) l1 in
+			apply_params l1 monos t1, apply_params l2 monos t2
+		| _  -> t1, t2
+	) in
+	match follow t1, follow t2 with
+	| TFun (args1,r1) , TFun (args2,r2) when List.length args1 = List.length args2 ->
 		List.iter2 (fun (n,o1,a1) (_,o2,a2) ->
 			if o1 <> o2 then raise (Unify_error [Not_matching_optional n]);
-			type_eq EqStrict a1 a2
-		) args targs;
-		Type.unify r tr
+			valid a1 a2;
+		) args1 args2;
+		valid r1 r2;
 	| _ , _ ->
-		type_eq EqStrict ft t
+		(* in case args differs, or if an interface var *)
+		valid t1 t2
 
 let check_overriding ctx c p () =
 	match c.cl_super with
-	| None -> ()
+	| None ->
+		(match c.cl_overrides with
+		| [] -> ()
+		| i :: _ ->
+			display_error ctx ("Field " ^ i ^ " is declared 'override' but doesn't override any field") p)
 	| Some (csup,params) ->
 		PMap.iter (fun i f ->
 			try
-				let t , f2 = class_field csup i in
-				let t = apply_params csup.cl_types params t in
+				let t , f2 = raw_class_field (fun f -> f.cf_type) csup i in
 				ignore(follow f.cf_type); (* force evaluation *)
 				let p = (match f.cf_expr with None -> p | Some e -> e.epos) in
 				if not (List.mem i c.cl_overrides) then
@@ -302,7 +316,8 @@ let check_overriding ctx c p () =
 				else if f2.cf_get <> f.cf_get || f2.cf_set <> f.cf_set then
 					display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p
 				else try
-					valid_redefinition ctx f t
+					let t = apply_params csup.cl_types params t in
+					valid_redefinition ctx f f.cf_type f2 t
 				with
 					Unify_error l ->
 						display_error ctx ("Field " ^ i ^ " overload parent class with different or incomplete type") p;
@@ -315,34 +330,32 @@ let check_overriding ctx c p () =
 let class_field_no_interf c i =
 	try
 		let f = PMap.find i c.cl_fields in
-		field_type f , f
+		f.cf_type , f
 	with Not_found ->
 		match c.cl_super with
 		| None ->
 			raise Not_found
 		| Some (c,tl) ->
 			(* rec over class_field *)
-			let t , f = class_field c i in
+			let t , f = raw_class_field (fun f -> f.cf_type) c i in
 			apply_params c.cl_types tl t , f
 
 let rec check_interface ctx c p intf params =
 	PMap.iter (fun i f ->
 		try
-			let t , f2 = class_field_no_interf c i in
+			let t2, f2 = class_field_no_interf c i in
 			ignore(follow f.cf_type); (* force evaluation *)
 			let p = (match f.cf_expr with None -> p | Some e -> e.epos) in
 			if f.cf_public && not f2.cf_public then
 				display_error ctx ("Field " ^ i ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
 			else if not(unify_access f2.cf_get f.cf_get) then
 				display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path) p
-			else
-				let t1 = apply_params intf.cl_types params (field_type f) in
-				try
-					valid_redefinition ctx f2 t1
-				with
-					Unify_error l ->
-						display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
-						display_error ctx (error_msg (Unify l)) p;
+			else try
+				valid_redefinition ctx f2 t2 f (apply_params intf.cl_types params f.cf_type)
+			with
+				Unify_error l ->
+					display_error ctx ("Field " ^ i ^ " has different type than in " ^ s_type_path intf.cl_path) p;
+					display_error ctx (error_msg (Unify l)) p;
 		with
 			Not_found ->
 				if not c.cl_interface then display_error ctx ("Field " ^ i ^ " needed by " ^ s_type_path intf.cl_path ^ " is missing") p
@@ -499,7 +512,7 @@ let init_class ctx c p herits fields =
 			| Some { cf_public = p } -> p
 			| _ -> c.cl_extern || c.cl_interface || extends_public
 	in
-	let rec get_parent c name = 
+	let rec get_parent c name =
 		match c.cl_super with
 		| None -> None
 		| Some (csup,_) ->
