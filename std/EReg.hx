@@ -113,7 +113,8 @@ class EReg {
 	**/
 	public function matched( n : Int ) : String {
 		#if neko
-			return new String(regexp_matched(r,n));
+			var m = regexp_matched(r,n);
+			return (m == null) ? null : new String(m);
 		#elseif js
 			return untyped if( r.m != null && n >= 0 && n < r.m.length ) r.m[n] else throw "EReg::matched";
 		#elseif flash9
