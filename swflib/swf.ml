@@ -534,6 +534,7 @@ type tag_data =
 	| TBitsLossless2 of bitmap_lossless
 	| TEditText of edit_text
 	| TClip of clip
+	| TProductInfo of unknown
 	| TFrameLabel of string * char option
 	| TSoundStreamHead2 of unknown
 	| TMorphShape of morph_shape
@@ -542,13 +543,16 @@ type tag_data =
 	| TDoInitAction of do_init_action
 	| TVideoStream of unknown
 	| TVideoFrame of unknown
+	| TDebugID of unknown
 	| TEnableDebugger2 of int * string
+	| TScriptLimits of int * int
 	| TSandbox of sandbox
 	| TPlaceObject3 of place_object
 	| TFontGlyphs of font_glyphs
 	| TTextInfo of unknown
 	| TFont3 of font3
 	| TF9Classes of f9class list
+	| TMetaData of string
 	| TActionScript3 of (int * string) option * As3.as3_tag
 	| TShape4 of shape
 	| TShape5 of int * string

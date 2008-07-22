@@ -345,6 +345,8 @@ let rec tag_data_length = function
 		edit_text_length t
 	| TClip c ->
 		4 + sum tag_length (tag_end :: c.c_tags)
+	| TProductInfo s ->
+		String.length s
 	| TFrameLabel (label,id) ->
 		String.length label + 1 + (match id with None -> 0 | Some _ -> 1)
 	| TSoundStreamHead2 data ->
@@ -361,8 +363,12 @@ let rec tag_data_length = function
 		String.length s
 	| TVideoFrame s ->
 		String.length s
+	| TDebugID s ->
+		String.length s
 	| TEnableDebugger2 (_,data) ->
 		2 + String.length data + 1
+	| TScriptLimits _ ->
+		4
 	| TSandbox _ ->
 		4
 	| TPlaceObject3 p ->
@@ -375,6 +381,8 @@ let rec tag_data_length = function
 		font3_length f
 	| TF9Classes l ->
 		2 + sum (fun c -> String.length c.f9_classname + 1 + 2) l
+	| TMetaData meta ->
+		String.length meta
 	| TActionScript3 (id,a) ->
 		(match id with None -> 0 | Some (id,f) -> 4 + String.length f + 1) + As3parse.as3_length a
 	| TShape4 s ->
@@ -1224,6 +1232,8 @@ let rec parse_tag ch h =
 				c_frame_count = fcount;
 				c_tags = tags;
 			}
+		| 0x29 ->
+			TProductInfo (nread ch len)
 		| 0x2B ->
 			let label = read_string ch in
 			let id = (if len = String.length label + 2 then Some (read ch) else None) in
@@ -1258,12 +1268,17 @@ let rec parse_tag ch h =
 		| 0x3D ->
 			TVideoFrame (nread ch len)
 		(*// 0x3E TFontInfo2 *)
+		| 0x3F ->
+			TDebugID (nread ch len)
 		| 0x40 ->
 			let tag = read_ui16 ch in
 			(* 0 in general, 6517 for some swfs *)
 			let pass_md5 = read_string ch in
 			TEnableDebugger2 (tag,pass_md5)
-		(*// 0x41 TScriptLimits *)
+		| 0x41 ->
+			let recursion_depth = read_ui16 ch in
+			let script_timeout = read_ui16 ch in
+			TScriptLimits (recursion_depth, script_timeout)
 		(*// 0x42 TSetTabIndex *)
 		| 0x45 ->
 			TSandbox (match IO.read_i32 ch with
@@ -1295,6 +1310,8 @@ let rec parse_tag ch h =
 					} :: loop (i - 1)
 			in
 			TF9Classes (loop i)
+		| 0x4D ->
+			TMetaData (nread ch len)
 		| 0x52 when !full_parsing || !force_as3_parsing ->
 			let id = read_i32 ch in
 			let frame = read_string ch in
@@ -1380,6 +1397,7 @@ let rec tag_id = function
 	| TBitsLossless2 _ -> 0x24
 	| TEditText _ -> 0x25
 	| TClip _ -> 0x27
+	| TProductInfo _ -> 0x29
 	| TFrameLabel _ -> 0x2B
 	| TSoundStreamHead2 _ -> 0x2D
 	| TMorphShape _ -> 0x2E
@@ -1388,13 +1406,16 @@ let rec tag_id = function
 	| TDoInitAction _ -> 0x3B
 	| TVideoStream _ -> 0x3C
 	| TVideoFrame _ -> 0x3D
+	| TDebugID _ -> 0x3F
 	| TEnableDebugger2 _ -> 0x40
+	| TScriptLimits _ -> 0x41
 	| TSandbox _ -> 0x45
 	| TPlaceObject3 _ -> 0x46
 	| TFontGlyphs _ -> 0x49
 	| TTextInfo _ -> 0x4A
 	| TFont3 _ -> 0x4B
 	| TF9Classes _ -> 0x4C
+	| TMetaData _ -> 0x4D
 	| TActionScript3 (None,_) -> 0x48
 	| TActionScript3 _ -> 0x52
 	| TShape4 _ -> 0x53
@@ -1763,6 +1784,8 @@ let rec write_tag_data ch = function
 		write_ui16 ch c.c_frame_count;
 		List.iter (write_tag ch) c.c_tags;
 		write_tag ch tag_end;
+	| TProductInfo s ->
+		nwrite ch s
 	| TFrameLabel (label,id) ->
 		write_string ch label;
 		opt (write ch) id;
@@ -1785,9 +1808,14 @@ let rec write_tag_data ch = function
 		nwrite ch s
 	| TVideoFrame s ->
 		nwrite ch s
+	| TDebugID s ->
+		nwrite ch s
 	| TEnableDebugger2 (tag,pass) ->
 		write_ui16 ch tag;
 		write_string ch pass
+	| TScriptLimits (recursion_depth, script_timeout) ->
+		write_ui16 ch recursion_depth;
+		write_ui16 ch script_timeout;
 	| TSandbox s ->
 		write_i32 ch (match s with
 		| SBLocal -> 0
@@ -1807,6 +1835,8 @@ let rec write_tag_data ch = function
 			write_ui16 ch (match c.f9_cid with None -> 0 | Some id -> id);
 			write_string ch c.f9_classname
 		) l
+	| TMetaData meta ->
+		nwrite ch meta
 	| TActionScript3 (id,a) ->
 		(match id with
 		| None -> ()
