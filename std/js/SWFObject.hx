@@ -6,6 +6,8 @@ extern class SWFObject {
 	function addParam( param : String, value : String ) : Void;
 	function getSWFHTML() : String;
 	function write( elementId : String ) : Bool;
+	function addVariable( param : String, value : String ) : Void;
+	function setAttribute( id : String, value : String ) : Void;
 
 	/* Notes : to embed SWF object, it is only needed to copy/paste the .js and replace \ by \\ */
 
