@@ -131,6 +131,7 @@ class FlashJsConnection #if flash implements AsyncConnection, implements Dynamic
 	static function flashCall( flashObj : String, name : String, path : String, params : String ) : String {
 		try {
 			var fobj : Dynamic = untyped window.document[flashObj];
+			if( fobj == null ) fobj = untyped window.document.getElementById[flashObj];
 			if( fobj == null ) throw "Could not find flash object '"+flashObj+"'";
 			var data = null;
 			try data = fobj.flashJsRemotingCall(name,path,params) catch( e : Dynamic ) {};
