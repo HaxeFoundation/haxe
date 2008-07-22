@@ -120,7 +120,11 @@ class EReg {
 		#elseif flash9
 			return untyped if( result != null && n >= 0 && n < result.length ) result[n] else throw "EReg::matched";
 		#elseif php
-			if(n >= 0 && n < matches.length) return matches[n][0];
+			if(n >= 0 && n < matches.length) {
+				if(matches[n][1] < 0) return null;
+				return matches[n][0];
+			}
+			//else return null;
 			else throw "EReg::matched";
 		#else
 			return null;
@@ -176,7 +180,7 @@ class EReg {
 			return result.input.substr(rl,result.input.length - rl);
 		#elseif php
 			if( matches.length == 0 ) throw "No string matched";
-			return untyped __php__("substr")(last, matches[0][1] + __php__("strlen")(matches[0][0]));
+			return untyped last.substr(matches[0][1] + __php__("strlen")(matches[0][0]));
 		#else
 			return null;
 		#end
