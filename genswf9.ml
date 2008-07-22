@@ -700,7 +700,7 @@ let gen_access ctx e (forset : 'a) : 'a access =
 		let id, k, closure = property f e1.etype in
 		if closure && not ctx.for_call then error "In Flash9, this method cannot be accessed this way : please define a local function" e1.epos;
 		(match e1.eexpr with
-		| TConst TThis when not ctx.in_static -> write ctx (HFindPropStrict id)
+		| TConst TThis when not ctx.in_static -> write ctx (HFindProp id)
 		| _ -> gen_expr ctx true e1);
 		(match k with
 		| Some t -> VCast (id,t)
@@ -1177,7 +1177,7 @@ and gen_call ctx retval e el r =
 		coerce ctx (classify ctx r);
 	| TField ({ eexpr = TConst TThis },f) , _ when not ctx.in_static ->
 		let id = ident f in
-		write ctx (HFindPropStrict id);
+		write ctx (HFindProp id);
 		List.iter (gen_expr ctx true) el;
 		if retval then begin
 			write ctx (HCallProperty (id,List.length el));
