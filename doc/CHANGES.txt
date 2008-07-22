@@ -14,6 +14,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	renamed NekoSocketConnection to SyncSocketConnection (php support)
 	fixes in genAs3
 	fix for flash9 : always coerce call return type
+	set all private+protected names from SWF lib to public (allow override+reflect)
 
 2008-07-17: 2.0-RC1
 	genneko : remove big array error (fixed in neko 1.7.1)

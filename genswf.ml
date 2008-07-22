@@ -130,6 +130,16 @@ let movieclip_exists types inits path =
 	) types || 	List.exists (fun i -> loop i (Array.length i.hls_fields - 1)) inits
 
 let add_as3_code ctx data types =
+	(* set all protected+private fields to public - this will enable overriding/reflection in haXe classes *)
+	let data = { data with as3_namespaces = Array.map (fun ns ->
+		match ns with
+		| A3NPrivate i | A3NInternal i -> A3NPublic i
+		| A3NProtected i -> A3NPublic (Some i)
+		| A3NPublic _
+		| A3NNamespace _
+		| A3NExplicit _
+		| A3NStaticProtected _ -> ns
+	) data.as3_namespaces } in
 	(* only keep classes that are not redefined in HX code *)
 	let inits = As3hlparse.parse data in
 	let inits = List.filter (fun i ->
