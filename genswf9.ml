@@ -76,6 +76,7 @@ type try_infos = {
 type context = {
 	(* globals *)
 	com : Common.context;
+	debugger : bool;
 	mutable last_line : int;
 	mutable last_file : string;
 	boot : string;
@@ -475,16 +476,18 @@ let begin_switch ctx =
 	fend, ftag
 
 
-let debug ctx p =
-	let line = Lexer.get_error_line p in
-	if ctx.last_file <> p.pfile then begin
-		write ctx (HDebugFile p.pfile);
-		ctx.last_file <- p.pfile;
-		ctx.last_line <- -1;
-	end;
-	if ctx.last_line <> line then begin
-		write ctx (HDebugLine line);
-		ctx.last_line <- line;
+let debug_infos ?(is_min=true) ctx p =
+	if ctx.com.debug then begin
+		let line = Lexer.get_error_line (if is_min then p else { p with pmin = p.pmax }) in
+		if ctx.last_file <> p.pfile then begin
+			write ctx (HDebugFile (if ctx.debugger then Common.get_full_path p.pfile else p.pfile));
+			ctx.last_file <- p.pfile;
+			ctx.last_line <- -1;
+		end;
+		if ctx.last_line <> line then begin
+			write ctx (HDebugLine line);
+			ctx.last_line <- line;
+		end
 	end
 
 let end_fun ctx args tret =
@@ -537,7 +540,7 @@ let begin_fun ctx args tret el stat p =
 	ctx.in_static <- stat;
 	ctx.last_line <- -1;
 	ctx.last_file <- "";
-	if ctx.com.debug then debug ctx p;
+	debug_infos ctx p;
 	let rec find_this e =
 		match e.eexpr with
 		| TFunction _ -> ()
@@ -1327,7 +1330,7 @@ and gen_binop ctx retval op e1 e2 t =
 
 and gen_expr ctx retval e =
 	let old = ctx.infos.istack in
-	if ctx.com.debug then debug ctx e.epos;
+	debug_infos ctx e.epos;
 	gen_expr_content ctx retval e;
 	if old <> ctx.infos.istack then begin
 		if old + 1 <> ctx.infos.istack then stack_error e.epos;
@@ -1338,7 +1341,9 @@ and generate_function ctx fdata stat =
 	let f = begin_fun ctx fdata.tf_args fdata.tf_type [fdata.tf_expr] stat fdata.tf_expr.epos in
 	gen_expr ctx false fdata.tf_expr;
 	(match follow fdata.tf_type with
-	| TEnum ({ e_path = [],"Void" },[]) -> write ctx HRetVoid
+	| TEnum ({ e_path = [],"Void" },[]) ->
+		debug_infos ctx ~is_min:false fdata.tf_expr.epos;
+		write ctx HRetVoid
 	| _ ->
 		(* check that we have a return that can be accepted by Flash9 VM *)
 		let rec loop e =
@@ -1417,6 +1422,7 @@ let generate_construct ctx fdata c =
 		| _ -> ()
 	) c.cl_fields;
 	gen_expr ctx false fdata.tf_expr;
+	debug_infos ctx ~is_min:false fdata.tf_expr.epos;
 	write ctx HRetVoid;
 	f() , List.length fdata.tf_args
 
@@ -1776,6 +1782,7 @@ let generate_inits ctx types =
 let generate com =
 	let ctx = {
 		com = com;
+		debugger = Common.defined com "fdb";
 		boot = "Boot_" ^ Printf.sprintf "%X" (Random.int 0xFFFFFF);
 		code = DynArray.create();
 		locals = PMap.empty;
