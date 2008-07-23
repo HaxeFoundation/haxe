@@ -65,7 +65,11 @@ class Input {
 
 	public function readAll( ?bufsize : Int ) : Bytes {
 		if( bufsize == null )
+		#if php
+			bufsize = 8192; // default value for PHP and max under certain circumstances
+		#else
 			bufsize = (1 << 14); // 16 Ko
+		#end
 		var buf = Bytes.alloc(bufsize);
 		var total = new haxe.io.BytesBuffer();
 		try {

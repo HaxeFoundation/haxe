@@ -53,13 +53,13 @@ class PhpXml__ {
 		build.addChild(node);
 		build = node;
 	}
-	
+
 	private static function __end_element_handler(parser : Dynamic, name : String) {
 //		if(untyped __call__("count", build._children) == 0)
 //			build.addChild(createPCData(""));
 		build = build.getParent();
 	}
-	
+
 	private static function __character_data_handler(parser : Dynamic, data : String) {
 		// TODO: this function can probably be simplified
 		var lc : PhpXml__ = (build._children == null || untyped __call__("count", build._children) == 0) ? null : build._children[untyped __call__("count", build._children) -1];
@@ -70,7 +70,7 @@ class PhpXml__ {
 		} else
 			build.addChild(createCData(data));
 	}
-	
+
 	private static function __default_handler(parser : Dynamic, data : String) {
 		build.addChild(createPCData(data));
 	}
@@ -182,7 +182,7 @@ class PhpXml__ {
 	public function set( att : String, value : String ) : Void {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		_attributes.set( att, untyped __call__("htmlspecialchars", value, __php__('ENT_COMPAT'), 'UTF-8', true));
+		_attributes.set( att, untyped __call__("htmlspecialchars", value, __php__('ENT_COMPAT'), 'UTF-8'));
 	}
 
 	public function remove( att : String ) : Void{
@@ -226,7 +226,7 @@ class PhpXml__ {
 				var k = this.cur;
 				var l = __call__("count", this.x);
 				while( k < l ) {
-				
+
 					if( this.x[k].nodeType == Xml.Element )
 						untyped __php__("break");
 					k += 1;
@@ -360,7 +360,7 @@ class PhpXml__ {
 		}
 		return s;
 	}
-	
+
 	static function __init__() : Void untyped {
 		PhpXml__.Element = "element";
 		PhpXml__.PCData = "pcdata";
