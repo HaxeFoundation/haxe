@@ -726,7 +726,40 @@ let init_class ctx c p herits fields =
 					let p = c.cl_pos in
 					let esuper = (ECall ((EConst (Ident "super"),p),List.map (fun (n,_,_,_) -> (EConst (Ident n),p)) f.f_args),p) in
 					let acc = (if csuper.cl_extern && acc = [] then [APublic] else acc) in
-					let fnew = { f with f_expr = esuper; f_args = List.map (fun (a,opt,t,def) -> a,opt,(if c.cl_extern then t else None),def) f.f_args } in
+					let fnew = { f with f_expr = esuper; f_args = List.map (fun (a,opt,t,def) ->
+						(* 
+							we are removing the type and letting the type inference
+							work because the current package is not the same as the superclass one
+							or there might be private and/or imported types 
+
+							if we are an extern class then we need a type
+							if the type is Dynamic also because it would not propagate
+							if we have a package declaration, we are sure it's fully qualified
+						*)
+						let rec is_qualified = function
+							| TPNormal t -> is_qual_name t
+							| TPParent t -> is_qualified t
+							| TPFunction (tl,t) -> List.for_all is_qualified tl && is_qualified t
+							| TPAnonymous fl -> List.for_all (fun (_,_,f,_) -> is_qual_field f) fl
+							| TPExtend (t,fl) -> is_qual_name t && List.for_all (fun (_,_,f,_) -> is_qual_field f) fl
+						and is_qual_field = function
+							| AFVar t -> is_qualified t
+							| AFProp (t,_,_) -> is_qualified t
+							| AFFun (pl,t) -> List.for_all (fun (_,_,t) -> is_qualified t) pl && is_qualified t
+						and is_qual_name t =
+							match t.tpackage with
+							| [] -> t.tname = "Dynamic" && List.for_all is_qual_param t.tparams
+							| _ :: _ -> true
+						and is_qual_param = function
+							| TPType t -> is_qualified t
+							| TPConst _ -> false (* prevent multiple incompatible types *)
+						in
+						let t = (match t with
+							| Some t when c.cl_extern || is_qualified t -> Some t
+							| _ -> None
+						) in
+						a,opt,t,def
+					) f.f_args } in
 					let _, _, cf, delayed = loop_cf (FFun ("new",None,acc,pl,fnew)) p in
 					c.cl_constructor <- Some cf;
 					Hashtbl.add ctx.constructs c.cl_path (acc,pl,f);
