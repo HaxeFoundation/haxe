@@ -18,6 +18,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	flash9 : use findprop instead of findpropstrict for 'this' access (allow dynamic)
 	don't allow nullness changes in overrided/implemented
 	prevent typing hole with overriden polymorphic methods
+	added neko.vm.Mutex (included in neko 1.7.1)
 
 2008-07-17: 2.0-RC1
 	genneko : remove big array error (fixed in neko 1.7.1)

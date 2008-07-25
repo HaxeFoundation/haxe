@@ -415,6 +415,7 @@ import neko.net.ThreadServer;
 
 import neko.vm.Loader;
 import neko.vm.Module;
+import neko.vm.Mutex;
 import neko.vm.Thread;
 import neko.vm.Tls;
 import neko.vm.Lock;
