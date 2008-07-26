@@ -737,6 +737,7 @@ let rec gen_expr_content ctx retval e =
 	| TConst c ->
 		gen_constant ctx c e.etype e.epos
 	| TThrow e ->
+		ctx.infos.icond <- true;
 		getvar ctx (VGlobal (type_path ctx ([],ctx.boot)));
 		let id = type_path ctx (["flash"],"Error") in
 		write ctx (HFindPropStrict id);
