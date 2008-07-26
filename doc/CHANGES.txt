@@ -19,6 +19,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	don't allow nullness changes in overrided/implemented
 	prevent typing hole with overriden polymorphic methods
 	added neko.vm.Mutex (included in neko 1.7.1)
+	added package remapping using --remap
 
 2008-07-17: 2.0-RC1
 	genneko : remove big array error (fixed in neko 1.7.1)

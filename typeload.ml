@@ -950,6 +950,7 @@ let type_module ctx m tdecls loadp =
 	m
 
 let parse_module ctx m p =
+	let remap = ref (fst m) in
 	let file = (match m with
 		| [] , name -> name
 		| x :: l , name ->
@@ -957,6 +958,7 @@ let parse_module ctx m p =
 				match PMap.find x ctx.com.package_rules with
 				| Forbidden -> error ("You can't access the " ^ x ^ " package with current compilation flags (for " ^ s_type_path m ^ ")") p;
 				| Directory d -> d
+				| Remap d -> remap := d :: l; d
 				with Not_found -> x
 			) in
 			String.concat "/" (x :: l) ^ "/" ^ name
@@ -968,14 +970,41 @@ let parse_module ctx m p =
 	t();
 	close_in ch;
 	if ctx.com.verbose then print_endline ("Parsed " ^ file);
-	if pack <> fst m then begin
+	if pack <> !remap then begin
 		let spack m = if m = [] then "<empty>" else String.concat "." m in
 		if p == Ast.null_pos then
 			error ("Invalid commandline class : " ^ s_type_path m ^ " should be " ^ s_type_path (pack,snd m)) p
 		else
 			error ("Invalid package : " ^ spack (fst m) ^ " should be " ^ spack pack) p
 	end;
-	decls
+	if !remap <> fst m then
+		(* build typedefs to redirect to real package *)
+		List.fold_left (fun acc (t,p) ->
+			let build f d =
+				let priv = List.mem f d.d_flags in
+				let params = List.map fst d.d_params in
+				(ETypedef { 
+					d_name = d.d_name;
+					d_doc = None;
+					d_params = List.map (fun s -> s, []) params;
+					d_flags = if priv then [EPrivate] else [];
+					d_data = TPNormal {
+						tpackage = !remap;
+						tname = d.d_name;
+						tparams = List.map (fun s ->
+							TPType (TPNormal { tpackage = []; tname = s; tparams = [] })
+						) params;
+					};
+				},p) :: acc
+			in
+			match t with
+			| EClass d -> build HPrivate d
+			| EEnum d -> build EPrivate d
+			| ETypedef d -> build EPrivate d
+			| EImport _ -> acc
+		) [] decls
+	else
+		decls
 
 let load_module ctx m p =
 	try

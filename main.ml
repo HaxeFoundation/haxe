@@ -216,7 +216,7 @@ try
 		if com.platform <> Cross then failwith "Multiple targets";
 		com.platform <- pf;
 		com.file <- file;
-		let forbid acc p = if p = name then acc else PMap.add p Forbidden acc in
+		let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
 		com.package_rules <- List.fold_left forbid com.package_rules root_packages;
 		Common.define com name; (* define platform name *)
 	in
@@ -342,6 +342,10 @@ try
 			if com.php_front <> None then raise (Arg.Bad "Multiple --php-front");
 			com.php_front <- Some f;
 		),"<filename> : select the name for the php front file");
+		("--remap", Arg.String (fun s ->
+			let pack, target = (try ExtString.String.split s ":" with _ -> raise (Arg.Bad "Invalid format")) in
+			com.package_rules <- PMap.add pack (Remap target) com.package_rules;
+		),"<package:target> : remap a package to another one");
 	] in
 	let current = ref 0 in
 	let args = Array.of_list ("" :: params) in
