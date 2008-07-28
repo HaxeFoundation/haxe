@@ -58,6 +58,7 @@ import haxe.Template;
 import haxe.Timer;
 import haxe.Unserializer;
 import haxe.Int32;
+import haxe.Resource;
 
 import haxe.io.Bytes;
 import haxe.io.BytesBuffer;
