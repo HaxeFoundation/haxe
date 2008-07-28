@@ -270,7 +270,7 @@ class Http {
 		var request = url_regexp.matched(4);
 		if( request == "" )
 			request = "/";
-		var port = if( portString == "" ) 80 else Std.parseInt(portString.substr(1,portString.length-1));
+		var port = if( portString == null ) 80 else Std.parseInt(portString.substr(1,portString.length-1));
 		var data;
 
 		var multipart = (file != null);
