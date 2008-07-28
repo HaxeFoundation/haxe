@@ -7,7 +7,7 @@ class Sys {
 	}
 
 	public static function getEnv( s : String ) : String {
-		return untyped __call__("getenv");
+		return untyped __call__("getenv", s);
 	}
 
 	public static function putEnv( s : String, v : String ) : Void {
@@ -15,7 +15,7 @@ class Sys {
 	}
 
 	public static function sleep( seconds : Float ) {
-		return untyped __call__("putenv", seconds);
+		return untyped __call__("sleep", seconds);
 	}
 
 	public static function setTimeLocale( loc : String ) : Bool {
