@@ -1,9 +1,9 @@
 package php;
 
 
-class Sys {	
+class Sys {
 	public static function args() : Array<String> {
-		return untyped __php__("array_key_exists('argvs', $_SERVER) ? $_SERVER['argv'] : array()");
+		return untyped __php__("array_key_exists('argv', $_SERVER) ? $_SERVER['argv'] : array()");
 	}
 
 	public static function getEnv( s : String ) : String {
