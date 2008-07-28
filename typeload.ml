@@ -979,7 +979,7 @@ let parse_module ctx m p =
 	end;
 	if !remap <> fst m then
 		(* build typedefs to redirect to real package *)
-		List.fold_left (fun acc (t,p) ->
+		List.rev (List.fold_left (fun acc (t,p) ->
 			let build f d =
 				let priv = List.mem f d.d_flags in
 				let params = List.map fst d.d_params in
@@ -988,13 +988,14 @@ let parse_module ctx m p =
 					d_doc = None;
 					d_params = List.map (fun s -> s, []) params;
 					d_flags = if priv then [EPrivate] else [];
-					d_data = TPNormal {
-						tpackage = !remap;
-						tname = d.d_name;
-						tparams = List.map (fun s ->
-							TPType (TPNormal { tpackage = []; tname = s; tparams = [] })
-						) params;
-					};
+					d_data = TPNormal (if priv then { tpackage = []; tname = "Dynamic"; tparams = []; } else 
+						{
+							tpackage = !remap;
+							tname = d.d_name;
+							tparams = List.map (fun s ->
+								TPType (TPNormal { tpackage = []; tname = s; tparams = [] })
+							) params;
+						});
 				},p) :: acc
 			in
 			match t with
@@ -1002,7 +1003,7 @@ let parse_module ctx m p =
 			| EEnum d -> build EPrivate d
 			| ETypedef d -> build EPrivate d
 			| EImport _ -> acc
-		) [] decls
+		) [(EImport (!remap, snd m, None),null_pos)] decls)
 	else
 		decls
 
