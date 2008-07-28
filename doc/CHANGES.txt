@@ -6,7 +6,7 @@ TODO optimizer : move multiple statics access into local variables
 TODO inlining : allow inlined getter/setter
 TODO inlining : substitute class+function type parameters in order to have fully typed expressions
 
-2008-??-??: 2.0
+2008-07-28: 2.0
 	fixed current package bug in inherited constructor type
 	delayed type-parameter constraints check (allow mutual rec extends for SPOD)
 	improved unclosed macro error reporting
@@ -18,7 +18,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	flash9 : use findprop instead of findpropstrict for 'this' access (allow dynamic)
 	don't allow nullness changes in overrided/implemented
 	prevent typing hole with overriden polymorphic methods
-	added neko.vm.Mutex (included in neko 1.7.1)
+	added neko.vm.Mutex and neko.vm.Deque (included in neko 1.7.1)
 	added package remapping using --remap
 
 2008-07-17: 2.0-RC1

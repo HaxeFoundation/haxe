@@ -413,6 +413,7 @@ import neko.net.SocketOutput;
 import neko.net.ThreadRemotingServer;
 import neko.net.ThreadServer;
 
+import neko.vm.Deque;
 import neko.vm.Loader;
 import neko.vm.Module;
 import neko.vm.Mutex;
