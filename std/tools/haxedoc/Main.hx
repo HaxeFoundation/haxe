@@ -29,10 +29,24 @@ class Main {
 
 	static var parser = new haxe.rtti.XmlParser();
 
-	static function loadFile(file,platform) {
+	static function loadFile(file,platform,?remap) {
 		var data = neko.io.File.getContent(neko.Web.getCwd()+file);
 		var x = Xml.parse(data).firstElement();
+		if( remap != null )
+			transformPackage(x,remap,platform);
 		parser.process(x,platform);
+	}
+
+	static function transformPackage( x : Xml, p1, p2 ) {
+		switch( x.nodeType ) {
+		case Xml.Element:
+			var p = x.get("path");
+			if( p != null && p.substr(0,6) == p1 + "." )
+				x.set("path",p2 + "." + p.substr(6));
+			for( x in x.elements() )
+				transformPackage(x,p1,p2);
+		default:
+		}
 	}
 
 	static function save(html : HtmlPrinter,x,file) {
@@ -105,8 +119,10 @@ class Main {
 			if( h.get("reload") != null || data == null ) {
 				var baseDir = "../data/media/";
 				loadFile(baseDir+"flash.xml","flash");
+				loadFile(baseDir+"flash9.xml","flash9","flash");
 				loadFile(baseDir+"neko.xml","neko");
 				loadFile(baseDir+"js.xml","js");
+				loadFile(baseDir+"php.xml","php");
 				parser.sort();
 				data = parser.root;
 				var str = neko.Lib.serialize(data);
@@ -138,7 +154,7 @@ class Main {
 					filter = false;
 				} else {
 					var f = x.split(";");
-					loadFile(f[0],f[1]);
+					loadFile(f[0],f[1],f[2]);
 				}
 			}
 			parser.sort();
