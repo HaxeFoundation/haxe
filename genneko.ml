@@ -218,7 +218,7 @@ and gen_call ctx p e el =
 		]
 	| TLocal "__resources__", [] ->
 		call p (builtin p "array") (Hashtbl.fold (fun name data acc -> 
-			(EObject [("name",gen_constant ctx e.epos (TString name));("data",(EConst (String data),p))],p) :: acc
+			(EObject [("name",gen_constant ctx e.epos (TString name));("data",gen_big_string ctx p data)],p) :: acc
 		) ctx.com.resources [])
 	| TField ({ eexpr = TConst TSuper; etype = t },f) , _ ->
 		let c = (match follow t with TInst (c,_) -> c | _ -> assert false) in
