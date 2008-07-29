@@ -8,6 +8,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 
 2008-??-??: 2.01
 	added neko.NativeString
+	fixed php.Sys
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type
