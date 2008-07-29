@@ -14,7 +14,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	fixed current package bug in inherited constructor type
 	delayed type-parameter constraints check (allow mutual rec extends for SPOD)
 	improved unclosed macro error reporting
-	haxe/PHP integeration
+	haxe/PHP integration
 	renamed NekoSocketConnection to SyncSocketConnection (php support)
 	fixes in genAs3
 	fix for flash9 : always coerce call return type
