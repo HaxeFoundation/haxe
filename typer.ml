@@ -1247,14 +1247,14 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let tname = (match follow t with
 		| TInst (_,params) | TEnum (_,params) ->
 			List.iter (fun pt ->
-				if pt != t_dynamic then error "Cast class parameter must be Dynamic" p;
+				if follow pt != t_dynamic then error "Cast type parameters must be Dynamic" p;
 			) params;
 			(match follow t with
 			| TInst (c,_) -> c.cl_path
 			| TEnum (e,_) -> e.e_path
 			| _ -> assert false);
 		| _ ->
-			error "Cast type must be a class" p
+			error "Cast type must be a class or an enum" p
 		) in
 		let make_type (path,name) =
 			match path with
