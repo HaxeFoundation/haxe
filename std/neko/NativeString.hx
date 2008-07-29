@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2008, The haXe Project Contributors
+ * Copyright (c) 2005, The haXe Project Contributors
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -22,12 +22,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package haxe.io;
+package neko;
 
-#if neko
-	typedef BytesData =	neko.NativeString;
-#elseif flash9
-	typedef BytesData =	flash.utils.ByteArray;
-#else
-	typedef BytesData = Array<Int>;
-#end
+class NativeString {
+
+	public static inline function ofString( s : String ) : NativeString {
+		return untyped s.__s;
+	}
+
+	public static inline function toString( s : NativeString ) : String {
+		return new String(cast s);
+	}
+
+	public static inline function length( s : NativeString ) : Int {
+		return untyped __dollar__ssize(s);
+	}
+
+}

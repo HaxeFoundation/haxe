@@ -6,6 +6,9 @@ TODO optimizer : move multiple statics access into local variables
 TODO inlining : allow inlined getter/setter
 TODO inlining : substitute class+function type parameters in order to have fully typed expressions
 
+2008-??-??: 2.01
+	added neko.NativeString
+
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type
 	delayed type-parameter constraints check (allow mutual rec extends for SPOD)

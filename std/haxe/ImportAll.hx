@@ -382,6 +382,7 @@ import neko.Random;
 import neko.Sys;
 import neko.Utf8;
 import neko.Web;
+import neko.NativeString;
 
 import neko.io.File;
 import neko.io.FileInput;
