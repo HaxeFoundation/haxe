@@ -355,7 +355,7 @@ class Type {
 				if(nargs > 0) {
 					var args = __call__("array_fill", 0, m.getNumberOfRequiredParameters(), null);
 					i = __php__("$rfl->newInstanceArgs($args)");
-				} else {				
+				} else {
 					i = __php__("$rfl->newInstanceArgs(array())");
 				}
 				php.Boot.skip_constructor = false;
@@ -418,7 +418,7 @@ class Type {
 			$r = array();
 			$internals = array('__construct', '__call', '__get', '__set', '__isset', '__unset', '__toString');
 			foreach($ms as $m) {
-				$n = $m->getName();				
+				$n = $m->getName();
 				if(!$m->isStatic() && ! in_array($n, $internals)) $r[] = $n;
 			}
 			foreach($ps as $p)
@@ -485,7 +485,7 @@ class Type {
 	/**
 		Returns all the available constructor names for an enum.
 	**/
-	public static function getEnumConstructs( e : Enum ) : Array<String> untyped {		
+	public static function getEnumConstructs( e : Enum ) : Array<String> untyped {
 		#if php
 			if(__php__("$e->__tname__ == 'Bool'")) return ['true', 'false'];
 			if(__php__("$e->__tname__ == 'Void'")) return [];
@@ -586,7 +586,7 @@ class Type {
 			}
 		#elseif php
 			if(v == null) return TNull;
-			if(__call__("is_array", v)) { 
+			if(__call__("is_array", v)) {
 				if(__call__("is_callable", v)) return TFunction;
 				return TClass(Array);
 			}
@@ -598,12 +598,12 @@ class Type {
 			if(__call__("is_bool", v)) return TBool;
 			if(__call__("is_int", v)) return TInt;
 			if(__call__("is_float", v)) return TFloat;
-			if(__php__("$v instanceof Anonymous"))  return TObject;    
-			if(__php__("$v instanceof __enumtype__"))  return TObject;  
-			if(__php__("$v instanceof __classtype__"))  return TObject;  
-    
+			if(__php__("$v instanceof Anonymous"))  return TObject;
+			if(__php__("$v instanceof __enumtype__"))  return TObject;
+			if(__php__("$v instanceof __classtype__"))  return TObject;
+
 			var c = __php__("php_Boot::__ttype(get_class($v))");
-    
+
 			if(__php__("$c instanceof __enumtype__"))  return TEnum(cast c);
 			if(__php__("$c instanceof __classtype__")) return TClass(cast c);
 			return TUnknown;
@@ -685,8 +685,13 @@ class Type {
 	public static function enumParameters( e : Dynamic ) : Array<Dynamic> {
 		#if neko
 			return if( e.args == null ) [] else untyped Array.new1(e.args,__dollar__asize(e.args));
-		#elseif (flash9 || php)
+		#elseif flash9
 			return if( e.params == null ) [] else e.params;
+		#elseif php
+			if(e.params == null)
+				return [];
+			else
+				return e.params;
 		#else
 			return e.slice(2);
 		#end
