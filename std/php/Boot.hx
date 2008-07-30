@@ -5,7 +5,7 @@ class Boot {
 		var msg = if( i != null ) i.fileName+":"+i.lineNumber+": " else "";
 		untyped __call__("echo", msg+ __string_rec(v)+"<br/>"); // TODO: __unhtml
 	}
-	
+
 	static public function __anonymous(?p : Dynamic) : Dynamic {
 		untyped __php__("$o = new Anonymous();
 		if(is_array($p)) {
@@ -15,7 +15,7 @@ class Boot {
 		}
 		return $o");
 	}
-	
+
 	static private var __cid = 0;
 	static public var __scopes = [];
 	static public function __closure(locals : ArrayAccess<Dynamic>, params : String, body : String) : String {
@@ -24,38 +24,38 @@ class Boot {
 //		if(locals == null) locals = [];
 		untyped __php__("php_Boot::$__scopes[$n] = array('scope' => null, 'locals' => $locals)");
 		var f : String = untyped __call__(
-			"create_function", 
-			params, 
+			"create_function",
+			params,
 			"$__this =& php_Boot::$__scopes['"+n+"']['scope'];\nforeach(array_keys(php_Boot::$__scopes['"+n+"']['locals']) as ${'%k'}) ${${'%k'}} =& php_Boot::$__scopes['"+n+"']['locals'][${'%k'}];\n"+body);
 		var nl = "__"+f.substr(1)+"__";
 		untyped __php__("php_Boot::$__scopes[$nl] =& php_Boot::$__scopes[$n]");
 		return f;
 	}
-	
+
 	static public function __is_lambda(s : String) : Bool {
 		return untyped __call__("is_string", s) && s.substr(0, 8) == __call__("chr", 0) + "lambda_";
 	}
-	
+
 	static public function __array() : Dynamic {
 		return untyped __call__("func_get_args");
 	}
-	
+
 	static public function __array_empty() : Dynamic {
 		return untyped __call__("array");
 	}
-	
-	static public function __array_null() : Dynamic {
+
+	static public function __null() : Dynamic {
 		return null;
 	}
-	
+
 	static public function __array_copy(a : ArrayAccess<Dynamic>) : Dynamic {
 		return cast a;
 	}
-	
+
 	static public function __array_iterator<T>(arr : Dynamic) : Iterator<T> {
 		return untyped __php__("new HArrayIterator($arr)");
 	}
-	
+
 	static public function __array_sort<T>(arr : Array<T>, f : T -> T -> Int) : Void {
 		var i = 0;
 		var l = arr.length;
@@ -74,13 +74,13 @@ class Boot {
 			}
 			if(!swap) break;
 			i += 1;
-		}	
+		}
 	}
 
 	static public function __array_insert<T>(arr : Array<T>,  pos : Int, x : T) : Void {
 		untyped __php__("array_splice")(arr, pos, 0, __call__("array", x));
 	}
-	
+
 	static public function __array_remove<T>(arr : Array<T>, x : T) : Bool {
 		for(i in 0...arr.length)
 			if(arr[i] == x) {
@@ -90,42 +90,42 @@ class Boot {
 			}
 		return false;
 	}
-	
+
 	static public function __array_remove_at(arr : Array<Dynamic>, pos : Int) : Bool {
 		if(untyped __php__("array_key_exists")(pos, arr)) {
 			untyped __php__("unset")(arr[pos]);
 			return true;
 		} else return false;
 	}
-	
+
 	static public function __array_splice(arr : Array<Dynamic>, pos : Int, len : Int) : Bool {
 		if(len < 0) len = 0;
 		return untyped __php__("array_splice")(arr, pos, len);
 	}
-	
+
 	static public function __array_slice(arr : Array<Dynamic>, pos : Int, ?end : Int) : Bool {
 		if(end == null)
 			return untyped __php__("array_slice")(arr, pos);
 		else
 			return untyped __php__("array_slice")(arr, pos, end-pos);
 	}
-  
+
 	static public function __array_set<T>(arr : Array<Dynamic>, pos : Int, v : T) : T untyped {
 		if(__call__("is_int", pos)) {
 			var l = __call__("count", arr);
 			if(l < pos) {
-			__call__("array_splice", arr, l, 0, __call__("array_fill", l, pos-l, null)); 
+			__call__("array_splice", arr, l, 0, __call__("array_fill", l, pos-l, null));
 			}
 		}
 		__php__("$arr[$pos] = $v");
 		return v;
 	}
-	
+
 	static public function __char_code_at(s : String, pos : Int) : Null<Int> untyped {
 		if(__call__("empty", s) || pos >= s.length) return null;
 		return s.cca(pos);
 	}
-	
+
 	static public function __substr(s : String, pos : Int, ?len : Int) {
 		if( pos != null && pos != 0 && len != null && len < 0 ) return '';
 		if( len == null ) len = s.length;
@@ -145,15 +145,15 @@ class Boot {
 		else
 			return x;
 	}
-	
+
 	static public function __last_index_of(s : String, value : String, ?startIndex : Int) {
 		var x = untyped __php__("strrpos")(s, value, startIndex == null ? null : s.length - startIndex);
-		if(untyped __php__("$x === false")) 
+		if(untyped __php__("$x === false"))
 			return -1
 		else
 			return x;
 	}
-	
+
 	static public function __instanceof(v : Dynamic, t : Dynamic) {
 		if(t == null) return false;
 		switch(t.__tname__) {
@@ -177,10 +177,10 @@ class Boot {
 				return untyped __call__("is_a", v, t.__tname__);
 		}
 	}
-	
+
 	static public function __shift_right(v : Int, n : Int) {
-		untyped __php__("$z = 0x80000000;  
-		if ($z & $v) { 
+		untyped __php__("$z = 0x80000000;
+		if ($z & $v) {
 			$v = ($v>>1);
 			$v &= (~$z);
 			$v |= 0x40000000;
@@ -188,7 +188,7 @@ class Boot {
 		} else $v = ($v>>$n)");
 		return v;
 	}
-	
+
 	static public function __error_handler(errno : Int, errmsg : String, filename : String, linenum : Int, vars : Dynamic) {
 		var msg = errmsg + " (errno: " + errno + ") in " + filename + " at line #" + linenum;
 		var e = new php.HException(msg, errmsg, errno);
@@ -197,12 +197,12 @@ class Boot {
 		untyped __php__("throw $e");
 		return null;
 	}
-	
+
 	static public function __exception_handler(e : Dynamic) {
 		var msg = "<pre>Uncaught exception: <b>"+e.getMessage()+"</b>\nin file: <b>"+e.getFile()+"</b> line <b>"+e.getLine()+"</b>\n\n"+e.getTraceAsString()+"</pre>";
 		untyped __php__("die($msg)");
 	}
-  
+
 	static public function __equal(x : Dynamic, y : Dynamic) untyped {
 		if(__call__("is_null", x)) {
 			return __call__("is_null", y);
@@ -229,21 +229,21 @@ class Boot {
 	static public function __qtype(n) untyped {
 		if(__call__("isset", __qtypes[n]))
 			return __qtypes[n];
-		else 
+		else
 			return null;
 	}
 
 	static public function __ttype(n) untyped {
 		if(__call__("isset", __ttypes[n]))
 			return __ttypes[n];
-		else 
+		else
 			return null;
 	}
-	
+
 	static public function __deref(byref__o : Dynamic) {
 		return byref__o;
 	}
-	
+
 	static public function __byref__array_get(byref__o : Dynamic, index : Dynamic) {
 		return untyped byref__o[index];
 	}
@@ -274,7 +274,7 @@ class Boot {
 			default: throw "Invalid Operation: " + method;
 		}
 	}
-	
+
 	public static function __array_call(arr : Array<Dynamic>, method : String, params : ArrayAccess<Dynamic>) {
 		if(!untyped __call__("is_array", arr)) return untyped __php__("call_user_func_array(array($arr, $method), $params)");
 		switch(method) {
@@ -295,13 +295,13 @@ class Boot {
 			default: throw "Invalid Operation: " + method;
 		}
 	}
-	
+
 	public static function __len(o : Dynamic) {
 		return untyped __php__("is_array($o) ? count($o) : (is_string($o) ? strlen($o) : $o->length)");
 	}
-	
+
 //	public static var __REGISTERED_CLASSES : Array<Dynamic>;
-  
+
 	static function __init__() untyped {
 		__php__("//error_reporting(0);
 set_error_handler(array('php_Boot', '__error_handler'), E_ALL);
@@ -320,26 +320,26 @@ class Anonymous extends stdClass{
 			throw new HException('Unable to call «'.$m.'»');
 		}
 	}
-	
+
 	public function __set($n, $v) {
 		$this->$n = $v;
 	}
-	
+
 	public function &__get($n) {
 		if(isset($this->$n))
 			return $this->$n;
 		$null = null;
 		return $null;
 	}
-	
+
 	public function __isset($n) {
 		return isset($this->$n);
 	}
-	
+
 	public function __unset($n) {
 		unset($this->$n);
 	}
-	
+
 	public function __toString() {
 		return php_Boot::__string_rec($this, null);
 	}
@@ -347,16 +347,16 @@ class Anonymous extends stdClass{
 
 class __type__ {
 	public $__tname__;
-	public $__qname__;  
-	public $__path__;  
+	public $__qname__;
+	public $__path__;
 	public function __construct($cn, $qn, $path = null) {
 		$this->__tname__ = $cn;
 		$this->__qname__ = $qn;
 		$this->__path__ = $path;
 	}
-	
+
 	public function toString()   { return $this->__toString(); }
-	
+
 	public function __toString() {
 		return $this->__qname__;
 	}
@@ -370,7 +370,7 @@ class __type__ {
 			$this->rfl = null;
 		return $this->rfl;
 	}
-	
+
 	public function __call($n, $a) {
 		return call_user_func_array(array($this->__tname__, $n), $a);
 	}
@@ -409,12 +409,12 @@ class HArrayIterator {
 		$this->a = $a;
 		$this->i = 0;
 	}
-	
+
 	public function next() {
 		if(!$this->hasNext()) return null;
 		return $this->a[$this->i++];
 	}
-	
+
 	public function hasNext() {
 		return $this->i < count($this->a);
 	}
@@ -482,7 +482,7 @@ if(!file_exists($_autload_cache_file)) {
 				} else if(substr($bn, -10) == '.interface') {
 					$bn = substr($bn, 0, -10);
 					$t = 2;
-				} else 
+				} else
 					continue;
 				$qname = ($bn == 'HList' && empty($pack)) ? 'List' : join(array_merge($pack, array($bn)), '.');
 				$a[] = array(
@@ -497,11 +497,11 @@ if(!file_exists($_autload_cache_file)) {
 		}
 		closedir($h);
 	}
-	
+
 	$a = array();
-	
+
 	buildPaths($_lib_dir, $a, array());
-	
+
 	$content = '<?php\n\n';
 	for($i=0;$i<count($a);$i++) {
 		$content .= 'php_Boot::__register_type(new ';
@@ -536,7 +536,7 @@ spl_autoload_register('__haxe_autoload')");
 
 	static public function __string(o : Dynamic) {
 		if( o == null )
-			return "null";		
+			return "null";
 		if(untyped __call__("is_int", o) || __call__("is_float", o))
 			return o;
 		if(untyped __call__("is_bool", o))
@@ -554,7 +554,7 @@ spl_autoload_register('__haxe_autoload')");
 					return "[" + __ttype(c) + "]";
 			}
 		}
-		
+
 		if(untyped __call__("is_string", o)) {
 			if(__is_lambda(o)) return "«function»";
 			return o;
@@ -563,22 +563,22 @@ spl_autoload_register('__haxe_autoload')");
 			if(untyped __call__("is_callable", o)) return "«function»";
 			return "Array";
 		}
-		
+
 		return '';
 	}
-	
+
 	static public function __string_rec(o : Dynamic, ?s : String) {
 		if( o == null )
 			return "null";
 		if( s.length >= 5 )
 			return "<...>"; // too much deep recursion
-		
+
 		if(untyped __call__("is_int", o) || __call__("is_float", o))
 			return o;
-			
+
 		if(untyped __call__("is_bool", o))
 			return o ? "true" : "false";
-			
+
 		if(untyped __call__("is_object", o)) {
 			var c = untyped __call__("get_class", o);
 			if(untyped __php__("$o instanceof enum")) {
@@ -587,7 +587,7 @@ spl_autoload_register('__haxe_autoload')");
 					s += "\t";
 					b += '(';
 					for( i in 0...untyped __call__("count", o.params) ) {
-						if(i > 0) 
+						if(i > 0)
 							b += ', ' + __string_rec(o.params[i],s);
 						else
 							b += __string_rec(o.params[i],s);
@@ -620,7 +620,7 @@ spl_autoload_register('__haxe_autoload')");
 					return "[" + __ttype(c) + "]";
 			}
 		}
-			
+
 		if(untyped __call__("is_string", o)) {
 			if(__is_lambda(o)) return "«function»";
 			if(s != null)
@@ -628,7 +628,7 @@ spl_autoload_register('__haxe_autoload')");
 			else
 				return o;
 		}
-			
+
 		if(untyped __call__("is_array", o)) {
 			if(untyped __call__("is_callable", o)) return "«function»";
 			var str = "[";
@@ -638,7 +638,7 @@ spl_autoload_register('__haxe_autoload')");
 			str += "]";
 			return str;
 		}
-		
+
 		return '';
 	}
 	static public var skip_constructor = false;

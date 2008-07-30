@@ -7,6 +7,8 @@ TODO inlining : allow inlined getter/setter
 TODO inlining : substitute class+function type parameters in order to have fully typed expressions
 
 2008-??-??: 2.01
+	fixed null references in class constructors for array arguments
+	fixed php.Boot.__string_rec() when invoked from toString
 	added neko.NativeString
 	fixed php.Sys
 
