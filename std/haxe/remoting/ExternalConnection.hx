@@ -85,6 +85,7 @@ class ExternalConnection implements Connection, implements Dynamic<Connection> {
 		try {
 			var cnx = connections.get(name);
 			if( cnx == null ) throw "Unknown connection : "+name;
+			if( cnx.__data.ctx == null ) throw "No context shared for the connection "+name;
 			var params = new haxe.Unserializer(params).unserialize();
 			var ret = cnx.__data.ctx.call(path.split("."),params);
 			var s = new haxe.Serializer();
@@ -106,7 +107,7 @@ class ExternalConnection implements Connection, implements Dynamic<Connection> {
 
 	#if flash
 
-	public static function jsConnect( name : String, ctx : Context ) {
+	public static function jsConnect( name : String, ?ctx : Context ) {
 		if( !flash.external.ExternalInterface.available )
 			throw "External Interface not available";
 		#if flash9
@@ -121,7 +122,7 @@ class ExternalConnection implements Connection, implements Dynamic<Connection> {
 
 	#elseif js
 
-	public static function flashConnect( name : String, flashObjectID : String, ctx : Context ) {
+	public static function flashConnect( name : String, flashObjectID : String, ?ctx : Context ) {
 		var cnx = new ExternalConnection({ ctx : ctx, name : name, flash : flashObjectID },[]);
 		connections.set(name,cnx);
 		return cnx;

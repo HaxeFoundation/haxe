@@ -171,6 +171,7 @@ class SocketProtocol {
 		var path : Array<String> = s.unserialize();
 		var args : Array<Dynamic> = s.unserialize();
 		try {
+			if( context == null ) throw "No context is shared";
 			result = context.call(path,args);
 		} catch( e : Dynamic ) {
 			result = e;

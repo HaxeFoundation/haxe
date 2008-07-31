@@ -123,7 +123,7 @@ class SocketConnection implements AsyncConnection, implements Dynamic<AsyncConne
 		__data.error(header + estr);
 	}
 
-	public static function create( s : Socket, ctx : Context ) {
+	public static function create( s : Socket, ?ctx : Context ) {
 		var data = {
 			protocol : new SocketProtocol(s,ctx),
 			results : new List(),

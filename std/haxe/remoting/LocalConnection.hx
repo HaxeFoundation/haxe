@@ -80,6 +80,7 @@ class LocalConnection implements AsyncConnection {
 	static function remotingCall( c : LocalConnection, id : Int, path : String, args : String ) {
 		var r;
 		try {
+			if( c.__data.ctx == null ) throw "No context shared for this connection";
 			var ret = c.__data.ctx.call(path.split("."),haxe.Unserializer.run(args));
 			r = haxe.Serializer.run(ret);
 		} catch( e : Dynamic ) {
@@ -108,7 +109,7 @@ class LocalConnection implements AsyncConnection {
 	}
 
 	#if flash
-	public static function connect( name : String, ctx : Context, ?allowDomains : Array<String> ) {
+	public static function connect( name : String, ?ctx : Context, ?allowDomains : Array<String> ) {
 		#if flash9
 			var l = new flash.net.LocalConnection();
 		#else

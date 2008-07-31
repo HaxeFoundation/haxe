@@ -92,6 +92,7 @@ class FlashJsConnection #if flash implements AsyncConnection, implements Dynamic
 		try {
 			var cnx = connections.get(name);
 			if( cnx == null ) throw "Unknown connection : "+name;
+			if( cnx.__data.ctx == null ) throw "No context shared for the connection "+name;
 			var params = new haxe.Unserializer(params).unserialize();
 			var ret = cnx.__data.ctx.call(path.split("."),params);
 			var s = new haxe.Serializer();
@@ -107,7 +108,7 @@ class FlashJsConnection #if flash implements AsyncConnection, implements Dynamic
 		#end
 	}
 
-	public static function connect( name : String, objId : String, ctx : Context ) {
+	public static function connect( name : String, objId : String, ?ctx : Context ) {
 		if( !flash.external.ExternalInterface.available )
 			throw "External Interface not available";
 		#if flash9
