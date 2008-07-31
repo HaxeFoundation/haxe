@@ -152,7 +152,9 @@ class Loader {
 			},
 			loadmodule : function(mname,loader) {
 				return loadModule(new String(mname),new Loader(loader)).exportsTable();
-			}
+			},
+			args : untyped __dollar__amake(0),
+			cache : {},
 		};
 		return new Loader(cast l);
 	}
