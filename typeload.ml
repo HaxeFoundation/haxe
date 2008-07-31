@@ -344,8 +344,8 @@ let rec check_interface ctx c p intf params =
 	PMap.iter (fun i f ->
 		try
 			let t2, f2 = class_field_no_interf c i in
-			ignore(follow f.cf_type); (* force evaluation *)
-			let p = (match f.cf_expr with None -> p | Some e -> e.epos) in
+			ignore(follow f2.cf_type); (* force evaluation *)
+			let p = (match f2.cf_expr with None -> p | Some e -> e.epos) in
 			if f.cf_public && not f2.cf_public then
 				display_error ctx ("Field " ^ i ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
 			else if not(unify_access f2.cf_get f.cf_get) then

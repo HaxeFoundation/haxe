@@ -620,7 +620,7 @@ let begin_fun ctx args tret el stat p =
 					hltc_name = None;
 				}
 			) (List.rev ctx.trys));
-			hlf_locals = Array.of_list (List.map (fun (id,name,t) -> ident name, type_opt ctx t, id) ctx.block_vars);
+			hlf_locals = Array.of_list (List.map (fun (id,name,t) -> ident name, type_opt ctx t, id, false) ctx.block_vars);
 		} in
 		let mt = { (end_fun ctx args tret) with
 			hlmt_var_args = varargs;
