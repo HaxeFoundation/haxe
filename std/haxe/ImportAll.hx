@@ -383,6 +383,7 @@ import neko.Sys;
 import neko.Utf8;
 import neko.Web;
 import neko.NativeString;
+import neko.NativeArray;
 
 import neko.io.File;
 import neko.io.FileInput;
