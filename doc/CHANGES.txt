@@ -10,8 +10,9 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	fixed Type.enumParameters() for PHP
 	fixed null references in class constructors for array arguments
 	fixed php.Boot.__string_rec() when invoked from toString
-	added neko.NativeString
+	added neko.NativeString and neko.NativeArray
 	fixed php.Sys
+	allowed optional Context in remoting connections
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type
