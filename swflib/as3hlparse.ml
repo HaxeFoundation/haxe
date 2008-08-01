@@ -394,10 +394,9 @@ let parse_function ctx f =
 			if f.f3_metas <> None then assert false;
 			match f.f3_kind with
 			| A3FVar v ->
-				if v.v3_const then assert false;
 				(* v3_value can be <> None if it's a fun parameter with a default value
 					- which looks like a bug of the AS3 compiler *)
-				name ctx f.f3_name , opt name ctx v.v3_type , f.f3_slot
+				name ctx f.f3_name , opt name ctx v.v3_type , f.f3_slot, v.v3_const
 			| _ -> assert false
 		) f.fun3_locals;
 	}
@@ -789,11 +788,11 @@ let flatten_function ctx f mid =
 		fun3_max_scope = f.hlf_max_scope;
 		fun3_code = code;
 		fun3_trys = trys;
-		fun3_locals = Array.map (fun (n,t,s) ->
+		fun3_locals = Array.map (fun (n,t,s,c) ->
 			{
 				f3_name = lookup_name ctx n;
 				f3_slot = s;
-				f3_kind = A3FVar { v3_type = opt lookup_name ctx t; v3_value = A3VNone; v3_const = false  };
+				f3_kind = A3FVar { v3_type = opt lookup_name ctx t; v3_value = A3VNone; v3_const = c };
 				f3_metas = None;
 			}
 		) f.hlf_locals;
