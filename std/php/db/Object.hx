@@ -55,9 +55,11 @@ class Object #if spod_rtti implements haxe.rtti.Infos #end {
 	public function new() {
 		__init_object();
 	}
-	
+
 	private function __init_object() {
 		local_manager = Manager.managers.get(Type.getClassName(Type.getClass(this)));
+		var me = this;
+		update = function() { me.local_manager.doUpdate(me); };
 		var rl : Array<Dynamic>;
 		try {
 			rl = untyped local_manager.cls.RELATIONS();

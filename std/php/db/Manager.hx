@@ -40,7 +40,7 @@ class Manager<T : Object> {
 	private static var cache_field = "__cache__";
 	private static var no_update : Dynamic = function() { throw "Cannot update not locked object"; }
 	private static var FOR_UPDATE = "";
-	
+
 	public static var managers = new Hash<Manager<Dynamic>>();
 
 	private static dynamic function setConnection( c : Connection ) {
@@ -69,7 +69,7 @@ class Manager<T : Object> {
 		apriv.push("local_manager");
 		apriv.push("__cache__");
 		apriv.push("update");
-		
+
 		// get the proto fields not marked private (excluding methods)
 		table_fields = new List();
 		var stub = Type.createEmptyInstance(cls);
@@ -329,11 +329,17 @@ class Manager<T : Object> {
 
 	/* ---------------------------- INTERNAL API -------------------------- */
 
-	function cacheObject( x : T, lock : Bool ) {
-		addToCache(x);
-		Reflect.setField(x, cache_field, Type.createEmptyInstance(cls));
+	function cacheObject( byref___x : T, lock : Bool ) {
+		addToCache(byref___x);
+		var o = Type.createEmptyInstance(cls);
+		for(field in Reflect.fields(byref___x)) {
+			Reflect.setField(o, field, Reflect.field(byref___x, field));
+		}
+		untyped o.__init_object();
+		byref___x = cast o;
+		Reflect.setField(byref___x, cache_field, Type.createEmptyInstance(cls));
 		if( !lock )
-			x.update = no_update;
+			byref___x.update = no_update;
 	}
 
 	function make( x : T ) {
@@ -415,9 +421,9 @@ class Manager<T : Object> {
 		var l2 = new List<T>();
 		for( x in l ) {
 			var c = getFromCache(x,lock);
-			if( c != null )
+			if( c != null ) {
 				l2.add(c);
-			else {
+			} else {
 				cacheObject(x,lock);
 				make(x);
 				l2.add(x);
@@ -484,9 +490,11 @@ class Manager<T : Object> {
 	function getFromCache( x : T, lock : Bool ) : T {
 		var c : Dynamic = object_cache.get(makeCacheKey(x));
 		// restore update method since now the object is locked
-		if( c != null && lock && c.update == no_update )
+		if( c != null && lock && c.update == no_update ) {
 			//c.update = class_proto.prototype.update;
-			c.update = untyped cls.update;
+			//TODO: review this
+			c.update = cls.update;
+		}
 		return c;
 	}
 }
