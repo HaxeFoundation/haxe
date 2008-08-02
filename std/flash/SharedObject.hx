@@ -4,7 +4,7 @@ extern class SharedObject
 {
 	#if flash8
 	static function getLocal(name:String,?localPath:String,?secure:Bool):SharedObject;
-	#else true
+	#else
 	static function getLocal(name:String,?localPath:String):SharedObject;
 	#end
 

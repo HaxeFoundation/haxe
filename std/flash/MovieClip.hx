@@ -101,7 +101,7 @@ implements Dynamic
 
 #if flash8
 	function beginGradientFill(fillType : String, colors : Array<Int>, alphas : Array<Dynamic>, ratios : Array<Dynamic>, matrix : Dynamic, ?spreadMethod : String, ?interpolationMethod : String, ?focalPointRatio : Float ) : Void;
-#else true
+#else
 	function beginGradientFill(fillType : String, colors : Array<Int>, alphas : Array<Dynamic>, ratios : Array<Dynamic>, matrix : Dynamic) : Void;
 #end
 	// matrix : flash.geom.Matrix | Anonymous object a...i | Anonymous object (matrixType x,y,w,h,r)
@@ -111,7 +111,7 @@ implements Dynamic
 	function curveTo(controlX : Float, controlY : Float, anchorX : Float, anchorY : Float) : Void;
 #if flash8
 	function lineStyle( ?thickness : Float, ?rgb : Int, ?alpha : Float, ?pixelHinting : Bool, ?noScale : String, ?capsStyle : String, ?jointStyle : String, ?miterLimit : Float) : Void;
-#else true
+#else
 	function lineStyle( ?thickness : Float, ?rgb : Int, ?alpha : Float) : Void;
 #end
 	function endFill() : Void;
@@ -119,7 +119,7 @@ implements Dynamic
 
 #if flash8
 	function createTextField(instanceName : String, depth : Int, x : Float, y : Float, width : Float, height : Float) : TextField;
-#else true
+#else
 	function createTextField(instanceName : String, depth : Int, x : Float, y : Float, width : Float, height : Float) : Void;
 #end
 	function getTextSnapshot() : TextSnapshot;

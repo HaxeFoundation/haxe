@@ -14,6 +14,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	added neko.NativeString and neko.NativeArray
 	fixed php.Sys
 	allowed optional Context in remoting connections
+	fixed extern classes for flash < 8
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type
