@@ -165,8 +165,10 @@ let rec process_params acc = function
 
 and init params =
 	let version = 200 in
-	let version_str = Printf.sprintf "%d.%.2d" (version / 100) (version mod 100) in
-	let usage = "Haxe Compiler " ^ version_str ^ " - (c)2005-2008 Motion-Twin\n Usage : haxe.exe [options] <class names...>\n Options :" in
+	let usage = Printf.sprintf 
+		"Haxe Compiler %d.%.2d - (c)2005-2008 Motion-Twin\n Usage : haxe.exe %s <class names...>\n Options :" 
+		(version / 100) (version mod 100) (if Sys.os_type = "Win32" then ".exe" else "")
+	in
 	let classes = ref [([],"Std")] in
 	let com = Common.create() in
 try
