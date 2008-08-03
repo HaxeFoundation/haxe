@@ -34,7 +34,7 @@ type context = {
 	mutable curclass : tclass;
 	mutable tabs : string;
 	mutable in_value : string option;
-	mutable in_static : bool;
+	mutable in_loop : bool;
 	mutable handle_break : bool;
 	mutable imports : (string,string list list) Hashtbl.t;
 	mutable locals : (string,string) PMap.t;
@@ -260,7 +260,7 @@ let init com cwd path def_type =
 		path = path;
 		buf = Buffer.create (1 lsl 14);
 		in_value = None;
-		in_static = false;
+		in_loop = false;
 		handle_break = false;
 		imports = imports;
 		curclass = null_class;
@@ -333,11 +333,15 @@ let rec iter_switch_break in_switch e =
 	| _ -> iter (iter_switch_break in_switch) e
 
 let handle_break ctx e =
-	let old_handle = ctx.handle_break in
+	let old = ctx.in_loop, ctx.handle_break in
+	ctx.in_loop <- true;
 	try
 		iter_switch_break false e;
 		ctx.handle_break <- false;
-		(fun() -> ctx.handle_break <- old_handle)
+		(fun() -> 
+			ctx.in_loop <- fst old;
+			ctx.handle_break <- snd old;
+		)
 	with
 		Exit ->
 			spr ctx "try {";
@@ -346,7 +350,8 @@ let handle_break ctx e =
 			ctx.handle_break <- true;
 			(fun() ->
 				b();
-				ctx.handle_break <- old_handle;
+				ctx.in_loop <- fst old;
+				ctx.handle_break <- snd old;
 				newline ctx;
 				let p = escphp ctx.quotes in
 				print ctx "} catch(Exception %s$e) { if( %s$e->getMessage() != \"__break__\" ) throw %s$e; }" p p p;
@@ -1169,10 +1174,10 @@ and gen_expr ctx e =
 			gen_value ctx e;
 			);
 	| TBreak ->
-		if ctx.in_value <> None then unsupported e.epos;
+		if not ctx.in_loop then unsupported e.epos;
 		if ctx.handle_break then spr ctx "throw new Exception(\"__break__\")" else spr ctx "break"
 	| TContinue ->
-		if ctx.in_value <> None then unsupported e.epos;
+		if not ctx.in_loop then unsupported e.epos;
 		spr ctx "continue"
 	| TBlock [] ->
 		spr ctx ""
@@ -1219,10 +1224,12 @@ and gen_expr ctx e =
 		print ctx "}";
 		b();
 	| TFunction f ->
-		let old = ctx.in_static in
-		ctx.in_static <- true;
+		let old = ctx.in_value, ctx.in_loop in
+		ctx.in_value <- None;
+		ctx.in_loop <- false;
 		gen_inline_function ctx f [] e.epos;
-		ctx.in_static <- old
+		ctx.in_value <- fst old;
+		ctx.in_loop <- snd old;
 	| TCall (ec,el) ->
 		(match ec.eexpr with
 		| TField (ef,s) when is_array_expr ef -> 
@@ -1463,10 +1470,11 @@ and gen_value ctx e =
 		)) e.etype e.epos
 	in
 	let value bl =
-		let old = ctx.in_value in
+		let old = ctx.in_value, ctx.in_loop in
 		let locs = save_locals ctx in
 		let tmp = define_local ctx "__r__" in
 		ctx.in_value <- Some tmp;
+		ctx.in_loop <- false;
 		let b = 
 		if bl then begin
 			print ctx "eval(%s\"" (escphp ctx.quotes);
@@ -1487,7 +1495,8 @@ and gen_value ctx e =
 				ctx.quotes <- (ctx.quotes - 1);
 				print ctx "%s\")" (escphp ctx.quotes);
 			end;
-			ctx.in_value <- old;
+			ctx.in_value <- fst old;
+			ctx.in_loop <- snd old;
 			locs();
 		)
 	in
@@ -1587,7 +1596,6 @@ let generate_self_method ctx rights m static setter =
 		
 let generate_field ctx static f =
 	newline ctx;
-	ctx.in_static <- static;
 	ctx.locals <- PMap.empty;
 	ctx.inv_locals <- PMap.empty;
 	let rights = if static then "static" else "public" in 
@@ -1650,7 +1658,6 @@ let generate_field ctx static f =
 		end
 
 let generate_static_field_assign ctx path f =
-	ctx.in_static <- true;
 	let p = ctx.curclass.cl_pos in
 	if not ctx.curclass.cl_interface then
 		(match f.cf_expr with
@@ -1755,7 +1762,7 @@ let createmain com c =
 		path = ([], "");
 		buf = Buffer.create (1 lsl 14);
 		in_value = None;
-		in_static = false;
+		in_loop = false;
 		handle_break = false;
 		imports = Hashtbl.create 0;
 		curclass = null_class;
