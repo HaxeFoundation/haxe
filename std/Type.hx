@@ -591,7 +591,6 @@ class Type {
 				return TClass(Array);
 			}
 			if(__call__("is_string", v)) {
-				if(__call__("class_exists", v)) return TObject;
 				if(php.Boot.__is_lambda(v)) return TFunction;
 				return TClass(String);
 			}

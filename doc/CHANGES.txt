@@ -8,7 +8,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 
 2008-??-??: 2.01
 	fixed SPOD for PHP
-	fixed Type.enumParameters() for PHP
+	fixed Type.enumParameters() and Type.typeOf() for PHP
 	fixed null references in class constructors for array arguments
 	fixed php.Boot.__string_rec() when invoked from toString
 	added neko.NativeString and neko.NativeArray
