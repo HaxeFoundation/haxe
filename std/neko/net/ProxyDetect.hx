@@ -96,7 +96,8 @@ class ProxyDetect {
 			// might fail without appropriate rights
 			return null;
 		}
-		var content = neko.io.File.getContent(temp);
+		// it's possible that if registry access was disabled the proxy file is not created
+		var content = try neko.io.File.getContent(temp) catch( e : Dynamic ) return null;
 		neko.FileSystem.deleteFile(temp);
 		// turn 16-bit string into 8-bit one
 		var b = new StringBuf();

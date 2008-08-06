@@ -101,7 +101,7 @@ class Main {
 
 	var argcur : Int;
 	var args : Array<String>;
-	var commands : List<{ name : String, doc : String, f : Void -> Void }>;
+	var commands : List<{ name : String, doc : String, f : Void -> Void, net : Bool }>;
 	var siteUrl : String;
 	var site : SiteProxy;
 
@@ -109,21 +109,21 @@ class Main {
 		args = neko.Sys.args();
 		commands = new List();
 		addCommand("install",install,"install a given project");
-		addCommand("list",list,"list all installed projects");
+		addCommand("list",list,"list all installed projects",false);
 		addCommand("upgrade",upgrade,"upgrade all installed projects");
-		addCommand("remove",remove,"remove a given project/version");
-		addCommand("set",set,"set the current version for a project");
+		addCommand("remove",remove,"remove a given project/version",false);
+		addCommand("set",set,"set the current version for a project",false);
 		addCommand("search",search,"list projects matching a word");
 		addCommand("info",info,"list informations on a given project");
 		addCommand("user",user,"list informations on a given user");
 		addCommand("register",register,"register a new user");
 		addCommand("submit",submit,"submit or update a project package");
-		addCommand("setup",setup,"set the haxelib repository path");
-		addCommand("config",config,"print the repository path");
-		addCommand("path",path,"give paths to libraries");
-		addCommand("run",run,"run the specified project with parameters");
-		addCommand("test",test,"install the specified package localy");
-		addCommand("dev",dev,"set the development directory for a given project");
+		addCommand("setup",setup,"set the haxelib repository path",false);
+		addCommand("config",config,"print the repository path",false);
+		addCommand("path",path,"give paths to libraries",false);
+		addCommand("run",run,"run the specified project with parameters",false);
+		addCommand("test",test,"install the specified package localy",false);
+		addCommand("dev",dev,"set the development directory for a given project",false);
 		siteUrl = "http://"+SERVER.host+":"+SERVER.port+"/"+SERVER.dir;
 		site = new SiteProxy(haxe.remoting.HttpConnection.urlConnect(siteUrl+SERVER.url).api);
 	}
@@ -161,8 +161,8 @@ class Main {
 		return null;
 	}
 
-	function addCommand( name, f, doc ) {
-		commands.add({ name : name, doc : doc, f : f });
+	function addCommand( name, f, doc, ?net ) {
+		commands.add({ name : name, doc : doc, f : f, net : net });
 	}
 
 	function usage() {
@@ -189,6 +189,7 @@ class Main {
 		for( c in commands )
 			if( c.name == cmd ) {
 				try {
+					if( c.net ) haxe.Http.PROXY = neko.net.ProxyDetect.detect();
 					c.f();
 				} catch( e : Dynamic ) {
 					if( e == "std@host_resolve" ) {
@@ -724,7 +725,6 @@ class Main {
 	}
 
 	static function main() {
-		haxe.Http.PROXY = neko.net.ProxyDetect.detect();
 		new Main().process();
 	}
 
