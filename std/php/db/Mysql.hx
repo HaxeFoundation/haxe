@@ -90,8 +90,39 @@ private class MysqlResultSet implements ResultSet {
 		return untyped __call__("mysql_num_rows", __r);
 	}
 
+	private var _nfields : Int;
 	private function getNFields() {
-		return untyped __call__("mysql_num_fields", __r);
+		if(_nfields == null)
+			_nfields = untyped __call__("mysql_num_fields", __r);
+		return _nfields;
+	}
+
+	private var _fieldsDesc : Array<Dynamic>;
+	private function getFieldsDescription() {
+		if(_fieldsDesc == null) {
+			_fieldsDesc = [];
+			for(i in 0...nfields) {
+				_fieldsDesc.push({
+					name : untyped __call__("mysql_field_name", __r, i),
+					type : untyped __call__("mysql_field_type", __r, i)
+				});
+			}
+		}
+		return _fieldsDesc;
+	}
+
+	private function convert(v : String, type : String) : Dynamic {
+		if(v == null) return v;
+		switch(type) {
+			case "year", "int":
+				return untyped __call__("intval", v);
+			case "real":
+				return untyped __call__("floatval", v);
+			case "datetime", "date":
+				return Date.fromString(v);
+			default:
+				return v;
+		}
 	}
 
 	public function hasNext() {
@@ -101,15 +132,20 @@ private class MysqlResultSet implements ResultSet {
 	}
 
 	public function next() : Dynamic {
-		var c = cache;
-		if( c != null ) {
+		if( cache != null ) {
+			var t = cache;
 			cache = null;
-			return c;
+			return t;
 		}
-		c = untyped __call__("mysql_fetch_array", __r);
+		var c = untyped __call__("mysql_fetch_array", __r, __php__("MYSQL_NUM"));
 		if(untyped __physeq__(c, false))
 			return null;
-		return php.Boot.__anonymous(c);
+
+		var o : Dynamic = {};
+		var descriptions = getFieldsDescription();
+		for(i in 0...nfields)
+			Reflect.setField(o, descriptions[i].name, convert(c[i], descriptions[i].type));
+		return o;
 	}
 
 	public function results() : List<Dynamic> {
@@ -120,15 +156,16 @@ private class MysqlResultSet implements ResultSet {
 	}
 
 	public function getResult( n : Int ) : String {
-		return Reflect.field(next(), cast n);
+		var a : Array<String> = untyped __call__("mysql_fetch_row", __r);
+		return a[n];
 	}
 
 	public function getIntResult( n : Int ) : Int {
-		return untyped __call__("intval", Reflect.field(next(), cast n));
+		return untyped __call__("intval", getResult(n));
 	}
 
 	public function getFloatResult( n : Int ) : Float {
-		return untyped __call__("floatval", Reflect.field(next(), cast n));
+		return untyped __call__("floatval", getResult(n));
 	}
 }
 
@@ -142,7 +179,7 @@ class Mysql {
 		socket : String,
 		database : String
 	} ) : php.db.Connection {
-		var c = untyped __call__("mysql_connect", 
+		var c = untyped __call__("mysql_connect",
 			params.host + (params.port == null ? '' : ':'+params.port) + (params.socket == null ? '' : ':'+params.socket),
 			params.user,
 			params.pass);
