@@ -38,7 +38,7 @@ class Manager<T : Object> {
 	private static var object_cache : Hash<Object> = new Hash();
 //	private static var init_list : List<Manager<Object>> = new List();
 	private static var cache_field = "__cache__";
-	private static var no_update : Dynamic = function() { throw "Cannot update not locked object"; }
+//	private static var no_update : Dynamic = function() { throw "Cannot update not locked object"; }
 	private static var FOR_UPDATE = "";
 
 	public static var managers = new Hash<Manager<Dynamic>>();
@@ -66,9 +66,10 @@ class Manager<T : Object> {
 		// get the list of private fields
 		var apriv : Array<String> = cls.PRIVATE_FIELDS;
 		apriv = if( apriv == null ) new Array() else apriv.copy();
-		apriv.push("local_manager");
+//		apriv.push("local_manager");
 		apriv.push("__cache__");
-		apriv.push("update");
+//		apriv.push("update");
+		apriv.push("__noupdate__");
 
 		// get the proto fields not marked private (excluding methods)
 		table_fields = new List();
@@ -116,7 +117,7 @@ class Manager<T : Object> {
 		if( id == null )
 			return null;
 		var x : Dynamic = untyped object_cache.get(id + table_name);
-		if( x != null && (!lock || x.update != no_update) )
+		if( x != null && (!lock || !x.__noupdate__) )
 			return x;
 		var s = new StringBuf();
 		s.add("SELECT * FROM ");
@@ -134,7 +135,7 @@ class Manager<T : Object> {
 		if( lock == null )
 			lock = true;
 		var x : Dynamic = getFromCache(untyped keys,false);
-		if( x != null && (!lock || x.update != no_update) )
+		if( x != null && (!lock || !x.__noupdate__) )
 			return x;
 		var s = new StringBuf();
 		s.add("SELECT * FROM ");
@@ -292,7 +293,7 @@ class Manager<T : Object> {
 
 	function doSync( i : T ) {
 		object_cache.remove(makeCacheKey(i));
-		var i2 = getWithKeys(i, untyped i.update != no_update);
+		var i2 = getWithKeys(i, untyped !i.__noupdate__);
 		// delete all fields
 		for( f in Reflect.fields(i) )
 			Reflect.deleteField(i,f);
@@ -339,7 +340,7 @@ class Manager<T : Object> {
 		byref___x = cast o;
 		Reflect.setField(byref___x, cache_field, Type.createEmptyInstance(cls));
 		if( !lock )
-			byref___x.update = no_update;
+			untyped byref___x.__noupdate__ = true;
 	}
 
 	function make( x : T ) {
@@ -490,7 +491,7 @@ class Manager<T : Object> {
 	function getFromCache( x : T, lock : Bool ) : T {
 		var c : Dynamic = object_cache.get(makeCacheKey(x));
 		// restore update method since now the object is locked
-		if( c != null && lock && c.update == no_update ) {
+		if( c != null && lock && c.__noupdate__) {
 			//c.update = class_proto.prototype.update;
 			//TODO: review this
 			c.update = cls.update;

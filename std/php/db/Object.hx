@@ -42,7 +42,7 @@ class Object #if spod_rtti implements haxe.rtti.Infos #end {
 	static var manager = new php.db.Manager();
 */
 
-	var local_manager : {
+	static var local_manager : {
 		private function doUpdate( o : Object ) : Void;
 		private function doInsert( o : Object ) : Void;
 		private function doSync( o : Object ) : Void;
@@ -51,15 +51,17 @@ class Object #if spod_rtti implements haxe.rtti.Infos #end {
 	};
 
 	var __cache__ : Object;
+	var __noupdate__ : Bool;
 
 	public function new() {
 		__init_object();
 	}
 
 	private function __init_object() {
+		__noupdate__ = false;
 		local_manager = Manager.managers.get(Type.getClassName(Type.getClass(this)));
-		var me = this;
-		update = function() { me.local_manager.doUpdate(me); };
+//		var me = this;
+//		update = function() { local_manager.doUpdate(me); };
 		var rl : Array<Dynamic>;
 		try {
 			rl = untyped local_manager.cls.RELATIONS();
@@ -72,7 +74,8 @@ class Object #if spod_rtti implements haxe.rtti.Infos #end {
 		local_manager.doInsert(this);
 	}
 
-	public dynamic function update() {
+	public /*dynamic*/ function update() {
+		if(__noupdate__) throw "Cannot update not locked object";
 		local_manager.doUpdate(this);
 	}
 
