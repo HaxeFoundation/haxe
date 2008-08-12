@@ -7,6 +7,8 @@ TODO inlining : allow inlined getter/setter
 TODO inlining : substitute class+function type parameters in order to have fully typed expressions
 
 2008-??-??: 2.01
+	fixed php.Web.setCookie() for expire time
+	fixed php.net.Socket.setTimeout()
 	fixed SPOD/MySql for PHP
 	fixed Type.enumParameters() and Type.typeOf() for PHP
 	fixed null references in class constructors for array arguments

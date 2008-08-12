@@ -87,7 +87,7 @@ class Web {
 		See status code explanation here: http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html
 	**/
 	public static function setReturnCode( r : Int ) {
-		var code : String; 
+		var code : String;
 		switch(r) {
 			case 100: code = "100 Continue";
 			case 101: code = "101 Switching Protocols";
@@ -145,7 +145,7 @@ class Web {
 		return null;
 	}
 
-	
+
 	private static var _client_headers : List<{header : String, value : String}>;
 	/**
 		Retrieve all the client headers.
@@ -153,7 +153,7 @@ class Web {
 	public static function getClientHeaders() {
 		if(_client_headers == null) {
 			_client_headers = new List();
-			var h = Lib.hashOfAssociativeArray(untyped __php__("$_SERVER"));			
+			var h = Lib.hashOfAssociativeArray(untyped __php__("$_SERVER"));
 			for(k in h.keys()) {
 				if(k.substr(0,5) == "HTTP_") {
 					_client_headers.add({ header : k.substr(5), value : h.get(k)});
@@ -211,7 +211,7 @@ class Web {
 		Set a Cookie value in the HTTP headers. Same remark as setHeader.
 	**/
 	public static function setCookie( key : String, value : String, ?expire: Date, ?domain: String, ?path: String, ?secure: Bool ) {
-		var t = expire == null ? 0 : (expire.getTime()*1000.0);
+		var t = expire == null ? 0 : (expire.getTime()/1000.0);
 		if(path == null) path = '';
 		if(domain == null) domain = '';
 		if(secure == null) secure = false;
@@ -280,7 +280,7 @@ class Web {
 			var tmp : String = untyped info['tmp_name'];
 			var file : String = untyped info['name'];
 			var err : Int = untyped info['error'];
-			
+
 			if(err > 0) {
 				switch(err) {
 					case 1: throw "The uploaded file exceeds the max size of " + untyped __call__('ini_get', 'upload_max_filesize');
@@ -314,19 +314,19 @@ class Web {
 	public static inline function flush() : Void {
 		untyped __call__("flush");
 	}
-	
+
 	/**
 		Get the HTTP method used by the client.
 	**/
 	public static function getMethod() : String {
-		if(untyped __php__("isset($_SERVER['REQUEST_METHOD'])")) 
+		if(untyped __php__("isset($_SERVER['REQUEST_METHOD'])"))
 			return untyped __php__("$_SERVER['REQUEST_METHOD']");
 		else
 			return null;
 	}
-	
+
 	public static var isModNeko(default,null) : Bool;
-	
+
 	static function __init__() {
 		isModNeko = !php.Lib.isCli();
 	}

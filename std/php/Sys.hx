@@ -15,7 +15,7 @@ class Sys {
 	}
 
 	public static function sleep( seconds : Float ) {
-		return untyped __call__("sleep", seconds);
+		return untyped __call__("usleep", seconds*1000000);
 	}
 
 	public static function setTimeLocale( loc : String ) : Bool {
@@ -61,7 +61,11 @@ class Sys {
 			for( a in args )
 				cmd += " "+escapeArgument(a);
 		}
-		return untyped __call__("system", cmd);
+		var result = 0;
+		var output = "";
+//		untyped __call__("exec", cmd, output, result);
+		untyped __call__("system", cmd, result);
+		return result;
 	}
 
 	public static function exit( code : Int ) {

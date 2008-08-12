@@ -1041,7 +1041,7 @@ and gen_expr ctx e =
 			then begin	
 				(match e1.eexpr with 
 				| TField (f, s) when is_anonym_expr e1 || is_unknown_expr e1 ->
-					spr ctx "Reflect::field(";
+					spr ctx "php_Boot::__field(";
 					gen_value ctx f;
 					print ctx ", \"%s\")" s;
 				| _ ->
@@ -1051,7 +1051,7 @@ and gen_expr ctx e =
 				
 				(match e2.eexpr with 
 				| TField (f, s) when is_anonym_expr e2 || is_unknown_expr e2 ->
-					spr ctx "Reflect::field(";
+					spr ctx "php_Boot::__field(";
 					gen_value ctx f;
 					print ctx ", \"%s\")" s;
 				| _ ->

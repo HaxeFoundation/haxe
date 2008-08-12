@@ -3,7 +3,7 @@ package php;
 class Boot {
 	public static function __trace(v,i : haxe.PosInfos) {
 		var msg = if( i != null ) i.fileName+":"+i.lineNumber+": " else "";
-		untyped __call__("echo", msg+ __string_rec(v)+"<br/>"); // TODO: __unhtml
+		untyped __call__("echo", msg+ __string_rec(v)+"\n"); // TODO: __unhtml
 	}
 
 	static public function __anonymous(?p : Dynamic) : Dynamic {
@@ -212,6 +212,79 @@ class Boot {
 			return __php__("$x == $y");
 		} else {
 			return __php__("$x === $y");
+		}
+	}
+
+	static public function __has_field( o : Dynamic, field : String ) : Bool {
+		return untyped __php__("
+			(is_object($o) && (method_exists($o, $field) || isset($o->$field) || property_exists($o, $field)))
+			||
+			(is_string($o) && (in_array($field, array('toUpperCase', 'toLowerCase', 'charAt', 'charCodeAt', 'indexOf', 'lastIndexOf', 'split', 'substr', 'toString', 'length'))))
+			||
+			(is_array($o)  && (in_array($field, array('concat', 'copy', 'insert', 'iterator', 'join', 'pop', 'push', 'remove', 'reverse', 'shift', 'slice', 'sort', 'splice', 'unshift', 'toString', 'length'))))
+		");
+	}
+
+	static public function __field( o : Dynamic, field : String) : Dynamic untyped {
+		if(__has_field(o, field)) {
+			if(__php__("$o instanceof __type__")) {
+				if(__php__("is_callable(array($o->__tname__, $field))")) {
+					return __php__("array($o->__tname__, $field)");
+				} else {
+					return __php__("eval('return '.$o->__tname__.'::$'.$field.';')");
+				}
+			} else if(__call__("is_string", o)) {
+				if(field == 'length')
+					return php.Boot.__len(o);
+				else {
+					switch(field) {
+						case 'charAt':      return php.Boot.__closure(__php__("array('o' => $o)"), '$index', 'return substr($o, $index,1 );');
+						case 'charCodeAt':  return php.Boot.__closure(__php__("array('o' => $o)"), '$index', 'return ord(substr($o, $index, 1));');
+						case 'indexOf':     return php.Boot.__closure(__php__("array('o' => $o)"), '$value,$startIndex', 'return php_Boot::__index_of($o, $value, $startIndex);');
+						case 'lastIndexOf': return php.Boot.__closure(__php__("array('o' => $o)"), '$value,$startIndex', 'return php_Boot::__last_index_of($o, $value, $startIndex);');
+						case 'split':       return php.Boot.__closure(__php__("array('o' => $o)"), '$delimiter', 'return explode($delimiter, $o);');
+						case 'substr':      return php.Boot.__closure(__php__("array('o' => $o)"), '$pos,$len', 'return php_Boot::__substr($o, $pos, $len);');
+						case 'toUpperCase': return php.Boot.__closure(__php__("array('o' => $o)"), '', 'return strtoupper($o);');
+						case 'toLowerCase': return php.Boot.__closure(__php__("array('o' => $o)"), '', 'return strtolower($o);');
+						case 'toString':    return php.Boot.__closure(__php__("array('o' => $o)"), '', 'return $o;');
+					}
+					return null;
+				}
+			} else if(__call__("is_array", o)) {
+				if(field == 'length')
+					return php.Boot.__len(o);
+				else
+					switch(field) {
+						case 'concat':   return php.Boot.__closure(__php__("array('o' => &$o)"), '$a', 'return array_merge($o, $a);');
+						case 'join':     return php.Boot.__closure(__php__("array('o' => &$o)"), '$sep', 'return join($sep, $o);');
+						case 'pop':      return php.Boot.__closure(__php__("array('o' => &$o)"), '', 'return array_pop($o);');
+						case 'push':     return php.Boot.__closure(__php__("array('o' => &$o)"), '$x', 'return array_push($o, $x);');
+						case 'reverse':  return php.Boot.__closure(__php__("array('o' => &$o)"), '', 'return rsort($o);');
+						case 'shift':    return php.Boot.__closure(__php__("array('o' => &$o)"), '', 'return array_shift($o);');
+						case 'slice':    return php.Boot.__closure(__php__("array('o' => &$o)"), '$pos,$end', 'return php_Boot::__array_slice(array(&$o), $pos, $end);');
+						case 'sort':     return php.Boot.__closure(__php__("array('o' => &$o)"), '$f', 'return php_Boot::__array_sort($o, $f);');
+						case 'splice':   return php.Boot.__closure(__php__("array('o' => &$o)"), '$pos,$len', 'return php_Boot::__array_splice(array(&$o), $pos, $len);');
+						case 'toString': return php.Boot.__closure(__php__("array('o' => &$o)"), '', 'return "[".join(", ", $o)."]";');
+						case 'unshift':  return php.Boot.__closure(__php__("array('o' => &$o)"), '$x', 'return array_unshift($o, $x);');
+						case 'insert':   return php.Boot.__closure(__php__("array('o' => &$o)"), '$pos,$x', 'return php_Boot::__array_insert(array(&$o), $pos, $x);');
+						case 'remove':   return php.Boot.__closure(__php__("array('o' => &$o)"), '$x', 'return php_Boot::__array_remove(array(&$o), $x);');
+						case 'iterator': return php.Boot.__closure(__php__("array('o' => &$o)"), '', 'return new HArrayIterator($o);');
+						case 'copy':     return php.Boot.__closure(__php__("array('o' => $o)"), '', 'return $o;');
+					}
+				return null;
+			} else if(__php__("property_exists($o, $field)")) {
+				if(__php__("is_array($o->$field) && is_callable($o->$field)")) {
+					return __php__("$o->$field");
+				} else if(__php__("is_string($o->$field) && php_Boot::__is_lambda($o->$field)")) {
+					return __php__("array($o, $field)");
+				} else {
+					return __php__("$o->$field");
+				}
+			} else {
+				return __php__("array($o, $field)");
+			}
+		} else {
+			return null;
 		}
 	}
 

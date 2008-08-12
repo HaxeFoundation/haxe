@@ -37,13 +37,13 @@ class Socket {
 	public var custom : Dynamic;
 
 	public var isUdp(default, null) : Bool;
-	
+
 	public function new( ?s ) {
 		__s = s;
 		input = new SocketInput(__s);
 		output = new SocketOutput(__s);
 	}
-	
+
 	private function assignHandler() {
 		untyped input.__f = __s;
 		untyped output.__f = __s;
@@ -114,7 +114,7 @@ class Socket {
 			return { host : new Host(parts[1].substr(2)), port : Std.parseInt(parts[2]) };
 		}
 	}
-	
+
 	public function peer() : { host : Host, port : Int } {
 		var r : String = untyped __call__('stream_socket_get_name', __s, true);
 		checkError(cast r, 0, 'Unable to retrieve the peer name');
@@ -129,7 +129,7 @@ class Socket {
 
 	public function setTimeout( timeout : Float ) {
 		var s = Std.int(timeout);
-		var ms = Std.int((timeout % 1) * 100000);
+		var ms = Std.int((timeout-s)*1000000);
 		var r = untyped __call__('stream_set_timeout', __s, s, ms);
 		checkError(r, 0, 'Unable to set timeout');
 	}
@@ -145,19 +145,19 @@ class Socket {
 		untyped s.isUdp = true;
 		return s;
 	}
-	
+
 	private static function checkError(r : Bool, code : Int, msg : String) {
 		if(!untyped __physeq__(r, false)) return;
 		throw haxe.io.Error.Custom('Error ['+code+']: ' +msg);
 	}
-	
+
 	private static function getType(isUdp : Bool) : Int {
 		return isUdp ? untyped __php__('SOCK_DGRAM') : untyped __php__('SOCK_STREAM');
 	}
-	
+
 	private static function getProtocol(isUdp : Bool) : Int {
 		return isUdp ? untyped __call__('getprotobyname', 'udp') : untyped __call__('getprotobyname', 'tcp');
-	}	
+	}
 }
 
 enum SocketDomain {
