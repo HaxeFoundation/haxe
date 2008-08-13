@@ -1360,25 +1360,31 @@ and gen_expr ctx e =
 		spr ctx "try ";
 		gen_expr ctx (mk_block e);
 		let ex = define_local ctx "__e__" in
-		print ctx "catch(HException %s$%s) {" (escphp ctx.quotes) ex;
+		print ctx "catch(Exception %s$%s) {" (escphp ctx.quotes) ex;
 		let p = escphp ctx.quotes in
 		let first = ref true in
+		let catchall = ref false in
+		let evar = = define_local ctx "_ex_" in
+		newline ctx;
+		print ctx "%s$%s = (%s$%s instanceof HException) ? %s$%s->e : %s$%s" p evar p ex p ex p ex;
+		newline ctx;
 		List.iter (fun (v,t,e) ->
 			let ev = define_local ctx v in
 			newline ctx;
+			
 			let b = save_locals ctx in
 			if not !first then spr ctx "else ";
 			(match follow t with
 			| TEnum (te,_) -> (match snd te.e_path with
-				| "Bool"   -> print ctx "if(is_bool(%s$%s = %s$%s->e))"		p ev p ex
-				| _ -> print ctx "if((%s$%s = %s$%s->e) instanceof %s)"		p ev p ex (s_path ctx te.e_path te.e_extern e.epos));
+				| "Bool"   -> print ctx "if(is_bool(%s$%s = %s$%s))"		p ev p evar
+				| _ -> print ctx "if((%s$%s = %s$%s) instanceof %s)"		p ev p evar (s_path ctx te.e_path te.e_extern e.epos));
 				gen_expr ctx (mk_block e);
 			| TInst (tc,_) -> (match snd tc.cl_path with
-				| "Int"	-> print ctx "if(is_int(%s$%s = %s$%s->e))"		 p ev p ex
-				| "Float"  -> print ctx "if(is_numeric(%s$%s = %s$%s->e))"	 p ev p ex
-				| "String" -> print ctx "if(is_string(%s$%s = %s$%s->e))"	  p ev p ex
-				| "Array"  -> print ctx "if(is_array(%s$%s = %s$%s->e))"	   p ev p ex
-				| _		-> print ctx "if((%s$%s = %s$%s->e) instanceof %s)" p ev p ex (s_path ctx tc.cl_path tc.cl_extern e.epos));
+				| "Int"	-> print ctx "if(is_int(%s$%s = %s$%s))"		 p ev p evar
+				| "Float"  -> print ctx "if(is_numeric(%s$%s = %s$%s))"	 p ev p evar
+				| "String" -> print ctx "if(is_string(%s$%s = %s$%s))"	  p ev p evar
+				| "Array"  -> print ctx "if(is_array(%s$%s = %s$%s))"	   p ev p evar
+				| _		-> print ctx "if((%s$%s = %s$%s) instanceof %s)" p ev p evar (s_path ctx tc.cl_path tc.cl_extern e.epos));
 				gen_expr ctx (mk_block e);
 			| TFun _
 			| TLazy _
@@ -1387,14 +1393,18 @@ and gen_expr ctx e =
 				assert false
 			| TMono _
 			| TDynamic _ ->
-				print ctx "{ %s$%s = %s$%s->e" p ev p ex;
+				catchall := true;
+				print ctx "{ %s$%s = %s$%s" p ev p ex;
 				newline ctx;
 				gen_expr ctx (mk_block e);
 				spr ctx "}");
 			b();
 			first := false;
 		) catchs;
-		spr ctx "}";
+		if !catchall then
+			spr ctx "}"
+		else
+			print ctx " else throw %s$%s; }" (escphp ctx.quotes) ex;
 	| TMatch (e,_,cases,def) ->
 		let b = save_locals ctx in
 		let tmp = define_local ctx "__t__" in

@@ -69,7 +69,8 @@ private class Stdout extends haxe.io.Input {
 
 	public override function readBytes( str : haxe.io.Bytes, pos : Int, l : Int ) : Int {
 		if(untyped __call__('feof', p)) return throw new haxe.io.Eof();
-		var r : String = untyped __call__('fread', p, 1);
+		var r : String = untyped __call__('fread', p, l);
+		if(untyped __physeq__(r, "")) return throw new haxe.io.Eof();
 		if(untyped __physeq__(r, false)) return throw haxe.io.Error.Custom('An error occurred');
 		var b = haxe.io.Bytes.ofString(r);
 		str.blit(pos, b, 0, r.length);
@@ -90,7 +91,7 @@ class Process {
 			['pipe', 'w'],
 			['pipe', 'w']
 		];
-		// TODO: check how args are passed in neko 
+		// TODO: check how args are passed in neko
 		p = untyped __call__('proc_open', cmd, descriptorspec, pipes, null, __php__("array('args' => join(' ', $args))"));
 		if(untyped __physeq__(p, false)) throw "Process creation failure : "+cmd;
 		stdin  = new Stdin(pipes[0]);

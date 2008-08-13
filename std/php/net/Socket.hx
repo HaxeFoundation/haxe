@@ -86,8 +86,13 @@ class Socket {
 	}
 
 	public function shutdown( read : Bool, write : Bool ){
-		var rw = read && write ? 2 : (write ? 1 : (read ? 0 : 2));
-		var r = untyped __call__('stream_socket_shutdown', __s, rw);
+		var r;
+		if(untyped __call__("function_exists", "stream_socket_shutdown")) {
+			var rw = read && write ? 2 : (write ? 1 : (read ? 0 : 2));
+			r = untyped __call__('stream_socket_shutdown', __s, rw);
+		} else {
+			r = untyped __call__('fclose', __s);
+		}
 		checkError(r, 0, 'Unable to Shutdown');
 	}
 
