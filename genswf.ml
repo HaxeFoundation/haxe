@@ -133,8 +133,7 @@ let add_as3_code ctx data types =
 	(* set all protected+private fields to public - this will enable overriding/reflection in haXe classes *)
 	let data = { data with as3_namespaces = Array.map (fun ns ->
 		match ns with
-		| A3NPrivate i | A3NInternal i -> A3NPublic i
-		| A3NProtected i -> A3NPublic (Some i)
+		| A3NPrivate _ | A3NInternal _ | A3NProtected _ -> A3NPublic None
 		| A3NPublic _
 		| A3NNamespace _
 		| A3NExplicit _
