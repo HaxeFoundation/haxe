@@ -12,6 +12,7 @@ extern class FileReference {
 	var size : Float;
 	var type : String;
 	var name : String;
+	var postData : String;
 
 	function new() : Void;
 
