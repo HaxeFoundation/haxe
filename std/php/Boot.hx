@@ -3,7 +3,7 @@ package php;
 class Boot {
 	public static function __trace(v,i : haxe.PosInfos) {
 		var msg = if( i != null ) i.fileName+":"+i.lineNumber+": " else "";
-		untyped __call__("echo", msg+ __string_rec(v)+"\n"); // TODO: __unhtml
+		untyped __call__("echo", msg+ __string_rec(v, '')+"\n"); // TODO: __unhtml
 	}
 
 	static public function __anonymous(?p : Dynamic) : Dynamic {
@@ -414,7 +414,7 @@ class Anonymous extends stdClass{
 	}
 
 	public function __toString() {
-		return php_Boot::__string_rec($this, null);
+		return php_Boot::__string_rec($this, '');
 	}
 }
 
@@ -495,7 +495,7 @@ class HArrayIterator {
 
 class HException extends Exception {
 	public function __construct($e, $message = null, $code = null, $p = null) { if( !php_Boot::$skip_constructor ) {
-		$message = php_Boot::__string_rec($e, null) . $message;
+		$message = php_Boot::__string_rec($e, '') . $message;
 		parent::__construct($message,$code);
 		$this->e = $e;
 		$this->p = $p;
@@ -640,7 +640,7 @@ spl_autoload_register('__haxe_autoload')");
 		return '';
 	}
 
-	static public function __string_rec(o : Dynamic, ?s : String) {
+	static public function __string_rec(o : Dynamic, s : String) {
 		if( o == null )
 			return "null";
 		if( s.length >= 5 )
@@ -696,7 +696,7 @@ spl_autoload_register('__haxe_autoload')");
 
 		if(untyped __call__("is_string", o)) {
 			if(__is_lambda(o)) return "«function»";
-			if(s != null)
+			if(s.length > 0)
 				return '"'+untyped __call__("str_replace", '"', '\\"', o)+'"';
 			else
 				return o;
