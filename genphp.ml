@@ -1364,7 +1364,7 @@ and gen_expr ctx e =
 		let p = escphp ctx.quotes in
 		let first = ref true in
 		let catchall = ref false in
-		let evar = = define_local ctx "_ex_" in
+		let evar = define_local ctx "_ex_" in
 		newline ctx;
 		print ctx "%s$%s = (%s$%s instanceof HException) ? %s$%s->e : %s$%s" p evar p ex p ex p ex;
 		newline ctx;
