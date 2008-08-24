@@ -60,8 +60,8 @@ class Lib {
 			(cast f)(url,target);
 	}
 
-	public static function fscommand( cmd : String, ?param : Dynamic ) {
-		untyped __global__["flash.system.fscommand"](cmd,param);
+	public static function fscommand( cmd : String, ?param : String ) {
+		untyped __global__["flash.system.fscommand"](cmd,if( param == null ) "" else param);
 	}
 
 	public static function trace( arg : Dynamic ) {
