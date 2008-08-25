@@ -238,6 +238,9 @@ class Output {
 #if neko
 	static var _float_bytes = neko.Lib.load("std","float_bytes",2);
 	static var _double_bytes = neko.Lib.load("std","double_bytes",2);
+	static function __init__() untyped {
+		Output.prototype.bigEndian = false;
+	}
 #end
 
 }
