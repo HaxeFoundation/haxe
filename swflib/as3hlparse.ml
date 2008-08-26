@@ -47,8 +47,10 @@ let stack_delta = function
 	| HBreakPoint -> 0
 	| HNop -> 0
 	| HThrow -> -1
-	| HGetSuper _ -> 1  (* ??? *)
-	| HSetSuper _ -> -1 (* ??? *)
+	| HGetSuper _ -> 0
+	| HSetSuper _ -> -1
+	| HDxNs _ -> 0
+	| HDxNsLate -> -1
 	| HRegKill _ -> 0
 	| HLabel -> 0
 	| HJump (cond,_) ->
@@ -99,6 +101,7 @@ let stack_delta = function
 	| HArray n -> -n + 1
 	| HNewBlock -> 1
 	| HClassDef _ -> 0
+	| HGetDescendants _ -> 0
 	| HCatch _ -> 1
 	| HFindPropStrict _ -> 1
 	| HFindProp _ -> 1
@@ -149,6 +152,8 @@ let parse_opcode ctx i = function
 	| A3Throw -> HThrow
 	| A3GetSuper n -> HGetSuper (name ctx n)
 	| A3SetSuper n -> HSetSuper (name ctx n)
+	| A3DxNs s -> HDxNs (ident ctx s)
+	| A3DxNsLate -> HDxNsLate
 	| A3RegKill r -> HRegKill r
 	| A3Label -> HLabel
 	| A3Jump (j,n) ->
@@ -198,6 +203,7 @@ let parse_opcode ctx i = function
 	| A3Array n -> HArray n
 	| A3NewBlock -> HNewBlock
 	| A3ClassDef n -> HClassDef (getclass ctx n)
+	| A3GetDescendants p -> HGetDescendants (name ctx p)
 	| A3Catch n -> HCatch n
 	| A3FindPropStrict p -> HFindPropStrict (name ctx p)
 	| A3FindProp p -> HFindProp (name ctx p)
@@ -650,6 +656,8 @@ let flatten_opcode ctx i = function
 	| HThrow -> A3Throw
 	| HGetSuper n -> A3GetSuper (lookup_name ctx n)
 	| HSetSuper n -> A3SetSuper (lookup_name ctx n)
+	| HDxNs s -> A3DxNs (lookup_ident ctx s)
+	| HDxNsLate -> A3DxNsLate
 	| HRegKill r -> A3RegKill r
 	| HLabel -> A3Label
 	| HJump (j,n) ->
@@ -699,6 +707,7 @@ let flatten_opcode ctx i = function
 	| HArray n -> A3Array n
 	| HNewBlock -> A3NewBlock
 	| HClassDef c -> A3ClassDef (As3parse.magic_index_nz (As3parse.index_nz_int (lookup_class ctx c)))
+	| HGetDescendants i -> A3GetDescendants (lookup_name ctx i)
 	| HCatch n -> A3Catch n
 	| HFindPropStrict i -> A3FindPropStrict (lookup_name ctx i)
 	| HFindProp i -> A3FindProp (lookup_name ctx i)

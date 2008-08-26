@@ -87,6 +87,8 @@ and as3_opcode =
 	| A3Throw
 	| A3GetSuper of as3_name
 	| A3SetSuper of as3_name
+	| A3DxNs of as3_ident index
+	| A3DxNsLate
 	| A3RegKill of reg
 	| A3Label
 	| A3Jump of as3_jump * int
@@ -132,6 +134,7 @@ and as3_opcode =
 	| A3Array of nargs
 	| A3NewBlock
 	| A3ClassDef of unit index_nz
+	| A3GetDescendants of as3_name
 	| A3Catch of int
 	| A3FindPropStrict of as3_name
 	| A3FindProp of as3_name

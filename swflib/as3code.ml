@@ -129,6 +129,7 @@ let length = function
 		1 + int_length s
 	| A3ClassDef n ->
 		1 + int_length (int_index_nz n)
+	| A3DxNs f
 	| A3String f
 	| A3DebugFile f ->
 		1 + int_length (int_index f)
@@ -152,6 +153,7 @@ let length = function
 	| A3SetProp f
 	| A3Cast f
 	| A3GetSuper f
+	| A3GetDescendants f
 	| A3SetSuper f ->
 		1 + int_length (int_index f)
 	| A3Op _
@@ -193,6 +195,7 @@ let length = function
 	| A3HasNext
 	| A3SetThis
 	| A3Timestamp
+	| A3DxNsLate
 	| A3Unk _ -> 1
 	| A3AsType n | A3IsType n ->
 		1 + int_length (int_index n)
@@ -223,8 +226,8 @@ let opcode ch =
 	| 0x03 -> A3Throw
 	| 0x04 -> A3GetSuper (read_index ch)
 	| 0x05 -> A3SetSuper (read_index ch)
-	(* 0x06 -> E4X *)
-	(* 0x07 -> E4X *)
+	| 0x06 -> A3DxNs (read_index ch)
+	| 0x07 -> A3DxNsLate
 	| 0x08 -> A3RegKill (read_int ch)
 	| 0x09 -> A3Label
 	(* 0x0A -> NONE *)
@@ -329,7 +332,7 @@ let opcode ch =
 	| 0x56 -> A3Array (read_int ch)
 	| 0x57 -> A3NewBlock
 	| 0x58 -> A3ClassDef (read_index_nz ch)
-	(* 0x59 -> E4X *)
+	| 0x59 -> A3GetDescendants (read_index ch)
 	| 0x5A -> A3Catch (read_int ch)
 	(* 0x5B -> NONE *)
 	(* 0x5C -> NONE *)
@@ -444,6 +447,11 @@ let write ch = function
 	| A3SetSuper f ->
 		write_byte ch 0x05;
 		write_index ch f
+	| A3DxNs i ->
+		write_byte ch 0x06;
+		write_index ch i
+	| A3DxNsLate ->
+		write_byte ch 0x07
 	| A3RegKill n ->
 		write_byte ch 0x08;
 		write_int ch n
@@ -588,6 +596,9 @@ let write ch = function
 	| A3ClassDef f ->
 		write_byte ch 0x58;
 		write_index_nz ch f
+	| A3GetDescendants f ->
+		write_byte ch 0x59;
+		write_index ch f
 	| A3Catch n ->
 		write_byte ch 0x5A;
 		write_int ch n
@@ -781,6 +792,8 @@ let dump ctx op =
 	| A3Throw -> "throw"
 	| A3GetSuper f -> s "getsuper %s" (field f)
 	| A3SetSuper f -> s "setsuper %s" (field f)
+	| A3DxNs i -> s "dxns %s" (ident i)
+	| A3DxNsLate -> "dxnslate"
 	| A3RegKill n -> s "kill %d" n
 	| A3Label -> "label"
 	| A3Jump (k,n) -> s "jump%s %d" (dump_jump k) n
@@ -826,6 +839,7 @@ let dump ctx op =
 	| A3Array n -> s "array %d" n
 	| A3NewBlock -> "newblock"
 	| A3ClassDef n -> s "classdef %d" (int_index_nz n)
+	| A3GetDescendants f -> s "getdescendants %s" (field f)
 	| A3Catch n -> s "catch %d" n
 	| A3FindPropStrict f -> s "findpropstrict %s" (field f)
 	| A3FindProp f -> s "findprop %s" (field f)

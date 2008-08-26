@@ -32,6 +32,8 @@ type hl_opcode =
 	| HThrow
 	| HGetSuper of hl_name
 	| HSetSuper of hl_name
+	| HDxNs of hl_ident
+	| HDxNsLate
 	| HRegKill of reg
 	| HLabel
 	| HJump of hl_jump * int
@@ -77,6 +79,7 @@ type hl_opcode =
 	| HArray of nargs
 	| HNewBlock
 	| HClassDef of hl_class
+	| HGetDescendants of hl_name
 	| HCatch of int
 	| HFindPropStrict of hl_name
 	| HFindProp of hl_name
