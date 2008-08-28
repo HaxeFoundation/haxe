@@ -147,7 +147,8 @@ class EReg {
 			}
 		#elseif flash9
 			if( result == null ) throw "No string matched";
-			return result.input.substr(0,result.index);
+			var s = result.input;
+			return s.substr(0,result.index);
 		#elseif php
 			if( matches.length == 0 ) throw "No string matched";
 			return last.substr(0, matches[0][1]);
@@ -177,7 +178,8 @@ class EReg {
 		#elseif flash9
 			if( result == null ) throw "No string matched";
 			var rl = result.index + result[0].length;
-			return result.input.substr(rl,result.input.length - rl);
+			var s = result.input;
+			return s.substr(rl,s.length - rl);
 		#elseif php
 			if( matches.length == 0 ) throw "No string matched";
 			return untyped last.substr(matches[0][1] + __php__("strlen")(matches[0][0]));
