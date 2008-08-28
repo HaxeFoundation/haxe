@@ -84,14 +84,31 @@ class Unserializer {
 			resolver = r;
 	}
 
+	inline function get(p) : Int {
+		#if (flash || js)
+		return untyped buf.cca(p);
+		#elseif neko
+		return untyped __dollar__sget(buf.__s,p);
+		#else
+		return buf.charCodeAt(p);
+		#end
+	}
+
  	function readDigits() {
  		var k = 0;
  		var s = false;
  		var fpos = pos;
  		while( true ) {
- 			var c = buf.charCodeAt(pos);
+ 			var c = get(pos);
+			#if flash9
+			// if flash9, it returns 0 so we will break later
+			#elseif (flash || js)
+			if( Math.isNaN(c) )
+				break;
+			#else
  			if( c == null )
  				break;
+			#end
  			if( c == 45 ) { // negative sign
  				if( pos != fpos )
  					break;
@@ -114,7 +131,7 @@ class Unserializer {
  		while( true ) {
  			if( pos >= length )
  				throw "Invalid object";
- 			if( buf.charCodeAt(pos) == 103 ) /*g*/
+ 			if( get(pos) == 103 ) /*g*/
  				break;
  			var k = unserialize();
  			if( !Std.is(k,String) )
@@ -129,7 +146,7 @@ class Unserializer {
 		var constr = Reflect.field(edecl,tag);
 		if( constr == null )
 			throw "Unknown enum tag "+Type.getEnumName(edecl)+"."+tag;
-		if( buf.charCodeAt(pos++) != 58 ) // ':'
+		if( get(pos++) != 58 ) // ':'
 			throw "Invalid enum format";
 		var nargs = readDigits();
 		if( nargs == 0 ) {
@@ -147,7 +164,7 @@ class Unserializer {
 	}
 
  	public function unserialize() : Dynamic {
- 		switch( buf.charCodeAt(pos++) ) {
+ 		switch( get(pos++) ) {
  		case 110: // n
  			return null;
  		case 116: // t
@@ -161,7 +178,7 @@ class Unserializer {
  		case 100: // d
  			var p1 = pos;
  			while( true ) {
- 				var c = buf.charCodeAt(pos);
+ 				var c = get(pos);
  				// + - . , 0-9
  				if( (c >= 43 && c < 58) || c == 101 /*e*/ || c == 69 /*E*/ )
  					pos++;
@@ -189,7 +206,7 @@ class Unserializer {
  			var a = new Array<Dynamic>();
  			cache.push(a);
  			while( true ) {
- 				var c = buf.charCodeAt(pos);
+ 				var c = get(pos);
  				if( c == 104 ) { /*h*/
 					pos++;
  					break;
@@ -248,14 +265,14 @@ class Unserializer {
 		case 108: // l
 			var l = new List();
 			var buf = buf;
-			while( buf.charCodeAt(pos) != 104 /*h*/ )
+			while( get(pos) != 104 /*h*/ )
 				l.add(unserialize());
 			pos++;
 			return l;
 		case 98: // b
 			var h = new Hash();
 			var buf = buf;
-			while( buf.charCodeAt(pos) != 104 /*h*/ ) {
+			while( get(pos) != 104 /*h*/ ) {
 				var s = unserialize();
 				h.set(s,unserialize());
 			}
@@ -264,11 +281,11 @@ class Unserializer {
 		case 113: // q
 			var h = new IntHash();
 			var buf = buf;
-			var c = buf.charCodeAt(pos++);
+			var c = get(pos++);
 			while( c == 58 ) { /*:*/
 				var i = readDigits();
 				h.set(i,unserialize());
-				c = buf.charCodeAt(pos++);
+				c = get(pos++);
 			}
 			if( c != 104 )
 				throw "Invalid IntHash format";
