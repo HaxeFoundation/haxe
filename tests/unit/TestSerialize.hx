@@ -86,6 +86,10 @@ class TestSerialize extends Test {
 		haxe.Serializer.USE_CACHE = false;
 		eq( c2.ref, c2 );
 
+		// errors
+		exc(function() haxe.Unserializer.run(null));
+		exc(function() haxe.Unserializer.run(""));
+
 	}
 
 	function doTestEnums() {
