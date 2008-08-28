@@ -20,6 +20,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	allowed optional Context in remoting connections
 	fixed extern classes for flash < 8
 	fixed inherited protected/private properties in as3 SWF library
+	added __FSCommand2__ support
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type

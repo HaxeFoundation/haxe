@@ -123,6 +123,7 @@ let stack_delta = function
 	| AIncrement | ADecrement | AChr | AOrd | ARandom | ADelete | ATypeOf | ATargetPath -> 0
 	| AObjCall | ACall | ANewMethod -> assert false
 	| AStringPool _ -> 0
+	| AFSCommand2 -> 0
 	| op -> failwith ("Unknown stack delta for " ^ (ActionScript.action_string (fun _ -> "") 0 op))
 
 let overflow ctx =
@@ -895,6 +896,12 @@ and gen_call ctx e el =
 			ctx.stack_size <- ctx.stack_size - 4;
 		) ctx.com.resources;
 		init_array ctx !count
+	| TLocal "__FSCommand2__", l ->
+		let nargs = List.length l in
+		List.iter (gen_expr ctx true) (List.rev l);
+		push ctx [VInt nargs];
+		write ctx AFSCommand2;
+		ctx.stack_size <- ctx.stack_size - (nargs - 1)
 	| _ , _ ->
 		let nargs = List.length el in
 		List.iter (gen_expr ctx true) (List.rev el);
