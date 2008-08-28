@@ -162,15 +162,16 @@ class TestReflect extends Test {
 		t( Std.is(i,MyClass) );
 		eq( i.get(), #if flash9 0 #else null #end );
 		eq( i.intValue, #if flash9 0 #else null #end );
-		var e : MyEnum = Type.createEnum(MyEnum,"A");
+		var e : MyEnum = Type.createEnum(MyEnum,__unprotect__("A"));
 		eq( e, MyEnum.A );
-		var e : MyEnum = Type.createEnum(MyEnum,"C",[55,"hello"]);
+		var e : MyEnum = Type.createEnum(MyEnum,__unprotect__("C"),[55,"hello"]);
 		switch( e ) {
 		case C(i,s): eq(i,55); eq(s,"hello");
 		default: assert();
 		}
-		exc( function() Type.createEnum(MyEnum,"A",[0]) );
-		exc( function() Type.createEnum(MyEnum,"C") );
+		exc( function() Type.createEnum(MyEnum,__unprotect__("A"),[0]) );
+		exc( function() Type.createEnum(MyEnum,__unprotect__("C")) );
+		exc( function() Type.createEnum(MyEnum,"Z",[]) );
 	}
 
 }
