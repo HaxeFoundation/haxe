@@ -235,7 +235,12 @@ class Http {
 	#elseif (neko || php)
 		var me = this;
 		var output = new haxe.io.BytesOutput();
+#if php
+// there is a bug in the PHP compiler passing references of dynamic functions
+		var old = untyped __php__("$this->onError");
+#else
 		var old = onError;
+#end
 		var err = false;
 		onError = function(e) {
 			err = true;
@@ -473,7 +478,6 @@ class Http {
 		var response = headers.shift();
 		var rp = response.split(" ");
 		var status = Std.parseInt(rp[1]);
-
 		if( status == 0 || status == null )
 			throw "Response status error";
 

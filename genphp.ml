@@ -1,5 +1,17 @@
 (*
 TODO
+- bug: fails passing references of dynamic functions
+class A {
+  public function new() {
+    var old = a;
+    a = function() {
+      return old()+"b";
+    }
+    trace(a()); // should trace "ab"
+  }
+  dynamic function a() { return "a"; }
+  
+}
 - add __toString() for classes that have toString
 - add __init__ for externs
 - debug version
