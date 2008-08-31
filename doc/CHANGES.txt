@@ -23,6 +23,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	fixed haxe.io float/double in Neko (when bigEndian was null)
 	added __FSCommand2__ support
 	optimized haxe.Unserializer (use faster buffer access)
+	use "Dynamic" instead of Dynamic->Void for flash9 IEventDispatcher
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type
