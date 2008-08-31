@@ -20,6 +20,7 @@ open Type
 open Common
 
 type context = {
+	com : Common.context;
 	ch : out_channel;
 	buf : Buffer.t;
 	path : path;
@@ -39,7 +40,7 @@ type context = {
 
 let protect name =
 	match name with
-	| "Error" -> "_" ^ name 
+	| "Error" -> "_" ^ name
 	| _ -> name
 
 let s_path ctx stat path p =
@@ -64,18 +65,11 @@ let s_path ctx stat path p =
 		"int"
 	| (pack,name) ->
 		let name = protect name in
-		try
-			(match Hashtbl.find ctx.imports name with
-			| [p] when p = pack ->
-				name
-			| packs ->
-				if not (List.mem pack packs) then Hashtbl.replace ctx.imports name (pack :: packs);
-				Ast.s_type_path path)
-		with Not_found ->
-			Hashtbl.add ctx.imports name [pack];
-			name
+		let packs = (try Hashtbl.find ctx.imports name with Not_found -> []) in
+		if not (List.mem pack packs) then Hashtbl.replace ctx.imports name (pack :: packs);
+		Ast.s_type_path path
 
-let reserved = 
+let reserved =
 	let h = Hashtbl.create 0 in
 	List.iter (fun l -> Hashtbl.add h l ())
 	(* these ones are defined in order to prevent recursion in some Std functions *)
@@ -89,7 +83,7 @@ let reserved =
 let s_ident n =
 	if Hashtbl.mem reserved n then "_" ^ n else n
 
-let init dir path =
+let init com dir path =
 	let rec create acc = function
 		| [] -> ()
 		| d :: l ->
@@ -103,6 +97,7 @@ let init dir path =
 	let imports = Hashtbl.create 0 in
 	Hashtbl.add imports (snd path) [fst path];
 	{
+		com = com;
 		tabs = "";
 		ch = ch;
 		path = path;
@@ -154,7 +149,7 @@ let print ctx = Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
 let unsupported p = error "This expression cannot be generated to AS3" p
 
 let newline ctx =
-	let rec loop p = 
+	let rec loop p =
 		match Buffer.nth ctx.buf p with
 		| '}' | '{' | ':' -> print ctx "\n%s" ctx.tabs
 		| '\n' | '\t' -> loop (p - 1)
@@ -193,7 +188,9 @@ let rec type_str ctx t p =
 		) else
 			s_path ctx true e.e_path p
 	| TInst (c,_) ->
-		if (snd c.cl_path).[0] = '+' then "*" else s_path ctx false c.cl_path p
+		(match c.cl_kind with
+		| KNormal | KGeneric | KGenericInstance _ -> s_path ctx false c.cl_path p
+		| KTypeParameter | KExtension _ | KConstant _  -> "*")
 	| TFun _ ->
 		"Function"
 	| TMono r ->
@@ -831,11 +828,11 @@ let rec define_getset ctx stat c =
 	let def f name =
 		Hashtbl.add ctx.get_sets (name,stat) f.cf_name
 	in
-	let field f = 
+	let field f =
 		(match f.cf_get with MethodAccess m -> def f m | _ -> ());
 		(match f.cf_set with MethodAccess m -> def f m | _ -> ())
-	in	
-	List.iter field (if stat then c.cl_ordered_statics else c.cl_ordered_fields);	
+	in
+	List.iter field (if stat then c.cl_ordered_statics else c.cl_ordered_fields);
 	match c.cl_super with
 	| Some (c,_) when not stat -> define_getset ctx stat c
 	| _ -> ()
@@ -959,7 +956,7 @@ let generate_base_enum ctx =
 
 let generate com =
 	let dir = com.file in
-	let ctx = init dir ([],"enum") in
+	let ctx = init com dir ([],"enum") in
 	generate_base_enum ctx;
 	close ctx;
 	let boot = ref None in
@@ -978,13 +975,13 @@ let generate com =
 				()
 			else (match c.cl_path with
 			| [], "@Main" ->
-				let ctx = init dir ([],"__main__") in
+				let ctx = init com dir ([],"__main__") in
 				generate_main ctx c;
 				close ctx;
 			| ["flash"], "Boot" ->
 				boot := Some c;
 			| _ ->
-				let ctx = init dir c.cl_path in
+				let ctx = init com dir c.cl_path in
 				generate_class ctx c;
 				close ctx)
 		| TEnumDecl e ->
@@ -993,7 +990,7 @@ let generate com =
 			if e.e_extern && e.e_path <> ([],"Void") then
 				()
 			else
-				let ctx = init dir e.e_path in
+				let ctx = init com dir e.e_path in
 				generate_enum ctx e;
 				close ctx
 		| TTypeDecl t ->
@@ -1002,7 +999,7 @@ let generate com =
 	match !boot with
 	| None -> assert false
 	| Some c ->
-		let ctx = init dir c.cl_path in
+		let ctx = init com dir c.cl_path in
 		ctx.inits <- List.rev !inits;
 		generate_class ctx c;
 		close ctx
