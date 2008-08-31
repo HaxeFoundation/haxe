@@ -75,17 +75,19 @@ let s_path ctx stat path p =
 			Hashtbl.add ctx.imports name [pack];
 			name
 
+let reserved = 
+	let h = Hashtbl.create 0 in
+	List.iter (fun l -> Hashtbl.add h l ())
+	(* these ones are defined in order to prevent recursion in some Std functions *)
+	["is";"as";"int";"uint";"const";"getTimer";"typeof";"parseInt";"parseFloat";
+	(* AS3 keywords which are not haXe ones *)
+	"each";"label";"finally";"with";"final";"internal";"native";"const";"namespace";"include";
+	(* we don't include get+set since they are not 'real' keywords, but they can't be used as method names *)
+	];
+	h
+
 let s_ident n =
-	match n with
-	| "is" -> "_is"
-	| "as" -> "_as"
-	| "int" -> "_int"
-	| "const" -> "_const"
-	| "getTimer" -> "_getTimer"
-	| "typeof" -> "_typeof"
-	| "parseInt" -> "_parseInt"
-	| "parseFloat" -> "_parseFloat"
-	| _ -> n
+	if Hashtbl.mem reserved n then "_" ^ n else n
 
 let init dir path =
 	let rec create acc = function
