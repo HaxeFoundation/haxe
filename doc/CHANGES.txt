@@ -25,6 +25,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	optimized haxe.Unserializer (use faster buffer access)
 	use "Dynamic" instead of Dynamic->Void for flash9 IEventDispatcher
 	always use full classes paths for genAS3
+	prevent different get/set property accesses when implementing an interface
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type

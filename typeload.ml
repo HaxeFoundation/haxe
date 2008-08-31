@@ -344,7 +344,7 @@ let rec check_interface ctx c p intf params =
 			let p = (match f2.cf_expr with None -> p | Some e -> e.epos) in
 			if f.cf_public && not f2.cf_public then
 				display_error ctx ("Field " ^ i ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
-			else if not(unify_access f2.cf_get f.cf_get) then
+			else if f2.cf_get <> f.cf_get || f2.cf_set <> f.cf_set then
 				display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path) p
 			else try
 				valid_redefinition ctx f2 t2 f (apply_params intf.cl_types params f.cf_type)
