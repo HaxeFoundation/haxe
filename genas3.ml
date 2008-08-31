@@ -19,8 +19,12 @@
 open Type
 open Common
 
-type context = {
+type context_infos = {
 	com : Common.context;
+}
+
+type context = {
+	inf : context_infos;
 	ch : out_channel;
 	buf : Buffer.t;
 	path : path;
@@ -83,7 +87,7 @@ let reserved =
 let s_ident n =
 	if Hashtbl.mem reserved n then "_" ^ n else n
 
-let init com dir path =
+let init infos path =
 	let rec create acc = function
 		| [] -> ()
 		| d :: l ->
@@ -91,13 +95,13 @@ let init com dir path =
 			if not (Sys.file_exists dir) then Unix.mkdir dir 0o755;
 			create (d :: acc) l
 	in
-	let dir = dir :: fst path in
+	let dir = infos.com.file :: fst path in
 	create [] dir;
 	let ch = open_out (String.concat "/" dir ^ "/" ^ snd path ^ ".as") in
 	let imports = Hashtbl.create 0 in
 	Hashtbl.add imports (snd path) [fst path];
 	{
-		com = com;
+		inf = infos;
 		tabs = "";
 		ch = ch;
 		path = path;
@@ -955,8 +959,10 @@ let generate_base_enum ctx =
 	newline ctx
 
 let generate com =
-	let dir = com.file in
-	let ctx = init com dir ([],"enum") in
+	let infos = {
+		com = com;
+	} in
+	let ctx = init infos ([],"enum") in
 	generate_base_enum ctx;
 	close ctx;
 	let boot = ref None in
@@ -975,13 +981,13 @@ let generate com =
 				()
 			else (match c.cl_path with
 			| [], "@Main" ->
-				let ctx = init com dir ([],"__main__") in
+				let ctx = init infos ([],"__main__") in
 				generate_main ctx c;
 				close ctx;
 			| ["flash"], "Boot" ->
 				boot := Some c;
 			| _ ->
-				let ctx = init com dir c.cl_path in
+				let ctx = init infos c.cl_path in
 				generate_class ctx c;
 				close ctx)
 		| TEnumDecl e ->
@@ -990,7 +996,7 @@ let generate com =
 			if e.e_extern && e.e_path <> ([],"Void") then
 				()
 			else
-				let ctx = init com dir e.e_path in
+				let ctx = init infos e.e_path in
 				generate_enum ctx e;
 				close ctx
 		| TTypeDecl t ->
@@ -999,7 +1005,7 @@ let generate com =
 	match !boot with
 	| None -> assert false
 	| Some c ->
-		let ctx = init com dir c.cl_path in
+		let ctx = init infos c.cl_path in
 		ctx.inits <- List.rev !inits;
 		generate_class ctx c;
 		close ctx
