@@ -901,7 +901,7 @@ and gen_call ctx e el =
 		List.iter (gen_expr ctx true) (List.rev l);
 		push ctx [VInt nargs];
 		write ctx AFSCommand2;
-		ctx.stack_size <- ctx.stack_size - (nargs - 1)
+		ctx.stack_size <- ctx.stack_size - nargs
 	| _ , _ ->
 		let nargs = List.length el in
 		List.iter (gen_expr ctx true) (List.rev el);
