@@ -399,7 +399,7 @@ and parse_fun_param = parser
 	| [< name = any_ident; t = parse_type_opt; c = parse_fun_param_value >] -> (name,false,t,c)
 
 and parse_fun_param_value = parser
-	| [< '(Binop OpAssign,_); '(Const c,_) >] -> Some c
+	| [< '(Binop OpAssign,_); e = expr >] -> Some e
 	| [< >] -> None
 
 and parse_fun_param_type = parser

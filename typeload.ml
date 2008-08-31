@@ -35,16 +35,16 @@ let type_constant ctx c p =
 	| Ident "null" -> mk (TConst TNull) (ctx.api.tnull (mk_mono())) p
 	| _ -> assert false
 
-let type_function_param ctx t c opt p =
-	match c with
+let type_function_param ctx t e opt p =
+	match e with
 	| None ->
 		if opt then ctx.api.tnull t, Some TNull else t, None
-	| Some c ->
-		let c = (try type_constant ctx c p with _ -> error "Parameter default value should be constant" p) in
-		unify ctx t c.etype p;
-		match c.eexpr with
+	| Some e ->
+		let e = type_expr ctx e true in
+		unify ctx t e.etype p;
+		match e.eexpr with
 		| TConst c -> t, Some c
-		| _ -> assert false
+		| _ -> error "Parameter default value should be constant" p
 
 let exc_protect f =
 	let rec r = ref (fun() ->
