@@ -38,13 +38,9 @@ let type_constant ctx c p =
 let type_function_param ctx t e opt p =
 	match e with
 	| None ->
-		if opt then ctx.api.tnull t, Some TNull else t, None
+		if opt then ctx.api.tnull t, Some (EConst (Ident "null"),p) else t, None
 	| Some e ->
-		let e = type_expr ctx e true in
-		unify ctx t e.etype p;
-		match e.eexpr with
-		| TConst c -> t, Some c
-		| _ -> error "Parameter default value should be constant" p
+		t, Some e
 
 let exc_protect f =
 	let rec r = ref (fun() ->
@@ -449,7 +445,20 @@ let type_type_params ctx path p (n,flags) =
 
 let type_function ctx args ret static constr f p =
 	let locals = save_locals ctx in
-	let fargs = List.map (fun (n,c,t) -> add_local ctx n t, c, t) args in
+	let fargs = List.map (fun (n,c,t) -> 
+		let c = (match c with 
+			| None -> None
+			| Some e -> 
+				let p = pos e in
+				let e = type_expr ctx e true in
+				unify ctx t e.etype p;
+				match e.eexpr with
+				| TConst c -> Some c
+				| _ -> error "Parameter default value should be constant" p
+		) in
+		let n = add_local ctx n t in
+		n, c, t
+	) args in
 	let old_ret = ctx.ret in
 	let old_static = ctx.in_static in
 	let old_constr = ctx.in_constructor in
