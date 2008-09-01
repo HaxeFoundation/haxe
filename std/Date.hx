@@ -110,12 +110,11 @@ extern class Date
 	function getLocaleTime():String;
 	#end
 
+#if !php
 	private static function __init__() : Void untyped {
 	#if neko
 		Date = neko.NekoDate__;
 		neko.Boot.__classes.Date = Date;
-	#elseif php
-		Date = php.PhpDate__;
 	#else
 		Date.now = function() {
 			return __new__(Date);
@@ -182,5 +181,5 @@ extern class Date
 		#end
 	#end
 	}
-
+#end
 }

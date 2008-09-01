@@ -220,7 +220,8 @@ extern class Xml {
 		Returns a String representation of the Xml node.
 	**/
 	function toString() : String;
-
+	
+#if !php
 	static function __init__() : Void untyped {
 		#if neko
 			Xml = neko.NekoXml__;
@@ -234,8 +235,6 @@ extern class Xml {
 			#if swf_mark
 			flash.Lib.current["Xml"] = Xml;
 			#end
-		#elseif php
-			Xml = php.PhpXml__;
 		#end
 		#if !flash9
 		Xml.__name__ = ["Xml"];
@@ -248,5 +247,5 @@ extern class Xml {
 		Xml.Prolog = "prolog";
 		Xml.Document = "document";
 	}
-
+#end
 }

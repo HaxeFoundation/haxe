@@ -55,12 +55,11 @@ extern class Math
 	static function isFinite( f : Float ) : Bool;
 	static function isNaN( f : Float ) : Bool;
 
+#if !php
 	private static function __init__() : Void untyped {
 	#if neko
 		Math = neko.NekoMath__;
 		neko.Boot.__classes.Math = Math;
-	#elseif php
-		Math = php.PhpMath__;
 	#else
 		#if flash9
 		NaN = __global__["Number"].NaN;
@@ -96,12 +95,12 @@ extern class Math
 			#end
 		};
 	#end
-	#if (flash9 || php)
+	#if flash9
 	#else
 		Math.__name__ = ["Math"];
 	#end
 	}
-
+#end
 }
 
 
