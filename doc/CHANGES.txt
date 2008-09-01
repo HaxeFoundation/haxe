@@ -7,16 +7,16 @@ TODO inlining : allow inlined getter/setter
 TODO inlining : substitute class+function type parameters in order to have fully typed expressions
 
 2008-??-??: 2.01
-	added runttime check for php.io.Socket.shutdown (uses fclose in php 5.1.x)
-	fixed php rethrow in catches and added the possibility to catch native exceptions
-	fixed php.Web.setCookie() for expire time
-	fixed php.net.Socket.setTimeout(), php.io.Process
-	fixed SPOD/MySql for PHP
-	fixed Type.enumParameters() and Type.typeOf() for PHP
-	fixed null references in class constructors for array arguments
-	fixed php.Boot.__string_rec() when invoked from toString
-	added neko.NativeString and neko.NativeArray
 	fixed php.Sys
+	added neko.NativeString and neko.NativeArray
+	fixed php.Boot.__string_rec() when invoked from toString
+	fixed null references in class constructors for array arguments
+	fixed Type.enumParameters() and Type.typeOf() for PHP
+	fixed SPOD/MySql for PHP
+	fixed php.net.Socket.setTimeout(), php.io.Process
+	fixed php.Web.setCookie() for expire time
+	fixed php rethrow in catches and added the possibility to catch native exceptions
+	added runttime check for php.io.Socket.shutdown (uses fclose in php 5.1.x)
 	allowed optional Context in remoting connections
 	fixed extern classes for flash < 8
 	fixed inherited protected/private properties in as3 SWF library
@@ -26,6 +26,8 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	use "Dynamic" instead of Dynamic->Void for flash9 IEventDispatcher
 	always use full classes paths for genAS3
 	prevent different get/set property accesses when implementing an interface
+	fixed assign of dynamicfunction references in PHP 
+	haXe/PHP now generates code for extern classes __init__
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type

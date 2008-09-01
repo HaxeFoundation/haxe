@@ -10,10 +10,9 @@ class A {
     trace(a()); // should trace "ab"
   }
   dynamic function a() { return "a"; }
-  
 }
-- add __toString() for classes that have toString
 - add __init__ for externs
+- add __toString() for classes that have toString
 - debug version
 *)
 (*
@@ -55,6 +54,8 @@ type context = {
 	mutable in_loop : bool;
 	mutable handle_break : bool;
 	mutable imports : (string,string list list) Hashtbl.t;
+	mutable extern_required_paths : (string list * string) list;
+	mutable extern_classes_with_init : path list;
 	mutable locals : (string,string) PMap.t;
 	mutable inv_locals : (string,string) PMap.t;
 	mutable local_types : t list;
@@ -70,17 +71,10 @@ type context = {
 let rec escphp n =
 	if n = 0 then "" else if n = 1 then "\\" else ("\\\\" ^ escphp (n-1))
 
-let inc_path ctx path =
-	let rec slashes n =
-		if n = 0 then "" else ("../" ^ slashes (n-1))
-	in
-	let pre = if ctx.cwd = "" then "lib/" else "" in
-	match path with
-		| ([],name) ->
-		pre ^ (slashes (List.length (fst ctx.path))) ^ name ^ ".php"
-		| (pack,name) ->
-		pre ^ (slashes (List.length (fst ctx.path))) ^ String.concat "/" pack ^ "/" ^ name ^ ".php"
-
+let rec register_extern_required_path ctx path = 
+	if (List.exists(fun p -> p = path) ctx.extern_classes_with_init) && not (List.exists(fun p -> p = path) ctx.extern_required_paths) then
+		ctx.extern_required_paths <- path :: ctx.extern_required_paths
+		
 let s_expr_expr e =
 	match e.eexpr with
 	| TConst _ -> "TConst"
@@ -196,10 +190,26 @@ let is_string_expr e = is_string_type e.etype
 let spr ctx s = Buffer.add_string ctx.buf s
 let print ctx = Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
 
+(*
+let is_extern_with_init ctx path =
+	let found = ref false in
+	List.iter (fun t ->
+		match t with
+		| TClassDecl c ->
+			(match c.cl_path with 
+			| path -> 
+				match c.cl_init with
+				| Some _ -> found := true
+				| _ -> ());
+		| _ -> ()
+	) ctx.com.types;
+	!found
+*)
 let s_path ctx path isextern p =
-	if isextern then
+	if isextern then begin
+		register_extern_required_path ctx path;
 		snd path
-	else begin
+	end else begin
 		(match path with
 		| ([],"List")			-> "HList"
 		| ([],name)				-> name
@@ -268,7 +278,7 @@ let init com cwd path def_type =
 		(match snd path with
 		| "List" -> "HList";
 		| s -> s) in
-	let ch = open_out (String.concat "/" dir ^ "/" ^ (filename path) ^ (if def_type = 0 then ".class" else if def_type = 1 then ".enum" else ".interface") ^ ".php") in
+	let ch = open_out (String.concat "/" dir ^ "/" ^ (filename path) ^ (if def_type = 0 then ".class" else if def_type = 1 then ".enum"  else if def_type = 2 then ".interface" else ".extern") ^ ".php") in
 	let imports = Hashtbl.create 0 in
 	Hashtbl.add imports (snd path) [fst path];
 	{
@@ -281,6 +291,8 @@ let init com cwd path def_type =
 		in_loop = false;
 		handle_break = false;
 		imports = imports;
+		extern_required_paths = [];
+		extern_classes_with_init = [];
 		curclass = null_class;
 		locals = PMap.empty;
 		inv_locals = PMap.empty;
@@ -320,8 +332,22 @@ let parent e =
 	| TParenthesis _ -> e
 	| _ -> mk (TParenthesis e) e.etype e.epos
 
+let inc_extern_path ctx path =
+	let rec slashes n =
+		if n = 0 then "" else ("../" ^ slashes (n-1))
+	in
+	let pre = if ctx.cwd = "" then "lib/" else "" in
+	match path with
+		| ([],name) ->
+		pre ^ (slashes (List.length (fst ctx.path))) ^ name ^ ".extern.php"
+		| (pack,name) ->
+		pre ^ (slashes (List.length (fst ctx.path))) ^ String.concat "/" pack ^ "/" ^ name ^ ".extern.php"
+	
 let close ctx =
 	output_string ctx.ch "<?php\n";
+	List.iter (fun path ->
+		if path <> ctx.path then output_string ctx.ch ("require_once dirname(__FILE__).'/" ^ inc_extern_path ctx path ^ "';\n");
+	) (List.rev ctx.extern_required_paths);
 	output_string ctx.ch "\n";
 	output_string ctx.ch (Buffer.contents ctx.buf);
 	close_out ctx.ch
@@ -1136,13 +1162,19 @@ and gen_expr ctx e =
 	  		else if is_in_dynamic_methods ctx e1 s then
 	  			gen_field_access ctx true e1 s
 	  		else begin
-				spr ctx "array(";
-				(match e1.eexpr with
-				| TTypeExpr t ->
-					print ctx "%s\"" p;
-					spr ctx (s_path ctx (t_path t) false e1.epos);
-					print ctx "%s\"" p
-				| _ -> gen_expr ctx e1);
+				let ob ex = (match ex with
+					| TTypeExpr t ->
+						print ctx "%s\"" p;
+						spr ctx (s_path ctx (t_path t) false e1.epos);
+						print ctx "%s\"" p
+					| _ -> gen_expr ctx e1) in
+				spr ctx "isset(";
+				ob e1.eexpr;
+				print ctx "->%s) ? " s;
+				ob e1.eexpr;
+				print ctx "->%s " s;
+				spr ctx ": array(";
+				ob e1.eexpr;
 				print ctx ", %s\"%s%s\")" p s p;
 			end)
 		| TMono _ ->
@@ -1719,10 +1751,9 @@ let rec super_has_dynamic c =
 		| Some _ -> true
 		| _ -> super_has_dynamic csup)
 
-let generate_class ctx all_dynamic_methods c =
+let generate_class ctx c =
 	let requires_constructor = ref true in
 	ctx.curclass <- c;
-	ctx.all_dynamic_methods <- all_dynamic_methods;
 	List.iter (define_getset ctx false) c.cl_ordered_fields;
 	List.iter (define_getset ctx true) c.cl_ordered_statics;
 	ctx.local_types <- List.map snd c.cl_types;
@@ -1793,6 +1824,8 @@ let createmain com c =
 		in_loop = false;
 		handle_break = false;
 		imports = Hashtbl.create 0;
+		extern_required_paths = [];
+		extern_classes_with_init = [];
 		curclass = null_class;
 		locals = PMap.empty;
 		inv_locals = PMap.empty;
@@ -1869,6 +1902,7 @@ let generate_enum ctx e =
 
 let generate com =
 	let all_dynamic_methods = ref [] in
+	let extern_classes_with_init = ref [] in
 	List.iter (fun t ->
 		(match t with
 		| TClassDecl c ->
@@ -1879,7 +1913,13 @@ let generate com =
 				}) (List.filter is_dynamic_method lst)
 			in
 			all_dynamic_methods := dynamic_methods_names c.cl_ordered_fields @ !all_dynamic_methods;
-			all_dynamic_methods := dynamic_methods_names c.cl_ordered_statics @ !all_dynamic_methods
+			all_dynamic_methods := dynamic_methods_names c.cl_ordered_statics @ !all_dynamic_methods;
+			if c.cl_extern then
+				(match c.cl_init with
+				| Some _ ->
+					extern_classes_with_init := c.cl_path :: !extern_classes_with_init;
+				| _ -> 
+					())
 		| _ -> ())
 	) com.types;
 	List.iter (fun t ->
@@ -1891,15 +1931,23 @@ let generate com =
 				| ["php"],"PhpMath__"   -> { c with cl_path = [],"Math" }
 				| _ -> c
 			) in
-			if c.cl_extern then
-				()
-			else (match c.cl_path with
+			if c.cl_extern then begin
+				(match c.cl_init with
+				| None -> ()
+				| Some e ->
+					let ctx = init com "lib" c.cl_path 3 in
+					gen_expr ctx e;
+					close ctx;
+					);
+			end else (match c.cl_path with
 			| [], "@Main" ->
 				createmain com c;
 			| _ ->
 				let ctx = init com "lib" c.cl_path (if c.cl_interface then 2 else 0) in
+				ctx.extern_classes_with_init <- !extern_classes_with_init;
+				ctx.all_dynamic_methods <- !all_dynamic_methods;
 				(*let cp = s_path ctx c.cl_path c.cl_extern c.cl_pos in*)
-				generate_class ctx !all_dynamic_methods c;
+				generate_class ctx c;
 				(match c.cl_init with
 				| None -> ()
 				| Some e ->

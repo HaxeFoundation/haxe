@@ -235,12 +235,7 @@ class Http {
 	#elseif (neko || php)
 		var me = this;
 		var output = new haxe.io.BytesOutput();
-#if php
-// there is a bug in the PHP compiler passing references of dynamic functions
-		var old = untyped __php__("$this->onError");
-#else
 		var old = onError;
-#end
 		var err = false;
 		onError = function(e) {
 			err = true;

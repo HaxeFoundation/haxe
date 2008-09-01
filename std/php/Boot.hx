@@ -555,6 +555,9 @@ if(!file_exists($_autload_cache_file)) {
 				} else if(substr($bn, -10) == '.interface') {
 					$bn = substr($bn, 0, -10);
 					$t = 2;
+				} else if(substr($bn, -7) == '.extern') {
+					$bn = substr($bn, 0, -7);
+					$t = 3;
 				} else
 					continue;
 				$qname = ($bn == 'HList' && empty($pack)) ? 'List' : join(array_merge($pack, array($bn)), '.');
@@ -585,12 +588,15 @@ if(!file_exists($_autload_cache_file)) {
 		} else if($a[$i]['type'] == 1) {
 			$t = new __enumtype__($a[$i]['phpname'], $a[$i]['qname'], $a[$i]['path']);
 			$content .= '__enumtype__';
-		} else {
+		} else if($a[$i]['type'] == 2) {
 			$t = new __interfacetype__($a[$i]['phpname'], $a[$i]['qname'], $a[$i]['path']);
 			$content .= '__interfacetype__';
+		} else if($a[$i]['type'] == 3) {
+			$t = new __classtype__($a[$i]['name'], $a[$i]['qname'], $a[$i]['path']);
+			$content .= '__classtype__';
 		}
 		php_Boot::__register_type($t);
-		$content .= '(\\''.$a[$i]['phpname'].'\\', \\''.$a[$i]['qname'].'\\', \\''.$a[$i]['path'].'\\'));\n';
+		$content .= '(\\''.($a[$i]['type'] == 3 ? $a[$i]['name'] : $a[$i]['phpname']).'\\', \\''.$a[$i]['qname'].'\\', \\''.$a[$i]['path'].'\\'));\n';
 	}
 	try {
 		file_put_contents($_autload_cache_file, $content);
