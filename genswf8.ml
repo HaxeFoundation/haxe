@@ -988,12 +988,12 @@ and gen_expr_2 ctx retval e =
 			end
 		) f.tf_args in
 		let tf = begin_func ctx reg_super (Codegen.local_find true "__arguments__" f.tf_expr) rargs in
+		ctx.fun_pargs <- (ctx.code_pos, List.rev !pargs) :: ctx.fun_pargs;
 		List.iter (fun (a,c,t) ->
 			match c with
 			| None | Some TNull -> ()
 			| Some c -> gen_expr ctx false (Codegen.set_default ctx.com a c t e.epos)
 		) f.tf_args;
-		ctx.fun_pargs <- (ctx.code_pos, List.rev !pargs) :: ctx.fun_pargs;
 		if ctx.com.debug then begin
 			gen_expr ctx false (ctx.stack.Codegen.stack_push ctx.curclass (fst ctx.curmethod));
 			gen_expr ctx false ctx.stack.Codegen.stack_save_pos;
