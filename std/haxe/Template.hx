@@ -47,8 +47,8 @@ private typedef ExprToken = {
 
 class Template {
 
-	static var splitter = ~/(::[A-Za-z0-9_ ()&|!+=\/><*.-]+::|\$\$([A-Za-z0-9_-]+)\()/;
-	static var expr_splitter = ~/(\(|\)|[!+=\/><*.&|-]+)/;
+	static var splitter = ~/(::[A-Za-z0-9_ ()&|!+=\/><*."-]+::|\$\$([A-Za-z0-9_-]+)\()/;
+	static var expr_splitter = ~/(\(|\)|[ \r\n\t]*"[^"]*"[ \r\n\t]*|[!+=\/><*.&|-]+)/;
 	static var expr_trim = ~/^[ ]*([^ ]+)[ ]*$/;
 	static var expr_int = ~/^[0-9]+$/;
 	static var expr_float = ~/^([+-]?)(?=\d|,\d)\d*(,\d*)?([Ee]([+-]?\d+))?$/;
@@ -197,17 +197,20 @@ class Template {
 			var k = p.pos + p.len;
 			if( p.pos != 0 )
 				l.add({ p : data.substr(0,p.pos), s : true });
-			l.add({ p : expr_splitter.matched(0), s : false });
+			var p = expr_splitter.matched(0);
+			l.add({ p : p, s : p.indexOf('"') >= 0 });
 			data = expr_splitter.matchedRight();
 		}
 		if( data.length != 0 )
 			l.add({ p : data, s : true });
+		for( t in l )
+			trace(t);
 		var e;
 		try {
 			e = makeExpr(l);
 			if( !l.isEmpty() )
 				throw l.first().p;
-		} catch( s : Int ) {
+		} catch( s : String ) {
 			throw "Unexpected '"+s+"' in "+expr;
 		}
 		return function() {
@@ -222,6 +225,10 @@ class Template {
 	function makeConst( v : String ) : Void -> Dynamic {
 		expr_trim.match(v);
 		v = expr_trim.matched(1);
+		if( v.charCodeAt(0) == 34 ) {
+			var str = v.substr(1,v.length-2);
+			return function() return str;
+		}
 		if( expr_int.match(v) ) {
 			var i = Std.parseInt(v);
 			return function() { return i; };

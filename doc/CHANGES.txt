@@ -28,6 +28,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	prevent different get/set property accesses when implementing an interface
 	fixed assign of dynamicfunction references in PHP 
 	haXe/PHP now generates code for extern classes __init__
+	added strings literal support in haxe.Template
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type
