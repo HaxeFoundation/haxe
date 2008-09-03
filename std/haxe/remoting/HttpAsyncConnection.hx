@@ -73,7 +73,7 @@ class HttpAsyncConnection implements AsyncConnection {
 		h.request(true);
 	}
 
-	public static function urlConnect( url : String ) : AsyncConnection {
+	public static function urlConnect( url : String ) {
 		return new HttpAsyncConnection({ url : url, error : function(e) throw e },[]);
 	}
 

@@ -65,7 +65,7 @@ class HttpConnection implements Connection {
 
 	#if (js || neko || php)
 
-	public static function urlConnect( url : String ) : Connection {
+	public static function urlConnect( url : String ) {
 		return new HttpConnection(url,[]);
 	}
 
