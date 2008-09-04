@@ -24,7 +24,7 @@
  */
 package haxe.remoting;
 
-class HttpConnection implements Connection {
+class HttpConnection implements Connection, implements Dynamic<Connection> {
 
 	var __url : String;
 	var __path : Array<String>;
