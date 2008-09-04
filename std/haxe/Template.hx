@@ -203,8 +203,6 @@ class Template {
 		}
 		if( data.length != 0 )
 			l.add({ p : data, s : true });
-		for( t in l )
-			trace(t);
 		var e;
 		try {
 			e = makeExpr(l);
