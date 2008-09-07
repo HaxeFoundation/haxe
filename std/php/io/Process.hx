@@ -91,19 +91,47 @@ class Process {
 			['pipe', 'w'],
 			['pipe', 'w']
 		];
-		// TODO: check how args are passed in neko
-		p = untyped __call__('proc_open', cmd, descriptorspec, pipes, null, __php__("array('args' => join(' ', $args))"));
+		p = untyped __call__('proc_open', cmd+sargs(args), descriptorspec, pipes);
 		if(untyped __physeq__(p, false)) throw "Process creation failure : "+cmd;
 		stdin  = new Stdin(pipes[0]);
 		stdout = new Stdout(pipes[1]);
 		stderr = new Stdout(pipes[2]);
 	}
 
+	function sargs(args : Array<String>) {
+		var b = '';
+		for(arg in args) {
+			arg = arg.split('"').join('\"');
+			if(arg.indexOf(' ') >= 0)
+				arg = '"'+arg+'"';
+			b += ' '+arg;
+		}
+		return b;
+	}
+
 	public function getPid() : Int {
 		return untyped __call__('proc_get_status', p)['pid'];
 	}
 
+	function replaceStream(input : haxe.io.Input) {
+		var fp = untyped __call__("fopen", "php://memory", "r+");
+		while(true) {
+			var s = untyped __call__("fread", untyped input.p, 8192);
+			if(untyped __physeq__(s, false) || s == null || s == '') break;
+			untyped __call__("fwrite", fp, s);
+		}
+		untyped __call__("rewind", fp);
+		untyped input.p = fp;
+	}
+
 	public function exitCode() : Int {
-		return untyped __call__('proc_get_status', p)['exitcode'];
+		var status : Array<Dynamic> = untyped __call__('proc_get_status', p);
+		while(status[untyped 'running']) {
+			php.Sys.sleep(0.01);
+			status = untyped __call__('proc_get_status', p);
+		}
+		replaceStream(stderr);
+		replaceStream(stdout);
+		return untyped __call__('proc_close', p);
 	}
 }
