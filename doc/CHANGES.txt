@@ -29,6 +29,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	fixed assign of dynamicfunction references in PHP 
 	haXe/PHP now generates code for extern classes __init__
 	added strings literal support in haxe.Template
+	fixed Process arguments and exitCode() in haXe/PHP
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type
