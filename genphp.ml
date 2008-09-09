@@ -1,17 +1,5 @@
 (*
 TODO
-- bug: fails passing references of dynamic functions
-class A {
-  public function new() {
-    var old = a;
-    a = function() {
-      return old()+"b";
-    }
-    trace(a()); // should trace "ab"
-  }
-  dynamic function a() { return "a"; }
-}
-- add __init__ for externs
 - add __toString() for classes that have toString
 - debug version
 *)
@@ -167,10 +155,6 @@ let rec is_array_ref e =
 	| TConst _ -> false
 	| TParenthesis e -> is_array_ref e
 	| _ -> is_array_expr e
-(*
-	let s = s_expr_name e in
-	if (String.length s > 11 && String.sub s 0 12 = "#Null<Array<") || (String.length s > 10 && String.sub s 0 11 = "Null<Array<") || (String.length s > 6 && String.sub s 0 7 = "#Array<") || (String.length s > 5 && String.sub s 0 6 = "Array<") then true else false
-*)
 
 let rec is_string_type t =
 	match follow t with
@@ -182,29 +166,10 @@ let rec is_string_type t =
 	| _ -> false
 
 let is_string_expr e = is_string_type e.etype
-(*
-	let s = s_expr_name e in
-	if s = "#Null<String>" || s = "Null<String>" || s = "#String" || s = "String" then true else false
-*)
 
 let spr ctx s = Buffer.add_string ctx.buf s
 let print ctx = Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
 
-(*
-let is_extern_with_init ctx path =
-	let found = ref false in
-	List.iter (fun t ->
-		match t with
-		| TClassDecl c ->
-			(match c.cl_path with 
-			| path -> 
-				match c.cl_init with
-				| Some _ -> found := true
-				| _ -> ());
-		| _ -> ()
-	) ctx.com.types;
-	!found
-*)
 let s_path ctx path isextern p =
 	if isextern then begin
 		register_extern_required_path ctx path;
