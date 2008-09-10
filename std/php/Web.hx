@@ -71,7 +71,6 @@ class Web {
 	**/
 	public static function redirect( url : String ) {
 		untyped __call__('header', "Location: " + url);
-		untyped __call__('exit');
 	}
 
 	/**
