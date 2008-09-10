@@ -991,19 +991,18 @@ let parse_module ctx m p =
 		List.rev (List.fold_left (fun acc (t,p) ->
 			let build f d =
 				let priv = List.mem f d.d_flags in
-				let params = List.map fst d.d_params in
 				(ETypedef { 
 					d_name = d.d_name;
 					d_doc = None;
-					d_params = List.map (fun s -> s, []) params;
+					d_params = d.d_params;
 					d_flags = if priv then [EPrivate] else [];
 					d_data = TPNormal (if priv then { tpackage = []; tname = "Dynamic"; tparams = []; } else 
 						{
 							tpackage = !remap;
 							tname = d.d_name;
-							tparams = List.map (fun s ->
+							tparams = List.map (fun (s,_) ->
 								TPType (TPNormal { tpackage = []; tname = s; tparams = [] })
-							) params;
+							) d.d_params;
 						});
 				},p) :: acc
 			in
