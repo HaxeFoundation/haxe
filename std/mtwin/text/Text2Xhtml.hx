@@ -155,7 +155,7 @@ class Text2Xhtml {
 		imgEnabled = true;
 	}
 
-	public function transform( str:String ) : String {
+	public function doTransform( str:String ) : String {
 		str = StringTools.replace(str, "\r\n", "\n");
 		str = StringTools.replace(str, "\r", "\n");
 		str = StringTools.htmlEscape(str);
@@ -250,7 +250,7 @@ class Text2Xhtml {
 
 	public static function transform( str:String ) : String {
 		var transformer = new Text2Xhtml();
-		return transformer.transform(str);
+		return transformer.doTransform(str);
 	}
 
 	static function swfProcess(data:String){
@@ -279,10 +279,10 @@ s.write('swf@id');
 			if (noParagraph == null || noParagraph == false){
 				var paragraphs = str.split(paragraphSeparator);
 				var me = this;
-				var paragraphs = Lambda.map(paragraphs, function(p){ 
+				var paragraphs = Lambda.map(paragraphs, function(p){
 					if (me.brEnabled)
 						p = StringTools.replace(p, "\n", "<br/>");
-					return "<p>"+me.transformContent(StringTools.trim(p))+"</p>\n"; 
+					return "<p>"+me.transformContent(StringTools.trim(p))+"</p>\n";
 				});
 				str = paragraphs.join("\n");
 			}
