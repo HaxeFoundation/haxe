@@ -36,9 +36,7 @@ class Manager<T : Object> {
 	/* ----------------------------- STATICS ------------------------------ */
 	public static var cnx(default,setConnection) : Connection;
 	private static var object_cache : Hash<Object> = new Hash();
-//	private static var init_list : List<Manager<Object>> = new List();
 	private static var cache_field = "__cache__";
-//	private static var no_update : Dynamic = function() { throw "Cannot update not locked object"; }
 	private static var FOR_UPDATE = "";
 
 	public static var managers = new Hash<Manager<Dynamic>>();
@@ -66,11 +64,9 @@ class Manager<T : Object> {
 		// get the list of private fields
 		var apriv : Array<String> = cls.PRIVATE_FIELDS;
 		apriv = if( apriv == null ) new Array() else apriv.copy();
-//		apriv.push("local_manager");
 		apriv.push("__cache__");
-//		apriv.push("update");
 		apriv.push("__noupdate__");
-//		apriv.push("local_manager");
+		apriv.push("__manager__");
 
 		// get the proto fields not marked private (excluding methods)
 		table_fields = new List();
@@ -91,9 +87,7 @@ class Manager<T : Object> {
 		}
 
 		// set the manager and ready for further init
-		//proto.local_manager = this;
 		managers.set(clname, this);
-//		init_list.add(untyped this);
 
 		var rl : Array<Dynamic>;
 		try {
@@ -331,17 +325,17 @@ class Manager<T : Object> {
 
 	/* ---------------------------- INTERNAL API -------------------------- */
 
-	function cacheObject( byref___x : T, lock : Bool ) {
-		var o = Type.createEmptyInstance(cls);
-		for(field in Reflect.fields(byref___x)) {
-			Reflect.setField(o, field, Reflect.field(byref___x, field));
+	function cacheObject( x : T, lock : Bool ) {
+		var o : T = Type.createEmptyInstance(cls);
+		for(field in Reflect.fields(x)) {
+			Reflect.setField(o, field, Reflect.field(x, field));
 		}
 		untyped o.__init_object();
-		byref___x = cast o;
-		addToCache(byref___x);
-		Reflect.setField(byref___x, cache_field, Type.createEmptyInstance(cls));
+		addToCache(o);
+		Reflect.setField(o, cache_field, Type.createEmptyInstance(cls));
 		if( !lock )
-			untyped byref___x.__noupdate__ = true;
+			untyped o.__noupdate__ = true;
+		return o;
 	}
 
 	function make( x : T ) {
@@ -412,9 +406,9 @@ class Manager<T : Object> {
 		var c = getFromCache(r,lock);
 		if( c != null )
 			return c;
-		cacheObject(r,lock);
-		make(r);
-		return r;
+		var o = cacheObject(r,lock);
+		make(o);
+		return o;
 	}
 
 	public function objects( sql : String, lock : Bool ) : List<T> {
@@ -426,9 +420,9 @@ class Manager<T : Object> {
 			if( c != null ) {
 				l2.add(c);
 			} else {
-				cacheObject(x,lock);
-				make(x);
-				l2.add(x);
+				var o = cacheObject(x,lock);
+				make(o);
+				l2.add(o);
 			}
 		}
 		return l2;
@@ -493,8 +487,6 @@ class Manager<T : Object> {
 		var c : Dynamic = object_cache.get(makeCacheKey(x));
 		// restore update method since now the object is locked
 		if( c != null && lock && c.__noupdate__) {
-			//c.update = class_proto.prototype.update;
-			//TODO: review this
 			c.update = cls.update;
 		}
 		return c;

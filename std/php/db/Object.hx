@@ -42,7 +42,17 @@ class Object #if spod_rtti implements haxe.rtti.Infos #end {
 	static var manager = new php.db.Manager();
 */
 
-	static var local_manager : {
+	static var local_managers = new Hash<{
+		private function doUpdate( o : Object ) : Void;
+		private function doInsert( o : Object ) : Void;
+		private function doSync( o : Object ) : Void;
+		private function doDelete( o : Object ) : Void;
+		private function objectToString( o : Object ) : String;
+	}>();
+
+	var __cache__ : Object;
+	var __noupdate__ : Bool;
+	var __manager__ : {
 		private function doUpdate( o : Object ) : Void;
 		private function doInsert( o : Object ) : Void;
 		private function doSync( o : Object ) : Void;
@@ -50,45 +60,43 @@ class Object #if spod_rtti implements haxe.rtti.Infos #end {
 		private function objectToString( o : Object ) : String;
 	};
 
-	var __cache__ : Object;
-	var __noupdate__ : Bool;
-
 	public function new() {
 		__init_object();
 	}
 
 	private function __init_object() {
 		__noupdate__ = false;
-		local_manager = Manager.managers.get(Type.getClassName(Type.getClass(this)));
-//		var me = this;
-//		update = function() { local_manager.doUpdate(me); };
+		var cname = Type.getClassName(Type.getClass(this));
+		__manager__ = Manager.managers.get(cname);
+		if(!local_managers.exists(cname))
+			local_managers.set(cname, __manager__);
 		var rl : Array<Dynamic>;
 		try {
-			rl = untyped local_manager.cls.RELATIONS();
+			rl = untyped __manager__.cls.RELATIONS();
 		} catch(e : Dynamic) { return; }
 		for(r in rl)
-			untyped local_manager.initRelation(this, r);
+			untyped __manager__.initRelation(this, r);
 	}
 
 	public function insert() {
-		local_manager.doInsert(this);
+		__manager__.doInsert(this);
 	}
 
 	public /*dynamic*/ function update() {
 		if(__noupdate__) throw "Cannot update not locked object";
-		local_manager.doUpdate(this);
+		__manager__.doUpdate(this);
 	}
 
 	public function sync() {
-		local_manager.doSync(this);
+		__manager__.doSync(this);
 	}
 
 	public function delete() {
-		local_manager.doDelete(this);
+		__manager__.doDelete(this);
 	}
 
 	public function toString() {
-		return local_manager.objectToString(this);
+		return __manager__.objectToString(this);
 	}
 
 }
