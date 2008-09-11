@@ -33,6 +33,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	fixed hierarchy problem for classes with the name from different packages haXe/PHP
 	php.db.Mysql now throws an exception when tries to connect to an unexistant DB
 	fixed blocks in if statements for haXe/PHP
+	added php check on the full hierarchy for colliding names
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type

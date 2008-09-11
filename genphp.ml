@@ -1624,6 +1624,17 @@ let generate_self_method ctx rights m static setter =
 	);
 	newline ctx
 
+let rec field_exists_in_hierarchy cl name =
+	if PMap.exists name cl.cl_fields then true
+	else (
+		match cl.cl_super with
+		| Some (c,_) -> 
+			field_exists_in_hierarchy c name
+		| None -> 
+			false
+	)
+	
+	
 let generate_field ctx static f =
 	newline ctx;
 	ctx.locals <- PMap.empty;
@@ -1632,7 +1643,7 @@ let generate_field ctx static f =
 	let p = ctx.curclass.cl_pos in
 	match f.cf_expr with
 	| Some { eexpr = TFunction fd } ->
-		if static && PMap.exists f.cf_name ctx.curclass.cl_fields then error ("Can't redeclare method (PHP limitation): " ^ f.cf_name) ctx.curclass.cl_pos;
+		if static && field_exists_in_hierarchy ctx.curclass f.cf_name then error ("Can't redeclare method (PHP limitation): " ^ f.cf_name) ctx.curclass.cl_pos;
 		spr ctx (rights ^ " ");
 		(match f.cf_set with
 		| NormalAccess when (match fd.tf_expr.eexpr with | TBlock _ -> true | _ -> false) ->
