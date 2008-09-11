@@ -70,6 +70,7 @@ class Manager<T : Object> {
 		apriv.push("__cache__");
 //		apriv.push("update");
 		apriv.push("__noupdate__");
+//		apriv.push("local_manager");
 
 		// get the proto fields not marked private (excluding methods)
 		table_fields = new List();
@@ -331,13 +332,13 @@ class Manager<T : Object> {
 	/* ---------------------------- INTERNAL API -------------------------- */
 
 	function cacheObject( byref___x : T, lock : Bool ) {
-		addToCache(byref___x);
 		var o = Type.createEmptyInstance(cls);
 		for(field in Reflect.fields(byref___x)) {
 			Reflect.setField(o, field, Reflect.field(byref___x, field));
 		}
 		untyped o.__init_object();
 		byref___x = cast o;
+		addToCache(byref___x);
 		Reflect.setField(byref___x, cache_field, Type.createEmptyInstance(cls));
 		if( !lock )
 			untyped byref___x.__noupdate__ = true;

@@ -183,7 +183,8 @@ class Mysql {
 			params.host + (params.port == null ? '' : ':'+params.port) + (params.socket == null ? '' : ':'+params.socket),
 			params.user,
 			params.pass);
-		untyped __call__("mysql_select_db", params.database, c);
+		if(!untyped __call__("mysql_select_db", params.database, c))
+			throw "Unable to connect to " + params.database;
 		return new MysqlConnection(c);
 	}
 

@@ -182,16 +182,15 @@ let s_path ctx path isextern p =
 		| (["php"],"PhpDate__")	-> "Date"
 		| (["php"],"PhpMath__")	-> "Math"
 		| (pack,name) ->
-			try
+			(try
 				(match Hashtbl.find ctx.imports name with
 				| [p] when p = pack ->
-					String.concat "_" pack ^ "_" ^ name
+					()
 				| packs ->
-					if not (List.mem pack packs) then Hashtbl.replace ctx.imports name (pack :: packs);
-					Ast.s_type_path path)
+					if not (List.mem pack packs) then Hashtbl.replace ctx.imports name (pack :: packs))
 			with Not_found ->
-				Hashtbl.add ctx.imports name [pack];
-				String.concat "_" pack ^ "_" ^ name);
+				Hashtbl.add ctx.imports name [pack]);
+			String.concat "_" pack ^ "_" ^ name);
 	end
 
 let s_path_haxe path =
@@ -1326,14 +1325,14 @@ and gen_expr ctx e =
 		spr ctx "if";
 		gen_value ctx (parent cond);
 		spr ctx " ";
-		gen_expr ctx e;
+		gen_expr ctx (mk_block e);
 		(match eelse with
 		| None -> ()
 		| Some e when e.eexpr = TConst(TNull) -> ()
 		| Some e ->
 			newline ctx;
 			spr ctx "else ";
-			gen_expr ctx e);
+			gen_expr ctx (mk_block e));
 	| TUnop (op,Ast.Prefix,e) ->
 		spr ctx (Ast.s_unop op);
 		gen_value ctx e

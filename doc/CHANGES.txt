@@ -30,6 +30,9 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	haXe/PHP now generates code for extern classes __init__
 	added strings literal support in haxe.Template
 	fixed Process arguments and exitCode() in haXe/PHP
+	fixed hierarchy problem for classes with the name from different packages haXe/PHP
+	php.db.Mysql now throws an exception when tries to connect to an unexistant DB
+	fixed blocks in if statements for haXe/PHP
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type
@@ -729,7 +732,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 
 2005-11-17: alpha 1b
 	fix some bugs
-	changed package syntax
+	changed package tests.lang
 
 2005-11-14: alpha 1
 	lexer
