@@ -34,7 +34,7 @@ class EReg {
 	#if flash9
 	var result : {> Array<String>, index : Int, input : String };
 	#end
-	#if neko
+	#if (neko || php)
 	var last : String;
 	var global : Bool;
 	#end
@@ -42,7 +42,6 @@ class EReg {
 	var pattern : String;
 	var options : String;
 	var re : String;
-	var last : String;
 	var matches : Array<Dynamic>;
 	#end
 
@@ -64,6 +63,10 @@ class EReg {
 			this.r = untyped __new__(__global__["RegExp"],r,opt);
 		#elseif php
 			this.pattern = r;
+			var a = opt.split("g");
+			global = a.length > 1;
+			if( global )
+				opt = a.join("");
 			this.options = opt;
 			this.re = "/" + untyped __php__("str_replace")("/", "\\/", r) + "/" + opt;
 		#else
@@ -240,7 +243,7 @@ class EReg {
 			var d = "#__delim__#";
 			return untyped s.replace(r,d).split(d);
 		#elseif php
-			return untyped __php__("preg_split")(re, s);
+			return untyped __php__("preg_split")(re, s, global ? -1 : 2);
 		#else
 			return null;
 		#end
@@ -306,7 +309,7 @@ class EReg {
 		#elseif php
 			by = untyped __call__("str_replace", "$$", "\\$", by);
 			untyped __php__("if(!preg_match('/\\\\([^?].+?\\\\)/', $this->re)) $by = preg_replace('/\\$(\\d+)/', '\\\\\\$\\1', $by)");
-			return untyped __php__("preg_replace")(re, by, s);
+			return untyped __php__("preg_replace")(re, by, s, global ? -1 : 1);
 		#else
 			return null;
 		#end
