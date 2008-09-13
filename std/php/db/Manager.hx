@@ -487,9 +487,8 @@ class Manager<T : Object> {
 	function getFromCache( x : T, lock : Bool ) : T {
 		var c : Dynamic = object_cache.get(makeCacheKey(x));
 		// restore update method since now the object is locked
-		if( c != null && lock && c.__noupdate__) {
-			c.update = cls.update;
-		}
+		if( c != null && lock && c.__noupdate__)
+			c.__noupdate__ = false;
 		return c;
 	}
 }
