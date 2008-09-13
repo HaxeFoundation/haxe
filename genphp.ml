@@ -1,6 +1,5 @@
 (*
 TODO
-- add __toString() for classes that have toString
 - debug version
 *)
 (*
@@ -895,6 +894,7 @@ and gen_function ctx name f params p =
 	ctx.inv_locals <- old_li;
 	ctx.local_types <- old_t
 
+	
 and gen_inline_function ctx f params p =
 	let old = ctx.in_value in
 	let old_l = ctx.locals in
@@ -1108,19 +1108,21 @@ and gen_expr ctx e =
 		);
 	| TField (e1,s) ->
 		(match follow e.etype with
-		| TFun _ ->
+		| TFun (args, _) ->
 			let p = escphp ctx.quotes in
-			(if ctx.is_call then
+			(if ctx.is_call then begin
 				gen_field_access ctx false e1 s
-	  		else if is_in_dynamic_methods ctx e1 s then
+	  		end else if is_in_dynamic_methods ctx e1 s then begin
 	  			gen_field_access ctx true e1 s
-	  		else begin
-				let ob ex = (match ex with
+	  		end else begin
+				let ob ex = 
+					(match ex with
 					| TTypeExpr t ->
 						print ctx "%s\"" p;
 						spr ctx (s_path ctx (t_path t) false e1.epos);
 						print ctx "%s\"" p
-					| _ -> gen_expr ctx e1) in
+					| _ -> 
+						gen_expr ctx e1) in
 				
 				spr ctx "isset(";
 				gen_field_access ctx true e1 s;
@@ -1128,13 +1130,8 @@ and gen_expr ctx e =
 				gen_field_access ctx true e1 s;
 				spr ctx ": array(";
 				ob e1.eexpr;
-				(*
-				ob e1.eexpr;
-				print ctx "->%s) ? " s;
-				ob e1.eexpr;
-				print ctx "->%s " s;
-				*)
 				print ctx ", %s\"%s%s\")" p s p;
+				
 			end)
 		| TMono _ ->
 			if ctx.is_call then
@@ -1889,13 +1886,15 @@ let generate com =
 				}) (List.filter is_dynamic_method lst)
 			in
 			all_dynamic_methods := dynamic_methods_names c.cl_ordered_fields @ !all_dynamic_methods;
-			all_dynamic_methods := dynamic_methods_names c.cl_ordered_statics @ !all_dynamic_methods;
+			
 			if c.cl_extern then
 				(match c.cl_init with
 				| Some _ ->
 					extern_classes_with_init := c.cl_path :: !extern_classes_with_init;
 				| _ -> 
 					())
+			else
+				all_dynamic_methods := dynamic_methods_names c.cl_ordered_statics @ !all_dynamic_methods;
 		| _ -> ())
 	) com.types;
 	List.iter (fun t ->
