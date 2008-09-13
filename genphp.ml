@@ -22,6 +22,7 @@ TODO
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *)
+open Ast
 open Type
 open Common
 
@@ -998,26 +999,11 @@ and gen_expr ctx e =
 		| Ast.OpAssignOp(Ast.OpAdd) when (is_string_expr e1 || is_string_expr e2) ->
 			gen_value_op ctx e1;
 			spr ctx " .= ";
-			if is_uncertain_expr e2 then begin
-				spr ctx "php_Boot::__string(";
-				gen_value_op ctx e2;
-				spr ctx ")";
-			end else
-				gen_value_op ctx e2;
+			gen_value_op ctx e2;
 		| Ast.OpAdd when (is_string_expr e1 || is_string_expr e2) ->
-			if is_uncertain_expr e1 then begin
-				spr ctx "php_Boot::__string(";
-				gen_value_op ctx e1;
-				spr ctx ")";
-			end else
-				gen_value_op ctx e1;
+			gen_value_op ctx e1;
 			spr ctx " . ";
-			if is_uncertain_expr e2 then begin
-				spr ctx "php_Boot::__string(";
-				gen_value_op ctx e2;
-				spr ctx ")";
-			end else
-				gen_value_op ctx e2;
+			gen_value_op ctx e2;
 		| Ast.OpAssignOp(Ast.OpShl) ->
 			gen_value_op ctx e1;
 			spr ctx " <<= ";
@@ -1734,7 +1720,7 @@ let rec super_has_dynamic c =
 	| Some (csup, _) -> (match csup.cl_dynamic with
 		| Some _ -> true
 		| _ -> super_has_dynamic csup)
-
+		
 let generate_class ctx c =
 	let requires_constructor = ref true in
 	ctx.curclass <- c;
@@ -1755,7 +1741,7 @@ let generate_class ctx c =
 		concat ctx ", " (fun (i,_) ->
 		print ctx "%s" (s_path ctx i.cl_path i.cl_extern c.cl_pos)) l);
 	spr ctx "{";
-
+	
 	let get_dynamic_methods = List.filter is_dynamic_method c.cl_ordered_fields in
 
 	if not ctx.curclass.cl_interface then ctx.dynamic_methods <- get_dynamic_methods;
@@ -1794,6 +1780,12 @@ let generate_class ctx c =
 
 	cl();
 	newline ctx;
+	
+	if PMap.exists "toString" c.cl_fields then begin
+			print ctx "\tfunction __toString() { return $this->toString(); }";
+			newline ctx;
+	end;
+	
 	print ctx "}"
 
 let createmain com c =

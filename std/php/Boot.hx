@@ -21,7 +21,6 @@ class Boot {
 	static public function __closure(locals : ArrayAccess<Dynamic>, params : String, body : String) : String {
 		var cid = __cid++;
 		var n = "__closure__"+cid+"__";
-//		if(locals == null) locals = [];
 		untyped __php__("php_Boot::$__scopes[$n] = array('scope' => null, 'locals' => $locals)");
 		var f : String = untyped __call__(
 			"create_function",
@@ -414,7 +413,17 @@ class Anonymous extends stdClass{
 	}
 
 	public function __toString() {
-		return php_Boot::__string_rec($this, '');
+		$rfl = new ReflectionObject($this);
+		$b = '{ ';
+		$properties = $rfl->getProperties();
+		foreach($properties as $prop) {
+			$f = $prop->getName();
+			if(strlen($b) > 2)
+				$b .= ', ';
+			$b .= $f . ' => ' . $prop->getValue($this);
+		}
+		$b .= ' }';
+		return $b;
 	}
 }
 
@@ -611,39 +620,6 @@ function __haxe_autoload($name) {
 	return true;
 }
 spl_autoload_register('__haxe_autoload')");
-	}
-
-	static public function __string(o : Dynamic) {
-		if( o == null )
-			return "null";
-		if(untyped __call__("is_int", o) || __call__("is_float", o))
-			return o;
-		if(untyped __call__("is_bool", o))
-			return o ? "true" : "false";
-		if(untyped __call__("is_object", o)) {
-			var c = untyped __call__("get_class", o);
-			if(untyped __php__("$o instanceof Anonymous")) {
-				return "Object";
-			} else if(untyped __php__("$o instanceof __type__")) {
-				return untyped __qtype(o.__qname__);
-			} else {
-				if(untyped __call__("is_callable", [o, "__toString"]))
-					return o.__toString();
-				else
-					return "[" + __ttype(c) + "]";
-			}
-		}
-
-		if(untyped __call__("is_string", o)) {
-			if(__is_lambda(o)) return "«function»";
-			return o;
-		}
-		if(untyped __call__("is_array", o)) {
-			if(untyped __call__("is_callable", o)) return "«function»";
-			return "Array";
-		}
-
-		return '';
 	}
 
 	static public function __string_rec(o : Dynamic, s : String) {

@@ -35,6 +35,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	fixed blocks in if statements for haXe/PHP
 	added php check on the full hierarchy for colliding names
 	added support for "g" modifier in EReg for PHP
+	PHP now generates __toString for classes that have toString defined
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type
