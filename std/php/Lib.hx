@@ -69,4 +69,25 @@ class Lib {
 		throw e;
 	}
 
+	static function appendType(o : Dynamic, path : Array<String>, t : Dynamic) {
+		var name = path.shift();
+		if(path.length == 0)
+			untyped __php__("$o->$name = $t");
+		else {
+			var so = {};
+			appendType(so, path, t);
+			untyped __php__("$o->$name = $so");
+		}
+	}
+
+	public static function getClasses() {
+		var path : String = null;
+		var o = {};
+		untyped __call__('reset', php.Boot.__qtypes);
+		while((path = untyped __call__('key', php.Boot.__qtypes)) != null) {
+			appendType(o, path.split('.'), untyped php.Boot.__qtypes[path]);
+			untyped __call__('next', php.Boot.__qtypes);
+		}
+		return o;
+	}
 }
