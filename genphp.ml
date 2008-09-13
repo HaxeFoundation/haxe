@@ -467,6 +467,9 @@ let gen_function_header ctx name f params p =
 		ctx.local_types <- old_t;
 	)
 
+let s_escape_php_vars ctx code =
+	String.concat ((escphp ctx.quotes) ^ "$") (ExtString.String.nsplit code "$")
+	
 let rec gen_call ctx e el =
 	match e.eexpr , el with
 	| TConst TSuper , params ->
@@ -517,7 +520,7 @@ let rec gen_call ctx e el =
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")";
 	| TLocal "__php__", [{ eexpr = TConst (TString code) }] ->
-		spr ctx code
+		spr ctx (s_escape_php_vars ctx code)
 	| TLocal "__physeq__" ,  [e1;e2] ->
 		gen_value ctx e1;
 		spr ctx " === ";

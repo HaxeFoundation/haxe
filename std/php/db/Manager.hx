@@ -67,6 +67,7 @@ class Manager<T : Object> {
 		apriv.push("__cache__");
 		apriv.push("__noupdate__");
 		apriv.push("__manager__");
+		apriv.push("update");
 
 		// get the proto fields not marked private (excluding methods)
 		table_fields = new List();
