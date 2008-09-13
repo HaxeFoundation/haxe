@@ -302,7 +302,7 @@ let rec has_rtti c =
 
 let on_generate ctx t =
 	match t with
-	| TClassDecl c when has_rtti c ->
+	| TClassDecl c when has_rtti c && not (PMap.mem "__rtti" c.cl_statics) ->
 		let f = mk_field "__rtti" ctx.api.tstring in
 		let str = Genxml.gen_type_string ctx.com t in
 		f.cf_expr <- Some (mk (TConst (TString str)) f.cf_type c.cl_pos);
