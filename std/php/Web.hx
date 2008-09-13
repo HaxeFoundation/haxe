@@ -62,8 +62,9 @@ class Web {
 	/**
 		Returns the original request URL (before any server internal redirections)
 	**/
-	public static inline function getURI() : String {
-		return untyped __var__('_SERVER', 'REQUEST_URI');
+	public static function getURI() : String {
+		var s : String = untyped __php__("$_SERVER['REQUEST_URI']");
+		return s.split("?")[0];
 	}
 
 	/**
