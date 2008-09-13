@@ -73,7 +73,14 @@ class Manager<T : Object> {
 		table_fields = new List();
 		var stub = Type.createEmptyInstance(cls);
 
-		for( f in Type.getInstanceFields(cls) ) {
+		var instance_fields = Type.getInstanceFields(cls);
+		var scls = Type.getSuperClass(cls);
+		if(scls != null) {
+			for(remove in Type.getInstanceFields(scls))
+				instance_fields.remove(remove);
+		}
+
+		for( f in instance_fields ) {
 			var isfield = !Reflect.isFunction(Reflect.field(stub,f));
 			if( isfield )
 				for( f2 in apriv ) {
