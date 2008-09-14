@@ -23,7 +23,6 @@
  * DAMAGE.
  */
 package haxe;
-import Type.Enum;
 
 typedef TypeResolver = {
 	function resolveClass( name : String ) : Class<Dynamic>;

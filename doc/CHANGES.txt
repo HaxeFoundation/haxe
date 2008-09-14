@@ -38,6 +38,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	PHP now generates __toString for classes that have toString defined
 	implemented php.Lib.getClasses()
 	fixed duplicate fields in Type.getInstanceFields on subclass
+	Enum is no longer defined inside Type but is standalone class
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type

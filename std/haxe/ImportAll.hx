@@ -29,6 +29,7 @@ import Array;
 import Class;
 import Date;
 import DateTools;
+import Enum;
 import EReg;
 import Hash;
 import IntHash;
