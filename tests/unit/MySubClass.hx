@@ -6,4 +6,6 @@ class MySubClass extends MyClass {
 		return val * 2;
 	}
 
+	static var XXX = 3;
+
 }

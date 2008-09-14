@@ -175,6 +175,7 @@ class Test #if swf_mark implements mt.Protect #end {
 			new TestMisc(),
 			new TestResource(),
 			new TestEReg(),
+			new TestType(),
 //			new TestRemoting(),
 		];
 		var current = null;

@@ -6,11 +6,11 @@
 -resource res1.txt
 -resource res2.bin
 
---next
--as3 as3
--cp ..
--main unit.Test
--cmd mxmlc -output unit9_as3.swf as3/__main__.as</output>
+#--next
+#-as3 as3
+#-cp ..
+#-main unit.Test
+#-cmd mxmlc -output unit9_as3.swf as3/__main__.as</output>
   <output name="JS" mode="js" out="unit.js" class="unit.Test" lib="" cmd="" main="False" debug="False">-cp ..
 -resource res1.txt
 -resource res2.bin</output>
@@ -39,5 +39,6 @@
     <file path="TestRemoting.hx" />
     <file path="TestResource.hx" />
     <file path="TestSerialize.hx" />
+    <file path="TestType.hx" />
   </files>
 </haxe>

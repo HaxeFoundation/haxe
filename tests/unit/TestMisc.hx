@@ -7,6 +7,8 @@ class TestMisc extends Test {
 		unspec(function() String.fromCharCode(0));
 		unspec(function() String.fromCharCode(-1));
 		unspec(function() String.fromCharCode(256));
+		eq( null + "x" , "nullx" );
+		eq( "x" + null, "xnull" );
 	}
 
 	function testClosure() {
@@ -29,15 +31,15 @@ class TestMisc extends Test {
 		// depending of ISO/UTF8 native
 		allow( haxe.Md5.encode("héllo"), ["1a722f7e6c801d9e470a10cb91ba406d","be50e8478cf24ff3595bc7307fb91b50"] );
 	}
-	
+
 	function opt1( ?x : Int, ?y : String ) {
 		return { x : x, y : y };
 	}
-	
+
 	function opt2( ?x = 5, ?y = "hello" ) {
 		return { x : x, y : y };
 	}
-	
+
 	function testOptionalParams() {
 		eq( opt1().x, null );
 		eq( opt1().y, null );
@@ -47,7 +49,7 @@ class TestMisc extends Test {
 		eq( opt1("str").y, "str" );
 		eq( opt1(66,"hello").x, 66 );
 		eq( opt1(66,"hello").y, "hello" );
-		
+
 		eq( opt2().x, 5 );
 		eq( opt2().y, "hello" );
 	}
