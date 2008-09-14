@@ -427,17 +427,23 @@ class Type {
 			return untyped __php__("array_values(array_unique($r))");
 		#else
 			var a = Reflect.fields(untyped c.prototype);
-			c = untyped c.__super__;
-			while( c != null ) {
-				a = a.concat(Reflect.fields(untyped c.prototype));
+			#if js
+				a.remove("__class__");
+			#else
 				c = untyped c.__super__;
-			}
-			while( a.remove(__unprotect__("__class__")) ) {
+				while( c != null ) {
+					for( f in Reflect.fields(untyped c.prototype) ) {
+						a.remove(f);
+						a.push(f);
+					}
+					c = untyped c.__super__;
+				}
+				a.remove("__class__");
 				#if neko
 				a.remove("__serialize");
 				a.remove("__string");
 				#end
-			}
+			#end
 			return a;
 		#end
 	}
