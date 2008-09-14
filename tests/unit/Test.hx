@@ -166,6 +166,7 @@ class Test #if swf_mark implements mt.Protect #end {
 		tf.selectable = true;
 		#end
 		var classes = [
+			new TestBasetypes(),
 			new TestReflect(),
 			new TestBytes(),
 			new TestInt32(),

@@ -2,15 +2,6 @@
 
 class TestMisc extends Test {
 
-	function testString() {
-		eq( String.fromCharCode(77), "M" );
-		unspec(function() String.fromCharCode(0));
-		unspec(function() String.fromCharCode(-1));
-		unspec(function() String.fromCharCode(256));
-		eq( null + "x" , "nullx" );
-		eq( "x" + null, "xnull" );
-	}
-
 	function testClosure() {
 		var c = new MyClass(100);
 		var add = c.add;
@@ -23,6 +14,15 @@ class TestMisc extends Test {
 		eq( f(), 4 );
 		x++;
 		eq( f(), 5 );
+
+		var o = { f : f };
+		eq( o.f(), 5 );
+
+		var o = { add : c.add };
+		eq( o.add(1,2), 103 );
+
+		var o = { cos : Math.cos };
+		eq( o.cos(0), 1. );
 	}
 
 	function testMD5() {
