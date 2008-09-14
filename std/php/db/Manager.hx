@@ -436,6 +436,10 @@ class Manager<T : Object> {
 		return l2;
 	}
 
+	public function dbClass() : Class<Dynamic> {
+		return cls;
+	}
+
 	/* --------------------------- INIT / CLEANUP ------------------------- */
 
 	/**

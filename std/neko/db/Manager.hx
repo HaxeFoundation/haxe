@@ -412,6 +412,10 @@ class Manager<T : Object> {
 		return l2;
 	}
 
+	public function dbClass() : Class<Dynamic> {
+		return cast class_proto;
+	}
+
 	/* --------------------------- INIT / CLEANUP ------------------------- */
 
 	public static function initialize() {
