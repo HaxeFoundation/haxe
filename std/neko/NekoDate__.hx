@@ -63,8 +63,7 @@ class NekoDate__ //implements Date
 	}
 
 	public function getDay() : Int {
-		var d = Std.parseInt( new String(date_format(__t,untyped "%u".__s)) );
-		return if( d == 7 ) 0 else d;
+		return Std.parseInt( new String(date_format(__t,untyped "%w".__s)) );
 	}
 
 	public function toString():String {

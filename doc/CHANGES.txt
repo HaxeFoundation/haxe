@@ -39,6 +39,7 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	implemented php.Lib.getClasses()
 	fixed duplicate fields in Type.getInstanceFields on subclass
 	Enum is no longer defined inside Type but is standalone class
+	fixed Date.getDay on Neko/Windows (use %w instead of %u)
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type
