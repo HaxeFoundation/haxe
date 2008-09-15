@@ -148,6 +148,14 @@ class Module {
 	}
 
 	/**
+		Reads a module from Bytes using the given Loader.
+		The module is initialized but has not yet been executed.
+	**/
+	public static function readBytes( b : haxe.io.Bytes, loader : Loader ) : Module {
+		return new Module(_module_read_string(b.getData(),loader.l));
+	}
+
+	/**
 		Reads a module from a name and using the specified seach path and loader.
 		The module is initialized but has not yet been executed.
 	**/
@@ -174,5 +182,6 @@ class Module {
 	static var _module_nglobals = neko.Lib.load("std","module_nglobals",1);
 	static var _module_global_get = neko.Lib.load("std","module_global_get",2);
 	static var _module_global_set = neko.Lib.load("std","module_global_set",3);
+	static var _module_read_string = neko.Lib.loadLazy("std","module_read_string",2);
 
 }
