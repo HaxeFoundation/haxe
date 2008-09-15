@@ -406,7 +406,7 @@ let s_funarg ctx arg t p c =
 			print ctx "%s%s$%s" byref (escphp ctx.quotes) arg;
 		| _ ->
 			if cl.cl_kind = KNormal && not cl.cl_extern then
-				print ctx "/*%s*/ %s%s$%s" (s_path ctx cl.cl_path cl.cl_extern p) byref (escphp ctx.quotes) arg
+				print ctx "%s%s$%s" byref (escphp ctx.quotes) arg
 			else begin
 				print ctx "%s%s$%s" byref (escphp ctx.quotes) arg;
 			end)
@@ -913,14 +913,18 @@ and gen_inline_function ctx f params p =
 		print ctx "%s\"%s%s\" => &%s$%s" pq n pq pq n;
 	) old_li;
 
-	print ctx "), %s\"" pq;
-	ctx.quotes <- ctx.quotes + 1;
+	print ctx "), null, array(";
+(*	ctx.quotes <- ctx.quotes + 1; *)
 	concat ctx "," (fun (arg,o,t) ->
 		let arg = define_local ctx arg in
+		print ctx "'%s'" arg;
+	(*
+		let arg = define_local ctx arg in
 		s_funarg ctx arg t p o;
+		*)
 	) f.tf_args;
-	ctx.quotes <- ctx.quotes - 1;
-	print ctx "%s\", %s\"" pq pq;
+(*	ctx.quotes <- ctx.quotes - 1; *)
+	print ctx "), %s\"" pq;
 	ctx.quotes <- ctx.quotes + 1;
 	gen_expr ctx (fun_block ctx f p);
 	ctx.quotes <- ctx.quotes - 1;
@@ -965,6 +969,13 @@ and gen_expr ctx e =
 		| TFun (args,_) -> print ctx "%s::%s" (s_path ctx en.e_path en.e_extern e.epos) (s_ident s)
 		| _ -> print ctx "%s::%s$%s" (s_path ctx en.e_path en.e_extern e.epos) (escphp ctx.quotes) (s_ident s))
 	| TArray (e1,e2) ->
+		(*
+		spr ctx "php_Boot::__byref__array_get(";
+		gen_value ctx e1;
+		spr ctx ", ";
+		gen_value ctx e2;
+		spr ctx ")";
+		*)
 		(match e1.eexpr with
 		| TCall _ ->
 			spr ctx "php_Boot::__byref__array_get(";
@@ -1201,15 +1212,19 @@ and gen_expr ctx e =
 				let name = f.cf_name in
 				match f.cf_expr with
 				| Some { eexpr = TFunction fd } ->
-					print ctx "$this->%s = php_Boot::__closure(array(\"__this\" => &$this), \"" name;
-					ctx.quotes <- ctx.quotes + 1;
+					print ctx "$this->%s = php_Boot::__closure(array(), $this, array(" name;
+(*					ctx.quotes <- ctx.quotes + 1; *)
 					concat ctx "," (fun (arg,o,t) ->
+						let arg = define_local ctx arg in
+						print ctx "'%s'" arg;
+					(*
 					let arg = define_local ctx arg in
 					  s_funarg ctx arg t e.epos o;
+					  *)
 					) fd.tf_args;
-					ctx.quotes <- ctx.quotes - 1;
+(*					ctx.quotes <- ctx.quotes - 1; *)
 
-					print ctx "\", \"";
+					print ctx "), \"";
 					let old = ctx.in_value in
 					ctx.in_value <- Some name;
 					ctx.quotes <- ctx.quotes + 1;

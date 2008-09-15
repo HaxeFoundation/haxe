@@ -209,82 +209,92 @@ class PhpXml__ {
 
 	public function iterator() : Iterator<PhpXml__> {
 		if( _children == null ) throw "bad nodetype";
-		return untyped {
+		var me = this;
+		var it = null;
+		it = untyped {
 			cur: 0,
-			x: this._children,
+			x: me._children,
 			hasNext : function(){
-				return this.cur < __call__("count", this.x);
+				return it.cur < __call__("count", it.x);
 			},
 			next : function(){
-				return this.x[this.cur++];
+				return it.x[it.cur++];
 			}
 		}
+		return cast it;
 	}
 
-	public function elements(){
+	public function elements() : Iterator<PhpXml__> {
 		if( _children == null ) throw "bad nodetype";
-		return untyped {
+		var me = this;
+		var it = null;
+		it =  untyped {
 			cur: 0,
-			x: this._children,
+			x: me._children,
 			hasNext : function() {
-				var k = this.cur;
-				var l = __call__("count", this.x);
+				var k = it.cur;
+				var l = __call__("count", it.x);
 				while( k < l ) {
 
-					if( this.x[k].nodeType == Xml.Element )
-						untyped __php__("break");
+					if( it.x[k].nodeType == Xml.Element )
+						__php__("break");
 					k += 1;
 				}
-				this.cur = k;
+				it.cur = k;
 				return k < l;
 			},
 			next : function() {
-				var k = this.cur;
-				var l = __call__("count", this.x);
+				var k = it.cur;
+				var l = __call__("count", it.x);
 				while( k < l ) {
-					var n = this.x[k];
+					var n = it.x[k];
 					k += 1;
 					if( n.nodeType == Xml.Element ) {
-						this.cur = k;
+						it.cur = k;
 						return n;
 					}
 				}
 				return null;
 			}
 		}
+		return cast it;
 	}
 
-	public function elementsNamed( name : String ) {
+	public function elementsNamed( name : String ) : Iterator<PhpXml__> {
 		if( _children == null ) throw "bad nodetype";
-		return untyped {
+
+		var me = this;
+		var it = null;
+		it =  untyped {
 			cur: 0,
-			x: this._children,
+			x: me._children,
 			hasNext : function() {
-				var k = this.cur;
-				var l = __call__("count", this.x);
+				var k = it.cur;
+				var l = __call__("count", it.x);
 				while( k < l ) {
-					var n = this.x[k];
+					var n = it.x[k];
 					if( n.nodeType == Xml.Element && n._nodeName == name )
-						untyped __php__("break");
+						__php__("break");
 					k++;
 				}
-				this.cur = k;
+				it.cur = k;
 				return k < l;
 			},
 			next : function() {
-				var k = this.cur;
-				var l = __call__("count", this.x);
+				var k = it.cur;
+				var l = __call__("count", it.x);
 				while( k < l ) {
-					var n = this.x[k];
+					var n = it.x[k];
 					k++;
 					if( n.nodeType == Xml.Element && n._nodeName == name ) {
-						this.cur = k;
+						it.cur = k;
 						return n;
 					}
 				}
 				return null;
 			}
 		}
+		return cast it;
 	}
 
 	public function firstChild() : PhpXml__ {

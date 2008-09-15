@@ -350,10 +350,7 @@ class Reflect {
 		#elseif flash
 			return function() { return f(untyped __arguments__); };
 		#elseif php
-			return function() {
-				var args = untyped __call__("func_get_args");
-				return f(args);
-			};
+			untyped __php__("return array(new _lambda(array('f' => &$f), null, array('args'), 'return call_user_func_array($f, array($args));'), 'makeArgs')");
 		#else
 			return null;
 		#end

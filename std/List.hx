@@ -84,7 +84,7 @@ class List<T> {
 		#if php
 		untyped __php__("$this->h =& $x");
 		if( q == null )
-			untyped __php__("$this->q =& $x");		
+			untyped __php__("$this->q =& $x");
 		#else
 		h = x;
 		if( q == null )
@@ -163,7 +163,7 @@ class List<T> {
 			}
 			untyped __php__("$prev =& $l");
 			untyped __php__("$l =& $l[1]");
-		}		
+		}
 		#else
 		var l = h;
 		while( l != null ) {
@@ -188,6 +188,23 @@ class List<T> {
 		Returns an iterator on the elements of the list.
 	**/
 	public function iterator() : Iterator<T> {
+#if php
+		var it = null;
+		it = untyped {
+			h : h,
+			hasNext : function() {
+				return it.h != null;
+			},
+			next : function() {
+				if( it.h == null )
+					return null;
+				var x = it.h[0];
+				it.h = it.h[1];
+				return x;
+			}
+		};
+		return cast it;
+#else
 		return cast {
 			h : h,
 			hasNext : function() {
@@ -203,6 +220,7 @@ class List<T> {
 				}
 			}
 		}
+#end
 	}
 
 	/**

@@ -40,7 +40,8 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	fixed duplicate fields in Type.getInstanceFields on subclass
 	Enum is no longer defined inside Type but is standalone class
 	fixed Date.getDay on Neko/Windows (use %w instead of %u)
-
+	fixed memory leak with PHP closures
+	fixed wrong scope in closures
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type
 	delayed type-parameter constraints check (allow mutual rec extends for SPOD)

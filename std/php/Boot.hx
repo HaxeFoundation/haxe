@@ -8,32 +8,22 @@ class Boot {
 
 	static public function __anonymous(?p : Dynamic) : Dynamic {
 		untyped __php__("$o = new Anonymous();
-		if(is_array($p)) {
-			foreach($p as $k => $v) {
+		if(is_array($p))
+			foreach($p as $k => $v)
 				$o->$k = $v;
-			}
-		}
 		return $o");
 	}
 
 	static private var __cid = 0;
-	static public var __scopes = [];
-	static public function __closure(locals : ArrayAccess<Dynamic>, params : String, body : String) : String {
-		var cid = __cid++;
-		var n = "__closure__"+cid+"__";
-		untyped __php__("php_Boot::$__scopes[$n] = array('scope' => null, 'locals' => $locals)");
-		var f : String = untyped __call__(
-			"create_function",
-			params,
-			"$__this =& php_Boot::$__scopes['"+n+"']['scope'];\nforeach(array_keys(php_Boot::$__scopes['"+n+"']['locals']) as ${'%k'}) ${${'%k'}} =& php_Boot::$__scopes['"+n+"']['locals'][${'%k'}];\n"+body);
-		var nl = "__"+f.substr(1)+"__";
-		untyped __php__("php_Boot::$__scopes[$nl] =& php_Boot::$__scopes[$n]");
-		return f;
+
+	static public function __closure(locals : ArrayAccess<Dynamic>, scope : Dynamic, params : Dynamic, body : String) : Void {
+		untyped __php__("return array(new _lambda($locals, $scope, $params, $body), 'execute'.count($params))");
 	}
 
-	static public function __is_lambda(s : String) : Bool {
-		return untyped __call__("is_string", s) && s.substr(0, 8) == __call__("chr", 0) + "lambda_";
+	static public function __is_lambda(s : Dynamic) : Bool {
+		return untyped (__call__("is_string", s) && s.substr(0, 8) == __call__("chr", 0) + "lambda_") || (__call__("is_array", s) && __call__("count", s) > 0 && __call__("is_a", s[0], "php_Lambda"));
 	}
+
 
 	static public function __array() : Dynamic {
 		return untyped __call__("func_get_args");
@@ -237,15 +227,24 @@ class Boot {
 					return php.Boot.__len(o);
 				else {
 					switch(field) {
-						case 'charAt':      return php.Boot.__closure(__php__("array('o' => $o)"), '$index', 'return substr($o, $index,1 );');
-						case 'charCodeAt':  return php.Boot.__closure(__php__("array('o' => $o)"), '$index', 'return ord(substr($o, $index, 1));');
-						case 'indexOf':     return php.Boot.__closure(__php__("array('o' => $o)"), '$value,$startIndex', 'return php_Boot::__index_of($o, $value, $startIndex);');
-						case 'lastIndexOf': return php.Boot.__closure(__php__("array('o' => $o)"), '$value,$startIndex', 'return php_Boot::__last_index_of($o, $value, $startIndex);');
-						case 'split':       return php.Boot.__closure(__php__("array('o' => $o)"), '$delimiter', 'return explode($delimiter, $o);');
-						case 'substr':      return php.Boot.__closure(__php__("array('o' => $o)"), '$pos,$len', 'return php_Boot::__substr($o, $pos, $len);');
-						case 'toUpperCase': return php.Boot.__closure(__php__("array('o' => $o)"), '', 'return strtoupper($o);');
-						case 'toLowerCase': return php.Boot.__closure(__php__("array('o' => $o)"), '', 'return strtolower($o);');
-						case 'toString':    return php.Boot.__closure(__php__("array('o' => $o)"), '', 'return $o;');
+						case 'charAt':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array('index'), 'return substr($o,$index,1);')");
+						case 'charCodeAt':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array('index'), 'return ord(substr($o, $index, 1));')");
+						case 'indexOf':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array('value','startIndex'), 'return php_Boot::__index_of($o, $value, $startIndex);')");
+						case 'lastIndexOf':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array('value','startIndex'), 'return php_Boot::__last_index_of($o, $value, $startIndex);')");
+						case 'split':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array('delimiter'), 'return explode($delimiter, $o);')");
+						case 'substr':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array('pos','len'), 'return php_Boot::__substr($o, $pos, $len);')");
+						case 'toUpperCase':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return strtoupper($o);')");
+						case 'toLowerCase':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return strtolower($o);')");
+						case 'toString':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return $o;')");
 					}
 					return null;
 				}
@@ -254,21 +253,36 @@ class Boot {
 					return php.Boot.__len(o);
 				else
 					switch(field) {
-						case 'concat':   return php.Boot.__closure(__php__("array('o' => &$o)"), '$a', 'return array_merge($o, $a);');
-						case 'join':     return php.Boot.__closure(__php__("array('o' => &$o)"), '$sep', 'return join($sep, $o);');
-						case 'pop':      return php.Boot.__closure(__php__("array('o' => &$o)"), '', 'return array_pop($o);');
-						case 'push':     return php.Boot.__closure(__php__("array('o' => &$o)"), '$x', 'return array_push($o, $x);');
-						case 'reverse':  return php.Boot.__closure(__php__("array('o' => &$o)"), '', 'return rsort($o);');
-						case 'shift':    return php.Boot.__closure(__php__("array('o' => &$o)"), '', 'return array_shift($o);');
-						case 'slice':    return php.Boot.__closure(__php__("array('o' => &$o)"), '$pos,$end', 'return php_Boot::__array_slice(array(&$o), $pos, $end);');
-						case 'sort':     return php.Boot.__closure(__php__("array('o' => &$o)"), '$f', 'return php_Boot::__array_sort($o, $f);');
-						case 'splice':   return php.Boot.__closure(__php__("array('o' => &$o)"), '$pos,$len', 'return php_Boot::__array_splice(array(&$o), $pos, $len);');
-						case 'toString': return php.Boot.__closure(__php__("array('o' => &$o)"), '', 'return "[".join(", ", $o)."]";');
-						case 'unshift':  return php.Boot.__closure(__php__("array('o' => &$o)"), '$x', 'return array_unshift($o, $x);');
-						case 'insert':   return php.Boot.__closure(__php__("array('o' => &$o)"), '$pos,$x', 'return php_Boot::__array_insert(array(&$o), $pos, $x);');
-						case 'remove':   return php.Boot.__closure(__php__("array('o' => &$o)"), '$x', 'return php_Boot::__array_remove(array(&$o), $x);');
-						case 'iterator': return php.Boot.__closure(__php__("array('o' => &$o)"), '', 'return new HArrayIterator($o);');
-						case 'copy':     return php.Boot.__closure(__php__("array('o' => $o)"), '', 'return $o;');
+						case 'concat':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array('a'), 'return array_merge($o, $a);')");
+						case 'join':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array('sep'), 'return join($sep,$o);')");
+						case 'pop':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return array_pop($o);')");
+						case 'push':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array('x'), 'return array_push($o,$x);')");
+						case 'reverse':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return  rsort($o);')");
+						case 'shift':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return array_shift($o);')");
+						case 'slice':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array('pos','end'), 'return php_Boot::__array_slice(array(&$o), $pos, $end);')");
+						case 'sort':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array('f'), 'return php_Boot::__array_sort($o,$f);')");
+						case 'splice':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array('pos','len'), 'return php_Boot::__array_splice(array(&$o), $pos, $len);')");
+						case 'toString':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return \"[\".join(\", \", $o).\"]\";')");
+						case 'unshift':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array('x'), 'return array_unshift($o,$x);')");
+						case 'insert':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array('pos','x'), 'return php_Boot::__array_insert(array(&$o), $pos, $x);')");
+						case 'remove':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array('x'), 'return php_Boot::__array_remove(array(&$o), $x);')");
+						case 'iterator':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return new HArrayIterator($o);')");
+						case 'copy':
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return $o;')");
 					}
 				return null;
 			} else if(__php__("property_exists($o, $field)")) {
@@ -317,7 +331,9 @@ class Boot {
 	}
 
 	static public function __byref__array_get(byref__o : Dynamic, index : Dynamic) {
-		return untyped byref__o[index];
+		var r = null;
+		untyped __php__("if(isset($byref__o[$index])) $r =& $byref__o[$index]");
+		return r;
 	}
 
 	static private var __resources = [];
@@ -382,11 +398,23 @@ set_exception_handler(array('php_Boot', '__exception_handler'));
 class Anonymous extends stdClass{
 	public function __call($m, $a) {
 		$v = $this->$m;
+/*
+		if(is_array($v) && is_a($v[0], '_lambda') && $v[0]->scope == null) {
+			$v[0]->scope =& $this;
+		}
+*/
+		/*
 		if(is_string($v) && substr($v, 0, 8) == chr(0).'lambda_') {
 			$nl = '__'.substr($v, 1).'__';
 			php_Boot::$__scopes[$nl]['scope'] =& $this;
 		}
+		*/
 		try {
+			/*
+			if(is_array($v) && is_a($v[0], '_lambda') && is_callable($v)) {
+				return call_user_func_array($v[1], $a);
+			}
+			*/
 			return call_user_func_array($v, $a);
 		} catch(Exception $e) {
 			throw new HException('Unable to call «'.$m.'»');
@@ -516,6 +544,81 @@ class HException extends Exception {
 	}
 	public function setFile($f) {
 		$this->file = $f;
+	}
+}
+
+class _lambda {
+	public function __construct($locals, $scope, $args, $body) {
+		$this->locals = $locals;
+		$this->scope = $scope;
+		$this->args = $args;
+		$this->body = $body;
+	}
+	public $locals;
+	public $scope;
+	public $args;
+	public $body;
+
+	public $params = array();
+	public function execute() {
+		$__this =& $this->scope;
+		foreach(array_keys($this->locals) as ${'%k'})
+			${${'%k'}} =& $this->locals[${'%k'}];
+		for(${'%i'} = 0; ${'%i'} < count($this->args); ${'%i'}++)
+			${$this->args[${'%i'}]} =& $this->params[${'%i'}];
+		return eval($this->body);
+	}
+
+	public function makeArgs() {
+		$this->params = array(func_get_args());
+		return $this->execute();
+	}
+
+	public function execute0() {
+		$this->params = array();
+		return $this->execute();
+	}
+
+	public function execute1(&$_1) {
+		if($this->scope == null) $this->scope= &$_1;
+		$this->params = array(&$_1);
+		return $this->execute();
+	}
+
+	public function execute2(&$_1, &$_2) {
+		if($this->scope == null) $this->scope= &$_1;
+		$this->params = array(&$_1, &$_2);
+		return $this->execute();
+	}
+
+	public function execute3(&$_1, &$_2, &$_3) {
+		if($this->scope == null) $this->scope= &$_1;
+		$this->params = array(&$_1, &$_2, &$_3);
+		return $this->execute();
+	}
+
+	public function execute4(&$_1, &$_2, &$_3, &$_4) {
+		if($this->scope == null) $this->scope= &$_1;
+		$this->params = array(&$_1, &$_2, &$_3, &$_4);
+		return $this->execute();
+	}
+
+	public function execute5(&$_1, &$_2, &$_3, &$_4, &$_5) {
+		if($this->scope == null) $this->scope= &$_1;
+		$this->params = array(&$_1, &$_2, &$_3, &$_4, &$_5);
+		return $this->execute();
+	}
+
+	public function execute6(&$_1, &$_2, &$_3, &$_4, &$_5, &$_6) {
+		if($this->scope == null) $this->scope= &$_1;
+		$this->params = array(&$_1, &$_2, &$_3, &$_4, &$_5, &$_6);
+		return $this->execute();
+	}
+
+	public function execute7(&$_1, &$_2, &$_3, &$_4, &$_5, &$_6, &$_7) {
+		if($this->scope == null) $this->scope= &$_1;
+		$this->params = array(&$_1, &$_2, &$_3, &$_4, &$_5, &$_6, &$_7);
+		return $this->execute();
 	}
 }
 
