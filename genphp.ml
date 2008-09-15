@@ -764,7 +764,7 @@ and gen_array_call ctx s e el =
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")"
 	| "iterator" ->
-		spr ctx "new HArrayIterator(";
+		spr ctx "new _hx_array_iterator(";
 		gen_value ctx e;
 		spr ctx ")"
 	| _ ->
@@ -1841,7 +1841,7 @@ let generate_enum ctx e =
 	let pack = open_block ctx in
 	let ename = s_path ctx e.e_path e.e_extern e.e_pos in
 
-	print ctx "class %s extends enum {" ename;
+	print ctx "class %s extends Enum {" ename;
 	let cl = open_block ctx in
 	PMap.iter (fun _ c ->
 		newline ctx;

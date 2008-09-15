@@ -17,7 +17,7 @@ class Boot {
 	static private var __cid = 0;
 
 	static public function __closure(locals : ArrayAccess<Dynamic>, scope : Dynamic, params : Dynamic, body : String) : Void {
-		untyped __php__("return array(new _lambda($locals, $scope, $params, $body), 'execute'.count($params))");
+		untyped __php__("return array(new _hx_lambda($locals, $scope, $params, $body), 'execute'.count($params))");
 	}
 
 	static public function __is_lambda(s : Dynamic) : Bool {
@@ -42,7 +42,7 @@ class Boot {
 	}
 
 	static public function __array_iterator<T>(arr : Dynamic) : Iterator<T> {
-		return untyped __php__("new HArrayIterator($arr)");
+		return untyped __php__("new _hx_array_iterator($arr)");
 	}
 
 	static public function __array_sort<T>(arr : Array<T>, f : T -> T -> Int) : Void {
@@ -159,9 +159,9 @@ class Boot {
 			case "Dynamic":
 				return true;
 			case "Class":
-				return untyped __php__("$v instanceof __classtype__") && __php__("$v->__tname__ != 'Enum'");
+				return untyped __php__("$v instanceof _hx_class") && __php__("$v->__tname__ != 'Enum'");
 			case "Enum":
-				return untyped __php__("$v instanceof __enumtype__");
+				return untyped __php__("$v instanceof _hx_enum");
 			default:
 				return untyped __call__("is_a", v, t.__tname__);
 		}
@@ -216,7 +216,7 @@ class Boot {
 
 	static public function __field( o : Dynamic, field : String) : Dynamic untyped {
 		if(__has_field(o, field)) {
-			if(__php__("$o instanceof __type__")) {
+			if(__php__("$o instanceof _hx_type")) {
 				if(__php__("is_callable(array($o->__tname__, $field))")) {
 					return __php__("array($o->__tname__, $field)");
 				} else {
@@ -280,7 +280,7 @@ class Boot {
 						case 'remove':
 							__php__("return php_Boot::__closure(array('o' => &$o), null, array('x'), 'return php_Boot::__array_remove(array(&$o), $x);')");
 						case 'iterator':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return new HArrayIterator($o);')");
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return new _hx_array_iterator($o);')");
 						case 'copy':
 							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return $o;')");
 					}
@@ -437,7 +437,7 @@ class _hx_anonymous extends stdClass {
 	}
 }
 
-class __type__ {
+class _hx_type {
 	public $__tname__;
 	public $__qname__;
 	public $__path__;
@@ -488,13 +488,13 @@ class __type__ {
 	}
 }
 
-class __classtype__ extends __type__ { }
+class _hx_class extends _hx_type {}
 
-class __enumtype__ extends __type__ {}
+class _hx_enum extends _hx_type {}
 
-class __interfacetype__ extends __type__ { }
+class _hx_interface extends _hx_type { }
 
-class HArrayIterator {
+class _hx_array_iterator {
 	private $a;
 	private $i;
 	public function __construct($a) {
@@ -529,7 +529,7 @@ class HException extends Exception {
 	}
 }
 
-class _lambda {
+class _hx_lambda {
 	public function __construct($locals, $scope, $args, $body) {
 		$this->locals = $locals;
 		$this->scope = $scope;
@@ -604,7 +604,7 @@ class _lambda {
 	}
 }
 
-class enum {
+class Enum {
 	public function __construct($tag, $index, $params = null) { $this->tag = $tag; $this->index = $index; $this->params = $params; }
 	public $tag;
 	public $index;
@@ -618,21 +618,21 @@ class enum {
 php_Boot::$__qtypes = array();
 php_Boot::$__ttypes = array();
 php_Boot::$__tpaths = array();
-php_Boot::__register_type(new __classtype__('String',  'String'));
-php_Boot::__register_type(new __classtype__('Array',   'Array'));
-php_Boot::__register_type(new __classtype__('Int',     'Int'));
-php_Boot::__register_type(new __classtype__('Float',   'Float'));
-php_Boot::__register_type(new __classtype__('Class',   'Class'));
-php_Boot::__register_type(new __classtype__('Enum',    'Enum'));
-php_Boot::__register_type(new __classtype__('Dynamic', 'Dynamic'));
-php_Boot::__register_type(new __enumtype__('Bool',     'Bool'));
-php_Boot::__register_type(new __enumtype__('Void',     'Void'));
+php_Boot::__register_type(new _hx_class('String',  'String'));
+php_Boot::__register_type(new _hx_class('Array',   'Array'));
+php_Boot::__register_type(new _hx_class('Int',     'Int'));
+php_Boot::__register_type(new _hx_class('Float',   'Float'));
+php_Boot::__register_type(new _hx_class('Class',   'Class'));
+php_Boot::__register_type(new _hx_class('Enum',    'Enum'));
+php_Boot::__register_type(new _hx_class('Dynamic', 'Dynamic'));
+php_Boot::__register_type(new _hx_enum('Bool',     'Bool'));
+php_Boot::__register_type(new _hx_enum('Void',     'Void'));
 
 
-$_lib_dir = dirname(__FILE__) . '/..';
-$_autload_cache_file = $_lib_dir . '/../cache/haxe_autoload.php';
-if(!file_exists($_autload_cache_file)) {
-	function buildPaths($d, &$a, $pack) {
+$_hx_libdir = dirname(__FILE__) . '/..';
+$_hx_autload_cache_file = $_hx_libdir . '/../cache/haxe_autoload.php';
+if(!file_exists($_hx_autload_cache_file)) {
+	function _hx_build_paths($d, &$_hx_types_array, $pack) {
 		$h = opendir($d);
 		while (false !== ($f = readdir($h))) {
 			$p = $d.'/'.$f;
@@ -655,7 +655,7 @@ if(!file_exists($_autload_cache_file)) {
 				} else
 					continue;
 				$qname = ($bn == 'HList' && empty($pack)) ? 'List' : join(array_merge($pack, array($bn)), '.');
-				$a[] = array(
+				$_hx_types_array[] = array(
 					'path' => $p,
 					'name' => $bn,
 					'type' => $t,
@@ -663,48 +663,50 @@ if(!file_exists($_autload_cache_file)) {
 					'phpname' => join(array_merge($pack, array($bn)), '_')
 				);
 			} else if(is_dir($p))
-				buildPaths($p, $a, array_merge($pack, array($f)));
+				_hx_build_paths($p, $_hx_types_array, array_merge($pack, array($f)));
 		}
 		closedir($h);
 	}
 
-	$a = array();
+	$_hx_types_array = array();
 
-	buildPaths($_lib_dir, $a, array());
+	_hx_build_paths($_hx_libdir, $_hx_types_array, array());
 
-	$content = '<?php\n\n';
-	for($i=0;$i<count($a);$i++) {
-		$content .= 'php_Boot::__register_type(new ';
+	$_hx_cache_content = '<?php\n\n';
+	for($i=0;$i<count($_hx_types_array);$i++) {
+		$_hx_cache_content .= 'php_Boot::__register_type(new ';
 		$t = null;
-		if($a[$i]['type'] == 0) {
-			$t = new __classtype__($a[$i]['phpname'], $a[$i]['qname'], $a[$i]['path']);
-			$content .= '__classtype__';
-		} else if($a[$i]['type'] == 1) {
-			$t = new __enumtype__($a[$i]['phpname'], $a[$i]['qname'], $a[$i]['path']);
-			$content .= '__enumtype__';
-		} else if($a[$i]['type'] == 2) {
-			$t = new __interfacetype__($a[$i]['phpname'], $a[$i]['qname'], $a[$i]['path']);
-			$content .= '__interfacetype__';
-		} else if($a[$i]['type'] == 3) {
-			$t = new __classtype__($a[$i]['name'], $a[$i]['qname'], $a[$i]['path']);
-			$content .= '__classtype__';
+		if($_hx_types_array[$i]['type'] == 0) {
+			$t = new _hx_class($_hx_types_array[$i]['phpname'], $_hx_types_array[$i]['qname'], $_hx_types_array[$i]['path']);
+			$_hx_cache_content .= '_hx_class';
+		} else if($_hx_types_array[$i]['type'] == 1) {
+			$t = new _hx_enum($_hx_types_array[$i]['phpname'], $_hx_types_array[$i]['qname'], $_hx_types_array[$i]['path']);
+			$_hx_cache_content .= '_hx_enum';
+		} else if($_hx_types_array[$i]['type'] == 2) {
+			$t = new _hx_interface($_hx_types_array[$i]['phpname'], $_hx_types_array[$i]['qname'], $_hx_types_array[$i]['path']);
+			$_hx_cache_content .= '_hx_interface';
+		} else if($_hx_types_array[$i]['type'] == 3) {
+			$t = new _hx_class($_hx_types_array[$i]['name'], $_hx_types_array[$i]['qname'], $_hx_types_array[$i]['path']);
+			$_hx_cache_content .= '_hx_class';
 		}
 		php_Boot::__register_type($t);
-		$content .= '(\\''.($a[$i]['type'] == 3 ? $a[$i]['name'] : $a[$i]['phpname']).'\\', \\''.$a[$i]['qname'].'\\', \\''.$a[$i]['path'].'\\'));\n';
+		$_hx_cache_content .= '(\\''.($_hx_types_array[$i]['type'] == 3 ? $_hx_types_array[$i]['name'] : $_hx_types_array[$i]['phpname']).'\\', \\''.$_hx_types_array[$i]['qname'].'\\', \\''.$_hx_types_array[$i]['path'].'\\'));\n';
 	}
+	unset($_hx_types_array);
 	try {
-		file_put_contents($_autload_cache_file, $content);
+		file_put_contents($_hx_autload_cache_file, $_hx_cache_content);
+		unset($_hx_cache_content);
 	} catch(Exception $e) {}
 } else {
-	require($_autload_cache_file);
+	require($_hx_autload_cache_file);
 }
 
-function __haxe_autoload($name) {
+function _hx_autoload($name) {
 	if(!isset(php_Boot::$__tpaths[$name])) return false;
 	require_once php_Boot::$__tpaths[$name];
 	return true;
 }
-spl_autoload_register('__haxe_autoload')");
+spl_autoload_register('_hx_autoload')");
 	}
 
 	static public function __string_rec(o : Dynamic, s : String) {
@@ -721,7 +723,7 @@ spl_autoload_register('__haxe_autoload')");
 
 		if(untyped __call__("is_object", o)) {
 			var c = untyped __call__("get_class", o);
-			if(untyped __php__("$o instanceof enum")) {
+			if(untyped __php__("$o instanceof Enum")) {
 				var b : String = o.tag;
 				if(!untyped __call__("empty", o.params)) {
 					s += "\t";
@@ -749,7 +751,7 @@ spl_autoload_register('__haxe_autoload')");
 				s = s.substr(1);
 				b += "\n" + s + "}";
 				return b;
-			} else if(untyped __php__("$o instanceof __type__")) {
+			} else if(untyped __php__("$o instanceof _hx_type")) {
 				return untyped o.__qname__;
 			} else {
 				if(untyped __call__("is_callable", [o, "toString"]))

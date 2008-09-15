@@ -55,8 +55,6 @@ class PhpXml__ {
 	}
 
 	private static function __end_element_handler(parser : Dynamic, name : String) {
-//		if(untyped __call__("count", build._children) == 0)
-//			build.addChild(createPCData(""));
 		build = build.getParent();
 	}
 

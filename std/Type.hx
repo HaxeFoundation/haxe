@@ -97,7 +97,7 @@ class Type {
 				return null;
 			return o.__enum__;
 		#elseif php
-			if(!__php__("$o instanceof enum"))
+			if(!__php__("$o instanceof Enum"))
 				return null;
 			else
 				return __php__("php_Boot::__ttype(get_class($o))");
@@ -173,7 +173,7 @@ class Type {
 		#if php
 //			php.Boot.__require_once(StringTools.replace(name, '.', '/'));
 			var c = untyped __php__("php_Boot::__qtype($name)");
-			if(__php__("$c instanceof __classtype__"))
+			if(__php__("$c instanceof _hx_class"))
 				return c;
 			else
 				return null;
@@ -226,7 +226,7 @@ class Type {
 	public static function resolveEnum( name : String ) : Enum untyped {
 		#if php
 			var e = untyped __php__("php_Boot::__qtype($name)");
-			if(untyped __php__("$e instanceof __enumtype__"))
+			if(untyped __php__("$e instanceof _hx_enum"))
 				return e;
 			else
 				return null;
@@ -596,13 +596,13 @@ class Type {
 			if(__call__("is_int", v)) return TInt;
 			if(__call__("is_float", v)) return TFloat;
 			if(__php__("$v instanceof _hx_anonymous"))  return TObject;
-			if(__php__("$v instanceof __enumtype__"))  return TObject;
-			if(__php__("$v instanceof __classtype__"))  return TObject;
+			if(__php__("$v instanceof _hx_enum"))  return TObject;
+			if(__php__("$v instanceof _hx_class"))  return TObject;
 
 			var c = __php__("php_Boot::__ttype(get_class($v))");
 
-			if(__php__("$c instanceof __enumtype__"))  return TEnum(cast c);
-			if(__php__("$c instanceof __classtype__")) return TClass(cast c);
+			if(__php__("$c instanceof _hx_enum"))  return TEnum(cast c);
+			if(__php__("$c instanceof _hx_class")) return TClass(cast c);
 			return TUnknown;
 		#else
 			return TUnknown;
