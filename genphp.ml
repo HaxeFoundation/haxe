@@ -914,16 +914,10 @@ and gen_inline_function ctx f params p =
 	) old_li;
 
 	print ctx "), null, array(";
-(*	ctx.quotes <- ctx.quotes + 1; *)
 	concat ctx "," (fun (arg,o,t) ->
 		let arg = define_local ctx arg in
 		print ctx "'%s'" arg;
-	(*
-		let arg = define_local ctx arg in
-		s_funarg ctx arg t p o;
-		*)
 	) f.tf_args;
-(*	ctx.quotes <- ctx.quotes - 1; *)
 	print ctx "), %s\"" pq;
 	ctx.quotes <- ctx.quotes + 1;
 	gen_expr ctx (fun_block ctx f p);
@@ -1213,17 +1207,10 @@ and gen_expr ctx e =
 				match f.cf_expr with
 				| Some { eexpr = TFunction fd } ->
 					print ctx "$this->%s = php_Boot::__closure(array(), $this, array(" name;
-(*					ctx.quotes <- ctx.quotes + 1; *)
 					concat ctx "," (fun (arg,o,t) ->
 						let arg = define_local ctx arg in
 						print ctx "'%s'" arg;
-					(*
-					let arg = define_local ctx arg in
-					  s_funarg ctx arg t e.epos o;
-					  *)
 					) fd.tf_args;
-(*					ctx.quotes <- ctx.quotes - 1; *)
-
 					print ctx "), \"";
 					let old = ctx.in_value in
 					ctx.in_value <- Some name;
@@ -1936,7 +1923,6 @@ let generate com =
 				let ctx = init com "lib" c.cl_path (if c.cl_interface then 2 else 0) in
 				ctx.extern_classes_with_init <- !extern_classes_with_init;
 				ctx.all_dynamic_methods <- !all_dynamic_methods;
-				(*let cp = s_path ctx c.cl_path c.cl_extern c.cl_pos in*)
 				generate_class ctx c;
 				(match c.cl_init with
 				| None -> ()

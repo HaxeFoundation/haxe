@@ -278,7 +278,7 @@ class Reflect {
 			if( v == null )
 				return false;
 			if(__call__("is_object", v))
-				return __php__("$v instanceof Anonymous") || Type.getClass(v) != null;
+				return __php__("$v instanceof _hx_anonymous") || Type.getClass(v) != null;
 			if(__php__("is_string($v) && !php_Boot::__is_lambda($v)")) return true;
 			if(__php__("is_array($v) && !is_callable($v)")) return true;
 			return false;

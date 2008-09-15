@@ -75,6 +75,8 @@ class PhpXml__ {
 		build.addChild(createPCData(data));
 	}
 
+	static var xmlChecker = new EReg("\\s*(<\\?xml|<!DOCTYPE)", "mi");
+
 	public static function parse( str : String ) : PhpXml__ {
 		build = createDocument();
 		var xml_parser = untyped __call__("xml_parser_create");
@@ -84,15 +86,26 @@ class PhpXml__ {
 		untyped __call__("xml_parser_set_option", xml_parser, __php__("XML_OPTION_CASE_FOLDING"), 0);
 		untyped __call__("xml_parser_set_option", xml_parser, __php__("XML_OPTION_SKIP_WHITE"), 0);
 
-		if(untyped __call__("xml_parse", xml_parser, "<doc>"+str+"</doc>", true) != 1) {
+		var isComplete = xmlChecker.match(str);
+
+		if(!isComplete)
+			str = "<doc>"+str+"</doc>";
+
+		if(untyped __call__("xml_parse", xml_parser, str, true) != 1) {
 			throw "Xml parse error ("+untyped __call__("xml_error_string", xml_parser) + ") line #" + __call__("xml_get_current_line_number", xml_parser);
 		}
+
 		untyped __call__("xml_parser_free", xml_parser);
-		build = build._children[0];
-		build._parent = null;
-		build._nodeName = null;
-		build.nodeType = Document;
-		return build;
+
+		if(isComplete) {
+			return build;
+		} else {
+			build = build._children[0];
+			build._parent = null;
+			build._nodeName = null;
+			build.nodeType = Document;
+			return build;
+		}
 	}
 
 	private function new(){

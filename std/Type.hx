@@ -62,7 +62,7 @@ class Type {
 				return __php__("php_Boot::__ttype('String')");
 			}
 			var c = __php__("get_class")(o);
-			if(c == false || c == 'Anonymous' || __call__("is_subclass_of", c, "enum"))
+			if(c == false || c == '_hx_anonymous' || __call__("is_subclass_of", c, "enum"))
 				return null;
 			else
 				return __php__("php_Boot::__ttype($c)");
@@ -595,7 +595,7 @@ class Type {
 			if(__call__("is_bool", v)) return TBool;
 			if(__call__("is_int", v)) return TInt;
 			if(__call__("is_float", v)) return TFloat;
-			if(__php__("$v instanceof Anonymous"))  return TObject;
+			if(__php__("$v instanceof _hx_anonymous"))  return TObject;
 			if(__php__("$v instanceof __enumtype__"))  return TObject;
 			if(__php__("$v instanceof __classtype__"))  return TObject;
 

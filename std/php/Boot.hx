@@ -7,7 +7,7 @@ class Boot {
 	}
 
 	static public function __anonymous(?p : Dynamic) : Dynamic {
-		untyped __php__("$o = new Anonymous();
+		untyped __php__("$o = new _hx_anonymous();
 		if(is_array($p))
 			foreach($p as $k => $v)
 				$o->$k = $v;
@@ -388,33 +388,15 @@ class Boot {
 		return untyped __php__("is_array($o) ? count($o) : (is_string($o) ? strlen($o) : $o->length)");
 	}
 
-//	public static var __REGISTERED_CLASSES : Array<Dynamic>;
-
 	static function __init__() untyped {
 		__php__("//error_reporting(0);
 set_error_handler(array('php_Boot', '__error_handler'), E_ALL);
 set_exception_handler(array('php_Boot', '__exception_handler'));
 
-class Anonymous extends stdClass{
+class _hx_anonymous extends stdClass {
 	public function __call($m, $a) {
 		$v = $this->$m;
-/*
-		if(is_array($v) && is_a($v[0], '_lambda') && $v[0]->scope == null) {
-			$v[0]->scope =& $this;
-		}
-*/
-		/*
-		if(is_string($v) && substr($v, 0, 8) == chr(0).'lambda_') {
-			$nl = '__'.substr($v, 1).'__';
-			php_Boot::$__scopes[$nl]['scope'] =& $this;
-		}
-		*/
 		try {
-			/*
-			if(is_array($v) && is_a($v[0], '_lambda') && is_callable($v)) {
-				return call_user_func_array($v[1], $a);
-			}
-			*/
 			return call_user_func_array($v, $a);
 		} catch(Exception $e) {
 			throw new HException('Unable to call «'.$m.'»');
@@ -753,7 +735,7 @@ spl_autoload_register('__haxe_autoload')");
 					b += ')';
 				}
 				return b;
-			} else if(untyped __php__("$o instanceof Anonymous")) {
+			} else if(untyped __php__("$o instanceof _hx_anonymous")) {
 				var rfl = untyped __php__("new ReflectionObject($o)");
 				var b = "{\n";
 				s += "\t";
