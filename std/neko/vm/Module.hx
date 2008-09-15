@@ -40,6 +40,7 @@ class Module {
 		The abstract handle.
 	**/
 	public var m : ModuleHandle;
+	public var name(getName,setName) : String;
 
 	public function new( m ) {
 		this.m = m;
@@ -54,12 +55,15 @@ class Module {
 		return _module_exec(m);
 	}
 
-	/**
-		Returns the Module name. This is the name that the Module was loaded with by the Loader.
-	**/
-	public function name() {
+	function getName() {
 		return new String(_module_name(m));
 	}
+
+	function setName( n : String ) {
+		_module_set_name(m,untyped n.__s);
+		return n;
+	}
+
 
 	/**
 		Returns the Loader that this Module was loaded with.s
@@ -97,7 +101,7 @@ class Module {
 	}
 
 	public function toString() {
-		return "[Module:"+name()+"]";
+		return "[Module:"+name+"]";
 	}
 
 	/**
@@ -111,7 +115,6 @@ class Module {
 			h.set(f,Reflect.field(exp,f));
 		return h;
 	}
-
 
 	/**
 		The raw export table.
@@ -183,5 +186,6 @@ class Module {
 	static var _module_global_get = neko.Lib.load("std","module_global_get",2);
 	static var _module_global_set = neko.Lib.load("std","module_global_set",3);
 	static var _module_read_string = neko.Lib.loadLazy("std","module_read_string",2);
+	static var _module_set_name = neko.Lib.loadLazy("std","module_set_name",2);
 
 }
