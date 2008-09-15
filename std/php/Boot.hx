@@ -262,7 +262,7 @@ class Boot {
 						case 'push':
 							__php__("return php_Boot::__closure(array('o' => &$o), null, array('x'), 'return array_push($o,$x);')");
 						case 'reverse':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return  rsort($o);')");
+							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return array_reverse($o);')");
 						case 'shift':
 							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return array_shift($o);')");
 						case 'slice':

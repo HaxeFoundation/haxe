@@ -712,7 +712,7 @@ and gen_array_call ctx s e el =
 		gen_value ctx e;
 		spr ctx ")"
 	| "reverse" ->
-		spr ctx "rsort(";
+		spr ctx "array_reverse(";
 		gen_value ctx e;
 		spr ctx ")"
 	| "shift" ->
