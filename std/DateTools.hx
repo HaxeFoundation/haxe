@@ -31,7 +31,8 @@
 **/
 class DateTools {
 
-	#if neko
+	#if php
+	#elseif neko
 	static var date_format = neko.Lib.load("std","date_format",2);
 	#else
 	private static function __format_get( d : Date, e : String ) : String {
@@ -114,7 +115,9 @@ class DateTools {
 	**/
 	public static function format( d : Date, f : String ) : String {
 		#if neko
-			untyped return new String(date_format(d.__t, f.__s));
+			return new String(untyped date_format(d.__t, f.__s));
+		#elseif php
+			return untyped __php__("strftime($f,$d->__t)");
 		#else
 			return __format(d,f);
 		#end
