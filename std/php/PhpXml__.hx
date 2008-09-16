@@ -310,6 +310,7 @@ class PhpXml__ {
 
 	public function firstChild() : PhpXml__ {
 		if( _children == null ) throw "bad nodetype";
+		if( _children.length == 0 ) return null;
 		return _children[0];
 	}
 
