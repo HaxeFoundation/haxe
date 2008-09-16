@@ -565,7 +565,7 @@ and could_be_string_or_array_var s =
 and gen_uncertain_string_or_array_var ctx s e =
 	match s with
 	| "length" ->
-		spr ctx "php_Boot::__len(";
+		spr ctx "_hx_len(";
 		gen_value ctx e;
 		spr ctx ")"
 	| _ ->
@@ -712,7 +712,7 @@ and gen_array_call ctx s e el =
 		gen_value ctx e;
 		spr ctx ")"
 	| "reverse" ->
-		spr ctx "array_reverse(";
+		spr ctx "_hx_array_reverse(";
 		gen_value ctx e;
 		spr ctx ")"
 	| "shift" ->
@@ -902,7 +902,7 @@ and gen_inline_function ctx f params p =
 	let old_t = ctx.local_types in
 	ctx.in_value <- Some "closure";
 	ctx.local_types <- List.map snd params @ ctx.local_types;
-	spr ctx "php_Boot::__closure(array(";
+	spr ctx "_hx_closure(array(";
 
 	let pq = escphp ctx.quotes in
 	let c = ref 0 in
@@ -1206,7 +1206,7 @@ and gen_expr ctx e =
 				let name = f.cf_name in
 				match f.cf_expr with
 				| Some { eexpr = TFunction fd } ->
-					print ctx "$this->%s = php_Boot::__closure(array(), $this, array(" name;
+					print ctx "$this->%s = _hx_closure(array(), $this, array(" name;
 					concat ctx "," (fun (arg,o,t) ->
 						let arg = define_local ctx arg in
 						print ctx "'%s'" arg;
@@ -1342,7 +1342,8 @@ and gen_expr ctx e =
 		gen_value ctx (parent cond);
 		handle_break();
 	| TObjectDecl fields ->
-		spr ctx "php_Boot::__anonymous(array(";
+(*TODO: optimization, call the constructor directly when fields is void *)
+		spr ctx "_hx_anonymous(array(";
 		let p = escphp ctx.quotes in
 		concat ctx ", " (fun (f,e) -> print ctx "%s\"%s%s\" => " p f p; gen_value ctx e) fields;
 		spr ctx "))"

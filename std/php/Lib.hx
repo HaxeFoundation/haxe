@@ -74,7 +74,7 @@ class Lib {
 		if(path.length == 0)
 			untyped __php__("$o->$name = $t");
 		else {
-			var so = {};
+			var so = untyped __call__("isset", __php__("$o->$name")) ? __php__("$o->$name") : {};
 			appendType(so, path, t);
 			untyped __php__("$o->$name = $so");
 		}

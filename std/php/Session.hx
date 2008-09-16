@@ -96,7 +96,7 @@ class Session {
 	}
 	
 	public static function getCookieParams() : { lifetime : Int, path : String, domain : String, secure : Bool, httponly : Bool} {
-		return php.Boot.__anonymous(untyped __call__("session_get_cookie_params"));
+		return untyped __call__("_hx_anonymous", untyped __call__("session_get_cookie_params"));
 	}
 	
 	// TODO: completely untested

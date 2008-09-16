@@ -34,7 +34,7 @@ class Log {
 		#elseif js
 		untyped js.Boot.__trace(v,infos);
 		#elseif php
-		untyped php.Boot.__trace(v,infos);
+		untyped __call__('_hx_trace', v,infos);
 		#end
 	}
 

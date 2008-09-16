@@ -1,25 +1,6 @@
 package php;
 
 class Boot {
-	public static function __trace(v,i : haxe.PosInfos) {
-		var msg = if( i != null ) i.fileName+":"+i.lineNumber+": " else "";
-		untyped __call__("echo", msg+ __string_rec(v, '')+"\n"); // TODO: __unhtml
-	}
-
-	static public function __anonymous(?p : Dynamic) : Dynamic {
-		untyped __php__("$o = new _hx_anonymous();
-		if(is_array($p))
-			foreach($p as $k => $v)
-				$o->$k = $v;
-		return $o");
-	}
-
-	static private var __cid = 0;
-
-	static public function __closure(locals : ArrayAccess<Dynamic>, scope : Dynamic, params : Dynamic, body : String) : Void {
-		untyped __php__("return array(new _hx_lambda($locals, $scope, $params, $body), 'execute'.count($params))");
-	}
-
 	static public function __is_lambda(s : Dynamic) : Bool {
 		return untyped (__call__("is_string", s) && s.substr(0, 8) == __call__("chr", 0) + "lambda_") || (__call__("is_array", s) && __call__("count", s) > 0 && __call__("is_a", s[0], "php_Lambda"));
 	}
@@ -224,65 +205,65 @@ class Boot {
 				}
 			} else if(__call__("is_string", o)) {
 				if(field == 'length')
-					return php.Boot.__len(o);
+					return __call__("_hx_len",o);
 				else {
 					switch(field) {
 						case 'charAt':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array('index'), 'return substr($o,$index,1);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('index'), 'return substr($o,$index,1);')");
 						case 'charCodeAt':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array('index'), 'return ord(substr($o, $index, 1));')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('index'), 'return ord(substr($o, $index, 1));')");
 						case 'indexOf':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array('value','startIndex'), 'return php_Boot::__index_of($o, $value, $startIndex);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('value','startIndex'), 'return php_Boot::__index_of($o, $value, $startIndex);')");
 						case 'lastIndexOf':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array('value','startIndex'), 'return php_Boot::__last_index_of($o, $value, $startIndex);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('value','startIndex'), 'return php_Boot::__last_index_of($o, $value, $startIndex);')");
 						case 'split':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array('delimiter'), 'return explode($delimiter, $o);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('delimiter'), 'return explode($delimiter, $o);')");
 						case 'substr':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array('pos','len'), 'return php_Boot::__substr($o, $pos, $len);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('pos','len'), 'return php_Boot::__substr($o, $pos, $len);')");
 						case 'toUpperCase':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return strtoupper($o);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return strtoupper($o);')");
 						case 'toLowerCase':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return strtolower($o);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return strtolower($o);')");
 						case 'toString':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return $o;')");
+							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return $o;')");
 					}
 					return null;
 				}
 			} else if(__call__("is_array", o)) {
 				if(field == 'length')
-					return php.Boot.__len(o);
+					return __call__("_hx_len",o);
 				else
 					switch(field) {
 						case 'concat':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array('a'), 'return array_merge($o, $a);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('a'), 'return array_merge($o, $a);')");
 						case 'join':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array('sep'), 'return join($sep,$o);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('sep'), 'return join($sep,$o);')");
 						case 'pop':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return array_pop($o);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return array_pop($o);')");
 						case 'push':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array('x'), 'return array_push($o,$x);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('x'), 'return array_push($o,$x);')");
 						case 'reverse':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return array_reverse($o);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return  _hx_reverse($o);')");
 						case 'shift':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return array_shift($o);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return array_shift($o);')");
 						case 'slice':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array('pos','end'), 'return php_Boot::__array_slice(array(&$o), $pos, $end);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('pos','end'), 'return php_Boot::__array_slice(array(&$o), $pos, $end);')");
 						case 'sort':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array('f'), 'return php_Boot::__array_sort($o,$f);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('f'), 'return php_Boot::__array_sort($o,$f);')");
 						case 'splice':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array('pos','len'), 'return php_Boot::__array_splice(array(&$o), $pos, $len);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('pos','len'), 'return php_Boot::__array_splice(array(&$o), $pos, $len);')");
 						case 'toString':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return \"[\".join(\", \", $o).\"]\";')");
+							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return \"[\".join(\", \", $o).\"]\";')");
 						case 'unshift':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array('x'), 'return array_unshift($o,$x);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('x'), 'return array_unshift($o,$x);')");
 						case 'insert':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array('pos','x'), 'return php_Boot::__array_insert(array(&$o), $pos, $x);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('pos','x'), 'return php_Boot::__array_insert(array(&$o), $pos, $x);')");
 						case 'remove':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array('x'), 'return php_Boot::__array_remove(array(&$o), $x);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('x'), 'return php_Boot::__array_remove(array(&$o), $x);')");
 						case 'iterator':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return new _hx_array_iterator($o);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return new _hx_array_iterator($o);')");
 						case 'copy':
-							__php__("return php_Boot::__closure(array('o' => &$o), null, array(), 'return $o;')");
+							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return $o;')");
 					}
 				return null;
 			} else if(__php__("property_exists($o, $field)")) {
@@ -384,14 +365,106 @@ class Boot {
 		}
 	}
 
-	public static function __len(o : Dynamic) {
-		return untyped __php__("is_array($o) ? count($o) : (is_string($o) ? strlen($o) : $o->length)");
+	static public function __string_rec(o : Dynamic, s : String) {
+		if( o == null )
+			return "null";
+		if( s.length >= 5 )
+			return "<...>"; // too much deep recursion
+
+		if(untyped __call__("is_int", o) || __call__("is_float", o))
+			return o;
+
+		if(untyped __call__("is_bool", o))
+			return o ? "true" : "false";
+
+		if(untyped __call__("is_object", o)) {
+			var c = untyped __call__("get_class", o);
+			if(untyped __php__("$o instanceof Enum")) {
+				var b : String = o.tag;
+				if(!untyped __call__("empty", o.params)) {
+					s += "\t";
+					b += '(';
+					for( i in 0...untyped __call__("count", o.params) ) {
+						if(i > 0)
+							b += ', ' + __string_rec(o.params[i],s);
+						else
+							b += __string_rec(o.params[i],s);
+					}
+					b += ')';
+				}
+				return b;
+			} else if(untyped __php__("$o instanceof _hx_anonymous")) {
+				var rfl = untyped __php__("new ReflectionObject($o)");
+				var b = "{\n";
+				s += "\t";
+				var properties : Array<Dynamic> = rfl.getProperties();
+				for(prop in properties) {
+					var f : String = prop.getName();
+					if(b.length != 2)
+						b += ", \n";
+					b += s + f + " : " + __string_rec(prop.getValue(o), s);
+				}
+				s = s.substr(1);
+				b += "\n" + s + "}";
+				return b;
+			} else if(untyped __php__("$o instanceof _hx_type")) {
+				return untyped o.__qname__;
+			} else {
+				if(untyped __call__("is_callable", [o, "toString"]))
+					return untyped __php__("$o->toString()");
+				else if(untyped __call__("is_callable", [o, "__toString"]))
+					return o.__toString();
+				else
+					return "[" + __ttype(c) + "]";
+			}
+		}
+
+		if(untyped __call__("is_string", o)) {
+			if(__is_lambda(o)) return "쳀unction�";
+			if(s.length > 0)
+				return '"'+untyped __call__("str_replace", '"', '\\"', o)+'"';
+			else
+				return o;
+		}
+
+		if(untyped __call__("is_array", o)) {
+			if(untyped __call__("is_callable", o)) return "쳀unction�";
+			var str = "[";
+			s += "\t";
+			for( i in 0...untyped __call__("count", o) )
+				str += (if (i > 0) ", " else "")+__string_rec(untyped o[i],s);
+			str += "]";
+			return str;
+		}
+
+		return '';
 	}
+	static public var skip_constructor = false;
 
 	static function __init__() untyped {
 		__php__("//error_reporting(0);
 set_error_handler(array('php_Boot', '__error_handler'), E_ALL);
 set_exception_handler(array('php_Boot', '__exception_handler'));
+
+function _hx_anonymous($p = array()) {
+	$o = new _hx_anonymous();
+	foreach($p as $k => $v)
+		$o->$k = $v;
+	return $o;
+}
+
+function _hx_trace($v, $i) {
+	$msg = $i !== null ? $i->fileName.':'.$i->lineNumber.': ' : '';
+	echo $msg.php_Boot::__string_rec($v, '').\"\n\";
+}
+
+function _hx_len($o) {
+	return is_array($o) ? count($o) : (is_string($o) ? strlen($o) : $o->length);
+}
+
+function _hx_array_reverse(&$a) {
+	$a = array_reverse($a, false);
+}
 
 class _hx_anonymous extends stdClass {
 	public function __call($m, $a) {
@@ -527,6 +600,11 @@ class HException extends Exception {
 	public function setFile($f) {
 		$this->file = $f;
 	}
+}
+
+// TODO: optimization, remove as much as possible the calls to this function
+function _hx_closure($locals, $scope, $params, $body) {
+	return array(new _hx_lambda($locals, $scope, $params, $body), 'execute'.count($params));
 }
 
 class _hx_lambda {
@@ -706,82 +784,7 @@ function _hx_autoload($name) {
 	require_once php_Boot::$__tpaths[$name];
 	return true;
 }
+
 spl_autoload_register('_hx_autoload')");
 	}
-
-	static public function __string_rec(o : Dynamic, s : String) {
-		if( o == null )
-			return "null";
-		if( s.length >= 5 )
-			return "<...>"; // too much deep recursion
-
-		if(untyped __call__("is_int", o) || __call__("is_float", o))
-			return o;
-
-		if(untyped __call__("is_bool", o))
-			return o ? "true" : "false";
-
-		if(untyped __call__("is_object", o)) {
-			var c = untyped __call__("get_class", o);
-			if(untyped __php__("$o instanceof Enum")) {
-				var b : String = o.tag;
-				if(!untyped __call__("empty", o.params)) {
-					s += "\t";
-					b += '(';
-					for( i in 0...untyped __call__("count", o.params) ) {
-						if(i > 0)
-							b += ', ' + __string_rec(o.params[i],s);
-						else
-							b += __string_rec(o.params[i],s);
-					}
-					b += ')';
-				}
-				return b;
-			} else if(untyped __php__("$o instanceof _hx_anonymous")) {
-				var rfl = untyped __php__("new ReflectionObject($o)");
-				var b = "{\n";
-				s += "\t";
-				var properties : Array<Dynamic> = rfl.getProperties();
-				for(prop in properties) {
-					var f : String = prop.getName();
-					if(b.length != 2)
-						b += ", \n";
-					b += s + f + " : " + __string_rec(prop.getValue(o), s);
-				}
-				s = s.substr(1);
-				b += "\n" + s + "}";
-				return b;
-			} else if(untyped __php__("$o instanceof _hx_type")) {
-				return untyped o.__qname__;
-			} else {
-				if(untyped __call__("is_callable", [o, "toString"]))
-					return untyped __php__("$o->toString()");
-				else if(untyped __call__("is_callable", [o, "__toString"]))
-					return o.__toString();
-				else
-					return "[" + __ttype(c) + "]";
-			}
-		}
-
-		if(untyped __call__("is_string", o)) {
-			if(__is_lambda(o)) return "쳀unction�";
-			if(s.length > 0)
-				return '"'+untyped __call__("str_replace", '"', '\\"', o)+'"';
-			else
-				return o;
-		}
-
-		if(untyped __call__("is_array", o)) {
-			if(untyped __call__("is_callable", o)) return "쳀unction�";
-			var str = "[";
-			s += "\t";
-			for( i in 0...untyped __call__("count", o) )
-				str += (if (i > 0) ", " else "")+__string_rec(untyped o[i],s);
-			str += "]";
-			return str;
-		}
-
-		return '';
-	}
-	static public var skip_constructor = false;
 }

@@ -136,7 +136,7 @@ private class SqliteResultSet implements ResultSet {
 		var c = untyped __call__("sqlite_fetch_array", r, __php__("SQLITE_BOTH"));
 		if(untyped __physeq__(c, false))
 			return null;
-		return php.Boot.__anonymous(c);
+		return untyped __call__("_hx_anonymous", c);
 	}
 
 	public function results() : List<Dynamic> {
