@@ -644,7 +644,7 @@ class Type {
 						if(!enumEq(a.params[i],b.params[i]))
 							return false;
 					} else {
-						if(!php.Boot.__equal(a.params[i],b.params[i]))
+						if(!untyped __call__("_hx_equal", a.params[i],b.params[i]))
 							return false;
 					}
 			} catch( e : Dynamic ) {

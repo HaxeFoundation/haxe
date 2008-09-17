@@ -1,164 +1,6 @@
 package php;
 
 class Boot {
-	static public function __instanceof(v : Dynamic, t : Dynamic) {
-		if(t == null) return false;
-		switch(t.__tname__) {
-			case "Array":
-				return untyped __call__("is_array", v);
-			case "String":
-				return untyped __call__("is_string", v) && !__call__("_hx_is_lambda", v);
-			case "Bool":
-				return untyped __call__("is_bool", v);
-			case "Int":
-				return untyped __call__("is_int", v);
-			case "Float":
-				return untyped __call__("is_float", v) || __call__("is_int", v);
-			case "Dynamic":
-				return true;
-			case "Class":
-				return untyped __php__("$v instanceof _hx_class") && __php__("$v->__tname__ != 'Enum'");
-			case "Enum":
-				return untyped __php__("$v instanceof _hx_enum");
-			default:
-				return untyped __call__("is_a", v, t.__tname__);
-		}
-	}
-
-	static public function __shift_right(v : Int, n : Int) {
-		untyped __php__("$z = 0x80000000;
-		if ($z & $v) {
-			$v = ($v>>1);
-			$v &= (~$z);
-			$v |= 0x40000000;
-			$v = ($v>>($n-1));
-		} else $v = ($v>>$n)");
-		return v;
-	}
-
-	static public function __error_handler(errno : Int, errmsg : String, filename : String, linenum : Int, vars : Dynamic) {
-		var msg = errmsg + " (errno: " + errno + ") in " + filename + " at line #" + linenum;
-		var e = new php.HException(msg, errmsg, errno);
-		e.setFile(filename);
-		e.setLine(linenum);
-		untyped __php__("throw $e");
-		return null;
-	}
-
-	static public function __exception_handler(e : Dynamic) {
-		var msg = "<pre>Uncaught exception: <b>"+e.getMessage()+"</b>\nin file: <b>"+e.getFile()+"</b> line <b>"+e.getLine()+"</b>\n\n"+e.getTraceAsString()+"</pre>";
-		untyped __php__("die($msg)");
-	}
-
-	static public function __equal(x : Dynamic, y : Dynamic) untyped {
-		if(__call__("is_null", x)) {
-			return __call__("is_null", y);
-		} else if(__call__("is_null", y)) {
-			return false;
-		} else  if((__call__("is_float", x) || __call__("is_int", x)) && (__call__("is_float", y) || __call__("is_int", y))) {
-			return __php__("$x == $y");
-		} else {
-			return __php__("$x === $y");
-		}
-	}
-
-	static public function __has_field( o : Dynamic, field : String ) : Bool {
-		return untyped __php__("
-			(is_object($o) && (method_exists($o, $field) || isset($o->$field) || property_exists($o, $field)))
-			||
-			(is_string($o) && (in_array($field, array('toUpperCase', 'toLowerCase', 'charAt', 'charCodeAt', 'indexOf', 'lastIndexOf', 'split', 'substr', 'toString', 'length'))))
-			||
-			(is_array($o)  && (in_array($field, array('concat', 'copy', 'insert', 'iterator', 'join', 'pop', 'push', 'remove', 'reverse', 'shift', 'slice', 'sort', 'splice', 'unshift', 'toString', 'length'))))
-		");
-	}
-
-	static public function __field( o : Dynamic, field : String) : Dynamic untyped {
-		if(__has_field(o, field)) {
-			if(__php__("$o instanceof _hx_type")) {
-				if(__php__("is_callable(array($o->__tname__, $field))")) {
-					return __php__("array($o->__tname__, $field)");
-				} else {
-					return __php__("eval('return '.$o->__tname__.'::$'.$field.';')");
-				}
-			} else if(__call__("is_string", o)) {
-				if(field == 'length')
-					return __call__("_hx_len",o);
-				else {
-					switch(field) {
-						case 'charAt':
-							__php__("return _hx_closure(array('o' => &$o), null, array('index'), 'return substr($o,$index,1);')");
-						case 'charCodeAt':
-							__php__("return _hx_closure(array('o' => &$o), null, array('index'), 'return ord(substr($o, $index, 1));')");
-						case 'indexOf':
-							__php__("return _hx_closure(array('o' => &$o), null, array('value','startIndex'), 'return _hx_index_of($o, $value, $startIndex);')");
-						case 'lastIndexOf':
-							__php__("return _hx_closure(array('o' => &$o), null, array('value','startIndex'), 'return _hx_last_index_of($o, $value, $startIndex);')");
-						case 'split':
-							__php__("return _hx_closure(array('o' => &$o), null, array('delimiter'), 'return explode($delimiter, $o);')");
-						case 'substr':
-							__php__("return _hx_closure(array('o' => &$o), null, array('pos','len'), 'return _hx_substr($o, $pos, $len);')");
-						case 'toUpperCase':
-							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return strtoupper($o);')");
-						case 'toLowerCase':
-							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return strtolower($o);')");
-						case 'toString':
-							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return $o;')");
-					}
-					return null;
-				}
-			} else if(__call__("is_array", o)) {
-				if(field == 'length')
-					return __call__("_hx_len",o);
-				else
-					switch(field) {
-						case 'concat':
-							__php__("return _hx_closure(array('o' => &$o), null, array('a'), 'return array_merge($o, $a);')");
-						case 'join':
-							__php__("return _hx_closure(array('o' => &$o), null, array('sep'), 'return join($sep,$o);')");
-						case 'pop':
-							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return array_pop($o);')");
-						case 'push':
-							__php__("return _hx_closure(array('o' => &$o), null, array('x'), 'return array_push($o,$x);')");
-						case 'reverse':
-							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return _hx_reverse($o);')");
-						case 'shift':
-							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return array_shift($o);')");
-						case 'slice':
-							__php__("return _hx_closure(array('o' => &$o), null, array('pos','end'), 'return _hx_array_slice($o, $pos, $end);')");
-						case 'sort':
-							__php__("return _hx_closure(array('o' => &$o), null, array('f'), 'return _hx_array_sort($o,$f);')");
-						case 'splice':
-							__php__("return _hx_closure(array('o' => &$o), null, array('pos','len'), 'return _hx_array_splice($o, $pos, $len);')");
-						case 'toString':
-							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return \"[\".join(\", \", $o).\"]\";')");
-						case 'unshift':
-							__php__("return _hx_closure(array('o' => &$o), null, array('x'), 'return array_unshift($o,$x);')");
-						case 'insert':
-							__php__("return _hx_closure(array('o' => &$o), null, array('pos','x'), 'return _hx_array_insert($o, $pos, $x);')");
-						case 'remove':
-							__php__("return _hx_closure(array('o' => &$o), null, array('x'), '_hx_array_remove($o, $x);')");
-						case 'iterator':
-							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return new _hx_array_iterator($o);')");
-						case 'copy':
-							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return $o;')");
-					}
-				return null;
-			} else if(__php__("property_exists($o, $field)")) {
-				if(__php__("is_array($o->$field) && is_callable($o->$field)")) {
-					return __php__("$o->$field");
-				} else if(__php__("is_string($o->$field) && _hx_is_lambda($o->$field)")) {
-					return __php__("array($o, $field)");
-				} else {
-					return __php__("$o->$field");
-				}
-			} else {
-				return __php__("array($o, $field)");
-			}
-		} else {
-			return null;
-		}
-	}
-
 	static private var __qtypes : Array<Dynamic>;
 	static private var __ttypes : Array<Dynamic>;
 	static private var __tpaths : Array<Dynamic>;
@@ -320,8 +162,150 @@ class Boot {
 
 	static function __init__() untyped {
 		__php__("//error_reporting(0);
-set_error_handler(array('php_Boot', '__error_handler'), E_ALL);
-set_exception_handler(array('php_Boot', '__exception_handler'));
+
+function _hx_error_handler($errno, $errmsg, $filename, $linenum, $vars) {
+	$msg = $errmsg . ' (errno: ' . $errno . ') in ' . $filename . ' at line #' . $linenum;
+	$e = new HException($msg, $errmsg, $errno, _hx_anonymous(array('fileName' => 'Boot.hx', 'lineNumber' => 41, 'className' => 'php.Boot', 'methodName' => '__error_handler')));
+	$e->setFile($filename);
+	$e->setLine($linenum);
+	throw $e;
+	return null;
+}
+
+function _hx_exception_handler($e) {
+	$msg = '<pre>Uncaught exception: <b>' . $e->getMessage() . '</b>\nin file: <b>' . $e->getFile() . '</b> line <b>' . $e->getLine() . '</b>\n\n' . $e->getTraceAsString() . '</pre>';
+	die($msg);
+}
+
+set_error_handler('_hx_error_handler', E_ALL);
+set_exception_handler('_hx_exception_handler');
+
+function _hx_instanceof($v, $t) {
+	if($t === null) {
+		return false;
+	}
+	switch($t->__tname__) {
+		case 'Array'  : return is_array($v);
+		case 'String' : return is_string($v) && !_hx_is_lambda($v);
+		case 'Bool'   : return is_bool($v);
+		case 'Int'    : return is_int($v);
+		case 'Float'  : return is_float($v) || is_int($v);
+		case 'Dynamic': return true;
+		case 'Class'  : return $v instanceof _hx_class && $v->__tname__ != 'Enum';
+		case 'Enum'   : return $v instanceof _hx_enum;
+		default       : return is_a($v, $t->__tname__);
+	}
+}
+
+function _hx_shift_right($v, $n) {
+	$z = 0x80000000;
+	if ($z & $v) {
+		$v = ($v>>1);
+		$v &= (~$z);
+		$v |= 0x40000000;
+		$v = ($v>>($n-1));
+	} else $v = ($v>>$n);
+	return $v;
+}
+
+function _hx_equal($x, $y) {
+	if(is_null($x)) {
+		return is_null($y);
+	} else {
+		if(is_null($y)) {
+			return false;
+		} else {
+			if((is_float($x) || is_int($x)) && (is_float($y) || is_int($y))) {
+				return $x == $y;
+			} else {
+				return $x === $y;
+			}
+		}
+	}
+}
+
+function _hx_has_field($o, $field) {
+	return
+		(is_object($o) && (method_exists($o, $field) || isset($o->$field) || property_exists($o, $field)))
+		||
+		(is_string($o) && (in_array($field, array('toUpperCase', 'toLowerCase', 'charAt', 'charCodeAt', 'indexOf', 'lastIndexOf', 'split', 'substr', 'toString', 'length'))))
+		||
+		(is_array($o)  && (in_array($field, array('concat', 'copy', 'insert', 'iterator', 'join', 'pop', 'push', 'remove', 'reverse', 'shift', 'slice', 'sort', 'splice', 'unshift', 'toString', 'length'))))
+	;
+}
+
+function _hx_field($o, $field) {
+	if(_hx_has_field($o, $field)) {
+		if($o instanceof _hx_type) {
+			if(is_callable(array($o->__tname__, $field))) {
+				return array($o->__tname__, $field);
+			} else {
+				return eval('return '.$o->__tname__.'::$'.$field.';');
+			}
+		} else {
+			if(is_string($o)) {
+				if($field == 'length') {
+					return _hx_len($o);
+				} else {
+					switch($field) {
+						case 'charAt'     : return _hx_closure(array('o' => &$o), null, array('index'), 'return substr($o,$index,1);');
+						case 'charCodeAt' : return _hx_closure(array('o' => &$o), null, array('index'), 'return ord(substr($o, $index, 1));');
+						case 'indexOf'    : return _hx_closure(array('o' => &$o), null, array('value','startIndex'), 'return _hx_index_of($o, $value, $startIndex);');
+						case 'lastIndexOf': return _hx_closure(array('o' => &$o), null, array('value','startIndex'), 'return _hx_last_index_of($o, $value, $startIndex);');
+						case 'split'      : return _hx_closure(array('o' => &$o), null, array('delimiter'), 'return explode($delimiter, $o);');
+						case 'substr'     : return _hx_closure(array('o' => &$o), null, array('pos','len'), 'return _hx_substr($o, $pos, $len);');
+						case 'toUpperCase': return _hx_closure(array('o' => &$o), null, array(), 'return strtoupper($o);');
+						case 'toLowerCase': return _hx_closure(array('o' => &$o), null, array(), 'return strtolower($o);');
+						case 'toString'   : return _hx_closure(array('o' => &$o), null, array(), 'return $o;');
+					}
+					return null;
+				}
+			}
+			else {
+				if(is_array($o)) {
+					if($field == 'length') {
+						return _hx_len($o);
+					} else {
+						switch($field) {
+							case 'concat'  : return _hx_closure(array('o' => &$o), null, array('a'), 'return array_merge($o, $a);');
+							case 'join'    : return _hx_closure(array('o' => &$o), null, array('sep'), 'return join($sep,$o);');
+							case 'pop'     : return _hx_closure(array('o' => &$o), null, array(), 'return array_pop($o);');
+							case 'push'    : return _hx_closure(array('o' => &$o), null, array('x'), 'return array_push($o,$x);');
+							case 'reverse' : return _hx_closure(array('o' => &$o), null, array(), 'return _hx_reverse($o);');
+							case 'shift'   : return _hx_closure(array('o' => &$o), null, array(), 'return array_shift($o);');
+							case 'slice'   : return _hx_closure(array('o' => &$o), null, array('pos','end'), 'return _hx_array_slice($o, $pos, $end);');
+							case 'sort'    : return _hx_closure(array('o' => &$o), null, array('f'), 'return _hx_array_sort($o,$f);');
+							case 'splice'  : return _hx_closure(array('o' => &$o), null, array('pos','len'), 'return _hx_array_splice($o, $pos, $len);');
+							case 'toString': return _hx_closure(array('o' => &$o), null, array(), 'return \"[\".join(\", \", $o).\"]\";');
+							case 'unshift' : return _hx_closure(array('o' => &$o), null, array('x'), 'return array_unshift($o,$x);');
+							case 'insert'  : return _hx_closure(array('o' => &$o), null, array('pos','x'), 'return _hx_array_insert($o, $pos, $x);');
+							case 'remove'  : return _hx_closure(array('o' => &$o), null, array('x'), '_hx_array_remove($o, $x);');
+							case 'iterator': return _hx_closure(array('o' => &$o), null, array(), 'return new _hx_array_iterator($o);');
+							case 'copy'    : return _hx_closure(array('o' => &$o), null, array(), 'return $o;');
+						}
+					}
+					return null;
+				} else {
+					if(property_exists($o, $field)) {
+						if(is_array($o->$field) && is_callable($o->$field)) {
+							return $o->$field;
+						} else {
+							if(is_string($o->$field) && _hx_is_lambda($o->$field)) {
+								return array($o, $field);
+							} else {
+								return $o->$field;
+							}
+						}
+					} else {
+						return array($o, $field);
+					}
+				}
+			}
+		}
+	} else {
+		return null;
+	}
+}
 
 function _hx_array_copy($a) {
 	return $a;

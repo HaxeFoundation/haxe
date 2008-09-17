@@ -1021,13 +1021,13 @@ and gen_expr ctx e =
 		| Ast.OpAssignOp(Ast.OpUShr) ->
 			gen_value_op ctx e1;
 			spr ctx " = ";
-			spr ctx "php_Boot::__shift_right(";
+			spr ctx "_hx_shift_right(";
 			gen_value_op ctx e1;
 			spr ctx ", ";
 			gen_value_op ctx e2;
 			spr ctx ")";
 		| Ast.OpUShr ->
-			spr ctx "php_Boot::__shift_right(";
+			spr ctx "_hx_shift_right(";
 			gen_value_op ctx e1;
 			spr ctx ", ";
 			gen_value_op ctx e2;
@@ -1044,7 +1044,7 @@ and gen_expr ctx e =
 			then begin
 				(match e1.eexpr with
 				| TField (f, s) when is_anonym_expr e1 || is_unknown_expr e1 ->
-					spr ctx "php_Boot::__field(";
+					spr ctx "_hx_field(";
 					gen_value ctx f;
 					print ctx ", \"%s\")" s;
 				| _ ->
@@ -1054,7 +1054,7 @@ and gen_expr ctx e =
 
 				(match e2.eexpr with
 				| TField (f, s) when is_anonym_expr e2 || is_unknown_expr e2 ->
-					spr ctx "php_Boot::__field(";
+					spr ctx "_hx_field(";
 					gen_value ctx f;
 					print ctx ", \"%s\")" s;
 				| _ ->
@@ -1074,7 +1074,7 @@ and gen_expr ctx e =
 				|| is_anonym_expr e2
 			then begin
 				if op = Ast.OpNotEq then spr ctx "!";
-				spr ctx "php_Boot::__equal(";
+				spr ctx "_hx_equal(";
 				gen_field_op ctx e1;
 				spr ctx ", ";
 				gen_field_op ctx e2;

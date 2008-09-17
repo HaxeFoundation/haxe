@@ -47,7 +47,7 @@ class Reflect {
 		#elseif neko
 			return __dollar__typeof(o) == __dollar__tobject && __dollar__objfield(o,__dollar__hash(field.__s));
 		#elseif php
-			return php.Boot.__has_field(o, field);
+			return __call__("_hx_has_field", o, field);
 		#else
 			return false;
 		#end
@@ -71,7 +71,7 @@ class Reflect {
 		#elseif neko
 			return if( __dollar__typeof(o) != __dollar__tobject ) null else __dollar__objget(o,__dollar__hash(field.__s));
 		#elseif php
-			return php.Boot.__field(o, field);
+			return __call__("_hx_field", o, field);
 		#else
 			return null;
 		#end
@@ -107,9 +107,9 @@ class Reflect {
 			return __dollar__call(func,o,args.__neko());
 		#elseif php
 			if(__call__("is_string", o) || __call__("is_array", o)) {
-				if(args.length == 0) return field(o, func)();
-				else if(args.length == 1) return field(o, func)(args[0]);
-				else return field(o, func)(args[0], args[1]);
+				if(args.length == 0) return __call__("call_user_func", field(o, func));
+				else if(args.length == 1) return __call__("call_user_func", field(o, func), args[0]);
+				else return __call__("call_user_func", field(o, func), args[0], args[1]);
 			}
 			return __php__("call_user_func_array(is_callable($func) ? $func : array($o, $func) , $args)");
 		#else
