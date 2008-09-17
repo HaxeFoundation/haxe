@@ -1,136 +1,13 @@
 package php;
 
 class Boot {
-	static public function __is_lambda(s : Dynamic) : Bool {
-		return untyped (__call__("is_string", s) && s.substr(0, 8) == __call__("chr", 0) + "lambda_") || (__call__("is_array", s) && __call__("count", s) > 0 && __call__("is_a", s[0], "php_Lambda"));
-	}
-
-
-	static public function __array() : Dynamic {
-		return untyped __call__("func_get_args");
-	}
-
-	static public function __array_empty() : Dynamic {
-		return untyped __call__("array");
-	}
-
-	static public function __null() : Dynamic {
-		return null;
-	}
-
-	static public function __array_copy(a : ArrayAccess<Dynamic>) : Dynamic {
-		return cast a;
-	}
-
-	static public function __array_iterator<T>(arr : Dynamic) : Iterator<T> {
-		return untyped __php__("new _hx_array_iterator($arr)");
-	}
-
-	static public function __array_sort<T>(arr : Array<T>, f : T -> T -> Int) : Void {
-		var i = 0;
-		var l = arr.length;
-		while( i < l ) {
-			var swap = false;
-			var j = 0;
-			var max = l - i - 1;
-			while( j < max ) {
-				if( f(arr[j],arr[j+1]) > 0 ) {
-					var tmp = arr[j+1];
-					arr[j+1] = arr[j];
-					arr[j] = tmp;
-					swap = true;
-				}
-				j += 1;
-			}
-			if(!swap) break;
-			i += 1;
-		}
-	}
-
-	static public function __array_insert<T>(arr : Array<T>,  pos : Int, x : T) : Void {
-		untyped __php__("array_splice")(arr, pos, 0, __call__("array", x));
-	}
-
-	static public function __array_remove<T>(arr : Array<T>, x : T) : Bool {
-		for(i in 0...arr.length)
-			if(arr[i] == x) {
-				untyped __call__("unset", arr[i]);
-				arr = untyped __call__("array_values", arr);
-				return true;
-			}
-		return false;
-	}
-
-	static public function __array_remove_at(arr : Array<Dynamic>, pos : Int) : Bool {
-		if(untyped __php__("array_key_exists")(pos, arr)) {
-			untyped __php__("unset")(arr[pos]);
-			return true;
-		} else return false;
-	}
-
-	static public function __array_splice(arr : Array<Dynamic>, pos : Int, len : Int) : Bool {
-		if(len < 0) len = 0;
-		return untyped __php__("array_splice")(arr, pos, len);
-	}
-
-	static public function __array_slice(arr : Array<Dynamic>, pos : Int, ?end : Int) : Bool {
-		if(end == null)
-			return untyped __php__("array_slice")(arr, pos);
-		else
-			return untyped __php__("array_slice")(arr, pos, end-pos);
-	}
-
-	static public function __array_set<T>(arr : Array<Dynamic>, pos : Int, v : T) : T untyped {
-		if(__call__("is_int", pos)) {
-			var l = __call__("count", arr);
-			if(l < pos) {
-			__call__("array_splice", arr, l, 0, __call__("array_fill", l, pos-l, null));
-			}
-		}
-		__php__("$arr[$pos] = $v");
-		return v;
-	}
-
-	static public function __char_code_at(s : String, pos : Int) : Null<Int> untyped {
-		if(__call__("empty", s) || pos >= s.length) return null;
-		return s.cca(pos);
-	}
-
-	static public function __substr(s : String, pos : Int, ?len : Int) {
-		if( pos != null && pos != 0 && len != null && len < 0 ) return '';
-		if( len == null ) len = s.length;
-		if( pos < 0 ) {
-			pos = s.length + pos;
-			if( pos < 0 ) pos = 0;
-		} else if( len < 0 )
-			len = s.length + len - pos;
-		var s : Bool = untyped __php__("substr")(s, pos, len);
-		if(untyped __physeq__(s, false)) return "" else return untyped s;
-	}
-
-	static public function __index_of(s : String, value : String, ?startIndex : Int) {
-		var x = untyped __php__("strpos")(s, value, startIndex);
-		if(untyped __physeq__(x, false))
-			return -1;
-		else
-			return x;
-	}
-
-	static public function __last_index_of(s : String, value : String, ?startIndex : Int) {
-		var x = untyped __php__("strrpos")(s, value, startIndex == null ? null : s.length - startIndex);
-		if(untyped __php__("$x === false"))
-			return -1
-		else
-			return x;
-	}
-
 	static public function __instanceof(v : Dynamic, t : Dynamic) {
 		if(t == null) return false;
 		switch(t.__tname__) {
 			case "Array":
 				return untyped __call__("is_array", v);
 			case "String":
-				return untyped __call__("is_string", v) && !__is_lambda(v);
+				return untyped __call__("is_string", v) && !__call__("_hx_is_lambda", v);
 			case "Bool":
 				return untyped __call__("is_bool", v);
 			case "Int":
@@ -213,13 +90,13 @@ class Boot {
 						case 'charCodeAt':
 							__php__("return _hx_closure(array('o' => &$o), null, array('index'), 'return ord(substr($o, $index, 1));')");
 						case 'indexOf':
-							__php__("return _hx_closure(array('o' => &$o), null, array('value','startIndex'), 'return php_Boot::__index_of($o, $value, $startIndex);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('value','startIndex'), 'return _hx_index_of($o, $value, $startIndex);')");
 						case 'lastIndexOf':
-							__php__("return _hx_closure(array('o' => &$o), null, array('value','startIndex'), 'return php_Boot::__last_index_of($o, $value, $startIndex);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('value','startIndex'), 'return _hx_last_index_of($o, $value, $startIndex);')");
 						case 'split':
 							__php__("return _hx_closure(array('o' => &$o), null, array('delimiter'), 'return explode($delimiter, $o);')");
 						case 'substr':
-							__php__("return _hx_closure(array('o' => &$o), null, array('pos','len'), 'return php_Boot::__substr($o, $pos, $len);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('pos','len'), 'return _hx_substr($o, $pos, $len);')");
 						case 'toUpperCase':
 							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return strtoupper($o);')");
 						case 'toLowerCase':
@@ -243,23 +120,23 @@ class Boot {
 						case 'push':
 							__php__("return _hx_closure(array('o' => &$o), null, array('x'), 'return array_push($o,$x);')");
 						case 'reverse':
-							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return  _hx_reverse($o);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return _hx_reverse($o);')");
 						case 'shift':
 							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return array_shift($o);')");
 						case 'slice':
-							__php__("return _hx_closure(array('o' => &$o), null, array('pos','end'), 'return php_Boot::__array_slice(array(&$o), $pos, $end);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('pos','end'), 'return _hx_array_slice($o, $pos, $end);')");
 						case 'sort':
-							__php__("return _hx_closure(array('o' => &$o), null, array('f'), 'return php_Boot::__array_sort($o,$f);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('f'), 'return _hx_array_sort($o,$f);')");
 						case 'splice':
-							__php__("return _hx_closure(array('o' => &$o), null, array('pos','len'), 'return php_Boot::__array_splice(array(&$o), $pos, $len);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('pos','len'), 'return _hx_array_splice($o, $pos, $len);')");
 						case 'toString':
 							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return \"[\".join(\", \", $o).\"]\";')");
 						case 'unshift':
 							__php__("return _hx_closure(array('o' => &$o), null, array('x'), 'return array_unshift($o,$x);')");
 						case 'insert':
-							__php__("return _hx_closure(array('o' => &$o), null, array('pos','x'), 'return php_Boot::__array_insert(array(&$o), $pos, $x);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('pos','x'), 'return _hx_array_insert($o, $pos, $x);')");
 						case 'remove':
-							__php__("return _hx_closure(array('o' => &$o), null, array('x'), 'return php_Boot::__array_remove(array(&$o), $x);')");
+							__php__("return _hx_closure(array('o' => &$o), null, array('x'), '_hx_array_remove($o, $x);')");
 						case 'iterator':
 							__php__("return _hx_closure(array('o' => &$o), null, array(), 'return new _hx_array_iterator($o);')");
 						case 'copy':
@@ -269,7 +146,7 @@ class Boot {
 			} else if(__php__("property_exists($o, $field)")) {
 				if(__php__("is_array($o->$field) && is_callable($o->$field)")) {
 					return __php__("$o->$field");
-				} else if(__php__("is_string($o->$field) && php_Boot::__is_lambda($o->$field)")) {
+				} else if(__php__("is_string($o->$field) && _hx_is_lambda($o->$field)")) {
 					return __php__("array($o, $field)");
 				} else {
 					return __php__("$o->$field");
@@ -420,7 +297,7 @@ class Boot {
 		}
 
 		if(untyped __call__("is_string", o)) {
-			if(__is_lambda(o)) return "«function»";
+			if(untyped __call__("_hx_is_lambda", o)) return "«function»";
 			if(s.length > 0)
 				return '"'+untyped __call__("str_replace", '"', '\\"', o)+'"';
 			else
@@ -446,6 +323,81 @@ class Boot {
 set_error_handler(array('php_Boot', '__error_handler'), E_ALL);
 set_exception_handler(array('php_Boot', '__exception_handler'));
 
+function _hx_array_copy($a) {
+	return $a;
+}
+
+function _hx_array_iterator($arr) {
+	return new _hx_array_iterator($arr);
+}
+
+function _hx_array_insert(&$arr, $pos, $x) {
+	array_splice($arr, $pos, 0, array($x));
+}
+
+function _hx_array() {
+	return func_get_args();
+}
+
+function _hx_array_empty() {
+	return array();
+}
+
+function _hx_array_remove(&$arr, $x) {
+	for($i = 0; $i < count($arr); $i++)
+		if($arr[$i] === $x) {
+			unset($arr[$i]);
+			$arr = array_values($arr);
+			return true;
+		}
+	return false;
+}
+
+function _hx_array_remove_at(&$arr, $pos) {
+	if(array_key_exists($pos, $arr)) {
+		unset($arr[$pos]);
+		return true;
+	} else
+		return false;
+}
+
+function _hx_array_sort(&$arr, $f) {
+	$i = 0;
+	$l = count($arr);
+	while($i < $l) {
+		$swap = false;
+		$j = 0;
+		$max = $l - $i - 1;
+		while($j < $max) {
+			if(call_user_func($f, $arr[$j], $arr[$j+1]) > 0 ) {
+				$tmp = $arr[$j+1];
+				$arr[$j+1] = $arr[$j];
+				$arr[$j] = $tmp;
+				$swap = true;
+			}
+			$j += 1;
+		}
+		if(!$swap) break;
+		$i += 1;
+	}
+}
+
+function _hx_array_splice(&$arr, $pos, $len) {
+	if($len < 0) $len = 0;
+	return array_splice($arr, $pos, $len);
+}
+
+function _hx_array_slice(&$arr, $pos, $end) {
+	if($end == null)
+		return array_slice($arr, $pos);
+	else
+		return array_slice($arr, $pos, $end-$pos);
+}
+
+function _hx_null() {
+	return null;
+}
+
 function _hx_anonymous($p = array()) {
 	$o = new _hx_anonymous();
 	foreach($p as $k => $v)
@@ -464,6 +416,51 @@ function _hx_len($o) {
 
 function _hx_array_reverse(&$a) {
 	$a = array_reverse($a, false);
+}
+
+function _hx_array_set(&$arr, $pos, $v) {
+	if(is_int($pos)) {
+		$l = count($arr);
+		if($l < $pos)
+			array_splice($arr, $l, 0, array_fill($l, $pos-$l, null));
+	}
+	return $arr[$pos] = $v;
+}
+
+function _hx_char_code_at($s, $pos) {
+	if(empty($s) || $pos >= strlen($s)) return null;
+	return ord($s{$pos});
+}
+
+function _hx_substr($s, $pos, $len) {
+	if($pos !== null && $pos !== 0 && $len !== null && $len < 0) return '';
+	if($len === null) $len = strlen($s);
+	if($pos < 0) {
+		$pos = strlen($s) + $pos;
+		if($pos < 0) $pos = 0;
+	} else if($len < 0 )
+		$len = strlen($s) + $len - $pos;
+	$s = substr($s, $pos, $len);
+	if($s === false)
+		return '';
+	else
+		return $s;
+}
+
+function _hx_index_of($s, $value, $startIndex) {
+	$x = strpos($s, $value, $startIndex);
+	if($x === false)
+		return -1;
+	else
+		return $x;
+}
+
+function _hx_last_index_of($s, $value, $startIndex) {
+	$x = strrpos($s, $value, $startIndex === null ? null : strlen($s) - $startIndex);
+	if($x === false)
+		return -1;
+	else
+		return $x;
 }
 
 class _hx_anonymous extends stdClass {
@@ -605,6 +602,10 @@ class HException extends Exception {
 // TODO: optimization, remove as much as possible the calls to this function
 function _hx_closure($locals, $scope, $params, $body) {
 	return array(new _hx_lambda($locals, $scope, $params, $body), 'execute'.count($params));
+}
+
+function _hx_is_lambda($s) {
+	return (is_string($s) && substr($s, 0, 8) == chr(0).'lambda_') || (is_array($s) && count($s) > 0 && is_a($s[0], '_hx_lambda'));
 }
 
 class _hx_lambda {

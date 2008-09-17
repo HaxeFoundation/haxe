@@ -1,6 +1,7 @@
 (*
 TODO
 - debug version
+- runtime check for undefined fields
 *)
 (*
  *  haXe/PHP Compiler
@@ -552,7 +553,7 @@ let rec gen_call ctx e el =
 
 and gen_call_value ctx e =
 	match e.eexpr with
-	| TConst TNull -> spr ctx "php_Boot::__null()";
+	| TConst TNull -> spr ctx "_hx_null()";
 	| _ -> gen_value ctx e
 
 and gen_call_ref ctx e =
@@ -607,7 +608,7 @@ and could_be_string_call s =
 and gen_string_call ctx s e el =
 	match s with
 	| "substr" ->
-		spr ctx "php_Boot::__substr(";
+		spr ctx "_hx_substr(";
 		gen_value ctx e;
 		spr ctx ", ";
 		concat ctx ", " (gen_value ctx) el;
@@ -625,19 +626,19 @@ and gen_string_call ctx s e el =
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx "})"
 	| "charCodeAt" ->
-		spr ctx "php_Boot::__char_code_at(";
+		spr ctx "_hx_char_code_at(";
 		gen_value ctx e;
 		spr ctx ", ";
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")"
 	| "indexOf" ->
-		spr ctx "php_Boot::__index_of(";
+		spr ctx "_hx_index_of(";
 		gen_value ctx e;
 		spr ctx ", ";
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")"
 	| "lastIndexOf" ->
-		spr ctx "php_Boot::__last_index_of(";
+		spr ctx "_hx_last_index_of(";
 		gen_value ctx e;
 		spr ctx ", ";
 		concat ctx ", " (gen_value ctx) el;
@@ -720,19 +721,19 @@ and gen_array_call ctx s e el =
 		gen_value ctx e;
 		spr ctx ")"
 	| "slice" ->
-		spr ctx "php_Boot::__array_slice(";
+		spr ctx "_hx_array_slice(";
 		gen_value ctx e;
 		spr ctx ", ";
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")"
 	| "sort" ->
-		spr ctx "php_Boot::__array_sort(";
+		spr ctx "_hx_array_sort(";
 		gen_value ctx e;
 		spr ctx ", ";
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")"
 	| "splice" ->
-		spr ctx "php_Boot::__array_splice(";
+		spr ctx "_hx_array_splice(";
 		gen_value ctx e;
 		spr ctx ", ";
 		concat ctx ", " (gen_value ctx) el;
@@ -742,7 +743,7 @@ and gen_array_call ctx s e el =
 		gen_value ctx e;
 		spr ctx ").']'"
 	| "copy" ->
-		spr ctx "php_Boot::__array_copy(";
+		spr ctx "_hx_array_copy(";
 		gen_value ctx e;
 		spr ctx ")"
 	| "unshift" ->
@@ -752,13 +753,13 @@ and gen_array_call ctx s e el =
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")"
 	| "insert" ->
-		spr ctx "php_Boot::__array_insert(";
+		spr ctx "_hx_array_insert(";
 		gen_value ctx e;
 		spr ctx ", ";
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")"
 	| "remove" ->
-		spr ctx "php_Boot::__array_remove(";
+		spr ctx "_hx_array_remove(";
 		gen_value ctx e;
 		spr ctx ", ";
 		concat ctx ", " (gen_value ctx) el;
@@ -987,7 +988,7 @@ and gen_expr ctx e =
 		| Ast.OpAssign ->
 			(match e1.eexpr with
 			| TArray(te1, te2) ->
-				spr ctx "php_Boot::__array_set(";
+				spr ctx "_hx_array_set(";
 				gen_value ctx te1;
 				spr ctx ", ";
 				gen_value ctx te2;
@@ -1260,9 +1261,9 @@ and gen_expr ctx e =
 		| _ ->
 			gen_call ctx ec el);
 	| TArrayDecl [] ->
-		spr ctx "php_Boot::__array_empty()";
+		spr ctx "_hx_array_empty()";
 	| TArrayDecl el ->
-		spr ctx "php_Boot::__array(";
+		spr ctx "_hx_array(";
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")";
 	| TThrow e ->
@@ -1286,9 +1287,9 @@ and gen_expr ctx e =
 		| ([], "String"), _ ->
 			concat ctx "" (gen_value ctx) el
 		| ([], "Array"), [] ->
-			spr ctx "php_Boot::__array_empty()";
+			spr ctx "_hx_array_empty()";
 		| ([], "Array"), el ->
-			spr ctx "php_Boot::__array(";
+			spr ctx "_hx_array(";
 			concat ctx ", " (gen_value ctx) el;
 			spr ctx ")"
 		| (_, _), _ ->

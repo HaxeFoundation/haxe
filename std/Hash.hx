@@ -141,7 +141,7 @@ class Hash<T> {
 		#elseif neko
 		return untyped __dollar__hremove(h,key.__s,null);
 		#elseif php
-		return php.Boot.__array_remove_at(cast h, untyped key);
+		return untyped __call__("_hx_array_remove_at", h, key);
 		#else
 		return false;
 		#end
@@ -167,7 +167,7 @@ class Hash<T> {
 		untyped __dollar__hiter(h,function(k,_) { l.push(new String(k)); });
 		return l.iterator();
 		#elseif php
-		return php.Boot.__array_iterator(untyped __php__("array_keys")(h));
+		return untyped __call__("_hx_array_iterator", __call__("array_keys", h));
 		#else
 		return null;
 		#end
@@ -203,7 +203,7 @@ class Hash<T> {
 		untyped __dollar__hiter(h,function(_,v) { l.push(v); });
 		return l.iterator();
 		#elseif php
-		return php.Boot.__array_iterator(untyped __php__("array_values")(h));
+		return untyped __call__("_hx_array_iterator", __call__("array_values", h));
 		#else
 		return null;
 		#end

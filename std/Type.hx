@@ -58,7 +58,7 @@ class Type {
 				return __php__("php_Boot::__ttype('Array')");
 			}
 			if(untyped __call__("is_string", o)) {
-				if(php.Boot.__is_lambda(untyped o)) return null;
+				if(__call__("_hx_is_lambda", untyped o)) return null;
 				return __php__("php_Boot::__ttype('String')");
 			}
 			var c = __php__("get_class")(o);
@@ -589,7 +589,7 @@ class Type {
 				return TClass(Array);
 			}
 			if(__call__("is_string", v)) {
-				if(php.Boot.__is_lambda(v)) return TFunction;
+				if(__call__("_hx_is_lambda", v)) return TFunction;
 				return TClass(String);
 			}
 			if(__call__("is_bool", v)) return TBool;

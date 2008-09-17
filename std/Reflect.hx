@@ -201,7 +201,7 @@ class Reflect {
 		#elseif neko
 			return __dollar__typeof(f) == __dollar__tfunction;
 		#elseif php
-			return __php__("(is_array($f) && is_callable($f)) || php_Boot::__is_lambda($f)") || (__php__("is_array($f)") && hasField(f[0], f[1]) && f[1] != "length");
+			return __php__("(is_array($f) && is_callable($f)) || _hx_is_lambda($f)") || (__php__("is_array($f)") && hasField(f[0], f[1]) && f[1] != "length");
 		#else
 			return false;
 		#end
@@ -279,7 +279,7 @@ class Reflect {
 				return false;
 			if(__call__("is_object", v))
 				return __php__("$v instanceof _hx_anonymous") || Type.getClass(v) != null;
-			if(__php__("is_string($v) && !php_Boot::__is_lambda($v)")) return true;
+			if(__php__("is_string($v) && !_hx_is_lambda($v)")) return true;
 			if(__php__("is_array($v) && !is_callable($v)")) return true;
 			return false;
 		#else

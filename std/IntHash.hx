@@ -126,7 +126,7 @@ class IntHash<T> {
 		#elseif neko
 		return untyped __dollar__hremove(h,key,null);
 		#elseif php
-		return php.Boot.__array_remove_at(cast h, key);
+		return untyped __call__("_hx_array_remove_at", h, key);
 		#else
 		return false;
 		#end
@@ -155,7 +155,7 @@ class IntHash<T> {
 		untyped __dollar__hiter(h,function(k,_) { l.push(k); });
 		return l.iterator();
 		#elseif php
-		return php.Boot.__array_iterator(untyped __php__("array_keys")(h));
+		return untyped __call__("_hx_array_iterator", __call__("array_keys", h));
 		#else
 		return null;
 		#end
@@ -191,7 +191,7 @@ class IntHash<T> {
 		untyped __dollar__hiter(h,function(_,v) { l.push(v); });
 		return l.iterator();
 		#elseif php
-		return php.Boot.__array_iterator(untyped __php__("array_values")(h));
+		return untyped __call__("_hx_array_iterator", __call__("array_values", h));
 		#else
 		return null;
 		#end
