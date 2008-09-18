@@ -374,11 +374,13 @@ let escape_bin s quotes =
 	let b = Buffer.create 0 in
 	for i = 0 to String.length s - 1 do
 		match Char.code (String.unsafe_get s i) with
-		| c when c < 32 -> Buffer.add_string b (Printf.sprintf "\\x%.2X" c)
-		| c when c = Char.code('$') ->
-			Buffer.add_string b (escphp quotes);
+		| c when c = Char.code('\\') or c = Char.code('"') or c = Char.code('$') ->
+			Buffer.add_string b (escphp (quotes+1)); 
 			Buffer.add_char b (Char.chr c)
-		| c -> Buffer.add_char b (Char.chr c)
+		| c when c < 32 ->
+			Buffer.add_string b (Printf.sprintf "\\x%.2X" c)
+		| c -> 
+			Buffer.add_char b (Char.chr c)
 	done;
 	Buffer.contents b
 
@@ -386,7 +388,7 @@ let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
 	| TFloat s -> spr ctx s
 	| TString s ->
-		print ctx "%s\"%s%s\"" (escphp ctx.quotes) (escape_bin (Ast.s_escape s) (ctx.quotes+1)) (escphp ctx.quotes)
+		print ctx "%s\"%s%s\"" (escphp ctx.quotes) (escape_bin (s) (ctx.quotes)) (escphp ctx.quotes)
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "null"
 	| TThis -> spr ctx (this ctx)
