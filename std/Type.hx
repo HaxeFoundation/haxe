@@ -55,17 +55,17 @@ class Type {
 			if(o == null) return null;
 			untyped if(__call__("is_array",  o)) {
 				if(__call__("count", o) == 2 && __call__("is_callable", o)) return null;
-				return __php__("php_Boot::__ttype('Array')");
+				return __call__("_hx_ttype", 'Array');
 			}
 			if(untyped __call__("is_string", o)) {
 				if(__call__("_hx_is_lambda", untyped o)) return null;
-				return __php__("php_Boot::__ttype('String')");
+				return __call__("_hx_ttype", 'String');
 			}
-			var c = __php__("get_class")(o);
+			var c = __call__("get_class", o);
 			if(c == false || c == '_hx_anonymous' || __call__("is_subclass_of", c, "enum"))
 				return null;
 			else
-				return __php__("php_Boot::__ttype($c)");
+				return __call__("_hx_ttype", c);
 		#else
 			return null;
 		#end
@@ -100,7 +100,7 @@ class Type {
 			if(!__php__("$o instanceof Enum"))
 				return null;
 			else
-				return __php__("php_Boot::__ttype(get_class($o))");
+				return __php__("_hx_ttype(get_class($o))");
 		#else
 			return null;
 		#end
@@ -121,7 +121,7 @@ class Type {
 			if(s == false)
 				return null;
 			else
-				return __php__("php_Boot::__ttype($s)");
+				return __call__("_hx_ttype", s);
 		#else
 			return c.__super__;
 		#end
@@ -172,7 +172,7 @@ class Type {
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
 		#if php
 //			php.Boot.__require_once(StringTools.replace(name, '.', '/'));
-			var c = untyped __php__("php_Boot::__qtype($name)");
+			var c = untyped __call__("_hx_qtype", name);
 			if(__php__("$c instanceof _hx_class"))
 				return c;
 			else
@@ -225,7 +225,7 @@ class Type {
 	**/
 	public static function resolveEnum( name : String ) : Enum untyped {
 		#if php
-			var e = untyped __php__("php_Boot::__qtype($name)");
+			var e = untyped __call__("_hx_qtype", name);
 			if(untyped __php__("$e instanceof _hx_enum"))
 				return e;
 			else
@@ -338,7 +338,7 @@ class Type {
 			if(cl.__qname__ == 'Array') return [];
 			if(cl.__qname__ == 'String') return '';
 			try {
-				php.Boot.skip_constructor = true;
+				__php__("php_Boot::$skip_constructor = true");
 				var rfl = cl.__rfl__();
 				if(rfl == null) return null;
 				var m = __php__("$rfl->getConstructor()");
@@ -350,10 +350,10 @@ class Type {
 				} else {
 					i = __php__("$rfl->newInstanceArgs(array())");
 				}
-				php.Boot.skip_constructor = false;
+				__php__("php_Boot::$skip_constructor = false");
 				return i;
 			} catch( e : Dynamic ) {
-				php.Boot.skip_constructor = false;
+				__php__("php_Boot::$skip_constructor = false");
 				throw "Unable to instantiate " + Std.string(cl);
 			}
 			return null;
@@ -599,7 +599,7 @@ class Type {
 			if(__php__("$v instanceof _hx_enum"))  return TObject;
 			if(__php__("$v instanceof _hx_class"))  return TObject;
 
-			var c = __php__("php_Boot::__ttype(get_class($v))");
+			var c = __php__("_hx_ttype(get_class($v))");
 
 			if(__php__("$c instanceof _hx_enum"))  return TEnum(cast c);
 			if(__php__("$c instanceof _hx_class")) return TClass(cast c);

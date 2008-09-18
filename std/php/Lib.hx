@@ -83,10 +83,10 @@ class Lib {
 	public static function getClasses() {
 		var path : String = null;
 		var o = {};
-		untyped __call__('reset', php.Boot.__qtypes);
-		while((path = untyped __call__('key', php.Boot.__qtypes)) != null) {
-			appendType(o, path.split('.'), untyped php.Boot.__qtypes[path]);
-			untyped __call__('next', php.Boot.__qtypes);
+		untyped __call__('reset', __var__("_hx_qtypes"));
+		while((path = untyped __call__('key', __var__("_hx_qtypes"))) != null) {
+			appendType(o, path.split('.'), untyped __var__("_hx_qtypes", path));
+			untyped __call__('next',__var__("_hx_qtypes"));
 		}
 		return o;
 	}

@@ -58,7 +58,7 @@ class Std {
 		#elseif js
 		js.Boot.__string_rec(s,"");
 		#elseif php
-		php.Boot.__string_rec(s, '');
+		__call__("_hx_string_rec", s, '');
 		#else
 		"";
 		#end

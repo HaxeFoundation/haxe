@@ -668,13 +668,13 @@ and could_be_array_call s =
 	s = "copy" || s = "unshift" || s = "insert" || s = "remove" || s = "iterator"
 
 and gen_uncertain_string_or_array_call ctx s e el =
-	spr ctx "php_Boot::__string_rec(";
+	spr ctx "_hx_string_rec(";
 	gen_value ctx e;
 	print ctx ", null)"
 
 and gen_uncertain_string_call ctx s e el =
 	let p = escphp ctx.quotes in
-	spr ctx "php_Boot::__string_call(";
+	spr ctx "_hx_string_call(";
 	gen_value ctx e;
 	print ctx ", %s\"%s%s\", array(" p s p;
 	concat ctx ", " (gen_value ctx) el;
@@ -682,7 +682,7 @@ and gen_uncertain_string_call ctx s e el =
 
 and gen_uncertain_array_call ctx s e el =
 	let p = escphp ctx.quotes in
-	spr ctx "php_Boot::__array_call(";
+	spr ctx "_hx_array_call(";
 	gen_value ctx e;
 	print ctx ", %s\"%s%s\", array(" p s p;
 	concat ctx ", " (gen_value ctx) el;
@@ -816,7 +816,7 @@ and gen_field_access ctx isvar e s =
 		gen_expr ctx e;
 		print ctx "->%s" (s_ident s)
 	| TArray (e1,e2) ->
-		spr ctx "php_Boot::__byref__array_get(";
+		spr ctx "_hx_array_get_ref(";
 		gen_value ctx e1;
 		spr ctx ", ";
 		gen_value ctx e2;
@@ -825,7 +825,7 @@ and gen_field_access ctx isvar e s =
 	| TBlock _
 	| TParenthesis _
 	| TNew _ ->
-		spr ctx "php_Boot::__deref(";
+		spr ctx "_hx_deref(";
 		ctx.is_call <- true;
 		gen_value ctx e;
 		ctx.is_call <- false;
@@ -965,7 +965,7 @@ and gen_expr ctx e =
 		| _ -> print ctx "%s::%s$%s" (s_path ctx en.e_path en.e_extern e.epos) (escphp ctx.quotes) (s_ident s))
 	| TArray (e1,e2) ->
 		(*
-		spr ctx "php_Boot::__byref__array_get(";
+		spr ctx "_hx_array_get_ref(";
 		gen_value ctx e1;
 		spr ctx ", ";
 		gen_value ctx e2;
@@ -973,7 +973,7 @@ and gen_expr ctx e =
 		*)
 		(match e1.eexpr with
 		| TCall _ ->
-			spr ctx "php_Boot::__byref__array_get(";
+			spr ctx "_hx_array_get_ref(";
 			gen_value ctx e1;
 			spr ctx ", ";
 			gen_value ctx e2;
@@ -1157,7 +1157,7 @@ and gen_expr ctx e =
 
 	| TTypeExpr t ->
 		let p = escphp ctx.quotes in
-		print ctx "php_Boot::__qtype(%s\"%s%s\")" p (s_path_haxe (t_path t)) p
+		print ctx "_hx_qtype(%s\"%s%s\")" p (s_path_haxe (t_path t)) p
 	| TParenthesis e ->
 		spr ctx "(";
 		gen_value ctx e;

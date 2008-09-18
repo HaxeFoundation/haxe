@@ -260,6 +260,7 @@ try
 		),"<file> : add the SWF library to the compiled SWF");
 		("-neko",Arg.String (set_platform Neko "neko"),"<file> : compile code to Neko Binary");
 		("-php",Arg.String (fun dir ->
+			classes := (["php"],"Boot") :: !classes;
 			classes := (["php"],"PhpXml__") :: !classes;
 			classes := (["php"],"PhpDate__") :: !classes;
 			classes := (["php"],"PhpMath__") :: !classes;
