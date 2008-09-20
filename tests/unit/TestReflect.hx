@@ -87,7 +87,7 @@ class TestReflect extends Test {
 	function is( v : Dynamic, t1 : Dynamic, ?t2 : Dynamic, ?pos : haxe.PosInfos ){
 		for( i in 0...TYPES.length ) {
 			var c = TYPES[i];
-			infos(v+" is "+TNAMES[i]);
+			infos(Std.string(v)+" is "+TNAMES[i]);
 			eq( Std.is(v,c), c != null && (c == t1 || c == t2) || (c == Dynamic), pos );
 		}
 		infos(null);
@@ -129,7 +129,7 @@ class TestReflect extends Test {
 
 	function typeof( v : Dynamic, rt : ValueType, ?pos : haxe.PosInfos ) {
 		var vt = Type.typeof(v);
-		infos("typeof("+v+") = "+vt);
+		infos("typeof("+Std.string(v)+") = "+vt);
 		t( Type.enumEq(vt,rt), pos );
 	}
 
