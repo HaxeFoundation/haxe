@@ -123,12 +123,12 @@ class EReg {
 		#elseif flash9
 			return untyped if( result != null && n >= 0 && n < result.length ) result[n] else throw "EReg::matched";
 		#elseif php
-			if(n >= 0 && n < matches.length) {
-				if(matches[n][1] < 0) return null;
-				return matches[n][0];
-			}
-			//else return null;
-			else throw "EReg::matched";
+			if( n < 0 ) throw "EReg::matched";
+			// we can't differenciate between optional groups at the end of a match
+			// that have not been matched and invalid groups
+			if( n >= matches.length ) return null;
+			if(matches[n][1] < 0) return null;
+			return matches[n][0];
 		#else
 			return null;
 		#end
