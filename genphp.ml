@@ -1819,8 +1819,8 @@ let createmain com c =
 		cwd = "";
 	} in
 
-	spr ctx "if(version_compare(PHP_VERSION, '5.1.6', '<')) {
-    exit('Your current PHP version is: ' . PHP_VERSION . '. haXe/PHP generates code for version 5.1.6 or later');
+	spr ctx "if(version_compare(PHP_VERSION, '5.1.0', '<')) {
+    exit('Your current PHP version is: ' . PHP_VERSION . '. haXe/PHP generates code for version 5.1.0 or later');
 }";
 	newline ctx;
 	newline ctx;
