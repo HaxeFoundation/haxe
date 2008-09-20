@@ -29,6 +29,7 @@
     <file path="RemotingApi.hx" />
     <file path="RemotingServer.hx" />
     <file path="Test.hx" />
+    <file path="TestBasetypes.hx" />
     <file path="TestBytes.hx" />
     <file path="TestEReg.hx" />
     <file path="TestInt32.hx" />
