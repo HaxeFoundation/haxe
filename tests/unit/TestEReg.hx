@@ -23,7 +23,14 @@ class TestEReg extends Test {
 		eq( r.matchedRight(), "" );
 		eq( r.matched(1), null );
 		eq( r.matched(2), "" );
-		exc(function() r.matched(3));
+		unspec(function() r.matched(3));
+		unspec(function() r.matched(-1));
+
+		var r = ~/^(b)?$/;
+		t( r.match("") );
+		eq( r.matched(0), "" );
+		eq( r.matched(1), null );
+
 		#end
 	}
 
