@@ -233,22 +233,15 @@ and gen_call ctx p e el =
 		let e = (match gen_expr ctx e with EFunction _, _ as e -> (EBlock [e],p) | e -> e) in
 		call p e (List.map (gen_expr ctx) el)
 
-and gen_closure p t e f =
+and gen_closure p ep t e f =
 	match follow t with
 	| TFun (args,_) ->
-		let n = ref 0 in
-		let args = List.map (fun _ -> incr n; "p" ^ string_of_int (!n)) args in
+		let n = List.length args in
+		if n > 5 then error "Cannot create closure with more than 5 arguments" ep;
 		let tmp = ident p "@tmp" in
-		let ifun = ident p "@fun" in
 		EBlock [
 			(EVars ["@tmp", Some e; "@fun", Some (field p tmp f)] , p);
-			(EIf ((EBinop ("==",ifun,null p),p),
-				null p,
-				Some (EFunction (args,(EBlock [
-					(EBinop ("=",this p,tmp),p);
-					(EReturn (Some (call p ifun (List.map (ident p) args))),p)
-				],p)),p)
-			),p)
+			call p (ident p ("@closure" ^ string_of_int n)) [tmp;ident p "@fun"]
 		] , p
 	| _ ->
 		field p e f
@@ -273,7 +266,7 @@ and gen_expr ctx e =
 	| TBinop (op,e1,e2) ->
 		gen_binop ctx p op e1 e2
 	| TField (e2,f) ->
-		gen_closure p e.etype (gen_expr ctx e2) f
+		gen_closure p e.epos e.etype (gen_expr ctx e2) f
 	| TTypeExpr t ->
 		gen_type_path p (t_path t)
 	| TParenthesis e ->
@@ -743,6 +736,12 @@ let generate com libs =
 		"@enum_to_string = function() { return neko.Boot.__enum_str(this); };" ^
 		"@serialize = function() { return neko.Boot.__serialize(this); };" ^
 		"@tag_serialize = function() { return neko.Boot.__tagserialize(this); };" ^
+		"@closure0 = function(@this,@fun) if( @fun == null ) null else function() { this = @this; @fun(); };" ^
+		"@closure1 = function(@this,@fun) if( @fun == null ) null else function(a) { this = @this; @fun(a); };" ^
+		"@closure2 = function(@this,@fun) if( @fun == null ) null else function(a,b) { this = @this; @fun(a,b); };" ^
+		"@closure3 = function(@this,@fun) if( @fun == null ) null else function(a,b,c) { this = @this; @fun(a,b,c); };" ^
+		"@closure4 = function(@this,@fun) if( @fun == null ) null else function(a,b,c,d) { this = @this; @fun(a,b,c,d); };" ^
+		"@closure5 = function(@this,@fun) if( @fun == null ) null else function(a,b,c,d,e) { this = @this; @fun(a,b,c,d,e); };" ^
 		generate_libs_init libs
 	) , { psource = "<header>"; pline = 1; } in
 	let packs = List.concat (List.map (gen_package ctx h) com.types) in

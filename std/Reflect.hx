@@ -223,12 +223,14 @@ class Reflect {
 		Does not work on Neko platform.
 	**/
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {
+		#if !neko
 		if( f1 == f2 )
 			return true;
 		if( !isFunction(f1) || !isFunction(f2) )
 			return false;
+		#end
 		#if neko
-			return false; // compare already done
+			return same_closure(f1,f2);
 		#elseif flash9
 			return false; // VM-level closures
 		#elseif flash
@@ -355,5 +357,9 @@ class Reflect {
 			return null;
 		#end
 	}
+
+	#if neko
+	static var same_closure = try neko.Lib.load("std","same_closure",2) catch( e : Dynamic ) function(f1,f2) return f1 == f2;
+	#end
 
 }

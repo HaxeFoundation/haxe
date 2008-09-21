@@ -1,11 +1,3 @@
-TODO optimizer : optimizations and ast manipulation in a separate module
-TODO optimizer : when an object is only used localy, move its fields on the stack (allow inlined iterators)
-TODO optimizer : precompute constant expressions
-TODO optimizer : reduce expressions such as function()...() , [arr][0] or if(true) (for better inlining)
-TODO optimizer : move multiple statics access into local variables
-TODO inlining : allow inlined getter/setter
-TODO inlining : substitute class+function type parameters in order to have fully typed expressions
-
 2008-??-??: 2.01
 	fixed php.Sys
 	added neko.NativeString and neko.NativeArray
@@ -43,6 +35,8 @@ TODO inlining : substitute class+function type parameters in order to have fully
 	fixed memory leak with PHP closures
 	fixed wrong scope in PHP closures
 	fixed Array.reverse() in PHP
+	fixed Reflect.compareMethods in Neko (require Neko 1.8.0)
+
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type
 	delayed type-parameter constraints check (allow mutual rec extends for SPOD)
