@@ -55,6 +55,7 @@ type context = {
 	mutable curclass : tclass;
 	mutable curmethod : (string * bool);
 	mutable fun_pargs : (int * bool list) list;
+	mutable static_init : bool;
 
 	(* loops *)
 	mutable cur_block : texpr list;
@@ -378,8 +379,10 @@ let begin_func ctx need_super need_args args =
 	let start_pos = ctx.code_pos in
 	let old_stack = ctx.fun_stack in
 	let old_rmax = ctx.reg_max in
+	let old_sinit = ctx.static_init in
 	ctx.fun_stack <- ctx.stack_size;
 	ctx.reg_max <- ctx.reg_count;
+	ctx.static_init <- false;
 	(fun() ->
 		let delta = ctx.code_pos - start_pos in
 		f.f2_codelen <- delta;
@@ -389,6 +392,7 @@ let begin_func ctx need_super need_args args =
 		if ctx.fun_stack <> ctx.stack_size then assert false;
 		ctx.fun_stack <- old_stack;
 		ctx.reg_max <- old_rmax;
+		ctx.static_init <- old_sinit;
 	)
 
 let open_block ctx =
@@ -441,7 +445,7 @@ let segment ctx =
 (* Generation Helpers *)
 
 let define_var ctx v ef exprs =
-	if ctx.flash6 || List.exists (Codegen.local_find false v) exprs then begin
+	if ctx.flash6 || List.exists (Codegen.local_find false v) exprs || ctx.static_init then begin
 		push ctx [VStr (v,false)];
 		ctx.regs <- PMap.add v NoReg ctx.regs;
 		match ef with
@@ -1449,6 +1453,7 @@ let generate com =
 		curmethod = ("",false);
 		fun_pargs = [];
 		in_loop = false;
+		static_init = false;
 	} in
 	write ctx (AStringPool []);
 	protect_all := not (Common.defined com "swf-mark");
@@ -1478,8 +1483,10 @@ let generate com =
 	gen_boot ctx;
 	List.iter (fun m -> gen_movieclip ctx m) ctx.movieclips;
 	let global_try = gen_try ctx in
+	ctx.static_init <- true;
 	List.iter (gen_expr ctx false) (List.rev ctx.inits);
 	List.iter (gen_class_static_init ctx) (List.rev ctx.statics);
+	ctx.static_init <- false;
 	let end_try = global_try() in
 	(* flash.Boot.__trace(exc) *)
 	push ctx [VReg 0; VInt 1];

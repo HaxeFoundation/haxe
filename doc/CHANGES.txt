@@ -36,6 +36,7 @@
 	fixed wrong scope in PHP closures
 	fixed Array.reverse() in PHP
 	fixed Reflect.compareMethods in Neko (require Neko 1.8.0)
+	fixed flash7-8 register usage for __init__ and static variables initialization
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type
