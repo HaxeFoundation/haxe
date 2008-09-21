@@ -108,7 +108,7 @@ let type_expr_with_type ctx e t =
 	| _ ->
 		type_expr ctx e true
 
-let unify_call_params ctx name el args p =
+let unify_call_params ctx name el args p inline =
 	let error txt =
 		let format_arg = (fun (name,opt,_) -> (if opt then "?" else "") ^ name) in
 		let argstr = "Function " ^ (match name with None -> "" | Some n -> "'" ^ n ^ "' ") ^ "requires " ^ (if args = [] then "no arguments" else "arguments : " ^ String.concat ", " (List.map format_arg args)) in
@@ -147,7 +147,7 @@ let unify_call_params ctx name el args p =
 	let rec loop acc l l2 skip =
 		match l , l2 with
 		| [] , [] ->
-			if Common.defined ctx.com "flash" || Common.defined ctx.com "js" then
+			if not inline && (Common.defined ctx.com "flash" || Common.defined ctx.com "js") then
 				List.rev (no_opt acc)
 			else
 				List.rev (List.map fst acc)
@@ -1189,7 +1189,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then error "Cannot access private constructor" p;
 			let el = (match follow (apply_params c.cl_types params (field_type f)) with
 			| TFun (args,r) ->
-				unify_call_params ctx (Some "new") el args p
+				unify_call_params ctx (Some "new") el args p false
 			| _ ->
 				error "Constructor is not a function" p
 			) in
@@ -1369,7 +1369,7 @@ and type_call ctx e el p =
 			let f = (match c.cl_constructor with Some f -> f | None -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
 			let el = (match follow (apply_params c.cl_types params (field_type f)) with
 			| TFun (args,_) ->
-				unify_call_params ctx (Some "new") el args p;
+				unify_call_params ctx (Some "new") el args p false
 			| _ ->
 				error "Constructor is not a function" p
 			) in
@@ -1383,7 +1383,7 @@ and type_call ctx e el p =
 		match type_access ctx (fst e) (snd e) true with
 		| AccInline (ethis,f,t) ->
 			let params, tret = (match follow t with
-				| TFun (args,r) -> unify_call_params ctx (Some f.cf_name) el args p, r
+				| TFun (args,r) -> unify_call_params ctx (Some f.cf_name) el args p true, r
 				| _ -> error (s_type (print_context()) t ^ " cannot be called") p
 			) in
 			ignore(follow f.cf_type); (* force evaluation *)
@@ -1398,7 +1398,7 @@ and type_call ctx e el p =
 			let e = acc_get acc p in
 			let el , t = (match follow e.etype with
 			| TFun (args,r) ->
-				let el = unify_call_params ctx (match e.eexpr with TField (_,f) -> Some f | _ -> None) el args p in
+				let el = unify_call_params ctx (match e.eexpr with TField (_,f) -> Some f | _ -> None) el args p false in
 				el , r
 			| TMono _ ->
 				let t = mk_mono() in

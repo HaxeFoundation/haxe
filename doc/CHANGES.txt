@@ -39,6 +39,7 @@
 	fixed flash7-8 register usage for __init__ and static variables initialization
 	moved StringTools.baseEncode/Decode to haxe.BaseCode
 	fixed binary resources for Flash, JS and PHP outputs
+	fixed compiler bug with inline + optional arguments
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type
