@@ -32,6 +32,12 @@ class TestMisc extends Test {
 		allow( haxe.Md5.encode("héllo"), ["1a722f7e6c801d9e470a10cb91ba406d","be50e8478cf24ff3595bc7307fb91b50"] );
 	}
 
+	function testBaseCode() {
+		var b = new haxe.BaseCode(haxe.io.Bytes.ofString("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-"));
+		eq( b.encodeString("Héllow"), "iceFr6NLtM" );
+		eq( b.decodeString("iceFr6NLtM"), "Héllow" );
+	}
+
 	function opt1( ?x : Int, ?y : String ) {
 		return { x : x, y : y };
 	}

@@ -187,9 +187,9 @@ let rec gen_call ctx e el =
 			spr ctx "{ ";
 			spr ctx "name : ";
 			gen_constant ctx e.epos (TString name);
-			spr ctx ", data : [";
-			concat ctx "," (fun s -> gen_constant ctx e.epos (TString s)) (ExtString.String.nsplit data "\000");
-			spr ctx "]}"
+			spr ctx ", data : ";
+			gen_constant ctx e.epos (TString (Codegen.bytes_serialize data));
+			spr ctx "}"
 		) (Hashtbl.fold (fun name data acc -> (name,data) :: acc) ctx.com.resources []);
 		spr ctx "]";
 	| _ ->

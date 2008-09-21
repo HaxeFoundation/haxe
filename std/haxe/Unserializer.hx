@@ -299,8 +299,7 @@ class Unserializer {
  			if( buf.charAt(pos++) != ":" || length - pos < len )
 				throw "Invalid bytes length";
 			#if neko
-			var str = StringTools.baseDecode(buf.substr(pos,len),BASE64);
-			var bytes = neko.Lib.bytesReference(str);
+			var bytes = haxe.io.Bytes.ofData( base_decode(untyped buf.substr(pos,len).__s,untyped BASE64.__s) );
 			#else
 			var codes = CODES;
 			if( codes == null ) {
@@ -346,5 +345,9 @@ class Unserializer {
 	public static function run( v : String ) : Dynamic {
 		return new Unserializer(v).unserialize();
 	}
+
+	#if neko
+	static var base_decode = neko.Lib.load("std","base_decode",2);
+	#end
 
 }

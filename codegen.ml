@@ -853,3 +853,9 @@ let rec is_volatile t =
 let set_default ctx a c t p =
 	let ve = mk (TLocal a) t p in
 	mk (TIf (mk (TBinop (OpEq,ve,mk (TConst TNull) t p)) ctx.type_api.tbool p, mk (TBinop (OpAssign,ve,mk (TConst c) t p)) t p,None)) ctx.type_api.tvoid p
+
+let bytes_serialize data =
+	let b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:" in
+	let tbl = Array.init (String.length b64) (fun i -> String.get b64 i) in
+	let str = Base64.str_encode ~tbl data in
+	"s" ^ string_of_int (String.length str) ^ ":" ^ str

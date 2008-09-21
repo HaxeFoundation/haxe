@@ -892,9 +892,7 @@ and gen_call ctx e el =
 		Hashtbl.iter (fun name data ->
 			incr count;
 			push ctx [VStr ("name",false);VStr (name,true);VStr ("data",false)];
-			let parts = ExtString.String.nsplit data "\000" in
-			List.iter (gen_big_string ctx) (List.rev parts);
-			init_array ctx (List.length parts);
+			gen_big_string ctx (Codegen.bytes_serialize data);
 			push ctx [VInt 2];
 			write ctx AObject;
 			ctx.stack_size <- ctx.stack_size - 4;

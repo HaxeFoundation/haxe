@@ -145,9 +145,10 @@ class Bytes {
 		// utf8-encode
 		while( i < max ) {
 			var c = b[i++];
-			if( c < 0x7F )
+			if( c < 0x7F ) {
+				if( c == 0 ) break;
 				s += fcc(c);
-			else if( c < 0xE0 )
+			} else if( c < 0xE0 )
 				s += fcc( ((c & 0x3F) << 6) | (b[i++] & 0x7F) );
 			else if( c < 0xF0 ) {
 				var c2 = b[i++];

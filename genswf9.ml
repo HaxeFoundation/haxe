@@ -1155,7 +1155,7 @@ and gen_call ctx retval e el r =
 			write ctx (HString "name");
 			write ctx (HString name);
 			write ctx (HString "data");
-			write ctx (HString data);
+			write ctx (HString (Codegen.bytes_serialize data));
 			write ctx (HObject 2);
 		) ctx.com.resources;
 		write ctx (HArray !count)

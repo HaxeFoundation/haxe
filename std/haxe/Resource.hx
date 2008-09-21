@@ -53,7 +53,7 @@ class Resource {
 		return php.io.File.getBytes(getPath(name));
 	}
 #else
-	static var content : Array<{ name : String, data : #if (neko || flash9) String #else Array<String> #end }>;
+	static var content : Array<{ name : String, data : String }>;
 
 	public static function listNames() : Array<String> {
 		var names = new Array();
@@ -62,30 +62,26 @@ class Resource {
 		return names;
 	}
 
-	public static function getString( name : String ) {
+	public static function getString( name : String ) : String {
 		for( x in content )
-			if( x.name == name )
-				return #if neko new String(x.data) #elseif flash9 x.data #else x.data[0] #end;
+			if( x.name == name ) {
+				#if neko
+				return new String(x.data);
+				#else
+				var b : haxe.io.Bytes = haxe.Unserializer.run(x.data);
+				return b.toString();
+				#end
+			}
 		return null;
 	}
 
-	public static function getBytes( name : String ) {
+	public static function getBytes( name : String ) : haxe.io.Bytes {
 		for( x in content )
 			if( x.name == name ) {
 				#if neko
 				return haxe.io.Bytes.ofData(cast x.data);
-				#elseif flash9
-				var b = new flash.utils.ByteArray();
-				b.writeUTFBytes(x.data);
-				return haxe.io.Bytes.ofData(b);
 				#else
-				var buf = new haxe.io.BytesOutput();
-				var first = true;
-				for( seg in x.data ) {
-					if( first ) first = false else buf.writeByte(0);
-					buf.writeString(seg);
-				}
-				return buf.getBytes();
+				return haxe.Unserializer.run(x.data);
 				#end
 			}
 		return null;

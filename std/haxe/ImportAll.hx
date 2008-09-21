@@ -46,6 +46,7 @@ import StringTools;
 import Type;
 import Xml;
 
+import haxe.BaseCode;
 import haxe.FastList;
 import haxe.Firebug;
 import haxe.Http;

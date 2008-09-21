@@ -221,81 +221,6 @@ class StringTools {
 	}
 
 	/**
-		Encode a string using the specified base. The base length must be a power of two.
-	**/
-	public static function baseEncode( s : String, base : String ) : String {
-		#if neko
-			return new String(_baseEncode(untyped s.__s,untyped base.__s));
-		#else
-			var len = base.length;
-			var nbits = 1;
-			while( len > 1 << nbits )
-				nbits++;
-			if( nbits > 8 || len != 1 << nbits )
-				throw "baseEncode: base must be a power of two.";
-			var size = Std.int((s.length * 8 + nbits - 1) / nbits);
-			var out = new StringBuf();
-			var buf = 0;
-			var curbits = 0;
-			var mask = ((1 << nbits) - 1);
-			var pin = 0;
-			while( size-- > 0 ){
-				while( curbits < nbits ){
-					curbits += 8;
-					buf <<= 8;
-					var t = s.charCodeAt(pin++);
-					if( t > 255 )
-						throw "baseEncode: bad chars";
-					buf |= t;
-				}
-				curbits -= nbits;
-				out.addChar(base.charCodeAt((buf >> curbits) & mask));
-			}
-			return out.toString();
-		#end
-	}
-
-	/**
-		Decode a string encoded in the specified base. The base length must be a power of two.
-	**/
-	public static function baseDecode( s : String, base : String ) : String {
-		#if neko
-			return new String(_baseDecode(untyped s.__s,untyped base.__s));
-		#else
-			var len = base.length;
-			var nbits = 1;
-			while( len > 1 << nbits )
-				nbits++;
-			if( nbits > 8 || len != 1 << nbits )
-				throw "baseDecode: base must be a power of two.";
-			var size = (s.length * 8 + nbits - 1) / nbits;
-			var tbl = new Array();
-			for( i in 0...256 )
-				tbl[i] = -1;
-			for( i in 0...len )
-				tbl[base.charCodeAt(i)] = i;
-			var size = (s.length * nbits) / 8;
-			var out = new StringBuf();
-			var buf = 0;
-			var curbits = 0;
-			var pin = 0;
-			while( size-- > 0 ){
-				while( curbits < 8 ){
-					curbits += nbits;
-					buf <<= nbits;
-					var i = tbl[s.charCodeAt(pin++)];
-					if( i == -1 )
-						throw "baseDecode: bad chars";
-					buf |= i;
-				}
-				curbits -= 8;
-				out.addChar((buf >> curbits) & 0xFF);
-			}
-			return out.toString();
-		#end
-	}
-
-	/**
 		Encode a number into a hexadecimal representation, with an optional number of zeros for left padding.
 	**/
 	public static function hex( n : Int, ?digits : Int ) {
@@ -326,8 +251,6 @@ class StringTools {
 	#if neko
 	private static var _urlEncode = neko.Lib.load("std","url_encode",1);
 	private static var _urlDecode = neko.Lib.load("std","url_decode",1);
-	private static var _baseEncode = neko.Lib.load("std","base_encode",2);
-	private static var _baseDecode = neko.Lib.load("std","base_decode",2);
 	#end
 
 }
