@@ -10,10 +10,20 @@ class Web {
 		Returns the GET and POST parameters.
 	**/
 	public static function getParams() {
+		#if force_std_separator
+		var h = Lib.hashOfAssociativeArray(untyped __php__("$_POST"));
+		for( p in getParamsString().split(";") ) {
+			var a = p.split("=");
+			var n = a.shift();
+			h.set(StringTools.urlDecode(n),StringTools.urlDecode(a.join("=")));
+		}
+		return h;
+		#else
 		var a : Array<String> = untyped __php__("array_merge($_GET, $_POST)");
 		if(untyped __call__("get_magic_quotes_gpc"))
 			untyped __php__("foreach($a as $k => $v) $a[$k] = stripslashes($v)");
 		return Lib.hashOfAssociativeArray(a);
+		#end
 	}
 
 	/**
