@@ -6,88 +6,17 @@ class Boot {
 	static var tpaths;
 	static var skip_constructor = false;
 	static function __init__() : Void {
-		untyped __php__("//error_reporting(0);
-
-function _hx_register_type($t) {
-	php_Boot::$qtypes[$t->__qname__] = $t;
-	php_Boot::$ttypes[$t->__tname__] = $t;
-	if($t->__path__ !== null)
-		php_Boot::$tpaths[$t->__tname__] = $t->__path__;
-}
-
-function _hx_qtype($n) {
-	return isset(php_Boot::$qtypes[$n]) ? php_Boot::$qtypes[$n] : null;
-}
-
-function _hx_ttype($n) {
-	return isset(php_Boot::$ttypes[$n]) ? php_Boot::$ttypes[$n] : null;
-}
-
-function _hx_error_handler($errno, $errmsg, $filename, $linenum, $vars) {
-	$msg = $errmsg . ' (errno: ' . $errno . ') in ' . $filename . ' at line #' . $linenum;
-	$e = new HException($msg, $errmsg, $errno, _hx_anonymous(array('fileName' => 'Boot.hx', 'lineNumber' => 41, 'className' => 'php.Boot', 'methodName' => '__error_handler')));
-	$e->setFile($filename);
-	$e->setLine($linenum);
-	throw $e;
-	return null;
-}
-
-function _hx_exception_handler($e) {
-	$msg = '<pre>Uncaught exception: <b>' . $e->getMessage() . '</b>\nin file: <b>' . $e->getFile() . '</b> line <b>' . $e->getLine() . '</b>\n\n' . $e->getTraceAsString() . '</pre>';
-	die($msg);
-}
-
-set_error_handler('_hx_error_handler', E_ALL);
-set_exception_handler('_hx_exception_handler');
-
-function _hx_instanceof($v, $t) {
-	if($t === null) {
-		return false;
-	}
-	switch($t->__tname__) {
-		case 'Array'  : return is_array($v);
-		case 'String' : return is_string($v) && !_hx_is_lambda($v);
-		case 'Bool'   : return is_bool($v);
-		case 'Int'    : return is_int($v);
-		case 'Float'  : return is_float($v) || is_int($v);
-		case 'Dynamic': return true;
-		case 'Class'  : return $v instanceof _hx_class && $v->__tname__ != 'Enum';
-		case 'Enum'   : return $v instanceof _hx_enum;
-		default       : return is_a($v, $t->__tname__);
-	}
-}
-
-function _hx_deref(&$o) {
+		untyped __php__("
+function _hx_anonymous($p = array()) {
+	$o = new _hx_anonymous();
+	foreach($p as $k => $v)
+		$o->$k = $v;
 	return $o;
 }
 
-function &_hx_array_get_ref(&$o, $index) {
-	$r = null;
-	if(isset($o[$index])) $r =& $o[$index];
-	return $r;
-}
-/*
-function _hx_res($n) {
-	$file = dirname(__FILE__).'/../../res/'.$n;
-	if(!file_exists($file))
-		throw new HException('Invalid Resource name: ' . $n);
-	return file_get_contents($file);
-}
-*/
 
-function _hx_string_call($s, $method, $params) {
-	if(!is_string($s)) return call_user_func_array(array($s, $method), $params);
-	switch($method) {
-		case 'toUpperCase': return strtoupper($s);
-		case 'toLowerCase': return strtolower($s);
-		case 'charAt'     : return substr($s, $params[0], 1);
-		case 'charCodeAt' : return _hx_char_code_at($s, $params[0]);
-		case 'indexOf'    : return _hx_index_of($s, $params[0], (_hx_len($params) > 1 ? $params[1] : null));
-		case 'lastIndexOf': return _hx_last_index_of($s, (_hx_len($params) > 1 ? $params[1] : null), null);
-		case 'split'      : return explode($params[0], $s);
-		case 'substr'     : return _hx_substr($s, $params[0], (_hx_len($params) > 1 ? $params[1] : null));
-		default           : throw new HException('Invalid Operation: ' . $method);
-	}
+function _hx_array() {
+	return func_get_args();
 }
 
 function _hx_array_call(&$arr, $method, $params) {
@@ -111,16 +40,104 @@ function _hx_array_call(&$arr, $method, $params) {
 	}
 }
 
+function _hx_array_copy($a) {
+	return $a;
+}
 
-function _hx_shift_right($v, $n) {
-	$z = 0x80000000;
-	if ($z & $v) {
-		$v = ($v>>1);
-		$v &= (~$z);
-		$v |= 0x40000000;
-		$v = ($v>>($n-1));
-	} else $v = ($v>>$n);
-	return $v;
+function _hx_array_empty() {
+	return array();
+}
+
+function &_hx_array_get_ref(&$o, $index) {
+	$r = null;
+	if(isset($o[$index])) $r =& $o[$index];
+	return $r;
+}
+
+function _hx_array_insert(&$arr, $pos, $x) {
+	array_splice($arr, $pos, 0, array($x));
+}
+
+function _hx_array_iterator($arr) {
+	return new _hx_array_iterator($arr);
+}
+
+function _hx_array_remove(&$arr, $x) {
+	for($i = 0; $i < count($arr); $i++)
+		if($arr[$i] === $x) {
+			unset($arr[$i]);
+			$arr = array_values($arr);
+			return true;
+		}
+	return false;
+}
+
+function _hx_array_remove_at(&$arr, $pos) {
+	if(array_key_exists($pos, $arr)) {
+		unset($arr[$pos]);
+		return true;
+	} else
+		return false;
+}
+
+function _hx_array_reverse(&$a) {
+	$a = array_reverse($a, false);
+}
+
+function _hx_array_set(&$arr, $pos, $v) {
+	if(is_int($pos)) {
+		$l = count($arr);
+		if($l < $pos)
+			array_splice($arr, $l, 0, array_fill($l, $pos-$l, null));
+	}
+	return $arr[$pos] = $v;
+}
+
+function _hx_array_slice(&$arr, $pos, $end) {
+	if($end == null)
+		return array_slice($arr, $pos);
+	else
+		return array_slice($arr, $pos, $end-$pos);
+}
+
+function _hx_array_sort(&$arr, $f) {
+	$i = 0;
+	$l = count($arr);
+	while($i < $l) {
+		$swap = false;
+		$j = 0;
+		$max = $l - $i - 1;
+		while($j < $max) {
+			if(call_user_func($f, $arr[$j], $arr[$j+1]) > 0 ) {
+				$tmp = $arr[$j+1];
+				$arr[$j+1] = $arr[$j];
+				$arr[$j] = $tmp;
+				$swap = true;
+			}
+			$j += 1;
+		}
+		if(!$swap) break;
+		$i += 1;
+	}
+}
+
+function _hx_array_splice(&$arr, $pos, $len) {
+	if($len < 0) $len = 0;
+	return array_splice($arr, $pos, $len);
+}
+
+function _hx_char_code_at($s, $pos) {
+	if(empty($s) || $pos >= strlen($s)) return null;
+	return ord($s{$pos});
+}
+
+// TODO: optimization, remove as much as possible the calls to this function
+function _hx_closure($locals, $scope, $params, $body) {
+	return array(new _hx_lambda($locals, $scope, $params, $body), 'execute'.count($params));
+}
+
+function _hx_deref(&$o) {
+	return $o;
 }
 
 function _hx_equal($x, $y) {
@@ -139,14 +156,18 @@ function _hx_equal($x, $y) {
 	}
 }
 
-function _hx_has_field($o, $field) {
-	return
-		(is_object($o) && (method_exists($o, $field) || isset($o->$field) || property_exists($o, $field)))
-		||
-		(is_string($o) && (in_array($field, array('toUpperCase', 'toLowerCase', 'charAt', 'charCodeAt', 'indexOf', 'lastIndexOf', 'split', 'substr', 'toString', 'length'))))
-		||
-		(is_array($o)  && (in_array($field, array('concat', 'copy', 'insert', 'iterator', 'join', 'pop', 'push', 'remove', 'reverse', 'shift', 'slice', 'sort', 'splice', 'unshift', 'toString', 'length'))))
-	;
+function _hx_error_handler($errno, $errmsg, $filename, $linenum, $vars) {
+	$msg = $errmsg . ' (errno: ' . $errno . ') in ' . $filename . ' at line #' . $linenum;
+	$e = new HException($msg, $errmsg, $errno, _hx_anonymous(array('fileName' => 'Boot.hx', 'lineNumber' => 41, 'className' => 'php.Boot', 'methodName' => '__error_handler')));
+	$e->setFile($filename);
+	$e->setLine($linenum);
+	throw $e;
+	return null;
+}
+
+function _hx_exception_handler($e) {
+	$msg = '<pre>Uncaught exception: <b>' . $e->getMessage() . '</b>\nin file: <b>' . $e->getFile() . '</b> line <b>' . $e->getLine() . '</b>\n\n' . $e->getTraceAsString() . '</pre>';
+	die($msg);
 }
 
 function _hx_field($o, $field) {
@@ -222,6 +243,98 @@ function _hx_field($o, $field) {
 	}
 }
 
+function _hx_has_field($o, $field) {
+	return
+		(is_object($o) && (method_exists($o, $field) || isset($o->$field) || property_exists($o, $field)))
+		||
+		(is_string($o) && (in_array($field, array('toUpperCase', 'toLowerCase', 'charAt', 'charCodeAt', 'indexOf', 'lastIndexOf', 'split', 'substr', 'toString', 'length'))))
+		||
+		(is_array($o)  && (in_array($field, array('concat', 'copy', 'insert', 'iterator', 'join', 'pop', 'push', 'remove', 'reverse', 'shift', 'slice', 'sort', 'splice', 'unshift', 'toString', 'length'))))
+	;
+}
+
+function _hx_index_of($s, $value, $startIndex) {
+	$x = strpos($s, $value, $startIndex);
+	if($x === false)
+		return -1;
+	else
+		return $x;
+}
+
+function _hx_instanceof($v, $t) {
+	if($t === null) {
+		return false;
+	}
+	switch($t->__tname__) {
+		case 'Array'  : return is_array($v);
+		case 'String' : return is_string($v) && !_hx_is_lambda($v);
+		case 'Bool'   : return is_bool($v);
+		case 'Int'    : return is_int($v);
+		case 'Float'  : return is_float($v) || is_int($v);
+		case 'Dynamic': return true;
+		case 'Class'  : return $v instanceof _hx_class && $v->__tname__ != 'Enum';
+		case 'Enum'   : return $v instanceof _hx_enum;
+		default       : return is_a($v, $t->__tname__);
+	}
+}
+
+function _hx_is_lambda($s) {
+	return (is_string($s) && substr($s, 0, 8) == chr(0).'lambda_') || (is_array($s) && count($s) > 0 && is_a($s[0], '_hx_lambda'));
+}
+
+function _hx_last_index_of($s, $value, $startIndex) {
+	$x = strrpos($s, $value, $startIndex === null ? null : strlen($s) - $startIndex);
+	if($x === false)
+		return -1;
+	else
+		return $x;
+}
+
+function _hx_len($o) {
+	return is_array($o) ? count($o) : (is_string($o) ? strlen($o) : $o->length);
+}
+
+function _hx_null() {
+	return null;
+}
+
+function _hx_qtype($n) {
+	return isset(php_Boot::$qtypes[$n]) ? php_Boot::$qtypes[$n] : null;
+}
+
+function _hx_register_type($t) {
+	php_Boot::$qtypes[$t->__qname__] = $t;
+	php_Boot::$ttypes[$t->__tname__] = $t;
+	if($t->__path__ !== null)
+		php_Boot::$tpaths[$t->__tname__] = $t->__path__;
+}
+
+function _hx_shift_right($v, $n) {
+	$z = 0x80000000;
+	if ($z & $v) {
+		$v = ($v>>1);
+		$v &= (~$z);
+		$v |= 0x40000000;
+		$v = ($v>>($n-1));
+	} else $v = ($v>>$n);
+	return $v;
+}
+
+function _hx_string_call($s, $method, $params) {
+	if(!is_string($s)) return call_user_func_array(array($s, $method), $params);
+	switch($method) {
+		case 'toUpperCase': return strtoupper($s);
+		case 'toLowerCase': return strtolower($s);
+		case 'charAt'     : return substr($s, $params[0], 1);
+		case 'charCodeAt' : return _hx_char_code_at($s, $params[0]);
+		case 'indexOf'    : return _hx_index_of($s, $params[0], (_hx_len($params) > 1 ? $params[1] : null));
+		case 'lastIndexOf': return _hx_last_index_of($s, (_hx_len($params) > 1 ? $params[1] : null), null);
+		case 'split'      : return explode($params[0], $s);
+		case 'substr'     : return _hx_substr($s, $params[0], (_hx_len($params) > 1 ? $params[1] : null));
+		default           : throw new HException('Invalid Operation: ' . $method);
+	}
+}
+
 function _hx_string_rec($o, $s) {
 	if($o === null)                return 'null';
 	if(strlen($s) >= 5)            return '<...>';
@@ -253,7 +366,7 @@ function _hx_string_rec($o, $s) {
 				for($i = 0; $i < count($properties); $i++) {
 					$prop = $properties[$i];
 					$f = $prop->getName();
-					if(strlen($b2) !== 2)
+					if($i > 0)
 						$b2 .= \", \n\";
 					$b2 .= $s . $f . ' : ' . _hx_string_rec($prop->getValue($o), $s);
 				}
@@ -293,116 +406,6 @@ function _hx_string_rec($o, $s) {
 	return '';
 }
 
-
-function _hx_array_copy($a) {
-	return $a;
-}
-
-function _hx_array_iterator($arr) {
-	return new _hx_array_iterator($arr);
-}
-
-function _hx_array_insert(&$arr, $pos, $x) {
-	array_splice($arr, $pos, 0, array($x));
-}
-
-function _hx_array() {
-	return func_get_args();
-}
-
-function _hx_array_empty() {
-	return array();
-}
-
-function _hx_array_remove(&$arr, $x) {
-	for($i = 0; $i < count($arr); $i++)
-		if($arr[$i] === $x) {
-			unset($arr[$i]);
-			$arr = array_values($arr);
-			return true;
-		}
-	return false;
-}
-
-function _hx_array_remove_at(&$arr, $pos) {
-	if(array_key_exists($pos, $arr)) {
-		unset($arr[$pos]);
-		return true;
-	} else
-		return false;
-}
-
-function _hx_array_sort(&$arr, $f) {
-	$i = 0;
-	$l = count($arr);
-	while($i < $l) {
-		$swap = false;
-		$j = 0;
-		$max = $l - $i - 1;
-		while($j < $max) {
-			if(call_user_func($f, $arr[$j], $arr[$j+1]) > 0 ) {
-				$tmp = $arr[$j+1];
-				$arr[$j+1] = $arr[$j];
-				$arr[$j] = $tmp;
-				$swap = true;
-			}
-			$j += 1;
-		}
-		if(!$swap) break;
-		$i += 1;
-	}
-}
-
-function _hx_array_splice(&$arr, $pos, $len) {
-	if($len < 0) $len = 0;
-	return array_splice($arr, $pos, $len);
-}
-
-function _hx_array_slice(&$arr, $pos, $end) {
-	if($end == null)
-		return array_slice($arr, $pos);
-	else
-		return array_slice($arr, $pos, $end-$pos);
-}
-
-function _hx_null() {
-	return null;
-}
-
-function _hx_anonymous($p = array()) {
-	$o = new _hx_anonymous();
-	foreach($p as $k => $v)
-		$o->$k = $v;
-	return $o;
-}
-
-function _hx_trace($v, $i) {
-	$msg = $i !== null ? $i->fileName.':'.$i->lineNumber.': ' : '';
-	echo $msg._hx_string_rec($v, '').\"\n\";
-}
-
-function _hx_len($o) {
-	return is_array($o) ? count($o) : (is_string($o) ? strlen($o) : $o->length);
-}
-
-function _hx_array_reverse(&$a) {
-	$a = array_reverse($a, false);
-}
-
-function _hx_array_set(&$arr, $pos, $v) {
-	if(is_int($pos)) {
-		$l = count($arr);
-		if($l < $pos)
-			array_splice($arr, $l, 0, array_fill($l, $pos-$l, null));
-	}
-	return $arr[$pos] = $v;
-}
-
-function _hx_char_code_at($s, $pos) {
-	if(empty($s) || $pos >= strlen($s)) return null;
-	return ord($s{$pos});
-}
-
 function _hx_substr($s, $pos, $len) {
 	if($pos !== null && $pos !== 0 && $len !== null && $len < 0) return '';
 	if($len === null) $len = strlen($s);
@@ -418,20 +421,13 @@ function _hx_substr($s, $pos, $len) {
 		return $s;
 }
 
-function _hx_index_of($s, $value, $startIndex) {
-	$x = strpos($s, $value, $startIndex);
-	if($x === false)
-		return -1;
-	else
-		return $x;
+function _hx_trace($v, $i) {
+	$msg = $i !== null ? $i->fileName.':'.$i->lineNumber.': ' : '';
+	echo $msg._hx_string_rec($v, '').\"\n\";
 }
 
-function _hx_last_index_of($s, $value, $startIndex) {
-	$x = strrpos($s, $value, $startIndex === null ? null : strlen($s) - $startIndex);
-	if($x === false)
-		return -1;
-	else
-		return $x;
+function _hx_ttype($n) {
+	return isset(php_Boot::$ttypes[$n]) ? php_Boot::$ttypes[$n] : null;
 }
 
 class _hx_anonymous extends stdClass {
@@ -467,10 +463,13 @@ class _hx_anonymous extends stdClass {
 		$rfl = new ReflectionObject($this);
 		$b = '{ ';
 		$properties = $rfl->getProperties();
+		$first = true;
 		foreach($properties as $prop) {
-			$f = $prop->getName();
-			if(strlen($b) > 2)
+			if($first)
+				$first = false;
+			else
 				$b .= ', ';
+			$f = $prop->getName();
 			$b .= $f . ' => ' . $prop->getValue($this);
 		}
 		$b .= ' }';
@@ -570,14 +569,6 @@ class HException extends Exception {
 	}
 }
 
-// TODO: optimization, remove as much as possible the calls to this function
-function _hx_closure($locals, $scope, $params, $body) {
-	return array(new _hx_lambda($locals, $scope, $params, $body), 'execute'.count($params));
-}
-
-function _hx_is_lambda($s) {
-	return (is_string($s) && substr($s, 0, 8) == chr(0).'lambda_') || (is_array($s) && count($s) > 0 && is_a($s[0], '_hx_lambda'));
-}
 
 class _hx_lambda {
 	public function __construct($locals, $scope, $args, $body) {
@@ -664,6 +655,9 @@ class Enum {
 		return $this->tag;
 	}
 }
+
+set_error_handler('_hx_error_handler', E_ALL);
+set_exception_handler('_hx_exception_handler');
 
 php_Boot::$qtypes = array();
 php_Boot::$ttypes = array();
