@@ -11,7 +11,10 @@ class Web {
 	**/
 	public static function getParams() {
 		#if force_std_separator
-		var h = Lib.hashOfAssociativeArray(untyped __php__("$_POST"));
+		var a : Array<String> = untyped __php__("$_POST");
+		if(untyped __call__("get_magic_quotes_gpc"))
+			untyped __php__("foreach($a as $k => $v) $a[$k] = stripslashes($v)");
+		var h = Lib.hashOfAssociativeArray(a);
 		for( p in getParamsString().split(";") ) {
 			var a = p.split("=");
 			var n = a.shift();
