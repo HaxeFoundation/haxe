@@ -490,7 +490,10 @@ let gen_method ctx p c acc =
 	| Some e ->
 		match e.eexpr with
 		| TCall ({ eexpr = TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = (["neko"],"Lib") }) }, load)},[{ eexpr = TConst (TString m) };{ eexpr = TConst (TString f) };{ eexpr = TConst (TInt n) }]) when load = "load" || load = "loadLazy" ->
-			(c.cf_name, call (pos ctx e.epos) (EField (builtin p "loader","loadprim"),p) [(EBinop ("+",(EBinop ("+",str p m,str p "@"),p),str p f),p); (EConst (Int (Int32.to_int n)),p)]) :: acc
+			let p = pos ctx e.epos in
+			let e = call p (EField (builtin p "loader","loadprim"),p) [(EBinop ("+",(EBinop ("+",str p m,str p "@"),p),str p f),p); (EConst (Int (Int32.to_int n)),p)] in
+			let e = (if load = "load" then e else (ETry (e,"@e",call p (ident p "@lazy_error") [ident p "@e"]),p)) in
+			(c.cf_name, e) :: acc
 		| TFunction _ -> ((if c.cf_name = "new" then "__construct__" else c.cf_name), gen_expr ctx e) :: acc
 		| _ -> (c.cf_name, null p) :: acc
 
@@ -736,6 +739,7 @@ let generate com libs =
 		"@enum_to_string = function() { return neko.Boot.__enum_str(this); };" ^
 		"@serialize = function() { return neko.Boot.__serialize(this); };" ^
 		"@tag_serialize = function() { return neko.Boot.__tagserialize(this); };" ^
+		"@lazy_error = function(e) return $varargs(function(_) $throw(e));" ^
 		"@closure0 = function(@this,@fun) if( @fun == null ) null else function() { this = @this; @fun(); };" ^
 		"@closure1 = function(@this,@fun) if( @fun == null ) null else function(a) { this = @this; @fun(a); };" ^
 		"@closure2 = function(@this,@fun) if( @fun == null ) null else function(a,b) { this = @this; @fun(a,b); };" ^
