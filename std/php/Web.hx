@@ -15,7 +15,7 @@ class Web {
 		if(untyped __call__("get_magic_quotes_gpc"))
 			untyped __php__("foreach($a as $k => $v) $a[$k] = stripslashes($v)");
 		var h = Lib.hashOfAssociativeArray(a);
-		for( p in getParamsString().split(";") ) {
+		for( p in ~/[;&]/.split(getParamsString()) ) {
 			var a = p.split("=");
 			var n = a.shift();
 			h.set(StringTools.urlDecode(n),StringTools.urlDecode(a.join("=")));
