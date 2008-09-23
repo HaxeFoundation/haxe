@@ -18,7 +18,7 @@
 	use "Dynamic" instead of Dynamic->Void for flash9 IEventDispatcher
 	always use full classes paths for genAS3
 	prevent different get/set property accesses when implementing an interface
-	fixed assign of dynamicfunction references in PHP 
+	fixed assign of dynamicfunction references in PHP
 	haXe/PHP now generates code for extern classes __init__
 	added strings literal support in haxe.Template
 	fixed Process arguments and exitCode() in haXe/PHP
@@ -40,6 +40,7 @@
 	moved StringTools.baseEncode/Decode to haxe.BaseCode
 	fixed binary resources for Flash, JS and PHP outputs
 	fixed compiler bug with inline + optional arguments
+	fixed Type.createInstance and createEmptyInstance with Array for flash6-8
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type

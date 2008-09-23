@@ -286,6 +286,7 @@ class Type {
 			default: throw "Too many arguments";
 			}
 		#elseif flash
+			if( cl == Array ) return new Array();
 			var o = { __constructor__ : cl, __proto__ : cl.prototype };
 			cl["apply"](o,args);
 			return o;
@@ -325,6 +326,7 @@ class Type {
 			}
 			return null;
 		#elseif flash
+			if( cl == Array ) return new Array();
 			var o : Dynamic = __new__(_global["Object"]);
 			o.__proto__ = cl.prototype;
 			return o;
