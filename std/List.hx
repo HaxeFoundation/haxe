@@ -138,6 +138,7 @@ class List<T> {
 	**/
 	public function clear() : Void {
 		h = null;
+		q = null;
 		length = 0;
 	}
 
