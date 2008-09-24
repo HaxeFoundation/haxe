@@ -145,7 +145,7 @@ class Bytes {
 		// utf8-encode
 		while( i < max ) {
 			var c = b[i++];
-			if( c < 0x7F ) {
+			if( c < 0x80 ) {
 				if( c == 0 ) break;
 				s += fcc(c);
 			} else if( c < 0xE0 )
@@ -210,9 +210,9 @@ class Bytes {
 		// utf8-decode
 		for( i in 0...s.length ) {
 			var c : Int = untyped s["cca"](i);
-			if( c < 0x7F )
+			if( c <= 0x7F )
 				a.push(c);
-			else if( c < 0x7FF ) {
+			else if( c <= 0x7FF ) {
 				a.push( 0xC0 | (c >> 6) );
 				a.push( 0x80 | (c & 63) );
 			} else if( c <= 0xFFFF ) {
