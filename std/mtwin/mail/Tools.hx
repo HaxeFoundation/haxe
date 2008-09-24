@@ -66,12 +66,12 @@ class Tools {
 			case 1: "==";
 			default: "";
 		}
-		return StringTools.rtrim(chunkSplit(BaseEncode.encode( content, BASE64 ), 76, "\r\n")) + suffix;
+		return StringTools.rtrim(chunkSplit(haxe.BaseCode.encode( content, BASE64 ), 76, "\r\n")) + suffix;
 	}
 
 	public static function decodeBase64( content : String ){
 		content = StringTools.replace(REG_SPACES.replace(content,""),"=","");
-		return try BaseEncode.decode( content, BASE64 ) catch( e : Dynamic ) content;
+		return try haxe.BaseCode.decode( content, BASE64 ) catch( e : Dynamic ) content;
 	}
 
 	public static function encodeQuotedPrintable( content : String ) : String{
@@ -86,9 +86,9 @@ class Tools {
 				var o = c.charCodeAt(0);
 				if( o == 9 ){
 				}else if( o < 16 ){
-					c = "=0" + BaseEncode.encode(c,HEXA);
+					c = "=0" + haxe.BaseCode.encode(c,HEXA);
 				}else if( o == 61 || o < 32 || o > 126 ){
-					c = "=" + BaseEncode.encode(c,HEXA);
+					c = "=" + haxe.BaseCode.encode(c,HEXA);
 				}
 
 				// space at the end of line
@@ -128,7 +128,7 @@ class Tools {
 			}else{
 				var h = t.substr(0,2).toUpperCase();
 				if( REG_HEXA.match(h) ){
-					ret.add(BaseEncode.decode(h,HEXA));
+					ret.add(haxe.BaseCode.decode(h,HEXA));
 					ret.add(t.substr(2,t.length - 2));
 				}else{
 					ret.add("=");
@@ -162,12 +162,12 @@ class Tools {
 			if( o == 9 ){
 			}else if( o < 16 ){
 				useQuoted = true;
-				c = "=0" + BaseEncode.encode(c,HEXA);
+				c = "=0" + haxe.BaseCode.encode(c,HEXA);
 			}else if( o == 61 || o == 58 || o == 63 || o == 95 || o == 34 ){
-				c = "=" + BaseEncode.encode(c,HEXA);
+				c = "=" + haxe.BaseCode.encode(c,HEXA);
 			}else if( o < 32 || o > 126 ){
 				useQuoted = true;
-				c = "=" + BaseEncode.encode(c,HEXA);
+				c = "=" + haxe.BaseCode.encode(c,HEXA);
 			}else if( o == 32 ){
 				c = "_";
 			}
