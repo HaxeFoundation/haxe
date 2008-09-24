@@ -75,6 +75,9 @@ class Http {
 		#elseif (neko || php)
 		cnxTimeout = 10;
 		#end
+		#if php
+		noShutdown = ! untyped __call__('function_exists', 'stream_socket_shutdown');
+		#end
 	}
 
 	public function setHeader( header : String, value : String ) {
