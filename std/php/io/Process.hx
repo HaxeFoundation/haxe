@@ -130,8 +130,11 @@ class Process {
 			php.Sys.sleep(0.01);
 			status = untyped __call__('proc_get_status', p);
 		}
+//		php.Lib.dump(status);
 		replaceStream(stderr);
 		replaceStream(stdout);
-		return untyped __call__('proc_close', p);
+		var cl = untyped __call__('proc_close', p);
+		return (status[untyped 'exitcode'] < 0) ? cl : status[untyped 'exitcode'];
+
 	}
 }
