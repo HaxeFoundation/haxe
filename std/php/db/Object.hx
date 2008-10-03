@@ -58,11 +58,6 @@ class Object #if spod_rtti implements haxe.rtti.Infos #end {
 
 	private function __init_object() {
 		__noupdate__ = false;
-		var me = this;
-		update = function() {
-			if(me.__noupdate__) throw "Cannot update not locked object";
-			me.__manager__.doUpdate(me);
-		}
 
 		__manager__ = Manager.managers.get(Type.getClassName(Type.getClass(this)));
 		var rl : Array<Dynamic>;
@@ -77,7 +72,10 @@ class Object #if spod_rtti implements haxe.rtti.Infos #end {
 		__manager__.doInsert(this);
 	}
 
-	public dynamic function update();
+	public function update() {
+		if( __noupdate__ ) throw "Cannot update not locked object";
+		__manager__.doUpdate(this);
+	}
 
 	public function sync() {
 		__manager__.doSync(this);
