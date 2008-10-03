@@ -981,6 +981,9 @@ and type_access ctx e p get =
 
 and type_expr ctx ?(need_val=true) (e,p) =
 	match e with
+	| EField ((EConst (String s),p),"code") ->
+		if UTF8.length s <> 1 then error "String must be a single UTF8 char" p;
+		mk (TConst (TInt (Int32.of_int (UChar.code (UTF8.get s 0))))) ctx.api.tint p
 	| EField _
 	| EType _
 	| EArray _

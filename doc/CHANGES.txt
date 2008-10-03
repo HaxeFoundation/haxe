@@ -41,6 +41,7 @@
 	fixed binary resources for Flash, JS and PHP outputs
 	fixed compiler bug with inline + optional arguments
 	fixed Type.createInstance and createEmptyInstance with Array for flash6-8
+	added "c".code for compiletime UTF8 charcodes
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type
