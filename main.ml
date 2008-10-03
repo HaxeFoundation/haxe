@@ -397,6 +397,7 @@ try
 			if com.flash_version >= 9 then begin
 				Common.define com "flash9"; (* always define flash9, even for flash10+ *)
 				com.package_rules <- PMap.add "flash" (Directory "flash9") com.package_rules;
+				com.package_rules <- PMap.add "flash9" (Directory "flash9") com.package_rules;
 				com.platform <- Flash9;
 			end;
 			"swf"
