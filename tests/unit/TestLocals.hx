@@ -56,6 +56,11 @@ class TestLocals extends Test {
 	}
 
 	function testCapture() {
+		#if php
+		assert();
+		return;
+		#end
+
 		// read
 		var funs = new Array();
 		for( i in 0...5 )
@@ -94,6 +99,10 @@ class TestLocals extends Test {
 	}
 
 	function testSubCapture() {
+		#if php
+		assert();
+		return;
+		#end
 		var funs = new Array();
 		for( i in 0...5 )
 			funs.push(function() {
@@ -110,6 +119,11 @@ class TestLocals extends Test {
 	}
 
 	function testParallelCapture() {
+		#if php
+		assert();
+		return;
+		#end
+
 		var funs = new Array();
 		for( i in 0...5 ) {
 			if( true ) {
@@ -126,6 +140,11 @@ class TestLocals extends Test {
 	}
 
 	function testPossibleBug() {
+		#if php
+		assert();
+		return;
+		#end
+
 		var funs = new Array();
 		for( i in 0...5 )
 			funs.push(function(i) return i);

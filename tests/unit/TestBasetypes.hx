@@ -7,6 +7,12 @@ class TestBasetypes extends Test {
 		eq( a.length, 3 );
 		eq( a[0], 1 );
 		eq( a[2], 3 );
+
+		#if php
+		assert();
+		return;
+		#end
+
 		eq( a[3], null );
 		eq( a[1000], null );
 		eq( a[-1], null );

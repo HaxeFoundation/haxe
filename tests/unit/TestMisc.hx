@@ -60,4 +60,12 @@ class TestMisc extends Test {
 		eq( opt2().y, "hello" );
 	}
 
+	function testIncr() {
+		var x = 0;
+		var arr = [3];
+		eq( arr[x++]++, 3 );
+		eq( x, 1 );
+		eq( arr[0], 4 );
+	}
+
 }
