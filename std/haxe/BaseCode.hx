@@ -47,8 +47,8 @@ class BaseCode {
 		#else
 		var nbits = this.nbits;
 		var base = this.base;
-		var size = Std.int((b.length * 8 + nbits - 1) / nbits);
-		var out = haxe.io.Bytes.alloc(size);
+		var size = Std.int(b.length * 8 / nbits);
+		var out = haxe.io.Bytes.alloc(size + (((b.length * 8) % nbits == 0) ? 0 : 1) );
 		var buf = 0;
 		var curbits = 0;
 		var mask = (1 << nbits) - 1;
@@ -63,6 +63,8 @@ class BaseCode {
 			curbits -= nbits;
 			out.set(pout++,base.get((buf >> curbits) & mask));
 		}
+		if( curbits > 0 )
+			out.set(pout++,base.get((buf << (nbits - curbits)) & mask));
 		return out;
 		#end
 	}
