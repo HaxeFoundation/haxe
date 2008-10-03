@@ -230,7 +230,7 @@ try
 		("-js",Arg.String (set_platform Js "js"),"<file> : compile code to JavaScript file");
 		("-as3",Arg.String (fun dir ->
 			set_platform Flash "flash" dir;
-			com.flash_version <- 9;
+			if com.flash_version < 9 then com.flash_version <- 9;
 			gen_as3 := true;
 			Common.define com "as3gen";
 			Common.define com "no_inline";
@@ -238,7 +238,7 @@ try
 		("-swf",Arg.String (set_platform Flash "flash"),"<file> : compile code to Flash SWF file");
 		("-swf9",Arg.String (fun file ->
 			set_platform Flash "flash" file;
-			com.flash_version <- 9;
+			if com.flash_version < 9 then com.flash_version <- 9;
 		),"<file> : compile code to Flash9 SWF file");
 		("-swf-version",Arg.Int (fun v ->			
 			com.flash_version <- v;

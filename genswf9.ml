@@ -165,6 +165,7 @@ let type_path ctx path =
 		| ["flash"] , "FlashXml__" -> [] , "Xml"
 		| ["flash"] , "Boot" -> [] , ctx.boot
 		| ["flash"] , "Error" -> [], "Error"
+		| ["flash"] , "Vector" -> ["__AS3__";"vec"], "Vector"
 		| _ -> path
 	) in
 	HMPath (pack,name)
@@ -198,6 +199,8 @@ let rec type_id ctx t =
 		type_path ctx path
 	| TInst ({ cl_path = ["haxe"],"Int32" },_) ->
 		type_path ctx ([],"Int")
+	| TInst ({ cl_path = ["flash"],"Vector" } as c,pl) ->
+		HMParams (type_path ctx c.cl_path,List.map (type_id ctx) pl)
 	| TInst (c,_) ->
 		(match c.cl_kind with
 		| KTypeParameter ->
@@ -807,11 +810,27 @@ let rec gen_expr_content ctx retval e =
 	| TNew ({ cl_path = [],"Array" },_,[]) ->
 		(* it seems that [] is 4 time faster than new Array() *)
 		write ctx (HArray 0)
-	| TNew (c,_,pl) ->
-		let id = type_path ctx c.cl_path in
-		write ctx (HFindPropStrict id);
-		List.iter (gen_expr ctx true) pl;
-		write ctx (HConstructProperty (id,List.length pl))
+	| TNew (c,tl,pl) ->
+		let id = type_id ctx (TInst (c,tl)) in
+		(match id with 
+		| HMParams (t,tl) ->
+			let rec get_type t =
+				match t with
+				| HMParams (t,tl) ->
+					write ctx (HGetLex t);
+					List.iter get_type tl;
+					write ctx (HApplyType (List.length tl));
+				| _ ->
+					write ctx (HGetLex t)
+			in
+			get_type id;
+			List.iter (gen_expr ctx true) pl;
+			write ctx (HConstruct (List.length pl))
+		| _ ->
+			write ctx (HFindPropStrict id);
+			List.iter (gen_expr ctx true) pl;
+			write ctx (HConstructProperty (id,List.length pl))
+		);
 	| TFunction f ->
 		write ctx (HFunction (generate_function ctx f true))
 	| TIf (e0,e1,e2) ->

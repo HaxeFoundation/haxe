@@ -157,7 +157,7 @@ let add_as3_clips ctx cl =
 	ctx.f9clips <- List.filter (fun c -> c.f9_cid <> None) cl @ ctx.f9clips
 
 let generate com swf_header swf_lib =
-	let ver = com.flash_version in
+	let isf9 = com.flash_version >= 9 in
 	let t = Common.timer "generate swf" in
 	let file , codeclip = (try let f , c = ExtString.String.split com.file "@" in f, Some c with _ -> com.file , None) in
 	let ctx = {
@@ -168,7 +168,7 @@ let generate com swf_header swf_lib =
 		code = [];
 		genmethod = (fun() -> assert false);
 	} in
-	if ver = 9 then begin
+	if isf9 then begin
 		let code, boot, m = Genswf9.generate com in
 		ctx.hx9code <- (match code with
 			| [i] when Array.length i.hls_fields = 0 ->
@@ -185,18 +185,18 @@ let generate com swf_header swf_lib =
 		ctx.f8clips <- List.map Ast.s_type_path clips;
 	end;
 	let build_swf content =
-		let sandbox = (if ver >= 8 then
+		let sandbox = (if com.flash_version >= 8 then
 				let net = Common.defined com "network-sandbox" in
-				[tag (TSandbox (match ver, net with
-					| 9, true -> SBUnknown 9
-					| 9, false -> SBUnknown 8
+				[tag (TSandbox (match isf9, net with
+					| true, true -> SBUnknown 9
+					| true, false -> SBUnknown 8
 					| _, true -> SBNetwork
 					| _, false -> SBLocal
 				))]
 			else
 				[]
 		) in
-		let debug = (if ver = 9 && Common.defined com "fdb" then [tag (TEnableDebugger2 (0,""))] else []) in
+		let debug = (if isf9 && Common.defined com "fdb" then [tag (TEnableDebugger2 (0,""))] else []) in
 		let base_id = ref 0x5000 in
 		let clips = List.fold_left (fun acc m ->
 			incr base_id;
@@ -224,7 +224,7 @@ let generate com swf_header swf_lib =
 				ctx.as3code <- build_movieclip ctx path :: ctx.as3code;
 		) ctx.f9clips;
 		let as3code = (match ctx.as3code @ ctx.hx9code with [] -> [] | l -> [tag (TActionScript3 (None,As3hlparse.flatten l))]) in
-		let clips9 = (if ver = 9 then [tag (TF9Classes ctx.f9clips)] else []) in
+		let clips9 = (if isf9 then [tag (TF9Classes ctx.f9clips)] else []) in
 		sandbox @ debug @ content @ clips @ code @ as3code @ clips9
 	in
 	let swf = (match swf_lib with
@@ -239,7 +239,7 @@ let generate com swf_header swf_lib =
 			let h, swf = (try Swf.parse ch with _ -> failwith ("The input swf " ^ file ^ " is corrupted")) in
 			let header , tagbg = (match swf_header with
 				| None ->
-					{ h with h_version = ver }, None
+					{ h with h_version = com.flash_version }, None
 				| Some h ->
 					let h , bg = convert_header com h in
 					let tagbg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
@@ -265,7 +265,7 @@ let generate com swf_header swf_lib =
 				| TShowFrame ->
 					build_swf (List.rev acc) @ t :: l
 				| TExport el ->
-					if ver = 9 then begin
+					if isf9 then begin
 						List.iter (fun e ->
 							ctx.f9clips <- { f9_cid = Some e.exp_id; f9_classname = e.exp_name } :: ctx.f9clips
 						) el;
@@ -281,10 +281,10 @@ let generate com swf_header swf_lib =
 				| TSandbox _ ->
 					loop acc l
 				| TF9Classes cl ->
-					if ver = 9 then add_as3_clips ctx cl;
+					if isf9 then add_as3_clips ctx cl;
 					loop acc l
 				| TActionScript3 (_,data) ->
-					if ver = 9 then add_as3_code ctx data com.types;
+					if isf9 then add_as3_code ctx data com.types;
 					loop acc l
 				| _ ->
 					loop (t :: acc) l

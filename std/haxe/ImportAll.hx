@@ -457,6 +457,7 @@ import tools.hxinst.Main;
 
 import flash.Vector;
 
+import flash.events.SampleDataEvent;
 import flash.events.SamplesCallbackEvent;
 import flash.events.ShaderEvent;
 
