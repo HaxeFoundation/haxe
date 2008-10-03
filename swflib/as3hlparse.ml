@@ -96,7 +96,7 @@ let stack_delta = function
 	| HCallPropLex (_,n) -> -n
 	| HCallSuperVoid (_,n) -> -(n + 1)
 	| HCallPropVoid (_,n) -> -(n + 1)
-	| HApplyType n -> -n + 1
+	| HApplyType n -> -n
 	| HObject n -> -(n * 2) + 1
 	| HArray n -> -n + 1
 	| HNewBlock -> 1

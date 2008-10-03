@@ -778,12 +778,13 @@ let dump_jump = function
 
 let dump ctx op =
 	let ident n = ctx.as3_idents.(int_index n - 1) in
-	let field n =
+	let rec field n =
 		let t = ctx.as3_names.(int_index n - 1) in
 		match t with
 		| A3MMultiName (Some ident,_) -> "[" ^ iget ctx.as3_idents ident ^ "]"
 		| A3MName (ident,_) -> iget ctx.as3_idents ident
 		| A3MMultiNameLate idx -> "~array"
+		| A3MParams (t,params) -> field t ^ "<" ^ String.concat "." (List.map field params) ^ ">"
 		| _ -> "???"
 	in
 	match op with
