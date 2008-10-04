@@ -43,6 +43,7 @@
 	fixed Type.createInstance and createEmptyInstance with Array for flash6-8
 	added "c".code for compiletime UTF8 charcodes
 	completed flash10 support
+	fixed ~64K resource limit for SWF8
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type

@@ -1480,9 +1480,9 @@ let generate com =
 	List.iter (fun t -> gen_type_def ctx t) com.types;
 	gen_boot ctx;
 	List.iter (fun m -> gen_movieclip ctx m) ctx.movieclips;
-	let global_try = gen_try ctx in
 	ctx.static_init <- true;
 	List.iter (gen_expr ctx false) (List.rev ctx.inits);
+	let global_try = gen_try ctx in
 	List.iter (gen_class_static_init ctx) (List.rev ctx.statics);
 	ctx.static_init <- false;
 	let end_try = global_try() in
