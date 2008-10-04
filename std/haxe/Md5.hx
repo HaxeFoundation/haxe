@@ -103,11 +103,11 @@ class Md5 {
 		}
 		blks[i >> 2] |= 0x80 << (((str.length * 8 + i) % 4) * 8);
 		var l = str.length * 8;
-		blks[nblk * 16 - 2] = (l & 0xFF);
-		blks[nblk * 16 - 2] |= ((l >>> 8) & 0xFF) << 8;
-		blks[nblk * 16 - 2] |= ((l >>> 16) & 0xFF) << 16;
-		blks[nblk * 16 - 2] |= ((l >>> 24) & 0xFF) << 24;
-
+		var k = nblk * 16 - 2;
+		blks[k] = (l & 0xFF);
+		blks[k] |= ((l >>> 8) & 0xFF) << 8;
+		blks[k] |= ((l >>> 16) & 0xFF) << 16;
+		blks[k] |= ((l >>> 24) & 0xFF) << 24;
 		return blks;
 	}
 
