@@ -65,8 +65,9 @@ class Main {
 		neko.Sys.sleep(0.03);
 	}
 
-	function version(v : { major : Int, minor : Int, build : Int } ) {
-		return v.major+"."+v.minor+if( v.build > 0 ) "."+v.build else "";
+	function version(v : { major : Int, minor : Int, build : Int }, twoDigitMinor ) {
+		var min = twoDigitMinor && v.minor < 10 ? "0"+v.minor : Std.string(v.minor);
+		return v.major+"."+min+if( v.build > 0 ) "."+v.build else "";
 	}
 
 	function command( cmd ) {
@@ -239,12 +240,12 @@ class Main {
 		} else {
 			var txt = "";
 			if( needNeko ) {
-				txt += "Neko "+version(nekoFile.version);
+				txt += "Neko "+version(nekoFile.version,false);
 				if( needHaxe )
 					txt += " and ";
 			}
 			if( needHaxe )
-				txt += "haXe "+version(haxeFile.version);
+				txt += "haXe "+version(haxeFile.version,true);
 			if( !ask("Do you want to install "+txt+" ?") )
 				error("Installation Aborted");
 		}
