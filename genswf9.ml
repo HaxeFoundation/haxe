@@ -388,6 +388,11 @@ let gen_local_access ctx name p (forset : 'a)  : 'a access =
 		if is_set forset then write ctx (HFindProp p);
 		VGlobal p
 
+let get_local_register ctx name = 
+	match (try PMap.find name ctx.locals with Not_found -> LScope 0) with
+	| LReg r -> Some r
+	| _ -> None
+
 let rec setvar ctx (acc : write access) retval =
 	match acc with
 	| VReg r ->
@@ -734,6 +739,61 @@ let gen_access ctx e (forset : 'a) : 'a access =
 		VGlobal id
 	| _ ->
 		invalid_expr e.epos
+
+let gen_expr_twice ctx e =
+	match e.eexpr with
+	| TLocal l ->
+		(match get_local_register ctx l with
+		| Some r ->
+			write ctx (HReg r.rid);
+			write ctx (HReg r.rid);
+		| None -> 
+			gen_expr ctx true e;
+			write ctx HDup)
+	| TConst _ ->
+		gen_expr ctx true e;
+		gen_expr ctx true e;
+	| _ ->		
+		gen_expr ctx true e;
+		write ctx HDup
+
+let gen_access_rw ctx e : (read access * write access) =
+	match e.eexpr with
+	| TArray ({ eexpr = TLocal _ }, { eexpr = TConst _ })
+	| TArray ({ eexpr = TLocal _ }, { eexpr = TLocal _ })
+	| TField ({ eexpr = TLocal _ },_)
+	| TField ({ eexpr = TConst _ },_)
+	->
+		let w = gen_access ctx e Write in
+		let r = gen_access ctx e Read in
+		r, w
+	| TArray (e,eindex) ->
+		let r = (match e.eexpr with TLocal l -> get_local_register ctx l | _ -> None) in
+		(match r with
+		| None ->
+			let r = alloc_reg ctx (classify ctx e.etype) in
+			gen_expr ctx true e;
+			set_reg ctx r;
+			write ctx (HReg r.rid);
+			gen_expr_twice ctx eindex;
+			write ctx (HReg r.rid);
+			write ctx HSwap;
+			free_reg ctx r;
+		| Some r ->
+			write ctx (HReg r.rid);
+			gen_expr_twice ctx eindex;
+			write ctx (HReg r.rid);
+			write ctx HSwap;
+		);
+		VArray, VArray
+	| TField _ ->
+		let w = gen_access ctx e Write in
+		write ctx HDup;
+		Obj.magic w, w
+	| _ ->
+		let w = gen_access ctx e Write in
+		let r = gen_access ctx e Read in
+		r, w
 
 let rec gen_expr_content ctx retval e =
 	match e.eexpr with
@@ -1243,32 +1303,51 @@ and gen_unop ctx retval op flag e =
 	| Increment
 	| Decrement ->
 		let incr = (op = Increment) in
-		let acc = gen_access ctx e Write in (* for set *)
-		match acc with
-		| VReg r when r.rtype = KInt ->
+		let r = (match e.eexpr with TLocal n -> get_local_register ctx n | _ -> None) in
+		match r with
+		| Some r when r.rtype = KInt ->
 			if not r.rinit then r.rcond <- true;
-			if retval && flag = Postfix then getvar ctx (gen_access ctx e Read);
+			if retval && flag = Postfix then getvar ctx (VReg r);
 			write ctx (if incr then HIncrIReg r.rid else HDecrIReg r.rid);
-			if retval && flag = Prefix then getvar ctx (gen_access ctx e Read);
+			if retval && flag = Prefix then getvar ctx (VReg r);
 		| _ ->
-		getvar ctx (gen_access ctx e Read);
+		let acc_read, acc_write = gen_access_rw ctx e in
+		getvar ctx acc_read;
 		match flag with
 		| Postfix when retval ->
 			let r = alloc_reg ctx k in
 			write ctx HDup;
 			set_reg ctx r;
 			write ctx (HOp (if incr then A3OIncr else A3ODecr));
-			setvar ctx acc false;
+			setvar ctx acc_write false;
 			write ctx (HReg r.rid);
 			free_reg ctx r
 		| Postfix | Prefix ->
 			write ctx (HOp (if incr then A3OIncr else A3ODecr));
-			setvar ctx acc retval
+			setvar ctx acc_write retval
 
 and gen_binop ctx retval op e1 e2 t =
-	let gen_op ?iop o =
-		gen_expr ctx true e1;
-		gen_expr ctx true e2;
+	let write_op op =		
+		let iop = (match op with
+			| OpAdd -> Some A3OIAdd
+			| OpSub -> Some A3OISub
+			| OpMult -> Some A3OIMul
+			| _ -> None
+		) in
+		let op = (match op with
+			| OpAdd -> A3OAdd
+			| OpSub -> A3OSub
+			| OpMult -> A3OMul
+			| OpDiv -> A3ODiv
+			| OpAnd -> A3OAnd
+			| OpOr -> A3OOr
+			| OpXor -> A3OXor
+			| OpShl -> A3OShl
+			| OpShr -> A3OShr
+			| OpUShr -> A3OUShr
+			| OpMod -> A3OMod
+			| _ -> assert false
+		) in
 		match iop with
 		| Some iop ->
 			let k1 = classify ctx e1.etype in
@@ -1276,11 +1355,17 @@ and gen_binop ctx retval op e1 e2 t =
 			if k1 = KInt && k2 = KInt then
 				write ctx (HOp iop)
 			else begin
-				write ctx (HOp o);
-				if o = A3OAdd then coerce ctx (classify ctx t);
+				write ctx (HOp op);
+				if op = A3OAdd then coerce ctx (classify ctx t);
 			end;
 		| _ ->
-			write ctx (HOp o)
+			write ctx (HOp op);
+			if op = A3OMod && classify ctx e1.etype = KInt && classify ctx e2.etype = KInt then coerce ctx (classify ctx t);
+	in
+	let gen_op o =
+		gen_expr ctx true e1;
+		gen_expr ctx true e2;
+		write ctx (HOp o)
 	in
 	match op with
 	| OpAssign ->
@@ -1306,17 +1391,15 @@ and gen_binop ctx retval op e1 e2 t =
 		j();
 		b();
 	| OpAssignOp op ->
-		let acc = gen_access ctx e1 Write in
-		gen_binop ctx true op e1 e2 t;
-		setvar ctx acc retval
-	| OpAdd ->
-		gen_op ~iop:A3OIAdd A3OAdd
-	| OpMult ->
-		gen_op ~iop:A3OIMul A3OMul
-	| OpDiv ->
-		gen_op A3ODiv
-	| OpSub ->
-		gen_op ~iop:A3OISub A3OSub
+		let racc, wacc = gen_access_rw ctx e1 in
+		getvar ctx racc;
+		gen_expr ctx true e2;
+		write_op op;
+		setvar ctx wacc retval
+	| OpAdd | OpMult | OpDiv | OpSub | OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr | OpMod ->
+		gen_expr ctx true e1;
+		gen_expr ctx true e2;
+		write_op op
 	| OpEq ->
 		gen_op A3OEq
 	| OpNotEq ->
@@ -1330,21 +1413,6 @@ and gen_binop ctx retval op e1 e2 t =
 		gen_op A3OLt
 	| OpLte ->
 		gen_op A3OLte
-	| OpAnd ->
-		gen_op A3OAnd
-	| OpOr ->
-		gen_op A3OOr
-	| OpXor ->
-		gen_op A3OXor
-	| OpShl ->
-		gen_op A3OShl
-	| OpShr ->
-		gen_op A3OShr
-	| OpUShr ->
-		gen_op A3OUShr
-	| OpMod ->
-		gen_op A3OMod;
-		if	classify ctx e1.etype = KInt && classify ctx e2.etype = KInt then coerce ctx (classify ctx t);
 	| OpInterval ->
 		assert false
 

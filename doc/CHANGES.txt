@@ -44,6 +44,7 @@
 	added "c".code for compiletime UTF8 charcodes
 	completed flash10 support
 	fixed ~64K resource limit for SWF8
+	fixed double-evaluations for array and field acesses with binary and unary ops
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type

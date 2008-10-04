@@ -556,7 +556,7 @@ let access_local ctx s =
 	| Reg r , _ ->
 		VarReg r
 
-let rec gen_access ctx forcall e =
+let rec gen_access ?(read_write=false) ctx forcall e =
 	match e.eexpr with
 	| TConst TSuper ->
 		(* for superconstructor *)
@@ -582,7 +582,13 @@ let rec gen_access ctx forcall e =
 		access_local ctx s
 	| TField (e2,f) ->
 		gen_expr ctx true e2;
-		push ctx [VStr (f,is_protected ctx e2.etype f)];
+		if read_write then write ctx ADup;
+		let p = VStr (f,is_protected ctx e2.etype f) in
+		push ctx [p];
+		if read_write then begin
+			write ctx ASwap;
+			push ctx [p];
+		end;
 		(match follow e.etype with
 		| TFun _ -> VarClosure
 		| _ ->
@@ -591,8 +597,26 @@ let rec gen_access ctx forcall e =
 			else
 				VarObj)
 	| TArray (ea,eb) ->
-		gen_expr ctx true ea;
-		gen_expr ctx true eb;
+		if read_write then 
+			try 
+				let r = (match ea.eexpr with TLocal l -> (match PMap.find l ctx.regs with Reg r -> r | _ -> raise Not_found) | _ -> raise Not_found) in
+				push ctx [VReg r];
+				gen_expr ctx true eb;
+				write ctx ADup;
+				push ctx [VReg r];
+				write ctx ASwap;
+			with Not_found ->
+				gen_expr ctx true eb;
+				gen_expr ctx true ea;
+				write ctx (ASetReg 0);
+				write ctx ASwap;
+				write ctx ADup;
+				push ctx [VReg 0];
+				write ctx ASwap;
+		else begin
+			gen_expr ctx true ea;
+			gen_expr ctx true eb;
+		end;
 		VarObj
 	| TEnumField (en,f) ->
 		getvar ctx (gen_path ctx en.e_path false);
@@ -610,6 +634,17 @@ let rec gen_access ctx forcall e =
 		gen_expr ctx true e;
 		write ctx (APush [PUndefined]);
 		VarObj
+
+and gen_access_rw ctx e =
+	match e.eexpr with
+	| TField ({ eexpr = TLocal _ },_) | TArray ({ eexpr = TLocal _ },{ eexpr = TConst _ }) | TArray ({ eexpr = TLocal _ },{ eexpr = TLocal _ }) ->
+		ignore(gen_access ctx false e);
+		gen_access ctx false e		
+	| TField _ | TArray _ ->
+		gen_access ~read_write:true ctx false e
+	| _ ->
+		ignore(gen_access ctx false e);
+		gen_access ctx false e
 
 and gen_try_catch ctx retval e catchs =
 	let start_try = gen_try ctx in
@@ -741,20 +776,35 @@ and gen_binop ctx retval op e1 e2 =
 		gen_expr ctx true e2;
 		write ctx a
 	in
+	let make_op = function
+		| OpAdd -> AAdd
+		| OpMult -> AMultiply
+		| OpDiv -> ADivide
+		| OpSub -> ASubtract
+		| OpAnd -> AAnd
+		| OpOr -> AOr
+		| OpXor -> AXor
+		| OpShl -> AShl
+		| OpShr -> AShr
+		| OpUShr -> AAsr
+		| OpMod -> AMod
+		| _ -> assert false
+	in
 	match op with
 	| OpAssign ->
 		let k = gen_access ctx false e1 in
 		gen_expr ctx true e2;
 		setvar ~retval ctx k
 	| OpAssignOp op ->
-		let k = gen_access ctx false e1 in
-		gen_binop ctx true op e1 e2;
+		let k = gen_access_rw ctx e1 in
+		getvar ctx k;
+		gen_expr ctx true e2;
+		write ctx (make_op op);
 		setvar ~retval ctx k
-	| OpAdd -> gen AAdd
-	| OpMult -> gen AMultiply
-	| OpDiv -> gen ADivide
-	| OpSub -> gen ASubtract
-	| OpEq -> gen AEqual
+	| OpAdd | OpMult | OpDiv | OpSub | OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr | OpMod ->
+		gen (make_op op)
+	| OpEq ->
+		gen AEqual
 	| OpNotEq ->
 		gen AEqual;
 		write ctx ANot
@@ -766,9 +816,6 @@ and gen_binop ctx retval op e1 e2 =
 	| OpLte ->
 		gen AGreater;
 		write ctx ANot
-	| OpAnd -> gen AAnd
-	| OpOr -> gen AOr
-	| OpXor -> gen AXor
 	| OpBoolAnd ->
 		gen_expr ctx true e1;
 		write ctx ADup;
@@ -784,10 +831,6 @@ and gen_binop ctx retval op e1 e2 =
 		write ctx APop;
 		gen_expr ctx true e2;
 		jump_end()
-	| OpShl -> gen AShl
-	| OpShr -> gen AShr
-	| OpUShr -> gen AAsr
-	| OpMod -> gen AMod
 	| OpInterval ->
 		(* handled by typer *)
 		assert false
@@ -807,15 +850,13 @@ and gen_unop ctx retval op flag e =
 		write ctx AXor
 	| Increment
 	| Decrement ->
-		if retval && flag = Postfix then begin
-			let k = gen_access ctx false e in
-			getvar ctx k
-		end;
-		ignore(gen_access ctx false e);
-		let k = gen_access ctx false e in
+		let k = gen_access_rw ctx e in
 		getvar ctx k;
+		(* store preincr value for later access *)
+		if retval && flag = Postfix then write ctx (ASetReg 0);		
 		write ctx (match op with Increment -> AIncrement | Decrement -> ADecrement | _ -> assert false);
-		setvar ~retval:(retval && flag = Prefix) ctx k
+		setvar ~retval:(retval && flag = Prefix) ctx k;
+		if retval && flag = Postfix then push ctx [VReg 0]
 
 and gen_call ctx e el =
 	match e.eexpr, el with
