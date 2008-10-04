@@ -1,6 +1,6 @@
 (*
  *  Haxe Compiler
- *  Copyright (c)2005 Nicolas Cannasse
+ *  Copyright (c)2005-2008 Nicolas Cannasse
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 open Printf
 open Genswf
 open Common
+
+let version = 201
 
 let prompt = ref false
 let display = ref false
@@ -164,7 +166,6 @@ let rec process_params acc = function
 		process_params (x :: acc) l
 
 and init params =
-	let version = 200 in
 	let usage = Printf.sprintf 
 		"Haxe Compiler %d.%.2d - (c)2005-2008 Motion-Twin\n Usage : haxe.exe %s <class names...>\n Options :" 
 		(version / 100) (version mod 100) (if Sys.os_type = "Win32" then ".exe" else "")
