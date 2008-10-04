@@ -1,4 +1,4 @@
-2008-??-??: 2.01
+2008-10-04: 2.01
 	fixed php.Sys
 	added neko.NativeString and neko.NativeArray
 	fixed php.Boot.__string_rec() when invoked from toString
@@ -45,6 +45,8 @@
 	completed flash10 support
 	fixed ~64K resource limit for SWF8
 	fixed double-evaluations for array and field acesses with binary and unary ops
+	fixed bug when using protected AS3 classes in swf-lib
+	using -lib also define the conditional variable
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type

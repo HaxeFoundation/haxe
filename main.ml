@@ -287,7 +287,10 @@ try
 			com.main_class <- Some cpath;
 			classes := cpath :: !classes
 		),"<class> : select startup class");
-		("-lib",Arg.String (fun l -> libs := l :: !libs),"<library[:version]> : use an haxelib library");
+		("-lib",Arg.String (fun l -> 
+			libs := l :: !libs;
+			Common.define com l;
+		),"<library[:version]> : use an haxelib library");
 		("-D",Arg.String (Common.define com),"<var> : define a conditional compilation flag");
 		("-resource",Arg.String (fun res ->
 			let file, name = (match ExtString.String.nsplit res "@" with
