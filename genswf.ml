@@ -131,14 +131,25 @@ let movieclip_exists types inits path =
 
 let add_as3_code ctx data types =
 	(* set all protected+private fields to public - this will enable overriding/reflection in haXe classes *)
-	let data = { data with as3_namespaces = Array.map (fun ns ->
+	let ipublic = ref (-1) in
+	let ns = Array.mapi (fun i ns ->
 		match ns with
-		| A3NPrivate _ | A3NInternal _ | A3NProtected _ -> A3NPublic None
+		| A3NPrivate _
+		| A3NInternal _
+		| A3NProtected _ 
+		| A3NPublic None
+			->
+			ipublic := i;
+			A3NPublic None
 		| A3NPublic _
 		| A3NNamespace _
 		| A3NExplicit _
 		| A3NStaticProtected _ -> ns
-	) data.as3_namespaces } in
+	) data.as3_namespaces in
+	let cl = Array.map (fun c ->
+		{ c with cl3_namespace = None }
+	) data.as3_classes in
+	let data = { data with as3_namespaces = ns; as3_classes = cl } in	
 	(* only keep classes that are not redefined in HX code *)
 	let inits = As3hlparse.parse data in
 	let inits = List.filter (fun i ->
