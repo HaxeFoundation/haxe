@@ -141,9 +141,7 @@ class Main {
 
 		// PROXY
 		var p = neko.net.ProxyDetect.detect();
-		if( p == null )
-			display("No proxy found");
-		else {
+		if( p != null ) {
 			display("Testing proxy "+p.host+":"+p.port);
 			haxe.Http.PROXY = p;
 			try {
