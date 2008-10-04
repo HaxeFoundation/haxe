@@ -61,11 +61,35 @@ class TestMisc extends Test {
 	}
 
 	function testIncr() {
+		var z = 0;
+		eq( z++, 0 );
+		eq( z, 1 );
+		eq( ++z, 2 );
+		eq( z, 2 );
+		z++;
+		eq( z, 3 );
+		++z;
+		eq( z, 4 );
+
+		eq( z += 3, 7 );
+
 		var x = 0;
 		var arr = [3];
 		eq( arr[x++]++, 3 );
 		eq( x, 1 );
 		eq( arr[0], 4 );
+		x = 0;
+		eq( arr[x++] += 3, 7 );
+		eq( arr[0], 7 );
+
+		var x = 0;
+		var arr = [{ v : 3 }];
+		eq( arr[x++].v++, 3 );
+		eq( x, 1 );
+		eq( arr[0].v, 4 );
+		x = 0;
+		eq( arr[x++].v += 3, 7 );
+		eq( arr[0].v, 7 );
 	}
 
 }
