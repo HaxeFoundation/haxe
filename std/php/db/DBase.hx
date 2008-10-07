@@ -28,15 +28,15 @@ private class DBaseConnection {
 
 	var c : Void;
 	var fields : Array<Field>;
-	
+
 	public function new( file : String, mode : Int) {
 		c = untyped __call__("dbase_open", file, mode);
 		if(c == null) throw "Invalid dBase file: " + file;
-		var infos : Array<Dynamic> = untyped __call__("dbase_get_header_info", c);
+		var infos : ArrayAccess<Dynamic> = untyped __call__("dbase_get_header_info", c);
 		fields = [];
 		for(info in infos) {
 			fields.push({
-				name : info[untyped 'name'],
+				name : info['name'],
 				type : getType(info)
 			});
 		}
@@ -54,37 +54,37 @@ private class DBaseConnection {
 	public function insert(values : Array<Dynamic>) : Bool {
 		return untyped __call__("dbase_add_record", c, values);
 	}
-	
+
 	public function replace(index : Int, values : Array<Dynamic>) {
 		return untyped __call__("dbase_replace_record", c, values, index);
 	}
-	
+
 	public function delete(index : Int) : Bool {
 		return untyped __call__("dbase_delete_record", c, index);
 	}
-	
+
 	public function records() : Array<Dynamic> {
 		var arr = [];
 		for(i in 1...count()+1)
 			arr.push(record(i));
 		return arr;
 	}
-	
+
 	public function rows() : Array<Array<Dynamic>> {
 		var arr = [];
 		for(i in 1...count()+1)
 			arr.push(row(i));
 		return arr;
 	}
-	
+
 	public function row(index : Int) : Array<Dynamic> {
 		var r = untyped __call__("dbase_get_record", c, index);
 		if(untyped __php__("isset($r['deleted'])")) {
 			untyped __php__("unset($r['deleted'])");
 		}
-		return r;
+		return untyped __call__("new _hx_array", r);
 	}
-	
+
 	public function record(index : Int) : Dynamic {
 		var row = row(index);
 		var record = {};
@@ -92,7 +92,7 @@ private class DBaseConnection {
 			Reflect.setField(record, fields[j].name, row[j]);
 		return record;
 	}
-	
+
 	private function getType(info : Array<Dynamic>) {
 		switch(info[untyped 'type']) {
 			case 'D': return DateField;
@@ -114,7 +114,7 @@ class DBase {
 	public static function openReadOnly( file : String ) : DBaseConnection {
 		return new DBaseConnection(file, 0);
 	}
-	
+
 	public static function create(file : String, fields : Array<Field>) : Void {
 		var flds : Array<Array<Dynamic>> = [];
 		for(field in fields) {

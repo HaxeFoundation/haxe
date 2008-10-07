@@ -59,6 +59,8 @@ class BytesBuffer {
 		untyped StringBuf.__add(b,src.getData());
 		#elseif flash9
 		b.writeBytes(src.getData());
+		#elseif php
+		b = untyped __call__("new _hx_array", __call__("array_merge", b.a, src.getData().a));
 		#else
 		var b1 = b;
 		var b2 = src.getData();
@@ -75,6 +77,12 @@ class BytesBuffer {
 		try untyped StringBuf.__add_sub(b,src.getData(),pos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
 		#elseif flash9
 		b.writeBytes(src.getData(),pos,len);
+		#elseif php
+		try {
+			b = untyped __call__("new _hx_array", __call__("array_merge", b.a, __call__("array_slice", src.getData().a, pos, len)));
+		} catch(e : Dynamic) {
+			throw Error.OutsideBounds;
+		}
 		#else
 		var b1 = b;
 		var b2 = src.getData();
@@ -94,14 +102,12 @@ class BytesBuffer {
 		#elseif flash9
 		var bytes = new Bytes(b.length,b);
 		b.position = 0;
+		#elseif php
+		var bytes = Bytes.ofData(b);
 		#else
 		var bytes = new Bytes(b.length,b);
 		#end
-		#if php
-		untyped __call__('unset', b);
-		#else
 		b = null;
-		#end
 		return bytes;
 	}
 

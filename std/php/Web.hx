@@ -11,7 +11,7 @@ class Web {
 	**/
 	public static function getParams() {
 		#if force_std_separator
-		var a : Array<String> = untyped __php__("$_POST");
+		var a : NativeArray = untyped __php__("$_POST");
 		if(untyped __call__("get_magic_quotes_gpc"))
 			untyped __php__("foreach($a as $k => $v) $a[$k] = stripslashes($v)");
 		var h = Lib.hashOfAssociativeArray(a);
@@ -22,7 +22,7 @@ class Web {
 		}
 		return h;
 		#else
-		var a : Array<String> = untyped __php__("array_merge($_GET, $_POST)");
+		var a : NativeArray = untyped __php__("array_merge($_GET, $_POST)");
 		if(untyped __call__("get_magic_quotes_gpc"))
 			untyped __php__("foreach($a as $k => $v) $a[$k] = stripslashes($v)");
 		return Lib.hashOfAssociativeArray(a);
@@ -307,14 +307,11 @@ class Web {
 			}
 			onPart(part, file);
 			var h = untyped __call__("fopen", tmp, "r");
-//			var pos = 0;
 			var bsize = 8192;
 			while (!untyped __call__("feof", h)) {
 				var buf : String = untyped __call__("fread", h, bsize);
 				var size : Int = untyped __call__("strlen", buf);
 				onData(buf, 0, size);
-//				onData(buf, pos, size);
-//				pos += size;
 			}
 			untyped __call__("fclose", h);
 		}

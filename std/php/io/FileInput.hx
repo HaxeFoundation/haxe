@@ -47,7 +47,6 @@ class FileInput extends haxe.io.Input {
 		if(untyped __call__('feof', __f)) return throw new haxe.io.Eof();
 		var r : String = untyped __call__('fread', __f, l);
 		if(untyped __physeq__(r, false)) return throw haxe.io.Error.Custom('An error occurred');
-		
 		var b = haxe.io.Bytes.ofString(r);
 		s.blit(p, b, 0, r.length);
 		return r.length;
@@ -60,7 +59,7 @@ class FileInput extends haxe.io.Input {
 
 	public function seek( p : Int, pos : FileSeek ) {
 		var w;
-		switch( pos ) { 
+		switch( pos ) {
 			case SeekBegin: w = untyped __php__('SEEK_SET');
 			case SeekCur  : w = untyped __php__('SEEK_CUR');
 			case SeekEnd  : w = untyped __php__('SEEK_END');

@@ -25,33 +25,3 @@
 package php.net;
 
 typedef SocketOutput = php.io.FileOutput;
-
-/*
-import php.net.Socket;
-import haxe.io.Error;
-class SocketOutput extends haxe.io.Output {
-
-	var __s : SocketHandle;
-
-	public function new(s) {
-		__s = s;
-	}
-
-	public override function writeByte( c : Int ) {
-		var r = __call__('socket_write', __s, __call__('chr', c), 1);
-		untyped Socket.checkError(r);
-	}
-
-	public override function writeBytes( buf : haxe.io.Bytes, pos : Int, len : Int) : Int {
-		var s = b.readString(p, l);
-		var r = untyped __call__('socket_write', __f, s, len);
-		untyped Socket.checkError(r);
-		return cast r;
-	}
-
-	public override function close() {
-		super.close();
-		if( __s != null ) untyped __call__('socket_close', __s);
-	}
-}
-*/

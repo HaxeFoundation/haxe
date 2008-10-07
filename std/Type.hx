@@ -171,7 +171,6 @@ class Type {
 	**/
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
 		#if php
-//			php.Boot.__require_once(StringTools.replace(name, '.', '/'));
 			var c = untyped __call__("_hx_qtype", name);
 			if(__php__("$c instanceof _hx_class"))
 				return c;
@@ -303,7 +302,7 @@ class Type {
 			if(cl.__qname__ == 'String') return args[0];
 			var c = cl.__rfl__();
 			if(c == null) return null;
-			return __php__("$inst = $c->getConstructor() ? $c->newInstanceArgs($args) : $c->newInstanceArgs()");
+			return __php__("$inst = $c->getConstructor() ? $c->newInstanceArgs($args->a) : $c->newInstanceArgs()");
 		#else
 			return null;
 		#end
@@ -372,7 +371,11 @@ class Type {
 		if( f == null ) throw "No such constructor "+constr;
 		if( Reflect.isFunction(f) ) {
 			if( params == null ) throw "Constructor "+constr+" need parameters";
+#if php
+			return Reflect.callMethod(e,f,untyped params.a);
+#else
 			return Reflect.callMethod(e,f,params);
+#end
 		}
 		if( params != null && params.length != 0 )
 			throw "Constructor "+constr+" does not need parameters";
@@ -418,7 +421,7 @@ class Type {
 			foreach($ps as $p)
 				if(!$p->isStatic()) $r[] = $p->getName();
 			");
-			return untyped __php__("array_values(array_unique($r))");
+			return untyped __php__("new _hx_array(array_values(array_unique($r)))");
 		#else
 			var a = Reflect.fields(untyped c.prototype);
 			#if js
@@ -464,7 +467,7 @@ class Type {
 			foreach($ps as $p)
 				if($p->isStatic()) $r[] = $p->getName();
 			");
-			return untyped __php__("$r");
+			return untyped __php__("new _hx_array($r)");
 		#else
 			var a = Reflect.fields(c);
 			a.remove(__unprotect__("__name__"));
@@ -491,11 +494,11 @@ class Type {
 			if(__php__("$e->__tname__ == 'Void'")) return [];
 			var rfl = __php__("new ReflectionClass($e->__tname__)");
 			var sps : ArrayAccess<Dynamic> = rfl.getStaticProperties();
-			var r : ArrayAccess<String> = __call__('array');
-			__php__("foreach($sps as $k => $v) $r[] = $k");
+//			var r : ArrayAccess<String> = __call__('array');
+			__php__("$r = array(); foreach($sps as $k => $v) $r[] = $k");
 			sps = rfl.getMethods();
 			__php__("foreach($sps as $m) { $n = $m->getName(); if($n != '__construct' && $n != '__toString') $r[] = $n; }");
-			return r;
+			return __php__("new _hx_array($r)");
 		#else
 			return untyped e.__constructs__;
 		#end
@@ -642,11 +645,11 @@ class Type {
 				if( a.tag != b.tag )
 					return false;
 				for( i in 0...__call__("count", a.params))
-					if(getEnum(a.params[i]) != null) {
-						if(!enumEq(a.params[i],b.params[i]))
+					if(getEnum(untyped __php__("$a->params[$i]")) != null) {
+						if(!untyped enumEq(__php__("$a->params[$i]"),__php__("$b->params[$i]")))
 							return false;
 					} else {
-						if(!untyped __call__("_hx_equal", a.params[i],b.params[i]))
+						if(!untyped __call__("_hx_equal", __php__("$a->params[$i]"),__php__("$b->params[$i]")))
 							return false;
 					}
 			} catch( e : Dynamic ) {
@@ -690,7 +693,7 @@ class Type {
 			if(e.params == null)
 				return [];
 			else
-				return e.params;
+				return untyped __php__("new _hx_array($e->params)");
 		#else
 			return e.slice(2);
 		#end

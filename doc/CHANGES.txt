@@ -1,3 +1,7 @@
+xxxx-xx-xx: 2.02 CVS
+	Std.is(MyInterface, Class) now returns true (haXe/PHP)
+	php arrays are wrapped into _hx_array instances, fixes issues with references (array cast, access out of bounds ...)
+
 2008-10-04: 2.01
 	fixed php.Sys
 	added neko.NativeString and neko.NativeArray
@@ -41,18 +45,12 @@
 	fixed binary resources for Flash, JS and PHP outputs
 	fixed compiler bug with inline + optional arguments
 	fixed Type.createInstance and createEmptyInstance with Array for flash6-8
-	added "c".code for compiletime UTF8 charcodes
-	completed flash10 support
-	fixed ~64K resource limit for SWF8
-	fixed double-evaluations for array and field acesses with binary and unary ops
-	fixed bug when using protected AS3 classes in swf-lib
-	using -lib also define the conditional variable
 
 2008-07-28: 2.0
 	fixed current package bug in inherited constructor type
 	delayed type-parameter constraints check (allow mutual rec extends for SPOD)
 	improved unclosed macro error reporting
-	haxe/PHP integration
+	haXe/PHP integration
 	renamed NekoSocketConnection to SyncSocketConnection (php support)
 	fixes in genAs3
 	fix for flash9 : always coerce call return type

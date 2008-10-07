@@ -42,7 +42,7 @@ class EReg {
 	var pattern : String;
 	var options : String;
 	var re : String;
-	var matches : Array<Dynamic>;
+	var matches : ArrayAccess<Dynamic>;
 	#end
 
 	/**
@@ -126,9 +126,9 @@ class EReg {
 			if( n < 0 ) throw "EReg::matched";
 			// we can't differenciate between optional groups at the end of a match
 			// that have not been matched and invalid groups
-			if( n >= matches.length ) return null;
-			if(matches[n][1] < 0) return null;
-			return matches[n][0];
+			if( n >= untyped __call__("count", matches)) return null;
+			if(untyped __php__("$this->matches[$n][1] < 0")) return null;
+			return untyped __php__("$this->matches[$n][0]");
 		#else
 			return null;
 		#end
@@ -153,8 +153,8 @@ class EReg {
 			var s = result.input;
 			return s.substr(0,result.index);
 		#elseif php
-			if( matches.length == 0 ) throw "No string matched";
-			return last.substr(0, matches[0][1]);
+			if( untyped __call__("count", matches) == 0 ) throw "No string matched";
+			return last.substr(0, untyped __php__("$this->matches[0][1]"));
 		#else
 			return null;
 		#end
@@ -184,8 +184,8 @@ class EReg {
 			var s = result.input;
 			return s.substr(rl,s.length - rl);
 		#elseif php
-			if( matches.length == 0 ) throw "No string matched";
-			return untyped last.substr(matches[0][1] + __php__("strlen")(matches[0][0]));
+			if( untyped __call__("count", matches) == 0 ) throw "No string matched";
+			return untyped last.substr(__php__("$this->matches[0][1]") + __php__("strlen")(__php__("$this->matches[0][0]")));
 		#else
 			return null;
 		#end
@@ -205,7 +205,7 @@ class EReg {
 			if( result == null ) throw "No string matched";
 			return { pos : result.index, len : result[0].length };
 		#elseif php
-			return untyped { pos : matches[0][1], len : __php__("strlen")(matches[0][0]) };
+			return untyped { pos : __php__("$this->matches[0][1]"), len : __php__("strlen")(__php__("$this->matches[0][0]")) };
 		#else
 			return null;
 		#end
@@ -243,7 +243,7 @@ class EReg {
 			var d = "#__delim__#";
 			return untyped s.replace(r,d).split(d);
 		#elseif php
-			return untyped __php__("preg_split")(re, s, global ? -1 : 2);
+			return untyped __php__("new _hx_array(preg_split($this->re, $s, $this->hglobal ? -1 : 2))");
 		#else
 			return null;
 		#end

@@ -190,7 +190,7 @@ class Serializer {
 				#if flash9
 				var v : Array<Dynamic> = v;
 				#end
-				var l = #if (neko || flash9) v.length #elseif php untyped __call__("count", v) #else v[untyped "length"] #end;
+				var l = #if (neko || flash9 || php) v.length #else v[untyped "length"] #end;
 				for( i in 0...l ) {
 					if( v[i] == null )
 						ucount++;
@@ -341,7 +341,7 @@ class Serializer {
 			else {
 				buf.add(l);
 				for( i in 0...l )
-					serialize(v.params[i]);
+					serialize(untyped __field__(v, __php__("params"), i));
 			}
 			#else
 			if( useEnumIndex ) {

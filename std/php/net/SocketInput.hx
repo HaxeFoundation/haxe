@@ -25,38 +25,3 @@
 package php.net;
 
 typedef SocketInput = php.io.FileInput;
-
-/*
-import php.net.Socket;
-import haxe.io.Error;
-class SocketInput extends haxe.io.Input {
-
-	var __s : SocketHandle;
-
-	public function new(s) {
-		__s = s;
-	}
-
-	public override function readByte() {
-		var r = untyped __call__('socket_read', __s, 1);
-		untyped Socket.checkError(r);
-		if(r == 0) return throw new haxe.io.Eof();
-		return untyped __call__('ord', r);
-	}
-
-	public override function readBytes( buf : haxe.io.Bytes, pos : Int, len : Int ) : Int {
-		var r : String = untyped __call__('socket_read', __s, len);
-		untyped Socket.checkError(r);
-		var b = haxe.io.Bytes.ofString(r);
-		if(r.length == 0) return throw new haxe.io.Eof();
-		s.blit(pos, b, 0, r.length);
-		return r.length;
-	}
-
-	public override function close() {
-		super.close();
-		if( __s != null ) untyped __call__('socket_close', __s);
-	}
-}
-
-*/

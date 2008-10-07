@@ -106,12 +106,12 @@ class Reflect {
 		#elseif neko
 			return __dollar__call(func,o,args.__neko());
 		#elseif php
-			if(__call__("is_string", o) || __call__("is_array", o)) {
+			if(__call__("is_string", o)) {
 				if(args.length == 0) return __call__("call_user_func", field(o, func));
 				else if(args.length == 1) return __call__("call_user_func", field(o, func), args[0]);
 				else return __call__("call_user_func", field(o, func), args[0], args[1]);
 			}
-			return __php__("call_user_func_array(is_callable($func) ? $func : array($o, $func) , $args)");
+			return __php__("call_user_func_array(is_callable($func) ? $func : array($o, $func) , $args->a)");
 		#else
 			return null;
 		#end
@@ -178,11 +178,11 @@ class Reflect {
 				return Array.new1(a,l);
 			}
 		#elseif php
-			return __call__('is_array', o)
-					? __call__('array', 'concat', 'copy', 'insert', 'iterator', 'length', 'join', 'pop', 'push', 'remove', 'reverse', 'shift', 'slice', 'sort', 'splice', 'toString', 'unshift')
+			return __php__('$o instanceof _hx_array')
+					? __php__("new _hx_array(array('concat','copy','insert','iterator','length','join','pop','push','remove','reverse','shift','slice','sort','splice','toString','unshift'))")
 					: (__call__('is_string', o)
-						? __call__('array', 'charAt', 'charCodeAt', 'indexOf', 'lastIndexOf', 'length', 'split', 'substr', 'toLowerCase', 'toString', 'toUpperCase')
-						: __call__('array_keys', __call__('get_object_vars', o)));
+						? __php__("new _hx_array(array('charAt','charCodeAt','indexOf','lastIndexOf','length','split','substr','toLowerCase','toString','toUpperCase'))")
+						: __php__("new _hx_array(array_keys(get_object_vars($o)))"));
 		#else
 			return new Array();
 		#end
@@ -201,7 +201,7 @@ class Reflect {
 		#elseif neko
 			return __dollar__typeof(f) == __dollar__tfunction;
 		#elseif php
-			return __php__("(is_array($f) && is_callable($f)) || _hx_is_lambda($f)") || (__php__("is_array($f)") && hasField(f[0], f[1]) && f[1] != "length");
+			return __php__("(is_array($f) && is_callable($f)) || _hx_is_lambda($f)") || (__php__("is_array($f)") && hasField(__php__("$f[0]"), __php__("$f[1]")) && __php__("$f[1]") != "length");
 		#else
 			return false;
 		#end
@@ -239,7 +239,7 @@ class Reflect {
 			return f1.scope == f2.scope && f1.method == f2.method && f1.method != null;
 		#elseif php
 			if(untyped __call__("is_array", f1) && untyped __call__("is_array", f1))
-				return f1[0] == f2[0] && f1[1] == f2[1];
+				return untyped __php__("$f1[0] === $f2[0] && $f1[1] == $f2[1]");
 			if(untyped __call__("is_string", f1) && untyped __call__("is_string", f2))
 				return f1 == f2;
 			return false;
@@ -282,7 +282,6 @@ class Reflect {
 			if(__call__("is_object", v))
 				return __php__("$v instanceof _hx_anonymous") || Type.getClass(v) != null;
 			if(__php__("is_string($v) && !_hx_is_lambda($v)")) return true;
-			if(__php__("is_array($v) && !is_callable($v)")) return true;
 			return false;
 		#else
 			return false;
@@ -324,7 +323,7 @@ class Reflect {
 			return untyped __dollar__new(o);
 		#else
 			#if php
-				if(untyped __call__("is_string", o) || untyped __call__("is_array", o)) return o;
+				if(untyped __call__("is_string", o)) return o;
 			#end
 			var o2 : Dynamic = {};
 			for( f in Reflect.fields(o) )
@@ -352,7 +351,7 @@ class Reflect {
 		#elseif flash
 			return function() { return f(untyped __arguments__); };
 		#elseif php
-			untyped __php__("return array(new _hx_lambda(array('f' => &$f), null, array('args'), 'return call_user_func_array($f, array($args));'), 'makeArgs')");
+			untyped __php__("return array(new _hx_lambda(array('f' => &$f), null, array('args'), 'return call_user_func($f, new _hx_array($args));'), 'makeArgs')");
 		#else
 			return null;
 		#end

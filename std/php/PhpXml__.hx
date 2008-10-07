@@ -47,7 +47,7 @@ class PhpXml__ {
 	public var _parent : PhpXml__;
 
 	private static var build : PhpXml__;
-	private static function __start_element_handler(parser : Dynamic, name : String, attribs : Array<String>) {
+	private static function __start_element_handler(parser : Dynamic, name : String, attribs : ArrayAccess<String>) {
 		var node = createElement(name);
 		untyped __php__("foreach($attribs as $key => $value) $node->set($key, $value)");
 		build.addChild(node);
@@ -60,7 +60,7 @@ class PhpXml__ {
 
 	private static function __character_data_handler(parser : Dynamic, data : String) {
 		// TODO: this function can probably be simplified
-		var lc : PhpXml__ = (build._children == null || untyped __call__("count", build._children) == 0) ? null : build._children[untyped __call__("count", build._children) -1];
+		var lc : PhpXml__ = (build._children == null || build._children.length == 0) ? null : build._children[build._children.length-1];
 		if(lc != null && Xml.PCData == lc.nodeType) {
 			lc.nodeValue = lc.nodeValue + untyped __call__("htmlentities", data);
 		} else if((untyped __call__("strlen", data) == 1 && __call__("htmlentities", data) != data) || untyped __call__("htmlentities", data) == data) {
@@ -226,7 +226,7 @@ class PhpXml__ {
 			cur: 0,
 			x: me._children,
 			hasNext : function(){
-				return it.cur < __call__("count", it.x);
+				return it.cur < it.x.length;
 			},
 			next : function(){
 				return it.x[it.cur++];
@@ -244,7 +244,7 @@ class PhpXml__ {
 			x: me._children,
 			hasNext : function() {
 				var k = it.cur;
-				var l = __call__("count", it.x);
+				var l = it.x.length;
 				while( k < l ) {
 
 					if( it.x[k].nodeType == Xml.Element )
@@ -256,7 +256,7 @@ class PhpXml__ {
 			},
 			next : function() {
 				var k = it.cur;
-				var l = __call__("count", it.x);
+				var l = it.x.length;
 				while( k < l ) {
 					var n = it.x[k];
 					k += 1;
@@ -281,7 +281,7 @@ class PhpXml__ {
 			x: me._children,
 			hasNext : function() {
 				var k = it.cur;
-				var l = __call__("count", it.x);
+				var l = it.x.length;
 				while( k < l ) {
 					var n = it.x[k];
 					if( n.nodeType == Xml.Element && n._nodeName == name )
@@ -293,7 +293,7 @@ class PhpXml__ {
 			},
 			next : function() {
 				var k = it.cur;
-				var l = __call__("count", it.x);
+				var l = it.x.length;
 				while( k < l ) {
 					var n = it.x[k];
 					k++;

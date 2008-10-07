@@ -3,7 +3,7 @@ package php;
 
 class Sys {
 	public static function args() : Array<String> {
-		return untyped __call__('array_key_exists', 'argv', __var__('_SERVER')) ? __call__('array_slice', __var__('_SERVER', 'argv'), 1) : [];
+		return untyped __call__('array_key_exists', 'argv', __var__('_SERVER')) ? __call__('new _hx_array', __call__('array_slice', __var__('_SERVER', 'argv'), 1)) : [];
 	}
 
 	public static function getEnv( s : String ) : String {

@@ -136,27 +136,6 @@ let rec is_unknown_type t =
 
 let is_unknown_expr e =	is_unknown_type e.etype
 
-let rec is_array_type t =
-	match follow t with
-	| TInst ({cl_path = ([], "Array")}, _) -> true
-	| TAnon a ->
-	   (match !(a.a_status) with
-	   | Statics ({cl_path = ([], "Array")}) -> true
-	   | _ -> false)
-	| _ -> false
-
-let is_array_expr e =  is_array_type e.etype
-
-
-let rec is_array_ref e =
-	match e.eexpr with
-	| TNew (c,_,_) when c.cl_path = ([], "Array") -> false
-	| TArrayDecl _
-	| TIf (_,_,_)
-	| TConst _ -> false
-	| TParenthesis e -> is_array_ref e
-	| _ -> is_array_expr e
-
 let rec is_string_type t =
 	match follow t with
 	| TInst ({cl_path = ([], "String")}, _) -> true
@@ -395,7 +374,7 @@ let gen_constant ctx p = function
 	| TSuper -> spr ctx "ERROR /* unexpected call to super in gen_constant */"
 
 let s_funarg ctx arg t p c =
-	let byref = if is_array_type t || (String.length arg > 7 && String.sub arg 0 7 = "byref__") then "&" else "" in
+	let byref = if (String.length arg > 7 && String.sub arg 0 7 = "byref__") then "&" else "" in
 	(match t with
 	| TInst (cl,_) ->
 		(match cl.cl_path with
@@ -456,7 +435,7 @@ let gen_function_header ctx name f params p =
 		) f.tf_args;
 		print ctx "', '') "
 	| Some n ->
-		let byref = if is_array_expr f.tf_expr || (String.length n > 9 && String.sub n 0 9 = "__byref__") then "&" else "" in
+		let byref = if (String.length n > 9 && String.sub n 0 9 = "__byref__") then "&" else "" in
 		print ctx "function %s%s(" byref n;
 		concat ctx ", " (fun (arg,o,t) ->
 		let arg = define_local ctx arg in
@@ -472,15 +451,24 @@ let gen_function_header ctx name f params p =
 
 let s_escape_php_vars ctx code =
 	String.concat ((escphp ctx.quotes) ^ "$") (ExtString.String.nsplit code "$")
-	
-let rec gen_call ctx e el =
+
+let rec gen_array_args ctx lst =
+	match lst with
+	| [] -> ()
+	| h :: t ->
+		spr ctx "[";
+		gen_value ctx h;
+		spr ctx "]";				
+		gen_array_args ctx t
+		
+and gen_call ctx e el =
 	match e.eexpr , el with
 	| TConst TSuper , params ->
 		(match ctx.curclass.cl_super with
 		| None -> assert false
 		| Some (c,_) ->
 			spr ctx "parent::__construct(";
-			concat ctx "," (gen_call_value ctx) params;
+			concat ctx "," (gen_value ctx) params;
 			spr ctx ")";
 		);
 	| TField ({ eexpr = TConst TSuper },name) , params ->
@@ -488,35 +476,50 @@ let rec gen_call ctx e el =
 		| None -> assert false
 		| Some (c,_) ->
 			print ctx "parent::%s(" (name);
-			concat ctx "," (gen_call_value ctx) params;
+			concat ctx "," (gen_value ctx) params;
 			spr ctx ")";
 		);
-	| TLocal "__set__" , { eexpr = TConst (TString code) } :: [] ->
-		unsupported e.epos;
-	| TLocal "__set__" , { eexpr = TConst (TString code) } :: [el] ->
-		print ctx "%s$%s = " (escphp ctx.quotes) code;
-		gen_value ctx el;
 	| TLocal "__set__" , { eexpr = TConst (TString code) } :: el ->
 		let rec genargs lst =
 			(match lst with
 			| [] -> ()
-			| h :: [t] ->
+			| h :: [] ->
+				spr ctx " = ";
 				gen_value ctx h;
-				spr ctx "] = ";
-				gen_value ctx t
 			| h :: t ->
+				spr ctx "[";
 				gen_value ctx h;
-				spr ctx "][";
+				spr ctx "]";
 				genargs t)
 		in
-		print ctx "%s$%s[" (escphp ctx.quotes) code;
-		genargs el;
-	| TLocal "__var__" , { eexpr = TConst (TString code) } :: [] ->
 		print ctx "%s$%s" (escphp ctx.quotes) code;
+		genargs el;
+	| TLocal "__set__" , e :: el ->
+		let rec genargs lst =
+			(match lst with
+			| [] -> ()
+			| h :: [] ->
+				spr ctx " = ";
+				gen_value ctx h;
+			| h :: t ->
+				spr ctx "[";
+				gen_value ctx h;
+				spr ctx "]";
+				genargs t)
+		in
+		gen_value ctx e;
+		genargs el;
+	| TLocal "__field__" , e :: (f :: el) ->
+		gen_value ctx e;
+		spr ctx "->";
+		gen_value ctx f;
+		gen_array_args ctx el;
 	| TLocal "__var__" , { eexpr = TConst (TString code) } :: el ->
-		print ctx "%s$%s[" (escphp ctx.quotes) code;
-		concat ctx "][" (gen_value ctx) el;
-		spr ctx "]";
+		print ctx "%s$%s" (escphp ctx.quotes) code;
+		gen_array_args ctx el;
+	| TLocal "__var__" , e :: el ->
+		gen_value ctx e;
+		gen_array_args ctx el;
 	| TLocal "__call__" , { eexpr = TConst (TString code) } :: el ->
 		spr ctx code;
 		spr ctx "(";
@@ -535,7 +538,7 @@ let rec gen_call ctx e el =
 		gen_value ctx e;
 		ctx.is_call <- false;
 		spr ctx ", array(";
-		concat ctx ", " (gen_call_ref ctx) el;
+		concat ctx ", " (gen_value ctx) el;
 		spr ctx "))"
 	| TCall (x,_), el when (match x.eexpr with | TLocal _ -> false | _ -> true) ->
 		ctx.is_call <- true;
@@ -543,29 +546,20 @@ let rec gen_call ctx e el =
 		gen_value ctx e;
 		ctx.is_call <- false;
 		spr ctx ", array(";
-		concat ctx ", " (gen_call_ref ctx) el;
+		concat ctx ", " (gen_value ctx) el;
 		spr ctx "))"
 	| _ ->
 		ctx.is_call <- true;
 		gen_value ctx e;
 		ctx.is_call <- false;
 		spr ctx "(";
-		concat ctx ", " (gen_call_value ctx) el;
+		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")";
 
-and gen_call_value ctx e =
-	match e.eexpr with
-	| TConst TNull -> spr ctx "_hx_null()";
-	| _ -> gen_value ctx e
-
-and gen_call_ref ctx e =
-	if is_array_ref e then spr ctx "&";
-	gen_call_value ctx e
-
-and could_be_string_or_array_var s =
+and could_be_string_var s =
 	s = "length"
 
-and gen_uncertain_string_or_array_var ctx s e =
+and gen_uncertain_string_var ctx s e =
 	match s with
 	| "length" ->
 		spr ctx "_hx_len(";
@@ -600,12 +594,9 @@ and gen_string_static_call ctx s e el =
 		spr ctx ")";
 	| _ -> unsupported e.epos;
 
-and could_be_string_or_array_call s =
-	s = "toString"
-
 and could_be_string_call s =
 	s = "substr" || s = "charAt" || s = "charCodeAt" || s = "indexOf" ||
-	s = "lastIndexOf" || s = "split" || s = "toLowerCase" || s = "toUpperCase"
+	s = "lastIndexOf" || s = "split" || s = "toLowerCase" || s = "toString" || s = "toUpperCase"
 
 and gen_string_call ctx s e el =
 	match s with
@@ -646,7 +637,7 @@ and gen_string_call ctx s e el =
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")"
 	| "split" ->
-		spr ctx "explode(";
+		spr ctx "_hx_explode(";
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ", ";
 		gen_value ctx e;
@@ -664,16 +655,6 @@ and gen_string_call ctx s e el =
 	| _ ->
 		unsupported e.epos;
 
-and could_be_array_call s =
-	s = "push" || s = "concat" || s = "join" || s = "pop" || s = "reverse" ||
-	s = "shift" || s = "slice" || s = "sort" || s = "splice" ||
-	s = "copy" || s = "unshift" || s = "insert" || s = "remove" || s = "iterator"
-
-and gen_uncertain_string_or_array_call ctx s e el =
-	spr ctx "_hx_string_rec(";
-	gen_value ctx e;
-	print ctx ", null)"
-
 and gen_uncertain_string_call ctx s e el =
 	let p = escphp ctx.quotes in
 	spr ctx "_hx_string_call(";
@@ -681,97 +662,6 @@ and gen_uncertain_string_call ctx s e el =
 	print ctx ", %s\"%s%s\", array(" p s p;
 	concat ctx ", " (gen_value ctx) el;
 	spr ctx "))"
-
-and gen_uncertain_array_call ctx s e el =
-	let p = escphp ctx.quotes in
-	spr ctx "_hx_array_call(";
-	gen_value ctx e;
-	print ctx ", %s\"%s%s\", array(" p s p;
-	concat ctx ", " (gen_value ctx) el;
-	spr ctx "))"
-
-and gen_array_call ctx s e el =
-	match s with
-	| "push" ->
-		spr ctx "array_push(";
-		gen_value ctx e;
-		spr ctx ", ";
-		concat ctx ", " (gen_value ctx) el;
-		spr ctx ")"
-	| "concat" ->
-		spr ctx "array_merge(";
-		gen_value ctx e;
-		spr ctx ", ";
-		concat ctx ", " (gen_value ctx) el;
-		spr ctx ")"
-	| "join" ->
-		spr ctx "join(";
-		concat ctx ", " (gen_value ctx) el;
-		spr ctx ", ";
-		gen_value ctx e;
-		spr ctx ")"
-	| "pop" ->
-		spr ctx "array_pop(";
-		gen_value ctx e;
-		spr ctx ")"
-	| "reverse" ->
-		spr ctx "_hx_array_reverse(";
-		gen_value ctx e;
-		spr ctx ")"
-	| "shift" ->
-		spr ctx "array_shift(";
-		gen_value ctx e;
-		spr ctx ")"
-	| "slice" ->
-		spr ctx "_hx_array_slice(";
-		gen_value ctx e;
-		spr ctx ", ";
-		concat ctx ", " (gen_value ctx) el;
-		spr ctx ")"
-	| "sort" ->
-		spr ctx "_hx_array_sort(";
-		gen_value ctx e;
-		spr ctx ", ";
-		concat ctx ", " (gen_value ctx) el;
-		spr ctx ")"
-	| "splice" ->
-		spr ctx "_hx_array_splice(";
-		gen_value ctx e;
-		spr ctx ", ";
-		concat ctx ", " (gen_value ctx) el;
-		spr ctx ")"
-	| "toString" ->
-		spr ctx "'['.join(', ', ";
-		gen_value ctx e;
-		spr ctx ").']'"
-	| "copy" ->
-		spr ctx "_hx_array_copy(";
-		gen_value ctx e;
-		spr ctx ")"
-	| "unshift" ->
-		spr ctx "array_unshift(";
-		gen_value ctx e;
-		spr ctx ", ";
-		concat ctx ", " (gen_value ctx) el;
-		spr ctx ")"
-	| "insert" ->
-		spr ctx "_hx_array_insert(";
-		gen_value ctx e;
-		spr ctx ", ";
-		concat ctx ", " (gen_value ctx) el;
-		spr ctx ")"
-	| "remove" ->
-		spr ctx "_hx_array_remove(";
-		gen_value ctx e;
-		spr ctx ", ";
-		concat ctx ", " (gen_value ctx) el;
-		spr ctx ")"
-	| "iterator" ->
-		spr ctx "new _hx_array_iterator(";
-		gen_value ctx e;
-		spr ctx ")"
-	| _ ->
-		unsupported e.epos;
 
 and gen_field_op ctx e =
 	match e.eexpr with
@@ -818,7 +708,7 @@ and gen_field_access ctx isvar e s =
 		gen_expr ctx e;
 		print ctx "->%s" (s_ident s)
 	| TArray (e1,e2) ->
-		spr ctx "_hx_array_get_ref(";
+		spr ctx "_hx_array_get(";
 		gen_value ctx e1;
 		spr ctx ", ";
 		gen_value ctx e2;
@@ -826,6 +716,8 @@ and gen_field_access ctx isvar e s =
 		gen_member_access ctx isvar e s
 	| TBlock _
 	| TParenthesis _
+	| TObjectDecl _
+	| TArrayDecl _
 	| TNew _ ->
 		spr ctx "_hx_deref(";
 		ctx.is_call <- true;
@@ -844,7 +736,7 @@ and gen_dynamic_function ctx isstatic name f params p =
 	let old_t = ctx.local_types in
 	ctx.in_value <- None;
 	ctx.local_types <- List.map snd params @ ctx.local_types;
-	let byref = if is_array_expr f.tf_expr || (String.length name > 9 && String.sub name 0 9 = "__byref__") then "&" else "" in
+	let byref = if (String.length name > 9 && String.sub name 0 9 = "__byref__") then "&" else "" in
 	print ctx "function %s%s(" byref name;
 	concat ctx ", " (fun (arg,o,t) ->
 	let arg = define_local ctx arg in
@@ -858,7 +750,6 @@ and gen_dynamic_function ctx isstatic name f params p =
 		else
 			print ctx " return call_user_func_array($this->%s, array("  name;
 		concat ctx ", " (fun (arg,o,t) ->
-			if is_array_type t then spr ctx "&";
 			spr ctx ((escphp ctx.quotes) ^ "$" ^ arg)
 		) f.tf_args;
 		print ctx ")); }";
@@ -884,7 +775,7 @@ and gen_function ctx name f params p =
 	let old_t = ctx.local_types in
 	ctx.in_value <- None;
 	ctx.local_types <- List.map snd params @ ctx.local_types;
-	let byref = if is_array_type f.tf_type || (String.length name > 9 && String.sub name 0 9 = "__byref__") then "&" else "" in
+	let byref = if (String.length name > 9 && String.sub name 0 9 = "__byref__") then "&" else "" in
 	print ctx "function %s%s(" byref name;
 	concat ctx ", " (fun (arg,o,t) ->
 		let arg = define_local ctx arg in
@@ -905,7 +796,8 @@ and gen_inline_function ctx f params p =
 	let old_t = ctx.local_types in
 	ctx.in_value <- Some "closure";
 	ctx.local_types <- List.map snd params @ ctx.local_types;
-	spr ctx "_hx_closure(array(";
+
+	spr ctx "array(new _hx_lambda(array(";
 
 	let pq = escphp ctx.quotes in
 	let c = ref 0 in
@@ -917,15 +809,17 @@ and gen_inline_function ctx f params p =
 	) old_li;
 
 	print ctx "), null, array(";
+	let cargs = ref 0 in
 	concat ctx "," (fun (arg,o,t) ->
 		let arg = define_local ctx arg in
 		print ctx "'%s'" arg;
+		incr cargs;
 	) f.tf_args;
 	print ctx "), %s\"" pq;
 	ctx.quotes <- ctx.quotes + 1;
 	gen_expr ctx (fun_block ctx f p);
 	ctx.quotes <- ctx.quotes - 1;
-	print ctx "%s\")" pq;
+	print ctx "%s\"), 'execute%d')" pq !cargs;
 	ctx.in_value <- old;
 	ctx.locals <- old_l;
 	ctx.inv_locals <- old_li;
@@ -966,16 +860,9 @@ and gen_expr ctx e =
 		| TFun (args,_) -> print ctx "%s::%s" (s_path ctx en.e_path en.e_extern e.epos) (s_ident s)
 		| _ -> print ctx "%s::%s$%s" (s_path ctx en.e_path en.e_extern e.epos) (escphp ctx.quotes) (s_ident s))
 	| TArray (e1,e2) ->
-		(*
-		spr ctx "_hx_array_get_ref(";
-		gen_value ctx e1;
-		spr ctx ", ";
-		gen_value ctx e2;
-		spr ctx ")";
-		*)
 		(match e1.eexpr with
 		| TCall _ ->
-			spr ctx "_hx_array_get_ref(";
+			spr ctx "_hx_array_get(";
 			gen_value ctx e1;
 			spr ctx ", ";
 			gen_value ctx e2;
@@ -986,26 +873,22 @@ and gen_expr ctx e =
 			gen_value ctx e2;
 			spr ctx "]");
 	| TBinop (op,e1,e2) ->
+		let leftside e =
+			(match e.eexpr with
+			| TArray(te1, te2) ->
+				gen_value ctx te1;
+				spr ctx "[";
+				gen_value ctx te2;
+				spr ctx "]";
+			| _ ->
+				gen_field_op ctx e1;) in
 		(match op with
 		| Ast.OpAssign ->
-			(match e1.eexpr with
-			| TArray(te1, te2) ->
-				spr ctx "_hx_array_set(";
-				gen_value ctx te1;
-				spr ctx ", ";
-				gen_value ctx te2;
-				spr ctx ", ";
-				gen_value ctx e2;
-				spr ctx ")";
-			| _ ->
-				gen_field_op ctx e1;
-				if is_array_ref e2 then
-					spr ctx " =& "
-				else
-					spr ctx " = ";
-				gen_value_op ctx e2;)
+			leftside e1;
+			spr ctx " = ";
+			gen_value_op ctx e2;
 		| Ast.OpAssignOp(Ast.OpAdd) when (is_string_expr e1 || is_string_expr e2) ->
-			gen_value_op ctx e1;
+			leftside e1;
 			spr ctx " .= ";
 			gen_value_op ctx e2;
 		| Ast.OpAdd when (is_string_expr e1 || is_string_expr e2) ->
@@ -1013,7 +896,7 @@ and gen_expr ctx e =
 			spr ctx " . ";
 			gen_value_op ctx e2;
 		| Ast.OpAssignOp(Ast.OpShl) ->
-			gen_value_op ctx e1;
+			leftside e1;
 			spr ctx " <<= ";
 			gen_value_op ctx e2;
 		| Ast.OpShl ->
@@ -1021,7 +904,7 @@ and gen_expr ctx e =
 			spr ctx " << ";
 			gen_value_op ctx e2;
 		| Ast.OpAssignOp(Ast.OpUShr) ->
-			gen_value_op ctx e1;
+			leftside e1;
 			spr ctx " = ";
 			spr ctx "_hx_shift_right(";
 			gen_value_op ctx e1;
@@ -1094,8 +977,6 @@ and gen_expr ctx e =
 				|| (match e2.eexpr with | TConst _ | TLocal _ | TArray _  | TNew _ -> true | _ -> false)
 				|| is_string_expr e1
 				|| is_string_expr e2
-				|| is_array_expr e1
-				|| is_array_expr e2
 				|| is_anonym_expr e1
 				|| is_anonym_expr e2
 				|| is_unknown_expr e1
@@ -1110,7 +991,7 @@ and gen_expr ctx e =
 				gen_field_op ctx e2;
 			end
 		| _ ->
-			gen_value_op ctx e1;
+			leftside e1;
 			print ctx " %s " (Ast.s_binop op);
 			gen_value_op ctx e2;
 		);
@@ -1145,14 +1026,12 @@ and gen_expr ctx e =
 			if ctx.is_call then
 				gen_field_access ctx false e1 s
 			else
-				gen_uncertain_string_or_array_var ctx s e1
+				gen_uncertain_string_var ctx s e1
 		| _ ->
 			if is_string_expr e1 then
 				gen_string_var ctx s e1
-			else if is_array_expr e1 then
-				gen_array_var ctx s e1
 			else if is_uncertain_expr e1 then
-				gen_uncertain_string_or_array_var ctx s e1
+				gen_uncertain_string_var ctx s e1
 			else
 				gen_field_access ctx true e1 s
 		)
@@ -1172,17 +1051,6 @@ and gen_expr ctx e =
 			gen_value ctx e;
 			newline ctx;
 			spr ctx "return"
-		| Some e when (is_array_expr e && (match e.eexpr with TLocal _ -> false | _ -> true)) ->
-			spr ctx "{";
-			newline ctx;
-			let tmp = define_local ctx "__r__" in
-			let byref = if is_array_ref e then "&" else "" in
-			print ctx "%s$%s =%s " (escphp ctx.quotes) tmp byref;
-			gen_value ctx e;
-			newline ctx;
-			print ctx "return %s$%s" (escphp ctx.quotes) tmp;
-			newline ctx;
-			spr ctx "}"
 		| Some e ->
 			spr ctx "return ";
 			gen_value ctx e;
@@ -1209,10 +1077,12 @@ and gen_expr ctx e =
 				let name = f.cf_name in
 				match f.cf_expr with
 				| Some { eexpr = TFunction fd } ->
-					print ctx "$this->%s = _hx_closure(array(), $this, array(" name;
+					print ctx "$this->%s = array(new _hx_lambda(array(), $this, array(" name;
+					let cargs = ref 0 in
 					concat ctx "," (fun (arg,o,t) ->
 						let arg = define_local ctx arg in
 						print ctx "'%s'" arg;
+						incr cargs;
 					) fd.tf_args;
 					print ctx "), \"";
 					let old = ctx.in_value in
@@ -1221,7 +1091,7 @@ and gen_expr ctx e =
 					gen_expr ctx (fun_block ctx fd e.epos);
 					ctx.quotes <- ctx.quotes - 1;
 					ctx.in_value <- old;
-					print ctx "\")";
+					print ctx "\"), 'execute%d')" !cargs;
 					newline ctx;
 				| _ -> ()
 			) ctx.dynamic_methods;
@@ -1243,31 +1113,23 @@ and gen_expr ctx e =
 		ctx.in_loop <- snd old;
 	| TCall (ec,el) ->
 		(match ec.eexpr with
-		| TField (ef,s) when is_array_expr ef ->
-			gen_array_call ctx s ef el
 		| TField (ef,s) when is_static ef.etype && is_string_expr ef ->
 			gen_string_static_call ctx s ef el
 		| TField (ef,s) when is_string_expr ef ->
 			gen_string_call ctx s ef el
 		| TField (ef,s) when is_anonym_expr ef ->
-			if could_be_string_or_array_call s then begin
-				gen_uncertain_string_or_array_call ctx s ef el
-			end else if could_be_string_call s then begin
+			if could_be_string_call s then begin
 				gen_uncertain_string_call ctx s ef el
-			end else if could_be_array_call s then begin
-				gen_uncertain_array_call ctx s ef el
 			end else
 				gen_call ctx ec el
 		| TCall _ ->
 			gen_call ctx ec el
 		| _ ->
 			gen_call ctx ec el);
-	| TArrayDecl [] ->
-		spr ctx "_hx_array_empty()";
 	| TArrayDecl el ->
-		spr ctx "_hx_array(";
+		spr ctx "new _hx_array(array(";
 		concat ctx ", " (gen_value ctx) el;
-		spr ctx ")";
+		spr ctx "))";
 	| TThrow e ->
 		spr ctx "throw new HException(";
 		gen_value ctx e;
@@ -1279,21 +1141,20 @@ and gen_expr ctx e =
 		concat ctx ("; " ^ (escphp ctx.quotes) ^ "$") (fun (n,t,v) ->
 			let n = define_local ctx n in
 			match v with
-			| None -> print ctx "%s = null" n
+			| None -> 
+				print ctx "%s = null" n
 			| Some e ->
-				print ctx "%s %s " n (if is_array_ref e then "=&" else "=");
+				print ctx "%s = " n;
 				gen_value ctx e
 		) vl;
 	| TNew (c,_,el) ->
 		(match c.cl_path, el with
 		| ([], "String"), _ ->
 			concat ctx "" (gen_value ctx) el
-		| ([], "Array"), [] ->
-			spr ctx "_hx_array_empty()";
 		| ([], "Array"), el ->
-			spr ctx "_hx_array(";
+			spr ctx "new _hx_array(array(";
 			concat ctx ", " (gen_value ctx) el;
-			spr ctx ")"
+			spr ctx "))"
 		| (_, _), _ ->
 			print ctx "new %s(" (s_path ctx c.cl_path c.cl_extern e.epos);
 			let count = ref (-1) in
@@ -1301,14 +1162,7 @@ and gen_expr ctx e =
 				incr count;
 				match c.cl_constructor with
 				| Some f ->
-					(match follow f.cf_type with
-					| TFun (al, _) ->
-						let _, _, t = List.nth al !count in
-						if (try is_array_type t with Failure _ -> false) then
-							gen_call_value ctx e
-						else
-							gen_value ctx e;
-					| _ -> ())
+					gen_value ctx e;
 				| _ -> ();
 			) el;
 			spr ctx ")")
@@ -1345,7 +1199,6 @@ and gen_expr ctx e =
 		gen_value ctx (parent cond);
 		handle_break();
 	| TObjectDecl fields ->
-(*TODO: optimization, call the constructor directly when fields is void *)
 		spr ctx "_hx_anonymous(array(";
 		let p = escphp ctx.quotes in
 		concat ctx ", " (fun (f,e) -> print ctx "%s\"%s%s\" => " p f p; gen_value ctx e) fields;
@@ -1395,7 +1248,7 @@ and gen_expr ctx e =
 				| "Int"	-> print ctx "if(is_int(%s$%s = %s$%s))"		p ev p evar
 				| "Float"  -> print ctx "if(is_numeric(%s$%s = %s$%s))"	p ev p evar
 				| "String" -> print ctx "if(is_string(%s$%s = %s$%s))"	p ev p evar
-				| "Array"  -> print ctx "if(is_array(%s$%s = %s$%s))"	p ev p evar
+				| "Array"  -> print ctx "if((%s$%s = %s$%s) instanceof _hx_array)"	p ev p evar
 				| _ -> print ctx "if((%s$%s = %s$%s) instanceof %s)"    p ev p evar (s_path ctx tc.cl_path tc.cl_extern e.epos));
 				gen_expr ctx (mk_block e);
 			| TFun _
@@ -1784,9 +1637,14 @@ let generate_class ctx c =
 	cl();
 	newline ctx;
 	
-	if PMap.exists "toString" c.cl_fields then begin
-			print ctx "\tfunction __toString() { return $this->toString(); }";
-			newline ctx;
+	if PMap.exists "__toString" c.cl_fields then
+		()
+	else if PMap.exists "toString" c.cl_fields then begin
+		print ctx "\tfunction __toString() { return $this->toString(); }";
+		newline ctx
+	end else if (not c.cl_interface) && (not c.cl_extern) then begin
+		print ctx "\tfunction __toString() { return '%s'; }" ((s_path_haxe c.cl_path)) ;
+		newline ctx
 	end;
 	
 	print ctx "}"

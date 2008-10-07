@@ -156,7 +156,7 @@ private class MysqlResultSet implements ResultSet {
 	}
 
 	public function getResult( n : Int ) : String {
-		var a : Array<String> = untyped __call__("mysql_fetch_row", __r);
+		var a = untyped __call__("mysql_fetch_row", __r);
 		return a[n];
 	}
 

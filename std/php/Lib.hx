@@ -8,9 +8,9 @@ class Lib {
 		untyped __call__("echo", Std.string(v));
 	}
 
-	/*
+	/**
 		Print the specified value on the default output followed by a newline character.
-	*/
+	**/
 	public static function println( v : Dynamic ) : Void {
 		print(v);
 		print("\n");
@@ -56,7 +56,15 @@ class Lib {
 		return untyped __call__("fpassthru", h);
 	}
 
-	public static function hashOfAssociativeArray<T>(arr : Dynamic) : Hash<T> {
+	public static inline function haxeToNativeArray(a : Array<Dynamic>) : NativeArray {
+		return untyped a.a;
+	}
+
+	public static inline function nativeArrayToHaxe(a : NativeArray) : Array<Dynamic> {
+		return untyped __call__("new _hx_array", a);
+	}
+
+	public static function hashOfAssociativeArray<T>(arr : NativeArray) : Hash<T> {
 		var h = new Hash<T>();
 		untyped __php__("foreach($arr as $k => $v) $h->set($k, $v)");
 		return h;

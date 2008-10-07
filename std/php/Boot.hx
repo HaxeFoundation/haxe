@@ -14,116 +14,161 @@ function _hx_anonymous($p = array()) {
 	return $o;
 }
 
-
-function _hx_array() {
-	return func_get_args();
-}
-
-function _hx_array_call(&$arr, $method, $params) {
-	if(!is_array($arr)) return call_user_func_array(array($arr, $method), $params);
-	switch($method) {
-		case 'concat'  : return array_merge($arr, $params[0]);
-		case 'copy'    : return _hx_array_copy($arr);
-		case 'insert'  : return _hx_array_insert($arr, $params[0], $params[1]);
-		case 'iterator': return new _hx_array_iterator($arr);
-		case 'join'    : return join($params[0], $arr);
-		case 'pop'     : return array_pop($arr);
-		case 'push'    : return array_push($arr, $params[0]);
-		case 'remove'  : return _hx_array_remove($arr, $params[0]);
-		case 'reverse' : return _hx_array_reverse($arr);
-		case 'shift'   : return array_shift($arr);
-		case 'slice'   : return _hx_array_slice($arr, $params[0], (_hx_len($params) > 1 ? $params[1] : null));
-		case 'sort'    : return _hx_array_sort($arr, $params[0]);
-		case 'splice'  : return _hx_array_splice($arr, $params[0], $params[1]);
-		case 'unshift' : return array_unshift($arr, $params[0]);
-		default        : throw new HException('Invalid Operation: ' . $method);
+class _hx_array implements ArrayAccess {
+	var $a;
+	var $length;
+	function __construct($a = array()) {
+		$this->a = $a;
+		$this->length = count($a);
 	}
-}
 
-function _hx_array_copy($a) {
-	return $a;
-}
-
-function _hx_array_empty() {
-	return array();
-}
-
-function &_hx_array_get_ref(&$o, $index) {
-	$r = null;
-	if(isset($o[$index])) $r =& $o[$index];
-	return $r;
-}
-
-function _hx_array_insert(&$arr, $pos, $x) {
-	array_splice($arr, $pos, 0, array($x));
-}
-
-function _hx_array_iterator($arr) {
-	return new _hx_array_iterator($arr);
-}
-
-function _hx_array_remove(&$arr, $x) {
-	for($i = 0; $i < count($arr); $i++)
-		if($arr[$i] === $x) {
-			unset($arr[$i]);
-			$arr = array_values($arr);
-			return true;
-		}
-	return false;
-}
-
-function _hx_array_remove_at(&$arr, $pos) {
-	if(array_key_exists($pos, $arr)) {
-		unset($arr[$pos]);
-		return true;
-	} else
-		return false;
-}
-
-function _hx_array_reverse(&$a) {
-	$a = array_reverse($a, false);
-}
-
-function _hx_array_set(&$arr, $pos, $v) {
-	if(is_int($pos)) {
-		$l = count($arr);
-		if($l < $pos)
-			array_splice($arr, $l, 0, array_fill($l, $pos-$l, null));
+	function concat($a) {
+		return new _hx_array(array_merge($this->a, $a->a));
 	}
-	return $arr[$pos] = $v;
-}
 
-function _hx_array_slice(&$arr, $pos, $end) {
-	if($end == null)
-		return array_slice($arr, $pos);
-	else
-		return array_slice($arr, $pos, $end-$pos);
-}
+	function copy() {
+		return new _hx_array($this->a);
+	}
+/*
+	function get($index) {
+		if(isset($this->a[$index])) return $this->a[$index];
+		return null;
+	}
+*/
+	function insert($pos, $x) {
+		array_splice($this->a, $pos, 0, array($x));
+		$this->length++;
+	}
 
-function _hx_array_sort(&$arr, $f) {
-	$i = 0;
-	$l = count($arr);
-	while($i < $l) {
-		$swap = false;
-		$j = 0;
-		$max = $l - $i - 1;
-		while($j < $max) {
-			if(call_user_func($f, $arr[$j], $arr[$j+1]) > 0 ) {
-				$tmp = $arr[$j+1];
-				$arr[$j+1] = $arr[$j];
-				$arr[$j] = $tmp;
-				$swap = true;
+	function iterator() {
+		return new _hx_array_iterator($this->a);
+	}
+
+	function join($sep) {
+		return implode($this->a, $sep);
+	}
+
+	function pop() {
+		$r = array_pop($this->a);
+		$this->length = count($this->a);
+		return $r;
+	}
+
+	function push($x) {
+		$this->a[] = $x;
+		$this->length++;
+	}
+
+	function remove($x) {
+		for($i = 0; $i < count($this->a); $i++)
+			if($this->a[$i] === $x) {
+				unset($this->a[$i]);
+				$this->a = array_values($this->a);
+				$this->length--;
+				return true;
 			}
-			$j += 1;
+		return false;
+	}
+
+	function removeAt($pos) {
+		if(array_key_exists($pos, $this->a)) {
+			unset($this->a[$pos]);
+			$this->length--;
+			return true;
+		} else
+			return false;
+	}
+
+	function reverse() {
+		$this->a = array_reverse($this->a, false);
+	}
+/*
+	function set($pos, $v) {
+		if($this->length <= $pos) {
+			$this->a = array_merge($this->a, array_fill(0, $pos+1-$this->length, null));
+			$this->length = $pos+1;
 		}
-		if(!$swap) break;
-		$i += 1;
+		return $this->a[$pos] = $v;
+	}
+*/
+	function shift() {
+		$r = array_shift($this->a);
+		$this->length = count($this->a);
+		return $r;
+	}
+
+	function slice($pos, $end) {
+		if($end == null)
+			return new _hx_array(array_slice($this->a, $pos));
+		else
+			return new _hx_array(array_slice($this->a, $pos, $end-$pos));
+	}
+
+	function sort($f) {
+		$i = 0;
+		while($i < $this->length) {
+			$swap = false;
+			$j = 0;
+			$max = $this->length - $i - 1;
+			while($j < $max) {
+				if(call_user_func($f, $this->a[$j], $this->a[$j+1]) > 0 ) {
+					$tmp = $this->a[$j+1];
+					$this->a[$j+1] = $this->a[$j];
+					$this->a[$j] = $tmp;
+					$swap = true;
+				}
+				$j += 1;
+			}
+			if(!$swap) break;
+			$i += 1;
+		}
+	}
+
+	function splice($pos, $len) {
+		if($len < 0) $len = 0;
+		$nh = new _hx_array(array_splice($this->a, $pos, $len));
+		$this->length = count($this->a);
+		return $nh;
+	}
+
+	function toString() {
+		return '['.implode($this->a, ', ').']';
+	}
+
+	function __toString() {
+		return $this->toString();
+	}
+
+	function unshift($x) {
+		array_unshift($this->a, $x);
+		$this->length++;
+	}
+
+	// ArrayAccess methods:
+	function offsetExists($offset) {
+		return isset($this->a[$offset]);
+	}
+
+	function offsetGet($offset) {
+		if(isset($this->a[$offset])) return $this->a[$offset];
+		return null;
+	}
+
+	function offsetSet($offset, $value) {
+		if($this->length <= $offset) {
+			$this->a = array_merge($this->a, array_fill(0, $offset+1-$this->length, null));
+			$this->length = $offset+1;
+		}
+		return $this->a[$offset] = $value;
+	}
+
+	function offsetUnset($offset) {
+		return $this->removeAt($offset);
 	}
 }
 
-function _hx_array_splice(&$arr, $pos, $len) {
-	if($len < 0) $len = 0;
-	return array_splice($arr, $pos, $len);
+function _hx_array_get($a, $pos) {
+	return $a[$pos];
 }
 
 function _hx_char_code_at($s, $pos) {
@@ -131,12 +176,7 @@ function _hx_char_code_at($s, $pos) {
 	return ord($s{$pos});
 }
 
-// TODO: optimization, remove as much as possible the calls to this function
-function _hx_closure($locals, $scope, $params, $body) {
-	return array(new _hx_lambda($locals, $scope, $params, $body), 'execute'.count($params));
-}
-
-function _hx_deref(&$o) {
+function _hx_deref($o) {
 	return $o;
 }
 
@@ -170,6 +210,10 @@ function _hx_exception_handler($e) {
 	die($msg);
 }
 
+function _hx_explode($delimiter, $s) {
+	return new _hx_array(explode($delimiter, $s));
+}
+
 function _hx_field($o, $field) {
 	if(_hx_has_field($o, $field)) {
 		if($o instanceof _hx_type) {
@@ -181,60 +225,34 @@ function _hx_field($o, $field) {
 		} else {
 			if(is_string($o)) {
 				if($field == 'length') {
-					return _hx_len($o);
+					return strlen($o);
 				} else {
 					switch($field) {
-						case 'charAt'     : return _hx_closure(array('o' => &$o), null, array('index'), 'return substr($o,$index,1);');
-						case 'charCodeAt' : return _hx_closure(array('o' => &$o), null, array('index'), 'return ord(substr($o, $index, 1));');
-						case 'indexOf'    : return _hx_closure(array('o' => &$o), null, array('value','startIndex'), 'return _hx_index_of($o, $value, $startIndex);');
-						case 'lastIndexOf': return _hx_closure(array('o' => &$o), null, array('value','startIndex'), 'return _hx_last_index_of($o, $value, $startIndex);');
-						case 'split'      : return _hx_closure(array('o' => &$o), null, array('delimiter'), 'return explode($delimiter, $o);');
-						case 'substr'     : return _hx_closure(array('o' => &$o), null, array('pos','len'), 'return _hx_substr($o, $pos, $len);');
-						case 'toUpperCase': return _hx_closure(array('o' => &$o), null, array(), 'return strtoupper($o);');
-						case 'toLowerCase': return _hx_closure(array('o' => &$o), null, array(), 'return strtolower($o);');
-						case 'toString'   : return _hx_closure(array('o' => &$o), null, array(), 'return $o;');
+						case 'charAt'     : return array(new _hx_lambda(array('o' => &$o), null, array('index'), 'return substr($o,$index,1);'), 'execute1');
+						case 'charCodeAt' : return array(new _hx_lambda(array('o' => &$o), null, array('index'), 'return ord(substr($o, $index, 1));'), 'execute1');
+						case 'indexOf'    : return array(new _hx_lambda(array('o' => &$o), null, array('value','startIndex'), 'return _hx_index_of($o, $value, $startIndex);'), 'execute1');
+						case 'lastIndexOf': return array(new _hx_lambda(array('o' => &$o), null, array('value','startIndex'), 'return _hx_last_index_of($o, $value, $startIndex);'), 'execute1');
+						case 'split'      : return array(new _hx_lambda(array('o' => &$o), null, array('delimiter'), 'return _hx_explode($delimiter, $o);'), 'execute1');
+						case 'substr'     : return array(new _hx_lambda(array('o' => &$o), null, array('pos','len'), 'return _hx_substr($o, $pos, $len);'), 'execute2');
+						case 'toUpperCase': return array(new _hx_lambda(array('o' => &$o), null, array(), 'return strtoupper($o);'), 'execute0');
+						case 'toLowerCase': return array(new _hx_lambda(array('o' => &$o), null, array(), 'return strtolower($o);'), 'execute0');
+						case 'toString'   : return array(new _hx_lambda(array('o' => &$o), null, array(), 'return $o;'), 'execute0');
 					}
 					return null;
 				}
-			}
-			else {
-				if(is_array($o)) {
-					if($field == 'length') {
-						return _hx_len($o);
+			} else {
+				if(property_exists($o, $field)) {
+					if(is_array($o->$field) && is_callable($o->$field)) {
+						return $o->$field;
 					} else {
-						switch($field) {
-							case 'concat'  : return _hx_closure(array('o' => &$o), null, array('a'), 'return array_merge($o, $a);');
-							case 'join'    : return _hx_closure(array('o' => &$o), null, array('sep'), 'return join($sep,$o);');
-							case 'pop'     : return _hx_closure(array('o' => &$o), null, array(), 'return array_pop($o);');
-							case 'push'    : return _hx_closure(array('o' => &$o), null, array('x'), 'return array_push($o,$x);');
-							case 'reverse' : return _hx_closure(array('o' => &$o), null, array(), 'return _hx_reverse($o);');
-							case 'shift'   : return _hx_closure(array('o' => &$o), null, array(), 'return array_shift($o);');
-							case 'slice'   : return _hx_closure(array('o' => &$o), null, array('pos','end'), 'return _hx_array_slice($o, $pos, $end);');
-							case 'sort'    : return _hx_closure(array('o' => &$o), null, array('f'), 'return _hx_array_sort($o,$f);');
-							case 'splice'  : return _hx_closure(array('o' => &$o), null, array('pos','len'), 'return _hx_array_splice($o, $pos, $len);');
-							case 'toString': return _hx_closure(array('o' => &$o), null, array(), 'return \"[\".join(\", \", $o).\"]\";');
-							case 'unshift' : return _hx_closure(array('o' => &$o), null, array('x'), 'return array_unshift($o,$x);');
-							case 'insert'  : return _hx_closure(array('o' => &$o), null, array('pos','x'), 'return _hx_array_insert($o, $pos, $x);');
-							case 'remove'  : return _hx_closure(array('o' => &$o), null, array('x'), '_hx_array_remove($o, $x);');
-							case 'iterator': return _hx_closure(array('o' => &$o), null, array(), 'return new _hx_array_iterator($o);');
-							case 'copy'    : return _hx_closure(array('o' => &$o), null, array(), 'return $o;');
-						}
-					}
-					return null;
-				} else {
-					if(property_exists($o, $field)) {
-						if(is_array($o->$field) && is_callable($o->$field)) {
-							return $o->$field;
+						if(is_string($o->$field) && _hx_is_lambda($o->$field)) {
+							return array($o, $field);
 						} else {
-							if(is_string($o->$field) && _hx_is_lambda($o->$field)) {
-								return array($o, $field);
-							} else {
-								return $o->$field;
-							}
+							return $o->$field;
 						}
-					} else {
-						return array($o, $field);
 					}
+				} else {
+					return array($o, $field);
 				}
 			}
 		}
@@ -248,8 +266,6 @@ function _hx_has_field($o, $field) {
 		(is_object($o) && (method_exists($o, $field) || isset($o->$field) || property_exists($o, $field)))
 		||
 		(is_string($o) && (in_array($field, array('toUpperCase', 'toLowerCase', 'charAt', 'charCodeAt', 'indexOf', 'lastIndexOf', 'split', 'substr', 'toString', 'length'))))
-		||
-		(is_array($o)  && (in_array($field, array('concat', 'copy', 'insert', 'iterator', 'join', 'pop', 'push', 'remove', 'reverse', 'shift', 'slice', 'sort', 'splice', 'unshift', 'toString', 'length'))))
 	;
 }
 
@@ -272,7 +288,7 @@ function _hx_instanceof($v, $t) {
 		case 'Int'    : return is_int($v);
 		case 'Float'  : return is_float($v) || is_int($v);
 		case 'Dynamic': return true;
-		case 'Class'  : return $v instanceof _hx_class && $v->__tname__ != 'Enum';
+		case 'Class'  : return ($v instanceof _hx_class || $v instanceof _hx_interface) && $v->__tname__ != 'Enum';
 		case 'Enum'   : return $v instanceof _hx_enum;
 		default       : return is_a($v, $t->__tname__);
 	}
@@ -291,7 +307,7 @@ function _hx_last_index_of($s, $value, $startIndex) {
 }
 
 function _hx_len($o) {
-	return is_array($o) ? count($o) : (is_string($o) ? strlen($o) : $o->length);
+	return is_string($o) ? strlen($o) : $o->length;
 }
 
 function _hx_null() {
@@ -327,10 +343,10 @@ function _hx_string_call($s, $method, $params) {
 		case 'toLowerCase': return strtolower($s);
 		case 'charAt'     : return substr($s, $params[0], 1);
 		case 'charCodeAt' : return _hx_char_code_at($s, $params[0]);
-		case 'indexOf'    : return _hx_index_of($s, $params[0], (_hx_len($params) > 1 ? $params[1] : null));
-		case 'lastIndexOf': return _hx_last_index_of($s, (_hx_len($params) > 1 ? $params[1] : null), null);
-		case 'split'      : return explode($params[0], $s);
-		case 'substr'     : return _hx_substr($s, $params[0], (_hx_len($params) > 1 ? $params[1] : null));
+		case 'indexOf'    : return _hx_index_of($s, $params[0], (count($params) > 1 ? $params[1] : null));
+		case 'lastIndexOf': return _hx_last_index_of($s, (count($params) > 1 ? $params[1] : null), null);
+		case 'split'      : return _hx_explode($params[0], $s);
+		case 'substr'     : return _hx_substr($s, $params[0], (count($params) > 1 ? $params[1] : null));
 		default           : throw new HException('Invalid Operation: ' . $method);
 	}
 }
@@ -377,10 +393,10 @@ function _hx_string_rec($o, $s) {
 				if($o instanceof _hx_type)
 					return $o->__qname__;
 				else {
-					if(is_callable(_hx_array($o, 'toString')))
+					if(is_callable(array($o, 'toString')))
 						return $o->toString();
 					else {
-						if(is_callable(_hx_array($o, '__toString')))
+						if(is_callable(array($o, '__toString')))
 							return $o->__toString();
 						else
 							return '[' . _hx_ttype($c) . ']';
@@ -664,7 +680,7 @@ php_Boot::$ttypes = array();
 php_Boot::$tpaths = array();
 
 _hx_register_type(new _hx_class('String',  'String'));
-_hx_register_type(new _hx_class('Array',   'Array'));
+_hx_register_type(new _hx_class('_hx_array', 'Array'));
 _hx_register_type(new _hx_class('Int',     'Int'));
 _hx_register_type(new _hx_class('Float',   'Float'));
 _hx_register_type(new _hx_class('Class',   'Class'));

@@ -85,15 +85,15 @@ class Process {
 	public var stdin(default,null) : haxe.io.Output;
 
 	public function new( cmd : String, args : Array<String> ) {
-		var pipes = new Array<Dynamic>();
-		var descriptorspec = [
-			['pipe', 'r'],
-			['pipe', 'w'],
-			['pipe', 'w']
-		];
+		var pipes = untyped __call__("array");
+		var descriptorspec = untyped __php__("array(
+			array('pipe', 'r'),
+			array('pipe', 'w'),
+			array('pipe', 'w')
+		)");
 		p = untyped __call__('proc_open', cmd+sargs(args), descriptorspec, pipes);
 		if(untyped __physeq__(p, false)) throw "Process creation failure : "+cmd;
-		stdin  = new Stdin(pipes[0]);
+		stdin  = new Stdin( pipes[0]);
 		stdout = new Stdout(pipes[1]);
 		stderr = new Stdout(pipes[2]);
 	}
@@ -110,7 +110,8 @@ class Process {
 	}
 
 	public function getPid() : Int {
-		return untyped __call__('proc_get_status', p)['pid'];
+		var r = untyped __call__('proc_get_status', p);
+		return r[untyped 'pid'];
 	}
 
 	function replaceStream(input : haxe.io.Input) {
@@ -125,15 +126,15 @@ class Process {
 	}
 
 	public function exitCode() : Int {
-		var status : Array<Dynamic> = untyped __call__('proc_get_status', p);
+		var status = untyped __call__('proc_get_status', p);
 		while(status[untyped 'running']) {
 			php.Sys.sleep(0.01);
 			status = untyped __call__('proc_get_status', p);
 		}
 		replaceStream(stderr);
 		replaceStream(stdout);
-		var cl = untyped __call__('proc_close', p);
-		return (status[untyped 'exitcode'] < 0) ? cl : status[untyped 'exitcode'];
+		var cl : Int = untyped __call__('proc_close', p);
+		return (cast status[untyped 'exitcode']) < 0 ? cl : cast status[untyped 'exitcode'];
 
 	}
 }

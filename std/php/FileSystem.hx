@@ -103,10 +103,10 @@ class FileSystem {
 	}
 
 	public static function readDirectory( path : String ) : Array<String> {
-		var l : Array<String> =  [];
+		var l = untyped __call__("array");
 		untyped __php__('$dh = opendir($path);
         while (($file = readdir($dh)) !== false) $l[] = $file;
         closedir($dh);');
-		return l;
+		return untyped __call__("new _hx_array", l);
 	}
 }

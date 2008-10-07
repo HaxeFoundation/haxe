@@ -152,7 +152,7 @@ class List<T> {
 		var l = null;
 		untyped __php__("$l =& $this->h");
 		while( l != null ) {
-			if( l[0] == v ) {
+			if(untyped __php__("$l[0] == $v")) {
 				if( prev == null )
 					untyped __php__("$this->h =& $l[1]");
 				else
@@ -194,13 +194,13 @@ class List<T> {
 		it = untyped {
 			h : h,
 			hasNext : function() {
-				return it.h != null;
+				return __php__("$it->h != null");
 			},
 			next : function() {
-				if( it.h == null )
+				if(__php__("$it->h == null"))
 					return null;
-				var x = it.h[0];
-				it.h = it.h[1];
+				var x = __php__("$it->h[0]");
+				it.h = __php__("$it->h[1]");
 				return x;
 			}
 		};
@@ -292,5 +292,4 @@ class List<T> {
 		}
 		return b;
 	}
-
 }

@@ -66,7 +66,7 @@ class Hash<T> {
 		#elseif neko
 		untyped __dollar__hset(h,key.__s,value,null);
 		#elseif php
-		untyped __php__("$this->h[$key] = $value");
+		untyped h[key] = value;
 		#end
 	}
 
@@ -81,7 +81,7 @@ class Hash<T> {
 		#elseif neko
 		return untyped __dollar__hget(h,key.__s,null);
 		#elseif php
-		if(!exists(key)) return null;
+		untyped __php__("if(!isset($this->h[$key])) return null");
 		return untyped h[key];
 		#else
 		return null;
@@ -112,7 +112,7 @@ class Hash<T> {
 		#elseif neko
 		return untyped __dollar__hmem(h,key.__s,null);
 		#elseif php
-		return untyped __php__("array_key_exists")(key, h);
+		return untyped __call__("isset", h[key]);
 		#else
 		return false;
 		#end
@@ -141,7 +141,9 @@ class Hash<T> {
 		#elseif neko
 		return untyped __dollar__hremove(h,key.__s,null);
 		#elseif php
-		return untyped __call__("_hx_array_remove_at", h, key);
+		if(!untyped __call__("isset", h[key])) return false;
+		untyped __call__("unset", h[key]);
+		return true;
 		#else
 		return false;
 		#end
@@ -167,7 +169,7 @@ class Hash<T> {
 		untyped __dollar__hiter(h,function(k,_) { l.push(new String(k)); });
 		return l.iterator();
 		#elseif php
-		return untyped __call__("_hx_array_iterator", __call__("array_keys", h));
+		return untyped __call__("new _hx_array_iterator", __call__("array_keys", h));
 		#else
 		return null;
 		#end
@@ -203,7 +205,7 @@ class Hash<T> {
 		untyped __dollar__hiter(h,function(_,v) { l.push(v); });
 		return l.iterator();
 		#elseif php
-		return untyped __call__("_hx_array_iterator", __call__("array_values", h));
+		return untyped __call__("new _hx_array_iterator", __call__("array_values", h));
 		#else
 		return null;
 		#end

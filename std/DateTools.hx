@@ -117,7 +117,7 @@ class DateTools {
 		#if neko
 			return new String(untyped date_format(d.__t, f.__s));
 		#elseif php
-			return untyped __php__("strftime($f,$d->__t)");
+			return untyped __call__("strftime",f,d.__t);
 		#else
 			return __format(d,f);
 		#end

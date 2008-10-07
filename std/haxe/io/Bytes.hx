@@ -90,6 +90,8 @@ class Bytes {
 		var b2 = new flash.utils.ByteArray();
 		b.readBytes(b2,0,len);
 		return new Bytes(len,b2);
+		#elseif php
+		return new Bytes(len,untyped __call__("new _hx_array", __call__("array_slice", b, pos, len)));
 		#else
 		return new Bytes(len,b.slice(pos,pos+len));
 		#end
@@ -135,7 +137,7 @@ class Bytes {
 		b.position = pos;
 		return b.readUTFBytes(len);
 		#elseif php
-		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", ["C*"], __call__("array_slice", b, pos, len)));
+		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", __call__("array", "C*"), __call__("array_slice", b.a, pos, len)));
 		#else
 		var s = "";
 		var b = b;
@@ -170,7 +172,7 @@ class Bytes {
 		b.position = 0;
 		return b.readUTFBytes(length);
 		#elseif php
-		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", ["C*"], b));
+		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", __call__("array", "C*"), b.a));
 		#else
 		return readString(0,length);
 		#end
@@ -187,6 +189,8 @@ class Bytes {
 		var b = new flash.utils.ByteArray();
 		b.length = length;
 		return new Bytes(length,b);
+		#elseif php
+		return new Bytes(length, untyped __call__("new _hx_array", __call__("array_fill", 0, length, 0)));
 		#else
 		var a = new Array();
 		for( i in 0...length )
@@ -203,8 +207,7 @@ class Bytes {
 		b.writeUTFBytes(s);
 		return new Bytes(b.length,b);
 		#elseif php
-		var a : Array<Int> = untyped __call__("array_values", __call__("unpack", "C*",  s));
-		return new Bytes(a.length,a);
+		return ofData(untyped __call__("new _hx_array", __call__("array_values", __call__("unpack", "C*",  s))));
 		#else
 		var a = new Array();
 		// utf8-decode
