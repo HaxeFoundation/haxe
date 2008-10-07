@@ -104,7 +104,7 @@ let make_path f =
 let read_type_path com p =
 	let classes = ref [] in
 	let packages = ref [] in
-	let p = (match p with 
+	let p = (match p with
 		| x :: l ->
 			(try
 				match PMap.find x com.package_rules with
@@ -166,8 +166,8 @@ let rec process_params acc = function
 		process_params (x :: acc) l
 
 and init params =
-	let usage = Printf.sprintf 
-		"Haxe Compiler %d.%.2d - (c)2005-2008 Motion-Twin\n Usage : haxe.exe %s <class names...>\n Options :" 
+	let usage = Printf.sprintf
+		"Haxe Compiler %d.%.2d - (c)2005-2008 Motion-Twin\n Usage : haxe.exe %s <class names...>\n Options :"
 		(version / 100) (version mod 100) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let classes = ref [([],"Std")] in
@@ -175,7 +175,7 @@ and init params =
 try
 	let xml_out = ref None in
 	let swf_header = ref None in
-	let swf_lib = ref None in	
+	let swf_lib = ref None in
 	let cmds = ref [] in
 	let excludes = ref [] in
 	let libs = ref [] in
@@ -215,7 +215,7 @@ try
 			else
 				let base_path = normalize_path (try executable_path() with _ -> "./") in
 				com.class_path <- [base_path ^ "std/";"";"/"]);
-	let set_platform pf name file = 
+	let set_platform pf name file =
 		if com.platform <> Cross then failwith "Multiple targets";
 		com.platform <- pf;
 		com.file <- file;
@@ -241,9 +241,9 @@ try
 			set_platform Flash "flash" file;
 			if com.flash_version < 9 then com.flash_version <- 9;
 		),"<file> : compile code to Flash9 SWF file");
-		("-swf-version",Arg.Int (fun v ->			
+		("-swf-version",Arg.Int (fun v ->
 			com.flash_version <- v;
-		),"<version> : change the SWF version (6,7,8,9)");
+		),"<version> : change the SWF version (6 to 10)");
 		("-swf-header",Arg.String (fun h ->
 			try
 				swf_header := Some (match ExtString.String.nsplit h ":" with
@@ -287,7 +287,7 @@ try
 			com.main_class <- Some cpath;
 			classes := cpath :: !classes
 		),"<class> : select startup class");
-		("-lib",Arg.String (fun l -> 
+		("-lib",Arg.String (fun l ->
 			libs := l :: !libs;
 			Common.define com l;
 		),"<library[:version]> : use an haxelib library");
@@ -316,7 +316,7 @@ try
 				| x :: l -> (List.rev l,x)
 			) lines) @ !excludes;
 		),"<filename> : don't generate code for classes listed in this file");
-		("-v",Arg.Unit (fun () -> 
+		("-v",Arg.Unit (fun () ->
 			if not !display then com.verbose <- true
 		),": turn on verbose mode");
 		("-debug", Arg.Unit (fun() -> Common.define com "debug"; com.debug <- true), ": add debug informations to the compiled code");
@@ -396,7 +396,7 @@ try
 		| Cross ->
 			(* no platform selected *)
 			no_output := true; ""
-		| Flash | Flash9 ->			
+		| Flash | Flash9 ->
 			Common.define com ("flash" ^ string_of_int com.flash_version);
 			if com.flash_version >= 9 then begin
 				Common.define com "flash9"; (* always define flash9, even for flash10+ *)
@@ -419,13 +419,13 @@ try
 		let t = Common.timer "typing" in
 		Typecore.type_expr_ref := (fun ctx e need_val -> Typer.type_expr ~need_val ctx e);
 		Typecore.build_inheritance := Codegen.on_inherit;
-		let ctx = Typer.create com in		
+		let ctx = Typer.create com in
 		List.iter (fun cpath -> ignore(com.type_api.load_module cpath Ast.null_pos)) (List.rev !classes);
 		Typer.finalize ctx;
 		t();
 		if !has_error then do_exit();
-		if !display then xml_out := None;		
-		if !no_output then com.platform <- Cross;		
+		if !display then xml_out := None;
+		if !no_output then com.platform <- Cross;
 		com.types <- Typer.types ctx com.main_class (!excludes);
 		Codegen.post_process com;
 		(match com.platform with
@@ -437,7 +437,7 @@ try
 		| Flash | Flash9 ->
 			if com.verbose then print_endline ("Generating swf : " ^ com.file);
 			Genswf.generate com !swf_header !swf_lib;
-		| Neko ->			
+		| Neko ->
 			if com.verbose then print_endline ("Generating neko : " ^ com.file);
 			Genneko.generate com !libs;
 		| Js ->
