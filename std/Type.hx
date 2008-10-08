@@ -371,11 +371,7 @@ class Type {
 		if( f == null ) throw "No such constructor "+constr;
 		if( Reflect.isFunction(f) ) {
 			if( params == null ) throw "Constructor "+constr+" need parameters";
-#if php
-			return Reflect.callMethod(e,f,untyped params.a);
-#else
 			return Reflect.callMethod(e,f,params);
-#end
 		}
 		if( params != null && params.length != 0 )
 			throw "Constructor "+constr+" does not need parameters";

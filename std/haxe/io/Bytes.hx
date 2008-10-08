@@ -91,7 +91,7 @@ class Bytes {
 		b.readBytes(b2,0,len);
 		return new Bytes(len,b2);
 		#elseif php
-		return new Bytes(len,untyped __call__("new _hx_array", __call__("array_slice", b, pos, len)));
+		return new Bytes(len,untyped __call__("new _hx_array", __call__("array_slice", b.a, pos, len)));
 		#else
 		return new Bytes(len,b.slice(pos,pos+len));
 		#end
@@ -190,7 +190,10 @@ class Bytes {
 		b.length = length;
 		return new Bytes(length,b);
 		#elseif php
-		return new Bytes(length, untyped __call__("new _hx_array", __call__("array_fill", 0, length, 0)));
+		if(length > 0)
+			return new Bytes(length, untyped __call__("new _hx_array", __call__("array_fill", 0, length, 0)));
+		else
+			return new Bytes(0, untyped __call__("new _hx_array", __call__("array")));
 		#else
 		var a = new Array();
 		for( i in 0...length )

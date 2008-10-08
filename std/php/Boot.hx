@@ -145,6 +145,11 @@ class _hx_array implements ArrayAccess {
 	}
 
 	// ArrayAccess methods:
+	function __get($offset) {
+		if(isset($this->a[$offset])) return $this->a[$offset];
+		return null;
+	}
+
 	function offsetExists($offset) {
 		return isset($this->a[$offset]);
 	}
