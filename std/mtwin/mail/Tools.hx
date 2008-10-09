@@ -450,8 +450,8 @@ class Tools {
 	}
 
 	// TODO routes & groups ?
-	static var REG_ADDRESS = ~/^((([^()<>@,;:\\"\[\]\s[:cntrl:]]+)|"((\"|[^"])*)")+@[A-Z0-9][A-Z0-9-.]*)/i;
-	static var REG_ROUTE_ADDR = ~/^<((([^()<>@,;:\\"\[\]\s[:cntrl:]]+)|"((\"|[^"])*)")+@[A-Z0-9][A-Z0-9-.]*)>/i;
+	static var REG_ADDRESS = ~/^(([^()<>@,;:\\"\[\]\s[:cntrl:]]+)|"((\"|[^"])*)")@[A-Z0-9][A-Z0-9-.]*)/i;
+	static var REG_ROUTE_ADDR = ~/^<((([^()<>@,;:\\"\[\]\s[:cntrl:]]+)|"((\"|[^"])*)")@[A-Z0-9][A-Z0-9-.]*)>/i;
 	static var REG_ATOM = ~/^([^()<>@,;:"\[\]\s[:cntrl:]]+)/i;
 	static var REG_QSTRING = ~/^"((\\"|[^"])*)"/;
 	static var REG_COMMENT = ~/^\(((\\\)|[^)])*)\)/;
