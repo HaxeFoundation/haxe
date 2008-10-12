@@ -111,7 +111,7 @@ class Reflect {
 				else if(args.length == 1) return __call__("call_user_func", field(o, func), args[0]);
 				else return __call__("call_user_func", field(o, func), args[0], args[1]);
 			}
-			return __php__("call_user_func_array(is_callable($func) ? $func : array($o, $func) , $args == null ? array() : $args->a)");
+			return __php__("call_user_func_array(is_callable($func) ? $func : array($o, $func) , $args == null ? array() : $args->__a)");
 		#else
 			return null;
 		#end

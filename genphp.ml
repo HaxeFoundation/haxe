@@ -2,6 +2,9 @@
 TODO
 - debug version
 - runtime check for undefined fields
+OPTIMIZATION
+- replace eval for statements with functions/inlines
+- replace closures (eval) with functions
 *)
 (*
  *  haXe/PHP Compiler
@@ -342,7 +345,7 @@ let handle_break ctx e =
 				ctx.handle_break <- snd old;
 				newline ctx;
 				let p = escphp ctx.quotes in
-				print ctx "} catch(Exception %s$e) { if( %s$e->getMessage() != \"__break__\" ) throw %s$e; }" p p p;
+				print ctx "} catch(Exception %s$e) { if( %s$e->getMessage() != %s\"__break__%s\" ) throw %s$e; }" p p p p p;
 			)
 
 let this ctx =
@@ -572,15 +575,6 @@ and gen_string_var ctx s e =
 	match s with
 	| "length" ->
 		spr ctx "strlen(";
-		gen_value ctx e;
-		spr ctx ")"
-	| _ ->
-		unsupported e.epos;
-
-and gen_array_var ctx s e =
-	match s with
-	| "length" ->
-		spr ctx "count(";
 		gen_value ctx e;
 		spr ctx ")"
 	| _ ->
@@ -923,6 +917,7 @@ and gen_expr ctx e =
 			let s_phop = if op = Ast.OpNotEq then " !== " else " === " in
 			let se1 = s_expr_name e1 in
 			let se2 = s_expr_name e2 in
+			let p = escphp ctx.quotes in
 			if
 				e1.eexpr = TConst (TNull)
 				|| e2.eexpr = TConst (TNull)
@@ -931,7 +926,7 @@ and gen_expr ctx e =
 				| TField (f, s) when is_anonym_expr e1 || is_unknown_expr e1 ->
 					spr ctx "_hx_field(";
 					gen_value ctx f;
-					print ctx ", \"%s\")" s;
+					print ctx ", %s\"%s%s\")" p s p;
 				| _ ->
 					gen_field_op ctx e1);
 
@@ -941,7 +936,7 @@ and gen_expr ctx e =
 				| TField (f, s) when is_anonym_expr e2 || is_unknown_expr e2 ->
 					spr ctx "_hx_field(";
 					gen_value ctx f;
-					print ctx ", \"%s\")" s;
+					print ctx ", %s\"%s%s\")" p s p;
 				| _ ->
 					gen_field_op ctx e2);
 			end else if
@@ -1057,7 +1052,8 @@ and gen_expr ctx e =
 			);
 	| TBreak ->
 		if not ctx.in_loop then unsupported e.epos;
-		if ctx.handle_break then spr ctx "throw new Exception(\"__break__\")" else spr ctx "break"
+		let p = escphp ctx.quotes in
+		if ctx.handle_break then print ctx "throw new Exception(%s\"__break__%s\")" p p else spr ctx "break"
 	| TContinue ->
 		if not ctx.in_loop then unsupported e.epos;
 		spr ctx "continue"
@@ -1113,17 +1109,26 @@ and gen_expr ctx e =
 		ctx.in_loop <- snd old;
 	| TCall (ec,el) ->
 		(match ec.eexpr with
+		| TArray _ ->
+			spr ctx "call_user_func_array(";
+			gen_value ctx ec;
+			spr ctx ", array(";
+			concat ctx ", " (gen_value ctx) el;
+			spr ctx "))";
 		| TField (ef,s) when is_static ef.etype && is_string_expr ef ->
 			gen_string_static_call ctx s ef el
 		| TField (ef,s) when is_string_expr ef ->
 			gen_string_call ctx s ef el
-		| TField (ef,s) when is_anonym_expr ef ->
+(*		| TField (ef,s) when is_anonym_expr ef ->
 			if could_be_string_call s then begin
 				gen_uncertain_string_call ctx s ef el
 			end else
 				gen_call ctx ec el
-		| TCall _ ->
-			gen_call ctx ec el
+*)
+		| TField (ef,s) when is_anonym_expr ef && could_be_string_call s ->
+			gen_uncertain_string_call ctx s ef el
+(*		| TCall _ ->
+			gen_call ctx ec el *)
 		| _ ->
 			gen_call ctx ec el);
 	| TArrayDecl el ->
@@ -1180,9 +1185,23 @@ and gen_expr ctx e =
 			gen_expr ctx (mk_block e));
 	| TUnop (op,Ast.Prefix,e) ->
 		spr ctx (Ast.s_unop op);
-		gen_value ctx e
+		(match e.eexpr with
+		| TArray(te1, te2) ->
+			gen_value ctx te1;
+			spr ctx "->__a[";
+			gen_value ctx te2;
+			spr ctx "]";
+		| _ ->
+			gen_value ctx e)
 	| TUnop (op,Ast.Postfix,e) ->
-		gen_value ctx e;
+		(match e.eexpr with
+		| TArray(te1, te2) ->
+			gen_value ctx te1;
+			spr ctx "->__a[";
+			gen_value ctx te2;
+			spr ctx "]";
+		| _ ->
+			gen_value ctx e);
 		spr ctx (Ast.s_unop op)
 	| TWhile (cond,e,Ast.NormalWhile) ->
 		let handle_break = handle_break ctx e in

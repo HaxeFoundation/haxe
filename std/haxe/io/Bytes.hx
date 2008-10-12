@@ -91,7 +91,7 @@ class Bytes {
 		b.readBytes(b2,0,len);
 		return new Bytes(len,b2);
 		#elseif php
-		return new Bytes(len,untyped __call__("new _hx_array", __call__("array_slice", b.a, pos, len)));
+		return new Bytes(len,untyped __call__("new _hx_array", __call__("array_slice", b.__a, pos, len)));
 		#else
 		return new Bytes(len,b.slice(pos,pos+len));
 		#end
@@ -137,7 +137,7 @@ class Bytes {
 		b.position = pos;
 		return b.readUTFBytes(len);
 		#elseif php
-		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", __call__("array", "C*"), __call__("array_slice", b.a, pos, len)));
+		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", __call__("array", "C*"), __call__("array_slice", b.__a, pos, len)));
 		#else
 		var s = "";
 		var b = b;
@@ -172,7 +172,7 @@ class Bytes {
 		b.position = 0;
 		return b.readUTFBytes(length);
 		#elseif php
-		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", __call__("array", "C*"), b.a));
+		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", __call__("array", "C*"), b.__a));
 		#else
 		return readString(0,length);
 		#end

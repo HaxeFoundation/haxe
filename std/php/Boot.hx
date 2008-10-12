@@ -18,52 +18,52 @@ class _hx_array implements ArrayAccess {
 	var $a;
 	var $length;
 	function __construct($a = array()) {
-		$this->a = $a;
+		$this->__a = $a;
 		$this->length = count($a);
 	}
 
 	function concat($a) {
-		return new _hx_array(array_merge($this->a, $a->a));
+		return new _hx_array(array_merge($this->__a, $a->__a));
 	}
 
 	function copy() {
-		return new _hx_array($this->a);
+		return new _hx_array($this->__a);
 	}
-/*
-	function get($index) {
-		if(isset($this->a[$index])) return $this->a[$index];
+
+	function &get($index) {
+		if(isset($this->__a[$index])) return $this->__a[$index];
 		return null;
 	}
-*/
+
 	function insert($pos, $x) {
-		array_splice($this->a, $pos, 0, array($x));
+		array_splice($this->__a, $pos, 0, array($x));
 		$this->length++;
 	}
 
 	function iterator() {
-		return new _hx_array_iterator($this->a);
+		return new _hx_array_iterator($this->__a);
 	}
 
 	function join($sep) {
-		return implode($this->a, $sep);
+		return implode($this->__a, $sep);
 	}
 
 	function pop() {
-		$r = array_pop($this->a);
-		$this->length = count($this->a);
+		$r = array_pop($this->__a);
+		$this->length = count($this->__a);
 		return $r;
 	}
 
 	function push($x) {
-		$this->a[] = $x;
+		$this->__a[] = $x;
 		$this->length++;
 	}
 
 	function remove($x) {
-		for($i = 0; $i < count($this->a); $i++)
-			if($this->a[$i] === $x) {
-				unset($this->a[$i]);
-				$this->a = array_values($this->a);
+		for($i = 0; $i < count($this->__a); $i++)
+			if($this->__a[$i] === $x) {
+				unset($this->__a[$i]);
+				$this->__a = array_values($this->__a);
 				$this->length--;
 				return true;
 			}
@@ -71,8 +71,8 @@ class _hx_array implements ArrayAccess {
 	}
 
 	function removeAt($pos) {
-		if(array_key_exists($pos, $this->a)) {
-			unset($this->a[$pos]);
+		if(array_key_exists($pos, $this->__a)) {
+			unset($this->__a[$pos]);
 			$this->length--;
 			return true;
 		} else
@@ -80,28 +80,28 @@ class _hx_array implements ArrayAccess {
 	}
 
 	function reverse() {
-		$this->a = array_reverse($this->a, false);
+		$this->__a = array_reverse($this->__a, false);
 	}
 /*
 	function set($pos, $v) {
 		if($this->length <= $pos) {
-			$this->a = array_merge($this->a, array_fill(0, $pos+1-$this->length, null));
+			$this->__a = array_merge($this->__a, array_fill(0, $pos+1-$this->length, null));
 			$this->length = $pos+1;
 		}
-		return $this->a[$pos] = $v;
+		return $this->__a[$pos] = $v;
 	}
 */
 	function shift() {
-		$r = array_shift($this->a);
-		$this->length = count($this->a);
+		$r = array_shift($this->__a);
+		$this->length = count($this->__a);
 		return $r;
 	}
 
 	function slice($pos, $end) {
 		if($end == null)
-			return new _hx_array(array_slice($this->a, $pos));
+			return new _hx_array(array_slice($this->__a, $pos));
 		else
-			return new _hx_array(array_slice($this->a, $pos, $end-$pos));
+			return new _hx_array(array_slice($this->__a, $pos, $end-$pos));
 	}
 
 	function sort($f) {
@@ -111,10 +111,10 @@ class _hx_array implements ArrayAccess {
 			$j = 0;
 			$max = $this->length - $i - 1;
 			while($j < $max) {
-				if(call_user_func($f, $this->a[$j], $this->a[$j+1]) > 0 ) {
-					$tmp = $this->a[$j+1];
-					$this->a[$j+1] = $this->a[$j];
-					$this->a[$j] = $tmp;
+				if(call_user_func($f, $this->__a[$j], $this->__a[$j+1]) > 0 ) {
+					$tmp = $this->__a[$j+1];
+					$this->__a[$j+1] = $this->__a[$j];
+					$this->__a[$j] = $tmp;
 					$swap = true;
 				}
 				$j += 1;
@@ -126,13 +126,13 @@ class _hx_array implements ArrayAccess {
 
 	function splice($pos, $len) {
 		if($len < 0) $len = 0;
-		$nh = new _hx_array(array_splice($this->a, $pos, $len));
-		$this->length = count($this->a);
+		$nh = new _hx_array(array_splice($this->__a, $pos, $len));
+		$this->length = count($this->__a);
 		return $nh;
 	}
 
 	function toString() {
-		return '['.implode($this->a, ', ').']';
+		return '['.implode($this->__a, ', ').']';
 	}
 
 	function __toString() {
@@ -140,31 +140,26 @@ class _hx_array implements ArrayAccess {
 	}
 
 	function unshift($x) {
-		array_unshift($this->a, $x);
+		array_unshift($this->__a, $x);
 		$this->length++;
 	}
 
 	// ArrayAccess methods:
-	function __get($offset) {
-		if(isset($this->a[$offset])) return $this->a[$offset];
-		return null;
-	}
-
 	function offsetExists($offset) {
-		return isset($this->a[$offset]);
+		return isset($this->__a[$offset]);
 	}
 
 	function offsetGet($offset) {
-		if(isset($this->a[$offset])) return $this->a[$offset];
+		if(isset($this->__a[$offset])) return $this->__a[$offset];
 		return null;
 	}
 
 	function offsetSet($offset, $value) {
 		if($this->length <= $offset) {
-			$this->a = array_merge($this->a, array_fill(0, $offset+1-$this->length, null));
+			$this->__a = array_merge($this->__a, array_fill(0, $offset+1-$this->length, null));
 			$this->length = $offset+1;
 		}
-		return $this->a[$offset] = $value;
+		return $this->__a[$offset] = $value;
 	}
 
 	function offsetUnset($offset) {
@@ -559,17 +554,17 @@ class _hx_array_iterator {
 	private $a;
 	private $i;
 	public function __construct($a) {
-		$this->a = $a;
+		$this->__a = $a;
 		$this->i = 0;
 	}
 
 	public function next() {
 		if(!$this->hasNext()) return null;
-		return $this->a[$this->i++];
+		return $this->__a[$this->i++];
 	}
 
 	public function hasNext() {
-		return $this->i < count($this->a);
+		return $this->i < count($this->__a);
 	}
 }
 

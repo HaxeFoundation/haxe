@@ -302,7 +302,7 @@ class Type {
 			if(cl.__qname__ == 'String') return args[0];
 			var c = cl.__rfl__();
 			if(c == null) return null;
-			return __php__("$inst = $c->getConstructor() ? $c->newInstanceArgs($args->a) : $c->newInstanceArgs()");
+			return __php__("$inst = $c->getConstructor() ? $c->newInstanceArgs($args->__a) : $c->newInstanceArgs()");
 		#else
 			return null;
 		#end

@@ -8,11 +8,6 @@ class TestBasetypes extends Test {
 		eq( a[0], 1 );
 		eq( a[2], 3 );
 
-		#if php
-		assert();
-		return;
-		#end
-
 		eq( a[3], null );
 		eq( a[1000], null );
 		eq( a[-1], null );
@@ -23,7 +18,7 @@ class TestBasetypes extends Test {
 		unspec(function() String.fromCharCode(0));
 		unspec(function() String.fromCharCode(-1));
 		unspec(function() String.fromCharCode(256));
-		eq( null + "x" , "nullx" );
+		eq( null + "x", "nullx" );
 		eq( "x" + null, "xnull" );
 	}
 

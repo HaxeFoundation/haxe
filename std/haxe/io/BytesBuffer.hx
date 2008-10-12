@@ -60,7 +60,7 @@ class BytesBuffer {
 		#elseif flash9
 		b.writeBytes(src.getData());
 		#elseif php
-		b = untyped __call__("new _hx_array", __call__("array_merge", b.a, src.getData().a));
+		b = untyped __call__("new _hx_array", __call__("array_merge", b.__a, src.getData().__a));
 		#else
 		var b1 = b;
 		var b2 = src.getData();
@@ -79,7 +79,7 @@ class BytesBuffer {
 		b.writeBytes(src.getData(),pos,len);
 		#elseif php
 		try {
-			b = untyped __call__("new _hx_array", __call__("array_merge", b.a, __call__("array_slice", src.getData().a, pos, len)));
+			b = untyped __call__("new _hx_array", __call__("array_merge", b.__a, __call__("array_slice", src.getData().__a, pos, len)));
 		} catch(e : Dynamic) {
 			throw Error.OutsideBounds;
 		}
