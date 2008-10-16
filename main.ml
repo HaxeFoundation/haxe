@@ -474,6 +474,10 @@ with
 	| Arg.Help msg -> print_string msg
 	| Hxml_found -> ()
 	| Typer.Display t ->
+		(*
+			documentation is currently not output even when activated
+			because the parse 'eats' it when used in "resume" mode
+		*)
 		let ctx = Type.print_context() in
 		(match Type.follow t with
 		| Type.TAnon a ->
