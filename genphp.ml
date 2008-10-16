@@ -1,5 +1,6 @@
 (*
 TODO
+- check for static method name clashes
 - debug version
 - runtime check for undefined fields
 OPTIMIZATION

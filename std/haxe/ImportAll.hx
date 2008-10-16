@@ -543,7 +543,6 @@ import flash.system.JPEGLoaderContext;
 import php.Exception;
 import php.FileSystem;
 import php.HException;
-import php.IniHash;
 import php.Lib;
 import php.Session;
 import php.Sys;
@@ -551,7 +550,6 @@ import php.Utf8;
 import php.Web;
 
 import php.db.Connection;
-import php.db.DBase;
 import php.db.Manager;
 import php.db.Mysql;
 import php.db.Object;

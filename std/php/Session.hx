@@ -82,6 +82,7 @@ class Session {
 	
 	public static function get(name : String) : Dynamic {
 		start();
+		if(!untyped __call__('isset', __var__("_SESSION", name))) return null;
 		return untyped __var__("_SESSION", name);
 	}
 	
