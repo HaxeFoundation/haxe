@@ -140,7 +140,7 @@ class Boot extends flash.display.MovieClip, implements Dynamic {
 		var stage = flash.Lib.current.stage;
 		if( stage == null )
 			return;
-		while( tf.height > stage.stageHeight ) {
+		while( lines.length > 0 && tf.height > stage.stageHeight ) {
 			lines.shift();
 			tf.text = lines.join("\n");
 		}
