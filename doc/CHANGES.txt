@@ -5,6 +5,7 @@ xxxx-xx-xx: 2.02 CVS
 	added -D use_rtti_doc
 	flash.Lib.getTimer() now returns Int and is inlined
 	fixed php.FileSystem.stat
+	added memory related functions to php.Sys
 
 2008-10-04: 2.01
 	fixed php.Sys
