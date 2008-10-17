@@ -52,7 +52,7 @@ class Lib {
 		untyped __geturl__(kind,cmd);
 	}
 
-	public static function getTimer() : Float {
+	public inline static function getTimer() : Int {
 		return untyped __gettimer__();
 	}
 

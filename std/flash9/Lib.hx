@@ -28,7 +28,7 @@ class Lib {
 
 	public static var current : flash.display.MovieClip;
 
-	public static function getTimer() : Float {
+	public inline static function getTimer() : Int {
 		return untyped __global__["flash.utils.getTimer"]();
 	}
 
