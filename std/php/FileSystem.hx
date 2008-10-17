@@ -61,9 +61,9 @@ class FileSystem {
 		return untyped {
 			gid   : __php__("$fstat['gid']"),
 			uid   : __php__("$fstat['uid']"),
-			atime : Date.fromTime(__php__("$fstat['atime']")),
-			mtime : Date.fromTime(__php__("$fstat['mtime']")),
-			ctime : Date.fromTime(__php__("$fstat['ctime']")),
+			atime : Date.fromTime(__php__("$fstat['atime']")*1000),
+			mtime : Date.fromTime(__php__("$fstat['mtime']")*1000),
+			ctime : Date.fromTime(__php__("$fstat['ctime']")*1000),
 			dev   : __php__("$fstat['dev']"),
 			ino   : __php__("$fstat['ino']"),
 			nlink : __php__("$fstat['nlink']"),
