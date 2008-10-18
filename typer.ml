@@ -965,15 +965,21 @@ and type_access ctx e p get =
 		let e1 = type_expr ctx e1 in
 		let e2 = type_expr ctx e2 in
 		unify ctx e2.etype ctx.api.tint e2.epos;
-		let pt = (match follow e1.etype with
-		| TInst ({ cl_array_access = Some t; cl_types = pl },tl) ->
-			apply_params pl tl t
-		| _ -> 
-			let pt = mk_mono() in
-			let t = ctx.api.tarray pt in
-			unify ctx e1.etype t e1.epos;
-			pt
-		) in
+		let rec loop et =
+			match follow et with
+			| TInst ({ cl_array_access = Some t; cl_types = pl },tl) ->
+				apply_params pl tl t
+			| TInst ({ cl_super = Some (c,stl); cl_types = pl },tl) ->
+				apply_params pl tl (loop (TInst (c,stl)))
+			| TInst ({ cl_path = [],"ArrayAccess" },[t]) ->
+				t
+			| _ -> 
+				let pt = mk_mono() in
+				let t = ctx.api.tarray pt in
+				unify ctx e1.etype t e1.epos;
+				pt
+		in
+		let pt = loop e1.etype in
 		AccExpr (mk (TArray (e1,e2)) pt p)
 	| _ ->
 		AccExpr (type_expr ctx (e,p))

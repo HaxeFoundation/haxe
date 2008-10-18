@@ -50,7 +50,7 @@ extern class Event {
 
 	#if flash10
 	static var FRAME_CONSTRUCTED : String;
-	static var SAMPLES_CALLBACK : String;
+	static var SAMPLES_DATA : String;
 	static var EXIT_FRAME : String;
 	static var CUT : String;
 	static var COPY : String;
