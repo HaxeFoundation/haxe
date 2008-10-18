@@ -238,17 +238,6 @@ let load_core_type ctx name =
 	show();
 	t
 
-let t_array_access ctx =
-	let show = hide_types ctx in
-	match load_type_def ctx null_pos ([],"ArrayAccess") with
-	| TClassDecl c ->
-		show();
-		if List.length c.cl_types <> 1 then assert false;
-		let pt = mk_mono() in
-		TInst (c,[pt]) , pt
-	| _ ->
-		assert false
-
 let t_iterator ctx =
 	let show = hide_types ctx in
 	match load_type_def ctx null_pos ([],"Iterator") with
@@ -423,6 +412,9 @@ let set_heritance ctx c herits p =
 		| HImplements t ->
 			let t = load_normal_type ctx t p false in
 			(match follow t with
+			| TInst ({ cl_path = [],"ArrayAccess"; cl_extern = true; },[t]) ->
+				if c.cl_array_access <> None then error "Duplicate array access" p;
+				c.cl_array_access <- Some t
 			| TInst (cl,params) ->
 				if is_parent c cl then error "Recursive class" p;
 				c.cl_implements <- (cl, params) :: c.cl_implements

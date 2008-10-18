@@ -965,13 +965,12 @@ and type_access ctx e p get =
 		let e1 = type_expr ctx e1 in
 		let e2 = type_expr ctx e2 in
 		unify ctx e2.etype ctx.api.tint e2.epos;
-		let pt = (try
+		let pt = (match follow e1.etype with
+		| TInst ({ cl_array_access = Some t; cl_types = pl },tl) ->
+			apply_params pl tl t
+		| _ -> 
 			let pt = mk_mono() in
 			let t = ctx.api.tarray pt in
-			unify_raise ctx e1.etype t e1.epos;
-			pt
-		with Error (Unify _,_) ->
-			let t, pt = Typeload.t_array_access ctx in
 			unify ctx e1.etype t e1.epos;
 			pt
 		) in

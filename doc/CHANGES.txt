@@ -7,6 +7,7 @@
 	fixed php.FileSystem.stat
 	added memory related functions to php.Sys
 	added error when trying to extend Array, String, Date and Xml
+	fixed handling of implements ArrayAccess
 
 2008-10-04: 2.01
 	fixed php.Sys
