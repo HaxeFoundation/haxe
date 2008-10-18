@@ -1,4 +1,4 @@
-xxxx-xx-xx: 2.02 CVS
+2008-??-??: 2.02 CVS
 	Std.is(MyInterface, Class) now returns true (haXe/PHP)
 	php arrays are wrapped into _hx_array instances, fixes issues with references (array cast, access out of bounds ...)
 	removed untested php classes (php.DBase, php.IniHash)
@@ -6,6 +6,7 @@ xxxx-xx-xx: 2.02 CVS
 	flash.Lib.getTimer() now returns Int and is inlined
 	fixed php.FileSystem.stat
 	added memory related functions to php.Sys
+	added error when trying to extend Array, String, Date and Xml
 
 2008-10-04: 2.01
 	fixed php.Sys

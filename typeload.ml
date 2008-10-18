@@ -409,6 +409,11 @@ let set_heritance ctx c herits p =
 			if c.cl_super <> None then error "Cannot extend several classes" p;
 			let t = load_normal_type ctx t p false in
 			(match follow t with
+			| TInst ({ cl_path = [],"Array" },_)
+			| TInst ({ cl_path = [],"String" },_)
+			| TInst ({ cl_path = [],"Date" },_)
+			| TInst ({ cl_path = [],"Xml" },_) ->
+				error "Cannot extend basic class" p;
 			| TInst (cl,params) ->
 				if is_parent c cl then error "Recursive class" p;
 				if c.cl_interface then error "Cannot extend an interface" p;
