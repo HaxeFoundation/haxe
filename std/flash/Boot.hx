@@ -183,7 +183,7 @@ class Boot {
 			var s = inf.fileName+(if( inf.lineNumber == null ) "" else ":"+inf.lineNumber)+": "+__string_rec(v,"");
 			var lines : Array<String> = root.__trace_lines["concat"](s.split("\n"));
 			tf.text = lines.join("\n");
-			while( lines.length > 0 && tf.textHeight > Stage.height ) {
+			while( lines.length > 1 && tf.textHeight > Stage.height ) {
 				lines.shift();
 				tf.text = lines.join("\n");
 			}
