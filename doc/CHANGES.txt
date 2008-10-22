@@ -9,6 +9,7 @@
 	added error when trying to extend Array, String, Date and Xml
 	fixed handling of implements ArrayAccess
 	fixed some minor things in flash10 api
+	switch/for/while/do/try/if are no longer using parse_next (parenthesises requ. instead)
 
 2008-10-04: 2.01
 	fixed php.Sys

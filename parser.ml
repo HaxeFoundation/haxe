@@ -527,7 +527,7 @@ and expr = parser
 	| [< '(Kwd For,p); '(POpen,_); name = any_ident; '(Kwd In,_); it = expr; '(PClose,_); s >] ->
 		(try
 			let e = expr s in
-			expr_next (EFor (name,it,e),punion p (pos e)) s
+			(EFor (name,it,e),punion p (pos e))
 		with
 			Display e -> display (EFor (name,it,e),punion p (pos e)))
 	| [< '(Kwd If,p); '(POpen,_); cond = expr; '(PClose,_); e1 = expr; s >] ->
@@ -551,19 +551,19 @@ and expr = parser
 				| _ ->
 					None , s
 		) in
-		expr_next (EIf (cond,e1,e2), punion p (match e2 with None -> pos e1 | Some e -> pos e)) s
+		(EIf (cond,e1,e2), punion p (match e2 with None -> pos e1 | Some e -> pos e))
 	| [< '(Kwd Return,p); e = popt expr >] -> (EReturn e, match e with None -> p | Some e -> punion p (pos e))
 	| [< '(Kwd Break,p) >] -> (EBreak,p)
 	| [< '(Kwd Continue,p) >] -> (EContinue,p)
 	| [< '(Kwd While,p1); '(POpen,_); cond = expr; '(PClose,_); s >] ->
 		(try
 			let e = expr s in
-			expr_next (EWhile (cond,e,NormalWhile),punion p1 (pos e)) s
+			(EWhile (cond,e,NormalWhile),punion p1 (pos e))
 		with
 			Display e -> display (EWhile (cond,e,NormalWhile),punion p1 (pos e)))
-	| [< '(Kwd Do,p1); e = expr; '(Kwd While,_); '(POpen,_); cond = expr; '(PClose,_); s >] -> expr_next (EWhile (cond,e,DoWhile),punion p1 (pos e)) s
-	| [< '(Kwd Switch,p1); e = expr; '(BrOpen,_); cases , def = parse_switch_cases e []; '(BrClose,p2); s >] -> expr_next (ESwitch (e,cases,def),punion p1 p2) s
-	| [< '(Kwd Try,p1); e = expr; cl = plist (parse_catch e); s >] -> expr_next (ETry (e,cl),p1) s
+	| [< '(Kwd Do,p1); e = expr; '(Kwd While,_); '(POpen,_); cond = expr; '(PClose,_); s >] -> (EWhile (cond,e,DoWhile),punion p1 (pos e))
+	| [< '(Kwd Switch,p1); e = expr; '(BrOpen,_); cases , def = parse_switch_cases e []; '(BrClose,p2); s >] -> (ESwitch (e,cases,def),punion p1 p2)
+	| [< '(Kwd Try,p1); e = expr; cl = plist (parse_catch e); s >] -> (ETry (e,cl),p1)
 	| [< '(IntInterval i,p1); e2 = expr >] -> make_binop OpInterval (EConst (Int i),p1) e2
 	| [< '(Kwd Untyped,p1); e = expr >] -> (EUntyped e,punion p1 (pos e))
 
