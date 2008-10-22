@@ -31,8 +31,8 @@ class Request {
 	var pathInfoParts  : Array<String>;
 	var params         : Hash<String>;
 
-	public function new() {
-		pathInfoParts = Web.getURI().split( "/" );
+	public function new( ?uri ) {
+		pathInfoParts = (uri == null ? neko.Web.getURI() : uri).split( "/" );
 		pathInfoParts.shift();
 		params = Web.getParams();
 	}
