@@ -138,7 +138,7 @@ class Boot {
 			#end
 			switch( cast cl ) {
 			case Int:
-				return __physeq__(Math.ceil(o),o) && isFinite(o) && !(__physeq__(o,true) || __physeq__(o,false));
+				return __physeq__(Math.ceil(o),o%2147483648.0) && !(__physeq__(o,true) || __physeq__(o,false));
 			case Float:
 				return __typeof__(o) == "number";
 			case Bool:

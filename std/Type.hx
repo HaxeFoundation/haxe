@@ -557,9 +557,8 @@ class Type {
 			case "boolean": return TBool;
 			case "string": return TClass(String);
 			case "number":
-				if( v+1 == v )
-					return TFloat;
-				if( Math.ceil(v) == v )
+				// this should handle all cases : NaN, +/-Inf and Floats outside range
+				if( Math.ceil(v) == v%2147483648.0 )
 					return TInt;
 				return TFloat;
 			case "object":

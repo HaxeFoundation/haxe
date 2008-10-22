@@ -174,7 +174,7 @@ class Boot {
 			}
 			switch( cl ) {
 			case Int:
-				return __js__("Math.ceil(o) === o") && isFinite(o);
+				return __js__("Math.ceil(o%2147483648.0) === o");
 			case Float:
 				return __js__("typeof(o)") == "number";
 			case Bool:

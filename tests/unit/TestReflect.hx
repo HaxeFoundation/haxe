@@ -59,6 +59,8 @@ class TestReflect extends Test {
 		is(1,Int,Float);
 		is(-1,Int,Float);
 		is(1.2,Float);
+		is(1e10,Float);
+		is(-1e10,Float);
 		is(Math.NaN,Float);
 		is(Math.POSITIVE_INFINITY,Float);
 		is(Math.NEGATIVE_INFINITY,Float);
@@ -100,6 +102,8 @@ class TestReflect extends Test {
 		typeof(1,TInt);
 		typeof(-1,TInt);
 		typeof(1.2,TFloat);
+		typeof(1e10,TFloat);
+		typeof(-1e10,TFloat);
 		typeof(Math.NaN,TFloat);
 		typeof(Math.POSITIVE_INFINITY,TFloat);
 		typeof(Math.NEGATIVE_INFINITY,TFloat);
