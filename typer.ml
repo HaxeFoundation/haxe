@@ -1585,7 +1585,7 @@ and optimize_for_loop ctx i e1 e2 p =
 			]) t_void p)
 	| _  ->
 		match follow e1.etype with
-		| TInst({ cl_path = [],"Array" },[pt]) ->
+		| TInst({ cl_path = [],"Array" },[pt]) | TInst({ cl_path = ["flash"],"Vector" },[pt]) ->
 			let i = add_local ctx i pt in
 			let index = gen_local ctx t_int in
 			let arr, avars = (match e1.eexpr with
