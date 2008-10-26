@@ -149,10 +149,9 @@ class List<T> {
 	public function remove( v : T ) : Bool {
 		var prev = null;
 		#if php
-		var l = null;
-		untyped __php__("$l =& $this->h");
+		var l = untyped __php__("& $this->h");
 		while( l != null ) {
-			if(untyped __php__("$l[0] == $v")) {
+			if(untyped __php__("$l[0] === $v")) {
 				if( prev == null )
 					untyped __php__("$this->h =& $l[1]");
 				else

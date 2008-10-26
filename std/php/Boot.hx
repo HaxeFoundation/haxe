@@ -219,7 +219,7 @@ function _hx_field($o, $field) {
 		if($o instanceof _hx_type) {
 			if(is_callable(array($o->__tname__, $field))) {
 				return array($o->__tname__, $field);
-			} else {
+			} else {				
 				return eval('return '.$o->__tname__.'::$'.$field.';');
 			}
 		} else {
