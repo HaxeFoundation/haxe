@@ -55,7 +55,7 @@ class Stack {
 		#elseif (flash || js)
 			return makeStack("$s");
 		#else
-			return null;
+			return [];
 		#end
 	}
 
@@ -86,7 +86,7 @@ class Stack {
 		#elseif (flash ||js)
 			return makeStack("$e");
 		#else
-			return null;
+			return [];
 		#end
 	}
 
