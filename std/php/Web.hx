@@ -290,7 +290,7 @@ class Web {
 	**/
 	public static function parseMultipart( onPart : String -> String -> Void, onData : String -> Int -> Int -> Void ) : Void {
 		if(!untyped __call__("isset", __php__("$_FILES"))) return;
-		var parts : Array<String> = untyped __call__("array_keys", __php__("$_FILES"));
+		var parts : Array<String> = untyped __call__("new _hx_array",__call__("array_keys", __php__("$_FILES")));
 		for(part in parts) {
 			var info : Dynamic = untyped __php__("$_FILES[$part]");
 			var tmp : String = untyped info['tmp_name'];
