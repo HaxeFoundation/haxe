@@ -313,33 +313,26 @@ class MetaPart<T> {
 		if( id == null ) subPart = false;
 		this.id = id;
 
-		var arr = Tools.splitLines(str);
 		var head : List<String> = new List();
-
-		var inHead = true;
 		var buf = new StringBuf();
-		
-		for( ln in arr ){
-			if( !inHead ){
-				buf.add( Tools.removeCRLF(ln) );
-				buf.add("\r\n");
+
+		var arr = str.split("\n");
+		while( arr.length > 0 ){
+			var ln = arr.shift();
+			if( ln.length == 0 || ln == "\r" ){
+				head.add( buf.toString() );
+				break;
 			}else{
-				if( Tools.removeCRLF(ln).length == 0 ){
-					inHead = false;
+				if( ~/^\s/.match( ln )  ){
+					buf.add( Tools.removeCRLF(ln) );
+				}else{
 					head.add( buf.toString() );
 					buf = new StringBuf();
-				}else{
-					if( ~/^\s/.match( ln )  ){
-						buf.add( Tools.removeCRLF(ln) );
-					}else{
-						head.add( buf.toString() );
-						buf = new StringBuf();
-						buf.add( Tools.removeCRLF(ln) );
-					}
+					buf.add( Tools.removeCRLF(ln) );
 				}
 			}
 		}
-		content = buf.toString();
+		content = arr.join("\n");
 		
 		for( ln in head ){
 			if( REG_HEADER.match(ln) ){
@@ -426,9 +419,11 @@ class MetaPart<T> {
 			var i = 0;
 			for( str in tmp ){
 				i++;
-				if( REG_CRLF_END.match(str) ){
-					str = str.substr(0,-REG_CRLF_END.matched(1).length);
-				}
+				var t = str.substr(-2,2);
+				if( t == "\r\n" )
+					str = str.substr(0,-2);
+				else if( t.substr(1) == "\n" )
+					str = str.substr(0,-1);
 				
 				var p = cast newPart("text/plain");
 				p.parse( StringTools.trim(str), myId+i );

@@ -38,7 +38,7 @@ class Tools {
 	static var REG_HEADER_DECODE = ~/^(.*?)=\?([^\?]+)\?(Q|B)\?([^?]*)\?=\s*(.*?)$/i;
 	static var REG_QP_LB = ~/=\\r?\\n/;
 	static var REG_QP = ~/=([A-Fa-f0-9]{1,2})/;
-	static var REG_SPACES = ~/\s+/g;
+	static var REG_SPACES_EQUAL = ~/[\s=]+/g;
 	
 	public static function chunkSplit( str:String, length:Int, sep:String ){
 		var ret = "";
@@ -70,7 +70,7 @@ class Tools {
 	}
 
 	public static function decodeBase64( content : String ){
-		content = StringTools.replace(REG_SPACES.replace(content,""),"=","");
+		content = REG_SPACES_EQUAL.replace(content,"");
 		return try haxe.BaseCode.decode( content, BASE64 ) catch( e : Dynamic ) content;
 	}
 
