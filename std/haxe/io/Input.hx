@@ -44,6 +44,8 @@ class Input {
 		while( k > 0 ) {
 			#if neko
 				untyped __dollar__sset(b,pos,readByte());
+			#elseif php
+				b[pos] = untyped __call__("chr", readByte());
 			#else
 				b[pos] = readByte();
 			#end

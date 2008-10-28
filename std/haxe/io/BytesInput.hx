@@ -62,6 +62,8 @@ class BytesInput extends Input {
 			len--;
 			#if neko
 			return untyped __dollar__sget(b,pos++);
+			#elseif php
+			return untyped __call__("ord", b[pos++]);
 			#else
 			return b[pos++];
 			#end
@@ -69,7 +71,10 @@ class BytesInput extends Input {
 	}
 
 	public override function readBytes( buf : Bytes, pos, len ) : Int {
-		#if !neko
+		#if php
+			if( pos < 0 || len < 0 || pos + len > untyped __call__("strlen", b))
+				throw Error.OutsideBounds;
+		#elseif !neko
 			if( pos < 0 || len < 0 || pos + len > b.length )
 				throw Error.OutsideBounds;
 		#end
@@ -82,6 +87,11 @@ class BytesInput extends Input {
 				len = this.len;
 			#if neko
 			try untyped __dollar__sblit(buf.getData(),pos,b,this.pos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
+			#elseif php
+			// TODO: test me
+			untyped __php__("$buf->b = substr($buf->b, 0, $pos) . substr($this->b, $this->pos, $len) . substr($buf->b, $pos+$len)"); //__call__("substr", b, 0, pos)+__call__("substr", src.b, srcpos, len)+__call__("substr", b, pos+len);
+//			var b2 = untyped __php__("& $buf->b");
+//			b2 = untyped __call__("substr", b2, 0, pos)+__call__("substr", b, 0, len)+__call__("substr", b2, pos+len);
 			#else
 			var b1 = b;
 			var b2 = buf.getData();

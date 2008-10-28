@@ -30,6 +30,8 @@ class BytesBuffer {
 	var b : Void; // neko string buffer
 	#elseif flash9
 	var b : flash.utils.ByteArray;
+	#elseif php
+	var b : String;
 	#else
 	var b : Array<Int>;
 	#end
@@ -39,6 +41,8 @@ class BytesBuffer {
 		b = untyped StringBuf.__make();
 		#elseif flash9
 		b = new flash.utils.ByteArray();
+		#elseif php
+		b = "";
 		#else
 		b = new Array();
 		#end
@@ -49,6 +53,8 @@ class BytesBuffer {
 		untyped StringBuf.__add_char(b,byte);
 		#elseif flash9
 		b.writeByte(byte);
+		#elseif php
+		b += untyped __call__("chr", byte);
 		#else
 		b.push(byte);
 		#end
@@ -60,7 +66,8 @@ class BytesBuffer {
 		#elseif flash9
 		b.writeBytes(src.getData());
 		#elseif php
-		b = untyped __call__("new _hx_array", __call__("array_merge", b.__a, src.getData().__a));
+		b += cast src.getData();
+//		b = untyped __call__("new _hx_array", __call__("array_merge", b.__a, src.getData().__a));
 		#else
 		var b1 = b;
 		var b2 = src.getData();
@@ -78,11 +85,14 @@ class BytesBuffer {
 		#elseif flash9
 		b.writeBytes(src.getData(),pos,len);
 		#elseif php
+		b += untyped __call__("substr", src.b, pos, len);
+/*
 		try {
 			b = untyped __call__("new _hx_array", __call__("array_merge", b.__a, __call__("array_slice", src.getData().__a, pos, len)));
 		} catch(e : Dynamic) {
 			throw Error.OutsideBounds;
 		}
+*/
 		#else
 		var b1 = b;
 		var b2 = src.getData();
@@ -103,7 +113,7 @@ class BytesBuffer {
 		var bytes = new Bytes(b.length,b);
 		b.position = 0;
 		#elseif php
-		var bytes = Bytes.ofData(b);
+		var bytes = new Bytes(b.length, cast b);
 		#else
 		var bytes = new Bytes(b.length,b);
 		#end

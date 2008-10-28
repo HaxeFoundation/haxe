@@ -39,6 +39,8 @@ class Bytes {
 		return untyped __dollar__sget(b,pos);
 		#elseif flash9
 		return b[pos];
+		#elseif php
+		return untyped __call__("ord", b[pos]);
 		#else
 		return b[pos];
 		#end
@@ -49,6 +51,8 @@ class Bytes {
 		untyped __dollar__sset(b,pos,v);
 		#elseif flash9
 		b[pos] = v;
+		#elseif php
+		b[pos] = untyped __call__("chr", v);
 		#else
 		b[pos] = v;
 		#end
@@ -60,6 +64,9 @@ class Bytes {
 		#end
 		#if neko
 		try untyped __dollar__sblit(b,pos,src.b,srcpos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
+		#elseif php
+		// TODO: test me
+		b = untyped __php__("substr($this->b, 0, $pos) . substr($src->b, $srcpos, $len) . substr($this->b, $pos+$len)"); //__call__("substr", b, 0, pos)+__call__("substr", src.b, srcpos, len)+__call__("substr", b, pos+len);
 		#elseif flash9
 		b.position = pos;
 		b.writeBytes(src.b,srcpos,len);
@@ -91,7 +98,8 @@ class Bytes {
 		b.readBytes(b2,0,len);
 		return new Bytes(len,b2);
 		#elseif php
-		return new Bytes(len,untyped __call__("new _hx_array", __call__("array_slice", b.__a, pos, len)));
+		// TODO: test me
+		return new Bytes(len, untyped __call__("substr", b, pos, len));
 		#else
 		return new Bytes(len,b.slice(pos,pos+len));
 		#end
@@ -116,6 +124,8 @@ class Bytes {
 			if( b1.readUnsignedByte() != b2.readUnsignedByte() )
 				return b1[b1.position-1] - b2[b2.position-1];
 		return length - other.length;
+		#elseif php
+		return untyped __php__("$this->b < $other->b ? -1 : ($this->b == $other->b ? 0 : 1)");
 		#else
 		var b1 = b;
 		var b2 = other.b;
@@ -137,7 +147,9 @@ class Bytes {
 		b.position = pos;
 		return b.readUTFBytes(len);
 		#elseif php
-		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", __call__("array", "C*"), __call__("array_slice", b.__a, pos, len)));
+		// TODO: test me
+		return untyped __call__("substr", b, pos, len);
+//		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", __call__("array", "C*"), __call__("array_slice", b.__a, pos, len)));
 		#else
 		var s = "";
 		var b = b;
@@ -172,7 +184,9 @@ class Bytes {
 		b.position = 0;
 		return b.readUTFBytes(length);
 		#elseif php
-		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", __call__("array", "C*"), b.__a));
+		// TODO: test me
+		return cast b;
+//		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", __call__("array", "C*"), b.__a));
 		#else
 		return readString(0,length);
 		#end
@@ -190,10 +204,14 @@ class Bytes {
 		b.length = length;
 		return new Bytes(length,b);
 		#elseif php
+		// TODO: test me
+		return new Bytes(length, untyped __call__("str_repeat", __call__("chr", 0), length));
+		/*
 		if(length > 0)
 			return new Bytes(length, untyped __call__("new _hx_array", __call__("array_fill", 0, length, 0)));
 		else
 			return new Bytes(0, untyped __call__("new _hx_array", __call__("array")));
+		*/
 		#else
 		var a = new Array();
 		for( i in 0...length )
@@ -210,7 +228,8 @@ class Bytes {
 		b.writeUTFBytes(s);
 		return new Bytes(b.length,b);
 		#elseif php
-		return ofData(untyped __call__("new _hx_array", __call__("array_values", __call__("unpack", "C*",  s))));
+		return new Bytes(untyped __call__("strlen", s), cast s);
+//		return ofData(untyped __call__("new _hx_array", __call__("array_values", __call__("unpack", "C*",  s))));
 		#else
 		var a = new Array();
 		// utf8-decode
@@ -241,6 +260,8 @@ class Bytes {
 		return new Bytes(b.length,b);
 		#elseif neko
 		return new Bytes(untyped __dollar__ssize(b),b);
+		#elseif php
+		return new Bytes(untyped __call__("strlen", b), b);
 		#else
 		return new Bytes(b.length,b);
 		#end

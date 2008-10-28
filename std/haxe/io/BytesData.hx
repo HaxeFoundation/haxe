@@ -28,6 +28,8 @@ package haxe.io;
 	typedef BytesData =	neko.NativeString;
 #elseif flash9
 	typedef BytesData =	flash.utils.ByteArray;
+#elseif php
+	typedef BytesData =	php.NativeString;
 #else
 	typedef BytesData = Array<Int>;
 #end

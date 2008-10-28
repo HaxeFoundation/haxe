@@ -48,6 +48,8 @@ class Output {
 		while( k > 0 ) {
 			#if neko
 				writeByte(untyped __dollar__sget(b,pos));
+			#elseif php
+				writeByte(untyped __call__("ord", b[pos]));
 			#else
 				writeByte(b[pos]);
 			#end
