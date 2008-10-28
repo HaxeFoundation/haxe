@@ -62,7 +62,7 @@ class Check {
 	static var blanks = ~/^[ \r\n\t]*$/;
 
 	static function isBlank( x : Xml ) {
-		return( x.nodeType == Xml.PCData && blanks.match(x.nodeValue) );
+		return( x.nodeType == Xml.PCData && blanks.match(x.nodeValue) ) || x.nodeType == Xml.Comment;
 	}
 
 	static function filterMatch( s : String, f : Filter ) {

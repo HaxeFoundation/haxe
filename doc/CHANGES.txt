@@ -11,6 +11,7 @@
 	fixed some minor things in flash10 api
 	switch/for/while/do/try/if are no longer using parse_next (parenthesises requ. instead)
 	fixed Type.typeof and Std.is in case of too much large integers for Flash6-8/JS
+	haxe.xml.Check : treat comments the same as PCDATA spaces
 
 2008-10-04: 2.01
 	fixed php.Sys
