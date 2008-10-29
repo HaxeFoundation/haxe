@@ -82,15 +82,7 @@ class _hx_array implements ArrayAccess {
 	function reverse() {
 		$this->__a = array_reverse($this->__a, false);
 	}
-/*
-	function set($pos, $v) {
-		if($this->length <= $pos) {
-			$this->__a = array_merge($this->__a, array_fill(0, $pos+1-$this->length, null));
-			$this->length = $pos+1;
-		}
-		return $this->__a[$pos] = $v;
-	}
-*/
+
 	function shift() {
 		$r = array_shift($this->__a);
 		$this->length = count($this->__a);
@@ -105,23 +97,7 @@ class _hx_array implements ArrayAccess {
 	}
 
 	function sort($f) {
-		$i = 0;
-		while($i < $this->length) {
-			$swap = false;
-			$j = 0;
-			$max = $this->length - $i - 1;
-			while($j < $max) {
-				if(call_user_func($f, $this->__a[$j], $this->__a[$j+1]) > 0 ) {
-					$tmp = $this->__a[$j+1];
-					$this->__a[$j+1] = $this->__a[$j];
-					$this->__a[$j] = $tmp;
-					$swap = true;
-				}
-				$j += 1;
-			}
-			if(!$swap) break;
-			$i += 1;
-		}
+		usort($this->__a, $f);
 	}
 
 	function splice($pos, $len) {
@@ -169,6 +145,10 @@ class _hx_array implements ArrayAccess {
 
 function _hx_array_get($a, $pos) {
 	return $a[$pos];
+}
+
+function _hx_array_assign($a, $i, $v) {
+	return $a[$i] = $v;
 }
 
 function _hx_char_code_at($s, $pos) {

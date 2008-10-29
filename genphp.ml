@@ -102,7 +102,7 @@ let s_expr_name e =
 
 let s_type_name t =
 	s_type (print_context()) t
-
+	
 let rec is_uncertain_type t =
 	match follow t with
 	| TInst (c, _) -> c.cl_interface
@@ -872,16 +872,26 @@ and gen_expr ctx e =
 			(match e.eexpr with
 			| TArray(te1, te2) ->
 				gen_value ctx te1;
-				spr ctx "[";
+				spr ctx "->__a[";
 				gen_value ctx te2;
 				spr ctx "]";
 			| _ ->
 				gen_field_op ctx e1;) in
 		(match op with
 		| Ast.OpAssign ->
-			leftside e1;
-			spr ctx " = ";
-			gen_value_op ctx e2;
+			(match e1.eexpr with
+			| TArray(te1, te2) when (match te1.eexpr with TCall _ -> true | _ -> false) ->
+				spr ctx "_hx_array_assign(";
+				gen_value ctx te1;
+				spr ctx ", ";
+				gen_value ctx te2;
+				spr ctx ", ";
+				gen_value_op ctx e2;
+				spr ctx ")";
+			| _ ->
+				gen_field_op ctx e1;
+				spr ctx " = ";
+				gen_value_op ctx e2;)
 		| Ast.OpAssignOp(Ast.OpAdd) when (is_string_expr e1 || is_string_expr e2) ->
 			leftside e1;
 			spr ctx " .= ";
