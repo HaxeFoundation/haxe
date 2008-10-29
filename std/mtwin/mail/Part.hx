@@ -316,9 +316,10 @@ class MetaPart<T> {
 		var head : List<String> = new List();
 		var buf = new StringBuf();
 
-		var arr = str.split("\n");
-		while( arr.length > 0 ){
-			var ln = arr.shift();
+		var i = 0;
+		var oi = 0;
+		while( (i=str.indexOf("\n",oi)) >= 0 ){
+			var ln = str.substr(oi,i-oi);
 			if( ln.length == 0 || ln == "\r" ){
 				head.add( buf.toString() );
 				break;
@@ -331,8 +332,9 @@ class MetaPart<T> {
 					buf.add( Tools.removeCRLF(ln) );
 				}
 			}
+			oi = ++i;
 		}
-		content = arr.join("\n");
+		content = str.substr(i);
 		
 		for( ln in head ){
 			if( REG_HEADER.match(ln) ){
@@ -412,21 +414,24 @@ class MetaPart<T> {
 
 		if( reg.match( content ) ){
 			content = reg.matched(1);
-
-			var tmp = reg.matched(2).split("--"+boundary);
+			var b = "--"+boundary;
+			var ts = reg.matched(2);
+			var tmp = new Array();
+			var i = 0;
+			var oi = 0;
+			while( (i=ts.indexOf(b,oi)) >= 0 ){
+				tmp.push(ts.substr(oi,i-oi));
+				i+=b.length;
+				oi = i;
+			}
+			tmp.push(ts.substr(oi));
 
 			var myId = if(id == null || id.length == 0) "" else id + ".";
 			var i = 0;
 			for( str in tmp ){
 				i++;
-				var t = str.substr(-2,2);
-				if( t == "\r\n" )
-					str = str.substr(0,-2);
-				else if( t.substr(1) == "\n" )
-					str = str.substr(0,-1);
-				
 				var p = cast newPart("text/plain");
-				p.parse( StringTools.trim(str), myId+i );
+				p.parse( StringTools.trim(str)+"\r\n", myId+i );
 			}
 		}
 	}

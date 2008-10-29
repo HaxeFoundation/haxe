@@ -69,8 +69,38 @@ class Tools {
 		return StringTools.rtrim(chunkSplit(haxe.BaseCode.encode( content, BASE64 ), 76, "\r\n")) + suffix;
 	}
 
+	#if neko
+	static var regexp_match = neko.Lib.load("regexp","regexp_match",4);
+	static var regexp_matched_pos : Dynamic -> Int -> { pos : Int, len : Int } = neko.Lib.load("regexp","regexp_matched_pos",2);
+	#end
+
 	public static function decodeBase64( content : String ){
+		#if neko
+		var r = untyped ~/[\s=]+/.r;
+		var b = new StringBuf();
+		var pos = 0;
+		var len = content.length;
+		var first = true;
+		do {
+			if( !regexp_match(r,untyped content.__s,pos,len) )
+				break;
+			var p = regexp_matched_pos(r,0);
+			if( p.len == 0 && !first ) {
+				if( p.pos == content.length )
+					break;
+				p.pos += 1;
+			}
+			b.addSub(content,pos,p.pos-pos);
+			var tot = p.pos + p.len - pos;
+			pos += tot;
+			len -= tot;
+			first = false;
+		} while( true );
+		b.addSub(content,pos,len);
+		content = b.toString();
+		#else
 		content = REG_SPACES_EQUAL.replace(content,"");
+		#end
 		return try haxe.BaseCode.decode( content, BASE64 ) catch( e : Dynamic ) content;
 	}
 
@@ -129,7 +159,7 @@ class Tools {
 				var h = t.substr(0,2).toUpperCase();
 				if( REG_HEXA.match(h) ){
 					ret.add(haxe.BaseCode.decode(h,HEXA));
-					ret.add(t.substr(2,t.length - 2));
+					ret.addSub(t,2,t.length - 2);
 				}else{
 					ret.add("=");
 					ret.add(t);
@@ -426,7 +456,7 @@ class Tools {
 							sb.add( sep );
 							cur = 0;
 						}
-						sb.add(e.substr(is,1));
+						sb.addSub(e,is,1);
 						cur++;
 					}
 					if( cur + 1 + n.length > length ){
