@@ -227,7 +227,7 @@ class Web {
 		Set a Cookie value in the HTTP headers. Same remark as setHeader.
 	**/
 	public static function setCookie( key : String, value : String, ?expire: Date, ?domain: String, ?path: String, ?secure: Bool ) {
-		var t = expire == null ? 0 : (expire.getTime()/1000.0);
+		var t = expire == null ? 0 : Std.int(expire.getTime()/1000.0);
 		if(path == null) path = '';
 		if(domain == null) domain = '';
 		if(secure == null) secure = false;
