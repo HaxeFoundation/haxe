@@ -21,14 +21,12 @@ open Png
 open Swf
 open ExtList
 
-type error_msg = 
+type error_msg =
 	| PngError of Png.error_msg
 	| Interlaced
 	| UnsupportedColorModel
 	| UnsupportedExtension
 	| UnzipFailed
-	| InvalidDatasize
-	| InvalidFilter of int
 
 exception Error of error_msg
 exception File_not_found of string
@@ -45,9 +43,7 @@ let error_msg = function
 	| Interlaced -> "Interlaced mode is not supported"
 	| UnsupportedColorModel -> "Unsupported color model"
 	| UnsupportedExtension -> "Unsupported file extension"
-	| InvalidFilter f -> ("Invalid filter " ^ string_of_int f)
 	| UnzipFailed -> "Decompression failed"
-	| InvalidDatasize -> "Invalid data size"
 
 let error msg = raise (Error msg)
 
@@ -64,10 +60,10 @@ let load_picture file id =
 	let ext = String.sub file (p + 1) (len - (p + 1)) in
 	match String.uppercase ext with
 	| "PNG" ->
-		let png , header, data = (try 
+		let png , header, data = (try
 			let p = Png.parse ch in
 			p , Png.header p, Png.data p
-		with Png.Error msg -> 
+		with Png.Error msg ->
 			IO.close_in ch; error (PngError msg)
 		) in
 		IO.close_in ch;
@@ -117,7 +113,7 @@ let load_picture file id =
 
 let make_clip name pics baseid =
 	let npics = List.length pics in
-	let ids = Array.of_list (List.map (fun p -> p.pid) pics) in 
+	let ids = Array.of_list (List.map (fun p -> p.pid) pics) in
 	let rec loop i p =
 		let w = p.pwidth in
 		let h = p.pheight in
@@ -208,7 +204,7 @@ let make_clip name pics baseid =
 			} :: TShowFrame :: loop (i+1)
 	in
 	let tid = ref 0 in
-	let make_tag t = 
+	let make_tag t =
 		incr tid;
 		{
 			tid = - !tid;
