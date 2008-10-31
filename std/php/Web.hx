@@ -155,9 +155,11 @@ class Web {
 	**/
 	public static function getClientHeader( k : String ) : String {
 		//Remark : PHP puts all headers in uppercase and replaces - with _, we deal with that here
-		for(i in getClientHeaders())
-			if(i.header == StringTools.replace(k.toUpperCase(),"-","_"))
+		var k = StringTools.replace(k.toUpperCase(),"-","_");
+		for(i in getClientHeaders()) {
+			if(i.header == k)
 				return i.value;
+		}
 		return null;
 	}
 
