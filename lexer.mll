@@ -87,12 +87,12 @@ let find_line p lines =
 		| (lp,line) :: l when lp > p -> line, p - delta
 		| (lp,line) :: l -> loop line lp l
 	in
-	loop 1 0 lines
+	loop 0 0 lines
 
 let get_error_line p =
 	let lines = List.rev (try Hashtbl.find all_lines p.pfile with Not_found -> []) in
 	let l, _ = find_line p.pmin lines in
-	l
+	l	
 
 let get_error_pos printer p =
 	if p.pmin = -1 then
@@ -125,6 +125,37 @@ let mk_ident lexbuf =
 
 let invalid_char lexbuf =
 	error (Invalid_character (lexeme_char lexbuf 0)) (lexeme_start lexbuf)
+
+type file_index = {
+	f_file : string;
+	f_lines : (int * int) list;
+	f_max_line : int;
+}
+
+type line_index = (string, file_index) PMap.t
+
+let make_index f l =
+	let lines = List.rev l in
+	{
+		f_file = f;
+		f_lines = lines;
+		f_max_line = (match l with (_,line) :: _ -> line + 1 | [] -> 1);
+	}
+
+let build_line_index() =
+	Hashtbl.fold (fun f l acc -> 
+		let l = List.rev l in
+		PMap.add f (make_index f l) acc
+	) all_lines PMap.empty
+
+let find_line_index idx p =
+	let idx = (try PMap.find p.pfile idx with Not_found -> make_index p.pfile []) in
+	let ppos = p.pmin in
+	let rec loop = function
+		| [] -> idx.f_max_line
+		| (lp,line) :: l -> if lp > ppos then line else loop l
+	in
+	loop idx.f_lines
 
 }
 

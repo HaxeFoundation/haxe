@@ -13,6 +13,7 @@
 	fixed Type.typeof and Std.is in case of too much large integers for Flash6-8/JS
 	haxe.xml.Check : treat comments the same as PCDATA spaces
 	haxe.io.BytesData now uses strings instead of arrays for PHP
+	optimized line calculus from ast position
 
 2008-10-04: 2.01
 	fixed php.Sys

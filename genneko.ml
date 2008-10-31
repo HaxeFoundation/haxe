@@ -56,7 +56,7 @@ let pos ctx p =
 	) in
 	{
 		psource = file;
-		pline = Lexer.get_error_line p;
+		pline = Lexer.find_line_index ctx.com.lines p;
 	}
 
 let add_local ctx v p =
@@ -731,7 +731,7 @@ let generate com libs =
 		curblock = [];
 		locals = PMap.empty;
 	} in
-	let t = Common.timer "neko ast" in
+	let t = Common.timer "neko compilation" in
 	let h = Hashtbl.create 0 in
 	let header = ENeko (
 		"@classes = $new(null);" ^
@@ -755,9 +755,7 @@ let generate com libs =
 	let inits = List.map (gen_expr ctx) (List.rev ctx.inits) in
 	let vars = List.concat (List.map (gen_static_vars ctx) com.types) in
 	let e = (EBlock (header :: packs @ methods @ boot :: names @ inits @ vars), null_pos) in
-	t();
 	let neko_file = (try Filename.chop_extension com.file with _ -> com.file) ^ ".neko" in
-	let w = Common.timer "neko ast write" in
 	let ch = IO.output_channel (open_out_bin neko_file) in
 	let source = Common.defined com "neko_source" in
 	if source then Nxml.write ch (Nxml.to_xml e) else Binast.write ch e;
@@ -768,7 +766,7 @@ let generate com libs =
 		Sys.remove neko_file;
 		Sys.rename ((try Filename.chop_extension com.file with _ -> com.file) ^ "2.neko") neko_file;
 	end;
-	w();
+	t();
 	let c = Common.timer "neko compilation" in
 	if command ("nekoc \"" ^ neko_file ^ "\"") <> 0 then failwith "Neko compilation failure";
 	c();

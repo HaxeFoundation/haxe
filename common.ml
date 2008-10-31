@@ -68,6 +68,7 @@ type context = {
 	mutable php_front : string option;
 	(* typing *)
 	mutable type_api : context_type_api;
+	mutable lines : Lexer.line_index;
 }
 
 exception Abort of string * Ast.pos
@@ -102,6 +103,7 @@ let create() =
 			on_generate = (fun _ -> ());
 			get_type_module = (fun _ -> assert false);
 		};
+		lines = Lexer.build_line_index();
 	}
 
 let defined ctx v = PMap.mem v ctx.defines

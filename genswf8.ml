@@ -1005,7 +1005,7 @@ and gen_expr_2 ctx retval e =
 		let old_meth = ctx.curmethod in
 		let reg_super = Codegen.local_find true "super" f.tf_expr in
 		if snd ctx.curmethod then
-			ctx.curmethod <- (fst ctx.curmethod ^ "@" ^ string_of_int (Lexer.get_error_line e.epos), true)
+			ctx.curmethod <- (fst ctx.curmethod ^ "@" ^ string_of_int (Lexer.find_line_index ctx.com.lines e.epos), true)
 		else
 			ctx.curmethod <- (fst ctx.curmethod, true);
 		(* only keep None bindings, for protect *)
