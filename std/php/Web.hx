@@ -215,13 +215,7 @@ class Web {
 		Modifying the hashtable will not modify the cookie, use setCookie instead.
 	**/
 	public static function getCookies() {
-		var h = new Hash<String>();
-		var k = "";
-		var h1 = Lib.hashOfAssociativeArray(untyped __php__("$_COOKIE"));
-		for( k in h1.keys() ) {
-			h.set(k,h1.get(k));
-		}
-		return h;
+		return Lib.hashOfAssociativeArray(untyped __php__("$_COOKIE"));
 	}
 
 
@@ -230,7 +224,7 @@ class Web {
 	**/
 	public static function setCookie( key : String, value : String, ?expire: Date, ?domain: String, ?path: String, ?secure: Bool ) {
 		var t = expire == null ? 0 : Std.int(expire.getTime()/1000.0);
-		if(path == null) path = '';
+		if(path == null) path = '/';
 		if(domain == null) domain = '';
 		if(secure == null) secure = false;
 		untyped __call__("setcookie", key, value, t, path, domain, secure);
