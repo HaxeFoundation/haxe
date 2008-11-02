@@ -134,19 +134,15 @@ type file_index = {
 
 type line_index = (string, file_index) PMap.t
 
-let make_index f l =
-	let lines = List.rev l in
+let make_index f lines =
 	{
 		f_file = f;
-		f_lines = lines;
-		f_max_line = (match l with (_,line) :: _ -> line + 1 | [] -> 1);
+		f_lines = List.rev lines;
+		f_max_line = (match lines with (_,line) :: _ -> line + 1 | [] -> 1);
 	}
 
 let build_line_index() =
-	Hashtbl.fold (fun f l acc -> 
-		let l = List.rev l in
-		PMap.add f (make_index f l) acc
-	) all_lines PMap.empty
+	Hashtbl.fold (fun f l acc -> PMap.add f (make_index f l) acc) all_lines PMap.empty
 
 let find_line_index idx p =
 	let idx = (try PMap.find p.pfile idx with Not_found -> make_index p.pfile []) in
@@ -159,7 +155,7 @@ let find_line_index idx p =
 
 }
 
-let ident = ('_'* ['a'-'z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9']* | '_' | '_'+ ['0'-'9'] ['_' 'a'-'z' 'A'-'Z' '0'-'9']* )
+let ident = ('_'* ['a'-'z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9']* | '_'+ | '_'+ ['0'-'9'] ['_' 'a'-'z' 'A'-'Z' '0'-'9']* )
 let idtype = '_'* ['A'-'Z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9']*
 
 rule token = parse
