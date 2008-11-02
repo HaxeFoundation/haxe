@@ -15,6 +15,7 @@
 	haxe.io.BytesData now uses strings instead of arrays for PHP
 	optimized line calculus from ast position
 	allow identifiers starting with _[0-9]
+	fixed access to flash.Vector methods : use AS3 namespace (faster)
 
 2008-10-04: 2.01
 	fixed php.Sys

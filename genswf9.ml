@@ -268,6 +268,10 @@ let property p t =
 		| "length" -> ident p, Some KInt, false (* UInt in the spec *)
 		| "copy" | "insert" | "remove" | "iterator" | "toString" -> ident p , None, true
 		| _ -> as3 p, None, false);
+	| TInst ({ cl_path = ["flash"],"Vector" },_) ->
+		(match p with
+		| "length" | "fixed" | "toString" -> ident p, None, false
+		| _ -> as3 p, None, false);
 	| TInst ({ cl_path = [],"String" },_) ->
 		(match p with
 		| "length" (* Int in AS3/haXe *) -> ident p, None, false
