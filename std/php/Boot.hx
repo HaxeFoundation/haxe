@@ -15,7 +15,7 @@ function _hx_anonymous($p = array()) {
 }
 
 class _hx_array implements ArrayAccess {
-	var $a;
+	var $__a;
 	var $length;
 	function __construct($a = array()) {
 		$this->__a = $a;
