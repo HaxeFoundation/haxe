@@ -43,14 +43,6 @@ class Lib {
 		return untyped __php__("0 == strncasecmp(PHP_SAPI, 'cli', 3)");
 	}
 
-	public static function exit(?msg : String) {
-		return untyped __call__("exit", msg);
-	}
-
-	public static function exitCode(code : Int) {
-		return untyped __call__("exit", code);
-	}
-
 	public static function printFile(file : String) {
 		var h = untyped __call__("fopen", file,  "r");
 		return untyped __call__("fpassthru", h);
