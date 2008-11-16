@@ -18,7 +18,7 @@ class Web {
 		var params = getParamsString();
 		if( params == "" )
 			return h;
-		for( p in ~/[;&]/.split(params) ) {
+		for( p in ~/[;&]/g.split(params) ) {
 			var a = p.split("=");
 			var n = a.shift();
 			h.set(StringTools.urlDecode(n),StringTools.urlDecode(a.join("=")));
