@@ -1427,6 +1427,7 @@ and type_call ctx e el p =
 and type_inline ctx f ethis params tret p =
 	let locals = save_locals ctx in
 	let hcount = Hashtbl.create 0 in
+	let lsets = Hashtbl.create 0 in
 	let pnames = List.map (fun (name,_,t) ->
 		let name = add_local ctx name t in
 		Hashtbl.add hcount name (ref 0);
@@ -1487,6 +1488,16 @@ and type_inline ctx f ethis params tret p =
 			{ e with eexpr = TBlock l }
 		| TParenthesis _ | TIf (_,_,Some _) | TSwitch (_,_,Some _) ->
 			Type.map_expr (map term) e
+		| TUnop (op,pref,({ eexpr = TLocal s } as e1)) ->
+			(match op with
+			| Increment | Decrement -> Hashtbl.add lsets s ()
+			| _ -> ());
+			{ e with eexpr = TUnop (op,pref,map false e1) }
+		| TBinop (op,({ eexpr = TLocal s } as e1),e2) ->
+			(match op with
+			| OpAssign | OpAssignOp _ -> Hashtbl.add lsets s ()
+			| _ -> ());
+			{ e with eexpr = TBinop (op,map false e1,map false e2) }
 		| TConst TSuper ->
 			error "Cannot inline function containing super" e.epos
 		| TFunction _ ->
@@ -1499,7 +1510,7 @@ and type_inline ctx f ethis params tret p =
 	let subst = ref PMap.empty in
 	Hashtbl.add hcount vthis this_count;
 	let vars = List.map2 (fun n e ->
-		let flag = (match e.eexpr with
+		let flag = not (Hashtbl.mem lsets n) && (match e.eexpr with
 			| TLocal _ | TConst _ -> true
 			| _ ->
 				let used = !(Hashtbl.find hcount n) in
