@@ -45,8 +45,8 @@ class Serializer {
 	var cache : Array<Dynamic>;
 	var shash : Hash<Int>;
 	var scount : Int;
-	var useCache : Bool;
-	var useEnumIndex : Bool;
+	public var useCache : Bool;
+	public var useEnumIndex : Bool;
 
 	public function new() {
 		buf = new StringBuf();
