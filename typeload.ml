@@ -448,7 +448,7 @@ let type_function ctx args ret static constr f p =
 			| Some e -> 
 				let p = pos e in
 				let e = type_expr ctx e true in
-				unify ctx t e.etype p;
+				unify ctx e.etype t p;
 				match e.eexpr with
 				| TConst c -> Some c
 				| _ -> error "Parameter default value should be constant" p

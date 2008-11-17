@@ -18,6 +18,7 @@
 	fixed access to flash.Vector methods : use AS3 namespace (faster)
 	bugfix in inline functions : modifying a parameter can't modify a real local var anymore
 	bugfix in inline functions : handle class type parameters and method type parameters
+	fixed issue with Int default value for Float parameter
 
 2008-10-04: 2.01
 	fixed php.Sys
