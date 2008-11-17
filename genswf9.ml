@@ -261,7 +261,7 @@ let ident i = HMPath ([],i)
 let as3 p =
 	HMName (p,HNNamespace "http://adobe.com/AS3/2006/builtin")
 
-let property p t =
+let property ctx p t =
 	match follow t with
 	| TInst ({ cl_path = [],"Array" },_) ->
 		(match p with
@@ -285,6 +285,13 @@ let property p t =
 			| "POSITIVE_INFINITY" | "NEGATIVE_INFINITY" | "NaN" -> ident p, Some KFloat, false
 			| _ -> ident p, None, false)
 		| _ -> ident p, None, false)
+	| TInst ({ cl_kind = KExtension _ } as c,params) ->
+		(* cast type when accessing an extension field *)
+		(try
+			let f = PMap.find p c.cl_fields in
+			ident p, Some (classify ctx (apply_params c.cl_types params f.cf_type)), false
+		with Not_found -> 
+			ident p, None, false)
 	| _ ->
 		ident p, None, false
 
@@ -709,7 +716,7 @@ let gen_access ctx e (forset : 'a) : 'a access =
 	| TLocal i ->
 		gen_local_access ctx i e.epos forset
 	| TField (e1,f) ->
-		let id, k, closure = property f e1.etype in
+		let id, k, closure = property ctx f e1.etype in
 		if closure && not ctx.for_call then error "In Flash9, this method cannot be accessed this way : please define a local function" e1.epos;
 		(match e1.eexpr with
 		| TConst TThis when not ctx.in_static -> write ctx (HFindProp id)
@@ -1274,7 +1281,7 @@ and gen_call ctx retval e el r =
 		gen_expr ctx true e1;
 		ctx.for_call <- old;
 		List.iter (gen_expr ctx true) el;
-		let id , _, _ = property f e1.etype in
+		let id , _, _ = property ctx f e1.etype in
 		if retval then begin
 			write ctx (HCallProperty (id,List.length el));
 			coerce ctx (classify ctx r);
