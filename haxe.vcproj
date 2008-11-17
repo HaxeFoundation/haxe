@@ -105,6 +105,9 @@
 			RelativePath=".\main.ml">
 		</File>
 		<File
+			RelativePath=".\optimizer.ml">
+		</File>
+		<File
 			RelativePath=".\parser.ml">
 		</File>
 		<File
