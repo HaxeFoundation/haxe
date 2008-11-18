@@ -156,15 +156,15 @@ class Http {
 		loader.addEventListener( "complete", function(e){
 			me.onData( loader.data );
 		});
-		loader.addEventListener( "httpStatus", function(e){
+		loader.addEventListener( "httpStatus", function(e:flash.events.HTTPStatusEvent){
 			// on Firefox 1.5, Flash calls onHTTPStatus with 0 (!??)
 			if( e.status != 0 )
 				me.onStatus( e.status );
 		});
-		loader.addEventListener( "ioError", function(e){
+		loader.addEventListener( "ioError", function(e:flash.events.IOErrorEvent){
 			me.onError(e.text);
 		});
-		loader.addEventListener( "securityError", function(e){
+		loader.addEventListener( "securityError", function(e:flash.events.SecurityErrorEvent){
 			me.onError(e.text);
 		});
 
