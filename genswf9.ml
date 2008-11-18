@@ -409,16 +409,15 @@ let rec setvar ctx (acc : write access) retval =
 	| VReg r ->
 		if retval then write ctx HDup;
 		set_reg ctx r;
-	| VGlobal g ->
-		if retval then write ctx HDup;
-		write ctx (HSetProp g);
-	| VId _ | VCast _ | VArray | VScope _ when retval ->
+	| VGlobal _ | VId _ | VCast _ | VArray | VScope _ when retval ->
 		let r = alloc_reg ctx KDynamic in
 		write ctx HDup;
 		set_reg ctx r;
 		setvar ctx acc false;
 		write ctx (HReg r.rid);
 		free_reg ctx r
+	| VGlobal g ->
+		write ctx (HSetProp g)
 	| VId id | VCast (id,_) ->
 		write ctx (HInitProp id)
 	| VArray ->
@@ -1323,18 +1322,24 @@ and gen_unop ctx retval op flag e =
 			if retval && flag = Prefix then getvar ctx (VReg r);
 		| _ ->
 		let acc_read, acc_write = gen_access_rw ctx e in
+		let op = (match k, incr with
+			| KInt, true -> A3OIIncr
+			| KInt, false -> A3OIDecr 
+			| _ , true -> A3OIncr 
+			| _ , false -> A3ODecr
+		) in
 		getvar ctx acc_read;
 		match flag with
 		| Postfix when retval ->
 			let r = alloc_reg ctx k in
 			write ctx HDup;
 			set_reg ctx r;
-			write ctx (HOp (if incr then A3OIncr else A3ODecr));
+			write ctx (HOp op);
 			setvar ctx acc_write false;
 			write ctx (HReg r.rid);
 			free_reg ctx r
 		| Postfix | Prefix ->
-			write ctx (HOp (if incr then A3OIncr else A3ODecr));
+			write ctx (HOp op);
 			setvar ctx acc_write retval
 
 and gen_binop ctx retval op e1 e2 t =
