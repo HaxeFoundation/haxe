@@ -456,6 +456,7 @@ import tools.hxinst.Main;
 #if flash10
 
 import flash.Vector;
+import flash.VMem;
 
 import flash.events.SampleDataEvent;
 import flash.events.ShaderEvent;

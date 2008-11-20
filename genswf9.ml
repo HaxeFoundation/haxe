@@ -1248,6 +1248,35 @@ and gen_call ctx retval e el r =
 			write ctx (HObject 2);
 		) ctx.com.resources;
 		write ctx (HArray !count)
+	| TLocal "__vmem_set__", [{ eexpr = TConst (TInt code) };e1;e2] ->
+		gen_expr ctx true e2;
+		gen_expr ctx true e1;
+		write ctx (HOp (match code with
+			| 0l -> A3OMemSet8
+			| 1l -> A3OMemSet16
+			| 2l -> A3OMemSet32
+			| 3l -> A3OMemSetFloat
+			| 4l -> A3OMemSetDouble
+			| _ -> assert false
+		))
+	| TLocal "__vmem_get__", [{ eexpr = TConst (TInt code) };e] ->
+		gen_expr ctx true e;
+		write ctx (HOp (match code with
+			| 0l -> A3OMemGet8
+			| 1l -> A3OMemGet16
+			| 2l -> A3OMemGet32
+			| 3l -> A3OMemGetFloat
+			| 4l -> A3OMemGetDouble
+			| _ -> assert false
+		))
+	| TLocal "__vmem_sign__", [{ eexpr = TConst (TInt code) };e] ->
+		gen_expr ctx true e;
+		write ctx (HOp (match code with
+			| 0l -> A3OSign1
+			| 1l -> A3OSign8
+			| 2l -> A3OSign16
+			| _ -> assert false
+		))
 	| TArray ({ eexpr = TLocal "__global__" },{ eexpr = TConst (TString s) }), _ ->
 		(match gen_access ctx e Read with
 		| VGlobal id ->
