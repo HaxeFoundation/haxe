@@ -86,6 +86,9 @@ let as3_int_length i =
 	else
 		1
 
+let as3_uint_length i =
+	as3_int_length i
+
 let sum f l =
 	List.fold_left (fun acc n -> acc + f n) 0 l
 
@@ -224,7 +227,7 @@ let as3_length ctx =
 	String.length ctx.as3_unknown +
 	4 +
 	list_length as3_int_length ctx.as3_ints +
-	1 +
+	list_length as3_uint_length ctx.as3_uints +
 	list_length (fun _ -> 8) ctx.as3_floats
 	+ if parse_idents then list_length as3_ident_length ctx.as3_idents
 	+ if parse_namespaces then list_length (as3_namespace_length ei) ctx.as3_namespaces
@@ -269,7 +272,7 @@ let read_as3_int ch =
 	Int32.logor big small
 
 let read_as3_uint ch =
-	assert false
+	read_as3_int ch
 
 let read_int ch =
 	Int32.to_int (read_as3_int ch)

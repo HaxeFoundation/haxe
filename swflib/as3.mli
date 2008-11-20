@@ -78,6 +78,19 @@ type as3_op =
 	| A3OIAdd
 	| A3OISub
 	| A3OIMul
+	| A3OMemSet8
+	| A3OMemSet16
+	| A3OMemSet32
+	| A3OMemSetFloat
+	| A3OMemSetDouble
+	| A3OMemGet8
+	| A3OMemGet16
+	| A3OMemGet32
+	| A3OMemGetFloat
+	| A3OMemGetDouble
+	| A3OSign1
+	| A3OSign8
+	| A3OSign16
 
 type as3_name = as3_multi_name index
 

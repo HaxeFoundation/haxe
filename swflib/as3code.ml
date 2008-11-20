@@ -103,6 +103,19 @@ let ops , ops_ids =
 		A3OIAdd, 0xC5;
 		A3OISub, 0xC6;
 		A3OIMul, 0xC7;
+		A3OMemGet8, 0x35;
+		A3OMemGet16, 0x36;
+		A3OMemGet32, 0x37;
+		A3OMemGetFloat, 0x38;
+		A3OMemGetDouble, 0x39;
+		A3OMemSet8, 0x3A;
+		A3OMemSet16, 0x3B;
+		A3OMemSet32, 0x3C;
+		A3OMemSetFloat, 0x3D;
+		A3OMemSetDouble, 0x3E;
+		A3OSign1, 0x50;
+		A3OSign8, 0x51;
+		A3OSign16, 0x52;
 	];
 	h , h2
 
@@ -758,6 +771,19 @@ let dump_op = function
 	| A3OIAdd -> "iadd"
 	| A3OISub -> "isub"
 	| A3OIMul -> "imul"
+	| A3OMemSet8 -> "mset8"
+	| A3OMemSet16 -> "set16"
+	| A3OMemSet32 -> "mset32"
+	| A3OMemSetFloat -> "msetfloat"
+	| A3OMemSetDouble -> "msetdouble"
+	| A3OMemGet8 -> "mget8"
+	| A3OMemGet16 -> "mget16"
+	| A3OMemGet32 -> "mget32"
+	| A3OMemGetFloat -> "mgetfloat"
+	| A3OMemGetDouble -> "mgetdouble"
+	| A3OSign1 -> "sign1"
+	| A3OSign8 -> "sign8"
+	| A3OSign16 -> "sign16"
 
 let dump_jump = function
 	| J3NotLt -> "-nlt"

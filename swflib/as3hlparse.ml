@@ -143,6 +143,8 @@ let stack_delta = function
 	| HOp op ->
 		(match op with
 		| A3ONeg | A3OINeg | A3OIncr | A3ODecr | A3ONot | A3OBitNot | A3OIIncr | A3OIDecr -> 0
+		| A3OMemGet8 | A3OMemGet16 | A3OMemGet32 | A3OMemGetFloat | A3OMemGetDouble | A3OSign1 | A3OSign8 | A3OSign16 -> 0
+		| A3OMemSet8 | A3OMemSet16 | A3OMemSet32 | A3OMemSetFloat | A3OMemSetDouble -> -2
 		| _ -> -1)
 	| HUnk _ -> assert false
 
