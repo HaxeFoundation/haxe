@@ -169,12 +169,13 @@ class Boot extends flash.display.MovieClip, implements Dynamic {
 			var s = "[";
 			var i;
 			var first = true;
-			for( i in 0...v.length ) {
+			var a : Array<Dynamic> = v;
+			for( i in 0...a.length ) {
 				if( first )
 					first = false;
 				else
 					s += ",";
-				s += __string_rec(v[i],str);
+				s += __string_rec(a[i],str);
 			}
 			return s+"]";
 		default:
