@@ -149,7 +149,7 @@ class Main {
 				haxe.Http.request("http://google.com");
 			} catch( e : Dynamic ) {
 				display("Could not connect on Google, don't use the proxy");
-				haxe.Http.PROXY = p;
+				haxe.Http.PROXY = null;
 			}
 		}
 
