@@ -87,9 +87,13 @@ private class MysqlResultSet implements ResultSet {
 	}
 
 	private function getLength() {
+		if(untyped __physeq__(__r, true))
+			return untyped __call__("mysql_affected_rows");
+		else if (untyped __physeq__(__r, false))
+			return 0;
 		return untyped __call__("mysql_num_rows", __r);
 	}
-
+	
 	private var _nfields : Int;
 	private function getNFields() {
 		if(_nfields == null)
