@@ -93,7 +93,7 @@ class Resource {
 		content = untyped Array.new1(tmp,__dollar__asize(tmp));
 		#elseif php
 		content = null;
-		#elseif as3gen
+		#elseif as3
 		null;
 		#else
 		content = untyped __resources__();

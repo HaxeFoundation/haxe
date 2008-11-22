@@ -21,6 +21,8 @@
 	fixed issue with Int default value for Float parameter
 	flash9 : bugfix when using the retval after setting a closure variable
 	added flash.VMem API for flash10 alchemy opcodes access
+	changed #if as3gen to #if as3 when generating as3 code
+	fixed as3 flash.Vector generation
 
 2008-10-04: 2.01
 	fixed php.Sys

@@ -100,7 +100,7 @@ class ExternalConnection implements Connection, implements Dynamic<Connection> {
 			s.serializeException(e);
 			return s.toString();
 		}
-		#if as3gen
+		#if as3
 		return "";
 		#end
 	}

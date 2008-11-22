@@ -103,7 +103,7 @@ class FlashJsConnection #if flash implements AsyncConnection, implements Dynamic
 			s.serializeException(e);
 			return s.toString();
 		}
-		#if as3gen
+		#if as3
 		return "";
 		#end
 	}

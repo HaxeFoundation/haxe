@@ -61,6 +61,8 @@ let s_path ctx stat path p =
 		"Xml"
 	| (["flash"],"Error") ->
 		"Error"
+	| (["flash"],"Vector") ->
+		"Vector"
 	| (["flash";"xml"],"XML") ->
 		"XML"
 	| (["flash";"xml"],"XMLList") ->
@@ -191,7 +193,9 @@ let rec type_str ctx t p =
 			| _ -> "Object"
 		) else
 			s_path ctx true e.e_path p
-	| TInst (c,_) ->
+	| TInst ({ cl_path = ["flash"],"Vector" },[pt]) ->
+		"Vector.<" ^ type_str ctx pt p ^ ">"
+	| TInst (c,_) ->		
 		(match c.cl_kind with
 		| KNormal | KGeneric | KGenericInstance _ -> s_path ctx false c.cl_path p
 		| KTypeParameter | KExtension _ | KConstant _  -> "*")
