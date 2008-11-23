@@ -77,6 +77,17 @@ class Lib {
 		return untyped __as__(v,c);
 	}
 
+	#if flash10
+
+	public inline static function vectorOfArray<T>( v : Array<T> ) : Vector<T> {
+		return untyped __vector__(v);
+	}
+
+	public inline static function vectorConvert<T,U>( v : Vector<T> ) : Vector<U> {
+		return untyped __vector__(v);
+	}
+
+	#end
 
 }
 

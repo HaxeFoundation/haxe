@@ -809,6 +809,15 @@ let gen_access_rw ctx e : (read access * write access) =
 		let r = gen_access ctx e Read in
 		r, w
 
+let rec gen_type ctx t =
+	match t with
+	| HMParams (t,tl) ->
+		write ctx (HGetLex t);
+		List.iter (gen_type ctx) tl;
+		write ctx (HApplyType (List.length tl));
+	| _ ->
+		write ctx (HGetLex t)
+
 let rec gen_expr_content ctx retval e =
 	match e.eexpr with
 	| TConst c ->
@@ -887,17 +896,8 @@ let rec gen_expr_content ctx retval e =
 	| TNew (c,tl,pl) ->
 		let id = type_id ctx (TInst (c,tl)) in
 		(match id with 
-		| HMParams (t,tl) ->
-			let rec get_type t =
-				match t with
-				| HMParams (t,tl) ->
-					write ctx (HGetLex t);
-					List.iter get_type tl;
-					write ctx (HApplyType (List.length tl));
-				| _ ->
-					write ctx (HGetLex t)
-			in
-			get_type id;
+		| HMParams _ ->
+			gen_type ctx id;
 			List.iter (gen_expr ctx true) pl;
 			write ctx (HConstruct (List.length pl))
 		| _ ->
@@ -1281,6 +1281,11 @@ and gen_call ctx retval e el r =
 			| 2l -> A3OSign16
 			| _ -> assert false
 		))
+	| TLocal "__vector__", [ep] ->
+		gen_type ctx (type_id ctx r);
+		write ctx HGetGlobalScope;
+		gen_expr ctx true ep;
+		write ctx (HCallStack 1)
 	| TArray ({ eexpr = TLocal "__global__" },{ eexpr = TConst (TString s) }), _ ->
 		(match gen_access ctx e Read with
 		| VGlobal id ->

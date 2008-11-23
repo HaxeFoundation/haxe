@@ -1,4 +1,4 @@
-2008-??-??: 2.02 CVS
+2008-11-23: 2.02 CVS
 	Std.is(MyInterface, Class) now returns true (haXe/PHP)
 	php arrays are wrapped into _hx_array instances, fixes issues with references (array cast, access out of bounds ...)
 	removed untested php classes (php.DBase, php.IniHash)
@@ -13,19 +13,22 @@
 	fixed Type.typeof and Std.is in case of too much large integers for Flash6-8/JS
 	haxe.xml.Check : treat comments the same as PCDATA spaces
 	haxe.io.BytesData now uses strings instead of arrays for PHP
-	optimized line calculus from ast position
-	allow identifiers starting with _[0-9]
+	compiler : optimized line calculus from ast position
+	lexer : allow identifiers starting with _[0-9]
 	fixed access to flash.Vector methods : use AS3 namespace (faster)
 	bugfix in inline functions : modifying a parameter can't modify a real local var anymore
 	bugfix in inline functions : handle class type parameters and method type parameters
 	fixed issue with Int default value for Float parameter
 	flash9 : bugfix when using the retval after setting a closure variable
-	added flash.VMem API for flash10 alchemy opcodes access
+	added flash.Memory API for flash10 alchemy opcodes access
 	changed #if as3gen to #if as3 when generating as3 code
 	fixed as3 flash.Vector generation
 	fixed haxe.io.BytesOutput for flash9 : set default to little-endian
 	some flash9 fixes related to extern enums
 	updated flash.text.engine package with haxe enums
+	flash9 : use target file path for Boot unique ID instead of random number
+	as3 : fixed bug when anonymous field was a reserved identifier
+	flash9 : added flash.Lib.vectorOfArray and vectorConvert for flash10
 
 2008-10-04: 2.01
 	fixed php.Sys

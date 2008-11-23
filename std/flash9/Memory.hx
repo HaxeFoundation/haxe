@@ -1,6 +1,6 @@
 package flash;
 
-class VMem {
+class Memory {
 
 	public static inline function select( b : flash.utils.ByteArray ) {
 		flash.system.ApplicationDomain.currentDomain.domainMemory = b;
