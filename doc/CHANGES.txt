@@ -23,6 +23,8 @@
 	added flash.VMem API for flash10 alchemy opcodes access
 	changed #if as3gen to #if as3 when generating as3 code
 	fixed as3 flash.Vector generation
+	fixed haxe.io.BytesOutput for flash9 : set default to little-endian
+	some flash9 fixes related to extern enums
 
 2008-10-04: 2.01
 	fixed php.Sys

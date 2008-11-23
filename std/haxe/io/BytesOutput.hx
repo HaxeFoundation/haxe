@@ -35,6 +35,7 @@ class BytesOutput extends Output {
 	public function new() {
 		#if flash9
 		b = new flash.utils.ByteArray();
+		b.endian = flash.utils.Endian.LITTLE_ENDIAN;
 		#else
 		b = new BytesBuffer();
 		#end
