@@ -24,6 +24,7 @@ type ctx = {
 	buf : Buffer.t;
 	packages : (string list,unit) Hashtbl.t;
 	stack : Codegen.stack_context;
+	check_package : bool;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
 	mutable inits : texpr list;
@@ -587,9 +588,11 @@ let generate_package_create ctx (p,_) =
 			Hashtbl.add ctx.packages (p :: acc) ();
 			(match acc with
 			| [] ->
-				print ctx "%s = {}" p;
-			| _ ->
-				print ctx "%s%s = {}" (String.concat "." (List.rev acc)) (field p));
+				if ctx.check_package then print ctx "try { if( %s == null ) %s = {}; } catch(_) { %s = {}; } " p p p else print ctx "%s = {}" p;
+			| _ -> 
+				let p = String.concat "." (List.rev acc) ^ (field p) in
+		        if ctx.check_package then print ctx "if( !%s ) " p;
+				print ctx "%s = {}" p);
 			newline ctx;
 			loop (p :: acc) l
 	in
@@ -703,6 +706,7 @@ let generate com =
 		com = com;
 		stack = Codegen.stack_init com false;
 		buf = Buffer.create 16000;
+		check_package = Common.defined com "check-js-packages";
 		packages = Hashtbl.create 0;
 		statics = [];
 		inits = [];

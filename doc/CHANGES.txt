@@ -29,6 +29,7 @@
 	flash9 : use target file path for Boot unique ID instead of random number
 	as3 : fixed bug when anonymous field was a reserved identifier
 	flash9 : added flash.Lib.vectorOfArray and vectorConvert for flash10
+	added -D check-js-packages to allow several haxe-generated js files in same page
 
 2008-10-04: 2.01
 	fixed php.Sys
