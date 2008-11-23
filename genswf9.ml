@@ -1917,10 +1917,12 @@ let generate_inits ctx types =
 	}
 
 let generate com =
+	let file_path = (try Common.get_full_path com.file with _ -> com.file) in
+	let uid = String.sub (Digest.to_hex (Digest.string file_path)) 0 6 in
 	let ctx = {
 		com = com;
 		debugger = Common.defined com "fdb";
-		boot = "Boot_" ^ Printf.sprintf "%X" (Random.int 0xFFFFFF);
+		boot = "Boot_" ^ uid;
 		code = DynArray.create();
 		locals = PMap.empty;
 		infos = default_infos();
