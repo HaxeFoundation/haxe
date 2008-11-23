@@ -30,8 +30,8 @@ class Lib {
 
 	public static var isIE : Bool;
 	public static var isOpera : Bool;
-	public static var document : Document = untyped __js__("document");
-	public static var window : Window = untyped __js__("window");
+	public static var document : Document;
+	public static var window : Window;
 	static var onerror : String -> Array<String> -> Bool = null;
 
 	public static function alert( v : Dynamic ) {
@@ -47,6 +47,8 @@ class Lib {
 	}
 
 	static function __init__() untyped {
+		document = untyped __js__("document");
+		window = untyped __js__("window");
 		#if debug
 __js__('onerror = function(msg,url,line) {
 		var stack = $s.copy();
