@@ -10,7 +10,7 @@ extern class BitmapData implements IBitmapDrawable {
 	function clone() : BitmapData;
 	function colorTransform(rect : flash.geom.Rectangle, colorTransform : flash.geom.ColorTransform) : Void;
 	function compare(otherBitmapData : BitmapData) : Dynamic;
-	function copyChannel(sourceBitmapData : BitmapData, sourceRect : flash.geom.Rectangle, destPoint : flash.geom.Point, sourceChannel : BitmapDataChannel, destChannel : BitmapDataChannel) : Void;
+	function copyChannel(sourceBitmapData : BitmapData, sourceRect : flash.geom.Rectangle, destPoint : flash.geom.Point, sourceChannel : Int, destChannel : Int) : Void;
 	function copyPixels(sourceBitmapData : BitmapData, sourceRect : flash.geom.Rectangle, destPoint : flash.geom.Point, ?alphaBitmapData : BitmapData, ?alphaPoint : flash.geom.Point, ?mergeAlpha : Bool) : Void;
 	function dispose() : Void;
 	function draw(source : IBitmapDrawable, ?matrix : flash.geom.Matrix, ?colorTransform : flash.geom.ColorTransform, ?blendMode : BlendMode, ?clipRect : flash.geom.Rectangle, ?smoothing : Bool) : Void;

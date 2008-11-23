@@ -238,6 +238,10 @@ let classify ctx t =
 		KFloat
 	| TEnum ({ e_path = [],"Bool" },_) ->
 		KBool
+	| TEnum ({ e_extern = true; e_path = "flash" :: _ , name },[]) ->
+		(match name with
+		| "ActionScriptVersion" | "SWFVersion" | "EventPhase" | "KeyLocation" | "XmlNodeType" -> KInt
+		| _ -> KType (HMPath ([],"String")))
 	| TEnum _
 	| TInst _ ->
 		KType (type_id ctx t)
