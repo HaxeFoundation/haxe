@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-extern enum FontPosture {
-	ITALIC;
+extern enum RenderingMode {
+	CFF;
 	NORMAL;
 }

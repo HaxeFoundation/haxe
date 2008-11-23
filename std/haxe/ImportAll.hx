@@ -508,7 +508,6 @@ import flash.text.engine.TypographicCase;
 import flash.text.engine.TabAlignment;
 import flash.text.engine.TabStop;
 import flash.text.engine.FontDescription;
-import flash.text.engine.GlyphRotation;
 import flash.text.engine.FontMetrics;
 import flash.text.engine.FontWeight;
 import flash.text.engine.GraphicElement;
@@ -531,6 +530,8 @@ import flash.text.engine.TextLineValidity;
 import flash.text.engine.TextBaseline;
 import flash.text.engine.TextLine;
 import flash.text.engine.DigitWidth;
+import flash.text.engine.CFFHinting;
+import flash.text.engine.RenderingMode;
 
 import flash.ui.ContextMenuClipboardItems;
 import flash.ui.MouseCursor;

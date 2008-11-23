@@ -15,9 +15,9 @@ extern class TextLine extends flash.display.DisplayObjectContainer {
 	function getAtomIndexAtPoint(stageX : Float, stageY : Float) : Int;
 	function getAtomTextBlockBeginIndex(atomIndex : Int) : Int;
 	function getAtomTextBlockEndIndex(atomIndex : Int) : Int;
-	function getAtomTextRotation(atomIndex : Int) : String;
+	function getAtomTextRotation(atomIndex : Int) : flash.text.engine.TextRotation;
 	function getAtomWordBoundaryOnLeft(atomIndex : Int) : Bool;
-	function getBaselinePosition(baseline : String) : Float;
+	function getBaselinePosition(baseline : flash.text.engine.TextBaseline) : Float;
 	function getMirrorRegion(mirror : flash.events.EventDispatcher) : flash.text.engine.TextLineMirrorRegion;
 	var hasGraphicElement(default,null) : Bool;
 	var mirrorRegions(default,null) : flash.Vector<flash.text.engine.TextLineMirrorRegion>;
@@ -31,7 +31,7 @@ extern class TextLine extends flash.display.DisplayObjectContainer {
 	var textWidth(default,null) : Float;
 	var unjustifiedTextWidth(default,null) : Float;
 	var userData : Dynamic;
-	var validity : String;
+	var validity : flash.text.engine.TextLineValidity;
 	//private function doGetAtomIndexAtPoint(x : Float, y : Float) : Int;
 	static var MAX_LINE_WIDTH : Int;
 }

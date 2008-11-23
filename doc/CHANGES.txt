@@ -25,6 +25,7 @@
 	fixed as3 flash.Vector generation
 	fixed haxe.io.BytesOutput for flash9 : set default to little-endian
 	some flash9 fixes related to extern enums
+	updated flash.text.engine package with haxe enums
 
 2008-10-04: 2.01
 	fixed php.Sys

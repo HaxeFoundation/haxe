@@ -1,7 +1,7 @@
 package flash.text.engine;
 
 extern class GroupElement extends flash.text.engine.ContentElement {
-	function new(?elements : flash.Vector<flash.text.engine.ContentElement>, ?elementFormat : flash.text.engine.ElementFormat, ?eventMirror : flash.events.EventDispatcher, ?textRotation : String) : Void;
+	function new(?elements : flash.Vector<flash.text.engine.ContentElement>, ?elementFormat : flash.text.engine.ElementFormat, ?eventMirror : flash.events.EventDispatcher, ?textRotation : flash.text.engine.TextRotation) : Void;
 	var elementCount(default,null) : Int;
 	function getElementAt(index : Int) : flash.text.engine.ContentElement;
 	function getElementAtCharIndex(charIndex : Int) : flash.text.engine.ContentElement;

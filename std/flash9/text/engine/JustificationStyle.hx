@@ -1,8 +1,7 @@
 package flash.text.engine;
 
-extern class JustificationStyle {
-	function new() : Void;
-	static var PRIORITIZE_LEAST_ADJUSTMENT : String;
-	static var PUSH_IN_KINSOKU : String;
-	static var PUSH_OUT_ONLY : String;
+extern enum JustificationStyle {
+	PRIORITIZE_LEAST_ADJUSTMENT;
+	PUSH_IN_KINSOKU;
+	PUSH_OUT_ONLY;
 }
