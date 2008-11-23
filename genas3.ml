@@ -541,7 +541,7 @@ and gen_expr ctx e =
 		handle_break();
 	| TObjectDecl fields ->
 		spr ctx "{ ";
-		concat ctx ", " (fun (f,e) -> print ctx "%s : " f; gen_value ctx e) fields;
+		concat ctx ", " (fun (f,e) -> print ctx "%s : " (s_ident f); gen_value ctx e) fields;
 		spr ctx "}"
 	| TFor (v,t,it,e) ->
 		let handle_break = handle_break ctx e in
