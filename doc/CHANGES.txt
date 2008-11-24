@@ -1,3 +1,6 @@
+2009-??-??: 2.03
+	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php
+
 2008-11-23: 2.02
 	Std.is(MyInterface, Class) now returns true (haXe/PHP)
 	php arrays are wrapped into _hx_array instances, fixes issues with references (array cast, access out of bounds ...)

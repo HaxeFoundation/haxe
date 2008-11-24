@@ -617,7 +617,7 @@ class Type {
 			return true;
 		#if neko
 			try {
-				if( a.__enum__ == null || a.tag != b.tag )
+				if( a.__enum__ == null || a.index != b.index )
 					return false;
 			} catch( e : Dynamic ) {
 				return false;
@@ -627,7 +627,7 @@ class Type {
 					return false;
 		#elseif flash9
 			try {
-				if( a.tag != b.tag )
+				if( a.index != b.index )
 					return false;
 				for( i in 0...a.params.length )
 					if( !enumEq(a.params[i],b.params[i]) )
@@ -637,7 +637,7 @@ class Type {
 			}
 		#elseif php
 			try {
-				if( a.tag != b.tag )
+				if( a.index != b.index )
 					return false;
 				for( i in 0...__call__("count", a.params))
 					if(getEnum(untyped __php__("$a->params[$i]")) != null) {
