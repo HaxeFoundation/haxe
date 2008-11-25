@@ -1909,6 +1909,7 @@ let generate_inits ctx types =
 	) types;
 	List.iter (fun (t,_) ->
 		match t with
+		| TClassDecl { cl_extern = true; cl_path = "flash" :: _ , _ } -> ()
 		| TClassDecl c -> generate_class_statics ctx c
 		| _ -> ()
 	) types;
