@@ -135,7 +135,8 @@ let compile() =
 		"../ocaml/extc/extc";
 		"../ocaml/swflib/swflib";
 		"../ocaml/xml-light/xml-light";
-		"unix"
+		"unix";
+		"str"
 	] in
 	let neko = "../neko/libs/include/ocaml" in
 	let paths = [

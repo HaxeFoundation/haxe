@@ -1,6 +1,7 @@
 2009-??-??: 2.03
 	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php
 	bugfix for flash.display.BitmapDataChannel and GraphicsPathCommand (allow inline static)
+	resolve environment variable in -cmd commands
 
 2008-11-23: 2.02
 	Std.is(MyInterface, Class) now returns true (haXe/PHP)

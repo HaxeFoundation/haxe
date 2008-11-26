@@ -5,7 +5,7 @@ NEKO=../neko
 XML=../../mtcvs/xml-light
 LIBS_SRC=$(EXTLIB)/*.ml* -n $(EXTLIB)/install.ml $(SWFLIB)/*.ml* $(EXTC)/extc.ml*
 SRC=$(NEKO)/libs/include/ocaml/*.ml* *.ml*
-LIBS=unix.cmxa $(XML)/xml-light.cmxa
+LIBS=unix.cmxa str.cmxa $(XML)/xml-light.cmxa
 FLAGS=-o haxe -pp camlp4o -P $(XML)/dtd.mli -lp "-cclib extc_stubs.o -cclib -lz"
 LFLAGS=
 
@@ -20,7 +20,7 @@ all: xml
 xml:
 	(cd ${XML} && make clean xml-light.cmxa)
 
-mode_ppc:	
+mode_ppc:
 	sudo ln -sfh /usr/local/bin/ocamlopt.ppc /usr/local/bin/ocamlopt
 	sudo ln -sfh /usr/local/lib/ocaml_ppc /usr/local/lib/ocaml
 

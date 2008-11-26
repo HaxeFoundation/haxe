@@ -3,7 +3,7 @@
 .SUFFIXES : .ml .mli .cmo .cmi .cmx .mll .mly
 
 CFLAGS=-g -I ../neko/libs/include/ocaml
-LIBS=extLib.cmxa extc.cmxa swfLib.cmxa unix.cmxa xml-light.cmxa
+LIBS=extLib.cmxa extc.cmxa swfLib.cmxa unix.cmxa xml-light.cmxa str.cmxa
 LFLAGS=-g -o haxe.exe -I ../neko/libs/include/ocaml
 OUTPUT=sed 's/File "\([^"]\+\)", line \([0-9]\+\), \(.*\)/\1(\2): \3/' tmp.cmi
 

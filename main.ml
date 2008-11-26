@@ -130,6 +130,10 @@ let read_type_path com p =
 
 let delete_file f = try Sys.remove f with _ -> ()
 
+let expand_env path =
+	let r = Str.regexp "%\\([^%]+\\)%" in
+	Str.global_substitute r (fun s -> try Sys.getenv (Str.matched_group 1 s) with Not_found -> "") path
+
 let parse_hxml file =
 	let ch = (try open_in file with _ -> failwith ("File not found " ^ file)) in
 	let lines = Std.input_list ch in
@@ -207,7 +211,8 @@ try
 			| l ->
 				l
 		in
-		com.class_path <- List.map normalize_path (loop (ExtString.String.nsplit p ":"))
+		let parts = "" :: Str.split_delim (Str.regexp "[;:]") p in
+		com.class_path <- List.map normalize_path (loop parts)
 	with
 		Not_found ->
 			if Sys.os_type = "Unix" then
@@ -222,6 +227,8 @@ try
 		let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
 		com.package_rules <- List.fold_left forbid com.package_rules root_packages;
 		Common.define com name; (* define platform name *)
+		Unix.putenv "__file__" file;
+		Unix.putenv "__platform__" file;
 	in
 	let define f = Arg.Unit (fun () -> Common.define com f) in
 	let args_spec = [
@@ -324,8 +331,8 @@ try
 		),": turn on verbose mode");
 		("-debug", Arg.Unit (fun() -> Common.define com "debug"; com.debug <- true), ": add debug informations to the compiled code");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
-		("-cmd", Arg.String (fun cmd ->
-			cmds := cmd :: !cmds
+		("-cmd", Arg.String (fun cmd ->			
+			cmds := expand_env cmd :: !cmds
 		),": run the specified command after successful compilation");
 		("--flash-strict", define "flash_strict", ": more type strict flash API");
 		("--no-traces", define "no_traces", ": don't compile trace calls in the program");
