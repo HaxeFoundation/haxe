@@ -23,4 +23,7 @@ extern class Vector<T> implements ArrayAccess<T> {
 
 	function iterator() : Iterator<T>;
 
+	function indexOf( x : T, ?from : Int ) : Int;
+	function lastIndexOf( x : T, ?from : Int ) : Int;
+
 }
