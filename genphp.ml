@@ -1666,10 +1666,10 @@ let generate_class ctx c =
 
 	cl();
 	newline ctx;
-	
+		
 	if PMap.exists "__toString" c.cl_fields then
 		()
-	else if PMap.exists "toString" c.cl_fields then begin
+	else if PMap.exists "toString" c.cl_fields && (not c.cl_interface) && (not c.cl_extern) then begin
 		print ctx "\tfunction __toString() { return $this->toString(); }";
 		newline ctx
 	end else if (not c.cl_interface) && (not c.cl_extern) then begin
