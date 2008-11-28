@@ -20,4 +20,7 @@ extern class MovieClip extends Sprite {
 	function prevFrame() : Void;
 	function prevScene() : Void;
 	function stop() : Void;
+	#if flash10
+	var currentFrameLabel(default,null) : String;
+	#end
 }
