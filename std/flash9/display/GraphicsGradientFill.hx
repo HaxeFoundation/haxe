@@ -9,5 +9,5 @@ extern class GraphicsGradientFill implements IGraphicsFill, implements IGraphics
 	var spreadMethod : SpreadMethod;
 	var interpolationMethod : InterpolationMethod;
 	var focalPointRatio : Float;
-	function new(type : GradientType, colors : Array<UInt>, alphas : Array<Float>, ratios : Array<Float>, ?matrix : flash.geom.Matrix, ?spreadMethod : SpreadMethod, ?interpolationMethod : InterpolationMethod, ?focalPointRatio : Float) : Void;
+	function new( ?type : GradientType, ?colors : Array<UInt>, ?alphas : Array<Float>, ?ratios : Array<Float>, ?matrix : flash.geom.Matrix, ?spreadMethod : SpreadMethod, ?interpolationMethod : InterpolationMethod, ?focalPointRatio : Float) : Void;
 }
