@@ -92,4 +92,18 @@ class TestMisc extends Test {
 		eq( arr[0].v, 7 );
 	}
 
+	function testInitOrder() {
+		var i = 0;
+		var o = {
+			y : i++,
+			x : i++,
+			z : i++,
+			blabla : i++,
+		};
+		eq(o.y,0);
+		eq(o.x,1);
+		eq(o.z,2);
+		eq(o.blabla,3);
+	}
+
 }
