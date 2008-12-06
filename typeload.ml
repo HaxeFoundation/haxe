@@ -423,6 +423,25 @@ let set_heritance ctx c herits p =
 				c.cl_dynamic <- Some t
 			| _ -> error "Should implement by using an interface or a class" p)
 	in
+	(*
+		resolve imports before calling build_inheritance, since it requires full paths.
+		that means that typedefs are not working, but that's a fair limitation
+	*)
+	let rec resolve_imports t =
+		match t.tpackage with
+		| _ :: _ -> t
+		| [] ->
+			try
+				let lt = List.find (fun lt -> snd (t_path lt) = t.tname) ctx.local_types in
+				{ t with tpackage = fst (t_path lt) }
+			with
+				Not_found -> t
+	in
+	let herits = List.map (function
+		| HExtends t -> HExtends (resolve_imports t)
+		| HImplements t -> HImplements (resolve_imports t)
+		| h -> h
+	) herits in
 	List.iter loop (List.filter ((!build_inheritance) ctx c p) herits)
 
 let type_type_params ctx path p (n,flags) =
