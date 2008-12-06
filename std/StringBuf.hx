@@ -35,6 +35,8 @@ class StringBuf {
 	public function new() {
 		#if neko
 			b = __make();
+		#elseif js
+			b = new Array();
 		#else
 			b = "";
 		#end
@@ -46,6 +48,8 @@ class StringBuf {
 	public inline function add( ?x : Dynamic ) {
 		#if neko
 			__add(b,x);
+		#elseif js
+			b[b.length] = x;
 		#else
 			b += x;
 		#end
@@ -62,6 +66,8 @@ class StringBuf {
 				b += s.substr(pos);
 			else
 				b += s.substr(pos,len);
+		#elseif js
+			b[b.length] = s.substr(pos,len);
 		#else
 			b += s.substr(pos,len);
 		#end
@@ -73,10 +79,12 @@ class StringBuf {
 	public inline function addChar( c : Int ) untyped {
 		#if neko
 			__add_char(b,c);
-		#elseif (flash9 || js || php)
-			b += String.fromCharCode(c);
-		#elseif flash
+		#elseif js
+			b[b.length] = String.fromCharCode(c);
+		#elseif (flash && !flash9)
 			b += String["fromCharCode"](c);
+		#else
+			b += String.fromCharCode(c);
 		#end
 	}
 
@@ -87,12 +95,21 @@ class StringBuf {
 	public inline function toString() : String {
 		#if neko
 			return new String(__string(b));
+		#elseif js
+			return b.join("");
 		#else
 			return b;
 		#end
 	}
 
-	private var b : #if neko Dynamic #else String #end;
+	private var b :
+	#if neko
+		Dynamic
+	#elseif js
+		Array<Dynamic>
+	#else
+		String
+	#end;
 
 #if neko
 	static var __make : Dynamic = neko.Lib.load("std","buffer_new",0);
