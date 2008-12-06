@@ -3,7 +3,7 @@ package flash.net;
 extern class SharedObject extends flash.events.EventDispatcher {
 	var client : Dynamic;
 	var data(default,null) : Dynamic;
-	var fps(null,default) : Void;
+	var fps(null,default) : Float;
 	var objectEncoding : UInt;
 	var size(default,null) : UInt;
 	function new() : Void;
