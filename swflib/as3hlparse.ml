@@ -836,23 +836,27 @@ let flatten_static ctx s =
 
 let rec browse_method ctx m =
 	let ml, _ = ctx in
-	if not (List.memq m !ml) then ml := m :: !ml;
-	match m.hlmt_function with
-	| None -> ()
-	| Some f ->
-		Array.iter (function
-			| HFunction f | HCallStatic (f,_) -> browse_method ctx f
-			| HClassDef _ -> () (* ignore, should be in fields list anyway *)
-			| _ -> ()
-		) f.hlf_code
+	if not (List.memq m !ml) then begin
+		ml := m :: !ml;
+		match m.hlmt_function with
+		| None -> ()
+		| Some f ->
+			Array.iter (function
+				| HFunction f | HCallStatic (f,_) -> browse_method ctx f
+				| HClassDef _ -> () (* ignore, should be in fields list anyway *)
+				| _ -> ()
+			) f.hlf_code
+	end
 
 and browse_class ctx c =
 	let _, cl = ctx in
-	if not (List.memq c !cl) then cl := c :: !cl;
-	browse_method ctx c.hlc_construct;
-	browse_method ctx c.hlc_static_construct;
-	Array.iter (browse_field ctx) c.hlc_fields;
-	Array.iter (browse_field ctx) c.hlc_static_fields
+	if not (List.memq c !cl) then begin
+		cl := c :: !cl;
+		browse_method ctx c.hlc_construct;
+		browse_method ctx c.hlc_static_construct;
+		Array.iter (browse_field ctx) c.hlc_fields;
+		Array.iter (browse_field ctx) c.hlc_static_fields;
+	end
 
 and browse_field ctx f =
 	match f.hlf_kind with
