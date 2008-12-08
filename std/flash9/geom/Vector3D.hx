@@ -27,10 +27,10 @@ extern class Vector3D {
 	function dotProduct( a : Vector3D ) : Float;
 	function add( a : Vector3D ) : Vector3D;
 	function toString() : String;
-	function angleBetween( a : Vector3D ) : Float;
 	function incrementBy( a : Vector3D ) : Void;
 	function equals( ?toCompare:Vector3D, ?allFour:Bool ) : Bool;
 
+	static function angleBetween( a : Vector3D, b : Vector3D ) : Float;
 	static function distance( pt1 : Vector3D, pt2 : Vector3D ) : Float;
 
 }
