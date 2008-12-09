@@ -877,6 +877,24 @@ and gen_expr ctx e =
 				spr ctx "]";
 			| _ ->
 				gen_field_op ctx e1;) in
+		let leftsidec e =
+			(match e.eexpr with
+			| TArray(te1, te2) ->
+				gen_value ctx te1;
+				spr ctx "->__a[";
+				gen_value ctx te2;
+				spr ctx "]";
+			| TField (e1,s) ->
+				gen_field_access ctx true e1 s
+			| _ ->
+				gen_field_op ctx e1;) in
+		let leftsidef e =
+			(match e.eexpr with
+			| TField (e1,s) ->
+				gen_field_access ctx true e1 s;
+			| _ ->
+				gen_field_op ctx e1;
+				) in
 		(match op with
 		| Ast.OpAssign ->
 			(match e1.eexpr with
@@ -889,24 +907,21 @@ and gen_expr ctx e =
 				gen_value_op ctx e2;
 				spr ctx ")";
 			| _ ->
+(*
 				gen_field_op ctx e1;
+*)
+
+				leftsidef e1;
 				spr ctx " = ";
+				
 				gen_value_op ctx e2;)
 		| Ast.OpAssignOp(Ast.OpAdd) when (is_string_expr e1 || is_string_expr e2) ->
 			leftside e1;
 			spr ctx " .= ";
 			gen_value_op ctx e2;
-		| Ast.OpAdd when (is_string_expr e1 || is_string_expr e2) ->
-			gen_value_op ctx e1;
-			spr ctx " . ";
-			gen_value_op ctx e2;
 		| Ast.OpAssignOp(Ast.OpShl) ->
 			leftside e1;
 			spr ctx " <<= ";
-			gen_value_op ctx e2;
-		| Ast.OpShl ->
-			gen_value_op ctx e1;
-			spr ctx " << ";
 			gen_value_op ctx e2;
 		| Ast.OpAssignOp(Ast.OpUShr) ->
 			leftside e1;
@@ -916,6 +931,18 @@ and gen_expr ctx e =
 			spr ctx ", ";
 			gen_value_op ctx e2;
 			spr ctx ")";
+		| Ast.OpAssignOp(_) ->
+			leftsidec e1;
+			print ctx " %s " (Ast.s_binop op);
+			gen_value_op ctx e2;
+		| Ast.OpAdd when (is_string_expr e1 || is_string_expr e2) ->
+			gen_value_op ctx e1;
+			spr ctx " . ";
+			gen_value_op ctx e2;
+		| Ast.OpShl ->
+			gen_value_op ctx e1;
+			spr ctx " << ";
+			gen_value_op ctx e2;
 		| Ast.OpUShr ->
 			spr ctx "_hx_shift_right(";
 			gen_value_op ctx e1;
@@ -1202,6 +1229,8 @@ and gen_expr ctx e =
 			spr ctx "->__a[";
 			gen_value ctx te2;
 			spr ctx "]";
+		| TField (e1,s) ->
+			gen_field_access ctx true e1 s
 		| _ ->
 			gen_value ctx e)
 	| TUnop (op,Ast.Postfix,e) ->
@@ -1211,6 +1240,8 @@ and gen_expr ctx e =
 			spr ctx "->__a[";
 			gen_value ctx te2;
 			spr ctx "]";
+		| TField (e1,s) ->
+			gen_field_access ctx true e1 s
 		| _ ->
 			gen_value ctx e);
 		spr ctx (Ast.s_unop op)

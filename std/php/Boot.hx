@@ -143,6 +143,24 @@ class _hx_array implements ArrayAccess {
 	}
 }
 
+class _hx_array_iterator {
+	private $a;
+	private $i;
+	public function __construct($a) {
+		$this->__a = $a;
+		$this->i = 0;
+	}
+
+	public function next() {
+		if(!$this->hasNext()) return null;
+		return $this->__a[$this->i++];
+	}
+
+	public function hasNext() {
+		return $this->i < count($this->__a);
+	}
+}
+
 function _hx_array_get($a, $pos) {
 	return $a[$pos];
 }
@@ -293,6 +311,21 @@ function _hx_len($o) {
 function _hx_null() {
 	return null;
 }
+
+class _hx_nullob {
+	function _throw()       { throw new HException('Null object'); }
+	function __call($f, $a) { $this->_throw(); }
+	function __get($f)      { $this->_throw(); }
+	function __set($f, $v)  { $this->_throw(); }
+	function __isset($f)    { $this->_throw(); }
+	function __unset($f)    { $this->_throw(); }
+	function __toString()   { return 'null'; }
+	static $inst;
+}
+
+_hx_nullob::$inst = new _hx_nullob();
+
+function _hx_nullob() { return _hx_nullob::$inst; }
 
 function _hx_qtype($n) {
 	return isset(php_Boot::$qtypes[$n]) ? php_Boot::$qtypes[$n] : null;
@@ -528,25 +561,7 @@ class _hx_class extends _hx_type {}
 
 class _hx_enum extends _hx_type {}
 
-class _hx_interface extends _hx_type { }
-
-class _hx_array_iterator {
-	private $a;
-	private $i;
-	public function __construct($a) {
-		$this->__a = $a;
-		$this->i = 0;
-	}
-
-	public function next() {
-		if(!$this->hasNext()) return null;
-		return $this->__a[$this->i++];
-	}
-
-	public function hasNext() {
-		return $this->i < count($this->__a);
-	}
-}
+class _hx_interface extends _hx_type {}
 
 class HException extends Exception {
 	public function __construct($e, $message = null, $code = null, $p = null) {
