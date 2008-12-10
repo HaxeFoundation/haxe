@@ -629,8 +629,9 @@ class Type {
 			try {
 				if( a.index != b.index )
 					return false;
-				for( i in 0...a.params.length )
-					if( !enumEq(a.params[i],b.params[i]) )
+				var p : Array<Dynamic> = a.params;
+				for( i in 0...p.length )
+					if( !enumEq(p[i],b.params[i]) )
 						return false;
 			} catch( e : Dynamic ) {
 				return false;
