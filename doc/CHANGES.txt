@@ -3,7 +3,7 @@ TODO :
 	SWC output support
 	optimizer : reduce/calculate expressions
 	flash9 : optimize enum parameters storage
-	
+
 2009-??-??: 2.03
 	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php
 	bugfix for flash.display.BitmapDataChannel and GraphicsPathCommand (allow inline static)
@@ -14,6 +14,7 @@ TODO :
 	fixed implements/extends special classes when they are imported
 	StringBuf now uses an array for JS implementation (around same on FF, faster on IE)
 	fixed assignament of field length in anonym objects (haXe/PHP)
+	fixed addEventListener typing for flash9
 
 2008-11-23: 2.02
 	Std.is(MyInterface, Class) now returns true (haXe/PHP)
