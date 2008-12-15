@@ -15,6 +15,7 @@ TODO :
 	StringBuf now uses an array for JS implementation (around same on FF, faster on IE)
 	fixed assignament of field length in anonym objects (haXe/PHP)
 	fixed addEventListener typing for flash9
+	fixed __vector__ generation for AS3 target
 
 2008-11-23: 2.02
 	Std.is(MyInterface, Class) now returns true (haXe/PHP)

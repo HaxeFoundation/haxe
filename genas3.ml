@@ -292,7 +292,7 @@ let gen_function_header ctx name f params p =
 		ctx.local_types <- old_t;
 	)
 
-let rec gen_call ctx e el =
+let rec gen_call ctx e el r =
 	match e.eexpr , el with
 	| TCall (x,_) , el ->
 		spr ctx "(";
@@ -355,6 +355,11 @@ let rec gen_call ctx e el =
 		spr ctx ")";
 	| TLocal "__unprotect__", [e] ->
 		gen_value ctx e
+	| TLocal "__vector__", [e] ->
+		spr ctx (type_str ctx r e.epos);
+		spr ctx "(";
+		gen_value ctx e;
+		spr ctx ")"
 	| _ ->
 		gen_value ctx e;
 		spr ctx "(";
@@ -482,8 +487,8 @@ and gen_expr ctx e =
 		gen_expr ctx (mk_block f.tf_expr);
 		ctx.in_static <- old;
 		h();
-	| TCall (e,el) ->
-		gen_call ctx e el
+	| TCall (v,el) ->
+		gen_call ctx v el e.etype
 	| TArrayDecl el ->
 		spr ctx "[";
 		concat ctx "," (gen_value ctx) el;
