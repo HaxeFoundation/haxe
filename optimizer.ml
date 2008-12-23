@@ -46,6 +46,7 @@ let type_inline ctx cf f ethis params tret p =
 	in
 	let has_vars = ref false in
 	let rec map term e =
+		let e = { e with epos = p } in
 		match e.eexpr with
 		| TLocal s ->
 			{ e with eexpr = TLocal (local s) }

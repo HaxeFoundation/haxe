@@ -13,9 +13,10 @@ TODO :
 	fixed bug in haxe.io.BytesInput.readBytes in Flash9 (was throwing Eof if full buffer can't be readed)
 	fixed implements/extends special classes when they are imported
 	StringBuf now uses an array for JS implementation (around same on FF, faster on IE)
-	fixed assignament of field length in anonym objects (haXe/PHP)
+	fixed assignment of field length in anonym objects (haXe/PHP)
 	fixed addEventListener typing for flash9
 	fixed __vector__ generation for AS3 target
+	fix with inline functions : position is now the inserted position and not the original one (better error reporting)
 
 2008-11-23: 2.02
 	Std.is(MyInterface, Class) now returns true (haXe/PHP)
