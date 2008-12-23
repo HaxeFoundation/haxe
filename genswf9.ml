@@ -1850,77 +1850,63 @@ let generate_enum ctx e =
 		} :: constrs);
 	}
 
-let generate_type ctx t =
-	match t with
-	| TClassDecl c ->
-		if c.cl_extern && c.cl_path <> ([],"Dynamic") then
-			None
-		else
-			Some (generate_class ctx c)
-	| TEnumDecl e ->
-		if e.e_extern && e.e_path <> ([],"Void") then
-			None
-		else
-			Some (generate_enum ctx e)
-	| TTypeDecl _ ->
-		None
 
-let generate_inits ctx types =
-	let f = begin_fun ctx [] t_void [ethis] false null_pos in
-	let slot = ref 0 in
-	let classes = List.fold_left (fun acc (t,hc) ->
-		match hc with
-		| None -> acc
-		| Some hc ->
-			match t with
-			| TClassDecl c ->
-				incr slot;
-				generate_class_init ctx c hc;
-				{
-					hlf_name = type_path ctx c.cl_path;
-					hlf_slot = !slot;
-					hlf_kind = HFClass hc;
-					hlf_metas = None;
-				} :: acc
-			| TEnumDecl e ->
-				incr slot;
-				generate_enum_init ctx e hc;
-				{
-					hlf_name = type_path ctx e.e_path;
-					hlf_slot = !slot;
-					hlf_kind = HFClass hc;
-					hlf_metas = None;
-				} :: acc
-			| _ ->
-				acc
-	) [] types in
-
+let generate_inits ctx =
 	(* define flash.Boot.init method *)
 	write ctx HGetGlobalScope;
 	write ctx (HGetProp (type_path ctx ([],ctx.boot)));
 	let finit = begin_fun ctx [] t_void [] true null_pos in
-	List.iter (fun (t,_) ->
+	List.iter (fun t ->
 		match t with
 		| TClassDecl c ->
 			(match c.cl_init with
 			| None -> ()
 			| Some e -> gen_expr ctx false e);
 		| _ -> ()
-	) types;
-	List.iter (fun (t,_) ->
+	) ctx.com.types;
+	List.iter (fun t ->
 		match t with
 		| TClassDecl { cl_extern = true; cl_path = "flash" :: _ , _ } -> ()
 		| TClassDecl c -> generate_class_statics ctx c
 		| _ -> ()
-	) types;
+	) ctx.com.types;
 	write ctx HRetVoid;
 	write ctx (HFunction (finit()));
-	write ctx (HInitProp (ident "init"));
-	write ctx HRetVoid;
-	{
-		hls_method = f();
-		hls_fields = Array.of_list (List.rev classes);
-	}
+	write ctx (HInitProp (ident "init"))
+
+let generate_type ctx t =
+	match t with
+	| TClassDecl c ->
+		if c.cl_extern && c.cl_path <> ([],"Dynamic") then
+			None
+		else
+			let hlc = generate_class ctx c in
+			let init = begin_fun ctx [] t_void [ethis] false c.cl_pos in
+			generate_class_init ctx c hlc;
+			if c.cl_path = (["flash"],"Boot") then generate_inits ctx;
+			write ctx HRetVoid;
+			Some (init(), {
+				hlf_name = type_path ctx c.cl_path;
+				hlf_slot = 0;
+				hlf_kind = HFClass hlc;
+				hlf_metas = None;
+			})
+	| TEnumDecl e ->
+		if e.e_extern && e.e_path <> ([],"Void") then
+			None
+		else
+			let hlc = generate_enum ctx e in
+			let init = begin_fun ctx [] t_void [ethis] false e.e_pos in
+			generate_enum_init ctx e hlc;
+			write ctx HRetVoid;			
+			Some (init(), {
+				hlf_name = type_path ctx e.e_path;
+				hlf_slot = 0;
+				hlf_kind = HFClass hlc;
+				hlf_metas = None;
+			})
+	| TTypeDecl _ ->
+		None
 
 let generate com =
 	let file_path = (try Common.get_full_path com.file with _ -> com.file) in
@@ -1943,9 +1929,12 @@ let generate com =
 		try_scope_reg = None;
 		for_call = false;
 	} in
-	let classes = List.map (fun t -> (t,generate_type ctx t)) com.types in
-	let init = generate_inits ctx classes in
-	[init], ctx.boot, (fun () -> empty_method ctx null_pos)
+	let classes = List.fold_left (fun acc t -> 
+		match generate_type ctx t with
+		| None -> acc
+		| Some (m,f) -> (t,m,f) :: acc
+	) [] com.types in
+	List.rev classes, ctx.boot, (fun () -> empty_method ctx null_pos)
 
 ;;
 Random.self_init();

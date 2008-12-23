@@ -28,9 +28,128 @@ type context = {
 	mutable f9clips : f9class list;
 	mutable code : tag_data list;
 	mutable as3code : As3hl.hl_tag;
-	mutable hx9code : As3hl.hl_tag;
+	mutable hx9code : (module_type * As3hl.hl_method * As3hl.hl_field) list;
 	mutable genmethod : unit -> As3hl.hl_method;
+	mutable swc_catalog : string;
 }
+
+(* --- MINI ZIP IMPLEMENTATION --- *)
+
+
+type zfile = {
+	fname : string;
+	fcompressed : bool;
+	fclen : int;
+	fsize : int;
+	fcrc : int32;
+	fdate : float;
+}
+
+type t = {
+	ch : unit IO.output;
+	mutable files : zfile list;
+	mutable cdr_size : int;
+	mutable cdr_offset : int;
+}
+
+let zip_create o = {
+	ch = IO.cast_output o;
+	files = [];
+	cdr_size = 0;
+	cdr_offset = 0;
+}
+
+let make_crc32 data =
+	let init = 0xFFFFFFFFl in
+	let polynom = 0xEDB88320l in
+	let crc = ref init in
+	for i = 0 to String.length data - 1 do
+		let b = Int32.of_int (int_of_char (String.unsafe_get data i)) in
+		let tmp = ref (Int32.logand (Int32.logxor (!crc) b) 0xFFl) in
+		for j = 0 to 7 do
+			tmp := if Int32.to_int (Int32.logand (!tmp) 1l) == 1 then
+				Int32.logxor (Int32.shift_right_logical (!tmp) 1) polynom
+			else
+				Int32.shift_right_logical (!tmp) 1;
+		done;
+		crc := Int32.logxor (Int32.shift_right_logical (!crc) 8) (!tmp);
+	done;
+	Int32.logxor (!crc) init
+
+let zip_write_date z d =
+	let t = Unix.localtime d in
+	let hour = t.Unix.tm_hour in
+	let min = t.Unix.tm_min in
+	let sec = t.Unix.tm_sec lsr 1 in
+	IO.write_ui16 z.ch ((hour lsl 11) lor (min lsl 5) lor sec);
+	let year = t.Unix.tm_year - 80 in
+	let month = t.Unix.tm_mon + 1 in
+	let day = t.Unix.tm_mday in
+	IO.write_ui16 z.ch ((year lsl 9) lor (month lsl 5) lor day)
+
+let zip_write_file z name data date compress =
+	IO.write_i32 z.ch 0x04034B50;
+	IO.write_ui16 z.ch 0x0014; (* version *)
+	IO.write_ui16 z.ch 0;
+	let crc32 = make_crc32 data in
+	let cdata = if compress then
+		let d = Extc.zip data in
+		String.sub d 2 (String.length d - 4)
+	else
+		data
+	in
+	IO.write_ui16 z.ch (if compress then 0x08 else 0x00);
+	zip_write_date z date;
+	IO.write_real_i32 z.ch crc32;
+	IO.write_i32 z.ch (String.length cdata);
+	IO.write_i32 z.ch (String.length data);
+	IO.write_ui16 z.ch (String.length name);
+	IO.write_ui16 z.ch 0;
+	IO.nwrite z.ch name;
+	IO.nwrite z.ch cdata;
+	z.files <- {
+		fname = name;
+		fcompressed = compress;
+		fclen = String.length cdata;
+		fsize = String.length data;
+		fcrc = crc32;
+		fdate = date;
+	} :: z.files
+
+let zip_write_cdr_file z f =
+	let namelen = String.length f.fname in
+	IO.write_i32 z.ch 0x02014B50;
+	IO.write_ui16 z.ch 0x0014;
+	IO.write_ui16 z.ch 0x0014;
+	IO.write_ui16 z.ch 0;
+	IO.write_ui16 z.ch (if f.fcompressed then 0x08 else 0);
+	zip_write_date z f.fdate;
+	IO.write_real_i32 z.ch f.fcrc;
+	IO.write_i32 z.ch f.fclen;
+	IO.write_i32 z.ch f.fsize;
+	IO.write_ui16 z.ch namelen;
+	IO.write_ui16 z.ch 0;
+	IO.write_ui16 z.ch 0;
+	IO.write_ui16 z.ch 0;
+	IO.write_ui16 z.ch 0;
+	IO.write_i32 z.ch 0;
+	IO.write_i32 z.ch z.cdr_offset;
+	IO.nwrite z.ch f.fname;
+	z.cdr_size <- z.cdr_size + 46 + namelen;
+	z.cdr_offset <- z.cdr_offset + 30 + namelen + f.fclen
+
+let zip_write_cdr z =
+	List.iter (zip_write_cdr_file z) (List.rev z.files);
+	IO.write_i32 z.ch 0x06054B50;
+	IO.write_ui16 z.ch 0;
+	IO.write_ui16 z.ch 0;
+	IO.write_ui16 z.ch (List.length z.files);
+	IO.write_ui16 z.ch (List.length z.files);
+	IO.write_i32 z.ch z.cdr_size;
+	IO.write_i32 z.ch z.cdr_offset;
+	IO.write_ui16 z.ch 0
+
+(* ------------------------------- *)
 
 let tag ?(ext=false) d = {
 	tid = 0;
@@ -167,6 +286,37 @@ let add_as3_code ctx data types =
 let add_as3_clips ctx cl =
 	ctx.f9clips <- List.filter (fun c -> c.f9_cid <> None) cl @ ctx.f9clips
 
+let build_swc_catalog com types =
+	let node x att l =
+		Xml.Element (x,att,l)
+	in
+	let make_path t sep =
+		let path, name = t_path t in
+		String.concat sep (path @ [name])
+	in
+	let build_script t =
+		node "script" [("name",make_path t "/");("mod","0")] [
+			node "def" ["id",make_path t ":"] [];
+			node "def" [("id","AS3");("type","n")] [];
+			node "def" [("id","Object");("type","i")] [];
+		]
+	in
+	let x = node "swc" ["xmlns","http://www.adobe.com/flash/swccatalog/9"] [
+		node "versions" [] [
+			node "swc" ["version","1.2"] [];
+			node "haxe" ["version",Printf.sprintf "%d.%.2d" (com.version/100) (com.version mod 100)] [];
+		];
+		node "features" [] [
+			node "feature-script-deps" [] [];
+			node "feature-files" [] [];
+		];
+		node "libraries" [] [
+			node "library" ["path","library.swf"] (List.map build_script types)
+		];
+		node "files" [] [];
+	] in
+	"<?xml version=\"1.0\" encoding =\"utf-8\"?>\n" ^ Xml.to_string_fmt x
+
 let generate com swf_header swf_lib =
 	let isf9 = com.flash_version >= 9 in
 	let t = Common.timer "generate swf" in
@@ -178,17 +328,12 @@ let generate com swf_header swf_lib =
 		hx9code = [];
 		code = [];
 		genmethod = (fun() -> assert false);
+		swc_catalog = "";
 	} in
 	if isf9 then begin
 		let code, boot, m = Genswf9.generate com in
-		ctx.hx9code <- (match code with
-			| [i] when Array.length i.hls_fields = 0 ->
-				(* if we don't have any class defined, don't include Boot *)
-				[]
-			| _ ->
-				ctx.f9clips <- [{ f9_cid = None; f9_classname = boot }];
-				code
-		);
+		ctx.f9clips <- [{ f9_cid = None; f9_classname = boot }];
+		ctx.hx9code <- code;
 		ctx.genmethod <- m;
 	end else begin
 		let code, clips = Genswf8.generate com in
@@ -234,9 +379,36 @@ let generate com swf_header swf_lib =
 			if c.f9_cid <> None && not (movieclip_exists com.types ctx.as3code path) then
 				ctx.as3code <- build_movieclip ctx path :: ctx.as3code;
 		) ctx.f9clips;
-		let as3code = (match ctx.as3code @ ctx.hx9code with [] -> [] | l -> [tag (TActionScript3 (None,As3hlparse.flatten l))]) in
+		let as3code = (match ctx.as3code with
+			| [] -> []
+			| l -> [tag (TActionScript3 (None,As3hlparse.flatten l))]
+		) in
+		let hx9code = (match ctx.hx9code with
+			| [] -> []
+			| l when Common.defined com "swc" ->
+				ctx.swc_catalog <- build_swc_catalog com (List.map (fun (t,_,_) -> t) l);
+				List.map (fun (t,m,f) ->
+					let path = (match t_path t with
+						| [], name -> name
+						| path, name -> String.concat "/" path ^ "/" ^ name
+					) in
+					let init = {
+						hls_method = m;
+						hls_fields = [|f|];
+					} in
+					tag (TActionScript3 (Some (1,path),As3hlparse.flatten [init]))
+				) l
+			| l ->
+				let inits = List.map (fun (_,m,f) ->
+					{
+						hls_method = m;
+						hls_fields = [|f|];
+					}
+				) l in
+				[tag (TActionScript3 (None,As3hlparse.flatten inits))]
+		) in
 		let clips9 = (if isf9 then [tag (TF9Classes ctx.f9clips)] else []) in
-		sandbox @ debug @ content @ clips @ code @ as3code @ clips9
+		sandbox @ debug @ content @ clips @ code @ as3code @ hx9code @ clips9
 	in
 	let swf = (match swf_lib with
 		| None ->
@@ -304,9 +476,21 @@ let generate com swf_header swf_lib =
 	) in
 	t();
 	let t = Common.timer "write swf" in
-	let ch = IO.output_channel (open_out_bin file) in
-	Swf.write ch swf;
-	IO.close_out ch;
+	if Common.defined com "swc" then begin
+		let ch = IO.output_string() in
+		Swf.write ch swf;
+		let swf = IO.close_out ch in
+		let ch = IO.output_channel (open_out_bin file) in
+		let z = zip_create ch in
+		zip_write_file z "catalog.xml" ctx.swc_catalog (Unix.time()) true;
+		zip_write_file z "library.swf" swf (Unix.time()) false;
+		zip_write_cdr z;
+		IO.close_out ch;
+	end else begin
+		let ch = IO.output_channel (open_out_bin file) in
+		Swf.write ch swf;
+		IO.close_out ch;
+	end;
 	t();
 
 ;;

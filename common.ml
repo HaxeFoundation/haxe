@@ -51,6 +51,7 @@ type context_type_api = {
 
 type context = {
 	(* config *)
+	version : int;
 	mutable debug : bool;
 	mutable verbose : bool;
 	mutable platform : platform;
@@ -73,9 +74,10 @@ type context = {
 
 exception Abort of string * Ast.pos
 
-let create() =
+let create v =
 	let m = Type.mk_mono() in
 	{
+		version = v;
 		debug = false;
 		verbose = false;
 		platform = Cross;

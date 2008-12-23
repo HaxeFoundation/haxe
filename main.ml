@@ -175,7 +175,7 @@ and init params =
 		(version / 100) (version mod 100) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let classes = ref [([],"Std")] in
-	let com = Common.create() in
+	let com = Common.create version in
 try
 	let xml_out = ref None in
 	let swf_header = ref None in
@@ -229,6 +229,7 @@ try
 		Common.define com name; (* define platform name *)
 		Unix.putenv "__file__" file;
 		Unix.putenv "__platform__" file;
+		if pf = Flash && file_extension file = "swc" then Common.define com "swc";
 	in
 	let define f = Arg.Unit (fun () -> Common.define com f) in
 	let args_spec = [
