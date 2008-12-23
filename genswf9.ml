@@ -1591,27 +1591,15 @@ let generate_class_init ctx c hc =
 	write ctx (HInitProp (type_path ctx c.cl_path))
 
 let generate_class_statics ctx c =
-	let r = alloc_reg ctx KDynamic in
-	let first = ref true in
-	let nslot = ref 0 in
 	List.iter (fun f ->
 		match f.cf_expr with
-		| Some { eexpr = TFunction _ } when f.cf_set <> NormalAccess -> ()
+		| None -> ()
+		| Some { eexpr = TFunction _ } -> ()
 		| Some e ->
-			incr nslot;
-			if !first then begin
-				write ctx HGetGlobalScope;
-				write ctx (HGetProp (type_path ctx c.cl_path));
-				write ctx (HSetReg r.rid); (* needed for setslot *)
-				first := false;
-			end;
-			write ctx (HReg r.rid);
+			write ctx (HGetLex (type_path ctx c.cl_path));
 			gen_expr ctx true e;
-			write ctx (HSetSlot !nslot);
-		| _ ->
-			incr nslot
-	) c.cl_ordered_statics;
-	free_reg ctx r
+			write ctx (HInitProp (ident f.cf_name));
+	) c.cl_ordered_statics
 
 let generate_enum_init ctx e hc =
 	let path = ([],"Object") in
