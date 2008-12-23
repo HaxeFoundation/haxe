@@ -51,7 +51,15 @@ class Int32 {
 		#elseif flash9
 		return cast x;
 		#else
-		return ((cast x) & 0xFFFFFFFF);
+		return (cast x) & 0xFFFFFFFF;
+		#end
+	}
+
+	public static inline function toNativeInt( x : Int32 ) : Int {
+		#if neko
+		return try untyped __i32__to_int(x) catch( e : Dynamic ) throw "Overflow"+x;
+		#else
+		return cast x;
 		#end
 	}
 
