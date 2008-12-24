@@ -17,6 +17,7 @@ TODO :
 	fixed __vector__ generation for AS3 target
 	fix with inline functions : position is now the inserted position and not the original one (better error reporting)
 	added SWC output support
+	fixed issues with unset of values in for loops and executing blocks that return functions (haXe/PHP)
 
 2008-11-23: 2.02
 	Std.is(MyInterface, Class) now returns true (haXe/PHP)

@@ -552,6 +552,14 @@ and gen_call ctx e el =
 		spr ctx ", array(";
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx "))"
+	| TBlock _, el ->
+		ctx.is_call <- true;
+		spr ctx "call_user_func_array(";
+		gen_value ctx e;
+		ctx.is_call <- false;
+		spr ctx ", array(";
+		concat ctx ", " (gen_value ctx) el;
+		spr ctx "))"
 	| _ ->
 		ctx.is_call <- true;
 		gen_value ctx e;
@@ -822,7 +830,7 @@ and gen_inline_function ctx f params p =
 
 and gen_while_expr ctx e =
 	match e.eexpr with
-	| TBlock (el) ->
+	| TBlock (el) ->	
 		let old_l = ctx.inv_locals in
 		let b = save_locals ctx in
 		print ctx "{";
@@ -1277,7 +1285,7 @@ and gen_expr ctx e =
 		newline ctx;
 		print ctx "%s$%s = %s$%s->next()" p v p tmp;
 		newline ctx;
-		gen_expr ctx e;
+		gen_while_expr ctx e;
 		newline ctx;
 		spr ctx "}";
 		b();
@@ -1504,11 +1512,11 @@ and gen_value ctx e =
 		)) e.etype e.epos);
 		v()
 	| TTry (b,catchs) ->
-	let v = value true in
-	gen_expr ctx (mk (TTry (assign b,
-		List.map (fun (v,t,e) -> v, t , assign e) catchs
-	)) e.etype e.epos);
-	v()
+		let v = value true in
+		gen_expr ctx (mk (TTry (assign b,
+			List.map (fun (v,t,e) -> v, t , assign e) catchs
+		)) e.etype e.epos);
+		v()
 
 let is_method_defined ctx m static =
 	if static then
