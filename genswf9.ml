@@ -89,7 +89,7 @@ type context = {
 	mutable continues : (int -> unit) list;
 	mutable in_static : bool;
 	mutable curblock : texpr list;
-	mutable block_vars : (hl_slot * string * t) list;
+	mutable block_vars : (hl_slot * string * hl_name option) list;
 	mutable try_scope_reg : register option;
 	mutable for_call : bool;
 }
@@ -370,15 +370,17 @@ let pop ctx n =
 	loop n;
 	ctx.infos.istack <- old
 
-let define_local ctx ?(init=false) name t el =
+let define_local ctx ?(init=false) name t el p =
 	let l = (if List.exists (Codegen.local_find false name) el then begin
+			let topt = type_opt ctx t in
 			let pos = (try
-				let slot , _ , _ = (List.find (fun (_,x,_) -> name = x) ctx.block_vars) in
+				let slot , _ , t = (List.find (fun (_,x,_) -> name = x) ctx.block_vars) in
+				if t <> topt then error ("Local variable '" ^ name ^ "' captured with same name but different types") p;
 				slot
 			with
 				Not_found ->
 					let n = List.length ctx.block_vars + 1 in
-					ctx.block_vars <- (n,name,t) :: ctx.block_vars;
+					ctx.block_vars <- (n,name,topt) :: ctx.block_vars;
 					n
 			) in
 			LScope pos
@@ -577,7 +579,7 @@ let begin_fun ctx args tret el stat p =
 		| LGlobal _ -> PMap.add name l acc
 	) ctx.locals PMap.empty;
 	List.iter (fun (name,_,t) ->
-		define_local ctx name ~init:true t el;
+		define_local ctx name ~init:true t el p;
 		match gen_local_access ctx name null_pos Write with
 		| VReg _ -> ()
 		| acc ->
@@ -642,7 +644,7 @@ let begin_fun ctx args tret el stat p =
 					hltc_name = None;
 				}
 			) (List.rev ctx.trys));
-			hlf_locals = Array.of_list (List.map (fun (id,name,t) -> ident name, type_opt ctx t, id, false) ctx.block_vars);
+			hlf_locals = Array.of_list (List.map (fun (id,name,t) -> ident name, t, id, false) ctx.block_vars);
 		} in
 		let mt = { (end_fun ctx args tret) with
 			hlmt_var_args = varargs;
@@ -864,7 +866,7 @@ let rec gen_expr_content ctx retval e =
 		b();
 	| TVars vl ->
 		List.iter (fun (v,t,ei) ->
-			define_local ctx v t ctx.curblock;
+			define_local ctx v t ctx.curblock e.epos;
 			(match ei with
 			| None -> ()
 			| Some e ->
@@ -963,7 +965,7 @@ let rec gen_expr_content ctx retval e =
 				write ctx (HReg (match ctx.try_scope_reg with None -> assert false | Some r -> r.rid));
 				write ctx HScope;
 				(* store the exception into local var, using a tmp register if needed *)
-				define_local ctx ename t [e];
+				define_local ctx ename t [e] e.epos;
 				let r = (match try PMap.find ename ctx.locals with Not_found -> assert false with
 					| LReg _ -> None
 					| _ ->
@@ -1010,7 +1012,7 @@ let rec gen_expr_content ctx retval e =
 		set_reg ctx r;
 		let branch = begin_branch ctx in
 		let b = open_block ctx [e] retval in
-		define_local ctx v t [e];
+		define_local ctx v t [e] e.epos;
 		let end_loop = begin_loop ctx in
 		let continue_pos = ctx.infos.ipos in
 		let start = jump_back ctx in
@@ -1157,7 +1159,7 @@ let rec gen_expr_content ctx retval e =
 					match name with
 					| None -> ()
 					| Some v ->
-						define_local ctx v t [e];
+						define_local ctx v t [e] e.epos;
 						let acc = gen_local_access ctx v e.epos Write in
 						write ctx (HReg rparams.rid);
 						write ctx (HSmallInt !p);
