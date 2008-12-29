@@ -1213,7 +1213,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		mk (TTry (e1,catches)) (if not need_val then ctx.api.tvoid else e1.etype) p
 	| EThrow e ->
 		let e = type_expr ctx e in
-		mk (TThrow e) t_dynamic p
+		mk (TThrow e) (mk_mono()) p
 	| ECall (e,el) ->
 		type_call ctx e el p
 	| ENew (t,el) ->

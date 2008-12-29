@@ -18,6 +18,7 @@ TODO :
 	fix with inline functions : position is now the inserted position and not the original one (better error reporting)
 	added SWC output support
 	fixed issues with unset of values in for loops and executing blocks that return functions (haXe/PHP)
+	"throw" type is now Unknown instead of Dynamic (prevent type-hole in "if A else if B else throw")
 
 2008-11-23: 2.02
 	Std.is(MyInterface, Class) now returns true (haXe/PHP)
