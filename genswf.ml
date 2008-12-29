@@ -379,36 +379,30 @@ let generate com swf_header swf_lib =
 			if c.f9_cid <> None && not (movieclip_exists com.types ctx.as3code path) then
 				ctx.as3code <- build_movieclip ctx path :: ctx.as3code;
 		) ctx.f9clips;
-		let as3code = (match ctx.as3code with
-			| [] -> []
-			| l -> [tag (TActionScript3 (None,As3hlparse.flatten l))]
-		) in
-		let hx9code = (match ctx.hx9code with
-			| [] -> []
-			| l when Common.defined com "swc" ->
-				ctx.swc_catalog <- build_swc_catalog com (List.map (fun (t,_,_) -> t) l);
-				List.map (fun (t,m,f) ->
-					let path = (match t_path t with
-						| [], name -> name
-						| path, name -> String.concat "/" path ^ "/" ^ name
-					) in
-					let init = {
-						hls_method = m;
-						hls_fields = [|f|];
-					} in
-					tag (TActionScript3 (Some (1,path),As3hlparse.flatten [init]))
-				) l
-			| l ->
-				let inits = List.map (fun (_,m,f) ->
-					{
-						hls_method = m;
-						hls_fields = [|f|];
-					}
-				) l in
-				[tag (TActionScript3 (None,As3hlparse.flatten inits))]
-		) in
+		let code9 = if Common.defined com "swc" then begin
+			ctx.swc_catalog <- build_swc_catalog com (List.map (fun (t,_,_) -> t) ctx.hx9code);
+			List.map (fun (t,m,f) ->
+				let path = (match t_path t with
+					| [], name -> name
+					| path, name -> String.concat "/" path ^ "/" ^ name
+				) in
+				let init = {
+					hls_method = m;
+					hls_fields = [|f|];
+				} in
+				tag (TActionScript3 (Some (1,path),As3hlparse.flatten [init]))
+			) ctx.hx9code
+		end else begin
+			let inits = List.map (fun (_,m,f) ->
+				{
+					hls_method = m;
+					hls_fields = [|f|];
+				}
+			) ctx.hx9code in
+			[tag (TActionScript3 (None,As3hlparse.flatten (ctx.as3code @ inits)))]
+		end in
 		let clips9 = (if isf9 then [tag (TF9Classes ctx.f9clips)] else []) in
-		sandbox @ debug @ content @ clips @ code @ as3code @ hx9code @ clips9
+		sandbox @ debug @ content @ clips @ code @ code9 @ clips9
 	in
 	let swf = (match swf_lib with
 		| None ->
