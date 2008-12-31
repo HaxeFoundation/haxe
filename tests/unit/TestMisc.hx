@@ -38,6 +38,11 @@ class TestMisc extends Test {
 		eq( b.decodeString("iceFr6NLtM"), "Héllow" );
 	}
 
+	function testUrlEncode() {
+		eq( StringTools.urlEncode("é"), "%C3%A9" );
+		eq( StringTools.urlDecode("%C3%A9"), "é" );
+	}
+
 	function opt1( ?x : Int, ?y : String ) {
 		return { x : x, y : y };
 	}
