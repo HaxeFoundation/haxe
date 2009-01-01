@@ -876,10 +876,12 @@ let rec gen_expr_content ctx retval e =
 		) vl
 	| TReturn None ->
 		write ctx HRetVoid;
+		ctx.infos.icond <- true;
 		no_value ctx retval
 	| TReturn (Some e) ->
 		gen_expr ctx true e;
 		write ctx HRet;
+		ctx.infos.icond <- true;
 		no_value ctx retval
 	| TField _
 	| TLocal _
