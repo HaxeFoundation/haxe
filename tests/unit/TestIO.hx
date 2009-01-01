@@ -1,10 +1,20 @@
 ﻿package unit;
+import haxe.io.Error;
 
 class TestIO extends Test {
 
 	public function test() {
 		check(false);
 		check(true);
+	}
+
+	function excv<T>( f, e : T, ?pos ) {
+		try {
+			f();
+			eq(null,e,pos);
+		} catch( e2 : Dynamic ) {
+			eq(e2,e,pos);
+		}
 	}
 
 	function check(endian:Bool) {
@@ -28,9 +38,9 @@ class TestIO extends Test {
 		o.write(b);
 		o.writeByte(55);
 		o.writeBytes(b,3,5);
-		exc(function() o.writeBytes(b,-1,5));
-		exc(function() o.writeBytes(b,3,-1));
-		exc(function() o.writeBytes(b,3,20));
+		excv(function() o.writeBytes(b,-1,5),OutsideBounds);
+		excv(function() o.writeBytes(b,3,-1),OutsideBounds);
+		excv(function() o.writeBytes(b,3,20),OutsideBounds);
 
 		o.writeByte(98);
 		#if (neko || flash9 || php)
@@ -43,32 +53,29 @@ class TestIO extends Test {
 		o.writeString(str);
 
 		o.writeInt16(-12345);
-		exc(function() o.writeInt16(1 << 15));
-		exc(function() o.writeInt16(-((1 << 15)+1)));
+		excv(function() o.writeInt16(1 << 15),Overflow);
+		excv(function() o.writeInt16(-((1 << 15)+1)),Overflow);
 		o.writeInt24(-1234567);
-		exc(function() o.writeInt16(1 << 24));
-		exc(function() o.writeInt16(-((1 << 24)+1)));
+		excv(function() o.writeInt16(1 << 24),Overflow);
+		excv(function() o.writeInt16(-((1 << 24)+1)),Overflow);
 		o.writeInt31(-123456789);
-		#if neko
+		#if !neko
 		// in neko, we can't represent invalid 31 bits integers anyway
-		exc(function() throw "Overflow");
-		exc(function() throw "Overflow");
-		#else
-		exc(function() o.writeInt31(1 << 30));
-		exc(function() o.writeInt31(-((1 << 30) + 1)));
+		excv(function() o.writeInt31(1 << 30),Overflow);
+		excv(function() o.writeInt31(-((1 << 30) + 1)),Overflow);
 		#end
 		o.writeInt8(-5);
-		exc(function() o.writeInt8(128));
-		exc(function() o.writeInt8(-129));
+		excv(function() o.writeInt8(128),Overflow);
+		excv(function() o.writeInt8(-129),Overflow);
 		o.writeUInt16(0xFF55);
-		exc(function() o.writeUInt16(1 << 16));
-		exc(function() o.writeUInt16(-1));
+		excv(function() o.writeUInt16(1 << 16),Overflow);
+		excv(function() o.writeUInt16(-1),Overflow);
 		o.writeUInt24(0xFF00EE);
-		exc(function() o.writeUInt24(1 << 24));
-		exc(function() o.writeUInt24(-1));
+		excv(function() o.writeUInt24(1 << 24),Overflow);
+		excv(function() o.writeUInt24(-1),Overflow);
 		o.writeUInt30(0x3FAABBCC);
-		exc(function() o.writeUInt30(-1));
-		exc(function() o.writeUInt30(0x40 << 24));
+		excv(function() o.writeUInt30(-1),Overflow);
+		excv(function() o.writeUInt30(0x40 << 24),Overflow);
 
 		o.writeInt32(haxe.Int32.make(0xA0FF,0xEEDD));
 		o.writeInt32(haxe.Int32.make(0xC0FF,0xEEDD));
@@ -107,6 +114,23 @@ class TestIO extends Test {
 		eq( haxe.Int32.compare( i.readInt32() , haxe.Int32.make(0xA0FF,0xEEDD) ), 0 );
 		eq( haxe.Int32.compare( i.readInt32() , haxe.Int32.make(0xC0FF,0xEEDD) ), 0 );
 
+	}
+
+	function testBytesBounds() {
+		var b = haxe.io.Bytes.ofString("ABCDEFGHIJ");
+		var tmp = haxe.io.Bytes.alloc(7);
+		var i = new haxe.io.BytesInput(b);
+		excv( function() i.readBytes(tmp,1,7), OutsideBounds );
+		excv( function() i.readBytes(tmp,-1,7), OutsideBounds );
+		excv( function() i.readBytes(tmp,8,1), OutsideBounds );
+		eq( i.readBytes(tmp,0,7), 7 );
+		eq( tmp.get(0), "A".code );
+		eq( tmp.get(6), "G".code );
+		eq( i.readBytes(tmp,0,7), 3 );
+		eq( tmp.get(0), "H".code );
+		eq( tmp.get(2), "J".code );
+		eq( tmp.get(3), "D".code );
+		exc( function() i.readBytes(tmp,0,7) );
 	}
 
 }
