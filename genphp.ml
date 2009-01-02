@@ -830,14 +830,18 @@ and gen_while_expr ctx e =
 		let bend = open_block ctx in
 		List.iter (fun e -> newline ctx; gen_expr ctx e) el;
 		newline ctx;
-		let c = ref 0 in
+		let lst = ref [] in
 		PMap.iter (fun n _ ->
-		    if not (PMap.exists n old_l) then begin
-			if !c > 0 then spr ctx "; ";
-			incr c;
-			print ctx "unset(%s$%s)" (escphp ctx.quotes) n
-			end
+		    if not (PMap.exists n old_l) then
+				lst := [(escphp ctx.quotes) ^ "$" ^  n] @ !lst;
 		) ctx.inv_locals;
+		
+		if (List.length !lst) > 0 then begin
+			spr ctx "unset(";
+			concat ctx "," (fun (s) -> spr ctx s; ) !lst;
+			spr ctx ")"
+		end;
+		
 		bend();
 		newline ctx;
 		print ctx "}";
