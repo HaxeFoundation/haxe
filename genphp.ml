@@ -466,6 +466,18 @@ let rec gen_array_args ctx lst =
 		gen_array_args ctx t
 		
 and gen_call ctx e el =
+	let rec genargs lst =
+		(match lst with
+		| [] -> ()
+		| h :: [] ->
+			spr ctx " = ";
+			gen_value ctx h;
+		| h :: t ->
+			spr ctx "[";
+			gen_value ctx h;
+			spr ctx "]";
+			genargs t)
+	in
 	match e.eexpr , el with
 	| TConst TSuper , params ->
 		(match ctx.curclass.cl_super with
@@ -484,34 +496,15 @@ and gen_call ctx e el =
 			spr ctx ")";
 		);
 	| TLocal "__set__" , { eexpr = TConst (TString code) } :: el ->
-		let rec genargs lst =
-			(match lst with
-			| [] -> ()
-			| h :: [] ->
-				spr ctx " = ";
-				gen_value ctx h;
-			| h :: t ->
-				spr ctx "[";
-				gen_value ctx h;
-				spr ctx "]";
-				genargs t)
-		in
 		print ctx "%s$%s" (escphp ctx.quotes) code;
 		genargs el;
 	| TLocal "__set__" , e :: el ->
-		let rec genargs lst =
-			(match lst with
-			| [] -> ()
-			| h :: [] ->
-				spr ctx " = ";
-				gen_value ctx h;
-			| h :: t ->
-				spr ctx "[";
-				gen_value ctx h;
-				spr ctx "]";
-				genargs t)
-		in
 		gen_value ctx e;
+		genargs el;
+	| TLocal "__setfield__" , e :: (f :: el) ->
+		gen_value ctx e;
+		spr ctx "->";
+		gen_value ctx f;
 		genargs el;
 	| TLocal "__field__" , e :: (f :: el) ->
 		gen_value ctx e;

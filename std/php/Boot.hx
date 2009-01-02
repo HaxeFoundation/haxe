@@ -338,6 +338,11 @@ function _hx_register_type($t) {
 		php_Boot::$tpaths[$t->__tname__] = $t->__path__;
 }
 
+function _hx_set_method($o, $field, $func) {
+	$value[0]->scope = $o; 
+	$o->$field = $value;
+}
+
 function _hx_shift_right($v, $n) {
 	$z = 0x80000000;
 	if ($z & $v) {

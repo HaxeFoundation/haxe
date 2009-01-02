@@ -80,7 +80,7 @@ class Reflect {
 	/**
 		Set an object field value.
 	**/
-	public #if !php inline #end static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
+	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
 		#if flash
 			o[field] = value;
 		#elseif js
@@ -89,8 +89,7 @@ class Reflect {
 			if( __dollar__typeof(o) == __dollar__tobject )
 				__dollar__objset(o,__dollar__hash(field.__s),value);
 		#elseif php
-			untyped __php__("if (is_array($value) && get_class($value[0]) == '_hx_lambda') $value[0]->scope = $o");
-			untyped __php__("$o->$field = $value");
+			__setfield__(o, field, value);
 		#end
 	}
 

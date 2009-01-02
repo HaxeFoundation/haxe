@@ -86,10 +86,7 @@ class BytesInput extends Input {
 			#if neko
 			try untyped __dollar__sblit(buf.getData(),pos,b,this.pos,len) catch( e : Dynamic ) throw Error.OutsideBounds;
 			#elseif php
-			// TODO: test me
-			untyped __php__("$buf->b = substr($buf->b, 0, $pos) . substr($this->b, $this->pos, $len) . substr($buf->b, $pos+$len)"); //__call__("substr", b, 0, pos)+__call__("substr", src.b, srcpos, len)+__call__("substr", b, pos+len);
-//			var b2 = untyped __php__("& $buf->b");
-//			b2 = untyped __call__("substr", b2, 0, pos)+__call__("substr", b, 0, len)+__call__("substr", b2, pos+len);
+			untyped __php__("$buf->b = substr($buf->b, 0, $pos) . substr($this->b, $this->pos, $len) . substr($buf->b, $pos+$len)");
 			#else
 			var b1 = b;
 			var b2 = buf.getData();
