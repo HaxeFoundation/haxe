@@ -71,11 +71,8 @@ class BytesInput extends Input {
 	}
 
 	public override function readBytes( buf : Bytes, pos, len ) : Int {
-		#if php
-			if( pos < 0 || len < 0 || pos + len > untyped __call__("strlen", b))
-				throw Error.OutsideBounds;
-		#elseif !neko
-			if( pos < 0 || len < 0 || pos + len > b.length )
+		#if !neko
+			if( pos < 0 || len < 0 || pos + len > buf.length )
 				throw Error.OutsideBounds;
 		#end
 		#if flash9
