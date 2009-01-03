@@ -217,7 +217,7 @@ function _hx_field($o, $field) {
 		if($o instanceof _hx_type) {
 			if(is_callable(array($o->__tname__, $field))) {
 				return array($o->__tname__, $field);
-			} else {				
+			} else {
 				return eval('return '.$o->__tname__.'::$'.$field.';');
 			}
 		} else {
@@ -339,8 +339,8 @@ function _hx_register_type($t) {
 }
 
 function _hx_set_method($o, $field, $func) {
-	$value[0]->scope = $o; 
-	$o->$field = $value;
+	$value[0]->scope = $o;
+	$o->$field = $func;
 }
 
 function _hx_shift_right($v, $n) {

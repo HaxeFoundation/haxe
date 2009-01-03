@@ -503,8 +503,9 @@ and gen_call ctx e el =
 		genargs el;
 	| TLocal "__setfield__" , e :: (f :: el) ->
 		gen_value ctx e;
-		spr ctx "->";
+		spr ctx "->{";
 		gen_value ctx f;
+		spr ctx "}";
 		genargs el;
 	| TLocal "__field__" , e :: (f :: el) ->
 		gen_value ctx e;
