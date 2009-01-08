@@ -57,7 +57,7 @@ class Int32 {
 
 	public static inline function toNativeInt( x : Int32 ) : Int {
 		#if neko
-		return try untyped __i32__to_int(x) catch( e : Dynamic ) throw "Overflow"+x;
+		return untyped (__i32__ushr(x,8) << 8) | __i32__and(x,0xFF);
 		#else
 		return cast x;
 		#end
