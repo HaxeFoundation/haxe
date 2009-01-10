@@ -26,8 +26,8 @@ class Api {
 		return untyped __global__["flash.sampler.getSampleCount"]();
 	}
 
-	public static function getSamples() : Dynamic<flash.sampler.Sample> {
-		return untyped __global__["flash.sampler.getSamples"]();
+	public static function getSamples() : Array<flash.sampler.Sample> {
+		return untyped __foreach__(__global__["flash.sampler.getSamples"]());
 	}
 
 	public static function getSize( obj : Dynamic ) : Float {

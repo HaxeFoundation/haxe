@@ -340,6 +340,16 @@ let rec gen_call ctx e el r =
 		gen_value ctx e;
 		print ctx ") %s.push(%s.substr(1))" ret tmp;
 		b();
+	| TLocal "__foreach__", [e] ->
+		let ret = (match ctx.in_value with None -> assert false | Some r -> r) in
+		print ctx "%s = new Array()" ret;
+		newline ctx;
+		let b = save_locals ctx in
+		let tmp = define_local ctx "$k" in
+		print ctx "for each(var %s : * in " tmp;
+		gen_value ctx e;
+		print ctx ") %s.push(%s)" ret tmp;
+		b();
 	| TLocal "__new__", e :: args ->
 		spr ctx "new ";
 		gen_value ctx e;

@@ -1198,6 +1198,7 @@ and gen_call ctx retval e el r =
 		gen_expr ctx true e;
 		write ctx HToNumber
 	| TLocal "__hkeys__" , [e2]
+	| TLocal "__foreach__", [e2]
 	| TLocal "__keys__" , [e2] ->
 		let racc = alloc_reg ctx (KType (type_path ctx ([],"Array"))) in
 		let rcounter = alloc_reg ctx KInt in
@@ -1213,7 +1214,10 @@ and gen_call ctx retval e el r =
 		write ctx (HReg racc.rid);
 		write ctx (HReg rtmp.rid);
 		write ctx (HReg rcounter.rid);
-		write ctx HForIn;
+		if e.eexpr = TLocal "__foreach__" then
+			write ctx HForEach
+		else
+			write ctx HForIn;
 		if e.eexpr = TLocal "__hkeys__" then begin
 			write ctx (HSmallInt 1);
 			write ctx (HCallProperty (as3 "substr",1));
