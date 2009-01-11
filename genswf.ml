@@ -286,6 +286,92 @@ let add_as3_code ctx data types =
 let add_as3_clips ctx cl =
 	ctx.f9clips <- List.filter (fun c -> c.f9_cid <> None) cl @ ctx.f9clips
 
+type dependency_kind =
+	| DKInherit
+	| DKExpr
+	| DKType
+
+let build_dependencies t = 
+	let h = ref PMap.empty in	
+	let add_path p k =
+		h := PMap.add (p,k) () !h;
+	in
+	let rec add_type t =
+		match follow t with
+		| TEnum (e,pl) ->
+			add_path e.e_path DKType;
+			List.iter add_type pl;
+		| TInst (c,pl) ->
+			add_path c.cl_path DKType;
+			List.iter add_type pl;
+		| TFun (pl,t) ->
+			List.iter (fun (_,_,t) -> add_type t) pl;
+			add_type t;
+		| TAnon a ->
+			PMap.iter (fun _ f -> add_type f.cf_type) a.a_fields
+		| TDynamic t2 ->
+			if t2 != t then add_type t2;
+		| _ ->
+			()
+	and add_expr e =
+		match e.eexpr with
+		| TTypeExpr t -> add_path (Type.t_path t) DKExpr
+		| TEnumField (e,_) -> add_path e.e_path DKExpr
+		| TNew (c,pl,el) ->
+			add_path c.cl_path DKExpr;
+			List.iter add_type pl;
+			List.iter add_expr el;
+		| TFunction f ->
+			List.iter (fun (_,_,t) -> add_type t) f.tf_args;
+			add_type f.tf_type;
+			add_expr f.tf_expr;
+		| TFor (_,t,e1,e2) ->
+			add_type t;
+			add_expr e1;
+			add_expr e2;
+		| TVars vl ->
+			List.iter (fun (_,t,e) ->
+				add_type t;
+				match e with
+				| None -> ()
+				| Some e -> add_expr e
+			) vl
+		| _ ->
+			Type.iter add_expr e
+	and add_field f =
+		add_type f.cf_type;
+		match f.cf_expr with
+		| None -> ()
+		| Some e -> add_expr e
+	in
+	let add_inherit (c,pl) =
+		add_path c.cl_path DKInherit;
+		List.iter add_type pl;
+	in
+	(match t with
+	| TClassDecl c when not c.cl_extern ->
+		List.iter add_field c.cl_ordered_fields;
+		List.iter add_field c.cl_ordered_statics;
+		(match c.cl_constructor with
+		| None -> ()
+		| Some f -> 
+			add_field f;
+			if c.cl_path <> (["flash"],"Boot") then add_path (["flash"],"Boot") DKExpr;
+		);
+		(match c.cl_init with
+		| None -> ()
+		| Some e -> add_expr e);
+		(match c.cl_super with
+		| None -> add_path ([],"Object") DKInherit;
+		| Some x -> add_inherit x);
+		List.iter add_inherit c.cl_implements;
+	| TEnumDecl e when not e.e_extern ->
+		PMap.iter (fun _ f -> add_type f.ef_type) e.e_constrs;
+	| _ -> ());
+	h := PMap.remove (([],"Int"),DKType) (!h);
+	h := PMap.remove (([],"Int"),DKExpr) (!h);
+	PMap.foldi (fun (c,k) () acc -> (c,k) :: acc) (!h) []
+
 let build_swc_catalog com types =
 	let node x att l =
 		Xml.Element (x,att,l)
@@ -294,12 +380,24 @@ let build_swc_catalog com types =
 		let path, name = t_path t in
 		String.concat sep (path @ [name])
 	in
+	let make_id path =
+		match Genswf9.real_path path with
+		| [],n -> n
+		| l,n -> (String.concat "." l) ^ ":" ^ n
+	in
 	let build_script t =
-		node "script" [("name",make_path t "/");("mod","0")] [
-			node "def" ["id",make_path t ":"] [];
-			node "def" [("id","AS3");("type","n")] [];
-			node "def" [("id","Object");("type","i")] [];
-		]
+		let deps = build_dependencies t in
+		node "script" [("name",make_path t "/");("mod","0")] ([
+			node "def" ["id",make_id (t_path t)] [];
+			node "dep" [("id","AS3");("type","n")] [];
+		] @ List.map (fun (p,k) ->
+			let t = (match k with
+				| DKInherit -> "i"
+				| DKExpr -> (match p with "flash" :: _ :: _ , _ -> "i" | _ -> "e")
+				| DKType -> "s"
+			) in
+			node "dep" [("id",make_id p);("type",t)] []
+		) deps)
 	in
 	let x = node "swc" ["xmlns","http://www.adobe.com/flash/swccatalog/9"] [
 		node "versions" [] [
@@ -331,8 +429,8 @@ let generate com swf_header swf_lib =
 		swc_catalog = "";
 	} in
 	if isf9 then begin
-		let code, boot, m = Genswf9.generate com in
-		ctx.f9clips <- [{ f9_cid = None; f9_classname = boot }];
+		let code, m = Genswf9.generate com in
+		ctx.f9clips <- [{ f9_cid = None; f9_classname = "flash.Boot" }];
 		ctx.hx9code <- code;
 		ctx.genmethod <- m;
 	end else begin

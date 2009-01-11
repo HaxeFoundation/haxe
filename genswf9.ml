@@ -77,9 +77,9 @@ type context = {
 	(* globals *)
 	com : Common.context;
 	debugger : bool;
+	swc : bool;
 	mutable last_line : int;
 	mutable last_file : string;
-	boot : string;
 	(* per-function *)
 	mutable locals : (string,local) PMap.t;
 	mutable code : hl_opcode DynArray.t;
@@ -151,23 +151,23 @@ let jump_back ctx =
 		write ctx (HJump (cond,delta))
 	)
 
+let real_path = function
+	| [] , "Int" -> [] , "int"
+	| [] , "UInt" -> [] , "uint"
+	| [] , "Float" -> [] , "Number"
+	| [] , "Bool" -> [] , "Boolean"
+	| [] , "Enum" -> [] , "Class"
+	| ["flash";"xml"], "XML" -> [], "XML"
+	| ["flash";"xml"], "XMLList" -> [], "XMLList"
+	| ["flash";"utils"], "QName" -> [] , "QName"
+	| ["flash";"utils"], "Namespace" -> [] , "Namespace"
+	| ["flash"] , "FlashXml__" -> [] , "Xml"
+	| ["flash"] , "Error" -> [], "Error"
+	| ["flash"] , "Vector" -> ["__AS3__";"vec"], "Vector"
+	| path -> path
+	
 let type_path ctx path =
-	let pack, name = (match path with
-		| [] , "Int" -> [] , "int"
-		| [] , "UInt" -> [] , "uint"
-		| [] , "Float" -> [] , "Number"
-		| [] , "Bool" -> [] , "Boolean"
-		| [] , "Enum" -> [] , "Class"
-		| ["flash";"xml"], "XML" -> [], "XML"
-		| ["flash";"xml"], "XMLList" -> [], "XMLList"
-		| ["flash";"utils"], "QName" -> [] , "QName"
-		| ["flash";"utils"], "Namespace" -> [] , "Namespace"
-		| ["flash"] , "FlashXml__" -> [] , "Xml"
-		| ["flash"] , "Boot" -> [] , ctx.boot
-		| ["flash"] , "Error" -> [], "Error"
-		| ["flash"] , "Vector" -> ["__AS3__";"vec"], "Vector"
-		| _ -> path
-	) in
+	let pack, name = real_path path in
 	HMPath (pack,name)
 
 let rec follow_basic t =
@@ -260,7 +260,11 @@ let classify ctx t =
 	| TLazy _ ->
 		assert false
 
-let ident i = HMPath ([],i)
+let ident i =
+	(* some field identifiers might cause issues with SWC *)
+	match i with
+	| "int" -> HMPath ([],"_" ^ i)
+	| _ -> HMPath ([],i)
 
 let as3 p =
 	HMName (p,HNNamespace "http://adobe.com/AS3/2006/builtin")
@@ -826,7 +830,7 @@ let rec gen_expr_content ctx retval e =
 		gen_constant ctx c e.etype e.epos
 	| TThrow e ->
 		ctx.infos.icond <- true;
-		getvar ctx (VGlobal (type_path ctx ([],ctx.boot)));
+		getvar ctx (VGlobal (type_path ctx (["flash"],"Boot")));
 		let id = type_path ctx (["flash"],"Error") in
 		write ctx (HFindPropStrict id);
 		write ctx (HConstructProperty (id,0));
@@ -990,7 +994,7 @@ let rec gen_expr_content ctx retval e =
 					getvar ctx (gen_local_access ctx ename e.epos Read);
 					write ctx (HAsType (type_path ctx (["flash"],"Error")));
 					let j = jump ctx J3False in
-					getvar ctx (VGlobal (type_path ctx ([],ctx.boot)));
+					getvar ctx (VGlobal (type_path ctx (["flash"],"Boot")));
 					getvar ctx (gen_local_access ctx ename e.epos Read);
 					setvar ctx (VId (ident "lastError")) false;
 					j();
@@ -1239,7 +1243,7 @@ and gen_call ctx retval e el r =
 		gen_expr ctx true f;
 		write ctx (HDeleteProp dynamic_prop);
 	| TLocal "__unprotect__" , [e] ->
-		write ctx (HGetLex (type_path ctx ([],ctx.boot)));
+		write ctx (HGetLex (type_path ctx (["flash"],"Boot")));
 		gen_expr ctx true e;
 		write ctx (HCallProperty (ident "__unprotect__",1));
 	| TLocal "__typeof__", [e] ->
@@ -1556,7 +1560,7 @@ let generate_construct ctx fdata c =
 	| KGenericInstance _ -> ()
 	| _ ->
 		let id = ident "skip_constructor" in
-		getvar ctx (VGlobal (type_path ctx ([],ctx.boot)));
+		getvar ctx (VGlobal (type_path ctx (["flash"],"Boot")));
 		getvar ctx (VId id);
 		let j = jump ctx J3False in
 		write ctx HRetVoid;
@@ -1575,6 +1579,17 @@ let generate_construct ctx fdata c =
 	debug_infos ctx ~is_min:false fdata.tf_expr.epos;
 	write ctx HRetVoid;
 	f() , List.length fdata.tf_args
+
+let generate_class_statics ctx c =
+	List.iter (fun f ->
+		match f.cf_expr with
+		| None -> ()
+		| Some { eexpr = TFunction _ } -> ()
+		| Some e ->
+			write ctx (HGetLex (type_path ctx c.cl_path));
+			gen_expr ctx true e;
+			write ctx (HInitProp (ident f.cf_name));
+	) c.cl_ordered_statics
 
 let generate_class_init ctx c hc =
 	write ctx HGetGlobalScope;
@@ -1596,18 +1611,8 @@ let generate_class_init ctx c hc =
 		| _ -> ()
 	) c.cl_ordered_statics;
 	if not c.cl_interface then write ctx HPopScope;
-	write ctx (HInitProp (type_path ctx c.cl_path))
-
-let generate_class_statics ctx c =
-	List.iter (fun f ->
-		match f.cf_expr with
-		| None -> ()
-		| Some { eexpr = TFunction _ } -> ()
-		| Some e ->
-			write ctx (HGetLex (type_path ctx c.cl_path));
-			gen_expr ctx true e;
-			write ctx (HInitProp (ident f.cf_name));
-	) c.cl_ordered_statics
+	write ctx (HInitProp (type_path ctx c.cl_path));
+	if ctx.swc then generate_class_statics ctx c
 
 let generate_enum_init ctx e hc =
 	let path = ([],"Object") in
@@ -1734,7 +1739,8 @@ let generate_class ctx c =
 		hlc_namespace = None;
 		hlc_implements = Array.of_list (List.map (fun (c,_) ->
 			if not c.cl_interface then error "Can't implement class in Flash9" c.cl_pos;
-			type_path ctx c.cl_path
+			let pack, name = real_path c.cl_path in
+			HMMultiName (Some name,[HNPublic (Some (String.concat "." pack))])
 		) c.cl_implements);
 		hlc_construct = cid;
 		hlc_fields = fields;
@@ -1770,7 +1776,7 @@ let generate_enum ctx e =
 	write ctx HRetVoid;
 	let construct = f() in
 	let f = begin_fun ctx [] t_string [] true e.e_pos in
-	write ctx (HGetLex (type_path ctx ([],ctx.boot)));
+	write ctx (HGetLex (type_path ctx (["flash"],"Boot")));
 	write ctx HThis;
 	write ctx (HCallProperty (ident "enum_to_string",1));
 	write ctx HRet;
@@ -1850,7 +1856,7 @@ let generate_enum ctx e =
 let generate_inits ctx =
 	(* define flash.Boot.init method *)
 	write ctx HGetGlobalScope;
-	write ctx (HGetProp (type_path ctx ([],ctx.boot)));
+	write ctx (HGetProp (type_path ctx (["flash"],"Boot")));
 	let finit = begin_fun ctx [] t_void [] true null_pos in
 	List.iter (fun t ->
 		match t with
@@ -1860,7 +1866,7 @@ let generate_inits ctx =
 			| Some e -> gen_expr ctx false e);
 		| _ -> ()
 	) ctx.com.types;
-	List.iter (fun t ->
+	if not ctx.swc then List.iter (fun t ->
 		match t with
 		| TClassDecl { cl_extern = true; cl_path = "flash" :: _ , _ } -> ()
 		| TClassDecl c -> generate_class_statics ctx c
@@ -1905,12 +1911,10 @@ let generate_type ctx t =
 		None
 
 let generate com =
-	let file_path = (try Common.get_full_path com.file with _ -> com.file) in
-	let uid = String.sub (Digest.to_hex (Digest.string file_path)) 0 6 in
 	let ctx = {
 		com = com;
 		debugger = Common.defined com "fdb";
-		boot = "Boot_" ^ uid;
+		swc = Common.defined com "swc";
 		code = DynArray.create();
 		locals = PMap.empty;
 		infos = default_infos();
@@ -1930,7 +1934,7 @@ let generate com =
 		| None -> acc
 		| Some (m,f) -> (t,m,f) :: acc
 	) [] com.types in
-	List.rev classes, ctx.boot, (fun () -> empty_method ctx null_pos)
+	List.rev classes, (fun () -> empty_method ctx null_pos)
 
 ;;
 Random.self_init();
