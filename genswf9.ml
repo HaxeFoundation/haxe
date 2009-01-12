@@ -732,17 +732,17 @@ let gen_access ctx e (forset : 'a) : 'a access =
 		| _ -> gen_expr ctx true e1);
 		(match k with
 		| Some t -> VCast (id,t)
-		| None ->
-		match follow e1.etype with
-		| TEnum _ -> VId id
-		| TInst (_,tl) ->
-			let et = follow e.etype in
+		| None -> 
+		match follow e1.etype, follow e.etype with
+		| _ , TFun _ -> VCast(id,classify ctx e.etype)
+		| TEnum _, _ -> VId id
+		| TInst (_,tl), et ->
 			(* if the return type is one of the type-parameters, then we need to cast it *)
 			if List.exists (fun t -> follow t == et) tl then
 				VCast (id, classify ctx et)
 			else
 				VId id
-		| TAnon a when (match !(a.a_status) with Statics _ | EnumStatics _ -> true | _ -> false) -> VId id
+		| TAnon a, _ when (match !(a.a_status) with Statics _ | EnumStatics _ -> true | _ -> false) -> VId id
 		| _ -> VCast (id,classify ctx e.etype))
 	| TArray ({ eexpr = TLocal "__global__" },{ eexpr = TConst (TString s) }) ->
 		let path = (match List.rev (ExtString.String.nsplit s ".") with [] -> assert false | x :: l -> List.rev l, x) in
