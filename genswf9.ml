@@ -734,7 +734,7 @@ let gen_access ctx e (forset : 'a) : 'a access =
 		| Some t -> VCast (id,t)
 		| None -> 
 		match follow e1.etype, follow e.etype with
-		| _ , TFun _ -> VCast(id,classify ctx e.etype)
+		| _ , TFun _ when not ctx.for_call -> VCast(id,classify ctx e.etype)
 		| TEnum _, _ -> VId id
 		| TInst (_,tl), et ->
 			(* if the return type is one of the type-parameters, then we need to cast it *)
