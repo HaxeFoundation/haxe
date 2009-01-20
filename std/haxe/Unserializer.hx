@@ -263,6 +263,7 @@ class Unserializer {
 			return unserializeEnum(edecl,tag);
 		case 108: // l
 			var l = new List();
+			cache.push(l);
 			var buf = buf;
 			while( get(pos) != 104 /*h*/ )
 				l.add(unserialize());
@@ -270,6 +271,7 @@ class Unserializer {
 			return l;
 		case 98: // b
 			var h = new Hash();
+			cache.push(h);
 			var buf = buf;
 			while( get(pos) != 104 /*h*/ ) {
 				var s = unserialize();
@@ -279,6 +281,7 @@ class Unserializer {
 			return h;
 		case 113: // q
 			var h = new IntHash();
+			cache.push(h);
 			var buf = buf;
 			var c = get(pos++);
 			while( c == 58 ) { /*:*/
@@ -291,6 +294,7 @@ class Unserializer {
 			return h;
 		case 118:
 			var d = Date.fromString(buf.substr(pos,19));
+			cache.push(d);
 			pos += 19;
 			return d;
  		case 115: // s
