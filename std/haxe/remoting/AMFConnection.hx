@@ -90,6 +90,13 @@ class AMFConnection implements AsyncConnection, implements Dynamic<AsyncConnecti
 	public static function connect( nc ) {
 		return new AMFConnection({ cnx : nc, error : function(e) throw e },[]);
 	}
+
+	#if flash9
+	public static function registerClassAlias( s : String, cl : Class<Dynamic> ) {
+		untyped __global__[ "flash.net.registerClassAlias" ]( s, cl );
+	}
+	#end
+
 	#end
 
 }
