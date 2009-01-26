@@ -65,6 +65,7 @@ class FlashXml__ {
 		var nrules = rules.length;
 		var current = createDocument();
 		var stack = new List();
+		var line = 1;
 		while( str.length > 0 ) {
 			var i = 0;
 			while( i < nrules ) {
@@ -89,7 +90,15 @@ class FlashXml__ {
 						}
 						str = eclose.matchedRight();
 					case 1: // PCData
-						var x = createPCData(r.matched(0));
+						var text = r.matched(0);
+						var p = 0;
+						while(true) {
+							p = text.indexOf("\n",p);
+							if( p < 0 ) break;
+							line++;
+							p++;
+						}
+						var x = createPCData(text);
 						current.addChild(x);
 						str = r.matchedRight();
 					case 2: // End Node
@@ -148,7 +157,7 @@ class FlashXml__ {
 			}
 			if( i == nrules ) {
 				if( str.length > 10 )
-					throw ("Xml parse error : Unexpected "+str.substr(0,10)+"...");
+					throw ("Xml parse error : Unexpected "+str.substr(0,10)+"... line "+line);
 				else
 					throw ("Xml parse error : Unexpected "+str);
 			}
