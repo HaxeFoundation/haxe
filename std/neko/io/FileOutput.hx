@@ -61,14 +61,9 @@ class FileOutput extends haxe.io.Output {
 		return file_tell(__f);
 	}
 
-	public function eof() : Bool {
-		return file_eof(__f);
-	}
-
 	private static var file_close = neko.Lib.load("std","file_close",1);
 	private static var file_seek = neko.Lib.load("std","file_seek",3);
 	private static var file_tell = neko.Lib.load("std","file_tell",1);
-	private static var file_eof = neko.Lib.load("std","file_eof",1);
 
 	private static var file_flush = neko.Lib.load("std","file_flush",1);
 	private static var file_write = neko.Lib.load("std","file_write",4);

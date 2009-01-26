@@ -71,6 +71,13 @@ class FileInput extends haxe.io.Input {
 		return file_tell(__f);
 	}
 
+
+	public function eof() : Bool {
+		return file_eof(__f);
+	}
+
+	private static var file_eof = neko.Lib.load("std","file_eof",1);
+
 	private static var file_read = neko.Lib.load("std","file_read",4);
 	private static var file_read_char = neko.Lib.load("std","file_read_char",1);
 
