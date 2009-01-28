@@ -91,10 +91,8 @@ class HtmlEditor {
 		if( td == null ) throw "Missing type "+name;
 		if( !params.isEmpty() ) throw "Can't apply parameters";
 		return switch( td ) {
-			case TPackage(_,_,_): throw "assert";
-			case TClassdecl(c): CClass(c.path,params);
-			case TEnumdecl(e): CEnum(e.path,params);
-			case TTypedecl(t): CTypedef(t.path,params);
+			case TTypedecl(t): t.type;
+			default: throw "assert";
 		};
 	}
 
