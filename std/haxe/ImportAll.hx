@@ -102,6 +102,7 @@ import haxe.rtti.Infos;
 import haxe.rtti.CType;
 import haxe.rtti.XmlParser;
 import haxe.rtti.Generic;
+import haxe.rtti.HtmlEditor;
 
 import haxe.xml.Check;
 import haxe.xml.Fast;
