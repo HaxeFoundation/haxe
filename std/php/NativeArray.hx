@@ -1,5 +1,5 @@
 package php;
 
-extern class NativeArray implements ArrayAccess<Int> {
+extern class NativeArray implements ArrayAccess<Dynamic> {
 
 }
