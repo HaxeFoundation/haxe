@@ -48,11 +48,11 @@ class Lib {
 		return untyped __call__("fpassthru", h);
 	}
 
-	public static inline function haxeToNativeArray(a : Array<Dynamic>) : NativeArray {
-		return untyped a.a;
+	public static inline function toPhpArray(a : Array<Dynamic>) : NativeArray {
+		return untyped a.__a;
 	}
 
-	public static inline function nativeArrayToHaxe(a : NativeArray) : Array<Dynamic> {
+	public static inline function toHaxeArray(a : NativeArray) : Array<Dynamic> {
 		return untyped __call__("new _hx_array", a);
 	}
 
