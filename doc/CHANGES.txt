@@ -2,6 +2,7 @@ TODO :
 	SWC input support
 	optimizer : reduce/calculate expressions
 	flash9 : optimize enum parameters storage
+	don't use Boot.skip_constructor if no side effects in constructor
 	rtti : allow rtti on all types and store them in a global static Hash<CType> (instead of XML)
 
 2009-??-??: 2.03
