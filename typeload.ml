@@ -401,7 +401,7 @@ let set_heritance ctx c herits p =
 			| TInst ({ cl_path = [],"Array" },_)
 			| TInst ({ cl_path = [],"String" },_)
 			| TInst ({ cl_path = [],"Date" },_)
-			| TInst ({ cl_path = [],"Xml" },_) ->
+			| TInst ({ cl_path = [],"Xml" },_) when (match c.cl_path with "mt" :: _ , _ -> false | _ -> true) ->
 				error "Cannot extend basic class" p;
 			| TInst (cl,params) ->
 				if is_parent c cl then error "Recursive class" p;
