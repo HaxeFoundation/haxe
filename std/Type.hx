@@ -405,7 +405,7 @@ class Type {
 			if(untyped c.__qname__ == 'Array') return  ['push', 'concat', 'join', 'pop', 'reverse', 'shift', 'slice', 'sort', 'splice', 'toString', 'copy', 'unshift', 'insert', 'remove', 'iterator', 'length'];
 			untyped __php__("
 			$rfl = $c->__rfl__();
-			if($rfl === null) return array();
+			if($rfl === null) return new _hx_array(array());
 			$ms = $rfl->getMethods();
 			$ps = $rfl->getProperties();
 			$r = array();
@@ -454,7 +454,7 @@ class Type {
 			if(untyped c.__qname__ == 'Array')  return [];
 			untyped __php__("
 			$rfl = $c->__rfl__();
-			if($rfl === null) return array();
+			if($rfl === null) return new _hx_array(array());
 			$ms = $rfl->getMethods();
 			$ps = $rfl->getProperties();
 			$r = array();

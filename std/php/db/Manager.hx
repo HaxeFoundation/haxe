@@ -75,6 +75,7 @@ class Manager<T : Object> {
 
 		var instance_fields = Type.getInstanceFields(cls);
 		var scls = Type.getSuperClass(cls);
+		while (Type.getSuperClass(scls) != null) scls = Type.getSuperClass(scls);
 		if(scls != null) {
 			for(remove in Type.getInstanceFields(scls))
 				instance_fields.remove(remove);

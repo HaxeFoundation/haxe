@@ -40,10 +40,16 @@ class IntIter {
 		this.max = max;
 	}
 
+	/**
+		Returns true if the iterator has other items, false otherwise.
+	**/
 	public function hasNext() {
 		return min < max;
 	}
 
+	/**
+		Moves to the next item of the iterator.
+	**/
 	public function next() {
 		return min++;
 	}

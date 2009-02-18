@@ -530,7 +530,7 @@ class _hx_type {
 	private $rfl = false;
 	public function __rfl__() {
 		if($this->rfl !== false) return $this->rfl;
-		if(class_exists($this->__tname__))
+		if(class_exists($this->__tname__) || interface_exists($this->__tname__))
 			$this->rfl = new ReflectionClass($this->__tname__);
 		else
 			$this->rfl = null;

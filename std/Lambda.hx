@@ -72,7 +72,11 @@ class Lambda {
 	}
 
 	/**
-		Tells if the element is part of an iterable
+		Tells if the element is part of an iterable. The comparison
+		is made using the [==] operator. Optionally you can pass as
+		a third parameter a function that performs the comparison.
+		That function must take as arguments the two items to
+		compare and returns a boolean value.
 	**/
 	public static function has<A>( it : Iterable<A>, elt : A, ?cmp : A -> A -> Bool ) : Bool {
 		if( cmp == null ) {
@@ -88,7 +92,7 @@ class Lambda {
 	}
 
 	/**
-		Tells if at least one element of the iterable if found by using the specific function.
+		Tells if at least one element of the iterable is found by using the specific function.
 	**/
 	public static function exists<A>( it : Iterable<A>, f : A -> Bool ) {
 		for( x in it )
