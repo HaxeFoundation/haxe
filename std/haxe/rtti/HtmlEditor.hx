@@ -178,7 +178,7 @@ class HtmlEditor {
 			var current = if( v == null ) null else Type.enumConstructor(v);
 			if( nullable )
 				buf.add("<option value=''>---- NULL ----</option>");
-			var prefix = e.constructors.first().name;
+			var prefix = if( e.constructors.length <= 1 ) "" else e.constructors.first().name;
 			for( c in e.constructors )
 				while( prefix.length > 0 )
 					if( c.name.substr(0,prefix.length) == prefix )
