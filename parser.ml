@@ -214,6 +214,7 @@ and parse_class_field_resume s =
 			| [Kwd Private; Kwd Function]
 			| [Kwd Private; Kwd Var] ->
 				raise Exit
+			| [Kwd Import]
 			| [Kwd Private; Kwd Class]
 			| [Kwd Private; Kwd Interface]
 			| [Kwd Private; Kwd Enum]
