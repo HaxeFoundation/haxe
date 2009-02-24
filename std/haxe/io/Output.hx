@@ -186,13 +186,13 @@ class Output {
 	public function writeInt32( x : haxe.Int32 ) {
 		if( bigEndian ) {
 			writeByte( haxe.Int32.toInt(haxe.Int32.ushr(x,24)) );
-			writeByte( haxe.Int32.toInt(haxe.Int32.shr(x,16)) & 0xFF );
-			writeByte( haxe.Int32.toInt(haxe.Int32.shr(x,8)) & 0xFF );
+			writeByte( haxe.Int32.toInt(haxe.Int32.ushr(x,16)) & 0xFF );
+			writeByte( haxe.Int32.toInt(haxe.Int32.ushr(x,8)) & 0xFF );
 			writeByte( haxe.Int32.toInt(haxe.Int32.and(x,haxe.Int32.ofInt(0xFF))) );
 		} else {
 			writeByte( haxe.Int32.toInt(haxe.Int32.and(x,haxe.Int32.ofInt(0xFF))) );
-			writeByte( haxe.Int32.toInt(haxe.Int32.shr(x,8)) & 0xFF );
-			writeByte( haxe.Int32.toInt(haxe.Int32.shr(x,16)) & 0xFF );
+			writeByte( haxe.Int32.toInt(haxe.Int32.ushr(x,8)) & 0xFF );
+			writeByte( haxe.Int32.toInt(haxe.Int32.ushr(x,16)) & 0xFF );
 			writeByte( haxe.Int32.toInt(haxe.Int32.ushr(x,24)) );
 		}
 	}
