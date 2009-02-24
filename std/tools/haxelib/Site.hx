@@ -139,7 +139,7 @@ class Site {
 			return e;
 		}
 		neko.Sys.setTimeLocale("en_US.UTF8");
-		var url = "http://"+neko.Web.getClientHeader("Host")+"/";
+		var url = "http://"+neko.Web.getClientHeader("Host");
 		var rss = Xml.createElement("rss");
 		rss.set("version","2.0");
 		var channel = createChild(rss, "channel");
