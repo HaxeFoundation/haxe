@@ -25,6 +25,7 @@ TODO :
 	fixed f9 verify error with different kind of functions
 	moved eof() from neko.io.FileOutput to FileInput
 	added haxe.rtti.HtmlEditor
+	added neko.db.Manager.setLockMode
 
 2008-11-23: 2.02
 	Std.is(MyInterface, Class) now returns true (haXe/PHP)

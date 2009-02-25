@@ -39,7 +39,7 @@ class Manager<T : Object> {
 	private static var init_list : List<Manager<Object>> = new List();
 	private static var cache_field = "__cache__";
 	private static var no_update : Dynamic = function() { throw "Cannot update not locked object"; }
-	private static var FOR_UPDATE = "";
+	private static var LOCKS = ["","",""];
 	private static var KEYWORDS = {
 		var h = new Hash();
 		for( k in ["read","write","desc","out","group","version","option",
@@ -50,8 +50,15 @@ class Manager<T : Object> {
 
 	private static function setConnection( c : Connection ) {
 		Reflect.setField(Manager,"cnx",c);
-		if( c != null )
-			FOR_UPDATE = if( c.dbName() == "MySQL" ) " FOR UPDATE" else "";
+		if( c != null ) {
+			if( c.dbName() == "MySQL" ) {
+				LOCKS[1] = " LOCK IN SHARE MODE";
+				LOCKS[2] = " FOR UPDATE";
+			} else {
+				LOCKS[1] = "";
+				LOCKS[2] = "";
+			}
+		}
 		return c;
 	}
 
@@ -60,6 +67,7 @@ class Manager<T : Object> {
 	var table_fields : List<String>;
 	var table_keys : Array<String>;
 	var class_proto : { prototype : Dynamic };
+	var lock_mode : Int;
 
 	public function new( classval : Class<neko.db.Object> ) {
 		var cl : Dynamic = classval;
@@ -68,6 +76,7 @@ class Manager<T : Object> {
 		table_name = quoteField(if( cl.TABLE_NAME != null ) cl.TABLE_NAME else cl.__name__[cl.__name__.length-1]);
 		table_keys = if( cl.TABLE_IDS != null ) cl.TABLE_IDS else ["id"];
 		class_proto = cl;
+		lock_mode = 2;
 
 		// get the list of private fields
 		var apriv : Array<String> = cl.PRIVATE_FIELDS;
@@ -113,7 +122,7 @@ class Manager<T : Object> {
 		s.add(" = ");
 		addQuote(s,id);
 		if( lock )
-			s.add(FOR_UPDATE);
+			s.add(getLockMode());
 		return object(s.toString(),lock);
 	}
 
@@ -129,7 +138,7 @@ class Manager<T : Object> {
 		s.add(" WHERE ");
 		addKeys(s,keys);
 		if( lock )
-			s.add(FOR_UPDATE);
+			s.add(getLockMode());
 		return object(s.toString(),lock);
 	}
 
@@ -151,7 +160,7 @@ class Manager<T : Object> {
 		s.add(" WHERE ");
 		addCondition(s,x);
 		if( lock )
-			s.add(FOR_UPDATE);
+			s.add(getLockMode());
 		return objects(s.toString(),lock);
 	}
 
@@ -179,7 +188,7 @@ class Manager<T : Object> {
 	public function all( ?lock: Bool ) : List<T> {
 		if( lock == null )
 			lock = true;
-		return objects("SELECT * FROM " + table_name + if( lock ) FOR_UPDATE else "",lock);
+		return objects("SELECT * FROM " + table_name + if( lock ) getLockMode() else "",lock);
 	}
 
 	public function count( ?x : {} ) : Int {
@@ -370,7 +379,7 @@ class Manager<T : Object> {
 		s.add(table_name);
 		s.add(" WHERE ");
 		s.add(cond);
-		s.add(FOR_UPDATE);
+		s.add(getLockMode());
 		return s.toString();
 	}
 
@@ -410,6 +419,16 @@ class Manager<T : Object> {
 			}
 		}
 		return l2;
+	}
+
+	/* --------------------------- MISC API  ------------------------------ */
+
+	inline function getLockMode() {
+		return LOCKS[lock_mode];
+	}
+
+	public function setLockMode( exclusive, readShared ) {
+		lock_mode = exclusive ? 2 : (readShared ? 1 : 0);
 	}
 
 	public function dbClass() : Class<Dynamic> {
