@@ -161,7 +161,7 @@ class Main {
 		return null;
 	}
 
-	function addCommand( name, f, doc, ?net ) {
+	function addCommand( name, f, doc, ?net = true ) {
 		commands.add({ name : name, doc : doc, f : f, net : net });
 	}
 
@@ -189,7 +189,13 @@ class Main {
 		for( c in commands )
 			if( c.name == cmd ) {
 				try {
-					if( c.net ) haxe.Http.PROXY = neko.net.ProxyDetect.detect();
+					if( c.net ) {
+						var p = neko.net.ProxyDetect.detect();
+						if( p != null ) {
+							print("Using proxy "+p.host+":"+p.port);
+							haxe.Http.PROXY = p;
+						}
+					}
 					c.f();
 				} catch( e : Dynamic ) {
 					if( e == "std@host_resolve" ) {
