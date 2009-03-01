@@ -520,11 +520,14 @@ let debug_infos ?(is_min=true) ctx p =
 
 let end_fun ctx args tret =
 	let dparams = ref None in
-	let constant_value = function
+	let constant_value t = function
 		| None -> HVNone
 		| Some c ->
 			match c with
-			| TInt i -> HVInt i
+			| TInt i -> 
+				(match classify ctx t with
+				| KUInt -> HVUInt i
+				| _ -> HVInt i)
 			| TFloat s -> HVFloat (float_of_string s)
 			| TString s -> HVString s
 			| TBool b -> HVBool b
@@ -533,8 +536,8 @@ let end_fun ctx args tret =
 	in
 	List.iter (fun (_,c,t) ->
 		match !dparams with
-		| None -> if c <> None then dparams := Some [constant_value c]
-		| Some l -> dparams := Some (constant_value c :: l)
+		| None -> if c <> None then dparams := Some [constant_value t c]
+		| Some l -> dparams := Some (constant_value t c :: l)
 	) args;
 	{
 		hlmt_index = 0;

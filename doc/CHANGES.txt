@@ -26,6 +26,8 @@ TODO :
 	moved eof() from neko.io.FileOutput to FileInput
 	added haxe.rtti.HtmlEditor
 	added neko.db.Manager.setLockMode
+	genAS3 : fixed Error classes issues
+	flash9 : fixed UInt default parameter verify error
 
 2008-11-23: 2.02
 	Std.is(MyInterface, Class) now returns true (haXe/PHP)
