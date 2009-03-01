@@ -228,7 +228,7 @@ let rec type_id ctx t =
 
 let type_opt ctx t =
 	match follow t with
-	| TDynamic _ -> None
+	| TDynamic _ | TMono _ -> None
 	| _ -> Some (type_id ctx t)
 
 let type_void ctx t =
