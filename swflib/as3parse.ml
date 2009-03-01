@@ -626,6 +626,8 @@ let write_as3_int ch i =
 	end else
 		IO.write_byte ch a
 
+let write_as3_uint = write_as3_int
+
 let write_int ch i =
 	write_as3_int ch (Int32.of_int i)
 
@@ -856,7 +858,7 @@ let write ch1 ctx =
 	let empty_index = as3_empty_index ctx in
 	IO.write_i32 ch header_magic;
 	write_list ch write_as3_int ctx.as3_ints;
-	IO.write_byte ch 0;
+	write_list ch write_as3_uint ctx.as3_uints;
 	write_list ch IO.write_double ctx.as3_floats;
 	if parse_idents then write_list ch write_as3_ident ctx.as3_idents;
 	if parse_namespaces then write_list ch (write_namespace empty_index) ctx.as3_namespaces;
