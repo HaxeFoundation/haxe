@@ -693,12 +693,14 @@ and type_unop ctx op flag e p =
 		| Neg
 		| NegBits ->
 			if set then check_assign ctx e;
-			if classify e.etype = KFloat then
-				ctx.api.tfloat
-			else begin
+			(match classify e.etype with
+			| KFloat -> ctx.api.tfloat
+			| KParam t ->
+				unify ctx e.etype ctx.api.tfloat e.epos;
+				t
+			| _ ->
 				unify ctx e.etype ctx.api.tint e.epos;
-				ctx.api.tint
-			end
+				ctx.api.tint)
 		) in
 		match op, e.eexpr with
 		| Neg , TConst (TInt i) -> mk (TConst (TInt (Int32.neg i))) t p
