@@ -135,9 +135,9 @@ let expand_env path =
 	Str.global_substitute r (fun s -> try Sys.getenv (Str.matched_group 1 s) with Not_found -> "") path
 
 let parse_hxml file =
-	let ch = (try open_in file with _ -> failwith ("File not found " ^ file)) in
-	let lines = Std.input_list ch in
-	close_in ch;
+	let ch = IO.input_channel (try open_in_bin file with _ -> failwith ("File not found " ^ file)) in
+	let lines = Str.split (Str.regexp "[\r\n]+") (IO.read_all ch) in
+	IO.close_in ch;
 	List.concat (List.map (fun l ->
 		let l = ExtString.String.strip l in
 		(*// disabled - need additional str.cmxa linkage
