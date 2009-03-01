@@ -33,7 +33,7 @@ class Boot {
 	private static function __enum_str(e : Dynamic) {
 		if( e.args == null )
 			return e.tag;
-		var s = e.tag + untyped "(".__s;
+		var s : String = e.tag + untyped "(".__s;
 		var i = 0;
 		var l = untyped __dollar__asize(e.args);
 		var old = e.__string;

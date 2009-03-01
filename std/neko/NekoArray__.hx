@@ -216,7 +216,7 @@ class NekoArray__<T> implements Array<T> {
 		return untyped Array.new1(__dollar__asub(this.__a,pos,len),len);
 	}
 
-	public function sort(f) {
+	public function sort(f:T->T->Int) {
 		untyped {
 			var a = this.__a;
 			var i = 0;

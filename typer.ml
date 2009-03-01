@@ -520,9 +520,37 @@ let type_field ctx e i p get =
 	from a Dynamic relaxation, we will instead unify with float since
 	we don't want to accidentaly truncate the value
 *)
-let unify_int ctx e =
-	unify ctx e.etype ctx.api.tint e.epos;
-	true
+let unify_int ctx e k =
+	let is_dynamic t = 
+		match follow t with
+		| TDynamic _ -> true
+		| _ -> false
+	in
+	let is_dynamic_array t =
+		match follow t with 
+		| TInst (_,[p]) -> is_dynamic p
+		| _ -> true
+	in
+	let is_dynamic_field t f =
+		match follow t with
+		| TAnon a ->
+			(try is_dynamic (PMap.find f a.a_fields).cf_type with Not_found -> true)
+		| _ -> true
+	in
+	let maybe_dynamic_mono() =
+		match e.eexpr with		
+		| TLocal _ when not (is_dynamic e.etype)  -> false
+		| TArray({ etype = t },_) when not (is_dynamic_array t) -> false
+		| TField({ etype = t },f) when not (is_dynamic_field t f) -> false
+		| _ -> true
+	in
+	match k with
+	| KUnk | KDyn when maybe_dynamic_mono() ->
+		unify ctx e.etype ctx.api.tfloat e.epos;
+		false
+	| _ ->
+		unify ctx e.etype ctx.api.tint e.epos;
+		true		
 
 let rec type_binop ctx op e1 e2 p =
 	match op with
@@ -584,13 +612,13 @@ let rec type_binop ctx op e1 e2 p =
 		| KFloat, KFloat ->
 			ctx.api.tfloat
 		| KUnk , KInt ->
-			if unify_int ctx e1 then ctx.api.tint else ctx.api.tfloat
+			if unify_int ctx e1 KUnk then ctx.api.tint else ctx.api.tfloat
 		| KUnk , KFloat
 		| KUnk , KString  ->
 			unify ctx e1.etype e2.etype e1.epos;
 			e1.etype
 		| KInt , KUnk ->
-			if unify_int ctx e2 then ctx.api.tint else ctx.api.tfloat
+			if unify_int ctx e2 KUnk then ctx.api.tint else ctx.api.tfloat
 		| KFloat , KUnk
 		| KString , KUnk ->
 			unify ctx e2.etype e1.etype e2.epos;
@@ -602,8 +630,8 @@ let rec type_binop ctx op e1 e2 p =
 		| KDyn , _ ->
 			e1.etype
 		| KUnk , KUnk ->
-			let ok1 = unify_int ctx e1 in
-			let ok2 = unify_int ctx e2 in
+			let ok1 = unify_int ctx e1 KUnk in
+			let ok2 = unify_int ctx e2 KUnk in
 			if ok1 && ok2 then ctx.api.tint else ctx.api.tfloat
 		| KParam t1, KParam t2 when t1 == t2 ->
 			t1
@@ -644,15 +672,15 @@ let rec type_binop ctx op e1 e2 p =
 			if op <> OpDiv then result := t
 		| KParam _, KFloat | KFloat, KParam _ ->
 			result := ctx.api.tfloat
-		| KFloat, _ ->
-			ignore(unify_int ctx e2);
+		| KFloat, k ->
+			ignore(unify_int ctx e2 k);
 			result := ctx.api.tfloat
-		| _, KFloat ->
-			ignore(unify_int ctx e1);
+		| k, KFloat ->
+			ignore(unify_int ctx e1 k);
 			result := ctx.api.tfloat
-		| _ , _ ->
-			let ok1 = unify_int ctx e1 in
-			let ok2 = unify_int ctx e2 in
+		| k1 , k2 ->
+			let ok1 = unify_int ctx e1 k1 in
+			let ok2 = unify_int ctx e2 k2 in
 			if not ok1 || not ok2  then result := ctx.api.tfloat;
 		);
 		mk_op !result
@@ -669,13 +697,13 @@ let rec type_binop ctx op e1 e2 p =
 	| OpLte ->
 		(match classify e1.etype, classify e2.etype with
 		| KInt , KInt | KInt , KFloat | KFloat , KInt | KFloat , KFloat | KString , KString -> ()
-		| KInt , KUnk -> ignore(unify_int ctx e2)
+		| KInt , KUnk -> ignore(unify_int ctx e2 KUnk)
 		| KFloat , KUnk | KString , KUnk -> unify ctx e2.etype e1.etype e2.epos
-		| KUnk , KInt -> ignore(unify_int ctx e1)
+		| KUnk , KInt -> ignore(unify_int ctx e1 KUnk)
 		| KUnk , KFloat | KUnk , KString -> unify ctx e1.etype e2.etype e1.epos
 		| KUnk , KUnk ->
-			ignore(unify_int ctx e1);
-			ignore(unify_int ctx e2);
+			ignore(unify_int ctx e1 KUnk);
+			ignore(unify_int ctx e2 KUnk);
 		| KDyn , KInt | KDyn , KFloat | KDyn , KString -> ()
 		| KInt , KDyn | KFloat , KDyn | KString , KDyn -> ()
 		| KDyn , KDyn -> ()
@@ -728,8 +756,8 @@ and type_unop ctx op flag e p =
 			| KParam t ->
 				unify ctx e.etype ctx.api.tfloat e.epos;
 				t
-			| _ ->
-				if unify_int ctx e then ctx.api.tint else ctx.api.tfloat)
+			| k ->
+				if unify_int ctx e k then ctx.api.tint else ctx.api.tfloat)
 		) in
 		match op, e.eexpr with
 		| Neg , TConst (TInt i) -> mk (TConst (TInt (Int32.neg i))) t p

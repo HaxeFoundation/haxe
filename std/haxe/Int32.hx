@@ -171,7 +171,7 @@ class Int32 {
 		#if neko
 		return untyped __i32__compare(a,b);
 		#else
-		return (cast a) - (cast b);
+		return untyped a - b;
 		#end
 	}
 

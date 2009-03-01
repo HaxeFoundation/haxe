@@ -36,7 +36,7 @@ class PhpDate__ //implements Date
 	public function getTime() : Float {
 		return __t*1000;
 	}
-	
+
 	public function getPhpTime() : Float {
 		return __t;
 	}
@@ -46,7 +46,8 @@ class PhpDate__ //implements Date
 	}
 
 	public function getMonth() : Int {
-		return -1 + untyped __call__("intval", __call__("date", "n", this.__t));
+		var m : Int = untyped __call__("intval", __call__("date", "n", this.__t));
+		return -1 + m;
 	}
 
 	public function getDate() : Int {
@@ -82,7 +83,7 @@ class PhpDate__ //implements Date
 		d.__t = t;
 		return d;
 	}
-	
+
 	public static function fromTime( t : Float ){
 		var d = new PhpDate__(2000,1,1,0,0,0);
 		d.__t = t/1000;

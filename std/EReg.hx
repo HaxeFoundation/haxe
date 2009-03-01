@@ -185,7 +185,8 @@ class EReg {
 			return s.substr(rl,s.length - rl);
 		#elseif php
 			if( untyped __call__("count", matches) == 0 ) throw "No string matched";
-			return untyped last.substr(__php__("$this->matches[0][1]") + __php__("strlen")(__php__("$this->matches[0][0]")));
+			var x : Int = untyped __php__("$this->matches[0][1]") + __php__("strlen")(__php__("$this->matches[0][0]"));
+			return last.substr(x);
 		#else
 			return null;
 		#end
