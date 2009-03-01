@@ -31,6 +31,7 @@ TODO :
 	flash9 : fixed UInt default parameter verify error
 	flash9 : fixed issue with flash.* string enums verify error
 	compiler : allowed \r line separators for HXML files
+	flash9 : fixed verify error with loop variable beeing a specific class
 
 2008-11-23: 2.02
 	Std.is(MyInterface, Class) now returns true (haXe/PHP)

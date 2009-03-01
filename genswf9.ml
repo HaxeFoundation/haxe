@@ -637,7 +637,7 @@ let begin_fun ctx args tret el stat p =
 			| KBool -> HFalse :: s
 			| KType t -> HNull :: HAsType t :: s
 			| KDynamic -> HNull :: HAsAny :: s
-			| KNone -> HNull :: s
+			| KNone -> HNull :: HAsType (HMPath ([],"Class")) :: s
 		) (DynArray.to_list ctx.infos.iregs)) in
 		let delta = List.length extra in
 		let f = {
