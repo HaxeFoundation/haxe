@@ -73,7 +73,7 @@ let s_path ctx stat path p =
 		let name = protect name in
 		let packs = (try Hashtbl.find ctx.imports name with Not_found -> []) in
 		if not (List.mem pack packs) then Hashtbl.replace ctx.imports name (pack :: packs);
-		Ast.s_type_path path
+		Ast.s_type_path (pack,name)
 
 let reserved =
 	let h = Hashtbl.create 0 in
