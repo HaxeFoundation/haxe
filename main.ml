@@ -140,12 +140,11 @@ let parse_hxml file =
 	IO.close_in ch;
 	List.concat (List.map (fun l ->
 		let l = ExtString.String.strip l in
-		(*// disabled - need additional str.cmxa linkage
-			let renv = Str.regexp "%\\([A-Za-z0-9_]+\\)%" in
-			let l = Str.global_substitute renv (fun _ ->
+		let renv = Str.regexp "%\\([A-Za-z0-9_]+\\)%" in
+		let l = Str.global_substitute renv (fun _ ->
 			let e = Str.matched_group 1 l in
 			try Sys.getenv e with Not_found -> "%" ^ e ^ "%"
-		) l in  *)
+		) l in
 		if l = "" || l.[0] = '#' then
 			[]
 		else if l.[0] = '-' then
