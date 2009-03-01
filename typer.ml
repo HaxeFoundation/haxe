@@ -238,6 +238,22 @@ let type_type ctx tpath p =
 	check_locals_masking ctx e;
 	e
 
+let get_constructor c p =
+	let rec loop c = 
+		match c.cl_constructor with 
+		| Some f -> f 
+		| None ->
+			if not c.cl_extern then raise Not_found;
+			match c.cl_super with
+			| None -> raise Not_found
+			| Some (csup,[]) -> loop csup
+			| Some (_,_) -> error (s_type_path c.cl_path ^ " must define its own constructor") p
+	in
+	try
+		loop c
+	with Not_found ->
+		error (s_type_path c.cl_path ^ " does not have a constructor") p
+
 let acc_get g p =
 	match g with
 	| AccNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
@@ -1223,8 +1239,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let el, c , params = (match follow t with
 		| TInst (c,params) ->
 			let name = (match c.cl_path with [], name -> name | x :: _ , _ -> x) in
-			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;
-			let f = (match c.cl_constructor with Some f -> f | None -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
+			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;					
+			let f = get_constructor c p in
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then error "Cannot access private constructor" p;
 			let el = (match follow (apply_params c.cl_types params (field_type f)) with
 			| TFun (args,r) ->
@@ -1342,7 +1358,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let t = Typeload.load_normal_type ctx t p true in
 		(match follow t with
 		| TInst (c,params) ->
-			let f = (match c.cl_constructor with Some f -> f | None -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
+			let f = get_constructor c p in
 			let t = apply_params c.cl_types params (field_type f) in
 			raise (Display t)
 		| _ ->
@@ -1404,8 +1420,8 @@ and type_call ctx e el p =
 		if ctx.in_static || not ctx.in_constructor then error "Cannot call superconstructor outside class constructor" p;
 		let el, t = (match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a super" p
-		| Some (c,params) ->
-			let f = (match c.cl_constructor with Some f -> f | None -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
+		| Some (c,params) ->					
+			let f = get_constructor c p in
 			let el = (match follow (apply_params c.cl_types params (field_type f)) with
 			| TFun (args,_) ->
 				unify_call_params ctx (Some "new") el args p false

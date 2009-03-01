@@ -780,7 +780,7 @@ let init_class ctx c p herits fields =
 							| TPConst _ -> false (* prevent multiple incompatible types *)
 						in
 						let t = (match t with
-							| Some t when c.cl_extern || is_qualified t -> Some t
+							| Some t when is_qualified t -> Some t
 							| _ -> None
 						) in
 						a,opt,t,def
@@ -791,7 +791,10 @@ let init_class ctx c p herits fields =
 					ctx.delays := [delayed] :: !(ctx.delays);
 					infos
 	in
-	ignore(define_constructor ctx c);
+	(*
+		extern classes will browse superclass to find a constructor
+	*)
+	if not c.cl_extern then ignore(define_constructor ctx c);
 	fl
 
 let type_module ctx m tdecls loadp =
