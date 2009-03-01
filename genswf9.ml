@@ -170,6 +170,10 @@ let type_path ctx path =
 	let pack, name = real_path path in
 	HMPath (pack,name)
 
+let is_int_enum = function
+	| "ActionScriptVersion" | "SWFVersion" | "EventPhase" | "KeyLocation" | "XmlNodeType" -> true
+	| _ -> false
+
 let rec follow_basic t =
 	match t with
 	| TMono r ->
@@ -217,6 +221,8 @@ let rec type_id ctx t =
 	| TEnum ({ e_path = ([],"Bool") as path },_)
 	| TType ({ t_path = ([],"UInt") as path },_) ->
 		type_path ctx path
+	| TEnum ({ e_path = ("flash" :: _,name); e_extern = true },_) ->
+		HMPath ([],if is_int_enum name then "int" else "String")
 	| _ ->
 		HMPath ([],"Object")
 
@@ -239,9 +245,7 @@ let classify ctx t =
 	| TEnum ({ e_path = [],"Bool" },_) ->
 		KBool
 	| TEnum ({ e_extern = true; e_path = "flash" :: _ , name },[]) ->
-		(match name with
-		| "ActionScriptVersion" | "SWFVersion" | "EventPhase" | "KeyLocation" | "XmlNodeType" -> KInt
-		| _ -> KType (HMPath ([],"String")))
+		if is_int_enum name then KInt else KType (HMPath ([],"String"))
 	| TEnum _
 	| TInst _ ->
 		KType (type_id ctx t)
