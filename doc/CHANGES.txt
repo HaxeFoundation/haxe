@@ -27,6 +27,7 @@ TODO :
 	added haxe.rtti.HtmlEditor
 	added neko.db.Manager.setLockMode
 	genAS3 : fixed Error classes issues
+	genAS3 : fixed default basic type value in interfaces
 	flash9 : fixed UInt default parameter verify error
 	compiler : allowed \r line separators for HXML files
 

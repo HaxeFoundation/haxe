@@ -812,8 +812,13 @@ let generate_field ctx static f =
 			| TFun (args,r) ->
 				print ctx "function %s(" f.cf_name;
 				concat ctx "," (fun (arg,o,t) ->
-					print ctx "%s : %s" arg (type_str ctx t p);
-					if o then spr ctx " = null";
+					let tstr = type_str ctx t p in
+					print ctx "%s : %s" arg tstr;
+					if o then print ctx " = %s" (match tstr with
+						| "int" | "uint" -> "0"
+						| "Number" -> "NaN"
+						| "Boolean" -> "false"
+						| _ -> "null");					
 				) args;
 				print ctx ") : %s " (type_str ctx r p);
 			| _ -> ()
