@@ -514,6 +514,16 @@ let type_field ctx e i p get =
 	| t ->
 		no_field()
 
+(*
+	We want to try unifying as an integer and apply side effects.
+	However, in case the value is not a normal Monomorph but one issued
+	from a Dynamic relaxation, we will instead unify with float since
+	we don't want to accidentaly truncate the value
+*)
+let unify_int ctx e =
+	unify ctx e.etype ctx.api.tint e.epos;
+	true
+
 let rec type_binop ctx op e1 e2 p =
 	match op with
 	| OpAssign ->
@@ -573,12 +583,14 @@ let rec type_binop ctx op e1 e2 p =
 		| KInt, KFloat
 		| KFloat, KFloat ->
 			ctx.api.tfloat
-		| KUnk , KInt
+		| KUnk , KInt ->
+			if unify_int ctx e1 then ctx.api.tint else ctx.api.tfloat
 		| KUnk , KFloat
 		| KUnk , KString  ->
 			unify ctx e1.etype e2.etype e1.epos;
 			e1.etype
-		| KInt , KUnk
+		| KInt , KUnk ->
+			if unify_int ctx e2 then ctx.api.tint else ctx.api.tfloat
 		| KFloat , KUnk
 		| KString , KUnk ->
 			unify ctx e2.etype e1.etype e2.epos;
@@ -590,10 +602,9 @@ let rec type_binop ctx op e1 e2 p =
 		| KDyn , _ ->
 			e1.etype
 		| KUnk , KUnk ->
-			let t = ctx.api.tint in
-			unify ctx e1.etype t e1.epos;
-			unify ctx e2.etype t e2.epos;
-			t
+			let ok1 = unify_int ctx e1 in
+			let ok2 = unify_int ctx e2 in
+			if ok1 && ok2 then ctx.api.tint else ctx.api.tfloat
 		| KParam t1, KParam t2 when t1 == t2 ->
 			t1
 		| KParam t, KInt | KInt, KParam t ->
@@ -621,7 +632,6 @@ let rec type_binop ctx op e1 e2 p =
 	| OpMult
 	| OpDiv
 	| OpSub ->
-		let i = ctx.api.tint in
 		let result = ref (if op = OpDiv then ctx.api.tfloat else ctx.api.tint) in
 		(match classify e1.etype, classify e2.etype with
 		| KFloat, KFloat ->
@@ -635,14 +645,16 @@ let rec type_binop ctx op e1 e2 p =
 		| KParam _, KFloat | KFloat, KParam _ ->
 			result := ctx.api.tfloat
 		| KFloat, _ ->
-			unify ctx e2.etype i e2.epos;
+			ignore(unify_int ctx e2);
 			result := ctx.api.tfloat
 		| _, KFloat ->
-			unify ctx e1.etype i e1.epos;
+			ignore(unify_int ctx e1);
 			result := ctx.api.tfloat
 		| _ , _ ->
-			unify ctx e1.etype i e1.epos;
-			unify ctx e2.etype i e2.epos);
+			let ok1 = unify_int ctx e1 in
+			let ok2 = unify_int ctx e2 in
+			if not ok1 || not ok2  then result := ctx.api.tfloat;
+		);
 		mk_op !result
 	| OpEq
 	| OpNotEq ->
@@ -657,11 +669,13 @@ let rec type_binop ctx op e1 e2 p =
 	| OpLte ->
 		(match classify e1.etype, classify e2.etype with
 		| KInt , KInt | KInt , KFloat | KFloat , KInt | KFloat , KFloat | KString , KString -> ()
-		| KInt , KUnk | KFloat , KUnk | KString , KUnk -> unify ctx e2.etype e1.etype e2.epos
-		| KUnk , KInt | KUnk , KFloat | KUnk , KString -> unify ctx e1.etype e2.etype e1.epos
+		| KInt , KUnk -> ignore(unify_int ctx e2)
+		| KFloat , KUnk | KString , KUnk -> unify ctx e2.etype e1.etype e2.epos
+		| KUnk , KInt -> ignore(unify_int ctx e1)
+		| KUnk , KFloat | KUnk , KString -> unify ctx e1.etype e2.etype e1.epos
 		| KUnk , KUnk ->
-			unify ctx e1.etype ctx.api.tint e1.epos;
-			unify ctx e2.etype ctx.api.tint e2.epos;
+			ignore(unify_int ctx e1);
+			ignore(unify_int ctx e2);
 		| KDyn , KInt | KDyn , KFloat | KDyn , KString -> ()
 		| KInt , KDyn | KFloat , KDyn | KString , KDyn -> ()
 		| KDyn , KDyn -> ()
@@ -715,8 +729,7 @@ and type_unop ctx op flag e p =
 				unify ctx e.etype ctx.api.tfloat e.epos;
 				t
 			| _ ->
-				unify ctx e.etype ctx.api.tint e.epos;
-				ctx.api.tint)
+				if unify_int ctx e then ctx.api.tint else ctx.api.tfloat)
 		) in
 		match op, e.eexpr with
 		| Neg , TConst (TInt i) -> mk (TConst (TInt (Int32.neg i))) t p
