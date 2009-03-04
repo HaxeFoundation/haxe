@@ -228,7 +228,7 @@ try
 		Common.define com name; (* define platform name *)
 		Unix.putenv "__file__" file;
 		Unix.putenv "__platform__" file;
-		if pf = Flash && file_extension file = "swc" then Common.define com "swc";
+		if (pf = Flash || pf = Flash9) && file_extension file = "swc" then Common.define com "swc";
 	in
 	let define f = Arg.Unit (fun () -> Common.define com f) in
 	let args_spec = [
