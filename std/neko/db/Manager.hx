@@ -298,6 +298,8 @@ class Manager<T : Object> {
 			Reflect.setField(i,f,Reflect.field(i2,f));
 		// set same field-cache
 		Reflect.setField(i,cache_field,Reflect.field(i2,cache_field));
+		// rebuild in case it's needed
+		make(i);
 		addToCache(i);
 	}
 
