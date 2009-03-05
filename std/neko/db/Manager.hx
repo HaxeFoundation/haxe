@@ -521,6 +521,8 @@ class Manager<T : Object> {
 				Reflect.setField(c,f,Reflect.field(x,f));
 			// use the new object as our cache of fields
 			Reflect.setField(c,cache_field,x);
+			// remake object
+			make(c);
 		}
 		return c;
 	}
