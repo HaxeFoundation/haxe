@@ -511,9 +511,17 @@ class Manager<T : Object> {
 
 	function getFromCache( x : T, lock : Bool ) : T {
 		var c : Dynamic = object_cache.get(makeCacheKey(x));
-		// restore update method since now the object is locked
-		if( c != null && lock && c.update == no_update )
+		if( c != null && lock && c.update == no_update ) {
+			// restore update method since now the object is locked
 			c.update = class_proto.prototype.update;
+			// and synchronize the fields since our result is up-to-date !
+			for( f in Reflect.fields(c) )
+				Reflect.deleteField(c,f);
+			for( f in Reflect.fields(x) )
+				Reflect.setField(c,f,Reflect.field(x,f));
+			// use the new object as our cache of fields
+			Reflect.setField(c,cache_field,x);
+		}
 		return c;
 	}
 
