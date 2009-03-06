@@ -537,11 +537,17 @@ let unify_int ctx e k =
 			(try is_dynamic (PMap.find f a.a_fields).cf_type with Not_found -> true)
 		| _ -> true
 	in
+	let is_dynamic_return t =
+		match follow t with
+		| TFun (_,r) -> is_dynamic r
+		| _ -> true
+	in
 	let maybe_dynamic_mono() =
 		match e.eexpr with		
 		| TLocal _ when not (is_dynamic e.etype)  -> false
 		| TArray({ etype = t },_) when not (is_dynamic_array t) -> false
 		| TField({ etype = t },f) when not (is_dynamic_field t f) -> false
+		| TCall({ etype = t },_) when not (is_dynamic_return t) -> false
 		| _ -> true
 	in
 	match k with
