@@ -231,11 +231,16 @@ try
 		if (pf = Flash || pf = Flash9) && file_extension file = "swc" then Common.define com "swc";
 	in
 	let define f = Arg.Unit (fun () -> Common.define com f) in
-	let args_spec = [
+	let basic_args_spec = [
 		("-cp",Arg.String (fun path ->
 			com.class_path <- normalize_path path :: com.class_path
 		),"<path> : add a directory to find source files");
 		("-js",Arg.String (set_platform Js "js"),"<file> : compile code to JavaScript file");
+		("-swf",Arg.String (set_platform Flash "flash"),"<file> : compile code to Flash SWF file");
+		("-swf9",Arg.String (fun file ->
+			set_platform Flash "flash" file;
+			if com.flash_version < 9 then com.flash_version <- 9;
+		),"<file> : compile code to Flash9 SWF file");
 		("-as3",Arg.String (fun dir ->
 			set_platform Flash "flash" dir;
 			if com.flash_version < 9 then com.flash_version <- 9;
@@ -243,29 +248,6 @@ try
 			Common.define com "as3";
 			Common.define com "no_inline";
 		),"<directory> : generate AS3 code into target directory");
-		("-swf",Arg.String (set_platform Flash "flash"),"<file> : compile code to Flash SWF file");
-		("-swf9",Arg.String (fun file ->
-			set_platform Flash "flash" file;
-			if com.flash_version < 9 then com.flash_version <- 9;
-		),"<file> : compile code to Flash9 SWF file");
-		("-swf-version",Arg.Int (fun v ->
-			com.flash_version <- v;
-		),"<version> : change the SWF version (6 to 10)");
-		("-swf-header",Arg.String (fun h ->
-			try
-				swf_header := Some (match ExtString.String.nsplit h ":" with
-				| [width; height; fps] ->
-					(int_of_string width,int_of_string height,float_of_string fps,0xFFFFFF)
-				| [width; height; fps; color] ->
-					(int_of_string width, int_of_string height, float_of_string fps, int_of_string ("0x" ^ color))
-				| _ -> raise Exit)
-			with
-				_ -> raise (Arg.Bad "Invalid SWF header format")
-		),"<header> : define SWF header (width:height:fps:color)");
-		("-swf-lib",Arg.String (fun file ->
-			if !swf_lib <> None then raise (Arg.Bad "Only one SWF Library is allowed");
-			swf_lib := Some file
-		),"<file> : add the SWF library to the compiled SWF");
 		("-neko",Arg.String (set_platform Neko "neko"),"<file> : compile code to Neko Binary");
 		("-php",Arg.String (fun dir ->
 			classes := (["php"],"Boot") :: !classes;
@@ -274,16 +256,6 @@ try
 			classes := (["php"],"PhpMath__") :: !classes;
 			set_platform Php "php" dir;
 		),"<directory> : generate PHP code into target directory");
-		("-x", Arg.String (fun file ->
-			let neko_file = file ^ ".n" in
-			set_platform Neko "neko" neko_file;
-			if com.main_class = None then begin
-				let cpath = make_path file in
-				com.main_class <- Some cpath;
-				classes := cpath :: !classes
-			end;
-			cmds := ("neko " ^ neko_file) :: !cmds;
-		),"<file> : shortcut for compiling and executing a neko file");
 		("-xml",Arg.String (fun file ->
 			Parser.use_doc := true;
 			xml_out := Some file
@@ -302,6 +274,42 @@ try
 			if var = "use_rtti_doc" then Parser.use_doc := true;
 			Common.define com var
 		),"<var> : define a conditional compilation flag");
+		("-v",Arg.Unit (fun () ->
+			if not !display then com.verbose <- true
+		),": turn on verbose mode");
+		("-debug", Arg.Unit (fun() ->
+			Common.define com "debug"; com.debug <- true)
+		, ": add debug informations to the compiled code");
+	] in
+	let adv_args_spec = [
+		("-swf-version",Arg.Int (fun v ->
+			com.flash_version <- v;
+		),"<version> : change the SWF version (6 to 10)");
+		("-swf-header",Arg.String (fun h ->
+			try
+				swf_header := Some (match ExtString.String.nsplit h ":" with
+				| [width; height; fps] ->
+					(int_of_string width,int_of_string height,float_of_string fps,0xFFFFFF)
+				| [width; height; fps; color] ->
+					(int_of_string width, int_of_string height, float_of_string fps, int_of_string ("0x" ^ color))
+				| _ -> raise Exit)
+			with
+				_ -> raise (Arg.Bad "Invalid SWF header format")
+		),"<header> : define SWF header (width:height:fps:color)");
+		("-swf-lib",Arg.String (fun file ->
+			if !swf_lib <> None then raise (Arg.Bad "Only one SWF Library is allowed");
+			swf_lib := Some file
+		),"<file> : add the SWF library to the compiled SWF");
+		("-x", Arg.String (fun file ->
+			let neko_file = file ^ ".n" in
+			set_platform Neko "neko" neko_file;
+			if com.main_class = None then begin
+				let cpath = make_path file in
+				com.main_class <- Some cpath;
+				classes := cpath :: !classes
+			end;
+			cmds := ("neko " ^ neko_file) :: !cmds;
+		),"<file> : shortcut for compiling and executing a neko file");
 		("-resource",Arg.String (fun res ->
 			let file, name = (match ExtString.String.nsplit res "@" with
 				| [file; name] -> file, name
@@ -326,10 +334,6 @@ try
 				| x :: l -> (List.rev l,x)
 			) lines) @ !excludes;
 		),"<filename> : don't generate code for classes listed in this file");
-		("-v",Arg.Unit (fun () ->
-			if not !display then com.verbose <- true
-		),": turn on verbose mode");
-		("-debug", Arg.Unit (fun() -> Common.define com "debug"; com.debug <- true), ": add debug informations to the compiled code");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
 		("-cmd", Arg.String (fun cmd ->			
 			cmds := expand_env cmd :: !cmds
@@ -358,6 +362,7 @@ try
 		("--no-output", Arg.Unit (fun() -> no_output := true),": compiles but does not generate any file");
 		("--times", Arg.Unit (fun() -> measure_times := true),": mesure compilation times");
 		("--no-inline", define "no_inline", ": disable inlining");
+		("--no-opt", define "no_opt", ": disable code optimizations");		
 		("--php-front",Arg.String (fun f ->
 			if com.php_front <> None then raise (Arg.Bad "Multiple --php-front");
 			com.php_front <- Some f;
@@ -381,7 +386,7 @@ try
 		| _ ->
 			classes := make_path cl :: !classes
 	in
-	Arg.parse_argv ~current args args_spec args_callback usage;
+	Arg.parse_argv ~current args (basic_args_spec @ adv_args_spec) args_callback usage;
 	(match !libs with
 	| [] -> ()
 	| l ->
@@ -423,7 +428,7 @@ try
 		to accidentaly delete a source file. *)
 	if not !no_output && file_extension com.file = ext then delete_file com.file;
 	if !classes = [([],"Std")] then begin
-		if !cmds = [] && not !did_something then Arg.usage args_spec usage;
+		if !cmds = [] && not !did_something then Arg.usage basic_args_spec usage;
 	end else begin
 		if com.verbose then print_endline ("Classpath : " ^ (String.concat ";" com.class_path));
 		let t = Common.timer "typing" in
@@ -441,8 +446,8 @@ try
 		let filters = [
 			Codegen.check_local_vars_init;
 			Codegen.block_vars com;
-			Optimizer.reduce_expression com;
 		] in
+		let filters = (if Common.defined com "no_opt" then filters else Optimizer.reduce_expression com :: filters) in
 		Codegen.post_process com filters;
 		(match com.platform with
 		| Cross ->

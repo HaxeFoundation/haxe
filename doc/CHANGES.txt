@@ -35,6 +35,8 @@ TODO :
 	compiler : fixed issue with cascading inline+haxe.rtti.Generic
 	optimizer : reduce constant int/float/bool expressions and immediate function calls
 	flash9/as3/php : don't add Boot.skip_constructor test if no side effects in constructor
+	compiler : added --no-opt to disable expr reduction
+	compiler : separated basic and advanced commandline options
 
 2008-11-23: 2.02
 	Std.is(MyInterface, Class) now returns true (haXe/PHP)
