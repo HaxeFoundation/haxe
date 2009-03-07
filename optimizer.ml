@@ -312,7 +312,7 @@ let rec reduce_loop com is_sub e =
 				)
 			in
 			let ebool t =
-				{ e with eexpr = TConst (TBool (t (Int32.compare a b))) }
+				{ e with eexpr = TConst (TBool (t (Int32.compare b a))) }
 			in
 			(match op with
 			| OpAdd -> check_overflow Int64.add
@@ -341,7 +341,7 @@ let rec reduce_loop com is_sub e =
 					e
 			in
 			let ebool t =
-				{ e with eexpr = TConst (TBool (t (compare a b))) }
+				{ e with eexpr = TConst (TBool (t (compare b a))) }
 			in
 			(match op with
 			| OpAdd -> fop (+.)
@@ -364,7 +364,31 @@ let rec reduce_loop com is_sub e =
 			| OpBoolAnd -> ebool (&&)
 			| OpBoolOr -> ebool (||)
 			| _ -> e)
+		| TConst (TBool a), _ ->
+			(match op with
+			| OpBoolAnd -> if a then e2 else { e with eexpr = TConst (TBool false) }
+			| OpBoolOr -> if a then { e with eexpr = TConst (TBool true) } else e2
+			| _ -> e)
+		| _ , TConst (TBool a) ->
+			(match op with
+			| OpBoolAnd when a  -> e1
+			| OpBoolOr when not a -> e1
+			| _ -> e)
 		| _ -> e)
+	| TUnop (op,flag,esub) ->
+		(match op, esub.eexpr with
+		| Not, TConst (TBool f) -> { e with eexpr = TConst (TBool (not f)) }
+		| Neg, TConst (TInt i) -> { e with eexpr = TConst (TInt (Int32.neg i)) }
+		| NegBits, TConst (TInt i) -> { e with eexpr = TConst (TInt (Int32.lognot i)) }
+		| Neg, TConst (TFloat f) ->
+			let v = 0. -. float_of_string f in
+			let vstr = string_of_float v in
+			if float_of_string vstr = v then
+				{ e with eexpr = TConst (TFloat vstr) }
+			else
+				e
+		| _ -> e
+		)
 	| TCall ({ eexpr = TFunction func },el) ->
 		let rec build term e =
 			match e.eexpr with
