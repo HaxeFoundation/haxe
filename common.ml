@@ -47,6 +47,7 @@ type context_type_api = {
 	mutable build_instance : module_type -> pos -> ((string * t) list * path * (t list -> t));
 	mutable on_generate : module_type -> unit;
 	mutable get_type_module : module_type -> module_def;
+	mutable optimize : texpr -> texpr;
 }
 
 type context = {
@@ -104,6 +105,7 @@ let create v =
 			build_instance = (fun _ _ -> assert false);
 			on_generate = (fun _ -> ());
 			get_type_module = (fun _ -> assert false);
+			optimize = (fun _ -> assert false);
 		};
 		lines = Lexer.build_line_index();
 	}

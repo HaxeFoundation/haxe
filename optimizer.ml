@@ -143,7 +143,7 @@ let type_inline ctx cf f ethis params tret p =
 			| TBlock l, Some init -> mk (TBlock (init :: l)) tret e.epos
 			| _, Some init -> mk (TBlock [init;e]) tret e.epos
 		) in
-		(* we need to replace type-parameters that were used in the expression *)		
+		(* we need to replace type-parameters that were used in the expression *)
 		let tparams = (match follow ethis.etype with TInst (c,pl) -> (c.cl_types,pl) | _ -> ([],[])) in
 		match cf.cf_params, tparams with
 		| [], ([],_) -> Some e
@@ -157,11 +157,9 @@ let type_inline ctx cf f ethis params tret p =
 				this is very expensive since we are building the substitution list for 
 				every expression, but hopefully in such cases the expression size is small
 			*)
-			let rec map_type e = 
-				let e = { e with etype = apply_params tparams tmonos e.etype } in
-				Type.map_expr map_type e
-			in
-			Some (map_type e)
+			let map_type t = apply_params tparams tmonos t in
+			let rec map_expr_type e = Type.map_expr_type map_expr_type map_type e in
+			Some (map_expr_type e)
 
 (* ---------------------------------------------------------------------- *)
 (* LOOPS *)
@@ -269,3 +267,139 @@ let optimize_for_loop ctx i e1 e2 p =
 		]
 	| _ ->
 		None
+
+(* ---------------------------------------------------------------------- *)
+(* REDUCE *)
+
+let rec reduce_loop com is_sub e =
+	let is_float t =
+		match follow t with
+		| TInst ({ cl_path = ([],"Float") },_) -> true
+		| _ -> false
+	in
+	let is_text_platform() =
+		match com.platform with
+		| Js | Php -> true 
+		| Neko | Flash | Flash9 | Cross -> false
+	in
+	let e = Type.map_expr (reduce_loop com (match e.eexpr with TBlock _ -> false | _ -> true)) e in
+	match e.eexpr with
+	| TIf ({ eexpr = TConst (TBool t) },e1,e2) ->
+		(if t then e1 else match e2 with None -> { e with eexpr = TBlock [] } | Some e -> e)
+	| TWhile ({ eexpr = TConst (TBool false) },sub,flag) ->
+		(match flag with
+		| NormalWhile -> { e with eexpr = TBlock [] } (* erase sub *)
+		| DoWhile -> e) (* we cant remove while since sub can contain continue/break *)
+	| TBinop (op,e1,e2) ->		
+		let zero = (match op with
+			| OpAdd | OpSub | OpShl | OpShr | OpUShr | OpXor -> Some (0l,0.)
+			| OpMult | OpDiv -> Some (1l,1.)
+			| _ -> None
+		) in
+		(match e1.eexpr, e2.eexpr with
+		| TConst (TInt v) , _ when (match zero with Some (z,_) when z = v -> true | _ -> false) -> e2
+		| _ , TConst (TInt v) when (match zero with Some (z,_) when z = v -> true | _ -> false) -> e1
+		| TConst (TFloat v) , _ when (match zero with Some (_,z) when z = float_of_string v -> is_float e2.etype | _ -> false) -> e2
+		| _ , TConst (TFloat v) when (match zero with Some (_,z) when z = float_of_string v -> is_float e1.etype | _ -> false) -> e1
+		| TConst (TInt a), TConst (TInt b) ->
+			let opt f = try { e with eexpr = TConst (TInt (f a b)) } with Exit -> e in
+			let check_overflow f =
+				opt (fun a b ->
+					let v = f (Int64.of_int32 a) (Int64.of_int32 b) in
+					let iv = Int64.to_int32 v in
+					if Int64.compare (Int64.of_int32 iv) v <> 0 then raise Exit;
+					iv
+				)
+			in
+			let ebool t =
+				{ e with eexpr = TConst (TBool (t (Int32.compare a b))) }
+			in
+			(match op with
+			| OpAdd -> check_overflow Int64.add
+			| OpSub -> check_overflow Int64.sub
+			| OpMult -> check_overflow Int64.mul
+			| OpAnd -> opt Int32.logand
+			| OpOr -> opt Int32.logor
+			| OpXor -> opt Int32.logxor
+			| OpShl -> opt (fun a b -> Int32.shift_left a (Int32.to_int b))
+			| OpShr -> opt (fun a b -> Int32.shift_right a (Int32.to_int b))
+			| OpUShr -> opt (fun a b -> Int32.shift_right_logical a (Int32.to_int b))
+			| OpEq -> ebool ((=) 0)
+			| OpNotEq -> ebool ((<>) 0)
+			| OpGt -> ebool ((>) 0)
+			| OpGte -> ebool ((>=) 0)
+			| OpLt -> ebool ((<) 0)
+			| OpLte -> ebool ((<=) 0)
+			| _ -> e)
+		| TConst (TFloat a), TConst (TFloat b) ->
+			let fop f =
+				let v = f (float_of_string a) (float_of_string b) in
+				let vstr = string_of_float v in
+				if v = float_of_string vstr then
+					{ e with eexpr = TConst (TFloat vstr) }
+				else
+					e
+			in
+			let ebool t =
+				{ e with eexpr = TConst (TBool (t (compare a b))) }
+			in
+			(match op with
+			| OpAdd -> fop (+.)
+			| OpSub -> fop (-.)
+			| OpMult -> fop ( *. )
+			| OpEq -> ebool ((=) 0)
+			| OpNotEq -> ebool ((<>) 0)
+			| OpGt -> ebool ((>) 0)
+			| OpGte -> ebool ((>=) 0)
+			| OpLt -> ebool ((<) 0)
+			| OpLte -> ebool ((<=) 0)
+			| _ -> e)			
+		| TConst (TBool a), TConst (TBool b) ->
+			let ebool f =
+				{ e with eexpr = TConst (TBool (f a b)) }
+			in
+			(match op with
+			| OpEq -> ebool (=)
+			| OpNotEq -> ebool (<>)
+			| OpBoolAnd -> ebool (&&)
+			| OpBoolOr -> ebool (||)
+			| _ -> e)
+		| _ -> e)
+	| TCall ({ eexpr = TFunction func },el) ->
+		let rec build term e =
+			match e.eexpr with
+			| TBlock el ->
+				(match List.rev el with
+				| [] -> e
+				| e1 :: el ->
+					let el = List.map (build false) (List.rev el) in
+					let e1 = build term e1 in
+					{ e with eexpr = TBlock (e1 :: el) })
+			| TParenthesis _ | TIf (_,_,Some _) | TSwitch _ | TMatch _ | TTry _ ->
+				(* might only cause issues if some 'return' found in the first expression of if/switch/match *)
+				Type.map_expr (build term) e
+			| TReturn eo ->				
+				if not term then raise Exit;
+				(match eo with
+				| None -> { e with eexpr = TBlock [] }
+				| Some e -> build term e)
+			| _ ->
+				Type.map_expr (build false) e
+		in
+		(try
+			let body = build true func.tf_expr in
+			let body = (match body.eexpr with TBlock el -> el | _ -> [body]) in
+			let body = (match el with
+				| [] -> body
+				| _ ->					
+					if is_sub && is_text_platform() then raise Exit; 
+					mk (TVars (List.map2 (fun (p,_,t) e -> p,t,Some e) func.tf_args el)) com.type_api.tvoid e.epos :: body
+			) in
+			{ e with eexpr = TBlock body }
+		with
+			Exit -> e)
+	| _ -> 
+		e
+
+let reduce_expression com e =
+	reduce_loop com false e

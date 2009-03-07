@@ -180,38 +180,7 @@ let build_generic ctx c p tl =
 			| _ ->
 				try List.assq t subst with Not_found -> Type.map build_type t
 		in
-		let rec build_expr e =
-			let t = build_type e.etype in
-			match e.eexpr with
-			| TFunction f ->
-				{
-					eexpr = TFunction {
-						tf_args = List.map (fun (n,o,t) -> n, o, build_type t) f.tf_args;
-						tf_type = build_type f.tf_type;
-						tf_expr = build_expr f.tf_expr;
-					};
-					etype = t;
-					epos = e.epos;
-				}
-			| TNew (c,tl,el) ->
-				let c, tl = (match follow t with TInst (c,tl) -> c, tl | _ -> assert false) in
-				{
-					eexpr = TNew (c,tl,List.map build_expr el);
-					etype = t;
-					epos = e.epos;
-				};
-			| TVars vl ->
-				{
-					eexpr = TVars (List.map (fun (v,t,eo) ->
-						v, build_type t, (match eo with None -> None | Some e -> Some (build_expr e))
-					) vl);
-					etype = t;
-					epos = e.epos;
-				}
-			(* there's still some 't' lefts in TFor, TMatch and TTry *)
-			| _ ->
-				Type.map_expr build_expr { e with etype = t }
-		in
+		let rec build_expr e = map_expr_type build_expr build_type e in
 		let build_field f =
 			let t = build_type f.cf_type in
 			{ f with cf_type = t; cf_expr = (match f.cf_expr with None -> None | Some e -> Some (build_expr e)) }
@@ -655,20 +624,20 @@ let check_local_vars_init e =
 		| _ ->
 			Type.iter (loop vars) e
 	in
-	loop (ref PMap.empty) e
+	loop (ref PMap.empty) e;
+	e
 
 (* -------------------------------------------------------------------------- *)
 (* POST PROCESS *)
 
-let post_process ctx =
+let post_process ctx filters =
 	List.iter (function
 		| TClassDecl c ->
 			let process_field f =
 				match f.cf_expr with
 				| None -> ()
 				| Some e ->
-					check_local_vars_init e; 
-					f.cf_expr <- Some (block_vars ctx e)
+					f.cf_expr <- Some (List.fold_left (fun e f -> f e) e filters)
 			in
 			List.iter process_field c.cl_ordered_fields;
 			List.iter process_field c.cl_ordered_statics;
@@ -677,9 +646,8 @@ let post_process ctx =
 			| Some f -> process_field f);
 			(match c.cl_init with
 			| None -> ()
-			| Some e ->
-				check_local_vars_init e;
-				c.cl_init <- Some (block_vars ctx e));
+			| Some e ->				
+				c.cl_init <- Some (List.fold_left (fun e f -> f e) e filters));
 		| TEnumDecl _ -> ()
 		| TTypeDecl _ -> ()
 	) ctx.types
@@ -859,3 +827,19 @@ let bytes_serialize data =
 	let tbl = Array.init (String.length b64) (fun i -> String.get b64 i) in
 	let str = Base64.str_encode ~tbl data in
 	"s" ^ string_of_int (String.length str) ^ ":" ^ str
+
+(*
+	Tells if the constructor might be called without any issue whatever its parameters
+*)
+let rec constructor_side_effects e =
+	match e.eexpr with
+	| TBinop (op,_,_) when op <> OpAssign ->
+		true
+	| TUnop _ | TArray _ | TField _ | TCall _ | TNew _ | TFor _ | TWhile _ | TSwitch _ | TMatch _ | TReturn _ | TThrow _ ->
+		true
+	| _ -> 
+		try 
+			Type.iter (fun e -> if constructor_side_effects e then raise Exit) e;
+			false;
+		with Exit ->
+			true

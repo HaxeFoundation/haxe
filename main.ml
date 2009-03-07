@@ -438,7 +438,12 @@ try
 		if !no_output then com.platform <- Cross;
 		com.types <- Typer.types ctx com.main_class (!excludes);
 		com.lines <- Lexer.build_line_index();
-		Codegen.post_process com;
+		let filters = [
+			Codegen.check_local_vars_init;
+			Codegen.block_vars com;
+			Optimizer.reduce_expression com;
+		] in
+		Codegen.post_process com filters;
 		(match com.platform with
 		| Cross ->
 			()

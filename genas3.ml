@@ -477,7 +477,7 @@ and gen_expr ctx e =
 		let b = save_locals ctx in
 		print ctx "{";
 		let bend = open_block ctx in
-		let cb = (if not ctx.constructor_block then
+		let cb = (if not ctx.constructor_block || not (Codegen.constructor_side_effects e) then
 			(fun () -> ())
 		else begin
 			ctx.constructor_block <- false;

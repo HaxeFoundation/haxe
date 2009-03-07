@@ -1,8 +1,6 @@
 TODO :
 	SWC input support
-	optimizer : reduce/calculate expressions
 	flash9 : optimize enum parameters storage
-	don't use Boot.skip_constructor if no side effects in constructor
 	rtti : allow rtti on all types and store them in a global static Hash<CType> (instead of XML)
 
 2009-??-??: 2.03
@@ -34,6 +32,9 @@ TODO :
 	flash9 : fixed verify error with loop variable beeing a specific class
 	compiler : prevent truncating float dynamic values to int when using numerical operations
 	neko.db.Manager fix : synchronize fields after locking an unlocked cached object
+	compiler : fixed issue with cascading inline+haxe.rtti.Generic
+	optimizer : reduce constant int/float/bool expressions and immediate function calls
+	flash9/as3/php : don't add Boot.skip_constructor test if no side effects in constructor
 
 2008-11-23: 2.02
 	Std.is(MyInterface, Class) now returns true (haXe/PHP)

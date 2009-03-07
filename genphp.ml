@@ -1135,8 +1135,11 @@ and gen_expr ctx e =
 					newline ctx;
 				| _ -> ()
 			) ctx.dynamic_methods;
-			print ctx "if( !%s::$skip_constructor ) {" (s_path ctx (["php"],"Boot") false e.epos);
-			(fun() -> print ctx "}")
+			if Codegen.constructor_side_effects e then begin
+				print ctx "if( !%s::$skip_constructor ) {" (s_path ctx (["php"],"Boot") false e.epos);
+				(fun() -> print ctx "}")
+			end else
+				(fun() -> ())
 			end) in
 		List.iter (fun e -> newline ctx; gen_expr ctx e) el;
 		bend();

@@ -1728,6 +1728,7 @@ let create com =
 	ctx.api.build_instance <- Codegen.build_instance ctx;
 	ctx.api.on_generate <- Codegen.on_generate ctx;
 	ctx.api.get_type_module <- get_type_module ctx;
+	ctx.api.optimize <- Optimizer.reduce_expression com;
 	ctx.std <- (try
 		Typeload.load_module ctx ([],"StdTypes") null_pos
 	with

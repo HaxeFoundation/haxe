@@ -8,7 +8,7 @@
  *  (at your option) any later version.
  *
  *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  but WITHOUT ANY WARRANTY; without even the implied warraTFnty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
@@ -758,7 +758,7 @@ and unify_with_access t f =
 	| _ , NoAccess -> unify t f.cf_type
 	| _ , _ -> type_eq EqBothDynamic t f.cf_type
 
-let rec iter f e =
+let iter f e =
 	match e.eexpr with
 	| TConst _
 	| TLocal _
@@ -809,7 +809,7 @@ let rec iter f e =
 	| TReturn eo ->
 		(match eo with None -> () | Some e -> f e)
 
-let rec map_expr f e =
+let map_expr f e =
 	match e.eexpr with
 	| TConst _
 	| TLocal _
@@ -858,3 +858,61 @@ let rec map_expr f e =
 		{ e with eexpr = TTry (f e1, List.map (fun (v,t,e) -> v, t, f e) catches) }
 	| TReturn eo ->
 		{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f e)) }
+
+let map_expr_type f ft e =
+	match e.eexpr with
+	| TConst _
+	| TLocal _
+	| TEnumField _
+	| TBreak
+	| TContinue
+	| TTypeExpr _ ->
+		{ e with etype = ft e.etype }
+	| TArray (e1,e2) ->
+		{ e with eexpr = TArray (f e1,f e2); etype = ft e.etype }
+	| TBinop (op,e1,e2) ->
+		{ e with eexpr = TBinop (op,f e1,f e2); etype = ft e.etype }
+	| TFor (v,t,e1,e2) ->
+		{ e with eexpr = TFor (v,ft t,f e1,f e2); etype = ft e.etype }
+	| TWhile (e1,e2,flag) ->
+		{ e with eexpr = TWhile (f e1,f e2,flag); etype = ft e.etype }
+	| TThrow e1 ->
+		{ e with eexpr = TThrow (f e1); etype = ft e.etype }
+	| TField (e1,v) ->
+		{ e with eexpr = TField (f e1,v); etype = ft e.etype }
+	| TParenthesis e1 ->
+		{ e with eexpr = TParenthesis (f e1); etype = ft e.etype }
+	| TUnop (op,pre,e1) ->
+		{ e with eexpr = TUnop (op,pre,f e1); etype = ft e.etype }
+	| TArrayDecl el ->
+		{ e with eexpr = TArrayDecl (List.map f el); etype = ft e.etype }
+	| TNew (_,_,el) ->
+		let et = ft e.etype in
+		(* make sure that we use the class corresponding to the replaced type *)
+		let c, pl = (match follow et with TInst (c,pl) -> (c,pl) | _ -> assert false) in
+		{ e with eexpr = TNew (c,pl,List.map f el); etype = et }
+	| TBlock el ->
+		{ e with eexpr = TBlock (List.map f el); etype = ft e.etype }
+	| TObjectDecl el ->
+		{ e with eexpr = TObjectDecl (List.map (fun (v,e) -> v, f e) el); etype = ft e.etype }
+	| TCall (e1,el) ->
+		{ e with eexpr = TCall (f e1, List.map f el); etype = ft e.etype }
+	| TVars vl ->
+		{ e with eexpr = TVars (List.map (fun (v,t,e) -> v , ft t , match e with None -> None | Some e -> Some (f e)) vl); etype = ft e.etype }
+	| TFunction fu ->
+		let fu = {
+			tf_expr = f fu.tf_expr;
+			tf_args = List.map (fun (n,o,t) -> n, o, ft t) fu.tf_args;
+			tf_type = ft fu.tf_type;
+		} in
+		{ e with eexpr = TFunction fu; etype = ft e.etype }
+	| TIf (ec,e1,e2) ->
+		{ e with eexpr = TIf (f ec,f e1,match e2 with None -> None | Some e -> Some (f e)); etype = ft e.etype }
+	| TSwitch (e1,cases,def) ->
+		{ e with eexpr = TSwitch (f e1, List.map (fun (el,e2) -> List.map f el, f e2) cases, match def with None -> None | Some e -> Some (f e)); etype = ft e.etype }
+	| TMatch (e1,(en,pl),cases,def) ->
+		{ e with eexpr = TMatch (f e1, (en,List.map ft pl), List.map (fun (cl,params,e) -> cl, params, f e) cases, match def with None -> None | Some e -> Some (f e)); etype = ft e.etype }
+	| TTry (e1,catches) ->
+		{ e with eexpr = TTry (f e1, List.map (fun (v,t,e) -> v, ft t, f e) catches); etype = ft e.etype }
+	| TReturn eo ->
+		{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f e)); etype = ft e.etype }

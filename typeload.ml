@@ -466,7 +466,7 @@ let type_function ctx args ret static constr f p =
 			| None -> None
 			| Some e -> 
 				let p = pos e in
-				let e = type_expr ctx e true in
+				let e = ctx.api.optimize (type_expr ctx e true) in
 				unify ctx e.etype t p;
 				match e.eexpr with
 				| TConst c -> Some c
