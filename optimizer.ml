@@ -293,7 +293,7 @@ let rec reduce_loop com is_sub e =
 	| TBinop (op,e1,e2) ->		
 		let zero = (match op with
 			| OpAdd | OpSub | OpShl | OpShr | OpUShr | OpXor -> Some (0l,0.)
-			| OpMult | OpDiv -> Some (1l,1.)
+			| OpMult -> Some (1l,1.)
 			| _ -> None
 		) in
 		(match e1.eexpr, e2.eexpr with
