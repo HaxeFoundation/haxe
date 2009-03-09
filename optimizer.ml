@@ -291,16 +291,15 @@ let rec reduce_loop com is_sub e =
 		| NormalWhile -> { e with eexpr = TBlock [] } (* erase sub *)
 		| DoWhile -> e) (* we cant remove while since sub can contain continue/break *)
 	| TBinop (op,e1,e2) ->		
-		let zero = (match op with
-			| OpAdd | OpSub | OpShl | OpShr | OpUShr | OpXor -> Some (0l,0.)
-			| OpMult -> Some (1l,1.)
-			| _ -> None
-		) in
 		(match e1.eexpr, e2.eexpr with
-		| TConst (TInt v) , _ when (match zero with Some (z,_) when z = v -> true | _ -> false) -> e2
-		| _ , TConst (TInt v) when (match zero with Some (z,_) when z = v -> true | _ -> false) -> e1
-		| TConst (TFloat v) , _ when (match zero with Some (_,z) when z = float_of_string v -> is_float e2.etype | _ -> false) -> e2
-		| _ , TConst (TFloat v) when (match zero with Some (_,z) when z = float_of_string v -> is_float e1.etype | _ -> false) -> e1
+		| TConst (TInt 0l) , _ when op = OpAdd -> e2
+		| TConst (TInt 1l) , _ when op = OpMult -> e2
+		| TConst (TFloat v) , _ when op = OpAdd && float_of_string v = 0. && is_float e2.etype -> e2
+		| TConst (TFloat v) , _ when op = OpMult && float_of_string v = 1. && is_float e2.etype -> e2
+		| _ , TConst (TInt 0l) when (match op with OpAdd | OpSub -> true | _ -> false) -> e1 (* bits operations might cause overflow *)
+		| _ , TConst (TInt 1l) when op = OpMult -> e1
+		| _ , TConst (TFloat v) when (match op with OpAdd | OpSub -> float_of_string v = 0. && is_float e1.etype | _ -> false) -> e1 (* bits operations might cause overflow *)
+		| _ , TConst (TFloat v) when op = OpMult && float_of_string v = 1. && is_float e1.etype -> e1
 		| TConst (TInt a), TConst (TInt b) ->
 			let opt f = try { e with eexpr = TConst (TInt (f a b)) } with Exit -> e in
 			let check_overflow f =
