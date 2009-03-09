@@ -397,7 +397,7 @@ let rec reduce_loop com is_sub e =
 				| e1 :: el ->
 					let el = List.map (build false) (List.rev el) in
 					let e1 = build term e1 in
-					{ e with eexpr = TBlock (e1 :: el) })
+					{ e with eexpr = TBlock (el @ [e1]) })
 			| TParenthesis _ | TIf (_,_,Some _) | TSwitch _ | TMatch _ | TTry _ ->
 				(* might only cause issues if some 'return' found in the first expression of if/switch/match *)
 				Type.map_expr (build term) e
