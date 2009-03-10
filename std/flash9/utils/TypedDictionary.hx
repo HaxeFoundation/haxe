@@ -29,25 +29,28 @@ package flash.utils;
 **/
 class TypedDictionary<K,T> extends Dictionary {
 
-	public function get( k : K ) : Null<T> {
+	public inline function get( k : K ) : Null<T> {
 		return this[cast k];
 	}
 
-	public function set( k : K, v : T ) {
+	public inline function set( k : K, v : T ) {
 		this[cast k] = v;
 	}
 
-	public function exists( k : K ) {
+	public inline function exists( k : K ) {
 		return this[cast k] != null;
 	}
 
-	public function delete( k : K ) {
+	public inline function delete( k : K ) {
 		untyped __delete__(this,k);
 	}
 
+	public inline function keys() : Array<K> {
+		return untyped __keys__(this);
+	}
+
 	public function iterator() : Iterator<K> {
-		var a : Array<K> = untyped __keys__(this);
-		return a.iterator();
+		return keys().iterator();
 	}
 
 }
