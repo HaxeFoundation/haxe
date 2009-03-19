@@ -158,7 +158,7 @@ let semicolon s =
 let rec	parse_file s =
 	doc := None;
 	match s with parser
-	| [< '(Kwd Package,_); p = parse_package; _ = semicolon; l = plist parse_type_decl; '(Eof,_); >] -> p , l
+	| [< '(Kwd Package,_); p = parse_package; _ = semicolon; l = plist parse_type_decl; '(Eof,_) >] -> p , l
 	| [< l = plist parse_type_decl; '(Eof,_) >] -> [] , l
 
 and parse_type_decl s =
@@ -299,9 +299,9 @@ and parse_type_path1 pack = parser
 		}
 
 and parse_type_path_or_const = parser
-	| [< '(Const (String s),_); >] -> TPConst (String s)
-	| [< '(Const (Int i),_); >] -> TPConst (Int i)
-	| [< '(Const (Float f),_); >] -> TPConst (Float f)
+	| [< '(Const (String s),_) >] -> TPConst (String s)
+	| [< '(Const (Int i),_) >] -> TPConst (Int i)
+	| [< '(Const (Float f),_) >] -> TPConst (Float f)
 	| [< t = parse_type_path >] -> TPType t
 
 and parse_type_path_next t = parser
