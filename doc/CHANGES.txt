@@ -3,7 +3,7 @@ TODO :
 	flash9 : optimize enum parameters storage
 	rtti : allow rtti on all types and store them in a global static Hash<CType> (instead of XML)
 
-2009-??-??: 2.03
+2009-03-22: 2.03
 	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php
 	bugfix for flash.display.BitmapDataChannel and GraphicsPathCommand (allow inline static)
 	resolve environment variable in -cmd commands

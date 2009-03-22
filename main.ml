@@ -20,7 +20,7 @@ open Printf
 open Genswf
 open Common
 
-let version = 202
+let version = 203
 
 let prompt = ref false
 let display = ref false
@@ -170,7 +170,7 @@ let rec process_params acc = function
 
 and init params =
 	let usage = Printf.sprintf
-		"Haxe Compiler %d.%.2d - (c)2005-2008 Motion-Twin\n Usage : haxe.exe %s <class names...>\n Options :"
+		"Haxe Compiler %d.%.2d - (c)2005-2009 Motion-Twin\n Usage : haxe.exe %s <class names...>\n Options :"
 		(version / 100) (version mod 100) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let classes = ref [([],"Std")] in
