@@ -44,12 +44,10 @@ class Boot extends flash.display.MovieClip, implements Dynamic {
 				this.splice(i,0,x);
 			};
 			aproto.remove = function(obj) {
-				for( i in 0...this.length )
-					if( this[i] == obj ) {
-						this.splice(i,1);
-						return true;
-					}
-				return false;
+				var idx = this.indexOf(obj);
+				if( idx == -1 ) return false;
+				this.splice(idx,1);
+				return true;
 			}
 			aproto.iterator = function() {
 				var cur = 0;
