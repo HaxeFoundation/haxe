@@ -1274,6 +1274,7 @@ let genhx_class ctx c s =
 	if pack <> [] then IO.printf ch "package %s;\n\n" (String.concat "." pack);
 	let enum_fields, isenum = (try
 		if Array.length c.cl3_fields > 0 || c.cl3_interface || Array.length s.st3_fields = 0 then raise Exit;
+		(match c.cl3_super with None -> () | Some p -> if type_path ctx p <> ([],"Dynamic") then raise Exit);
 		let etype = ref None in
 		let fields = List.map (fun f ->
 			(match f.f3_kind with
