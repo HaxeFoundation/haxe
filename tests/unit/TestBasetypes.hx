@@ -11,6 +11,12 @@ class TestBasetypes extends Test {
 		eq( a[3], null );
 		eq( a[1000], null );
 		eq( a[-1], null );
+
+		a.remove(2);
+		eq( a.length, 2);
+		eq( a[0], 1 );
+		eq( a[1], 3 );
+		eq( a[2], null );
 	}
 
 	function testString() {
