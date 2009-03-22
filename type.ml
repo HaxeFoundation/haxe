@@ -268,9 +268,18 @@ let rec s_type ctx t =
 
 and s_fun ctx t void =
 	match t with
-	| TFun _ -> "(" ^ s_type ctx t ^ ")"
-	| TEnum ({ e_path = ([],"Void") },[]) when void -> "(" ^ s_type ctx t ^ ")"
-	| _ -> s_type ctx t
+	| TFun _ ->
+		"(" ^ s_type ctx t ^ ")"
+	| TEnum ({ e_path = ([],"Void") },[]) when void ->
+		"(" ^ s_type ctx t ^ ")"
+	| TMono r ->
+		(match !r with
+		| None -> s_type ctx t
+		| Some t -> s_fun ctx t void)
+	| TLazy f ->
+		s_fun ctx (!f()) void
+	| _ ->
+		s_type ctx t
 
 and s_type_params ctx = function
 	| [] -> ""
