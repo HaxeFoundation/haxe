@@ -5,6 +5,7 @@ TODO :
 
 2009-??-??: 2.04
 	flash9 : fixed get_full_path error with -D fdb
+	js : fixed Array.remove on IE
 
 2009-03-22: 2.03
 	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php

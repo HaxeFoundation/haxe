@@ -199,12 +199,23 @@ class Boot {
 			Array.prototype.insert = function(i,x) {
 				this.splice(i,0,x);
 			};
-			Array.prototype.remove = function(obj) {
+			Array.prototype.remove = if( Array.prototype.indexOf ) function(obj) {
 				var idx = this.indexOf(obj);
 				if( idx == -1 ) return false;
 				this.splice(idx,1);
 				return true;
-			}
+			} else function(obj) {
+				var i = 0;
+				var l = this.length;
+				while( i < l ) {
+					if( this[i] == obj ) {
+						this.splice(i,1);
+						return true;
+					}
+					i++;
+				}
+				return false;
+			};
 			Array.prototype.iterator = function() {
 				return {
 					cur : 0,
