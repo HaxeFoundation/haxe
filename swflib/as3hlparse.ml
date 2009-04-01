@@ -28,6 +28,8 @@ type parse_ctx = {
 	mutable classes : hl_class array;
 	mutable jumps : (int * int) list;
 	mutable pos : int;
+	delta_mt : int;
+	delta_cl : int;
 }
 
 let get = As3parse.iget
@@ -412,7 +414,7 @@ let parse_function ctx f =
 let parse_method_type ctx idx f =
 	let m = ctx.as3.as3_method_types.(idx) in
 	{
-		hlmt_index = idx;
+		hlmt_index = idx + ctx.delta_mt;
 		hlmt_ret = opt name ctx m.mt3_ret;
 		hlmt_args = List.map (opt name ctx) m.mt3_args;
 		hlmt_native = m.mt3_native;
@@ -429,7 +431,7 @@ let parse_method_type ctx idx f =
 
 let parse_class ctx c s index =
 	{
-		hlc_index = index;
+		hlc_index = index + ctx.delta_cl;
 		hlc_name = name ctx c.cl3_name;
 		hlc_super = opt name ctx c.cl3_super;
 		hlc_sealed = c.cl3_sealed;
@@ -449,7 +451,7 @@ let parse_static ctx s =
 		hls_fields = Array.map (parse_field ctx) s.st3_fields;
 	}
 
-let parse t =
+let parse ?(delta_mt=0) ?(delta_cl=0) t =
 	let ctx = {
 		as3 = t;
 		namespaces = [||];
@@ -459,6 +461,8 @@ let parse t =
 		classes = [||];
 		jumps = [];
 		pos = 0;
+		delta_mt = delta_mt;
+		delta_cl = delta_cl;
 	} in
 	ctx.namespaces <- Array.map (parse_namespace ctx) t.as3_namespaces;
 	ctx.nsets <- Array.map (parse_nset ctx) t.as3_nsets;
