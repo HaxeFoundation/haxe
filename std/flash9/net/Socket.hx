@@ -5,6 +5,9 @@ extern class Socket extends flash.events.EventDispatcher, implements flash.utils
 	var connected(default,null) : Bool;
 	var endian : flash.utils.Endian;
 	var objectEncoding : UInt;
+	#if flash10
+	var timeout : UInt;
+	#end
 	function new(?host : String, ?port : Int) : Void;
 	function close() : Void;
 	function connect(host : String, port : Int) : Void;
