@@ -477,7 +477,7 @@ let generate com swf_header swf_lib =
 			if c.f9_cid <> None && not (movieclip_exists com.types ctx.as3code path) then
 				ctx.as3code <- build_movieclip ctx path :: ctx.as3code;
 		) ctx.f9clips;
-		let code9 = if Common.defined com "swc" then begin
+		let code9 = if not isf9 then [] else if Common.defined com "swc" then begin
 			ctx.swc_catalog <- build_swc_catalog com (List.map (fun (t,_,_) -> t) ctx.hx9code);
 			List.map (fun (t,m,f) ->
 				let path = (match t_path t with
