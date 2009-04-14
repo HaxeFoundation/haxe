@@ -135,7 +135,7 @@ class NekoArray__<T> implements Array<T> {
 			var l = this.length;
 			this.__double(l + 1);
 			this.__a[l] = v;
-			return l;
+			return l + 1;
 		}
 	}
 
