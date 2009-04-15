@@ -310,29 +310,30 @@ class Unserializer {
 				codes = initCodes();
 				CODES = codes;
 			}
-			var b = new haxe.io.BytesBuffer();
 			var i = pos;
 			var rest = len & 3;
+			var size = (len >> 2) * 3 + ((rest >= 2) ? rest - 1 : 0);
 			var max = i + (len - rest);
+			var bytes = haxe.io.Bytes.alloc(size);
+			var bpos = 0;
 			while( i < max ) {
 				var c1 = codes[untyped buf.cca(i++)];
 				var c2 = codes[untyped buf.cca(i++)];
-				b.addByte((c1 << 2) | (c2 >> 4));
+				bytes.set(bpos++,(c1 << 2) | (c2 >> 4));
 				var c3 = codes[untyped buf.cca(i++)];
-				b.addByte(((c2 << 4) | (c3 >> 2)) #if !flash9 & 0xFF #end );
+				bytes.set(bpos++,(c2 << 4) | (c3 >> 2));
 				var c4 = codes[untyped buf.cca(i++)];
-				b.addByte(((c3 << 6) | c4) #if !flash9 & 0xFF #end );
+				bytes.set(bpos++,(c3 << 6) | c4);
 			}
 			if( rest >= 2 ) {
 				var c1 = codes[untyped buf.cca(i++)];
 				var c2 = codes[untyped buf.cca(i++)];
-				b.addByte((c1 << 2) | (c2 >> 4));
+				bytes.set(bpos++,(c1 << 2) | (c2 >> 4));
 				if( rest == 3 ) {
 					var c3 = codes[untyped buf.cca(i++)];
-					b.addByte(((c2 << 4) | (c3 >> 2)) #if !flash9 & 0xFF #end );
+					bytes.set(bpos++,(c2 << 4) | (c3 >> 2));
 				}
 			}
-			var bytes = b.getBytes();
  			#end
 			pos += len;
 			cache.push(bytes);
