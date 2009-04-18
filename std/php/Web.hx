@@ -56,6 +56,18 @@ class Web {
 		}
 		explore(StringTools.replace(getParamsString(), ";", "&"));
 		explore(getPostData());
+		
+        if (res.length == 0) {
+            var post:Hash<Dynamic> = Lib.hashOfAssociativeArray(untyped __php__("$_POST"));
+            var data = post.get(param);
+            var k = 0, v = "";
+            if (untyped __call__("is_array", data)) {
+                untyped __php__(" foreach($data as $k=>$v) { ");
+                res[k] = v;
+                untyped __php__(" } ");
+            }
+        }
+		
 		if (res.length == 0)
 			return null;
 		return res;
