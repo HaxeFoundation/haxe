@@ -410,6 +410,7 @@ try
 	let ext = (match com.platform with
 		| Cross ->
 			(* no platform selected *)
+			set_platform Cross "cross" "";
 			no_output := true; ""
 		| Flash | Flash9 ->
 			Common.define com ("flash" ^ string_of_int com.flash_version);
