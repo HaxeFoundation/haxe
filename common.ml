@@ -30,6 +30,7 @@ type platform =
 	| Neko
 	| Flash9
 	| Php
+	| Cpp
 
 type pos = Ast.pos
 

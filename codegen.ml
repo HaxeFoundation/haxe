@@ -451,16 +451,19 @@ let block_vars ctx e =
 				else
 					v, o, vt
 			) f.tf_args in
-			let e = { e with eexpr = TFunction { f with tf_args = fargs; tf_expr = !fexpr } } in			
-			let args = List.map (fun (v,t) -> v, None, t) vars in
-			mk (TCall (
-				(mk (TFunction {
-					tf_args = args;
-					tf_type = e.etype;
-					tf_expr = mk (TReturn (Some e)) e.etype e.epos;
-				}) (TFun (fun_args args,e.etype)) e.epos),
-				List.map (fun (v,t) -> mk (TLocal v) t e.epos) vars)
-			) e.etype e.epos
+			let e = { e with eexpr = TFunction { f with tf_args = fargs; tf_expr = !fexpr } } in
+			(match ctx.platform with
+			| Cpp -> e
+			| _ ->
+				let args = List.map (fun (v,t) -> v, None, t) vars in
+				mk (TCall (
+					(mk (TFunction {
+						tf_args = args;
+						tf_type = e.etype;
+						tf_expr = mk (TReturn (Some e)) e.etype e.epos;
+					}) (TFun (fun_args args,e.etype)) e.epos),
+					List.map (fun (v,t) -> mk (TLocal v) t e.epos) vars)
+				) e.etype e.epos)
 		| _ ->
 			map_expr (wrap used) e
 
@@ -499,9 +502,37 @@ let block_vars ctx e =
 			if PMap.is_empty !used then e else wrap !used e
 		| _ ->
 			map_expr out_loop e
+	and all_vars e =
+		let vars = ref PMap.empty in
+		let used = ref PMap.empty in
+		let depth = ref 0 in
+		let rec collect_vars = function
+		| Block f ->
+			let old = !vars in
+			f collect_vars;
+			vars := old;
+		| Loop f ->
+			let old = !vars in
+			f collect_vars;
+			vars := old;
+		| Function f ->
+			incr depth;
+			f collect_vars;
+			decr depth;
+		| Declare (v,t) ->
+			vars := PMap.add v (!depth,t) !vars;
+		| Use v ->
+			try
+				let d, t = PMap.find v (!vars) in
+				if d <> !depth then used := PMap.add v t !used;
+			with Not_found -> ()
+		in
+	local_usage collect_vars e;
+	if PMap.is_empty !used then e else wrap !used e
 	in
 	match ctx.platform with
 	| Neko | Php | Cross -> e
+	| Cpp -> all_vars e
 	| _ -> out_loop e
 
 (* -------------------------------------------------------------------------- *)

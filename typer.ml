@@ -1750,7 +1750,8 @@ let create com =
 			(match snd td.t_path with
 			| "Null" ->
 				let f9 = platform com Flash9 in
-				ctx.api.tnull <- if not f9 then (fun t -> t) else (fun t -> if is_nullable t then TType (td,[t]) else t);
+				let cpp = platform com Cpp in
+				ctx.api.tnull <- if not (f9 || cpp) then (fun t -> t) else (fun t -> if is_nullable t then TType (td,[t]) else t);
 			| _ -> ());
 	) ctx.std.mtypes;
 	let m = Typeload.load_module ctx ([],"String") null_pos in

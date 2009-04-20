@@ -280,7 +280,7 @@ let rec reduce_loop com is_sub e =
 	let is_text_platform() =
 		match com.platform with
 		| Js | Php -> true 
-		| Neko | Flash | Flash9 | Cross -> false
+		| Neko | Flash | Flash9 | Cross | Cpp -> false
 	in
 	let e = Type.map_expr (reduce_loop com (match e.eexpr with TBlock _ -> false | _ -> true)) e in
 	match e.eexpr with

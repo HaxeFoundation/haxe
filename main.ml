@@ -186,7 +186,7 @@ try
 	let gen_as3 = ref false in
 	let no_output = ref false in
 	let did_something = ref false in
-	let root_packages = ["neko"; "flash"; "flash9"; "js"; "php"] in
+	let root_packages = ["neko"; "flash"; "flash9"; "js"; "php"; "cpp"] in
 	Common.define com ("haxe_" ^ string_of_int version);
 	com.warning <- message;
 	com.error <- (fun msg p ->
@@ -256,6 +256,9 @@ try
 			classes := (["php"],"PhpMath__") :: !classes;
 			set_platform Php "php" dir;
 		),"<directory> : generate PHP code into target directory");
+		("-cpp",Arg.String (fun dir ->
+			set_platform Cpp "cpp" dir;
+		),"<directory> : generate C++ code into target directory");
 		("-xml",Arg.String (fun file ->
 			Parser.use_doc := true;
 			xml_out := Some file
@@ -424,6 +427,7 @@ try
 		| Neko -> "n"
 		| Js -> "js"
 		| Php -> "php"
+		| Cpp -> "cpp"
 	) in
 	(* check file extension. In case of wrong commandline, we don't want
 		to accidentaly delete a source file. *)
@@ -468,6 +472,9 @@ try
 		| Php ->
 			if com.verbose then print_endline ("Generating PHP in : " ^ com.file);
 			Genphp.generate com;
+		| Cpp ->
+			if com.verbose then print_endline ("Generating Cpp in : " ^ com.file);
+			Gencpp.generate com;
 		);
 		(match !xml_out with
 		| None -> ()
