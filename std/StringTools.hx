@@ -46,6 +46,8 @@ class StringTools {
 			return encodeURIComponent(s);
 		#elseif php
 			return __call__("rawurlencode", s);
+		#elseif cpp
+			return s.__URLEncode();
 		#else
 			return null;
 		#end
@@ -65,6 +67,8 @@ class StringTools {
 			return decodeURIComponent(s.split("+").join(" "));
 		#elseif php
 			return __call__("urldecode", s);
+		#elseif cpp
+			return s.__URLDecode();
 		#else
 			return null;
 		#end

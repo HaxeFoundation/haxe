@@ -29,13 +29,20 @@
 	use [Std.string(t)] to get a string reprensation
 	of the type.
 **/
+#if !cpp
 enum XmlType {
 }
+#else
+typedef XmlType = String;
+#end
 
 /**
 	The standard Xml class and parsing.
 	More API to manipulate XML are available in the [haxe.xml] package.
 **/
+#if !cpp
+
+
 extern class Xml {
 
 	/**
@@ -249,3 +256,75 @@ extern class Xml {
 	}
 #end
 }
+
+#else
+class Xml {
+	public static var Element(default,null) : XmlType;
+	public static var PCData(default,null) : XmlType;
+	public static var CData(default,null) : XmlType;
+	public static var Comment(default,null) : XmlType;
+	public static var DocType(default,null) : XmlType;
+	public static var Prolog(default,null) : XmlType;
+	public static var Document(default,null) : XmlType;
+	public static function parse( s : String ) : Xml {
+		return cpp.CppXml__.parse(s);
+	}
+	public static function createElement( name : String ) : Xml {
+		return cpp.CppXml__.createElement(name);
+	}
+	public static function createPCData( data : String ) : Xml {
+		return cpp.CppXml__.createPCData(data);
+	}
+	public static function createCData( data : String ) : Xml {
+		return cpp.CppXml__.createCData(data);
+	}
+	public static function createComment( data : String ) : Xml {
+		return cpp.CppXml__.createComment(data);
+	}
+	public static function createDocType( data : String ) : Xml {
+		return cpp.CppXml__.createDocType(data);
+	}
+	public static function createProlog( data : String ) : Xml {
+		return cpp.CppXml__.createProlog(data);
+	}
+	public static function createDocument() : Xml { return null; }
+	public var nodeType(default,null) : XmlType;
+	public var nodeName(getNodeName,setNodeName) : String;
+	private function getNodeName() : String { return null; }
+	private function setNodeName( name : String ) : String { return null; }
+	public var nodeValue(getNodeValue,setNodeValue) : String;
+	private function getNodeValue() : String { return null; }
+	private function setNodeValue( name : String ) : String { return null; }
+	public function get( att : String ) : String { return null; }
+	public function set( att : String, value : String ) : Void { }
+	public function remove( att : String ) : Void { }
+	public function exists( att : String ) : Bool { return false; }
+	public function attributes() : Iterator<String> { return null; }
+	var parent(getParent,null) : Xml;
+	private function getParent() : Xml { return null; }
+	public function iterator() : Iterator<Xml> { return null; }
+	public function elements() : Iterator<Xml> { return null; }
+	public function elementsNamed( name : String ) : Iterator<Xml> { return null; }
+	public function firstChild() : Xml { return null; }
+	public function firstElement() : Xml { return null; }
+	public function addChild( x : Xml ) : Void { }
+	public function removeChild( x : Xml ) : Bool { return null; }
+	public function insertChild( x : Xml, pos : Int ) : Void { }
+	public function toString() : String { return null; }
+	
+	static function __init__() : Void untyped {
+		Xml.Element = "element";
+		Xml.PCData = "pcdata";
+		Xml.CData = "cdata";
+		Xml.Comment = "comment";
+		Xml.DocType = "doctype";
+		Xml.Prolog = "prolog";
+		Xml.Document = "document";
+	}
+}
+
+#end
+
+
+
+

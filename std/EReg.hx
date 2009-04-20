@@ -34,7 +34,7 @@ class EReg {
 	#if flash9
 	var result : {> Array<String>, index : Int, input : String };
 	#end
-	#if (neko || php)
+	#if (neko || php || cpp)
 	var last : String;
 	var global : Bool;
 	#end
@@ -50,12 +50,16 @@ class EReg {
 		options [opt].
 	**/
 	public function new( r : String, opt : String ) {
-		#if neko
+		#if (neko||cpp)
 			var a = opt.split("g");
 			global = a.length > 1;
 			if( global )
 				opt = a.join("");
+         #if neko
 			this.r = regexp_new_options(untyped r.__s, untyped opt.__s);
+         #else
+			this.r = regexp_new_options(r, opt);
+         #end
 		#elseif js
 			opt = opt.split("u").join(""); // 'u' (utf8) depends on page encoding
 			this.r = untyped __new__("RegExp",r,opt);
@@ -79,8 +83,12 @@ class EReg {
 		Updates the internal state accordingly.
 	**/
 	public function match( s : String ) : Bool {
-		#if neko
-			var p = regexp_match(r,untyped s.__s,0,s.length);
+		#if (neko || cpp)
+			#if neko
+				var p = regexp_match(r,untyped s.__s,0,s.length);
+			#else
+				var p = regexp_match(r,s,0,s.length);
+			#end
 			if( p )
 				last = s;
 			else
@@ -118,6 +126,9 @@ class EReg {
 		#if neko
 			var m = regexp_matched(r,n);
 			return (m == null) ? null : new String(m);
+		#elseif cpp
+			var m = regexp_matched(r,n);
+			return m;
 		#elseif js
 			return untyped if( r.m != null && n >= 0 && n < r.m.length ) r.m[n] else throw "EReg::matched";
 		#elseif flash9
@@ -139,7 +150,7 @@ class EReg {
 		of the matched substring.
 	**/
 	public function matchedLeft() : String {
-		#if neko
+		#if (neko || cpp)
 			var p = regexp_matched_pos(r,0);
 			return last.substr(0,p.pos);
 		#elseif js
@@ -165,7 +176,7 @@ class EReg {
 		of the matched substring.
 	**/
 	public function matchedRight() : String {
-		#if neko
+		#if (neko||cpp)
 			var p = regexp_matched_pos(r,0);
 			var sz = p.pos+p.len;
 			return last.substr(sz,last.length-sz);
@@ -197,7 +208,7 @@ class EReg {
 		original matched string.
 	**/
 	public function matchedPos() : { pos : Int, len : Int } {
-		#if neko
+		#if (neko||cpp)
 			return regexp_matched_pos(r,0);
 		#elseif js
 			if( untyped r.m == null ) throw "No string matched";
@@ -217,13 +228,17 @@ class EReg {
 		the separators.
 	**/
 	public function split( s : String ) : Array<String> {
-		#if neko
+		#if (neko||cpp)
 			var pos = 0;
 			var len = s.length;
 			var a = new Array();
 			var first = true;
 			do {
-				if( !regexp_match(r,untyped s.__s,pos,len) )
+				#if neko
+					if( !regexp_match(r,untyped s.__s,pos,len) )
+				#else
+					if( !regexp_match(r,s,pos,len) )
+				#end
 					break;
 				var p = regexp_matched_pos(r,0);
 				if( p.len == 0 && !first ) {
@@ -256,7 +271,7 @@ class EReg {
 		while replacing. [$$] means the [$] character.
 	**/
 	public function replace( s : String, by : String ) : String {
-		#if neko
+		#if (neko||cpp)
 			var b = new StringBuf();
 			var pos = 0;
 			var len = s.length;
@@ -339,6 +354,11 @@ class EReg {
 	static var regexp_match = neko.Lib.load("regexp","regexp_match",4);
 	static var regexp_matched = neko.Lib.load("regexp","regexp_matched",2);
 	static var regexp_matched_pos : Dynamic -> Int -> { pos : Int, len : Int } = neko.Lib.load("regexp","regexp_matched_pos",2);
+#elseif cpp
+	static var regexp_new_options = cpp.Lib.load("regexp","regexp_new_options",2);
+	static var regexp_match = cpp.Lib.load("regexp","regexp_match",4);
+	static var regexp_matched = cpp.Lib.load("regexp","regexp_matched",2);
+	static var regexp_matched_pos : Dynamic -> Int -> { pos : Int, len : Int } = cpp.Lib.load("regexp","regexp_matched_pos",2);
 #end
 
 }

@@ -66,6 +66,8 @@ class Type {
 				return null;
 			else
 				return __call__("_hx_ttype", c);
+		#elseif cpp
+			return untyped o.__GetClass();
 		#else
 			return null;
 		#end
@@ -101,6 +103,10 @@ class Type {
 				return null;
 			else
 				return __php__("_hx_ttype(get_class($o))");
+		#elseif cpp
+			if(!o.__IsEnum())
+				return null;
+			return o;
 		#else
 			return null;
 		#end
@@ -122,6 +128,8 @@ class Type {
 				return null;
 			else
 				return __call__("_hx_ttype", s);
+		#elseif cpp
+			return c.GetSuper();
 		#else
 			return c.__super__;
 		#end
@@ -145,6 +153,8 @@ class Type {
 			return str.split("::").join(".");
 		#elseif php
 			return untyped c.__qname__;
+		#elseif cpp
+			return untyped c.mName;
 		#else
 			var a : Array<String> = untyped c.__name__;
 			return a.join(".");
@@ -158,7 +168,9 @@ class Type {
 		#if flash9
 			return getClassName(cast e);
 		#elseif php
-		  return untyped e.__qname__;
+			return untyped e.__qname__;
+		#elseif (cpp)
+			return untyped e.__ToString();
 		#else
 			var a : Array<String> = untyped e.__ename__;
 			return a.join(".");
@@ -176,6 +188,8 @@ class Type {
 				return c;
 			else
 				return null;
+		#elseif cpp
+			return untyped Class.Resolve(name);
 		#else
 			var cl : Class<Dynamic>;
 		#if flash9
@@ -229,6 +243,8 @@ class Type {
 				return e;
 			else
 				return null;
+		#elseif cpp
+			return untyped Class.Resolve(name);
 		#else
 			var e : Dynamic;
 		#if flash9
@@ -303,6 +319,10 @@ class Type {
 			var c = cl.__rfl__();
 			if(c == null) return null;
 			return __php__("$inst = $c->getConstructor() ? $c->newInstanceArgs($args->__a) : $c->newInstanceArgs()");
+		#elseif cpp
+			if (cl!=null)
+				return cl.mConstructArgs(args);
+			return null;
 		#else
 			return null;
 		#end
@@ -358,6 +378,8 @@ class Type {
 				throw "Unable to instantiate " + Std.string(cl);
 			}
 			return null;
+		#elseif cpp
+			return cl.mConstructEmpty();
 		#else
 			return null;
 		#end
@@ -367,6 +389,11 @@ class Type {
 		Create an instance of an enum by using a constructor name and parameters.
 	**/
 	public static function createEnum( e : Enum, constr : String, ?params : Array<Dynamic> ) : Dynamic {
+		#if cpp
+		if (untyped e.mConstructEnum != null)
+			return untyped e.mConstructEnum(constr,params);
+		return null;
+		#else
 		var f = Reflect.field(e,constr);
 		if( f == null ) throw "No such constructor "+constr;
 		if( Reflect.isFunction(f) ) {
@@ -376,6 +403,7 @@ class Type {
 		if( params != null && params.length != 0 )
 			throw "Constructor "+constr+" does not need parameters";
 		return f;
+		#end
 	}
 
 	#if flash9
@@ -418,7 +446,10 @@ class Type {
 				if(!$p->isStatic()) $r[] = $p->getName();
 			");
 			return untyped __php__("new _hx_array(array_values(array_unique($r)))");
+		#elseif cpp
+			return untyped c.GetInstanceFields();
 		#else
+
 			var a = Reflect.fields(untyped c.prototype);
 			#if js
 				a.remove("__class__");
@@ -464,6 +495,8 @@ class Type {
 				if($p->isStatic()) $r[] = $p->getName();
 			");
 			return untyped __php__("new _hx_array($r)");
+		#elseif cpp
+			return untyped c.GetClassFields();
 		#else
 			var a = Reflect.fields(c);
 			a.remove(__unprotect__("__name__"));
@@ -495,6 +528,8 @@ class Type {
 			sps = rfl.getMethods();
 			__php__("foreach($sps as $m) { $n = $m->getName(); if($n != '__construct' && $n != '__toString') $r[] = $n; }");
 			return __php__("new _hx_array($r)");
+		#elseif cpp
+			return untyped e.GetClassFields();
 		#else
 			return untyped e.__constructs__;
 		#end
@@ -604,6 +639,20 @@ class Type {
 			if(__php__("$c instanceof _hx_enum"))  return TEnum(cast c);
 			if(__php__("$c instanceof _hx_class")) return TClass(cast c);
 			return TUnknown;
+		#elseif cpp
+			if (v==null) return TNull;
+			var t:Int = untyped v.__GetType();
+			switch(t)
+			{
+				case untyped __global__.vtBool : return TBool;
+				case untyped __global__.vtInt : return TInt;
+				case untyped __global__.vtFloat : return TFloat;
+				case untyped __global__.vtFunction : return TFunction;
+				case untyped __global__.vtObject : return TObject;
+				case untyped __global__.vtEnum : return TEnum(v.__GetClass());
+				default:
+					return untyped TClass(v.__GetClass());
+			}
 		#else
 			return TUnknown;
 		#end
@@ -651,6 +700,8 @@ class Type {
 			} catch( e : Dynamic ) {
 				return false;
 			}
+		#elseif cpp
+			return a==b;
 		#else
 			if( a[0] != b[0] )
 				return false;
@@ -672,6 +723,8 @@ class Type {
 			return new String(e.tag);
 		#elseif (flash9 || php)
 			return e.tag;
+		#elseif cpp
+			return e.__Tag();
 		#else
 			return e[0];
 		#end
@@ -685,6 +738,8 @@ class Type {
 			return if( e.args == null ) [] else untyped Array.new1(e.args,__dollar__asize(e.args));
 		#elseif flash9
 			return if( e.params == null ) [] else e.params;
+		#elseif cpp
+			return untyped e.__EnumParams();
 		#elseif php
 			if(e.params == null)
 				return [];
@@ -701,6 +756,8 @@ class Type {
 	public inline static function enumIndex( e : Dynamic ) : Int {
 		#if (neko || flash9 || php)
 			return e.index;
+		#elseif cpp
+			return e.__Index();
 		#else
 			return e[1];
 		#end

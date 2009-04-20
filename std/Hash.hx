@@ -50,6 +50,8 @@ class Hash<T> {
 				__js__("delete")(h.__proto__);
 			}
 		}
+		#elseif cpp
+		h = {};
 		#elseif php
 		h = untyped __call__('array');
 		#end
@@ -65,6 +67,8 @@ class Hash<T> {
 		untyped h["$"+key] = value;
 		#elseif neko
 		untyped __dollar__hset(h,key.__s,value,null);
+		#elseif cpp
+		untyped h.__SetField(key,value);
 		#elseif php
 		untyped h[key] = value;
 		#end
@@ -80,6 +84,8 @@ class Hash<T> {
 		return untyped h["$"+key];
 		#elseif neko
 		return untyped __dollar__hget(h,key.__s,null);
+		#elseif cpp
+		return untyped h.__Field(key);
 		#elseif php
 		untyped __php__("if(!isset($this->h[$key])) return null");
 		return untyped h[key];
@@ -111,6 +117,8 @@ class Hash<T> {
 		}
 		#elseif neko
 		return untyped __dollar__hmem(h,key.__s,null);
+		#elseif cpp
+		return untyped h.__Field(key)!=null;
 		#elseif php
 		return untyped __call__("isset", h[key]);
 		#else
@@ -140,6 +148,8 @@ class Hash<T> {
 		return true;
 		#elseif neko
 		return untyped __dollar__hremove(h,key.__s,null);
+		#elseif cpp
+		return untyped __global__.__hx_anon_remove(h,key);
 		#elseif php
 		if(!untyped __call__("isset", h[key])) return false;
 		untyped __call__("unset", h[key]);
@@ -168,6 +178,10 @@ class Hash<T> {
 		var l = new List<String>();
 		untyped __dollar__hiter(h,function(k,_) { l.push(new String(k)); });
 		return l.iterator();
+		#elseif cpp
+		var a:Array<String> = [];
+		untyped h.__GetFields(a);
+		return a.iterator();
 		#elseif php
 		return untyped __call__("new _hx_array_iterator", __call__("array_keys", h));
 		#else
@@ -204,6 +218,14 @@ class Hash<T> {
 		var l = new List<T>();
 		untyped __dollar__hiter(h,function(_,v) { l.push(v); });
 		return l.iterator();
+		#elseif cpp
+		var a:Array<String> = [];
+		untyped h.__GetFields(a);
+		var it = a.iterator();
+		return untyped {
+			hasNext : function() { return it.hasNext(); },
+			next : function() { return  untyped h.__Field(it.next()); }
+		};
 		#elseif php
 		return untyped __call__("new _hx_array_iterator", __call__("array_values", h));
 		#else

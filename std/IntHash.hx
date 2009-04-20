@@ -49,6 +49,8 @@ class IntHash<T> {
 		};
 		#elseif php
 		h = untyped __call__('array');
+		#elseif cpp
+		h = untyped __global__.CreateIntHash();
 		#end
 	}
 
@@ -62,6 +64,8 @@ class IntHash<T> {
 		untyped h[key] = value;
 		#elseif neko
 		untyped __dollar__hset(h,key,value,null);
+		#elseif cpp
+		untyped __global__.__int_hash_set(h,key,value);
 		#end
 	}
 
@@ -78,6 +82,8 @@ class IntHash<T> {
 		#elseif php
 		untyped __php__("if(!isset($this->h[$key])) return null");
 		return untyped h[key];
+		#elseif cpp
+		return untyped __global__.__int_hash_get(h,key);
 		#else
 		return null;
 		#end
@@ -99,6 +105,8 @@ class IntHash<T> {
 		return untyped __dollar__hmem(h,key,null);
 		#elseif php
 		return untyped __call__("isset", h[key]);
+		#elseif cpp
+		return untyped __global__.__int_hash_exists(h,key);
 		#else
 		return false;
 		#end
@@ -127,6 +135,8 @@ class IntHash<T> {
 		if(!untyped __call__("isset", h[key])) return false;
 		untyped __call__("unset", h[key]);
 		return true;
+		#elseif cpp
+		return untyped __global__.__int_hash_remove(h,key);
 		#else
 		return false;
 		#end
@@ -156,6 +166,9 @@ class IntHash<T> {
 		return l.iterator();
 		#elseif php
 		return untyped __call__("new _hx_array_iterator", __call__("array_keys", h));
+		#elseif cpp
+		var a:Array<Int> = untyped __global__.__int_hash_keys(h);
+		return a.iterator();
 		#else
 		return null;
 		#end
@@ -192,6 +205,9 @@ class IntHash<T> {
 		return l.iterator();
 		#elseif php
 		return untyped __call__("new _hx_array_iterator", __call__("array_values", h));
+		#elseif cpp
+		var a:Array<Dynamic> = untyped __global__.__int_hash_values(h);
+		return a.iterator();
 		#else
 		return null;
 		#end

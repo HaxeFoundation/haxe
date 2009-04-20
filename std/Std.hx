@@ -41,6 +41,8 @@ class Std {
 		js.Boot.__instanceof(v,t);
 		#elseif php
 		untyped __call__("_hx_instanceof", v,t);
+		#elseif cpp
+		t!=null && (t==Dynamic) || (v!=null && v.__IsClass(t));
 		#else
 		false;
 		#end
@@ -59,6 +61,8 @@ class Std {
 		js.Boot.__string_rec(s,"");
 		#elseif php
 		__call__("_hx_string_rec", s, '');
+		#elseif cpp
+		s==null ? "null" : s.__ToString();
 		#else
 		"";
 		#end
@@ -110,6 +114,9 @@ class Std {
 		#elseif php
 		if(!__php__("is_numeric")(x)) return null;
 		return x.substr(0, 2).toLowerCase() == "0x" ? __php__("intval(substr($x, 2), 16)") : __php__("intval($x)");
+		#elseif cpp
+		if (x==null) return null;
+		return __global__.ParseInt(x);
 		#else
 		return 0;
 		#end
@@ -131,6 +138,8 @@ class Std {
 		__js__("parseFloat")(x);
 		#elseif php
 		__php__("is_numeric($x) ? floatval($x) : acos(1.01)");
+		#elseif cpp
+		__global__.ParseFloat(x.__s);
 		#else
 		0;
 		#end
@@ -151,6 +160,8 @@ class Std {
 		Math.floor(Math.random()*x);
 		#elseif php
 		__call__("rand", 0, x-1);
+		#elseif cpp
+		__global__.rand() % x;
 		#else
 		0;
 		#end
@@ -173,6 +184,8 @@ class Std {
 			Class = { __name__ : ["Class"] };
 			Enum = {};
 			Void = { __ename__ : ["Void"] };
+		#elseif cpp
+			null;
 		#elseif flash9
 			null;
 		#elseif flash

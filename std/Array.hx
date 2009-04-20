@@ -38,7 +38,11 @@ extern class Array<T> {
 	/**
 		Creates a new Array.
 	**/
+	#if (cpp)
+	function new(length:Int = 0, fixed:Bool = false) : Void;
+	#else
 	function new() : Void;
+	#end
 
 	/**
 		Returns a new Array by appending [a] to [this].

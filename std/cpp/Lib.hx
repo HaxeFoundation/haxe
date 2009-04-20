@@ -22,36 +22,33 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package haxe;
+package cpp;
 
-class Log {
+class Lib {
 
-	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
-		#if flash
-		untyped flash.Boot.__trace(v,infos);
-		#elseif neko
-		untyped __dollar__print(infos.fileName+":"+infos.lineNumber+": ",v,"\n");
-		#elseif js
-		untyped js.Boot.__trace(v,infos);
-		#elseif php
-		untyped __call__('_hx_trace', v,infos);
-		#elseif cpp
-		untyped __trace(v,infos);
-		#end
+	/**
+		Load and return a Cpp primitive from a DLL library.
+	**/
+	public static function load( lib : String, prim : String, nargs : Int ) : Dynamic {
+		return untyped __global__.__loadprim(lib,prim,nargs);
 	}
 
-	public static dynamic function clear() : Void {
-		#if flash
-		untyped flash.Boot.__clear_trace();
-		#elseif js
-		untyped js.Boot.__clear_trace();
-		#end
+	public static function rethrow(inExp:Dynamic) { throw inExp; }
+
+	public static function stringReference(inExp:Dynamic) { throw inExp; }
+
+/**
+		Print the specified value on the default output.
+	**/
+	public static function print( v : Dynamic ) : Void {
+		untyped __global__.__hxcpp_print(v);
 	}
 
-	#if flash
-	public static dynamic function setColor( rgb : Int ) {
-		untyped flash.Boot.__set_trace_color(rgb);
+	/**
+		Print the specified value on the default output followed by a newline character.
+	**/
+	public static function println( v : Dynamic ) : Void {
+		untyped __global__.__hxcpp_println(v);
 	}
-	#end
 
 }

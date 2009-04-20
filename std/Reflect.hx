@@ -46,6 +46,8 @@ class Reflect {
 			return false;
 		#elseif neko
 			return __dollar__typeof(o) == __dollar__tobject && __dollar__objfield(o,__dollar__hash(field.__s));
+		#elseif cpp
+			return o!=null && o.__HasField(field);
 		#elseif php
 			return __call__("_hx_has_field", o, field);
 		#else
@@ -61,6 +63,8 @@ class Reflect {
 			return (o == null) ? null : o[field];
 		#elseif flash
 			return o[field];
+		#elseif cpp
+			return o.__Field(field);
 		#elseif js
 			var v = null;
 			try {
@@ -85,6 +89,8 @@ class Reflect {
 			o[field] = value;
 		#elseif js
 			o[field] = value;
+		#elseif cpp
+			o.__SetField(field,value);
 		#elseif neko
 			if( __dollar__typeof(o) == __dollar__tobject )
 				__dollar__objset(o,__dollar__hash(field.__s),value);
@@ -96,7 +102,7 @@ class Reflect {
 	/**
 		Call a method with the given object and arguments.
 	**/
-	public #if !php inline #end static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
+	public #if !(php||cpp) inline #end static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
 		#if flash9
 			return func.apply(o,args);
 		#elseif flash
@@ -112,6 +118,9 @@ class Reflect {
 				else return __call__("call_user_func", field(o, func), args[0], args[1]);
 			}
 			return __php__("call_user_func_array(is_callable($func) ? $func : array($o, $func) , $args == null ? array() : $args->__a)");
+		#elseif cpp
+         var s:String = func;
+         return untyped o.__Field(s).__Run(args);
 		#else
 			return null;
 		#end
@@ -164,6 +173,10 @@ class Reflect {
 					o.__proto__ = t;
 			}
 			return a;
+		#elseif cpp
+			var a : Array<String> = [];
+			o.__GetFields(a);
+			return a;
 		#elseif neko
 			if( __dollar__typeof(o) != __dollar__tobject )
 				return new Array<String>();
@@ -202,6 +215,8 @@ class Reflect {
 			return __dollar__typeof(f) == __dollar__tfunction;
 		#elseif php
 			return __php__("(is_array($f) && is_callable($f)) || _hx_is_lambda($f)") || (__php__("is_array($f)") && hasField(__php__("$f[0]"), __php__("$f[1]")) && __php__("$f[1]") != "length");
+		#elseif cpp
+			return f!=null && f.__GetType() ==  __global__.vtFunction;
 		#else
 			return false;
 		#end
@@ -243,6 +258,8 @@ class Reflect {
 			if(untyped __call__("is_string", f1) && untyped __call__("is_string", f2))
 				return f1 == f2;
 			return false;
+		#elseif cpp
+			return untyped __global__.__hxcpp_same_closure(f1,f2);
 		#else
 			return false;
 		#end
