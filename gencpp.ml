@@ -19,13 +19,125 @@
  *)
 open Type
 open Common
-open Gensource
 
+
+(*
+  Code for generating source files.
+  It manages creating diretories, indents, blocks and only modifying files
+   when the content changes.
+*)
+
+let join_path path separator =
+   match fst path, snd path with
+   | [], s -> s
+   | el, s -> String.concat separator el ^ separator ^ s;;
+
+
+class source_writer write_func close_func=
+	object(this)
+	val indent_str = "\t"
+	val mutable indent = ""
+	val mutable indents = []
+	val mutable just_finished_block = false
+	method close = close_func(); ()
+	method write x = write_func x; just_finished_block <- false
+	method indent_one = this#write indent_str
+
+	method push_indent = indents <- indent_str::indents; indent <- String.concat "" indents
+	method pop_indent = match indents with
+							| h::tail -> indents <- tail; indent <- String.concat "" indents
+							| [] -> indent <- "/*?*/";
+	method write_i x = this#write (indent ^ x)
+	method get_indent = indent
+	method begin_block = this#write ("{\n"); this#push_indent
+	method end_block = this#pop_indent; this#write_i "}\n"; just_finished_block <- true
+	method end_block_line = this#pop_indent; this#write_i "}"; just_finished_block <- true
+	method terminate_line = this#write (if just_finished_block then "" else ";\n")
+
+
+	method add_include class_path =
+		this#write ("#include <" ^ (join_path class_path "/") ^ ".h>\n")
+end;;
+
+let file_source_writer filename =
+	let out_file = open_out filename in
+	new source_writer (output_string out_file) (fun ()-> close_out out_file);;
+
+
+let read_whole_file chan =
+	let fileRead = ref "" in 
+	(*we'll store results here before the EOF exception is thrown*)
+	let bufSize = 4096 in
+	let buf = String.create bufSize in (*rewritable buffer*)
+	let rec reader accumString =
+	let chunkLen = input chan buf 0 bufSize in (*input up to bufSize chars to buf*)
+	if (chunkLen > 0) then (*more than 0 chars read*)
+	let lastChunk = String.sub buf 0 chunkLen (*getting n chars read*) in
+		reader (accumString^lastChunk) 
+	else 
+		accumString (*this case will occur before EOF*)
+	in
+	try
+		let () = (fileRead := (reader "")) in (*reader stops and returns at 0 chars read*)
+		!fileRead (*this will never be reached, EOF comes before*)
+	with
+		End_of_file -> !fileRead;; (*so we go and retrieve the string read*)
+
+
+
+(* The cached_source_writer will not write to the file if it has not changed,
+	thus allowing the makefile dependencies to work correctly *)
+let cached_source_writer filename =
+	try
+		let in_file = open_in filename in
+		let old_contents = read_whole_file in_file in
+		close_in in_file;
+		let buffer = Buffer.create 0 in
+		let add_buf str = Buffer.add_string buffer str in
+		let close = fun () ->
+			let contents = Buffer.contents buffer in
+			if (not (contents=old_contents) ) then begin
+				let out_file = open_out filename in
+				output_string out_file contents;
+				close_out out_file;
+			end;
+		in
+		new source_writer (add_buf) (close);
+	with _ ->
+		file_source_writer filename;;
+
+let rec make_class_directories base dir_list =
+	( match dir_list with
+	| [] -> ()
+	| dir :: remaining ->
+		let path = base ^ "/" ^ dir  in
+		if not (Sys.file_exists path) then
+			Unix.mkdir path 0o755;
+		make_class_directories path remaining
+	);;
+
+
+let new_source_file base_dir sub_dir extension class_path =
+	make_class_directories base_dir ( sub_dir :: (fst class_path));
+	cached_source_writer
+		( base_dir ^ "/" ^ sub_dir ^ "/" ^ ( String.concat "/" (fst class_path) ) ^ "/" ^
+		(snd class_path) ^ extension);;
+
+
+let new_cpp_file base_dir = new_source_file base_dir "src" ".cpp";;
+
+let new_header_file base_dir = new_source_file base_dir "include" ".h";;
+
+let make_base_directory file =
+	make_class_directories "." (file :: []);;
+
+
+(* CPP code generation context *)
 
 type context =
 {
 	mutable ctx_output : string -> unit;
-	mutable ctx_writer : Gensource.source_writer;
+	mutable ctx_writer : source_writer;
 	mutable ctx_calling : bool;
 	mutable ctx_assigning : bool;
 	mutable ctx_return_from_block : bool;
@@ -1519,7 +1631,7 @@ let find_referenced_types obj =
 let generate_main common_ctx member_types class_def boot_classes init_classes =
 	let base_dir = common_ctx.file in
 	(*make_class_directories base_dir ( "src" :: []);*)
-	let cpp_file = Gensource.new_cpp_file common_ctx.file ([],"__main__") in
+	let cpp_file = new_cpp_file common_ctx.file ([],"__main__") in
 	let output_main = (cpp_file#write) in
 	let ctx = new_context cpp_file common_ctx.debug in
 	ctx.ctx_class_name <- "?";
@@ -1558,7 +1670,7 @@ let generate_main common_ctx member_types class_def boot_classes init_classes =
 	cpp_file#close;
 
 	(* Write boot class too ... *)
-	let boot_file = Gensource.new_cpp_file base_dir ([],"__boot__") in
+	let boot_file = new_cpp_file base_dir ([],"__boot__") in
 	let output_boot = (boot_file#write) in
 	output_boot "#include <hxObject.h>\n\n";
 	List.iter ( fun class_path ->
@@ -1593,7 +1705,7 @@ let generate_enum_files common_ctx enum_def =
 	let class_name = (snd class_path) ^ "_obj" in
 	let smart_class_name =  (snd class_path)  in
 	(*let cpp_file = new_cpp_file common_ctx.file class_path in*)
-	let cpp_file = Gensource.new_cpp_file common_ctx.file class_path in
+	let cpp_file = new_cpp_file common_ctx.file class_path in
 	let output_cpp = (cpp_file#write) in
 	let ctx = new_context cpp_file common_ctx.debug in
 
@@ -1710,7 +1822,7 @@ let generate_enum_files common_ctx enum_def =
 	gen_close_namespace output_cpp class_path;
 	cpp_file#close;
 
-	let h_file = Gensource.new_header_file common_ctx.file class_path in
+	let h_file = new_header_file common_ctx.file class_path in
 	let super = "hxEnumBase_obj" in
 	let output_h = (h_file#write) in
 	let def_string = join_class_path class_path "_"  in
@@ -1767,7 +1879,7 @@ let generate_class_files common_ctx member_types class_def =
 	let class_name = (snd class_def.cl_path) ^ "_obj" in
 	let smart_class_name =  (snd class_def.cl_path)  in
 	(*let cpp_file = new_cpp_file common_ctx.file class_path in*)
-	let cpp_file = Gensource.new_cpp_file common_ctx.file class_path in
+	let cpp_file = new_cpp_file common_ctx.file class_path in
 	let output_cpp = (cpp_file#write) in
 	let debug = common_ctx.debug in
 	let ctx = new_context cpp_file debug in
@@ -1983,7 +2095,7 @@ let generate_class_files common_ctx member_types class_def =
 	cpp_file#close;
 
 
-	let h_file = Gensource.new_header_file common_ctx.file class_path in
+	let h_file = new_header_file common_ctx.file class_path in
 	let super = match class_def.cl_super with
 		| Some (klass,params) -> (class_string klass "_obj" params)
 		| _ -> "hxObject"
@@ -2088,7 +2200,7 @@ let kind_string = function
 
 
 let write_resources common_ctx =
-	let resource_file = Gensource.new_cpp_file common_ctx.file ([],"__resources__") in
+	let resource_file = new_cpp_file common_ctx.file ([],"__resources__") in
 	resource_file#write "#include <hxObject.h>\n\n";
 
 	let idx = ref 0 in
@@ -2168,7 +2280,7 @@ let create_member_types common_ctx =
 
 (* The common_ctx contains the haxe AST in the "types" field and the resources *)
 let generate common_ctx =
-	Gensource.make_base_directory common_ctx.file;
+	make_base_directory common_ctx.file;
 
 	let debug = common_ctx.debug in
 	let exe_classes = ref [] in
