@@ -441,10 +441,9 @@ let escape_stringw s =
 let has_utf8_chars s = 
 	let result = ref false in
 	for i = 0 to String.length s - 1 do
-		!result <- !result || ( Char.code (String.unsafe_get s i) > 127 )
+		result := !result || ( Char.code (String.unsafe_get s i) > 127 )
 	done;
 	!result;;
-
 
 let str s = "String(" ^ (
 	(if (has_utf8_chars s) then escape_string else escape_stringw) (Ast.s_escape s))
@@ -1250,13 +1249,13 @@ let rec gen_expression ctx retval expression =
 			if (List.length cases > 0) then
 				List.iter (fun (cases,expression) ->
 					output_i ( !else_str ^ "if ( ");
-					!else_str <- "else ";
+					else_str := "else ";
 					let or_str = ref "" in
 					List.iter (fun value ->
 						output (!or_str ^ " ( " ^ tmp_name ^ "==");
 						gen_expression ctx true value;
 						output ")";
-						!or_str <- " || ";
+						or_str := " || ";
 						) cases;
 					output (")");
 					ctx.ctx_return_from_block <- return_from_internal_node;
@@ -1315,7 +1314,7 @@ let rec gen_expression ctx retval expression =
 			List.iter (fun (name,t,expression) ->
 				let type_name = type_string t in
 				if (type_name="Dynamic") then begin
-					!seen_dynamic <- true;
+					seen_dynamic := true;
 					output_i !else_str;
 				end else
 					output_i (!else_str ^ "if (__e->__IsClass(hxClassOf<" ^ type_name ^ " >()))");
@@ -1325,7 +1324,7 @@ let rec gen_expression ctx retval expression =
 				ctx.ctx_return_from_block <-return_from_internal_node;
 				gen_expression ctx false (to_block expression);
 				ctx.ctx_writer#end_block;
-				!else_str <- "else ";
+				else_str := "else ";
 				) catch_list;
 			if (not !seen_dynamic) then begin
 				output_i "else throw(__e);\n";
@@ -1589,20 +1588,20 @@ let find_referenced_types obj =
 		end
 	in
 	let visit_field field =
-		!ignore_function_name <- field.cf_name;
+		ignore_function_name := field.cf_name;
 		(* Add the type of the expression ... *)
 		visit_type field.cf_type;
 		(match field.cf_expr with
 			| Some expression -> visit_types expression | _ -> ());
-		!ignore_function_name <- "?"
+		ignore_function_name := "?"
 	in
 	let visit_class class_def =
-		!ignore_class_name <- join_class_path class_def.cl_path ".";
+		ignore_class_name := join_class_path class_def.cl_path ".";
 		let fields = List.append class_def.cl_ordered_fields class_def.cl_ordered_statics in
 		let fields_and_constructor = List.append fields
 			(match class_def.cl_constructor with | Some expr -> [expr] | _ -> [] ) in
 		List.iter visit_field fields_and_constructor;
-		!ignore_class_name <- "?"
+		ignore_class_name := "?"
 	in
 	let visit_enum enum_def =
 		add_type enum_def.e_path;
@@ -2215,7 +2214,7 @@ let write_resources common_ctx =
 		incr idx;
 	) common_ctx.resources;
 
-	!idx <- 0;
+	idx := 0;
 	resource_file#write "hxResource __Resources[] =";
 	resource_file#begin_block;
 	Hashtbl.iter (fun name data ->
@@ -2305,11 +2304,11 @@ let generate common_ctx =
 					( if debug then print_endline (" internal class " ^ name ))
 				else begin
 					if (not class_def.cl_interface) then
-						!boot_classes <- class_def.cl_path ::  !boot_classes;
+						boot_classes := class_def.cl_path ::  !boot_classes;
 					if (has_init_field class_def) then
-						!init_classes <- class_def.cl_path ::  !init_classes;
+						init_classes := class_def.cl_path ::  !init_classes;
 					let deps = generate_class_files common_ctx member_types class_def in
-					!exe_classes <- (class_def.cl_path, deps)  ::  !exe_classes;
+					exe_classes := (class_def.cl_path, deps)  ::  !exe_classes;
 				end
 			)
 		| TEnumDecl enum_def ->
@@ -2320,9 +2319,9 @@ let generate common_ctx =
 			else begin
 				if (enum_def.e_extern) then
 					(if debug then print_endline ("external enum " ^ name ));
-				!boot_classes <- enum_def.e_path :: !boot_classes;
+				boot_classes := enum_def.e_path :: !boot_classes;
 				let deps = generate_enum_files common_ctx enum_def in
-				!exe_classes <- (enum_def.e_path, deps) :: !exe_classes;
+				exe_classes := (enum_def.e_path, deps) :: !exe_classes;
 			end
 		| TTypeDecl _ -> (* already done *) ()
 		);

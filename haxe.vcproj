@@ -68,6 +68,9 @@
 				RelativePath=".\genas3.ml">
 			</File>
 			<File
+				RelativePath=".\gencpp.ml">
+			</File>
+			<File
 				RelativePath=".\genjs.ml">
 			</File>
 			<File

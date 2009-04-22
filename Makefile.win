@@ -10,7 +10,7 @@ OUTPUT=sed 's/File "\([^"]\+\)", line \([0-9]\+\), \(.*\)/\1(\2): \3/' tmp.cmi
 FILES = ast.cmx lexer.cmx type.cmx common.cmx parser.cmx typecore.cmx \
 	genxml.cmx typeload.cmx codegen.cmx optimizer.cmx typer.cmx \
 	../neko/libs/include/ocaml/nast.cmx ../neko/libs/include/ocaml/binast.cmx ../neko/libs/include/ocaml/nxml.cmx \
-	genneko.cmx genas3.cmx genjs.cmx genswf8.cmx genswf9.cmx genswf.cmx genphp.cmx \
+	genneko.cmx genas3.cmx genjs.cmx genswf8.cmx genswf9.cmx genswf.cmx genphp.cmx gencpp.cmx \
 	main.cmx
 	
 all: haxe.exe
