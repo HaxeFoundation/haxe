@@ -183,14 +183,14 @@ let rec follow_basic t =
 	| TLazy f ->
 		follow_basic (!f())
 	| TType ({ t_path = [],"Null" },[tp]) ->
-		(match follow tp with
+		(match follow_basic tp with
 		| TMono _
 		| TFun _
 		| TInst ({ cl_path = (["haxe"],"Int32") },[])
 		| TInst ({ cl_path = ([],"Int") },[])
 		| TInst ({ cl_path = ([],"Float") },[])
 		| TEnum ({ e_path = ([],"Bool") },[]) -> t
-		| _ -> tp)
+		| t -> t)
 	| TType ({ t_path = [],"UInt" },[]) ->
 		t
 	| TType (t,tl) ->
