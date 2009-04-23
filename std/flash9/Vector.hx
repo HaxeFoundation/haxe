@@ -1,5 +1,9 @@
 package flash;
 
+#if !flash10
+"The vector class is only available for flash10+"
+#end
+
 /**
 	The Vector class is very similar to Array but is only supported by the Flash Player 10+
 **/

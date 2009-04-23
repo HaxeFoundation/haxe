@@ -9,6 +9,7 @@ TODO :
 	flash8 : removed extra empty AS3 tag (causing some issue with F8 loadMovie)
 	improved speed of Bytes unserializing (no need for BytesBuffer)
 	flash9 : bugfix, Null<Typedef> was generating dynamic code
+	flash9 : added error message in flash.Vector if used without flash 10
 
 2009-03-22: 2.03
 	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php
