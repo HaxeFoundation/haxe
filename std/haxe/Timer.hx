@@ -95,6 +95,8 @@ class Timer {
 			return php.Sys.time();
 		#elseif js
 			return Date.now().getTime() / 1000;
+		#elseif cpp
+			return untyped __time_stamp();
 		#else
 			return 0;
 		#end
