@@ -41,6 +41,8 @@ class Bytes {
 		return b[pos];
 		#elseif php
 		return untyped __call__("ord", b[pos]);
+		#elseif cpp
+		return untyped b[pos];
 		#else
 		return b[pos];
 		#end
@@ -53,6 +55,8 @@ class Bytes {
 		b[pos] = v;
 		#elseif php
 		b[pos] = untyped __call__("chr", v);
+		#elseif cpp
+		untyped b[pos] = v;
 		#else
 		b[pos] = v;
 		#end
@@ -132,7 +136,11 @@ class Bytes {
 		var len = (length < other.length) ? length : other.length;
 		for( i in 0...len )
 			if( b1[i] != b2[i] )
+				#if cpp
+				return untyped b1[i] - untyped b2[i];
+				#else
 				return b1[i] - b2[i];
+				#end
 		return length - other.length;
 		#end
 	}
@@ -150,6 +158,10 @@ class Bytes {
 		// TODO: test me
 		return untyped __call__("substr", b, pos, len);
 //		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", __call__("array", "C*"), __call__("array_slice", b.__a, pos, len)));
+		#elseif cpp
+		var result:String="";
+		untyped __global__.__hxcpp_string_of_bytes(b,result,pos,len);
+		return result;
 		#else
 		var s = "";
 		var b = b;
@@ -212,6 +224,10 @@ class Bytes {
 		else
 			return new Bytes(0, untyped __call__("new _hx_array", __call__("array")));
 		*/
+		#elseif cpp
+		var a = new BytesData();
+		if (length>0) a[length-1] = untyped 0;
+		return new Bytes(length,a);
 		#else
 		var a = new Array();
 		for( i in 0...length )
@@ -230,6 +246,10 @@ class Bytes {
 		#elseif php
 		return new Bytes(untyped __call__("strlen", s), cast s);
 //		return ofData(untyped __call__("new _hx_array", __call__("array_values", __call__("unpack", "C*",  s))));
+		#elseif cpp
+		var a = new BytesData();
+		untyped __global__.__hxcpp_bytes_of_string(a,s);
+		return new Bytes(a.length,a);
 		#else
 		var a = new Array();
 		// utf8-decode

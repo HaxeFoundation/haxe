@@ -64,6 +64,8 @@ class BytesInput extends Input {
 			return untyped __dollar__sget(b,pos++);
 			#elseif php
 			return untyped __call__("ord", b[pos++]);
+			#elseif cpp
+			return untyped b[pos++];
 			#else
 			return b[pos++];
 			#end

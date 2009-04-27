@@ -30,6 +30,9 @@ package haxe.io;
 	typedef BytesData =	flash.utils.ByteArray;
 #elseif php
 	typedef BytesData =	php.NativeString;
+#elseif cpp
+	extern class Unsigned_char__ { }
+	typedef BytesData = Array<Unsigned_char__>;
 #else
 	typedef BytesData = Array<Int>;
 #end

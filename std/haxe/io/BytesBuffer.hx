@@ -32,6 +32,8 @@ class BytesBuffer {
 	var b : flash.utils.ByteArray;
 	#elseif php
 	var b : String;
+	#elseif cpp
+	var b : BytesData;
 	#else
 	var b : Array<Int>;
 	#end
@@ -55,6 +57,8 @@ class BytesBuffer {
 		b.writeByte(byte);
 		#elseif php
 		b += untyped __call__("chr", byte);
+		#elseif cpp
+		b.push(untyped byte);
 		#else
 		b.push(byte);
 		#end

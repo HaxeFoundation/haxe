@@ -33,7 +33,12 @@ class Input {
 	public var bigEndian(default,setEndian) : Bool;
 
 	public function readByte() : Int {
+	#if cpp
+		throw "Not implemented";
+		return 0;
+	#else
 		return throw "Not implemented";
+	#end
 	}
 
 	public function readBytes( s : Bytes, pos : Int, len : Int ) : Int {
@@ -46,6 +51,8 @@ class Input {
 				untyped __dollar__sset(b,pos,readByte());
 			#elseif php
 				b[pos] = untyped __call__("chr", readByte());
+			#elseif cpp
+				b[pos] = untyped readByte();
 			#else
 				b[pos] = readByte();
 			#end
