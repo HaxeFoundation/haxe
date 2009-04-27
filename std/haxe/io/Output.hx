@@ -50,6 +50,8 @@ class Output {
 				writeByte(untyped __dollar__sget(b,pos));
 			#elseif php
 				writeByte(untyped __call__("ord", b[pos]));
+			#elseif cpp
+				writeByte(untyped b[pos]);
 			#else
 				writeByte(b[pos]);
 			#end
