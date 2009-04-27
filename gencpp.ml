@@ -56,7 +56,9 @@ class source_writer write_func close_func=
 
 
 	method add_include class_path =
-		this#write ("#include <" ^ (join_path class_path "/") ^ ".h>\n")
+		this#write ("#ifndef INCLUDED_" ^ (join_path class_path "_") ^ "\n");
+		this#write ("#include <" ^ (join_path class_path "/") ^ ".h>\n");
+		this#write ("#endif\n")
 end;;
 
 let file_source_writer filename =
@@ -191,9 +193,10 @@ let is_internal_class = function
 (* The internal header files are also defined in the hxObject.h file, so you do
 	 #include them separately.  However, the Int32 and Math classes do have their
 	 own header files (these are under the hxcpp tree) so these should be included *)
-let is_internal_header path = match path with
-	|  (["haxe"], "Int32") | ([],"Math") -> false
-	| _ -> is_internal_class path
+let is_internal_header = function
+	| ([],"@Main") -> true
+	| (["haxe"], "Int32") | ([],"Math") -> false
+	| path -> is_internal_class path
 
 (*
   A class_path is made from a package (array of strings) and a class name.
@@ -222,7 +225,12 @@ let to_block expression =
 let hash_keys hash =
 	let key_list = ref [] in
 	Hashtbl.iter (fun key value -> key_list :=  key :: !key_list ) hash;
-	!key_list
+	!key_list;;
+
+let pmap_keys pmap =
+	let key_list = ref [] in
+	PMap.iter (fun key value -> key_list :=  key :: !key_list ) pmap;
+	!key_list;;
 
 
 
@@ -285,6 +293,7 @@ let gen_close_namespace output class_path =
 (* The basic types can have default values and are passesby value *)
 let is_basic_type = function
 	| "Int" | "Bool" | "Float" | "String" | "haxe::io::Unsigned_char__" -> true
+	| "int" | "bool" | "double" -> true
 	| _ -> false
 
 (*  Get a string to represent a type.
@@ -315,6 +324,8 @@ and type_string_suff suffix haxe_type =
 	| TMono r -> (match !r with None -> "Dynamic" | Some t -> type_string_suff suffix t)
 	| TEnum ({ e_path = ([],"Void") },[]) -> "void"
 	| TEnum ({ e_path = ([],"Bool") },[]) -> "bool"
+	| TInst ({ cl_path = ([],"Float") },[]) -> "double"
+	| TInst ({ cl_path = ([],"Int") },[]) -> "int"
 	| TEnum (enum,params) ->  (join_class_path enum.e_path "::") ^ suffix
 	| TInst (klass,params) ->  (class_string klass suffix params)
 	| TType (type_def,params) ->
@@ -361,6 +372,10 @@ let is_dynamic haxe_type = type_string haxe_type ="Dynamic";;
 (* Get the type and output it to the stream *)
 let gen_type ctx haxe_type =
 	ctx.ctx_output (type_string haxe_type);;
+
+(* Get the type and output it to the stream *)
+let gen_type_suff ctx haxe_type suff =
+	ctx.ctx_output (type_string_suff suff haxe_type);;
 
 let member_type ctx field_object member =
 	let name = (type_string field_object.etype) ^ "." ^ member in
@@ -445,9 +460,10 @@ let has_utf8_chars s =
 	done;
 	!result;;
 
-let str s = "String(" ^ (
-	(if (has_utf8_chars s) then escape_string else escape_stringw) (Ast.s_escape s))
-		^ "," ^ (string_of_int (String.length s)) ^ ")"
+let quote s =
+	(if (has_utf8_chars s) then escape_string else escape_stringw) (Ast.s_escape s);;
+
+let str s = "String(" ^ (quote s) ^ "," ^ (string_of_int (String.length s)) ^ ")";;
 
 
 (* When we are in a "real" object, we refer to ourselves as "this", but
@@ -920,13 +936,12 @@ let rec gen_expression ctx retval expression =
 				output ( "." ^ member_name)
 			else begin
 				output ( "->" ^ member_name);
-				(*
 				if (not assigning) then begin
 					let expr_type = type_string return_type in
 					let mem_type = member_type ctx field_object member in
-						output (".Cast<" ^ mem_type ^ "/* " ^ expr_type ^ " */" ^ ">()");
+					if ( (mem_type="Dynamic") && expr_type<>"Dynamic") then
+						output (".Cast<" ^ expr_type ^ " >()");
 				end;
-				*)
 			end )
 		end in
 
@@ -1435,6 +1450,7 @@ let gen_field ctx class_name ptr_name is_static is_external is_interface field =
 			output ( " " ^ class_name ^ "::" ^ field.cf_name ^ ";\n\n");
 		end
 	)
+	;;
 
 
 
@@ -1462,17 +1478,9 @@ let gen_field_init ctx field =
 			output ( "	Static(" ^ field.cf_name ^ ");\n");
 		);
 	)
+	;;
 
 
-
-let declare_typedef ctx output type_def = 
-	let name =  snd type_def.t_path in
-	if ( not (name = "Null") ) then begin
-		List.iter (fun namespace -> output ("namespace " ^ namespace ^ "{ ") ) (fst type_def.t_path);
-		output ("typedef " ^ (type_string type_def.t_type) ^ " " ^ name ^ "; "); 
-		List.iter (fun _ -> output ("} ") ) (fst type_def.t_path);
-		output "\n\n"
-	end
 
 let gen_member_def ctx is_static is_extern is_interface field =
 	let output = ctx.ctx_output in
@@ -1500,7 +1508,8 @@ let gen_member_def ctx is_static is_extern is_interface field =
 		if ( is_dynamic_method field ) then begin
 			output ("Dynamic " ^ field.cf_name ^ ";\n");
 			output (if is_static then "		static " else "		");
-			output ("inline Dynamic &" ^ field.cf_name ^ "_dyn() " ^
+			(* external mem  Dynamic & *)
+			output ("inline Dynamic " ^ field.cf_name ^ "_dyn() " ^
 									 "{return " ^ field.cf_name^ "; }\n") 
 		end else begin
 			let return_type = (type_string function_def.tf_type) in
@@ -1525,6 +1534,7 @@ let gen_member_def ctx is_static is_extern is_interface field =
 			output (" &" ^ remap_name ^ "_dyn() { return " ^ remap_name ^ ";}\n" )
 		| _ -> () )
 	)
+	;;
 
 
 
@@ -1532,17 +1542,22 @@ let gen_member_def ctx is_static is_extern is_interface field =
   Get a list of all classes referred to by the class/enum definition
   These are used for "#include"ing the appropriate header files.
 *)
-let find_referenced_types obj =
-	let types = Hashtbl.create 0 in
+let find_referenced_types obj super_deps =
+	let types = ref PMap.empty in
 	(* When a class or function is templated on type T, variables of that type show
 		up as being in a package "class-name.T" or "function-name.T"  in these cases
 		we just use "Dynamic" - TODO: Use cl_kind *)
 	let ignore_class_name = ref "?" in
 	let ignore_function_name = ref "?" in
-	let add_type in_path =
+	let rec add_type in_path =
 		let package = (String.concat "." (fst in_path)) in
 		if ( not ((package=(!ignore_function_name)) || (package=(!ignore_class_name))) ) then
-			try ( Hashtbl.find types in_path; () ) with Not_found -> Hashtbl.add types in_path ()
+			if ( not (PMap.mem in_path !types)) then begin
+				types := (PMap.add in_path () !types);
+				try
+					List.iter add_type (Hashtbl.find super_deps in_path);
+				with Not_found -> ()
+			end
 	in
 	let rec visit_type in_type =
 		match (follow in_type) with
@@ -1601,6 +1616,8 @@ let find_referenced_types obj =
 		let fields_and_constructor = List.append fields
 			(match class_def.cl_constructor with | Some expr -> [expr] | _ -> [] ) in
 		List.iter visit_field fields_and_constructor;
+		(* Add super & interfaces *)
+		add_type class_def.cl_path;
 		ignore_class_name := "?"
 	in
 	let visit_enum enum_def =
@@ -1612,14 +1629,16 @@ let find_referenced_types obj =
 			| _ -> () );
 			) enum_def.e_constrs
 	in
+	let inc_cmp i1 i2 =
+		String.compare (join_class_path i1 ".") (join_class_path i2 ".")
+	in
 
 	(* Body of main function *)
 	(match obj with
 	| TClassDecl class_def -> visit_class class_def
 	| TEnumDecl enum_def -> visit_enum enum_def
 	| TTypeDecl _ -> (* These are expanded *) ());
-
-	List.filter (fun path -> not (is_internal_header path) ) (hash_keys types)
+	List.sort inc_cmp (List.filter (fun path -> not (is_internal_header path) ) (pmap_keys !types))
 	;;
 
 
@@ -1627,7 +1646,7 @@ let find_referenced_types obj =
 
 
 
-let generate_main common_ctx member_types class_def boot_classes init_classes =
+let generate_main common_ctx member_types super_deps class_def boot_classes init_classes =
 	let base_dir = common_ctx.file in
 	(*make_class_directories base_dir ( "src" :: []);*)
 	let cpp_file = new_cpp_file common_ctx.file ([],"__main__") in
@@ -1645,7 +1664,7 @@ let generate_main common_ctx member_types class_def boot_classes init_classes =
 	output_main "#include <stdio.h>\n\n";
 	(*output_main "#include <hxLoadDLL.cpp>\n\n";*)
 
-	let referenced = find_referenced_types (TClassDecl class_def) in
+	let referenced = find_referenced_types (TClassDecl class_def) super_deps in
 	List.iter ( add_include cpp_file ) referenced;
 
 	output_main "\n\n";
@@ -1692,14 +1711,13 @@ let generate_main common_ctx member_types class_def boot_classes init_classes =
 let begin_header_file output_h def_string =
 	output_h ("#ifndef INCLUDED_" ^ def_string ^ "\n");
 	output_h ("#define INCLUDED_" ^ def_string ^ "\n\n");
-	output_h "#include <hxObject.h>\n\n"
-	(*output_h "#include <Typedefs.h>\n\n" *)
+	output_h "#include <hxObject.h>\n\n";;
 
 let end_header_file output_h def_string = 
-	output_h ("\n#endif /* INCLUDED_" ^ def_string ^ " */ \n")
+	output_h ("\n#endif /* INCLUDED_" ^ def_string ^ " */ \n");;
 
 
-let generate_enum_files common_ctx enum_def =
+let generate_enum_files common_ctx enum_def super_deps =
 	let class_path = enum_def.e_path in
 	let class_name = (snd class_path) ^ "_obj" in
 	let smart_class_name =  (snd class_path)  in
@@ -1712,9 +1730,8 @@ let generate_enum_files common_ctx enum_def =
 		print_endline ("Found enum definition:" ^ (join_class_path  class_path "::" ));
 
 	output_cpp "#include <hxObject.h>\n\n";
-	add_include cpp_file class_path;
 
-	let referenced = find_referenced_types (TEnumDecl enum_def) in
+	let referenced = find_referenced_types (TEnumDecl enum_def) super_deps in
 	List.iter (add_include cpp_file) referenced;
 
 	gen_open_namespace output_cpp class_path;
@@ -1872,7 +1889,7 @@ let has_init_field class_def = match class_def.cl_init with Some _ -> true | _ -
 
 
 
-let generate_class_files common_ctx member_types class_def =
+let generate_class_files common_ctx member_types super_deps class_def =
 	let is_extern = class_def.cl_extern in
 	let class_path = class_def.cl_path in
 	let class_name = (snd class_def.cl_path) ^ "_obj" in
@@ -1906,9 +1923,8 @@ let generate_class_files common_ctx member_types class_def =
 
 
 	output_cpp "#include <hxObject.h>\n\n";
-	add_include cpp_file class_path;
 
-	let referenced = find_referenced_types (TClassDecl class_def) in
+	let referenced = find_referenced_types (TClassDecl class_def) super_deps in
 	List.iter ( add_include cpp_file  ) referenced;
 
 	gen_open_namespace output_cpp class_path;
@@ -1998,16 +2014,38 @@ let generate_class_files common_ctx member_types class_def =
 			| _ -> (not is_extern) ||
 							  (match follow field.cf_type with | TFun _ -> false | _ -> true) ) in
 
+      let all_fields = class_def.cl_ordered_statics @ class_def.cl_ordered_fields in
+		let all_variables = List.filter variable_field all_fields in
+
+		let dump_quick_field_test fields =
+			if ( (List.length fields) > 0) then begin
+				let len = function (_,l,_) -> l in
+				let sfields = List.sort (fun f1 f2 -> (len f1)-(len f2)) fields in
+				let len_case = ref (-1) in
+				output_cpp "	switch(inName.length) {\n";
+				List.iter (fun (field,l,result) ->
+					if (l <> !len_case) then begin
+						if (!len_case>=0) then output_cpp "		break;\n";
+						output_cpp ("	case " ^ (string_of_int l) ^ ":\n");
+						len_case := l;
+					end;
+					output_cpp ("		if (!memcmp(inName.__s," ^ quote(field) ^
+					     ",sizeof(wchar_t)*" ^ (string_of_int l) ^ ") ) { " ^ result ^ " }\n");
+				) sfields;
+				output_cpp "	}\n";
+			end
+		in
+
+
 		(* Dynamic "Get" Field function - string version *)
 		output_cpp ("Dynamic " ^ class_name ^ "::__Field(const String &inName)\n{\n");
-		let dump_field_test = (fun field ->
-			let remap_name = keyword_remap field.cf_name in
-			output_cpp ("	if (inName==" ^ (str field.cf_name) ^ ") return " ^ remap_name );
-			if (not (variable_field field) ) then output_cpp "_dyn()";
-			output_cpp (";\n")) in
-		List.iter dump_field_test  class_def.cl_ordered_statics;
-		List.iter dump_field_test  class_def.cl_ordered_fields;
+		let get_field_dat = List.map (fun f ->
+			(f.cf_name, String.length f.cf_name, "return " ^ ((keyword_remap f.cf_name) ^
+				(if (not (variable_field f) ) then "_dyn();" else ";")  ) ) )
+		in
+		dump_quick_field_test (get_field_dat all_fields);
 		output_cpp ("	return super::__Field(inName);\n}\n\n");
+
 
 		(* Dynamic "Get" Field function - int version *)
 
@@ -2016,18 +2054,16 @@ let generate_class_files common_ctx member_types class_def =
 			output_cpp ("static int __id_" ^ remap_name ^ " = __hxcpp_field_to_id(\"" ^
 								  (field.cf_name) ^ "\");\n");
 			) in
-		List.iter dump_static_ids  class_def.cl_ordered_statics;
-		List.iter dump_static_ids  class_def.cl_ordered_fields;
+		List.iter dump_static_ids all_fields;
 		output_cpp "\n\n";
+
 
 		output_cpp ("Dynamic " ^ class_name ^ "::__IField(int inFieldID)\n{\n");
 		let dump_field_test = (fun field ->
 			let remap_name = keyword_remap field.cf_name in
 			output_cpp ("	if (inFieldID==__id_" ^ remap_name ^ ") return " ^ remap_name );
-			if (not (variable_field field) ) then output_cpp "_dyn()";
-			output_cpp (";\n")) in
-		List.iter dump_field_test  class_def.cl_ordered_statics;
-		List.iter dump_field_test  class_def.cl_ordered_fields;
+			output_cpp (if (not (variable_field field) ) then "_dyn();\n" else ";\n" ) ) in
+		List.iter dump_field_test all_fields;
 		output_cpp ("	return super::__IField(inFieldID);\n}\n\n");
 
 
@@ -2035,14 +2071,12 @@ let generate_class_files common_ctx member_types class_def =
 		output_cpp ("Dynamic " ^ class_name ^ "::__SetField(const String &inName," ^
 						"const Dynamic &inValue)\n{\n");
 
-		let dump_field_set = (fun field ->
-			let n = keyword_remap field.cf_name in
-			if (variable_field field ) then
-				output_cpp ("	if (inName==" ^ (str field.cf_name) ^ ") " ^
-						"return "^n^"=inValue.Cast<" ^ (type_string field.cf_type) ^ " >();\n" );
-			) in
-		List.iter dump_field_set  class_def.cl_ordered_statics;
-		List.iter dump_field_set  class_def.cl_ordered_fields;
+		let set_field_dat = List.map (fun f ->
+			(f.cf_name, String.length f.cf_name, ((keyword_remap f.cf_name) ^
+				"=inValue.Cast<" ^ (type_string f.cf_type) ^ " >();return inValue;" ) ) )
+		in
+
+		dump_quick_field_test (set_field_dat all_variables);
 		output_cpp ("	return super::__SetField(inName,inValue);\n}\n\n");
 
 		(* For getting a list of data members (eg, for serialization) *)
@@ -2240,12 +2274,11 @@ let write_makefile is_nmake filename classes add_obj exe_name =
 		output_string makefile ("!include $(HXCPP)/make/nmake.setup\n\n");
 	end else begin
 		output_string makefile ("ifeq (\"x$(HXCPP)\",\"x\")\n");
-		output_string makefile (" HXCPP := `haxelib path hxcpp`\n");
+		output_string makefile (" HXCPP := $(shell haxelib path hxcpp)\n");
 		output_string makefile ("endif\n");
 		output_string makefile ("include $(HXCPP)/make/make.setup\n\n");
 	end;
 
-	(* TODO : resource deps *)
 	List.iter (add_class_to_makefile makefile add_obj ) classes;
 
 	output_string makefile ("\n\nOUT_FILE = " ^ exe_name ^ "$(EXE_EXT)\n");
@@ -2265,7 +2298,9 @@ let create_member_types common_ctx =
 						(type_string ret)); *)
 			Hashtbl.add result ((join_class_path class_path "::") ^ "." ^ member.cf_name)
 						(type_string ret)
-		| _ -> ()
+		| _ ->
+			Hashtbl.add result ((join_class_path class_path "::") ^ "." ^ member.cf_name)
+						(type_string member.cf_type)
 		in
 	List.iter (fun object_def ->
 		(match object_def with
@@ -2274,6 +2309,23 @@ let create_member_types common_ctx =
 			List.iter (add_member class_def.cl_path) class_def.cl_ordered_statics
 		| _ -> ()
 		) ) common_ctx.types;
+	result;;
+
+let create_super_dependencies common_ctx = 
+	let result = Hashtbl.create 0 in
+	List.iter (fun object_def ->
+		(match object_def with
+		| TClassDecl class_def ->
+			let deps = ref [] in
+			(match class_def.cl_super with Some super ->
+				deps := ((fst super).cl_path) :: !deps
+			| _ ->() );
+			List.iter (fun imp -> deps := (fst imp).cl_path :: !deps) class_def.cl_implements;
+			Hashtbl.add result class_def.cl_path !deps;
+		| TEnumDecl enum_def ->
+			Hashtbl.add result enum_def.e_path [];
+		| _ -> () );
+		) common_ctx.types;
 	result;;
 
 
@@ -2287,6 +2339,7 @@ let generate common_ctx =
 	let init_classes = ref [] in
 	let class_text path = join_class_path path "::" in
 	let member_types = create_member_types common_ctx in
+	let super_deps = create_super_dependencies common_ctx in
 
 	List.iter (fun object_def ->
 		(match object_def with
@@ -2296,7 +2349,7 @@ let generate common_ctx =
 		| TClassDecl class_def ->
 			(match class_def.cl_path with
 			| [], "@Main" ->
-				generate_main common_ctx member_types class_def !boot_classes !init_classes;
+				generate_main common_ctx member_types super_deps class_def !boot_classes !init_classes;
 			| _ ->
 				let name =  class_text class_def.cl_path in
 				let is_internal = is_internal_class class_def.cl_path in
@@ -2307,7 +2360,7 @@ let generate common_ctx =
 						boot_classes := class_def.cl_path ::  !boot_classes;
 					if (has_init_field class_def) then
 						init_classes := class_def.cl_path ::  !init_classes;
-					let deps = generate_class_files common_ctx member_types class_def in
+					let deps = generate_class_files common_ctx member_types super_deps class_def in
 					exe_classes := (class_def.cl_path, deps)  ::  !exe_classes;
 				end
 			)
@@ -2320,7 +2373,7 @@ let generate common_ctx =
 				if (enum_def.e_extern) then
 					(if debug then print_endline ("external enum " ^ name ));
 				boot_classes := enum_def.e_path :: !boot_classes;
-				let deps = generate_enum_files common_ctx enum_def in
+				let deps = generate_enum_files common_ctx enum_def super_deps in
 				exe_classes := (enum_def.e_path, deps) :: !exe_classes;
 			end
 		| TTypeDecl _ -> (* already done *) ()
