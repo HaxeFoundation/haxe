@@ -141,6 +141,8 @@ class Input {
 	public function readFloat() : Float {
 		#if neko
 			return _float_of_bytes(untyped read(4).b,bigEndian);
+		#elseif cpp
+			return _float_of_bytes(read(4).getData(),bigEndian);
 		#elseif php
 			var a = untyped __call__('unpack', 'f', readString(4));
 			return a[1];
@@ -153,6 +155,8 @@ class Input {
 	public function readDouble() : Float {
 		#if neko
 			return _double_of_bytes(untyped read(8).b,bigEndian);
+		#elseif cpp
+			return _double_of_bytes(read(8).getData(),bigEndian);
 		#elseif php
 			var a = untyped __call__('unpack', 'd', readString(8));
 			return a[1];
@@ -251,6 +255,9 @@ class Input {
 	static function __init__() untyped {
 		Input.prototype.bigEndian = false;
 	}
+#elseif cpp
+	static var _float_of_bytes = cpp.Lib.load("std","float_of_bytes",2);
+	static var _double_of_bytes = cpp.Lib.load("std","double_of_bytes",2);
 #end
 
 }

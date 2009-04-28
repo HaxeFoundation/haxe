@@ -96,6 +96,8 @@ class Output {
 	public function writeFloat( x : Float ) {
 		#if neko
 		write(untyped new Bytes(4,_float_bytes(x,bigEndian)));
+		#elseif cpp
+		write(Bytes.ofData(_float_bytes(x,bigEndian)));
 		#elseif php
 		write(untyped Bytes.ofString(__call__('pack', 'f', x)));
 		#else
@@ -106,6 +108,8 @@ class Output {
 	public function writeDouble( x : Float ) {
 		#if neko
 		write(untyped new Bytes(8,_double_bytes(x,bigEndian)));
+		#elseif cpp
+		write(Bytes.ofData(_double_bytes(x,bigEndian)));
 		#elseif php
 		write(untyped Bytes.ofString(__call__('pack', 'd', x)));
 		#else
@@ -245,6 +249,9 @@ class Output {
 	static function __init__() untyped {
 		Output.prototype.bigEndian = false;
 	}
+#elseif cpp
+	static var _float_bytes = cpp.Lib.load("std","float_bytes",2);
+	static var _double_bytes = cpp.Lib.load("std","double_bytes",2);
 #end
 
 }
