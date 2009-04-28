@@ -33,17 +33,51 @@ class Lib {
 		return untyped __global__.__loadprim(lib,prim,nargs);
 	}
 
+	/**
+		Tries to load, and always returns a valid function, but the function may throw
+		if called.
+	**/
+	public static function loadLazy(lib,prim,nargs) : Dynamic {
+		try {
+			return load(lib,prim,nargs);
+		} catch( e : Dynamic ) {
+			switch(nargs) {
+			case 0 : return function() { throw e; };
+			case 2 : return function(_1,_2) { throw e; };
+			case 3 : return function(_1,_2,_3) { throw e; };
+			case 4 : return function(_1,_2,_3,_4) { throw e; };
+			case 5 : return function(_1,_2,_3,_4,_5) { throw e; };
+			default : return function(_1) { throw e; };
+			}
+		}
+	}
+
 	public static function rethrow(inExp:Dynamic) { throw inExp; }
 
 	public static function stringReference(inExp:Dynamic) { throw inExp; }
 
-/**
+	/**
 		Print the specified value on the default output.
 	**/
 	public static function print( v : Dynamic ) : Void {
 		untyped __global__.__hxcpp_print(v);
 	}
 
+	/**
+		This function is used to make porting from neko to cpp easy.
+		It does not need to do anything because the c-code can work with any Dynamic
+	**/
+	public static function haxeToNeko( v : Dynamic ) : Dynamic {
+		return v;
+	}
+
+	/**
+		This function is used to make porting from neko to cpp easy.
+		It does not need to do anything because the c-code can work with any Dynamic
+	**/
+	public static function nekoToHaxe( v : Dynamic ) : Dynamic {
+		return v;
+	}
 	/**
 		Print the specified value on the default output followed by a newline character.
 	**/
