@@ -203,7 +203,7 @@ class Date
 		depending on the platforms.
 	**/
 	public function getTime() : Float {
-		return mSeconds;
+		return mSeconds * 1000.0;
 	}
 
 	/**
@@ -251,7 +251,9 @@ class Date
 	/**
 		Returns a Date representing the current local time.
 	**/
-	public static function now() : Date { return fromTime( untyped __global__.__hxcpp_date_now()); }
+	public static function now() : Date {
+		return fromTime( untyped __global__.__hxcpp_date_now()*1000.0);
+	}
 
 	/**
 		Returns a Date from a timestamp [t] which is the number of
@@ -259,7 +261,7 @@ class Date
 	**/
 	public static function fromTime( t : Float ) : Date {
 		var result = new Date(0,0,0,0,0,0);
-		result.mSeconds = t;
+		result.mSeconds = t*0.001;
 		return result;
 	}
 
