@@ -24,6 +24,7 @@
  */
 package haxe;
 
+#if !cpp
 class Int32 {
 
 	public static inline function make( a : Int, b : Int ) : Int32 {
@@ -197,3 +198,24 @@ class Int32 {
 	#end
 
 }
+#else
+extern class Int32 {
+	public static  function make( a : Int, b : Int ) : Int32;
+	public static  function ofInt( x : Int ) : Int32;
+	public static  function toInt( x : Int32 ) : Int;
+	public static  function add( a : Int32, b : Int32 ) : Int32;
+	public static  function sub( a : Int32, b : Int32 ) : Int32;
+	public static  function mul( a : Int32, b : Int32 ) : Int32;
+	public static  function div( a : Int32, b : Int32 ) : Int32;
+	public static  function mod( a : Int32, b : Int32 ) : Int32;
+	public static  function shl( a : Int32, b : Int ) : Int32;
+	public static  function shr( a : Int32, b : Int ) : Int32;
+	public static  function ushr( a : Int32, b : Int ) : Int32;
+	public static  function and( a : Int32, b : Int32 ) : Int32;
+	public static  function or( a : Int32, b : Int32 ) : Int32;
+	public static  function xor( a : Int32, b : Int32 ) : Int32;
+	public static  function neg( a : Int32 ) : Int32;
+	public static  function complement( a : Int32 ) : Int32;
+	public static  function compare( a : Int32, b : Int32 ) : Int;
+}
+#end
