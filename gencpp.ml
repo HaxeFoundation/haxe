@@ -249,9 +249,10 @@ let keyword_remap = function
 	| "typeof" -> "_typeof"
 	| "float" -> "_float"
 	| "union" -> "_union"
-	| "stdin" -> "Stdin"
-	| "stdout" -> "Stdout"
-	| "stderr" -> "Stderr"
+	| "stdin" -> "_stdin"
+	| "stdout" -> "_stdout"
+	| "stderr" -> "_stderr"
+	| "struct" -> "_struct"
 	| x -> x
 
 (*
@@ -918,6 +919,7 @@ let rec gen_expression ctx retval expression =
 		| _ ->  gen_bin_op_string expr1 (Ast.s_binop op) expr2
 		in
 	let gen_member_access field_object member is_function return_type =
+		let remap_name = keyword_remap member in
 		begin
 		let check_dynamic_member_access member = begin
 			(match (dynamic_access ctx field_object member) with
@@ -930,7 +932,7 @@ let rec gen_expression ctx retval expression =
 							output (".Cast<" ^ return ^ " >()");
 					end
 			| _ ->
-			let member_name = (keyword_remap member) ^
+			let member_name = remap_name ^
 				( if ( (not calling) && is_function && (not assigning)) then "_dyn()" else "" ) in
 			if ( (type_string field_object.etype)="String") then
 				output ( "." ^ member_name)
@@ -950,9 +952,9 @@ let rec gen_expression ctx retval expression =
 		| TTypeExpr type_def ->
 			let class_name = (join_class_path (t_path type_def) "::" ) in
 			if (class_name="String") then
-				output ("String::" ^ (keyword_remap member))
+				output ("String::" ^ remap_name)
 			else
-				output (class_name ^ "_obj::" ^ (keyword_remap member));
+				output (class_name ^ "_obj::" ^ remap_name);
 			if ( (not calling) && is_function) then
 				output "_dyn()"
 		| TArray (e1,e2) ->
@@ -976,7 +978,7 @@ let rec gen_expression ctx retval expression =
 		| TLocal name when name = "__global__" ->
 			output ("::" ^ member )
 		| TConst TSuper -> output (if ctx.ctx_real_this_ptr then "this" else "__this");
-						output ("->super::" ^ member)
+						output ("->super::" ^ remap_name)
 		| _ -> 
 			gen_expression ctx true  field_object;
 			check_dynamic_member_access member
@@ -1068,7 +1070,7 @@ let rec gen_expression ctx retval expression =
 		)
 
 
-	| TLocal local_name -> output local_name;
+	| TLocal local_name -> output (keyword_remap local_name);
 	| TEnumField (enum, name) ->
 			output ((join_class_path enum.e_path "::") ^ "_obj::" ^ name)
 	| TArray (array_expr,index) ->
@@ -1147,7 +1149,7 @@ let rec gen_expression ctx retval expression =
 		let count = ref (List.length var_list) in
 		List.iter (fun (var_name, var_type, optional_init) ->
 			gen_type ctx var_type;
-			output (" " ^ var_name);
+			output (" " ^ (keyword_remap var_name) );
 			(match optional_init with
 			| None -> ()
 			| Some expression -> output " = "; gen_expression ctx true expression);
@@ -1159,7 +1161,8 @@ let rec gen_expression ctx retval expression =
 		gen_expression ctx true init;
 		output (";  __it->__Field(" ^ (str "hasNext") ^ ")(); )");
 		ctx.ctx_writer#begin_block;
-		output ( (type_string var_type) ^ " " ^ var_name ^ " = __it->__Field(" ^ (str "next") ^ ")();\n" );
+		output ( (type_string var_type) ^ " " ^ (keyword_remap var_name) ^
+			" = __it->__Field(" ^ (str "next") ^ ")();\n" );
 		output_i "";
 		gen_expression ctx false loop;
 		output ";\n";
@@ -1409,7 +1412,7 @@ let gen_field ctx class_name ptr_name is_static is_external is_interface field =
 		if (not (is_dynamic_method field)) then begin
 			(* The actual function definition *)
 			output return_type;
-			output (" " ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ "( " );
+			output (" " ^ class_name ^ "::" ^ remap_name ^ "( " );
 			output (gen_arg_list function_def.tf_args "__o_");
 			output ")";
 
@@ -1440,14 +1443,14 @@ let gen_field ctx class_name ptr_name is_static is_external is_interface field =
 			output ("END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n\n");
 
 			if (is_static) then
-				output ( "Dynamic " ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ";\n\n");
+				output ( "Dynamic " ^ class_name ^ "::" ^ remap_name ^ ";\n\n");
 		end
 
 	(* Data field *)
 	| _ ->
 		if is_static then begin
 			gen_type ctx field.cf_type;
-			output ( " " ^ class_name ^ "::" ^ field.cf_name ^ ";\n\n");
+			output ( " " ^ class_name ^ "::" ^ remap_name ^ ";\n\n");
 		end
 	)
 	;;
@@ -1465,17 +1468,17 @@ let gen_field_init ctx field =
 
 		if (is_dynamic_method field) then begin
 			let func_name = "__default_" ^ (remap_name) in
-			output ( "	Static(" ^ (keyword_remap field.cf_name) ^ ") = new " ^ func_name ^ ";\n\n" );
+			output ( "	Static(" ^ remap_name ^ ") = new " ^ func_name ^ ";\n\n" );
 		end
 
 	(* Data field *)
 	| _ -> (match field.cf_expr with
 		| Some expr ->
-			output ( "	Static(" ^ field.cf_name ^ ") = ");
+			output ( "	Static(" ^ remap_name ^ ") = ");
 			gen_expression ctx true expr;
 			output ";\n"
 		| _ ->
-			output ( "	Static(" ^ field.cf_name ^ ");\n");
+			output ( "	Static(" ^ remap_name ^ ");\n");
 		);
 	)
 	;;
@@ -1506,11 +1509,10 @@ let gen_member_def ctx is_static is_extern is_interface field =
 	end else (match  field.cf_expr with
 	| Some { eexpr = TFunction function_def } ->
 		if ( is_dynamic_method field ) then begin
-			output ("Dynamic " ^ field.cf_name ^ ";\n");
+			output ("Dynamic " ^ remap_name ^ ";\n");
 			output (if is_static then "		static " else "		");
 			(* external mem  Dynamic & *)
-			output ("inline Dynamic " ^ field.cf_name ^ "_dyn() " ^
-									 "{return " ^ field.cf_name^ "; }\n") 
+			output ("inline Dynamic " ^ remap_name ^ "_dyn() " ^ "{return " ^ remap_name^ "; }\n") 
 		end else begin
 			let return_type = (type_string function_def.tf_type) in
 			if (not is_static) then output "virtual ";
@@ -1996,14 +1998,14 @@ let generate_class_files common_ctx member_types super_deps class_def =
 	if (not class_def.cl_interface) then begin
 		output_cpp (class_name ^ "::" ^ class_name ^  "()\n{\n");
 		List.iter
-			(fun field -> match field.cf_expr with
+			(fun field -> let remap_name = keyword_remap field.cf_name in
+				match field.cf_expr with
 				| Some { eexpr = TFunction function_def } ->
 						if (is_dynamic_method field) then
-							output_cpp ("	" ^ field.cf_name ^ " = new __default_"
-								^ field.cf_name ^ "(this);\n")
+							output_cpp ("	" ^ remap_name ^ " = new __default_" ^ remap_name ^ "(this);\n")
 				| _ -> (match follow field.cf_type with
 					| TFun _ -> ()
-					| _ -> output_cpp ("	InitMember(" ^ field.cf_name ^ ");\n"));
+					| _ -> output_cpp ("	InitMember(" ^ remap_name ^ ");\n"));
 			)
 			class_def.cl_ordered_fields;
 		output_cpp "}\n\n";
