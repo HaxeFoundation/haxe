@@ -546,11 +546,11 @@ class Main {
 		var prompt = true;
 		var update = false;
 		for( p in neko.FileSystem.readDirectory(rep) ) {
-			if( p.charAt(0) == "." )
+			if( p.charAt(0) == "." || !neko.FileSystem.isDirectory(rep+"/"+p) )
 				continue;
 			var p = Datas.unsafe(p);
 			print("Checking "+p);
-			var inf = site.infos(p);
+			var inf = try site.infos(p) catch( e : Dynamic ) { neko.Lib.println(e); continue; };
 			if( !neko.FileSystem.exists(rep+Datas.safe(p)+"/"+Datas.safe(inf.curversion)) ) {
 				if( prompt )
 					switch ask("Upgrade "+p+" to "+inf.curversion) {
