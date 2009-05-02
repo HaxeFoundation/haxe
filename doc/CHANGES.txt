@@ -13,6 +13,8 @@ TODO :
 	flash9 : fixed some "never" property access issues
 	all : added "never" property access support for all platforms
 	js : small syntax fix with value-blocks
+	js : fixed Type.enumEq with null values
+	js/flash8 : use &0xFF in haxe.io.Bytes.set
 
 2009-03-22: 2.03
 	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php

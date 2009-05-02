@@ -492,11 +492,13 @@ let error l = raise (Unify_error l)
 
 let unify_access a1 a2 =
 	a1 = a2 || match a1, a2 with
-	| NoAccess, NoAccess 
-	| NoAccess, MethodCantAccess
-	| NoAccess, NeverAccess
+	| NormalAccess, NoAccess
+	| NormalAccess, MethodCantAccess
+	| NormalAccess, NeverAccess
 	| MethodCantAccess, NoAccess
-	| NeverAccess, NoAccess -> true
+	| NeverAccess, NoAccess
+	| MethodCantAccess, NeverAccess
+	| NoAccess, NeverAccess -> true
 	| _ -> false
 
 let eq_stack = ref []

@@ -678,9 +678,10 @@ class Type {
 			try {
 				if( a.index != b.index )
 					return false;
-				var p : Array<Dynamic> = a.params;
-				for( i in 0...p.length )
-					if( !enumEq(p[i],b.params[i]) )
+				var ap : Array<Dynamic> = a.params;
+				var bp : Array<Dynamic> = b.params;
+				for( i in 0...ap.length )
+					if( !enumEq(ap[i],bp[i]) )
 						return false;
 			} catch( e : Dynamic ) {
 				return false;
@@ -702,7 +703,8 @@ class Type {
 			}
 		#elseif cpp
 			return a==b;
-		#else
+		#elseif flash
+			// no try-catch since no exception possible
 			if( a[0] != b[0] )
 				return false;
 			for( i in 2...a.length )
@@ -711,6 +713,19 @@ class Type {
 			var e = a.__enum__;
 			if( e != b.__enum__ || e == null )
 				return false;
+		#else
+			try {
+				if( a[0] != b[0] )
+					return false;
+				for( i in 2...a.length )
+					if( !enumEq(a[i],b[i]) )
+						return false;
+				var e = a.__enum__;
+				if( e != b.__enum__ || e == null )
+					return false;
+			} catch( e : Dynamic ) {
+				return false;
+			}
 		#end
 		return true;
 	}

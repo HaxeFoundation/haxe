@@ -58,7 +58,7 @@ class Bytes {
 		#elseif cpp
 		untyped b[pos] = v;
 		#else
-		b[pos] = v;
+		b[pos] = v & 0xFF;
 		#end
 	}
 
