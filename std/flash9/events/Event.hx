@@ -9,7 +9,7 @@ extern class Event {
 	var type(default,null) : String;
 	function new(type : String, ?bubbles : Bool, ?cancelable : Bool) : Void;
 	function clone() : Event;
-	function formatToString(className : String, ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic ) : String;
+	function formatToString(className : String, ?p1 : String, ?p2 : String, ?p3 : String, ?p4 : String, ?p5 : String ) : String;
 	function isDefaultPrevented() : Bool;
 	function preventDefault() : Void;
 	function stopImmediatePropagation() : Void;
