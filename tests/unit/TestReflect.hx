@@ -88,7 +88,7 @@ class TestReflect extends Test {
 
 	function is( v : Dynamic, t1 : Dynamic, ?t2 : Dynamic, ?pos : haxe.PosInfos ){
 		for( i in 0...TYPES.length ) {
-			var c = TYPES[i];
+			var c : Dynamic = TYPES[i];
 			infos(Std.string(v)+" is "+TNAMES[i]);
 			eq( Std.is(v,c), c != null && (c == t1 || c == t2) || (c == Dynamic), pos );
 		}

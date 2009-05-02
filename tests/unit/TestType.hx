@@ -1,4 +1,5 @@
 package unit;
+import unit.MyEnum;
 
 class TestType extends Test {
 
@@ -21,6 +22,23 @@ class TestType extends Test {
 		var fl = Type.getInstanceFields(unit.MySubClass);
 		fl.sort(Reflect.compare);
 		eq( fl.join("|"), fields.join("|") );
+	}
+
+	public function testEnumEq() {
+		t( Type.enumEq(null,null) );
+		f( Type.enumEq(A,null) );
+		f( Type.enumEq(null,D(A)) );
+
+		t( Type.enumEq(A,A) );
+		t( Type.enumEq(B,B) );
+		f( Type.enumEq(A,B) );
+
+		t( Type.enumEq(C(1,"hello"),C(1,"hello")) );
+		f( Type.enumEq(C(1,"hello"),C(1,"hellox")) );
+
+		t( Type.enumEq(D(A),D(A)) );
+		f( Type.enumEq(D(A),D(B)) );
+
 	}
 
 }

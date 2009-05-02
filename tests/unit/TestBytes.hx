@@ -15,6 +15,8 @@ class TestBytes extends Test {
 		unspec(function() b.set(-1,20));
 		unspec(function() b.set(11,20));
 		unspec(function() b.set(0,1000));
+		b.set(1,0xF756);
+		eq(b.get(1),0x56);
 		// ofString
 		var b2 = haxe.io.Bytes.ofString("ABCD");
 		eq(b2.length,4);
