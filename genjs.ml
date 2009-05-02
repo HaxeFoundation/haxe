@@ -481,7 +481,7 @@ and gen_value ctx e =
 		let old = ctx.in_value, ctx.in_loop in
 		ctx.in_value <- true;
 		ctx.in_loop <- false;
-		spr ctx "function($this) ";
+		spr ctx "(function($this) ";
 		let b = if block then begin
 			spr ctx "{";
 			let b = open_block ctx in
@@ -502,7 +502,7 @@ and gen_value ctx e =
 			end;
 			ctx.in_value <- fst old;
 			ctx.in_loop <- snd old;
-			print ctx "(%s)" (this ctx)
+			print ctx "(%s))" (this ctx)
 		)
 	in
 	match e.eexpr with

@@ -12,6 +12,7 @@ TODO :
 	flash9 : added error message in flash.Vector if used without flash 10
 	flash9 : fixed some "never" property access issues
 	all : added "never" property access support for all platforms
+	js : small syntax fix with value-blocks
 
 2009-03-22: 2.03
 	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php
