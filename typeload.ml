@@ -197,6 +197,7 @@ and load_type ctx p t =
 					let access m get =
 						match m with
 						| "null" -> NoAccess
+						| "never" -> NeverAccess
 						| "default" -> NormalAccess
 						| "dynamic" -> MethodAccess ((if get then "get_"  else "set_") ^ n)
 						| _ -> MethodAccess m
@@ -333,7 +334,7 @@ let rec check_interface ctx c p intf params =
 			let p = (match f2.cf_expr with None -> p | Some e -> e.epos) in
 			if f.cf_public && not f2.cf_public then
 				display_error ctx ("Field " ^ i ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
-			else if f2.cf_get <> f.cf_get || f2.cf_set <> f.cf_set then
+			else if f2.cf_get <> f.cf_get || (f2.cf_set <> f.cf_set && (f2.cf_set,f.cf_set) <> (NeverAccess,NoAccess)) then
 				display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path) p
 			else try
 				valid_redefinition ctx f2 t2 f (apply_params intf.cl_types params f.cf_type)
@@ -679,6 +680,7 @@ let init_class ctx c p herits fields =
 			let get = (match get with
 				| "null" -> NoAccess
 				| "dynamic" -> MethodAccess ("get_" ^ name)
+				| "never" -> NeverAccess
 				| "default" -> NormalAccess
 				| _ ->
 					check_get := check_method get (TFun ([],ret));
@@ -691,6 +693,7 @@ let init_class ctx c p herits fields =
 						NeverAccess
 					else
 						NoAccess
+				| "never" -> NeverAccess
 				| "dynamic" -> MethodAccess ("set_" ^ name)
 				| "default" -> NormalAccess
 				| _ ->

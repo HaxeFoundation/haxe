@@ -10,6 +10,8 @@ TODO :
 	improved speed of Bytes unserializing (no need for BytesBuffer)
 	flash9 : bugfix, Null<Typedef> was generating dynamic code
 	flash9 : added error message in flash.Vector if used without flash 10
+	flash9 : fixed some "never" property access issues
+	all : added "never" property access support for all platforms
 
 2009-03-22: 2.03
 	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php

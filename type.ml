@@ -491,8 +491,13 @@ let has_extra_field t n = Has_extra_field (t,n)
 let error l = raise (Unify_error l)
 
 let unify_access a1 a2 =
-	a1 = a2 || (a1 = NormalAccess && (a2 = NoAccess || a2 = MethodCantAccess))
-	|| (a1 = MethodCantAccess && a2 = NoAccess)
+	a1 = a2 || match a1, a2 with
+	| NoAccess, NoAccess 
+	| NoAccess, MethodCantAccess
+	| NoAccess, NeverAccess
+	| MethodCantAccess, NoAccess
+	| NeverAccess, NoAccess -> true
+	| _ -> false
 
 let eq_stack = ref []
 
@@ -763,8 +768,8 @@ and unify_types a b tl1 tl2 =
 
 and unify_with_access t f =
 	match f.cf_get, f.cf_set with
-	| NoAccess , _ -> unify f.cf_type t
-	| _ , NoAccess -> unify t f.cf_type
+	| NoAccess , _ | NeverAccess, _ -> unify f.cf_type t
+	| _ , NoAccess | _, NeverAccess -> unify t f.cf_type
 	| _ , _ -> type_eq EqBothDynamic t f.cf_type
 
 let iter f e =
