@@ -23,11 +23,18 @@
  * DAMAGE.
  */
 package cpp;
+
 import Xml;
 
-class CppXml__ extends Xml {
+class CppXml__ {
+	public static var Element(default,null) : XmlType;
+	public static var PCData(default,null) : XmlType;
+	public static var CData(default,null) : XmlType;
+	public static var Comment(default,null) : XmlType;
+	public static var DocType(default,null) : XmlType;
+	public static var Prolog(default,null) : XmlType;
+	public static var Document(default,null) : XmlType;
 
-	static var __name__ = ["Xml"];
 
 	private var _nodeName : String;
 	private var _nodeValue : String;
@@ -153,72 +160,90 @@ class CppXml__ extends Xml {
 		return r;
 	}
 
-	private override function getNodeName() : String {
+	/**
+		Returns the type of the Xml Node. This should be used before
+		accessing other functions since some might raise an exception
+		if the node type is not correct.
+	**/
+	var nodeType(default,null) : XmlType;
+
+	/**
+		Returns the node name of an Element.
+	**/
+	var nodeName(getNodeName,setNodeName) : String;
+
+	/**
+		Returns the node value. Only works if the Xml node is not an Element or a Document.
+	**/
+	var nodeValue(getNodeValue,setNodeValue) : String;
+
+
+	private function getNodeName() : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 		return _nodeName;
 	}
 
-	private override function setNodeName( n : String ) : String {
+	private function setNodeName( n : String ) : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 		return _nodeName = n;
 	}
 
-	private override function getNodeValue() : String {
+	private function getNodeValue() : String {
 		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
 		return _nodeValue;
 	}
 
-	private override function setNodeValue( v : String ) : String {
+	private function setNodeValue( v : String ) : String {
 		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
 		return _nodeValue = v;
 	}
 
-	private override function getParent() : Xml {
+	private function getParent() : Xml {
 		return _parent;
 	}
 
-	public override function get( att : String ) : String {
+	public function get( att : String ) : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 		return Reflect.field( _attributes, att );
 	}
 
-	public override function set( att : String, value : String ) : Void {
+	public function set( att : String, value : String ) : Void {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 		Reflect.setField (_attributes, att, value );
 	}
 
-	public override function remove( att : String ) : Void{
+	public function remove( att : String ) : Void{
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 		Reflect.deleteField( _attributes, att );
 	}
 
-	public override function exists( att : String ) : Bool {
+	public function exists( att : String ) : Bool {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 		return Reflect.hasField( _attributes, att );
 	}
 
-	public override function attributes() : Iterator<String> {
+	public function attributes() : Iterator<String> {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 		return Reflect.fields( _attributes ).iterator();
 	}
 
-	public override function iterator() : Iterator<Xml> {
+	public function iterator() : Iterator<Xml> {
 		if( _children == null )
 			throw "bad nodetype";
       return untyped _children.iterator();
 	}
 
 
-	public override function elements() {
+	public function elements(): Iterator<Xml> {
 		if( _children == null )
 			throw "bad nodetype";
       var children = _children;
@@ -251,7 +276,7 @@ class CppXml__ extends Xml {
 		}
 	}
 
-	public override function elementsNamed( name : String ) {
+	public function elementsNamed( name : String ) : Iterator<Xml> {
 		if( _children == null )
 			throw "bad nodetype";
       var children = _children;
@@ -285,13 +310,13 @@ class CppXml__ extends Xml {
 		}
 	}
 
-	public override function firstChild() : Xml {
+	public function firstChild() : Xml {
 		if( _children == null )
 			throw "bad nodetype";
 		return _children[0];
 	}
 
-	public override function firstElement() : Xml {
+	public function firstElement() : Xml {
 		if( _children == null )
 			throw "bad nodetype";
 		for( cur in 0..._children.length ) {
@@ -302,7 +327,7 @@ class CppXml__ extends Xml {
 		return null;
 	}
 
-   public override function addChild( x_ : Xml ) : Void {
+   public function addChild( x_ : Xml ) : Void {
       var x:CppXml__ = cast x_;
 		if( _children == null )
 			throw "bad nodetype";
@@ -311,7 +336,7 @@ class CppXml__ extends Xml {
 		_children.push( x );
 	}
 
-   override function removeChild( x_ : Xml ) : Bool {
+   function removeChild( x_ : Xml ) : Bool {
       var x:CppXml__ = cast x_;
 		if( _children == null )
 			throw "bad nodetype";
@@ -320,7 +345,7 @@ class CppXml__ extends Xml {
 		return b;
 	}
 
-	public override function insertChild( x_ : Xml, pos : Int ) : Void {
+	public function insertChild( x_ : Xml, pos : Int ) : Void {
       var x:CppXml__ = cast x_;
 		if( _children == null )
 			throw "bad nodetype";
@@ -329,7 +354,7 @@ class CppXml__ extends Xml {
 		_children.insert( pos, x );
 	}
 
-	public override function toString() {
+	public function toString() {
 		if( nodeType == Xml.PCData )
 			return _nodeValue;
 		if( nodeType == Xml.CData )
@@ -365,5 +390,14 @@ class CppXml__ extends Xml {
 		return s.toString();
 	}
 
-
+	static function __init__() : Void {
+		Element = "element";
+		PCData = "pcdata";
+		CData = "cdata";
+		Comment = "comment";
+		DocType = "doctype";
+		Prolog = "prolog";
+		Document = "document";
+	}
 }
+

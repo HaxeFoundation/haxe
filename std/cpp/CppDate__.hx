@@ -28,165 +28,111 @@
 	available in the [DateTools] class.
 **/
 
-#if cpp
-typedef Date = cpp.CppDate__;
-#else
+package cpp;
 
-extern class Date
+class CppDate__
 {
+	var mSeconds:Float;
+
 	/**
 		Creates a new date object.
 	**/
-	function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void;
+	public function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void	{
+		mSeconds = untyped __global__.__hxcpp_new_date(year,month,day,hour,min,sec);
+	}
 
 	/**
 		Returns the timestamp of the date. It's the number of milliseconds
 		elapsed since 1st January 1970. It might only have a per-second precision
 		depending on the platforms.
 	**/
-	function getTime() : Float;
+	public function getTime() : Float {
+		return mSeconds * 1000.0;
+	}
 
 	/**
 		Returns the hours value of the date (0-23 range).
 	**/
-	function getHours() : Int;
+	public function getHours() : Int { return untyped __global__.__hxcpp_get_hours(mSeconds); }
 
 	/**
 		Returns the minutes value of the date (0-59 range).
 	**/
-	function getMinutes() : Int;
+	public function getMinutes() : Int { return untyped __global__.__hxcpp_get_minutes(mSeconds); }
 
 	/**
 		Returns the seconds of the date (0-59 range).
 	**/
-	function getSeconds() : Int;
+	public function getSeconds() : Int { return untyped __global__.__hxcpp_get_seconds(mSeconds); }
 
 	/**
 		Returns the full year of the date.
 	**/
-	function getFullYear() : Int;
+	public function getFullYear() : Int { return untyped __global__.__hxcpp_get_year(mSeconds); }
 
 	/**
 		Returns the month of the date (0-11 range).
 	**/
-	function getMonth() : Int;
+	public function getMonth() : Int { return untyped __global__.__hxcpp_get_month(mSeconds); }
 
 	/**
 		Returns the day of the date (1-31 range).
 	**/
-	function getDate() : Int;
+	public function getDate() : Int { return untyped __global__.__hxcpp_get_date(mSeconds); }
 
 	/**
 		Returns the week day of the date (0-6 range).
 	**/
-	function getDay() : Int;
+	public function getDay() : Int { return untyped __global__.__hxcpp_get_day(mSeconds); }
 
 	/**
 		Returns a string representation for the Date, by using the
 		standard format [YYYY-MM-DD HH:MM:SS]. See [DateTools.format] for
 		other formating rules.
 	**/
-	function toString():String;
+	public function toString():String { return untyped __global__.__hxcpp_to_string(mSeconds); }
 
 	/**
 		Returns a Date representing the current local time.
 	**/
-	static function now() : Date;
+	public static function now() : Date {
+		return fromTime( untyped __global__.__hxcpp_date_now()*1000.0);
+	}
 
 	/**
 		Returns a Date from a timestamp [t] which is the number of
 		milliseconds elapsed since 1st January 1970.
 	**/
-	static function fromTime( t : Float ) : Date;
+	public static function fromTime( t : Float ) : Date {
+		var result = new Date(0,0,0,0,0,0);
+		result.mSeconds = t*0.001;
+		return result;
+	}
 
 	/**
 		Returns a Date from a formated string of one of the following formats :
 		[YYYY-MM-DD hh:mm:ss] or [YYYY-MM-DD] or [hh:mm:ss]. The first two formats
 		are expressed in local time, the third in UTC Epoch.
 	**/
-	static function fromString( s : String ) : Date;
-
-	#if flash_lite
-	/** flash lite only **/
-	function getLocaleLongDate():String;
-	/** flash lite only **/
-	function getLocaleShortDate():String;
-	/** flash lite only **/
-	function getLocaleTime():String;
-	#end
-
-#if !php
-	private static function __init__() : Void untyped {
-	#if neko
-		Date = neko.NekoDate__;
-		neko.Boot.__classes.Date = Date;
-	#else
-		Date.now = function() {
-			return __new__(Date);
-		};
-		Date.fromTime = function(t){
-			var d : Date = __new__(Date);
-			#if flash9
-			d.setTime(t);
-			#else
-			d["setTime"]( t );
-			#end
-			return d;
-		};
-		Date.fromString = function(s : String) {
-			switch( s.length ) {
+	public static function fromString( s : String ) : Date {
+		switch( s.length ) {
 			case 8: // hh:mm:ss
 				var k = s.split(":");
-				var d : Date = __new__(Date);
-				#if flash9
-				d.setTime(0);
-				d.setUTCHours(k[0]);
-				d.setUTCMinutes(k[1]);
-				d.setUTCSeconds(k[2]);
-				#else
-				d["setTime"](0);
-				d["setUTCHours"](k[0]);
-				d["setUTCMinutes"](k[1]);
-				d["setUTCSeconds"](k[2]);
-				#end
+				var d : Date = new Date(0,0,0,Std.parseInt(k[0]),Std.parseInt(k[1]),Std.parseInt(k[2]));
 				return d;
 			case 10: // YYYY-MM-DD
 				var k = s.split("-");
-				return new Date(cast k[0],cast k[1] - 1,cast k[2],0,0,0);
+				return new Date(Std.parseInt(k[0]),Std.parseInt(k[1])-1,Std.parseInt(k[2]),0,0,0);
 			case 19: // YYYY-MM-DD hh:mm:ss
 				var k = s.split(" ");
 				var y = k[0].split("-");
 				var t = k[1].split(":");
-				return new Date(cast y[0],cast y[1] - 1,cast y[2],cast t[0],cast t[1],cast t[2]);
+				return new Date(Std.parseInt(y[0]),Std.parseInt(y[1]) - 1,Std.parseInt(y[2]),
+					Std.parseInt(t[0]),Std.parseInt(t[1]),Std.parseInt(t[2]));
 			default:
 				throw "Invalid date format : " + s;
-			}
-		};
-		Date.prototype["toString"] = function() {
-			var date : Date = this;
-			var m = date.getMonth() + 1;
-			var d = date.getDate();
-			var h = date.getHours();
-			var mi = date.getMinutes();
-			var s = date.getSeconds();
-			return date.getFullYear()
-				+"-"+(if( m < 10 ) "0"+m else ""+m)
-				+"-"+(if( d < 10 ) "0"+d else ""+d)
-				+" "+(if( h < 10 ) "0"+h else ""+h)
-				+":"+(if( mi < 10 ) "0"+mi else ""+mi)
-				+":"+(if( s < 10 ) "0"+s else ""+s);
-		};
-		#if flash9
-		#elseif flash
-		Date.prototype[__unprotect__("__class__")] = Date;
-		Date[__unprotect__("__name__")] = ["Date"];
-		#else
-		Date.prototype.__class__ = Date;
-		Date.__name__ = ["Date"];
-		#end
-	#end
+		}
+		return null;
 	}
-#end
 }
 
-#end // !cpp
