@@ -611,6 +611,24 @@ let only_int_cases cases =
 			List.exists (fun case -> match case.eexpr with TConst (TInt _) -> false | _ -> true ) cases
 				) cases );;
 
+(* See if there is a haxe break statement that will be swollowed by c++ break *)
+exception BreakFound;;
+
+let contains_break expression =
+	try (
+	let rec check_all expression =
+		Type.iter (fun expr -> match expr.eexpr with
+			| TBreak -> raise BreakFound
+			| TFor (_,_,_,_)
+			| TFunction _
+			| TWhile (_,_,_) -> ()
+			| _ -> check_all expr;
+			) expression in
+	check_all expression;
+	false;
+	) with BreakFound -> true;;
+
+
 (* Decide is we should look the field up by name *)
 let dynamic_internal = function | "__Is" -> true | _ -> false
 
@@ -1236,7 +1254,7 @@ let rec gen_expression ctx retval expression =
 				(*error ("return block " ^ func_name ^ " not found" ) expression.epos;*)
 
 	| TSwitch (condition,cases,optional_default)  ->
-		let switch_on_int_constants = only_int_cases cases in
+		let switch_on_int_constants = (only_int_cases cases) && (not (contains_break expression)) in
 		if (switch_on_int_constants) then begin
 			output "switch( (int)";
 			gen_expression ctx true condition;
@@ -1544,7 +1562,7 @@ let gen_member_def ctx is_static is_extern is_interface field =
   Get a list of all classes referred to by the class/enum definition
   These are used for "#include"ing the appropriate header files.
 *)
-let find_referenced_types obj super_deps =
+let find_referenced_types obj super_deps header_only =
 	let types = ref PMap.empty in
 	(* When a class or function is templated on type T, variables of that type show
 		up as being in a package "class-name.T" or "function-name.T"  in these cases
@@ -1608,7 +1626,8 @@ let find_referenced_types obj super_deps =
 		ignore_function_name := field.cf_name;
 		(* Add the type of the expression ... *)
 		visit_type field.cf_type;
-		(match field.cf_expr with
+		if (not header_only) then
+			(match field.cf_expr with
 			| Some expression -> visit_types expression | _ -> ());
 		ignore_function_name := "?"
 	in
@@ -1666,7 +1685,7 @@ let generate_main common_ctx member_types super_deps class_def boot_classes init
 	output_main "#include <stdio.h>\n\n";
 	(*output_main "#include <hxLoadDLL.cpp>\n\n";*)
 
-	let referenced = find_referenced_types (TClassDecl class_def) super_deps in
+	let referenced = find_referenced_types (TClassDecl class_def) super_deps false in
 	List.iter ( add_include cpp_file ) referenced;
 
 	output_main "\n\n";
@@ -1733,7 +1752,7 @@ let generate_enum_files common_ctx enum_def super_deps =
 
 	output_cpp "#include <hxObject.h>\n\n";
 
-	let referenced = find_referenced_types (TEnumDecl enum_def) super_deps in
+	let referenced = find_referenced_types (TEnumDecl enum_def) super_deps false in
 	List.iter (add_include cpp_file) referenced;
 
 	gen_open_namespace output_cpp class_path;
@@ -1926,7 +1945,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 
 	output_cpp "#include <hxObject.h>\n\n";
 
-	let referenced = find_referenced_types (TClassDecl class_def) super_deps in
+	let referenced = find_referenced_types (TClassDecl class_def) super_deps false in
 	List.iter ( add_include cpp_file  ) referenced;
 
 	gen_open_namespace output_cpp class_path;
@@ -1940,14 +1959,14 @@ let generate_class_files common_ctx member_types super_deps class_def =
 						(match  definition.cf_expr with
 						| Some { eexpr = TFunction function_def } ->
 							if (has_default_values function_def.tf_args) then begin
-								ctx.ctx_writer#begin_block;
 								generate_default_values ctx function_def.tf_args "__o_";
 								gen_expression ctx false function_def.tf_expr;
-								ctx.ctx_writer#end_block;
-							end else
+								output_cpp ";\n";
+							end else begin
 								gen_expression ctx false function_def.tf_expr;
+								output_cpp ";\n";
 								(*gen_expression (new_context cpp_file debug ) false function_def.tf_expr;*)
-							output_cpp ";\n";
+							end
 						| _ -> ()
 						)
 				| _ -> ());
@@ -2153,6 +2172,9 @@ let generate_class_files common_ctx member_types super_deps class_def =
 		output_h ("#include <" ^ ( join_class_path imp_path "/" ) ^ ".h>\n") )
 	class_def.cl_implements;
 
+   (* Only need to foreward-declare classes that are mentioned in the header file
+	   (ie, not the implementation)  *)
+	let referenced = find_referenced_types (TClassDecl class_def) super_deps true in
 	List.iter ( gen_forward_decl h_file ) referenced;
 
 	gen_open_namespace output_h class_path;
