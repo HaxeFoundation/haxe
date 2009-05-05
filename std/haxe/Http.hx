@@ -27,12 +27,15 @@ package haxe;
 #if neko
 import neko.net.Host;
 import neko.net.Socket;
+#elseif cpp
+import cpp.net.Host;
+import cpp.net.Socket;
 #elseif php
 import php.net.Host;
 import php.net.Socket;
 #end
 
-#if (neko || php)
+#if (neko || php || cpp)
 private typedef AbstractSocket = {
 	var input(default,null) : haxe.io.Input;
 	var output(default,null) : haxe.io.Output;
@@ -47,12 +50,12 @@ private typedef AbstractSocket = {
 class Http {
 
 	public var url : String;
-#if (neko || php)
+#if (neko || php || cpp)
 	public var noShutdown : Bool;
 	public var cnxTimeout : Float;
 	var responseHeaders : Hash<String>;
 	var postData : String;
-	var chunk_size : Int;
+	var chunk_size : Null<Int>;
 	var chunk_buf : haxe.io.Bytes;
 	var file : { param : String, filename : String, io : haxe.io.Input, size : Int };
 #elseif js
@@ -62,7 +65,7 @@ class Http {
 	var headers : Hash<String>;
 	var params : Hash<String>;
 
-	#if (neko || php)
+	#if (neko || php || cpp)
 	public static var PROXY : { host : String, port : Int, auth : { user : String, pass : String } } = null;
 	#end
 
@@ -88,7 +91,7 @@ class Http {
 		params.set(param,value);
 	}
 
-	#if (neko || js)
+	#if (neko || js || cpp)
 	public function setPostData( data : String ) {
 		postData = data;
 	}
@@ -235,7 +238,7 @@ class Http {
 		}
 		if( !r.sendAndLoad(small_url,r,if( param ) { if( post ) "POST" else "GET"; } else null) )
 			onError("Failed to initialize Connection");
-	#elseif (neko || php)
+	#elseif (neko || php || cpp)
 		var me = this;
 		var output = new haxe.io.BytesOutput();
 		var old = onError;
@@ -254,7 +257,7 @@ class Http {
 	#end
 	}
 
-#if (neko || php)
+#if (neko || php || cpp)
 
 	public function fileTransfert( argname : String, filename : String, file : haxe.io.Input, size : Int ) {
 		this.file = { param : argname, filename : filename, io : file, size : size };
@@ -607,7 +610,7 @@ class Http {
 	}
 
 #if !flash
-	#if php
+	#if (php||cpp)
 	public static function requestUrl( url : String ) : String {
 	#else
 	public static function request( url : String ) : String {
