@@ -45,6 +45,8 @@ class BytesBuffer {
 		b = new flash.utils.ByteArray();
 		#elseif php
 		b = "";
+		#elseif cpp
+		b = new BytesData();
 		#else
 		b = new Array();
 		#end
