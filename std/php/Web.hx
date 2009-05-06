@@ -13,7 +13,7 @@ class Web {
 		#if force_std_separator
 		var a : NativeArray = untyped __php__("$_POST");
 		if(untyped __call__("get_magic_quotes_gpc"))
-			untyped __php__("foreach($a as $k => $v) $a[$k] = stripslashes($v)");
+			untyped __php__("foreach($a as $k => $v) $a[$k] = stripslashes((string)$v)");
 		var h = Lib.hashOfAssociativeArray(a);
 		var params = getParamsString();
 		if( params == "" )
@@ -27,7 +27,7 @@ class Web {
 		#else
 		var a : NativeArray = untyped __php__("array_merge($_GET, $_POST)");
 		if(untyped __call__("get_magic_quotes_gpc"))
-			untyped __php__("foreach($a as $k => $v) $a[$k] = stripslashes($v)");
+			untyped __php__("foreach($a as $k => $v) $a[$k] = stripslashes((string)$v)");
 		return Lib.hashOfAssociativeArray(a);
 		#end
 	}
