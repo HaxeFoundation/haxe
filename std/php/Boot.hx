@@ -209,6 +209,8 @@ function _hx_exception_handler($e) {
 }
 
 function _hx_explode($delimiter, $s) {
+	if($delimiter == '')
+		return new _hx_array(str_split($s, 1));
 	return new _hx_array(explode($delimiter, $s));
 }
 
