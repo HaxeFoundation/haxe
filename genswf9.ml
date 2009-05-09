@@ -1058,10 +1058,11 @@ let rec gen_expr_content ctx retval e =
 		ctx.continues <- (fun target -> DynArray.set ctx.code op (HJump (J3Always,target - p))) :: ctx.continues;
 		no_value ctx retval
 	| TSwitch (e0,el,eo) ->
-		let t = classify ctx e0.etype in
+		let t = classify ctx e.etype in
 		(try
-			(* generate optimized int switch *)
-			if t <> KInt && t <> KUInt then raise Exit;
+			let t0 = classify ctx e0.etype in
+			(* generate optimized int switch *)			
+			if t0 <> KInt && t0 <> KUInt then raise Exit;
 			let rec get_int e =
 				match e.eexpr with
 				| TConst (TInt n) -> Int32.to_int n
@@ -1073,7 +1074,7 @@ let rec gen_expr_content ctx retval e =
 				if n < 0 || n > 512 then raise Exit;
 			) vl) el;
 			gen_expr ctx true e0;
-			if t <> KInt then write ctx HToInt;
+			if t0 <> KInt then write ctx HToInt;
 			let switch, case = begin_switch ctx in
 			(match eo with
 			| None ->
