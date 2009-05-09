@@ -10,6 +10,11 @@ class Test #if swf_mark implements mt.Protect #end {
 		if( v != v2 ) report(v+" should be "+v2,pos);
 	}
 
+	function feq( v : Float, v2 : Float, ?pos ) {
+		count++;
+		if( Math.abs(v - v2) > 1e-18 ) report(v+" should be "+v2,pos);
+	}
+
 	function t( v, ?pos ) {
 		eq(v,true,pos);
 	}

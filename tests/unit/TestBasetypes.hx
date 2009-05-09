@@ -28,4 +28,45 @@ class TestBasetypes extends Test {
 		eq( "x" + null, "xnull" );
 	}
 
+	function testMath() {
+		eq( Std.int(-1.7), -1 );
+		eq( Std.int(-1.2), -1 );
+		eq( Std.int(1.7), 1 );
+		eq( Std.int(1.2), 1 );
+		eq( Std.int(-0.7), 0 );
+		eq( Std.int(-0.2), 0 );
+		eq( Std.int(0.7), 0 );
+		eq( Std.int(0.2), 0 );
+
+		eq( Math.floor(-1.7), -2 );
+		eq( Math.floor(-1.5), -2 );
+		eq( Math.floor(-1.2), -2 );
+		eq( Math.floor(1.7), 1 );
+		eq( Math.floor(1.5), 1 );
+		eq( Math.floor(1.2), 1 );
+		eq( Math.ceil(-1.7), -1 );
+		eq( Math.ceil(-1.5), -1 );
+		eq( Math.ceil(-1.2), -1 );
+		eq( Math.ceil(1.7), 2 );
+		eq( Math.ceil(1.5), 2 );
+		eq( Math.ceil(1.2), 2 );
+		eq( Math.round(-1.7), -2 );
+		eq( Math.round(-1.5), -1 );
+		eq( Math.round(-1.2), -1 );
+		eq( Math.round(1.7), 2 );
+		eq( Math.round(1.5), 2 );
+		eq( Math.round(1.2), 1 );
+
+		// overflows might occurs depending on the platform
+		unspec(function() Std.int(-10000000000.7));
+		unspec( function() Math.floor(-10000000000.7) );
+		unspec( function() Math.ceil(-10000000000.7) );
+		unspec( function() Math.round(-10000000000.7) );
+		// should still give a proper result for lower bits
+		eq( Std.int(-10000000000.7) & 0xFFFFFF, 15997952 );
+		eq( Math.floor(-10000000000.7) & 0xFFFFFF, 15997951 );
+		eq( Math.ceil(-10000000000.7) & 0xFFFFFF, 15997952 );
+		eq( Math.round(-10000000000.7) & 0xFFFFFF, 15997951 );
+	}
+
 }
