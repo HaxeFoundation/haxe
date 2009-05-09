@@ -1071,6 +1071,9 @@ let rec gen_expr_content ctx retval e =
 				if n < 0 || n > 512 then raise Exit;
 			) vl) el;
 			gen_expr ctx true e0;
+			(match classify ctx e0.etype with
+			| KInt | KUInt -> ()
+			| _ -> write ctx HToInt);
 			let switch, case = begin_switch ctx in
 			(match eo with
 			| None ->
