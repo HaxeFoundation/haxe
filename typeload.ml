@@ -56,7 +56,10 @@ let type_static_var ctx t e p =
 	ctx.in_static <- true;
 	let e = type_expr ctx e true in
 	unify ctx e.etype t p;
-	e
+	(* specific case for UInt statics *)
+	match t with
+	| TType ({ t_path = ([],"UInt") },[]) -> { e with etype = t }
+	| _ -> e
 
 (** since load_type is used in PASS2 , it cannot access the structure of a type **)
 

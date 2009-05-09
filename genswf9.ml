@@ -697,10 +697,12 @@ let begin_loop ctx =
 let gen_constant ctx c t p =
 	match c with
 	| TInt i ->
-		if Int32.compare i (-128l) > 0 && Int32.compare i 128l < 0 then
-			write ctx (HSmallInt (Int32.to_int i))
-		else
-			write ctx (HIntRef i);
+		let unsigned = classify ctx t = KUInt in
+		if Int32.compare i (-128l) > 0 && Int32.compare i 128l < 0 then begin
+			write ctx (HSmallInt (Int32.to_int i));
+			if unsigned then write ctx HToUInt;
+		end else
+			write ctx (if unsigned then HUIntRef i else HIntRef i)
 	| TFloat f ->
 		let f = float_of_string f in
 		write ctx (HFloat f);
@@ -1056,7 +1058,7 @@ let rec gen_expr_content ctx retval e =
 		ctx.continues <- (fun target -> DynArray.set ctx.code op (HJump (J3Always,target - p))) :: ctx.continues;
 		no_value ctx retval
 	| TSwitch (e0,el,eo) ->
-		let t = classify ctx e.etype in
+		let t = classify ctx e0.etype in
 		(try
 			(* generate optimized int switch *)
 			if t <> KInt && t <> KUInt then raise Exit;
@@ -1071,9 +1073,7 @@ let rec gen_expr_content ctx retval e =
 				if n < 0 || n > 512 then raise Exit;
 			) vl) el;
 			gen_expr ctx true e0;
-			(match classify ctx e0.etype with
-			| KInt | KUInt -> ()
-			| _ -> write ctx HToInt);
+			if t <> KInt then write ctx HToInt;
 			let switch, case = begin_switch ctx in
 			(match eo with
 			| None ->
@@ -1428,17 +1428,23 @@ and gen_binop ctx retval op e1 e2 t =
 		| Some iop ->
 			let k1 = classify ctx e1.etype in
 			let k2 = classify ctx e2.etype in
-			if k1 = KInt && k2 = KInt then
-				write ctx (HOp iop)
-			else begin
+			(match k1, k2 with
+			| KInt, KInt | KUInt, KUInt | KInt, KUInt | KUInt, KInt -> write ctx (HOp iop)
+			| _ ->
 				write ctx (HOp op);
-				if op = A3OAdd then coerce ctx (classify ctx t);
-			end;
+				(* add is a generic operation, so let's make sure we don't loose our type in the process *)
+				if op = A3OAdd then coerce ctx (classify ctx t))
 		| _ ->
 			write ctx (HOp op);
 			if op = A3OMod && classify ctx e1.etype = KInt && classify ctx e2.etype = KInt then coerce ctx (classify ctx t);
 	in
+	let invalid_comparison() =
+		match classify ctx e1.etype, classify ctx e2.etype with
+		| KInt, KUInt | KUInt, KInt -> (match e1.eexpr, e2.eexpr with TConst (TInt i) , _ | _ , TConst (TInt i) -> i < 0l | _ -> true)
+		| _ -> false
+	in
 	let gen_op o =
+		if invalid_comparison() then error "Comparison of Int and UInt might lead to unexpected results" (punion e1.epos e2.epos);
 		gen_expr ctx true e1;
 		gen_expr ctx true e2;
 		write ctx (HOp o)

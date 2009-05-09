@@ -264,7 +264,9 @@ let acc_get g p =
 		match f.cf_expr with
 		| None -> error "Recursive inline is not supported" p
 		| Some { eexpr = TFunction _ } ->  mk (TField (e,f.cf_name)) t p
-		| Some e -> e
+		| Some e -> 
+			let rec loop e = Type.map_expr loop { e with epos = p } in
+			loop e
 
 let field_access ctx get f t e p =
 	match if get then f.cf_get else f.cf_set with
