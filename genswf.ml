@@ -364,6 +364,12 @@ let build_dependencies t =
 		(match c.cl_super with
 		| None -> add_path ([],"Object") DKInherit;
 		| Some x -> add_inherit x);
+		List.iter (fun (_,t) ->
+			(* add type-parameters constraints dependencies *)
+			match follow t with
+			| TInst (c,_) -> List.iter add_inherit c.cl_implements
+			| _ -> ()
+		) c.cl_types;
 		List.iter add_inherit c.cl_implements;
 	| TEnumDecl e when not e.e_extern ->
 		PMap.iter (fun _ f -> add_type f.ef_type) e.e_constrs;
