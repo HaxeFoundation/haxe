@@ -17,6 +17,7 @@ TODO :
 	js/flash8 : use &0xFF in haxe.io.Bytes.set
 	flash9 : fixed switch on Null<Int> verify error
 	flash9 : fixes related to UInt type + error when using Int/UInt comparison
+	as3 : improved Vector support, inline flash.Lib.as
 
 2009-03-22: 2.03
 	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php

@@ -370,6 +370,24 @@ let rec gen_call ctx e el r =
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")"
+	| TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = (["flash"],"Lib") }) },f), args ->
+		(match f, args with
+		| "vectorOfArray", [e] | "vectorConvert", [e] ->
+			(match follow r with
+			| TInst ({ cl_path = (["flash"],"Vector") },[t]) ->
+				print ctx "Vector.<%s>(" (type_str ctx t e.epos);
+				gen_value ctx e;
+				print ctx ")";
+			| _ -> assert false)
+		| "as", [e1;e2] ->
+			gen_value ctx e1;
+			spr ctx " as ";
+			gen_value ctx e2
+		| _ ->
+			gen_value ctx e;
+			spr ctx "(";
+			concat ctx "," (gen_value ctx) el;
+			spr ctx ")")
 	| _ ->
 		gen_value ctx e;
 		spr ctx "(";
