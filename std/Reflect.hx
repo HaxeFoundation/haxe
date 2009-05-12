@@ -300,6 +300,10 @@ class Reflect {
 				return __php__("$v instanceof _hx_anonymous") || Type.getClass(v) != null;
 			if(__php__("is_string($v) && !_hx_is_lambda($v)")) return true;
 			return false;
+		#elseif cpp
+			if (v==null) return false;
+			var t:Int = v.__GetType();
+			return t ==  __global__.vtObject || t==__global__.vtClass;
 		#else
 			return false;
 		#end

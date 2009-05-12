@@ -42,7 +42,7 @@ class Std {
 		#elseif php
 		untyped __call__("_hx_instanceof", v,t);
 		#elseif cpp
-		t!=null && (t==Dynamic) || (v!=null && v.__IsClass(t));
+		__global__.__instanceof(v,t);
 		#else
 		false;
 		#end
