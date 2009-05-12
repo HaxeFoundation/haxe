@@ -216,12 +216,14 @@ class CppXml__ {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 		Reflect.setField (_attributes, att, value );
+		return null;
 	}
 
 	public function remove( att : String ) : Void{
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 		Reflect.deleteField( _attributes, att );
+		return null;
 	}
 
 	public function exists( att : String ) : Bool {
@@ -334,6 +336,7 @@ class CppXml__ {
 		if( x._parent != null ) x._parent._children.remove(x);
 		x._parent = this;
 		_children.push( x );
+		return null;
 	}
 
    function removeChild( x_ : Xml ) : Bool {
@@ -352,6 +355,7 @@ class CppXml__ {
 		if( x._parent != null ) x._parent._children.remove(x);
 		x._parent = this;
 		_children.insert( pos, x );
+		return null;
 	}
 
 	public function toString() {
