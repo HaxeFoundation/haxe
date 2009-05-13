@@ -76,6 +76,8 @@ class Std {
 		return untyped __int__(x);
 		#elseif php
 		return untyped __php__("intval")(x);
+		#elseif cpp
+		return untyped __global__.__int__(x);
 		#else
 		if( x < 0 ) return Math.ceil(x);
 		return Math.floor(x);
