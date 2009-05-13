@@ -819,19 +819,22 @@ let rec gen_expression ctx retval expression =
 			find_local_return_blocks false func_def.tf_expr;
 
 			(match func_def.tf_expr.eexpr with
-			| TReturn (Some return_expression) when (func_type = "Void") ->
+			| TReturn (Some return_expression) when (func_type<>"Void") ->
+				output_i "return ";
+				gen_expression ctx true return_expression;
+			| TReturn (Some return_expression) ->
 				output_i "";
-				gen_expression ctx false return_expression
+				gen_expression ctx false return_expression;
 			| _ ->
+				output_i "";
 				gen_expression ctx false func_def.tf_expr;
 			);
 			output ";\n";
-			output_i "return null();";
+			output_i "return null();\n";
 
 			ctx.ctx_static_id_used <- old_used;
 			ctx.ctx_static_id_curr <- old_curr;
 
-			output ";\n";
 			writer#end_block;
 		end;
 		pop_real_this_ptr();
