@@ -165,17 +165,17 @@ class CppXml__ {
 		accessing other functions since some might raise an exception
 		if the node type is not correct.
 	**/
-	var nodeType(default,null) : XmlType;
+	public var nodeType(default,null) : XmlType;
 
 	/**
 		Returns the node name of an Element.
 	**/
-	var nodeName(getNodeName,setNodeName) : String;
+	public var nodeName(getNodeName,setNodeName) : String;
 
 	/**
 		Returns the node value. Only works if the Xml node is not an Element or a Document.
 	**/
-	var nodeValue(getNodeValue,setNodeValue) : String;
+	public var nodeValue(getNodeValue,setNodeValue) : String;
 
 
 	private function getNodeName() : String {
