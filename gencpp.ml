@@ -77,25 +77,7 @@ let file_source_writer filename =
 
 
 let read_whole_file chan =
-	let fileRead = ref "" in 
-	(*we'll store results here before the EOF exception is thrown*)
-	let bufSize = 4096 in
-	let buf = String.create bufSize in (*rewritable buffer*)
-	let rec reader accumString =
-	let chunkLen = input chan buf 0 bufSize in (*input up to bufSize chars to buf*)
-	if (chunkLen > 0) then (*more than 0 chars read*)
-	let lastChunk = String.sub buf 0 chunkLen (*getting n chars read*) in
-		reader (accumString^lastChunk) 
-	else 
-		accumString (*this case will occur before EOF*)
-	in
-	try
-		let () = (fileRead := (reader "")) in (*reader stops and returns at 0 chars read*)
-		!fileRead (*this will never be reached, EOF comes before*)
-	with
-		End_of_file -> !fileRead;; (*so we go and retrieve the string read*)
-
-
+	Std.input_all chan;;
 
 (* The cached_source_writer will not write to the file if it has not changed,
 	thus allowing the makefile dependencies to work correctly *)
@@ -1811,13 +1793,24 @@ let begin_header_file output_h def_string =
 let end_header_file output_h def_string = 
 	output_h ("\n#endif /* INCLUDED_" ^ def_string ^ " */ \n");;
 
+let new_placed_cpp_file common_ctx class_path =
+	let base_dir = common_ctx.file in
+	if (Common.defined common_ctx "vcproj" ) then begin
+		make_class_directories base_dir ("src"::[]);
+		cached_source_writer
+			( base_dir ^ "/src/" ^ ( String.concat "-" (fst class_path) ) ^ "-" ^
+			(snd class_path) ^ ".cpp")
+	end else
+		new_cpp_file common_ctx.file class_path;;
+
+
 
 let generate_enum_files common_ctx enum_def super_deps =
 	let class_path = enum_def.e_path in
 	let class_name = (snd class_path) ^ "_obj" in
 	let smart_class_name =  (snd class_path)  in
 	(*let cpp_file = new_cpp_file common_ctx.file class_path in*)
-	let cpp_file = new_cpp_file common_ctx.file class_path in
+	let cpp_file = new_placed_cpp_file common_ctx class_path in
 	let output_cpp = (cpp_file#write) in
 	let ctx = new_context cpp_file common_ctx.debug in
 
@@ -1991,7 +1984,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 	let class_name = (snd class_def.cl_path) ^ "_obj" in
 	let smart_class_name =  (snd class_def.cl_path)  in
 	(*let cpp_file = new_cpp_file common_ctx.file class_path in*)
-	let cpp_file = new_cpp_file common_ctx.file class_path in
+	let cpp_file = new_placed_cpp_file common_ctx class_path in
 	let output_cpp = (cpp_file#write) in
 	let debug = common_ctx.debug in
 	let ctx = new_context cpp_file debug in
@@ -2411,6 +2404,58 @@ let write_makefile is_nmake filename classes add_obj exe_name =
 	output_string makefile "\t$(CLEAN_CMD) $(OBJ_FILES) $(OUT_FILE)";
 	close_out makefile;;
 
+let write_vcproj base_dir classes exe_name =
+	try
+		let hxcpp = Sys.getenv "HXCPP" in
+		let sln_name = base_dir ^ "/" ^ exe_name ^ ".sln" in
+		if ( not (Sys.file_exists sln_name)) then begin
+			let in_file = open_in (hxcpp ^ "/make/HaxeProj/HaxeProj.sln") in
+			let contents = read_whole_file in_file in
+			close_in in_file;
+			Std.output_file sln_name contents;
+		end;
+		let vcproj_name = (base_dir ^ "/HaxeProj.vcproj") in
+		let source_file = open_in ( if (Sys.file_exists vcproj_name)
+			then vcproj_name else (hxcpp ^ "/make/HaxeProj/HaxeProj.vcproj") ) in
+		let vcproj = cached_source_writer vcproj_name in
+		let in_files_section = ref false in
+		let begin_files = Str.regexp ".*<Files>" in
+		let end_files = Str.regexp ".*</Files>" in
+		Enum.iter (fun line -> 
+			if (!in_files_section) then begin
+				if (Str.string_match end_files line 0) then begin
+					in_files_section := false;
+					vcproj#write (line ^ "\n");
+				end
+			end else begin
+				if (Str.string_match begin_files line 0) then begin
+					vcproj#write (line ^ "\n");
+					in_files_section := true;
+					(* Dump project files ... *)
+					let p = fun x -> vcproj#write ("		"^x^"\n") in
+					p "<Filter Name=\"Source Files\" Filter=\"cpp\">";
+						p "\t<File RelativePath=\".\\src\\__main__.cpp\"></File>";
+					p "\t<File RelativePath=\".\\src\\__boot__.cpp\"></File>";
+					p "\t<File RelativePath=\".\\src\\__resources__.cpp\"></File>";
+					List.iter (fun class_def ->
+						let cpp = (join_class_path (fst class_def) "-") ^ ".cpp" in
+						p ("\t<File RelativePath=\".\\src\\" ^ cpp ^ "\"></File>") ) classes;
+					p "</Filter>";
+					p "<Filter Name=\"Header Files\" Filter=\"h\">";
+					List.iter (fun class_def ->
+						let h = (join_class_path (fst class_def) "\\") ^ ".h" in
+						p ("\t<File RelativePath=\".\\include\\" ^ h ^ "\"></File>") ) classes;
+					p "</Filter>";
+				end else
+					vcproj#write (line ^ "\n");
+			end
+		) (Std.input_lines source_file);
+		close_in source_file;
+		vcproj#close;
+	with Not_found -> failwith "Please set the environment variable HXCPP"
+	;;
+
+
 let create_member_types common_ctx = 
 	let result = Hashtbl.create 0 in
 	let add_member class_name member =
@@ -2512,7 +2557,9 @@ let generate common_ctx =
 	| Some path -> (snd path)
 	| _ -> "output" in
 
-	if ( (Sys.os_type = "Win32") && not (Common.defined common_ctx "gmake" ) ) then
+	if ( (Sys.os_type = "Win32") && (Common.defined common_ctx "vcproj" ) ) then
+		write_vcproj common_ctx.file !exe_classes output_name
+	else if ( (Sys.os_type = "Win32") && not (Common.defined common_ctx "gmake" ) ) then
 		write_makefile true (common_ctx.file ^ "/makefile") !exe_classes
 			"OBJ_FILES = $(OBJ_FILES)" output_name
 	else
