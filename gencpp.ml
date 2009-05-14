@@ -2029,7 +2029,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 
 	if (not class_def.cl_interface) then begin
 		if (not is_extern) then begin
-			output_cpp ("void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")\n{\n");
+			output_cpp ("Void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")\n{\n");
 			(match class_def.cl_constructor with
 				| Some definition ->
 						(match  definition.cf_expr with
@@ -2046,6 +2046,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 						| _ -> ()
 						)
 				| _ -> ());
+			output_cpp "	return null();\n";
 			output_cpp "}\n\n";
 		end;
 
@@ -2292,9 +2293,9 @@ let generate_class_files common_ctx member_types super_deps class_def =
 		output_h "\n	protected:\n";
 		output_h ("		" ^ class_name ^  "();\n");
 		if (is_extern) then
-			output_h ("		virtual void __construct(" ^ constructor_type_args ^ ")=0;\n")
+			output_h ("		virtual Void __construct(" ^ constructor_type_args ^ ")=0;\n")
 		else
-			output_h ("		void __construct(" ^ constructor_type_args ^ ");\n");
+			output_h ("		Void __construct(" ^ constructor_type_args ^ ");\n");
 		output_h "\n	public:\n";
 		output_h ("		static " ^ptr_name^ " __new(" ^constructor_type_args ^");\n");
 		output_h ("		static Dynamic __CreateEmpty();\n");
