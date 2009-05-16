@@ -298,6 +298,12 @@ class Type {
 			case 6: __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5]);
 			case 7: __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6]);
 			case 8: __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7]);
+			case 9: __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8]);
+			case 10: __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9]);
+			case 11: __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10]);
+			case 12: __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11]);
+			case 13: __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11],args[12]);
+			case 14: __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7],args[8],args[9],args[10],args[11],args[12],args[13]);
 			default: throw "Too many arguments";
 			}
 		#elseif flash
