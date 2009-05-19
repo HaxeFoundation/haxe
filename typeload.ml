@@ -952,7 +952,13 @@ let type_module ctx m tdecls loadp =
 				if c = "name" && Common.defined ctx.com "js" then error "This identifier cannot be used in Javascript" p;
 				let t = (match t with
 					| [] -> et
-					| l -> TFun (List.map (fun (s,opt,t) -> s, opt, load_type_opt ~opt ctx p (Some t)) l, et)
+					| l ->
+						let pnames = ref PMap.empty in
+						TFun (List.map (fun (s,opt,t) -> 
+							if PMap.mem s (!pnames) then error ("Duplicate parameter '" ^ s ^ "' in enum constructor " ^ c) p;
+							pnames := PMap.add s () (!pnames);
+							s, opt, load_type_opt ~opt ctx p (Some t)
+						) l, et)
 				) in
 				if PMap.mem c e.e_constrs then error ("Duplicate constructor " ^ c) p;
 				e.e_constrs <- PMap.add c {
