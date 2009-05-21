@@ -1721,48 +1721,36 @@ let find_referenced_types obj super_deps header_only =
 
 
 
-
-
 let generate_main common_ctx member_types super_deps class_def boot_classes init_classes =
 	let base_dir = common_ctx.file in
-	(*make_class_directories base_dir ( "src" :: []);*)
-	let cpp_file = new_cpp_file common_ctx.file ([],"__main__") in
-	let output_main = (cpp_file#write) in
-	let ctx = new_context cpp_file common_ctx.debug in
-	ctx.ctx_class_name <- "?";
-	ctx.ctx_class_member_types <- member_types;
-
 	(* main routine should be a single static function *)
 	let main_expression = 
 		(match class_def.cl_ordered_statics with
 		| [{ cf_expr = Some expression }] -> expression;
 		| _ -> assert false ) in
-	output_main "#include <hxObject.h>\n\n";
-	output_main "#include <stdio.h>\n\n";
-	(*output_main "#include <hxLoadDLL.cpp>\n\n";*)
-
 	let referenced = find_referenced_types (TClassDecl class_def) super_deps false in
-	List.iter ( add_include cpp_file ) referenced;
+	let generate_startup filename is_main =
+		(*make_class_directories base_dir ( "src" :: []);*)
+		let cpp_file = new_cpp_file common_ctx.file ([],filename) in
+		let output_main = (cpp_file#write) in
+		let ctx = new_context cpp_file common_ctx.debug in
+		ctx.ctx_class_name <- "?";
+		ctx.ctx_class_member_types <- member_types;
 
-	output_main "\n\n";
-	output_main "int main(int argc,char **argv)";
-	cpp_file#begin_block;
-	(*cpp_file#write_i "hxLoadDLL();\n";*)
-	cpp_file#write_i "__boot_hxcpp();\n";
-	cpp_file#write_i "try";
-	cpp_file#begin_block;
-	cpp_file#write_i "__boot_all();\n";
-	cpp_file#write_i "";
-	gen_expression (new_context cpp_file common_ctx.debug) false main_expression;
-	output_main ";\n";
-	cpp_file#end_block;
-	cpp_file#write_i "catch (Dynamic e)";
-	cpp_file#begin_block;
-	cpp_file#write_i "printf(\"Error : %s\\n\",e->__ToString().__CStr());\n";
-	cpp_file#end_block;
-	cpp_file#write_i "return 0;\n";
-	cpp_file#end_block;
-	cpp_file#close;
+		output_main "#include <hxObject.h>\n\n";
+		output_main "#include <stdio.h>\n\n";
+
+		List.iter ( add_include cpp_file ) referenced;
+		output_main "\n\n";
+
+		output_main ( if is_main then "BEGIN_MAIN\n\n" else "BEGIN_LIB_MAIN\n\n" );
+		gen_expression (new_context cpp_file common_ctx.debug) false main_expression;
+		output_main ";\n";
+		output_main ( if is_main then "END_MAIN\n\n" else "END_LIB_MAIN\n\n" );
+		cpp_file#close;
+	in
+	generate_startup "__main__" true;
+	generate_startup "__lib__" false;
 
 	(* Write boot class too ... *)
 	let boot_file = new_cpp_file base_dir ([],"__boot__") in
@@ -2396,12 +2384,12 @@ let write_makefile is_nmake filename classes add_obj exe_name =
 
 	List.iter (add_class_to_makefile makefile add_obj ) classes;
 
-	output_string makefile ("\n\nOUT_FILE = " ^ exe_name ^ "$(EXE_EXT)\n");
-	output_string makefile "\n\n$(OUT_FILE) : $(OBJ_FILES)\n";
-	output_string makefile "\n\nexe : $(OUT_FILE)\n";
-	output_string makefile "\t$(LINK) $(OBJ_FILES) $(LINK_OUT)$(OUT_FILE)\n\n";
-	output_string makefile "\nclean:\n";
-	output_string makefile "\t$(CLEAN_CMD) $(OBJ_FILES) $(OUT_FILE)";
+	output_string makefile ("\n\nPROJECT = " ^ exe_name ^ "\n");
+	if (is_nmake) then begin
+		output_string makefile ("!include $(HXCPP)/make/nmake.tail\n\n");
+	end else begin
+		output_string makefile "\n\ninclude $(HXCPP)/make/make.tail\n";
+	end;
 	close_out makefile;;
 
 let write_vcproj base_dir classes exe_name =
