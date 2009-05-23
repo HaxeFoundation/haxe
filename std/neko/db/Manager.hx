@@ -469,7 +469,13 @@ class Manager<T : Object> {
 			var f = Reflect.field(othis,hprop);
 			if( f != null )
 				return f;
-			f = manager.get(Reflect.field(othis,hkey),lock);
+			var id = Reflect.field(othis,hkey);
+			f = manager.get(id,lock);
+			// it's highly possible that in that case the object has been inserted
+			// after we started our transaction : in that case, let's lock it, since
+			// it's still better than returning 'null' while it exists
+			if( f == null && id != null && !lock )
+				f = manager.get(id,true);
 			Reflect.setField(othis,hprop,f);
 			return f;
 		});

@@ -27,6 +27,7 @@ TODO :
 	all : forbid same name for static+instance field (not supported on several platforms)
 	all : renamed haxe.Http.request to "requestUrl"
 	all : renamed neko.zip.Compress/Uncompress.run to "execute"
+	spod : fix very rare issue with relations and transactions
 
 2009-03-22: 2.03
 	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php
