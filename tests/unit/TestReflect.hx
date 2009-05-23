@@ -58,6 +58,7 @@ class TestReflect extends Test {
 		is(0,Int,Float);
 		is(1,Int,Float);
 		is(-1,Int,Float);
+		// unspec : is(1.0,Int,Float);
 		is(1.2,Float);
 		is(1e10,Float);
 		is(-1e10,Float);
@@ -67,6 +68,8 @@ class TestReflect extends Test {
 		is(true,Bool);
 		is(false,Bool);
 		is("Hello",String);
+		is("123",String);
+		is("false",String);
 		is("",String);
 		is([],Array);
 		is(new List(),List);
