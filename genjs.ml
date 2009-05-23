@@ -229,16 +229,14 @@ and gen_expr ctx e =
 		print ctx " %s " (Ast.s_binop op);
 		gen_value_op ctx e2;
 	| TField (x,s) ->
-		(match follow e.etype with
-		| TFun _ ->
-			spr ctx "$closure(";
-			gen_value ctx x;
-			spr ctx ",";
-			gen_constant ctx e.epos (TString s);
-			spr ctx ")";
-		| _ ->
-			gen_value ctx x;
-			spr ctx (field s))
+		gen_value ctx x;
+		spr ctx (field s)
+	| TClosure (x,s) ->
+		spr ctx "$closure(";
+		gen_value ctx x;
+		spr ctx ",";
+		gen_constant ctx e.epos (TString s);
+		spr ctx ")";
 	| TTypeExpr t ->
 		spr ctx (s_path (t_path t))
 	| TParenthesis e ->
@@ -512,6 +510,7 @@ and gen_value ctx e =
 	| TArray _
 	| TBinop _
 	| TField _
+	| TClosure _
 	| TTypeExpr _
 	| TParenthesis _
 	| TObjectDecl _

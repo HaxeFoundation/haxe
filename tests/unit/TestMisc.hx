@@ -1,5 +1,35 @@
 ﻿package unit;
 
+class MyDynamicClass {
+
+	var v : Int;
+
+	public function new(v) {
+		this.v = v;
+	}
+
+	public function get() {
+		return v;
+	}
+
+	public dynamic function add(x,y) {
+		return v + x + y;
+	}
+
+	public inline function iadd(x,y) {
+		return v + x + y;
+	}
+
+}
+
+class MyDynamicSubClass extends MyDynamicClass {
+
+	override function add(x,y) {
+		return (v + x + y) * 2;
+	}
+
+}
+
 class TestMisc extends Test {
 
 	function testClosure() {
@@ -17,12 +47,47 @@ class TestMisc extends Test {
 
 		var o = { f : f };
 		eq( o.f(), 5 );
+		eq( o.f, o.f ); // we shouldn't create a new closure here
 
 		var o = { add : c.add };
 		eq( o.add(1,2), 103 );
+		eq( o.add, o.add ); // we shouldn't create a new closure here
 
 		var o = { cos : Math.cos };
 		eq( o.cos(0), 1. );
+
+		// check enum
+		var c = MyEnum.C;
+		t( Type.enumEq(MyEnum.C(1,"hello"), c(1,"hello")) );
+	}
+
+	function testInlineClosure() {
+		var inst = new MyDynamicClass(100);
+		var add = inst.iadd;
+		eq( inst.iadd(1,2), 103 );
+		eq( add(1,2), 103 );
+	}
+
+	function testDynamicClosure() {
+		var inst = new MyDynamicClass(100);
+		var add = inst.add;
+		eq( inst.add(1,2), 103 );
+		eq( callback(inst.add,1)(2), 103 );
+		eq( add(1,2), 103 );
+
+		// check overriden dynamic method
+		var inst = new MyDynamicSubClass(100);
+		var add = inst.add;
+		eq( inst.add(1,2), 206 );
+		eq( callback(inst.add,1)(2), 206 );
+		eq( add(1,2), 206 );
+
+		// check redefined dynamic method
+		inst.add = function(x,y) return inst.get() * 2 + x + y;
+		var add = inst.add;
+		eq( inst.add(1,2), 203 );
+		eq( callback(inst.add,1)(2), 203 );
+		eq( add(1,2), 203 );
 	}
 
 	function testMD5() {

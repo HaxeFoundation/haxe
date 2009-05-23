@@ -28,6 +28,11 @@ type switch_mode =
 	| CMatch of (tenum_field * (string option * t) list option)
 	| CExpr of texpr
 
+type access_mode =
+	| MGet
+	| MSet
+	| MCall
+
 exception Display of t
 
 type access_kind =
@@ -206,7 +211,7 @@ let type_type ctx tpath p =
 				cf_public = true;
 				cf_type = f.ef_type;
 				cf_get = NormalAccess;
-				cf_set = NoAccess;
+				cf_set = (match follow f.ef_type with TFun _ -> MethodCantAccess | _ -> NoAccess);
 				cf_doc = None;
 				cf_expr = None;
 				cf_params = [];
@@ -263,13 +268,13 @@ let acc_get g p =
 		ignore(follow f.cf_type); (* force computing *)
 		match f.cf_expr with
 		| None -> error "Recursive inline is not supported" p
-		| Some { eexpr = TFunction _ } ->  mk (TField (e,f.cf_name)) t p
+		| Some { eexpr = TFunction _ } ->  mk (TClosure (e,f.cf_name)) t p
 		| Some e -> 
 			let rec loop e = Type.map_expr loop { e with epos = p } in
 			loop e
 
-let field_access ctx get f t e p =
-	match if get then f.cf_get else f.cf_set with
+let field_access ctx mode f t e p =
+	match (match mode with MGet | MCall -> f.cf_get | MSet -> f.cf_set) with
 	| NoAccess ->
 		let normal = AccExpr (mk (TField (e,f.cf_name)) t p) in
 		(match follow e.etype with
@@ -282,16 +287,18 @@ let field_access ctx get f t e p =
 			if ctx.untyped then normal else AccNo f.cf_name)
 	| MethodCantAccess when not ctx.untyped ->
 		error "Cannot rebind this method : please use 'dynamic' before method declaration" p
-	| NormalAccess | MethodCantAccess ->
-		AccExpr (mk (TField (e,f.cf_name)) t p)
+	| NormalAccess | MethodCantAccess | MethodDynamicAccess ->
+		(match mode, f.cf_set with
+		| MGet, MethodCantAccess | MGet, MethodDynamicAccess -> AccExpr (mk (TClosure (e,f.cf_name)) t p)
+		| _ -> AccExpr (mk (TField (e,f.cf_name)) t p))	 
 	| MethodAccess m ->
 		if m = ctx.curmethod && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
 			let prefix = if Common.defined ctx.com "as3" then "$" else "" in
 			AccExpr (mk (TField (e,prefix ^ f.cf_name)) t p)
-		else if get then
-			AccExpr (mk (TCall (mk (TField (e,m)) (tfun [] t) p,[])) t p)
-		else
+		else if mode = MSet then
 			AccSet (e,m,t,f.cf_name)
+		else
+			AccExpr (mk (TCall (mk (TField (e,m)) (tfun [] t) p,[])) t p)			
 	| ResolveAccess ->
 		let fstring = mk (TConst (TString f.cf_name)) ctx.api.tstring p in
 		let tresolve = tfun [ctx.api.tstring] t in
@@ -301,47 +308,45 @@ let field_access ctx get f t e p =
 	| InlineAccess ->
 		AccInline (e,f,t)
 
-let type_ident ctx i is_type p get =
+let type_ident ctx i is_type p mode =
 	match i with
 	| "true" ->
-		if get then
+		if mode = MGet then
 			AccExpr (mk (TConst (TBool true)) ctx.api.tbool p)
 		else
 			AccNo i
 	| "false" ->
-		if get then
+		if mode = MGet then
 			AccExpr (mk (TConst (TBool false)) ctx.api.tbool p)
 		else
 			AccNo i
 	| "this" ->
 		if not ctx.untyped && ctx.in_static then error "Cannot access this from a static function" p;
-		if get then
+		if mode = MGet then
 			AccExpr (mk (TConst TThis) ctx.tthis p)
 		else
 			AccNo i
 	| "super" ->
-		if not ctx.super_call then
-			AccNo i
-		else
 		let t = (match ctx.curclass.cl_super with
-		| None -> error "Current class does not have a superclass" p
-		| Some (c,params) -> TInst(c,params)
+			| None -> error "Current class does not have a superclass" p
+			| Some (c,params) -> TInst(c,params)
 		) in
 		if ctx.in_static then error "Cannot access super from a static function" p;
-		ctx.super_call <- false;
-		if get then
-			AccExpr (mk (TConst TSuper) t p)
-		else
+		if mode = MSet || not ctx.super_call then
 			AccNo i
+		else begin
+			ctx.super_call <- false;
+			AccExpr (mk (TConst TSuper) t p)
+		end
 	| "null" ->
-		if get then
+		if mode = MGet then
 			AccExpr (null (mk_mono()) p)
 		else
 			AccNo i
 	| "here" ->
 		let infos = mk_infos ctx p [] in
 		let e = type_expr ctx infos true in
-		if get then
+		if mode = MGet then
 			AccExpr { e with etype = Typeload.load_normal_type ctx { tpackage = ["haxe"]; tname = "PosInfos"; tparams = [] } p false }
 		else
 			AccNo i
@@ -353,12 +358,12 @@ let type_ident ctx i is_type p get =
 		(* member variable lookup *)
 		if ctx.in_static then raise Not_found;
 		let t , f = class_field ctx.curclass i in
-		field_access ctx get f t (mk (TConst TThis) ctx.tthis p) p
+		field_access ctx mode f t (mk (TConst TThis) ctx.tthis p) p
 	with Not_found -> try
 		(* static variable lookup *)
 		let f = PMap.find i ctx.curclass.cl_statics in
 		let e = type_type ctx ctx.curclass.cl_path p in
-		field_access ctx get f (field_type f) e p
+		field_access ctx mode f (field_type f) e p
 	with Not_found -> try
 		(* lookup imported *)
 		let rec loop l =
@@ -377,10 +382,10 @@ let type_ident ctx i is_type p get =
 		in
 		let e = loop ctx.local_types in
 		check_locals_masking ctx e;
-		if get then
-			AccExpr e
-		else
+		if mode = MSet then
 			AccNo i
+		else
+			AccExpr e
 	with Not_found -> try
 		(* lookup type *)
 		if not is_type then raise Not_found;
@@ -437,7 +442,7 @@ let type_matching ctx (enum,params) (e,p) ecases first_case =
 	| _ ->
 		invalid()
 
-let type_field ctx e i p get =
+let type_field ctx e i p mode =
 	let no_field() =
 		if not ctx.untyped then display_error ctx (s_type (print_context()) e.etype ^ " has no field " ^ i) p;
 		AccExpr (mk (TField (e,i)) (mk_mono()) p)
@@ -448,7 +453,7 @@ let type_field ctx e i p get =
 			match c.cl_dynamic with
 			| Some t ->
 				let t = apply_params c.cl_types params t in
-				if get && PMap.mem "resolve" c.cl_fields then
+				if mode = MGet && PMap.mem "resolve" c.cl_fields then
 					AccExpr (mk (TCall (mk (TField (e,"resolve")) (tfun [ctx.api.tstring] t) p,[Typeload.type_constant ctx (String i) p])) t p)
 				else
 					AccExpr (mk (TField (e,i)) t p)
@@ -461,7 +466,7 @@ let type_field ctx e i p get =
 			let t , f = class_field c i in
 			if e.eexpr = TConst TSuper && f.cf_set = NormalAccess && Common.platform ctx.com Flash9 then error "Cannot access superclass variable for calling : needs to be a proper method" p;
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then display_error ctx ("Cannot access to private field " ^ i) p;
-			field_access ctx get f (apply_params c.cl_types params t) e p
+			field_access ctx mode f (apply_params c.cl_types params t) e p
 		with Not_found -> try
 			loop_dyn c params
 		with Not_found ->
@@ -478,7 +483,7 @@ let type_field ctx e i p get =
 				| Statics c when is_parent c ctx.curclass -> ()
 				| _ -> display_error ctx ("Cannot access to private field " ^ i) p
 			end;
-			field_access ctx get f (field_type f) e p
+			field_access ctx mode f (field_type f) e p
 		with Not_found ->
 			if is_closed a then
 				no_field()
@@ -489,12 +494,12 @@ let type_field ctx e i p get =
 				cf_doc = None;
 				cf_public = true;
 				cf_get = NormalAccess;
-				cf_set = if get then NoAccess else NormalAccess;
+				cf_set = (match mode with MSet -> NormalAccess | MGet | MCall -> NoAccess);
 				cf_expr = None;
 				cf_params = [];
 			} in
 			a.a_fields <- PMap.add i f a.a_fields;
-			field_access ctx get f (field_type f) e p
+			field_access ctx mode f (field_type f) e p
 		)
 	| TMono r ->
 		if ctx.untyped && Common.defined ctx.com "swf-mark" && Common.defined ctx.com "flash" then ctx.com.warning "Mark" p;
@@ -504,7 +509,7 @@ let type_field ctx e i p get =
 			cf_doc = None;
 			cf_public = true;
 			cf_get = NormalAccess;
-			cf_set = if get then NoAccess else NormalAccess;
+			cf_set = (match mode with MSet -> NormalAccess | MGet | MCall -> NoAccess);
 			cf_expr = None;
 			cf_params = [];
 		} in
@@ -512,7 +517,7 @@ let type_field ctx e i p get =
 		let t = TAnon { a_fields = PMap.add i f PMap.empty; a_status = x } in
 		ctx.opened <- x :: ctx.opened;
 		r := Some t;
-		field_access ctx get f (field_type f) e p
+		field_access ctx mode f (field_type f) e p
 	| t ->
 		no_field()
 
@@ -563,7 +568,7 @@ let unify_int ctx e k =
 let rec type_binop ctx op e1 e2 p =
 	match op with
 	| OpAssign ->
-		let e1 = type_access ctx (fst e1) (snd e1) false in
+		let e1 = type_access ctx (fst e1) (snd e1) MSet in
 		let e2 = type_expr_with_type ctx e2 (match e1 with AccNo _ | AccInline _ -> None | AccExpr e | AccSet(e,_,_,_) -> Some e.etype) in
 		(match e1 with
 		| AccNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
@@ -582,7 +587,7 @@ let rec type_binop ctx op e1 e2 p =
 		| AccInline _ ->
 			assert false)
 	| OpAssignOp op ->
-		(match type_access ctx (fst e1) (snd e1) false with
+		(match type_access ctx (fst e1) (snd e1) MSet with
 		| AccNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
 		| AccExpr e ->
 			let eop = type_binop ctx op e1 e2 p in
@@ -748,7 +753,7 @@ let rec type_binop ctx op e1 e2 p =
 
 and type_unop ctx op flag e p =
 	let set = (op = Increment || op = Decrement) in
-	let acc = type_access ctx (fst e) (snd e) (not set) in
+	let acc = type_access ctx (fst e) (snd e) (if set then MSet else MGet) in
 	let access e =
 		let t = (match op with
 		| Not ->
@@ -818,7 +823,7 @@ and type_switch ctx e cases def need_val p =
 		| (EConst (Ident name),p) :: l
 		| (EConst (Type name),p) :: l ->
 			(try
-				let e = acc_get (type_ident ctx name false p true) p in
+				let e = acc_get (type_ident ctx name false p MGet) p in
 				(match e.eexpr with
 				| TEnumField (e,_) -> Some (e, List.map (fun _ -> mk_mono()) e.e_types)
 				| _ -> None)
@@ -957,17 +962,17 @@ and type_switch ctx e cases def need_val p =
 		let cases = List.map matchs cases in
 		mk (TMatch (e,(en,enparams),List.map indexes cases,def)) t p
 
-and type_access ctx e p get =
+and type_access ctx e p mode =
 	match e with
 	| EConst (Ident s) ->
-		type_ident ctx s false p get
+		type_ident ctx s false p mode
 	| EConst (Type s) ->
-		type_ident ctx s true p get
+		type_ident ctx s true p mode
 	| EField _
 	| EType _ ->
 		let fields path e =
 			List.fold_left (fun e (f,_,p) ->
-				let e = acc_get (e true) p in
+				let e = acc_get (e MGet) p in
 				type_field ctx e f p
 			) e path
 		in
@@ -1027,7 +1032,7 @@ and type_access ctx e p get =
 			| _ ->
 				fields acc (type_access ctx (fst e) (snd e))
 		in
-		loop [] (e,p) get
+		loop [] (e,p) mode
 	| EArray (e1,e2) ->
 		let e1 = type_expr ctx e1 in
 		let e2 = type_expr ctx e2 in
@@ -1061,7 +1066,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	| EArray _
 	| EConst (Ident _)
 	| EConst (Type _) ->
-		acc_get (type_access ctx e p true) p
+		acc_get (type_access ctx e p MGet) p
 	| EConst (Regexp (r,opt)) ->
 		let str = mk (TConst (TString r)) ctx.api.tstring p in
 		let opt = mk (TConst (TString opt)) ctx.api.tstring p in
@@ -1169,7 +1174,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 						unify_raise ctx e1.etype t e1.epos;
 						e1
 					with Error (Unify _,_) ->
-						let acc = acc_get (type_field ctx e1 "iterator" e1.epos true) e1.epos in
+						let acc = acc_get (type_field ctx e1 "iterator" e1.epos MCall) e1.epos in
 						match follow acc.etype with
 						| TFun ([],it) ->
 							unify ctx it t e1.epos;
@@ -1483,8 +1488,8 @@ and type_call ctx e el p =
 	| _ ->
 		(match e with
 		| EField ((EConst (Ident "super"),_),_) , _ | EType ((EConst (Ident "super"),_),_) , _ -> ctx.super_call <- true
-		| _ -> ());
-		match type_access ctx (fst e) (snd e) true with
+		| _ -> ());		
+		match type_access ctx (fst e) (snd e) MCall with
 		| AccInline (ethis,f,t) ->
 			let params, tret = (match follow t with
 				| TFun (args,r) -> unify_call_params ctx (Some f.cf_name) el args p true, r

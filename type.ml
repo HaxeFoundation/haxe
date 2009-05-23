@@ -26,6 +26,7 @@ type field_access =
 	| ResolveAccess
 	| MethodAccess of string
 	| MethodCantAccess
+	| MethodDynamicAccess
 	| NeverAccess
 	| InlineAccess
 
@@ -75,6 +76,7 @@ and texpr_expr =
 	| TArray of texpr * texpr
 	| TBinop of Ast.binop * texpr * texpr
 	| TField of texpr * string
+	| TClosure of texpr * string
 	| TTypeExpr of module_type
 	| TParenthesis of texpr
 	| TObjectDecl of (string * texpr) list
@@ -290,9 +292,10 @@ let s_access = function
 	| NoAccess -> "null"
 	| NeverAccess -> "never"
 	| MethodAccess m -> m
-	| MethodCantAccess -> "dynamic"
+	| MethodCantAccess -> "default"
 	| ResolveAccess -> "resolve"
 	| InlineAccess -> "inline"
+	| MethodDynamicAccess -> "dynamic"
 
 let rec is_parent csup c =
 	if c == csup then
@@ -791,6 +794,7 @@ let iter f e =
 		f e2;
 	| TThrow e
 	| TField (e,_)
+	| TClosure (e,_)
 	| TParenthesis e
 	| TUnop (_,_,e) ->
 		f e
@@ -846,6 +850,8 @@ let map_expr f e =
 		{ e with eexpr = TThrow (f e1) }
 	| TField (e1,v) ->
 		{ e with eexpr = TField (f e1,v) }
+	| TClosure (e1,v) ->
+		{ e with eexpr = TClosure (f e1,v) }
 	| TParenthesis e1 ->
 		{ e with eexpr = TParenthesis (f e1) }
 	| TUnop (op,pre,e1) ->
@@ -896,6 +902,8 @@ let map_expr_type f ft e =
 		{ e with eexpr = TThrow (f e1); etype = ft e.etype }
 	| TField (e1,v) ->
 		{ e with eexpr = TField (f e1,v); etype = ft e.etype }
+	| TClosure (e1,v) ->
+		{ e with eexpr = TClosure (f e1,v); etype = ft e.etype }
 	| TParenthesis e1 ->
 		{ e with eexpr = TParenthesis (f e1); etype = ft e.etype }
 	| TUnop (op,pre,e1) ->

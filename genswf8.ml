@@ -589,13 +589,15 @@ let rec gen_access ?(read_write=false) ctx forcall e =
 			write ctx ASwap;
 			push ctx [p];
 		end;
-		(match follow e.etype with
-		| TFun _ -> VarClosure
-		| _ ->
-			if not !protect_all && Codegen.is_volatile e.etype then
-				VarVolatile
-			else
-				VarObj)
+		if not !protect_all && Codegen.is_volatile e.etype then
+			VarVolatile
+		else
+			VarObj
+	| TClosure (e,f) ->
+		gen_expr ctx true e;
+		if read_write then assert false;
+		push ctx [VStr (f,is_protected ctx e.etype f)];
+		VarClosure
 	| TArray (ea,eb) ->
 		if read_write then 
 			try 
@@ -958,6 +960,7 @@ and gen_expr_2 ctx retval e =
 	| TConst TSuper
 	| TConst TThis
 	| TField _
+	| TClosure _
 	| TArray _
 	| TLocal _
 	| TTypeExpr _

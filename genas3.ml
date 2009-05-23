@@ -471,7 +471,7 @@ and gen_expr ctx e =
 		gen_value_op ctx e2;
 	| TField ({ eexpr = TTypeExpr t },s) when t_path t = ctx.curclass.cl_path && not (PMap.mem s ctx.locals) ->
 		print ctx "%s" (s_ident s)
-	| TField (e,s) ->
+	| TField (e,s) | TClosure (e,s) ->
    		gen_value ctx e;
 		gen_field_access ctx e.etype s
 	| TTypeExpr t ->
@@ -736,6 +736,7 @@ and gen_value ctx e =
 	| TArray _
 	| TBinop _
 	| TField _
+	| TClosure _
 	| TTypeExpr _
 	| TParenthesis _
 	| TObjectDecl _

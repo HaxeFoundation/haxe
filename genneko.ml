@@ -233,19 +233,6 @@ and gen_call ctx p e el =
 		let e = (match gen_expr ctx e with EFunction _, _ as e -> (EBlock [e],p) | e -> e) in
 		call p e (List.map (gen_expr ctx) el)
 
-and gen_closure p ep t e f =
-	match follow t with
-	| TFun (args,_) ->
-		let n = List.length args in
-		if n > 5 then error "Cannot create closure with more than 5 arguments" ep;
-		let tmp = ident p "@tmp" in
-		EBlock [
-			(EVars ["@tmp", Some e; "@fun", Some (field p tmp f)] , p);
-			call p (ident p ("@closure" ^ string_of_int n)) [tmp;ident p "@fun"]
-		] , p
-	| _ ->
-		field p e f
-
 and gen_expr ctx e =
 	let p = pos ctx e.epos in
 	match e.eexpr with
@@ -265,8 +252,19 @@ and gen_expr ctx e =
 		(EBinop ("=",field p (gen_expr ctx e1) f,gen_expr ctx e2),p)
 	| TBinop (op,e1,e2) ->
 		gen_binop ctx p op e1 e2
-	| TField (e2,f) ->
-		gen_closure p e.epos e.etype (gen_expr ctx e2) f
+	| TField (e,f) ->
+		field p (gen_expr ctx e) f
+	| TClosure (e2,f) ->
+		(match follow e.etype with
+		| TFun (args,_) ->
+			let n = List.length args in
+			if n > 5 then error "Cannot create closure with more than 5 arguments" e.epos;
+			let tmp = ident p "@tmp" in
+			EBlock [
+				(EVars ["@tmp", Some (gen_expr ctx e2); "@fun", Some (field p tmp f)] , p);
+				call p (ident p ("@closure" ^ string_of_int n)) [tmp;ident p "@fun"]
+			] , p
+		| _ -> assert false)
 	| TTypeExpr t ->
 		gen_type_path p (t_path t)
 	| TParenthesis e ->

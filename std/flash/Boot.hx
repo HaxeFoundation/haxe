@@ -265,8 +265,8 @@ class Boot {
 		current.flash.Lib._root = _root;
 		current.flash.Lib.current = current;
 		// prevent closure creation by setting untyped
-		current[__unprotect__("@instanceof")] = untyped __instanceof;
-		current[__unprotect__("@closure")] = untyped __closure;
+		current[__unprotect__("@instanceof")] = flash.Boot[__unprotect__("__instanceof")];
+		current[__unprotect__("@closure")] = flash.Boot[__unprotect__("__closure")];
 		// fix firefox default alignement
 		if( _global["Stage"]["align"] == "" )
 			_global["Stage"]["align"] = "LT";

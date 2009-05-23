@@ -76,6 +76,7 @@ let s_expr_expr e =
 	| TArray (_,_) -> "TArray"
 	| TBinop (_,_,_) -> "TBinop"
 	| TField (_,_) -> "TField"
+	| TClosure (_,_) -> "TClosure"
 	| TTypeExpr _ -> "TTypeExpr"
 	| TParenthesis _ -> "TParenthesis"
 	| TObjectDecl _ -> "TObjectDecl"
@@ -1034,7 +1035,7 @@ and gen_expr ctx e =
 			print ctx " %s " (Ast.s_binop op);
 			gen_value_op ctx e2;
 		);
-	| TField (e1,s) ->
+	| TField (e1,s) | TClosure (e1,s) ->
 		(match follow e.etype with
 		| TFun (args, _) ->
 			let p = escphp ctx.quotes in
@@ -1453,6 +1454,7 @@ and gen_value ctx e =
 	| TArray _
 	| TBinop _
 	| TField _
+	| TClosure _
 	| TParenthesis _
 	| TObjectDecl _
 	| TArrayDecl _

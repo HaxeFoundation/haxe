@@ -3,19 +3,27 @@ import unit.MyEnum;
 
 class TestType extends Test {
 
-	public function testType() {
-		eq( Type.resolveClass("unit.MyClass"), unit.MyClass );
-		eq( Type.getClassName(unit.MyClass), "unit.MyClass" );
-		eq( Type.getClassFields(unit.MyClass).length , 0 );
+	static inline function u( s : String ) : String {
+		#if flash
+		return untyped __unprotect__(s);
+		#else
+		return s;
+		#end
 	}
 
+	public function testType() {
+		var name = u("unit")+"."+u("MyClass");
+		eq( Type.resolveClass(name), unit.MyClass );
+		eq( Type.getClassName(unit.MyClass), name );
+		eq( Type.getClassFields(unit.MyClass).length , 0 );
+	}
 
 	public function testFields() {
 		var sfields = Type.getClassFields(unit.MySubClass);
 		eq( sfields.length , 1 );
-		eq( sfields[0], "XXX" );
+		eq( sfields[0], u("XXX") );
 
-		var fields = ["add","get","intValue","ref","set","stringValue","val"];
+		var fields = [u("add"),u("get"),u("intValue"),u("ref"),u("set"),u("stringValue"),u("val")];
 		var fl = Type.getInstanceFields(unit.MyClass);
 		fl.sort(Reflect.compare);
 		eq( fl.join("|"), fields.join("|") );

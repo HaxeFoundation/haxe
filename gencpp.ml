@@ -511,6 +511,7 @@ let debug_expression expression type_too =
 	| TArray (_,_) -> "TArray"
 	| TBinop (_,_,_) -> "TBinop"
 	| TField (_,_) -> "TField"
+	| TClosure _ -> "TClosure"
 	| TTypeExpr _ -> "TTypeExpr"
 	| TParenthesis _ -> "TParenthesis"
 	| TObjectDecl _ -> "TObjectDecl"
@@ -558,6 +559,7 @@ let rec iter_retval f retval e =
 		f false e2;
 	| TThrow e
 	| TField (e,_)
+	| TClosure (e,_)
 	| TUnop (_,_,e) ->
 		f true e
 	| TParenthesis e ->
@@ -1145,6 +1147,7 @@ let rec gen_expression ctx retval expression =
 		end
 	(* Get precidence matching haxe ? *)
 	| TBinop (op,expr1,expr2) -> gen_bin_op op expr1 expr2
+	| TClosure (expr,name)
 	| TField (expr,name) ->
 		gen_member_access expr name (is_function_member expression) expression.etype
 	| TParenthesis expr -> output "("; gen_expression ctx true expr; output ")"

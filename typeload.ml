@@ -616,7 +616,7 @@ let init_class ctx c p herits fields =
 			let stat = List.mem AStatic access in
 			let inline = List.mem AInline access in
 			let parent = (if not stat then get_parent c name else None) in
-			let dynamic = List.mem ADynamic access || (match parent with Some { cf_set = NormalAccess } -> true | _ -> false) in
+			let dynamic = List.mem ADynamic access || (match parent with Some { cf_set = MethodDynamicAccess } -> true | _ -> false) in
 			let ctx = { ctx with
 				curclass = c;
 				curmethod = name;
@@ -641,7 +641,7 @@ let init_class ctx c p herits fields =
 				cf_doc = doc;
 				cf_type = t;
 				cf_get = if inline then InlineAccess else NormalAccess;
-				cf_set = (if inline then NeverAccess else if dynamic then NormalAccess else MethodCantAccess);
+				cf_set = (if inline then NeverAccess else if dynamic then MethodDynamicAccess else MethodCantAccess);
 				cf_expr = None;
 				cf_public = is_public access parent;
 				cf_params = params;
