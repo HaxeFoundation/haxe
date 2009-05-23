@@ -157,12 +157,6 @@ let rec gen_call ctx e el =
 			concat ctx "," (gen_value ctx) params;
 			spr ctx "])";
 		);
-	| TField (e,s) , el ->
-		gen_value ctx e;
-		spr ctx (field s);
-		spr ctx "(";
-		concat ctx "," (gen_value ctx) el;
-		spr ctx ")"
 	| TCall (x,_) , el when x.eexpr <> TLocal "__js__" ->
 		spr ctx "(";
 		gen_value ctx e;
