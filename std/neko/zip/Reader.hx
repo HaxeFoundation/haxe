@@ -43,7 +43,7 @@ class Reader {
 			return f.data;
 		var c = new Uncompress(-15);
 		var s = haxe.io.Bytes.alloc(f.fileSize);
-		var r = c.run(f.data,0,s,0);
+		var r = c.execute(f.data,0,s,0);
 		c.close();
 		if( !r.done || r.read != f.data.length || r.write != f.fileSize )
 			throw "Invalid compressed data for "+f.fileName;
@@ -183,7 +183,7 @@ class Reader {
 				buf = refill(i,buf,0);
 				bufpos = 0;
 			}
-			var r = u.run(buf,bufpos,out,0);
+			var r = u.execute(buf,bufpos,out,0);
 			if( r.read == 0 ) {
 				if( bufpos == 0 )
 					throw new haxe.io.Eof();

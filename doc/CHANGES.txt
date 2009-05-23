@@ -24,6 +24,9 @@ TODO :
 	as3 : bugfix with property access inside setter (stack overflow)
 	all : Enum is now Enum<T>
 	all : added Type.createEnumIndex
+	all : forbid same name for static+instance field (not supported on several platforms)
+	all : renamed haxe.Http.request to "requestUrl"
+	all : renamed neko.zip.Compress/Uncompress.run to "execute"
 
 2009-03-22: 2.03
 	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php

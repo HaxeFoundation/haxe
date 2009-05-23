@@ -32,7 +32,7 @@ class Compress {
 		s = _deflate_init(level);
 	}
 
-	public function run( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
+	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
 		return _deflate_buffer(s,src.getData(),srcPos,dst.getData(),dstPos);
 	}
 
@@ -48,7 +48,7 @@ class Compress {
 		var c = new Compress(level);
 		c.setFlushMode(Flush.FINISH);
 		var out = haxe.io.Bytes.alloc(_deflate_bound(c.s,s.length));
-		var r = c.run(s,0,out,0);
+		var r = c.execute(s,0,out,0);
 		c.close();
 		if( !r.done || r.read != s.length )
 			throw "Compression failed";

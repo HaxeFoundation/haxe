@@ -610,11 +610,7 @@ class Http {
 	}
 
 #if !flash
-	#if (php||cpp)
 	public static function requestUrl( url : String ) : String {
-	#else
-	public static function request( url : String ) : String {
-	#end
 		var h = new Http(url);
 	#if js
 		h.async = false;

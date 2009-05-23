@@ -146,7 +146,7 @@ class Main {
 			display("Testing proxy "+p.host+":"+p.port);
 			haxe.Http.PROXY = p;
 			try {
-				haxe.Http.request("http://google.com");
+				haxe.Http.requestUrl("http://google.com");
 			} catch( e : Dynamic ) {
 				display("Could not connect on Google, don't use the proxy");
 				haxe.Http.PROXY = null;
@@ -181,7 +181,7 @@ class Main {
 		display("Getting Latest haXe Version");
 		var haxeFile = null;
 		var r = ~/^haxe-([0-9]+)\.([0-9]+)(-win|-linux|-osx)(\.zip|\.tar\.gz)$/;
-		for( f in haxe.Http.request("http://haxe.org/wiki/latest").split("\n") )
+		for( f in haxe.Http.requestUrl("http://haxe.org/wiki/latest").split("\n") )
 			if( r.match(f) ) {
 				var pf = r.matched(3);
 				switch( SYS ) {
@@ -207,7 +207,7 @@ class Main {
 		display("Getting Latest Neko Version");
 		var nekoFile = null;
 		var r = ~/^neko-([0-9]+)\.([0-9]+)(\.([0-9]+))?(-win|-linux|-osx)(\.zip|\.tar\.gz)$/;
-		for( f in haxe.Http.request("http://nekovm.org/latest.n").split("\n") )
+		for( f in haxe.Http.requestUrl("http://nekovm.org/latest.n").split("\n") )
 			if( r.match(f) ) {
 				var pf = r.matched(5);
 				switch( SYS ) {

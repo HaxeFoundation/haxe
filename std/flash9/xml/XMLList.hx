@@ -39,5 +39,4 @@ extern class XMLList implements ArrayAccess<XML> {
 	function toString() : String;
 	function toXMLString() : String;
 	function valueOf() : XMLList;
-	static var length : Int;
 }

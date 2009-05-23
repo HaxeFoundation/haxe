@@ -32,7 +32,7 @@ class Uncompress {
 		s = _inflate_init(windowBits);
 	}
 
-	public function run( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
+	public function execute( src : haxe.io.Bytes, srcPos : Int, dst : haxe.io.Bytes, dstPos : Int ) : { done : Bool, read : Int, write : Int } {
 		return _inflate_buffer(s,src.getData(),srcPos,dst.getData(),dstPos);
 	}
 
@@ -52,7 +52,7 @@ class Uncompress {
 		var pos = 0;
 		u.setFlushMode(Flush.SYNC);
 		while( true ) {
-			var r = u.run(src,pos,tmp,0);
+			var r = u.execute(src,pos,tmp,0);
 			b.addBytes(tmp,0,r.write);
 			pos += r.read;
 			if( r.done )

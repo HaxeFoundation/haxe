@@ -42,7 +42,6 @@ extern class XML implements Dynamic<XMLList> {
 	function toXMLString() : String;
 	function valueOf() : XML;
 
-	static var length : Int;
 	static var ignoreComments : Bool;
 	static var ignoreProcessingInstructions : Bool;
 	static var ignoreWhitespace : Bool;
