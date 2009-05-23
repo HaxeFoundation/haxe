@@ -122,7 +122,7 @@ let unify_call_params ctx name el args p inline =
 		let argstr = "Function " ^ (match name with None -> "" | Some n -> "'" ^ n ^ "' ") ^ "requires " ^ (if args = [] then "no arguments" else "arguments : " ^ String.concat ", " (List.map format_arg args)) in
 		display_error ctx (txt ^ " arguments\n" ^ argstr) p
 	in
-	let arg_error ul name opt =
+	let arg_error ul name opt p =
 		raise (Error (Stack (Unify ul,Custom ("For " ^ (if opt then "optional " else "") ^ "function argument '" ^ name ^ "'")), p))
 	in
 	let rec no_opt = function
@@ -167,7 +167,7 @@ let unify_call_params ctx name el args p inline =
 		| _ , [] ->
 			(match List.rev skip with
 			| [] -> error "Too many"
-			| [name,ul] -> arg_error ul name true
+			| [name,ul] -> arg_error ul name true p
 			| _ -> error "Invalid");
 			[]
 		| ee :: l, (name,opt,t) :: l2 ->
@@ -179,8 +179,8 @@ let unify_call_params ctx name el args p inline =
 				Error (Unify ul,_) ->
 					if opt then
 						loop (default_value t :: acc) (ee :: l) l2 ((name,ul) :: skip)
-					else
-						arg_error ul name false
+					else						
+						arg_error ul name false e.epos
 	in
 	loop [] el args []
 
