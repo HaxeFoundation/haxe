@@ -92,9 +92,12 @@ class TestMisc extends Test {
 		eq( arr[x++].v++, 3 );
 		eq( x, 1 );
 		eq( arr[0].v, 4 );
+
+		#if !as3
 		x = 0;
 		eq( arr[x++].v += 3, 7 );
 		eq( arr[0].v, 7 );
+		#end
 	}
 
 	function testInitOrder() {

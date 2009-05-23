@@ -2,7 +2,7 @@
   <output name="Flash" mode="swf" out="unit8.swf" class="unit.Test" lib="" cmd="http://dev.unit-tests/unit.html" main="True" debug="True">-cp ..
 -resource res1.txt
 -resource res2.bin</output>
-  <output name="Flash9" mode="swf9" out="unit9.swf" class="unit.Test" lib="" cmd="" main="True" debug="True">-cp ..
+  <output name="Flash9" mode="swf9" out="unit9.swf" class="unit.Test" lib="" cmd="unit9_as3.swf" main="True" debug="True">-cp ..
 -resource res1.txt
 -resource res2.bin
 
@@ -10,7 +10,7 @@
 #-as3 as3
 #-cp ..
 #-main unit.Test
-#-cmd mxmlc -output unit9_as3.swf as3/__main__.as</output>
+#-cmd mxmlc -default-size 800 600 -debug -output unit9_as3.swf as3/__main__.as</output>
   <output name="JS" mode="js" out="unit.js" class="unit.Test" lib="" cmd="" main="False" debug="False">-cp ..
 -resource res1.txt
 -resource res2.bin</output>

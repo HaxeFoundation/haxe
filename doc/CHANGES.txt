@@ -18,6 +18,12 @@ TODO :
 	flash9 : fixed switch on Null<Int> verify error
 	flash9 : fixes related to UInt type + error when using Int/UInt comparison
 	as3 : improved Vector support, inline flash.Lib.as
+	as3 : bugfix with skip_constructor
+	as3 : added Enum.__constructs__ (allow Type.getEnumConstructs)
+	as3 : make all constructor parameters optional (allow Type.createEmptyInstance)
+	as3 : bugfix with property access inside setter (stack overflow)
+	all : Enum is now Enum<T>
+	all : added Type.createEnumIndex
 
 2009-03-22: 2.03
 	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php

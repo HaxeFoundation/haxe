@@ -181,6 +181,13 @@ let parent e =
 	| TParenthesis _ -> e
 	| _ -> mk (TParenthesis e) e.etype e.epos
 
+let default_value tstr =
+	match tstr with
+	| "int" | "uint" -> "0"
+	| "Number" -> "NaN"
+	| "Boolean" -> "false"
+	| _ -> "null"
+
 let rec type_str ctx t p =
 	match t with
 	| TEnum _ | TInst _ when List.memq t ctx.local_types ->
@@ -277,9 +284,11 @@ let gen_function_header ctx name f params p =
 	print ctx "function%s(" (match name with None -> "" | Some n -> " " ^ n);
 	concat ctx "," (fun (arg,c,t) ->
 		let arg = define_local ctx arg in
-		print ctx "%s : %s" arg (type_str ctx t p);
+		let tstr = type_str ctx t p in
+		print ctx "%s : %s" arg tstr;
 		match c with
-		| None -> ()
+		| None ->
+			if ctx.constructor_block then print ctx " = %s" (default_value tstr);
 		| Some c ->
 			spr ctx " = ";
 			gen_constant ctx p c
@@ -495,9 +504,12 @@ and gen_expr ctx e =
 		let b = save_locals ctx in
 		print ctx "{";
 		let bend = open_block ctx in
-		let cb = (if not ctx.constructor_block || not (Codegen.constructor_side_effects e) then
+		let cb = (if not ctx.constructor_block then
 			(fun () -> ())
-		else begin
+		else if not (Codegen.constructor_side_effects e) then begin
+			ctx.constructor_block <- false;
+			(fun () -> ())
+		end else begin
 			ctx.constructor_block <- false;
 			print ctx " if( !%s.skip_constructor ) {" (s_path ctx true (["flash"],"Boot") e.epos);
             (fun() -> print ctx "}")
@@ -832,11 +844,7 @@ let generate_field ctx static f =
 				concat ctx "," (fun (arg,o,t) ->
 					let tstr = type_str ctx t p in
 					print ctx "%s : %s" arg tstr;
-					if o then print ctx " = %s" (match tstr with
-						| "int" | "uint" -> "0"
-						| "Number" -> "NaN"
-						| "Boolean" -> "false"
-						| _ -> "null");					
+					if o then print ctx " = %s" (default_value tstr);
 				) args;
 				print ctx ") : %s " (type_str ctx r p);
 			| _ -> ()
@@ -974,6 +982,8 @@ let generate_enum ctx e =
 		| _ ->
 			print ctx "public static var %s : %s = new %s(\"%s\",%d)" c.ef_name ename ename c.ef_name c.ef_index;
 	) e.e_constrs;
+	newline ctx;
+	print ctx "public static var __constructs__ : Array = [%s];" (String.concat "," (List.map (fun s -> "\"" ^ Ast.s_escape s ^ "\"") e.e_names));
 	cl();
 	newline ctx;
 	print ctx "}";

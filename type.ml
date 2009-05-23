@@ -731,9 +731,9 @@ let rec unify a b =
 		(match !(an.a_status) with
 		| Statics cl -> unify (TInst (cl,List.map snd cl.cl_types)) pt
 		| _ -> error [cannot_unify a b])
-	| TAnon an, TInst ({ cl_path = [],"Enum" },[]) ->
+	| TAnon an, TInst ({ cl_path = [],"Enum" },[pt]) ->
 		(match !(an.a_status) with
-		| EnumStatics _ -> ()
+		| EnumStatics e -> unify (TEnum (e,List.map snd e.e_types)) pt
 		| _ -> error [cannot_unify a b])
 	| TDynamic t , _ ->
 		if t == a then

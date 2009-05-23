@@ -26,7 +26,7 @@ package haxe;
 
 typedef TypeResolver = {
 	function resolveClass( name : String ) : Class<Dynamic>;
-	function resolveEnum( name : String ) : Enum;
+	function resolveEnum( name : String ) : Enum<Dynamic>;
 }
 
 class Unserializer {

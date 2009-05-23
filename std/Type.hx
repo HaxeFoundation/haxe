@@ -10,7 +10,7 @@ enum ValueType {
 	TObject;
 	TFunction;
 	TClass( c : Class<Dynamic> );
-	TEnum( e : Enum );
+	TEnum( e : Enum<Dynamic> );
 	TUnknown;
 }
 
@@ -76,7 +76,7 @@ class Type {
 	/**
 		Returns the enum of a value or [null] if this value is not an Enum instance.
 	**/
-	public static function getEnum( o : Dynamic ) : Enum untyped {
+	public static function getEnum( o : Dynamic ) : Enum<Dynamic> untyped {
 		#if flash9
 			var cname = __global__["flash.utils.getQualifiedClassName"](o);
 			if( cname == "null" || cname.substr(0,8) == "builtin." )
@@ -164,7 +164,7 @@ class Type {
 	/**
 		Returns the complete name of an enum.
 	**/
-	public static function getEnumName( e : Enum ) : String {
+	public static function getEnumName( e : Enum<Dynamic> ) : String {
 		#if flash9
 			return getClassName(cast e);
 		#elseif php
@@ -236,7 +236,7 @@ class Type {
 		Evaluates an enum from a name. The enum must have been compiled
 		to be accessible.
 	**/
-	public static function resolveEnum( name : String ) : Enum untyped {
+	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped {
 		#if php
 			var e = untyped __call__("_hx_qtype", name);
 			if(untyped __php__("$e instanceof _hx_enum"))
@@ -394,7 +394,7 @@ class Type {
 	/**
 		Create an instance of an enum by using a constructor name and parameters.
 	**/
-	public static function createEnum( e : Enum, constr : String, ?params : Array<Dynamic> ) : Dynamic {
+	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T {
 		#if cpp
 		if (untyped e.mConstructEnum != null)
 			return untyped e.mConstructEnum(constr,params);
@@ -410,6 +410,15 @@ class Type {
 			throw "Constructor "+constr+" does not need parameters";
 		return f;
 		#end
+	}
+
+	/**
+		Create an instance of an enum by using a constructor index and parameters.
+	**/
+	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T {
+		var c = Type.getEnumConstructs(e)[index];
+		if( c == null ) throw index+" is not a valid enum constructor index";
+		return createEnum(e,c,params);
 	}
 
 	#if flash9
@@ -523,7 +532,7 @@ class Type {
 	/**
 		Returns all the available constructor names for an enum.
 	**/
-	public static function getEnumConstructs( e : Enum ) : Array<String> untyped {
+	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> untyped {
 		#if php
 			if(__php__("$e->__tname__ == 'Bool'")) return ['true', 'false'];
 			if(__php__("$e->__tname__ == 'Void'")) return [];

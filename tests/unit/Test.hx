@@ -1,6 +1,6 @@
 package unit;
 
-class Test #if swf_mark implements mt.Protect #end {
+class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Public #end {
 
 	public function new() {
 	}
@@ -197,7 +197,8 @@ class Test #if swf_mark implements mt.Protect #end {
 			}
 			asyncWaits.remove(null);
 			checkDone();
-		} catch( e : Dynamic ) {
+		}
+		catch( e : #if as3 Test #else Dynamic #end ) {
 			asyncWaits.remove(null);
 			var msg = "???";
 			var stack = haxe.Stack.toString(haxe.Stack.exceptionStack());

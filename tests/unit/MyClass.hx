@@ -2,7 +2,7 @@ package unit;
 
 class MyClass {
 
-	var val : Int;
+	#if as3 public #end var val : Int;
 
 	public var ref : MyClass;
 	public var intValue : Int;
