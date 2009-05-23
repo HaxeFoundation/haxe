@@ -56,7 +56,8 @@ let keywords =
 		Break;Return;Continue;Extends;Implements;Import;
 		Switch;Case;Default;Public;Private;Try;Untyped;
 		Catch;New;This;Throw;Extern;Enum;In;Interface;
-		Cast;Override;Dynamic;Typedef;Package;Callback;Inline];
+		Cast;Override;Dynamic;Typedef;Package;Callback;
+		Inline;Using];
 	h
 
 let init file =
@@ -166,7 +167,7 @@ rule token = parse
 	| '\n' | '\r' { newline lexbuf; token lexbuf }
 	| "0x" ['0'-'9' 'a'-'f' 'A'-'F']+ { mk lexbuf (Const (Int (lexeme lexbuf))) }
 	| ['0'-'9']+ { mk lexbuf (Const (Int (lexeme lexbuf))) }
-	| ['0'-'9']+ '.' ['0'-'9']* { mk lexbuf (Const (Float (lexeme lexbuf))) }
+	| ['0'-'9']+ '.' ['0'-'9']+ { mk lexbuf (Const (Float (lexeme lexbuf))) }
 	| '.' ['0'-'9']+ { mk lexbuf (Const (Float (lexeme lexbuf))) }
 	| ['0'-'9']+ ['e' 'E'] ['+' '-']? ['0'-'9']+ { mk lexbuf (Const (Float (lexeme lexbuf))) }
 	| ['0'-'9']+ '.' ['0'-'9']* ['e' 'E'] ['+' '-']? ['0'-'9']+ { mk lexbuf (Const (Float (lexeme lexbuf))) }

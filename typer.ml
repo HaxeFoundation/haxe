@@ -40,6 +40,7 @@ type access_kind =
 	| AccExpr of texpr
 	| AccSet of texpr * string * t * string
 	| AccInline of texpr * tclass_field * t
+	| AccUsing of texpr * string * texpr
 
 let mk_infos ctx p params =
 	(EObjectDecl (
@@ -93,6 +94,8 @@ let classify t =
 	| TMono r when !r = None -> KUnk
 	| TDynamic _ -> KDyn
 	| _ -> KOther
+
+let type_field_rec = ref (fun _ _ _ _ _ -> assert false)
 
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
@@ -187,8 +190,7 @@ let type_local ctx i p =
 	let i = (try PMap.find i ctx.locals_map with Not_found -> i) in
 	mk (TLocal i) t p
 
-let type_type ctx tpath p =
-	let rec loop t tparams =
+let rec type_module_type ctx t tparams p =
 	match t with
 	| TClassDecl c ->
 		let t_tmp = {
@@ -202,7 +204,9 @@ let type_type ctx tpath p =
 			t_private = true;
 			t_types = [];
 		} in
-		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
+		let e = mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p in
+		check_locals_masking ctx e;
+		e
 	| TEnumDecl e ->
 		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_types | Some l -> l) in
 		let fl = PMap.fold (fun f acc ->
@@ -228,20 +232,21 @@ let type_type ctx tpath p =
 			t_private = true;
 			t_types = e.e_types;
 		} in
-		mk (TTypeExpr (TEnumDecl e)) (TType (t_tmp,types)) p
+		let e = mk (TTypeExpr (TEnumDecl e)) (TType (t_tmp,types)) p in
+		check_locals_masking ctx e;
+		e
 	| TTypeDecl s ->
 		let t = apply_params s.t_types (List.map (fun _ -> mk_mono()) s.t_types) s.t_type in
 		match follow t with
 		| TEnum (e,params) ->
-			loop (TEnumDecl e) (Some params)
+			type_module_type ctx (TEnumDecl e) (Some params) p
 		| TInst (c,params) ->
-			loop (TClassDecl c) (Some params)
+			type_module_type ctx (TClassDecl c) (Some params) p
 		| _ ->
-			error (s_type_path tpath ^ " is not a value") p
-	in
-	let e = loop (Typeload.load_type_def ctx p tpath) None in
-	check_locals_masking ctx e;
-	e
+			error (s_type_path s.t_path ^ " is not a value") p
+
+let type_type ctx tpath p =
+	type_module_type ctx (Typeload.load_type_def ctx p tpath) None p
 
 let get_constructor c p =
 	let rec loop c = 
@@ -259,11 +264,31 @@ let get_constructor c p =
 	with Not_found ->
 		error (s_type_path c.cl_path ^ " does not have a constructor") p
 
-let acc_get g p =
+let rec acc_get ctx g p =
 	match g with
 	| AccNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
 	| AccExpr e -> e
 	| AccSet _ -> assert false
+	| AccUsing (et,field,e) ->
+		(* build a closure with first parameter applied *)
+		let ef = acc_get ctx ((!type_field_rec) ctx et field p MCall) p in
+		(match follow ef.etype with
+		| TFun (_ :: args,ret) ->
+			let tcallb = TFun (args,ret) in	
+			let twrap = TFun ([("_e",false,e.etype)],tcallb) in
+			let ecall = mk (TCall (ef,List.map (fun (n,_,t) -> mk (TLocal n) t p) (("_e",false,e.etype) :: args))) ret p in
+			let ecallb = mk (TFunction {
+				tf_args = List.map (fun (n,_,t) -> n,None,t) args;
+				tf_type = ret;
+				tf_expr = mk (TReturn (Some ecall)) t_dynamic p;
+			}) tcallb p in
+			let ewrap = mk (TFunction {
+				tf_args = [("_e",None,e.etype)];
+				tf_type = tcallb;
+				tf_expr = mk (TReturn (Some ecallb)) t_dynamic p; 
+			}) twrap p in
+			mk (TCall (ewrap,[e])) tcallb p
+		| _ -> assert false)
 	| AccInline (e,f,t) ->
 		ignore(follow f.cf_type); (* force computing *)
 		match f.cf_expr with
@@ -442,7 +467,29 @@ let type_matching ctx (enum,params) (e,p) ecases first_case =
 	| _ ->
 		invalid()
 
-let type_field ctx e i p mode =
+let rec type_field ctx e i p mode =
+	let using_field() =
+		if mode = MSet then raise Not_found;
+		let rec loop = function
+			| [] ->
+				raise Not_found
+			| TEnumDecl _ :: l | TTypeDecl _ :: l ->
+				loop l
+			| TClassDecl c :: l ->
+				try
+					let f = PMap.find i c.cl_statics in
+					let t = field_type f in
+					(match follow t with
+					| TFun ((_,_,t0) :: args,r) ->
+						(try unify_raise ctx e.etype t0 p with Error (Unify _,_) -> raise Not_found);
+						let et = type_module_type ctx (TClassDecl c) None p in						
+						AccUsing (et,i,e)
+					| _ -> raise Not_found)
+				with Not_found ->
+					loop l
+		in
+		loop ctx.local_using
+	in
 	let no_field() =
 		if not ctx.untyped then display_error ctx (s_type (print_context()) e.etype ^ " has no field " ^ i) p;
 		AccExpr (mk (TField (e,i)) (mk_mono()) p)
@@ -468,6 +515,8 @@ let type_field ctx e i p mode =
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then display_error ctx ("Cannot access to private field " ^ i) p;
 			field_access ctx mode f (apply_params c.cl_types params t) e p
 		with Not_found -> try
+			using_field()
+		with Not_found -> try
 			loop_dyn c params
 		with Not_found ->
 			if PMap.mem i c.cl_statics then error ("Cannot access static field " ^ i ^ " from a class instance") p;
@@ -485,7 +534,9 @@ let type_field ctx e i p mode =
 			end;
 			field_access ctx mode f (field_type f) e p
 		with Not_found ->
-			if is_closed a then
+			if is_closed a then try
+				using_field()
+			with Not_found ->
 				no_field()
 			else
 			let f = {
@@ -519,7 +570,7 @@ let type_field ctx e i p mode =
 		r := Some t;
 		field_access ctx mode f (field_type f) e p
 	| t ->
-		no_field()
+		try using_field() with Not_found -> no_field()
 
 (*
 	We want to try unifying as an integer and apply side effects.
@@ -569,7 +620,7 @@ let rec type_binop ctx op e1 e2 p =
 	match op with
 	| OpAssign ->
 		let e1 = type_access ctx (fst e1) (snd e1) MSet in
-		let e2 = type_expr_with_type ctx e2 (match e1 with AccNo _ | AccInline _ -> None | AccExpr e | AccSet(e,_,_,_) -> Some e.etype) in
+		let e2 = type_expr_with_type ctx e2 (match e1 with AccNo _ | AccInline _ | AccUsing _ -> None | AccExpr e | AccSet(e,_,_,_) -> Some e.etype) in
 		(match e1 with
 		| AccNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
 		| AccExpr e1 ->
@@ -584,7 +635,7 @@ let rec type_binop ctx op e1 e2 p =
 		| AccSet (e,m,t,_) ->
 			unify ctx e2.etype t p;
 			mk (TCall (mk (TField (e,m)) (tfun [t] t) p,[e2])) t p
-		| AccInline _ ->
+		| AccInline _ | AccUsing _ ->
 			assert false)
 	| OpAssignOp op ->
 		(match type_access ctx (fst e1) (snd e1) MSet with
@@ -609,7 +660,7 @@ let rec type_binop ctx op e1 e2 p =
 				mk (TVars [v,e.etype,Some e]) ctx.api.tvoid p;
 				mk (TCall (mk (TField (ev,m)) (tfun [t] t) p,[get])) t p
 			]) t p
-		| AccInline _ ->
+		| AccInline _ | AccUsing _ ->
 			assert false)
 	| _ ->
 	let e1 = type_expr ctx e1 in
@@ -778,10 +829,10 @@ and type_unop ctx op flag e p =
 	in
 	match acc with
 	| AccExpr e -> access e
-	| AccInline _ when not set -> access (acc_get acc p)
+	| AccInline _ | AccUsing _ when not set -> access (acc_get ctx acc p)
 	| AccNo s ->
 		error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
-	| AccInline _ ->
+	| AccInline _ | AccUsing _ ->
 		error "This kind of operation is not supported" p
 	| AccSet (e,m,t,f) ->
 		let l = save_locals ctx in
@@ -823,7 +874,7 @@ and type_switch ctx e cases def need_val p =
 		| (EConst (Ident name),p) :: l
 		| (EConst (Type name),p) :: l ->
 			(try
-				let e = acc_get (type_ident ctx name false p MGet) p in
+				let e = acc_get ctx (type_ident ctx name false p MGet) p in
 				(match e.eexpr with
 				| TEnumField (e,_) -> Some (e, List.map (fun _ -> mk_mono()) e.e_types)
 				| _ -> None)
@@ -972,7 +1023,7 @@ and type_access ctx e p mode =
 	| EType _ ->
 		let fields path e =
 			List.fold_left (fun e (f,_,p) ->
-				let e = acc_get (e MGet) p in
+				let e = acc_get ctx (e MGet) p in
 				type_field ctx e f p
 			) e path
 		in
@@ -1066,7 +1117,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	| EArray _
 	| EConst (Ident _)
 	| EConst (Type _) ->
-		acc_get (type_access ctx e p MGet) p
+		acc_get ctx (type_access ctx e p MGet) p
 	| EConst (Regexp (r,opt)) ->
 		let str = mk (TConst (TString r)) ctx.api.tstring p in
 		let opt = mk (TConst (TString opt)) ctx.api.tstring p in
@@ -1174,7 +1225,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 						unify_raise ctx e1.etype t e1.epos;
 						e1
 					with Error (Unify _,_) ->
-						let acc = acc_get (type_field ctx e1 "iterator" e1.epos MCall) e1.epos in
+						let acc = acc_get ctx (type_field ctx e1 "iterator" e1.epos MCall) e1.epos in
 						match follow acc.etype with
 						| TFun ([],it) ->
 							unify ctx it t e1.epos;
@@ -1407,6 +1458,32 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				| _ -> t)
 			| t -> t
 		) in
+		(*
+			add 'using' methods compatible with this type
+		*)
+		let rec loop acc = function
+			| [] -> acc
+			| x :: l -> 
+				let acc = ref (loop acc l) in
+				(match x with
+				| TClassDecl c ->
+					let rec dup t = Type.map dup t in
+					List.iter (fun f ->
+						match follow (field_type f) with
+						| TFun ((_,_,t) :: args, ret) when (try unify_raise ctx (dup e.etype) t e.epos; true with _ -> false) ->
+							let f = { f with cf_type = TFun (args,ret); cf_params = [] } in
+							acc := PMap.add f.cf_name f (!acc)
+						| _ -> ()
+					) c.cl_ordered_statics
+				| _ -> ());
+				!acc
+		in	
+		let use_methods = loop PMap.empty ctx.local_using in
+		let t = (if PMap.is_empty use_methods then t else match follow t with
+			| TFun _ -> t (* don't provide use methods for functions *)
+			| TAnon a -> TAnon { a_fields = PMap.fold (fun f acc -> PMap.add f.cf_name f acc) a.a_fields use_methods; a_status = ref Closed; }
+			| _ -> TAnon { a_fields = use_methods; a_status = ref Closed }
+		) in
 		raise (Display t)
 	| EDisplayNew t ->
 		let t = Typeload.load_normal_type ctx t p true in
@@ -1503,8 +1580,15 @@ and type_call ctx e el p =
 				| None -> mk (TCall (mk (TField (ethis,f.cf_name)) t p,params)) tret p
 				| Some e -> e)
 			| _ -> error "Recursive inline is not supported" p)
+		| AccUsing (et,field,eparam) ->
+			let ef = acc_get ctx (type_field ctx et field p MCall) p in
+			let params, tret = (match follow ef.etype with
+				| TFun ( _ :: args,r) -> unify_call_params ctx (Some field) el args p false, r
+				| _ -> assert false
+			) in
+			mk (TCall (ef,eparam :: params)) tret p
 		| acc ->
-			let e = acc_get acc p in
+			let e = acc_get ctx acc p in
 			let el , t = (match follow e.etype with
 			| TFun (args,r) ->
 				let el = unify_call_params ctx (match e.eexpr with TField (_,f) -> Some f | _ -> None) el args p false in
@@ -1722,6 +1806,7 @@ let create com =
 		locals_map = PMap.empty;
 		locals_map_inv = PMap.empty;
 		local_types = [];
+		local_using = [];
 		type_params = [];
 		curmethod = "";
 		curclass = null_class;
@@ -1770,3 +1855,6 @@ let create com =
 	| [TClassDecl c] -> ctx.api.tarray <- (fun t -> TInst (c,[t]))
 	| _ -> assert false);
 	ctx
+
+;;
+type_field_rec := type_field

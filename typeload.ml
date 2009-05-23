@@ -823,7 +823,7 @@ let type_module ctx m tdecls loadp =
 	in
 	List.iter (fun (d,p) ->
 		match d with
-		| EImport _ -> ()
+		| EImport _ | EUsing _ -> ()
 		| EClass d ->
 			let priv = List.mem HPrivate d.d_flags in
 			let path = decl_with_name d.d_name p priv in
@@ -886,6 +886,7 @@ let type_module ctx m tdecls loadp =
 		locals_map = PMap.empty;
 		locals_map_inv = PMap.empty;
 		local_types = ctx.std.mtypes @ m.mtypes;
+		local_using = [];
 		type_params = [];
 		curmethod = "";
 		super_call = false;
@@ -913,7 +914,7 @@ let type_module ctx m tdecls loadp =
 	(* here is an additional PASS 1 phase, which handle the type parameters declaration, with lazy contraints *)
 	List.iter (fun (d,p) ->
 		match d with
-		| EImport _ -> ()
+		| EImport _ | EUsing _ -> ()
 		| EClass d ->
 			let c = get_class d.d_name in
 			c.cl_types <- List.map (type_type_params ctx c.cl_path p) d.d_params;
@@ -940,6 +941,10 @@ let type_module ctx m tdecls loadp =
 					Not_found -> error ("Module " ^ s_type_path (pack,name) ^ " does not define type " ^ t) p
 			);
 			m.mimports <- (md,topt) :: m.mimports;
+		| EUsing (pack,name) ->
+			let md = ctx.api.load_module (pack,name) p in
+			let types = List.filter (fun t -> not (t_private t)) md.mtypes in
+			ctx.local_using <- ctx.local_using @ types;
 		| EClass d ->
 			let c = get_class d.d_name in
 			delays := !delays @ check_overriding ctx c p :: check_interfaces ctx c p :: init_class ctx c p d.d_flags d.d_data
@@ -1042,7 +1047,7 @@ let parse_module ctx m p =
 			| EClass d -> build HPrivate d
 			| EEnum d -> build EPrivate d
 			| ETypedef d -> build EPrivate d
-			| EImport _ -> acc
+			| EImport _ | EUsing _ -> acc
 		) [(EImport (!remap, snd m, None),null_pos)] decls)
 	else
 		decls

@@ -61,6 +61,7 @@ type keyword =
 	| Package
 	| Callback
 	| Inline
+	| Using
 
 type binop =
 	| OpAdd
@@ -235,6 +236,7 @@ type type_def =
 	| EEnum of (enum_flag, enum_constructor list) definition
 	| ETypedef of (enum_flag, type_path) definition
 	| EImport of string list * string * string option
+	| EUsing of string list * string
 
 type type_decl = type_def * pos
 
@@ -322,6 +324,7 @@ let s_keyword = function
 	| Package -> "package"
 	| Callback -> "callback"
 	| Inline -> "inline"
+	| Using -> "using"
 
 let rec s_binop = function
 	| OpAdd -> "+"

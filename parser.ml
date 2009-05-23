@@ -164,6 +164,7 @@ let rec	parse_file s =
 and parse_type_decl s =
 	match s with parser
 	| [< '(Kwd Import,p1); p, t, s = parse_import []; p2 = semicolon >] -> EImport (p,t,s) , punion p1 p2
+	| [< '(Kwd Using,p1); p, t = parse_using []; p2 = semicolon >] -> EUsing (p,t) , punion p1 p2
 	| [< c = parse_common_flags; s >] ->
 		match s with parser
 		| [< n , p1 = parse_enum_flags; doc = get_doc; '(Const (Type name),_); tl = parse_constraint_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] ->
@@ -209,7 +210,7 @@ and parse_class_field_resume s =
 			(match List.map fst (Stream.npeek 2 s) with
 			| Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Override :: _ | Kwd Dynamic :: _ ->
 				raise Exit
-			| [] | Eof :: _ | Kwd Import :: _ | Kwd Extern :: _ | Kwd Class :: _ | Kwd Interface :: _ | Kwd Enum :: _ | Kwd Typedef :: _ ->
+			| [] | Eof :: _ | Kwd Import :: _ | Kwd Using :: _ | Kwd Extern :: _ | Kwd Class :: _ | Kwd Interface :: _ | Kwd Enum :: _ | Kwd Typedef :: _ ->
 				raise Not_found
 			| [Kwd Private; Kwd Function]
 			| [Kwd Private; Kwd Var] ->
@@ -246,6 +247,13 @@ and parse_import acc = parser
 		List.rev acc , t , match s with parser
 			| [< '(Dot,_); '(Const (Type s),_) >] -> Some s
 			| [< >] -> None
+
+and parse_using acc = parser
+	| [< '(Const (Ident k),_); '(Dot,p); s >] ->
+		if is_resuming p then raise (TypePath (List.rev (k :: acc)));
+		parse_using (k :: acc) s
+	| [< '(Const (Type t),_) >] ->
+		List.rev acc , t
 
 and parse_common_flags = parser
 	| [< '(Kwd Private,_); l = parse_common_flags >] -> (HPrivate, EPrivate) :: l
@@ -573,7 +581,11 @@ and expr_next e1 = parser
 		(match s with parser
 		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
 		| [< '(Const (Type t),p2) when p.pmax = p2.pmin; s >] -> expr_next (EType (e1,t) , punion (pos e1) p2) s
-		| [< >] -> serror())
+		| [< >] ->
+			(* turn an integer followed by a dot into a float *)
+			match e1 with
+			| (EConst (Int v),p2) when p2.pmax = p.pmin -> expr_next (EConst (Float (v ^ ".")),punion p p2) s
+			| _ -> serror())
 	| [< '(POpen,p1); s >] ->
 		if is_resuming p1 then display (EDisplay e1,p1);
 		(match s with parser

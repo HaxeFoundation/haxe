@@ -30,6 +30,7 @@ TODO :
 	spod : fix very rare issue with relations and transactions
 	compiler : added TClosure - optimize closure creation and ease code generation
 	cpp : added CPP platform
+	all : added 'using' syntax
 
 2009-03-22: 2.03
 	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php
