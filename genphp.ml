@@ -40,7 +40,6 @@ type context = {
 	ch : out_channel;
 	buf : Buffer.t;
 	path : path;
-	mutable get_sets : (string * bool,string) Hashtbl.t;
 	mutable curclass : tclass;
 	mutable tabs : string;
 	mutable in_value : string option;
@@ -247,7 +246,6 @@ let init com cwd path def_type =
 		inv_locals = PMap.empty;
 		local_types = [];
 		inits = [];
-		get_sets = Hashtbl.create 0;
 		constructor_block = false;
 		quotes = 0;
 		dynamic_methods = [];
@@ -1580,7 +1578,7 @@ let generate_field ctx static f =
 			| _ -> spr ctx "//"; ()
 		else if
 			(match f.cf_get, f.cf_set with
-			| MethodAccess m1, MethodAccess m2 ->
+			| CallAccess m1, CallAccess m2 ->
 				if not (is_method_defined ctx m1 static) then (
 					generate_self_method ctx rights m1 static false;
 					print ctx "%s $%s" rights (s_ident m1);
@@ -1592,11 +1590,11 @@ let generate_field ctx static f =
 				if (is_method_defined ctx m1 static) && (is_method_defined ctx m2 static) then
 					spr ctx "//";
 				true
-			| MethodAccess m, _ ->
+			| CallAccess m, _ ->
 				if not (is_method_defined ctx m static) then generate_self_method ctx rights m static false;
 				print ctx "%s $%s" rights (s_ident f.cf_name);
 				true
-			| _, MethodAccess m ->
+			| _, CallAccess m ->
 				if not (is_method_defined ctx m static) then generate_self_method ctx rights m static true;
 				print ctx "%s $%s" rights (s_ident f.cf_name);
 				true
@@ -1635,13 +1633,6 @@ let generate_static_field_assign ctx path f =
 				print ctx "%s::$%s = " (s_path ctx path false p) (s_ident f.cf_name);
 				gen_value ctx e)
 
-let define_getset ctx stat f =
-	let def name =
-		Hashtbl.add ctx.get_sets (name,stat) f.cf_name
-	in
-		(match f.cf_get with MethodAccess m -> def m | _ -> ());
-		(match f.cf_set with MethodAccess m -> def m | _ -> ())
-
 let rec super_has_dynamic c =
 	match c.cl_super with
 	| None -> false
@@ -1652,8 +1643,6 @@ let rec super_has_dynamic c =
 let generate_class ctx c =
 	let requires_constructor = ref true in
 	ctx.curclass <- c;
-	List.iter (define_getset ctx false) c.cl_ordered_fields;
-	List.iter (define_getset ctx true) c.cl_ordered_statics;
 	ctx.local_types <- List.map snd c.cl_types;
 
 	print ctx "%s %s " (if c.cl_interface then "interface" else "class") (s_path ctx c.cl_path c.cl_extern c.cl_pos);
@@ -1740,7 +1729,6 @@ let createmain com c =
 		inv_locals = PMap.empty;
 		local_types = [];
 		inits = [];
-		get_sets = Hashtbl.create 0;
 		constructor_block = false;
 		quotes = 0;
 		dynamic_methods = [];

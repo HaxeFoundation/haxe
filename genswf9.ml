@@ -1587,7 +1587,7 @@ let generate_construct ctx fdata c =
 	(* --- *)
 	PMap.iter (fun _ f ->
 		match f.cf_expr with
-		| Some { eexpr = TFunction fdata } when f.cf_set = MethodDynamicAccess  ->
+		| Some { eexpr = TFunction fdata } when f.cf_set = MethodAccess true ->
 			let id = ident f.cf_name in
 			write ctx (HFindProp id);
 			write ctx (HFunction (generate_method ctx fdata false));
@@ -1623,7 +1623,7 @@ let generate_class_init ctx c hc =
 	write ctx (HClassDef hc);
 	List.iter (fun f ->
 		match f.cf_expr with
-		| Some { eexpr = TFunction fdata } when f.cf_set = MethodDynamicAccess ->
+		| Some { eexpr = TFunction fdata } when f.cf_set = MethodAccess true ->
 			write ctx HDup;
 			write ctx (HFunction (generate_method ctx fdata true));
 			write ctx (HInitProp (ident f.cf_name));
@@ -1675,7 +1675,7 @@ let generate_field_kind ctx f c stat =
 			| Some (c,_) ->
 				PMap.exists f.cf_name c.cl_fields || loop c
 		in
-		if f.cf_set = NormalAccess || f.cf_set = MethodDynamicAccess then
+		if f.cf_set = NormalAccess || f.cf_set = MethodAccess true then
 			Some (HFVar {
 				hlv_type = Some (type_path ctx ([],"Function"));
 				hlv_value = HVNone;
@@ -1690,7 +1690,7 @@ let generate_field_kind ctx f c stat =
 			})
 	| _ when c.cl_interface && not stat ->
 		(match follow f.cf_type with
-		| TFun (args,tret) when f.cf_set = MethodCantAccess ->
+		| TFun (args,tret) when f.cf_set = MethodAccess false ->
 			Some (HFMethod {
 				hlm_type = end_fun ctx (List.map (fun (a,opt,t) -> a, (if opt then Some TNull else None), t) args) tret;
 				hlm_final = false;

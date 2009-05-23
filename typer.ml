@@ -211,7 +211,7 @@ let type_type ctx tpath p =
 				cf_public = true;
 				cf_type = f.ef_type;
 				cf_get = NormalAccess;
-				cf_set = (match follow f.ef_type with TFun _ -> MethodCantAccess | _ -> NoAccess);
+				cf_set = (match follow f.ef_type with TFun _ -> MethodAccess false | _ -> NoAccess);
 				cf_doc = None;
 				cf_expr = None;
 				cf_params = [];
@@ -285,13 +285,13 @@ let field_access ctx mode f t e p =
 			| _ -> if ctx.untyped then normal else AccNo f.cf_name)
 		| _ ->
 			if ctx.untyped then normal else AccNo f.cf_name)
-	| MethodCantAccess when not ctx.untyped ->
+	| MethodAccess false when not ctx.untyped ->
 		error "Cannot rebind this method : please use 'dynamic' before method declaration" p
-	| NormalAccess | MethodCantAccess | MethodDynamicAccess ->
+	| NormalAccess | MethodAccess _ ->
 		(match mode, f.cf_set with
-		| MGet, MethodCantAccess | MGet, MethodDynamicAccess -> AccExpr (mk (TClosure (e,f.cf_name)) t p)
+		| MGet, MethodAccess _ -> AccExpr (mk (TClosure (e,f.cf_name)) t p)
 		| _ -> AccExpr (mk (TField (e,f.cf_name)) t p))	 
-	| MethodAccess m ->
+	| CallAccess m ->
 		if m = ctx.curmethod && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
 			let prefix = if Common.defined ctx.com "as3" then "$" else "" in
 			AccExpr (mk (TField (e,prefix ^ f.cf_name)) t p)

@@ -23,12 +23,11 @@ type path = string list * string
 type field_access =
 	| NormalAccess
 	| NoAccess
-	| ResolveAccess
-	| MethodAccess of string
-	| MethodCantAccess
-	| MethodDynamicAccess
-	| NeverAccess
-	| InlineAccess
+	| ResolveAccess (* call resolve("field") when accessed *)
+	| CallAccess of string (* perform a method call when accessed *)
+	| MethodAccess of bool (* true = the method is dynamic *)
+	| InlineAccess (* similar to Normal but inline when acccessed *)
+	| NeverAccess (* can't be accessed, even in subclasses *)
 
 type t =
 	| TMono of t option ref
@@ -291,11 +290,10 @@ let s_access = function
 	| NormalAccess -> "default"
 	| NoAccess -> "null"
 	| NeverAccess -> "never"
-	| MethodAccess m -> m
-	| MethodCantAccess -> "default"
+	| CallAccess m -> m
+	| MethodAccess b -> if b then "dynamic method" else "default method"
 	| ResolveAccess -> "resolve"
 	| InlineAccess -> "inline"
-	| MethodDynamicAccess -> "dynamic"
 
 let rec is_parent csup c =
 	if c == csup then
@@ -493,16 +491,24 @@ let has_no_field t n = Has_no_field (t,n)
 let has_extra_field t n = Has_extra_field (t,n)
 let error l = raise (Unify_error l)
 
+type simple_access =
+	| SAYes
+	| SANo
+	| SARuntime
+
+let simple_access = function	
+	| NormalAccess | InlineAccess | MethodAccess true -> SAYes
+	| NoAccess | NeverAccess | MethodAccess false -> SANo
+	| ResolveAccess | CallAccess _ -> SARuntime
+
+(*
+	we can restrict access as soon as both are runtime-compatible
+*)
 let unify_access a1 a2 =
-	a1 = a2 || match a1, a2 with
-	| NormalAccess, NoAccess
-	| NormalAccess, MethodCantAccess
-	| NormalAccess, NeverAccess
-	| MethodCantAccess, NoAccess
-	| NeverAccess, NoAccess
-	| MethodCantAccess, NeverAccess
-	| NoAccess, NeverAccess -> true
-	| _ -> false
+	a1 = a2 || match simple_access a1 , simple_access a2 with
+		| SAYes, SAYes
+		| _, SANo -> true
+		| _ -> false
 
 let eq_stack = ref []
 

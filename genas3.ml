@@ -819,7 +819,7 @@ let generate_field ctx static f =
 	let rights = (if static then "static " else "") ^ (if public then "public" else "protected") in
 	let p = ctx.curclass.cl_pos in
 	match f.cf_expr with
-	| Some { eexpr = TFunction fd } when f.cf_set = MethodCantAccess || f.cf_set = NeverAccess ->
+	| Some { eexpr = TFunction fd } when f.cf_set = MethodAccess false || f.cf_set = NeverAccess ->
 		print ctx "%s " rights;
 		let rec loop c =
 			match c.cl_super with
@@ -850,14 +850,14 @@ let generate_field ctx static f =
 				print ctx ") : %s " (type_str ctx r p);
 			| _ -> ()
 		else
-		if (match f.cf_get with MethodAccess m -> true | _ -> match f.cf_set with MethodAccess m -> true | _ -> false) then begin
+		if (match f.cf_get with CallAccess m -> true | _ -> match f.cf_set with CallAccess m -> true | _ -> false) then begin
 			let t = type_str ctx f.cf_type p in
 			let id = s_ident f.cf_name in
 			(match f.cf_get with
 			| NormalAccess ->
 				print ctx "%s function get %s() : %s { return $%s; }" rights id t id;
 				newline ctx
-			| MethodAccess m ->
+			| CallAccess m ->
 				print ctx "%s function get %s() : %s { return %s(); }" rights id t m;
 				newline ctx
 			| _ -> ());
@@ -865,7 +865,7 @@ let generate_field ctx static f =
 			| NormalAccess ->
 				print ctx "%s function set %s( __v : %s ) : void { $%s = __v; }" rights id t id;
 				newline ctx
-			| MethodAccess m ->
+			| CallAccess m ->
 				print ctx "%s function set %s( __v : %s ) : void { %s(__v); }" rights id t m;
 				newline ctx
 			| _ -> ());
@@ -884,8 +884,8 @@ let rec define_getset ctx stat c =
 		Hashtbl.add ctx.get_sets (name,stat) f.cf_name
 	in
 	let field f =
-		(match f.cf_get with MethodAccess m -> def f m | _ -> ());
-		(match f.cf_set with MethodAccess m -> def f m | _ -> ())
+		(match f.cf_get with CallAccess m -> def f m | _ -> ());
+		(match f.cf_set with CallAccess m -> def f m | _ -> ())
 	in
 	List.iter field (if stat then c.cl_ordered_statics else c.cl_ordered_fields);
 	match c.cl_super with
@@ -916,7 +916,7 @@ let generate_class ctx c =
 		let f = { f with
 			cf_name = snd c.cl_path;
 			cf_public = true;
-			cf_set = MethodCantAccess;
+			cf_set = MethodAccess false;
 		} in
 		ctx.constructor_block <- true;
 		generate_field ctx false f;

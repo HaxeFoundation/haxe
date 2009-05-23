@@ -195,15 +195,15 @@ and load_type ctx p t =
 				| AFFun (tl,t) ->
 					let t = load_type ctx p t in
 					let args = List.map (fun (name,o,t) -> name , o, load_type ctx p t) tl in
-					TFun (args,t), NormalAccess, MethodCantAccess
+					TFun (args,t), NormalAccess, MethodAccess false
 				| AFProp (t,i1,i2) ->
 					let access m get =
 						match m with
 						| "null" -> NoAccess
 						| "never" -> NeverAccess
 						| "default" -> NormalAccess
-						| "dynamic" -> MethodAccess ((if get then "get_"  else "set_") ^ n)
-						| _ -> MethodAccess m
+						| "dynamic" -> CallAccess ((if get then "get_"  else "set_") ^ n)
+						| _ -> CallAccess m
 					in
 					load_type ctx p t, access i1 true, access i2 false
 			) in
@@ -616,7 +616,7 @@ let init_class ctx c p herits fields =
 			let stat = List.mem AStatic access in
 			let inline = List.mem AInline access in
 			let parent = (if not stat then get_parent c name else None) in
-			let dynamic = List.mem ADynamic access || (match parent with Some { cf_set = MethodDynamicAccess } -> true | _ -> false) in
+			let dynamic = List.mem ADynamic access || (match parent with Some { cf_set = MethodAccess true } -> true | _ -> false) in
 			let ctx = { ctx with
 				curclass = c;
 				curmethod = name;
@@ -641,7 +641,7 @@ let init_class ctx c p herits fields =
 				cf_doc = doc;
 				cf_type = t;
 				cf_get = if inline then InlineAccess else NormalAccess;
-				cf_set = (if inline then NeverAccess else if dynamic then MethodDynamicAccess else MethodCantAccess);
+				cf_set = (if inline then NeverAccess else MethodAccess dynamic);
 				cf_expr = None;
 				cf_public = is_public access parent;
 				cf_params = params;
@@ -682,12 +682,12 @@ let init_class ctx c p herits fields =
 			in
 			let get = (match get with
 				| "null" -> NoAccess
-				| "dynamic" -> MethodAccess ("get_" ^ name)
+				| "dynamic" -> CallAccess ("get_" ^ name)
 				| "never" -> NeverAccess
 				| "default" -> NormalAccess
 				| _ ->
 					check_get := check_method get (TFun ([],ret));
-					MethodAccess get
+					CallAccess get
 			) in
 			let set = (match set with
 				| "null" ->
@@ -697,13 +697,13 @@ let init_class ctx c p herits fields =
 					else
 						NoAccess
 				| "never" -> NeverAccess
-				| "dynamic" -> MethodAccess ("set_" ^ name)
+				| "dynamic" -> CallAccess ("set_" ^ name)
 				| "default" -> NormalAccess
 				| _ ->
 					check_set := check_method set (TFun (["",false,ret],ret));
-					MethodAccess set
+					CallAccess set
 			) in
-			if set = NormalAccess && (match get with MethodAccess _ -> true | _ -> false) then error "Unsupported property combination" p;
+			if set = NormalAccess && (match get with CallAccess _ -> true | _ -> false) then error "Unsupported property combination" p;
 			let cf = {
 				cf_name = name;
 				cf_doc = doc;
