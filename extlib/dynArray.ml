@@ -161,7 +161,7 @@ let insert d idx v =
 	if idx < 0 || idx > d.len then invalid_arg idx "insert" "index";
 	if d.len = ilen d.arr then changelen d (d.len + 1) else d.len <- d.len + 1;
 	if idx < d.len - 1 then begin
-		for i = d.len - 1 downto idx do
+		for i = d.len - 2 downto idx do
 			iset d.arr (i+1) (iget d.arr i)
 		done;
 	end;
