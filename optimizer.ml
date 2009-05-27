@@ -171,7 +171,7 @@ let optimize_for_loop ctx i e1 e2 p =
 	match e1.eexpr, follow e1.etype with
 	| TNew ({ cl_path = ([],"IntIter") },[],[i1;i2]) , _ ->
 		let max = (match i1.eexpr , i2.eexpr with
-			| TConst (TInt a), TConst (TInt b) when Int32.compare b a <= 0 -> error "Range operate can't iterate backwards" p
+			| TConst (TInt a), TConst (TInt b) when Int32.compare b a < 0 -> error "Range operate can't iterate backwards" p
 			| _, TConst _ | _ , TLocal _ -> None
 			| _ -> Some (gen_local ctx t_int)
 		) in
