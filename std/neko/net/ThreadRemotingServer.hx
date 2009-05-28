@@ -26,9 +26,13 @@ package neko.net;
 
 class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,String> {
 
-	public function new() {
+	var domains : Array<String>;
+	var port : Int;
+
+	public function new( ?domains ) {
 		super();
 		messageHeaderSize = 2;
+		this.domains = domains;
 	}
 
 	public dynamic function initClientApi( cnx : haxe.remoting.SocketConnection, ctx : haxe.remoting.Context ) {
@@ -37,6 +41,19 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 
 	public dynamic function onXml( cnx : haxe.remoting.SocketConnection, data : String ) {
 		throw "Unhandled XML data '"+data+"'";
+	}
+
+	public dynamic function makePolicyFile() {
+		var str = "<cross-domain-policy>";
+		for( d in domains )
+			str += '<allow-access-from domain="'+d+'" to-ports="'+port+'"/>';
+		str += "</cross-domain-policy>";
+		return str;
+	}
+
+	public override function run( host, port ) {
+		this.port = port;
+		super.run(host,port);
 	}
 
 	public override function clientConnected( s : neko.net.Socket ) {
@@ -82,12 +99,14 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 	}
 
 	public override function clientMessage( cnx : haxe.remoting.SocketConnection, msg : String ) {
-		if( msg.charCodeAt(0) == 60 ) {
-			onXml(cnx,msg);
-			return;
-		}
 		try {
-			cnx.processMessage(msg);
+			if( msg.charCodeAt(0) == 60 ) {
+				if( domains != null && msg == "<policy-file-request/>" )
+					cnx.getProtocol().socket.write(makePolicyFile()+"\x00");
+				else
+					onXml(cnx,msg);
+			} else
+				cnx.processMessage(msg);
 		} catch( e : Dynamic ) {
 			if( !Std.is(e,haxe.io.Eof) && !Std.is(e,haxe.io.Error) )
 				logError(e);
