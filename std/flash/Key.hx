@@ -33,7 +33,9 @@ extern class Key
 
 	static function getAscii():Int;
 	static function getCode():Int;
+#if flash8
 	static function isAccessible():Bool;
+#end
 	static function isDown(code:Int):Bool;
 	static function isToggled(code:Int):Bool;
 
