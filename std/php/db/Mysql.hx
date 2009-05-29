@@ -135,20 +135,24 @@ private class MysqlResultSet implements ResultSet {
 		return (cache != null);
 	}
 
+	private var cRow : ArrayAccess<String>;
+	private function fetchRow() : Bool {
+		cRow = untyped __call__("mysql_fetch_array", __r, __php__("MYSQL_NUM"));
+		return ! untyped __physeq__(cRow, false);
+	}
+	
 	public function next() : Dynamic {
 		if( cache != null ) {
 			var t = cache;
 			cache = null;
 			return t;
 		}
-		var c = untyped __call__("mysql_fetch_array", __r, __php__("MYSQL_NUM"));
-		if(untyped __physeq__(c, false))
-			return null;
+		if(!fetchRow()) return null;
 
 		var o : Dynamic = {};
 		var descriptions = getFieldsDescription();
 		for(i in 0...nfields)
-			Reflect.setField(o, descriptions[i].name, convert(c[i], descriptions[i].type));
+			Reflect.setField(o, descriptions[i].name, convert(cRow[i], descriptions[i].type));
 		return o;
 	}
 
@@ -160,8 +164,10 @@ private class MysqlResultSet implements ResultSet {
 	}
 
 	public function getResult( n : Int ) : String {
-		var a = untyped __call__("mysql_fetch_row", __r);
-		return a[n];
+		if(cRow == null) 
+			if(!fetchRow())
+				return null;
+		return cRow[n];
 	}
 
 	public function getIntResult( n : Int ) : Int {
