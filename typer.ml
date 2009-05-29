@@ -313,9 +313,14 @@ let field_access ctx mode f t e p =
 	| MethodAccess false when not ctx.untyped ->
 		error "Cannot rebind this method : please use 'dynamic' before method declaration" p
 	| NormalAccess | MethodAccess _ ->
+		(* 
+			creates a closure if we're reading a normal method
+			or a read-only variable (which could be a method)
+		*)
 		(match mode, f.cf_set with
 		| MGet, MethodAccess _ -> AccExpr (mk (TClosure (e,f.cf_name)) t p)
-		| _ -> AccExpr (mk (TField (e,f.cf_name)) t p))	 
+		| MGet, NoAccess | MGet, NeverAccess when (match follow t with TFun _ -> true | _ -> false) -> AccExpr (mk (TClosure (e,f.cf_name)) t p)
+		| _ -> AccExpr (mk (TField (e,f.cf_name)) t p))
 	| CallAccess m ->
 		if m = ctx.curmethod && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
 			let prefix = if Common.defined ctx.com "as3" then "$" else "" in
