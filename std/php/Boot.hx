@@ -404,7 +404,7 @@ function _hx_string_rec($o, $s) {
 					$f = $prop->getName();
 					if($i > 0)
 						$b2 .= \", \n\";
-					$b2 .= $s . $f . ' : ' . _hx_string_rec($prop->getValue($o), $s);
+					$b2 .= $s . $f . ' : ' . _hx_string_rec($o->$f, $s);
 				}
 				$s = substr($s, 1);
 				$b2 .= \"\n\" . $s . '}';
@@ -506,7 +506,7 @@ class _hx_anonymous extends stdClass {
 			else
 				$b .= ', ';
 			$f = $prop->getName();
-			$b .= $f . ' => ' . $prop->getValue($this);
+			$b .= $f . ' => ' . $this->$f;
 		}
 		$b .= ' }';
 		return $b;
