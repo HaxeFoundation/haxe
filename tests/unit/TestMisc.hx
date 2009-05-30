@@ -20,6 +20,13 @@ class MyDynamicClass {
 		return v + x + y;
 	}
 
+
+	static var V = 10;
+
+	public dynamic static function staticDynamic(x,y) {
+		return V + x + y;
+	}
+
 }
 
 class MyDynamicSubClass extends MyDynamicClass {
@@ -88,6 +95,11 @@ class TestMisc extends Test {
 		eq( inst.add(1,2), 203 );
 		eq( callback(inst.add,1)(2), 203 );
 		eq( add(1,2), 203 );
+
+		// check static dynamic
+		eq( MyDynamicClass.staticDynamic(1,2), 13 );
+		MyDynamicClass.staticDynamic = function(x,y) return x + y + 100;
+		eq( MyDynamicClass.staticDynamic(1,2), 103 );
 	}
 
 	function testMD5() {
