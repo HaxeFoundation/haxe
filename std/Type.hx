@@ -521,6 +521,7 @@ class Type {
 			a.remove("prototype");
 			#end
 			#if neko
+			a.remove("__string");
 			a.remove("__construct__");
 			a.remove("prototype");
 			a.remove("new");
