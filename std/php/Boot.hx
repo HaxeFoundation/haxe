@@ -7,6 +7,14 @@ class Boot {
 	static var skip_constructor = false;
 	static function __init__() : Void {
 		untyped __php__("
+function _hx_add($a, $b) {
+	if(is_numeric($a) && is_numeric($b)) {
+		return $a + $b;
+	} else {
+		return $a . $b;
+	}
+}
+		
 function _hx_anonymous($p = array()) {
 	$o = new _hx_anonymous();
 	foreach($p as $k => $v)

@@ -41,9 +41,9 @@ class PhpMath__
 	public static function exp(v)      { return untyped __call__("exp", v); }
 	public static function log(v)      { return untyped __call__("log", v); }
 	public static function sqrt(v)     { return untyped __call__("sqrt", v); }
-	public static function round(v)    { return untyped __call__("round", v); }
+	public static function round(v)    { return untyped __call__("(int) floor", v + 0.5); }
 	public static function floor(v)    { return untyped __call__("(int) floor", v); }
-	public static function ceil(v)     { return untyped __call__("ceil", v); }
+	public static function ceil(v)     { return untyped __call__("(int) ceil", v); }
 	public static function atan(v)     { return untyped __call__("atan", v); }
 	public static function asin(v)     { return untyped __call__("asin", v); }
 	public static function acos(v)     { return untyped __call__("acos", v); }

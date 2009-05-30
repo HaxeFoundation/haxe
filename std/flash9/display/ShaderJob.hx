@@ -10,5 +10,5 @@ extern class ShaderJob extends flash.events.EventDispatcher {
 
 	function new(?shader : flash.display.Shader, ?target : Dynamic, ?width : Int, ?height : Int) : Void;
 	function cancel() : Void;
-	function start() : Void;
+	function start(?waitForCompletion : Bool) : Void;
 }

@@ -1,40 +1,12 @@
 (*
-TODO
+TODO:
 
-var a:Dynamic = { a:"aaaa", b:"bbb" };
-trace(a.a + a.b);
-
-in flash:   aaaabbb
-in php:   0
-
-
-
-- check for static method name clashes
 - debug version
 - runtime check for undefined fields
 OPTIMIZATION
 - replace eval for statements with functions/inlines
 - replace closures (eval) with functions
 
-RETHROW:
-
-        try 
-        {
-            app.run();
-            
-        } catch(e:Dynamic){
-            
-            if (app.debug) 
-            {
-                // fail to catch the exception for debugging
-                throw(untyped __php__("$__e__"));
-                
-            } else {
-                Lib.print("Sorry the site has died. Please kick us in the head.");
-            }
-        }
-
-*)
 (*
  *  haXe/PHP Compiler
  *  Copyright (c)2008 Franco Ponticelli
@@ -217,14 +189,14 @@ haxe reserved words that match php ones: break, case, class, continue, default, 
  *)
 (* PHP only (for future use): cfunction, old_function *)
 	match n with
-	| "and" | "or" | "xor" | "__FILE__" | "exception" (* PHP 5 *) | "__LINE__" | "array"
+	| "and" | "or" | "xor" | "__FILE__" | "exception" | "__LINE__" | "array"
 	| "as" | "const" | "declare" | "die" | "echo"| "elseif" | "empty"
 	| "enddeclare" | "endfor" | "endforeach" | "endif" | "endswitch"
 	| "endwhile" | "eval" | "exit" | "foreach"| "global" | "include"
 	| "include_once" | "isset" | "list" | "print" | "require" | "require_once"
-	| "unset" | "use" | "__FUNCTION__" | "__CLASS__" | "__METHOD__" | "final" (* PHP 5 *)
-	| "php_user_filter" (* PHP 5 *) | "protected" (* PHP 5 *) | "abstract" (* PHP 5 *)
-	| "clone" (* PHP 5 *) -> suf ^ n
+	| "unset" | "use" | "__FUNCTION__" | "__CLASS__" | "__METHOD__" | "final" 
+	| "php_user_filter" | "protected" | "abstract" 
+	| "clone" -> suf ^ n
 	| _ -> n
 
 let write_resource dir name data =
@@ -437,23 +409,6 @@ let is_dynamic_method f =
 	(match f.cf_set with
 		| MethodAccess true -> true
 		| _ -> false)
-(*
-	match follow f.cf_type with
-	| TFun _ when f.cf_expr = None -> true
-	| _ ->
-		(match f.cf_expr with
-		| Some { eexpr = TFunction fd } -> f.cf_set = MethodAccess true 
-		| _ -> false)
-		*)
-(*
-let is_dynamic_method f =
-	match follow f.cf_type with
-	| TFun _ when f.cf_expr = None -> true
-	| _ ->
-		(match f.cf_expr with
-		| Some { eexpr = TFunction fd } -> f.cf_set = NormalAccess 
-		| _ -> false)
-*)
 let fun_block ctx f p =
 	let e = (match f.tf_expr with { eexpr = TBlock [{ eexpr = TBlock _ } as e] } -> e | e -> e) in
 	let e = List.fold_left (fun e (a,c,t) ->
@@ -953,14 +908,17 @@ and gen_expr ctx e =
 				gen_value_op ctx e2;
 				spr ctx ")";
 			| _ ->
-(*
-				gen_field_op ctx e1;
-*)
-
 				leftsidef e1;
 				spr ctx " = ";
-				
 				gen_value_op ctx e2;)
+		| Ast.OpAssignOp(Ast.OpAdd) when (is_uncertain_expr e1 && is_uncertain_expr e2) ->
+			leftside e1;
+			spr ctx " = ";
+			spr ctx "_hx_add(";
+			gen_value_op ctx e1;
+			spr ctx ", ";
+			gen_value_op ctx e2;
+			spr ctx ")";
 		| Ast.OpAssignOp(Ast.OpAdd) when (is_string_expr e1 || is_string_expr e2) ->
 			leftside e1;
 			spr ctx " .= ";
@@ -981,6 +939,12 @@ and gen_expr ctx e =
 			leftsidec e1;
 			print ctx " %s " (Ast.s_binop op);
 			gen_value_op ctx e2;
+		| Ast.OpAdd when (is_uncertain_expr e1 && is_uncertain_expr e2) ->
+			spr ctx "_hx_add(";
+			gen_value_op ctx e1;
+			spr ctx ", ";
+			gen_value_op ctx e2;
+			spr ctx ")";
 		| Ast.OpAdd when (is_string_expr e1 || is_string_expr e2) ->
 			gen_value_op ctx e1;
 			spr ctx " . ";
@@ -1157,7 +1121,7 @@ and gen_expr ctx e =
 					let name = f.cf_name in
 					match f.cf_expr with
 					| Some { eexpr = TFunction fd } ->
-						print ctx "$this->%s = array(new _hx_lambda(array(), $this, array(" name;
+						print ctx "if(!isset($this->%s)) $this->%s = array(new _hx_lambda(array(), $this, array(" name name;
 						let cargs = ref 0 in
 						concat ctx "," (fun (arg,o,t) ->
 							let arg = define_local ctx arg in
@@ -1177,7 +1141,10 @@ and gen_expr ctx e =
 				) ctx.dynamic_methods;
 				if Codegen.constructor_side_effects e then begin
 					print ctx "if( !%s::$skip_constructor ) {" (s_path ctx (["php"],"Boot") false e.epos);
-					(fun() -> print ctx "}")
+					(fun() -> print ctx "}";
+					
+					
+					)
 				end else
 					(fun() -> ());
 			end) in
@@ -1206,16 +1173,8 @@ and gen_expr ctx e =
 			gen_string_static_call ctx s ef el
 		| TField (ef,s) when is_string_expr ef ->
 			gen_string_call ctx s ef el
-(*		| TField (ef,s) when is_anonym_expr ef ->
-			if could_be_string_call s then begin
-				gen_uncertain_string_call ctx s ef el
-			end else
-				gen_call ctx ec el
-*)
 		| TField (ef,s) when is_anonym_expr ef && could_be_string_call s ->
 			gen_uncertain_string_call ctx s ef el
-(*		| TCall _ ->
-			gen_call ctx ec el *)
 		| _ ->
 			gen_call ctx ec el);
 	| TArrayDecl el ->
@@ -1603,7 +1562,6 @@ let generate_field ctx static f =
 		spr ctx (rights ^ " ");
 		(match f.cf_set with
 		| MethodAccess true ->
-(*		| NormalAccess when (match fd.tf_expr.eexpr with | TBlock _ -> true | _ -> false) -> *)
 			gen_dynamic_function ctx static (s_ident f.cf_name) fd f.cf_params p
 		| _ ->
 			gen_function ctx (s_ident f.cf_name) fd f.cf_params p
@@ -1666,7 +1624,6 @@ let generate_static_field_assign ctx path f =
 			| TFunction fd ->
 				(match f.cf_set with
 				| MethodAccess true ->
-(*				| NormalAccess when (match fd.tf_expr.eexpr with | TBlock _ -> true | _ -> false) -> *)
 					newline ctx;
 					print ctx "%s::$%s = " (s_path ctx path false p) (s_ident f.cf_name);
 					gen_value ctx e

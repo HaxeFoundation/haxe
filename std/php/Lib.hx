@@ -65,8 +65,13 @@ class Lib {
 	/**
 		For neko compatibility only.
 	**/
-	public static function rethrow( e : Dynamic ) {
-		throw e;
+	public inline static function rethrow( e : Dynamic ) {
+		untyped __php__("if(isset($__e__)) throw $__e__");
+		if(Std.is(e, untyped __php__("Exception"))) {
+			var __rtex__ = e;
+			untyped __php__("throw $__rtex__");
+		}
+		else throw e;
 	}
 
 	static function appendType(o : Dynamic, path : Array<String>, t : Dynamic) {

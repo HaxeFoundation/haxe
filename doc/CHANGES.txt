@@ -32,6 +32,12 @@ TODO :
 	cpp : added CPP platform
 	all : added 'using' syntax
 	neko : added 'domains' optional param to ThreadRemotingServer to answer policy-file-request
+	php : fixed php.db.Mysql so that getResult is consistent with Neko behavior
+	php : fixed __toString for anonymouse objects
+	php : fixed bug in overridden dynamic functions
+	php : fixed round to be consistent with other platforms
+	php : fixed bug concatenating two dynamic variables
+	php : php.Lib.rethrow now works as expected
 
 2009-03-22: 2.03
 	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php
