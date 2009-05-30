@@ -1,11 +1,39 @@
 (*
 TODO
+
+var a:Dynamic = { a:"aaaa", b:"bbb" };
+trace(a.a + a.b);
+
+in flash:   aaaabbb
+in php:   0
+
+
+
 - check for static method name clashes
 - debug version
 - runtime check for undefined fields
 OPTIMIZATION
 - replace eval for statements with functions/inlines
 - replace closures (eval) with functions
+
+RETHROW:
+
+        try 
+        {
+            app.run();
+            
+        } catch(e:Dynamic){
+            
+            if (app.debug) 
+            {
+                // fail to catch the exception for debugging
+                throw(untyped __php__("$__e__"));
+                
+            } else {
+                Lib.print("Sorry the site has died. Please kick us in the head.");
+            }
+        }
+
 *)
 (*
  *  haXe/PHP Compiler
@@ -406,13 +434,26 @@ let is_in_dynamic_methods ctx e s =
 	) ctx.all_dynamic_methods
 
 let is_dynamic_method f =
+	(match f.cf_set with
+		| MethodAccess true -> true
+		| _ -> false)
+(*
 	match follow f.cf_type with
 	| TFun _ when f.cf_expr = None -> true
 	| _ ->
 		(match f.cf_expr with
-		| Some { eexpr = TFunction fd } -> f.cf_set = NormalAccess
+		| Some { eexpr = TFunction fd } -> f.cf_set = MethodAccess true 
 		| _ -> false)
-
+		*)
+(*
+let is_dynamic_method f =
+	match follow f.cf_type with
+	| TFun _ when f.cf_expr = None -> true
+	| _ ->
+		(match f.cf_expr with
+		| Some { eexpr = TFunction fd } -> f.cf_set = NormalAccess 
+		| _ -> false)
+*)
 let fun_block ctx f p =
 	let e = (match f.tf_expr with { eexpr = TBlock [{ eexpr = TBlock _ } as e] } -> e | e -> e) in
 	let e = List.fold_left (fun e (a,c,t) ->
@@ -1040,7 +1081,7 @@ and gen_expr ctx e =
 			(if ctx.is_call then begin
 				gen_field_access ctx false e1 s
 	  		end else if is_in_dynamic_methods ctx e1 s then begin
-	  			gen_field_access ctx true e1 s
+	  			gen_field_access ctx true e1 s;
 	  		end else begin
 				let ob ex = 
 					(match ex with
@@ -1111,34 +1152,34 @@ and gen_expr ctx e =
 				(fun () -> ())
 			else begin
 				ctx.constructor_block <- false;
-			if List.length ctx.dynamic_methods > 0 then newline ctx else spr ctx " ";
-			List.iter (fun (f) ->
-				let name = f.cf_name in
-				match f.cf_expr with
-				| Some { eexpr = TFunction fd } ->
-					print ctx "$this->%s = array(new _hx_lambda(array(), $this, array(" name;
-					let cargs = ref 0 in
-					concat ctx "," (fun (arg,o,t) ->
-						let arg = define_local ctx arg in
-						print ctx "'%s'" arg;
-						incr cargs;
-					) fd.tf_args;
-					print ctx "), \"";
-					let old = ctx.in_value in
-					ctx.in_value <- Some name;
-					ctx.quotes <- ctx.quotes + 1;
-					gen_expr ctx (fun_block ctx fd e.epos);
-					ctx.quotes <- ctx.quotes - 1;
-					ctx.in_value <- old;
-					print ctx "\"), 'execute%d')" !cargs;
-					newline ctx;
-				| _ -> ()
-			) ctx.dynamic_methods;
-			if Codegen.constructor_side_effects e then begin
-				print ctx "if( !%s::$skip_constructor ) {" (s_path ctx (["php"],"Boot") false e.epos);
-				(fun() -> print ctx "}")
-			end else
-				(fun() -> ())
+				if List.length ctx.dynamic_methods > 0 then newline ctx else spr ctx " ";
+				List.iter (fun (f) ->
+					let name = f.cf_name in
+					match f.cf_expr with
+					| Some { eexpr = TFunction fd } ->
+						print ctx "$this->%s = array(new _hx_lambda(array(), $this, array(" name;
+						let cargs = ref 0 in
+						concat ctx "," (fun (arg,o,t) ->
+							let arg = define_local ctx arg in
+							print ctx "'%s'" arg;
+							incr cargs;
+						) fd.tf_args;
+						print ctx "), \"";
+						let old = ctx.in_value in
+						ctx.in_value <- Some name;
+						ctx.quotes <- ctx.quotes + 1;
+						gen_expr ctx (fun_block ctx fd e.epos);
+						ctx.quotes <- ctx.quotes - 1;
+						ctx.in_value <- old;
+						print ctx "\"), 'execute%d')" !cargs;
+						newline ctx;
+					| _ -> ()
+				) ctx.dynamic_methods;
+				if Codegen.constructor_side_effects e then begin
+					print ctx "if( !%s::$skip_constructor ) {" (s_path ctx (["php"],"Boot") false e.epos);
+					(fun() -> print ctx "}")
+				end else
+					(fun() -> ());
 			end) in
 		List.iter (fun e -> newline ctx; gen_expr ctx e) el;
 		bend();
@@ -1561,7 +1602,8 @@ let generate_field ctx static f =
 		if static && field_exists_in_hierarchy ctx.curclass f.cf_name then error ("Can't redeclare method (PHP limitation): " ^ f.cf_name) ctx.curclass.cl_pos;
 		spr ctx (rights ^ " ");
 		(match f.cf_set with
-		| NormalAccess when (match fd.tf_expr.eexpr with | TBlock _ -> true | _ -> false) ->
+		| MethodAccess true ->
+(*		| NormalAccess when (match fd.tf_expr.eexpr with | TBlock _ -> true | _ -> false) -> *)
 			gen_dynamic_function ctx static (s_ident f.cf_name) fd f.cf_params p
 		| _ ->
 			gen_function ctx (s_ident f.cf_name) fd f.cf_params p
@@ -1623,7 +1665,8 @@ let generate_static_field_assign ctx path f =
 			| TConst _ -> ()
 			| TFunction fd ->
 				(match f.cf_set with
-				| NormalAccess when (match fd.tf_expr.eexpr with | TBlock _ -> true | _ -> false) ->
+				| MethodAccess true ->
+(*				| NormalAccess when (match fd.tf_expr.eexpr with | TBlock _ -> true | _ -> false) -> *)
 					newline ctx;
 					print ctx "%s::$%s = " (s_path ctx path false p) (s_ident f.cf_name);
 					gen_value ctx e
@@ -1671,7 +1714,7 @@ let generate_class ctx c =
 			spr ctx "public function __construct(){}"
 		end;
 	| Some f ->
-	let f = { f with
+		let f = { f with
 			cf_name = "__construct";
 			cf_public = true;
 		} in
