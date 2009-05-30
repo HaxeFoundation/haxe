@@ -102,6 +102,7 @@ class NekoDate__ //implements Date
 	static var int32_to_float = Lib.load("std","int32_to_float",1);
 	static var int32_add = Lib.load("std","int32_add",2);
 	static var int32_shl = Lib.load("std","int32_shl",2);
+	static function __string() { return untyped "Date".__s; }
 
 }
 
