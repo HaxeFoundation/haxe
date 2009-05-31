@@ -6,7 +6,7 @@ TODO:
 OPTIMIZATION
 - replace eval for statements with functions/inlines
 - replace closures (eval) with functions
-
+*)
 (*
  *  haXe/PHP Compiler
  *  Copyright (c)2008 Franco Ponticelli
