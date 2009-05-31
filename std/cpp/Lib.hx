@@ -30,7 +30,11 @@ class Lib {
 		Load and return a Cpp primitive from a DLL library.
 	**/
 	public static function load( lib : String, prim : String, nargs : Int ) : Dynamic {
+		#if iphone
+		return loadLazy(lib,prim,nargs);
+		#else
 		return untyped __global__.__loadprim(lib,prim,nargs);
+		#end
 	}
 
 	/**
@@ -39,7 +43,7 @@ class Lib {
 	**/
 	public static function loadLazy(lib,prim,nargs) : Dynamic {
 		try {
-			return load(lib,prim,nargs);
+			return untyped __global__.__loadprim(lib,prim,nargs);
 		} catch( e : Dynamic ) {
 			switch(nargs) {
 			case 0 : return function() { throw e; };
