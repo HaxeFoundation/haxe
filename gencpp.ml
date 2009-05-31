@@ -1415,8 +1415,8 @@ let is_dynamic_method f =
 	| TFun _ when f.cf_expr = None -> true
 	| _ ->
 		(match f.cf_expr with
-		| Some { eexpr = TFunction fd } -> f.cf_set = NormalAccess
-		| _ -> false)
+		| Some { eexpr = TFunction fd } when f.cf_set = MethodAccess true -> true
+		| _ -> false);;
 
 
 let default_value_string = function
@@ -1506,7 +1506,8 @@ let gen_field ctx class_name ptr_name is_static is_external is_interface field =
 			end else
 				gen_expression ctx false function_def.tf_expr;
 
-			output ("END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n\n");
+			output ("END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n");
+			output ("END_DEFAULT_FUNC\n\n");
 
 			if (is_static) then
 				output ( "Dynamic " ^ class_name ^ "::" ^ remap_name ^ ";\n\n");
@@ -2371,7 +2372,7 @@ let write_resources common_ctx =
 	resource_file#close;;
 
 
-let write_makefile is_nmake filename classes add_obj exe_name =
+let write_makefile is_nmake filename classes main_deps add_obj exe_name =
 	let makefile = open_out filename in
 	if (is_nmake) then begin
 		output_string makefile ("!ifndef HXCPP\n");
@@ -2386,6 +2387,9 @@ let write_makefile is_nmake filename classes add_obj exe_name =
 	end;
 
 	List.iter (add_class_to_makefile makefile add_obj ) classes;
+
+	add_class_to_makefile makefile "# " (  ( [] , "__main__") , main_deps );
+	add_class_to_makefile makefile "# " (  ( [] , "__lib__") , main_deps );
 
 	output_string makefile ("\n\nPROJECT = " ^ exe_name ^ "\n");
 	if (is_nmake) then begin
@@ -2501,6 +2505,7 @@ let generate common_ctx =
 	let class_text path = join_class_path path "::" in
 	let member_types = create_member_types common_ctx in
 	let super_deps = create_super_dependencies common_ctx in
+	let main_deps = ref [] in
 
 	List.iter (fun object_def ->
 		(match object_def with
@@ -2510,6 +2515,7 @@ let generate common_ctx =
 		| TClassDecl class_def ->
 			(match class_def.cl_path with
 			| [], "@Main" ->
+				main_deps := find_referenced_types (TClassDecl class_def) super_deps false;
 				generate_main common_ctx member_types super_deps class_def !boot_classes !init_classes;
 			| _ ->
 				let name =  class_text class_def.cl_path in
@@ -2551,10 +2557,10 @@ let generate common_ctx =
 	if ( (Sys.os_type = "Win32") && (Common.defined common_ctx "vcproj" ) ) then
 		write_vcproj common_ctx.file !exe_classes output_name
 	else if ( (Sys.os_type = "Win32") && not (Common.defined common_ctx "gmake" ) ) then
-		write_makefile true (common_ctx.file ^ "/makefile") !exe_classes
+		write_makefile true (common_ctx.file ^ "/makefile") !exe_classes !main_deps
 			"OBJ_FILES = $(OBJ_FILES)" output_name
 	else
-		write_makefile false (common_ctx.file ^ "/makefile") !exe_classes
+		write_makefile false (common_ctx.file ^ "/makefile") !exe_classes !main_deps
 			"OBJ_FILES += " output_name
 	;;
 
