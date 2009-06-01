@@ -472,7 +472,7 @@ let has_utf8_chars s =
 let quote s =
 	(if (has_utf8_chars s) then escape_string else escape_stringw) (Ast.s_escape s);;
 
-let str s = "String(" ^ (quote s) ^ "," ^ (string_of_int (String.length s)) ^ ")";;
+let str s = "STRING(" ^ (quote s) ^ "," ^ (string_of_int (String.length s)) ^ ")";;
 
 
 (* When we are in a "real" object, we refer to ourselves as "this", but
@@ -1420,6 +1420,14 @@ let is_dynamic_method f =
 		| _ -> false);;
 
 
+let is_data_member field =
+	match field.cf_expr with
+	| Some { eexpr = TFunction function_def } -> is_dynamic_method field
+	| _ -> (match follow field.cf_type with
+		| TFun _ -> false
+		| _ -> true );;
+
+
 let default_value_string = function
 	| TInt i -> Printf.sprintf "%ld" i
 	| TFloat float_as_string -> float_as_string
@@ -1882,13 +1890,13 @@ let generate_enum_files common_ctx enum_def super_deps =
 	output_cpp ("	return super::__Field(inName);\n}\n\n");
 
 
-	output_cpp "static wchar_t *sStaticFields[] = {\n";
+	output_cpp "static String sStaticFields[] = {\n";
 	PMap.iter
-		(fun _ constructor -> output_cpp ("	L\"" ^ constructor.ef_name ^ "\",\n") )
+		(fun _ constructor -> output_cpp ("	" ^ (str constructor.ef_name) ^ ",\n") )
 		enum_def.e_constrs;
-	output_cpp "	0 };\n\n";
+	output_cpp "	String(null()) };\n\n";
 
-	output_cpp "static wchar_t *sMemberFields[] = { 0 };\n";
+	output_cpp "static String sMemberFields[] = { String(null()) };\n";
 
 	output_cpp ("Class " ^ class_name ^ "::__mClass;\n\n");
 
@@ -2007,8 +2015,8 @@ let generate_class_files common_ctx member_types super_deps class_def =
 
 	output_cpp "#include <hxObject.h>\n\n";
 
-	let referenced = find_referenced_types (TClassDecl class_def) super_deps false in
-	List.iter ( add_include cpp_file  ) referenced;
+	let all_referenced = find_referenced_types (TClassDecl class_def) super_deps false in
+	List.iter ( add_include cpp_file  ) all_referenced;
 
 	gen_open_namespace output_cpp class_path;
 	output_cpp "\n";
@@ -2057,6 +2065,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 		create_result is_extern;
 		output_cpp ("	result->__construct(" ^ (array_arg_list constructor_var_list) ^ ");\n");
 		output_cpp ("	return result;}\n\n");
+		output_cpp ("	void __Mark();\n");
 
 	end;
 
@@ -2093,6 +2102,20 @@ let generate_class_files common_ctx member_types super_deps class_def =
 			)
 			class_def.cl_ordered_fields;
 		output_cpp "}\n\n";
+
+                (* MARK function - only used with internal GC *)
+		output_cpp ("void " ^ class_name ^ "::__Mark()\n{\n");
+		if (implement_dynamic) then
+			output_cpp "	MARK_DYNAMIC;\n";
+		List.iter
+			(fun field -> let remap_name = keyword_remap field.cf_name in
+				if (is_data_member field) then
+				   output_cpp ("	MarkMember(" ^ remap_name ^ ");\n")
+			)
+			class_def.cl_ordered_fields;
+		output_cpp "}\n\n";
+
+
 
 		let variable_field field =
 			(match field.cf_expr with
@@ -2187,14 +2210,22 @@ let generate_class_files common_ctx member_types super_deps class_def =
 		output_cpp "};\n\n";
 
 
-		let dump_field_name = (fun field -> output_cpp ("	L\"" ^  field.cf_name ^ "\",\n")) in
-		output_cpp "static wchar_t *sStaticFields[] = {\n";
+		let dump_field_name = (fun field -> output_cpp ("	" ^  (str field.cf_name) ^ ",\n")) in
+		output_cpp "static String sStaticFields[] = {\n";
 		List.iter dump_field_name  class_def.cl_ordered_statics;
-		output_cpp "	0 };\n\n";
+		output_cpp "	String(null()) };\n\n";
 
-		output_cpp "static wchar_t *sMemberFields[] = {\n";
+		output_cpp "static String sMemberFields[] = {\n";
 		List.iter dump_field_name  class_def.cl_ordered_fields;
-		output_cpp "	0 };\n\n";
+		output_cpp "	String(null()) };\n\n";
+
+                (* MARK function - only used with internal GC *)
+		output_cpp "static void sMarkStatics() {\n";
+		List.iter (fun field ->
+			if (is_data_field field) then
+				output_cpp ("	MarkMember(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ");\n") )
+			class_def.cl_ordered_statics;
+		output_cpp "};\n\n";
 	end;
 
 
@@ -2213,7 +2244,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 		output_cpp ("	Static(__mClass) = RegisterClass(" ^ (str class_name_text)  ^
 				", TCanCast<" ^ class_name ^ "> ,sStaticFields,sMemberFields,\n");
 		output_cpp ("	&__CreateEmpty, &__Create,\n");
-		output_cpp ("	&super::__SGetClass(), 0);\n");
+		output_cpp ("	&super::__SGetClass(), 0, sMarkStatics);\n");
 		output_cpp ("}\n\n");
 
 		if (not is_extern) then begin
@@ -2292,6 +2323,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 			output_h ("		DECLARE_IMPLEMENT_DYNAMIC;\n");
 		output_h ("		static void __boot();\n");
 		output_h ("		static void __register();\n");
+		output_h ("		void __Mark();\n");
 
 		if (has_init_field class_def) then
 			output_h "		static void __init__();\n\n";
@@ -2313,7 +2345,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 
 	end_header_file output_h def_string;
 	h_file#close;
-	referenced;;
+	all_referenced;;
 
 
 let gen_deps deps =
