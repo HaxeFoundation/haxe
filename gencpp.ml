@@ -1003,7 +1003,7 @@ let rec gen_expression ctx retval expression =
 				output ("String::" ^ remap_name)
 			else
 				output (class_name ^ "_obj::" ^ remap_name);
-			if ( (not calling) && is_function) then
+			if ( (not calling) && (not assigning) && is_function) then
 				output "_dyn()"
 		| TArray (e1,e2) ->
 			gen_expression ctx true e1;
@@ -1416,6 +1416,7 @@ let is_dynamic_method f =
 	| _ ->
 		(match f.cf_expr with
 		| Some { eexpr = TFunction fd } when f.cf_set = MethodAccess true -> true
+		| Some { eexpr = TFunction fd } when f.cf_set = NormalAccess -> true
 		| _ -> false);;
 
 
