@@ -203,12 +203,26 @@ let build_generic ctx c p tl =
 let extend_xml_proxy ctx c t file p =
 	let t = Typeload.load_type ctx p t in
 	let file = (try Common.find_file ctx.com file with Not_found -> file) in
+	let used = ref PMap.empty in
+	let rec delay() =
+		if !(ctx.delays) <> [] then ctx.delays := !(ctx.delays) @ [[delay]]
+		else PMap.iter (fun id used ->
+			if not used then ctx.com.warning (id ^ " is not used") p;
+		) (!used)
+	in
+	let check_used = Common.defined ctx.com "check-xml-proxy" in
+	if check_used then delay();
 	try
 		let rec loop = function
 			| Xml.Element (_,attrs,childs) ->
 				(try
 					let id = List.assoc "id" attrs in
 					if PMap.mem id c.cl_fields then error ("Duplicate id " ^ id) p;
+					let t = if not check_used then t else begin
+						used := PMap.add id false (!used);
+						let ft() = used := PMap.add id true (!used); t in
+						TLazy (ref ft)
+					end in
 					let f = {
 						cf_name = id;
 						cf_type = t;
