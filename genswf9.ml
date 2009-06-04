@@ -418,16 +418,16 @@ let get_local_register ctx name =
 	| LReg r -> Some r
 	| _ -> None
 
-let rec setvar ctx (acc : write access) retval =
+let rec setvar ctx (acc : write access) kret =
 	match acc with
 	| VReg r ->
-		if retval then write ctx HDup;
+		if kret <> None then write ctx HDup;
 		set_reg ctx r;
-	| VGlobal _ | VId _ | VCast _ | VArray | VScope _ when retval ->
-		let r = alloc_reg ctx KDynamic in
+	| VGlobal _ | VId _ | VCast _ | VArray | VScope _ when kret <> None ->
+		let r = alloc_reg ctx (match kret with None -> assert false | Some k -> k) in
 		write ctx HDup;
 		set_reg ctx r;
-		setvar ctx acc false;
+		setvar ctx acc None;
 		write ctx (HReg r.rid);
 		free_reg ctx r
 	| VGlobal g ->
@@ -596,7 +596,7 @@ let begin_fun ctx args tret el stat p =
 		| acc ->
 			let r = alloc_reg ctx (classify ctx t) in
 			write ctx (HReg r.rid);
-			setvar ctx acc false
+			setvar ctx acc None
 	) args;
 	let args, varargs = (match args with
 		| ["__arguments__",_,_] -> [], true
@@ -843,7 +843,7 @@ let rec gen_expr_content ctx retval e =
 		let id = type_path ctx (["flash"],"Error") in
 		write ctx (HFindPropStrict id);
 		write ctx (HConstructProperty (id,0));
-		setvar ctx (VId (ident "lastError")) false;
+		setvar ctx (VId (ident "lastError")) None;
 		gen_expr ctx true e;
 		write ctx HThrow;
 		no_value ctx retval;
@@ -885,7 +885,7 @@ let rec gen_expr_content ctx retval e =
 			| Some e ->
 				let acc = gen_local_access ctx v e.epos Write in
 				gen_expr ctx true e;
-				setvar ctx acc false)
+				setvar ctx acc None)
 		) vl
 	| TReturn None ->
 		write ctx HRetVoid;
@@ -991,7 +991,7 @@ let rec gen_expr_content ctx retval e =
 				) in
 				let acc = gen_local_access ctx ename e.epos Write in
 				(match r with None -> () | Some r -> write ctx (HReg r.rid));
-				setvar ctx acc false;
+				setvar ctx acc None;
 				(* ----- *)
 				let rec call_loop e =
 					match e.eexpr with
@@ -1006,7 +1006,7 @@ let rec gen_expr_content ctx retval e =
 					let j = jump ctx J3False in
 					getvar ctx (VGlobal (type_path ctx (["flash"],"Boot")));
 					getvar ctx (gen_local_access ctx ename e.epos Read);
-					setvar ctx (VId (ident "lastError")) false;
+					setvar ctx (VId (ident "lastError")) None;
 					j();
 				end;
 				gen_expr ctx retval e;
@@ -1038,7 +1038,7 @@ let rec gen_expr_content ctx retval e =
 		let acc = gen_local_access ctx v e.epos Write in
 		write ctx (HReg r.rid);
 		write ctx (HCallProperty (ident "next",0));
-		setvar ctx acc false;
+		setvar ctx acc None;
 		gen_expr ctx false e;
 		start J3Always;
 		end_loop continue_pos;
@@ -1182,7 +1182,7 @@ let rec gen_expr_content ctx retval e =
 						write ctx (HReg rparams.rid);
 						write ctx (HSmallInt !p);
 						getvar ctx VArray;
-						setvar ctx acc false
+						setvar ctx acc None
 				) l
 			);
 			gen_expr ctx retval e;
@@ -1397,12 +1397,12 @@ and gen_unop ctx retval op flag e =
 			write ctx HDup;
 			set_reg ctx r;
 			write ctx (HOp op);
-			setvar ctx acc_write false;
+			setvar ctx acc_write None;
 			write ctx (HReg r.rid);
 			free_reg ctx r
 		| Postfix | Prefix ->
 			write ctx (HOp op);
-			setvar ctx acc_write retval
+			setvar ctx acc_write (if retval then Some k else None)
 
 and gen_binop ctx retval op e1 e2 t =
 	let write_op op =		
@@ -1455,7 +1455,7 @@ and gen_binop ctx retval op e1 e2 t =
 	| OpAssign ->
 		let acc = gen_access ctx e1 Write in
 		gen_expr ctx true e2;
-		setvar ctx acc retval
+		setvar ctx acc (if retval then Some (classify ctx e1.etype) else None)
 	| OpBoolAnd ->
 		write ctx HFalse;
 		let j = jump_expr ctx e1 false in
@@ -1479,7 +1479,7 @@ and gen_binop ctx retval op e1 e2 t =
 		getvar ctx racc;
 		gen_expr ctx true e2;
 		write_op op;
-		setvar ctx wacc retval
+		setvar ctx wacc (if retval then Some (classify ctx e1.etype) else None)
 	| OpAdd | OpMult | OpDiv | OpSub | OpAnd | OpOr | OpXor | OpShl | OpShr | OpUShr | OpMod ->
 		gen_expr ctx true e1;
 		gen_expr ctx true e2;
