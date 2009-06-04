@@ -370,8 +370,6 @@ let is_interface obj =
 let is_function_member expression =
 	match (follow expression.etype) with | TFun (_,_) -> true | _ -> false;;
 
-let is_data_member member = not (is_function_member member);;
-
 (* Some fields of a dynamic object are internal and should be accessed directly,
 	rather than through the abstract interface.  In haxe code, these will be written
 	as "untyped" values.  *)
@@ -1410,10 +1408,18 @@ let rec gen_expression ctx retval expression =
 	);;
 
 
+(*
 let is_dynamic_method f =
 	match follow f.cf_type with
 	| TFun _ when f.cf_expr = None -> true
 	| _ ->
+		(match f.cf_expr with
+		| Some { eexpr = TFunction fd } when f.cf_set = MethodAccess true -> true
+		| Some { eexpr = TFunction fd } when f.cf_set = NormalAccess -> true
+		| _ -> false);;
+*)
+
+let is_dynamic_method f =
 		(match f.cf_expr with
 		| Some { eexpr = TFunction fd } when f.cf_set = MethodAccess true -> true
 		| Some { eexpr = TFunction fd } when f.cf_set = NormalAccess -> true
@@ -1423,9 +1429,7 @@ let is_dynamic_method f =
 let is_data_member field =
 	match field.cf_expr with
 	| Some { eexpr = TFunction function_def } -> is_dynamic_method field
-	| _ -> (match follow field.cf_type with
-		| TFun _ -> false
-		| _ -> true );;
+	| _ -> true;;
 
 
 let default_value_string = function
@@ -1896,6 +1900,17 @@ let generate_enum_files common_ctx enum_def super_deps =
 		enum_def.e_constrs;
 	output_cpp "	String(null()) };\n\n";
 
+	(* ENUM - MARK function - only used with internal GC *)
+	output_cpp "static void sMarkStatics() {\n";
+	PMap.iter (fun _ constructor ->
+		let name = constructor.ef_name in
+		match constructor.ef_type with
+		| TFun (_,_) -> ()
+		| _ -> output_cpp ("	MarkMember(" ^ class_name ^ "::" ^ name ^ ");\n") )
+	enum_def.e_constrs;
+	output_cpp "};\n\n";
+
+
 	output_cpp "static String sMemberFields[] = { String(null()) };\n";
 
 	output_cpp ("Class " ^ class_name ^ "::__mClass;\n\n");
@@ -1907,7 +1922,7 @@ let generate_enum_files common_ctx enum_def super_deps =
 	output_cpp ("\nStatic(__mClass) = RegisterClass(" ^ text_name ^
 					", TCanCast<" ^ class_name ^ " >,sStaticFields,sMemberFields,\n");
 	output_cpp ("	&__Create_" ^ class_name ^ ", &__Create,\n");
-	output_cpp ("	&super::__SGetClass(), &Create" ^ class_name ^ ");\n");
+	output_cpp ("	&super::__SGetClass(), &Create" ^ class_name ^ ", sMarkStatics);\n");
 	output_cpp ("}\n\n");
 
 	output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
@@ -2065,7 +2080,6 @@ let generate_class_files common_ctx member_types super_deps class_def =
 		create_result is_extern;
 		output_cpp ("	result->__construct(" ^ (array_arg_list constructor_var_list) ^ ");\n");
 		output_cpp ("	return result;}\n\n");
-		output_cpp ("	void __Mark();\n");
 
 	end;
 
@@ -2113,6 +2127,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 				   output_cpp ("	MarkMember(" ^ remap_name ^ ");\n")
 			)
 			class_def.cl_ordered_fields;
+		(match  class_def.cl_super with Some _ -> output_cpp "	super::__Mark();\n" | _ -> () );
 		output_cpp "}\n\n";
 
 
@@ -2219,10 +2234,10 @@ let generate_class_files common_ctx member_types super_deps class_def =
 		List.iter dump_field_name  class_def.cl_ordered_fields;
 		output_cpp "	String(null()) };\n\n";
 
-                (* MARK function - only used with internal GC *)
+		(* MARK function - only used with internal GC *)
 		output_cpp "static void sMarkStatics() {\n";
 		List.iter (fun field ->
-			if (is_data_field field) then
+			if (is_data_member field) then
 				output_cpp ("	MarkMember(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ");\n") )
 			class_def.cl_ordered_statics;
 		output_cpp "};\n\n";
@@ -2398,7 +2413,7 @@ let write_resources common_ctx =
 		incr idx;
 	) common_ctx.resources;
 
-	resource_file#write_i "{0,0,0}";
+	resource_file#write_i "{String(null()),0,0}";
 	resource_file#end_block_line;
 	resource_file#write ";\n\n";
 	resource_file#write "hxResource *GetResources() { return __Resources; }\n\n";
