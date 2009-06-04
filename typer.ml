@@ -649,7 +649,7 @@ let rec type_binop ctx op e1 e2 p =
 			let eop = type_binop ctx op e1 e2 p in
 			(match eop.eexpr with
 			| TBinop (_,_,e2) ->
-				unify ctx e2.etype e.etype p;
+				unify ctx eop.etype e.etype p;
 				check_assign ctx e;
 				mk (TBinop (OpAssignOp op,e,e2)) e.etype p;
 			| _ ->
