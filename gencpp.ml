@@ -1750,7 +1750,7 @@ let generate_main common_ctx member_types super_deps class_def boot_classes init
 		(*make_class_directories base_dir ( "src" :: []);*)
 		let cpp_file = new_cpp_file common_ctx.file ([],filename) in
 		let output_main = (cpp_file#write) in
-		let ctx = new_context cpp_file common_ctx.debug in
+		let ctx = new_context cpp_file false in
 		ctx.ctx_class_name <- "?";
 		ctx.ctx_class_member_types <- member_types;
 
@@ -1761,7 +1761,7 @@ let generate_main common_ctx member_types super_deps class_def boot_classes init
 		output_main "\n\n";
 
 		output_main ( if is_main then "BEGIN_MAIN\n\n" else "BEGIN_LIB_MAIN\n\n" );
-		gen_expression (new_context cpp_file common_ctx.debug) false main_expression;
+		gen_expression (new_context cpp_file false) false main_expression;
 		output_main ";\n";
 		output_main ( if is_main then "END_MAIN\n\n" else "END_LIB_MAIN\n\n" );
 		cpp_file#close;
@@ -1817,9 +1817,10 @@ let generate_enum_files common_ctx enum_def super_deps =
 	(*let cpp_file = new_cpp_file common_ctx.file class_path in*)
 	let cpp_file = new_placed_cpp_file common_ctx class_path in
 	let output_cpp = (cpp_file#write) in
-	let ctx = new_context cpp_file common_ctx.debug in
+	let debug = false in
+	let ctx = new_context cpp_file debug in
 
-	if (common_ctx.debug) then
+	if (debug) then
 		print_endline ("Found enum definition:" ^ (join_class_path  class_path "::" ));
 
 	output_cpp "#include <hxObject.h>\n\n";
@@ -2002,7 +2003,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 	(*let cpp_file = new_cpp_file common_ctx.file class_path in*)
 	let cpp_file = new_placed_cpp_file common_ctx class_path in
 	let output_cpp = (cpp_file#write) in
-	let debug = common_ctx.debug in
+	let debug = false in
 	let ctx = new_context cpp_file debug in
 	ctx.ctx_class_name <- join_class_path class_path "::";
 	ctx.ctx_class_member_types <- member_types;
@@ -2420,6 +2421,42 @@ let write_resources common_ctx =
 	resource_file#close;;
 
 
+let add_class_to_buildfile buildfile class_def =
+	let class_path = fst class_def in
+	let deps = snd class_def in
+	let cpp = (join_class_path class_path "/") ^ ".cpp" in
+	output_string buildfile ( "  <file name=\"src/" ^ cpp ^ "\">\n" );
+
+	let project_deps = List.filter (fun path -> not (is_internal_class path) ) deps in
+	List.iter (fun path-> output_string buildfile ("   <depend name=\"" ^
+		"include/" ^ (join_class_path path "/") ^ ".h\"/>\n") ) project_deps;
+
+	output_string buildfile ( "  </file>\n" );;
+
+
+let write_build_data filename classes main_deps exe_name =
+	let buildfile = open_out filename in
+	output_string buildfile "<xml>\n";
+	output_string buildfile "<files id=\"haxe\">\n";
+	output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
+	List.iter (add_class_to_buildfile buildfile) classes;
+	add_class_to_buildfile buildfile  (  ( [] , "__boot__") , [] );
+	add_class_to_buildfile buildfile  (  ( [] , "__resources__") , [] );
+	output_string buildfile "</files>\n";
+	output_string buildfile "<files id=\"__lib__\">\n";
+	output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
+	add_class_to_buildfile buildfile  (  ( [] , "__lib__") , main_deps );
+	output_string buildfile "</files>\n";
+	output_string buildfile "<files id=\"__main__\">\n";
+	output_string buildfile "<compilerflag value=\"-Iinclude\"/>\n";
+	add_class_to_buildfile buildfile  (  ( [] , "__main__") , main_deps );
+	output_string buildfile "</files>\n";
+	output_string buildfile ("<set name=\"HAXE_OUTPUT\" value=\"" ^ exe_name ^ "\" />\n");
+	output_string buildfile "<include name=\"${HXCPP}/build-tool/BuildCommon.xml\"/>\n";
+	output_string buildfile "</xml>\n";
+	close_out buildfile;;
+
+
 let write_makefile is_nmake filename classes main_deps add_obj exe_name =
 	let makefile = open_out filename in
 	if (is_nmake) then begin
@@ -2546,7 +2583,7 @@ let create_super_dependencies common_ctx =
 let generate common_ctx =
 	make_base_directory common_ctx.file;
 
-	let debug = common_ctx.debug in
+	let debug = false in
 	let exe_classes = ref [] in
 	let boot_classes = ref [] in
 	let init_classes = ref [] in
@@ -2604,12 +2641,25 @@ let generate common_ctx =
 
 	if ( (Sys.os_type = "Win32") && (Common.defined common_ctx "vcproj" ) ) then
 		write_vcproj common_ctx.file !exe_classes output_name
-	else if ( (Sys.os_type = "Win32") && not (Common.defined common_ctx "gmake" ) ) then
+	else if ( (Common.defined common_ctx "nmake" ) ) then
 		write_makefile true (common_ctx.file ^ "/makefile") !exe_classes !main_deps
 			"OBJ_FILES = $(OBJ_FILES)" output_name
-	else
+	else if ( Common.defined common_ctx "gmake" ) then
 		write_makefile false (common_ctx.file ^ "/makefile") !exe_classes !main_deps
 			"OBJ_FILES += " output_name
+	else begin
+		write_build_data (common_ctx.file ^ "/Build.xml") !exe_classes !main_deps output_name;
+		if ( not (Common.defined common_ctx "no-compilation") ) then begin
+			let old_dir = Sys.getcwd() in
+			Sys.chdir common_ctx.file;
+			let cmd = ref "haxelib run hxcpp Build.xml haxe" in
+			if (common_ctx.debug) then cmd := !cmd ^ " -Ddebug";
+			PMap.iter ( fun name _ -> cmd := !cmd ^ " -D" ^ name ^ "" ) common_ctx.defines;
+			print_endline !cmd;
+			if Sys.command !cmd <> 0 then failwith "Build failed";
+			Sys.chdir old_dir;
+		end
+	end
 	;;
 
 
