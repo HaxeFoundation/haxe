@@ -116,7 +116,7 @@ class Session {
 	}
 	
 	private static var _started = untyped __call__("isset", __var__("_SESSION"));
-	private static function start() {
+	public static function start() {
 		if(_started) return;
 		_started = true;
 		untyped __call__("session_start");
