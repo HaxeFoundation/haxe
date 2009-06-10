@@ -701,7 +701,8 @@ class Main {
 			throw "Project "+project+" is not installed";
 		pdir += "/";
 		var version = neko.io.File.getContent(pdir+".current");
-		var vdir = pdir + Datas.safe(version);
+		var dev = try neko.io.File.getContent(pdir+".dev") catch( e : Dynamic ) null;
+		var vdir = dev!=null ? dev : pdir + Datas.safe(version);
 		var rdir = vdir + "/run.n";
 		if( !neko.FileSystem.exists(rdir) )
 			throw "Project "+project+" version "+version+" does not have a run script";
