@@ -421,6 +421,8 @@ let rec reduce_loop com is_sub e =
 			{ e with eexpr = TBlock body }
 		with
 			Exit -> e)
+	| TParenthesis ({ eexpr = TConst _ } as ec) ->
+		{ ec with epos = e.epos }
 	| _ -> 
 		e
 
