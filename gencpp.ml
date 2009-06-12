@@ -470,8 +470,9 @@ let has_utf8_chars s =
 let quote s =
 	(if (has_utf8_chars s) then escape_string else escape_stringw) (Ast.s_escape s);;
 
-let str s = "STRING(" ^ (quote s) ^ "," ^ (string_of_int (String.length s)) ^ ")";;
-
+let str s =
+	(if (has_utf8_chars s) then "STRING_UTF8(" else "STRING(") ^
+	(quote s) ^ "," ^ (string_of_int (String.length s)) ^ ")";;
 
 (* When we are in a "real" object, we refer to ourselves as "this", but
 	if we are in a local class that is used to generate return values,
