@@ -433,19 +433,6 @@ let implement_dynamic_here class_def =
 
 
 (* Make string printable for c++ code *)
-(* Strings from the source files are in utf8 format. *)
-(* To use this, we construct a string from a char * and convert to a wchar_t in constructor *)
-let escape_string s =
-	let b = Buffer.create 0 in
-	Buffer.add_char b '"';
-	for i = 0 to String.length s - 1 do
-		match Char.code (String.unsafe_get s i) with
-		| c when c < 32 -> Buffer.add_string b (Printf.sprintf "\\x%.2X\"\"" c)
-		| c -> Buffer.add_char b (Char.chr c)
-	done;
-	Buffer.add_char b '"';
-	Buffer.contents b;;
-
 (* Here we know there are no utf8 characters, so use the L"" notation to avoid conversion *)
 let escape_stringw s =
 	let b = Buffer.create 0 in
@@ -453,7 +440,7 @@ let escape_stringw s =
 	Buffer.add_char b '"';
 	for i = 0 to String.length s - 1 do
 		match Char.code (String.unsafe_get s i) with
-		| c when c < 32 -> Buffer.add_string b (Printf.sprintf "\\x%.2X\"L\"" c)
+		| c when (c < 32 || c>127) -> Buffer.add_string b (Printf.sprintf "\\x%X\"L\"" c)
 		| c -> Buffer.add_char b (Char.chr c)
 	done;
 	Buffer.add_char b '"';
@@ -467,12 +454,9 @@ let has_utf8_chars s =
 	done;
 	!result;;
 
-let quote s =
-	(if (has_utf8_chars s) then escape_string else escape_stringw) (Ast.s_escape s);;
+let quote s = escape_stringw (Ast.s_escape s);;
 
-let str s =
-	(if (has_utf8_chars s) then "STRING_UTF8(" else "STRING(") ^
-	(quote s) ^ "," ^ (string_of_int (String.length s)) ^ ")";;
+let str s = "STRING(" ^ (quote s) ^ "," ^ (string_of_int (String.length s)) ^ ")";;
 
 (* When we are in a "real" object, we refer to ourselves as "this", but
 	if we are in a local class that is used to generate return values,
