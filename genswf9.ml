@@ -189,6 +189,7 @@ let rec follow_basic t =
 		| TInst ({ cl_path = (["haxe"],"Int32") },[])
 		| TInst ({ cl_path = ([],"Int") },[])
 		| TInst ({ cl_path = ([],"Float") },[])
+		| TType ({ t_path = [],"UInt" },[])
 		| TEnum ({ e_path = ([],"Bool") },[]) -> t
 		| t -> t)
 	| TType ({ t_path = [],"UInt" },[]) ->
