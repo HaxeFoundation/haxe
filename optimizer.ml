@@ -296,7 +296,7 @@ let rec reduce_loop com is_sub e =
 		| TConst (TInt 1l) , _ when op = OpMult -> e2
 		| TConst (TFloat v) , _ when op = OpAdd && float_of_string v = 0. && is_float e2.etype -> e2
 		| TConst (TFloat v) , _ when op = OpMult && float_of_string v = 1. && is_float e2.etype -> e2
-		| _ , TConst (TInt 0l) when (match op with OpAdd | OpSub -> true | _ -> false) -> e1 (* bits operations might cause overflow *)
+		| _ , TConst (TInt 0l) when (match op with OpAdd | OpSub | OpShr | OpShl -> true | _ -> false) -> e1 (* bits operations might cause overflow *)
 		| _ , TConst (TInt 1l) when op = OpMult -> e1
 		| _ , TConst (TFloat v) when (match op with OpAdd | OpSub -> float_of_string v = 0. && is_float e1.etype | _ -> false) -> e1 (* bits operations might cause overflow *)
 		| _ , TConst (TFloat v) when op = OpMult && float_of_string v = 1. && is_float e1.etype -> e1
