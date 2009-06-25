@@ -2,9 +2,9 @@
 
 extern class Vector3D {
 
-	static var XAXIS(default,null) : Vector3D;
-	static var YAXIS(default,null) : Vector3D;
-	static var ZAXIS(default,null) : Vector3D;
+	static var X_AXIS(default,null) : Vector3D;
+	static var Y_AXIS(default,null) : Vector3D;
+	static var Z_AXIS(default,null) : Vector3D;
 
 	var x : Float;
 	var y : Float;
