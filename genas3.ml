@@ -81,7 +81,7 @@ let reserved =
 	(* these ones are defined in order to prevent recursion in some Std functions *)
 	["is";"as";"int";"uint";"const";"getTimer";"typeof";"parseInt";"parseFloat";
 	(* AS3 keywords which are not haXe ones *)
-	"each";"label";"finally";"with";"final";"internal";"native";"const";"namespace";"include";
+	"each";"label";"finally";"with";"final";"internal";"native";"const";"namespace";"include";"delete";
 	(* we don't include get+set since they are not 'real' keywords, but they can't be used as method names *)
 	];
 	h
@@ -615,6 +615,9 @@ and gen_expr ctx e =
 			b();
 		) catchs;
 	| TMatch (e,_,cases,def) ->
+		print ctx "{";
+		let bend = open_block ctx in
+		newline ctx;
 		let b = save_locals ctx in
 		let tmp = define_local ctx "$e" in
 		print ctx "var %s : enum = " tmp;
@@ -655,6 +658,9 @@ and gen_expr ctx e =
 			print ctx "break";
 			newline ctx;
 		);
+		spr ctx "}";
+		bend();
+		newline ctx;
 		spr ctx "}";
 		b()
 	| TSwitch (e,cases,def) ->
