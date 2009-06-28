@@ -38,6 +38,8 @@ TODO :
 	php : fixed round to be consistent with other platforms
 	php : fixed bug concatenating two dynamic variables
 	php : php.Lib.rethrow now works as expected
+	flash9 : fixed bug with SWC output and recursive types
+	flash8 : fixed inversed arguments in __new__
 
 2009-03-22: 2.03
 	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php

@@ -890,7 +890,7 @@ and gen_call ctx e el =
 		write ctx (AGetURL2 (match post with [] -> 0 | [{ eexpr = TConst (TString "GET") }] -> 1 | _ -> 2))
 	| TLocal "__new__", e :: el ->
 		let nargs = List.length el in
-		List.iter (gen_expr ctx true) el;
+		List.iter (gen_expr ctx true) (List.rev el);
 		push ctx [VInt nargs];
 		let k = gen_access ctx true e in
 		new_call ctx k nargs
