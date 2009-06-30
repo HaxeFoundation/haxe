@@ -24,6 +24,7 @@ open Typecore
 let type_constant ctx c p =
 	match c with
 	| Int s ->
+		if String.length s > 10 && String.sub s 0 2 = "0x" then error "Invalid hexadecimal integer" p;
 		(try
 			mk (TConst (TInt (Int32.of_string s))) ctx.api.tint p
 		with
