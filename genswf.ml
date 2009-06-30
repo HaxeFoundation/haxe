@@ -297,7 +297,7 @@ let build_dependencies t =
 		h := PMap.add (p,k) () !h;
 	in
 	let rec add_type_rec l t =
-		if List.memq t l then () else
+		if List.memq t l then () else		
 		match follow t with
 		| TEnum (e,pl) ->
 			add_path e.e_path DKType;
@@ -305,13 +305,13 @@ let build_dependencies t =
 		| TInst (c,pl) ->
 			add_path c.cl_path DKType;
 			List.iter (add_type_rec l) pl;
-		| TFun (pl,t) ->
-			List.iter (fun (_,_,t) -> add_type_rec (t::l) t) pl;
-			add_type_rec (t::l) t;
+		| TFun (pl,t2) ->
+			List.iter (fun (_,_,t2) -> add_type_rec (t::l) t2) pl;
+			add_type_rec (t::l) t2;
 		| TAnon a ->
-			PMap.iter (fun _ f -> add_type_rec (f.cf_type::l) f.cf_type) a.a_fields
+			PMap.iter (fun _ f -> add_type_rec (t::l) f.cf_type) a.a_fields
 		| TDynamic t2 ->
-			if t2 != t then add_type_rec l t2;
+			add_type_rec (t::l) t2;
 		| _ ->
 			()
 	and add_type t = 
