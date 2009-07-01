@@ -40,6 +40,7 @@ TODO :
 	php : php.Lib.rethrow now works as expected
 	flash9 : fixed bug with SWC output and recursive types
 	flash8 : fixed inversed arguments in __new__
+	neko : added neko.net.Socket.setFastSend
 
 2009-03-22: 2.03
 	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php

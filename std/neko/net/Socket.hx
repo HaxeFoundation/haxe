@@ -113,6 +113,10 @@ class Socket {
 		socket_set_blocking(__s,b);
 	}
 
+	public function setFastSend( b : Bool ) {
+		socket_set_fast_send(__s,b);
+	}
+
 	public static function newUdpSocket() {
 		return new Socket(socket_new(true));
 	}
@@ -170,5 +174,5 @@ class Socket {
 	private static var socket_set_timeout = neko.Lib.load("std","socket_set_timeout",2);
 	private static var socket_shutdown = neko.Lib.load("std","socket_shutdown",3);
 	private static var socket_set_blocking = neko.Lib.load("std","socket_set_blocking",2);
-
+	private static var socket_set_fast_send = neko.Lib.loadLazy("std","socket_set_fast_send",2);
 }
