@@ -79,6 +79,7 @@ class Timer {
 			t.stop();
 			f();
 		};
+		return t;
 	}
 
 	#end
