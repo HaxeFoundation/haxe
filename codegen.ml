@@ -880,9 +880,12 @@ let rec constructor_side_effects e =
 	match e.eexpr with
 	| TBinop (op,_,_) when op <> OpAssign ->
 		true
-	| TUnop _ | TArray _ | TField _ | TCall _ | TNew _ | TFor _ | TWhile _ | TSwitch _ | TMatch _ | TReturn _ | TThrow _ ->
+	| TUnop _ | TArray _ | TField _ | TCall _ | TNew _ | TFor _ | TWhile _ | TSwitch _ | TMatch _ | TReturn _ | TThrow _ | TClosure _ ->
 		true
-	| _ -> 
+	| TBinop _ | TTry _ | TIf _ | TBlock _ | TVars _
+	| TFunction _ | TArrayDecl _ | TObjectDecl _
+	| TParenthesis _ | TTypeExpr _ | TEnumField _ | TLocal _ 
+	| TConst _ | TContinue | TBreak -> 
 		try 
 			Type.iter (fun e -> if constructor_side_effects e then raise Exit) e;
 			false;
