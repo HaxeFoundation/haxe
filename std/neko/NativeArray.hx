@@ -26,6 +26,10 @@ package neko;
 
 class NativeArray<T> implements ArrayAccess<T> {
 
+	public static inline function alloc<T>( length : Int ) : NativeArray<T> {
+		return untyped __dollar__amake(length);
+	}
+
 	public static inline function ofArrayCopy<T>( a : Array<T> ) : NativeArray<T> {
 		return untyped a.__neko();
 	}
