@@ -236,7 +236,7 @@ class List<T> {
 				first = false;
 			else
 				s.add(", ");
-			s.add(l[0]);
+			s.add(Std.string(l[0]));
 			l = l[1];
 		}
 		s.add("}");
