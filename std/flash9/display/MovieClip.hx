@@ -1,6 +1,6 @@
 package flash.display;
 
-extern class MovieClip extends Sprite {
+extern class MovieClip extends Sprite, implements Dynamic {
 	var currentFrame(default,null) : Int;
 	var currentLabel(default,null) : String;
 	var currentLabels(default,null) : Array<FrameLabel>;
