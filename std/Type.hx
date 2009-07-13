@@ -324,7 +324,7 @@ class Type {
 			if(cl.__qname__ == 'String') return args[0];
 			var c = cl.__rfl__();
 			if(c == null) return null;
-			return __php__("$inst = $c->getConstructor() ? $c->newInstanceArgs($args->__a) : $c->newInstanceArgs()");
+			return __php__("$inst = $c->getConstructor() ? $c->newInstanceArgs($args->»a) : $c->newInstanceArgs()");
 		#elseif cpp
 			if (cl!=null)
 				return cl.mConstructArgs(args);
@@ -449,17 +449,16 @@ class Type {
 			untyped __php__("
 			$rfl = $c->__rfl__();
 			if($rfl === null) return new _hx_array(array());
-			$ms = $rfl->getMethods();
-			$ps = $rfl->getProperties();
 			$r = array();
 			$internals = array('__construct', '__call', '__get', '__set', '__isset', '__unset', '__toString');
-			foreach($ms as $m) {
+			$ms = $rfl->getMethods();
+			while(list(, $m) = each($ms)) {
 				$n = $m->getName();
 				if(!$m->isStatic() && ! in_array($n, $internals)) $r[] = $n;
 			}
-			foreach($ps as $p)
-				if(!$p->isStatic()) $r[] = $p->getName();
-			");
+			$ps = $rfl->getProperties();
+			while(list(, $p) = each($ps))
+				if(!$p->isStatic()) $r[] = $p->getName()");
 			return untyped __php__("new _hx_array(array_values(array_unique($r)))");
 		#elseif cpp
 			return untyped c.GetInstanceFields();
@@ -502,11 +501,11 @@ class Type {
 			$rfl = $c->__rfl__();
 			if($rfl === null) return new _hx_array(array());
 			$ms = $rfl->getMethods();
-			$ps = $rfl->getProperties();
 			$r = array();
-			foreach($ms as $m)
+			while(list(, $m) = each($ms))
 				if($m->isStatic()) $r[] = $m->getName();
-			foreach($ps as $p)
+			$ps = $rfl->getProperties();
+			while(list(, $p) = each($ps))
 				if($p->isStatic()) $r[] = $p->getName();
 			");
 			return untyped __php__("new _hx_array($r)");
@@ -540,9 +539,9 @@ class Type {
 			var rfl = __php__("new ReflectionClass($e->__tname__)");
 			var sps : ArrayAccess<Dynamic> = rfl.getStaticProperties();
 //			var r : ArrayAccess<String> = __call__('array');
-			__php__("$r = array(); foreach($sps as $k => $v) $r[] = $k");
+			__php__("$r = array(); while(list($k) = each($sps)) $r[] = $k");
 			sps = rfl.getMethods();
-			__php__("foreach($sps as $m) { $n = $m->getName(); if($n != '__construct' && $n != '__toString') $r[] = $n; }");
+			__php__("while(list(, $m) = each($sps)) { $n = $m->getName(); if($n != '__construct' && $n != '__toString') $r[] = $n; }");
 			return __php__("new _hx_array($r)");
 		#elseif cpp
 			return untyped e.GetClassFields();

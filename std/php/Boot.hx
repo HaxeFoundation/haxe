@@ -15,63 +15,64 @@ function _hx_add($a, $b) {
 	}
 }
 		
-function _hx_anonymous($p = array()) {
+function _hx_anonymous($arr = array()) {
 	$o = new _hx_anonymous();
-	foreach($p as $k => $v)
+	reset($arr);
+	while(list($k, $v) = each($arr))
 		$o->$k = $v;
 	return $o;
 }
 
 class _hx_array implements ArrayAccess {
-	var $__a;
+	var $»a;
 	var $length;
 	function __construct($a = array()) {
-		$this->__a = $a;
+		$this->»a = $a;
 		$this->length = count($a);
 	}
 
 	function concat($a) {
-		return new _hx_array(array_merge($this->__a, $a->__a));
+		return new _hx_array(array_merge($this->»a, $a->»a));
 	}
 
 	function copy() {
-		return new _hx_array($this->__a);
+		return new _hx_array($this->»a);
 	}
 
 	function &get($index) {
-		if(isset($this->__a[$index])) return $this->__a[$index];
+		if(isset($this->»a[$index])) return $this->»a[$index];
 		return null;
 	}
 
 	function insert($pos, $x) {
-		array_splice($this->__a, $pos, 0, array($x));
+		array_splice($this->»a, $pos, 0, array($x));
 		$this->length++;
 	}
 
 	function iterator() {
-		return new _hx_array_iterator($this->__a);
+		return new _hx_array_iterator($this->»a);
 	}
 
 	function join($sep) {
-		return implode($this->__a, $sep);
+		return implode($this->»a, $sep);
 	}
 
 	function pop() {
-		$r = array_pop($this->__a);
-		$this->length = count($this->__a);
+		$r = array_pop($this->»a);
+		$this->length = count($this->»a);
 		return $r;
 	}
 
 	function push($x) {
-		$this->__a[] = $x;
+		$this->»a[] = $x;
 		$this->length++;
 	}
 
 	function remove($x) {
-		for($i = 0; $i < count($this->__a); $i++)
-			if($this->__a[$i] === $x) {
-				unset($this->__a[$i]);
-				$this->__a = array_values($this->__a);
+		for($i = 0; $i < count($this->»a); $i++)
+			if($this->»a[$i] === $x) {
+				unset($this->»a[$i]);
+				$this->»a = array_values($this->»a);
 				$this->length--;
 				return true;
 			}
@@ -79,8 +80,8 @@ class _hx_array implements ArrayAccess {
 	}
 
 	function removeAt($pos) {
-		if(array_key_exists($pos, $this->__a)) {
-			unset($this->__a[$pos]);
+		if(array_key_exists($pos, $this->»a)) {
+			unset($this->»a[$pos]);
 			$this->length--;
 			return true;
 		} else
@@ -88,35 +89,35 @@ class _hx_array implements ArrayAccess {
 	}
 
 	function reverse() {
-		$this->__a = array_reverse($this->__a, false);
+		$this->»a = array_reverse($this->»a, false);
 	}
 
 	function shift() {
-		$r = array_shift($this->__a);
-		$this->length = count($this->__a);
+		$r = array_shift($this->»a);
+		$this->length = count($this->»a);
 		return $r;
 	}
 
 	function slice($pos, $end) {
 		if($end == null)
-			return new _hx_array(array_slice($this->__a, $pos));
+			return new _hx_array(array_slice($this->»a, $pos));
 		else
-			return new _hx_array(array_slice($this->__a, $pos, $end-$pos));
+			return new _hx_array(array_slice($this->»a, $pos, $end-$pos));
 	}
 
 	function sort($f) {
-		usort($this->__a, $f);
+		usort($this->»a, $f);
 	}
 
 	function splice($pos, $len) {
 		if($len < 0) $len = 0;
-		$nh = new _hx_array(array_splice($this->__a, $pos, $len));
-		$this->length = count($this->__a);
+		$nh = new _hx_array(array_splice($this->»a, $pos, $len));
+		$this->length = count($this->»a);
 		return $nh;
 	}
 
 	function toString() {
-		return '['.implode($this->__a, ', ').']';
+		return '['.implode($this->»a, ', ').']';
 	}
 
 	function __toString() {
@@ -124,26 +125,26 @@ class _hx_array implements ArrayAccess {
 	}
 
 	function unshift($x) {
-		array_unshift($this->__a, $x);
+		array_unshift($this->»a, $x);
 		$this->length++;
 	}
 
 	// ArrayAccess methods:
 	function offsetExists($offset) {
-		return isset($this->__a[$offset]);
+		return isset($this->»a[$offset]);
 	}
 
 	function offsetGet($offset) {
-		if(isset($this->__a[$offset])) return $this->__a[$offset];
+		if(isset($this->»a[$offset])) return $this->»a[$offset];
 		return null;
 	}
 
 	function offsetSet($offset, $value) {
 		if($this->length <= $offset) {
-			$this->__a = array_merge($this->__a, array_fill(0, $offset+1-$this->length, null));
+			$this->»a = array_merge($this->»a, array_fill(0, $offset+1-$this->length, null));
 			$this->length = $offset+1;
 		}
-		return $this->__a[$offset] = $value;
+		return $this->»a[$offset] = $value;
 	}
 
 	function offsetUnset($offset) {
@@ -152,20 +153,20 @@ class _hx_array implements ArrayAccess {
 }
 
 class _hx_array_iterator {
-	private $a;
-	private $i;
+	private $»a;
+	private $»i;
 	public function __construct($a) {
-		$this->__a = $a;
-		$this->i = 0;
+		$this->»a = $a;
+		$this->»i = 0;
 	}
 
 	public function next() {
 		if(!$this->hasNext()) return null;
-		return $this->__a[$this->i++];
+		return $this->»a[$this->»i++];
 	}
 
 	public function hasNext() {
-		return $this->i < count($this->__a);
+		return $this->»i < count($this->»a);
 	}
 }
 
@@ -177,8 +178,10 @@ function _hx_array_assign($a, $i, $v) {
 	return $a[$i] = $v;
 }
 
+class _hx_break_exception extends Exception {}
+
 function _hx_char_code_at($s, $pos) {
-	if(empty($s) || $pos >= strlen($s)) return null;
+	if($pos < 0 || $pos >= strlen($s)) return null;
 	return ord($s{$pos});
 }
 
@@ -204,7 +207,7 @@ function _hx_equal($x, $y) {
 
 function _hx_error_handler($errno, $errmsg, $filename, $linenum, $vars) {
 	$msg = $errmsg . ' (errno: ' . $errno . ') in ' . $filename . ' at line #' . $linenum;
-	$e = new HException($msg, $errmsg, $errno, _hx_anonymous(array('fileName' => 'Boot.hx', 'lineNumber' => 41, 'className' => 'php.Boot', 'methodName' => '__error_handler')));
+	$e = new HException($msg, $errmsg, $errno, _hx_anonymous(array('fileName' => 'Boot.hx', 'lineNumber' => __LINE__, 'className' => 'php.Boot', 'methodName' => '_hx_error_handler')));
 	$e->setFile($filename);
 	$e->setLine($linenum);
 	throw $e;
@@ -212,8 +215,25 @@ function _hx_error_handler($errno, $errmsg, $filename, $linenum, $vars) {
 }
 
 function _hx_exception_handler($e) {
-	$msg = '<pre>Uncaught exception: <b>' . $e->getMessage() . '</b>\nin file: <b>' . $e->getFile() . '</b> line <b>' . $e->getLine() . '</b>\n\n' . $e->getTraceAsString() . '</pre>';
-	die($msg);
+	if(0 == strncasecmp(PHP_SAPI, 'cli', 3)) {
+		$msg   = $e-> getMessage();
+		$nl    = \"\\n\";
+		$pre   = '';
+		$post  = '';
+	} else {
+		$msg   = '<b>' . $e-> getMessage() . '</b>';
+		$nl    = \"<br />\";
+		$pre   = '<pre>';
+		$post  = '</pre>';
+	}
+	if(isset($GLOBALS['%s'])) {
+		$stack = '';
+		$i = $GLOBALS['%s']->length;
+		while(--$i >= 0)
+			$stack .= 'Called from '.$GLOBALS['%s'][$i].$nl;
+		die($pre.'uncaught exception: '.$msg.$nl.$nl.$stack.$post);
+	} else
+		die($pre.'uncaught exception: '.$msg.$nl.$nl.'in file: '.$e->getFile().' line '.$e->getLine().$nl.$e->getTraceAsString().$post);
 }
 
 function _hx_explode($delimiter, $s) {
@@ -316,6 +336,24 @@ function _hx_last_index_of($s, $value, $startIndex) {
 
 function _hx_len($o) {
 	return is_string($o) ? strlen($o) : $o->length;
+}
+
+class _hx_list_iterator {
+	private $»h;
+	public function __construct($h) {
+		$this->»h = $h;
+	}
+
+	public function next() {
+		if($this->»h == null) return null;
+		$x = $this->»h[0];
+		$this->»h = $this->»h[1];
+		return $x;
+	}
+
+	public function hasNext() {
+		return $this->»h != null;
+	}
 }
 
 function _hx_null() {
@@ -476,12 +514,7 @@ function _hx_ttype($n) {
 
 class _hx_anonymous extends stdClass {
 	public function __call($m, $a) {
-		$v = $this->$m;
-		try {
-			return call_user_func_array($v, $a);
-		} catch(Exception $e) {
-			throw new HException('Unable to call «'.$m.'»');
-		}
+		return call_user_func_array($this->$m, $a);
 	}
 
 	public function __set($n, $v) {
@@ -508,7 +541,7 @@ class _hx_anonymous extends stdClass {
 		$b = '{ ';
 		$properties = $rfl->getProperties();
 		$first = true;
-		foreach($properties as $prop) {
+		while(list(, $prop) = each($properties)) {
 			if($first)
 				$first = false;
 			else
@@ -610,11 +643,13 @@ class _hx_lambda {
 
 	public $params = array();
 	public function execute() {
-		$__this =& $this->scope;
-		foreach(array_keys($this->locals) as ${'%k'})
-			${${'%k'}} =& $this->locals[${'%k'}];
-		for(${'%i'} = 0; ${'%i'} < count($this->args); ${'%i'}++)
-			${$this->args[${'%i'}]} =& $this->params[${'%i'}];
+		$»arr = array_keys($this->locals);
+		while($»k = current($»arr)) {
+			${$»k} =& $this->locals[$»k];
+			next($»arr);
+		}
+		for($»i = 0; $»i < count($this->args); $»i++)
+			${$this->args[$»i]} =& $this->params[$»i];
 		return eval($this->body);
 	}
 
@@ -705,7 +740,7 @@ $_hx_autload_cache_file = $_hx_libdir . '/../cache/haxe_autoload.php';
 if(!file_exists($_hx_autload_cache_file)) {
 	function _hx_build_paths($d, &$_hx_types_array, $pack) {
 		$h = opendir($d);
-		while (false !== ($f = readdir($h))) {
+		while(false !== ($f = readdir($h))) {
 			$p = $d.'/'.$f;
 			if($f == '.' || $f == '..')
 				continue;

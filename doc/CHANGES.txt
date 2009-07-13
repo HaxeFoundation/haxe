@@ -41,6 +41,13 @@ TODO :
 	flash9 : fixed bug with SWC output and recursive types
 	flash8 : fixed inversed arguments in __new__
 	neko : added neko.net.Socket.setFastSend
+	php: fixed String.charCodeAt
+	php: minor optimization (removed foreach from std code)
+	php: implemented haxe.Stack
+	php: changed exception handler to use haXe call stack
+	php: changed special vars to use the » prefix instead of __
+	php: fixed use of reserved keywords for var names
+	php: List iterator is now class based (faster)
 
 2009-03-22: 2.03
 	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php

@@ -49,7 +49,7 @@ class PhpXml__ {
 	private static var build : PhpXml__;
 	private static function __start_element_handler(parser : Dynamic, name : String, attribs : ArrayAccess<String>) {
 		var node = createElement(name);
-		untyped __php__("foreach($attribs as $key => $value) $node->set($key, $value)");
+		untyped __php__("while(list($k, $v) = each($attribs)) $node->set($k, $v)");
 		build.addChild(node);
 		build = node;
 	}

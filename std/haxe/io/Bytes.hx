@@ -157,7 +157,7 @@ class Bytes {
 		#elseif php
 		// TODO: test me
 		return untyped __call__("substr", b, pos, len);
-//		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", __call__("array", "C*"), __call__("array_slice", b.__a, pos, len)));
+//		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", __call__("array", "C*"), __call__("array_slice", b.»a, pos, len)));
 		#elseif cpp
 		var result:String="";
 		untyped __global__.__hxcpp_string_of_bytes(b,result,pos,len);
@@ -198,7 +198,7 @@ class Bytes {
 		#elseif php
 		// TODO: test me
 		return cast b;
-//		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", __call__("array", "C*"), b.__a));
+//		return untyped __call__("call_user_func_array", "pack", __call__("array_merge", __call__("array", "C*"), b.»a));
 		#else
 		return readString(0,length);
 		#end

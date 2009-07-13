@@ -54,6 +54,8 @@ class Stack {
 			return a;
 		#elseif (flash || js)
 			return makeStack("$s");
+		#elseif php
+			return makeStack("%s");
 		#else
 			return [];
 		#end
@@ -83,8 +85,10 @@ class Stack {
 				i--;
 			}
 			return a;
-		#elseif (flash ||js)
+		#elseif (flash || js)
 			return makeStack("$e");
+		#elseif php
+			return makeStack("%e");
 		#else
 			return [];
 		#end
@@ -168,6 +172,14 @@ class Stack {
 			var a : Array<String> = untyped #if flash __eval__(s) #else try __js__("eval")(s) catch( e : Dynamic ) [] #end;
 			var m = new Array();
 			for( i in 0...a.length - if(s == "$s") 2 else 0 ) {
+				var d = a[i].split("::");
+				m.unshift(Method(d[0],d[1]));
+			}
+			return m;
+		#elseif php
+			var a : Array<String> = untyped __php__("$GLOBALS[$s]");
+			var m = new Array();
+			for( i in 0...a.length - ((s == "%s") ? 2 : 0)) {
 				var d = a[i].split("::");
 				m.unshift(Method(d[0],d[1]));
 			}

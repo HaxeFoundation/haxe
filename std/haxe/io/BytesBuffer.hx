@@ -73,7 +73,6 @@ class BytesBuffer {
 		b.writeBytes(src.getData());
 		#elseif php
 		b += cast src.getData();
-//		b = untyped __call__("new _hx_array", __call__("array_merge", b.__a, src.getData().__a));
 		#else
 		var b1 = b;
 		var b2 = src.getData();
@@ -92,13 +91,6 @@ class BytesBuffer {
 		b.writeBytes(src.getData(),pos,len);
 		#elseif php
 		b += untyped __call__("substr", src.b, pos, len);
-/*
-		try {
-			b = untyped __call__("new _hx_array", __call__("array_merge", b.__a, __call__("array_slice", src.getData().__a, pos, len)));
-		} catch(e : Dynamic) {
-			throw Error.OutsideBounds;
-		}
-*/
 		#else
 		var b1 = b;
 		var b2 = src.getData();

@@ -49,7 +49,7 @@ class Lib {
 	}
 
 	public static inline function toPhpArray(a : Array<Dynamic>) : NativeArray {
-		return untyped a.__a;
+		return untyped __php__("$a->»a");
 	}
 
 	public static inline function toHaxeArray(a : NativeArray) : Array<Dynamic> {
@@ -58,7 +58,7 @@ class Lib {
 
 	public static function hashOfAssociativeArray<T>(arr : NativeArray) : Hash<T> {
 		var h = new Hash<T>();
-		untyped __php__("foreach($arr as $k => $v) $h->set($k, $v)");
+		untyped __php__("reset($arr); while(list($k, $v) = each($arr)) $h->set($k, $v)");
 		return h;
 	}
 

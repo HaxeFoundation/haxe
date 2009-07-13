@@ -189,21 +189,7 @@ class List<T> {
 	**/
 	public function iterator() : Iterator<T> {
 #if php
-		var it = null;
-		it = untyped {
-			h : h,
-			hasNext : function() {
-				return __php__("$it->h != null");
-			},
-			next : function() {
-				if(__php__("$it->h == null"))
-					return null;
-				var x = __php__("$it->h[0]");
-				it.h = __php__("$it->h[1]");
-				return x;
-			}
-		};
-		return cast it;
+		return untyped __call__("new _hx_list_iterator", h);
 #else
 		return cast {
 			h : h,
