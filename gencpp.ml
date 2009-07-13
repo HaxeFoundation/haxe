@@ -434,13 +434,22 @@ let implement_dynamic_here class_def =
 
 (* Make string printable for c++ code *)
 (* Here we know there are no utf8 characters, so use the L"" notation to avoid conversion *)
-let escape_stringw s =
+let escape_stringw s l =
 	let b = Buffer.create 0 in
 	Buffer.add_char b 'L';
 	Buffer.add_char b '"';
+	let skip = ref 0 in
 	for i = 0 to String.length s - 1 do
+		if (!skip>0) then begin
+			skip := !skip -1;
+			l := !l-1;
+		end else
 		match Char.code (String.unsafe_get s i) with
-		| c when (c < 32 || c>127) -> Buffer.add_string b (Printf.sprintf "\\x%X\"L\"" c)
+		| c when (c>127) ->
+			let encoded =  ((c land 0x3F) lsl 6) lor ( Char.code ((String.unsafe_get s (i+1))) land 0x7F) in
+			skip := 1;
+			Buffer.add_string b (Printf.sprintf "\\x%X\"L\"" encoded)
+		| c when (c < 32) -> Buffer.add_string b (Printf.sprintf "\\x%X\"L\"" c)
 		| c -> Buffer.add_char b (Char.chr c)
 	done;
 	Buffer.add_char b '"';
@@ -454,9 +463,14 @@ let has_utf8_chars s =
 	done;
 	!result;;
 
-let quote s = escape_stringw (Ast.s_escape s);;
+let quote s l =
+   l := String.length s;
+   escape_stringw (Ast.s_escape s) l;;
 
-let str s = "STRING(" ^ (quote s) ^ "," ^ (string_of_int (String.length s)) ^ ")";;
+let str s =
+   let l = ref 0 in
+	let q = quote s l in
+   "STRING(" ^ q ^ "," ^ (string_of_int !l) ^ ")";;
 
 (* When we are in a "real" object, we refer to ourselves as "this", but
 	if we are in a local class that is used to generate return values,
@@ -2139,8 +2153,10 @@ let generate_class_files common_ctx member_types super_deps class_def =
 						output_cpp ("	case " ^ (string_of_int l) ^ ":\n");
 						len_case := l;
 					end;
-					output_cpp ("		if (!memcmp(inName.__s," ^ quote(field) ^
-					     ",sizeof(wchar_t)*" ^ (string_of_int l) ^ ") ) { " ^ result ^ " }\n");
+					let strl = ref 0 in
+					let text = quote field strl in
+					output_cpp ("		if (!memcmp(inName.__s," ^ text ^
+					     ",sizeof(wchar_t)*" ^ (string_of_int !strl) ^ ") ) { " ^ result ^ " }\n");
 				) sfields;
 				output_cpp "	}\n";
 			end
