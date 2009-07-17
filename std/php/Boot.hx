@@ -152,7 +152,7 @@ class _hx_array implements ArrayAccess {
 	}
 }
 
-class _hx_array_iterator {
+class _hx_array_iterator implements Iterator {
 	private $»a;
 	private $»i;
 	public function __construct($a) {
@@ -167,6 +167,26 @@ class _hx_array_iterator {
 
 	public function hasNext() {
 		return $this->»i < count($this->»a);
+	}
+
+	public function current() {
+		if (!$this->hasNext()) return false;
+		return $this->»a[$this->»i];
+	}
+
+	public function key() {
+		return $this->»i;
+	}
+
+	public function valid() {
+		return $this->current() !== false;
+	}
+
+	public function rewind() {
+		$this->»i = 0;
+	}
+	public function size() {
+		return count($this->»a);
 	}
 }
 
