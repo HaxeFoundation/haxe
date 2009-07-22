@@ -42,7 +42,6 @@ package haxe.xml;
 	// in your XML, and completion works as well
 	]
 **/
-/*
 class Proxy<Const,T> {
 
 	var __f : String -> T;
@@ -52,21 +51,6 @@ class Proxy<Const,T> {
 	}
 
 	public function resolve(k) {
-		return __f(k);
-	}
-
-}
-*/
-
-class Proxy<Const,T> {
-
-	dynamic function __f(s : String) : T { return null; }
-
-	public function new(f) {
-		this.__f = f;
-	}
-
-	public function resolve(k) : T {
 		return __f(k);
 	}
 

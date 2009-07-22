@@ -48,6 +48,8 @@ TODO :
 	php: changed special vars to use the » prefix instead of __
 	php: fixed use of reserved keywords for var names
 	php: List iterator is now class based (faster)
+	php: fixed behavior of class variables having assigned functions
+	php: fixed php.db.Manager (was uncorrectly removing superclass fields)
 
 2009-03-22: 2.03
 	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php

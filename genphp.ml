@@ -515,6 +515,7 @@ let is_in_dynamic_methods ctx e s =
 
 let is_dynamic_method f =
 	(match f.cf_set with
+		| NormalAccess -> true
 		| MethodAccess true -> true
 		| _ -> false)
 		
