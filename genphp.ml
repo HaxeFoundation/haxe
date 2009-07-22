@@ -1680,6 +1680,7 @@ let generate_field ctx static f =
 			ctx.curmethod <- f.cf_name;
 		spr ctx (rights ^ " ");
 		(match f.cf_set with
+		| NormalAccess
 		| MethodAccess true ->
 			gen_dynamic_function ctx static (s_ident f.cf_name) fd f.cf_params p
 		| _ ->
@@ -1757,6 +1758,16 @@ let generate_static_field_assign ctx path f =
 			| TConst _ -> ()
 			| TFunction fd ->
 				(match f.cf_set with
+				| NormalAccess when 
+						(match follow f.cf_type with
+						| TFun _
+						| TDynamic _ ->
+							true;
+						| _ ->
+							false) -> 
+					newline ctx;
+					print ctx "%s::$%s = " (s_path ctx path false p) (s_ident f.cf_name);
+					gen_value ctx e
 				| MethodAccess true ->
 					newline ctx;
 					print ctx "%s::$%s = " (s_path ctx path false p) (s_ident f.cf_name);
