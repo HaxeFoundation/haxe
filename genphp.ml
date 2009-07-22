@@ -1721,7 +1721,22 @@ let generate_field ctx static f =
 				false) then
 				()
 		else begin
-			print ctx "%s $%s" rights (s_ident f.cf_name);
+			let name = s_ident f.cf_name in
+			if static then
+				(match f.cf_set with
+				| NormalAccess -> 
+					(match follow f.cf_type with
+					| TFun _
+					| TDynamic _ ->
+						print ctx "static function %s() { $»args = func_get_args(); return call_user_func_array(self::$%s, $»args); }" name name;
+						newline ctx;
+					| _ ->
+						()
+					)
+				| _ ->
+					()
+				);
+			print ctx "%s $%s" rights name;
 			match f.cf_expr with
 			| None -> ()
 			| Some e ->
