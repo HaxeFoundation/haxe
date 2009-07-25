@@ -53,6 +53,7 @@ TODO :
 	php: added support for native Iterator and IteratorAggregate interfaces
 	all : added --display classes and --display keywords
 	all : fixed issue with optional parameters in inline functions
+	all : allow implementing interfaces with inline methods
 
 2009-03-22: 2.03
 	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php

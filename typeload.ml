@@ -338,8 +338,10 @@ let rec check_interface ctx c p intf params =
 			let p = (match f2.cf_expr with None -> p | Some e -> e.epos) in
 			if f.cf_public && not f2.cf_public then
 				display_error ctx ("Field " ^ i ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
-			else if f2.cf_get <> f.cf_get || (f2.cf_set <> f.cf_set && (f2.cf_set,f.cf_set) <> (NeverAccess,NoAccess)) then
-				display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path) p
+			else if not (match f2.cf_get, f.cf_get with InlineAccess, NormalAccess -> true | a,b -> a = b) then
+				display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_access f2.cf_get ^ " should be " ^ s_access f.cf_get ^ ")") p
+			else if not (match f2.cf_set, f.cf_set with NeverAccess, NoAccess -> true | NeverAccess, MethodAccess false -> f2.cf_get = InlineAccess | a,b -> a = b) then
+				display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_access f2.cf_set ^ " should be " ^ s_access f.cf_set ^ ")") p			
 			else try
 				valid_redefinition ctx f2 t2 f (apply_params intf.cl_types params f.cf_type)
 			with
@@ -616,6 +618,7 @@ let init_class ctx c p herits fields =
 			) params in
 			let stat = List.mem AStatic access in
 			let inline = List.mem AInline access in
+			if inline && c.cl_interface then error "You can't declare inline methods in interfaces" p;
 			let parent = (if not stat then get_parent c name else None) in
 			let dynamic = List.mem ADynamic access || (match parent with Some { cf_set = MethodAccess true } -> true | _ -> false) in
 			let ctx = { ctx with
