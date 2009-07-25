@@ -298,13 +298,13 @@ let build_dependencies t =
 	in
 	let rec add_type_rec l t =
 		if List.memq t l then () else		
-		match follow t with
+		match t with
 		| TEnum (e,pl) ->
 			add_path e.e_path DKType;
-			List.iter (add_type_rec l) pl;
+			List.iter (add_type_rec (t::l)) pl;
 		| TInst (c,pl) ->
 			add_path c.cl_path DKType;
-			List.iter (add_type_rec l) pl;
+			List.iter (add_type_rec (t::l)) pl;
 		| TFun (pl,t2) ->
 			List.iter (fun (_,_,t2) -> add_type_rec (t::l) t2) pl;
 			add_type_rec (t::l) t2;
@@ -312,8 +312,15 @@ let build_dependencies t =
 			PMap.iter (fun _ f -> add_type_rec (t::l) f.cf_type) a.a_fields
 		| TDynamic t2 ->
 			add_type_rec (t::l) t2;
-		| _ ->
-			()
+		| TLazy f ->
+			add_type_rec l ((!f)())
+		| TMono r ->
+			(match !r with
+			| None -> ()
+			| Some t -> add_type_rec l t)
+		| TType (tt,pl) ->
+			add_type_rec (t::l) tt.t_type;
+			List.iter (add_type_rec (t::l)) pl
 	and add_type t = 
 		add_type_rec [] t
 	and add_expr e =
