@@ -28,7 +28,7 @@
 	Other kind of keys are not possible on all platforms since they
 	can't always be implemented efficiently.
 **/
-class Hash<T> {
+class Hash<T> #if php implements php.IteratorAggregate<T> #end {
 
 	private var h : #if flash9 flash.utils.Dictionary #elseif php ArrayAccess<T> #else Dynamic #end;
 
@@ -251,4 +251,13 @@ class Hash<T> {
 		s.add("}");
 		return s.toString();
 	}
+	
+	/**
+		Implement IteratorAggregate for native php iteration
+	**/
+	#if php
+	function getIterator() {
+		return iterator();
+	}
+	#end
 }

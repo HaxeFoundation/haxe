@@ -27,7 +27,7 @@
 	Hashtable over a set of elements, using [Int] as keys.
 	On Flash and Javascript, the underlying structure is an Object.
 **/
-class IntHash<T> {
+class IntHash<T> #if php implements php.IteratorAggregate<T> #end {
 
 	private var h : #if flash9 flash.utils.Dictionary #elseif php ArrayAccess<Int> #else Dynamic #end;
 
@@ -232,4 +232,12 @@ class IntHash<T> {
 		return s.toString();
 	}
 
+	/**
+		Implement IteratorAggregate for native php iteration
+	**/
+	#if php
+	function getIterator() {
+		return iterator();
+	}
+	#end
 }

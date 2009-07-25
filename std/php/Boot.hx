@@ -23,7 +23,7 @@ function _hx_anonymous($arr = array()) {
 	return $o;
 }
 
-class _hx_array implements ArrayAccess {
+class _hx_array implements ArrayAccess, IteratorAggregate {
 	var $»a;
 	var $length;
 	function __construct($a = array()) {
@@ -51,6 +51,10 @@ class _hx_array implements ArrayAccess {
 
 	function iterator() {
 		return new _hx_array_iterator($this->»a);
+	}
+	
+	function getIterator() {
+		return $this->iterator();
 	}
 
 	function join($sep) {
@@ -358,14 +362,18 @@ function _hx_len($o) {
 	return is_string($o) ? strlen($o) : $o->length;
 }
 
-class _hx_list_iterator {
+class _hx_list_iterator implements Iterator {
 	private $»h;
-	public function __construct($h) {
-		$this->»h = $h;
+	private $»list;
+	private $»counter;
+	public function __construct($list) {
+		$this->»list = $list;
+		$this->rewind();
 	}
 
 	public function next() {
 		if($this->»h == null) return null;
+		$this->»counter++;
 		$x = $this->»h[0];
 		$this->»h = $this->»h[1];
 		return $x;
@@ -373,6 +381,28 @@ class _hx_list_iterator {
 
 	public function hasNext() {
 		return $this->»h != null;
+	}
+
+	public function current() {
+		if (!$this->hasNext()) return null;
+		return $this->»h[0];
+	}
+
+	public function key() {
+		return $this->»counter;
+	}
+
+	public function valid() {
+		return $this->current() !== null;
+	}
+
+	public function rewind() {
+		$this->»counter = -1;
+		$this->»h = $this->»list->h;
+	}
+
+	public function size() {
+		return $this->»list->length;
 	}
 }
 

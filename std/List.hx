@@ -28,7 +28,7 @@
 	that are chained together. It's optimized so that adding or removing an
 	element doesn't imply to copy the whole array content everytime.
 **/
-class List<T> {
+class List<T> #if php implements php.IteratorAggregate<T> #end {
 
 	#if php
 	private var h : ArrayAccess<Dynamic>;
@@ -189,7 +189,7 @@ class List<T> {
 	**/
 	public function iterator() : Iterator<T> {
 #if php
-		return untyped __call__("new _hx_list_iterator", h);
+		return untyped __call__("new _hx_list_iterator", this);
 #else
 		return cast {
 			h : h,
@@ -277,4 +277,13 @@ class List<T> {
 		}
 		return b;
 	}
+	
+	/**
+		Implement IteratorAggregate for native php iteration
+	**/
+	#if php
+	function getIterator() {
+		return iterator();
+	}
+	#end
 }
