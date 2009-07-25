@@ -32,6 +32,12 @@
 #	include <sys/syslimits.h>
 #	include <mach-o/dyld.h>
 #endif
+#ifdef __FreeBSD__
+#	include <sys/param.h>
+#	include <sys/sysctl.h>
+#	include <sys/user.h>
+#endif
+
 
 #define zval(z)		((z_streamp)(z))
 
@@ -134,6 +140,19 @@ CAMLprim value executable_path(value u) {
 	char path[MAXPATHLEN+1];
 	uint32_t path_len = MAXPATHLEN;
 	if ( _NSGetExecutablePath(path, &path_len) )
+		failwith("executable_path");
+	return caml_copy_string(path);
+#elif __FreeBSD__
+	char path[PATH_MAX];
+	int error, name[4];
+	size_t len;
+	name[0] = CTL_KERN;
+	name[1] = KERN_PROC;
+	name[2] = KERN_PROC_PATHNAME;
+	name[3] = (int)getpid();
+	len = sizeof(path);
+	error = sysctl(name, 4, path, &len, NULL, 0);
+	if( error < 0 )
 		failwith("executable_path");
 	return caml_copy_string(path);
 #else
