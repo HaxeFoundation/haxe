@@ -33,6 +33,12 @@ let type_inline ctx cf f ethis params tret p =
 		Hashtbl.add hcount name (ref 0);
 		name
 	) f.tf_args in
+	(* use default values for null arguments *)
+	let params = List.map2 (fun e (_,opt,t) ->
+		match e.eexpr, opt with
+		| TConst TNull , Some c -> mk (TConst c) t e.epos
+		| _ -> e
+	) params f.tf_args in
 	let vthis = gen_local ctx ethis.etype in
 	let this_count = ref 0 in
 	let local i =
