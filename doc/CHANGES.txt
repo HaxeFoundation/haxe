@@ -51,6 +51,7 @@ TODO :
 	php: fixed behavior of class variables having assigned functions
 	php: fixed php.db.Manager (was uncorrectly removing superclass fields)
 	php: added support for native Iterator and IteratorAggregate interfaces
+	all : added --display classes and --display keywords
 
 2009-03-22: 2.03
 	optimized Type.enumEq : use index instead of tag comparison for neko/flash9/php

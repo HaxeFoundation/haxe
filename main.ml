@@ -101,7 +101,7 @@ let make_path f =
 	in
 	loop cl
 
-let read_type_path com p =
+let rec read_type_path com p =
 	let classes = ref [] in
 	let packages = ref [] in
 	let p = (match p with
@@ -115,18 +115,37 @@ let read_type_path com p =
 		| _ -> p
 	) in
 	List.iter (fun path ->
-		let dir = path ^ String.concat "/" p in
+		let dir = path ^ String.concat "/" p in		
 		let r = (try Sys.readdir dir with _ -> [||]) in
 		Array.iter (fun f ->
-			if (Unix.stat (dir ^ "/" ^ f)).Unix.st_kind = Unix.S_DIR then begin
-				if f.[0] >= 'a' && f.[0] <= 'z' then packages := f :: !packages
+			if (try (Unix.stat (dir ^ "/" ^ f)).Unix.st_kind = Unix.S_DIR with _ -> false) then begin
+				if f.[0] >= 'a' && f.[0] <= 'z' then begin
+					if p = ["."] then
+						match read_type_path com [f] with
+						| [] , [] -> ()
+						| _ ->
+							try 
+								match PMap.find f com.package_rules with
+								| Forbidden -> ()
+								| Remap f -> packages := f :: !packages
+								| Directory _ -> raise Not_found
+							with Not_found ->
+								packages := f :: !packages
+					else
+						packages := f :: !packages
+				end;
 			end else if file_extension f = "hx" then begin
 				let c = Filename.chop_extension f in
 				if String.length c < 2 || String.sub c (String.length c - 2) 2 <> "__" then classes := c :: !classes;
 			end;
 		) r;
 	) com.class_path;
-	List.sort compare (!packages), List.sort compare (!classes)
+	let rec unique = function
+		| [] -> []
+		| x1 :: x2 :: l when x1 = x2 -> unique (x2 :: l)
+		| x :: l -> x :: unique l
+	in
+	unique (List.sort compare (!packages)), unique (List.sort compare (!classes))
 
 let delete_file f = try Sys.remove f with _ -> ()
 
@@ -186,6 +205,7 @@ try
 	let gen_as3 = ref false in
 	let no_output = ref false in
 	let did_something = ref false in
+	let pre_compilation = ref [] in
 	let root_packages = ["neko"; "flash"; "flash9"; "js"; "php"; "cpp"] in
 	Common.define com ("haxe_" ^ string_of_int version);
 	com.warning <- message;
@@ -352,15 +372,22 @@ try
 		),"<file> : generate hx headers from SWF9 file");
 		("--next", Arg.Unit (fun() -> assert false), ": separate several haxe compilations");
 		("--display", Arg.String (fun file_pos ->
-			let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
-			let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
-			display := true;
-			no_output := true;
-			Parser.resume_display := {
-				Ast.pfile = Common.get_full_path file;
-				Ast.pmin = pos;
-				Ast.pmax = pos;
-			};
+			match file_pos with
+			| "classes" ->
+				pre_compilation := (fun() -> raise (Parser.TypePath ["."])) :: !pre_compilation;
+			| "keywords" ->
+				report_list (Hashtbl.fold (fun k _ acc -> (k,"","") :: acc) Lexer.keywords []);
+				exit 0;
+			| _ ->
+				let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
+				let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
+				display := true;
+				no_output := true;
+				Parser.resume_display := {
+					Ast.pfile = Common.get_full_path file;
+					Ast.pmin = pos;
+					Ast.pmax = pos;
+				};
 		),": display code tips");
 		("--no-output", Arg.Unit (fun() -> no_output := true),": compiles but does not generate any file");
 		("--times", Arg.Unit (fun() -> measure_times := true),": mesure compilation times");
@@ -420,7 +447,7 @@ try
 			if com.flash_version >= 9 then begin
 				Common.define com "flash9"; (* always define flash9, even for flash10+ *)
 				com.package_rules <- PMap.add "flash" (Directory "flash9") com.package_rules;
-				com.package_rules <- PMap.add "flash9" (Directory "flash9") com.package_rules;
+				com.package_rules <- PMap.add "flash9" Forbidden com.package_rules;
 				com.platform <- Flash9;
 			end;
 			"swf"
@@ -432,6 +459,7 @@ try
 	(* check file extension. In case of wrong commandline, we don't want
 		to accidentaly delete a source file. *)
 	if not !no_output && file_extension com.file = ext then delete_file com.file;
+	List.iter (fun f -> f()) (List.rev (!pre_compilation));
 	if !classes = [([],"Std")] then begin
 		if !cmds = [] && not !did_something then Arg.usage basic_args_spec usage;
 	end else begin
