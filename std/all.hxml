@@ -49,6 +49,7 @@ haxe.ImportAll
 -cpp all_cpp
 --no-output
 -xml cpp.xml
+-D xmldoc
 haxe.ImportAll
 
 --next

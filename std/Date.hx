@@ -28,7 +28,7 @@
 	available in the [DateTools] class.
 **/
 
-#if cpp
+#if (cpp && !xmldoc)
 typedef Date = cpp.CppDate__;
 #else
 

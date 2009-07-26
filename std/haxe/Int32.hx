@@ -24,7 +24,7 @@
  */
 package haxe;
 
-#if cpp
+#if (cpp && !xmldoc)
 typedef Int32 = cpp.CppInt32__;
 #else
 

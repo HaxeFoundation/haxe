@@ -31,7 +31,7 @@
 **/
 
 
-#if cpp
+#if (cpp && !xmldoc)
 typedef XmlType = String;
 typedef Xml = cpp.CppXml__;
 #else
@@ -228,7 +228,7 @@ extern class Xml {
 		Returns a String representation of the Xml node.
 	**/
 	function toString() : String;
-	
+
 #if !php
 	static function __init__() : Void untyped {
 		#if neko
