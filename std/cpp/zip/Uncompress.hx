@@ -61,9 +61,9 @@ class Uncompress {
 		return b.getBytes();
 	}
 
-	static var _inflate_init = neko.Lib.load("zlib","inflate_init",1);
-	static var _inflate_buffer = neko.Lib.load("zlib","inflate_buffer",5);
-	static var _inflate_end = neko.Lib.load("zlib","inflate_end",1);
-	static var _set_flush_mode = neko.Lib.load("zlib","set_flush_mode",2);
+	static var _inflate_init = cpp.Lib.load("zlib","inflate_init",1);
+	static var _inflate_buffer = cpp.Lib.load("zlib","inflate_buffer",5);
+	static var _inflate_end = cpp.Lib.load("zlib","inflate_end",1);
+	static var _set_flush_mode = cpp.Lib.load("zlib","set_flush_mode",2);
 
 }
