@@ -40,7 +40,7 @@ type access_kind =
 	| AccExpr of texpr
 	| AccSet of texpr * string * t * string
 	| AccInline of texpr * tclass_field * t
-	| AccUsing of texpr * string * texpr
+	| AccUsing of texpr * texpr
 
 let mk_infos ctx p params =
 	(EObjectDecl (
@@ -264,19 +264,39 @@ let get_constructor c p =
 	with Not_found ->
 		error (s_type_path c.cl_path ^ " does not have a constructor") p
 
+let make_call ctx e params t p =
+	try
+		if not ctx.doinline then raise Exit;
+		let ethis, fname = (match e.eexpr with TField (ethis,fname) -> ethis, fname | _ -> raise Exit) in
+		let f = (match follow ethis.etype with
+			| TInst (c,params) -> snd (try class_field c fname with Not_found -> raise Exit)
+			| TAnon a -> (try PMap.find fname a.a_fields with Not_found -> raise Exit)
+			| _ -> raise Exit
+		) in
+		if f.cf_get <> InlineAccess then raise Exit;
+		ignore(follow f.cf_type); (* force evaluation *)
+		(match f.cf_expr with
+		| Some { eexpr = TFunction fd } ->
+			(match Optimizer.type_inline ctx f fd ethis params t p with
+			| None -> raise Exit
+			| Some e -> e)
+		| _ -> 
+			error "Recursive inline is not supported" p)
+	with Exit ->
+		mk (TCall (e,params)) t p
+		
 let rec acc_get ctx g p =
 	match g with
 	| AccNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
 	| AccExpr e -> e
 	| AccSet _ -> assert false
-	| AccUsing (et,field,e) ->
+	| AccUsing (et,e) ->
 		(* build a closure with first parameter applied *)
-		let ef = acc_get ctx ((!type_field_rec) ctx et field p MCall) p in
-		(match follow ef.etype with
+		(match follow et.etype with
 		| TFun (_ :: args,ret) ->
 			let tcallb = TFun (args,ret) in	
 			let twrap = TFun ([("_e",false,e.etype)],tcallb) in
-			let ecall = mk (TCall (ef,List.map (fun (n,_,t) -> mk (TLocal n) t p) (("_e",false,e.etype) :: args))) ret p in
+			let ecall = make_call ctx et (List.map (fun (n,_,t) -> mk (TLocal n) t p) (("_e",false,e.etype) :: args)) ret p in
 			let ecallb = mk (TFunction {
 				tf_args = List.map (fun (n,_,t) -> n,None,t) args;
 				tf_type = ret;
@@ -287,7 +307,7 @@ let rec acc_get ctx g p =
 				tf_type = tcallb;
 				tf_expr = mk (TReturn (Some ecallb)) t_dynamic p; 
 			}) twrap p in
-			mk (TCall (ewrap,[e])) tcallb p
+			make_call ctx ewrap [e] tcallb p
 		| _ -> assert false)
 	| AccInline (e,f,t) ->
 		ignore(follow f.cf_type); (* force computing *)
@@ -328,11 +348,11 @@ let field_access ctx mode f t e p =
 		else if mode = MSet then
 			AccSet (e,m,t,f.cf_name)
 		else
-			AccExpr (mk (TCall (mk (TField (e,m)) (tfun [] t) p,[])) t p)			
+			AccExpr (make_call ctx (mk (TField (e,m)) (tfun [] t) p) [] t p)
 	| ResolveAccess ->
 		let fstring = mk (TConst (TString f.cf_name)) ctx.api.tstring p in
 		let tresolve = tfun [ctx.api.tstring] t in
-		AccExpr (mk (TCall (mk (TField (e,"resolve")) tresolve p,[fstring])) t p)
+		AccExpr (make_call ctx (mk (TField (e,"resolve")) tresolve p) [fstring] t p)
 	| NeverAccess ->
 		AccNo f.cf_name
 	| InlineAccess ->
@@ -488,7 +508,7 @@ let rec type_field ctx e i p mode =
 					| TFun ((_,_,t0) :: args,r) ->
 						(try unify_raise ctx e.etype t0 p with Error (Unify _,_) -> raise Not_found);
 						let et = type_module_type ctx (TClassDecl c) None p in						
-						AccUsing (et,i,e)
+						AccUsing (mk (TField (et,i)) t p,e)
 					| _ -> raise Not_found)
 				with Not_found ->
 					loop l
@@ -506,7 +526,7 @@ let rec type_field ctx e i p mode =
 			| Some t ->
 				let t = apply_params c.cl_types params t in
 				if mode = MGet && PMap.mem "resolve" c.cl_fields then
-					AccExpr (mk (TCall (mk (TField (e,"resolve")) (tfun [ctx.api.tstring] t) p,[Typeload.type_constant ctx (String i) p])) t p)
+					AccExpr (make_call ctx (mk (TField (e,"resolve")) (tfun [ctx.api.tstring] t) p) [Typeload.type_constant ctx (String i) p] t p)
 				else
 					AccExpr (mk (TField (e,i)) t p)
 			| None ->
@@ -639,7 +659,7 @@ let rec type_binop ctx op e1 e2 p =
 			mk (TBinop (op,e1,e2)) e1.etype p
 		| AccSet (e,m,t,_) ->
 			unify ctx e2.etype t p;
-			mk (TCall (mk (TField (e,m)) (tfun [t] t) p,[e2])) t p
+			make_call ctx (mk (TField (e,m)) (tfun [t] t) p) [e2] t p
 		| AccInline _ | AccUsing _ ->
 			assert false)
 	| OpAssignOp op ->
@@ -663,7 +683,7 @@ let rec type_binop ctx op e1 e2 p =
 			l();
 			mk (TBlock [
 				mk (TVars [v,e.etype,Some e]) ctx.api.tvoid p;
-				mk (TCall (mk (TField (ev,m)) (tfun [t] t) p,[get])) t p
+				make_call ctx (mk (TField (ev,m)) (tfun [t] t) p) [get] t p
 			]) t p
 		| AccInline _ | AccUsing _ ->
 			assert false)
@@ -853,7 +873,7 @@ and type_unop ctx op flag e p =
 			l();
 			mk (TBlock [
 				mk (TVars [v,e.etype,Some e]) ctx.api.tvoid p;
-				mk (TCall (mk (TField (ev,m)) (tfun [t] t) p,[get])) t p
+				make_call ctx (mk (TField (ev,m)) (tfun [t] t) p) [get] t p
 			]) t p
 		| Postfix ->
 			let v2 = gen_local ctx t in
@@ -864,7 +884,7 @@ and type_unop ctx op flag e p =
 			l();
 			mk (TBlock [
 				mk (TVars [v,e.etype,Some e; v2,t,Some get]) ctx.api.tvoid p;
-				mk (TCall (mk (TField (ev,m)) (tfun [plusone.etype] t) p,[plusone])) t p;
+				make_call ctx (mk (TField (ev,m)) (tfun [plusone.etype] t) p) [plusone] t p;
 				ev2
 			]) t p
 
@@ -1234,7 +1254,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 						match follow acc.etype with
 						| TFun ([],it) ->
 							unify ctx it t e1.epos;
-							mk (TCall (acc,[])) t e1.epos
+							make_call ctx acc [] t e1.epos
 						| _ ->
 							error "The field iterator is not a method" e1.epos
 					)
@@ -1526,7 +1546,7 @@ and type_call ctx e el p =
 						tf_args = missing_args;
 						tf_type = ret;
 						tf_expr = mk (TReturn (Some (
-							mk (TCall (vexpr fun_arg,List.map vexpr (first_args @ missing_args))) ret p
+							make_call ctx (vexpr fun_arg) (List.map vexpr (first_args @ missing_args)) ret p
 						))) ret p;
 					}) (TFun (fun_args missing_args,ret)) p in
 					let func = mk (TFunction {
@@ -1577,21 +1597,14 @@ and type_call ctx e el p =
 				| TFun (args,r) -> unify_call_params ctx (Some f.cf_name) el args p true, r
 				| _ -> error (s_type (print_context()) t ^ " cannot be called") p
 			) in
-			ignore(follow f.cf_type); (* force evaluation *)
-			(match f.cf_expr with
-			| Some { eexpr = TFunction fd } ->
-				let i = if ctx.doinline then Optimizer.type_inline ctx f fd ethis params tret p else None in
-				(match i with
-				| None -> mk (TCall (mk (TField (ethis,f.cf_name)) t p,params)) tret p
-				| Some e -> e)
-			| _ -> error "Recursive inline is not supported" p)
-		| AccUsing (et,field,eparam) ->
-			let ef = acc_get ctx (type_field ctx et field p MCall) p in
-			let params, tret = (match follow ef.etype with
-				| TFun ( _ :: args,r) -> unify_call_params ctx (Some field) el args p false, r
+			make_call ctx (mk (TField (ethis,f.cf_name)) t p) params tret p
+		| AccUsing (et,eparam) ->
+			let fname = (match et.eexpr with TField (_,f) -> f | _ -> assert false) in
+			let params, tret = (match follow et.etype with
+				| TFun ( _ :: args,r) -> unify_call_params ctx (Some fname) el args p false, r
 				| _ -> assert false
 			) in
-			mk (TCall (ef,eparam :: params)) tret p
+			make_call ctx et (eparam::params) tret p
 		| acc ->
 			let e = acc_get ctx acc p in
 			let el , t = (match follow e.etype with
