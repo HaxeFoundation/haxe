@@ -20,7 +20,7 @@ open Printf
 open Genswf
 open Common
 
-let version = 203
+let version = 204
 
 let prompt = ref false
 let display = ref false

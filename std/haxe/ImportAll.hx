@@ -566,3 +566,30 @@ import php.io.Process;
 
 #end
 
+#if cpp
+
+import cpp.FileSystem;
+import cpp.Lib;
+import cpp.Random;
+import cpp.Sys;
+
+import cpp.io.File;
+import cpp.io.FileInput;
+import cpp.io.FileOutput;
+import cpp.io.Path;
+import cpp.io.Process;
+
+import cpp.net.Host;
+import cpp.net.Socket;
+import cpp.net.SocketInput;
+import cpp.net.SocketOutput;
+
+import cpp.vm.Gc;
+import cpp.vm.Lock;
+import cpp.vm.Mutex;
+import cpp.vm.Thread;
+
+import cpp.zip.Flush;
+import cpp.zip.Uncompress;
+
+#end

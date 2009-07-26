@@ -51,3 +51,11 @@ unit.Test
 -cp ..
 -resource res1.txt
 -resource res2.bin
+
+#--next
+#-cpp cpp
+#-main unit.Test
+#-cp ..
+#-resource res1.txt
+#-resource res2.bin
+

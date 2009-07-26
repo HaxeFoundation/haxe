@@ -1,9 +1,4 @@
-TODO :
-	SWC input support
-	flash9 : optimize enum parameters storage
-	rtti : allow rtti on all types and store them in a global static Hash<CType> (instead of XML)
-
-2009-??-??: 2.04
+2009-07-26: 2.04
 	flash9 : fixed get_full_path error with -D fdb
 	js : fixed Array.remove on IE
 	flash8 : removed extra empty AS3 tag (causing some issue with F8 loadMovie)
