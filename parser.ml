@@ -375,7 +375,7 @@ and parse_class_field s =
 			} in
 			(FFun (name,doc,l,pl,f),punion p1 (pos e))
 		| [< >] ->
-			if l = [] && doc = None then raise Stream.Failure else serror()
+			if l = [] then raise Stream.Failure else serror()
 
 and parse_signature_field flag = parser
 	| [< '(Kwd Var,p1); name = any_ident; s >] ->
