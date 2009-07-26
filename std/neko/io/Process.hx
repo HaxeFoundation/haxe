@@ -114,9 +114,14 @@ class Process {
 		_close(p);
 	}
 
+	public function kill() {
+		_kill(p);
+	}
+
 	static var _run = neko.Lib.load("std","process_run",2);
 	static var _exit = neko.Lib.load("std","process_exit",1);
 	static var _pid = neko.Lib.load("std","process_pid",1);
 	static var _close = neko.Lib.loadLazy("std","process_close",1);
+	static var _kill = neko.Lib.loadLazy("std","process_kill",1);
 
 }
