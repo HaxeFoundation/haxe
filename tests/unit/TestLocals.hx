@@ -29,7 +29,8 @@ class TestLocals extends Test {
 		}
 		eq(x,0);
 		// if
-		if( true ) {
+		var flag = true;
+		if( flag ) {
 			var x = "hello";
 			eq(x,"hello");
 		}
