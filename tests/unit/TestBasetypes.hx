@@ -26,6 +26,12 @@ class TestBasetypes extends Test {
 		unspec(function() String.fromCharCode(256));
 		eq( null + "x", "nullx" );
 		eq( "x" + null, "xnull" );
+
+		var abc = "abc".split("");
+		eq( abc.length, 3 );
+		eq( abc[0], "a" );
+		eq( abc[1], "b" );
+		eq( abc[2], "c" );
 	}
 
 	function testMath() {
