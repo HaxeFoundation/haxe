@@ -30,6 +30,10 @@ class NativeArray<T> implements ArrayAccess<T> {
 		return untyped __dollar__amake(length);
 	}
 
+	public static inline function blit<T>( dst : NativeArray<T>, dstPos : Int, src : NativeArray<T>, srcPos : Int, length : Int ) {
+		return untyped __dollar__blit(dst,dstPos,src,srcPos,length);
+	}
+
 	public static inline function ofArrayCopy<T>( a : Array<T> ) : NativeArray<T> {
 		return untyped a.__neko();
 	}
