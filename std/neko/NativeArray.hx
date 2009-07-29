@@ -31,7 +31,7 @@ class NativeArray<T> implements ArrayAccess<T> {
 	}
 
 	public static inline function blit<T>( dst : NativeArray<T>, dstPos : Int, src : NativeArray<T>, srcPos : Int, length : Int ) {
-		return untyped __dollar__blit(dst,dstPos,src,srcPos,length);
+		return untyped __dollar__ablit(dst,dstPos,src,srcPos,length);
 	}
 
 	public static inline function ofArrayCopy<T>( a : Array<T> ) : NativeArray<T> {
