@@ -61,6 +61,10 @@ class Lib {
 		untyped __php__("reset($arr); while(list($k, $v) = each($arr)) $h->set($k, $v)");
 		return h;
 	}
+	
+	public static function associativeArrayOfHash(hash : Hash<Dynamic>) : NativeArray {
+		return untyped hash.h;
+	}
 
 	/**
 		For neko compatibility only.
