@@ -64,6 +64,8 @@ class TestRunner {
 			__dollar__print(v);
 		#elseif php
 			php.Lib.print(v);
+		#elseif cpp
+			cpp.Lib.print(v);
 		#elseif js
 			var msg = StringTools.htmlEscape(js.Boot.__string_rec(v,"")).split("\n").join("<br/>");
 			var d = document.getElementById("haxe:trace");
