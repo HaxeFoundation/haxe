@@ -46,7 +46,7 @@ typedef MetaDom<T> = {
 	function cloneNode( deep : Bool ) : T;
 	function hasChildNodes() : Bool;
 	function insertBefore( newChild : T, refChild : T ) : Void;
-	function removeChild( child : T ) : Void;
+	function removeChild( child : T ) : T;
 	function replaceChild( child : T, oldChild : T ) : Void;
 	function getAttribute( attr : String ) : String;
 	function setAttribute( attr : String, val : String ) : Void;
