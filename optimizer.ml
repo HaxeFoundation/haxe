@@ -433,4 +433,4 @@ let rec reduce_loop com is_sub e =
 		e
 
 let reduce_expression com e =
-	reduce_loop com false e
+	if com.foptimize then reduce_loop com false e else e

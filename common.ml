@@ -56,6 +56,7 @@ type context = {
 	version : int;
 	mutable debug : bool;
 	mutable verbose : bool;
+	mutable foptimize : bool;
 	mutable platform : platform;
 	mutable class_path : string list;
 	mutable main_class : Type.path option; 
@@ -82,6 +83,7 @@ let create v =
 		version = v;
 		debug = false;
 		verbose = false;
+		foptimize = true;
 		platform = Cross;
 		class_path = [];
 		main_class = None;

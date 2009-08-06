@@ -294,7 +294,10 @@ try
 			Common.define com l;
 		),"<library[:version]> : use an haxelib library");
 		("-D",Arg.String (fun var ->
-			if var = "use_rtti_doc" then Parser.use_doc := true;
+			(match var with
+			| "use_rtti_doc" -> Parser.use_doc := true
+			| "noopt" -> com.foptimize <- false
+			| _ -> ());
 			Common.define com var
 		),"<var> : define a conditional compilation flag");
 		("-v",Arg.Unit (fun () ->
