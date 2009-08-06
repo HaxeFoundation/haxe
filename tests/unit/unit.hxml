@@ -1,10 +1,11 @@
-# Flash
+# 
 -swf unit8.swf
 -main unit.Test
 -debug
 -cp ..
 -resource res1.txt
 -resource res2.bin
+-D noopt
 
 --next
 # Flash9
@@ -14,11 +15,13 @@
 -cp ..
 -resource res1.txt
 -resource res2.bin
+-D noopt
 
 #--next
 #-as3 as3
 #-cp ..
 #-main unit.Test
+#-D noopt
 #-cmd mxmlc -default-size 800 600 -debug -output unit9_as3.swf as3/__main__.as
 
 --next
@@ -28,15 +31,16 @@ unit.Test
 -cp ..
 -resource res1.txt
 -resource res2.bin
+-D noopt
 
 --next
-# Neko
+# 
 -neko unit.n
 -main unit.Test
 -cp ..
 -resource res1.txt
 -resource res2.bin
-
+-D noopt
 
 --next
 # RemotingServer
@@ -51,6 +55,7 @@ unit.Test
 -cp ..
 -resource res1.txt
 -resource res2.bin
+-D noopt
 
 #--next
 #-cpp cpp
@@ -58,4 +63,4 @@ unit.Test
 #-cp ..
 #-resource res1.txt
 #-resource res2.bin
-
+#-D noopt
