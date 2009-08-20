@@ -965,7 +965,10 @@ and type_switch ctx e cases def need_val p =
 			v
 		) el in
 		if el = [] then error "Case must match at least one expression" (pos e2);
-		let e2 = type_expr ctx ~need_val e2 in
+		let e2 = (match fst e2 with 
+			| EBlock [] -> mk (TConst TNull) ctx.api.tvoid (pos e2)
+			| _ -> type_expr ctx ~need_val e2
+		) in
 		locals();
 		unify_val e2;
 		(el,e2)
