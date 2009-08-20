@@ -59,7 +59,7 @@ class Http {
 	var chunk_buf : haxe.io.Bytes;
 	var file : { param : String, filename : String, io : haxe.io.Input, size : Int };
 #elseif js
-	var async : Bool;
+	public var async : Bool;
 	var postData : String;
 #end
 	var headers : Hash<String>;
