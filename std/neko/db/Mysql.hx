@@ -191,7 +191,12 @@ class Mysql {
 			socket : if( params.socket == null ) null else params.socket.__s
 		};
 		var c = D.connect(o);
-		D.select_db(c,untyped params.database.__s);
+		try {
+			D.select_db(c,untyped params.database.__s);
+		} catch( e : Dynamic ) {
+			D.close(c);
+			neko.Lib.rethrow(e);
+		}
 		return new MysqlConnection(c);
 	}
 
