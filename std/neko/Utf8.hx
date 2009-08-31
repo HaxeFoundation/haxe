@@ -58,9 +58,10 @@ class Utf8 {
 		var ret = untyped __dollar__smake(sl);
 		var i = 0;
 		utf8_iter(s,function(c) {
-			// euro symbol
-			if( c == 8364 )
+			if( c == 8364 ) // euro symbol
 				c = 164;
+			else if( c == 0xFEFF ) // BOM
+				return;
 			else if( c > 255 )
 				throw "Utf8::decode invalid character ("+c+")";
 			untyped __dollar__sset(ret,i,c);
