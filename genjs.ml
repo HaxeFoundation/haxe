@@ -24,6 +24,7 @@ type ctx = {
 	buf : Buffer.t;
 	packages : (string list,unit) Hashtbl.t;
 	stack : Codegen.stack_context;
+	namespace : string option;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
 	mutable inits : texpr list;
@@ -35,8 +36,12 @@ type ctx = {
 	mutable curmethod : (string * bool);
 }
 
-let s_path = function
+let s_path ctx = function
 	| ([],"@Main") -> "$Main"
+	| ([],p) -> 
+		(match ctx.namespace with
+		| None -> p
+		| Some ns -> ns ^ "." ^ p)
 	| p -> Ast.s_type_path p
 
 let kwds =
@@ -144,7 +149,7 @@ let rec gen_call ctx e el =
 		(match ctx.current.cl_super with
 		| None -> assert false
 		| Some (c,_) ->
-			print ctx "%s.apply(%s,[" (s_path c.cl_path) (this ctx);
+			print ctx "%s.apply(%s,[" (s_path ctx c.cl_path) (this ctx);
 			concat ctx "," (gen_value ctx) params;
 			spr ctx "])";
 		);
@@ -152,7 +157,7 @@ let rec gen_call ctx e el =
 		(match ctx.current.cl_super with
 		| None -> assert false
 		| Some (c,_) ->
-			print ctx "%s.prototype%s.apply(%s,[" (s_path c.cl_path) (field name) (this ctx);
+			print ctx "%s.prototype%s.apply(%s,[" (s_path ctx c.cl_path) (field name) (this ctx);
 			concat ctx "," (gen_value ctx) params;
 			spr ctx "])";
 		);
@@ -206,7 +211,7 @@ and gen_expr ctx e =
 	| TConst c -> gen_constant ctx e.epos c
 	| TLocal s -> spr ctx (ident s)
 	| TEnumField (e,s) ->
-		print ctx "%s%s" (s_path e.e_path) (field s)
+		print ctx "%s%s" (s_path ctx e.e_path) (field s)
 	| TArray (e1,e2) ->
 		gen_value ctx e1;
 		spr ctx "[";
@@ -231,7 +236,7 @@ and gen_expr ctx e =
 		gen_constant ctx e.epos (TString s);
 		spr ctx ")";
 	| TTypeExpr t ->
-		spr ctx (s_path (t_path t))
+		spr ctx (s_path ctx (t_path t))
 	| TParenthesis e ->
 		spr ctx "(";
 		gen_value ctx e;
@@ -295,7 +300,7 @@ and gen_expr ctx e =
 				gen_value ctx e
 		) vl;
 	| TNew (c,_,el) ->
-		print ctx "new %s(" (s_path c.cl_path);
+		print ctx "new %s(" (s_path ctx c.cl_path);
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 	| TIf (cond,e,eelse) ->
@@ -592,20 +597,20 @@ let generate_package_create ctx (p,_) =
 let gen_class_static_field ctx c f =
 	match f.cf_expr with
 	| None ->
-		print ctx "%s%s = null" (s_path c.cl_path) (field f.cf_name);
+		print ctx "%s%s = null" (s_path ctx c.cl_path) (field f.cf_name);
 		newline ctx
 	| Some e ->
 		match e.eexpr with
 		| TFunction _ ->
 			ctx.curmethod <- (f.cf_name,false);
-			print ctx "%s%s = " (s_path c.cl_path) (field f.cf_name);
+			print ctx "%s%s = " (s_path ctx c.cl_path) (field f.cf_name);
 			gen_value ctx e;
 			newline ctx
 		| _ ->
 			ctx.statics <- (c,f.cf_name,e) :: ctx.statics
 
 let gen_class_field ctx c f =
-	print ctx "%s.prototype%s = " (s_path c.cl_path) (field f.cf_name);
+	print ctx "%s.prototype%s = " (s_path ctx c.cl_path) (field f.cf_name);
 	match f.cf_expr with
 	| None ->
 		print ctx "null";
@@ -618,7 +623,7 @@ let gen_class_field ctx c f =
 let generate_class ctx c =
 	ctx.current <- c;
 	ctx.curmethod <- ("new",true);
-	let p = s_path c.cl_path in
+	let p = s_path ctx c.cl_path in
 	generate_package_create ctx c.cl_path;
 	print ctx "%s = " p;
 	(match c.cl_constructor with
@@ -638,7 +643,7 @@ let generate_class ctx c =
 	(match c.cl_super with
 	| None -> ()
 	| Some (csup,_) ->
-		let psup = s_path csup.cl_path in
+		let psup = s_path ctx csup.cl_path in
 		print ctx "%s.__super__ = %s" p psup;
 		newline ctx;
 		print ctx "for(var k in %s.prototype ) %s.prototype[k] = %s.prototype[k]" psup p psup;
@@ -651,11 +656,11 @@ let generate_class ctx c =
 	match c.cl_implements with
 	| [] -> ()
 	| l ->
-		print ctx "%s.__interfaces__ = [%s]" p (String.concat "," (List.map (fun (i,_) -> s_path i.cl_path) l));
+		print ctx "%s.__interfaces__ = [%s]" p (String.concat "," (List.map (fun (i,_) -> s_path ctx i.cl_path) l));
 		newline ctx
 
 let generate_enum ctx e =
-	let p = s_path e.e_path in
+	let p = s_path ctx e.e_path in
 	generate_package_create ctx e.e_path;
 	let ename = List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst e.e_path @ [snd e.e_path]) in
 	print ctx "%s = { __ename__ : [%s], __constructs__ : [%s] }" p (String.concat "," ename) (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
@@ -677,7 +682,7 @@ let generate_enum ctx e =
 	) e.e_constrs
 
 let generate_static ctx (c,f,e) =
-	print ctx "%s%s = " (s_path c.cl_path) (field f);
+	print ctx "%s%s = " (s_path ctx c.cl_path) (field f);
 	gen_value ctx e;
 	newline ctx
 
@@ -698,6 +703,7 @@ let generate com =
 		stack = Codegen.stack_init com false;
 		buf = Buffer.create 16000;
 		packages = Hashtbl.create 0;
+		namespace = com.js_namespace;
 		statics = [];
 		inits = [];
 		current = null_class;
@@ -711,11 +717,21 @@ let generate com =
 	let t = Common.timer "generate js" in
 	print ctx "$estr = function() { return js.Boot.__string_rec(this,''); }";
 	newline ctx;
+	(match ctx.namespace with
+		| None -> ()
+		| Some ns -> 
+			print ctx "if(typeof %s=='undefined') %s = {}" ns ns;
+			newline ctx);
 	List.iter (generate_type ctx) com.types;
 	print ctx "$_ = {}";
 	newline ctx;
 	print ctx "js.Boot.__res = {}";
 	newline ctx;
+	(match ctx.namespace with
+		| None -> ()
+		| Some ns -> 
+			print ctx "js.Boot.__ns = '%s'" ns;
+			newline ctx);
 	if com.debug then begin
 		print ctx "%s = []" ctx.stack.Codegen.stack_var;
 		newline ctx;

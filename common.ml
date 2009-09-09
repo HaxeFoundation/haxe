@@ -64,6 +64,7 @@ type context = {
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable error : string -> pos -> unit;
 	mutable warning : string -> pos -> unit;
+	mutable js_namespace : string option;
 	(* output *)
 	mutable file : string;
 	mutable flash_version : int;
@@ -94,6 +95,7 @@ let create v =
 		flash_version = 8;
 		resources = Hashtbl.create 0;
 		php_front = None;
+		js_namespace = None;
 		warning = (fun _ _ -> assert false);
 		error = (fun _ _ -> assert false);
 		type_api = {
