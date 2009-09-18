@@ -364,6 +364,15 @@ let set_reg ctx r =
 	coerce ctx r.rtype;
 	write ctx (HSetReg r.rid)
 
+let set_reg_dup ctx r =
+	if not r.rinit then begin
+		r.rinit <- true;
+		if ctx.infos.icond then r.rcond <- true;
+	end;
+	coerce ctx r.rtype;
+	write ctx HDup;
+	write ctx (HSetReg r.rid)
+
 let free_reg ctx r =
 	r.rused <- false
 
@@ -422,12 +431,13 @@ let get_local_register ctx name =
 let rec setvar ctx (acc : write access) kret =
 	match acc with
 	| VReg r ->
-		if kret <> None then write ctx HDup;
-		set_reg ctx r;
+		if kret <> None then
+			set_reg_dup ctx r
+		else
+			set_reg ctx r;
 	| VGlobal _ | VId _ | VCast _ | VArray | VScope _ when kret <> None ->
 		let r = alloc_reg ctx (match kret with None -> assert false | Some k -> k) in
-		write ctx HDup;
-		set_reg ctx r;
+		set_reg_dup ctx r;
 		setvar ctx acc None;
 		write ctx (HReg r.rid);
 		free_reg ctx r
