@@ -675,8 +675,10 @@ let check_local_vars_init e =
 (* -------------------------------------------------------------------------- *)
 (* POST PROCESS *)
 
-let post_process ctx filters =
-	List.iter (function
+let post_process ctx filters tfilters =
+	List.iter (fun t ->
+		List.iter (fun f -> f t) tfilters;
+		match t with
 		| TClassDecl c ->
 			let process_field f =
 				match f.cf_expr with
@@ -794,6 +796,61 @@ let stack_block ctx c m e =
 		)) e.etype e.epos
 	| _ ->
 		assert false
+
+(* -------------------------------------------------------------------------- *)
+(* FIX OVERRIDES *)
+
+(*
+	on some platforms which doesn't support type parameters, we must have the
+	exact same type for overriden/implemented function as the original one
+*)
+let fix_override c f fd =
+	c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
+	let rec find_field c interf =
+		try
+			interf, PMap.find f.cf_name c.cl_fields			
+		with Not_found -> try
+			match c.cl_super with
+			| None ->
+				raise Not_found
+			| Some (c,_) ->
+				find_field c false
+		with Not_found ->
+			let rec loop = function
+				| [] ->
+					raise Not_found
+				| (c,_) :: l ->
+					try
+						find_field c true
+					with
+						Not_found -> loop l
+			in
+			loop c.cl_implements
+	in
+	let f2 = (try Some (find_field c true) with Not_found -> None) in
+	let f = (match f2 with
+		| Some (interf,f2) -> 
+			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> assert false) in
+			let fd2 = { fd with tf_args = List.map2 (fun (n,c,t) (_,_,t2) -> (n,c,t2)) fd.tf_args targs; tf_type = tret } in
+			let fde = (match f.cf_expr with None -> assert false | Some e -> e) in
+			{ f with cf_expr = Some { fde with eexpr = TFunction fd2 } }
+		| _ -> f
+	) in
+	c.cl_fields <- PMap.add f.cf_name f c.cl_fields;
+	f
+
+let fix_overrides com t =
+	match com.platform, t with
+	| Flash9, TClassDecl c ->
+		c.cl_ordered_fields <- List.map (fun f ->
+			match f.cf_expr with
+			| Some { eexpr = TFunction fd } when f.cf_set <> NormalAccess && f.cf_set <> MethodAccess true ->
+				fix_override c f fd
+			| _ ->
+				f
+		) c.cl_ordered_fields
+	| _ ->
+		()
 
 (* -------------------------------------------------------------------------- *)
 (* MISC FEATURES *)

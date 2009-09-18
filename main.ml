@@ -488,8 +488,11 @@ try
 			Codegen.check_local_vars_init;
 			Codegen.block_vars com;
 		] in
+		let tfilters = [
+			Codegen.fix_overrides com;
+		] in
 		let filters = (if Common.defined com "no_opt" then filters else Optimizer.reduce_expression com :: filters) in
-		Codegen.post_process com filters;
+		Codegen.post_process com filters tfilters;
 		(match com.platform with
 		| Cross ->
 			()
