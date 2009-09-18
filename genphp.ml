@@ -638,6 +638,9 @@ and gen_call ctx e el =
 		spr ctx ")";
 	| TLocal "__php__", [{ eexpr = TConst (TString code) }] ->
 		spr ctx (s_escape_php_vars ctx code)
+	| TLocal "__instanceof__" ,  [e1;{ eexpr = TConst (TString t) }] ->
+		gen_value ctx e1;
+		print ctx " instanceof %s" (s_escape_php_vars ctx t);
 	| TLocal "__physeq__" ,  [e1;e2] ->
 		gen_value ctx e1;
 		spr ctx " === ";
