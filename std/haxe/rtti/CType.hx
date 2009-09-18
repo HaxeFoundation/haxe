@@ -48,15 +48,17 @@ typedef TypeParams = Array<String> // no contraints
 enum Rights {
 	RNormal;
 	RNo;
-	RMethod( m : String );
+	RCall( m : String );
+	RMethod;
 	RDynamic;
-	RF9Dynamic;
+	RInline;
 }
 
 typedef ClassField = {
 	var name : String;
 	var type : CType;
 	var isPublic : Bool;
+	var isOverride : Bool;
 	var doc : String;
 	var get : Rights;
 	var set : Rights;
@@ -147,9 +149,9 @@ class TypeApi {
 		if( r1 == r2 )
 			return true;
 		switch( r1 ) {
-		case RMethod(m1):
+		case RCall(m1):
 			switch( r2 ) {
-			case RMethod(m2):
+			case RCall(m2):
 				return m1 == m2;
 			default:
 			}

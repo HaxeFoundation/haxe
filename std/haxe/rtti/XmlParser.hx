@@ -228,9 +228,10 @@ class XmlParser {
 	function mkRights( r : String ) : Rights {
 		return switch( r ) {
 		case "null": RNo;
+		case "method": RMethod;
 		case "dynamic": RDynamic;
-		case "f9dynamic": RF9Dynamic;
-		default: RMethod(r);
+		case "inline": RInline;
+		default: RCall(r);
 		}
 	}
 
@@ -314,6 +315,7 @@ class XmlParser {
 			name : x.name,
 			type : t,
 			isPublic : x.x.exists("public"),
+			isOverride : x.x.exists("override"),
 			doc : doc,
 			get : if( x.has.get ) mkRights(x.att.get) else RNormal,
 			set : if( x.has.set ) mkRights(x.att.set) else RNormal,

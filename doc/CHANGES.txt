@@ -3,6 +3,7 @@
 	js : added js.Scroll
 	js : package names are now checked at runtime to avoid clashes with existing libs
 	js : added --js-namespace to create a namespace for types that are defined in the root
+	all : updated xml output and html doc - add inline, override, dynamic functions support
 
 2009-07-26: 2.04
 	flash9 : fixed get_full_path error with -D fdb

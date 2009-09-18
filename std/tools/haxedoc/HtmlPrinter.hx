@@ -235,7 +235,7 @@ class HtmlPrinter {
 	}
 
 	function processClassField(platforms : Platforms,f : ClassField,stat) {
-		if( !f.isPublic )
+		if( !f.isPublic || f.isOverride )
 			return;
 		var oldParams = typeParams;
 		if( f.params != null )
@@ -243,12 +243,15 @@ class HtmlPrinter {
 		print('<dt>');
 		if( stat ) keyword("static");
 		var isMethod = false;
+		var isInline = (f.get == RInline && f.set == RNo);
 		switch( f.type ) {
 		case CFunction(args,ret):
-			if( f.get == RNormal && (f.set == RNormal || f.set == RF9Dynamic) ) {
+			if( (f.get == RNormal && (f.set == RMethod || f.set == RDynamic)) || isInline ) {
 				isMethod = true;
-				if( f.set == RF9Dynamic )
-					keyword("f9dynamic");
+				if( f.set == RDynamic )
+					keyword("dynamic");
+				if( isInline )
+					keyword("inline");
 				keyword("function");
 				print(f.name);
 				if( f.params != null )
@@ -270,10 +273,12 @@ class HtmlPrinter {
 		default:
 		}
 		if( !isMethod ) {
+			if( isInline )
+				keyword("inline");
 			keyword("var");
 			print(f.name);
-			if( f.get != RNormal || f.set != RNormal )
-				print("("+rightsStr(f.get)+","+rightsStr(f.set)+")");
+			if( !isInline && (f.get != RNormal || f.set != RNormal) )
+				print("("+rightsStr(f,true,f.get)+","+rightsStr(f,false,f.set)+")");
 			print(" : ");
 			processType(f.type);
 		}
@@ -372,6 +377,7 @@ class HtmlPrinter {
 					name : f.name,
 					type : f.t,
 					isPublic : true,
+					isOverride : false,
 					doc : null,
 					get : RNormal,
 					set : RNormal,
@@ -454,13 +460,12 @@ class HtmlPrinter {
 			print(")");
 	}
 
-	function rightsStr(r) {
+	function rightsStr(f:ClassField,get,r) {
 		return switch(r) {
 		case RNormal: "default";
 		case RNo: "null";
-		case RMethod(m): m;
-		case RDynamic: "dynamic";
-		case RF9Dynamic: "f9dynamic";
+		case RCall(m): if( m == ((get?"get_":"set_")+f.name) ) "dynamic" else m;
+		case RMethod, RDynamic, RInline: throw "assert";
 		}
 	}
 
