@@ -31,10 +31,11 @@ let type_inline ctx cf f ethis params tret p =
 	let pnames = List.map (fun (name,_,t) ->
 		let name = add_local ctx name t in
 		Hashtbl.add hcount name (ref 0);
-		name
+		(name,t)
 	) f.tf_args in
 	(* use default values for null arguments *)
-	let params = List.map2 (fun e (_,opt,t) ->
+	let params = List.map2 (fun e (name,opt,t) ->
+		if is_nullable t && is_null e.etype then Hashtbl.add lsets name (); (* force coerce *)
 		match e.eexpr, opt with
 		| TConst TNull , Some c -> mk (TConst c) t e.epos
 		| _ -> e
@@ -116,15 +117,15 @@ let type_inline ctx cf f ethis params tret p =
 	locals();
 	let subst = ref PMap.empty in
 	Hashtbl.add hcount vthis this_count;
-	let vars = List.map2 (fun n e ->
+	let vars = List.map2 (fun (n,t) e ->
 		let flag = not (Hashtbl.mem lsets n) && (match e.eexpr with
 			| TLocal _ | TConst _ -> true
 			| _ ->
 				let used = !(Hashtbl.find hcount n) in
 				used <= 1
 		) in
-		(n,e.etype,e,flag)
-	) (vthis :: pnames) (ethis :: params) in
+		(n,t,e,flag)
+	) ((vthis,ethis.etype) :: pnames) (ethis :: params) in
 	let vars = List.fold_left (fun acc (n,t,e,flag) ->
 		if flag then begin
 			subst := PMap.add n e !subst;
@@ -379,6 +380,13 @@ let rec reduce_loop com is_sub e =
 			| OpBoolAnd when a  -> e1
 			| OpBoolOr when not a -> e1
 			| _ -> e)
+		| TEnumField (e1,f1), TEnumField (e2,f2) when e1 == e2 ->
+			(match op with
+			| OpEq -> { e with eexpr = TConst (TBool (f1 = f2)) }
+			| OpNotEq -> { e with eexpr = TConst (TBool (f1 <> f2)) }
+			| _ -> e)
+		| _, TCall ({ eexpr = TEnumField _ },_) | TCall ({ eexpr = TEnumField _ },_), _ ->
+			error "You cannot directly compare enums with arguments. Use either 'switch' or 'Type.enumEq'" e.epos
 		| _ -> e)
 	| TUnop (op,flag,esub) ->
 		(match op, esub.eexpr with
