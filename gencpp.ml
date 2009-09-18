@@ -609,6 +609,9 @@ let list_num l = string_of_int (List.length l);;
 
 
 let only_int_cases cases =
+	match cases with
+	| [] -> false
+	| _ ->
 	not (List.exists (fun (cases,expression) -> 
 			List.exists (fun case -> match case.eexpr with TConst (TInt _) -> false | _ -> true ) cases
 				) cases );;
