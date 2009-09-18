@@ -122,7 +122,8 @@ class Http {
 				me.onError("Http Error #"+r.status);
 			}
 		};
-		r.onreadystatechange = onreadystatechange;
+		if( async )
+			r.onreadystatechange = onreadystatechange;
 		var uri = postData;
 		if( uri != null )
 			post = true;
