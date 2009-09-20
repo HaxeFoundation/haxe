@@ -713,45 +713,45 @@ class _hx_lambda {
 		return $this->execute();
 	}
 
-	public function execute1(&$_1) {
-		if($this->scope == null) $this->scope= &$_1;
-		$this->params = array(&$_1);
+	public function execute1($_1) {
+		if($this->scope == null) $this->scope= $_1;
+		$this->params = array($_1);
 		return $this->execute();
 	}
 
-	public function execute2(&$_1, &$_2) {
-		if($this->scope == null) $this->scope= &$_1;
-		$this->params = array(&$_1, &$_2);
+	public function execute2($_1, $_2) {
+		if($this->scope == null) $this->scope= $_1;
+		$this->params = array($_1, $_2);
 		return $this->execute();
 	}
 
-	public function execute3(&$_1, &$_2, &$_3) {
-		if($this->scope == null) $this->scope= &$_1;
-		$this->params = array(&$_1, &$_2, &$_3);
+	public function execute3($_1, $_2, $_3) {
+		if($this->scope == null) $this->scope= $_1;
+		$this->params = array($_1, $_2, $_3);
 		return $this->execute();
 	}
 
-	public function execute4(&$_1, &$_2, &$_3, &$_4) {
-		if($this->scope == null) $this->scope= &$_1;
-		$this->params = array(&$_1, &$_2, &$_3, &$_4);
+	public function execute4($_1, $_2, $_3, $_4) {
+		if($this->scope == null) $this->scope= $_1;
+		$this->params = array($_1, $_2, $_3, $_4);
 		return $this->execute();
 	}
 
-	public function execute5(&$_1, &$_2, &$_3, &$_4, &$_5) {
-		if($this->scope == null) $this->scope= &$_1;
-		$this->params = array(&$_1, &$_2, &$_3, &$_4, &$_5);
+	public function execute5($_1, $_2, $_3, $_4, $_5) {
+		if($this->scope == null) $this->scope= $_1;
+		$this->params = array($_1, $_2, $_3, $_4, $_5);
 		return $this->execute();
 	}
 
-	public function execute6(&$_1, &$_2, &$_3, &$_4, &$_5, &$_6) {
-		if($this->scope == null) $this->scope= &$_1;
-		$this->params = array(&$_1, &$_2, &$_3, &$_4, &$_5, &$_6);
+	public function execute6($_1, $_2, $_3, $_4, $_5, $_6) {
+		if($this->scope == null) $this->scope= $_1;
+		$this->params = array($_1, $_2, $_3, $_4, $_5, $_6);
 		return $this->execute();
 	}
 
-	public function execute7(&$_1, &$_2, &$_3, &$_4, &$_5, &$_6, &$_7) {
-		if($this->scope == null) $this->scope= &$_1;
-		$this->params = array(&$_1, &$_2, &$_3, &$_4, &$_5, &$_6, &$_7);
+	public function execute7($_1, $_2, $_3, $_4, $_5, $_6, $_7) {
+		if($this->scope == null) $this->scope= $_1;
+		$this->params = array($_1, $_2, $_3, $_4, $_5, $_6, $_7);
 		return $this->execute();
 	}
 }
