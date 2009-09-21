@@ -195,7 +195,7 @@ class Reflect {
 					? __php__("new _hx_array(array('concat','copy','insert','iterator','length','join','pop','push','remove','reverse','shift','slice','sort','splice','toString','unshift'))")
 					: (__call__('is_string', o)
 						? __php__("new _hx_array(array('charAt','charCodeAt','indexOf','lastIndexOf','length','split','substr','toLowerCase','toString','toUpperCase'))")
-						: __php__("new _hx_array(array_keys(get_object_vars($o)))"));
+						: __php__("new _hx_array(_hx_get_object_vars($o))"));
 		#else
 			return new Array();
 		#end

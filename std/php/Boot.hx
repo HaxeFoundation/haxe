@@ -313,6 +313,19 @@ function _hx_field($o, $field) {
 	}
 }
 
+function _hx_get_object_vars($o) {
+	$a = array_keys(get_object_vars($o));
+	if(isset($o->»dynamics))
+		$a = array_merge($a, array_keys($o->»dynamics));
+	$arr = array();
+	while($k = current($a)) {
+		if(substr($k, 0, 1) != '»')
+			$arr[] = $k;
+		next($a);
+	}
+	return $arr;
+}
+
 function _hx_has_field($o, $field) {
 	return
 		(is_object($o) && (method_exists($o, $field) || isset($o->$field) || property_exists($o, $field)))

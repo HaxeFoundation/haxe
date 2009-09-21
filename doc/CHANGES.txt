@@ -8,6 +8,7 @@
 	all : optimize constant equality for enums
 	flash9 : fixed verify error with inline + null type
 	flash9 : bugfix when overriding/implementing an method with an applied type parameter
+	php: fixed issues with classes that implement Dynamic
 
 2009-07-26: 2.04
 	flash9 : fixed get_full_path error with -D fdb
