@@ -386,7 +386,10 @@ let rec reduce_loop com is_sub e =
 			| OpNotEq -> { e with eexpr = TConst (TBool (f1 <> f2)) }
 			| _ -> e)
 		| _, TCall ({ eexpr = TEnumField _ },_) | TCall ({ eexpr = TEnumField _ },_), _ ->
-			error "You cannot directly compare enums with arguments. Use either 'switch' or 'Type.enumEq'" e.epos
+			(match op with
+			| OpAssign -> e
+			| _ -> 
+				error "You cannot directly compare enums with arguments. Use either 'switch' or 'Type.enumEq'" e.epos)			
 		| _ -> e)
 	| TUnop (op,flag,esub) ->
 		(match op, esub.eexpr with
