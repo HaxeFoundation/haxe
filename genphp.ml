@@ -1843,7 +1843,7 @@ let generate_class ctx c =
 		| _ ->
 			if List.length ctx.dynamic_methods > 0 then begin
 				newline ctx;
-				spr ctx "public function __call($m, $a) {\n\t\tif(isset($this->$m) && is_callable($this->$m))\n\t\t\treturn call_user_func_array($this->$m, $a);\n\t\telse if(isset($this->»dynamics[$m]) && is_callable($this->»dynamics[$m]))\n\t\t\treturn call_user_func_array($this->»dynamics[$m], $a);\n\t\telse if('toString' == $n)\n\t\t\treturn $this->__toString();\n\t\telse\n\t\t\tthrow new HException('Unable to call «'.$m.'»');\n\t}";
+				spr ctx "public function __call($m, $a) {\n\t\tif(isset($this->$m) && is_callable($this->$m))\n\t\t\treturn call_user_func_array($this->$m, $a);\n\t\telse if(isset($this->»dynamics[$m]) && is_callable($this->»dynamics[$m]))\n\t\t\treturn call_user_func_array($this->»dynamics[$m], $a);\n\t\telse if('toString' == $m)\n\t\t\treturn $this->__toString();\n\t\telse\n\t\t\tthrow new HException('Unable to call «'.$m.'»');\n\t}";
 			end;
 	);
 

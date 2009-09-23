@@ -303,6 +303,8 @@ function _hx_field($o, $field) {
 							return $o->$field;
 						}
 					}
+				} else if(isset($o->»dynamics[$field])) {
+					return $o->»dynamics[$field];
 				} else {
 					return array($o, $field);
 				}
@@ -328,7 +330,7 @@ function _hx_get_object_vars($o) {
 
 function _hx_has_field($o, $field) {
 	return
-		(is_object($o) && (method_exists($o, $field) || isset($o->$field) || property_exists($o, $field)))
+		(is_object($o) && (method_exists($o, $field) || isset($o->$field) || property_exists($o, $field) || isset($o->»dynamics[$field])))
 		||
 		(is_string($o) && (in_array($field, array('toUpperCase', 'toLowerCase', 'charAt', 'charCodeAt', 'indexOf', 'lastIndexOf', 'split', 'substr', 'toString', 'length'))))
 	;

@@ -329,7 +329,7 @@ class Reflect {
 			return __dollar__objremove(o,__dollar__hash(f.__s));
 		#elseif php
 			if(!hasField(o,f)) return false;
-			untyped __php__("unset($o->$f)");
+			untyped __php__("if(isset($o->»dynamics[$f])) unset($o->»dynamics[$f]); else unset($o->$f)");
 			return true;
 		#else
 			return false;
