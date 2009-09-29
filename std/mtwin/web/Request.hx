@@ -74,7 +74,7 @@ class Request {
 		if( params.exists(key) ){
 			var v = params.get(key);
 			if( v == "NULL" )
-				return null;
+				throw "DEPRECATED";
 			return Std.parseInt(v);
 		}
 		return or;
@@ -84,7 +84,7 @@ class Request {
 		if( params.exists(key) ){
 			var v = params.get(key);
 			if( v == "NULL" )
-				return null;
+				throw "DEPRECATED";
 			return Std.parseFloat(v);
 		}
 		return or;
