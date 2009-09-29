@@ -115,7 +115,7 @@ let rec read_type_path com p =
 		| _ -> p
 	) in
 	List.iter (fun path ->
-		let dir = path ^ String.concat "/" p in		
+		let dir = path ^ String.concat "/" p in
 		let r = (try Sys.readdir dir with _ -> [||]) in
 		Array.iter (fun f ->
 			if (try (Unix.stat (dir ^ "/" ^ f)).Unix.st_kind = Unix.S_DIR with _ -> false) then begin
@@ -124,7 +124,7 @@ let rec read_type_path com p =
 						match read_type_path com [f] with
 						| [] , [] -> ()
 						| _ ->
-							try 
+							try
 								match PMap.find f com.package_rules with
 								| Forbidden -> ()
 								| Remap f -> packages := f :: !packages
@@ -361,7 +361,7 @@ try
 			) lines) @ !excludes;
 		),"<filename> : don't generate code for classes listed in this file");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
-		("-cmd", Arg.String (fun cmd ->			
+		("-cmd", Arg.String (fun cmd ->
 			cmds := expand_env cmd :: !cmds
 		),": run the specified command after successful compilation");
 		("--flash-strict", define "flash_strict", ": more type strict flash API");
@@ -393,9 +393,9 @@ try
 				};
 		),": display code tips");
 		("--no-output", Arg.Unit (fun() -> no_output := true),": compiles but does not generate any file");
-		("--times", Arg.Unit (fun() -> measure_times := true),": mesure compilation times");
+		("--times", Arg.Unit (fun() -> measure_times := true),": measure compilation times");
 		("--no-inline", define "no_inline", ": disable inlining");
-		("--no-opt", define "no_opt", ": disable code optimizations");		
+		("--no-opt", define "no_opt", ": disable code optimizations");
 		("--php-front",Arg.String (fun f ->
 			if com.php_front <> None then raise (Arg.Bad "Multiple --php-front");
 			com.php_front <- Some f;
