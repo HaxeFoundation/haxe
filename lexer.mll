@@ -159,9 +159,13 @@ let find_line_index idx p =
 let ident = ('_'* ['a'-'z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9']* | '_'+ | '_'+ ['0'-'9'] ['_' 'a'-'z' 'A'-'Z' '0'-'9']* )
 let idtype = '_'* ['A'-'Z'] ['_' 'a'-'z' 'A'-'Z' '0'-'9']*
 
-rule token = parse
+rule skip_header = parse
+	| "\239\187\191" { skip_header lexbuf }
+	| "#!" [^'\n' '\r']* { skip_header lexbuf }
+	| "" | eof { }
+
+and token = parse
 	| eof { mk lexbuf Eof }
-	| "\239\187\191" { token lexbuf }
 	| [' ' '\t']+ { token lexbuf }
 	| "\r\n" { newline lexbuf; token lexbuf }
 	| '\n' | '\r' { newline lexbuf; token lexbuf }

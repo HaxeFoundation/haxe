@@ -657,6 +657,7 @@ let parse ctx code file =
 	cache := DynArray.create();
 	doc := None;
 	Lexer.init file;
+	Lexer.skip_header code;
 	let rec next_token() = process_token (Lexer.token code)
 
 	and process_token tk =
