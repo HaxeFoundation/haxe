@@ -36,6 +36,7 @@ type picture = {
 	pheight : int;
 	pid : int;
 	pdata : tag_data;
+	pframe : string option;
 }
 
 let error_msg = function
