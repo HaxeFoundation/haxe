@@ -43,7 +43,8 @@ class Manager<T : Object> {
 	private static var KEYWORDS = {
 		var h = new Hash();
 		for( k in ["read","write","desc","out","group","version","option",
-				"primary","exists","from","key","keys","limit","lock","use"] )
+				"primary","exists","from","key","keys","limit","lock","use",
+				"create","order"] )
 			h.set(k,true);
 		h;
 	}
