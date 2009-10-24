@@ -149,7 +149,6 @@ class SiteApi {
 		var curtags = otags.map(function(t) return t.tag).join(":");
 
 		// update public infos
-		var update = false;
 		if( infos.desc != p.description || p.website != infos.website || pdevs.length != devs.length || tags.join(":") != curtags ) {
 			if( u.id != p.owner.id )
 				throw "Only project owner can modify project infos";
@@ -176,9 +175,6 @@ class SiteApi {
 					t.insert();
 				}
 			}
-			update = true;
-			neko.FileSystem.deleteFile(path);
-			return "Project infos updated : submit one more time to send a new version";
 		}
 
 		// look for current version
