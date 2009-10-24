@@ -3,149 +3,14 @@
 <head>
 <title>lib.haxe.org</title>
 <link type="application/rss+xml" rel="alternate" title="RSS feed" href="/rss"/>
-<style type="text/css">
-
-/* structure */
-
-body {
-	margin : 0;
-	padding : 0;
-	text-align: center;
-}
-
-.page {
-	margin: 10px auto 10px auto;
-	width : 750px;
-}
-
-.menu {
-	text-align : left;
-	float : left;
-	width : 150px;
-}
-
-.content {
-	text-align : left;
-	float : left;
-	width : 600px;
-}
-
-/* style */
-
-a {
-	color : #ff8400;
-	text-decoration : none;
-}
-
-a:hover {
-	text-decoration : underline;
-}
-
-a:visited {
-	color : #ff8400;
-}
-
-h1 a, h1 a:hover, h1 a:visited {
-	text-align : center;
-	color : black;
-	text-decoration : none;
-}
-
-.content p {
-	text-align : justify;
-	margin : 0px;
-	padding : 0px 10px 0px 10px;
-}
-
-.menu ul {
-	list-style : none;
-	margin : 5px;
-	padding : 0px;
-}
-
-.versions .date, .versions .project, .versions .name {
-	display : inline;
-}
-
-.versions ul, .projects ul {
-	list-style : circle;
-	margin : 25px;
-	padding : 0px;
-}
-
-.date {
-	color : #555;
-	font-size : 12px;
-}
-
-.versions .name {
-	font-weight : bold;
-}
-
-.versions .download {
-	float : right;
-	margin-top : -22px;
-	margin-right : 30px;
-}
-
-.download {
-	padding : 2px 4px 2px 4px;
-	background-color : #eee;
-	display : inline;
-}
-
-.download a {
-	color : #555;
-	font-size : 12px;
-	text-decoration : none;
-}
-
-.download a:visited {
-	color : #555;
-}
-
-.versions .comments {
-	margin-right : 40px;
-	margin-left : 10px;
-	margin-bottom : 5px;
-	text-align : justify;
-}
-
-.pinfos .description {
-	padding : 10px;
-}
-
-.pinfos .download {
-	margin : 200px;
-}
-
-.label {
-	color : #555;
-	width : 80px;
-	float : left;
-}
-
-.tags a {
-	margin-right : 5px;
-}
-
-form {
-	margin-left : 5px;
-	margin-top : 5px;
-}
-
-input {
-	width : 80px;
-}
-
-</style>
+<link href="/haxelib.css" type="text/css" rel="stylesheet"/>
 </head>
 
 <body>
 
-<div class="page">
-
 <h1><a href="/">lib.haxe.org</a></h1>
+
+<div class="page">
 
 <div class="menu">
 	<div class="title">Search :</div>
@@ -207,6 +72,7 @@ input {
 	<div class="version"><div class="label">Version</div> ::(version.name)::</div>
 	<div class="owner"><div class="label">Owner</div> <a href="/u/::(owner.name)::">::(owner.name)::</a></div>
 	<div class="license"><div class="label">License</div> ::(p.license)::</div>
+	::if (version.documentation)::<div class="doc"><a href="/d/::(p.name)::">Documentation</a></div>::end::
 	<div class="download"><a href="$$download(p,version)">Download</a></div>
 </div>
 
@@ -278,6 +144,23 @@ input {
 </ul>
 </div>
 
+::elseif act_d::
+
+<h2>::(p.name):: ::(v.name):: Documentation</h2>
+
+<script type="text/javascript">
+	function toggle(id) {
+		var e = document.getElementById(id);
+		e.isopen = !e.isopen;
+		e.style.display = e.isopen?"block":"none";
+		return false;
+	}
+</script>
+
+<div class="api">
+::content::
+</div>
+
 ::else::
 
 <p>
@@ -287,6 +170,9 @@ input {
 ::end::
 
 </div>
+
+<div class="clear"></div>
+
 </div>
 
 </body>

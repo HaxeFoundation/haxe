@@ -331,6 +331,11 @@ class Main {
 				throw "Project "+d.project+" does not have version "+d.version;
 		}
 
+		// check if this version already exists
+		for( v in site.infos(infos.project).versions )
+			if( v.name == infos.version && ask("You're about to overwrite existing version '"+v.name+"', please confirm") == No )
+				throw "Aborted";
+
 		// query a submit id that will identify the file
 		var id = site.getSubmitId();
 

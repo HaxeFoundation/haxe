@@ -1,0 +1,212 @@
+
+/* structure */
+
+body {
+	margin : 0;
+	padding : 0;
+	text-align: center;
+	font-family : "trebuchet ms",sans-serif;
+	font-size : 10.5pt;
+	background : #FFFFFF url("http://haxe.org/img/haxe/bg_main.gif") repeat-x;
+}
+
+.page {
+	margin: 10px auto 10px auto;
+	padding : 5px;
+	width : 750px;
+	background-color : #FFFFFF;
+	border : 1px solid #AAA;
+	-moz-border-radius : 10px;
+}
+
+.menu {
+	text-align : left;
+	float : left;
+	width : 150px;
+}
+
+.content {
+	text-align : left;
+	float : left;
+	width : 600px;
+}
+
+.clear {
+	clear : both;
+}
+
+/* style */
+
+a, a:visited {
+	color : #C35700;
+	text-decoration : none;
+}
+
+a:hover {
+	text-decoration : underline;
+}
+
+h1 {
+	text-align : center;
+	margin-top : 20px;
+}
+
+h1 a, h1 a:hover, h1 a:visited {
+	color : #C35700;
+	text-decoration : none;
+}
+
+.content p {
+	text-align : justify;
+	margin : 0px;
+	padding : 0px 10px 0px 10px;
+}
+
+.menu ul {
+	list-style : none;
+	margin : 5px;
+	padding : 0px;
+}
+
+.versions .date, .versions .project, .versions .name {
+	display : inline;
+}
+
+.versions ul, .projects ul {
+	list-style : circle;
+	margin : 25px;
+	padding : 0px;
+}
+
+.date {
+	color : #555;
+	font-size : 12px;
+}
+
+.versions .name {
+	font-weight : bold;
+}
+
+.versions .download {
+	float : right;
+	margin-top : -22px;
+	margin-right : 30px;
+}
+
+.download {
+	padding : 2px 4px 2px 4px;
+	background-color : #eee;
+	display : inline;
+}
+
+.download a {
+	color : #555;
+	font-size : 12px;
+	text-decoration : none;
+}
+
+.download a:visited {
+	color : #555;
+}
+
+.versions .comments {
+	margin-right : 40px;
+	margin-left : 10px;
+	margin-bottom : 5px;
+	text-align : justify;
+}
+
+.pinfos .description {
+	padding : 10px;
+}
+
+.pinfos .download {
+	margin : 200px;
+}
+
+.label {
+	color : #555;
+	width : 80px;
+	float : left;
+}
+
+.tags a {
+	margin-right : 5px;
+}
+
+form {
+	margin-left : 5px;
+	margin-top : 5px;
+}
+
+input {
+	width : 80px;
+}
+
+/* documentation */
+
+.api .title {
+	font-size: 35;
+	font-weight: bold;
+	text-align: center;
+	background-color : #FFD473;
+	color : white;
+}
+
+.api ul.entry {
+	list-style-type: disc;
+	margin-left : 30px;
+	padding-left : 0px;
+}
+
+.api .package_content {
+	display : none;
+}
+
+.api a {
+	text-decoration : none;
+}
+
+.api a:hover {
+	text-decoration : underline;
+}
+
+.api a.package {
+	color : black;
+}
+
+.api .index {
+}
+
+.api .kwd {
+	color : #09598A;
+	font-weight : bold;
+}
+
+.api .classname {
+	font-size : 30;
+	font-weight : bold;
+}
+
+.api .classdoc {
+	border : 1px dashed #666;
+	margin-left : 20px;
+	margin-right : 20px;
+	padding : 5 5 5 5;
+}
+
+.api .importmod, .api .extends, .api .implements, .api .typedef, .api .platforms {
+	color : #777;
+}
+
+.api dd {
+	margin-top : 10px;
+	font-size : 12pt;
+	color : #444;
+}
+
+.api dt {
+	margin-left : 20px;
+	margin-bottom : 5px;
+	text-align : left;
+}

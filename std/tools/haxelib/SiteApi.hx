@@ -181,22 +181,60 @@ class SiteApi {
 			return "Project infos updated : submit one more time to send a new version";
 		}
 
-		// check version
-		var vl = Version.manager.search({ project : p.id });
-		for( v in vl )
+		// look for current version
+		var current = null;
+		for( v in Version.manager.search({ project : p.id }) )
 			if( v.name == infos.version ) {
-				neko.FileSystem.deleteFile(path);
-				return "This version is already commited, please change version number";
+				current = v;
+				break;
 			}
 
-		neko.FileSystem.rename(path,Site.REP_DIR+"/"+Datas.fileName(p.name,infos.version));
+		// update documentation
+		var doc = null;
+		var docXML = Datas.readDoc(zip);
+		if( docXML != null ) {
+			var p = new haxe.rtti.XmlParser();
+			p.process(Xml.parse(docXML).firstElement(),null);
+			p.sort();
+			var roots = new Array();
+			for( x in p.root )
+				switch( x ) {
+				case TPackage(name,_,_):
+					switch( name ) {
+					case "flash","flash9","haxe","js","neko","cpp","php","tools": // don't include haXe core types
+					default: roots.push(x);
+					}
+				default:
+					// don't include haXe root types
+				}
+			var s = new haxe.Serializer();
+			s.useEnumIndex = true;
+			s.useCache = true;
+			s.serialize(roots);
+			doc = s.toString();
+		}
 
+		// update file
+		var target = Site.REP_DIR+"/"+Datas.fileName(p.name,infos.version);
+		if( current != null ) neko.FileSystem.deleteFile(target);
+		neko.FileSystem.rename(path,target);
+
+		// update existing version
+		if( current != null ) {
+			current.documentation = doc;
+			current.comments = infos.versionComments;
+			current.update();
+			return "Version "+current.name+" (id#"+current.id+") updated";
+		}
+
+		// add new version
 		var v = new Version();
 		v.project = p;
 		v.name = infos.version;
 		v.comments = infos.versionComments;
 		v.downloads = 0;
 		v.date = Date.now().toString();
+		v.documentation = doc;
 		v.insert();
 
 		p.version = v;

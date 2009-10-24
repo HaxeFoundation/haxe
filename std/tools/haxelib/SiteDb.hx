@@ -63,6 +63,7 @@ class Version extends neko.db.Object {
 	public var date : String; // sqlite does not have a proper 'date' type
 	public var comments : String;
 	public var downloads : Int;
+	public var documentation : Null<String>;
 
 }
 
@@ -149,7 +150,8 @@ class SiteDb {
 				downloads INTEGER NOT NULL,
 				date VARCHAR(19) NOT NULL,
 				name VARCHAR(32) NOT NULL,
-				comments TEXT NOT NULL
+				comments TEXT NOT NULL,
+				documentation TEXT NULL
 			)
 		");
 		db.request("DROP TABLE IF EXISTS Developer");
