@@ -395,6 +395,7 @@ class Main {
 		h.customRequest(false,progress);
 
 		doInstallFile(filepath,setcurrent);
+		site.postInstall(project,version);
 	}
 
 	function doInstallFile(filepath,setcurrent,?nodelete) {

@@ -238,5 +238,18 @@ class SiteApi {
 		return "Version "+v.name+" (id#"+v.id+") added";
 	}
 
+	public function postInstall( project : String, version : String ) {
+		var p = Project.manager.search({ name : project }).first();
+		if( p == null )
+			throw "No such Project : "+project;
+		var v = Version.manager.search({ project : p.id, name : version }).first();
+		if( v == null )
+			throw "No such Version : "+version;
+		v.downloads++;
+		v.update();
+		p.downloads++;
+		p.update();
+	}
+
 }
 

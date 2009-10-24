@@ -28,6 +28,7 @@ class Project extends neko.db.Object {
 	public var description : String;
 	public var website : String;
 	public var license : String;
+	public var downloads : Int;
 	public var owner(dynamic,dynamic) : User;
 	public var version(dynamic,dynamic) : Version;
 
@@ -139,7 +140,8 @@ class SiteDb {
 				license VARCHAR(20) NOT NULL,
 				description TEXT NOT NULL,
 				website VARCHAR(100) NOT NULL,
-				version INT
+				version INT,
+				downloads INT NOT NULL
 			)
 		");
 		db.request("DROP TABLE IF EXISTS Version");
