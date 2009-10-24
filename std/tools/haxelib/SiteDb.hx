@@ -33,6 +33,22 @@ class Project extends neko.db.Object {
 
 }
 
+class Tag extends neko.db.Object {
+
+	static function RELATIONS() {
+		return [
+			{ key : "project", prop : "project", manager : Project.manager },
+		];
+	}
+
+	public static var manager = new TagManager(Tag);
+
+	public var id : Int;
+	public var tag : String;
+	public var project(dynamic,dynamic) : Project;
+
+}
+
 class Version extends neko.db.Object {
 
 	static function RELATIONS() {
@@ -69,9 +85,9 @@ class Developer extends neko.db.Object {
 
 class ProjectManager extends neko.db.Manager<Project> {
 
-	public function containing( word ) {
+	public function containing( word ) : List<{ id : Int, name : String }> {
 		word = quote("%"+word+"%");
-		return results("SELECT name FROM Project WHERE name LIKE "+word+" OR description LIKE "+word);
+		return results("SELECT id, name FROM Project WHERE name LIKE "+word+" OR description LIKE "+word);
 	}
 
 	public function allByName() {
@@ -88,6 +104,14 @@ class VersionManager extends neko.db.Manager<Version> {
 
 	public function byProject( p : Project ) {
 		return objects("SELECT * FROM Version WHERE project = "+p.id+" ORDER BY date DESC",false);
+	}
+
+}
+
+class TagManager extends neko.db.Manager<Tag> {
+
+	public function topTags( n : Int ) {
+		return results("SELECT tag, COUNT(*) as count FROM Tag GROUP BY tag ORDER BY count DESC LIMIT "+n);
 	}
 
 }
@@ -135,5 +159,15 @@ class SiteDb {
 				project INTEGER NOT NULL
 			)
 		");
+		db.request("DROP TABLE IF EXISTS Tag");
+		db.request("
+			CREATE TABLE Tag (
+				id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+				tag VARCHAR(32) NOT NULL,
+				project INTEGER NOT NULL
+			)
+		");
+		db.request("DROP INDEX IF EXISTS TagSearch");
+		db.request("CREATE INDEX TagSearch ON Tag(tag)");
 	}
 }

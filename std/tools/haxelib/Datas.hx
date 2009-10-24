@@ -24,6 +24,7 @@ typedef ProjectInfos = {
 	var license : String;
 	var curversion : String;
 	var versions : Array<VersionInfos>;
+	var tags : List<String>;
 }
 
 typedef XmlInfos = {
@@ -34,6 +35,7 @@ typedef XmlInfos = {
 	var version : String;
 	var versionComments : String;
 	var developers : List<String>;
+	var tags : List<String>;
 	var dependencies : List<{ project : String, version : String }>;
 }
 
@@ -98,6 +100,7 @@ class Datas {
 			[ sname, Att("url"), Att("license",FEnum(LICENSES)) ],
 			RList([
 				RMulti( RNode("user",[sname]), true ),
+				RMulti( RNode("tag",[Att("v",FReg(alphanum))]) ),
 				RNode("description",[],RData()),
 				RNode("version",[sname],RData()),
 				RMulti(	RNode("depends",[sname,Att("version",FReg(alphanum),"")]) ),
@@ -110,6 +113,9 @@ class Datas {
 		var project = p.att.name;
 		if( project.length < 3 )
 			throw "Project name must contain at least 3 characters";
+		var tags = new List();
+		for( t in p.nodes.tag )
+			tags.add(t.att.v.toLowerCase());
 		var devs = new List();
 		for( d in p.nodes.user )
 			devs.add(d.att.name);
@@ -123,6 +129,7 @@ class Datas {
 			version : p.node.version.att.name,
 			versionComments : p.node.version.innerData,
 			license : p.att.license,
+			tags : tags,
 			developers : devs,
 			dependencies : deps,
 		}

@@ -125,6 +125,18 @@ h1 a, h1 a:hover, h1 a:visited {
 	float : left;
 }
 
+.tags a {
+	margin-right : 5px;
+}
+
+form {
+	margin-left : 5px;
+	margin-top : 5px;
+}
+
+input {
+	width : 80px;
+}
 
 </style>
 </head>
@@ -136,10 +148,14 @@ h1 a, h1 a:hover, h1 a:visited {
 <h1><a href="/">lib.haxe.org</a></h1>
 
 <div class="menu">
-	<div class="title">Projects :</div>
+	<div class="title">Search :</div>
+	<form action="/search" method="POST">
+		<input name="v"/>
+	</form>
+	<div class="title">Top tags :</div>
 	<ul>
-	::foreach projects::
-	<li><a href="/p/::name::">::name::</a></li>
+	::foreach menuTags::
+	<li><a href="/t/::tag::">::tag::</a> (::count::)</li>
 	::end::
 	</ul>
 </div>
@@ -178,6 +194,7 @@ h1 a, h1 a:hover, h1 a:visited {
 </ul>
 </div>
 
+<a href="/all">Browse Projects</a>
 
 ::elseif act_p::
 
@@ -185,6 +202,7 @@ h1 a, h1 a:hover, h1 a:visited {
 
 <div class="pinfos">
 	<div class="description">::(p.description)::</div>
+	::if tags::<div class="tags"><div class="label">Tags</div> ::foreach tags::<a href="/t/::tag::">::tag::</a>::end::</div>::end::
 	<div class="url"><div class="label">Website</div> <a href="::(p.website)::">::(p.website)::</a></div>
 	<div class="version"><div class="label">Version</div> ::(version.name)::</div>
 	<div class="owner"><div class="label">Owner</div> <a href="/u/::(owner.name)::">::(owner.name)::</a></div>
@@ -222,6 +240,40 @@ h1 a, h1 a:hover, h1 a:visited {
 <ul>
 ::foreach uprojects::
 	<li><a href="/p/::name::">::name::</a></li>
+::end::
+</ul>
+</div>
+
+::elseif act_t::
+
+<h2>Tag ::tag::</h2>
+
+<p>
+	Here's the list of projects using this tag :
+</p>
+
+<div class="projects">
+<ul>
+::foreach tprojects::
+	<li>
+		<a href="/p/::name::">::name::</a>
+		<div class="description">::description::</div>
+	</li>
+::end::
+</ul>
+</div>
+
+::elseif act_all::
+
+<h2>::if search::Search Results for '::search::'::else::All Projects::end:::</h2>
+
+<div class="projects">
+<ul>
+::foreach projects::
+	<li>
+		<a href="/p/::name::">::name::</a>
+		<div class="description">::description::</div>
+	</li>
 ::end::
 </ul>
 </div>

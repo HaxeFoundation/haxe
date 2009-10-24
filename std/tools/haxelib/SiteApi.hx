@@ -10,7 +10,7 @@ class SiteApi {
 		this.db = db;
 	}
 
-	public function search( word : String ) : List<{ name : String }> {
+	public function search( word : String ) : List<{ id : Int, name : String }> {
 		return Project.manager.containing(word);
 	}
 
@@ -30,6 +30,7 @@ class SiteApi {
 			owner : p.owner.name,
 			website : p.website,
 			license : p.license,
+			tags : Tag.manager.search({ project : p.id }).map(function(t) return t.tag),
 		};
 	}
 
@@ -105,6 +106,9 @@ class SiteApi {
 			return u;
 		});
 
+		var tags = Lambda.array(infos.tags);
+		tags.sort(Reflect.compare);
+
 		var p = Project.manager.search({ name : infos.project }).first();
 
 		// create project if needed
@@ -122,6 +126,12 @@ class SiteApi {
 				d.project = p;
 				d.insert();
 			}
+			for( tag in tags ) {
+				var t = new Tag();
+				t.tag = tag;
+				t.project = p;
+				t.insert();
+			}
 		}
 
 		// check submit rights
@@ -135,9 +145,12 @@ class SiteApi {
 		if( !isdev )
 			throw "You are not a developer of this project";
 
+		var otags = Tag.manager.search({ project : p.id });
+		var curtags = otags.map(function(t) return t.tag).join(":");
+
 		// update public infos
 		var update = false;
-		if( infos.desc != p.description || p.website != infos.website || pdevs.length != devs.length ) {
+		if( infos.desc != p.description || p.website != infos.website || pdevs.length != devs.length || tags.join(":") != curtags ) {
 			if( u.id != p.owner.id )
 				throw "Only project owner can modify project infos";
 			p.description = infos.desc;
@@ -151,6 +164,16 @@ class SiteApi {
 					d.user = u;
 					d.project = p;
 					d.insert();
+				}
+			}
+			if( tags.join(":") != curtags ) {
+				for( t in otags )
+					t.delete();
+				for( tag in tags ) {
+					var t = new Tag();
+					t.tag = tag;
+					t.project = p;
+					t.insert();
 				}
 			}
 			update = true;

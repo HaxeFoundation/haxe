@@ -74,9 +74,9 @@ class Site {
 		if( uri[0] == "" )
 			uri.shift();
 		var act = uri.shift();
-		if( act == null || act == "" )
+		if( act == null || act == "" || act == "index.n" )
 			act = "index";
-		ctx.projects = Project.manager.allByName();
+		ctx.menuTags = Tag.manager.topTags(10);
 		switch( act ) {
 		case "p":
 			var name = uri.shift();
@@ -89,6 +89,8 @@ class Site {
 			ctx.owner = p.owner;
 			ctx.version = p.version;
 			ctx.versions = Version.manager.byProject(p);
+			var tags = Tag.manager.search({ project : p.id });
+			if( !tags.isEmpty() ) ctx.tags = tags;
 		case "u":
 			var name = uri.shift();
 			var u = User.manager.search({ name : name }).first();
@@ -98,18 +100,37 @@ class Site {
 			}
 			ctx.u = u;
 			ctx.uprojects = Developer.manager.search({ user : u.id }).map(function(d:Developer) { return d.project; });
+		case "t":
+			var tag = uri.shift();
+			ctx.tag = StringTools.htmlEscape(tag);
+			ctx.tprojects = Tag.manager.search({ tag : tag }).map(function(t) return t.project);
 		case "index":
 			var vl = Version.manager.latest(10);
 			for( v in vl ) {
-				var p = v.project;
+				var p = v.project; // fetch
 			}
 			ctx.versions = vl;
+		case "all":
+			ctx.projects = Project.manager.allByName();
+		case "search":
+			var v = neko.Web.getParams().get("v");
+			var p = Project.manager.search({ name : v }).first();
+			if( p != null ) {
+				neko.Web.redirect("/p/"+p.name);
+				return false;
+			}
+			if( Tag.manager.count({ tag : v }) > 0 ) {
+				neko.Web.redirect("/t/"+v);
+				return false;
+			}
+			ctx.projects = Project.manager.containing(v).map(function(p) return Project.manager.get(p.id));
+			ctx.act_all = true;
+			ctx.search = StringTools.htmlEscape(v);
 		case "rss":
 			neko.Web.setHeader("Content-Type", "text/xml; charset=UTF-8");
 			neko.Lib.println('<?xml version="1.0" encoding="UTF-8"?>');
 			neko.Lib.print(buildRss().toString());
 			return false;
-
 		default:
 			ctx.error = "Unknown action : "+act;
 			return true;

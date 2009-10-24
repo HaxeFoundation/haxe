@@ -7,5 +7,6 @@
     <file path="Site.hx" />
     <file path="SiteApi.hx" />
     <file path="SiteDb.hx" />
+    <file path="website.mtt" />
   </files>
 </haxe>

@@ -124,6 +124,10 @@ class Main {
 		addCommand("run",run,"run the specified project with parameters",false);
 		addCommand("test",test,"install the specified package localy",false);
 		addCommand("dev",dev,"set the development directory for a given project",false);
+		initSite();
+	}
+
+	function initSite() {
 		siteUrl = "http://"+SERVER.host+":"+SERVER.port+"/"+SERVER.dir;
 		site = new SiteProxy(haxe.remoting.HttpConnection.urlConnect(siteUrl+SERVER.url).api);
 	}
@@ -179,9 +183,27 @@ class Main {
 	function process() {
 		var debug = false;
 		argcur = 0;
-		if( args[argcur] == "-debug" ) {
-			argcur++;
-			debug = true;
+		while( true ) {
+			var a = args[argcur++];
+			if( a == null )
+				break;
+			switch( a ) {
+			case "-debug":
+				debug = true;
+			case "-R":
+				var path = args[argcur++];
+				var r = ~/^(http:\/\/)?([^:\/]+)(:[0-9]+)?\/?(.*)$/;
+				if( !r.match(path) )
+					throw "Invalid repository format '"+path+"'";
+				SERVER.host = r.matched(2);
+				if( r.matched(3) != null )
+					SERVER.port = Std.parseInt(r.matched(3).substr(1));
+				SERVER.dir = r.matched(4);
+				initSite();
+			default:
+				argcur--;
+				break;
+			}
 		}
 		var cmd = args[argcur++];
 		if( cmd == null )
@@ -231,6 +253,7 @@ class Main {
 		var prj = param("Project name");
 		var inf = site.infos(prj);
 		print("Name: "+inf.name);
+		print("Tags: "+inf.tags.join(", "));
 		print("Desc: "+inf.desc);
 		print("Website: "+inf.website);
 		print("License: "+inf.license);
