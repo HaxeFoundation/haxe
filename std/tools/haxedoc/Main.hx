@@ -90,27 +90,6 @@ class Main {
 			generateEntry(html,e,"content/");
 	}
 
-	static function findClass( t : TypeRoot, path : Array<String>, pos : Int ) {
-		var name = path[pos];
-		var pack = (pos != path.length - 1);
-		var def = null;
-		for( c in t )
-			switch( c ) {
-			case TPackage(pname,_,subs):
-				if( name == pname ) {
-					if( pack )
-						return findClass(subs,path,pos+1);
-					def = c;
-				}
-			default:
-				if( pack ) continue;
-				var inf = TypeApi.typeInfos(c);
-				if( inf.path.toLowerCase() == path.join(".") )
-					return c;
-			}
-		return def;
-	}
-
 	public static function main() {
 		if( neko.Web.isModNeko ) {
 			var h = neko.Web.getParams();
@@ -138,7 +117,7 @@ class Main {
 				html.process(TPackage("root","root",data));
 			else {
 				var clpath = clname.toLowerCase().split("/").join(".").split(".");
-				var f = findClass(data,clpath,0);
+				var f = html.find(data,clpath,0);
 				if( f == null )
 					throw "Class not found : "+clpath.join(".");
 				html.process(f);

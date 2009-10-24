@@ -35,6 +35,28 @@ class HtmlPrinter {
 		typeParams = new Array();
 	}
 
+	public function find( t : TypeRoot, path : Array<String>, pos : Int ) {
+		var name = path[pos];
+		var pack = (pos != path.length - 1);
+		var def = null;
+		for( c in t )
+			switch( c ) {
+			case TPackage(pname,_,subs):
+				if( name == pname ) {
+					if( pack )
+						return find(subs,path,pos+1);
+					def = c;
+				}
+			default:
+				if( pack ) continue;
+				var inf = TypeApi.typeInfos(c);
+				if( inf.path.toLowerCase() == path.join(".") )
+					return c;
+			}
+		return def;
+	}
+
+
 	public dynamic function output(str) {
 		neko.Lib.print(str);
 	}
