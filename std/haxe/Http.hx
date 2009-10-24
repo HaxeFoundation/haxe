@@ -75,7 +75,7 @@ class Http {
 		params = new Hash();
 		#if js
 		async = true;
-		#elseif (neko || php)
+		#elseif (neko || php || cpp)
 		cnxTimeout = 10;
 		#end
 		#if php

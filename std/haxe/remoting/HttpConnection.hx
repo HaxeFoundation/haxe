@@ -26,6 +26,8 @@ package haxe.remoting;
 
 class HttpConnection implements Connection, implements Dynamic<Connection> {
 
+	public static var TIMEOUT = 10;
+
 	var __url : String;
 	var __path : Array<String>;
 
@@ -44,10 +46,13 @@ class HttpConnection implements Connection, implements Dynamic<Connection> {
 		var data = null;
 		var h = new haxe.Http(__url);
 		#if js
-			untyped h.async = false;
+			h.async = false;
 		#end
 		#if (neko && no_remoting_shutdown)
 			h.noShutdown = true;
+		#end
+		#if (neko || php || cpp)
+			h.cnxTimeout = TIMEOUT;
 		#end
 		var s = new haxe.Serializer();
 		s.serialize(__path);
