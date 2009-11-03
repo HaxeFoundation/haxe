@@ -568,7 +568,8 @@ let rec iter_retval f retval e =
 			| expr :: exprs -> f false expr; return_last exprs in
 		return_last expr_list
 	| TArrayDecl el
-	| TNew (_,_,el)
+	| TNew (_,_,el) ->
+		List.iter (f true ) el
 	| TBlock el ->
 		List.iter (f false ) el
 	| TObjectDecl fl ->
@@ -581,7 +582,7 @@ let rec iter_retval f retval e =
 	| TFunction fu ->
 		f false fu.tf_expr
 	| TIf (e,e1,e2) ->
-		f retval e;
+		f true e;
 		f retval e1;
 		(match e2 with None -> () | Some e -> f retval e)
 	| TSwitch (e,cases,def) ->
@@ -849,7 +850,7 @@ let rec gen_expression ctx retval expression =
 		output_i ("struct " ^ name);
 		writer#begin_block;
 		let ret_type = type_string expression.etype in
-		output_i ("static " ^ ret_type ^ " Block( ");
+		output_i ("inline static " ^ ret_type ^ " Block( ");
 		output (String.concat "," ( (List.map (fun var ->
 				(Hashtbl.find undeclared var) ^ (reference var)) ) vars));
 		output (")");
@@ -916,6 +917,7 @@ let rec gen_expression ctx retval expression =
 			| "&&" | "||" -> "bool("
 			| "/" -> "double("
 			| _ -> "") in
+		if (op <> "=") then output "(";
 		if ( cast <> "") then output cast;
 		gen_expression ctx true expr1;
 		if ( cast <> "") then output ")";
@@ -924,7 +926,8 @@ let rec gen_expression ctx retval expression =
 
 		if ( cast <> "") then output cast;
 		gen_expression ctx true expr2;
-		if ( cast <> "") then output ")"
+		if ( cast <> "") then output ")";
+		if (op <> "=") then output ")";
 	in
 	let rec gen_bin_op op expr1 expr2 =
 		match op with
@@ -1036,7 +1039,11 @@ let rec gen_expression ctx retval expression =
 			gen_expression ctx true  field_object;
 			check_dynamic_member_access member
 	end in
+
+
 	(match expression.eexpr with
+	| TConst TNull when not retval ->
+		output "{}";
 	| TCall (func, arg_list) when (match func.eexpr with | TConst TSuper -> true | _ -> false ) ->
 		output "super::__construct(";
 		gen_expression_list arg_list;
@@ -1302,7 +1309,7 @@ let rec gen_expression ctx retval expression =
 								output ": " ) cases_list;
 				ctx.ctx_return_from_block <- return_from_internal_node;
 				gen_expression ctx false expression;
-				output_i "break;\n";
+				output_i ";break;\n";
 				) cases;
 			(match optional_default with | None -> ()
 			| Some default ->
@@ -1362,7 +1369,7 @@ let rec gen_expression ctx retval expression =
 		ctx.ctx_return_from_block <- return_from_internal_node;
 		gen_expression ctx false expression;
 		if (has_params) then writer#end_block;
-		output_i "break;\n";
+		output_i ";break;\n";
 	) cases;
 	(match default with
 	| None -> ()
