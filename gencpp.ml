@@ -217,20 +217,15 @@ let hash_iterate hash visitor =
 	!result
 
 (* Convert function names that can't be written in c++ ... *)
-let keyword_remap = function
+let keyword_remap name =
+	match name with
 	| "int" -> "toInt"
-	| "or" -> "_or" (*problem with gcc *)
-	| "and" -> "_and" (*problem with gcc *)
-	| "xor" -> "_xor" (*problem with gcc *)
-	| "typeof" -> "_typeof"
-	| "float" -> "_float"
-	| "union" -> "_union"
-	| "template" -> "_template"
-	| "goto" -> "_goto"
-	| "stdin" -> "_stdin"
-	| "stdout" -> "_stdout"
-	| "stderr" -> "_stderr"
-	| "struct" -> "_struct"
+	| "asm" | "auto" | "char" | "const" | "delete" | "double" | "enum"
+	| "extern" | "float" | "friend" | "goto" | "long" | "operator" | "protected"
+	| "register" | "short" | "signed" | "sizeof" | "template" | "typedef"
+	| "union" | "unsigned" | "void" | "volatile" | "or" | "and" | "xor" | "or_eq"
+	| "and_eq" | "xor_eq" | "typeof" | "stdin" | "stdout" | "stderr"
+	| "struct" -> "_" ^ name
 	| x -> x
 
 (*
@@ -300,7 +295,7 @@ let rec class_string klass suffix params =
 	)
 and type_string_suff suffix haxe_type =
 	(match haxe_type with
-	| TMono r -> (match !r with None -> "Dynamic" | Some t -> type_string_suff suffix t)
+	| TMono r -> (match !r with None -> "Dynamic" ^ suffix | Some t -> type_string_suff suffix t)
 	| TEnum ({ e_path = ([],"Void") },[]) -> "Void"
 	| TEnum ({ e_path = ([],"Bool") },[]) -> "bool"
 	| TInst ({ cl_path = ([],"Float") },[]) -> "double"
@@ -315,7 +310,7 @@ and type_string_suff suffix haxe_type =
 				(match follow t with
 				| TInst ({ cl_path = [],"Int" },_)
 				| TInst ({ cl_path = [],"Float" },_)
-				| TEnum ({ e_path = [],"Bool" },_) -> "Dynamic"
+				| TEnum ({ e_path = [],"Bool" },_) -> "Dynamic" ^ suffix
 				| _ -> type_string_suff suffix t)
 			| _ -> assert false);
 		| [] , "Array" ->
@@ -324,9 +319,9 @@ and type_string_suff suffix haxe_type =
 			| _ -> assert false)
 		| _ ->  type_string_suff suffix (apply_params type_def.t_types params type_def.t_type)
 		)
-	| TFun (args,haxe_type) -> "Dynamic"
-	| TAnon anon -> "Dynamic"
-	| TDynamic haxe_type -> "Dynamic"
+	| TFun (args,haxe_type) -> "Dynamic" ^ suffix
+	| TAnon anon -> "Dynamic" ^ suffix
+	| TDynamic haxe_type -> "Dynamic" ^ suffix
 	| TLazy func -> type_string_suff suffix ((!func)())
 	)
 and type_string haxe_type = 
@@ -400,6 +395,7 @@ let gen_arg_type_name name default_val arg_type prefix =
 	let remap_name = keyword_remap name in
 	let type_str = (type_string arg_type) in
 	match default_val with
+	| Some TNull when (type_str="String") -> (type_str,remap_name)
 	| Some constant when (is_basic_type type_str) -> ("Dynamic",prefix ^ remap_name)
 	| _ -> (type_str,remap_name);;
 
@@ -1453,6 +1449,7 @@ let default_value_string = function
 let generate_default_values ctx args prefix =
   List.iter ( fun (name,o,arg_type) -> let type_str = type_string arg_type in
 	match o with
+	| Some TNull when (type_str = "String") -> ()
 	| Some const when (is_basic_type type_str) ->
 		ctx.ctx_output (type_str ^ " " ^ name ^ " = " ^ prefix ^ name ^ ".Default(" ^ 
 			(default_value_string const) ^ ");\n")
@@ -1461,7 +1458,10 @@ let generate_default_values ctx args prefix =
 
 let has_default_values args =
 	List.exists ( fun (name,o,arg_type) -> let type_str = type_string arg_type in
-	match o with | Some const when (is_basic_type type_str) -> true | _ -> false ) args;;
+	match o with
+	| Some TNull when (type_str = "String") -> false
+	| Some const when (is_basic_type type_str) -> true
+	| _ -> false ) args;;
 
 
 let gen_field ctx class_name ptr_name is_static is_external is_interface field =
@@ -1691,6 +1691,9 @@ let find_referenced_types obj super_deps header_only =
 						| Some l -> List.iter (fun (v,t) -> visit_type t) l  ) ) cases;
 				(* Must visit type too, Type.iter will visit the expressions ... *)
 				| TNew  (klass,params,_) -> visit_type (TInst (klass,params))
+				(* Must visit type too, Type.iter will visit the expressions ... *)
+				| TVars var_list ->
+					List.iter (fun (_, var_type, _) -> visit_type var_type ) var_list
 				(* Must visit args too, Type.iter will visit the expressions ... *)
 				| TFunction func_def ->
 					List.iter (fun (_,_,arg_type) -> visit_type arg_type) func_def.tf_args;
@@ -1930,7 +1933,7 @@ let generate_enum_files common_ctx enum_def super_deps =
 	output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
 	let text_name = str (join_class_path class_path ".") in
 	output_cpp ("\nStatic(__mClass) = RegisterClass(" ^ text_name ^
-					", TCanCast<" ^ class_name ^ " >,sStaticFields,sMemberFields,\n");
+					", TCanCast<" ^ class_name ^ " >,sStaticFields,sMemberFields,0,\n");
 	output_cpp ("	&__Create_" ^ class_name ^ ", &__Create,\n");
 	output_cpp ("	&super::__SGetClass(), &Create" ^ class_name ^ ", sMarkStatics);\n");
 	output_cpp ("}\n\n");
@@ -2253,6 +2256,20 @@ let generate_class_files common_ctx member_types super_deps class_def =
 				output_cpp ("	MarkMember(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ");\n") )
 			class_def.cl_ordered_statics;
 		output_cpp "};\n\n";
+
+		output_cpp "static _VtableMarks sMarkVTables[] = {\n";
+		let rec add_vtable in_path =
+			let super = (join_class_path in_path "::") ^ "_obj" in
+			output_cpp ("   { hxGetVTable<" ^ class_name ^ "," ^ super ^ ">(),"
+				^ super ^"::__SMark},\n");
+			try
+				List.iter add_vtable (Hashtbl.find super_deps in_path);
+			with Not_found -> ()
+		in
+		add_vtable class_def.cl_path;
+		output_cpp ("   { hxGetVTable<" ^ class_name ^ ",hxObject>(),hxObject::__SMark},\n");
+		output_cpp ("   { 0,0 }\n");
+		output_cpp "};\n\n";
 	end;
 
 
@@ -2269,7 +2286,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 
 		output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
 		output_cpp ("	Static(__mClass) = RegisterClass(" ^ (str class_name_text)  ^
-				", TCanCast<" ^ class_name ^ "> ,sStaticFields,sMemberFields,\n");
+				", TCanCast<" ^ class_name ^ "> ,sStaticFields,sMemberFields,sMarkVTables,\n");
 		output_cpp ("	&__CreateEmpty, &__Create,\n");
 		output_cpp ("	&super::__SGetClass(), 0, sMarkStatics);\n");
 		output_cpp ("}\n\n");
@@ -2323,6 +2340,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 	if (class_def.cl_interface) then begin
 		output_h ("class " ^ class_name ^ " : public virtual hxObject\n");
 		output_h "{\n	public:\n";
+		output_h ("		typedef " ^ class_name ^ " OBJ_;\n");
 		output_h "	INTERFACE_DEF\n";
 	end else begin
 		output_h ("class " ^ class_name ^ " : public " ^
@@ -2334,7 +2352,6 @@ let generate_class_files common_ctx member_types super_deps class_def =
 		output_h "\n{\n	public:\n";
 		output_h ("		typedef " ^ super ^ " super;\n");
 		output_h ("		typedef " ^ class_name ^ " OBJ_;\n");
-		output_h "\n	protected:\n";
 		output_h ("		" ^ class_name ^  "();\n");
 		if (is_extern) then
 			output_h ("		virtual Void __construct(" ^ constructor_type_args ^ ")=0;\n")
