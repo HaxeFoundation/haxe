@@ -2257,17 +2257,16 @@ let generate_class_files common_ctx member_types super_deps class_def =
 			class_def.cl_ordered_statics;
 		output_cpp "};\n\n";
 
-		output_cpp "static _VtableMarks sMarkVTables[] = {\n";
+		output_cpp "static _VTableMarks sMarkVTables[] = {\n";
 		let rec add_vtable in_path =
 			let super = (join_class_path in_path "::") ^ "_obj" in
-			output_cpp ("   { hxGetVTable<" ^ class_name ^ "," ^ super ^ ">(),"
-				^ super ^"::__SMark},\n");
+			output_cpp ("   hxGetVTable<" ^ class_name ^ "," ^ super ^ ">(),\n");
 			try
 				List.iter add_vtable (Hashtbl.find super_deps in_path);
 			with Not_found -> ()
 		in
 		add_vtable class_def.cl_path;
-		output_cpp ("   { hxGetVTable<" ^ class_name ^ ",hxObject>(),hxObject::__SMark},\n");
+		output_cpp ("   hxGetVTable<" ^ class_name ^ ",hxObject>(),\n");
 		output_cpp ("   { 0,0 }\n");
 		output_cpp "};\n\n";
 	end;
