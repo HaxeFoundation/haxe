@@ -332,9 +332,11 @@ class Main {
 		}
 
 		// check if this version already exists
-		for( v in site.infos(infos.project).versions )
-			if( v.name == infos.version && ask("You're about to overwrite existing version '"+v.name+"', please confirm") == No )
-				throw "Aborted";
+		var sinfos = try site.infos(infos.project) catch( _ : Dynamic ) null;
+		if( sinfos != null )
+			for( v in sinfos.versions )
+				if( v.name == infos.version && ask("You're about to overwrite existing version '"+v.name+"', please confirm") == No )
+					throw "Aborted";
 
 		// query a submit id that will identify the file
 		var id = site.getSubmitId();

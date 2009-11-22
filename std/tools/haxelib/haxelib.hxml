@@ -1,10 +1,11 @@
 # Site
 -neko index.n
 -main tools.haxelib.Site
-
+-cp ../..
 
 --next
 # Command
 -neko haxelib.n
 -main tools.haxelib.Main
+-cp ../..
 -cmd nekotools boot haxelib.n
