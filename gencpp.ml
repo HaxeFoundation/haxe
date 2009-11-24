@@ -1933,7 +1933,7 @@ let generate_enum_files common_ctx enum_def super_deps =
 	output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
 	let text_name = str (join_class_path class_path ".") in
 	output_cpp ("\nStatic(__mClass) = RegisterClass(" ^ text_name ^
-					", TCanCast<" ^ class_name ^ " >,sStaticFields,sMemberFields,0,\n");
+					", TCanCast<" ^ class_name ^ " >,sStaticFields,sMemberFields,\n");
 	output_cpp ("	&__Create_" ^ class_name ^ ", &__Create,\n");
 	output_cpp ("	&super::__SGetClass(), &Create" ^ class_name ^ ", sMarkStatics);\n");
 	output_cpp ("}\n\n");
@@ -2046,6 +2046,20 @@ let generate_class_files common_ctx member_types super_deps class_def =
 	let all_referenced = find_referenced_types (TClassDecl class_def) super_deps false in
 	List.iter ( add_include cpp_file  ) all_referenced;
 
+	(* All interfaces (and sub-interfaces) implemented *)
+	let implemented_hash = Hashtbl.create 0 in
+	List.iter (fun imp ->
+		let rec descend_interface interface =
+			let imp_path = (fst interface).cl_path in
+			let interface_name = (join_class_path imp_path "::" ) in
+			if ( not (Hashtbl.mem implemented_hash interface_name) ) then begin
+				Hashtbl.add implemented_hash interface_name ();
+				match (fst interface).cl_super with | Some super -> descend_interface super | _->();
+			end
+		in descend_interface imp
+	) class_def.cl_implements;
+	let implemented = hash_keys implemented_hash in
+
 	gen_open_namespace output_cpp class_path;
 	output_cpp "\n";
 
@@ -2102,6 +2116,16 @@ let generate_class_files common_ctx member_types super_deps class_def =
 		gen_expression (new_context cpp_file debug) false expression;
 		output_cpp "\n\n";
 	| _ -> ());
+
+
+	if ( (List.length implemented) > 0 ) then begin
+		output_cpp ("hxObject *" ^ class_name ^ "::__ToInterface(const type_info &inType) {\n");
+		List.iter (fun interface_name ->
+			output_cpp ("	if (inType==typeid( " ^ interface_name ^ "_obj)) " ^
+				"return operator " ^ interface_name ^ "_obj *();\n");
+		) implemented;
+		output_cpp ("	return super::__ToInterface(inType);\n}\n\n");
+	end;
 
 	List.iter
 		(gen_field ctx class_name smart_class_name false is_extern class_def.cl_interface)
@@ -2257,18 +2281,6 @@ let generate_class_files common_ctx member_types super_deps class_def =
 			class_def.cl_ordered_statics;
 		output_cpp "};\n\n";
 
-		output_cpp "static _VTableMarks sMarkVTables[] = {\n";
-		let rec add_vtable in_path =
-			let super = (join_class_path in_path "::") ^ "_obj" in
-			output_cpp ("   hxGetVTable<" ^ class_name ^ "," ^ super ^ ">(),\n");
-			try
-				List.iter add_vtable (Hashtbl.find super_deps in_path);
-			with Not_found -> ()
-		in
-		add_vtable class_def.cl_path;
-		output_cpp ("   hxGetVTable<" ^ class_name ^ ",hxObject>(),\n");
-		output_cpp ("   { 0,0 }\n");
-		output_cpp "};\n\n";
 	end;
 
 
@@ -2285,7 +2297,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 
 		output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
 		output_cpp ("	Static(__mClass) = RegisterClass(" ^ (str class_name_text)  ^
-				", TCanCast<" ^ class_name ^ "> ,sStaticFields,sMemberFields,sMarkVTables,\n");
+				", TCanCast<" ^ class_name ^ "> ,sStaticFields,sMemberFields,\n");
 		output_cpp ("	&__CreateEmpty, &__Create,\n");
 		output_cpp ("	&super::__SGetClass(), 0, sMarkStatics);\n");
 		output_cpp ("}\n\n");
@@ -2336,21 +2348,15 @@ let generate_class_files common_ctx member_types super_deps class_def =
 	gen_open_namespace output_h class_path;
 	output_h "\n\n";
 
+	output_h ("class " ^ class_name ^ " : public " ^
+		(if super="hxObject" then "hxObject" else super ) );
+	output_h "{\n	public:\n";
+	output_h ("		typedef " ^ super ^ " super;\n");
+	output_h ("		typedef " ^ class_name ^ " OBJ_;\n");
+
 	if (class_def.cl_interface) then begin
-		output_h ("class " ^ class_name ^ " : public virtual hxObject\n");
-		output_h "{\n	public:\n";
-		output_h ("		typedef " ^ class_name ^ " OBJ_;\n");
 		output_h "	INTERFACE_DEF\n";
 	end else begin
-		output_h ("class " ^ class_name ^ " : public " ^
-			(if super="hxObject" then "virtual hxObject" else super ) );
-		List.iter (fun imp ->
-			let imp_path = (fst imp).cl_path in
-			let interface_name = (join_class_path imp_path "::" ) ^ "_obj" in
-			output_h (", public " ^ interface_name ) ) class_def.cl_implements;
-		output_h "\n{\n	public:\n";
-		output_h ("		typedef " ^ super ^ " super;\n");
-		output_h ("		typedef " ^ class_name ^ " OBJ_;\n");
 		output_h ("		" ^ class_name ^  "();\n");
 		if (is_extern) then
 			output_h ("		virtual Void __construct(" ^ constructor_type_args ^ ")=0;\n")
@@ -2368,6 +2374,14 @@ let generate_class_files common_ctx member_types super_deps class_def =
 		output_h ("		static void __register();\n");
 		output_h ("		void __Mark();\n");
 
+		List.iter (fun interface_name ->
+			output_h ("		inline operator " ^ interface_name ^ "_obj *()\n			" ^
+					"{ return new " ^ interface_name ^ "_delegate_<" ^ class_name ^" >(this); }\n" );
+		) implemented;
+
+		if ( (List.length implemented) > 0 ) then
+			output_h "		hxObject *__ToInterface(const type_info &inType);\n";
+
 		if (has_init_field class_def) then
 			output_h "		static void __init__();\n\n";
 		output_h ("		String __ToString() const { return " ^ (str smart_class_name) ^ "; }\n\n");
@@ -2384,6 +2398,41 @@ let generate_class_files common_ctx member_types super_deps class_def =
 	List.iter (gen_member_def ctx true is_extern interface)  class_def.cl_ordered_statics;
 
 	output_h "};\n\n";
+
+	if (class_def.cl_interface) then begin
+		output_h ("#define DELEGATE_" ^ (join_class_path  class_def.cl_path "_" ) ^ " \\\n");
+		List.iter (fun field ->
+		match follow field.cf_type with
+		| TFun (args,return_type) ->
+			(* TODO : virtual ? *)
+			let remap_name = keyword_remap field.cf_name in
+			output_h ( "virtual "  ^ (type_string return_type) ^ " " ^ remap_name ^ "( " );
+			output_h (String.concat "," (List.map (fun (name,opt,typ) ->
+				(type_string typ) ^ " " ^ name ^ (if opt then "=null()" else "")) args));
+			output_h (") { return mDelegate->" ^ remap_name^ "(");
+			output_h (String.concat "," (List.map (fun (name,opt,typ) -> name) args));
+			output_h ");}  \\\n";
+			output_h ("virtual Dynamic " ^ remap_name ^ "_dyn() { return mDelegate->" ^
+						remap_name ^ "_dyn();}  \\\n");
+		| _ -> ()
+		) class_def.cl_ordered_fields;
+		output_h ("\n\n");
+		output_h ("template<typename IMPL>\n");
+		output_h ("class " ^ smart_class_name ^ "_delegate_ : public " ^ class_name^"\n");
+		output_h "{\n	protected:\n";
+		output_h ("		IMPL *mDelegate;\n");
+		output_h "	public:\n";
+		output_h ("		" ^ smart_class_name ^ "_delegate_(IMPL *inDelegate) : mDelegate(inDelegate) {}\n");
+		output_h "		DELEGATE_hxObject\n";
+		let rec dump_delegate interface =
+			output_h ("		DELEGATE_" ^ (join_class_path  interface.cl_path "_" ) ^ "\n");
+			match interface.cl_super with | Some super -> dump_delegate (fst super) | _ -> ();
+		in
+		dump_delegate class_def;
+		output_h "};\n\n";
+	end;
+
+
 	gen_close_namespace output_h class_path;
 
 	end_header_file output_h def_string;
