@@ -1239,7 +1239,10 @@ let rec gen_expression ctx retval expression =
 			if (retval) then begin
 				gen_expression ctx true condition;
 				output " ? ";
-				let type_str = (type_string expression.etype) in
+				let type_str = match (type_string expression.etype) with
+				| "Void" -> "Dynamic"
+				| other -> other
+				in
 				if ( true (*(type_string if_expr.etype) <> type_str*) ) then begin
 					output (type_str ^ "( ");
 					gen_expression ctx true if_expr;
