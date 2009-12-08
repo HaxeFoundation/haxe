@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, The haXe Project Contributors
+ * Copyright (c) 2005-2008, The haXe Project Contributors
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -24,19 +24,23 @@
  */
 package cpp.vm;
 
-class Mutex {
-	var m : Dynamic;
+class Tls<T> {
+
+	static var sFreeSlot = 0;
+	var mTLSID : Int;
+	public var value(getValue,setValue) : T;
 
 	public function new() {
-		m = untyped __global__.__hxcpp_mutex_create();
+		mTLSID = sFreeSlot++;
 	}
-	public function acquire() {
-		untyped __global__.__hxcpp_mutex_acquire(m);
+
+	function getValue() : T {
+		return untyped __global__.__hxcpp_tls_get(mTLSID);
 	}
-	public function tryAcquire() : Bool {
-		return untyped __global__.__hxcpp_mutex_try(m);
+
+	function setValue( v : T ) {
+		untyped __global__.__hxcpp_tls_set(mTLSID,v);
+		return v;
 	}
-	public function release() {
-		untyped __global__.__hxcpp_mutex_release(m);
-	}
+
 }

@@ -24,19 +24,18 @@
  */
 package cpp.vm;
 
-class Mutex {
-	var m : Dynamic;
-
+class Deque<T> {
+	var q : Dynamic;
 	public function new() {
-		m = untyped __global__.__hxcpp_mutex_create();
+		q = untyped __global__.__hxcpp_deque_create();
 	}
-	public function acquire() {
-		untyped __global__.__hxcpp_mutex_acquire(m);
+	public function add( i : T ) {
+		untyped __global__.__hxcpp_deque_add(q,i);
 	}
-	public function tryAcquire() : Bool {
-		return untyped __global__.__hxcpp_mutex_try(m);
+	public function push( i : T ) {
+		untyped __global__.__hxcpp_deque_push(q,i);
 	}
-	public function release() {
-		untyped __global__.__hxcpp_mutex_release(m);
+	public function pop( block : Bool ) : T {
+		return untyped __global__.__hxcpp_deque_pop(q,block);
 	}
 }
