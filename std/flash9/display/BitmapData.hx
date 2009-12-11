@@ -38,7 +38,7 @@ extern class BitmapData implements IBitmapDrawable {
 	#if flash10
 	function setVector( rect : flash.geom.Rectangle, inputVector : flash.Vector<UInt> ) : Void;
 	function getVector( rect : flash.geom.Rectangle ) : flash.Vector<UInt>;
-	function histogram( ?hRect : flash.geom.Rectangle ) : flash.Vector<Float>;
+	function histogram( ?hRect : flash.geom.Rectangle ) : flash.Vector<flash.Vector<Int>>;
 	#end
 
 }
