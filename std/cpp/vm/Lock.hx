@@ -24,6 +24,8 @@
  */
 package cpp.vm;
 
+#if HXCPP_MULTI_THREADED
+
 class Lock {
 	var l : Dynamic;
 	public function new() {
@@ -36,3 +38,7 @@ class Lock {
 		untyped __global__.__hxcpp_lock_release(l);
 	}
 }
+
+#else
+You_need_to_define_HXCPP_MULTI_THREADED_to_use_the_Lock_class
+#end

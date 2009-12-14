@@ -24,6 +24,8 @@
  */
 package cpp.vm;
 
+#if HXCPP_MULTI_THREADED
+
 class Mutex {
 	var m : Dynamic;
 
@@ -40,3 +42,7 @@ class Mutex {
 		untyped __global__.__hxcpp_mutex_release(m);
 	}
 }
+
+#else
+You_need_to_define_HXCPP_MULTI_THREADED_to_use_the_Mutex_class
+#end

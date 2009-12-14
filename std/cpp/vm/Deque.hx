@@ -24,6 +24,8 @@
  */
 package cpp.vm;
 
+#if HXCPP_MULTI_THREADED
+
 class Deque<T> {
 	var q : Dynamic;
 	public function new() {
@@ -39,3 +41,7 @@ class Deque<T> {
 		return untyped __global__.__hxcpp_deque_pop(q,block);
 	}
 }
+
+#else
+You_need_to_define_HXCPP_MULTI_THREADED_to_use_the_Deque_class
+#end
