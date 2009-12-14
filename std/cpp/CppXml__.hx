@@ -103,7 +103,7 @@ class CppXml__ {
 				untyped this.cur = this.cur._parent;
 			}
 		};
-		untyped _parse(xmlData.__s,parser);
+		untyped _parse(xmlData,parser);
 		x.nodeType = Xml.Document;
 		return x;
 	}
