@@ -2563,85 +2563,10 @@ let write_build_data filename classes main_deps exe_name =
 	output_string buildfile "</xml>\n";
 	close_out buildfile;;
 
-
-let write_makefile is_nmake filename classes main_deps add_obj exe_name =
-	let makefile = open_out filename in
-	if (is_nmake) then begin
-		output_string makefile ("!ifndef HXCPP\n");
-		output_string makefile ("!error Please define HXCPP\n");
-		output_string makefile ("!endif\n");
-		output_string makefile ("!include $(HXCPP)/make/nmake.setup\n\n");
-	end else begin
-		output_string makefile ("ifeq (\"x$(HXCPP)\",\"x\")\n");
-		output_string makefile (" HXCPP := $(shell haxelib path hxcpp)\n");
-		output_string makefile ("endif\n");
-		output_string makefile ("include $(HXCPP)/make/make.setup\n\n");
-	end;
-
-	List.iter (add_class_to_makefile makefile add_obj ) classes;
-
-	add_class_to_makefile makefile "# " (  ( [] , "__main__") , main_deps );
-	add_class_to_makefile makefile "# " (  ( [] , "__lib__") , main_deps );
-
-	output_string makefile ("\n\nPROJECT = " ^ exe_name ^ "\n");
-	if (is_nmake) then begin
-		output_string makefile ("!include $(HXCPP)/make/nmake.tail\n\n");
-	end else begin
-		output_string makefile "\n\ninclude $(HXCPP)/make/make.tail\n";
-	end;
-	close_out makefile;;
-
-let write_vcproj base_dir classes exe_name =
-	try
-		let hxcpp = Sys.getenv "HXCPP" in
-		let sln_name = base_dir ^ "/" ^ exe_name ^ ".sln" in
-		if ( not (Sys.file_exists sln_name)) then begin
-			let in_file = open_in (hxcpp ^ "/make/HaxeProj/HaxeProj.sln") in
-			let contents = read_whole_file in_file in
-			close_in in_file;
-			Std.output_file sln_name contents;
-		end;
-		let vcproj_name = (base_dir ^ "/HaxeProj.vcproj") in
-		let source_file = open_in ( if (Sys.file_exists vcproj_name)
-			then vcproj_name else (hxcpp ^ "/make/HaxeProj/HaxeProj.vcproj") ) in
-		let vcproj = cached_source_writer vcproj_name in
-		let in_files_section = ref false in
-		let begin_files = Str.regexp ".*<Files>" in
-		let end_files = Str.regexp ".*</Files>" in
-		Enum.iter (fun line -> 
-			if (!in_files_section) then begin
-				if (Str.string_match end_files line 0) then begin
-					in_files_section := false;
-					vcproj#write (line ^ "\n");
-				end
-			end else begin
-				if (Str.string_match begin_files line 0) then begin
-					vcproj#write (line ^ "\n");
-					in_files_section := true;
-					(* Dump project files ... *)
-					let p = fun x -> vcproj#write ("		"^x^"\n") in
-					p "<Filter Name=\"Source Files\" Filter=\"cpp\">";
-						p "\t<File RelativePath=\".\\src\\__main__.cpp\"></File>";
-					p "\t<File RelativePath=\".\\src\\__boot__.cpp\"></File>";
-					p "\t<File RelativePath=\".\\src\\__resources__.cpp\"></File>";
-					List.iter (fun class_def ->
-						let cpp = (join_class_path (fst class_def) "-") ^ ".cpp" in
-						p ("\t<File RelativePath=\".\\src\\" ^ cpp ^ "\"></File>") ) classes;
-					p "</Filter>";
-					p "<Filter Name=\"Header Files\" Filter=\"h\">";
-					List.iter (fun class_def ->
-						let h = (join_class_path (fst class_def) "\\") ^ ".h" in
-						p ("\t<File RelativePath=\".\\include\\" ^ h ^ "\"></File>") ) classes;
-					p "</Filter>";
-				end else
-					vcproj#write (line ^ "\n");
-			end
-		) (Std.input_lines source_file);
-		close_in source_file;
-		vcproj#close;
-	with Not_found -> failwith "Please set the environment variable HXCPP"
-	;;
-
+let write_build_options filename options =
+	let writer = cached_source_writer filename in
+	PMap.iter ( fun name _ -> if (name <> "debug") then writer#write ( name ^ "\n") ) options;
+	writer#close;;
 
 let create_member_types common_ctx = 
 	let result = Hashtbl.create 0 in
@@ -2746,26 +2671,17 @@ let generate common_ctx =
 	| Some path -> (snd path)
 	| _ -> "output" in
 
-	if ( (Sys.os_type = "Win32") && (Common.defined common_ctx "vcproj" ) ) then
-		write_vcproj common_ctx.file !exe_classes output_name
-	else if ( (Common.defined common_ctx "nmake" ) ) then
-		write_makefile true (common_ctx.file ^ "/makefile") !exe_classes !main_deps
-			"OBJ_FILES = $(OBJ_FILES)" output_name
-	else if ( Common.defined common_ctx "gmake" ) then
-		write_makefile false (common_ctx.file ^ "/makefile") !exe_classes !main_deps
-			"OBJ_FILES += " output_name
-	else begin
-		write_build_data (common_ctx.file ^ "/Build.xml") !exe_classes !main_deps output_name;
-		if ( not (Common.defined common_ctx "no-compilation") ) then begin
-			let old_dir = Sys.getcwd() in
-			Sys.chdir common_ctx.file;
-			let cmd = ref "haxelib run hxcpp Build.xml haxe" in
-			if (common_ctx.debug) then cmd := !cmd ^ " -Ddebug";
-			PMap.iter ( fun name _ -> cmd := !cmd ^ " -D" ^ name ^ "" ) common_ctx.defines;
-			print_endline !cmd;
-			if Sys.command !cmd <> 0 then failwith "Build failed";
-			Sys.chdir old_dir;
-		end
+	write_build_data (common_ctx.file ^ "/Build.xml") !exe_classes !main_deps output_name;
+	write_build_options (common_ctx.file ^ "/Options.txt") common_ctx.defines;
+	if ( not (Common.defined common_ctx "no-compilation") ) then begin
+		let old_dir = Sys.getcwd() in
+		Sys.chdir common_ctx.file;
+		let cmd = ref "haxelib run hxcpp Build.xml haxe" in
+		if (common_ctx.debug) then cmd := !cmd ^ " -Ddebug";
+		PMap.iter ( fun name _ -> cmd := !cmd ^ " -D" ^ name ^ "" ) common_ctx.defines;
+		print_endline !cmd;
+		if Sys.command !cmd <> 0 then failwith "Build failed";
+		Sys.chdir old_dir;
 	end
 	;;
 
