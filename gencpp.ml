@@ -2566,6 +2566,9 @@ let write_build_data filename classes main_deps exe_name =
 let write_build_options filename options =
 	let writer = cached_source_writer filename in
 	PMap.iter ( fun name _ -> if (name <> "debug") then writer#write ( name ^ "\n") ) options;
+	let cmd = Unix.open_process_in "haxelib path hxcpp" in
+	writer#write (Pervasives.input_line cmd);
+	Pervasives.ignore (Unix.close_process_in cmd);
 	writer#close;;
 
 let create_member_types common_ctx = 
