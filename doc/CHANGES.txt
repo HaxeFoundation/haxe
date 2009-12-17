@@ -11,6 +11,7 @@
 	php: fixed issues with classes that implement Dynamic
 	all : ignore #! line at beginning of the hx file
 	haxelib : added tags, added documentation
+	flash8 : don't use b64 encoding for text ressources
 
 2009-07-26: 2.04
 	flash9 : fixed get_full_path error with -D fdb

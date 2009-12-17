@@ -934,8 +934,16 @@ and gen_call ctx e el =
 		let count = ref 0 in
 		Hashtbl.iter (fun name data ->
 			incr count;
-			push ctx [VStr ("name",false);VStr (name,true);VStr ("data",false)];
-			gen_big_string ctx (Codegen.bytes_serialize data);
+			push ctx [VStr ("name",false);VStr (name,true)];
+			(* if the data contains \0 or is not UTF8 valid, encode into bytes *)
+			(try 
+				(try ignore(String.index data '\000'); raise Exit; with Not_found -> ());
+				UTF8.validate data;
+				push ctx [VStr ("str",false)];
+				gen_big_string ctx data;
+			with _ ->
+				push ctx [VStr ("data",false)];
+				gen_big_string ctx (Codegen.bytes_serialize data));
 			push ctx [VInt 2];
 			write ctx AObject;
 			ctx.stack_size <- ctx.stack_size - 4;

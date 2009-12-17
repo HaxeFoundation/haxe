@@ -65,7 +65,7 @@ class Resource {
 		return haxe.io.Bytes.ofData(array);
 	}
 #else
-	static var content : Array<{ name : String, data : String }>;
+	static var content : Array<{ name : String, data : String, str : String }>;
 
 	public static function listNames() : Array<String> {
 		var names = new Array();
@@ -80,6 +80,7 @@ class Resource {
 				#if neko
 				return new String(x.data);
 				#else
+				if( x.str != null ) return x.str;
 				var b : haxe.io.Bytes = haxe.Unserializer.run(x.data);
 				return b.toString();
 				#end
@@ -93,6 +94,7 @@ class Resource {
 				#if neko
 				return haxe.io.Bytes.ofData(cast x.data);
 				#else
+				if( x.str != null ) return haxe.io.Bytes.ofString(x.str);
 				return haxe.Unserializer.run(x.data);
 				#end
 			}

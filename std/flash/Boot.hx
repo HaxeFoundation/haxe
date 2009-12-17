@@ -159,7 +159,10 @@ class Boot {
 		var root = flash.Lib.current;
 		var tf : flash.TextField = root.__trace_txt;
 		if( tf == null ) {
-			root.createTextField("__trace_txt",1048500,0,0,Stage.width,Stage.height+30);
+			var w = Stage.width, h = Stage.height;
+			if( w == 0 ) w = 800;
+			if( h == 0 ) h = 600;
+			root.createTextField("__trace_txt",1048500,0,0,w,h+30);
 			tf = root.__trace_txt;
 			var format = tf.getTextFormat();
 			format.font = "_sans";
