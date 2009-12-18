@@ -120,7 +120,7 @@ class Hash<T> #if php implements php.IteratorAggregate<T> #end {
 		#elseif cpp
 		return untyped h.__Field(key)!=null;
 		#elseif php
-		return untyped __call__("isset", h[key]);
+		return untyped __call__("array_key_exists", key, h);
 		#else
 		return false;
 		#end
