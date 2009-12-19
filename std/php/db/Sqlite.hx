@@ -57,6 +57,15 @@ private class SqliteConnection implements Connection {
 		return "'" + untyped __call__("sqlite_escape_string", s) + "'";
 	}
 
+	public function addValue( s : StringBuf, v : Dynamic ) {
+		if( untyped __call__("is_int", v) || __call__("is_null", v))
+			s.add(v);
+		else if( untyped __call__("is_bool", v) )
+			s.add(if( v ) 1 else 0);
+		else
+			s.add(quote(Std.string(v)));
+	}
+
 	public function lastInsertId() {
 		return untyped __call__("sqlite_last_insert_rowid", c);
 	}

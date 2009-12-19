@@ -56,6 +56,16 @@ private class SqliteConnection implements Connection {
 		return "'"+s.split("'").join("''")+"'";
 	}
 
+	public function addValue( s : StringBuf, v : Dynamic ) {
+		var t = untyped __dollar__typeof(v);
+		if( untyped (t == __dollar__tint || t == __dollar__tnull) )
+			s.add(v);
+		else if( untyped t == __dollar__tbool )
+			s.add(if( v ) 1 else 0);
+		else
+			s.add(quote(Std.string(v)));
+	}
+
 	public function lastInsertId() {
 		return _last_id(c);
 	}

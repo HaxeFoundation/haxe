@@ -129,7 +129,7 @@ class Manager<T : Object> {
 		s.add(" WHERE ");
 		s.add(quoteField(table_keys[0]));
 		s.add(" = ");
-		addQuote(s,id);
+		cnx.addValue(s,id);
 		if( lock )
 			s.add(FOR_UPDATE);
 		return object(s.toString(),lock);
@@ -187,7 +187,7 @@ class Manager<T : Object> {
 					s.add(" IS NULL");
 				else {
 					s.add(" = ");
-					addQuote(s,d);
+					cnx.addValue(s,d);
 				}
 			}
 		if( first )
@@ -246,7 +246,7 @@ class Manager<T : Object> {
 				first = false;
 			else
 				s.add(", ");
-			addQuote(s,v);
+			cnx.addValue(s,v);
 		}
 		s.add(")");
 		execute(s.toString());
@@ -274,7 +274,7 @@ class Manager<T : Object> {
 					mod = true;
 				s.add(quoteField(f));
 				s.add(" = ");
-				addQuote(s,v);
+				cnx.addValue(s,v);
 				Reflect.setField(cache,f,v);
 			}
 		}
@@ -360,15 +360,6 @@ class Manager<T : Object> {
 		return f;
 	}
 
-	function addQuote( s : StringBuf, v : Dynamic ) {
-		if( untyped __call__("is_int", v) || __call__("is_null", v))
-			s.add(v);
-		else if( untyped __call__("is_bool", v) )
-			s.add(if( v ) 1 else 0);
-		else
-			s.add(cnx.quote(Std.string(v)));
-	}
-
 	function addKeys( s : StringBuf, x : {} ) {
 		var first = true;
 		for( k in table_keys ) {
@@ -381,7 +372,7 @@ class Manager<T : Object> {
 			var f = Reflect.field(x,k);
 			if( f == null )
 				throw ("Missing key "+k);
-			addQuote(s,f);
+			cnx.addValue(s,f);
 		}
 	}
 

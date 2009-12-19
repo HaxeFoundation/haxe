@@ -54,6 +54,15 @@ private class MysqlConnection implements Connection {
 		return "'" + untyped __call__("mysql_real_escape_string", s, c) + "'";
 	}
 
+	public function addValue( s : StringBuf, v : Dynamic ) {
+		if( untyped __call__("is_int", v) || __call__("is_null", v))
+			s.add(v);
+		else if( untyped __call__("is_bool", v) )
+			s.add(if( v ) 1 else 0);
+		else
+			s.add(quote(Std.string(v)));
+	}
+
 	public function lastInsertId() {
 		return untyped __call__("mysql_insert_id", c);
 	}
@@ -93,7 +102,7 @@ private class MysqlResultSet implements ResultSet {
 			return 0;
 		return untyped __call__("mysql_num_rows", __r);
 	}
-	
+
 	private var _nfields : Int;
 	private function getNFields() {
 		if(_nfields == null)
@@ -140,7 +149,7 @@ private class MysqlResultSet implements ResultSet {
 		cRow = untyped __call__("mysql_fetch_array", __r, __php__("MYSQL_NUM"));
 		return ! untyped __physeq__(cRow, false);
 	}
-	
+
 	public function next() : Dynamic {
 		if( cache != null ) {
 			var t = cache;
@@ -164,7 +173,7 @@ private class MysqlResultSet implements ResultSet {
 	}
 
 	public function getResult( n : Int ) : String {
-		if(cRow == null) 
+		if(cRow == null)
 			if(!fetchRow())
 				return null;
 		return cRow[n];
