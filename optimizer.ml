@@ -33,13 +33,23 @@ let type_inline ctx cf f ethis params tret p =
 		Hashtbl.add hcount name (ref 0);
 		(name,t)
 	) f.tf_args in
-	(* use default values for null arguments *)
-	let params = List.map2 (fun e (name,opt,t) ->
-		if is_nullable t && is_null e.etype then Hashtbl.add lsets name (); (* force coerce *)
-		match e.eexpr, opt with
-		| TConst TNull , Some c -> mk (TConst c) t e.epos
-		| _ -> e
-	) params f.tf_args in
+	(* use default values for null/unset arguments *)
+	let rec loop pl al =
+		match pl, al with
+		| [], [] -> []
+		| e :: pl, (name, opt, t) :: al ->
+			if is_nullable t && is_null e.etype then Hashtbl.add lsets name (); (* force coerce *)
+			(match e.eexpr, opt with
+			| TConst TNull , Some c -> mk (TConst c) t e.epos
+			| _ -> e) :: loop pl al
+		| [], (_,opt,t) :: al ->
+			(match opt with
+			| None -> assert false
+			| Some c -> mk (TConst c) t p) :: loop [] al
+		| _ :: _, [] ->
+			assert false
+	in
+	let params = loop params f.tf_args in
 	let vthis = gen_local ctx ethis.etype in
 	let this_count = ref 0 in
 	let local i =

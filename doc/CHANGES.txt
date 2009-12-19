@@ -1,5 +1,4 @@
 2010-??-??: 2.05
-	all : allow -D noopt to turn off optimizer
 	js : added js.Scroll
 	js : package names are now checked at runtime to avoid clashes with existing libs
 	js : added --js-namespace to create a namespace for types that are defined in the root
@@ -17,6 +16,7 @@
 	all : improve return type progagation in inlined expression (fix some VerifyErrors)
 	all : optimize {const} into const
 	all : added structure / Dynamic<T> subtyping
+	all : fixed List.map2 error when inline + optional args
 
 2009-07-26: 2.04
 	flash9 : fixed get_full_path error with -D fdb
