@@ -296,7 +296,7 @@ try
 		("-D",Arg.String (fun var ->
 			(match var with
 			| "use_rtti_doc" -> Parser.use_doc := true
-			| "noopt" -> com.foptimize <- false
+			| "no_opt" -> com.foptimize <- false
 			| _ -> ());
 			Common.define com var
 		),"<var> : define a conditional compilation flag");
@@ -491,7 +491,7 @@ try
 		let tfilters = [
 			Codegen.fix_overrides com;
 		] in
-		let filters = (if Common.defined com "no_opt" then filters else Optimizer.reduce_expression com :: filters) in
+		let filters = (if not com.foptimize then filters else Optimizer.reduce_expression com :: filters) in
 		Codegen.post_process com filters tfilters;
 		(match com.platform with
 		| Cross ->
