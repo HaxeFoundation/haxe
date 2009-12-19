@@ -52,6 +52,11 @@ let type_inline ctx cf f ethis params tret p =
 		| Some e -> Some (f e)
 	in
 	let has_vars = ref false in
+	(*
+		here, we try to eliminate final returns from the expression tree.
+		However, this is not entirely correct since we don't yet correctly propagate
+		the type of returned expressions upwards ("return" expr itself being Dynamic)
+	*)
 	let rec map term e =
 		let e = { e with epos = p } in
 		match e.eexpr with
@@ -75,25 +80,37 @@ let type_inline ctx cf f ethis params tret p =
 		| TFor (v,t,e1,e2) ->
 			{ e with eexpr = TFor (local v,t,map false e1,map false e2) }
 		| TMatch (e,en,cases,def) ->
-			let term = (match def with None -> false | Some _ -> term) in
+			let term, t = (match def with Some d when term -> true, d.etype | _ -> false, e.etype) in
 			let cases = List.map (fun (i,vl,e) ->
 				i, opt (List.map (fun (n,t) -> opt local n, t)) vl, map term e
 			) cases in
-			{ e with eexpr = TMatch (map false e,en,cases,opt (map term) def) }
+			{ e with eexpr = TMatch (map false e,en,cases,opt (map term) def); etype = t }
 		| TTry (e1,catches) ->
 			{ e with eexpr = TTry (map term e1,List.map (fun (v,t,e) -> local v,t,map term e) catches) }
 		| TBlock l ->
 			let old = save_locals ctx in
+			let t = ref e.etype in
 			let rec loop = function
+				| [] when term -> 
+					t := mk_mono();
+					[mk (TConst TNull) (!t) p]
 				| [] -> []
-				| [e] -> [map term e]
+				| [e] -> 
+					let e = map term e in
+					if term then t := e.etype;
+					[e]
 				| e :: l ->
 					let e = map false e in
 					e :: loop l
 			in
 			let l = loop l in
 			old();
-			{ e with eexpr = TBlock l }
+			{ e with eexpr = TBlock l; etype = !t }
+		| TIf (econd,eif,Some eelse) when term ->
+			let econd = map false econd in
+			let eif = map term eif in
+			let eelse = map term eelse in
+			{ e with eexpr = TIf(econd,eif,Some eelse); etype = eif.etype }
 		| TParenthesis _ | TIf (_,_,Some _) | TSwitch (_,_,Some _) ->
 			Type.map_expr (map term) e
 		| TUnop (op,pref,({ eexpr = TLocal s } as e1)) ->
@@ -438,7 +455,7 @@ let rec reduce_loop com is_sub e =
 			{ e with eexpr = TBlock body }
 		with
 			Exit -> e)
-	| TParenthesis ({ eexpr = TConst _ } as ec) ->
+	| TParenthesis ({ eexpr = TConst _ } as ec) | TBlock [{ eexpr = TConst _ } as ec] ->
 		{ ec with epos = e.epos }
 	| _ -> 
 		e
