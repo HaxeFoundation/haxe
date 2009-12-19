@@ -766,6 +766,20 @@ let rec unify a b =
 					type_eq EqRightDynamic t t2
 				with
 					Unify_error l -> error (cannot_unify a b :: l));
+		| TAnon an ->
+			(try
+				(match !(an.a_status) with
+				| Statics _ | EnumStatics _ -> error []
+				| Opened -> an.a_status := Closed
+				| _ -> ());
+				PMap.iter (fun _ f -> 
+					try
+						type_eq EqStrict (field_type f) t
+					with Unify_error l ->
+						error (invalid_field f.cf_name :: l)
+				) an.a_fields
+			with Unify_error l ->
+				error (cannot_unify a b :: l))
 		| _ ->
 			error [cannot_unify a b])
 	| _ , _ ->
