@@ -549,8 +549,10 @@ and gen_expr ctx e =
 				spr ctx " = ";
 				gen_value ctx e
 		) vl;
-	| TNew (c,_,el) ->
-		print ctx "new %s(" (s_path ctx true c.cl_path e.epos);
+	| TNew (c,params,el) ->
+		(match c.cl_path, params with
+		| (["flash"],"Vector"), [pt] -> print ctx "new Vector.<%s>(" (type_str ctx pt e.epos)
+		| _ -> print ctx "new %s(" (s_path ctx true c.cl_path e.epos));
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 	| TIf (cond,e,eelse) ->
