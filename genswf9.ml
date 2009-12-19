@@ -544,7 +544,7 @@ let end_fun ctx args tret =
 				| KUInt -> HVUInt i
 				| _ -> HVInt i)
 			| TFloat s -> HVFloat (float_of_string s)
-			| TString s -> HVString s
+			| TString s -> HVString (Genswf8.to_utf8 s)
 			| TBool b -> HVBool b
 			| TNull -> HVNone
 			| TThis	| TSuper -> assert false
@@ -718,7 +718,7 @@ let gen_constant ctx c t p =
 		let f = float_of_string f in
 		write ctx (HFloat f);
 	| TString s ->
-		write ctx (HString s);
+		write ctx (HString (Genswf8.to_utf8 s));
 	| TBool b ->
 		write ctx (if b then HTrue else HFalse);
 	| TNull ->

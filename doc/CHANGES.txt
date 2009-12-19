@@ -17,6 +17,7 @@
 	all : optimize {const} into const
 	all : added structure / Dynamic<T> subtyping
 	all : fixed List.map2 error when inline + optional args
+	flash9 : encode all ISO constant strings into UTF8 at compilation time
 
 2009-07-26: 2.04
 	flash9 : fixed get_full_path error with -D fdb
