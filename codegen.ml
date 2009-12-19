@@ -16,7 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *)
- 
+
 open Ast
 open Type
 open Common
@@ -86,11 +86,11 @@ let extend_remoting ctx c t p async prot =
 			let fargs, eargs = if async then match ftype with
 				| Some tret -> f.f_args @ ["__callb",true,Some (TPFunction ([tret],tvoid)),None], eargs @ [EConst (Ident "__callb"),p]
 				| _ -> f.f_args, eargs @ [EConst (Ident "null"),p]
-			else 
+			else
 				f.f_args, eargs
 			in
 			let id = (EConst (String name), p) in
-			let id = if prot then id else ECall ((EConst (Ident "__unprotect__"),p),[id]),p in 
+			let id = if prot then id else ECall ((EConst (Ident "__unprotect__"),p),[id]),p in
 			let expr = ECall (
 				(EField (
 					(ECall ((EField ((EConst (Ident "__cnx"),p),"resolve"),p),[id]),p),
@@ -110,12 +110,12 @@ let extend_remoting ctx c t p async prot =
 		match d with
 		| EClass c, p when c.d_name = t.tname ->
 			let is_public = List.mem HExtern c.d_flags || List.mem HInterface c.d_flags in
-			let fields = List.rev (List.fold_left (build_field is_public) base_fields c.d_data) in	
+			let fields = List.rev (List.fold_left (build_field is_public) base_fields c.d_data) in
 			(EClass { c with d_flags = []; d_name = new_name; d_data = fields },p)
 		| _ -> d
 	) decls in
 	let m = Typeload.type_module ctx (t.tpackage,new_name) decls p in
-	try 
+	try
 		List.find (fun tdecl -> snd (t_path tdecl) = new_name) m.mtypes
 	with Not_found ->
 		error ("Module " ^ s_type_path path ^ " does not define type " ^ t.tname) p
@@ -188,8 +188,13 @@ let build_generic ctx c p tl =
 		if c.cl_super <> None || c.cl_init <> None || c.cl_dynamic <> None then error "This class can't be generic" p;
 		if c.cl_ordered_statics <> [] then error "A generic class can't have static fields" p;
 		cg.cl_kind <- KGenericInstance (c,tl);
+		cg.cl_interface <- c.cl_interface;
 		cg.cl_constructor <- (match c.cl_constructor with None -> None | Some c -> Some (build_field c));
-		cg.cl_implements <- List.map (fun (i,tl) -> i, List.map build_type tl) c.cl_implements;
+		cg.cl_implements <- List.map (fun (i,tl) ->
+			(match build_type (TInst (i, List.map build_type tl)) with
+			| TInst (i,tl) -> i, tl
+			| _ -> assert false)
+		) c.cl_implements;
 		cg.cl_ordered_fields <- List.map (fun f ->
 			let f = build_field f in
 			cg.cl_fields <- PMap.add f.cf_name f cg.cl_fields;
@@ -318,9 +323,9 @@ let rec local_usage f e =
 			List.iter (fun (n,_,t) -> f (Declare (n,t))) tf.tf_args;
 			local_usage f tf.tf_expr;
 		in
-		f (Function cc)		
+		f (Function cc)
 	| TBlock l ->
-		f (Block (fun f -> List.iter (local_usage f) l))		
+		f (Block (fun f -> List.iter (local_usage f) l))
 	| TFor (v,t,it,e) ->
 		local_usage f it;
 		f (Loop (fun f ->
@@ -342,7 +347,7 @@ let rec local_usage f e =
 	| TMatch (e,_,cases,def) ->
 		local_usage f e;
 		List.iter (fun (_,vars,e) ->
-			let cc f = 
+			let cc f =
 				(match vars with
 				| None -> ()
 				| Some l ->	List.iter (fun (vo,t) -> match vo with None -> () | Some v -> f (Declare (v,t))) l);
@@ -362,7 +367,7 @@ let rec local_usage f e =
 	by value. It transforms the following expression :
 
 	for( x in array )
-		funs.push(function() return x++);	
+		funs.push(function() return x++);
 
 	Into the following :
 
@@ -393,7 +398,7 @@ let block_vars ctx e =
 		| TVars vl ->
 			let vl = List.map (fun (v,vt,e) ->
 				if PMap.mem v used then begin
-					let vt = t.tarray vt in					
+					let vt = t.tarray vt in
 					v, vt, (match e with None -> None | Some e -> Some (mk (TArrayDecl [wrap used e]) (t.tarray e.etype) e.epos))
 				end else
 					v, vt, (match e with None -> None | Some e -> Some (wrap used e))
@@ -401,7 +406,7 @@ let block_vars ctx e =
 			{ e with eexpr = TVars vl }
 		| TLocal v when PMap.mem v used ->
 			mk (TArray ({ e with etype = t.tarray e.etype },mk (TConst (TInt 0l)) t.tint e.epos)) e.etype e.epos
-		| TFor (v,vt,it,expr) when PMap.mem v used ->			
+		| TFor (v,vt,it,expr) when PMap.mem v used ->
 			let vtmp = gen_unique() in
 			let it = wrap used it in
 			let expr = wrap used expr in
@@ -410,7 +415,7 @@ let block_vars ctx e =
 			let catchs = List.map (fun (v,t,e) ->
 				let e = wrap used e in
 				if PMap.mem v used then
-					let vtmp = gen_unique()	in				
+					let vtmp = gen_unique()	in
 					vtmp, t, concat (mk_init v t vtmp e.epos) e
 				else
 					v, t, e
@@ -437,7 +442,7 @@ let block_vars ctx e =
 			let def = match def with None -> None | Some e -> Some (wrap used e) in
 			mk (TMatch (wrap used expr,enum,cases,def)) e.etype e.epos
 		| TFunction f ->
-			(* 
+			(*
 				list variables that are marked as used, but also used in that
 				function and which are not declared inside it !
 			*)
@@ -445,15 +450,15 @@ let block_vars ctx e =
 			let tmp_used = ref (PMap.foldi PMap.add used PMap.empty) in
 			let rec browse = function
 				| Block f | Loop f | Function f -> f browse
-				| Use v -> 
-					(try 
+				| Use v ->
+					(try
 						fused := PMap.add v (PMap.find v !tmp_used) !fused;
 					with Not_found ->
 						())
 				| Declare (v,_) ->
 					tmp_used := PMap.remove v !tmp_used
 			in
-			local_usage browse e;			
+			local_usage browse e;
 			let vars = PMap.foldi (fun v vt acc -> (v,t.tarray vt) :: acc) !fused [] in
 			(* in case the variable has been marked as used in a parallel scope... *)
 			let fexpr = ref (wrap used f.tf_expr) in
@@ -572,7 +577,7 @@ let check_local_vars_init e =
 			let init = (try PMap.find name !vars with Not_found -> true) in
 			if not init then error ("Local variable " ^ name ^ " used without being initialized") e.epos;
 		| TVars vl ->
-			List.iter (fun (v,_,eo) -> 
+			List.iter (fun (v,_,eo) ->
 				let init = (match eo with None -> false | Some e -> loop vars e; true) in
 				declared := v :: !declared;
 				vars := PMap.add v init !vars
@@ -627,7 +632,7 @@ let check_local_vars_init e =
 				vars := old;
 				v
 			) catches in
-			loop vars e;		
+			loop vars e;
 			join vars cvars;
 		| TSwitch (e,cases,def) ->
 			loop vars e;
@@ -693,7 +698,7 @@ let post_process ctx filters tfilters =
 			| Some f -> process_field f);
 			(match c.cl_init with
 			| None -> ()
-			| Some e ->				
+			| Some e ->
 				c.cl_init <- Some (List.fold_left (fun e f -> f e) e filters));
 		| TEnumDecl _ -> ()
 		| TTypeDecl _ -> ()
@@ -719,7 +724,7 @@ let stack_context_init com stack_var exc_var pos_var tmp_var use_add p =
 	let t = com.type_api in
 	let st = t.tarray t.tstring in
 	let stack_e = mk (TLocal stack_var) st p in
-	let exc_e = mk (TLocal exc_var) st p in	
+	let exc_e = mk (TLocal exc_var) st p in
 	let stack_pop = fcall stack_e "pop" [] t.tstring p in
 	let stack_push c m =
 		fcall stack_e "push" [
@@ -769,7 +774,7 @@ let rec stack_block_loop ctx e =
 			ctx.stack_pop;
 			e;
 		]) e.etype e.epos
-	| TReturn (Some e) ->	
+	| TReturn (Some e) ->
 		ctx.stack_return (stack_block_loop ctx e)
 	| TTry (v,cases) ->
 		let v = stack_block_loop ctx v in
@@ -785,12 +790,12 @@ let rec stack_block_loop ctx e =
 	| _ ->
 		map_expr (stack_block_loop ctx) e
 
-let stack_block ctx c m e =	
+let stack_block ctx c m e =
 	match (mk_block e).eexpr with
-	| TBlock l -> 
+	| TBlock l ->
 		mk (TBlock (
 			ctx.stack_push c m ::
-			ctx.stack_save_pos :: 
+			ctx.stack_save_pos ::
 			List.map (stack_block_loop ctx) l
 			@ [ctx.stack_pop]
 		)) e.etype e.epos
@@ -807,7 +812,7 @@ let stack_block ctx c m e =
 let fix_override c f fd =
 	c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
 	let rec find_field c interf =
-		try 
+		try
 			(match c.cl_super with
 			| None ->
 				raise Not_found
@@ -825,11 +830,11 @@ let fix_override c f fd =
 			in
 			loop c.cl_implements
 		with Not_found ->
-			interf, PMap.find f.cf_name c.cl_fields			
+			interf, PMap.find f.cf_name c.cl_fields
 	in
 	let f2 = (try Some (find_field c true) with Not_found -> None) in
 	let f = (match f2 with
-		| Some (interf,f2) -> 
+		| Some (interf,f2) ->
 			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> assert false) in
 			let fd2 = { fd with tf_args = List.map2 (fun (n,c,t) (_,_,t2) -> (n,c,t2)) fd.tf_args targs; tf_type = tret } in
 			let fde = (match f.cf_expr with None -> assert false | Some e -> e) in
@@ -941,9 +946,9 @@ let rec constructor_side_effects e =
 		true
 	| TBinop _ | TTry _ | TIf _ | TBlock _ | TVars _
 	| TFunction _ | TArrayDecl _ | TObjectDecl _
-	| TParenthesis _ | TTypeExpr _ | TEnumField _ | TLocal _ 
-	| TConst _ | TContinue | TBreak -> 
-		try 
+	| TParenthesis _ | TTypeExpr _ | TEnumField _ | TLocal _
+	| TConst _ | TContinue | TBreak ->
+		try
 			Type.iter (fun e -> if constructor_side_effects e then raise Exit) e;
 			false;
 		with Exit ->
