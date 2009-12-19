@@ -71,16 +71,17 @@ class File {
 	}
 
 	public static function stdout() {
-		return new FileOutput(untyped __call__('STDOUT'));
+		return new FileOutput(untyped __php__('STDOUT'));
 	}
 
 	public static function stderr() {
-		return new FileOutput(untyped __call__('STDERR'));
+		return new FileOutput(untyped __php__('STDERR'));
 	}
-/*
-* TODO: what is this for?
+	
 	public static function getChar( echo : Bool ) : Int {
-		return getch(echo);
+		var v : Int = untyped __call__("fgetc", __PHP__("STDIN"));
+		if(echo)
+			untyped __call__('echo', v);
+		return v;
 	}
-*/
 }
