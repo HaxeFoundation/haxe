@@ -284,6 +284,7 @@ let property ctx p t =
 	| TInst ({ cl_path = ["flash"],"Vector" },_) ->
 		(match p with
 		| "length" | "fixed" | "toString" -> ident p, None, false
+		| "iterator" -> ident p, None, true
 		| _ -> as3 p, None, false);
 	| TInst ({ cl_path = [],"String" },_) ->
 		(match p with
