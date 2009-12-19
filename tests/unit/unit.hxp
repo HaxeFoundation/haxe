@@ -54,5 +54,6 @@
     <file path="TestResource.hx" />
     <file path="TestSerialize.hx" />
     <file path="TestType.hx" />
+    <file path="TestXML.hx" />
   </files>
 </haxe>
