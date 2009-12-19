@@ -79,7 +79,7 @@ class File {
 	}
 	
 	public static function getChar( echo : Bool ) : Int {
-		var v : Int = untyped __call__("fgetc", __PHP__("STDIN"));
+		var v : Int = untyped __call__("fgetc", __php__("STDIN"));
 		if(echo)
 			untyped __call__('echo', v);
 		return v;
