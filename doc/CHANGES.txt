@@ -13,6 +13,7 @@
 	haxelib : added tags, added documentation
 	flash8 : don't use b64 encoding for text ressources
 	php : fixed bug in Hash.exists for null values and Reflect.callMethod
+	js/flash9 : throw exception in Xml.parse when unclosed node
 
 2009-07-26: 2.04
 	flash9 : fixed get_full_path error with -D fdb

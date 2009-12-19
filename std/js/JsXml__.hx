@@ -146,6 +146,8 @@ class JsXml__ {
 					throw ("Xml parse error : Unexpected "+str);
 			}
 		}
+		if( !stack.isEmpty() )
+			throw "Xml parse error : Unclosed "+stack.last().nodeName;
 		untyped return current;
 	}
 

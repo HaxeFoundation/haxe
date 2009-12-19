@@ -182,6 +182,7 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 			new TestResource(),
 			new TestEReg(),
 			new TestType(),
+			new TestXML(),
 //			new TestRemoting(),
 		];
 		var current = null;

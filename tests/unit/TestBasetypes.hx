@@ -75,4 +75,15 @@ class TestBasetypes extends Test {
 		eq( Math.round(-10000000000.7) & 0xFFFFFF, 15997951 );
 	}
 
+	function testParse() {
+		eq( Std.parseInt("0"), 0 );
+		eq( Std.parseInt("0001"), 1 );
+		eq( Std.parseInt("100"), 100 );
+		eq( Std.parseInt("-100"), -100 );
+		eq( Std.parseInt("100x123"), 100 );
+		eq( Std.parseInt(""), null );
+		eq( Std.parseInt("abcd"), null );
+		eq( Std.parseInt(null), null );
+	}
+
 }
