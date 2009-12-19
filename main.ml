@@ -449,7 +449,7 @@ try
 		| Cross ->
 			(* no platform selected *)
 			set_platform Cross "cross" "";
-			no_output := true; ""
+			"?"
 		| Flash | Flash9 ->
 			Common.define com ("flash" ^ string_of_int com.flash_version);
 			if com.flash_version >= 9 then begin
