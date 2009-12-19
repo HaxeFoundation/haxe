@@ -50,6 +50,7 @@ haxe.ImportAll
 --no-output
 -xml cpp.xml
 -D xmldoc
+-D HXCPP_MULTI_THREADED
 haxe.ImportAll
 
 --next
