@@ -807,15 +807,13 @@ let stack_block ctx c m e =
 let fix_override c f fd =
 	c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
 	let rec find_field c interf =
-		try
-			interf, PMap.find f.cf_name c.cl_fields			
-		with Not_found -> try
-			match c.cl_super with
+		try 
+			(match c.cl_super with
 			| None ->
 				raise Not_found
 			| Some (c,_) ->
-				find_field c false
-		with Not_found ->
+				find_field c false)
+		with Not_found -> try
 			let rec loop = function
 				| [] ->
 					raise Not_found
@@ -826,6 +824,8 @@ let fix_override c f fd =
 						Not_found -> loop l
 			in
 			loop c.cl_implements
+		with Not_found ->
+			interf, PMap.find f.cf_name c.cl_fields			
 	in
 	let f2 = (try Some (find_field c true) with Not_found -> None) in
 	let f = (match f2 with
