@@ -53,7 +53,7 @@ class Http {
 #if (neko || php || cpp)
 	public var noShutdown : Bool;
 	public var cnxTimeout : Float;
-	var responseHeaders : Hash<String>;
+	public var responseHeaders : Hash<String>;
 	var postData : String;
 	var chunk_size : Null<Int>;
 	var chunk_buf : haxe.io.Bytes;
@@ -483,8 +483,6 @@ class Http {
 		if( status == 0 || status == null )
 			throw "Response status error";
 
-		onStatus(status);
-
 		// remove the two lasts \r\n\r\n
 		headers.pop();
 		headers.pop();
@@ -498,6 +496,9 @@ class Http {
 			if( hname.toLowerCase() == "content-length" )
 				size = Std.parseInt(hval);
 		}
+
+		onStatus(status);
+
 		var chunked = responseHeaders.get("Transfer-Encoding") == "chunked";
 		var chunk_re = ~/^([0-9A-Fa-f]+)[ ]*\r\n/m;
 		chunk_size = null;
