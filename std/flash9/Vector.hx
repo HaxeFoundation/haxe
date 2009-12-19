@@ -24,9 +24,6 @@ extern class Vector<T> implements ArrayAccess<T> {
 	function sort( f : T -> T -> Int ) : Void;
 	function splice( pos : Int, len : Int ) : Vector<T>;
 	function toString() : String;
-
-	function iterator() : Iterator<T>;
-
 	function indexOf( x : T, ?from : Int ) : Int;
 	function lastIndexOf( x : T, ?from : Int ) : Int;
 
