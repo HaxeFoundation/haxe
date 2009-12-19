@@ -158,6 +158,7 @@ let tag ?(ext=false) d = {
 }
 
 let convert_header com (w,h,fps,bg) =
+	if max w h >= 1639 then failwith "-swf-header : size too large";
 	{
 		h_version = com.flash_version;
 		h_size = {
