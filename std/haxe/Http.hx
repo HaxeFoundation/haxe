@@ -484,8 +484,6 @@ class Http {
 			throw "Response status error";
 
 		onStatus(status);
-		if( status < 200 || status >= 400 )
-			throw "Http Error #"+status;
 
 		// remove the two lasts \r\n\r\n
 		headers.pop();
@@ -539,6 +537,8 @@ class Http {
 		}
 		if( chunked && (chunk_size != null || chunk_buf != null) )
 			throw "Invalid chunk";
+		if( status < 200 || status >= 400 )
+			throw "Http Error #"+status;
 		api.close();
 	}
 
