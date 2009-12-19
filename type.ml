@@ -733,7 +733,10 @@ let rec unify a b =
 			| Opened ->
 				a1.a_status := Closed
 			| _ -> ());
-			if !(a2.a_status) = Opened then a2.a_status := Closed;
+			(match !(a2.a_status) with
+			| Statics _ | EnumStatics _ -> error []
+			| Opened -> a2.a_status := Closed
+			| _ -> ())
 		with
 			Unify_error l -> error (cannot_unify a b :: l))
 	| TAnon an, TInst ({ cl_path = [],"Class" },[pt]) ->

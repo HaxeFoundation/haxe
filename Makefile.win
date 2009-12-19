@@ -61,6 +61,8 @@ typeload.cmx: typecore.cmx type.cmx parser.cmx common.cmx ast.cmx
 
 typer.cmx: typeload.cmx typecore.cmx type.cmx parser.cmx lexer.cmx common.cmx ast.cmx codegen.cmx optimizer.cmx
 
+optimizer.cmx: type.cmx
+
 
 clean:
 	rm -f haxe.exe
