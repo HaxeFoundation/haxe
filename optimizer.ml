@@ -50,6 +50,7 @@ let type_inline ctx cf f ethis params tret p =
 			assert false
 	in
 	let params = loop params f.tf_args in
+	let ethis = (match ethis.eexpr with TConst TSuper -> { ethis with eexpr = TConst TThis } | _ -> ethis) in
 	let vthis = gen_local ctx ethis.etype in
 	let this_count = ref 0 in
 	let local i =
