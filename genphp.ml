@@ -990,7 +990,8 @@ and gen_expr ctx e =
 		| _ -> print ctx "%s::%s$%s" (s_path ctx en.e_path en.e_extern e.epos) (escphp ctx.quotes) (s_ident s))
 	| TArray (e1,e2) ->
 		(match e1.eexpr with
-		| TCall _ ->
+		| TCall _
+		| TArrayDecl _ ->
 			spr ctx "_hx_array_get(";
 			gen_value ctx e1;
 			spr ctx ", ";
