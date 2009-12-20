@@ -1195,7 +1195,7 @@ and gen_expr ctx e =
 				gen_field_access ctx true e1 s;
 				spr ctx ": array(";
 				ob e1.eexpr;
-				print ctx ", %s\"%s%s\"))" p s p;
+				print ctx ", %s\"%s%s\"))" p (s_ident s) p;
 				
 			end)
 		| TMono _ ->
