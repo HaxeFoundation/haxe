@@ -1189,13 +1189,13 @@ and gen_expr ctx e =
 					| _ -> 
 						gen_expr ctx e1) in
 				
-				spr ctx "isset(";
+				spr ctx "(isset(";
 				gen_field_access ctx true e1 s;
 				spr ctx ") ? ";
 				gen_field_access ctx true e1 s;
 				spr ctx ": array(";
 				ob e1.eexpr;
-				print ctx ", %s\"%s%s\")" p s p;
+				print ctx ", %s\"%s%s\"))" p s p;
 				
 			end)
 		| TMono _ ->

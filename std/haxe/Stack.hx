@@ -177,8 +177,10 @@ class Stack {
 			}
 			return m;
 		#elseif php
-			var a : Array<String> = untyped __php__("$GLOBALS[$s]");
-			var m = new Array();
+			if (!untyped __call__("isset", __var__("GLOBALS", s)))
+				return [];
+			var a : Array<String> = untyped __var__("GLOBALS", s);
+			var m = [];
 			for( i in 0...a.length - ((s == "%s") ? 2 : 0)) {
 				var d = a[i].split("::");
 				m.unshift(Method(d[0],d[1]));

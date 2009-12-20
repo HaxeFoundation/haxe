@@ -715,6 +715,7 @@ class _hx_lambda {
 		}
 		for($»i = 0; $»i < count($this->args); $»i++)
 			${$this->args[$»i]} =& $this->params[$»i];
+		$»this = $this->scope;
 		return eval($this->body);
 	}
 

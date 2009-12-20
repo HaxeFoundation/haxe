@@ -112,14 +112,12 @@ class Reflect {
 		#elseif neko
 			return __dollar__call(func,o,args.__neko());
 		#elseif php
-		/*
-			if(__call__("is_string", o)) {
+			if(__call__("is_string", o) && !__call__("is_array", func)) {
 				if(args.length == 0) return __call__("call_user_func", field(o, func));
 				else if(args.length == 1) return __call__("call_user_func", field(o, func), args[0]);
 				else return __call__("call_user_func", field(o, func), args[0], args[1]);
 			}
-			*/
-			return __php__("(call_user_func_array(is_callable($func) ? $func : array($o, $func) , $args == null ? array() : $args->»a))");
+			return __call__("call_user_func_array", __call__("is_callable", func) ? func : __call__("array", o, func), (null == args ? __call__("array") : __field__(args, "»a")));
 		#elseif cpp
          var s:String = func;
          return untyped o.__Field(s).__Run(args);
