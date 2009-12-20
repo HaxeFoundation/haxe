@@ -61,6 +61,9 @@ class Type {
 				if(__call__("_hx_is_lambda", untyped o)) return null;
 				return __call__("_hx_ttype", 'String');
 			}
+			if(!untyped __call__("is_object", o)) {
+				return null;
+			}
 			var c = __call__("get_class", o);
 			if(c == false || c == '_hx_anonymous' || __call__("is_subclass_of", c, "enum"))
 				return null;

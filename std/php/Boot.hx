@@ -879,6 +879,8 @@ function _hx_autoload($name) {
 	return true;
 }
 
+date_default_timezone_set('EST');
+
 spl_autoload_register('_hx_autoload')");
 	}
 }
