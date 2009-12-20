@@ -599,7 +599,7 @@ and gen_call ctx e el =
 		(match ctx.curclass.cl_super with
 		| None -> assert false
 		| Some (c,_) ->
-			print ctx "parent::%s(" (name);
+			print ctx "parent::%s(" (s_ident name);
 			concat ctx "," (gen_value ctx) params;
 			spr ctx ")";
 		);
