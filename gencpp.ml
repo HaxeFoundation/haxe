@@ -1334,7 +1334,7 @@ let rec gen_expression ctx retval expression =
 								gen_expression ctx true value;
 								output ": " ) cases_list;
 				ctx.ctx_return_from_block <- return_from_internal_node;
-				gen_expression ctx false expression;
+				gen_expression ctx false (to_block expression);
 				output_i ";break;\n";
 				) cases;
 			(match optional_default with | None -> ()
@@ -1363,7 +1363,7 @@ let rec gen_expression ctx retval expression =
 						) cases;
 					output (")");
 					ctx.ctx_return_from_block <- return_from_internal_node;
-					gen_expression ctx false expression;
+					gen_expression ctx false (to_block expression);
 					) cases;
 			(match optional_default with | None -> ()
 			| Some default ->
@@ -1393,7 +1393,7 @@ let rec gen_expression ctx retval expression =
 					(tmatch_params_to_args params);
 		end;
 		ctx.ctx_return_from_block <- return_from_internal_node;
-		gen_expression ctx false expression;
+		gen_expression ctx false (to_block expression);
 		if (has_params) then writer#end_block;
 		output_i ";break;\n";
 	) cases;
@@ -2234,8 +2234,12 @@ let generate_class_files common_ctx member_types super_deps class_def =
 		(* Dynamic "Get" Field function - string version *)
 		output_cpp ("Dynamic " ^ class_name ^ "::__Field(const String &inName)\n{\n");
 		let get_field_dat = List.map (fun f ->
-			(f.cf_name, String.length f.cf_name, "return " ^ ((keyword_remap f.cf_name) ^
-				(if (not (variable_field f) ) then "_dyn();" else ";")  ) ) )
+			(f.cf_name, String.length f.cf_name, "return " ^
+				(match f.cf_get with
+				| CallAccess prop -> (keyword_remap prop) ^ "()"
+				| _ -> ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()")
+				) ^ ";"
+			) )
 		in
 		dump_quick_field_test (get_field_dat all_fields);
 		if (implement_dynamic) then
@@ -2255,10 +2259,14 @@ let generate_class_files common_ctx member_types super_deps class_def =
 
 
 		output_cpp ("Dynamic " ^ class_name ^ "::__IField(int inFieldID)\n{\n");
-		let dump_field_test = (fun field ->
-			let remap_name = keyword_remap field.cf_name in
-			output_cpp ("	if (inFieldID==__id_" ^ remap_name ^ ") return " ^ remap_name );
-			output_cpp (if (not (variable_field field) ) then "_dyn();\n" else ";\n" ) ) in
+		let dump_field_test = (fun f ->
+			let remap_name = keyword_remap f.cf_name in
+			output_cpp ("	if (inFieldID==__id_" ^ remap_name ^ ") return "  ^
+				(match f.cf_get with
+				| CallAccess prop -> (keyword_remap prop) ^ "()"
+				| _ -> ((keyword_remap f.cf_name) ^ if ( variable_field f) then "" else "_dyn()")
+				) ^ ";" )
+			) in
 		List.iter dump_field_test all_fields;
 		if (implement_dynamic) then
 			output_cpp "	CHECK_DYNAMIC_GET_INT_FIELD(inFieldID);\n";
@@ -2270,9 +2278,13 @@ let generate_class_files common_ctx member_types super_deps class_def =
 						"const Dynamic &inValue)\n{\n");
 
 		let set_field_dat = List.map (fun f ->
-			(f.cf_name, String.length f.cf_name, ((keyword_remap f.cf_name) ^
-				"=inValue.Cast<" ^ (type_string f.cf_type) ^ " >();return inValue;" ) ) )
-		in
+			(f.cf_name, String.length f.cf_name,
+				(match f.cf_set with
+				| CallAccess prop -> "return " ^ (keyword_remap prop) ^ "(inValue);"
+				| _ -> (keyword_remap f.cf_name) ^ "=inValue.Cast<" ^ (type_string f.cf_type) ^
+				         " >(); return inValue;"
+				)  )
+		) in
 
 		dump_quick_field_test (set_field_dat all_variables);
 		if (implement_dynamic) then begin
