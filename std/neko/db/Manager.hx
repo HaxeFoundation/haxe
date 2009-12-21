@@ -44,7 +44,7 @@ class Manager<T : Object> {
 		var h = new Hash();
 		for( k in ["read","write","desc","out","group","version","option",
 				"primary","exists","from","key","keys","limit","lock","use",
-				"create","order"] )
+				"create","order","range"] )
 			h.set(k,true);
 		h;
 	}
