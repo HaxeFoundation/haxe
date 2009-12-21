@@ -879,7 +879,8 @@ function _hx_autoload($name) {
 	return true;
 }
 
-date_default_timezone_set('EST');
+if(!ini_get('date.timezone'))
+	date_default_timezone_set('UTC');
 
 spl_autoload_register('_hx_autoload')");
 	}
