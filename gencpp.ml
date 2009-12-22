@@ -692,6 +692,7 @@ let rec gen_expression ctx retval expression =
 		rather than the run time *)
 	if (ctx.ctx_debug) then begin
 		if calling then output "/* Call */";
+		if ctx.ctx_real_this_ptr then output "/* REAL */" else output "/* FAKE __this */";
 		output (debug_expression expression ctx.ctx_debug_type);
 	end;
 
@@ -708,7 +709,7 @@ let rec gen_expression ctx retval expression =
 
 	let check_this = function | "this" when not ctx.ctx_real_this_ptr -> "__this" | x -> x in
 
-	let rec find_undeclared_variables undeclared declarations this_suffix expression =
+	let rec find_undeclared_variables undeclared declarations this_suffix allow_this expression =
 		(
 		match expression.eexpr with
 		| TVars var_list ->
@@ -717,20 +718,20 @@ let rec gen_expression ctx retval expression =
 				if (ctx.ctx_debug) then
 					output ("/* found var " ^ var_name ^ "*/ ");
 				match optional_init with
-				| Some expression -> find_undeclared_variables undeclared declarations this_suffix expression
+				| Some expression -> find_undeclared_variables undeclared declarations this_suffix allow_this expression
 				| _ -> ()
 				) var_list
 		| TFunction func -> List.iter ( fun (arg_name, opt_val, arg_type) ->
 				if (ctx.ctx_debug) then
 					output ("/* found arg " ^ arg_name ^ " = " ^ (type_string arg_type) ^ " */ ");
 				Hashtbl.add declarations arg_name () ) func.tf_args;
-				find_undeclared_variables undeclared declarations this_suffix func.tf_expr
+				find_undeclared_variables undeclared declarations this_suffix false func.tf_expr
 		| TTry (try_block,catches) ->
-			find_undeclared_variables undeclared declarations this_suffix try_block;
+			find_undeclared_variables undeclared declarations this_suffix allow_this try_block;
 			List.iter (fun (name,t,catch_expt) ->
 				let old_decs = Hashtbl.copy declarations in
 				Hashtbl.add declarations name ();
-				find_undeclared_variables undeclared declarations this_suffix catch_expt;
+				find_undeclared_variables undeclared declarations this_suffix allow_this catch_expt;
 				Hashtbl.clear declarations;
 				Hashtbl.iter ( Hashtbl.add declarations ) old_decs
 				) catches;
@@ -738,7 +739,7 @@ let rec gen_expression ctx retval expression =
 			if  not (Hashtbl.mem declarations local_name) then
 				Hashtbl.replace undeclared local_name (type_string expression.etype)
 		| TMatch (condition, enum, cases, default) ->
-			Type.iter (find_undeclared_variables undeclared declarations this_suffix) condition;
+			Type.iter (find_undeclared_variables undeclared declarations this_suffix allow_this) condition;
 			List.iter (fun (case_ids,params,expression) ->
 				let old_decs = Hashtbl.copy declarations in
 				(match params with
@@ -746,32 +747,32 @@ let rec gen_expression ctx retval expression =
 				| Some l -> List.iter (fun (opt_name,t) ->
 					match opt_name with | Some name -> Hashtbl.add declarations name () | _ -> ()  )
 					l  );
-				Type.iter (find_undeclared_variables undeclared declarations this_suffix) expression;
+				Type.iter (find_undeclared_variables undeclared declarations this_suffix allow_this) expression;
 				Hashtbl.clear declarations;
 				Hashtbl.iter ( Hashtbl.add declarations ) old_decs
 				) cases;
 			(match default with | None -> ()
 			| Some expr ->
-				Type.iter (find_undeclared_variables undeclared declarations this_suffix) expr;
+				Type.iter (find_undeclared_variables undeclared declarations this_suffix allow_this) expr;
 			);
 		| TFor (var_name, var_type, init, loop) ->
 			let old_decs = Hashtbl.copy declarations in
 			Hashtbl.add declarations var_name ();
-			find_undeclared_variables undeclared declarations this_suffix init;
-			find_undeclared_variables undeclared declarations this_suffix loop;
+			find_undeclared_variables undeclared declarations this_suffix allow_this init;
+			find_undeclared_variables undeclared declarations this_suffix allow_this loop;
 			Hashtbl.clear declarations;
 			Hashtbl.iter ( Hashtbl.add declarations ) old_decs
 		| TConst TSuper
 		| TConst TThis ->
-			if  not (Hashtbl.mem declarations "this") then
+			if  ((not (Hashtbl.mem declarations "this")) && allow_this) then
 				Hashtbl.replace undeclared "this" (type_string_suff this_suffix expression.etype)
 		| TBlock expr_list ->
 			let old_decs = Hashtbl.copy declarations in
-			List.iter (find_undeclared_variables undeclared declarations this_suffix ) expr_list;
+			List.iter (find_undeclared_variables undeclared declarations this_suffix allow_this ) expr_list;
 			(* what is the best way for this ? *)
 			Hashtbl.clear declarations;
 			Hashtbl.iter ( Hashtbl.add declarations ) old_decs
-		| _ -> Type.iter (find_undeclared_variables undeclared declarations this_suffix) expression;
+		| _ -> Type.iter (find_undeclared_variables undeclared declarations this_suffix allow_this) expression;
 		)
 	in
 
@@ -786,7 +787,7 @@ let rec gen_expression ctx retval expression =
 			if (ctx.ctx_debug) then
 				output ("/* found arg " ^ arg_name ^ " = " ^ (type_string arg_type) ^" */ ");
 			Hashtbl.add declarations arg_name () ) func_def.tf_args;
-		find_undeclared_variables undeclared declarations "" func_def.tf_expr;
+		find_undeclared_variables undeclared declarations "" true func_def.tf_expr;
 
 		let has_this = Hashtbl.mem undeclared "this" in
 		if (has_this) then Hashtbl.remove undeclared "this";
@@ -861,7 +862,7 @@ let rec gen_expression ctx retval expression =
 	define_local_return_block expression  =
 		let declarations = Hashtbl.create 0 in
 		let undeclared = Hashtbl.create 0 in
-		find_undeclared_variables undeclared declarations "_obj" expression;
+		find_undeclared_variables undeclared declarations "_obj" true expression;
 		let name = next_anon_function_name ctx in
 
 		let vars = (hash_keys undeclared) in
@@ -875,34 +876,30 @@ let rec gen_expression ctx retval expression =
 				(Hashtbl.find undeclared var) ^ (reference var)) ) vars));
 		output (")");
 
-		if (is_block expression) then begin
+		let pop_real_this_ptr = clear_real_this_ptr ctx false in
+		(match expression.eexpr with
+		| TObjectDecl decl_list ->
+			writer#begin_block;
+			output_i "hxAnon __result = hxAnon_obj::Create();\n";
+			List.iter (function (name,value) ->
+				output_i ( "__result->Add(" ^ (str name) ^ " , ");
+				gen_expression ctx true value;
+				output (");\n");
+			) decl_list;
+			output_i "return __result;\n";
+			writer#end_block;
+		| TBlock _ ->
 			ctx.ctx_return_from_block <- true;
 			ctx.ctx_return_from_internal_node <- false;
 			output "/* DEF (ret block)(not intern) */";
-		end else begin
+			gen_expression ctx false expression;
+		| _ ->
 			ctx.ctx_return_from_block <- false;
 			ctx.ctx_return_from_internal_node <- true;
 			output "/* DEF (not block)(ret intern) */";
-		end;
-		let pop_real_this_ptr = clear_real_this_ptr ctx false in
-		gen_expression ctx false (to_block expression);
+			gen_expression ctx false (to_block expression);
+		);
 		pop_real_this_ptr();
-
-		(*
-		let block = is_block expression in
-		if (not block) then begin
-			writer#begin_block; output_i "";
-			iter_retval find_local_return_blocks false expression;
-		end;
-		ctx.ctx_return_from_block <- true;
-		let pop_real_this_ptr = clear_real_this_ptr ctx false in
-		gen_expression ctx false expression;
-		pop_real_this_ptr();
-		if (not block) then begin
-			output_i "return Dynamic();\n";
-			writer#end_block;
-		end;
-		*)
 		writer#end_block_line;
 		output ";\n";
 	and
@@ -928,6 +925,8 @@ let rec gen_expression ctx retval expression =
 		| TMatch (_, _, _, _)
 		| TTry (_, _)
 		| TSwitch (_, _, _) when retval ->
+				define_local_return_block expression;
+		| TObjectDecl decl_list ->
 				define_local_return_block expression;
 		| _ -> iter_retval find_local_return_blocks retval expression
 		in
@@ -1180,21 +1179,11 @@ let rec gen_expression ctx retval expression =
 		gen_member_access expr name (is_function_member expression) expression.etype
 	| TParenthesis expr -> output "("; gen_expression ctx true expr; output ")"
 	| TObjectDecl decl_list ->
-		let declare_field name value =
-			output ("->Add( " ^ (str name) ^ " , ");
-			gen_expression ctx true value;
-			output (")")
-		in
-		let rec declare_fields fields =
-		match fields with
-		| [] -> ()
-		| (name,value) :: remaining->
-			declare_field name value;
-			declare_fields remaining
-		in
-		output "hxAnon_obj::Create()";
-		declare_fields decl_list
-
+		let func_name = use_anon_function_name ctx in
+		(try output ( func_name ^ "::Block(" ^
+					(Hashtbl.find ctx.ctx_local_return_block_args func_name) ^ ")" )
+		with Not_found ->
+			output ("/* TObjectDecl block " ^ func_name ^ " not found */" ); )
 	| TArrayDecl decl_list ->
 		(* gen_type output expression.etype; *)
 		output ( (type_string_suff "_obj" expression.etype) ^ "::__new()");
@@ -1521,7 +1510,8 @@ let gen_field ctx class_name ptr_name is_static is_external is_interface field =
 			output (" " ^ class_name ^ "::" ^ remap_name ^ "( " );
 			output (gen_arg_list function_def.tf_args "__o_");
 			output ")";
-
+			ctx.ctx_real_this_ptr <- true;
+			ctx.ctx_dynamic_this_ptr <- false;
 			ctx.ctx_do_safe_point <- expression_needs_safe_point function_def.tf_expr;
 			if (has_default_values function_def.tf_args) then begin
 				ctx.ctx_writer#begin_block;
