@@ -380,17 +380,11 @@ type bitmap_jpg = {
 	jpg_data : string;
 }
 
-type bitmap_jpg2 = {
-	mutable jp2_id : int;
-	jp2_table : string;
-	jp2_data : string;
-}
-
-type bitmap_jpg3 = {
-	mutable jp3_id : int;
-	jp3_table : string;
-	jp3_data : string;
-	jp3_alpha_data : string;
+type bitmap_data = {
+	mutable bd_id : int;
+	bd_table : string option;
+	bd_data : string;
+	bd_alpha : string option;
 }
 
 type bitmap_lossless = {
@@ -522,7 +516,7 @@ type tag_data =
 	| TSound of sound
 	| TStartSound of start_sound
 	| TBitsLossless of bitmap_lossless
-	| TBitsJPEG2 of bitmap_jpg2
+	| TBitsJPEG2 of bitmap_data
 	| TShape2 of shape
 	| TProtect
 	| TPlaceObject2 of place_object
@@ -530,7 +524,7 @@ type tag_data =
 	| TShape3 of shape
 	| TText2 of text
 	| TButton2 of button2
-	| TBitsJPEG3 of bitmap_jpg3
+	| TBitsJPEG3 of bitmap_data
 	| TBitsLossless2 of bitmap_lossless
 	| TEditText of edit_text
 	| TClip of clip

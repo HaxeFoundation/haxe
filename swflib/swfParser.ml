@@ -322,7 +322,7 @@ let rec tag_data_length = function
 	| TBitsLossless b ->
 		bitmap_lossless_length b
 	| TBitsJPEG2 b ->
-		2 + String.length b.jp2_table + String.length b.jp2_data
+		2 + opt_len String.length b.bd_table + String.length b.bd_data
 	| TShape2 s ->
 		shape_length s
 	| TProtect ->
@@ -338,7 +338,7 @@ let rec tag_data_length = function
 	| TButton2 b ->
 		button2_length b
 	| TBitsJPEG3 b ->
-		2 + 4 + String.length b.jp3_alpha_data + String.length b.jp3_data + String.length b.jp3_table
+		2 + 4 + opt_len String.length b.bd_table + String.length b.bd_data + opt_len String.length b.bd_alpha
 	| TBitsLossless2 b ->
 		bitmap_lossless_length b
 	| TEditText t ->
@@ -858,18 +858,25 @@ let parse_shape ch len vshape =
 		sh_style = style;
 	}
 
-let parse_jpg_table ch =
-	let b = Buffer.create 0 in
-	let rec loop flag =
-		let c = IO.read ch in
-		Buffer.add_char b c;
-		match int_of_char c with
-		| 0xFF -> loop true
-		| 0xD9 when flag -> ()
-		| _ -> loop false
-	in
-	loop false;
-	Buffer.contents b
+let extract_jpg_table data =
+	match data.[0], data.[1] with
+	| '\xFF', '\xD8' ->
+		let ch = IO.input_string data in
+		let b = Buffer.create 0 in
+		let rec loop flag =
+			let c = IO.read ch in
+			Buffer.add_char b c;
+			match int_of_char c with
+			| 0xFF -> loop true
+			| 0xD9 when flag -> ()
+			| _ -> loop false
+		in
+		loop false;
+		let t = Buffer.contents b in
+		let l = String.length t in
+		String.sub data l (String.length data - l), Some t
+	| _ ->
+		data, None
 
 let parse_bitmap_lossless ch len =
 	let id = read_ui16 ch in
@@ -1184,12 +1191,13 @@ let rec parse_tag ch h =
 			TBitsLossless (parse_bitmap_lossless ch len)
 		| 0x15 ->
 			let id = read_ui16 ch in
-			let table = parse_jpg_table ch in
-			let data = nread ch (len - 2 - String.length table) in
+			let data = nread ch (len - 2) in
+			let data, table = extract_jpg_table data in
 			TBitsJPEG2 {
-				jp2_id = id;
-				jp2_table = table;
-				jp2_data = data;
+				bd_id = id;
+				bd_table = table;
+				bd_data = data;
+				bd_alpha = None;
 			}
 		| 0x16 when !full_parsing ->
 			TShape2 (parse_shape ch len 2)
@@ -1210,14 +1218,14 @@ let rec parse_tag ch h =
 		| 0x23 ->
 			let id = read_ui16 ch in
 			let size = read_i32 ch in
-			let table = parse_jpg_table ch in
-			let data = nread ch (size - String.length table) in
-			let alpha_data = nread ch (len - 6 - size) in
+			let data = nread ch size in
+			let data, table = extract_jpg_table data in
+			let alpha = nread ch (len - 6 - size) in
 			TBitsJPEG3 {
-				jp3_id = id;
-				jp3_table = table;
-				jp3_data = data;
-				jp3_alpha_data = alpha_data;
+				bd_id = id;
+				bd_table = table;
+				bd_data = data;
+				bd_alpha = Some alpha;
 			}
 		| 0x24 ->
 			TBitsLossless2 (parse_bitmap_lossless ch len)
@@ -1752,9 +1760,9 @@ let rec write_tag_data ch = function
 	| TBitsLossless b ->
 		write_bitmap_lossless ch b
 	| TBitsJPEG2 b ->
-		write_ui16 ch b.jp2_id;
-		nwrite ch b.jp2_table;
-		nwrite ch b.jp2_data;
+		write_ui16 ch b.bd_id;
+		opt (nwrite ch) b.bd_table;
+		nwrite ch b.bd_data;
 	| TShape2 s ->
 		write_shape ch s
 	| TProtect ->
@@ -1770,11 +1778,11 @@ let rec write_tag_data ch = function
 	| TButton2 b ->
 		write_button2 ch b
 	| TBitsJPEG3 b ->
-		write_ui16 ch b.jp3_id;
-		write_i32 ch (String.length b.jp3_data + String.length b.jp3_table);
-		nwrite ch b.jp3_table;
-		nwrite ch b.jp3_data;
-		nwrite ch b.jp3_alpha_data;
+		write_ui16 ch b.bd_id;
+		write_i32 ch (String.length b.bd_data + opt_len String.length b.bd_table);
+		opt (nwrite ch) b.bd_table;
+		nwrite ch b.bd_data;
+		opt (nwrite ch) b.bd_alpha;
 	| TBitsLossless2 b ->
 		write_bitmap_lossless ch b
 	| TEditText t ->

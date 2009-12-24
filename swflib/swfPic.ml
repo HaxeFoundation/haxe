@@ -77,6 +77,7 @@ let load_picture file id =
 			pwidth = w;
 			pheight = h;
 			pid = id;
+			pframe = None;
 			pdata = (match header.png_color with
 				| ClTrueColor (TBits8,NoAlpha) ->
 					(* set alpha to 0 *)
