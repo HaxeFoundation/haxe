@@ -361,6 +361,28 @@ let field_access ctx mode f t e p =
 	| InlineAccess ->
 		AccInline (e,f,t)
 
+let using_field ctx mode e i p =
+	if mode = MSet then raise Not_found;
+	let rec loop = function
+		| [] ->
+			raise Not_found
+		| TEnumDecl _ :: l | TTypeDecl _ :: l ->
+			loop l
+		| TClassDecl c :: l ->
+			try
+				let f = PMap.find i c.cl_statics in
+				let t = field_type f in
+				(match follow t with
+				| TFun ((_,_,t0) :: args,r) ->
+					(try unify_raise ctx e.etype t0 p with Error (Unify _,_) -> raise Not_found);
+					let et = type_module_type ctx (TClassDecl c) None p in						
+					AccUsing (mk (TField (et,i)) t p,e)
+				| _ -> raise Not_found)
+			with Not_found ->
+				loop l
+	in
+	loop ctx.local_using
+
 let type_ident ctx i is_type p mode =
 	match i with
 	| "true" ->
@@ -412,6 +434,8 @@ let type_ident ctx i is_type p mode =
 		if ctx.in_static then raise Not_found;
 		let t , f = class_field ctx.curclass i in
 		field_access ctx mode f t (mk (TConst TThis) ctx.tthis p) p
+	with Not_found -> try
+		using_field ctx mode (mk (TConst TThis) ctx.tthis p) i p
 	with Not_found -> try
 		(* static variable lookup *)
 		let f = PMap.find i ctx.curclass.cl_statics in
@@ -496,28 +520,6 @@ let type_matching ctx (enum,params) (e,p) ecases first_case =
 		invalid()
 
 let rec type_field ctx e i p mode =
-	let using_field() =
-		if mode = MSet then raise Not_found;
-		let rec loop = function
-			| [] ->
-				raise Not_found
-			| TEnumDecl _ :: l | TTypeDecl _ :: l ->
-				loop l
-			| TClassDecl c :: l ->
-				try
-					let f = PMap.find i c.cl_statics in
-					let t = field_type f in
-					(match follow t with
-					| TFun ((_,_,t0) :: args,r) ->
-						(try unify_raise ctx e.etype t0 p with Error (Unify _,_) -> raise Not_found);
-						let et = type_module_type ctx (TClassDecl c) None p in						
-						AccUsing (mk (TField (et,i)) t p,e)
-					| _ -> raise Not_found)
-				with Not_found ->
-					loop l
-		in
-		loop ctx.local_using
-	in
 	let no_field() =
 		if not ctx.untyped then display_error ctx (s_type (print_context()) e.etype ^ " has no field " ^ i) p;
 		AccExpr (mk (TField (e,i)) (mk_mono()) p)
@@ -543,7 +545,7 @@ let rec type_field ctx e i p mode =
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then display_error ctx ("Cannot access to private field " ^ i) p;
 			field_access ctx mode f (apply_params c.cl_types params t) e p
 		with Not_found -> try
-			using_field()
+			using_field ctx mode e i p
 		with Not_found -> try
 			loop_dyn c params
 		with Not_found ->
@@ -563,7 +565,7 @@ let rec type_field ctx e i p mode =
 			field_access ctx mode f (field_type f) e p
 		with Not_found ->
 			if is_closed a then try
-				using_field()
+				using_field ctx mode e i p
 			with Not_found ->
 				no_field()
 			else
@@ -597,8 +599,8 @@ let rec type_field ctx e i p mode =
 		ctx.opened <- x :: ctx.opened;
 		r := Some t;
 		field_access ctx mode f (field_type f) e p
-	| t ->
-		try using_field() with Not_found -> no_field()
+	| _ ->
+		try using_field ctx mode e i p with Not_found -> no_field()
 
 (*
 	We want to try unifying as an integer and apply side effects.

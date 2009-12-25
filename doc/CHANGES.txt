@@ -26,6 +26,7 @@
 	php : fixed issue with PHP reserved word used in callbacks
 	all : bugfix with non-constant enums in switches
 	flash9 : fix for interfaces (use namespace)
+	all : "using" now works for identifiers in member methods
 
 2009-07-26: 2.04
 	flash9 : fixed get_full_path error with -D fdb
