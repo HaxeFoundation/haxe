@@ -79,9 +79,7 @@ let download_libs() =
 in
 
 let download() =
-	msg "*** Please hit enter on login (empty password) ***";
-	cvs motiontwin "login";
-	cvs motiontwin "co haxe";
+	command "svn co http://haxe.googlecode.com/svn/trunk haxe";
 	download_libs();
 in
 
