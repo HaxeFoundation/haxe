@@ -432,7 +432,8 @@ let rec reduce_loop ctx is_sub e =
 		(match follow ef.etype with
 		| TFun (_,rt) ->
 			let cf = { cf_name = ""; cf_params = []; cf_type = ef.etype; cf_public = true; cf_doc = None; cf_get = NormalAccess; cf_set = NoAccess; cf_expr = None } in
-			(match type_inline ctx cf func (mk (TConst TNull) (mk_mono()) e.epos) el rt e.epos with
+			let inl = (try type_inline ctx cf func (mk (TConst TNull) (mk_mono()) e.epos) el rt e.epos with Error (Custom _,_) -> None) in
+			(match inl with
 			| None -> e
 			| Some e -> e)
 		| _ -> 
