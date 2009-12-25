@@ -1078,13 +1078,12 @@ let rec gen_expr_content ctx retval e =
 			if t0 <> KInt && t0 <> KUInt then raise Exit;
 			let rec get_int e =
 				match e.eexpr with
-				| TConst (TInt n) -> Int32.to_int n
+				| TConst (TInt n) -> if n < 0l || n > 512l then raise Exit; Int32.to_int n
 				| TParenthesis e | TBlock [e] -> get_int e
 				| _ -> raise Not_found
 			in
 			List.iter (fun (vl,_) -> List.iter (fun v ->
-				let n = (try get_int v with _ -> raise Exit) in
-				if n < 0 || n > 512 then raise Exit;
+				try ignore (get_int v) with _ -> raise Exit
 			) vl) el;
 			gen_expr ctx true e0;
 			if t0 <> KInt then write ctx HToInt;
