@@ -306,18 +306,13 @@ let optimize_for_loop ctx i e1 e2 p =
 (* ---------------------------------------------------------------------- *)
 (* REDUCE *)
 
-let rec reduce_loop com is_sub e =
+let rec reduce_loop ctx is_sub e =
 	let is_float t =
 		match follow t with
 		| TInst ({ cl_path = ([],"Float") },_) -> true
 		| _ -> false
 	in
-	let is_text_platform() =
-		match com.platform with
-		| Js | Php -> true
-		| Neko | Flash | Flash9 | Cross | Cpp -> false
-	in
-	let e = Type.map_expr (reduce_loop com (match e.eexpr with TBlock _ -> false | _ -> true)) e in
+	let e = Type.map_expr (reduce_loop ctx (match e.eexpr with TBlock _ -> false | _ -> true)) e in
 	match e.eexpr with
 	| TIf ({ eexpr = TConst (TBool t) },e1,e2) ->
 		(if t then e1 else match e2 with None -> { e with eexpr = TBlock [] } | Some e -> e)
@@ -433,39 +428,15 @@ let rec reduce_loop com is_sub e =
 				e
 		| _ -> e
 		)
-	| TCall ({ eexpr = TFunction func },el) ->
-		let rec build term e =
-			match e.eexpr with
-			| TBlock el ->
-				(match List.rev el with
-				| [] -> e
-				| e1 :: el ->
-					let el = List.map (build false) (List.rev el) in
-					let e1 = build term e1 in
-					{ e with eexpr = TBlock (el @ [e1]) })
-			| TParenthesis _ | TIf (_,_,Some _) | TSwitch _ | TMatch _ | TTry _ ->
-				(* might only cause issues if some 'return' found in the first expression of if/switch/match *)
-				Type.map_expr (build term) e
-			| TReturn eo ->
-				if not term then raise Exit;
-				(match eo with
-				| None -> { e with eexpr = TBlock [] }
-				| Some e -> build term e)
-			| _ ->
-				Type.map_expr (build false) e
-		in
-		(try
-			let body = build true func.tf_expr in
-			let body = (match body.eexpr with TBlock el -> el | _ -> [body]) in
-			let body = (match el with
-				| [] -> body
-				| _ ->
-					if is_sub && is_text_platform() then raise Exit;
-					mk (TVars (List.map2 (fun (p,_,t) e -> p,t,Some e) func.tf_args el)) com.type_api.tvoid e.epos :: body
-			) in
-			{ e with eexpr = TBlock body }
-		with
-			Exit -> e)
+	| TCall ({ eexpr = TFunction func } as ef,el) ->
+		(match follow ef.etype with
+		| TFun (_,rt) ->
+			let cf = { cf_name = ""; cf_params = []; cf_type = ef.etype; cf_public = true; cf_doc = None; cf_get = NormalAccess; cf_set = NoAccess; cf_expr = None } in
+			(match type_inline ctx cf func (mk (TConst TNull) (mk_mono()) e.epos) el rt e.epos with
+			| None -> e
+			| Some e -> e)
+		| _ -> 
+			e)
 	| TParenthesis ({ eexpr = TConst _ } as ec) | TBlock [{ eexpr = TConst _ } as ec] ->
 		{ ec with epos = e.epos }
 	| TSwitch (_,cases,_) ->
@@ -480,5 +451,5 @@ let rec reduce_loop com is_sub e =
 	| _ ->
 		e
 
-let reduce_expression com e =
-	if com.foptimize then reduce_loop com false e else e
+let reduce_expression ctx e =
+	if ctx.com.foptimize then reduce_loop ctx false e else e

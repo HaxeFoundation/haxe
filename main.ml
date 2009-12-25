@@ -491,7 +491,7 @@ try
 		let tfilters = [
 			Codegen.fix_overrides com;
 		] in
-		let filters = (if not com.foptimize then filters else Optimizer.reduce_expression com :: filters) in
+		let filters = (if not com.foptimize then filters else Optimizer.reduce_expression ctx :: filters) in
 		Codegen.post_process com filters tfilters;
 		(match com.platform with
 		| Cross ->
