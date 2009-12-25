@@ -1745,7 +1745,7 @@ let generate_class ctx c =
 		| None -> acc
 		| Some k ->
 			{
-				hlf_name = if c.cl_interface then HMName (f.cf_name, HNNamespace (match c.cl_path with [],n -> n | l,n -> String.concat ":" (l@[n]))) else ident f.cf_name;
+				hlf_name = if c.cl_interface then HMName (f.cf_name, HNNamespace (match c.cl_path with [],n -> n | l,n -> String.concat "." l ^ ":" ^ n)) else ident f.cf_name;
 				hlf_slot = 0;
 				hlf_kind = k;
 				hlf_metas = None;
