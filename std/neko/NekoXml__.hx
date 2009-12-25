@@ -347,41 +347,45 @@ class NekoXml__ {
 	}
 
 	public function toString() {
-		if( nodeType == Xml.PCData )
-			return _nodeValue;
-		if( nodeType == Xml.CData )
-			return "<![CDATA["+_nodeValue+"]]>";
-		if( nodeType == Xml.Comment || nodeType == Xml.DocType || nodeType == Xml.Prolog )
-			return _nodeValue;
-
 		var s = new StringBuf();
+		toStringRec(s);
+		return s.toString();
+	}
 
-		if( nodeType == Xml.Element ) {
-			s.add("<");
+	public function toStringRec(s: StringBuf) {
+		switch (nodeType) {
+		case Xml.Element:
+			s.addChar("<".code);
 			s.add(_nodeName);
 			for( k in Reflect.fields(_attributes) ) {
-				s.add(" ");
+				s.addChar(" ".code);
 				s.add(k);
-				s.add("=\"");
+				s.addChar("=".code);
+				s.addChar("\"".code);
 				s.add(Reflect.field(_attributes,k));
-				s.add("\"");
+				s.addChar("\"".code);
 			}
 			if( _children.length == 0 ) {
-				s.add("/>");
-				return s.toString();
+				s.addChar("/".code);
+				s.addChar(">".code);
+				return;
 			}
-			s.add(">");
-		}
-
-		for( x in iterator() )
-			s.add(x);
-
-		if( nodeType == Xml.Element ) {
-			s.add("</");
+			s.addChar(">".code);
+			for( x in _children )
+				x.toStringRec(s);	
+			s.addChar("<".code);
+			s.addChar("/".code);
 			s.add(_nodeName);
-			s.add(">");
+			s.addChar(">".code);
+		case Xml.PCData:
+			s.add(_nodeValue);
+		case Xml.CData:
+			s.add("<![CDATA[");
+			s.add(_nodeValue);
+			s.add("]]>");
+		case Xml.Comment, Xml.DocType, Xml.Prolog:
+			s.add(_nodeValue);
 		}
-		return s.toString();
 	}
 
 
