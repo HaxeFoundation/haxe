@@ -319,17 +319,17 @@ let rec acc_get ctx g p =
 			loop e
 
 let field_access ctx mode f t e p =
+	let normal() = AccExpr (mk (TField (e,f.cf_name)) t p) in
 	match (match mode with MGet | MCall -> f.cf_get | MSet -> f.cf_set) with
 	| NoAccess ->
-		let normal = AccExpr (mk (TField (e,f.cf_name)) t p) in
 		(match follow e.etype with
-		| TInst (c,_) when is_parent c ctx.curclass -> normal
+		| TInst (c,_) when is_parent c ctx.curclass -> normal()
 		| TAnon a ->
 			(match !(a.a_status) with
-			| Statics c2 when ctx.curclass == c2 -> normal
-			| _ -> if ctx.untyped then normal else AccNo f.cf_name)
+			| Statics c2 when ctx.curclass == c2 -> normal()
+			| _ -> if ctx.untyped then normal() else AccNo f.cf_name)
 		| _ ->
-			if ctx.untyped then normal else AccNo f.cf_name)
+			if ctx.untyped then normal() else AccNo f.cf_name)
 	| MethodAccess false when not ctx.untyped ->
 		error "Cannot rebind this method : please use 'dynamic' before method declaration" p
 	| NormalAccess | MethodAccess _ ->
@@ -340,7 +340,10 @@ let field_access ctx mode f t e p =
 		(match mode, f.cf_set with
 		| MGet, MethodAccess _ -> AccExpr (mk (TClosure (e,f.cf_name)) t p)
 		| MGet, NoAccess | MGet, NeverAccess when (match follow t with TFun _ -> true | _ -> false) -> AccExpr (mk (TClosure (e,f.cf_name)) t p)
-		| _ -> AccExpr (mk (TField (e,f.cf_name)) t p))
+		| _ ->
+			match follow e.etype with
+			| TAnon a -> (match !(a.a_status) with EnumStatics e -> AccExpr (mk (TEnumField (e,f.cf_name)) t p) | _ -> normal())
+			| _ -> normal())
 	| CallAccess m ->
 		if m = ctx.curmethod && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
 			let prefix = if Common.defined ctx.com "as3" then "$" else "" in

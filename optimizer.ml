@@ -102,11 +102,11 @@ let type_inline ctx cf f ethis params tret p =
 			let old = save_locals ctx in
 			let t = ref e.etype in
 			let rec loop = function
-				| [] when term -> 
+				| [] when term ->
 					t := mk_mono();
 					[mk (TConst TNull) (!t) p]
 				| [] -> []
-				| [e] -> 
+				| [e] ->
 					let e = map term e in
 					if term then t := e.etype;
 					[e]
@@ -171,7 +171,7 @@ let type_inline ctx cf f ethis params tret p =
 	let init = (match vars with [] -> None | l -> Some (mk (TVars (List.rev l)) ctx.api.tvoid p)) in
 	if Common.defined ctx.com "js" && (init <> None || !has_vars) then
 		None
-	else 
+	else
 		let e = (match e.eexpr, init with
 			| TBlock [e] , None -> { e with etype = tret; }
 			| _ , None -> { e with etype = tret; }
@@ -183,13 +183,13 @@ let type_inline ctx cf f ethis params tret p =
 		match cf.cf_params, tparams with
 		| [], ([],_) -> Some e
 		| _ ->
-			let pmonos = List.map (fun _ -> mk_mono()) cf.cf_params in			
+			let pmonos = List.map (fun _ -> mk_mono()) cf.cf_params in
 			let tmonos = snd tparams @ pmonos in
 			let tparams = fst tparams @ cf.cf_params in
 			let mt = apply_params tparams tmonos cf.cf_type in
 			unify_raise ctx mt (TFun (List.map (fun e -> "",false,e.etype) params,tret)) p;
 			(*
-				this is very expensive since we are building the substitution list for 
+				this is very expensive since we are building the substitution list for
 				every expression, but hopefully in such cases the expression size is small
 			*)
 			let map_type t = apply_params tparams tmonos t in
@@ -253,7 +253,7 @@ let optimize_for_loop ctx i e1 e2 p =
 					NormalWhile
 				)) t_void p;
 			])
-	| _ , TInst({ cl_path = [],"Array" },[pt]) 
+	| _ , TInst({ cl_path = [],"Array" },[pt])
 	| _ , TInst({ cl_path = ["flash"],"Vector" },[pt]) ->
 		let i = add_local ctx i pt in
 		let index = gen_local ctx t_int in
@@ -314,7 +314,7 @@ let rec reduce_loop com is_sub e =
 	in
 	let is_text_platform() =
 		match com.platform with
-		| Js | Php -> true 
+		| Js | Php -> true
 		| Neko | Flash | Flash9 | Cross | Cpp -> false
 	in
 	let e = Type.map_expr (reduce_loop com (match e.eexpr with TBlock _ -> false | _ -> true)) e in
@@ -325,7 +325,7 @@ let rec reduce_loop com is_sub e =
 		(match flag with
 		| NormalWhile -> { e with eexpr = TBlock [] } (* erase sub *)
 		| DoWhile -> e) (* we cant remove while since sub can contain continue/break *)
-	| TBinop (op,e1,e2) ->		
+	| TBinop (op,e1,e2) ->
 		(match e1.eexpr, e2.eexpr with
 		| TConst (TInt 0l) , _ when op = OpAdd -> e2
 		| TConst (TInt 1l) , _ when op = OpMult -> e2
@@ -387,7 +387,7 @@ let rec reduce_loop com is_sub e =
 			| OpGte -> ebool ((>=) 0)
 			| OpLt -> ebool ((<) 0)
 			| OpLte -> ebool ((<=) 0)
-			| _ -> e)			
+			| _ -> e)
 		| TConst (TBool a), TConst (TBool b) ->
 			let ebool f =
 				{ e with eexpr = TConst (TBool (f a b)) }
@@ -416,8 +416,8 @@ let rec reduce_loop com is_sub e =
 		| _, TCall ({ eexpr = TEnumField _ },_) | TCall ({ eexpr = TEnumField _ },_), _ ->
 			(match op with
 			| OpAssign -> e
-			| _ -> 
-				error "You cannot directly compare enums with arguments. Use either 'switch' or 'Type.enumEq'" e.epos)			
+			| _ ->
+				error "You cannot directly compare enums with arguments. Use either 'switch' or 'Type.enumEq'" e.epos)
 		| _ -> e)
 	| TUnop (op,flag,esub) ->
 		(match op, esub.eexpr with
@@ -446,7 +446,7 @@ let rec reduce_loop com is_sub e =
 			| TParenthesis _ | TIf (_,_,Some _) | TSwitch _ | TMatch _ | TTry _ ->
 				(* might only cause issues if some 'return' found in the first expression of if/switch/match *)
 				Type.map_expr (build term) e
-			| TReturn eo ->				
+			| TReturn eo ->
 				if not term then raise Exit;
 				(match eo with
 				| None -> { e with eexpr = TBlock [] }
@@ -459,8 +459,8 @@ let rec reduce_loop com is_sub e =
 			let body = (match body.eexpr with TBlock el -> el | _ -> [body]) in
 			let body = (match el with
 				| [] -> body
-				| _ ->					
-					if is_sub && is_text_platform() then raise Exit; 
+				| _ ->
+					if is_sub && is_text_platform() then raise Exit;
 					mk (TVars (List.map2 (fun (p,_,t) e -> p,t,Some e) func.tf_args el)) com.type_api.tvoid e.epos :: body
 			) in
 			{ e with eexpr = TBlock body }
@@ -468,7 +468,16 @@ let rec reduce_loop com is_sub e =
 			Exit -> e)
 	| TParenthesis ({ eexpr = TConst _ } as ec) | TBlock [{ eexpr = TConst _ } as ec] ->
 		{ ec with epos = e.epos }
-	| _ -> 
+	| TSwitch (_,cases,_) ->
+		List.iter (fun (cl,_) ->
+			List.iter (fun e ->
+				match e.eexpr with
+				| TCall ({ eexpr = TEnumField _ },_) -> error "Not-constant enum in switch cannot be matched" e.epos
+				| _ -> ()
+			) cl
+		) cases;
+		e
+	| _ ->
 		e
 
 let reduce_expression com e =
