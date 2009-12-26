@@ -953,3 +953,59 @@ let rec constructor_side_effects e =
 			false;
 		with Exit ->
 			true
+
+(*
+	Make a dump of the full typed AST of all types
+*)
+let dump_types com =
+	let s_type = s_type (Type.print_context()) in
+	let params = function [] -> "" | l -> Printf.sprintf "<%s>" (String.concat "," (List.map (fun (n,t) -> n ^ " : " ^ s_type t) l)) in
+	let rec create acc = function
+		| [] -> ()
+		| d :: l ->
+			let dir = String.concat "/" (List.rev (d :: acc)) in
+			if not (Sys.file_exists dir) then Unix.mkdir dir 0o755;
+			create (d :: acc) l
+	in
+	List.iter (fun mt ->
+		let path = Type.t_path mt in
+		let dir = "dump" :: fst path in
+		create [] dir;
+		let ch = open_out (String.concat "/" dir ^ "/" ^ snd path ^ ".dump") in
+		let buf = Buffer.create 0 in
+		let print fmt = Printf.kprintf (fun s -> Buffer.add_string buf s) fmt in
+		(match mt with
+		| Type.TClassDecl c ->
+			let print_field stat f =
+				print "\t%s%s%s%s" (if stat then "static " else "") (if f.cf_public then "public " else "") f.cf_name (params f.cf_params);
+				print "(%s,%s) : %s" (s_access f.cf_get) (s_access f.cf_set) (s_type f.cf_type);
+				(match f.cf_expr with
+				| None -> ()
+				| Some e -> print "\n\n\t = %s" (Type.s_expr s_type e));
+				print ";\n\n";
+			in
+			print "%s%s%s %s%s" (if c.cl_private then "private " else "") (if c.cl_extern then "extern " else "") (if c.cl_interface then "interface" else "class") (s_type_path path) (params c.cl_types);
+			(match c.cl_super with None -> () | Some (c,pl) -> print " extends %s" (s_type (TInst (c,pl))));
+			List.iter (fun (c,pl) -> print " implements %s" (s_type (TInst (c,pl)))) c.cl_implements;
+			(match c.cl_dynamic with None -> () | Some t -> print " implements Dynamic<%s>" (s_type t));
+			(match c.cl_array_access with None -> () | Some t -> print " implements ArrayAccess<%s>" (s_type t));
+			print "{\n";
+			(match c.cl_constructor with
+			| None -> ()
+			| Some f -> print_field false f);
+			List.iter (print_field false) c.cl_ordered_fields;
+			List.iter (print_field true) c.cl_ordered_statics;
+			print "}";
+		| Type.TEnumDecl e ->
+			print "%s%senum %s%s {\n" (if e.e_private then "private " else "") (if e.e_extern then "extern " else "") (s_type_path path) (params e.e_types);
+			List.iter (fun n ->
+				let f = PMap.find n e.e_constrs in
+				print "\t%s : %s;\n" f.ef_name (s_type f.ef_type);
+			) e.e_names;
+			print "}"
+		| Type.TTypeDecl t ->
+			print "%stype %s%s = %s" (if t.t_private then "private " else "") (s_type_path path) (params t.t_types) (s_type t.t_type);
+		);
+		output_string ch (Buffer.contents buf);
+		close_out ch
+	) com.types

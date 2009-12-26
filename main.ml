@@ -493,6 +493,7 @@ try
 		] in
 		let filters = (if not com.foptimize then filters else Optimizer.reduce_expression ctx :: filters) in
 		Codegen.post_process com filters tfilters;
+		if Common.defined com "dump" then Codegen.dump_types com;
 		(match com.platform with
 		| Cross ->
 			()

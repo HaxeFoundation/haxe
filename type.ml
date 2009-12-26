@@ -496,7 +496,7 @@ type simple_access =
 	| SANo
 	| SARuntime
 
-let simple_access = function	
+let simple_access = function
 	| NormalAccess | InlineAccess | MethodAccess true -> SAYes
 	| NoAccess | NeverAccess | MethodAccess false -> SANo
 	| ResolveAccess | CallAccess _ -> SARuntime
@@ -775,7 +775,7 @@ let rec unify a b =
 				| Statics _ | EnumStatics _ -> error []
 				| Opened -> an.a_status := Closed
 				| _ -> ());
-				PMap.iter (fun _ f -> 
+				PMap.iter (fun _ f ->
 					try
 						type_eq EqStrict (field_type f) t
 					with Unify_error l ->
@@ -963,3 +963,83 @@ let map_expr_type f ft e =
 		{ e with eexpr = TTry (f e1, List.map (fun (v,t,e) -> v, ft t, f e) catches); etype = ft e.etype }
 	| TReturn eo ->
 		{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f e)); etype = ft e.etype }
+
+let rec s_expr s_type e =
+	let sprintf = Printf.sprintf in
+	let slist f l = String.concat "," (List.map f l) in
+	let loop = s_expr s_type in
+	let s_const = function
+		| TInt i -> Int32.to_string i
+		| TFloat s -> s ^ "f"
+		| TString s -> sprintf "\"%s\"" (Ast.s_escape s)
+		| TBool b -> if b then "true" else "false"
+		| TNull -> "null"
+		| TThis -> "this"
+		| TSuper -> "super"
+	in
+	let str = (match e.eexpr with
+	| TConst c ->
+		"Const " ^ s_const c
+	| TLocal s ->
+		"Local " ^ s
+	| TEnumField (e,f) ->
+		sprintf "EnumField %s.%s" (s_type_path e.e_path) f
+	| TArray (e1,e2) ->
+		sprintf "%s[%s]" (loop e1) (loop e2)
+	| TBinop (op,e1,e2) ->
+		sprintf "(%s %s %s)" (loop e1) (s_binop op) (loop e2)
+	| TField (e,f) ->
+		sprintf "%s.%s" (loop e) f
+	| TClosure (e,s) ->
+		sprintf "Closure (%s,%s)" (loop e) s
+	| TTypeExpr m ->
+		sprintf "TypeExpr %s" (s_type_path (t_path m))
+	| TParenthesis e ->
+		sprintf "Parenthesis %s" (loop e)
+	| TObjectDecl fl ->
+		sprintf "ObjectDecl {%s)" (slist (fun (f,e) -> sprintf "%s : %s" f (loop e)) fl)
+	| TArrayDecl el ->
+		sprintf "ArrayDecl [%s]" (slist loop el)
+	| TCall (e,el) ->
+		sprintf "Call %s(%s)" (loop e) (slist loop el)
+	| TNew (c,pl,el) ->
+		sprintf "New %s%s(%s)" (s_type_path c.cl_path) (match pl with [] -> "" | l -> sprintf "<%s>" (slist s_type l)) (slist loop el)
+	| TUnop (op,f,e) ->
+		(match f with
+		| Prefix -> sprintf "(%s %s)" (s_unop op) (loop e)
+		| Postfix -> sprintf "(%s %s)" (loop e) (s_unop op))
+	| TFunction f ->
+		let args = slist (fun (n,o,t) -> sprintf "%s : %s%s" n (s_type t) (match o with None -> "" | Some c -> " = " ^ s_const c)) f.tf_args in
+		sprintf "Function(%s) : %s = %s" args (s_type f.tf_type) (loop f.tf_expr)
+	| TVars vl ->
+		sprintf "Vars %s" (slist (fun (v,t,eo) -> sprintf "%s : %s%s" v (s_type t) (match eo with None -> "" | Some e -> " = " ^ loop e)) vl)
+	| TBlock el ->
+		sprintf "Block {\n%s}" (String.concat "" (List.map (fun e -> sprintf "%s;\n" (loop e)) el))
+	| TFor (v,t,econd,e) ->
+		sprintf "For (%s : %s in %s,%s)" v (s_type t) (loop econd) (loop e)
+	| TIf (e,e1,e2) ->
+		sprintf "If (%s,%s%s)" (loop e) (loop e1) (match e2 with None -> "" | Some e -> "," ^ loop e)
+	| TWhile (econd,e,flag) ->
+		(match flag with
+		| NormalWhile -> sprintf "While (%s,%s)" (loop econd) (loop e)
+		| DoWhile -> sprintf "DoWhile (%s,%s)" (loop e) (loop econd))
+	| TSwitch (e,cases,def) ->
+		sprintf "Switch (%s,(%s)%s)" (loop e) (slist (fun (cl,e) -> sprintf "case %s: %s" (slist loop cl) (loop e)) cases) (match def with None -> "" | Some e -> "," ^ loop e)
+	| TMatch (e,(en,tparams),cases,def) ->
+		let args vl = slist (fun (so,t) -> sprintf "%s : %s" (match so with None -> "_" | Some s -> s) (s_type t)) vl in
+		let cases = slist (fun (il,vl,e) -> sprintf "case %s%s : %s" (slist string_of_int il) (match vl with None -> "" | Some vl -> sprintf "(%s)" (args vl)) (loop e)) cases in
+		sprintf "Match %s (%s,(%s)%s)" (s_type (TEnum (en,tparams))) (loop e) cases (match def with None -> "" | Some e -> "," ^ loop e)
+	| TTry (e,cl) ->
+		sprintf "Try %s(%s) " (loop e) (slist (fun (v,t,e) -> sprintf "catch( %s : %s ) %s" v (s_type t) (loop e)) cl)
+	| TReturn None ->
+		"Return"
+	| TReturn (Some e) ->
+		sprintf "Return %s" (loop e)
+	| TBreak ->
+		"Break"
+	| TContinue ->
+		"Continue"
+	| TThrow e ->
+		"Throw " ^ (loop e)
+	) in
+	sprintf "(%s : %s)" str (s_type e.etype)
