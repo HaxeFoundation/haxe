@@ -929,7 +929,7 @@ let rec gen_expression ctx retval expression =
 		| TSwitch (_, _, _) when retval ->
 				define_local_return_block expression;
 		| TObjectDecl decl_list ->
-				List.iter (fun name expr -> iter_retval find_local_return_blocks true expr) decl_list;
+				List.iter (fun (name,expr) -> iter_retval find_local_return_blocks true expr) decl_list;
 				define_local_return_block expression;
 		| _ -> iter_retval find_local_return_blocks retval expression
 		in
