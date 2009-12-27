@@ -913,6 +913,7 @@ let rec gen_expression ctx retval expression =
 			let func_name = next_anon_function_name ctx in
 			output "\n";
 			define_local_function func_name func
+		| TField ( { eexpr = (TConst TNull) }, _ ) -> ( )
 		| _ -> Type.iter find_local_functions expression
 	and
 	find_local_return_blocks retval expression =
@@ -922,11 +923,13 @@ let rec gen_expression ctx retval expression =
 				define_local_return_block expression;
 			end  (* else we are done *)
 		| TFunction func -> ()
+		| TField ( { eexpr = (TConst TNull) }, _ ) -> ( )
 		| TMatch (_, _, _, _)
 		| TTry (_, _)
 		| TSwitch (_, _, _) when retval ->
 				define_local_return_block expression;
 		| TObjectDecl decl_list ->
+				List.iter (fun name expr -> iter_retval find_local_return_blocks true expr) decl_list;
 				define_local_return_block expression;
 		| _ -> iter_retval find_local_return_blocks retval expression
 		in
@@ -1054,6 +1057,7 @@ let rec gen_expression ctx retval expression =
 			output ("::" ^ member )
 		| TConst TSuper -> output (if ctx.ctx_real_this_ptr then "this" else "__this");
 						output ("->super::" ^ remap_name)
+		| TConst TNull -> output "null()"
 		| _ -> 
 			gen_expression ctx true  field_object;
 			check_dynamic_member_access member
@@ -1144,6 +1148,7 @@ let rec gen_expression ctx retval expression =
 		| TFloat float_as_string -> output float_as_string
 		| TString s -> output (str s)
 		| TBool b -> output (if b then "true" else "false")
+		(*| TNull -> output ("((" ^ (type_string expression.etype) ^ ")null())")*)
 		| TNull -> output "null()"
 		| TThis -> output (if ctx.ctx_real_this_ptr then "this" else "__this")
 		| TSuper -> output (if ctx.ctx_real_this_ptr then "((super *)this)" else "((super*)__this)")
