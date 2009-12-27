@@ -1792,7 +1792,7 @@ let generate_main common_ctx member_types super_deps class_def boot_classes init
 		ctx.ctx_class_name <- "?";
 		ctx.ctx_class_member_types <- member_types;
 
-		output_main "#include <hxObject.h>\n\n";
+		output_main "#include <hxcpp.h>\n\n";
 		output_main "#include <stdio.h>\n\n";
 
 		List.iter ( add_include cpp_file ) referenced;
@@ -1810,7 +1810,7 @@ let generate_main common_ctx member_types super_deps class_def boot_classes init
 	(* Write boot class too ... *)
 	let boot_file = new_cpp_file base_dir ([],"__boot__") in
 	let output_boot = (boot_file#write) in
-	output_boot "#include <hxObject.h>\n\n";
+	output_boot "#include <hxcpp.h>\n\n";
 	List.iter ( fun class_path ->
 		output_boot ("#include <" ^
 			( join_class_path (include_remap class_path) "/" ) ^ ".h>\n")
@@ -1831,7 +1831,7 @@ let generate_main common_ctx member_types super_deps class_def boot_classes init
 let begin_header_file output_h def_string =
 	output_h ("#ifndef INCLUDED_" ^ def_string ^ "\n");
 	output_h ("#define INCLUDED_" ^ def_string ^ "\n\n");
-	output_h "#include <hxObject.h>\n\n";;
+	output_h "#include <hxcpp.h>\n\n";;
 
 let end_header_file output_h def_string = 
 	output_h ("\n#endif /* INCLUDED_" ^ def_string ^ " */ \n");;
@@ -1861,7 +1861,7 @@ let generate_enum_files common_ctx enum_def super_deps =
 	if (debug) then
 		print_endline ("Found enum definition:" ^ (join_class_path  class_path "::" ));
 
-	output_cpp "#include <hxObject.h>\n\n";
+	output_cpp "#include <hxcpp.h>\n\n";
 
 	let referenced = find_referenced_types (TEnumDecl enum_def) super_deps false in
 	List.iter (add_include cpp_file) referenced;
@@ -2067,7 +2067,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 
 	let implement_dynamic = implement_dynamic_here class_def in
 
-	output_cpp "#include <hxObject.h>\n\n";
+	output_cpp "#include <hxcpp.h>\n\n";
 
 	let all_referenced = find_referenced_types (TClassDecl class_def) super_deps false in
 	List.iter ( add_include cpp_file  ) all_referenced;
@@ -2504,7 +2504,7 @@ let kind_string = function
 
 let write_resources common_ctx =
 	let resource_file = new_cpp_file common_ctx.file ([],"__resources__") in
-	resource_file#write "#include <hxObject.h>\n\n";
+	resource_file#write "#include <hxcpp.h>\n\n";
 
 	let idx = ref 0 in
 	Hashtbl.iter (fun _ data ->
