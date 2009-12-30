@@ -31,6 +31,7 @@
 	all : bugfix when optimizing (function(x) return x)(x)
 	neko : improved speed of Xml.toString()
 	all : added -D dump (for debugging purposes)
+	neko : added neko.Web.isTora
 
 2009-07-26: 2.04
 	flash9 : fixed get_full_path error with -D fdb

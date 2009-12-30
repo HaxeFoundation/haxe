@@ -296,6 +296,7 @@ class Web {
 	}
 
 	public static var isModNeko(default,null) : Bool;
+	public static var isTora(default,null) : Bool;
 
 	static var _set_main : Dynamic;
 	static var _get_host_name : Dynamic;
@@ -343,6 +344,7 @@ class Web {
 			_flush = Lib.loadLazy(lib,"cgi_flush",0);
 			_get_client_headers = Lib.loadLazy(lib,"get_client_headers",0);
 			_log_message = Lib.loadLazy(lib,"log_message",1);
+			isTora = try Lib.load(lib,"tora_infos",0) != null catch( e : Dynamic) false;
 		} else {
 			var a0 = untyped __dollar__loader.args[0];
 			if( a0 != null ) a0 = new String(a0);
@@ -379,6 +381,7 @@ class Web {
 			_parse_multipart = function(a,b) { throw "Not supported"; };
 			_flush = function() { };
 			_log_message = function(s) { };
+			isTora = false;
 		}
 	}
 
