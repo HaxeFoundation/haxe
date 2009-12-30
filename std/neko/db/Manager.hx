@@ -70,7 +70,7 @@ class Manager<T : Object> {
 	var class_proto : { prototype : Dynamic };
 	var lock_mode : Int;
 
-	public function new( classval : Class<neko.db.Object> ) {
+	public function new( classval : Class<T> ) {
 		var cl : Dynamic = classval;
 
 		// get basic infos
@@ -103,7 +103,7 @@ class Manager<T : Object> {
 
 		// set the manager and ready for further init
 		proto.local_manager = this;
-		init_list.add(untyped this);
+		init_list.add(cast this);
 	}
 
 	public function get( id : Int, ?lock : Bool ) : T {
@@ -113,7 +113,7 @@ class Manager<T : Object> {
 			throw "Invalid number of keys";
 		if( id == null )
 			return null;
-		var x : Dynamic = untyped object_cache.get(id + table_name);
+		var x : Dynamic = getFromCacheKey(id + table_name);
 		if( x != null && (!lock || x.update != no_update) )
 			return x;
 		var s = new StringBuf();
@@ -131,7 +131,7 @@ class Manager<T : Object> {
 	public function getWithKeys( keys : {}, ?lock : Bool ) : T {
 		if( lock == null )
 			lock = true;
-		var x : Dynamic = getFromCache(untyped keys,false);
+		var x : Dynamic = getFromCacheKey(makeCacheKey(cast keys));
 		if( x != null && (!lock || x.update != no_update) )
 			return x;
 		var s = new StringBuf();
@@ -435,7 +435,7 @@ class Manager<T : Object> {
 		var l = init_list;
 		init_list = new List();
 		for( m in l ) {
-			var rl : Void -> Array<Dynamic> = untyped m.class_proto.RELATIONS;
+			var rl : Void -> Array<Dynamic> = (cast m.class_proto).RELATIONS;
 			if( rl != null )
 				for( r in rl() )
 					m.initRelation(r);
@@ -506,6 +506,10 @@ class Manager<T : Object> {
 
 	function addToCache( x : T ) {
 		object_cache.set(makeCacheKey(x),x);
+	}
+
+	function getFromCacheKey( key : String ) : T {
+		return cast object_cache.get(key);
 	}
 
 	function getFromCache( x : T, lock : Bool ) : T {
