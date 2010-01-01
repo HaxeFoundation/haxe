@@ -101,53 +101,49 @@ private class SqliteResultSet implements ResultSet {
 	public var length(getLength,null) : Int;
 	public var nfields(getNFields,null) : Int;
 	var r : Void;
-	var cache : List<Dynamic>;
+	var cache : Dynamic;
 
 	public function new( r ) {
-		cache = new List();
 		this.r = r;
-		hasNext(); // execute the request
 	}
-
-	function getLength() {
-		if( nfields != 0 ) {
-			while( true ) {
-				var c = doNext();
-				if( c == null )
-					break;
-				cache.add(c);
-			}
-			return cache.length;
-		}
+	
+	private function getLength() {
+		if(untyped __physeq__(r, true))
+			return untyped __call__("sqlite_changes", r);
+		else if (untyped __physeq__(r, false))
+			return 0;
 		return untyped __call__("sqlite_num_rows", r);
 	}
 
-	function getNFields() {
-		return untyped __call__("sqlite_num_fields", r);
+	private var _nfields : Int;
+	private function getNFields() {
+		if(_nfields == null)
+			_nfields = untyped __call__("sqlite_num_fields", r);
+		return _nfields;
 	}
 
 	public function hasNext() {
-		var c = next();
-		if( c == null )
-			return false;
-		cache.push(c);
-		return true;
+		if( cache == null )
+			cache = next();
+		return (cache != null);
+	}
+
+	private var cRow : ArrayAccess<String>;
+	private function fetchRow() : Bool {
+		cRow = untyped __call__("sqlite_fetch_array", r, __php__("SQLITE_ASSOC"));
+		return ! untyped __physeq__(cRow, false);
 	}
 
 	public function next() : Dynamic {
-		var c = cache.pop();
-		if( c != null )
-			return c;
-		return doNext();
+		if( cache != null ) {
+			var t = cache;
+			cache = null;
+			return t;
+		}
+		if(!fetchRow()) return null;
+		return untyped __call__("_hx_anonymous", cRow);
 	}
-
-	private function doNext() : Dynamic {
-		var c = untyped __call__("sqlite_fetch_array", r, __php__("SQLITE_BOTH"));
-		if(untyped __physeq__(c, false))
-			return null;
-		return untyped __call__("_hx_anonymous", c);
-	}
-
+	
 	public function results() : List<Dynamic> {
 		var l = new List();
 		while( true ) {
@@ -160,20 +156,21 @@ private class SqliteResultSet implements ResultSet {
 	}
 
 	public function getResult( n : Int ) : String {
-		return Reflect.field(next(), cast n);
+		if(cRow == null && !fetchRow())
+			return null;
+		return untyped __call__("array_values", cRow)[n];
 	}
 
 	public function getIntResult( n : Int ) : Int {
-		return untyped __call__("intval", Reflect.field(next(), cast n));
+		return untyped __call__("intval", getResult(n));
 	}
 
 	public function getFloatResult( n : Int ) : Float {
-		return untyped __call__("floatval", Reflect.field(next(), cast n));
+		return untyped __call__("floatval", getResult(n));
 	}
 }
 
 class Sqlite {
-
 	public static function open( file : String ) : Connection {
 		return new SqliteConnection(file);
 	}

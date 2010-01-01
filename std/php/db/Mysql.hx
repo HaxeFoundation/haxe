@@ -97,7 +97,7 @@ private class MysqlResultSet implements ResultSet {
 
 	private function getLength() {
 		if(untyped __physeq__(__r, true))
-			return untyped __call__("mysql_affected_rows");
+			return untyped __call__("mysql_affected_rows", __r);
 		else if (untyped __physeq__(__r, false))
 			return 0;
 		return untyped __call__("mysql_num_rows", __r);
@@ -114,20 +114,21 @@ private class MysqlResultSet implements ResultSet {
 	private function getFieldsDescription() {
 		if(_fieldsDesc == null) {
 			_fieldsDesc = [];
-			for(i in 0...nfields) {
-				_fieldsDesc.push({
+			for (i in 0...nfields) {
+				var item = {
 					name : untyped __call__("mysql_field_name", __r, i),
 					type : untyped __call__("mysql_field_type", __r, i)
-				});
+				};
+				_fieldsDesc.push(item);
 			}
 		}
 		return _fieldsDesc;
 	}
 
 	private function convert(v : String, type : String) : Dynamic {
-		if(v == null) return v;
+		if (v == null) return v;
 		switch(type) {
-			case "year", "int":
+			case "int", "year":
 				return untyped __call__("intval", v);
 			case "real":
 				return untyped __call__("floatval", v);
