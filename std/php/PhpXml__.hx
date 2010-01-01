@@ -60,10 +60,11 @@ class PhpXml__ {
 
 	private static function __character_data_handler(parser : Dynamic, data : String) {
 		// TODO: this function can probably be simplified
-		var lc : PhpXml__ = (build._children == null || build._children.length == 0) ? null : build._children[build._children.length-1];
-		if(lc != null && Xml.PCData == lc.nodeType) {
-			lc.nodeValue = lc.nodeValue + untyped __call__("htmlentities", data);
-		} else if((untyped __call__("strlen", data) == 1 && __call__("htmlentities", data) != data) || untyped __call__("htmlentities", data) == data) {
+//		var lc : PhpXml__ = (build._children == null || build._children.length == 0) ? null : build._children[build._children.length-1];
+//		if(lc != null && Xml.PCData == lc.nodeType) {
+//			lc.nodeValue = lc.nodeValue + untyped __call__("htmlentities", data);
+//		} else
+		if((untyped __call__("strlen", data) == 1 && __call__("htmlentities", data) != data) || untyped __call__("htmlentities", data) == data) {
 			build.addChild(createPCData(untyped __call__("htmlentities", data)));
 		} else
 			build.addChild(createCData(data));
@@ -89,8 +90,8 @@ class PhpXml__ {
 		if(!isComplete)
 			str = "<doc>"+str+"</doc>";
 
-		if(untyped __call__("xml_parse", xml_parser, str, true) != 1) {
-			throw "Xml parse error ("+untyped __call__("xml_error_string", xml_parser) + ") line #" + __call__("xml_get_current_line_number", xml_parser);
+		if(1 != untyped __call__("xml_parse", xml_parser, str, true)) {
+			throw "Xml parse error ("+untyped __call__("xml_error_string", __call__("xml_get_error_code", xml_parser)) + ") line #" + __call__("xml_get_current_line_number", xml_parser);
 		}
 
 		untyped __call__("xml_parser_free", xml_parser);
@@ -106,8 +107,7 @@ class PhpXml__ {
 		}
 	}
 
-	private function new(){
-	}
+	private function new();
 
 	public static function createElement( name : String ) : PhpXml__ {
 		var r = new PhpXml__();

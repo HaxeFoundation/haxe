@@ -32,7 +32,9 @@
 	neko : improved speed of Xml.toString()
 	all : added -D dump (for debugging purposes)
 	neko : added neko.Web.isTora
-	php: added php.db.PDO (php.db.Sqlite is now deprecated)
+	php : added php.db.PDO (php.db.Sqlite is now deprecated)
+	php : fixed bug in Type.getClassFields() that reported duplicated entries
+	php : fixed errror in XML error reporting
 
 2009-07-26: 2.04
 	flash9 : fixed get_full_path error with -D fdb
