@@ -525,7 +525,7 @@ class Type {
 			while(list(, $p) = each($ps))
 				if($p->isStatic()) $r[] = $p->getName();
 			");
-			return untyped __php__("new _hx_array($r)");
+			return untyped __php__("new _hx_array(array_unique($r))");
 		#elseif cpp
 			return untyped c.GetClassFields();
 		#else
