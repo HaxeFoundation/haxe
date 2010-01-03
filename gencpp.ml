@@ -229,6 +229,7 @@ let keyword_remap name =
 	| "register" | "short" | "signed" | "sizeof" | "template" | "typedef"
 	| "union" | "unsigned" | "void" | "volatile" | "or" | "and" | "xor" | "or_eq"
 	| "and_eq" | "xor_eq" | "typeof" | "stdin" | "stdout" | "stderr"
+	| "BIG_ENDIAN" | "LITTLE_ENDIAN"
 	| "struct" -> "_" ^ name
 	| x -> x
 
@@ -280,7 +281,7 @@ let is_basic_type = function
 let rec class_string klass suffix params =
 	(match klass.cl_path with
 	(* Array class *)
-	|  ([],"Array") -> (snd klass.cl_path) ^ suffix ^ "<" ^ (String.concat ","
+	|  ([],"Array") -> (snd klass.cl_path) ^ suffix ^ "< " ^ (String.concat ","
 					 (List.map type_string  params) ) ^ " >"
 	| _ when klass.cl_kind=KTypeParameter -> "Dynamic"
 	|  ([],"#Int") -> "/* # */int"
@@ -319,7 +320,7 @@ and type_string_suff suffix haxe_type =
 			| _ -> assert false);
 		| [] , "Array" ->
 			(match params with
-			| [t] -> "Array<" ^ (type_string (follow t) ) ^ " >"
+			| [t] -> "Array< " ^ (type_string (follow t) ) ^ " >"
 			| _ -> assert false)
 		| _ ->  type_string_suff suffix (apply_params type_def.t_types params type_def.t_type)
 		)
@@ -1047,7 +1048,7 @@ and gen_expression ctx retval expression =
 					if (not assigning) then begin
 						let return = type_string return_type in
 						if ( not (return="Dynamic") ) then
-							output (".Cast<" ^ return ^ " >()");
+							output (".Cast< " ^ return ^ " >()");
 					end
 			| _ ->
 			let member_name = remap_name ^
@@ -1060,7 +1061,7 @@ and gen_expression ctx retval expression =
 					let expr_type = type_string return_type in
 					let mem_type = member_type ctx field_object member in
 					if ( (mem_type="Dynamic") && expr_type<>"Dynamic") then
-						output (".Cast<" ^ expr_type ^ " >()");
+						output (".Cast< " ^ expr_type ^ " >()");
 				end;
 			end )
 		end in
@@ -1131,7 +1132,7 @@ and gen_expression ctx retval expression =
 				| TField(expr,name) ->
 					let mem_type = member_type ctx expr name in
 						if ( (mem_type="Dynamic") && (not(expr_type="Dynamic") ) ) then
-							 output (".Cast<" ^ expr_type ^ " >()");
+							 output (".Cast< " ^ expr_type ^ " >()");
 				| _ -> () )
 	| TBlock expr_list ->
 		if (retval) then begin
@@ -1173,7 +1174,7 @@ and gen_expression ctx retval expression =
 	| TTypeExpr type_expr ->
 		let klass = "::" ^ (join_class_path (t_path type_expr) "::" ) in
 		let klass1 = if klass="::Array" then "Array<int>" else klass in
-		output ("hx::ClassOf<" ^ klass1 ^ " >()")
+		output ("hx::ClassOf< " ^ klass1 ^ " >()")
 	| TReturn optional_expr ->
 		output "";
 		( match optional_expr with
@@ -1457,7 +1458,7 @@ and gen_expression ctx retval expression =
 					seen_dynamic := true;
 					output_i !else_str;
 				end else
-					output_i (!else_str ^ "if (__e.IsClass<" ^ type_name ^ " >() )");
+					output_i (!else_str ^ "if (__e.IsClass< " ^ type_name ^ " >() )");
 				ctx.ctx_writer#begin_block;
 				output_i (type_name ^ " " ^ name ^ " = __e;");
 				(* Move this "inside" the catch call too ... *)
@@ -1569,7 +1570,7 @@ let gen_field ctx class_name ptr_name is_static is_external is_interface field =
 				ctx.ctx_writer#end_block;
 			end else begin
 				if (is_void) then ctx.ctx_writer#begin_block;
-				gen_expression ctx false function_def.tf_expr;
+				gen_expression ctx false (to_block function_def.tf_expr);
 				if (is_void) then begin
 					output "return null();\n";
 					ctx.ctx_writer#end_block;
@@ -1932,7 +1933,7 @@ let generate_enum_files common_ctx enum_def super_deps =
 		| TFun (args,_) -> 
 			output_cpp (smart_class_name ^ "  " ^ class_name ^ "::" ^ name ^ "(" ^
 				(gen_tfun_arg_list args) ^")\n");
-			output_cpp ("	{ return hx::CreateEnum<" ^ class_name ^ " >(" ^ (str name) ^ "," ^
+			output_cpp ("	{ return hx::CreateEnum< " ^ class_name ^ " >(" ^ (str name) ^ "," ^
 				(string_of_int constructor.ef_index) ^ ",hx::DynamicArray(0," ^
 				(string_of_int (List.length args)) ^  ")" );
 			List.iter (fun (arg,_,_) -> output_cpp (".Add(" ^ arg ^ ")")) args;
@@ -2016,7 +2017,7 @@ let generate_enum_files common_ctx enum_def super_deps =
 	output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
 	let text_name = str (join_class_path class_path ".") in
 	output_cpp ("\nStatic(__mClass) = hx::RegisterClass(" ^ text_name ^
-					", hx::TCanCast<" ^ class_name ^ " >,sStaticFields,sMemberFields,\n");
+					", hx::TCanCast< " ^ class_name ^ " >,sStaticFields,sMemberFields,\n");
 	output_cpp ("	&__Create_" ^ class_name ^ ", &__Create,\n");
 	output_cpp ("	&super::__SGetClass(), &Create" ^ class_name ^ ", sMarkStatics);\n");
 	output_cpp ("}\n\n");
@@ -2027,7 +2028,7 @@ let generate_enum_files common_ctx enum_def super_deps =
 		match constructor.ef_type with
 		| TFun (_,_) -> ()
 		| _ ->
-			output_cpp ( "Static(" ^ name ^ ") = hx::CreateEnum<" ^ class_name ^ " >(" ^ (str name) ^  "," ^
+			output_cpp ( "Static(" ^ name ^ ") = hx::CreateEnum< " ^ class_name ^ " >(" ^ (str name) ^  "," ^
 				(string_of_int constructor.ef_index) ^ ");\n" )
 	) enum_def.e_constrs;
 	output_cpp ("}\n\n");
@@ -2104,7 +2105,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 	ctx.ctx_class_member_types <- member_types;
 	if debug then print_endline ("Found class definition:" ^ ctx.ctx_class_name);
 
-	let ptr_name = "hx::ObjectPtr<" ^ class_name ^ " >" in
+	let ptr_name = "hx::ObjectPtr< " ^ class_name ^ " >" in
 	let constructor_type_var_list =
 		match class_def.cl_constructor with
 		| Some definition ->
@@ -2331,7 +2332,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 			(f.cf_name, String.length f.cf_name,
 				(match f.cf_set with
 				| CallAccess prop -> "return " ^ (keyword_remap prop) ^ "(inValue);"
-				| _ -> (keyword_remap f.cf_name) ^ "=inValue.Cast<" ^ (type_string f.cf_type) ^
+				| _ -> (keyword_remap f.cf_name) ^ "=inValue.Cast< " ^ (type_string f.cf_type) ^
 				         " >(); return inValue;"
 				)  )
 		) in
@@ -2349,7 +2350,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 			(fun field -> output_cpp ("	outFields->push(" ^( str field.cf_name )^ ");\n")) in
 		let is_data_field field = (match follow field.cf_type with | TFun _ -> false | _ -> true) in
 
-		output_cpp ("void " ^ class_name ^ "::__GetFields(Array<::String> &outFields)\n{\n");
+		output_cpp ("void " ^ class_name ^ "::__GetFields(Array< ::String> &outFields)\n{\n");
 		List.iter append_field (List.filter is_data_field class_def.cl_ordered_fields);
 		if (implement_dynamic) then
 			output_cpp "	HX_APPEND_DYNAMIC_FIELDS(outFields);\n";
@@ -2390,7 +2391,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 
 		output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
 		output_cpp ("	Static(__mClass) = hx::RegisterClass(" ^ (str class_name_text)  ^
-				", hx::TCanCast<" ^ class_name ^ "> ,sStaticFields,sMemberFields,\n");
+				", hx::TCanCast< " ^ class_name ^ "> ,sStaticFields,sMemberFields,\n");
 		output_cpp ("	&__CreateEmpty, &__Create,\n");
 		output_cpp ("	&super::__SGetClass(), 0, sMarkStatics);\n");
 		output_cpp ("}\n\n");
@@ -2466,7 +2467,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 
 		List.iter (fun interface_name ->
 			output_h ("		inline operator " ^ interface_name ^ "_obj *()\n			" ^
-					"{ return new " ^ interface_name ^ "_delegate_<" ^ class_name ^" >(this); }\n" );
+					"{ return new " ^ interface_name ^ "_delegate_< " ^ class_name ^" >(this); }\n" );
 		) implemented;
 
 		if ( (List.length implemented) > 0 ) then
