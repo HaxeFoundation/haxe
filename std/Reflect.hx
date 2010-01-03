@@ -119,8 +119,10 @@ class Reflect {
 			}
 			return __call__("call_user_func_array", __call__("is_callable", func) ? func : __call__("array", o, func), (null == args ? __call__("array") : __field__(args, "»a")));
 		#elseif cpp
-         var s:String = func;
-         return untyped o.__Field(s).__Run(args);
+			if (func!=null && func.__GetType()==__global__.vtString)
+				func = o.__Field(func);
+			untyped func.__SetThis(o);
+         return untyped func.__Run(args);
 		#else
 			return null;
 		#end
@@ -303,7 +305,8 @@ class Reflect {
 		#elseif cpp
 			if (v==null) return false;
 			var t:Int = v.__GetType();
-			return t ==  __global__.vtObject || t==__global__.vtClass;
+			return t ==  __global__.vtObject || t==__global__.vtClass || t==__global__.vtString ||
+					t==__global__.vtArray;
 		#else
 			return false;
 		#end
@@ -345,6 +348,10 @@ class Reflect {
 		#else
 			#if php
 				if(untyped __call__("is_string", o)) return o;
+			#elseif cpp
+				if(untyped o.__GetType()==__global__.vtString ) return o;
+				if(untyped o.__GetType()==__global__.vtArray )
+					return untyped o.__Field("copy")();
 			#end
 			var o2 : Dynamic = {};
 			for( f in Reflect.fields(o) )
