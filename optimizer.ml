@@ -454,3 +454,31 @@ let rec reduce_loop ctx is_sub e =
 
 let reduce_expression ctx e =
 	if ctx.com.foptimize then reduce_loop ctx false e else e
+
+(* ---------------------------------------------------------------------- *)
+(* SANITIZE *)
+
+(*
+	makes sure that when an AST get generated to source code, it will not
+	generate expressions that evaluate differently. It is then necessary to
+	add parenthesises around some binary expressions when the AST does not
+	correspond to the natural operand priority order for the platform
+*)
+
+let rec sanitize e =	
+	match e.eexpr with
+	| TBinop (op,e1,e2) ->
+		let parent e = mk (TParenthesis e) e.etype e.epos in
+		let e1 = sanitize e1 in
+		let e2 = sanitize e2 in
+		let e1 = (match e1.eexpr with
+			| TBinop (op2,_,_) when Parser.swap op2 op -> parent e1
+			| _ -> e1
+		) in
+		let e2 = (match e2.eexpr with
+			| TBinop (op2,_,_) when Parser.swap op2 op -> parent e2
+			| _ -> e2
+		) in
+		{ e with eexpr = TBinop (op,e1,e2) }
+	| _ -> Type.map_expr sanitize e
+

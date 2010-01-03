@@ -76,19 +76,19 @@ let is_not_assign = function
 	| OpAssign | OpAssignOp _ -> false
 	| _ -> true
 
-let can_swap _op op =
+let swap _op op =
 	let p1 = priority _op in
 	let p2 = priority op in
 	if p1 < p2 then
-		true
+		is_not_assign _op || is_not_assign op
 	else if p1 = p2 && p1 >= 0 then (* numerical ops are left-assoc *)
-		true
+		is_not_assign _op || is_not_assign op
 	else
 		false
 
 let rec make_binop op e ((v,p2) as e2) =
 	match v with
-	| EBinop (_op,_e,_e2) when can_swap _op op && (is_not_assign _op || is_not_assign op) ->
+	| EBinop (_op,_e,_e2) when swap _op op ->
 		let _e = make_binop op e _e in
 		EBinop (_op,_e,_e2) , punion (pos _e) (pos _e2)
 	| ETernary (e1,e2,e3) when is_not_assign op ->
