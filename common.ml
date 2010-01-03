@@ -161,17 +161,14 @@ let new_timer name =
 		Hashtbl.add htimers name t;
 		t
 
-let curtime = ref None
+let curtime = ref []
 
 let timer name =
 	let t = new_timer name in
-	let old = !curtime in
-	curtime := Some t;
+	curtime := t :: !curtime;
 	(function() ->
 		let dt = get_time() -. t.start in
 		t.total <- t.total +. dt;
-		curtime := old;
-		match !curtime with
-		| None -> ()
-		| Some ct -> ct.start <- ct.start +. dt
+		curtime := List.tl !curtime;
+		List.iter (fun ct -> ct.start <- ct.start +. dt) !curtime
 	)
