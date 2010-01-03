@@ -39,6 +39,7 @@
 	all : added completion for sub-types declarations
 	all : improved completion with lambda function
 	as3 : several generation fixes
+	all : bugfix haxe.rtti.Generic on private class
 
 2009-07-26: 2.04
 	flash9 : fixed get_full_path error with -D fdb

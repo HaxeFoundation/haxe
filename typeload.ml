@@ -827,16 +827,14 @@ let type_module ctx m tdecls loadp =
 	let decls = ref [] in
 	let decl_with_name name p priv =
 		let tpath = if priv then (fst m @ ["_" ^ snd m], name) else (fst m, name) in
-		if priv then begin
-			if List.exists (fun t -> tpath = t_path t) (!decls) then error ("Type name " ^ name ^ " is alreday defined in this module") p;
-			tpath
-		end else try
+		if priv && List.exists (fun t -> tpath = t_path t) (!decls) then error ("Type name " ^ name ^ " is already defined in this module") p;
+		try
 			let m2 = Hashtbl.find ctx.types_module tpath in
 			if m <> m2 && String.lowercase (s_type_path m2) = String.lowercase (s_type_path m) then error ("Module " ^ s_type_path m2 ^ " is loaded with a different case than " ^ s_type_path m) loadp;
 			error ("Type name " ^ s_type_path tpath ^ " is redefined from module " ^ s_type_path m2) p
 		with
 			Not_found ->
-				Hashtbl.add ctx.types_module (fst m,name) m;
+				Hashtbl.add ctx.types_module tpath m;
 				tpath
 	in
 	List.iter (fun (d,p) ->
