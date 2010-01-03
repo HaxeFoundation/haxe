@@ -35,6 +35,8 @@
 	php : added php.db.PDO (php.db.Sqlite is now deprecated)
 	php : fixed bug in Type.getClassFields() that reported duplicated entries
 	php : fixed errror in XML error reporting
+	all : allow sub-types declarations everywhere (pack.Type.Sub)
+	all : added completion for sub-types declarations
 
 2009-07-26: 2.04
 	flash9 : fixed get_full_path error with -D fdb

@@ -137,6 +137,7 @@ type type_path_normal = {
 	tpackage : string list;
 	tname : string;
 	tparams : type_param_or_const list;
+	tsub : string option;
 }
 
 and type_param_or_const =
@@ -235,8 +236,8 @@ type type_def =
 	| EClass of (class_flag, (class_field * pos) list) definition
 	| EEnum of (enum_flag, enum_constructor list) definition
 	| ETypedef of (enum_flag, type_path) definition
-	| EImport of string list * string * string option
-	| EUsing of string list * string
+	| EImport of type_path_normal
+	| EUsing of type_path_normal
 
 type type_decl = type_def * pos
 

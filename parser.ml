@@ -27,7 +27,7 @@ type error_msg =
 	| Missing_type
 
 exception Error of error_msg * pos
-exception TypePath of string list
+exception TypePath of string list * string option
 exception Display of expr
 
 let error_msg = function
@@ -163,8 +163,8 @@ let rec	parse_file s =
 
 and parse_type_decl s =
 	match s with parser
-	| [< '(Kwd Import,p1); p, t, s = parse_import []; p2 = semicolon >] -> EImport (p,t,s) , punion p1 p2
-	| [< '(Kwd Using,p1); p, t = parse_using []; p2 = semicolon >] -> EUsing (p,t) , punion p1 p2
+	| [< '(Kwd Import,p1); t = parse_type_path_normal; p2 = semicolon >] -> EImport t, punion p1 p2
+	| [< '(Kwd Using,p1); t = parse_type_path_normal; p2 = semicolon >] -> EUsing t, punion p1 p2
 	| [< c = parse_common_flags; s >] ->
 		match s with parser
 		| [< n , p1 = parse_enum_flags; doc = get_doc; '(Const (Type name),_); tl = parse_constraint_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] ->
@@ -239,22 +239,6 @@ and parse_class_field_resume s =
 				with
 					Stream.Error _ | Stream.Failure -> parse_class_field_resume s
 
-and parse_import acc = parser
-	| [< '(Const (Ident k),_); '(Dot,p); s >] ->
-		if is_resuming p then raise (TypePath (List.rev (k :: acc)));
-		parse_import (k :: acc) s
-	| [< '(Const (Type t),_); s >] ->
-		List.rev acc , t , match s with parser
-			| [< '(Dot,_); '(Const (Type s),_) >] -> Some s
-			| [< >] -> None
-
-and parse_using acc = parser
-	| [< '(Const (Ident k),_); '(Dot,p); s >] ->
-		if is_resuming p then raise (TypePath (List.rev (k :: acc)));
-		parse_using (k :: acc) s
-	| [< '(Const (Type t),_) >] ->
-		List.rev acc , t
-
 and parse_common_flags = parser
 	| [< '(Kwd Private,_); l = parse_common_flags >] -> (HPrivate, EPrivate) :: l
 	| [< '(Kwd Extern,_); l = parse_common_flags >] -> (HExtern, EExtern) :: l
@@ -292,10 +276,18 @@ and parse_type_path_normal s = parse_type_path1 [] s
 and parse_type_path1 pack = parser
 	| [< '(Const (Ident name),_); '(Dot,p); s >] ->
 		if is_resuming p then
-			raise  (TypePath (List.rev (name :: pack)))
+			raise (TypePath (List.rev (name :: pack),None))
 		else
 			parse_type_path1 (name :: pack) s
 	| [< '(Const (Type name),_); s >] ->
+		let sub = (match s with parser
+			| [< '(Dot,p); s >] ->
+				(if is_resuming p then
+					raise (TypePath (List.rev pack,Some name))
+				else match s with parser
+					[< '(Const (Type name),_) >] -> Some name)
+			| [< >] -> None
+		) in
 		let params = (match s with parser
 			| [< '(Binop OpLt,_); l = psep Comma parse_type_path_or_const; '(Binop OpGt,_) >] -> l
 			| [< >] -> []
@@ -303,7 +295,8 @@ and parse_type_path1 pack = parser
 		{
 			tpackage = List.rev pack;
 			tname = name;
-			tparams = params
+			tparams = params;
+			tsub = sub;
 		}
 
 and parse_type_path_or_const = parser

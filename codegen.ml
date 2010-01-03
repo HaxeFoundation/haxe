@@ -63,7 +63,7 @@ let extend_remoting ctx c t p async prot =
 	let new_name = (if async then "Async_" else "Remoting_") ^ t.tname in
 	(* check if the proxy already exists *)
 	let t = (try
-		Typeload.load_type_def ctx p (fst path,new_name)
+		Typeload.load_type_def ctx p { tpackage = fst path; tname = new_name; tparams = []; tsub = None }
 	with
 		Error (Module_not_found _,p2) when p == p2 ->
 	(* build it *)
@@ -71,10 +71,10 @@ let extend_remoting ctx c t p async prot =
 	let decls = (try Typeload.parse_module ctx path p with e -> ctx.com.package_rules <- rules; raise e) in
 	ctx.com.package_rules <- rules;
 	let base_fields = [
-		(FVar ("__cnx",None,[],Some (TPNormal { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = [] }),None),p);
+		(FVar ("__cnx",None,[],Some (TPNormal { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = []; tsub = None }),None),p);
 		(FFun ("new",None,[APublic],[],{ f_args = ["c",false,None,None]; f_type = None; f_expr = (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p) }),p);
 	] in
-	let tvoid = TPNormal { tpackage = []; tname = "Void"; tparams = [] } in
+	let tvoid = TPNormal { tpackage = []; tname = "Void"; tparams = []; tsub = None } in
 	let build_field is_public acc (f,p) =
 		match f with
 		| FFun ("new",_,_,_,_) ->
@@ -152,15 +152,14 @@ let build_generic ctx c p tl =
 	if !recurse then
 		TInst (c,tl) (* build a normal instance *)
 	else try
-		Typeload.load_normal_type ctx { tpackage = pack; tname = name; tparams = [] } p false
+		Typeload.load_instance ctx { tpackage = pack; tname = name; tparams = []; tsub = None } p false
 	with Error(Module_not_found path,_) when path = (pack,name) ->
 		let m = (try Hashtbl.find ctx.modules (Hashtbl.find ctx.types_module c.cl_path) with Not_found -> assert false) in
 		let ctx = { ctx with local_types = m.mtypes @ ctx.local_types } in
 		let cg = mk_class (pack,name) c.cl_pos None false in
 		let mg = {
 			mpath = cg.cl_path;
-			mtypes = [TClassDecl cg];
-			mimports = [];
+			mtypes = [TClassDecl cg];			
 		} in
 		Hashtbl.add ctx.modules mg.mpath mg;
 		let rec loop l1 l2 =
@@ -206,7 +205,7 @@ let build_generic ctx c p tl =
 (* HAXE.XML.PROXY *)
 
 let extend_xml_proxy ctx c t file p =
-	let t = Typeload.load_type ctx p t in
+	let t = Typeload.load_complex_type ctx p t in
 	let file = (try Common.find_file ctx.com file with Not_found -> file) in
 	let used = ref PMap.empty in
 	let rec delay() =

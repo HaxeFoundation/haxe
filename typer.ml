@@ -246,7 +246,7 @@ let rec type_module_type ctx t tparams p =
 			error (s_type_path s.t_path ^ " is not a value") p
 
 let type_type ctx tpath p =
-	type_module_type ctx (Typeload.load_type_def ctx p tpath) None p
+	type_module_type ctx (Typeload.load_type_def ctx p { tpackage = fst tpath; tname = snd tpath; tparams = []; tsub = None }) None p
 
 let get_constructor c p =
 	let rec loop c = 
@@ -422,7 +422,7 @@ let type_ident ctx i is_type p mode =
 		let infos = mk_infos ctx p [] in
 		let e = type_expr ctx infos true in
 		if mode = MGet then
-			AccExpr { e with etype = Typeload.load_normal_type ctx { tpackage = ["haxe"]; tname = "PosInfos"; tparams = [] } p false }
+			AccExpr { e with etype = Typeload.load_instance ctx { tpackage = ["haxe"]; tname = "PosInfos"; tparams = []; tsub = None } p false }
 		else
 			AccNo i
 	| _ ->
@@ -1084,7 +1084,7 @@ and type_access ctx e p mode =
 									raise (Error (Module_not_found (List.rev !path,name),p))
 								with
 									Not_found ->
-										if ctx.in_display then raise (Parser.TypePath (List.map (fun (n,_,_) -> n) (List.rev acc)));
+										if ctx.in_display then raise (Parser.TypePath (List.map (fun (n,_,_) -> n) (List.rev acc),None));
 										raise e)
 				| (_,false,_) as x :: path ->
 					loop (x :: acc) path
@@ -1346,7 +1346,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	| ETry (e1,catches) ->
 		let e1 = type_expr ctx ~need_val e1 in
 		let catches = List.map (fun (v,t,e) ->
-			let t = Typeload.load_type ctx (pos e) t in
+			let t = Typeload.load_complex_type ctx (pos e) t in
 			let name = (match follow t with
 				| TInst ({ cl_path = path },params) | TEnum ({ e_path = path },params) ->
 					List.iter (fun pt ->
@@ -1373,7 +1373,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	| ECall (e,el) ->
 		type_call ctx e el p
 	| ENew (t,el) ->
-		let t = Typeload.load_normal_type ctx t p true in
+		let t = Typeload.load_instance ctx t p true in
 		let el, c , params = (match follow t with
 		| TInst (c,params) ->
 			let name = (match c.cl_path with [], name -> name | x :: _ , _ -> x) in
@@ -1436,7 +1436,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	| ECast (e, Some t) ->
 		(* // if( Std.is(tmp,T) ) tmp else throw "Class cast error" *)
 		let etmp = (EConst (Ident "tmp"),p) in
-		let t = Typeload.load_type ctx (pos e) t in
+		let t = Typeload.load_complex_type ctx (pos e) t in
 		let tname = (match follow t with
 		| TInst (_,params) | TEnum (_,params) ->
 			List.iter (fun pt ->
@@ -1463,7 +1463,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	| EDisplay e ->
 		let old = ctx.in_display in
 		ctx.in_display <- true;
-		let e = (try type_expr ctx e with Error (Unknown_ident n,_) -> raise (Parser.TypePath [n])) in
+		let e = (try type_expr ctx e with Error (Unknown_ident n,_) -> raise (Parser.TypePath ([n],None))) in
 		ctx.in_display <- old;
 		let t = (match follow e.etype with
 			| TInst (c,params) ->
@@ -1519,7 +1519,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		) in
 		raise (Display t)
 	| EDisplayNew t ->
-		let t = Typeload.load_normal_type ctx t p true in
+		let t = Typeload.load_instance ctx t p true in
 		(match follow t with
 		| TInst (c,params) ->
 			let f = get_constructor c p in
@@ -1659,8 +1659,7 @@ let get_type_module ctx t =
 		(* @Main, other generated classes ? *)
 		{
 			mtypes = [t];
-			mpath = t_path t;
-			mimports = [];
+			mpath = t_path t;			
 		}
 	with
 		Exit -> !mfound
@@ -1771,7 +1770,7 @@ let types ctx main excludes =
 	(match main with
 	| None -> ()
 	| Some cl ->
-		let t = Typeload.load_type_def ctx null_pos cl in
+		let t = Typeload.load_type_def ctx null_pos { tpackage = fst cl; tname = snd cl; tparams = []; tsub = None } in
 		let ft, r = (match t with
 		| TEnumDecl _ | TTypeDecl _ ->
 			error ("Invalid -main : " ^ s_type_path cl ^ " is not a class") null_pos
@@ -1810,8 +1809,7 @@ let types ctx main excludes =
 let create com =
 	let empty =	{
 		mpath = [] , "";
-		mtypes = [];
-		mimports = [];
+		mtypes = [];		
 	} in
 	let ctx = {
 		com = com;

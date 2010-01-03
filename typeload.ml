@@ -62,18 +62,22 @@ let type_static_var ctx t e p =
 	| TType ({ t_path = ([],"UInt") },[]) -> { e with etype = t }
 	| _ -> e
 
-(** since load_type is used in PASS2 , it cannot access the structure of a type **)
+(** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
 
-let load_type_def ctx p tpath =
-	let no_pack = fst tpath = [] in
+(*
+	load a type or a subtype definition 
+*)
+let load_type_def ctx p t =
+	let no_pack = t.tpackage = [] in
+	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
 	try
-		List.find (fun t ->
-			let tp = t_path t in
-			tp = tpath || (no_pack && snd tp = snd tpath)
+		List.find (fun t2 ->
+			let tp = t_path t2 in
+			tp = (t.tpackage,tname) || (no_pack && snd tp = tname)
 		) ctx.local_types
 	with
 		Not_found ->
-			let tpath, m = (try
+			let t, m = (try
 				if not no_pack then raise Exit;
 				(match fst ctx.current.mpath with
 				| [] -> raise Exit
@@ -86,25 +90,27 @@ let load_type_def ctx p tpath =
 						| Forbidden -> raise Exit
 						| _ -> ())
 					with Not_found -> ());
-				let tpath2 = fst ctx.current.mpath , snd tpath in
-				tpath2, ctx.api.load_module tpath2 p
+				let tpath2 = fst ctx.current.mpath, t.tname in
+				{ t with tpackage = fst tpath2 }, ctx.api.load_module tpath2 p
 			with
-				| Error (Module_not_found _,p2) when p == p2 -> tpath, ctx.api.load_module tpath p
-				| Exit -> tpath, ctx.api.load_module tpath p
+				| Error (Module_not_found _,p2) when p == p2 -> t, ctx.api.load_module (t.tpackage,t.tname) p
+				| Exit -> t, ctx.api.load_module (t.tpackage,t.tname) p
 			) in
+			let tpath = (t.tpackage,tname) in
 			try
 				List.find (fun t -> not (t_private t) && t_path t = tpath) m.mtypes
 			with
-				Not_found -> error ("Module " ^ s_type_path tpath ^ " does not define type " ^ snd tpath) p
+				Not_found -> error ("Module " ^ s_type_path m.mpath ^ " does not define type " ^ snd tpath) p
 
-let rec load_normal_type ctx t p allow_no_params =
+(* build an instance from a full type *)
+let rec load_instance ctx t p allow_no_params =
 	try
-		if t.tpackage <> [] then raise Not_found;
+		if t.tpackage <> [] || t.tsub <> None then raise Not_found;
 		let pt = List.assoc t.tname ctx.type_params in
 		if t.tparams <> [] then error ("Class type parameter " ^ t.tname ^ " can't have parameters") p;
 		pt
 	with Not_found ->
-		let types , path , f = ctx.api.build_instance (load_type_def ctx p (t.tpackage,t.tname)) p in
+		let types , path , f = ctx.api.build_instance (load_type_def ctx p t) p in
 		if allow_no_params && t.tparams = [] then
 			f (List.map (fun (name,t) ->
 				match follow t with
@@ -114,7 +120,7 @@ let rec load_normal_type ctx t p allow_no_params =
 		else if path = ([],"Dynamic") then
 			match t.tparams with
 			| [] -> t_dynamic
-			| [TPType t] -> TDynamic (load_type ctx p t)
+			| [TPType t] -> TDynamic (load_complex_type ctx p t)
 			| _ -> error "Too many parameters for Dynamic" p
 		else begin
 			if List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;
@@ -130,7 +136,7 @@ let rec load_normal_type ctx t p allow_no_params =
 					let c = mk_class ([],name) p None false in
 					c.cl_kind <- KConstant const;
 					TInst (c,[])
-				| TPType t -> load_type ctx p t
+				| TPType t -> load_complex_type ctx p t
 			) t.tparams in
 			let params = List.map2 (fun t (name,t2) ->
 				let isconst = (match t with TInst ({ cl_kind = KConstant _ },_) -> true | _ -> false) in
@@ -152,13 +158,15 @@ let rec load_normal_type ctx t p allow_no_params =
 			) tparams types in
 			f params
 		end
-
-and load_type ctx p t =
+(*
+	build an instance from a complex type
+*)
+and load_complex_type ctx p t =
 	match t with
-	| TPParent t -> load_type ctx p t
-	| TPNormal t -> load_normal_type ctx t p false
+	| TPParent t -> load_complex_type ctx p t
+	| TPNormal t -> load_instance ctx t p false
 	| TPExtend (t,l) ->
-		(match load_type ctx p (TPAnonymous l) with
+		(match load_complex_type ctx p (TPAnonymous l) with
 		| TAnon a ->
 			let rec loop t =
 				match follow t with
@@ -185,17 +193,17 @@ and load_type ctx p t =
 					mk_anon (PMap.foldi PMap.add a.a_fields a2.a_fields)
 				| _ -> error "Cannot only extend classes and anonymous" p
 			in
-			loop (load_normal_type ctx t p false)
+			loop (load_instance ctx t p false)
 		| _ -> assert false)
 	| TPAnonymous l ->
 		let rec loop acc (n,pub,f,p) =
 			if PMap.mem n acc then error ("Duplicate field declaration : " ^ n) p;
 			let t , get, set = (match f with
 				| AFVar t ->
-					load_type ctx p t, NormalAccess, NormalAccess
+					load_complex_type ctx p t, NormalAccess, NormalAccess
 				| AFFun (tl,t) ->
-					let t = load_type ctx p t in
-					let args = List.map (fun (name,o,t) -> name , o, load_type ctx p t) tl in
+					let t = load_complex_type ctx p t in
+					let args = List.map (fun (name,o,t) -> name , o, load_complex_type ctx p t) tl in
 					TFun (args,t), NormalAccess, MethodAccess false
 				| AFProp (t,i1,i2) ->
 					let access m get =
@@ -206,7 +214,7 @@ and load_type ctx p t =
 						| "dynamic" -> CallAccess ((if get then "get_"  else "set_") ^ n)
 						| _ -> CallAccess m
 					in
-					load_type ctx p t, access i1 true, access i2 false
+					load_complex_type ctx p t, access i1 true, access i2 false
 			) in
 			PMap.add n {
 				cf_name = n;
@@ -223,9 +231,9 @@ and load_type ctx p t =
 	| TPFunction (args,r) ->
 		match args with
 		| [TPNormal { tpackage = []; tparams = []; tname = "Void" }] ->
-			TFun ([],load_type ctx p r)
+			TFun ([],load_complex_type ctx p r)
 		| _ ->
-			TFun (List.map (fun t -> "",false,load_type ctx p t) args,load_type ctx p r)
+			TFun (List.map (fun t -> "",false,load_complex_type ctx p t) args,load_complex_type ctx p r)
 
 let hide_types ctx =
 	let old_locals = ctx.local_types in
@@ -237,15 +245,18 @@ let hide_types ctx =
 		ctx.type_params <- old_type_params;
 	)
 
+(*
+	load a type while ignoring the current imports or local types
+*)
 let load_core_type ctx name =
 	let show = hide_types ctx in
-	let t = load_normal_type ctx { tpackage = []; tname = name; tparams = [] } null_pos false in
+	let t = load_instance ctx { tpackage = []; tname = name; tparams = []; tsub = None; } null_pos false in
 	show();
 	t
 
 let t_iterator ctx =
 	let show = hide_types ctx in
-	match load_type_def ctx null_pos ([],"Iterator") with
+	match load_type_def ctx null_pos { tpackage = []; tname = "Iterator"; tparams = []; tsub = None } with
 	| TTypeDecl t ->
 		show();
 		if List.length t.t_types <> 1 then assert false;
@@ -254,8 +265,11 @@ let t_iterator ctx =
 	| _ ->
 		assert false
 
+(*
+	load either a type t or Null<Unknown> if not defined
+*)
 let load_type_opt ?(opt=false) ctx p t =
-	let t = (match t with None -> mk_mono() | Some t -> load_type ctx p t) in
+	let t = (match t with None -> mk_mono() | Some t -> load_complex_type ctx p t) in
 	if opt then ctx.api.tnull t else t
 
 (* ---------------------------------------------------------------------- *)
@@ -403,7 +417,7 @@ let set_heritance ctx c herits p =
 			()
 		| HExtends t ->
 			if c.cl_super <> None then error "Cannot extend several classes" p;
-			let t = load_normal_type ctx t p false in
+			let t = load_instance ctx t p false in
 			(match follow t with
 			| TInst ({ cl_path = [],"Array" },_)
 			| TInst ({ cl_path = [],"String" },_)
@@ -417,7 +431,7 @@ let set_heritance ctx c herits p =
 				c.cl_super <- Some (cl,params)
 			| _ -> error "Should extend by using a class" p)
 		| HImplements t ->
-			let t = load_normal_type ctx t p false in
+			let t = load_instance ctx t p false in
 			(match follow t with
 			| TInst ({ cl_path = [],"ArrayAccess"; cl_extern = true; },[t]) ->
 				if c.cl_array_access <> None then error "Duplicate array access" p;
@@ -581,7 +595,7 @@ let init_class ctx c p herits fields =
 				| Some t ->
 					let old = ctx.type_params in
 					if stat then ctx.type_params <- [];
-					let t = load_type ctx p t in
+					let t = load_complex_type ctx p t in
 					if stat then ctx.type_params <- old;
 					t
 			) in
@@ -673,7 +687,7 @@ let init_class ctx c p herits fields =
 			) in
 			access, constr, cf, delay
 		| FProp (name,doc,access,get,set,t) ->
-			let ret = load_type ctx p t in
+			let ret = load_complex_type ctx p t in
 			let check_get = ref (fun() -> ()) in
 			let check_set = ref (fun() -> ()) in
 			let check_method m t () =
@@ -869,7 +883,6 @@ let type_module ctx m tdecls loadp =
 	let m = {
 		mpath = m;
 		mtypes = List.rev !decls;
-		mimports = [];
 	} in
 	Hashtbl.add ctx.modules m.mpath m;
 	(* PASS 2 : build types structure - does not type any expression ! *)
@@ -932,23 +945,25 @@ let type_module ctx m tdecls loadp =
 	(* back to PASS2 *)
 	List.iter (fun (d,p) ->
 		match d with
-		| EImport (pack,name,topt) ->
-			let md = ctx.api.load_module (pack,name) p in
-			let types = List.filter (fun t -> not (t_private t)) md.mtypes in
-			(match topt with
-			| None -> ctx.local_types <- ctx.local_types @ types
-			| Some t ->
-				try
-					let t = List.find (fun tdecl -> snd (t_path tdecl) = t) types in
-					ctx.local_types <- ctx.local_types @ [t]
-				with
-					Not_found -> error ("Module " ^ s_type_path (pack,name) ^ " does not define type " ^ t) p
-			);
-			m.mimports <- (md,topt) :: m.mimports;
-		| EUsing (pack,name) ->
-			let md = ctx.api.load_module (pack,name) p in
-			let types = List.filter (fun t -> not (t_private t)) md.mtypes in
-			ctx.local_using <- ctx.local_using @ types;
+		| EImport t ->
+			(match t.tsub with
+			| None ->
+				let md = ctx.api.load_module (t.tpackage,t.tname) p in
+				let types = List.filter (fun t -> not (t_private t)) md.mtypes in
+				ctx.local_types <- ctx.local_types @ types
+			| Some _ ->
+				let t = load_type_def ctx p t in
+				ctx.local_types <- ctx.local_types @ [t]
+			)
+		| EUsing t ->
+			(match t.tsub with
+			| None ->
+				let md = ctx.api.load_module (t.tpackage,t.tname) p in
+				let types = List.filter (fun t -> not (t_private t)) md.mtypes in
+				ctx.local_using <- ctx.local_using @ types;
+			| Some _ ->
+				let t = load_type_def ctx p t in
+				ctx.local_using<- ctx.local_using @ [t])
 		| EClass d ->
 			let c = get_class d.d_name in
 			delays := !delays @ check_overriding ctx c p :: check_interfaces ctx c p :: init_class ctx c p d.d_flags d.d_data
@@ -985,7 +1000,7 @@ let type_module ctx m tdecls loadp =
 		| ETypedef d ->
 			let t = get_tdef d.d_name in
 			ctx.type_params <- t.t_types;
-			let tt = load_type ctx p d.d_data in
+			let tt = load_complex_type ctx p d.d_data in
 			if t.t_type == follow tt then error "Recursive typedef is not allowed" p;
 			(match t.t_type with
 			| TMono r ->
@@ -995,8 +1010,7 @@ let type_module ctx m tdecls loadp =
 			| _ -> assert false);
 	) tdecls;
 	(* PASS 3 : type checking, delayed until all modules and types are built *)
-	ctx.delays := !delays :: !(ctx.delays);
-	m.mimports <- List.rev m.mimports;
+	ctx.delays := !delays :: !(ctx.delays);	
 	m
 
 let parse_module ctx m p =
@@ -1037,13 +1051,14 @@ let parse_module ctx m p =
 					d_doc = None;
 					d_params = d.d_params;
 					d_flags = if priv then [EPrivate] else [];
-					d_data = TPNormal (if priv then { tpackage = []; tname = "Dynamic"; tparams = []; } else 
+					d_data = TPNormal (if priv then { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; } else 
 						{
 							tpackage = !remap;
 							tname = d.d_name;
 							tparams = List.map (fun (s,_) ->
-								TPType (TPNormal { tpackage = []; tname = s; tparams = [] })
+								TPType (TPNormal { tpackage = []; tname = s; tparams = []; tsub = None; })
 							) d.d_params;
+							tsub = None;
 						});
 				},p) :: acc
 			in
@@ -1052,7 +1067,7 @@ let parse_module ctx m p =
 			| EEnum d -> build EPrivate d
 			| ETypedef d -> build EPrivate d
 			| EImport _ | EUsing _ -> acc
-		) [(EImport (!remap, snd m, None),null_pos)] decls)
+		) [(EImport { tpackage = !remap; tname = snd m; tparams = []; tsub = None; },null_pos)] decls)
 	else
 		decls
 

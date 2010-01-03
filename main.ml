@@ -377,7 +377,7 @@ try
 		("--display", Arg.String (fun file_pos ->
 			match file_pos with
 			| "classes" ->
-				pre_compilation := (fun() -> raise (Parser.TypePath ["."])) :: !pre_compilation;
+				pre_compilation := (fun() -> raise (Parser.TypePath (["."],None))) :: !pre_compilation;
 			| "keywords" ->
 				report_list (Hashtbl.fold (fun k _ acc -> (k,"","") :: acc) Lexer.keywords []);
 				exit 0;
@@ -558,10 +558,20 @@ with
 			prerr_endline (htmlescape (Type.s_type ctx t));
 			prerr_endline "</type>");
 		exit 0;
-	| Parser.TypePath p ->
-		let packs, classes = read_type_path com p in
-		if packs = [] && classes = [] then report ("No classes found in " ^ String.concat "." p) Ast.null_pos;
-		report_list (List.map (fun f -> f,"","") (packs @ classes));
+	| Parser.TypePath (p,c) ->
+		(match c with
+		| None -> 
+			let packs, classes = read_type_path com p in
+			if packs = [] && classes = [] then report ("No classes found in " ^ String.concat "." p) Ast.null_pos;
+			report_list (List.map (fun f -> f,"","") (packs @ classes))
+		| Some c ->
+			try 
+				let ctx = Typer.create com in
+				let m = Typeload.load_module ctx (p,c) Ast.null_pos in
+				report_list (List.map (fun t -> snd (Type.t_path t),"","") (List.filter (fun t -> not (Type.t_private t)) m.Type.mtypes))
+			with _ -> 
+				report ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos
+		);
 		exit 0;
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) ->
 		report (Printexc.to_string e) Ast.null_pos
