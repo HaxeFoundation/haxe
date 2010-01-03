@@ -300,7 +300,7 @@ class Main {
 		var file = param("Package");
 		var data = neko.io.File.getBytes(file);
 		var zip = neko.zip.Reader.readZip(new haxe.io.BytesInput(data));
-		var infos = Datas.readInfos(zip);
+		var infos = Datas.readInfos(zip,true);
 		var user = infos.developers.first();
 		var password;
 		if( site.isNewUser(user) ) {
@@ -409,7 +409,7 @@ class Main {
 		var f = neko.io.File.read(filepath,true);
 		var zip = neko.zip.Reader.readZip(f);
 		f.close();
-		var infos = Datas.readInfos(zip);
+		var infos = Datas.readInfos(zip,false);
 
 		// create directories
 		var pdir = getRepository() + Datas.safe(infos.project);
@@ -677,7 +677,7 @@ class Main {
 			}
 		l.add({ project : prj, version : version });
 		var xml = neko.io.File.getContent(vdir+"/haxelib.xml");
-		var inf = Datas.readData(xml);
+		var inf = Datas.readData(xml,false);
 		for( d in inf.dependencies )
 			checkRec(d.project,if( d.version == "" ) null else d.version,l);
 	}

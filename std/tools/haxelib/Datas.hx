@@ -89,7 +89,7 @@ class Datas {
 		return null;
 	}
 
-	public static function readInfos( zip : List<ZipEntry> ) : XmlInfos {
+	public static function readInfos( zip : List<ZipEntry>, check : Bool ) : XmlInfos {
 		var xmldata = null;
 		for( f in zip )
 			if( StringTools.endsWith(f.fileName,XML) ) {
@@ -98,10 +98,10 @@ class Datas {
 			}
 		if( xmldata == null )
 			throw XML+" not found in package";
-		return readData(xmldata);
+		return readData(xmldata,check);
 	}
 
-	public static function readData( xmldata : String ) : XmlInfos {
+	static function doCheck( doc : Xml ) {
 		var sname = Att("name",FReg(alphanum));
 		var schema = RNode(
 			"project",
@@ -114,9 +114,13 @@ class Datas {
 				RMulti(	RNode("depends",[sname,Att("version",FReg(alphanum),"")]) ),
 			])
 		);
-		var doc = Xml.parse(xmldata);
 		haxe.xml.Check.checkDocument(doc,schema);
+	}
 
+	public static function readData( xmldata : String, check : Bool ) : XmlInfos {
+		var doc = Xml.parse(xmldata);
+		if( check )
+			doCheck(doc);
 		var p = new haxe.xml.Fast(doc).node.project;
 		var project = p.att.name;
 		if( project.length < 3 )

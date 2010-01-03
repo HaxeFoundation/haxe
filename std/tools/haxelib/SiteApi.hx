@@ -94,7 +94,7 @@ class SiteApi {
 		var zip = try neko.zip.Reader.readZip(file) catch( e : Dynamic ) { file.close(); neko.Lib.rethrow(e); };
 		file.close();
 
-		var infos = Datas.readInfos(zip);
+		var infos = Datas.readInfos(zip,true);
 		var u = User.manager.search({ name : user }).first();
 		if( u == null || u.pass != pass )
 			throw "Invalid username or password";
