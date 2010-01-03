@@ -62,7 +62,7 @@ class Std {
 		#elseif php
 		__call__("_hx_string_rec", s, '');
 		#elseif cpp
-		s==null ? "null" : s.__ToString();
+		s==null ? "null" : s.toString();
 		#else
 		"";
 		#end
@@ -118,7 +118,7 @@ class Std {
 		return x.substr(0, 2).toLowerCase() == "0x" ? __php__("intval(substr($x, 2), 16)") : __php__("intval($x)");
 		#elseif cpp
 		if (x==null) return null;
-		return __global__.ParseInt(x);
+		return __global__.__hxcpp_parse_int(x);
 		#else
 		return 0;
 		#end
@@ -141,7 +141,7 @@ class Std {
 		#elseif php
 		__php__("is_numeric($x) ? floatval($x) : acos(1.01)");
 		#elseif cpp
-		__global__.ParseFloat(x.__s);
+		__global__.__hxcpp_parse_float(x.__s);
 		#else
 		0;
 		#end
