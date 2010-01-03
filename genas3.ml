@@ -706,7 +706,7 @@ and gen_value ctx e =
 		if ctx.in_static then
 			print ctx "function() : %s " t
 		else
-			print ctx "function($this:%s) : %s " (snd ctx.path) t;
+			print ctx "(function($this:%s) : %s " (snd ctx.path) t;
 		let b = if block then begin
 			spr ctx "{";
 			let b = open_block ctx in
@@ -730,7 +730,7 @@ and gen_value ctx e =
 			if ctx.in_static then
 				print ctx "()"
 			else
-				print ctx "(%s)" (this ctx)
+				print ctx "(%s))" (this ctx)
 		)
 	in
 	match e.eexpr with
