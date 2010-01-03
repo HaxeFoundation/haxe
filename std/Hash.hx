@@ -149,7 +149,7 @@ class Hash<T> #if php implements php.IteratorAggregate<T> #end {
 		#elseif neko
 		return untyped __dollar__hremove(h,key.__s,null);
 		#elseif cpp
-		return untyped __global__.__hx_anon_remove(h,key);
+		return untyped __global__.__hxcpp_anon_remove(h,key);
 		#elseif php
 		if(!untyped __call__("isset", h[key])) return false;
 		untyped __call__("unset", h[key]);
