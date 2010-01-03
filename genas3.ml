@@ -856,6 +856,15 @@ let generate_field ctx static f =
 					if o then print ctx " = %s" (default_value tstr);
 				) args;
 				print ctx ") : %s " (type_str ctx r p);
+			| _ when (match f.cf_get with CallAccess m -> true | _ -> match f.cf_set with CallAccess m -> true | _ -> false) -> 
+				let t = type_str ctx f.cf_type p in
+				let id = s_ident f.cf_name in
+				(match f.cf_get with
+				| NormalAccess | CallAccess _ -> print ctx "function get %s() : %s;" id t;
+				| _ -> ());
+				(match f.cf_set with
+				| NormalAccess | CallAccess _ -> print ctx "function set %s( __v : %s ) : void;" id t;
+				| _ -> ());
 			| _ -> ()
 		else
 		if (match f.cf_get with CallAccess m -> true | _ -> match f.cf_set with CallAccess m -> true | _ -> false) then begin
