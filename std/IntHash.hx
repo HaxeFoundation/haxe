@@ -50,7 +50,7 @@ class IntHash<T> #if php implements php.IteratorAggregate<T> #end {
 		#elseif php
 		h = untyped __call__('array');
 		#elseif cpp
-		h = untyped __global__.CreateIntHash();
+		h = untyped __global__.__int_hash_create();
 		#end
 	}
 
