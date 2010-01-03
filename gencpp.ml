@@ -230,6 +230,7 @@ let keyword_remap name =
 	| "union" | "unsigned" | "void" | "volatile" | "or" | "and" | "xor" | "or_eq"
 	| "and_eq" | "xor_eq" | "typeof" | "stdin" | "stdout" | "stderr"
 	| "BIG_ENDIAN" | "LITTLE_ENDIAN"
+	| "assert" | "NULL"
 	| "struct" -> "_" ^ name
 	| x -> x
 
