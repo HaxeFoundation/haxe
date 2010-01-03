@@ -295,7 +295,7 @@ class EReg {
 					var c = k.charCodeAt(0);
 					// 1...9
 					if( c >= 49 && c <= 57 ) {
-						var p = try regexp_matched_pos(r,c-48) catch( e : String ) null;
+						var p = try regexp_matched_pos(r,Std.int(c)-48) catch( e : String ) null;
 						if( p == null ){
 							b.add("$");
 							b.add(k);
