@@ -37,6 +37,7 @@
 	php : fixed errror in XML error reporting
 	all : allow sub-types declarations everywhere (pack.Type.Sub)
 	all : added completion for sub-types declarations
+	all : improved completion with lambda function
 
 2009-07-26: 2.04
 	flash9 : fixed get_full_path error with -D fdb

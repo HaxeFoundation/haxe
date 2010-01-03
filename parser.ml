@@ -285,7 +285,8 @@ and parse_type_path1 pack = parser
 				(if is_resuming p then
 					raise (TypePath (List.rev pack,Some name))
 				else match s with parser
-					[< '(Const (Type name),_) >] -> Some name)
+					| [< '(Const (Type name),_) >] -> Some name
+					| [< >] -> serror())
 			| [< >] -> None
 		) in
 		let params = (match s with parser
@@ -582,7 +583,7 @@ and expr_next e1 = parser
 	| [< '(POpen,p1); s >] ->
 		if is_resuming p1 then display (EDisplay e1,p1);
 		(match s with parser
-		| [< params = psep Comma expr; '(PClose,p2); s >] -> expr_next (ECall (e1,params) , punion (pos e1) p2) s
+		| [< params = parse_call_params e1; '(PClose,p2); s >] -> expr_next (ECall (e1,params) , punion (pos e1) p2) s
 		| [< >] -> serror())
 	| [< '(BkOpen,_); e2 = expr; '(BkClose,p2); s >] ->
 		expr_next (EArray (e1,e2), punion (pos e1) p2) s
@@ -636,6 +637,24 @@ and parse_catch etry = parser
 			with
 				Display e -> display (ETry (etry,[name,t,e]),p))
 		| [< '(_,p) >] -> error Missing_type p
+
+and parse_call_params ec s =
+	try
+		match s with parser
+		| [< e = expr >] ->
+			let rec loop acc =
+				try 
+					match s with parser
+					| [< '(Comma,_); e = expr >] -> loop (e::acc)
+					| [< >] -> List.rev acc
+				with Display e ->
+					display (ECall (ec,List.rev (e::acc)),pos ec)
+			in
+			loop [e]
+		| [< >] ->
+			[]
+	with Display e ->
+		display (ECall (ec,[e]),pos ec)
 
 and toplevel_expr s =
 	try
