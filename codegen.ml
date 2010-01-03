@@ -398,7 +398,7 @@ let block_vars ctx e =
 			let vl = List.map (fun (v,vt,ve) ->
 				if PMap.mem v used then begin
 					let vt = t.tarray vt in
-					v, vt, Some (mk (TArrayDecl (match ve with None -> [] | Some e -> [wrap used e])) (t.tarray vt) e.epos)
+					v, vt, Some (mk (TArrayDecl (match ve with None -> [] | Some e -> [wrap used e])) vt e.epos)
 				end else
 					v, vt, (match ve with None -> None | Some e -> Some (wrap used e))
 			) vl in

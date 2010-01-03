@@ -46,8 +46,6 @@ class TestReflect extends Test {
 			}
 		}
 		infos(null);
-		// we allow to have a common object class
-		allow( Class == Enum, [true,false] );
 		// these are very specific cases since we can't allow reflection on core type
 		unspec( function() Type.getEnumConstructs(Void) );
 		unspec( function() Type.getEnumConstructs(Bool) );
@@ -85,8 +83,6 @@ class TestReflect extends Test {
 		is(MyEnum,Enum);
 		is(Void,Enum);
 		is(Class,Class);
-		// it is allowed to have Class==Enum
-		if( Class == Enum ) is(Enum,Enum) else is(Enum,null);
 	}
 
 	function is( v : Dynamic, t1 : Dynamic, ?t2 : Dynamic, ?pos : haxe.PosInfos ){
