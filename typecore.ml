@@ -55,6 +55,7 @@ type typer = {
 
 type error_msg =
 	| Module_not_found of path
+	| Type_not_found of path * string
 	| Unify of unify_error list
 	| Custom of string
 	| Protect of error_msg
@@ -87,6 +88,7 @@ let unify_error_msg ctx = function
 
 let rec error_msg = function
 	| Module_not_found m -> "Class not found : " ^ Ast.s_type_path m
+	| Type_not_found (m,t) -> "Module " ^ Ast.s_type_path m ^ " does not define type " ^ t
 	| Unify l ->
 		let ctx = print_context() in
 		String.concat "\n" (List.map (unify_error_msg ctx) l)

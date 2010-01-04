@@ -67,7 +67,7 @@ let type_static_var ctx t e p =
 (*
 	load a type or a subtype definition 
 *)
-let load_type_def ctx p t =
+let rec load_type_def ctx p t =
 	let no_pack = t.tpackage = [] in
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
 	try
@@ -77,7 +77,15 @@ let load_type_def ctx p t =
 		) ctx.local_types
 	with
 		Not_found ->
-			let t, m = (try
+			let next() =
+				let m = ctx.api.load_module (t.tpackage,t.tname) p in
+				let tpath = (t.tpackage,tname) in
+				try
+					List.find (fun t -> not (t_private t) && t_path t = tpath) m.mtypes
+				with
+					Not_found -> raise (Error (Type_not_found (m.mpath,tname),p))
+			in
+			try
 				if not no_pack then raise Exit;
 				(match fst ctx.current.mpath with
 				| [] -> raise Exit
@@ -89,18 +97,12 @@ let load_type_def ctx p t =
 						(match PMap.find x ctx.com.package_rules with
 						| Forbidden -> raise Exit
 						| _ -> ())
-					with Not_found -> ());
-				let tpath2 = fst ctx.current.mpath, t.tname in
-				{ t with tpackage = fst tpath2 }, ctx.api.load_module tpath2 p
+					with Not_found -> ());				
+				load_type_def ctx p { t with tpackage = fst ctx.current.mpath }
 			with
-				| Error (Module_not_found _,p2) when p == p2 -> t, ctx.api.load_module (t.tpackage,t.tname) p
-				| Exit -> t, ctx.api.load_module (t.tpackage,t.tname) p
-			) in
-			let tpath = (t.tpackage,tname) in
-			try
-				List.find (fun t -> not (t_private t) && t_path t = tpath) m.mtypes
-			with
-				Not_found -> error ("Module " ^ s_type_path m.mpath ^ " does not define type " ^ snd tpath) p
+				| Error (Module_not_found _,p2)
+				| Error (Type_not_found _,p2) when p == p2 -> next()
+				| Exit -> next()
 
 (* build an instance from a full type *)
 let rec load_instance ctx t p allow_no_params =
