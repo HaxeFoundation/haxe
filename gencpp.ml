@@ -260,6 +260,25 @@ let gen_forward_decl writer class_path =
 		output ( (snd class_path) ^ ")\n")
 	end;;
 
+let real_interfaces =
+List.filter (function (t,pl) ->
+	match t, pl with
+	| { cl_path = ["cpp";"rtti"],_ },[] -> false
+	| _ -> true
+);;
+
+
+let rec has_rtti_interface c interface =
+	List.exists (function (t,pl) ->
+		(snd t.cl_path) = interface && (match fst t.cl_path with | ["cpp";"rtti"] -> true | _ -> false )
+	) c.cl_implements ||
+		(match c.cl_super with None -> false | Some (c,_) -> has_rtti_interface c interface);;
+
+let has_field_integer_lookup class_def =
+	has_rtti_interface class_def "FieldIntegerLookup";;
+
+let has_field_integer_numeric_lookup class_def =
+	has_rtti_interface class_def "FieldNumericIntegerLookup";;
 
 (* Output required code to place contents in required namespace *)
 let gen_open_namespace output class_path =
@@ -2128,6 +2147,9 @@ let generate_class_files common_ctx member_types super_deps class_def =
 
 	output_cpp "#include <hxcpp.h>\n\n";
 
+	let field_integer_dynamic = has_field_integer_lookup class_def in
+	let field_integer_numeric = has_field_integer_numeric_lookup class_def in
+
 	let all_referenced = find_referenced_types (TClassDecl class_def) super_deps false in
 	List.iter ( add_include cpp_file  ) all_referenced;
 
@@ -2142,7 +2164,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 				match (fst interface).cl_super with | Some super -> descend_interface super | _->();
 			end
 		in descend_interface imp
-	) class_def.cl_implements;
+	) (real_interfaces class_def.cl_implements);
 	let implemented = hash_keys implemented_hash in
 
 	gen_open_namespace output_cpp class_path;
@@ -2279,7 +2301,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 					     ",sizeof(wchar_t)*" ^ (string_of_int !strl) ^ ") ) { " ^ result ^ " }\n");
 				) sfields;
 				output_cpp "	}\n";
-			end
+			end;
 		in
 
 
@@ -2300,29 +2322,36 @@ let generate_class_files common_ctx member_types super_deps class_def =
 
 
 		(* Dynamic "Get" Field function - int version *)
+		if ( field_integer_numeric || field_integer_dynamic) then begin
+			let dump_static_ids = (fun field ->
+				let remap_name = keyword_remap field.cf_name in
+				output_cpp ("static int __id_" ^ remap_name ^ " = __hxcpp_field_to_id(\"" ^
+								  	(field.cf_name) ^ "\");\n");
+				) in
+			List.iter dump_static_ids all_fields;
+			output_cpp "\n\n";
 
-		let dump_static_ids = (fun field ->
-			let remap_name = keyword_remap field.cf_name in
-			output_cpp ("static int __id_" ^ remap_name ^ " = __hxcpp_field_to_id(\"" ^
-								  (field.cf_name) ^ "\");\n");
-			) in
-		List.iter dump_static_ids all_fields;
-		output_cpp "\n\n";
 
+			let output_ifield return_type function_name =
+			output_cpp (return_type ^" " ^ class_name ^ "::" ^ function_name ^ "(int inFieldID)\n{\n");
+			let dump_field_test = (fun f ->
+				let remap_name = keyword_remap f.cf_name in
+				output_cpp ("	if (inFieldID==__id_" ^ remap_name ^ ") return "  ^
+					( if (return_type="double") then "hx::ToDouble( " else "" ) ^
+					(match f.cf_get with
+					| CallAccess prop -> (keyword_remap prop) ^ "()"
+					| _ -> ((keyword_remap f.cf_name) ^ if ( variable_field f) then "" else "_dyn()")
+					) ^ ( if (return_type="double") then " ) " else "" ) ^ ";\n");
+				) in
+			List.iter dump_field_test all_fields;
+			if (implement_dynamic) then
+				output_cpp "	HX_CHECK_DYNAMIC_GET_INT_FIELD(inFieldID);\n";
+			output_cpp ("	return super::" ^ function_name ^ "(inFieldID);\n}\n\n");
+			in
 
-		output_cpp ("Dynamic " ^ class_name ^ "::__IField(int inFieldID)\n{\n");
-		let dump_field_test = (fun f ->
-			let remap_name = keyword_remap f.cf_name in
-			output_cpp ("	if (inFieldID==__id_" ^ remap_name ^ ") return "  ^
-				(match f.cf_get with
-				| CallAccess prop -> (keyword_remap prop) ^ "()"
-				| _ -> ((keyword_remap f.cf_name) ^ if ( variable_field f) then "" else "_dyn()")
-				) ^ ";\n" )
-			) in
-		List.iter dump_field_test all_fields;
-		if (implement_dynamic) then
-			output_cpp "	HX_CHECK_DYNAMIC_GET_INT_FIELD(inFieldID);\n";
-		output_cpp ("	return super::__IField(inFieldID);\n}\n\n");
+			if (field_integer_dynamic) then output_ifield "Dynamic" "__IField";
+			if (field_integer_numeric) then output_ifield "double" "__INumField";
+		end;
 
 
 		(* Dynamic "Set" Field function *)
@@ -2429,11 +2458,12 @@ let generate_class_files common_ctx member_types super_deps class_def =
 		let super_path = (fst super).cl_path in
 		output_h ("#include <" ^ ( join_class_path super_path "/" ) ^ ".h>\n")
 	| _ -> () );
+
 	(* And any interfaces ... *)
 	List.iter (fun imp->
 		let imp_path = (fst imp).cl_path in
 		output_h ("#include <" ^ ( join_class_path imp_path "/" ) ^ ".h>\n") )
-	class_def.cl_implements;
+		(real_interfaces class_def.cl_implements);
 
    (* Only need to foreward-declare classes that are mentioned in the header file
 	   (ie, not the implementation)  *)
@@ -2460,6 +2490,8 @@ let generate_class_files common_ctx member_types super_deps class_def =
 		output_h ("		static Dynamic __Create(hx::DynamicArray inArgs);\n");
 		output_h ("		~" ^ class_name ^ "();\n\n");
 		output_h ("		HX_DO_RTTI;\n");
+		if (field_integer_dynamic) then output_h "		Dynamic __IField(int inFieldID);\n";
+		if (field_integer_numeric) then output_h "		double __INumField(int inFieldID);\n";
 		if (implement_dynamic) then
 			output_h ("		HX_DECLARE_IMPLEMENT_DYNAMIC;\n");
 		output_h ("		static void __boot();\n");
@@ -2666,7 +2698,7 @@ let create_super_dependencies common_ctx =
 			(match class_def.cl_super with Some super ->
 				deps := ((fst super).cl_path) :: !deps
 			| _ ->() );
-			List.iter (fun imp -> deps := (fst imp).cl_path :: !deps) class_def.cl_implements;
+			List.iter (fun imp -> deps := (fst imp).cl_path :: !deps) (real_interfaces class_def.cl_implements);
 			Hashtbl.add result class_def.cl_path !deps;
 		| TEnumDecl enum_def ->
 			Hashtbl.add result enum_def.e_path [];
