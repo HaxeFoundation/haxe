@@ -189,7 +189,7 @@ let rec process_params acc = function
 
 and init params =
 	let usage = Printf.sprintf
-		"Haxe Compiler %d.%.2d - (c)2005-2009 Motion-Twin\n Usage : haxe.exe %s <class names...>\n Options :"
+		"haXe Compiler %d.%.2d - (c)2005-2010 Motion-Twin\n Usage : haxe%s -main <class> [-swf9|-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
 		(version / 100) (version mod 100) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let classes = ref [([],"Std")] in
@@ -292,7 +292,7 @@ try
 		("-lib",Arg.String (fun l ->
 			libs := l :: !libs;
 			Common.define com l;
-		),"<library[:version]> : use an haxelib library");
+		),"<library[:version]> : use a haxelib library");
 		("-D",Arg.String (fun var ->
 			(match var with
 			| "use_rtti_doc" -> Parser.use_doc := true
