@@ -49,7 +49,8 @@
 
 -D noopt
 
-
+</output>
+  <output name="CPP" mode="neko" out="runcpp.n" class="RunCpp" lib="" cmd="" main="True" debug="False">
 --next
 
 -cpp cpp
@@ -70,6 +71,7 @@
     <file path="RemotingApi.hx" />
     <file path="RemotingServer.hx" />
     <file path="Run.hx" />
+    <file path="RunCpp.hx" />
     <file path="Test.hx" />
     <file path="TestBasetypes.hx" />
     <file path="TestBytes.hx" />

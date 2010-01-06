@@ -79,6 +79,12 @@ unit.Test
 -D noopt
 
 
+
+--next
+# CPP
+-neko runcpp.n
+-main RunCpp
+
 --next
 
 -cpp cpp
