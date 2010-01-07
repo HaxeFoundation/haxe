@@ -56,6 +56,8 @@ class FileSystem {
 
 	public static function stat( path : String ) : FileStat {
 		var s : FileStat = sys_stat(path);
+		if (s==null)
+			return { gid:0, uid:0, atime:Date.fromTime(0), mtime:Date.fromTime(0), ctime:Date.fromTime(0), dev:0, ino:0, nlink:0, rdev:0, size:0, mode:0 };
 		s.atime = Date.fromTime(1000.0*(untyped s.atime));
 		s.mtime = Date.fromTime(1000.0*(untyped s.mtime));
 		s.ctime = Date.fromTime(1000.0*(untyped s.ctime));
