@@ -339,7 +339,7 @@ class CppXml__ {
 		return null;
 	}
 
-   function removeChild( x_ : Xml ) : Bool {
+   public function removeChild( x_ : Xml ) : Bool {
       var x:CppXml__ = cast x_;
 		if( _children == null )
 			throw "bad nodetype";
