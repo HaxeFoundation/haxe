@@ -47,7 +47,7 @@ class SocketOutput extends haxe.io.Output {
 
 	public override function writeBytes( buf : haxe.io.Bytes, pos : Int, len : Int) : Int {
 		return try {
-			socket_send(__s, buf.getData, pos, len);
+			socket_send(__s, buf.getData(), pos, len);
 		} catch( e : Dynamic ) {
 			if( e == "Blocking" )
 				throw Blocked;
