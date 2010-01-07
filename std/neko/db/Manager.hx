@@ -285,6 +285,7 @@ class Manager<T : Object> {
 		s.add(" WHERE ");
 		addKeys(s,x);
 		execute(s.toString());
+		removeFromCache(x);
 	}
 
 
@@ -506,6 +507,10 @@ class Manager<T : Object> {
 
 	function addToCache( x : T ) {
 		object_cache.set(makeCacheKey(x),x);
+	}
+
+	function removeFromCache( x : T ) {
+		object_cache.remove(makeCacheKey(x));
 	}
 
 	function getFromCacheKey( key : String ) : T {
