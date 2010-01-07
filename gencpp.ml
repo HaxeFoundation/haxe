@@ -1345,9 +1345,9 @@ and gen_expression ctx retval expression =
 				output "if (";
 				gen_expression ctx true condition;
 				output ")";
-				output_if_expr if_expr true;
+				gen_expression ctx false (to_block if_expr);
 				output_i "else";
-				output_if_expr else_expr true
+				gen_expression ctx false (to_block else_expr);
 			end
 		| _ -> output "if (";
 			gen_expression ctx true condition;
@@ -1845,7 +1845,8 @@ let find_referenced_types obj super_deps header_only =
 
 	(* Body of main function *)
 	(match obj with
-	| TClassDecl class_def -> visit_class class_def
+	| TClassDecl class_def -> visit_class class_def;
+		(match class_def.cl_init with Some expression -> visit_types expression | _ -> ())
 	| TEnumDecl enum_def -> visit_enum enum_def
 	| TTypeDecl _ -> (* These are expanded *) ());
 	List.sort inc_cmp (List.filter (fun path -> not (is_internal_header path) ) (pmap_keys !types))
