@@ -70,7 +70,14 @@ class Type {
 			else
 				return __call__("_hx_ttype", c);
 		#elseif cpp
-			return untyped o.__GetClass();
+			if (o==null || !Reflect.isObject(o))  return null;
+			var c = o.__GetClass();
+			switch(c.toString())
+			{
+				case "__Anon" : return null;
+				case "Class" : return null;
+			}
+			return c;
 		#else
 			return null;
 		#end
@@ -107,7 +114,7 @@ class Type {
 			else
 				return __php__("_hx_ttype(get_class($o))");
 		#elseif cpp
-			if(!o.__IsEnum())
+			if(o.__GetClass()!=Enum)
 				return null;
 			return o;
 		#else
