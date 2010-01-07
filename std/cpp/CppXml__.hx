@@ -215,6 +215,8 @@ class CppXml__ {
 	public function set( att : String, value : String ) : Void {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
+		if (_attributes==null)
+			_attributes = {};
 		Reflect.setField (_attributes, att, value );
 		return null;
 	}
