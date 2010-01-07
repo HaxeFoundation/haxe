@@ -64,7 +64,7 @@ class Reflect {
 		#elseif flash
 			return o[field];
 		#elseif cpp
-			return o.__Field(field);
+			return (o==null) ? null : o.__Field(field);
 		#elseif js
 			var v = null;
 			try {
@@ -90,7 +90,8 @@ class Reflect {
 		#elseif js
 			o[field] = value;
 		#elseif cpp
-			o.__SetField(field,value);
+			if (o!=null)
+				o.__SetField(field,value);
 		#elseif neko
 			if( __dollar__typeof(o) == __dollar__tobject )
 				__dollar__objset(o,__dollar__hash(field.__s),value);
@@ -334,6 +335,9 @@ class Reflect {
 			if(!hasField(o,f)) return false;
 			untyped __php__("if(isset($o->»dynamics[$f])) unset($o->»dynamics[$f]); else unset($o->$f)");
 			return true;
+		#elseif cpp
+			if (o==null) return false;
+			return __hxcpp_anon_remove(o,f);
 		#else
 			return false;
 		#end
@@ -349,6 +353,7 @@ class Reflect {
 			#if php
 				if(untyped __call__("is_string", o)) return o;
 			#elseif cpp
+				if (o==null) return null;
 				if(untyped o.__GetType()==__global__.vtString ) return o;
 				if(untyped o.__GetType()==__global__.vtArray )
 					return untyped o.__Field("copy")();
@@ -380,6 +385,9 @@ class Reflect {
 			return function() { return f(untyped __arguments__); };
 		#elseif php
 			untyped __php__("return array(new _hx_lambda(array('f' => &$f), null, array('args'), 'return call_user_func($f, new _hx_array($args));'), 'makeArgs')");
+		#elseif cpp
+			//TODO:
+			return null;
 		#else
 			return null;
 		#end
