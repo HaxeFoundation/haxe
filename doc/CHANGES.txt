@@ -1,4 +1,4 @@
-2010-??-??: 2.05
+2010-01-09: 2.05
 	js : added js.Scroll
 	js : package names are now checked at runtime to avoid clashes with existing libs
 	js : added --js-namespace to create a namespace for types that are defined in the root
