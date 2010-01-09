@@ -105,11 +105,7 @@ let gen_class_path name (c,pl) =
 	node name [("path",s_type_path c.cl_path)] (List.map gen_type pl)
 
 let rec exists f c =
-	try
-		let f2 = PMap.find f.cf_name c.cl_fields in
-		not (type_iseq f.cf_type f2.cf_type)
-	with
-		Not_found ->
+	PMap.exists f.cf_name c.cl_fields ||
 			match c.cl_super with
 			| None -> false
 			| Some (csup,_) -> exists f csup
