@@ -65,7 +65,7 @@ chdir("..");
 
 chdir("..");
 
-cmd("rm -rf CVS .cvsignore */CVS */.cvsignore */*/CVS */*/.cvsignore */*/*/CVS */*/*/.cvsignore");
+cmd("rm -rf .svn */.svn */*/.svn */*/*/.svn");
 cmd("rm -rf all.n all.js *.swf *.xml");
 
 chdir("tools");
