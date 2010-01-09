@@ -111,7 +111,7 @@ let rec exists f c =
 	with
 		Not_found ->
 			match c.cl_super with
-			| None -> true
+			| None -> false
 			| Some (csup,_) -> exists f csup
 
 let gen_type_decl com t =
