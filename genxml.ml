@@ -67,22 +67,11 @@ let rec gen_type t =
 	| TInst (c,params) -> node "c" [gen_path c.cl_path c.cl_private] (List.map gen_type params)
 	| TType (t,params) -> node "t" [gen_path t.t_path t.t_private] (List.map gen_type params)
 	| TFun (args,r) -> node "f" ["a",String.concat ":" (List.map gen_arg_name args)] (List.map gen_type (List.map (fun (_,opt,t) -> if opt then follow_param t else t) args @ [r]))
-	| TAnon a -> node "a" [] (pmap (fun f -> node f.cf_name [] [gen_type f.cf_type]) a.a_fields)
+	| TAnon a -> node "a" [] (pmap (fun f -> gen_field [] { f with cf_public = false }) a.a_fields)
 	| TDynamic t2 -> node "d" [] (if t == t2 then [] else [gen_type t2])
 	| TLazy f -> gen_type (!f())
 
-let gen_constr e =
-	let doc = gen_doc_opt e.ef_doc in
-	let args, t = (match follow e.ef_type with
-		| TFun (args,_) ->
-			["a",String.concat ":" (List.map gen_arg_name args)] ,
-			List.map (fun (_,opt,t) -> gen_type (if opt then follow_param t else t)) args @ doc
-		| _ ->
-			[] , doc
-	) in
-	node e.ef_name args t
-
-let gen_field att f =
+and gen_field att f =
 	let add_get_set acc name att =
 		match acc with
 		| NormalAccess | ResolveAccess -> att
@@ -95,6 +84,17 @@ let gen_field att f =
 	let att = add_get_set f.cf_get "get" (add_get_set f.cf_set "set" att) in	
 	let att = (match f.cf_params with [] -> att | l -> ("params", String.concat ":" (List.map (fun (n,_) -> n) l)) :: att) in
 	node f.cf_name (if f.cf_public then ("public","1") :: att else att) (gen_type f.cf_type :: gen_doc_opt f.cf_doc)
+
+let gen_constr e =
+	let doc = gen_doc_opt e.ef_doc in
+	let args, t = (match follow e.ef_type with
+		| TFun (args,_) ->
+			["a",String.concat ":" (List.map gen_arg_name args)] ,
+			List.map (fun (_,opt,t) -> gen_type (if opt then follow_param t else t)) args @ doc
+		| _ ->
+			[] , doc
+	) in
+	node e.ef_name args t
 
 let gen_type_params priv path params pos m =
 	let mpriv = (if priv then [("private","1")] else []) in
