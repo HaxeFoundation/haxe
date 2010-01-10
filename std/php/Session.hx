@@ -2,7 +2,7 @@ package php;
 /**
 * TODO: TEST IT!
 */
-class Session {	
+class Session {
 	public static function getCacheLimiter() {
 		switch(untyped __call__("session_cache_limiter")) {
 			case "public":
@@ -15,7 +15,7 @@ class Session {
 				return PrivateNoExpire;
 		}
 		return null;
-	}	
+	}
 	
 	public static function setCacheLimiter(l : CacheLimiter) {
 		if(_started) throw "You can't set the cache limiter while the session is already in use";
@@ -122,11 +122,11 @@ class Session {
 		untyped __call__("session_start");
 	}
 	
-	public function clear() {
+	public static function clear() {
 		untyped __call__("session_unset");
 	}
 	
-	public function close() {
+	public static function close() {
 		untyped __call__("session_write_close");
 		_started = false; // TODO: not sure this useful; test if a closed session can be re-opened (I doubt)
 	}
