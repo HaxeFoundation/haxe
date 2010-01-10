@@ -43,7 +43,7 @@ private class MysqlConnection implements Connection {
 		var h = untyped __call__("mysql_query", s, c);
 		if(untyped __physeq__(h, false))
 			throw "Error while executing "+s+" ("+untyped __call__("mysql_error", c)+")";
-		return new MysqlResultSet(cast h);
+		return new MysqlResultSet(cast h, cast c);
 	}
 
 	public function escape( s : String ) {
@@ -89,15 +89,17 @@ private class MysqlResultSet implements ResultSet {
 	public var length(getLength,null) : Int;
 	public var nfields(getNFields,null) : Int;
 	private var __r : Void;
+	private var __c : Void;
 	private var cache : Dynamic;
 
-	public function new(r) {
+	public function new(r, c) {
 		__r = r;
+		__c = c;
 	}
 
 	private function getLength() {
 		if(untyped __physeq__(__r, true))
-			return untyped __call__("mysql_affected_rows", __r);
+			return untyped __call__("mysql_affected_rows", __c);
 		else if (untyped __physeq__(__r, false))
 			return 0;
 		return untyped __call__("mysql_num_rows", __r);
