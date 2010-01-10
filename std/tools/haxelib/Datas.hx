@@ -133,7 +133,7 @@ class Datas {
 			devs.add(d.att.name);
 		var deps = new List();
 		for( d in p.nodes.depends )
-			deps.add({ project : d.att.name, version : d.att.version });
+			deps.add({ project : d.att.name, version : if( d.has.version ) d.att.version else "" });
 		return {
 			project : project,
 			website : p.att.url,
