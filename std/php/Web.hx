@@ -310,7 +310,7 @@ class Web {
 					case 1: throw "The uploaded file exceeds the max size of " + untyped __call__('ini_get', 'upload_max_filesize');
 					case 2: throw "The uploaded file exceeds the max file size directive specified in the HTML form (max is" + untyped __call__('ini_get', 'post_max_size') + ")";
 					case 3: throw "The uploaded file was only partially uploaded";
-					case 4: throw "No file was uploaded";
+					case 4: continue;
 					case 6: throw "Missing a temporary folder";
 					case 7: throw "Failed to write file to disk";
 					case 8: throw "File upload stopped by extension";
