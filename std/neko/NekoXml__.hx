@@ -353,7 +353,10 @@ class NekoXml__ {
 	}
 
 	public function toStringRec(s: StringBuf) {
-		switch (nodeType) {
+		switch( nodeType ) {
+		case Xml.Document:
+			for( x in _children )
+				x.toStringRec(s);
 		case Xml.Element:
 			s.addChar("<".code);
 			s.add(_nodeName);
@@ -372,7 +375,7 @@ class NekoXml__ {
 			}
 			s.addChar(">".code);
 			for( x in _children )
-				x.toStringRec(s);	
+				x.toStringRec(s);
 			s.addChar("<".code);
 			s.addChar("/".code);
 			s.add(_nodeName);
