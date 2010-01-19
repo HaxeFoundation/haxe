@@ -1,3 +1,6 @@
+2010-??-??: 2.06
+	neko : change serializer to be able to handle instances of basic classes from other modules
+
 2010-01-09: 2.05
 	js : added js.Scroll
 	js : package names are now checked at runtime to avoid clashes with existing libs

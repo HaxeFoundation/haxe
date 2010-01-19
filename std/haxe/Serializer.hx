@@ -177,14 +177,14 @@ class Serializer {
 		case TBool:
 			buf.add(if( v ) "t" else "f");
 		case TClass(c):
-			if( c == String ) {
+			if( #if neko untyped c.__is_String #else c == String #end ) {
 				serializeString(v);
 				return;
 			}
 			if( useCache && serializeRef(v) )
 				return;
-			switch( c ) {
-			case cast Array:
+			switch( #if neko Type.getClassName(c) #else c #end ) {
+			case #if neko "Array" #else cast Array #end:
 				var ucount = 0;
 				buf.add("a");
 				#if flash9
@@ -216,17 +216,17 @@ class Serializer {
 					}
 				}
 				buf.add("h");
-			case cast List:
+			case #if neko "List" #else cast List #end:
 				buf.add("l");
 				var v : List<Dynamic> = v;
 				for( i in v )
 					serialize(i);
 				buf.add("h");
-			case cast Date:
+			case #if neko "Date" #else cast Date #end:
 				var d : Date = v;
 				buf.add("v");
 				buf.add(d.toString());
-			case cast Hash:
+			case #if neko "Hash" #else cast Hash #end:
 				buf.add("b");
 				var v : Hash<Dynamic> = v;
 				for( k in v.keys() ) {
@@ -234,7 +234,7 @@ class Serializer {
 					serialize(v.get(k));
 				}
 				buf.add("h");
-			case cast IntHash:
+			case #if neko "IntHash" #else cast IntHash #end:
 				buf.add("q");
 				var v : IntHash<Dynamic> = v;
 				for( k in v.keys() ) {
@@ -243,7 +243,7 @@ class Serializer {
 					serialize(v.get(k));
 				}
 				buf.add("h");
-			case cast haxe.io.Bytes:
+			case #if neko "haxe.io.Bytes" #else cast haxe.io.Bytes #end:
 				var v : haxe.io.Bytes = v;
 				#if neko
 				var chars = new String(base_encode(v.getData(),untyped BASE64.__s));

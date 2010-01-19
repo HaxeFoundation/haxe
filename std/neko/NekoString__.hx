@@ -27,6 +27,7 @@ package neko;
 class NekoString__ implements String {
 
 	static var __name__ = ["String"];
+	static var __is_String = true;
 	private static var __split : Dynamic = Lib.load("std","string_split",2);
 
 	public var length(default,null) : Int;
