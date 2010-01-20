@@ -990,12 +990,12 @@ let generate_enum ctx e =
 		| TFun (args,_) ->
 			print ctx "public static function %s(" c.ef_name;
 			concat ctx ", " (fun (a,o,t) ->
-				print ctx "%s : %s" a (type_str ctx t c.ef_pos);
+				print ctx "%s : %s" (s_ident a) (type_str ctx t c.ef_pos);
 				if o then spr ctx " = null";
 			) args;
 			print ctx ") : %s {" ename;
 			print ctx " return new %s(\"%s\",%d,[" ename c.ef_name c.ef_index;
-			concat ctx "," (fun (a,_,_) -> spr ctx a) args;
+			concat ctx "," (fun (a,_,_) -> spr ctx (s_ident a)) args;
 			print ctx "]); }";
 		| _ ->
 			print ctx "public static var %s : %s = new %s(\"%s\",%d)" c.ef_name ename ename c.ef_name c.ef_index;
