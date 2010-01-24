@@ -1898,7 +1898,7 @@ let generate_inits ctx =
 	) ctx.com.types;
 	if not ctx.swc then List.iter (fun t ->
 		match t with
-		| TClassDecl { cl_extern = true; cl_path = "flash" :: _ , _ } -> ()
+		| TClassDecl { cl_extern = true } -> ()
 		| TClassDecl c -> generate_class_statics ctx c
 		| _ -> ()
 	) ctx.com.types;
