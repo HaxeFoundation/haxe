@@ -44,7 +44,7 @@ type context = {
 
 let protect name =
 	match name with
-	| "Error" -> "_" ^ name
+	| "Error" | "Namespace" -> "_" ^ name
 	| _ -> name
 
 let s_path ctx stat path p =
