@@ -1154,6 +1154,10 @@ and type_path ctx p =
 	| [] , "Function" -> [] , "Dynamic"
 	| [] , "Class" -> [] , "Class<Dynamic>"
 	| [] , "Error" -> ["flash"], "Error"
+	| [] , "XML" -> ["flash";"xml"], "XML"
+	| [] , "XMLList" -> ["flash";"xml"], "XMLList"
+	| [] , "QName" -> ["flash";"utils"], "QName"
+	| [] , "Namespace" -> ["flash";"utils"], "Namespace"
 	| ["__AS3__";"vec"] , "Vector" -> ["flash"], "Vector"
 	| pack, cl when pack = !cur_package -> [], cl
 	| path -> path
