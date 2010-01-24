@@ -457,6 +457,9 @@ class Type {
 		var vars = xml.child("variable");
 		for( i in 0...vars.length() )
 			fields.push( Std.string(vars[i].attribute("name")) );
+		var accs = xml.child("accessor");
+		for( i in 0...accs.length() )
+			fields.push( Std.string(accs[i].attribute("name")) );
 		return fields;
 	}
 	#end
