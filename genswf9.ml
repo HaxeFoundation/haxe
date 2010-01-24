@@ -1754,7 +1754,7 @@ let generate_class ctx c =
 	let st_field_count = ref 0 in
 	let st_meth_count = ref 0 in
 	let rec is_dynamic c =
-		if c.cl_dynamic <> None then true
+		if c.cl_dynamic <> None || c.cl_array_access <> None then true
 		else match c.cl_super with
 		| None -> false
 		| Some (c,_) -> is_dynamic c
