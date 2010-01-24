@@ -1254,7 +1254,8 @@ let sort_fields ctx f1 f2 =
 	let fun2 = is_fun f2.f3_kind in
 	compare (acc1,fun1,name1) (acc2,fun2,name2)
 
-let gen_fields ctx ch fields stat construct =
+let gen_fields ctx ch fields others construct =
+	let stat = others <> None in
 	let fields = List.sort (sort_fields ctx) (Array.to_list fields) in
 	let construct = ref construct in
 	let gen_construct() =
@@ -1268,6 +1269,11 @@ let gen_fields ctx ch fields stat construct =
 	List.iter (fun f ->
 		let acc, name = ident_rights ctx f.f3_name in
 		let rights = (match acc with APrivate -> "//private " | AProtected -> "private " | APublic -> "") ^ (if stat then "static " else "") in
+		let rights = (match others with
+			| Some l when List.exists (fun cf -> snd (ident_rights ctx cf.f3_name) = name) l -> 
+				"// -- ignored because a nonstatic field has the same name -- " ^ rights
+			| _ -> rights 
+		) in
 		if acc <> APublic || is_fun f.f3_kind then gen_construct();
 		if name.[0] = '$' || acc = APrivate then
 			()
@@ -1360,8 +1366,8 @@ let genhx_class ctx c s =
 		List.iter (fun f -> IO.printf ch "\t%s;\n" f) (List.sort compare enum_fields)
 	else begin
 		let construct = (if not c.cl3_interface && Array.length c.cl3_fields > 0 then Some c.cl3_construct else None) in
-		gen_fields ctx ch c.cl3_fields false construct;
-		gen_fields ctx ch s.st3_fields true None;
+		gen_fields ctx ch c.cl3_fields None construct;
+		gen_fields ctx ch s.st3_fields (Some (Array.to_list c.cl3_fields)) None;
 	end;
 	IO.printf ch "}\n";
 	prerr_endline ";";
