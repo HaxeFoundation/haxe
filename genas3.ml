@@ -877,13 +877,20 @@ let generate_field ctx static f =
 			| CallAccess m ->
 				print ctx "%s function get %s() : %s { return %s(); }" rights id t m;
 				newline ctx
-			| _ -> ());
+			| NoAccess | NeverAccess ->
+				print ctx "%s function get %s() : %s { return $%s; }" (if f.cf_set = NoAccess then "protected" else "private") id t id;
+				newline ctx
+			| _ ->
+				());
 			(match f.cf_set with
 			| NormalAccess ->
 				print ctx "%s function set %s( __v : %s ) : void { $%s = __v; }" rights id t id;
 				newline ctx
 			| CallAccess m ->
 				print ctx "%s function set %s( __v : %s ) : void { %s(__v); }" rights id t m;
+				newline ctx
+			| NoAccess | NeverAccess ->
+				print ctx "%s function set %s( __v : %s ) : void { $%s = __v; }" (if f.cf_set = NoAccess then "protected" else "private") id t id;
 				newline ctx
 			| _ -> ());
 			print ctx "protected var $%s : %s" (s_ident f.cf_name) (type_str ctx f.cf_type p);

@@ -5,6 +5,7 @@
 	flash9 : classes implementing ArrayAccess<T> are now dynamic (including TypedDictionary)
 	all : allow "using" on typedefs
 	as3 : minor fixes in genas3 and --gen-hx-classes
+	as3 : fix with readonly/writeonly properties accesses
 
 2010-01-09: 2.05
 	js : added js.Scroll
