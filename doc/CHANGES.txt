@@ -3,6 +3,7 @@
 	js : add Document.createTextNode
 	all : bugfix with inline when modifying var with same name as one of current local
 	flash9 : classes implementing ArrayAccess<T> are now dynamic (including TypedDictionary)
+	all : allow "using" on typedefs
 
 2010-01-09: 2.05
 	js : added js.Scroll
