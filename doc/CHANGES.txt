@@ -1,6 +1,7 @@
 2010-??-??: 2.06
 	neko : change serializer to be able to handle instances of basic classes from other modules
 	js : add Document.createTextNode
+	all : bugfix with inline when modifying var with same name as one of current local
 
 2010-01-09: 2.05
 	js : added js.Scroll

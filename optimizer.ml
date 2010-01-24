@@ -126,12 +126,12 @@ let type_inline ctx cf f ethis params tret p =
 			Type.map_expr (map term) e
 		| TUnop (op,pref,({ eexpr = TLocal s } as e1)) ->
 			(match op with
-			| Increment | Decrement -> Hashtbl.add lsets s ()
+			| Increment | Decrement -> Hashtbl.add lsets (local s) ()
 			| _ -> ());
 			{ e with eexpr = TUnop (op,pref,map false e1) }
 		| TBinop (op,({ eexpr = TLocal s } as e1),e2) ->
 			(match op with
-			| OpAssign | OpAssignOp _ -> Hashtbl.add lsets s ()
+			| OpAssign | OpAssignOp _ -> Hashtbl.add lsets (local s) ()
 			| _ -> ());
 			{ e with eexpr = TBinop (op,map false e1,map false e2) }
 		| TConst TSuper ->
