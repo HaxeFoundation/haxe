@@ -185,6 +185,7 @@ typedef Document = {> HtmlDom,
 	function getElementById( id : String ) : HtmlDom;
 	function getElementsByName( name : String ) : HtmlCollection<HtmlDom>;
 	function createElement( name : String ) : HtmlDom;
+	function createTextNode( text : String ) : HtmlDom;
 }
 
 typedef Event = {
