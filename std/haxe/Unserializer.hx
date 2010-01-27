@@ -108,17 +108,16 @@ class Unserializer {
  			if( c == null )
  				break;
 			#end
- 			if( c == 45 ) { // negative sign
+ 			if( c == "-".code ) {
  				if( pos != fpos )
  					break;
  				s = true;
  				pos++;
  				continue;
  			}
-			c -= 48;
- 			if( c < 0 || c > 9 )
+ 			if( c < "0".code || c > "9".code )
  				break;
- 			k = k * 10 + c;
+ 			k = k * 10 + (c - "0".code);
  			pos++;
  		}
  		if( s )
@@ -130,7 +129,7 @@ class Unserializer {
  		while( true ) {
  			if( pos >= length )
  				throw "Invalid object";
- 			if( get(pos) == 103 ) /*g*/
+ 			if( get(pos) == "g".code )
  				break;
  			var k = unserialize();
  			if( !Std.is(k,String) )
@@ -145,7 +144,7 @@ class Unserializer {
 		var constr = Reflect.field(edecl,tag);
 		if( constr == null )
 			throw "Unknown enum tag "+Type.getEnumName(edecl)+"."+tag;
-		if( get(pos++) != 58 ) // ':'
+		if( get(pos++) != ":".code )
 			throw "Invalid enum format";
 		var nargs = readDigits();
 		if( nargs == 0 ) {
@@ -164,53 +163,53 @@ class Unserializer {
 
  	public function unserialize() : Dynamic {
  		switch( get(pos++) ) {
- 		case 110: // n
+ 		case "n".code:
  			return null;
- 		case 116: // t
+ 		case "t".code:
  			return true;
- 		case 102: // f
+ 		case "f".code:
  			return false;
- 		case 122: // z
+ 		case "z".code:
  			return 0;
- 		case 105: // i
+ 		case "i".code:
  			return readDigits();
- 		case 100: // d
+ 		case "d".code:
  			var p1 = pos;
  			while( true ) {
  				var c = get(pos);
  				// + - . , 0-9
- 				if( (c >= 43 && c < 58) || c == 101 /*e*/ || c == 69 /*E*/ )
+ 				if( (c >= 43 && c < 58) || c == "e".code || c == "E".code )
  					pos++;
  				else
  					break;
  			}
  			return Std.parseFloat(buf.substr(p1,pos-p1));
-		case 121: // y
+		case "y".code:
  			var len = readDigits();
- 			if( buf.charAt(pos++) != ":" || length - pos < len )
+ 			if( get(pos++) != ":".code || length - pos < len )
  				throw "Invalid string length";
 			var s = buf.substr(pos,len);
 			pos += len;
 			s = StringTools.urlDecode(s);
 			scache.push(s);
 			return s;
- 		case 107: // k
+ 		case "k".code:
  			return Math.NaN;
- 		case 109: // m
+ 		case "m".code:
  			return Math.NEGATIVE_INFINITY;
- 		case 112: // p
+ 		case "p".code:
  			return Math.POSITIVE_INFINITY;
- 		case 97: // a
+ 		case "a".code:
 			var buf = buf;
  			var a = new Array<Dynamic>();
  			cache.push(a);
  			while( true ) {
  				var c = get(pos);
- 				if( c == 104 ) { /*h*/
+ 				if( c == "h".code ) {
 					pos++;
  					break;
 				}
- 				if( c == 117 ) { /*u*/
+ 				if( c == "u".code ) {
 					pos++;
  					var n = readDigits();
  					a[a.length+n-1] = null;
@@ -218,24 +217,24 @@ class Unserializer {
  					a.push(unserialize());
  			}
  			return a;
- 		case 111: // o
+ 		case "o".code:
 	 		var o = {};
 	 		cache.push(o);
 			unserializeObject(o);
 			return o;
- 		case 114: // r
+ 		case "r".code:
  			var n = readDigits();
  			if( n < 0 || n >= cache.length )
  				throw "Invalid reference";
  			return cache[n];
- 		case 82: // R
+ 		case "R".code:
 			var n = readDigits();
 			if( n < 0 || n >= scache.length )
 				throw "Invalid string reference";
 			return scache[n];
- 		case 120: // x
+ 		case "x".code:
 			throw unserialize();
-		case 99: // c
+		case "c".code:
 	 		var name = unserialize();
 			var cl = resolver.resolveClass(name);
 			if( cl == null )
@@ -244,13 +243,13 @@ class Unserializer {
 			cache.push(o);
 			unserializeObject(o);
 			return o;
-		case 119: // w
+		case "w".code:
 			var name = unserialize();
 			var edecl = resolver.resolveEnum(name);
 			if( edecl == null )
 				throw "Enum not found " + name;
 			return unserializeEnum(edecl,unserialize());
- 		case 106: // j
+ 		case "j".code:
 			var name = unserialize();
 			var edecl = resolver.resolveEnum(name);
 			if( edecl == null )
@@ -261,46 +260,46 @@ class Unserializer {
 			if( tag == null )
 				throw "Unknown enum index "+name+"@"+index;
 			return unserializeEnum(edecl,tag);
-		case 108: // l
+		case "l".code:
 			var l = new List();
 			cache.push(l);
 			var buf = buf;
-			while( get(pos) != 104 /*h*/ )
+			while( get(pos) != "h".code )
 				l.add(unserialize());
 			pos++;
 			return l;
-		case 98: // b
+		case "b".code:
 			var h = new Hash();
 			cache.push(h);
 			var buf = buf;
-			while( get(pos) != 104 /*h*/ ) {
+			while( get(pos) != "h".code ) {
 				var s = unserialize();
 				h.set(s,unserialize());
 			}
 			pos++;
 			return h;
-		case 113: // q
+		case "q".code:
 			var h = new IntHash();
 			cache.push(h);
 			var buf = buf;
 			var c = get(pos++);
-			while( c == 58 ) { /*:*/
+			while( c == ":".code ) {
 				var i = readDigits();
 				h.set(i,unserialize());
 				c = get(pos++);
 			}
-			if( c != 104 )
+			if( c != "h".code )
 				throw "Invalid IntHash format";
 			return h;
-		case 118:
+		case "v".code:
 			var d = Date.fromString(buf.substr(pos,19));
 			cache.push(d);
 			pos += 19;
 			return d;
- 		case 115: // s
+ 		case "s".code:
  			var len = readDigits();
 			var buf = buf;
- 			if( buf.charAt(pos++) != ":" || length - pos < len )
+ 			if( get(pos++) != ":".code || length - pos < len )
 				throw "Invalid bytes length";
 			#if neko
 			var bytes = haxe.io.Bytes.ofData( base_decode(untyped buf.substr(pos,len).__s,untyped BASE64.__s) );
