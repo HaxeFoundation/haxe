@@ -520,6 +520,7 @@ class Type {
 		#if flash9
 			var a = describe(c,false);
 			a.remove("__construct__");
+			a.remove("prototype");
 			return a;
 		#elseif php
 			if(untyped c.__qname__ == 'String') return ['fromCharCode'];
