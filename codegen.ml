@@ -127,7 +127,7 @@ let extend_remoting ctx c t p async prot =
 (* -------------------------------------------------------------------------- *)
 (* HAXE.RTTI.GENERIC *)
 
-let build_generic ctx c p tl =
+let rec build_generic ctx c p tl =
 	let pack = fst c.cl_path in
 	let recurse = ref false in
 	let rec check_recursive t =
@@ -184,8 +184,19 @@ let build_generic ctx c p tl =
 			let t = build_type f.cf_type in
 			{ f with cf_type = t; cf_expr = (match f.cf_expr with None -> None | Some e -> Some (build_expr e)) }
 		in
-		if c.cl_super <> None || c.cl_init <> None || c.cl_dynamic <> None then error "This class can't be generic" p;
+		if c.cl_init <> None || c.cl_dynamic <> None then error "This class can't be generic" p;
 		if c.cl_ordered_statics <> [] then error "A generic class can't have static fields" p;
+		cg.cl_super <- (match c.cl_super with 
+			| None -> None
+			| Some (cs,pl) ->
+				(match apply_params c.cl_types tl (TInst (cs,pl)) with
+				| TInst (cs,pl) when cs.cl_kind = KGeneric ->
+					(match build_generic ctx cs p pl with
+					| TInst (cs,pl) -> Some (cs,pl)
+					| _ -> assert false)					
+				| TInst (cs,pl) -> Some (cs,pl)
+				| _ -> assert false)
+		);
 		cg.cl_kind <- KGenericInstance (c,tl);
 		cg.cl_interface <- c.cl_interface;
 		cg.cl_constructor <- (match c.cl_constructor with None -> None | Some c -> Some (build_field c));
