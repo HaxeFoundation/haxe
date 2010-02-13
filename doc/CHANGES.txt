@@ -7,6 +7,7 @@
 	as3 : minor fixes in genas3 and --gen-hx-classes
 	as3 : fix with readonly/writeonly properties accesses
 	flash9 : list native getter/setters in Type API class/instance fields
+	all : make haxe.rtti.Generic typing lazy (fix for self-recursion)
 
 2010-01-09: 2.05
 	js : added js.Scroll

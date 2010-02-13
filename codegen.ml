@@ -254,7 +254,20 @@ let extend_xml_proxy ctx c t file p =
 let build_instance ctx mtype p =
 	match mtype with
 	| TClassDecl c ->
-		c.cl_types , c.cl_path , (match c.cl_kind with KGeneric -> build_generic ctx c p | _ -> (fun t -> TInst (c,t)))
+		let ft = (fun pl ->
+			match c.cl_kind with 
+			| KGeneric ->
+				let r = exc_protect (fun r ->
+					let t = mk_mono() in
+					r := (fun() -> t);	
+					unify_raise ctx (build_generic ctx c p pl) t p;
+					t
+				) in
+				TLazy r
+			| _ ->
+				TInst (c,pl)
+		) in
+		c.cl_types , c.cl_path , ft
 	| TEnumDecl e ->
 		e.e_types , e.e_path , (fun t -> TEnum (e,t))
 	| TTypeDecl t ->

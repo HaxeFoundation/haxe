@@ -119,6 +119,16 @@ let unify_raise ctx t1 t2 p =
 			(* no untyped check *)
 			raise (Error (Unify l,p))
 
+let exc_protect f =
+	let rec r = ref (fun() ->
+		try
+			f r
+		with
+			| Error (Protect _,_) as e -> raise e
+			| Error (m,p) -> raise (Error (Protect m,p))
+	) in
+	r
+
 let save_locals ctx =
 	let locals = ctx.locals in
 	let map = ctx.locals_map in

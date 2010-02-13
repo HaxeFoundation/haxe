@@ -43,16 +43,6 @@ let type_function_param ctx t e opt p =
 	| Some e ->
 		t, Some e
 
-let exc_protect f =
-	let rec r = ref (fun() ->
-		try
-			f r
-		with
-			| Error (Protect _,_) as e -> raise e
-			| Error (m,p) -> raise (Error (Protect m,p))
-	) in
-	r
-
 let type_static_var ctx t e p =
 	ctx.in_static <- true;
 	let e = type_expr ctx e true in
@@ -847,7 +837,7 @@ let type_module ctx m tdecls loadp =
 			Not_found ->
 				Hashtbl.add ctx.types_module tpath m;
 				tpath
-	in
+	in	
 	List.iter (fun (d,p) ->
 		match d with
 		| EImport _ | EUsing _ -> ()
