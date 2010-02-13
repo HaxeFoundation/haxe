@@ -1375,7 +1375,9 @@ let parse ch =
 		h_frame_count = frame_count;
 		h_compressed = compressed;
 	} in
-	h , parse_tag_list ch
+	let data = h , parse_tag_list ch in
+	if compressed then IO.close_in ch;
+	data
 
 (* ************************************************************************ *)
 (* WRITING *)
@@ -1894,7 +1896,7 @@ let write ch (h,tags) =
 	write_ui16 ch h.h_frame_count;
 	List.iter (write_tag ch) tags;
 	write_tag ch tag_end;
-	flush ch
+	if h.h_compressed then IO.close_out ch
 
 let init inflate deflate =
 	Swf.__parser := parse;

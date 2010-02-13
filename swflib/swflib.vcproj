@@ -20,8 +20,8 @@
 			ATLMinimizesCRunTimeLibraryUsage="FALSE">
 			<Tool
 				Name="VCNMakeTool"
-				BuildCommandLine="ocamake -opt swfLib.vcproj -a"
-				ReBuildCommandLine="ocamake -opt swfLib.vcproj -a"
+				BuildCommandLine="ocamake -opt swfLib.vcproj -a -g"
+				ReBuildCommandLine="ocamake -opt swfLib.vcproj -a -g -all"
 				Output="swflib.exe"/>
 		</Configuration>
 		<Configuration
@@ -73,9 +73,6 @@
 		</File>
 		<File
 			RelativePath=".\swfPic.ml">
-		</File>
-		<File
-			RelativePath=".\swfZip.ml">
 		</File>
 	</Files>
 	<Globals>

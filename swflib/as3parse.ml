@@ -561,9 +561,10 @@ let read_function ctx ch =
 let header_magic = 0x002E0010
 
 let parse ch len =
+(*	disabled for big files
 	let data = IO.nread ch len in
 	let ch = IO.input_string data in
-	if IO.read_i32 ch <> header_magic then assert false;
+*)	if IO.read_i32 ch <> header_magic then assert false;
 	let ints = read_list ch read_as3_int in
 	let uints = read_list ch read_as3_uint in
 	let floats = read_list ch IO.read_double in
@@ -595,9 +596,9 @@ let parse ch len =
 	if parse_functions then ctx.as3_functions <- read_list2 ch (read_function ctx);
 	ctx.as3_unknown <- IO.read_all ch;
 	if parse_functions && String.length ctx.as3_unknown <> 0 then assert false;
-	let len2 = as3_length ctx in
+(*	let len2 = as3_length ctx in
 	if len2 <> len then begin Printf.printf "%d != %d" len len2; assert false; end;
-	ctx
+*)	ctx
 
 (* ************************************************************************ *)
 (* WRITING *)
@@ -854,7 +855,7 @@ let write_function ch f =
 	write_list2 ch write_field f.fun3_locals
 
 let write ch1 ctx =
-	let ch = IO.output_string() in
+	let ch = IO.output_strings() in
 	let empty_index = as3_empty_index ctx in
 	IO.write_i32 ch header_magic;
 	write_list ch write_as3_int ctx.as3_ints;
@@ -872,7 +873,7 @@ let write ch1 ctx =
 	if parse_functions then write_list2 ch write_function ctx.as3_functions;
 	IO.nwrite ch ctx.as3_unknown;
 	let str = IO.close_out ch in
-	IO.nwrite ch1 str
+	List.iter (IO.nwrite ch1) str
 
 (* ************************************************************************ *)
 (* DUMP *)
@@ -936,7 +937,7 @@ let method_str ?(infos=false) ctx m =
 	(String.concat ", " (List.map (fun a ->
 		let id = (match m.mt3_pnames with
 			| None -> "p" ^ string_of_int !pcount
-			| Some l -> 
+			| Some l ->
 				match List.nth l !pcount with
 				| None -> "p" ^ string_of_int !pcount
 				| Some i -> ident_str ctx i
