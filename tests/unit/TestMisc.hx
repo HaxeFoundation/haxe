@@ -199,4 +199,22 @@ class TestMisc extends Test {
 		eq( 2 * foo(x), 16 );
 	}
 
+	function testEvalAccessOrder() {
+		var a = [0,0];
+		var x = 0;
+		a[x++]++;
+		eq(a[0],1);
+		eq(a[1],0);
+
+		var x = 0;
+		var a = new Array();
+		a[x++] = x++;
+		eq(a[0],1);
+
+		var x = 0;
+		var foo = function() return x++;
+		a[foo()] = foo();
+		eq(a[0],1);
+	}
+
 }
