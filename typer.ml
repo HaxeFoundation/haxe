@@ -155,7 +155,7 @@ let unify_call_params ctx name el args p inline =
 	let rec loop acc l l2 skip =
 		match l , l2 with
 		| [] , [] ->
-			if not inline && (Common.defined ctx.com "flash" || Common.defined ctx.com "js") then
+			if not (inline && ctx.doinline) && (Common.defined ctx.com "flash" || Common.defined ctx.com "js") then
 				List.rev (no_opt acc)
 			else
 				List.rev (List.map fst acc)
