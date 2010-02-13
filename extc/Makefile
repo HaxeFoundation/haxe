@@ -11,10 +11,10 @@ test-opt: native
 	ocamlopt -o test.exe -cclib $(ZLIB) extLib.cmxa extc.cmxa test.ml
 
 bytecode: extc_stubs.obj
-	ocamlc -a -o extc.cma $(LIBS) extc.mli extc.ml
+	ocamlc -a -o extc.cma $(LIBS) extc.ml
 
 native: extc_stubs.obj
-	ocamlopt -a -o extc.cmxa $(LIBS) extc.mli extc.ml
+	ocamlopt -a -o extc.cmxa $(LIBS) extc.ml
 
 extc_stubs.obj: extc_stubs.c
 	ocamlc $(CFLAGS) extc_stubs.c

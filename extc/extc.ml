@@ -87,3 +87,87 @@ let unzip str =
 	let s = zlib_op zlib_inflate z str in
 	zlib_inflate_end z;
 	s
+
+let input_zip ?(bufsize=65536) ch =
+	let tmp_out = String.create bufsize in
+	let tmp_in = String.create bufsize in
+	let tmp_buf = Buffer.create bufsize in
+	let buf = ref "" in
+	let p = ref 0 in
+	let z = zlib_inflate_init() in
+	let rec fill_buffer() =
+		let rec loop pos len =
+			if len > 0 || pos = 0 then begin
+				let r = zlib_inflate z tmp_in pos len tmp_out 0 bufsize (if pos = 0 && len = 0 then Z_FINISH else Z_SYNC_FLUSH) in
+				Buffer.add_substring tmp_buf tmp_out 0 r.z_wrote;
+				loop (pos + r.z_read) (len - r.z_read);
+			end
+		in
+		loop 0 (IO.input ch tmp_in 0 bufsize);
+		p := 0;
+		buf := Buffer.contents tmp_buf;
+		Buffer.clear tmp_buf;
+	in
+	let read() =
+		if !p = String.length !buf then fill_buffer();
+		let c = String.unsafe_get !buf !p in
+		incr p;
+		c
+	in
+	let rec input str pos len =
+		let b = String.length !buf - !p in
+		if b >= len then begin
+			String.blit !buf !p str pos len;
+			p := !p + len;
+			len;
+		end else begin
+			String.blit !buf !p str pos b;
+			fill_buffer();
+			if !p = String.length !buf then
+				b
+			else
+				b + input str (pos + b) (len - b)
+		end;
+	in
+	let close() =
+		zlib_inflate_end z
+	in
+	IO.create_in ~read ~input ~close
+
+let output_zip ?(bufsize=65536) ?(level=9) ch =
+	let z = zlib_deflate_init level in
+	let out = String.create bufsize in
+	let tmp_out = String.create bufsize in
+	let p = ref 0 in
+	let rec flush finish =
+		let r = zlib_deflate z out 0 !p tmp_out 0 bufsize (if finish then Z_FINISH else Z_SYNC_FLUSH) in
+		ignore(IO.really_output ch tmp_out 0 r.z_wrote);
+		let remain = !p - r.z_read in
+		String.blit out r.z_read out 0 remain;
+		p := remain;
+		if finish && not r.z_finish then flush true
+	in
+	let write c =
+		if !p = bufsize then flush false;
+		String.unsafe_set out !p c;
+		incr p
+	in
+	let rec output str pos len =
+		let b = bufsize - !p in
+		if len <= b then begin
+			String.blit str pos out !p len;
+			p := !p + len;
+			len
+		end else begin
+			String.blit str pos out !p b;
+			p := !p + b;
+			flush false;
+			b + output str (pos + b) (len - b);
+		end;
+	in
+	let close() =
+		flush true;
+		zlib_deflate_end z
+	in
+	IO.create_out ~write ~output ~flush:(fun() -> flush false; IO.flush ch) ~close
+
