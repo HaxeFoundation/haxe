@@ -95,14 +95,14 @@ let compile_libs() =
 	let c_opts = (if Sys.ocaml_version < "3.08" then " -ccopt -Dcaml_copy_string=copy_string " else " ") in
 	command ("ocamlc" ^ c_opts ^ " -I ../" ^ zlib_path ^ " extc_stubs.c");
 
-	let options = "-cclib ../ocaml/extc/extc_stubs" ^ obj_ext ^ " -cclib " ^ zlib ^ " extc.mli extc.ml" in
+	let options = "-cclib ../ocaml/extc/extc_stubs" ^ obj_ext ^ " -cclib " ^ zlib ^ " extc.ml" in
 	if bytecode then command ("ocamlc -a -o extc.cma " ^ options);
 	if native then command ("ocamlopt -a -o extc.cmxa " ^ options);
 	Sys.chdir "../..";
 
 	(* SWFLIB *)
 	Sys.chdir "ocaml/swflib";
-	let files = "-I .. -I ../extc as3.mli as3hl.mli as3code.ml as3parse.ml as3hlparse.ml swf.ml swfZip.ml actionScript.ml swfParser.ml" in
+	let files = "-I .. -I ../extc as3.mli as3hl.mli as3code.ml as3parse.ml as3hlparse.ml swf.ml actionScript.ml swfParser.ml" in
 	if bytecode then command ("ocamlc -a -o swflib.cma " ^ files);
 	if native then command ("ocamlopt -a -o swflib.cmxa " ^ files);
 	Sys.chdir "../..";

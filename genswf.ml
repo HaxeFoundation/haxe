@@ -586,13 +586,13 @@ let generate com swf_header swf_lib =
 	t();
 	let t = Common.timer "write swf" in
 	if Common.defined com "swc" then begin
-		let ch = IO.output_string() in
+		let ch = IO.output_strings() in
 		Swf.write ch swf;
 		let swf = IO.close_out ch in
 		let ch = IO.output_channel (open_out_bin file) in
 		let z = zip_create ch in
 		zip_write_file z "catalog.xml" ctx.swc_catalog (Unix.time()) true;
-		zip_write_file z "library.swf" swf (Unix.time()) false;
+		zip_write_file z "library.swf" (match swf with [s] -> s | _ -> failwith "SWF too big for SWC") (Unix.time()) false;
 		zip_write_cdr z;
 		IO.close_out ch;
 	end else begin
@@ -600,10 +600,10 @@ let generate com swf_header swf_lib =
 		Swf.write ch swf;
 		IO.close_out ch;
 	end;
-	t();
+	t()
 
 ;;
-SwfParser.init SwfZip.inflate SwfZip.deflate;
+SwfParser.init Extc.input_zip Extc.output_zip;
 SwfParser.full_parsing := false;
 SwfParser.force_as3_parsing := true;
 Swf.warnings := false;
