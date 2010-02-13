@@ -343,7 +343,14 @@ try
 				| _ -> raise (Arg.Bad "Invalid Resource format : should be file@name")
 			) in
 			let file = (try Common.find_file com file with Not_found -> file) in
-			let data = Std.input_file ~bin:true file in
+			let data = (try 
+				let s = Std.input_file ~bin:true file in
+				if String.length s > 12000000 then raise Exit;
+				s;
+			with 
+				| Sys_error _ -> failwith ("Resource file not found : " ^ file)
+				| _ -> failwith ("Resource '" ^ file ^ "' excess the maximum size of 12MB")
+			) in
 			if Hashtbl.mem com.resources name then failwith ("Duplicate resource name " ^ name);
 			Hashtbl.add com.resources name data
 		),"<file>[@name] : add a named resource file");
