@@ -1601,8 +1601,12 @@ let generate_construct ctx fdata c =
 		| Some { eexpr = TFunction fdata } when f.cf_set = MethodAccess true ->
 			let id = ident f.cf_name in
 			write ctx (HFindProp id);
+			write ctx (HGetProp id);
+			let j = jump ctx J3True in
+			write ctx (HFindProp id);
 			write ctx (HFunction (generate_method ctx fdata false));
 			write ctx (HInitProp id);
+			j();			
 		| _ -> ()
 	) c.cl_fields;
 	gen_expr ctx false fdata.tf_expr;
