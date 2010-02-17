@@ -57,7 +57,7 @@ class Handler<T> {
 	var ReadOnly : Bool;
 
 	var actions : Hash<Void->Void>;
-	var id : Int;
+	var objectId : Int;
 	var level : Int;
 	var request : mtwin.web.Request;
 
@@ -81,8 +81,8 @@ class Handler<T> {
 			pathLevel = 0;
 
 		var part = request.getPathInfoPart(pathLevel);
-		this.id = getObjectId(part);
-		if( id != null ){
+		this.objectId = getObjectId(part);
+		if( objectId != null ){
 			part = request.getPathInfoPart(++pathLevel);
 			if (part == "")
 				part = OBJECT_DEFAULT;
@@ -139,11 +139,11 @@ class Handler<T> {
 		if (lock == null) lock = ReadWrite;
 		var me = this;
 		return function(){
-			if (me.id == null)
+			if (me.objectId == null)
 				throw CallingObjectMethodWithoutId;
-			var obj = me.findObject(me.id, lock);
+			var obj = me.findObject(me.objectId, lock);
 			if (obj == null)
-				throw ObjectNotFound(me.id);
+				throw ObjectNotFound(me.objectId);
 			cb(obj);
 		}
 	}
@@ -175,9 +175,9 @@ class Handler<T> {
 	function instance<T>( h : T -> Void, get : Int -> Bool -> T, lock : Bool ) : Void -> Void {
 		var me = this;
 		return function() {
-			var id = Std.parseInt(me.request.getPathInfoPart(me.level+1));
-			var inst = get(id,lock);
-			if( inst == null ) throw ObjectNotFound(id);
+			me.objectId = Std.parseInt(me.request.getPathInfoPart(me.level+1));
+			var inst = get(me.objectId,lock);
+			if( inst == null ) throw ObjectNotFound(me.objectId);
 			h(inst);
 		};
 	}
