@@ -248,6 +248,33 @@ let output_string() =
 		out_flush = (fun () -> ());
 	}
 
+let output_strings() =
+	let sl = ref [] in
+	let size = ref 0 in
+	let b = Buffer.create 0 in
+	{
+		out_write = (fun c ->
+			if !size = Sys.max_string_length then begin
+				sl := Buffer.contents b :: !sl;
+				Buffer.clear b;
+				size := 0;
+			end else incr size;
+			Buffer.add_char b c
+		);
+		out_output = (fun s p l ->
+			if !size + l > Sys.max_string_length then begin
+				sl := Buffer.contents b :: !sl;
+				Buffer.clear b;
+				size := 0;
+			end else size := !size + l;
+			Buffer.add_substring b s p l;
+			l
+		);
+		out_close = (fun () -> sl := Buffer.contents b :: !sl; List.rev (!sl));
+		out_flush = (fun () -> ());
+	}
+
+
 let input_channel ch =
 	{
 		in_read = (fun () ->

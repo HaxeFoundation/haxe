@@ -109,6 +109,12 @@ val output_string : unit -> string output
 (** Create an output that will write into a string in an efficient way.
   When closed, the output returns all the data written into it. *)
 
+val output_strings : unit -> string list output
+(** Create an output that will write into a string in an efficient way.
+  When closed, the output returns all the data written into it. 
+  Several strings are used in case the output size excess max_string_length
+*)
+
 val input_channel : in_channel -> input
 (** Create an input that will read from a channel. *)
 
