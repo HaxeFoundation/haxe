@@ -93,7 +93,7 @@ let compile_libs() =
 	(* EXTC *)
 	Sys.chdir "ocaml/extc";
 	let c_opts = (if Sys.ocaml_version < "3.08" then " -ccopt -Dcaml_copy_string=copy_string " else " ") in
-	command ("ocamlc" ^ c_opts ^ " -I ../" ^ zlib_path ^ " extc_stubs.c");
+	command ("ocamlc" ^ c_opts ^ " -I .. -I ../" ^ zlib_path ^ " extc_stubs.c");
 
 	let options = "-cclib ../ocaml/extc/extc_stubs" ^ obj_ext ^ " -cclib " ^ zlib ^ " extc.ml" in
 	if bytecode then command ("ocamlc -a -o extc.cma " ^ options);
