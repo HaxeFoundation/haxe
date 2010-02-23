@@ -96,8 +96,8 @@ let compile_libs() =
 	command ("ocamlc" ^ c_opts ^ " -I .. -I ../" ^ zlib_path ^ " extc_stubs.c");
 
 	let options = "-cclib ../ocaml/extc/extc_stubs" ^ obj_ext ^ " -cclib " ^ zlib ^ " extc.ml" in
-	if bytecode then command ("ocamlc -a -o extc.cma " ^ options);
-	if native then command ("ocamlopt -a -o extc.cmxa " ^ options);
+	if bytecode then command ("ocamlc -a -I .. -o extc.cma " ^ options);
+	if native then command ("ocamlopt -a -I .. -o extc.cmxa " ^ options);
 	Sys.chdir "../..";
 
 	(* SWFLIB *)
