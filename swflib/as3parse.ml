@@ -565,6 +565,7 @@ let parse ch len =
 	let data = IO.nread ch len in
 	let ch = IO.input_string data in
 *)	if IO.read_i32 ch <> header_magic then assert false;
+	let ch, get_pos = IO.pos_in ch in
 	let ints = read_list ch read_as3_int in
 	let uints = read_list ch read_as3_uint in
 	let floats = read_list ch IO.read_double in
@@ -594,7 +595,7 @@ let parse ch len =
 	if parse_statics then ctx.as3_statics <- Array.map (fun _ -> read_static ctx ch) ctx.as3_classes;
 	if parse_inits then ctx.as3_inits <- read_list2 ch (read_static ctx);
 	if parse_functions then ctx.as3_functions <- read_list2 ch (read_function ctx);
-	ctx.as3_unknown <- IO.read_all ch;
+	ctx.as3_unknown <- IO.really_nread ch (len - (get_pos()));
 	if parse_functions && String.length ctx.as3_unknown <> 0 then assert false;
 (*	let len2 = as3_length ctx in
 	if len2 <> len then begin Printf.printf "%d != %d" len len2; assert false; end;
