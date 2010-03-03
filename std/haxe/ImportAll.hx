@@ -55,6 +55,7 @@ import haxe.Log;
 import haxe.Md5;
 import haxe.PosInfos;
 import haxe.Serializer;
+import haxe.SHA1;
 import haxe.Stack;
 import haxe.Template;
 import haxe.Timer;

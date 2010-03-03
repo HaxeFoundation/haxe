@@ -12,6 +12,7 @@
 	all : added resource size limit to 12MB (ocaml max_string_size is 16MB + b64)
 	flash : changes in swf handling to work with >16MB swfs
 	flash9 : only init dynamic methods if not already defined (in subclass)
+	std : added haxe.SHA1
 
 2010-01-09: 2.05
 	js : added js.Scroll
