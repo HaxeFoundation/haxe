@@ -59,7 +59,7 @@ class Utf8 {
 	}
 
 	public static function uchr(i : Int) : String {
-		return untyped __php__("mb_convert_encoding(pack('N',$i), mb_internal_encoding(), 'UCS-4BE')");
+		return untyped __php__("mb_convert_encoding(pack('N',$i), 'UTF-8', 'UCS-4BE')");
 	}
 
 	public static function uord(s : String) : Int untyped {
