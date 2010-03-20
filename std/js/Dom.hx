@@ -260,7 +260,7 @@ typedef History = {
 }
 
 typedef IFrame = {> HtmlDom,
-	var contentDocument : Document;
+	var contentWindow : Window;
 	var frameBorder : String;
 	var height : Int;
 	var width : Int;
