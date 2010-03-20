@@ -561,11 +561,8 @@ let read_function ctx ch =
 let header_magic = 0x002E0010
 
 let parse ch len =
-(*	disabled for big files
-	let data = IO.nread ch len in
-	let ch = IO.input_string data in
-*)	if IO.read_i32 ch <> header_magic then assert false;
 	let ch, get_pos = IO.pos_in ch in
+	if IO.read_i32 ch <> header_magic then assert false;
 	let ints = read_list ch read_as3_int in
 	let uints = read_list ch read_as3_uint in
 	let floats = read_list ch IO.read_double in
