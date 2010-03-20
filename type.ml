@@ -96,6 +96,7 @@ and texpr_expr =
 	| TBreak
 	| TContinue
 	| TThrow of texpr
+	| TCast of texpr * module_type option	
 
 and texpr = {
 	eexpr : texpr_expr;
@@ -818,6 +819,7 @@ let iter f e =
 	| TField (e,_)
 	| TClosure (e,_)
 	| TParenthesis e
+	| TCast (e,_)
 	| TUnop (_,_,e) ->
 		f e
 	| TArrayDecl el
@@ -902,6 +904,8 @@ let map_expr f e =
 		{ e with eexpr = TTry (f e1, List.map (fun (v,t,e) -> v, t, f e) catches) }
 	| TReturn eo ->
 		{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f e)) }
+	| TCast (e1,t) ->
+		{ e with eexpr = TCast (f e1,t) }
 
 let map_expr_type f ft e =
 	match e.eexpr with
@@ -962,6 +966,39 @@ let map_expr_type f ft e =
 		{ e with eexpr = TTry (f e1, List.map (fun (v,t,e) -> v, ft t, f e) catches); etype = ft e.etype }
 	| TReturn eo ->
 		{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f e)); etype = ft e.etype }
+	| TCast (e1,t) ->
+		{ e with eexpr = TCast (f e1,t); etype = ft e.etype }
+
+let s_expr_kind e =
+	match e.eexpr with
+	| TConst _ -> "Const"
+	| TLocal _ -> "Local"
+	| TEnumField _ -> "EnumField"
+	| TArray (_,_) -> "Array"
+	| TBinop (_,_,_) -> "Binop"
+	| TField (_,_) -> "Field"
+	| TClosure _ -> "Closure"
+	| TTypeExpr _ -> "TypeExpr"
+	| TParenthesis _ -> "Parenthesis"
+	| TObjectDecl _ -> "ObjectDecl"
+	| TArrayDecl _ -> "ArrayDecl"
+	| TCall (_,_) -> "Call"
+	| TNew (_,_,_) -> "New"
+	| TUnop (_,_,_) -> "Unop"
+	| TFunction _ -> "Function"
+	| TVars _ -> "Vars"
+	| TBlock _ -> "Block"
+	| TFor (_,_,_,_) -> "For"
+	| TIf (_,_,_) -> "If"
+	| TWhile (_,_,_) -> "While"
+	| TSwitch (_,_,_) -> "Switch"
+	| TMatch (_,_,_,_) -> "Match"
+	| TTry (_,_) -> "Try"
+	| TReturn _ -> "Return"
+	| TBreak -> "Break"
+	| TContinue -> "Continue"
+	| TThrow _ -> "Throw"
+	| TCast _ -> "Cast"
 
 let rec s_expr s_type e =
 	let sprintf = Printf.sprintf in
@@ -1040,5 +1077,7 @@ let rec s_expr s_type e =
 		"Continue"
 	| TThrow e ->
 		"Throw " ^ (loop e)
+	| TCast (e,t) ->
+		sprintf "Cast %s%s" (match t with None -> "" | Some t -> s_type_path (t_path t) ^ ": ") (loop e)
 	) in
 	sprintf "(%s : %s)" str (s_type e.etype)

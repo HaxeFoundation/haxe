@@ -689,6 +689,12 @@ and gen_expr ctx e =
 			newline ctx;
 		);
 		spr ctx "}"
+	| TCast (e1,None) ->
+		spr ctx "((";
+		gen_expr ctx e1;
+		print ctx ") as %s)" (type_str ctx e.etype e.epos);
+	| TCast (e1,Some t) ->
+		gen_expr ctx (Codegen.default_cast ctx.inf.com e1 t e.etype e.epos)
 
 and gen_value ctx e =
 	let assign e =
@@ -754,6 +760,8 @@ and gen_value ctx e =
 	| TUnop _
 	| TFunction _ ->
 		gen_expr ctx e
+	| TCast (e1,t) ->
+		gen_value ctx (match t with None -> e1 | Some t -> Codegen.default_cast ctx.inf.com e1 t e.etype e.epos)
 	| TReturn _
 	| TBreak
 	| TContinue ->

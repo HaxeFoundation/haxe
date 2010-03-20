@@ -13,6 +13,7 @@
 	flash : changes in swf handling to work with >16MB swfs
 	flash9 : only init dynamic methods if not already defined (in subclass)
 	std : added haxe.SHA1
+	compiler : added TCast, allow cast optimization on flash9/cpp
 
 2010-01-09: 2.05
 	js : added js.Scroll

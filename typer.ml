@@ -1432,34 +1432,24 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		}
 	| ECast (e,None) ->
 		let e = type_expr ctx e in
-		{ e with etype = mk_mono() }
+		mk (TCast (e,None)) (mk_mono()) p
 	| ECast (e, Some t) ->
-		(* // if( Std.is(tmp,T) ) tmp else throw "Class cast error" *)
-		let etmp = (EConst (Ident "tmp"),p) in
+		(* force compilation of class "Std" since we might need it *)
+		ignore(Typeload.load_type_def ctx p { tpackage = []; tparams = []; tname = "Std"; tsub = None });
 		let t = Typeload.load_complex_type ctx (pos e) t in
-		let tname = (match follow t with
+		let texpr = (match follow t with
 		| TInst (_,params) | TEnum (_,params) ->
 			List.iter (fun pt ->
 				if follow pt != t_dynamic then error "Cast type parameters must be Dynamic" p;
 			) params;
 			(match follow t with
-			| TInst (c,_) -> c.cl_path
-			| TEnum (e,_) -> e.e_path
+			| TInst (c,_) -> TClassDecl c
+			| TEnum (e,_) -> TEnumDecl e
 			| _ -> assert false);
 		| _ ->
 			error "Cast type must be a class or an enum" p
 		) in
-		let make_type (path,name) =
-			match path with
-			| [] -> (EConst (Type name),p)
-			| x :: path -> (EType (List.fold_left (fun acc x -> (EField (acc,x),p)) (EConst (Ident x),p) path,name),p)
-		in
-		let cond = (ECall ((EField ((EConst (Type "Std"),p),"is"),p),[etmp;make_type tname]),p) in
-		let e = type_expr ctx (EBlock [
-			(EVars [("tmp",None,Some e)],p);
-			(EIf (cond,etmp,Some (EThrow (EConst (String "Class cast error"),p),p)),p);
-		],p) in
-		{ e with etype = t }
+		mk (TCast (type_expr ctx e,Some texpr)) t p
 	| EDisplay e ->
 		let old = ctx.in_display in
 		ctx.in_display <- true;

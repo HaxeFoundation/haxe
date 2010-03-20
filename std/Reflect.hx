@@ -231,6 +231,10 @@ class Reflect {
 	public static function compare<T>( a : T, b : T ) : Int {
 		#if neko
 		return untyped __dollar__compare(a,b);
+		#elseif (flash9 || cpp)
+		var a : Dynamic = a;
+		var b : Dynamic = b;
+		return ( a == b ) ? 0 : ((a > b) ? 1 : -1);
 		#else
 		return ( a == b ) ? 0 : (((cast a) > (cast b)) ? 1 : -1);
 		#end

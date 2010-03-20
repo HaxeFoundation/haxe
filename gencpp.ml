@@ -130,6 +130,7 @@ let make_base_directory file =
 
 type context =
 {
+	mutable ctx_common : Common.context;
 	mutable ctx_output : string -> unit;
 	mutable ctx_writer : source_writer;
 	mutable ctx_calling : bool;
@@ -152,8 +153,9 @@ type context =
 	mutable ctx_class_member_types : (string,string) Hashtbl.t;
 }
 
-let new_context writer debug = 
+let new_context common_ctx writer debug = 
 	{
+	ctx_common = common_ctx;
 	ctx_writer = writer;
 	ctx_output = (writer#write);
 	ctx_calling = false;
@@ -534,39 +536,7 @@ let get_switch_var ctx =
 
 (* If you put on the "-debug" flag, you get extra comments in the source code *)
 let debug_expression expression type_too =
-	"/* " ^
-	(match expression.eexpr with
-	| TConst _ -> "TConst"
-	| TLocal _ -> "TLocal"
-	| TEnumField _ -> "TEnumField"
-	| TArray (_,_) -> "TArray"
-	| TBinop (_,_,_) -> "TBinop"
-	| TField (_,_) -> "TField"
-	| TClosure _ -> "TClosure"
-	| TTypeExpr _ -> "TTypeExpr"
-	| TParenthesis _ -> "TParenthesis"
-	| TObjectDecl _ -> "TObjectDecl"
-	| TArrayDecl _ -> "TArrayDecl"
-	| TCall (_,_) -> "TCall"
-	| TNew (_,_,_) -> "TNew"
-	| TUnop (_,_,_) -> "TUnop"
-	| TFunction _ -> "TFunction"
-	| TVars _ -> "TVars"
-	| TBlock _ -> "TBlock"
-	| TFor (_,_,_,_) -> "TFor"
-	| TIf (_,_,_) -> "TIf"
-	| TWhile (_,_,_) -> "TWhile"
-	| TSwitch (_,_,_) -> "TSwitch"
-	| TMatch (_,_,_,_) -> "TMatch"
-	| TTry (_,_) -> "TTry"
-	| TReturn _ -> "TReturn"
-	| TBreak -> "TBreak"
-	| TContinue -> "TContinue"
-	| TThrow _ -> "TThrow" ) ^
-	(if (type_too) then " = " ^ (type_string expression.etype) else "") ^
-	" */";;
-
-
+	"/* " ^ Type.s_expr_kind expression ^ (if (type_too) then " = " ^ (type_string expression.etype) else "") ^	" */";;
 
 (* This is like the Type.iter, but also keeps the "retval" flag up to date *)
 let rec iter_retval f retval e =
@@ -632,6 +602,8 @@ let rec iter_retval f retval e =
 		List.iter (fun (_,_,e) -> f false e) catches
 	| TReturn eo ->
 		(match eo with None -> () | Some e -> f true e)
+	| TCast (e,_) ->
+		f retval e
 ;;
 
 
@@ -1497,6 +1469,10 @@ and gen_expression ctx retval expression =
 	| TThrow expression -> output "hx::Throw (";
 			gen_expression ctx true expression;
 			output ")"
+	| TCast (expression,None) ->
+		gen_expression ctx retval expression
+	| TCast (e1,Some t) ->
+		gen_expression ctx retval (Codegen.default_cast ctx.ctx_common e1 t expression.etype expression.epos)		
 	);;
 
 
@@ -1867,7 +1843,7 @@ let generate_main common_ctx member_types super_deps class_def boot_classes init
 		(*make_class_directories base_dir ( "src" :: []);*)
 		let cpp_file = new_cpp_file common_ctx.file ([],filename) in
 		let output_main = (cpp_file#write) in
-		let ctx = new_context cpp_file false in
+		let ctx = new_context common_ctx cpp_file false in
 		ctx.ctx_class_name <- "?";
 		ctx.ctx_class_member_types <- member_types;
 
@@ -1878,7 +1854,7 @@ let generate_main common_ctx member_types super_deps class_def boot_classes init
 		output_main "\n\n";
 
 		output_main ( if is_main then "HX_BEGIN_MAIN\n\n" else "HX_BEGIN_LIB_MAIN\n\n" );
-		gen_expression (new_context cpp_file false) false main_expression;
+		gen_expression (new_context common_ctx cpp_file false) false main_expression;
 		output_main ";\n";
 		output_main ( if is_main then "HX_END_MAIN\n\n" else "HX_END_LIB_MAIN\n\n" );
 		cpp_file#close;
@@ -1935,7 +1911,7 @@ let generate_enum_files common_ctx enum_def super_deps =
 	let cpp_file = new_placed_cpp_file common_ctx class_path in
 	let output_cpp = (cpp_file#write) in
 	let debug = false in
-	let ctx = new_context cpp_file debug in
+	let ctx = new_context common_ctx cpp_file debug in
 
 	if (debug) then
 		print_endline ("Found enum definition:" ^ (join_class_path  class_path "::" ));
@@ -2121,7 +2097,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 	let cpp_file = new_placed_cpp_file common_ctx class_path in
 	let output_cpp = (cpp_file#write) in
 	let debug = false in
-	let ctx = new_context cpp_file debug in
+	let ctx = new_context common_ctx cpp_file debug in
 	ctx.ctx_class_name <- "::" ^ (join_class_path class_path "::");
 	ctx.ctx_class_member_types <- member_types;
 	if debug then print_endline ("Found class definition:" ^ ctx.ctx_class_name);
@@ -2185,7 +2161,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 							end else begin
 								gen_expression ctx false function_def.tf_expr;
 								output_cpp ";\n";
-								(*gen_expression (new_context cpp_file debug ) false function_def.tf_expr;*)
+								(*gen_expression (new_context common_ctx cpp_file debug ) false function_def.tf_expr;*)
 							end
 						| _ -> ()
 						)
@@ -2221,7 +2197,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 	(match class_def.cl_init with
 	| Some expression -> 
 		output_cpp ("void " ^ class_name^ "::__init__()");
-		gen_expression (new_context cpp_file debug) false expression;
+		gen_expression (new_context common_ctx cpp_file debug) false expression;
 		output_cpp "\n\n";
 	| _ -> ());
 

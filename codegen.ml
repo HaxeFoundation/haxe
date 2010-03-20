@@ -159,7 +159,7 @@ let rec build_generic ctx c p tl =
 		let cg = mk_class (pack,name) c.cl_pos None false in
 		let mg = {
 			mpath = cg.cl_path;
-			mtypes = [TClassDecl cg];			
+			mtypes = [TClassDecl cg];
 		} in
 		Hashtbl.add ctx.modules mg.mpath mg;
 		let rec loop l1 l2 =
@@ -186,14 +186,14 @@ let rec build_generic ctx c p tl =
 		in
 		if c.cl_init <> None || c.cl_dynamic <> None then error "This class can't be generic" p;
 		if c.cl_ordered_statics <> [] then error "A generic class can't have static fields" p;
-		cg.cl_super <- (match c.cl_super with 
+		cg.cl_super <- (match c.cl_super with
 			| None -> None
 			| Some (cs,pl) ->
 				(match apply_params c.cl_types tl (TInst (cs,pl)) with
 				| TInst (cs,pl) when cs.cl_kind = KGeneric ->
 					(match build_generic ctx cs p pl with
 					| TInst (cs,pl) -> Some (cs,pl)
-					| _ -> assert false)					
+					| _ -> assert false)
 				| TInst (cs,pl) -> Some (cs,pl)
 				| _ -> assert false)
 		);
@@ -266,11 +266,11 @@ let build_instance ctx mtype p =
 	match mtype with
 	| TClassDecl c ->
 		let ft = (fun pl ->
-			match c.cl_kind with 
+			match c.cl_kind with
 			| KGeneric ->
 				let r = exc_protect (fun r ->
 					let t = mk_mono() in
-					r := (fun() -> t);	
+					r := (fun() -> t);
 					unify_raise ctx (build_generic ctx c p pl) t p;
 					t
 				) in
@@ -883,6 +883,9 @@ let fix_overrides com t =
 (* -------------------------------------------------------------------------- *)
 (* MISC FEATURES *)
 
+(*
+	Tells if we can find a local var in an expression or inside a sub closure
+*)
 let local_find flag vname e =
 	let rec loop2 e =
 		match e.eexpr with
@@ -970,7 +973,7 @@ let rec constructor_side_effects e =
 	| TBinop _ | TTry _ | TIf _ | TBlock _ | TVars _
 	| TFunction _ | TArrayDecl _ | TObjectDecl _
 	| TParenthesis _ | TTypeExpr _ | TEnumField _ | TLocal _
-	| TConst _ | TContinue | TBreak ->
+	| TConst _ | TContinue | TBreak | TCast _ ->
 		try
 			Type.iter (fun e -> if constructor_side_effects e then raise Exit) e;
 			false;
@@ -1032,3 +1035,27 @@ let dump_types com =
 		output_string ch (Buffer.contents buf);
 		close_out ch
 	) com.types
+
+(*
+	Build a default safe-cast expression :
+	{ var $t = <e>; if( Std.is($t,<t>) ) $t else throw "Class cast error"; }
+*)
+let default_cast com e texpr t p =
+	let api = com.type_api in
+	let mk_texpr = function
+		| TClassDecl c -> TAnon { a_fields = PMap.empty; a_status = ref (Statics c) }
+		| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
+		| TTypeDecl _ -> assert false
+	in
+	let vtmp = "$t" in
+	let var = mk (TVars [(vtmp,e.etype,Some e)]) api.tvoid p in
+	let vexpr = mk (TLocal vtmp) e.etype p in
+	let texpr = mk (TTypeExpr texpr) (mk_texpr texpr) p in
+	let std = (match (api.load_module ([],"Std") p).mtypes with [std] -> std | _ -> assert false) in
+	(*Typeload.load_type_def ctx p { tpackage = []; tname = "Std"; tparams = []; tsub = None } in *)
+	let std = mk (TTypeExpr std) (mk_texpr std) p in
+	let is = mk (TField (std,"is")) (tfun [t_dynamic;t_dynamic] api.tbool) p in
+	let is = mk (TCall (is,[vexpr;texpr])) api.tbool p in
+	let exc = mk (TThrow (mk (TConst (TString "Class cast error")) api.tstring p)) t p in
+	let check = mk (TIf (is,mk (TCast (vexpr,None)) t p,Some exc)) t p in
+	mk (TBlock [var;check;vexpr]) t p

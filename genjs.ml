@@ -465,6 +465,10 @@ and gen_expr ctx e =
 			newline ctx;
 		);
 		spr ctx "}"
+	| TCast (e,None) ->
+		gen_expr ctx e
+	| TCast (e1,Some t) ->
+		gen_expr ctx (Codegen.default_cast ctx.com e1 t e.etype e.epos)
 
 and gen_value ctx e =
 	let assign e =
@@ -522,6 +526,8 @@ and gen_value ctx e =
 	| TBreak
 	| TContinue ->
 		unsupported e.epos
+	| TCast (e1,t) ->
+		gen_value ctx (match t with None -> e1 | Some t -> Codegen.default_cast ctx.com e1 t e.etype e.epos)
 	| TVars _
 	| TFor _
 	| TWhile _

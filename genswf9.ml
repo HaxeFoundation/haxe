@@ -104,20 +104,6 @@ let tid (x : 'a index) : int = Obj.magic x
 let ethis = mk (TConst TThis) (mk_mono()) null_pos
 let dynamic_prop = HMMultiNameLate [HNPublic (Some "")]
 
-let t_void = TEnum ({
-		e_path = [],"Void";
-		e_pos = null_pos;
-		e_doc = None;
-		e_private = false;
-		e_extern = false;
-		e_types = [];
-		e_constrs = PMap.empty;
-		e_names = [];
-	},[])
-
-let t_string = TInst (mk_class ([],"String") null_pos None false,[])
-let t_int = TInst (mk_class ([],"Int") null_pos None false,[])
-
 let write ctx op =
 	DynArray.add ctx.code op;
 	ctx.infos.ipos <- ctx.infos.ipos + 1;
@@ -686,7 +672,7 @@ let begin_fun ctx args tret el stat p =
 	)
 
 let empty_method ctx p =
-	let f = begin_fun ctx [] t_void [] true p in
+	let f = begin_fun ctx [] ctx.com.type_api.tvoid [] true p in
 	write ctx HRetVoid;
 	f()
 
@@ -1207,6 +1193,35 @@ let rec gen_expr_content ctx retval e =
 		switch();
 		List.iter (fun j -> j()) jends;
 		free_reg ctx rparams
+	| TCast (e1,t) ->
+		gen_expr ctx retval e1;		
+		if retval then begin
+			match t with
+			| None ->
+				(* no error if cast failure *)
+				let t1 = classify ctx e1.etype in
+				let t = classify ctx e.etype in
+				if t1 <> t then coerce ctx t;
+			| Some t ->
+				(* manual cast *)
+				let tid = (match gen_access ctx (mk (TTypeExpr t) t_dynamic e.epos) Read with
+					| VGlobal id -> id
+					| _ -> assert false
+				) in
+				match classify ctx e.etype with
+				| KType n when (match n with HMPath ([],"String") -> false | _ -> true) ->
+					(* for normal classes, we can use native cast *)
+					write ctx (HCast tid)
+				| _ ->
+					(* we need to check with "is" first *)
+					write ctx HDup;
+					write ctx (HIsType tid);
+					let j = jump ctx J3True in
+					write ctx (HString "Class cast error");
+					write ctx HThrow;
+					j();
+					write ctx (HCast tid)
+		end
 
 and gen_call ctx retval e el r =
 	match e.eexpr , el with
@@ -1732,10 +1747,10 @@ let generate_class ctx c =
 			else
 				generate_construct ctx {
 					tf_args = [];
-					tf_type = t_void;
+					tf_type = ctx.com.type_api.tvoid;
 					tf_expr = {
 						eexpr = TBlock [];
-						etype = t_void;
+						etype = ctx.com.type_api.tvoid;
 						epos = null_pos;
 					}
 				} c
@@ -1794,7 +1809,8 @@ let generate_class ctx c =
 
 let generate_enum ctx e =
 	let name_id = type_path ctx e.e_path in
-	let f = begin_fun ctx [("tag",None,t_string);("index",None,t_int);("params",None,mk_mono())] t_void [ethis] false e.e_pos in
+	let api = ctx.com.type_api in
+	let f = begin_fun ctx [("tag",None,api.tstring);("index",None,api.tint);("params",None,mk_mono())] api.tvoid [ethis] false e.e_pos in
 	let tag_id = ident "tag" in
 	let index_id = ident "index" in
 	let params_id = ident "params" in
@@ -1809,7 +1825,7 @@ let generate_enum ctx e =
 	write ctx (HInitProp params_id);
 	write ctx HRetVoid;
 	let construct = f() in
-	let f = begin_fun ctx [] t_string [] true e.e_pos in
+	let f = begin_fun ctx [] api.tstring [] true e.e_pos in
 	write ctx (HGetLex (type_path ctx (["flash"],"Boot")));
 	write ctx HThis;
 	write ctx (HCallProperty (ident "enum_to_string",1));
@@ -1891,7 +1907,7 @@ let generate_inits ctx =
 	(* define flash.Boot.init method *)
 	write ctx HGetGlobalScope;
 	write ctx (HGetProp (type_path ctx (["flash"],"Boot")));
-	let finit = begin_fun ctx [] t_void [] true null_pos in
+	let finit = begin_fun ctx [] ctx.com.type_api.tvoid [] true null_pos in
 	List.iter (fun t ->
 		match t with
 		| TClassDecl c ->
@@ -1917,7 +1933,7 @@ let generate_type ctx t =
 			None
 		else
 			let hlc = generate_class ctx c in
-			let init = begin_fun ctx [] t_void [ethis] false c.cl_pos in
+			let init = begin_fun ctx [] ctx.com.type_api.tvoid [ethis] false c.cl_pos in
 			generate_class_init ctx c hlc;
 			if c.cl_path = (["flash"],"Boot") then generate_inits ctx;
 			write ctx HRetVoid;
@@ -1932,7 +1948,7 @@ let generate_type ctx t =
 			None
 		else
 			let hlc = generate_enum ctx e in
-			let init = begin_fun ctx [] t_void [ethis] false e.e_pos in
+			let init = begin_fun ctx [] ctx.com.type_api.tvoid [ethis] false e.e_pos in
 			generate_enum_init ctx e hlc;
 			write ctx HRetVoid;
 			Some (init(), {

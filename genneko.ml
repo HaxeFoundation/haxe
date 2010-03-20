@@ -389,6 +389,10 @@ and gen_expr ctx e =
 		(EContinue,p)
 	| TThrow e ->
 		call p (builtin p "throw") [gen_expr ctx e]
+	| TCast (e,None) ->
+		gen_expr ctx e
+	| TCast (e1,Some t) ->
+		gen_expr ctx (Codegen.default_cast ctx.com e1 t e.etype e.epos)
 	| TMatch (e,_,cases,eo) ->
 		let etmp = (EVars ["@tmp",Some (gen_expr ctx e)],p) in
 		let eindex = field p (ident p "@tmp") "index" in

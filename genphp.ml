@@ -121,37 +121,7 @@ and type_string haxe_type =
 	type_string_suff "" haxe_type;;
 
 let debug_expression expression type_too =
-	"/* " ^
-	(match expression.eexpr with
-	| TConst _ -> "TConst"
-	| TLocal _ -> "TLocal"
-	| TEnumField _ -> "TEnumField"
-	| TArray (_,_) -> "TArray"
-	| TBinop (_,_,_) -> "TBinop"
-	| TField (_,_) -> "TField"
-	| TClosure _ -> "TClosure"
-	| TTypeExpr _ -> "TTypeExpr"
-	| TParenthesis _ -> "TParenthesis"
-	| TObjectDecl _ -> "TObjectDecl"
-	| TArrayDecl _ -> "TArrayDecl"
-	| TCall (_,_) -> "TCall"
-	| TNew (_,_,_) -> "TNew"
-	| TUnop (_,_,_) -> "TUnop"
-	| TFunction _ -> "TFunction"
-	| TVars _ -> "TVars"
-	| TBlock _ -> "TBlock"
-	| TFor (_,_,_,_) -> "TFor"
-	| TIf (_,_,_) -> "TIf"
-	| TWhile (_,_,_) -> "TWhile"
-	| TSwitch (_,_,_) -> "TSwitch"
-	| TMatch (_,_,_,_) -> "TMatch"
-	| TTry (_,_) -> "TTry"
-	| TReturn _ -> "TReturn"
-	| TBreak -> "TBreak"
-	| TContinue -> "TContinue"
-	| TThrow _ -> "TThrow" ) ^
-	(if (type_too) then " = " ^ (type_string expression.etype) else "") ^
-	" */";;
+	"/* " ^ Type.s_expr_kind expression ^ (if (type_too) then " = " ^ (type_string expression.etype) else "") ^ " */";;
 
 let rec escphp n =
 	if n = 0 then "" else if n = 1 then "\\" else ("\\\\" ^ escphp (n-1))
@@ -160,35 +130,7 @@ let rec register_extern_required_path ctx path =
 	if (List.exists(fun p -> p = path) ctx.extern_classes_with_init) && not (List.exists(fun p -> p = path) ctx.extern_required_paths) then
 		ctx.extern_required_paths <- path :: ctx.extern_required_paths
 		
-let s_expr_expr e =
-	match e.eexpr with
-	| TConst _ -> "TConst"
-	| TLocal _ -> "TLocal"
-	| TEnumField _ -> "TEnumField"
-	| TArray (_,_) -> "TArray"
-	| TBinop (_,_,_) -> "TBinop"
-	| TField (_,_) -> "TField"
-	| TClosure (_,_) -> "TClosure"
-	| TTypeExpr _ -> "TTypeExpr"
-	| TParenthesis _ -> "TParenthesis"
-	| TObjectDecl _ -> "TObjectDecl"
-	| TArrayDecl _ -> "TArrayDecl"
-	| TCall (_,_) -> "TCall"
-	| TNew (_,_,_) -> "TNew"
-	| TUnop (_,_,_) -> "TUnop"
-	| TFunction _ -> "TFunction"
-	| TVars _ -> "TVars"
-	| TBlock _ -> "TBlock"
-	| TFor (_,_,_,_) -> "TFor"
-	| TIf (_,_,_) -> "TIf"
-	| TWhile (_,_,_) -> "TWhile"
-	| TSwitch (_,_,_) -> "TSwitch"
-	| TMatch (_,_,_,_) -> "TMatch"
-	| TTry (_,_) -> "TTry"
-	| TReturn _ -> "TReturn"
-	| TBreak -> "TBreak"
-	| TContinue -> "TContinue"
-	| TThrow _ -> "TThrow"
+let s_expr_expr = Type.s_expr_kind
 
 let s_expr_name e =
 	s_type (print_context()) e.etype
@@ -1541,6 +1483,10 @@ and gen_expr ctx e =
 			newline ctx;
 		);
 		spr ctx "}"
+	| TCast (e,None) ->
+		gen_expr ctx e
+	| TCast (e1,Some t) ->
+		gen_expr ctx (Codegen.default_cast ctx.com e1 t e.etype e.epos)
 
 and gen_value ctx e =
 	let assign e =
@@ -1597,6 +1543,8 @@ and gen_value ctx e =
 	| TNew _
 	| TFunction _ ->
 		gen_expr ctx e
+	| TCast (e1,t) ->
+		gen_value ctx (match t with None -> e1 | Some t -> Codegen.default_cast ctx.com e1 t e.etype e.epos)
 	| TReturn _
 	| TBreak
 	| TContinue ->
