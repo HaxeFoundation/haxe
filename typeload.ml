@@ -665,7 +665,10 @@ let init_class ctx c p herits fields =
 					tf_type = ret;
 					tf_expr = e;
 				} in
-				if stat && name = "__init__" then c.cl_init <- Some e;
+				if stat && name = "__init__" then 
+					(match e.eexpr with
+					| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
+					| _ -> c.cl_init <- Some e);
 				cf.cf_expr <- Some (mk (TFunction f) t p);
 				t
 			) in
