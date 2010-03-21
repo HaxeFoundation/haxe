@@ -202,6 +202,7 @@ let mk_field name t = {
 	cf_name = name;
 	cf_type = t;
 	cf_doc = None;
+	cf_meta = [];
 	cf_public = true;
 	cf_get = NormalAccess;
 	cf_set = NormalAccess;

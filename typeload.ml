@@ -125,7 +125,7 @@ let rec load_instance ctx t p allow_no_params =
 						| Float f -> "F" ^ f, TFloat f
 						| _ -> assert false
 					) in
-					let c = mk_class ([],name) p None false in
+					let c = mk_class ([],name) p in
 					c.cl_kind <- KConstant const;
 					TInst (c,[])
 				| TPType t -> load_complex_type ctx p t
@@ -163,7 +163,8 @@ and load_complex_type ctx p t =
 			let rec loop t =
 				match follow t with
 				| TInst (c,tl) ->
-					let c2 = mk_class (fst c.cl_path,"+" ^ snd c.cl_path) p None true in
+					let c2 = mk_class (fst c.cl_path,"+" ^ snd c.cl_path) p in
+					c2.cl_private <- true;
 					PMap.iter (fun f _ ->
 						try
 							ignore(class_field c f);
@@ -217,6 +218,7 @@ and load_complex_type ctx p t =
 				cf_params = [];
 				cf_expr = None;
 				cf_doc = None;
+				cf_meta = [];
 			} acc
 		in
 		mk_anon (List.fold_left loop PMap.empty l)
@@ -458,7 +460,7 @@ let set_heritance ctx c herits p =
 	List.iter loop (List.filter ((!build_inheritance) ctx c p) herits)
 
 let type_type_params ctx path p (n,flags) =
-	let c = mk_class (fst path @ [snd path],n) p None false in
+	let c = mk_class (fst path @ [snd path],n) p in
 	c.cl_kind <- KTypeParameter;
 	let t = TInst (c,[]) in
 	match flags with
@@ -528,6 +530,32 @@ let type_function ctx args ret static constr f p =
 	ctx.opened <- old_opened;
 	e , fargs
 
+let type_meta ctx meta =
+	let notconst p = error "Metadata should be constant" p in
+	let rec mk_const (e,p) = 
+		match e with
+		| EConst c ->
+			(match c with
+			| Int _ | Float _ | String _ | Ident "true" | Ident "false" | Ident "null" -> type_constant ctx c p
+			| _ -> notconst p)
+		| EObjectDecl fl ->
+			let rec loop (l,acc) (f,e) =
+				if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;
+				let e = mk_const e in
+				let cf = mk_field f e.etype in
+				((f,e) :: l, PMap.add f cf acc)
+			in
+			let fields , types = List.fold_left loop ([],PMap.empty) fl in
+			mk (TObjectDecl (List.rev fields)) (TAnon { a_fields = types; a_status = ref Closed }) p
+		| EArrayDecl el ->
+			mk (TArrayDecl (List.map mk_const el)) (ctx.api.tarray t_dynamic) p
+		| EBlock [] ->
+			mk (TObjectDecl []) (TAnon { a_fields = PMap.empty; a_status = ref Closed}) p
+		| _ ->
+			notconst p
+	in
+	List.map (fun (s,el) -> s, List.map mk_const el) meta
+
 let init_class ctx c p herits fields =
 	ctx.type_params <- c.cl_types;
 	c.cl_extern <- List.mem HExtern herits;
@@ -574,7 +602,7 @@ let init_class ctx c p herits fields =
 	in
 	let loop_cf f p =
 		match f with
-		| FVar (name,doc,access,t,e) ->
+		| FVar (name,doc,meta,access,t,e) ->
 			let stat = List.mem AStatic access in
 			let inline = List.mem AInline access in
 			if not stat && has_field name c.cl_super then error ("Redefinition of variable " ^ name ^ " in subclass is not allowed") p;
@@ -594,6 +622,7 @@ let init_class ctx c p herits fields =
 			let cf = {
 				cf_name = name;
 				cf_doc = doc;
+				cf_meta = type_meta ctx meta;
 				cf_type = t;
 				cf_get = if inline then InlineAccess else NormalAccess;
 				cf_set = if inline then NeverAccess else NormalAccess;
@@ -615,7 +644,7 @@ let init_class ctx c p herits fields =
 					(fun () -> ignore(!r()))
 			) in
 			access, false, cf, delay
-		| FFun (name,doc,access,params,f) ->
+		| FFun (name,doc,meta,access,params,f) ->
 			let params = List.map (fun (n,flags) ->
 				match flags with
 				| [] ->
@@ -649,6 +678,7 @@ let init_class ctx c p herits fields =
 			let cf = {
 				cf_name = name;
 				cf_doc = doc;
+				cf_meta = type_meta ctx meta;
 				cf_type = t;
 				cf_get = if inline then InlineAccess else NormalAccess;
 				cf_set = (if inline then NeverAccess else MethodAccess dynamic);
@@ -681,7 +711,7 @@ let init_class ctx c p herits fields =
 				end
 			) in
 			access, constr, cf, delay
-		| FProp (name,doc,access,get,set,t) ->
+		| FProp (name,doc,meta,access,get,set,t) ->
 			let ret = load_complex_type ctx p t in
 			let check_get = ref (fun() -> ()) in
 			let check_set = ref (fun() -> ()) in
@@ -720,6 +750,7 @@ let init_class ctx c p herits fields =
 			let cf = {
 				cf_name = name;
 				cf_doc = doc;
+				cf_meta = type_meta ctx meta;
 				cf_get = get;
 				cf_set = set;
 				cf_expr = None;
@@ -805,7 +836,7 @@ let init_class ctx c p herits fields =
 						) in
 						a,opt,t,def
 					) f.f_args } in
-					let _, _, cf, delayed = loop_cf (FFun ("new",None,acc,pl,fnew)) p in
+					let _, _, cf, delayed = loop_cf (FFun ("new",None,[],acc,pl,fnew)) p in
 					c.cl_constructor <- Some cf;
 					Hashtbl.add ctx.constructs c.cl_path (acc,pl,f);
 					ctx.delays := [delayed] :: !(ctx.delays);
@@ -847,11 +878,14 @@ let type_module ctx m tdecls loadp =
 		| EClass d ->
 			let priv = List.mem HPrivate d.d_flags in
 			let path = decl_with_name d.d_name p priv in
-			let c = mk_class path p d.d_doc priv in
+			let c = mk_class path p in
+			c.cl_private <- priv;
+			c.cl_doc <- d.d_doc;
+			c.cl_meta <- type_meta ctx d.d_meta;
 			(* store the constructor for later usage *)
 			List.iter (fun (cf,_) ->
 				match cf with
-				| FFun ("new",_,acc,pl,f) -> Hashtbl.add ctx.constructs path (acc,pl,f)
+				| FFun ("new",_,_,acc,pl,f) -> Hashtbl.add ctx.constructs path (acc,pl,f)
 				| _ -> ()
 			) d.d_data;
 			decls := TClassDecl c :: !decls
@@ -862,6 +896,7 @@ let type_module ctx m tdecls loadp =
 				e_path = path;
 				e_pos = p;
 				e_doc = d.d_doc;
+				e_meta = type_meta ctx d.d_meta;
 				e_types = [];
 				e_private = priv;
 				e_extern = List.mem EExtern d.d_flags || d.d_data = [];
@@ -879,6 +914,7 @@ let type_module ctx m tdecls loadp =
 				t_private = priv;
 				t_types = [];
 				t_type = mk_mono();
+				t_meta = type_meta ctx d.d_meta;
 			} in
 			decls := TTypeDecl t :: !decls
 	) tdecls;
@@ -975,7 +1011,7 @@ let type_module ctx m tdecls loadp =
 			let et = TEnum (e,List.map snd e.e_types) in
 			let names = ref [] in
 			let index = ref 0 in
-			List.iter (fun (c,doc,t,p) ->
+			List.iter (fun (c,doc,meta,t,p) ->
 				if c = "name" && Common.defined ctx.com "js" then error "This identifier cannot be used in Javascript" p;
 				let t = (match t with
 					| [] -> et
@@ -994,6 +1030,7 @@ let type_module ctx m tdecls loadp =
 					ef_pos = p;
 					ef_doc = doc;
 					ef_index = !index;
+					ef_meta = type_meta ctx meta;
 				} e.e_constrs;
 				incr index;
 				names := c :: !names;
@@ -1051,6 +1088,7 @@ let parse_module ctx m p =
 				(ETypedef { 
 					d_name = d.d_name;
 					d_doc = None;
+					d_meta = [];
 					d_params = d.d_params;
 					d_flags = if priv then [EPrivate] else [];
 					d_data = TPNormal (if priv then { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; } else 

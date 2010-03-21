@@ -229,6 +229,7 @@ and token = parse
 	| "(" { mk lexbuf POpen }
 	| ")" { mk lexbuf PClose }
 	| "?" { mk lexbuf Question }
+	| "@" { mk lexbuf At }
 	| "/*" {
 			reset();
 			let pmin = lexeme_start lexbuf in

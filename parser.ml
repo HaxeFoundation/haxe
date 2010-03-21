@@ -165,12 +165,13 @@ and parse_type_decl s =
 	match s with parser
 	| [< '(Kwd Import,p1); t = parse_type_path_normal; p2 = semicolon >] -> EImport t, punion p1 p2
 	| [< '(Kwd Using,p1); t = parse_type_path_normal; p2 = semicolon >] -> EUsing t, punion p1 p2
-	| [< c = parse_common_flags; s >] ->
+	| [< meta = parse_meta; c = parse_common_flags; s >] ->
 		match s with parser
 		| [< n , p1 = parse_enum_flags; doc = get_doc; '(Const (Type name),_); tl = parse_constraint_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] ->
 			(EEnum {
 				d_name = name;
 				d_doc = doc;
+				d_meta = meta;
 				d_params = tl;
 				d_flags = List.map snd c @ n;
 				d_data = l
@@ -183,6 +184,7 @@ and parse_type_decl s =
 			(EClass {
 				d_name = name;
 				d_doc = doc;
+				d_meta = meta;
 				d_params = tl;
 				d_flags = List.map fst c @ n @ hl;
 				d_data = fl;
@@ -194,6 +196,7 @@ and parse_type_decl s =
 			(ETypedef {
 				d_name = name;
 				d_doc = doc;
+				d_meta = meta;
 				d_params = tl;
 				d_flags = List.map snd c;
 				d_data = t;
@@ -208,10 +211,10 @@ and parse_class_field_resume s =
 		(* junk all tokens until we reach next variable/function or next type declaration *)
 		let rec loop() =
 			(match List.map fst (Stream.npeek 2 s) with
-			| Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Override :: _ | Kwd Dynamic :: _ ->
+			| At :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Override :: _ | Kwd Dynamic :: _ ->
 				raise Exit
 			| [] | Eof :: _ | Kwd Import :: _ | Kwd Using :: _ | Kwd Extern :: _ | Kwd Class :: _ | Kwd Interface :: _ | Kwd Enum :: _ | Kwd Typedef :: _ ->
-				raise Not_found
+				raise Not_found				
 			| [Kwd Private; Kwd Function]
 			| [Kwd Private; Kwd Var] ->
 				raise Exit
@@ -243,6 +246,18 @@ and parse_common_flags = parser
 	| [< '(Kwd Private,_); l = parse_common_flags >] -> (HPrivate, EPrivate) :: l
 	| [< '(Kwd Extern,_); l = parse_common_flags >] -> (HExtern, EExtern) :: l
 	| [< >] -> []
+
+and parse_meta = parser
+	| [< '(At,_); name = meta_name; s >] ->
+		(match s with parser
+		| [< '(POpen,_); params = psep Comma expr; '(PClose,_); s >] -> (name,params) :: parse_meta s
+		| [< >] -> (name,[]) :: parse_meta s)
+	| [< >] -> []
+
+and meta_name = parser
+	| [< '(Const (Ident i),_) >] -> i
+	| [< '(Const (Type t),_) >] -> t
+	| [< '(Kwd k,_) >] -> s_keyword k
 
 and parse_enum_flags = parser
 	| [< '(Kwd Enum,p) >] -> [] , p
@@ -329,11 +344,12 @@ and parse_type_anonymous_resume name = parser
 
 and parse_enum s =
 	doc := None;
+	let meta = parse_meta s in
 	match s with parser
 	| [< name = any_ident; doc = get_doc; s >] ->
 		match s with parser
-		| [< '(POpen,_); l = psep Comma parse_enum_param; '(PClose,_); p = semicolon; >] -> (name,doc,l,p)
-		| [< '(Semicolon,p) >] -> (name,doc,[],p)
+		| [< '(POpen,_); l = psep Comma parse_enum_param; '(PClose,_); p = semicolon; >] -> (name,doc,meta,l,p)
+		| [< '(Semicolon,p) >] -> (name,doc,meta,[],p)
 		| [< >] -> serror()
 
 and parse_enum_param = parser
@@ -343,19 +359,19 @@ and parse_enum_param = parser
 and parse_class_field s =
 	doc := None;
 	match s with parser
-	| [< l = parse_cf_rights true []; doc = get_doc; s >] ->
+	| [< meta = parse_meta; l = parse_cf_rights true []; doc = get_doc; s >] ->
 		match s with parser
 		| [< '(Kwd Var,p1); name = any_ident; s >] ->
 			(match s with parser
 			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_type_path; p2 = semicolon >] ->
-				(FProp (name,doc,l,i1,i2,t),punion p1 p2)
+				(FProp (name,doc,meta,l,i1,i2,t),punion p1 p2)
 			| [< t = parse_type_opt; s >] ->
 				let e , p2 = (match s with parser
 				| [< '(Binop OpAssign,_) when List.mem AStatic l; e = toplevel_expr; p2 = semicolon >] -> Some e , p2
 				| [< '(Semicolon,p2) >] -> None , p2
 				| [< >] -> serror()
 				) in
-				(FVar (name,doc,l,t,e),punion p1 p2))
+				(FVar (name,doc,meta,l,t,e),punion p1 p2))
 		| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
 			let e = (match s with parser
 				| [< e = toplevel_expr >] -> e
@@ -367,7 +383,7 @@ and parse_class_field s =
 				f_type = t;
 				f_expr = e;
 			} in
-			(FFun (name,doc,l,pl,f),punion p1 (pos e))
+			(FFun (name,doc,meta,l,pl,f),punion p1 (pos e))
 		| [< >] ->
 			if l = [] then raise Stream.Failure else serror()
 

@@ -203,6 +203,7 @@ let rec type_module_type ctx t tparams p =
 			};
 			t_private = true;
 			t_types = [];
+			t_meta = [];
 		} in
 		let e = mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p in
 		check_locals_masking ctx e;
@@ -217,6 +218,7 @@ let rec type_module_type ctx t tparams p =
 				cf_get = NormalAccess;
 				cf_set = (match follow f.ef_type with TFun _ -> MethodAccess false | _ -> NoAccess);
 				cf_doc = None;
+				cf_meta = [];
 				cf_expr = None;
 				cf_params = [];
 			} acc
@@ -231,6 +233,7 @@ let rec type_module_type ctx t tparams p =
 			};
 			t_private = true;
 			t_types = e.e_types;
+			t_meta = [];
 		} in
 		let e = mk (TTypeExpr (TEnumDecl e)) (TType (t_tmp,types)) p in
 		check_locals_masking ctx e;
@@ -573,6 +576,7 @@ let rec type_field ctx e i p mode =
 				cf_name = i;
 				cf_type = mk_mono();
 				cf_doc = None;
+				cf_meta = [];
 				cf_public = true;
 				cf_get = NormalAccess;
 				cf_set = (match mode with MSet -> NormalAccess | MGet | MCall -> NoAccess);
@@ -588,6 +592,7 @@ let rec type_field ctx e i p mode =
 			cf_name = i;
 			cf_type = mk_mono();
 			cf_doc = None;
+			cf_meta = [];
 			cf_public = true;
 			cf_get = NormalAccess;
 			cf_set = (match mode with MSet -> NormalAccess | MGet | MCall -> NoAccess);
@@ -1776,7 +1781,7 @@ let types ctx main excludes =
 		) in
 		let path = ([],"@Main") in
 		let emain = type_type ctx cl null_pos in
-		let c = mk_class path null_pos None false in
+		let c = mk_class path null_pos in
 		let f = {
 			cf_name = "init";
 			cf_type = r;
@@ -1784,6 +1789,7 @@ let types ctx main excludes =
 			cf_get = NormalAccess;
 			cf_set = NormalAccess;
 			cf_doc = None;
+			cf_meta = [];
 			cf_params = [];
 			cf_expr = Some (mk (TCall (mk (TField (emain,"main")) ft null_pos,[])) r null_pos);
 		} in

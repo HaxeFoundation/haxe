@@ -71,15 +71,15 @@ let extend_remoting ctx c t p async prot =
 	let decls = (try Typeload.parse_module ctx path p with e -> ctx.com.package_rules <- rules; raise e) in
 	ctx.com.package_rules <- rules;
 	let base_fields = [
-		(FVar ("__cnx",None,[],Some (TPNormal { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = []; tsub = None }),None),p);
-		(FFun ("new",None,[APublic],[],{ f_args = ["c",false,None,None]; f_type = None; f_expr = (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p) }),p);
+		(FVar ("__cnx",None,[],[],Some (TPNormal { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = []; tsub = None }),None),p);
+		(FFun ("new",None,[],[APublic],[],{ f_args = ["c",false,None,None]; f_type = None; f_expr = (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p) }),p);
 	] in
 	let tvoid = TPNormal { tpackage = []; tname = "Void"; tparams = []; tsub = None } in
 	let build_field is_public acc (f,p) =
 		match f with
-		| FFun ("new",_,_,_,_) ->
+		| FFun ("new",_,_,_,_,_) ->
 			acc
-		| FFun (name,doc,acl,pl,f) when (is_public || List.mem APublic acl) && not (List.mem AStatic acl) ->
+		| FFun (name,doc,meta,acl,pl,f) when (is_public || List.mem APublic acl) && not (List.mem AStatic acl) ->
 			if List.exists (fun (_,_,t,_) -> t = None) f.f_args then error ("Field " ^ name ^ " type is not complete and cannot be used by RemotingProxy") p;
 			let eargs = [EArrayDecl (List.map (fun (a,_,_,_) -> (EConst (Ident a),p)) f.f_args),p] in
 			let ftype = (match f.f_type with Some (TPNormal { tpackage = []; tname = "Void" }) -> None | _ -> f.f_type) in
@@ -103,7 +103,7 @@ let extend_remoting ctx c t p async prot =
 				f_type = if async then None else ftype;
 				f_expr = (EBlock [expr],p);
 			} in
-			(FFun (name,None,[APublic],pl,f),p) :: acc
+			(FFun (name,None,[],[APublic],pl,f),p) :: acc
 		| _ -> acc
 	in
 	let decls = List.map (fun d ->
@@ -156,7 +156,7 @@ let rec build_generic ctx c p tl =
 	with Error(Module_not_found path,_) when path = (pack,name) ->
 		let m = (try Hashtbl.find ctx.modules (Hashtbl.find ctx.types_module c.cl_path) with Not_found -> assert false) in
 		let ctx = { ctx with local_types = m.mtypes @ ctx.local_types } in
-		let cg = mk_class (pack,name) c.cl_pos None false in
+		let cg = mk_class (pack,name) c.cl_pos in
 		let mg = {
 			mpath = cg.cl_path;
 			mtypes = [TClassDecl cg];
@@ -243,6 +243,7 @@ let extend_xml_proxy ctx c t file p =
 						cf_type = t;
 						cf_public = true;
 						cf_doc = None;
+						cf_meta = [];
 						cf_get = ResolveAccess;
 						cf_set = NoAccess;
 						cf_params = [];

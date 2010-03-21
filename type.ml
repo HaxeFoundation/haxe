@@ -109,6 +109,7 @@ and tclass_field = {
 	mutable cf_type : t;
 	cf_public : bool;
 	cf_doc : Ast.documentation;
+	cf_meta : metadata;
 	cf_get : field_access;
 	cf_set : field_access;
 	cf_params : (string * t) list;
@@ -123,11 +124,14 @@ and tclass_kind =
 	| KGeneric
 	| KGenericInstance of tclass * tparams
 
+and metadata = (string * texpr list) list
+
 and tclass = {
 	cl_path : path;
 	cl_pos : Ast.pos;
-	cl_doc : Ast.documentation;
-	cl_private : bool;
+	mutable cl_private : bool;
+	mutable cl_doc : Ast.documentation;
+	mutable cl_meta : metadata;
 	mutable cl_kind : tclass_kind;
 	mutable cl_extern : bool;
 	mutable cl_interface : bool;
@@ -150,6 +154,7 @@ and tenum_field = {
 	ef_type : t;
 	ef_pos : Ast.pos;
 	ef_doc : Ast.documentation;
+	ef_meta : metadata;
 	ef_index : int;
 }
 
@@ -157,6 +162,7 @@ and tenum = {
 	e_path : path;
 	e_pos : Ast.pos;
 	e_doc : Ast.documentation;
+	e_meta : metadata;
 	e_private : bool;
 	e_extern : bool;
 	mutable e_types : (string * t) list;
@@ -168,6 +174,7 @@ and tdef = {
 	t_path : path;
 	t_pos : Ast.pos;
 	t_doc : Ast.documentation;
+	t_meta : metadata;
 	t_private : bool;
 	mutable t_types : (string * t) list;
 	mutable t_type : t;
@@ -200,12 +207,13 @@ let tfun pl r = TFun (List.map (fun t -> "",false,t) pl,r)
 
 let fun_args l = List.map (fun (a,c,t) -> a, c <> None, t) l
 
-let mk_class path pos doc priv =
+let mk_class path pos =
 	{
 		cl_path = path;
 		cl_pos = pos;
-		cl_doc = doc;
-		cl_private = priv;
+		cl_doc = None;
+		cl_meta = [];
+		cl_private = false;
 		cl_kind = KNormal;
 		cl_extern = false;
 		cl_interface = false;
@@ -223,7 +231,10 @@ let mk_class path pos doc priv =
 		cl_overrides = [];
 	}
 
-let null_class = mk_class ([],"") Ast.null_pos None true
+let null_class = 
+	let c = mk_class ([],"") Ast.null_pos in
+	c.cl_private <- true;
+	c
 
 let arg_name (name,_,_) = name
 
