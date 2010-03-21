@@ -402,7 +402,10 @@ try
 		("--no-output", Arg.Unit (fun() -> no_output := true),": compiles but does not generate any file");
 		("--times", Arg.Unit (fun() -> measure_times := true),": measure compilation times");
 		("--no-inline", define "no_inline", ": disable inlining");
-		("--no-opt", define "no_opt", ": disable code optimizations");
+		("--no-opt", Arg.Unit (fun() -> 
+			com.foptimize <- false;
+			Common.define com "no_opt";
+		), ": disable code optimizations");
 		("--php-front",Arg.String (fun f ->
 			if com.php_front <> None then raise (Arg.Bad "Multiple --php-front");
 			com.php_front <- Some f;

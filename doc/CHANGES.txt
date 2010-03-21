@@ -15,6 +15,7 @@
 	std : added haxe.SHA1
 	compiler : added TCast, allow cast optimization on flash9/cpp
 	as3 : fixed Std.__init__ generating 'null'
+	compiler : fixed -no-opt
 
 2010-01-09: 2.05
 	js : added js.Scroll
