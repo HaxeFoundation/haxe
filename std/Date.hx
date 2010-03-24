@@ -121,10 +121,11 @@ extern class Date
 		Date = neko.NekoDate__;
 		neko.Boot.__classes.Date = Date;
 	#else
-		Date.now = function() {
+		var d : Dynamic = Date;
+		d.now = function() {
 			return __new__(Date);
 		};
-		Date.fromTime = function(t){
+		d.fromTime = function(t){
 			var d : Date = __new__(Date);
 			#if flash9
 			d.setTime(t);
@@ -133,7 +134,7 @@ extern class Date
 			#end
 			return d;
 		};
-		Date.fromString = function(s : String) {
+		d.fromString = function(s : String) {
 			switch( s.length ) {
 			case 8: // hh:mm:ss
 				var k = s.split(":");
@@ -162,7 +163,7 @@ extern class Date
 				throw "Invalid date format : " + s;
 			}
 		};
-		Date.prototype["toString"] = function() {
+		d.prototype["toString"] = function() {
 			var date : Date = this;
 			var m = date.getMonth() + 1;
 			var d = date.getDate();
@@ -178,11 +179,11 @@ extern class Date
 		};
 		#if flash9
 		#elseif flash
-		Date.prototype[__unprotect__("__class__")] = Date;
-		Date[__unprotect__("__name__")] = ["Date"];
+		d.prototype[__unprotect__("__class__")] = d;
+		d[__unprotect__("__name__")] = ["Date"];
 		#else
-		Date.prototype.__class__ = Date;
-		Date.__name__ = ["Date"];
+		d.prototype.__class__ = d;
+		d.__name__ = ["Date"];
 		#end
 	#end
 	}
