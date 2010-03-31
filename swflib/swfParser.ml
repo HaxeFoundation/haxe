@@ -109,6 +109,8 @@ let rgb_length = 3
 
 let rgba_length = 4
 
+let string_length s = String.length s + 1
+
 let color_length = function
 	| ColorRGB _ -> rgb_length
 	| ColorRGBA _ -> rgba_length
@@ -144,7 +146,10 @@ let clip_events_length l =
 	(if !swf_version >= 6 then 10 else 6) + sum clip_event_length l
 
 let export_length e =
-	2 + String.length e.exp_name + 1
+	2 + string_length e.exp_name
+
+let import_length i =
+	2 + string_length i.imp_name
 
 let sound_length s =
 	2 + 1 + 4 + String.length s.so_data
@@ -255,14 +260,8 @@ let button2_length b =
 		1 + sum button_record_length b.bt2_records +
 		sum button_action_length b.bt2_actions
 
-let font2_length f =
-	2 + String.length f.ft2_data
-
-let font3_length f =
-	2 + String.length f.ft3_data
-
-let font_glyphs_length f =
-	2 + String.length f.fgl_data
+let cid_data_length c =
+	2 + String.length c.cd_data
 
 let edit_text_layout_length = 9
 
@@ -275,8 +274,8 @@ let edit_text_length t =
 		opt_len (const rgba_length) t.edt_color +
 		opt_len (const 2) t.edt_maxlen +
 		opt_len (const edit_text_layout_length) t.edt_layout +
-		String.length t.edt_variable + 1 +
-		opt_len (fun s -> String.length s + 1) t.edt_text
+		string_length t.edt_variable +
+		opt_len string_length t.edt_text
 
 let place_object_length p v3 =
 	3
@@ -286,7 +285,7 @@ let place_object_length p v3 =
 	+ opt_len matrix_length p.po_matrix
 	+ opt_len cxa_length p.po_color
 	+ opt_len (const 2) p.po_ratio
-	+ opt_len (fun s -> String.length s + 1) p.po_inst_name
+	+ opt_len string_length p.po_inst_name
 	+ opt_len (const 2) p.po_clip_depth
 	+ opt_len clip_events_length p.po_events
 	+ (if v3 then
@@ -311,10 +310,14 @@ let rec tag_data_length = function
 		String.length tab
 	| TSetBgColor _ ->
 		rgb_length
+	| TFont c -> 
+		cid_data_length c
 	| TText t ->
 		text_length t
 	| TDoAction acts ->
 		actions_length acts
+	| TFontInfo c ->
+		cid_data_length c
 	| TSound s ->
 		sound_length s
 	| TStartSound s ->
@@ -348,49 +351,59 @@ let rec tag_data_length = function
 	| TProductInfo s ->
 		String.length s
 	| TFrameLabel (label,id) ->
-		String.length label + 1 + (match id with None -> 0 | Some _ -> 1)
+		string_length label + (match id with None -> 0 | Some _ -> 1)
 	| TSoundStreamHead2 data ->
 		String.length data
-	| TMorphShape s ->
+	| TMorphShape s | TMorphShape2 s ->
 		morph_shape_length s
-	| TFont2 f ->
-		font2_length f
+	| TFont2 c | TFont3 c | TFontAlignZones c ->
+		cid_data_length c
 	| TExport el ->
 		2 + sum export_length el
+	| TImport (url,il) ->
+		string_length url + 2 + sum import_length il
 	| TDoInitAction i ->
 		2 + actions_length i.dia_actions
-	| TVideoStream s ->
-		String.length s
-	| TVideoFrame s ->
-		String.length s
+	| TVideoStream c ->
+		cid_data_length c
+	| TVideoFrame c ->
+		cid_data_length c
+	| TFontInfo2 c ->
+		cid_data_length c
 	| TDebugID s ->
 		String.length s
-	| TEnableDebugger2 (_,data) ->
-		2 + String.length data + 1
+	| TEnableDebugger2 (_,pass) ->
+		2 + string_length pass
 	| TScriptLimits _ ->
 		4
-	| TSandbox _ ->
+	| TFilesAttributes _ ->
 		4
 	| TPlaceObject3 p ->
 		place_object_length p true
-	| TFontGlyphs f ->
-		font_glyphs_length f
-	| TTextInfo s ->
-		String.length s
-	| TFont3 f ->
-		font3_length f
+	| TImport2 (url,il) ->
+		string_length url + 1 + 1 + 2 + sum import_length il
+	| TCSMSettings c ->
+		cid_data_length c
 	| TF9Classes l ->
-		2 + sum (fun c -> String.length c.f9_classname + 1 + 2) l
+		2 + sum (fun c -> string_length c.f9_classname + 2) l
 	| TMetaData meta ->
-		String.length meta
+		string_length meta
+	| TScale9 (_,r) ->
+		2 + rect_length r
 	| TActionScript3 (id,a) ->
-		(match id with None -> 0 | Some (id,f) -> 4 + String.length f + 1) + As3parse.as3_length a
+		(match id with None -> 0 | Some (id,f) -> 4 + string_length f) + As3parse.as3_length a
 	| TShape4 s ->
 		shape_length s
-	| TShape5 (_,s) ->
-		2 + String.length s
 	| TF9Scene name ->
-		2 + String.length name + 1 + 1
+		2 + string_length name + 1
+	| TBinaryData (_,data) ->
+		2 + String.length data
+	| TFontName c ->
+		cid_data_length c
+	| TBitsJPEG4 b ->
+		2 + 2 + 4 + opt_len String.length b.bd_table + String.length b.bd_data + opt_len String.length b.bd_alpha
+	| TFont4 c ->
+		cid_data_length c
 	| TUnknown (_,data) ->
 		String.length data
 
@@ -984,28 +997,12 @@ let parse_edit_text ch =
 		edt_outlines = (flags land 256) <> 0;
 	}
 
-let parse_font2 ch len =
+let parse_cid_data ch len =
 	let id = read_ui16 ch in
 	let data = nread ch (len - 2) in
 	{
-		ft2_id = id;
-		ft2_data = data;
-	}
-
-let parse_font3 ch len =
-	let id = read_ui16 ch in
-	let data = nread ch (len - 2) in
-	{
-		ft3_id = id;
-		ft3_data = data;
-	}
-
-let parse_font_glyphs ch len =
-	let id = read_ui16 ch in
-	let data = nread ch (len - 2) in
-	{
-		fgl_id = id;
-		fgl_data = data;
+		cd_id = id;
+		cd_data = data;
 	}
 
 let parse_morph_shape ch len =
@@ -1122,6 +1119,14 @@ let parse_place_object ch v3 =
 		po_bcache = bcache;
 	}
 
+let parse_import ch =
+	let cid = read_ui16 ch in
+	let name = read_string ch in
+	{
+		imp_id = cid;
+		imp_name = name
+	}
+
 let rec parse_tag ch h =
 	let id = h lsr 6 in
 	let len = h land 63 in
@@ -1140,6 +1145,7 @@ let rec parse_tag ch h =
 			TShowFrame
 		| 0x02 when !full_parsing ->
 			TShape (parse_shape ch len 1)
+		(* 0x03 invalid *)
 		(*//0x04 TPlaceObject *)
 		| 0x05 ->
 			let cid = read_ui16 ch in
@@ -1160,12 +1166,14 @@ let rec parse_tag ch h =
 			TJPEGTables (nread ch len)
 		| 0x09 ->
 			TSetBgColor (read_rgb ch)
-		(*//0x0A TFont *)
+		| 0x0A ->
+			TFont (parse_cid_data ch len)
 		| 0x0B when !full_parsing ->
 			TText (parse_text ch false)
 		| 0x0C ->
 			TDoAction (parse_actions ch)
-		(*//0x0D TFontInfo *)
+		| 0x0D ->
+			TFontInfo (parse_cid_data ch len)
 		| 0x0E ->
 			let sid = read_ui16 ch in
 			let flags = read_byte ch in
@@ -1184,6 +1192,7 @@ let rec parse_tag ch h =
 				sts_id = sid;
 				sts_data = data;
 			}
+		(* 0x10 invalid *)
 		(*//0x11 TButtonSound *)
 		(*//0x12 TSoundStreamHead *)
 		(*//0x13 TSoundStreamBlock *)
@@ -1198,17 +1207,21 @@ let rec parse_tag ch h =
 				bd_table = table;
 				bd_data = data;
 				bd_alpha = None;
+				bd_deblock = None;
 			}
 		| 0x16 when !full_parsing ->
 			TShape2 (parse_shape ch len 2)
 		(*//0x17 TButtonCXForm *)
 		| 0x18 ->
 			TProtect
+		(* 0x19 invalid *)
 		| 0x1A when !full_parsing ->
 			TPlaceObject2 (parse_place_object ch false)
+		(* 0x1B invalid *)
 		| 0x1C ->
 			let depth = read_ui16 ch in
 			TRemoveObject2 depth
+		(* 0x1D-1F invalid *)
 		| 0x20 when !full_parsing ->
 			TShape3 (parse_shape ch len 3)
 		| 0x21 when !full_parsing ->
@@ -1226,11 +1239,13 @@ let rec parse_tag ch h =
 				bd_table = table;
 				bd_data = data;
 				bd_alpha = Some alpha;
+				bd_deblock = None;
 			}
 		| 0x24 ->
 			TBitsLossless2 (parse_bitmap_lossless ch len)
 		| 0x25 when !full_parsing ->
 			TEditText (parse_edit_text ch)
+		(* 0x26 invalid *)
 		| 0x27 ->
 			let cid = read_ui16 ch in
 			let fcount = read_ui16 ch in
@@ -1240,18 +1255,24 @@ let rec parse_tag ch h =
 				c_frame_count = fcount;
 				c_tags = tags;
 			}
+		(* 0x28 invalid *)
 		| 0x29 ->
+			(* undocumented ? *)
 			TProductInfo (nread ch len)
+		(* 0x2A invalid *)
 		| 0x2B ->
 			let label = read_string ch in
 			let id = (if len = String.length label + 2 then Some (read ch) else None) in
 			TFrameLabel (label,id)
+		(* 0x2C invalid *)
 		| 0x2D ->
 			TSoundStreamHead2 (nread ch len)
 		| 0x2E when !full_parsing ->
 			TMorphShape (parse_morph_shape ch len)
+		(* 0x2F invalid *)
 		| 0x30 when !full_parsing ->
-			TFont2 (parse_font2 ch len)
+			TFont2 (parse_cid_data ch len)
+		(* 0x31-37 invalid *)
 		| 0x38 ->
 			let read_export() =
 				let cid = read_ui16 ch in
@@ -1262,7 +1283,9 @@ let rec parse_tag ch h =
 				}
 			in
 			TExport (read_count (read_ui16 ch) read_export ())
-		(*// 0x39 TImport *)
+		| 0x39 ->
+			let url = read_string ch in
+			TImport (url, read_count (read_ui16 ch) parse_import ch)
 		(*// 0x3A TEnableDebugger *)
 		| 0x3B ->
 			let cid = read_ui16 ch in
@@ -1272,11 +1295,13 @@ let rec parse_tag ch h =
 				dia_actions = actions;
 			}
 		| 0x3C ->
-			TVideoStream (nread ch len)
+			TVideoStream (parse_cid_data ch len)
 		| 0x3D ->
-			TVideoFrame (nread ch len)
-		(*// 0x3E TFontInfo2 *)
+			TVideoFrame (parse_cid_data ch len)
+		| 0x3E ->
+			TFontInfo2 (parse_cid_data ch len)
 		| 0x3F ->
+			(* undocumented ? *)
 			TDebugID (nread ch len)
 		| 0x40 ->
 			let tag = read_ui16 ch in
@@ -1288,22 +1313,34 @@ let rec parse_tag ch h =
 			let script_timeout = read_ui16 ch in
 			TScriptLimits (recursion_depth, script_timeout)
 		(*// 0x42 TSetTabIndex *)
+		(* 0x43-0x44 invalid *)
 		| 0x45 ->
-			TSandbox (match IO.read_i32 ch with
-				| 0 -> SBLocal
-				| 1 -> SBNetwork
-				| n -> SBUnknown n
-			)
+			let flags = IO.read_i32 ch in
+			let mask = 1 lor 8 lor 16 lor 32 lor 64 in
+			if (flags lor mask) <> mask then failwith ("Invalid file attributes " ^ string_of_int flags);
+			TFilesAttributes {
+				fa_network = (flags land 1) <> 0;
+				(* flags 2,4 : reserved *)
+				fa_as3 = (flags land 8) <> 0;
+				fa_metadata = (flags land 16) <> 0;
+				fa_gpu = (flags land 32) <> 0;
+				fa_direct_blt = (flags land 64) <> 0;
+			}
 		| 0x46 when !full_parsing ->
 			TPlaceObject3 (parse_place_object ch true)
+		| 0x47 ->
+			let url = read_string ch in
+			if IO.read_byte ch <> 1 then assert false;
+			if IO.read_byte ch <> 0 then assert false;
+			TImport2 (url, read_count (read_ui16 ch) parse_import ch)
 		| 0x48 when !full_parsing || !force_as3_parsing ->
 			TActionScript3 (None , As3parse.parse ch len)
 		| 0x49 when !full_parsing ->
-			TFontGlyphs (parse_font_glyphs ch len)
+			TFontAlignZones (parse_cid_data ch len)
 		| 0x4A ->
-			TTextInfo (nread ch len)
+			TCSMSettings (parse_cid_data ch len)
 		| 0x4B when !full_parsing ->
-			TFont3 (parse_font3 ch len)
+			TFont3 (parse_cid_data ch len)
 		| 0x4C ->
 			let i = read_ui16 ch in
 			let rec loop i =
@@ -1319,7 +1356,12 @@ let rec parse_tag ch h =
 			in
 			TF9Classes (loop i)
 		| 0x4D ->
-			TMetaData (nread ch len)
+			TMetaData (read_string ch)
+		| 0x4E ->
+			let cid = read_ui16 ch in
+			let rect = read_rect ch in
+			TScale9 (cid,rect)
+		(* 0x4F-0x51 invalid *)
 		| 0x52 when !full_parsing || !force_as3_parsing ->
 			let id = read_i32 ch in
 			let frame = read_string ch in
@@ -1328,8 +1370,8 @@ let rec parse_tag ch h =
 		| 0x53 when !full_parsing ->
 			TShape4 (parse_shape ch len 4)
 		| 0x54 when !full_parsing ->
-			let id = read_ui16 ch in
-			TShape5 (id,nread ch (len - 2))
+			TMorphShape2 (parse_morph_shape ch len)			
+		(* 0x55 invalid *)
 		| 0x56 ->
 			let n = read_ui16 ch in
 			if n <> 1 then assert false;
@@ -1337,6 +1379,30 @@ let rec parse_tag ch h =
 			let k = read_byte ch in
 			if k <> 0 then assert false;
 			TF9Scene name
+		| 0x57 ->
+			let cid = read_ui16 ch in
+			if read_i32 ch <> 0 then assert false;
+			let data = nread ch (len - 6) in
+			TBinaryData (cid,data)
+		| 0x58 ->
+			TFontName (parse_cid_data ch len)
+		(* // 0x59 TStartSound2 *)
+		| 0x5A ->
+			let id = read_ui16 ch in
+			let size = read_i32 ch in
+			let deblock = read_ui16 ch in
+			let data = nread ch size in
+			let data, table = extract_jpg_table data in
+			let alpha = nread ch (len - 6 - size) in
+			TBitsJPEG4 {
+				bd_id = id;
+				bd_table = table;
+				bd_data = data;
+				bd_alpha = Some alpha;
+				bd_deblock = Some deblock;
+			}
+		| 0x5B ->
+			TFont4 (parse_cid_data ch len)
 		| _ ->
 			(*if !Swf.warnings then Printf.printf "Unknown tag 0x%.2X\n" id;*)
 			TUnknown (id,nread ch len)
@@ -1390,8 +1456,10 @@ let rec tag_id = function
 	| TBitsJPEG _ -> 0x06
 	| TJPEGTables _ -> 0x08
 	| TSetBgColor _ -> 0x09
+	| TFont _ -> 0x0A
 	| TText _ -> 0x0B
 	| TDoAction _ -> 0x0C
+	| TFontInfo _ -> 0x0D
 	| TSound _ -> 0x0E
 	| TStartSound _ -> 0x0F
 	| TBitsLossless _ -> 0x14
@@ -1413,24 +1481,32 @@ let rec tag_id = function
 	| TMorphShape _ -> 0x2E
 	| TFont2 _ -> 0x30
 	| TExport _ -> 0x38
+	| TImport _ -> 0x39
 	| TDoInitAction _ -> 0x3B
 	| TVideoStream _ -> 0x3C
 	| TVideoFrame _ -> 0x3D
+	| TFontInfo2 _ -> 0x3E
 	| TDebugID _ -> 0x3F
 	| TEnableDebugger2 _ -> 0x40
 	| TScriptLimits _ -> 0x41
-	| TSandbox _ -> 0x45
+	| TFilesAttributes _ -> 0x45
 	| TPlaceObject3 _ -> 0x46
-	| TFontGlyphs _ -> 0x49
-	| TTextInfo _ -> 0x4A
+	| TImport2 _ -> 0x47
+	| TFontAlignZones _ -> 0x49
+	| TCSMSettings _ -> 0x4A
 	| TFont3 _ -> 0x4B
 	| TF9Classes _ -> 0x4C
 	| TMetaData _ -> 0x4D
+	| TScale9 _ -> 0x4E
 	| TActionScript3 (None,_) -> 0x48
 	| TActionScript3 _ -> 0x52
 	| TShape4 _ -> 0x53
-	| TShape5 _ -> 0x54
+	| TMorphShape2 _ -> 0x54
 	| TF9Scene _ -> 0x56
+	| TBinaryData _ -> 0x57
+	| TFontName _ -> 0x58
+	| TBitsJPEG4 _ -> 0x5A
+	| TFont4 _ -> 0x5B
 	| TUnknown (id,_) -> id
 
 let write_clip_event ch c =
@@ -1625,17 +1701,9 @@ let write_edit_text ch t =
 	write_string ch t.edt_variable;
 	opt (write_string ch) t.edt_text
 
-let write_font2 ch t =
-	write_ui16 ch t.ft2_id;
-	nwrite ch t.ft2_data
-
-let write_font3 ch t =
-	write_ui16 ch t.ft3_id;
-	nwrite ch t.ft3_data
-
-let write_font_glyphs ch t =
-	write_ui16 ch t.fgl_id;
-	nwrite ch t.fgl_data
+let write_cid_data ch c =
+	write_ui16 ch c.cd_id;
+	nwrite ch c.cd_data
 
 let write_filter_gradient ch fg =
 	write_byte ch (List.length fg.fgr_colors);
@@ -1747,10 +1815,14 @@ let rec write_tag_data ch = function
 		nwrite ch tab
 	| TSetBgColor c ->
 		write_rgb ch c
+	| TFont c ->
+		write_cid_data ch c
 	| TText t ->
 		write_text ch t
 	| TDoAction acts ->
 		write_actions ch acts
+	| TFontInfo c ->
+		write_cid_data ch c
 	| TSound s ->
 		write_ui16 ch s.so_id;
 		write_byte ch s.so_flags;
@@ -1803,21 +1875,30 @@ let rec write_tag_data ch = function
 		nwrite ch data
 	| TMorphShape s ->
 		write_morph_shape ch s
-	| TFont2 f ->
-		write_font2 ch f
+	| TFont2 c ->
+		write_cid_data ch c
 	| TExport el ->
 		write_ui16 ch (List.length el);
 		List.iter (fun e ->
 			write_ui16 ch e.exp_id;
 			write_string ch e.exp_name
 		) el
+	| TImport (url,il) ->
+		write_string ch url;
+		write_ui16 ch (List.length il);
+		List.iter (fun i ->
+			write_ui16 ch i.imp_id;
+			write_string ch i.imp_name
+		) il
 	| TDoInitAction i ->
 		write_ui16 ch i.dia_id;
 		write_actions ch i.dia_actions;
-	| TVideoStream s ->
-		nwrite ch s
-	| TVideoFrame s ->
-		nwrite ch s
+	| TVideoStream c ->
+		write_cid_data ch c
+	| TVideoFrame c ->
+		write_cid_data ch c
+	| TFontInfo2 c ->
+		write_cid_data ch c
 	| TDebugID s ->
 		nwrite ch s
 	| TEnableDebugger2 (tag,pass) ->
@@ -1826,19 +1907,26 @@ let rec write_tag_data ch = function
 	| TScriptLimits (recursion_depth, script_timeout) ->
 		write_ui16 ch recursion_depth;
 		write_ui16 ch script_timeout;
-	| TSandbox s ->
-		write_i32 ch (match s with
-		| SBLocal -> 0
-		| SBNetwork -> 1
-		| SBUnknown n -> n)
+	| TFilesAttributes f ->
+		let flags = make_flags [f.fa_network;false;false;f.fa_as3;f.fa_metadata;f.fa_gpu;f.fa_direct_blt] in
+		write_i32 ch flags
 	| TPlaceObject3 p ->
 		write_place_object ch p true;
-	| TFontGlyphs f ->
-		write_font_glyphs ch f
-	| TTextInfo s ->
-		nwrite ch s
-	| TFont3 f ->
-		write_font3 ch f
+	| TImport2 (url,il) ->
+		write_string ch url;
+		write_byte ch 1;
+		write_byte ch 0;
+		write_ui16 ch (List.length il);
+		List.iter (fun i ->
+			write_ui16 ch i.imp_id;
+			write_string ch i.imp_name
+		) il
+	| TFontAlignZones c ->
+		write_cid_data ch c
+	| TCSMSettings c ->
+		write_cid_data ch c
+	| TFont3 c ->
+		write_cid_data ch c
 	| TF9Classes l ->
 		write_ui16 ch (List.length l);
 		List.iter (fun c ->
@@ -1846,7 +1934,10 @@ let rec write_tag_data ch = function
 			write_string ch c.f9_classname
 		) l
 	| TMetaData meta ->
-		nwrite ch meta
+		write_string ch meta
+	| TScale9 (cid,r) ->
+		write_ui16 ch cid;
+		write_rect ch r;
 	| TActionScript3 (id,a) ->
 		(match id with
 		| None -> ()
@@ -1857,13 +1948,26 @@ let rec write_tag_data ch = function
 		As3parse.write ch a
 	| TShape4 s ->
 		write_shape ch s
-	| TShape5 (id,s) ->
-		write_ui16 ch id;
-		nwrite ch s
+	| TMorphShape2 m ->
+		write_morph_shape ch m
 	| TF9Scene s ->
 		write_ui16 ch 1;
 		write_string ch s;
 		write_byte ch 0;
+	| TBinaryData (id,data) ->
+		write_ui16 ch id;
+		nwrite ch data
+	| TFontName c ->
+		write_cid_data ch c
+	| TBitsJPEG4 b ->
+		write_ui16 ch b.bd_id;
+		write_i32 ch (String.length b.bd_data + opt_len String.length b.bd_table);
+		opt (write_ui16 ch) b.bd_deblock;
+		opt (nwrite ch) b.bd_table;
+		nwrite ch b.bd_data;
+		opt (nwrite ch) b.bd_alpha;
+	| TFont4 c ->
+		write_cid_data ch c
 	| TUnknown (_,data) ->
 		nwrite ch data
 
@@ -1897,6 +2001,175 @@ let write ch (h,tags) =
 	List.iter (write_tag ch) tags;
 	write_tag ch tag_end;
 	if h.h_compressed then IO.close_out ch
+
+(* ************************************************************************ *)
+(* EXTRA *)
+
+let scan fid f t =
+	match t.tdata with
+	| TEnd
+	| TShowFrame
+	| TJPEGTables _
+	| TSetBgColor _
+	| TDoAction _
+	| TActionScript3 _
+	| TProtect
+	| TRemoveObject2 _
+	| TFrameLabel _
+	| TSoundStreamHead2 _
+	| TF9Scene _
+	| TEnableDebugger2 _
+	| TMetaData _
+	| TScriptLimits _
+	| TDebugID _
+	| TFilesAttributes _
+	| TProductInfo _
+		-> ()
+	| TF9Classes l ->
+		List.iter (fun c -> 
+			match c.f9_cid with
+			| None -> ()
+			| Some id -> c.f9_cid <- Some (f id)
+		) l
+	| TShape s
+	| TShape2 s
+	| TShape3 s
+	| TShape4 s ->
+		s.sh_id <- fid s.sh_id;
+		let loop fs =
+			List.iter (fun s -> match s with
+				| SFSBitmap b ->
+					if b.sfb_cid <> 0xFFFF then b.sfb_cid <- f b.sfb_cid;
+				| _ ->
+					()
+			) fs
+		in
+		loop s.sh_style.sws_fill_styles;
+		List.iter (fun s -> match s with
+			| SRStyleChange { scsr_new_styles = Some s } ->
+				loop s.sns_fill_styles
+			| _ ->
+				()
+		) s.sh_style.sws_records.srs_records;
+	| TRemoveObject r ->
+		r.rmo_id <- f r.rmo_id
+	| TBitsJPEG b ->
+		b.jpg_id <- fid b.jpg_id
+	| TBitsJPEG2 b ->
+		b.bd_id <- fid b.bd_id
+	| TText t
+	| TText2 t ->
+		t.txt_id <- fid t.txt_id;
+		List.iter (fun r -> match r.txr_font with None -> () | Some (id,id2) -> r.txr_font <- Some (f id,id2)) t.txt_records
+	| TEditText t ->
+		t.edt_id <- fid t.edt_id;
+		(match t.edt_font with None -> () | Some (id,h) -> t.edt_font <- Some (f id,h))
+	| TSound s ->
+		s.so_id <- fid s.so_id
+	| TStartSound s ->
+		s.sts_id <- f s.sts_id
+	| TBitsLossless b
+	| TBitsLossless2 b ->
+		b.bll_id <- fid b.bll_id
+	| TPlaceObject2 p ->
+		p.po_cid <- (match p.po_cid with None -> None | Some id -> Some (f id))
+	| TButton2 b ->
+		b.bt2_id <- fid b.bt2_id;
+		List.iter (fun r ->
+			r.btr_cid <- f r.btr_cid
+		) b.bt2_records;
+	| TBitsJPEG3 j ->
+		j.bd_id <- fid j.bd_id
+	| TClip c ->
+		c.c_id <- fid c.c_id
+	| TMorphShape s | TMorphShape2 s ->
+		s.msh_id <- fid s.msh_id
+	| TFont c | TFont2 c | TFont3 c | TFont4 c ->
+		c.cd_id <- fid c.cd_id
+	| TExport el ->
+		List.iter (fun e -> e.exp_id <- f e.exp_id) el
+	| TImport (_,il) | TImport2 (_,il) ->
+		List.iter (fun i -> i.imp_id <- fid i.imp_id) il
+	| TDoInitAction a ->
+		a.dia_id <- f a.dia_id
+	| TVideoStream c ->
+		c.cd_id <- fid c.cd_id
+	| TVideoFrame c ->
+		c.cd_id <- f c.cd_id
+	| TPlaceObject3 p ->
+		p.po_cid <- (match p.po_cid with None -> None | Some id -> Some (f id))
+	| TCSMSettings c ->
+		c.cd_id <- f c.cd_id
+	| TBinaryData (id,data) ->
+		t.tdata <- TBinaryData (fid id,data)
+	| TFontAlignZones c | TFontInfo c | TFontInfo2 c | TFontName c ->
+		c.cd_id <- f c.cd_id
+	| TScale9 (id,r) ->
+		t.tdata <- TScale9 (f id,r)
+	| TBitsJPEG4 j ->
+		j.bd_id <- fid j.bd_id
+	| TUnknown _ ->
+		()
+
+let tag_name = function
+	| TEnd -> "End"
+	| TShowFrame -> "ShowFrame"
+	| TShape _ -> "Shape"
+	| TRemoveObject _ -> "RemoveObject"
+	| TBitsJPEG _ -> "BitsJPEG"
+	| TJPEGTables _ -> "JPGETables"
+	| TSetBgColor _ -> "SetBgColor"
+	| TFont _ -> "Font"
+	| TText _ -> "Text"
+	| TDoAction _ -> "DoAction"
+	| TFontInfo _ -> "FontInfo"
+	| TSound _ -> "Sound"
+	| TStartSound _ -> "StartSound"
+	| TBitsLossless _ -> "BitsLossless"
+	| TBitsJPEG2 _ -> "BitsJPEG2"
+	| TShape2 _ -> "Shape2"
+	| TProtect -> "Protect"
+	| TPlaceObject2 _ -> "PlaceObject2"
+	| TRemoveObject2 _ -> "RemoveObject2"
+	| TShape3 _ -> "Shape3"
+	| TText2 _ -> "Text2"
+	| TButton2 _ -> "Button2"
+	| TBitsJPEG3 _ -> "BitsJPEG3"
+	| TBitsLossless2 _ -> "Lossless2"
+	| TEditText _ -> "EditText"
+	| TClip _ -> "Clip"
+	| TProductInfo _ -> "ProductInfo"
+	| TFrameLabel _ -> "FrameLabel"
+	| TSoundStreamHead2 _ -> "SoundStreamHead2"
+	| TMorphShape _ -> "MorphShape"
+	| TFont2 _ -> "Font2"
+	| TExport _ -> "Export"
+	| TImport _ -> "Import"
+	| TDoInitAction _ -> "DoInitAction"
+	| TVideoStream _ -> "VideoStream"
+	| TVideoFrame _ -> "VideoFrame"
+	| TFontInfo2 _ -> "FontInfo2"
+	| TDebugID _ -> "DebugID"
+	| TEnableDebugger2 _ -> "EnableDebugger2"
+	| TScriptLimits _ -> "ScriptLimits"
+	| TFilesAttributes _ -> "FilesAttributes"
+	| TPlaceObject3 _ -> "PlaceObject3"
+	| TImport2 _ -> "Import2"
+	| TFontAlignZones _ -> "FontAlignZones"
+	| TCSMSettings _ -> "TCSMSettings"
+	| TFont3 _ -> "Font3"
+	| TF9Classes _ -> "F9Classes"
+	| TMetaData _ -> "MetaData"
+	| TScale9 _ -> "Scale9"
+	| TActionScript3 _ -> "ActionScript3"
+	| TShape4 _ -> "Shape4"
+	| TMorphShape2 _ -> "MorphShape2"
+	| TF9Scene _ -> "F9Scene"
+	| TBinaryData _ -> "BinaryData"
+	| TFontName _ -> "FontName"
+	| TBitsJPEG4 _ -> "BitsJPEG4"
+	| TFont4 _ -> "Font4"
+	| TUnknown (n,_) -> Printf.sprintf "Unknown 0x%.2X" n
 
 let init inflate deflate =
 	Swf.__parser := parse;

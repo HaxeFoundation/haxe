@@ -20,6 +20,8 @@ type float16 = int
 
 type unknown = string
 
+type binary = string
+
 type action_count = int
 
 type rgb = {
@@ -270,6 +272,11 @@ type export = {
 	exp_name : string;
 }
 
+type import = {
+	mutable imp_id : int;
+	imp_name : string;
+}
+
 type do_init_action = {
 	mutable dia_id : int;
 	dia_actions : actions;
@@ -377,14 +384,15 @@ type filter =
 
 type bitmap_jpg = {
 	mutable jpg_id : int;
-	jpg_data : string;
+	jpg_data : binary;
 }
 
 type bitmap_data = {
 	mutable bd_id : int;
-	bd_table : string option;
-	bd_data : string;
-	bd_alpha : string option;
+	bd_table : binary option;
+	bd_data : binary;
+	bd_alpha : binary option;
+	bd_deblock : int option;
 }
 
 type bitmap_lossless = {
@@ -402,19 +410,9 @@ type morph_shape = {
 	msh_data : unknown;
 }
 
-type font2 = {
-	mutable ft2_id : int;
-	ft2_data : unknown;
-}
-
-type font3 = {
-	mutable ft3_id : int;
-	ft3_data : unknown;
-}
-
-type font_glyphs = {
-	mutable fgl_id : int;
-	fgl_data : unknown;
+type cid_data = {
+	mutable cd_id : int;
+	cd_data : binary;
 }
 
 type text_glyph = {
@@ -498,10 +496,13 @@ type f9class = {
 	f9_classname : string;
 }
 
-type sandbox =
-	| SBLocal
-	| SBNetwork
-	| SBUnknown of int
+type files_attrib = {
+	fa_network : bool;
+	fa_as3 : bool;
+	fa_metadata : bool;
+	fa_gpu : bool;	
+	fa_direct_blt : bool;
+}
 
 type tag_data =
 	| TEnd
@@ -509,10 +510,12 @@ type tag_data =
 	| TShape of shape
 	| TRemoveObject of remove_object
 	| TBitsJPEG of bitmap_jpg
-	| TJPEGTables of string
+	| TJPEGTables of binary
 	| TSetBgColor of rgb
+	| TFont of cid_data
 	| TText of text
 	| TDoAction of actions
+	| TFontInfo of cid_data
 	| TSound of sound
 	| TStartSound of start_sound
 	| TBitsLossless of bitmap_lossless
@@ -532,25 +535,33 @@ type tag_data =
 	| TFrameLabel of string * char option
 	| TSoundStreamHead2 of unknown
 	| TMorphShape of morph_shape
-	| TFont2 of font2
+	| TFont2 of cid_data
 	| TExport of export list
+	| TImport of string * import list
 	| TDoInitAction of do_init_action
-	| TVideoStream of unknown
-	| TVideoFrame of unknown
+	| TVideoStream of cid_data
+	| TVideoFrame of cid_data
+	| TFontInfo2 of cid_data
 	| TDebugID of unknown
 	| TEnableDebugger2 of int * string
 	| TScriptLimits of int * int
-	| TSandbox of sandbox
+	| TFilesAttributes of files_attrib
 	| TPlaceObject3 of place_object
-	| TFontGlyphs of font_glyphs
-	| TTextInfo of unknown
-	| TFont3 of font3
+	| TImport2 of string * import list
+	| TFontAlignZones of cid_data
+	| TCSMSettings of cid_data
+	| TFont3 of cid_data
 	| TF9Classes of f9class list
 	| TMetaData of string
+	| TScale9 of int * rect
 	| TActionScript3 of (int * string) option * As3.as3_tag
 	| TShape4 of shape
-	| TShape5 of int * string
+	| TMorphShape2 of morph_shape
 	| TF9Scene of string
+	| TBinaryData of int * binary
+	| TFontName of cid_data
+	| TBitsJPEG4 of bitmap_data
+	| TFont4 of cid_data
 	| TUnknown of int * unknown
 
 and tag = {
