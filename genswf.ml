@@ -458,12 +458,13 @@ let generate com swf_header swf_lib =
 	let build_swf content =
 		let sandbox = (if com.flash_version >= 8 then
 				let net = Common.defined com "network-sandbox" in
-				[tag (TSandbox (match isf9, net with
-					| true, true -> SBUnknown 9
-					| true, false -> SBUnknown 8
-					| _, true -> SBNetwork
-					| _, false -> SBLocal
-				))]
+				[tag (TFilesAttributes {
+					fa_network = net;
+					fa_as3 = isf9;
+					fa_metadata = false;
+					fa_gpu = false;
+					fa_direct_blt = false;
+				})]
 			else
 				[]
 		) in
@@ -570,7 +571,7 @@ let generate com swf_header swf_lib =
 					end;
 				| TF9Scene _
 				| TEnableDebugger2 _
-				| TSandbox _ ->
+				| TFilesAttributes _ ->
 					loop acc l
 				| TF9Classes cl ->
 					if isf9 then add_as3_clips ctx cl;
