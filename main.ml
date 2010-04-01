@@ -197,7 +197,7 @@ and init params =
 try
 	let xml_out = ref None in
 	let swf_header = ref None in
-	let swf_lib = ref None in
+	let swf_libs = ref [] in
 	let cmds = ref [] in
 	let excludes = ref [] in
 	let libs = ref [] in
@@ -323,8 +323,19 @@ try
 				_ -> raise (Arg.Bad "Invalid SWF header format")
 		),"<header> : define SWF header (width:height:fps:color)");
 		("-swf-lib",Arg.String (fun file ->
-			if !swf_lib <> None then raise (Arg.Bad "Only one SWF Library is allowed");
-			swf_lib := Some file
+			let data = ref None in
+			let getSWF() =
+				match !data with
+				| Some swf -> swf
+				| None -> 
+					let file = (try Common.find_file com file with Not_found -> failwith ("SWF Library not found : " ^ file)) in
+					let ch = IO.input_channel (open_in_bin file) in
+					let swf = (try Swf.parse ch with _ -> failwith ("The input swf " ^ file ^ " is corrupted")) in
+					IO.close_in ch;
+					data := Some swf;
+					swf
+			in
+			swf_libs := getSWF :: !swf_libs
 		),"<file> : add the SWF library to the compiled SWF");
 		("-x", Arg.String (fun file ->
 			let neko_file = file ^ ".n" in
@@ -513,7 +524,7 @@ try
 			Genas3.generate com;
 		| Flash | Flash9 ->
 			if com.verbose then print_endline ("Generating swf : " ^ com.file);
-			Genswf.generate com !swf_header !swf_lib;
+			Genswf.generate com !swf_header (List.rev !swf_libs);
 		| Neko ->
 			if com.verbose then print_endline ("Generating neko : " ^ com.file);
 			Genneko.generate com !libs;

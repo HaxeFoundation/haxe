@@ -16,6 +16,9 @@
 	compiler : added TCast, allow cast optimization on flash9/cpp
 	as3 : fixed Std.__init__ generating 'null'
 	compiler : fixed -no-opt
+	flash : allow several -swf-lib
+		no longer support automatic creation of classes for f8 swfs in f9 mode
+		classes defined in f9 swf are not redefinable in haXe code (use extern)
 
 2010-01-09: 2.05
 	js : added js.Scroll

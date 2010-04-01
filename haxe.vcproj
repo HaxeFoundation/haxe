@@ -60,6 +60,9 @@
 			<File
 				RelativePath="..\..\mtcvs\swflib\as3hl.mli">
 			</File>
+			<File
+				RelativePath="..\..\mtcvs\swflib\swf.ml">
+			</File>
 		</Filter>
 		<Filter
 			Name="gen"
