@@ -49,6 +49,7 @@ type context_type_api = {
 	mutable on_generate : module_type -> unit;
 	mutable get_type_module : module_type -> module_def;
 	mutable optimize : texpr -> texpr;
+	mutable load_extern_type : (path -> pos -> Ast.package) list;
 }
 
 type context = {
@@ -59,7 +60,7 @@ type context = {
 	mutable foptimize : bool;
 	mutable platform : platform;
 	mutable class_path : string list;
-	mutable main_class : Type.path option; 
+	mutable main_class : Type.path option;
 	mutable defines : (string,unit) PMap.t;
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable error : string -> pos -> unit;
@@ -71,6 +72,7 @@ type context = {
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
 	mutable php_front : string option;
+	mutable swf_libs : ((unit -> Swf.swf) * (unit -> ((string list * string),As3hl.hl_class) Hashtbl.t)) list;
 	(* typing *)
 	mutable type_api : context_type_api;
 	mutable lines : Lexer.line_index;
@@ -95,6 +97,7 @@ let create v =
 		flash_version = 8;
 		resources = Hashtbl.create 0;
 		php_front = None;
+		swf_libs = [];
 		js_namespace = None;
 		warning = (fun _ _ -> assert false);
 		error = (fun _ _ -> assert false);
@@ -111,6 +114,7 @@ let create v =
 			on_generate = (fun _ -> ());
 			get_type_module = (fun _ -> assert false);
 			optimize = (fun _ -> assert false);
+			load_extern_type = [];
 		};
 		lines = Lexer.build_line_index();
 	}

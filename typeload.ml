@@ -55,7 +55,7 @@ let type_static_var ctx t e p =
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
 
 (*
-	load a type or a subtype definition 
+	load a type or a subtype definition
 *)
 let rec load_type_def ctx p t =
 	let no_pack = t.tpackage = [] in
@@ -87,7 +87,7 @@ let rec load_type_def ctx p t =
 						(match PMap.find x ctx.com.package_rules with
 						| Forbidden -> raise Exit
 						| _ -> ())
-					with Not_found -> ());				
+					with Not_found -> ());
 				load_type_def ctx p { t with tpackage = fst ctx.current.mpath }
 			with
 				| Error (Module_not_found _,p2)
@@ -349,7 +349,7 @@ let rec check_interface ctx c p intf params =
 			else if not (unify_access f2.cf_get f.cf_get) then
 				display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_access f2.cf_get ^ " should be " ^ s_access f.cf_get ^ ")") p
 			else if not (unify_access f2.cf_set f.cf_set) then
-				display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_access f2.cf_set ^ " should be " ^ s_access f.cf_set ^ ")") p			
+				display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_access f2.cf_set ^ " should be " ^ s_access f.cf_set ^ ")") p
 			else try
 				valid_redefinition ctx f2 t2 f (apply_params intf.cl_types params f.cf_type)
 			with
@@ -476,10 +476,10 @@ let type_type_params ctx path p (n,flags) =
 
 let type_function ctx args ret static constr f p =
 	let locals = save_locals ctx in
-	let fargs = List.map (fun (n,c,t) -> 
-		let c = (match c with 
+	let fargs = List.map (fun (n,c,t) ->
+		let c = (match c with
 			| None -> None
-			| Some e -> 
+			| Some e ->
 				let p = pos e in
 				let e = ctx.api.optimize (type_expr ctx e true) in
 				unify ctx e.etype t p;
@@ -532,7 +532,7 @@ let type_function ctx args ret static constr f p =
 
 let type_meta ctx meta =
 	let notconst p = error "Metadata should be constant" p in
-	let rec mk_const (e,p) = 
+	let rec mk_const (e,p) =
 		match e with
 		| EConst c ->
 			(match c with
@@ -695,7 +695,7 @@ let init_class ctx c p herits fields =
 					tf_type = ret;
 					tf_expr = e;
 				} in
-				if stat && name = "__init__" then 
+				if stat && name = "__init__" then
 					(match e.eexpr with
 					| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
 					| _ -> c.cl_init <- Some e);
@@ -803,10 +803,10 @@ let init_class ctx c p herits fields =
 					let esuper = (ECall ((EConst (Ident "super"),p),List.map (fun (n,_,_,_) -> (EConst (Ident n),p)) f.f_args),p) in
 					let acc = (if csuper.cl_extern && acc = [] then [APublic] else acc) in
 					let fnew = { f with f_expr = esuper; f_args = List.map (fun (a,opt,t,def) ->
-						(* 
+						(*
 							we are removing the type and letting the type inference
 							work because the current package is not the same as the superclass one
-							or there might be private and/or imported types 
+							or there might be private and/or imported types
 
 							if we are an extern class then we need a type
 							if the type is Dynamic also because it would not propagate
@@ -871,7 +871,7 @@ let type_module ctx m tdecls loadp =
 			Not_found ->
 				Hashtbl.add ctx.types_module tpath m;
 				tpath
-	in	
+	in
 	List.iter (fun (d,p) ->
 		match d with
 		| EImport _ | EUsing _ -> ()
@@ -1017,7 +1017,7 @@ let type_module ctx m tdecls loadp =
 					| [] -> et
 					| l ->
 						let pnames = ref PMap.empty in
-						TFun (List.map (fun (s,opt,t) -> 
+						TFun (List.map (fun (s,opt,t) ->
 							if PMap.mem s (!pnames) then error ("Duplicate parameter '" ^ s ^ "' in enum constructor " ^ c) p;
 							pnames := PMap.add s () (!pnames);
 							s, opt, load_type_opt ~opt ctx p (Some t)
@@ -1049,7 +1049,7 @@ let type_module ctx m tdecls loadp =
 			| _ -> assert false);
 	) tdecls;
 	(* PASS 3 : type checking, delayed until all modules and types are built *)
-	ctx.delays := !delays :: !(ctx.delays);	
+	ctx.delays := !delays :: !(ctx.delays);
 	m
 
 let parse_module ctx m p =
@@ -1066,7 +1066,7 @@ let parse_module ctx m p =
 			) in
 			String.concat "/" (x :: l) ^ "/" ^ name
 	) ^ ".hx" in
-	let file = (try Common.find_file ctx.com file with Not_found -> raise (Error (Module_not_found m,p))) in
+	let file = Common.find_file ctx.com file in
 	let ch = (try open_in_bin file with _ -> error ("Could not open " ^ file) p) in
 	let t = Common.timer "parsing" in
 	let pack , decls = (try Parser.parse ctx.com (Lexing.from_channel ch) file with e -> close_in ch; t(); raise e) in
@@ -1085,13 +1085,13 @@ let parse_module ctx m p =
 		List.rev (List.fold_left (fun acc (t,p) ->
 			let build f d =
 				let priv = List.mem f d.d_flags in
-				(ETypedef { 
+				(ETypedef {
 					d_name = d.d_name;
 					d_doc = None;
 					d_meta = [];
 					d_params = d.d_params;
 					d_flags = if priv then [EPrivate] else [];
-					d_data = TPNormal (if priv then { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; } else 
+					d_data = TPNormal (if priv then { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; } else
 						{
 							tpackage = !remap;
 							tname = d.d_name;
@@ -1116,5 +1116,13 @@ let load_module ctx m p =
 		Hashtbl.find ctx.modules m
 	with
 		Not_found ->
-			let decls = parse_module ctx m p in
+			let decls = (try
+				parse_module ctx m p
+			with Not_found ->
+				let rec loop = function
+					| [] -> raise (Error (Module_not_found m,p))
+					| load :: l -> try snd (load m p) with Not_found -> loop l
+				in
+				loop ctx.api.load_extern_type
+			) in
 			type_module ctx m decls p

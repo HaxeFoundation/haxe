@@ -19,6 +19,7 @@
 	flash : allow several -swf-lib
 		no longer support automatic creation of classes for f8 swfs in f9 mode
 		classes defined in f9 swf are not redefinable in haXe code (use extern)
+	flash9 : allow direct access and completion with classes defined in -swf-lib's
 
 2010-01-09: 2.05
 	js : added js.Scroll

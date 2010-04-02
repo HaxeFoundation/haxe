@@ -22,6 +22,7 @@ open As3hl
 open Genswf9
 open Type
 open Common
+open Ast
 
 (* --- MINI ZIP IMPLEMENTATION --- *)
 
@@ -141,6 +142,201 @@ let zip_write_cdr z =
 
 (* ------------------------------- *)
 
+let rec make_tpath = function
+	| HMPath (pack,name) ->
+		let pdyn = ref false in
+		let pack, name = match pack, name with
+			| [], "void" -> [], "Void"
+			| [], "int" -> [], "Int"
+			| [], "uint" -> [], "UInt"
+			| [], "Number" -> [], "Float"
+			| [], "Boolean" -> [], "Bool"
+			| [], "Object" | [], "Function" -> [], "Dynamic"
+			| [],"Class" | [],"Array" -> pdyn := true; pack, name
+			| _ -> pack, name
+		in
+		{
+			tpackage = pack;
+			tname = name;
+			tparams = if !pdyn then [TPType (TPNormal { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; })] else[];
+			tsub = None;
+		}
+	| HMName (id,_) ->
+		{
+			tpackage = [];
+			tname = id;
+			tparams = [];
+			tsub = None;
+		}
+	| HMMultiName (Some id,[HNPublic (Some ns)]) ->
+		{
+			tpackage = ExtString.String.nsplit ns ".";
+			tname = id;
+			tparams = [];
+			tsub = None;
+		}
+	| HMMultiName _ ->
+		assert false
+	| HMRuntimeName _ ->
+		assert false
+	| HMRuntimeNameLate ->
+		assert false
+	| HMMultiNameLate _ ->
+		assert false
+	| HMAttrib _ ->
+		assert false
+	| HMParams (t,params) ->
+		let params = List.map (fun t -> TPType (TPNormal (make_tpath t))) params in
+		{ (make_tpath t) with tparams = params }
+
+let make_topt = function
+	| None -> { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None }
+	| Some t -> make_tpath t
+
+let build_class com c file =
+	let path = make_tpath c.hlc_name in
+  (* make flags *)
+	let flags = [HExtern] in
+	let flags = if c.hlc_interface then HInterface :: flags else flags in
+	let flags = (match c.hlc_super with
+		| None | Some (HMPath ([],"Object")) -> flags
+		| Some s -> HExtends (make_tpath s) :: flags
+	) in
+	let flags = List.map (fun i -> HImplements (make_tpath i)) (Array.to_list c.hlc_implements) @ flags in
+	let flags = if c.hlc_sealed || Common.defined com "flash_strict" then flags else HImplements (make_tpath (HMPath ([],"Dynamic"))) :: flags in
+  (* make fields *)
+	let pos = { pfile = file ^ "@" ^ s_type_path (path.tpackage,path.tname); pmin = 0; pmax = 0 } in
+	let getters = Hashtbl.create 0 in
+	let setters = Hashtbl.create 0 in
+	let make_field stat acc f =
+		let flags = (match f.hlf_name with
+			| HMPath _ -> [APublic]
+			| HMName (_,ns) ->
+				(match ns with
+				| HNPrivate _ -> []
+				| HNExplicit _ | HNNamespace _ | HNInternal _ | HNPublic _ -> [APublic]
+				| HNStaticProtected _ | HNProtected _ -> [APrivate])
+			| _ -> []
+		) in
+		if flags = [] then acc else
+		let flags = if stat then AStatic :: flags else flags in
+		let name = (make_tpath f.hlf_name).tname in
+		match f.hlf_kind with
+		| HFVar v ->
+			let v = if v.hlv_const then
+				FProp (name,None,[],flags,"default","never",TPNormal (make_topt v.hlv_type))
+			else
+				FVar (name,None,[],flags,Some (TPNormal (make_topt v.hlv_type)),None)
+			in
+			v :: acc
+		| HFMethod m when not m.hlm_override ->
+			(match m.hlm_kind with
+			| MK3Normal ->
+				let t = m.hlm_type in
+				let p = ref 0 in
+				let args = List.map (fun at ->
+					let name = (match t.hlmt_pnames with
+						| None -> "p" ^ string_of_int !p
+						| Some l ->
+							match List.nth l !p with
+							| None -> "p" ^ string_of_int !p
+							| Some i -> i
+					) in
+					let opt_val = (match t.hlmt_dparams with
+						| None -> None
+						| Some l ->
+							try
+								Some (List.nth l (!p - List.length t.hlmt_args + List.length l))
+							with
+								_ -> None
+					) in
+					incr p;
+					(name,opt_val <> None,Some (TPNormal (make_topt at)),None)
+				) t.hlmt_args in
+				let f = {
+					f_args = args;
+					f_type = Some (TPNormal (make_topt t.hlmt_ret));
+					f_expr = (EBlock [],pos)
+				} in
+				FFun (name,None,[],flags,[],f) :: acc
+			| MK3Getter ->
+				Hashtbl.add getters (name,stat) m.hlm_type.hlmt_ret;
+				acc
+			| MK3Setter ->
+				Hashtbl.add setters (name,stat) (match m.hlm_type.hlmt_args with [t] -> t | _ -> assert false);
+				acc
+			)
+		| _ -> acc
+	in
+	let fields = if c.hlc_interface then [] else make_field false [] {
+		hlf_name = HMPath ([],"new");
+		hlf_slot = 0;
+		hlf_metas = None;
+		hlf_kind = HFMethod {
+			hlm_type = { c.hlc_construct with hlmt_ret = Some (HMPath ([],"void")) };
+			hlm_final = false;
+			hlm_override = false;
+			hlm_kind = MK3Normal
+		}
+	} in
+	let fields = Array.fold_left (make_field false) fields c.hlc_fields in
+	let fields = Array.fold_left (make_field true) fields c.hlc_static_fields in
+	let make_get_set name stat tget tset =
+		let get, set, t = (match tget, tset with
+			| None, None -> assert false
+			| Some t, None -> true, false, t
+			| None, Some t -> false, true, t
+			| Some t1, Some t2 -> if t1 <> t2 then assert false; true, true, t1
+		) in
+		let flags = [APublic] in
+		let flags = if stat then AStatic :: flags else flags in
+		FProp (name,None,[],flags,(if get then "default" else "never"),(if set then "default" else "never"),TPNormal (make_topt t))
+	in
+	let fields = Hashtbl.fold (fun (name,stat) t acc ->
+		make_get_set name stat (Some t) (try Some (Hashtbl.find setters (name,stat)) with Not_found -> None) :: acc
+	) getters fields in
+	let fields = Hashtbl.fold (fun (name,stat) t acc ->
+		if Hashtbl.mem getters (name,stat) then
+			acc
+		else
+			make_get_set name stat None (Some t) :: acc
+	) setters fields in
+	let class_data = {
+		d_name = path.tname;
+		d_doc = None;
+		d_params = [];
+		d_meta = [];
+		d_flags = flags;
+		d_data = List.map (fun f -> f, pos) fields;
+	} in
+	(path.tpackage, [(EClass class_data,pos)])
+
+let extract_data swf =
+	let cache = ref None in
+	(fun() ->
+		match !cache with
+		| Some h -> h
+		| None ->
+			let _, tags = swf() in
+			let h = Hashtbl.create 0 in
+			let rec loop_field f =
+				match f.hlf_kind with
+				| HFClass c ->
+					let path = make_tpath f.hlf_name in
+					Hashtbl.add h (path.tpackage,path.tname) c
+				| _ -> ()
+			in
+			List.iter (fun t ->
+				match t.tdata with
+				| TActionScript3 (_,as3) ->
+					List.iter (fun i -> Array.iter loop_field i.hls_fields) (As3hlparse.parse as3)
+				| _ -> ()
+			) tags;
+			cache := Some h;
+			h)
+
+(* ------------------------------- *)
+
 let tag ?(ext=false) d = {
 	tid = 0;
 	textended = ext;
@@ -171,13 +367,13 @@ type dependency_kind =
 	| DKExpr
 	| DKType
 
-let build_dependencies t = 
-	let h = ref PMap.empty in	
+let build_dependencies t =
+	let h = ref PMap.empty in
 	let add_path p k =
 		h := PMap.add (p,k) () !h;
 	in
 	let rec add_type_rec l t =
-		if List.memq t l then () else		
+		if List.memq t l then () else
 		match t with
 		| TEnum (e,pl) ->
 			add_path e.e_path DKType;
@@ -201,7 +397,7 @@ let build_dependencies t =
 		| TType (tt,pl) ->
 			add_type_rec (t::l) tt.t_type;
 			List.iter (add_type_rec (t::l)) pl
-	and add_type t = 
+	and add_type t =
 		add_type_rec [] t
 	and add_expr e =
 		match e.eexpr with
@@ -244,7 +440,7 @@ let build_dependencies t =
 		List.iter add_field c.cl_ordered_statics;
 		(match c.cl_constructor with
 		| None -> ()
-		| Some f -> 
+		| Some f ->
 			add_field f;
 			if c.cl_path <> (["flash"],"Boot") then add_path (["flash"],"Boot") DKExpr;
 		);
@@ -313,15 +509,13 @@ let build_swc_catalog com types =
 
 let make_as3_public data =
 	(* set all protected+private fields to public - this will enable overriding/reflection in haXe classes *)
-	let ipublic = ref (-1) in
 	let ns = Array.mapi (fun i ns ->
 		match ns with
 		| A3NPrivate _
 		| A3NInternal _
-		| A3NProtected _ 
+		| A3NProtected _
 		| A3NPublic None
 			->
-			ipublic := i;
 			A3NPublic None
 		| A3NPublic _
 		| A3NNamespace _
@@ -362,7 +556,7 @@ let build_swf8 com codeclip exports =
 
 let build_swf9 com swc =
 	let code, genmethod = Genswf9.generate com in
-	let code = (match swc with 
+	let code = (match swc with
 	| Some cat ->
 		cat := build_swc_catalog com (List.map (fun (t,_,_) -> t) code);
 		List.map (fun (t,m,f) ->
@@ -403,6 +597,8 @@ let merge com priority (h1,tags1) (h2,tags2) =
 		| TRemoveObject2 _
 		| TRemoveObject _ -> use_stage
 		| TShowFrame -> incr nframe; use_stage
+		(* patch : this class has a public method which redefines a private one ! *)
+		| TActionScript3 (Some (_,"org/papervision3d/render/QuadrantRenderEngine"),_) -> false
 		| TFilesAttributes _ | TEnableDebugger2 _ | TF9Scene _ -> false
 		| TSetBgColor _ -> priority
 		| TF9Classes el ->
@@ -432,15 +628,15 @@ let merge com priority (h1,tags1) (h2,tags2) =
   (* merge timelines *)
 	let rec loop l1 l2 =
 		match l1, l2 with
-		| ({ tdata = TSetBgColor _ } as t) :: l1, _ 
-		| ({ tdata = TEnableDebugger2 _ } as t) :: l1, _ 
+		| ({ tdata = TSetBgColor _ } as t) :: l1, _
+		| ({ tdata = TEnableDebugger2 _ } as t) :: l1, _
 		| ({ tdata = TFilesAttributes _ } as t) :: l1, _ ->
 			t :: loop l1 l2
 		| _, ({ tdata = TSetBgColor _ } as t) :: l2 ->
 			t :: loop l1 l2
 		| { tdata = TShowFrame } :: l1, { tdata = TShowFrame } :: l2 ->
 			tag TShowFrame :: loop l1 l2
-		| { tdata = TShowFrame } :: _, x :: l2 -> 
+		| { tdata = TShowFrame } :: _, x :: l2 ->
 			(* wait until we finish frame on other swf *)
 			x :: loop l1 l2
 		| { tdata = TF9Classes el } :: l1, _ ->
@@ -448,7 +644,7 @@ let merge com priority (h1,tags1) (h2,tags2) =
 			tag (TF9Classes (classes @ el)) :: loop l1 l2
 		| _ , x :: l2 ->
 			x :: loop l1 l2
-		| x :: l1, [] -> 
+		| x :: l1, [] ->
 			x :: loop l1 l2
 		| [], [] ->
 			[]
@@ -456,7 +652,7 @@ let merge com priority (h1,tags1) (h2,tags2) =
 	let tags = loop tags1 tags2 in
 	header, tags
 
-let generate com swf_header swf_libs =
+let generate com swf_header =
 	let t = Common.timer "generate swf" in
 	let isf9 = com.flash_version >= 9 in
 	let swc = if Common.defined com "swc" then Some (ref "") else None in
@@ -464,14 +660,14 @@ let generate com swf_header swf_libs =
 	let file , codeclip = (try let f , c = ExtString.String.split com.file "@" in f, Some c with _ -> com.file , None) in
   (* list exports *)
 	let exports = Hashtbl.create 0 in
-	List.iter (fun lib ->
+	List.iter (fun (lib,_) ->
 		let _, tags = lib() in
 		List.iter (fun t ->
 			match t.tdata with
 			| TExport l -> List.iter (fun e -> Hashtbl.add exports e.exp_name ()) l
 			| _ -> ()
 		) tags;
-	) swf_libs;
+	) com.swf_libs;
   (* build haxe swf *)
 	let tags = if isf9 then build_swf9 com swc else build_swf8 com codeclip exports in
 	let header, bg = (match swf_header with None -> default_header com | Some h -> convert_header com h) in
@@ -489,11 +685,11 @@ let generate com swf_header swf_libs =
 	let swf = header, fattr @ bg :: debug @ tags @ [tag TShowFrame] in
   (* merge swf libraries *)
 	let priority = ref (swf_header = None) in
-	let swf = List.fold_left (fun swf lib ->
+	let swf = List.fold_left (fun swf (lib,_) ->
 		let swf = merge com !priority swf (lib()) in
 		priority := false;
 		swf
-	) swf swf_libs in
+	) swf com.swf_libs in
 	t();
   (* write swf/swc *)
 	let t = Common.timer "write swf" in

@@ -140,6 +140,18 @@ let rec read_type_path com p =
 			end;
 		) r;
 	) com.class_path;
+	List.iter (fun (_,extract) ->
+		Hashtbl.iter (fun (path,name) _ ->
+			if path = p then classes := name :: !classes else
+			let rec loop p1 p2 =
+				match p1, p2 with
+				| [], _ -> ()
+				| x :: _, [] -> packages := x :: !packages
+				| a :: p1, b :: p2 -> if a = b then loop p1 p2
+			in
+			loop path p
+		) (extract());
+	) com.swf_libs;
 	let rec unique = function
 		| [] -> []
 		| x1 :: x2 :: l when x1 = x2 -> unique (x2 :: l)
@@ -197,7 +209,6 @@ and init params =
 try
 	let xml_out = ref None in
 	let swf_header = ref None in
-	let swf_libs = ref [] in
 	let cmds = ref [] in
 	let excludes = ref [] in
 	let libs = ref [] in
@@ -327,7 +338,7 @@ try
 			let getSWF() =
 				match !data with
 				| Some swf -> swf
-				| None -> 
+				| None ->
 					let file = (try Common.find_file com file with Not_found -> failwith ("SWF Library not found : " ^ file)) in
 					let ch = IO.input_channel (open_in_bin file) in
 					let swf = (try Swf.parse ch with _ -> failwith ("The input swf " ^ file ^ " is corrupted")) in
@@ -335,7 +346,10 @@ try
 					data := Some swf;
 					swf
 			in
-			swf_libs := getSWF :: !swf_libs
+			let extract = Genswf.extract_data getSWF in
+			let build cl p = Genswf.build_class com (Hashtbl.find (extract()) cl) file in
+			com.type_api.load_extern_type <- com.type_api.load_extern_type @ [build];
+			com.swf_libs <- (getSWF,extract) :: com.swf_libs
 		),"<file> : add the SWF library to the compiled SWF");
 		("-x", Arg.String (fun file ->
 			let neko_file = file ^ ".n" in
@@ -354,11 +368,11 @@ try
 				| _ -> raise (Arg.Bad "Invalid Resource format : should be file@name")
 			) in
 			let file = (try Common.find_file com file with Not_found -> file) in
-			let data = (try 
+			let data = (try
 				let s = Std.input_file ~bin:true file in
 				if String.length s > 12000000 then raise Exit;
 				s;
-			with 
+			with
 				| Sys_error _ -> failwith ("Resource file not found : " ^ file)
 				| _ -> failwith ("Resource '" ^ file ^ "' excess the maximum size of 12MB")
 			) in
@@ -413,7 +427,7 @@ try
 		("--no-output", Arg.Unit (fun() -> no_output := true),": compiles but does not generate any file");
 		("--times", Arg.Unit (fun() -> measure_times := true),": measure compilation times");
 		("--no-inline", define "no_inline", ": disable inlining");
-		("--no-opt", Arg.Unit (fun() -> 
+		("--no-opt", Arg.Unit (fun() ->
 			com.foptimize <- false;
 			Common.define com "no_opt";
 		), ": disable code optimizations");
@@ -524,7 +538,7 @@ try
 			Genas3.generate com;
 		| Flash | Flash9 ->
 			if com.verbose then print_endline ("Generating swf : " ^ com.file);
-			Genswf.generate com !swf_header (List.rev !swf_libs);
+			Genswf.generate com !swf_header;
 		| Neko ->
 			if com.verbose then print_endline ("Generating neko : " ^ com.file);
 			Genneko.generate com !libs;
@@ -582,16 +596,16 @@ with
 		exit 0;
 	| Parser.TypePath (p,c) ->
 		(match c with
-		| None -> 
+		| None ->
 			let packs, classes = read_type_path com p in
 			if packs = [] && classes = [] then report ("No classes found in " ^ String.concat "." p) Ast.null_pos;
 			report_list (List.map (fun f -> f,"","") (packs @ classes))
 		| Some c ->
-			try 
+			try
 				let ctx = Typer.create com in
 				let m = Typeload.load_module ctx (p,c) Ast.null_pos in
 				report_list (List.map (fun t -> snd (Type.t_path t),"","") (List.filter (fun t -> not (Type.t_private t)) m.Type.mtypes))
-			with _ -> 
+			with _ ->
 				report ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos
 		);
 		exit 0;
