@@ -318,6 +318,7 @@ let extract_data swf =
 		| Some h -> h
 		| None ->
 			let _, tags = swf() in
+			let t = Common.timer "read swf" in
 			let h = Hashtbl.create 0 in
 			let rec loop_field f =
 				match f.hlf_kind with
@@ -333,7 +334,99 @@ let extract_data swf =
 				| _ -> ()
 			) tags;
 			cache := Some h;
+			t();
 			h)
+
+let remove_debug_infos as3 =
+	let hl = As3hlparse.parse as3 in
+	let methods = Hashtbl.create 0 in
+	let rec loop_field f =
+		{ f with hlf_kind = (match f.hlf_kind with
+			| HFMethod m -> HFMethod { m with hlm_type = loop_method m.hlm_type }
+			| HFFunction f -> HFFunction (loop_method f)
+			| HFVar v -> HFVar v
+			| HFClass c -> HFClass (loop_class c))
+		}
+	and loop_class c =
+		(* mutate in order to preserve sharing *)
+		c.hlc_construct <- loop_method c.hlc_construct;
+		c.hlc_fields <- Array.map loop_field c.hlc_fields;
+		c.hlc_static_construct <- loop_method c.hlc_static_construct;
+		c.hlc_static_fields <- Array.map loop_field c.hlc_static_fields;
+		c
+	and loop_static s =
+		{ 
+			hls_method = loop_method s.hls_method;
+			hls_fields = Array.map loop_field s.hls_fields;
+		}
+	and loop_method m =
+		try
+			Hashtbl.find methods m.hlmt_index
+		with Not_found ->
+			let m2 = { m with hlmt_debug_name = None; hlmt_pnames = None } in
+			Hashtbl.add methods m.hlmt_index m2;
+			m2.hlmt_function <- (match m.hlmt_function with None -> None | Some f -> Some (loop_function f));
+			m2
+	and loop_function f =
+		let cur = ref 0 in
+		let positions = Array.map (fun op ->
+			let p = !cur in
+			(match op with
+			| HDebugReg _ | HDebugLine _ | HDebugFile _ | HBreakPointLine _ | HTimestamp -> ()
+			| _ -> incr cur);
+			p
+		) f.hlf_code in
+		let positions = Array.concat [positions;[|!cur|]] in
+		let code = DynArray.create() in
+		Array.iteri (fun pos op ->
+			match op with
+			| HDebugReg _ | HDebugLine _ | HDebugFile _ | HBreakPointLine _ | HTimestamp -> ()
+			| _ -> 
+				let p delta = 
+					positions.(pos + delta) - DynArray.length code
+				in
+				let op = (match op with
+				| HJump (j,delta) -> HJump (j, p delta)
+				| HSwitch (d,deltas) -> HSwitch (p d,List.map p deltas)
+				| HFunction m -> HFunction (loop_method m)
+				| HCallStatic (m,args) -> HCallStatic (loop_method m,args)
+				| HClassDef c -> HClassDef c (* mutated *)
+				| _ -> op) in
+				DynArray.add code op
+		) f.hlf_code;
+		f.hlf_code <- DynArray.to_array code;
+		f.hlf_trys <- Array.map (fun t ->
+			{
+				t with
+				hltc_start = positions.(t.hltc_start);
+				hltc_end = positions.(t.hltc_end);
+				hltc_handle = positions.(t.hltc_handle);
+			}
+		) f.hlf_trys;
+		f
+	in	
+	As3hlparse.flatten (List.map loop_static hl)
+
+let parse_swf com file =
+	let data = ref None in
+	(fun () ->
+		match !data with
+		| Some swf -> swf
+		| None ->
+			let t = Common.timer "read swf" in
+			let file = (try Common.find_file com file with Not_found -> failwith ("SWF Library not found : " ^ file)) in
+			let ch = IO.input_channel (open_in_bin file) in
+			let h, tags = (try Swf.parse ch with _ -> failwith ("The input swf " ^ file ^ " is corrupted")) in
+			IO.close_in ch;
+			List.iter (fun t ->
+				match t.tdata with
+				| TActionScript3 (id,as3) when not com.debug && not !Common.display ->					
+					t.tdata <- TActionScript3 (id,remove_debug_infos as3)
+				| _ -> ()
+			) tags;
+			t();
+			data := Some (h,tags);
+			(h,tags))
 
 (* ------------------------------- *)
 

@@ -80,6 +80,8 @@ type context = {
 
 exception Abort of string * Ast.pos
 
+let display = ref false
+
 let create v =
 	let m = Type.mk_mono() in
 	{

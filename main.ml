@@ -23,7 +23,6 @@ open Common
 let version = 205
 
 let prompt = ref false
-let display = ref false
 let measure_times = ref false
 
 let executable_path() =
@@ -312,11 +311,11 @@ try
 			Common.define com var
 		),"<var> : define a conditional compilation flag");
 		("-v",Arg.Unit (fun () ->
-			if not !display then com.verbose <- true
+			com.verbose <- true
 		),": turn on verbose mode");
 		("-debug", Arg.Unit (fun() ->
-			Common.define com "debug"; com.debug <- true)
-		, ": add debug informations to the compiled code");
+			Common.define com "debug"; com.debug <- true
+		), ": add debug informations to the compiled code");
 	] in
 	let adv_args_spec = [
 		("-swf-version",Arg.Int (fun v ->
@@ -334,18 +333,7 @@ try
 				_ -> raise (Arg.Bad "Invalid SWF header format")
 		),"<header> : define SWF header (width:height:fps:color)");
 		("-swf-lib",Arg.String (fun file ->
-			let data = ref None in
-			let getSWF() =
-				match !data with
-				| Some swf -> swf
-				| None ->
-					let file = (try Common.find_file com file with Not_found -> failwith ("SWF Library not found : " ^ file)) in
-					let ch = IO.input_channel (open_in_bin file) in
-					let swf = (try Swf.parse ch with _ -> failwith ("The input swf " ^ file ^ " is corrupted")) in
-					IO.close_in ch;
-					data := Some swf;
-					swf
-			in
+			let getSWF = Genswf.parse_swf com file in
 			let extract = Genswf.extract_data getSWF in
 			let build cl p = Genswf.build_class com (Hashtbl.find (extract()) cl) file in
 			com.type_api.load_extern_type <- com.type_api.load_extern_type @ [build];
@@ -416,8 +404,7 @@ try
 			| _ ->
 				let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
 				let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
-				display := true;
-				no_output := true;
+				Common.display := true;
 				Parser.resume_display := {
 					Ast.pfile = Common.get_full_path file;
 					Ast.pmin = pos;
@@ -480,6 +467,11 @@ try
 		if ret <> Unix.WEXITED 0 then failwith (String.concat "\n" lines);
 		com.class_path <- lines @ com.class_path;
 	);
+	if !Common.display then begin
+		com.verbose <- false;
+		xml_out := None;
+		no_output := true;
+	end;
 	let ext = (match com.platform with
 		| Cross ->
 			(* no platform selected *)
@@ -515,7 +507,6 @@ try
 		Typer.finalize ctx;
 		t();
 		if !has_error then do_exit();
-		if !display then xml_out := None;
 		if !no_output then com.platform <- Cross;
 		com.types <- Typer.types ctx com.main_class (!excludes);
 		com.lines <- Lexer.build_line_index();
