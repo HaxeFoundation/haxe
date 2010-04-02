@@ -57,7 +57,7 @@ type header = {
 
 type chunk_id = string
 
-type chunk = 
+type chunk =
 	| CEnd
 	| CHeader of header
 	| CData of string
@@ -134,7 +134,7 @@ let color_bits = function
 		| IBits4 -> 4
 		| IBits8 -> 8)
 
-let crc_table = Array.init 256 (fun n -> 
+let crc_table = Array.init 256 (fun n ->
 	let c = ref (Int32.of_int n) in
 	for k = 0 to 7 do
 		if Int32.logand !c 1l <> 0l then
@@ -296,7 +296,7 @@ let filter png data =
 	match head.png_color with
 	| ClGreyScale _
 	| ClGreyAlpha _
-	| ClIndexed _ 
+	| ClIndexed _
 	| ClTrueColor (TBits16,_) -> error Unsupported_colors
 	| ClTrueColor (TBits8,alpha) ->
 		let alpha = (match alpha with NoAlpha -> false | HaveAlpha -> true) in
@@ -311,7 +311,7 @@ let filter png data =
 		let filters = [|
 			(fun x y v -> v
 			);
-			(fun x y v -> 
+			(fun x y v ->
 				let v2 = if x = 0 then 0 else bget (!bp - 4) in
 				v + v2
 			);

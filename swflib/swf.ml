@@ -43,13 +43,13 @@ type color =
 
 type gradient =
 	| GradientRGB of ((int * rgb) list * int)
-	| GradientRGBA of ((int * rgba) list * int) 
+	| GradientRGBA of ((int * rgba) list * int)
 
 type rect = {
 	rect_nbits : int;
 	left : int;
 	right : int;
-	top : int; 
+	top : int;
 	bottom : int;
 }
 
@@ -57,7 +57,7 @@ type big_rect = {
 	brect_nbits : int;
 	bleft : int list;
 	bright : int list;
-	btop : int list; 
+	btop : int list;
 	bbottom : int list;
 }
 
@@ -263,7 +263,7 @@ type header = {
 	mutable h_version : int;
 	mutable h_size : rect;
 	mutable h_fps : float16;
-	mutable h_frame_count : int; 
+	mutable h_frame_count : int;
 	mutable h_compressed : bool;
 }
 
@@ -301,7 +301,7 @@ type sfs_bitmap = {
 	sfb_mpos : matrix;
 }
 
-type shape_fill_style = 
+type shape_fill_style =
 	| SFSSolid of rgb
 	| SFSSolid3 of rgba
 	| SFSLinearGradient of matrix * gradient
@@ -344,7 +344,7 @@ type shape_straight_edge_record = {
 	sser_line : int option * int option;
 }
 
-type shape_record = 
+type shape_record =
 	| SRStyleChange of shape_change_style_record
 	| SRCurvedEdge of shape_curved_edge_record
 	| SRStraightEdge of shape_straight_edge_record
@@ -500,7 +500,7 @@ type files_attrib = {
 	fa_network : bool;
 	fa_as3 : bool;
 	fa_metadata : bool;
-	fa_gpu : bool;	
+	fa_gpu : bool;
 	fa_direct_blt : bool;
 }
 

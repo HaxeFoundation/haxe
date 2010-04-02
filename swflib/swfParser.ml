@@ -310,7 +310,7 @@ let rec tag_data_length = function
 		String.length tab
 	| TSetBgColor _ ->
 		rgb_length
-	| TFont c -> 
+	| TFont c ->
 		cid_data_length c
 	| TText t ->
 		text_length t
@@ -1370,7 +1370,7 @@ let rec parse_tag ch h =
 		| 0x53 when !full_parsing ->
 			TShape4 (parse_shape ch len 4)
 		| 0x54 when !full_parsing ->
-			TMorphShape2 (parse_morph_shape ch len)			
+			TMorphShape2 (parse_morph_shape ch len)
 		(* 0x55 invalid *)
 		| 0x56 ->
 			let n = read_ui16 ch in
@@ -2026,7 +2026,7 @@ let scan fid f t =
 	| TProductInfo _
 		-> ()
 	| TF9Classes l ->
-		List.iter (fun c -> 
+		List.iter (fun c ->
 			match c.f9_cid with
 			| None -> ()
 			| Some id -> c.f9_cid <- Some (f id)

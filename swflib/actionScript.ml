@@ -208,7 +208,7 @@ let action_data_length = function
 	| _ ->
 		0
 
-let action_length a = 
+let action_length a =
 	let len = (if action_id a >= 0x80 then 3 else 1) in
 	len + action_data_length a
 
@@ -224,7 +224,7 @@ let read_mm_double ch =
 let write_mm_double ch f =
 	let i64 = Int64.bits_of_float f in
 	write_real_i32 ch (Int64.to_int32 (Int64.shift_right_logical i64 32));
-	write_real_i32 ch (Int64.to_int32 i64)	
+	write_real_i32 ch (Int64.to_int32 i64)
 
 let read_string_max ch len =
 	let b = Buffer.create 0 in
@@ -234,7 +234,7 @@ let read_string_max ch len =
 			String.sub s 0 (String.length s - 1)
 		end else
 			let c = read ch in
-			if c = '\000' then 
+			if c = '\000' then
 				Buffer.contents b
 			else begin
 				Buffer.add_char b c;
@@ -243,7 +243,7 @@ let read_string_max ch len =
 	in
 	loop len
 
-let parse_push_item ch len = 
+let parse_push_item ch len =
 	let id = read_byte ch in
 	match id with
 	| 0 -> PString (read_string_max ch len)
@@ -291,8 +291,8 @@ let parse_f2_flags n =
 		if n land !v <> 0 then flags := f :: !flags;
 		v := !v lsl 1
 	in
-	List.iter add_flag 
-		[ThisRegister; ThisNoVar; ArgumentsRegister; ArgumentsNoVar; SuperRegister; 
+	List.iter add_flag
+		[ThisRegister; ThisNoVar; ArgumentsRegister; ArgumentsNoVar; SuperRegister;
 		 SuperNoVar; RootRegister; ParentRegister; GlobalRegister];
 	!flags
 
@@ -301,7 +301,7 @@ let parse_function_decl2 ch =
 	let nargs = read_ui16 ch in
 	let nregs = read_byte ch in
 	let flags = parse_f2_flags (read_ui16 ch) in
-	let rec loop n = 
+	let rec loop n =
 		if n = 0 then
 			[]
 		else
@@ -324,11 +324,11 @@ let parse_action ch =
 	let id = read_byte ch in
 	let len = (if id >= 0x80 then read_ui16 ch else 0) in
 	let len = (if len = 0xFFFF then 0 else len) in
-	let act = 
+	let act =
 		(match id with
 		| 0x81 ->
 			AGotoFrame (read_ui16 ch)
-		| 0x83 -> 
+		| 0x83 ->
 			let url = read_string ch in
 			let target = read_string ch in
 			AGetURL (url,target)
@@ -395,13 +395,13 @@ let parse_action ch =
 
 let size_to_jump_index acts curindex size =
 	let delta = ref 0 in
-	let size = ref size in	
+	let size = ref size in
 	if !size >= 0 then begin
 		while !size > 0 do
 			incr delta;
 			size := !size - action_length (DynArray.get acts (curindex + !delta));
 			if !size < 0 then error "Unaligned code";
-		done;		
+		done;
 	end else begin
 		while !size < 0 do
 			size := !size + action_length (DynArray.get acts (curindex + !delta));
@@ -416,7 +416,7 @@ let parse_actions ch =
 	let rec loop() =
 		match parse_action ch with
 		| AEnd -> ()
-		| AUnknown (0xFF,"") -> 
+		| AUnknown (0xFF,"") ->
 			DynArray.add acts APlay;
 			DynArray.add acts APlay;
 			DynArray.add acts APlay;
@@ -488,7 +488,7 @@ let write_push_item_data ch = function
 let f2_flags_value flags =
 	let fval = function
 		| ThisRegister -> 1
-		| ThisNoVar -> 2 
+		| ThisNoVar -> 2
 		| ArgumentsRegister -> 4
 		| ArgumentsNoVar -> 8
 		| SuperRegister -> 16
@@ -497,7 +497,7 @@ let f2_flags_value flags =
 		| ParentRegister -> 128
 		| GlobalRegister -> 256
 	in
-	List.fold_left (fun n f -> n lor (fval f)) 0 flags	
+	List.fold_left (fun n f -> n lor (fval f)) 0 flags
 
 let write_action_data acts curindex ch = function
 	| AGotoFrame frame ->
@@ -533,7 +533,7 @@ let write_action_data acts curindex ch = function
 	| ATry t ->
 		let tsize = jump_index_to_size acts curindex t.tr_trylen in
 		let csize = (match t.tr_catchlen with None -> 0 | Some idx -> jump_index_to_size acts (curindex + t.tr_trylen) idx) in
-		let fsize = (match t.tr_finallylen with None -> 0 | Some idx -> jump_index_to_size acts (curindex + t.tr_trylen + (match t.tr_catchlen with None -> 0 | Some n -> n)) idx) in		
+		let fsize = (match t.tr_finallylen with None -> 0 | Some idx -> jump_index_to_size acts (curindex + t.tr_trylen + (match t.tr_catchlen with None -> 0 | Some n -> n)) idx) in
 		let flags = (if t.tr_catchlen <> None then 1 else 0) lor (if t.tr_finallylen <> None then 2 else 0) lor (match t.tr_style with TryRegister _ -> 4 | TryVariable _ -> 0) in
 		write_byte ch flags;
 		write_ui16 ch tsize;
@@ -544,7 +544,7 @@ let write_action_data acts curindex ch = function
 		| TryRegister r -> write_byte ch r)
 	| AWith target ->
 		let size = jump_index_to_size acts curindex target in
-		write_ui16 ch size		
+		write_ui16 ch size
 	| APush items ->
 		List.iter (fun item ->
 			write_byte ch (push_item_id item);
@@ -596,7 +596,7 @@ let action_string get_ident pos = function
 	| AGotoFrame n -> sprintf "GOTOFRAME %d" n
 	| AGetURL (a,b) -> sprintf "GETURL '%s' '%s'" a b
 	| ASetReg n -> sprintf "SETREG %d" n
-	| AStringPool strlist -> 
+	| AStringPool strlist ->
 		let b = Buffer.create 0 in
 		Buffer.add_string b "STRINGS ";
 		let p = ref 0 in
@@ -628,7 +628,7 @@ let action_string get_ident pos = function
 		List.iter (fun it ->
 			Buffer.add_char b ' ';
 			match it with
-			| PString s -> 
+			| PString s ->
 				Buffer.add_char b '"';
 				Buffer.add_string b s;
 				Buffer.add_char b '"'

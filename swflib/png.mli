@@ -57,7 +57,7 @@ type header = {
 
 type chunk_id = string
 
-type chunk = 
+type chunk =
 	| CEnd
 	| CHeader of header
 	| CData of string
