@@ -212,7 +212,7 @@ let length = function
 	| A3Unk _ -> 1
 	| A3AsType n | A3IsType n ->
 		1 + int_length (int_index n)
-	| A3DebugReg (name,reg,line) -> 1 + 1 + int_length (int_index name) + int_length (reg - 1) + int_length line
+	| A3DebugReg (name,reg,line) -> 1 + 1 + int_length (int_index name) + 1 + int_length line
 	| A3GetGlobalScope -> 1
 	| A3GetScope n -> 1 + int_length n
 	| A3Reg n | A3SetReg n -> if n >= 1 && n <= 3 then 1 else (1 + int_length n)
