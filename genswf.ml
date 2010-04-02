@@ -189,9 +189,19 @@ let rec make_tpath = function
 		let params = List.map (fun t -> TPType (TPNormal (make_tpath t))) params in
 		{ (make_tpath t) with tparams = params }
 
+let make_param cl p =
+	{ tpackage = fst cl; tname = snd cl; tparams = [TPType (TPNormal { tpackage = fst p; tname = snd p; tparams = []; tsub = None })]; tsub = None }
+
 let make_topt = function
 	| None -> { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None }
 	| Some t -> make_tpath t
+
+let make_type f t = 
+	TPNormal (match f, t with
+	| "opaqueBackground", Some (HMPath ([],"Object")) -> make_param ([],"Null") ([],"UInt")
+	| "getObjectsUnderPoint", Some (HMPath ([],"Array")) -> make_param ([],"Array") (["flash";"display"],"DisplayObject")
+	| "blendMode", Some (HMPath ([],"String")) -> { tpackage = ["flash";"display"]; tname = "BlendMode"; tparams = []; tsub = None }
+	| _ -> make_topt t)
 
 let build_class com c file =
 	let path = make_tpath c.hlc_name in
@@ -213,7 +223,7 @@ let build_class com c file =
 			| HMPath _ -> [APublic]
 			| HMName (_,ns) ->
 				(match ns with
-				| HNPrivate _ -> []
+				| HNPrivate _ | HNNamespace "http://www.adobe.com/2006/flex/mx/internal" -> []
 				| HNExplicit _ | HNNamespace _ | HNInternal _ | HNPublic _ -> [APublic]
 				| HNStaticProtected _ | HNProtected _ -> [APrivate])
 			| _ -> []
@@ -224,9 +234,9 @@ let build_class com c file =
 		match f.hlf_kind with
 		| HFVar v ->
 			let v = if v.hlv_const then
-				FProp (name,None,[],flags,"default","never",TPNormal (make_topt v.hlv_type))
+				FProp (name,None,[],flags,"default","never",make_type name v.hlv_type)
 			else
-				FVar (name,None,[],flags,Some (TPNormal (make_topt v.hlv_type)),None)
+				FVar (name,None,[],flags,Some (make_type name v.hlv_type),None)
 			in
 			v :: acc
 		| HFMethod m when not m.hlm_override ->
@@ -235,7 +245,7 @@ let build_class com c file =
 				let t = m.hlm_type in
 				let p = ref 0 in
 				let args = List.map (fun at ->
-					let name = (match t.hlmt_pnames with
+					let aname = (match t.hlmt_pnames with
 						| None -> "p" ^ string_of_int !p
 						| Some l ->
 							match List.nth l !p with
@@ -251,11 +261,11 @@ let build_class com c file =
 								_ -> None
 					) in
 					incr p;
-					(name,opt_val <> None,Some (TPNormal (make_topt at)),None)
+					(aname,opt_val <> None,Some (make_type name at),None)
 				) t.hlmt_args in
 				let f = {
 					f_args = args;
-					f_type = Some (TPNormal (make_topt t.hlmt_ret));
+					f_type = Some (make_type name t.hlmt_ret);
 					f_expr = (EBlock [],pos)
 				} in
 				FFun (name,None,[],flags,[],f) :: acc
@@ -290,7 +300,7 @@ let build_class com c file =
 		) in
 		let flags = [APublic] in
 		let flags = if stat then AStatic :: flags else flags in
-		FProp (name,None,[],flags,(if get then "default" else "never"),(if set then "default" else "never"),TPNormal (make_topt t))
+		FProp (name,None,[],flags,(if get then "default" else "never"),(if set then "default" else "never"),make_type name t)
 	in
 	let fields = Hashtbl.fold (fun (name,stat) t acc ->
 		make_get_set name stat (Some t) (try Some (Hashtbl.find setters (name,stat)) with Not_found -> None) :: acc
