@@ -421,7 +421,7 @@ let opcode ch =
 	| 0xEF ->
 		if IO.read_byte ch <> 1 then assert false;
 		let name = read_index ch in
-		let reg = read_int ch + 1 in
+		let reg = read_byte ch + 1 in
 		let line = read_int ch in
 		A3DebugReg (name,reg,line)
 	| 0xF0 -> A3DebugLine (read_int ch)
@@ -721,7 +721,7 @@ let write ch = function
 		write_byte ch 0xEF;
 		write_byte ch 0x01;
 		write_index ch name;
-		write_int ch (reg - 1);
+		write_byte ch (reg - 1);
 		write_int ch line;
 	| A3DebugLine f ->
 		write_byte ch 0xF0;
