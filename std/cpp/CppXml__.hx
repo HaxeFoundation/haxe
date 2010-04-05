@@ -202,6 +202,7 @@ class CppXml__ {
 		return _nodeValue = v;
 	}
 
+	var parent(getParent,null) : Xml;
 	private function getParent() : Xml {
 		return _parent;
 	}
