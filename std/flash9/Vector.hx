@@ -13,7 +13,7 @@ extern class Vector<T> implements ArrayAccess<T> {
 	var fixed : Bool;
 
 	function new( ?length : UInt, ?fixed : Bool ) : Void;
-	function concat( a : Vector<T> ) : Vector<T>;
+	function concat( ?a : Vector<T> ) : Vector<T>;
 	function join( sep : String ) : String;
 	function pop() : Null<T>;
 	function push(x : T) : Int;
