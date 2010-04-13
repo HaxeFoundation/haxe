@@ -1759,12 +1759,40 @@ let generate_class ctx c =
 			| Some { eexpr = TFunction fdata } -> generate_construct ctx fdata c
 			| _ -> assert false
 	) in
+	let has_protected = ref None in
 	let fields = Array.of_list (PMap.fold (fun f acc ->
 		match generate_field_kind ctx f c false with
 		| None -> acc
 		| Some k ->
+			let rec find_meta c =
+				match c.cl_super with
+				| None -> []
+				| Some (c,_) ->
+					try
+						let f = PMap.find f.cf_name c.cl_fields in
+						if List.mem f.cf_name c.cl_overrides then raise Not_found;
+						f.cf_meta
+					with Not_found ->
+						find_meta c
+			in			
+			let rec loop_meta = function
+				| [] -> ident f.cf_name
+				| x :: l ->					
+					match x with
+					| (":ns",[{ eexpr = TConst (TString ns) }]) -> HMName (f.cf_name,HNNamespace ns)
+					| (":protected",[]) ->
+						let p = (match c.cl_path with [], n -> n | p, n -> String.concat "." p ^ ":" ^ n) in
+						has_protected := Some p;
+						HMName (f.cf_name,HNProtected p)
+					| _ -> loop_meta l
+			in
+			let name = if c.cl_interface then
+				HMName (f.cf_name, HNNamespace (match c.cl_path with [],n -> n | l,n -> String.concat "." l ^ ":" ^ n))
+			else
+				loop_meta (find_meta c)
+			in
 			{
-				hlf_name = if c.cl_interface then HMName (f.cf_name, HNNamespace (match c.cl_path with [],n -> n | l,n -> String.concat "." l ^ ":" ^ n)) else ident f.cf_name;
+				hlf_name = name;
 				hlf_slot = 0;
 				hlf_kind = k;
 				hlf_metas = None;
@@ -1785,7 +1813,7 @@ let generate_class ctx c =
 		hlc_sealed = not (is_dynamic c);
 		hlc_final = false;
 		hlc_interface = c.cl_interface;
-		hlc_namespace = None;
+		hlc_namespace = (match !has_protected with None -> None | Some p -> Some (HNProtected p));
 		hlc_implements = Array.of_list (List.map (fun (c,_) ->
 			if not c.cl_interface then error "Can't implement class in Flash9" c.cl_pos;
 			let pack, name = real_path c.cl_path in

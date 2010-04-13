@@ -218,25 +218,34 @@ let build_class com c file =
 	let pos = { pfile = file ^ "@" ^ s_type_path (path.tpackage,path.tname); pmin = 0; pmax = 0 } in
 	let getters = Hashtbl.create 0 in
 	let setters = Hashtbl.create 0 in
+	let as3_native = Common.defined com "as3_native" in
 	let make_field stat acc f =
+		let meta = ref None in
 		let flags = (match f.hlf_name with
 			| HMPath _ -> [APublic]
 			| HMName (_,ns) ->
 				(match ns with
 				| HNPrivate _ | HNNamespace "http://www.adobe.com/2006/flex/mx/internal" -> []
-				| HNExplicit _ | HNNamespace _ | HNInternal _ | HNPublic _ -> [APublic]
-				| HNStaticProtected _ | HNProtected _ -> [APrivate])
+				| HNNamespace ns ->
+					meta := Some (":ns",[String ns]);
+					[APublic]
+				| HNExplicit _ | HNInternal _ | HNPublic _ ->
+					[APublic]
+				| HNStaticProtected _ | HNProtected _ ->
+					if as3_native then meta := Some (":protected",[]);
+					[APrivate])
 			| _ -> []
 		) in
 		if flags = [] then acc else
 		let flags = if stat then AStatic :: flags else flags in
+		let meta = (match !meta with None -> [] | Some (s,cl) -> [s,List.map (fun c -> EConst c,pos) cl]) in
 		let name = (make_tpath f.hlf_name).tname in
 		match f.hlf_kind with
 		| HFVar v ->
 			let v = if v.hlv_const then
-				FProp (name,None,[],flags,"default","never",make_type name v.hlv_type)
+				FProp (name,None,meta,flags,"default","never",make_type name v.hlv_type)
 			else
-				FVar (name,None,[],flags,Some (make_type name v.hlv_type),None)
+				FVar (name,None,meta,flags,Some (make_type name v.hlv_type),None)
 			in
 			v :: acc
 		| HFMethod m when not m.hlm_override ->
@@ -268,7 +277,7 @@ let build_class com c file =
 					f_type = Some (make_type name t.hlmt_ret);
 					f_expr = (EBlock [],pos)
 				} in
-				FFun (name,None,[],flags,[],f) :: acc
+				FFun (name,None,meta,flags,[],f) :: acc
 			| MK3Getter ->
 				Hashtbl.add getters (name,stat) m.hlm_type.hlmt_ret;
 				acc
@@ -685,12 +694,13 @@ let build_swf9 com swc =
 	let clips = [tag (TF9Classes [{ f9_cid = None; f9_classname = "flash.Boot" }])] in
 	code @ clips
 
-let merge com priority (h1,tags1) (h2,tags2) =
+let merge com file priority (h1,tags1) (h2,tags2) =
   (* prioritize header+bgcolor for first swf *)
 	let header = if priority then { h2 with h_version = max h2.h_version com.flash_version } else h1 in
 	let tags1 = if priority then List.filter (function { tdata = TSetBgColor _ } -> false | _ -> true) tags1 else tags1 in
   (* remove unused tags *)
 	let use_stage = Common.defined com "flash_use_stage" in
+	let as3_native = Common.defined com "as3_native" in
 	let classes = ref [] in
 	let nframe = ref 0 in
 	let tags2 = List.filter (fun t ->
@@ -701,12 +711,12 @@ let merge com priority (h1,tags1) (h2,tags2) =
 		| TRemoveObject _ -> use_stage
 		| TShowFrame -> incr nframe; use_stage
 		(* patch : this class has a public method which redefines a private one ! *)
-		| TActionScript3 (Some (_,"org/papervision3d/render/QuadrantRenderEngine"),_) -> false
+		| TActionScript3 (Some (_,"org/papervision3d/render/QuadrantRenderEngine"),_) when not as3_native -> false
 		| TFilesAttributes _ | TEnableDebugger2 _ | TF9Scene _ -> false
 		| TSetBgColor _ -> priority
 		| TF9Classes el ->
 			if com.flash_version < 9 then failwith "You can't use AS3 SWF with Flash8 target";
-			if !nframe <> 0 then failwith "Classes export found outside of Frame 1";
+			if !nframe <> 0 then failwith ("Classes export found outside of Frame 1 in '" ^ file ^ "'");
 			classes := !classes @ List.filter (fun e -> e.f9_cid <> None) el; false
 		| _ -> true
 	) tags2 in
@@ -725,7 +735,7 @@ let merge com priority (h1,tags1) (h2,tags2) =
   (* do additional transforms *)
 	let tags2 = List.map (fun t ->
 		match t.tdata with
-		| TActionScript3 (id,data) -> { t with tdata = TActionScript3 (id,make_as3_public data) }
+		| TActionScript3 (id,data) when not as3_native -> { t with tdata = TActionScript3 (id,make_as3_public data) }
 		| _ -> t
 	) tags2 in
   (* merge timelines *)
@@ -763,11 +773,17 @@ let generate com swf_header =
 	let file , codeclip = (try let f , c = ExtString.String.split com.file "@" in f, Some c with _ -> com.file , None) in
   (* list exports *)
 	let exports = Hashtbl.create 0 in
-	List.iter (fun (lib,_) ->
+	List.iter (fun (file,lib,_) ->
 		let _, tags = lib() in
 		List.iter (fun t ->
 			match t.tdata with
 			| TExport l -> List.iter (fun e -> Hashtbl.add exports e.exp_name ()) l
+			| TF9Classes el ->
+				List.iter (fun e ->
+					if e.f9_cid <> None then List.iter (fun t ->
+						if s_type_path (t_path t) = e.f9_classname then error ("You can't redefine a class which already exists in '" ^ file ^ "'") (t_pos t)
+					) com.types;
+				) el
 			| _ -> ()
 		) tags;
 	) com.swf_libs;
@@ -788,8 +804,8 @@ let generate com swf_header =
 	let swf = header, fattr @ bg :: debug @ tags @ [tag TShowFrame] in
   (* merge swf libraries *)
 	let priority = ref (swf_header = None) in
-	let swf = List.fold_left (fun swf (lib,_) ->
-		let swf = merge com !priority swf (lib()) in
+	let swf = List.fold_left (fun swf (file,lib,_) ->
+		let swf = merge com file !priority swf (lib()) in
 		priority := false;
 		swf
 	) swf com.swf_libs in

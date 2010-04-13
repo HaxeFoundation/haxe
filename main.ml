@@ -139,7 +139,7 @@ let rec read_type_path com p =
 			end;
 		) r;
 	) com.class_path;
-	List.iter (fun (_,extract) ->
+	List.iter (fun (_,_,extract) ->
 		Hashtbl.iter (fun (path,name) _ ->
 			if path = p then classes := name :: !classes else
 			let rec loop p1 p2 =
@@ -337,7 +337,7 @@ try
 			let extract = Genswf.extract_data getSWF in
 			let build cl p = Genswf.build_class com (Hashtbl.find (extract()) cl) file in
 			com.type_api.load_extern_type <- com.type_api.load_extern_type @ [build];
-			com.swf_libs <- (getSWF,extract) :: com.swf_libs
+			com.swf_libs <- (file,getSWF,extract) :: com.swf_libs
 		),"<file> : add the SWF library to the compiled SWF");
 		("-x", Arg.String (fun file ->
 			let neko_file = file ^ ".n" in

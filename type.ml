@@ -248,6 +248,11 @@ let t_path = function
 	| TEnumDecl e -> e.e_path
 	| TTypeDecl t -> t.t_path
 
+let t_pos = function
+	| TClassDecl c -> c.cl_pos
+	| TEnumDecl e -> e.e_pos
+	| TTypeDecl t -> t.t_pos
+
 let print_context() = ref []
 
 let is_closed a = !(a.a_status) <> Opened

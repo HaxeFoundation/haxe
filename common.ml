@@ -72,7 +72,7 @@ type context = {
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
 	mutable php_front : string option;
-	mutable swf_libs : ((unit -> Swf.swf) * (unit -> ((string list * string),As3hl.hl_class) Hashtbl.t)) list;
+	mutable swf_libs : (string * (unit -> Swf.swf) * (unit -> ((string list * string),As3hl.hl_class) Hashtbl.t)) list;
 	(* typing *)
 	mutable type_api : context_type_api;
 	mutable lines : Lexer.line_index;

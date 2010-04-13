@@ -258,6 +258,7 @@ and meta_name = parser
 	| [< '(Const (Ident i),_) >] -> i
 	| [< '(Const (Type t),_) >] -> t
 	| [< '(Kwd k,_) >] -> s_keyword k
+	| [< '(DblDot,_); s >] -> ":" ^ meta_name s
 
 and parse_enum_flags = parser
 	| [< '(Kwd Enum,p) >] -> [] , p
