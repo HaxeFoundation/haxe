@@ -36,17 +36,26 @@ let normalize_path p =
 		| '\\' | '/' -> p
 		| _ -> p ^ "/"
 
-let message msg p =
+let format msg p =
 	if p = Ast.null_pos then
-		prerr_endline msg
+		msg
 	else begin
 		let error_printer file line = sprintf "%s:%d:" file line in
 		let epos = Lexer.get_error_pos error_printer p in
 		let msg = String.concat ("\n" ^ epos ^ " : ") (ExtString.String.nsplit msg "\n") in
-		prerr_endline (sprintf "%s : %s" epos msg)
+		sprintf "%s : %s" epos msg
 	end
 
+let message msg p =
+	prerr_endline (format msg p)
+
+let messages = ref []
+
+let store_message msg p =
+	messages := format msg p :: !messages
+
 let do_exit() =
+	List.iter prerr_endline (List.rev (!messages));
 	if !prompt then begin
 		print_endline "Press enter to exit...";
 		ignore(read_line());
@@ -54,7 +63,7 @@ let do_exit() =
 	exit 1
 
 let report msg p =
-	message msg p;
+	messages := format msg p :: !messages;
 	do_exit()
 
 let htmlescape s =
@@ -225,8 +234,7 @@ try
 	);
 	Parser.display_error := (fun e p ->
 		Lexer.save_lines();
-		message (Parser.error_msg e) p;
-		has_error := true;
+		com.error (Parser.error_msg e) p;
 	);
 	Parser.use_doc := false;
 	(try
@@ -471,6 +479,11 @@ try
 		com.verbose <- false;
 		xml_out := None;
 		no_output := true;
+		com.warning <- store_message;
+		com.error <- (fun msg p ->
+			store_message msg p;
+			has_error := true;
+		);
 	end;
 	let ext = (match com.platform with
 		| Cross ->

@@ -21,6 +21,8 @@
 		classes defined in f9 swf are not redefinable in haXe code (use extern)
 	flash9 : allow direct access and completion with classes defined in -swf-lib's
 	flash9 : remove imported libraries debug infos when not compiled with -debug
+	all : only display errors with --display if no completion matched
+	all : some completion related errors fixed
 
 2010-01-09: 2.05
 	js : added js.Scroll
