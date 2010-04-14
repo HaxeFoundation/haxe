@@ -214,7 +214,7 @@ and parse_class_field_resume s =
 			| At :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Override :: _ | Kwd Dynamic :: _ ->
 				raise Exit
 			| [] | Eof :: _ | Kwd Import :: _ | Kwd Using :: _ | Kwd Extern :: _ | Kwd Class :: _ | Kwd Interface :: _ | Kwd Enum :: _ | Kwd Typedef :: _ ->
-				raise Not_found				
+				raise Not_found
 			| [Kwd Private; Kwd Function]
 			| [Kwd Private; Kwd Var] ->
 				raise Exit
@@ -462,11 +462,10 @@ and block2 name ident p = parser
 
 and block acc s =
 	try
-		let e = parse_block_elt s in
+		(* because of inner recursion, we can't put Display handling in errors below *)
+		let e = try parse_block_elt s with Display e -> display (EBlock (List.rev (e :: acc)),snd e) in
 		block (e :: acc) s
 	with
-		| Display e ->
-			display (EBlock (List.rev (e :: acc)),snd e)
 		| Stream.Failure ->
 			List.rev acc
 		| Stream.Error _ ->
@@ -592,6 +591,7 @@ and expr_next e1 = parser
 		(match s with parser
 		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
 		| [< '(Const (Type t),p2) when p.pmax = p2.pmin; s >] -> expr_next (EType (e1,t) , punion (pos e1) p2) s
+		| [< '(Binop OpOr,p2) when do_resume() >] -> display (EDisplay e1,p)
 		| [< >] ->
 			(* turn an integer followed by a dot into a float *)
 			match e1 with
@@ -633,7 +633,7 @@ and expr_next e1 = parser
 
 and parse_switch_cases eswitch cases = parser
 	| [< '(Kwd Default,p1); '(DblDot,_); s >] ->
-		let b = EBlock (try block [] s with Display e -> display (ESwitch (eswitch,cases,Some e),p1)) in		
+		let b = EBlock (try block [] s with Display e -> display (ESwitch (eswitch,cases,Some e),p1)) in
 		let l , def = parse_switch_cases eswitch cases s in
 		(match def with None -> () | Some (e,p) -> error Duplicate_default p);
 		l , Some (b,p1)
@@ -656,22 +656,24 @@ and parse_catch etry = parser
 		| [< '(_,p) >] -> error Missing_type p
 
 and parse_call_params ec s =
-	try
+	let e = (try
 		match s with parser
-		| [< e = expr >] ->
-			let rec loop acc =
-				try 
-					match s with parser
-					| [< '(Comma,_); e = expr >] -> loop (e::acc)
-					| [< >] -> List.rev acc
-				with Display e ->
-					display (ECall (ec,List.rev (e::acc)),pos ec)
-			in
-			loop [e]
-		| [< >] ->
-			[]
+		| [< e = expr >] -> Some e
+		| [< >] -> None
 	with Display e ->
 		display (ECall (ec,[e]),pos ec)
+	) in
+	let rec loop acc =
+		try
+			match s with parser
+			| [< '(Comma,_); e = expr >] -> loop (e::acc)
+			| [< >] -> List.rev acc
+		with Display e ->
+			display (ECall (ec,List.rev (e::acc)),pos ec)
+	in
+	match e with
+	| None -> []
+	| Some e -> loop [e]
 
 and toplevel_expr s =
 	try
