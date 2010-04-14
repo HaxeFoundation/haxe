@@ -24,6 +24,12 @@
  */
 package neko.db;
 
+#if spod_shard
+
+typedef Manager<T : Object> = mt.db.ShardManager<T>;
+
+#else
+
 import Reflect;
 import neko.db.Connection;
 
@@ -536,3 +542,5 @@ class Manager<T : Object> {
 	}
 
 }
+
+#end
