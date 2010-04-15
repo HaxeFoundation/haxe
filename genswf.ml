@@ -781,7 +781,12 @@ let generate com swf_header =
 			| TF9Classes el ->
 				List.iter (fun e ->
 					if e.f9_cid <> None then List.iter (fun t ->
-						if s_type_path (t_path t) = e.f9_classname then error ("You can't redefine a class which already exists in '" ^ file ^ "'") (t_pos t)
+						let extern = (match t with
+							| TClassDecl c -> c.cl_extern
+							| TEnumDecl e -> e.e_extern
+							| TTypeDecl t -> false
+						) in
+						if not extern && s_type_path (t_path t) = e.f9_classname then error ("You can't redefine a class which already exists in '" ^ file ^ "'") (t_pos t)
 					) com.types;
 				) el
 			| _ -> ()
