@@ -28,7 +28,7 @@ type context = {
 	mutable curmethod : string;
 	mutable locals : (string , bool) PMap.t;
 	mutable curblock : texpr list;
-	mutable inits : texpr list;
+	mutable inits : (tclass * texpr) list;
 }
 
 let files = Hashtbl.create 0
@@ -613,7 +613,7 @@ let gen_type ctx t acc =
 	| TClassDecl c ->
 		(match c.cl_init with
 		| None -> ()
-		| Some e -> ctx.inits <- e :: ctx.inits);
+		| Some e -> ctx.inits <- (c,e) :: ctx.inits);
 		if c.cl_extern || c.cl_path = ([],"@Main") then
 			acc
 		else
@@ -752,7 +752,11 @@ let generate com libs =
 	let names = List.fold_left (gen_name ctx) [] com.types in
 	let methods = List.rev (List.fold_left (fun acc t -> gen_type ctx t acc) [] com.types) in
 	let boot = gen_boot ctx in
-	let inits = List.map (gen_expr ctx) (List.rev ctx.inits) in
+	let inits = List.map (fun (c,e) -> 
+		ctx.curclass <- s_type_path c.cl_path;
+		ctx.curmethod <- "__init__";
+		gen_expr ctx e
+	) (List.rev ctx.inits) in
 	let vars = List.concat (List.map (gen_static_vars ctx) com.types) in
 	let e = (EBlock (header :: packs @ methods @ boot :: names @ inits @ vars), null_pos) in
 	let neko_file = (try Filename.chop_extension com.file with _ -> com.file) ^ ".neko" in
