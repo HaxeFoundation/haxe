@@ -49,6 +49,7 @@ type 'a access =
 	| VGlobal of hl_name
 	| VArray
 	| VScope of hl_slot
+	| VVolatile of hl_name * tkind option
 
 type local =
 	| LReg of register
@@ -432,6 +433,9 @@ let rec setvar ctx (acc : write access) kret =
 		write ctx (HSetProp g)
 	| VId id | VCast (id,_) ->
 		write ctx (HInitProp id)
+	| VVolatile (id,_) ->
+		write ctx (HArray 1);
+		write ctx (HInitProp id)
 	| VArray ->
 		write ctx (HSetProp dynamic_prop);
 		ctx.infos.istack <- ctx.infos.istack - 1
@@ -448,6 +452,14 @@ let getvar ctx (acc : read access) =
 		write ctx (HReg r.rid)
 	| VId id ->
 		write ctx (HGetProp id)
+	| VVolatile (id,t) ->
+		write ctx (HGetProp id);
+		write ctx (HSmallInt 0);
+		write ctx (HGetProp dynamic_prop);
+		ctx.infos.istack <- ctx.infos.istack - 1;
+		(match t with
+		| None -> ()
+		| Some t -> coerce ctx t)
 	| VCast (id,t) ->
 		write ctx (HGetProp id);
 		coerce ctx t
@@ -747,10 +759,21 @@ let gen_access ctx e (forset : 'a) : 'a access =
 			(* if the return type is one of the type-parameters, then we need to cast it *)
 			if List.exists (fun t -> follow t == et) tl then
 				VCast (id, classify ctx et)
+			else if Codegen.is_volatile e.etype then
+				VVolatile (id,None)
 			else
 				VId id
-		| TAnon a, _ when (match !(a.a_status) with Statics _ | EnumStatics _ -> true | _ -> false) -> VId id
-		| _ -> VCast (id,classify ctx e.etype))
+		| TAnon a, _ when (match !(a.a_status) with Statics _ | EnumStatics _ -> true | _ -> false) ->
+			if Codegen.is_volatile e.etype then
+				VVolatile (id,None)
+			else
+				VId id
+		| _ ->
+			if Codegen.is_volatile e.etype then
+				VVolatile (id,Some (classify ctx e.etype))
+			else
+				VCast (id,classify ctx e.etype)
+		)
 	| TArray ({ eexpr = TLocal "__global__" },{ eexpr = TConst (TString s) }) ->
 		let path = (match List.rev (ExtString.String.nsplit s ".") with [] -> assert false | x :: l -> List.rev l, x) in
 		let id = type_path ctx path in
@@ -1637,6 +1660,7 @@ let generate_class_statics ctx c =
 		| Some e ->
 			write ctx (HGetLex (type_path ctx c.cl_path));
 			gen_expr ctx true e;
+			if Codegen.is_volatile f.cf_type then write ctx (HArray 1);
 			write ctx (HInitProp (ident f.cf_name));
 	) c.cl_ordered_statics
 
@@ -1733,7 +1757,7 @@ let generate_field_kind ctx f c stat =
 		None
 	| _ ->
 		Some (HFVar {
-			hlv_type = type_opt ctx f.cf_type;
+			hlv_type = if Codegen.is_volatile f.cf_type then Some (type_path ctx ([],"Array")) else type_opt ctx f.cf_type;
 			hlv_value = HVNone;
 			hlv_const = false;
 		})
