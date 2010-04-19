@@ -23,6 +23,7 @@
 	flash9 : remove imported libraries debug infos when not compiled with -debug
 	all : only display errors with --display if no completion matched
 	all : some completion related errors fixed
+	flash9 : added @:bind support
 
 2010-01-09: 2.05
 	js : added js.Scroll

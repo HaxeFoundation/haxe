@@ -637,6 +637,34 @@ let make_as3_public data =
 	let cl = Array.map (fun c -> { c with cl3_namespace = None }) data.as3_classes in
 	{ data with as3_namespaces = ns; as3_classes = cl }
 
+let remove_classes toremove lib hcl =
+	let lib = lib() in
+	match !toremove with
+	| [] -> lib
+	| _ ->
+		let hcl = hcl() in
+		match List.filter (fun c -> Hashtbl.mem hcl c) (!toremove) with
+		| [] -> lib
+		| classes ->
+			let rec loop t =
+				match t.tdata with
+				| TActionScript3 (h,data) ->
+					let data = As3hlparse.parse data in
+					let rec loop f =
+						match f.hlf_kind with
+						| HFClass _ -> 
+							let path = make_tpath f.hlf_name in							
+							not (List.mem (path.tpackage,path.tname) classes)
+						| _ -> true
+					in
+					let data = List.map (fun s -> { s with hls_fields = Array.of_list (List.filter loop (Array.to_list s.hls_fields)) }) data in
+					let data = List.filter (fun s -> Array.length s.hls_fields > 0) data in
+					{ t with tdata = TActionScript3 (h,As3hlparse.flatten data) }
+				| _ -> t
+			in
+			toremove := List.filter (fun p -> not (List.mem p classes)) !toremove;
+			fst lib, List.map loop (snd lib)
+
 let build_swf8 com codeclip exports =
 	let code, clips = Genswf8.generate com in
 	let cid = ref 0 in
@@ -773,6 +801,7 @@ let generate com swf_header =
 	let file , codeclip = (try let f , c = ExtString.String.split com.file "@" in f, Some c with _ -> com.file , None) in
   (* list exports *)
 	let exports = Hashtbl.create 0 in
+	let toremove = ref [] in
 	List.iter (fun (file,lib,_) ->
 		let _, tags = lib() in
 		List.iter (fun t ->
@@ -786,7 +815,15 @@ let generate com swf_header =
 							| TEnumDecl e -> e.e_extern
 							| TTypeDecl t -> false
 						) in
-						if not extern && s_type_path (t_path t) = e.f9_classname then error ("You can't redefine a class which already exists in '" ^ file ^ "'") (t_pos t)
+						if not extern && s_type_path (t_path t) = e.f9_classname then
+							match t with
+							| TClassDecl c ->
+								if List.mem (":bind",[]) c.cl_meta then
+									toremove := (t_path t) :: !toremove
+								else
+									error ("Class already exists in '" ^ file ^ "', use @:bind to redefine it") (t_pos t)
+							| _ ->
+								error ("Invalid redefinition of class defined in '" ^ file ^ "'") (t_pos t)						
 					) com.types;
 				) el
 			| _ -> ()
@@ -809,8 +846,8 @@ let generate com swf_header =
 	let swf = header, fattr @ bg :: debug @ tags @ [tag TShowFrame] in
   (* merge swf libraries *)
 	let priority = ref (swf_header = None) in
-	let swf = List.fold_left (fun swf (file,lib,_) ->
-		let swf = merge com file !priority swf (lib()) in
+	let swf = List.fold_left (fun swf (file,lib,cl) ->
+		let swf = merge com file !priority swf (remove_classes toremove lib cl) in
 		priority := false;
 		swf
 	) swf com.swf_libs in
