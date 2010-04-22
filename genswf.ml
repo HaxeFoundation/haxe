@@ -727,7 +727,7 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 	let header = if priority then { h2 with h_version = max h2.h_version com.flash_version } else h1 in
 	let tags1 = if priority then List.filter (function { tdata = TSetBgColor _ } -> false | _ -> true) tags1 else tags1 in
   (* remove unused tags *)
-	let use_stage = Common.defined com "flash_use_stage" in
+	let use_stage = priority && Common.defined com "flash_use_stage" in
 	let as3_native = Common.defined com "as3_native" in
 	let classes = ref [] in
 	let nframe = ref 0 in
@@ -777,12 +777,12 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 			t :: loop l1 l2
 		| { tdata = TShowFrame } :: l1, { tdata = TShowFrame } :: l2 ->
 			tag TShowFrame :: loop l1 l2
-		| { tdata = TShowFrame } :: _, x :: l2 ->
-			(* wait until we finish frame on other swf *)
-			x :: loop l1 l2
 		| { tdata = TF9Classes el } :: l1, _ ->
 			(* merge all classes together *)
 			tag (TF9Classes (classes @ el)) :: loop l1 l2
+		| x :: l1, { tdata = TShowFrame } :: _ ->
+			(* wait until we finish frame on other swf *)
+			x :: loop l1 l2
 		| _ , x :: l2 ->
 			x :: loop l1 l2
 		| x :: l1, [] ->
