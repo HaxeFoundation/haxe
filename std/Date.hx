@@ -121,7 +121,7 @@ extern class Date
 		Date = neko.NekoDate__;
 		neko.Boot.__classes.Date = Date;
 	#else
-		var d : Dynamic = Date;
+		var d #if !swf_mark : Dynamic #end = Date;
 		d.now = function() {
 			return __new__(Date);
 		};
