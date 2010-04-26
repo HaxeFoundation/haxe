@@ -414,7 +414,7 @@ try
 				let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
 				Common.display := true;
 				Parser.resume_display := {
-					Ast.pfile = Common.get_full_path file;
+					Ast.pfile = String.lowercase (Common.get_full_path file);
 					Ast.pmin = pos;
 					Ast.pmax = pos;
 				};
