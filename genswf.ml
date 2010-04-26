@@ -695,7 +695,7 @@ let build_swf8 com codeclip exports =
 	clips @ code
 
 let build_swf9 com swc =
-	let code, genmethod = Genswf9.generate com in
+	let code = Genswf9.generate com in
 	let code = (match swc with
 	| Some cat ->
 		cat := build_swc_catalog com (List.map (fun (t,_,_) -> t) code);
@@ -742,10 +742,13 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 		| TActionScript3 (Some (_,"org/papervision3d/render/QuadrantRenderEngine"),_) when not as3_native -> false
 		| TFilesAttributes _ | TEnableDebugger2 _ | TF9Scene _ -> false
 		| TSetBgColor _ -> priority
-		| TF9Classes el ->
+		| TExport el when !nframe = 0 && com.flash_version >= 9 ->
+			classes := !classes @ List.map (fun e -> { f9_cid = Some e.exp_id; f9_classname = e.exp_name }) el;
+			false
+		| TF9Classes el when !nframe = 0 ->
 			if com.flash_version < 9 then failwith "You can't use AS3 SWF with Flash8 target";
-			if !nframe <> 0 then failwith ("Classes export found outside of Frame 1 in '" ^ file ^ "'");
-			classes := !classes @ List.filter (fun e -> e.f9_cid <> None) el; false
+			classes := !classes @ List.filter (fun e -> e.f9_cid <> None) el;
+			false
 		| _ -> true
 	) tags2 in
   (* rebuild character ids *)

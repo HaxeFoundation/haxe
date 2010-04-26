@@ -2036,7 +2036,7 @@ let generate com =
 		| None -> acc
 		| Some (m,f) -> (t,m,f) :: acc
 	) [] com.types in
-	List.rev classes, (fun () -> empty_method ctx null_pos)
+	List.rev classes
 
 ;;
 Random.self_init();
