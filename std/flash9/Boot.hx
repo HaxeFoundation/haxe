@@ -167,6 +167,8 @@ class Boot extends flash.display.MovieClip, implements Dynamic {
 			s += "}";
 			return s;
 		case "Array":
+			if( v == Array )
+				return "#Array";
 			var s = "[";
 			var i;
 			var first = true;

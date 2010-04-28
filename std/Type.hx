@@ -611,6 +611,7 @@ class Type {
 			case "Number": return TFloat;
 			case "Boolean": return TBool;
 			case "Object": return TObject;
+			case "Function": return TFunction;
 			default:
 				var c : Dynamic = null;
 				try {
