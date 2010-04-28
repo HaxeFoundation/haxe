@@ -86,4 +86,9 @@ class TestBasetypes extends Test {
 		eq( Std.parseInt(null), null );
 	}
 
+	function testStringTools() {
+		eq( StringTools.hex(0xABCDEF,7), "0ABCDEF" );
+		eq( StringTools.hex(-1,8), "FFFFFFFF" );
+	}
+
 }

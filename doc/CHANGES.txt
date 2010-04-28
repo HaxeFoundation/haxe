@@ -24,6 +24,7 @@
 	all : only display errors with --display if no completion matched
 	all : some completion related errors fixed
 	flash9 : added @:bind support
+	all : fixed StringTools.hex with negative numbers
 
 2010-01-09: 2.05
 	js : added js.Scroll
