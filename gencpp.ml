@@ -1216,7 +1216,9 @@ and gen_expression ctx retval expression =
 	| TClosure (expr,name)
 	| TField (expr,name) ->
 		gen_member_access expr name (is_function_member expression) expression.etype
-	| TParenthesis expr -> output "("; gen_expression ctx true expr; output ")"
+	| TParenthesis expr when not retval ->
+			gen_expression ctx retval expr;
+	| TParenthesis expr -> output "("; gen_expression ctx retval expr; output ")"
 	| TObjectDecl decl_list ->
 		let func_name = use_anon_function_name ctx in
 		(try output ( func_name ^ "::Block(" ^
