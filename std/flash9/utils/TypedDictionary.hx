@@ -30,11 +30,11 @@ package flash.utils;
 class TypedDictionary<K,T> extends Dictionary {
 
 	public inline function get( k : K ) : Null<T> {
-		return this[cast k];
+		return untyped this[k];
 	}
 
 	public inline function set( k : K, v : T ) {
-		this[cast k] = v;
+		untyped this[k] = v;
 	}
 
 	public inline function exists( k : K ) {
