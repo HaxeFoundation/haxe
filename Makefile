@@ -8,6 +8,7 @@ SRC=$(NEKO)/libs/include/ocaml/*.ml* *.ml*
 LIBS=unix.cmxa str.cmxa $(XML)/xml-light.cmxa
 FLAGS=-o haxe -pp camlp4o -P $(XML)/dtd.mli -lp "-cclib extc_stubs.o -cclib -lz"
 LFLAGS=
+EXPORT=../../../projects/motionTools/haxe
 
 ifeq ($(PPC),1)
 LFLAGS=-ccopt '-arch ppc'
@@ -43,3 +44,8 @@ tools:
 clean:
 	ocamake $(FLAGS) -clean $(LIBS_SRC) $(SRC) $(LIBS)
 	rm -rf extc_stubs.o
+
+export:
+	cp haxe*.exe $(EXPORT)
+	rsync -a --exclude .svn --exclude std/mt --delete std $(EXPORT)
+	(cd $(EXPORT); svn commit -m "")
