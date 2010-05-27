@@ -26,8 +26,12 @@ package neko;
 
 class NekoArray__<T> implements Array<T> {
 
-	static var __name__ = ["Array"];
+	static var __name__;
 	public var length(default,null) : Int;
+
+	static function __init__() {
+		__name__ = ["Array"];
+	}
 
 	private function new() {
 		untyped {
