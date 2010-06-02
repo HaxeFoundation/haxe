@@ -74,8 +74,22 @@ class ExternalConnection implements Connection, implements Dynamic<Connection> {
 			if( fobj == null ) throw "Could not find flash object '"+__data.flash+"'";
 			try	data = fobj.externalRemotingCall(__data.name,__path.join("."),params) catch( e : Dynamic ) {};
 		#end
-		if( data == null )
+		if( data == null ) {
+			#if js
+			var domain, pageDomain;
+			try {
+				// check that swf in on the same domain
+				domain = fobj.src.split("/")[2];
+				pageDomain = js.Lib.window.location.host;
+			} catch( e : Dynamic ) {
+				domain = null;
+				pageDomain = null;
+			}
+			if( domain != pageDomain )
+				throw "ExternalConnection call failure : SWF need allowDomain('"+pageDomain+"')";
+			#end
 			throw "Call failure : ExternalConnection is not " + #if flash "compiled in JS" #else "initialized in Flash" #end;
+		}
 		return new haxe.Unserializer(data).unserialize();
 	}
 
