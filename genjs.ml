@@ -609,6 +609,7 @@ let gen_class_static_field ctx c f =
 		match e.eexpr with
 		| TFunction _ ->
 			ctx.curmethod <- (f.cf_name,false);
+			ctx.id_counter <- 0;
 			print ctx "%s%s = " (s_path ctx c.cl_path) (field f.cf_name);
 			gen_value ctx e;
 			newline ctx
@@ -623,12 +624,14 @@ let gen_class_field ctx c f =
 		newline ctx
 	| Some e ->
 		ctx.curmethod <- (f.cf_name,false);
+		ctx.id_counter <- 0;
 		gen_value ctx e;
 		newline ctx
 
 let generate_class ctx c =
 	ctx.current <- c;
 	ctx.curmethod <- ("new",true);
+	ctx.id_counter <- 0;
 	let p = s_path ctx c.cl_path in
 	generate_package_create ctx c.cl_path;
 	print ctx "%s = " p;
