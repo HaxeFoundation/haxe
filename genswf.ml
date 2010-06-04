@@ -740,7 +740,7 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 		| TShowFrame -> incr nframe; use_stage
 		(* patch : this class has a public method which redefines a private one ! *)
 		| TActionScript3 (Some (_,"org/papervision3d/render/QuadrantRenderEngine"),_) when not as3_native -> false
-		| TFilesAttributes _ | TEnableDebugger2 _ | TF9Scene _ -> false
+		| TFilesAttributes _ | TEnableDebugger2 _ | TScenes _ -> false
 		| TSetBgColor _ -> priority
 		| TExport el when !nframe = 0 && com.flash_version >= 9 ->
 			let el = List.filter (fun e ->
