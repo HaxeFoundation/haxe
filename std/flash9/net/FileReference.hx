@@ -8,7 +8,7 @@ extern class FileReference extends flash.events.EventDispatcher {
 	var size(default,null) : UInt;
 	var type(default,null) : String;
 	function new() : Void;
-	function browse(?typeFilter : Array<Dynamic>) : Bool;
+	function browse(?typeFilter : Array<flash.net.FileFilter>) : Bool;
 	function cancel() : Void;
 	function download(request : URLRequest, ?defaultFileName : String) : Void;
 	function upload(request : URLRequest, ?uploadDataFieldName : String, ?testUpload : Bool) : Void;
