@@ -557,7 +557,7 @@ type tag_data =
 	| TActionScript3 of (int * string) option * As3.as3_tag
 	| TShape4 of shape
 	| TMorphShape2 of morph_shape
-	| TF9Scene of string
+	| TScenes of (int * string) list * (int * string) list
 	| TBinaryData of int * binary
 	| TFontName of cid_data
 	| TBitsJPEG4 of bitmap_data

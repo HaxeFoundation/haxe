@@ -394,8 +394,9 @@ let rec tag_data_length = function
 		(match id with None -> 0 | Some (id,f) -> 4 + string_length f) + As3parse.as3_length a
 	| TShape4 s ->
 		shape_length s
-	| TF9Scene name ->
-		2 + string_length name + 1
+	| TScenes (sl,fl) ->
+		As3parse.int_length (List.length sl) + sum (fun(n,s) -> As3parse.int_length n + string_length s) sl +
+		As3parse.int_length (List.length fl) + sum (fun(n,s) -> As3parse.int_length n + string_length s) fl
 	| TBinaryData (_,data) ->
 		2 + String.length data
 	| TFontName c ->
@@ -1373,12 +1374,17 @@ let rec parse_tag ch h =
 			TMorphShape2 (parse_morph_shape ch len)
 		(* 0x55 invalid *)
 		| 0x56 ->
-			let n = read_ui16 ch in
-			if n <> 1 then assert false;
-			let name = read_string ch in
-			let k = read_byte ch in
-			if k <> 0 then assert false;
-			TF9Scene name
+			let scenes = read_count (As3parse.read_int ch) (fun() ->
+				let offset = As3parse.read_int ch in
+				let name = read_string ch in
+				(offset, name)
+			) () in
+			let frames = read_count (As3parse.read_int ch) (fun() ->
+				let f = As3parse.read_int ch in
+				let name = read_string ch in
+				(f, name)
+			) () in
+			TScenes (scenes,frames)
 		| 0x57 ->
 			let cid = read_ui16 ch in
 			if read_i32 ch <> 0 then assert false;
@@ -1502,7 +1508,7 @@ let rec tag_id = function
 	| TActionScript3 _ -> 0x52
 	| TShape4 _ -> 0x53
 	| TMorphShape2 _ -> 0x54
-	| TF9Scene _ -> 0x56
+	| TScenes _ -> 0x56
 	| TBinaryData _ -> 0x57
 	| TFontName _ -> 0x58
 	| TBitsJPEG4 _ -> 0x5A
@@ -1950,10 +1956,17 @@ let rec write_tag_data ch = function
 		write_shape ch s
 	| TMorphShape2 m ->
 		write_morph_shape ch m
-	| TF9Scene s ->
-		write_ui16 ch 1;
-		write_string ch s;
-		write_byte ch 0;
+	| TScenes (sl,fl) ->
+		As3parse.write_int ch (List.length sl);
+		List.iter (fun (n,s) ->
+			As3parse.write_int ch n;
+			write_string ch s;
+		) sl;
+		As3parse.write_int ch (List.length fl);
+		List.iter (fun (n,s) ->
+			As3parse.write_int ch n;
+			write_string ch s;
+		) sl;
 	| TBinaryData (id,data) ->
 		write_ui16 ch id;
 		nwrite ch data
@@ -2017,7 +2030,7 @@ let scan fid f t =
 	| TRemoveObject2 _
 	| TFrameLabel _
 	| TSoundStreamHead2 _
-	| TF9Scene _
+	| TScenes _
 	| TEnableDebugger2 _
 	| TMetaData _
 	| TScriptLimits _
@@ -2164,7 +2177,7 @@ let tag_name = function
 	| TActionScript3 _ -> "ActionScript3"
 	| TShape4 _ -> "Shape4"
 	| TMorphShape2 _ -> "MorphShape2"
-	| TF9Scene _ -> "F9Scene"
+	| TScenes _ -> "Scenes"
 	| TBinaryData _ -> "BinaryData"
 	| TFontName _ -> "FontName"
 	| TBitsJPEG4 _ -> "BitsJPEG4"
