@@ -330,6 +330,11 @@ let rec reduce_loop ctx is_sub e =
 		| _ , TConst (TInt 1l) when op = OpMult -> e1
 		| _ , TConst (TFloat v) when (match op with OpAdd | OpSub -> float_of_string v = 0. && is_float e1.etype | _ -> false) -> e1 (* bits operations might cause overflow *)
 		| _ , TConst (TFloat v) when op = OpMult && float_of_string v = 1. && is_float e1.etype -> e1
+		| TConst TNull, TConst TNull ->
+			(match op with
+			| OpEq -> { e with eexpr = TConst (TBool true) }
+			| OpNotEq -> { e with eexpr = TConst (TBool false) }
+			| _ -> e)
 		| TConst (TInt a), TConst (TInt b) ->
 			let opt f = try { e with eexpr = TConst (TInt (f a b)) } with Exit -> e in
 			let check_overflow f =
