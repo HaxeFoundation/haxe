@@ -23,23 +23,12 @@
  * DAMAGE.
  */
 package flash;
+
 import Xml;
+import flash.xml.XML;
+import flash.xml.XMLList;
 
 class FlashXml__ {
-
-	static var enode = ~/^<([a-zA-Z0-9:_-]+)/;
-	static var ecdata = ~/^<!\[CDATA\[/i;
-	static var edoctype = ~/^<!DOCTYPE/i;
-	static var eend = ~/^<\/([a-zA-Z0-9:_-]+)>/;
-	static var epcdata = ~/^[^<]+/;
-	static var ecomment = ~/^<!--/;
-	static var eprolog = ~/^<\?[^\?]+\?>/;
-
-	static var eattribute = ~/^\s*([a-zA-Z0-9:_-]+)\s*=\s*(['"])([^\2]*?)\2/; //"
-	static var eclose = ~/^[ \r\n\t]*(>|(\/>))/;
-	static var ecdata_end = ~/\]\]>/;
-	static var edoctype_elt = ~/[\[|\]>]/;
-	static var ecomment_end = ~/-->/;
 
 	public static var Element : String;
 	public static var PCData : String;
@@ -54,386 +43,305 @@ class FlashXml__ {
 	public var nodeValue(getNodeValue,setNodeValue) : String;
 	public var parent(getParent,null) : FlashXml__;
 
-	var _nodeName : String;
-	var _nodeValue : String;
-	var _attributes : Hash<String>;
-	var _children : Array<FlashXml__>;
-	var _parent : FlashXml__;
+	public static var _map : flash.utils.Dictionary;
+	var _node : flash.xml.XML;
 
 	public static function parse( str : String ) : FlashXml__ {
-		var rules = [enode,epcdata,eend,ecdata,edoctype,ecomment,eprolog];
-		var nrules = rules.length;
-		var current = createDocument();
-		var stack = new List();
-		var line = 1;
-		while( str.length > 0 ) {
-			var i = 0;
-			while( i < nrules ) {
-				var r = rules[i];
-				if( r.match(str) ) {
-					switch( i ) {
-					case 0: // Node
-						var x = createElement(r.matched(1));
-						current.addChild(x);
-						str = r.matchedRight();
-						while( eattribute.match(str) ) {
-							x.set(eattribute.matched(1),eattribute.matched(3));
-							str = eattribute.matchedRight();
-						}
-						if( !eclose.match(str) ) {
-							i = nrules;
-							break;
-						}
-						if( eclose.matched(1) == ">" ) {
-							stack.push(current);
-							current = x;
-						}
-						str = eclose.matchedRight();
-					case 1: // PCData
-						var text = r.matched(0);
-						var p = 0;
-						while(true) {
-							p = text.indexOf("\n",p);
-							if( p < 0 ) break;
-							line++;
-							p++;
-						}
-						var x = createPCData(text);
-						current.addChild(x);
-						str = r.matchedRight();
-					case 2: // End Node
-						if( current._children != null && current._children.length == 0 ) {
-							var e = createPCData("");
-							current.addChild(e);
-						}
-						if( r.matched(1) != current._nodeName || stack.isEmpty() ) {
-							i = nrules;
-							break;
-						}
-						current = stack.pop();
-						str = r.matchedRight();
-					case 3: // CData
-						str = r.matchedRight();
-						if( !ecdata_end.match(str) )
-							throw "End of CDATA section not found";
-						var x = createCData(ecdata_end.matchedLeft());
-						current.addChild(x);
-						str = ecdata_end.matchedRight();
-					case 4: // DocType
-						var pos = 0;
-						var count = 0;
-						var old = str;
-						while( true ) {
-							if( !edoctype_elt.match(str) )
-								throw "End of DOCTYPE section not found";
-							var p = edoctype_elt.matchedPos();
-							pos += p.pos + p.len;
-							str = edoctype_elt.matchedRight();
-							switch( edoctype_elt.matched(0) ) {
-							case "[": count++;
-							case "]": count--; if( count < 0 ) throw "Invalid ] found in DOCTYPE declaration";
-							default:
-								if( count == 0 )
-									break;
-							}
-						}
-						var x = createDocType(old.substr(0,pos));
-						current.addChild(x);
-					case 5: // Comment
-						if( !ecomment_end.match(str) )
-							throw "Unclosed Comment";
-						var p = ecomment_end.matchedPos();
-						var x = createComment(str.substr(0,p.pos+p.len));
-						current.addChild(x);
-						str = ecomment_end.matchedRight();
-					case 6: // Prolog
-						var x = createProlog(r.matched(0));
-						current.addChild(x);
-						str = r.matchedRight();
-					}
-					break;
-				}
-				i += 1;
-			}
-			if( i == nrules ) {
-				if( str.length > 10 )
-					throw ("Xml parse error : Unexpected "+str.substr(0,10)+"... line "+line);
-				else
-					throw ("Xml parse error : Unexpected "+str);
-			}
-		}
-		if( !stack.isEmpty() )
-			throw "Xml parse error : Unclosed "+stack.last().nodeName;
-		return current;
+		XML.ignoreWhitespace = false;
+		XML.ignoreProcessingInstructions = false;
+		XML.ignoreComments = false;
+		var root = new flash.xml.XML("<__document>" + str + "</__document>");
+		return wrap( root, Xml.Document );
 	}
 
-	private function new(){
-	}
+	private function new() {}
 
 	public static function createElement( name : String ) : FlashXml__ {
-		var r = new FlashXml__();
-		r.nodeType = Xml.Element;
-		r._children = new Array();
-		r._attributes = new Hash();
-		r.setNodeName( name );
-		return r;
+		return wrap( new flash.xml.XML("<"+name+"/>"), Xml.Element );
 	}
 
 	public static function createPCData( data : String ) : FlashXml__ {
-		var r = new FlashXml__();
-		r.nodeType = Xml.PCData;
-		r.setNodeValue( data );
-		return r;
+		XML.ignoreWhitespace = false;
+		return wrap( new flash.xml.XML(data), Xml.PCData );
 	}
 
 	public static function createCData( data : String ) : FlashXml__ {
-		var r = new FlashXml__();
-		r.nodeType = Xml.CData;
-		r.setNodeValue( data );
-		return r;
+		return wrap( new flash.xml.XML("<![CDATA[ "+data+" ]]>"), Xml.CData );
 	}
 
 	public static function createComment( data : String ) : FlashXml__ {
-		var r = new FlashXml__();
-		r.nodeType = Xml.Comment;
-		r.setNodeValue( data );
-		return r;
+		XML.ignoreComments = false;
+		return wrap( new flash.xml.XML("<!-- "+data+" -->"), Xml.Comment );
 	}
 
 	public static function createDocType( data : String ) : FlashXml__ {
-		var r = new FlashXml__();
-		r.nodeType = Xml.DocType;
-		r.setNodeValue( data );
-		return r;
+		return wrap( new flash.xml.XML("<!DOCTYPE "+data+">"), Xml.DocType );
 	}
 
 	public static function createProlog( data : String ) : FlashXml__ {
-		var r = new FlashXml__();
-		r.nodeType = Xml.Prolog;
-		r.setNodeValue( data );
-		return r;
+		XML.ignoreProcessingInstructions = false;
+		return wrap( new flash.xml.XML("<?"+data+"?>"), Xml.Prolog );
 	}
 
 	public static function createDocument() : FlashXml__ {
-		var r = new FlashXml__();
-		r.nodeType = Xml.Document;
-		r._children = new Array();
-		return r;
+		return wrap( new flash.xml.XML("<__document/>"), Xml.Document );
+	}
+
+	private static function getNodeType( node : flash.xml.XML ) : XmlType {
+		switch( node.nodeKind() ) {
+		case "element":
+			return Xml.Element;
+		case "text":
+			return Xml.PCData;
+		case "processing-instruction":
+			return Xml.Prolog;
+		case "comment":
+			return Xml.Comment;
+		default :
+			throw "unimplemented node type: " + node.nodeType;
+		}
+		return null;
 	}
 
 	private function getNodeName() : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		return _nodeName;
+		var ns = _node.namespace();
+		return (ns.prefix == "") ? _node.localName() : ns.prefix+":"+_node.localName();
 	}
 
 	private function setNodeName( n : String ) : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		return _nodeName = n;
+		var ns = n.split(":");
+		if( ns.length == 1 )
+			_node.setLocalName(n);
+		else {
+			_node.setLocalName(ns[1]);
+			_node.setNamespace(_node.namespace(ns[0]));
+		}
+		return n;
 	}
 
 	private function getNodeValue() : String {
-		if( nodeType == Xml.Element || nodeType == Xml.Document )
+		if( _node.hasComplexContent() )
 			throw "bad nodeType";
-		return _nodeValue;
+		return _node.toString();
 	}
 
 	private function setNodeValue( v : String ) : String {
-		if( nodeType == Xml.Element || nodeType == Xml.Document )
+		if( _node.hasComplexContent() || _node.children() == null )
 			throw "bad nodeType";
-		return _nodeValue = v;
+		var children = _node.children();
+		untyped __delete__(children, Reflect.fields(children)[0]);
+		_node.appendChild(new XML(v));
+		return v;
 	}
 
-	private function getParent() {
-		return _parent;
+	private function getParent() :FlashXml__ {
+		return wrap( _node.parent() );
+	}
+
+	private static function wrap( node : XML, ?type : XmlType ) : FlashXml__ {
+		var map : Dynamic = _map;
+		if( map == null ) {
+			map = new flash.utils.Dictionary(true);
+			_map = map;
+		}
+		var x = untyped map[node];
+		if( x == null ) {
+			x = new FlashXml__();
+			x._node = node;
+			x.nodeType = (type != null) ? type : getNodeType( node );
+			untyped map[node] = x;
+		}
+		return x;
+	}
+
+	private function wraps( xList : XMLList ) : Array<FlashXml__> {
+		var out = new Array<FlashXml__>();
+		for( i in 0...xList.length() )
+			out.push( wrap(xList[i]) );
+		return out;
+	}
+
+	function getAttribNS( ns : Array<String> ) {
+		return _node.attribute(new flash.utils.QName(_node.namespace(ns[0]).uri,ns[1]));
 	}
 
 	public function get( att : String ) : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		return _attributes.get( att );
+		var ns = att.split(":");
+		if( ns.length == 1 ) {
+			if( !Reflect.hasField(_node,"@"+att) )
+				return null;
+			return Reflect.field(_node, "@"+att);
+		}
+		var a = getAttribNS(ns);
+		return (a.length() == 0) ? null : a.toString();
 	}
 
 	public function set( att : String, value : String ) : Void {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		_attributes.set( att, value );
+		var ns = att.split(":");
+		if( ns.length == 1 )
+			Reflect.setField(_node, "@"+att, value);
+		else {
+			var a = getAttribNS(ns);
+			untyped a[0] = value;
+		}
 	}
 
 	public function remove( att : String ) : Void{
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		_attributes.remove( att );
+		var ns = att.split(":");
+		if( ns.length == 1 )
+			Reflect.deleteField(_node, "@"+att);
+		else
+			untyped __delete__(getAttribNS(ns),0);
 	}
 
 	public function exists( att : String ) : Bool {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		return _attributes.exists( att );
+		var ns = att.split(":");
+		if( ns.length == 1 )
+			return Reflect.hasField(_node, "@"+att);
+		return getAttribNS(ns).length() > 0;
 	}
 
 	public function attributes() : Iterator<String> {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		return _attributes.keys();
-	}
-
-	public function iterator(){
-		if( _children == null ) throw "bad nodetype";
+		var attributes :XMLList = _node.attributes();
+		var names = Reflect.fields(attributes);
 		var cur = 0;
-		var x = _children;
 		return {
 			hasNext : function(){
-				return cur < x.length;
+				return cur < names.length;
 			},
 			next : function(){
-				return x[cur++];
+				return attributes[Std.parseInt(names[cur++])].name();
 			}
 		}
 	}
 
-	public function elements(){
-		if( _children == null ) throw "bad nodetype";
+	public function iterator() {
+		var children:XMLList = _node.children();
+		if( children == null )
+			throw "bad nodetype";
+		var wrappers :Array<FlashXml__> = wraps(children);
 		var cur = 0;
-		var x = _children;
 		return {
-			hasNext : function() {
-				var k = cur;
-				var l = x.length;
-				while( k < l ) {
-					if( x[k].nodeType == Xml.Element )
-						break;
-					k += 1;
-				}
-				cur = k;
-				return k < l;
+			hasNext : function(){
+				return cur < wrappers.length;
 			},
-			next : function() {
-				var k = cur;
-				var l = x.length;
-				while( k < l ) {
-					var n = x[k];
-					k += 1;
-					if( n.nodeType == Xml.Element ) {
-						cur = k;
-						return n;
-					}
-				}
-				return null;
+			next : function(){
+				return wrappers[cur++];
 			}
-		}
+		};
+	}
+
+	public function elements() {
+		var elements:XMLList = _node.elements();
+		if( elements == null )
+			throw "bad nodetype";
+		var wrappers :Array<FlashXml__> = wraps(elements);
+		var cur = 0;
+		return {
+			hasNext : function(){
+				return cur < wrappers.length;
+			},
+			next : function(){
+				return wrappers[cur++];
+			}
+		};
 	}
 
 	public function elementsNamed( name : String ) {
-		if( _children == null ) throw "bad nodetype";
+		var ns = name.split(":");
+		var elements:XMLList;
+		if( ns.length == 1 )
+			elements = _node.elements(name);
+		else
+			elements = _node.elements();
+		if( elements == null )
+			throw "bad nodetype";
+		var wrappers :Array<FlashXml__> = wraps(elements);
+		if( ns.length != 1 )
+			for( w in wrappers.copy() )
+				if( w._node.localName() != ns[1] || w._node.namespace().prefix != ns[0] )
+					wrappers.remove(w);
 		var cur = 0;
-		var x = _children;
 		return {
-			hasNext : function() {
-				var k = cur;
-				var l = x.length;
-				while( k < l ) {
-					var n = x[k];
-					if( n.nodeType == Xml.Element && n._nodeName == name )
-						break;
-					k++;
-				}
-				cur = k;
-				return k < l;
+			hasNext : function(){
+				return cur < wrappers.length;
 			},
-			next : function() {
-				var k = cur;
-				var l = x.length;
-				while( k < l ) {
-					var n = x[k];
-					k++;
-					if( n.nodeType == Xml.Element && n._nodeName == name ) {
-						cur = k;
-						return n;
-					}
-				}
-				return null;
+			next : function(){
+				return wrappers[cur++];
 			}
-		}
+		};
 	}
 
 	public function firstChild() : FlashXml__ {
-		if( _children == null ) throw "bad nodetype";
-		return _children[0];
+		var children:XMLList = _node.children();
+		if( children == null )
+			throw "bad nodetype";
+		if( children.length() == 0 )
+			return null;
+		return wrap( children[0] );
 	}
 
 	public function firstElement() : FlashXml__ {
-		if( _children == null ) throw "bad nodetype";
-		var cur = 0;
-		var l = _children.length;
-		while( cur < l ) {
-			var n = _children[cur];
-			if( n.nodeType == Xml.Element )
-				return n;
-			cur++;
-		}
-		return null;
+		var elements:XMLList = _node.elements();
+		if( elements == null )
+			throw "bad nodetype";
+		if( elements.length() == 0 )
+			return null;
+		return wrap( elements[0] );
 	}
 
 	public function addChild( x : FlashXml__ ) : Void {
-		if( _children == null ) throw "bad nodetype";
-		if( x._parent != null ) x._parent._children.remove(x);
-		x._parent = this;
-		_children.push( x );
+		var children:XMLList = _node.children();
+		if( children == null )
+			throw "bad nodetype";
+		_node.appendChild(x._node);
 	}
 
 	public function removeChild( x : FlashXml__ ) : Bool {
-		if( _children == null ) throw "bad nodetype";
-		var b = _children.remove( x );
-		if( b )
-			x._parent = null;
-		return b;
+		var children:XMLList = _node.children();
+		if( children == null )
+			throw "bad nodetype";
+		if( _node != x._node.parent() )
+			return false;
+		var i = x._node.childIndex();
+		untyped __delete__(children, Reflect.fields(children)[i]);
+		return true;
 	}
 
 	public function insertChild( x : FlashXml__, pos : Int ) : Void {
-		if( _children == null ) throw "bad nodetype";
-		if( x._parent != null ) x._parent._children.remove(x);
-		x._parent = this;
-		_children.insert( pos, x );
+		var children:XMLList = _node.children();
+		if( children == null )
+			throw "bad nodetype";
+		if( pos < children.length() )
+			_node.insertChildBefore(children[pos], x._node);
+		else
+			_node.appendChild(x._node);
 	}
 
 	public function toString() {
-		if( nodeType == Xml.PCData )
-			return _nodeValue;
-		if( nodeType == Xml.CData )
-			return "<![CDATA["+_nodeValue+"]]>";
-		if( nodeType == Xml.Comment || nodeType == Xml.DocType || nodeType == Xml.Prolog )
-			return _nodeValue;
-
-		var s = new StringBuf();
-
-		if( nodeType == Xml.Element ) {
-			s.add("<");
-			s.add(_nodeName);
-			for( k in _attributes.keys() ){
-				s.add(" ");
-				s.add(k);
-				s.add("=\"");
-				s.add(_attributes.get(k));
-				s.add("\"");
-			}
-			if( _children.length == 0 ) {
-				s.add("/>");
-				return s.toString();
-			}
-			s.add(">");
+		XML.prettyPrinting = false;
+		if( nodeType == Xml.Document ) {
+			var str = "";
+			var c = _node.children();
+			for( i in 0...c.length() )
+				str += c[i].toXMLString();
+			return str;
 		}
-
-		for( x in iterator() )
-			s.add(x.toString());
-
-		if( nodeType == Xml.Element ) {
-			s.add("</");
-			s.add(_nodeName);
-			s.add(">");
-		}
-		return s.toString();
+		return _node.toXMLString();
 	}
 
 }

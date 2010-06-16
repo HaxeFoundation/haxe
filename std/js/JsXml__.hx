@@ -29,7 +29,7 @@ class JsXml__ {
 
 	static var enode = ~/^<([a-zA-Z0-9:_-]+)/;
 	static var ecdata = ~/^<!\[CDATA\[/i;
-	static var edoctype = ~/^<!DOCTYPE/i;
+	static var edoctype = ~/^<!DOCTYPE /i;
 	static var eend = ~/^<\/([a-zA-Z0-9:_-]+)>/;
 	static var epcdata = ~/^[^<]+/;
 	static var ecomment = ~/^<!--/;
@@ -121,17 +121,18 @@ class JsXml__ {
 									break;
 							}
 						}
-						var x = Xml.createDocType(old.substr(0,pos));
+						var x = Xml.createDocType(old.substr(10,pos-11));
 						current.addChild(x);
 					case 5: // Comment
 						if( !ecomment_end.match(str) )
 							throw "Unclosed Comment";
 						var p = ecomment_end.matchedPos();
-						var x = Xml.createComment(str.substr(0,p.pos+p.len));
+						var x = Xml.createComment(str.substr(4,p.pos+p.len-7));
 						current.addChild(x);
 						str = ecomment_end.matchedRight();
 					case 6: // Prolog
-						var x = Xml.createProlog(r.matched(0));
+						var prolog = r.matched(0);
+						var x = Xml.createProlog(prolog.substr(2,prolog.length - 4));
 						current.addChild(x);
 						str = r.matchedRight();
 					}
@@ -387,9 +388,12 @@ class JsXml__ {
 			return _nodeValue;
 		if( nodeType == Xml.CData )
 			return "<![CDATA["+_nodeValue+"]]>";
-		if( nodeType == Xml.Comment || nodeType == Xml.DocType || nodeType == Xml.Prolog )
-			return _nodeValue;
-
+		if( nodeType == Xml.Comment )
+			return "<!--"+_nodeValue+"-->";
+		if( nodeType == Xml.DocType )
+			return "<!DOCTYPE "+_nodeValue+">";
+		if( nodeType == Xml.Prolog )
+			return "<?"+_nodeValue+"?>";
 		var s = new StringBuf();
 
 		if( nodeType == Xml.Element ) {

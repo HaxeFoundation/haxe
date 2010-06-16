@@ -88,10 +88,11 @@ class NekoXml__ {
 				x._parent = untyped this.cur;
 				if( untyped __dollar__sget(text,0) == 63 ) {
 					x.nodeType = Xml.Prolog;
-					text = "<"+new String(text)+">";
+					text = new String(text);
+					text = text.substr(1,text.length - 2);
 				} else {
 					x.nodeType = Xml.Comment;
-					text = "<!--"+new String(text)+"-->";
+					text = new String(text);
 				}
 				x._nodeValue = text;
 				untyped this.cur.addChild(x);
@@ -100,7 +101,7 @@ class NekoXml__ {
 				var x : Dynamic = new NekoXml__();
 				x._parent = untyped this.cur;
 				x.nodeType = Xml.DocType;
-				x._nodeValue = "<!DOCTYPE"+new String(text)+">";
+				x._nodeValue = new String(text).substr(1);
 				untyped this.cur.addChild(x);
 			},
 			done : function() {
@@ -386,8 +387,18 @@ class NekoXml__ {
 			s.add("<![CDATA[");
 			s.add(_nodeValue);
 			s.add("]]>");
-		case Xml.Comment, Xml.DocType, Xml.Prolog:
+		case Xml.Comment:
+			s.add("<!--");
 			s.add(_nodeValue);
+			s.add("-->");
+		case Xml.DocType:
+			s.add("<!DOCTYPE ");
+			s.add(_nodeValue);
+			s.add(">");
+		case Xml.Prolog:
+			s.add("<?");
+			s.add(_nodeValue);
+			s.add("?>");
 		}
 	}
 

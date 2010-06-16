@@ -70,7 +70,6 @@
     <file path="MySubClass.hx" />
     <file path="RemotingApi.hx" />
     <file path="RemotingServer.hx" />
-    <file path="Run.hx" />
     <file path="RunCpp.hx" />
     <file path="Test.hx" />
     <file path="TestBasetypes.hx" />

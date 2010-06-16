@@ -155,10 +155,10 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 	static function main() {
 		#if neko
 		if( neko.Web.isModNeko )
-			neko.Lib.print("<pre>");
+			neko.Web.setHeader("Content-Type","text/plain");
 		#elseif php
 		if( php.Web.isModNeko )
-			php.Lib.print("<pre>");
+			php.Web.setHeader("Content-Type","text/plain");
 		#end
 		resetTimer();
 		trace("START");

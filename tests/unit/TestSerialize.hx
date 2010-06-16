@@ -8,9 +8,14 @@ class TestSerialize extends Test {
 
 	function test() {
 		// basic types
-		for( v in [null,true,false,0,1,1506,-0xABCDEF,12.3,-1e10,Math.POSITIVE_INFINITY,Math.NEGATIVE_INFINITY,"hello","éé","\r\n","\n","   ",""] )
+		for( v in [null,true,false,0,1,1506,-0xABCDEF,12.3,-1e10,"hello","éé","\r\n","\n","   ",""] )
 			eq( id(v), v );
+
 		t( Math.isNaN(id(Math.NaN)) );
+		t( id(Math.POSITIVE_INFINITY) > 0 );
+		f( id(Math.NEGATIVE_INFINITY) > 0 );
+		f( Math.isFinite(id(Math.POSITIVE_INFINITY)) );
+		f( Math.isFinite(id(Math.NEGATIVE_INFINITY)) );
 
 		// array/list
 		doTestCollection([]);

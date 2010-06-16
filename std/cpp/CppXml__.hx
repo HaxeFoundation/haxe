@@ -84,10 +84,11 @@ class CppXml__ {
 				x._parent = untyped this.cur;
 				if( untyped text.cca(0) == 63 ) {
 					x.nodeType = Xml.Prolog;
-					text = "<"+new String(text)+">";
+					text = new String(text);
+					text = text.substr(1, text.length - 2);
 				} else {
 					x.nodeType = Xml.Comment;
-					text = "<!--"+new String(text)+"-->";
+					text = new String(text);
 				}
 				x._nodeValue = text;
 				untyped this.cur.addChild(x);
@@ -96,7 +97,7 @@ class CppXml__ {
 				var x = new CppXml__();
 				x._parent = untyped this.cur;
 				x.nodeType = Xml.DocType;
-				x._nodeValue = "<!DOCTYPE"+new String(text)+">";
+				x._nodeValue = (new String(text)).substr(1);
 				untyped this.cur.addChild(x);
 			},
 			done : function() {
@@ -362,39 +363,58 @@ class CppXml__ {
 	}
 
 	public function toString() {
-		if( nodeType == Xml.PCData )
-			return _nodeValue;
-		if( nodeType == Xml.CData )
-			return "<![CDATA["+_nodeValue+"]]>";
-		if( nodeType == Xml.Comment || nodeType == Xml.DocType || nodeType == Xml.Prolog )
-			return _nodeValue;
-
 		var s = new StringBuf();
+		toStringRec(s);
+		return s.toString();
+	}
 
-		if( nodeType == Xml.Element ) {
-			s.add("<");
+	public function toStringRec(s: StringBuf) {
+		switch( nodeType ) {
+		case Xml.Document:
+			for( x in _children )
+				x.toStringRec(s);
+		case Xml.Element:
+			s.addChar("<".code);
 			s.add(_nodeName);
 			for( k in Reflect.fields(_attributes) ) {
-				s.add(" ");
+				s.addChar(" ".code);
 				s.add(k);
-				s.add("=\"");
+				s.addChar("=".code);
+				s.addChar("\"".code);
 				s.add(Reflect.field(_attributes,k));
-				s.add("\"");
+				s.addChar("\"".code);
 			}
 			if( _children.length == 0 ) {
-				s.add("/>");
-				return s.toString();
+				s.addChar("/".code);
+				s.addChar(">".code);
+				return;
 			}
-			s.add(">");
-		}
-		for( x in iterator() )
-			s.add(x);
-		if( nodeType == Xml.Element ) {
-			s.add("</");
+			s.addChar(">".code);
+			for( x in _children )
+				x.toStringRec(s);
+			s.addChar("<".code);
+			s.addChar("/".code);
 			s.add(_nodeName);
+			s.addChar(">".code);
+		case Xml.PCData:
+			s.add(_nodeValue);
+		case Xml.CData:
+			s.add("<![CDATA[");
+			s.add(_nodeValue);
+			s.add("]]>");
+		case Xml.Comment:
+			s.add("<!--");
+			s.add(_nodeValue);
+			s.add("-->");
+		case Xml.DocType:
+			s.add("<!DOCTYPE ");
+			s.add(_nodeValue);
 			s.add(">");
+		case Xml.Prolog:
+			s.add("<?");
+			s.add(_nodeValue);
+			s.add("?>");
 		}
-		return s.toString();
 	}
 
 	static function __init__() : Void {

@@ -22,7 +22,7 @@ extern class XML implements Dynamic<XMLList> {
 	function length() : Int;
 	function localName() : Dynamic;
 	function name() : Dynamic;
-	function namespace(?prefix : Dynamic) : Void;
+	function namespace(?prefix : String) : flash.utils.Namespace;
 	function namespaceDeclarations() : Array<Dynamic>;
 	function nodeKind() : String;
 	function normalize() : XML;
