@@ -608,7 +608,11 @@ class Type {
 			case "null": return TNull;
 			case "void": return TNull; // undefined
 			case "int": return TInt;
-			case "Number": return TFloat;
+			case "Number":
+				// integers >28 bits are stored as Numbers in avm2
+				if( (v < -0x10000000 || v >= 0x10000000) && Std.int(v) == v )
+					return TInt;
+				return TFloat;
 			case "Boolean": return TBool;
 			case "Object": return TObject;
 			case "Function": return TFunction;
