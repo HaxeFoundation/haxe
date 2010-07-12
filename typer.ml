@@ -506,7 +506,7 @@ let type_matching ctx (enum,params) (e,p) ecases first_case =
 			| TFun (l,_) ->
 				if List.length l <> List.length el then needs (List.length l);
 				List.map (fun (_,_,t) -> apply_params enum.e_types params t) l
-			| TEnum _ -> error "This constructor does not take any paramter" p
+			| TEnum _ -> error "This constructor does not take any parameter" p
 			| _ -> assert false
 		) in
 		let idents = List.map2 (fun (e,_) t ->
