@@ -1991,15 +1991,20 @@ let generate_enum_files common_ctx enum_def super_deps =
 
 
 	output_cpp "static ::String sStaticFields[] = {\n";
-	PMap.iter
-		(fun _ constructor -> output_cpp ("	" ^ (str constructor.ef_name) ^ ",\n") )
-		enum_def.e_constrs;
+	let sorted =
+	   List.sort (fun f1 f2 -> (PMap.find f1 enum_def.e_constrs ).ef_index -
+				   (PMap.find f2 enum_def.e_constrs ).ef_index ) 
+			  (pmap_keys enum_def.e_constrs) in
+
+ 	List.iter (fun name -> output_cpp ("	" ^ (str name) ^ ",\n") ) sorted;
+
 	output_cpp "	::String(null()) };\n\n";
 
 	(* ENUM - MARK function - only used with internal GC *)
 	output_cpp "static void sMarkStatics() {\n";
 	PMap.iter (fun _ constructor ->
 		let name = constructor.ef_name in
+
 		match constructor.ef_type with
 		| TFun (_,_) -> ()
 		| _ -> output_cpp ("	hx::MarkMember(" ^ class_name ^ "::" ^ name ^ ");\n") )
@@ -2238,7 +2243,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 			class_def.cl_ordered_fields;
 		output_cpp "}\n\n";
 
-                (* MARK function - only used with internal GC *)
+		(* MARK function - only used with internal GC *)
 		output_cpp ("void " ^ class_name ^ "::__Mark()\n{\n");
 		if (implement_dynamic) then
 			output_cpp "	HX_MARK_DYNAMIC;\n";
