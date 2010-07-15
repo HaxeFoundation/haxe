@@ -259,7 +259,7 @@ let is_prefix = function
 
 let base_class_name = snd
 
-let null_pos = { pfile = "<null>"; pmin = -1; pmax = -1 }
+let null_pos = { pfile = "?"; pmin = -1; pmax = -1 }
 
 let punion p p2 =
 	{
