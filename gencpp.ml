@@ -1294,8 +1294,9 @@ and gen_expression ctx retval expression =
 		(match optional_else_expr with
 		| Some else_expr -> 
 			if (retval) then begin
+            output "(  (";
 				gen_expression ctx true condition;
-				output " ? ";
+				output ") ? ";
 				let type_str = match (type_string expression.etype) with
 				| "Void" -> "Dynamic"
 				| other -> other
@@ -1315,6 +1316,7 @@ and gen_expression ctx retval expression =
 					output " )";
 				end else
 					gen_expression ctx true else_expr;
+            output "  )";
 			end else begin
 				output "if (";
 				gen_expression ctx true condition;
@@ -1333,10 +1335,11 @@ and gen_expression ctx retval expression =
 			gen_expression ctx true condition;
 			output ")";
 			ctx.ctx_do_safe_point <- true;
-			gen_expression ctx false repeat
+         gen_expression ctx false (to_block repeat)
 	| TWhile (condition, repeat, Ast.DoWhile ) ->
 			output "do";
-			gen_expression ctx false repeat;
+			ctx.ctx_do_safe_point <- true;
+			gen_expression ctx false (to_block repeat);
 			output "while(";
 			gen_expression ctx true condition;
 			output ")"
