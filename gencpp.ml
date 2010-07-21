@@ -1238,13 +1238,22 @@ and gen_expression ctx retval expression =
 			output ( ( class_string klass "_obj" params) ^ "::__new(" );
 		gen_expression_list expressions;
 		output ")"
+	| TUnop (Ast.NegBits,Ast.Prefix,expr) ->
+		ctx.ctx_assigning <- true;
+		output "~(int)(";
+		gen_expression ctx true expr;
+		output ")"
 	| TUnop (op,Ast.Prefix,expr) ->
 		ctx.ctx_assigning <- true;
 		output (Ast.s_unop op);
-		gen_expression ctx true expr
+		output "(";
+		gen_expression ctx true expr;
+		output ")"
 	| TUnop (op,Ast.Postfix,expr) ->
 		ctx.ctx_assigning <- true;
+		output "(";
 		gen_expression ctx true expr;
+		output ")";
 		output (Ast.s_unop op)
 	| TFunction func ->
 		let func_name = use_anon_function_name ctx in
@@ -1412,12 +1421,29 @@ and gen_expression ctx retval expression =
 	output ( (type_string condition.etype) ^ " " ^ tmp_var ^ " = " );
 	gen_expression ctx true condition;
 	output ";\n";
+ 
+        let use_if_statements = contains_break expression in
 
-	output_i ("switch((" ^ tmp_var ^ ")->GetIndex())");
+        let dump_condition = if (use_if_statements) then begin
+		let tmp_name = get_switch_var ctx in
+		output_i ( "int " ^ tmp_name ^ " = (" ^ tmp_var ^ ")->GetIndex();" );
+                let elif = ref "if" in
+                ( fun case_ids -> 
+			output (!elif ^ " (" );
+			elif := "else if";
+			output (String.concat "||"
+				(List.map (fun id -> (string_of_int id) ^ "==" ^ tmp_name ) case_ids ) );
+			output ") " )
+          end else begin
+		output_i ("switch((" ^ tmp_var ^ ")->GetIndex())");
+	  	( fun case_ids ->
+		    List.iter (fun id -> output ("case " ^ (string_of_int id) ^ ": ") ) case_ids;
+		    )
+          end in
 	writer#begin_block;
 	List.iter (fun (case_ids,params,expression) ->
 		output_i "";
-		List.iter (fun id -> output ("case " ^ (string_of_int id) ^ ": ") ) case_ids;
+                dump_condition case_ids;
 		let has_params = match params with | Some _ -> true | _ -> false in
 		if (has_params) then begin
 			writer#begin_block;
@@ -1429,16 +1455,20 @@ and gen_expression ctx retval expression =
 		ctx.ctx_return_from_block <- return_from_internal_node;
 		gen_expression ctx false (to_block expression);
 		if (has_params) then writer#end_block;
-		output_i ";break;\n";
+                if (not use_if_statements) then output_i ";break;\n";
 	) cases;
 	(match default with
 	| None -> ()
 	|  Some e ->
-		output_i "default: ";
+                if (use_if_statements) then
+			output_i "else "
+		else
+			output_i "default: ";
 		ctx.ctx_return_from_block <- return_from_internal_node;
 		gen_expression ctx false (to_block e);
 	);
 	writer#end_block
+
 	| TTry (expression, catch_list) ->
 		output "try";
 		(* Move this "inside" the try call ... *)
