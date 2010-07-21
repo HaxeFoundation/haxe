@@ -1041,14 +1041,13 @@ let dump_types com =
 	Build a default safe-cast expression :
 	{ var $t = <e>; if( Std.is($t,<t>) ) $t else throw "Class cast error"; }
 *)
-let default_cast com e texpr t p =
+let default_cast ?(vtmp="$t") com e texpr t p =
 	let api = com.type_api in
 	let mk_texpr = function
 		| TClassDecl c -> TAnon { a_fields = PMap.empty; a_status = ref (Statics c) }
 		| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
 		| TTypeDecl _ -> assert false
-	in
-	let vtmp = "$t" in
+	in	
 	let var = mk (TVars [(vtmp,e.etype,Some e)]) api.tvoid p in
 	let vexpr = mk (TLocal vtmp) e.etype p in
 	let texpr = mk (TTypeExpr texpr) (mk_texpr texpr) p in
