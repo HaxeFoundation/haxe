@@ -141,7 +141,7 @@ class Std {
 		#elseif php
 		__php__("is_numeric($x) ? floatval($x) : acos(1.01)");
 		#elseif cpp
-		__global__.__hxcpp_parse_float(x.__s);
+		__global__.__hxcpp_parse_float(x);
 		#else
 		0;
 		#end
