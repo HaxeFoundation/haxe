@@ -1239,12 +1239,11 @@ and gen_expression ctx retval expression =
 		gen_expression_list expressions;
 		output ")"
 	| TUnop (Ast.NegBits,Ast.Prefix,expr) ->
-		ctx.ctx_assigning <- true;
 		output "~(int)(";
 		gen_expression ctx true expr;
 		output ")"
 	| TUnop (op,Ast.Prefix,expr) ->
-		ctx.ctx_assigning <- true;
+		ctx.ctx_assigning <- (match op with Ast.Increment | Ast.Decrement -> true | _ ->false);
 		output (Ast.s_unop op);
 		output "(";
 		gen_expression ctx true expr;
@@ -1310,22 +1309,13 @@ and gen_expression ctx retval expression =
 				| "Void" -> "Dynamic"
 				| other -> other
 				in
-				if ( true (*(type_string if_expr.etype) <> type_str*) ) then begin
-					output (type_str ^ "( ");
-					gen_expression ctx true if_expr;
-					output " )";
-				end else
-					gen_expression ctx true if_expr;
+				output (type_str ^ "(");
+				gen_expression ctx true if_expr;
+				output ") : ";
 
-				output " : ";
-
-				if ( true (*(type_string else_expr.etype) <> type_str*) ) then begin
-					output (type_str ^ "( ");
-					gen_expression ctx true else_expr;
-					output " )";
-				end else
-					gen_expression ctx true else_expr;
-            output "  )";
+				output (type_str ^ "(");
+				gen_expression ctx true else_expr;
+				output ") )";
 			end else begin
 				output "if (";
 				gen_expression ctx true condition;
