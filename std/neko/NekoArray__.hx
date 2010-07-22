@@ -260,8 +260,11 @@ class NekoArray__<T> implements Array<T> {
 			var a = this.__a;
 			var ret = Array.new1(__dollar__asub(a,pos,len),len);
 			var end = pos + len;
-			__dollar__ablit(a,pos,a,end,this.length-end);
+			var count = this.length-end;
+			__dollar__ablit(a,pos,a,end,count);
 			this.length -= len;
+			while( --count >= 0 )
+				a[end + count] = null;
 			return ret;
 		}
 	}

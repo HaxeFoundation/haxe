@@ -27,6 +27,7 @@
 	all : fixed StringTools.hex with negative numbers
 	flash9 : fixed Type.typeof(1<<28) was TFloat
 	flash9 : use flash.XML parser for Xml class implementation
+	neko : fixed Array.splice (was not setting null at end of array)
 
 2010-01-09: 2.05
 	js : added js.Scroll
