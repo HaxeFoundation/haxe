@@ -50,14 +50,12 @@ class TestXML extends Test {
 		#else
 		eq( Xml.parse("<a><b><c/> <d/> \n <e/><![CDATA[<x>]]></b></a>").toString(), "<a><b><c/> <d/> \n <e/><![CDATA[<x>]]></b></a>" );
 		#end
-		#if flash8
+		#if (flash8 || php)
 		eq( Xml.parse('"').toString(), '&quot;' ); // flash8 has bad habits of escaping entities
 		#else
 		eq( Xml.parse('"').toString(), '"' );
 		#end
-		#if flash8
-		eq( Xml.parse('&quot; &lt; &gt;').toString(), '&amp;quot; &amp;lt; &amp;gt;' ); // flash8 has bad habits of escaping entities
-		#elseif flash9
+		#if flash9
 		eq( Xml.parse('&quot; &lt; &gt;').toString(), '" &lt; &gt;' ); // some entities are resolved but not escaped on printing
 		#else
 		eq( Xml.parse('&quot; &lt; &gt;').toString(), '&quot; &lt; &gt;' );
@@ -68,7 +66,7 @@ class TestXML extends Test {
 		// this is showing some quirks with flash XML parser
 
 		var header = '<?some header?>';
-		var doctype = '<!DOCTYPE Doctype infos>';
+		var doctype = '<!DOCTYPE root SYSTEM "">';
 		var comment = '<!--Comment-->';
 		var xml = '<html><body><![CDATA[<a href="CDATA"/>&lt;]]></body></html>';
 
@@ -81,11 +79,11 @@ class TestXML extends Test {
 
 		#if flash8
 		// cdata is parsed as pcdata in flash8
-		xml = '<html><body>&lt;a href=&quot;CDATA&quot;/&gt;&lt;</body></html>';
+		xml = '<html><body>&lt;a href=&quot;CDATA&quot;/&gt;&amp;lt;</body></html>';
 		#end
 
-		#if flash
-		// doctype is well parsed but is not present in the parsed Xml (both f8 and f9)
+		#if (flash || php)
+		// doctype is well parsed but is not present in the parsed Xml (php, f8 and f9)
 		doctype = '';
 		#end
 
@@ -113,7 +111,7 @@ class TestXML extends Test {
 		var a = el.next();
 		eq( a.firstChild().nodeValue, " ");
 		var b = el.next();
-		#if flash
+		#if (flash || php)
 		eq( b.firstChild(), null);
 		eq( x.toString().split("\n").join("\\n"), '<a> </a><b/> \\n <c/>' );
 		#else

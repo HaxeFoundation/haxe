@@ -352,10 +352,6 @@ class PhpXml__ {
 	public function toString() {
 		if( nodeType == Xml.PCData )
 			return _nodeValue;
-		if( nodeType == Xml.CData )
-			return "<![CDATA["+_nodeValue+"]]>";
-		if( nodeType == Xml.Comment || nodeType == Xml.DocType || nodeType == Xml.Prolog )
-			return _nodeValue;
 
 		var s = "";
 
@@ -374,7 +370,15 @@ class PhpXml__ {
 				return s;
 			}
 			s += ">";
-		}
+		} else if( nodeType == Xml.CData )
+			return "<![CDATA["+_nodeValue+"]]>";
+		else if( nodeType == Xml.Comment )
+			return "<!--"+_nodeValue+"-->";
+		else if( nodeType == Xml.DocType )
+			return "<!DOCTYPE "+_nodeValue+">";
+		else if( nodeType == Xml.Prolog )
+			return "<?"+_nodeValue+"?>";
+		
 
 		for( x in iterator() )
 			s += x.toString();
