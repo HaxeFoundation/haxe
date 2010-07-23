@@ -37,6 +37,15 @@ class MyDynamicSubClass extends MyDynamicClass {
 
 }
 
+class MyOtherDynamicClass extends MyDynamicClass {
+
+	public function new(v) {
+		add = function(x,y) return x + y + 10;
+		super(v);
+	}
+
+}
+
 class TestMisc extends Test {
 
 	function testClosure() {
@@ -95,6 +104,13 @@ class TestMisc extends Test {
 		eq( inst.add(1,2), 203 );
 		eq( callback(inst.add,1)(2), 203 );
 		eq( add(1,2), 203 );
+
+		// check inherited dynamic method
+		var inst = new MyOtherDynamicClass(0);
+		var add = inst.add;
+		eq( inst.add(1,2), 13 );
+		eq( callback(inst.add,1)(2), 13 );
+		eq( add(1,2), 13 );
 
 		// check static dynamic
 		eq( MyDynamicClass.staticDynamic(1,2), 13 );
