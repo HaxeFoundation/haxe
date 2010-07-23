@@ -24,18 +24,30 @@
  */
 package haxe.rtti;
 
+/**
+	An api to access classes and enums metadata at runtime.
+**/
 class Meta {
 
+	/**
+		Returns the metadata that were declared for the given type (class or enum)
+	**/
 	public static function getType( t : Dynamic ) : Dynamic<Array<Dynamic>> {
 		var meta : Dynamic = untyped t.__meta__;
 		return (meta == null) ? meta : meta.obj;
 	}
 
+	/**
+		Returns the metadata that were declared for the given class fields or enum constructors
+	**/
 	public static function getStatics( t : Dynamic ) : Dynamic<Dynamic<Array<Dynamic>>> {
 		var meta : Dynamic = untyped t.__meta__;
 		return (meta == null) ? meta : meta.statics;
 	}
 
+	/**
+		Returns the metadata that were declared for the given class static fields
+	**/
 	public static function getFields( t : Dynamic ) : Dynamic<Dynamic<Array<Dynamic>>> {
 		var meta : Dynamic = untyped t.__meta__;
 		return (meta == null) ? meta : meta.fields;
