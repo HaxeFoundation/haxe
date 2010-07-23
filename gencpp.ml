@@ -1568,7 +1568,7 @@ let rec inherit_temlpate_types class_def name is_static in_def =
 					| Some { eexpr = TFunction parent_def } ->
 						 inherit_temlpate_types super name is_static 
 							{
-								tf_args = parent_def.tf_args;
+								tf_args = List.map2 (fun (n,_,_) (_,c,t) -> n,c,t) in_def.tf_args parent_def.tf_args;
 								tf_type = parent_def.tf_type;
 								tf_expr = in_def.tf_expr;
 							}
