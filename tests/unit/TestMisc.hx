@@ -217,4 +217,10 @@ class TestMisc extends Test {
 		eq(a[0],1);
 	}
 
+	static var add = function (x, y) return x + y;
+
+	function testStaticVarFun() {
+		eq( add(2,3), 5);
+	}
+
 }

@@ -1656,7 +1656,7 @@ let generate_class_statics ctx c =
 	List.iter (fun f ->
 		match f.cf_expr with
 		| None -> ()
-		| Some { eexpr = TFunction _ } -> ()
+		| Some { eexpr = TFunction _ } when f.cf_set = MethodAccess false || f.cf_get = InlineAccess -> ()
 		| Some e ->
 			write ctx (HGetLex (type_path ctx c.cl_path));
 			gen_expr ctx true e;
