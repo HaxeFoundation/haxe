@@ -104,6 +104,7 @@ import haxe.rtti.CType;
 import haxe.rtti.XmlParser;
 import haxe.rtti.Generic;
 import haxe.rtti.HtmlEditor;
+import haxe.rtti.Meta;
 
 import haxe.xml.Check;
 import haxe.xml.Fast;
@@ -123,6 +124,9 @@ import flash.FlashXml__;
 import flash.accessibility.Accessibility;
 import flash.accessibility.AccessibilityImplementation;
 import flash.accessibility.AccessibilityProperties;
+import flash.desktop.Clipboard;
+import flash.desktop.ClipboardFormats;
+import flash.desktop.ClipboardTransferMode;
 import flash.display.ActionScriptVersion;
 import flash.display.AVM1Movie;
 import flash.display.Bitmap;
