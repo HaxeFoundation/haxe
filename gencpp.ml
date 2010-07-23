@@ -1552,8 +1552,33 @@ let has_default_values args =
 	| Some const when (is_basic_type type_str) -> true
 	| _ -> false ) args;;
 
+(*
+  When a specialized class inherits from a templated class, the inherited class
+  contains the specialized type, rather than the generic template (Dynamic) type.
+  C++ needs the inhertied functions to have the same types as the base types.
+*)
+let rec inherit_temlpate_types class_def name is_static in_def =
+	match class_def.cl_super with
+	| None -> in_def
+	| Some (super,params) ->
+			let funcs = if is_static then super.cl_statics else super.cl_fields in
+			if (PMap.mem name funcs) then begin
+				let field = PMap.find name funcs in
+				match field.cf_expr with
+					| Some { eexpr = TFunction parent_def } ->
+						 inherit_temlpate_types super name is_static 
+							{
+								tf_args = parent_def.tf_args;
+								tf_type = parent_def.tf_type;
+								tf_expr = in_def.tf_expr;
+							}
+					| _ -> inherit_temlpate_types super name is_static in_def;
+			end else
+				inherit_temlpate_types super name is_static in_def;
+;;
 
-let gen_field ctx class_name ptr_name is_static is_external is_interface field =
+
+let gen_field ctx class_def class_name ptr_name is_static is_external is_interface field =
 	let output = ctx.ctx_output in
 	ctx.ctx_real_this_ptr <- not is_static;
 	let remap_name = keyword_remap field.cf_name in
@@ -1568,7 +1593,8 @@ let gen_field ctx class_name ptr_name is_static is_external is_interface field =
 		| _ -> ()
 	end else (match  field.cf_expr with
 	(* Function field *)
-	| Some { eexpr = TFunction function_def } ->
+	| Some { eexpr = TFunction orig_function_def } ->
+      let function_def = inherit_temlpate_types class_def field.cf_name is_static orig_function_def in
 		let return_type = (type_string function_def.tf_type) in
 		let nargs = string_of_int (List.length function_def.tf_args) in
 		let is_void = (type_string function_def.tf_type ) = "Void" in
@@ -1667,7 +1693,7 @@ let gen_field_init ctx field =
 
 
 
-let gen_member_def ctx is_static is_extern is_interface field =
+let gen_member_def ctx class_def is_static is_extern is_interface field =
 	let output = ctx.ctx_output in
 	let remap_name = keyword_remap field.cf_name in
 
@@ -1697,7 +1723,8 @@ let gen_member_def ctx is_static is_extern is_interface field =
 				output (" " ^ remap_name ^ ";\n" );
 			end
 	end else (match  field.cf_expr with
-	| Some { eexpr = TFunction function_def } ->
+	| Some { eexpr = TFunction orig_function_def } ->
+		let function_def = inherit_temlpate_types class_def field.cf_name is_static orig_function_def in
 		if ( is_dynamic_method field ) then begin
 			output ("Dynamic " ^ remap_name ^ ";\n");
 			output (if is_static then "		static " else "		");
@@ -2242,10 +2269,10 @@ let generate_class_files common_ctx member_types super_deps class_def =
 	end;
 
 	List.iter
-		(gen_field ctx class_name smart_class_name false is_extern class_def.cl_interface)
+		(gen_field ctx class_def class_name smart_class_name false is_extern class_def.cl_interface)
 		class_def.cl_ordered_fields;
 	List.iter
-		(gen_field ctx class_name smart_class_name true is_extern class_def.cl_interface)
+		(gen_field ctx class_def class_name smart_class_name true is_extern class_def.cl_interface)
 		class_def.cl_ordered_statics;
 	output_cpp "\n";
 
@@ -2287,7 +2314,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 			| _ -> (not is_extern) ||
 				(match follow field.cf_type with | TFun _ -> false | _ -> true) ) in
 
-      let all_fields = class_def.cl_ordered_statics @ class_def.cl_ordered_fields in
+		let all_fields = class_def.cl_ordered_statics @ class_def.cl_ordered_fields in
 		let all_variables = List.filter variable_field all_fields in
 
 		let dump_quick_field_test fields =
@@ -2525,8 +2552,8 @@ let generate_class_files common_ctx member_types super_deps class_def =
 
 
 	let interface = class_def.cl_interface in
-	List.iter (gen_member_def ctx false is_extern interface) class_def.cl_ordered_fields;
-	List.iter (gen_member_def ctx true is_extern interface)  class_def.cl_ordered_statics;
+	List.iter (gen_member_def ctx class_def false is_extern interface) class_def.cl_ordered_fields;
+	List.iter (gen_member_def ctx class_def true is_extern interface)  class_def.cl_ordered_statics;
 
 	output_h "};\n\n";
 
