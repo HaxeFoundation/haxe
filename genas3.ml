@@ -423,10 +423,11 @@ and gen_field_access ctx t s =
 		| [], "Date", "now"
 		| [], "Date", "fromTime"
 		| [], "Date", "fromString"
-		| [], "Date", "toString"
 		| [], "String", "charCodeAt"
 		->
 			print ctx "[\"%s\"]" s
+		| [], "Date", "toString" ->
+			print ctx "[\"toStringHX\"]"
 		| [], "String", "cca" ->
 			print ctx ".charCodeAt"
 		| _ ->
@@ -1016,7 +1017,13 @@ let generate_enum ctx e =
 			print ctx "public static var %s : %s = new %s(\"%s\",%d)" c.ef_name ename ename c.ef_name c.ef_index;
 	) e.e_constrs;
 	newline ctx;
-	print ctx "public static var __constructs__ : Array = [%s];" (String.concat "," (List.map (fun s -> "\"" ^ Ast.s_escape s ^ "\"") e.e_names));
+	(match Codegen.build_metadata ctx.inf.com (TEnumDecl e) with
+	| None -> ()
+	| Some e ->
+		print ctx "public static var __meta__ : * = ";
+		gen_expr ctx e;
+		newline ctx);
+	print ctx "public static var __constructs__ : Array = [%s];" (String.concat "," (List.map (fun s -> "\"" ^ Ast.s_escape s ^ "\"") e.e_names));	
 	cl();
 	newline ctx;
 	print ctx "}";
@@ -1311,7 +1318,7 @@ let gen_fields ctx ch fields others construct =
 				let get = has_getset fields f m in
 				if not get then begin
 					let m = As3code.iget ctx.as3_method_types (As3parse.no_nz m.m3_type) in
-					let t = (match m.mt3_ret with None -> "Dynamic" | Some t -> s_type_path (type_path ctx t)) in
+					let t = (match m.mt3_args with [Some t] -> s_type_path (type_path ctx t) | _ -> "Dynamic") in
 					IO.printf ch "\t%svar %s(null,default) : %s;\n" rights name t
 				end;
 			)

@@ -159,7 +159,7 @@ extern class Date
 				throw "Invalid date format : " + s;
 			}
 		};
-		d.prototype["toString"] = function() {
+		d.prototype[#if as3 "toStringHX" #else "toString" #end] = function() {
 			var date : Date = this;
 			var m = date.getMonth() + 1;
 			var d = date.getDate();

@@ -32,7 +32,10 @@
 	all : core classes implementation are now in std/(platform)/_std
 	all : added @:final support
 	all : added haxe.rtti.Meta
-
+	flash9 : added flash.desktop.Clipboard* classes (added in flash10)
+	as3 : fixed Date.toString issue in flash.Boot (now use .toStringHX instead)
+		this will only work if .toString called explicitely on Date class
+	
 2010-01-09: 2.05
 	js : added js.Scroll
 	js : package names are now checked at runtime to avoid clashes with existing libs
