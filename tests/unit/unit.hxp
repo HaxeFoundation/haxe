@@ -55,6 +55,7 @@
 
 -cpp cpp
 
+-debug
 -main unit.Test
 
 -cp ..
@@ -78,6 +79,7 @@
     <file path="TestInt32.hx" />
     <file path="TestIO.hx" />
     <file path="TestLocals.hx" />
+    <file path="TestMeta.hx" />
     <file path="TestMisc.hx" />
     <file path="TestReflect.hx" />
     <file path="TestRemoting.hx" />

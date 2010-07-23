@@ -1,7 +1,7 @@
 class RunCpp {
 
 	static function main() {
-		var p = new neko.io.Process(neko.Web.getCwd()+"cpp/Test",[]);
+		var p = new neko.io.Process(neko.Web.getCwd()+"cpp/Test-debug",[]);
 		try {
 			while( true ) {
 				var c = p.stdout.readByte();

@@ -1417,6 +1417,13 @@ let gen_type_def ctx t =
 		List.iter (fun s -> push ctx [VStr (s,false)]) (List.rev e.e_names);
 		init_array ctx (List.length e.e_names);
 		write ctx AObjSet;
+		(match Codegen.build_metadata ctx.com t with
+		| None -> ()
+		| Some e ->
+			push ctx [VReg 0; VStr ("__meta__",true)];
+			gen_expr ctx true e;
+			write ctx AObjSet;
+		);
 		PMap.iter (fun _ f -> gen_enum_field ctx e f) e.e_constrs
 	| TTypeDecl _ ->
 		()

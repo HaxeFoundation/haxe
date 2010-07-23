@@ -261,6 +261,43 @@ let extend_xml_proxy ctx c t file p =
 		| Xml.File_not_found f -> error ("XML File not found : " ^ f) p
 
 (* -------------------------------------------------------------------------- *)
+(* BUILD META DATA OBJECT *)
+
+let build_metadata com t =
+	let api = com.type_api in
+	let p, meta, fields, statics = (match t with
+		| TClassDecl c ->
+			let fields = List.map (fun f -> f.cf_name,f.cf_meta) (c.cl_ordered_fields @ (match c.cl_constructor with None -> [] | Some f -> [{ f with cf_name = "_" }])) in
+			let statics =  List.map (fun f -> f.cf_name,f.cf_meta) c.cl_ordered_statics in
+			(c.cl_pos, ["",c.cl_meta],fields,statics)
+		| TEnumDecl e ->
+			(e.e_pos, ["",e.e_meta],List.map (fun n -> n, (PMap.find n e.e_constrs).ef_meta) e.e_names, [])
+		| TTypeDecl t ->
+			(t.t_pos, ["",t.t_meta],(match follow t.t_type with TAnon a -> PMap.fold (fun f acc -> (f.cf_name,f.cf_meta) :: acc) a.a_fields [] | _ -> []),[])
+	) in
+	let filter l = 
+		let l = List.map (fun (n,ml) -> n, List.filter (fun (m,_) -> m.[0] <> ':') ml) l in
+		List.filter (fun (_,ml) -> ml <> []) l
+	in
+	let meta, fields, statics = filter meta, filter fields, filter statics in
+	let make_meta_field ml =
+		mk (TObjectDecl (List.map (fun (f,l) -> 
+			f, mk (match l with [] -> TConst TNull | _ -> TArrayDecl l) (api.tarray t_dynamic) p
+		) ml)) (api.tarray t_dynamic) p
+	in
+	let make_meta l =
+		mk (TObjectDecl (List.map (fun (f,ml) -> f,make_meta_field ml) l)) t_dynamic p
+	in
+	if meta = [] && fields = [] && statics = [] then
+		None
+	else
+		let meta_obj = [] in
+		let meta_obj = (if fields = [] then meta_obj else ("fields",make_meta fields) :: meta_obj) in		
+		let meta_obj = (if statics = [] then meta_obj else ("statics",make_meta statics) :: meta_obj) in
+		let meta_obj = (try ("obj", make_meta_field (List.assoc "" meta)) :: meta_obj with Not_found -> meta_obj) in
+		Some (mk (TObjectDecl meta_obj) t_dynamic p)		
+
+(* -------------------------------------------------------------------------- *)
 (* API EVENTS *)
 
 let build_instance ctx mtype p =
@@ -314,12 +351,21 @@ let rec has_rtti c =
 
 let on_generate ctx t =
 	match t with
-	| TClassDecl c when has_rtti c && not (PMap.mem "__rtti" c.cl_statics) ->
-		let f = mk_field "__rtti" ctx.api.tstring in
-		let str = Genxml.gen_type_string ctx.com t in
-		f.cf_expr <- Some (mk (TConst (TString str)) f.cf_type c.cl_pos);
-		c.cl_ordered_statics <- f :: c.cl_ordered_statics;
-		c.cl_statics <- PMap.add f.cf_name f c.cl_statics;
+	| TClassDecl c ->
+		if has_rtti c && not (PMap.mem "__rtti" c.cl_statics) then begin
+			let f = mk_field "__rtti" ctx.api.tstring in
+			let str = Genxml.gen_type_string ctx.com t in
+			f.cf_expr <- Some (mk (TConst (TString str)) f.cf_type c.cl_pos);
+			c.cl_ordered_statics <- f :: c.cl_ordered_statics;
+			c.cl_statics <- PMap.add f.cf_name f c.cl_statics;
+		end;
+		(match build_metadata ctx.com t with
+		| None -> ()
+		| Some e -> 
+			let f = mk_field "__meta__" t_dynamic in
+			f.cf_expr <- Some e;
+			c.cl_ordered_statics <- f :: c.cl_ordered_statics;
+			c.cl_statics <- PMap.add f.cf_name f c.cl_statics);
 	| _ ->
 		()
 

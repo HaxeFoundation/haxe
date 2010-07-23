@@ -1687,7 +1687,7 @@ let generate_class_init ctx c hc =
 	write ctx (HInitProp (type_path ctx c.cl_path));
 	if ctx.swc then generate_class_statics ctx c
 
-let generate_enum_init ctx e hc =
+let generate_enum_init ctx e hc meta =
 	let path = ([],"Object") in
 	let name_id = type_path ctx e.e_path in
 	write ctx HGetGlobalScope;
@@ -1718,6 +1718,13 @@ let generate_enum_init ctx e hc =
 	List.iter (fun n -> write ctx (HString n)) e.e_names;
 	write ctx (HArray (List.length e.e_names));
 	write ctx (HSetProp (ident "__constructs__"));
+	(match meta with
+	| None -> ()
+	| Some e -> 
+		write ctx (HReg r.rid);
+		gen_expr ctx true e;
+		write ctx (HSetProp (ident "__meta__"));
+	);
 	free_reg ctx r
 
 let generate_field_kind ctx f c stat =
@@ -1859,7 +1866,7 @@ let generate_class ctx c =
 		) c.cl_ordered_statics);
 	}
 
-let generate_enum ctx e =
+let generate_enum ctx e meta =
 	let name_id = type_path ctx e.e_path in
 	let api = ctx.com.type_api in
 	let f = begin_fun ctx [("tag",None,api.tstring);("index",None,api.tint);("params",None,mk_mono())] api.tvoid [ethis] false e.e_pos in
@@ -1913,6 +1920,17 @@ let generate_enum ctx e =
 			hlf_metas = None;
 		} :: acc
 	) e.e_constrs [] in
+	let constrs = (match meta with
+		| None -> constrs
+		| Some _ -> 
+			incr st_count;
+			{
+				hlf_name = ident "__meta__";
+				hlf_slot = !st_count;
+				hlf_kind = HFVar { hlv_type = None; hlv_value = HVNone; hlv_const = false; };
+				hlf_metas = None;
+			} :: constrs
+	) in			
 	{
 		hlc_index = 0;
 		hlc_name = name_id;
@@ -1999,9 +2017,10 @@ let generate_type ctx t =
 		if e.e_extern && e.e_path <> ([],"Void") then
 			None
 		else
-			let hlc = generate_enum ctx e in
+			let meta = Codegen.build_metadata ctx.com t in
+			let hlc = generate_enum ctx e meta in
 			let init = begin_fun ctx [] ctx.com.type_api.tvoid [ethis] false e.e_pos in
-			generate_enum_init ctx e hlc;
+			generate_enum_init ctx e hlc meta;
 			write ctx HRetVoid;
 			Some (init(), {
 				hlf_name = type_path ctx e.e_path;

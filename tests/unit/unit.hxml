@@ -89,6 +89,7 @@ unit.Test
 
 -cpp cpp
 
+-debug
 -main unit.Test
 
 -cp ..

@@ -541,6 +541,11 @@ let type_meta ctx meta =
 			(match c with
 			| Int _ | Float _ | String _ | Ident "true" | Ident "false" | Ident "null" -> type_constant ctx c p
 			| _ -> notconst p)
+		| EUnop (Neg,Prefix,(EConst c,_)) ->
+			(match c with
+			| Int i -> type_constant ctx (Int ("-" ^ i)) p
+			| Float f -> type_constant ctx (Float ("-" ^ f)) p
+			| _ -> notconst p)
 		| EObjectDecl fl ->
 			let rec loop (l,acc) (f,e) =
 				if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;

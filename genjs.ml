@@ -688,7 +688,13 @@ let generate_enum ctx e =
 			print ctx "%s%s.__enum__ = %s" p (field f.ef_name) p;
 		);
 		newline ctx
-	) e.e_constrs
+	) e.e_constrs;
+	match Codegen.build_metadata ctx.com (TEnumDecl e) with
+	| None -> ()
+	| Some e ->
+		print ctx "%s.__meta__ = " p;
+		gen_expr ctx e;
+		newline ctx
 
 let generate_static ctx (c,f,e) =
 	print ctx "%s%s = " (s_path ctx c.cl_path) (field f);

@@ -603,9 +603,12 @@ let gen_enum ctx e =
 			"__string" , ident p "@enum_to_string"
 		],p)),p) ::
 		pmap_list (gen_enum_constr ctx path) e.e_constrs @
-		match e.e_path with
+		(match e.e_path with
 		| [] , name -> [EBinop ("=",field p (ident p "@classes") name,ident p name),p]
-		| _ -> []
+		| _ -> []) @
+		(match Codegen.build_metadata ctx.com (TEnumDecl e) with
+		| None -> []
+		| Some e -> [EBinop ("=",field p path "__meta__", gen_expr ctx e),p])
 	),p)
 
 let gen_type ctx t acc =

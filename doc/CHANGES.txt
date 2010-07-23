@@ -31,6 +31,7 @@
 	neko : rewrote Array class using neko.NativeArray
 	all : core classes implementation are now in std/(platform)/_std
 	all : added @:final support
+	all : added haxe.rtti.Meta
 
 2010-01-09: 2.05
 	js : added js.Scroll
