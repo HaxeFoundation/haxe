@@ -204,6 +204,14 @@ function _hx_array_assign($a, $i, $v) {
 
 class _hx_break_exception extends Exception {}
 
+function _hx_cast($v, $type) {
+	if(Std::is($v, $type)) {
+		return $v;
+	} else {
+		throw new HException('Class cast error');
+	}
+}
+
 function _hx_char_code_at($s, $pos) {
 	if($pos < 0 || $pos >= strlen($s)) return null;
 	return ord($s{$pos});

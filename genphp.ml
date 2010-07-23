@@ -1486,7 +1486,17 @@ and gen_expr ctx e =
 	| TCast (e,None) ->
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
-		gen_expr ctx (Codegen.default_cast ctx.com e1 t e.etype e.epos)
+		let mk_texpr = function
+			| TClassDecl c -> TAnon { a_fields = PMap.empty; a_status = ref (Statics c) }
+			| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
+			| TTypeDecl _ -> assert false
+		in
+		spr ctx "_hx_cast(";
+		gen_expr ctx e1;
+		spr ctx ", ";
+		gen_expr ctx (mk (TTypeExpr t) (mk_texpr t) e1.epos);
+		spr ctx ")"
+(*		gen_expr ctx (Codegen.default_cast ctx.com e1 t e.etype e.epos) *)
 
 and gen_value ctx e =
 	let assign e =
@@ -1541,10 +1551,9 @@ and gen_value ctx e =
 	| TCall _
 	| TUnop _
 	| TNew _
+	| TCast _
 	| TFunction _ ->
 		gen_expr ctx e
-	| TCast (e1,t) ->
-		gen_value ctx (match t with None -> e1 | Some t -> Codegen.default_cast ctx.com e1 t e.etype e.epos)
 	| TReturn _
 	| TBreak
 	| TContinue ->
