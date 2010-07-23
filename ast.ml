@@ -189,7 +189,7 @@ and expr_def =
 	| EUntyped of expr
 	| EThrow of expr
 	| ECast of expr * type_path option
-	| EDisplay of expr
+	| EDisplay of expr * bool
 	| EDisplayNew of type_path_normal
 	| ETernary of expr * expr * expr
 

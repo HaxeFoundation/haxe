@@ -587,18 +587,18 @@ and expr = parser
 
 and expr_next e1 = parser
 	| [< '(Dot,p); s >] ->
-		if is_resuming p then display (EDisplay e1,p);
+		if is_resuming p then display (EDisplay (e1,false),p);
 		(match s with parser
 		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
 		| [< '(Const (Type t),p2) when p.pmax = p2.pmin; s >] -> expr_next (EType (e1,t) , punion (pos e1) p2) s
-		| [< '(Binop OpOr,p2) when do_resume() >] -> display (EDisplay e1,p)
+		| [< '(Binop OpOr,p2) when do_resume() >] -> display (EDisplay (e1,false),p) (* help for debug display mode *)
 		| [< >] ->
 			(* turn an integer followed by a dot into a float *)
 			match e1 with
 			| (EConst (Int v),p2) when p2.pmax = p.pmin -> expr_next (EConst (Float (v ^ ".")),punion p p2) s
 			| _ -> serror())
 	| [< '(POpen,p1); s >] ->
-		if is_resuming p1 then display (EDisplay e1,p1);
+		if is_resuming p1 then display (EDisplay (e1,true),p1);
 		(match s with parser
 		| [< params = parse_call_params e1; '(PClose,p2); s >] -> expr_next (ECall (e1,params) , punion (pos e1) p2) s
 		| [< >] -> serror())

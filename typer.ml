@@ -91,6 +91,7 @@ let classify t =
 	| TInst ({ cl_path = ([],"Float") },[]) -> KFloat
 	| TInst ({ cl_path = ([],"String") },[]) -> KString
 	| TInst ({ cl_kind = KTypeParameter; cl_implements = [{ cl_path = ([],"Float")},[]] },[]) -> KParam t
+	| TInst ({ cl_kind = KTypeParameter; cl_implements = [{ cl_path = ([],"Int")},[]] },[]) -> KParam t
 	| TMono r when !r = None -> KUnk
 	| TDynamic _ -> KDyn
 	| _ -> KOther
@@ -1456,7 +1457,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			error "Cast type must be a class or an enum" p
 		) in
 		mk (TCast (type_expr ctx e,Some texpr)) t p
-	| EDisplay e ->
+	| EDisplay (e,iscall) ->
 		let old = ctx.in_display in
 		ctx.in_display <- true;
 		let e = (try type_expr ctx e with Error (Unknown_ident n,_) -> raise (Parser.TypePath ([n],None))) in
@@ -1511,8 +1512,13 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				!acc
 		in	
 		let use_methods = loop PMap.empty ctx.local_using in
-		let t = (if PMap.is_empty use_methods then t else match follow t with
-			| TFun _ -> t (* don't provide use methods for functions *)
+		let t = (if iscall then
+			match follow t with
+			| TFun _ -> t
+			| _ -> t_dynamic
+		else if PMap.is_empty use_methods then
+			t
+		else match follow t with
 			| TAnon a -> TAnon { a_fields = PMap.fold (fun f acc -> PMap.add f.cf_name f acc) a.a_fields use_methods; a_status = ref Closed; }
 			| _ -> TAnon { a_fields = use_methods; a_status = ref Closed }
 		) in
