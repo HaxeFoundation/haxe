@@ -21,6 +21,8 @@ open Type
 open Common
 open Typecore
 
+let do_create = ref (fun com -> assert false)
+
 let type_constant ctx c p =
 	match c with
 	| Int s ->
@@ -422,6 +424,7 @@ let set_heritance ctx c herits p =
 				if is_parent c cl then error "Recursive class" p;
 				if c.cl_interface then error "Cannot extend an interface" p;
 				if cl.cl_interface then error "Cannot extend by using an interface" p;
+				if List.mem (":final",[]) cl.cl_meta && not (List.mem (":hack",[]) c.cl_meta) then error "Cannot extend a final class" p;
 				c.cl_super <- Some (cl,params)
 			| _ -> error "Should extend by using a class" p)
 		| HImplements t ->
@@ -553,14 +556,57 @@ let type_meta ctx meta =
 			mk (TObjectDecl []) (TAnon { a_fields = PMap.empty; a_status = ref Closed}) p
 		| _ ->
 			notconst p
-	in
+	in	
 	List.map (fun (s,el) -> s, List.map mk_const el) meta
+
+let init_core_api ctx c =
+	let ctx2 = (match !(ctx.core_api) with
+		| None ->
+			let com = ctx.com in
+			let com = { com with class_path = com.std_path; type_api = { com.type_api with tvoid = com.type_api.tvoid } } in
+			let ctx2 = (!do_create) com in
+			ctx.core_api := Some ctx2;
+			ctx2
+		| Some c -> 
+			c
+	) in
+	let t = load_instance ctx2 { tpackage = fst c.cl_path; tname = snd c.cl_path; tparams = []; tsub = None; } c.cl_pos true in
+	match t with
+	| TInst (ccore,_) -> 
+		let check_fields fcore fl =
+			PMap.iter (fun i f ->				
+				let f2 = try PMap.find f.cf_name fl with Not_found -> error ("Missing field " ^ i ^ " required by core type") c.cl_pos in				
+				let p = (match f2.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
+				(try
+					type_eq EqCoreType (apply_params ccore.cl_types (List.map snd c.cl_types) f.cf_type) f2.cf_type
+				with Unify_error l ->
+					display_error ctx ("Field " ^ i ^ " has different type than in core type") p;
+					display_error ctx (error_msg (Unify l)) p);
+				if f2.cf_public <> f.cf_public then error ("Field " ^ i ^ " has different visibility than core type") p;
+				if f2.cf_get <> f.cf_get || f2.cf_set <> f.cf_set then begin
+					match f2.cf_get, f.cf_get, f2.cf_set, f.cf_set with
+					| InlineAccess, NormalAccess, NeverAccess, MethodAccess false -> () (* allow to add 'inline' *)
+					| NormalAccess, InlineAccess, MethodAccess false, NeverAccess -> () (* allow to remove 'inline' - only during transition ? *)
+					| _ ->
+						error ("Field " ^ i ^ " has different property access than core type") p;
+				end;
+			) fcore;
+			PMap.iter (fun i f ->
+				let p = (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
+				if f.cf_public && not (PMap.mem f.cf_name fcore) then error ("Public field " ^ i ^ " is not part of core type") p;
+			) fl;
+		in
+		check_fields ccore.cl_fields c.cl_fields;
+		check_fields ccore.cl_statics c.cl_statics;
+	| _ -> assert false
 
 let init_class ctx c p herits fields =
 	ctx.type_params <- c.cl_types;
 	c.cl_extern <- List.mem HExtern herits;
 	c.cl_interface <- List.mem HInterface herits;
 	set_heritance ctx c herits p;
+	let core_api = List.mem (":core_api",[]) c.cl_meta in
+	if core_api then ctx.delays := [(fun() -> init_core_api ctx c)] :: !(ctx.delays);	
 	let tthis = TInst (c,List.map snd c.cl_types) in
 	let rec extends_public c =
 		List.exists (fun (c,_) -> c.cl_path = (["haxe"],"Public") || extends_public c) c.cl_implements ||
@@ -591,6 +637,9 @@ let init_class ctx c p herits fields =
 		match t with
 		| None when c.cl_extern || c.cl_interface ->
 			display_error ctx "Type required for extern classes and interfaces" p;
+			t_dynamic
+		| None when core_api ->
+			display_error ctx "Type required for core api classes" p;
 			t_dynamic
 		| _ ->
 			load_type_opt ctx p t
@@ -927,6 +976,7 @@ let type_module ctx m tdecls loadp =
 	let ctx = {
 		com = ctx.com;
 		api = ctx.api;
+		core_api = ctx.core_api;
 		modules = ctx.modules;
 		delays = ctx.delays;
 		constructs = ctx.constructs;

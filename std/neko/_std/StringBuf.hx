@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2008, The haXe Project Contributors
+ * Copyright (c) 2005, The haXe Project Contributors
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -22,36 +22,35 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package neko;
 
-class NativeArray<T> implements ArrayAccess<T> {
+@:core_api class StringBuf {
 
-	public static inline function alloc<T>( length : Int ) : NativeArray<T> {
-		return untyped __dollar__amake(length);
+	private var b : Dynamic;
+
+	public function new() : Void {
+		b = __make();
 	}
 
-	public static inline function blit<T>( dst : NativeArray<T>, dstPos : Int, src : NativeArray<T>, srcPos : Int, length : Int ) {
-		return untyped __dollar__ablit(dst,dstPos,src,srcPos,length);
+	public inline function add( ?x : Dynamic ) : Void {
+		__add(b,x);
 	}
 
-	public static inline function ofArrayCopy<T>( a : Array<T> ) : NativeArray<T> {
-		return untyped a.__neko();
+	public inline function addSub( s : String, pos : Int, ?len : Int ) : Void {
+		__add_sub(b,untyped s.__s,pos,len == null ? s.length - pos : len);
 	}
 
-	public static inline function ofArrayRef<T>( a : Array<T> ) : NativeArray<T> {
-		return untyped a.__a;
+	public inline function addChar( c : Int ) : Void untyped {
+		__add_char(b,c);
 	}
 
-	public static inline function sub<T>( a : NativeArray<T>, pos : Int, len : Int ) : NativeArray<T> {
-		return untyped __dollar__asub(a,pos,len);
+	public inline function toString() : String {
+		return new String(__string(b));
 	}
 
-	public static inline function toArray<T>( a : NativeArray<T> ) : Array<T> {
-		return untyped Array.new1(a,__dollar__asize(a));
-	}
-
-	public static inline function length( a : NativeArray<Dynamic> ) : Int {
-		return untyped __dollar__asize(a);
-	}
+	static var __make : Dynamic = neko.Lib.load("std","buffer_new",0);
+	static var __add : Dynamic = neko.Lib.load("std","buffer_add",2);
+	static var __add_char : Dynamic = neko.Lib.load("std","buffer_add_char",2);
+	static var __add_sub : Dynamic = neko.Lib.load("std","buffer_add_sub",4);
+	static var __string : Dynamic = neko.Lib.load("std","buffer_string",1);
 
 }

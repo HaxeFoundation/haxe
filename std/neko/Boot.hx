@@ -139,8 +139,6 @@ class Boot {
 
 	private static function __init() {
 		untyped {
-			String = NekoString__;
-			Array = NekoArray__;
 			__dollar__exports.__unserialize = __unserialize;
 			__dollar__exports.__classes = neko.Boot.__classes;
 		}

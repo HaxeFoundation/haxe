@@ -530,6 +530,7 @@ let eq_stack = ref []
 
 type eq_kind =
 	| EqStrict
+	| EqCoreType
 	| EqRightDynamic
 	| EqBothDynamic
 
@@ -541,16 +542,17 @@ let rec type_eq param a b =
 	| _ , TLazy f -> type_eq param a (!f())
 	| TMono t , _ ->
 		(match !t with
-		| None -> if not (link t a b) then error [cannot_unify a b]
+		| None -> if param = EqCoreType || not (link t a b) then error [cannot_unify a b]
 		| Some t -> type_eq param t b)
 	| _ , TMono t ->
 		(match !t with
-		| None -> if not (link t b a) then error [cannot_unify a b]
+		| None -> if param = EqCoreType || not (link t b a) then error [cannot_unify a b]
 		| Some t -> type_eq param a t)
-	| TType (t1,tl1), TType (t2,tl2) when t1 == t2 && List.length tl1 = List.length tl2 ->
+	| TType (t1,tl1), TType (t2,tl2) when (t1 == t2 || (param = EqCoreType && t1.t_path = t2.t_path)) && List.length tl1 = List.length tl2 ->
 		List.iter2 (type_eq param) tl1 tl2
-	| TType (t,tl) , _ -> type_eq param (apply_params t.t_types tl t.t_type) b
-	| _ , TType (t,tl) ->
+	| TType (t,tl) , _ when param <> EqCoreType ->		
+		type_eq param (apply_params t.t_types tl t.t_type) b
+	| _ , TType (t,tl) when param <> EqCoreType ->
 		if List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!eq_stack) then
 			()
 		else begin
@@ -564,10 +566,10 @@ let rec type_eq param a b =
 					error (cannot_unify a b :: l)
 		end
 	| TEnum (e1,tl1) , TEnum (e2,tl2) ->
-		if e1 != e2 then error [cannot_unify a b];
+		if e1 != e2 && not (param = EqCoreType && e1.e_path = e2.e_path) then error [cannot_unify a b];
 		List.iter2 (type_eq param) tl1 tl2
 	| TInst (c1,tl1) , TInst (c2,tl2) ->
-		if c1 != c2 then error [cannot_unify a b];
+		if c1 != c2 && not (param = EqCoreType && c1.cl_path = c2.cl_path) then error [cannot_unify a b];
 		List.iter2 (type_eq param) tl1 tl2
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
 		(try
@@ -585,8 +587,8 @@ let rec type_eq param a b =
 			PMap.iter (fun n f1 ->
 				try
 					let f2 = PMap.find n a2.a_fields in
-					if f1.cf_get <> f2.cf_get && (param = EqStrict || not (unify_access f1.cf_get f2.cf_get)) then error [invalid_access n true f1.cf_get f2.cf_get];
-					if f1.cf_set <> f2.cf_set && (param = EqStrict || not (unify_access f1.cf_set f2.cf_set)) then error [invalid_access n false f1.cf_set f2.cf_set];
+					if f1.cf_get <> f2.cf_get && (param = EqStrict || param = EqCoreType || not (unify_access f1.cf_get f2.cf_get)) then error [invalid_access n true f1.cf_get f2.cf_get];
+					if f1.cf_set <> f2.cf_set && (param = EqStrict || param = EqCoreType || not (unify_access f1.cf_set f2.cf_set)) then error [invalid_access n false f1.cf_set f2.cf_set];
 					try
 						type_eq param f1.cf_type f2.cf_type
 					with

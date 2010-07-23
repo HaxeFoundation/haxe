@@ -184,7 +184,7 @@ class Reflect {
 			if( __dollar__typeof(o) != __dollar__tobject )
 				return new Array<String>();
 			else {
-				var a = __dollar__objfields(o);
+				var a : neko.NativeArray<Int> = __dollar__objfields(o);
 				var i = 0;
 				var l = __dollar__asize(a);
 				while( i < l ) {

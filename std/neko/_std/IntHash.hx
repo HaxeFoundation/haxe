@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2008, The haXe Project Contributors
+ * Copyright (c) 2005, The haXe Project Contributors
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -22,36 +22,56 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package neko;
 
-class NativeArray<T> implements ArrayAccess<T> {
+@:core_api class IntHash<T> {
 
-	public static inline function alloc<T>( length : Int ) : NativeArray<T> {
-		return untyped __dollar__amake(length);
+	private var h : Dynamic;
+
+	public function new() : Void {
+		h = untyped __dollar__hnew(0);
 	}
 
-	public static inline function blit<T>( dst : NativeArray<T>, dstPos : Int, src : NativeArray<T>, srcPos : Int, length : Int ) {
-		return untyped __dollar__ablit(dst,dstPos,src,srcPos,length);
+	public inline function set( key : Int, value : T ) : Void {
+		untyped __dollar__hset(h,key,value,null);
 	}
 
-	public static inline function ofArrayCopy<T>( a : Array<T> ) : NativeArray<T> {
-		return untyped a.__neko();
+	public inline function get( key : Int ) : Null<T> {
+		return untyped __dollar__hget(h,key,null);
 	}
 
-	public static inline function ofArrayRef<T>( a : Array<T> ) : NativeArray<T> {
-		return untyped a.__a;
+	public inline function exists( key : Int ) : Bool {
+		return untyped __dollar__hmem(h,key,null);
 	}
 
-	public static inline function sub<T>( a : NativeArray<T>, pos : Int, len : Int ) : NativeArray<T> {
-		return untyped __dollar__asub(a,pos,len);
+	public inline function remove( key : Int ) : Bool {
+		return untyped __dollar__hremove(h,key,null);
 	}
 
-	public static inline function toArray<T>( a : NativeArray<T> ) : Array<T> {
-		return untyped Array.new1(a,__dollar__asize(a));
+	public function keys() : Iterator<Int> {
+		var l = new List<Int>();
+		untyped __dollar__hiter(h,function(k,_) { l.push(k); });
+		return l.iterator();
 	}
 
-	public static inline function length( a : NativeArray<Dynamic> ) : Int {
-		return untyped __dollar__asize(a);
+	public function iterator() : Iterator<T> {
+		var l = new List<T>();
+		untyped __dollar__hiter(h,function(_,v) { l.push(v); });
+		return l.iterator();
+	}
+
+	public function toString() : String {
+		var s = new StringBuf();
+		s.add("{");
+		var it = keys();
+		for( i in it ) {
+			s.add(i);
+			s.add(" => ");
+			s.add(Std.string(get(i)));
+			if( it.hasNext() )
+				s.add(", ");
+		}
+		s.add("}");
+		return s.toString();
 	}
 
 }

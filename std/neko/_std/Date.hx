@@ -22,14 +22,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package neko;
+import neko.Lib;
 
-class NekoDate__ //implements Date
-{
-	static var __name__ = ["Date"];
-	private var __t : Void;
+@:core_api @:final class Date {
 
-	public function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) {
+	private var __t : Dynamic;
+
+	public function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void {
 		__t = date_set_day(0,year,month+1,day);
 		__t = date_set_hour(__t,hour,min,sec);
 	}
@@ -70,11 +69,11 @@ class NekoDate__ //implements Date
 		return new String(date_format(__t,null));
 	}
 
-	private static function now() {
+	public static function now() : Date {
 		return new1(date_now());
 	}
 
-	private static function fromTime( t : Float ){
+	public static function fromTime( t : Float ) : Date {
 		t /= 1000;
 		var i1 = untyped __dollar__int((t%65536));
 		var i2 = untyped __dollar__int(t/65536);
@@ -82,12 +81,12 @@ class NekoDate__ //implements Date
 		return new1(i);
 	}
 
-	private static function fromString( s : String ) {
+	public static function fromString( s : String ) : Date {
 		return new1(date_new(untyped s.__s));
 	}
 
-	private static function new1(t) {
-		var d = new NekoDate__(2005,1,1,0,0,0);
+	private static function new1(t : Dynamic) : Date {
+		var d = new Date(2005,1,1,0,0,0);
 		d.__t = t;
 		return d;
 	}
@@ -102,7 +101,7 @@ class NekoDate__ //implements Date
 	static var int32_to_float = Lib.load("std","int32_to_float",1);
 	static var int32_add = Lib.load("std","int32_add",2);
 	static var int32_shl = Lib.load("std","int32_shl",2);
-	static function __string() { return untyped "Date".__s; }
+	static function __string() : String { return untyped "Date".__s; }
 
 }
 

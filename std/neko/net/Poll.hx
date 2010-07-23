@@ -64,7 +64,7 @@ class Poll {
 	public function poll( a : Array<Socket>, ?t : Float ) : Array<Socket> {
 		untyped {
 			var c = __dollar__hnew(16);
-			var r = __dollar__amake(a.length);
+			var r = neko.NativeArray.alloc(a.length);
 			var i = 0;
 			var len = a.length;
 			while( i < len ){

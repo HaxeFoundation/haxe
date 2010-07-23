@@ -28,6 +28,9 @@
 	flash9 : fixed Type.typeof(1<<28) was TFloat
 	flash9 : use flash.XML parser for Xml class implementation
 	neko : fixed Array.splice (was not setting null at end of array)
+	neko : rewrote Array class using neko.NativeArray
+	all : core classes implementation are now in std/(platform)/_std
+	all : added @:final support
 
 2010-01-09: 2.05
 	js : added js.Scroll

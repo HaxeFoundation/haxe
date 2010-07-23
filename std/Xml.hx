@@ -229,12 +229,9 @@ extern class Xml {
 	**/
 	function toString() : String;
 
-#if !php
+#if !(php || neko)
 	static function __init__() : Void untyped {
-		#if neko
-			Xml = neko.NekoXml__;
-			neko.Boot.__classes.Xml = Xml;
-		#elseif js
+		#if js
 			Xml = js.JsXml__;
 		#elseif flash9
 			var ref = flash.FlashXml__; // force compile

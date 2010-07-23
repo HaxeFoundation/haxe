@@ -33,9 +33,7 @@ class StringBuf {
 		Creates a new string buffer.
 	**/
 	public function new() {
-		#if neko
-			b = __make();
-		#elseif (js || cpp)
+		#if (js || cpp)
 			b = new Array();
 		#else
 			b = "";
@@ -46,9 +44,7 @@ class StringBuf {
 		Adds the representation of any value to the string buffer.
 	**/
 	public inline function add( ?x : Dynamic ) {
-		#if neko
-			__add(b,x);
-		#elseif (js || cpp)
+		#if (js || cpp)
 			b[b.length] = x;
 		#else
 			b += x;
@@ -59,9 +55,7 @@ class StringBuf {
 		Adds a part of a string to the string buffer.
 	**/
 	public inline function addSub( s : String, pos : Int, ?len : Int ) {
-		#if neko
-			__add_sub(b,untyped s.__s,pos,len == null ? s.length - pos : len);
-		#elseif flash9
+		#if flash9
 			if( len == null )
 				b += s.substr(pos);
 			else
@@ -77,9 +71,7 @@ class StringBuf {
 		Adds a character to the string buffer.
 	**/
 	public inline function addChar( c : Int ) untyped {
-		#if neko
-			__add_char(b,c);
-		#elseif (js || cpp)
+		#if (js || cpp)
 			b[b.length] = String.fromCharCode(c);
 		#elseif (flash && !flash9)
 			b += String["fromCharCode"](c);
@@ -93,9 +85,7 @@ class StringBuf {
 		The buffer is not emptied by this operation.
 	**/
 	public inline function toString() : String {
-		#if neko
-			return new String(__string(b));
-		#elseif (js || cpp)
+		#if (js || cpp)
 			return b.join("");
 		#else
 			return b;
@@ -110,13 +100,5 @@ class StringBuf {
 	#else
 		String
 	#end;
-
-#if neko
-	static var __make : Dynamic = neko.Lib.load("std","buffer_new",0);
-	static var __add : Dynamic = neko.Lib.load("std","buffer_add",2);
-	static var __add_char : Dynamic = neko.Lib.load("std","buffer_add_char",2);
-	static var __add_sub : Dynamic = neko.Lib.load("std","buffer_add_sub",4);
-	static var __string : Dynamic = neko.Lib.load("std","buffer_string",1);
-#end
 
 }

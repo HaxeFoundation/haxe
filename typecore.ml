@@ -28,6 +28,7 @@ type typer = {
 	delays : (unit -> unit) list list ref;
 	constructs : (path , Ast.access list * Ast.type_param list * Ast.func) Hashtbl.t;
 	doinline : bool;
+	mutable core_api : typer option ref;
 	mutable std : module_def;
 	mutable untyped : bool;
 	mutable super_call : bool;

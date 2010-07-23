@@ -22,22 +22,19 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package neko;
 
-class NekoString__ implements String {
+@:core_api @:final class String {
 
-	static var __name__;
 	static var __is_String;
-	private static var __split : Dynamic = Lib.load("std","string_split",2);
+	private static var __split : Dynamic = neko.Lib.load("std","string_split",2);
 
-	static function __init__() {
-		__name__ = ["String"];
+	static function __init__() : Void {
 		__is_String = true;
 	}
 
 	public var length(default,null) : Int;
 
-	private function new(s) {
+	public function new(s:String) : Void {
 		untyped {
 			if( __dollar__typeof(s) != __dollar__tstring )
 				s = __dollar__string(s);
@@ -46,7 +43,7 @@ class NekoString__ implements String {
 		}
 	}
 
-	public function charAt(p) {
+	public function charAt(p:Int) : String {
 		untyped {
 			try {
 				var s = __dollar__smake(1);
@@ -58,13 +55,13 @@ class NekoString__ implements String {
 		}
 	}
 
-	public function charCodeAt(p) {
+	public function charCodeAt(p : Int) : Null<Int> {
 		untyped {
 			return __dollar__sget(this.__s,p);
 		}
 	}
 
-	public function indexOf( str : String, ?pos ) {
+	public function indexOf( str : String, ?pos : Int ) : Int {
 		untyped {
 			var p = try __dollar__sfind(this.__s,if( pos == null ) 0 else pos,str.__s) catch( e : Dynamic ) null;
 			if( p == null )
@@ -73,7 +70,7 @@ class NekoString__ implements String {
 		}
 	}
 
-	public function lastIndexOf( str : String, ?pos ) {
+	public function lastIndexOf( str : String, ?pos : Int ) : Int {
 		untyped {
 			var last = -1;
 			if( pos == null )
@@ -88,7 +85,7 @@ class NekoString__ implements String {
 		}
 	}
 
-	public function split( delim : String ) {
+	public function split( delim : String ) : Array<String> {
 		untyped {
 			var l = __split(this.__s,delim.__s);
 			var a = new Array<String>();
@@ -104,7 +101,7 @@ class NekoString__ implements String {
 		}
 	}
 
-	public function substr( pos, ?len ) {
+	public function substr( pos : Int, ?len : Int ) : String {
 		if( len == 0 ) return "";
 		var sl = length;
 
@@ -127,10 +124,10 @@ class NekoString__ implements String {
 		}
 
 		if( pos < 0 || len <= 0 ) return "";
-		return untyped new String(__dollar__ssub(this.__s,pos,len));
+		return new String(untyped __dollar__ssub(this.__s,pos,len));
 	}
 
-	public function toLowerCase() {
+	public function toLowerCase() : String {
 		untyped {
 			var s = this.__s;
 			var l = this.length;
@@ -146,7 +143,7 @@ class NekoString__ implements String {
 		}
 	}
 
-	public function toUpperCase() {
+	public function toUpperCase() : String {
 		untyped {
 			var s = this.__s;
 			var l = this.length;
@@ -168,19 +165,19 @@ class NekoString__ implements String {
 
 	/* NEKO INTERNALS */
 
-	private function __compare(o) {
+	private function __compare(o:String) : Int {
 		return untyped __dollar__compare(this.__s,o.__s);
 	}
 
-	private function __add(s) {
+	private function __add(s:Dynamic) : String {
 		return new String(untyped this.__s+__dollar__string(s));
 	}
 
-	private function __radd(s) {
+	private function __radd(s:Dynamic) : String {
 		return new String(untyped __dollar__string(s)+this.__s);
 	}
 
-	static function fromCharCode( c : Int ) : String untyped {
+	public static function fromCharCode( c : Int ) : String untyped {
 		var s = __dollar__smake(1);
 		__dollar__sset(s,0,c);
 		return new String(s);

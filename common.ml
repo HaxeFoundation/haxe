@@ -59,6 +59,7 @@ type context = {
 	mutable verbose : bool;
 	mutable foptimize : bool;
 	mutable platform : platform;
+	mutable std_path : string list;
 	mutable class_path : string list;
 	mutable main_class : Type.path option;
 	mutable defines : (string,unit) PMap.t;
@@ -90,6 +91,7 @@ let create v =
 		verbose = false;
 		foptimize = true;
 		platform = Cross;
+		std_path = [];
 		class_path = [];
 		main_class = None;
 		defines = PMap.add "true" () PMap.empty;

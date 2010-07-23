@@ -115,12 +115,8 @@ extern class Date
 	function getLocaleTime():String;
 	#end
 
-#if !php
+#if !(php || neko)
 	private static function __init__() : Void untyped {
-	#if neko
-		Date = neko.NekoDate__;
-		neko.Boot.__classes.Date = Date;
-	#else
 		var d #if !swf_mark : Dynamic #end = Date;
 		d.now = function() {
 			return __new__(Date);
@@ -185,7 +181,6 @@ extern class Date
 		d.prototype.__class__ = d;
 		d.__name__ = ["Date"];
 		#end
-	#end
 	}
 #end
 }

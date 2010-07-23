@@ -1810,6 +1810,7 @@ let create com =
 	let ctx = {
 		com = com;
 		api = com.type_api;
+		core_api = ref None;
 		modules = Hashtbl.create 0;
 		types_module = Hashtbl.create 0;
 		constructs = Hashtbl.create 0;
@@ -1877,4 +1878,5 @@ let create com =
 	ctx
 
 ;;
+Typeload.do_create := create;
 type_field_rec := type_field

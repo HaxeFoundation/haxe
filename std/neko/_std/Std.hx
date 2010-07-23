@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2008, The haXe Project Contributors
+ * Copyright (c) 2005, The haXe Project Contributors
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -22,36 +22,57 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package neko;
 
-class NativeArray<T> implements ArrayAccess<T> {
+@:core_api class Std {
 
-	public static inline function alloc<T>( length : Int ) : NativeArray<T> {
-		return untyped __dollar__amake(length);
+	public static function is( v : Dynamic, t : Dynamic ) : Bool {
+		return untyped neko.Boot.__instanceof(v,t);
 	}
 
-	public static inline function blit<T>( dst : NativeArray<T>, dstPos : Int, src : NativeArray<T>, srcPos : Int, length : Int ) {
-		return untyped __dollar__ablit(dst,dstPos,src,srcPos,length);
+	public static function string( s : Dynamic ) : String {
+		return new String(untyped __dollar__string(s));
 	}
 
-	public static inline function ofArrayCopy<T>( a : Array<T> ) : NativeArray<T> {
-		return untyped a.__neko();
+	public static function int( x : Float ) : Int {
+		if( x < 0 ) return Math.ceil(x);
+		return Math.floor(x);
 	}
 
-	public static inline function ofArrayRef<T>( a : Array<T> ) : NativeArray<T> {
-		return untyped a.__a;
+	public static function parseInt( x : String ) : Null<Int> untyped {
+		var t = __dollar__typeof(x);
+		if( t == __dollar__tint )
+			return x;
+		if( t == __dollar__tfloat )
+			return __dollar__int(x);
+		if( t != __dollar__tobject )
+			return null;
+		return __dollar__int(x.__s);
 	}
 
-	public static inline function sub<T>( a : NativeArray<T>, pos : Int, len : Int ) : NativeArray<T> {
-		return untyped __dollar__asub(a,pos,len);
+	public static function parseFloat( x : String ) : Float {
+		return untyped __dollar__float(x.__s);
 	}
 
-	public static inline function toArray<T>( a : NativeArray<T> ) : Array<T> {
-		return untyped Array.new1(a,__dollar__asize(a));
+	public static function random( x : Int ) : Int {
+		return untyped Math._rand_int(Math.__rnd,x);
 	}
 
-	public static inline function length( a : NativeArray<Dynamic> ) : Int {
-		return untyped __dollar__asize(a);
+	static function __init__() : Void untyped {
+		Int = { __name__ : ["Int"] };
+		Float = { __name__ : ["Float"] };
+		Bool = { __ename__ : ["Bool"] };
+		Dynamic = { __name__ : ["Dynamic"] };
+		Class = { __name__ : ["Class"] };
+		Enum = {};
+		Void = { __ename__ : ["Void"] };
+		var cl = neko.Boot.__classes;
+		cl.Int = Int;
+		cl.Float = Float;
+		cl.Bool = Bool;
+		cl.Dynamic = Dynamic;
+		cl.Class = Class;
+		cl.Enum = Enum;
+		cl.Void = Void;
 	}
 
 }

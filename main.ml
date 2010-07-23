@@ -257,6 +257,7 @@ try
 			else
 				let base_path = normalize_path (try executable_path() with _ -> "./") in
 				com.class_path <- [base_path ^ "std/";"";"/"]);
+	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path;
 	let set_platform pf name file =
 		if com.platform <> Cross then failwith "Multiple targets";
 		com.platform <- pf;
@@ -485,6 +486,9 @@ try
 			has_error := true;
 		);
 	end;
+	let add_std dir =
+		com.class_path <- List.map (fun p -> p ^ dir ^ "/_std/") com.std_path @ com.class_path
+	in
 	let ext = (match com.platform with
 		| Cross ->
 			(* no platform selected *)
@@ -497,12 +501,14 @@ try
 				com.package_rules <- PMap.add "flash" (Directory "flash9") com.package_rules;
 				com.package_rules <- PMap.add "flash9" Forbidden com.package_rules;
 				com.platform <- Flash9;
-			end;
+				add_std "flash9";
+			end else
+				add_std "flash";			
 			"swf"
-		| Neko -> "n"
-		| Js -> "js"
-		| Php -> "php"
-		| Cpp -> "cpp"
+		| Neko -> add_std "neko"; "n"
+		| Js -> add_std "js"; "js"
+		| Php -> add_std "php"; "php"
+		| Cpp -> add_std "cpp"; "cpp"
 	) in
 	(* check file extension. In case of wrong commandline, we don't want
 		to accidentaly delete a source file. *)
