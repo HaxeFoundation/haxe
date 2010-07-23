@@ -1259,8 +1259,12 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				let t, pt = Typeload.t_iterator ctx in
 				let i = add_local ctx i pt in
 				let e1 = (match follow e1.etype with
-				| TAnon _
-				| TInst _ ->
+				| TMono _
+				| TDynamic _ ->
+					error "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e1.epos;
+				| TLazy _ ->
+					assert false
+				| _ ->
 					(try
 						unify_raise ctx e1.etype t e1.epos;
 						e1
@@ -1273,12 +1277,6 @@ and type_expr ctx ?(need_val=true) (e,p) =
 						| _ ->
 							error "The field iterator is not a method" e1.epos
 					)
-				| TMono _
-				| TDynamic _ ->
-					error "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e1.epos;
-				| _ ->
-					unify ctx e1.etype t e1.epos;
-					e1
 				) in
 				let e2 = type_expr ~need_val:false ctx e2 in
 				mk (TFor (i,pt,e1,e2)) ctx.api.tvoid p
