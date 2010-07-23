@@ -378,6 +378,7 @@ let using_field ctx mode e i p =
 				(match follow t with
 				| TFun ((_,_,t0) :: args,r) ->
 					(try unify_raise ctx e.etype t0 p with Error (Unify _,_) -> raise Not_found);
+					if follow e.etype == t_dynamic && follow t0 != t_dynamic then raise Not_found;
 					let et = type_module_type ctx (TClassDecl c) None p in						
 					AccUsing (mk (TField (et,i)) t p,e)
 				| _ -> raise Not_found)
@@ -1500,7 +1501,10 @@ and type_expr ctx ?(need_val=true) (e,p) =
 						match follow (field_type f) with
 						| TFun ((_,_,t) :: args, ret) when (try unify_raise ctx (dup e.etype) t e.epos; true with _ -> false) ->
 							let f = { f with cf_type = TFun (args,ret); cf_params = [] } in
-							acc := PMap.add f.cf_name f (!acc)
+							if follow e.etype == t_dynamic && follow t != t_dynamic then
+								()
+							else
+								acc := PMap.add f.cf_name f (!acc)
 						| _ -> ()
 					) c.cl_ordered_statics
 				| _ -> ());
