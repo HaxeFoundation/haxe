@@ -1082,13 +1082,6 @@ and gen_expr ctx e =
 				gen_field_op ctx e2;
 				spr ctx ")";
 			end else if
-				   is_string_expr e1
-				&& is_string_expr e2
-			then begin
-				gen_field_op ctx e1;
-				spr ctx s_op;
-				gen_field_op ctx e2;
-			end else if
 				   se1 == se2
 				|| (match e1.eexpr with | TConst _ | TLocal _ | TArray _  | TNew _ -> true | _ -> false)
 				|| (match e2.eexpr with | TConst _ | TLocal _ | TArray _  | TNew _ -> true | _ -> false)
