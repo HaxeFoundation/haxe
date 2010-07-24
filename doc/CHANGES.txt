@@ -41,6 +41,8 @@
 	php : added error message when using 2 fields with different cases in the same class/enum
 	php : fixed field declaration for properties with getter and setter (issue 124)
 	php : fixed comparison issues between strings (issue 132)
+	php : enhanced FileInput.readLine using native fgets function (issue 103)
+	
 2010-01-09: 2.05
 	js : added js.Scroll
 	js : package names are now checked at runtime to avoid clashes with existing libs

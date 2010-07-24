@@ -1661,7 +1661,8 @@ let generate_field ctx static f =
 						newline ctx);
 				if not (is_method_defined ctx m2 static) then (
 					generate_self_method ctx rights m2 static true;
-					print ctx "%s $%s" rights (s_ident m2));
+					print ctx "%s $%s" rights (s_ident m2);
+					newline ctx);
 				false
 			| CallAccess m, _ ->
 				if not (is_method_defined ctx m static) then generate_self_method ctx rights m static false;
@@ -1917,12 +1918,16 @@ let generate com =
 	List.iter (fun t ->
 		(match t with
 		| TClassDecl c ->
+			let fname f = (String.lowercase f.cf_name) ^ match follow f.cf_type with
+			| TFun _ -> "m_";
+			| _ -> 		"f_" in
+			
 			let lc_names = ref [] in
 			List.iter(fun f -> (
-				if List.exists (fun n -> n = String.lowercase f.cf_name) !lc_names then
+				if List.exists (fun n -> n = fname f) !lc_names then
 					unsupported ("'" ^ f.cf_name ^ "' already exists with different case") c.cl_pos
 				else
-					!lc_names <- (String.lowercase f.cf_name) :: !lc_names
+					!lc_names <- (fname f) :: !lc_names
 			)) (c.cl_ordered_fields @ c.cl_ordered_statics)
 		| TEnumDecl e ->
 			let e_names = ref [] in

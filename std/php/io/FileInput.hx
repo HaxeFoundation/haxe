@@ -23,6 +23,7 @@
  * DAMAGE.
  */
 package php.io;
+import haxe.io.Eof;
 import php.io.File;
 
 /**
@@ -72,5 +73,12 @@ class FileInput extends haxe.io.Input {
 		var r = untyped __call__('ftell', __f);
 		if(untyped __physeq__(r, false)) return throw haxe.io.Error.Custom('An error occurred');
 		return cast r;
+	}
+
+	override function readLine() : String {
+		var r : String = untyped __call__('fgets', __f);
+		if (untyped __physeq__(false, r))
+			throw new Eof();
+		return untyped __call__("rtrim", r, "\r\n");
 	}
 }

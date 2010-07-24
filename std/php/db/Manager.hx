@@ -262,7 +262,12 @@ class Manager<T : Object> {
 		s.add("UPDATE ");
 		s.add(table_name);
 		s.add(" SET ");
-		var cache = Reflect.field(x,cache_field);
+		var cache = Reflect.field(x, cache_field);
+		if (null == cache)
+		{
+			cache = cacheObject(x, false);
+			Reflect.setField(x, cache_field, cache);
+		}
 		var mod = false;
 		for( f in table_fields ) {
 			var v = Reflect.field(x,f);

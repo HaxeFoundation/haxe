@@ -23,6 +23,7 @@
  * DAMAGE.
  */
 package php.io;
+import php.NativeArray;
 
 private class Stdin extends haxe.io.Output {
 	var p : Void;
@@ -80,6 +81,8 @@ private class Stdout extends haxe.io.Input {
 
 class Process {
 	var p : Void;
+	var st : NativeArray;
+	var cl : Int;
 	public var stdout(default,null) : haxe.io.Input;
 	public var stderr(default,null) : haxe.io.Input;
 	public var stdin(default,null) : haxe.io.Output;
@@ -96,6 +99,14 @@ class Process {
 		stdin  = new Stdin( pipes[0]);
 		stdout = new Stdout(pipes[1]);
 		stderr = new Stdout(pipes[2]);
+	}
+	
+	public function close() {
+		if(null == st)
+			st = untyped __call__('proc_get_status', p);
+		replaceStream(stderr);
+		replaceStream(stdout);
+		cl = untyped __call__('proc_close', p);
 	}
 
 	function sargs(args : Array<String>) {
@@ -126,15 +137,16 @@ class Process {
 	}
 
 	public function exitCode() : Int {
-		var status = untyped __call__('proc_get_status', p);
-		while(status[untyped 'running']) {
-			php.Sys.sleep(0.01);
-			status = untyped __call__('proc_get_status', p);
+		if (null == cl)
+		{
+			st = untyped __call__('proc_get_status', p);
+			while(st[untyped 'running']) {
+				php.Sys.sleep(0.01);
+				st = untyped __call__('proc_get_status', p);
+			}
+			close();
 		}
-		replaceStream(stderr);
-		replaceStream(stdout);
-		var cl : Int = untyped __call__('proc_close', p);
-		return (cast status[untyped 'exitcode']) < 0 ? cl : cast status[untyped 'exitcode'];
+		return (cast st[untyped 'exitcode']) < 0 ? cl : cast st[untyped 'exitcode'];
 
 	}
 }

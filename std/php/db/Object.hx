@@ -58,7 +58,6 @@ class Object #if spod_rtti implements haxe.rtti.Infos #end {
 
 	private function __init_object() {
 		__noupdate__ = false;
-
 		__manager__ = Manager.managers.get(Type.getClassName(Type.getClass(this)));
 		var rl : Array<Dynamic>;
 		try {
