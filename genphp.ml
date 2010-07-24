@@ -786,10 +786,9 @@ and gen_field_access ctx isvar e s =
 	| TArrayDecl _
 	| TNew _ ->
 		spr ctx "_hx_deref(";
-		ctx.is_call <- true;
+		ctx.is_call <- false; 
 		gen_value ctx e;
-		ctx.is_call <- false;
-		spr ctx ")";
+		spr ctx ")"; 
 		gen_member_access ctx isvar e s
 	| _ ->
 		gen_expr ctx e;
