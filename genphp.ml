@@ -300,8 +300,7 @@ let init com cwd path def_type =
 		is_call = false;
 		cwd = cwd;
 	}
-
-let unsupported p = error "This expression cannot be generated to PHP" p
+let unsupported msg p = error ("This expression cannot be generated to PHP: " ^ msg) p
 
 let newline ctx =
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
@@ -650,7 +649,7 @@ and gen_string_var ctx s e =
 		gen_value ctx e;
 		spr ctx ")"
 	| _ ->
-		unsupported e.epos;
+		unsupported "gen_string_var " e.epos;
 
 and gen_string_static_call ctx s e el =
 	match s with
@@ -658,7 +657,7 @@ and gen_string_static_call ctx s e el =
 		spr ctx "chr(";
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")";
-	| _ -> unsupported e.epos;
+	| _ -> unsupported "gen_string_static_call " e.epos;
 
 and could_be_string_call s =
 	s = "substr" || s = "charAt" || s = "charCodeAt" || s = "indexOf" ||
@@ -719,7 +718,7 @@ and gen_string_call ctx s e el =
 	| "toString" ->
 		gen_value ctx e;
 	| _ ->
-		unsupported e.epos;
+		unsupported "gen_string_call" e.epos;
 
 and gen_uncertain_string_call ctx s e el =
 	let p = escphp ctx.quotes in
@@ -1174,10 +1173,10 @@ and gen_expr ctx e =
 			gen_value ctx e;
 			);
 	| TBreak ->
-		if not ctx.in_loop then unsupported e.epos;
+		if not ctx.in_loop then unsupported "TBreak" e.epos;
 		if ctx.handle_break then spr ctx "throw new _hx_break_exception()" else spr ctx "break"
 	| TContinue ->
-		if not ctx.in_loop then unsupported e.epos;
+		if not ctx.in_loop then unsupported "TContinue 1" e.epos;
 		spr ctx "continue"
 	| TBlock [] ->
 		spr ctx ""
@@ -1554,8 +1553,7 @@ and gen_value ctx e =
 		gen_expr ctx e
 	| TReturn _
 	| TBreak
-	| TContinue ->
-		unsupported e.epos
+	| TContinue _
 	| TVars _
 	| TFor _
 	| TWhile _
