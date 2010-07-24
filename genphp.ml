@@ -1495,7 +1495,6 @@ and gen_expr ctx e =
 		spr ctx ", ";
 		gen_expr ctx (mk (TTypeExpr t) (mk_texpr t) e1.epos);
 		spr ctx ")"
-(*		gen_expr ctx (Codegen.default_cast ctx.com e1 t e.etype e.epos) *)
 
 and gen_value ctx e =
 	let assign e =
@@ -1877,7 +1876,6 @@ let generate_enum ctx e =
 	let ename = s_path ctx e.e_path e.e_extern e.e_pos in
 
 	print ctx "class %s extends Enum {" ename;
-	let cl = open_block ctx in
 	PMap.iter (fun _ c ->
 		newline ctx;
 		match c.ef_type with
@@ -1894,8 +1892,22 @@ let generate_enum ctx e =
 		| _ ->
 			print ctx "public static $%s" c.ef_name;
 	) e.e_constrs;
-	cl();
 	newline ctx;
+	
+	spr ctx "public static $__constructors = array(";
+	
+	let first = ref true in
+	PMap.iter (fun _ c ->
+		if not !first then spr ctx ", ";
+		print ctx "%d => '%s'" c.ef_index c.ef_name;
+		first := false;
+	) e.e_constrs;
+	
+	spr ctx ")";
+	
+	newline ctx;
+	pack();
+	
 	print ctx "}";
 
 	PMap.iter (fun _ c ->
@@ -1907,7 +1919,6 @@ let generate_enum ctx e =
 			print ctx "%s::$%s = new %s(\"%s\", %d)" ename c.ef_name ename c.ef_name  c.ef_index;
 	) e.e_constrs;
 
-	pack();
 	newline ctx
 
 let generate com =

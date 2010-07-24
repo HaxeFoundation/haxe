@@ -562,15 +562,9 @@ class Type {
 	**/
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> untyped {
 		#if php
-			if(__php__("$e->__tname__ == 'Bool'")) return ['true', 'false'];
-			if(__php__("$e->__tname__ == 'Void'")) return [];
-			var rfl = __php__("new ReflectionClass($e->__tname__)");
-			var sps : ArrayAccess<Dynamic> = rfl.getStaticProperties();
-//			var r : ArrayAccess<String> = __call__('array');
-			__php__("$r = array(); while(list($k) = each($sps)) $r[] = $k");
-			sps = rfl.getMethods();
-			__php__("while(list(, $m) = each($sps)) { $n = $m->getName(); if($n != '__construct' && $n != '__toString') $r[] = $n; }");
-			return __php__("new _hx_array($r)");
+			if (__php__("$e->__tname__ == 'Bool'")) return ['true', 'false'];
+			if (__php__("$e->__tname__ == 'Void'")) return [];
+			return __call__("new _hx_array", e.__constructors);
 		#elseif cpp
 			return untyped e.GetClassFields();
 		#else

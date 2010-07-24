@@ -69,6 +69,10 @@ class Http {
 	public static var PROXY : { host : String, port : Int, auth : { user : String, pass : String } } = null;
 	#end
 
+	/**
+	 * In PHP Https (SSL) connections are allowed only if the OpenSSL extension is enabled.
+	 * @param	url
+	 */
 	public function new( url : String ) {
 		this.url = url;
 		headers = new Hash();
@@ -265,19 +269,32 @@ class Http {
 	}
 
 	public function customRequest( post : Bool, api : haxe.io.Output, ?sock : AbstractSocket, ?method : String  ) {
+		#if php
+		var url_regexp = ~/^(https?:\/\/)?([a-zA-Z\.0-9-]+)(:[0-9]+)?(.*)$/;
+		var secure = (url_regexp.matched(1) == "https://");
+		#else
 		var url_regexp = ~/^(http:\/\/)?([a-zA-Z\.0-9-]+)(:[0-9]+)?(.*)$/;
+		#end
 		if( !url_regexp.match(url) ) {
 			onError("Invalid URL");
 			return;
 		}
-		if( sock == null )
+		if ( sock == null )
+			#if php
+			sock = (secure) ? Socket.newSslSocket() : new Socket();
+			#else
 			sock = new Socket();
+			#end
 		var host = url_regexp.matched(2);
 		var portString = url_regexp.matched(3);
 		var request = url_regexp.matched(4);
 		if( request == "" )
 			request = "/";
-		var port = if( portString == null || portString == "" ) 80 else Std.parseInt(portString.substr(1,portString.length-1));
+		#if php
+		var port = if( portString == null || portString == "" ) ((!secure) ? 80 : 443) else Std.parseInt(portString.substr(1,portString.length-1));
+		#else
+		var port = if ( portString == null || portString == "" ) 80 else Std.parseInt(portString.substr(1, portString.length - 1));
+		#end
 		var data;
 
 		var multipart = (file != null);

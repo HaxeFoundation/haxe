@@ -36,6 +36,8 @@
 	as3 : fixed Date.toString issue in flash.Boot (now use .toStringHX instead)
 		this will only work if .toString called explicitely on Date class
 	all : only allow "using" on Dynamic if first parameter is Dynamic
+	php : haxe.Http now supports Https connections when OpenSSL extension is enabled (issue 143)
+	php : fixed enum constructors sequence (issue 142)
 	
 2010-01-09: 2.05
 	js : added js.Scroll

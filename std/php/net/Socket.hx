@@ -36,12 +36,13 @@ class Socket {
 	public var output(default,null) : SocketOutput;
 	public var custom : Dynamic;
 
-	public var isUdp(default, null) : Bool;
+	public var protocol(default, null) : String;
 
 	public function new( ?s ) {
 		__s = s;
 		input = new SocketInput(__s);
 		output = new SocketOutput(__s);
+		protocol = "tcp";
 	}
 
 	private function assignHandler() {
@@ -72,8 +73,8 @@ class Socket {
 	public function connect(host : Host, port : Int) {
 		var errs = null;
 		var errn = null;
-		var r = untyped __call__('stream_socket_client', (isUdp ? 'udp' : 'tcp') + '://' +host._ip + ':' + port, errn, errs);
-		checkError(r, errn, errs);
+		var r = untyped __call__('stream_socket_client', protocol + '://' +host._ip + ':' + port, errn, errs);
+		Socket.checkError(r, errn, errs);
 		__s = cast r;
 		assignHandler();
 	}
@@ -99,8 +100,8 @@ class Socket {
 	public function bind(host : Host, port : Int) {
 		var errs = null;
 		var errn = null;
-		var r = untyped __call__('stream_socket_server', (isUdp ? 'udp' : 'tcp') + '://' +host._ip + ':' + port, errn, errs, isUdp ? __php__('STREAM_SERVER_BIND') : __php__('STREAM_SERVER_BIND | STREAM_SERVER_LISTEN'));
-		checkError(r, errn, errs);
+		var r = untyped __call__('stream_socket_server', protocol + '://' +host._ip + ':' + port, errn, errs, (protocol=="udp") ? __php__('STREAM_SERVER_BIND') : __php__('STREAM_SERVER_BIND | STREAM_SERVER_LISTEN'));
+		Socket.checkError(r, errn, errs);
 		__s = cast r;
 		assignHandler();
 	}
@@ -147,9 +148,15 @@ class Socket {
 	// STATICS
 	public static function newUdpSocket() {
 		var s = new Socket();
-		untyped s.isUdp = true;
+		s.protocol = "udp";
 		return s;
 	}
+	
+	public static function newSslSocket() {
+		var s = new Socket();
+		s.protocol = "ssl";
+ 		return s;
+ 	}
 
 	private static function checkError(r : Bool, code : Int, msg : String) {
 		if(!untyped __physeq__(r, false)) return;
@@ -160,9 +167,9 @@ class Socket {
 		return isUdp ? untyped __php__('SOCK_DGRAM') : untyped __php__('SOCK_STREAM');
 	}
 
-	private static function getProtocol(isUdp : Bool) : Int {
-		return isUdp ? untyped __call__('getprotobyname', 'udp') : untyped __call__('getprotobyname', 'tcp');
-	}
+	private static function getProtocol(protocol : String) : Int {
+		return untyped __call__('getprotobyname', protocol);
+ 	}
 }
 
 enum SocketDomain {
