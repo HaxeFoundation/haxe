@@ -1495,32 +1495,26 @@ and gen_value ctx e =
 			e
 		)) e.etype e.epos
 	in
-	let value bl =
+	let value _ =
 		let old = ctx.in_value, ctx.in_loop in
 		let locs = save_locals ctx in
 		let tmp = define_local ctx "»r" in
 		ctx.in_value <- Some tmp;
 		ctx.in_loop <- false;
 		let b =
-		if bl then begin
 			print ctx "eval(%s\"" (escphp ctx.quotes);
 			ctx.quotes <- (ctx.quotes + 1);
 			let p = (escphp ctx.quotes) in
 			print ctx "if(isset(%s$this)) %s$»this =& %s$this;" p p p;
-			let b = open_block ctx in
-			b
-		end else
-			(fun() -> ())
+			open_block ctx
 		in
 		(fun() ->
-			if bl then begin
-				newline ctx;
-				print ctx "return %s$%s" (escphp ctx.quotes) tmp;
-				b();
-				newline ctx;
-				ctx.quotes <- (ctx.quotes - 1);
-				print ctx "%s\")" (escphp ctx.quotes);
-			end;
+			newline ctx;
+			print ctx "return %s$%s" (escphp ctx.quotes) tmp;
+			b();
+			newline ctx;
+			ctx.quotes <- (ctx.quotes - 1);
+			print ctx "%s\")" (escphp ctx.quotes);
 			ctx.in_value <- fst old;
 			ctx.in_loop <- snd old;
 			locs();
@@ -1551,13 +1545,13 @@ and gen_value ctx e =
 	| TFor _
 	| TWhile _
 	| TThrow _ ->
-		let v = value true in
+		let v = value false in
 		gen_expr ctx e;
 		v()
 	| TBlock [e] ->
 		gen_value ctx e
 	| TBlock el ->
-		let v = value true in
+		let v = value false in
 		let rec loop = function
 		| [] ->
 			spr ctx "return null";
@@ -1581,21 +1575,21 @@ and gen_value ctx e =
 		| Some e -> gen_value ctx e);
 		spr ctx ")"
 	| TSwitch (cond,cases,def) ->
-		let v = value true in
+		let v = value false in
 		gen_expr ctx (mk (TSwitch (cond,
 			List.map (fun (e1,e2) -> (e1,assign e2)) cases,
 			match def with None -> None | Some e -> Some (assign e)
 		)) e.etype e.epos);
 		v()
 	| TMatch (cond,enum,cases,def) ->
-		let v = value true in
+		let v = value false in
 		gen_expr ctx (mk (TMatch (cond,enum,
 		List.map (fun (constr,params,e) -> (constr,params,assign e)) cases,
 			match def with None -> None | Some e -> Some (assign e)
 		)) e.etype e.epos);
 		v()
 	| TTry (b,catchs) ->
-		let v = value true in
+		let v = value false in
 		gen_expr ctx (mk (TTry (assign b,
 			List.map (fun (v,t,e) -> v, t , assign e) catchs
 		)) e.etype e.epos);
