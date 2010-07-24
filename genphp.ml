@@ -1669,9 +1669,7 @@ let generate_field ctx static f =
 				if not (is_method_defined ctx m2 static) then (
 					generate_self_method ctx rights m2 static true;
 					print ctx "%s $%s" rights (s_ident m2));
-				if (is_method_defined ctx m1 static) && (is_method_defined ctx m2 static) then
-					spr ctx "//";
-				true
+				false
 			| CallAccess m, _ ->
 				if not (is_method_defined ctx m static) then generate_self_method ctx rights m static false;
 				print ctx "%s $%s" rights (s_ident f.cf_name);
