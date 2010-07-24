@@ -1887,6 +1887,13 @@ let generate_enum ctx e =
 	spr ctx ")";
 	
 	newline ctx;
+	
+	(match Codegen.build_metadata ctx.com (TEnumDecl e) with
+	| None -> ()
+	| Some _ ->
+		spr ctx "public static $__meta__";
+		newline ctx);
+	
 	pack();
 	
 	print ctx "}";
@@ -1900,7 +1907,14 @@ let generate_enum ctx e =
 			print ctx "%s::$%s = new %s(\"%s\", %d)" ename c.ef_name ename c.ef_name  c.ef_index;
 	) e.e_constrs;
 
-	newline ctx
+	newline ctx;
+	
+	match Codegen.build_metadata ctx.com (TEnumDecl e) with
+	| None -> ()
+	| Some e ->
+		print ctx "%s::$__meta__ = " ename;
+		gen_expr ctx e;
+		newline ctx
 
 let generate com =
 	let all_dynamic_methods = ref [] in

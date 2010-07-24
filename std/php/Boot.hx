@@ -635,6 +635,8 @@ class _hx_type {
 		$this->__tname__ = $cn;
 		$this->__qname__ = $qn;
 		$this->__path__ = $path;
+		if(class_exists($cn) && isset($cn::$__meta__))
+			$this->__meta__ = $cn::$__meta__;
 	}
 
 	public function toString()   { return $this->__toString(); }
