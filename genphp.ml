@@ -1922,6 +1922,27 @@ let generate_enum ctx e =
 let generate com =
 	let all_dynamic_methods = ref [] in
 	let extern_classes_with_init = ref [] in
+	(* check for fields with the same name but different casing *)
+	List.iter (fun t ->
+		(match t with
+		| TClassDecl c ->
+			let lc_names = ref [] in
+			List.iter(fun f -> (
+				if List.exists (fun n -> n = String.lowercase f.cf_name) !lc_names then
+					unsupported ("'" ^ f.cf_name ^ "' already exists with different case") c.cl_pos
+				else
+					!lc_names <- (String.lowercase f.cf_name) :: !lc_names
+			)) (c.cl_ordered_fields @ c.cl_ordered_statics)
+		| TEnumDecl e ->
+			let e_names = ref [] in
+			List.iter(fun en -> (
+				if List.exists (fun n -> n = String.lowercase en) !e_names then
+					unsupported ("'" ^ en ^ "' constructor exists with different case") e.e_pos
+				else
+					!e_names <- (String.lowercase en) :: !e_names
+			)) (e.e_names)
+		| _ -> ())
+	) com.types;
 	List.iter (fun t ->
 		(match t with
 		| TClassDecl c ->
