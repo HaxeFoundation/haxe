@@ -197,9 +197,6 @@ let s_path ctx path isextern p =
 		(match path with
 		| ([],"List")			-> "HList"
 		| ([],name)				-> name
-		| (["php"],"PhpXml__")	-> "Xml"
-		| (["php"],"PhpDate__")	-> "Date"
-		| (["php"],"PhpMath__")	-> "Math"
 		| (pack,name) ->
 			(try
 				(match Hashtbl.find ctx.imports name with
@@ -1957,12 +1954,6 @@ let generate com =
 	List.iter (fun t ->
 		(match t with
 		| TClassDecl c ->
-			let c = (match c.cl_path with
-				| ["php"],"PhpXml__"	-> { c with cl_path = [],"Xml" }
-				| ["php"],"PhpDate__"   -> { c with cl_path = [],"Date" }
-				| ["php"],"PhpMath__"   -> { c with cl_path = [],"Math" }
-				| _ -> c
-			) in
 			if c.cl_extern then begin
 				(match c.cl_init with
 				| None -> ()
