@@ -312,6 +312,7 @@ let build_instance ctx mtype p =
 					unify_raise ctx (build_generic ctx c p pl) t p;
 					t
 				) in
+				ctx.delays := [fun() -> ignore ((!r)())] :: !(ctx.delays);
 				TLazy r
 			| _ ->
 				TInst (c,pl)
