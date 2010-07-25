@@ -149,7 +149,7 @@ let real_path = function
 	| ["flash";"utils"], "QName" -> [] , "QName"
 	| ["flash";"utils"], "Namespace" -> [] , "Namespace"
 	| ["flash"] , "FlashXml__" -> [] , "Xml"
-	| ["flash"] , "Error" -> [], "Error"
+	| ["flash";"errors"] , "Error" -> [], "Error"
 	| ["flash"] , "Vector" -> ["__AS3__";"vec"], "Vector"
 	| path -> path
 
@@ -861,7 +861,7 @@ let rec gen_expr_content ctx retval e =
 	| TThrow e ->
 		ctx.infos.icond <- true;
 		getvar ctx (VGlobal (type_path ctx (["flash"],"Boot")));
-		let id = type_path ctx (["flash"],"Error") in
+		let id = type_path ctx (["flash";"errors"],"Error") in
 		write ctx (HFindPropStrict id);
 		write ctx (HConstructProperty (id,0));
 		setvar ctx (VId (ident "lastError")) None;
@@ -1023,7 +1023,7 @@ let rec gen_expr_content ctx retval e =
 				let has_call = (try call_loop e; false with Exit -> true) in
 				if has_call then begin
 					getvar ctx (gen_local_access ctx ename e.epos Read);
-					write ctx (HAsType (type_path ctx (["flash"],"Error")));
+					write ctx (HAsType (type_path ctx (["flash";"errors"],"Error")));
 					let j = jump ctx J3False in
 					getvar ctx (VGlobal (type_path ctx (["flash"],"Boot")));
 					getvar ctx (gen_local_access ctx ename e.epos Read);

@@ -42,6 +42,7 @@
 	php : fixed field declaration for properties with getter and setter (issue 124)
 	php : fixed comparison issues between strings (issue 132)
 	php : enhanced FileInput.readLine using native fgets function (issue 103)
+	flash9 : renamed flash.Error to flash.errors.Error
 	
 2010-01-09: 2.05
 	js : added js.Scroll

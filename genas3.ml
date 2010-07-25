@@ -59,7 +59,7 @@ let s_path ctx stat path p =
 		| _ -> name)
 	| (["flash"],"FlashXml__") ->
 		"Xml"
-	| (["flash"],"Error") ->
+	| (["flash";"errors"],"Error") ->
 		"Error"
 	| (["flash"],"Vector") ->
 		"Vector"
@@ -1175,7 +1175,7 @@ and type_path ctx p =
 	| [] , "void" -> [] , "Void"
 	| [] , "Function" -> [] , "Dynamic"
 	| [] , "Class" -> [] , "Class<Dynamic>"
-	| [] , "Error" -> ["flash"], "Error"
+	| [] , "Error" -> ["flash";"errors"], "Error"
 	| [] , "XML" -> ["flash";"xml"], "XML"
 	| [] , "XMLList" -> ["flash";"xml"], "XMLList"
 	| [] , "QName" -> ["flash";"utils"], "QName"

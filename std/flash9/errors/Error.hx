@@ -1,4 +1,4 @@
-package flash;
+package flash.errors;
 
 extern class Error {
 	var errorID(default,null) : Int;
