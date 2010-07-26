@@ -2248,6 +2248,14 @@ let generate_class_files common_ctx member_types super_deps class_def =
 		create_result is_extern;
 		output_cpp ("	result->__construct(" ^ (array_arg_list constructor_var_list) ^ ");\n");
 		output_cpp ("	return result;}\n\n");
+		if ( (List.length implemented) > 0 ) then begin
+			output_cpp ("hx::Object *" ^ class_name ^ "::__ToInterface(const type_info &inType) {\n");
+			List.iter (fun interface_name ->
+				output_cpp ("	if (inType==typeid( " ^ interface_name ^ "_obj)) " ^
+					"return operator " ^ interface_name ^ "_obj *();\n");
+				) implemented;
+			output_cpp ("	return super::__ToInterface(inType);\n}\n\n");
+		end;
 
 	end;
 
@@ -2258,15 +2266,6 @@ let generate_class_files common_ctx member_types super_deps class_def =
 		output_cpp "\n\n";
 	| _ -> ());
 
-
-	if ( (List.length implemented) > 0 ) then begin
-		output_cpp ("hx::Object *" ^ class_name ^ "::__ToInterface(const type_info &inType) {\n");
-		List.iter (fun interface_name ->
-			output_cpp ("	if (inType==typeid( " ^ interface_name ^ "_obj)) " ^
-				"return operator " ^ interface_name ^ "_obj *();\n");
-		) implemented;
-		output_cpp ("	return super::__ToInterface(inType);\n}\n\n");
-	end;
 
 	List.iter
 		(gen_field ctx class_def class_name smart_class_name false is_extern class_def.cl_interface)
