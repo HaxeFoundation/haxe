@@ -29,7 +29,7 @@ class Boot extends flash.display.MovieClip, implements Dynamic {
 	static var init : Void -> Void;
 	static var tf : flash.text.TextField;
 	static var lines : Array<String>;
-	static var lastError : flash.Error;
+	static var lastError : flash.errors.Error;
 
 	public static var skip_constructor = false;
 
