@@ -283,7 +283,7 @@ function _hx_field($o, $field) {
 				return array($o->__tname__, $field);
 			} else {
 				$name = $o->__tname__;
-				return $name::${$field};
+				return eval('return '.$name.'::$'.$field.';');
 			}
 		} else {
 			if(is_string($o)) {
@@ -644,7 +644,7 @@ class _hx_type {
 		$this->__qname__ = $qn;
 		$this->__path__ = $path;
 		if(property_exists($cn, '__meta__'))
-			$this->__meta__ = $cn::$__meta__;
+			$this->__meta__ =  eval($cn.'::$__meta__');
 	}
 
 	public function toString()   { return $this->__toString(); }
@@ -725,7 +725,8 @@ class _hx_lambda {
 		$arr = array();
 		for ($i = 0; $i<count($this->locals);$i++)
 			$arr[] = & $this->locals[$i];
-		return call_user_func_array($this->func, array_merge($arr, func_get_args()));
+		$args = func_get_args();
+		return call_user_func_array($this->func, array_merge($arr, $args));
 	}
 }
 
