@@ -1537,7 +1537,7 @@ and gen_value ctx e =
 		gen_expr ctx e
 	| TReturn _
 	| TBreak
-	| TContinue _
+	| TContinue
 	| TVars _
 	| TFor _
 	| TWhile _
@@ -1932,7 +1932,7 @@ let generate com =
 				if List.exists (fun n -> n = fname f) !lc_names then
 					unsupported ("'" ^ f.cf_name ^ "' already exists with different case") c.cl_pos
 				else
-					!lc_names <- (fname f) :: !lc_names
+					lc_names := (fname f) :: !lc_names
 			)) (c.cl_ordered_fields @ c.cl_ordered_statics)
 		| TEnumDecl e ->
 			let e_names = ref [] in
@@ -1940,7 +1940,7 @@ let generate com =
 				if List.exists (fun n -> n = String.lowercase en) !e_names then
 					unsupported ("'" ^ en ^ "' constructor exists with different case") e.e_pos
 				else
-					!e_names <- (String.lowercase en) :: !e_names
+					e_names := (String.lowercase en) :: !e_names
 			)) (e.e_names)
 		| _ -> ())
 	) com.types;
