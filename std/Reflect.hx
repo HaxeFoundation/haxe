@@ -390,8 +390,7 @@ class Reflect {
 		#elseif php
 			untyped __php__("return array(new _hx_lambda(array('f' => &$f), null, array('args'), 'return call_user_func($f, new _hx_array($args));'), 'makeArgs')");
 		#elseif cpp
-			//TODO:
-			return null;
+			return untyped __global__.__hxcpp_create_var_args(f);
 		#else
 			return null;
 		#end
