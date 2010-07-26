@@ -46,7 +46,7 @@ class File {
 		return haxe.io.Bytes.ofString(getContent(path));
 	}
 	
-	public static function putContent( path : String, content : String) : String {
+	public static function putContent( path : String, content : String) : Int {
 		return untyped __call__("file_put_contents", path, content);
 	}
 	

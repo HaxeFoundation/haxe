@@ -38,9 +38,11 @@
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {
-		untyped if (!__php__("is_numeric")(x))
-			return null;
-		else
+		untyped if (!__php__("is_numeric")(x)) {
+			var matches = null;
+			__call__('preg_match', '/\\d+/', x, matches);
+			return __call__("count", matches) == 0 ? null : __call__('intval', matches[0]);
+		} else
 			return x.substr(0, 2).toLowerCase() == "0x" ? __php__("intval(substr($x, 2), 16)") : __php__("intval($x)");
 	}
 
