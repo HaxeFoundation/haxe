@@ -1165,7 +1165,7 @@ and gen_expr ctx e =
 					| TThrow _ 
 					| TBlock _ ->
 						gen_expr ctx e
-					| TReturn Some e1 ->
+					| TReturn (Some e1) ->
 						(match e1.eexpr with
 						| TIf _
 						| TSwitch _
