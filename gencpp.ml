@@ -815,7 +815,7 @@ let rec define_local_function_ctx ctx func_name func_def =
 				gen_expression ctx false return_expression;
 			| _ ->
 				output_i "";
-				gen_expression ctx false func_def.tf_expr;
+				gen_expression ctx false (to_block func_def.tf_expr);
 			);
 			output ";\n";
 			output_i "return null();\n";
@@ -1643,7 +1643,7 @@ let gen_field ctx class_def class_name ptr_name is_static is_external is_interfa
 				output "return null();\n";
 				ctx.ctx_writer#end_block;
 			end else
-				gen_expression ctx false function_def.tf_expr;
+				gen_expression ctx false (to_block function_def.tf_expr);
 
 			output ("HX_END_LOCAL_FUNC" ^ nargs ^ "(" ^ ret ^ ")\n");
 			output ("HX_END_DEFAULT_FUNC\n\n");
@@ -2213,10 +2213,10 @@ let generate_class_files common_ctx member_types super_deps class_def =
 						| Some { eexpr = TFunction function_def } ->
 							if (has_default_values function_def.tf_args) then begin
 								generate_default_values ctx function_def.tf_args "__o_";
-								gen_expression ctx false function_def.tf_expr;
+								gen_expression ctx false (to_block function_def.tf_expr);
 								output_cpp ";\n";
 							end else begin
-								gen_expression ctx false function_def.tf_expr;
+								gen_expression ctx false (to_block function_def.tf_expr);
 								output_cpp ";\n";
 								(*gen_expression (new_context common_ctx cpp_file debug ) false function_def.tf_expr;*)
 							end
