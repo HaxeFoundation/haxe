@@ -828,7 +828,19 @@ and gen_inline_function ctx f hasthis p =
 	ctx.locals <- old_l;
 	ctx.inv_locals <- old_li;
 	ctx.local_types <- old_t
-
+	
+and unset_locals ctx old_l =
+	let lst = ref [] in
+	PMap.iter (fun n _ ->
+		if not (PMap.exists n old_l) then
+			lst := ["$" ^  n] @ !lst;
+	) ctx.inv_locals;
+	if (List.length !lst) > 0 then begin
+		spr ctx "unset(";
+		concat ctx "," (fun (s) -> spr ctx s; ) !lst;
+		spr ctx ")"
+	end
+	
 and gen_while_expr ctx e =
 	match e.eexpr with
 	| TBlock (el) ->	
@@ -838,17 +850,8 @@ and gen_while_expr ctx e =
 		let bend = open_block ctx in
 		List.iter (fun e -> newline ctx; gen_expr ctx e) el;
 		newline ctx;
-		let lst = ref [] in
-		PMap.iter (fun n _ ->
-		    if not (PMap.exists n old_l) then
-				lst := ["$" ^  n] @ !lst;
-		) ctx.inv_locals;
 		
-		if (List.length !lst) > 0 then begin
-			spr ctx "unset(";
-			concat ctx "," (fun (s) -> spr ctx s; ) !lst;
-			spr ctx ")"
-		end;
+		unset_locals ctx old_l;
 		
 		bend();
 		newline ctx;
@@ -1120,6 +1123,7 @@ and gen_expr ctx e =
 	| TBlock [] ->
 		spr ctx ""
 	| TBlock el ->
+		let old_l = ctx.inv_locals in
 		let b = save_locals ctx in
 		print ctx "{";
 		let bend = open_block ctx in
@@ -1158,7 +1162,8 @@ and gen_expr ctx e =
 					(match e.eexpr with
 					| TIf _
 					| TSwitch _
-					| TThrow _ -> 
+					| TThrow _ 
+					| TBlock _ ->
 						gen_expr ctx e
 					| TReturn Some e1 ->
 						(match e1.eexpr with
@@ -1166,7 +1171,7 @@ and gen_expr ctx e =
 						| TSwitch _
 						| TThrow _ -> ()
 						| _ ->
-							spr ctx "return "
+							spr ctx "return z"
 						);
 						gen_expr ctx e1;
 					| _ -> 
@@ -1180,7 +1185,9 @@ and gen_expr ctx e =
 			in
 			loop el
 		end else
-			List.iter (fun e -> newline ctx; gen_expr ctx e) el);
+			List.iter (fun e -> newline ctx; gen_expr ctx e) el;
+			newline ctx;
+			unset_locals ctx old_l);
 		bend();
 		newline ctx;
 		cb();
@@ -1532,7 +1539,7 @@ and gen_value ctx e =
 	| TNew _
 	| TCast _
 	| TFunction _
-	| TReturn _ ->
+(*	| TReturn _*) ->
 		gen_expr ctx e
 	| TBlock [] ->
 		()
@@ -1543,6 +1550,7 @@ and gen_value ctx e =
 	| TContinue
 	| TVars _
 	| TFor _
+	| TReturn _
 	| TWhile _
 	| TThrow _
 	| TSwitch _

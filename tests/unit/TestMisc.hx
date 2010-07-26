@@ -20,13 +20,19 @@ class MyDynamicClass {
 		return v + x + y;
 	}
 
+#if php
+	static var Z = 10;
 
+	public dynamic static function staticDynamic(x,y) {
+		return Z + x + y;
+	}
+#else
 	static var V = 10;
 
 	public dynamic static function staticDynamic(x,y) {
 		return V + x + y;
 	}
-
+#end
 }
 
 class MyDynamicSubClass extends MyDynamicClass {
