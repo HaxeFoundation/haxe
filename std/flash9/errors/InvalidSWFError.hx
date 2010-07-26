@@ -1,4 +1,4 @@
 package flash.errors;
 
-extern class InvalidSWFError extends flash.Error {
+extern class InvalidSWFError extends Error {
 }

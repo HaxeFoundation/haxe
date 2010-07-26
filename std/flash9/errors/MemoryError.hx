@@ -1,4 +1,4 @@
 package flash.errors;
 
-extern class MemoryError extends flash.Error {
+extern class MemoryError extends Error {
 }

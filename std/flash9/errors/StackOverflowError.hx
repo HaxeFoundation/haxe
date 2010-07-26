@@ -1,4 +1,4 @@
 package flash.errors;
 
-extern class StackOverflowError extends flash.Error {
+extern class StackOverflowError extends Error {
 }

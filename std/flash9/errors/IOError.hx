@@ -1,4 +1,4 @@
 package flash.errors;
 
-extern class IOError extends flash.Error {
+extern class IOError extends Error {
 }

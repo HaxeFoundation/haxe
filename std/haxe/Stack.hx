@@ -49,7 +49,7 @@ class Stack {
 			a.shift(); // remove Stack.callStack()
 			return a;
 		#elseif flash9
-			var a = makeStack( new flash.Error().getStackTrace() );
+			var a = makeStack( new flash.errors.Error().getStackTrace() );
 			a.shift(); // remove Stack.callstack()
 			return a;
 		#elseif (flash || js)
@@ -72,7 +72,7 @@ class Stack {
 		#elseif as3
 			return new Array();
 		#elseif flash9
-			var err : flash.Error = untyped flash.Boot.lastError;
+			var err : flash.errors.Error = untyped flash.Boot.lastError;
 			if( err == null ) return new Array();
 			var a = makeStack( err.getStackTrace() );
 			var c = callStack();
