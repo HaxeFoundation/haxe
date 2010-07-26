@@ -118,7 +118,7 @@ class Hash<T> #if php implements php.IteratorAggregate<T> #end {
 		#elseif neko
 		return untyped __dollar__hmem(h,key.__s,null);
 		#elseif cpp
-		return untyped h.__Field(key)!=null;
+		return untyped h.__HasField(key);
 		#elseif php
 		return untyped __call__("array_key_exists", key, h);
 		#else
