@@ -43,7 +43,8 @@
 	php : fixed comparison issues between strings (issue 132)
 	php : enhanced FileInput.readLine using native fgets function (issue 103)
 	flash9 : renamed flash.Error to flash.errors.Error
-	
+	php : removed eval() everywhere and simplified _hx_lambda
+
 2010-01-09: 2.05
 	js : added js.Scroll
 	js : package names are now checked at runtime to avoid clashes with existing libs

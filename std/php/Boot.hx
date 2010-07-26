@@ -194,13 +194,9 @@ class _hx_array_iterator implements Iterator {
 	}
 }
 
-function _hx_array_get($a, $pos) {
-	return $a[$pos];
-}
+function _hx_array_get($a, $pos) { return $a[$pos]; }
 
-function _hx_array_assign($a, $i, $v) {
-	return $a[$i] = $v;
-}
+function _hx_array_assign($a, $i, $v) { return $a[$i] = $v; }
 
 class _hx_break_exception extends Exception {}
 
@@ -212,14 +208,14 @@ function _hx_cast($v, $type) {
 	}
 }
 
+function _hx_char_at($o, $i) { return substr($o, $i, 1); }
+
 function _hx_char_code_at($s, $pos) {
 	if($pos < 0 || $pos >= strlen($s)) return null;
 	return ord($s{$pos});
 }
 
-function _hx_deref($o) {
-	return $o;
-}
+function _hx_deref($o) { return $o; }
 
 function _hx_equal($x, $y) {
 	if(is_null($x)) {
@@ -274,13 +270,20 @@ function _hx_explode($delimiter, $s) {
 	return new _hx_array(explode($delimiter, $s));
 }
 
+function _hx_explode2($s, $delimiter) {
+	if($delimiter == '')
+		return new _hx_array(str_split($s, 1));
+	return new _hx_array(explode($delimiter, $s));
+}
+
 function _hx_field($o, $field) {
 	if(_hx_has_field($o, $field)) {
 		if($o instanceof _hx_type) {
 			if(is_callable(array($o->__tname__, $field))) {
 				return array($o->__tname__, $field);
 			} else {
-				return eval('return '.$o->__tname__.'::$'.$field.';');
+				$name = $o->__tname__;
+				return $name::${$field};
 			}
 		} else {
 			if(is_string($o)) {
@@ -288,15 +291,15 @@ function _hx_field($o, $field) {
 					return strlen($o);
 				} else {
 					switch($field) {
-						case 'charAt'     : return array(new _hx_lambda(array('o' => &$o), null, array('index'), 'return substr($o,$index,1);'), 'execute1');
-						case 'charCodeAt' : return array(new _hx_lambda(array('o' => &$o), null, array('index'), 'return ord(substr($o, $index, 1));'), 'execute1');
-						case 'indexOf'    : return array(new _hx_lambda(array('o' => &$o), null, array('value','startIndex'), 'return _hx_index_of($o, $value, $startIndex);'), 'execute1');
-						case 'lastIndexOf': return array(new _hx_lambda(array('o' => &$o), null, array('value','startIndex'), 'return _hx_last_index_of($o, $value, $startIndex);'), 'execute1');
-						case 'split'      : return array(new _hx_lambda(array('o' => &$o), null, array('delimiter'), 'return _hx_explode($delimiter, $o);'), 'execute1');
-						case 'substr'     : return array(new _hx_lambda(array('o' => &$o), null, array('pos','len'), 'return _hx_substr($o, $pos, $len);'), 'execute2');
-						case 'toUpperCase': return array(new _hx_lambda(array('o' => &$o), null, array(), 'return strtoupper($o);'), 'execute0');
-						case 'toLowerCase': return array(new _hx_lambda(array('o' => &$o), null, array(), 'return strtolower($o);'), 'execute0');
-						case 'toString'   : return array(new _hx_lambda(array('o' => &$o), null, array(), 'return $o;'), 'execute0');
+						case 'charAt'     : return array(new _hx_lambda(array(&$o), '_hx_char_at'), 'execute');
+						case 'charCodeAt' : return array(new _hx_lambda(array(&$o), '_hx_char_code_at'), 'execute');
+						case 'indexOf'    : return array(new _hx_lambda(array(&$o), '_hx_index_of'), 'execute');
+						case 'lastIndexOf': return array(new _hx_lambda(array(&$o), '_hx_last_index_of'), 'execute');
+						case 'split'      : return array(new _hx_lambda(array(&$o), '_hx_explode2'), 'execute');
+						case 'substr'     : return array(new _hx_lambda(array(&$o), '_hx_substr'), 'execute');
+						case 'toUpperCase': return array(new _hx_lambda(array(&$o), 'strtoupper'), 'execute');
+						case 'toLowerCase': return array(new _hx_lambda(array(&$o), 'strtolower'), 'execute');
+						case 'toString'   : return array(new _hx_lambda(array(&$o), '_hx_deref'), 'execute');
 					}
 					return null;
 				}
@@ -344,7 +347,7 @@ function _hx_has_field($o, $field) {
 	;
 }
 
-function _hx_index_of($s, $value, $startIndex) {
+function _hx_index_of($s, $value, $startIndex = null) {
 	$x = strpos($s, $value, $startIndex);
 	if($x === false)
 		return -1;
@@ -370,10 +373,10 @@ function _hx_instanceof($v, $t) {
 }
 
 function _hx_is_lambda($s) {
-	return (is_string($s) && substr($s, 0, 8) == chr(0).'lambda_') || (is_array($s) && count($s) > 0 && is_a($s[0], '_hx_lambda'));
+	return (is_string($s) && substr($s, 0, 8) == chr(0).'lambda_') || (is_array($s) && count($s) > 0 && (is_a($s[0], '_hx_lambda') || is_a($s[0], '_hx_lambda2')));
 }
 
-function _hx_last_index_of($s, $value, $startIndex) {
+function _hx_last_index_of($s, $value, $startIndex = null) {
 	$x = strrpos($s, $value, $startIndex === null ? null : strlen($s) - $startIndex);
 	if($x === false)
 		return -1;
@@ -429,9 +432,7 @@ class _hx_list_iterator implements Iterator {
 	}
 }
 
-function _hx_null() {
-	return null;
-}
+function _hx_null() { return null; }
 
 class _hx_nullob {
 	function _throw()       { throw new HException('Null object'); }
@@ -486,6 +487,7 @@ function _hx_string_call($s, $method, $params) {
 		case 'lastIndexOf': return _hx_last_index_of($s, (count($params) > 1 ? $params[1] : null), null);
 		case 'split'      : return _hx_explode($params[0], $s);
 		case 'substr'     : return _hx_substr($s, $params[0], (count($params) > 1 ? $params[1] : null));
+		case 'toString'   : return $s;
 		default           : throw new HException('Invalid Operation: ' . $method);
 	}
 }
@@ -585,6 +587,12 @@ function _hx_ttype($n) {
 	return isset(php_Boot::$ttypes[$n]) ? php_Boot::$ttypes[$n] : null;
 }
 
+function _hx_make_var_args() {
+	$args = func_get_args();
+	$f = array_shift($args);
+	return call_user_func($f, new _hx_array($args));
+}
+
 class _hx_anonymous extends stdClass {
 	public function __call($m, $a) {
 		return call_user_func_array($this->$m, $a);
@@ -635,7 +643,7 @@ class _hx_type {
 		$this->__tname__ = $cn;
 		$this->__qname__ = $qn;
 		$this->__path__ = $path;
-		if(class_exists($cn) && isset($cn::$__meta__))
+		if(property_exists($cn, '__meta__'))
 			$this->__meta__ = $cn::$__meta__;
 	}
 
@@ -703,82 +711,21 @@ class HException extends Exception {
 	}
 }
 
-
 class _hx_lambda {
-	public function __construct($locals, $scope, $args, $body) {
+	public function __construct($locals, $func) {
 		$this->locals = $locals;
-		$this->scope = $scope;
-		$this->args = $args;
-		$this->body = $body;
+		$this->func = $func;
 	}
 	public $locals;
-	public $scope;
-	public $args;
-	public $body;
+	public $func;
 
-	public $params = array();
 	public function execute() {
-		$»arr = array_keys($this->locals);
-		while($»k = current($»arr)) {
-			${$»k} =& $this->locals[$»k];
-			next($»arr);
-		}
-		for($»i = 0; $»i < count($this->args); $»i++)
-			${$this->args[$»i]} =& $this->params[$»i];
-		$»this = $this->scope;
-		return eval($this->body);
-	}
-
-	public function makeArgs() {
-		$this->params = array(func_get_args());
-		return $this->execute();
-	}
-
-	public function execute0() {
-		$this->params = array();
-		return $this->execute();
-	}
-
-	public function execute1($_1) {
-		if($this->scope == null) $this->scope= $_1;
-		$this->params = array($_1);
-		return $this->execute();
-	}
-
-	public function execute2($_1, $_2) {
-		if($this->scope == null) $this->scope= $_1;
-		$this->params = array($_1, $_2);
-		return $this->execute();
-	}
-
-	public function execute3($_1, $_2, $_3) {
-		if($this->scope == null) $this->scope= $_1;
-		$this->params = array($_1, $_2, $_3);
-		return $this->execute();
-	}
-
-	public function execute4($_1, $_2, $_3, $_4) {
-		if($this->scope == null) $this->scope= $_1;
-		$this->params = array($_1, $_2, $_3, $_4);
-		return $this->execute();
-	}
-
-	public function execute5($_1, $_2, $_3, $_4, $_5) {
-		if($this->scope == null) $this->scope= $_1;
-		$this->params = array($_1, $_2, $_3, $_4, $_5);
-		return $this->execute();
-	}
-
-	public function execute6($_1, $_2, $_3, $_4, $_5, $_6) {
-		if($this->scope == null) $this->scope= $_1;
-		$this->params = array($_1, $_2, $_3, $_4, $_5, $_6);
-		return $this->execute();
-	}
-
-	public function execute7($_1, $_2, $_3, $_4, $_5, $_6, $_7) {
-		if($this->scope == null) $this->scope= $_1;
-		$this->params = array($_1, $_2, $_3, $_4, $_5, $_6, $_7);
-		return $this->execute();
+		// if use $this->locals directly in array_merge it works only if I make the assignement loop,
+		// so I've decided to reference $arr
+		$arr = array();
+		for ($i = 0; $i<count($this->locals);$i++)
+			$arr[] = & $this->locals[$i];
+		return call_user_func_array($this->func, array_merge($arr, func_get_args()));
 	}
 }
 

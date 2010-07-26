@@ -26,17 +26,31 @@ type method_name = {
 	mutable mname : string;
 }
 
+type inline_method = {
+	iname       : string;
+	iindex      : int;
+	iexpr       : texpr;
+	ihasthis    : bool;
+	iin_block   : bool;
+	iarguments  : string list;
+	ilocals     : (string,string) PMap.t;
+	iinv_locals : (string,string) PMap.t;
+}
+
 type context = {
 	com : Common.context;
 	ch : out_channel;
 	buf : Buffer.t;
 	path : path;
 	stack : Codegen.stack_context;
+	mutable inline_index : int;
 	mutable curclass : tclass;
 	mutable curmethod : string;
 	mutable tabs : string;
 	mutable in_value : string option;
 	mutable in_loop : bool;
+	mutable in_block : bool;
+	mutable in_instance_method : bool;
 	mutable handle_break : bool;
 	mutable imports : (string,string list list) Hashtbl.t;
 	mutable extern_required_paths : (string list * string) list;
@@ -46,11 +60,11 @@ type context = {
 	mutable local_types : t list;
 	mutable inits : texpr list;
 	mutable constructor_block : bool;
-	mutable quotes : int;
 	mutable all_dynamic_methods: method_name list;
 	mutable dynamic_methods: tclass_field list;
 	mutable is_call : bool;
 	mutable cwd : string;
+	mutable inline_methods : inline_method list;
 }
 
 let join_class_path path separator =
@@ -122,9 +136,6 @@ and type_string haxe_type =
 
 let debug_expression expression type_too =
 	"/* " ^ Type.s_expr_kind expression ^ (if (type_too) then " = " ^ (type_string expression.etype) else "") ^ " */";;
-
-let rec escphp n =
-	if n = 0 then "" else if n = 1 then "\\" else ("\\\\" ^ escphp (n-1))
 
 let rec register_extern_required_path ctx path = 
 	if (List.exists(fun p -> p = path) ctx.extern_classes_with_init) && not (List.exists(fun p -> p = path) ctx.extern_required_paths) then
@@ -280,6 +291,7 @@ let init com cwd path def_type =
 		buf = Buffer.create (1 lsl 14);
 		in_value = None;
 		in_loop = false;
+		in_instance_method = false;
 		handle_break = false;
 		imports = imports;
 		extern_required_paths = [];
@@ -291,11 +303,13 @@ let init com cwd path def_type =
 		local_types = [];
 		inits = [];
 		constructor_block = false;
-		quotes = 0;
 		dynamic_methods = [];
 		all_dynamic_methods = [];
 		is_call = false;
 		cwd = cwd;
+		inline_methods = [];
+		inline_index = 0;
+		in_block = false;
 	}
 let unsupported msg p = error ("This expression cannot be generated to PHP: " ^ msg) p
 
@@ -344,7 +358,8 @@ let close ctx =
 
 let save_locals ctx =
 	let old = ctx.locals in
-	(fun() -> ctx.locals <- old)
+	let old_inv = ctx.inv_locals in
+	(fun() -> ctx.locals <- old; ctx.inv_locals <- old_inv)
 
 let define_local ctx l =
 	let rec loop n =
@@ -387,20 +402,19 @@ let handle_break ctx e =
 				ctx.in_loop <- fst old;
 				ctx.handle_break <- snd old;
 				newline ctx;
-				let p = escphp ctx.quotes in
-				print ctx "} catch(_hx_break_exception %s$»e){}" p;
+				spr ctx "} catch(_hx_break_exception $»e){}";
 			)
 
 let this ctx =
-	let p = escphp ctx.quotes in
-	if ctx.in_value <> None then (p ^ "$»this") else (p ^ "$this")
+	if ctx.in_value <> None then "$»this" else "$this"
 
-let escape_bin s quotes =
+(*let escape_bin s quotes = *)
+let escape_bin s =
 	let b = Buffer.create 0 in
 	for i = 0 to String.length s - 1 do
 		match Char.code (String.unsafe_get s i) with
 		| c when c = Char.code('\\') or c = Char.code('"') or c = Char.code('$') ->
-			Buffer.add_string b (escphp (quotes+1)); 
+			Buffer.add_string b "\\";
 			Buffer.add_char b (Char.chr c)
 		| c when c < 32 ->
 			Buffer.add_string b (Printf.sprintf "\\x%.2X" c)
@@ -413,7 +427,7 @@ let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
 	| TFloat s -> spr ctx s
 	| TString s ->
-		print ctx "%s\"%s%s\"" (escphp ctx.quotes) (escape_bin (s) (ctx.quotes)) (escphp ctx.quotes)
+		print ctx "\"%s\"" (escape_bin s)
 	| TBool b -> spr ctx (if b then "true" else "false")
 	| TNull -> spr ctx "null"
 	| TThis -> spr ctx (this ctx)
@@ -421,29 +435,7 @@ let gen_constant ctx p = function
 
 let s_funarg ctx arg t p c =
 	let byref = if (String.length arg > 7 && String.sub arg 0 7 = "byref__") then "&" else "" in
-	print ctx "%s%s$%s" byref (escphp ctx.quotes) (s_ident_local arg)
-(*
-	(match t with
-	| TInst (cl,_) ->
-		(match cl.cl_path with
-		| ([], "Float")
-		| ([], "String")
-		| ([], "Array")
-		| ([], "Int")
-		| ([], "Enum")
-		| ([], "Class")
-		| ([], "Bool") ->
-			print ctx "%s%s$%s" byref (escphp ctx.quotes) arg;
-		| _ ->
-			if cl.cl_kind = KNormal && not cl.cl_extern then
-				print ctx "%s%s$%s" byref (escphp ctx.quotes) arg
-			else begin
-				print ctx "%s%s$%s" byref (escphp ctx.quotes) arg;
-			end)
-	| _ ->
-		print ctx "%s%s$%s" byref (escphp ctx.quotes) arg;
-	)
-*)
+	print ctx "%s$%s" byref (s_ident_local arg)
 
 let is_in_dynamic_methods ctx e s =
 	List.exists (fun dm ->
@@ -468,39 +460,6 @@ let fun_block ctx f p =
 		Codegen.stack_block ctx.stack ctx.curclass ctx.curmethod e
 	end else 
 		mk_block e
-
-let gen_function_header ctx name f params p =
-	let old = ctx.in_value in
-	let old_l = ctx.locals in
-	let old_li = ctx.inv_locals in
-	let old_t = ctx.local_types in
-	ctx.in_value <- None;
-	ctx.local_types <- List.map snd params @ ctx.local_types;
-	(match name with
-	| None ->
-		spr ctx "create_function('";
-		concat ctx ", " (fun (arg,o,t) ->
-		let arg = define_local ctx arg in
-			s_funarg ctx arg t p o;
-		) f.tf_args;
-		print ctx "', '') "
-	| Some n ->
-		let byref = if (String.length n > 9 && String.sub n 0 9 = "__byref__") then "&" else "" in
-		print ctx "function %s%s(" byref n;
-		concat ctx ", " (fun (arg,o,t) ->
-		let arg = define_local ctx arg in
-			s_funarg ctx arg t p o;
-		) f.tf_args;
-		print ctx ") ");
-	(fun () ->
-		ctx.in_value <- old;
-		ctx.locals <- old_l;
-		ctx.inv_locals <- old_li;
-		ctx.local_types <- old_t;
-	)
-
-let s_escape_php_vars ctx code =
-	String.concat ((escphp ctx.quotes) ^ "$") (ExtString.String.nsplit code "$")
 
 let rec gen_array_args ctx lst =
 	match lst with
@@ -542,7 +501,7 @@ and gen_call ctx e el =
 			spr ctx ")";
 		);
 	| TLocal "__set__" , { eexpr = TConst (TString code) } :: el ->
-		print ctx "%s$%s" (escphp ctx.quotes) code;
+		print ctx "$%s" code;
 		genargs el;
 	| TLocal "__set__" , e :: el ->
 		gen_value ctx e;
@@ -564,7 +523,7 @@ and gen_call ctx e el =
 		gen_value ctx f;
 		gen_array_args ctx el;
 	| TLocal "__var__" , { eexpr = TConst (TString code) } :: el ->
-		print ctx "%s$%s" (escphp ctx.quotes) code;
+		print ctx "$%s" code;
 		gen_array_args ctx el;
 	| TLocal "__var__" , e :: el ->
 		gen_value ctx e;
@@ -575,10 +534,10 @@ and gen_call ctx e el =
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")";
 	| TLocal "__php__", [{ eexpr = TConst (TString code) }] ->
-		spr ctx (s_escape_php_vars ctx code)
+		spr ctx code
 	| TLocal "__instanceof__" ,  [e1;{ eexpr = TConst (TString t) }] ->
 		gen_value ctx e1;
-		print ctx " instanceof %s" (s_escape_php_vars ctx t);
+		print ctx " instanceof %s" t;
 	| TLocal "__physeq__" ,  [e1;e2] ->
 		gen_value ctx e1;
 		spr ctx " === ";
@@ -608,17 +567,6 @@ and gen_call ctx e el =
 		spr ctx ", array(";
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx "))"
-(*
-	| TField (ex,name), el ->
-		spr ctx (debug_expression ex true);
-		ctx.is_call <- true;
-		spr ctx "call_user_func_array(";
-		gen_value ctx e;
-		ctx.is_call <- false;
-		spr ctx ", array(";
-		concat ctx ", " (gen_value ctx) el;
-		spr ctx "))"
-*)
 	| _ ->
 		ctx.is_call <- true;
 		gen_value ctx e;
@@ -718,10 +666,9 @@ and gen_string_call ctx s e el =
 		unsupported "gen_string_call" e.epos;
 
 and gen_uncertain_string_call ctx s e el =
-	let p = escphp ctx.quotes in
 	spr ctx "_hx_string_call(";
 	gen_value ctx e;
-	print ctx ", %s\"%s%s\", array(" p s p;
+	print ctx ", \"%s\", array(" s;
 	concat ctx ", " (gen_value ctx) el;
 	spr ctx "))"
 
@@ -739,9 +686,7 @@ and gen_field_op ctx e =
 and gen_value_op ctx e =
 	match e.eexpr with
 	| TBinop (op,_,_) when op = Ast.OpAnd || op = Ast.OpOr || op = Ast.OpXor ->
-		spr ctx "(";
 		gen_value ctx e;
-		spr ctx ")";
 	| _ ->
 		gen_value ctx e
 
@@ -757,7 +702,7 @@ and gen_member_access ctx isvar e s =
 	| TAnon a ->
 		(match !(a.a_status) with
 		| EnumStatics _
-		| Statics _ -> print ctx "::%s%s" (if isvar then ((escphp ctx.quotes) ^ "$") else "") (s_ident s)
+		| Statics _ -> print ctx "::%s%s" (if isvar then "$" else "") (s_ident s)
 		| _ -> print ctx "->%s" (s_ident s))
 	| _ -> print ctx "->%s" (s_ident s)
 
@@ -811,7 +756,7 @@ and gen_dynamic_function ctx isstatic name f params p =
 		else
 			print ctx " return call_user_func_array($this->%s, array("  name;
 		concat ctx ", " (fun (arg,o,t) ->
-			spr ctx ((escphp ctx.quotes) ^ "$" ^ arg)
+			spr ctx ("$" ^ arg)
 		) f.tf_args;
 		print ctx ")); }";
 	end else if isstatic then
@@ -850,37 +795,35 @@ and gen_function ctx name f params p =
 	ctx.local_types <- old_t
 
 	
-and gen_inline_function ctx f params p =
+and gen_inline_function ctx f hasthis p =
 	let old = ctx.in_value in
 	let old_l = ctx.locals in
 	let old_li = ctx.inv_locals in
 	let old_t = ctx.local_types in
 	ctx.in_value <- Some "closure";
-	ctx.local_types <- List.map snd params @ ctx.local_types;
 
+	let args a = List.map (fun (n,_,_) -> n) a in
+	let arguments = ref [] in
+	
+	if hasthis then begin arguments := "this" :: !arguments end;
+	
+	PMap.iter (fun n _ -> arguments := !arguments @ [n]) old_li;
+	
 	spr ctx "array(new _hx_lambda(array(";
 
-	let pq = escphp ctx.quotes in
 	let c = ref 0 in
 
-	PMap.iter (fun n _ ->
+	List.iter (fun a ->
 		if !c > 0 then spr ctx ", ";
 		incr c;
-		print ctx "%s\"%s%s\" => &%s$%s" pq n pq pq n;
-	) old_li;
+		print ctx "&$%s" a;
+	) (remove_internals !arguments);
 
-	print ctx "), null, array(";
-	let cargs = ref 0 in
-	concat ctx "," (fun (arg,o,t) ->
-		let arg = define_local ctx arg in
-		print ctx "'%s'" arg;
-		incr cargs;
-	) f.tf_args;
-	print ctx "), %s\"" pq;
-	ctx.quotes <- ctx.quotes + 1;
-	gen_expr ctx (fun_block ctx f p);
-	ctx.quotes <- ctx.quotes - 1;
-	print ctx "%s\"), 'execute%d')" pq !cargs;
+	spr ctx "), \"";
+	
+	spr ctx (inline_function ctx (args f.tf_args) hasthis (fun_block ctx f p)); 
+	print ctx "\"), 'execute')";
+	
 	ctx.in_value <- old;
 	ctx.locals <- old_l;
 	ctx.inv_locals <- old_li;
@@ -898,7 +841,7 @@ and gen_while_expr ctx e =
 		let lst = ref [] in
 		PMap.iter (fun n _ ->
 		    if not (PMap.exists n old_l) then
-				lst := [(escphp ctx.quotes) ^ "$" ^  n] @ !lst;
+				lst := ["$" ^  n] @ !lst;
 		) ctx.inv_locals;
 		
 		if (List.length !lst) > 0 then begin
@@ -919,12 +862,11 @@ and gen_expr ctx e =
 	| TConst c ->
 		gen_constant ctx e.epos c
 	| TLocal s ->
-		spr ctx ((escphp ctx.quotes) ^ "$" ^ (try PMap.find s ctx.locals with Not_found -> (s_ident_local s)))
-(*		spr ctx ((escphp ctx.quotes) ^ "$" ^ (s_ident_local s)) *)
+		spr ctx ("$" ^ (try PMap.find s ctx.locals with Not_found -> (s_ident_local s)))
 	| TEnumField (en,s) ->
 		(match (try PMap.find s en.e_constrs with Not_found -> error ("Unknown local " ^ s) e.epos).ef_type with
 		| TFun (args,_) -> print ctx "%s::%s" (s_path ctx en.e_path en.e_extern e.epos) (s_ident s)
-		| _ -> print ctx "%s::%s$%s" (s_path ctx en.e_path en.e_extern e.epos) (escphp ctx.quotes) (s_ident s))
+		| _ -> print ctx "%s::$%s" (s_path ctx en.e_path en.e_extern e.epos) (s_ident s))
 	| TArray (e1,e2) ->
 		(match e1.eexpr with
 		| TCall _
@@ -981,7 +923,8 @@ and gen_expr ctx e =
 			| _ ->
 				leftsidef e1;
 				spr ctx " = ";
-				gen_value_op ctx e2;)
+				gen_value_op ctx e2;
+			)
 		| Ast.OpAssignOp(Ast.OpAdd) when (is_uncertain_expr e1 && is_uncertain_expr e2) ->
 			leftside e1;
 			spr ctx " = ";
@@ -1036,7 +979,6 @@ and gen_expr ctx e =
 			let s_phop = if op = Ast.OpNotEq then " !== " else " === " in
 			let se1 = s_expr_name e1 in
 			let se2 = s_expr_name e2 in
-			let p = escphp ctx.quotes in
 			if
 				e1.eexpr = TConst (TNull)
 				|| e2.eexpr = TConst (TNull)
@@ -1045,7 +987,7 @@ and gen_expr ctx e =
 				| TField (f, s) when is_anonym_expr e1 || is_unknown_expr e1 ->
 					spr ctx "_hx_field(";
 					gen_value ctx f;
-					print ctx ", %s\"%s%s\")" p s p;
+					print ctx ", \"%s\")" s;
 				| _ ->
 					gen_field_op ctx e1);
 
@@ -1055,7 +997,7 @@ and gen_expr ctx e =
 				| TField (f, s) when is_anonym_expr e2 || is_unknown_expr e2 ->
 					spr ctx "_hx_field(";
 					gen_value ctx f;
-					print ctx ", %s\"%s%s\")" p s p;
+					print ctx ", \"%s\")" s;
 				| _ ->
 					gen_field_op ctx e2);
 			end else if
@@ -1102,10 +1044,10 @@ and gen_expr ctx e =
 			print ctx " %s " (Ast.s_binop op);
 			gen_value_op ctx e2;
 		);
-	| TField (e1,s) | TClosure (e1,s) ->
+	| TField (e1,s) 
+	| TClosure (e1,s) ->
 		(match follow e.etype with
 		| TFun (args, _) ->
-			let p = escphp ctx.quotes in
 			(if ctx.is_call then begin
 				gen_field_access ctx false e1 s
 	  		end else if is_in_dynamic_methods ctx e1 s then begin
@@ -1114,9 +1056,9 @@ and gen_expr ctx e =
 				let ob ex = 
 					(match ex with
 					| TTypeExpr t ->
-						print ctx "%s\"" p;
+						print ctx "\"";
 						spr ctx (s_path ctx (t_path t) false e1.epos);
-						print ctx "%s\"" p
+						print ctx "\""
 					| _ -> 
 						gen_expr ctx e1) in
 				
@@ -1126,7 +1068,7 @@ and gen_expr ctx e =
 				gen_field_access ctx true e1 s;
 				spr ctx ": array(";
 				ob e1.eexpr;
-				print ctx ", %s\"%s%s\"))" p (s_ident s) p;
+				print ctx ", \"%s\"))" (s_ident s);
 				
 			end)
 		| TMono _ ->
@@ -1144,12 +1086,17 @@ and gen_expr ctx e =
 		)
 
 	| TTypeExpr t ->
-		let p = escphp ctx.quotes in
-		print ctx "_hx_qtype(%s\"%s%s\")" p (s_path_haxe (t_path t)) p
+		print ctx "_hx_qtype(\"%s\")" (s_path_haxe (t_path t))
 	| TParenthesis e ->
-		spr ctx "(";
-		gen_value ctx e;
-		spr ctx ")";
+		(match e.eexpr with
+		| TParenthesis _ 
+		| TReturn _ ->
+			gen_value ctx e;
+		| _ ->
+			spr ctx "(";
+			gen_value ctx e;
+			spr ctx ")"
+		);
 	| TReturn eo ->
 		(match eo with
 		| None ->
@@ -1159,7 +1106,9 @@ and gen_expr ctx e =
 			newline ctx;
 			spr ctx "return"
 		| Some e ->
-			spr ctx "return ";
+			(match e.eexpr with
+			| TThrow _ -> ()
+			| _ -> spr ctx "return ");
 			gen_value ctx e;
 			);
 	| TBreak ->
@@ -1184,21 +1133,9 @@ and gen_expr ctx e =
 					let name = f.cf_name in
 					match f.cf_expr with
 					| Some { eexpr = TFunction fd } ->
-						print ctx "if(!isset($this->%s)) $this->%s = array(new _hx_lambda(array(), $this, array(" name name;
-						let cargs = ref 0 in
-						concat ctx "," (fun (arg,o,t) ->
-							let arg = define_local ctx arg in
-							print ctx "'%s'" arg;
-							incr cargs;
-						) fd.tf_args;
-						print ctx "), \"";
-						let old = ctx.in_value in
-						ctx.in_value <- Some name;
-						ctx.quotes <- ctx.quotes + 1;
-						gen_expr ctx (fun_block ctx fd e.epos);
-						ctx.quotes <- ctx.quotes - 1;
-						ctx.in_value <- old;
-						print ctx "\"), 'execute%d')" !cargs;
+						print ctx "if(!isset($this->%s)) $this->%s = " name name;
+						
+						gen_inline_function ctx fd true e.epos;
 						newline ctx;
 					| _ -> ()
 				) ctx.dynamic_methods;
@@ -1211,7 +1148,39 @@ and gen_expr ctx e =
 				end else
 					(fun() -> ());
 			end) in
-		List.iter (fun e -> newline ctx; gen_expr ctx e) el;
+		
+		(if ctx.in_block then begin
+			let rec loop el =
+				(match el with
+				| [] -> ()
+				| [e] -> 
+					newline ctx; 
+					(match e.eexpr with
+					| TIf _
+					| TSwitch _
+					| TThrow _ -> 
+						gen_expr ctx e
+					| TReturn Some e1 ->
+						(match e1.eexpr with
+						| TIf _
+						| TSwitch _
+						| TThrow _ -> ()
+						| _ ->
+							spr ctx "return "
+						);
+						gen_expr ctx e1;
+					| _ -> 
+						spr ctx "return ";
+						gen_expr ctx e
+					);
+				| h :: t ->
+					newline ctx; 
+					gen_expr ctx h;
+					loop t)
+			in
+			loop el
+		end else
+			List.iter (fun e -> newline ctx; gen_expr ctx e) el);
 		bend();
 		newline ctx;
 		cb();
@@ -1223,7 +1192,7 @@ and gen_expr ctx e =
 		ctx.in_value <- None;
 		ctx.in_loop <- false;
 		ctx.curmethod <- ctx.curmethod ^ "@" ^ string_of_int (Lexer.find_line_index ctx.com.lines e.epos);
-		gen_inline_function ctx f [] e.epos;
+		gen_inline_function ctx f false e.epos;
 		ctx.curmethod <- old_meth;
 		ctx.in_value <- fst old;
 		ctx.in_loop <- snd old;
@@ -1254,15 +1223,19 @@ and gen_expr ctx e =
 	| TVars [] ->
 		()
 	| TVars vl ->
-		spr ctx ((escphp ctx.quotes) ^ "$");
-		concat ctx ("; " ^ (escphp ctx.quotes) ^ "$") (fun (n,t,v) ->
+		spr ctx "$";
+		concat ctx ("; $") (fun (n,t,v) ->
+			let restore = save_locals ctx in
 			let n = define_local ctx n in
-			match v with
+			let restore2 = save_locals ctx in
+			restore();
+			(match v with
 			| None -> 
 				print ctx "%s = null" (s_ident_local n)
 			| Some e ->
 				print ctx "%s = " (s_ident_local n);
-				gen_value ctx e
+				gen_value ctx e);
+			restore2()
 		) vl;
 	| TNew (c,_,el) ->
 		(match c.cl_path, el with
@@ -1320,36 +1293,38 @@ and gen_expr ctx e =
 			gen_value ctx e);
 		spr ctx (Ast.s_unop op)
 	| TWhile (cond,e,Ast.NormalWhile) ->
+		let old = save_locals ctx in
 		let handle_break = handle_break ctx e in
 		spr ctx "while";
 		gen_value ctx (parent cond);
 		spr ctx " ";
 		gen_while_expr ctx e;
 		handle_break();
+		old()
 	| TWhile (cond,e,Ast.DoWhile) ->
+		let old = save_locals ctx in
 		let handle_break = handle_break ctx e in
 		spr ctx "do ";
 		gen_while_expr ctx e;
 		spr ctx " while";
 		gen_value ctx (parent cond);
 		handle_break();
+		old()
 	| TObjectDecl fields ->
 		spr ctx "_hx_anonymous(array(";
-		let p = escphp ctx.quotes in
-		concat ctx ", " (fun (f,e) -> print ctx "%s\"%s%s\" => " p f p; gen_value ctx e) fields;
+		concat ctx ", " (fun (f,e) -> print ctx "\"%s\" => " f; gen_value ctx e) fields;
 		spr ctx "))"
 	| TFor (v,t,it,e) ->
 		let handle_break = handle_break ctx e in
 		let b = save_locals ctx in
 		let tmp = define_local ctx "»it" in
 		let v = define_local ctx v in
-		let p = escphp ctx.quotes in
-		print ctx "%s$%s = " p tmp;
+		print ctx "$%s = " tmp;
 		gen_value ctx it;
 		newline ctx;
-		print ctx "while(%s$%s->hasNext()) {" p tmp;
+		print ctx "while($%s->hasNext()) {" tmp;
 		newline ctx;
-		print ctx "%s$%s = %s$%s->next()" p v p tmp;
+		print ctx "$%s = $%s->next()" v tmp;
 		newline ctx;
 		gen_while_expr ctx e;
 		newline ctx;
@@ -1359,14 +1334,15 @@ and gen_expr ctx e =
 	| TTry (e,catchs) ->
 		spr ctx "try ";
 		gen_expr ctx (mk_block e);
+		let old = save_locals ctx in
 		let ex = define_local ctx "»e" in
-		print ctx "catch(Exception %s$%s) {" (escphp ctx.quotes) ex;
-		let p = escphp ctx.quotes in
+		print ctx "catch(Exception $%s) {" ex;
 		let first = ref true in
 		let catchall = ref false in
 		let evar = define_local ctx "_ex_" in
 		newline ctx;
-		print ctx "%s$%s = (%s$%s instanceof HException) ? %s$%s->e : %s$%s" p evar p ex p ex p ex;
+		print ctx "$%s = ($%s instanceof HException) ? $%s->e : $%s" evar ex ex ex;
+		old();
 		newline ctx;
 		List.iter (fun (v,t,e) ->
 			let ev = define_local ctx v in
@@ -1376,16 +1352,17 @@ and gen_expr ctx e =
 			if not !first then spr ctx "else ";
 			(match follow t with
 			| TEnum (te,_) -> (match snd te.e_path with
-				| "Bool"   -> print ctx "if(is_bool(%s$%s = %s$%s))" p ev p evar
-				| _ -> print ctx "if((%s$%s = %s$%s) instanceof %s)" p ev p evar (s_path ctx te.e_path te.e_extern e.epos));
+				| "Bool"   -> print ctx "if(is_bool($%s = $%s))" ev evar
+				| _ -> print ctx "if(($%s = $%s) instanceof %s)" ev evar (s_path ctx te.e_path te.e_extern e.epos));
 				gen_expr ctx (mk_block e);
 			| TInst (tc,_) -> (match snd tc.cl_path with
-				| "Int"	-> print ctx "if(is_int(%s$%s = %s$%s))"		p ev p evar
-				| "Float"  -> print ctx "if(is_numeric(%s$%s = %s$%s))"	p ev p evar
-				| "String" -> print ctx "if(is_string(%s$%s = %s$%s))"	p ev p evar
-				| "Array"  -> print ctx "if((%s$%s = %s$%s) instanceof _hx_array)"	p ev p evar
-				| _ -> print ctx "if((%s$%s = %s$%s) instanceof %s)"    p ev p evar (s_path ctx tc.cl_path tc.cl_extern e.epos));
+				| "Int"	-> print ctx "if(is_int($%s = $%s))"		ev evar
+				| "Float"  -> print ctx "if(is_numeric($%s = $%s))"	ev evar
+				| "String" -> print ctx "if(is_string($%s = $%s))"	ev evar
+				| "Array"  -> print ctx "if(($%s = $%s) instanceof _hx_array)"	ev evar
+				| _ -> print ctx "if(($%s = $%s) instanceof %s)"    ev evar (s_path ctx tc.cl_path tc.cl_extern e.epos));
 				gen_expr ctx (mk_block e);
+
 			| TFun _
 			| TLazy _
 			| TType _
@@ -1394,7 +1371,7 @@ and gen_expr ctx e =
 			| TMono _
 			| TDynamic _ ->
 				catchall := true;
-				print ctx "{ %s$%s = %s$%s" p ev p evar;
+				print ctx "{ $%s = $%s" ev evar;
 				newline ctx;
 				gen_expr ctx (mk_block e);
 				spr ctx "}");
@@ -1404,14 +1381,14 @@ and gen_expr ctx e =
 		if !catchall then
 			spr ctx "}"
 		else
-			print ctx " else throw %s$%s; }" (escphp ctx.quotes) ex;
+			print ctx " else throw $%s; }" ex
 	| TMatch (e,_,cases,def) ->
 		let b = save_locals ctx in
 		let tmp = define_local ctx "»t" in
-		print ctx "%s$%s = " (escphp ctx.quotes) tmp;
+		print ctx "$%s = " tmp;
 		gen_value ctx e;
 		newline ctx;
-		print ctx "switch(%s$%s->index) {" (escphp ctx.quotes) tmp;
+		print ctx "switch($%s->index) {" tmp;
 		newline ctx;
 		List.iter (fun (cl,params,e) ->
 			List.iter (fun c ->
@@ -1429,7 +1406,7 @@ and gen_expr ctx e =
 				| l ->
 					concat ctx "; " (fun (v,t,n) ->
 						let v = define_local ctx v in
-						print ctx "%s$%s = %s$%s->params[%d]" (escphp ctx.quotes) v (escphp ctx.quotes) tmp n;
+						print ctx "$%s = $%s->params[%d]" v tmp n;
 					) l;
 					newline ctx);
 			gen_expr ctx (mk_block e);
@@ -1448,6 +1425,7 @@ and gen_expr ctx e =
 		spr ctx "}";
 		b()
 	| TSwitch (e,cases,def) ->
+		let old = save_locals ctx in
 		spr ctx "switch";
 		gen_value ctx (parent e);
 		spr ctx " {";
@@ -1470,7 +1448,8 @@ and gen_expr ctx e =
 			print ctx "break";
 			newline ctx;
 		);
-		spr ctx "}"
+		spr ctx "}";
+		old()
 	| TCast (e,None) ->
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
@@ -1484,39 +1463,58 @@ and gen_expr ctx e =
 		spr ctx ", ";
 		gen_expr ctx (mk (TTypeExpr t) (mk_texpr t) e1.epos);
 		spr ctx ")"
-
+		
+and argument_list_from_locals include_this l =
+	let lst = ref [] in
+	if include_this then lst := "this" :: !lst;
+	PMap.iter (fun n _ ->
+		lst := !lst @ [n];
+	) l;
+	!lst
+	
+and remove_internals args =
+	List.filter (fun a -> a = "»this" or '»' <> String.get a 0) args;
+		
+and inline_block ctx e =
+		let index = ctx.inline_index in
+		ctx.inline_index <- ctx.inline_index + 1;
+		let block = { 
+			iname = (s_path ctx ctx.curclass.cl_path ctx.curclass.cl_extern ctx.curclass.cl_pos) ^ "_" ^ string_of_int index;
+			iindex = index; 
+			ihasthis = ctx.in_instance_method; (* param this *)
+			iarguments = [];
+			iexpr = e;
+			ilocals = ctx.locals;
+			iin_block = true;
+			iinv_locals = ctx.inv_locals;
+		} in
+		
+		print ctx "%s(" block.iname;
+		(match remove_internals (argument_list_from_locals ctx.in_instance_method ctx.locals) with
+		| [] -> ()
+		| l -> print ctx "$%s" (String.concat ", $" l)
+		);
+		spr ctx ")";
+		
+		ctx.inline_methods <- ctx.inline_methods @ [block]
+		
+and inline_function ctx args hasthis e =
+		let index = ctx.inline_index in
+		ctx.inline_index <- ctx.inline_index + 1;
+		let block = { 
+			iname = (s_path ctx ctx.curclass.cl_path ctx.curclass.cl_extern ctx.curclass.cl_pos) ^ "_" ^ string_of_int index;
+			iindex = index; 
+			ihasthis = hasthis; (* param this *)
+			iarguments = args;
+			iexpr = e;
+			ilocals = ctx.locals;
+			iin_block = false;
+			iinv_locals = ctx.inv_locals;
+		} in
+		
+		ctx.inline_methods <- ctx.inline_methods @ [block];
+		block.iname
 and gen_value ctx e =
-	let assign e =
-		mk (TBinop (Ast.OpAssign,
-			mk (TLocal (match ctx.in_value with None -> assert false | Some v -> "»r")) t_dynamic e.epos,
-			e
-		)) e.etype e.epos
-	in
-	let value _ =
-		let old = ctx.in_value, ctx.in_loop in
-		let locs = save_locals ctx in
-		let tmp = define_local ctx "»r" in
-		ctx.in_value <- Some tmp;
-		ctx.in_loop <- false;
-		let b =
-			print ctx "eval(%s\"" (escphp ctx.quotes);
-			ctx.quotes <- (ctx.quotes + 1);
-			let p = (escphp ctx.quotes) in
-			print ctx "if(isset(%s$this)) %s$»this =& %s$this;" p p p;
-			open_block ctx
-		in
-		(fun() ->
-			newline ctx;
-			print ctx "return %s$%s" (escphp ctx.quotes) tmp;
-			b();
-			newline ctx;
-			ctx.quotes <- (ctx.quotes - 1);
-			print ctx "%s\")" (escphp ctx.quotes);
-			ctx.in_value <- fst old;
-			ctx.in_loop <- snd old;
-			locs();
-		)
-	in
 	match e.eexpr with
 	| TTypeExpr _
 	| TConst _
@@ -1533,64 +1531,25 @@ and gen_value ctx e =
 	| TUnop _
 	| TNew _
 	| TCast _
-	| TFunction _ ->
+	| TFunction _
+	| TReturn _ ->
 		gen_expr ctx e
-	| TReturn _
+	| TBlock [] ->
+		()
+	| TBlock [e] ->
+		gen_value ctx e
+	| TBlock _
 	| TBreak
 	| TContinue
 	| TVars _
 	| TFor _
 	| TWhile _
-	| TThrow _ ->
-		let v = value false in
-		gen_expr ctx e;
-		v()
-	| TBlock [e] ->
-		gen_value ctx e
-	| TBlock el ->
-		let v = value false in
-		let rec loop = function
-		| [] ->
-			spr ctx "return null";
-		| [e] ->
-			gen_expr ctx (assign e);
-		| e :: l ->
-			gen_expr ctx e;
-			newline ctx;
-			loop l
-		in
-		loop el;
-		v();
-	| TIf (cond,e,eo) ->
-		spr ctx "(";
-		gen_value ctx cond;
-		spr ctx " ? ";
-		gen_value ctx e;
-		spr ctx " : ";
-		(match eo with
-		| None -> spr ctx "null"
-		| Some e -> gen_value ctx e);
-		spr ctx ")"
-	| TSwitch (cond,cases,def) ->
-		let v = value false in
-		gen_expr ctx (mk (TSwitch (cond,
-			List.map (fun (e1,e2) -> (e1,assign e2)) cases,
-			match def with None -> None | Some e -> Some (assign e)
-		)) e.etype e.epos);
-		v()
-	| TMatch (cond,enum,cases,def) ->
-		let v = value false in
-		gen_expr ctx (mk (TMatch (cond,enum,
-		List.map (fun (constr,params,e) -> (constr,params,assign e)) cases,
-			match def with None -> None | Some e -> Some (assign e)
-		)) e.etype e.epos);
-		v()
-	| TTry (b,catchs) ->
-		let v = value false in
-		gen_expr ctx (mk (TTry (assign b,
-			List.map (fun (v,t,e) -> v, t , assign e) catchs
-		)) e.etype e.epos);
-		v()
+	| TThrow _
+	| TSwitch _
+	| TMatch _ 
+	| TIf _
+	| TTry _ ->
+		inline_block ctx e
 
 let is_method_defined ctx m static =
 	if static then
@@ -1616,6 +1575,7 @@ let generate_field ctx static f =
 	newline ctx;
 	ctx.locals <- PMap.empty;
 	ctx.inv_locals <- PMap.empty;
+	ctx.in_instance_method <- not static;
 	let rights = if static then "static" else "public" in
 	let p = ctx.curclass.cl_pos in
 	match f.cf_expr with
@@ -1729,11 +1689,52 @@ let rec super_has_dynamic c =
 	| Some (csup, _) -> (match csup.cl_dynamic with
 		| Some _ -> true
 		| _ -> super_has_dynamic csup)
-		
+				
+let generate_inline_method ctx c m =
+	(match ctx.inline_methods with
+	| [] -> ()
+	| h :: t -> ctx.inline_methods <- t
+	);
+	ctx.curclass <- c;
+	
+	let old = save_locals ctx in
+	ctx.in_value <- Some m.iname;
+	ctx.in_block <- m.iin_block;
+	ctx.in_loop <- false; 
+	ctx.locals <- m.ilocals;
+	ctx.inv_locals <- m.iinv_locals;
+	
+	newline ctx;	
+	print ctx "function %s(" m.iname;
+	(* arguments *)
+	let arguments = remove_internals (argument_list_from_locals m.ihasthis ctx.locals) in
+	let arguments = match arguments with
+	| [h] when h = "this" -> ["»this"]
+	| h :: t when h = "this" -> "»this" :: t
+	| _ -> arguments
+	in
+	
+	let marguments = List.map (define_local ctx) m.iarguments in
+	let arguments =  (List.map (fun a -> "&$" ^ a) arguments) @ (List.map (fun a -> "$" ^ a) marguments) in
+	
+	(match arguments with
+	| [] -> ()
+	| l  -> spr ctx (String.concat ", " arguments)
+	);
+	spr ctx ") {";
+	newline ctx;
+	
+	(* blocks *)
+	gen_expr ctx m.iexpr;
+	
+	old();
+	
+	newline ctx;
+	spr ctx "}"
+	
 let generate_class ctx c =
 	let requires_constructor = ref true in
 	ctx.curclass <- c;
-(*	ctx.curmethod <- ("new",true); *)
 	ctx.local_types <- List.map snd c.cl_types;
 
 	print ctx "%s %s " (if c.cl_interface then "interface" else "class") (s_path ctx c.cl_path c.cl_extern c.cl_pos);
@@ -1801,6 +1802,7 @@ let generate_class ctx c =
 	
 	print ctx "}"
 	
+	
 let createmain com c =
 	let filename = match com.php_front with None -> "index.php" | Some n -> n in
 	let ctx = {
@@ -1812,6 +1814,7 @@ let createmain com c =
 		buf = Buffer.create (1 lsl 14);
 		in_value = None;
 		in_loop = false;
+		in_instance_method = false;
 		handle_break = false;
 		imports = Hashtbl.create 0;
 		extern_required_paths = [];
@@ -1823,11 +1826,13 @@ let createmain com c =
 		local_types = [];
 		inits = [];
 		constructor_block = false;
-		quotes = 0;
 		dynamic_methods = [];
 		all_dynamic_methods = [];
 		is_call = false;
 		cwd = "";
+		inline_methods = [];
+		inline_index = 0;
+		in_block = false;
 	} in
 
 	spr ctx "if(version_compare(PHP_VERSION, '5.1.0', '<')) {
@@ -1997,6 +2002,16 @@ let generate com =
 					print ctx "$%s = new _hx_array(array())" ctx.stack.Codegen.stack_exc_var;
 					newline ctx;
 				end;
+				
+				let rec loop l =
+					match l with
+					| [] -> ()
+					| h :: _ -> 
+						generate_inline_method ctx c h;
+						loop ctx.inline_methods
+				in
+				loop ctx.inline_methods;
+				
 				close ctx);
 		| TEnumDecl e ->
 			if e.e_extern then

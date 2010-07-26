@@ -99,6 +99,8 @@
 	}
 
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
-		untyped __php__("return array(new _hx_lambda(array('f' => &$f), null, array('args'), 'return call_user_func($f, new _hx_array($args));'), 'makeArgs')");
+		untyped __php__("return array(new _hx_lambda(array(&$f), '_hx_make_var_args'), 'execute')");
 	}
+	
+	
 }
