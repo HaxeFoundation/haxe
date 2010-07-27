@@ -225,16 +225,17 @@
 		if( pos > this.length ) {
 			pos = 0;
 			len = 0;
-		} else if( pos + len > this.length )
+		} else if( pos + len > this.length ) {
 			len = this.length - pos;
+			if( len < 0 ) len = 0;
+		}
 		var a = this.__a;
 		var ret = new1(neko.NativeArray.sub(a,pos,len),len);
 		var end = pos + len;
-		var count = this.length-end;
-		neko.NativeArray.blit(a,pos,a,end,count);
+		neko.NativeArray.blit(a,pos,a,end,this.length-end);
 		this.length -= len;
-		while( --count >= 0 )
-			a[end + count] = null;
+		while( --len >= 0 )
+			a[this.length + len] = null;
 		return ret;
 	}
 
