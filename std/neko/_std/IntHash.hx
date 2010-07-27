@@ -35,7 +35,7 @@
 		untyped __dollar__hset(h,key,value,null);
 	}
 
-	public inline function get( key : Int ) : Null<T> {
+	public function get( key : Int ) : Null<T> {
 		return untyped __dollar__hget(h,key,null);
 	}
 
