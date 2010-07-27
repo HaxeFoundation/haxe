@@ -744,9 +744,27 @@ let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_
 	find_undeclared_variables undeclared declarations this_suffix allow_this expression
 ;;
 
-
-
-
+let rec is_dynamic_result ctx caller expr name =
+   match expr with
+		| TArray (e1,e2) -> false
+		(* static access ... *)
+		| TTypeExpr type_def ->
+			let class_name = "::" ^ (join_class_path (t_path type_def) "::" ) in
+         let full_name = class_name ^ "." ^ name in
+         let dyn = try ( (Hashtbl.find ctx.ctx_class_member_types full_name) = "Dynamic" )
+                   with Not_found -> false in
+         dyn
+		| TParenthesis e -> is_dynamic_result ctx caller e.eexpr name
+		| TNew (klass,params,expressions) -> false
+		| TLocal name when name = "__global__" -> false
+		| TConst TSuper -> false
+		| TConst TNull -> true
+		(* | TBlock block -> false -  not sure *)
+      | _ -> 
+          dynamic_access ctx caller name true
+	       (*let mem_type = member_type ctx caller name in
+	       mem_type="Dynamic" || mem_type="?" *)
+;;
 
 
 (*
@@ -955,8 +973,8 @@ and gen_expression ctx retval expression =
 	(* Annotate source code with debug - can get a bit verbose.  Mainly for debugging code gen,
 		rather than the run time *)
 	if (ctx.ctx_debug) then begin
-		if calling then output "/* Call */";
-		if ctx.ctx_real_this_ptr then output "/* this */" else output "/* FAKE __this */";
+		(*if calling then output "/* Call */";*)
+		(*if ctx.ctx_real_this_ptr then output "/* this */" else output "/* FAKE __this */";*)
 		output (debug_expression expression ctx.ctx_debug_type);
 	end;
 
@@ -1121,20 +1139,12 @@ and gen_expression ctx retval expression =
 		*)
 		let expr_type = type_string expression.etype in
       if (ctx.ctx_debug_type) then output ("/* TCALL expr=" ^ expr_type ^ "*/");
-		if (not(expr_type="Void") && retval) then
-			(match func.eexpr with 
-			| TField(expr,name) when
-             (match expr.eexpr with TLocal name when name = "__global__" -> true | _ -> false )
-                -> ()
-			| TField(expr,name) ->
-				let mem_type = member_type ctx expr name in
-               if (ctx.ctx_debug_type) then
-                output ("/* TCALL res=" ^ expr_type ^ " func="^
-                  ( if (is_array expr.etype) then "::Array" else (type_string expr.etype) )
-                     ^ "." ^ name ^" ret=" ^ mem_type^ " */");
-					if ( (mem_type="Dynamic" || mem_type="?") && (not(expr_type="Dynamic") ) ) then
-						 output (".Cast< " ^ expr_type ^ " >()");
-			| _ -> output("/* not tfield */") )
+		if (not(expr_type="Void") && not(expr_type="Dynamic") && retval &&
+         (match func.eexpr with | TField(expr,name) ->
+             is_dynamic_result ctx expr expr.eexpr name | _ -> false ) )
+        then
+				output (".Cast< " ^ expr_type ^ " >()");
+
 	| TBlock expr_list ->
 		if (retval) then begin
 			let func_name = use_anon_function_name ctx in
