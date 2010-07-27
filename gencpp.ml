@@ -380,7 +380,8 @@ let gen_type_suff ctx haxe_type suff =
 	ctx.ctx_output (type_string_suff suff haxe_type);;
 
 let member_type ctx field_object member =
-	let name = (type_string field_object.etype) ^ "." ^ member in
+	let name = (if (is_array field_object.etype) then "::Array"
+              else (type_string field_object.etype)) ^ "." ^ member in
 	try ( Hashtbl.find ctx.ctx_class_member_types name )
 	with Not_found -> "?";;
 
@@ -955,7 +956,7 @@ and gen_expression ctx retval expression =
 		rather than the run time *)
 	if (ctx.ctx_debug) then begin
 		if calling then output "/* Call */";
-		if ctx.ctx_real_this_ptr then output "/* REAL */" else output "/* FAKE __this */";
+		if ctx.ctx_real_this_ptr then output "/* this */" else output "/* FAKE __this */";
 		output (debug_expression expression ctx.ctx_debug_type);
 	end;
 
@@ -1119,13 +1120,21 @@ and gen_expression ctx retval expression =
 			Eg.  haxe thinks List<X> first() is of type X, but cpp thinks it is Dynamic.
 		*)
 		let expr_type = type_string expression.etype in
-			if (not(expr_type="Void")) then
-				(match func.eexpr with 
-				| TField(expr,name) ->
-					let mem_type = member_type ctx expr name in
-						if ( (mem_type="Dynamic") && (not(expr_type="Dynamic") ) ) then
-							 output (".Cast< " ^ expr_type ^ " >()");
-				| _ -> () )
+      if (ctx.ctx_debug_type) then output ("/* TCALL expr=" ^ expr_type ^ "*/");
+		if (not(expr_type="Void") && retval) then
+			(match func.eexpr with 
+			| TField(expr,name) when
+             (match expr.eexpr with TLocal name when name = "__global__" -> true | _ -> false )
+                -> ()
+			| TField(expr,name) ->
+				let mem_type = member_type ctx expr name in
+               if (ctx.ctx_debug_type) then
+                output ("/* TCALL res=" ^ expr_type ^ " func="^
+                  ( if (is_array expr.etype) then "::Array" else (type_string expr.etype) )
+                     ^ "." ^ name ^" ret=" ^ mem_type^ " */");
+					if ( (mem_type="Dynamic" || mem_type="?") && (not(expr_type="Dynamic") ) ) then
+						 output (".Cast< " ^ expr_type ^ " >()");
+			| _ -> output("/* not tfield */") )
 	| TBlock expr_list ->
 		if (retval) then begin
 			let func_name = use_anon_function_name ctx in
@@ -2702,8 +2711,7 @@ let create_member_types common_ctx =
 	let add_member class_name member =
 		match follow member.cf_type with
 		| TFun (_,ret) ->
-			(* print_endline (((join_class_path class_path "::") ^ "." ^ member.cf_name) ^ "=" ^
-						(type_string ret)); *)
+         (*print_endline (class_name ^ "." ^ member.cf_name ^ "=" ^  (type_string ret) );*)
 			Hashtbl.add result (class_name ^ "." ^ member.cf_name) (type_string ret)
 		| _ ->
 			Hashtbl.add result (class_name ^ "." ^ member.cf_name) (type_string member.cf_type)
@@ -2718,7 +2726,7 @@ let create_member_types common_ctx =
 				List.iter (add_member class_name) class_def.cl_ordered_statics
 			in
 			add_all_fields class_def
-		| _ -> ()
+		| _ -> ( )
 		) ) common_ctx.types;
 	result;;
 
