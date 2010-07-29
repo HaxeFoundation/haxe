@@ -1167,6 +1167,7 @@ and gen_expr ctx e =
 					| TFor _
 					| TMatch _ 
 					| TTry _
+					| TBreak
 					| TBlock _ ->
 						gen_expr ctx e
 					| TReturn (Some e1) ->
@@ -1180,7 +1181,7 @@ and gen_expr ctx e =
 						| TTry _
 						| TBlock _ -> ()
 						| _ ->
-							spr ctx "return z"
+							spr ctx "return "
 						);
 						gen_expr ctx e1;
 					| _ -> 
@@ -1742,6 +1743,12 @@ let generate_inline_method ctx c m =
 	newline ctx;
 	
 	(* blocks *)
+	if ctx.com.debug then begin
+		print ctx "\t$GLOBALS['%s']->push('%s:lambda_%d')" "%s" (s_path_haxe c.cl_path) m.iindex;
+		newline ctx;
+		spr ctx "\t$»spos = $GLOBALS['%s']->length";
+		newline ctx;
+	end;
 	gen_expr ctx m.iexpr;
 	
 	old();
