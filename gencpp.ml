@@ -225,7 +225,7 @@ let hash_iterate hash visitor =
 (* Convert function names that can't be written in c++ ... *)
 let keyword_remap name =
 	match name with
-	| "int" -> "toInt"
+	| "int"
 	| "asm" | "auto" | "char" | "const" | "delete" | "double" | "enum"
 	| "extern" | "float" | "friend" | "goto" | "long" | "operator" | "protected"
 	| "register" | "short" | "signed" | "sizeof" | "template" | "typedef"
@@ -673,6 +673,12 @@ let expression_needs_safe_point expression =
 	      | PossibleRecursion -> true
 ;;
 
+let rec is_null expr =
+   match expr.eexpr with
+   | TConst TNull -> true
+   | TParenthesis expr -> is_null expr
+   | _ -> false
+;;
 
 
 let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_this expression =
@@ -872,7 +878,8 @@ and find_local_functions_ctx ctx expression =
 			let func_name = next_anon_function_name ctx in
 			output "\n";
 			define_local_function_ctx ctx func_name func
-		| TField ( { eexpr = (TConst TNull) }, _ ) -> ( )
+		| TField (obj,_) when (is_null obj) -> ( )
+		| TArray (obj,_) when (is_null obj) -> ( )
 		| _ -> Type.iter find_local_functions expression
 	in find_local_functions expression
 
@@ -884,7 +891,8 @@ and find_local_return_blocks_ctx ctx retval expression =
 				define_local_return_block_ctx ctx expression (next_anon_function_name ctx);
 			end  (* else we are done *)
 		| TFunction func -> ()
-		| TField ( { eexpr = (TConst TNull) }, _ ) -> ( )
+		| TArray ( obj, _ ) when (is_null obj)-> ( )
+		| TField ( obj, _ ) when (is_null obj)-> ( )
 		| TMatch (_, _, _, _)
 		| TTry (_, _)
 		| TSwitch (_, _, _) when retval ->
@@ -1122,7 +1130,7 @@ and gen_expression ctx retval expression =
 
 	(match expression.eexpr with
 	| TConst TNull when not retval ->
-		output "{}";
+		output "Dynamic()";
 	| TCall (func, arg_list) when (match func.eexpr with | TConst TSuper -> true | _ -> false ) ->
 		output "super::__construct(";
 		gen_expression_list arg_list;
@@ -1211,6 +1219,7 @@ and gen_expression ctx retval expression =
 	| TLocal local_name -> output (keyword_remap local_name);
 	| TEnumField (enum, name) ->
 			output ("::" ^ (join_class_path enum.e_path "::") ^ "_obj::" ^ name)
+	| TArray (array_expr,_) when (is_null array_expr) -> output "Dynamic()"
 	| TArray (array_expr,index) ->
 		if ( (assigning && (is_array array_expr.etype)) || (is_dynamic array_expr.etype) ) then begin
 			gen_expression ctx true array_expr;
@@ -1232,6 +1241,7 @@ and gen_expression ctx retval expression =
 		end
 	(* Get precidence matching haxe ? *)
 	| TBinop (op,expr1,expr2) -> gen_bin_op op expr1 expr2
+	| TField (expr,name) when (is_null expr) -> output "Dynamic()"
 	| TClosure (expr,name)
 	| TField (expr,name) ->
 		gen_member_access expr name (is_function_member expression) expression.etype
