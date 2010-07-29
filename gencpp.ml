@@ -1996,7 +1996,7 @@ let generate_enum_files common_ctx enum_def super_deps =
 	output_cpp "\n";
 
 	PMap.iter (fun _ constructor ->
-		let name = constructor.ef_name in
+		let name = keyword_remap constructor.ef_name in
 		match constructor.ef_type with
 		| TFun (args,_) -> 
 			output_cpp (smart_class_name ^ "  " ^ class_name ^ "::" ^ name ^ "(" ^
@@ -2004,7 +2004,7 @@ let generate_enum_files common_ctx enum_def super_deps =
 			output_cpp ("	{ return hx::CreateEnum< " ^ class_name ^ " >(" ^ (str name) ^ "," ^
 				(string_of_int constructor.ef_index) ^ ",hx::DynamicArray(0," ^
 				(string_of_int (List.length args)) ^  ")" );
-			List.iter (fun (arg,_,_) -> output_cpp (".Add(" ^ arg ^ ")")) args;
+			List.iter (fun (arg,_,_) -> output_cpp (".Add(" ^ (keyword_remap arg) ^ ")")) args;
 			output_cpp "); }\n\n"
 
 		| _ ->
@@ -2034,7 +2034,7 @@ let generate_enum_files common_ctx enum_def super_deps =
 		if (count>0) then begin
 			let nargs = string_of_int count in
 			output_cpp ("STATIC_HX_DEFINE_DYNAMIC_FUNC" ^ nargs ^ "(" ^ class_name ^ "," ^
-						 constr.ef_name ^ ",return)\n\n");
+				   (keyword_remap constr.ef_name) ^ ",return)\n\n");
 		end
 	in
 	PMap.iter dump_dynamic_constructor enum_def.e_constrs;
@@ -2051,7 +2051,8 @@ let generate_enum_files common_ctx enum_def super_deps =
 	(* Dynamic "Get" Field function - string version *)
 	output_cpp ("Dynamic " ^ class_name ^ "::__Field(const ::String &inName)\n{\n");
 	let dump_constructor_test _ constr =
-		output_cpp ("	if (inName==" ^ (str constr.ef_name) ^ ") return " ^ constr.ef_name );
+		output_cpp ("	if (inName==" ^ (str constr.ef_name) ^ ") return " ^
+                   (keyword_remap constr.ef_name) );
 		if ( (constructor_arg_count constr) > 0 ) then output_cpp "_dyn()";
 		output_cpp (";\n")
 	in
@@ -2072,8 +2073,7 @@ let generate_enum_files common_ctx enum_def super_deps =
 	(* ENUM - MARK function - only used with internal GC *)
 	output_cpp "static void sMarkStatics() {\n";
 	PMap.iter (fun _ constructor ->
-		let name = constructor.ef_name in
-
+		let name = keyword_remap constructor.ef_name in
 		match constructor.ef_type with
 		| TFun (_,_) -> ()
 		| _ -> output_cpp ("	hx::MarkMember(" ^ class_name ^ "::" ^ name ^ ");\n") )
@@ -2140,7 +2140,7 @@ let generate_enum_files common_ctx enum_def super_deps =
 									(str (smart_class_name ^ ".") )^ " + tag; }\n\n");
 
 	PMap.iter (fun _ constructor ->
-		let name = constructor.ef_name in
+		let name = keyword_remap constructor.ef_name in
 		output_h ( "		static " ^  smart_class_name ^ " " ^ name );
 		match constructor.ef_type with
 		| TFun (args,_) -> 
