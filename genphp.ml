@@ -1163,13 +1163,22 @@ and gen_expr ctx e =
 					| TIf _
 					| TSwitch _
 					| TThrow _ 
+					| TWhile _
+					| TFor _
+					| TMatch _ 
+					| TTry _
 					| TBlock _ ->
 						gen_expr ctx e
 					| TReturn (Some e1) ->
 						(match e1.eexpr with
 						| TIf _
 						| TSwitch _
-						| TThrow _ -> ()
+						| TThrow _ 
+						| TWhile _
+						| TFor _
+						| TMatch _ 
+						| TTry _
+						| TBlock _ -> ()
 						| _ ->
 							spr ctx "return z"
 						);
@@ -1549,11 +1558,11 @@ and gen_value ctx e =
 	| TBreak
 	| TContinue
 	| TVars _
-	| TFor _
 	| TReturn _
 	| TWhile _
 	| TThrow _
 	| TSwitch _
+	| TFor _
 	| TMatch _ 
 	| TIf _
 	| TTry _ ->
