@@ -408,16 +408,20 @@ let dynamic_access ctx field_object member is_function =
 				(match type_string haxe_type with
 				| "::String" | "Null" | "::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> false
 				| _ -> true ) in
+		let return_type = member_type ctx field_object member in
 		if ( (could_be_dynamic_interface field_object.etype) &&
-			  ((member_type ctx field_object member)="?") ) then true else
+			  (return_type="?" || return_type="Dynamic") ) then true else
 		if ( (is_interface field_object) && (not is_function) ) then true else
+		(
 		match field_object.eexpr with
 		| TConst TThis when ((not ctx.ctx_real_this_ptr) && ctx.ctx_dynamic_this_ptr) -> true
 		| _ -> (match follow field_object.etype with
 			| TMono mono -> true
 			| TAnon anon -> true
 			| TDynamic haxe_type -> true
-			| other -> (type_string other ) = "Dynamic");;
+			| other -> (type_string other ) = "Dynamic")
+		)
+;;
 
 let gen_arg_type_name name default_val arg_type prefix =
 	let remap_name = keyword_remap name in
@@ -604,7 +608,7 @@ let rec iter_retval f retval e =
 	| TReturn eo ->
 		(match eo with None -> () | Some e -> f true e)
 	| TCast (e,_) ->
-		f retval e
+		f true e
 ;;
 
 
@@ -766,7 +770,7 @@ let rec is_dynamic_result ctx caller expr name =
 		| TConst TSuper -> false
 		| TConst TNull -> true
 		(* | TBlock block -> false -  not sure *)
-      | _ -> 
+      | _ ->
           dynamic_access ctx caller name true
 	       (*let mem_type = member_type ctx caller name in
 	       mem_type="Dynamic" || mem_type="?" *)
@@ -1136,6 +1140,8 @@ and gen_expression ctx retval expression =
 		gen_expression_list arg_list;
 		output ")";
 	| TCall (func, arg_list) ->
+		let expr_type = type_string expression.etype in
+      if (ctx.ctx_debug_type) then output ("/* TCALL ret=" ^ expr_type ^ "*/");
 		ctx.ctx_calling <- true;
 		gen_expression ctx true func;
 		output "(";
@@ -1145,10 +1151,8 @@ and gen_expression ctx retval expression =
 			the return value in the first place.
 			Eg.  haxe thinks List<X> first() is of type X, but cpp thinks it is Dynamic.
 		*)
-		let expr_type = type_string expression.etype in
-      if (ctx.ctx_debug_type) then output ("/* TCALL expr=" ^ expr_type ^ "*/");
 		if (not(expr_type="Void") && not(expr_type="Dynamic") && retval &&
-         (match func.eexpr with | TField(expr,name) ->
+         (match func.eexpr with | TField(expr,name) -> 
              is_dynamic_result ctx expr expr.eexpr name | _ -> false ) )
         then
 				output (".Cast< " ^ expr_type ^ " >()");
@@ -1526,7 +1530,13 @@ and gen_expression ctx retval expression =
 	| TCast (expression,None) ->
 		gen_expression ctx retval expression
 	| TCast (e1,Some t) ->
-		gen_expression ctx retval (Codegen.default_cast ctx.ctx_common e1 t expression.etype expression.epos)		
+		let class_name = (join_class_path (t_path t) "::" ) in
+		if (class_name="Array") then
+			output ("hx::TCastToArray(" )
+		else
+			output ("hx::TCast< " ^ class_name ^ " >::cast(" );
+		gen_expression ctx true e1;
+		output ")";
 	);;
 
 
@@ -1852,6 +1862,8 @@ let find_referenced_types obj super_deps header_only =
 						| Some l -> List.iter (fun (v,t) -> visit_type t) l  ) ) cases;
 				(* Must visit type too, Type.iter will visit the expressions ... *)
 				| TNew  (klass,params,_) -> visit_type (TInst (klass,params))
+					(* TODO: TNew this does not visit the actual types of args, only the
+						types passed in *)
 				(* Must visit type too, Type.iter will visit the expressions ... *)
 				| TVars var_list ->
 					List.iter (fun (_, var_type, _) -> visit_type var_type ) var_list
