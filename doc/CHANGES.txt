@@ -44,6 +44,7 @@
 	php : enhanced FileInput.readLine using native fgets function (issue 103)
 	flash9 : renamed flash.Error to flash.errors.Error
 	php : removed eval() everywhere and simplified _hx_lambda
+	php : fixed return type for Std.string() with integers and floats
 
 2010-01-09: 2.05
 	js : added js.Scroll

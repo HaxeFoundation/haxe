@@ -495,7 +495,7 @@ function _hx_string_call($s, $method, $params) {
 function _hx_string_rec($o, $s) {
 	if($o === null)                return 'null';
 	if(strlen($s) >= 5)            return '<...>';
-	if(is_int($o) || is_float($o)) return $o;
+	if(is_int($o) || is_float($o)) return '' . $o;
 	if(is_bool($o))                return $o ? 'true' : 'false';
 	if(is_object($o)) {
 		$c = get_class($o);
