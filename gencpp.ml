@@ -1811,7 +1811,7 @@ let gen_member_def ctx class_def is_static is_extern is_interface field =
   Get a list of all classes referred to by the class/enum definition
   These are used for "#include"ing the appropriate header files.
 *)
-let find_referenced_types obj super_deps header_only =
+let find_referenced_types obj super_deps constructor_deps header_only =
 	let types = ref PMap.empty in
 	(* When a class or function is templated on type T, variables of that type show
 		up as being in a package "class-name.T" or "function-name.T"  in these cases
@@ -1861,9 +1861,13 @@ let find_referenced_types obj super_deps header_only =
 						| None -> ()
 						| Some l -> List.iter (fun (v,t) -> visit_type t) l  ) ) cases;
 				(* Must visit type too, Type.iter will visit the expressions ... *)
-				| TNew  (klass,params,_) -> visit_type (TInst (klass,params))
-					(* TODO: TNew this does not visit the actual types of args, only the
-						types passed in *)
+            | TNew  (klass,params,_) -> begin
+               visit_type (TInst (klass,params));
+               try
+               let construct_type = Hashtbl.find constructor_deps klass.cl_path in
+					   visit_type construct_type.cf_type
+               with Not_found -> ();
+               end
 				(* Must visit type too, Type.iter will visit the expressions ... *)
 				| TVars var_list ->
 					List.iter (fun (_, var_type, _) -> visit_type var_type ) var_list
@@ -1931,7 +1935,7 @@ let generate_main common_ctx member_types super_deps class_def boot_classes init
 		(match class_def.cl_ordered_statics with
 		| [{ cf_expr = Some expression }] -> expression;
 		| _ -> assert false ) in
-	let referenced = find_referenced_types (TClassDecl class_def) super_deps false in
+   let referenced = find_referenced_types (TClassDecl class_def) super_deps (Hashtbl.create 0) false in
 	let generate_startup filename is_main =
 		(*make_class_directories base_dir ( "src" :: []);*)
 		let cpp_file = new_cpp_file common_ctx.file ([],filename) in
@@ -2011,7 +2015,7 @@ let generate_enum_files common_ctx enum_def super_deps =
 
 	output_cpp "#include <hxcpp.h>\n\n";
 
-	let referenced = find_referenced_types (TEnumDecl enum_def) super_deps false in
+   let referenced = find_referenced_types (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false in
 	List.iter (add_include cpp_file) referenced;
 
 	gen_open_namespace output_cpp class_path;
@@ -2186,7 +2190,7 @@ let has_init_field class_def =
 	| _ -> false;;
 
 
-let generate_class_files common_ctx member_types super_deps class_def =
+let generate_class_files common_ctx member_types super_deps constructor_deps class_def =
 	let is_extern = class_def.cl_extern in
 	let class_path = class_def.cl_path in
 	let class_name = (snd class_def.cl_path) ^ "_obj" in
@@ -2225,7 +2229,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 	let field_integer_dynamic = has_field_integer_lookup class_def in
 	let field_integer_numeric = has_field_integer_numeric_lookup class_def in
 
-	let all_referenced = find_referenced_types (TClassDecl class_def) super_deps false in
+	let all_referenced = find_referenced_types (TClassDecl class_def) super_deps constructor_deps false in
 	List.iter ( add_include cpp_file  ) all_referenced;
 
 	(* All interfaces (and sub-interfaces) implemented *)
@@ -2541,7 +2545,7 @@ let generate_class_files common_ctx member_types super_deps class_def =
 
    (* Only need to foreward-declare classes that are mentioned in the header file
 	   (ie, not the implementation)  *)
-	let referenced = find_referenced_types (TClassDecl class_def) super_deps true in
+   let referenced = find_referenced_types (TClassDecl class_def) super_deps (Hashtbl.create 0) true in
 	List.iter ( gen_forward_decl h_file ) referenced;
 
 	gen_open_namespace output_h class_path;
@@ -2762,6 +2766,7 @@ let create_member_types common_ctx =
 		) ) common_ctx.types;
 	result;;
 
+(* Builds inheritance tree, so header files can include parents defs.  *)
 let create_super_dependencies common_ctx = 
 	let result = Hashtbl.create 0 in
 	List.iter (fun object_def ->
@@ -2779,6 +2784,17 @@ let create_super_dependencies common_ctx =
 		) common_ctx.types;
 	result;;
 
+let create_constructor_dependencies common_ctx = 
+	let result = Hashtbl.create 0 in
+	List.iter (fun object_def ->
+		(match object_def with
+		| TClassDecl class_def ->
+			(match class_def.cl_constructor with
+           | Some func_def -> Hashtbl.add result class_def.cl_path func_def
+           | _ -> () )
+		| _ -> () );
+		) common_ctx.types;
+	result;;
 
 (* The common_ctx contains the haxe AST in the "types" field and the resources *)
 let generate common_ctx =
@@ -2791,6 +2807,7 @@ let generate common_ctx =
 	let class_text path = join_class_path path "::" in
 	let member_types = create_member_types common_ctx in
 	let super_deps = create_super_dependencies common_ctx in
+	let constructor_deps = create_constructor_dependencies common_ctx in
 	let main_deps = ref [] in
 
 	List.iter (fun object_def ->
@@ -2801,7 +2818,7 @@ let generate common_ctx =
 		| TClassDecl class_def ->
 			(match class_def.cl_path with
 			| [], "@Main" ->
-				main_deps := find_referenced_types (TClassDecl class_def) super_deps false;
+				main_deps := find_referenced_types (TClassDecl class_def) super_deps constructor_deps false;
 				generate_main common_ctx member_types super_deps class_def !boot_classes !init_classes;
 			| _ ->
 				let name =  class_text class_def.cl_path in
@@ -2813,7 +2830,7 @@ let generate common_ctx =
 						boot_classes := class_def.cl_path ::  !boot_classes;
 					if (has_init_field class_def) then
 						init_classes := class_def.cl_path ::  !init_classes;
-					let deps = generate_class_files common_ctx member_types super_deps class_def in
+					let deps = generate_class_files common_ctx member_types super_deps constructor_deps class_def in
 					exe_classes := (class_def.cl_path, deps)  ::  !exe_classes;
 				end
 			)
