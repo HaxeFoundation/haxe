@@ -1157,60 +1157,8 @@ and gen_expr ctx e =
 				end else
 					(fun() -> ());
 			end) in
-(*		
-		(if ctx.in_block then begin
-			let rec loop el =
-				(match el with
-				| [] -> ()
-				| [e] -> 
-					newline ctx; 
-					(match e.eexpr with
-					| TIf _
-					| TSwitch _
-					| TThrow _ 
-					| TWhile _
-					| TFor _
-					| TMatch _ 
-					| TTry _
-					| TBreak
-					| TBlock _ ->
-						gen_expr ctx e
-					| TReturn (Some e1) ->
-						(match e1.eexpr with
-						| TIf _
-						| TSwitch _
-						| TThrow _ 
-						| TWhile _
-						| TFor _
-						| TMatch _ 
-						| TTry _
-						| TBlock _ -> ()
-						| _ ->
-							spr ctx "return "
-						);
-						gen_expr ctx e1;
-					| _ -> 
-						spr ctx "return ";
-						gen_expr ctx e
-					);
-				| h :: t ->
-					newline ctx; 
-					gen_expr ctx h;
-					loop t)
-			in
-			loop el
-		end else
-			List.iter (fun e -> newline ctx; gen_expr ctx e) el;
-			newline ctx;
-			unset_locals ctx old_l);
-*)
 		let remaining = ref (List.length el) in
 		let build e =
-			
-(*
-			spr ctx (debug_expression e true);
-			print ctx "/* remaining %d %b */" !remaining in_block;
-*)
 			if (in_block && !remaining = 1) then begin
 				(match e.eexpr with
 				| TIf _
@@ -1242,8 +1190,6 @@ and gen_expr ctx e =
 					spr ctx "return ";
 					gen_expr ctx e
 				)
-(*				spr ctx "return ";
-				gen_expr ctx e; *)
 			end else begin
 				gen_expr ctx e;
 			end;
@@ -1253,7 +1199,6 @@ and gen_expr ctx e =
 		newline ctx; 
 		List.iter build el;
 		unset_locals ctx old_l;
-
 
 		bend();
 		newline ctx;
@@ -1512,10 +1457,6 @@ and gen_expr ctx e =
 		gen_value ctx (parent e);
 		spr ctx " {";
 		newline ctx;
-(*		if in_block then begin *)
-			ctx.in_block <- true;
-(*			in_block <- false; *)
-(*		end; *)
 		List.iter (fun (el,e2) ->
 			List.iter (fun e ->
 				spr ctx "case ";
@@ -1621,8 +1562,7 @@ and gen_value ctx e =
 	| TUnop _
 	| TNew _
 	| TCast _
-	| TFunction _
-(*	| TReturn _*) ->
+	| TFunction _ ->
 		gen_expr ctx e
 	| TBlock [] ->
 		()
@@ -1823,19 +1763,6 @@ let generate_inline_method ctx c m =
 		spr ctx "\t$»spos = $GLOBALS['%s']->length";
 		newline ctx;
 	end;
-(*	
-	(match m.iexpr.eexpr with
-	| TBlock [] ->
-		spr ctx "/* NONE */";
-	| TBlock [e] ->
-		spr ctx "/* ONE TAIL */";
-	| TBlock el ->
-		spr ctx "/* LIST */";
-	| _ ->
-		spr ctx (debug_expression m.iexpr true);
-		spr ctx "/* SHIT */";
-	);
-*)
 	gen_expr ctx m.iexpr;
 	
 	old();
