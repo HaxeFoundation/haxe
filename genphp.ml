@@ -861,6 +861,11 @@ and gen_while_expr ctx e =
 		gen_expr ctx e
 
 and gen_expr ctx e =
+	let in_block = ctx.in_block in
+	ctx.in_block <- false;
+	let restore_in_block ctx inb = 
+		if inb then ctx.in_block <- true 
+	in
 	match e.eexpr with
 	| TConst c ->
 		gen_constant ctx e.epos c
@@ -1152,7 +1157,7 @@ and gen_expr ctx e =
 				end else
 					(fun() -> ());
 			end) in
-		
+(*		
 		(if ctx.in_block then begin
 			let rec loop el =
 				(match el with
@@ -1198,6 +1203,58 @@ and gen_expr ctx e =
 			List.iter (fun e -> newline ctx; gen_expr ctx e) el;
 			newline ctx;
 			unset_locals ctx old_l);
+*)
+		let remaining = ref (List.length el) in
+		let build e =
+			
+(*
+			spr ctx (debug_expression e true);
+			print ctx "/* remaining %d %b */" !remaining in_block;
+*)
+			if (in_block && !remaining = 1) then begin
+				(match e.eexpr with
+				| TIf _
+				| TSwitch _
+				| TThrow _ 
+				| TWhile _
+				| TFor _
+				| TMatch _ 
+				| TTry _
+				| TBreak
+				| TBlock _ ->
+					restore_in_block ctx in_block;
+					gen_expr ctx e
+				| TReturn (Some e1) ->
+					(match e1.eexpr with
+					| TIf _
+					| TSwitch _
+					| TThrow _ 
+					| TWhile _
+					| TFor _
+					| TMatch _ 
+					| TTry _
+					| TBlock _ -> ()
+					| _ ->
+						spr ctx "return "
+					);
+					gen_expr ctx e1;
+				| _ -> 
+					spr ctx "return ";
+					gen_expr ctx e
+				)
+(*				spr ctx "return ";
+				gen_expr ctx e; *)
+			end else begin
+				gen_expr ctx e;
+			end;
+			newline ctx; 
+			decr remaining;
+		in
+		newline ctx; 
+		List.iter build el;
+		unset_locals ctx old_l;
+
+
 		bend();
 		newline ctx;
 		cb();
@@ -1277,6 +1334,7 @@ and gen_expr ctx e =
 		spr ctx "if";
 		gen_value ctx (parent cond);
 		spr ctx " ";
+		restore_in_block ctx in_block;
 		gen_expr ctx (mk_block e);
 		(match eelse with
 		| None -> ()
@@ -1284,6 +1342,7 @@ and gen_expr ctx e =
 		| Some e ->
 			newline ctx;
 			spr ctx "else ";
+			restore_in_block ctx in_block;
 			gen_expr ctx (mk_block e));
 	| TUnop (op,Ast.Prefix,e) ->
 		spr ctx (Ast.s_unop op);
@@ -1350,6 +1409,7 @@ and gen_expr ctx e =
 		handle_break();
 	| TTry (e,catchs) ->
 		spr ctx "try ";
+		restore_in_block ctx in_block;
 		gen_expr ctx (mk_block e);
 		let old = save_locals ctx in
 		let ex = define_local ctx "»e" in
@@ -1371,6 +1431,7 @@ and gen_expr ctx e =
 			| TEnum (te,_) -> (match snd te.e_path with
 				| "Bool"   -> print ctx "if(is_bool($%s = $%s))" ev evar
 				| _ -> print ctx "if(($%s = $%s) instanceof %s)" ev evar (s_path ctx te.e_path te.e_extern e.epos));
+				restore_in_block ctx in_block;
 				gen_expr ctx (mk_block e);
 			| TInst (tc,_) -> (match snd tc.cl_path with
 				| "Int"	-> print ctx "if(is_int($%s = $%s))"		ev evar
@@ -1378,6 +1439,7 @@ and gen_expr ctx e =
 				| "String" -> print ctx "if(is_string($%s = $%s))"	ev evar
 				| "Array"  -> print ctx "if(($%s = $%s) instanceof _hx_array)"	ev evar
 				| _ -> print ctx "if(($%s = $%s) instanceof %s)"    ev evar (s_path ctx tc.cl_path tc.cl_extern e.epos));
+				restore_in_block ctx in_block;
 				gen_expr ctx (mk_block e);
 
 			| TFun _
@@ -1390,6 +1452,7 @@ and gen_expr ctx e =
 				catchall := true;
 				print ctx "{ $%s = $%s" ev evar;
 				newline ctx;
+				restore_in_block ctx in_block;
 				gen_expr ctx (mk_block e);
 				spr ctx "}");
 			b();
@@ -1426,6 +1489,7 @@ and gen_expr ctx e =
 						print ctx "$%s = $%s->params[%d]" v tmp n;
 					) l;
 					newline ctx);
+			restore_in_block ctx in_block;
 			gen_expr ctx (mk_block e);
 			print ctx "break";
 			newline ctx;
@@ -1435,6 +1499,7 @@ and gen_expr ctx e =
 		| None -> ()
 		| Some e ->
 			spr ctx "default:";
+			restore_in_block ctx in_block;
 			gen_expr ctx (mk_block e);
 			print ctx "break";
 			newline ctx;
@@ -1447,12 +1512,17 @@ and gen_expr ctx e =
 		gen_value ctx (parent e);
 		spr ctx " {";
 		newline ctx;
+(*		if in_block then begin *)
+			ctx.in_block <- true;
+(*			in_block <- false; *)
+(*		end; *)
 		List.iter (fun (el,e2) ->
 			List.iter (fun e ->
 				spr ctx "case ";
 				gen_value ctx e;
 				spr ctx ":";
 			) el;
+			restore_in_block ctx in_block;
 			gen_expr ctx (mk_block e2);
 			print ctx "break";
 			newline ctx;
@@ -1461,6 +1531,7 @@ and gen_expr ctx e =
 		| None -> ()
 		| Some e ->
 			spr ctx "default:";
+			restore_in_block ctx in_block;
 			gen_expr ctx (mk_block e);
 			print ctx "break";
 			newline ctx;
@@ -1481,9 +1552,10 @@ and gen_expr ctx e =
 		gen_expr ctx (mk (TTypeExpr t) (mk_texpr t) e1.epos);
 		spr ctx ")"
 		
-and argument_list_from_locals include_this l =
+and argument_list_from_locals include_this in_var l =
 	let lst = ref [] in
-	if include_this then lst := "this" :: !lst;
+	if (include_this && in_var) then lst := "»this" :: !lst
+	else if include_this then lst := "this" :: !lst;
 	PMap.iter (fun n _ ->
 		lst := !lst @ [n];
 	) l;
@@ -1507,7 +1579,8 @@ and inline_block ctx e =
 		} in
 		
 		print ctx "%s(" block.iname;
-		(match remove_internals (argument_list_from_locals ctx.in_instance_method ctx.locals) with
+		let in_value = (match ctx.in_value with Some _ -> true | _ -> false) in
+		(match remove_internals (argument_list_from_locals ctx.in_instance_method in_value ctx.locals) with
 		| [] -> ()
 		| l -> print ctx "$%s" (String.concat ", $" l)
 		);
@@ -1725,7 +1798,8 @@ let generate_inline_method ctx c m =
 	newline ctx;	
 	print ctx "function %s(" m.iname;
 	(* arguments *)
-	let arguments = remove_internals (argument_list_from_locals m.ihasthis ctx.locals) in
+	let in_value = (match ctx.in_value with Some _ -> true | _ -> false) in
+	let arguments = remove_internals (argument_list_from_locals m.ihasthis in_value ctx.locals) in
 	let arguments = match arguments with
 	| [h] when h = "this" -> ["»this"]
 	| h :: t when h = "this" -> "»this" :: t
@@ -1749,6 +1823,19 @@ let generate_inline_method ctx c m =
 		spr ctx "\t$»spos = $GLOBALS['%s']->length";
 		newline ctx;
 	end;
+(*	
+	(match m.iexpr.eexpr with
+	| TBlock [] ->
+		spr ctx "/* NONE */";
+	| TBlock [e] ->
+		spr ctx "/* ONE TAIL */";
+	| TBlock el ->
+		spr ctx "/* LIST */";
+	| _ ->
+		spr ctx (debug_expression m.iexpr true);
+		spr ctx "/* SHIT */";
+	);
+*)
 	gen_expr ctx m.iexpr;
 	
 	old();
