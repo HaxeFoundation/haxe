@@ -72,9 +72,6 @@ class Lib {
 		if(Std.is(e, Exception)) {
 			var __rtex__ = e;
 			untyped __php__("throw $__rtex__");
-		} else if (untyped __php__("isset($»e)"))
-		{
-			untyped __php__("throw $»e");
 		}
 		else throw e;
 	}
