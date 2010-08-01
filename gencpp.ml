@@ -491,14 +491,17 @@ let has_utf8_chars s =
 	done;
 	!result;;
 
-let quote s l =
-   l := String.length s;
-   escape_stringw (Ast.s_escape s) l;;
-
 let str s =
-   let l = ref 0 in
-	let q = quote s l in
-   "HX_STRING(" ^ q ^ "," ^ (string_of_int !l) ^ ")";;
+	let escaped = Ast.s_escape s in
+        if (has_utf8_chars escaped) then begin
+		(* Output both wide and thin versions - let the compiler choose ... *)
+		let l = ref (String.length escaped) in
+		let q = escape_stringw (Ast.s_escape s) l in
+		("HX_CSTRING2(" ^ q ^ "," ^ (string_of_int !l) ^ ",\"" ^ escaped ^ "\" )")
+        end else
+		(* The wide and thin versions are the same ...  *)
+		("HX_CSTRING(\"" ^ escaped ^ "\")")
+;;
 
 (* When we are in a "real" object, we refer to ourselves as "this", but
 	if we are in a local class that is used to generate return values,
@@ -2373,10 +2376,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 						output_cpp ("	case " ^ (string_of_int l) ^ ":\n");
 						len_case := l;
 					end;
-					let strl = ref 0 in
-					let text = quote field strl in
-					output_cpp ("		if (!memcmp(inName.__s," ^ text ^
-					     ",sizeof(wchar_t)*" ^ (string_of_int !strl) ^ ") ) { " ^ result ^ " }\n");
+					output_cpp ("		if (HX_FIELD_EQ(inName,\"" ^  (Ast.s_escape field)  ^ "\") ) { " ^ result ^ " }\n");
 				) sfields;
 				output_cpp "	}\n";
 			end;
