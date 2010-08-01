@@ -19,6 +19,7 @@
  *)
 open Type
 open Common
+open Ast
 
 
 (*
@@ -143,6 +144,7 @@ type context =
 	mutable ctx_do_safe_point : bool;
 	mutable ctx_real_this_ptr : bool;
 	mutable ctx_dynamic_this_ptr : bool;
+	mutable ctx_push_src_pos : bool;
 	mutable ctx_static_id_curr : int;
 	mutable ctx_static_id_used : int;
 	mutable ctx_static_id_depth : int;
@@ -162,6 +164,7 @@ let new_context common_ctx writer debug =
 	ctx_assigning = false;
 	ctx_debug = debug;
 	ctx_debug_type = debug;
+	ctx_push_src_pos = false;
 	ctx_return_from_block = false;
 	ctx_return_from_internal_node = false;
 	ctx_do_safe_point = false;
@@ -984,6 +987,8 @@ and gen_expression ctx retval expression =
 	ctx.ctx_return_from_internal_node <- false;
 	let do_safe_point = ctx.ctx_do_safe_point in
 	ctx.ctx_do_safe_point <- false;
+	let push_src_pos = ctx.ctx_push_src_pos in
+	ctx.ctx_push_src_pos <- false;
 
 	(* Annotate source code with debug - can get a bit verbose.  Mainly for debugging code gen,
 		rather than the run time *)
@@ -1174,23 +1179,21 @@ and gen_expression ctx retval expression =
 		end else begin
 			writer#begin_block;
 			if (do_safe_point) then output_i "__SAFE_POINT\n";
+			if (push_src_pos) then output_i "HX_SOURCE_PUSH\n";
 			(* Save old values, and equalize for new input ... *)
 			let pop_names = push_anon_names ctx in
 			let remaining = ref (List.length expr_list) in
-			List.iter (fun expresion ->
-				find_local_functions_ctx ctx expresion;
-				if (return_from_block && !remaining = 1) then begin
-					find_local_return_blocks_ctx ctx true expresion;
-					output_i "";
-					ctx.ctx_return_from_internal_node <- return_from_internal_node;
-					output "return ";
-					gen_expression ctx true expresion;
-				end else begin
-					find_local_return_blocks_ctx ctx false expresion;
-					output_i "";
-					ctx.ctx_return_from_internal_node <- return_from_internal_node;
-					gen_expression ctx false expresion;
-				end;
+			List.iter (fun expression ->
+				find_local_functions_ctx ctx expression;
+				let want_value = (return_from_block && !remaining = 1) in
+				find_local_return_blocks_ctx ctx want_value expression;
+				let line = Lexer.find_line_index ctx.ctx_common.lines expression.epos in
+				output_i ("HX_SOURCE_POS(\"" ^ expression.epos.pfile ^ "\","
+					^ (string_of_int line) ^ ")\n" );
+				output_i "";
+				ctx.ctx_return_from_internal_node <- return_from_internal_node;
+				if (want_value) then output "return ";
+				gen_expression ctx want_value expression;
 				decr remaining;
 				writer#terminate_line
 				) expr_list;
@@ -1654,11 +1657,13 @@ let gen_field ctx class_def class_name ptr_name is_static is_external is_interfa
 			if (has_default_values function_def.tf_args) then begin
 				ctx.ctx_writer#begin_block;
 				generate_default_values ctx function_def.tf_args "__o_";
+				output "\tHX_SOURCE_PUSH;\n";
 				gen_expression ctx false function_def.tf_expr;
 				if (is_void) then output "return null();\n";
 				ctx.ctx_writer#end_block;
 			end else begin
 				if (is_void) then ctx.ctx_writer#begin_block;
+				ctx.ctx_push_src_pos <- true;
 				gen_expression ctx false (to_block function_def.tf_expr);
 				if (is_void) then begin
 					output "return null();\n";
@@ -1679,6 +1684,7 @@ let gen_field ctx class_def class_name ptr_name is_static is_external is_interfa
 			output ("HX_BEGIN_DEFAULT_FUNC(" ^ func_name ^ "," ^ class_name ^ ")\n");
 			output return_type;
 			output (" run(" ^ (gen_arg_list function_def.tf_args "") ^ ")");
+			ctx.ctx_push_src_pos <- true;
 			if (is_void) then begin
 				ctx.ctx_writer#begin_block;
 				gen_expression ctx false function_def.tf_expr;
