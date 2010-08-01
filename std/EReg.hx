@@ -263,7 +263,7 @@ class EReg {
 			var a = by.split("$");
 			var first = true;
 			do {
-				if( !regexp_match(r,untyped s.__s,pos,len) )
+				if( !regexp_match(r,s,pos,len) )
 					break;
 				var p = regexp_matched_pos(r,0);
 				if( p.len == 0 && !first ) {
