@@ -1130,7 +1130,7 @@ and gen_expression ctx retval expression =
 			output ( ( class_string klass "_obj" params) ^ "::__new(" );
 			gen_expression_list expressions;
 			output ")";
-			output ( "->" ^ member )
+			output ( "->" ^ remap_name )
 		| TLocal name when name = "__global__" ->
 			output ("::" ^ member )
 		| TConst TSuper -> output (if ctx.ctx_real_this_ptr then "this" else "__this");
