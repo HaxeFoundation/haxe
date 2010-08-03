@@ -933,7 +933,8 @@ and define_local_return_block_ctx ctx expression name =
 		Hashtbl.replace ctx.ctx_local_return_block_args name args;
 		output_i ("struct " ^ name);
 		writer#begin_block;
-		let ret_type = type_string expression.etype in
+		let ret_type = match expression.eexpr with
+		     | TObjectDecl _ -> "Dynamic" | _ -> type_string expression.etype in
 		output_i ("inline static " ^ ret_type ^ " Block( ");
 		output (String.concat "," ( (List.map (fun var ->
 				(Hashtbl.find undeclared var) ^ (reference var)) ) vars));
@@ -1821,7 +1822,7 @@ let gen_member_def ctx class_def is_static is_extern is_interface field =
   Get a list of all classes referred to by the class/enum definition
   These are used for "#include"ing the appropriate header files.
 *)
-let find_referenced_types obj super_deps constructor_deps header_only =
+let find_referenced_types ctx obj super_deps constructor_deps header_only =
 	let types = ref PMap.empty in
 	(* When a class or function is templated on type T, variables of that type show
 		up as being in a package "class-name.T" or "function-name.T"  in these cases
@@ -1920,6 +1921,10 @@ let find_referenced_types obj super_deps constructor_deps header_only =
 				List.iter (fun (_,_,t) -> visit_type t; ) args;
 			| _ -> () );
 			) enum_def.e_constrs;
+		if (not header_only) then begin
+			let meta = Codegen.build_metadata ctx (TEnumDecl enum_def) in
+			match meta with Some expr -> visit_types expr | _ -> ();
+		end;
 		ignore_class_name := "?"
 	in
 	let inc_cmp i1 i2 =
@@ -1945,7 +1950,7 @@ let generate_main common_ctx member_types super_deps class_def boot_classes init
 		(match class_def.cl_ordered_statics with
 		| [{ cf_expr = Some expression }] -> expression;
 		| _ -> assert false ) in
-   let referenced = find_referenced_types (TClassDecl class_def) super_deps (Hashtbl.create 0) false in
+   let referenced = find_referenced_types common_ctx (TClassDecl class_def) super_deps (Hashtbl.create 0) false in
 	let generate_startup filename is_main =
 		(*make_class_directories base_dir ( "src" :: []);*)
 		let cpp_file = new_cpp_file common_ctx.file ([],filename) in
@@ -2010,7 +2015,7 @@ let new_placed_cpp_file common_ctx class_path =
 
 
 
-let generate_enum_files common_ctx enum_def super_deps =
+let generate_enum_files common_ctx enum_def super_deps meta =
 	let class_path = enum_def.e_path in
 	let class_name = (snd class_path) ^ "_obj" in
 	let smart_class_name =  (snd class_path)  in
@@ -2019,13 +2024,14 @@ let generate_enum_files common_ctx enum_def super_deps =
 	let output_cpp = (cpp_file#write) in
 	let debug = false in
 	let ctx = new_context common_ctx cpp_file debug in
+	let has_meta = ( match meta with Some _ -> true  | _ -> false ) in
 
 	if (debug) then
 		print_endline ("Found enum definition:" ^ (join_class_path  class_path "::" ));
 
 	output_cpp "#include <hxcpp.h>\n\n";
 
-   let referenced = find_referenced_types (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false in
+	let referenced = find_referenced_types common_ctx (TEnumDecl enum_def) super_deps (Hashtbl.create 0) false in
 	List.iter (add_include cpp_file) referenced;
 
 	gen_open_namespace output_cpp class_path;
@@ -2086,6 +2092,8 @@ let generate_enum_files common_ctx enum_def super_deps =
 
 	(* Dynamic "Get" Field function - string version *)
 	output_cpp ("Dynamic " ^ class_name ^ "::__Field(const ::String &inName)\n{\n");
+	if (has_meta) then
+		output_cpp "	if (inName==HX_CSTRING(\"__meta__\")) return __meta__;\n";
 	let dump_constructor_test _ constr =
 		output_cpp ("	if (inName==" ^ (str constr.ef_name) ^ ") return " ^
                    (keyword_remap constr.ef_name) );
@@ -2095,6 +2103,7 @@ let generate_enum_files common_ctx enum_def super_deps =
 	PMap.iter dump_constructor_test enum_def.e_constrs;
 	output_cpp ("	return super::__Field(inName);\n}\n\n");
 
+	if (has_meta) then output_cpp ("Dynamic " ^ class_name ^ "::__meta__;\n");
 
 	output_cpp "static ::String sStaticFields[] = {\n";
 	let sorted =
@@ -2114,6 +2123,8 @@ let generate_enum_files common_ctx enum_def super_deps =
 		| TFun (_,_) -> ()
 		| _ -> output_cpp ("	hx::MarkMember(" ^ class_name ^ "::" ^ name ^ ");\n") )
 	enum_def.e_constrs;
+        if (has_meta) then
+		output_cpp ("	hx::MarkMember(" ^ class_name ^ "::__meta__);\n");
 	output_cpp "};\n\n";
 
 
@@ -2132,6 +2143,14 @@ let generate_enum_files common_ctx enum_def super_deps =
 	output_cpp ("}\n\n");
 
 	output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
+	(match meta with
+		| Some expr ->
+			let ctx = new_context common_ctx cpp_file false in
+			find_local_return_blocks_ctx ctx true expr;
+			output_cpp ("Static(__meta__) = ");
+			gen_expression ctx true expr;
+			output_cpp ";\n"
+		| _ -> () );
 	PMap.iter (fun _ constructor ->
 		let name = constructor.ef_name in
 		match constructor.ef_type with
@@ -2175,6 +2194,9 @@ let generate_enum_files common_ctx enum_def super_deps =
 	output_h ("		::String __ToString() const { return " ^
 									(str (smart_class_name ^ ".") )^ " + tag; }\n\n");
 
+
+        if (has_meta) then
+		output_h ("		static Dynamic __meta__;\n");
 	PMap.iter (fun _ constructor ->
 		let name = keyword_remap constructor.ef_name in
 		output_h ( "		static " ^  smart_class_name ^ " " ^ name );
@@ -2239,7 +2261,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	let field_integer_dynamic = has_field_integer_lookup class_def in
 	let field_integer_numeric = has_field_integer_numeric_lookup class_def in
 
-	let all_referenced = find_referenced_types (TClassDecl class_def) super_deps constructor_deps false in
+	let all_referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps constructor_deps false in
 	List.iter ( add_include cpp_file  ) all_referenced;
 
 	(* All interfaces (and sub-interfaces) implemented *)
@@ -2552,7 +2574,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
    (* Only need to foreward-declare classes that are mentioned in the header file
 	   (ie, not the implementation)  *)
-   let referenced = find_referenced_types (TClassDecl class_def) super_deps (Hashtbl.create 0) true in
+   let referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps (Hashtbl.create 0) true in
 	List.iter ( gen_forward_decl h_file ) referenced;
 
 	gen_open_namespace output_h class_path;
@@ -2825,7 +2847,7 @@ let generate common_ctx =
 		| TClassDecl class_def ->
 			(match class_def.cl_path with
 			| [], "@Main" ->
-				main_deps := find_referenced_types (TClassDecl class_def) super_deps constructor_deps false;
+				main_deps := find_referenced_types common_ctx (TClassDecl class_def) super_deps constructor_deps false;
 				generate_main common_ctx member_types super_deps class_def !boot_classes !init_classes;
 			| _ ->
 				let name =  class_text class_def.cl_path in
@@ -2847,10 +2869,11 @@ let generate common_ctx =
 			if (is_internal) then
 				(if debug then print_endline (" internal enum " ^ name ))
 			else begin
+				let meta = Codegen.build_metadata common_ctx object_def in
 				if (enum_def.e_extern) then
 					(if debug then print_endline ("external enum " ^ name ));
 				boot_classes := enum_def.e_path :: !boot_classes;
-				let deps = generate_enum_files common_ctx enum_def super_deps in
+				let deps = generate_enum_files common_ctx enum_def super_deps meta in
 				exe_classes := (enum_def.e_path, deps) :: !exe_classes;
 			end
 		| TTypeDecl _ -> (* already done *) ()
