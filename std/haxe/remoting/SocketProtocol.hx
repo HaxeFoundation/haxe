@@ -35,6 +35,8 @@ typedef Socket =
 		neko.net.Socket
 	#elseif php
 		php.net.Socket
+	#elseif cpp
+		cpp.net.Socket
 	#else
 		Dynamic
 	#end
@@ -139,7 +141,7 @@ class SocketProtocol {
 
 	public function sendMessage( msg : String ) {
 		var e = encodeMessageLength(msg.length + 3);
-		#if (neko || php)
+		#if (neko || php || cpp)
 		var o = socket.output;
 		o.writeByte(e.c1);
 		o.writeByte(e.c2);
@@ -191,7 +193,7 @@ class SocketProtocol {
 		return s.unserialize();
 	}
 
-	#if (neko || php)
+	#if (neko || php || cpp)
 
 	public function readMessage() {
 		var i = socket.input;

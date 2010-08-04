@@ -49,6 +49,8 @@ class SocketInput extends haxe.io.Input {
 
 	public override function readBytes( buf : haxe.io.Bytes, pos : Int, len : Int ) : Int {
 		var r;
+		if (__s==null)
+			throw "Invalid handle";
 		try {
 			r = socket_recv(__s,buf.getData(),pos,len);
 		} catch( e : Dynamic ) {

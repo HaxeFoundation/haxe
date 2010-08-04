@@ -119,8 +119,10 @@ class Socket {
 	}
 
 	// STATICS
-	public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, timeout : Float) : {read: Array<Socket>,write: Array<Socket>,others: Array<Socket>} {
+	public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, timeout : Null<Float>) : {read: Array<Socket>,write: Array<Socket>,others: Array<Socket>} {
 		var neko_array = socket_select(read,write,others, timeout);
+		if (neko_array==null)
+			throw "Select error";
 		return {
 			read: neko_array[0],
 			write: neko_array[1],

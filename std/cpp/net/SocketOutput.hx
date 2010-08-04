@@ -35,6 +35,8 @@ class SocketOutput extends haxe.io.Output {
 	}
 
 	public override function writeByte( c : Int ) {
+		if (__s==null)
+			throw "Invalid handle";
 		try {
 			socket_send_char(__s, c);
 		} catch( e : Dynamic ) {
