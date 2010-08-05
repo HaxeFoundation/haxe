@@ -22,15 +22,25 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package flash;
-import Xml;
 
-class FlashXml__ {
+enum XmlType {
+}
+
+@:core_api class Xml {
+
+	public static var Element(default,null) : XmlType;
+	public static var PCData(default,null) : XmlType;
+	public static var CData(default,null) : XmlType;
+	public static var Comment(default,null) : XmlType;
+	public static var DocType(default,null) : XmlType;
+	public static var Prolog(default,null) : XmlType;
+	public static var Document(default,null) : XmlType;
+
 
 	public var nodeName(getNodeName,setNodeName) : String;
 	public var nodeValue(getNodeValue,setNodeValue) : String;
-	public var nodeType(default,null) : XmlType;
 	public var parent(getParent,null) : Xml;
+	public var nodeType(default,null) : XmlType;
 
 	private var __x : Dynamic;
 
@@ -38,7 +48,7 @@ class FlashXml__ {
 		if( o == null ) return null;
 		if( o.__w != null ) return o.__w;
 
-		var r = new FlashXml__();
+		var r = new Xml();
 		r.__x = o;
 		o.__w = r;
 
@@ -107,14 +117,14 @@ class FlashXml__ {
 		return null;
 	}
 
-	private function new(){
+	private function new() : Void {
 	}
 
-	public function firstChild(){
+	public function firstChild() : Xml {
 		return convert(this.__x[untyped "firstChild"]);
 	}
 
-	public function firstElement(){
+	public function firstElement() : Xml {
 		var e : Dynamic = __x[untyped "firstChild"];
 		while( e != null && e[untyped "nodeType"] != 1 )
 			e = e[untyped "nextSibling"];
@@ -191,7 +201,7 @@ class FlashXml__ {
 		}
 	}
 
-	public function elementsNamed( nodeName : String ){
+	public function elementsNamed( nodeName : String ) : Iterator<Xml> {
 		if( nodeType != Xml.Document && nodeType != Xml.Element )
 			throw "bad nodeType";
 		return untyped {
@@ -247,7 +257,7 @@ class FlashXml__ {
 		return untyped __keys__(__x["attributes"])["iterator"]();
 	}
 
-	public function addChild( child : Xml ) {
+	public function addChild( child : Xml ) : Void {
 		if( nodeType != Xml.Document && nodeType != Xml.Element )
 			throw "bad nodeType";
 		untyped __x[untyped "appendChild"](child.__x);
@@ -270,7 +280,7 @@ class FlashXml__ {
 			__x[untyped "insertBefore"](untyped x.__x,c[pos]);
 	}
 
-	public function toString() {
+	public function toString() : String {
 		if( nodeType == Xml.Document ){
 			var s = "";
 			for( c in iterator() )
@@ -284,5 +294,17 @@ class FlashXml__ {
 		return s.split(" />").join("/>");
 	}
 
+	static function __init__() : Void untyped {
+		Xml.Element = "element";
+		Xml.PCData = "pcdata";
+		Xml.CData = "cdata";
+		Xml.Comment = "comment";
+		Xml.DocType = "doctype";
+		Xml.Prolog = "prolog";
+		Xml.Document = "document";
+		#if swf_mark
+		flash.Lib.current["Xml"] = Xml;
+		#end
+	}
 
 }
