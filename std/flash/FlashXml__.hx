@@ -280,7 +280,8 @@ class FlashXml__ {
 		// only works for toplevel elements
 		if( nodeType == Xml.CData )
 			return "<![CDATA["+__x[untyped "nodeValue"]+"]]>";
-		return __x.toString().split(" />").join("/>");
+		var s : String = __x.toString();
+		return s.split(" />").join("/>");
 	}
 
 
