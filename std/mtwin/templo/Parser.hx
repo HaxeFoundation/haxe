@@ -304,7 +304,7 @@ class Parser {
 	}
 
 	function parseComment( xml:Xml ){
-		out.writeHtml(StringTools.htmlUnescape(xml.nodeValue));
+		out.writeHtml("<!--"+StringTools.htmlUnescape(xml.nodeValue)+"-->");
 	}
 
 	function echoExpression( exp:String ){
