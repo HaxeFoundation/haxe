@@ -18,7 +18,7 @@ class Session {
 	}
 	
 	public static function setCacheLimiter(l : CacheLimiter) {
-		if(_started) throw "You can't set the cache limiter while the session is already in use";
+		if(started) throw "You can't set the cache limiter while the session is already in use";
 		switch(l) {
 			case Public:
 				untyped __call__("session_cache_limiter", "public");
@@ -36,12 +36,12 @@ class Session {
 	}
 	
 	public static function setCacheExpire(minutes : Int) {
-		if(_started) throw "You can't set the cache expire time while the session is already in use";
+		if(started) throw "You can't set the cache expire time while the session is already in use";
 		untyped __call__("session_cache_expire", minutes);
 	}
 	
 	public static function setName(name : String) {
-		if(_started) throw "You can't set the name while the session is already in use";
+		if(started) throw "You can't set the name while the session is already in use";
 		untyped __call__("session_name", name);
 	}
 	
@@ -54,7 +54,7 @@ class Session {
 	}
 	
 	public static function setId(id : String) {
-		if(_started) throw "You can't set the session id while the session is already in use";
+		if(started) throw "You can't set the session id while the session is already in use";
 		untyped __call__("session_id", id);
 	}
 
@@ -63,7 +63,7 @@ class Session {
 	}
 	
 	public static function setSavePath(path : String) {
-		if(_started) throw "You can't set the save path while the session is already in use";
+		if(started) throw "You can't set the save path while the session is already in use";
 		untyped __call__("session_save_path", path);
 	}
 	
@@ -72,7 +72,7 @@ class Session {
 	}
 	
 	public static function setModule(module : String) {
-		if(_started) throw "You can't set the module while the session is already in use";
+		if(started) throw "You can't set the module while the session is already in use";
 		untyped __call__("session_module_name", module);
 	}
 	
@@ -92,7 +92,7 @@ class Session {
 	}
 	
 	public static function setCookieParams(?lifetime : Int, ?path : String, ?domain : String, ?secure : Bool, ?httponly : Bool) {
-		if(_started) throw "You can't set the cookie params while the session is already in use";
+		if(started) throw "You can't set the cookie params while the session is already in use";
 		untyped __call__("session_get_cookie_params", lifetime, path, domain, secure, httponly);
 	}
 	
@@ -115,10 +115,10 @@ class Session {
 		untyped __call__("unset", __var__("_SESSION", name));
 	}
 	
-	private static var _started = untyped __call__("isset", __var__("_SESSION"));
+	public static var started(default, null) : Bool;
 	public static function start() {
-		if(_started) return;
-		_started = true;
+		if(started) return;
+		started = true;
 		untyped __call__("session_start");
 	}
 	
@@ -128,7 +128,12 @@ class Session {
 	
 	public static function close() {
 		untyped __call__("session_write_close");
-		_started = false; // TODO: not sure this useful; test if a closed session can be re-opened (I doubt)
+		started = false; // TODO: not sure this useful; test if a closed session can be re-opened (I doubt)
+	}
+	
+	static function __init__()
+	{
+		started = untyped __call__("isset", __var__("_SESSION"));
 	}
 }
 

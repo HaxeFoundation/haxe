@@ -741,6 +741,7 @@ class Enum {
 	}
 }
 
+error_reporting(E_STRICT & ~E_STRICT);
 set_error_handler('_hx_error_handler', E_ALL);
 set_exception_handler('_hx_exception_handler');
 
