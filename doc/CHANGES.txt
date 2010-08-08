@@ -46,6 +46,7 @@
 	php : removed eval() everywhere and simplified _hx_lambda
 	php : fixed return type for Std.string() with integers and floats
 	php : fixed php.Lib.rethrow
+	all : added custom haXe serialization
 
 2010-01-09: 2.05
 	js : added js.Scroll

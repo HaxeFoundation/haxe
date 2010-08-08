@@ -337,6 +337,17 @@ class Unserializer {
 			pos += len;
 			cache.push(bytes);
 			return bytes;
+		case "C".code:
+	 		var name = unserialize();
+			var cl = resolver.resolveClass(name);
+			if( cl == null )
+				throw "Class not found " + name;
+			var o : Dynamic = Type.createEmptyInstance(cl);
+			cache.push(o);
+			o.hxUnserialize(this);
+			if( get(pos++) != "g".code )
+				throw "Invalid custom data";
+			return o;
  		default:
  		}
  		pos--;

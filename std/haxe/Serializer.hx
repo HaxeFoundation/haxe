@@ -88,6 +88,7 @@ class Serializer {
 		x : exception
 		y : urlencoded string
 		z : zero
+		C : custom
 	*/
 
 	function serializeString( s : String ) {
@@ -278,14 +279,22 @@ class Serializer {
 				buf.add(chars);
 			default:
 				cache.pop();
-				buf.add("c");
-				serializeString(Type.getClassName(c));
-				cache.push(v);
-				#if flash9
-				serializeClassFields(v,c);
-				#else
-				serializeFields(v);
-				#end
+				if( v.hxSerialize != null ) {
+					buf.add("C");
+					serializeString(Type.getClassName(c));
+					cache.push(v);
+					v.hxSerialize(this);
+					buf.add("g");
+				} else {
+					buf.add("c");
+					serializeString(Type.getClassName(c));
+					cache.push(v);
+					#if flash9
+					serializeClassFields(v,c);
+					#else
+					serializeFields(v);
+					#end
+				}
 			}
 		case TObject:
 			if( useCache && serializeRef(v) )
