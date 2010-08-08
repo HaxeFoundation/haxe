@@ -2116,15 +2116,15 @@ let generate_enum_files common_ctx enum_def super_deps meta =
 	output_cpp "	::String(null()) };\n\n";
 
 	(* ENUM - MARK function - only used with internal GC *)
-	output_cpp "static void sMarkStatics() {\n";
+	output_cpp "static void sMarkStatics(HX_MARK_PARAMS) {\n";
 	PMap.iter (fun _ constructor ->
 		let name = keyword_remap constructor.ef_name in
 		match constructor.ef_type with
 		| TFun (_,_) -> ()
-		| _ -> output_cpp ("	hx::MarkMember(" ^ class_name ^ "::" ^ name ^ ");\n") )
+		| _ -> output_cpp ("	HX_MARK_MEMBER(" ^ class_name ^ "::" ^ name ^ ");\n") )
 	enum_def.e_constrs;
         if (has_meta) then
-		output_cpp ("	hx::MarkMember(" ^ class_name ^ "::__meta__);\n");
+		output_cpp ("	HX_MARK_MEMBER(" ^ class_name ^ "::__meta__);\n");
 	output_cpp "};\n\n";
 
 
@@ -2370,16 +2370,18 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp "}\n\n";
 
 		(* MARK function - only used with internal GC *)
-		output_cpp ("void " ^ class_name ^ "::__Mark()\n{\n");
+		output_cpp ("void " ^ class_name ^ "::__Mark(HX_MARK_PARAMS)\n{\n");
+		output_cpp ("	HX_MARK_BEGIN_CLASS(" ^ class_name ^ ");\n");
 		if (implement_dynamic) then
 			output_cpp "	HX_MARK_DYNAMIC;\n";
 		List.iter
 			(fun field -> let remap_name = keyword_remap field.cf_name in
 				if (is_data_member field) then
-				   output_cpp ("	hx::MarkMember(" ^ remap_name ^ ");\n")
+				   output_cpp ("	HX_MARK_MEMBER(" ^ remap_name ^ ");\n")
 			)
 			class_def.cl_ordered_fields;
-		(match  class_def.cl_super with Some _ -> output_cpp "	super::__Mark();\n" | _ -> () );
+		(match  class_def.cl_super with Some _ -> output_cpp "	super::__Mark(HX_MARK_ARG);\n" | _ -> () );
+		output_cpp "	HX_MARK_END_CLASS();\n";
 		output_cpp "}\n\n";
 
 
@@ -2505,10 +2507,10 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp "	String(null()) };\n\n";
 
 		(* MARK function - only used with internal GC *)
-		output_cpp "static void sMarkStatics() {\n";
+		output_cpp "static void sMarkStatics(HX_MARK_PARAMS) {\n";
 		List.iter (fun field ->
 			if (is_data_member field) then
-				output_cpp ("	hx::MarkMember(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ");\n") )
+				output_cpp ("	HX_MARK_MEMBER(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ");\n") )
 			class_def.cl_ordered_statics;
 		output_cpp "};\n\n";
 
@@ -2603,7 +2605,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			output_h ("		HX_DECLARE_IMPLEMENT_DYNAMIC;\n");
 		output_h ("		static void __boot();\n");
 		output_h ("		static void __register();\n");
-		output_h ("		void __Mark();\n");
+		output_h ("		void __Mark(HX_MARK_PARAMS);\n");
 
 		List.iter (fun interface_name ->
 			output_h ("		inline operator " ^ interface_name ^ "_obj *()\n			" ^
