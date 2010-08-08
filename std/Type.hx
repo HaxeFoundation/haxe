@@ -139,9 +139,8 @@ class Type {
 			else
 				return __php__("_hx_ttype(get_class($o))");
 		#elseif cpp
-			if(o.__GetClass()!=Enum)
-				return null;
-			return o;
+			if (o==null) return null;
+			return o.__GetClass();
 		#else
 			return null;
 		#end
@@ -821,7 +820,8 @@ class Type {
 		#elseif flash9
 			return if( e.params == null ) [] else e.params;
 		#elseif cpp
-			return untyped e.__EnumParams();
+			var result : Array<Dynamic> =  untyped e.__EnumParams();
+			return result==null ? [] : result;
 		#elseif php
 			if(e.params == null)
 				return [];

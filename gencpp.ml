@@ -939,6 +939,11 @@ and define_local_return_block_ctx ctx expression name =
 		output (String.concat "," ( (List.map (fun var ->
 				(Hashtbl.find undeclared var) ^ (reference var)) ) vars));
 		output (")");
+		let return_data = ret_type <> "Void" in
+		if (not return_data) then begin
+			writer#begin_block;
+			output_i "";
+		end;
 
 		let pop_real_this_ptr = clear_real_this_ptr ctx false in
 		(match expression.eexpr with
@@ -957,16 +962,18 @@ and define_local_return_block_ctx ctx expression name =
 			output_i "return __result;\n";
 			writer#end_block;
 		| TBlock _ ->
-			ctx.ctx_return_from_block <- true;
+			ctx.ctx_return_from_block <- return_data;
 			ctx.ctx_return_from_internal_node <- false;
-			output "/* DEF (ret block)(not intern) */";
 			gen_expression ctx false expression;
 		| _ ->
 			ctx.ctx_return_from_block <- false;
-			ctx.ctx_return_from_internal_node <- true;
-			output "/* DEF (not block)(ret intern) */";
+			ctx.ctx_return_from_internal_node <- return_data;
 			gen_expression ctx false (to_block expression);
 		);
+		if (not return_data) then begin
+			output_i "return null();\n";
+			writer#end_block;
+		end;
 		pop_real_this_ptr();
 		writer#end_block_line;
 		output ";\n";
@@ -1308,13 +1315,19 @@ and gen_expression ctx retval expression =
 	| TVars var_list ->
 		let count = ref (List.length var_list) in
 		List.iter (fun (var_name, var_type, optional_init) ->
-			gen_type ctx var_type;
-			output (" " ^ (keyword_remap var_name) );
-			(match optional_init with
-			| None -> ()
-			| Some expression -> output " = "; gen_expression ctx true expression);
-			count := !count -1;
-			if (!count > 0) then begin output ";\n"; output_i "" end
+			if (retval && !count==1) then
+				(match optional_init with
+				| None -> output "null()"
+				| Some expression -> gen_expression ctx true expression )
+			else begin
+				gen_type ctx var_type;
+				output (" " ^ (keyword_remap var_name) );
+				(match optional_init with
+				| None -> ()
+				| Some expression -> output " = "; gen_expression ctx true expression);
+				count := !count -1;
+				if (!count > 0) then begin output ";\n"; output_i "" end
+			end
 		) var_list
 	| TFor (var_name, var_type, init, loop) ->
 		output ("for(Dynamic __it = ");
@@ -1801,17 +1814,15 @@ let gen_member_def ctx class_def is_static is_extern is_interface field =
 			output "	";
 			gen_type ctx field.cf_type;
 			output (" &" ^ remap_name ^ "_dyn() { return " ^ remap_name ^ ";}\n" )
-		| _ -> ()
-			(*
+		| _ -> 
 			(match field.cf_get with
-			| CallAccess name when name = ("get_" ^ field.cf_name) -> output (" Dynamic get_" ^ field.cf_name ^ ";\n" )
+			| CallAccess name when name = ("get_" ^ field.cf_name) -> output ("\t\tDynamic get_" ^ field.cf_name ^ ";\n" )
 			| _ -> ()
 			);
 			(match field.cf_set with
-			| CallAccess name when name = ("set_" ^ field.cf_name) -> output (" Dynamic set_" ^ field.cf_name ^ ";\n" )
+			| CallAccess name when name = ("set_" ^ field.cf_name) -> output ("\t\tDynamic set_" ^ field.cf_name ^ ";\n" )
 			| _ -> ()
 			)
-			*)
 		)
 	)
 	;;
@@ -1824,21 +1835,13 @@ let gen_member_def ctx class_def is_static is_extern is_interface field =
 *)
 let find_referenced_types ctx obj super_deps constructor_deps header_only =
 	let types = ref PMap.empty in
-	(* When a class or function is templated on type T, variables of that type show
-		up as being in a package "class-name.T" or "function-name.T"  in these cases
-		we just use "Dynamic" - TODO: Use cl_kind *)
-	let ignore_class_name = ref "?" in
-	let ignore_function_name = ref "?" in
 	let rec add_type in_path =
-		let package = (String.concat "." (fst in_path)) in
-		if ( not ((package=(!ignore_function_name)) || (package=(!ignore_class_name)) ||
-						(package="Array") || (package="Class")) ) then
-			if ( not (PMap.mem in_path !types)) then begin
-				types := (PMap.add in_path () !types);
-				try
-					List.iter add_type (Hashtbl.find super_deps in_path);
-				with Not_found -> ()
-			end
+		if ( not (PMap.mem in_path !types)) then begin
+			types := (PMap.add in_path () !types);
+			try
+				List.iter add_type (Hashtbl.find super_deps in_path);
+			with Not_found -> ()
+		end
 	in
 	let rec visit_type in_type =
 		match (follow in_type) with
@@ -1848,10 +1851,11 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only =
 		| TEnum (enum,params) -> add_type enum.e_path
 		(* If a class has a template parameter, then we treat it as dynamic - except
 			for the Array or Class class, for which we do a fully typed object *)
-		| TInst (klass,params) -> add_type klass.cl_path;
+		| TInst (klass,params) ->
 			(match klass.cl_path with
 				| ([],"Array") | ([],"Class") -> List.iter visit_type params
-			| _ -> () )
+			| _ -> if (klass.cl_kind <> KTypeParameter ) then add_type klass.cl_path;
+			)
 		| TFun (args,haxe_type) -> visit_type haxe_type;
 				List.iter (fun (_,_,t) -> visit_type t; ) args;
 		| _ -> ()
@@ -1894,26 +1898,21 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only =
 		end
 	in
 	let visit_field field =
-		ignore_function_name := field.cf_name;
 		(* Add the type of the expression ... *)
 		visit_type field.cf_type;
 		if (not header_only) then
 			(match field.cf_expr with
 			| Some expression -> visit_types expression | _ -> ());
-		ignore_function_name := "?"
 	in
 	let visit_class class_def =
-		ignore_class_name := join_class_path class_def.cl_path ".";
 		let fields = List.append class_def.cl_ordered_fields class_def.cl_ordered_statics in
 		let fields_and_constructor = List.append fields
 			(match class_def.cl_constructor with | Some expr -> [expr] | _ -> [] ) in
 		List.iter visit_field fields_and_constructor;
 		(* Add super & interfaces *)
 		add_type class_def.cl_path;
-		ignore_class_name := "?"
 	in
 	let visit_enum enum_def =
-		ignore_class_name := join_class_path enum_def.e_path ".";
 		add_type enum_def.e_path;
 		PMap.iter (fun _ constructor ->
 			(match constructor.ef_type with
@@ -1925,7 +1924,6 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only =
 			let meta = Codegen.build_metadata ctx (TEnumDecl enum_def) in
 			match meta with Some expr -> visit_types expr | _ -> ();
 		end;
-		ignore_class_name := "?"
 	in
 	let inc_cmp i1 i2 =
 		String.compare (join_class_path i1 ".") (join_class_path i2 ".")
@@ -2121,10 +2119,10 @@ let generate_enum_files common_ctx enum_def super_deps meta =
 		let name = keyword_remap constructor.ef_name in
 		match constructor.ef_type with
 		| TFun (_,_) -> ()
-		| _ -> output_cpp ("	HX_MARK_MEMBER(" ^ class_name ^ "::" ^ name ^ ");\n") )
+		| _ -> output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::" ^ name ^ ",\"" ^ name ^ "\");\n") )
 	enum_def.e_constrs;
         if (has_meta) then
-		output_cpp ("	HX_MARK_MEMBER(" ^ class_name ^ "::__meta__);\n");
+		output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::__meta__,\"__meta__\");\n");
 	output_cpp "};\n\n";
 
 
@@ -2376,10 +2374,15 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			output_cpp "	HX_MARK_DYNAMIC;\n";
 		List.iter
 			(fun field -> let remap_name = keyword_remap field.cf_name in
-				if (is_data_member field) then
-				   output_cpp ("	HX_MARK_MEMBER(" ^ remap_name ^ ");\n")
-			)
-			class_def.cl_ordered_fields;
+				if (is_data_member field) then begin
+					output_cpp ("	HX_MARK_MEMBER_NAME(" ^ remap_name ^ ",\"" ^ field.cf_name^ "\");\n");
+					(match field.cf_get with | CallAccess name when name = ("get_" ^ field.cf_name) ->
+						output_cpp ("\tHX_MARK_MEMBER_NAME(" ^ name ^ "," ^ "\"" ^ name ^ "\");\n" ) | _ -> ());
+					(match field.cf_set with | CallAccess name when name = ("set_" ^ field.cf_name) ->
+						output_cpp ("\tHX_MARK_MEMBER_NAME(" ^ name ^ "," ^ "\"" ^ name ^ "\");\n" ) | _ -> ());
+				end
+
+			) class_def.cl_ordered_fields;
 		(match  class_def.cl_super with Some _ -> output_cpp "	super::__Mark(HX_MARK_ARG);\n" | _ -> () );
 		output_cpp "	HX_MARK_END_CLASS();\n";
 		output_cpp "}\n\n";
@@ -2510,7 +2513,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp "static void sMarkStatics(HX_MARK_PARAMS) {\n";
 		List.iter (fun field ->
 			if (is_data_member field) then
-				output_cpp ("	HX_MARK_MEMBER(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ");\n") )
+				output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
 			class_def.cl_ordered_statics;
 		output_cpp "};\n\n";
 
