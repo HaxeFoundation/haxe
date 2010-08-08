@@ -33,9 +33,6 @@ class Lambda {
 		Creates an [Array] from an [Iterable]
 	**/
 	public static function array<A>( it : Iterable<A> ) : Array<A> {
-#if php
-		if (it == null) throw "null iterable";
-#end
 		var a = new Array<A>();
 		for(i in it)
 			a.push(i);
@@ -46,9 +43,6 @@ class Lambda {
 		Creates a [List] from an [Iterable]
 	**/
 	public static function list<A>( it : Iterable<A> ) : List<A> {
-#if php
-		if (it == null) throw "null iterable";
-#end
 		var l = new List<A>();
 		for(i in it)
 			l.add(i);
@@ -60,9 +54,6 @@ class Lambda {
 		elements of the iterator 'it'.
 	**/
 	public static function map<A,B>( it : Iterable<A>, f : A -> B ) : List<B> {
-#if php
-		if (it == null) throw "null iterable";
-#end
 		var l = new List<B>();
 		for( x in it )
 			l.add(f(x));
@@ -73,9 +64,6 @@ class Lambda {
 		Similar to [map], but also pass an index for each item iterated.
 	**/
 	public static function mapi<A,B>( it : Iterable<A>, f : Int -> A -> B ) : List<B> {
-#if php
-		if (it == null) throw "null iterable";
-#end
 		var l = new List<B>();
 		var i = 0;
 		for( x in it )
@@ -91,9 +79,6 @@ class Lambda {
 		compare and returns a boolean value.
 	**/
 	public static function has<A>( it : Iterable<A>, elt : A, ?cmp : A -> A -> Bool ) : Bool {
-#if php
-		if (it == null) throw "null iterable";
-#end
 		if( cmp == null ) {
 			for( x in it )
 				if( x == elt )
@@ -110,9 +95,6 @@ class Lambda {
 		Tells if at least one element of the iterable is found by using the specific function.
 	**/
 	public static function exists<A>( it : Iterable<A>, f : A -> Bool ) {
-#if php
-		if (it == null) throw "null iterable";
-#end
 		for( x in it )
 			if( f(x) )
 				return true;
@@ -123,9 +105,6 @@ class Lambda {
 		Tells if all elements of the iterable have the specified property defined by [f].
 	**/
 	public static function foreach<A>( it : Iterable<A>, f : A -> Bool ) {
-#if php
-		if (it == null) throw "null iterable";
-#end
 		for( x in it )
 			if( !f(x) )
 				return false;
@@ -136,9 +115,6 @@ class Lambda {
 		Call the function 'f' on all elements of the [Iterable] 'it'.
 	**/
 	public static function iter<A>( it : Iterable<A>, f : A -> Void ) {
-#if php
-		if (it == null) throw "null iterable";
-#end
 		for( x in it )
 			f(x);
 	}
@@ -147,9 +123,6 @@ class Lambda {
 		Return the list of elements matching the function 'f'
 	**/
 	public static function filter<A>( it : Iterable<A>, f : A -> Bool ) {
-#if php
-		if (it == null) throw "null iterable";
-#end
 		var l = new List<A>();
 		for( x in it )
 			if( f(x) )
@@ -161,9 +134,6 @@ class Lambda {
 		Functional 'fold' using an [Iterable]
 	**/
 	public static function fold<A,B>( it : Iterable<A>, f : A -> B -> B, first : B ) : B {
-#if php
-		if (it == null) throw "null iterable";
-#end
 		for( x in it )
 			first = f(x,first);
 		return first;
@@ -173,9 +143,6 @@ class Lambda {
 		Count the number of elements in an [Iterable]
 	**/
 	public static function count<A>( it : Iterable<A> ) {
-#if php
-		if (it == null) throw "null iterable";
-#end
 		var n = 0;
 		for( _ in it )
 			++n;
@@ -186,9 +153,6 @@ class Lambda {
 		Tells if an iterable does not contain any element.
 	**/
 	public static function empty( it : Iterable<Dynamic> ) : Bool {
-#if php
-		if (it == null) throw "null iterable";
-#end
 		return !it.iterator().hasNext();
 	}
 

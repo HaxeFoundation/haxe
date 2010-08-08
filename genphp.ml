@@ -1340,6 +1340,18 @@ and gen_expr ctx e =
 		let b = save_locals ctx in
 		let tmp = define_local ctx "»it" in
 		let v = define_local ctx v in
+		(match it.eexpr with
+		| TCall (e,_) ->
+			(match e.eexpr with
+			| TField (e,f) ->
+				spr ctx "if(null == ";
+				gen_value ctx e;
+				spr ctx ") throw new HException('null iterable')";
+				newline ctx;
+			| _ ->
+				());
+		| _ -> ()
+		);
 		print ctx "$%s = " tmp;
 		gen_value ctx it;
 		newline ctx;
