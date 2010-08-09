@@ -127,8 +127,8 @@ and tclass_kind =
 and metadata = (string * texpr list) list
 
 and tclass = {
-	cl_path : path;
-	cl_pos : Ast.pos;
+	mutable cl_path : path;
+	mutable cl_pos : Ast.pos;
 	mutable cl_private : bool;
 	mutable cl_doc : Ast.documentation;
 	mutable cl_meta : metadata;

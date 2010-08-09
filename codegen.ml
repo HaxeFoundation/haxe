@@ -353,6 +353,14 @@ let rec has_rtti c =
 let on_generate ctx t =
 	match t with
 	| TClassDecl c ->
+		List.iter (fun m ->
+			match m with
+			| ":native",[{ eexpr = TConst (TString name) }] ->
+				(match List.rev (ExtString.String.nsplit name ".") with
+				| [] -> assert false
+				| name :: path -> c.cl_path <- (List.rev path,name))
+			| _ -> ()
+		) c.cl_meta;
 		if has_rtti c && not (PMap.mem "__rtti" c.cl_statics) then begin
 			let f = mk_field "__rtti" ctx.api.tstring in
 			let str = Genxml.gen_type_string ctx.com t in
