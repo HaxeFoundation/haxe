@@ -295,7 +295,7 @@ let gen_close_namespace output class_path =
 			(fst class_path);;
 
 (* The basic types can have default values and are passesby value *)
-let is_basic_type = function
+let cant_be_null = function
 	| "Int" | "Bool" | "Float" | "::String" | "::haxe::io::Unsigned_char__" -> true
 	| "int" | "bool" | "double" -> true
 	| _ -> false
@@ -430,8 +430,9 @@ let gen_arg_type_name name default_val arg_type prefix =
 	let remap_name = keyword_remap name in
 	let type_str = (type_string arg_type) in
 	match default_val with
-	| Some TNull when (type_str="::String") -> (type_str,remap_name)
-	| Some constant when (is_basic_type type_str) -> ("Dynamic",prefix ^ remap_name)
+	| Some TNull  -> (type_str,remap_name)
+	| Some constant when (cant_be_null type_str) -> ("Dynamic",prefix ^ remap_name)
+	| Some constant  -> (type_str,prefix ^ remap_name)
 	| _ -> (type_str,remap_name);;
 
 
@@ -1605,19 +1606,21 @@ let default_value_string = function
 let generate_default_values ctx args prefix =
   List.iter ( fun (name,o,arg_type) -> let type_str = type_string arg_type in
 	match o with
-	| Some TNull when (type_str = "::String") -> ()
-	| Some const when (is_basic_type type_str) ->
+	| Some TNull -> ()
+	| Some const when (type_str=="::String") ->
+		ctx.ctx_output ("if (" ^ name ^ " == null() ) "
+			^ name ^ "=" ^ (default_value_string const) ^ ");\n")
+	| Some const ->
 		ctx.ctx_output (type_str ^ " " ^ name ^ " = " ^ prefix ^ name ^ ".Default(" ^ 
 			(default_value_string const) ^ ");\n")
 	| _ -> () ) args;;
 
 
-let has_default_values args =
-	List.exists ( fun (name,o,arg_type) -> let type_str = type_string arg_type in
-	match o with
-	| Some TNull when (type_str = "::String") -> false
-	| Some const when (is_basic_type type_str) -> true
-	| _ -> false ) args;;
+let has_default_values args = 
+	List.exists ( fun (_,o,_) -> match o with
+            | Some TNull -> false
+            | Some _ -> true
+            | _ -> false ) args ;;
 
 (*
   When a specialized class inherits from a templated class, the inherited class

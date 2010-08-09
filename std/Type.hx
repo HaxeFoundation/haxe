@@ -223,7 +223,10 @@ class Type {
 			else
 				return null;
 		#elseif cpp
-			return untyped Class.Resolve(name);
+			var result:Class<Dynamic> = Class.Resolve(name);
+			if (result!=null && result.__IsEnum() )
+				return null;
+			return result;
 		#else
 			var cl : Class<Dynamic>;
 		#if flash9
@@ -285,7 +288,10 @@ class Type {
 			else
 				return null;
 		#elseif cpp
-			return untyped Class.Resolve(name);
+			var result:Class<Dynamic> = Class.Resolve(name);
+			if (result!=null && !result.__IsEnum() )
+				return null;
+			return result;
 		#else
 			var e : Dynamic;
 		#if flash9
