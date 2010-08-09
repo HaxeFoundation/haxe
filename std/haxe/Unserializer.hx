@@ -83,6 +83,10 @@ class Unserializer {
 			resolver = r;
 	}
 
+ 	public function getResolver() {
+		return resolver;
+	}
+
 	inline function get(p) : Int {
 		#if (flash || js)
 		return untyped buf.cca(p);
