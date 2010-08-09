@@ -494,17 +494,25 @@ let has_utf8_chars s =
 	done;
 	!result;;
 
+let escape_null s =
+	let b = Buffer.create 0 in
+   String.iter (fun ch -> if (ch=='\x00') then Buffer.add_string b "\\000" else Buffer.add_char b ch ) s;
+   Buffer.contents b;;
+ 
 let str s =
 	let escaped = Ast.s_escape s in
+      let null_escaped = escape_null escaped in
         if (has_utf8_chars escaped) then begin
 		(* Output both wide and thin versions - let the compiler choose ... *)
 		let l = ref (String.length escaped) in
 		let q = escape_stringw (Ast.s_escape s) l in
-		("HX_CSTRING2(" ^ q ^ "," ^ (string_of_int !l) ^ ",\"" ^ escaped ^ "\" )")
+		("HX_CSTRING2(" ^ q ^ "," ^ (string_of_int !l) ^ ",\"" ^ null_escaped ^ "\" )")
         end else
 		(* The wide and thin versions are the same ...  *)
-		("HX_CSTRING(\"" ^ escaped ^ "\")")
+		("HX_CSTRING(\"" ^ null_escaped ^ "\")")
 ;;
+
+
 
 (* When we are in a "real" object, we refer to ourselves as "this", but
 	if we are in a local class that is used to generate return values,
