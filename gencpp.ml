@@ -426,6 +426,11 @@ let dynamic_access ctx field_object member is_function =
 		)
 ;;
 
+let is_dynamic_accessor name acc field class_def = 
+ ( ( acc ^ "_" ^ field.cf_name) = name ) &&
+  ( not (List.exists (fun f -> f.cf_name=name) class_def.cl_ordered_fields) )
+;;
+
 let gen_arg_type_name name default_val arg_type prefix =
 	let remap_name = keyword_remap name in
 	let type_str = (type_string arg_type) in
@@ -890,9 +895,9 @@ and find_local_functions_ctx ctx expression =
 		match expression.eexpr with
 		| TBlock _
 		| TObjectDecl _ -> ()  (* stop at block - since that block will define the function *)
-		| TCall (e,el) -> (* visit the args first, then the function *)
-			List.iter find_local_functions  el;
-			find_local_functions e
+		(*| TCall (e,el) -> (* visit function object first, then args *)
+			find_local_functions e;
+			List.iter find_local_functions  el *)
 		| TFunction func ->
 			let func_name = next_anon_function_name ctx in
 			output "\n";
@@ -1166,7 +1171,7 @@ and gen_expression ctx retval expression =
 		output ")";
 	| TCall (func, arg_list) ->
 		let expr_type = type_string expression.etype in
-      if (ctx.ctx_debug_type) then output ("/* TCALL ret=" ^ expr_type ^ "*/");
+		if (ctx.ctx_debug_type) then output ("/* TCALL ret=" ^ expr_type ^ "*/");
 		ctx.ctx_calling <- true;
 		gen_expression ctx true func;
 		output "(";
@@ -1819,19 +1824,21 @@ let gen_member_def ctx class_def is_static is_extern is_interface field =
 		(* Variable access *)
 		gen_type ctx field.cf_type;
 		output (" " ^ remap_name ^ "; /* REM */ \n" );
+
 		(* Add a "dyn" function for variable to unify variable/function access *)
 		(match follow field.cf_type with
 		| TFun (_,_) ->
 			output "	";
 			gen_type ctx field.cf_type;
 			output (" &" ^ remap_name ^ "_dyn() { return " ^ remap_name ^ ";}\n" )
-		| _ -> 
-			(match field.cf_get with
-			| CallAccess name when name = ("get_" ^ field.cf_name) -> output ("\t\tDynamic get_" ^ field.cf_name ^ ";\n" )
+		| _ ->  (match field.cf_get with
+			| CallAccess name when (is_dynamic_accessor name "get" field class_def) ->
+				output ("\t\tDynamic get_" ^ field.cf_name ^ ";\n" )
 			| _ -> ()
 			);
 			(match field.cf_set with
-			| CallAccess name when name = ("set_" ^ field.cf_name) -> output ("\t\tDynamic set_" ^ field.cf_name ^ ";\n" )
+			| CallAccess name when  (is_dynamic_accessor name "set" field class_def) ->
+				output ("\t\tDynamic set_" ^ field.cf_name ^ ";\n" )
 			| _ -> ()
 			)
 		)
@@ -2384,12 +2391,14 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		if (implement_dynamic) then
 			output_cpp "	HX_MARK_DYNAMIC;\n";
 		List.iter
-			(fun field -> let remap_name = keyword_remap field.cf_name in
+			(fun field ->
 				if (is_data_member field) then begin
+					let remap_name = keyword_remap field.cf_name in
 					output_cpp ("	HX_MARK_MEMBER_NAME(" ^ remap_name ^ ",\"" ^ field.cf_name^ "\");\n");
-					(match field.cf_get with | CallAccess name when name = ("get_" ^ field.cf_name) ->
+
+					(match field.cf_get with | CallAccess name when (is_dynamic_accessor name "get" field class_def) ->
 						output_cpp ("\tHX_MARK_MEMBER_NAME(" ^ name ^ "," ^ "\"" ^ name ^ "\");\n" ) | _ -> ());
-					(match field.cf_set with | CallAccess name when name = ("set_" ^ field.cf_name) ->
+					(match field.cf_set with | CallAccess name when  (is_dynamic_accessor name "set" field class_def) ->
 						output_cpp ("\tHX_MARK_MEMBER_NAME(" ^ name ^ "," ^ "\"" ^ name ^ "\");\n" ) | _ -> ());
 				end
 
