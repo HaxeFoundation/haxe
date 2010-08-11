@@ -23,35 +23,35 @@
  * DAMAGE.
  */
 
-class Math
+@:core_api class Math
 {
-	public static var PI;
-	public static var NaN;
-	public static var POSITIVE_INFINITY;
-	public static var NEGATIVE_INFINITY;
+	public static var PI(default,null) : Float;
+	public static var NaN(default,null) : Float;
+	public static var POSITIVE_INFINITY(default,null) : Float;
+	public static var NEGATIVE_INFINITY(default,null) : Float;
 
-	public static function abs(v) : Float      { return untyped __call__("abs", v); }
-	public static function min(a,b) : Float    { return untyped __call__("min", a, b); }
-	public static function max(a,b) : Float    { return untyped __call__("max", a, b); }
-	public static function sin(v) : Float      { return untyped __call__("sin", v); }
-	public static function cos(v) : Float      { return untyped __call__("cos", v); }
-	public static function atan2(y,x) : Float  { return untyped __call__("atan2", y, x); }
-	public static function tan(v) : Float      { return untyped __call__("tan", v); }
-	public static function exp(v) : Float      { return untyped __call__("exp", v); }
-	public static function log(v) : Float      { return untyped __call__("log", v); }
-	public static function sqrt(v) : Float     { return untyped __call__("sqrt", v); }
-	public static function round(v) : Int      { return untyped __call__("(int) floor", v + 0.5); }
-	public static function floor(v) : Int      { return untyped __call__("(int) floor", v); }
-	public static function ceil(v) : Int       { return untyped __call__("(int) ceil", v); }
-	public static function atan(v) : Float     { return untyped __call__("atan", v); }
-	public static function asin(v) : Float     { return untyped __call__("asin", v); }
-	public static function acos(v) : Float     { return untyped __call__("acos", v); }
-	public static function pow(b,e) : Float    { return untyped __call__("pow", b, e); }
+	public static function abs(v : Float) : Float      { return untyped __call__("abs", v); }
+	public static function min(a : Float,b : Float) : Float    { return untyped __call__("min", a, b); }
+	public static function max(a : Float,b : Float) : Float    { return untyped __call__("max", a, b); }
+	public static function sin(v : Float) : Float      { return untyped __call__("sin", v); }
+	public static function cos(v : Float) : Float      { return untyped __call__("cos", v); }
+	public static function atan2(y : Float,x : Float) : Float  { return untyped __call__("atan2", y, x); }
+	public static function tan(v : Float) : Float      { return untyped __call__("tan", v); }
+	public static function exp(v : Float) : Float      { return untyped __call__("exp", v); }
+	public static function log(v : Float) : Float      { return untyped __call__("log", v); }
+	public static function sqrt(v : Float) : Float     { return untyped __call__("sqrt", v); }
+	public static function round(v : Float) : Int      { return untyped __call__("(int) floor", v + 0.5); }
+	public static function floor(v : Float) : Int      { return untyped __call__("(int) floor", v); }
+	public static function ceil(v : Float) : Int       { return untyped __call__("(int) ceil", v); }
+	public static function atan(v : Float) : Float     { return untyped __call__("atan", v); }
+	public static function asin(v : Float) : Float     { return untyped __call__("asin", v); }
+	public static function acos(v : Float) : Float     { return untyped __call__("acos", v); }
+	public static function pow(b : Float,e : Float) : Float    { return untyped __call__("pow", b, e); }
 	public static function random() : Float    { return untyped __call__("mt_rand") / __call__("mt_getrandmax"); }
-	public static function isNaN(f) : Bool     { return untyped __call__("is_nan", f); }
-	public static function isFinite(f) : Bool  { return untyped __call__("is_finite", f); }
+	public static function isNaN(f : Float) : Bool     { return untyped __call__("is_nan", f); }
+	public static function isFinite(f : Float) : Bool  { return untyped __call__("is_finite", f); }
 
-	static function __init__() {
+	static function __init__() : Void {
 	 	PI = untyped __php__("M_PI");
 	 	NaN = untyped __php__("acos(1.01)");
 	 	NEGATIVE_INFINITY = untyped __php__("log(0)");

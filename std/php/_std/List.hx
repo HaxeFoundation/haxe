@@ -28,18 +28,18 @@
 	that are chained together. It's optimized so that adding or removing an
 	element doesn't imply to copy the whole array content everytime.
 **/
-class List<T> implements php.IteratorAggregate<T> {
+@:core_api class List<T> implements php.IteratorAggregate<T> {
 
 	private var h : ArrayAccess<Dynamic>;
 	private var q : ArrayAccess<Dynamic>;
 
 	public var length(default,null) : Int;
 
-	public function new() {
+	public function new() : Void {
 		length = 0;
 	}
 
-	public function add( item : T ) {
+	public function add( item : T ) : Void {
 		var x = untyped __call__('array', item, null);
 		if( h == null )
 			untyped __php__("$this->h =& $x");
@@ -49,7 +49,7 @@ class List<T> implements php.IteratorAggregate<T> {
 		length++;
 	}
 
-	public function push( item : T ) {
+	public function push( item : T ) : Void {
 		var x = untyped __call__('array', item, __php__("&$this->h"));
 		untyped __php__("$this->h =& $x");
 		if( q == null )
@@ -110,7 +110,7 @@ class List<T> implements php.IteratorAggregate<T> {
 		return untyped __call__("new _hx_list_iterator", this);
 	}
 
-	public function toString() {
+	public function toString() : String {
 		var s = "";
 		var first = true;
 		var l = h;
@@ -125,7 +125,7 @@ class List<T> implements php.IteratorAggregate<T> {
 		return "{" + s + "}";
 	}
 
-	public function join(sep : String) {
+	public function join(sep : String) : String {
 		var s = "";
 		var first = true;
 		var l = h;
@@ -140,7 +140,7 @@ class List<T> implements php.IteratorAggregate<T> {
 		return s;
 	}
 
-	public function filter( f : T -> Bool ) {
+	public function filter( f : T -> Bool ) : List<T> {
 		var l2 = new List();
 		var l = h;
 		while( l != null ) {
@@ -163,7 +163,7 @@ class List<T> implements php.IteratorAggregate<T> {
 		return b;
 	}
 
-	function getIterator() {
+	function getIterator() : Iterator<T> {
 		return iterator();
 	}
 }

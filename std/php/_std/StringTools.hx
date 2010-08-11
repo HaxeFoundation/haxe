@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-class StringTools {
+@:core_api class StringTools {
 
 	public inline static function urlEncode( s : String ) : String untyped {
 		return __call__("rawurlencode", s);
@@ -41,11 +41,11 @@ class StringTools {
 		return untyped __call__("htmlspecialchars_decode", s);
 	}
 
-	public static function startsWith( s : String, start : String ) {
+	public static function startsWith( s : String, start : String ) : Bool {
 		return( s.length >= start.length && s.substr(0,start.length) == start );
 	}
 
-	public static function endsWith( s : String, end : String ) {
+	public static function endsWith( s : String, end : String ) : Bool {
 		var elen = end.length;
 		var slen = s.length;
 		return( slen >= elen && s.substr(slen-elen,elen) == end );
@@ -80,7 +80,7 @@ class StringTools {
 		return untyped __call__("str_replace", sub, by, s);
 	}
 
-	public static function hex( n : Int, ?digits : Int ) {
+	public static function hex( n : Int, ?digits : Int ) : String {
 		var s : String = untyped __call__("dechex", n);
 		if ( digits != null )
 			s = lpad(s, '0', digits);
