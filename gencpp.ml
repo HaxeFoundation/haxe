@@ -2398,7 +2398,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 		(* MARK function - only used with internal GC *)
 		output_cpp ("void " ^ class_name ^ "::__Mark(HX_MARK_PARAMS)\n{\n");
-		output_cpp ("	HX_MARK_BEGIN_CLASS(" ^ class_name ^ ");\n");
+		output_cpp ("	HX_MARK_BEGIN_CLASS(" ^ smart_class_name ^ ");\n");
 		if (implement_dynamic) then
 			output_cpp "	HX_MARK_DYNAMIC;\n";
 		List.iter
