@@ -921,6 +921,10 @@ and find_local_return_blocks_ctx ctx retval expression =
 		| TTry (_, _)
 		| TSwitch (_, _, _) when retval ->
 				define_local_return_block_ctx ctx expression (next_anon_function_name ctx)
+      | TObjectDecl ( ("fileName" , { eexpr = (TConst (TString file)) }) ::
+         ("lineNumber" , { eexpr = (TConst (TInt line)) }) ::
+            ("className" , { eexpr = (TConst (TString class_name)) }) ::
+               ("methodName", { eexpr = (TConst (TString meth)) }) :: [] ) -> ()
 		| TObjectDecl decl_list ->
 				let name = next_anon_function_name ctx in
 				(*
@@ -1280,6 +1284,13 @@ and gen_expression ctx retval expression =
 	| TParenthesis expr when not retval ->
 			gen_expression ctx retval expr;
 	| TParenthesis expr -> output "("; gen_expression ctx retval expr; output ")"
+	| TObjectDecl (
+      ("fileName" , { eexpr = (TConst (TString file)) }) ::
+         ("lineNumber" , { eexpr = (TConst (TInt line)) }) ::
+            ("className" , { eexpr = (TConst (TString class_name)) }) ::
+               ("methodName", { eexpr = (TConst (TString meth)) }) :: [] ) ->
+       output ("hx::SourceInfo(" ^ (str file) ^ "," ^ (Printf.sprintf "%ld" line) ^ "," ^
+          (str class_name) ^ "," ^ (str meth) ^ ")" )
 	| TObjectDecl decl_list ->
 		let func_name = use_anon_function_name ctx in
 		(try output ( func_name ^ "::Block(" ^
