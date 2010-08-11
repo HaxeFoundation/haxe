@@ -271,7 +271,6 @@ class Http {
 	public function customRequest( post : Bool, api : haxe.io.Output, ?sock : AbstractSocket, ?method : String  ) {
 		#if php
 		var url_regexp = ~/^(https?:\/\/)?([a-zA-Z\.0-9-]+)(:[0-9]+)?(.*)$/;
-		var secure = (url_regexp.matched(1) == "https://");
 		#else
 		var url_regexp = ~/^(http:\/\/)?([a-zA-Z\.0-9-]+)(:[0-9]+)?(.*)$/;
 		#end
@@ -279,6 +278,9 @@ class Http {
 			onError("Invalid URL");
 			return;
 		}
+		#if php
+		var secure = (url_regexp.matched(1) == "https://");
+		#end
 		if ( sock == null )
 			#if php
 			sock = (secure) ? Socket.newSslSocket() : new Socket();
