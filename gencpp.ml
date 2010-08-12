@@ -186,7 +186,7 @@ let new_context common_ctx writer debug =
 let is_internal_class = function
 	|  ([],"Int") | ([],"Void") |  ([],"String") | ([], "Null") | ([], "Float")
 	|  ([],"Array") | ([], "Class") | ([], "Enum") | ([], "Bool")
-	|  ([], "Dynamic") | ([], "ArrayAccess") -> true
+   |  ([], "Dynamic") | ([], "ArrayAccess") | (["cpp"], "FastIterator")-> true
 	|  (["cpp"], "CppInt32__") | ([],"Math") | (["haxe";"io"], "Unsigned_char__") -> true
 	| _ -> false
 
@@ -308,6 +308,9 @@ let rec class_string klass suffix params =
 	(* Array class *)
 	|  ([],"Array") -> (snd klass.cl_path) ^ suffix ^ "< " ^ (String.concat ","
 					 (List.map type_string  params) ) ^ " >"
+	(* FastIterator class *)
+	|  (["cpp"],"FastIterator") -> "::cpp::FastIterator" ^ suffix ^ "< " ^ (String.concat ","
+					 (List.map type_string  params) ) ^ " >"
 	| _ when klass.cl_kind=KTypeParameter -> "Dynamic"
 	|  ([],"#Int") -> "/* # */int"
 	|  (["haxe";"io"],"Unsigned_char__") -> "unsigned char"
@@ -346,6 +349,10 @@ and type_string_suff suffix haxe_type =
 		| [] , "Array" ->
 			(match params with
 			| [t] -> "Array< " ^ (type_string (follow t) ) ^ " >"
+			| _ -> assert false)
+		| ["cpp"] , "FastIterator" ->
+			(match params with
+			| [t] -> "::cpp::FastIterator< " ^ (type_string (follow t) ) ^ " >"
 			| _ -> assert false)
 		| _ ->  type_string_suff suffix (apply_params type_def.t_types params type_def.t_type)
 		)
@@ -1355,12 +1362,12 @@ and gen_expression ctx retval expression =
 			end
 		) var_list
 	| TFor (var_name, var_type, init, loop) ->
-		output ("for(Dynamic __it = ");
+		output ("for(::cpp::FastIterator_obj<" ^  (type_string var_type) ^
+             " > *__it = ::cpp::CreateFastIterator<"^(type_string var_type) ^ " >(");
 		gen_expression ctx true init;
-		output (";  __it->__Field(" ^ (str "hasNext") ^ ")(); )");
+		output (");  __it->hasNext(); )");
 		ctx.ctx_writer#begin_block;
-		output ( (type_string var_type) ^ " " ^ (keyword_remap var_name) ^
-			" = __it->__Field(" ^ (str "next") ^ ")();\n" );
+		output_i ( (type_string var_type) ^ " " ^ (keyword_remap var_name) ^ " = __it->next();\n" );
 		output_i "";
 		gen_expression ctx false loop;
 		output ";\n";
@@ -1882,7 +1889,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only =
 			for the Array or Class class, for which we do a fully typed object *)
 		| TInst (klass,params) ->
 			(match klass.cl_path with
-				| ([],"Array") | ([],"Class") -> List.iter visit_type params
+         | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") -> List.iter visit_type params
 			| _ -> if (klass.cl_kind <> KTypeParameter ) then add_type klass.cl_path;
 			)
 		| TFun (args,haxe_type) -> visit_type haxe_type;
