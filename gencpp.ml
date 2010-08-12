@@ -1362,8 +1362,8 @@ and gen_expression ctx retval expression =
 			end
 		) var_list
 	| TFor (var_name, var_type, init, loop) ->
-		output ("for(::cpp::FastIterator_obj<" ^  (type_string var_type) ^
-             " > *__it = ::cpp::CreateFastIterator<"^(type_string var_type) ^ " >(");
+		output ("for(::cpp::FastIterator_obj< " ^  (type_string var_type) ^
+             " > *__it = ::cpp::CreateFastIterator< "^(type_string var_type) ^ " >(");
 		gen_expression ctx true init;
 		output (");  __it->hasNext(); )");
 		ctx.ctx_writer#begin_block;
