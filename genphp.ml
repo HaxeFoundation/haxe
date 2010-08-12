@@ -617,11 +617,11 @@ and gen_string_call ctx s e el =
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")"
 	| "charAt" ->
-		spr ctx "substr(";
+		spr ctx "_hx_char_at(";
 		gen_value ctx e;
 		spr ctx ", ";
 		concat ctx ", " (gen_value ctx) el;
-		spr ctx ", 1)"
+		spr ctx ")"
 	| "cca" ->
 		spr ctx "ord(";
 		gen_value ctx e;

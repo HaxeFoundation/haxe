@@ -208,7 +208,7 @@ function _hx_cast($v, $type) {
 	}
 }
 
-function _hx_char_at($o, $i) { return substr($o, $i, 1); }
+function _hx_char_at($o, $i) { $c = substr($o, $i, 1); return FALSE === $c ? '' : $c; }
 
 function _hx_char_code_at($s, $pos) {
 	if($pos < 0 || $pos >= strlen($s)) return null;
