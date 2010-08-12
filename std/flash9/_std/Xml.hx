@@ -22,31 +22,32 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package flash;
 
-import Xml;
 import flash.xml.XML;
 import flash.xml.XMLList;
 
-class FlashXml__ {
+enum XmlType {
+}
 
-	public static var Element : String;
-	public static var PCData : String;
-	public static var CData : String;
-	public static var Comment : String;
-	public static var DocType : String;
-	public static var Prolog : String;
-	public static var Document : String;
+@:core_api class Xml {
+
+	public static var Element(default,null) : XmlType;
+	public static var PCData(default,null) : XmlType;
+	public static var CData(default,null) : XmlType;
+	public static var Comment(default,null) : XmlType;
+	public static var DocType(default,null) : XmlType;
+	public static var Prolog(default,null) : XmlType;
+	public static var Document(default,null) : XmlType;
 
 	public var nodeType(default,null) : XmlType;
 	public var nodeName(getNodeName,setNodeName) : String;
 	public var nodeValue(getNodeValue,setNodeValue) : String;
-	public var parent(getParent,null) : FlashXml__;
+	public var parent(getParent,null) : Xml;
 
-	public static var _map : flash.utils.Dictionary;
+	static var _map : flash.utils.Dictionary;
 	var _node : flash.xml.XML;
 
-	public static function parse( str : String ) : FlashXml__ {
+	public static function parse( str : String ) : Xml {
 		XML.ignoreWhitespace = false;
 		XML.ignoreProcessingInstructions = false;
 		XML.ignoreComments = false;
@@ -54,36 +55,36 @@ class FlashXml__ {
 		return wrap( root, Xml.Document );
 	}
 
-	private function new() {}
+	private function new() : Void {}
 
-	public static function createElement( name : String ) : FlashXml__ {
+	public static function createElement( name : String ) : Xml {
 		return wrap( new flash.xml.XML("<"+name+"/>"), Xml.Element );
 	}
 
-	public static function createPCData( data : String ) : FlashXml__ {
+	public static function createPCData( data : String ) : Xml {
 		XML.ignoreWhitespace = false;
 		return wrap( new flash.xml.XML(data), Xml.PCData );
 	}
 
-	public static function createCData( data : String ) : FlashXml__ {
+	public static function createCData( data : String ) : Xml {
 		return wrap( new flash.xml.XML("<![CDATA[ "+data+" ]]>"), Xml.CData );
 	}
 
-	public static function createComment( data : String ) : FlashXml__ {
+	public static function createComment( data : String ) : Xml {
 		XML.ignoreComments = false;
 		return wrap( new flash.xml.XML("<!-- "+data+" -->"), Xml.Comment );
 	}
 
-	public static function createDocType( data : String ) : FlashXml__ {
+	public static function createDocType( data : String ) : Xml {
 		return wrap( new flash.xml.XML("<!DOCTYPE "+data+">"), Xml.DocType );
 	}
 
-	public static function createProlog( data : String ) : FlashXml__ {
+	public static function createProlog( data : String ) : Xml {
 		XML.ignoreProcessingInstructions = false;
 		return wrap( new flash.xml.XML("<?"+data+"?>"), Xml.Prolog );
 	}
 
-	public static function createDocument() : FlashXml__ {
+	public static function createDocument() : Xml {
 		return wrap( new flash.xml.XML("<__document/>"), Xml.Document );
 	}
 
@@ -138,11 +139,11 @@ class FlashXml__ {
 		return v;
 	}
 
-	private function getParent() :FlashXml__ {
+	private function getParent() :Xml {
 		return wrap( _node.parent() );
 	}
 
-	private static function wrap( node : XML, ?type : XmlType ) : FlashXml__ {
+	private static function wrap( node : XML, ?type : XmlType ) : Xml {
 		var map : Dynamic = _map;
 		if( map == null ) {
 			map = new flash.utils.Dictionary(true);
@@ -150,7 +151,7 @@ class FlashXml__ {
 		}
 		var x = untyped map[node];
 		if( x == null ) {
-			x = new FlashXml__();
+			x = new Xml();
 			x._node = node;
 			x.nodeType = (type != null) ? type : getNodeType( node );
 			untyped map[node] = x;
@@ -158,14 +159,14 @@ class FlashXml__ {
 		return x;
 	}
 
-	private function wraps( xList : XMLList ) : Array<FlashXml__> {
-		var out = new Array<FlashXml__>();
+	private function wraps( xList : XMLList ) : Array<Xml> {
+		var out = new Array<Xml>();
 		for( i in 0...xList.length() )
 			out.push( wrap(xList[i]) );
 		return out;
 	}
 
-	function getAttribNS( ns : Array<String> ) {
+	function getAttribNS( ns : Array<String> ) : XMLList {
 		return _node.attribute(new flash.utils.QName(_node.namespace(ns[0]).uri,ns[1]));
 	}
 
@@ -229,11 +230,11 @@ class FlashXml__ {
 		}
 	}
 
-	public function iterator() {
+	public function iterator() : Iterator<Xml> {
 		var children:XMLList = _node.children();
 		if( children == null )
 			throw "bad nodetype";
-		var wrappers :Array<FlashXml__> = wraps(children);
+		var wrappers :Array<Xml> = wraps(children);
 		var cur = 0;
 		return {
 			hasNext : function(){
@@ -245,11 +246,11 @@ class FlashXml__ {
 		};
 	}
 
-	public function elements() {
+	public function elements() : Iterator<Xml> {
 		var elements:XMLList = _node.elements();
 		if( elements == null )
 			throw "bad nodetype";
-		var wrappers :Array<FlashXml__> = wraps(elements);
+		var wrappers :Array<Xml> = wraps(elements);
 		var cur = 0;
 		return {
 			hasNext : function(){
@@ -261,7 +262,7 @@ class FlashXml__ {
 		};
 	}
 
-	public function elementsNamed( name : String ) {
+	public function elementsNamed( name : String ) : Iterator<Xml> {
 		var ns = name.split(":");
 		var elements:XMLList;
 		if( ns.length == 1 )
@@ -270,7 +271,7 @@ class FlashXml__ {
 			elements = _node.elements();
 		if( elements == null )
 			throw "bad nodetype";
-		var wrappers :Array<FlashXml__> = wraps(elements);
+		var wrappers :Array<Xml> = wraps(elements);
 		if( ns.length != 1 )
 			for( w in wrappers.copy() )
 				if( w._node.localName() != ns[1] || w._node.namespace().prefix != ns[0] )
@@ -286,7 +287,7 @@ class FlashXml__ {
 		};
 	}
 
-	public function firstChild() : FlashXml__ {
+	public function firstChild() : Xml {
 		var children:XMLList = _node.children();
 		if( children == null )
 			throw "bad nodetype";
@@ -295,7 +296,7 @@ class FlashXml__ {
 		return wrap( children[0] );
 	}
 
-	public function firstElement() : FlashXml__ {
+	public function firstElement() : Xml {
 		var elements:XMLList = _node.elements();
 		if( elements == null )
 			throw "bad nodetype";
@@ -304,14 +305,14 @@ class FlashXml__ {
 		return wrap( elements[0] );
 	}
 
-	public function addChild( x : FlashXml__ ) : Void {
+	public function addChild( x : Xml ) : Void {
 		var children:XMLList = _node.children();
 		if( children == null )
 			throw "bad nodetype";
 		_node.appendChild(x._node);
 	}
 
-	public function removeChild( x : FlashXml__ ) : Bool {
+	public function removeChild( x : Xml ) : Bool {
 		var children:XMLList = _node.children();
 		if( children == null )
 			throw "bad nodetype";
@@ -322,7 +323,7 @@ class FlashXml__ {
 		return true;
 	}
 
-	public function insertChild( x : FlashXml__, pos : Int ) : Void {
+	public function insertChild( x : Xml, pos : Int ) : Void {
 		var children:XMLList = _node.children();
 		if( children == null )
 			throw "bad nodetype";
@@ -332,7 +333,7 @@ class FlashXml__ {
 			_node.appendChild(x._node);
 	}
 
-	public function toString() {
+	public function toString() : String {
 		XML.prettyPrinting = false;
 		if( nodeType == Xml.Document ) {
 			var str = "";
@@ -343,5 +344,16 @@ class FlashXml__ {
 		}
 		return _node.toXMLString();
 	}
+
+	static function __init__() : Void untyped {
+		Element = "element";
+		PCData = "pcdata";
+		CData = "cdata";
+		Comment = "comment";
+		DocType = "doctype";
+		Prolog = "prolog";
+		Document = "document";
+	}
+
 
 }

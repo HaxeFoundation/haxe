@@ -211,6 +211,8 @@ let rec type_id ctx t =
 		type_path ctx path
 	| TEnum ({ e_path = ("flash" :: _,name); e_extern = true },_) ->
 		HMPath ([],if is_int_enum name then "int" else "String")
+	| TEnum ({ e_path = [],"XmlType"; e_extern = true },_) ->
+		HMPath ([],"String")
 	| _ ->
 		HMPath ([],"Object")
 
