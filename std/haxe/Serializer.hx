@@ -279,7 +279,7 @@ class Serializer {
 				buf.add(chars);
 			default:
 				cache.pop();
-				if( v.hxSerialize != null ) {
+				if( #if flash9 try v.hxSerialize != null catch( e : Dynamic ) false #else v.hxSerialize != null #end  ) {
 					buf.add("C");
 					serializeString(Type.getClassName(c));
 					cache.push(v);
