@@ -243,7 +243,7 @@ let extend_xml_proxy ctx c t file p =
 						cf_type = t;
 						cf_public = true;
 						cf_doc = None;
-						cf_meta = [];
+						cf_meta = no_meta;
 						cf_get = ResolveAccess;
 						cf_set = NoAccess;
 						cf_params = [];
@@ -267,13 +267,13 @@ let build_metadata com t =
 	let api = com.type_api in
 	let p, meta, fields, statics = (match t with
 		| TClassDecl c ->
-			let fields = List.map (fun f -> f.cf_name,f.cf_meta) (c.cl_ordered_fields @ (match c.cl_constructor with None -> [] | Some f -> [{ f with cf_name = "_" }])) in
-			let statics =  List.map (fun f -> f.cf_name,f.cf_meta) c.cl_ordered_statics in
-			(c.cl_pos, ["",c.cl_meta],fields,statics)
+			let fields = List.map (fun f -> f.cf_name,f.cf_meta()) (c.cl_ordered_fields @ (match c.cl_constructor with None -> [] | Some f -> [{ f with cf_name = "_" }])) in
+			let statics =  List.map (fun f -> f.cf_name,f.cf_meta()) c.cl_ordered_statics in
+			(c.cl_pos, ["",c.cl_meta()],fields,statics)
 		| TEnumDecl e ->
-			(e.e_pos, ["",e.e_meta],List.map (fun n -> n, (PMap.find n e.e_constrs).ef_meta) e.e_names, [])
+			(e.e_pos, ["",e.e_meta()],List.map (fun n -> n, (PMap.find n e.e_constrs).ef_meta()) e.e_names, [])
 		| TTypeDecl t ->
-			(t.t_pos, ["",t.t_meta],(match follow t.t_type with TAnon a -> PMap.fold (fun f acc -> (f.cf_name,f.cf_meta) :: acc) a.a_fields [] | _ -> []),[])
+			(t.t_pos, ["",t.t_meta()],(match follow t.t_type with TAnon a -> PMap.fold (fun f acc -> (f.cf_name,f.cf_meta()) :: acc) a.a_fields [] | _ -> []),[])
 	) in
 	let filter l = 
 		let l = List.map (fun (n,ml) -> n, List.filter (fun (m,_) -> m.[0] <> ':') ml) l in
@@ -360,7 +360,7 @@ let on_generate ctx t =
 				| [] -> assert false
 				| name :: path -> c.cl_path <- (List.rev path,name))
 			| _ -> ()
-		) c.cl_meta;
+		) (c.cl_meta());
 		if has_rtti c && not (PMap.mem "__rtti" c.cl_statics) then begin
 			let f = mk_field "__rtti" ctx.api.tstring in
 			let str = Genxml.gen_type_string ctx.com t in

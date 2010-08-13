@@ -825,7 +825,7 @@ let generate com swf_header =
 						if not extern && s_type_path (t_path t) = e.f9_classname then
 							match t with
 							| TClassDecl c ->
-								if List.mem (":bind",[]) c.cl_meta then
+								if has_meta ":bind" c.cl_meta then
 									toremove := (t_path t) :: !toremove
 								else
 									error ("Class already exists in '" ^ file ^ "', use @:bind to redefine it") (t_pos t)

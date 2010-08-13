@@ -220,7 +220,7 @@ and load_complex_type ctx p t =
 				cf_params = [];
 				cf_expr = None;
 				cf_doc = None;
-				cf_meta = [];
+				cf_meta = no_meta;
 			} acc
 		in
 		mk_anon (List.fold_left loop PMap.empty l)
@@ -424,7 +424,7 @@ let set_heritance ctx c herits p =
 				if is_parent c cl then error "Recursive class" p;
 				if c.cl_interface then error "Cannot extend an interface" p;
 				if cl.cl_interface then error "Cannot extend by using an interface" p;
-				if List.mem (":final",[]) cl.cl_meta && not (List.mem (":hack",[]) c.cl_meta) then error "Cannot extend a final class" p;
+				if has_meta ":final" cl.cl_meta && not (has_meta ":hack" c.cl_meta) then error "Cannot extend a final class" p;
 				c.cl_super <- Some (cl,params)
 			| _ -> error "Should extend by using a class" p)
 		| HImplements t ->
@@ -534,35 +534,38 @@ let type_function ctx args ret static constr f p =
 	e , fargs
 
 let type_meta ctx meta =
-	let notconst p = error "Metadata should be constant" p in
-	let rec mk_const (e,p) =
-		match e with
-		| EConst c ->
+	let mcache = ref None in
+	let notconst e = error "Metadata should be constant" e.epos in
+	let rec chk_const e =
+		match e.eexpr with
+		| TConst c ->
 			(match c with
-			| Int _ | Float _ | String _ | Ident "true" | Ident "false" | Ident "null" -> type_constant ctx c p
-			| _ -> notconst p)
-		| EUnop (Neg,Prefix,(EConst c,_)) ->
-			(match c with
-			| Int i -> type_constant ctx (Int ("-" ^ i)) p
-			| Float f -> type_constant ctx (Float ("-" ^ f)) p
-			| _ -> notconst p)
-		| EObjectDecl fl ->
-			let rec loop (l,acc) (f,e) =
-				if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;
-				let e = mk_const e in
-				let cf = mk_field f e.etype in
-				((f,e) :: l, PMap.add f cf acc)
-			in
-			let fields , types = List.fold_left loop ([],PMap.empty) fl in
-			mk (TObjectDecl (List.rev fields)) (TAnon { a_fields = types; a_status = ref Closed }) p
-		| EArrayDecl el ->
-			mk (TArrayDecl (List.map mk_const el)) (ctx.api.tarray t_dynamic) p
-		| EBlock [] ->
-			mk (TObjectDecl []) (TAnon { a_fields = PMap.empty; a_status = ref Closed}) p
+			| TInt _ | TFloat _ | TString _ | TBool _ | TNull -> ()
+			| _ -> notconst e)
+		| TParenthesis e ->
+			chk_const e
+		| TObjectDecl el ->
+			List.iter (fun (_,e) -> chk_const e) el
+		| TArrayDecl el ->
+			List.iter chk_const el
 		| _ ->
-			notconst p
-	in	
-	List.map (fun (s,el) -> s, List.map mk_const el) meta
+			notconst e
+	in
+	let mk_meta (m,el) =
+		let el = List.map (fun e -> type_expr ctx e true) el in
+		List.iter chk_const el;
+		m, el
+	in
+	let get_meta() =
+		match !mcache with
+		| None ->
+			let ml = List.map mk_meta meta in
+			mcache := Some ml;
+			ml
+		| Some ml -> ml
+	in
+	ctx.delays := [[fun() -> ignore(get_meta())]] @ !(ctx.delays);
+	get_meta
 
 let init_core_api ctx c =
 	let ctx2 = (match !(ctx.core_api) with
@@ -610,7 +613,7 @@ let init_class ctx c p herits fields =
 	c.cl_extern <- List.mem HExtern herits;
 	c.cl_interface <- List.mem HInterface herits;
 	set_heritance ctx c herits p;
-	let core_api = List.mem (":core_api",[]) c.cl_meta in
+	let core_api = has_meta ":core_api" c.cl_meta in
 	if core_api then ctx.delays := [(fun() -> init_core_api ctx c)] :: !(ctx.delays);	
 	let tthis = TInst (c,List.map snd c.cl_types) in
 	let rec extends_public c =

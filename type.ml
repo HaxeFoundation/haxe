@@ -124,7 +124,7 @@ and tclass_kind =
 	| KGeneric
 	| KGenericInstance of tclass * tparams
 
-and metadata = (string * texpr list) list
+and metadata = unit -> (string * texpr list) list
 
 and tclass = {
 	mutable cl_path : path;
@@ -212,7 +212,7 @@ let mk_class path pos =
 		cl_path = path;
 		cl_pos = pos;
 		cl_doc = None;
-		cl_meta = [];
+		cl_meta = (fun() -> []);
 		cl_private = false;
 		cl_kind = KNormal;
 		cl_extern = false;
@@ -506,6 +506,8 @@ let invalid_visibility n = Invalid_visibility n
 let has_no_field t n = Has_no_field (t,n)
 let has_extra_field t n = Has_extra_field (t,n)
 let error l = raise (Unify_error l)
+let has_meta m ml = List.mem (m,[]) (ml())
+let no_meta() = []
 
 type simple_access =
 	| SAYes

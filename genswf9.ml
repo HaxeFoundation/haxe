@@ -1804,7 +1804,7 @@ let generate_class ctx c =
 					try
 						let f = PMap.find f.cf_name c.cl_fields in
 						if List.mem f.cf_name c.cl_overrides then raise Not_found;
-						f.cf_meta
+						f.cf_meta()
 					with Not_found ->
 						find_meta c
 			in			

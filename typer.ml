@@ -204,7 +204,7 @@ let rec type_module_type ctx t tparams p =
 			};
 			t_private = true;
 			t_types = [];
-			t_meta = [];
+			t_meta = no_meta;
 		} in
 		let e = mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p in
 		check_locals_masking ctx e;
@@ -219,7 +219,7 @@ let rec type_module_type ctx t tparams p =
 				cf_get = NormalAccess;
 				cf_set = (match follow f.ef_type with TFun _ -> MethodAccess false | _ -> NoAccess);
 				cf_doc = None;
-				cf_meta = [];
+				cf_meta = no_meta;
 				cf_expr = None;
 				cf_params = [];
 			} acc
@@ -234,7 +234,7 @@ let rec type_module_type ctx t tparams p =
 			};
 			t_private = true;
 			t_types = e.e_types;
-			t_meta = [];
+			t_meta = no_meta;
 		} in
 		let e = mk (TTypeExpr (TEnumDecl e)) (TType (t_tmp,types)) p in
 		check_locals_masking ctx e;
@@ -578,7 +578,7 @@ let rec type_field ctx e i p mode =
 				cf_name = i;
 				cf_type = mk_mono();
 				cf_doc = None;
-				cf_meta = [];
+				cf_meta = no_meta;
 				cf_public = true;
 				cf_get = NormalAccess;
 				cf_set = (match mode with MSet -> NormalAccess | MGet | MCall -> NoAccess);
@@ -594,7 +594,7 @@ let rec type_field ctx e i p mode =
 			cf_name = i;
 			cf_type = mk_mono();
 			cf_doc = None;
-			cf_meta = [];
+			cf_meta = no_meta;
 			cf_public = true;
 			cf_get = NormalAccess;
 			cf_set = (match mode with MSet -> NormalAccess | MGet | MCall -> NoAccess);
@@ -862,6 +862,7 @@ and type_unop ctx op flag e p =
 		) in
 		match op, e.eexpr with
 		| Neg , TConst (TInt i) -> mk (TConst (TInt (Int32.neg i))) t p
+		| Neg , TConst (TFloat f) when f.[0] != '-' -> mk (TConst (TFloat ("-" ^ f))) t p
 		| _ -> mk (TUnop (op,flag,e)) t p
 	in
 	match acc with
@@ -1797,7 +1798,7 @@ let types ctx main excludes =
 			cf_get = NormalAccess;
 			cf_set = NormalAccess;
 			cf_doc = None;
-			cf_meta = [];
+			cf_meta = no_meta;
 			cf_params = [];
 			cf_expr = Some (mk (TCall (mk (TField (emain,"main")) ft null_pos,[])) r null_pos);
 		} in
