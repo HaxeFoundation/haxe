@@ -1223,7 +1223,7 @@ and gen_expression ctx retval expression =
 				let want_value = (return_from_block && !remaining = 1) in
 				find_local_return_blocks_ctx ctx want_value expression;
 				let line = Lexer.find_line_index ctx.ctx_common.lines expression.epos in
-				output_i ("HX_SOURCE_POS(\"" ^ expression.epos.pfile ^ "\","
+				output_i ("HX_SOURCE_POS(\"" ^ (Ast.s_escape expression.epos.pfile) ^ "\","
 					^ (string_of_int line) ^ ")\n" );
 				output_i "";
 				ctx.ctx_return_from_internal_node <- return_from_internal_node;
