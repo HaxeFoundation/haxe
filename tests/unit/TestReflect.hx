@@ -177,4 +177,14 @@ class TestReflect extends Test {
 		exc( function() Type.createEnum(MyEnum,"Z",[]) );
 	}
 
+	function testCompare() {
+		var a = new MyClass(0);
+		var b = new MyClass(1);
+		t( Reflect.compareMethods(a.add,a.add) );
+		f( Reflect.compareMethods(a.add,b.add) );
+		f( Reflect.compareMethods(a.add,a.get) );
+		f( Reflect.compareMethods(a.add,null) );
+		f( Reflect.compareMethods(null,a.add) );
+	}
+
 }
