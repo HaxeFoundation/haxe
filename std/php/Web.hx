@@ -1,5 +1,7 @@
 package php;
 
+import haxe.io.Bytes;
+
 /**
 	This class is used for accessing the local Web server and the current
 	client request and informations.
@@ -283,7 +285,7 @@ class Web {
 			maxSize -= len;
 			if( maxSize < 0 )
 				throw "Maximum size reached";
-			buf.addSub(str,pos,len);
+			buf.addSub(str.toString(),pos,len);
 		});
 		if( curname != null )
 			h.set(curname,buf.toString());
@@ -296,7 +298,19 @@ class Web {
 		and [onData] when some part data is readed. You can this way
 		directly save the data on hard drive in the case of a file upload.
 	**/
-	public static function parseMultipart( onPart : String -> String -> Void, onData : String -> Int -> Int -> Void ) : Void {
+	public static function parseMultipart( onPart : String -> String -> Void, onData : Bytes -> Int -> Int -> Void ) : Void {
+		var a : NativeArray = untyped __var__("_POST");
+		if(untyped __call__("get_magic_quotes_gpc"))
+			untyped __php__("reset($a); while(list($k, $v) = each($a)) $a[$k] = stripslashes((string)$v)");
+		var post = Lib.hashOfAssociativeArray(a);
+		
+		for (key in post.keys())
+		{
+			onPart(key, "");
+			var v = post.get(key);
+			onData(Bytes.ofString(v), 0, untyped __call__("strlen", v));
+		}
+		
 		if(!untyped __call__("isset", __php__("$_FILES"))) return;
 		var parts : Array<String> = untyped __call__("new _hx_array",__call__("array_keys", __php__("$_FILES")));
 		for(part in parts) {
@@ -317,14 +331,17 @@ class Web {
 				}
 			}
 			onPart(part, file);
-			var h = untyped __call__("fopen", tmp, "r");
-			var bsize = 8192;
-			while (!untyped __call__("feof", h)) {
-				var buf : String = untyped __call__("fread", h, bsize);
-				var size : Int = untyped __call__("strlen", buf);
-				onData(buf, 0, size);
+			if ("" != file)
+			{
+				var h = untyped __call__("fopen", tmp, "r");
+				var bsize = 8192;
+				while (!untyped __call__("feof", h)) {
+					var buf : String = untyped __call__("fread", h, bsize);
+					var size : Int = untyped __call__("strlen", buf);
+					onData(Bytes.ofString(buf), 0, size);
+				}
+				untyped __call__("fclose", h);
 			}
-			untyped __call__("fclose", h);
 		}
 	}
 

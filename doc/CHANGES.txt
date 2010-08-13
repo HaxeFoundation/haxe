@@ -47,7 +47,8 @@
 	php : fixed return type for Std.string() with integers and floats
 	php : fixed php.Lib.rethrow
 	all : added custom haXe serialization
-
+	php : aligned php.Web.parseMultipart signature with neko implementation
+	
 2010-01-09: 2.05
 	js : added js.Scroll
 	js : package names are now checked at runtime to avoid clashes with existing libs
