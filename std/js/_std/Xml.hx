@@ -22,10 +22,19 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package js;
-import Xml;
 
-class JsXml__ {
+enum XmlType {
+}
+
+@:core_api class Xml {
+
+	public static var Element(default,null) : XmlType;
+	public static var PCData(default,null) : XmlType;
+	public static var CData(default,null) : XmlType;
+	public static var Comment(default,null) : XmlType;
+	public static var DocType(default,null) : XmlType;
+	public static var Prolog(default,null) : XmlType;
+	public static var Document(default,null) : XmlType;
 
 	static var enode = ~/^<([a-zA-Z0-9:_-]+)/;
 	static var ecdata = ~/^<!\[CDATA\[/i;
@@ -44,13 +53,13 @@ class JsXml__ {
 	public var nodeType(default,null) : XmlType;
 	public var nodeName(getNodeName,setNodeName) : String;
 	public var nodeValue(getNodeValue,setNodeValue) : String;
-	public var parent(getParent,null) : JsXml__;
+	public var parent(getParent,null) : Xml;
 
 	var _nodeName : String;
 	var _nodeValue : String;
 	var _attributes : Hash<String>;
-	var _children : Array<JsXml__>;
-	var _parent : JsXml__;
+	var _children : Array<Xml>;
+	var _parent : Xml;
 
 	public static function parse( str : String ) : Xml {
 		var rules = [enode,epcdata,eend,ecdata,edoctype,ecomment,eprolog];
@@ -152,11 +161,11 @@ class JsXml__ {
 		untyped return current;
 	}
 
-	private function new(){
+	private function new() : Void {
 	}
 
-	static function createElement( name : String ) : JsXml__ {
-		var r = new JsXml__();
+	public static function createElement( name : String ) : Xml {
+		var r = new Xml();
 		r.nodeType = Xml.Element;
 		r._children = new Array();
 		r._attributes = new Hash();
@@ -164,43 +173,43 @@ class JsXml__ {
 		return r;
 	}
 
-	static function createPCData( data : String ) : JsXml__ {
-		var r = new JsXml__();
+	public static function createPCData( data : String ) : Xml {
+		var r = new Xml();
 		r.nodeType = Xml.PCData;
 		r.setNodeValue( data );
 		return r;
 	}
 
-	static function createCData( data : String ) : JsXml__ {
-		var r = new JsXml__();
+	public static function createCData( data : String ) : Xml {
+		var r = new Xml();
 		r.nodeType = Xml.CData;
 		r.setNodeValue( data );
 		return r;
 	}
 
-	static function createComment( data : String ) : JsXml__ {
-		var r = new JsXml__();
+	public static function createComment( data : String ) : Xml {
+		var r = new Xml();
 		r.nodeType = Xml.Comment;
 		r.setNodeValue( data );
 		return r;
 	}
 
-	static function createDocType( data : String ) : JsXml__ {
-		var r = new JsXml__();
+	public static function createDocType( data : String ) : Xml {
+		var r = new Xml();
 		r.nodeType = Xml.DocType;
 		r.setNodeValue( data );
 		return r;
 	}
 
-	static function createProlog( data : String ) : JsXml__ {
-		var r = new JsXml__();
+	public static function createProlog( data : String ) : Xml {
+		var r = new Xml();
 		r.nodeType = Xml.Prolog;
 		r.setNodeValue( data );
 		return r;
 	}
 
-	static function createDocument() : JsXml__ {
-		var r = new JsXml__();
+	public static function createDocument() : Xml {
+		var r = new Xml();
 		r.nodeType = Xml.Document;
 		r._children = new Array();
 		return r;
@@ -230,7 +239,7 @@ class JsXml__ {
 		return _nodeValue = v;
 	}
 
-	private function getParent() {
+	private function getParent() : Xml {
 		return _parent;
 	}
 
@@ -264,7 +273,7 @@ class JsXml__ {
 		return _attributes.keys();
 	}
 
-	public function iterator() : Iterator<JsXml__> {
+	public function iterator() : Iterator<Xml> {
 		if( _children == null ) throw "bad nodetype";
 		return untyped {
 			cur: 0,
@@ -278,7 +287,7 @@ class JsXml__ {
 		}
 	}
 
-	public function elements(){
+	public function elements() : Iterator<Xml> {
 		if( _children == null ) throw "bad nodetype";
 		return untyped {
 			cur: 0,
@@ -310,7 +319,7 @@ class JsXml__ {
 		}
 	}
 
-	public function elementsNamed( name : String ) {
+	public function elementsNamed( name : String ) : Iterator<Xml> {
 		if( _children == null ) throw "bad nodetype";
 		return untyped {
 			cur: 0,
@@ -343,12 +352,12 @@ class JsXml__ {
 		}
 	}
 
-	public function firstChild() : JsXml__ {
+	public function firstChild() : Xml {
 		if( _children == null ) throw "bad nodetype";
 		return _children[0];
 	}
 
-	public function firstElement() : JsXml__ {
+	public function firstElement() : Xml {
 		if( _children == null ) throw "bad nodetype";
 		var cur = 0;
 		var l = _children.length;
@@ -361,14 +370,14 @@ class JsXml__ {
 		return null;
 	}
 
-	public function addChild( x : JsXml__ ) : Void {
+	public function addChild( x : Xml ) : Void {
 		if( _children == null ) throw "bad nodetype";
 		if( x._parent != null ) x._parent._children.remove(x);
 		x._parent = this;
 		_children.push( x );
 	}
 
-	public function removeChild( x : JsXml__ ) : Bool {
+	public function removeChild( x : Xml ) : Bool {
 		if( _children == null ) throw "bad nodetype";
 		var b = _children.remove( x );
 		if( b )
@@ -376,14 +385,14 @@ class JsXml__ {
 		return b;
 	}
 
-	public function insertChild( x : JsXml__, pos : Int ) : Void {
+	public function insertChild( x : Xml, pos : Int ) : Void {
 		if( _children == null ) throw "bad nodetype";
 		if( x._parent != null ) x._parent._children.remove(x);
 		x._parent = this;
 		_children.insert( pos, x );
 	}
 
-	public function toString() {
+	public function toString() : String {
 		if( nodeType == Xml.PCData )
 			return _nodeValue;
 		if( nodeType == Xml.CData )
@@ -422,6 +431,16 @@ class JsXml__ {
 			s.add(">");
 		}
 		return s.toString();
+	}
+
+	static function __init__() : Void untyped {
+		Xml.Element = "element";
+		Xml.PCData = "pcdata";
+		Xml.CData = "cdata";
+		Xml.Comment = "comment";
+		Xml.DocType = "doctype";
+		Xml.Prolog = "prolog";
+		Xml.Document = "document";
 	}
 
 }
