@@ -48,6 +48,30 @@
 	php : fixed php.Lib.rethrow
 	all : added custom haXe serialization
 	php : aligned php.Web.parseMultipart signature with neko implementation
+	cpp : Added source location and stack dump for errors in debug mode
+	cpp : Remapped more keywords
+	cpp : Added templated fast iterator code for arrays and FastLists
+	cpp : Added option for tracing GC references in debug mode
+	cpp : Switch the native string implementation from wchar_t to utf8 - for regex speed
+	cpp : Added extra "()" to ensure correct order of operations
+	cpp : Fixed various bugs for unusual (and not so unusual) language constructs
+	cpp : Fixed order of enum generation from index
+	cpp : Added __unsafe_get and __unsafe_set to Array as possible optimizations
+	cpp : Default to mult-thread compiling on windows for cl version >= 14
+	cpp : Seed Math.random
+	cpp : Use strftime for Dates
+	cpp : Fix socket sellect passing _s
+	cpp : Throw error when match count does not match regex
+	cpp : Improve register capture in GC
+	cpp : Fix Dynamic interger compare
+	cpp : Implement makeVarArgs
+	cpp : Fix toString for nulls in Enums and Arrays
+	cpp : Added initial Android support
+	cpp : Move initializers to entry functions in standard ndlls.
+	cpp : Changes some CFFI register funtions to char*, from wchar_t*
+	cpp : Added some initial support for v8 script target
+	cpp : Use non-recursive GC marking to avoid overflow in big lists
+	cpp : Added __hxcpp_obj_id
 	
 2010-01-09: 2.05
 	js : added js.Scroll
