@@ -66,12 +66,12 @@ extern class String {
 		The optional [startIndex] parameter allows you to specify at which character to start searching.
 		The position returned is still relative to the beginning of the string.
 	**/
-	function indexOf( value : String, ?startIndex : Int ) : Int;
+	function indexOf( str : String, ?startIndex : Int ) : Int;
 
 	/**
 		Similar to [indexOf] but returns the latest index.
 	**/
-	function lastIndexOf( value : String, ?startIndex : Int ) : Int;
+	function lastIndexOf( str : String, ?startIndex : Int ) : Int;
 
 	/**
 		Split the string using the specified delimiter.

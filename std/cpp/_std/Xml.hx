@@ -47,7 +47,7 @@ enum XmlType {
 
 	private static var _parse = cpp.Lib.load("std","parse_xml",2);
 
-	public static function parse( xmlData : String ) : Xml {
+	public static function parse( str : String ) : Xml {
 		var x = new Xml();
 		x._children = new Array();
 		var parser = {
@@ -104,7 +104,7 @@ enum XmlType {
 				untyped this.cur = this.cur._parent;
 			}
 		};
-		untyped _parse(xmlData,parser);
+		untyped _parse(str,parser);
 		x.nodeType = Xml.Document;
 		return x;
 	}

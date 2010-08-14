@@ -43,11 +43,11 @@
 		}
 	}
 
-	public function charAt(p:Int) : String {
+	public function charAt(index:Int) : String {
 		untyped {
 			try {
 				var s = __dollar__smake(1);
-				__dollar__sset(s,0,__dollar__sget(this.__s,p));
+				__dollar__sset(s,0,__dollar__sget(this.__s,index));
 				return new String(s);
 			} catch( e : Dynamic ) {
 				return "";
@@ -55,13 +55,13 @@
 		}
 	}
 
-	public function charCodeAt(p : Int) : Null<Int> {
+	public function charCodeAt(index : Int) : Null<Int> {
 		untyped {
-			return __dollar__sget(this.__s,p);
+			return __dollar__sget(this.__s,index);
 		}
 	}
 
-	public function indexOf( str : String, ?pos : Int ) : Int {
+	public function indexOf( str : String, ?startIndex : Int ) : Int {
 		untyped {
 			var p = try __dollar__sfind(this.__s,if( pos == null ) 0 else pos,str.__s) catch( e : Dynamic ) null;
 			if( p == null )
@@ -70,7 +70,7 @@
 		}
 	}
 
-	public function lastIndexOf( str : String, ?pos : Int ) : Int {
+	public function lastIndexOf( str : String, ?startIndex : Int ) : Int {
 		untyped {
 			var last = -1;
 			if( pos == null )
@@ -85,9 +85,9 @@
 		}
 	}
 
-	public function split( delim : String ) : Array<String> {
+	public function split( delimiter : String ) : Array<String> {
 		untyped {
-			var l = __split(this.__s,delim.__s);
+			var l = __split(this.__s,delimiter.__s);
 			var a = new Array<String>();
 			if( l == null ) {
 				a.push("");
@@ -177,9 +177,9 @@
 		return new String(untyped __dollar__string(s)+this.__s);
 	}
 
-	public static function fromCharCode( c : Int ) : String untyped {
+	public static function fromCharCode( code : Int ) : String untyped {
 		var s = __dollar__smake(1);
-		__dollar__sset(s,0,c);
+		__dollar__sset(s,0,code);
 		return new String(s);
 	}
 

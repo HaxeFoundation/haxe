@@ -80,7 +80,7 @@ extern class Xml {
 	/**
 		Parse a String into an Xml object.
 	**/
-	static function parse( s : String ) : Xml;
+	static function parse( str : String ) : Xml;
 
 	/**
 		Creates a node of the given type.

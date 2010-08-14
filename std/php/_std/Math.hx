@@ -46,7 +46,7 @@
 	public static function atan(v : Float) : Float     { return untyped __call__("atan", v); }
 	public static function asin(v : Float) : Float     { return untyped __call__("asin", v); }
 	public static function acos(v : Float) : Float     { return untyped __call__("acos", v); }
-	public static function pow(b : Float,e : Float) : Float    { return untyped __call__("pow", b, e); }
+	public static function pow(v : Float,exp : Float) : Float    { return untyped __call__("pow", v, exp); }
 	public static function random() : Float    { return untyped __call__("mt_rand") / __call__("mt_getrandmax"); }
 	public static function isNaN(f : Float) : Bool     { return untyped __call__("is_nan", f); }
 	public static function isFinite(f : Float) : Bool  { return untyped __call__("is_finite", f); }

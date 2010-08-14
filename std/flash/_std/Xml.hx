@@ -64,9 +64,9 @@ enum XmlType {
 		return untyped r;
 	}
 
-	public static function parse( xmlData : String ) : Xml untyped {
+	public static function parse( str : String ) : Xml untyped {
 		var x = __new__(_global["XML"]);
-		x["parseXML"](xmlData);
+		x["parseXML"](str);
 		if( x["status"] != 0 )
 			throw ("Xml parse error #"+x["status"]);
 
@@ -83,36 +83,36 @@ enum XmlType {
 		return r;
 	}
 
-	public static function createCData( s : String ) : Xml {
-		var o = untyped __new__(_global["XML"])["createTextNode"]( s );
+	public static function createCData( data : String ) : Xml {
+		var o = untyped __new__(_global["XML"])["createTextNode"]( data );
 		var x = convert(o);
 		untyped x.nodeType = Xml.CData;
 		return x;
 	}
 
-	public static function createPCData( s : String ) : Xml {
-		var o = untyped __new__(_global["XML"])["createTextNode"]( s );
+	public static function createPCData( data : String ) : Xml {
+		var o = untyped __new__(_global["XML"])["createTextNode"]( data );
 
 		return convert(o);
 	}
 
-	public static function createElement( s : String ) : Xml {
-		var o = untyped __new__(_global["XML"])["createElement"]( s );
+	public static function createElement( name : String ) : Xml {
+		var o = untyped __new__(_global["XML"])["createElement"]( name );
 
 		return convert(o);
 	}
 
-	public static function createComment( s : String ) : Xml {
+	public static function createComment( data : String ) : Xml {
 		throw "not implemented";
 		return null;
 	}
 
-	public static function createDocType( s : String ) : Xml {
+	public static function createDocType( data : String ) : Xml {
 		throw "not implemented";
 		return null;
 	}
 
-	public static function createProlog( s : String ) : Xml {
+	public static function createProlog( data : String ) : Xml {
 		throw "not implemented";
 		return null;
 	}
@@ -201,21 +201,21 @@ enum XmlType {
 		}
 	}
 
-	public function elementsNamed( nodeName : String ) : Iterator<Xml> {
+	public function elementsNamed( name : String ) : Iterator<Xml> {
 		if( nodeType != Xml.Document && nodeType != Xml.Element )
 			throw "bad nodeType";
 		return untyped {
 			cur: this.__x[untyped "firstChild"],
 			hasNext : function() {
 				var r = this.cur;
-				while( r != null && (r["nodeType"] != 1 || r["nodeName"] != nodeName) )
+				while( r != null && (r["nodeType"] != 1 || r["nodeName"] != name) )
 					r = r["nextSibling"];
 				this.cur = r;
 				return r != null;
 			},
 			next : function(){
 				var r = this.cur;
-				while( r != null && (r["nodeType"] != 1 || r["nodeName"] != nodeName) )
+				while( r != null && (r["nodeType"] != 1 || r["nodeName"] != name) )
 					r = r["nextSibling"];
 				if( r == null ) {
 					this.cur = null;
@@ -227,28 +227,28 @@ enum XmlType {
 		}
 	}
 
-	public function get( k : String ) : String {
+	public function get( att : String ) : String {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		return Reflect.field(__x[untyped "attributes"],k);
+		return Reflect.field(__x[untyped "attributes"],att);
 	}
 
-	public function set( k : String, v : String ) : Void {
+	public function set( att : String, value : String ) : Void {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		return Reflect.setField(__x[untyped "attributes"],k,v);
+		return Reflect.setField(__x[untyped "attributes"],att,value);
 	}
 
-	public function exists( k : String ) : Bool {
+	public function exists( att : String ) : Bool {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		return Reflect.hasField(__x[untyped "attributes"],k);
+		return Reflect.hasField(__x[untyped "attributes"],att);
 	}
 
-	public function remove( k : String ) : Void {
+	public function remove( att : String ) : Void {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		Reflect.deleteField(__x[untyped "attributes"],k);
+		Reflect.deleteField(__x[untyped "attributes"],att);
 	}
 
 	public function attributes() : Iterator<String> {
@@ -257,18 +257,18 @@ enum XmlType {
 		return untyped __keys__(__x["attributes"])["iterator"]();
 	}
 
-	public function addChild( child : Xml ) : Void {
+	public function addChild( x : Xml ) : Void {
 		if( nodeType != Xml.Document && nodeType != Xml.Element )
 			throw "bad nodeType";
-		untyped __x[untyped "appendChild"](child.__x);
+		untyped __x[untyped "appendChild"](x.__x);
 	}
 
-	public function removeChild( child : Xml ) : Bool {
+	public function removeChild( x : Xml ) : Bool {
 		if( nodeType != Xml.Document && nodeType != Xml.Element )
 			throw "bad nodeType";
-		untyped if( child.__x["parentNode"] != __x )
+		untyped if( x.__x["parentNode"] != __x )
 			return false;
-		untyped child.__x["removeNode"]();
+		untyped x.__x["removeNode"]();
 		return true;
 	}
 

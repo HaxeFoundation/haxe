@@ -605,6 +605,13 @@ let init_core_api ctx c =
 					| _ ->
 						error ("Field " ^ i ^ " has different property access than core type") p;
 				end;
+				(match follow f.cf_type, follow f2.cf_type with
+				| TFun (pl1,_), TFun (pl2,_) ->
+					if List.length pl1 != List.length pl2 then assert false;
+					List.iter2 (fun (n1,_,_) (n2,_,_) -> 
+						if n1 <> n2 then error ("Method parameter name '" ^ n2 ^ "' should be '" ^ n1 ^ "'") p;
+					) pl1 pl2;
+				| _ -> ());
 			) fcore;
 			PMap.iter (fun i f ->
 				let p = (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
