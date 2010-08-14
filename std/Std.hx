@@ -26,204 +26,36 @@
 /**
 	The Std class provides standard methods for manipulating basic types.
 **/
-class Std {
+extern class Std {
 
 	/**
 		Tells if a value v is of the type t.
 	**/
-	public static function is( v : Dynamic, t : Dynamic ) : Bool {
-		return untyped
-		#if flash
-		flash.Boot.__instanceof(v,t);
-		#elseif neko
-		neko.Boot.__instanceof(v,t);
-		#elseif js
-		js.Boot.__instanceof(v,t);
-		#elseif php
-		untyped __call__("_hx_instanceof", v,t);
-		#elseif cpp
-		__global__.__instanceof(v,t);
-		#else
-		false;
-		#end
-	}
+	public static function is( v : Dynamic, t : Dynamic ) : Bool;
 
 	/**
 		Convert any value to a String
 	**/
-	public static function string( s : Dynamic ) : String {
-		return untyped
-		#if flash
-		flash.Boot.__string_rec(s,"");
-		#elseif neko
-		new String(__dollar__string(s));
-		#elseif js
-		js.Boot.__string_rec(s,"");
-		#elseif php
-		__call__("_hx_string_rec", s, '');
-		#elseif cpp
-		s==null ? "null" : s.toString();
-		#else
-		"";
-		#end
-	}
+	public static function string( s : Dynamic ) : String;
 
 	/**
 		Convert a Float to an Int, rounded down.
 	**/
-	public #if (flash9 || php) inline #end static function int( x : Float ) : Int {
-		#if flash9
-		return untyped __int__(x);
-		#elseif php
-		return untyped __php__("intval")(x);
-		#elseif cpp
-		return untyped __global__.__int__(x);
-		#else
-		if( x < 0 ) return Math.ceil(x);
-		return Math.floor(x);
-		#end
-	}
+	public static function int( x : Float ) : Int;
 
 	/**
 		Convert a String to an Int, parsing different possible representations. Returns [null] if could not be parsed.
 	**/
-	public static function parseInt( x : String ) : Null<Int> {
-		untyped {
-		#if flash9
-		var v = __global__["parseInt"](x);
-		if( __global__["isNaN"](v) )
-			return null;
-		return v;
-		#elseif flash
-		var v = _global["parseInt"](x);
-		if( Math.isNaN(v) )
-			return null;
-		return v;
-		#elseif neko
-		var t = __dollar__typeof(x);
-		if( t == __dollar__tint )
-			return x;
-		if( t == __dollar__tfloat )
-			return __dollar__int(x);
-		if( t != __dollar__tobject )
-			return null;
-		return __dollar__int(x.__s);
-		#elseif js
-		var v = __js__("parseInt")(x);
-		if( Math.isNaN(v) )
-			return null;
-		return v;
-		#elseif php
-		if(!__php__("is_numeric")(x)) return null;
-		return x.substr(0, 2).toLowerCase() == "0x" ? __php__("intval(substr($x, 2), 16)") : __php__("intval($x)");
-		#elseif cpp
-		if (x==null) return null;
-		return __global__.__hxcpp_parse_int(x);
-		#else
-		return 0;
-		#end
-		}
-	}
+	public static function parseInt( x : String ) : Null<Int>;
 
 	/**
 		Convert a String to a Float, parsing different possible reprensations.
 	**/
-	public static function parseFloat( x : String ) : Float {
-		return untyped
-		#if flash9
-		__global__["parseFloat"](x);
-		#elseif flash
-		_global["parseFloat"](x);
-		#elseif neko
-		__dollar__float(x.__s);
-		#elseif js
-		__js__("parseFloat")(x);
-		#elseif php
-		__php__("is_numeric($x) ? floatval($x) : acos(1.01)");
-		#elseif cpp
-		__global__.__hxcpp_parse_float(x);
-		#else
-		0;
-		#end
-	}
+	public static function parseFloat( x : String ) : Float;
 
 	/**
 		Return a random integer between 0 included and x excluded.
 	**/
-	public static function random( x : Int ) : Int {
-		return untyped
-		#if flash9
-		Math.floor(Math.random()*x);
-		#elseif flash
-		__random__(x);
-		#elseif neko
-		Math._rand_int(Math.__rnd,x);
-		#elseif js
-		Math.floor(Math.random()*x);
-		#elseif php
-		__call__("rand", 0, x-1);
-		#elseif cpp
-		__global__.rand() % x;
-		#else
-		0;
-		#end
-	}
-
-	/**
-		Initialization the things needed for reflection
-	**/
-	static function __init__() untyped {
-		#if js
-			String.prototype.__class__ = String;
-			String.__name__ = ["String"];
-			Array.prototype.__class__ = Array;
-			Array.__name__ = ["Array"];
-			Int = { __name__ : ["Int"] };
-			Dynamic = { __name__ : ["Dynamic"] };
-			Float = __js__("Number");
-			Float.__name__ = ["Float"];
-			Bool = { __ename__ : ["Bool"] };
-			Class = { __name__ : ["Class"] };
-			Enum = {};
-			Void = { __ename__ : ["Void"] };
-		#elseif cpp
-			null;
-		#elseif flash9
-			null;
-		#elseif flash
-			var g : Dynamic = _global;
-			g["Int"] = { __name__ : ["Int"] };
-			g["Bool"] = { __ename__ : ["Bool"] };
-			g.Dynamic = { __name__ : [__unprotect__("Dynamic")] };
-			g.Class = { __name__ : [__unprotect__("Class")] };
-			g.Enum = {};
-			g.Void = { __ename__ : [__unprotect__("Void")] };
-			g["Float"] = _global["Number"];
-			g["Float"][__unprotect__("__name__")] = ["Float"];
-			Array.prototype[__unprotect__("__class__")] = Array;
-			Array[__unprotect__("__name__")] = ["Array"];
-			String.prototype[__unprotect__("__class__")] = String;
-			String[__unprotect__("__name__")] = ["String"];
-			g["ASSetPropFlags"](Array.prototype,null,7);
-		#elseif neko
-			Int = { __name__ : ["Int"] };
-			Float = { __name__ : ["Float"] };
-			Bool = { __ename__ : ["Bool"] };
-			Dynamic = { __name__ : ["Dynamic"] };
-			Class = { __name__ : ["Class"] };
-			Enum = {};
-			Void = { __ename__ : ["Void"] };
-			var cl = neko.Boot.__classes;
-			cl.String = String;
-			cl.Array = Array;
-			cl.Int = Int;
-			cl.Float = Float;
-			cl.Bool = Bool;
-			cl.Dynamic = Dynamic;
-			cl.Class = Class;
-			cl.Enum = Enum;
-			cl.Void = Void;
-		#end
-	}
+	public static function random( x : Int ) : Int;
 
 }

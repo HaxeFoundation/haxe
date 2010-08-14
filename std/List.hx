@@ -28,15 +28,10 @@
 	that are chained together. It's optimized so that adding or removing an
 	element doesn't imply to copy the whole array content everytime.
 **/
-class List<T> #if php implements php.IteratorAggregate<T> #end {
+class List<T> {
 
-	#if php
-	private var h : ArrayAccess<Dynamic>;
-	private var q : ArrayAccess<Dynamic>;
-	#else
 	private var h : Array<Dynamic>;
 	private var q : Array<Dynamic>;
-	#end
 
 	/**
 		The number of elements in this list.
@@ -54,19 +49,12 @@ class List<T> #if php implements php.IteratorAggregate<T> #end {
 		Add an element at the end of the list.
 	**/
 	public function add( item : T ) {
-		var x = #if neko untyped __dollar__array(item,null) #elseif php untyped __call__('array', item, null) #else [item] #end;
+		var x = #if neko untyped __dollar__array(item,null) #else [item] #end;
 		if( h == null )
-		#if php
-			untyped __php__("$this->h =& $x");
-		else
-			untyped __php__("$this->q[1] =& $x");
-		untyped __php__("$this->q =& $x");
-		#else
 			h = x;
 		else
 			q[1] = x;
 		q = x;
-		#end
 		length++;
 	}
 
@@ -76,20 +64,12 @@ class List<T> #if php implements php.IteratorAggregate<T> #end {
 	public function push( item : T ) {
 		var x = #if neko
 			untyped __dollar__array(item,h)
-		#elseif php
-			untyped __call__('array', item, __php__("&$this->h"))
 		#else
 			[item,h]
 		#end;
-		#if php
-		untyped __php__("$this->h =& $x");
-		if( q == null )
-			untyped __php__("$this->q =& $x");
-		#else
 		h = x;
 		if( q == null )
 			q = x;
-		#end
 		length++;
 	}
 
@@ -148,23 +128,6 @@ class List<T> #if php implements php.IteratorAggregate<T> #end {
 	**/
 	public function remove( v : T ) : Bool {
 		var prev = null;
-		#if php
-		var l = untyped __php__("& $this->h");
-		while( l != null ) {
-			if(untyped __php__("$l[0] === $v")) {
-				if( prev == null )
-					untyped __php__("$this->h =& $l[1]");
-				else
-					untyped __php__("$prev[1] =& $l[1]");
-				if(untyped __physeq__(q, l))
-					untyped __php__("$this->q =& $prev");
-				length--;
-				return true;
-			}
-			untyped __php__("$prev =& $l");
-			untyped __php__("$l =& $l[1]");
-		}
-		#else
 		var l = h;
 		while( l != null ) {
 			if( l[0] == v ) {
@@ -180,7 +143,6 @@ class List<T> #if php implements php.IteratorAggregate<T> #end {
 			prev = l;
 			l = l[1];
 		}
-		#end
 		return false;
 	}
 
@@ -188,9 +150,6 @@ class List<T> #if php implements php.IteratorAggregate<T> #end {
 		Returns an iterator on the elements of the list.
 	**/
 	public function iterator() : Iterator<T> {
-#if php
-		return untyped __call__("new _hx_list_iterator", this);
-#else
 		return cast {
 			h : h,
 			hasNext : function() {
@@ -206,7 +165,6 @@ class List<T> #if php implements php.IteratorAggregate<T> #end {
 				}
 			}
 		}
-#end
 	}
 
 	/**
@@ -277,13 +235,5 @@ class List<T> #if php implements php.IteratorAggregate<T> #end {
 		}
 		return b;
 	}
-	
-	/**
-		Implement IteratorAggregate for native php iteration
-	**/
-	#if php
-	function getIterator() {
-		return iterator();
-	}
-	#end
+
 }

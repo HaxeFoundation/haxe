@@ -575,15 +575,16 @@ let init_core_api ctx c =
 			let ctx2 = (!do_create) com in
 			ctx.core_api := Some ctx2;
 			ctx2
-		| Some c -> 
+		| Some c ->
 			c
 	) in
 	let t = load_instance ctx2 { tpackage = fst c.cl_path; tname = snd c.cl_path; tparams = []; tsub = None; } c.cl_pos true in
 	match t with
-	| TInst (ccore,_) -> 
+	| TInst (ccore,_) ->
 		let check_fields fcore fl =
-			PMap.iter (fun i f ->				
-				let f2 = try PMap.find f.cf_name fl with Not_found -> error ("Missing field " ^ i ^ " required by core type") c.cl_pos in				
+			PMap.iter (fun i f ->
+				if not f.cf_public then () else
+				let f2 = try PMap.find f.cf_name fl with Not_found -> error ("Missing field " ^ i ^ " required by core type") c.cl_pos in
 				let p = (match f2.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
 				(try
 					type_eq EqCoreType (apply_params ccore.cl_types (List.map snd c.cl_types) f.cf_type) f2.cf_type
@@ -614,7 +615,7 @@ let init_class ctx c p herits fields =
 	c.cl_interface <- List.mem HInterface herits;
 	set_heritance ctx c herits p;
 	let core_api = has_meta ":core_api" c.cl_meta in
-	if core_api then ctx.delays := [(fun() -> init_core_api ctx c)] :: !(ctx.delays);	
+	if core_api then ctx.delays := [(fun() -> init_core_api ctx c)] :: !(ctx.delays);
 	let tthis = TInst (c,List.map snd c.cl_types) in
 	let rec extends_public c =
 		List.exists (fun (c,_) -> c.cl_path = (["haxe"],"Public") || extends_public c) c.cl_implements ||

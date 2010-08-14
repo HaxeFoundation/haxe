@@ -55,21 +55,17 @@ extern class Math
 	static function isFinite( f : Float ) : Bool;
 	static function isNaN( f : Float ) : Bool;
 
-#if !php
 	private static function __init__() : Void untyped {
-	#if neko
-		Math = neko.NekoMath__;
-		neko.Boot.__classes.Math = Math;
-	#else
-		#if flash9
+	#if flash9
 		NaN = __global__["Number"].NaN;
 		NEGATIVE_INFINITY = __global__["Number"].NEGATIVE_INFINITY;
 		POSITIVE_INFINITY = __global__["Number"].POSITIVE_INFINITY;
-		#else
+	#else
+		Math.__name__ = ["Math"];
 		Math.NaN = Number["NaN"];
 		Math.NEGATIVE_INFINITY = Number["NEGATIVE_INFINITY"];
 		Math.POSITIVE_INFINITY = Number["POSITIVE_INFINITY"];
-		#end
+	#end
 		Math.isFinite = function(i) {
 			return
 			#if flash9
@@ -94,13 +90,8 @@ extern class Math
 			false;
 			#end
 		};
-	#end
-	#if flash9
-	#else
-		Math.__name__ = ["Math"];
-	#end
 	}
-#end
+
 }
 
 

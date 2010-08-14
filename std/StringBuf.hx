@@ -93,9 +93,7 @@ class StringBuf {
 	}
 
 	private var b :
-	#if neko
-		Dynamic
-	#elseif (js || cpp)
+	#if (js || cpp)
 		Array<Dynamic>
 	#else
 		String

@@ -225,25 +225,6 @@ extern class Xml {
 	**/
 	function toString() : String;
 
-#if !(php || neko)
-	static function __init__() : Void untyped {
-		#if js
-			Xml = js.JsXml__;
-		#elseif flash9
-			var ref = flash.FlashXml__; // force compile
-		#end
-		#if !flash9
-		Xml.__name__ = ["Xml"];
-		#end
-		Xml.Element = "element";
-		Xml.PCData = "pcdata";
-		Xml.CData = "cdata";
-		Xml.Comment = "comment";
-		Xml.DocType = "doctype";
-		Xml.Prolog = "prolog";
-		Xml.Document = "document";
-	}
-#end
 }
 
 
