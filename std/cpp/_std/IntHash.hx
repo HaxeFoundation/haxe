@@ -23,10 +23,6 @@
  * DAMAGE.
  */
 
-/**
-	Hashtable over a set of elements, using [Int] as keys.
-	On Flash and Javascript, the underlying structure is an Object.
-**/
 @:core_api class IntHash<T> {
 
 	private var h : Dynamic;

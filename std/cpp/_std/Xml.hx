@@ -24,15 +24,7 @@
  */
 
 enum XmlType {
-   element;
-   pcdata;
-   cdata;
-   comment;
-   doctype;
-   prolog;
-   document;
 }
-
 
 @:core_api class Xml {
 	public static var Element(default,null) : XmlType;
@@ -411,16 +403,15 @@ enum XmlType {
 		}
 	}
 
-	// Must call this after XML elements have been constructed
-	static function __do_init() : Void {
-		Element = XmlType.element;
-		PCData = XmlType.pcdata;
-		CData = XmlType.cdata;
-		Comment = XmlType.comment;
-		DocType = XmlType.doctype;
-		Prolog = XmlType.prolog;
-		Document = XmlType.document;
+	static function __init__() : Void untyped {
+		Element = "element";
+		PCData = "pcdata";
+		CData = "cdata";
+		Comment = "comment";
+		DocType = "doctype";
+		Prolog = "prolog";
+		Document = "document";
 	}
-	static var __init_later = __do_init();
+
 }
 

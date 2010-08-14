@@ -23,22 +23,22 @@
  * DAMAGE.
  */
 
-@:core_type class StringBuf {
+@:core_api class StringBuf {
 	private var b : String;
 
-	public function new() {
+	public function new() : Void {
 		b = "";
 	}
 
-	public inline function add( ?x : Dynamic ) {
+	public inline function add( ?x : Dynamic ) : Void {
 		b += x;
 	}
 
-	public inline function addSub( s : String, pos : Int, ?len : Int ) {
+	public inline function addSub( s : String, pos : Int, ?len : Int ) : Void {
 		b += s.substr(pos,len);
 	}
 
-	public inline function addChar( c : Int ) {
+	public inline function addChar( c : Int ) : Void {
 		b += String.fromCharCode(c);
 	}
 

@@ -581,6 +581,9 @@ let init_core_api ctx c =
 	let t = load_instance ctx2 { tpackage = fst c.cl_path; tname = snd c.cl_path; tparams = []; tsub = None; } c.cl_pos true in
 	match t with
 	| TInst (ccore,_) ->
+		(match c.cl_doc with
+		| None -> c.cl_doc <- ccore.cl_doc
+		| Some _ -> ());
 		let check_fields fcore fl =
 			PMap.iter (fun i f ->
 				if not f.cf_public then () else
@@ -592,6 +595,9 @@ let init_core_api ctx c =
 					display_error ctx ("Field " ^ i ^ " has different type than in core type") p;
 					display_error ctx (error_msg (Unify l)) p);
 				if f2.cf_public <> f.cf_public then error ("Field " ^ i ^ " has different visibility than core type") p;
+				(match f2.cf_doc with
+				| None -> f2.cf_doc <- f.cf_doc
+				| Some _ -> ());
 				if f2.cf_get <> f.cf_get || f2.cf_set <> f.cf_set then begin
 					match f2.cf_get, f.cf_get, f2.cf_set, f.cf_set with
 					| InlineAccess, NormalAccess, NeverAccess, MethodAccess false -> () (* allow to add 'inline' *)

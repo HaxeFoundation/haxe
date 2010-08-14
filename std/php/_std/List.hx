@@ -23,11 +23,6 @@
  * DAMAGE.
  */
 
-/**
-	A linked-list of elements. The list is composed of two-elements arrays
-	that are chained together. It's optimized so that adding or removing an
-	element doesn't imply to copy the whole array content everytime.
-**/
 @:core_api class List<T> implements php.IteratorAggregate<T> {
 
 	private var h : ArrayAccess<Dynamic>;

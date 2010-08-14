@@ -23,7 +23,7 @@
  * DAMAGE.
  */
 
-@:core_type class Std {
+@:core_api class Std {
 
 	public static function is( v : Dynamic, t : Dynamic ) : Bool {
 		return untyped untyped __call__("_hx_instanceof", v,t);

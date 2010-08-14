@@ -23,11 +23,7 @@
  * DAMAGE.
  */
 
-/**
-	The Reflect API is a way to manipulate values dynamicly through an
-	abstract interface in an untyped manner. Use with care.
-**/
-@:core_type class Reflect {
+@:core_api class Reflect {
 
 	public inline static function hasField( o : Dynamic, field : String ) : Bool {
 		return untyped __call__("_hx_has_field", o, field);
@@ -101,6 +97,6 @@
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
 		untyped __php__("return array(new _hx_lambda(array(&$f), '_hx_make_var_args'), 'execute')");
 	}
-	
-	
+
+
 }

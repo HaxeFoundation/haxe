@@ -108,7 +108,7 @@ and tclass_field = {
 	cf_name : string;
 	mutable cf_type : t;
 	cf_public : bool;
-	cf_doc : Ast.documentation;
+	mutable cf_doc : Ast.documentation;
 	cf_meta : metadata;
 	cf_get : field_access;
 	cf_set : field_access;

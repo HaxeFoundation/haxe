@@ -10,7 +10,8 @@ enum ValueType {
 	TUnknown;
 }
 
-@:core_type class Type {
+@:core_api class Type {
+
 	public static function getClass<T>( o : T ) : Class<T> untyped {
 		if(o == null) return null;
 		untyped if(__call__("is_array",  o)) {

@@ -88,10 +88,12 @@ class XmlParser {
 
 	function mergeClasses( c : Classdef, c2 : Classdef ) {
 		// todo : compare supers & interfaces
-		if( c.isInterface != c2.isInterface || c.isExtern != c2.isExtern )
+		if( c.isInterface != c2.isInterface )
 			return false;
 		if( curplatform != null )
 			c.platforms.add(curplatform);
+		if( c.isExtern != c2.isExtern )
+			c.isExtern = false;
 
 		for( f2 in c2.fields ) {
 			var found = null;
