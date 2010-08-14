@@ -404,13 +404,20 @@ enum XmlType {
 	}
 
 	static function __init__() : Void untyped {
-		Element = "element";
-		PCData = "pcdata";
-		CData = "cdata";
-		Comment = "comment";
-		DocType = "doctype";
-		Prolog = "prolog";
-		Document = "document";
+		PCData = Type.createEnum(XmlType,"__");
+		Element = Type.createEnum(XmlType,"__");
+		CData =  Type.createEnum(XmlType,"__");
+		Comment = Type.createEnum(XmlType,"__");
+		DocType = Type.createEnum(XmlType,"__");
+		Prolog =  Type.createEnum(XmlType,"__");
+		Document = Type.createEnum(XmlType,"__");
+		__global__.__hxcpp_enum_force(PCData , "pcdata", 0);
+		__global__.__hxcpp_enum_force(Element , "element", 1);
+		__global__.__hxcpp_enum_force(CData , "cdata", 2);
+		__global__.__hxcpp_enum_force(Comment , "comment", 3);
+		__global__.__hxcpp_enum_force(DocType , "doctype", 4);
+		__global__.__hxcpp_enum_force(Prolog , "prolog", 5);
+		__global__.__hxcpp_enum_force(Document , "document", 6);
 	}
 
 }
