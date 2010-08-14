@@ -31,10 +31,6 @@
 **/
 
 
-#if (cpp && !xmldoc)
-typedef XmlType = String;
-typedef Xml = cpp.CppXml__;
-#else
 
 enum XmlType {
 }
@@ -250,7 +246,6 @@ extern class Xml {
 #end
 }
 
-#end
 
 
 

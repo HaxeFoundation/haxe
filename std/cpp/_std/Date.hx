@@ -23,97 +23,45 @@
  * DAMAGE.
  */
 
-/**
-	The Date class is used for date manipulation. There is some extra functions
-	available in the [DateTools] class.
-**/
 
-package cpp;
+@:core_api  class Date {
 
-class CppDate__
-{
-	var mSeconds:Float;
+	private var mSeconds:Float;
 
-	/**
-		Creates a new date object.
-	**/
 	public function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void	{
 		mSeconds = untyped __global__.__hxcpp_new_date(year,month,day,hour,min,sec);
 	}
 
-	/**
-		Returns the timestamp of the date. It's the number of milliseconds
-		elapsed since 1st January 1970. It might only have a per-second precision
-		depending on the platforms.
-	**/
 	public function getTime() : Float {
 		return mSeconds * 1000.0;
 	}
 
-	/**
-		Returns the hours value of the date (0-23 range).
-	**/
 	public function getHours() : Int { return untyped __global__.__hxcpp_get_hours(mSeconds); }
 
-	/**
-		Returns the minutes value of the date (0-59 range).
-	**/
 	public function getMinutes() : Int { return untyped __global__.__hxcpp_get_minutes(mSeconds); }
 
-	/**
-		Returns the seconds of the date (0-59 range).
-	**/
 	public function getSeconds() : Int { return untyped __global__.__hxcpp_get_seconds(mSeconds); }
 
-	/**
-		Returns the full year of the date.
-	**/
 	public function getFullYear() : Int { return untyped __global__.__hxcpp_get_year(mSeconds); }
 
-	/**
-		Returns the month of the date (0-11 range).
-	**/
 	public function getMonth() : Int { return untyped __global__.__hxcpp_get_month(mSeconds); }
 
-	/**
-		Returns the day of the date (1-31 range).
-	**/
 	public function getDate() : Int { return untyped __global__.__hxcpp_get_date(mSeconds); }
 
-	/**
-		Returns the week day of the date (0-6 range).
-	**/
 	public function getDay() : Int { return untyped __global__.__hxcpp_get_day(mSeconds); }
 
-	/**
-		Returns a string representation for the Date, by using the
-		standard format [YYYY-MM-DD HH:MM:SS]. See [DateTools.format] for
-		other formating rules.
-	**/
 	public function toString():String { return untyped __global__.__hxcpp_to_string(mSeconds); }
 
-	/**
-		Returns a Date representing the current local time.
-	**/
 	public static function now() : Date {
 		return fromTime( untyped __global__.__hxcpp_date_now()*1000.0);
 	}
 
-	/**
-		Returns a Date from a timestamp [t] which is the number of
-		milliseconds elapsed since 1st January 1970.
-	**/
 	public static function fromTime( t : Float ) : Date {
 		var result = new Date(0,0,0,0,0,0);
 		result.mSeconds = t*0.001;
 		return result;
 	}
 
-	/**
-		Returns a Date from a formated string of one of the following formats :
-		[YYYY-MM-DD hh:mm:ss] or [YYYY-MM-DD] or [hh:mm:ss]. The first two formats
-		are expressed in local time, the third in UTC Epoch.
-	**/
 	public static function fromString( s : String ) : Date {
 		switch( s.length ) {
 			case 8: // hh:mm:ss

@@ -28,10 +28,6 @@
 	available in the [DateTools] class.
 **/
 
-#if (cpp && !xmldoc)
-typedef Date = cpp.CppDate__;
-#else
-
 extern class Date
 {
 	/**
@@ -115,7 +111,7 @@ extern class Date
 	function getLocaleTime():String;
 	#end
 
-#if !(php || neko)
+#if !(php || neko || cpp)
 	private static function __init__() : Void untyped {
 		var d #if !swf_mark : Dynamic #end = Date;
 		d.now = function() {
@@ -185,4 +181,3 @@ extern class Date
 #end
 }
 
-#end // !cpp

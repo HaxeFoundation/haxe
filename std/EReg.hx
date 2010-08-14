@@ -335,9 +335,9 @@ class EReg {
 	}
 
 #if cpp
-	static var regexp_new_options = cpp.Lib.load("regexp","regexp_new_options",2);
-	static var regexp_match = cpp.Lib.load("regexp","regexp_match",4);
-	static var regexp_matched = cpp.Lib.load("regexp","regexp_matched",2);
+	static var regexp_new_options : String -> String -> Dynamic = cpp.Lib.load("regexp","regexp_new_options",2);
+	static var regexp_match : Dynamic -> String -> Int -> Int -> Dynamic = cpp.Lib.load("regexp","regexp_match",4);
+	static var regexp_matched : Dynamic -> Int -> Dynamic = cpp.Lib.load("regexp","regexp_matched",2);
 	static var regexp_matched_pos : Dynamic -> Int -> { pos : Int, len : Int } = cpp.Lib.load("regexp","regexp_matched_pos",2);
 #end
 

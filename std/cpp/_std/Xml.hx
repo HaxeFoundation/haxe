@@ -22,11 +22,19 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package cpp;
 
-import Xml;
+enum XmlType {
+   element;
+   pcdata;
+   cdata;
+   comment;
+   doctype;
+   prolog;
+   document;
+}
 
-class CppXml__ {
+
+@:core_api class Xml {
 	public static var Element(default,null) : XmlType;
 	public static var PCData(default,null) : XmlType;
 	public static var CData(default,null) : XmlType;
@@ -40,20 +48,20 @@ class CppXml__ {
 	private var _nodeValue : String;
 	private var _attributes : Dynamic<String>;
 	private var _children : Array<Dynamic>;
-	private var _parent : CppXml__;
+	private var _parent : Xml;
 
-	private function new() {
+	function new() : Void {
 	}
 
 	private static var _parse = cpp.Lib.load("std","parse_xml",2);
 
-	public static function parse( xmlData : String ) : CppXml__ {
-		var x = new CppXml__();
+	public static function parse( xmlData : String ) : Xml {
+		var x = new Xml();
 		x._children = new Array();
 		var parser = {
 			cur : x,
 			xml : function(name,att) {
-				var x : Dynamic = new CppXml__();
+				var x : Dynamic = new Xml();
 				x._parent = untyped this.cur;
 				x.nodeType = Xml.Element;
 				x._nodeName = new String(name);
@@ -66,21 +74,21 @@ class CppXml__ {
 				}
 			},
 			cdata : function(text) {
-				var x = new CppXml__();
+				var x = new Xml();
 				x._parent = untyped this.cur;
 				x.nodeType = Xml.CData;
 				x._nodeValue = new String(text);
 				untyped this.cur.addChild(x);
 			},
 			pcdata : function(text) {
-				var x = new CppXml__();
+				var x = new Xml();
 				x._parent = untyped this.cur;
 				x.nodeType = Xml.PCData;
 				x._nodeValue = new String(text);
 				untyped this.cur.addChild(x);
 			},
 			comment : function(text:String) {
-				var x = new CppXml__();
+				var x = new Xml();
 				x._parent = untyped this.cur;
 				if( untyped text.cca(0) == 63 ) {
 					x.nodeType = Xml.Prolog;
@@ -94,7 +102,7 @@ class CppXml__ {
 				untyped this.cur.addChild(x);
 			},
 			doctype : function(text) {
-				var x = new CppXml__();
+				var x = new Xml();
 				x._parent = untyped this.cur;
 				x.nodeType = Xml.DocType;
 				x._nodeValue = (new String(text)).substr(1);
@@ -110,8 +118,8 @@ class CppXml__ {
 	}
 
 
-	public static function createElement( name : String ) : CppXml__ {
-		var r = new CppXml__();
+	public static function createElement( name : String ) : Xml {
+		var r = new Xml();
 		r.nodeType = Xml.Element;
 		r._nodeName = name;
 		r._attributes = null;
@@ -119,63 +127,52 @@ class CppXml__ {
 		return r;
 	}
 
-	public static function createPCData( data : String ) : CppXml__ {
-		var r = new CppXml__();
+	public static function createPCData( data : String ) : Xml {
+		var r = new Xml();
 		r.nodeType = Xml.PCData;
 		r._nodeValue = data;
 		return r;
 	}
 
-	public static function createCData( data : String ) : CppXml__ {
-		var r = new CppXml__();
+	public static function createCData( data : String ) : Xml {
+		var r = new Xml();
 		r.nodeType = Xml.CData;
 		r._nodeValue = data;
 		return r;
 	}
 
-	public static function createComment( data : String ) : CppXml__ {
-		var r = new CppXml__();
+	public static function createComment( data : String ) : Xml {
+		var r = new Xml();
 		r.nodeType = Xml.Comment;
 		r._nodeValue = data;
 		return r;
 	}
 
-	public static function createDocType( data : String ) : CppXml__ {
-		var r = new CppXml__();
+	public static function createDocType( data : String ) : Xml {
+		var r = new Xml();
 		r.nodeType = Xml.DocType;
 		r._nodeValue = data;
 		return r;
 	}
 
-	public static function createProlog( data : String ) : CppXml__ {
-		var r = new CppXml__();
+	public static function createProlog( data : String ) : Xml {
+		var r = new Xml();
 		r.nodeType = Xml.Prolog;
 		r._nodeValue = data;
 		return r;
 	}
 
-	public static function createDocument() : CppXml__ {
-		var r = new CppXml__();
+	public static function createDocument() : Xml {
+		var r = new Xml();
 		r.nodeType = Xml.Document;
 		r._children = new Array();
 		return r;
 	}
 
-	/**
-		Returns the type of the Xml Node. This should be used before
-		accessing other functions since some might raise an exception
-		if the node type is not correct.
-	**/
 	public var nodeType(default,null) : XmlType;
 
-	/**
-		Returns the node name of an Element.
-	**/
 	public var nodeName(getNodeName,setNodeName) : String;
 
-	/**
-		Returns the node value. Only works if the Xml node is not an Element or a Document.
-	**/
 	public var nodeValue(getNodeValue,setNodeValue) : String;
 
 
@@ -203,7 +200,7 @@ class CppXml__ {
 		return _nodeValue = v;
 	}
 
-	var parent(getParent,null) : Xml;
+	public var parent(getParent,null) : Xml;
 	private function getParent() : Xml {
 		return _parent;
 	}
@@ -326,15 +323,14 @@ class CppXml__ {
 		if( _children == null )
 			throw "bad nodetype";
 		for( cur in 0..._children.length ) {
-			var n:CppXml__ = _children[cur];
+			var n:Xml = _children[cur];
 			if( n.nodeType == Xml.Element )
 				return n;
 		}
 		return null;
 	}
 
-   public function addChild( x_ : Xml ) : Void {
-      var x:CppXml__ = cast x_;
+   public function addChild( x : Xml ) : Void {
 		if( _children == null )
 			throw "bad nodetype";
 		if( x._parent != null ) x._parent._children.remove(x);
@@ -343,8 +339,7 @@ class CppXml__ {
 		return null;
 	}
 
-   public function removeChild( x_ : Xml ) : Bool {
-      var x:CppXml__ = cast x_;
+   public function removeChild( x : Xml ) : Bool {
 		if( _children == null )
 			throw "bad nodetype";
 		var b = _children.remove( x );
@@ -352,8 +347,7 @@ class CppXml__ {
 		return b;
 	}
 
-	public function insertChild( x_ : Xml, pos : Int ) : Void {
-      var x:CppXml__ = cast x_;
+	public function insertChild( x : Xml, pos : Int ) : Void {
 		if( _children == null )
 			throw "bad nodetype";
 		if( x._parent != null ) x._parent._children.remove(x);
@@ -362,13 +356,13 @@ class CppXml__ {
 		return null;
 	}
 
-	public function toString() {
+	public function toString() : String {
 		var s = new StringBuf();
 		toStringRec(s);
 		return s.toString();
 	}
 
-	public function toStringRec(s: StringBuf) {
+	private function toStringRec(s: StringBuf) : Void {
 		switch( nodeType ) {
 		case Xml.Document:
 			for( x in _children )
@@ -417,14 +411,16 @@ class CppXml__ {
 		}
 	}
 
-	static function __init__() : Void {
-		Element = "element";
-		PCData = "pcdata";
-		CData = "cdata";
-		Comment = "comment";
-		DocType = "doctype";
-		Prolog = "prolog";
-		Document = "document";
+	// Must call this after XML elements have been constructed
+	static function __do_init() : Void {
+		Element = XmlType.element;
+		PCData = XmlType.pcdata;
+		CData = XmlType.cdata;
+		Comment = XmlType.comment;
+		DocType = XmlType.doctype;
+		Prolog = XmlType.prolog;
+		Document = XmlType.document;
 	}
+	static var __init_later = __do_init();
 }
 
