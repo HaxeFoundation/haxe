@@ -1,4 +1,4 @@
-2010-??-??: 2.06
+2010-08-14: 2.06
 	neko : change serializer to be able to handle instances of basic classes from other modules
 	js : add Document.createTextNode
 	all : bugfix with inline when modifying var with same name as one of current local
@@ -72,7 +72,7 @@
 	cpp : Added some initial support for v8 script target
 	cpp : Use non-recursive GC marking to avoid overflow in big lists
 	cpp : Added __hxcpp_obj_id
-	
+
 2010-01-09: 2.05
 	js : added js.Scroll
 	js : package names are now checked at runtime to avoid clashes with existing libs
