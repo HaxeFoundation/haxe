@@ -22,7 +22,12 @@ class Main {
 			libDir = "/usr/lib";
 			binDir = "/usr/bin";
 		}
-		baseDir = if( SYS == "Windows" ) neko.Sys.getEnv("ProgramFiles") + "/Motion-Twin" else libDir;
+		baseDir = if( SYS == "Windows" ) {
+			// use C:/ for Vista, Win7
+			var baseDir = (neko.Sys.getEnv("ALLUSERSPROFILE") == "C:\\ProgramData") ? "C:" : neko.Sys.getEnv("ProgramFiles");
+			baseDir + "/Motion-Twin";
+		} else
+			libDir;
 	}
 
 	function newVersion(v1,v2) {
