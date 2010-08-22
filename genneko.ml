@@ -23,7 +23,7 @@ open Nxml
 open Common
 
 type context = {
-	com : Common.context;	
+	com : Common.context;
 	mutable curclass : string;
 	mutable curmethod : string;
 	mutable locals : (string , bool) PMap.t;
@@ -217,7 +217,7 @@ and gen_call ctx p e el =
 			array p (List.map (gen_expr ctx) el)
 		]
 	| TLocal "__resources__", [] ->
-		call p (builtin p "array") (Hashtbl.fold (fun name data acc -> 
+		call p (builtin p "array") (Hashtbl.fold (fun name data acc ->
 			(EObject [("name",gen_constant ctx e.epos (TString name));("data",gen_big_string ctx p data)],p) :: acc
 		) ctx.com.resources [])
 	| TField ({ eexpr = TConst TSuper; etype = t },f) , _ ->
@@ -687,7 +687,7 @@ let gen_name ctx acc t =
 		let path = gen_type_path p e.e_path in
 		let setname = (EBinop ("=",field p path "__ename__",arr),p) in
 		let arr = call p (field p (ident p "Array") "new1") [array p (List.map (fun n -> gen_constant ctx e.e_pos (TString n)) e.e_names); int p (List.length e.e_names)] in
-		let setconstrs = (EBinop ("=", field p path "__constructs__", arr),p) in		
+		let setconstrs = (EBinop ("=", field p path "__constructs__", arr),p) in
 		let meta = (match Codegen.build_metadata ctx.com (TEnumDecl e) with
 			| None -> []
 			| Some e -> [EBinop ("=",field p path "__meta__", gen_expr ctx e),p]
@@ -726,55 +726,77 @@ let generate_libs_init = function
 			acc ^ "$loader.path = $array(" ^ (if full_path then "" else "@b + ") ^ "\"" ^ Nast.escape l ^ "\" + @s,$loader.path);"
 		) boot libs
 
-let generate com libs =
-	let ctx = {
-		com = com;		
+let new_context com =
+	{
+		com = com;
 		curclass = "$boot";
 		curmethod = "$init";
 		inits = [];
 		curblock = [];
 		locals = PMap.empty;
-	} in
-	let t = Common.timer "neko compilation" in
+	}
+
+let header() =
+	let p = { psource = "<header>"; pline = 1 } in
+	let fields l =
+		let rec loop = function
+			| [] -> assert false
+			| [x] -> ident p x
+			| x :: l -> field p (loop l) x
+		in
+		loop (List.rev l)
+	in
+	let func pl e =
+		(EFunction (pl,(EReturn (Some e),p)),p)
+	in
+	let inits = [
+		"@classes",call p (builtin p "new") [null p];
+		"@Main",call p (builtin p "new") [null p];
+		"@enum_to_string",func [] (call p (fields ["neko";"Boot";"__enum_str"]) [this p]);
+		"@serialize",func [] (call p (fields ["neko";"Boot";"__serialize"]) [this p]);
+		"@tag_serialize",func [] (call p (fields ["neko";"Boot";"__tagserialize"]) [this p]);
+		"@lazy_error",func ["e"] (call p (builtin p "varargs") [func ["_"] (call p (builtin p "throw") [ident p "e"])]);
+	] in
+	let inits = inits @ List.map (fun nargs ->
+		let args = Array.to_list (Array.init nargs (fun i -> Printf.sprintf "%c" (char_of_int (int_of_char 'a' + i)))) in
+		let efun = (EFunction (args,(EBlock [
+			(EBinop ("=",ident p "this",ident p "@this"),p);
+			call p (ident p "@fun") (List.map (ident p) args);
+		],p)),p) in
+		let eif = EIf ((EBinop ("==",ident p "@fun",null p),p),null p,Some efun) in
+		let e = func ["@this";"@fun"] (eif,p) in
+		"@closure" ^ string_of_int nargs, e
+	) [0;1;2;3;4;5] in
+	List.map (fun (v,e)-> EBinop ("=",ident p v,e),p) inits
+
+let generate com libs =
+	let ctx = new_context com in
+	let t = Common.timer "neko generation" in
 	let h = Hashtbl.create 0 in
-	let header = ENeko (
-		"@classes = $new(null);" ^
-		"@Main = $new(null);" ^
-		"@enum_to_string = function() { return neko.Boot.__enum_str(this); };" ^
-		"@serialize = function() { return neko.Boot.__serialize(this); };" ^
-		"@tag_serialize = function() { return neko.Boot.__tagserialize(this); };" ^
-		"@lazy_error = function(e) return $varargs(function(_) $throw(e));" ^
-		"@closure0 = function(@this,@fun) if( @fun == null ) null else function() { this = @this; @fun(); };" ^
-		"@closure1 = function(@this,@fun) if( @fun == null ) null else function(a) { this = @this; @fun(a); };" ^
-		"@closure2 = function(@this,@fun) if( @fun == null ) null else function(a,b) { this = @this; @fun(a,b); };" ^
-		"@closure3 = function(@this,@fun) if( @fun == null ) null else function(a,b,c) { this = @this; @fun(a,b,c); };" ^
-		"@closure4 = function(@this,@fun) if( @fun == null ) null else function(a,b,c,d) { this = @this; @fun(a,b,c,d); };" ^
-		"@closure5 = function(@this,@fun) if( @fun == null ) null else function(a,b,c,d,e) { this = @this; @fun(a,b,c,d,e); };" ^
-		generate_libs_init libs
-	) , { psource = "<header>"; pline = 1; } in
+	let libs = (ENeko (generate_libs_init libs) , { psource = "<header>"; pline = 1; }) in
 	let packs = List.concat (List.map (gen_package ctx h) com.types) in
 	let names = List.fold_left (gen_name ctx) [] com.types in
 	let methods = List.rev (List.fold_left (fun acc t -> gen_type ctx t acc) [] com.types) in
 	let boot = gen_boot ctx in
-	let inits = List.map (fun (c,e) -> 
+	let inits = List.map (fun (c,e) ->
 		ctx.curclass <- s_type_path c.cl_path;
 		ctx.curmethod <- "__init__";
 		gen_expr ctx e
 	) (List.rev ctx.inits) in
 	let vars = List.concat (List.map (gen_static_vars ctx) com.types) in
-	let e = (EBlock (header :: packs @ methods @ boot :: names @ inits @ vars), null_pos) in
+	let e = (EBlock ((header()) @ libs :: packs @ methods @ boot :: names @ inits @ vars), null_pos) in
 	let neko_file = (try Filename.chop_extension com.file with _ -> com.file) ^ ".neko" in
 	let ch = IO.output_channel (open_out_bin neko_file) in
 	let source = Common.defined com "neko_source" in
 	if source then Nxml.write ch (Nxml.to_xml e) else Binast.write ch e;
 	IO.close_out ch;
+	t();
 	let command cmd = try Sys.command cmd with _ -> -1 in
 	if source then begin
 		if command ("nekoc -p \"" ^ neko_file ^ "\"") <> 0 then failwith "Failed to print neko code";
 		Sys.remove neko_file;
 		Sys.rename ((try Filename.chop_extension com.file with _ -> com.file) ^ "2.neko") neko_file;
 	end;
-	t();
 	let c = Common.timer "neko compilation" in
 	if command ("nekoc \"" ^ neko_file ^ "\"") <> 0 then failwith "Neko compilation failure";
 	c();
