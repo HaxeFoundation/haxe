@@ -117,6 +117,7 @@ let rec read_type_path com p =
 			(try
 				match PMap.find x com.package_rules with
 				| Directory d -> d :: l
+				| Remap s -> s :: l
 				| _ -> p
 			with
 				Not_found -> p)
