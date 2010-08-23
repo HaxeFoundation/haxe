@@ -760,7 +760,7 @@ let header() =
 	let inits = inits @ List.map (fun nargs ->
 		let args = Array.to_list (Array.init nargs (fun i -> Printf.sprintf "%c" (char_of_int (int_of_char 'a' + i)))) in
 		let efun = (EFunction (args,(EBlock [
-			(EBinop ("=",ident p "this",ident p "@this"),p);
+			(EBinop ("=",(EConst This,p),ident p "@this"),p);
 			call p (ident p "@fun") (List.map (ident p) args);
 		],p)),p) in
 		let eif = EIf ((EBinop ("==",ident p "@fun",null p),p),null p,Some efun) in
