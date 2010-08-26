@@ -38,6 +38,8 @@ and vabstract =
 	| AKind of vabstract
 	| AInt32 of int32
 	| AHash of (value, value) Hashtbl.t
+	| ARandom of Random.State.t
+	| ABuffer of Buffer.t
 
 and vfunction =
 	| Fun0 of (unit -> value)
@@ -48,39 +50,54 @@ and vfunction =
 	| Fun5 of (value -> value -> value -> value -> value -> value)
 	| FunVar of (value list -> value)
 
-type context = {
-	gen : Genneko.context;
-	types : (Type.path,bool) Hashtbl.t;
-	globals : (string, value) Hashtbl.t;
-	mutable locals : (string, value) PMap.t;
-	mutable stack : pos list;
-	mutable exc : pos list;
-	mutable vthis : value;
-}
-
-exception Runtime of value
-exception Builtin_error
-
-exception Continue
-exception Break of value
-exception Return of value
-
-let do_call_ref = ref (fun vthis vfun pl p -> assert false)
-let do_call (vthis:value) (vfun:value) (pl:value list) (p:pos) : value = (!do_call_ref) vthis vfun pl p
-
-let get_ctx_ref = ref (fun() -> assert false)
-let get_ctx() = (!get_ctx_ref)()
-
 type cmp =
 	| CEq
 	| CSup
 	| CInf
 	| CUndef
 
-let do_compare a b = assert false
+type context = {
+	com : Common.context;
+	gen : Genneko.context;
+	packages : (string list,unit) Hashtbl.t;
+	types : (Type.path,bool) Hashtbl.t;
+	globals : (string, value) Hashtbl.t;
+	mutable do_call : value -> value -> value list -> pos -> value;
+	mutable do_string : value -> string;
+	mutable do_loadprim : value -> value -> value;
+	mutable do_compare : value -> value -> cmp;
+	mutable locals : (string, value ref) PMap.t;
+	mutable stack : pos list;
+	mutable exc : pos list;
+	mutable vthis : value;
+}
 
-let to_string v =
-	assert false
+type access =
+	| AccField of value * string
+	| AccArray of value * value
+	| AccVar of string
+
+exception Runtime of value
+exception Builtin_error
+
+exception Error of string * Ast.pos list
+
+exception Continue
+exception Break of value
+exception Return of value
+
+let get_ctx_ref = ref (fun() -> assert false)
+let get_ctx() = (!get_ctx_ref)()
+
+let make_pos p =
+	{
+		Ast.pfile = p.psource;
+		Ast.pmin = if p.pline < 0 then 0 else p.pline land 0xFFFF;
+		Ast.pmax = if p.pline < 0 then 0 else p.pline lsr 16;
+	}
+
+let warn ctx msg p =
+	ctx.com.Common.warning msg (make_pos p)
 
 let exc v =
 	raise (Runtime v)
@@ -121,6 +138,14 @@ let rec get_field o fname =
 		| None -> VNull
 		| Some p -> get_field p fname
 
+let rec get_field_opt o fname =
+	try
+		Some (Hashtbl.find o.ofields fname)
+	with Not_found ->
+		match o.oproto with
+		| None -> None
+		| Some p -> get_field_opt p fname
+
 let builtins =
 	let p = { psource = "<builtin>"; pline = 0 } in
 	let error() =
@@ -150,6 +175,13 @@ let builtins =
 		| VAbstract (AHash h) -> h
 		| _ -> error()
 	in
+	let build_stack sl =
+		let make p =
+			let p = make_pos p in
+			VArray [|VString p.Ast.pfile;VInt (Lexer.get_error_line p)|]
+		in
+		VArray (Array.of_list (List.map make sl))
+	in
 	let funcs = [
 		"array", FunVar (fun vl -> VArray (Array.of_list vl));
 		"amake", Fun1 (fun v -> VArray (Array.create (vint v) VNull));
@@ -164,7 +196,7 @@ let builtins =
 			let arr = Array.map varray (varray arr) in
 			VArray (Array.concat (Array.to_list arr))
 		);
-		"string", Fun1 (fun v -> VString (to_string v));
+		"string", Fun1 (fun v -> VString ((get_ctx()).do_string v));
 		"smake", Fun1 (fun l -> VString (String.create (vint  l)));
 		"ssize", Fun1 (fun s -> VInt (String.length (vstring s)));
 		"scopy", Fun1 (fun s -> VString (String.copy (vstring s)));
@@ -204,7 +236,7 @@ let builtins =
 		"objcall", Fun3 (fun o f pl ->
 			match o with
 			| VObject oo ->
-				do_call o (get_field oo (vstring f)) (Array.to_list (varray pl)) p
+				(get_ctx()).do_call o (get_field oo (vstring f)) (Array.to_list (varray pl)) p
 			| _ -> VNull
 		);
 		"objfield", Fun2 (fun o f ->
@@ -244,26 +276,26 @@ let builtins =
 			VInt (nargs (vfun f))
 		);
 		"call", Fun3 (fun f o args ->
-			do_call o f (Array.to_list (varray args)) p
+			(get_ctx()).do_call o f (Array.to_list (varray args)) p
 		);
 		"closure", FunVar (fun vl ->
 			match vl with
 			| f :: obj :: args ->
 				let f = vfun f in
-				VFunction (FunVar (fun args2 -> do_call obj (VFunction f) (args @ args2) p))
+				VFunction (FunVar (fun args2 -> (get_ctx()).do_call obj (VFunction f) (args @ args2) p))
 			| _ -> exc (VString "Invalid closure arguments number")
 		);
 		"apply", FunVar (fun vl ->
 			match vl with
 			| f :: args ->
 				let f = vfun f in
-				VFunction (FunVar (fun args2 -> do_call VNull (VFunction f) (args @ args2) p))
+				VFunction (FunVar (fun args2 -> (get_ctx()).do_call VNull (VFunction f) (args @ args2) p))
 			| _ -> exc (VString "Invalid closure arguments number")
 		);
 		"varargs", Fun1 (fun f ->
 			match f with
 			| VFunction (FunVar _) | VFunction (Fun1 _) ->
-				VFunction (FunVar (fun vl -> do_call VNull f [VArray (Array.of_list vl)] p))
+				VFunction (FunVar (fun vl -> (get_ctx()).do_call VNull f [VArray (Array.of_list vl)] p))
 			| _ ->
 				error()
 		);
@@ -314,9 +346,9 @@ let builtins =
 		);
 		"hresize", Fun1 (fun v -> VNull);
 		(* TODO : $h functions *)
-		"hiter", Fun2 (fun h f -> Hashtbl.iter (fun v k -> ignore (do_call VNull f [v;k] p)) (vhash h); VNull);
+		"hiter", Fun2 (fun h f -> Hashtbl.iter (fun v k -> ignore ((get_ctx()).do_call VNull f [v;k] p)) (vhash h); VNull);
 		"hcount", Fun1 (fun h -> VInt (Hashtbl.length (vhash h)));
-		"print", FunVar (fun vl -> List.iter (fun v -> print_string (to_string v)) vl; VNull);
+		"print", FunVar (fun vl -> List.iter (fun v -> print_string ((get_ctx()).do_string v)) vl; VNull);
 		"throw", Fun1 (fun v -> exc v);
 		"rethrow", Fun1 (fun v -> exc v);
 		"istrue", Fun1 (fun v ->
@@ -342,7 +374,7 @@ let builtins =
 			| VAbstract _ -> 8)
 		);
 		"compare", Fun2 (fun a b ->
-			match do_compare a b with
+			match (get_ctx()).do_compare a b with
 			| CUndef -> VNull
 			| CEq -> VInt 0
 			| CSup -> VInt 1
@@ -352,10 +384,10 @@ let builtins =
 	 		assert false
 	 	);
 	 	"excstack", Fun0 (fun() ->
-	 		assert false
+			build_stack (get_ctx()).exc
 	 	);
 	 	"callstack", Fun0 (fun() ->
-	 		assert false
+	 		build_stack (get_ctx()).stack
 	 	);
 	 	"version", Fun0 (fun() ->
 	 		VInt 0
@@ -375,6 +407,112 @@ let builtins =
 	let h = Hashtbl.create 0 in
 	List.iter (fun (n,f) -> Hashtbl.add h n (VFunction f)) funcs;
 	List.iter (fun (n,v) -> Hashtbl.add h n v) vals;
+	let loader = {
+		ofields = Hashtbl.create 0;
+		oproto = None;
+	} in
+	Hashtbl.add loader.ofields "loadprim" (VFunction (Fun2 (fun a b -> (get_ctx()).do_loadprim a b)));
+	Hashtbl.add loader.ofields "loadmodule" (VFunction (Fun2 (fun a b -> assert false)));
+	Hashtbl.add loader.ofields "args" (VArray [||]);
+	Hashtbl.add h "loader" (VObject loader);
+	Hashtbl.add h "exports" (VObject { ofields = Hashtbl.create 0; oproto = None });
+	h
+
+let std_lib =
+	let error() =
+		raise Builtin_error
+	in
+	let make_list l =
+		let rec loop acc = function
+			| [] -> acc
+			| x :: l -> loop (VArray [|x;acc|]) l
+		in
+		loop VNull (List.rev l) 
+	in
+	let num = function
+		| VInt i -> float_of_int i
+		| VFloat f -> f
+		| _ -> error()
+	in
+	let funcs = [
+		"random_new", Fun0 (fun() -> VAbstract (ARandom (Random.State.make_self_init())));
+	(* math *)
+		"math_atan2", Fun2 (fun a b -> VFloat (atan2 (num a) (num b)));
+		"math_pow", Fun2 (fun a b -> VFloat ((num a) ** (num b)));
+		"math_abs", Fun1 (fun v ->
+			match v with
+			| VInt i -> VInt (abs i)
+			| VFloat f -> VFloat (abs_float f)
+			| _ -> error()
+		);
+		"math_ceil", Fun1 (fun v -> VInt (int_of_float (ceil (num v))));
+		"math_floor", Fun1 (fun v -> VInt (int_of_float (floor (num v))));
+		"math_round", Fun1 (fun v -> VInt (int_of_float (floor (num v +. 0.5))));
+		"math_pi", Fun0 (fun() -> VFloat (4.0 *. atan 1.0));
+		"math_sqrt", Fun1 (fun v -> VFloat (sqrt (num v)));
+		"math_atan", Fun1 (fun v -> VFloat (atan (num v)));
+		"math_cos", Fun1 (fun v -> VFloat (cos (num v)));
+		"math_sin", Fun1 (fun v -> VFloat (sin (num v)));
+		"math_tan", Fun1 (fun v -> VFloat (tan (num v)));
+		"math_log", Fun1 (fun v -> VFloat (log (num v)));
+		"math_exp", Fun1 (fun v -> VFloat (exp (num v)));
+		"math_acos", Fun1 (fun v -> VFloat (acos (num v)));
+		"math_asin", Fun1 (fun v -> VFloat (asin (num v)));
+		"math_fceil", Fun1 (fun v -> VFloat (ceil (num v)));
+		"math_ffloor", Fun1 (fun v -> VFloat (floor (num v)));
+		"math_fround", Fun1 (fun v -> VFloat (floor (num v +. 0.5)));
+		"math_int", Fun1 (fun v -> 
+			match v with
+			| VInt n -> v
+			| VFloat f -> VInt (int_of_float (if f < 0. then ceil f else floor f))
+			| _ -> error()
+		);
+	(* buffer *)
+		"buffer_new", Fun0 (fun() ->
+			VAbstract (ABuffer (Buffer.create 0))
+		);
+		"buffer_add", Fun2 (fun b v ->
+			match b with
+			| VAbstract (ABuffer b) -> Buffer.add_string b ((get_ctx()).do_string v); VNull
+			| _ -> error()
+		);
+		"buffer_add_char", Fun2 (fun b v ->
+			match b, v with
+			| VAbstract (ABuffer b), VInt n when n >= 0 && n < 256 -> Buffer.add_char b (char_of_int n); VNull
+			| _ -> error()
+		);
+		"buffer_add_sub", Fun4 (fun b s p l ->
+			match b, s, p, l with
+			| VAbstract (ABuffer b), VString s, VInt p, VInt l -> (try Buffer.add_substring b s p l; VNull with _ -> error())
+			| _ -> error()
+		);
+		"buffer_string", Fun1 (fun b ->
+			match b with
+			| VAbstract (ABuffer b) -> VString (Buffer.contents b)
+			| _ -> error()
+		);
+		"buffer_reset", Fun1 (fun b ->
+			match b with
+			| VAbstract (ABuffer b) -> Buffer.reset b; VNull;
+			| _ -> error()
+		);
+	(* system *)
+		"get_env", Fun1 (fun v ->
+			match v with
+			| VString s -> (try VString (Sys.getenv s) with _ -> VNull)
+			| _ -> error()
+		);
+	(* string *)
+		"string_split", Fun2 (fun s d ->
+			make_list (match s, d with
+			| VString "", VString _ -> [VString ""]
+			| VString s, VString "" -> Array.to_list (Array.init (String.length s) (fun i -> VString (String.make 1 (String.get s i))))
+			| VString s, VString d -> List.map (fun s -> VString s) (ExtString.String.nsplit s d)
+			| _ -> error())
+		);
+	] in
+	let h = Hashtbl.create 0 in
+	List.iter (fun (n,f) -> Hashtbl.add h n f) funcs;
 	h
 
 let throw ctx p msg =
@@ -382,7 +520,15 @@ let throw ctx p msg =
 	exc (VString msg)
 
 let local ctx var value =
-	ctx.locals <- PMap.add var value ctx.locals
+	ctx.locals <- PMap.add var (ref value) ctx.locals
+
+let get_ident ctx s =
+	try
+		!(PMap.find s ctx.locals)
+	with Not_found -> try
+		Hashtbl.find ctx.globals s
+	with Not_found ->
+		VNull
 
 let rec eval ctx (e,p) =
 	match e with
@@ -396,13 +542,7 @@ let rec eval ctx (e,p) =
 		| Float f -> VFloat (float_of_string f)
 		| String s -> VString s
 		| Builtin s -> (try Hashtbl.find builtins s with Not_found -> throw ctx p ("Builtin not found '" ^ s ^ "'"))
-		| Ident s ->
-			(try
-				PMap.find s ctx.locals
-			with Not_found -> try
-				Hashtbl.find ctx.globals s
-			with Not_found ->
-				VNull))
+		| Ident s -> get_ident ctx s)
 	| EBlock el ->
 		let rec loop = function
 			| [] -> VNull
@@ -435,10 +575,7 @@ let rec eval ctx (e,p) =
 			call ctx ctx.vthis (eval ctx e) pl p)
 	| EArray (e1,e2) ->
 		let index = eval ctx e2 in
-		(match index, eval ctx e1 with
-		| VInt i, VArray a -> (try Array.get a i with _ -> VNull)
-		| _, VObject o -> oop ctx p index o "__get"
-		| _ -> throw ctx p "Invalid array access")
+		acc_get ctx p (AccArray (eval ctx e1,index));
 	| EVars vl ->
 		List.iter (fun (v,eo) ->
 			let value = (match eo with None -> VNull | Some e -> eval ctx e) in
@@ -487,9 +624,18 @@ let rec eval ctx (e,p) =
 	| ETry (e,exc,ecatch) ->
 		let locals = ctx.locals in
 		let vthis = ctx.vthis in
+		let stack = ctx.stack in
 		(try
 			eval ctx e
-		with Runtime v ->
+		with Runtime v ->			
+			let rec loop n l =
+				if n = 0 then l else
+				match l with
+				| [] -> []
+				| _ :: l -> loop (n - 1) l
+			in
+			ctx.exc <- loop (List.length stack) (List.rev ctx.stack);
+			ctx.stack <- stack;
 			ctx.locals <- locals;
 			ctx.vthis <- vthis;
 			local ctx exc v;
@@ -531,7 +677,7 @@ let rec eval ctx (e,p) =
 			)
 		)
 	| EBinop (op,e1,e2) ->
-		assert false
+		eval_op ctx op e1 e2 p
 	| EReturn None ->
 		raise (Return VNull)
 	| EReturn (Some e) ->
@@ -555,7 +701,7 @@ let rec eval ctx (e,p) =
 		) fl;
 		VObject o
 	| ELabel l ->
-		VNull
+		assert false
 	| ESwitch (e,el,eo) ->
 		let v = eval ctx e in
 		let rec loop = function
@@ -564,14 +710,198 @@ let rec eval ctx (e,p) =
 				| None -> VNull
 				| Some e -> eval ctx e)
 			| (c,e) :: l ->
-				if do_compare v (eval ctx c) = CEq then eval ctx e else loop l
+				if ctx.do_compare v (eval ctx c) = CEq then eval ctx e else loop l
 		in
 		loop el
 	| ENeko _ ->
 		throw ctx p "Inline neko code unsupported"
 
-and oop ctx o param field p =
-	assert false
+and eval_oop ctx p o field (params:value list) =
+	match get_field_opt o field with
+	| None -> None
+	| Some f -> Some (call ctx (VObject o) f params p)
+
+and eval_access ctx (e,p) =
+	match e with
+	| EField (e,f) ->
+		let v = eval ctx e in
+		AccField (v,f)
+	| EArray (e,eindex) ->
+		let idx = eval ctx eindex in
+		let v = eval ctx e in
+		AccArray (v,idx)
+	| EConst (Ident s) ->
+		AccVar s
+	| _ ->
+		throw ctx p "Invalid assign"
+
+and acc_get ctx p = function
+	| AccField (v,f) ->
+		(match v with
+		| VObject o -> get_field o f
+		| _ -> throw ctx p ("Invalid field access : " ^ f))
+	| AccArray (e,index) ->
+		(match index, e with
+		| VInt i, VArray a -> (try Array.get a i with _ -> VNull)
+		| _, VObject o -> 
+			(match eval_oop ctx p o "__get" [index] with
+			| None -> throw ctx p "Invalid array access"
+			| Some v -> v)
+		| _ -> throw ctx p "Invalid array access")
+	| AccVar s ->
+		get_ident ctx s
+
+and acc_set ctx p acc value =
+	match acc with
+	| AccField (v,f) ->
+		(match v with
+		| VObject o -> Hashtbl.replace o.ofields f value; value
+		| _ -> throw ctx p ("Invalid field access : " ^ f))
+	| AccArray (e,index) ->		
+		(match index, e with
+		| VInt i, VArray a -> (try Array.set a i value; value with _ -> throw ctx p "Invalid array access")
+		| _, VObject o -> 
+			(match eval_oop ctx p o "__set" [index;value] with
+			| None -> throw ctx p "Invalid array access"
+			| Some v -> v);
+		| _ -> throw ctx p "Invalid array access")
+	| AccVar s ->
+		(try
+			let v = PMap.find s ctx.locals in
+			v := value;
+		with Not_found ->
+			Hashtbl.replace ctx.globals s value);
+		value
+
+and number_op ctx p sop iop fop oop rop v1 v2 =
+	match v1, v2 with
+	| VInt a, VInt b -> VInt (iop a b)
+	| VFloat a, VInt b -> VFloat (fop a (float_of_int b))
+	| VInt a, VFloat b -> VFloat (fop (float_of_int a) b)
+	| VFloat a, VFloat b -> VFloat (fop a b)
+	| VObject o, _ ->
+		(match eval_oop ctx p o oop [v2] with
+		| Some v -> v
+		| None -> 
+			match v2 with
+			| VObject o ->
+				(match eval_oop ctx p o rop [v1] with
+				| Some v -> v
+				| None -> throw ctx p sop)
+			| _ ->
+				throw ctx p sop)
+	| _ , VObject o ->
+		(match eval_oop ctx p o rop [v1] with
+		| Some v -> v
+		| None -> throw ctx p sop)
+	| _ ->
+		throw ctx p sop
+
+and int_op ctx p op iop v1 v2 =
+	match v1, v2 with
+	| VInt a, VInt b -> VInt (iop a b)
+	| _ -> throw ctx p op
+
+and base_op ctx op v1 v2 p =
+	match op with
+	| "+" ->
+		(match v1, v2 with
+		| VInt _, VInt _ | VInt _ , VFloat _ | VFloat _ , VInt _ | VFloat _ , VFloat _ | VObject _ , _ | _ , VObject _ -> number_op ctx p op (+) (+.) "__add" "__radd" v1 v2		
+		| VString a, _ -> VString (a ^ ctx.do_string v2)
+		| _, VString b -> VString (ctx.do_string v1 ^ b)
+		| _ -> throw ctx p op)
+	| "-" ->
+		number_op ctx p op (-) (-.) "__sub" "__rsub" v1 v2
+	| "*" ->
+		number_op ctx p op ( * ) ( *. ) "__mult" "__rmul" v1 v2
+	| "/" ->
+		number_op ctx p op (/) (/.) "__div" "__rdiv" v1 v2
+	| "%" ->
+		number_op ctx p op (mod) mod_float "__mod" "__rmod" v1 v2
+	| "&" ->
+		int_op ctx p op (land) v1 v2
+	| "|" ->
+		int_op ctx p op (lor) v1 v2
+	| "^" ->
+		int_op ctx p op (lxor) v1 v2
+	| "<<" ->
+		int_op ctx p op (lsl) v1 v2
+	| ">>" ->
+		int_op ctx p op (lsr) v1 v2
+	| ">>>" ->
+		int_op ctx p op (asr) v1 v2
+	| _ ->
+		throw ctx p op
+
+and eval_op ctx op e1 e2 p =
+	match op with
+	| "=" ->
+		let acc = eval_access ctx e1 in
+		let v = eval ctx e2 in
+		acc_set ctx p acc v
+	| "==" ->
+		let v1 = eval ctx e1 in
+		let v2 = eval ctx e2 in
+		(match ctx.do_compare v1 v2 with
+		| CEq -> VBool true
+		| _ -> VBool false)
+	| "!=" ->
+		let v1 = eval ctx e1 in
+		let v2 = eval ctx e2 in
+		(match ctx.do_compare v1 v2 with
+		| CEq -> VBool false
+		| _ -> VBool true)
+	| ">" ->
+		let v1 = eval ctx e1 in
+		let v2 = eval ctx e2 in
+		(match ctx.do_compare v1 v2 with
+		| CSup -> VBool true
+		| _ -> VBool false)
+	| ">=" ->
+		let v1 = eval ctx e1 in
+		let v2 = eval ctx e2 in
+		(match ctx.do_compare v1 v2 with
+		| CSup | CEq -> VBool true
+		| _ -> VBool false)
+	| "<" ->
+		let v1 = eval ctx e1 in
+		let v2 = eval ctx e2 in
+		(match ctx.do_compare v1 v2 with
+		| CInf -> VBool true
+		| _ -> VBool false)
+	| "<=" ->
+		let v1 = eval ctx e1 in
+		let v2 = eval ctx e2 in
+		(match ctx.do_compare v1 v2 with
+		| CInf | CEq -> VBool true
+		| _ -> VBool false)
+	| "+" | "-" | "*" | "/" | "%" | "|" | "&" | "^" | "<<" | ">>" | ">>>" ->		
+		let v1 = eval ctx e1 in
+		let v2 = eval ctx e2 in
+		base_op ctx op v1 v2 p
+	| "+=" | "-=" | "*=" | "/=" | "%=" | "<<=" | ">>=" | ">>>=" | "|=" | "&=" | "^=" ->
+		let acc = eval_access ctx e1 in
+		let v1 = acc_get ctx p acc in
+		let v2 = eval ctx e2 in
+		let v = base_op ctx (String.sub op 0 (String.length op - 1)) v1 v2 p in
+		acc_set ctx p acc v
+	| "&&" ->
+		(match eval ctx e1 with
+		| VBool false as v -> v
+		| _ -> eval ctx e2)
+	| "||" ->
+		(match eval ctx e1 with
+		| VBool true as v -> v
+		| _ -> eval ctx e2)
+	| "++=" | "--=" ->
+		let acc = eval_access ctx e1 in
+		let v1 = acc_get ctx p acc in
+		let v2 = eval ctx e2 in
+		let v = base_op ctx (String.sub op 0 1) v1 v2 p in
+		ignore(acc_set ctx p acc v);
+		v1
+	| _ ->
+		throw ctx p ("Unsupported " ^ op)
 
 and call ctx vthis vfun pl p =
 	let oldthis = ctx.vthis in
@@ -594,26 +924,142 @@ and call ctx vthis vfun pl p =
 			| _ -> exc (VString "Invalid call"))
 		| _ ->
 			exc (VString "Invalid call"))
-	with Return v -> v) in
+	with Return v -> v
+		| Builtin_error | Invalid_argument _ -> exc (VString "Invalid call")) in
 	ctx.locals <- locals;
 	ctx.vthis <- oldthis;
 	ctx.stack <- oldstack;
 	ret
 
+let rec to_string ctx n v =
+	if n > 200 then exc (VString "Stack overflow");
+	let n = n + 1 in
+	match v with
+	| VNull -> "null"
+	| VBool true -> "true"
+	| VBool false -> "false"
+	| VInt i -> string_of_int i
+	| VFloat f -> string_of_float f
+	| VString s -> s
+	| VArray vl -> "[" ^ String.concat "," (Array.to_list (Array.map (to_string ctx n) vl)) ^ "]"
+	| VAbstract a -> 
+		(match a with
+		| AInt32 i -> Int32.to_string i
+		| _ -> "#abstract")
+	| VFunction f -> "#function:"  ^ string_of_int (nargs f)
+	| VObject o ->
+		match eval_oop ctx null_pos o "__string" [] with
+		| Some (VString s) -> s
+		| _ ->
+			let b = Buffer.create 0 in
+			let first = ref true in
+			Buffer.add_char b '{';
+			Hashtbl.iter (fun f v ->
+				if !first then begin 
+					Buffer.add_char b ' ';
+					first := false;
+				end else
+					Buffer.add_string b ", ";
+				Buffer.add_string b f;
+				Buffer.add_string b " => ";
+				Buffer.add_string b (to_string ctx n v);
+			) o.ofields;
+			Buffer.add_string b (if !first then "}" else " }");
+			Buffer.contents b
+
+let rec compare ctx a b =
+	let fcmp (a:float) b = if a = b then CEq else if a < b then CInf else CSup in
+	let scmp (a:string) b = if a = b then CEq else if a < b then CInf else CSup in	
+	match a, b with
+	| VNull, VNull -> CEq
+	| VInt a, VInt b -> if a = b then CEq else if a < b then CInf else CSup
+	| VFloat a, VFloat b -> fcmp a b
+	| VFloat a, VInt b -> fcmp a (float_of_int b)
+	| VInt a, VFloat b -> fcmp (float_of_int a) b
+	| VBool a, VBool b -> if a = b then CEq else if a then CSup else CInf
+	| VString a, VString b -> scmp a b
+	| VInt _ , VString s
+	| VFloat _ , VString s
+	| VBool _ , VString s -> scmp (to_string ctx 0 a) s
+	| VString s, VInt _
+	| VString s, VFloat _
+	| VString s, VBool _ -> scmp s (to_string ctx 0 b)
+	| VObject oa, VObject ob ->
+		if oa == ob then CEq else
+			(match eval_oop ctx null_pos oa "__compare" [b] with
+			| Some (VInt i) -> if i = 0 then CEq else if i < 0 then CInf else CSup
+			| _ -> CUndef)
+	| VAbstract a, VAbstract b ->
+		if a == b then CEq else CUndef
+	| VArray a, VArray b ->
+		if a == b then CEq else CUndef
+	| VFunction a, VFunction b ->
+		if a == b then CEq else CUndef		
+	| _ ->
+		CUndef
+
 let select ctx =
-	get_ctx_ref := (fun() -> ctx);
-	do_call_ref := call ctx
+	get_ctx_ref := (fun() -> ctx)
+
+let load_prim ctx f n =
+	match f, n with
+	| VString f, VInt n ->
+		let lib, fname = (try ExtString.String.split f "@" with _ -> "", f) in
+		(try
+			let f = (match lib with
+			| "std" -> Hashtbl.find std_lib fname
+			| _ -> raise Not_found
+			) in
+			if nargs f <> n then raise Not_found;
+			VFunction f
+		with Not_found ->
+			VFunction (FunVar (fun _ -> exc (VString ("Primitive not found " ^ f ^ ":" ^ string_of_int n)))))		
+	| _ ->
+		exc (VString "Invalid call")
 
 let create com =
 	let ctx = {
-		gen = Genneko.new_context com;
+		com = com;
+		gen = Genneko.new_context com true;
+		packages = Hashtbl.create 0;
 		types = Hashtbl.create 0;
 		globals = Hashtbl.create 0;
 		locals = PMap.empty;
 		stack = [];
 		exc = [];
 		vthis = VNull;
+		(* api *)
+		do_call = Obj.magic();
+		do_string = Obj.magic();
+		do_loadprim = Obj.magic();
+		do_compare = Obj.magic();
 	} in
+	ctx.do_call <- call ctx;
+	ctx.do_string <- to_string ctx 0;
+	ctx.do_loadprim <- load_prim ctx;
+	ctx.do_compare <- compare ctx;
 	select ctx;
 	List.iter (fun e -> ignore(eval ctx e)) (Genneko.header());
 	ctx
+
+let add_types ctx types =
+	let t = Common.timer "macro execution" in
+	let packs = List.concat (List.map (Genneko.gen_package ctx.gen ctx.packages) types) in
+	let names = List.fold_left (Genneko.gen_name ctx.gen) [] types in
+	let methods = List.rev (List.fold_left (fun acc t -> Genneko.gen_type ctx.gen t acc) [] types) in
+	let boot = Genneko.gen_boot ctx in
+	let inits = List.map (fun (c,e) ->
+		ctx.gen.Genneko.curclass <- Ast.s_type_path c.Type.cl_path;
+		ctx.gen.Genneko.curmethod <- "__init__";
+		Genneko.gen_expr ctx.gen e
+	) (List.rev ctx.gen.Genneko.inits) in
+	let vars = List.concat (List.map (Genneko.gen_static_vars ctx.gen) types) in
+	let e = (EBlock (packs @ methods @ boot :: names @ inits @ vars), null_pos) in
+	(try
+		ignore(eval ctx e);
+	with Runtime v ->
+		raise (Error (to_string ctx 0 v,List.map make_pos ctx.stack))
+	);
+	t();
+	
+

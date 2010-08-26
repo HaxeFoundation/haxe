@@ -24,6 +24,7 @@ open Common
 
 type context = {
 	com : Common.context;
+	mutable macros : bool;
 	mutable curclass : string;
 	mutable curmethod : string;
 	mutable locals : (string , bool) PMap.t;
@@ -34,7 +35,12 @@ type context = {
 let files = Hashtbl.create 0
 
 let pos ctx p =
-	let file = (match ctx.com.debug with
+	if ctx.macros then
+		{
+			psource = p.pfile;
+			pline = p.pmin lor (p.pmax lsl 16);
+		}
+	else let file = (match ctx.com.debug with
 		| true -> ctx.curclass ^ "::" ^ ctx.curmethod
 		| false ->
 			try
@@ -726,9 +732,10 @@ let generate_libs_init = function
 			acc ^ "$loader.path = $array(" ^ (if full_path then "" else "@b + ") ^ "\"" ^ Nast.escape l ^ "\" + @s,$loader.path);"
 		) boot libs
 
-let new_context com =
+let new_context com macros =
 	{
 		com = com;
+		macros = macros;
 		curclass = "$boot";
 		curmethod = "$init";
 		inits = [];
@@ -770,7 +777,7 @@ let header() =
 	List.map (fun (v,e)-> EBinop ("=",ident p v,e),p) inits
 
 let generate com libs =
-	let ctx = new_context com in
+	let ctx = new_context com false in
 	let t = Common.timer "neko generation" in
 	let h = Hashtbl.create 0 in
 	let libs = (ENeko (generate_libs_init libs) , { psource = "<header>"; pline = 1; }) in
