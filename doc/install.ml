@@ -149,7 +149,7 @@ let compile() =
 		"genxml";"typeload";"codegen";"optimizer";"typer";
 		neko^"/nast";neko^"/binast";neko^"/nxml";
 		"genneko";"genas3";"genjs";"genswf8";"genswf9";"genswf";"genphp";"gencpp";
-		"main";
+		"interp";"main";
 	] in
 	let path_str = String.concat " " (List.map (fun s -> "-I " ^ s) paths) in
 	let libs_str ext = " " ^ String.concat " " (List.map (fun l -> l ^ ext) libs) ^ " " in

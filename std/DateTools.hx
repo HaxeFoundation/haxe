@@ -32,7 +32,7 @@
 class DateTools {
 
 	#if php
-	#elseif neko
+	#elseif (neko && !macro)
 	static var date_format = neko.Lib.load("std","date_format",2);
 	#else
 	private static function __format_get( d : Date, e : String ) : String {
@@ -114,7 +114,7 @@ class DateTools {
 		formats are not supported.
 	**/
 	public static function format( d : Date, f : String ) : String {
-		#if neko
+		#if (neko && !macro)
 			return new String(untyped date_format(d.__t, f.__s));
 		#elseif php
 			return untyped __call__("strftime",f,d.__t);

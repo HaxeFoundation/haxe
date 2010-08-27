@@ -266,7 +266,10 @@ and gen_expr ctx e =
 			let tmp = ident p "@tmp" in
 			EBlock [
 				(EVars ["@tmp", Some (gen_expr ctx e2); "@fun", Some (field p tmp f)] , p);
-				call p (ident p ("@closure" ^ string_of_int n)) [tmp;ident p "@fun"]
+				if ctx.macros then
+					call p (builtin p "closure") [ident p "@fun";tmp]
+				else
+					call p (ident p ("@closure" ^ string_of_int n)) [tmp;ident p "@fun"]
 			] , p
 		| _ -> assert false)
 	| TTypeExpr t ->

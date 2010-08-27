@@ -226,6 +226,7 @@ try
 	let no_output = ref false in
 	let did_something = ref false in
 	let pre_compilation = ref [] in
+	let interp = ref false in
 	let root_packages = ["neko"; "flash"; "flash9"; "js"; "php"; "cpp"] in
 	Common.define com ("haxe_" ^ string_of_int version);
 	com.warning <- message;
@@ -438,6 +439,12 @@ try
 			let pack, target = (try ExtString.String.split s ":" with _ -> raise (Arg.Bad "Invalid format")) in
 			com.package_rules <- PMap.add pack (Remap target) com.package_rules;
 		),"<package:target> : remap a package to another one");
+		("--interp", Arg.Unit (fun() ->
+			Common.define com "macro";
+			set_platform Neko "neko" "";
+			no_output := true;
+			interp := true;
+		),": interpret the program using internal macro system");
 	] in
 	let current = ref 0 in
 	let args = Array.of_list ("" :: params) in
@@ -540,7 +547,10 @@ try
 		if Common.defined com "dump" then Codegen.dump_types com;
 		(match com.platform with
 		| Cross ->
-			()
+			if !interp then begin
+				let ctx = Interp.create com in
+				Interp.add_types ctx com.types;
+			end;
 		| Flash | Flash9 when !gen_as3 ->
 			if com.verbose then print_endline ("Generating AS3 in : " ^ com.file);
 			Genas3.generate com;
@@ -580,6 +590,10 @@ with
 	| Lexer.Error (m,p) -> report (Lexer.error_msg m) p
 	| Parser.Error (m,p) -> report (Parser.error_msg m) p
 	| Typecore.Error (m,p) -> report (Typecore.error_msg m) p
+	| Interp.Error (msg,p :: l) ->
+		store_message msg p;
+		List.iter (store_message "Called from") l;
+		report "Aborted" Ast.null_pos;
 	| Failure msg | Arg.Bad msg -> report ("Error : " ^ msg) Ast.null_pos
 	| Arg.Help msg -> print_string msg
 	| Hxml_found -> ()

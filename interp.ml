@@ -17,6 +17,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *)
 open Nast
+open Unix
 
 type value =
 	| VNull
@@ -28,6 +29,7 @@ type value =
 	| VArray of value array
 	| VAbstract of vabstract
 	| VFunction of vfunction
+	| VClosure of value list * (value list -> value list -> value)
 
 and vobject = {
 	ofields : (string,value) Hashtbl.t;
@@ -89,6 +91,8 @@ exception Return of value
 let get_ctx_ref = ref (fun() -> assert false)
 let get_ctx() = (!get_ctx_ref)()
 
+let to_int f = int_of_float (mod_float f 2147483648.0)
+
 let make_pos p =
 	{
 		Ast.pfile = p.psource;
@@ -99,8 +103,41 @@ let make_pos p =
 let warn ctx msg p =
 	ctx.com.Common.warning msg (make_pos p)
 
+let obj fields =
+	let h = Hashtbl.create 0 in
+	List.iter (fun (k,v) -> Hashtbl.replace h k v) fields;
+	{
+		ofields = h;
+		oproto = None;
+	}
+
 let exc v =
 	raise (Runtime v)
+
+let parse_int s =
+	let rec loop_hex i =
+		if i = String.length s then s else
+		match String.unsafe_get s i with
+		| '0'..'9' | 'a'..'f' | 'A'..'F' -> loop_hex (i + 1)
+		| _ -> String.sub s 0 i
+	in
+	let rec loop i =
+		if i = String.length s then s else
+		match String.unsafe_get s i with
+		| '0'..'9' | '-' -> loop (i + 1)
+		| 'x' when i = 1 && String.get s 0 = '0' -> loop_hex (i + 1)
+		| _ -> String.sub s 0 i
+	in
+	int_of_string (loop 0)
+
+let parse_float s =
+	let rec loop i =
+		if i = String.length s then s else
+		match String.unsafe_get s i with
+		| '0'..'9' | '-' | 'e' | 'E' | '.' -> loop (i + 1)
+		| _ -> String.sub s 0 i
+	in
+	float_of_string (loop 0)
 
 let find_sub str sub start =
 	let sublen = String.length sub in
@@ -169,6 +206,7 @@ let builtins =
 	in
 	let vfun = function
 		| VFunction f -> f
+		| VClosure (cl,f) -> FunVar (f cl)
 		| _ -> error()
 	in
 	let vhash = function
@@ -182,7 +220,15 @@ let builtins =
 		in
 		VArray (Array.of_list (List.map make sl))
 	in
+	let do_closure args args2 =
+		match args with
+		| f :: obj :: args ->
+			(get_ctx()).do_call obj f (args @ args2) p
+		| _ ->
+			assert false
+	in
 	let funcs = [
+	(* array *)
 		"array", FunVar (fun vl -> VArray (Array.of_list vl));
 		"amake", Fun1 (fun v -> VArray (Array.create (vint v) VNull));
 		"acopy", Fun1 (fun a -> VArray (Array.copy (varray a)));
@@ -196,8 +242,9 @@ let builtins =
 			let arr = Array.map varray (varray arr) in
 			VArray (Array.concat (Array.to_list arr))
 		);
+	(* string *)
 		"string", Fun1 (fun v -> VString ((get_ctx()).do_string v));
-		"smake", Fun1 (fun l -> VString (String.create (vint  l)));
+		"smake", Fun1 (fun l -> VString (String.make (vint l) '\000'));
 		"ssize", Fun1 (fun s -> VInt (String.length (vstring s)));
 		"scopy", Fun1 (fun s -> VString (String.copy (vstring s)));
 		"ssub", Fun3 (fun s p l -> VString (String.sub (vstring s) (vint p) (vint l)));
@@ -217,9 +264,10 @@ let builtins =
 		"sfind", Fun3 (fun src pos pat ->
 			try VInt (find_sub (vstring src) (vstring pat) (vint pos)) with Not_found -> VNull
 		);
+	(* object *)
 		"new", Fun1 (fun o ->
 			match o with
-			| VNull -> VObject { ofields = Hashtbl.create 0; oproto = None }
+			| VNull -> VObject (obj [])
 			| VObject o -> VObject { ofields = Hashtbl.copy o.ofields; oproto = o.oproto }
 			| _ -> error()
 		);
@@ -272,6 +320,7 @@ let builtins =
 			| None -> VNull
 			| Some p -> VObject p
 		);
+	(* function *)
 		"nargs", Fun1 (fun f ->
 			VInt (nargs (vfun f))
 		);
@@ -280,9 +329,8 @@ let builtins =
 		);
 		"closure", FunVar (fun vl ->
 			match vl with
-			| f :: obj :: args ->
-				let f = vfun f in
-				VFunction (FunVar (fun args2 -> (get_ctx()).do_call obj (VFunction f) (args @ args2) p))
+			| VFunction f :: _ :: _ ->
+				VClosure (vl, do_closure)
 			| _ -> exc (VString "Invalid closure arguments number")
 		);
 		"apply", FunVar (fun vl ->
@@ -294,11 +342,12 @@ let builtins =
 		);
 		"varargs", Fun1 (fun f ->
 			match f with
-			| VFunction (FunVar _) | VFunction (Fun1 _) ->
+			| VFunction (FunVar _) | VFunction (Fun1 _) | VClosure _ ->
 				VFunction (FunVar (fun vl -> (get_ctx()).do_call VNull f [VArray (Array.of_list vl)] p))
 			| _ ->
 				error()
 		);
+	(* numbers *)
 		(* skip iadd, isub, idiv, imult *)
 		"isnan", Fun1 (fun f ->
 			match f with
@@ -306,22 +355,25 @@ let builtins =
 			| _ -> VBool false
 		);
 		"isinfinite", Fun1 (fun f ->
-			assert false
+			match f with
+			| VFloat f -> VBool (f = infinity || f = neg_infinity)
+			| _ -> VBool false
 		);
 		"int", Fun1 (fun v ->
 			match v with
 			| VInt i -> v
-			| VFloat f -> VInt (int_of_float f)
-			| VString s -> (try VInt (int_of_string s) with _ -> VNull)
+			| VFloat f -> VInt (to_int f)
+			| VString s -> (try VInt (parse_int s) with _ -> VNull)
 			| _ -> VNull
 		);
 		"float", Fun1 (fun v ->
 			match v with
 			| VInt i -> VFloat (float_of_int i)
 			| VFloat _ -> v
-			| VString s -> (try VFloat (float_of_string s) with _ -> VNull)
+			| VString s -> (try VFloat (parse_float s) with _ -> VNull)
 			| _ -> VNull
 		);
+	(* abstract *)
 		"getkind", Fun1 (fun v ->
 			match v with
 			| VAbstract a -> VAbstract (AKind a)
@@ -334,9 +386,12 @@ let builtins =
 				| AKind _, AKind _ -> true
 				| AInt32 _, AInt32 _ -> true
 				| AHash _, AHash _ -> true
+				| ARandom _, ARandom _ -> true
+				| ABuffer _, ABuffer _ -> true
 				| _ -> false)
 			| _ -> error()
 		);
+	(* hash *)
 		"hkey", Fun1 (fun v -> VInt (Hashtbl.hash v));
 		"hnew", Fun1 (fun v ->
 			VAbstract (AHash (match v with
@@ -345,9 +400,39 @@ let builtins =
 			| _ -> error()))
 		);
 		"hresize", Fun1 (fun v -> VNull);
-		(* TODO : $h functions *)
-		"hiter", Fun2 (fun h f -> Hashtbl.iter (fun v k -> ignore ((get_ctx()).do_call VNull f [v;k] p)) (vhash h); VNull);
+		"hget", Fun3 (fun h k cmp ->
+			if cmp <> VNull then assert false;
+			(try Hashtbl.find (vhash h) k with Not_found -> VNull)
+		);
+		"hmem", Fun3 (fun h k cmp ->
+			if cmp <> VNull then assert false;
+			VBool (Hashtbl.mem (vhash h) k)
+		);
+		"hremove", Fun3 (fun h k cmp ->
+			if cmp <> VNull then assert false;
+			let h = vhash h in
+			let old = Hashtbl.mem h k in
+			if old then Hashtbl.remove h k;
+			VBool old
+		);
+		"hset", Fun4 (fun h k v cmp ->
+			if cmp <> VNull then assert false;
+			let h = vhash h in
+			let old = Hashtbl.mem h k in
+			Hashtbl.replace h k v;
+			VBool (not old);
+		);
+		"hadd", Fun4 (fun h k v cmp ->
+			if cmp <> VNull then assert false;
+			let h = vhash h in
+			let old = Hashtbl.mem h k in
+			Hashtbl.add h k v;
+			VBool (not old);
+		);
+		"hiter", Fun2 (fun h f -> Hashtbl.iter (fun k v -> ignore ((get_ctx()).do_call VNull f [k;v] p)) (vhash h); VNull);
 		"hcount", Fun1 (fun h -> VInt (Hashtbl.length (vhash h)));
+		"hsize", Fun1 (fun h -> VInt (Hashtbl.length (vhash h)));
+	(* misc *)
 		"print", FunVar (fun vl -> List.iter (fun v -> print_string ((get_ctx()).do_string v)) vl; VNull);
 		"throw", Fun1 (fun v -> exc v);
 		"rethrow", Fun1 (fun v -> exc v);
@@ -370,7 +455,7 @@ let builtins =
 			| VString _ -> 4
 			| VObject _ -> 5
 			| VArray _ -> 6
-			| VFunction _ -> 7
+			| VFunction _ | VClosure _ -> 7
 			| VAbstract _ -> 8)
 		);
 		"compare", Fun2 (fun a b ->
@@ -407,13 +492,11 @@ let builtins =
 	let h = Hashtbl.create 0 in
 	List.iter (fun (n,f) -> Hashtbl.add h n (VFunction f)) funcs;
 	List.iter (fun (n,v) -> Hashtbl.add h n v) vals;
-	let loader = {
-		ofields = Hashtbl.create 0;
-		oproto = None;
-	} in
-	Hashtbl.add loader.ofields "loadprim" (VFunction (Fun2 (fun a b -> (get_ctx()).do_loadprim a b)));
-	Hashtbl.add loader.ofields "loadmodule" (VFunction (Fun2 (fun a b -> assert false)));
-	Hashtbl.add loader.ofields "args" (VArray [||]);
+	let loader = obj [
+		"args",VArray [||];
+		"loadprim",VFunction (Fun2 (fun a b -> (get_ctx()).do_loadprim a b));
+		"loadmodule",VFunction (Fun2 (fun a b -> assert false));
+	] in
 	Hashtbl.add h "loader" (VObject loader);
 	Hashtbl.add h "exports" (VObject { ofields = Hashtbl.create 0; oproto = None });
 	h
@@ -427,15 +510,31 @@ let std_lib =
 			| [] -> acc
 			| x :: l -> loop (VArray [|x;acc|]) l
 		in
-		loop VNull (List.rev l) 
+		loop VNull (List.rev l)
 	in
 	let num = function
 		| VInt i -> float_of_int i
 		| VFloat f -> f
 		| _ -> error()
 	in
+	let make_date f =
+		VAbstract (AInt32 (Int32.of_float f))
+	in
+	let date = function
+		| VAbstract (AInt32 i) -> Int32.to_float i
+		| VInt i -> float_of_int i
+		| _ -> error()
+	in
+	let make_i32 i =
+		VAbstract (AInt32 i)
+	in
+	let int32 = function
+		| VInt i -> Int32.of_int i
+		| VAbstract (AInt32 i) -> i
+		| _ -> error()
+	in
+	let int32_op op = Fun2 (fun a b -> make_i32 (op (int32 a) (int32 b))) in
 	let funcs = [
-		"random_new", Fun0 (fun() -> VAbstract (ARandom (Random.State.make_self_init())));
 	(* math *)
 		"math_atan2", Fun2 (fun a b -> VFloat (atan2 (num a) (num b)));
 		"math_pow", Fun2 (fun a b -> VFloat ((num a) ** (num b)));
@@ -445,9 +544,9 @@ let std_lib =
 			| VFloat f -> VFloat (abs_float f)
 			| _ -> error()
 		);
-		"math_ceil", Fun1 (fun v -> VInt (int_of_float (ceil (num v))));
-		"math_floor", Fun1 (fun v -> VInt (int_of_float (floor (num v))));
-		"math_round", Fun1 (fun v -> VInt (int_of_float (floor (num v +. 0.5))));
+		"math_ceil", Fun1 (fun v -> VInt (to_int (ceil (num v))));
+		"math_floor", Fun1 (fun v -> VInt (to_int (floor (num v))));
+		"math_round", Fun1 (fun v -> VInt (to_int (floor (num v +. 0.5))));
 		"math_pi", Fun0 (fun() -> VFloat (4.0 *. atan 1.0));
 		"math_sqrt", Fun1 (fun v -> VFloat (sqrt (num v)));
 		"math_atan", Fun1 (fun v -> VFloat (atan (num v)));
@@ -461,10 +560,10 @@ let std_lib =
 		"math_fceil", Fun1 (fun v -> VFloat (ceil (num v)));
 		"math_ffloor", Fun1 (fun v -> VFloat (floor (num v)));
 		"math_fround", Fun1 (fun v -> VFloat (floor (num v +. 0.5)));
-		"math_int", Fun1 (fun v -> 
+		"math_int", Fun1 (fun v ->
 			match v with
 			| VInt n -> v
-			| VFloat f -> VInt (int_of_float (if f < 0. then ceil f else floor f))
+			| VFloat f -> VInt (to_int (if f < 0. then ceil f else floor f))
 			| _ -> error()
 		);
 	(* buffer *)
@@ -496,11 +595,79 @@ let std_lib =
 			| VAbstract (ABuffer b) -> Buffer.reset b; VNull;
 			| _ -> error()
 		);
-	(* system *)
-		"get_env", Fun1 (fun v ->
-			match v with
-			| VString s -> (try VString (Sys.getenv s) with _ -> VNull)
+	(* date *)
+		"date_now", Fun0 (fun () ->
+			make_date (Unix.time())
+		);
+		"date_new", Fun1 (fun v ->
+			make_date (match v with
+			| VNull -> Unix.time()
+			| VString s ->
+				(match String.length s with
+				| 19 ->
+					let r = Str.regexp "^\\([0-9][0-9][0-9][0-9]\\)-\\([0-9][0-9]\\)-\\([0-9][0-9]\\) \\([0-9][0-9]\\):\\([0-9][0-9]\\):\\([0-9][0-9]\\)$" in
+					if not (Str.string_match r s 0) then exc (VString ("Invalid date format : " ^ s));
+					let t = Unix.localtime (Unix.time()) in
+					let t = { t with
+						tm_year = int_of_string (Str.matched_group 1 s) - 1900;
+						tm_mon = int_of_string (Str.matched_group 2 s) - 1;
+						tm_mday = int_of_string (Str.matched_group 3 s);
+						tm_hour = int_of_string (Str.matched_group 4 s);
+						tm_min = int_of_string (Str.matched_group 5 s);
+						tm_sec = int_of_string (Str.matched_group 6 s);
+					} in
+					fst (Unix.mktime t)
+				| 10 ->
+					assert false
+				| 8 ->
+					assert false
+				| _ ->
+					exc (VString ("Invalid date format : " ^ s)));
+			| _ -> error())
+		);
+		"date_set_hour", Fun4 (fun d h m s ->
+			let d = date d in
+			match h, m, s with
+			| VInt h, VInt m, VInt s ->
+				let t = Unix.localtime d in
+				make_date (fst (Unix.mktime { t with tm_hour = h; tm_min = m; tm_sec = s }))
 			| _ -> error()
+		);
+		"date_set_day", Fun4 (fun d y m da ->
+			let d = date d in
+			match y, m, da with
+			| VInt y, VInt m, VInt da ->
+				let t = Unix.localtime d in
+				make_date (fst (Unix.mktime { t with tm_year = y - 1900; tm_mon = m - 1; tm_mday = da }))
+			| _ -> error()
+		);
+		"date_format", Fun2 (fun d fmt ->
+			match fmt with
+			| VNull ->
+				let t = Unix.localtime (date d) in
+				VString (Printf.sprintf "%.4d-%.2d-%.2d %.2d:%.2d:%.2d" (t.tm_year + 1900) (t.tm_mon + 1) t.tm_mday t.tm_hour t.tm_min t.tm_sec)
+			| VString _ ->
+				exc (VString "Custom date format is not supported") (* use native haXe implementation *)
+			| _ ->
+				error()
+		);
+		"date_get_hour", Fun1 (fun d ->
+			let t = Unix.localtime (date d) in
+			let o = obj [
+				"h", VInt t.tm_hour;
+				"m", VInt t.tm_min;
+				"s", VInt t.tm_sec;
+			] in
+			VObject o
+		);
+		"date_get_day", Fun1 (fun d ->
+			let t = Unix.localtime (date d) in
+			let o = obj [
+				"d", VInt t.tm_mday;
+				"m", VInt (t.tm_mon + 1);
+				"y", VInt (t.tm_year + 1900);
+			] in
+			VObject o
 		);
 	(* string *)
 		"string_split", Fun2 (fun s d ->
@@ -510,6 +677,182 @@ let std_lib =
 			| VString s, VString d -> List.map (fun s -> VString s) (ExtString.String.nsplit s d)
 			| _ -> error())
 		);
+		"url_encode", Fun1 (fun s ->
+			match s with
+			| VString s ->
+				let b = Buffer.create 0 in
+				let hex = "0123456789ABCDEF" in
+				for i = 0 to String.length s - 1 do
+					let c = String.unsafe_get s i in
+					match c with
+					| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '-' | '.' ->
+						Buffer.add_char b c
+					| _ ->
+						Buffer.add_char b '%';
+						Buffer.add_char b (String.unsafe_get hex (int_of_char c lsr 4));
+						Buffer.add_char b (String.unsafe_get hex (int_of_char c land 0xF));
+				done;
+				VString (Buffer.contents b)
+			| _ -> error()
+		);
+		"url_decode", Fun1 (fun s ->
+			match s with
+			| VString s ->
+				let b = Buffer.create 0 in
+				let len = String.length s in
+				let decode c =
+					match c with
+					| '0'..'9' -> Some (int_of_char c - int_of_char '0')
+					| 'a'..'f' -> Some (int_of_char c - int_of_char 'a' + 10)
+					| 'A'..'F' -> Some (int_of_char c - int_of_char 'A' + 10)
+					| _ -> None
+				in
+				let rec loop i =
+					if i = len then () else
+					let c = String.unsafe_get s i in
+					match c with
+					| '%' ->
+						let p1 = (try decode (String.get s (i + 1)) with _ -> None) in
+						let p2 = (try decode (String.get s (i + 2)) with _ -> None) in
+						(match p1, p2 with
+						| Some c1, Some c2 ->
+							Buffer.add_char b (char_of_int ((c1 lsl 4) lor c2));
+							loop (i + 3)
+						| _ ->
+							loop (i + 1));
+					| '+' ->
+						Buffer.add_char b ' ';
+						loop (i + 1)
+					| c ->
+						Buffer.add_char b c;
+						loop (i + 1)
+				in
+				loop 0;
+				VString (Buffer.contents b)
+			| _ -> error()
+		);
+		"base_encode", Fun2 (fun s b ->
+			match s, b with
+			| VString s, VString "0123456789abcdef" when String.length s = 16 ->
+				VString (Digest.to_hex s)
+			| VString s, VString b ->
+				if String.length b <> 64 then assert false;
+				let tbl = Array.init 64 (String.unsafe_get b) in
+				VString (Base64.str_encode ~tbl s)
+			| _ -> error()
+		);
+		"base_decode", Fun2 (fun s b ->
+			match s, b with
+			| VString s, VString b ->
+				if String.length b <> 64 then assert false;
+				let tbl = Array.init 64 (String.unsafe_get b) in
+				VString (Base64.str_decode ~tbl:(Base64.make_decoding_table tbl) s)
+			| _ -> error()
+		);
+		"make_md5", Fun1 (fun s ->
+			match s with
+			| VString s -> VString (Digest.string s)
+			| _ -> error()
+		);
+		(* sprintf *)
+	(* int32 *)
+		"int32_new", Fun1 (fun v ->
+			match v with
+			| VAbstract (AInt32 i) -> v
+			| VInt i -> make_i32 (Int32.of_int i)
+			| VFloat f -> make_i32 (Int32.of_float f)
+			| _ -> error()
+		);
+		"int32_to_int", Fun1 (fun v ->
+			let v = int32 v in
+			let i = Int32.to_int v in
+			if Int32.compare (Int32.of_int i) v <> 0 then error();
+			VInt i
+		);
+		"int32_to_float", Fun1 (fun v ->
+			VFloat (Int32.to_float (int32 v))
+		);
+		"int32_compare", Fun2 (fun a b ->
+			VInt (Int32.compare (int32 a) (int32 b))
+		);
+		"int32_add", int32_op Int32.add;
+		"int32_sub", int32_op Int32.sub;
+		"int32_mul", int32_op Int32.mul;
+		"int32_div", int32_op Int32.div;
+		"int32_shl", int32_op (fun a b -> Int32.shift_left a (Int32.to_int b));
+		"int32_shr", int32_op (fun a b -> Int32.shift_right a (Int32.to_int b));
+		"int32_ushr", int32_op (fun a b -> Int32.shift_right_logical a (Int32.to_int b));
+		"int32_mod", int32_op Int32.rem;
+		"int32_or", int32_op Int32.logor;
+		"int32_and", int32_op Int32.logand;
+		"int32_xor", int32_op Int32.logxor;
+		"int32_neg", Fun1 (fun v -> make_i32 (Int32.neg (int32 v)));
+		"int32_complement", Fun1 (fun v -> make_i32 (Int32.lognot (int32 v)));
+	(* misc *)
+		"same_closure", Fun2 (fun a b ->
+			VBool (match a, b with
+			| VClosure (la,fa), VClosure (lb,fb) ->
+				fa == fb && List.length la = List.length lb && List.for_all2 (fun a b -> (get_ctx()).do_compare a b = CEq) la lb
+			| VFunction a, VFunction b -> a == b
+			| _ -> false)
+		);
+		"double_bytes", Fun2 (fun f big ->
+			match f, big with
+			| VFloat f, VBool big ->
+				let ch = IO.output_string() in
+				if big then IO.BigEndian.write_double ch f else IO.write_double ch f;
+				VString (IO.close_out ch)
+			| _ ->
+				error()
+		);
+		"float_bytes", Fun2 (fun f big ->
+			match f, big with
+			| VFloat f, VBool big ->
+				let ch = IO.output_string() in
+				let i = Int32.bits_of_float f in
+				if big then IO.BigEndian.write_real_i32 ch i else IO.write_real_i32 ch i;
+				VString (IO.close_out ch)
+			| _ ->
+				error()
+		);
+		"double_of_bytes", Fun2 (fun s big ->
+			match s, big with
+			| VString s, VBool big when String.length s = 8 ->
+				let ch = IO.input_string s in
+				VFloat (if big then IO.BigEndian.read_double ch else IO.read_double ch)
+			| _ ->
+				error()
+		);
+		"float_of_bytes", Fun2 (fun s big ->
+			match s, big with
+			| VString s, VBool big when String.length s = 4 ->
+				let ch = IO.input_string s in
+				VFloat (Int32.float_of_bits (if big then IO.BigEndian.read_real_i32 ch else IO.read_real_i32 ch))
+			| _ ->
+				error()
+		);
+	(* random *)
+		"random_new", Fun0 (fun() -> VAbstract (ARandom (Random.State.make_self_init())));
+		(* TODO *)
+	(* file *)
+		(* TODO *)
+	(* serialize *)
+		(* TODO *)
+	(* socket *)
+		(* TODO *)
+	(* system *)
+		"get_env", Fun1 (fun v ->
+			match v with
+			| VString s -> (try VString (Sys.getenv s) with _ -> VNull)
+			| _ -> error()
+		);
+		(* TODO *)
+	(* utf8 *)
+		(* TODO *)
+	(* xml *)
+		(* TODO *)
+	(* process *)
+		(* TODO *)
 	] in
 	let h = Hashtbl.create 0 in
 	List.iter (fun (n,f) -> Hashtbl.add h n f) funcs;
@@ -627,7 +970,7 @@ let rec eval ctx (e,p) =
 		let stack = ctx.stack in
 		(try
 			eval ctx e
-		with Runtime v ->			
+		with Runtime v ->
 			let rec loop n l =
 				if n = 0 then l else
 				match l with
@@ -641,12 +984,29 @@ let rec eval ctx (e,p) =
 			local ctx exc v;
 			eval ctx ecatch);
 	| EFunction (pl,e) ->
+		let locals = ctx.locals in
 		VFunction (match pl with
-		| [] -> Fun0 (fun() -> eval ctx e)
-		| [a] -> Fun1 (fun v -> local ctx a v; eval ctx e)
-		| [a;b] -> Fun2 (fun va vb -> local ctx a va; local ctx b vb; eval ctx e)
+		| [] ->
+			Fun0 (fun() ->
+				ctx.locals <- locals;
+				eval ctx e
+			)
+		| [a] ->
+			Fun1 (fun v ->
+				ctx.locals <- locals;
+				local ctx a v;
+				eval ctx e
+			)
+		| [a;b] ->
+			Fun2 (fun va vb ->
+				ctx.locals <- locals;
+				local ctx a va;
+				local ctx b vb;
+				eval ctx e
+			)
 		| [a;b;c] ->
 			Fun3 (fun va vb vc ->
+				ctx.locals <- locals;
 				local ctx a va;
 				local ctx b vb;
 				local ctx c vc;
@@ -654,6 +1014,7 @@ let rec eval ctx (e,p) =
 			)
 		| [a;b;c;d] ->
 			Fun4 (fun va vb vc vd ->
+				ctx.locals <- locals;
 				local ctx a va;
 				local ctx b vb;
 				local ctx c vc;
@@ -662,6 +1023,7 @@ let rec eval ctx (e,p) =
 			)
 		| [a;b;c;d;pe] ->
 			Fun5 (fun va vb vc vd ve ->
+				ctx.locals <- locals;
 				local ctx a va;
 				local ctx b vb;
 				local ctx c vc;
@@ -672,6 +1034,7 @@ let rec eval ctx (e,p) =
 		| pl ->
 			FunVar (fun vl ->
 				if List.length vl != List.length pl then exc (VString "Invalid call");
+				ctx.locals <- locals;
 				List.iter2 (local ctx) pl vl;
 				eval ctx e
 			)
@@ -743,7 +1106,7 @@ and acc_get ctx p = function
 	| AccArray (e,index) ->
 		(match index, e with
 		| VInt i, VArray a -> (try Array.get a i with _ -> VNull)
-		| _, VObject o -> 
+		| _, VObject o ->
 			(match eval_oop ctx p o "__get" [index] with
 			| None -> throw ctx p "Invalid array access"
 			| Some v -> v)
@@ -757,13 +1120,13 @@ and acc_set ctx p acc value =
 		(match v with
 		| VObject o -> Hashtbl.replace o.ofields f value; value
 		| _ -> throw ctx p ("Invalid field access : " ^ f))
-	| AccArray (e,index) ->		
+	| AccArray (e,index) ->
 		(match index, e with
 		| VInt i, VArray a -> (try Array.set a i value; value with _ -> throw ctx p "Invalid array access")
-		| _, VObject o -> 
+		| _, VObject o ->
 			(match eval_oop ctx p o "__set" [index;value] with
 			| None -> throw ctx p "Invalid array access"
-			| Some v -> v);
+			| Some _ -> value);
 		| _ -> throw ctx p "Invalid array access")
 	| AccVar s ->
 		(try
@@ -782,7 +1145,7 @@ and number_op ctx p sop iop fop oop rop v1 v2 =
 	| VObject o, _ ->
 		(match eval_oop ctx p o oop [v2] with
 		| Some v -> v
-		| None -> 
+		| None ->
 			match v2 with
 			| VObject o ->
 				(match eval_oop ctx p o rop [v1] with
@@ -806,7 +1169,7 @@ and base_op ctx op v1 v2 p =
 	match op with
 	| "+" ->
 		(match v1, v2 with
-		| VInt _, VInt _ | VInt _ , VFloat _ | VFloat _ , VInt _ | VFloat _ , VFloat _ | VObject _ , _ | _ , VObject _ -> number_op ctx p op (+) (+.) "__add" "__radd" v1 v2		
+		| VInt _, VInt _ | VInt _ , VFloat _ | VFloat _ , VInt _ | VFloat _ , VFloat _ | VObject _ , _ | _ , VObject _ -> number_op ctx p op (+) (+.) "__add" "__radd" v1 v2
 		| VString a, _ -> VString (a ^ ctx.do_string v2)
 		| _, VString b -> VString (ctx.do_string v1 ^ b)
 		| _ -> throw ctx p op)
@@ -827,9 +1190,11 @@ and base_op ctx op v1 v2 p =
 	| "<<" ->
 		int_op ctx p op (lsl) v1 v2
 	| ">>" ->
-		int_op ctx p op (lsr) v1 v2
-	| ">>>" ->
 		int_op ctx p op (asr) v1 v2
+	| ">>>" ->
+		int_op ctx p op (fun x y ->
+			if x >= 0 then x lsr y else Int32.to_int (Int32.shift_right_logical (Int32.of_int x) y)
+		) v1 v2
 	| _ ->
 		throw ctx p op
 
@@ -875,7 +1240,7 @@ and eval_op ctx op e1 e2 p =
 		(match ctx.do_compare v1 v2 with
 		| CInf | CEq -> VBool true
 		| _ -> VBool false)
-	| "+" | "-" | "*" | "/" | "%" | "|" | "&" | "^" | "<<" | ">>" | ">>>" ->		
+	| "+" | "-" | "*" | "/" | "%" | "|" | "&" | "^" | "<<" | ">>" | ">>>" ->
 		let v1 = eval ctx e1 in
 		let v2 = eval ctx e2 in
 		base_op ctx op v1 v2 p
@@ -912,6 +1277,8 @@ and call ctx vthis vfun pl p =
 	ctx.stack <- p :: ctx.stack;
 	let ret = (try
 		(match vfun with
+		| VClosure (vl,f) ->
+			f vl pl
 		| VFunction f ->
 			(match pl, f with
 			| [], Fun0 f -> f()
@@ -932,8 +1299,9 @@ and call ctx vthis vfun pl p =
 	ret
 
 let rec to_string ctx n v =
-	if n > 200 then exc (VString "Stack overflow");
-	let n = n + 1 in
+	if n > 5 then
+		"<...>"
+	else let n = n + 1 in
 	match v with
 	| VNull -> "null"
 	| VBool true -> "true"
@@ -942,11 +1310,12 @@ let rec to_string ctx n v =
 	| VFloat f -> string_of_float f
 	| VString s -> s
 	| VArray vl -> "[" ^ String.concat "," (Array.to_list (Array.map (to_string ctx n) vl)) ^ "]"
-	| VAbstract a -> 
+	| VAbstract a ->
 		(match a with
 		| AInt32 i -> Int32.to_string i
 		| _ -> "#abstract")
 	| VFunction f -> "#function:"  ^ string_of_int (nargs f)
+	| VClosure _ -> "#function:-1"
 	| VObject o ->
 		match eval_oop ctx null_pos o "__string" [] with
 		| Some (VString s) -> s
@@ -955,7 +1324,7 @@ let rec to_string ctx n v =
 			let first = ref true in
 			Buffer.add_char b '{';
 			Hashtbl.iter (fun f v ->
-				if !first then begin 
+				if !first then begin
 					Buffer.add_char b ' ';
 					first := false;
 				end else
@@ -969,7 +1338,7 @@ let rec to_string ctx n v =
 
 let rec compare ctx a b =
 	let fcmp (a:float) b = if a = b then CEq else if a < b then CInf else CSup in
-	let scmp (a:string) b = if a = b then CEq else if a < b then CInf else CSup in	
+	let scmp (a:string) b = if a = b then CEq else if a < b then CInf else CSup in
 	match a, b with
 	| VNull, VNull -> CEq
 	| VInt a, VInt b -> if a = b then CEq else if a < b then CInf else CSup
@@ -994,7 +1363,9 @@ let rec compare ctx a b =
 	| VArray a, VArray b ->
 		if a == b then CEq else CUndef
 	| VFunction a, VFunction b ->
-		if a == b then CEq else CUndef		
+		if a == b then CEq else CUndef
+	| VClosure (la,fa), VClosure (lb,fb) ->
+		if la == lb && fa == fb then CEq else CUndef
 	| _ ->
 		CUndef
 
@@ -1013,7 +1384,7 @@ let load_prim ctx f n =
 			if nargs f <> n then raise Not_found;
 			VFunction f
 		with Not_found ->
-			VFunction (FunVar (fun _ -> exc (VString ("Primitive not found " ^ f ^ ":" ^ string_of_int n)))))		
+			VFunction (FunVar (fun _ -> exc (VString ("Primitive not found " ^ f ^ ":" ^ string_of_int n)))))
 	| _ ->
 		exc (VString "Invalid call")
 
@@ -1061,5 +1432,5 @@ let add_types ctx types =
 		raise (Error (to_string ctx 0 v,List.map make_pos ctx.stack))
 	);
 	t();
-	
+
 

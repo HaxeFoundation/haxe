@@ -59,6 +59,16 @@ unit.Test
 -resource res2.bin
 
 -D noopt
+--next
+-cp ..
+
+-resource res1.txt
+
+-resource res2.bin
+
+-D noopt
+-main unit.Test
+--interp
 
 --next
 # RemotingServer
