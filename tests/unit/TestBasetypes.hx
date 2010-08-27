@@ -101,6 +101,7 @@ class TestBasetypes extends Test {
 	function testStringTools() {
 		eq( StringTools.hex(0xABCDEF,7), "0ABCDEF" );
 		eq( StringTools.hex(-1,8), "FFFFFFFF" );
+		eq( StringTools.hex(-481400000,8), "E34E6B40" );
 	}
 
 }
