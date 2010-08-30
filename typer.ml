@@ -36,11 +36,12 @@ type access_mode =
 exception Display of t
 
 type access_kind =
-	| AccNo of string
-	| AccExpr of texpr
-	| AccSet of texpr * string * t * string
-	| AccInline of texpr * tclass_field * t
-	| AccUsing of texpr * texpr
+	| AKNo of string
+	| AKExpr of texpr
+	| AKSet of texpr * string * t * string
+	| AKInline of texpr * tclass_field * t
+	| AKMacro of texpr * tclass_field
+	| AKUsing of texpr * texpr
 
 let mk_infos ctx p params =
 	(EObjectDecl (
@@ -218,7 +219,7 @@ let rec type_module_type ctx t tparams p =
 				cf_type = f.ef_type;
 				cf_kind = (match follow f.ef_type with 
 					| TFun _ -> Method MethNormal 
-					| _ -> Var { v_read = AccNormal; v_write = Type.AccNo }
+					| _ -> Var { v_read = AccNormal; v_write = AccNo }
 				);
 				cf_doc = None;
 				cf_meta = no_meta;
@@ -293,10 +294,10 @@ let make_call ctx e params t p =
 		
 let rec acc_get ctx g p =
 	match g with
-	| AccNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
-	| AccExpr e -> e
-	| AccSet _ -> assert false
-	| AccUsing (et,e) ->
+	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
+	| AKExpr e -> e
+	| AKSet _ -> assert false
+	| AKUsing (et,e) ->
 		(* build a closure with first parameter applied *)
 		(match follow et.etype with
 		| TFun (_ :: args,ret) ->
@@ -315,64 +316,68 @@ let rec acc_get ctx g p =
 			}) twrap p in
 			make_call ctx ewrap [e] tcallb p
 		| _ -> assert false)
-	| AccInline (e,f,t) ->
+	| AKInline (e,f,t) ->
 		ignore(follow f.cf_type); (* force computing *)
-		match f.cf_expr with
+		(match f.cf_expr with
 		| None -> error "Recursive inline is not supported" p
 		| Some { eexpr = TFunction _ } ->  mk (TClosure (e,f.cf_name)) t p
 		| Some e -> 
 			let rec loop e = Type.map_expr loop { e with epos = p } in
-			loop e
+			loop e)
+	| AKMacro _ ->
+		assert false
 
 let field_access ctx mode f t e p =
-	let fnormal() = AccExpr (mk (TField (e,f.cf_name)) t p) in
+	let fnormal() = AKExpr (mk (TField (e,f.cf_name)) t p) in
 	let normal() =
 		match follow e.etype with
-		| TAnon a -> (match !(a.a_status) with EnumStatics e -> AccExpr (mk (TEnumField (e,f.cf_name)) t p) | _ -> fnormal())
+		| TAnon a -> (match !(a.a_status) with EnumStatics e -> AKExpr (mk (TEnumField (e,f.cf_name)) t p) | _ -> fnormal())
 		| _ -> fnormal()
 	in
 	match f.cf_kind with
 	| Method m ->		
 		if mode = MSet && m <> MethDynamic && not ctx.untyped then error "Cannot rebind this method : please use 'dynamic' before method declaration" p;
 		(match m, mode with
-		| MethInline, _ -> AccInline (e,f,t)
-		| _ , MGet -> AccExpr (mk (TClosure (e,f.cf_name)) t p)
+		| MethInline, _ -> AKInline (e,f,t)
+		| MethMacro, MGet -> error "Macro functions must be called immediatly" p
+		| MethMacro, MCall -> AKMacro (e,f)
+		| _ , MGet -> AKExpr (mk (TClosure (e,f.cf_name)) t p)
 		| _ -> normal())
 	| Var v ->
 		match (match mode with MGet | MCall -> v.v_read | MSet -> v.v_write) with
-		| Type.AccNo ->
+		| AccNo ->
 			(match follow e.etype with
 			| TInst (c,_) when is_parent c ctx.curclass -> normal()
 			| TAnon a ->
 				(match !(a.a_status) with
 				| Statics c2 when ctx.curclass == c2 -> normal()
-				| _ -> if ctx.untyped then normal() else AccNo f.cf_name)
+				| _ -> if ctx.untyped then normal() else AKNo f.cf_name)
 			| _ ->
-				if ctx.untyped then normal() else AccNo f.cf_name)
+				if ctx.untyped then normal() else AKNo f.cf_name)
 		| AccNormal ->
 			(*
 				if we are reading from a read-only variable, it might actually be a method, so make sure to create a closure
 			*)
-			if mode = MGet && (match v.v_write, follow t with (Type.AccNo | AccNever), TFun _ -> true | _ -> false) then
-				AccExpr (mk (TClosure (e,f.cf_name)) t p)
+			if mode = MGet && (match v.v_write, follow t with (AccNo | AccNever), TFun _ -> true | _ -> false) then
+				AKExpr (mk (TClosure (e,f.cf_name)) t p)
 			else
 				normal()
 		| AccCall m ->
 			if m = ctx.curmethod && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
 				let prefix = if Common.defined ctx.com "as3" then "$" else "" in
-				AccExpr (mk (TField (e,prefix ^ f.cf_name)) t p)
+				AKExpr (mk (TField (e,prefix ^ f.cf_name)) t p)
 			else if mode = MSet then
-				AccSet (e,m,t,f.cf_name)
+				AKSet (e,m,t,f.cf_name)
 			else
-				AccExpr (make_call ctx (mk (TField (e,m)) (tfun [] t) p) [] t p)
+				AKExpr (make_call ctx (mk (TField (e,m)) (tfun [] t) p) [] t p)
 		| AccResolve ->
 			let fstring = mk (TConst (TString f.cf_name)) ctx.api.tstring p in
 			let tresolve = tfun [ctx.api.tstring] t in
-			AccExpr (make_call ctx (mk (TField (e,"resolve")) tresolve p) [fstring] t p)
+			AKExpr (make_call ctx (mk (TField (e,"resolve")) tresolve p) [fstring] t p)
 		| AccNever ->
-			AccNo f.cf_name
-		| Type.AccInline ->
-			AccInline (e,f,t)
+			AKNo f.cf_name
+		| AccInline ->
+			AKInline (e,f,t)
 
 let using_field ctx mode e i p =
 	if mode = MSet then raise Not_found;
@@ -390,7 +395,7 @@ let using_field ctx mode e i p =
 					(try unify_raise ctx e.etype t0 p with Error (Unify _,_) -> raise Not_found);
 					if follow e.etype == t_dynamic && follow t0 != t_dynamic then raise Not_found;
 					let et = type_module_type ctx (TClassDecl c) None p in						
-					AccUsing (mk (TField (et,i)) t p,e)
+					AKUsing (mk (TField (et,i)) t p,e)
 				| _ -> raise Not_found)
 			with Not_found ->
 				loop l
@@ -401,20 +406,20 @@ let type_ident ctx i is_type p mode =
 	match i with
 	| "true" ->
 		if mode = MGet then
-			AccExpr (mk (TConst (TBool true)) ctx.api.tbool p)
+			AKExpr (mk (TConst (TBool true)) ctx.api.tbool p)
 		else
-			AccNo i
+			AKNo i
 	| "false" ->
 		if mode = MGet then
-			AccExpr (mk (TConst (TBool false)) ctx.api.tbool p)
+			AKExpr (mk (TConst (TBool false)) ctx.api.tbool p)
 		else
-			AccNo i
+			AKNo i
 	| "this" ->
 		if not ctx.untyped && ctx.in_static then error "Cannot access this from a static function" p;
 		if mode = MGet then
-			AccExpr (mk (TConst TThis) ctx.tthis p)
+			AKExpr (mk (TConst TThis) ctx.tthis p)
 		else
-			AccNo i
+			AKNo i
 	| "super" ->
 		let t = (match ctx.curclass.cl_super with
 			| None -> error "Current class does not have a superclass" p
@@ -422,27 +427,20 @@ let type_ident ctx i is_type p mode =
 		) in
 		if ctx.in_static then error "Cannot access super from a static function" p;
 		if mode = MSet || not ctx.super_call then
-			AccNo i
+			AKNo i
 		else begin
 			ctx.super_call <- false;
-			AccExpr (mk (TConst TSuper) t p)
+			AKExpr (mk (TConst TSuper) t p)
 		end
 	| "null" ->
 		if mode = MGet then
-			AccExpr (null (mk_mono()) p)
+			AKExpr (null (mk_mono()) p)
 		else
-			AccNo i
-	| "here" ->
-		let infos = mk_infos ctx p [] in
-		let e = type_expr ctx infos true in
-		if mode = MGet then
-			AccExpr { e with etype = Typeload.load_instance ctx { tpackage = ["haxe"]; tname = "PosInfos"; tparams = []; tsub = None } p false }
-		else
-			AccNo i
+			AKNo i
 	| _ ->
 	try
 		let e = type_local ctx i p in
-		AccExpr e
+		AKExpr e
 	with Not_found -> try
 		(* member variable lookup *)
 		if ctx.in_static then raise Not_found;
@@ -474,17 +472,17 @@ let type_ident ctx i is_type p mode =
 		let e = loop ctx.local_types in
 		check_locals_masking ctx e;
 		if mode = MSet then
-			AccNo i
+			AKNo i
 		else
-			AccExpr e
+			AKExpr e
 	with Not_found -> try
 		(* lookup type *)
 		if not is_type then raise Not_found;
 		let e = (try type_type ctx ([],i) p with Error (Module_not_found ([],name),_) when name = i -> raise Not_found) in
-		AccExpr e
+		AKExpr e
 	with Not_found ->
 		if ctx.untyped then
-			AccExpr (mk (TLocal i) (mk_mono()) p)
+			AKExpr (mk (TLocal i) (mk_mono()) p)
 		else begin
 			if ctx.in_static && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
 			raise (Error (Unknown_ident i,p))
@@ -536,7 +534,7 @@ let type_matching ctx (enum,params) (e,p) ecases first_case =
 let rec type_field ctx e i p mode =
 	let no_field() =
 		if not ctx.untyped then display_error ctx (s_type (print_context()) e.etype ^ " has no field " ^ i) p;
-		AccExpr (mk (TField (e,i)) (mk_mono()) p)
+		AKExpr (mk (TField (e,i)) (mk_mono()) p)
 	in
 	match follow e.etype with
 	| TInst (c,params) ->
@@ -545,9 +543,9 @@ let rec type_field ctx e i p mode =
 			| Some t ->
 				let t = apply_params c.cl_types params t in
 				if mode = MGet && PMap.mem "resolve" c.cl_fields then
-					AccExpr (make_call ctx (mk (TField (e,"resolve")) (tfun [ctx.api.tstring] t) p) [Typeload.type_constant ctx (String i) p] t p)
+					AKExpr (make_call ctx (mk (TField (e,"resolve")) (tfun [ctx.api.tstring] t) p) [Typeload.type_constant ctx (String i) p] t p)
 				else
-					AccExpr (mk (TField (e,i)) t p)
+					AKExpr (mk (TField (e,i)) t p)
 			| None ->
 				match c.cl_super with
 				| None -> raise Not_found
@@ -566,7 +564,7 @@ let rec type_field ctx e i p mode =
 			if PMap.mem i c.cl_statics then error ("Cannot access static field " ^ i ^ " from a class instance") p;
 			no_field())
 	| TDynamic t ->
-		AccExpr (mk (TField (e,i)) t p)
+		AKExpr (mk (TField (e,i)) t p)
 	| TAnon a ->
 		(try
 			let f = PMap.find i a.a_fields in
@@ -589,7 +587,7 @@ let rec type_field ctx e i p mode =
 				cf_doc = None;
 				cf_meta = no_meta;
 				cf_public = true;
-				cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> Type.AccNo) };
+				cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
 				cf_expr = None;
 				cf_params = [];
 			} in
@@ -604,7 +602,7 @@ let rec type_field ctx e i p mode =
 			cf_doc = None;
 			cf_meta = no_meta;
 			cf_public = true;
-			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> Type.AccNo) };
+			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
 			cf_expr = None;
 			cf_params = [];
 		} in
@@ -664,10 +662,10 @@ let rec type_binop ctx op e1 e2 p =
 	match op with
 	| OpAssign ->
 		let e1 = type_access ctx (fst e1) (snd e1) MSet in
-		let e2 = type_expr_with_type ctx e2 (match e1 with AccNo _ | AccInline _ | AccUsing _ -> None | AccExpr e | AccSet(e,_,_,_) -> Some e.etype) in
+		let e2 = type_expr_with_type ctx e2 (match e1 with AKNo _ | AKInline _ | AKUsing _ | AKMacro _ -> None | AKExpr e | AKSet(e,_,_,_) -> Some e.etype) in
 		(match e1 with
-		| AccNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
-		| AccExpr e1 ->
+		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
+		| AKExpr e1 ->
 			unify ctx e2.etype e1.etype p;
 			check_assign ctx e1;
 			(match e1.eexpr , e2.eexpr with
@@ -676,15 +674,15 @@ let rec type_binop ctx op e1 e2 p =
 				error "Assigning a value to itself" p
 			| _ , _ -> ());
 			mk (TBinop (op,e1,e2)) e1.etype p
-		| AccSet (e,m,t,_) ->
+		| AKSet (e,m,t,_) ->
 			unify ctx e2.etype t p;
 			make_call ctx (mk (TField (e,m)) (tfun [t] t) p) [e2] t p
-		| AccInline _ | AccUsing _ ->
+		| AKInline _ | AKUsing _ | AKMacro _ ->
 			assert false)
 	| OpAssignOp op ->
 		(match type_access ctx (fst e1) (snd e1) MSet with
-		| AccNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
-		| AccExpr e ->
+		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
+		| AKExpr e ->
 			let eop = type_binop ctx op e1 e2 p in
 			(match eop.eexpr with
 			| TBinop (_,_,e2) ->
@@ -693,7 +691,7 @@ let rec type_binop ctx op e1 e2 p =
 				mk (TBinop (OpAssignOp op,e,e2)) e.etype p;
 			| _ ->
 				assert false)
-		| AccSet (e,m,t,f) ->
+		| AKSet (e,m,t,f) ->
 			let l = save_locals ctx in
 			let v = gen_local ctx e.etype in
 			let ev = mk (TLocal v) e.etype p in
@@ -704,7 +702,7 @@ let rec type_binop ctx op e1 e2 p =
 				mk (TVars [v,e.etype,Some e]) ctx.api.tvoid p;
 				make_call ctx (mk (TField (ev,m)) (tfun [t] t) p) [get] t p
 			]) t p
-		| AccInline _ | AccUsing _ ->
+		| AKInline _ | AKUsing _ | AKMacro _ ->
 			assert false)
 	| _ ->
 	let e1 = type_expr ctx e1 in
@@ -873,13 +871,13 @@ and type_unop ctx op flag e p =
 		| _ -> mk (TUnop (op,flag,e)) t p
 	in
 	match acc with
-	| AccExpr e -> access e
-	| AccInline _ | AccUsing _ when not set -> access (acc_get ctx acc p)
-	| AccNo s ->
+	| AKExpr e -> access e
+	| AKInline _ | AKUsing _ when not set -> access (acc_get ctx acc p)
+	| AKNo s ->
 		error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
-	| AccInline _ | AccUsing _ ->
+	| AKInline _ | AKUsing _ | AKMacro _ ->
 		error "This kind of operation is not supported" p
-	| AccSet (e,m,t,f) ->
+	| AKSet (e,m,t,f) ->
 		let l = save_locals ctx in
 		let v = gen_local ctx e.etype in
 		let ev = mk (TLocal v) e.etype p in
@@ -1107,7 +1105,7 @@ and type_access ctx e p mode =
 					let pack = List.rev_map (fun (x,_,_) -> x) acc in
 					try
 						let e = type_type ctx (pack,name) p in
-						fields path (fun _ -> AccExpr e)
+						fields path (fun _ -> AKExpr e)
 					with
 						Error (Module_not_found m,_) when m = (pack,name) ->
 							loop ((List.rev path) @ x :: acc) []
@@ -1116,7 +1114,7 @@ and type_access ctx e p mode =
 			| [] -> assert false
 			| (name,_,p) :: pnext ->
 				try
-					fields pnext (fun _ -> AccExpr (type_local ctx name p))
+					fields pnext (fun _ -> AKExpr (type_local ctx name p))
 				with
 					Not_found -> loop [] path
 		in
@@ -1151,9 +1149,9 @@ and type_access ctx e p mode =
 				pt
 		in
 		let pt = loop e1.etype in
-		AccExpr (mk (TArray (e1,e2)) pt p)
+		AKExpr (mk (TArray (e1,e2)) pt p)
 	| _ ->
-		AccExpr (type_expr ctx (e,p))
+		AKExpr (type_expr ctx (e,p))
 
 and type_expr ctx ?(need_val=true) (e,p) =
 	match e with
@@ -1611,19 +1609,24 @@ and type_call ctx e el p =
 		| EField ((EConst (Ident "super"),_),_) , _ | EType ((EConst (Ident "super"),_),_) , _ -> ctx.super_call <- true
 		| _ -> ());		
 		match type_access ctx (fst e) (snd e) MCall with
-		| AccInline (ethis,f,t) ->
+		| AKInline (ethis,f,t) ->
 			let params, tret = (match follow t with
 				| TFun (args,r) -> unify_call_params ctx (Some f.cf_name) el args p true, r
 				| _ -> error (s_type (print_context()) t ^ " cannot be called") p
 			) in
 			make_call ctx (mk (TField (ethis,f.cf_name)) t p) params tret p
-		| AccUsing (et,eparam) ->
+		| AKUsing (et,eparam) ->
 			let fname = (match et.eexpr with TField (_,f) -> f | _ -> assert false) in
 			let params, tret = (match follow et.etype with
 				| TFun ( _ :: args,r) -> unify_call_params ctx (Some fname) el args p false, r
 				| _ -> assert false
 			) in
 			make_call ctx et (eparam::params) tret p
+		| AKMacro (ethis,f) ->
+			(match ethis.eexpr with
+			| TTypeExpr (TClassDecl c) ->
+				error "TODO" p
+			| _ -> assert false)
 		| acc ->
 			let e = acc_get ctx acc p in
 			let el , t = (match follow e.etype with
@@ -1826,6 +1829,7 @@ let create com =
 		com = com;
 		api = com.type_api;
 		core_api = ref None;
+		macros = ref None;
 		modules = Hashtbl.create 0;
 		types_module = Hashtbl.create 0;
 		constructs = Hashtbl.create 0;

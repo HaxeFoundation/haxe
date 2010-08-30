@@ -23,6 +23,10 @@ open Typecore
 
 let do_create = ref (fun com -> assert false)
 
+(* make sure we don't access metadata at load time *)
+let has_meta m (ml:Ast.metadata) =
+	List.exists (fun(m2,_) -> m = m2) ml
+
 let type_constant ctx c p =
 	match c with
 	| Int s ->
@@ -421,7 +425,7 @@ let set_heritance ctx c herits p =
 				if is_parent c cl then error "Recursive class" p;
 				if c.cl_interface then error "Cannot extend an interface" p;
 				if cl.cl_interface then error "Cannot extend by using an interface" p;
-				if has_meta ":final" cl.cl_meta && not (has_meta ":hack" c.cl_meta) then error "Cannot extend a final class" p;
+				if Type.has_meta ":final" cl.cl_meta && not (Type.has_meta ":hack" c.cl_meta) then error "Cannot extend a final class" p;
 				c.cl_super <- Some (cl,params)
 			| _ -> error "Should extend by using a class" p)
 		| HImplements t ->
@@ -618,12 +622,13 @@ let init_core_api ctx c =
 		check_fields ccore.cl_statics c.cl_statics;
 	| _ -> assert false
 
-let init_class ctx c p herits fields =
+let init_class ctx c p herits fields meta =
 	ctx.type_params <- c.cl_types;
 	c.cl_extern <- List.mem HExtern herits;
 	c.cl_interface <- List.mem HInterface herits;
 	set_heritance ctx c herits p;
-	let core_api = has_meta ":core_api" c.cl_meta in
+	let core_api = has_meta ":core_api" meta in
+	let is_macro = has_meta ":macro" meta in
 	if core_api then ctx.delays := [(fun() -> init_core_api ctx c)] :: !(ctx.delays);
 	let tthis = TInst (c,List.map snd c.cl_types) in
 	let rec extends_public c =
@@ -720,6 +725,8 @@ let init_class ctx c p herits fields =
 			let stat = List.mem AStatic access in
 			let inline = List.mem AInline access in
 			if inline && c.cl_interface then error "You can't declare inline methods in interfaces" p;
+			let is_macro = (is_macro && not stat) || has_meta ":macro" meta in
+			if is_macro && not stat then error "Only static methods can be macros" p;
 			let parent = (if not stat then get_parent c name else None) in
 			let dynamic = List.mem ADynamic access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
 			if inline && dynamic then error "You can't have both 'inline' and 'dynamic'" p;
@@ -747,7 +754,7 @@ let init_class ctx c p herits fields =
 				cf_doc = doc;
 				cf_meta = type_meta ctx meta;
 				cf_type = t;
-				cf_kind = Method (if inline then MethInline else if dynamic then MethDynamic else MethNormal);
+				cf_kind = Method (if is_macro then MethMacro else if inline then MethInline else if dynamic then MethDynamic else MethNormal);
 				cf_expr = None;
 				cf_public = is_public access parent;
 				cf_params = params;
@@ -993,6 +1000,7 @@ let type_module ctx m tdecls loadp =
 		com = ctx.com;
 		api = ctx.api;
 		core_api = ctx.core_api;
+		macros = ctx.macros;
 		modules = ctx.modules;
 		delays = ctx.delays;
 		constructs = ctx.constructs;
@@ -1070,7 +1078,7 @@ let type_module ctx m tdecls loadp =
 				ctx.local_using<- ctx.local_using @ [resolve_typedef ctx t])
 		| EClass d ->
 			let c = get_class d.d_name in
-			delays := !delays @ check_overriding ctx c p :: check_interfaces ctx c p :: init_class ctx c p d.d_flags d.d_data
+			delays := !delays @ check_overriding ctx c p :: check_interfaces ctx c p :: init_class ctx c p d.d_flags d.d_data d.d_meta
 		| EEnum d ->
 			let e = get_enum d.d_name in
 			ctx.type_params <- e.e_types;

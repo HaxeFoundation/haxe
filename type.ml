@@ -41,6 +41,7 @@ and method_kind =
 	| MethNormal
 	| MethInline
 	| MethDynamic
+	| MethMacro
 
 type t =
 	| TMono of t option ref
@@ -330,6 +331,7 @@ let s_kind = function
 		| MethNormal -> "method"
 		| MethDynamic -> "dynamic method"
 		| MethInline -> "inline method"
+		| MethMacro -> "macro method"
 
 let rec is_parent csup c =
 	if c == csup then
@@ -553,6 +555,7 @@ let unify_kind k1 k2 =
 		| Method m, Var v -> 
 			(match m with
 			| MethDynamic -> direct_access v.v_read && direct_access v.v_write
+			| MethMacro -> false
 			| MethNormal | MethInline ->
 				match v.v_write with
 				| AccNo | AccNever -> true

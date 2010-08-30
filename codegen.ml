@@ -367,6 +367,13 @@ let on_generate ctx t =
 			c.cl_ordered_statics <- f :: c.cl_ordered_statics;
 			c.cl_statics <- PMap.add f.cf_name f c.cl_statics;
 		end;
+		if not (Common.defined ctx.com "macro") then List.iter (fun f ->
+			match f.cf_kind with
+			| Method MethMacro -> 
+				c.cl_statics <- PMap.remove f.cf_name c.cl_statics;
+				c.cl_ordered_statics <- List.filter (fun f2 -> f != f2) c.cl_ordered_statics;
+			| _ -> ()
+		) c.cl_ordered_statics;
 		(match build_metadata ctx.com t with
 		| None -> ()
 		| Some e -> 

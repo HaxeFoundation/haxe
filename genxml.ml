@@ -84,7 +84,7 @@ and gen_field att f =
 		| Var v -> add_get_set v.v_read "get" (add_get_set v.v_write "set" att)
 		| Method m ->
 			(match m with
-			| MethNormal -> ("set", "method") :: att
+			| MethNormal | MethMacro -> ("set", "method") :: att
 			| MethDynamic -> ("set", "dynamic") :: att
 			| MethInline -> ("get", "inline") :: ("set","null") :: att)
 	) in
