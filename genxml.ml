@@ -74,14 +74,20 @@ let rec gen_type t =
 and gen_field att f =
 	let add_get_set acc name att =
 		match acc with
-		| NormalAccess | ResolveAccess -> att
-		| MethodAccess dyn -> (name, if dyn then "dynamic" else "method") :: att 
-		| NoAccess | NeverAccess -> (name, "null") :: att
-		| CallAccess m -> (name,m) :: att
-		| InlineAccess -> (name,"inline") :: att
+		| AccNormal | AccResolve -> att
+		| AccNo | AccNever -> (name, "null") :: att
+		| AccCall m -> (name,m) :: att
+		| AccInline -> (name,"inline") :: att
 	in
 	let att = (match f.cf_expr with None -> att | Some e -> ("line",string_of_int (Lexer.get_error_line e.epos)) :: att) in
-	let att = add_get_set f.cf_get "get" (add_get_set f.cf_set "set" att) in	
+	let att = (match f.cf_kind with
+		| Var v -> add_get_set v.v_read "get" (add_get_set v.v_write "set" att)
+		| Method m ->
+			(match m with
+			| MethNormal -> ("set", "method") :: att
+			| MethDynamic -> ("set", "dynamic") :: att
+			| MethInline -> ("get", "inline") :: ("set","null") :: att)
+	) in
 	let att = (match f.cf_params with [] -> att | l -> ("params", String.concat ":" (List.map (fun (n,_) -> n) l)) :: att) in
 	node f.cf_name (if f.cf_public then ("public","1") :: att else att) (gen_type f.cf_type :: gen_doc_opt f.cf_doc)
 

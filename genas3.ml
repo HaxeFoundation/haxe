@@ -835,8 +835,8 @@ let generate_field ctx static f =
 	let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static) || f.cf_name = "resolve" in
 	let rights = (if static then "static " else "") ^ (if public then "public" else "protected") in
 	let p = ctx.curclass.cl_pos in
-	match f.cf_expr with
-	| Some { eexpr = TFunction fd } when f.cf_set = MethodAccess false || f.cf_set = NeverAccess ->
+	match f.cf_expr, f.cf_kind with
+	| Some { eexpr = TFunction fd }, Method (MethNormal | MethInline) ->
 		print ctx "%s " rights;
 		let rec loop c =
 			match c.cl_super with
@@ -853,6 +853,7 @@ let generate_field ctx static f =
 		h();
 		newline ctx
 	| _ ->
+		let is_getset = (match f.cf_kind with Var { v_read = AccCall _ } | Var { v_write = AccCall _ } -> true | _ -> false) in
 		if ctx.curclass.cl_path = (["flash"],"Boot") && f.cf_name = "init" then
 			generate_boot_init ctx
 		else if ctx.curclass.cl_interface then
@@ -865,41 +866,45 @@ let generate_field ctx static f =
 					if o then print ctx " = %s" (default_value tstr);
 				) args;
 				print ctx ") : %s " (type_str ctx r p);
-			| _ when (match f.cf_get with CallAccess m -> true | _ -> match f.cf_set with CallAccess m -> true | _ -> false) -> 
+			| _ when is_getset -> 
 				let t = type_str ctx f.cf_type p in
 				let id = s_ident f.cf_name in
-				(match f.cf_get with
-				| NormalAccess | CallAccess _ -> print ctx "function get %s() : %s;" id t;
-				| _ -> ());
-				(match f.cf_set with
-				| NormalAccess | CallAccess _ -> print ctx "function set %s( __v : %s ) : void;" id t;
-				| _ -> ());
+				(match f.cf_kind with
+				| Var v ->
+					(match v.v_read with
+					| AccNormal | AccCall _ -> print ctx "function get %s() : %s;" id t;
+					| _ -> ());
+					(match v.v_write with
+					| AccNormal | AccCall _ -> print ctx "function set %s( __v : %s ) : void;" id t;
+					| _ -> ());
+				| _ -> assert false)
 			| _ -> ()
 		else
-		if (match f.cf_get with CallAccess m -> true | _ -> match f.cf_set with CallAccess m -> true | _ -> false) then begin
+		if is_getset then begin
 			let t = type_str ctx f.cf_type p in
 			let id = s_ident f.cf_name in
-			(match f.cf_get with
-			| NormalAccess ->
+			let v = (match f.cf_kind with Var v -> v | _ -> assert false) in
+			(match v.v_read with
+			| AccNormal ->
 				print ctx "%s function get %s() : %s { return $%s; }" rights id t id;
 				newline ctx
-			| CallAccess m ->
+			| AccCall m ->
 				print ctx "%s function get %s() : %s { return %s(); }" rights id t m;
 				newline ctx
-			| NoAccess | NeverAccess ->
-				print ctx "%s function get %s() : %s { return $%s; }" (if f.cf_set = NoAccess then "protected" else "private") id t id;
+			| AccNo | AccNever ->
+				print ctx "%s function get %s() : %s { return $%s; }" (if v.v_read = AccNo then "protected" else "private") id t id;
 				newline ctx
 			| _ ->
 				());
-			(match f.cf_set with
-			| NormalAccess ->
+			(match v.v_write with
+			| AccNormal ->
 				print ctx "%s function set %s( __v : %s ) : void { $%s = __v; }" rights id t id;
 				newline ctx
-			| CallAccess m ->
+			| AccCall m ->
 				print ctx "%s function set %s( __v : %s ) : void { %s(__v); }" rights id t m;
 				newline ctx
-			| NoAccess | NeverAccess ->
-				print ctx "%s function set %s( __v : %s ) : void { $%s = __v; }" (if f.cf_set = NoAccess then "protected" else "private") id t id;
+			| AccNo | AccNever ->
+				print ctx "%s function set %s( __v : %s ) : void { $%s = __v; }" (if v.v_write = AccNo then "protected" else "private") id t id;
 				newline ctx
 			| _ -> ());
 			print ctx "protected var $%s : %s" (s_ident f.cf_name) (type_str ctx f.cf_type p);
@@ -917,8 +922,11 @@ let rec define_getset ctx stat c =
 		Hashtbl.add ctx.get_sets (name,stat) f.cf_name
 	in
 	let field f =
-		(match f.cf_get with CallAccess m -> def f m | _ -> ());
-		(match f.cf_set with CallAccess m -> def f m | _ -> ())
+		match f.cf_kind with
+		| Method _ -> ()
+		| Var v ->
+			(match v.v_read with AccCall m -> def f m | _ -> ());
+			(match v.v_write with AccCall m -> def f m | _ -> ())
 	in
 	List.iter field (if stat then c.cl_ordered_statics else c.cl_ordered_fields);
 	match c.cl_super with
@@ -949,7 +957,7 @@ let generate_class ctx c =
 		let f = { f with
 			cf_name = snd c.cl_path;
 			cf_public = true;
-			cf_set = MethodAccess false;
+			cf_kind = Method MethNormal;
 		} in
 		ctx.constructor_block <- true;
 		generate_field ctx false f;

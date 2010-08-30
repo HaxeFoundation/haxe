@@ -20,14 +20,27 @@ open Ast
 
 type path = string list * string
 
-type field_access =
-	| NormalAccess
-	| NoAccess
-	| ResolveAccess (* call resolve("field") when accessed *)
-	| CallAccess of string (* perform a method call when accessed *)
-	| MethodAccess of bool (* true = the method is dynamic *)
-	| InlineAccess (* similar to Normal but inline when acccessed *)
-	| NeverAccess (* can't be accessed, even in subclasses *)
+type field_kind =
+	| Var of var_kind
+	| Method of method_kind
+
+and var_kind = {
+	v_read : var_access;
+	v_write : var_access;
+}
+
+and var_access =
+	| AccNormal
+	| AccNo				(* can't be accessed outside of the class itself and its subclasses *)
+	| AccNever			(* can't be accessed, even in subclasses *)
+	| AccResolve		(* call resolve("field") when accessed *)
+	| AccCall of string (* perform a method call when accessed *)
+	| AccInline			(* similar to Normal but inline when accessed *)
+
+and method_kind =
+	| MethNormal
+	| MethInline
+	| MethDynamic
 
 type t =
 	| TMono of t option ref
@@ -110,8 +123,7 @@ and tclass_field = {
 	cf_public : bool;
 	mutable cf_doc : Ast.documentation;
 	cf_meta : metadata;
-	cf_get : field_access;
-	cf_set : field_access;
+	cf_kind : field_kind;
 	cf_params : (string * t) list;
 	mutable cf_expr : texpr option;
 }
@@ -303,13 +315,21 @@ and s_type_params ctx = function
 	| l -> "<" ^ String.concat ", " (List.map (s_type ctx) l) ^ ">"
 
 let s_access = function
-	| NormalAccess -> "default"
-	| NoAccess -> "null"
-	| NeverAccess -> "never"
-	| CallAccess m -> m
-	| MethodAccess b -> if b then "dynamic method" else "default method"
-	| ResolveAccess -> "resolve"
-	| InlineAccess -> "inline"
+	| AccNormal -> "default"
+	| AccNo -> "null"
+	| AccNever -> "never"
+	| AccResolve -> "resolve"
+	| AccCall m -> m
+	| AccInline	-> "inline"
+
+let s_kind = function
+	| Var { v_read = AccNormal; v_write = AccNormal } -> "var"
+	| Var v -> "(" ^ s_access v.v_read ^ "," ^ s_access v.v_write ^ ")"
+	| Method m ->
+		match m with
+		| MethNormal -> "method"
+		| MethDynamic -> "dynamic method"
+		| MethInline -> "inline method"
 
 let rec is_parent csup c =
 	if c == csup then
@@ -492,7 +512,7 @@ type unify_error =
 	| Invalid_field_type of string
 	| Has_no_field of t * string
 	| Has_extra_field of t * string
-	| Invalid_access of string * bool * field_access * field_access
+	| Invalid_kind of string * field_kind * field_kind
 	| Invalid_visibility of string
 	| Not_matching_optional of string
 	| Cant_force_optional
@@ -501,7 +521,7 @@ exception Unify_error of unify_error list
 
 let cannot_unify a b = Cannot_unify (a,b)
 let invalid_field n = Invalid_field_type n
-let invalid_access n get a b = Invalid_access (n,get,a,b)
+let invalid_kind n a b = Invalid_kind (n,a,b)
 let invalid_visibility n = Invalid_visibility n
 let has_no_field t n = Has_no_field (t,n)
 let has_extra_field t n = Has_extra_field (t,n)
@@ -509,24 +529,39 @@ let error l = raise (Unify_error l)
 let has_meta m ml = List.mem (m,[]) (ml())
 let no_meta() = []
 
-type simple_access =
-	| SAYes
-	| SANo
-	| SARuntime
-
-let simple_access = function
-	| NormalAccess | InlineAccess | MethodAccess true -> SAYes
-	| NoAccess | NeverAccess | MethodAccess false -> SANo
-	| ResolveAccess | CallAccess _ -> SARuntime
-
 (*
 	we can restrict access as soon as both are runtime-compatible
 *)
 let unify_access a1 a2 =
-	a1 = a2 || match simple_access a1 , simple_access a2 with
-		| SAYes, SAYes
-		| _, SANo -> true
-		| _ -> false
+	a1 = a2 || match a1, a2 with
+	| _, AccNo | _, AccNever -> true
+	| AccInline, AccNormal -> true
+	| _ -> false
+
+let direct_access = function
+	| AccNo | AccNever | AccNormal | AccInline -> true
+	| AccResolve | AccCall _ -> false
+
+let unify_kind k1 k2 =
+	k1 = k2 || match k1, k2 with
+		| Var v1, Var v2 -> unify_access v1.v_read v2.v_read && unify_access v1.v_write v2.v_write
+		| Var v, Method m ->
+			(match v.v_read, v.v_write, m with
+			| AccNormal, _, MethNormal -> true
+			| AccNormal, AccNormal, MethDynamic -> true
+			| _ -> false)
+		| Method m, Var v -> 
+			(match m with
+			| MethDynamic -> direct_access v.v_read && direct_access v.v_write
+			| MethNormal | MethInline ->
+				match v.v_write with
+				| AccNo | AccNever -> true
+				| _ -> false)
+		| Method m1, Method m2 ->
+			match m1,m2 with
+			| MethInline, MethNormal
+			| MethDynamic, MethNormal -> true
+			| _ -> false
 
 let eq_stack = ref []
 
@@ -589,8 +624,7 @@ let rec type_eq param a b =
 			PMap.iter (fun n f1 ->
 				try
 					let f2 = PMap.find n a2.a_fields in
-					if f1.cf_get <> f2.cf_get && (param = EqStrict || param = EqCoreType || not (unify_access f1.cf_get f2.cf_get)) then error [invalid_access n true f1.cf_get f2.cf_get];
-					if f1.cf_set <> f2.cf_set && (param = EqStrict || param = EqCoreType || not (unify_access f1.cf_set f2.cf_set)) then error [invalid_access n false f1.cf_set f2.cf_set];
+					if f1.cf_kind <> f2.cf_kind && (param = EqStrict || param = EqCoreType || not (unify_kind f1.cf_kind f2.cf_kind)) then error [invalid_kind n f1.cf_kind f2.cf_kind];
 					try
 						type_eq param f1.cf_type f2.cf_type
 					with
@@ -718,8 +752,7 @@ let rec unify a b =
 		(try
 			PMap.iter (fun n f2 ->
 				let ft, f1 = (try class_field c n with Not_found -> error [has_no_field a n]) in
-				if not (unify_access f1.cf_get f2.cf_get) then error [invalid_access n true f1.cf_get f2.cf_get];
-				if not (unify_access f1.cf_set f2.cf_set) then error [invalid_access n false f1.cf_set f2.cf_set];
+				if not (unify_kind f1.cf_kind f2.cf_kind) then error [invalid_kind n f1.cf_kind f2.cf_kind];
 				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
 				try
 					unify_with_access (apply_params c.cl_types tl ft) f2
@@ -734,8 +767,7 @@ let rec unify a b =
 			PMap.iter (fun n f2 ->
 			try
 				let f1 = PMap.find n a1.a_fields in
-				if not (unify_access f1.cf_get f2.cf_get) then error [invalid_access n true f1.cf_get f2.cf_get];
-				if not (unify_access f1.cf_set f2.cf_set) then error [invalid_access n false f1.cf_set f2.cf_set];
+				if not (unify_kind f1.cf_kind f2.cf_kind) then error [invalid_kind n f1.cf_kind f2.cf_kind];
 				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
 				try
 					unify_with_access f1.cf_type f2;
@@ -814,11 +846,14 @@ and unify_types a b tl1 tl2 =
 	with
 		Unify_error l -> error ((cannot_unify a b) :: l)
 
-and unify_with_access t f =
-	match f.cf_get, f.cf_set with
-	| NoAccess , _ | NeverAccess, _ -> unify f.cf_type t
-	| _ , NoAccess | _, NeverAccess -> unify t f.cf_type
-	| _ , _ -> type_eq EqBothDynamic t f.cf_type
+and unify_with_access t1 f2 =
+	match f2.cf_kind with
+	(* write only *)
+	| Var { v_read = AccNo } | Var { v_read = AccNever } -> unify f2.cf_type t1
+	(* read only *)
+	| Method MethNormal | Method MethInline | Var { v_write = AccNo } | Var { v_write = AccNever } -> unify t1 f2.cf_type
+	(* read/write *)
+	| _ -> type_eq EqBothDynamic t1 f2.cf_type
 
 let iter f e =
 	match e.eexpr with

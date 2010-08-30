@@ -216,8 +216,10 @@ let rec type_module_type ctx t tparams p =
 				cf_name = f.ef_name;
 				cf_public = true;
 				cf_type = f.ef_type;
-				cf_get = NormalAccess;
-				cf_set = (match follow f.ef_type with TFun _ -> MethodAccess false | _ -> NoAccess);
+				cf_kind = (match follow f.ef_type with 
+					| TFun _ -> Method MethNormal 
+					| _ -> Var { v_read = AccNormal; v_write = Type.AccNo }
+				);
 				cf_doc = None;
 				cf_meta = no_meta;
 				cf_expr = None;
@@ -277,7 +279,7 @@ let make_call ctx e params t p =
 			| TAnon a -> (try PMap.find fname a.a_fields with Not_found -> raise Exit)
 			| _ -> raise Exit
 		) in
-		if f.cf_get <> InlineAccess then raise Exit;
+		if f.cf_kind <> Method MethInline then raise Exit;
 		ignore(follow f.cf_type); (* force evaluation *)
 		(match f.cf_expr with
 		| Some { eexpr = TFunction fd } ->
@@ -323,47 +325,54 @@ let rec acc_get ctx g p =
 			loop e
 
 let field_access ctx mode f t e p =
-	let normal() = AccExpr (mk (TField (e,f.cf_name)) t p) in
-	match (match mode with MGet | MCall -> f.cf_get | MSet -> f.cf_set) with
-	| NoAccess ->
-		(match follow e.etype with
-		| TInst (c,_) when is_parent c ctx.curclass -> normal()
-		| TAnon a ->
-			(match !(a.a_status) with
-			| Statics c2 when ctx.curclass == c2 -> normal()
-			| _ -> if ctx.untyped then normal() else AccNo f.cf_name)
-		| _ ->
-			if ctx.untyped then normal() else AccNo f.cf_name)
-	| MethodAccess false when not ctx.untyped ->
-		error "Cannot rebind this method : please use 'dynamic' before method declaration" p
-	| NormalAccess | MethodAccess _ ->
-		(* 
-			creates a closure if we're reading a normal method
-			or a read-only variable (which could be a method)
-		*)
-		(match mode, f.cf_set with
-		| MGet, MethodAccess _ -> AccExpr (mk (TClosure (e,f.cf_name)) t p)
-		| MGet, NoAccess | MGet, NeverAccess when (match follow t with TFun _ -> true | _ -> false) -> AccExpr (mk (TClosure (e,f.cf_name)) t p)
-		| _ ->
-			match follow e.etype with
-			| TAnon a -> (match !(a.a_status) with EnumStatics e -> AccExpr (mk (TEnumField (e,f.cf_name)) t p) | _ -> normal())
-			| _ -> normal())
-	| CallAccess m ->
-		if m = ctx.curmethod && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
-			let prefix = if Common.defined ctx.com "as3" then "$" else "" in
-			AccExpr (mk (TField (e,prefix ^ f.cf_name)) t p)
-		else if mode = MSet then
-			AccSet (e,m,t,f.cf_name)
-		else
-			AccExpr (make_call ctx (mk (TField (e,m)) (tfun [] t) p) [] t p)
-	| ResolveAccess ->
-		let fstring = mk (TConst (TString f.cf_name)) ctx.api.tstring p in
-		let tresolve = tfun [ctx.api.tstring] t in
-		AccExpr (make_call ctx (mk (TField (e,"resolve")) tresolve p) [fstring] t p)
-	| NeverAccess ->
-		AccNo f.cf_name
-	| InlineAccess ->
-		AccInline (e,f,t)
+	let fnormal() = AccExpr (mk (TField (e,f.cf_name)) t p) in
+	let normal() =
+		match follow e.etype with
+		| TAnon a -> (match !(a.a_status) with EnumStatics e -> AccExpr (mk (TEnumField (e,f.cf_name)) t p) | _ -> fnormal())
+		| _ -> fnormal()
+	in
+	match f.cf_kind with
+	| Method m ->		
+		if mode = MSet && m <> MethDynamic && not ctx.untyped then error "Cannot rebind this method : please use 'dynamic' before method declaration" p;
+		(match m, mode with
+		| MethInline, _ -> AccInline (e,f,t)
+		| _ , MGet -> AccExpr (mk (TClosure (e,f.cf_name)) t p)
+		| _ -> normal())
+	| Var v ->
+		match (match mode with MGet | MCall -> v.v_read | MSet -> v.v_write) with
+		| Type.AccNo ->
+			(match follow e.etype with
+			| TInst (c,_) when is_parent c ctx.curclass -> normal()
+			| TAnon a ->
+				(match !(a.a_status) with
+				| Statics c2 when ctx.curclass == c2 -> normal()
+				| _ -> if ctx.untyped then normal() else AccNo f.cf_name)
+			| _ ->
+				if ctx.untyped then normal() else AccNo f.cf_name)
+		| AccNormal ->
+			(*
+				if we are reading from a read-only variable, it might actually be a method, so make sure to create a closure
+			*)
+			if mode = MGet && (match v.v_write, follow t with (Type.AccNo | AccNever), TFun _ -> true | _ -> false) then
+				AccExpr (mk (TClosure (e,f.cf_name)) t p)
+			else
+				normal()
+		| AccCall m ->
+			if m = ctx.curmethod && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
+				let prefix = if Common.defined ctx.com "as3" then "$" else "" in
+				AccExpr (mk (TField (e,prefix ^ f.cf_name)) t p)
+			else if mode = MSet then
+				AccSet (e,m,t,f.cf_name)
+			else
+				AccExpr (make_call ctx (mk (TField (e,m)) (tfun [] t) p) [] t p)
+		| AccResolve ->
+			let fstring = mk (TConst (TString f.cf_name)) ctx.api.tstring p in
+			let tresolve = tfun [ctx.api.tstring] t in
+			AccExpr (make_call ctx (mk (TField (e,"resolve")) tresolve p) [fstring] t p)
+		| AccNever ->
+			AccNo f.cf_name
+		| Type.AccInline ->
+			AccInline (e,f,t)
 
 let using_field ctx mode e i p =
 	if mode = MSet then raise Not_found;
@@ -546,7 +555,7 @@ let rec type_field ctx e i p mode =
 		in
 		(try
 			let t , f = class_field c i in
-			if e.eexpr = TConst TSuper && f.cf_set = NormalAccess && Common.platform ctx.com Flash9 then error "Cannot access superclass variable for calling : needs to be a proper method" p;
+			if e.eexpr = TConst TSuper && (match f.cf_kind with Var _ -> true | _ -> false) && Common.platform ctx.com Flash9 then error "Cannot access superclass variable for calling : needs to be a proper method" p;
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then display_error ctx ("Cannot access to private field " ^ i) p;
 			field_access ctx mode f (apply_params c.cl_types params t) e p
 		with Not_found -> try
@@ -580,8 +589,7 @@ let rec type_field ctx e i p mode =
 				cf_doc = None;
 				cf_meta = no_meta;
 				cf_public = true;
-				cf_get = NormalAccess;
-				cf_set = (match mode with MSet -> NormalAccess | MGet | MCall -> NoAccess);
+				cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> Type.AccNo) };
 				cf_expr = None;
 				cf_params = [];
 			} in
@@ -596,8 +604,7 @@ let rec type_field ctx e i p mode =
 			cf_doc = None;
 			cf_meta = no_meta;
 			cf_public = true;
-			cf_get = NormalAccess;
-			cf_set = (match mode with MSet -> NormalAccess | MGet | MCall -> NoAccess);
+			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> Type.AccNo) };
 			cf_expr = None;
 			cf_params = [];
 		} in
@@ -1795,8 +1802,7 @@ let types ctx main excludes =
 			cf_name = "init";
 			cf_type = r;
 			cf_public = false;
-			cf_get = NormalAccess;
-			cf_set = NormalAccess;
+			cf_kind = Var { v_read = AccNormal; v_write = AccNormal };
 			cf_doc = None;
 			cf_meta = no_meta;
 			cf_params = [];

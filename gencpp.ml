@@ -17,9 +17,9 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *)
+open Ast
 open Type
 open Common
-open Ast
 
 
 (*
@@ -1607,9 +1607,8 @@ let is_dynamic_method f =
 *)
 
 let is_dynamic_method f =
-		(match f.cf_expr with
-		| Some { eexpr = TFunction fd } when f.cf_set = MethodAccess true -> true
-		| Some { eexpr = TFunction fd } when f.cf_set = NormalAccess -> true
+		(match f.cf_expr, f.cf_kind with
+		| Some { eexpr = TFunction _ }, (Var _ | Method MethDynamic) -> true
 		| _ -> false);;
 
 
@@ -1851,13 +1850,13 @@ let gen_member_def ctx class_def is_static is_extern is_interface field =
 			output "	";
 			gen_type ctx field.cf_type;
 			output (" &" ^ remap_name ^ "_dyn() { return " ^ remap_name ^ ";}\n" )
-		| _ ->  (match field.cf_get with
-			| CallAccess name when (is_dynamic_accessor name "get" field class_def) ->
+		| _ ->  (match field.cf_kind with
+			| Var { v_read = AccCall name } when (is_dynamic_accessor name "get" field class_def) ->
 				output ("\t\tDynamic get_" ^ field.cf_name ^ ";\n" )
 			| _ -> ()
 			);
-			(match field.cf_set with
-			| CallAccess name when  (is_dynamic_accessor name "set" field class_def) ->
+			(match field.cf_kind with
+			| Var { v_write = AccCall name } when  (is_dynamic_accessor name "set" field class_def) ->
 				output ("\t\tDynamic set_" ^ field.cf_name ^ ";\n" )
 			| _ -> ()
 			)
@@ -2416,9 +2415,9 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 					let remap_name = keyword_remap field.cf_name in
 					output_cpp ("	HX_MARK_MEMBER_NAME(" ^ remap_name ^ ",\"" ^ field.cf_name^ "\");\n");
 
-					(match field.cf_get with | CallAccess name when (is_dynamic_accessor name "get" field class_def) ->
+					(match field.cf_kind with Var { v_read = AccCall name } when (is_dynamic_accessor name "get" field class_def) ->
 						output_cpp ("\tHX_MARK_MEMBER_NAME(" ^ name ^ "," ^ "\"" ^ name ^ "\");\n" ) | _ -> ());
-					(match field.cf_set with | CallAccess name when  (is_dynamic_accessor name "set" field class_def) ->
+					(match field.cf_kind with Var { v_write = AccCall name } when  (is_dynamic_accessor name "set" field class_def) ->
 						output_cpp ("\tHX_MARK_MEMBER_NAME(" ^ name ^ "," ^ "\"" ^ name ^ "\");\n" ) | _ -> ());
 				end
 
@@ -2461,8 +2460,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp ("Dynamic " ^ class_name ^ "::__Field(const ::String &inName)\n{\n");
 		let get_field_dat = List.map (fun f ->
 			(f.cf_name, String.length f.cf_name, "return " ^
-				(match f.cf_get with
-				| CallAccess prop -> (keyword_remap prop) ^ "()"
+				(match f.cf_kind with
+				| Var { v_read = AccCall prop } -> (keyword_remap prop) ^ "()"
 				| _ -> ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()")
 				) ^ ";"
 			) )
@@ -2490,8 +2489,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 				let remap_name = keyword_remap f.cf_name in
 				output_cpp ("	if (inFieldID==__id_" ^ remap_name ^ ") return "  ^
 					( if (return_type="double") then "hx::ToDouble( " else "" ) ^
-					(match f.cf_get with
-					| CallAccess prop -> (keyword_remap prop) ^ "()"
+					(match f.cf_kind with
+					| Var { v_read = AccCall prop } -> (keyword_remap prop) ^ "()"
 					| _ -> ((keyword_remap f.cf_name) ^ if ( variable_field f) then "" else "_dyn()")
 					) ^ ( if (return_type="double") then " ) " else "" ) ^ ";\n");
 				) in
@@ -2512,8 +2511,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 		let set_field_dat = List.map (fun f ->
 			(f.cf_name, String.length f.cf_name,
-				(match f.cf_set with
-				| CallAccess prop -> "return " ^ (keyword_remap prop) ^ "(inValue);"
+				(match f.cf_kind with
+				| Var { v_write = AccCall prop } -> "return " ^ (keyword_remap prop) ^ "(inValue);"
 				| _ -> (keyword_remap f.cf_name) ^ "=inValue.Cast< " ^ (type_string f.cf_type) ^
 				         " >(); return inValue;"
 				)  )

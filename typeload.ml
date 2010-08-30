@@ -193,30 +193,29 @@ and load_complex_type ctx p t =
 	| TPAnonymous l ->
 		let rec loop acc (n,pub,f,p) =
 			if PMap.mem n acc then error ("Duplicate field declaration : " ^ n) p;
-			let t , get, set = (match f with
+			let t , access = (match f with
 				| AFVar t ->
-					load_complex_type ctx p t, NormalAccess, NormalAccess
+					load_complex_type ctx p t, Var { v_read = AccNormal; v_write = AccNormal }
 				| AFFun (tl,t) ->
 					let t = load_complex_type ctx p t in
 					let args = List.map (fun (name,o,t) -> name , o, load_complex_type ctx p t) tl in
-					TFun (args,t), NormalAccess, MethodAccess false
+					TFun (args,t), Method MethNormal
 				| AFProp (t,i1,i2) ->
 					let access m get =
 						match m with
-						| "null" -> NoAccess
-						| "never" -> NeverAccess
-						| "default" -> NormalAccess
-						| "dynamic" -> CallAccess ((if get then "get_"  else "set_") ^ n)
-						| _ -> CallAccess m
+						| "null" -> AccNo
+						| "never" -> AccNever
+						| "default" -> AccNormal
+						| "dynamic" -> AccCall ((if get then "get_"  else "set_") ^ n)
+						| _ -> AccCall m
 					in
-					load_complex_type ctx p t, access i1 true, access i2 false
+					load_complex_type ctx p t, Var { v_read = access i1 true; v_write = access i2 false }
 			) in
 			PMap.add n {
 				cf_name = n;
 				cf_type = t;
 				cf_public = (match pub with None -> true | Some p -> p);
-				cf_get = get;
-				cf_set = set;
+				cf_kind = access;
 				cf_params = [];
 				cf_expr = None;
 				cf_doc = None;
@@ -311,9 +310,9 @@ let check_overriding ctx c p () =
 					display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass") p
 				else if f.cf_public <> f2.cf_public then
 					display_error ctx ("Field " ^ i ^ " has different visibility (public/private) than superclass one") p
-				else if f2.cf_get = InlineAccess then
+				else if f2.cf_kind = Method MethInline then
 					display_error ctx ("Field " ^ i ^ " is inlined and cannot be overridden") p
-				else if f2.cf_get <> f.cf_get || f2.cf_set <> f.cf_set then
+				else if f2.cf_kind <> f.cf_kind then
 					display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p
 				else try
 					let t = apply_params csup.cl_types params t in
@@ -348,10 +347,8 @@ let rec check_interface ctx c p intf params =
 			let p = (match f2.cf_expr with None -> p | Some e -> e.epos) in
 			if f.cf_public && not f2.cf_public then
 				display_error ctx ("Field " ^ i ^ " should be public as requested by " ^ s_type_path intf.cl_path) p
-			else if not (unify_access f2.cf_get f.cf_get) then
-				display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_access f2.cf_get ^ " should be " ^ s_access f.cf_get ^ ")") p
-			else if not (unify_access f2.cf_set f.cf_set) then
-				display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_access f2.cf_set ^ " should be " ^ s_access f.cf_set ^ ")") p
+			else if not (unify_kind f2.cf_kind f.cf_kind) then
+				display_error ctx ("Field " ^ i ^ " has different property access than in " ^ s_type_path intf.cl_path ^ " (" ^ s_kind f2.cf_kind ^ " should be " ^ s_kind f.cf_kind ^ ")") p
 			else try
 				valid_redefinition ctx f2 t2 f (apply_params intf.cl_types params f.cf_type)
 			with
@@ -598,10 +595,9 @@ let init_core_api ctx c =
 				(match f2.cf_doc with
 				| None -> f2.cf_doc <- f.cf_doc
 				| Some _ -> ());
-				if f2.cf_get <> f.cf_get || f2.cf_set <> f.cf_set then begin
-					match f2.cf_get, f.cf_get, f2.cf_set, f.cf_set with
-					| InlineAccess, NormalAccess, NeverAccess, MethodAccess false -> () (* allow to add 'inline' *)
-					| NormalAccess, InlineAccess, MethodAccess false, NeverAccess -> () (* allow to remove 'inline' - only during transition ? *)
+				if f2.cf_kind <> f.cf_kind then begin
+					match f2.cf_kind, f.cf_kind with
+					| Method MethInline, Method MethNormal -> () (* allow to add 'inline' *)
 					| _ ->
 						error ("Field " ^ i ^ " has different property access than core type") p;
 				end;
@@ -695,8 +691,7 @@ let init_class ctx c p herits fields =
 				cf_doc = doc;
 				cf_meta = type_meta ctx meta;
 				cf_type = t;
-				cf_get = if inline then InlineAccess else NormalAccess;
-				cf_set = if inline then NeverAccess else NormalAccess;
+				cf_kind = Var (if inline then { v_read = AccInline ; v_write = AccNever } else { v_read = AccNormal; v_write = AccNormal });
 				cf_expr = None;
 				cf_public = is_public access None;
 				cf_params = [];
@@ -726,7 +721,8 @@ let init_class ctx c p herits fields =
 			let inline = List.mem AInline access in
 			if inline && c.cl_interface then error "You can't declare inline methods in interfaces" p;
 			let parent = (if not stat then get_parent c name else None) in
-			let dynamic = List.mem ADynamic access || (match parent with Some { cf_set = MethodAccess true } -> true | _ -> false) in
+			let dynamic = List.mem ADynamic access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
+			if inline && dynamic then error "You can't have both 'inline' and 'dynamic'" p;
 			let ctx = { ctx with
 				curclass = c;
 				curmethod = name;
@@ -751,8 +747,7 @@ let init_class ctx c p herits fields =
 				cf_doc = doc;
 				cf_meta = type_meta ctx meta;
 				cf_type = t;
-				cf_get = if inline then InlineAccess else NormalAccess;
-				cf_set = (if inline then NeverAccess else MethodAccess dynamic);
+				cf_kind = Method (if inline then MethInline else if dynamic then MethDynamic else MethNormal);
 				cf_expr = None;
 				cf_public = is_public access parent;
 				cf_params = params;
@@ -795,35 +790,34 @@ let init_class ctx c p herits fields =
 					| Not_found -> if not c.cl_interface then error ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
 			in
 			let get = (match get with
-				| "null" -> NoAccess
-				| "dynamic" -> CallAccess ("get_" ^ name)
-				| "never" -> NeverAccess
-				| "default" -> NormalAccess
+				| "null" -> AccNo
+				| "dynamic" -> AccCall ("get_" ^ name)
+				| "never" -> AccNever
+				| "default" -> AccNormal
 				| _ ->
 					check_get := check_method get (TFun ([],ret));
-					CallAccess get
+					AccCall get
 			) in
 			let set = (match set with
 				| "null" ->
 					(* standard flash library read-only variables can't be accessed for writing, even in subclasses *)
 					if c.cl_extern && (match c.cl_path with "flash" :: _  , _ -> true | _ -> false) && Common.defined ctx.com "flash9" then
-						NeverAccess
+						AccNever
 					else
-						NoAccess
-				| "never" -> NeverAccess
-				| "dynamic" -> CallAccess ("set_" ^ name)
-				| "default" -> NormalAccess
+						AccNo
+				| "never" -> AccNever
+				| "dynamic" -> AccCall ("set_" ^ name)
+				| "default" -> AccNormal
 				| _ ->
 					check_set := check_method set (TFun (["",false,ret],ret));
-					CallAccess set
+					AccCall set
 			) in
-			if set = NormalAccess && (match get with CallAccess _ -> true | _ -> false) then error "Unsupported property combination" p;
+			if set = AccNormal && (match get with AccCall _ -> true | _ -> false) then error "Unsupported property combination" p;
 			let cf = {
 				cf_name = name;
 				cf_doc = doc;
 				cf_meta = type_meta ctx meta;
-				cf_get = get;
-				cf_set = set;
+				cf_kind = Var { v_read = get; v_write = set };
 				cf_expr = None;
 				cf_type = ret;
 				cf_public = is_public access None;

@@ -444,9 +444,9 @@ let is_in_dynamic_methods ctx e s =
 	) ctx.all_dynamic_methods
 
 let is_dynamic_method f =
-	(match f.cf_set with
-		| NormalAccess -> true
-		| MethodAccess true -> true
+	(match f.cf_kind with
+		| Var _ -> true
+		| Method MethDynamic -> true
 		| _ -> false)
 		
 let fun_block ctx f p =
@@ -1628,13 +1628,10 @@ let generate_field ctx static f =
 		else
 			ctx.curmethod <- f.cf_name;
 		spr ctx (rights ^ " ");
-		(match f.cf_set with
-		| NormalAccess
-		| MethodAccess true ->
+		if is_dynamic_method f then
 			gen_dynamic_function ctx static (s_ident f.cf_name) fd f.cf_params p
-		| _ ->
-			gen_function ctx (s_ident f.cf_name) fd f.cf_params p
-		);
+		else
+			gen_function ctx (s_ident f.cf_name) fd f.cf_params p		
 	| _ ->
 		if ctx.curclass.cl_interface then
 			match follow f.cf_type with
@@ -1646,34 +1643,37 @@ let generate_field ctx static f =
 				print ctx ")";
 			| _ -> spr ctx "//"; ()
 		else if
-			(match f.cf_get, f.cf_set with
-			| CallAccess m1, CallAccess m2 ->
-				if not (is_method_defined ctx m1 static) then (
-					generate_self_method ctx rights m1 static false;
-					print ctx "%s $%s" rights (s_ident m1);
-					if not (is_method_defined ctx m2 static) then
+			(match f.cf_kind with
+			| Var v ->
+				(match v.v_read, v.v_write with
+				| AccCall m1, AccCall m2 ->
+					if not (is_method_defined ctx m1 static) then (
+						generate_self_method ctx rights m1 static false;
+						print ctx "%s $%s" rights (s_ident m1);
+						if not (is_method_defined ctx m2 static) then
+							newline ctx);
+					if not (is_method_defined ctx m2 static) then (
+						generate_self_method ctx rights m2 static true;
+						print ctx "%s $%s" rights (s_ident m2);
 						newline ctx);
-				if not (is_method_defined ctx m2 static) then (
-					generate_self_method ctx rights m2 static true;
-					print ctx "%s $%s" rights (s_ident m2);
-					newline ctx);
-				false
-			| CallAccess m, _ ->
-				if not (is_method_defined ctx m static) then generate_self_method ctx rights m static false;
-				print ctx "%s $%s" rights (s_ident f.cf_name);
-				true
-			| _, CallAccess m ->
-				if not (is_method_defined ctx m static) then generate_self_method ctx rights m static true;
-				print ctx "%s $%s" rights (s_ident f.cf_name);
-				true
-			| _ ->
-				false) then
+					false
+				| AccCall m, _ ->
+					if not (is_method_defined ctx m static) then generate_self_method ctx rights m static false;
+					print ctx "%s $%s" rights (s_ident f.cf_name);
+					true
+				| _, AccCall m ->
+					if not (is_method_defined ctx m static) then generate_self_method ctx rights m static true;
+					print ctx "%s $%s" rights (s_ident f.cf_name);
+					true
+				| _ ->
+					false)
+			| _ -> false) then
 				()
 		else begin
 			let name = s_ident f.cf_name in
 			if static then
-				(match f.cf_set with
-				| NormalAccess -> 
+				(match f.cf_kind with
+				| Var _ -> 
 					(match follow f.cf_type with
 					| TFun _
 					| TDynamic _ ->
@@ -1705,8 +1705,8 @@ let generate_static_field_assign ctx path f =
 			match e.eexpr with
 			| TConst _ -> ()
 			| TFunction fd ->
-				(match f.cf_set with
-				| NormalAccess when 
+				(match f.cf_kind with
+				| Var _ when 
 						(match follow f.cf_type with
 						| TFun _
 						| TDynamic _ ->
@@ -1716,7 +1716,7 @@ let generate_static_field_assign ctx path f =
 					newline ctx;
 					print ctx "%s::$%s = " (s_path ctx path false p) (s_ident f.cf_name);
 					gen_value ctx e
-				| MethodAccess true ->
+				| Method MethDynamic ->
 					newline ctx;
 					print ctx "%s::$%s = " (s_path ctx path false p) (s_ident f.cf_name);
 					gen_value ctx e

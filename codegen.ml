@@ -244,8 +244,7 @@ let extend_xml_proxy ctx c t file p =
 						cf_public = true;
 						cf_doc = None;
 						cf_meta = no_meta;
-						cf_get = ResolveAccess;
-						cf_set = NoAccess;
+						cf_kind = Var { v_read = AccResolve; v_write = AccNo };
 						cf_params = [];
 						cf_expr = None;
 					} in
@@ -927,8 +926,8 @@ let fix_overrides com t =
 	match com.platform, t with
 	| Flash9, TClassDecl c ->
 		c.cl_ordered_fields <- List.map (fun f ->
-			match f.cf_expr with
-			| Some { eexpr = TFunction fd } when f.cf_set <> NormalAccess && f.cf_set <> MethodAccess true ->
+			match f.cf_expr, f.cf_kind with
+			| Some { eexpr = TFunction fd }, Method (MethNormal | MethInline) ->
 				fix_override c f fd
 			| _ ->
 				f
@@ -1060,7 +1059,7 @@ let dump_types com =
 		| Type.TClassDecl c ->
 			let print_field stat f =
 				print "\t%s%s%s%s" (if stat then "static " else "") (if f.cf_public then "public " else "") f.cf_name (params f.cf_params);
-				print "(%s,%s) : %s" (s_access f.cf_get) (s_access f.cf_set) (s_type f.cf_type);
+				print "(%s) : %s" (s_kind f.cf_kind) (s_type f.cf_type);
 				(match f.cf_expr with
 				| None -> ()
 				| Some e -> print "\n\n\t = %s" (Type.s_expr s_type e));

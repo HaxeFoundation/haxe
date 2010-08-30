@@ -78,8 +78,19 @@ let unify_error_msg ctx = function
 		s_type ctx t ^ " has no field " ^ n
 	| Has_extra_field (t,n) ->
 		s_type ctx t ^ " has extra field " ^ n
-	| Invalid_access (f,get,a,b) ->
-		"Inconsistent " ^ (if get then "getter" else "setter") ^ " for field " ^ f ^ " : " ^ s_access a ^ " should be " ^ s_access b
+	| Invalid_kind (f,a,b) ->
+		(match a, b with
+		| Var va, Var vb ->
+			let name, stra, strb = if va.v_read = vb.v_read then
+				"setter", s_access va.v_write, s_access vb.v_write
+			else if va.v_write = vb.v_write then
+				"getter", s_access va.v_read, s_access vb.v_read
+			else
+				"access", "(" ^ s_access va.v_read ^ "," ^ s_access va.v_write ^ ")", "(" ^ s_access vb.v_read ^ "," ^ s_access vb.v_write ^ ")"
+			in
+			"Inconsistent " ^ name ^ " for field " ^ f ^ " : " ^ stra ^ " should be " ^ strb
+		| _ ->
+			"Field " ^ f ^ " is " ^ s_kind a ^ " but should be " ^ s_kind b)
 	| Invalid_visibility n ->
 		"The field " ^ n ^ " is not public"
 	| Not_matching_optional n ->
@@ -205,8 +216,7 @@ let mk_field name t = {
 	cf_doc = None;
 	cf_meta = no_meta;
 	cf_public = true;
-	cf_get = NormalAccess;
-	cf_set = NormalAccess;
+	cf_kind = Var { v_read = AccNormal; v_write = AccNormal };
 	cf_expr = None;
 	cf_params = [];
 }

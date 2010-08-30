@@ -1637,8 +1637,8 @@ let generate_construct ctx fdata c =
 		j());
 	(* --- *)
 	PMap.iter (fun _ f ->
-		match f.cf_expr with
-		| Some { eexpr = TFunction fdata } when f.cf_set = MethodAccess true ->
+		match f.cf_expr, f.cf_kind with
+		| Some { eexpr = TFunction fdata }, Method MethDynamic ->
 			let id = ident f.cf_name in
 			write ctx (HFindProp id);
 			write ctx (HGetProp id);
@@ -1658,7 +1658,7 @@ let generate_class_statics ctx c =
 	List.iter (fun f ->
 		match f.cf_expr with
 		| None -> ()
-		| Some { eexpr = TFunction _ } when f.cf_set = MethodAccess false || f.cf_get = InlineAccess -> ()
+		| Some { eexpr = TFunction _ } when (match f.cf_kind with Method (MethNormal | MethInline) -> true | _ -> false) -> ()
 		| Some e ->
 			write ctx (HGetLex (type_path ctx c.cl_path));
 			gen_expr ctx true e;
@@ -1678,8 +1678,8 @@ let generate_class_init ctx c hc =
 	end;
 	write ctx (HClassDef hc);
 	List.iter (fun f ->
-		match f.cf_expr with
-		| Some { eexpr = TFunction fdata } when f.cf_set = MethodAccess true ->
+		match f.cf_expr, f.cf_kind with
+		| Some { eexpr = TFunction fdata }, Method MethDynamic ->
 			write ctx HDup;
 			write ctx (HFunction (generate_method ctx fdata true));
 			write ctx (HInitProp (ident f.cf_name));
@@ -1738,22 +1738,24 @@ let generate_field_kind ctx f c stat =
 			| Some (c,_) ->
 				PMap.exists f.cf_name c.cl_fields || loop c
 		in
-		if f.cf_set = NormalAccess || f.cf_set = MethodAccess true then
+		(match f.cf_kind with
+		| Var _ | Method MethDynamic ->
 			Some (HFVar {
 				hlv_type = Some (type_path ctx ([],"Function"));
 				hlv_value = HVNone;
 				hlv_const = false;
 			})
-		else
+		| _ ->
 			Some (HFMethod {
 				hlm_type = generate_method ctx fdata stat;
 				hlm_final = stat;
 				hlm_override = not stat && loop c;
 				hlm_kind = MK3Normal;
 			})
+		);
 	| _ when c.cl_interface && not stat ->
-		(match follow f.cf_type with
-		| TFun (args,tret) when f.cf_set = MethodAccess false ->
+		(match follow f.cf_type, f.cf_kind with
+		| TFun (args,tret), Method (MethNormal | MethInline) ->
 			Some (HFMethod {
 				hlm_type = end_fun ctx (List.map (fun (a,opt,t) -> a, (if opt then Some TNull else None), t) args) tret;
 				hlm_final = false;
@@ -1762,7 +1764,7 @@ let generate_field_kind ctx f c stat =
 			})
 		| _ ->
 			None)
-	| _ when f.cf_get = ResolveAccess ->
+	| _ when (match f.cf_kind with Var { v_read = AccResolve } -> true | _ -> false) ->
 		None
 	| _ ->
 		Some (HFVar {
