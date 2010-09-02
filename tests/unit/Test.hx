@@ -110,7 +110,7 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 	static var AMAX = 3;
 	static var timer : haxe.Timer;
 
-	dynamic static function report( msg : String, pos : haxe.PosInfos ) {
+	dynamic static function report( msg : String, ?pos : haxe.PosInfos ) {
 		if( reportInfos != null ) {
 			msg += " ("+reportInfos+")";
 			reportInfos = null;
@@ -119,14 +119,14 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 		reportCount++;
 		if( reportCount == 10 ) {
 			trace("Too many errors");
-			report = function(msg,pos) {};
+			report = function(msg,?pos) {};
 		}
 	}
 
 	static function checkDone() {
 		if( asyncWaits.length != 0 ) return;
 		if( asyncCache.length == 0 ) {
-			report("DONE ["+count+" tests]",here);
+			report("DONE ["+count+" tests]");
 			return;
 		}
 		resetTimer();
@@ -206,7 +206,7 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 			var stack = haxe.Stack.toString(haxe.Stack.exceptionStack());
 			try msg = Std.string(e) catch( e : Dynamic ) {};
 			reportCount = 0;
-			report("ABORTED : "+msg+" in "+Type.getClassName(current),here);
+			report("ABORTED : "+msg+" in "+Type.getClassName(current));
 			reportInfos = null;
 			trace("STACK :\n"+stack);
 		}
