@@ -134,7 +134,7 @@ type while_flag =
 	| NormalWhile
 	| DoWhile
 
-type type_path_normal = {
+type type_path = {
 	tpackage : string list;
 	tname : string;
 	tparams : type_param_or_const list;
@@ -151,11 +151,11 @@ and anonymous_field =
 	| AFFun of (string * bool * complex_type) list * complex_type
 
 and complex_type =
-	| CTPath of type_path_normal
+	| CTPath of type_path
 	| CTFunction of complex_type list * complex_type
 	| CTAnonymous of (string * bool option * anonymous_field * pos) list
 	| CTParent of complex_type
-	| CTExtend of type_path_normal * (string * bool option * anonymous_field * pos) list
+	| CTExtend of type_path * (string * bool option * anonymous_field * pos) list
 
 type func = {
 	f_args : (string * bool * complex_type option * expr option) list;
@@ -173,7 +173,7 @@ and expr_def =
 	| EObjectDecl of (string * expr) list
 	| EArrayDecl of expr list
 	| ECall of expr * expr list
-	| ENew of type_path_normal * expr list
+	| ENew of type_path * expr list
 	| EUnop of unop * unop_flag * expr
 	| EVars of (string * complex_type option * expr option) list
 	| EFunction of func
@@ -190,12 +190,12 @@ and expr_def =
 	| EThrow of expr
 	| ECast of expr * complex_type option
 	| EDisplay of expr * bool
-	| EDisplayNew of type_path_normal
+	| EDisplayNew of type_path
 	| ETernary of expr * expr * expr
 
 and expr = expr_def * pos
 
-type type_param = string * type_path_normal list
+type type_param = string * type_path list
 
 type documentation = string option
 
@@ -222,8 +222,8 @@ type class_flag =
 	| HInterface
 	| HExtern
 	| HPrivate
-	| HExtends of type_path_normal
-	| HImplements of type_path_normal
+	| HExtends of type_path
+	| HImplements of type_path
 
 type enum_constructor = string * documentation * metadata * (string * bool * complex_type) list * pos
 
@@ -240,8 +240,8 @@ type type_def =
 	| EClass of (class_flag, (class_field * pos) list) definition
 	| EEnum of (enum_flag, enum_constructor list) definition
 	| ETypedef of (enum_flag, complex_type) definition
-	| EImport of type_path_normal
-	| EUsing of type_path_normal
+	| EImport of type_path
+	| EUsing of type_path
 
 type type_decl = type_def * pos
 

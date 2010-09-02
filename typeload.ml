@@ -571,9 +571,9 @@ let type_meta ctx meta =
 let init_core_api ctx c =
 	let ctx2 = (match ctx.g.core_api with
 		| None ->
-			let com = ctx.com in
-			let com = { com with class_path = com.std_path; type_api = { com.type_api with tvoid = com.type_api.tvoid } } in
-			let ctx2 = (!do_create) com in
+			let com2 = Common.clone ctx.com in
+			com2.class_path <- ctx.com.std_path;
+			let ctx2 = (!do_create) com2 in
 			ctx.g.core_api <- Some ctx2;
 			ctx2
 		| Some c ->

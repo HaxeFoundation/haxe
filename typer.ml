@@ -98,6 +98,7 @@ let classify t =
 	| _ -> KOther
 
 let type_field_rec = ref (fun _ _ _ _ _ -> assert false)
+let type_macro_rec = ref (fun _ _ _ _ -> assert false)
 
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
@@ -1624,12 +1625,7 @@ and type_call ctx e el p =
 			make_call ctx et (eparam::params) tret p
 		| AKMacro (ethis,f) ->
 			(match ethis.eexpr with
-			| TTypeExpr (TClassDecl c) ->
-				let ctx2 = (match ctx.g.macros with
-					| Some ctx -> ctx
-					| None -> assert false
-				) in
-				assert false
+			| TTypeExpr (TClassDecl c) -> (!type_macro_rec) ctx c f.cf_name el p
 			| _ -> assert false)
 		| acc ->
 			let e = acc_get ctx acc p in
@@ -1903,6 +1899,49 @@ let create com =
 	| _ -> assert false);
 	ctx
 
+(* ---------------------------------------------------------------------- *)
+(* MACROS *)
+
+let type_macro ctx c f el p =
+	let t = Common.timer "macro execution" in
+	let ctx2 = (match ctx.g.macros with
+		| Some (select,ctx) -> 
+			select();
+			ctx
+		| None ->
+			let com2 = Common.clone ctx.com in
+			com2.package_rules <- PMap.empty;
+			List.iter (fun p -> com2.defines <- PMap.remove (platform_name p) com2.defines) platforms;
+			com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
+			com2.class_path <- List.map (fun p -> p ^ "neko" ^ "/_std/") com2.std_path @ com2.class_path;
+			Common.define com2 "macro";
+			Common.init_platform com2 Neko;
+			let ctx2 = (!Typeload.do_create) com2 in
+			let mctx = Interp.create com2 in
+			let macro = ((fun() -> Interp.select mctx), ctx2) in
+			ctx.g.macros <- Some macro;
+			ctx2.g.macros <- Some macro;
+			ctx2.g.core_api <- ctx.g.core_api;
+			ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Expr") p);
+			finalize ctx2;
+			let types = types ctx2 None [] in
+			Interp.add_types mctx types;
+			Interp.init mctx;
+			ctx2
+	) in
+	let mctx = Interp.get_ctx() in
+	let m = (try Hashtbl.find ctx.g.types_module c.cl_path with Not_found -> c.cl_path) in
+	ignore(Typeload.load_module ctx2 m p);
+	finalize ctx2;
+	let types = types ctx2 None [] in
+	Interp.add_types mctx types;
+	let params = Interp.enc_array (List.map Interp.encode_expr el) in
+	let v = Interp.call_path mctx ((fst c.cl_path) @ [snd c.cl_path]) f [params] p in
+	let e = (try Interp.decode_expr v with Interp.Invalid_expr -> error "The macro didn't return a valid expression" p) in
+	t();
+	type_expr ctx e
+
 ;;
 Typeload.do_create := create;
-type_field_rec := type_field
+type_field_rec := type_field;
+type_macro_rec := type_macro;

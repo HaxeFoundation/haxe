@@ -26,7 +26,7 @@ type typer_globals = {
 	constructs : (path , Ast.access list * Ast.type_param list * Ast.func) Hashtbl.t;
 	doinline : bool;
 	mutable core_api : typer option;
-	mutable macros : typer option;
+	mutable macros : ((unit -> unit) * typer) option;
 	mutable std : module_def;
 	mutable hook_generate : (unit -> unit) list;
 }

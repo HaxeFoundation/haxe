@@ -123,12 +123,41 @@ let create v =
 		lines = Lexer.build_line_index();
 	}
 
+let clone com =
+	let t = com.type_api in
+	{ com with type_api = { t with tvoid = t.tvoid } }
+
+let platforms = [
+	Flash;
+	Js;
+	Neko;
+	Flash9;
+	Php;
+	Cpp
+]
+
+let platform_name = function
+	| Cross -> "cross"
+	| Flash -> "flash"
+	| Js -> "js"
+	| Neko -> "neko"
+	| Flash9 -> "flash9"
+	| Php -> "php"
+	| Cpp -> "cpp"
+
 let defined ctx v = PMap.mem v ctx.defines
 
 let define ctx v =
 	ctx.defines <- PMap.add v () ctx.defines;
 	let v = String.concat "_" (ExtString.String.nsplit v "-") in
 	ctx.defines <- PMap.add v () ctx.defines
+
+let init_platform com pf =
+	com.platform <- pf;
+	let name = platform_name pf in
+	let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
+	com.package_rules <- List.fold_left forbid com.package_rules (List.map platform_name platforms);
+	define com name
 
 let error msg p = raise (Abort (msg,p))
 

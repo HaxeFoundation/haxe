@@ -109,6 +109,7 @@ enum ComplexType {
 	TFunction( args : Array<ComplexType>, ret : ComplexType );
 	TAnonymous( fields : Array<Field> );
 	TParent( t : ComplexType );
+	TExtend( p : TypePath, fields : Array<Field> );
 }
 
 typedef TypePath = {

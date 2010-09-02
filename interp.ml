@@ -19,6 +19,9 @@
 open Nast
 open Unix
 
+(* ---------------------------------------------------------------------- *)
+(* TYPES *)
+
 type value =
 	| VNull
 	| VBool of bool
@@ -62,9 +65,10 @@ type cmp =
 type context = {
 	com : Common.context;
 	gen : Genneko.context;
-	packages : (string list,unit) Hashtbl.t;
 	types : (Type.path,bool) Hashtbl.t;
 	globals : (string, value) Hashtbl.t;
+	prototypes : (string list, vobject) Hashtbl.t;
+	mutable enums : string array array;
 	mutable do_call : value -> value -> value list -> pos -> value;
 	mutable do_string : value -> string;
 	mutable do_loadprim : value -> value -> value;
@@ -88,6 +92,9 @@ exception Error of string * Ast.pos list
 exception Continue
 exception Break of value
 exception Return of value
+
+(* ---------------------------------------------------------------------- *)
+(* UTILS *)
 
 let get_ctx_ref = ref (fun() -> assert false)
 let get_ctx() = (!get_ctx_ref)()
@@ -183,6 +190,9 @@ let rec get_field_opt o fname =
 		match o.oproto with
 		| None -> None
 		| Some p -> get_field_opt p fname
+
+(* ---------------------------------------------------------------------- *)
+(* BUILTINS *)
 
 let builtins =
 	let p = { psource = "<builtin>"; pline = 0 } in
@@ -501,6 +511,9 @@ let builtins =
 	Hashtbl.add h "loader" (VObject loader);
 	Hashtbl.add h "exports" (VObject { ofields = Hashtbl.create 0; oproto = None });
 	h
+
+(* ---------------------------------------------------------------------- *)
+(* STD LIBRARY *)
 
 let std_lib =
 	let error() =
@@ -858,6 +871,9 @@ let std_lib =
 	let h = Hashtbl.create 0 in
 	List.iter (fun (n,f) -> Hashtbl.add h n f) funcs;
 	h
+
+(* ---------------------------------------------------------------------- *)
+(* EVAL *)
 
 let throw ctx p msg =
 	ctx.stack <- p :: ctx.stack;
@@ -1299,6 +1315,9 @@ and call ctx vthis vfun pl p =
 	ctx.stack <- oldstack;
 	ret
 
+(* ---------------------------------------------------------------------- *)
+(* OTHERS *)
+
 let rec to_string ctx n v =
 	if n > 5 then
 		"<...>"
@@ -1393,9 +1412,10 @@ let create com =
 	let ctx = {
 		com = com;
 		gen = Genneko.new_context com true;
-		packages = Hashtbl.create 0;
 		types = Hashtbl.create 0;
+		prototypes = Hashtbl.create 0;
 		globals = Hashtbl.create 0;
+		enums = [||];
 		locals = PMap.empty;
 		stack = [];
 		exc = [];
@@ -1414,28 +1434,43 @@ let create com =
 	List.iter (fun e -> ignore(eval ctx e)) (Genneko.header());
 	ctx
 
-let add_types ctx types =
-	let t = Common.timer "macro execution" in
-	let packs = List.concat (List.map (Genneko.gen_package ctx.gen ctx.packages) types) in
-	let names = List.fold_left (Genneko.gen_name ctx.gen) [] types in
-	let methods = List.rev (List.fold_left (fun acc t -> Genneko.gen_type ctx.gen t acc) [] types) in
-	let boot = Genneko.gen_boot ctx in
-	let inits = List.map (fun (c,e) ->
-		ctx.gen.Genneko.curclass <- Ast.s_type_path c.Type.cl_path;
-		ctx.gen.Genneko.curmethod <- "__init__";
-		Genneko.gen_expr ctx.gen e
-	) (List.rev ctx.gen.Genneko.inits) in
-	let vars = List.concat (List.map (Genneko.gen_static_vars ctx.gen) types) in
-	let e = (EBlock (packs @ methods @ boot :: names @ inits @ vars), null_pos) in
-	(try
-		ignore(eval ctx e);
+let catch_errors ctx f =
+	try
+		f();
 	with Runtime v ->
 		raise (Error (to_string ctx 0 v,List.map make_pos ctx.stack))
-	);
-	t();
 
+let add_types ctx types =
+	let types = List.filter (fun t ->
+		let path = Type.t_path t in
+		if Hashtbl.mem ctx.types path then false else begin
+			Hashtbl.add ctx.types path true;
+			true;
+		end
+	) types in
+	let e = (EBlock (Genneko.build ctx.gen types), null_pos) in
+	catch_errors ctx (fun() -> ignore(eval ctx e))
 
-open Ast
+let get_path ctx path p =
+	let rec loop = function
+		| [] -> assert false
+		| [x] -> (EConst (Ident x),p)
+		| x :: l -> (EField (loop l,x),p)
+	in
+	eval ctx (loop (List.rev path))
+
+let call_path ctx path f vl p =	
+	let p = Genneko.pos ctx.gen p in
+	catch_errors ctx (fun() ->
+		match get_path ctx path p with
+		| VObject o ->
+			let f = get_field o f in
+			call ctx (VObject o) f vl p
+		| _ -> assert false
+	)
+
+(* ---------------------------------------------------------------------- *)
+(* EXPR ENCODING *)
 
 type enum_index =
 	| IExpr
@@ -1446,6 +1481,35 @@ type enum_index =
 	| IType
 	| IField
 
+let enum_name = function
+	| IExpr -> "ExprDef"
+	| IBinop -> "Binop"
+	| IUnop -> "Unop"
+	| IConst -> "Constant"
+	| ITParam -> "TypeParam"
+	| IType -> "ComplexType"
+	| IField -> "FieldType"
+
+let init ctx =
+	let enums = [IExpr;IBinop;IUnop;IConst;ITParam;IType;IField] in
+	let get_enum_proto e =
+		match get_path ctx ["haxe";"macro";enum_name e;"__constructs__"] null_pos with
+		| VObject cst -> 
+			(match get_field cst "__a" with
+				| VArray a -> 
+					Array.map (fun s -> 
+						match s with
+						| VObject s -> (match get_field s "__s" with VString s -> s | _ -> assert false)
+						| _ -> assert false
+					) a
+				| _ -> assert false
+			)
+		| _ -> assert false
+	in
+	ctx.enums <- Array.of_list (List.map get_enum_proto enums)
+
+open Ast
+
 let null f = function
 	| None -> VNull
 	| Some v -> f v
@@ -1453,22 +1517,54 @@ let null f = function
 let encode_pos p =
 	VAbstract (APos p)	
 
-let enc_array l = VArray (Array.of_list l)
+let enc_inst path fields =
+	let h = Hashtbl.create 0 in
+	List.iter (fun (f,v) -> Hashtbl.add h f v) fields;
+	let ctx = get_ctx() in
+	let p = (try Hashtbl.find ctx.prototypes path with Not_found -> try
+		(match get_path ctx (path@["prototype"]) Nast.null_pos with
+		| VObject o -> o
+		| _ -> raise (Runtime VNull))
+	with Runtime _ ->
+		failwith ("Prototype not found " ^ String.concat "." path)
+	) in
+	VObject {
+		ofields = h;
+		oproto = Some p;
+	}
+
+let enc_array l = 
+	let a = Array.of_list l in
+	enc_inst ["Array"] [
+		"__a", VArray a;
+		"length", VInt (Array.length a);
+	]
+
+let enc_string s =
+	enc_inst ["String"] [
+		"__s", VString s;
+		"length", VInt (String.length s)
+	]
 
 let enc_obj l = VObject (obj l)
 
-let enc_enum (i:enum_index) tag pl =
-	let eindex : int = Obj.magic i in
-	enc_array (VInt eindex :: VInt tag :: pl)
+let enc_enum (i:enum_index) index pl =
+	let eindex : int = Obj.magic i in	
+	let etags = (get_ctx()).enums.(eindex) in
+	enc_inst ["haxe";"macro";enum_name i] [
+		"tag", VString etags.(index);
+		"index", VInt index;
+		"args", VArray (Array.of_list pl);
+	]
 
 let encode_const c =
 	let tag, pl = match c with
-	| Int s -> 0, [VString s]
-	| Float s -> 1, [VString s]
-	| String s -> 2, [VString s]
-	| Ident s -> 3, [VString s]
-	| Type s -> 4, [VString s]
-	| Regexp (s,opt) -> 5, [VString s;VString opt]
+	| Int s -> 0, [enc_string s]
+	| Float s -> 1, [enc_string s]
+	| String s -> 2, [enc_string s]
+	| Ident s -> 3, [enc_string s]
+	| Type s -> 4, [enc_string s]
+	| Regexp (s,opt) -> 5, [enc_string s;enc_string opt]
 	in
 	enc_enum IConst tag pl
 
@@ -1511,10 +1607,10 @@ let encode_unop op =
 
 let rec encode_path t =
 	enc_obj [
-		"pack", enc_array (List.map (fun s -> VString s) t.tpackage);
-		"name", VString t.tname;
+		"pack", enc_array (List.map enc_string t.tpackage);
+		"name", enc_string t.tname;
 		"params", enc_array (List.map encode_tparam t.tparams);
-		"sub", null (fun s -> VString s) t.tsub;
+		"sub", null enc_string t.tsub;
 	]
 
 and encode_tparam = function
@@ -1524,17 +1620,17 @@ and encode_tparam = function
 and encode_field (f,pub,field,pos) =
 	let tag, pl = match field with
 		| AFVar t -> 0, [encode_type t]
-		| AFProp (t,get,set) -> 1, [encode_type t; VString get; VString set]
+		| AFProp (t,get,set) -> 1, [encode_type t; enc_string get; enc_string set]
 		| AFFun (pl,t) -> 2, [enc_array (List.map (fun (n,opt,t) ->
 			enc_obj [
-				"name", VString n;
+				"name", enc_string n;
 				"opt", VBool opt;
 				"type", encode_type t
 			]
 		) pl); encode_type t]
 	in
 	enc_obj [
-		"name",VString f;
+		"name",enc_string f;
 		"isPublic",null (fun b -> VBool b) pub;
 		"type", enc_enum IField tag pl;
 		"pos", encode_pos pos;
@@ -1565,14 +1661,14 @@ let encode_expr e =
 			| EBinop (op,e1,e2) ->
 				2, [encode_binop op;loop e1;loop e2]
 			| EField (e,f) ->
-				3, [VString f]
+				3, [enc_string f]
 			| EType (e,f) ->
-				4, [VString f]
+				4, [enc_string f]
 			| EParenthesis e ->
 				5, [loop e]
 			| EObjectDecl fl ->
 				6, [enc_array (List.map (fun (f,e) -> enc_obj [
-					"field",VString f;
+					"field",enc_string f;
 					"expr",loop e;
 				]) fl)]
 			| EArrayDecl el ->
@@ -1586,8 +1682,8 @@ let encode_expr e =
 			| EVars vl ->
 				11, [enc_array (List.map (fun (v,t,eo) ->
 					enc_obj [
-						"name",VString v;
-						"ret",null encode_type t;
+						"name",enc_string v;
+						"type",null encode_type t;
 						"expr",null loop eo;
 					]
 				) vl)]
@@ -1595,7 +1691,7 @@ let encode_expr e =
 				12, [enc_obj [
 					"args", enc_array (List.map (fun (n,opt,t,e) ->
 						enc_obj [
-							"name", VString n;
+							"name", enc_string n;
 							"opt", VBool opt;
 							"type", null encode_type t;
 							"value", null loop e;
@@ -1607,7 +1703,7 @@ let encode_expr e =
 			| EBlock el ->
 				13, [enc_array (List.map loop el)]
 			| EFor (v,e,eloop) ->
-				14, [VString v;loop e;loop eloop]
+				14, [enc_string v;loop e;loop eloop]
 			| EIf (econd,e,eelse) ->
 				15, [loop econd;loop e;null loop eelse]
 			| EWhile (econd,e,flag) ->
@@ -1622,7 +1718,7 @@ let encode_expr e =
 			| ETry (e,catches) ->
 				18, [loop e;enc_array (List.map (fun (v,t,e) ->
 					enc_obj [
-						"name",VString v;
+						"name",enc_string v;
 						"type",encode_type t;
 						"expr",loop e
 					]
@@ -1650,4 +1746,217 @@ let encode_expr e =
 		]
 	in
 	loop e
+
+(* ---------------------------------------------------------------------- *)
+(* EXPR DECODING *)
+
+exception Invalid_expr
+
+let opt f v =
+	match v with
+	| VNull -> None
+	| _ -> Some (f v)
+
+let decode_pos = function
+	| VAbstract (APos p) -> p
+	| _ -> raise Invalid_expr
+
+let field v f =
+	match v with
+	| VObject o -> (try Hashtbl.find o.ofields f with Not_found -> VNull)
+	| _ -> raise Invalid_expr
+
+let decode_enum v = 
+	match field v "index", field v "args" with
+	| VInt i, VNull -> i, []
+	| VInt i, VArray a -> i, Array.to_list a
+	| _ -> raise Invalid_expr
+
+let dec_bool = function
+	| VBool b -> b
+	| _ -> raise Invalid_expr
+
+let dec_string v =
+	match field v "__s" with
+	| VString s -> s
+	| _ -> raise Invalid_expr
+
+let dec_array v =
+	match field v "__a", field v "length" with
+	| VArray a, VInt l -> Array.to_list (if Array.length a = l then a else Array.sub a 0 l)
+	| _ -> raise Invalid_expr
+
+let decode_const c =
+	match decode_enum c with
+	| 0, [s] -> Int (dec_string s)
+	| 1, [s] -> Float (dec_string s)
+	| 2, [s] -> String (dec_string s)
+	| 3, [s] -> Ident (dec_string s)
+	| 4, [s] -> Type (dec_string s)
+	| 5, [s;opt] -> Regexp (dec_string s, dec_string opt)
+	| _ -> raise Invalid_expr
+
+let rec decode_op op =
+	match decode_enum op with
+	| 0, [] -> OpAdd
+	| 1, [] -> OpMult
+	| 2, [] -> OpDiv
+	| 3, [] -> OpSub
+	| 4, [] -> OpAssign
+	| 5, [] -> OpEq
+	| 6, [] -> OpNotEq
+	| 7, [] -> OpGt
+	| 8, [] -> OpGte
+	| 9, [] -> OpLt
+	| 10, [] -> OpLte
+	| 11, [] -> OpAnd
+	| 12, [] -> OpOr
+	| 13, [] -> OpXor
+	| 14, [] -> OpBoolAnd
+	| 15, [] -> OpBoolOr
+	| 16, [] -> OpShl
+	| 17, [] -> OpShr
+	| 18, [] -> OpUShr
+	| 19, [] -> OpMod
+	| 20, [op] -> OpAssignOp (decode_op op)
+	| 21, [] -> OpInterval
+	| _ -> raise Invalid_expr
+
+let decode_unop op =
+	match decode_enum op with
+	| 0, [] -> Increment
+	| 1, [] -> Decrement
+	| 2, [] -> Not
+	| 3, [] -> Neg
+	| 4, [] -> NegBits
+	| _ -> raise Invalid_expr
+
+let rec decode_path t =
+	{
+		tpackage = List.map dec_string (dec_array (field t "pack"));
+		tname = dec_string (field t "name");
+		tparams = List.map decode_tparam (dec_array (field t "params"));
+		tsub = opt dec_string (field t "sub");
+	}
+
+and decode_tparam v =
+	match decode_enum v with
+	| 0,[t] -> TPType (decode_type t)
+	| 1,[c] -> TPConst (decode_const c)
+	| _ -> raise Invalid_expr
+
+and decode_field v =
+	let ftype = match decode_enum (field v "type") with
+		| 0, [t] ->
+			AFVar (decode_type t)
+		| 1, [t;get;set] ->
+			AFProp (decode_type t, dec_string get, dec_string set)
+		| 2, [pl;t] -> 
+			let pl = List.map (fun p ->
+				(dec_string (field p "name"),dec_bool (field p "opt"),decode_type (field p "type"))
+			) (dec_array pl) in
+			AFFun (pl, decode_type t)
+		| _ ->
+			raise Invalid_expr
+	in
+	(
+		dec_string (field v "name"),
+		opt dec_bool (field v "isPublic"),
+		ftype,
+		decode_pos (field v "pos")
+	)
+
+and decode_type t =
+	match decode_enum t with
+	| 0, [p] ->
+		CTPath (decode_path p)
+	| 1, [a;r] ->
+		CTFunction (List.map decode_type (dec_array a), decode_type r)
+	| 2, [fl] -> 
+		CTAnonymous (List.map decode_field (dec_array fl))
+	| 3, [t] ->
+		CTParent (decode_type t)
+	| 4, [t;fl] ->
+		CTExtend (decode_path t, List.map decode_field (dec_array fl))
+	| _ ->
+		raise Invalid_expr
+
+let decode_expr v =
+	let rec loop v =
+		(decode (field v "expr"), decode_pos (field v "pos"))
+	and decode e =
+		match decode_enum e with
+		| 0, [c] ->
+			EConst (decode_const c)
+		| 1, [e1;e2] ->
+			EArray (loop e1, loop e2)
+		| 2, [op;e1;e2] ->
+			EBinop (decode_op op, loop e1, loop e2)
+		| 3, [e;f] ->
+			EField (loop e, dec_string f)
+		| 4, [e;f] ->
+			EType (loop e, dec_string f)
+		| 5, [e] ->
+			EParenthesis (loop e)	
+		| 6, [a] ->
+			EObjectDecl (List.map (fun o ->
+				(dec_string (field o "field"), loop (field o "expr"))
+			) (dec_array a))
+		| 7, [a] ->
+			EArrayDecl (List.map loop (dec_array a))
+		| 8, [e;el] ->
+			ECall (loop e,List.map loop (dec_array el))
+		| 9, [t;el] ->
+			ENew (decode_path t,List.map loop (dec_array el))
+		| 10, [op;VBool f;e] ->
+			EUnop (decode_unop op,(if f then Postfix else Prefix),loop e)
+		| 11, [vl] ->
+			EVars (List.map (fun v ->
+				(dec_string (field v "name"),opt decode_type (field v "type"),opt loop (field v "expr"))
+			) (dec_array vl))
+		| 12, [f] ->
+			let f = {
+				f_args = List.map (fun o ->
+					(dec_string (field o "name"),dec_bool (field o "opt"),opt decode_type (field o "type"),opt loop (field o "value"))
+				) (dec_array (field f "args"));
+				f_type = opt decode_type (field f "ret");
+				f_expr = loop (field f "expr");
+			} in
+			EFunction f
+		| 13, [el] ->
+			EBlock (List.map loop (dec_array el))
+		| 14, [v;e1;e2] ->
+			EFor (dec_string v, loop e1, loop e2)
+		| 15, [e1;e2;e3] ->
+			EIf (loop e1, loop e2, opt loop e3)
+		| 16, [e1;e2;VBool flag] ->
+			EWhile (loop e1,loop e2,if flag then NormalWhile else DoWhile)
+		| 17, [e;cases;eo] ->
+			let cases = List.map (fun c ->
+				(List.map loop (dec_array (field c "values")),loop (field c "expr"))
+			) (dec_array cases) in
+			ESwitch (loop e,cases,opt loop eo)
+		| 18, [e;catches] ->
+			let catches = List.map (fun c ->
+				(dec_string (field c "name"),decode_type (field c "type"),loop (field c "expr"))
+			) (dec_array catches) in
+			ETry (loop e, catches) 
+		| 19, [e] ->
+			EReturn (opt loop e)
+		| 20, [] ->
+			EBreak
+		| 21, [] ->
+			EContinue
+		| 22, [e] ->
+			EUntyped (loop e)
+		| 23, [e] ->
+			EThrow (loop e)
+		| 24, [e;t] ->
+			ECast (loop e,opt decode_type t)
+		| 25, [e1;e2;e3] ->
+			ETernary (loop e1,loop e2,loop e3)
+		| _ ->
+			raise Invalid_expr
+	in
+	loop v
 

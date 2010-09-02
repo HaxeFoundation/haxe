@@ -146,10 +146,10 @@ let compile() =
 	] in
 	let mlist = [
 		"ast";"lexer";"type";"common";"parser";"typecore";
-		"genxml";"typeload";"codegen";"optimizer";"typer";
+		"genxml";"typeload";"codegen";"optimizer";
 		neko^"/nast";neko^"/binast";neko^"/nxml";
 		"genneko";"genas3";"genjs";"genswf8";"genswf9";"genswf";"genphp";"gencpp";
-		"interp";"main";
+		"interp";"typer";"main";
 	] in
 	let path_str = String.concat " " (List.map (fun s -> "-I " ^ s) paths) in
 	let libs_str ext = " " ^ String.concat " " (List.map (fun l -> l ^ ext) libs) ^ " " in

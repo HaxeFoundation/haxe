@@ -24,6 +24,9 @@ open Common
 
 type context = {
 	com : Common.context;
+	packages : (string list, unit) Hashtbl.t;
+	globals : (string list * string, string) Hashtbl.t;
+	mutable curglobal : int;
 	mutable macros : bool;
 	mutable curclass : string;
 	mutable curmethod : string;
@@ -64,6 +67,18 @@ let pos ctx p =
 		psource = file;
 		pline = Lexer.find_line_index ctx.com.lines p;
 	}
+
+let gen_global_name ctx path =
+	match path with
+	| [], name -> name
+	| _ ->
+	try
+		Hashtbl.find ctx.globals path
+	with Not_found ->
+		let name = "@G" ^ string_of_int ctx.curglobal in
+		ctx.curglobal <- ctx.curglobal + 1;
+		Hashtbl.add ctx.globals path name;
+		name
 
 let add_local ctx v p =
 	let rec loop flag e =
@@ -605,15 +620,17 @@ let gen_enum ctx e =
 	ctx.curclass <- s_type_path e.e_path;
 	ctx.curmethod <- "$init";
 	let p = pos ctx e.e_pos in
-	let path = gen_type_path p (fst e.e_path,snd e.e_path) in
+	let path = gen_type_path p e.e_path in
+	let uname = (EConst (Ident (gen_global_name ctx e.e_path)),p) in
 	(EBlock (
-		(EBinop ("=",path, call p (builtin p "new") [null p]),p) ::
-		(EBinop ("=",field p path "prototype", (EObject [
-			"__enum__" , path;
+		(EBinop ("=",uname, call p (builtin p "new") [null p]),p) ::
+		(EBinop ("=",path, uname),p) ::
+		(EBinop ("=",field p uname "prototype", (EObject [
+			"__enum__" , uname;
 			"__serialize" , ident p "@serialize";
 			"__string" , ident p "@enum_to_string"
 		],p)),p) ::
-		pmap_list (gen_enum_constr ctx path) e.e_constrs @
+		pmap_list (gen_enum_constr ctx uname) e.e_constrs @
 		(match e.e_path with
 		| [] , name -> [EBinop ("=",field p (ident p "@classes") name,ident p name),p]
 		| _ -> [])
@@ -660,16 +677,16 @@ let gen_static_vars ctx t =
 						),p) :: acc
 			) c.cl_ordered_statics []
 
-let gen_package ctx h t =
+let gen_package ctx t =
 	let rec loop acc p =
 		match p with
 		| [] -> []
 		| x :: l ->
 			let path = acc @ [x] in
-			if not (Hashtbl.mem h path) then begin
+			if not (Hashtbl.mem ctx.packages path) then begin
 				let p = pos ctx (match t with TClassDecl c -> c.cl_pos | TEnumDecl e -> e.e_pos | TTypeDecl t -> t.t_pos) in
 				let e = (EBinop ("=",gen_type_path p (acc,x),call p (builtin p "new") [null p]),p) in
-				Hashtbl.add h path ();
+				Hashtbl.add ctx.packages path ();
 				(match acc with
 				| [] ->
 					let reg = (EBinop ("=",field p (ident p "@classes") x,ident p x),p) in
@@ -740,6 +757,9 @@ let generate_libs_init = function
 let new_context com macros =
 	{
 		com = com;
+		globals = Hashtbl.create 0;
+		curglobal = 0;
+		packages = Hashtbl.create 0;
 		macros = macros;
 		curclass = "$boot";
 		curmethod = "$init";
@@ -781,22 +801,26 @@ let header() =
 	) [0;1;2;3;4;5] in
 	List.map (fun (v,e)-> EBinop ("=",ident p v,e),p) inits
 
-let generate com libs =
-	let ctx = new_context com false in
-	let t = Common.timer "neko generation" in
-	let h = Hashtbl.create 0 in
-	let libs = (ENeko (generate_libs_init libs) , { psource = "<header>"; pline = 1; }) in
-	let packs = List.concat (List.map (gen_package ctx h) com.types) in
-	let names = List.fold_left (gen_name ctx) [] com.types in
-	let methods = List.rev (List.fold_left (fun acc t -> gen_type ctx t acc) [] com.types) in
+let build ctx types =
+	let packs = List.concat (List.map (gen_package ctx) types) in
+	let names = List.fold_left (gen_name ctx) [] types in
+	let methods = List.rev (List.fold_left (fun acc t -> gen_type ctx t acc) [] types) in
 	let boot = gen_boot ctx in
 	let inits = List.map (fun (c,e) ->
 		ctx.curclass <- s_type_path c.cl_path;
 		ctx.curmethod <- "__init__";
 		gen_expr ctx e
 	) (List.rev ctx.inits) in
-	let vars = List.concat (List.map (gen_static_vars ctx) com.types) in
-	let e = (EBlock ((header()) @ libs :: packs @ methods @ boot :: names @ inits @ vars), null_pos) in
+	ctx.inits <- [];
+	let vars = List.concat (List.map (gen_static_vars ctx) types) in
+	packs @ methods @ boot :: names @ inits @ vars
+
+let generate com libs =
+	let ctx = new_context com false in
+	let t = Common.timer "neko generation" in
+	let libs = (ENeko (generate_libs_init libs) , { psource = "<header>"; pline = 1; }) in	
+	let el = build ctx com.types in
+	let e = (EBlock ((header()) @ libs :: el), null_pos) in
 	let neko_file = (try Filename.chop_extension com.file with _ -> com.file) ^ ".neko" in
 	let ch = IO.output_channel (open_out_bin neko_file) in
 	let source = Common.defined com "neko_source" in
