@@ -154,14 +154,14 @@ let rec build_generic ctx c p tl =
 	else try
 		Typeload.load_instance ctx { tpackage = pack; tname = name; tparams = []; tsub = None } p false
 	with Error(Module_not_found path,_) when path = (pack,name) ->
-		let m = (try Hashtbl.find ctx.modules (Hashtbl.find ctx.types_module c.cl_path) with Not_found -> assert false) in
+		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> assert false) in
 		let ctx = { ctx with local_types = m.mtypes @ ctx.local_types } in
 		let cg = mk_class (pack,name) c.cl_pos in
 		let mg = {
 			mpath = cg.cl_path;
 			mtypes = [TClassDecl cg];
 		} in
-		Hashtbl.add ctx.modules mg.mpath mg;
+		Hashtbl.add ctx.g.modules mg.mpath mg;
 		let rec loop l1 l2 =
 			match l1, l2 with
 			| [] , [] -> []
@@ -219,14 +219,13 @@ let extend_xml_proxy ctx c t file p =
 	let t = Typeload.load_complex_type ctx p t in
 	let file = (try Common.find_file ctx.com file with Not_found -> file) in
 	let used = ref PMap.empty in
-	let rec delay() =
-		if !(ctx.delays) <> [] then ctx.delays := !(ctx.delays) @ [[delay]]
-		else PMap.iter (fun id used ->
+	let print_results() =
+		PMap.iter (fun id used ->
 			if not used then ctx.com.warning (id ^ " is not used") p;
 		) (!used)
 	in
 	let check_used = Common.defined ctx.com "check-xml-proxy" in
-	if check_used then delay();
+	if check_used then ctx.g.hook_generate <- print_results :: ctx.g.hook_generate;
 	try
 		let rec loop = function
 			| Xml.Element (_,attrs,childs) ->
@@ -311,7 +310,7 @@ let build_instance ctx mtype p =
 					unify_raise ctx (build_generic ctx c p pl) t p;
 					t
 				) in
-				ctx.delays := [fun() -> ignore ((!r)())] :: !(ctx.delays);
+				delay ctx (fun() -> ignore ((!r)()));
 				TLazy r
 			| _ ->
 				TInst (c,pl)

@@ -19,20 +19,23 @@
 open Common
 open Type
 
-type typer = {
+type typer_globals = {
+	types_module : (path, path) Hashtbl.t;
+	modules : (path , module_def) Hashtbl.t;
+	mutable delayed : (unit -> unit) list;
+	constructs : (path , Ast.access list * Ast.type_param list * Ast.func) Hashtbl.t;
+	doinline : bool;
+	mutable core_api : typer option;
+	mutable macros : typer option;
+	mutable std : module_def;
+	mutable hook_generate : (unit -> unit) list;
+}
+
+and typer = {
 	(* shared *)
 	com : context;
 	mutable api : context_type_api;
-	types_module : (path, path) Hashtbl.t;
-	modules : (path , module_def) Hashtbl.t;
-	delays : (unit -> unit) list list ref;
-	constructs : (path , Ast.access list * Ast.type_param list * Ast.func) Hashtbl.t;
-	doinline : bool;
-	mutable core_api : typer option ref;
-	mutable macros : typer option ref;
-	mutable std : module_def;
-	mutable untyped : bool;
-	mutable super_call : bool;
+	g : typer_globals;
 	(* per-module *)
 	current : module_def;
 	mutable local_types : module_type list;
@@ -43,6 +46,8 @@ type typer = {
 	mutable type_params : (string * t) list;
 	(* per-function *)
 	mutable curmethod : string;
+	mutable untyped : bool;
+	mutable in_super_call : bool;
 	mutable in_constructor : bool;
 	mutable in_static : bool;
 	mutable in_loop : bool;
@@ -210,6 +215,9 @@ let rec is_null = function
 
 let not_opened = ref Closed
 let mk_anon fl = TAnon { a_fields = fl; a_status = not_opened; }
+
+let delay ctx f =
+	ctx.g.delayed <- f :: ctx.g.delayed
 
 let mk_field name t = {
 	cf_name = name;

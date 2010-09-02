@@ -157,7 +157,7 @@ let unify_call_params ctx name el args p inline =
 	let rec loop acc l l2 skip =
 		match l , l2 with
 		| [] , [] ->
-			if not (inline && ctx.doinline) && (Common.defined ctx.com "flash" || Common.defined ctx.com "js") then
+			if not (inline && ctx.g.doinline) && (Common.defined ctx.com "flash" || Common.defined ctx.com "js") then
 				List.rev (no_opt acc)
 			else
 				List.rev (List.map fst acc)
@@ -273,7 +273,7 @@ let get_constructor c p =
 
 let make_call ctx e params t p =
 	try
-		if not ctx.doinline then raise Exit;
+		if not ctx.g.doinline then raise Exit;
 		let ethis, fname = (match e.eexpr with TField (ethis,fname) -> ethis, fname | _ -> raise Exit) in
 		let f = (match follow ethis.etype with
 			| TInst (c,params) -> snd (try class_field c fname with Not_found -> raise Exit)
@@ -426,10 +426,10 @@ let type_ident ctx i is_type p mode =
 			| Some (c,params) -> TInst(c,params)
 		) in
 		if ctx.in_static then error "Cannot access super from a static function" p;
-		if mode = MSet || not ctx.super_call then
+		if mode = MSet || not ctx.in_super_call then
 			AKNo i
 		else begin
-			ctx.super_call <- false;
+			ctx.in_super_call <- false;
 			AKExpr (mk (TConst TSuper) t p)
 		end
 	| "null" ->
@@ -1606,7 +1606,7 @@ and type_call ctx e el p =
 		mk (TCall (mk (TConst TSuper) t sp,el)) ctx.api.tvoid p
 	| _ ->
 		(match e with
-		| EField ((EConst (Ident "super"),_),_) , _ | EType ((EConst (Ident "super"),_),_) , _ -> ctx.super_call <- true
+		| EField ((EConst (Ident "super"),_),_) , _ | EType ((EConst (Ident "super"),_),_) , _ -> ctx.in_super_call <- true
 		| _ -> ());		
 		match type_access ctx (fst e) (snd e) MCall with
 		| AKInline (ethis,f,t) ->
@@ -1625,7 +1625,11 @@ and type_call ctx e el p =
 		| AKMacro (ethis,f) ->
 			(match ethis.eexpr with
 			| TTypeExpr (TClassDecl c) ->
-				error "TODO" p
+				let ctx2 = (match ctx.g.macros with
+					| Some ctx -> ctx
+					| None -> assert false
+				) in
+				assert false
 			| _ -> assert false)
 		| acc ->
 			let e = acc_get ctx acc p in
@@ -1653,8 +1657,8 @@ and type_call ctx e el p =
 (* FINALIZATION *)
 
 let rec finalize ctx =
-	let delays = List.concat !(ctx.delays) in
-	ctx.delays := [];
+	let delays = ctx.g.delayed in
+	ctx.g.delayed <- [];
 	match delays with
 	| [] -> () (* at last done *)
 	| l ->
@@ -1669,7 +1673,7 @@ let get_type_module ctx t =
 				mfound := m;
 				raise Exit;
 			end;
-		) ctx.modules;
+		) ctx.g.modules;
 		(* @Main, other generated classes ? *)
 		{
 			mtypes = [t];
@@ -1780,7 +1784,7 @@ let types ctx main excludes =
 		) c.cl_statics
 
 	in
-	Hashtbl.iter (fun _ m -> List.iter loop m.mtypes) ctx.modules;
+	Hashtbl.iter (fun _ m -> List.iter loop m.mtypes) ctx.g.modules;
 	(match main with
 	| None -> ()
 	| Some cl ->
@@ -1828,18 +1832,22 @@ let create com =
 	let ctx = {
 		com = com;
 		api = com.type_api;
-		core_api = ref None;
-		macros = ref None;
-		modules = Hashtbl.create 0;
-		types_module = Hashtbl.create 0;
-		constructs = Hashtbl.create 0;
-		delays = ref [];
-		doinline = not (Common.defined com "no_inline");
+		g = {
+			core_api = None;
+			macros = None;
+			modules = Hashtbl.create 0;
+			types_module = Hashtbl.create 0;
+			constructs = Hashtbl.create 0;
+			delayed = [];
+			doinline = not (Common.defined com "no_inline");
+			hook_generate = [];
+			std = empty;
+		};
+		untyped = false;
 		in_constructor = false;
 		in_static = false;
 		in_loop = false;
-		untyped = false;
-		super_call = false;
+		in_super_call = false;
 		in_display = false;
 		ret = mk_mono();
 		locals = PMap.empty;
@@ -1852,7 +1860,6 @@ let create com =
 		curclass = null_class;
 		tthis = mk_mono();
 		current = empty;
-		std = empty;
 		opened = [];
 		param_type = None;
 	} in
@@ -1861,7 +1868,7 @@ let create com =
 	ctx.api.on_generate <- Codegen.on_generate ctx;
 	ctx.api.get_type_module <- get_type_module ctx;
 	ctx.api.optimize <- Optimizer.reduce_expression ctx;
-	ctx.std <- (try
+	ctx.g.std <- (try
 		Typeload.load_module ctx ([],"StdTypes") null_pos
 	with
 		Error (Module_not_found ([],"StdTypes"),_) -> error "Standard library not found" null_pos
@@ -1885,7 +1892,7 @@ let create com =
 				let cpp = platform com Cpp in
 				ctx.api.tnull <- if not (f9 || cpp) then (fun t -> t) else (fun t -> if is_nullable t then TType (td,[t]) else t);
 			| _ -> ());
-	) ctx.std.mtypes;
+	) ctx.g.std.mtypes;
 	let m = Typeload.load_module ctx ([],"String") null_pos in
 	(match m.mtypes with
 	| [TClassDecl c] -> ctx.api.tstring <- TInst (c,[])

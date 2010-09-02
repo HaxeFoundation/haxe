@@ -150,7 +150,7 @@ let rec load_instance ctx t p allow_no_params =
 						) c.cl_implements;
 						t
 					) in
-					ctx.delays := [(fun () -> ignore(!r()))] :: !(ctx.delays);
+					delay ctx (fun () -> ignore(!r()));
 					TLazy r
 				| _ -> assert false
 			) tparams types in
@@ -237,7 +237,7 @@ and load_complex_type ctx p t =
 let hide_types ctx =
 	let old_locals = ctx.local_types in
 	let old_type_params = ctx.type_params in
-	ctx.local_types <- ctx.std.mtypes;
+	ctx.local_types <- ctx.g.std.mtypes;
 	ctx.type_params <- [];
 	(fun() ->
 		ctx.local_types <- old_locals;
@@ -475,7 +475,7 @@ let type_type_params ctx path p (n,flags) =
 			set_heritance ctx c (List.map (fun t -> HImplements t) flags) p;
 			t
 		) in
-		ctx.delays := [(fun () -> ignore(!r()))] :: !(ctx.delays);
+		delay ctx (fun () -> ignore(!r()));
 		n, TLazy r
 
 let type_function ctx args ret static constr f p =
@@ -565,16 +565,16 @@ let type_meta ctx meta =
 			ml
 		| Some ml -> ml
 	in
-	ctx.delays := [[fun() -> ignore(get_meta())]] @ !(ctx.delays);
+	delay ctx (fun() -> ignore(get_meta()));
 	get_meta
 
 let init_core_api ctx c =
-	let ctx2 = (match !(ctx.core_api) with
+	let ctx2 = (match ctx.g.core_api with
 		| None ->
 			let com = ctx.com in
 			let com = { com with class_path = com.std_path; type_api = { com.type_api with tvoid = com.type_api.tvoid } } in
 			let ctx2 = (!do_create) com in
-			ctx.core_api := Some ctx2;
+			ctx.g.core_api <- Some ctx2;
 			ctx2
 		| Some c ->
 			c
@@ -629,7 +629,7 @@ let init_class ctx c p herits fields meta =
 	set_heritance ctx c herits p;
 	let core_api = has_meta ":core_api" meta in
 	let is_macro = has_meta ":macro" meta in
-	if core_api then ctx.delays := [(fun() -> init_core_api ctx c)] :: !(ctx.delays);
+	if core_api then delay ctx ((fun() -> init_core_api ctx c));
 	let tthis = TInst (c,List.map snd c.cl_types) in
 	let rec extends_public c =
 		List.exists (fun (c,_) -> c.cl_path = (["haxe"],"Public") || extends_public c) c.cl_implements ||
@@ -863,7 +863,7 @@ let init_class ctx c p herits fields meta =
 	*)
 	let rec define_constructor ctx c =
 		try
-			Some (Hashtbl.find ctx.constructs c.cl_path)
+			Some (Hashtbl.find ctx.g.constructs c.cl_path)
 		with Not_found ->
 			match c.cl_super with
 			| None -> None
@@ -910,8 +910,8 @@ let init_class ctx c p herits fields meta =
 					) f.f_args } in
 					let _, _, cf, delayed = loop_cf (FFun ("new",None,[],acc,pl,fnew)) p in
 					c.cl_constructor <- Some cf;
-					Hashtbl.add ctx.constructs c.cl_path (acc,pl,f);
-					ctx.delays := [delayed] :: !(ctx.delays);
+					Hashtbl.add ctx.g.constructs c.cl_path (acc,pl,f);
+					delay ctx delayed;
 					infos
 	in
 	(*
@@ -936,12 +936,12 @@ let type_module ctx m tdecls loadp =
 		let tpath = if priv then (fst m @ ["_" ^ snd m], name) else (fst m, name) in
 		if priv && List.exists (fun t -> tpath = t_path t) (!decls) then error ("Type name " ^ name ^ " is already defined in this module") p;
 		try
-			let m2 = Hashtbl.find ctx.types_module tpath in
+			let m2 = Hashtbl.find ctx.g.types_module tpath in
 			if m <> m2 && String.lowercase (s_type_path m2) = String.lowercase (s_type_path m) then error ("Module " ^ s_type_path m2 ^ " is loaded with a different case than " ^ s_type_path m) loadp;
 			error ("Type name " ^ s_type_path tpath ^ " is redefined from module " ^ s_type_path m2) p
 		with
 			Not_found ->
-				Hashtbl.add ctx.types_module tpath m;
+				Hashtbl.add ctx.g.types_module tpath m;
 				tpath
 	in
 	List.iter (fun (d,p) ->
@@ -957,7 +957,7 @@ let type_module ctx m tdecls loadp =
 			(* store the constructor for later usage *)
 			List.iter (fun (cf,_) ->
 				match cf with
-				| FFun ("new",_,_,acc,pl,f) -> Hashtbl.add ctx.constructs path (acc,pl,f)
+				| FFun ("new",_,_,acc,pl,f) -> Hashtbl.add ctx.g.constructs path (acc,pl,f)
 				| _ -> ()
 			) d.d_data;
 			decls := TClassDecl c :: !decls
@@ -994,36 +994,29 @@ let type_module ctx m tdecls loadp =
 		mpath = m;
 		mtypes = List.rev !decls;
 	} in
-	Hashtbl.add ctx.modules m.mpath m;
+	Hashtbl.add ctx.g.modules m.mpath m;
 	(* PASS 2 : build types structure - does not type any expression ! *)
 	let ctx = {
 		com = ctx.com;
+		g = ctx.g;
 		api = ctx.api;
-		core_api = ctx.core_api;
-		macros = ctx.macros;
-		modules = ctx.modules;
-		delays = ctx.delays;
-		constructs = ctx.constructs;
-		types_module = ctx.types_module;
 		curclass = ctx.curclass;
 		tthis = ctx.tthis;
-		std = ctx.std;
 		ret = ctx.ret;
-		doinline = ctx.doinline;
 		current = m;
 		locals = PMap.empty;
 		locals_map = PMap.empty;
 		locals_map_inv = PMap.empty;
-		local_types = ctx.std.mtypes @ m.mtypes;
+		local_types = ctx.g.std.mtypes @ m.mtypes;
 		local_using = [];
 		type_params = [];
 		curmethod = "";
-		super_call = false;
+		untyped = false;
+		in_super_call = false;
 		in_constructor = false;
 		in_static = false;
 		in_display = false;
 		in_loop = false;
-		untyped = false;
 		opened = [];
 		param_type = None;
 	} in
@@ -1123,7 +1116,7 @@ let type_module ctx m tdecls loadp =
 			| _ -> assert false);
 	) tdecls;
 	(* PASS 3 : type checking, delayed until all modules and types are built *)
-	ctx.delays := !delays :: !(ctx.delays);
+	List.iter (delay ctx) (List.rev (!delays));
 	m
 
 let parse_module ctx m p =
@@ -1187,7 +1180,7 @@ let parse_module ctx m p =
 
 let load_module ctx m p =
 	try
-		Hashtbl.find ctx.modules m
+		Hashtbl.find ctx.g.modules m
 	with
 		Not_found ->
 			let decls = (try
