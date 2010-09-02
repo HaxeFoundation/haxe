@@ -43,9 +43,11 @@ and vabstract =
 	| AKind of vabstract
 	| AInt32 of int32
 	| AHash of (value, value) Hashtbl.t
-	| ARandom of Random.State.t
+	| ARandom of Random.State.t ref
 	| ABuffer of Buffer.t
 	| APos of Ast.pos
+	| AFRead of in_channel
+	| AFWrite of out_channel
 
 and vfunction =
 	| Fun0 of (unit -> value)
@@ -846,10 +848,106 @@ let std_lib =
 				error()
 		);
 	(* random *)
-		"random_new", Fun0 (fun() -> VAbstract (ARandom (Random.State.make_self_init())));
-		(* TODO *)
+		"random_new", Fun0 (fun() -> VAbstract (ARandom (ref (Random.State.make_self_init()))));
+		"random_set_seed", Fun2 (fun r s ->
+			match r, s with
+			| VAbstract (ARandom r), VInt seed -> r := Random.State.make [|seed|]; VNull
+			| _ -> error()
+		);
+		"random_int", Fun2 (fun r s ->
+			match r, s with
+			| VAbstract (ARandom r), VInt max -> VInt (Random.State.int (!r) (if max <= 0 then 1 else max))
+			| _ -> error()
+		);
+		"random_float", Fun1 (fun r ->
+			match r with
+			| VAbstract (ARandom r) -> VFloat (Random.State.float (!r) 1.0)
+			| _ -> error()
+		);
 	(* file *)
-		(* TODO *)
+		"file_open", Fun2 (fun f r ->
+			match f, r with
+			| VString f, VString r ->
+				let perms = 0o666 in
+				VAbstract (match r with
+					| "r" -> AFRead (open_in_gen [Open_rdonly] 0 f)
+					| "rb" -> AFRead (open_in_gen [Open_rdonly;Open_binary] 0 f)
+					| "w" -> AFWrite (open_out_gen [Open_wronly] perms f)
+					| "wb" -> AFWrite (open_out_gen [Open_wronly;Open_binary] perms f)
+					| "a" -> AFWrite (open_out_gen [Open_append] perms f)
+					| "ab" -> AFWrite (open_out_gen [Open_append;Open_binary] perms f)
+					| _ -> error())				
+			| _ -> error()
+		);
+		"file_close", Fun1 (fun f ->
+			(match f with
+			| VAbstract (AFRead f) -> close_in f
+			| VAbstract (AFWrite f) -> close_out f
+			| _ -> error());
+			VNull
+		);
+		(* file_name *)
+		"file_write", Fun4 (fun f s p l ->
+			match f, s, p, l with
+			| VAbstract (AFWrite f), VString s, VInt p, VInt l -> output f s p l; VInt l
+			| _ -> error()
+		);
+		"file_read", Fun4 (fun f s p l ->
+			match f, s, p, l with
+			| VAbstract (AFRead f), VString s, VInt p, VInt l -> VInt (input f s p l)
+			| _ -> error()
+		);
+		"file_write_char", Fun2 (fun f c ->
+			match f, c with
+			| VAbstract (AFWrite f), VInt c -> output_char f (char_of_int c); VNull
+			| _ -> error()
+		);
+		"file_read_char", Fun1 (fun f ->
+			match f with
+			| VAbstract (AFRead f) -> VInt (int_of_char (input_char f))
+			| _ -> error()
+		);
+		"file_seek", Fun3 (fun f pos mode ->
+			match f, pos, mode with
+			| VAbstract (AFRead f), VInt pos, VInt mode ->
+				seek_in f (match mode with 0 -> pos | 1 -> pos_in f + pos | 2 -> in_channel_length f - pos | _ -> error());
+				VNull;
+			| VAbstract (AFWrite f), VInt pos, VInt mode ->
+				seek_out f (match mode with 0 -> pos | 1 -> pos_out f + pos | 2 -> out_channel_length f - pos | _ -> error());
+				VNull;
+			| _ -> error()
+		);
+		"file_tell", Fun1 (fun f ->
+			match f with
+			| VAbstract (AFRead f) -> VInt (pos_in f)
+			| VAbstract (AFWrite f) -> VInt (pos_out f)
+			| _ -> error()
+		);
+		"file_eof", Fun1 (fun f ->
+			match f with
+			| VAbstract (AFRead f) -> 
+				VBool (try
+					ignore(input_char f);
+					seek_in f (pos_in f - 1);
+					false
+				with End_of_file ->
+					true)				
+			| _ -> error()
+		);
+		"file_flush", Fun1 (fun f ->
+			(match f with
+			| VAbstract (AFWrite f) -> flush f
+			| _ -> error());
+			VNull
+		);
+		"file_contents", Fun1 (fun f ->
+			match f with
+			| VString f -> VString (Std.input_file ~bin:true f)
+			| _ -> error()
+		);
+		"file_stdin", Fun0 (fun() -> VAbstract (AFRead Pervasives.stdin));
+		"file_stdout", Fun0 (fun() -> VAbstract (AFWrite Pervasives.stdout));
+		"file_stderr", Fun0 (fun() -> VAbstract (AFWrite Pervasives.stderr));
 	(* serialize *)
 		(* TODO *)
 	(* socket *)
@@ -1309,6 +1407,8 @@ and call ctx vthis vfun pl p =
 		| _ ->
 			exc (VString "Invalid call"))
 	with Return v -> v
+		| Sys_error msg -> exc (VString msg)
+		| End_of_file -> exc (VString "EOF")
 		| Builtin_error | Invalid_argument _ -> exc (VString "Invalid call")) in
 	ctx.locals <- locals;
 	ctx.vthis <- oldthis;
