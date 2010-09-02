@@ -161,10 +161,10 @@ let rec load_instance ctx t p allow_no_params =
 *)
 and load_complex_type ctx p t =
 	match t with
-	| TPParent t -> load_complex_type ctx p t
-	| TPNormal t -> load_instance ctx t p false
-	| TPExtend (t,l) ->
-		(match load_complex_type ctx p (TPAnonymous l) with
+	| CTParent t -> load_complex_type ctx p t
+	| CTPath t -> load_instance ctx t p false
+	| CTExtend (t,l) ->
+		(match load_complex_type ctx p (CTAnonymous l) with
 		| TAnon a ->
 			let rec loop t =
 				match follow t with
@@ -194,7 +194,7 @@ and load_complex_type ctx p t =
 			in
 			loop (load_instance ctx t p false)
 		| _ -> assert false)
-	| TPAnonymous l ->
+	| CTAnonymous l ->
 		let rec loop acc (n,pub,f,p) =
 			if PMap.mem n acc then error ("Duplicate field declaration : " ^ n) p;
 			let t , access = (match f with
@@ -227,9 +227,9 @@ and load_complex_type ctx p t =
 			} acc
 		in
 		mk_anon (List.fold_left loop PMap.empty l)
-	| TPFunction (args,r) ->
+	| CTFunction (args,r) ->
 		match args with
-		| [TPNormal { tpackage = []; tparams = []; tname = "Void" }] ->
+		| [CTPath { tpackage = []; tparams = []; tname = "Void" }] ->
 			TFun ([],load_complex_type ctx p r)
 		| _ ->
 			TFun (List.map (fun t -> "",false,load_complex_type ctx p t) args,load_complex_type ctx p r)
@@ -746,7 +746,7 @@ let init_class ctx c p herits fields meta =
 			if constr && c.cl_interface then error "An interface cannot have a constructor" p;
 			if c.cl_interface && not stat && (match f.f_expr with EBlock [] , _ -> false | _ -> true) then error "An interface method cannot have a body" p;
 			if constr then (match f.f_type with
-				| None | Some (TPNormal { tpackage = []; tname = "Void" }) -> ()
+				| None | Some (CTPath { tpackage = []; tname = "Void" }) -> ()
 				| _ -> error "A class constructor can't have a return value" p
 			);
 			let cf = {
@@ -885,11 +885,11 @@ let init_class ctx c p herits fields meta =
 							if we have a package declaration, we are sure it's fully qualified
 						*)
 						let rec is_qualified = function
-							| TPNormal t -> is_qual_name t
-							| TPParent t -> is_qualified t
-							| TPFunction (tl,t) -> List.for_all is_qualified tl && is_qualified t
-							| TPAnonymous fl -> List.for_all (fun (_,_,f,_) -> is_qual_field f) fl
-							| TPExtend (t,fl) -> is_qual_name t && List.for_all (fun (_,_,f,_) -> is_qual_field f) fl
+							| CTPath t -> is_qual_name t
+							| CTParent t -> is_qualified t
+							| CTFunction (tl,t) -> List.for_all is_qualified tl && is_qualified t
+							| CTAnonymous fl -> List.for_all (fun (_,_,f,_) -> is_qual_field f) fl
+							| CTExtend (t,fl) -> is_qual_name t && List.for_all (fun (_,_,f,_) -> is_qual_field f) fl
 						and is_qual_field = function
 							| AFVar t -> is_qualified t
 							| AFProp (t,_,_) -> is_qualified t
@@ -1165,12 +1165,12 @@ let parse_module ctx m p =
 					d_meta = [];
 					d_params = d.d_params;
 					d_flags = if priv then [EPrivate] else [];
-					d_data = TPNormal (if priv then { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; } else
+					d_data = CTPath (if priv then { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; } else
 						{
 							tpackage = !remap;
 							tname = d.d_name;
 							tparams = List.map (fun (s,_) ->
-								TPType (TPNormal { tpackage = []; tname = s; tparams = []; tsub = None; })
+								TPType (CTPath { tpackage = []; tname = s; tparams = []; tsub = None; })
 							) d.d_params;
 							tsub = None;
 						});

@@ -42,6 +42,7 @@ and vabstract =
 	| AHash of (value, value) Hashtbl.t
 	| ARandom of Random.State.t
 	| ABuffer of Buffer.t
+	| APos of Ast.pos
 
 and vfunction =
 	| Fun0 of (unit -> value)
@@ -1433,4 +1434,220 @@ let add_types ctx types =
 	);
 	t();
 
+
+open Ast
+
+type enum_index =
+	| IExpr
+	| IBinop
+	| IUnop
+	| IConst
+	| ITParam
+	| IType
+	| IField
+
+let null f = function
+	| None -> VNull
+	| Some v -> f v
+
+let encode_pos p =
+	VAbstract (APos p)	
+
+let enc_array l = VArray (Array.of_list l)
+
+let enc_obj l = VObject (obj l)
+
+let enc_enum (i:enum_index) tag pl =
+	let eindex : int = Obj.magic i in
+	enc_array (VInt eindex :: VInt tag :: pl)
+
+let encode_const c =
+	let tag, pl = match c with
+	| Int s -> 0, [VString s]
+	| Float s -> 1, [VString s]
+	| String s -> 2, [VString s]
+	| Ident s -> 3, [VString s]
+	| Type s -> 4, [VString s]
+	| Regexp (s,opt) -> 5, [VString s;VString opt]
+	in
+	enc_enum IConst tag pl
+
+let rec encode_binop op =
+	let tag, pl = match op with
+	| OpAdd -> 0, []
+	| OpMult -> 1, []
+	| OpDiv -> 2, []
+	| OpSub -> 3, []
+	| OpAssign -> 4, []
+	| OpEq -> 5, []
+	| OpNotEq -> 6, []
+	| OpGt -> 7, []
+	| OpGte -> 8, []
+	| OpLt -> 9, []
+	| OpLte -> 10, []
+	| OpAnd -> 11, []
+	| OpOr -> 12, []
+	| OpXor -> 13, []
+	| OpBoolAnd -> 14, []
+	| OpBoolOr -> 15, []
+	| OpShl -> 16, []
+	| OpShr -> 17, []
+	| OpUShr -> 18, []
+	| OpMod -> 19, []
+	| OpAssignOp op -> 20, [encode_binop op]
+	| OpInterval -> 21, []
+	in
+	enc_enum IBinop tag pl
+
+let encode_unop op =
+	let tag = match op with
+	| Increment -> 0
+	| Decrement -> 1
+	| Not -> 2
+	| Neg -> 3
+	| NegBits -> 4
+	in
+	enc_enum IUnop tag []
+
+let rec encode_path t =
+	enc_obj [
+		"pack", enc_array (List.map (fun s -> VString s) t.tpackage);
+		"name", VString t.tname;
+		"params", enc_array (List.map encode_tparam t.tparams);
+		"sub", null (fun s -> VString s) t.tsub;
+	]
+
+and encode_tparam = function
+	| TPType t -> enc_enum ITParam 0 [encode_type t]
+	| TPConst c -> enc_enum ITParam 1 [encode_const c]
+
+and encode_field (f,pub,field,pos) =
+	let tag, pl = match field with
+		| AFVar t -> 0, [encode_type t]
+		| AFProp (t,get,set) -> 1, [encode_type t; VString get; VString set]
+		| AFFun (pl,t) -> 2, [enc_array (List.map (fun (n,opt,t) ->
+			enc_obj [
+				"name", VString n;
+				"opt", VBool opt;
+				"type", encode_type t
+			]
+		) pl); encode_type t]
+	in
+	enc_obj [
+		"name",VString f;
+		"isPublic",null (fun b -> VBool b) pub;
+		"type", enc_enum IField tag pl;
+		"pos", encode_pos pos;
+	]
+
+and encode_type t =
+	let tag, pl = match t with
+	| CTPath p ->
+		0, [encode_path p]
+	| CTFunction (pl,r) ->
+		1, [enc_array (List.map encode_type pl);encode_type r]
+	| CTAnonymous fl -> 
+		2, [enc_array (List.map encode_field fl)]
+	| CTParent t -> 
+		3, [encode_type t]
+	| CTExtend (t,fields) ->
+		4, [encode_path t; enc_array (List.map encode_field fields)]
+	in
+	enc_enum IType tag pl
+
+let encode_expr e =
+	let rec loop (e,p) =
+		let tag, pl = match e with
+			| EConst c ->
+				0, [encode_const c]
+			| EArray (e1,e2) ->
+				1, [loop e1;loop e2]
+			| EBinop (op,e1,e2) ->
+				2, [encode_binop op;loop e1;loop e2]
+			| EField (e,f) ->
+				3, [VString f]
+			| EType (e,f) ->
+				4, [VString f]
+			| EParenthesis e ->
+				5, [loop e]
+			| EObjectDecl fl ->
+				6, [enc_array (List.map (fun (f,e) -> enc_obj [
+					"field",VString f;
+					"expr",loop e;
+				]) fl)]
+			| EArrayDecl el ->
+				7, [enc_array (List.map loop el)]
+			| ECall (e,el) ->
+				8, [loop e;enc_array (List.map loop el)]
+			| ENew (p,el) ->
+				9, [encode_path p; enc_array (List.map loop el)]
+			| EUnop (op,flag,e) ->
+				10, [encode_unop op; VBool (match flag with Prefix -> false | Postfix -> true); loop e]
+			| EVars vl ->
+				11, [enc_array (List.map (fun (v,t,eo) ->
+					enc_obj [
+						"name",VString v;
+						"ret",null encode_type t;
+						"expr",null loop eo;
+					]
+				) vl)]
+			| EFunction f ->
+				12, [enc_obj [
+					"args", enc_array (List.map (fun (n,opt,t,e) ->
+						enc_obj [
+							"name", VString n;
+							"opt", VBool opt;
+							"type", null encode_type t;
+							"value", null loop e;
+						]
+					) f.f_args);
+					"ret", null encode_type f.f_type;
+					"expr", loop f.f_expr
+				]]
+			| EBlock el ->
+				13, [enc_array (List.map loop el)]
+			| EFor (v,e,eloop) ->
+				14, [VString v;loop e;loop eloop]
+			| EIf (econd,e,eelse) ->
+				15, [loop econd;loop e;null loop eelse]
+			| EWhile (econd,e,flag) ->
+				16, [loop econd;loop e;VBool (match flag with NormalWhile -> true | DoWhile -> false)]
+			| ESwitch (e,cases,eopt) ->
+				17, [loop e;enc_array (List.map (fun (ecl,e) ->
+					enc_obj [
+						"values",enc_array (List.map loop ecl);
+						"expr",loop e
+					]
+				) cases);null loop eopt]
+			| ETry (e,catches) ->
+				18, [loop e;enc_array (List.map (fun (v,t,e) ->
+					enc_obj [
+						"name",VString v;
+						"type",encode_type t;
+						"expr",loop e
+					]
+				) catches)]
+			| EReturn eo ->
+				19, [null loop eo]
+			| EBreak ->
+				20, []
+			| EContinue ->
+				21, []
+			| EUntyped e ->
+				22, [loop e]
+			| EThrow e ->
+				23, [loop e]
+			| ECast (e,t) ->
+				24, [loop e; null encode_type t]
+			| ETernary (econd,e1,e2) ->
+				25, [loop econd;loop e1;loop e2]
+			| EDisplay _ | EDisplayNew _ ->
+				assert false
+		in
+		enc_obj [
+			"pos", encode_pos p;
+			"expr", enc_enum IExpr tag pl;
+		]
+	in
+	loop e
 

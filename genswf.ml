@@ -158,7 +158,7 @@ let rec make_tpath = function
 		{
 			tpackage = pack;
 			tname = name;
-			tparams = if !pdyn then [TPType (TPNormal { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; })] else[];
+			tparams = if !pdyn then [TPType (CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; })] else[];
 			tsub = None;
 		}
 	| HMName (id,_) ->
@@ -186,18 +186,18 @@ let rec make_tpath = function
 	| HMAttrib _ ->
 		assert false
 	| HMParams (t,params) ->
-		let params = List.map (fun t -> TPType (TPNormal (make_tpath t))) params in
+		let params = List.map (fun t -> TPType (CTPath (make_tpath t))) params in
 		{ (make_tpath t) with tparams = params }
 
 let make_param cl p =
-	{ tpackage = fst cl; tname = snd cl; tparams = [TPType (TPNormal { tpackage = fst p; tname = snd p; tparams = []; tsub = None })]; tsub = None }
+	{ tpackage = fst cl; tname = snd cl; tparams = [TPType (CTPath { tpackage = fst p; tname = snd p; tparams = []; tsub = None })]; tsub = None }
 
 let make_topt = function
 	| None -> { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None }
 	| Some t -> make_tpath t
 
 let make_type f t = 
-	TPNormal (match f, t with
+	CTPath (match f, t with
 	| "opaqueBackground", Some (HMPath ([],"Object")) -> make_param ([],"Null") ([],"UInt")
 	| "getObjectsUnderPoint", Some (HMPath ([],"Array")) -> make_param ([],"Array") (["flash";"display"],"DisplayObject")
 	| "blendMode", Some (HMPath ([],"String")) -> { tpackage = ["flash";"display"]; tname = "BlendMode"; tparams = []; tsub = None }

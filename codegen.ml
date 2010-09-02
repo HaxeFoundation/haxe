@@ -71,10 +71,10 @@ let extend_remoting ctx c t p async prot =
 	let decls = (try Typeload.parse_module ctx path p with e -> ctx.com.package_rules <- rules; raise e) in
 	ctx.com.package_rules <- rules;
 	let base_fields = [
-		(FVar ("__cnx",None,[],[],Some (TPNormal { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = []; tsub = None }),None),p);
+		(FVar ("__cnx",None,[],[],Some (CTPath { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = []; tsub = None }),None),p);
 		(FFun ("new",None,[],[APublic],[],{ f_args = ["c",false,None,None]; f_type = None; f_expr = (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p) }),p);
 	] in
-	let tvoid = TPNormal { tpackage = []; tname = "Void"; tparams = []; tsub = None } in
+	let tvoid = CTPath { tpackage = []; tname = "Void"; tparams = []; tsub = None } in
 	let build_field is_public acc (f,p) =
 		match f with
 		| FFun ("new",_,_,_,_,_) ->
@@ -82,9 +82,9 @@ let extend_remoting ctx c t p async prot =
 		| FFun (name,doc,meta,acl,pl,f) when (is_public || List.mem APublic acl) && not (List.mem AStatic acl) ->
 			if List.exists (fun (_,_,t,_) -> t = None) f.f_args then error ("Field " ^ name ^ " type is not complete and cannot be used by RemotingProxy") p;
 			let eargs = [EArrayDecl (List.map (fun (a,_,_,_) -> (EConst (Ident a),p)) f.f_args),p] in
-			let ftype = (match f.f_type with Some (TPNormal { tpackage = []; tname = "Void" }) -> None | _ -> f.f_type) in
+			let ftype = (match f.f_type with Some (CTPath { tpackage = []; tname = "Void" }) -> None | _ -> f.f_type) in
 			let fargs, eargs = if async then match ftype with
-				| Some tret -> f.f_args @ ["__callb",true,Some (TPFunction ([tret],tvoid)),None], eargs @ [EConst (Ident "__callb"),p]
+				| Some tret -> f.f_args @ ["__callb",true,Some (CTFunction ([tret],tvoid)),None], eargs @ [EConst (Ident "__callb"),p]
 				| _ -> f.f_args, eargs @ [EConst (Ident "null"),p]
 			else
 				f.f_args, eargs
@@ -324,13 +324,13 @@ let build_instance ctx mtype p =
 
 let on_inherit ctx c p h =
 	match h with
-	| HExtends { tpackage = ["haxe";"remoting"]; tname = "Proxy"; tparams = [TPType(TPNormal t)] } ->
+	| HExtends { tpackage = ["haxe";"remoting"]; tname = "Proxy"; tparams = [TPType(CTPath t)] } ->
 		extend_remoting ctx c t p false true;
 		false
-	| HExtends { tpackage = ["haxe";"remoting"]; tname = "AsyncProxy"; tparams = [TPType(TPNormal t)] } ->
+	| HExtends { tpackage = ["haxe";"remoting"]; tname = "AsyncProxy"; tparams = [TPType(CTPath t)] } ->
 		extend_remoting ctx c t p true true;
 		false
-	| HExtends { tpackage = ["mt"]; tname = "AsyncProxy"; tparams = [TPType(TPNormal t)] } ->
+	| HExtends { tpackage = ["mt"]; tname = "AsyncProxy"; tparams = [TPType(CTPath t)] } ->
 		extend_remoting ctx c t p true false;
 		false
 	| HImplements { tpackage = ["haxe";"rtti"]; tname = "Generic"; tparams = [] } ->

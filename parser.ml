@@ -163,8 +163,8 @@ let rec	parse_file s =
 
 and parse_type_decl s =
 	match s with parser
-	| [< '(Kwd Import,p1); t = parse_type_path_normal; p2 = semicolon >] -> EImport t, punion p1 p2
-	| [< '(Kwd Using,p1); t = parse_type_path_normal; p2 = semicolon >] -> EUsing t, punion p1 p2
+	| [< '(Kwd Import,p1); t = parse_type_path; p2 = semicolon >] -> EImport t, punion p1 p2
+	| [< '(Kwd Using,p1); t = parse_type_path; p2 = semicolon >] -> EUsing t, punion p1 p2
 	| [< meta = parse_meta; c = parse_common_flags; s >] ->
 		match s with parser
 		| [< n , p1 = parse_enum_flags; doc = get_doc; '(Const (Type name),_); tl = parse_constraint_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] ->
@@ -189,7 +189,7 @@ and parse_type_decl s =
 				d_flags = List.map fst c @ n @ hl;
 				d_data = fl;
 			}, punion p1 p2)
-		| [< '(Kwd Typedef,p1); doc = get_doc; '(Const (Type name),p2); tl = parse_constraint_params; '(Binop OpAssign,_); t = parse_type_path; s >] ->
+		| [< '(Kwd Typedef,p1); doc = get_doc; '(Const (Type name),p2); tl = parse_constraint_params; '(Binop OpAssign,_); t = parse_complex_type; s >] ->
 			(match s with parser
 			| [< '(Semicolon,_) >] -> ()
 			| [< >] -> ());
@@ -268,26 +268,26 @@ and parse_class_flags = parser
 	| [< '(Kwd Interface,p) >] -> [HInterface] , p
 
 and parse_type_opt = parser
-	| [< '(DblDot,_); t = parse_type_path >] -> Some t
+	| [< '(DblDot,_); t = parse_complex_type >] -> Some t
 	| [< >] -> None
 
-and parse_type_path = parser
-	| [< '(POpen,_); t = parse_type_path; '(PClose,_); s >] -> parse_type_path_next (TPParent t) s
+and parse_complex_type = parser
+	| [< '(POpen,_); t = parse_complex_type; '(PClose,_); s >] -> parse_complex_type_next (CTParent t) s
 	| [< '(BrOpen,_); s >] ->
 		let t = (match s with parser
-			| [< name = any_ident >] -> TPAnonymous (parse_type_anonymous_resume name s)
-			| [< '(Binop OpGt,_); t = parse_type_path_normal; '(Comma,_); s >] ->
+			| [< name = any_ident >] -> CTAnonymous (parse_type_anonymous_resume name s)
+			| [< '(Binop OpGt,_); t = parse_type_path; '(Comma,_); s >] ->
 				(match s with parser
-				| [< name = any_ident; l = parse_type_anonymous_resume name >] -> TPExtend (t,l)
-				| [< l = plist (parse_signature_field None); '(BrClose,_) >] -> TPExtend (t,l)
+				| [< name = any_ident; l = parse_type_anonymous_resume name >] -> CTExtend (t,l)
+				| [< l = plist (parse_signature_field None); '(BrClose,_) >] -> CTExtend (t,l)
 				| [< >] -> serror())
-			| [< l = plist (parse_signature_field None); '(BrClose,_) >] -> TPAnonymous l
+			| [< l = plist (parse_signature_field None); '(BrClose,_) >] -> CTAnonymous l
 			| [< >] -> serror()
 		) in
-		parse_type_path_next t s
-	| [< t = parse_type_path_normal; s >] -> parse_type_path_next (TPNormal t) s
+		parse_complex_type_next t s
+	| [< t = parse_type_path; s >] -> parse_complex_type_next (CTPath t) s
 
-and parse_type_path_normal s = parse_type_path1 [] s
+and parse_type_path s = parse_type_path1 [] s
 
 and parse_type_path1 pack = parser
 	| [< '(Const (Ident name),_); '(Dot,p); s >] ->
@@ -320,19 +320,19 @@ and parse_type_path_or_const = parser
 	| [< '(Const (String s),_) >] -> TPConst (String s)
 	| [< '(Const (Int i),_) >] -> TPConst (Int i)
 	| [< '(Const (Float f),_) >] -> TPConst (Float f)
-	| [< t = parse_type_path >] -> TPType t
+	| [< t = parse_complex_type >] -> TPType t
 
-and parse_type_path_next t = parser
-	| [< '(Arrow,_); t2 = parse_type_path >] ->
+and parse_complex_type_next t = parser
+	| [< '(Arrow,_); t2 = parse_complex_type >] ->
 		(match t2 with
-		| TPFunction (args,r) ->
-			TPFunction (t :: args,r)
+		| CTFunction (args,r) ->
+			CTFunction (t :: args,r)
 		| _ ->
-			TPFunction ([t] , t2))
+			CTFunction ([t] , t2))
 	| [< >] -> t
 
 and parse_type_anonymous_resume name = parser
-	| [< '(DblDot,p); t = parse_type_path; s >] ->
+	| [< '(DblDot,p); t = parse_complex_type; s >] ->
 		(name, None, AFVar t, p) ::
 		match s with parser
 		| [< '(BrClose,_) >] -> []
@@ -354,8 +354,8 @@ and parse_enum s =
 		| [< >] -> serror()
 
 and parse_enum_param = parser
-	| [< '(Question,_); name = any_ident; '(DblDot,_); t = parse_type_path >] -> (name,true,t)
-	| [< name = any_ident; '(DblDot,_); t = parse_type_path >] -> (name,false,t)
+	| [< '(Question,_); name = any_ident; '(DblDot,_); t = parse_complex_type >] -> (name,true,t)
+	| [< name = any_ident; '(DblDot,_); t = parse_complex_type >] -> (name,false,t)
 
 and parse_class_field s =
 	doc := None;
@@ -364,7 +364,7 @@ and parse_class_field s =
 		match s with parser
 		| [< '(Kwd Var,p1); name = any_ident; s >] ->
 			(match s with parser
-			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_type_path; p2 = semicolon >] ->
+			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_complex_type; p2 = semicolon >] ->
 				(FProp (name,doc,meta,l,i1,i2,t),punion p1 p2)
 			| [< t = parse_type_opt; s >] ->
 				let e , p2 = (match s with parser
@@ -391,10 +391,10 @@ and parse_class_field s =
 and parse_signature_field flag = parser
 	| [< '(Kwd Var,p1); name = any_ident; s >] ->
 		(match s with parser
-		| [< '(DblDot,_); t = parse_type_path; p2 = semicolon >] -> (name,flag,AFVar t,punion p1 p2)
-		| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_type_path; p2 = semicolon >] -> (name,flag,AFProp (t,i1,i2),punion p1 p2)
+		| [< '(DblDot,_); t = parse_complex_type; p2 = semicolon >] -> (name,flag,AFVar t,punion p1 p2)
+		| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_complex_type; p2 = semicolon >] -> (name,flag,AFProp (t,i1,i2),punion p1 p2)
 		| [< >] -> serror())
-	| [< '(Kwd Function,p1); name = any_ident; '(POpen,_); al = psep Comma parse_fun_param_type; '(PClose,_); '(DblDot,_); t = parse_type_path; p2 = semicolon >] ->
+	| [< '(Kwd Function,p1); name = any_ident; '(POpen,_); al = psep Comma parse_fun_param_type; '(PClose,_); '(DblDot,_); t = parse_complex_type; p2 = semicolon >] ->
 		(name,flag,AFFun (al,t),punion p1 p2)
 	| [< '(Kwd Private,_) when flag = None; s >] -> parse_signature_field (Some false) s
 	| [< '(Kwd Public,_) when flag = None; s >] -> parse_signature_field (Some true) s
@@ -422,8 +422,8 @@ and parse_fun_param_value = parser
 	| [< >] -> None
 
 and parse_fun_param_type = parser
-	| [< '(Question,_); name = any_ident; '(DblDot,_); t = parse_type_path >] -> (name,true,t)
-	| [< name = any_ident; '(DblDot,_); t = parse_type_path >] -> (name,false,t)
+	| [< '(Question,_); name = any_ident; '(DblDot,_); t = parse_complex_type >] -> (name,true,t)
+	| [< name = any_ident; '(DblDot,_); t = parse_complex_type >] -> (name,false,t)
 
 and parse_constraint_params = parser
 	| [< '(Binop OpLt,_); l = psep Comma parse_constraint_param; '(Binop OpGt,_) >] -> l
@@ -434,14 +434,14 @@ and parse_constraint_param = parser
 		match s with parser
 		| [< '(DblDot,_); s >] ->
 			(match s with parser
-			| [< '(POpen,_); l = psep Comma parse_type_path_normal; '(PClose,_) >] -> (name,l)
-			| [< t = parse_type_path_normal >] -> (name,[t])
+			| [< '(POpen,_); l = psep Comma parse_type_path; '(PClose,_) >] -> (name,l)
+			| [< t = parse_type_path >] -> (name,[t])
 			| [< >] -> serror())
 		| [< >] -> (name,[])
 
 and parse_class_herit = parser
-	| [< '(Kwd Extends,_); t = parse_type_path_normal >] -> HExtends t
-	| [< '(Kwd Implements,_); t = parse_type_path_normal >] -> HImplements t
+	| [< '(Kwd Extends,_); t = parse_type_path >] -> HExtends t
+	| [< '(Kwd Implements,_); t = parse_type_path >] -> HImplements t
 
 and block1 = parser
 	| [< '(Const (Ident name),p); s >] -> block2 name true p s
@@ -514,13 +514,13 @@ and expr = parser
 		(match s with parser
 		| [< '(POpen,_); e = expr; s >] ->
 			(match s with parser
-			| [< '(Comma,_); t = parse_type_path; '(PClose,p2); s >] -> expr_next (ECast (e,Some t),punion p1 p2) s
+			| [< '(Comma,_); t = parse_complex_type; '(PClose,p2); s >] -> expr_next (ECast (e,Some t),punion p1 p2) s
 			| [< '(PClose,p2); s >] -> expr_next (ECast (e,None),punion p1 (pos e)) s
 			| [< >] -> serror())
 		| [< e = expr; s >] -> expr_next (ECast (e,None),punion p1 (pos e)) s
 		| [< >] -> serror())
 	| [< '(Kwd Throw,p); e = expr >] -> (EThrow e,p)
-	| [< '(Kwd New,p1); t = parse_type_path_normal; '(POpen,p); s >] ->
+	| [< '(Kwd New,p1); t = parse_type_path; '(POpen,p); s >] ->
 		if is_resuming p then display (EDisplayNew t,punion p1 p);
 		(match s with parser
 		| [< al = psep Comma expr; '(PClose,p2); s >] -> expr_next (ENew (t,al),punion p1 p2) s
@@ -646,7 +646,7 @@ and parse_switch_cases eswitch cases = parser
 and parse_catch etry = parser
 	| [< '(Kwd Catch,p); '(POpen,_); name = any_ident; s >] ->
 		match s with parser
-		| [< '(DblDot,_); t = parse_type_path; '(PClose,_); s >] ->
+		| [< '(DblDot,_); t = parse_complex_type; '(PClose,_); s >] ->
 			(try
 				match s with parser
 				| [< e = expr >] ->	(name,t,e)
