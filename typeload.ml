@@ -629,6 +629,11 @@ let init_class ctx c p herits fields meta =
 	set_heritance ctx c herits p;
 	let core_api = has_meta ":core_api" meta in
 	let is_macro = has_meta ":macro" meta in
+	let in_macro = Common.defined ctx.com "macro" in
+	let fields, herits = if is_macro && not in_macro then begin
+		c.cl_extern <- true;
+		List.filter (function (FFun (_,_,_,acc,_,_),_) -> List.mem AStatic acc | _ -> false) fields, []
+	end else fields, herits in
 	if core_api then delay ctx ((fun() -> init_core_api ctx c));
 	let tthis = TInst (c,List.map snd c.cl_types) in
 	let rec extends_public c =
@@ -725,8 +730,15 @@ let init_class ctx c p herits fields meta =
 			let stat = List.mem AStatic access in
 			let inline = List.mem AInline access in
 			if inline && c.cl_interface then error "You can't declare inline methods in interfaces" p;
-			let is_macro = (is_macro && not stat) || has_meta ":macro" meta in
+			let is_macro = (is_macro && stat) || has_meta ":macro" meta in
 			if is_macro && not stat then error "Only static methods can be macros" p;
+			let f = if not is_macro then f else begin
+				let texpr = CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
+				{ f with 
+					f_args = List.map (fun (a,o,t,e) -> a,o,(match t with None -> Some texpr | _ -> t),e) f.f_args;
+					f_expr = if in_macro then f.f_expr else (EReturn (Some (EConst (Ident "null"),p)),p);
+				}
+			end in
 			let parent = (if not stat then get_parent c name else None) in
 			let dynamic = List.mem ADynamic access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
 			if inline && dynamic then error "You can't have both 'inline' and 'dynamic'" p;

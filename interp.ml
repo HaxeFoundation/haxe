@@ -64,6 +64,8 @@ type cmp =
 	| CInf
 	| CUndef
 
+type locals = (string, value ref) PMap.t
+
 type context = {
 	com : Common.context;
 	gen : Genneko.context;
@@ -75,10 +77,13 @@ type context = {
 	mutable do_string : value -> string;
 	mutable do_loadprim : value -> value -> value;
 	mutable do_compare : value -> value -> cmp;
-	mutable locals : (string, value ref) PMap.t;
-	mutable stack : pos list;
+	mutable locals : locals;
+	mutable stack : (pos * value * locals) list;
 	mutable exc : pos list;
 	mutable vthis : value;
+	(* context *)
+	mutable curpos : Ast.pos;
+	mutable delayed : (unit -> value) DynArray.t;
 }
 
 type access =
@@ -91,6 +96,7 @@ exception Builtin_error
 
 exception Error of string * Ast.pos list
 
+exception Abort
 exception Continue
 exception Break of value
 exception Return of value
@@ -485,11 +491,18 @@ let builtins =
 			build_stack (get_ctx()).exc
 	 	);
 	 	"callstack", Fun0 (fun() ->
-	 		build_stack (get_ctx()).stack
+	 		build_stack (List.map (fun (p,_,_) -> p) (get_ctx()).stack)
 	 	);
 	 	"version", Fun0 (fun() ->
 	 		VInt 0
 	 	);
+	(* extra *)
+		"delay_call",Fun1 (fun i ->
+			let ctx = get_ctx() in
+			match i with
+			| VInt i when i >= 0 && i < DynArray.length ctx.delayed -> (DynArray.get ctx.delayed i)()
+			| _ -> error()
+		);
 	] in
 	let vals = [
 		"tnull", VInt 0;
@@ -971,10 +984,29 @@ let std_lib =
 	h
 
 (* ---------------------------------------------------------------------- *)
+(* MACRO LIBRARY *)
+
+let macro_lib =
+	let error() =
+		raise Builtin_error
+	in
+	let funcs = [
+		"curpos", Fun0 (fun() -> VAbstract (APos (get_ctx()).curpos));
+		"error", Fun2 (fun msg p ->
+			match msg, p with
+			| VString s, VAbstract (APos p) -> (get_ctx()).com.Common.error s p; raise Abort
+			| _ -> error()
+		);
+	] in
+	let h = Hashtbl.create 0 in
+	List.iter (fun (n,f) -> Hashtbl.add h n f) funcs;
+	h
+
+(* ---------------------------------------------------------------------- *)
 (* EVAL *)
 
 let throw ctx p msg =
-	ctx.stack <- p :: ctx.stack;
+	ctx.stack <- (p,ctx.vthis,ctx.locals) :: ctx.stack;
 	exc (VString msg)
 
 let local ctx var value =
@@ -1087,7 +1119,7 @@ let rec eval ctx (e,p) =
 			eval ctx e
 		with Runtime v ->
 			let rec loop n l =
-				if n = 0 then l else
+				if n = 0 then List.map (fun (p,_,_) -> p) l else
 				match l with
 				| [] -> []
 				| _ :: l -> loop (n - 1) l
@@ -1389,7 +1421,7 @@ and call ctx vthis vfun pl p =
 	let oldstack = ctx.stack in
 	ctx.locals <- PMap.empty;
 	ctx.vthis <- vthis;
-	ctx.stack <- p :: ctx.stack;
+	ctx.stack <- (p,oldthis,locals) :: ctx.stack;
 	let ret = (try
 		(match vfun with
 		| VClosure (vl,f) ->
@@ -1403,9 +1435,9 @@ and call ctx vthis vfun pl p =
 			| [a;b;c;d], Fun4 f -> f a b c d
 			| [a;b;c;d;e], Fun5 f -> f a b c d e
 			| _, FunVar f -> f pl
-			| _ -> exc (VString "Invalid call"))
+			| _ -> exc (VString (Printf.sprintf "Invalid call (%d args instead of %d)" (List.length pl) (nargs f))))
 		| _ ->
-			exc (VString "Invalid call"))
+			exc (VString ("Invalid call " ^ ctx.do_string vfun)))
 	with Return v -> v
 		| Sys_error msg -> exc (VString msg)
 		| End_of_file -> exc (VString "EOF")
@@ -1432,6 +1464,7 @@ let rec to_string ctx n v =
 	| VArray vl -> "[" ^ String.concat "," (Array.to_list (Array.map (to_string ctx n) vl)) ^ "]"
 	| VAbstract a ->
 		(match a with
+		| APos p -> "#pos(" ^ Lexer.get_error_pos (Printf.sprintf "%s:%d:") p ^ ")"
 		| AInt32 i -> Int32.to_string i
 		| _ -> "#abstract")
 	| VFunction f -> "#function:"  ^ string_of_int (nargs f)
@@ -1499,6 +1532,7 @@ let load_prim ctx f n =
 		(try
 			let f = (match lib with
 			| "std" -> Hashtbl.find std_lib fname
+			| "macro" -> Hashtbl.find macro_lib fname
 			| _ -> raise Not_found
 			) in
 			if nargs f <> n then raise Not_found;
@@ -1507,6 +1541,11 @@ let load_prim ctx f n =
 			VFunction (FunVar (fun _ -> exc (VString ("Primitive not found " ^ f ^ ":" ^ string_of_int n)))))
 	| _ ->
 		exc (VString "Invalid call")
+
+let alloc_delayed ctx f =
+	let pos = DynArray.length ctx.delayed in
+	DynArray.add ctx.delayed f;
+	pos
 
 let create com =
 	let ctx = {
@@ -1525,6 +1564,9 @@ let create com =
 		do_string = Obj.magic();
 		do_loadprim = Obj.magic();
 		do_compare = Obj.magic();
+		(* context *)
+		curpos = Ast.null_pos;
+		delayed = DynArray.create();
 	} in
 	ctx.do_call <- call ctx;
 	ctx.do_string <- to_string ctx 0;
@@ -1534,11 +1576,18 @@ let create com =
 	List.iter (fun e -> ignore(eval ctx e)) (Genneko.header());
 	ctx
 
-let catch_errors ctx f =
+let catch_errors ctx ?(final=(fun() -> ())) f =
 	try
-		f();
+		let v = f() in
+		final();
+		Some v
 	with Runtime v ->
-		raise (Error (to_string ctx 0 v,List.map make_pos ctx.stack))
+		final();
+		raise (Error (to_string ctx 0 v,List.map (fun (p,_,_) -> make_pos p) ctx.stack))
+	| Abort ->
+		final();
+		None
+
 
 let add_types ctx types =
 	let types = List.filter (fun t ->
@@ -1549,7 +1598,7 @@ let add_types ctx types =
 		end
 	) types in
 	let e = (EBlock (Genneko.build ctx.gen types), null_pos) in
-	catch_errors ctx (fun() -> ignore(eval ctx e))
+	ignore(catch_errors ctx (fun() -> ignore(eval ctx e)))
 
 let get_path ctx path p =
 	let rec loop = function
@@ -1560,14 +1609,24 @@ let get_path ctx path p =
 	eval ctx (loop (List.rev path))
 
 let call_path ctx path f vl p =	
+	let old = ctx.curpos in
+	ctx.curpos <- p;
 	let p = Genneko.pos ctx.gen p in
-	catch_errors ctx (fun() ->
+	catch_errors ctx ~final:(fun() -> ctx.curpos <- old) (fun() ->
 		match get_path ctx path p with
 		| VObject o ->
 			let f = get_field o f in
 			call ctx (VObject o) f vl p
 		| _ -> assert false
 	)
+
+let unwind_stack ctx =
+	match ctx.stack with
+	| [] -> ()
+	| (p,vthis,locals) :: l ->
+		ctx.stack <- l;
+		ctx.vthis <- vthis;
+		ctx.locals <- locals
 
 (* ---------------------------------------------------------------------- *)
 (* EXPR ENCODING *)

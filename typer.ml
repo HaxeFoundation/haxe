@@ -1625,7 +1625,29 @@ and type_call ctx e el p =
 			make_call ctx et (eparam::params) tret p
 		| AKMacro (ethis,f) ->
 			(match ethis.eexpr with
-			| TTypeExpr (TClassDecl c) -> (!type_macro_rec) ctx c f.cf_name el p
+			| TTypeExpr (TClassDecl c) ->
+				let expr = Typeload.load_instance ctx { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None}  p false in
+				let nargs = (match follow f.cf_type with
+				| TFun (args,ret) ->
+					unify ctx ret expr p;
+					(match args with
+					| [(_,_,t)] ->
+						(try
+							unify_raise ctx t expr p;
+							Some 1
+						with Error (Unify _,_) ->
+							unify ctx t (ctx.api.tarray expr) p;
+							None)
+					| _ ->
+						List.iter (fun (_,_,t) -> unify ctx t expr p) args;
+						Some (List.length args))
+				| _ ->
+					assert false
+				) in
+				(match nargs with
+				| Some n -> if List.length el <> n then error ("This macro requires " ^ string_of_int n ^ " arguments") p
+				| None -> ());
+				(!type_macro_rec) ctx c f.cf_name el (nargs = None) p
 			| _ -> assert false)
 		| acc ->
 			let e = acc_get ctx acc p in
@@ -1902,7 +1924,7 @@ let create com =
 (* ---------------------------------------------------------------------- *)
 (* MACROS *)
 
-let type_macro ctx c f el p =
+let type_macro ctx c f el array p =
 	let t = Common.timer "macro execution" in
 	let ctx2 = (match ctx.g.macros with
 		| Some (select,ctx) -> 
@@ -1932,12 +1954,41 @@ let type_macro ctx c f el p =
 	let mctx = Interp.get_ctx() in
 	let m = (try Hashtbl.find ctx.g.types_module c.cl_path with Not_found -> c.cl_path) in
 	ignore(Typeload.load_module ctx2 m p);
-	finalize ctx2;
-	let types = types ctx2 None [] in
-	Interp.add_types mctx types;
-	let params = Interp.enc_array (List.map Interp.encode_expr el) in
-	let v = Interp.call_path mctx ((fst c.cl_path) @ [snd c.cl_path]) f [params] p in
-	let e = (try Interp.decode_expr v with Interp.Invalid_expr -> error "The macro didn't return a valid expression" p) in
+	let call() =
+		let el = List.map Interp.encode_expr el in
+		match Interp.call_path mctx ((fst c.cl_path) @ [snd c.cl_path]) f (if array then [Interp.enc_array el] else el) p with
+		| None -> None
+		| Some v -> Some (try Interp.decode_expr v with Interp.Invalid_expr -> error "The macro didn't return a valid expression" p)
+	in
+	let e = (if Common.defined ctx.com "macro" then begin
+		(*
+			this is super-tricky : we can't evaluate a macro inside a macro because we might trigger some cycles.
+			So instead, we generate a haxe.macro.Context.delayedCalled(i) expression that will only evaluate the
+			macro if/when it is called.
+
+			The tricky part is that the whole delayed-evaluation process has to use the same contextual informations
+			as if it was evaluated now.
+		*)
+		let ctx = {
+			ctx with locals = ctx.locals;
+		} in
+		let pos = Interp.alloc_delayed mctx (fun() ->
+			(* remove $delay_call calls from the stack *)
+			Interp.unwind_stack mctx;
+			match call() with
+			| None -> raise Interp.Abort
+			| Some e -> Interp.eval mctx (Genneko.gen_expr mctx.Interp.gen (type_expr ctx e))
+		) in
+		let e = (EConst (Ident "__dollar__delay_call"),p) in
+		(EUntyped (ECall (e,[EConst (Int (string_of_int pos)),p]),p),p)
+	end else begin
+		finalize ctx2;
+		let types = types ctx2 None [] in
+		Interp.add_types mctx types;
+		match call() with
+		| None -> (EConst (Ident "null"),p)
+		| Some e -> e
+	end) in
 	t();
 	type_expr ctx e
 
