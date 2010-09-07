@@ -714,7 +714,14 @@ class Main {
 		var rep = getRepository();
 		var project = param("Project");
 		var dir = paramOpt();
-		var devfile = rep + Datas.safe(project)+"/.dev";
+		var proj = rep + Datas.safe(project);
+		if( !neko.FileSystem.exists(proj) ) {
+			neko.FileSystem.createDirectory(proj);
+			var f = neko.io.File.write(proj + "/.current", false);
+			f.writeString("dev");
+			f.close();
+		}
+		var devfile = proj+"/.dev";
 		if( dir == null ) {
 			if( neko.FileSystem.exists(devfile) )
 				neko.FileSystem.deleteFile(devfile);
