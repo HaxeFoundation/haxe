@@ -889,7 +889,7 @@ let std_lib =
 					| "wb" -> AFWrite (open_out_gen [Open_wronly;Open_binary] perms f)
 					| "a" -> AFWrite (open_out_gen [Open_append] perms f)
 					| "ab" -> AFWrite (open_out_gen [Open_append;Open_binary] perms f)
-					| _ -> error())				
+					| _ -> error())
 			| _ -> error()
 		);
 		"file_close", Fun1 (fun f ->
@@ -938,13 +938,13 @@ let std_lib =
 		);
 		"file_eof", Fun1 (fun f ->
 			match f with
-			| VAbstract (AFRead f) -> 
+			| VAbstract (AFRead f) ->
 				VBool (try
 					ignore(input_char f);
 					seek_in f (pos_in f - 1);
 					false
 				with End_of_file ->
-					true)				
+					true)
 			| _ -> error()
 		);
 		"file_flush", Fun1 (fun f ->
@@ -1608,7 +1608,7 @@ let get_path ctx path p =
 	in
 	eval ctx (loop (List.rev path))
 
-let call_path ctx path f vl p =	
+let call_path ctx path f vl p =
 	let old = ctx.curpos in
 	ctx.curpos <- p;
 	let p = Genneko.pos ctx.gen p in
@@ -1653,10 +1653,10 @@ let init ctx =
 	let enums = [IExpr;IBinop;IUnop;IConst;ITParam;IType;IField] in
 	let get_enum_proto e =
 		match get_path ctx ["haxe";"macro";enum_name e;"__constructs__"] null_pos with
-		| VObject cst -> 
+		| VObject cst ->
 			(match get_field cst "__a" with
-				| VArray a -> 
-					Array.map (fun s -> 
+				| VArray a ->
+					Array.map (fun s ->
 						match s with
 						| VObject s -> (match get_field s "__s" with VString s -> s | _ -> assert false)
 						| _ -> assert false
@@ -1674,7 +1674,7 @@ let null f = function
 	| Some v -> f v
 
 let encode_pos p =
-	VAbstract (APos p)	
+	VAbstract (APos p)
 
 let enc_inst path fields =
 	let h = Hashtbl.create 0 in
@@ -1692,7 +1692,7 @@ let enc_inst path fields =
 		oproto = Some p;
 	}
 
-let enc_array l = 
+let enc_array l =
 	let a = Array.of_list l in
 	enc_inst ["Array"] [
 		"__a", VArray a;
@@ -1708,7 +1708,7 @@ let enc_string s =
 let enc_obj l = VObject (obj l)
 
 let enc_enum (i:enum_index) index pl =
-	let eindex : int = Obj.magic i in	
+	let eindex : int = Obj.magic i in
 	let etags = (get_ctx()).enums.(eindex) in
 	enc_inst ["haxe";"macro";enum_name i] [
 		"tag", VString etags.(index);
@@ -1801,9 +1801,9 @@ and encode_type t =
 		0, [encode_path p]
 	| CTFunction (pl,r) ->
 		1, [enc_array (List.map encode_type pl);encode_type r]
-	| CTAnonymous fl -> 
+	| CTAnonymous fl ->
 		2, [enc_array (List.map encode_field fl)]
-	| CTParent t -> 
+	| CTParent t ->
 		3, [encode_type t]
 	| CTExtend (t,fields) ->
 		4, [encode_path t; enc_array (List.map encode_field fields)]
@@ -1820,9 +1820,9 @@ let encode_expr e =
 			| EBinop (op,e1,e2) ->
 				2, [encode_binop op;loop e1;loop e2]
 			| EField (e,f) ->
-				3, [enc_string f]
+				3, [loop e;enc_string f]
 			| EType (e,f) ->
-				4, [enc_string f]
+				4, [loop e;enc_string f]
 			| EParenthesis e ->
 				5, [loop e]
 			| EObjectDecl fl ->
@@ -1925,7 +1925,7 @@ let field v f =
 	| VObject o -> (try Hashtbl.find o.ofields f with Not_found -> VNull)
 	| _ -> raise Invalid_expr
 
-let decode_enum v = 
+let decode_enum v =
 	match field v "index", field v "args" with
 	| VInt i, VNull -> i, []
 	| VInt i, VArray a -> i, Array.to_list a
@@ -2010,7 +2010,7 @@ and decode_field v =
 			AFVar (decode_type t)
 		| 1, [t;get;set] ->
 			AFProp (decode_type t, dec_string get, dec_string set)
-		| 2, [pl;t] -> 
+		| 2, [pl;t] ->
 			let pl = List.map (fun p ->
 				(dec_string (field p "name"),dec_bool (field p "opt"),decode_type (field p "type"))
 			) (dec_array pl) in
@@ -2031,7 +2031,7 @@ and decode_type t =
 		CTPath (decode_path p)
 	| 1, [a;r] ->
 		CTFunction (List.map decode_type (dec_array a), decode_type r)
-	| 2, [fl] -> 
+	| 2, [fl] ->
 		CTAnonymous (List.map decode_field (dec_array fl))
 	| 3, [t] ->
 		CTParent (decode_type t)
@@ -2056,7 +2056,7 @@ let decode_expr v =
 		| 4, [e;f] ->
 			EType (loop e, dec_string f)
 		| 5, [e] ->
-			EParenthesis (loop e)	
+			EParenthesis (loop e)
 		| 6, [a] ->
 			EObjectDecl (List.map (fun o ->
 				(dec_string (field o "field"), loop (field o "expr"))
@@ -2099,7 +2099,7 @@ let decode_expr v =
 			let catches = List.map (fun c ->
 				(dec_string (field c "name"),decode_type (field c "type"),loop (field c "expr"))
 			) (dec_array catches) in
-			ETry (loop e, catches) 
+			ETry (loop e, catches)
 		| 19, [e] ->
 			EReturn (opt loop e)
 		| 20, [] ->
