@@ -144,7 +144,8 @@ class Web {
 		Returns all the GET parameters String
 	**/
 	public static function getParamsString() {
-		return new String(_get_params_string());
+		var p = _get_params_string();
+		return if( p == null ) "" else new String(p);
 	}
 
 	/**
