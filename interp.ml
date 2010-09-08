@@ -1327,17 +1327,17 @@ and base_op ctx op v1 v2 p =
 	| "/" ->
 		number_op ctx p op (/) (/.) "__div" "__rdiv" v1 v2
 	| "%" ->
-		number_op ctx p op (mod) mod_float "__mod" "__rmod" v1 v2
+		number_op ctx p op (fun x y -> x mod y) mod_float "__mod" "__rmod" v1 v2
 	| "&" ->
-		int_op ctx p op (land) v1 v2
+		int_op ctx p op (fun x y -> x land y) v1 v2
 	| "|" ->
-		int_op ctx p op (lor) v1 v2
+		int_op ctx p op (fun x y -> x lor y) v1 v2
 	| "^" ->
-		int_op ctx p op (lxor) v1 v2
+		int_op ctx p op (fun x y -> x lxor y) v1 v2
 	| "<<" ->
-		int_op ctx p op (lsl) v1 v2
+		int_op ctx p op (fun x y -> x lsl y) v1 v2
 	| ">>" ->
-		int_op ctx p op (asr) v1 v2
+		int_op ctx p op (fun x y -> x asr y) v1 v2
 	| ">>>" ->
 		int_op ctx p op (fun x y ->
 			if x >= 0 then x lsr y else Int32.to_int (Int32.shift_right_logical (Int32.of_int x) y)
