@@ -1,5 +1,8 @@
 2010-??-??: 2.07
 	all : fixed completion support with --remap
+	all : added macros, added --interp
+	all : removed 'here' special identifier
+	neko : fixed neko.Web.getParamsString() returning "null" instead of ""
 
 2010-08-14: 2.06
 	neko : change serializer to be able to handle instances of basic classes from other modules
