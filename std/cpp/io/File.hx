@@ -48,15 +48,15 @@ class File {
 	}
 
 	public static function read( path : String, binary : Bool ) {
-		return new FileInput(untyped file_open(path,(if( binary ) "rb" else "r")));
+		return new FileInput(file_open(path,(if( binary ) "rb" else "r")));
 	}
 
 	public static function write( path : String, binary : Bool ) {
-		return new FileOutput(untyped file_open(path.__s,(if( binary ) "wb" else "w")));
+		return new FileOutput(file_open(path,(if( binary ) "wb" else "w")));
 	}
 
 	public static function append( path : String, binary : Bool ) {
-		return new FileOutput(untyped file_open(path.__s,(if( binary ) "ab" else "a")));
+		return new FileOutput(file_open(path,(if( binary ) "ab" else "a")));
 	}
 
 	public static function copy( src : String, dst : String ) {
