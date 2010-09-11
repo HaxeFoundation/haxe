@@ -1527,7 +1527,9 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			| TAnon a -> TAnon { a_fields = PMap.fold (fun f acc -> PMap.add f.cf_name f acc) a.a_fields use_methods; a_status = ref Closed; }
 			| _ -> TAnon { a_fields = use_methods; a_status = ref Closed }
 		) in
-		raise (Display t)
+		(match follow t with
+		| TMono _ | TDynamic _ when Common.defined ctx.com "macro" -> mk (TConst TNull) t p
+		| _ -> raise (Display t))
 	| EDisplayNew t ->
 		let t = Typeload.load_instance ctx t p true in
 		(match follow t with
