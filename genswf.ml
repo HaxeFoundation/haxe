@@ -196,7 +196,7 @@ let make_topt = function
 	| None -> { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None }
 	| Some t -> make_tpath t
 
-let make_type f t = 
+let make_type f t =
 	CTPath (match f, t with
 	| "opaqueBackground", Some (HMPath ([],"Object")) -> make_param ([],"Null") ([],"UInt")
 	| "getObjectsUnderPoint", Some (HMPath ([],"Array")) -> make_param ([],"Array") (["flash";"display"],"DisplayObject")
@@ -374,7 +374,7 @@ let remove_debug_infos as3 =
 		c.hlc_static_fields <- Array.map loop_field c.hlc_static_fields;
 		c
 	and loop_static s =
-		{ 
+		{
 			hls_method = loop_method s.hls_method;
 			hls_fields = Array.map loop_field s.hls_fields;
 		}
@@ -400,8 +400,8 @@ let remove_debug_infos as3 =
 		Array.iteri (fun pos op ->
 			match op with
 			| HDebugReg _ | HDebugLine _ | HDebugFile _ | HBreakPointLine _ | HTimestamp -> ()
-			| _ -> 
-				let p delta = 
+			| _ ->
+				let p delta =
 					positions.(pos + delta) - DynArray.length code
 				in
 				let op = (match op with
@@ -423,7 +423,7 @@ let remove_debug_infos as3 =
 			}
 		) f.hlf_trys;
 		f
-	in	
+	in
 	As3hlparse.flatten (List.map loop_static hl)
 
 let parse_swf com file =
@@ -439,7 +439,7 @@ let parse_swf com file =
 			IO.close_in ch;
 			List.iter (fun t ->
 				match t.tdata with
-				| TActionScript3 (id,as3) when not com.debug && not !Common.display ->					
+				| TActionScript3 (id,as3) when not com.debug && not !Common.display ->
 					t.tdata <- TActionScript3 (id,remove_debug_infos as3)
 				| _ -> ()
 			) tags;
@@ -646,24 +646,30 @@ let remove_classes toremove lib hcl =
 		match List.filter (fun c -> Hashtbl.mem hcl c) (!toremove) with
 		| [] -> lib
 		| classes ->
-			let rec loop t =
-				match t.tdata with
-				| TActionScript3 (h,data) ->
-					let data = As3hlparse.parse data in
-					let rec loop f =
-						match f.hlf_kind with
-						| HFClass _ -> 
-							let path = make_tpath f.hlf_name in							
-							not (List.mem (path.tpackage,path.tname) classes)
-						| _ -> true
-					in
-					let data = List.map (fun s -> { s with hls_fields = Array.of_list (List.filter loop (Array.to_list s.hls_fields)) }) data in
-					let data = List.filter (fun s -> Array.length s.hls_fields > 0) data in
-					{ t with tdata = TActionScript3 (h,As3hlparse.flatten data) }
-				| _ -> t
+			let rec tags = function
+				| [] -> []
+				| t :: l ->
+					match t.tdata with
+					| TActionScript3 (h,data) ->
+						let data = As3hlparse.parse data in
+						let rec loop f =
+							match f.hlf_kind with
+							| HFClass _ ->
+								let path = make_tpath f.hlf_name in
+								not (List.mem (path.tpackage,path.tname) classes)
+							| _ -> true
+						in
+						let data = List.map (fun s -> { s with hls_fields = Array.of_list (List.filter loop (Array.to_list s.hls_fields)) }) data in
+						let data = List.filter (fun s -> Array.length s.hls_fields > 0) data in
+						(if data = [] then
+							tags l
+						else
+							{ t with tdata = TActionScript3 (h,As3hlparse.flatten data) } :: tags l)
+					| _ ->
+						t :: tags l
 			in
 			toremove := List.filter (fun p -> not (List.mem p classes)) !toremove;
-			fst lib, List.map loop (snd lib)
+			fst lib, tags (snd lib)
 
 let build_swf8 com codeclip exports =
 	let code, clips = Genswf8.generate com in
@@ -830,7 +836,7 @@ let generate com swf_header =
 								else
 									error ("Class already exists in '" ^ file ^ "', use @:bind to redefine it") (t_pos t)
 							| _ ->
-								error ("Invalid redefinition of class defined in '" ^ file ^ "'") (t_pos t)						
+								error ("Invalid redefinition of class defined in '" ^ file ^ "'") (t_pos t)
 					) com.types;
 				) el
 			| _ -> ()
