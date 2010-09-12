@@ -270,6 +270,11 @@ let punion p p2 =
 
 let s_type_path (p,s) = match p with [] -> s | _ -> String.concat "." p ^ "." ^ s
 
+let s_parse_path s = 
+	match List.rev (ExtString.String.nsplit s ".") with
+	| [] -> failwith "Invalid empty path"
+	| x :: l -> List.rev l, x
+
 let s_escape s =
 	let b = Buffer.create (String.length s) in
 	for i = 0 to (String.length s) - 1 do

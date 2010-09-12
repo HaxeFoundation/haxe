@@ -377,11 +377,8 @@ try
 			let lines = Std.input_list ch in
 			close_in ch;
 			excludes := (List.map (fun l ->
-				let len = String.length l in
-				let l = (if len > 0 && l.[len-1] = '\r' then String.sub l 0 (len - 1) else l) in
-				match List.rev (ExtString.String.nsplit l ".") with
-				| [] -> ([],"")
-				| x :: l -> (List.rev l,x)
+				let l = ExtString.String.strip l in
+				if l = "" then ([],"") else Ast.s_parse_path l
 			) lines) @ !excludes;
 		),"<filename> : don't generate code for classes listed in this file");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
@@ -504,7 +501,7 @@ try
 				com.platform <- Flash9;
 				add_std "flash9";
 			end else
-				add_std "flash";			
+				add_std "flash";
 			"swf"
 		| Neko -> add_std "neko"; "n"
 		| Js -> add_std "js"; "js"

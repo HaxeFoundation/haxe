@@ -750,7 +750,7 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 		| TSetBgColor _ -> priority
 		| TExport el when !nframe = 0 && com.flash_version >= 9 ->
 			let el = List.filter (fun e ->
-				let path = (match List.rev (ExtString.String.nsplit e.exp_name ".") with [] -> assert false | name :: l -> List.rev l, name) in
+				let path = s_parse_path e.exp_name in
 				List.exists (fun t -> t_path t = path) com.types
 			) el in
 			classes := !classes @ List.map (fun e -> { f9_cid = Some e.exp_id; f9_classname = e.exp_name }) el;

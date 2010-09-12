@@ -49,6 +49,14 @@ let gen_doc_opt d =
 let gen_arg_name (name,opt,_) =
 	(if opt then "?" else "") ^ name
 
+let cpath c =
+	let rec loop = function
+		| [] -> c.cl_path
+		| (":real",[{ eexpr = TConst (TString s) }]) :: _ -> s_parse_path s
+		| _ :: l -> loop l
+	in
+	loop (c.cl_meta())
+
 let rec follow_param t =
 	match t with
 	| TMono r ->
@@ -64,7 +72,7 @@ let rec gen_type t =
 	match t with
 	| TMono m -> (match !m with None -> tag "unknown" | Some t -> gen_type t)
 	| TEnum (e,params) -> node "e" [gen_path e.e_path e.e_private] (List.map gen_type params)
-	| TInst (c,params) -> node "c" [gen_path c.cl_path c.cl_private] (List.map gen_type params)
+	| TInst (c,params) -> node "c" [gen_path (cpath c) c.cl_private] (List.map gen_type params)
 	| TType (t,params) -> node "t" [gen_path t.t_path t.t_private] (List.map gen_type params)
 	| TFun (args,r) -> node "f" ["a",String.concat ":" (List.map gen_arg_name args)] (List.map gen_type (List.map (fun (_,opt,t) -> if opt then follow_param t else t) args @ [r]))
 	| TAnon a -> node "a" [] (pmap (fun f -> gen_field [] { f with cf_public = false }) a.a_fields)
@@ -108,7 +116,7 @@ let gen_type_params priv path params pos m =
 	gen_path path priv :: ("params", String.concat ":" (List.map fst params)) :: ("file",if pos == null_pos then "" else pos.pfile) :: (mpriv @ mpath)
 
 let gen_class_path name (c,pl) =
-	node name [("path",s_type_path c.cl_path)] (List.map gen_type pl)
+	node name [("path",s_type_path (cpath c))] (List.map gen_type pl)
 
 let rec exists f c =
 	PMap.exists f.cf_name c.cl_fields ||
@@ -139,7 +147,7 @@ let gen_type_decl com t =
 			| None -> []
 			| Some t -> [node "haxe_dynamic" [] [gen_type t]]
 		) in
-		node "class" (gen_type_params c.cl_private c.cl_path c.cl_types c.cl_pos m @ ext @ interf) (tree @ stats @ fields @ constr @ doc @ dynamic)
+		node "class" (gen_type_params c.cl_private (cpath c) c.cl_types c.cl_pos m @ ext @ interf) (tree @ stats @ fields @ constr @ doc @ dynamic)
 	| TEnumDecl e ->
 		let doc = gen_doc_opt e.e_doc in
 		node "enum" (gen_type_params e.e_private e.e_path e.e_types e.e_pos m) (pmap gen_constr e.e_constrs @ doc)

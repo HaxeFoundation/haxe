@@ -777,7 +777,7 @@ let gen_access ctx e (forset : 'a) : 'a access =
 				VCast (id,classify ctx e.etype)
 		)
 	| TArray ({ eexpr = TLocal "__global__" },{ eexpr = TConst (TString s) }) ->
-		let path = (match List.rev (ExtString.String.nsplit s ".") with [] -> assert false | x :: l -> List.rev l, x) in
+		let path = s_parse_path s in
 		let id = type_path ctx path in
 		if is_set forset then write ctx HGetGlobalScope;
 		VGlobal id
