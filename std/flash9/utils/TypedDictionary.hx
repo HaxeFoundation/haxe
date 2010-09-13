@@ -38,7 +38,7 @@ class TypedDictionary<K,T> extends Dictionary {
 	}
 
 	public inline function exists( k : K ) {
-		return this[cast k] != null;
+		return untyped this[k] != null;
 	}
 
 	public inline function delete( k : K ) {
