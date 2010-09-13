@@ -31,7 +31,7 @@ extern class DisplayObject extends flash.events.EventDispatcher, implements IBit
 	function getRect(targetCoordinateSpace : DisplayObject) : flash.geom.Rectangle;
 	function globalToLocal(point : flash.geom.Point) : flash.geom.Point;
 	function hitTestObject(obj : DisplayObject) : Bool;
-	function hitTestPoint(x : Float, y : Float, ?shapeFlag : Bool) : Bool;
+	function hitTestPoint(x : Float, y : Float, ?shapeFlag : Bool = false) : Bool;
 	function localToGlobal(point : flash.geom.Point) : flash.geom.Point;
 
 	#if flash10
