@@ -837,5 +837,8 @@ let generate com libs =
 	if command ("nekoc \"" ^ neko_file ^ "\"") <> 0 then failwith "Neko compilation failure";
 	c();
 	let output = Filename.chop_extension neko_file ^ ".n" in
-	if output <> com.file then Sys.rename output com.file;
+	if output <> com.file then begin
+		(try Sys.remove com.file with _ -> ());
+		Sys.rename output com.file;
+	end;
 	if not source then Sys.remove neko_file
