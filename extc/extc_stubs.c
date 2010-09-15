@@ -91,9 +91,9 @@ CAMLprim value zlib_deflate_end(value zv) {
 	return Val_unit;
 }
 
-CAMLprim value zlib_inflate_init() {
+CAMLprim value zlib_inflate_init(value wbits) {
 	value z = zlib_new_stream();
-	if( inflateInit(zval(z)) != Z_OK )
+	if( inflateInit2(zval(z),Int_val(wbits)) != Z_OK )
 		failwith("zlib_inflate_init");
 	return z;
 }

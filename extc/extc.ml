@@ -37,12 +37,15 @@ external zlib_deflate_init : int -> zstream = "zlib_deflate_init"
 external zlib_deflate : zstream -> src:string -> spos:int -> slen:int -> dst:string -> dpos:int -> dlen:int -> zflush -> zresult = "zlib_deflate_bytecode" "zlib_deflate"
 external zlib_deflate_end : zstream -> unit = "zlib_deflate_end"
 
-external zlib_inflate_init : unit -> zstream = "zlib_inflate_init"
+external zlib_inflate_init2 : int -> zstream = "zlib_inflate_init"
 external zlib_inflate : zstream -> src:string -> spos:int -> slen:int -> dst:string -> dpos:int -> dlen:int -> zflush -> zresult = "zlib_inflate_bytecode" "zlib_inflate"
 external zlib_inflate_end : zstream -> unit = "zlib_inflate_end"
 
 external _executable_path : string -> string = "executable_path"
 external get_full_path : string -> string = "get_full_path"
+
+(* support for backward compatibility *)
+let zlib_inflate_init() = zlib_inflate_init2 15
 
 let executable_path() =
 	let p = _executable_path Sys.argv.(0) in
@@ -83,7 +86,7 @@ let zip str =
 	s
 
 let unzip str =
-	let z = zlib_inflate_init() in
+	let z = zlib_inflate_init()  in
 	let s = zlib_op zlib_inflate z str in
 	zlib_inflate_end z;
 	s
