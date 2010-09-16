@@ -152,6 +152,16 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 		#end
 	}
 
+	static function onError( e : Dynamic, msg : String, context : String ) {
+		var msg = "???";
+		var stack = haxe.Stack.toString(haxe.Stack.exceptionStack());
+		try msg = Std.string(e) catch( e : Dynamic ) {};
+		reportCount = 0;
+		report("ABORTED : "+msg+" in "+context);
+		reportInfos = null;
+		trace("STACK :\n"+stack);
+	}
+
 	static function main() {
 		#if neko
 		if( neko.Web.isModNeko )
@@ -193,23 +203,26 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 				current = Type.getClass(inst);
 				for( f in Type.getInstanceFields(current) )
 					if( f.substr(0,4) == "test" ) {
-						Reflect.callMethod(inst,Reflect.field(inst,f),[]);
+						try {
+							Reflect.callMethod(inst,Reflect.field(inst,f),[]);
+						}
+						#if !as3
+						catch( e : Dynamic ) {
+							onError(e,"EXCEPTION",Type.getClassName(current)+"."+f);
+						}
+						#end
 						reportInfos = null;
 					}
 			}
 			asyncWaits.remove(null);
 			checkDone();
 		}
-		catch( e : #if as3 Test #else Dynamic #end ) {
+		#if !as3
+		catch( e : Dynamic ) {
 			asyncWaits.remove(null);
-			var msg = "???";
-			var stack = haxe.Stack.toString(haxe.Stack.exceptionStack());
-			try msg = Std.string(e) catch( e : Dynamic ) {};
-			reportCount = 0;
-			report("ABORTED : "+msg+" in "+Type.getClassName(current));
-			reportInfos = null;
-			trace("STACK :\n"+stack);
+			onError(e,"ABORTED",Type.getClassName(current));
 		}
+		#end
 	}
 
 }
