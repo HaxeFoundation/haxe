@@ -2109,10 +2109,12 @@ let encode_expr e =
 				23, [loop e]
 			| ECast (e,t) ->
 				24, [loop e; null encode_type t]
+			| EDisplay (e,flag) ->
+				25, [loop e; VBool flag]
+			| EDisplayNew t ->
+				26, [encode_path t]
 			| ETernary (econd,e1,e2) ->
-				25, [loop econd;loop e1;loop e2]
-			| EDisplay _ | EDisplayNew _ ->
-				assert false
+				27, [loop econd;loop e1;loop e2]
 		in
 		enc_obj [
 			"pos", encode_pos p;
@@ -2327,7 +2329,11 @@ let decode_expr v =
 			EThrow (loop e)
 		| 24, [e;t] ->
 			ECast (loop e,opt decode_type t)
-		| 25, [e1;e2;e3] ->
+		| 25, [e;f] ->
+			EDisplay (loop e,dec_bool f)
+		| 26, [t] ->
+			EDisplayNew (decode_path t)
+		| 27, [e1;e2;e3] ->
 			ETernary (loop e1,loop e2,loop e3)
 		| _ ->
 			raise Invalid_expr

@@ -101,6 +101,8 @@ enum ExprDef {
 	EUntyped( e : Expr );
 	EThrow( e : Expr );
 	ECast( e : Expr, t : Null<TypePath> );
+	EDisplay( e : Expr, isCall : Bool );
+	EDisplayNew( t : TypePath );
 	ETernary( econd : Expr, eif : Expr, eelse : Expr );
 }
 
