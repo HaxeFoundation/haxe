@@ -98,7 +98,6 @@ let classify t =
 	| _ -> KOther
 
 let type_field_rec = ref (fun _ _ _ _ _ -> assert false)
-let type_macro_rec = ref (fun _ _ _ _ -> assert false)
 
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
@@ -372,8 +371,8 @@ let field_access ctx mode f t e p =
 			else
 				AKExpr (make_call ctx (mk (TField (e,m)) (tfun [] t) p) [] t p)
 		| AccResolve ->
-			let fstring = mk (TConst (TString f.cf_name)) ctx.api.tstring p in
-			let tresolve = tfun [ctx.api.tstring] t in
+			let fstring = mk (TConst (TString f.cf_name)) ctx.t.tstring p in
+			let tresolve = tfun [ctx.t.tstring] t in
 			AKExpr (make_call ctx (mk (TField (e,"resolve")) tresolve p) [fstring] t p)
 		| AccNever ->
 			AKNo f.cf_name
@@ -407,12 +406,12 @@ let type_ident ctx i is_type p mode =
 	match i with
 	| "true" ->
 		if mode = MGet then
-			AKExpr (mk (TConst (TBool true)) ctx.api.tbool p)
+			AKExpr (mk (TConst (TBool true)) ctx.t.tbool p)
 		else
 			AKNo i
 	| "false" ->
 		if mode = MGet then
-			AKExpr (mk (TConst (TBool false)) ctx.api.tbool p)
+			AKExpr (mk (TConst (TBool false)) ctx.t.tbool p)
 		else
 			AKNo i
 	| "this" ->
@@ -544,7 +543,7 @@ let rec type_field ctx e i p mode =
 			| Some t ->
 				let t = apply_params c.cl_types params t in
 				if mode = MGet && PMap.mem "resolve" c.cl_fields then
-					AKExpr (make_call ctx (mk (TField (e,"resolve")) (tfun [ctx.api.tstring] t) p) [Typeload.type_constant ctx (String i) p] t p)
+					AKExpr (make_call ctx (mk (TField (e,"resolve")) (tfun [ctx.t.tstring] t) p) [Typeload.type_constant ctx (String i) p] t p)
 				else
 					AKExpr (mk (TField (e,i)) t p)
 			| None ->
@@ -653,10 +652,10 @@ let unify_int ctx e k =
 	in
 	match k with
 	| KUnk | KDyn when maybe_dynamic_mono() ->
-		unify ctx e.etype ctx.api.tfloat e.epos;
+		unify ctx e.etype ctx.t.tfloat e.epos;
 		false
 	| _ ->
-		unify ctx e.etype ctx.api.tint e.epos;
+		unify ctx e.etype ctx.t.tint e.epos;
 		true
 
 let rec type_binop ctx op e1 e2 p =
@@ -700,7 +699,7 @@ let rec type_binop ctx op e1 e2 p =
 			unify ctx get.etype t p;
 			l();
 			mk (TBlock [
-				mk (TVars [v,e.etype,Some e]) ctx.api.tvoid p;
+				mk (TVars [v,e.etype,Some e]) ctx.t.tvoid p;
 				make_call ctx (mk (TField (ev,m)) (tfun [t] t) p) [get] t p
 			]) t p
 		| AKInline _ | AKUsing _ | AKMacro _ ->
@@ -708,24 +707,26 @@ let rec type_binop ctx op e1 e2 p =
 	| _ ->
 	let e1 = type_expr ctx e1 in
 	let e2 = type_expr ctx e2 in
+	let tint = ctx.t.tint in
+	let tfloat = ctx.t.tfloat in
 	let mk_op t = mk (TBinop (op,e1,e2)) t p in
 	match op with
 	| OpAdd ->
 		mk_op (match classify e1.etype, classify e2.etype with
 		| KInt , KInt ->
-			ctx.api.tint
+			tint
 		| KFloat , KInt
 		| KInt, KFloat
 		| KFloat, KFloat ->
-			ctx.api.tfloat
+			tfloat
 		| KUnk , KInt ->
-			if unify_int ctx e1 KUnk then ctx.api.tint else ctx.api.tfloat
+			if unify_int ctx e1 KUnk then tint else tfloat
 		| KUnk , KFloat
 		| KUnk , KString  ->
 			unify ctx e1.etype e2.etype e1.epos;
 			e1.etype
 		| KInt , KUnk ->
-			if unify_int ctx e2 KUnk then ctx.api.tint else ctx.api.tfloat
+			if unify_int ctx e2 KUnk then tint else tfloat
 		| KFloat , KUnk
 		| KString , KUnk ->
 			unify ctx e2.etype e1.etype e2.epos;
@@ -739,13 +740,13 @@ let rec type_binop ctx op e1 e2 p =
 		| KUnk , KUnk ->
 			let ok1 = unify_int ctx e1 KUnk in
 			let ok2 = unify_int ctx e2 KUnk in
-			if ok1 && ok2 then ctx.api.tint else ctx.api.tfloat
+			if ok1 && ok2 then tint else tfloat
 		| KParam t1, KParam t2 when t1 == t2 ->
 			t1
 		| KParam t, KInt | KInt, KParam t ->
 			t
 		| KParam _, KFloat | KFloat, KParam _ | KParam _, KParam _ ->
-			ctx.api.tfloat
+			tfloat
 		| KParam _, _
 		| _, KParam _
 		| KOther, _
@@ -759,7 +760,7 @@ let rec type_binop ctx op e1 e2 p =
 	| OpShl
 	| OpShr
 	| OpUShr ->
-		let i = ctx.api.tint in
+		let i = tint in
 		unify ctx e1.etype i e1.epos;
 		unify ctx e2.etype i e2.epos;
 		mk_op i
@@ -767,28 +768,28 @@ let rec type_binop ctx op e1 e2 p =
 	| OpMult
 	| OpDiv
 	| OpSub ->
-		let result = ref (if op = OpDiv then ctx.api.tfloat else ctx.api.tint) in
+		let result = ref (if op = OpDiv then tfloat else tint) in
 		(match classify e1.etype, classify e2.etype with
 		| KFloat, KFloat ->
-			result := ctx.api.tfloat
+			result := tfloat
 		| KParam t1, KParam t2 when t1 == t2 ->
 			if op <> OpDiv then result := t1
 		| KParam _, KParam _ ->
-			result := ctx.api.tfloat
+			result := tfloat
 		| KParam t, KInt | KInt, KParam t ->
 			if op <> OpDiv then result := t
 		| KParam _, KFloat | KFloat, KParam _ ->
-			result := ctx.api.tfloat
+			result := tfloat
 		| KFloat, k ->
 			ignore(unify_int ctx e2 k);
-			result := ctx.api.tfloat
+			result := tfloat
 		| k, KFloat ->
 			ignore(unify_int ctx e1 k);
-			result := ctx.api.tfloat
+			result := tfloat
 		| k1 , k2 ->
 			let ok1 = unify_int ctx e1 k1 in
 			let ok2 = unify_int ctx e2 k2 in
-			if not ok1 || not ok2  then result := ctx.api.tfloat;
+			if not ok1 || not ok2  then result := tfloat;
 		);
 		mk_op !result
 	| OpEq
@@ -797,7 +798,7 @@ let rec type_binop ctx op e1 e2 p =
 			unify_raise ctx e1.etype e2.etype p
 		with
 			Error (Unify _,_) -> unify ctx e2.etype e1.etype p);
-		mk_op ctx.api.tbool
+		mk_op ctx.t.tbool
 	| OpGt
 	| OpGte
 	| OpLt
@@ -828,18 +829,17 @@ let rec type_binop ctx op e1 e2 p =
 			let pr = print_context() in
 			error ("Cannot compare " ^ s_type pr e1.etype ^ " and " ^ s_type pr e2.etype) p
 		);
-		mk_op ctx.api.tbool
+		mk_op ctx.t.tbool
 	| OpBoolAnd
 	| OpBoolOr ->
-		let b = ctx.api.tbool in
+		let b = ctx.t.tbool in
 		unify ctx e1.etype b p;
 		unify ctx e2.etype b p;
 		mk_op b
 	| OpInterval ->
-		let i = ctx.api.tint in
 		let t = Typeload.load_core_type ctx "IntIter" in
-		unify ctx e1.etype i e1.epos;
-		unify ctx e2.etype i e2.epos;
+		unify ctx e1.etype tint e1.epos;
+		unify ctx e2.etype tint e2.epos;
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[e1;e2])) t p
 	| OpAssign
 	| OpAssignOp _ ->
@@ -851,20 +851,20 @@ and type_unop ctx op flag e p =
 	let access e =
 		let t = (match op with
 		| Not ->
-			unify ctx e.etype ctx.api.tbool e.epos;
-			ctx.api.tbool
+			unify ctx e.etype ctx.t.tbool e.epos;
+			ctx.t.tbool
 		| Increment
 		| Decrement
 		| Neg
 		| NegBits ->
 			if set then check_assign ctx e;
 			(match classify e.etype with
-			| KFloat -> ctx.api.tfloat
+			| KFloat -> ctx.t.tfloat
 			| KParam t ->
-				unify ctx e.etype ctx.api.tfloat e.epos;
+				unify ctx e.etype ctx.t.tfloat e.epos;
 				t
 			| k ->
-				if unify_int ctx e k then ctx.api.tint else ctx.api.tfloat)
+				if unify_int ctx e k then ctx.t.tint else ctx.t.tfloat)
 		) in
 		match op, e.eexpr with
 		| Neg , TConst (TInt i) -> mk (TConst (TInt (Int32.neg i))) t p
@@ -891,7 +891,7 @@ and type_unop ctx op flag e p =
 			unify ctx get.etype t p;
 			l();
 			mk (TBlock [
-				mk (TVars [v,e.etype,Some e]) ctx.api.tvoid p;
+				mk (TVars [v,e.etype,Some e]) ctx.t.tvoid p;
 				make_call ctx (mk (TField (ev,m)) (tfun [t] t) p) [get] t p
 			]) t p
 		| Postfix ->
@@ -902,14 +902,14 @@ and type_unop ctx op flag e p =
 			unify ctx get.etype t p;
 			l();
 			mk (TBlock [
-				mk (TVars [v,e.etype,Some e; v2,t,Some get]) ctx.api.tvoid p;
+				mk (TVars [v,e.etype,Some e; v2,t,Some get]) ctx.t.tvoid p;
 				make_call ctx (mk (TField (ev,m)) (tfun [plusone.etype] t) p) [plusone] t p;
 				ev2
 			]) t p
 
 and type_switch ctx e cases def need_val p =
 	let e = type_expr ctx e in
-	let t = ref (if need_val then mk_mono() else ctx.api.tvoid) in
+	let t = ref (if need_val then mk_mono() else ctx.t.tvoid) in
 	let rec lookup_enum l =
 		match l with
 		| [] -> None
@@ -944,13 +944,13 @@ and type_switch ctx e cases def need_val p =
 		if need_val then begin
 			try
 				(match e.eexpr with
-				| TBlock [{ eexpr = TConst TNull }] -> t := ctx.api.tnull !t;
+				| TBlock [{ eexpr = TConst TNull }] -> t := ctx.t.tnull !t;
 				| _ -> ());
 				unify_raise ctx e.etype (!t) e.epos;
-				if is_null e.etype then t := ctx.api.tnull !t;
+				if is_null e.etype then t := ctx.t.tnull !t;
 			with Error (Unify _,_) -> try
 				unify_raise ctx (!t) e.etype e.epos;
-				t := if is_null !t then ctx.api.tnull e.etype else e.etype;
+				t := if is_null !t then ctx.t.tnull e.etype else e.etype;
 			with Error (Unify _,_) ->
 				(* will display the error *)
 				unify ctx e.etype (!t) e.epos;
@@ -985,7 +985,7 @@ and type_switch ctx e cases def need_val p =
 		) el in
 		if el = [] then error "Case must match at least one expression" (pos e2);
 		let e2 = (match fst e2 with
-			| EBlock [] -> mk (TConst TNull) ctx.api.tvoid (pos e2)
+			| EBlock [] -> mk (TConst TNull) ctx.t.tvoid (pos e2)
 			| _ -> type_expr ctx ~need_val e2
 		) in
 		locals();
@@ -1134,7 +1134,7 @@ and type_access ctx e p mode =
 	| EArray (e1,e2) ->
 		let e1 = type_expr ctx e1 in
 		let e2 = type_expr ctx e2 in
-		unify ctx e2.etype ctx.api.tint e2.epos;
+		unify ctx e2.etype ctx.t.tint e2.epos;
 		let rec loop et =
 			match follow et with
 			| TInst ({ cl_array_access = Some t; cl_types = pl },tl) ->
@@ -1145,7 +1145,7 @@ and type_access ctx e p mode =
 				t
 			| _ ->
 				let pt = mk_mono() in
-				let t = ctx.api.tarray pt in
+				let t = ctx.t.tarray pt in
 				unify ctx e1.etype t e1.epos;
 				pt
 		in
@@ -1158,7 +1158,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	match e with
 	| EField ((EConst (String s),p),"code") ->
 		if UTF8.length s <> 1 then error "String must be a single UTF8 char" p;
-		mk (TConst (TInt (Int32.of_int (UChar.code (UTF8.get s 0))))) ctx.api.tint p
+		mk (TConst (TInt (Int32.of_int (UChar.code (UTF8.get s 0))))) ctx.t.tint p
 	| EField _
 	| EType _
 	| EArray _
@@ -1166,8 +1166,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	| EConst (Type _) ->
 		acc_get ctx (type_access ctx e p MGet) p
 	| EConst (Regexp (r,opt)) ->
-		let str = mk (TConst (TString r)) ctx.api.tstring p in
-		let opt = mk (TConst (TString opt)) ctx.api.tstring p in
+		let str = mk (TConst (TString r)) ctx.t.tstring p in
+		let opt = mk (TConst (TString opt)) ctx.t.tstring p in
 		let t = Typeload.load_core_type ctx "EReg" in
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[str;opt])) t p
 	| EConst c ->
@@ -1195,7 +1195,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let l = loop l in
 		locals();
 		let rec loop = function
-			| [] -> ctx.api.tvoid
+			| [] -> ctx.t.tvoid
 			| [e] -> e.etype
 			| _ :: l -> loop l
 		in
@@ -1222,7 +1222,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			(match e.eexpr with
 			| TConst TNull when not !is_null ->
 				is_null := true;
-				t := ctx.api.tnull !t;
+				t := ctx.t.tnull !t;
 			| _ -> ());
 			(try
 				unify_raise ctx e.etype (!t) e.epos;
@@ -1233,7 +1233,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				t := t_dynamic);
 			e
 		) el in
-		mk (TArrayDecl el) (ctx.api.tarray !t) p
+		mk (TArrayDecl el) (ctx.t.tarray !t) p
 	| EVars vl ->
 		let vl = List.map (fun (v,t,e) ->
 			try
@@ -1254,7 +1254,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 					let v = add_local ctx v t in
 					v , t, None
 		) vl in
-		mk (TVars vl) ctx.api.tvoid p
+		mk (TVars vl) ctx.t.tvoid p
 	| EFor (i,e1,e2) ->
 		let e1 = type_expr ctx e1 in
 		let old_loop = ctx.in_loop in
@@ -1286,7 +1286,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 					)
 				) in
 				let e2 = type_expr ~need_val:false ctx e2 in
-				mk (TFor (i,pt,e1,e2)) ctx.api.tvoid p
+				mk (TFor (i,pt,e1,e2)) ctx.t.tvoid p
 		) in
 		ctx.in_loop <- old_loop;
 		old_locals();
@@ -1295,52 +1295,52 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		type_expr ctx ~need_val (EIf (e1,e2,Some e3),p)
 	| EIf (e,e1,e2) ->
 		let e = type_expr ctx e in
-		unify ctx e.etype ctx.api.tbool e.epos;
+		unify ctx e.etype ctx.t.tbool e.epos;
 		let e1 = type_expr ctx ~need_val e1 in
 		(match e2 with
 		| None ->
 			if need_val then begin
-				let t = ctx.api.tnull e1.etype in
+				let t = ctx.t.tnull e1.etype in
 				mk (TIf (e,e1,Some (null t p))) t p
 			end else
-				mk (TIf (e,e1,None)) ctx.api.tvoid p
+				mk (TIf (e,e1,None)) ctx.t.tvoid p
 		| Some e2 ->
 			let e2 = type_expr ctx ~need_val e2 in
-			let t = if not need_val then ctx.api.tvoid else (try
+			let t = if not need_val then ctx.t.tvoid else (try
 				(match e1.eexpr, e2.eexpr with
-				| _ , TConst TNull -> ctx.api.tnull e1.etype
-				| TConst TNull, _ -> ctx.api.tnull e2.etype
+				| _ , TConst TNull -> ctx.t.tnull e1.etype
+				| TConst TNull, _ -> ctx.t.tnull e2.etype
 				| _  ->
 					unify_raise ctx e1.etype e2.etype p;
-					if is_null e1.etype then ctx.api.tnull e2.etype else e2.etype)
+					if is_null e1.etype then ctx.t.tnull e2.etype else e2.etype)
 			with
 				Error (Unify _,_) ->
 					unify ctx e2.etype e1.etype p;
-					if is_null e2.etype then ctx.api.tnull e1.etype else e1.etype
+					if is_null e2.etype then ctx.t.tnull e1.etype else e1.etype
 			) in
 			mk (TIf (e,e1,Some e2)) t p)
 	| EWhile (cond,e,NormalWhile) ->
 		let old_loop = ctx.in_loop in
 		let cond = type_expr ctx cond in
-		unify ctx cond.etype ctx.api.tbool cond.epos;
+		unify ctx cond.etype ctx.t.tbool cond.epos;
 		ctx.in_loop <- true;
 		let e = type_expr ~need_val:false ctx e in
 		ctx.in_loop <- old_loop;
-		mk (TWhile (cond,e,NormalWhile)) ctx.api.tvoid p
+		mk (TWhile (cond,e,NormalWhile)) ctx.t.tvoid p
 	| EWhile (cond,e,DoWhile) ->
 		let old_loop = ctx.in_loop in
 		ctx.in_loop <- true;
 		let e = type_expr ~need_val:false ctx e in
 		ctx.in_loop <- old_loop;
 		let cond = type_expr ctx cond in
-		unify ctx cond.etype ctx.api.tbool cond.epos;
-		mk (TWhile (cond,e,DoWhile)) ctx.api.tvoid p
+		unify ctx cond.etype ctx.t.tbool cond.epos;
+		mk (TWhile (cond,e,DoWhile)) ctx.t.tvoid p
 	| ESwitch (e,cases,def) ->
 		type_switch ctx e cases def need_val p
 	| EReturn e ->
 		let e , t = (match e with
 			| None ->
-				let v = ctx.api.tvoid in
+				let v = ctx.t.tvoid in
 				unify ctx v ctx.ret p;
 				None , v
 			| Some e ->
@@ -1378,7 +1378,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this type here") e.epos;
 			v , t , e
 		) catches in
-		mk (TTry (e1,catches)) (if not need_val then ctx.api.tvoid else e1.etype) p
+		mk (TTry (e1,catches)) (if not need_val then ctx.t.tvoid else e1.etype) p
 	| EThrow e ->
 		let e = type_expr ctx e in
 		mk (TThrow e) (mk_mono()) p
@@ -1544,7 +1544,7 @@ and type_call ctx e el p =
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->
 		if Common.defined ctx.com "no_traces" then
-			null ctx.api.tvoid p
+			null ctx.t.tvoid p
 		else
 		let params = (match el with [] -> [] | _ -> ["customParams",(EArrayDecl el , p)]) in
 		let infos = mk_infos ctx p params in
@@ -1606,7 +1606,7 @@ and type_call ctx e el p =
 			) in
 			el , TInst (c,params)
 		) in
-		mk (TCall (mk (TConst TSuper) t sp,el)) ctx.api.tvoid p
+		mk (TCall (mk (TConst TSuper) t sp,el)) ctx.t.tvoid p
 	| _ ->
 		(match e with
 		| EField ((EConst (Ident "super"),_),_) , _ | EType ((EConst (Ident "super"),_),_) , _ -> ctx.in_super_call <- true
@@ -1628,28 +1628,9 @@ and type_call ctx e el p =
 		| AKMacro (ethis,f) ->
 			(match ethis.eexpr with
 			| TTypeExpr (TClassDecl c) ->
-				let expr = Typeload.load_instance ctx { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None}  p false in
-				let nargs = (match follow f.cf_type with
-				| TFun (args,ret) ->
-					unify ctx ret expr p;
-					(match args with
-					| [(_,_,t)] ->
-						(try
-							unify_raise ctx t expr p;
-							Some 1
-						with Error (Unify _,_) ->
-							unify ctx t (ctx.api.tarray expr) p;
-							None)
-					| _ ->
-						List.iter (fun (_,_,t) -> unify ctx t expr p) args;
-						Some (List.length args))
-				| _ ->
-					assert false
-				) in
-				(match nargs with
-				| Some n -> if List.length el <> n then error ("This macro requires " ^ string_of_int n ^ " arguments") p
-				| None -> ());
-				(!type_macro_rec) ctx c f.cf_name el (nargs = None) p
+				(match ctx.g.do_macro ctx c.cl_path f.cf_name el p with
+				| None -> type_expr ctx (EConst (Ident "null"),p)
+				| Some e -> type_expr ctx e)				
 			| _ -> assert false)
 		| acc ->
 			let e = acc_get ctx acc p in
@@ -1685,30 +1666,14 @@ let rec finalize ctx =
 		List.iter (fun f -> f()) l;
 		finalize ctx
 
-let get_type_module ctx t =
-	let mfound = ref ctx.current in
-	try
-		Hashtbl.iter (fun _ m ->
-			if List.mem t m.mtypes then begin
-				mfound := m;
-				raise Exit;
-			end;
-		) ctx.g.modules;
-		(* @Main, other generated classes ? *)
-		{
-			mtypes = [t];
-			mpath = t_path t;
-		}
-	with
-		Exit -> !mfound
-
 type state =
 	| Generating
 	| Done
 	| NotYet
 
-let types ctx main excludes =
+let generate ctx main excludes =
 	let types = ref [] in
+	let modules = ref [] in
 	let states = Hashtbl.create 0 in
 	let state p = try Hashtbl.find states p with Not_found -> NotYet in
 	let statics = ref PMap.empty in
@@ -1721,7 +1686,7 @@ let types ctx main excludes =
 			prerr_endline ("Warning : maybe loop in static generation of " ^ s_type_path p);
 		| NotYet ->
 			Hashtbl.add states p Generating;
-			ctx.api.on_generate t;
+			ctx.g.do_generate ctx t;
 			let t = (match t with
 			| TClassDecl c ->
 				walk_class p c;
@@ -1804,7 +1769,7 @@ let types ctx main excludes =
 		) c.cl_statics
 
 	in
-	Hashtbl.iter (fun _ m -> List.iter loop m.mtypes) ctx.g.modules;
+	Hashtbl.iter (fun _ m -> modules := m :: !modules; List.iter loop m.mtypes) ctx.g.modules;
 	(match main with
 	| None -> ()
 	| Some cl ->
@@ -1839,94 +1804,12 @@ let types ctx main excludes =
 		c.cl_ordered_statics <- f :: c.cl_ordered_statics;
 		types := TClassDecl c :: !types
 	);
-	List.rev !types
-
-(* ---------------------------------------------------------------------- *)
-(* TYPER INITIALIZATION *)
-
-let create com =
-	let empty =	{
-		mpath = [] , "";
-		mtypes = [];
-	} in
-	let ctx = {
-		com = com;
-		api = com.type_api;
-		g = {
-			core_api = None;
-			macros = None;
-			modules = Hashtbl.create 0;
-			types_module = Hashtbl.create 0;
-			constructs = Hashtbl.create 0;
-			delayed = [];
-			doinline = not (Common.defined com "no_inline");
-			hook_generate = [];
-			std = empty;
-		};
-		untyped = false;
-		in_constructor = false;
-		in_static = false;
-		in_loop = false;
-		in_super_call = false;
-		in_display = false;
-		ret = mk_mono();
-		locals = PMap.empty;
-		locals_map = PMap.empty;
-		locals_map_inv = PMap.empty;
-		local_types = [];
-		local_using = [];
-		type_params = [];
-		curmethod = "";
-		curclass = null_class;
-		tthis = mk_mono();
-		current = empty;
-		opened = [];
-		param_type = None;
-	} in
-	ctx.api.load_module <- Typeload.load_module ctx;
-	ctx.api.build_instance <- Codegen.build_instance ctx;
-	ctx.api.on_generate <- Codegen.on_generate ctx;
-	ctx.api.get_type_module <- get_type_module ctx;
-	ctx.api.optimize <- Optimizer.reduce_expression ctx;
-	ctx.g.std <- (try
-		Typeload.load_module ctx ([],"StdTypes") null_pos
-	with
-		Error (Module_not_found ([],"StdTypes"),_) -> error "Standard library not found" null_pos
-	);
-	List.iter (fun t ->
-		match t with
-		| TEnumDecl e ->
-			(match snd e.e_path with
-			| "Void" -> ctx.api.tvoid <- TEnum (e,[])
-			| "Bool" -> ctx.api.tbool <- TEnum (e,[])
-			| _ -> ())
-		| TClassDecl c ->
-			(match snd c.cl_path with
-			| "Float" -> ctx.api.tfloat <- TInst (c,[])
-			| "Int" -> ctx.api.tint <- TInst (c,[])
-			| _ -> ())
-		| TTypeDecl td ->
-			(match snd td.t_path with
-			| "Null" ->
-				let f9 = platform com Flash9 in
-				let cpp = platform com Cpp in
-				ctx.api.tnull <- if not (f9 || cpp) then (fun t -> t) else (fun t -> if is_nullable t then TType (td,[t]) else t);
-			| _ -> ());
-	) ctx.g.std.mtypes;
-	let m = Typeload.load_module ctx ([],"String") null_pos in
-	(match m.mtypes with
-	| [TClassDecl c] -> ctx.api.tstring <- TInst (c,[])
-	| _ -> assert false);
-	let m = Typeload.load_module ctx ([],"Array") null_pos in
-	(match m.mtypes with
-	| [TClassDecl c] -> ctx.api.tarray <- (fun t -> TInst (c,[t]))
-	| _ -> assert false);
-	ctx
+	List.rev !types, List.rev !modules
 
 (* ---------------------------------------------------------------------- *)
 (* MACROS *)
 
-let type_macro ctx c f el array p =
+let type_macro ctx cpath f el p =
 	let t = Common.timer "macro execution" in
 	let ctx2 = (match ctx.g.macros with
 		| Some (select,ctx) ->
@@ -1935,12 +1818,13 @@ let type_macro ctx c f el array p =
 		| None ->
 			let com2 = Common.clone ctx.com in
 			com2.package_rules <- PMap.empty;
+			com2.main_class <- None;			
 			List.iter (fun p -> com2.defines <- PMap.remove (platform_name p) com2.defines) platforms;
 			com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
 			com2.class_path <- List.map (fun p -> p ^ "neko" ^ "/_std/") com2.std_path @ com2.class_path;
 			Common.define com2 "macro";
 			Common.init_platform com2 Neko;
-			let ctx2 = (!Typeload.do_create) com2 in
+			let ctx2 = ctx.g.do_create com2 in
 			let mctx = Interp.create com2 in
 			let on_error = com2.error in
 			com2.error <- (fun e p -> Interp.set_error mctx true; on_error e p);
@@ -1950,17 +1834,42 @@ let type_macro ctx c f el array p =
 			(* ctx2.g.core_api <- ctx.g.core_api; // causes some issues because of optional args and Null type in Flash9 *)
 			ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Expr") p);
 			finalize ctx2;
-			let types = types ctx2 None [] in
+			let types, _ = generate ctx2 None [] in
 			Interp.add_types mctx types;
 			Interp.init mctx;
 			ctx2
 	) in
 	let mctx = Interp.get_ctx() in
-	let m = (try Hashtbl.find ctx.g.types_module c.cl_path with Not_found -> c.cl_path) in
+	let m = (try Hashtbl.find ctx.g.types_module cpath with Not_found -> cpath) in
 	ignore(Typeload.load_module ctx2 m p);
+	let meth = (match Typeload.load_instance ctx2 { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = None } p true with
+		| TInst (c,_) -> (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
+		| _ -> error "Macro should be called on a class" p
+	) in
+	let expr = Typeload.load_instance ctx2 { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None} p false in
+	let nargs = (match follow meth.cf_type with
+		| TFun (args,ret) ->
+			unify ctx2 ret expr p;
+			(match args with
+			| [(_,_,t)] ->
+				(try
+					unify_raise ctx2 t expr p;
+					Some 1
+				with Error (Unify _,_) ->
+					unify ctx2 t (ctx2.t.tarray expr) p;
+					None)
+			| _ ->
+				List.iter (fun (_,_,t) -> unify ctx2 t expr p) args;
+				Some (List.length args))
+		| _ ->
+			assert false
+	) in
+	(match nargs with
+	| Some n -> if List.length el <> n then error ("This macro requires " ^ string_of_int n ^ " arguments") p
+	| None -> ());
 	let call() =
 		let el = List.map Interp.encode_expr el in
-		match Interp.call_path mctx ((fst c.cl_path) @ [snd c.cl_path]) f (if array then [Interp.enc_array el] else el) p with
+		match Interp.call_path mctx ((fst cpath) @ [snd cpath]) f (if nargs = None then [Interp.enc_array el] else el) p with
 		| None -> None
 		| Some v -> Some (try Interp.decode_expr v with Interp.Invalid_expr -> error "The macro didn't return a valid expression" p)
 	in
@@ -1984,19 +1893,99 @@ let type_macro ctx c f el array p =
 			| Some e -> Interp.eval mctx (Genneko.gen_expr mctx.Interp.gen (type_expr ctx e))
 		) in
 		let e = (EConst (Ident "__dollar__delay_call"),p) in
-		(EUntyped (ECall (e,[EConst (Int (string_of_int pos)),p]),p),p)
+		Some (EUntyped (ECall (e,[EConst (Int (string_of_int pos)),p]),p),p)
 	end else begin
 		finalize ctx2;
-		let types = types ctx2 None [] in
+		let types, _ = generate ctx2 None [] in
 		Interp.add_types mctx types;
-		match call() with
-		| None -> (EConst (Ident "null"),p)
-		| Some e -> e
+		call()
 	end) in
 	t();
-	type_expr ctx e
+	e
+
+(* ---------------------------------------------------------------------- *)
+(* TYPER INITIALIZATION *)
+
+let rec create com =
+	let empty =	{
+		mpath = [] , "";
+		mtypes = [];
+	} in
+	let ctx = {
+		com = com;
+		t = com.basic;
+		g = {
+			core_api = None;
+			macros = None;
+			modules = Hashtbl.create 0;
+			types_module = Hashtbl.create 0;
+			constructs = Hashtbl.create 0;
+			delayed = [];
+			doinline = not (Common.defined com "no_inline");
+			hook_generate = [];
+			std = empty;
+			do_inherit = Codegen.on_inherit;
+			do_create = create;
+			do_macro = type_macro;
+			do_load_module = Typeload.load_module;
+			do_generate = Codegen.on_generate;
+			do_optimize = Optimizer.reduce_expression;
+			do_build_instance = Codegen.build_instance;
+		};
+		untyped = false;
+		in_constructor = false;
+		in_static = false;
+		in_loop = false;
+		in_super_call = false;
+		in_display = false;
+		ret = mk_mono();
+		locals = PMap.empty;
+		locals_map = PMap.empty;
+		locals_map_inv = PMap.empty;
+		local_types = [];
+		local_using = [];
+		type_params = [];
+		curmethod = "";
+		curclass = null_class;
+		tthis = mk_mono();
+		current = empty;
+		opened = [];
+		param_type = None;
+	} in
+	ctx.g.std <- (try
+		Typeload.load_module ctx ([],"StdTypes") null_pos
+	with
+		Error (Module_not_found ([],"StdTypes"),_) -> error "Standard library not found" null_pos
+	);
+	List.iter (fun t ->
+		match t with
+		| TEnumDecl e ->
+			(match snd e.e_path with
+			| "Void" -> ctx.t.tvoid <- TEnum (e,[])
+			| "Bool" -> ctx.t.tbool <- TEnum (e,[])
+			| _ -> ())
+		| TClassDecl c ->
+			(match snd c.cl_path with
+			| "Float" -> ctx.t.tfloat <- TInst (c,[])
+			| "Int" -> ctx.t.tint <- TInst (c,[])
+			| _ -> ())
+		| TTypeDecl td ->
+			(match snd td.t_path with
+			| "Null" ->
+				let f9 = platform com Flash9 in
+				let cpp = platform com Cpp in
+				ctx.t.tnull <- if not (f9 || cpp) then (fun t -> t) else (fun t -> if is_nullable t then TType (td,[t]) else t);
+			| _ -> ());
+	) ctx.g.std.mtypes;
+	let m = Typeload.load_module ctx ([],"String") null_pos in
+	(match m.mtypes with
+	| [TClassDecl c] -> ctx.t.tstring <- TInst (c,[])
+	| _ -> assert false);
+	let m = Typeload.load_module ctx ([],"Array") null_pos in
+	(match m.mtypes with
+	| [TClassDecl c] -> ctx.t.tarray <- (fun t -> TInst (c,[t]))
+	| _ -> assert false);
+	ctx
 
 ;;
-Typeload.do_create := create;
 type_field_rec := type_field;
-type_macro_rec := type_macro;

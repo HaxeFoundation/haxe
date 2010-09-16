@@ -52,7 +52,7 @@ let gen_arg_name (name,opt,_) =
 let cpath c =
 	let rec loop = function
 		| [] -> c.cl_path
-		| (":real",[{ eexpr = TConst (TString s) }]) :: _ -> s_parse_path s
+		| (":real",[{ eexpr = TConst (TString s) }]) :: _ -> parse_path s
 		| _ :: l -> loop l
 	in
 	loop (c.cl_meta())
@@ -125,7 +125,7 @@ let rec exists f c =
 			| Some (csup,_) -> exists f csup
 
 let gen_type_decl com t =
-	let m = com.type_api.get_type_module t in
+	let m = (try List.find (fun m -> List.memq t m.mtypes) com.modules with Not_found -> { mpath = t_path t; mtypes = [t] }) in
 	match t with
 	| TClassDecl c ->
 		let stats = List.map (gen_field ["static","1"]) c.cl_ordered_statics in

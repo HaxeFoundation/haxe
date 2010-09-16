@@ -29,12 +29,20 @@ type typer_globals = {
 	mutable macros : ((unit -> unit) * typer) option;
 	mutable std : module_def;
 	mutable hook_generate : (unit -> unit) list;
+	(* api *)
+	do_inherit : typer -> Type.tclass -> Ast.pos -> Ast.class_flag -> bool;
+	do_create : Common.context -> typer;
+	do_macro : typer -> path -> string -> Ast.expr list -> Ast.pos -> Ast.expr option;
+	do_load_module : typer -> path -> pos -> module_def;
+	do_generate : typer -> module_type -> unit;
+	do_optimize : typer -> texpr -> texpr;
+	do_build_instance : typer -> module_type -> pos -> ((string * t) list * path * (t list -> t));
 }
 
 and typer = {
 	(* shared *)
 	com : context;
-	mutable api : context_type_api;
+	mutable t : basic_types;
 	g : typer_globals;
 	(* per-module *)
 	current : module_def;
@@ -73,7 +81,6 @@ type error_msg =
 exception Error of error_msg * pos
 
 let type_expr_ref : (typer -> Ast.expr -> bool -> texpr) ref = ref (fun _ _ _ -> assert false)
-let build_inheritance : (typer -> Type.tclass -> Ast.pos -> Ast.class_flag -> bool) ref = ref (fun _ _ _ _ -> true)
 
 let unify_error_msg ctx = function
 	| Cannot_unify (t1,t2) ->

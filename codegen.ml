@@ -33,13 +33,13 @@ let fcall e name el ret p =
 	mk (TCall (field e name ft p,el)) ret p
 
 let string com str p =
-	mk (TConst (TString str)) com.type_api.tstring p
+	mk (TConst (TString str)) com.basic.tstring p
 
 let binop op a b t p =
 	mk (TBinop (op,a,b)) t p
 
 let index com e index t p =
-	mk (TArray (e,mk (TConst (TInt (Int32.of_int index))) com.type_api.tint p)) t p
+	mk (TArray (e,mk (TConst (TInt (Int32.of_int index))) com.basic.tint p)) t p
 
 let concat e1 e2 =
 	let e = (match e1.eexpr, e2.eexpr with
@@ -174,7 +174,7 @@ let rec build_generic ctx c p tl =
 			match t with
 			| TInst ({ cl_kind = KGeneric } as c2,tl2) ->
 				(* maybe loop, or generate cascading generics *)
-				let _, _, f = ctx.api.build_instance (TClassDecl c2) p in
+				let _, _, f = ctx.g.do_build_instance ctx (TClassDecl c2) p in
 				f (List.map build_type tl2)
 			| _ ->
 				try List.assq t subst with Not_found -> Type.map build_type t
@@ -262,7 +262,7 @@ let extend_xml_proxy ctx c t file p =
 (* BUILD META DATA OBJECT *)
 
 let build_metadata com t =
-	let api = com.type_api in
+	let api = com.basic in
 	let p, meta, fields, statics = (match t with
 		| TClassDecl c ->
 			let fields = List.map (fun f -> f.cf_name,f.cf_meta()) (c.cl_ordered_fields @ (match c.cl_constructor with None -> [] | Some f -> [{ f with cf_name = "_" }])) in
@@ -357,11 +357,11 @@ let on_generate ctx t =
 			| ":native",[{ eexpr = TConst (TString name) } as e] ->				
 				meta := (":real",[{ e with eexpr = TConst (TString (s_type_path c.cl_path)) }]) :: !meta;
 				c.cl_meta <- (fun() -> !meta);
-				c.cl_path <- s_parse_path name;
+				c.cl_path <- parse_path name;
 			| _ -> ()
 		) (!meta);
 		if has_rtti c && not (PMap.mem "__rtti" c.cl_statics) then begin
-			let f = mk_field "__rtti" ctx.api.tstring in
+			let f = mk_field "__rtti" ctx.t.tstring in
 			let str = Genxml.gen_type_string ctx.com t in
 			f.cf_expr <- Some (mk (TConst (TString str)) f.cf_type c.cl_pos);
 			c.cl_ordered_statics <- f :: c.cl_ordered_statics;
@@ -464,7 +464,7 @@ let rec local_usage f e =
 	This way, each value is captured independantly.
 *)
 
-let block_vars ctx e =
+let block_vars com e =
 
 	let uid = ref 0 in
 	let gen_unique() =
@@ -472,7 +472,7 @@ let block_vars ctx e =
 		"$t" ^ string_of_int !uid;
 	in
 
-	let t = ctx.type_api in
+	let t = com.basic in
 
 	let rec mk_init v vt vtmp pos =
 		let at = t.tarray vt in
@@ -556,7 +556,7 @@ let block_vars ctx e =
 					v, o, vt
 			) f.tf_args in
 			let e = { e with eexpr = TFunction { f with tf_args = fargs; tf_expr = !fexpr } } in
-			(match ctx.platform with
+			(match com.platform with
 			| Cpp -> e
 			| _ ->
 				let args = List.map (fun (v,t) -> v, None, t) vars in
@@ -634,7 +634,7 @@ let block_vars ctx e =
 	local_usage collect_vars e;
 	if PMap.is_empty !used then e else wrap !used e
 	in
-	match ctx.platform with
+	match com.platform with
 	| Neko | Php | Cross -> e
 	| Cpp -> all_vars e
 	| _ -> out_loop e
@@ -806,7 +806,7 @@ type stack_context = {
 }
 
 let stack_context_init com stack_var exc_var pos_var tmp_var use_add p =
-	let t = com.type_api in
+	let t = com.basic in
 	let st = t.tarray t.tstring in
 	let stack_e = mk (TLocal stack_var) st p in
 	let exc_e = mk (TLocal exc_var) st p in
@@ -1015,7 +1015,7 @@ let rec is_volatile t =
 
 let set_default ctx a c t p =
 	let ve = mk (TLocal a) t p in
-	mk (TIf (mk (TBinop (OpEq,ve,mk (TConst TNull) t p)) ctx.type_api.tbool p, mk (TBinop (OpAssign,ve,mk (TConst c) t p)) t p,None)) ctx.type_api.tvoid p
+	mk (TIf (mk (TBinop (OpEq,ve,mk (TConst TNull) t p)) ctx.basic.tbool p, mk (TBinop (OpAssign,ve,mk (TConst c) t p)) t p,None)) ctx.basic.tvoid p
 
 let bytes_serialize data =
 	let b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:" in
@@ -1103,7 +1103,7 @@ let dump_types com =
 	{ var $t = <e>; if( Std.is($t,<t>) ) $t else throw "Class cast error"; }
 *)
 let default_cast ?(vtmp="$t") com e texpr t p =
-	let api = com.type_api in
+	let api = com.basic in
 	let mk_texpr = function
 		| TClassDecl c -> TAnon { a_fields = PMap.empty; a_status = ref (Statics c) }
 		| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
@@ -1112,8 +1112,7 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 	let var = mk (TVars [(vtmp,e.etype,Some e)]) api.tvoid p in
 	let vexpr = mk (TLocal vtmp) e.etype p in
 	let texpr = mk (TTypeExpr texpr) (mk_texpr texpr) p in
-	let std = (match (api.load_module ([],"Std") p).mtypes with [std] -> std | _ -> assert false) in
-	(*Typeload.load_type_def ctx p { tpackage = []; tname = "Std"; tparams = []; tsub = None } in *)
+	let std = (try List.find (fun t -> t_path t = ([],"Std")) com.types with Not_found -> assert false) in
 	let std = mk (TTypeExpr std) (mk_texpr std) p in
 	let is = mk (TField (std,"is")) (tfun [t_dynamic;t_dynamic] api.tbool) p in
 	let is = mk (TCall (is,[vexpr;texpr])) api.tbool p in

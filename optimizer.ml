@@ -168,7 +168,7 @@ let type_inline ctx cf f ethis params tret p =
 		| _ -> Type.map_expr inline_params e
 	in
 	let e = (if PMap.is_empty subst then e else inline_params e) in
-	let init = (match vars with [] -> None | l -> Some (mk (TVars (List.rev l)) ctx.api.tvoid p)) in
+	let init = (match vars with [] -> None | l -> Some (mk (TVars (List.rev l)) ctx.t.tvoid p)) in
 	if Common.defined ctx.com "js" && (init <> None || !has_vars) then
 		None
 	else
@@ -200,8 +200,8 @@ let type_inline ctx cf f ethis params tret p =
 (* LOOPS *)
 
 let optimize_for_loop ctx i e1 e2 p =
-	let t_void = ctx.api.tvoid in
-	let t_int = ctx.api.tint in
+	let t_void = ctx.t.tvoid in
+	let t_int = ctx.t.tint in
 	let lblock el = Some (mk (TBlock el) t_void p) in
 	match e1.eexpr, follow e1.etype with
 	| TNew ({ cl_path = ([],"IntIter") },[],[i1;i2]) , _ ->
@@ -239,7 +239,7 @@ let optimize_for_loop ctx i e1 e2 p =
 			lblock [
 				mk (TVars [tmp,i1.etype,Some i1]) t_void p;
 				mk (TWhile (
-					mk (TBinop (OpLt, etmp, i2)) ctx.api.tbool p,
+					mk (TBinop (OpLt, etmp, i2)) ctx.t.tbool p,
 					block,
 					NormalWhile
 				)) t_void p;
@@ -248,7 +248,7 @@ let optimize_for_loop ctx i e1 e2 p =
 			lblock [
 				mk (TVars [tmp,i1.etype,Some i1;max,i2.etype,Some i2]) t_void p;
 				mk (TWhile (
-					mk (TBinop (OpLt, etmp, mk (TLocal max) i2.etype p)) ctx.api.tbool p,
+					mk (TBinop (OpLt, etmp, mk (TLocal max) i2.etype p)) ctx.t.tbool p,
 					block,
 					NormalWhile
 				)) t_void p;
@@ -275,7 +275,7 @@ let optimize_for_loop ctx i e1 e2 p =
 		lblock [
 			mk (TVars (ivar :: avars)) t_void p;
 			mk (TWhile (
-				mk (TBinop (OpLt, iexpr, mk (TField (arr,"length")) t_int p)) ctx.api.tbool p,
+				mk (TBinop (OpLt, iexpr, mk (TField (arr,"length")) t_int p)) ctx.t.tbool p,
 				block,
 				NormalWhile
 			)) t_void p;
@@ -295,7 +295,7 @@ let optimize_for_loop ctx i e1 e2 p =
 		lblock [
 			mk (TVars [cell,tcell,Some (mk (TField (e1,"head")) tcell p)]) t_void p;
 			mk (TWhile (
-				mk (TBinop (OpNotEq, cexpr, mk (TConst TNull) tcell p)) ctx.api.tbool p,
+				mk (TBinop (OpNotEq, cexpr, mk (TConst TNull) tcell p)) ctx.t.tbool p,
 				block,
 				NormalWhile
 			)) t_void p

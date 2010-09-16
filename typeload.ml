@@ -21,8 +21,6 @@ open Type
 open Common
 open Typecore
 
-let do_create = ref (fun com -> assert false)
-
 (* make sure we don't access metadata at load time *)
 let has_meta m (ml:Ast.metadata) =
 	List.exists (fun(m2,_) -> m = m2) ml
@@ -32,20 +30,20 @@ let type_constant ctx c p =
 	| Int s ->
 		if String.length s > 10 && String.sub s 0 2 = "0x" then error "Invalid hexadecimal integer" p;
 		(try
-			mk (TConst (TInt (Int32.of_string s))) ctx.api.tint p
+			mk (TConst (TInt (Int32.of_string s))) ctx.t.tint p
 		with
-			_ -> mk (TConst (TFloat s)) ctx.api.tfloat p)
-	| Float f -> mk (TConst (TFloat f)) ctx.api.tfloat p
-	| String s -> mk (TConst (TString s)) ctx.api.tstring p
-	| Ident "true" -> mk (TConst (TBool true)) ctx.api.tbool p
-	| Ident "false" -> mk (TConst (TBool false)) ctx.api.tbool p
-	| Ident "null" -> mk (TConst TNull) (ctx.api.tnull (mk_mono())) p
+			_ -> mk (TConst (TFloat s)) ctx.t.tfloat p)
+	| Float f -> mk (TConst (TFloat f)) ctx.t.tfloat p
+	| String s -> mk (TConst (TString s)) ctx.t.tstring p
+	| Ident "true" -> mk (TConst (TBool true)) ctx.t.tbool p
+	| Ident "false" -> mk (TConst (TBool false)) ctx.t.tbool p
+	| Ident "null" -> mk (TConst TNull) (ctx.t.tnull (mk_mono())) p
 	| _ -> assert false
 
 let type_function_param ctx t e opt p =
 	match e with
 	| None ->
-		if opt then ctx.api.tnull t, Some (EConst (Ident "null"),p) else t, None
+		if opt then ctx.t.tnull t, Some (EConst (Ident "null"),p) else t, None
 	| Some e ->
 		t, Some e
 
@@ -57,6 +55,13 @@ let type_static_var ctx t e p =
 	match t with
 	| TType ({ t_path = ([],"UInt") },[]) -> { e with etype = t }
 	| _ -> e
+
+let apply_macro ctx path el p =	
+	let cpath, meth = (match List.rev (ExtString.String.nsplit path ".") with
+		| meth :: name :: pack -> (List.rev pack,name), meth
+		| _ -> error "Invalid macro path" p
+	) in
+	ctx.g.do_macro ctx cpath meth el p
 
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
 
@@ -74,7 +79,7 @@ let rec load_type_def ctx p t =
 	with
 		Not_found ->
 			let next() =
-				let m = ctx.api.load_module (t.tpackage,t.tname) p in
+				let m = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
 				let tpath = (t.tpackage,tname) in
 				try
 					List.find (fun t -> not (t_private t) && t_path t = tpath) m.mtypes
@@ -108,7 +113,7 @@ let rec load_instance ctx t p allow_no_params =
 		if t.tparams <> [] then error ("Class type parameter " ^ t.tname ^ " can't have parameters") p;
 		pt
 	with Not_found ->
-		let types , path , f = ctx.api.build_instance (load_type_def ctx p t) p in
+		let types , path , f = ctx.g.do_build_instance ctx (load_type_def ctx p t) p in
 		if allow_no_params && t.tparams = [] then
 			f (List.map (fun (name,t) ->
 				match follow t with
@@ -269,7 +274,7 @@ let t_iterator ctx =
 *)
 let load_type_opt ?(opt=false) ctx p t =
 	let t = (match t with None -> mk_mono() | Some t -> load_complex_type ctx p t) in
-	if opt then ctx.api.tnull t else t
+	if opt then ctx.t.tnull t else t
 
 (* ---------------------------------------------------------------------- *)
 (* Structure check *)
@@ -461,7 +466,7 @@ let set_heritance ctx c herits p =
 		| HImplements t -> HImplements (resolve_imports t)
 		| h -> h
 	) herits in
-	List.iter loop (List.filter ((!build_inheritance) ctx c p) herits)
+	List.iter loop (List.filter (ctx.g.do_inherit ctx c p) herits)
 
 let type_type_params ctx path p (n,flags) =
 	let c = mk_class (fst path @ [snd path],n) p in
@@ -485,7 +490,7 @@ let type_function ctx args ret static constr f p =
 			| None -> None
 			| Some e ->
 				let p = pos e in
-				let e = ctx.api.optimize (type_expr ctx e true) in
+				let e = ctx.g.do_optimize ctx (type_expr ctx e true) in
 				unify ctx e.etype t p;
 				match e.eexpr with
 				| TConst c -> Some c
@@ -513,7 +518,7 @@ let type_function ctx args ret static constr f p =
 	if have_ret then
 		(try return_flow ctx e with Exit -> ())
 	else
-		unify ctx ret ctx.api.tvoid p;
+		unify ctx ret ctx.t.tvoid p;
 	let rec loop e =
 		match e.eexpr with
 		| TCall ({ eexpr = TConst TSuper },_) -> raise Exit
@@ -573,7 +578,7 @@ let init_core_api ctx c =
 		| None ->
 			let com2 = Common.clone ctx.com in
 			com2.class_path <- ctx.com.std_path;
-			let ctx2 = (!do_create) com2 in
+			let ctx2 = ctx.g.do_create com2 in
 			ctx.g.core_api <- Some ctx2;
 			ctx2
 		| Some c ->
@@ -608,7 +613,7 @@ let init_core_api ctx c =
 				(match follow f.cf_type, follow f2.cf_type with
 				| TFun (pl1,_), TFun (pl2,_) ->
 					if List.length pl1 != List.length pl2 then assert false;
-					List.iter2 (fun (n1,_,_) (n2,_,_) -> 
+					List.iter2 (fun (n1,_,_) (n2,_,_) ->
 						if n1 <> n2 then error ("Method parameter name '" ^ n2 ^ "' should be '" ^ n1 ^ "'") p;
 					) pl1 pl2;
 				| _ -> ());
@@ -732,13 +737,21 @@ let init_class ctx c p herits fields meta =
 			if inline && c.cl_interface then error "You can't declare inline methods in interfaces" p;
 			let is_macro = (is_macro && stat) || has_meta ":macro" meta in
 			if is_macro && not stat then error "Only static methods can be macros" p;
-			let f = if not is_macro then f else begin
+			let f = if not is_macro then
+				f
+			else if in_macro then
 				let texpr = CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
-				{ f with 
+				{
+					f_type = (match f.f_type with None -> Some texpr | t -> t); 
 					f_args = List.map (fun (a,o,t,e) -> a,o,(match t with None -> Some texpr | _ -> t),e) f.f_args;
-					f_expr = if in_macro then f.f_expr else (EReturn (Some (EConst (Ident "null"),p)),p);
+					f_expr = f.f_expr;
 				}
-			end in
+			else {
+				f_type = None;
+				f_args = [];
+				f_expr = (EBlock [],p)
+			}
+			in
 			let parent = (if not stat then get_parent c name else None) in
 			let dynamic = List.mem ADynamic access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
 			if inline && dynamic then error "You can't have both 'inline' and 'dynamic'" p;
@@ -1011,7 +1024,7 @@ let type_module ctx m tdecls loadp =
 	let ctx = {
 		com = ctx.com;
 		g = ctx.g;
-		api = ctx.api;
+		t = ctx.t;
 		curclass = ctx.curclass;
 		tthis = ctx.tthis;
 		ret = ctx.ret;
@@ -1065,7 +1078,7 @@ let type_module ctx m tdecls loadp =
 		| EImport t ->
 			(match t.tsub with
 			| None ->
-				let md = ctx.api.load_module (t.tpackage,t.tname) p in
+				let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
 				let types = List.filter (fun t -> not (t_private t)) md.mtypes in
 				ctx.local_types <- ctx.local_types @ types
 			| Some _ ->
@@ -1075,7 +1088,7 @@ let type_module ctx m tdecls loadp =
 		| EUsing t ->
 			(match t.tsub with
 			| None ->
-				let md = ctx.api.load_module (t.tpackage,t.tname) p in
+				let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
 				let types = List.filter (fun t -> not (t_private t)) md.mtypes in
 				ctx.local_using <- ctx.local_using @ (List.map (resolve_typedef ctx) types);
 			| Some _ ->
@@ -1090,6 +1103,22 @@ let type_module ctx m tdecls loadp =
 			let et = TEnum (e,List.map snd e.e_types) in
 			let names = ref [] in
 			let index = ref 0 in
+			let rec loop = function
+				| (":build",[EConst (String s),p]) :: _ ->
+					(match apply_macro ctx s [] p with
+					| None -> error "Enum build failure" p
+					| Some (EArrayDecl el,_) ->
+						List.map (fun (e,p) ->
+							match e with
+							| EConst (Ident i) | EConst (Type i) -> i, None, [], [], p							
+							| _ -> error "Invalid constructor" p
+						) el
+					| _ -> error "Build macro must return an array" p
+					)
+				| _ :: l -> loop l
+				| [] -> []
+			in
+			let extra = loop d.d_meta in
 			List.iter (fun (c,doc,meta,t,p) ->
 				if c = "name" && Common.defined ctx.com "js" then error "This identifier cannot be used in Javascript" p;
 				let t = (match t with
@@ -1113,7 +1142,7 @@ let type_module ctx m tdecls loadp =
 				} e.e_constrs;
 				incr index;
 				names := c :: !names;
-			) d.d_data;
+			) (d.d_data @ extra);
 			e.e_names <- List.rev !names;
 		| ETypedef d ->
 			let t = get_tdef d.d_name in
@@ -1200,8 +1229,11 @@ let load_module ctx m p =
 			with Not_found ->
 				let rec loop = function
 					| [] -> raise (Error (Module_not_found m,p))
-					| load :: l -> try snd (load m p) with Not_found -> loop l
+					| load :: l -> 
+						match load m p with
+						| None -> loop l
+						| Some (_,a) -> a
 				in
-				loop ctx.api.load_extern_type
+				loop ctx.com.load_extern_type
 			) in
 			type_module ctx m decls p

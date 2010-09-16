@@ -339,8 +339,12 @@ try
 		("-swf-lib",Arg.String (fun file ->
 			let getSWF = Genswf.parse_swf com file in
 			let extract = Genswf.extract_data getSWF in
-			let build cl p = Genswf.build_class com (Hashtbl.find (extract()) cl) file in
-			com.type_api.load_extern_type <- com.type_api.load_extern_type @ [build];
+			let build cl p = 
+				match (try Some (Hashtbl.find (extract()) cl) with Not_found -> None) with
+				| None -> None
+				| Some c -> Some (Genswf.build_class com c file)
+			in
+			com.load_extern_type <- com.load_extern_type @ [build];
 			com.swf_libs <- (file,getSWF,extract) :: com.swf_libs
 		),"<file> : add the SWF library to the compiled SWF");
 		("-x", Arg.String (fun file ->
@@ -378,7 +382,7 @@ try
 			close_in ch;
 			excludes := (List.map (fun l ->
 				let l = ExtString.String.strip l in
-				if l = "" then ([],"") else Ast.s_parse_path l
+				if l = "" then ([],"") else Ast.parse_path l
 			) lines) @ !excludes;
 		),"<filename> : don't generate code for classes listed in this file");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
@@ -518,14 +522,15 @@ try
 		if com.verbose then print_endline ("Classpath : " ^ (String.concat ";" com.class_path));
 		let t = Common.timer "typing" in
 		Typecore.type_expr_ref := (fun ctx e need_val -> Typer.type_expr ~need_val ctx e);
-		Typecore.build_inheritance := Codegen.on_inherit;
 		let ctx = Typer.create com in
-		List.iter (fun cpath -> ignore(com.type_api.load_module cpath Ast.null_pos)) (List.rev !classes);
+		List.iter (fun cpath -> ignore(ctx.Typecore.g.Typecore.do_load_module ctx cpath Ast.null_pos)) (List.rev !classes);
 		Typer.finalize ctx;
 		t();
 		if !has_error then do_exit();
 		if !no_output then com.platform <- Cross;
-		com.types <- Typer.types ctx com.main_class (!excludes);
+		let types, modules = Typer.generate ctx com.main_class (!excludes) in
+		com.types <- types;
+		com.modules <- modules;
 		com.lines <- Lexer.build_line_index();
 		let filters = [
 			Codegen.check_local_vars_init;

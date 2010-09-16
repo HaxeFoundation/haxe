@@ -686,7 +686,7 @@ let begin_fun ctx args tret el stat p =
 	)
 
 let empty_method ctx p =
-	let f = begin_fun ctx [] ctx.com.type_api.tvoid [] true p in
+	let f = begin_fun ctx [] ctx.com.basic.tvoid [] true p in
 	write ctx HRetVoid;
 	f()
 
@@ -777,7 +777,7 @@ let gen_access ctx e (forset : 'a) : 'a access =
 				VCast (id,classify ctx e.etype)
 		)
 	| TArray ({ eexpr = TLocal "__global__" },{ eexpr = TConst (TString s) }) ->
-		let path = s_parse_path s in
+		let path = parse_path s in
 		let id = type_path ctx path in
 		if is_set forset then write ctx HGetGlobalScope;
 		VGlobal id
@@ -1782,10 +1782,10 @@ let generate_class ctx c =
 			else
 				generate_construct ctx {
 					tf_args = [];
-					tf_type = ctx.com.type_api.tvoid;
+					tf_type = ctx.com.basic.tvoid;
 					tf_expr = {
 						eexpr = TBlock [];
-						etype = ctx.com.type_api.tvoid;
+						etype = ctx.com.basic.tvoid;
 						epos = null_pos;
 					}
 				} c
@@ -1872,7 +1872,7 @@ let generate_class ctx c =
 
 let generate_enum ctx e meta =
 	let name_id = type_path ctx e.e_path in
-	let api = ctx.com.type_api in
+	let api = ctx.com.basic in
 	let f = begin_fun ctx [("tag",None,api.tstring);("index",None,api.tint);("params",None,mk_mono())] api.tvoid [ethis] false e.e_pos in
 	let tag_id = ident "tag" in
 	let index_id = ident "index" in
@@ -1981,7 +1981,7 @@ let generate_inits ctx =
 	(* define flash.Boot.init method *)
 	write ctx HGetGlobalScope;
 	write ctx (HGetProp (type_path ctx (["flash"],"Boot")));
-	let finit = begin_fun ctx [] ctx.com.type_api.tvoid [] true null_pos in
+	let finit = begin_fun ctx [] ctx.com.basic.tvoid [] true null_pos in
 	List.iter (fun t ->
 		match t with
 		| TClassDecl c ->
@@ -2007,7 +2007,7 @@ let generate_type ctx t =
 			None
 		else
 			let hlc = generate_class ctx c in
-			let init = begin_fun ctx [] ctx.com.type_api.tvoid [ethis] false c.cl_pos in
+			let init = begin_fun ctx [] ctx.com.basic.tvoid [ethis] false c.cl_pos in
 			generate_class_init ctx c hlc;
 			if c.cl_path = (["flash"],"Boot") then generate_inits ctx;
 			write ctx HRetVoid;
@@ -2023,7 +2023,7 @@ let generate_type ctx t =
 		else
 			let meta = Codegen.build_metadata ctx.com t in
 			let hlc = generate_enum ctx e meta in
-			let init = begin_fun ctx [] ctx.com.type_api.tvoid [ethis] false e.e_pos in
+			let init = begin_fun ctx [] ctx.com.basic.tvoid [ethis] false e.e_pos in
 			generate_enum_init ctx e hlc meta;
 			write ctx HRetVoid;
 			Some (init(), {

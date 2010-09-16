@@ -34,8 +34,7 @@ type platform =
 
 type pos = Ast.pos
 
-type context_type_api = {
-	(* basic types *)
+type basic_types = {
 	mutable tvoid : t;
 	mutable tint : t;
 	mutable tfloat : t;
@@ -43,13 +42,6 @@ type context_type_api = {
 	mutable tnull : t -> t;
 	mutable tstring : t;
 	mutable tarray : t -> t;
-	(* api *)
-	mutable load_module : path -> pos -> module_def;
-	mutable build_instance : module_type -> pos -> ((string * t) list * path * (t list -> t));
-	mutable on_generate : module_type -> unit;
-	mutable get_type_module : module_type -> module_def;
-	mutable optimize : texpr -> texpr;
-	mutable load_extern_type : (path -> pos -> Ast.package) list;
 }
 
 type context = {
@@ -67,15 +59,17 @@ type context = {
 	mutable error : string -> pos -> unit;
 	mutable warning : string -> pos -> unit;
 	mutable js_namespace : string option;
+	mutable load_extern_type : (path -> pos -> Ast.package option) list; (* allow finding types which are not in sources *)
 	(* output *)
 	mutable file : string;
 	mutable flash_version : int;
+	mutable modules : Type.module_def list;
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
 	mutable php_front : string option;
 	mutable swf_libs : (string * (unit -> Swf.swf) * (unit -> ((string list * string),As3hl.hl_class) Hashtbl.t)) list;
 	(* typing *)
-	mutable type_api : context_type_api;
+	mutable basic : basic_types;
 	mutable lines : Lexer.line_index;
 }
 
@@ -98,14 +92,16 @@ let create v =
 		package_rules = PMap.empty;
 		file = "";
 		types = [];
+		modules = [];
 		flash_version = 8;
 		resources = Hashtbl.create 0;
 		php_front = None;
 		swf_libs = [];
 		js_namespace = None;
+		load_extern_type = [];
 		warning = (fun _ _ -> assert false);
 		error = (fun _ _ -> assert false);
-		type_api = {
+		basic = {
 			tvoid = m;
 			tint = m;
 			tfloat = m;
@@ -113,19 +109,13 @@ let create v =
 			tnull = (fun _ -> assert false);
 			tstring = m;
 			tarray = (fun _ -> assert false);
-			load_module = (fun _ _ -> assert false);
-			build_instance = (fun _ _ -> assert false);
-			on_generate = (fun _ -> ());
-			get_type_module = (fun _ -> assert false);
-			optimize = (fun _ -> assert false);
-			load_extern_type = [];
 		};
 		lines = Lexer.build_line_index();
 	}
 
 let clone com =
-	let t = com.type_api in
-	{ com with type_api = { t with tvoid = t.tvoid } }
+	let t = com.basic in
+	{ com with basic = { t with tvoid = t.tvoid } }
 
 let platforms = [
 	Flash;

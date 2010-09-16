@@ -451,7 +451,7 @@ and gen_expr ctx e =
 	| TEnumField (en,s) ->
 		print ctx "%s.%s" (s_path ctx true en.e_path e.epos) (s_ident s)
 	| TArray ({ eexpr = TLocal "__global__" },{ eexpr = TConst (TString s) }) ->
-		let path = Ast.s_parse_path s in
+		let path = Ast.parse_path s in
 		spr ctx (s_path ctx false path e.epos)
 	| TArray (e1,e2) ->
 		gen_value ctx e1;
