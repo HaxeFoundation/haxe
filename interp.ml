@@ -939,7 +939,7 @@ let std_lib =
 		);
 		"file_read_char", Fun1 (fun f ->
 			match f with
-			| VAbstract (AFRead f) -> VInt (int_of_char (input_char f))
+			| VAbstract (AFRead f) -> VInt (int_of_char (try input_char f with _ -> exc (VArray [|VString "file_read_char"|])))
 			| _ -> error()
 		);
 		"file_seek", Fun3 (fun f pos mode ->
@@ -1039,6 +1039,7 @@ let std_lib =
 		);
 	(* process *)
 		(* TODO *)
+	(* memory, module, thread : not planned *)
 	]
 
 (* ---------------------------------------------------------------------- *)
@@ -1653,7 +1654,6 @@ and call ctx vthis vfun pl p =
 			exc (VString ("Invalid call " ^ ctx.do_string vfun)))
 	with Return v -> v
 		| Sys_error msg | Failure msg -> exc (VString msg)
-		| End_of_file -> exc (VString "EOF")
 		| Builtin_error | Invalid_argument _ -> exc (VString "Invalid call")) in
 	ctx.locals <- locals;
 	ctx.vthis <- oldthis;
@@ -1748,7 +1748,7 @@ let load_prim ctx f n =
 			| "macro" -> Hashtbl.find macro_lib fname
 			| "regexp" -> Hashtbl.find reg_lib fname
 			| "zlib" -> Hashtbl.find z_lib fname
-			| _ -> raise Not_found
+			| _ -> failwith ("You cannot use the library '" ^ lib ^ "' inside a macro");
 			) in
 			if nargs f <> n then raise Not_found;
 			VFunction f
