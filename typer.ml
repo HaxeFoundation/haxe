@@ -182,7 +182,7 @@ let unify_call_params ctx name el args p inline =
 				Error (Unify ul,_) ->
 					if opt then
 						loop (default_value t :: acc) (ee :: l) l2 ((name,ul) :: skip)
-					else						
+					else
 						arg_error ul name false e.epos
 	in
 	loop [] el args []
@@ -218,8 +218,8 @@ let rec type_module_type ctx t tparams p =
 				cf_name = f.ef_name;
 				cf_public = true;
 				cf_type = f.ef_type;
-				cf_kind = (match follow f.ef_type with 
-					| TFun _ -> Method MethNormal 
+				cf_kind = (match follow f.ef_type with
+					| TFun _ -> Method MethNormal
 					| _ -> Var { v_read = AccNormal; v_write = AccNo }
 				);
 				cf_doc = None;
@@ -257,9 +257,9 @@ let type_type ctx tpath p =
 	type_module_type ctx (Typeload.load_type_def ctx p { tpackage = fst tpath; tname = snd tpath; tparams = []; tsub = None }) None p
 
 let get_constructor c p =
-	let rec loop c = 
-		match c.cl_constructor with 
-		| Some f -> f 
+	let rec loop c =
+		match c.cl_constructor with
+		| Some f -> f
 		| None ->
 			if not c.cl_extern then raise Not_found;
 			match c.cl_super with
@@ -288,11 +288,11 @@ let make_call ctx e params t p =
 			(match Optimizer.type_inline ctx f fd ethis params t p with
 			| None -> raise Exit
 			| Some e -> e)
-		| _ -> 
+		| _ ->
 			error "Recursive inline is not supported" p)
 	with Exit ->
 		mk (TCall (e,params)) t p
-		
+
 let rec acc_get ctx g p =
 	match g with
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
@@ -302,7 +302,7 @@ let rec acc_get ctx g p =
 		(* build a closure with first parameter applied *)
 		(match follow et.etype with
 		| TFun (_ :: args,ret) ->
-			let tcallb = TFun (args,ret) in	
+			let tcallb = TFun (args,ret) in
 			let twrap = TFun ([("_e",false,e.etype)],tcallb) in
 			let ecall = make_call ctx et (List.map (fun (n,_,t) -> mk (TLocal n) t p) (("_e",false,e.etype) :: args)) ret p in
 			let ecallb = mk (TFunction {
@@ -313,7 +313,7 @@ let rec acc_get ctx g p =
 			let ewrap = mk (TFunction {
 				tf_args = [("_e",None,e.etype)];
 				tf_type = tcallb;
-				tf_expr = mk (TReturn (Some ecallb)) t_dynamic p; 
+				tf_expr = mk (TReturn (Some ecallb)) t_dynamic p;
 			}) twrap p in
 			make_call ctx ewrap [e] tcallb p
 		| _ -> assert false)
@@ -322,7 +322,7 @@ let rec acc_get ctx g p =
 		(match f.cf_expr with
 		| None -> error "Recursive inline is not supported" p
 		| Some { eexpr = TFunction _ } ->  mk (TClosure (e,f.cf_name)) t p
-		| Some e -> 
+		| Some e ->
 			let rec loop e = Type.map_expr loop { e with epos = p } in
 			loop e)
 	| AKMacro _ ->
@@ -336,7 +336,7 @@ let field_access ctx mode f t e p =
 		| _ -> fnormal()
 	in
 	match f.cf_kind with
-	| Method m ->		
+	| Method m ->
 		if mode = MSet && m <> MethDynamic && not ctx.untyped then error "Cannot rebind this method : please use 'dynamic' before method declaration" p;
 		(match m, mode with
 		| MethInline, _ -> AKInline (e,f,t)
@@ -395,7 +395,7 @@ let using_field ctx mode e i p =
 				| TFun ((_,_,t0) :: args,r) ->
 					(try unify_raise ctx e.etype t0 p with Error (Unify _,_) -> raise Not_found);
 					if follow e.etype == t_dynamic && follow t0 != t_dynamic then raise Not_found;
-					let et = type_module_type ctx (TClassDecl c) None p in						
+					let et = type_module_type ctx (TClassDecl c) None p in
 					AKUsing (mk (TField (et,i)) t p,e)
 				| _ -> raise Not_found)
 			with Not_found ->
@@ -622,13 +622,13 @@ let rec type_field ctx e i p mode =
 	we don't want to accidentaly truncate the value
 *)
 let unify_int ctx e k =
-	let is_dynamic t = 
+	let is_dynamic t =
 		match follow t with
 		| TDynamic _ -> true
 		| _ -> false
 	in
 	let is_dynamic_array t =
-		match follow t with 
+		match follow t with
 		| TInst (_,[p]) -> is_dynamic p
 		| _ -> true
 	in
@@ -644,7 +644,7 @@ let unify_int ctx e k =
 		| _ -> true
 	in
 	let maybe_dynamic_mono() =
-		match e.eexpr with		
+		match e.eexpr with
 		| TLocal _ when not (is_dynamic e.etype)  -> false
 		| TArray({ etype = t },_) when not (is_dynamic_array t) -> false
 		| TField({ etype = t },f) when not (is_dynamic_field t f) -> false
@@ -657,7 +657,7 @@ let unify_int ctx e k =
 		false
 	| _ ->
 		unify ctx e.etype ctx.api.tint e.epos;
-		true		
+		true
 
 let rec type_binop ctx op e1 e2 p =
 	match op with
@@ -984,7 +984,7 @@ and type_switch ctx e cases def need_val p =
 			v
 		) el in
 		if el = [] then error "Case must match at least one expression" (pos e2);
-		let e2 = (match fst e2 with 
+		let e2 = (match fst e2 with
 			| EBlock [] -> mk (TConst TNull) ctx.api.tvoid (pos e2)
 			| _ -> type_expr ctx ~need_val e2
 		) in
@@ -1143,7 +1143,7 @@ and type_access ctx e p mode =
 				apply_params pl tl (loop (TInst (c,stl)))
 			| TInst ({ cl_path = [],"ArrayAccess" },[t]) ->
 				t
-			| _ -> 
+			| _ ->
 				let pt = mk_mono() in
 				let t = ctx.api.tarray pt in
 				unify ctx e1.etype t e1.epos;
@@ -1389,7 +1389,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let el, c , params = (match follow t with
 		| TInst (c,params) ->
 			let name = (match c.cl_path with [], name -> name | x :: _ , _ -> x) in
-			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;					
+			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;
 			let f = get_constructor c p in
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then error "Cannot access private constructor" p;
 			let el = (match follow (apply_params c.cl_types params (field_type f)) with
@@ -1407,7 +1407,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		type_unop ctx op flag e p
 	| EFunction f ->
 		let rt = Typeload.load_type_opt ctx p f.f_type in
-		let args = List.map (fun (s,opt,t,c) -> 
+		let args = List.map (fun (s,opt,t,c) ->
 			let t = Typeload.load_type_opt ctx p t in
 			let t, c = Typeload.type_function_param ctx t c opt p in
 			s , c, t
@@ -1498,7 +1498,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		*)
 		let rec loop acc = function
 			| [] -> acc
-			| x :: l -> 
+			| x :: l ->
 				let acc = ref (loop acc l) in
 				(match x with
 				| TClassDecl c ->
@@ -1515,7 +1515,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 					) c.cl_ordered_statics
 				| _ -> ());
 				!acc
-		in	
+		in
 		let use_methods = loop PMap.empty ctx.local_using in
 		let t = (if iscall then
 			match follow t with
@@ -1596,7 +1596,7 @@ and type_call ctx e el p =
 		if ctx.in_static || not ctx.in_constructor then error "Cannot call superconstructor outside class constructor" p;
 		let el, t = (match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a super" p
-		| Some (c,params) ->					
+		| Some (c,params) ->
 			let f = get_constructor c p in
 			let el = (match follow (apply_params c.cl_types params (field_type f)) with
 			| TFun (args,_) ->
@@ -1610,7 +1610,7 @@ and type_call ctx e el p =
 	| _ ->
 		(match e with
 		| EField ((EConst (Ident "super"),_),_) , _ | EType ((EConst (Ident "super"),_),_) , _ -> ctx.in_super_call <- true
-		| _ -> ());		
+		| _ -> ());
 		match type_access ctx (fst e) (snd e) MCall with
 		| AKInline (ethis,f,t) ->
 			let params, tret = (match follow t with
@@ -1697,7 +1697,7 @@ let get_type_module ctx t =
 		(* @Main, other generated classes ? *)
 		{
 			mtypes = [t];
-			mpath = t_path t;			
+			mpath = t_path t;
 		}
 	with
 		Exit -> !mfound
@@ -1847,7 +1847,7 @@ let types ctx main excludes =
 let create com =
 	let empty =	{
 		mpath = [] , "";
-		mtypes = [];		
+		mtypes = [];
 	} in
 	let ctx = {
 		com = com;
@@ -1929,7 +1929,7 @@ let create com =
 let type_macro ctx c f el array p =
 	let t = Common.timer "macro execution" in
 	let ctx2 = (match ctx.g.macros with
-		| Some (select,ctx) -> 
+		| Some (select,ctx) ->
 			select();
 			ctx
 		| None ->
@@ -1942,10 +1942,12 @@ let type_macro ctx c f el array p =
 			Common.init_platform com2 Neko;
 			let ctx2 = (!Typeload.do_create) com2 in
 			let mctx = Interp.create com2 in
+			let on_error = com2.error in
+			com2.error <- (fun e p -> Interp.set_error mctx true; on_error e p);
 			let macro = ((fun() -> Interp.select mctx), ctx2) in
 			ctx.g.macros <- Some macro;
 			ctx2.g.macros <- Some macro;
-			ctx2.g.core_api <- ctx.g.core_api;
+			(* ctx2.g.core_api <- ctx.g.core_api; // causes some issues because of optional args and Null type in Flash9 *)
 			ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Expr") p);
 			finalize ctx2;
 			let types = types ctx2 None [] in

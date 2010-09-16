@@ -86,6 +86,7 @@ type context = {
 	types : (Type.path,bool) Hashtbl.t;
 	globals : (string, value) Hashtbl.t;
 	prototypes : (string list, vobject) Hashtbl.t;
+	mutable error : bool;
 	mutable enums : string array array;
 	mutable do_call : value -> value -> value list -> pos -> value;
 	mutable do_string : value -> string;
@@ -581,6 +582,14 @@ let std_lib =
 		| VAbstract (AInt32 i) -> i
 		| _ -> error()
 	in
+	let vint = function
+		| VInt n -> n
+		| _ -> error()
+	in
+	let vstring = function
+		| VString s -> s
+		| _ -> error()
+	in
 	let int32_op op = Fun2 (fun a b -> make_i32 (op (int32 a) (int32 b))) in
 	make_library [
 	(* math *)
@@ -675,19 +684,13 @@ let std_lib =
 		);
 		"date_set_hour", Fun4 (fun d h m s ->
 			let d = date d in
-			match h, m, s with
-			| VInt h, VInt m, VInt s ->
-				let t = Unix.localtime d in
-				make_date (fst (Unix.mktime { t with tm_hour = h; tm_min = m; tm_sec = s }))
-			| _ -> error()
+			let t = Unix.localtime d in
+			make_date (fst (Unix.mktime { t with tm_hour = vint h; tm_min = vint m; tm_sec = vint s }))
 		);
 		"date_set_day", Fun4 (fun d y m da ->
 			let d = date d in
-			match y, m, da with
-			| VInt y, VInt m, VInt da ->
-				let t = Unix.localtime d in
-				make_date (fst (Unix.mktime { t with tm_year = y - 1900; tm_mon = m - 1; tm_mday = da }))
-			| _ -> error()
+			let t = Unix.localtime d in
+			make_date (fst (Unix.mktime { t with tm_year = vint y - 1900; tm_mon = vint m - 1; tm_mday = vint da }))
 		);
 		"date_format", Fun2 (fun d fmt ->
 			match fmt with
@@ -726,58 +729,54 @@ let std_lib =
 			| _ -> error())
 		);
 		"url_encode", Fun1 (fun s ->
-			match s with
-			| VString s ->
-				let b = Buffer.create 0 in
-				let hex = "0123456789ABCDEF" in
-				for i = 0 to String.length s - 1 do
-					let c = String.unsafe_get s i in
-					match c with
-					| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '-' | '.' ->
-						Buffer.add_char b c
-					| _ ->
-						Buffer.add_char b '%';
-						Buffer.add_char b (String.unsafe_get hex (int_of_char c lsr 4));
-						Buffer.add_char b (String.unsafe_get hex (int_of_char c land 0xF));
-				done;
-				VString (Buffer.contents b)
-			| _ -> error()
+			let s = vstring s in
+			let b = Buffer.create 0 in
+			let hex = "0123456789ABCDEF" in
+			for i = 0 to String.length s - 1 do
+				let c = String.unsafe_get s i in
+				match c with
+				| 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '-' | '.' ->
+					Buffer.add_char b c
+				| _ ->
+					Buffer.add_char b '%';
+					Buffer.add_char b (String.unsafe_get hex (int_of_char c lsr 4));
+					Buffer.add_char b (String.unsafe_get hex (int_of_char c land 0xF));
+			done;
+			VString (Buffer.contents b)
 		);
 		"url_decode", Fun1 (fun s ->
-			match s with
-			| VString s ->
-				let b = Buffer.create 0 in
-				let len = String.length s in
-				let decode c =
-					match c with
-					| '0'..'9' -> Some (int_of_char c - int_of_char '0')
-					| 'a'..'f' -> Some (int_of_char c - int_of_char 'a' + 10)
-					| 'A'..'F' -> Some (int_of_char c - int_of_char 'A' + 10)
-					| _ -> None
-				in
-				let rec loop i =
-					if i = len then () else
-					let c = String.unsafe_get s i in
-					match c with
-					| '%' ->
-						let p1 = (try decode (String.get s (i + 1)) with _ -> None) in
-						let p2 = (try decode (String.get s (i + 2)) with _ -> None) in
-						(match p1, p2 with
-						| Some c1, Some c2 ->
-							Buffer.add_char b (char_of_int ((c1 lsl 4) lor c2));
-							loop (i + 3)
-						| _ ->
-							loop (i + 1));
-					| '+' ->
-						Buffer.add_char b ' ';
-						loop (i + 1)
-					| c ->
-						Buffer.add_char b c;
-						loop (i + 1)
-				in
-				loop 0;
-				VString (Buffer.contents b)
-			| _ -> error()
+			let s = vstring s in
+			let b = Buffer.create 0 in
+			let len = String.length s in
+			let decode c =
+				match c with
+				| '0'..'9' -> Some (int_of_char c - int_of_char '0')
+				| 'a'..'f' -> Some (int_of_char c - int_of_char 'a' + 10)
+				| 'A'..'F' -> Some (int_of_char c - int_of_char 'A' + 10)
+				| _ -> None
+			in
+			let rec loop i =
+				if i = len then () else
+				let c = String.unsafe_get s i in
+				match c with
+				| '%' ->
+					let p1 = (try decode (String.get s (i + 1)) with _ -> None) in
+					let p2 = (try decode (String.get s (i + 2)) with _ -> None) in
+					(match p1, p2 with
+					| Some c1, Some c2 ->
+						Buffer.add_char b (char_of_int ((c1 lsl 4) lor c2));
+						loop (i + 3)
+					| _ ->
+						loop (i + 1));
+				| '+' ->
+					Buffer.add_char b ' ';
+					loop (i + 1)
+				| c ->
+					Buffer.add_char b c;
+					loop (i + 1)
+			in
+			loop 0;
+			VString (Buffer.contents b)
 		);
 		"base_encode", Fun2 (fun s b ->
 			match s, b with
@@ -790,17 +789,14 @@ let std_lib =
 			| _ -> error()
 		);
 		"base_decode", Fun2 (fun s b ->
-			match s, b with
-			| VString s, VString b ->
-				if String.length b <> 64 then assert false;
-				let tbl = Array.init 64 (String.unsafe_get b) in
-				VString (Base64.str_decode ~tbl:(Base64.make_decoding_table tbl) s)
-			| _ -> error()
+			let s = vstring s in
+			let b = vstring b in
+			if String.length b <> 64 then assert false;
+			let tbl = Array.init 64 (String.unsafe_get b) in
+			VString (Base64.str_decode ~tbl:(Base64.make_decoding_table tbl) s)
 		);
 		"make_md5", Fun1 (fun s ->
-			match s with
-			| VString s -> VString (Digest.string s)
-			| _ -> error()
+			VString (Digest.string (vstring s))
 		);
 		(* sprintf *)
 	(* int32 *)
@@ -926,7 +922,7 @@ let std_lib =
 		);
 		"file_read", Fun4 (fun f s p l ->
 			match f, s, p, l with
-			| VAbstract (AFRead f), VString s, VInt p, VInt l -> 
+			| VAbstract (AFRead f), VString s, VInt p, VInt l ->
 				let n = input f s p l in
 				if n = 0 then exc (VArray [|VString "file_read"|]);
 				VInt n
@@ -989,17 +985,130 @@ let std_lib =
 		(* TODO *)
 	(* system *)
 		"get_env", Fun1 (fun v ->
-			match v with
-			| VString s -> (try VString (Sys.getenv s) with _ -> VNull)
+			try VString (Unix.getenv (vstring v)) with _ -> VNull
+		);
+		"put_env", Fun2 (fun e v ->
+			Unix.putenv (vstring e) (vstring v);
+			VNull
+		);
+		"sys_sleep", Fun1 (fun f ->
+			match f with
+			| VFloat f -> Unix.sleep (int_of_float (ceil f)); VNull
 			| _ -> error()
 		);
-		"sys_time", Fun0 (fun() -> 
+		"set_time_locale", Fun1 (fun l ->
+			match l with
+			| VString s -> VBool false (* always fail *)
+			| _ -> error()
+		);
+		"get_cwd", Fun0 (fun() ->
+			VString (Unix.getcwd())
+		);
+		"set_cwd", Fun1 (fun s ->
+			Unix.chdir (vstring s);
+			VNull;
+		);
+		"sys_string", Fun0 (fun() ->
+			VString (match Sys.os_type with
+			| "Unix" -> "Linux"
+			| "Win32" | "Cygwin" -> "Windows"
+			| s -> s)
+		);
+		"sys_is64", Fun0 (fun() ->
+			VBool (Sys.word_size = 64)
+		);
+		"sys_command", Fun1 (fun cmd ->
+			VInt (Sys.command (vstring cmd))
+		);
+		"sys_exit", Fun1 (fun code ->
+			exit (vint code);
+		);
+		"sys_exists", Fun1 (fun file ->
+			VBool (Sys.file_exists (vstring file))
+		);
+		"file_delete", Fun1 (fun file ->
+			Sys.remove (vstring file);
+			VNull;
+		);
+		"sys_rename", Fun2 (fun file target ->
+			Sys.rename (vstring file) (vstring target);
+			VNull;
+		);
+		"sys_stat", Fun1 (fun file ->
+			let s = Unix.stat (vstring file) in
+			VObject (obj [
+				"gid", VInt s.st_gid;
+				"uid", VInt s.st_uid;
+				"atime", VAbstract (AInt32 (Int32.of_float s.st_atime));
+				"mtime", VAbstract (AInt32 (Int32.of_float s.st_mtime));
+				"ctime", VAbstract (AInt32 (Int32.of_float s.st_ctime));
+				"dev", VInt s.st_dev;
+				"ino", VInt s.st_ino;
+				"nlink", VInt s.st_nlink;
+				"rdev", VInt s.st_rdev;
+				"size", VInt s.st_size;
+				"mode", VInt s.st_perm;
+			])
+		);
+		"sys_file_type", Fun1 (fun file ->
+			VString (match (Unix.stat (vstring file)).st_kind with
+			| S_REG -> "file"
+			| S_DIR -> "dir"
+			| S_CHR -> "char"
+			| S_BLK -> "block"
+			| S_LNK -> "symlink"
+			| S_FIFO -> "fifo"
+			| S_SOCK -> "sock")
+		);
+		"sys_create_dir", Fun2 (fun dir mode ->
+			Unix.mkdir (vstring dir) (vint mode);
+			VNull
+		);
+		"sys_remove_dir", Fun1 (fun dir ->
+			Unix.rmdir (vstring dir);
+			VNull;
+		);
+		"sys_time", Fun0 (fun() ->
 			VFloat (Unix.gettimeofday())
 		);
-		"sys_cpu_time", Fun0 (fun() -> 
+		"sys_cpu_time", Fun0 (fun() ->
 			VFloat (Sys.time())
 		);
-		(* TODO *)
+		"sys_read_dir", Fun1 (fun dir ->
+			let d = Sys.readdir (vstring dir) in
+			let rec loop acc i =
+				if i = Array.length d then
+					acc
+				else
+					loop (VArray [|VString d.(i);acc|]) (i + 1)
+			in
+			loop VNull 0
+		);
+		"file_full_path", Fun1 (fun file ->
+			VString (Extc.get_full_path (vstring file))
+		);
+		"sys_exe_path", Fun0 (fun() ->
+			VString (Extc.executable_path())
+		);
+		"sys_env", Fun0 (fun() ->
+			let env = Unix.environment() in
+			let rec loop acc i =
+				if i = Array.length env then
+					acc
+				else
+					let e, v = ExtString.String.split "=" env.(i) in
+					loop (VArray [|VString e;VString v;acc|]) (i + 1)
+			in
+			loop VNull 0
+		);
+		"sys_getch", Fun1 (fun echo ->
+			match echo with
+			| VBool _ -> VInt (int_of_char (input_char Pervasives.stdin))
+			| _ -> error()
+		);
+		"sys_get_pid", Fun0 (fun() ->
+			VInt (Unix.getpid())
+		);
 	(* utf8 *)
 		(* TODO *)
 	(* xml *)
@@ -1067,7 +1176,7 @@ let reg_lib =
 						| 't' -> Buffer.add_char buf '\t'
 						| '\\' -> Buffer.add_string buf "\\\\"
 						| '(' -> Buffer.add_char buf c
-						| '1'..'9' | '+' | '$' | '^' | '*' | '?' | '.' | '[' | ']' -> 
+						| '1'..'9' | '+' | '$' | '^' | '*' | '?' | '.' | '[' | ']' ->
 							Buffer.add_char buf '\\';
 							Buffer.add_char buf c;
 						| _ -> failwith ("Unsupported escaped char '" ^ String.make 1 c ^ "'"));
@@ -1097,7 +1206,7 @@ let reg_lib =
 			match r, str, pos, len with
 			| VAbstract (AReg r), VString str, VInt pos, VInt len ->
 				let nstr, npos, delta = (if len = String.length str - pos then str, pos, 0 else String.sub str pos len, 0, pos) in
-				(try 
+				(try
 					ignore(Str.search_forward r.r nstr npos);
 					let rec loop n =
 						if n = 9 then
@@ -1118,7 +1227,7 @@ let reg_lib =
 		);
 		"regexp_matched", Fun2 (fun r n ->
 			match r, n with
-			| VAbstract (AReg r), VInt n -> 				
+			| VAbstract (AReg r), VInt n ->
 				(match (try r.r_groups.(n) with _ -> failwith ("Invalid group " ^ string_of_int n)) with
 				| None -> VNull
 				| Some (pos,pend) -> VString (String.sub r.r_string pos (pend - pos)))
@@ -1126,10 +1235,10 @@ let reg_lib =
 		);
 		"regexp_matched_pos", Fun2 (fun r n ->
 			match r, n with
-			| VAbstract (AReg r), VInt n -> 				
+			| VAbstract (AReg r), VInt n ->
 				(match (try r.r_groups.(n) with _ -> failwith ("Invalid group " ^ string_of_int n)) with
 				| None -> VNull
-				| Some (pos,pend) -> VObject (obj ["pos",VInt pos;"len",VInt (pend - pos)]))				
+				| Some (pos,pend) -> VObject (obj ["pos",VInt pos;"len",VInt (pend - pos)]))
 			| _ -> error()
 		);
 		(* regexp_replace : not used by haXe *)
@@ -1213,6 +1322,25 @@ let macro_lib =
 			match msg, p with
 			| VString s, VAbstract (APos p) -> (get_ctx()).com.Common.error s p; raise Abort
 			| _ -> error()
+		);
+		"warning", Fun2 (fun msg p ->
+			match msg, p with
+			| VString s, VAbstract (APos p) -> (get_ctx()).com.Common.warning s p; VNull;
+			| _ -> error()
+		);
+		"class_path", Fun0 (fun() ->
+			let cp = (get_ctx()).com.Common.class_path in
+			VArray (Array.of_list (List.map (fun s -> VString s) cp));
+		);
+		"resolve", Fun1 (fun file ->
+			match file with
+			| VString s -> VString (try Common.find_file (get_ctx()).com s with Not_found -> failwith ("File not found '" ^ s ^ "'"))
+			| _ -> error();
+		);
+		"defined", Fun1 (fun s ->
+			match s with
+			| VString s -> VBool (Common.defined (get_ctx()).com s)
+			| _ -> error();
 		);
 	]
 
@@ -1767,6 +1895,7 @@ let create com =
 		com = com;
 		gen = Genneko.new_context com true;
 		types = Hashtbl.create 0;
+		error = false;
 		prototypes = Hashtbl.create 0;
 		globals = Hashtbl.create 0;
 		enums = [||];
@@ -1823,8 +1952,13 @@ let get_path ctx path p =
 	in
 	eval ctx (loop (List.rev path))
 
+let set_error ctx e =
+	ctx.error <- e
+
 let call_path ctx path f vl p =
-	let old = ctx.curpos in
+	if ctx.error then
+		None
+	else let old = ctx.curpos in
 	ctx.curpos <- p;
 	let p = Genneko.pos ctx.gen p in
 	catch_errors ctx ~final:(fun() -> ctx.curpos <- old) (fun() ->

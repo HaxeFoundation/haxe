@@ -38,12 +38,44 @@ class Context {
 	}
 
 	/**
-		Return the position at the place the macro is called
+		Display a compilation warning at the given position in code
+	**/
+	public static function warning( msg : String, pos : Position ) {
+		load("warning",2)(untyped msg.__s, pos);
+	}
+
+	/**
+		Resolve a filename based on current classpath.
+	**/
+	public static function resolvePath( file : String ) {
+		return new String(load("resolve",1)(untyped file.__s));
+	}
+
+	/**
+		Return the current classpath
+	**/
+	public static function getClassPath() : Array<String> {
+		var c : neko.NativeArray<neko.NativeString> = load("class_path",0)();
+		var a = new Array();
+		for( i in 0...neko.NativeArray.length(c) )
+			a.push(Std.string(c[i]));
+		return a;
+	}
+
+	/**
+		Returns the position at the place the macro is called
 	**/
 	public static function currentPos() : Position {
 		return load("curpos", 0)();
 	}
 
+	/**
+		Tells is the given compiler directive has been defined with -D
+	**/
+	public static function defined( s : String ) : Bool {
+		return load("defiend", 1)(untyped s.__s);
+	}
+	
 	static function load( f, nargs ) : Dynamic {
 		#if macro
 		return neko.Lib.load("macro", f, nargs);
