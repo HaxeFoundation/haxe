@@ -634,8 +634,7 @@ let init_class ctx c p herits fields meta =
 	set_heritance ctx c herits p;
 	let core_api = has_meta ":core_api" meta in
 	let is_macro = has_meta ":macro" meta in
-	let in_macro = Common.defined ctx.com "macro" in
-	let fields, herits = if is_macro && not in_macro then begin
+	let fields, herits = if is_macro && not ctx.in_macro then begin
 		c.cl_extern <- true;
 		List.filter (function (FFun (_,_,_,acc,_,_),_) -> List.mem AStatic acc | _ -> false) fields, []
 	end else fields, herits in
@@ -739,7 +738,7 @@ let init_class ctx c p herits fields meta =
 			if is_macro && not stat then error "Only static methods can be macros" p;
 			let f = if not is_macro then
 				f
-			else if in_macro then
+			else if ctx.in_macro then
 				let texpr = CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
 				{
 					f_type = (match f.f_type with None -> Some texpr | t -> t);
@@ -1042,6 +1041,7 @@ let type_module ctx m tdecls loadp =
 		in_super_call = false;
 		in_constructor = false;
 		in_static = false;
+		in_macro = ctx.in_macro;
 		in_display = false;
 		in_loop = false;
 		opened = [];
@@ -1107,7 +1107,7 @@ let type_module ctx m tdecls loadp =
 			let index = ref 0 in
 			let rec loop = function
 				| (":build",(EConst (String s),p) :: el) :: _ ->
-					if Common.defined ctx.com "macro" then error "You cannot used :build inside a macro : make sure that your enum is not used in macro" p;
+					if ctx.in_macro then error "You cannot used :build inside a macro : make sure that your enum is not used in macro" p;
 					(match apply_macro ctx s el p with
 					| None -> error "Enum build failure" p
 					| Some (EArrayDecl el,_) | Some (EBlock el,_) ->

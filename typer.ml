@@ -44,8 +44,9 @@ type access_kind =
 	| AKUsing of texpr * texpr
 
 let mk_infos ctx p params =
+	let file = if ctx.in_macro then p.pfile else Filename.basename p.pfile in
 	(EObjectDecl (
-		("fileName" , (EConst (String (Filename.basename p.pfile)) , p)) ::
+		("fileName" , (EConst (String file) , p)) ::
 		("lineNumber" , (EConst (Int (string_of_int (Lexer.get_error_line p))),p)) ::
 		("className" , (EConst (String (s_type_path ctx.curclass.cl_path)),p)) ::
 		if ctx.curmethod = "" then
@@ -1528,7 +1529,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			| _ -> TAnon { a_fields = use_methods; a_status = ref Closed }
 		) in
 		(match follow t with
-		| TMono _ | TDynamic _ when Common.defined ctx.com "macro" -> mk (TConst TNull) t p
+		| TMono _ | TDynamic _ when ctx.in_macro -> mk (TConst TNull) t p
 		| _ -> raise (Display t))
 	| EDisplayNew t ->
 		let t = Typeload.load_instance ctx t p true in
@@ -1873,7 +1874,7 @@ let type_macro ctx cpath f el p =
 		| None -> None
 		| Some v -> Some (try Interp.decode_expr v with Interp.Invalid_expr -> error "The macro didn't return a valid expression" p)
 	in
-	let e = (if Common.defined ctx.com "macro" then begin
+	let e = (if ctx.in_macro then begin
 		(*
 			this is super-tricky : we can't evaluate a macro inside a macro because we might trigger some cycles.
 			So instead, we generate a haxe.macro.Context.delayedCalled(i) expression that will only evaluate the
@@ -1940,6 +1941,7 @@ let rec create com =
 		in_loop = false;
 		in_super_call = false;
 		in_display = false;
+		in_macro = Common.defined com "macro";
 		ret = mk_mono();
 		locals = PMap.empty;
 		locals_map = PMap.empty;

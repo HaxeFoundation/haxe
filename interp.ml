@@ -1667,7 +1667,9 @@ and base_op ctx op v1 v2 p =
 	| "*" ->
 		number_op ctx p op ( * ) ( *. ) "__mult" "__rmul" v1 v2
 	| "/" ->
-		number_op ctx p op (/) (/.) "__div" "__rdiv" v1 v2
+		(match v1, v2 with
+		| VInt i, VInt j -> VFloat ((float_of_int i) /. (float_of_int j))
+		| _ -> number_op ctx p op (/) (/.) "__div" "__rdiv" v1 v2)
 	| "%" ->
 		number_op ctx p op (fun x y -> x mod y) mod_float "__mod" "__rmod" v1 v2
 	| "&" ->
