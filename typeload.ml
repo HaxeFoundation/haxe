@@ -746,11 +746,13 @@ let init_class ctx c p herits fields meta =
 					f_args = List.map (fun (a,o,t,e) -> a,o,(match t with None -> Some texpr | _ -> t),e) f.f_args;
 					f_expr = f.f_expr;
 				}
-			else {
-				f_type = None;
-				f_args = [];
-				f_expr = (EBlock [],p)
-			}
+			else 
+				let tdyn = Some (CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None }) in
+				{
+					f_type = tdyn;
+					f_args = List.map (fun (a,o,_,_) -> a,o,tdyn,None) f.f_args;
+					f_expr = (EBlock [],p)
+				}
 			in
 			let parent = (if not stat then get_parent c name else None) in
 			let dynamic = List.mem ADynamic access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in

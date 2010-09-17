@@ -1841,7 +1841,7 @@ let type_macro ctx cpath f el p =
 	) in
 	let mctx = Interp.get_ctx() in
 	let m = (try Hashtbl.find ctx.g.types_module cpath with Not_found -> cpath) in
-	ignore(Typeload.load_module ctx2 m p);
+	ctx2.local_types <- (Typeload.load_module ctx2 m p).mtypes;
 	let meth = (match Typeload.load_instance ctx2 { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = None } p true with
 		| TInst (c,_) -> (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
 		| _ -> error "Macro should be called on a class" p
