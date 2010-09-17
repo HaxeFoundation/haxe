@@ -56,7 +56,7 @@ let type_static_var ctx t e p =
 	| TType ({ t_path = ([],"UInt") },[]) -> { e with etype = t }
 	| _ -> e
 
-let apply_macro ctx path el p =	
+let apply_macro ctx path el p =
 	let cpath, meth = (match List.rev (ExtString.String.nsplit path ".") with
 		| meth :: name :: pack -> (List.rev pack,name), meth
 		| _ -> error "Invalid macro path" p
@@ -742,11 +742,11 @@ let init_class ctx c p herits fields meta =
 			else if in_macro then
 				let texpr = CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
 				{
-					f_type = (match f.f_type with None -> Some texpr | t -> t); 
+					f_type = (match f.f_type with None -> Some texpr | t -> t);
 					f_args = List.map (fun (a,o,t,e) -> a,o,(match t with None -> Some texpr | _ -> t),e) f.f_args;
 					f_expr = f.f_expr;
 				}
-			else 
+			else
 				let tdyn = Some (CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None }) in
 				{
 					f_type = tdyn;
@@ -1106,16 +1106,17 @@ let type_module ctx m tdecls loadp =
 			let names = ref [] in
 			let index = ref 0 in
 			let rec loop = function
-				| (":build",[EConst (String s),p]) :: _ ->
-					(match apply_macro ctx s [] p with
+				| (":build",(EConst (String s),p) :: el) :: _ ->
+					if Common.defined ctx.com "macro" then error "You cannot used :build inside a macro : make sure that your enum is not used in macro" p;
+					(match apply_macro ctx s el p with
 					| None -> error "Enum build failure" p
-					| Some (EArrayDecl el,_) ->
+					| Some (EArrayDecl el,_) | Some (EBlock el,_) ->
 						List.map (fun (e,p) ->
 							match e with
-							| EConst (Ident i) | EConst (Type i) -> i, None, [], [], p							
-							| _ -> error "Invalid constructor" p
+							| EConst (Ident i) | EConst (Type i) | EConst (String i) -> i, None, [], [], p
+							| _ -> error "Invalid enum constructor" p
 						) el
-					| _ -> error "Build macro must return an array" p
+					| _ -> error "Build macro must return an block" p
 					)
 				| _ :: l -> loop l
 				| [] -> []
@@ -1231,7 +1232,7 @@ let load_module ctx m p =
 			with Not_found ->
 				let rec loop = function
 					| [] -> raise (Error (Module_not_found m,p))
-					| load :: l -> 
+					| load :: l ->
 						match load m p with
 						| None -> loop l
 						| Some (_,a) -> a
