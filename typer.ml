@@ -1896,7 +1896,9 @@ let type_macro ctx cpath f el p =
 		Some (EUntyped (ECall (e,[EConst (Int (string_of_int pos)),p]),p),p)
 	end else begin
 		finalize ctx2;
-		let types, _ = generate ctx2 None [] in
+		let types, modules = generate ctx2 None [] in
+		ctx2.com.types <- types;
+		ctx2.com.Common.modules <- modules;
 		Interp.add_types mctx types;
 		call()
 	end) in
