@@ -152,23 +152,26 @@ let parse_int s =
 		| '0'..'9' | 'a'..'f' | 'A'..'F' -> loop_hex (i + 1)
 		| _ -> String.sub s 0 i
 	in
-	let rec loop i =
-		if i = String.length s then s else
+	let rec loop sp i =
+		if i = String.length s then (if sp = 0 then s else String.sub s sp (i - sp)) else
 		match String.unsafe_get s i with
-		| '0'..'9' | '-' -> loop (i + 1)
+		| '0'..'9' -> loop sp (i + 1)
+		| ' ' when sp = i -> loop (sp + 1) (i + 1)
+		| '-' when i = 0 -> loop sp (i + 1)
 		| 'x' when i = 1 && String.get s 0 = '0' -> loop_hex (i + 1)
-		| _ -> String.sub s 0 i
+		| _ -> String.sub s sp (i - sp)
 	in
-	int_of_string (loop 0)
+	int_of_string (loop 0 0)
 
 let parse_float s =
-	let rec loop i =
-		if i = String.length s then s else
+	let rec loop sp i =
+		if i = String.length s then (if sp = 0 then s else String.sub s sp (i - sp)) else
 		match String.unsafe_get s i with
-		| '0'..'9' | '-' | 'e' | 'E' | '.' -> loop (i + 1)
-		| _ -> String.sub s 0 i
+		| ' ' when sp = i -> loop (sp + 1) (i + 1)
+		| '0'..'9' | '-' | 'e' | 'E' | '.' -> loop sp (i + 1)
+		| _ -> String.sub s sp (i - sp)
 	in
-	float_of_string (loop 0)
+	float_of_string (loop 0 0)
 
 let find_sub str sub start =
 	let sublen = String.length sub in

@@ -49,8 +49,11 @@
 		return __dollar__int(x.__s);
 	}
 
-	public static function parseFloat( x : String ) : Float {
-		return untyped __dollar__float(x.__s);
+	public static function parseFloat( x : String ) : Float untyped {
+		if( x == null ) return Math.NaN;
+		var t = __dollar__float(x.__s);
+		if( t == null ) t = Math.NaN;
+		return t;
 	}
 
 	public static function random( x : Int ) : Int {
