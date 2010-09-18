@@ -89,13 +89,27 @@ class TestBasetypes extends Test {
 
 	function testParse() {
 		eq( Std.parseInt("0"), 0 );
+		eq( Std.parseInt("   5"), 5 );
 		eq( Std.parseInt("0001"), 1 );
 		eq( Std.parseInt("100"), 100 );
 		eq( Std.parseInt("-100"), -100 );
 		eq( Std.parseInt("100x123"), 100 );
 		eq( Std.parseInt(""), null );
 		eq( Std.parseInt("abcd"), null );
+		eq( Std.parseInt("a10"), null );
 		eq( Std.parseInt(null), null );
+
+		eq( Std.parseFloat("0"), 0. );
+		eq( Std.parseFloat("   5.3"), 5.3 );
+		eq( Std.parseFloat("0001"), 1. );
+		eq( Std.parseFloat("100.45"), 100.45 );
+		eq( Std.parseFloat("-100.01"), -100.01 );
+		eq( Std.parseFloat("100x123"), 100. );
+		t( Math.isNaN(Std.parseFloat("")) );
+		t( Math.isNaN(Std.parseFloat("abcd")) );
+		t( Math.isNaN(Std.parseFloat("a10")) );
+		t( Math.isNaN(Std.parseFloat(null)) );
+
 	}
 
 	function testStringTools() {

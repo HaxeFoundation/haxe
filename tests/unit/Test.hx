@@ -7,7 +7,7 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 
 	function eq<T>( v : T, v2 : T, ?pos ) {
 		count++;
-		if( v != v2 ) report(v+" should be "+v2,pos);
+		if( v != v2 ) report(Std.string(v)+" should be "+Std.string(v2),pos);
 	}
 
 	function feq( v : Float, v2 : Float, ?pos ) {
