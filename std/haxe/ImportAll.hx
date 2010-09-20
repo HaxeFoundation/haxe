@@ -74,6 +74,9 @@ import haxe.io.Input;
 import haxe.io.Output;
 import haxe.io.StringInput;
 
+import haxe.macro.Expr;
+import haxe.macro.Context;
+
 import haxe.remoting.Context;
 import haxe.remoting.ContextAll;
 import haxe.remoting.Connection;
