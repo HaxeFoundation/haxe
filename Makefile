@@ -48,4 +48,3 @@ clean:
 export:
 	cp haxe*.exe $(EXPORT)
 	rsync -a --exclude .svn --exclude *.n --exclude std/mt --delete std $(EXPORT)
-	(cd $(EXPORT); svn commit -m "")
