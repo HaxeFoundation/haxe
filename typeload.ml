@@ -117,7 +117,12 @@ let rec load_instance ctx t p allow_no_params =
 		if allow_no_params && t.tparams = [] then
 			f (List.map (fun (name,t) ->
 				match follow t with
-				| TInst (c,_) -> if c.cl_implements = [] then mk_mono() else error ("Type parameter " ^ name ^ " need constraint") p
+				| TInst (c,_) ->
+					let t = mk_mono() in
+					if c.cl_implements <> [] then delay ctx (fun() -> 
+						List.iter (fun (i,tl) -> unify ctx t (TInst(i,tl)) p) c.cl_implements
+					);
+					t;					
 				| _ -> assert false
 			) types)
 		else if path = ([],"Dynamic") then
