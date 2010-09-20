@@ -100,7 +100,7 @@ enum ExprDef {
 	EContinue;
 	EUntyped( e : Expr );
 	EThrow( e : Expr );
-	ECast( e : Expr, t : Null<TypePath> );
+	ECast( e : Expr, t : Null<ComplexType> );
 	EDisplay( e : Expr, isCall : Bool );
 	EDisplayNew( t : TypePath );
 	ETernary( econd : Expr, eif : Expr, eelse : Expr );

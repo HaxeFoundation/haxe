@@ -73,7 +73,7 @@ class Context {
 		Tells is the given compiler directive has been defined with -D
 	**/
 	public static function defined( s : String ) : Bool {
-		return load("defiend", 1)(untyped s.__s);
+		return load("defined", 1)(untyped s.__s);
 	}
 	
 	static function load( f, nargs ) : Dynamic {
