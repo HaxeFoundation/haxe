@@ -738,6 +738,11 @@ let no_value ctx retval =
 	   a real value was pushed *)
 	if retval then ctx.infos.istack <- ctx.infos.istack + 1
 
+let pop_value ctx retval =
+	(* if we have multiple branches, make sure to forget about previous
+	   branch value *)
+	if retval then ctx.infos.istack <- ctx.infos.istack - 1
+
 let gen_expr_ref = ref (fun _ _ _ -> assert false)
 let gen_expr ctx e retval = (!gen_expr_ref) ctx e retval
 
@@ -958,7 +963,7 @@ let rec gen_expr_content ctx retval e =
 		| None -> j()
 		| Some e ->
 			(* two expresssions, but one per branch *)
-			if retval then ctx.infos.istack <- ctx.infos.istack - 1;
+			pop_value ctx retval;
 			let jend = jump ctx J3Always in
 			j();
 			gen_expr ctx retval e;
@@ -1111,11 +1116,9 @@ let rec gen_expr_content ctx retval e =
 			let jends = List.map (fun (vl,e) ->
 				let j = jump ctx J3Always in
 				List.iter (fun v -> case (get_int v)) vl;
+				pop_value ctx retval;
 				gen_expr ctx retval e;
-				if retval then begin
-					ctx.infos.istack <- ctx.infos.istack - 1;
-					if classify ctx e.etype <> t then coerce ctx t;
-				end;
+				if retval && classify ctx e.etype <> t then coerce ctx t;
 				j
 			) el in
 			List.iter (fun j -> j()) jends;
@@ -1144,10 +1147,8 @@ let rec gen_expr_content ctx retval e =
 			in
 			loop vl;
 			gen_expr ctx retval e;
-			if retval then begin
-				if classify ctx e.etype <> t then coerce ctx t;
-				ctx.infos.istack <- ctx.infos.istack - 1;
-			end;
+			pop_value ctx retval;
+			if retval && classify ctx e.etype <> t then coerce ctx t;
 			jump ctx J3Always
 		) el in
 		(!prev)();
@@ -1189,6 +1190,7 @@ let rec gen_expr_content ctx retval e =
 		let jends = List.map (fun (cl,params,e) ->
 			let j = jump ctx J3Always in
 			List.iter case cl;
+			pop_value ctx retval;
 			let b = open_block ctx [e] retval in
 			(match params with
 			| None -> ()
@@ -1209,17 +1211,14 @@ let rec gen_expr_content ctx retval e =
 			);
 			gen_expr ctx retval e;
 			b();
-			if retval then begin
-				ctx.infos.istack <- ctx.infos.istack - 1;
-				if classify ctx e.etype <> t then coerce ctx t;
-			end;
+			if retval && classify ctx e.etype <> t then coerce ctx t;
 			j
 		) cases in
 		switch();
 		List.iter (fun j -> j()) jends;
 		free_reg ctx rparams
 	| TCast (e1,t) ->
-		gen_expr ctx retval e1;		
+		gen_expr ctx retval e1;
 		if retval then begin
 			match t with
 			| None ->
@@ -1646,7 +1645,7 @@ let generate_construct ctx fdata c =
 			write ctx (HFindProp id);
 			write ctx (HFunction (generate_method ctx fdata false));
 			write ctx (HInitProp id);
-			j();			
+			j();
 		| _ -> ()
 	) c.cl_fields;
 	gen_expr ctx false fdata.tf_expr;
@@ -1722,7 +1721,7 @@ let generate_enum_init ctx e hc meta =
 	write ctx (HSetProp (ident "__constructs__"));
 	(match meta with
 	| None -> ()
-	| Some e -> 
+	| Some e ->
 		write ctx (HReg r.rid);
 		gen_expr ctx true e;
 		write ctx (HSetProp (ident "__meta__"));
@@ -1809,10 +1808,10 @@ let generate_class ctx c =
 						f.cf_meta()
 					with Not_found ->
 						find_meta c
-			in			
+			in
 			let rec loop_meta = function
 				| [] -> ident f.cf_name
-				| x :: l ->					
+				| x :: l ->
 					match x with
 					| (":ns",[{ eexpr = TConst (TString ns) }]) -> HMName (f.cf_name,HNNamespace ns)
 					| (":protected",[]) ->
@@ -1926,7 +1925,7 @@ let generate_enum ctx e meta =
 	) e.e_constrs [] in
 	let constrs = (match meta with
 		| None -> constrs
-		| Some _ -> 
+		| Some _ ->
 			incr st_count;
 			{
 				hlf_name = ident "__meta__";
@@ -1934,7 +1933,7 @@ let generate_enum ctx e meta =
 				hlf_kind = HFVar { hlv_type = None; hlv_value = HVNone; hlv_const = false; };
 				hlf_metas = None;
 			} :: constrs
-	) in			
+	) in
 	{
 		hlc_index = 0;
 		hlc_name = name_id;
