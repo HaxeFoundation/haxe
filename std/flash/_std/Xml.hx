@@ -71,7 +71,7 @@ enum XmlType {
 			throw ("Xml parse error #"+x["status"]);
 
 		var r = convert(x);
-		untyped r.nodeType = Xml.Document;
+		r.nodeType = Xml.Document;
 		return r;
 	}
 
@@ -79,26 +79,24 @@ enum XmlType {
 		var o = untyped __new__(_global["XML"])["createElement"]( "#document" );
 
 		var r = convert(o);
-		untyped r.nodeType = Xml.Document;
+		r.nodeType = Xml.Document;
 		return r;
 	}
 
 	public static function createCData( data : String ) : Xml {
 		var o = untyped __new__(_global["XML"])["createTextNode"]( data );
 		var x = convert(o);
-		untyped x.nodeType = Xml.CData;
+		x.nodeType = Xml.CData;
 		return x;
 	}
 
 	public static function createPCData( data : String ) : Xml {
 		var o = untyped __new__(_global["XML"])["createTextNode"]( data );
-
 		return convert(o);
 	}
 
 	public static function createElement( name : String ) : Xml {
 		var o = untyped __new__(_global["XML"])["createElement"]( name );
-
 		return convert(o);
 	}
 
@@ -108,13 +106,17 @@ enum XmlType {
 	}
 
 	public static function createDocType( data : String ) : Xml {
-		throw "not implemented";
-		return null;
+		var x = createPCData("");
+		x.nodeType = Xml.DocType;
+		x.nodeValue = data;
+		return x;
 	}
 
 	public static function createProlog( data : String ) : Xml {
-		throw "not implemented";
-		return null;
+		var x = createPCData("");
+		x.nodeType = Xml.Prolog;
+		x.nodeValue = data;
+		return x;
 	}
 
 	private function new() : Void {
@@ -290,6 +292,10 @@ enum XmlType {
 		// only works for toplevel elements
 		if( nodeType == Xml.CData )
 			return "<![CDATA["+__x[untyped "nodeValue"]+"]]>";
+		if( nodeType == Xml.Prolog )
+			return "<?"+__x[untyped "nodeValue"]+"?>";
+		if( nodeType == Xml.DocType )
+			return "<!DOCTYPE "+__x[untyped "nodeValue"]+">";
 		var s : String = __x.toString();
 		return s.split(" />").join("/>");
 	}
