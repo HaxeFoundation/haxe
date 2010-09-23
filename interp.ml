@@ -51,6 +51,7 @@ and vabstract =
 	| AReg of regexp
 	| AZipI of zlib
 	| AZipD of zlib
+	| AUtf8 of UTF8.Buf.buf
 
 and vfunction =
 	| Fun0 of (unit -> value)
@@ -423,14 +424,7 @@ let builtins =
 		);
 		"iskind", Fun2 (fun v k ->
 			match v, k with
-			| VAbstract a, VAbstract (AKind k) ->
-				VBool (match a, k with
-				| AKind _, AKind _ -> true
-				| AInt32 _, AInt32 _ -> true
-				| AHash _, AHash _ -> true
-				| ARandom _, ARandom _ -> true
-				| ABuffer _, ABuffer _ -> true
-				| _ -> false)
+			| VAbstract a, VAbstract (AKind k) -> VBool (Obj.tag (Obj.repr a) = Obj.tag (Obj.repr k))
 			| _ -> error()
 		);
 	(* hash *)
@@ -554,6 +548,7 @@ let builtins =
 (* STD LIBRARY *)
 
 let std_lib =
+	let p = { psource = "<stdlib>"; pline = 0 } in
 	let error() =
 		raise Builtin_error
 	in
@@ -1113,7 +1108,59 @@ let std_lib =
 			VInt (Unix.getpid())
 		);
 	(* utf8 *)
-		(* TODO *)
+		"utf8_buf_alloc", Fun1 (fun v ->
+			VAbstract (AUtf8 (UTF8.Buf.create (vint v)))
+		);
+		"utf8_buf_add", Fun2 (fun b c ->
+			match b with
+			| VAbstract (AUtf8 buf) -> UTF8.Buf.add_char buf (UChar.chr_of_uint (vint c)); VNull
+			| _ -> error()
+		);
+		"utf8_buf_content", Fun1 (fun b ->
+			match b with
+			| VAbstract (AUtf8 buf) -> VString (UTF8.Buf.contents buf);
+			| _ -> error()
+		);
+		"utf8_buf_length", Fun1 (fun b ->
+			match b with
+			| VAbstract (AUtf8 buf) -> VInt (UTF8.length (UTF8.Buf.contents buf));
+			| _ -> error()
+		);
+		"utf8_buf_size", Fun1 (fun b ->
+			match b with
+			| VAbstract (AUtf8 buf) -> VInt (String.length (UTF8.Buf.contents buf));
+			| _ -> error()
+		);
+		"utf8_validate", Fun1 (fun s ->
+			VBool (try UTF8.validate (vstring s); true with UTF8.Malformed_code -> false)
+		);
+		"utf8_length", Fun1 (fun s ->
+			VInt (UTF8.length (vstring s))
+		);
+		"utf8_sub", Fun3 (fun s p l ->
+			let buf = UTF8.Buf.create 0 in
+			let pos = ref (-1) in
+			let p = vint p and l = vint l in
+			UTF8.iter (fun c ->
+				incr pos;
+				if !pos >= p && !pos < p + l then UTF8.Buf.add_char buf c;
+			) (vstring s);
+			if !pos < p + l then error();
+			VString (UTF8.Buf.contents buf)
+		);
+		"utf8_get", Fun2 (fun s p ->
+			VInt (UChar.uint_code (try UTF8.look (vstring s) (vint p) with _ -> error()))
+		);
+		"utf8_iter", Fun2 (fun s f ->
+			let ctx = get_ctx() in
+			UTF8.iter (fun c ->
+				ignore(ctx.do_call VNull f [VInt (UChar.uint_code c)] p);
+			) (vstring s);
+			VNull;
+		);
+		"utf8_compare", Fun2 (fun s1 s2 ->
+			VInt (UTF8.compare (vstring s1) (vstring s2))
+		);
 	(* xml *)
 		"parse_xml", Fun2 (fun str o ->
 			match str, o with
