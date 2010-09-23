@@ -177,7 +177,7 @@ and tenum = {
 	e_doc : Ast.documentation;
 	e_meta : metadata;
 	e_private : bool;
-	e_extern : bool;
+	mutable e_extern : bool;
 	mutable e_types : (string * t) list;
 	mutable e_constrs : (string , tenum_field) PMap.t;
 	mutable e_names : string list;

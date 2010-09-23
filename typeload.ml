@@ -1002,7 +1002,7 @@ let type_module ctx m tdecls loadp =
 				e_meta = type_meta ctx d.d_meta;
 				e_types = [];
 				e_private = priv;
-				e_extern = List.mem EExtern d.d_flags || d.d_data = [];
+				e_extern = List.mem EExtern d.d_flags;
 				e_constrs = PMap.empty;
 				e_names = [];
 			} in
@@ -1152,6 +1152,7 @@ let type_module ctx m tdecls loadp =
 				names := c :: !names;
 			) (d.d_data @ extra);
 			e.e_names <- List.rev !names;
+			e.e_extern <- e.e_extern || e.e_names = [];
 		| ETypedef d ->
 			let t = get_tdef d.d_name in
 			ctx.type_params <- t.t_types;
