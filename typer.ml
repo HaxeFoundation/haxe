@@ -25,7 +25,7 @@ open Typecore
 (* TOOLS *)
 
 type switch_mode =
-	| CMatch of (tenum_field * (string option * t) list option)
+	| CMatch of (tenum_field * (string option * t) list option * pos)
 	| CExpr of texpr
 
 type access_mode =
@@ -66,7 +66,7 @@ let check_locals_masking ctx e =
 	) in
 	match path with
 	| Some ([],name) | Some (name::_,_) when PMap.mem name ctx.locals ->
-		error ("Local variable " ^ name ^ " is preventing usage of this type here") e.epos;
+		error ("Local variable '" ^ name ^ "' is preventing usage of this type here") e.epos;
 	| _ -> ()
 
 let check_assign ctx e =
@@ -489,49 +489,6 @@ let type_ident ctx i is_type p mode =
 			raise (Error (Unknown_ident i,p))
 		end
 
-let type_matching ctx (enum,params) (e,p) ecases first_case =
-	let invalid() = raise (Error (Invalid_enum_matching,p)) in
-	let needs n = error ("This constructor needs " ^ string_of_int n ^ " parameters") p in
-	let constr name =
-		if PMap.mem name (!ecases) then error "This constructor has already been used" p;
-		ecases := PMap.add name () (!ecases);
-		try
-			PMap.find name enum.e_constrs
-		with
-			Not_found -> error ("This constructor is not part of the enum " ^ s_type_path enum.e_path) p
-	in
-	match e with
-	| EConst (Ident name) | EConst (Type name) ->
-		let c = constr name in
-		(match c.ef_type with
-			| TFun (l,_) -> needs (List.length l)
-			| TEnum _ -> ()
-			| _ -> assert false
-		);
-		(c,None)
-	| ECall ((EConst (Ident name),_),el)
-	| ECall ((EConst (Type name),_),el) ->
-		let c = constr name in
-		let args = (match c.ef_type with
-			| TFun (l,_) ->
-				if List.length l <> List.length el then needs (List.length l);
-				List.map (fun (_,_,t) -> apply_params enum.e_types params t) l
-			| TEnum _ -> error "This constructor does not take any parameter" p
-			| _ -> assert false
-		) in
-		let idents = List.map2 (fun (e,_) t ->
-			match e with
-			| EConst (Ident "_") ->
-				None , t
-			| EConst (Ident name) | EConst (Type name) ->
-				let name = (if first_case then add_local ctx name t else try PMap.find name ctx.locals_map with Not_found -> name) in
-				Some name , t
-			| _ -> invalid()
-		) el args in
-		(c,Some idents)
-	| _ ->
-		invalid()
-
 let rec type_field ctx e i p mode =
 	let no_field() =
 		if not ctx.untyped then display_error ctx (s_type (print_context()) e.etype ^ " has no field " ^ i) p;
@@ -910,38 +867,95 @@ and type_unop ctx op flag e p =
 
 and type_switch ctx e cases def need_val p =
 	let e = type_expr ctx e in
-	let t = ref (if need_val then mk_mono() else ctx.t.tvoid) in
-	let rec lookup_enum l =
-		match l with
-		| [] -> None
-		| (ECall ((EConst (Type name),p),_),_) :: l
-		| (ECall ((EConst (Ident name),p),_),_) :: l
-		| (EConst (Ident name),p) :: l
-		| (EConst (Type name),p) :: l ->
-			(try
-				let e = acc_get ctx (type_ident ctx name false p MGet) p in
-				(match e.eexpr with
-				| TEnumField (e,_) -> Some (e, List.map (fun _ -> mk_mono()) e.e_types)
-				| _ -> None)
-			with
-				Error (Unknown_ident _,_) -> lookup_enum l)
-		| _ ->
-			None
+	let old = ctx.local_types in
+	let enum = ref None in
+	let used_cases = Hashtbl.create 0 in
+	(match follow e.etype with
+	| TEnum ({ e_path = [],"Bool" },_)
+	| TEnum ({ e_path = ["flash"],_ ; e_extern = true },_) -> ()
+	| TEnum (e,params) -> 
+		enum := Some (Some (e,params));
+		ctx.local_types <- TEnumDecl e :: ctx.local_types
+	| TMono _ ->
+		enum := Some None;
+	| t -> 
+		if t == t_dynamic then enum := Some None
+	);
+	let case_expr c =
+		enum := None;
+		(* this inversion is needed *)
+		unify ctx e.etype c.etype c.epos;		
+		CExpr c
 	in
-	let enum = ref (match follow e.etype with
-		| TEnum ({ e_path = [],"Bool" },_)
-		| TEnum ({ e_path = ["flash"],_ ; e_extern = true },_) ->
+	let type_match e en s pl =
+		let p = e.epos in
+		let params = (match !enum with
+			| None ->
+				assert false
+			| Some None ->
+				let params = List.map (fun _ -> mk_mono()) en.e_types in
+				enum := Some (Some (en,params));
+				params
+			| Some (Some (en2,params)) ->
+				if en != en2 then error ("This constructor is part of enum " ^ s_type_path en.e_path ^ " but is matched with enum " ^ s_type_path en2.e_path) p;
+				params
+		) in
+		if Hashtbl.mem used_cases s then error "This constructor has already been used" p;
+		Hashtbl.add used_cases s ();
+		let cst = (try PMap.find s en.e_constrs with Not_found -> assert false) in
+		let pl = (match cst.ef_type with
+		| TFun (l,_) ->
+			let pl = (if List.length l = List.length pl then pl else
+				match pl with
+				| [None] -> List.map (fun _ -> None) l
+				| _ -> error ("This constructor requires " ^ string_of_int (List.length l) ^ " arguments") p
+			) in
+			Some (List.map2 (fun p (_,_,t) -> p, apply_params en.e_types params t) pl l)
+		| TEnum _ ->
+			if pl <> [] then error "This constructor does not require any argument" p;
 			None
-		| TEnum (e,params) -> Some (e,params)
-		| TMono r ->
-			(match lookup_enum (List.concat (List.map fst cases)) with
-			| None -> None
-			| Some (en,params) as k ->
-				r := Some (TEnum (en,params));
-				k)
-		| _ -> None
-	) in
-	let unify_val e =
+		| _ -> assert false
+		) in
+		CMatch (cst,pl,p)
+	in
+	let type_case e pl p =
+		try
+			(match !enum, e with
+			| None, _ -> raise Exit
+			| Some (Some (en,params)), (EConst (Ident i | Type i),p) ->
+				if not (PMap.mem i en.e_constrs) then error ("This constructor is not part of the enum " ^ s_type_path en.e_path) p;
+			| _ -> ());
+			let pl = List.map (fun e ->
+				match fst e with
+				| EConst (Ident "_") -> None
+				| EConst (Ident i | Type i) -> Some i
+				| _ -> raise Exit
+			) pl in
+			let e = type_expr ctx e in
+			(match e.eexpr with
+			| TEnumField (en,s) -> type_match e en s pl
+			| _ -> if pl = [] then case_expr e else raise Exit)
+		with Exit ->
+			let e = (if pl = [] then e else (ECall (e,pl),p)) in
+			case_expr (type_expr ctx e)
+	in
+	let cases = List.map (fun (el,e2) ->
+		if el = [] then error "Case must match at least one expression" (pos e2);
+		let el = List.map (fun e ->
+			match e with
+			| (ECall (c,pl),p) -> type_case c pl p
+			| e -> type_case e [] (snd e)
+		) el in
+		el, e2
+	) cases in
+	ctx.local_types <- old;
+	let t = ref (mk_mono()) in
+	let type_case_code e =
+		let e = (match e with
+			| (EBlock [],p) when need_val -> (EConst (Ident "null"),p)
+			| _ -> e
+		) in
+		let e = type_expr ~need_val ctx e in
 		if need_val then begin
 			try
 				(match e.eexpr with
@@ -956,102 +970,54 @@ and type_switch ctx e cases def need_val p =
 				(* will display the error *)
 				unify ctx e.etype (!t) e.epos;
 		end;
+		e
 	in
-	let first = ref true in
-	let ecases = ref PMap.empty in
-	let type_case e e1 =
-		let e1 = type_expr ctx e1 in
-		(* this inversion is needed *)
-		unify ctx e.etype e1.etype e1.epos;
-		CExpr e1
-	in
-	let cases = List.map (fun (el,e2) ->
-		let locals = save_locals ctx in
-		let first_case = ref true in
-		let el = List.map (fun e1 ->
-			let v = (match !enum with
-			| Some en ->
-				(try
-					CMatch (type_matching ctx en e1 ecases !first_case)
-				with
-					Error (Invalid_enum_matching,_) when !first ->
-						enum := None;
-						type_case e e1)
-			| None ->
-				type_case e e1
-			) in
-			first_case := false;
-			first := false;
-			v
-		) el in
-		if el = [] then error "Case must match at least one expression" (pos e2);
-		let e2 = (match fst e2 with
-			| EBlock [] -> mk (TConst TNull) ctx.t.tvoid (pos e2)
-			| _ -> type_expr ctx ~need_val e2
-		) in
-		locals();
-		unify_val e2;
-		(el,e2)
-	) cases in
 	let def = (match def with
-		| None ->
-		(match !enum with
-			| None -> ()
-			| Some (e,_) ->
-				let l = PMap.fold (fun c acc ->
-					if PMap.mem c.ef_name (!ecases) then acc else c.ef_name :: acc
-				) e.e_constrs [] in
-				match l with
-				| [] -> ()
-				| _ -> display_error ctx ("Some constructors are not matched : " ^ String.concat "," l) p
-			);
-			if need_val then Some (null (mk_mono()) p) else None
+		| None -> None
 		| Some e ->
-			let e = type_expr ctx ~need_val e in
-			unify_val e;
+			let locals = save_locals ctx in
+			let e = type_case_code e in
+			locals();
 			Some e
 	) in
-	let same_params p1 p2 =
-		let l1 = (match p1 with None -> [] | Some l -> l) in
-		let l2 = (match p2 with None -> [] | Some l -> l) in
-		let rec loop = function
-			| [] , [] -> true
-			| (n,_) :: l , [] | [] , (n,_) :: l -> n = None && loop (l,[])
-			| (n1,t1) :: l1, (n2,t2) :: l2 ->
-				n1 = n2 && (n1 = None || type_iseq t1 t2) && loop (l1,l2)
-		in
-		loop (l1,l2)
-	in
-	let t = !t in
 	match !enum with
-	| None ->
-		let consts = Hashtbl.create 0 in
-		let exprs (el,e) =
-			List.map (fun c ->
-				match c with
-				| CExpr (({ eexpr = TConst c }) as e) ->
-					if Hashtbl.mem consts c then error "Duplicate constant in switch" e.epos;
-					Hashtbl.add consts c true;
-					e
-				| CExpr c -> c
-				| _ -> assert false
-			) el , e
-		in
-		mk (TSwitch (e,List.map exprs cases,def)) t p
-	| Some (en,enparams) ->
+	| Some (Some (enum,enparams)) ->
+		let same_params p1 p2 =
+			let l1 = (match p1 with None -> [] | Some l -> l) in
+			let l2 = (match p2 with None -> [] | Some l -> l) in
+			let rec loop = function
+				| [] , [] -> true
+				| (n,_) :: l , [] | [] , (n,_) :: l -> n = None && loop (l,[])
+				| (n1,t1) :: l1, (n2,t2) :: l2 ->
+					n1 = n2 && (n1 = None || type_iseq t1 t2) && loop (l1,l2)
+			in
+			loop (l1,l2)
+		in		
 		let matchs (el,e) =
 			match el with
-			| CMatch (c,params) :: l ->
+			| CMatch (c,params,p1) :: l ->
 				let params = ref params in
 				let cl = List.map (fun c ->
 					match c with
-					| CMatch (c,p) ->
-						if not (same_params p !params) then display_error ctx "Constructors parameters differs : should be same name, same type, and same position" e.epos;
+					| CMatch (c,p,p2) ->
+						if not (same_params p !params) then display_error ctx "Constructors parameters differs : should be same name, same type, and same position" p2;
 						if p <> None then params := p;
 						c
 					| _ -> assert false
 				) l in
-				(c :: cl) , !params, e
+				let locals = save_locals ctx in
+				let params = (match !params with
+					| None -> None
+					| Some l ->
+						Some (List.map (fun (p,t) ->
+							match p with
+							| None -> None, t
+							| Some v -> Some (add_local ctx v t), t
+						) l)
+				) in
+				let e = type_case_code e in
+				locals();
+				(c :: cl) , params, e
 			| _ ->
 				assert false
 		in
@@ -1059,7 +1025,36 @@ and type_switch ctx e cases def need_val p =
 			List.map (fun c -> c.ef_index) el, vars, e
 		in
 		let cases = List.map matchs cases in
-		mk (TMatch (e,(en,enparams),List.map indexes cases,def)) t p
+		(match def with
+		| Some _ -> ()
+		| None ->
+			let l = PMap.fold (fun c acc ->
+				if Hashtbl.mem used_cases c.ef_name then acc else c.ef_name :: acc
+			) enum.e_constrs [] in
+			match l with
+			| [] -> ()
+			| _ -> display_error ctx ("Some constructors are not matched : " ^ String.concat "," l) p
+		);
+		mk (TMatch (e,(enum,enparams),List.map indexes cases,def)) (!t) p
+	| _ ->
+		let consts = Hashtbl.create 0 in
+		let exprs (el,e) =
+			let el = List.map (fun c ->
+				match c with
+				| CExpr (({ eexpr = TConst c }) as e) ->
+					if Hashtbl.mem consts c then error "Duplicate constant in switch" e.epos;
+					Hashtbl.add consts c true;
+					e
+				| CExpr c -> c
+				| CMatch (_,_,p) -> error "You cannot use a normal switch on an enum constructor" p
+			) el in
+			let locals = save_locals ctx in
+			let e = type_case_code e in
+			locals();
+			el, e
+		in
+		let cases = List.map exprs cases in
+		mk (TSwitch (e,cases,def)) (!t) p
 
 and type_access ctx e p mode =
 	match e with
