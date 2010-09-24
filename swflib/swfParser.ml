@@ -1969,6 +1969,7 @@ let rec write_tag_data ch = function
 		) sl;
 	| TBinaryData (id,data) ->
 		write_ui16 ch id;
+		write_i32 ch 0;
 		nwrite ch data
 	| TFontName c ->
 		write_cid_data ch c
