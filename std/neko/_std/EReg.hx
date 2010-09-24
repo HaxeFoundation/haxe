@@ -118,9 +118,9 @@
 					if( p == null ){
 						b.add("$");
 						b.add(k);
-					}else{
-					b.addSub(s,p.pos,p.len);
-					b.addSub(k,1,k.length - 1);
+					} else {
+						if( p.pos >= 0 ) b.addSub(s,p.pos,p.len);
+						b.addSub(k,1,k.length - 1);
 					}
 				} else if( c == null ) {
 					b.add("$");
