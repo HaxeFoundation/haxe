@@ -190,12 +190,18 @@ let new_timer name =
 
 let curtime = ref []
 
+let close t =
+	let dt = get_time() -. t.start in
+	t.total <- t.total +. dt;
+	curtime := List.tl !curtime;
+	List.iter (fun ct -> ct.start <- ct.start +. dt) !curtime
+
 let timer name =
 	let t = new_timer name in
 	curtime := t :: !curtime;
-	(function() ->
-		let dt = get_time() -. t.start in
-		t.total <- t.total +. dt;
-		curtime := List.tl !curtime;
-		List.iter (fun ct -> ct.start <- ct.start +. dt) !curtime
-	)
+	(function() -> close t)
+
+let rec close_time() =
+	match !curtime with
+	| [] -> ()
+	| t :: _ -> close t	

@@ -24,6 +24,7 @@ let version = 206
 
 let prompt = ref false
 let measure_times = ref false
+let start = get_time()
 
 let executable_path() =
 	Extc.executable_path()
@@ -410,6 +411,7 @@ try
 				let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
 				let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
 				Common.display := true;
+				Common.define com "display";
 				Parser.resume_display := {
 					Ast.pfile = String.lowercase (Common.get_full_path file);
 					Ast.pmin = pos;
@@ -603,12 +605,24 @@ with
 		let ctx = Type.print_context() in
 		(match Type.follow t with
 		| Type.TAnon a ->
-			report_list (PMap.fold (fun f acc ->
+			let fields = PMap.fold (fun f acc ->
 				if not f.Type.cf_public then
 					acc
 				else
 					(f.Type.cf_name,Type.s_type ctx f.Type.cf_type,match f.Type.cf_doc with None -> "" | Some d -> d) :: acc
-			) a.Type.a_fields []);
+			) a.Type.a_fields [] in
+			let fields = if !measure_times then begin
+				close_time();
+				let tot = ref 0. in
+				Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
+				let fields = ("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. start), "") :: fields in
+				Hashtbl.fold (fun _ t acc ->
+					("@TIME " ^ t.name, Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot), "") :: acc
+				) Common.htimers fields;
+			end else
+				fields
+			in
+			report_list fields;
 		| _ ->
 			prerr_endline "<type>";
 			prerr_endline (htmlescape (Type.s_type ctx t));
