@@ -866,25 +866,25 @@ and type_unop ctx op flag e p =
 			]) t p
 
 and type_switch ctx e cases def need_val p =
-	let e = type_expr ctx e in
+	let eval = type_expr ctx e in
 	let old = ctx.local_types in
 	let enum = ref None in
 	let used_cases = Hashtbl.create 0 in
-	(match follow e.etype with
+	(match follow eval.etype with
 	| TEnum ({ e_path = [],"Bool" },_)
 	| TEnum ({ e_path = ["flash"],_ ; e_extern = true },_) -> ()
-	| TEnum (e,params) -> 
+	| TEnum (e,params) ->
 		enum := Some (Some (e,params));
 		ctx.local_types <- TEnumDecl e :: ctx.local_types
 	| TMono _ ->
 		enum := Some None;
-	| t -> 
+	| t ->
 		if t == t_dynamic then enum := Some None
 	);
 	let case_expr c =
 		enum := None;
 		(* this inversion is needed *)
-		unify ctx e.etype c.etype c.epos;		
+		unify ctx eval.etype c.etype c.epos;
 		CExpr c
 	in
 	let type_match e en s pl =
@@ -895,6 +895,7 @@ and type_switch ctx e cases def need_val p =
 			| Some None ->
 				let params = List.map (fun _ -> mk_mono()) en.e_types in
 				enum := Some (Some (en,params));
+				unify ctx eval.etype (TEnum (en,params)) p;
 				params
 			| Some (Some (en2,params)) ->
 				if en != en2 then error ("This constructor is part of enum " ^ s_type_path en.e_path ^ " but is matched with enum " ^ s_type_path en2.e_path) p;
@@ -992,7 +993,7 @@ and type_switch ctx e cases def need_val p =
 					n1 = n2 && (n1 = None || type_iseq t1 t2) && loop (l1,l2)
 			in
 			loop (l1,l2)
-		in		
+		in
 		let matchs (el,e) =
 			match el with
 			| CMatch (c,params,p1) :: l ->
@@ -1035,7 +1036,7 @@ and type_switch ctx e cases def need_val p =
 			| [] -> ()
 			| _ -> display_error ctx ("Some constructors are not matched : " ^ String.concat "," l) p
 		);
-		mk (TMatch (e,(enum,enparams),List.map indexes cases,def)) (!t) p
+		mk (TMatch (eval,(enum,enparams),List.map indexes cases,def)) (!t) p
 	| _ ->
 		let consts = Hashtbl.create 0 in
 		let exprs (el,e) =
@@ -1054,7 +1055,7 @@ and type_switch ctx e cases def need_val p =
 			el, e
 		in
 		let cases = List.map exprs cases in
-		mk (TSwitch (e,cases,def)) (!t) p
+		mk (TSwitch (eval,cases,def)) (!t) p
 
 and type_access ctx e p mode =
 	match e with
@@ -1626,7 +1627,7 @@ and type_call ctx e el p =
 			| TTypeExpr (TClassDecl c) ->
 				(match ctx.g.do_macro ctx c.cl_path f.cf_name el p with
 				| None -> type_expr ctx (EConst (Ident "null"),p)
-				| Some e -> type_expr ctx e)				
+				| Some e -> type_expr ctx e)
 			| _ -> assert false)
 		| acc ->
 			let e = acc_get ctx acc p in
@@ -1814,7 +1815,7 @@ let type_macro ctx cpath f el p =
 		| None ->
 			let com2 = Common.clone ctx.com in
 			com2.package_rules <- PMap.empty;
-			com2.main_class <- None;			
+			com2.main_class <- None;
 			List.iter (fun p -> com2.defines <- PMap.remove (platform_name p) com2.defines) platforms;
 			com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
 			com2.class_path <- List.map (fun p -> p ^ "neko" ^ "/_std/") com2.std_path @ com2.class_path;
