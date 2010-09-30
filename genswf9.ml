@@ -1472,6 +1472,12 @@ and gen_unop ctx retval op flag e =
 			write ctx (HOp op);
 			setvar ctx acc_write (if retval then Some k else None)
 
+and check_binop ctx e1 e2 =
+	let invalid = (match classify ctx e1.etype, classify ctx e2.etype with
+	| KInt, KUInt | KUInt, KInt -> (match e1.eexpr, e2.eexpr with TConst (TInt i) , _ | _ , TConst (TInt i) -> i < 0l | _ -> true)
+	| _ -> false) in
+	if invalid then error "Comparison of Int and UInt might lead to unexpected results" (punion e1.epos e2.epos);
+
 and gen_binop ctx retval op e1 e2 t =
 	let write_op op =
 		let iop = (match op with
@@ -1508,13 +1514,8 @@ and gen_binop ctx retval op e1 e2 t =
 			write ctx (HOp op);
 			if op = A3OMod && classify ctx e1.etype = KInt && classify ctx e2.etype = KInt then coerce ctx (classify ctx t);
 	in
-	let invalid_comparison() =
-		match classify ctx e1.etype, classify ctx e2.etype with
-		| KInt, KUInt | KUInt, KInt -> (match e1.eexpr, e2.eexpr with TConst (TInt i) , _ | _ , TConst (TInt i) -> i < 0l | _ -> true)
-		| _ -> false
-	in
 	let gen_op o =
-		if invalid_comparison() then error "Comparison of Int and UInt might lead to unexpected results" (punion e1.epos e2.epos);
+		check_binop ctx e1 e2;
 		gen_expr ctx true e1;
 		gen_expr ctx true e2;
 		write ctx (HOp o)
@@ -1614,6 +1615,7 @@ and jump_expr_gen ctx e jif jfun =
 	| TParenthesis e -> jump_expr_gen ctx e jif jfun
 	| TBinop (op,e1,e2) ->
 		let j t f =
+			check_binop ctx e1 e2;
 			gen_expr ctx true e1;
 			gen_expr ctx true e2;
 			jfun (if jif then t else f)
