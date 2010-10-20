@@ -10,6 +10,7 @@
 	neko : Std.parseFloat now returns NaN with invalid string
 	php: fixed Array.push must return the current length (issue 219)
 	php: fixed EReg.replace (issue 194)
+	php: FileSystem.readDirectory now skips '.' and '..' to be consistent with neko (issue 226)
 
 2010-08-14: 2.06
 	neko : change serializer to be able to handle instances of basic classes from other modules
