@@ -81,9 +81,10 @@
 	}
 
 	public function replace( s : String, by : String ) : String {
+		by = untyped __call__("str_replace", "\\$", "\\\\$", by);
 		by = untyped __call__("str_replace", "$$", "\\$", by);
 		untyped __php__("if(!preg_match('/\\\\([^?].+?\\\\)/', $this->re)) $by = preg_replace('/\\$(\\d+)/', '\\\\\\$\\1', $by)");
-		return untyped __php__("preg_replace")(re, by, s, global ? -1 : 1);
+		return untyped __call__("preg_replace", re, by, s, global ? -1 : 1);
 	}
 
 	public function customReplace( s : String, f : EReg -> String ) : String {
