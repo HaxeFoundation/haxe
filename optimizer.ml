@@ -234,10 +234,13 @@ let optimize_for_loop ctx i e1 e2 p =
 			| TBlock el -> mk (TBlock (init :: el)) t_void e2.epos
 			| _ -> mk (TBlock [init;e2]) t_void p
 		in
+		(*
+			force locals to be of Int type (to prevent Int/UInt issues)
+		*)
 		(match max with
 		| None ->
 			lblock [
-				mk (TVars [tmp,i1.etype,Some i1]) t_void p;
+				mk (TVars [tmp,t_int,Some i1]) t_void p;
 				mk (TWhile (
 					mk (TBinop (OpLt, etmp, i2)) ctx.t.tbool p,
 					block,
@@ -246,9 +249,9 @@ let optimize_for_loop ctx i e1 e2 p =
 			]
 		| Some max ->
 			lblock [
-				mk (TVars [tmp,i1.etype,Some i1;max,i2.etype,Some i2]) t_void p;
+				mk (TVars [tmp,t_int,Some i1;max,t_int,Some i2]) t_void p;
 				mk (TWhile (
-					mk (TBinop (OpLt, etmp, mk (TLocal max) i2.etype p)) ctx.t.tbool p,
+					mk (TBinop (OpLt, etmp, mk (TLocal max) t_int p)) ctx.t.tbool p,
 					block,
 					NormalWhile
 				)) t_void p;
@@ -441,7 +444,7 @@ let rec reduce_loop ctx is_sub e =
 			(match inl with
 			| None -> e
 			| Some e -> e)
-		| _ -> 
+		| _ ->
 			e)
 	| TParenthesis ({ eexpr = TConst _ } as ec) | TBlock [{ eexpr = TConst _ } as ec] ->
 		{ ec with epos = e.epos }
@@ -470,7 +473,7 @@ let reduce_expression ctx e =
 	correspond to the natural operand priority order for the platform
 *)
 
-let rec sanitize e =	
+let rec sanitize e =
 	match e.eexpr with
 	| TBinop (op,e1,e2) ->
 		let parent e = mk (TParenthesis e) e.etype e.epos in
