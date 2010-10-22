@@ -55,11 +55,15 @@ class Context {
 		Return the current classpath
 	**/
 	public static function getClassPath() : Array<String> {
+		#if neko
 		var c : neko.NativeArray<neko.NativeString> = load("class_path",0)();
 		var a = new Array();
 		for( i in 0...neko.NativeArray.length(c) )
 			a.push(Std.string(c[i]));
 		return a;
+		#else
+		return load("getClassPath", 0)();
+		#end
 	}
 
 	/**
