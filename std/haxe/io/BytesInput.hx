@@ -78,7 +78,8 @@ class BytesInput extends Input {
 				throw Error.OutsideBounds;
 		#end
 		#if flash9
-			if( len > b.bytesAvailable && b.bytesAvailable > 0 ) len = b.bytesAvailable;
+			var avail : Int = b.bytesAvailable;
+			if( len > avail && avail > 0 ) len = avail;
 			try b.readBytes(buf.getData(),pos,len) catch( e : Dynamic ) throw new Eof();
 		#else
 			if( this.len == 0 && len > 0 )
