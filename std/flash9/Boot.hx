@@ -108,7 +108,7 @@ class Boot extends flash.display.MovieClip, implements Dynamic {
 	public static function __clear_trace() {
 		if( tf == null )
 			return;
-		flash.Lib.current.removeChild(tf);
+		tf.parent.removeChild(tf);
 		tf = null;
 		lines = new Array();
 	}
@@ -118,7 +118,7 @@ class Boot extends flash.display.MovieClip, implements Dynamic {
 	}
 
 	public static function getTrace() {
-		var mc = flash.Lib.current;
+		var mc = flash.Lib.current.stage;
 		if( tf == null ) {
 			tf = new flash.text.TextField();
 			var format = tf.getTextFormat();
