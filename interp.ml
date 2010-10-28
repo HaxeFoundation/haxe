@@ -1225,7 +1225,7 @@ let reg_lib =
 						| 'r' -> Buffer.add_char buf '\r'
 						| 't' -> Buffer.add_char buf '\t'
 						| '\\' -> Buffer.add_string buf "\\\\"
-						| '(' -> Buffer.add_char buf c
+						| '(' | ')' -> Buffer.add_char buf c
 						| '1'..'9' | '+' | '$' | '^' | '*' | '?' | '.' | '[' | ']' ->
 							Buffer.add_char buf '\\';
 							Buffer.add_char buf c;
