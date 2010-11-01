@@ -18,6 +18,7 @@
  *)
 open Nast
 open Unix
+open Type
 
 (* ---------------------------------------------------------------------- *)
 (* TYPES *)
@@ -81,6 +82,11 @@ type cmp =
 
 type locals = (string, value ref) PMap.t
 
+type extern_api = {
+	pos : Ast.pos;
+	get_type : string -> Type.t option;
+}
+
 type context = {
 	com : Common.context;
 	gen : Genneko.context;
@@ -98,7 +104,7 @@ type context = {
 	mutable exc : pos list;
 	mutable vthis : value;
 	(* context *)
-	mutable curpos : Ast.pos;
+	mutable curapi : extern_api;
 	mutable delayed : (unit -> value) DynArray.t;
 }
 
@@ -121,7 +127,9 @@ exception Return of value
 (* UTILS *)
 
 let get_ctx_ref = ref (fun() -> assert false)
+let encode_type_ref = ref (fun t -> assert false)
 let get_ctx() = (!get_ctx_ref)()
+let encode_type (t:Type.t) : value = (!encode_type_ref) t
 
 let to_int f = int_of_float (mod_float f 2147483648.0)
 
@@ -1367,7 +1375,7 @@ let macro_lib =
 		raise Builtin_error
 	in
 	make_library [
-		"curpos", Fun0 (fun() -> VAbstract (APos (get_ctx()).curpos));
+		"curpos", Fun0 (fun() -> VAbstract (APos (get_ctx()).curapi.pos));
 		"error", Fun2 (fun msg p ->
 			match msg, p with
 			| VString s, VAbstract (APos p) -> (get_ctx()).com.Common.error s p; raise Abort
@@ -1391,6 +1399,14 @@ let macro_lib =
 			match s with
 			| VString s -> VBool (Common.defined (get_ctx()).com s)
 			| _ -> error();
+		);
+		"get_type", Fun1 (fun s ->
+			match s with
+			| VString s ->
+				(match (get_ctx()).curapi.get_type s with
+				| None -> failwith ("Type not found '" ^ s ^ "'")
+				| Some t -> encode_type t)
+			| _ -> error()
 		);
 	]
 
@@ -1942,7 +1958,7 @@ let alloc_delayed ctx f =
 	DynArray.add ctx.delayed f;
 	pos
 
-let create com =
+let create com api =
 	let ctx = {
 		com = com;
 		gen = Genneko.new_context com true;
@@ -1961,7 +1977,7 @@ let create com =
 		do_loadprim = Obj.magic();
 		do_compare = Obj.magic();
 		(* context *)
-		curpos = Ast.null_pos;
+		curapi = api;
 		delayed = DynArray.create();
 	} in
 	ctx.do_call <- call ctx;
@@ -2007,13 +2023,13 @@ let get_path ctx path p =
 let set_error ctx e =
 	ctx.error <- e
 
-let call_path ctx path f vl p =
+let call_path ctx path f vl api =
 	if ctx.error then
 		None
-	else let old = ctx.curpos in
-	ctx.curpos <- p;
-	let p = Genneko.pos ctx.gen p in
-	catch_errors ctx ~final:(fun() -> ctx.curpos <- old) (fun() ->
+	else let old = ctx.curapi in
+	ctx.curapi <- api;
+	let p = Genneko.pos ctx.gen api.pos in
+	catch_errors ctx ~final:(fun() -> ctx.curapi <- old) (fun() ->
 		match get_path ctx path p with
 		| VObject o ->
 			let f = get_field o f in
@@ -2038,8 +2054,9 @@ type enum_index =
 	| IUnop
 	| IConst
 	| ITParam
-	| IType
+	| ICType
 	| IField
+	| IType
 
 let enum_name = function
 	| IExpr -> "ExprDef"
@@ -2047,11 +2064,12 @@ let enum_name = function
 	| IUnop -> "Unop"
 	| IConst -> "Constant"
 	| ITParam -> "TypeParam"
-	| IType -> "ComplexType"
+	| ICType -> "ComplexType"
 	| IField -> "FieldType"
+	| IType -> "Type"
 
 let init ctx =
-	let enums = [IExpr;IBinop;IUnop;IConst;ITParam;IType;IField] in
+	let enums = [IExpr;IBinop;IUnop;IConst;ITParam;ICType;IField;IType] in
 	let get_enum_proto e =
 		match get_path ctx ["haxe";"macro";enum_name e;"__constructs__"] null_pos with
 		| VObject cst ->
@@ -2104,6 +2122,11 @@ let enc_string s =
 	enc_inst ["String"] [
 		"__s", VString s;
 		"length", VInt (String.length s)
+	]
+
+let enc_hash h =
+	enc_inst ["Hash"] [
+		"h", VAbstract (AHash h);
 	]
 
 let enc_obj l = VObject (obj l)
@@ -2209,7 +2232,7 @@ and encode_type t =
 	| CTExtend (t,fields) ->
 		4, [encode_path t; enc_array (List.map encode_field fields)]
 	in
-	enc_enum IType tag pl
+	enc_enum ICType tag pl
 
 let encode_expr e =
 	let rec loop (e,p) =
@@ -2308,6 +2331,126 @@ let encode_expr e =
 		]
 	in
 	loop e
+
+(* ---------------------------------------------------------------------- *)
+(* TYPE ENCODING *)
+
+let encode_ref v convert tostr =
+	enc_obj [
+		"get", VFunction (Fun0 (fun() -> convert v));
+		"__string", VFunction (Fun0 (fun() -> VString (tostr())));
+		"toString", VFunction (Fun0 (fun() -> enc_string (tostr())));
+	]
+
+let encode_pmap convert m =
+	let h = Hashtbl.create 0 in
+	PMap.iter (fun k v -> Hashtbl.add h (VString k) (convert v)) m;
+	enc_hash h
+
+let rec encode_tenum e =
+	enc_obj [
+		"pack", enc_array (List.map enc_string (fst e.e_path));
+		"name", enc_string (snd e.e_path);
+		"pos", encode_pos e.e_pos;
+		"isPrivate", VBool e.e_private;
+		"isExtern", VBool e.e_extern;
+		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) e.e_types);
+		"contructs", encode_pmap encode_efield e.e_constrs;
+		"names", enc_array (List.map enc_string e.e_names);
+	]
+
+and encode_efield f =
+	enc_obj [
+		"name", enc_string f.ef_name;
+		"type", encode_type f.ef_type;
+		"pos", encode_pos f.ef_pos;
+		"index", VInt f.ef_index;
+	]
+
+and encode_cfield f =
+	enc_obj [
+		"name", enc_string f.cf_name;
+		"type", encode_type f.cf_type;
+		"isPublic", VBool f.cf_public;
+		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) f.cf_params);
+	]
+
+and encode_tclass c =
+	enc_obj [
+		"pack", enc_array (List.map enc_string (fst c.cl_path));
+		"name", enc_string (snd c.cl_path);
+		"pos", encode_pos c.cl_pos;
+		"isPrivate", VBool c.cl_private;
+		"isExtern", VBool c.cl_extern;
+		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) c.cl_types);
+		"isInterface", VBool c.cl_interface;
+		"superClass", (match c.cl_super with
+			| None -> VNull
+			| Some (c,pl) -> enc_obj ["t",encode_clref c;"params",encode_tparams pl]
+		);
+		"interfaces", enc_array (List.map (fun (c,pl) -> enc_obj ["t",encode_clref c;"params",encode_tparams pl]) c.cl_implements);
+		"fields", encode_ref c.cl_fields (encode_pmap encode_cfield) (fun() -> "class fields");
+		"statics", encode_ref c.cl_statics (encode_pmap encode_cfield) (fun() -> "class fields");
+		"constructor", (match c.cl_constructor with None -> VNull | Some c -> encode_ref c encode_cfield (fun() -> "constructor"));
+	]
+
+and encode_ttype t =
+	enc_obj [
+		"pack", enc_array (List.map enc_string (fst t.t_path));
+		"name", enc_string (snd t.t_path);
+		"pos", encode_pos t.t_pos;
+		"isPrivate", VBool t.t_private;
+		"isExtern", VBool false;
+		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) t.t_types);
+		"type", encode_type t.t_type;
+	]
+
+and encode_tanon a =
+	enc_obj [
+		"fields", encode_pmap encode_cfield a.a_fields;
+	]
+
+and encode_tparams pl =
+	enc_array (List.map encode_type pl)
+
+and encode_clref c =
+	encode_ref c encode_tclass (fun() -> s_type_path c.cl_path)
+
+and encode_type t =
+	let rec loop = function
+		| TMono r ->
+			(match !r with
+			| None -> 0, []
+			| Some t -> loop t)
+		| TEnum (e, pl) ->
+			1 , [encode_ref e encode_tenum (fun() -> s_type_path e.e_path); encode_tparams pl]
+		| TInst (c, pl) ->
+			2 , [encode_clref c; encode_tparams pl]
+		| TType (t,pl) ->
+			3 , [encode_ref t encode_ttype (fun() -> s_type_path t.t_path); encode_tparams pl]
+		| TFun (pl,ret) ->
+			let pl = List.map (fun (n,o,t) ->
+				enc_obj [
+					"name",enc_string n;
+					"opt",VBool o;
+					"t",encode_type t
+				]
+			) pl in
+			4 , [enc_array pl; encode_type ret]
+		| TAnon a ->
+			5, [encode_ref a encode_tanon (fun() -> "<anonymous>")]
+		| TDynamic tsub as t ->
+			if t == t_dynamic then
+				6, [VNull]
+			else
+				6, [encode_type tsub]
+		| TLazy f ->
+			loop ((!f)())
+	in
+	let tag, pl = loop t in
+	enc_enum IType tag pl
+
+;;encode_type_ref := encode_type;;
 
 (* ---------------------------------------------------------------------- *)
 (* EXPR DECODING *)

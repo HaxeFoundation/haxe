@@ -62,7 +62,7 @@ class Context {
 			a.push(Std.string(c[i]));
 		return a;
 		#else
-		return load("getClassPath", 0)();
+		return load("class_path", 0)();
 		#end
 	}
 
@@ -79,7 +79,14 @@ class Context {
 	public static function defined( s : String ) : Bool {
 		return load("defined", 1)(untyped s.__s);
 	}
-	
+
+	/**
+		Resolve a type from its name.
+	**/
+	public static function getType( name : String ) : Type {
+		return load("get_type", 1)(untyped name.__s);
+	}
+
 	static function load( f, nargs ) : Dynamic {
 		#if macro
 		return neko.Lib.load("macro", f, nargs);

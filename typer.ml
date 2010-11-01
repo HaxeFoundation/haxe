@@ -1806,8 +1806,21 @@ let generate ctx main excludes =
 (* ---------------------------------------------------------------------- *)
 (* MACROS *)
 
+let make_macro_api ctx p =
+	{
+		Interp.pos = p;
+		Interp.get_type = (fun s ->
+			let path = parse_path s in
+			try
+				Some (Typeload.load_instance ctx { tpackage = fst path; tname = snd path; tparams = []; tsub = None } p true)
+			with Error (Module_not_found _,p2) when p == p2 ->
+				None
+		);
+	}
+
 let type_macro ctx cpath f el p =
 	let t = Common.timer "macro execution" in
+	let api = make_macro_api ctx p in
 	let ctx2 = (match ctx.g.macros with
 		| Some (select,ctx) ->
 			select();
@@ -1822,7 +1835,7 @@ let type_macro ctx cpath f el p =
 			Common.define com2 "macro";
 			Common.init_platform com2 Neko;
 			let ctx2 = ctx.g.do_create com2 in
-			let mctx = Interp.create com2 in
+			let mctx = Interp.create com2 api in
 			let on_error = com2.error in
 			com2.error <- (fun e p -> Interp.set_error mctx true; on_error e p);
 			let macro = ((fun() -> Interp.select mctx), ctx2) in
@@ -1830,6 +1843,7 @@ let type_macro ctx cpath f el p =
 			ctx2.g.macros <- Some macro;
 			(* ctx2.g.core_api <- ctx.g.core_api; // causes some issues because of optional args and Null type in Flash9 *)
 			ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Expr") p);
+			ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Type") p);
 			finalize ctx2;
 			let types, _ = generate ctx2 None [] in
 			Interp.add_types mctx types;
@@ -1866,7 +1880,7 @@ let type_macro ctx cpath f el p =
 	| None -> ());
 	let call() =
 		let el = List.map Interp.encode_expr el in
-		match Interp.call_path mctx ((fst cpath) @ [snd cpath]) f (if nargs = None then [Interp.enc_array el] else el) p with
+		match Interp.call_path mctx ((fst cpath) @ [snd cpath]) f (if nargs = None then [Interp.enc_array el] else el) api with
 		| None -> None
 		| Some v -> Some (try Interp.decode_expr v with Interp.Invalid_expr -> error "The macro didn't return a valid expression" p)
 	in

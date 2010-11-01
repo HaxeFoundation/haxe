@@ -548,7 +548,7 @@ try
 		(match com.platform with
 		| Cross ->
 			if !interp then begin
-				let ctx = Interp.create com in
+				let ctx = Interp.create com (Typer.make_macro_api ctx Ast.null_pos) in
 				Interp.add_types ctx com.types;
 			end;
 		| Flash | Flash9 when !gen_as3 ->
