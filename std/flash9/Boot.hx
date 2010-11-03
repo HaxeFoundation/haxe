@@ -87,15 +87,15 @@ class Boot extends flash.display.MovieClip, implements Dynamic {
 			init();
 			#else
 			if( c.stage == null )
-				this.addEventListener(flash.events.Event.ADDED_TO_STAGE, doInitDelay);
+				c.addEventListener(flash.events.Event.ADDED_TO_STAGE, doInitDelay);
 			else
 				init();
 			#end
 		}
 	}
-	
+
 	function doInitDelay(_) {
-		this.removeEventListener(flash.events.Event.ADDED_TO_STAGE, doInitDelay);
+		flash.Lib.current.removeEventListener(flash.events.Event.ADDED_TO_STAGE, doInitDelay);
 		init();
 	}
 
