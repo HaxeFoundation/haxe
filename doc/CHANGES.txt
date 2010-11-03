@@ -12,6 +12,7 @@
 	php: fixed EReg.replace (issue 194)
 	php: FileSystem.readDirectory now skips '.' and '..' to be consistent with neko (issue 226)
 	flash9 : add trace text on stage (always over current and subclips)
+	flash9 : delay SWF initialization until it's added on stage (disable with -D dontWaitStage)
 
 2010-08-14: 2.06
 	neko : change serializer to be able to handle instances of basic classes from other modules

@@ -76,14 +76,27 @@ class Boot extends flash.display.MovieClip, implements Dynamic {
 		lines = new Array();
 		var c = if( mc == null ) this else mc;
 		flash.Lib.current = c;
-		try {
-			untyped if( c.stage != null && c.stage.align == "" )
-				c.stage.align = "TOP_LEFT";
-		} catch( e : Dynamic ) {
-			// security error when loading from different domain
-		}
-		if( init != null )
+		if( init != null ) {
+			try {
+				untyped if( c.stage != null && c.stage.align == "" )
+					c.stage.align = "TOP_LEFT";
+			} catch( e : Dynamic ) {
+				// security error when loading from different domain
+			}
+			#if dontWaitStage
 			init();
+			#else
+			if( c.stage == null )
+				this.addEventListener(flash.events.Event.ADDED_TO_STAGE, doInitDelay);
+			else
+				init();
+			#end
+		}
+	}
+	
+	function doInitDelay(_) {
+		this.removeEventListener(flash.events.Event.ADDED_TO_STAGE, doInitDelay);
+		init();
 	}
 
 	public static function enum_to_string( e : { tag : String, params : Array<Dynamic> } ) {
@@ -118,7 +131,7 @@ class Boot extends flash.display.MovieClip, implements Dynamic {
 	}
 
 	public static function getTrace() {
-		var mc = flash.Lib.current.stage;
+		var mc = flash.Lib.current;
 		if( tf == null ) {
 			tf = new flash.text.TextField();
 			var format = tf.getTextFormat();
@@ -129,7 +142,10 @@ class Boot extends flash.display.MovieClip, implements Dynamic {
 			tf.autoSize = flash.text.TextFieldAutoSize.LEFT;
 			tf.mouseEnabled = false;
 		}
-		mc.addChild(tf); // on top
+		if( mc.stage == null )
+			mc.addChild(tf);
+		else
+			mc.stage.addChild(tf); // on top
 		return tf;
 	}
 
