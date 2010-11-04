@@ -30,11 +30,12 @@ import haxe.macro.Expr;
 **/
 class Context {
 
+#if neko
 	/**
 		Display a compilation error at the given position in code
 	**/
-	public static function error( msg : String, pos : Position ) {
-		load("error",2)(untyped msg.__s, pos);
+	public static function error( msg : String, pos : Position ) : Dynamic {
+		return load("error",2)(untyped msg.__s, pos);
 	}
 
 	/**
@@ -55,15 +56,11 @@ class Context {
 		Return the current classpath
 	**/
 	public static function getClassPath() : Array<String> {
-		#if neko
 		var c : neko.NativeArray<neko.NativeString> = load("class_path",0)();
 		var a = new Array();
 		for( i in 0...neko.NativeArray.length(c) )
 			a.push(Std.string(c[i]));
 		return a;
-		#else
-		return load("class_path", 0)();
-		#end
 	}
 
 	/**
@@ -94,5 +91,7 @@ class Context {
 		return Reflect.makeVarArgs(function(_) throw "Can't be called outside of macro");
 		#end
 	}
+
+#end
 
 }

@@ -75,6 +75,7 @@ import haxe.io.Output;
 import haxe.io.StringInput;
 
 import haxe.macro.Expr;
+import haxe.macro.Type;
 #if neko
 import haxe.macro.Context;
 #end
