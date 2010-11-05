@@ -53,6 +53,7 @@ and vabstract =
 	| AZipI of zlib
 	| AZipD of zlib
 	| AUtf8 of UTF8.Buf.buf
+	| ASocket of Unix.file_descr
 
 and vfunction =
 	| Fun0 of (unit -> value)
@@ -596,6 +597,11 @@ let std_lib =
 		| VString s -> s
 		| _ -> error()
 	in
+	let int32_addr h = 
+		let base = Int32.to_int (Int32.logand h 0xFFFFFFl) in
+		let str = Printf.sprintf "%ld.%d.%d.%d" (Int32.shift_right_logical h 24) (base lsr 16) ((base lsr 8) land 0xFF) (base land 0xFF) in
+		Unix.inet_addr_of_string str
+	in
 	let int32_op op = Fun2 (fun a b -> make_i32 (op (int32 a) (int32 b))) in
 	make_library [
 	(* math *)
@@ -988,7 +994,122 @@ let std_lib =
 	(* serialize *)
 		(* TODO *)
 	(* socket *)
-		(* TODO *)
+		"socket_init", Fun0 (fun() -> VNull);
+		"socket_new", Fun1 (fun v ->
+			match v with
+			| VBool b -> VAbstract (ASocket (Unix.socket PF_INET (if b then SOCK_DGRAM else SOCK_STREAM) 0));
+			| _ -> error()
+		);
+		"socket_close", Fun1 (fun s ->
+			match s with
+			| VAbstract (ASocket s) -> Unix.close s; VNull
+			| _ -> error()
+		);
+		"socket_send_char", Fun2 (fun s c ->
+			match s, c with
+			| VAbstract (ASocket s), VInt c when c >= 0 && c <= 255 ->
+				ignore(Unix.send s (String.make 1 (char_of_int c)) 0 1 []);
+				VNull
+			| _ -> error()
+		);
+		"socket_send", Fun4 (fun s buf pos len ->
+			match s, buf, pos, len with
+			| VAbstract (ASocket s), VString buf, VInt pos, VInt len -> VInt (Unix.send s buf pos len [])
+			| _ -> error()
+		);
+		"socket_recv", Fun4 (fun s buf pos len ->
+			match s, buf, pos, len with
+			| VAbstract (ASocket s), VString buf, VInt pos, VInt len -> VInt (Unix.recv s buf pos len [])
+			| _ -> error()
+		);
+		"socket_recv_char", Fun1 (fun s ->
+			match s with
+			| VAbstract (ASocket s) -> 
+				let buf = String.make 1 '\000' in
+				ignore(Unix.recv s buf 0 1 []);	
+				VInt (int_of_char (String.unsafe_get buf 0))
+			| _ -> error()
+		);
+		"socket_write", Fun2 (fun s str ->
+			match s, str with
+			| VAbstract (ASocket s), VString str -> 
+				let pos = ref 0 in
+				let len = ref (String.length str) in
+				while !len > 0 do
+					let k = Unix.send s str (!pos) (!len) [] in
+					pos := !pos + k;
+					len := !len - k;
+				done;
+				VNull
+			| _ -> error()
+		);
+		"socket_read", Fun1 (fun s ->
+			match s with
+			| VAbstract (ASocket s) -> 
+				let tmp = String.make 1024 '\000' in
+				let buf = Buffer.create 0 in
+				let rec loop() =
+					let k = (try Unix.recv s tmp 0 1024 [] with Unix_error _ -> 0) in
+					if k > 0 then begin
+						Buffer.add_substring buf tmp 0 k;
+						loop();
+					end
+				in
+				loop();
+				VString (Buffer.contents buf)
+			| _ -> error()
+		);
+		"host_resolve", Fun1 (fun s ->
+			let h = (try Unix.gethostbyname (vstring s) with Not_found -> error()) in
+			let addr = Unix.string_of_inet_addr h.h_addr_list.(0) in
+			let a, b, c, d = Scanf.sscanf addr "%d.%d.%d.%d" (fun a b c d -> a,b,c,d) in
+			VAbstract (AInt32 (Int32.logor (Int32.shift_left (Int32.of_int a) 24) (Int32.of_int (d lor (c lsl 8) lor (b lsl 16)))))
+		);
+		"host_to_string", Fun1 (fun h ->
+			match h with
+			| VAbstract (AInt32 h) -> VString (Unix.string_of_inet_addr (int32_addr h));
+			| _ -> error()
+		);
+		"host_reverse", Fun1 (fun h ->
+			match h with
+			| VAbstract (AInt32 h) -> VString (gethostbyaddr (int32_addr h)).h_name
+			| _ -> error()
+		);
+		"host_local", Fun0 (fun() ->
+			VString (Unix.gethostname())
+		);
+		"socket_connect", Fun3 (fun s h p ->
+			match s, h, p with
+			| VAbstract (ASocket s), VAbstract (AInt32 h), VInt p ->
+				Unix.connect s (ADDR_INET (int32_addr h,p));
+				VNull
+			| _ -> error()
+		);
+		"socket_listen", Fun2 (fun s l ->
+			match s, l with
+			| VAbstract (ASocket s), VInt l ->
+				Unix.listen s l;
+				VNull
+			| _ -> error()
+		);
+		"socket_set_timeout", Fun2 (fun s t ->
+			match s with
+			| VAbstract (ASocket s) ->
+				let t = (match t with VNull -> 0. | VInt t -> float_of_int t | VFloat f -> f | _ -> error()) in
+				Unix.setsockopt_float s SO_RCVTIMEO t;
+				Unix.setsockopt_float s SO_SNDTIMEO t;
+				VNull
+			| _ -> error()
+		);
+		"socket_shutdown", Fun3 (fun s r w ->
+			match s, r, w with
+			| VAbstract (ASocket s), VBool r, VBool w ->				
+				Unix.shutdown s (match r, w with true, true -> SHUTDOWN_ALL | true, false -> SHUTDOWN_RECEIVE | false, true -> SHUTDOWN_SEND | _ -> error());
+				VNull
+			| _ -> error()
+		);
+		(* TODO : select, bind, accept, peer, host *)
+		(* poll_alloc, poll : not planned *)
 	(* system *)
 		"get_env", Fun1 (fun v ->
 			try VString (Unix.getenv (vstring v)) with _ -> VNull
@@ -1222,6 +1343,7 @@ let reg_lib =
 			match str, opt with
 			| VString str, VString opt ->
 				List.iter (function
+					| 'm' -> () (* always ON ? *)
 					| c -> failwith ("Unsupported regexp option '" ^ String.make 1 c ^ "'")
 				) (ExtString.String.explode opt);
 				let buf = Buffer.create 0 in
