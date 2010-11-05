@@ -751,7 +751,11 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 		| TExport el when !nframe = 0 && com.flash_version >= 9 ->
 			let el = List.filter (fun e ->
 				let path = parse_path e.exp_name in
-				List.exists (fun t -> t_path t = path) com.types
+				let b = List.exists (fun t -> t_path t = path) com.types in
+				if not b && fst path = [] then List.iter (fun t -> 
+					if snd (t_path t) = snd path then error ("Linkage name '" ^ snd path ^ "' in '" ^ file ^  "' should be '" ^ s_type_path (t_path t) ^"'") (t_pos t);
+				) com.types;
+				b
 			) el in
 			classes := !classes @ List.map (fun e -> { f9_cid = Some e.exp_id; f9_classname = e.exp_name }) el;
 			false
