@@ -93,6 +93,7 @@ type push_style =
 	| VReg of int
 	| VThis
 	| VNull
+	| VUndefined
 	| VSuper
 
 let stack_delta = function
@@ -242,6 +243,8 @@ let push ctx items =
 			PReg 1
 		| VNull ->
 			PNull
+		| VUndefined ->
+			PUndefined
 		| VSuper ->
 			PReg 2
 		| VReg n ->
@@ -884,6 +887,8 @@ and gen_call ctx e el =
 		write ctx AEval
 	| TLocal "__gettimer__", [] ->
 		write ctx AGetTimer
+	| TLocal "__undefined__", [] ->
+		push ctx [VUndefined]		
 	| TLocal "__geturl__" , url :: target :: post ->
 		gen_expr ctx true url;
 		gen_expr ctx true target;

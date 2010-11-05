@@ -16,6 +16,7 @@
 	         (this can be disabled with -D dontWaitStage)
 	all : added haxe.Timer.measure
 	all : added Lambda.indexOf and Lambda.concat
+	js, flash8: changed behavior when explicitely using 'null' for optional param with default value
 
 2010-08-14: 2.06
 	neko : change serializer to be able to handle instances of basic classes from other modules

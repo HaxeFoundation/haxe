@@ -1015,7 +1015,12 @@ let rec is_volatile t =
 
 let set_default ctx a c t p =
 	let ve = mk (TLocal a) t p in
-	mk (TIf (mk (TBinop (OpEq,ve,mk (TConst TNull) t p)) ctx.basic.tbool p, mk (TBinop (OpAssign,ve,mk (TConst c) t p)) t p,None)) ctx.basic.tvoid p
+	let cond =  match ctx.platform with
+		| Js -> TCall (mk (TLocal "__js__") t_dynamic p,[mk (TConst (TString (a ^ "=== undefined"))) ctx.basic.tstring p])
+		| Flash -> TCall (mk (TLocal "__physeq__") t_dynamic p,[ve;mk (TCall (mk (TLocal "__undefined__") t_dynamic p,[])) t_dynamic p])
+		| _ -> TBinop (OpEq,ve,mk (TConst TNull) t p)
+	in
+	mk (TIf (mk cond ctx.basic.tbool p, mk (TBinop (OpAssign,ve,mk (TConst c) t p)) t p,None)) ctx.basic.tvoid p
 
 let bytes_serialize data =
 	let b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:" in
