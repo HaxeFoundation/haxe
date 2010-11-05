@@ -76,27 +76,33 @@ class Boot extends flash.display.MovieClip, implements Dynamic {
 		lines = new Array();
 		var c = if( mc == null ) this else mc;
 		flash.Lib.current = c;
-		if( init != null ) {
-			try {
-				untyped if( c.stage != null && c.stage.align == "" )
-					c.stage.align = "TOP_LEFT";
-			} catch( e : Dynamic ) {
-				// security error when loading from different domain
-			}
-			#if dontWaitStage
+		if( init != null )
+			start();
+	}
+
+	function start() {
+		var c = flash.Lib.current;
+		try {
+			untyped if( c.stage != null && c.stage.align == "" )
+				c.stage.align = "TOP_LEFT";
+		} catch( e : Dynamic ) {
+			// security error when loading from different domain
+		}
+		#if (dontWaitStage || swc)
 			init();
-			#else
+		#else
 			if( c.stage == null )
 				c.addEventListener(flash.events.Event.ADDED_TO_STAGE, doInitDelay);
+			else if( c.stage.stageWidth == 0 )
+				untyped __global__["flash.utils.setTimeout"](start,1);
 			else
 				init();
-			#end
-		}
+		#end
 	}
 
 	function doInitDelay(_) {
 		flash.Lib.current.removeEventListener(flash.events.Event.ADDED_TO_STAGE, doInitDelay);
-		init();
+		start();
 	}
 
 	public static function enum_to_string( e : { tag : String, params : Array<Dynamic> } ) {
