@@ -1538,6 +1538,46 @@ let macro_lib =
 			| VString s, VAbstract (APos p) -> encode_expr ((get_ctx()).curapi.parse_string s p)
 			| _ -> error()
 		);
+		"signature", Fun1 (fun v ->
+			let cache = ref [] in
+			let rec loop v = 
+				match v with
+				| VNull | VBool _ | VInt _ | VFloat _ | VString _ | VAbstract _ -> v
+				| _ ->
+					try
+						List.assq v !cache
+					with Not_found ->
+				match v with
+				| VObject o ->
+					let o2 = { ofields = Hashtbl.create 0; oproto = None } in
+					let v2 = VObject o2 in
+					cache := (v,v2) :: !cache;
+					Hashtbl.iter (fun k v -> Hashtbl.add o2.ofields k (loop v)) o.ofields;
+					(match o.oproto with
+					| None -> ()
+					| Some p -> (match loop (VObject p) with VObject p2 -> o2.oproto <- Some p2 | _ -> assert false));
+					v2
+				| VArray a ->
+					let a2 = Array.create (Array.length a) VNull in
+					let v2 = VArray a2 in
+					cache := (v,v2) :: !cache;
+					for i = 0 to Array.length a - 1 do
+						a2.(i) <- loop a.(i);
+					done;
+					v2
+				| VFunction f ->
+					let v2 = VFunction (Obj.magic (List.length !cache)) in
+					cache := (v,v2) :: !cache;
+					v2
+				| VClosure (vl,f) ->
+					let v2 = VClosure (List.map loop vl, Obj.magic (List.length !cache)) in
+					cache := (v,v2) :: !cache;
+					v2
+				| _ -> assert false
+			in
+			let v = loop v in
+			VString (Digest.to_hex (Digest.string (Marshal.to_string v [Marshal.Closures])))
+		);
 	]
 
 (* ---------------------------------------------------------------------- *)

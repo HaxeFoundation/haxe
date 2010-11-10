@@ -91,6 +91,13 @@ class Context {
 		return load("parse", 2)(untyped expr.__s, pos);
 	}
 
+	/**
+		Quickly build an hashed MD5 signature for any given value
+	**/
+	public static function signature( v : Dynamic ) : String {
+		return new String(load("signature", 1)(v));
+	}
+	
 	static function load( f, nargs ) : Dynamic {
 		#if macro
 		return neko.Lib.load("macro", f, nargs);
