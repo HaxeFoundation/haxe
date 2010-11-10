@@ -84,6 +84,13 @@ class Context {
 		return load("get_type", 1)(untyped name.__s);
 	}
 
+	/**
+		Parse an expression.
+	**/
+	public static function parse( expr : String, pos : Position ) : Expr {
+		return load("parse", 2)(untyped expr.__s, pos);
+	}
+
 	static function load( f, nargs ) : Dynamic {
 		#if macro
 		return neko.Lib.load("macro", f, nargs);

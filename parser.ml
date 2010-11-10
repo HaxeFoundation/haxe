@@ -681,13 +681,12 @@ and toplevel_expr s =
 	with
 		Display e -> e
 
-let parse ctx code file =
+let parse ctx code =
 	let old = Lexer.save() in
 	let old_cache = !cache in
 	let mstack = ref [] in
 	cache := DynArray.create();
 	doc := None;
-	Lexer.init file;
 	Lexer.skip_header code;
 	let rec next_token() = process_token (Lexer.token code)
 

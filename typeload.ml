@@ -1186,7 +1186,8 @@ let parse_module ctx m p =
 	let file = Common.find_file ctx.com file in
 	let ch = (try open_in_bin file with _ -> error ("Could not open " ^ file) p) in
 	let t = Common.timer "parsing" in
-	let pack , decls = (try Parser.parse ctx.com (Lexing.from_channel ch) file with e -> close_in ch; t(); raise e) in
+	Lexer.init file;
+	let pack , decls = (try Parser.parse ctx.com (Lexing.from_channel ch) with e -> close_in ch; t(); raise e) in
 	t();
 	close_in ch;
 	if ctx.com.verbose then print_endline ("Parsed " ^ file);

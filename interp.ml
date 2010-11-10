@@ -86,6 +86,7 @@ type locals = (string, value ref) PMap.t
 type extern_api = {
 	pos : Ast.pos;
 	get_type : string -> Type.t option;
+	parse_string : string -> Ast.pos -> Ast.expr;
 }
 
 type context = {
@@ -129,8 +130,10 @@ exception Return of value
 
 let get_ctx_ref = ref (fun() -> assert false)
 let encode_type_ref = ref (fun t -> assert false)
+let encode_expr_ref = ref (fun e -> assert false)
 let get_ctx() = (!get_ctx_ref)()
 let encode_type (t:Type.t) : value = (!encode_type_ref) t
+let encode_expr (e:Ast.expr) : value = (!encode_expr_ref) e
 
 let to_int f = int_of_float (mod_float f 2147483648.0)
 
@@ -1530,6 +1533,11 @@ let macro_lib =
 				| Some t -> encode_type t)
 			| _ -> error()
 		);
+		"parse", Fun2 (fun s p ->
+			match s, p with
+			| VString s, VAbstract (APos p) -> encode_expr ((get_ctx()).curapi.parse_string s p)
+			| _ -> error()
+		);
 	]
 
 (* ---------------------------------------------------------------------- *)
@@ -2791,3 +2799,4 @@ let decode_expr v =
 	in
 	loop v
 
+;;encode_expr_ref := encode_expr;;

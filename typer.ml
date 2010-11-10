@@ -1816,6 +1816,24 @@ let make_macro_api ctx p =
 			with Error (Module_not_found _,p2) when p == p2 ->
 				None
 		);
+		Interp.parse_string = (fun s p ->
+			let head = "class X{static function main(){" in
+			let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
+			let s = head ^ s ^ "; }}" in
+			let old = Lexer.save() in
+			Lexer.init p.pfile;
+			let _, decls = try 
+				Parser.parse ctx.com (Lexing.from_string s)
+			with Parser.Error (e,_) ->
+				failwith (Parser.error_msg e)
+			| Lexer.Error (e,_) ->
+				failwith (Lexer.error_msg e)
+			in
+			Lexer.restore old;
+			match decls with
+			| [EClass { d_data = [FFun ("main",_,_,_,_,{ f_expr = e}),_] },_] -> e
+			| _ -> assert false
+		);
 	}
 
 let type_macro ctx cpath f el p =
