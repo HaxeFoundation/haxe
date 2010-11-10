@@ -768,7 +768,7 @@ let gen_access ctx e (forset : 'a) : 'a access =
 		let id, k, closure = property ctx f e1.etype in
 		if closure && not ctx.for_call then error "In Flash9, this method cannot be accessed this way : please define a local function" e1.epos;
 		(match e1.eexpr with
-		| TConst TThis when not ctx.in_static -> 
+		| TConst TThis when not ctx.in_static ->
 			use_var ctx f e.epos;
 			write ctx (HFindProp id)
 		| _ -> gen_expr ctx true e1);
@@ -1825,7 +1825,7 @@ let generate_class ctx c =
 					try
 						let f = PMap.find f.cf_name c.cl_fields in
 						if List.mem f.cf_name c.cl_overrides then raise Not_found;
-						f.cf_meta()
+						f.cf_meta
 					with Not_found ->
 						find_meta c
 			in
@@ -1833,7 +1833,7 @@ let generate_class ctx c =
 				| [] -> ident f.cf_name
 				| x :: l ->
 					match x with
-					| (":ns",[{ eexpr = TConst (TString ns) }]) -> HMName (f.cf_name,HNNamespace ns)
+					| (":ns",[Ast.EConst (Ast.String ns),_]) -> HMName (f.cf_name,HNNamespace ns)
 					| (":protected",[]) ->
 						let p = (match c.cl_path with [], n -> n | p, n -> String.concat "." p ^ ":" ^ n) in
 						has_protected := Some p;

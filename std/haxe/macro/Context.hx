@@ -98,6 +98,13 @@ class Context {
 		return new String(load("signature", 1)(v));
 	}
 	
+	/**
+		Evaluate the type a given expression would have in the context of the current macro call.
+	**/
+	public static function eval( e : Expr ) : Type {
+		return load("eval", 1)(e);
+	}
+	
 	static function load( f, nargs ) : Dynamic {
 		#if macro
 		return neko.Lib.load("macro", f, nargs);

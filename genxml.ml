@@ -52,10 +52,10 @@ let gen_arg_name (name,opt,_) =
 let cpath c =
 	let rec loop = function
 		| [] -> c.cl_path
-		| (":real",[{ eexpr = TConst (TString s) }]) :: _ -> parse_path s
+		| (":real",[(Ast.EConst (Ast.String s),_)]) :: _ -> parse_path s
 		| _ :: l -> loop l
 	in
-	loop (c.cl_meta())
+	loop c.cl_meta
 
 let rec follow_param t =
 	match t with

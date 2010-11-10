@@ -110,7 +110,7 @@ and texpr_expr =
 	| TBreak
 	| TContinue
 	| TThrow of texpr
-	| TCast of texpr * module_type option	
+	| TCast of texpr * module_type option
 
 and texpr = {
 	eexpr : texpr_expr;
@@ -123,7 +123,7 @@ and tclass_field = {
 	mutable cf_type : t;
 	cf_public : bool;
 	mutable cf_doc : Ast.documentation;
-	cf_meta : metadata;
+	mutable cf_meta : metadata;
 	cf_kind : field_kind;
 	cf_params : (string * t) list;
 	mutable cf_expr : texpr option;
@@ -137,7 +137,7 @@ and tclass_kind =
 	| KGeneric
 	| KGenericInstance of tclass * tparams
 
-and metadata = unit -> (string * texpr list) list
+and metadata = (string * Ast.expr list) list
 
 and tclass = {
 	mutable cl_path : path;
@@ -167,16 +167,16 @@ and tenum_field = {
 	ef_type : t;
 	ef_pos : Ast.pos;
 	ef_doc : Ast.documentation;
-	ef_meta : metadata;
 	ef_index : int;
+	mutable ef_meta : metadata;
 }
 
 and tenum = {
 	e_path : path;
 	e_pos : Ast.pos;
 	e_doc : Ast.documentation;
-	e_meta : metadata;
 	e_private : bool;
+	mutable e_meta : metadata;
 	mutable e_extern : bool;
 	mutable e_types : (string * t) list;
 	mutable e_constrs : (string , tenum_field) PMap.t;
@@ -187,8 +187,8 @@ and tdef = {
 	t_path : path;
 	t_pos : Ast.pos;
 	t_doc : Ast.documentation;
-	t_meta : metadata;
 	t_private : bool;
+	mutable t_meta : metadata;
 	mutable t_types : (string * t) list;
 	mutable t_type : t;
 }
@@ -225,7 +225,7 @@ let mk_class path pos =
 		cl_path = path;
 		cl_pos = pos;
 		cl_doc = None;
-		cl_meta = (fun() -> []);
+		cl_meta = [];
 		cl_private = false;
 		cl_kind = KNormal;
 		cl_extern = false;
@@ -244,7 +244,7 @@ let mk_class path pos =
 		cl_overrides = [];
 	}
 
-let null_class = 
+let null_class =
 	let c = mk_class ([],"") Ast.null_pos in
 	c.cl_private <- true;
 	c
@@ -528,8 +528,8 @@ let invalid_visibility n = Invalid_visibility n
 let has_no_field t n = Has_no_field (t,n)
 let has_extra_field t n = Has_extra_field (t,n)
 let error l = raise (Unify_error l)
-let has_meta m ml = List.mem (m,[]) (ml())
-let no_meta() = []
+let has_meta m ml = List.exists (fun (m2,_) -> m = m2) ml
+let no_meta = []
 
 (*
 	we can restrict access as soon as both are runtime-compatible
@@ -552,7 +552,7 @@ let unify_kind k1 k2 =
 			| AccNormal, _, MethNormal -> true
 			| AccNormal, AccNormal, MethDynamic -> true
 			| _ -> false)
-		| Method m, Var v -> 
+		| Method m, Var v ->
 			(match m with
 			| MethDynamic -> direct_access v.v_read && direct_access v.v_write
 			| MethMacro -> false
@@ -590,7 +590,7 @@ let rec type_eq param a b =
 		| Some t -> type_eq param a t)
 	| TType (t1,tl1), TType (t2,tl2) when (t1 == t2 || (param = EqCoreType && t1.t_path = t2.t_path)) && List.length tl1 = List.length tl2 ->
 		List.iter2 (type_eq param) tl1 tl2
-	| TType (t,tl) , _ when param <> EqCoreType ->		
+	| TType (t,tl) , _ when param <> EqCoreType ->
 		type_eq param (apply_params t.t_types tl t.t_type) b
 	| _ , TType (t,tl) when param <> EqCoreType ->
 		if List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!eq_stack) then

@@ -50,6 +50,23 @@ let concat e1 e2 =
 	) in
 	mk e e2.etype (punion e1.epos e2.epos)
 
+let type_constant com c p =
+	let t = com.basic in
+	match c with
+	| Int s ->
+		if String.length s > 10 && String.sub s 0 2 = "0x" then error "Invalid hexadecimal integer" p;
+		(try
+			mk (TConst (TInt (Int32.of_string s))) t.tint p
+		with
+			_ -> mk (TConst (TFloat s)) t.tfloat p)
+	| Float f -> mk (TConst (TFloat f)) t.tfloat p
+	| String s -> mk (TConst (TString s)) t.tstring p
+	| Ident "true" -> mk (TConst (TBool true)) t.tbool p
+	| Ident "false" -> mk (TConst (TBool false)) t.tbool p
+	| Ident "null" -> mk (TConst TNull) (t.tnull (mk_mono())) p
+	| Ident t | Type t -> error ("Invalid constant :  " ^ t) p
+	| Regexp _ -> error "Invalid constant" p
+
 (* -------------------------------------------------------------------------- *)
 (* REMOTING PROXYS *)
 
@@ -265,22 +282,35 @@ let build_metadata com t =
 	let api = com.basic in
 	let p, meta, fields, statics = (match t with
 		| TClassDecl c ->
-			let fields = List.map (fun f -> f.cf_name,f.cf_meta()) (c.cl_ordered_fields @ (match c.cl_constructor with None -> [] | Some f -> [{ f with cf_name = "_" }])) in
-			let statics =  List.map (fun f -> f.cf_name,f.cf_meta()) c.cl_ordered_statics in
-			(c.cl_pos, ["",c.cl_meta()],fields,statics)
+			let fields = List.map (fun f -> f.cf_name,f.cf_meta) (c.cl_ordered_fields @ (match c.cl_constructor with None -> [] | Some f -> [{ f with cf_name = "_" }])) in
+			let statics =  List.map (fun f -> f.cf_name,f.cf_meta) c.cl_ordered_statics in
+			(c.cl_pos, ["",c.cl_meta],fields,statics)
 		| TEnumDecl e ->
-			(e.e_pos, ["",e.e_meta()],List.map (fun n -> n, (PMap.find n e.e_constrs).ef_meta()) e.e_names, [])
+			(e.e_pos, ["",e.e_meta],List.map (fun n -> n, (PMap.find n e.e_constrs).ef_meta) e.e_names, [])
 		| TTypeDecl t ->
-			(t.t_pos, ["",t.t_meta()],(match follow t.t_type with TAnon a -> PMap.fold (fun f acc -> (f.cf_name,f.cf_meta()) :: acc) a.a_fields [] | _ -> []),[])
+			(t.t_pos, ["",t.t_meta],(match follow t.t_type with TAnon a -> PMap.fold (fun f acc -> (f.cf_name,f.cf_meta) :: acc) a.a_fields [] | _ -> []),[])
 	) in
-	let filter l = 
+	let filter l =
 		let l = List.map (fun (n,ml) -> n, List.filter (fun (m,_) -> m.[0] <> ':') ml) l in
 		List.filter (fun (_,ml) -> ml <> []) l
 	in
 	let meta, fields, statics = filter meta, filter fields, filter statics in
+	let rec loop (e,p) =
+		match e with
+		| EConst c ->
+			type_constant com c p
+		| EParenthesis e ->
+			loop e
+		| EObjectDecl el ->
+			mk (TObjectDecl (List.map (fun (n,e) -> n, loop e) el)) (TAnon { a_fields = PMap.empty; a_status = ref Closed }) p
+		| EArrayDecl el ->
+			mk (TArrayDecl (List.map loop el)) (com.basic.tarray t_dynamic) p
+		| _ ->
+			error "Metadata should be constant" p
+	in
 	let make_meta_field ml =
-		mk (TObjectDecl (List.map (fun (f,l) -> 
-			f, mk (match l with [] -> TConst TNull | _ -> TArrayDecl l) (api.tarray t_dynamic) p
+		mk (TObjectDecl (List.map (fun (f,el) ->
+			f, mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map loop el)) (api.tarray t_dynamic) p
 		) ml)) (api.tarray t_dynamic) p
 	in
 	let make_meta l =
@@ -290,10 +320,10 @@ let build_metadata com t =
 		None
 	else
 		let meta_obj = [] in
-		let meta_obj = (if fields = [] then meta_obj else ("fields",make_meta fields) :: meta_obj) in		
+		let meta_obj = (if fields = [] then meta_obj else ("fields",make_meta fields) :: meta_obj) in
 		let meta_obj = (if statics = [] then meta_obj else ("statics",make_meta statics) :: meta_obj) in
 		let meta_obj = (try ("obj", make_meta_field (List.assoc "" meta)) :: meta_obj with Not_found -> meta_obj) in
-		Some (mk (TObjectDecl meta_obj) t_dynamic p)		
+		Some (mk (TObjectDecl meta_obj) t_dynamic p)
 
 (* -------------------------------------------------------------------------- *)
 (* API EVENTS *)
@@ -351,15 +381,13 @@ let rec has_rtti c =
 let on_generate ctx t =
 	match t with
 	| TClassDecl c ->
-		let meta = ref (c.cl_meta()) in
 		List.iter (fun m ->
 			match m with
-			| ":native",[{ eexpr = TConst (TString name) } as e] ->				
-				meta := (":real",[{ e with eexpr = TConst (TString (s_type_path c.cl_path)) }]) :: !meta;
-				c.cl_meta <- (fun() -> !meta);
+			| ":native",[Ast.EConst (Ast.String name),p] ->
+				c.cl_meta <- (":real",[Ast.EConst (Ast.String (s_type_path c.cl_path)),p]) :: c.cl_meta;
 				c.cl_path <- parse_path name;
 			| _ -> ()
-		) (!meta);
+		) c.cl_meta;
 		if has_rtti c && not (PMap.mem "__rtti" c.cl_statics) then begin
 			let f = mk_field "__rtti" ctx.t.tstring in
 			let str = Genxml.gen_type_string ctx.com t in
@@ -369,14 +397,14 @@ let on_generate ctx t =
 		end;
 		if not ctx.in_macro then List.iter (fun f ->
 			match f.cf_kind with
-			| Method MethMacro -> 
+			| Method MethMacro ->
 				c.cl_statics <- PMap.remove f.cf_name c.cl_statics;
 				c.cl_ordered_statics <- List.filter (fun f2 -> f != f2) c.cl_ordered_statics;
 			| _ -> ()
 		) c.cl_ordered_statics;
 		(match build_metadata ctx.com t with
 		| None -> ()
-		| Some e -> 
+		| Some e ->
 			let f = mk_field "__meta__" t_dynamic in
 			f.cf_expr <- Some e;
 			c.cl_ordered_statics <- f :: c.cl_ordered_statics;
@@ -1113,7 +1141,7 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 		| TClassDecl c -> TAnon { a_fields = PMap.empty; a_status = ref (Statics c) }
 		| TEnumDecl e -> TAnon { a_fields = PMap.empty; a_status = ref (EnumStatics e) }
 		| TTypeDecl _ -> assert false
-	in	
+	in
 	let var = mk (TVars [(vtmp,e.etype,Some e)]) api.tvoid p in
 	let vexpr = mk (TLocal vtmp) e.etype p in
 	let texpr = mk (TTypeExpr texpr) (mk_texpr texpr) p in

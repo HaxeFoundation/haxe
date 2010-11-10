@@ -501,7 +501,7 @@ let rec type_field ctx e i p mode =
 			| Some t ->
 				let t = apply_params c.cl_types params t in
 				if mode = MGet && PMap.mem "resolve" c.cl_fields then
-					AKExpr (make_call ctx (mk (TField (e,"resolve")) (tfun [ctx.t.tstring] t) p) [Typeload.type_constant ctx (String i) p] t p)
+					AKExpr (make_call ctx (mk (TField (e,"resolve")) (tfun [ctx.t.tstring] t) p) [Codegen.type_constant ctx.com (String i) p] t p)
 				else
 					AKExpr (mk (TField (e,i)) t p)
 			| None ->
@@ -1168,7 +1168,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let t = Typeload.load_core_type ctx "EReg" in
 		mk (TNew ((match t with TInst (c,[]) -> c | _ -> assert false),[],[str;opt])) t p
 	| EConst c ->
-		Typeload.type_constant ctx c p
+		Codegen.type_constant ctx.com c p
     | EBinop (op,e1,e2) ->
 		type_binop ctx op e1 e2 p
 	| EBlock [] when need_val ->
@@ -1817,12 +1817,12 @@ let make_macro_api ctx p =
 				None
 		);
 		Interp.parse_string = (fun s p ->
-			let head = "class X{static function main(){" in
+			let head = "class X{static function main() " in
 			let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
-			let s = head ^ s ^ "; }}" in
+			let s = head ^ s ^ "}" in
 			let old = Lexer.save() in
 			Lexer.init p.pfile;
-			let _, decls = try 
+			let _, decls = try
 				Parser.parse ctx.com (Lexing.from_string s)
 			with Parser.Error (e,_) ->
 				failwith (Parser.error_msg e)
@@ -1831,8 +1831,12 @@ let make_macro_api ctx p =
 			in
 			Lexer.restore old;
 			match decls with
-			| [EClass { d_data = [FFun ("main",_,_,_,_,{ f_expr = e}),_] },_] -> e
+			| [EClass { d_data = [FFun ("main",_,_,_,_,{ f_expr = e }),_] },_] -> e
 			| _ -> assert false
+		);
+		Interp.eval = (fun e ->
+			let e = (try type_expr ctx ~need_val:true e with Error (msg,_) -> failwith (error_msg msg)) in
+			e.etype
 		);
 	}
 

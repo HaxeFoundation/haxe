@@ -87,6 +87,7 @@ type extern_api = {
 	pos : Ast.pos;
 	get_type : string -> Type.t option;
 	parse_string : string -> Ast.pos -> Ast.expr;
+	eval : Ast.expr -> Type.t;
 }
 
 type context = {
@@ -131,9 +132,11 @@ exception Return of value
 let get_ctx_ref = ref (fun() -> assert false)
 let encode_type_ref = ref (fun t -> assert false)
 let encode_expr_ref = ref (fun e -> assert false)
+let decode_expr_ref = ref (fun e -> assert false)
 let get_ctx() = (!get_ctx_ref)()
 let encode_type (t:Type.t) : value = (!encode_type_ref) t
 let encode_expr (e:Ast.expr) : value = (!encode_expr_ref) e
+let decode_expr (e:value) : Ast.expr = (!decode_expr_ref) e
 
 let to_int f = int_of_float (mod_float f 2147483648.0)
 
@@ -600,7 +603,7 @@ let std_lib =
 		| VString s -> s
 		| _ -> error()
 	in
-	let int32_addr h = 
+	let int32_addr h =
 		let base = Int32.to_int (Int32.logand h 0xFFFFFFl) in
 		let str = Printf.sprintf "%ld.%d.%d.%d" (Int32.shift_right_logical h 24) (base lsr 16) ((base lsr 8) land 0xFF) (base land 0xFF) in
 		Unix.inet_addr_of_string str
@@ -1027,15 +1030,15 @@ let std_lib =
 		);
 		"socket_recv_char", Fun1 (fun s ->
 			match s with
-			| VAbstract (ASocket s) -> 
+			| VAbstract (ASocket s) ->
 				let buf = String.make 1 '\000' in
-				ignore(Unix.recv s buf 0 1 []);	
+				ignore(Unix.recv s buf 0 1 []);
 				VInt (int_of_char (String.unsafe_get buf 0))
 			| _ -> error()
 		);
 		"socket_write", Fun2 (fun s str ->
 			match s, str with
-			| VAbstract (ASocket s), VString str -> 
+			| VAbstract (ASocket s), VString str ->
 				let pos = ref 0 in
 				let len = ref (String.length str) in
 				while !len > 0 do
@@ -1048,7 +1051,7 @@ let std_lib =
 		);
 		"socket_read", Fun1 (fun s ->
 			match s with
-			| VAbstract (ASocket s) -> 
+			| VAbstract (ASocket s) ->
 				let tmp = String.make 1024 '\000' in
 				let buf = Buffer.create 0 in
 				let rec loop() =
@@ -1106,7 +1109,7 @@ let std_lib =
 		);
 		"socket_shutdown", Fun3 (fun s r w ->
 			match s, r, w with
-			| VAbstract (ASocket s), VBool r, VBool w ->				
+			| VAbstract (ASocket s), VBool r, VBool w ->
 				Unix.shutdown s (match r, w with true, true -> SHUTDOWN_ALL | true, false -> SHUTDOWN_RECEIVE | false, true -> SHUTDOWN_SEND | _ -> error());
 				VNull
 			| _ -> error()
@@ -1540,7 +1543,7 @@ let macro_lib =
 		);
 		"signature", Fun1 (fun v ->
 			let cache = ref [] in
-			let rec loop v = 
+			let rec loop v =
 				match v with
 				| VNull | VBool _ | VInt _ | VFloat _ | VString _ | VAbstract _ -> v
 				| _ ->
@@ -1577,6 +1580,9 @@ let macro_lib =
 			in
 			let v = loop v in
 			VString (Digest.to_hex (Digest.string (Marshal.to_string v [Marshal.Closures])))
+		);
+		"eval", Fun1 (fun v ->
+			encode_type ((get_ctx()).curapi.eval (decode_expr v))
 		);
 	]
 
@@ -2503,126 +2509,6 @@ let encode_expr e =
 	loop e
 
 (* ---------------------------------------------------------------------- *)
-(* TYPE ENCODING *)
-
-let encode_ref v convert tostr =
-	enc_obj [
-		"get", VFunction (Fun0 (fun() -> convert v));
-		"__string", VFunction (Fun0 (fun() -> VString (tostr())));
-		"toString", VFunction (Fun0 (fun() -> enc_string (tostr())));
-	]
-
-let encode_pmap convert m =
-	let h = Hashtbl.create 0 in
-	PMap.iter (fun k v -> Hashtbl.add h (VString k) (convert v)) m;
-	enc_hash h
-
-let rec encode_tenum e =
-	enc_obj [
-		"pack", enc_array (List.map enc_string (fst e.e_path));
-		"name", enc_string (snd e.e_path);
-		"pos", encode_pos e.e_pos;
-		"isPrivate", VBool e.e_private;
-		"isExtern", VBool e.e_extern;
-		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) e.e_types);
-		"contructs", encode_pmap encode_efield e.e_constrs;
-		"names", enc_array (List.map enc_string e.e_names);
-	]
-
-and encode_efield f =
-	enc_obj [
-		"name", enc_string f.ef_name;
-		"type", encode_type f.ef_type;
-		"pos", encode_pos f.ef_pos;
-		"index", VInt f.ef_index;
-	]
-
-and encode_cfield f =
-	enc_obj [
-		"name", enc_string f.cf_name;
-		"type", encode_type f.cf_type;
-		"isPublic", VBool f.cf_public;
-		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) f.cf_params);
-	]
-
-and encode_tclass c =
-	enc_obj [
-		"pack", enc_array (List.map enc_string (fst c.cl_path));
-		"name", enc_string (snd c.cl_path);
-		"pos", encode_pos c.cl_pos;
-		"isPrivate", VBool c.cl_private;
-		"isExtern", VBool c.cl_extern;
-		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) c.cl_types);
-		"isInterface", VBool c.cl_interface;
-		"superClass", (match c.cl_super with
-			| None -> VNull
-			| Some (c,pl) -> enc_obj ["t",encode_clref c;"params",encode_tparams pl]
-		);
-		"interfaces", enc_array (List.map (fun (c,pl) -> enc_obj ["t",encode_clref c;"params",encode_tparams pl]) c.cl_implements);
-		"fields", encode_ref c.cl_fields (encode_pmap encode_cfield) (fun() -> "class fields");
-		"statics", encode_ref c.cl_statics (encode_pmap encode_cfield) (fun() -> "class fields");
-		"constructor", (match c.cl_constructor with None -> VNull | Some c -> encode_ref c encode_cfield (fun() -> "constructor"));
-	]
-
-and encode_ttype t =
-	enc_obj [
-		"pack", enc_array (List.map enc_string (fst t.t_path));
-		"name", enc_string (snd t.t_path);
-		"pos", encode_pos t.t_pos;
-		"isPrivate", VBool t.t_private;
-		"isExtern", VBool false;
-		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) t.t_types);
-		"type", encode_type t.t_type;
-	]
-
-and encode_tanon a =
-	enc_obj [
-		"fields", encode_pmap encode_cfield a.a_fields;
-	]
-
-and encode_tparams pl =
-	enc_array (List.map encode_type pl)
-
-and encode_clref c =
-	encode_ref c encode_tclass (fun() -> s_type_path c.cl_path)
-
-and encode_type t =
-	let rec loop = function
-		| TMono r ->
-			(match !r with
-			| None -> 0, []
-			| Some t -> loop t)
-		| TEnum (e, pl) ->
-			1 , [encode_ref e encode_tenum (fun() -> s_type_path e.e_path); encode_tparams pl]
-		| TInst (c, pl) ->
-			2 , [encode_clref c; encode_tparams pl]
-		| TType (t,pl) ->
-			3 , [encode_ref t encode_ttype (fun() -> s_type_path t.t_path); encode_tparams pl]
-		| TFun (pl,ret) ->
-			let pl = List.map (fun (n,o,t) ->
-				enc_obj [
-					"name",enc_string n;
-					"opt",VBool o;
-					"t",encode_type t
-				]
-			) pl in
-			4 , [enc_array pl; encode_type ret]
-		| TAnon a ->
-			5, [encode_ref a encode_tanon (fun() -> "<anonymous>")]
-		| TDynamic tsub as t ->
-			if t == t_dynamic then
-				6, [VNull]
-			else
-				6, [encode_type tsub]
-		| TLazy f ->
-			loop ((!f)())
-	in
-	let tag, pl = loop t in
-	enc_enum IType tag pl
-
-;;encode_type_ref := encode_type;;
-
-(* ---------------------------------------------------------------------- *)
 (* EXPR DECODING *)
 
 exception Invalid_expr
@@ -2839,4 +2725,158 @@ let decode_expr v =
 	in
 	loop v
 
-;;encode_expr_ref := encode_expr;;
+(* ---------------------------------------------------------------------- *)
+(* TYPE ENCODING *)
+
+let encode_ref v convert tostr =
+	enc_obj [
+		"get", VFunction (Fun0 (fun() -> convert v));
+		"__string", VFunction (Fun0 (fun() -> VString (tostr())));
+		"toString", VFunction (Fun0 (fun() -> enc_string (tostr())));
+	]
+
+let encode_pmap convert m =
+	let h = Hashtbl.create 0 in
+	PMap.iter (fun k v -> Hashtbl.add h (VString k) (convert v)) m;
+	enc_hash h
+
+let encode_meta m set =
+	let meta = ref m in
+	enc_obj [
+		"get", VFunction (Fun0 (fun() ->
+			enc_array (List.map (fun (m,ml) ->
+				enc_obj [
+					"name", enc_string m;
+					"params", enc_array (List.map encode_expr ml);
+				]
+			) (!meta))
+		));
+		"add", VFunction (Fun2 (fun k vl ->
+			(try
+				let el = List.map decode_expr (dec_array vl) in
+				meta := (dec_string k, el) :: !meta;
+				set (!meta)
+			with Invalid_expr ->
+				failwith "Invalid expression");
+			VNull
+		));
+		"remove", VFunction (Fun1 (fun k ->
+			let k = (try dec_string k with Invalid_expr -> raise Builtin_error) in
+			meta := List.filter (fun (m,_) -> m <> k) (!meta);
+			set (!meta);
+			VNull
+		));
+	]
+
+let rec encode_tenum e =
+	enc_obj [
+		"pack", enc_array (List.map enc_string (fst e.e_path));
+		"name", enc_string (snd e.e_path);
+		"pos", encode_pos e.e_pos;
+		"isPrivate", VBool e.e_private;
+		"isExtern", VBool e.e_extern;
+		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) e.e_types);
+		"contructs", encode_pmap encode_efield e.e_constrs;
+		"names", enc_array (List.map enc_string e.e_names);
+		"meta", encode_meta e.e_meta (fun m -> e.e_meta <- m);
+	]
+
+and encode_efield f =
+	enc_obj [
+		"name", enc_string f.ef_name;
+		"type", encode_type f.ef_type;
+		"pos", encode_pos f.ef_pos;
+		"index", VInt f.ef_index;
+		"meta", encode_meta f.ef_meta (fun m -> f.ef_meta <- m);
+	]
+
+and encode_cfield f =
+	enc_obj [
+		"name", enc_string f.cf_name;
+		"type", encode_type f.cf_type;
+		"isPublic", VBool f.cf_public;
+		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) f.cf_params);
+		"meta", encode_meta f.cf_meta (fun m -> f.cf_meta <- m);
+	]
+
+and encode_tclass c =
+	enc_obj [
+		"pack", enc_array (List.map enc_string (fst c.cl_path));
+		"name", enc_string (snd c.cl_path);
+		"pos", encode_pos c.cl_pos;
+		"isPrivate", VBool c.cl_private;
+		"isExtern", VBool c.cl_extern;
+		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) c.cl_types);
+		"isInterface", VBool c.cl_interface;
+		"superClass", (match c.cl_super with
+			| None -> VNull
+			| Some (c,pl) -> enc_obj ["t",encode_clref c;"params",encode_tparams pl]
+		);
+		"interfaces", enc_array (List.map (fun (c,pl) -> enc_obj ["t",encode_clref c;"params",encode_tparams pl]) c.cl_implements);
+		"fields", encode_ref c.cl_fields (encode_pmap encode_cfield) (fun() -> "class fields");
+		"statics", encode_ref c.cl_statics (encode_pmap encode_cfield) (fun() -> "class fields");
+		"constructor", (match c.cl_constructor with None -> VNull | Some c -> encode_ref c encode_cfield (fun() -> "constructor"));
+		"meta", encode_meta c.cl_meta (fun m -> c.cl_meta <- m);
+	]
+
+and encode_ttype t =
+	enc_obj [
+		"pack", enc_array (List.map enc_string (fst t.t_path));
+		"name", enc_string (snd t.t_path);
+		"pos", encode_pos t.t_pos;
+		"isPrivate", VBool t.t_private;
+		"isExtern", VBool false;
+		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) t.t_types);
+		"type", encode_type t.t_type;
+		"meta", encode_meta t.t_meta (fun m -> t.t_meta <- m);
+	]
+
+and encode_tanon a =
+	enc_obj [
+		"fields", encode_pmap encode_cfield a.a_fields;
+	]
+
+and encode_tparams pl =
+	enc_array (List.map encode_type pl)
+
+and encode_clref c =
+	encode_ref c encode_tclass (fun() -> s_type_path c.cl_path)
+
+and encode_type t =
+	let rec loop = function
+		| TMono r ->
+			(match !r with
+			| None -> 0, []
+			| Some t -> loop t)
+		| TEnum (e, pl) ->
+			1 , [encode_ref e encode_tenum (fun() -> s_type_path e.e_path); encode_tparams pl]
+		| TInst (c, pl) ->
+			2 , [encode_clref c; encode_tparams pl]
+		| TType (t,pl) ->
+			3 , [encode_ref t encode_ttype (fun() -> s_type_path t.t_path); encode_tparams pl]
+		| TFun (pl,ret) ->
+			let pl = List.map (fun (n,o,t) ->
+				enc_obj [
+					"name",enc_string n;
+					"opt",VBool o;
+					"t",encode_type t
+				]
+			) pl in
+			4 , [enc_array pl; encode_type ret]
+		| TAnon a ->
+			5, [encode_ref a encode_tanon (fun() -> "<anonymous>")]
+		| TDynamic tsub as t ->
+			if t == t_dynamic then
+				6, [VNull]
+			else
+				6, [encode_type tsub]
+		| TLazy f ->
+			loop ((!f)())
+	in
+	let tag, pl = loop t in
+	enc_enum IType tag pl
+
+;;
+encode_type_ref := encode_type;
+encode_expr_ref := encode_expr;
+decode_expr_ref := decode_expr

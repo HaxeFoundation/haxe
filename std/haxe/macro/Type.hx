@@ -51,7 +51,7 @@ typedef BaseType = {
 	var isPrivate : Bool;
 	var isExtern : Bool;
 	var params : Array<{ name : String, t : Type }>;
-	//var meta : Metadata;
+	var meta : Metadata;
 }
 
 typedef ClassField = {
@@ -59,7 +59,7 @@ typedef ClassField = {
 	var type : Type;
 	var isPublic : Bool;
 	var params : Array<{ name : String, t : Type }>;
-	//var meta : Metadata;
+	var meta : Metadata;
 	//var kind : FieldKind;
 }
 
@@ -79,7 +79,7 @@ typedef EnumField = {
 	var name : String;
 	var type : Type;
 	var pos : Expr.Position;
-	//var meta : Metadata;
+	var meta : Metadata;
 	var index : Int;
 }
 
@@ -90,4 +90,10 @@ typedef EnumType = {> BaseType,
 
 typedef DefType = {> BaseType,
 	var type : Type;
+}
+
+typedef Metadata = {
+	function get() : Array<{ name : String, params : Array<Expr> }>;
+	function add( name : String, params : Array<Expr> ) : Void;
+	function remove( name : String ) : Void;
 }

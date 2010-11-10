@@ -25,21 +25,6 @@ open Typecore
 let has_meta m (ml:Ast.metadata) =
 	List.exists (fun(m2,_) -> m = m2) ml
 
-let type_constant ctx c p =
-	match c with
-	| Int s ->
-		if String.length s > 10 && String.sub s 0 2 = "0x" then error "Invalid hexadecimal integer" p;
-		(try
-			mk (TConst (TInt (Int32.of_string s))) ctx.t.tint p
-		with
-			_ -> mk (TConst (TFloat s)) ctx.t.tfloat p)
-	| Float f -> mk (TConst (TFloat f)) ctx.t.tfloat p
-	| String s -> mk (TConst (TString s)) ctx.t.tstring p
-	| Ident "true" -> mk (TConst (TBool true)) ctx.t.tbool p
-	| Ident "false" -> mk (TConst (TBool false)) ctx.t.tbool p
-	| Ident "null" -> mk (TConst TNull) (ctx.t.tnull (mk_mono())) p
-	| _ -> assert false
-
 let type_function_param ctx t e opt p =
 	match e with
 	| None ->
@@ -119,10 +104,10 @@ let rec load_instance ctx t p allow_no_params =
 				match follow t with
 				| TInst (c,_) ->
 					let t = mk_mono() in
-					if c.cl_implements <> [] then delay ctx (fun() -> 
+					if c.cl_implements <> [] then delay ctx (fun() ->
 						List.iter (fun (i,tl) -> unify ctx t (TInst(i,tl)) p) c.cl_implements
 					);
-					t;					
+					t;
 				| _ -> assert false
 			) types)
 		else if path = ([],"Dynamic") then
@@ -544,39 +529,8 @@ let type_function ctx args ret static constr f p =
 	ctx.opened <- old_opened;
 	e , fargs
 
-let type_meta ctx meta =
-	let mcache = ref None in
-	let notconst e = error "Metadata should be constant" e.epos in
-	let rec chk_const e =
-		match e.eexpr with
-		| TConst c ->
-			(match c with
-			| TInt _ | TFloat _ | TString _ | TBool _ | TNull -> ()
-			| _ -> notconst e)
-		| TParenthesis e ->
-			chk_const e
-		| TObjectDecl el ->
-			List.iter (fun (_,e) -> chk_const e) el
-		| TArrayDecl el ->
-			List.iter chk_const el
-		| _ ->
-			notconst e
-	in
-	let mk_meta (m,el) =
-		let el = List.map (fun e -> type_expr ctx e true) el in
-		List.iter chk_const el;
-		m, el
-	in
-	let get_meta() =
-		match !mcache with
-		| None ->
-			let ml = List.map mk_meta meta in
-			mcache := Some ml;
-			ml
-		| Some ml -> ml
-	in
-	delay ctx (fun() -> ignore(get_meta()));
-	get_meta
+(* nothing *)
+let type_meta ctx meta = meta
 
 let init_core_api ctx c =
 	let ctx2 = (match ctx.g.core_api with
@@ -1111,7 +1065,14 @@ let type_module ctx m tdecls loadp =
 			let names = ref [] in
 			let index = ref 0 in
 			let rec loop = function
-				| (":build",(EConst (String s),p) :: el) :: _ ->
+				| (":build",[ECall (epath,el),p]) :: _ ->
+					let rec loop (e,p) =
+						match e with
+						| EConst (Ident i) | EConst (Type i) -> i
+						| EField (e,f) | EType (e,f) -> loop e ^ "." ^ f
+						| _ -> error "Build call parameter must be a class path" p
+					in
+					let s = loop epath in
 					if ctx.in_macro then error "You cannot used :build inside a macro : make sure that your enum is not used in macro" p;
 					(match apply_macro ctx s el p with
 					| None -> error "Enum build failure" p
