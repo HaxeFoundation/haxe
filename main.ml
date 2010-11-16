@@ -102,7 +102,7 @@ let make_path f =
 	in
 	let rec loop = function
 		| [] -> error()
-		| [x] -> if String.length x = 0 || x.[0] < 'A' || x.[0] > 'Z' || invalid_char x then error() else [] , x
+		| [x] -> if String.length x = 0 || not (x.[0] = '_' || (x.[0] >= 'A' && x.[0] <= 'Z')) || invalid_char x then error() else [] , x
 		| x :: l ->
 			if String.length x = 0 || x.[0] < 'a' || x.[0] > 'z' || invalid_char x then error() else
 				let path , name = loop l in
