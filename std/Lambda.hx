@@ -140,12 +140,17 @@ class Lambda {
 	}
 
 	/**
-		Count the number of elements in an [Iterable]
+		Count the number of elements in an [Iterable] having [pred] returning true.
 	**/
-	public static function count<A>( it : Iterable<A> ) {
+	public static function count<A>( it : Iterable<A>, ?pred : A -> Bool ) {
 		var n = 0;
-		for( _ in it )
-			++n;
+		if( pred == null )
+			for( _ in it )
+				n++;
+		else
+			for( x in it )
+				if( pred(x) )
+					n++;
 		return n;
 	}
 
