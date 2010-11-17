@@ -110,6 +110,14 @@ let make_path f =
 	in
 	loop cl
 
+let unique l =
+	let rec _unique = function
+		| [] -> []
+		| x1 :: x2 :: l when x1 = x2 -> _unique (x2 :: l)
+		| x :: l -> x :: _unique l
+	in
+	_unique (List.sort compare l)
+
 let rec read_type_path com p =
 	let classes = ref [] in
 	let packages = ref [] in
@@ -162,12 +170,7 @@ let rec read_type_path com p =
 			loop path p
 		) (extract());
 	) com.swf_libs;
-	let rec unique = function
-		| [] -> []
-		| x1 :: x2 :: l when x1 = x2 -> unique (x2 :: l)
-		| x :: l -> x :: unique l
-	in
-	unique (List.sort compare (!packages)), unique (List.sort compare (!classes))
+	unique !packages, unique !classes
 
 let delete_file f = try Sys.remove f with _ -> ()
 
@@ -221,6 +224,8 @@ try
 	let swf_header = ref None in
 	let cmds = ref [] in
 	let excludes = ref [] in
+	let included_packages = ref [] in
+	let excluded_packages = ref [] in
 	let libs = ref [] in
 	let has_error = ref false in
 	let gen_as3 = ref false in
@@ -386,6 +391,14 @@ try
 				if l = "" then ([],"") else Ast.parse_path l
 			) lines) @ !excludes;
 		),"<filename> : don't generate code for classes listed in this file");
+		("-exclude-package",Arg.String(fun package ->
+			let l = ExtString.String.strip package in
+			if l = "" then () else excluded_packages := l :: !excluded_packages
+		),"<package> : excludes all the modules defined in the package");
+		("-include-package",Arg.String(fun package ->
+			let l = ExtString.String.strip package in
+			if l = "" then () else included_packages := l :: !included_packages
+		),"<package> : includes all the modules defined in the package");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
 		("-cmd", Arg.String (fun cmd ->
 			cmds := expand_env cmd :: !cmds
@@ -514,6 +527,21 @@ try
 		| Php -> add_std "php"; "php"
 		| Cpp -> add_std "cpp"; "cpp"
 	) in
+	
+	let append_modules lst packages =
+		packages := unique !packages;
+		List.iter (fun p ->
+			let path = String.concat "/" (ExtString.String.nsplit p ".") in
+			let _, modules = read_type_path com [path] in
+			let pkg = (match p with "." -> [] | _ -> ExtString.String.nsplit p ".") in
+			List.iter (fun c -> lst := (pkg, c) :: !lst) modules;
+		) !packages;
+		unique !lst;		
+	in
+	
+	classes := append_modules classes included_packages;
+	excludes := append_modules excludes excluded_packages;
+	
 	(* check file extension. In case of wrong commandline, we don't want
 		to accidentaly delete a source file. *)
 	if not !no_output && file_extension com.file = ext then delete_file com.file;
