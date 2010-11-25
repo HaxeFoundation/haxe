@@ -20,6 +20,7 @@
 	all : no longer allow inline vars as metadata values
 	all : added -exclude-package compiler switch
 	all : added -include-package compiler switch
+	neko : added getFieldsNames to neko.db.ResultSet (supported in Neko 1.8.2 mysql driver)
 
 2010-08-14: 2.06
 	neko : change serializer to be able to handle instances of basic classes from other modules

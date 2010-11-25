@@ -45,6 +45,7 @@ private class D {
 	public static var result_get_int = load("result_get_int",2);
 	public static var result_get_float = load("result_get_float",2);
 	public static var result_set_conv_date = load("result_set_conv_date",2);
+	public static var result_fields_names = neko.Lib.loadLazy(lib,"result_get_fields_names",1);
 
 }
 
@@ -113,6 +114,20 @@ private class MysqlResultSet implements ResultSet {
 
 	public function getFloatResult( n : Int ) : Float {
 		return D.result_get_float(__r,n);
+	}
+
+	public function getFieldsNames() : Array<String> {
+		var a = D.result_fields_names(__r);
+		untyped {
+			var i = 0;
+			var l = __dollar__asize(a);
+			while( i < l ) {
+				a[i] = new String(a[i]);
+				i += 1;
+			}
+			a = Array.new1(cast a,l);
+		}
+		return a;
 	}
 
 }

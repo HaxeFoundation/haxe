@@ -36,5 +36,6 @@ interface ResultSet {
 	function getResult( n : Int ) : String;
 	function getIntResult( n : Int ) : Int;
 	function getFloatResult( n : Int ) : Float;
+	function getFieldsNames() : Null<Array<String>>;
 
 }

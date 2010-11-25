@@ -181,6 +181,10 @@ private class SqliteResultSet implements ResultSet {
 	public function getFloatResult( n : Int ) : Float {
 		return result_get_float(r,n);
 	}
+	
+	public function getFieldsNames() : Array<String> {
+		return null;
+	}
 
 	static var result_next = neko.Lib.load("sqlite","result_next",1);
 	static var result_get_length = neko.Lib.load("sqlite","result_get_length",1);
