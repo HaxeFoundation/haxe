@@ -2,5 +2,5 @@
 -swf-lib library.swf
 -swf9 test.swf
 -swf-version 10
---macro patchTypes("patches.txt")
+--macro patchTypes("../doc/extract.patch")
 --gen-hx-classes
