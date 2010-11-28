@@ -101,8 +101,8 @@ class Context {
 	/**
 		Evaluate the type a given expression would have in the context of the current macro call.
 	**/
-	public static function eval( e : Expr ) : Type {
-		return load("eval", 1)(e);
+	public static function typeof( e : Expr ) : Type {
+		return load("typeof", 1)(e);
 	}
 	
 	static function load( f, nargs ) : Dynamic {

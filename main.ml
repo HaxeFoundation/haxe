@@ -226,6 +226,7 @@ try
 	let excludes = ref [] in
 	let included_packages = ref [] in
 	let excluded_packages = ref [] in
+	let config_macros = ref [] in
 	let libs = ref [] in
 	let has_error = ref false in
 	let gen_as3 = ref false in
@@ -458,6 +459,9 @@ try
 			no_output := true;
 			interp := true;
 		),": interpret the program using internal macro system");
+		("--macro", Arg.String (fun e ->
+			config_macros := e :: !config_macros
+		)," : call the given macro before typing anything else");
 	] in
 	let current = ref 0 in
 	let args = Array.of_list ("" :: params) in
@@ -547,13 +551,14 @@ try
 		to accidentaly delete a source file. *)
 	if not !no_output && file_extension com.file = ext then delete_file com.file;
 	List.iter (fun f -> f()) (List.rev (!pre_compilation));
-	if !classes = [([],"Std")] then begin
+	if !classes = [([],"Std")] && !config_macros = [] then begin
 		if !cmds = [] && not !did_something then Arg.usage basic_args_spec usage;
 	end else begin
 		if com.verbose then print_endline ("Classpath : " ^ (String.concat ";" com.class_path));
 		let t = Common.timer "typing" in
 		Typecore.type_expr_ref := (fun ctx e need_val -> Typer.type_expr ~need_val ctx e);
 		let ctx = Typer.create com in
+		List.iter (Typer.call_init_macro ctx) (List.rev !config_macros);
 		List.iter (fun cpath -> ignore(ctx.Typecore.g.Typecore.do_load_module ctx cpath Ast.null_pos)) (List.rev !classes);
 		Typer.finalize ctx;
 		t();

@@ -263,6 +263,15 @@ let generate_type com t =
 		| _ ->
 			stype t
 	in
+	let sparam (n,v,t) =
+		match v with
+		| None ->
+			n ^ " : " ^ stype t
+		| Some (Ident "null") ->
+			"?" ^ n ^ " : " ^ stype (notnull t)
+		| Some v ->
+			n ^ " : " ^ stype t ^ " = " ^ (s_constant v)
+	in
 	let print_field stat f =
 		p "\t";
 		if stat then p "static ";
@@ -272,9 +281,20 @@ let generate_type com t =
 			if v.v_read <> AccNormal || v.v_write <> AccNormal then p "(%s,%s)" (s_access v.v_read) (s_access (if v.v_write = AccNever && (match pack with "flash" :: _ -> true | _ -> false) then AccNo else v.v_write));
 			p " : %s" (stype f.cf_type);
 		| Method m ->
-			let params, ret = (match follow f.cf_type with TFun (args,ret) -> args, ret | _ -> assert false) in
-			let params = List.map (fun (n,opt,t) -> (if opt then "?" else "") ^ n ^ " : " ^ stype (if opt then notnull t else t)) params in
-			p "function %s(%s) : %s" f.cf_name (String.concat ", " params) (stype ret);
+			let params, ret = (match follow f.cf_type with
+				| TFun (args,ret) -> 
+					List.map (fun (a,o,t) ->
+						let rec loop = function
+							| [] -> Ident "null"
+							| (":defparam",[(EConst (String p),_);(EConst v,_)]) :: _ when p = a -> v
+							| _ :: l -> loop l
+						in
+						a,(if o then Some (loop f.cf_meta) else None ),t
+					) args, ret
+				| _ -> 
+					assert false
+			) in				
+			p "function %s(%s) : %s" f.cf_name (String.concat ", " (List.map sparam params)) (stype ret);
 		);
 		p ";\n"
 	in
@@ -286,6 +306,7 @@ let generate_type com t =
 		| Some (c,pl) -> [" extends " ^ stype (TInst (c,pl))]
 		) in
 		let ext = List.fold_left (fun acc (i,pl) -> (" implements " ^ stype (TInst (i,pl))) :: acc) ext c.cl_implements in
+		let ext = (match c.cl_dynamic with None -> ext | Some t -> (" implements " ^ stype t) :: ext) in
 		p "%s" (String.concat "," (List.rev ext));
 		p " {\n";
 		let sort l =
@@ -304,6 +325,19 @@ let generate_type com t =
 		p "}\n";
 	| TEnumDecl e ->
 		p "extern enum %s {\n" (stype (TEnum(e,List.map snd e.e_types)));
+		let sort l = 
+			let a = Array.of_list l in
+			Array.sort compare a;
+			Array.to_list a
+		in
+		List.iter (fun n ->
+			let c = PMap.find n e.e_constrs in
+			p "\t%s" c.ef_name;
+			(match follow c.ef_type with
+			| TFun (args,_) -> p "(%s)" (String.concat ", " (List.map sparam (List.map (fun (a,o,t) -> a,(if o then Some (Ident "null") else None),t) args)))
+			| _ -> ());
+			p ";\n";
+		) (sort e.e_names);
 		p "}\n"
 	| TTypeDecl t ->
 		p "extern typedef %s = " (stype (TType (t,List.map snd t.t_types)));

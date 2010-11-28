@@ -1834,13 +1834,31 @@ let make_macro_api ctx p =
 			| [EClass { d_data = [FFun ("main",_,_,_,_,{ f_expr = e }),_] },_] -> e
 			| _ -> assert false
 		);
-		Interp.eval = (fun e ->
+		Interp.typeof = (fun e ->
 			let e = (try type_expr ctx ~need_val:true e with Error (msg,_) -> failwith (error_msg msg)) in
 			e.etype
 		);
+		Interp.type_patch = (fun t f s v ->
+			let v = (match v with None -> None | Some s -> 
+				let old = Lexer.save() in
+				let head = "typedef T = " in
+				let _, decls = Parser.parse ctx.com (Lexing.from_string (head ^ s)) in
+				Lexer.restore old;
+				match decls with
+				| [ETypedef { d_data = ct },_] -> Some ct
+				| _ -> assert false
+			) in
+			let path = Ast.parse_path t in
+			let h = (try Hashtbl.find ctx.g.type_patches path with Not_found ->
+				let h = Hashtbl.create 0 in
+				Hashtbl.add ctx.g.type_patches path h;
+				h
+			) in
+			Hashtbl.replace h (f,s) v			
+		);
 	}
 
-let type_macro ctx cpath f el p =
+let load_macro ctx cpath f p =
 	let t = Common.timer "macro execution" in
 	let api = make_macro_api ctx p in
 	let ctx2 = (match ctx.g.macros with
@@ -1879,30 +1897,44 @@ let type_macro ctx cpath f el p =
 		| TInst (c,_) -> (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
 		| _ -> error "Macro should be called on a class" p
 	) in
+	let meth = (match follow meth.cf_type with TFun (args,ret) -> args,ret | _ -> error "Macro call should be a method" p) in
+	let in_macro = ctx.in_macro in
+	if not in_macro then begin
+		finalize ctx2;
+		let types, modules = generate ctx2 None [] in
+		ctx2.com.types <- types;
+		ctx2.com.Common.modules <- modules;
+		Interp.add_types mctx types;
+	end else t();
+	let call args =
+		let r = Interp.call_path mctx ((fst cpath) @ [snd cpath]) f args api in
+		if not in_macro then t();
+		r
+	in	
+	ctx2, meth, call
+
+let type_macro ctx cpath f el p =
+	let ctx2, (margs,mret), call_macro = load_macro ctx cpath f p in
 	let expr = Typeload.load_instance ctx2 { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None} p false in
-	let nargs = (match follow meth.cf_type with
-		| TFun (args,ret) ->
-			unify ctx2 ret expr p;
-			(match args with
-			| [(_,_,t)] ->
-				(try
-					unify_raise ctx2 t expr p;
-					Some 1
-				with Error (Unify _,_) ->
-					unify ctx2 t (ctx2.t.tarray expr) p;
-					None)
-			| _ ->
-				List.iter (fun (_,_,t) -> unify ctx2 t expr p) args;
-				Some (List.length args))
+	unify ctx2 mret expr p;
+	let nargs = (match margs with
+		| [(_,_,t)] ->
+			(try
+				unify_raise ctx2 t expr p;
+				Some 1
+			with Error (Unify _,_) ->
+				unify ctx2 t (ctx2.t.tarray expr) p;
+				None)
 		| _ ->
-			assert false
+			List.iter (fun (_,_,t) -> unify ctx2 t expr p) margs;
+			Some (List.length margs)
 	) in
 	(match nargs with
 	| Some n -> if List.length el <> n then error ("This macro requires " ^ string_of_int n ^ " arguments") p
 	| None -> ());
 	let call() =
 		let el = List.map Interp.encode_expr el in
-		match Interp.call_path mctx ((fst cpath) @ [snd cpath]) f (if nargs = None then [Interp.enc_array el] else el) api with
+		match call_macro (if nargs = None then [Interp.enc_array el] else el) with
 		| None -> None
 		| Some v -> Some (try Interp.decode_expr v with Interp.Invalid_expr -> error "The macro didn't return a valid expression" p)
 	in
@@ -1918,6 +1950,7 @@ let type_macro ctx cpath f el p =
 		let ctx = {
 			ctx with locals = ctx.locals;
 		} in
+		let mctx = Interp.get_ctx() in
 		let pos = Interp.alloc_delayed mctx (fun() ->
 			(* remove $delay_call calls from the stack *)
 			Interp.unwind_stack mctx;
@@ -1927,16 +1960,35 @@ let type_macro ctx cpath f el p =
 		) in
 		let e = (EConst (Ident "__dollar__delay_call"),p) in
 		Some (EUntyped (ECall (e,[EConst (Int (string_of_int pos)),p]),p),p)
-	end else begin
-		finalize ctx2;
-		let types, modules = generate ctx2 None [] in
-		ctx2.com.types <- types;
-		ctx2.com.Common.modules <- modules;
-		Interp.add_types mctx types;
+	end else
 		call()
-	end) in
-	t();
+	) in
 	e
+
+let call_macro ctx path meth args p =
+	let ctx2, (margs,_), call = load_macro ctx path meth p in
+	let el = unify_call_params ctx2 (Some meth) args margs p false in
+	call (List.map (fun e -> try Interp.make_const e with Exit -> error "Parameter should be a constant" e.epos) el)
+
+let call_init_macro ctx e =
+	let p = { pfile = "--macro"; pmin = 0; pmax = 0 } in
+	let api = make_macro_api ctx p in
+	let e = api.Interp.parse_string e p in
+	match fst e with
+	| ECall (e,args) ->
+		let rec loop e =
+			match fst e with
+			| EField (e,f) | EType (e,f) -> f :: loop e
+			| EConst (Ident i | Type i) -> [i]
+			| _ -> error "Invalid macro call" p
+		in
+		let path, meth = (match loop e with
+		| [meth] -> (["haxe";"macro"],"Compiler"), meth
+		| meth :: cl :: path -> (List.rev path,cl), meth
+		| _ -> error "Invalid macro call" p) in
+		ignore(call_macro ctx path meth args p);
+	| _ ->
+		error "Invalid macro call" p
 
 (* ---------------------------------------------------------------------- *)
 (* TYPER INITIALIZATION *)
@@ -1955,6 +2007,7 @@ let rec create com =
 			modules = Hashtbl.create 0;
 			types_module = Hashtbl.create 0;
 			constructs = Hashtbl.create 0;
+			type_patches = Hashtbl.create 0;
 			delayed = [];
 			doinline = not (Common.defined com "no_inline");
 			hook_generate = [];

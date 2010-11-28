@@ -1,0 +1,290 @@
+// types patches configuration for playerglobal.swc
+
+// MANUAL =
+// 	flash.display.BitmapDataChannel
+//	flash.display.GraphicsPathCommand
+//	MovieClip : #if !flash_strict , implements Dynamic #end
+
+-flash.accessibility.Accessibility.new
+
+-flash.desktop.Clipboard.new
+flash.desktop.Clipboard.formats : Array<ClipboardFormats>;
+flash.desktop.Clipboard.$format : ClipboardFormats;
+flash.desktop.Clipboard.$transferMode : ClipboardTransferMode;
+
+flash.display.Bitmap.pixelSnapping : PixelSnapping;
+flash.display.Bitmap.$pixelSnapping : PixelSnapping;
+flash.display.BitmapData.$blendMode : BlendMode;
+flash.display.BitmapData.$redArray : Array<Int>;
+flash.display.BitmapData.$greenArray : Array<Int>;
+flash.display.BitmapData.$blueArray : Array<Int>;
+flash.display.BitmapData.$alphaArray : Array<Int>;
+flash.display.BitmapData.$offsets : Array<flash.geom.Point>;
+// @:require(flash10) flash.display.BitmapData.setVector
+// @:require(flash10) flash.display.BitmapData.getVector
+// @:require(flash10) flash.display.BitmapData.histogram
+
+// @:require(flash10) flash.display.DisplayObject.blendShader
+// @:require(flash10) flash.display.DisplayObject.rotationX
+// @:require(flash10) flash.display.DisplayObject.rotationY
+// @:require(flash10) flash.display.DisplayObject.rotationZ
+// @:require(flash10) flash.display.DisplayObject.scaleZ
+// @:require(flash10) flash.display.DisplayObject.z
+// @:require(flash10) flash.display.DisplayObject.globalToLocal3D
+// @:require(flash10) flash.display.DisplayObject.local3DToGlobal
+-flash.display.DisplayObject.new
+flash.display.DisplayObject.blendMode : BlendMode;
+flash.display.DisplayObject.opaqueBackground : Null<UInt>;
+
+flash.display.DisplayObjectContainer.getObjectsUnderPoint : Array<DisplayObject>;
+
+flash.display.Graphics.$type : GradientType;
+flash.display.Graphics.$colors : Array<UInt>;
+flash.display.Graphics.$spreadMethod : SpreadMethod;
+flash.display.Graphics.$interpolationMethod : InterpolationMethod;
+flash.display.Graphics.$scaleMode : LineScaleMode;
+flash.display.Graphics.$caps : CapsStyle;
+flash.display.Graphics.$joints : JointStyle;
+flash.display.Graphics.$winding : GraphicsPathWinding;
+flash.display.Graphics.$culling : TriangleCulling;
+// flash10 : beginShaderFill,copyFrom,drawGraphicsData,drawPath,drawTriangles,lineBitmapStyle
+
+flash.display.GraphicsGradientFill.type : GradientType;
+flash.display.GraphicsGradientFill.colors : Array<UInt>;
+flash.display.GraphicsGradientFill.spreadMethod : SpreadMethod;
+flash.display.GraphicsGradientFill.interpolationMethod : InterpolationMethod;
+flash.display.GraphicsGradientFill.alphas : Array<Float>;
+flash.display.GraphicsGradientFill.ratios : Array<Float>;
+flash.display.GraphicsGradientFill.$type : GradientType;
+flash.display.GraphicsGradientFill.$colors : Array<UInt>;
+flash.display.GraphicsGradientFill.$spreadMethod : SpreadMethod;
+flash.display.GraphicsGradientFill.$interpolationMethod : InterpolationMethod;
+flash.display.GraphicsGradientFill.$alphas : Array<Float>;
+flash.display.GraphicsGradientFill.$ratios : Array<Float>;
+flash.display.GraphicsGradientFill.$matrix : flash.geom.Matrix;
+
+flash.display.GraphicsPath.winding : GraphicsPathWinding;
+flash.display.GraphicsPath.$winding : GraphicsPathWinding;
+
+flash.display.GraphicsStroke.scaleMode : LineScaleMode;
+flash.display.GraphicsStroke.caps : CapsStyle;
+flash.display.GraphicsStroke.joints : JointStyle;
+flash.display.GraphicsStroke.$scaleMode : LineScaleMode;
+flash.display.GraphicsStroke.$caps : CapsStyle;
+flash.display.GraphicsStroke.$joints : JointStyle;
+
+flash.display.GraphicsTrianglePath.culling : TriangleCulling;
+flash.display.GraphicsTrianglePath.$culling : TriangleCulling;
+
+
+// flash.10  flash.display.Loader.unloadAndStop, 10.1 = uncaughtErrorEvents
+
+-flash.display.LoaderInfo.new
+flash.display.LoaderInfo.parameters : Dynamic<String>;
+flash.display.LoaderInfo.actionScriptVersion : ActionScriptVersion;
+flash.display.LoaderInfo.swfVersion : SWFVersion;
+
+// flash 10.1 : uncaughtErrorEvents, ?isURLInaccessible
+
+-flash.display.MorphShape.new
+
+// flash 10 flash.display.MovieClip.currentFrameLabel
+flash.display.MovieClip.currentLabels : Array<FrameLabel>;
+flash.display.MovieClip.scenes : Array<Scene>;
+
+flash.display.Scene.labels : Array<FrameLabel>;
+flash.display.Scene.$labels : Array<FrameLabel>;
+
+flash.display.Shader.precisionHint : ShaderPrecision;
+
+-flash.display.ShaderParameter.new
+flash.display.ShaderParameter.type : ShaderParameterType;
+
+// flash.display.Sprite : startTouchDrag stopTouchDrag = FP 10.1
+
+-flash.display.Stage.new
+flash.display.Stage.align : StageAlign;
+flash.display.Stage.quality : StageQuality;
+flash.display.Stage.scaleMode : StageScaleMode;
+flash.display.Stage.colorCorrection : ColorCorrection;
+flash.display.Stage.colorCorrectionSupport : ColorCorrectionSupport;
+flash.display.Stage.displayState : StageDisplayState;
+flash.display.Stage.displayState : StageDisplayState;
+
+// flash.display.Stage : stageVideos, wmodeGPU, color* = FP 10.1
+
+flash.events.Event.eventPhase : EventPhase;
+flash.events.KeyboardEvent.keyLocation : flash.ui.KeyLocation;
+flash.events.KeyboardEvent.$keyLocation : flash.ui.KeyLocation;
+
+-flash.external.ExternalInterface.new
+
+flash.filters.BevelFilter.type : BitmapFilterType;
+flash.filters.BevelFilter.$type : BitmapFilterType;
+
+flash.filters.DisplacementMapFilter.mode : DisplacementMapFilterMode;
+flash.filters.DisplacementMapFilter.$mode : DisplacementMapFilterMode;
+
+flash.filters.GradientGlowFilter.type : BitmapFilterType;
+flash.filters.GradientGlowFilter.$type : BitmapFilterType;
+
+flash.geom.Matrix3D.$orientationStyle : Orientation3D;
+
+// flash.geom.Transform : matrix3D, perspectiveProjection, getRelativeMatrix3D : FP10
+
+-flash.geom.Utils3D.new
+
+flash.media.Microphone.codec : SoundCodec;
+
+-flash.media.SoundMixer.new
+
+flash.net.FileReference.$typeFilter : Array<FileFilter>;
+flash.net.FileReferenceList.fileList : Array<FileReference>;
+flash.net.FileReferenceList.$typeFilter : Array<FileFilter>;
+
+flash.net.NetStreamPlayOptions.transition : NetStreamPlayTransitions;
+
+-flash.net.ObjectEncoding.new
+
+flash.net.Socket.endian : flash.utils.Endian;
+flash.net.URLLoader.dataFormat : URLLoaderDataFormat;
+flash.net.URLRequest.requestHeaders : Array<URLRequestHeader>;
+
+flash.net.URLStream.endian : flash.utils.Endian;
+
+flash.printing.PrintJob.orientation : PrintJobOrientation;
+
+-flash.sampler.DeleteObjectSample.new
+-flash.sampler.NewObjectSample.new
+-flash.sampler.Sample.new
+flash.sampler.Sample.stack : Array<StackFrame>;
+-flash.sampler.StackFrame.new
+
+-flash.system.Capabilities.new
+-flash.system.IME.new
+flash.system.IME.conversionMode : IMEConversionMode
+
+-flash.system.Security.new
+flash.system.Security.$panel : SecurityPanel
+-flash.system.SecurityDomain.new
+-flash.system.System.new
+flash.system.SystemUpdater.$typer : SystemAdapterType;
+
+flash.text.Font.fontStyle : FontStyle;
+flash.text.Font.fontType : FontType;
+flash.text.TextField.autoSize : TextFieldAutoSize;
+flash.text.TextField.antiAliasType : AntiAliasType;
+flash.text.TextField.gridFitType : GridFitType;
+flash.text.TextField.type : TextFieldType;
+
+flash.text.TextFormat.align : TextFormatAlign;
+flash.text.TextFormat.blockIndent : Null<Float>
+flash.text.TextFormat.bold : Null<Bool>;
+flash.text.TextFormat.bullet : Null<Bool>;
+flash.text.TextFormat.color : Null<UInt>;
+flash.text.TextFormat.display : TextFormatDisplay;
+flash.text.TextFormat.indent : Null<Float>;
+flash.text.TextFormat.italic : Null<Bool>;
+flash.text.TextFormat.kerning : Null<Bool>;
+flash.text.TextFormat.leading : Null<Float>;
+flash.text.TextFormat.leftMargin : Null<Float>;
+flash.text.TextFormat.letterSpacing : Null<Float>;
+flash.text.TextFormat.rightMargin : Null<Float>;
+flash.text.TextFormat.size : Null<Float>;
+flash.text.TextFormat.tabStops : Array<UInt>;
+flash.text.TextFormat.underline : Null<Bool>;
+flash.text.TextFormat.$size : Null<Float>;
+flash.text.TextFormat.$color : Null<UInt>;
+flash.text.TextFormat.$bold : Null<Bool>;
+flash.text.TextFormat.$italic : Null<Bool>;
+flash.text.TextFormat.$underline : Null<Bool>;
+flash.text.TextFormat.$align : TextFormatAlign;
+flash.text.TextFormat.$leftMargin : Null<Float>;
+flash.text.TextFormat.$rightMargin : Null<Float>;
+flash.text.TextFormat.$indent : Null<Float>;
+flash.text.TextFormat.$leading : Null<Float>;
+
+-flash.text.TextRenderer.new
+flash.text.TextRenderer.antiAliasType : AntiAliasType;
+flash.text.TextRenderer.displayMode : TextDisplayMode;
+flash.text.TextRenderer.$fontStyle : FontStyle;
+flash.text.TextRenderer.$colorType : TextColorType;
+
+flash.text.engine.ContentElement.textRotation : TextRotation;
+flash.text.engine.ContentElement.$textRotation : TextRotation;
+
+flash.text.engine.EastAsianJustifier.justificationStyle : JustificationStyle;
+flash.text.engine.EastAsianJustifier.$justificationStyle : JustificationStyle;
+flash.text.engine.EastAsianJustifier.$lineJustification : LineJustification;
+
+flash.text.engine.ElementFormat.alignmentBaseline : TextBaseline;
+flash.text.engine.ElementFormat.breakOpportunity : BreakOpportunity;
+flash.text.engine.ElementFormat.digitCase : DigitCase;
+flash.text.engine.ElementFormat.digitWidth : DigitWidth;
+flash.text.engine.ElementFormat.dominantBaseline : TextBaseline;
+flash.text.engine.ElementFormat.kerning : Kerning;
+flash.text.engine.ElementFormat.ligatureLevel : LigatureLevel;
+flash.text.engine.ElementFormat.textRotation : TextRotation;
+flash.text.engine.ElementFormat.typographicCase : TypographicCase;
+flash.text.engine.ElementFormat.$alignmentBaseline : TextBaseline;
+flash.text.engine.ElementFormat.$breakOpportunity : BreakOpportunity;
+flash.text.engine.ElementFormat.$digitCase : DigitCase;
+flash.text.engine.ElementFormat.$digitWidth : DigitWidth;
+flash.text.engine.ElementFormat.$dominantBaseline : TextBaseline;
+flash.text.engine.ElementFormat.$kerning : Kerning;
+flash.text.engine.ElementFormat.$ligatureLevel : LigatureLevel;
+flash.text.engine.ElementFormat.$textRotation : TextRotation;
+flash.text.engine.ElementFormat.$typographicCase : TypographicCase;
+
+flash.text.engine.FontDescription.cffHinting : CFFHinting;
+flash.text.engine.FontDescription.fontLookup : FontLookup;
+flash.text.engine.FontDescription.fontPosture : FontPosture;
+flash.text.engine.FontDescription.fontWeight : FontWeight;
+flash.text.engine.FontDescription.renderingMode : RenderingMode;
+flash.text.engine.FontDescription.$cffHinting : CFFHinting;
+flash.text.engine.FontDescription.$fontLookup : FontLookup;
+flash.text.engine.FontDescription.$fontPosture : FontPosture;
+flash.text.engine.FontDescription.$fontWeight : FontWeight;
+flash.text.engine.FontDescription.$renderingMode : RenderingMode;
+
+flash.text.engine.GraphicElement.$textRotation : TextRotation;
+flash.text.engine.GroupElement.$textRotation : TextRotation;
+flash.text.engine.SpaceJustifier.$lineJustification : LineJustification;
+flash.text.engine.TabStop.alignment : TabAlignment;
+flash.text.engine.TabStop.$alignment : TabAlignment;
+
+flash.text.engine.TextBlock.baselineZero : TextBaseline;
+flash.text.engine.TextBlock.lineRotation : TextRotation;
+flash.text.engine.TextBlock.textLineCreationResult : TextLineCreationResult;
+flash.text.engine.TextBlock.$baselineZero : TextBaseline;
+flash.text.engine.TextBlock.$lineRotation : TextRotation;
+flash.text.engine.TextBlock.$textLineCreationResult : TextLineCreationResult;
+
+flash.text.engine.TextElement.$textRotation : TextRotation;
+
+flash.text.engine.TextJustifier.lineJustification : LineJustification;
+flash.text.engine.TextJustifier.$lineJustification : LineJustification;
+
+flash.text.engine.TextLine.baseline : TextBaseline;
+
+-flash.trace.Trace.new
+
+-static flash.xml.XMLList.length
+-static flash.xml.XML.length
+-flash.text.engine.TextElement.text
+
+-flash.ui.Keyboard.new
+-flash.ui.Mouse.new
+flash.ui.Mouse.cursor : MouseCursor;
+
+-flash.ui.Multitouch.new
+flash.ui.Multitouch.inputMode : MultitouchInputMode;
+
+flash.utils.ObjectInput.endian : Endian;
+flash.utils.ObjectOutput.endian : Endian;
+flash.utils.ByteArray.endian : Endian;
+flash.utils.IDataInput.endian : Endian;
+flash.utils.IDataOutput.endian : Endian;
+
+flash.xml.XMLNode.nodeType : XMLNodeType;
+flash.xml.XMLNode.$type : XMLNodeType;

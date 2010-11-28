@@ -586,7 +586,47 @@ let init_core_api ctx c =
 		check_fields ccore.cl_statics c.cl_statics;
 	| _ -> assert false
 
+let patch_class ctx c fields =
+	let h = (try Some (Hashtbl.find ctx.g.type_patches c.cl_path) with Not_found -> None) in
+	match h with
+	| None -> fields
+	| Some h ->
+		let rec loop acc = function
+			| [] -> List.rev acc
+			| (f,p) :: l ->
+				let acc = (try
+					match f with
+					| FVar (name,doc,meta,access,t,e) ->
+						(match Hashtbl.find h (name,List.mem AStatic access) with
+						| None -> acc
+						| Some t -> (FVar (name,doc,meta,access,Some t,e),p) :: acc)
+					| FProp (name,doc,meta,access,get,set,t) ->
+						(match Hashtbl.find h (name,List.mem AStatic access) with
+						| None -> acc
+						| Some t -> (FProp (name,doc,meta,access,get,set,t),p) :: acc)
+					| FFun (name,doc,meta,access,pl,f) ->
+						(match Hashtbl.find h (name,List.mem AStatic access) with
+						| None -> acc
+						| Some t -> (FFun (name,doc,meta,access,pl,{ f with f_type = Some t }),p) :: acc)
+				with Not_found ->
+					let f = (match f with
+					| FFun (name,doc,meta,access,params,f) ->
+						let param ((n,opt,t,e) as p) =
+							try
+								n, opt, Hashtbl.find h (("$" ^ n),false), e
+							with Not_found ->
+								p
+						in
+						FFun (name,doc,meta,access,params,{ f with f_args = List.map param f.f_args })
+					| _ -> f) in
+					(f,p) :: acc
+				) in
+				loop acc l
+		in
+		List.rev (loop [] fields)
+
 let init_class ctx c p herits fields meta =
+	let fields = patch_class ctx c fields in
 	ctx.type_params <- c.cl_types;
 	c.cl_extern <- List.mem HExtern herits;
 	c.cl_interface <- List.mem HInterface herits;

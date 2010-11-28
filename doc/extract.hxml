@@ -1,0 +1,6 @@
+-debug
+-swf-lib library.swf
+-swf9 test.swf
+-swf-version 10
+--macro patchTypes("patches.txt")
+--gen-hx-classes

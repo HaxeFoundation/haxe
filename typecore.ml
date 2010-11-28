@@ -29,6 +29,7 @@ type typer_globals = {
 	mutable macros : ((unit -> unit) * typer) option;
 	mutable std : module_def;
 	mutable hook_generate : (unit -> unit) list;
+	type_patches : (path, (string * bool, Ast.complex_type option) Hashtbl.t) Hashtbl.t;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> Ast.pos -> Ast.class_flag -> bool;
 	do_create : Common.context -> typer;

@@ -167,9 +167,11 @@ let rec make_tpath = function
 			tparams = if !pdyn then [TPType (CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None; })] else[];
 			tsub = None;
 		}
-	| HMName (id,_) ->
+	| HMName (id,ns) ->
 		{
-			tpackage = [];
+			tpackage = (match ns with
+				| HNInternal (Some ns) -> ExtString.String.nsplit ns "."
+				| _ -> []);
 			tname = id;
 			tparams = [];
 			tsub = None;
@@ -195,12 +197,7 @@ let make_topt = function
 	| None -> { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None }
 	| Some t -> make_tpath t
 
-let make_type f t =
-	CTPath (match f, t with
-	| "opaqueBackground", Some (HMPath ([],"Object")) -> make_param ([],"Null") ([],"UInt")
-	| "getObjectsUnderPoint", Some (HMPath ([],"Array")) -> make_param ([],"Array") (["flash";"display"],"DisplayObject")
-	| "blendMode", Some (HMPath ([],"String")) -> { tpackage = ["flash";"display"]; tname = "BlendMode"; tparams = []; tsub = None }
-	| _ -> make_topt t)
+let make_type t = CTPath (make_topt t)
 
 let build_class com c file =
 	let path = make_tpath c.hlc_name in
@@ -231,45 +228,47 @@ let build_class com c file =
 	let setters = Hashtbl.create 0 in
 	let as3_native = Common.defined com "as3_native" in
 	let make_field stat acc f =
-		let meta = ref None in
+		let meta = ref [] in
 		let flags = (match f.hlf_name with
 			| HMPath _ -> [APublic]
 			| HMName (_,ns) ->
 				(match ns with
 				| HNPrivate _ | HNNamespace "http://www.adobe.com/2006/flex/mx/internal" -> []
 				| HNNamespace ns ->
-					meta := Some (":ns",[String ns]);
+					meta := (":ns",[String ns]) :: !meta;
 					[APublic]
 				| HNExplicit _ | HNInternal _ | HNPublic _ ->
 					[APublic]
 				| HNStaticProtected _ | HNProtected _ ->
-					if as3_native then meta := Some (":protected",[]);
+					if as3_native then meta := (":protected",[]) :: !meta;
 					[APrivate])
 			| _ -> []
 		) in
 		if flags = [] then acc else
 		let flags = if stat then AStatic :: flags else flags in
-		let meta = (match !meta with None -> [] | Some (s,cl) -> [s,List.map (fun c -> EConst c,pos) cl]) in
+		let mk_meta() =
+			List.map (fun (s,cl) -> s, List.map (fun c -> EConst c,pos) cl) (!meta)
+		in
 		let name = (make_tpath f.hlf_name).tname in
 		match f.hlf_kind with
 		| HFVar v ->
 			let v = if v.hlv_const then
-				FProp (name,None,meta,flags,"default","never",make_type name v.hlv_type)
+				FProp (name,None,mk_meta(),flags,"default","never",make_type v.hlv_type)
 			else
-				FVar (name,None,meta,flags,Some (make_type name v.hlv_type),None)
+				FVar (name,None,mk_meta(),flags,Some (make_type v.hlv_type),None)
 			in
 			v :: acc
 		| HFMethod m when not m.hlm_override ->
 			(match m.hlm_kind with
 			| MK3Normal ->
 				let t = m.hlm_type in
-				let p = ref 0 in
+				let p = ref 0 and pn = ref 0 in
 				let args = List.map (fun at ->
 					let aname = (match t.hlmt_pnames with
-						| None -> "p" ^ string_of_int !p
+						| None -> incr pn; "p" ^ string_of_int !pn
 						| Some l ->
 							match List.nth l !p with
-							| None -> "p" ^ string_of_int !p
+							| None -> incr pn; "p" ^ string_of_int !pn
 							| Some i -> i
 					) in
 					let opt_val = (match t.hlmt_dparams with
@@ -280,15 +279,37 @@ let build_class com c file =
 							with
 								_ -> None
 					) in
-					incr p;
-					(aname,opt_val <> None,Some (make_type name at),None)
+					incr p;					
+					let t = make_type at in
+					let def_val = match opt_val with
+						| None -> None
+						| Some v ->							
+							let v = (match v with
+							| HVNone | HVNull | HVNamespace _ | HVString _ -> None
+							| HVBool b ->								
+								Some (Ident (if b then "true" else "false"))
+							| HVInt i | HVUInt i -> 
+								Some (Int (Int32.to_string i))
+							| HVFloat f -> 
+								Some (Float (string_of_float f))
+							) in
+							match v with
+							| None -> None
+							| Some v -> 
+								meta := (":defparam",[String aname;v]) :: !meta;
+								Some (EConst v,pos)
+					in
+					(aname,opt_val <> None,Some t,def_val)					
 				) t.hlmt_args in
+				let args = if t.hlmt_var_args then 
+					args @ List.map (fun _ -> incr pn; ("p" ^ string_of_int !pn,true,Some (make_type None),None)) [1;2;3;4;5]
+				else args in
 				let f = {
 					f_args = args;
-					f_type = Some (make_type name t.hlmt_ret);
+					f_type = Some (make_type t.hlmt_ret);
 					f_expr = (EBlock [],pos)
 				} in
-				FFun (name,None,meta,flags,[],f) :: acc
+				FFun (name,None,mk_meta(),flags,[],f) :: acc
 			| MK3Getter ->
 				Hashtbl.add getters (name,stat) m.hlm_type.hlmt_ret;
 				acc
@@ -320,7 +341,7 @@ let build_class com c file =
 		) in
 		let flags = [APublic] in
 		let flags = if stat then AStatic :: flags else flags in
-		FProp (name,None,[],flags,(if get then "default" else "never"),(if set then "default" else "never"),make_type name t)
+		FProp (name,None,[],flags,(if get then "default" else "never"),(if set then "default" else "never"),make_type t)
 	in
 	let fields = Hashtbl.fold (fun (name,stat) t acc ->
 		make_get_set name stat (Some t) (try Some (Hashtbl.find setters (name,stat)) with Not_found -> None) :: acc
@@ -331,6 +352,31 @@ let build_class com c file =
 		else
 			make_get_set name stat None (Some t) :: acc
 	) setters fields in
+	try
+		(*
+			If the class only contains static String constants, make it an enum
+		*)
+		let rec loop = function
+			| [] -> []
+			| f :: l ->
+				match f with
+				| FVar (name,doc,_,access,Some (CTPath { tpackage = []; tname = "String" | "Int" | "UInt" }),None) when List.mem AStatic access -> (name,doc,[],[],pos) :: loop l
+				| FFun ("new",_,_,_,_,{ f_args = [] }) -> loop l
+				| _ -> raise Exit
+		in
+		if fields = [] then raise Exit;
+		List.iter (function HExtends _ | HImplements _ -> raise Exit | _ -> ()) flags;			
+		let constr = loop fields in
+		let enum_data = {
+			d_name = path.tname;
+			d_doc = None;
+			d_params = [];
+			d_meta = [];
+			d_flags = [EExtern];
+			d_data = constr;
+		} in
+		(path.tpackage, [(EEnum enum_data,pos)])
+	with Exit ->
 	let class_data = {
 		d_name = path.tname;
 		d_doc = None;

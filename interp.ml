@@ -87,7 +87,8 @@ type extern_api = {
 	pos : Ast.pos;
 	get_type : string -> Type.t option;
 	parse_string : string -> Ast.pos -> Ast.expr;
-	eval : Ast.expr -> Type.t;
+	typeof : Ast.expr -> Type.t;
+	type_patch : string -> string -> bool -> string option -> unit;
 }
 
 type context = {
@@ -1581,8 +1582,16 @@ let macro_lib =
 			let v = loop v in
 			VString (Digest.to_hex (Digest.string (Marshal.to_string v [Marshal.Closures])))
 		);
-		"eval", Fun1 (fun v ->
-			encode_type ((get_ctx()).curapi.eval (decode_expr v))
+		"typeof", Fun1 (fun v ->
+			encode_type ((get_ctx()).curapi.typeof (decode_expr v))
+		);
+		"type_patch", Fun4 (fun t f s v ->
+			let p = (get_ctx()).curapi.type_patch in
+			(match t, f, s, v with
+			| VString t, VString f, VBool s, VString v -> p t f s (Some v)
+			| VString t, VString f, VBool s, VNull -> p t f s None
+			| _ -> error());
+			VNull
 		);
 	]
 
@@ -2875,6 +2884,28 @@ and encode_type t =
 	in
 	let tag, pl = loop t in
 	enc_enum IType tag pl
+
+(* ---------------------------------------------------------------------- *)
+(* VALUE-TO-CONSTANT *)
+
+let rec make_const e =
+	match e.eexpr with
+	| TConst c ->
+		(match c with
+		| TInt i -> (try VInt (Int32.to_int i) with _ -> raise Exit)
+		| TFloat s -> VFloat (float_of_string s)
+		| TString s -> enc_string s
+		| TBool b -> VBool b
+		| TNull -> VNull
+		| TThis | TSuper -> raise Exit)
+	| TParenthesis e ->
+		make_const e
+	| TObjectDecl el ->
+		VObject (obj (List.map (fun (f,e) -> f, make_const e) el))
+	| TArrayDecl al ->
+		enc_array (List.map make_const al)
+	| _ ->
+		raise Exit
 
 ;;
 encode_type_ref := encode_type;
