@@ -195,3 +195,123 @@ let gen_type_string ctx t =
 	write_xml ch "" x;
 	IO.close_out ch
 
+
+(* -------------------------------------------------------------------------- *)
+(* PRINT HX FROM TYPE *)
+
+let rec create_dir acc = function
+	| [] -> ()
+	| d :: l ->
+		let path = acc ^ "/" ^ d in
+		(try Unix.mkdir path 0o777 with _ -> ());
+		create_dir path l
+
+let generate_type com t =
+	let base_path = "hxclasses" in
+	let pack , name = t_path t in
+	create_dir "." (base_path :: pack);
+	let f = open_out_bin (base_path ^ "/" ^ (match pack with [] -> "" | l -> String.concat "/" l ^ "/") ^ name ^ ".hx") in
+	let ch = IO.output_channel f in
+	let p fmt = IO.printf ch fmt in
+	if pack <> [] then IO.printf ch "package %s;\n\n" (String.concat "." pack);
+	let rec notnull t =
+		match t with
+		| TMono r ->
+			(match !r with
+			| None -> t
+			| Some t -> notnull t)
+		| TLazy f ->
+			notnull ((!f)())
+		| TType ({ t_path = [],"Null" },[t]) ->
+			t
+		| _ ->
+			t
+	in
+	let rec path p tl =
+		(if fst p = pack then snd p else s_type_path p) ^ (match tl with [] -> "" | _ -> "<" ^ String.concat "," (List.map stype tl) ^ ">")
+	and stype t =
+		match t with
+		| TMono r ->
+			(match !r with
+			| None -> "Unknown"
+			| Some t -> stype t)
+		| TInst (c,tl) ->
+			path c.cl_path tl
+		| TEnum (e,tl) ->
+			path e.e_path tl
+		| TType (t,tl) ->
+			path t.t_path tl
+		| TAnon a ->
+			let fields = PMap.fold (fun f acc -> (f.cf_name ^ " : " ^ stype f.cf_type) :: acc) a.a_fields [] in
+			"{" ^ String.concat ", " fields ^ "}"
+		| TLazy f ->
+			stype ((!f)())
+		| TDynamic t2 ->
+			if t == t2 then "Dynamic" else "Dynamic<" ^ stype t2 ^ ">"
+		| TFun (args,ret) ->
+			String.concat " -> " (List.map (fun (_,_,t) -> ftype t) args) ^ " -> " ^ ftype ret
+	and ftype t = 
+		match t with
+		| TMono r ->
+			(match !r with
+			| None -> stype t
+			| Some t -> ftype t)
+		| TLazy f ->
+			ftype ((!f)())
+		| TFun _ ->
+			"(" ^ stype t ^ ")"
+		| _ ->
+			stype t
+	in
+	let print_field stat f =
+		p "\t";
+		if stat then p "static ";
+		(match f.cf_kind with
+		| Var v ->
+			p "var %s" f.cf_name;
+			if v.v_read <> AccNormal || v.v_write <> AccNormal then p "(%s,%s)" (s_access v.v_read) (s_access (if v.v_write = AccNever && (match pack with "flash" :: _ -> true | _ -> false) then AccNo else v.v_write));
+			p " : %s" (stype f.cf_type);
+		| Method m ->
+			let params, ret = (match follow f.cf_type with TFun (args,ret) -> args, ret | _ -> assert false) in
+			let params = List.map (fun (n,opt,t) -> (if opt then "?" else "") ^ n ^ " : " ^ stype (if opt then notnull t else t)) params in
+			p "function %s(%s) : %s" f.cf_name (String.concat ", " params) (stype ret);
+		);
+		p ";\n"
+	in
+	(match t with
+	| TClassDecl c ->
+		p "extern %s %s" (if c.cl_interface then "interface" else "class") (stype (TInst (c,List.map snd c.cl_types)));
+		let ext = (match c.cl_super with
+		| None -> []
+		| Some (c,pl) -> [" extends " ^ stype (TInst (c,pl))]
+		) in
+		let ext = List.fold_left (fun acc (i,pl) -> (" implements " ^ stype (TInst (i,pl))) :: acc) ext c.cl_implements in
+		p "%s" (String.concat "," (List.rev ext));
+		p " {\n";
+		let sort l =
+			let a = Array.of_list l in
+			let name = function "new" -> "" | n -> n in
+			Array.sort (fun f1 f2 ->
+				match f1.cf_kind, f2.cf_kind with
+				| Var _, Var _ | Method _ , Method _ -> compare (name f1.cf_name) (name f2.cf_name)
+				| Var _, _ -> -1
+				| _ -> 1
+			) a;
+			Array.to_list a
+		in
+		List.iter (print_field false) (sort (match c.cl_constructor with None -> c.cl_ordered_fields | Some f -> f :: c.cl_ordered_fields));
+		List.iter (print_field true) (sort c.cl_ordered_statics);
+		p "}\n";
+	| TEnumDecl e ->
+		p "extern enum %s {\n" (stype (TEnum(e,List.map snd e.e_types)));
+		p "}\n"
+	| TTypeDecl t ->
+		p "extern typedef %s = " (stype (TType (t,List.map snd t.t_types)));
+		p "%s" (stype t.t_type);
+		p "\n";
+	);
+	IO.close_out ch
+	
+let generate_hx com =
+	List.iter (generate_type com) com.types
+	

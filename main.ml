@@ -407,10 +407,11 @@ try
 		("--no-traces", define "no_traces", ": don't compile trace calls in the program");
 		("--flash-use-stage", define "flash_use_stage", ": place objects found on the stage of the SWF lib");
 		("--neko-source", define "neko_source", ": keep generated neko source");
-		("--gen-hx-classes", Arg.String (fun file ->
-			com.file <- file;
-			Genas3.genhx com;
-			did_something := true;
+		("--gen-hx-classes", Arg.Unit (fun() ->
+			List.iter (fun (_,_,extract) ->
+				Hashtbl.iter (fun n _ -> classes := n :: !classes) (extract())				
+			) com.swf_libs;
+			xml_out := Some "hx"
 		),"<file> : generate hx headers from SWF9 file");
 		("--next", Arg.Unit (fun() -> assert false), ": separate several haxe compilations");
 		("--display", Arg.String (fun file_pos ->
@@ -600,6 +601,8 @@ try
 		);
 		(match !xml_out with
 		| None -> ()
+		| Some "hx" ->
+			Genxml.generate_hx com
 		| Some file ->
 			if com.verbose then print_endline ("Generating xml : " ^ com.file);
 			Genxml.generate com file);

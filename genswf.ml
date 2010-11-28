@@ -153,6 +153,12 @@ let rec make_tpath = function
 			| [], "Boolean" -> [], "Bool"
 			| [], "Object" | [], "Function" -> [], "Dynamic"
 			| [],"Class" | [],"Array" -> pdyn := true; pack, name
+			| [], "Error" -> ["flash";"errors"], "Error"
+			| [] , "XML" -> ["flash";"xml"], "XML"
+			| [] , "XMLList" -> ["flash";"xml"], "XMLList"
+			| [] , "QName" -> ["flash";"utils"], "QName"
+			| [] , "Namespace" -> ["flash";"utils"], "Namespace"
+			| ["__AS3__";"vec"] , "Vector" -> ["flash"], "Vector"
 			| _ -> pack, name
 		in
 		{
@@ -164,13 +170,6 @@ let rec make_tpath = function
 	| HMName (id,_) ->
 		{
 			tpackage = [];
-			tname = id;
-			tparams = [];
-			tsub = None;
-		}
-	| HMMultiName (Some id,[HNPublic (Some ns)]) ->
-		{
-			tpackage = ExtString.String.nsplit ns ".";
 			tname = id;
 			tparams = [];
 			tsub = None;
@@ -212,7 +211,19 @@ let build_class com c file =
 		| None | Some (HMPath ([],"Object")) -> flags
 		| Some s -> HExtends (make_tpath s) :: flags
 	) in
-	let flags = List.map (fun i -> HImplements (make_tpath i)) (Array.to_list c.hlc_implements) @ flags in
+	let flags = List.map (fun i -> 
+		let i = (match i with
+			| HMMultiName (Some id,ns) -> 
+				let rec loop = function
+					| [] -> assert false
+					| HNPublic (Some ns) :: _ -> HMPath (ExtString.String.nsplit ns ".",id)
+					| _ :: l -> loop l
+				in
+				loop (List.rev ns)
+			| _ -> assert false
+		) in
+		HImplements (make_tpath i)
+	) (Array.to_list c.hlc_implements) @ flags in
 	let flags = if c.hlc_sealed || Common.defined com "flash_strict" then flags else HImplements (make_tpath (HMPath ([],"Dynamic"))) :: flags in
   (* make fields *)
 	let pos = { pfile = file ^ "@" ^ s_type_path (path.tpackage,path.tname); pmin = 0; pmax = 0 } in
@@ -343,7 +354,9 @@ let extract_data swf =
 				match f.hlf_kind with
 				| HFClass c ->
 					let path = make_tpath f.hlf_name in
-					Hashtbl.add h (path.tpackage,path.tname) c
+					(match path with
+					| { tpackage = []; tname = "Float" | "Bool" | "MethodClosure" | "Int" | "UInt" | "Dynamic" } -> ()
+					| _ -> Hashtbl.add h (path.tpackage,path.tname) c)
 				| _ -> ()
 			in
 			List.iter (fun t ->
