@@ -1767,8 +1767,8 @@ let generate_field_kind ctx f c stat =
 		| _ ->
 			let rec lookup_kind = function
 				| [] -> f.cf_name, MK3Normal
-				| (":getter",[EConst (String f),_]) :: _ -> f, MK3Getter
-				| (":setter",[EConst (String f),_]) :: _ -> f, MK3Getter
+				| (":getter",[EConst (Ident f | Type f),_]) :: _ -> f, MK3Getter
+				| (":setter",[EConst (Ident f | Type f),_]) :: _ -> f, MK3Getter
 				| _ :: l -> lookup_kind l
 			in
 			let name, kind = lookup_kind f.cf_meta in
@@ -1826,20 +1826,20 @@ let generate_class ctx c =
 		| None -> acc
 		| Some k ->
 			let rec find_meta c =
-				match c.cl_super with
-				| None -> []
-				| Some (c,_) ->
-					try
-						let f = PMap.find f.cf_name c.cl_fields in
-						if List.mem f.cf_name c.cl_overrides then raise Not_found;
-						f.cf_meta
-					with Not_found ->
-						find_meta c
+				try
+					let f = PMap.find f.cf_name c.cl_fields in
+					if List.mem f.cf_name c.cl_overrides then raise Not_found;
+					f.cf_meta
+				with Not_found ->
+					match c.cl_super with
+					| None -> []
+					| Some (c,_) -> find_meta c
 			in
 			let rec loop_meta = function
 				| [] -> ident f.cf_name
 				| x :: l ->
 					match x with
+					| ((":getter" | ":setter"),[EConst (Ident f | Type f),_]) -> ident f
 					| (":ns",[Ast.EConst (Ast.String ns),_]) -> HMName (f.cf_name,HNNamespace ns)
 					| (":protected",[]) ->
 						let p = (match c.cl_path with [], n -> n | p, n -> String.concat "." p ^ ":" ^ n) in
