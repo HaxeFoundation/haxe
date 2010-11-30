@@ -1751,11 +1751,11 @@ let generate_enum_init ctx e hc meta =
 let generate_field_kind ctx f c stat =
 	match f.cf_expr with
 	| Some { eexpr = TFunction fdata } ->
-		let rec loop c =
+		let rec loop c name =
 			match c.cl_super with
 			| None -> false
 			| Some (c,_) ->
-				PMap.exists f.cf_name c.cl_fields || loop c
+				PMap.exists name c.cl_fields || loop c name
 		in
 		(match f.cf_kind with
 		| Var _ | Method MethDynamic ->
@@ -1765,11 +1765,18 @@ let generate_field_kind ctx f c stat =
 				hlv_const = false;
 			})
 		| _ ->
+			let rec lookup_kind = function
+				| [] -> f.cf_name, MK3Normal
+				| (":getter",[EConst (String f),_]) :: _ -> f, MK3Getter
+				| (":setter",[EConst (String f),_]) :: _ -> f, MK3Getter
+				| _ :: l -> lookup_kind l
+			in
+			let name, kind = lookup_kind f.cf_meta in
 			Some (HFMethod {
 				hlm_type = generate_method ctx fdata stat;
 				hlm_final = stat;
-				hlm_override = not stat && loop c;
-				hlm_kind = MK3Normal;
+				hlm_override = not stat && loop c name;
+				hlm_kind = kind;
 			})
 		);
 	| _ when c.cl_interface && not stat ->

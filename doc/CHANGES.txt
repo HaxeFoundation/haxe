@@ -24,6 +24,7 @@
 	all : added --macros and haxe.macro.Compiler
 	all : allow macro type patches
 	flash9 : changed --gen-hx-classes implementation
+	flash9 : added @:getter and @:setter
 
 2010-08-14: 2.06
 	neko : change serializer to be able to handle instances of basic classes from other modules
