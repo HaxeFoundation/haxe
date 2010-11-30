@@ -40,7 +40,7 @@ enum Type {
 }
 
 typedef AnonType = {
-	var fields : Hash<ClassField>;
+	var fields : Array<ClassField>;
 	//var status : AnonStatus;
 }
 
@@ -68,8 +68,8 @@ typedef ClassType = {> BaseType,
 	var isInterface : Bool;
 	var superClass : Null<{ t : Ref<ClassType>, params : Array<Type> }>;
 	var interfaces : Array<{ t : Ref<ClassType>, params : Array<Type> }>;
-	var fields : Ref<Hash<ClassField>>;
-	var statics : Ref<Hash<ClassField>>;
+	var fields : Ref<Array<ClassField>>;
+	var statics : Ref<Array<ClassField>>;
 	//var dynamic : Null<Type>;
 	//var arrayAccess : Null<Type>;
 	var constructor : Null<Ref<ClassField>>;

@@ -2748,6 +2748,14 @@ let encode_pmap convert m =
 	let h = Hashtbl.create 0 in
 	PMap.iter (fun k v -> Hashtbl.add h (VString k) (convert v)) m;
 	enc_hash h
+	
+let encode_pmap_array convert m =
+	let l = ref [] in
+	PMap.iter (fun _ v -> l := !l @ [(convert v)]) m;
+	enc_array !l
+	
+let encode_array convert l =
+	enc_array (List.map convert l)
 
 let encode_meta m set =
 	let meta = ref m in
@@ -2822,8 +2830,8 @@ and encode_tclass c =
 			| Some (c,pl) -> enc_obj ["t",encode_clref c;"params",encode_tparams pl]
 		);
 		"interfaces", enc_array (List.map (fun (c,pl) -> enc_obj ["t",encode_clref c;"params",encode_tparams pl]) c.cl_implements);
-		"fields", encode_ref c.cl_fields (encode_pmap encode_cfield) (fun() -> "class fields");
-		"statics", encode_ref c.cl_statics (encode_pmap encode_cfield) (fun() -> "class fields");
+		"fields", encode_ref c.cl_ordered_fields (encode_array encode_cfield) (fun() -> "class fields");
+		"statics", encode_ref c.cl_ordered_statics (encode_array encode_cfield) (fun() -> "class fields");
 		"constructor", (match c.cl_constructor with None -> VNull | Some c -> encode_ref c encode_cfield (fun() -> "constructor"));
 		"meta", encode_meta c.cl_meta (fun m -> c.cl_meta <- m);
 	]
@@ -2842,7 +2850,7 @@ and encode_ttype t =
 
 and encode_tanon a =
 	enc_obj [
-		"fields", encode_pmap encode_cfield a.a_fields;
+		"fields", encode_pmap_array encode_cfield a.a_fields;
 	]
 
 and encode_tparams pl =
