@@ -684,6 +684,7 @@ with
 
 ;;
 let all = Common.timer "other" in
+Sys.catch_break true;
 process_params [] (List.tl (Array.to_list Sys.argv));
 all();
 if !measure_times then begin

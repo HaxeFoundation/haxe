@@ -1681,7 +1681,7 @@ let rec eval ctx (e,p) =
 			| _ ->
 				VNull
 		in
-		loop()
+		(try loop() with Sys.Break -> throw ctx p "Ctrl+C")
 	| EWhile (econd,e,DoWhile) ->
 		let rec loop() =
 			let v = (try
