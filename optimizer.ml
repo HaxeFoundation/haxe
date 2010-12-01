@@ -172,9 +172,15 @@ let type_inline ctx cf f ethis params tret p =
 	if Common.defined ctx.com "js" && (init <> None || !has_vars) then
 		None
 	else
+		let wrap e =
+			match e.eexpr with
+			(* we can't mute the type of a TNew because it will be used later to get parameters *)
+			| TNew _ -> mk (TParenthesis e) tret e.epos
+			| _ -> { e with etype = tret }
+		in
 		let e = (match e.eexpr, init with
-			| TBlock [e] , None -> { e with etype = tret; }
-			| _ , None -> { e with etype = tret; }
+			| TBlock [e] , None -> wrap e
+			| _ , None -> wrap e
 			| TBlock l, Some init -> mk (TBlock (init :: l)) tret e.epos
 			| _, Some init -> mk (TBlock [init;e]) tret e.epos
 		) in
