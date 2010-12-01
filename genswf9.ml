@@ -1768,7 +1768,7 @@ let generate_field_kind ctx f c stat =
 			let rec lookup_kind = function
 				| [] -> f.cf_name, MK3Normal
 				| (":getter",[EConst (Ident f | Type f),_]) :: _ -> f, MK3Getter
-				| (":setter",[EConst (Ident f | Type f),_]) :: _ -> f, MK3Getter
+				| (":setter",[EConst (Ident f | Type f),_]) :: _ -> f, MK3Setter
 				| _ :: l -> lookup_kind l
 			in
 			let name, kind = lookup_kind f.cf_meta in
