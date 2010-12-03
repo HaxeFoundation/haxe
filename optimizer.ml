@@ -147,7 +147,7 @@ let type_inline ctx cf f ethis params tret p =
 	Hashtbl.add hcount vthis this_count;
 	let vars = List.map2 (fun (n,t) e ->
 		let flag = not (Hashtbl.mem lsets n) && (match e.eexpr with
-			| TLocal _ | TConst _ -> true
+			| TLocal _ | TConst _ | TFunction _ -> true
 			| _ ->
 				let used = !(Hashtbl.find hcount n) in
 				used <= 1
