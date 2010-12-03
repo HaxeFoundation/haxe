@@ -86,6 +86,7 @@ type locals = (string, value ref) PMap.t
 type extern_api = {
 	pos : Ast.pos;
 	get_type : string -> Type.t option;
+	print : string -> unit;
 	parse_string : string -> Ast.pos -> Ast.expr;
 	typeof : Ast.expr -> Type.t;
 	type_patch : string -> string -> bool -> string option -> unit;
@@ -485,7 +486,10 @@ let builtins =
 		"hcount", Fun1 (fun h -> VInt (Hashtbl.length (vhash h)));
 		"hsize", Fun1 (fun h -> VInt (Hashtbl.length (vhash h)));
 	(* misc *)
-		"print", FunVar (fun vl -> List.iter (fun v -> print_string ((get_ctx()).do_string v)) vl; VNull);
+		"print", FunVar (fun vl -> List.iter (fun v -> 
+			let ctx = get_ctx() in
+			ctx.curapi.print (ctx.do_string v)
+		) vl; VNull);
 		"throw", Fun1 (fun v -> exc v);
 		"rethrow", Fun1 (fun v -> exc v);
 		"istrue", Fun1 (fun v ->

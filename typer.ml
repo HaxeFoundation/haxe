@@ -1856,6 +1856,9 @@ let make_macro_api ctx p =
 			) in
 			Hashtbl.replace h (f,s) v			
 		);
+		Interp.print = (fun s ->
+			if not !Common.display then print_string s
+		);
 	}
 
 let load_macro ctx cpath f p =
