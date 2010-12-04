@@ -1,5 +1,5 @@
 -debug
--swf-lib library.swf
+-swf-lib library102.swf
 -swf9 test.swf
 -swf-version 10
 --macro patchTypes("../doc/extract.patch")

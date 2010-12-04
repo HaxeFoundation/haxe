@@ -321,7 +321,7 @@ flash.net.SharedObject.flush : SharedObjectFlushStatus;
 flash.net.URLStream.endian : flash.utils.Endian;
 
 flash.printing.PrintJob.orientation : PrintJobOrientation;
-@:require(flash10_1) static flash.print.PrintJob.isSupported;
+@:require(flash10_1) static flash.printing.PrintJob.isSupported;
 
 -flash.sampler.DeleteObjectSample.new
 -flash.sampler.NewObjectSample.new
@@ -775,3 +775,57 @@ flash.globalization.LocaleID.lastOperationStatus : LastOperationStatus;
 flash.globalization.NumberFormatter.lastOperationStatus : LastOperationStatus;
 flash.globalization.NumberFormatter.digitsType : NationalDigitsType;
 flash.globalization.StringTools.lastOperationStatus : LastOperationStatus;
+
+// FP 10.2
+
+@:require(flash10_2) flash.display.MouseCursorData;
+@:require(flash10_2) flash.events.StageVideoEvent;
+@:require(flash10_2) flash.events.VideoEvent;
+@:require(flash10_2) flash.media.MicrophoneEnhancedMode;
+@:require(flash10_2) flash.media.MicrophoneEnhancedOptions;
+@:require(flash10_2) flash.media.StageVideo;
+
+@:require(flash10_2) flash.display.Stage.color;
+@:require(flash10_2) flash.display.Stage.stageVideos;
+
+@:require(flash10_2) flash.media.Microphone.enhancedOptions;
+@:require(flash10_2) static flash.media.Microphone.getEnhancedMicrophone;
+
+@:require(flash10_2) static flash.system.Capabilities.allowsFullScreen;
+
+@:require(flash10_2) static flash.ui.Keyboard.AUDIO;
+@:require(flash10_2) static flash.ui.Keyboard.BACK;
+@:require(flash10_2) static flash.ui.Keyboard.BLUE;
+@:require(flash10_2) static flash.ui.Keyboard.CHANNEL_DOWN;
+@:require(flash10_2) static flash.ui.Keyboard.CHANNEL_UP;
+@:require(flash10_2) static flash.ui.Keyboard.DVR;
+@:require(flash10_2) static flash.ui.Keyboard.EXIT;
+@:require(flash10_2) static flash.ui.Keyboard.FAST_FORWARD;
+@:require(flash10_2) static flash.ui.Keyboard.GREEN;
+@:require(flash10_2) static flash.ui.Keyboard.GUIDE;
+@:require(flash10_2) static flash.ui.Keyboard.HELP;
+@:require(flash10_2) static flash.ui.Keyboard.INFO;
+@:require(flash10_2) static flash.ui.Keyboard.INPUT;
+@:require(flash10_2) static flash.ui.Keyboard.LAST;
+@:require(flash10_2) static flash.ui.Keyboard.LIVE;
+@:require(flash10_2) static flash.ui.Keyboard.MASTER_SHELL;
+@:require(flash10_2) static flash.ui.Keyboard.MENU;
+@:require(flash10_2) static flash.ui.Keyboard.NEXT;
+@:require(flash10_2) static flash.ui.Keyboard.PAUSE;
+@:require(flash10_2) static flash.ui.Keyboard.PLAY;
+@:require(flash10_2) static flash.ui.Keyboard.PREVIOUS;
+@:require(flash10_2) static flash.ui.Keyboard.RECORD;
+@:require(flash10_2) static flash.ui.Keyboard.RED;
+@:require(flash10_2) static flash.ui.Keyboard.REWIND;
+@:require(flash10_2) static flash.ui.Keyboard.SEARCH;
+@:require(flash10_2) static flash.ui.Keyboard.SETUP;
+@:require(flash10_2) static flash.ui.Keyboard.SKIP_BACKWARD;
+@:require(flash10_2) static flash.ui.Keyboard.SKIP_FORWARD;
+@:require(flash10_2) static flash.ui.Keyboard.STOP;
+@:require(flash10_2) static flash.ui.Keyboard.SUBTITLE;
+@:require(flash10_2) static flash.ui.Keyboard.VOD;
+@:require(flash10_2) static flash.ui.Keyboard.YELLOW;
+
+@:require(flash10_2) static flash.ui.Mouse.registerCursor;
+
+flash.media.MicrophoneEnhancedOptions.mode : MicrophoneEnhancedMode;
