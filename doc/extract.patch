@@ -1,10 +1,5 @@
 // types patches configuration for playerglobal.swc
 
-// MANUAL =
-// flash.display.BitmapDataChannel
-// flash.display.GraphicsPathCommand
-// MovieClip : #if !flash_strict , implements Dynamic #end
-
 -flash.accessibility.Accessibility.new
 @:require(flash10_1) flash.accessibility.ISearchableText
 @:require(flash10_1) flash.accessibility.ISimpleTextSelection
