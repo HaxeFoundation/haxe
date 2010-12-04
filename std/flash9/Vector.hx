@@ -1,13 +1,9 @@
 package flash;
 
-#if !flash10
-"The vector class is only available for flash10+"
-#end
-
 /**
 	The Vector class is very similar to Array but is only supported by the Flash Player 10+
 **/
-extern class Vector<T> implements ArrayAccess<T> {
+@:require(flash10) extern class Vector<T> implements ArrayAccess<T> {
 
 	var length : UInt;
 	var fixed : Bool;
@@ -26,5 +22,13 @@ extern class Vector<T> implements ArrayAccess<T> {
 	function toString() : String;
 	function indexOf( x : T, ?from : Int ) : Int;
 	function lastIndexOf( x : T, ?from : Int ) : Int;
+
+	public inline static function ofArray<T>( v : Array<T> ) : Vector<T> {
+		return untyped __vector__(v);
+	}
+
+	public inline static function convert<T,U>( v : Vector<T> ) : Vector<U> {
+		return untyped __vector__(v);
+	}
 
 }
