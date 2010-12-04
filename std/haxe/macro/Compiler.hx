@@ -32,15 +32,24 @@ class Compiler {
 
 #if neko
 
+	static var ident = ~/^[A-Za-z_][A-Za-z0-9_]*$/;
+	static var path = ~/^[A-Za-z_][A-Za-z0-9_.]*$/;
+
 	public static function removeField( className : String, field : String, ?isStatic : Bool ) {
+		if( !path.match(className) ) throw "Invalid "+className;
+		if( !ident.match(field) ) throw "Invalid "+field;
 		untyped load("type_patch",4)(className.__s,field.__s,isStatic == true,null);
 	}
 
 	public static function setFieldType( className : String, field : String, type : String, ?isStatic : Bool ) {
+		if( !path.match(className) ) throw "Invalid "+className;
+		if( !ident.match((field.charAt(0) == "$") ? field.substr(1) : field) ) throw "Invalid "+field;
 		untyped load("type_patch",4)(className.__s,field.__s,isStatic == true,type.__s);
 	}
 
 	public static function addMetadata( meta : String, className : String, ?field : String, ?isStatic : Bool ) {
+		if( !path.match(className) ) throw "Invalid "+className;
+		if( field != null && !ident.match(field) ) throw "Invalid "+field;
 		untyped load("meta_patch",4)(meta.__s,className.__s,(field == null)?null:field.__s,isStatic == true);
 	}
 
