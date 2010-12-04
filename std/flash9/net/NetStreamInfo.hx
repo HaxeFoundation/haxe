@@ -20,6 +20,7 @@ package flash.net;
 	var videoBufferLength(default,null) : Float;
 	var videoByteCount(default,null) : Float;
 	var videoBytesPerSecond(default,null) : Float;
-	function new(curBPS : Float, byteCount : Float, maxBPS : Float, audioBPS : Float, audioByteCount : Float, videoBPS : Float, videoByteCount : Float, dataBPS : Float, dataByteCount : Float, playbackBPS : Float, droppedFrames : Float, audioBufferByteLength : Float, videoBufferByteLength : Float, dataBufferByteLength : Float, audioBufferLength : Float, videoBufferLength : Float, dataBufferLength : Float, srtt : Float, audioLossRate : Float) : Void;
+	@:require(flash10_1) var videoLossRate(default,null) : Float;
+	function new(curBPS : Float, byteCount : Float, maxBPS : Float, audioBPS : Float, audioByteCount : Float, videoBPS : Float, videoByteCount : Float, dataBPS : Float, dataByteCount : Float, playbackBPS : Float, droppedFrames : Float, audioBufferByteLength : Float, videoBufferByteLength : Float, dataBufferByteLength : Float, audioBufferLength : Float, videoBufferLength : Float, dataBufferLength : Float, srtt : Float, audioLossRate : Float, videoLossRate : Float) : Void;
 	function toString() : String;
 }

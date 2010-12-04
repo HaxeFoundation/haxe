@@ -5,6 +5,7 @@ package flash.text.engine;
 	var atomCount(default,null) : Int;
 	var descent(default,null) : Float;
 	var hasGraphicElement(default,null) : Bool;
+	@:require(flash10_1) var hasTabs(default,null) : Bool;
 	var mirrorRegions(default,null) : flash.Vector<TextLineMirrorRegion>;
 	var nextLine(default,null) : TextLine;
 	var previousLine(default,null) : TextLine;

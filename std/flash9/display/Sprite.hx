@@ -9,5 +9,7 @@ extern class Sprite extends DisplayObjectContainer {
 	var useHandCursor : Bool;
 	function new() : Void;
 	function startDrag(lockCenter : Bool = false, ?bounds : flash.geom.Rectangle) : Void;
+	@:require(flash10_1) function startTouchDrag(touchPointID : Int, lockCenter : Bool = false, ?bounds : flash.geom.Rectangle) : Void;
 	function stopDrag() : Void;
+	@:require(flash10_1) function stopTouchDrag(touchPointID : Int) : Void;
 }

@@ -16,6 +16,7 @@ extern class Stage extends DisplayObjectContainer {
 	var stageFocusRect : Bool;
 	var stageHeight : Int;
 	var stageWidth : Int;
+	@:require(flash10_1) var wmodeGPU(default,null) : Bool;
 	function invalidate() : Void;
 	function isFocusInaccessible() : Bool;
 }

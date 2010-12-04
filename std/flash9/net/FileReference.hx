@@ -6,7 +6,7 @@ extern class FileReference extends flash.events.EventDispatcher {
 	@:require(flash10) var data(default,null) : flash.utils.ByteArray;
 	var modificationDate(default,null) : Date;
 	var name(default,null) : String;
-	var size(default,null) : UInt;
+	var size(default,null) : Float;
 	var type(default,null) : String;
 	function new() : Void;
 	function browse(?typeFilter : Array<FileFilter>) : Bool;

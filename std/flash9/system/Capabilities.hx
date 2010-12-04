@@ -3,6 +3,7 @@ package flash.system;
 extern class Capabilities {
 	static var _internal(default,null) : UInt;
 	static var avHardwareDisable(default,null) : Bool;
+	static var cpuArchitecture(default,null) : String;
 	static var hasAccessibility(default,null) : Bool;
 	static var hasAudio(default,null) : Bool;
 	static var hasAudioEncoder(default,null) : Bool;
@@ -30,5 +31,8 @@ extern class Capabilities {
 	static var screenResolutionX(default,null) : Float;
 	static var screenResolutionY(default,null) : Float;
 	static var serverString(default,null) : String;
+	static var supports32BitProcesses(default,null) : Bool;
+	static var supports64BitProcesses(default,null) : Bool;
+	static var touchscreenType(default,null) : TouchscreenType;
 	static var version(default,null) : String;
 }

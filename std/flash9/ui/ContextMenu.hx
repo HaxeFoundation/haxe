@@ -1,6 +1,6 @@
 package flash.ui;
 
-@:final extern class ContextMenu extends flash.events.EventDispatcher {
+@:final extern class ContextMenu extends flash.display.NativeMenu {
 	var builtInItems : ContextMenuBuiltInItems;
 	@:require(flash10) var clipboardItems : ContextMenuClipboardItems;
 	@:require(flash10) var clipboardMenu : Bool;
@@ -9,4 +9,5 @@ package flash.ui;
 	function new() : Void;
 	function clone() : ContextMenu;
 	function hideBuiltInItems() : Void;
+	@:require(flash10_1) static var isSupported(default,null) : Bool;
 }

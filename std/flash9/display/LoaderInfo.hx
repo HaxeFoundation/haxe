@@ -11,6 +11,7 @@ extern class LoaderInfo extends flash.events.EventDispatcher {
 	var contentType(default,null) : String;
 	var frameRate(default,null) : Float;
 	var height(default,null) : Int;
+	@:require(flash10_1) var isURLInaccessible(default,null) : Bool;
 	var loader(default,null) : Loader;
 	var loaderURL(default,null) : String;
 	var parameters(default,null) : Dynamic<String>;
@@ -18,6 +19,7 @@ extern class LoaderInfo extends flash.events.EventDispatcher {
 	var sameDomain(default,null) : Bool;
 	var sharedEvents(default,null) : flash.events.EventDispatcher;
 	var swfVersion(default,null) : SWFVersion;
+	@:require(flash10_1) var uncaughtErrorEvents(default,null) : flash.events.UncaughtErrorEvents;
 	var url(default,null) : String;
 	var width(default,null) : Int;
 	static function getLoaderInfoByDefinition(object : Dynamic) : LoaderInfo;

@@ -10,5 +10,6 @@ package flash.text.engine;
 	var renderingMode : RenderingMode;
 	function new(?fontName : String, ?fontWeight : FontWeight, ?fontPosture : FontPosture, ?fontLookup : FontLookup, ?renderingMode : RenderingMode, ?cffHinting : CFFHinting) : Void;
 	function clone() : FontDescription;
+	@:require(flash10_1) static function isDeviceFontCompatible(fontName : String, fontWeight : FontWeight, fontPosture : FontPosture) : Bool;
 	static function isFontCompatible(fontName : String, fontWeight : FontWeight, fontPosture : FontPosture) : Bool;
 }

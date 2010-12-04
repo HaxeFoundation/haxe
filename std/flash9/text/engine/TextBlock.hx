@@ -23,5 +23,7 @@ package flash.text.engine;
 	function findPreviousAtomBoundary(beforeCharIndex : Int) : Int;
 	function findPreviousWordBoundary(beforeCharIndex : Int) : Int;
 	function getTextLineAtCharIndex(charIndex : Int) : TextLine;
+	@:require(flash10_1) function recreateTextLine(textLine : TextLine, ?previousLine : TextLine, width : Float = 1000000, lineOffset : Float = 0, fitSomething : Bool = false) : TextLine;
+	@:require(flash10_1) function releaseLineCreationData() : Void;
 	function releaseLines(firstLine : TextLine, lastLine : TextLine) : Void;
 }

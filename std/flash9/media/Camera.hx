@@ -22,6 +22,8 @@ package flash.media;
 	function setMode(width : Int, height : Int, fps : Float, favorArea : Bool = true) : Void;
 	function setMotionLevel(motionLevel : Int, timeout : Int = 2000) : Void;
 	function setQuality(bandwidth : Int, quality : Int) : Void;
+	@:require(flash10_1) static var isSupported(default,null) : Bool;
 	static var names(default,null) : Array<Dynamic>;
+	@:require(flash10_1) static function _scanHardware() : Void;
 	static function getCamera(?name : String) : Camera;
 }

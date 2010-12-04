@@ -10,4 +10,5 @@ extern class PrintJob extends flash.events.EventDispatcher {
 	function addPage(sprite : flash.display.Sprite, ?printArea : flash.geom.Rectangle, ?options : PrintJobOptions, frameNum : Int = 0) : Void;
 	function send() : Void;
 	function start() : Bool;
+	@:require(flash10_1) static var isSupported(default,null) : Bool;
 }

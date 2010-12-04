@@ -5,6 +5,7 @@ extern class Sound extends flash.events.EventDispatcher {
 	var bytesTotal(default,null) : Int;
 	var id3(default,null) : ID3Info;
 	var isBuffering(default,null) : Bool;
+	@:require(flash10_1) var isURLInaccessible(default,null) : Bool;
 	var length(default,null) : Float;
 	var url(default,null) : String;
 	function new(?stream : flash.net.URLRequest, ?context : SoundLoaderContext) : Void;
