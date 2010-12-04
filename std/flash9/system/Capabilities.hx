@@ -2,6 +2,7 @@ package flash.system;
 
 extern class Capabilities {
 	static var _internal(default,null) : UInt;
+	@:require(flash10_2) static var allowsFullScreen(default,null) : Bool;
 	static var avHardwareDisable(default,null) : Bool;
 	@:require(flash10_1) static var cpuArchitecture(default,null) : String;
 	static var hasAccessibility(default,null) : Bool;
