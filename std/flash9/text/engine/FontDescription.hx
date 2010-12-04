@@ -1,14 +1,14 @@
 package flash.text.engine;
 
-extern class FontDescription {
-	function new(?fontName : String, ?fontWeight : flash.text.engine.FontWeight, ?fontPosture : flash.text.engine.FontPosture, ?fontLookup : flash.text.engine.FontLookup, ?renderingMode : flash.text.engine.RenderingMode, ?cffHinting : flash.text.engine.CFFHinting) : Void;
-	var cffHinting : flash.text.engine.CFFHinting;
-	function clone() : flash.text.engine.FontDescription;
-	var fontLookup : flash.text.engine.FontLookup;
+@:final extern class FontDescription {
+	var cffHinting : CFFHinting;
+	var fontLookup : FontLookup;
 	var fontName : String;
-	var fontPosture : flash.text.engine.FontPosture;
-	var fontWeight : flash.text.engine.FontWeight;
-	function isFontCompatible(fontName : String, fontWeight : flash.text.engine.FontWeight, fontPosture : flash.text.engine.FontPosture) : Bool;
+	var fontPosture : FontPosture;
+	var fontWeight : FontWeight;
 	var locked : Bool;
-	var renderingMode : flash.text.engine.RenderingMode;
+	var renderingMode : RenderingMode;
+	function new(?fontName : String, ?fontWeight : FontWeight, ?fontPosture : FontPosture, ?fontLookup : FontLookup, ?renderingMode : RenderingMode, ?cffHinting : CFFHinting) : Void;
+	function clone() : FontDescription;
+	static function isFontCompatible(fontName : String, fontWeight : FontWeight, fontPosture : FontPosture) : Bool;
 }

@@ -10,17 +10,25 @@ extern class NetStream extends flash.events.EventDispatcher {
 	var client : Dynamic;
 	var currentFPS(default,null) : Float;
 	var decodedFrames(default,null) : UInt;
+	@:require(flash10) var farID(default,null) : String;
+	@:require(flash10) var farNonce(default,null) : String;
+	@:require(flash10) var info(default,null) : NetStreamInfo;
 	var liveDelay(default,null) : Float;
+	@:require(flash10) var maxPauseBufferTime : Float;
+	@:require(flash10) var nearNonce(default,null) : String;
 	var objectEncoding(default,null) : UInt;
+	@:require(flash10) var peerStreams(default,null) : Array<Dynamic>;
 	var soundTransform : flash.media.SoundTransform;
 	var time(default,null) : Float;
 	var videoCodec(default,null) : UInt;
-	function new(connection : NetConnection) : Void;
+	function new(connection : NetConnection, ?peerID : String) : Void;
 	function attachAudio(microphone : flash.media.Microphone) : Void;
 	function attachCamera(theCamera : flash.media.Camera, snapshotMilliseconds : Int = -1) : Void;
 	function close() : Void;
+	@:require(flash10) function onPeerConnect(subscriber : NetStream) : Bool;
 	function pause() : Void;
 	function play(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
+	@:require(flash10) function play2(param : NetStreamPlayOptions) : Void;
 	function publish(?name : String, ?type : String) : Void;
 	function receiveAudio(flag : Bool) : Void;
 	function receiveVideo(flag : Bool) : Void;
@@ -29,4 +37,6 @@ extern class NetStream extends flash.events.EventDispatcher {
 	function seek(offset : Float) : Void;
 	function send(handlerName : String, ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
 	function togglePause() : Void;
+	@:require(flash10) static var CONNECT_TO_FMS : String;
+	@:require(flash10) static var DIRECT_CONNECTIONS : String;
 }

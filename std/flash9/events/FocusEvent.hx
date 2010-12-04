@@ -1,6 +1,7 @@
 package flash.events;
 
 extern class FocusEvent extends Event {
+	@:require(flash10) var isRelatedObjectInaccessible : Bool;
 	var keyCode : UInt;
 	var relatedObject : flash.display.InteractiveObject;
 	var shiftKey : Bool;

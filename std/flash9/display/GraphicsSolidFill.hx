@@ -1,7 +1,7 @@
 package flash.display;
 
-extern class GraphicsSolidFill implements IGraphicsFill, implements IGraphicsData {
-	function new(?color : UInt, ?alpha : Float) : Void;
+@:final extern class GraphicsSolidFill implements IGraphicsData, implements IGraphicsFill {
 	var alpha : Float;
 	var color : UInt;
+	function new(color : UInt = 0, alpha : Float = 1) : Void;
 }

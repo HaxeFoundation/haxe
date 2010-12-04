@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-extern class SpaceJustifier extends flash.text.engine.TextJustifier {
-	function new(?locale : String, ?lineJustification : flash.text.engine.LineJustification, ?letterSpacing : Bool) : Void;
+@:final extern class SpaceJustifier extends TextJustifier {
 	var letterSpacing : Bool;
+	function new(?locale : String, ?lineJustification : LineJustification, letterSpacing : Bool = false) : Void;
 }

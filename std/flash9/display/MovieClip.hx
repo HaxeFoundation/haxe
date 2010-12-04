@@ -2,6 +2,7 @@ package flash.display;
 
 extern class MovieClip extends Sprite, #if !flash_strict implements Dynamic #end {
 	var currentFrame(default,null) : Int;
+	@:require(flash10) var currentFrameLabel(default,null) : String;
 	var currentLabel(default,null) : String;
 	var currentLabels(default,null) : Array<FrameLabel>;
 	var currentScene(default,null) : Scene;

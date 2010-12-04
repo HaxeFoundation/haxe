@@ -1,14 +1,12 @@
 package flash.display;
 
 extern class ShaderJob extends flash.events.EventDispatcher {
-
 	var height : Int;
 	var progress(default,null) : Float;
-	var shader : flash.display.Shader;
+	var shader : Shader;
 	var target : Dynamic;
 	var width : Int;
-
-	function new(?shader : flash.display.Shader, ?target : Dynamic, ?width : Int, ?height : Int) : Void;
+	function new(?shader : Shader, ?target : Dynamic, width : Int = 0, height : Int = 0) : Void;
 	function cancel() : Void;
-	function start(?waitForCompletion : Bool) : Void;
+	function start(waitForCompletion : Bool = false) : Void;
 }

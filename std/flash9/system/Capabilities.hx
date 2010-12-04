@@ -17,9 +17,11 @@ extern class Capabilities {
 	static var hasTLS(default,null) : Bool;
 	static var hasVideoEncoder(default,null) : Bool;
 	static var isDebugger(default,null) : Bool;
+	@:require(flash10) static var isEmbeddedInAcrobat(default,null) : Bool;
 	static var language(default,null) : String;
 	static var localFileReadDisable(default,null) : Bool;
 	static var manufacturer(default,null) : String;
+	@:require(flash10) static var maxLevelIDC(default,null) : String;
 	static var os(default,null) : String;
 	static var pixelAspectRatio(default,null) : Float;
 	static var playerType(default,null) : String;

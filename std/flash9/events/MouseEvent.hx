@@ -5,6 +5,7 @@ extern class MouseEvent extends Event {
 	var buttonDown : Bool;
 	var ctrlKey : Bool;
 	var delta : Int;
+	@:require(flash10) var isRelatedObjectInaccessible : Bool;
 	var localX : Float;
 	var localY : Float;
 	var relatedObject : flash.display.InteractiveObject;

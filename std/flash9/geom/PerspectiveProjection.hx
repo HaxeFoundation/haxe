@@ -1,11 +1,9 @@
-﻿package flash.geom;
+package flash.geom;
 
-extern class PerspectiveProjection	{
-
-	var projectionCenter : Point;
+@:require(flash10) extern class PerspectiveProjection {
 	var fieldOfView : Float;
 	var focalLength : Float;
-
+	var projectionCenter : Point;
 	function new() : Void;
 	function toMatrix3D() : Matrix3D;
 }

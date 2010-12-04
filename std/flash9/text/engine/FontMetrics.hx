@@ -1,7 +1,6 @@
 package flash.text.engine;
 
-extern class FontMetrics {
-	function new(emBox : flash.geom.Rectangle, strikethroughOffset : Float, strikethroughThickness : Float, underlineOffset : Float, underlineThickness : Float, subscriptOffset : Float, subscriptScale : Float, superscriptOffset : Float, superscriptScale : Float) : Void;
+@:final extern class FontMetrics {
 	var emBox : flash.geom.Rectangle;
 	var strikethroughOffset : Float;
 	var strikethroughThickness : Float;
@@ -11,4 +10,5 @@ extern class FontMetrics {
 	var superscriptScale : Float;
 	var underlineOffset : Float;
 	var underlineThickness : Float;
+	function new(emBox : flash.geom.Rectangle, strikethroughOffset : Float, strikethroughThickness : Float, underlineOffset : Float, underlineThickness : Float, subscriptOffset : Float, subscriptScale : Float, superscriptOffset : Float, superscriptScale : Float) : Void;
 }

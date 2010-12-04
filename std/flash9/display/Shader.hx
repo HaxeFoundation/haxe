@@ -1,8 +1,8 @@
 package flash.display;
 
-extern class Shader {
-	function new(?code : flash.utils.ByteArray) : Void;
+@:require(flash10) extern class Shader {
 	var byteCode(null,default) : flash.utils.ByteArray;
-	var data : flash.display.ShaderData;
+	var data : ShaderData;
 	var precisionHint : ShaderPrecision;
+	function new(?code : flash.utils.ByteArray) : Void;
 }

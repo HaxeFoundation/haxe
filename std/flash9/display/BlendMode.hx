@@ -14,5 +14,6 @@ extern enum BlendMode {
 	NORMAL;
 	OVERLAY;
 	SCREEN;
+	SHADER;
 	SUBTRACT;
 }

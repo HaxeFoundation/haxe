@@ -1,25 +1,25 @@
 package flash.text.engine;
 
-extern class ElementFormat {
-	function new(?fontDescription : flash.text.engine.FontDescription, ?fontSize : Float, ?color : UInt, ?alpha : Float, ?textRotation : flash.text.engine.TextRotation, ?dominantBaseline : flash.text.engine.TextBaseline, ?alignmentBaseline : flash.text.engine.TextBaseline, ?baselineShift : Float, ?kerning : flash.text.engine.Kerning, ?trackingRight : Float, ?trackingLeft : Float, ?locale : String, ?breakOpportunity : flash.text.engine.BreakOpportunity, ?digitCase : flash.text.engine.DigitCase, ?digitWidth : flash.text.engine.DigitWidth, ?ligatureLevel : flash.text.engine.LigatureLevel, ?typographicCase : flash.text.engine.TypographicCase) : Void;
-	var alignmentBaseline : flash.text.engine.TextBaseline;
+@:final extern class ElementFormat {
+	var alignmentBaseline : TextBaseline;
 	var alpha : Float;
 	var baselineShift : Float;
-	var breakOpportunity : flash.text.engine.BreakOpportunity;
-	function clone() : flash.text.engine.ElementFormat;
+	var breakOpportunity : BreakOpportunity;
 	var color : UInt;
-	var digitCase : flash.text.engine.DigitCase;
-	var digitWidth : flash.text.engine.DigitWidth;
-	var dominantBaseline : flash.text.engine.TextBaseline;
-	var fontDescription : flash.text.engine.FontDescription;
+	var digitCase : DigitCase;
+	var digitWidth : DigitWidth;
+	var dominantBaseline : TextBaseline;
+	var fontDescription : FontDescription;
 	var fontSize : Float;
-	function getFontMetrics() : flash.text.engine.FontMetrics;
-	var kerning : flash.text.engine.Kerning;
-	var ligatureLevel : flash.text.engine.LigatureLevel;
+	var kerning : Kerning;
+	var ligatureLevel : LigatureLevel;
 	var locale : String;
 	var locked : Bool;
-	var textRotation : flash.text.engine.TextRotation;
+	var textRotation : TextRotation;
 	var trackingLeft : Float;
 	var trackingRight : Float;
-	var typographicCase : flash.text.engine.TypographicCase;
+	var typographicCase : TypographicCase;
+	function new(?fontDescription : FontDescription, fontSize : Float = 12, color : UInt = 0, alpha : Float = 1, ?textRotation : TextRotation, ?dominantBaseline : TextBaseline, ?alignmentBaseline : TextBaseline, baselineShift : Float = 0, ?kerning : Kerning, trackingRight : Float = 0, trackingLeft : Float = 0, ?locale : String, ?breakOpportunity : BreakOpportunity, ?digitCase : DigitCase, ?digitWidth : DigitWidth, ?ligatureLevel : LigatureLevel, ?typographicCase : TypographicCase) : Void;
+	function clone() : ElementFormat;
+	function getFontMetrics() : FontMetrics;
 }

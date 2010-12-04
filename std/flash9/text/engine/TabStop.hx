@@ -1,8 +1,8 @@
 package flash.text.engine;
 
-extern class TabStop {
-	function new(?alignment : flash.text.engine.TabAlignment, ?position : Float, ?decimalAlignmentToken : String) : Void;
-	var alignment : flash.text.engine.TabAlignment;
+@:final extern class TabStop {
+	var alignment : TabAlignment;
 	var decimalAlignmentToken : String;
 	var position : Float;
+	function new(?alignment : TabAlignment, position : Float = 0, ?decimalAlignmentToken : String) : Void;
 }

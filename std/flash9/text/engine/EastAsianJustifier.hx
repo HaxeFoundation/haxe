@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-extern class EastAsianJustifier extends flash.text.engine.TextJustifier {
-	function new(?locale : String, ?lineJustification : flash.text.engine.LineJustification, ?justificationStyle : flash.text.engine.JustificationStyle) : Void;
-	var justificationStyle : flash.text.engine.JustificationStyle;
+@:final extern class EastAsianJustifier extends TextJustifier {
+	var justificationStyle : JustificationStyle;
+	function new(?locale : String, ?lineJustification : LineJustification, ?justificationStyle : JustificationStyle) : Void;
 }

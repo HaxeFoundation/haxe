@@ -1,11 +1,9 @@
 package flash.display;
 
-extern class GraphicsBitmapFill implements IGraphicsFill, implements IGraphicsData {
-
-	var matrix : flash.geom.Matrix;
+@:final extern class GraphicsBitmapFill implements IGraphicsData, implements IGraphicsFill {
 	var bitmapData : BitmapData;
+	var matrix : flash.geom.Matrix;
 	var repeat : Bool;
 	var smooth : Bool;
-
-	function new( ?bitmapData : BitmapData, ?matrix : flash.geom.Matrix, ?repeat : Bool, ?smooth : Bool ) : Void;
+	function new(?bitmapData : BitmapData, ?matrix : flash.geom.Matrix, repeat : Bool = true, smooth : Bool = false) : Void;
 }

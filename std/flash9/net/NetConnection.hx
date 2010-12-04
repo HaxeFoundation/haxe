@@ -4,8 +4,15 @@ extern class NetConnection extends flash.events.EventDispatcher {
 	var client : Dynamic;
 	var connected(default,null) : Bool;
 	var connectedProxyType(default,null) : String;
+	@:require(flash10) var farID(default,null) : String;
+	@:require(flash10) var farNonce(default,null) : String;
+	@:require(flash10) var maxPeerConnections : UInt;
+	@:require(flash10) var nearID(default,null) : String;
+	@:require(flash10) var nearNonce(default,null) : String;
 	var objectEncoding : UInt;
+	@:require(flash10) var protocol(default,null) : String;
 	var proxyType : String;
+	@:require(flash10) var unconnectedPeerStreams(default,null) : Array<Dynamic>;
 	var uri(default,null) : String;
 	var usingTLS(default,null) : Bool;
 	function new() : Void;

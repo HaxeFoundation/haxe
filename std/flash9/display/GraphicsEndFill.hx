@@ -1,5 +1,5 @@
 package flash.display;
 
-extern class GraphicsEndFill implements IGraphicsFill, implements IGraphicsData {
+extern class GraphicsEndFill implements IGraphicsData, implements IGraphicsFill {
 	function new() : Void;
 }

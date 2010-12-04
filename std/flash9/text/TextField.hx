@@ -64,4 +64,5 @@ extern class TextField extends flash.display.InteractiveObject {
 	function replaceText(beginIndex : Int, endIndex : Int, newText : String) : Void;
 	function setSelection(beginIndex : Int, endIndex : Int) : Void;
 	function setTextFormat(format : TextFormat, beginIndex : Int = -1, endIndex : Int = -1) : Void;
+	@:require(flash10) static function isFontCompatible(fontName : String, fontStyle : String) : Bool;
 }

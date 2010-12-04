@@ -1,12 +1,12 @@
 package flash.display;
 
-extern class GraphicsStroke implements IGraphicsStroke, implements IGraphicsData {
-	function new(?_thickness : Float, ?_pixelHinting : Bool, ?_scaleMode : String, ?_caps : String, ?_joints : String, ?_miterLimit : Float, ?_fill : flash.display.IGraphicsFill) : Void;
-	var caps : String;
-	var fill : flash.display.IGraphicsFill;
-	var joints : String;
+@:final extern class GraphicsStroke implements IGraphicsData, implements IGraphicsStroke {
+	var caps : CapsStyle;
+	var fill : IGraphicsFill;
+	var joints : JointStyle;
 	var miterLimit : Float;
 	var pixelHinting : Bool;
-	var scaleMode : String;
+	var scaleMode : LineScaleMode;
 	var thickness : Float;
+	function new(thickness : Float = 0./*NaN*/, pixelHinting : Bool = false, ?scaleMode : String, ?caps : String, ?joints : String, miterLimit : Float = 3, ?fill : IGraphicsFill) : Void;
 }

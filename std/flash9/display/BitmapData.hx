@@ -21,6 +21,8 @@ extern class BitmapData implements IBitmapDrawable {
 	function getPixel(x : Int, y : Int) : UInt;
 	function getPixel32(x : Int, y : Int) : UInt;
 	function getPixels(rect : flash.geom.Rectangle) : flash.utils.ByteArray;
+	@:require(flash10) function getVector(rect : flash.geom.Rectangle) : flash.Vector<UInt>;
+	@:require(flash10) function histogram(?hRect : flash.geom.Rectangle) : flash.Vector<flash.Vector<Float>>;
 	function hitTest(firstPoint : flash.geom.Point, firstAlphaThreshold : UInt, secondObject : Dynamic, ?secondBitmapDataPoint : flash.geom.Point, secondAlphaThreshold : UInt = 1) : Bool;
 	function lock() : Void;
 	function merge(sourceBitmapData : BitmapData, sourceRect : flash.geom.Rectangle, destPoint : flash.geom.Point, redMultiplier : UInt, greenMultiplier : UInt, blueMultiplier : UInt, alphaMultiplier : UInt) : Void;
@@ -32,6 +34,7 @@ extern class BitmapData implements IBitmapDrawable {
 	function setPixel(x : Int, y : Int, color : UInt) : Void;
 	function setPixel32(x : Int, y : Int, color : UInt) : Void;
 	function setPixels(rect : flash.geom.Rectangle, inputByteArray : flash.utils.ByteArray) : Void;
+	@:require(flash10) function setVector(rect : flash.geom.Rectangle, inputVector : flash.Vector<UInt>) : Void;
 	function threshold(sourceBitmapData : BitmapData, sourceRect : flash.geom.Rectangle, destPoint : flash.geom.Point, operation : String, threshold : UInt, color : UInt = 0, mask : UInt = 0xFFFFFFFF, copySource : Bool = false) : UInt;
 	function unlock(?changeRect : flash.geom.Rectangle) : Void;
 }

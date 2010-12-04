@@ -1,9 +1,6 @@
 package flash.system;
 
-extern class JPEGLoaderContext extends LoaderContext {
-
+@:require(flash10) extern class JPEGLoaderContext extends LoaderContext {
 	var deblockingFilter : Float;
-
-	function new( ?deblockingFilter : Float, ?checkPolicyFile : Bool, ?applicationDomain:ApplicationDomain, ?securityDomain:SecurityDomain ) : Void;
-
+	function new(deblockingFilter : Float = 0, checkPolicyFile : Bool = false, ?applicationDomain : ApplicationDomain, ?securityDomain : SecurityDomain) : Void;
 }

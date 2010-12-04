@@ -2,6 +2,8 @@ package flash.display;
 
 extern class Stage extends DisplayObjectContainer {
 	var align : StageAlign;
+	@:require(flash10) var colorCorrection : ColorCorrection;
+	@:require(flash10) var colorCorrectionSupport(default,null) : ColorCorrectionSupport;
 	var displayState : StageDisplayState;
 	var focus : InteractiveObject;
 	var frameRate : Float;

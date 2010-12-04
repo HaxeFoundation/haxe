@@ -7,7 +7,10 @@ extern class ByteArray implements IDataOutput, implements IDataInput, implements
 	var objectEncoding : UInt;
 	var position : UInt;
 	function new() : Void;
+	@:require(flash10) function clear() : Void;
 	function compress() : Void;
+	@:require(flash10) function deflate() : Void;
+	@:require(flash10) function inflate() : Void;
 	function readBoolean() : Bool;
 	function readByte() : Int;
 	function readBytes(bytes : ByteArray, offset : UInt = 0, length : UInt = 0) : Void;
