@@ -1,16 +1,30 @@
 // types patches configuration for playerglobal.swc
 
 // MANUAL =
-// 	flash.display.BitmapDataChannel
-//	flash.display.GraphicsPathCommand
-//	MovieClip : #if !flash_strict , implements Dynamic #end
+// flash.display.BitmapDataChannel
+// flash.display.GraphicsPathCommand
+// MovieClip : #if !flash_strict , implements Dynamic #end
 
 -flash.accessibility.Accessibility.new
+@:require(flash10_1) flash.accessibility.ISearchableText
+@:require(flash10_1) flash.accessibility.ISimpleTextSelection
+
+@:require(flash10_1) flash.automation.ActionGenerator
+@:require(flash10_1) flash.automation.AutomationAction
+@:require(flash10_1) flash.automation.Configuration
+@:require(flash10_1) flash.automation.KeyboardAutomationAction
+@:require(flash10_1) flash.automation.MouseAutomationAction
+@:require(flash10_1) flash.automation.StageCapture
+@:require(flash10_1) flash.automation.StageCaptureEvent
 
 -flash.desktop.Clipboard.new
 flash.desktop.Clipboard.formats : Array<ClipboardFormats>;
 flash.desktop.Clipboard.$format : ClipboardFormats;
 flash.desktop.Clipboard.$transferMode : ClipboardTransferMode;
+
+@:require(flash10) flash.desktop.Clipboard
+@:require(flash10) flash.desktop.ClipboardFormats
+@:require(flash10) flash.desktop.ClipboardTransferMode
 
 flash.display.Bitmap.pixelSnapping : PixelSnapping;
 flash.display.Bitmap.$pixelSnapping : PixelSnapping;
@@ -20,22 +34,27 @@ flash.display.BitmapData.$greenArray : Array<Int>;
 flash.display.BitmapData.$blueArray : Array<Int>;
 flash.display.BitmapData.$alphaArray : Array<Int>;
 flash.display.BitmapData.$offsets : Array<flash.geom.Point>;
-// @:require(flash10) flash.display.BitmapData.setVector
-// @:require(flash10) flash.display.BitmapData.getVector
-// @:require(flash10) flash.display.BitmapData.histogram
+@:require(flash10) flash.display.BitmapData.setVector
+@:require(flash10) flash.display.BitmapData.getVector
+@:require(flash10) flash.display.BitmapData.histogram
 
-// @:require(flash10) flash.display.DisplayObject.blendShader
-// @:require(flash10) flash.display.DisplayObject.rotationX
-// @:require(flash10) flash.display.DisplayObject.rotationY
-// @:require(flash10) flash.display.DisplayObject.rotationZ
-// @:require(flash10) flash.display.DisplayObject.scaleZ
-// @:require(flash10) flash.display.DisplayObject.z
-// @:require(flash10) flash.display.DisplayObject.globalToLocal3D
-// @:require(flash10) flash.display.DisplayObject.local3DToGlobal
+@:require(flash10_1) flash.display.ColorCorrection
+@:require(flash10_1) flash.display.ColorCorrectionSupport
+@:require(flash10_1) flash.display.FocusDirection
+@:require(flash10_1) flash.display.NativeMenu
+@:require(flash10_1) flash.display.NativeMenuItem
+
+@:require(flash10) flash.display.DisplayObject.blendShader
+@:require(flash10) flash.display.DisplayObject.rotationX
+@:require(flash10) flash.display.DisplayObject.rotationY
+@:require(flash10) flash.display.DisplayObject.rotationZ
+@:require(flash10) flash.display.DisplayObject.scaleZ
+@:require(flash10) flash.display.DisplayObject.z
+@:require(flash10) flash.display.DisplayObject.globalToLocal3D
+@:require(flash10) flash.display.DisplayObject.local3DToGlobal
 -flash.display.DisplayObject.new
 flash.display.DisplayObject.blendMode : BlendMode;
 flash.display.DisplayObject.opaqueBackground : Null<UInt>;
-
 flash.display.DisplayObjectContainer.getObjectsUnderPoint : Array<DisplayObject>;
 
 flash.display.Graphics.$type : GradientType;
@@ -47,7 +66,14 @@ flash.display.Graphics.$caps : CapsStyle;
 flash.display.Graphics.$joints : JointStyle;
 flash.display.Graphics.$winding : GraphicsPathWinding;
 flash.display.Graphics.$culling : TriangleCulling;
-// flash10 : beginShaderFill,copyFrom,drawGraphicsData,drawPath,drawTriangles,lineBitmapStyle
+@:require(flash10) flash.display.Graphics.beginShaderFill
+@:require(flash10) flash.display.Graphics.copyFrom
+@:require(flash10) flash.display.Graphics.drawGraphicsData
+@:require(flash10) flash.display.Graphics.drawPath
+@:require(flash10) flash.display.Graphics.drawTriangles
+@:require(flash10) flash.display.Graphics.lineBitmapStyle
+@:require(flash10) flash.display.Graphics.lineShaderStyle
+
 
 flash.display.GraphicsGradientFill.type : GradientType;
 flash.display.GraphicsGradientFill.colors : Array<UInt>;
@@ -69,15 +95,16 @@ flash.display.GraphicsPath.$winding : GraphicsPathWinding;
 flash.display.GraphicsStroke.scaleMode : LineScaleMode;
 flash.display.GraphicsStroke.caps : CapsStyle;
 flash.display.GraphicsStroke.joints : JointStyle;
-flash.display.GraphicsStroke.$scaleMode : LineScaleMode;
-flash.display.GraphicsStroke.$caps : CapsStyle;
-flash.display.GraphicsStroke.$joints : JointStyle;
+flash.display.GraphicsStroke.$_scaleMode : LineScaleMode;
+flash.display.GraphicsStroke.$_caps : CapsStyle;
+flash.display.GraphicsStroke.$_joints : JointStyle;
 
 flash.display.GraphicsTrianglePath.culling : TriangleCulling;
 flash.display.GraphicsTrianglePath.$culling : TriangleCulling;
 
 
-// flash.10  flash.display.Loader.unloadAndStop, 10.1 = uncaughtErrorEvents
+@:require(flash10) flash.display.Loader.unloadAndStop
+// 10.1 = uncaughtErrorEvents
 
 -flash.display.LoaderInfo.new
 flash.display.LoaderInfo.parameters : Dynamic<String>;
@@ -88,13 +115,14 @@ flash.display.LoaderInfo.swfVersion : SWFVersion;
 
 -flash.display.MorphShape.new
 
-// flash 10 flash.display.MovieClip.currentFrameLabel
+@:require(flash10) flash.display.MovieClip.currentFrameLabel
 flash.display.MovieClip.currentLabels : Array<FrameLabel>;
 flash.display.MovieClip.scenes : Array<Scene>;
 
 flash.display.Scene.labels : Array<FrameLabel>;
 flash.display.Scene.$labels : Array<FrameLabel>;
 
+@:require(flash10) flash.display.Shader;
 flash.display.Shader.precisionHint : ShaderPrecision;
 
 -flash.display.ShaderParameter.new
@@ -111,11 +139,43 @@ flash.display.Stage.colorCorrectionSupport : ColorCorrectionSupport;
 flash.display.Stage.displayState : StageDisplayState;
 flash.display.Stage.displayState : StageDisplayState;
 
+@:require(flash10) flash.display.Stage.colorCorrection
+@:require(flash10) flash.display.Stage.colorCorrectionSupport
+
 // flash.display.Stage : stageVideos, wmodeGPU, color* = FP 10.1
+
+@:require(flash10) flash.errors.DRMManagerError
+@:require(flash10) flash.events.AccelerometerEvent
+@:require(flash10) flash.events.DRMAuthenticateEvent
+@:require(flash10) flash.events.DRMAuthenticationCompleteEvent
+@:require(flash10) flash.events.DRMAuthenticationErrorEvent
+@:require(flash10) flash.events.DRMCustomProperties
+@:require(flash10) flash.events.DRMErrorEvent
+@:require(flash10) flash.events.DRMStatusEvent
+@:require(flash10) flash.events.GeolocationEvent
+@:require(flash10) flash.events.GestureEvent
+@:require(flash10) flash.events.GesturePhase
+@:require(flash10) flash.events.PressAndTapGestureEvent
+@:require(flash10) flash.events.TouchEvent
+@:require(flash10) flash.events.TransformGestureEvent
+
+@:require(flash10) static flash.events.Event.CLEAR;
+@:require(flash10) static flash.events.Event.COPY;
+@:require(flash10) static flash.events.Event.CUT;
+@:require(flash10) static flash.events.Event.EXIT_FRAME;
+@:require(flash10) static flash.events.Event.FRAME_CONSTRUCTED;
+@:require(flash10) static flash.events.Event.PASTE;
+@:require(flash10) static flash.events.Event.SELECT_ALL;
+
+@:require(flash10) flash.events.ContextMenuEvent.isMouseTargetInaccessible
+@:require(flash10) flash.events.FocusEvent.isRelatedObjectInaccessible
+@:require(flash10) flash.events.MouseEvent.isRelatedObjectInaccessible
 
 flash.events.Event.eventPhase : EventPhase;
 flash.events.KeyboardEvent.keyLocation : flash.ui.KeyLocation;
 flash.events.KeyboardEvent.$keyLocation : flash.ui.KeyLocation;
+
+-flash.events.WeakFunctionClosure.new
 
 -flash.external.ExternalInterface.new
 
@@ -130,11 +190,27 @@ flash.filters.GradientGlowFilter.$type : BitmapFilterType;
 
 flash.geom.Matrix3D.$orientationStyle : Orientation3D;
 
-// flash.geom.Transform : matrix3D, perspectiveProjection, getRelativeMatrix3D : FP10
+@:require(flash10) flash.geom.Matrix3D;
+@:require(flash10) flash.geom.Utils3D;
+@:require(flash10) flash.geom.Vector3D;
+@:require(flash10) flash.geom.PerspectiveProjection;
+@:require(flash10) flash.geom.Transform.matrix3D;
+@:require(flash10) flash.geom.Transform.perspectiveProjection;
+@:require(flash10) flash.geom.Transform.getRelativeMatrix3D;
 
 -flash.geom.Utils3D.new
 
 flash.media.Microphone.codec : SoundCodec;
+
+@:require(flash10) flash.media.Microphone.codec;
+@:require(flash10) flash.media.Microphone.encodeQuality;
+@:require(flash10) flash.media.Microphone.framesPerPacket;
+
+@:require(flash10) flash.media.Sound.extract;
+
+@:require(flash10) flash.net.FileReference.data;
+@:require(flash10) flash.net.FileReference.load;
+@:require(flash10) flash.net.FileReference.save;
 
 -flash.media.SoundMixer.new
 
@@ -144,12 +220,36 @@ flash.net.FileReferenceList.$typeFilter : Array<FileFilter>;
 
 flash.net.NetStreamPlayOptions.transition : NetStreamPlayTransitions;
 
+
+@:require(flash10) flash.net.NetConnection.farID;
+@:require(flash10) flash.net.NetConnection.farNonce;
+@:require(flash10) flash.net.NetConnection.maxPeerConnections;
+@:require(flash10) flash.net.NetConnection.nearID;
+@:require(flash10) flash.net.NetConnection.nearNonce;
+@:require(flash10) flash.net.NetConnection.protocol;
+@:require(flash10) flash.net.NetConnection.unconnectedPeerStreams;
+
+@:require(flash10) flash.net.NetStream.farID;
+@:require(flash10) flash.net.NetStream.farNonce;
+@:require(flash10) flash.net.NetStream.info;
+@:require(flash10) flash.net.NetStream.maxPauseBufferTime;
+@:require(flash10) flash.net.NetStream.nearNonce;
+@:require(flash10) flash.net.NetStream.peerStreams;
+@:require(flash10) flash.net.NetStream.onPeerConnect;
+@:require(flash10) flash.net.NetStream.play2;
+@:require(flash10) static flash.net.NetStream.CONNECT_TO_FMS;
+@:require(flash10) static flash.net.NetStream.DIRECT_CONNECTIONS;
+
+@:require(flash10) flash.net.Socket.timeout;
+@:require(flash10) flash.net.XMLSocket.timeout;
+
 -flash.net.ObjectEncoding.new
+-flash.net.URLRequestMethod.new
 
 flash.net.Socket.endian : flash.utils.Endian;
 flash.net.URLLoader.dataFormat : URLLoaderDataFormat;
 flash.net.URLRequest.requestHeaders : Array<URLRequestHeader>;
-
+flash.net.SharedObject.flush : SharedObjectFlushStatus;
 flash.net.URLStream.endian : flash.utils.Endian;
 
 flash.printing.PrintJob.orientation : PrintJobOrientation;
@@ -162,7 +262,16 @@ flash.sampler.Sample.stack : Array<StackFrame>;
 
 -flash.system.Capabilities.new
 -flash.system.IME.new
-flash.system.IME.conversionMode : IMEConversionMode
+-flash.system.FSCommand.new
+static flash.system.IME.conversionMode : IMEConversionMode
+
+@:require(flash10) flash.system.ApplicationDomain.domainMemory;
+@:require(flash10) static flash.system.ApplicationDomain.MIN_DOMAIN_MEMORY_LENGTH;
+
+@:require(flash10) static flash.system.Capabilities.isEmbeddedInAcrobat;
+@:require(flash10) static flash.system.Capabilities.maxLevelIDC;
+
+@:require(flash10) flash.system.JPEGLoaderContext;
 
 -flash.system.Security.new
 flash.system.Security.$panel : SecurityPanel
@@ -204,9 +313,11 @@ flash.text.TextFormat.$rightMargin : Null<Float>;
 flash.text.TextFormat.$indent : Null<Float>;
 flash.text.TextFormat.$leading : Null<Float>;
 
+@:require(flash10) static flash.text.TextField.isFontCompatible;
+
 -flash.text.TextRenderer.new
-flash.text.TextRenderer.antiAliasType : AntiAliasType;
-flash.text.TextRenderer.displayMode : TextDisplayMode;
+static flash.text.TextRenderer.antiAliasType : AntiAliasType;
+static flash.text.TextRenderer.displayMode : TextDisplayMode;
 flash.text.TextRenderer.$fontStyle : FontStyle;
 flash.text.TextRenderer.$colorType : TextColorType;
 
@@ -275,10 +386,16 @@ flash.text.engine.TextLine.baseline : TextBaseline;
 
 -flash.ui.Keyboard.new
 -flash.ui.Mouse.new
-flash.ui.Mouse.cursor : MouseCursor;
 
 -flash.ui.Multitouch.new
 flash.ui.Multitouch.inputMode : MultitouchInputMode;
+
+@:require(flash10) flash.ui.ContextMenu.clipboardItems;
+@:require(flash10) flash.ui.ContextMenu.clipboardMenu;
+@:require(flash10) flash.ui.ContextMenu.link;
+
+static flash.ui.Mouse.cursor : MouseCursor;
+@:require(flash10) static flash.ui.Mouse.cursor;
 
 flash.utils.ObjectInput.endian : Endian;
 flash.utils.ObjectOutput.endian : Endian;
@@ -286,5 +403,25 @@ flash.utils.ByteArray.endian : Endian;
 flash.utils.IDataInput.endian : Endian;
 flash.utils.IDataOutput.endian : Endian;
 
+@:require(flash10) flash.utils.ByteArray.clear;
+@:require(flash10) flash.utils.ByteArray.deflate;
+@:require(flash10) flash.utils.ByteArray.inflate;
+
+@:require(flash10) flash.utils.SetIntervalTimer.clearArrayEntry;
+
+-flash.utils.Namespace.toString
+-flash.utils.Namespace.valueOf
+-static flash.utils.Namespace.length
+
+-flash.utils.QName.toString
+-flash.utils.QName.valueOf
+-static flash.utils.QName.length
+
 flash.xml.XMLNode.nodeType : XMLNodeType;
 flash.xml.XMLNode.$type : XMLNodeType;
+
+flash.xml.XML.namespace : flash.utils.Namespace;
+flash.xml.XML.parent : XML;
+flash.xml.XMLList.namespace : flash.utils.Namespace;
+flash.xml.XMLList.parent : XML;
+flash.xml.XMLTag.type : XMLNodeType;
