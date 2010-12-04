@@ -10,8 +10,5 @@ extern class Sound extends flash.events.EventDispatcher {
 	function new(?stream : flash.net.URLRequest, ?context : SoundLoaderContext) : Void;
 	function close() : Void;
 	function load(stream : flash.net.URLRequest, ?context : SoundLoaderContext) : Void;
-	function play(?startTime : Float, ?loops : Int, ?sndTransform : SoundTransform) : SoundChannel;
-	#if flash10
-	function extract( ?target : flash.utils.ByteArray, ?length : Float, ?startPosition : Float ) : Float;
-	#end
+	function play(startTime : Float = 0, loops : Int = 0, ?sndTransform : SoundTransform) : SoundChannel;
 }

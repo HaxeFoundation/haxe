@@ -2,6 +2,6 @@ package flash.events;
 
 extern class AsyncErrorEvent extends ErrorEvent {
 	var error : flash.errors.Error;
-	function new(type : String, ?bubbles : Bool, ?cancelable : Bool, ?text : String, ?error : flash.errors.Error) : Void;
+	function new(type : String, bubbles : Bool = false, cancelable : Bool = false, ?text : String, ?error : flash.errors.Error) : Void;
 	static var ASYNC_ERROR : String;
 }

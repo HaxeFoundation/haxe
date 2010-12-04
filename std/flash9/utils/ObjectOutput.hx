@@ -6,7 +6,7 @@ extern class ObjectOutput implements IDataOutput {
 	function new() : Void;
 	function writeBoolean(value : Bool) : Void;
 	function writeByte(value : Int) : Void;
-	function writeBytes(bytes : ByteArray, ?offset : UInt, ?length : UInt) : Void;
+	function writeBytes(bytes : ByteArray, offset : UInt = 0, length : UInt = 0) : Void;
 	function writeDouble(value : Float) : Void;
 	function writeFloat(value : Float) : Void;
 	function writeInt(value : Int) : Void;

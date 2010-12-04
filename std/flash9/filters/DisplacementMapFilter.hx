@@ -1,6 +1,6 @@
 package flash.filters;
 
-extern class DisplacementMapFilter extends BitmapFilter {
+@:final extern class DisplacementMapFilter extends BitmapFilter {
 	var alpha : Float;
 	var color : UInt;
 	var componentX : UInt;
@@ -10,5 +10,5 @@ extern class DisplacementMapFilter extends BitmapFilter {
 	var mode : DisplacementMapFilterMode;
 	var scaleX : Float;
 	var scaleY : Float;
-	function new(?mapBitmap : flash.display.BitmapData, ?mapPoint : flash.geom.Point, ?componentX : UInt, ?componentY : UInt, ?scaleX : Float, ?scaleY : Float, ?mode : DisplacementMapFilterMode, ?color : UInt, ?alpha : Float) : Void;
+	function new(?mapBitmap : flash.display.BitmapData, ?mapPoint : flash.geom.Point, componentX : UInt = 0, componentY : UInt = 0, scaleX : Float = 0, scaleY : Float = 0, ?mode : DisplacementMapFilterMode, color : UInt = 0, alpha : Float = 0) : Void;
 }

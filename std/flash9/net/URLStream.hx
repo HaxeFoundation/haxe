@@ -10,7 +10,7 @@ extern class URLStream extends flash.events.EventDispatcher, implements flash.ut
 	function load(request : URLRequest) : Void;
 	function readBoolean() : Bool;
 	function readByte() : Int;
-	function readBytes(bytes : flash.utils.ByteArray, ?offset : UInt, ?length : UInt) : Void;
+	function readBytes(bytes : flash.utils.ByteArray, offset : UInt = 0, length : UInt = 0) : Void;
 	function readDouble() : Float;
 	function readFloat() : Float;
 	function readInt() : Int;

@@ -5,7 +5,7 @@ extern class Video extends flash.display.DisplayObject {
 	var smoothing : Bool;
 	var videoHeight(default,null) : Int;
 	var videoWidth(default,null) : Int;
-	function new(?width : Int, ?height : Int) : Void;
+	function new(width : Int = 320, height : Int = 240) : Void;
 	function attachCamera(camera : Camera) : Void;
 	function attachNetStream(netStream : flash.net.NetStream) : Void;
 	function clear() : Void;

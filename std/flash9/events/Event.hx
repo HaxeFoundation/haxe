@@ -7,9 +7,9 @@ extern class Event {
 	var eventPhase(default,null) : EventPhase;
 	var target(default,null) : Dynamic;
 	var type(default,null) : String;
-	function new(type : String, ?bubbles : Bool, ?cancelable : Bool) : Void;
+	function new(type : String, bubbles : Bool = false, cancelable : Bool = false) : Void;
 	function clone() : Event;
-	function formatToString(className : String, ?p1 : String, ?p2 : String, ?p3 : String, ?p4 : String, ?p5 : String ) : String;
+	function formatToString(className : String, ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : String;
 	function isDefaultPrevented() : Bool;
 	function preventDefault() : Void;
 	function stopImmediatePropagation() : Void;
@@ -17,6 +17,7 @@ extern class Event {
 	function toString() : String;
 	static var ACTIVATE : String;
 	static var ADDED : String;
+	static var ADDED_TO_STAGE : String;
 	static var CANCEL : String;
 	static var CHANGE : String;
 	static var CLOSE : String;
@@ -24,11 +25,13 @@ extern class Event {
 	static var CONNECT : String;
 	static var DEACTIVATE : String;
 	static var ENTER_FRAME : String;
+	static var FULLSCREEN : String;
 	static var ID3 : String;
 	static var INIT : String;
 	static var MOUSE_LEAVE : String;
 	static var OPEN : String;
 	static var REMOVED : String;
+	static var REMOVED_FROM_STAGE : String;
 	static var RENDER : String;
 	static var RESIZE : String;
 	static var SCROLL : String;
@@ -38,25 +41,4 @@ extern class Event {
 	static var TAB_ENABLED_CHANGE : String;
 	static var TAB_INDEX_CHANGE : String;
 	static var UNLOAD : String;
-
-	/** added in FP 9.0.28 **/
-	static var ADDED_TO_STAGE : String;
-
-	/** added in FP 9.0.28 **/
-	static var REMOVED_FROM_STAGE : String;
-
-	/** added in FP 9.0.28 **/
-	static var FULLSCREEN : String;
-
-	#if flash10
-	static var FRAME_CONSTRUCTED : String;
-	static var SAMPLES_DATA : String;
-	static var EXIT_FRAME : String;
-	static var CUT : String;
-	static var COPY : String;
-	static var CLEAR : String;
-	static var SELECT_ALL : String;
-	static var PASTE : String;
-	#end
-
 }

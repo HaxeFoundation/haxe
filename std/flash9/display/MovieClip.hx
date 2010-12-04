@@ -1,6 +1,6 @@
 package flash.display;
 
-extern class MovieClip extends Sprite #if !flash_strict , implements Dynamic #end {
+extern class MovieClip extends Sprite, #if !flash_strict implements Dynamic #end {
 	var currentFrame(default,null) : Int;
 	var currentLabel(default,null) : String;
 	var currentLabels(default,null) : Array<FrameLabel>;
@@ -11,7 +11,7 @@ extern class MovieClip extends Sprite #if !flash_strict , implements Dynamic #en
 	var totalFrames(default,null) : Int;
 	var trackAsMenu : Bool;
 	function new() : Void;
-	function addFrameScript( ?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic ) : Void;
+	function addFrameScript(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
 	function gotoAndPlay(frame : Dynamic, ?scene : String) : Void;
 	function gotoAndStop(frame : Dynamic, ?scene : String) : Void;
 	function nextFrame() : Void;
@@ -20,7 +20,4 @@ extern class MovieClip extends Sprite #if !flash_strict , implements Dynamic #en
 	function prevFrame() : Void;
 	function prevScene() : Void;
 	function stop() : Void;
-	#if flash10
-	var currentFrameLabel(default,null) : String;
-	#end
 }

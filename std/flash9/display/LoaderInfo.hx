@@ -3,7 +3,6 @@ package flash.display;
 extern class LoaderInfo extends flash.events.EventDispatcher {
 	var actionScriptVersion(default,null) : ActionScriptVersion;
 	var applicationDomain(default,null) : flash.system.ApplicationDomain;
-	/** new in FP 9.0.115 **/
 	var bytes(default,null) : flash.utils.ByteArray;
 	var bytesLoaded(default,null) : UInt;
 	var bytesTotal(default,null) : UInt;
@@ -21,6 +20,5 @@ extern class LoaderInfo extends flash.events.EventDispatcher {
 	var swfVersion(default,null) : SWFVersion;
 	var url(default,null) : String;
 	var width(default,null) : Int;
-	/** new in FP 9.0.115 **/
-	static function getLoaderInfoByDefinition(object : Dynamic) : flash.display.LoaderInfo;
+	static function getLoaderInfoByDefinition(object : Dynamic) : LoaderInfo;
 }

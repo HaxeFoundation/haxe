@@ -1,6 +1,6 @@
 package flash.xml;
 
-extern class XMLTag {
+@:final extern class XMLTag {
 	var attrs : Dynamic;
 	var empty : Bool;
 	var type : XMLNodeType;

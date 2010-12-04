@@ -42,6 +42,7 @@ extern class TextField extends flash.display.InteractiveObject {
 	var wordWrap : Bool;
 	function new() : Void;
 	function appendText(newText : String) : Void;
+	function copyRichText() : String;
 	function getCharBoundaries(charIndex : Int) : flash.geom.Rectangle;
 	function getCharIndexAtPoint(x : Float, y : Float) : Int;
 	function getFirstCharInParagraph(charIndex : Int) : Int;
@@ -54,12 +55,13 @@ extern class TextField extends flash.display.InteractiveObject {
 	function getLineText(lineIndex : Int) : String;
 	function getParagraphLength(charIndex : Int) : Int;
 	function getRawText() : String;
-	function getTextFormat(?beginIndex : Int, ?endIndex : Int) : TextFormat;
-	function getTextRuns(?beginIndex : Int, ?endIndex : Int) : Array<Dynamic>;
-	function getXMLText(?beginIndex : Int, ?endIndex : Int) : String;
-	function insertXMLText(beginIndex : Int, endIndex : Int, richText : String, ?pasting : Bool) : Void;
+	function getTextFormat(beginIndex : Int = -1, endIndex : Int = -1) : TextFormat;
+	function getTextRuns(beginIndex : Int = 0, endIndex : Int = 2147483647) : Array<Dynamic>;
+	function getXMLText(beginIndex : Int = 0, endIndex : Int = 2147483647) : String;
+	function insertXMLText(beginIndex : Int, endIndex : Int, richText : String, pasting : Bool = false) : Void;
+	function pasteRichText(richText : String) : Bool;
 	function replaceSelectedText(value : String) : Void;
 	function replaceText(beginIndex : Int, endIndex : Int, newText : String) : Void;
 	function setSelection(beginIndex : Int, endIndex : Int) : Void;
-	function setTextFormat(format : TextFormat, ?beginIndex : Int, ?endIndex : Int) : Void;
+	function setTextFormat(format : TextFormat, beginIndex : Int = -1, endIndex : Int = -1) : Void;
 }

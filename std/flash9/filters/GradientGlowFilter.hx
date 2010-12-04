@@ -1,6 +1,6 @@
 package flash.filters;
 
-extern class GradientGlowFilter extends BitmapFilter {
+@:final extern class GradientGlowFilter extends BitmapFilter {
 	var alphas : Array<Dynamic>;
 	var angle : Float;
 	var blurX : Float;
@@ -12,5 +12,5 @@ extern class GradientGlowFilter extends BitmapFilter {
 	var ratios : Array<Dynamic>;
 	var strength : Float;
 	var type : BitmapFilterType;
-	function new(?distance : Float, ?angle : Float, ?colors : Array<Dynamic>, ?alphas : Array<Dynamic>, ?ratios : Array<Dynamic>, ?blurX : Float, ?blurY : Float, ?strength : Float, ?quality : Int, ?type : BitmapFilterType, ?knockout : Bool) : Void;
+	function new(distance : Float = 4, angle : Float = 45, ?colors : Array<Dynamic>, ?alphas : Array<Dynamic>, ?ratios : Array<Dynamic>, blurX : Float = 4, blurY : Float = 4, strength : Float = 1, quality : Int = 1, ?type : BitmapFilterType, knockout : Bool = false) : Void;
 }

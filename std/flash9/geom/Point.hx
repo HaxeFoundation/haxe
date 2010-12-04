@@ -4,7 +4,7 @@ extern class Point {
 	var length(default,null) : Float;
 	var x : Float;
 	var y : Float;
-	function new(?x : Float, ?y : Float) : Void;
+	function new(x : Float = 0, y : Float = 0) : Void;
 	function add(v : Point) : Point;
 	function clone() : Point;
 	function equals(toCompare : Point) : Bool;

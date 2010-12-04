@@ -8,8 +8,4 @@ extern class Loader extends DisplayObjectContainer {
 	function load(request : flash.net.URLRequest, ?context : flash.system.LoaderContext) : Void;
 	function loadBytes(bytes : flash.utils.ByteArray, ?context : flash.system.LoaderContext) : Void;
 	function unload() : Void;
-	
-	#if flash10
-	function unloadAndStop(?gc : Bool) : Void;
-	#end
 }

@@ -1,7 +1,7 @@
 package flash.events;
 
 extern class IOErrorEvent extends ErrorEvent {
-	function new(type : String, ?bubbles : Bool, ?cancelable : Bool, ?text : String) : Void;
+	function new(type : String, bubbles : Bool = false, cancelable : Bool = false, ?text : String) : Void;
 	static var DISK_ERROR : String;
 	static var IO_ERROR : String;
 	static var NETWORK_ERROR : String;

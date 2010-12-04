@@ -1,6 +1,6 @@
 package flash.media;
 
-extern class Camera extends flash.events.EventDispatcher {
+@:final extern class Camera extends flash.events.EventDispatcher {
 	var activityLevel(default,null) : Float;
 	var bandwidth(default,null) : Int;
 	var currentFPS(default,null) : Float;
@@ -18,9 +18,9 @@ extern class Camera extends flash.events.EventDispatcher {
 	function new() : Void;
 	function setCursor(value : Bool) : Void;
 	function setKeyFrameInterval(keyFrameInterval : Int) : Void;
-	function setLoopback(?compress : Bool) : Void;
-	function setMode(width : Int, height : Int, fps : Float, ?favorArea : Bool) : Void;
-	function setMotionLevel(motionLevel : Int, ?timeout : Int) : Void;
+	function setLoopback(compress : Bool = false) : Void;
+	function setMode(width : Int, height : Int, fps : Float, favorArea : Bool = true) : Void;
+	function setMotionLevel(motionLevel : Int, timeout : Int = 2000) : Void;
 	function setQuality(bandwidth : Int, quality : Int) : Void;
 	static var names(default,null) : Array<Dynamic>;
 	static function getCamera(?name : String) : Camera;

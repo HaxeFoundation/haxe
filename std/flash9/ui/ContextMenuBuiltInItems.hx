@@ -1,6 +1,6 @@
 package flash.ui;
 
-extern class ContextMenuBuiltInItems {
+@:final extern class ContextMenuBuiltInItems {
 	var forwardAndBack : Bool;
 	var loop : Bool;
 	var play : Bool;

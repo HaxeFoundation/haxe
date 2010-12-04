@@ -12,7 +12,7 @@ extern class Rectangle {
 	var width : Float;
 	var x : Float;
 	var y : Float;
-	function new(?x : Float, ?y : Float, ?width : Float, ?height : Float) : Void;
+	function new(x : Float = 0, y : Float = 0, width : Float = 0, height : Float = 0) : Void;
 	function clone() : Rectangle;
 	function contains(x : Float, y : Float) : Bool;
 	function containsPoint(point : Point) : Bool;

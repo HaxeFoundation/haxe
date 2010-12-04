@@ -6,7 +6,7 @@ extern interface IDataInput {
 	var objectEncoding : UInt;
 	function readBoolean() : Bool;
 	function readByte() : Int;
-	function readBytes(bytes : ByteArray, ?offset : UInt, ?length : UInt) : Void;
+	function readBytes(bytes : ByteArray, offset : UInt = 0, length : UInt = 0) : Void;
 	function readDouble() : Float;
 	function readFloat() : Float;
 	function readInt() : Int;

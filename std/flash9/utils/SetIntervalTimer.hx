@@ -1,5 +1,7 @@
 package flash.utils;
 
-extern class SetIntervalTimer extends Timer {
+@:final extern class SetIntervalTimer extends Timer {
+	var id : UInt;
 	function new(closure : Dynamic, delay : Float, repeats : Bool, rest : Array<Dynamic>) : Void;
+	static function clearInterval(id : UInt) : Void;
 }

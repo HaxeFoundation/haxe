@@ -7,11 +7,11 @@ extern class Matrix {
 	var d : Float;
 	var tx : Float;
 	var ty : Float;
-	function new(?a : Float, ?b : Float, ?c : Float, ?d : Float, ?tx : Float, ?ty : Float) : Void;
+	function new(a : Float = 1, b : Float = 0, c : Float = 0, d : Float = 1, tx : Float = 0, ty : Float = 0) : Void;
 	function clone() : Matrix;
 	function concat(m : Matrix) : Void;
-	function createBox(scaleX : Float, scaleY : Float, ?rotation : Float, ?tx : Float, ?ty : Float) : Void;
-	function createGradientBox(width : Float, height : Float, ?rotation : Float, ?tx : Float, ?ty : Float) : Void;
+	function createBox(scaleX : Float, scaleY : Float, rotation : Float = 0, tx : Float = 0, ty : Float = 0) : Void;
+	function createGradientBox(width : Float, height : Float, rotation : Float = 0, tx : Float = 0, ty : Float = 0) : Void;
 	function deltaTransformPoint(point : Point) : Point;
 	function identity() : Void;
 	function invert() : Void;

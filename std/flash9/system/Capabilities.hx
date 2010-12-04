@@ -29,7 +29,4 @@ extern class Capabilities {
 	static var screenResolutionY(default,null) : Float;
 	static var serverString(default,null) : String;
 	static var version(default,null) : String;
-	#if flash10
-	static var hasColorCorrection(default,null) : Bool;
-	#end
 }

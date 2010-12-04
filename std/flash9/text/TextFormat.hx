@@ -20,5 +20,5 @@ extern class TextFormat {
 	var target : String;
 	var underline : Null<Bool>;
 	var url : String;
-	function new(?font : String, ?size : Null<Float>, ?color : Null<UInt>, ?bold : Null<Bool>, ?italic : Null<Bool>, ?underline : Null<Bool>, ?url : String, ?target : String, ?align : TextFormatAlign, ?leftMargin : Null<Float>, ?rightMargin : Null<Float>, ?indent : Null<Float>, ?leading : Null<Float>) : Void;
+	function new(?font : String, ?size : Float, ?color : UInt, ?bold : Bool, ?italic : Bool, ?underline : Bool, ?url : String, ?target : String, ?align : TextFormatAlign, ?leftMargin : Float, ?rightMargin : Float, ?indent : Float, ?leading : Float) : Void;
 }

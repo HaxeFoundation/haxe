@@ -1,6 +1,6 @@
 package flash.media;
 
-extern class ID3Info {
+@:final extern class ID3Info implements Dynamic {
 	var album : String;
 	var artist : String;
 	var comment : String;

@@ -1,7 +1,7 @@
 package flash.utils;
 
-extern class Namespace {
-	var prefix : String;
-	var uri : String;
-	public function new( p1 : Dynamic, ?url : Dynamic ) : Void;
+@:final extern class Namespace {
+	var prefix(default,null) : Dynamic;
+	var uri(default,null) : String;
+	function new(?prefix : Dynamic, ?uri : Dynamic) : Void;
 }
