@@ -210,6 +210,10 @@ let generate_type com t =
 	let base_path = "hxclasses" in
 	let pack , name = t_path t in
 	create_dir "." (base_path :: pack);
+	match pack, name with
+	| ["flash";"filters"], "BitmapFilterQuality"
+	| ["flash";"display"], ("BitmapDataChannel" | "GraphicsPathCommand")  -> ()
+	| _ ->
 	let f = open_out_bin (base_path ^ "/" ^ (match pack with [] -> "" | l -> String.concat "/" l ^ "/") ^ name ^ ".hx") in
 	let ch = IO.output_channel f in
 	let p fmt = IO.printf ch fmt in
@@ -235,6 +239,8 @@ let generate_type com t =
 			(match !r with
 			| None -> "Unknown"
 			| Some t -> stype t)
+		| TInst ({ cl_kind = KTypeParameter } as c,tl) ->
+			path ([],snd c.cl_path) tl
 		| TInst (c,tl) ->
 			path c.cl_path tl
 		| TEnum (e,tl) ->
@@ -250,7 +256,7 @@ let generate_type com t =
 			if t == t2 then "Dynamic" else "Dynamic<" ^ stype t2 ^ ">"
 		| TFun (args,ret) ->
 			String.concat " -> " (List.map (fun (_,_,t) -> ftype t) args) ^ " -> " ^ ftype ret
-	and ftype t = 
+	and ftype t =
 		match t with
 		| TMono r ->
 			(match !r with
@@ -263,6 +269,11 @@ let generate_type com t =
 		| _ ->
 			stype t
 	in
+	let sexpr (e,_) =
+		match e with
+		| EConst c -> s_constant c
+		| _ -> "'???'"
+	in
 	let sparam (n,v,t) =
 		match v with
 		| None ->
@@ -272,41 +283,77 @@ let generate_type com t =
 		| Some v ->
 			n ^ " : " ^ stype t ^ " = " ^ (s_constant v)
 	in
+	let print_meta ml =
+		List.iter (fun (m,pl) ->
+			match m with
+			| ":defparam" -> ()
+			| _ ->
+			match pl with
+			| [] -> p "@%s " m
+			| l -> p "@%s(%s) " m (String.concat "," (List.map sexpr pl))
+		) ml
+	in
+	let access a =
+		match a, pack with
+		| AccNever, "flash" :: _ -> "null"
+		| _ -> s_access a
+	in
 	let print_field stat f =
 		p "\t";
+		print_meta f.cf_meta;
 		if stat then p "static ";
 		(match f.cf_kind with
 		| Var v ->
 			p "var %s" f.cf_name;
-			if v.v_read <> AccNormal || v.v_write <> AccNormal then p "(%s,%s)" (s_access v.v_read) (s_access (if v.v_write = AccNever && (match pack with "flash" :: _ -> true | _ -> false) then AccNo else v.v_write));
+			if v.v_read <> AccNormal || v.v_write <> AccNormal then p "(%s,%s)" (access v.v_read) (access v.v_write);
 			p " : %s" (stype f.cf_type);
 		| Method m ->
 			let params, ret = (match follow f.cf_type with
-				| TFun (args,ret) -> 
+				| TFun (args,ret) ->
 					List.map (fun (a,o,t) ->
 						let rec loop = function
 							| [] -> Ident "null"
-							| (":defparam",[(EConst (String p),_);(EConst v,_)]) :: _ when p = a -> v
+							| (":defparam",[(EConst (String p),_);(EConst v,_)]) :: _ when p = a ->
+								(match v with
+								| Float "4294967295." -> Int "0xFFFFFFFF"
+								| Int "16777215" -> Int "0xFFFFFF"
+								| _ -> v)
 							| _ :: l -> loop l
 						in
 						a,(if o then Some (loop f.cf_meta) else None ),t
 					) args, ret
-				| _ -> 
+				| _ ->
 					assert false
-			) in				
+			) in
 			p "function %s(%s) : %s" f.cf_name (String.concat ", " (List.map sparam params)) (stype ret);
 		);
 		p ";\n"
 	in
 	(match t with
 	| TClassDecl c ->
+		print_meta c.cl_meta;
 		p "extern %s %s" (if c.cl_interface then "interface" else "class") (stype (TInst (c,List.map snd c.cl_types)));
 		let ext = (match c.cl_super with
 		| None -> []
 		| Some (c,pl) -> [" extends " ^ stype (TInst (c,pl))]
 		) in
 		let ext = List.fold_left (fun acc (i,pl) -> (" implements " ^ stype (TInst (i,pl))) :: acc) ext c.cl_implements in
-		let ext = (match c.cl_dynamic with None -> ext | Some t -> (" implements " ^ stype t) :: ext) in
+		let ext = (match c.cl_dynamic with
+			| None -> ext
+			| Some t ->
+				(match c.cl_path with
+				| ["flash";"display"],"MovieClip"
+				| ["flash";"errors"], "Error" -> (" #if !flash_strict implements " ^ stype t ^ " #end") :: ext
+				| ["flash";"errors"], _ -> ext
+				| _ -> (" implements " ^ stype t) :: ext)
+		) in
+		let ext = (match c.cl_path with
+			| ["flash";"utils"], "ByteArray" -> " implements ArrayAccess<Int>" :: ext
+			| ["flash";"utils"], "Dictionnary" -> [" implements ArrayAccess<Dynamic>"]
+			| ["flash";"xml"], "XML" -> [" implements Dynamic<XMLList>"]
+			| ["flash";"xml"], "XMLList" -> [" implements ArrayAccess<XML>"]
+			| _ -> ext
+		) in
 		p "%s" (String.concat "," (List.rev ext));
 		p " {\n";
 		let sort l =
@@ -324,8 +371,9 @@ let generate_type com t =
 		List.iter (print_field true) (sort c.cl_ordered_statics);
 		p "}\n";
 	| TEnumDecl e ->
+		print_meta e.e_meta;
 		p "extern enum %s {\n" (stype (TEnum(e,List.map snd e.e_types)));
-		let sort l = 
+		let sort l =
 			let a = Array.of_list l in
 			Array.sort compare a;
 			Array.to_list a
@@ -340,12 +388,13 @@ let generate_type com t =
 		) (sort e.e_names);
 		p "}\n"
 	| TTypeDecl t ->
+		print_meta t.t_meta;
 		p "extern typedef %s = " (stype (TType (t,List.map snd t.t_types)));
 		p "%s" (stype t.t_type);
 		p "\n";
 	);
 	IO.close_out ch
-	
+
 let generate_hx com =
 	List.iter (generate_type com) com.types
-	
+

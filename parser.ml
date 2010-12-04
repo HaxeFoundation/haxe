@@ -248,7 +248,7 @@ and parse_common_flags = parser
 	| [< >] -> []
 
 and parse_meta = parser
-	| [< '(At,_); name = meta_name; s >] ->		
+	| [< '(At,_); name = meta_name; s >] ->
 		(match s with parser
 		| [< '(POpen,_); params = psep Comma expr; '(PClose,_); s >] -> (name,params) :: parse_meta s
 		| [< >] -> (name,[]) :: parse_meta s)
@@ -360,19 +360,19 @@ and parse_enum_param = parser
 and parse_class_field s =
 	doc := None;
 	match s with parser
-	| [< meta = parse_meta; l = parse_cf_rights true []; doc = get_doc; s >] ->
-		match s with parser
+	| [< meta = parse_meta; al = parse_cf_rights true []; doc = get_doc; s >] ->
+		let name, pos, k = (match s with parser
 		| [< '(Kwd Var,p1); name = any_ident; s >] ->
 			(match s with parser
 			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_complex_type; p2 = semicolon >] ->
-				(FProp (name,doc,meta,l,i1,i2,t),punion p1 p2)
+				name, punion p1 p2, FProp (i1,i2,t)
 			| [< t = parse_type_opt; s >] ->
 				let e , p2 = (match s with parser
-				| [< '(Binop OpAssign,_) when List.mem AStatic l; e = toplevel_expr; p2 = semicolon >] -> Some e , p2
+				| [< '(Binop OpAssign,_) when List.mem AStatic al; e = toplevel_expr; p2 = semicolon >] -> Some e , p2
 				| [< '(Semicolon,p2) >] -> None , p2
 				| [< >] -> serror()
 				) in
-				(FVar (name,doc,meta,l,t,e),punion p1 p2))
+				name, punion p1 p2, FVar (t,e))
 		| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
 			let e = (match s with parser
 				| [< e = toplevel_expr >] -> e
@@ -384,9 +384,18 @@ and parse_class_field s =
 				f_type = t;
 				f_expr = e;
 			} in
-			(FFun (name,doc,meta,l,pl,f),punion p1 (pos e))
+			name, punion p1 (pos e), FFun (pl,f)
 		| [< >] ->
-			if l = [] then raise Stream.Failure else serror()
+			if al = [] then raise Stream.Failure else serror()
+		) in
+		{
+			cff_name = name;
+			cff_doc = doc;
+			cff_meta = meta;
+			cff_access = al;
+			cff_pos = pos;
+			cff_kind = k;
+		}
 
 and parse_signature_field flag = parser
 	| [< '(Kwd Var,p1); name = any_ident; s >] ->

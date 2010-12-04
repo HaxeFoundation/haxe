@@ -40,6 +40,10 @@ class Compiler {
 		untyped load("type_patch",4)(className.__s,field.__s,isStatic == true,type.__s);
 	}
 
+	public static function addMetadata( meta : String, className : String, ?field : String, ?isStatic : Bool ) {
+		untyped load("meta_patch",4)(meta.__s,className.__s,(field == null)?null:field.__s,isStatic == true);
+	}
+
 	/**
 		Evaluate the type a given expression would have in the context of the current macro call.
 	**/
@@ -58,6 +62,17 @@ class Compiler {
 					var p = r.split(".");
 					var field = p.pop();
 					removeField(p.join("."),field,isStatic);
+					continue;
+				}
+				if( r.charAt(0) == "@" ) {
+					var rp = r.split(" ");
+					var type = rp.pop();
+					var isStatic = rp[rp.length - 1] == "static";
+					if( isStatic ) rp.pop();
+					var meta = rp.join(" ");
+					var p = type.split(".");
+					var field = if( p.length > 1 && p[p.length-2].charAt(0) >= "a" ) null else p.pop();
+					addMetadata(meta,p.join("."),field,isStatic);
 					continue;
 				}
 				var rp = r.split(" : ");

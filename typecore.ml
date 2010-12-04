@@ -19,6 +19,12 @@
 open Common
 open Type
 
+type type_patch = {
+	mutable tp_type : Ast.complex_type option;
+	mutable tp_remove : bool;
+	mutable tp_meta : Ast.metadata;
+}
+
 type typer_globals = {
 	types_module : (path, path) Hashtbl.t;
 	modules : (path , module_def) Hashtbl.t;
@@ -29,7 +35,7 @@ type typer_globals = {
 	mutable macros : ((unit -> unit) * typer) option;
 	mutable std : module_def;
 	mutable hook_generate : (unit -> unit) list;
-	type_patches : (path, (string * bool, Ast.complex_type option) Hashtbl.t) Hashtbl.t;
+	type_patches : (path, (string * bool, type_patch) Hashtbl.t * type_patch) Hashtbl.t;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> Ast.pos -> Ast.class_flag -> bool;
 	do_create : Common.context -> typer;

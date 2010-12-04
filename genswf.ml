@@ -208,9 +208,9 @@ let build_class com c file =
 		| None | Some (HMPath ([],"Object")) -> flags
 		| Some s -> HExtends (make_tpath s) :: flags
 	) in
-	let flags = List.map (fun i -> 
+	let flags = List.map (fun i ->
 		let i = (match i with
-			| HMMultiName (Some id,ns) -> 
+			| HMMultiName (Some id,ns) ->
 				let rec loop = function
 					| [] -> assert false
 					| HNPublic (Some ns) :: _ -> HMPath (ExtString.String.nsplit ns ".",id)
@@ -227,6 +227,10 @@ let build_class com c file =
 	let getters = Hashtbl.create 0 in
 	let setters = Hashtbl.create 0 in
 	let as3_native = Common.defined com "as3_native" in
+	let is_xml = (match path.tpackage, path.tname with
+		| ["flash";"xml"], ("XML" | "XMLList") -> true
+		| _ -> false
+	) in
 	let make_field stat acc f =
 		let meta = ref [] in
 		let flags = (match f.hlf_name with
@@ -235,7 +239,7 @@ let build_class com c file =
 				(match ns with
 				| HNPrivate _ | HNNamespace "http://www.adobe.com/2006/flex/mx/internal" -> []
 				| HNNamespace ns ->
-					meta := (":ns",[String ns]) :: !meta;
+					if not (c.hlc_interface || is_xml) then meta := (":ns",[String ns]) :: !meta;
 					[APublic]
 				| HNExplicit _ | HNInternal _ | HNPublic _ ->
 					[APublic]
@@ -246,18 +250,25 @@ let build_class com c file =
 		) in
 		if flags = [] then acc else
 		let flags = if stat then AStatic :: flags else flags in
+		let name = (make_tpath f.hlf_name).tname in
 		let mk_meta() =
 			List.map (fun (s,cl) -> s, List.map (fun c -> EConst c,pos) cl) (!meta)
 		in
-		let name = (make_tpath f.hlf_name).tname in
+		let cf = {
+			cff_name = name;
+			cff_doc = None;
+			cff_pos = pos;
+			cff_meta = mk_meta();
+			cff_access = flags;
+			cff_kind = FVar (None,None);
+		} in
 		match f.hlf_kind with
 		| HFVar v ->
-			let v = if v.hlv_const then
-				FProp (name,None,mk_meta(),flags,"default","never",make_type v.hlv_type)
+			if v.hlv_const then
+				cf.cff_kind <- FProp ("default","never",make_type v.hlv_type)
 			else
-				FVar (name,None,mk_meta(),flags,Some (make_type v.hlv_type),None)
-			in
-			v :: acc
+				cf.cff_kind <- FVar (Some (make_type v.hlv_type),None);
+			cf :: acc
 		| HFMethod m when not m.hlm_override ->
 			(match m.hlm_kind with
 			| MK3Normal ->
@@ -279,29 +290,29 @@ let build_class com c file =
 							with
 								_ -> None
 					) in
-					incr p;					
+					incr p;
 					let t = make_type at in
 					let def_val = match opt_val with
 						| None -> None
-						| Some v ->							
+						| Some v ->
 							let v = (match v with
 							| HVNone | HVNull | HVNamespace _ | HVString _ -> None
-							| HVBool b ->								
+							| HVBool b ->
 								Some (Ident (if b then "true" else "false"))
-							| HVInt i | HVUInt i -> 
+							| HVInt i | HVUInt i ->
 								Some (Int (Int32.to_string i))
-							| HVFloat f -> 
+							| HVFloat f ->
 								Some (Float (string_of_float f))
 							) in
 							match v with
 							| None -> None
-							| Some v -> 
+							| Some v ->
 								meta := (":defparam",[String aname;v]) :: !meta;
 								Some (EConst v,pos)
 					in
-					(aname,opt_val <> None,Some t,def_val)					
+					(aname,opt_val <> None,Some t,def_val)
 				) t.hlmt_args in
-				let args = if t.hlmt_var_args then 
+				let args = if t.hlmt_var_args then
 					args @ List.map (fun _ -> incr pn; ("p" ^ string_of_int !pn,true,Some (make_type None),None)) [1;2;3;4;5]
 				else args in
 				let f = {
@@ -309,7 +320,9 @@ let build_class com c file =
 					f_type = Some (make_type t.hlmt_ret);
 					f_expr = (EBlock [],pos)
 				} in
-				FFun (name,None,mk_meta(),flags,[],f) :: acc
+				cf.cff_meta <- mk_meta();
+				cf.cff_kind <- FFun ([],f);
+				cf :: acc
 			| MK3Getter ->
 				Hashtbl.add getters (name,stat) m.hlm_type.hlmt_ret;
 				acc
@@ -341,7 +354,14 @@ let build_class com c file =
 		) in
 		let flags = [APublic] in
 		let flags = if stat then AStatic :: flags else flags in
-		FProp (name,None,[],flags,(if get then "default" else "never"),(if set then "default" else "never"),make_type t)
+		{
+			cff_name = name;
+			cff_pos = pos;
+			cff_doc = None;
+			cff_access = flags;
+			cff_meta = [];
+			cff_kind = FProp ((if get then "default" else "never"),(if set then "default" else "never"),make_type t);
+		}
 	in
 	let fields = Hashtbl.fold (fun (name,stat) t acc ->
 		make_get_set name stat (Some t) (try Some (Hashtbl.find setters (name,stat)) with Not_found -> None) :: acc
@@ -359,14 +379,19 @@ let build_class com c file =
 		let rec loop = function
 			| [] -> []
 			| f :: l ->
-				match f with
-				| FVar (name,doc,_,access,Some (CTPath { tpackage = []; tname = "String" | "Int" | "UInt" }),None) when List.mem AStatic access -> (name,doc,[],[],pos) :: loop l
-				| FFun ("new",_,_,_,_,{ f_args = [] }) -> loop l
+				match f.cff_kind with
+				| FVar (Some (CTPath { tpackage = []; tname = "String" | "Int" | "UInt" }),None) when List.mem AStatic f.cff_access -> (f.cff_name,None,[],[],pos) :: loop l
+				| FFun (_,{ f_args = [] }) when f.cff_name = "new" -> loop l
 				| _ -> raise Exit
 		in
-		if fields = [] then raise Exit;
-		List.iter (function HExtends _ | HImplements _ -> raise Exit | _ -> ()) flags;			
+		(match path.tpackage, path.tname with
+		| ["flash";"net"], "URLRequestMethod"
+		| ["flash";"filters"], "BitmapFilterQuality"
+		| ["flash";"display"], ("BitmapDataChannel" | "GraphicsPathCommand")  -> raise Exit
+		| _ -> ());
+		List.iter (function HExtends _ | HImplements _ -> raise Exit | _ -> ()) flags;
 		let constr = loop fields in
+		if constr = [] then raise Exit;
 		let enum_data = {
 			d_name = path.tname;
 			d_doc = None;
@@ -381,9 +406,9 @@ let build_class com c file =
 		d_name = path.tname;
 		d_doc = None;
 		d_params = [];
-		d_meta = [];
+		d_meta = if c.hlc_final && List.exists (fun f -> f.cff_name <> "new" && not (List.mem AStatic f.cff_access)) fields then [":final",[]] else [];
 		d_flags = flags;
-		d_data = List.map (fun f -> f, pos) fields;
+		d_data = fields;
 	} in
 	(path.tpackage, [(EClass class_data,pos)])
 
@@ -811,7 +836,7 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 			let el = List.filter (fun e ->
 				let path = parse_path e.exp_name in
 				let b = List.exists (fun t -> t_path t = path) com.types in
-				if not b && fst path = [] then List.iter (fun t -> 
+				if not b && fst path = [] then List.iter (fun t ->
 					if snd (t_path t) = snd path then error ("Linkage name '" ^ snd path ^ "' in '" ^ file ^  "' should be '" ^ s_type_path (t_path t) ^"'") (t_pos t);
 				) com.types;
 				b

@@ -90,6 +90,7 @@ type extern_api = {
 	parse_string : string -> Ast.pos -> Ast.expr;
 	typeof : Ast.expr -> Type.t;
 	type_patch : string -> string -> bool -> string option -> unit;
+	meta_patch : string -> string -> string option -> bool -> unit;
 }
 
 type context = {
@@ -486,7 +487,7 @@ let builtins =
 		"hcount", Fun1 (fun h -> VInt (Hashtbl.length (vhash h)));
 		"hsize", Fun1 (fun h -> VInt (Hashtbl.length (vhash h)));
 	(* misc *)
-		"print", FunVar (fun vl -> List.iter (fun v -> 
+		"print", FunVar (fun vl -> List.iter (fun v ->
 			let ctx = get_ctx() in
 			ctx.curapi.print (ctx.do_string v)
 		) vl; VNull);
@@ -1594,6 +1595,14 @@ let macro_lib =
 			(match t, f, s, v with
 			| VString t, VString f, VBool s, VString v -> p t f s (Some v)
 			| VString t, VString f, VBool s, VNull -> p t f s None
+			| _ -> error());
+			VNull
+		);
+		"meta_patch", Fun4 (fun m t f s ->
+			let p = (get_ctx()).curapi.meta_patch in
+			(match m, t, f, s with
+			| VString m, VString t, VString f, VBool s -> p m t (Some f) s
+			| VString m, VString t, VNull, VBool s -> p m t None s
 			| _ -> error());
 			VNull
 		);
@@ -2752,12 +2761,12 @@ let encode_pmap convert m =
 	let h = Hashtbl.create 0 in
 	PMap.iter (fun k v -> Hashtbl.add h (VString k) (convert v)) m;
 	enc_hash h
-	
+
 let encode_pmap_array convert m =
 	let l = ref [] in
 	PMap.iter (fun _ v -> l := !l @ [(convert v)]) m;
 	enc_array !l
-	
+
 let encode_array convert l =
 	enc_array (List.map convert l)
 

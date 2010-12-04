@@ -1806,6 +1806,44 @@ let generate ctx main excludes =
 (* ---------------------------------------------------------------------- *)
 (* MACROS *)
 
+let get_type_patch ctx t sub =
+	let new_patch() =
+		{ tp_type = None; tp_remove = false; tp_meta = [] }
+	in
+	let path = Ast.parse_path t in
+	let h, tp = (try
+		Hashtbl.find ctx.g.type_patches path
+	with Not_found ->
+		let h = Hashtbl.create 0 in
+		let tp = new_patch() in
+		Hashtbl.add ctx.g.type_patches path (h,tp);
+		h, tp
+	) in
+	match sub with
+	| None -> tp
+	| Some k ->
+		try
+			Hashtbl.find h k
+		with Not_found ->
+			let tp = new_patch() in
+			Hashtbl.add h k tp;
+			tp
+
+let parse_string ctx s p =
+	let old = Lexer.save() in
+	Lexer.init p.pfile;
+	let _, decls = try
+		Parser.parse ctx.com (Lexing.from_string s)
+	with Parser.Error (e,_) ->
+		failwith (Parser.error_msg e)
+	| Lexer.Error (e,_) ->
+		failwith (Lexer.error_msg e)
+	in
+	Lexer.restore old;
+	match decls with
+	| [(d,_)] -> d
+	| _ -> assert false
+
 let make_macro_api ctx p =
 	{
 		Interp.pos = p;
@@ -1819,19 +1857,8 @@ let make_macro_api ctx p =
 		Interp.parse_string = (fun s p ->
 			let head = "class X{static function main() " in
 			let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
-			let s = head ^ s ^ "}" in
-			let old = Lexer.save() in
-			Lexer.init p.pfile;
-			let _, decls = try
-				Parser.parse ctx.com (Lexing.from_string s)
-			with Parser.Error (e,_) ->
-				failwith (Parser.error_msg e)
-			| Lexer.Error (e,_) ->
-				failwith (Lexer.error_msg e)
-			in
-			Lexer.restore old;
-			match decls with
-			| [EClass { d_data = [FFun ("main",_,_,_,_,{ f_expr = e }),_] },_] -> e
+			match parse_string ctx (head ^ s ^ "}") p with
+			| EClass { d_data = [{ cff_name = "main"; cff_kind = FFun (_,{ f_expr = e }) }]} -> e
 			| _ -> assert false
 		);
 		Interp.typeof = (fun e ->
@@ -1839,22 +1866,23 @@ let make_macro_api ctx p =
 			e.etype
 		);
 		Interp.type_patch = (fun t f s v ->
-			let v = (match v with None -> None | Some s -> 
-				let old = Lexer.save() in
-				let head = "typedef T = " in
-				let _, decls = Parser.parse ctx.com (Lexing.from_string (head ^ s)) in
-				Lexer.restore old;
-				match decls with
-				| [ETypedef { d_data = ct },_] -> Some ct
+			let v = (match v with None -> None | Some s ->
+				match parse_string ctx ("typedef T = " ^ s) null_pos with
+				| ETypedef { d_data = ct } -> Some ct
 				| _ -> assert false
 			) in
-			let path = Ast.parse_path t in
-			let h = (try Hashtbl.find ctx.g.type_patches path with Not_found ->
-				let h = Hashtbl.create 0 in
-				Hashtbl.add ctx.g.type_patches path h;
-				h
+			let tp = get_type_patch ctx t (Some (f,s)) in
+			match v with
+			| None -> tp.tp_remove <- true
+			| Some _ -> tp.tp_type <- v
+		);
+		Interp.meta_patch = (fun m t f s ->
+			let m = (match parse_string ctx (m ^ " typedef T = T") null_pos with
+				| ETypedef t -> t.d_meta
+				| _ -> assert false
 			) in
-			Hashtbl.replace h (f,s) v			
+			let tp = get_type_patch ctx t (match f with None -> None | Some f -> Some (f,s)) in
+			tp.tp_meta <- tp.tp_meta @ m;
 		);
 		Interp.print = (fun s ->
 			if not !Common.display then print_string s
@@ -1913,7 +1941,7 @@ let load_macro ctx cpath f p =
 		let r = Interp.call_path mctx ((fst cpath) @ [snd cpath]) f args api in
 		if not in_macro then t();
 		r
-	in	
+	in
 	ctx2, meth, call
 
 let type_macro ctx cpath f el p =

@@ -209,10 +209,19 @@ type access =
 	| ADynamic
 	| AInline
 
-type class_field =
-	| FVar of string * documentation * metadata * access list * complex_type option * expr option
-	| FFun of string * documentation * metadata * access list * type_param list * func
-	| FProp of string * documentation * metadata * access list * string * string * complex_type
+type class_field_kind =
+	| FVar of complex_type option * expr option
+	| FFun of type_param list * func
+	| FProp of string * string * complex_type
+
+type class_field = {
+	cff_name : string;
+	cff_doc : documentation;
+	cff_pos : pos;
+	mutable cff_meta : metadata;
+	mutable cff_access : access list;
+	mutable cff_kind : class_field_kind;
+}
 
 type enum_flag =
 	| EPrivate
@@ -237,7 +246,7 @@ type ('a,'b) definition = {
 }
 
 type type_def =
-	| EClass of (class_flag, (class_field * pos) list) definition
+	| EClass of (class_flag, class_field list) definition
 	| EEnum of (enum_flag, enum_constructor list) definition
 	| ETypedef of (enum_flag, complex_type) definition
 	| EImport of type_path
@@ -270,7 +279,7 @@ let punion p p2 =
 
 let s_type_path (p,s) = match p with [] -> s | _ -> String.concat "." p ^ "." ^ s
 
-let parse_path s = 
+let parse_path s =
 	match List.rev (ExtString.String.nsplit s ".") with
 	| [] -> failwith "Invalid empty path"
 	| x :: l -> List.rev l, x

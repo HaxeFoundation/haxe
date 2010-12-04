@@ -88,25 +88,25 @@ let extend_remoting ctx c t p async prot =
 	let decls = (try Typeload.parse_module ctx path p with e -> ctx.com.package_rules <- rules; raise e) in
 	ctx.com.package_rules <- rules;
 	let base_fields = [
-		(FVar ("__cnx",None,[],[],Some (CTPath { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = []; tsub = None }),None),p);
-		(FFun ("new",None,[],[APublic],[],{ f_args = ["c",false,None,None]; f_type = None; f_expr = (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p) }),p);
+		{ cff_name = "__cnx"; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = []; cff_kind = FVar (Some (CTPath { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = []; tsub = None }),None) };
+		{ cff_name = "new"; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = [APublic]; cff_kind = FFun ([],{ f_args = ["c",false,None,None]; f_type = None; f_expr = (EBinop (OpAssign,(EConst (Ident "__cnx"),p),(EConst (Ident "c"),p)),p) }) };
 	] in
 	let tvoid = CTPath { tpackage = []; tname = "Void"; tparams = []; tsub = None } in
-	let build_field is_public acc (f,p) =
-		match f with
-		| FFun ("new",_,_,_,_,_) ->
+	let build_field is_public acc f =
+		if f.cff_name = "new" then
 			acc
-		| FFun (name,doc,meta,acl,pl,f) when (is_public || List.mem APublic acl) && not (List.mem AStatic acl) ->
-			if List.exists (fun (_,_,t,_) -> t = None) f.f_args then error ("Field " ^ name ^ " type is not complete and cannot be used by RemotingProxy") p;
-			let eargs = [EArrayDecl (List.map (fun (a,_,_,_) -> (EConst (Ident a),p)) f.f_args),p] in
-			let ftype = (match f.f_type with Some (CTPath { tpackage = []; tname = "Void" }) -> None | _ -> f.f_type) in
+		else match f.cff_kind with
+		| FFun (pl,fd) when (is_public || List.mem APublic f.cff_access) && not (List.mem AStatic f.cff_access) ->
+			if List.exists (fun (_,_,t,_) -> t = None) fd.f_args then error ("Field " ^ f.cff_name ^ " type is not complete and cannot be used by RemotingProxy") p;
+			let eargs = [EArrayDecl (List.map (fun (a,_,_,_) -> (EConst (Ident a),p)) fd.f_args),p] in
+			let ftype = (match fd.f_type with Some (CTPath { tpackage = []; tname = "Void" }) -> None | _ -> fd.f_type) in
 			let fargs, eargs = if async then match ftype with
-				| Some tret -> f.f_args @ ["__callb",true,Some (CTFunction ([tret],tvoid)),None], eargs @ [EConst (Ident "__callb"),p]
-				| _ -> f.f_args, eargs @ [EConst (Ident "null"),p]
+				| Some tret -> fd.f_args @ ["__callb",true,Some (CTFunction ([tret],tvoid)),None], eargs @ [EConst (Ident "__callb"),p]
+				| _ -> fd.f_args, eargs @ [EConst (Ident "null"),p]
 			else
-				f.f_args, eargs
+				fd.f_args, eargs
 			in
-			let id = (EConst (String name), p) in
+			let id = (EConst (String f.cff_name), p) in
 			let id = if prot then id else ECall ((EConst (Ident "__unprotect__"),p),[id]),p in
 			let expr = ECall (
 				(EField (
@@ -115,12 +115,12 @@ let extend_remoting ctx c t p async prot =
 				,p),eargs),p
 			in
 			let expr = if async || ftype = None then expr else (EReturn (Some expr),p) in
-			let f = {
+			let fd = {
 				f_args = fargs;
 				f_type = if async then None else ftype;
 				f_expr = (EBlock [expr],p);
 			} in
-			(FFun (name,None,[],[APublic],pl,f),p) :: acc
+			{ cff_name = f.cff_name; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = [APublic]; cff_kind = FFun (pl,fd) } :: acc
 		| _ -> acc
 	in
 	let decls = List.map (fun d ->
