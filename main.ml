@@ -283,11 +283,11 @@ try
 		("-swf",Arg.String (set_platform Flash),"<file> : compile code to Flash SWF file");
 		("-swf9",Arg.String (fun file ->
 			set_platform Flash file;
-			if com.flash_version < 9 then com.flash_version <- 9;
+			if com.flash_version < 9. then com.flash_version <- 9.;
 		),"<file> : compile code to Flash9 SWF file");
 		("-as3",Arg.String (fun dir ->
 			set_platform Flash dir;
-			if com.flash_version < 9 then com.flash_version <- 9;
+			if com.flash_version < 9. then com.flash_version <- 9.;
 			gen_as3 := true;
 			Common.define com "as3";
 			Common.define com "no_inline";
@@ -329,7 +329,7 @@ try
 		), ": add debug informations to the compiled code");
 	] in
 	let adv_args_spec = [
-		("-swf-version",Arg.Int (fun v ->
+		("-swf-version",Arg.Float (fun v ->
 			com.flash_version <- v;
 		),"<version> : change the SWF version (6 to 10)");
 		("-swf-header",Arg.String (fun h ->
@@ -517,15 +517,26 @@ try
 			set_platform Cross "";
 			"?"
 		| Flash | Flash9 ->
-			Common.define com ("flash" ^ string_of_int com.flash_version);
-			if com.flash_version >= 9 then begin
-				Common.define com "flash9"; (* always define flash9, even for flash10+ *)
+			if com.flash_version >= 9. then begin
+				let rec loop = function
+					| [] -> ()
+					| v :: _ when v > com.flash_version -> ()
+					| v :: l ->
+						let maj = int_of_float v in
+						let min = int_of_float (mod_float (v *. 10.) 10.) in
+						let def = "flash" ^ string_of_int maj ^ (if min = 0 then "" else "_" ^ string_of_int min) in
+						Common.define com def;
+						loop l
+				in
+				loop [9.;10.;10.1;10.2;11.];
 				com.package_rules <- PMap.add "flash" (Directory "flash9") com.package_rules;
 				com.package_rules <- PMap.add "flash9" Forbidden com.package_rules;
 				com.platform <- Flash9;
 				add_std "flash9";
-			end else
+			end else begin
+				Common.define com ("flash" ^ string_of_int (int_of_float com.flash_version));
 				add_std "flash";
+			end;
 			"swf"
 		| Neko -> add_std "neko"; "n"
 		| Js -> add_std "js"; "js"

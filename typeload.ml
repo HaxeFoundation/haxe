@@ -849,11 +849,33 @@ let init_class ctx c p herits fields meta =
 			} in
 			f, false, cf, (fun() -> (!check_get)(); (!check_set)())
 	in
+	let rec check_require = function
+		| [] -> None
+		| (":require",conds) :: l ->
+			let rec loop = function
+				| [] -> check_require l
+				| (EConst (Ident i | Type i),_) :: l ->
+					if not (Common.defined ctx.com i) then
+						Some i
+					else
+						loop l
+				| _ -> error "Invalid require identifier" p
+			in
+			loop conds			
+		| _ :: l ->
+			check_require l
+	in
+	let cl_req = check_require meta in
 	let fl = List.map (fun f ->
 		let fd , constr, f , delayed = loop_cf f in
 		let is_static = List.mem AStatic fd.cff_access in
 		if is_static && f.cf_name = "name" && Common.defined ctx.com "js" then error "This identifier cannot be used in Javascript for statics" p;
 		if (is_static || constr) && c.cl_interface && f.cf_name <> "__init__" then error "You can't declare static fields in interfaces" p;
+		let req = check_require fd.cff_meta in
+		let req = (match req with None -> if is_static || constr then cl_req else None | _ -> req) in
+		(match req with
+		| None -> ()
+		| Some r -> f.cf_kind <- Var { v_read = AccRequire r; v_write = AccRequire r });
 		if constr then begin
 			if c.cl_constructor <> None then error "Duplicate constructor" p;
 			c.cl_constructor <- Some f;

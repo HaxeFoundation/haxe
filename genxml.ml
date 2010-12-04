@@ -82,10 +82,10 @@ let rec gen_type t =
 and gen_field att f =
 	let add_get_set acc name att =
 		match acc with
-		| AccNormal | AccResolve -> att
+		| AccNormal | AccResolve | AccRequire _ -> att
 		| AccNo | AccNever -> (name, "null") :: att
 		| AccCall m -> (name,m) :: att
-		| AccInline -> (name,"inline") :: att
+		| AccInline -> (name,"inline") :: att		
 	in
 	let att = (match f.cf_expr with None -> att | Some e -> ("line",string_of_int (Lexer.get_error_line e.epos)) :: att) in
 	let att = (match f.cf_kind with

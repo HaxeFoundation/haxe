@@ -36,6 +36,7 @@ and var_access =
 	| AccResolve		(* call resolve("field") when accessed *)
 	| AccCall of string (* perform a method call when accessed *)
 	| AccInline			(* similar to Normal but inline when accessed *)
+	| AccRequire of string (* set when @:require(cond) fails *)
 
 and method_kind =
 	| MethNormal
@@ -124,7 +125,7 @@ and tclass_field = {
 	cf_public : bool;
 	mutable cf_doc : Ast.documentation;
 	mutable cf_meta : metadata;
-	cf_kind : field_kind;
+	mutable cf_kind : field_kind;
 	cf_params : (string * t) list;
 	mutable cf_expr : texpr option;
 }
@@ -322,6 +323,7 @@ let s_access = function
 	| AccResolve -> "resolve"
 	| AccCall m -> m
 	| AccInline	-> "inline"
+	| AccRequire n -> "require " ^ n
 
 let s_kind = function
 	| Var { v_read = AccNormal; v_write = AccNormal } -> "var"
@@ -541,7 +543,7 @@ let unify_access a1 a2 =
 	| _ -> false
 
 let direct_access = function
-	| AccNo | AccNever | AccNormal | AccInline -> true
+	| AccNo | AccNever | AccNormal | AccInline | AccRequire _ -> true
 	| AccResolve | AccCall _ -> false
 
 let unify_kind k1 k2 =

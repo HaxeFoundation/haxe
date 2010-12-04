@@ -62,7 +62,7 @@ type context = {
 	mutable load_extern_type : (path -> pos -> Ast.package option) list; (* allow finding types which are not in sources *)
 	(* output *)
 	mutable file : string;
-	mutable flash_version : int;
+	mutable flash_version : float;
 	mutable modules : Type.module_def list;
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
@@ -93,7 +93,7 @@ let create v =
 		file = "";
 		types = [];
 		modules = [];
-		flash_version = 8;
+		flash_version = 8.;
 		resources = Hashtbl.create 0;
 		php_front = None;
 		swf_libs = [];

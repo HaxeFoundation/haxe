@@ -328,6 +328,16 @@ let rec acc_get ctx g p =
 	| AKMacro _ ->
 		assert false
 
+let error_require r p =
+	let r = try
+		if String.sub r 0 5 <> "flash" then raise Exit;
+		let _, v = ExtString.String.replace (String.sub r 5 (String.length r - 5)) "_" "." in
+		"flash version " ^ v ^ " (use --swf-version " ^ v ^ ")"
+	with _ ->
+		"'" ^ r ^ "' to be enabled"
+	in
+	error ("Accessing this field require " ^ r) p
+
 let field_access ctx mode f t e p =
 	let fnormal() = AKExpr (mk (TField (e,f.cf_name)) t p) in
 	let normal() =
@@ -379,6 +389,8 @@ let field_access ctx mode f t e p =
 			AKNo f.cf_name
 		| AccInline ->
 			AKInline (e,f,t)
+		| AccRequire r ->
+			error_require r p
 
 let using_field ctx mode e i p =
 	if mode = MSet then raise Not_found;
@@ -1389,6 +1401,9 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;
 			let f = get_constructor c p in
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then error "Cannot access private constructor" p;
+			(match f.cf_kind with
+			| Var { v_read = AccRequire r } -> error_require r p
+			| _ -> ());
 			let el = (match follow (apply_params c.cl_types params (field_type f)) with
 			| TFun (args,r) ->
 				unify_call_params ctx (Some "new") el args p false

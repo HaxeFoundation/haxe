@@ -539,10 +539,20 @@ let tag ?(ext=false) d = {
 	tdata = d;
 }
 
+let swf_ver = function
+	| 6. -> 6
+	| 7. -> 7
+	| 8. -> 8
+	| 9. -> 9
+	| 10. | 10.1 -> 10
+	| 10.2 -> 11
+	| 11. -> 12
+	| _ -> assert false
+
 let convert_header com (w,h,fps,bg) =
 	if max w h >= 1639 then failwith "-swf-header : size too large";
 	{
-		h_version = com.flash_version;
+		h_version = swf_ver com.flash_version;
 		h_size = {
 			rect_nbits = if (max w h) >= 820 then 16 else 15;
 			left = 0;
@@ -814,7 +824,7 @@ let build_swf9 com swc =
 
 let merge com file priority (h1,tags1) (h2,tags2) =
   (* prioritize header+bgcolor for first swf *)
-	let header = if priority then { h2 with h_version = max h2.h_version com.flash_version } else h1 in
+	let header = if priority then { h2 with h_version = max h2.h_version (swf_ver com.flash_version) } else h1 in
 	let tags1 = if priority then List.filter (function { tdata = TSetBgColor _ } -> false | _ -> true) tags1 else tags1 in
   (* remove unused tags *)
 	let use_stage = priority && Common.defined com "flash_use_stage" in
@@ -832,7 +842,7 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 		| TActionScript3 (Some (_,"org/papervision3d/render/QuadrantRenderEngine"),_) when not as3_native -> false
 		| TFilesAttributes _ | TEnableDebugger2 _ | TScenes _ -> false
 		| TSetBgColor _ -> priority
-		| TExport el when !nframe = 0 && com.flash_version >= 9 ->
+		| TExport el when !nframe = 0 && com.flash_version >= 9. ->
 			let el = List.filter (fun e ->
 				let path = parse_path e.exp_name in
 				let b = List.exists (fun t -> t_path t = path) com.types in
@@ -844,7 +854,7 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 			classes := !classes @ List.map (fun e -> { f9_cid = Some e.exp_id; f9_classname = e.exp_name }) el;
 			false
 		| TF9Classes el when !nframe = 0 ->
-			if com.flash_version < 9 then failwith "You can't use AS3 SWF with Flash8 target";
+			if com.flash_version < 9. then failwith "You can't use AS3 SWF with Flash8 target";
 			classes := !classes @ List.filter (fun e -> e.f9_cid <> None) el;
 			false
 		| _ -> true
@@ -896,7 +906,7 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 
 let generate com swf_header =
 	let t = Common.timer "generate swf" in
-	let isf9 = com.flash_version >= 9 in
+	let isf9 = com.flash_version >= 9. in
 	let swc = if Common.defined com "swc" then Some (ref "") else None in
 	if swc <> None && not isf9 then failwith "SWC support is only available for Flash9+";
 	let file , codeclip = (try let f , c = ExtString.String.split com.file "@" in f, Some c with _ -> com.file , None) in
@@ -935,7 +945,7 @@ let generate com swf_header =
 	let header, bg = (match swf_header with None -> default_header com | Some h -> convert_header com h) in
 	let bg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
 	let debug = (if isf9 && Common.defined com "fdb" then [tag (TEnableDebugger2 (0,""))] else []) in
-	let fattr = (if com.flash_version < 8 then [] else
+	let fattr = (if com.flash_version < 8. then [] else
 		[tag (TFilesAttributes {
 			fa_network = Common.defined com "network-sandbox";
 			fa_as3 = isf9;

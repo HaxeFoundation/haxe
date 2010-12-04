@@ -1494,7 +1494,7 @@ let generate com =
 	let ctx = {
 		com = com;
 		stack = Codegen.stack_init com true;
-		flash6 = com.flash_version = 6;
+		flash6 = com.flash_version = 6.;
 		segs = [];
 		opcodes = DynArray.create();
 		code_pos = 0;
