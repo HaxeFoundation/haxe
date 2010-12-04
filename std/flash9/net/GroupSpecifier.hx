@@ -1,6 +1,6 @@
 package flash.net;
 
-extern class GroupSpecifier {
+@:require(flash10_1) extern class GroupSpecifier {
 	var ipMulticastMemberUpdatesEnabled : Bool;
 	var multicastEnabled : Bool;
 	var objectReplicationEnabled : Bool;

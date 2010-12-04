@@ -1,6 +1,6 @@
 package flash.net;
 
-@:require(flash10_1) @:final extern class NetGroupInfo {
+@:final @:require(flash10_1) extern class NetGroupInfo {
 	var objectReplicationReceiveBytesPerSecond(default,null) : Float;
 	var objectReplicationSendBytesPerSecond(default,null) : Float;
 	var postingReceiveControlBytesPerSecond(default,null) : Float;
