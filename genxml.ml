@@ -211,6 +211,7 @@ let generate_type com t =
 	let pack , name = t_path t in
 	create_dir "." (base_path :: pack);
 	match pack, name with
+	| ["flash";"net"], "NetStreamPlayTransitions"
 	| ["flash";"filters"], "BitmapFilterQuality"
 	| ["flash";"display"], ("BitmapDataChannel" | "GraphicsPathCommand")  -> ()
 	| _ ->
@@ -315,8 +316,16 @@ let generate_type com t =
 							| [] -> Ident "null"
 							| (":defparam",[(EConst (String p),_);(EConst v,_)]) :: _ when p = a ->
 								(match v with
+								| Float "1.#QNAN" -> Float "0./*NaN*/"
 								| Float "4294967295." -> Int "0xFFFFFFFF"
 								| Int "16777215" -> Int "0xFFFFFF"
+								| Float x ->
+									(try
+										let f = float_of_string x in
+										let s = string_of_int (int_of_float f) in
+										if s ^ "." = x then Int s else v
+									with _ ->
+										v)
 								| _ -> v)
 							| _ :: l -> loop l
 						in

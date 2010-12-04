@@ -38,6 +38,10 @@ flash.display.BitmapData.$offsets : Array<flash.geom.Point>;
 @:require(flash10) flash.display.BitmapData.getVector
 @:require(flash10) flash.display.BitmapData.histogram
 
+@:require(flash10_1) flash.display.Loader.uncaughtErrorEvents;
+@:require(flash10_1) flash.display.LoaderInfo.isURLInaccessible;
+@:require(flash10_1) flash.display.LoaderInfo.uncaughtErrorEvents;
+
 @:require(flash10_1) flash.display.ColorCorrection
 @:require(flash10_1) flash.display.ColorCorrectionSupport
 @:require(flash10_1) flash.display.FocusDirection
@@ -56,6 +60,11 @@ flash.display.BitmapData.$offsets : Array<flash.geom.Point>;
 flash.display.DisplayObject.blendMode : BlendMode;
 flash.display.DisplayObject.opaqueBackground : Null<UInt>;
 flash.display.DisplayObjectContainer.getObjectsUnderPoint : Array<DisplayObject>;
+
+@:require(flash10_1) flash.display.Sprite.startTouchDrag;
+@:require(flash10_1) flash.display.Sprite.stopTouchDrag;
+
+@:require(flash10_1) flash.display.Stage.wmodeGPU;
 
 flash.display.Graphics.$type : GradientType;
 flash.display.Graphics.$colors : Array<UInt>;
@@ -104,14 +113,11 @@ flash.display.GraphicsTrianglePath.$culling : TriangleCulling;
 
 
 @:require(flash10) flash.display.Loader.unloadAndStop
-// 10.1 = uncaughtErrorEvents
 
 -flash.display.LoaderInfo.new
 flash.display.LoaderInfo.parameters : Dynamic<String>;
 flash.display.LoaderInfo.actionScriptVersion : ActionScriptVersion;
 flash.display.LoaderInfo.swfVersion : SWFVersion;
-
-// flash 10.1 : uncaughtErrorEvents, ?isURLInaccessible
 
 -flash.display.MorphShape.new
 
@@ -128,8 +134,6 @@ flash.display.Shader.precisionHint : ShaderPrecision;
 -flash.display.ShaderParameter.new
 flash.display.ShaderParameter.type : ShaderParameterType;
 
-// flash.display.Sprite : startTouchDrag stopTouchDrag = FP 10.1
-
 -flash.display.Stage.new
 flash.display.Stage.align : StageAlign;
 flash.display.Stage.quality : StageQuality;
@@ -142,22 +146,22 @@ flash.display.Stage.displayState : StageDisplayState;
 @:require(flash10) flash.display.Stage.colorCorrection
 @:require(flash10) flash.display.Stage.colorCorrectionSupport
 
-// flash.display.Stage : stageVideos, wmodeGPU, color* = FP 10.1
-
-@:require(flash10) flash.errors.DRMManagerError
-@:require(flash10) flash.events.AccelerometerEvent
-@:require(flash10) flash.events.DRMAuthenticateEvent
-@:require(flash10) flash.events.DRMAuthenticationCompleteEvent
-@:require(flash10) flash.events.DRMAuthenticationErrorEvent
-@:require(flash10) flash.events.DRMCustomProperties
-@:require(flash10) flash.events.DRMErrorEvent
-@:require(flash10) flash.events.DRMStatusEvent
-@:require(flash10) flash.events.GeolocationEvent
-@:require(flash10) flash.events.GestureEvent
-@:require(flash10) flash.events.GesturePhase
-@:require(flash10) flash.events.PressAndTapGestureEvent
-@:require(flash10) flash.events.TouchEvent
-@:require(flash10) flash.events.TransformGestureEvent
+@:require(flash10_1) flash.errors.DRMManagerError
+@:require(flash10_1) flash.events.AccelerometerEvent
+@:require(flash10_1) flash.events.DRMAuthenticateEvent
+@:require(flash10_1) flash.events.DRMAuthenticationCompleteEvent
+@:require(flash10_1) flash.events.DRMAuthenticationErrorEvent
+@:require(flash10_1) flash.events.DRMCustomProperties
+@:require(flash10_1) flash.events.DRMErrorEvent
+@:require(flash10_1) flash.events.DRMStatusEvent
+@:require(flash10_1) flash.events.GeolocationEvent
+@:require(flash10_1) flash.events.GestureEvent
+@:require(flash10_1) flash.events.GesturePhase
+@:require(flash10_1) flash.events.PressAndTapGestureEvent
+@:require(flash10_1) flash.events.TouchEvent
+@:require(flash10_1) flash.events.TransformGestureEvent
+@:require(flash10_1) flash.events.UncaughtErrorEvent;
+@:require(flash10_1) flash.events.UncaughtErrorEvents;
 
 @:require(flash10) static flash.events.Event.CLEAR;
 @:require(flash10) static flash.events.Event.COPY;
@@ -173,7 +177,17 @@ flash.display.Stage.displayState : StageDisplayState;
 
 flash.events.Event.eventPhase : EventPhase;
 flash.events.KeyboardEvent.keyLocation : flash.ui.KeyLocation;
+flash.events.KeyboardEvent.$keyLocationValue : flash.ui.KeyLocation;
 flash.events.KeyboardEvent.$keyLocation : flash.ui.KeyLocation;
+
+@:require(flash10_1) flash.events.ErrorEvent.errorID;
+
+@:require(flash10_1) flash.events.HTTPStatusEvent.responseHeaders;
+@:require(flash10_1) flash.events.HTTPStatusEvent.responseURL;
+@:require(flash10_1) static flash.events.HTTPStatusEvent.HTTP_RESPONSE_STATUS;
+
+@:require(flash10_1) flash.events.IMEEvent.imeClient;
+@:require(flash10_1) static flash.events.IMEEvent.IME_START_COMPOSITION;
 
 -flash.events.WeakFunctionClosure.new
 
@@ -200,13 +214,22 @@ flash.geom.Matrix3D.$orientationStyle : Orientation3D;
 
 -flash.geom.Utils3D.new
 
+@:require(flash10_1) static flash.media.Camera.isSupported;
+@:require(flash10_1) static flash.media.Camera._scanHardware;
+
 flash.media.Microphone.codec : SoundCodec;
 
 @:require(flash10) flash.media.Microphone.codec;
 @:require(flash10) flash.media.Microphone.encodeQuality;
 @:require(flash10) flash.media.Microphone.framesPerPacket;
 
+@:require(flash10_1) flash.media.Microphone.enableVAD;
+@:require(flash10_1) flash.media.Microphone.noiseSuppressionLevel;
+@:require(flash10_1) static flash.media.Microphone.isSupported;
+
 @:require(flash10) flash.media.Sound.extract;
+
+@:require(flash10_1) flash.media.Sound.isURLInaccessible;
 
 @:require(flash10) flash.net.FileReference.data;
 @:require(flash10) flash.net.FileReference.load;
@@ -214,12 +237,27 @@ flash.media.Microphone.codec : SoundCodec;
 
 -flash.media.SoundMixer.new
 
+@:require(flash10_1) flash.net.LocalConnection.isPerUser;
+@:require(flash10_1) static flash.net.LocalConnection.isSupported;
+
 flash.net.FileReference.$typeFilter : Array<FileFilter>;
 flash.net.FileReferenceList.fileList : Array<FileReference>;
 flash.net.FileReferenceList.$typeFilter : Array<FileFilter>;
 
 flash.net.NetStreamPlayOptions.transition : NetStreamPlayTransitions;
 
+@:require(flash10_1) flash.net.GroupSpecifier;
+@:require(flash10_1) flash.net.NetGroup;
+@:require(flash10_1) flash.net.NetGroupInfo;
+@:require(flash10_1) flash.net.NetStreamMulticastInfo;
+flash.net.NetGroup.receiveMode : NetGroupReceiveMode;
+flash.net.NetGroup.replicationStrategy : NetGroupReplicationStrategy;
+flash.net.NetGroup.$sendMode : NetGroupSendMode;
+flash.net.NetGroup.sendToAllNeighbors : NetGroupSendResult;
+flash.net.NetGroup.sendToNearest : NetGroupSendResult;
+flash.net.NetGroup.sendToNeighbor : NetGroupSendResult;
+
+flash.net.NetStream.$netStreamAppendBytesAction : NetStreamAppendBytesAction;
 
 @:require(flash10) flash.net.NetConnection.farID;
 @:require(flash10) flash.net.NetConnection.farNonce;
@@ -240,6 +278,36 @@ flash.net.NetStreamPlayOptions.transition : NetStreamPlayTransitions;
 @:require(flash10) static flash.net.NetStream.CONNECT_TO_FMS;
 @:require(flash10) static flash.net.NetStream.DIRECT_CONNECTIONS;
 
+@:require(flash10_1) flash.net.NetStream.audioReliable;
+@:require(flash10_1) flash.net.NetStream.audioSampleAccess;
+@:require(flash10_1) flash.net.NetStream.backBufferLength;
+@:require(flash10_1) flash.net.NetStream.backBufferTime;
+@:require(flash10_1) flash.net.NetStream.bufferTimeMax;
+@:require(flash10_1) flash.net.NetStream.dataReliable;
+@:require(flash10_1) flash.net.NetStream.inBufferSeek;
+@:require(flash10_1) flash.net.NetStream.multicastAvailabilitySendToAll;
+@:require(flash10_1) flash.net.NetStream.multicastAvailabilityUpdatePeriod;
+@:require(flash10_1) flash.net.NetStream.multicastFetchPeriod;
+@:require(flash10_1) flash.net.NetStream.multicastInfo;
+@:require(flash10_1) flash.net.NetStream.multicastPushNeighborLimit;
+@:require(flash10_1) flash.net.NetStream.multicastRelayMarginDuration;
+@:require(flash10_1) flash.net.NetStream.multicastWindowDuration;
+@:require(flash10_1) flash.net.NetStream.videoReliable;
+@:require(flash10_1) flash.net.NetStream.videoSampleAccess;
+@:require(flash10_1) flash.net.NetStream.appendBytes;
+@:require(flash10_1) flash.net.NetStream.appendBytesAction;
+@:require(flash10_1) flash.net.NetStream.attach;
+@:require(flash10_1) flash.net.NetStream.step;
+
+@:require(flash10_1) flash.net.NetStreamInfo.videoLossRate;
+
+@:require(flash10_1) flash.net.NetStreamPlayOptions.offset;
+
+@:require(flash10_1) static flash.net.URLRequestMethod.DELETE;
+@:require(flash10_1) static flash.net.URLRequestMethod.HEAD;
+@:require(flash10_1) static flash.net.URLRequestMethod.OPTIONS;
+@:require(flash10_1) static flash.net.URLRequestMethod.PUT;
+
 @:require(flash10) flash.net.Socket.timeout;
 @:require(flash10) flash.net.XMLSocket.timeout;
 
@@ -253,12 +321,15 @@ flash.net.SharedObject.flush : SharedObjectFlushStatus;
 flash.net.URLStream.endian : flash.utils.Endian;
 
 flash.printing.PrintJob.orientation : PrintJobOrientation;
+@:require(flash10_1) static flash.print.PrintJob.isSupported;
 
 -flash.sampler.DeleteObjectSample.new
 -flash.sampler.NewObjectSample.new
 -flash.sampler.Sample.new
 flash.sampler.Sample.stack : Array<StackFrame>;
 -flash.sampler.StackFrame.new
+@:require(flash10_1) flash.sampler.NewObjectSample.size;
+@:require(flash10_1) flash.sampler.StackFrame.scriptID;
 
 -flash.system.Capabilities.new
 -flash.system.IME.new
@@ -271,7 +342,35 @@ static flash.system.IME.conversionMode : IMEConversionMode
 @:require(flash10) static flash.system.Capabilities.isEmbeddedInAcrobat;
 @:require(flash10) static flash.system.Capabilities.maxLevelIDC;
 
+@:require(flash10_1) static flash.system.Capabilities.cpuArchitecture;
+@:require(flash10_1) static flash.system.Capabilities.supports32BitProcesses;
+@:require(flash10_1) static flash.system.Capabilities.supports64BitProcesses;
+@:require(flash10_1) static flash.system.Capabilities.touchscreenType;
+static flash.system.Capabilities.touchscreenType : TouchscreenType;
+
+
+@:require(flash10_1) static flash.system.IME.isSupported;
+@:require(flash10_1) static flash.system.IME.compositionAbandoned;
+@:require(flash10_1) static flash.system.IME.compositionSelectionChanged;
+
+
 @:require(flash10) flash.system.JPEGLoaderContext;
+
+
+@:require(flash10_1) flash.system.LoaderContext.allowCodeImport;
+@:require(flash10_1) flash.system.LoaderContext.allowLoadBytesCodeExecution;
+
+@:require(flash10_1) static flash.system.Security.APPLICATION;
+@:require(flash10_1) static flash.system.Security.duplicateSandboxBridgeInputArguments;
+@:require(flash10_1) static flash.system.Security.duplicateSandboxBridgeOutputArgument;
+
+@:require(flash10_1) static flash.system.System.currentTime;
+@:require(flash10_1) static flash.system.System.freeMemory;
+@:require(flash10_1) static flash.system.System.preciseStartupTime;
+@:require(flash10_1) static flash.system.System.privateMemory;
+@:require(flash10_1) static flash.system.System.totalMemoryNumber;
+@:require(flash10_1) static flash.system.System.disposeXML;
+@:require(flash10_1) static flash.system.System.nativeConstructionOnly;
 
 -flash.system.Security.new
 flash.system.Security.$panel : SecurityPanel
@@ -320,6 +419,14 @@ static flash.text.TextRenderer.antiAliasType : AntiAliasType;
 static flash.text.TextRenderer.displayMode : TextDisplayMode;
 flash.text.TextRenderer.$fontStyle : FontStyle;
 flash.text.TextRenderer.$colorType : TextColorType;
+
+@:require(flash10_1) static flash.text.engine.FontDescription.isDeviceFontCompatible;
+@:require(flash10_1) flash.text.engine.SpaceJustifier.maximumSpacing;
+@:require(flash10_1) flash.text.engine.SpaceJustifier.minimumSpacing;
+@:require(flash10_1) flash.text.engine.SpaceJustifier.optimumSpacing;
+@:require(flash10_1) flash.text.engine.TextBlock.recreateTextLine;
+@:require(flash10_1) flash.text.engine.TextBlock.releaseLineCreationData;
+@:require(flash10_1) flash.text.engine.TextLine.hasTabs;
 
 flash.text.engine.ContentElement.textRotation : TextRotation;
 flash.text.engine.ContentElement.$textRotation : TextRotation;
@@ -394,8 +501,219 @@ flash.ui.Multitouch.inputMode : MultitouchInputMode;
 @:require(flash10) flash.ui.ContextMenu.clipboardMenu;
 @:require(flash10) flash.ui.ContextMenu.link;
 
+@:require(flash10_1) static flash.ui.ContextMenu.isSupported;
+
+
 static flash.ui.Mouse.cursor : MouseCursor;
 @:require(flash10) static flash.ui.Mouse.cursor;
+
+@:require(flash10_1) static flash.ui.Keyboard.A;
+@:require(flash10_1) static flash.ui.Keyboard.B;
+@:require(flash10_1) static flash.ui.Keyboard.C;
+@:require(flash10_1) static flash.ui.Keyboard.D;
+@:require(flash10_1) static flash.ui.Keyboard.E;
+@:require(flash10_1) static flash.ui.Keyboard.F;
+@:require(flash10_1) static flash.ui.Keyboard.G;
+@:require(flash10_1) static flash.ui.Keyboard.H;
+@:require(flash10_1) static flash.ui.Keyboard.I;
+@:require(flash10_1) static flash.ui.Keyboard.J;
+@:require(flash10_1) static flash.ui.Keyboard.K;
+@:require(flash10_1) static flash.ui.Keyboard.L;
+@:require(flash10_1) static flash.ui.Keyboard.M;
+@:require(flash10_1) static flash.ui.Keyboard.N;
+@:require(flash10_1) static flash.ui.Keyboard.O;
+@:require(flash10_1) static flash.ui.Keyboard.P;
+@:require(flash10_1) static flash.ui.Keyboard.Q;
+@:require(flash10_1) static flash.ui.Keyboard.R;
+@:require(flash10_1) static flash.ui.Keyboard.S;
+@:require(flash10_1) static flash.ui.Keyboard.T;
+@:require(flash10_1) static flash.ui.Keyboard.U;
+@:require(flash10_1) static flash.ui.Keyboard.V;
+@:require(flash10_1) static flash.ui.Keyboard.W;
+@:require(flash10_1) static flash.ui.Keyboard.X;
+@:require(flash10_1) static flash.ui.Keyboard.Y;
+@:require(flash10_1) static flash.ui.Keyboard.Z;
+@:require(flash10_1) static flash.ui.Keyboard.ALTERNATE;
+@:require(flash10_1) static flash.ui.Keyboard.BACKQUOTE;
+@:require(flash10_1) static flash.ui.Keyboard.BACKSLASH;
+@:require(flash10_1) static flash.ui.Keyboard.COMMA;
+@:require(flash10_1) static flash.ui.Keyboard.COMMAND;
+@:require(flash10_1) static flash.ui.Keyboard.CharCodeStrings;
+@:require(flash10_1) static flash.ui.Keyboard.EQUAL;
+@:require(flash10_1) static flash.ui.Keyboard.LEFTBRACKET;
+@:require(flash10_1) static flash.ui.Keyboard.MINUS;
+@:require(flash10_1) static flash.ui.Keyboard.NUMBER_0;
+@:require(flash10_1) static flash.ui.Keyboard.NUMBER_1;
+@:require(flash10_1) static flash.ui.Keyboard.NUMBER_2;
+@:require(flash10_1) static flash.ui.Keyboard.NUMBER_3;
+@:require(flash10_1) static flash.ui.Keyboard.NUMBER_4;
+@:require(flash10_1) static flash.ui.Keyboard.NUMBER_5;
+@:require(flash10_1) static flash.ui.Keyboard.NUMBER_6;
+@:require(flash10_1) static flash.ui.Keyboard.NUMBER_7;
+@:require(flash10_1) static flash.ui.Keyboard.NUMBER_8;
+@:require(flash10_1) static flash.ui.Keyboard.NUMBER_9;
+@:require(flash10_1) static flash.ui.Keyboard.NUMPAD;
+@:require(flash10_1) static flash.ui.Keyboard.PERIOD;
+@:require(flash10_1) static flash.ui.Keyboard.QUOTE;
+@:require(flash10_1) static flash.ui.Keyboard.RIGHTBRACKET;
+@:require(flash10_1) static flash.ui.Keyboard.SEMICOLON;
+@:require(flash10_1) static flash.ui.Keyboard.SLASH;
+@:require(flash10_1) static flash.ui.Keyboard.hasVirtualKeyboard;
+@:require(flash10_1) static flash.ui.Keyboard.physicalKeyboardType;
+
+static flash.ui.Keyboard.physicalKeyboardType : KeyboardType;
+
+@:require(flash10_1) flash.ui.Multitouch;
+static flash.ui.Multitouch.inputMode : MultitouchInputMode;
+@:require(flash10_1) flash.ui.MultitouchInputMode;
+
+@:require(flash10_1) static flash.ui.Keyboard.STRING_BEGIN;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_BREAK;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_CLEARDISPLAY;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_CLEARLINE;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_DELETE;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_DELETECHAR;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_DELETELINE;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_DOWNARROW;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_END;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_EXECUTE;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F1;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F10;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F11;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F12;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F13;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F14;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F15;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F16;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F17;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F18;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F19;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F2;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F20;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F21;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F22;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F23;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F24;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F25;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F26;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F27;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F28;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F29;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F3;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F30;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F31;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F32;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F33;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F34;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F35;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F4;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F5;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F6;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F7;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F8;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_F9;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_FIND;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_HELP;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_HOME;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_INSERT;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_INSERTCHAR;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_INSERTLINE;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_LEFTARROW;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_MENU;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_MODESWITCH;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_NEXT;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_PAGEDOWN;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_PAGEUP;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_PAUSE;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_PREV;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_PRINT;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_PRINTSCREEN;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_REDO;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_RESET;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_RIGHTARROW;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_SCROLLLOCK;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_SELECT;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_STOP;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_SYSREQ;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_SYSTEM;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_UNDO;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_UPARROW;
+@:require(flash10_1) static flash.ui.Keyboard.STRING_USER;
+
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_BEGIN;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_BREAK;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_CLEARDISPLAY;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_CLEARLINE;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_DELETE;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_DELETECHAR;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_DELETELINE;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_DOWNARROW;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_END;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_EXECUTE;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F1;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F10;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F11;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F12;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F13;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F14;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F15;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F16;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F17;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F18;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F19;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F2;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F20;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F21;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F22;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F23;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F24;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F25;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F26;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F27;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F28;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F29;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F3;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F30;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F31;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F32;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F33;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F34;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F35;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F4;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F5;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F6;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F7;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F8;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_F9;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_FIND;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_HELP;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_HOME;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_INSERT;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_INSERTCHAR;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_INSERTLINE;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_LEFTARROW;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_MENU;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_MODESWITCH;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_NEXT;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_PAGEDOWN;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_PAGEUP;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_PAUSE;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_PREV;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_PRINT;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_PRINTSCREEN;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_REDO;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_RESET;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_RIGHTARROW;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_SCROLLLOCK;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_SELECT;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_STOP;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_SYSREQ;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_SYSTEM;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_UNDO;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_UPARROW;
+@:require(flash10_1) static flash.ui.Keyboard.KEYNAME_USER;
+
+@:require(flash10_1) static flash.ui.Mouse.supportsCursor;
 
 flash.utils.ObjectInput.endian : Endian;
 flash.utils.ObjectOutput.endian : Endian;
@@ -425,3 +743,35 @@ flash.xml.XML.parent : XML;
 flash.xml.XMLList.namespace : flash.utils.Namespace;
 flash.xml.XMLList.parent : XML;
 flash.xml.XMLTag.type : XMLNodeType;
+
+
+@:require(flash10_1) flash.system.SystemUpdater;
+flash.system.SystemUpdater.$type : SystemUpdaterType;
+
+@:require(flash10_1) flash.sensors.Accelerometer;
+@:require(flash10_1) flash.sensors.Geolocation;
+
+@:require(flash10_1) flash.globalization.Collator;
+@:require(flash10_1) flash.globalization.CurrencyFormatter;
+@:require(flash10_1) flash.globalization.DateTimeFormatter;
+@:require(flash10_1) flash.globalization.LocaleID;
+@:require(flash10_1) flash.globalization.StringTools;
+@:require(flash10_1) flash.globalization.NumberFormatter;
+@:require(flash10_1) flash.globalization.NumberParseResult;
+
+flash.globalization.Collator.lastOperationStatus : LastOperationStatus;
+flash.globalization.Collator.$initialMode : CollatorMode;
+flash.globalization.CurrencyFormatter.lastOperationStatus : LastOperationStatus;
+
+flash.globalization.DateTimeFormatter.lastOperationStatus : LastOperationStatus;
+flash.globalization.DateTimeFormatter.$dateStyle : DateTimeStyle;
+flash.globalization.DateTimeFormatter.$nameStyle : DateTimeNameStyle;
+flash.globalization.DateTimeFormatter.$timeStyle : DateTimeStyle;
+flash.globalization.DateTimeFormatter.$context : DateTimeNameContext;
+flash.globalization.DateTimeFormatter.getDateStyle : DateTimeStyle;
+flash.globalization.DateTimeFormatter.getTimeStyle : DateTimeStyle;
+flash.globalization.DateTimeFormatter.getDateTimePattern : DateTimeStyle;
+flash.globalization.LocaleID.lastOperationStatus : LastOperationStatus;
+flash.globalization.NumberFormatter.lastOperationStatus : LastOperationStatus;
+flash.globalization.NumberFormatter.digitsType : NationalDigitsType;
+flash.globalization.StringTools.lastOperationStatus : LastOperationStatus;
