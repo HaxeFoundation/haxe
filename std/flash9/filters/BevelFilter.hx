@@ -13,5 +13,5 @@ package flash.filters;
 	var shadowColor : UInt;
 	var strength : Float;
 	var type : BitmapFilterType;
-	function new(distance : Float = 4, angle : Float = 45, highlightColor : UInt = 16777215, highlightAlpha : Float = 1, shadowColor : UInt = 0, shadowAlpha : Float = 1, blurX : Float = 4, blurY : Float = 4, strength : Float = 1, quality : Int = 1, ?type : BitmapFilterType, knockout : Bool = false) : Void;
+	function new(distance : Float = 4, angle : Float = 45, highlightColor : UInt = 0xFFFFFF, highlightAlpha : Float = 1, shadowColor : UInt = 0, shadowAlpha : Float = 1, blurX : Float = 4, blurY : Float = 4, strength : Float = 1, quality : Int = 1, ?type : BitmapFilterType, knockout : Bool = false) : Void;
 }

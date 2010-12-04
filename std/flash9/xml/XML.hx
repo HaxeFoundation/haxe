@@ -22,7 +22,7 @@ package flash.xml;
 	function length() : Int;
 	function localName() : Dynamic;
 	function name() : Dynamic;
-	function namespace(?prefix : Dynamic) : Namespace;
+	function namespace(?prefix : Dynamic) : flash.utils.Namespace;
 	function namespaceDeclarations() : Array<Dynamic>;
 	function nodeKind() : String;
 	function normalize() : XML;

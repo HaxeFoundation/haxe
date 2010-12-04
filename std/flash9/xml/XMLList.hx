@@ -1,6 +1,6 @@
 package flash.xml;
 
-@:final extern class XMLList implements ArrayAcess<XML> {
+@:final extern class XMLList implements ArrayAccess<XML> {
 	function new(?value : Dynamic) : Void;
 	function addNamespace(ns : Dynamic) : XML;
 	function appendChild(child : Dynamic) : XML;
@@ -22,7 +22,7 @@ package flash.xml;
 	function length() : Int;
 	function localName() : Dynamic;
 	function name() : Dynamic;
-	function namespace(?prefix : Dynamic) : Namespace;
+	function namespace(?prefix : Dynamic) : flash.utils.Namespace;
 	function namespaceDeclarations() : Array<Dynamic>;
 	function nodeKind() : String;
 	function normalize() : XMLList;
