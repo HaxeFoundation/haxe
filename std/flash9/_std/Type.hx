@@ -65,7 +65,7 @@ enum ValueType {
 
 	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> untyped {
 		var cname = __global__["flash.utils.getQualifiedSuperclassName"](c);
-		if( cname == "Object" )
+		if( cname == null || cname == "Object" )
 			return null;
 		return __as__(__global__["flash.utils.getDefinitionByName"](cname),Class);
 	}
