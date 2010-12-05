@@ -600,8 +600,14 @@ let generate_package_create ctx (p,_) =
 	in
 	loop [] p
 
+let check_field_name c f =
+	match f.cf_name with
+	| "prototype" | "__proto__" | "constructor" -> 
+		error ("The field name '" ^ f.cf_name ^ "'  is not allowed in JS") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
+	| _ -> ()
+
 let gen_class_static_field ctx c f =
-	if f.cf_name = "prototype" then error ("The field name '" ^ f.cf_name ^ "'  is not allowed in JS") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
+	check_field_name c f;
 	match f.cf_expr with
 	| None ->
 		print ctx "%s%s = null" (s_path ctx c.cl_path) (field f.cf_name);
@@ -618,6 +624,7 @@ let gen_class_static_field ctx c f =
 			ctx.statics <- (c,f.cf_name,e) :: ctx.statics
 
 let gen_class_field ctx c f =
+	check_field_name c f;
 	print ctx "%s.prototype%s = " (s_path ctx c.cl_path) (field f.cf_name);
 	match f.cf_expr with
 	| None ->
