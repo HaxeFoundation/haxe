@@ -601,6 +601,7 @@ let generate_package_create ctx (p,_) =
 	loop [] p
 
 let gen_class_static_field ctx c f =
+	if f.cf_name = "prototype" then error ("The field name '" ^ f.cf_name ^ "'  is not allowed in JS") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
 	match f.cf_expr with
 	| None ->
 		print ctx "%s%s = null" (s_path ctx c.cl_path) (field f.cf_name);
