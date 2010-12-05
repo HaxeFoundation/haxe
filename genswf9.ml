@@ -1748,6 +1748,23 @@ let generate_enum_init ctx e hc meta =
 	);
 	free_reg ctx r
 
+let extract_meta meta =
+	let rec loop = function
+		| [] -> []
+		| (":meta",[ECall ((EConst (Ident n | Type n),_),args),_]) :: l ->
+			let mk_arg (a,p) =
+				match a with
+				| EConst (String s) -> (None, s)
+				| EBinop (OpAssign,(EConst (Ident n | Type n),_),(EConst (String s),_)) -> (Some n, s)
+				| _ -> error "Invalid meta definition" p
+			in
+			{ hlmeta_name = n; hlmeta_data = Array.of_list (List.map mk_arg args) } :: loop l
+		| _ :: l -> loop l
+	in
+	match loop meta with
+	| [] -> None
+	| l -> Some (Array.of_list l)
+
 let generate_field_kind ctx f c stat =
 	match f.cf_expr with
 	| Some { eexpr = TFunction fdata } ->
@@ -1840,7 +1857,7 @@ let generate_class ctx c =
 				| x :: l ->
 					match x with
 					| ((":getter" | ":setter"),[EConst (Ident f | Type f),_]) -> ident f
-					| (":ns",[Ast.EConst (Ast.String ns),_]) -> HMName (f.cf_name,HNNamespace ns)
+					| (":ns",[EConst (String ns),_]) -> HMName (f.cf_name,HNNamespace ns)
 					| (":protected",[]) ->
 						let p = (match c.cl_path with [], n -> n | p, n -> String.concat "." p ^ ":" ^ n) in
 						has_protected := Some p;
@@ -1856,7 +1873,7 @@ let generate_class ctx c =
 				hlf_name = name;
 				hlf_slot = 0;
 				hlf_kind = k;
-				hlf_metas = None;
+				hlf_metas = extract_meta f.cf_meta;
 			} :: acc
 	) c.cl_fields []) in
 	let st_field_count = ref 0 in
@@ -1891,7 +1908,7 @@ let generate_class ctx c =
 				hlf_name = ident f.cf_name;
 				hlf_slot = !count;
 				hlf_kind = k;
-				hlf_metas = None;
+				hlf_metas = extract_meta f.cf_meta;
 			}
 		) c.cl_ordered_statics);
 	}

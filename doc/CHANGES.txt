@@ -28,6 +28,7 @@
 	all : added @:require
 	flash9 : moved vector utils functions from flash.Lib to flash.Vector
 	flash9 : added support for FP 10.1 and 10.2
+	flash9 : added @:meta(Meta(k="v")) support
 
 2010-08-14: 2.06
 	neko : change serializer to be able to handle instances of basic classes from other modules
