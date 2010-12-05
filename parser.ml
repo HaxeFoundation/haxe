@@ -684,6 +684,21 @@ and parse_call_params ec s =
 	| None -> []
 	| Some e -> loop [e]
 
+and parse_macro_cond allow_op s =
+	match s with parser
+	| [< '(Const (Ident t | Type t),p) >] ->
+		let e = (EConst (Ident t),p) in
+		if not allow_op then
+			e
+		else (match s with parser
+			| [< '(Binop op,_) >] ->
+				make_binop op e (parse_macro_cond true s)
+			| [< >] -> e)
+	| [< '(POpen, p1); e = parse_macro_cond true; '(PClose, p2) >] ->
+		(EParenthesis e,punion p1 p2)
+	| [< '(Unop op,p); e = parse_macro_cond allow_op >] ->
+		make_unop op e p	
+
 and toplevel_expr s =
 	try
 		expr s
@@ -697,6 +712,7 @@ let parse ctx code =
 	cache := DynArray.create();
 	doc := None;
 	Lexer.skip_header code;
+	let sraw = Stream.from (fun _ -> Some (Lexer.token code)) in
 	let rec next_token() = process_token (Lexer.token code)
 
 	and process_token tk =
@@ -736,36 +752,20 @@ let parse ctx code =
 			tk
 
 	and enter_macro p =
-		let ok , tk = eval_macro false in
-		if ok then begin
+		let rec loop (e,p) =
+			match e with
+			| EConst (Ident i) -> Common.defined ctx i
+			| EBinop (OpBoolAnd, e1, e2) -> loop e1 && loop e2
+			| EBinop (OpBoolOr, e1, e2) -> loop e1 || loop e2
+			| EUnop (Not, _, e) -> not (loop e)
+			| EParenthesis e -> loop e
+			| _ -> error Unclosed_macro p
+		in
+		if loop (parse_macro_cond false sraw) then begin
 			mstack := p :: !mstack;
-			tk
+			Lexer.token code;
 		end else
-			skip_tokens_loop p true tk
-
-	and eval_macro allow_expr =
-		match Lexer.token code with
-		| (Const (Ident s),p) | (Const (Type s),p) ->
-			let ok = Common.defined ctx s in
-			(match Lexer.token code with
-			| (Binop OpBoolOr,_) when allow_expr ->
-				let ok2 , tk = eval_macro allow_expr in
-				(ok || ok2) , tk
-			| (Binop OpBoolAnd,_) when allow_expr ->
-				let ok2 , tk = eval_macro allow_expr in
-				(ok && ok2) , tk
-			| tk ->
-				ok , tk)
-		| (Unop Not,_) ->
-			let ok , tk = eval_macro allow_expr in
-			not ok, tk
-		| (POpen,_) ->
-			let ok , tk = eval_macro true in
-			(match tk with
-			| (PClose,_) -> ok, Lexer.token code
-			| _ -> raise Exit)
-		| _ ->
-			raise Exit
+			skip_tokens_loop p true (Lexer.token code)
 
 	and skip_tokens_loop p test tk =
 		match fst tk with
