@@ -82,6 +82,8 @@ let reserved =
 	["is";"as";"int";"uint";"const";"getTimer";"typeof";"parseInt";"parseFloat";
 	(* AS3 keywords which are not haXe ones *)
 	"each";"label";"finally";"with";"final";"internal";"native";"const";"namespace";"include";"delete";
+	(* some globals give some errors with Flex SDK as well *)
+	"print";
 	(* we don't include get+set since they are not 'real' keywords, but they can't be used as method names *)
 	];
 	h
