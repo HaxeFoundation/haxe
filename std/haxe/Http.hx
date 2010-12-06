@@ -433,7 +433,7 @@ class Http {
 		var b = new haxe.io.BytesBuffer();
 		var k = 4;
 		var s = haxe.io.Bytes.alloc(4);
-		sock.setTimeout(cnxTimeout); // 10 seconds
+		sock.setTimeout(cnxTimeout);
 		while( true ) {
 			var p = sock.input.readBytes(s,0,k);
 			while( p != k )
