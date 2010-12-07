@@ -351,8 +351,6 @@ let generate_type com t =
 			| None -> ext
 			| Some t ->
 				(match c.cl_path with
-				| ["flash";"display"],"MovieClip"
-				| ["flash";"errors"], "Error" -> (" #if !flash_strict implements " ^ stype t ^ " #end") :: ext
 				| ["flash";"errors"], _ -> ext
 				| _ -> (" implements " ^ stype t) :: ext)
 		) in
@@ -361,6 +359,8 @@ let generate_type com t =
 			| ["flash";"utils"], "Dictionnary" -> [" implements ArrayAccess<Dynamic>"]
 			| ["flash";"xml"], "XML" -> [" implements Dynamic<XMLList>"]
 			| ["flash";"xml"], "XMLList" -> [" implements ArrayAccess<XML>"]
+			| ["flash";"display"],"MovieClip" -> [" extends Sprite #if !flash_strict, implements Dynamic #end"]
+			| ["flash";"errors"], "Error" -> [" #if !flash_strict implements Dynamic #end"]
 			| _ -> ext
 		) in
 		p "%s" (String.concat "," (List.rev ext));
