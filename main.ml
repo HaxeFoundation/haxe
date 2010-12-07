@@ -214,7 +214,7 @@ let rec process_params acc = function
 
 and init params =
 	let usage = Printf.sprintf
-		"haXe Compiler %d.%.2d - (c)2005-2010 Motion-Twin\n Usage : haxe%s -main <class> [-swf9|-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
+		"haXe Compiler %d.%.2d - (c)2005-2010 Motion-Twin\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
 		(version / 100) (version mod 100) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let classes = ref [([],"Std")] in
@@ -281,10 +281,6 @@ try
 		),"<path> : add a directory to find source files");
 		("-js",Arg.String (set_platform Js),"<file> : compile code to JavaScript file");
 		("-swf",Arg.String (set_platform Flash),"<file> : compile code to Flash SWF file");
-		("-swf9",Arg.String (fun file ->
-			set_platform Flash file;
-			if com.flash_version < 9. then com.flash_version <- 9.;
-		),"<file> : compile code to Flash9 SWF file");
 		("-as3",Arg.String (fun dir ->
 			set_platform Flash dir;
 			if com.flash_version < 9. then com.flash_version <- 9.;
@@ -462,6 +458,10 @@ try
 		("--macro", Arg.String (fun e ->
 			config_macros := e :: !config_macros
 		)," : call the given macro before typing anything else");
+		("-swf9",Arg.String (fun file ->
+			set_platform Flash file;
+			if com.flash_version < 9. then com.flash_version <- 9.;
+		),"<file> : [deprecated] compile code to Flash9 SWF file");
 	] in
 	let current = ref 0 in
 	let args = Array.of_list ("" :: params) in
