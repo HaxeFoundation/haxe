@@ -332,7 +332,7 @@ let error_require r p =
 	let r = try
 		if String.sub r 0 5 <> "flash" then raise Exit;
 		let _, v = ExtString.String.replace (String.sub r 5 (String.length r - 5)) "_" "." in
-		"flash version " ^ v ^ " (use --swf-version " ^ v ^ ")"
+		"flash version " ^ v ^ " (use -swf-version " ^ v ^ ")"
 	with _ ->
 		"'" ^ r ^ "' to be enabled"
 	in
