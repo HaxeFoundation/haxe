@@ -689,15 +689,18 @@ and parse_macro_cond allow_op s =
 	| [< '(Const (Ident t | Type t),p) >] ->
 		let e = (EConst (Ident t),p) in
 		if not allow_op then
-			e
-		else (match s with parser
-			| [< '(Binop op,_) >] ->
-				make_binop op e (parse_macro_cond true s)
-			| [< >] -> e)
-	| [< '(POpen, p1); e = parse_macro_cond true; '(PClose, p2) >] ->
-		(EParenthesis e,punion p1 p2)
-	| [< '(Unop op,p); e = parse_macro_cond allow_op >] ->
-		make_unop op e p	
+			None, e
+		else (match Stream.peek s with 
+			| Some (Binop op,_) ->
+				Stream.junk s;
+				let tk, e2 = (try parse_macro_cond true s with Stream.Failure -> serror()) in
+				tk, make_binop op e e2
+			| tk ->
+				tk, e);
+	| [< '(POpen, p1); _,e = parse_macro_cond true; '(PClose, p2) >] ->
+		None, (EParenthesis e,punion p1 p2)
+	| [< '(Unop op,p); tk, e = parse_macro_cond allow_op >] ->
+		tk, make_unop op e p
 
 and toplevel_expr s =
 	try
@@ -761,11 +764,13 @@ let parse ctx code =
 			| EParenthesis e -> loop e
 			| _ -> error Unclosed_macro p
 		in
-		if loop (parse_macro_cond false sraw) then begin
+		let tk, e = parse_macro_cond false sraw in
+		let tk = (match tk with None -> Lexer.token code | Some tk -> tk) in
+		if loop e then begin
 			mstack := p :: !mstack;
-			Lexer.token code;
+			tk
 		end else
-			skip_tokens_loop p true (Lexer.token code)
+			skip_tokens_loop p true tk
 
 	and skip_tokens_loop p test tk =
 		match fst tk with

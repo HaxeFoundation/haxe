@@ -624,14 +624,14 @@ let patch_class ctx c fields =
 		in
 		List.rev (loop [] fields)
 
-let init_class ctx c p herits fields meta =
+let init_class ctx c p herits fields =
 	let fields = patch_class ctx c fields in
 	ctx.type_params <- c.cl_types;
 	c.cl_extern <- List.mem HExtern herits;
 	c.cl_interface <- List.mem HInterface herits;
 	set_heritance ctx c herits p;
-	let core_api = has_meta ":core_api" meta in
-	let is_macro = has_meta ":macro" meta in
+	let core_api = has_meta ":core_api" c.cl_meta in
+	let is_macro = has_meta ":macro" c.cl_meta in
 	let fields, herits = if is_macro && not ctx.in_macro then begin
 		c.cl_extern <- true;
 		List.filter (fun f -> List.mem AStatic f.cff_access) fields, []
@@ -732,7 +732,7 @@ let init_class ctx c p herits fields meta =
 				| _ -> error "This notation is not allowed because it can't be checked" p
 			) params in
 			if inline && c.cl_interface then error "You can't declare inline methods in interfaces" p;
-			let is_macro = (is_macro && stat) || has_meta ":macro" meta in
+			let is_macro = (is_macro && stat) || has_meta ":macro" f.cff_meta in
 			if is_macro && not stat then error "Only static methods can be macros" p;
 			let fd = if not is_macro then
 				fd
@@ -872,7 +872,7 @@ let init_class ctx c p herits fields meta =
 		| _ :: l ->
 			check_require l
 	in
-	let cl_req = check_require meta in
+	let cl_req = check_require c.cl_meta in
 	let fl = List.map (fun f ->
 		let fd , constr, f , delayed = loop_cf f in
 		let is_static = List.mem AStatic fd.cff_access in
@@ -1118,7 +1118,7 @@ let type_module ctx m tdecls loadp =
 				ctx.local_using<- ctx.local_using @ [resolve_typedef ctx t])
 		| EClass d ->
 			let c = get_class d.d_name in
-			delays := !delays @ check_overriding ctx c p :: check_interfaces ctx c p :: init_class ctx c p d.d_flags d.d_data d.d_meta
+			delays := !delays @ check_overriding ctx c p :: check_interfaces ctx c p :: init_class ctx c p d.d_flags d.d_data
 		| EEnum d ->
 			let e = get_enum d.d_name in
 			ctx.type_params <- e.e_types;
