@@ -30,6 +30,7 @@
 	flash9 : added support for FP 10.1 and 10.2
 	flash9 : added @:meta(Meta(k="v")) support
 	all : improved #if support (fixed ! precedence)
+	all : lookup unqualified types in all package hierarchy and not only in current package
 
 2010-08-14: 2.06
 	neko : change serializer to be able to handle instances of basic classes from other modules

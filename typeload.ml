@@ -71,6 +71,15 @@ let rec load_type_def ctx p t =
 				with
 					Not_found -> raise (Error (Type_not_found (m.mpath,tname),p))
 			in
+			let rec loop = function
+				| [] -> raise Exit
+				| (_ :: lnext) as l ->
+					try
+						load_type_def ctx p { t with tpackage = List.rev l }
+					with
+						| Error (Module_not_found _,p2)
+						| Error (Type_not_found _,p2) when p == p2 -> loop lnext
+			in
 			try
 				if not no_pack then raise Exit;
 				(match fst ctx.current.mpath with
@@ -84,11 +93,9 @@ let rec load_type_def ctx p t =
 						| Forbidden -> raise Exit
 						| _ -> ())
 					with Not_found -> ());
-				load_type_def ctx p { t with tpackage = fst ctx.current.mpath }
+				loop (List.rev (fst ctx.current.mpath));
 			with
-				| Error (Module_not_found _,p2)
-				| Error (Type_not_found _,p2) when p == p2 -> next()
-				| Exit -> next()
+				Exit -> next()
 
 (* build an instance from a full type *)
 let rec load_instance ctx t p allow_no_params =
