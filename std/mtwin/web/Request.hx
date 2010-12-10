@@ -75,7 +75,8 @@ class Request {
 			var v = params.get(key);
 			if( v == "NULL" )
 				throw "DEPRECATED";
-			return Std.parseInt(v);
+			var i = Std.parseInt(v);
+			return (i == null) ? or : i;
 		}
 		return or;
 	}
@@ -85,7 +86,8 @@ class Request {
 			var v = params.get(key);
 			if( v == "NULL" )
 				throw "DEPRECATED";
-			return Std.parseFloat(v);
+			var f = Std.parseFloat(v);
+			return (f == null) ? or : f;
 		}
 		return or;
 	}
