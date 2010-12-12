@@ -946,7 +946,7 @@ and type_switch ctx e cases def need_val p =
 			) pl in
 			let e = type_expr ctx e in
 			(match e.eexpr with
-			| TEnumField (en,s) -> type_match e en s pl
+			| TEnumField (en,s) | TClosure ({ eexpr = TTypeExpr (TEnumDecl en) },s) -> type_match e en s pl
 			| _ -> if pl = [] then case_expr e else raise Exit)
 		with Exit ->
 			let e = (if pl = [] then e else (ECall (e,pl),p)) in
