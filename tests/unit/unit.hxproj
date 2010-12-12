@@ -1,0 +1,65 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<project>
+  <!-- Output SWF options -->
+  <output>
+    <movie disabled="False" />
+    <movie input="" />
+    <movie path="unit8.swf" />
+    <movie fps="30" />
+    <movie width="300" />
+    <movie height="300" />
+    <movie version="8" />
+    <movie background="#FFFFFF" />
+  </output>
+  <!-- Other classes to be compiled into your SWF -->
+  <classpaths>
+    <class path=".." />
+  </classpaths>
+  <!-- Build options -->
+  <build>
+    <option directives="" />
+    <option flashStrict="False" />
+    <option mainClass="unit.Test" />
+    <option enabledebug="False" />
+    <option additional="-resource res1.txt&#xA;-resource res2.bin&#xA;-D noopt&#xA;&#xA;# Flash9&#xA;--next&#xA;-swf9 unit9.swf&#xA;-main unit.Test&#xA;-debug&#xA;-cp ..&#xA;-resource res1.txt&#xA;-resource res2.bin&#xA;-D noopt&#xA;&#xA;# AS3&#xA;--next&#xA;-as3 as3&#xA;-cp ..&#xA;-main unit.Test&#xA;-D noopt&#xA;#-cmd mxmlc -default-size 800 600 -debug -output unit9_as3.swf as3/__main__.as&#xA;&#xA;# JS&#xA;--next&#xA;-js unit.js&#xA;unit.Test&#xA;-cp ..&#xA;-resource res1.txt&#xA;-resource res2.bin&#xA;-D noopt&#xA;&#xA;# Neko&#xA;--next&#xA;-neko unit.n&#xA;-main unit.Test&#xA;-cp ..&#xA;-resource res1.txt&#xA;-resource res2.bin&#xA;-D noopt&#xA;&#xA;# MACROS&#xA;--next&#xA;-cp ..&#xA;-resource res1.txt&#xA;-resource res2.bin&#xA;-D noopt&#xA;-main unit.Test&#xA;--interp&#xA;&#xA;# RemotingServer&#xA;--next&#xA;-neko remoting.n&#xA;-main unit.RemotingServer&#xA;-cp ..&#xA;&#xA;# PHP&#xA;--next&#xA;-php php&#xA;-main unit.Test&#xA;-cp ..&#xA;-resource res1.txt&#xA;-resource res2.bin&#xA;-D noopt&#xA;&#xA;# CPP&#xA;--next&#xA;-neko runcpp.n&#xA;-main RunCpp&#xA;--next&#xA;-cpp cpp&#xA;-debug&#xA;-main unit.Test&#xA;-cp ..&#xA;-resource res1.txt&#xA;-resource res2.bin&#xA;-D noopt" />
+  </build>
+  <!-- haxelib libraries -->
+  <haxelib>
+    <!-- example: <library name="..." /> -->
+  </haxelib>
+  <!-- Class files to compile (other referenced classes will automatically be included) -->
+  <compileTargets>
+    <!-- example: <compile path="..." /> -->
+  </compileTargets>
+  <!-- Assets to embed into the output SWF -->
+  <library>
+    <!-- example: <asset path="..." id="..." update="..." glyphs="..." mode="..." place="..." sharepoint="..." /> -->
+  </library>
+  <!-- Paths to exclude from the Project Explorer tree -->
+  <hiddenPaths>
+    <hidden path="as3" />
+    <hidden path="cpp" />
+    <hidden path="php" />
+    <hidden path="remoting.n" />
+    <hidden path="res1.txt" />
+    <hidden path="res2.bin" />
+    <hidden path="runcpp.n" />
+    <hidden path="unit.html" />
+    <hidden path="unit.hxml" />
+    <hidden path="unit.js" />
+    <hidden path="unit.n" />
+    <hidden path="unit8.swf" />
+    <hidden path="unit9.swf" />
+    <hidden path="unit9_as3.swf" />
+  </hiddenPaths>
+  <!-- Executed before build -->
+  <preBuildCommand />
+  <!-- Executed after build -->
+  <postBuildCommand alwaysRun="False" />
+  <!-- Other project options -->
+  <options>
+    <option showHiddenPaths="False" />
+    <option testMovie="OpenDocument" />
+    <option testMovieCommand="http://dev.unit-tests/unit.html" />
+  </options>
+</project>
