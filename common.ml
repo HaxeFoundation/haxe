@@ -67,6 +67,7 @@ type context = {
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
 	mutable php_front : string option;
+	mutable php_lib : string option;
 	mutable swf_libs : (string * (unit -> Swf.swf) * (unit -> ((string list * string),As3hl.hl_class) Hashtbl.t)) list;
 	(* typing *)
 	mutable basic : basic_types;
@@ -96,6 +97,7 @@ let create v =
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
 		php_front = None;
+		php_lib = None;
 		swf_libs = [];
 		js_namespace = None;
 		load_extern_type = [];

@@ -65,6 +65,7 @@ type context = {
 	mutable is_call : bool;
 	mutable cwd : string;
 	mutable inline_methods : inline_method list;
+	mutable lib_path : string;
 }
 
 let join_class_path path separator =
@@ -248,6 +249,12 @@ let s_ident_local n =
 	| "GLOBALS" | "_SERVER" | "_GET" | "_POST" | "_COOKIE" | "_FILES" 
 	| "_ENV" | "_REQUEST" | "_SESSION" -> suf ^ n
 	| _ -> n
+	
+let create_directory com ldir =
+ 	let atm_path = ref (String.create 0) in
+ 	atm_path := com.file;
+ 	if not (Sys.file_exists com.file) then (Unix.mkdir com.file 0o755);
+ 	(List.iter (fun p -> atm_path := !atm_path ^ "/" ^ p; if not (Sys.file_exists !atm_path) then (Unix.mkdir !atm_path 0o755);) ldir)   
 
 let write_resource dir name data =
 	let i = ref 0 in
@@ -310,6 +317,7 @@ let init com cwd path def_type =
 		inline_methods = [];
 		inline_index = 0;
 		in_block = false;
+		lib_path = match com.php_lib with None -> "lib" | Some s -> s;
 	}
 let unsupported msg p = error ("This expression cannot be generated to PHP: " ^ msg) p
 
@@ -340,7 +348,7 @@ let inc_extern_path ctx path =
 	let rec slashes n =
 		if n = 0 then "" else ("../" ^ slashes (n-1))
 	in
-	let pre = if ctx.cwd = "" then "lib/" else "" in
+	let pre = if ctx.cwd = "" then ctx.lib_path ^ "/" else "" in
 	match path with
 		| ([],name) ->
 		pre ^ (slashes (List.length (fst ctx.path))) ^ name ^ ".extern.php"
@@ -1883,6 +1891,7 @@ let createmain com c =
 		inline_methods = [];
 		inline_index = 0;
 		in_block = false;
+		lib_path = match com.php_lib with None -> "lib" | Some s -> s;
 	} in
 
 	spr ctx "if(version_compare(PHP_VERSION, '5.1.0', '<')) {
@@ -1890,7 +1899,7 @@ let createmain com c =
 }";
 	newline ctx;
 	newline ctx;
-	spr ctx "require_once dirname(__FILE__).'/lib/php/Boot.class.php';\n\n";
+	spr ctx ("require_once dirname(__FILE__).'/" ^ ctx.lib_path ^ "/php/Boot.class.php';\n\n");
 	(match c.cl_ordered_statics with
 	| [{ cf_expr = Some e }] ->
 		gen_value ctx e;
@@ -1974,6 +1983,8 @@ let generate_enum ctx e =
 let generate com =
 	let all_dynamic_methods = ref [] in
 	let extern_classes_with_init = ref [] in
+	let php_lib_path = (match com.php_lib with None -> "lib" | Some n -> n) in
+ 	create_directory com (Str.split (Str.regexp "/")  php_lib_path);    
 	(* check for fields with the same name but different casing *)
 	List.iter (fun t ->
 		(match t with
@@ -2027,7 +2038,7 @@ let generate com =
 				(match c.cl_init with
 				| None -> ()
 				| Some e ->
-					let ctx = init com "lib" c.cl_path 3 in
+					let ctx = init com php_lib_path c.cl_path 3 in
 					gen_expr ctx e;
 					close ctx;
 					);
@@ -2035,7 +2046,7 @@ let generate com =
 			| [], "@Main" ->
 				createmain com c;
 			| _ ->
-				let ctx = init com "lib" c.cl_path (if c.cl_interface then 2 else 0) in
+				let ctx = init com php_lib_path c.cl_path (if c.cl_interface then 2 else 0) in
 				ctx.extern_classes_with_init <- !extern_classes_with_init;
 				ctx.all_dynamic_methods <- !all_dynamic_methods;
 				generate_class ctx c;
@@ -2067,7 +2078,7 @@ let generate com =
 			if e.e_extern then
 				()
 			else
-				let ctx = init com "lib" e.e_path 1 in
+				let ctx = init com php_lib_path e.e_path 1 in
 			generate_enum ctx e;
 			close ctx
 		| TTypeDecl t ->
