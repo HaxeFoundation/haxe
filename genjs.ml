@@ -149,17 +149,17 @@ let rec gen_call ctx e el =
 		(match ctx.current.cl_super with
 		| None -> assert false
 		| Some (c,_) ->
-			print ctx "%s.apply(%s,[" (s_path ctx c.cl_path) (this ctx);
-			concat ctx "," (gen_value ctx) params;
-			spr ctx "])";
+			print ctx "%s.call(%s" (s_path ctx c.cl_path) (this ctx);
+			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
+			spr ctx ")";
 		);
 	| TField ({ eexpr = TConst TSuper },name) , params ->
 		(match ctx.current.cl_super with
 		| None -> assert false
 		| Some (c,_) ->
-			print ctx "%s.prototype%s.apply(%s,[" (s_path ctx c.cl_path) (field name) (this ctx);
-			concat ctx "," (gen_value ctx) params;
-			spr ctx "])";
+			print ctx "%s.prototype%s.call(%s" (s_path ctx c.cl_path) (field name) (this ctx);
+			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
+			spr ctx ")";
 		);
 	| TCall (x,_) , el when x.eexpr <> TLocal "__js__" ->
 		spr ctx "(";
