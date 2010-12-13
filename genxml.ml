@@ -110,10 +110,11 @@ let gen_constr e =
 	) in
 	node e.ef_name args t
 
-let gen_type_params priv path params pos m =
+let gen_type_params ipos priv path params pos m =
 	let mpriv = (if priv then [("private","1")] else []) in
 	let mpath = (if m.mpath <> path then [("module",snd (gen_path m.mpath false))] else []) in
-	gen_path path priv :: ("params", String.concat ":" (List.map fst params)) :: ("file",if pos == null_pos then "" else pos.pfile) :: (mpriv @ mpath)
+	let file = (if ipos && pos <> null_pos then [("file",pos.pfile)] else []) in
+	gen_path path priv :: ("params", String.concat ":" (List.map fst params)) :: (file @ mpriv @ mpath)
 
 let gen_class_path name (c,pl) =
 	node name [("path",s_type_path (cpath c))] (List.map gen_type pl)
@@ -124,7 +125,7 @@ let rec exists f c =
 			| None -> false
 			| Some (csup,_) -> exists f csup
 
-let gen_type_decl com t =
+let gen_type_decl com pos t =
 	let m = (try List.find (fun m -> List.memq t m.mtypes) com.modules with Not_found -> { mpath = t_path t; mtypes = [t] }) in
 	match t with
 	| TClassDecl c ->
@@ -147,14 +148,14 @@ let gen_type_decl com t =
 			| None -> []
 			| Some t -> [node "haxe_dynamic" [] [gen_type t]]
 		) in
-		node "class" (gen_type_params c.cl_private (cpath c) c.cl_types c.cl_pos m @ ext @ interf) (tree @ stats @ fields @ constr @ doc @ dynamic)
+		node "class" (gen_type_params pos c.cl_private (cpath c) c.cl_types c.cl_pos m @ ext @ interf) (tree @ stats @ fields @ constr @ doc @ dynamic)
 	| TEnumDecl e ->
 		let doc = gen_doc_opt e.e_doc in
-		node "enum" (gen_type_params e.e_private e.e_path e.e_types e.e_pos m) (pmap gen_constr e.e_constrs @ doc)
+		node "enum" (gen_type_params pos e.e_private e.e_path e.e_types e.e_pos m) (pmap gen_constr e.e_constrs @ doc)
 	| TTypeDecl t ->
 		let doc = gen_doc_opt t.t_doc in
 		let tt = gen_type t.t_type in
-		node "typedef" (gen_type_params t.t_private t.t_path t.t_types t.t_pos m) (tt :: doc)
+		node "typedef" (gen_type_params pos t.t_private t.t_path t.t_types t.t_pos m) (tt :: doc)
 
 let att_str att =
 	String.concat "" (List.map (fun (a,v) -> Printf.sprintf " %s=\"%s\"" a v) att)
@@ -181,7 +182,7 @@ let rec write_xml ch tabs x =
 
 let generate com file =
 	let t = Common.timer "construct xml" in
-	let x = node "haxe" [] (List.map (gen_type_decl com) com.types) in
+	let x = node "haxe" [] (List.map (gen_type_decl com true) com.types) in
 	t();
 	let t = Common.timer "write xml" in
 	let ch = IO.output_channel (open_out_bin file) in
@@ -190,7 +191,7 @@ let generate com file =
 	t()
 
 let gen_type_string ctx t =
-	let x = gen_type_decl ctx t in
+	let x = gen_type_decl ctx false t in
 	let ch = IO.output_string() in
 	write_xml ch "" x;
 	IO.close_out ch
