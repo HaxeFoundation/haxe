@@ -799,14 +799,42 @@ let init_class ctx c p herits fields =
 				cf.cf_expr <- Some (mk (TFunction f) t p);
 				t
 			) in
-			let delay = (
-				if ((c.cl_extern && not inline) || c.cl_interface) && cf.cf_name <> "__init__" then
+			let delay = if (ctx.com.dead_code_removal && not !Common.display) then begin
+				let is_main = (match ctx.com.main_class with | Some cl when c.cl_path = cl -> true | _ -> false) && name = "main" in
+				let keep = core_api || is_main || has_meta ":keep" c.cl_meta || has_meta ":keep" f.cff_meta || (stat && name = "__init__") in
+				let remove item lst = List.filter (fun i -> item <> i.cf_name) lst in
+				if ((c.cl_extern && not inline) || c.cl_interface) && cf.cf_name <> "__init__" then begin
 					(fun() -> ())
-				else begin
+				end else begin
+					cf.cf_type <- TLazy r;
+					(fun() -> 
+						if not keep then begin
+							delay ctx (fun () ->
+								
+								match cf.cf_expr with
+								| None ->
+									if ctx.com.verbose then print_endline ("Removed " ^ (snd c.cl_path) ^ "." ^ name);
+									if stat then begin
+										c.cl_statics <- PMap.remove name c.cl_statics;
+										c.cl_ordered_statics <- remove name c.cl_ordered_statics;
+									end else begin
+										if name = "new" then c.cl_constructor <- None;
+										c.cl_fields <- PMap.remove name c.cl_fields;
+										c.cl_ordered_fields <- remove name c.cl_ordered_fields;
+									end
+								| _ -> ())
+						end else
+							ignore((!r)())
+					)
+				end
+			end else begin
+				if ((c.cl_extern && not inline) || c.cl_interface) && cf.cf_name <> "__init__" then begin
+					(fun() -> ())
+				end else begin
 					cf.cf_type <- TLazy r;
 					(fun() -> ignore((!r)()))
 				end
-			) in
+			end in
 			f, constr, cf, delay
 		| FProp (get,set,t) ->
 			let ret = load_complex_type ctx p t in

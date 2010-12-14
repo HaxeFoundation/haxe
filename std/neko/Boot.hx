@@ -24,7 +24,7 @@
  */
 package neko;
 
-class Boot {
+@:keep class Boot {
 
 	private static function __tmp_str() {
 		return untyped "<...>".__s;

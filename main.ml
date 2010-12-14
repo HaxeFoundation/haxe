@@ -462,6 +462,9 @@ try
 		("--macro", Arg.String (fun e ->
 			config_macros := e :: !config_macros
 		)," : call the given macro before typing anything else");
+		("--dead-code-removal", Arg.Unit (fun () ->
+			com.dead_code_removal <- true
+		)," : remove unused methods");
 		("-swf9",Arg.String (fun file ->
 			set_platform Flash file;
 			if com.flash_version < 9. then com.flash_version <- 9.;

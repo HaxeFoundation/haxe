@@ -24,7 +24,7 @@
  */
 package js;
 
-class Boot {
+@:keep class Boot {
 
 	private static function __unhtml(s : String) {
 		return s.split("&").join("&amp;").split("<").join("&lt;").split(">").join("&gt;");

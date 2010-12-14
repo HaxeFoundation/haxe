@@ -24,7 +24,7 @@
  */
 package flash;
 
-class Boot {
+@:keep class Boot {
 
 	private static var def_color = 0;
 	private static var exception = null;

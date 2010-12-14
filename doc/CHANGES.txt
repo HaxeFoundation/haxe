@@ -33,6 +33,9 @@
 	all : lookup unqualified types in all package hierarchy and not only in current package
 	flash : set default flash version to 10 (-swf9 deprecated, use -swf-version 8 for avm1)
 	php : added --php-lib to allow to rename the destination path of the generated lib
+	all : added --dead-code-removal, removes unused functions from the output (beta feature could 
+	         not make in the final release)
+	all : added @:keep, forces a class/method to be not descarded when used with --dead-code-removal
 
 2010-08-14: 2.06
 	neko : change serializer to be able to handle instances of basic classes from other modules

@@ -24,7 +24,7 @@
  */
 package flash;
 
-class Boot extends flash.display.MovieClip, implements Dynamic {
+@:keep class Boot extends flash.display.MovieClip, implements Dynamic {
 
 	static var init : Void -> Void;
 	static var tf : flash.text.TextField;
