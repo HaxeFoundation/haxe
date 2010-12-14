@@ -50,7 +50,7 @@ type context = {
 	mutable debug : bool;
 	mutable verbose : bool;
 	mutable foptimize : bool;
-	mutable dead_code_removal : bool;
+	mutable dead_code_elimination : bool;
 	mutable platform : platform;
 	mutable std_path : string list;
 	mutable class_path : string list;
@@ -86,7 +86,7 @@ let create v =
 		debug = false;
 		verbose = false;
 		foptimize = true;
-		dead_code_removal = false;
+		dead_code_elimination = false;
 		platform = Cross;
 		std_path = [];
 		class_path = [];

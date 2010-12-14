@@ -799,7 +799,7 @@ let init_class ctx c p herits fields =
 				cf.cf_expr <- Some (mk (TFunction f) t p);
 				t
 			) in
-			let delay = if (ctx.com.dead_code_removal && not !Common.display) then begin
+			let delay = if (ctx.com.dead_code_elimination && not !Common.display) then begin
 				let is_main = (match ctx.com.main_class with | Some cl when c.cl_path = cl -> true | _ -> false) && name = "main" in
 				let keep = core_api || is_main || has_meta ":keep" c.cl_meta || has_meta ":keep" f.cff_meta || (stat && name = "__init__") in
 				let remove item lst = List.filter (fun i -> item <> i.cf_name) lst in
