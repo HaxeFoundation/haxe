@@ -937,7 +937,7 @@ and type_switch ctx e cases def need_val p =
 		) in
 		CMatch (cst,pl,p)
 	in
-	let type_case e pl p =
+	let type_case efull e pl p =
 		try
 			(match !enum, e with
 			| None, _ -> raise Exit
@@ -955,15 +955,14 @@ and type_switch ctx e cases def need_val p =
 			| TEnumField (en,s) | TClosure ({ eexpr = TTypeExpr (TEnumDecl en) },s) -> type_match e en s pl
 			| _ -> if pl = [] then case_expr e else raise Exit)
 		with Exit ->
-			let e = (if pl = [] then e else (ECall (e,pl),p)) in
-			case_expr (type_expr ctx e)
+			case_expr (type_expr ctx efull)
 	in
 	let cases = List.map (fun (el,e2) ->
 		if el = [] then error "Case must match at least one expression" (pos e2);
 		let el = List.map (fun e ->
 			match e with
-			| (ECall (c,pl),p) -> type_case c pl p
-			| e -> type_case e [] (snd e)
+			| (ECall (c,pl),p) -> type_case e c pl p
+			| e -> type_case e e [] (snd e)
 		) el in
 		el, e2
 	) cases in
