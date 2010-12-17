@@ -1552,6 +1552,9 @@ let generate com =
 	List.iter (gen_expr ctx false) (List.rev ctx.inits);
 	let global_try = gen_try ctx in
 	List.iter (gen_class_static_init ctx) (List.rev ctx.statics);
+	(match com.main with
+	| None -> ()
+	| Some e -> gen_expr ctx false e);
 	ctx.static_init <- false;
 	let end_try = global_try() in
 	(* flash.Boot.__trace(exc) *)

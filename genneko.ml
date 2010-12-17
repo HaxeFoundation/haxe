@@ -642,7 +642,7 @@ let gen_type ctx t acc =
 		(match c.cl_init with
 		| None -> ()
 		| Some e -> ctx.inits <- (c,e) :: ctx.inits);
-		if c.cl_extern || c.cl_path = ([],"@Main") then
+		if c.cl_extern then
 			acc
 		else
 			gen_class ctx c :: acc
@@ -722,7 +722,7 @@ let gen_name ctx acc t =
 		) in
 		setname :: setconstrs :: meta @ acc
 	| TClassDecl c ->
-		if c.cl_extern || c.cl_path = ([],"@Main") then
+		if c.cl_extern then
 			acc
 		else
 			let p = pos ctx c.cl_pos in
@@ -783,7 +783,6 @@ let header() =
 	in
 	let inits = [
 		"@classes",call p (builtin p "new") [null p];
-		"@Main",call p (builtin p "new") [null p];
 		"@enum_to_string",func [] (call p (fields ["neko";"Boot";"__enum_str"]) [this p]);
 		"@serialize",func [] (call p (fields ["neko";"Boot";"__serialize"]) [this p]);
 		"@tag_serialize",func [] (call p (fields ["neko";"Boot";"__tagserialize"]) [this p]);
@@ -820,7 +819,8 @@ let generate com libs =
 	let t = Common.timer "neko generation" in
 	let libs = (ENeko (generate_libs_init libs) , { psource = "<header>"; pline = 1; }) in	
 	let el = build ctx com.types in
-	let e = (EBlock ((header()) @ libs :: el), null_pos) in
+	let emain = (match com.main with None -> [] | Some e -> [gen_expr ctx e]) in
+	let e = (EBlock ((header()) @ libs :: el @ emain), null_pos) in
 	let neko_file = (try Filename.chop_extension com.file with _ -> com.file) ^ ".neko" in
 	let ch = IO.output_channel (open_out_bin neko_file) in
 	let source = Common.defined com "neko_source" in

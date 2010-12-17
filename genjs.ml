@@ -37,7 +37,6 @@ type ctx = {
 }
 
 let s_path ctx = function
-	| ([],"@Main") -> "$Main"
 	| ([],p) -> 
 		(match ctx.namespace with
 		| None -> p
@@ -768,6 +767,9 @@ let generate com =
 		newline ctx;
 	) (List.rev ctx.inits);
 	List.iter (generate_static ctx) (List.rev ctx.statics);
+	(match com.main with
+	| None -> ()
+	| Some e -> gen_expr ctx e);
 	let ch = open_out_bin com.file in
 	output_string ch (Buffer.contents ctx.buf);
 	close_out ch;

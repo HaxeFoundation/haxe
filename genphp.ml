@@ -1861,7 +1861,7 @@ let generate_class ctx c =
 	print ctx "}"
 	
 	
-let createmain com c =
+let createmain com e =
 	let filename = match com.php_front with None -> "index.php" | Some n -> n in
 	let ctx = {
 		com = com;
@@ -1900,10 +1900,7 @@ let createmain com c =
 	newline ctx;
 	newline ctx;
 	spr ctx ("require_once dirname(__FILE__).'/" ^ ctx.lib_path ^ "/php/Boot.class.php';\n\n");
-	(match c.cl_ordered_statics with
-	| [{ cf_expr = Some e }] ->
-		gen_value ctx e;
-	| _ -> assert false);
+	gen_value ctx e;
 	newline ctx;
 	spr ctx "\n?>";
 	close ctx
@@ -2042,10 +2039,7 @@ let generate com =
 					gen_expr ctx e;
 					close ctx;
 					);
-			end else (match c.cl_path with
-			| [], "@Main" ->
-				createmain com c;
-			| _ ->
+			end else
 				let ctx = init com php_lib_path c.cl_path (if c.cl_interface then 2 else 0) in
 				ctx.extern_classes_with_init <- !extern_classes_with_init;
 				ctx.all_dynamic_methods <- !all_dynamic_methods;
@@ -2071,9 +2065,8 @@ let generate com =
 						generate_inline_method ctx c h;
 						loop ctx.inline_methods
 				in
-				loop ctx.inline_methods;
-				
-				close ctx);
+				loop ctx.inline_methods;				
+				close ctx
 		| TEnumDecl e ->
 			if e.e_extern then
 				()
@@ -2084,6 +2077,9 @@ let generate com =
 		| TTypeDecl t ->
 			());
 	) com.types;
+	(match com.main with
+	| None -> ()
+	| Some e -> createmain com e);
 	Hashtbl.iter (fun name data ->
 		write_resource com.file name data
 	) com.resources;

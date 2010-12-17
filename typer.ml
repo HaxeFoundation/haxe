@@ -1787,8 +1787,8 @@ let generate ctx main excludes =
 
 	in
 	Hashtbl.iter (fun _ m -> modules := m :: !modules; List.iter loop m.mtypes) ctx.g.modules;
-	(match main with
-	| None -> ()
+	let main = (match main with
+	| None -> None
 	| Some cl ->
 		let t = Typeload.load_type_def ctx null_pos { tpackage = fst cl; tname = snd cl; tparams = []; tsub = None } in
 		let ft, r = (match t with
@@ -1804,24 +1804,10 @@ let generate ctx main excludes =
 			with
 				Not_found -> error ("Invalid -main : " ^ s_type_path cl ^ " does not have static function main") null_pos
 		) in
-		let path = ([],"@Main") in
 		let emain = type_type ctx cl null_pos in
-		let c = mk_class path null_pos in
-		let f = {
-			cf_name = "init";
-			cf_type = r;
-			cf_public = false;
-			cf_kind = Var { v_read = AccNormal; v_write = AccNormal };
-			cf_doc = None;
-			cf_meta = no_meta;
-			cf_params = [];
-			cf_expr = Some (mk (TCall (mk (TField (emain,"main")) ft null_pos,[])) r null_pos);
-		} in
-		c.cl_statics <- PMap.add "init" f c.cl_statics;
-		c.cl_ordered_statics <- f :: c.cl_ordered_statics;
-		types := TClassDecl c :: !types
-	);
-	List.rev !types, List.rev !modules
+		Some (mk (TCall (mk (TField (emain,"main")) ft null_pos,[])) r null_pos);
+	) in
+	main, List.rev !types, List.rev !modules
 
 (* ---------------------------------------------------------------------- *)
 (* MACROS *)
@@ -1936,7 +1922,7 @@ let load_macro ctx cpath f p =
 			ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Expr") p);
 			ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Type") p);
 			finalize ctx2;
-			let types, _ = generate ctx2 None [] in
+			let _, types, _ = generate ctx2 None [] in
 			Interp.add_types mctx types;
 			Interp.init mctx;
 			ctx2
@@ -1952,7 +1938,7 @@ let load_macro ctx cpath f p =
 	let in_macro = ctx.in_macro in
 	if not in_macro then begin
 		finalize ctx2;
-		let types, modules = generate ctx2 None [] in
+		let _, types, modules = generate ctx2 None [] in
 		ctx2.com.types <- types;
 		ctx2.com.Common.modules <- modules;
 		Interp.add_types mctx types;

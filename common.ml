@@ -65,6 +65,7 @@ type context = {
 	mutable file : string;
 	mutable flash_version : float;
 	mutable modules : Type.module_def list;
+	mutable main : Type.texpr option;
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
 	mutable php_front : string option;
@@ -96,6 +97,7 @@ let create v =
 		file = "";
 		types = [];
 		modules = [];
+		main = None;
 		flash_version = 10.;
 		resources = Hashtbl.create 0;
 		php_front = None;

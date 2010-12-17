@@ -582,7 +582,8 @@ try
 		t();
 		if !has_error then do_exit();
 		if !no_output then com.platform <- Cross;
-		let types, modules = Typer.generate ctx com.main_class (!excludes) in
+		let main, types, modules = Typer.generate ctx com.main_class (!excludes) in
+		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
 		com.lines <- Lexer.build_line_index();

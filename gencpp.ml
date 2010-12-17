@@ -2889,24 +2889,18 @@ let generate common_ctx =
 			let name =  class_text class_def.cl_path in
 			(if debug then print_endline ("	ignore generic class " ^ name))
 		| TClassDecl class_def ->
-			(match class_def.cl_path with
-			| [], "@Main" ->
-				main_deps := find_referenced_types common_ctx (TClassDecl class_def) super_deps constructor_deps false;
-				generate_main common_ctx member_types super_deps class_def !boot_classes !init_classes;
-			| _ ->
-				let name =  class_text class_def.cl_path in
-				let is_internal = is_internal_class class_def.cl_path in
-				if (is_internal) then
-					( if debug then print_endline (" internal class " ^ name ))
-				else begin
-					if (not class_def.cl_interface) then
-						boot_classes := class_def.cl_path ::  !boot_classes;
-					if (has_init_field class_def) then
-						init_classes := class_def.cl_path ::  !init_classes;
-					let deps = generate_class_files common_ctx member_types super_deps constructor_deps class_def in
-					exe_classes := (class_def.cl_path, deps)  ::  !exe_classes;
-				end
-			)
+			let name =  class_text class_def.cl_path in
+			let is_internal = is_internal_class class_def.cl_path in
+			if (is_internal) then
+				( if debug then print_endline (" internal class " ^ name ))
+			else begin
+				if (not class_def.cl_interface) then
+					boot_classes := class_def.cl_path ::  !boot_classes;
+				if (has_init_field class_def) then
+					init_classes := class_def.cl_path ::  !init_classes;
+				let deps = generate_class_files common_ctx member_types super_deps constructor_deps class_def in
+				exe_classes := (class_def.cl_path, deps)  ::  !exe_classes;
+			end
 		| TEnumDecl enum_def ->
 			let name =  class_text enum_def.e_path in
 			let is_internal = is_internal_class enum_def.e_path in
@@ -2923,6 +2917,14 @@ let generate common_ctx =
 		| TTypeDecl _ -> (* already done *) ()
 		);
 	) common_ctx.types;
+
+	(match common_ctx.main with
+	| None -> ()
+	| Some e ->
+		let main_field = { cf_name = "__main__"; cf_type = t_dynamic; cf_expr = Some e; cf_public = true; cf_meta = []; cf_doc = None; cf_kind = Var { v_read = AccNormal; v_write = AccNormal; }; cf_params = [] } in
+		let class_def = { null_class with cl_path = ([],"@Main"); cl_ordered_statics = [main_field] } in
+		main_deps := find_referenced_types common_ctx (TClassDecl class_def) super_deps constructor_deps false;
+		generate_main common_ctx member_types super_deps class_def !boot_classes !init_classes);
 
 	write_resources common_ctx;
 

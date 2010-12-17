@@ -38,7 +38,6 @@ type context = {
 	mutable locals : (string,string) PMap.t;
 	mutable inv_locals : (string,string) PMap.t;
 	mutable local_types : t list;
-	mutable inits : texpr list;
 	mutable constructor_block : bool;
 }
 
@@ -118,7 +117,6 @@ let init infos path =
 		locals = PMap.empty;
 		inv_locals = PMap.empty;
 		local_types = [];
-		inits = [];
 		get_sets = Hashtbl.create 0;
 		constructor_block = false;
 	}
@@ -821,11 +819,6 @@ and gen_value ctx e =
 		)) e.etype e.epos);
 		v()
 
-let generate_boot_init ctx =
-	print ctx "private static function init() : void {";
-	List.iter (gen_expr ctx) ctx.inits;
-	print ctx "}"
-
 let generate_field ctx static f =
 	newline ctx;
 	ctx.in_static <- static;
@@ -853,9 +846,7 @@ let generate_field ctx static f =
 		newline ctx
 	| _ ->
 		let is_getset = (match f.cf_kind with Var { v_read = AccCall _ } | Var { v_write = AccCall _ } -> true | _ -> false) in
-		if ctx.curclass.cl_path = (["flash"],"Boot") && f.cf_name = "init" then
-			generate_boot_init ctx
-		else if ctx.curclass.cl_interface then
+		if ctx.curclass.cl_interface then
 			match follow f.cf_type with
 			| TFun (args,r) ->
 				print ctx "function %s(" f.cf_name;
@@ -971,24 +962,20 @@ let generate_class ctx c =
 	print ctx "}";
 	newline ctx
 
-let generate_main ctx c =
-	ctx.curclass <- c;
+let generate_main ctx inits =
+	ctx.curclass <- { null_class with cl_path = [],"__main__" };
 	let pack = open_block ctx in
-	print ctx "\tpublic class __main__ extends %s {" (s_path ctx true (["flash";"display"],"MovieClip") c.cl_pos);
+	print ctx "\tpublic class __main__ extends %s {" (s_path ctx true (["flash"],"Boot") Ast.null_pos);
 	let cl = open_block ctx in
 	newline ctx;
-	(match c.cl_ordered_statics with
-	| [{ cf_expr = Some e }] ->
-		spr ctx "public function __main__() {";
-		let f = open_block ctx in
-		newline ctx;
-		print ctx "new %s(this)" (s_path ctx true (["flash"],"Boot") c.cl_pos);
-		newline ctx;
-		gen_value ctx e;
-		f();
-		newline ctx;
-		spr ctx "}";
-	| _ -> assert false);
+	spr ctx "public function __main__() {";
+	let fl = open_block ctx in
+	newline ctx;
+	spr ctx "super()";
+	List.iter (fun e -> newline ctx; gen_expr ctx e) inits;
+	fl();
+	newline ctx;
+	print ctx "}";
 	cl();
 	newline ctx;
 	print ctx "}";
@@ -1064,7 +1051,6 @@ let generate com =
 	let ctx = init infos ([],"enum") in
 	generate_base_enum ctx;
 	close ctx;
-	let boot = ref None in
 	let inits = ref [] in
 	List.iter (fun t ->
 		match t with
@@ -1078,17 +1064,10 @@ let generate com =
 			| Some e -> inits := e :: !inits);
 			if c.cl_extern then
 				()
-			else (match c.cl_path with
-			| [], "@Main" ->
-				let ctx = init infos ([],"__main__") in
-				generate_main ctx c;
-				close ctx;
-			| ["flash"], "Boot" ->
-				boot := Some c;
-			| _ ->
+			else
 				let ctx = init infos c.cl_path in
 				generate_class ctx c;
-				close ctx)
+				close ctx
 		| TEnumDecl e ->
 			let pack,name = e.e_path in
 			let e = { e with e_path = (pack,protect name) } in
@@ -1101,10 +1080,9 @@ let generate com =
 		| TTypeDecl t ->
 			()
 	) com.types;
-	match !boot with
-	| None -> assert false
-	| Some c ->
-		let ctx = init infos c.cl_path in
-		ctx.inits <- List.rev !inits;
-		generate_class ctx c;
-		close ctx
+	(match com.main with
+	| None -> ()
+	| Some e -> inits := e :: !inits);
+	let ctx = init infos ([],"__main__") in
+	generate_main ctx (List.rev !inits);
+	close ctx
