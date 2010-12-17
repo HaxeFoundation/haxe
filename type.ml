@@ -342,45 +342,6 @@ let rec is_parent csup c =
 		| None -> false
 		| Some (c,_) -> is_parent csup c
 
-let rec link e a b =
-	(* tell if a is is b *)
-	let rec loop t =
-		if t == a then
-			true
-		else match t with
-		| TMono t -> (match !t with None -> false | Some t -> loop t)
-		| TEnum (e,tl) -> e.e_path = ([],"Protected") || List.exists loop tl
-		| TInst (_,tl) | TType (_,tl) -> List.exists loop tl
-		| TFun (tl,t) -> List.exists (fun (_,_,t) -> loop t) tl || loop t
-		| TDynamic t2 ->
-			if t == t2 then
-				false
-			else
-				loop t2
-		| TLazy f ->
-			loop (!f())
-		| TAnon a ->
-			try
-				PMap.iter (fun _ f -> if loop f.cf_type then raise Exit) a.a_fields;
-				false
-			with
-				Exit -> true
-	in
-	(* tell if a ~= b *)
-	let rec loop2 t =
-		if t == a then
-			true
-		else match t with
-		| TMono t -> (match !t with None -> false | Some t -> loop2 t)
-		| _ -> false
-	in
-	if loop b then
-		loop2 b
-	else
-		match b with
-		| TDynamic _ -> true
-		| _ -> e := Some b; true
-
 let map loop t =
 	match t with
 	| TMono r ->
@@ -487,6 +448,38 @@ let rec follow t =
 	| TType (t,tl) ->
 		follow (apply_params t.t_types tl t.t_type)
 	| _ -> t
+
+let rec link e a b =
+	(* tell if setting a == b will create a type-loop *)
+	let rec loop t =
+		if t == a then
+			true
+		else match t with
+		| TMono t -> (match !t with None -> false | Some t -> loop t)
+		| TEnum (_,tl) -> List.exists loop tl
+		| TInst (_,tl) | TType (_,tl) -> List.exists loop tl
+		| TFun (tl,t) -> List.exists (fun (_,_,t) -> loop t) tl || loop t
+		| TDynamic t2 ->
+			if t == t2 then
+				false
+			else
+				loop t2
+		| TLazy f ->
+			loop (!f())
+		| TAnon a ->
+			try
+				PMap.iter (fun _ f -> if loop f.cf_type then raise Exit) a.a_fields;
+				false
+			with
+				Exit -> true
+	in
+	(* tell is already a ~= b *)
+	if loop b then
+		(follow b) == a
+	else
+		match b with
+		| TDynamic _ -> true
+		| _ -> e := Some b; true
 
 let monomorphs eparams t =
 	apply_params eparams (List.map (fun _ -> mk_mono()) eparams) t
