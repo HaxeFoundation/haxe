@@ -465,6 +465,7 @@ let type_ident ctx i is_type p mode =
 		let t , f = class_field ctx.curclass i in
 		field_access ctx mode f t (mk (TConst TThis) ctx.tthis p) p
 	with Not_found -> try
+		if ctx.in_static then raise Not_found;
 		using_field ctx mode (mk (TConst TThis) ctx.tthis p) i p
 	with Not_found -> try
 		(* static variable lookup *)
