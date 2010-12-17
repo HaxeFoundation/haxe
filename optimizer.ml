@@ -248,7 +248,7 @@ let optimize_for_loop ctx i e1 e2 p =
 			lblock [
 				mk (TVars [tmp,t_int,Some i1]) t_void p;
 				mk (TWhile (
-					mk (TBinop (OpLt, etmp, i2)) ctx.t.tbool p,
+					mk (TBinop (OpLt, etmp, { i2 with etype = t_int })) ctx.t.tbool p,
 					block,
 					NormalWhile
 				)) t_void p;
