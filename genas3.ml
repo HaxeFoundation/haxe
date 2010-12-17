@@ -66,6 +66,10 @@ let s_path ctx stat path p =
 		"XML"
 	| (["flash";"xml"],"XMLList") ->
 		"XMLList"
+	| ["flash";"utils"],"QName" ->
+		"QName"
+	| ["flash";"utils"],"Namespace" ->
+		"Namespace"
 	| (["haxe"],"Int32") when not stat ->
 		"int"
 	| (pack,name) ->
@@ -430,6 +434,8 @@ and gen_field_access ctx t s =
 			print ctx "[\"toStringHX\"]"
 		| [], "String", "cca" ->
 			print ctx ".charCodeAt"
+		| ["flash";"xml"], "XML", "namespace" ->
+			print ctx ".namespace"
 		| _ ->
 			print ctx ".%s" (s_ident s)
 	in
@@ -965,13 +971,17 @@ let generate_class ctx c =
 let generate_main ctx inits =
 	ctx.curclass <- { null_class with cl_path = [],"__main__" };
 	let pack = open_block ctx in
-	print ctx "\tpublic class __main__ extends %s {" (s_path ctx true (["flash"],"Boot") Ast.null_pos);
+	print ctx "\timport flash.Lib";
+	newline ctx;
+	print ctx "public class __main__ extends %s {" (s_path ctx true (["flash"],"Boot") Ast.null_pos);
 	let cl = open_block ctx in
 	newline ctx;
 	spr ctx "public function __main__() {";
 	let fl = open_block ctx in
 	newline ctx;
 	spr ctx "super()";
+	newline ctx;
+	spr ctx "flash.Lib.current = this";
 	List.iter (fun e -> newline ctx; gen_expr ctx e) inits;
 	fl();
 	newline ctx;
