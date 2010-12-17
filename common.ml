@@ -61,6 +61,7 @@ type context = {
 	mutable warning : string -> pos -> unit;
 	mutable js_namespace : string option;
 	mutable load_extern_type : (path -> pos -> Ast.package option) list; (* allow finding types which are not in sources *)
+	mutable filters : (unit -> unit) list;
 	(* output *)
 	mutable file : string;
 	mutable flash_version : float;
@@ -96,6 +97,7 @@ let create v =
 		package_rules = PMap.empty;
 		file = "";
 		types = [];
+		filters = [];
 		modules = [];
 		main = None;
 		flash_version = 10.;
@@ -158,6 +160,9 @@ let init_platform com pf =
 let error msg p = raise (Abort (msg,p))
 
 let platform ctx p = ctx.platform = p
+
+let add_filter ctx f =
+	ctx.filters <- f :: ctx.filters
 
 let find_file ctx f =
 	let rec loop = function

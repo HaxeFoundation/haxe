@@ -85,6 +85,13 @@ class Context {
 	}
 
 	/**
+		Return the list of types defined in the given compilation unit module
+	**/
+	public static function getModule( name : String ) : Array<Type> {
+		return load("get_module", 1)(untyped name.__s);
+	}
+
+	/**
 		Parse an expression.
 	**/
 	public static function parse( expr : String, pos : Position ) : Expr {
@@ -97,14 +104,21 @@ class Context {
 	public static function signature( v : Dynamic ) : String {
 		return new String(load("signature", 1)(v));
 	}
-	
+
+	/**
+		Set a callback function that will return all the types compiled before they get generated.
+	**/
+	public static function onGenerate( callb : Array<Type> -> Void ) {
+		load("on_generate",1)(callb);
+	}
+
 	/**
 		Evaluate the type a given expression would have in the context of the current macro call.
 	**/
 	public static function typeof( e : Expr ) : Type {
 		return load("typeof", 1)(e);
 	}
-	
+
 	static function load( f, nargs ) : Dynamic {
 		#if macro
 		return neko.Lib.load("macro", f, nargs);

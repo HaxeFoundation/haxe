@@ -54,7 +54,77 @@ class Compiler {
 	}
 
 	/**
-		Evaluate the type a given expression would have in the context of the current macro call.
+		Include for compilation all classes defined in the given package excluding the ones referenced in the ignore list.
+	**/
+	public static function include( pack : String, ?rec = true, ?ignore : Array<String> ) {
+		for( p in Context.getClassPath() ) {
+			var p = p + pack.split(".").join("/");
+			if( !neko.FileSystem.exists(p) || !neko.FileSystem.isDirectory(p) )
+				continue;
+			for( file in neko.FileSystem.readDirectory(p) ) {
+				if( StringTools.endsWith(file, ".hx") ) {
+					var cl = pack + "." + file.substr(0, file.length - 3);
+					if( ignore != null && Lambda.has(ignore, cl) )
+						continue;
+					Context.getModule(cl);
+				} else if( rec && neko.FileSystem.isDirectory(p + "/" + file) )
+					include(pack + "." + file, true, ignore);
+			}
+		}
+	}
+
+	/**
+		Exclude a given class or a complete package from being generated.
+	**/
+	public static function exclude( pack : String, ?rec = true ) {
+		Context.onGenerate(function(types) {
+			for( t in types ) {
+				var b : Type.BaseType, name;
+				switch( t ) {
+				case TInst(c, _):
+					name = c.toString();
+					b = c.get();
+				case TEnum(e, _):
+					name = e.toString();
+					b = e.get();
+				default: continue;
+				}
+				var p = b.pack.join(".");
+				if( (p == pack || name == pack) || (rec && StringTools.startsWith(p, pack + ".")) )
+					b.exclude();
+			}
+		});
+	}
+
+	/**
+		Exclude classes listed in an extern file (one per line) from being generated.
+	**/
+	public static function excludeFile( fileName : String ) {
+		fileName = Context.resolvePath(fileName);
+		var f = neko.io.File.read(fileName,true);
+		var classes = new Hash();
+		try {
+			while( true ) {
+				var l = StringTools.trim(f.readLine());
+				if( l == "" || !~/[A-Za-z0-9._]/.match(l) )
+					continue;
+				classes.set(l,true);
+			}
+		} catch( e : haxe.io.Eof ) {
+		}
+		Context.onGenerate(function(types) {
+			for( t in types ) {
+				switch( t ) {
+				case TInst(c, _): if( classes.exists(c.toString()) ) c.get().exclude();
+				case TEnum(e, _): if( classes.exists(e.toString()) ) e.get().exclude();
+				default:
+				}
+			}
+		});
+	}
+
+	/**
+		Load a type patch file that can modify declared classes fields types
 	**/
 	public static function patchTypes( file : String ) : Void {
 		var file = Context.resolvePath(file);

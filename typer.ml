@@ -1691,7 +1691,7 @@ type state =
 	| Done
 	| NotYet
 
-let generate ctx main excludes =
+let generate ctx main =
 	let types = ref [] in
 	let modules = ref [] in
 	let states = Hashtbl.create 0 in
@@ -1710,10 +1710,6 @@ let generate ctx main excludes =
 			let t = (match t with
 			| TClassDecl c ->
 				walk_class p c;
-				if List.mem c.cl_path excludes then begin
-					c.cl_extern <- true;
-					c.cl_init <- None;
-				end;
 				t
 			| TEnumDecl _ | TTypeDecl _ ->
 				t
@@ -1854,6 +1850,11 @@ let parse_string ctx s p =
 	| _ -> assert false
 
 let make_macro_api ctx p =
+	let make_instance = function 
+		| TClassDecl c -> TInst (c,List.map snd c.cl_types)
+		| TEnumDecl e -> TEnum (e,List.map snd e.e_types)
+		| TTypeDecl t -> TType (t,List.map snd t.t_types)
+	in
 	{
 		Interp.pos = p;
 		Interp.get_type = (fun s ->
@@ -1862,6 +1863,13 @@ let make_macro_api ctx p =
 				Some (Typeload.load_instance ctx { tpackage = fst path; tname = snd path; tparams = []; tsub = None } p true)
 			with Error (Module_not_found _,p2) when p == p2 ->
 				None
+		);
+		Interp.get_module = (fun s ->
+			let path = parse_path s in
+			List.map make_instance (Typeload.load_module ctx path p).mtypes
+		);
+		Interp.on_generate = (fun f ->
+			Common.add_filter ctx.com (fun() -> f (List.map make_instance ctx.com.types))
 		);
 		Interp.parse_string = (fun s p ->
 			let head = "class X{static function main() " in
@@ -1925,7 +1933,7 @@ let load_macro ctx cpath f p =
 			ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Expr") p);
 			ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Type") p);
 			finalize ctx2;
-			let _, types, _ = generate ctx2 None [] in
+			let _, types, _ = generate ctx2 None in
 			Interp.add_types mctx types;
 			Interp.init mctx;
 			ctx2
@@ -1941,7 +1949,7 @@ let load_macro ctx cpath f p =
 	let in_macro = ctx.in_macro in
 	if not in_macro then begin
 		finalize ctx2;
-		let _, types, modules = generate ctx2 None [] in
+		let _, types, modules = generate ctx2 None in
 		ctx2.com.types <- types;
 		ctx2.com.Common.modules <- modules;
 		Interp.add_types mctx types;

@@ -52,6 +52,7 @@ typedef BaseType = {
 	var isExtern : Bool;
 	var params : Array<{ name : String, t : Type }>;
 	var meta : Metadata;
+	function exclude() : Void;
 }
 
 typedef ClassField = {

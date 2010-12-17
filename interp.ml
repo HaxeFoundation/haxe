@@ -86,6 +86,8 @@ type locals = (string, value ref) PMap.t
 type extern_api = {
 	pos : Ast.pos;
 	get_type : string -> Type.t option;
+	get_module : string -> Type.t list;
+	on_generate : (Type.t list -> unit) -> unit;
 	print : string -> unit;
 	parse_string : string -> Ast.pos -> Ast.expr;
 	typeof : Ast.expr -> Type.t;
@@ -136,7 +138,9 @@ let get_ctx_ref = ref (fun() -> assert false)
 let encode_type_ref = ref (fun t -> assert false)
 let encode_expr_ref = ref (fun e -> assert false)
 let decode_expr_ref = ref (fun e -> assert false)
+let enc_array_ref = ref (fun l -> assert false)
 let get_ctx() = (!get_ctx_ref)()
+let enc_array (l:value list) : value = (!enc_array_ref) l
 let encode_type (t:Type.t) : value = (!encode_type_ref) t
 let encode_expr (e:Ast.expr) : value = (!encode_expr_ref) e
 let decode_expr (e:value) : Ast.expr = (!decode_expr_ref) e
@@ -152,6 +156,18 @@ let make_pos p =
 
 let warn ctx msg p =
 	ctx.com.Common.warning msg (make_pos p)
+
+let catch_errors ctx ?(final=(fun() -> ())) f =
+	try
+		let v = f() in
+		final();
+		Some v
+	with Runtime v ->
+		final();
+		raise (Error (ctx.do_string v,List.map (fun (p,_,_) -> make_pos p) ctx.stack))
+	| Abort ->
+		final();
+		None
 
 let obj fields =
 	let h = Hashtbl.create 0 in
@@ -1542,6 +1558,22 @@ let macro_lib =
 				| Some t -> encode_type t)
 			| _ -> error()
 		);
+		"get_module", Fun1 (fun s ->
+			match s with
+			| VString s ->
+				enc_array (List.map encode_type ((get_ctx()).curapi.get_module s))
+			| _ -> error()
+		);
+		"on_generate", Fun1 (fun f ->
+			match f with
+			| VFunction (Fun1 _) ->
+				let ctx = get_ctx() in
+				ctx.curapi.on_generate (fun tl ->
+					ignore(catch_errors ctx (fun() -> ctx.do_call VNull f [enc_array (List.map encode_type tl)] null_pos));
+				);
+				VNull
+			| _ -> error()
+		);
 		"parse", Fun2 (fun s p ->
 			match s, p with
 			| VString s, VAbstract (APos p) -> encode_expr ((get_ctx()).curapi.parse_string s p)
@@ -2048,6 +2080,7 @@ and call ctx vthis vfun pl p =
 			exc (VString ("Invalid call " ^ ctx.do_string vfun)))
 	with Return v -> v
 		| Sys_error msg | Failure msg -> exc (VString msg)
+		| Unix.Unix_error (_,cmd,msg) -> exc (VString ("Error " ^ cmd ^ " " ^ msg))
 		| Builtin_error | Invalid_argument _ -> exc (VString "Invalid call")) in
 	ctx.locals <- locals;
 	ctx.vthis <- oldthis;
@@ -2185,19 +2218,6 @@ let create com api =
 	select ctx;
 	List.iter (fun e -> ignore(eval ctx e)) (Genneko.header());
 	ctx
-
-let catch_errors ctx ?(final=(fun() -> ())) f =
-	try
-		let v = f() in
-		final();
-		Some v
-	with Runtime v ->
-		final();
-		raise (Error (to_string ctx 0 v,List.map (fun (p,_,_) -> make_pos p) ctx.stack))
-	| Abort ->
-		final();
-		None
-
 
 let add_types ctx types =
 	let types = List.filter (fun t ->
@@ -2805,6 +2825,7 @@ let rec encode_tenum e =
 		"pos", encode_pos e.e_pos;
 		"isPrivate", VBool e.e_private;
 		"isExtern", VBool e.e_extern;
+		"exclude", VFunction (Fun0 (fun() -> e.e_extern <- true; VNull));
 		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) e.e_types);
 		"contructs", encode_pmap encode_efield e.e_constrs;
 		"names", enc_array (List.map enc_string e.e_names);
@@ -2836,6 +2857,7 @@ and encode_tclass c =
 		"pos", encode_pos c.cl_pos;
 		"isPrivate", VBool c.cl_private;
 		"isExtern", VBool c.cl_extern;
+		"exclude", VFunction (Fun0 (fun() -> c.cl_extern <- true; c.cl_init <- None; VNull));
 		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) c.cl_types);
 		"isInterface", VBool c.cl_interface;
 		"superClass", (match c.cl_super with
@@ -2856,6 +2878,7 @@ and encode_ttype t =
 		"pos", encode_pos t.t_pos;
 		"isPrivate", VBool t.t_private;
 		"isExtern", VBool false;
+		"exclude", VFunction (Fun0 (fun() -> VNull));
 		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) t.t_types);
 		"type", encode_type t.t_type;
 		"meta", encode_meta t.t_meta (fun m -> t.t_meta <- m);
@@ -2929,6 +2952,7 @@ let rec make_const e =
 		raise Exit
 
 ;;
+enc_array_ref := enc_array;
 encode_type_ref := encode_type;
 encode_expr_ref := encode_expr;
 decode_expr_ref := decode_expr

@@ -18,8 +18,6 @@
 	all : added Lambda.indexOf and Lambda.concat
 	js, flash8: changed behavior when explicitely using 'null' for optional param with default value
 	all : no longer allow inline vars as metadata values
-	all : added -exclude-package compiler switch
-	all : added -include-package compiler switch
 	neko : added getFieldsNames to neko.db.ResultSet (supported in Neko 1.8.2 mysql driver)
 	all : added --macros and haxe.macro.Compiler
 	all : allow macro type patches
@@ -40,6 +38,8 @@
 	all : allow to inline override methods (if the superclass method is not inlined already)
 	all : fixed escape sequences in literal regular expressions
 	flash9 : fixed Xml.setNodeValue
+	all : removed -excluded, replaced by --macro excludeFile('filename')
+	all : added --macro exclude('package') and --macro include('package')
 
 2010-08-14: 2.06
 	neko : change serializer to be able to handle instances of basic classes from other modules

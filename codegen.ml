@@ -799,9 +799,8 @@ let check_local_vars_init e =
 (* -------------------------------------------------------------------------- *)
 (* POST PROCESS *)
 
-let post_process ctx filters tfilters =
+let post_process ctx filters =
 	List.iter (fun t ->
-		List.iter (fun f -> f t) tfilters;
 		match t with
 		| TClassDecl c ->
 			let process_field f =
@@ -963,9 +962,9 @@ let fix_override c f fd =
 	c.cl_fields <- PMap.add f.cf_name f c.cl_fields;
 	f
 
-let fix_overrides com t =
-	match com.platform, t with
-	| Flash9, TClassDecl c ->
+let fix_overrides t =
+	match t with
+	| TClassDecl c ->
 		c.cl_ordered_fields <- List.map (fun f ->
 			match f.cf_expr, f.cf_kind with
 			| Some { eexpr = TFunction fd }, Method (MethNormal | MethInline) ->

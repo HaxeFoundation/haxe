@@ -223,9 +223,6 @@ try
 	let xml_out = ref None in
 	let swf_header = ref None in
 	let cmds = ref [] in
-	let excludes = ref [] in
-	let included_packages = ref [] in
-	let excluded_packages = ref [] in
 	let config_macros = ref [] in
 	let libs = ref [] in
 	let has_error = ref false in
@@ -379,24 +376,6 @@ try
 			if Hashtbl.mem com.resources name then failwith ("Duplicate resource name " ^ name);
 			Hashtbl.add com.resources name data
 		),"<file>[@name] : add a named resource file");
-		("-exclude",Arg.String (fun file ->
-			let file = (try Common.find_file com file with Not_found -> file) in
-			let ch = open_in file in
-			let lines = Std.input_list ch in
-			close_in ch;
-			excludes := (List.map (fun l ->
-				let l = ExtString.String.strip l in
-				if l = "" then ([],"") else Ast.parse_path l
-			) lines) @ !excludes;
-		),"<filename> : don't generate code for classes listed in this file");
-		("-exclude-package",Arg.String(fun package ->
-			let l = ExtString.String.strip package in
-			if l = "" then () else excluded_packages := l :: !excluded_packages
-		),"<package> : excludes all the modules defined in the package");
-		("-include-package",Arg.String(fun package ->
-			let l = ExtString.String.strip package in
-			if l = "" then () else included_packages := l :: !included_packages
-		),"<package> : includes all the modules defined in the package");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
 		("-cmd", Arg.String (fun cmd ->
 			cmds := expand_env cmd :: !cmds
@@ -554,20 +533,6 @@ try
 		| Cpp -> add_std "cpp"; "cpp"
 	) in
 	
-	let append_modules lst packages =
-		packages := unique !packages;
-		List.iter (fun p ->
-			let path = String.concat "/" (ExtString.String.nsplit p ".") in
-			let _, modules = read_type_path com [path] in
-			let pkg = (match p with "." -> [] | _ -> ExtString.String.nsplit p ".") in
-			List.iter (fun c -> lst := (pkg, c) :: !lst) modules;
-		) !packages;
-		unique !lst;		
-	in
-	
-	classes := append_modules classes included_packages;
-	excludes := append_modules excludes excluded_packages;
-	
 	(* check file extension. In case of wrong commandline, we don't want
 		to accidentaly delete a source file. *)
 	if not !no_output && file_extension com.file = ext then delete_file com.file;
@@ -585,21 +550,20 @@ try
 		t();
 		if !has_error then do_exit();
 		if !no_output then com.platform <- Cross;
-		let main, types, modules = Typer.generate ctx com.main_class (!excludes) in
+		let main, types, modules = Typer.generate ctx com.main_class in
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
 		com.lines <- Lexer.build_line_index();
+		if com.platform = Flash9 then Common.add_filter com (fun() -> List.iter Codegen.fix_overrides com.types);
 		let filters = [
 			Codegen.check_local_vars_init;
 			Codegen.block_vars com;
 		] in
-		let tfilters = [
-			Codegen.fix_overrides com;
-		] in
 		let filters = (match com.platform with Js | Php | Cpp -> Optimizer.sanitize :: filters | _ -> filters) in
 		let filters = (if not com.foptimize then filters else Optimizer.reduce_expression ctx :: filters) in
-		Codegen.post_process com filters tfilters;
+		Codegen.post_process com filters;
+		List.iter (fun f -> f()) (List.rev com.filters);
 		if Common.defined com "dump" then Codegen.dump_types com;
 		(match com.platform with
 		| Cross ->
