@@ -125,17 +125,36 @@ enum XmlType {
 	}
 
 	private function getNodeValue() : String {
-		if( _node.hasComplexContent() )
+		var nodeType = nodeType;
+		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
 		return _node.toString();
 	}
 
 	private function setNodeValue( v : String ) : String {
-		if( _node.hasComplexContent() || _node.children() == null )
+		var nodeType = nodeType;
+		var x = null;
+		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
-		var children = _node.children();
-		untyped __delete__(children, Reflect.fields(children)[0]);
-		_node.appendChild(new XML(v));
+		else if( nodeType == Xml.PCData )
+			x = createPCData(v);
+		else if( nodeType == Xml.CData )
+			x = createCData(v);
+		else if( nodeType == Xml.Comment )
+			x = createComment(v);
+		else if( nodeType == Xml.DocType )
+			x = createDocType(v);
+		else
+			x = createProlog(v);
+		var p = _node.parent();
+		if( p != null ) {
+			p.insertChildAfter(_node, x._node);
+			var i = _node.childIndex();
+			var children = p.children();
+			untyped __delete__(children, Reflect.fields(children)[i]);
+		}
+		_node = x._node;
+		untyped _map[_node] = this;
 		return v;
 	}
 
