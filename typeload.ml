@@ -316,11 +316,15 @@ let check_overriding ctx c p () =
 					display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass") p
 				else if f.cf_public <> f2.cf_public then
 					display_error ctx ("Field " ^ i ^ " has different visibility (public/private) than superclass one") p
-				else if f2.cf_kind = Method MethInline then
+				else (match f.cf_kind, f2.cf_kind with
+				| a, b when a = b -> ()
+				| Method MethInline, Method MethNormal ->
+					() (* allow to redefine a method as inlined *)
+				| _, Method MethInline ->
 					display_error ctx ("Field " ^ i ^ " is inlined and cannot be overridden") p
-				else if f2.cf_kind <> f.cf_kind then
-					display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p
-				else try
+				| _ ->
+					display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p);
+				try
 					let t = apply_params csup.cl_types params t in
 					valid_redefinition ctx f f.cf_type f2 t
 				with
