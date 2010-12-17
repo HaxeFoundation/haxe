@@ -292,10 +292,14 @@ and string2 = parse
 	| [^'\'' '\\' '\r' '\n']+ { store lexbuf; string2 lexbuf }
 
 and regexp = parse
-	| eof { raise Exit }
-	| '\n' | '\r' | "\r\n" { newline lexbuf; store lexbuf; regexp lexbuf }
-	| "\\/" { add "/"; regexp lexbuf }
-	| "\\\\" | '\\' { store lexbuf; regexp lexbuf }
+	| eof | '\n' | '\r' { raise Exit }
+	| '\\' '/' { add "/"; regexp lexbuf }
+	| '\\' 'r' { add "\r"; regexp lexbuf }
+	| '\\' 'n' { add "\n"; regexp lexbuf }
+	| '\\' 't' { add "\t"; regexp lexbuf }
+	| '\\' ['\\' '$' '.' '*' '+' '^' '|' '{' '}' '[' ']' '(' ')' '?' '0'-'9'] { add (lexeme lexbuf); regexp lexbuf }	
+	| '\\' ['w' 'W' 'b' 'B' 's' 'S' 'd' 'D'] { add (lexeme lexbuf); regexp lexbuf }	
+	| '\\' [^ '\\'] { error (Invalid_character (lexeme lexbuf).[1]) (lexeme_end lexbuf - 1) }
 	| '/' { regexp_options lexbuf, lexeme_end lexbuf }
 	| [^ '\\' '/' '\r' '\n']+ { store lexbuf; regexp lexbuf }
 

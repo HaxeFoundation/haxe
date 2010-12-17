@@ -38,6 +38,7 @@
 	all : added @:keep to prevent --dead-code-elimination of class/method
 	flash9 : fixed issues with loading a haXe SWF (boot_XXXX class extends flash.Boot)
 	all : allow to inline override methods (if the superclass method is not inlined already)
+	all : fixed escape sequences in literal regular expressions
 
 2010-08-14: 2.06
 	neko : change serializer to be able to handle instances of basic classes from other modules

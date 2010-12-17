@@ -30,7 +30,22 @@ class TestEReg extends Test {
 		t( r.match("") );
 		eq( r.matched(0), "" );
 		eq( r.matched(1), null ); // JS/IE7 bug
+		
+		t( ~/\//.match("/") );
+		
+		t( ~/\n/.match("\n") );
+		f( ~/\\n/.match("\n") );
+		t( ~/\\n/.match("\\n") );
 
+		t( ~/"/.match('"') );
+		f( ~/\\"/.match('"') );
+		t( ~/\\"/.match('\\"') );
+		
+		t( ~/\$/.match('$') );
+		f( ~/\\$/.match('$') );
+		f( ~/\\$/.match('\\$') );
+		t( ~/\\\$/.match('\\$') );
+		
 		#end
 	}
 
