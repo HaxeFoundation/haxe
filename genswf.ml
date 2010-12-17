@@ -350,7 +350,7 @@ let build_class com c file =
 			| None, None -> assert false
 			| Some t, None -> true, false, t
 			| None, Some t -> false, true, t
-			| Some t1, Some t2 -> if t1 <> t2 then assert false; true, true, t1
+			| Some t1, Some t2 -> true, true, (if t1 <> t2 then None else t1)
 		) in
 		let flags = [APublic] in
 		let flags = if stat then AStatic :: flags else flags in
@@ -360,7 +360,7 @@ let build_class com c file =
 			cff_doc = None;
 			cff_access = flags;
 			cff_meta = [];
-			cff_kind = FProp ((if get then "default" else "never"),(if set then "default" else "never"),make_type t);
+			cff_kind = if get && set then FVar (Some (make_type t), None) else FProp ((if get then "default" else "never"),(if set then "default" else "never"),make_type t);
 		}
 	in
 	let fields = Hashtbl.fold (fun (name,stat) t acc ->

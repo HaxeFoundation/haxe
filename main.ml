@@ -232,6 +232,7 @@ try
 	let gen_as3 = ref false in
 	let no_output = ref false in
 	let did_something = ref false in
+	let force_typing = ref false in
 	let pre_compilation = ref [] in
 	let interp = ref false in
 	Common.define com ("haxe_" ^ string_of_int version);
@@ -405,6 +406,7 @@ try
 		("--flash-use-stage", define "flash_use_stage", ": place objects found on the stage of the SWF lib");
 		("--neko-source", define "neko_source", ": keep generated neko source");
 		("--gen-hx-classes", Arg.Unit (fun() ->
+			force_typing := true;
 			List.iter (fun (_,_,extract) ->
 				Hashtbl.iter (fun n _ -> classes := n :: !classes) (extract())				
 			) com.swf_libs;
@@ -460,6 +462,7 @@ try
 			interp := true;
 		),": interpret the program using internal macro system");
 		("--macro", Arg.String (fun e ->
+			force_typing := true;
 			config_macros := e :: !config_macros
 		)," : call the given macro before typing anything else");
 		("--dead-code-elimination", Arg.Unit (fun () ->
@@ -569,7 +572,7 @@ try
 		to accidentaly delete a source file. *)
 	if not !no_output && file_extension com.file = ext then delete_file com.file;
 	List.iter (fun f -> f()) (List.rev (!pre_compilation));
-	if !classes = [([],"Std")] && !config_macros = [] then begin
+	if !classes = [([],"Std")] && not !force_typing then begin
 		if !cmds = [] && not !did_something then Arg.usage basic_args_spec usage;
 	end else begin
 		if com.verbose then print_endline ("Classpath : " ^ (String.concat ";" com.class_path));
