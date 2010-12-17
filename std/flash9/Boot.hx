@@ -27,6 +27,9 @@ package flash;
 #if !as3
 @:keep private class RealBoot extends Boot {
 	#if swc
+	public function new() {
+		super();
+	}
 	public static function init(mc) {
 		flash.Lib.current = mc;
 		new RealBoot().init();
