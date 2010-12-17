@@ -24,73 +24,42 @@
  */
 package flash;
 
+#if !as3
+@:keep private class RealBoot extends Boot {
+	#if swc
+	public static function init(mc) {
+		flash.Lib.current = mc;
+		new RealBoot().init();
+	}
+	#else
+	function new() {
+		super();
+		if( flash.Lib.current == null ) flash.Lib.current = this;
+		start();
+	}
+	#end
+}
+#end
+
 @:keep class Boot extends flash.display.MovieClip, implements Dynamic {
 
-	static var init : Void -> Void;
 	static var tf : flash.text.TextField;
 	static var lines : Array<String>;
 	static var lastError : flash.errors.Error;
 
 	public static var skip_constructor = false;
 
-	public function new(?mc:flash.display.MovieClip) {
-		super();
-		untyped {
-			var aproto = Array.prototype;
-			aproto.copy = function() {
-				return this.slice();
-			};
-			aproto.insert = function(i,x) {
-				this.splice(i,0,x);
-			};
-			aproto.remove = function(obj) {
-				var idx = this.indexOf(obj);
-				if( idx == -1 ) return false;
-				this.splice(idx,1);
-				return true;
-			}
-			aproto.iterator = function() {
-				var cur = 0;
-				var arr : Array<Dynamic> = this;
-				return {
-					hasNext : function() {
-						return cur < arr.length;
-					},
-					next : function() {
-						return arr[cur++];
-					}
-				}
-			};
-			aproto.setPropertyIsEnumerable("copy", false);
-			aproto.setPropertyIsEnumerable("insert", false);
-			aproto.setPropertyIsEnumerable("remove", false);
-			aproto.setPropertyIsEnumerable("iterator", false);
-			var cca = String.prototype.charCodeAt;
-			String.prototype.charCodeAt = function(i) {
-				var x = cca.call(this,i);
-				if( __global__["isNaN"](x) )
-					return null;
-				return x;
-			};
-		}
-		lines = new Array();
-		var c = if( mc == null ) this else mc;
-		flash.Lib.current = c;
-		if( init != null )
-			start();
-	}
-
 	function start() {
-		var c = flash.Lib.current;
-		try {
-			untyped if( c.stage != null && c.stage.align == "" )
-				c.stage.align = "TOP_LEFT";
-		} catch( e : Dynamic ) {
-			// security error when loading from different domain
-		}
-		#if (dontWaitStage || swc)
+		#if dontWaitStage
 			init();
 		#else
+			var c = flash.Lib.current;
+			try {
+				untyped if( c == this && c.stage != null && c.stage.align == "" )
+					c.stage.align = "TOP_LEFT";
+			} catch( e : Dynamic ) {
+				// security error when loading from different domain
+			}
 			if( c.stage == null )
 				c.addEventListener(flash.events.Event.ADDED_TO_STAGE, doInitDelay);
 			else if( c.stage.stageWidth == 0 )
@@ -103,6 +72,10 @@ package flash;
 	function doInitDelay(_) {
 		flash.Lib.current.removeEventListener(flash.events.Event.ADDED_TO_STAGE, doInitDelay);
 		start();
+	}
+
+	function init() {
+		throw "assert";
 	}
 
 	public static function enum_to_string( e : { tag : String, params : Array<Dynamic> } ) {
@@ -129,7 +102,7 @@ package flash;
 			return;
 		tf.parent.removeChild(tf);
 		tf = null;
-		lines = new Array();
+		lines = null;
 	}
 
 	public static function __set_trace_color(rgb) {
@@ -158,6 +131,7 @@ package flash;
 	public static function __trace( v : Dynamic, pos : haxe.PosInfos ) {
 		var tf = getTrace();
 		var pstr = if( pos == null ) "(null)" else pos.fileName+":"+pos.lineNumber;
+		if( lines == null ) lines = [];
 		lines = lines.concat((pstr +": "+__string_rec(v,"")).split("\n"));
 		tf.text = lines.join("\n");
 		var stage = flash.Lib.current.stage;
@@ -213,6 +187,46 @@ package flash;
 
 	static function __unprotect__( s : String ) {
 		return s;
+	}
+
+
+	static function __init__() untyped {
+		var aproto = Array.prototype;
+		aproto.copy = function() {
+			return this.slice();
+		};
+		aproto.insert = function(i,x) {
+			this.splice(i,0,x);
+		};
+		aproto.remove = function(obj) {
+			var idx = this.indexOf(obj);
+			if( idx == -1 ) return false;
+			this.splice(idx,1);
+			return true;
+		}
+		aproto.iterator = function() {
+			var cur = 0;
+			var arr : Array<Dynamic> = this;
+			return {
+				hasNext : function() {
+					return cur < arr.length;
+				},
+				next : function() {
+					return arr[cur++];
+				}
+			}
+		};
+		aproto.setPropertyIsEnumerable("copy", false);
+		aproto.setPropertyIsEnumerable("insert", false);
+		aproto.setPropertyIsEnumerable("remove", false);
+		aproto.setPropertyIsEnumerable("iterator", false);
+		var cca = String.prototype.charCodeAt;
+		String.prototype.charCodeAt = function(i) {
+			var x = cca.call(this,i);
+			if( __global__["isNaN"](x) )
+				return null;
+			return x;
+		};
 	}
 
 }

@@ -794,8 +794,9 @@ let build_swf8 com codeclip exports =
 	) in
 	clips @ code
 
-let build_swf9 com swc =
-	let code = Genswf9.generate com in
+let build_swf9 com file swc =
+	let boot_name = if swc <> None || Common.defined com "haxe-boot" then "haxe" else "boot_" ^ (String.sub (Digest.to_hex (Digest.string file)) 0 4) in
+	let code = Genswf9.generate com boot_name in
 	let code = (match swc with
 	| Some cat ->
 		cat := build_swc_catalog com (List.map (fun (t,_,_) -> t) code);
@@ -819,7 +820,7 @@ let build_swf9 com swc =
 		) code in
 		[tag (TActionScript3 (None,As3hlparse.flatten inits))]
 	) in
-	let clips = [tag (TF9Classes [{ f9_cid = None; f9_classname = "flash.Boot" }])] in
+	let clips = [tag (TF9Classes [{ f9_cid = None; f9_classname = boot_name }])] in
 	code @ clips
 
 let merge com file priority (h1,tags1) (h2,tags2) =
@@ -941,7 +942,7 @@ let generate com swf_header =
 		) tags;
 	) com.swf_libs;
   (* build haxe swf *)
-	let tags = if isf9 then build_swf9 com swc else build_swf8 com codeclip exports in
+	let tags = if isf9 then build_swf9 com file swc else build_swf8 com codeclip exports in
 	let header, bg = (match swf_header with None -> default_header com | Some h -> convert_header com h) in
 	let bg = tag (TSetBgColor { cr = bg lsr 16; cg = (bg lsr 8) land 0xFF; cb = bg land 0xFF }) in
 	let debug = (if isf9 && Common.defined com "fdb" then [tag (TEnableDebugger2 (0,""))] else []) in

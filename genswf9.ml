@@ -79,6 +79,7 @@ type context = {
 	com : Common.context;
 	debugger : bool;
 	swc : bool;
+	boot : path;
 	mutable last_line : int;
 	mutable last_file : string;
 	(* per-function *)
@@ -1673,17 +1674,59 @@ let generate_construct ctx fdata c =
 	write ctx HRetVoid;
 	f() , List.length fdata.tf_args
 
-let generate_class_statics ctx c =
+let rec is_const e = 
+	match e.eexpr with
+	| TConst _ -> true
+	| TArrayDecl el | TBlock el -> List.for_all is_const el
+	| TObjectDecl fl -> List.for_all (fun (_,e) -> is_const e) fl
+	| TParenthesis e -> is_const e
+	| TFunction _ -> true		
+	| _ -> false
+
+let generate_class_statics ctx c const =
 	List.iter (fun f ->
 		match f.cf_expr with
-		| None -> ()
 		| Some { eexpr = TFunction _ } when (match f.cf_kind with Method (MethNormal | MethInline) -> true | _ -> false) -> ()
-		| Some e ->
+		| Some e when is_const e = const ->
 			write ctx (HGetLex (type_path ctx c.cl_path));
 			gen_expr ctx true e;
 			if Codegen.is_volatile f.cf_type then write ctx (HArray 1);
 			write ctx (HInitProp (ident f.cf_name));
+		| _ -> ()
 	) c.cl_ordered_statics
+
+let need_init ctx c =
+	not ctx.swc && not c.cl_extern && List.exists (fun f -> match f.cf_expr with Some e -> not (is_const e) | _ -> false) c.cl_ordered_statics
+
+let generate_inits ctx =
+	let finit = begin_fun ctx [] ctx.com.basic.tvoid [] true null_pos in
+	List.iter (fun t ->
+		match t with
+		| TClassDecl c when c.cl_extern ->
+			(match c.cl_init with
+			| None -> ()
+			| Some e -> gen_expr ctx false e);
+		| _ -> ()
+	) ctx.com.types;
+	List.iter (fun t ->
+		match t with
+		| TClassDecl c when need_init ctx c ->
+			let id = ident "__init__" in
+			getvar ctx (VGlobal (type_path ctx c.cl_path));
+			getvar ctx (VId id);
+			let j = jump ctx J3True in
+			getvar ctx (VGlobal (type_path ctx c.cl_path));
+			write ctx HTrue;
+			setvar ctx (VId id) None;
+			generate_class_statics ctx c false;
+			j()
+		| _ -> ()
+	) ctx.com.types;
+	(match ctx.com.main with
+	| None -> ()
+	| Some e -> gen_expr ctx false e);
+	write ctx HRetVoid;
+	finit()
 
 let generate_class_init ctx c hc =
 	write ctx HGetGlobalScope;
@@ -1706,7 +1749,11 @@ let generate_class_init ctx c hc =
 	) c.cl_ordered_statics;
 	if not c.cl_interface then write ctx HPopScope;
 	write ctx (HInitProp (type_path ctx c.cl_path));
-	if ctx.swc then generate_class_statics ctx c
+	(match c.cl_init with
+	| None -> ()
+	| Some e -> gen_expr ctx false e);
+	generate_class_statics ctx c true;
+	if ctx.swc then generate_class_statics ctx c false
 
 let generate_enum_init ctx e hc meta =
 	let path = ([],"Object") in
@@ -1838,7 +1885,7 @@ let generate_class ctx c =
 			| _ -> assert false
 	) in
 	let has_protected = ref None in
-	let fields = Array.of_list (PMap.fold (fun f acc ->
+	let fields = PMap.fold (fun f acc ->
 		match generate_field_kind ctx f c false with
 		| None -> acc
 		| Some k ->
@@ -1875,9 +1922,41 @@ let generate_class ctx c =
 				hlf_kind = k;
 				hlf_metas = extract_meta f.cf_meta;
 			} :: acc
-	) c.cl_fields []) in
+	) c.cl_fields [] in
+	let fields = if c.cl_path <> ctx.boot then fields else
+		{
+			hlf_name = ident "init";
+			hlf_slot = 0;
+			hlf_kind = (HFMethod {
+				hlm_type = generate_inits ctx;
+				hlm_final = false;
+				hlm_override = true;
+				hlm_kind = MK3Normal;
+			});
+			hlf_metas = None;
+		} :: fields
+	in
 	let st_field_count = ref 0 in
 	let st_meth_count = ref 0 in
+	let statics = List.map (fun f ->
+		let k = (match generate_field_kind ctx f c true with None -> assert false | Some k -> k) in
+		let count = (match k with HFMethod _ -> st_meth_count | HFVar _ -> st_field_count | _ -> assert false) in
+		incr count;
+		{
+			hlf_name = ident f.cf_name;
+			hlf_slot = !count;
+			hlf_kind = k;
+			hlf_metas = extract_meta f.cf_meta;
+		}
+	) c.cl_ordered_statics in
+	let statics = if not (need_init ctx c) then statics else  
+		{
+			hlf_name = ident "__init__";
+			hlf_slot = (incr st_field_count; !st_field_count);
+			hlf_kind = HFVar { hlv_type = (Some (type_id ctx ctx.com.basic.tbool)); hlv_value = HVNone; hlv_const = false; };
+			hlf_metas = None;
+		} :: statics
+	in
 	let rec is_dynamic c =
 		if c.cl_dynamic <> None || c.cl_array_access <> None then true
 		else match c.cl_super with
@@ -1898,19 +1977,9 @@ let generate_class ctx c =
 			HMMultiName (Some name,[HNPublic (Some (String.concat "." pack))])
 		) c.cl_implements);
 		hlc_construct = cid;
-		hlc_fields = fields;
+		hlc_fields = Array.of_list fields;
 		hlc_static_construct = empty_method ctx c.cl_pos;
-		hlc_static_fields = Array.of_list (List.map (fun f ->
-			let k = (match generate_field_kind ctx f c true with None -> assert false | Some k -> k) in
-			let count = (match k with HFMethod _ -> st_meth_count | HFVar _ -> st_field_count | _ -> assert false) in
-			incr count;
-			{
-				hlf_name = ident f.cf_name;
-				hlf_slot = !count;
-				hlf_kind = k;
-				hlf_metas = extract_meta f.cf_meta;
-			}
-		) c.cl_ordered_statics);
+		hlc_static_fields = Array.of_list statics;
 	}
 
 let generate_enum ctx e meta =
@@ -2019,40 +2088,16 @@ let generate_enum ctx e meta =
 		} :: constrs);
 	}
 
-
-let generate_inits ctx =
-	(* define flash.Boot.init method *)
-	write ctx HGetGlobalScope;
-	write ctx (HGetProp (type_path ctx (["flash"],"Boot")));
-	let finit = begin_fun ctx [] ctx.com.basic.tvoid [] true null_pos in
-	List.iter (fun t ->
-		match t with
-		| TClassDecl c ->
-			(match c.cl_init with
-			| None -> ()
-			| Some e -> gen_expr ctx false e);
-		| _ -> ()
-	) ctx.com.types;
-	if not ctx.swc then List.iter (fun t ->
-		match t with
-		| TClassDecl { cl_extern = true } -> ()
-		| TClassDecl c -> generate_class_statics ctx c
-		| _ -> ()
-	) ctx.com.types;
-	write ctx HRetVoid;
-	write ctx (HFunction (finit()));
-	write ctx (HInitProp (ident "init"))
-
 let generate_type ctx t =
 	match t with
 	| TClassDecl c ->
+		if c.cl_path = (["flash";"_Boot"],"RealBoot") then c.cl_path <- ctx.boot;
 		if c.cl_extern && c.cl_path <> ([],"Dynamic") then
 			None
 		else
 			let hlc = generate_class ctx c in
 			let init = begin_fun ctx [] ctx.com.basic.tvoid [ethis] false c.cl_pos in
 			generate_class_init ctx c hlc;
-			if c.cl_path = (["flash"],"Boot") then generate_inits ctx;
 			write ctx HRetVoid;
 			Some (init(), {
 				hlf_name = type_path ctx c.cl_path;
@@ -2078,9 +2123,10 @@ let generate_type ctx t =
 	| TTypeDecl _ ->
 		None
 
-let generate com =
+let generate com boot_name =
 	let ctx = {
 		com = com;
+		boot = ([],boot_name);
 		debugger = Common.defined com "fdb";
 		swc = Common.defined com "swc";
 		code = DynArray.create();
