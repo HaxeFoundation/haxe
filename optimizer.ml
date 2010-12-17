@@ -494,5 +494,8 @@ let rec sanitize e =
 			| _ -> e2
 		) in
 		{ e with eexpr = TBinop (op,e1,e2) }
-	| _ -> Type.map_expr sanitize e
+	| TUnop (op,mode,({ eexpr = TBinop _ } as e)) ->
+		{ e with eexpr = TUnop (op,mode,mk (TParenthesis e) e.etype e.epos) }
+	| _ ->
+		Type.map_expr sanitize e
 
