@@ -712,10 +712,16 @@ let rec unify a b =
 		| None -> if not (link t b a) then error [cannot_unify a b]
 		| Some t -> unify a t)
 	| TType (t,tl) , _ ->
-		(try
-			unify (apply_params t.t_types tl t.t_type) b
-		with
-			Unify_error l -> error (cannot_unify a b :: l))
+		if not (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!unify_stack)) then begin
+			try
+				unify_stack := (a,b) :: !unify_stack;
+				unify (apply_params t.t_types tl t.t_type) b;
+				unify_stack := List.tl !unify_stack;
+			with
+				Unify_error l ->
+					unify_stack := List.tl !unify_stack;
+					error (cannot_unify a b :: l)
+		end
 	| _ , TType (t,tl) ->
 		if not (List.exists (fun (a2,b2) -> fast_eq a a2 && fast_eq b b2) (!unify_stack)) then begin
 			try
