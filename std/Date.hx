@@ -102,16 +102,8 @@ extern class Date
 	**/
 	static function fromString( s : String ) : Date;
 
-	#if flash_lite
-	/** flash lite only **/
-	function getLocaleLongDate():String;
-	/** flash lite only **/
-	function getLocaleShortDate():String;
-	/** flash lite only **/
-	function getLocaleTime():String;
-	#end
 
-#if !(php || neko || cpp)
+#if (js || flash)
 	private static function __init__() : Void untyped {
 		var d #if !swf_mark : Dynamic #end = Date;
 		d.now = function() {
