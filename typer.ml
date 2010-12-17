@@ -540,7 +540,10 @@ let rec type_field ctx e i p mode =
 			if PMap.mem i c.cl_statics then error ("Cannot access static field " ^ i ^ " from a class instance") p;
 			no_field())
 	| TDynamic t ->
-		AKExpr (mk (TField (e,i)) t p)
+		(try
+			using_field ctx mode e i p
+		with Not_found ->
+			AKExpr (mk (TField (e,i)) t p))
 	| TAnon a ->
 		(try
 			let f = PMap.find i a.a_fields in
