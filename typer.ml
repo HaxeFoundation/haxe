@@ -327,7 +327,7 @@ let rec acc_get ctx g p =
 		ignore(follow f.cf_type); (* force computing *)
 		(match f.cf_expr with
 		| None -> error "Recursive inline is not supported" p
-		| Some { eexpr = TFunction _ } -> 
+		| Some { eexpr = TFunction _ } ->
 			let chk_class c = if c.cl_extern then error "Can't create closure on an inline extern method" p in
 			(match follow e.etype with
 			| TInst (c,_) -> chk_class c
@@ -383,9 +383,9 @@ let field_access ctx mode f t e p =
 			*)
 			let is_maybe_method() =
 				match v.v_write, follow t, follow e.etype with
-				| (AccNo | AccNever), TFun _, TAnon a -> 
+				| (AccNo | AccNever), TFun _, TAnon a ->
 					(match !(a.a_status) with
-					| Statics _ | EnumStatics _ -> false 
+					| Statics _ | EnumStatics _ -> false
 					| _ -> true)
 				| _ -> false
 			in
@@ -1869,7 +1869,7 @@ let parse_string ctx s p =
 	| _ -> assert false
 
 let make_macro_api ctx p =
-	let make_instance = function 
+	let make_instance = function
 		| TClassDecl c -> TInst (c,List.map snd c.cl_types)
 		| TEnumDecl e -> TEnum (e,List.map snd e.e_types)
 		| TTypeDecl t -> TType (t,List.map snd t.t_types)

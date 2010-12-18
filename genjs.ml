@@ -57,6 +57,7 @@ let kwds =
 
 let field s = if Hashtbl.mem kwds s then "[\"" ^ s ^ "\"]" else "." ^ s
 let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
+let anon_field s = if Hashtbl.mem kwds s then "'" ^ s ^ "'" else s
 
 let spr ctx s = Buffer.add_string ctx.buf s
 let print ctx = Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
@@ -335,7 +336,7 @@ and gen_expr ctx e =
 		handle_break();
 	| TObjectDecl fields ->
 		spr ctx "{ ";
-		concat ctx ", " (fun (f,e) -> print ctx "%s : " f; gen_value ctx e) fields;
+		concat ctx ", " (fun (f,e) -> print ctx "%s : " (anon_field f); gen_value ctx e) fields;
 		spr ctx "}"
 	| TFor (v,_,it,e) ->
 		let handle_break = handle_break ctx e in
