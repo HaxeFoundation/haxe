@@ -51,7 +51,21 @@ enum XmlType {
 		XML.ignoreWhitespace = false;
 		XML.ignoreProcessingInstructions = false;
 		XML.ignoreComments = false;
-		var root = new flash.xml.XML("<__document>" + str + "</__document>");
+		var prefix = "<__document";
+		var root = null;
+		while( root == null ) {
+			try {
+				root = new flash.xml.XML(prefix+">" + str + "</__document>");
+			} catch( e : flash.errors.TypeError ) {
+				// if we miss a namespace, let's add it !
+				var r = ~/"([^"]+)"/; //"
+				if( e.errorID == 1083 && r.match(e.message) ) {
+					var ns = r.matched(1);
+					prefix += " xmlns:" + ns + '="@' + ns + '"';
+				} else
+					throw e;
+			}
+		}
 		return wrap( null, root, Xml.Document );
 	}
 
@@ -188,7 +202,7 @@ enum XmlType {
 		if( n == null ) {
 			var parent = cur.parent();
 			if( parent == null ) {
-				n = new flash.utils.Namespace(ns[0], " ");
+				n = new flash.utils.Namespace(ns[0], "@"+ns[0]);
 				cur.addNamespace(n);
 			} else
 				return getAttribNS(parent, ns);
@@ -200,6 +214,10 @@ enum XmlType {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 		var ns = att.split(":");
+		if( ns[0] == "xmlns" ) {
+			var n = _node.namespace((ns[1] == null) ? "" : ns[1]);
+			return (n == null) ? null : n.uri;
+		}
 		if( ns.length == 1 ) {
 			if( !Reflect.hasField(_node,"@"+att) )
 				return null;
@@ -213,6 +231,15 @@ enum XmlType {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 		var ns = att.split(":");
+		if( ns[0] == "xmlns" ) {
+			var n = _node.namespace((ns[1] == null) ? "" : ns[1]);
+			if( n != null )
+				throw "Can't modify namespace";
+			if( ns[1] == null )
+				throw "Can't set default namespace";
+			_node.addNamespace(new flash.utils.Namespace(ns[1], value));
+			return;
+		}
 		if( ns.length == 1 )
 			Reflect.setField(_node, "@"+att, value);
 		else {
@@ -235,6 +262,8 @@ enum XmlType {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
 		var ns = att.split(":");
+		if( ns[0] == "xmlns" )
+			return _node.namespace((ns[1] == null) ? "" : ns[1]) != null;
 		if( ns.length == 1 )
 			return Reflect.hasField(_node, "@"+att);
 		return getAttribNS(_node,ns).length() > 0;
@@ -362,10 +391,10 @@ enum XmlType {
 	public function toString() : String {
 		XML.prettyPrinting = false;
 		if( nodeType == Xml.Document ) {
-			var str = "";
-			var c = _node.children();
-			for( i in 0...c.length() )
-				str += c[i].toXMLString();
+			var str = _node.toXMLString();
+			// remove <__document xmlns....>STR</__document> wrapper
+			str = str.substr(str.indexOf(">") + 1);
+			str = str.substr(0, str.length - 13);
 			return str;
 		}
 		return _node.toXMLString();
