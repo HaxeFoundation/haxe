@@ -91,6 +91,7 @@ class TestBasetypes extends Test {
 		eq( Std.parseInt("0"), 0 );
 		eq( Std.parseInt("   5"), 5 );
 		eq( Std.parseInt("0001"), 1 );
+		eq( Std.parseInt("0010"), 10 );
 		eq( Std.parseInt("100"), 100 );
 		eq( Std.parseInt("-100"), -100 );
 		eq( Std.parseInt("100x123"), 100 );
@@ -98,6 +99,8 @@ class TestBasetypes extends Test {
 		eq( Std.parseInt("abcd"), null );
 		eq( Std.parseInt("a10"), null );
 		eq( Std.parseInt(null), null );
+		eq( Std.parseInt("0xFF"), 255 );
+		unspec(function() Std.parseInt("0xFG"));
 
 		eq( Std.parseFloat("0"), 0. );
 		eq( Std.parseFloat("   5.3"), 5.3 );

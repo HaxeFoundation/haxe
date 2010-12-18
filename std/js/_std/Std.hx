@@ -39,8 +39,11 @@
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {
-		var v = untyped __js__("parseInt")(x);
-		if( Math.isNaN(v) )
+		var v = untyped __js__("parseInt")(x, 10);
+		// parse again if hexadecimal
+		if( v == 0 && x.charCodeAt(1) == 'x'.code )
+			v = untyped __js__("parseInt")(x);
+		if( untyped __js__("isNaN")(v) )
 			return null;
 		return cast v;
 	}
