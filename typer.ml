@@ -472,6 +472,7 @@ let type_ident ctx i is_type p mode =
 		(* static variable lookup *)
 		let f = PMap.find i ctx.curclass.cl_statics in
 		let e = type_type ctx ctx.curclass.cl_path p in
+		(* check_locals_masking already done in type_type *)
 		field_access ctx mode f (field_type f) e p
 	with Not_found -> try
 		(* lookup imported *)
@@ -480,8 +481,12 @@ let type_ident ctx i is_type p mode =
 			| [] -> raise Not_found
 			| t :: l ->
 				match t with
-				| TClassDecl _ | TTypeDecl _ ->
+				| TClassDecl _ ->
 					loop l
+				| TTypeDecl t ->
+					(match follow t.t_type with
+					| TEnum (e,_) -> loop ((TEnumDecl e) :: l)
+					| _ -> loop l)
 				| TEnumDecl e ->
 					try
 						let ef = PMap.find i e.e_constrs in
