@@ -379,9 +379,17 @@ let field_access ctx mode f t e p =
 				if ctx.untyped then normal() else AKNo f.cf_name)
 		| AccNormal ->
 			(*
-				if we are reading from a read-only variable, it might actually be a method, so make sure to create a closure
+				if we are reading from a read-only variable on an anonymous object, it might actually be a method, so make sure to create a closure
 			*)
-			if mode = MGet && (match v.v_write, follow t with (AccNo | AccNever), TFun _ -> true | _ -> false) then
+			let is_maybe_method() =
+				match v.v_write, follow t, follow e.etype with
+				| (AccNo | AccNever), TFun _, TAnon a -> 
+					(match !(a.a_status) with
+					| Statics _ | EnumStatics _ -> false 
+					| _ -> true)
+				| _ -> false
+			in
+			if mode = MGet && is_maybe_method() then
 				AKExpr (mk (TClosure (e,f.cf_name)) t p)
 			else
 				normal()
