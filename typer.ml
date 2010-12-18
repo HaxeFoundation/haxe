@@ -279,14 +279,14 @@ let get_constructor c p =
 
 let make_call ctx e params t p =
 	try
-		if not ctx.g.doinline then raise Exit;
 		let ethis, fname = (match e.eexpr with TField (ethis,fname) -> ethis, fname | _ -> raise Exit) in
-		let f = (match follow ethis.etype with
-			| TInst (c,params) -> snd (try class_field c fname with Not_found -> raise Exit)
-			| TAnon a -> (try PMap.find fname a.a_fields with Not_found -> raise Exit)
+		let f, cl = (match follow ethis.etype with
+			| TInst (c,params) -> snd (try class_field c fname with Not_found -> raise Exit), Some c
+			| TAnon a -> (try PMap.find fname a.a_fields with Not_found -> raise Exit), (match !(a.a_status) with Statics c -> Some c | _ -> None)
 			| _ -> raise Exit
 		) in
 		if f.cf_kind <> Method MethInline then raise Exit;
+		if not ctx.g.doinline then (match cl with Some { cl_extern = true } -> () | _ -> raise Exit);
 		ignore(follow f.cf_type); (* force evaluation *)
 		let params = List.map (Optimizer.reduce_expression ctx) params in
 		(match f.cf_expr with
@@ -327,7 +327,13 @@ let rec acc_get ctx g p =
 		ignore(follow f.cf_type); (* force computing *)
 		(match f.cf_expr with
 		| None -> error "Recursive inline is not supported" p
-		| Some { eexpr = TFunction _ } ->  mk (TClosure (e,f.cf_name)) t p
+		| Some { eexpr = TFunction _ } -> 
+			let chk_class c = if c.cl_extern then error "Can't create closure on an inline extern method" p in
+			(match follow e.etype with
+			| TInst (c,_) -> chk_class c
+			| TAnon a -> (match !(a.a_status) with Statics c -> chk_class c | _ -> ())
+			| _ -> ());
+			mk (TClosure (e,f.cf_name)) t p
 		| Some e ->
 			let rec loop e = Type.map_expr loop { e with epos = p } in
 			loop e)
