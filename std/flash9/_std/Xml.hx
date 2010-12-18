@@ -183,8 +183,17 @@ enum XmlType {
 		return out;
 	}
 
-	function getAttribNS( ns : Array<String> ) : XMLList {
-		return _node.attribute(new flash.utils.QName(_node.namespace(ns[0]).uri,ns[1]));
+	function getAttribNS( cur : XML, ns : Array<String> ) : XMLList {
+		var n = cur.namespace(ns[0]);
+		if( n == null ) {
+			var parent = cur.parent();
+			if( parent == null ) {
+				n = new flash.utils.Namespace(ns[0], " ");
+				cur.addNamespace(n);
+			} else
+				return getAttribNS(parent, ns);
+		}
+		return _node.attribute(new flash.utils.QName(n,ns[1]));
 	}
 
 	public function get( att : String ) : String {
@@ -196,7 +205,7 @@ enum XmlType {
 				return null;
 			return Reflect.field(_node, "@"+att);
 		}
-		var a = getAttribNS(ns);
+		var a = getAttribNS(_node,ns);
 		return (a.length() == 0) ? null : a.toString();
 	}
 
@@ -207,7 +216,7 @@ enum XmlType {
 		if( ns.length == 1 )
 			Reflect.setField(_node, "@"+att, value);
 		else {
-			var a = getAttribNS(ns);
+			var a = getAttribNS(_node,ns);
 			untyped a[0] = value;
 		}
 	}
@@ -219,7 +228,7 @@ enum XmlType {
 		if( ns.length == 1 )
 			Reflect.deleteField(_node, "@"+att);
 		else
-			untyped __delete__(getAttribNS(ns),0);
+			untyped __delete__(getAttribNS(_node,ns),0);
 	}
 
 	public function exists( att : String ) : Bool {
@@ -228,7 +237,7 @@ enum XmlType {
 		var ns = att.split(":");
 		if( ns.length == 1 )
 			return Reflect.hasField(_node, "@"+att);
-		return getAttribNS(ns).length() > 0;
+		return getAttribNS(_node,ns).length() > 0;
 	}
 
 	public function attributes() : Iterator<String> {
