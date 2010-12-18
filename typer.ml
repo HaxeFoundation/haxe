@@ -524,7 +524,7 @@ let rec type_field ctx e i p mode =
 			match c.cl_dynamic with
 			| Some t ->
 				let t = apply_params c.cl_types params t in
-				if mode = MGet && PMap.mem "resolve" c.cl_fields then
+				if (mode = MGet || mode = MCall) && PMap.mem "resolve" c.cl_fields then
 					AKExpr (make_call ctx (mk (TField (e,"resolve")) (tfun [ctx.t.tstring] t) p) [Codegen.type_constant ctx.com (String i) p] t p)
 				else
 					AKExpr (mk (TField (e,i)) t p)
