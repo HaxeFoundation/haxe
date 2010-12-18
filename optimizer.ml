@@ -89,15 +89,30 @@ let type_inline ctx cf f ethis params tret p =
 			| None -> mk (TConst TNull) (mk_mono()) p
 			| Some e -> map term e)
 		| TFor (v,t,e1,e2) ->
-			{ e with eexpr = TFor (local v,t,map false e1,map false e2) }
+			let e1 = map false e1 in
+			let old = save_locals ctx in
+			let v = add_local ctx v t in
+			let e2 = map false e2 in
+			old();
+			{ e with eexpr = TFor (v,t,e1,e2) }
 		| TMatch (e,en,cases,def) ->
 			let term, t = (match def with Some d when term -> true, d.etype | _ -> false, e.etype) in
 			let cases = List.map (fun (i,vl,e) ->
-				i, opt (List.map (fun (n,t) -> opt local n, t)) vl, map term e
+				let old = save_locals ctx in
+				let vl = opt (List.map (fun (n,t) -> opt (fun n -> add_local ctx n t) n, t)) vl in 
+				let e = map term e in
+				old();
+				i, vl, e
 			) cases in
 			{ e with eexpr = TMatch (map false e,en,cases,opt (map term) def); etype = t }
 		| TTry (e1,catches) ->
-			{ e with eexpr = TTry (map term e1,List.map (fun (v,t,e) -> local v,t,map term e) catches) }
+			{ e with eexpr = TTry (map term e1,List.map (fun (v,t,e) -> 
+				let old = save_locals ctx in
+				let v = add_local ctx v t in
+				let e = map term e in
+				old();
+				v,t,e
+			) catches) }
 		| TBlock l ->
 			let old = save_locals ctx in
 			let t = ref e.etype in
