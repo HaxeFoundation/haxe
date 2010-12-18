@@ -160,6 +160,7 @@ let rec build_generic ctx c p tl =
 		let path = (match follow t with
 			| TInst (c,_) -> c.cl_path
 			| TEnum (e,_) -> e.e_path
+			| TMono _ -> error "Type parameter must be explicit when creating a haxe.rtti.Generic instance" p
 			| _ -> error "Type parameter must be a class or enum instance" p
 		) in
 		match path with
