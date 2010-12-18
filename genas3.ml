@@ -385,13 +385,6 @@ let rec gen_call ctx e el r =
 		spr ctx ")"
 	| TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = (["flash"],"Lib") }) },f), args ->
 		(match f, args with
-		| "vectorOfArray", [e] | "vectorConvert", [e] ->
-			(match follow r with
-			| TInst ({ cl_path = (["flash"],"Vector") },[t]) ->
-				print ctx "Vector.<%s>(" (type_str ctx t e.epos);
-				gen_value ctx e;
-				print ctx ")";
-			| _ -> assert false)
 		| "as", [e1;e2] ->
 			gen_value ctx e1;
 			spr ctx " as ";
@@ -401,6 +394,16 @@ let rec gen_call ctx e el r =
 			spr ctx "(";
 			concat ctx "," (gen_value ctx) el;
 			spr ctx ")")
+	| TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = (["flash"],"Vector") }) },f), args ->
+		(match f, args with
+		| "ofArray", [e] | "convert", [e] ->
+			(match follow r with
+			| TInst ({ cl_path = (["flash"],"Vector") },[t]) ->
+				print ctx "Vector.<%s>(" (type_str ctx t e.epos);
+				gen_value ctx e;
+				print ctx ")";
+			| _ -> assert false)
+		| _ -> assert false)
 	| _ ->
 		gen_value ctx e;
 		spr ctx "(";
