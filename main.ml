@@ -386,9 +386,11 @@ try
 		("--neko-source", define "neko_source", ": keep generated neko source");
 		("--gen-hx-classes", Arg.Unit (fun() ->
 			force_typing := true;
-			List.iter (fun (_,_,extract) ->
-				Hashtbl.iter (fun n _ -> classes := n :: !classes) (extract())				
-			) com.swf_libs;
+			Common.add_filter com (fun() ->
+				List.iter (fun (_,_,extract) ->
+					Hashtbl.iter (fun n _ -> classes := n :: !classes) (extract())				
+				) com.swf_libs;
+			);
 			xml_out := Some "hx"
 		),"<file> : generate hx headers from SWF9 file");
 		("--next", Arg.Unit (fun() -> assert false), ": separate several haxe compilations");
@@ -498,7 +500,7 @@ try
 		);
 	end;
 	let add_std dir =
-		com.class_path <- List.map (fun p -> p ^ dir ^ "/_std/") com.std_path @ com.class_path
+		com.class_path <- List.filter (fun s -> not (List.mem s com.std_path)) com.class_path @ List.map (fun p -> p ^ dir ^ "/_std/") com.std_path @ com.std_path
 	in
 	let ext = (match com.platform with
 		| Cross ->
