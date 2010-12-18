@@ -1718,7 +1718,6 @@ let generate ctx main =
 			prerr_endline ("Warning : maybe loop in static generation of " ^ s_type_path p);
 		| NotYet ->
 			Hashtbl.add states p Generating;
-			ctx.g.do_generate ctx t;
 			let t = (match t with
 			| TClassDecl c ->
 				walk_class p c;
@@ -2076,7 +2075,6 @@ let rec create com =
 			do_create = create;
 			do_macro = type_macro;
 			do_load_module = Typeload.load_module;
-			do_generate = Codegen.on_generate;
 			do_optimize = Optimizer.reduce_expression;
 			do_build_instance = Codegen.build_instance;
 		};

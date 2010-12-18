@@ -41,7 +41,6 @@ type typer_globals = {
 	do_create : Common.context -> typer;
 	do_macro : typer -> path -> string -> Ast.expr list -> Ast.pos -> Ast.expr option;
 	do_load_module : typer -> path -> pos -> module_def;
-	do_generate : typer -> module_type -> unit;
 	do_optimize : typer -> texpr -> texpr;
 	do_build_instance : typer -> module_type -> pos -> ((string * t) list * path * (t list -> t));
 }
