@@ -376,6 +376,7 @@ let rec parse_name names ctx = function
 			HMPath (pack, ident ctx id)
 		| ns ->
 			HMName (ident ctx id, ns))
+	| A3MAny -> HMAny
 	| A3MMultiName (id,ns) -> HMMultiName (opt ident ctx id,ctx.nsets.(idx ns))
 	| A3MRuntimeName id -> HMRuntimeName (ident ctx id)
 	| A3MRuntimeNameLate -> HMRuntimeNameLate
@@ -590,6 +591,7 @@ let rec flatten_name ctx = function
 		let ns = HNPublic (match pack with [] -> None | l -> Some (String.concat "." l)) in
 		A3MName (lookup_ident ctx i,lookup ctx ctx.fnamespaces ns)
 	| HMName (i,n) -> A3MName (lookup_ident ctx i,lookup ctx ctx.fnamespaces n)
+	| HMAny -> A3MAny
 	| HMMultiName (i,ns) -> A3MMultiName (opt lookup_ident ctx i,lookup ctx ctx.fnsets ns)
 	| HMRuntimeName i -> A3MRuntimeName (lookup_ident ctx i)
 	| HMRuntimeNameLate -> A3MRuntimeNameLate

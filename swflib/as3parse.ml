@@ -131,6 +131,8 @@ let rec as3_name_length t =
 		idx_opt_length id + idx_length r
 	| A3MName (id,r) ->
 		idx_length r + idx_length id
+	| A3MAny ->
+		int_length 0 + int_length 0
 	| A3MRuntimeName i ->
 		idx_length i
 	| A3MRuntimeNameLate ->
@@ -327,8 +329,13 @@ let rec read_name ctx ?k ch =
 	let k = (match k with None -> IO.read_byte ch | Some k -> k) in
 	match k with
 	| 0x07 ->
-		let ns = index ctx.as3_namespaces (read_int ch) in
-		let id = index ctx.as3_idents (read_int ch) in
+		let i = read_int ch in
+		let j = read_int ch in
+		if i = 0 && j = 0 then
+			A3MAny
+		else
+		let ns = index ctx.as3_namespaces i in
+		let id = index ctx.as3_idents j in
 		(* both ns and id can be 0 <=> '*' *)
 		A3MName (id,ns)
 	| 0x09 ->
@@ -690,6 +697,10 @@ let rec write_name ch ?k x =
 		IO.write_byte ch (b 0x07);
 		write_index ch r;
 		write_index ch id
+	| A3MAny ->
+		IO.write_byte ch (b 0x07);
+		write_int ch 0;
+		write_int ch 0;
 	| A3MRuntimeName i ->
 		IO.write_byte ch (b 0x0F);
 		write_index ch i
@@ -700,7 +711,7 @@ let rec write_name ch ?k x =
 		write_index ch id
 	| A3MAttrib n ->
 		write_name ch ~k:(match n with
-			| A3MName _ -> 0x0D
+			| A3MName _ | A3MAny -> 0x0D
 			| A3MMultiName _ -> 0x0E
 			| A3MRuntimeName _ -> 0x10
 			| A3MRuntimeNameLate -> 0x12
@@ -902,6 +913,7 @@ let ns_set_str ctx i =
 let rec name_str ctx kind t =
 	let rec loop = function
 		| A3MName (id,r) -> Printf.sprintf "%s %s%s" (namespace_str ctx r) kind (ident_str ctx id)
+		| A3MAny -> "ANY"
 		| A3MMultiName (id,r) -> Printf.sprintf "[%s %s%s]" (ns_set_str ctx r) kind (match id with None -> "NO" | Some i -> ident_str ctx i)
 		| A3MRuntimeName id -> Printf.sprintf "'%s'" (ident_str ctx id)
 		| A3MRuntimeNameLate -> "RTLATE"

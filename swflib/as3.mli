@@ -213,6 +213,7 @@ and as3_multi_name =
 	| A3MMultiNameLate of as3_ns_set index
 	| A3MAttrib of as3_multi_name
 	| A3MParams of as3_multi_name index * as3_multi_name index list
+	| A3MAny
 
 and as3_value =
 	| A3VNone

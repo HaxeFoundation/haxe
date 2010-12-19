@@ -146,6 +146,7 @@ and hl_name =
 	| HMMultiNameLate of hl_ns_set
 	| HMAttrib of hl_name
 	| HMParams of hl_name * hl_name list
+	| HMAny
 
 and hl_value =
 	| HVNone
