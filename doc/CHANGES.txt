@@ -41,6 +41,7 @@
 	all : removed -excluded, replaced by --macro excludeFile('filename')
 	all : added --macro exclude('package') and --macro include('package')
 	all : importing a typedef of an enum allow to access its constructors
+	all : removed String.cca (replaced by StringTools.fastCodeAt + StringTools.isEOF)
 
 2010-08-14: 2.06
 	neko : change serializer to be able to handle instances of basic classes from other modules
