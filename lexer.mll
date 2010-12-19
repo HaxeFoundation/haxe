@@ -93,7 +93,7 @@ let find_line p lines =
 let get_error_line p =
 	let lines = List.rev (try Hashtbl.find all_lines p.pfile with Not_found -> []) in
 	let l, _ = find_line p.pmin lines in
-	l	
+	l
 
 let get_error_pos printer p =
 	if p.pmin = -1 then
@@ -297,8 +297,8 @@ and regexp = parse
 	| '\\' 'r' { add "\r"; regexp lexbuf }
 	| '\\' 'n' { add "\n"; regexp lexbuf }
 	| '\\' 't' { add "\t"; regexp lexbuf }
-	| '\\' ['\\' '$' '.' '*' '+' '^' '|' '{' '}' '[' ']' '(' ')' '?' '0'-'9'] { add (lexeme lexbuf); regexp lexbuf }	
-	| '\\' ['w' 'W' 'b' 'B' 's' 'S' 'd' 'D'] { add (lexeme lexbuf); regexp lexbuf }	
+	| '\\' ['\\' '$' '.' '*' '+' '^' '|' '{' '}' '[' ']' '(' ')' '?' '-' '0'-'9'] { add (lexeme lexbuf); regexp lexbuf }
+	| '\\' ['w' 'W' 'b' 'B' 's' 'S' 'd' 'D'] { add (lexeme lexbuf); regexp lexbuf }
 	| '\\' [^ '\\'] { error (Invalid_character (lexeme lexbuf).[1]) (lexeme_end lexbuf - 1) }
 	| '/' { regexp_options lexbuf, lexeme_end lexbuf }
 	| [^ '\\' '/' '\r' '\n']+ { store lexbuf; regexp lexbuf }
