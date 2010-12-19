@@ -234,11 +234,10 @@ package js;
 					}
 				}
 			};
-			var cca = String.prototype.charCodeAt;
-			String.prototype.cca = cca;
+			String.prototype.cca = String.prototype.charCodeAt;
 			String.prototype.charCodeAt = function(i) {
-				var x = cca.call(this,i);
-				if( isNaN(x) )
+				var x = this.cca(i);
+				if( x != x ) // fast isNaN
 					return null;
 				return x;
 			};

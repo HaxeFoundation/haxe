@@ -44,6 +44,13 @@ class TestBasetypes extends Test {
 		eq( abc[0], "a" );
 		eq( abc[1], "b" );
 		eq( abc[2], "c" );
+		
+		var str = "abc";
+		eq( str.charCodeAt(0), "a".code );
+		eq( str.charCodeAt(1), "b".code );
+		eq( str.charCodeAt(2), "c".code );
+		eq( str.charCodeAt(-1), null );
+		eq( str.charCodeAt(3), null );
 	}
 
 	function testMath() {
@@ -119,6 +126,17 @@ class TestBasetypes extends Test {
 		eq( StringTools.hex(0xABCDEF,7), "0ABCDEF" );
 		eq( StringTools.hex(-1,8), "FFFFFFFF" );
 		eq( StringTools.hex(-481400000,8), "E34E6B40" );
+	}
+	
+	function testCCA() {
+		var str = "abc";
+		eq( StringTools.fastCodeAt(str, 0), "a".code );
+		eq( StringTools.fastCodeAt(str, 1), "b".code );
+		eq( StringTools.fastCodeAt(str, 2), "c".code );
+		f( StringTools.isEOF(StringTools.fastCodeAt(str, 2)) );
+		t( StringTools.isEOF(StringTools.fastCodeAt(str, 3)) );
+		
+		t( StringTools.isEOF(StringTools.fastCodeAt("", 0)) );
 	}
 
 }

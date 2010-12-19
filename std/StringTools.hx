@@ -246,6 +246,37 @@ class StringTools {
 		return s;
 	}
 
+	/**
+		Provides a fast native string charCodeAt access. Since the EOF value might vary depending on the platforms, always test with StringTools.isEOF.
+		Only guaranteed to work if index in [0,s.length] range. Might not work with strings containing \0 char.
+	**/
+	public static inline function fastCodeAt( s : String, index : Int ) : Int untyped {
+		#if neko
+		return untyped __dollar__sget(s.__s, index);
+		#elseif cpp
+		return (s == null) ? 0 : s.cca(index);
+		#else
+		return s.cca(index);
+		#end
+	}
+
+	/*
+		Only to use together with fastCodeAt.
+	*/
+	public static inline function isEOF( c : Int ) : Bool {
+		#if (flash9 || cpp)
+		return c == 0;
+		#elseif flash8
+		return c <= 0; // fast NaN
+		#elseif js
+		return c != c; // fast NaN
+		#elseif neko
+		return c == null;
+		#else
+		return false;
+		#end
+	}
+
 	#if neko
 	private static var _urlEncode = neko.Lib.load("std","url_encode",1);
 	private static var _urlDecode = neko.Lib.load("std","url_decode",1);

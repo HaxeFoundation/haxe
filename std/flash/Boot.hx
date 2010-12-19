@@ -254,7 +254,7 @@ package flash;
 			var cca = String.prototype["charCodeAt"];
 			String.prototype["cca"] = cca;
 			String.prototype["charCodeAt"] = function(i) {
-				var x = cca["call"](this,i);
+				var x = this["cca"](i);
 				if( x <= 0 ) // fast NaN
 					return null;
 				return x;

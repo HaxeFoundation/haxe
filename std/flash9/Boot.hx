@@ -25,7 +25,7 @@
 package flash;
 
 #if !as3
-@:keep private class RealBoot extends Boot {
+@:keep private class RealBoot extends Boot, implements Dynamic {
 	#if swc
 	public function new() {
 		super();
@@ -44,7 +44,7 @@ package flash;
 }
 #end
 
-@:keep class Boot extends flash.display.MovieClip, implements Dynamic {
+@:keep class Boot extends flash.display.MovieClip {
 
 	static var tf : flash.text.TextField;
 	static var lines : Array<String>;
@@ -223,12 +223,12 @@ package flash;
 		aproto.setPropertyIsEnumerable("insert", false);
 		aproto.setPropertyIsEnumerable("remove", false);
 		aproto.setPropertyIsEnumerable("iterator", false);
-		var cca = String.prototype.charCodeAt;
-		String.prototype.charCodeAt = function(i) {
-			var x = cca.call(this,i);
+		String.prototype.charCodeAt = function(i) : Null<Int> {
+			var s : String = this;
+			var x : Float = s.cca(i);
 			if( __global__["isNaN"](x) )
 				return null;
-			return x;
+			return Std.int(x);
 		};
 	}
 

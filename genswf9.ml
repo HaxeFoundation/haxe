@@ -281,7 +281,7 @@ let property ctx p t =
 		(match p with
 		| "length" (* Int in AS3/haXe *) -> ident p, None, false
 		| "charCodeAt" (* use haXe version *) -> ident p, None, true
-		| "cca" -> as3 "charCodeAt", Some KInt, false
+		| "cca" -> as3 "charCodeAt", None, false
 		| _ -> as3 p, None, false);
 	| TAnon a ->
 		(match !(a.a_status) with
@@ -1751,9 +1751,15 @@ let generate_class_init ctx c hc =
 	write ctx (HInitProp (type_path ctx c.cl_path));
 	(match c.cl_init with
 	| None -> ()
-	| Some e -> gen_expr ctx false e);
+	| Some e ->
+		gen_expr ctx false e;
+		if ctx.block_vars <> [] then error "You can't have a local variable referenced from a closure inside __init__ (FP 10.1.53 crash)" e.epos;
+	);
 	generate_class_statics ctx c true;
-	if ctx.swc then generate_class_statics ctx c false
+	if ctx.swc then begin
+		generate_class_statics ctx c false;
+		if ctx.block_vars <> [] then error "You can't have a local variable referenced from a closure inside a static (FP 10.1.53 crash)" c.cl_pos;
+	end
 
 let generate_enum_init ctx e hc meta =
 	let path = ([],"Object") in

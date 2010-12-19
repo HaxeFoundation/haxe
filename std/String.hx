@@ -91,8 +91,4 @@ extern class String {
 
 	static function fromCharCode( code : Int ) : String;
 
-	#if !neko
-	private function cca( pos : Int ) : Int;
-	#end
-
 }

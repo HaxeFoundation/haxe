@@ -46,7 +46,7 @@ class Unserializer {
 				new Array();
 			#end
 		for( i in 0...BASE64.length )
-			codes[untyped BASE64.cca(i)] = i;
+			codes[StringTools.fastCodeAt(BASE64,i)] = i;
 		return codes;
 	}
 	#end
@@ -88,13 +88,7 @@ class Unserializer {
 	}
 
 	inline function get(p) : Int {
-		#if (flash || js)
-		return untyped buf.cca(p);
-		#elseif neko
-		return untyped __dollar__sget(buf.__s,p);
-		#else
-		return buf.charCodeAt(p);
-		#end
+		return StringTools.fastCodeAt(buf, p);
 	}
 
  	function readDigits() {
@@ -103,15 +97,8 @@ class Unserializer {
  		var fpos = pos;
  		while( true ) {
  			var c = get(pos);
-			#if flash9
-			// if flash9, it returns 0 so we will break later
-			#elseif (flash || js)
-			if( Math.isNaN(c) )
+			if( StringTools.isEOF(c) )
 				break;
-			#else
- 			if( c == null )
- 				break;
-			#end
  			if( c == "-".code ) {
  				if( pos != fpos )
  					break;
@@ -320,20 +307,20 @@ class Unserializer {
 			var bytes = haxe.io.Bytes.alloc(size);
 			var bpos = 0;
 			while( i < max ) {
-				var c1 = codes[untyped buf.cca(i++)];
-				var c2 = codes[untyped buf.cca(i++)];
+				var c1 = codes[StringTools.fastCodeAt(buf,i++)];
+				var c2 = codes[StringTools.fastCodeAt(buf,i++)];
 				bytes.set(bpos++,(c1 << 2) | (c2 >> 4));
-				var c3 = codes[untyped buf.cca(i++)];
+				var c3 = codes[StringTools.fastCodeAt(buf,i++)];
 				bytes.set(bpos++,(c2 << 4) | (c3 >> 2));
-				var c4 = codes[untyped buf.cca(i++)];
+				var c4 = codes[StringTools.fastCodeAt(buf,i++)];
 				bytes.set(bpos++,(c3 << 6) | c4);
 			}
 			if( rest >= 2 ) {
-				var c1 = codes[untyped buf.cca(i++)];
-				var c2 = codes[untyped buf.cca(i++)];
+				var c1 = codes[StringTools.fastCodeAt(buf,i++)];
+				var c2 = codes[StringTools.fastCodeAt(buf,i++)];
 				bytes.set(bpos++,(c1 << 2) | (c2 >> 4));
 				if( rest == 3 ) {
-					var c3 = codes[untyped buf.cca(i++)];
+					var c3 = codes[StringTools.fastCodeAt(buf,i++)];
 					bytes.set(bpos++,(c2 << 4) | (c3 >> 2));
 				}
 			}
