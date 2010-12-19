@@ -186,6 +186,8 @@ let rec make_tpath = function
 		assert false
 	| HMAttrib _ ->
 		assert false
+	| HMAny ->
+		assert false
 	| HMParams (t,params) ->
 		let params = List.map (fun t -> TPType (CTPath (make_tpath t))) params in
 		{ (make_tpath t) with tparams = params }
