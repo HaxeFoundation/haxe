@@ -203,6 +203,7 @@ typedef Event = {
 	var ctrlKey : Bool;
 	var altKey : Bool;
 	var cancelBubble : Bool;
+	function stopPropagation() : Void; // W3C only
 }
 
 typedef FileUpload = {> FormElement,
