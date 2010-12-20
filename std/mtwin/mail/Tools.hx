@@ -39,7 +39,7 @@ class Tools {
 	static var REG_QP_LB = ~/=\\r?\\n/;
 	static var REG_QP = ~/=([A-Fa-f0-9]{1,2})/;
 	static var REG_SPACES_EQUAL = ~/[\s=]+/g;
-	
+
 	public static function chunkSplit( str:String, length:Int, sep:String ){
 		var ret = "";
 		while( str.length > length ){
@@ -107,7 +107,7 @@ class Tools {
 	public static function encodeQuotedPrintable( content : String ) : String{
 		var rs = new List();
 		var lines = splitLines( content );
-		
+
 		for( ln in lines ){
 			var len = ln.length;
 			var line = "";
@@ -164,8 +164,8 @@ class Tools {
 					ret.add("=");
 					ret.add(t);
 				}
-				
-			}			
+
+			}
 		}
 		return ret.toString();
 	}
@@ -178,7 +178,7 @@ class Tools {
 			if( str.substr(str.length-1,1) == "\"" )
 				str = str.substr(0,str.length-1);
 		}
-		
+
 		var csl = charset.length;
 		var len = str.length;
 		var quotedStr : List<String> = new List();
@@ -233,14 +233,14 @@ class Tools {
 		for( a in list ){
 			var ret = new StringBuf();
 			var addr = a.address;
-			if( a.name != null ){	
+			if( a.name != null ){
 				var name = a.name;
 				if( ~/[\s,"']/.match( name ) )
 					name = "\""+name.split("\\").join("\\\\").split("\"").join("\\\"")+"\"";
 				var t = headerQpEncode(name,initSize,charset,true);
 				ret.add( t );
 				var p = t.lastIndexOf("\n");
-				if( p == -1 ) 
+				if( p == -1 )
 					initSize += t.length;
 				else
 					initSize = t.length - p;
@@ -264,7 +264,7 @@ class Tools {
 
 		var b = headerQpEncode(e.value,initSize,charset);
 		ret.add(b);
-			
+
 		for( k in e.params.keys() ){
 			ret.add(";");
 			initSize += 1;
@@ -273,7 +273,7 @@ class Tools {
 				initSize += b.length;
 			else
 				initSize = b.length - p;
-			
+
 			if( initSize + k.length + 3 > 75 ){
 				ret.add("\r\n ");
 				initSize = 1;
@@ -370,7 +370,7 @@ class Tools {
 		str = StringTools.replace(str,":","\\:");
 		str = StringTools.replace(str,"$","\\$");
 		str = StringTools.replace(str,"/","\\/");
-			
+
 		return str;
 	}
 
@@ -383,7 +383,7 @@ class Tools {
 		}else{
 			return name+": "+headerQpEncode(content,name.length+2,charset)+"\r\n";
 		}
-		
+
 	}
 
 	static var REG_MHEADER = ~/^([^;]+)(.*?)$/;
@@ -403,7 +403,7 @@ class Tools {
 				if( REG_PARAM1.match( params ) ){
 					var k = StringTools.trim(REG_PARAM1.matched(1)).toLowerCase();
 					var v = REG_PARAM1.matched(2);
-					ret.params.set( k, v ); 
+					ret.params.set( k, v );
 					params = REG_PARAM1.matchedRight();
 				}else if( REG_PARAM2.match( params ) ){
 					var k = StringTools.trim(REG_PARAM2.matched(1)).toLowerCase();
@@ -427,7 +427,7 @@ class Tools {
 		if( initCur == null ) initCur = 0;
 		if( keepSpace == null ) keepSpace = false;
 
-		
+
 		var reg = ~/(.*?)(\s+)/;
 		var a = new Array();
 		while( reg.match(str) ){
@@ -446,7 +446,7 @@ class Tools {
 		for( i in 0...a.length ){
 			var e = n;
 			n = a[i+1];
-			
+
 			var cut = false;
 			if( i%2 == 1 && cur + e.length + n.length > length ){
 				cut = true;
@@ -475,13 +475,13 @@ class Tools {
 				cur += e.length;
 			}
 		}
-		
+
 		return sb.toString();
 	}
 
 	// TODO routes & groups ?
-	static var REG_ADDRESS = ~/^(([^()<>@,;:\\"\[\]\s[:cntrl:]]+|"(\"|[^"])*")@[A-Z0-9][A-Z0-9-.]*)/i;
-	static var REG_ROUTE_ADDR = ~/^<(([^()<>@,;:\\"\[\]\s[:cntrl:]]+|"(\"|[^"])*")@[A-Z0-9][A-Z0-9-.]*)>/i;
+	static var REG_ADDRESS = ~/^(([^()<>@,;:\\"\[\]\s[:cntrl:]]+|"(\\"|[^"])*")@[A-Z0-9][A-Z0-9-.]*)/i;
+	static var REG_ROUTE_ADDR = ~/^<(([^()<>@,;:\\"\[\]\s[:cntrl:]]+|"(\\"|[^"])*")@[A-Z0-9][A-Z0-9-.]*)>/i;
 	static var REG_ATOM = ~/^([^()<>@,;:"\[\]\s[:cntrl:]]+)/i;
 	static var REG_QSTRING = ~/^"((\\"|[^"])*)"/;
 	static var REG_COMMENT = ~/^\(((\\\)|[^)])*)\)/;
