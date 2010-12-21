@@ -39,9 +39,14 @@
 	}
 
 	public static function parseInt( x : String ) : Null<Int> untyped {
-		var v = _global["parseInt"](x);
-		if( Math.isNaN(v) )
+		var v = _global["parseInt"](x, 10);
+		if( _global["isNaN"](v) ) {
+			if( x.charCodeAt(1) == 'x'.code ) {
+				v = _global["parseInt"](x);
+				if( !_global["isNaN"](v) ) return v; // fast isNaN
+			}
 			return null;
+		}
 		return v;
 	}
 
