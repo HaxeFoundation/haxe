@@ -128,14 +128,9 @@ let unify_call_params ctx name el args p inline =
 	let arg_error ul name opt p =
 		raise (Error (Stack (Unify ul,Custom ("For " ^ (if opt then "optional " else "") ^ "function argument '" ^ name ^ "'")), p))
 	in
-	let enull = (match ctx.com.platform with
-		| Js -> TLocal "undefined"
-		| Flash -> TLocal "__undefined__"
-		| _ -> TConst TNull
-	) in
 	let rec no_opt = function
 		| [] -> []
-		| (e,true) :: l when e.eexpr == enull -> no_opt l
+		| ({ eexpr = TConst TNull },true) :: l -> no_opt l
 		| l -> List.map fst l
 	in
 	let rec default_value t =
@@ -158,7 +153,7 @@ let unify_call_params ctx name el args p inline =
 			let e = type_expr ctx infos true in
 			(e, true)
 		else
-			(mk enull t p, true)
+			(null t p, true)
 	in
 	let rec loop acc l l2 skip =
 		match l , l2 with

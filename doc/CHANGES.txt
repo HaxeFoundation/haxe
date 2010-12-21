@@ -16,7 +16,6 @@
 	         (this can be disabled with -D dontWaitStage)
 	all : added haxe.Timer.measure
 	all : added Lambda.indexOf and Lambda.concat
-	js, flash8: changed behavior when explicitely using 'null' for optional param with default value
 	all : no longer allow inline vars as metadata values
 	neko : added getFieldsNames to neko.db.ResultSet (supported in Neko 1.8.2 mysql driver)
 	all : added --macros and haxe.macro.Compiler

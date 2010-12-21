@@ -158,7 +158,12 @@ class TestMisc extends Test {
 		eq( opt1("str").x, null );
 		eq( opt1("str").y, "str" );
 		eq( opt1(66,"hello").x, 66 );
-		eq( opt1(66,"hello").y, "hello" );
+		eq( opt1(66, "hello").y, "hello" );
+		
+		#if !flash9
+		eq( opt2(null, null).x, 5 );
+		#end
+		eq( opt2(0, null).y, "hello" );
 
 		eq( opt2().x, 5 );
 		eq( opt2().y, "hello" );
