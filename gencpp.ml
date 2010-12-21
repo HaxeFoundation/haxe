@@ -1495,6 +1495,7 @@ and gen_expression ctx retval expression =
 		end
 	| TMatch (condition, enum, cases, default) ->
 	let tmp_var = get_switch_var ctx in
+	writer#begin_block;
 	output ( (type_string condition.etype) ^ " " ^ tmp_var ^ " = " );
 	gen_expression ctx true condition;
 	output ";\n";
@@ -1544,7 +1545,8 @@ and gen_expression ctx retval expression =
 		ctx.ctx_return_from_block <- return_from_internal_node;
 		gen_expression ctx false (to_block e);
 	);
-	writer#end_block
+	writer#end_block;
+	writer#end_block;
 
 	| TTry (expression, catch_list) ->
 		output "try";
