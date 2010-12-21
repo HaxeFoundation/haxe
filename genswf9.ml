@@ -536,27 +536,34 @@ let debug_infos ?(is_min=true) ctx p =
 		end
 	end
 
-let end_fun ctx args tret =
-	let dparams = ref None in
-	let constant_value t = function
-		| None -> HVNone
-		| Some c ->
-			match c with
-			| TInt i ->
-				(match classify ctx t with
-				| KUInt -> HVUInt i
-				| _ -> HVInt i)
-			| TFloat s -> HVFloat (float_of_string s)
-			| TString s -> HVString (Genswf8.to_utf8 s)
-			| TBool b -> HVBool b
-			| TNull -> HVNone
-			| TThis	| TSuper -> assert false
-	in
-	List.iter (fun (_,c,t) ->
-		match !dparams with
-		| None -> if c <> None then dparams := Some [constant_value t c]
-		| Some l -> dparams := Some (constant_value t c :: l)
-	) args;
+let gen_constant ctx c t p =
+	match c with
+	| TInt i ->
+		let unsigned = classify ctx t = KUInt in
+		if Int32.compare i (-128l) > 0 && Int32.compare i 128l < 0 then begin
+			write ctx (HSmallInt (Int32.to_int i));
+			if unsigned then write ctx HToUInt;
+		end else
+			write ctx (if unsigned then HUIntRef i else HIntRef i)
+	| TFloat f ->
+		let f = float_of_string f in
+		write ctx (HFloat f);
+	| TString s ->
+		write ctx (HString (Genswf8.to_utf8 s));
+	| TBool b ->
+		write ctx (if b then HTrue else HFalse);
+	| TNull ->
+		write ctx HNull;
+		(match classify ctx t with
+		| KInt | KBool | KUInt | KFloat ->
+			error ("In Flash9, null can't be used as basic type " ^ s_type (print_context()) t) p
+		| x -> coerce ctx x)
+	| TThis ->
+		write ctx HThis
+	| TSuper ->
+		assert false
+
+let end_fun ctx args dparams tret =
 	{
 		hlmt_index = 0;
 		hlmt_ret = type_void ctx tret;
@@ -564,7 +571,7 @@ let end_fun ctx args tret =
 		hlmt_native = false;
 		hlmt_var_args = false;
 		hlmt_debug_name = None;
-		hlmt_dparams = (match !dparams with None -> None | Some l -> Some (List.rev l));
+		hlmt_dparams = dparams;
 		hlmt_pnames = if ctx.swc || ctx.debugger then Some (List.map (fun (n,_,_) -> Some n) args) else None;
 		hlmt_new_block = false;
 		hlmt_unused_flag = false;
@@ -605,15 +612,46 @@ let begin_fun ctx args tret el stat p =
 		| LScope _ -> PMap.add name (LGlobal (ident name)) acc
 		| LGlobal _ -> PMap.add name l acc
 	) ctx.locals PMap.empty;
-	List.iter (fun (name,_,t) ->
-		define_local ctx name ~init:true t el p;
+
+	let dparams = ref None in
+	let make_constant_value r c t =
+		let v = (match classify ctx t, c with
+		| _, None -> HVNone
+		| (KInt | KFloat | KUInt | KBool) as kind, Some c ->
+			(match c with
+			| TInt i -> if kind = KUInt then HVUInt i else HVInt i
+			| TFloat s -> HVFloat (float_of_string s)
+			| TBool b -> HVBool b			
+			| TNull -> error ("In Flash9, null can't be used as basic type " ^ s_type (print_context()) t) p
+			| _ -> assert false)
+		| _, Some TNull -> HVNone
+		| _, Some c ->
+			write ctx (HReg r.rid);
+			write ctx HNull;
+			let j = jump ctx J3Neq in
+			gen_constant ctx c t p;
+			write ctx (HSetReg r.rid);
+			j();
+			HVNone
+		) in
+		match !dparams with
+		| None -> if c <> None then dparams := Some [v]
+		| Some l -> dparams := Some (v :: l)		
+	in
+
+	List.iter (fun (name,c,t) ->
+		define_local ctx name ~init:true t el p;		
 		match gen_local_access ctx name null_pos Write with
-		| VReg _ -> ()
+		| VReg r ->
+			make_constant_value r c t
 		| acc ->
 			let r = alloc_reg ctx (classify ctx t) in
+			make_constant_value r c t;
 			write ctx (HReg r.rid);
 			setvar ctx acc None
 	) args;
+
+	let dparams = (match !dparams with None -> None | Some l -> Some (List.rev l)) in
 	let args, varargs = (match args with
 		| ["__arguments__",_,_] -> [], true
 		| _ -> args, false
@@ -680,7 +718,7 @@ let begin_fun ctx args tret el stat p =
 			) (List.rev ctx.trys));
 			hlf_locals = Array.of_list (List.map (fun (id,name,t) -> ident name, t, id, false) ctx.block_vars);
 		} in
-		let mt = { (end_fun ctx args tret) with
+		let mt = { (end_fun ctx args dparams tret) with
 			hlmt_var_args = varargs;
 			hlmt_new_block = hasblock;
 			hlmt_function = Some f;
@@ -717,33 +755,6 @@ let begin_loop ctx =
 		ctx.breaks <- old_breaks;
 		ctx.continues <- old_conts;
 	)
-
-let gen_constant ctx c t p =
-	match c with
-	| TInt i ->
-		let unsigned = classify ctx t = KUInt in
-		if Int32.compare i (-128l) > 0 && Int32.compare i 128l < 0 then begin
-			write ctx (HSmallInt (Int32.to_int i));
-			if unsigned then write ctx HToUInt;
-		end else
-			write ctx (if unsigned then HUIntRef i else HIntRef i)
-	| TFloat f ->
-		let f = float_of_string f in
-		write ctx (HFloat f);
-	| TString s ->
-		write ctx (HString (Genswf8.to_utf8 s));
-	| TBool b ->
-		write ctx (if b then HTrue else HFalse);
-	| TNull ->
-		write ctx HNull;
-		(match classify ctx t with
-		| KInt | KBool | KUInt | KFloat ->
-			error ("In Flash9, null can't be used as basic type " ^ s_type (print_context()) t) p
-		| x -> coerce ctx x)
-	| TThis ->
-		write ctx HThis
-	| TSuper ->
-		assert false
 
 let no_value ctx retval =
 	(* does not push a null but still increment the stack like if
@@ -1643,7 +1654,17 @@ let generate_method ctx fdata stat =
 
 let generate_construct ctx fdata c =
 	(* make all args optional to allow no-param constructor *)
-	let f = begin_fun ctx (List.map (fun (a,c,t) -> a,(match c with None -> Some TNull | _ -> c),t) fdata.tf_args) fdata.tf_type [ethis;fdata.tf_expr] false fdata.tf_expr.epos in
+	let cargs = List.map (fun (a,c,t) -> 
+		let c = (match c with Some _ -> c | None ->
+			Some (match classify ctx t with
+			| KInt | KUInt -> TInt 0l
+			| KFloat -> TFloat "0"
+			| KBool -> TBool false
+			| KType _ | KDynamic | KNone -> TNull)			
+		) in
+		a,c,t
+	) fdata.tf_args in
+	let f = begin_fun ctx cargs fdata.tf_type [ethis;fdata.tf_expr] false fdata.tf_expr.epos in
 	(* if skip_constructor, then returns immediatly *)
 	(match c.cl_kind with
 	| KGenericInstance _ -> ()
@@ -1853,7 +1874,7 @@ let generate_field_kind ctx f c stat =
 		(match follow f.cf_type, f.cf_kind with
 		| TFun (args,tret), Method (MethNormal | MethInline) ->
 			Some (HFMethod {
-				hlm_type = end_fun ctx (List.map (fun (a,opt,t) -> a, (if opt then Some TNull else None), t) args) tret;
+				hlm_type = end_fun ctx (List.map (fun (a,opt,t) -> a, (if opt then Some TNull else None), t) args) None tret;
 				hlm_final = false;
 				hlm_override = false;
 				hlm_kind = MK3Normal;

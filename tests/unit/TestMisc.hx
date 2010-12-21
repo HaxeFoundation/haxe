@@ -149,6 +149,10 @@ class TestMisc extends Test {
 	function opt2( ?x = 5, ?y = "hello" ) {
 		return { x : x, y : y };
 	}
+	
+	function opt3( ?x : Null<Int> = 5, ?y : Null<Float> = 6 ) {
+		return { x : x, y : y };
+	}
 
 	function testOptionalParams() {
 		eq( opt1().x, null );
@@ -159,14 +163,31 @@ class TestMisc extends Test {
 		eq( opt1("str").y, "str" );
 		eq( opt1(66,"hello").x, 66 );
 		eq( opt1(66, "hello").y, "hello" );
+
+		eq( opt2().x, 5 );
+		eq( opt2().y, "hello" );
 		
 		#if !flash9
 		eq( opt2(null, null).x, 5 );
 		#end
 		eq( opt2(0, null).y, "hello" );
 
-		eq( opt2().x, 5 );
-		eq( opt2().y, "hello" );
+		eq( opt3().x, 5 );
+		eq( opt3().y, 6 );
+		eq( opt3(9).x, 9 );
+		eq( opt3(9).y, 6 );
+		eq( opt3(9,10).x, 9 );
+		eq( opt3(9,10).y, 10 );
+		eq( opt3(null,null).x, 5 );
+		eq( opt3(null,null).y, 6 );
+		eq( opt3(null).x, 5 );
+		eq( opt3(null).y, 6 );
+		eq( opt3(null,7).x, 5 );
+		eq( opt3(null, 7).y, 7 );
+		
+		// skipping
+		eq( opt3(7.4).x, 5 );
+		eq( opt3(7.4).y, 7.4 );
 	}
 
 	function testIncr() {
