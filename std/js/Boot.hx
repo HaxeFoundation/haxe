@@ -234,7 +234,8 @@ package js;
 					}
 				}
 			};
-			String.prototype.cca = String.prototype.charCodeAt;
+			if( String.prototype.cca == null )
+				String.prototype.cca = String.prototype.charCodeAt;
 			String.prototype.charCodeAt = function(i) {
 				var x = this.cca(i);
 				if( x != x ) // fast isNaN
