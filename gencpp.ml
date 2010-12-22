@@ -1256,8 +1256,8 @@ and gen_expression ctx retval expression =
 		| TBool b -> output (if b then "true" else "false")
 		(*| TNull -> output ("((" ^ (type_string expression.etype) ^ ")null())")*)
 		| TNull -> output "null()"
-		| TThis -> output (if ctx.ctx_real_this_ptr then "this" else "__this")
-		| TSuper -> output (if ctx.ctx_real_this_ptr then "((super *)this)" else "((super*)__this)")
+		| TThis -> output (if ctx.ctx_real_this_ptr then "hx::ObjectPtr<OBJ_>(this)" else "__this")
+		| TSuper -> output ("hx::ObjectPtr<super>(" ^ (if ctx.ctx_real_this_ptr then "this" else "__this.mPtr") ^ ")")
 		)
 
 
