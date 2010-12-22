@@ -51,7 +51,7 @@ class FileSystem {
 	}
 
 	public static function rename( path : String, newpath : String ) {
-		untyped sys_rename(path.__s,newpath.__s);
+		untyped sys_rename(path,newpath);
 	}
 
 	public static function stat( path : String ) : FileStat {
