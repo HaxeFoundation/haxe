@@ -1873,8 +1873,15 @@ let generate_field_kind ctx f c stat =
 	| _ when c.cl_interface && not stat ->
 		(match follow f.cf_type, f.cf_kind with
 		| TFun (args,tret), Method (MethNormal | MethInline) ->
+			let dparams = ref None in
+			List.iter (fun (_,o,t) ->
+				match !dparams with
+				| None -> if o then dparams := Some [HVNone]
+				| Some l -> dparams := Some (HVNone :: l)
+			) args;
+			let dparams = (match !dparams with None -> None | Some l -> Some (List.rev l)) in
 			Some (HFMethod {
-				hlm_type = end_fun ctx (List.map (fun (a,opt,t) -> a, (if opt then Some TNull else None), t) args) None tret;
+				hlm_type = end_fun ctx (List.map (fun (a,opt,t) -> a, (if opt then Some TNull else None), t) args) dparams tret;
 				hlm_final = false;
 				hlm_override = false;
 				hlm_kind = MK3Normal;
