@@ -1,3 +1,4 @@
+import php.Lib;
 /*
  * Copyright (c) 2005, The haXe Project Contributors
  * All rights reserved.

@@ -801,7 +801,16 @@ let init_class ctx c p herits fields =
 			) in
 			let delay = if (ctx.com.dead_code_elimination && not !Common.display) then begin
 				let is_main = (match ctx.com.main_class with | Some cl when c.cl_path = cl -> true | _ -> false) && name = "main" in
-				let keep = core_api || is_main || has_meta ":keep" c.cl_meta || has_meta ":keep" f.cff_meta || (stat && name = "__init__") in
+				let platform_boot pf = match pf with
+					| Flash -> [["flash"], "Boot"]
+					| Flash9 -> [["flash"; "_Boot"], "RealBoot"; ["flash"], "Boot"]
+					| Js -> [["js"], "Boot"]
+					| Neko -> [["neko"], "Boot"]
+					| Php -> [["php"], "Boot"]
+					| Cpp -> [["cpp"], "Boot"]
+					| _ -> [] in
+				let must_keep = (List.exists (fun p -> p = c.cl_path) (platform_boot ctx.com.platform)) in
+				let keep = core_api || is_main || must_keep || has_meta ":keep" c.cl_meta || has_meta ":keep" f.cff_meta || (stat && name = "__init__") in
 				let remove item lst = List.filter (fun i -> item <> i.cf_name) lst in
 				if ((c.cl_extern && not inline) || c.cl_interface) && cf.cf_name <> "__init__" then begin
 					(fun() -> ())
@@ -813,7 +822,7 @@ let init_class ctx c p herits fields =
 								
 								match cf.cf_expr with
 								| None ->
-									if ctx.com.verbose then print_endline ("Removed " ^ (snd c.cl_path) ^ "." ^ name);
+									if ctx.com.verbose then print_endline ("Removed " ^ (s_type_path c.cl_path) ^ "." ^ name);
 									if stat then begin
 										c.cl_statics <- PMap.remove name c.cl_statics;
 										c.cl_ordered_statics <- remove name c.cl_ordered_statics;

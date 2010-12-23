@@ -25,7 +25,7 @@
 package flash;
 
 #if !as3
-@:keep private class RealBoot extends Boot, implements Dynamic {
+private class RealBoot extends Boot, implements Dynamic {
 	#if swc
 	public function new() {
 		super();
@@ -44,7 +44,7 @@ package flash;
 }
 #end
 
-@:keep class Boot extends flash.display.MovieClip {
+class Boot extends flash.display.MovieClip {
 
 	static var tf : flash.text.TextField;
 	static var lines : Array<String>;
