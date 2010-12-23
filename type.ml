@@ -138,7 +138,7 @@ and tclass_kind =
 	| KGeneric
 	| KGenericInstance of tclass * tparams
 
-and metadata = (string * Ast.expr list) list
+and metadata = Ast.metadata
 
 and tclass = {
 	mutable cl_path : path;
@@ -523,7 +523,7 @@ let invalid_visibility n = Invalid_visibility n
 let has_no_field t n = Has_no_field (t,n)
 let has_extra_field t n = Has_extra_field (t,n)
 let error l = raise (Unify_error l)
-let has_meta m ml = List.exists (fun (m2,_) -> m = m2) ml
+let has_meta m ml = List.exists (fun (m2,_,_) -> m = m2) ml
 let no_meta = []
 
 (*

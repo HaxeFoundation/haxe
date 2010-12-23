@@ -21,10 +21,6 @@ open Type
 open Common
 open Typecore
 
-(* make sure we don't access metadata at load time *)
-let has_meta m (ml:Ast.metadata) =
-	List.exists (fun(m2,_) -> m = m2) ml
-
 let type_function_param ctx t e opt p =
 	match e with
 	| None ->
@@ -890,7 +886,7 @@ let init_class ctx c p herits fields =
 	in
 	let rec check_require = function
 		| [] -> None
-		| (":require",conds) :: l ->
+		| (":require",conds,_) :: l ->
 			let rec loop = function
 				| [] -> check_require l
 				| (EConst (Ident i | Type i),_) :: l ->
@@ -1158,7 +1154,7 @@ let type_module ctx m tdecls loadp =
 			let names = ref [] in
 			let index = ref 0 in
 			let rec loop = function
-				| (":build",[ECall (epath,el),p]) :: _ ->
+				| (":build",[ECall (epath,el),p],_) :: _ ->
 					let rec loop (e,p) =
 						match e with
 						| EConst (Ident i) | EConst (Type i) -> i

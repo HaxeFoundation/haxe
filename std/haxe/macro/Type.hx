@@ -94,7 +94,7 @@ typedef DefType = {> BaseType,
 }
 
 typedef Metadata = {
-	function get() : Array<{ name : String, params : Array<Expr> }>;
-	function add( name : String, params : Array<Expr> ) : Void;
+	function get() : Array<{ name : String, params : Array<Expr>, pos : Expr.Position }>;
+	function add( name : String, params : Array<Expr>, pos : Expr.Position ) : Void;
 	function remove( name : String ) : Void;
 }

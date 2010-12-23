@@ -52,7 +52,7 @@ let gen_arg_name (name,opt,_) =
 let cpath c =
 	let rec loop = function
 		| [] -> c.cl_path
-		| (":real",[(Ast.EConst (Ast.String s),_)]) :: _ -> parse_path s
+		| (":real",[(Ast.EConst (Ast.String s),_)],_) :: _ -> parse_path s
 		| _ :: l -> loop l
 	in
 	loop c.cl_meta
@@ -286,7 +286,7 @@ let generate_type com t =
 			n ^ " : " ^ stype t ^ " = " ^ (s_constant v)
 	in
 	let print_meta ml =
-		List.iter (fun (m,pl) ->
+		List.iter (fun (m,pl,_) ->
 			match m with
 			| ":defparam" -> ()
 			| _ ->
@@ -315,7 +315,7 @@ let generate_type com t =
 					List.map (fun (a,o,t) ->
 						let rec loop = function
 							| [] -> Ident "null"
-							| (":defparam",[(EConst (String p),_);(EConst v,_)]) :: _ when p = a ->
+							| (":defparam",[(EConst (String p),_);(EConst v,_)],_) :: _ when p = a ->
 								(match v with
 								| Float "1.#QNAN" -> Float "0./*NaN*/"
 								| Float "4294967295." -> Int "0xFFFFFFFF"

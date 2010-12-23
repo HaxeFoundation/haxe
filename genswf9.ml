@@ -1825,7 +1825,7 @@ let generate_enum_init ctx e hc meta =
 let extract_meta meta =
 	let rec loop = function
 		| [] -> []
-		| (":meta",[ECall ((EConst (Ident n | Type n),_),args),_]) :: l ->
+		| (":meta",[ECall ((EConst (Ident n | Type n),_),args),_],_) :: l ->
 			let mk_arg (a,p) =
 				match a with
 				| EConst (String s) -> (None, s)
@@ -1858,8 +1858,8 @@ let generate_field_kind ctx f c stat =
 		| _ ->
 			let rec lookup_kind = function
 				| [] -> f.cf_name, MK3Normal
-				| (":getter",[EConst (Ident f | Type f),_]) :: _ -> f, MK3Getter
-				| (":setter",[EConst (Ident f | Type f),_]) :: _ -> f, MK3Setter
+				| (":getter",[EConst (Ident f | Type f),_],_) :: _ -> f, MK3Getter
+				| (":setter",[EConst (Ident f | Type f),_],_) :: _ -> f, MK3Setter
 				| _ :: l -> lookup_kind l
 			in
 			let name, kind = lookup_kind f.cf_meta in
@@ -1937,9 +1937,9 @@ let generate_class ctx c =
 				| [] -> ident f.cf_name
 				| x :: l ->
 					match x with
-					| ((":getter" | ":setter"),[EConst (Ident f | Type f),_]) -> ident f
-					| (":ns",[EConst (String ns),_]) -> HMName (f.cf_name,HNNamespace ns)
-					| (":protected",[]) ->
+					| ((":getter" | ":setter"),[EConst (Ident f | Type f),_],_) -> ident f
+					| (":ns",[EConst (String ns),_],_) -> HMName (f.cf_name,HNNamespace ns)
+					| (":protected",[],_) ->
 						let p = (match c.cl_path with [], n -> n | p, n -> String.concat "." p ^ ":" ^ n) in
 						has_protected := Some p;
 						HMName (f.cf_name,HNProtected p)

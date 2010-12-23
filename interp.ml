@@ -2794,17 +2794,18 @@ let encode_meta m set =
 	let meta = ref m in
 	enc_obj [
 		"get", VFunction (Fun0 (fun() ->
-			enc_array (List.map (fun (m,ml) ->
+			enc_array (List.map (fun (m,ml,p) ->
 				enc_obj [
 					"name", enc_string m;
 					"params", enc_array (List.map encode_expr ml);
+					"pos", encode_pos p;
 				]
 			) (!meta))
 		));
-		"add", VFunction (Fun2 (fun k vl ->
+		"add", VFunction (Fun3 (fun k vl p ->
 			(try
 				let el = List.map decode_expr (dec_array vl) in
-				meta := (dec_string k, el) :: !meta;
+				meta := (dec_string k, el, decode_pos p) :: !meta;
 				set (!meta)
 			with Invalid_expr ->
 				failwith "Invalid expression");
@@ -2812,7 +2813,7 @@ let encode_meta m set =
 		));
 		"remove", VFunction (Fun1 (fun k ->
 			let k = (try dec_string k with Invalid_expr -> raise Builtin_error) in
-			meta := List.filter (fun (m,_) -> m <> k) (!meta);
+			meta := List.filter (fun (m,_,_) -> m <> k) (!meta);
 			set (!meta);
 			VNull
 		));

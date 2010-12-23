@@ -254,7 +254,7 @@ let build_class com c file =
 		let flags = if stat then AStatic :: flags else flags in
 		let name = (make_tpath f.hlf_name).tname in
 		let mk_meta() =
-			List.map (fun (s,cl) -> s, List.map (fun c -> EConst c,pos) cl) (!meta)
+			List.map (fun (s,cl) -> s, List.map (fun c -> EConst c,pos) cl, pos) (!meta)
 		in
 		let cf = {
 			cff_name = name;
@@ -408,7 +408,7 @@ let build_class com c file =
 		d_name = path.tname;
 		d_doc = None;
 		d_params = [];
-		d_meta = if c.hlc_final && List.exists (fun f -> f.cff_name <> "new" && not (List.mem AStatic f.cff_access)) fields then [":final",[]] else [];
+		d_meta = if c.hlc_final && List.exists (fun f -> f.cff_name <> "new" && not (List.mem AStatic f.cff_access)) fields then [":final",[],pos] else [];
 		d_flags = flags;
 		d_data = fields;
 	} in

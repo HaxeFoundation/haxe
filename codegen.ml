@@ -292,7 +292,7 @@ let build_metadata com t =
 			(t.t_pos, ["",t.t_meta],(match follow t.t_type with TAnon a -> PMap.fold (fun f acc -> (f.cf_name,f.cf_meta) :: acc) a.a_fields [] | _ -> []),[])
 	) in
 	let filter l =
-		let l = List.map (fun (n,ml) -> n, List.filter (fun (m,_) -> m.[0] <> ':') ml) l in
+		let l = List.map (fun (n,ml) -> n, List.filter (fun (m,_,_) -> m.[0] <> ':') ml) l in
 		List.filter (fun (_,ml) -> ml <> []) l
 	in
 	let meta, fields, statics = filter meta, filter fields, filter statics in
@@ -316,7 +316,7 @@ let build_metadata com t =
 			error "Metadata should be constant" p
 	in
 	let make_meta_field ml =
-		mk (TObjectDecl (List.map (fun (f,el) ->
+		mk (TObjectDecl (List.map (fun (f,el,_) ->
 			f, mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map loop el)) (api.tarray t_dynamic) p
 		) ml)) (api.tarray t_dynamic) p
 	in
@@ -390,8 +390,8 @@ let on_generate ctx t =
 	| TClassDecl c ->
 		List.iter (fun m ->
 			match m with
-			| ":native",[Ast.EConst (Ast.String name),p] ->
-				c.cl_meta <- (":real",[Ast.EConst (Ast.String (s_type_path c.cl_path)),p]) :: c.cl_meta;
+			| ":native",[Ast.EConst (Ast.String name),p],mp ->
+				c.cl_meta <- (":real",[Ast.EConst (Ast.String (s_type_path c.cl_path)),p],mp) :: c.cl_meta;
 				c.cl_path <- parse_path name;
 			| _ -> ()
 		) c.cl_meta;

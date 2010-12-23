@@ -248,17 +248,17 @@ and parse_common_flags = parser
 	| [< >] -> []
 
 and parse_meta = parser
-	| [< '(At,_); name = meta_name; s >] ->
+	| [< '(At,_); name,p = meta_name; s >] ->
 		(match s with parser
-		| [< '(POpen,_); params = psep Comma expr; '(PClose,_); s >] -> (name,params) :: parse_meta s
-		| [< >] -> (name,[]) :: parse_meta s)
+		| [< '(POpen,_); params = psep Comma expr; '(PClose,_); s >] -> (name,params,p) :: parse_meta s
+		| [< >] -> (name,[],p) :: parse_meta s)
 	| [< >] -> []
 
 and meta_name = parser
-	| [< '(Const (Ident i),_) >] -> i
-	| [< '(Const (Type t),_) >] -> t
-	| [< '(Kwd k,_) >] -> s_keyword k
-	| [< '(DblDot,_); s >] -> ":" ^ meta_name s
+	| [< '(Const (Ident i),p) >] -> i, p
+	| [< '(Const (Type t),p) >] -> t, p
+	| [< '(Kwd k,p) >] -> s_keyword k,p
+	| [< '(DblDot,_); s >] -> let n, p = meta_name s in ":" ^ n, p
 
 and parse_enum_flags = parser
 	| [< '(Kwd Enum,p) >] -> [] , p

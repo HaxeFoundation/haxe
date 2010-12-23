@@ -199,7 +199,7 @@ type type_param = string * type_path list
 
 type documentation = string option
 
-type metadata = (string * expr list) list
+type metadata = (string * expr list * pos) list
 
 type access =
 	| APublic
