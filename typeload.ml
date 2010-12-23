@@ -679,6 +679,32 @@ let init_class ctx c p herits fields =
 		| Some (c,_) ->
 			PMap.exists f c.cl_fields || has_field f c.cl_super || List.exists (fun i -> has_field f (Some i)) c.cl_implements
 	in
+	let is_main n = (match ctx.com.main_class with | Some cl when c.cl_path = cl -> true | _ -> false) && n = "main" in
+	let must_keep_types pf = match pf with
+		| Flash -> [["flash"], "Boot"]
+		| Flash9 -> [["flash"; "_Boot"], "RealBoot"; ["flash"], "Boot"]
+		| Js -> [["js"], "Boot"]
+		| Neko -> [["neko"], "Boot"]
+		| Php -> [["php"], "Boot"]
+		| Cpp -> [["cpp"], "Boot"]
+		| _ -> [] in
+	let must_keep_class = (List.exists (fun p -> p = c.cl_path) (must_keep_types ctx.com.platform)) in
+	let keep f stat = core_api || (is_main f.cff_name) || must_keep_class || has_meta ":keep" c.cl_meta || has_meta ":keep" f.cff_meta || (stat && f.cff_name = "__init__") in
+	let remove_by_cfname item lst = List.filter (fun i -> item <> i.cf_name) lst in
+	let remove_untyped_field cf stat = (fun () ->
+		match cf.cf_expr with
+		| None ->
+			if ctx.com.verbose then print_endline ("Removed " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name);
+			if stat then begin
+				c.cl_statics <- PMap.remove cf.cf_name c.cl_statics;
+				c.cl_ordered_statics <- remove_by_cfname cf.cf_name c.cl_ordered_statics;
+			end else begin
+				if cf.cf_name = "new" then c.cl_constructor <- None;
+				c.cl_fields <- PMap.remove cf.cf_name c.cl_fields;
+				c.cl_ordered_fields <- remove_by_cfname cf.cf_name c.cl_ordered_fields;
+			end
+		| _ -> ()) 
+	in
 	let loop_cf f =
 		let name = f.cff_name in
 		let p = f.cff_pos in
@@ -710,7 +736,26 @@ let init_class ctx c p herits fields =
 				cf_public = is_public f.cff_access None;
 				cf_params = [];
 			} in
-			let delay = (match e with
+			let delay = if (ctx.com.dead_code_elimination && not !Common.display) then begin
+				(match e with
+				| None -> (fun() -> ())
+				| Some e ->
+					let ctx = { ctx with curclass = c; tthis = tthis } in
+					let r = exc_protect (fun r ->
+						r := (fun() -> t);
+						if ctx.com.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
+						cf.cf_expr <- Some (type_static_var ctx t e p);
+						t
+					) in
+					cf.cf_type <- TLazy r;
+					(fun () -> 
+						if not (keep f stat) then begin
+							delay ctx (remove_untyped_field cf stat)
+						end else
+							ignore(!r())
+					)
+				)
+			end else (match e with
 				| None -> (fun() -> ())
 				| Some e ->
 					let ctx = { ctx with curclass = c; tthis = tthis } in
@@ -800,38 +845,13 @@ let init_class ctx c p herits fields =
 				t
 			) in
 			let delay = if (ctx.com.dead_code_elimination && not !Common.display) then begin
-				let is_main = (match ctx.com.main_class with | Some cl when c.cl_path = cl -> true | _ -> false) && name = "main" in
-				let platform_boot pf = match pf with
-					| Flash -> [["flash"], "Boot"]
-					| Flash9 -> [["flash"; "_Boot"], "RealBoot"; ["flash"], "Boot"]
-					| Js -> [["js"], "Boot"]
-					| Neko -> [["neko"], "Boot"]
-					| Php -> [["php"], "Boot"]
-					| Cpp -> [["cpp"], "Boot"]
-					| _ -> [] in
-				let must_keep = (List.exists (fun p -> p = c.cl_path) (platform_boot ctx.com.platform)) in
-				let keep = core_api || is_main || must_keep || has_meta ":keep" c.cl_meta || has_meta ":keep" f.cff_meta || (stat && name = "__init__") in
-				let remove item lst = List.filter (fun i -> item <> i.cf_name) lst in
 				if ((c.cl_extern && not inline) || c.cl_interface) && cf.cf_name <> "__init__" then begin
 					(fun() -> ())
 				end else begin
 					cf.cf_type <- TLazy r;
 					(fun() -> 
-						if not keep then begin
-							delay ctx (fun () ->
-								
-								match cf.cf_expr with
-								| None ->
-									if ctx.com.verbose then print_endline ("Removed " ^ (s_type_path c.cl_path) ^ "." ^ name);
-									if stat then begin
-										c.cl_statics <- PMap.remove name c.cl_statics;
-										c.cl_ordered_statics <- remove name c.cl_ordered_statics;
-									end else begin
-										if name = "new" then c.cl_constructor <- None;
-										c.cl_fields <- PMap.remove name c.cl_fields;
-										c.cl_ordered_fields <- remove name c.cl_ordered_fields;
-									end
-								| _ -> ())
+						if not (keep f stat) then begin
+							delay ctx (remove_untyped_field cf stat)
 						end else
 							ignore((!r)())
 					)
