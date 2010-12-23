@@ -750,7 +750,6 @@ let init_class ctx c p herits fields =
 				| None ->
 					let r = exc_protect (fun r ->
 						r := (fun() -> t);
-						if ctx.com.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
 						cf.cf_meta <- if has_meta ":keep" cf.cf_meta then f.cff_meta else (":keep", [], p) :: f.cff_meta;
 						t
 					) in
