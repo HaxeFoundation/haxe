@@ -1732,7 +1732,7 @@ let generate_inits ctx =
 	List.iter (fun t ->
 		match t with
 		| TClassDecl c when need_init ctx c ->
-			let id = ident "__init__" in
+			let id = ident "init__" in
 			getvar ctx (VGlobal (type_path ctx c.cl_path));
 			getvar ctx (VId id);
 			let j = jump ctx J3True in
@@ -1985,7 +1985,7 @@ let generate_class ctx c =
 	) c.cl_ordered_statics in
 	let statics = if not (need_init ctx c) then statics else  
 		{
-			hlf_name = ident "__init__";
+			hlf_name = ident "init__";
 			hlf_slot = (incr st_field_count; !st_field_count);
 			hlf_kind = HFVar { hlv_type = (Some (type_id ctx ctx.com.basic.tbool)); hlv_value = HVNone; hlv_const = false; };
 			hlf_metas = None;
