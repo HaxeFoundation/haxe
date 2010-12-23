@@ -565,6 +565,8 @@ try
 		let filters = (match com.platform with Js | Php | Cpp -> Optimizer.sanitize :: filters | _ -> filters) in
 		let filters = (if not com.foptimize then filters else Optimizer.reduce_expression ctx :: filters) in
 		Codegen.post_process com filters;
+		if com.dead_code_elimination then
+			Common.add_filter com (fun() -> Optimizer.filter_dead_classes com);
 		Common.add_filter com (fun() -> List.iter (Codegen.on_generate ctx) com.types);
 		List.iter (fun f -> f()) (List.rev com.filters);
 		if Common.defined com "dump" then Codegen.dump_types com;

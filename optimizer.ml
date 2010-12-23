@@ -483,6 +483,38 @@ let rec reduce_loop ctx is_sub e =
 
 let reduce_expression ctx e =
 	if ctx.com.foptimize then reduce_loop ctx false e else e
+	
+(* ---------------------------------------------------------------------- *)
+(* ELIMINATE DEAD CLASSES *)
+
+(*
+	if dead code elimination is on, any class without fields is eliminated from the output.
+*)
+	
+let filter_dead_classes com =
+	let must_keep_classes = match com.platform with
+(*		| Flash
+		| Flash9 ->
+			[["flash"], "Lib"]
+		| Js -> 
+			[["js"], "Lib"] *)
+		| _ -> 
+			[] in
+	com.types <- List.filter (fun t ->
+		match t with
+		| TClassDecl c ->
+			if c.cl_extern || (List.exists (fun i -> i = c.cl_path) must_keep_classes) then 
+				true 
+			else (match (c.cl_ordered_statics, c.cl_ordered_fields, c.cl_constructor) with
+			| ([], [], None) ->
+				if com.verbose then print_endline ("Remove class " ^ s_type_path c.cl_path);
+				false
+			| _ ->
+				true)
+		| _ ->
+			true
+	) com.types
+
 
 (* ---------------------------------------------------------------------- *)
 (* SANITIZE *)
