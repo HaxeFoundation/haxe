@@ -313,11 +313,11 @@ let check_overriding ctx c p () =
 				else if f.cf_public <> f2.cf_public then
 					display_error ctx ("Field " ^ i ^ " has different visibility (public/private) than superclass one") p
 				else (match f.cf_kind, f2.cf_kind with
+				| _, Method MethInline ->
+					display_error ctx ("Field " ^ i ^ " is inlined and cannot be overridden") p
 				| a, b when a = b -> ()
 				| Method MethInline, Method MethNormal ->
 					() (* allow to redefine a method as inlined *)
-				| _, Method MethInline ->
-					display_error ctx ("Field " ^ i ^ " is inlined and cannot be overridden") p
 				| _ ->
 					display_error ctx ("Field " ^ i ^ " has different property access than in superclass") p);
 				try
