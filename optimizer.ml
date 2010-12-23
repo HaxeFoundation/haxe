@@ -492,18 +492,10 @@ let reduce_expression ctx e =
 *)
 	
 let filter_dead_classes com =
-	let must_keep_classes = match com.platform with
-(*		| Flash
-		| Flash9 ->
-			[["flash"], "Lib"]
-		| Js -> 
-			[["js"], "Lib"] *)
-		| _ -> 
-			[] in
 	com.types <- List.filter (fun t ->
 		match t with
 		| TClassDecl c ->
-			if c.cl_extern || (List.exists (fun i -> i = c.cl_path) must_keep_classes) then 
+			if c.cl_extern then 
 				true 
 			else (match (c.cl_ordered_statics, c.cl_ordered_fields, c.cl_constructor) with
 			| ([], [], None) ->
