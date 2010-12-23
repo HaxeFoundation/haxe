@@ -692,7 +692,6 @@ let init_class ctx c p herits fields =
 	let keep f stat = core_api || (is_main f.cff_name) || c.cl_extern || must_keep_class || has_meta ":keep" c.cl_meta || has_meta ":keep" f.cff_meta || (stat && f.cff_name = "__init__") in
 	let remove_by_cfname item lst = List.filter (fun i -> item <> i.cf_name) lst in
 	let remove_field cf stat =
-		if ctx.com.verbose then print_endline ("Remove field " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name);
 		if stat then begin
 			c.cl_statics <- PMap.remove cf.cf_name c.cl_statics;
 			c.cl_ordered_statics <- remove_by_cfname cf.cf_name c.cl_ordered_statics;
@@ -705,11 +704,15 @@ let init_class ctx c p herits fields =
 	let remove_method_if_unreferenced cf stat = (fun () ->
 		match cf.cf_expr with
 		| None ->
+			if ctx.com.verbose then print_endline ("Remove method " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name);
 			remove_field cf stat
 		| _ -> ()) 
 	in
-	let remove_var_if_unreferenced cf stat = (fun () ->
-		())
+	let remove_var_if_unreferenced cf stat = (fun () ->	
+		if not (has_meta ":keep" cf.cf_meta) then begin
+			if ctx.com.verbose then print_endline ("Remove var " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name);
+			remove_field cf stat
+		end)
 	in
 	let loop_cf f =
 		let name = f.cff_name in
@@ -744,14 +747,26 @@ let init_class ctx c p herits fields =
 			} in
 			let delay = if (ctx.com.dead_code_elimination && not !Common.display) then begin
 				(match e with
-				| None -> (fun() -> 
-					if not (keep f stat) then delay ctx (remove_var_if_unreferenced cf stat);
-					())
+				| None ->
+					let r = exc_protect (fun r ->
+						r := (fun() -> t);
+						if ctx.com.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
+						cf.cf_meta <- if has_meta ":keep" cf.cf_meta then f.cff_meta else (":keep", [], p) :: f.cff_meta;
+						t
+					) in
+					cf.cf_type <- TLazy r;
+					(fun() ->
+						if not (keep f stat) then
+							delay ctx (remove_var_if_unreferenced cf stat)
+						else
+							ignore(!r())
+					)
 				| Some e ->
 					let ctx = { ctx with curclass = c; tthis = tthis } in
 					let r = exc_protect (fun r ->
 						r := (fun() -> t);
 						if ctx.com.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
+						cf.cf_meta <- if has_meta ":keep" cf.cf_meta then f.cff_meta else (":keep", [], p) :: f.cff_meta;
 						cf.cf_expr <- Some (type_static_var ctx t e p);
 						t
 					) in
