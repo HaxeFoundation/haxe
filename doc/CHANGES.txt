@@ -42,6 +42,7 @@
 	all : importing a typedef of an enum allow to access its constructors
 	all : removed String.cca (replaced by StringTools.fastCodeAt + StringTools.isEOF)
 	flash9 : fixed use of default values when null is passed for nullable basic types
+	all : fixed issues with inlining and class/function type parameters
 
 2010-08-14: 2.06
 	neko : change serializer to be able to handle instances of basic classes from other modules

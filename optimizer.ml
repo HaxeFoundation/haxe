@@ -33,6 +33,23 @@ let type_inline ctx cf f ethis params tret p =
 		Hashtbl.add hcount name (ref 0);
 		(name,t)
 	) f.tf_args in
+	(* type substitution on both class and function type parameters *)
+	let has_params, map_type =
+		let rec get_params c pl =
+			match c.cl_super with
+			| None -> c.cl_types, pl
+			| Some (csup,spl) ->
+				let ct, cpl = get_params csup spl in
+				c.cl_types @ ct, pl @ (match apply_params c.cl_types pl (TInst (csup,spl)) with
+				| TInst (_,pl) -> pl
+				| _ -> assert false)
+		in
+		let tparams = (match follow ethis.etype with TInst (c,pl) -> get_params c pl | _ -> ([],[])) in
+		let pmonos = List.map (fun _ -> mk_mono()) cf.cf_params in
+		let tmonos = snd tparams @ pmonos in
+		let tparams = fst tparams @ cf.cf_params in
+		tparams <> [], apply_params tparams tmonos
+	in
 	(* use default values for null/unset arguments *)
 	let rec loop pl al =
 		match pl, al with
@@ -40,12 +57,12 @@ let type_inline ctx cf f ethis params tret p =
 		| e :: pl, (name, opt, t) :: al ->
 			if is_nullable t && is_null e.etype then Hashtbl.add lsets name (); (* force coerce *)
 			(match e.eexpr, opt with
-			| TConst TNull , Some c -> mk (TConst c) t e.epos
+			| TConst TNull , Some c -> mk (TConst c) (map_type t) e.epos
 			| _ -> e) :: loop pl al
 		| [], (_,opt,t) :: al ->
 			(match opt with
 			| None -> assert false
-			| Some c -> mk (TConst c) t p) :: loop [] al
+			| Some c -> mk (TConst c) (map_type t) p) :: loop [] al
 		| _ :: _, [] ->
 			assert false
 	in
@@ -200,20 +217,15 @@ let type_inline ctx cf f ethis params tret p =
 			| _, Some init -> mk (TBlock [init;e]) tret e.epos
 		) in
 		(* we need to replace type-parameters that were used in the expression *)
-		let tparams = (match follow ethis.etype with TInst (c,pl) -> (c.cl_types,pl) | _ -> ([],[])) in
-		match cf.cf_params, tparams with
-		| [], ([],_) -> Some e
-		| _ ->
-			let pmonos = List.map (fun _ -> mk_mono()) cf.cf_params in
-			let tmonos = snd tparams @ pmonos in
-			let tparams = fst tparams @ cf.cf_params in
-			let mt = apply_params tparams tmonos cf.cf_type in
+		if not has_params then
+			Some e
+		else
+			let mt = map_type cf.cf_type in
 			unify_raise ctx mt (TFun (List.map (fun e -> "",false,e.etype) params,tret)) p;
 			(*
 				this is very expensive since we are building the substitution list for
 				every expression, but hopefully in such cases the expression size is small
 			*)
-			let map_type t = apply_params tparams tmonos t in
 			let rec map_expr_type e = Type.map_expr_type map_expr_type map_type e in
 			Some (map_expr_type e)
 
