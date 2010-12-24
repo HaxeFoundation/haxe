@@ -575,6 +575,9 @@ try
 			if !interp then begin
 				let ctx = Interp.create com (Typer.make_macro_api ctx Ast.null_pos) in
 				Interp.add_types ctx com.types;
+				(match com.main with
+				| None -> ()
+				| Some e -> ignore(Interp.eval_expr ctx e));
 			end;
 		| Flash | Flash9 when !gen_as3 ->
 			if com.verbose then print_endline ("Generating AS3 in : " ^ com.file);

@@ -1375,7 +1375,7 @@ let reg_lib =
 					| c -> failwith ("Unsupported regexp option '" ^ String.make 1 c ^ "'")
 				) (ExtString.String.explode opt);
 				let buf = Buffer.create 0 in
-				let rec loop esc = function
+				let rec loop prev esc = function
 					| [] -> ()
 					| c :: l when esc ->
 						(match c with
@@ -1388,19 +1388,23 @@ let reg_lib =
 							Buffer.add_char buf '\\';
 							Buffer.add_char buf c;
 						| _ -> failwith ("Unsupported escaped char '" ^ String.make 1 c ^ "'"));
-						loop false l
+						loop c false l
 					| c :: l ->
 						match c with
-						| '\\' -> loop true l
+						| '\\' -> loop prev true l
 						| '(' | '|' | ')' ->
 							Buffer.add_char buf '\\';
 							Buffer.add_char buf c;
-							loop false l
+							loop c false l
+						| '?' when prev = '(' && (match l with ':' :: _ -> true | _ -> false) ->
+							failwith "Non capturing groups '(?:' are not supported in macros"
+						| '?' when prev = '*' ->
+							failwith "Ungreedy *? are not supported in macros"
 						| _ ->
 							Buffer.add_char buf c;
-							loop false l
+							loop c false l
 				in
-				loop false (ExtString.String.explode str);
+				loop '\000' false (ExtString.String.explode str);
 				let str = Buffer.contents buf in
 				let r = {
 					r = Str.regexp str;
@@ -2229,6 +2233,10 @@ let add_types ctx types =
 	) types in
 	let e = (EBlock (Genneko.build ctx.gen types), null_pos) in
 	ignore(catch_errors ctx (fun() -> ignore(eval ctx e)))
+
+let eval_expr ctx e =
+	let e = Genneko.gen_expr ctx.gen e in
+	catch_errors ctx (fun() -> eval ctx e)
 
 let get_path ctx path p =
 	let rec loop = function
