@@ -25,6 +25,7 @@ type error_msg =
 	| Unclosed_macro
 	| Unimplemented
 	| Missing_type
+	| Custom of string
 
 exception Error of error_msg * pos
 exception TypePath of string list * string option
@@ -37,6 +38,7 @@ let error_msg = function
 	| Unclosed_macro -> "Unclosed macro"
 	| Unimplemented -> "Not implemented for current platform"
 	| Missing_type -> "Missing type declaration"
+	| Custom s -> s
 
 let error m p = raise (Error (m,p))
 let display_error : (error_msg -> pos -> unit) ref = ref (fun _ _ -> assert false)
@@ -743,7 +745,9 @@ let parse ctx code =
 		| Macro "if" ->
 			process_token (enter_macro (snd tk))
 		| Macro "error" ->
-			error Unimplemented (snd tk)
+			(match Lexer.token code with
+			| (Const (String s),p) -> error (Custom s) p
+			| _ -> error Unimplemented (snd tk))
 		| Macro "line" ->
 			let line = (match next_token() with
 				| (Const (Int s),_) -> int_of_string s

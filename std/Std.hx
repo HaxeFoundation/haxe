@@ -23,6 +23,10 @@
  * DAMAGE.
  */
 
+#if !core_api
+#error "Please don't add haxe/std to your classpath, instead set HAXE_LIBRARY_PATH env var"
+#end
+
 /**
 	The Std class provides standard methods for manipulating basic types.
 **/
