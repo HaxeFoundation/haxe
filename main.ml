@@ -208,7 +208,7 @@ let lookup_classes com fpath =
 		| [] -> []
 		| cp :: l ->
 			let cp = (if cp = "" then "./" else cp) in
-			let c = (try Common.get_full_path cp with _ -> cp) in
+			let c = normalize_path (try Common.get_full_path cp with _ -> cp) in
 			let clen = String.length c in
 			if clen < String.length fpath && String.sub spath 0 clen = String.lowercase c then begin
 				let path = String.sub fpath clen (String.length fpath - clen) in
