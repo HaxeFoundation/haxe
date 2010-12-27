@@ -637,7 +637,7 @@ let init_class ctx c p herits fields =
 		c.cl_extern <- true;
 		List.filter (fun f -> List.mem AStatic f.cff_access) fields, []
 	end else fields, herits in
-	if core_api then delay ctx ((fun() -> init_core_api ctx c));
+	if core_api && not !Common.display then delay ctx ((fun() -> init_core_api ctx c));
 	let tthis = TInst (c,List.map snd c.cl_types) in
 	let rec extends_public c =
 		List.exists (fun (c,_) -> c.cl_path = (["haxe"],"Public") || extends_public c) c.cl_implements ||
@@ -680,6 +680,9 @@ let init_class ctx c p herits fields =
 		| Some (c,_) ->
 			PMap.exists f c.cl_fields || has_field f c.cl_super || List.exists (fun i -> has_field f (Some i)) c.cl_implements
 	in
+
+	(* ----------------------- DEAD CODE REMOVAL ----------------------------- *)
+
 	let is_main n = (match ctx.com.main_class with | Some cl when c.cl_path = cl -> true | _ -> false) && n = "main" in
 	let must_keep_types pf = match pf with
 		| Flash -> [["flash"], "Boot"]
@@ -715,6 +718,34 @@ let init_class ctx c p herits fields =
 			remove_field cf stat
 		end)
 	in
+	
+	(* ----------------------- COMPLETION ----------------------------- *)
+
+	let display_file = if !Common.display then String.lowercase (Common.get_full_path p.pfile) = String.lowercase (!Parser.resume_display).pfile else false in
+	let rec is_full_type t =
+		match t with
+		| TFun (args,ret) -> is_full_type ret && List.for_all (fun (_,_,t) -> is_full_type t) args
+		| TMono r -> (match !r with None -> false | Some t -> is_full_type t)
+		| TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
+	in
+	let bind_type cf r p =
+		if !Common.display then begin
+			let cp = !Parser.resume_display in
+			if display_file && (cp.pmin = 0 || (p.pmin <= cp.pmin && p.pmax >= cp.pmax)) then begin
+				cf.cf_type <- TLazy r;
+				(fun() -> ignore((!r)()))
+			end else begin
+				if not (is_full_type cf.cf_type) then cf.cf_type <- TLazy r;
+				(fun() -> ())
+			end
+		end else begin
+			cf.cf_type <- TLazy r;
+			(fun () -> ignore(!r()))
+		end
+	in
+
+	(* ----------------------- FIELD INIT ----------------------------- *)
+
 	let loop_cf f =
 		let name = f.cff_name in
 		let p = f.cff_pos in
@@ -789,8 +820,7 @@ let init_class ctx c p herits fields =
 						cf.cf_expr <- Some (type_static_var ctx t e p);
 						t
 					) in
-					cf.cf_type <- TLazy r;
-					(fun () -> ignore(!r()))
+					bind_type cf r (snd e)
 			) in
 			f, false, cf, delay
 		| FFun (params,fd) ->
@@ -880,20 +910,18 @@ let init_class ctx c p herits fields =
 							ignore((!r)())
 					)
 				end
-			end else begin
-				if ((c.cl_extern && not inline) || c.cl_interface) && cf.cf_name <> "__init__" then begin
-					(fun() -> ())
-				end else begin
-					cf.cf_type <- TLazy r;
-					(fun() -> ignore((!r)()))
-				end
-			end in
+			end else if ((c.cl_extern && not inline) || c.cl_interface) && cf.cf_name <> "__init__" then
+				(fun() -> ())
+			else
+				bind_type cf r (snd fd.f_expr)
+			in
 			f, constr, cf, delay
 		| FProp (get,set,t) ->
 			let ret = load_complex_type ctx p t in
 			let check_get = ref (fun() -> ()) in
 			let check_set = ref (fun() -> ()) in
 			let check_method m t () =
+				if !Common.display then () else
 				try
 					let t2 = (if stat then (PMap.find m c.cl_statics).cf_type else fst (class_field c m)) in
 					unify_raise ctx t2 t p;
@@ -1199,7 +1227,8 @@ let type_module ctx m tdecls loadp =
 				ctx.local_using<- ctx.local_using @ [resolve_typedef ctx t])
 		| EClass d ->
 			let c = get_class d.d_name in
-			delays := !delays @ check_overriding ctx c p :: check_interfaces ctx c p :: init_class ctx c p d.d_flags d.d_data
+			let checks = if not !Common.display then [check_overriding ctx c p; check_interfaces ctx c p] else [] in
+			delays := !delays @ (checks @ init_class ctx c p d.d_flags d.d_data)
 		| EEnum d ->
 			let e = get_enum d.d_name in
 			ctx.type_params <- e.e_types;
@@ -1279,7 +1308,7 @@ let parse_module ctx m p =
 		| x :: l , name ->
 			let x = (try
 				match PMap.find x ctx.com.package_rules with
-				| Forbidden -> error ("You can't access the " ^ x ^ " package with current compilation flags (for " ^ s_type_path m ^ ")") p;
+				| Forbidden -> raise (Error (Forbid_package (x,m),p));
 				| Directory d -> d
 				| Remap d -> remap := d :: l; d
 				with Not_found -> x

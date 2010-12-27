@@ -86,6 +86,7 @@ let file_extension f =
 	| x :: _ -> x
 
 let make_path f =
+	let f = String.concat "/" (ExtString.String.nsplit f "\\") in
 	let cl = ExtString.String.nsplit f "." in
 	let cl = (match List.rev cl with
 		| ["hx";path] -> ExtString.String.nsplit path "/"
@@ -200,6 +201,20 @@ let parse_hxml file =
 		else
 			[l]
 	) lines)
+
+let lookup_classes com fpath =
+	let found = ref [] in
+	List.iter (fun cp ->
+		let c = Common.get_full_path cp in
+		let clen = String.length c in
+		if clen < String.length fpath && String.sub fpath 0 clen = c then begin
+			let path = String.sub fpath clen (String.length fpath - clen) in
+			found := make_path path :: !found;
+		end
+	) com.class_path;
+	match List.rev !found with
+	| [] -> []
+	| x :: _ -> [x]
 
 exception Hxml_found
 
@@ -407,7 +422,7 @@ try
 				Common.display := true;
 				Common.define com "display";
 				Parser.resume_display := {
-					Ast.pfile = String.lowercase (Common.get_full_path file);
+					Ast.pfile = Common.get_full_path file;
 					Ast.pmin = pos;
 					Ast.pmax = pos;
 				};
@@ -490,14 +505,15 @@ try
 		com.class_path <- lines @ com.class_path;
 	);
 	if !Common.display then begin
-		com.verbose <- false;
 		xml_out := None;
 		no_output := true;
 		com.warning <- store_message;
+		com.main_class <- None;
 		com.error <- (fun msg p ->
 			store_message msg p;
 			has_error := true;
 		);
+		classes := lookup_classes com (!Parser.resume_display).Ast.pfile;
 	end;
 	let add_std dir =
 		com.class_path <- List.filter (fun s -> not (List.mem s com.std_path)) com.class_path @ List.map (fun p -> p ^ dir ^ "/_std/") com.std_path @ com.std_path
@@ -619,6 +635,7 @@ with
 	| Common.Abort (m,p) -> report m p
 	| Lexer.Error (m,p) -> report (Lexer.error_msg m) p
 	| Parser.Error (m,p) -> report (Parser.error_msg m) p
+	| Typecore.Error (Typecore.Forbid_package _,_) when !Common.display -> () (* assume we have a --next *)
 	| Typecore.Error (m,p) -> report (Typecore.error_msg m) p
 	| Interp.Error (msg,p :: l) ->
 		store_message msg p;

@@ -83,6 +83,7 @@ type error_msg =
 	| Protect of error_msg
 	| Unknown_ident of string
 	| Stack of error_msg * error_msg
+	| Forbid_package of string * path
 
 exception Error of error_msg * pos
 
@@ -127,6 +128,8 @@ let rec error_msg = function
 	| Custom s -> s
 	| Stack (m1,m2) -> error_msg m1 ^ "\n" ^ error_msg m2
 	| Protect m -> error_msg m
+	| Forbid_package (p,m) ->
+		"You can't access the " ^ p ^ " package with current compilation flags (for " ^ Ast.s_type_path m ^ ")"
 
 let display_error ctx msg p = ctx.com.error msg p
 
