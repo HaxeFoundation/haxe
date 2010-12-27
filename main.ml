@@ -203,20 +203,20 @@ let parse_hxml file =
 	) lines)
 
 let lookup_classes com fpath =
-	let found = ref [] in	
 	let spath = String.lowercase fpath in
-	List.iter (fun cp ->
-		let cp = (if cp = "" then "./" else cp) in
-		let c = (try Common.get_full_path cp with _ -> cp) in
-		let clen = String.length c in
-		if clen < String.length fpath && String.sub spath 0 clen = String.lowercase c then begin
-			let path = String.sub fpath clen (String.length fpath - clen) in
-			found := make_path path :: !found;
-		end
-	) com.class_path;
-	match List.rev !found with
-	| [] -> []
-	| x :: _ -> [x]
+	let rec loop = function
+		| [] -> []
+		| cp :: l ->
+			let cp = (if cp = "" then "./" else cp) in
+			let c = (try Common.get_full_path cp with _ -> cp) in
+			let clen = String.length c in
+			if clen < String.length fpath && String.sub spath 0 clen = String.lowercase c then begin
+				let path = String.sub fpath clen (String.length fpath - clen) in
+				(try [make_path path] with _ -> loop l)
+			end else
+				loop l
+	in
+	loop com.class_path
 
 exception Hxml_found
 
