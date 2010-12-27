@@ -644,12 +644,12 @@ and expr_next e1 = parser
 
 and parse_switch_cases eswitch cases = parser
 	| [< '(Kwd Default,p1); '(DblDot,_); s >] ->
-		let b = EBlock (try block [] s with Display e -> display (ESwitch (eswitch,cases,Some e),p1)) in
+		let b = EBlock (try block [] s with Display e -> display (ESwitch (eswitch,cases,Some e),punion (pos eswitch) (pos e))) in
 		let l , def = parse_switch_cases eswitch cases s in
 		(match def with None -> () | Some (e,p) -> error Duplicate_default p);
 		l , Some (b,p1)
 	| [< '(Kwd Case,p1); el = psep Comma expr; '(DblDot,_); s >] ->
-		let b = EBlock (try block [] s with Display e -> display (ESwitch (eswitch,List.rev ((el,e) :: cases),None),p1)) in
+		let b = EBlock (try block [] s with Display e -> display (ESwitch (eswitch,List.rev ((el,e) :: cases),None),punion (pos eswitch) (pos e))) in
 		parse_switch_cases eswitch ((el,(b,p1)) :: cases) s
 	| [< >] ->
 		List.rev cases , None
@@ -663,7 +663,7 @@ and parse_catch etry = parser
 				| [< e = expr >] ->	(name,t,e)
 				| [< >] -> serror()
 			with
-				Display e -> display (ETry (etry,[name,t,e]),p))
+				Display e -> display (ETry (etry,[name,t,e]),punion (pos etry) (pos e)))
 		| [< '(_,p) >] -> error Missing_type p
 
 and parse_call_params ec s =
@@ -672,7 +672,7 @@ and parse_call_params ec s =
 		| [< e = expr >] -> Some e
 		| [< >] -> None
 	with Display e ->
-		display (ECall (ec,[e]),pos ec)
+		display (ECall (ec,[e]),punion (pos ec) (pos e))
 	) in
 	let rec loop acc =
 		try
@@ -680,7 +680,7 @@ and parse_call_params ec s =
 			| [< '(Comma,_); e = expr >] -> loop (e::acc)
 			| [< >] -> List.rev acc
 		with Display e ->
-			display (ECall (ec,List.rev (e::acc)),pos ec)
+			display (ECall (ec,List.rev (e::acc)),punion (pos ec) (pos e))
 	in
 	match e with
 	| None -> []
