@@ -47,6 +47,7 @@ type basic_types = {
 type context = {
 	(* config *)
 	version : int;
+	mutable display : bool;
 	mutable debug : bool;
 	mutable verbose : bool;
 	mutable foptimize : bool;
@@ -79,13 +80,14 @@ type context = {
 
 exception Abort of string * Ast.pos
 
-let display = ref false
+let display_default = ref false
 
 let create v =
 	let m = Type.mk_mono() in
 	{
 		version = v;
 		debug = false;
+		display = !display_default;
 		verbose = false;
 		foptimize = true;
 		dead_code_elimination = false;

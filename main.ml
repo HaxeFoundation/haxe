@@ -205,7 +205,7 @@ let parse_hxml file =
 let lookup_classes com fpath =
 	let found = ref [] in
 	List.iter (fun cp ->
-		let c = Common.get_full_path cp in
+		let c = (try Common.get_full_path cp with _ -> cp) in
 		let clen = String.length c in
 		if clen < String.length fpath && String.sub fpath 0 clen = c then begin
 			let path = String.sub fpath clen (String.length fpath - clen) in
@@ -419,7 +419,8 @@ try
 			| _ ->
 				let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
 				let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
-				Common.display := true;
+				com.display <- true;
+				Common.display_default := true;
 				Common.define com "display";
 				Parser.resume_display := {
 					Ast.pfile = Common.get_full_path file;
@@ -504,7 +505,7 @@ try
 		if ret <> Unix.WEXITED 0 then failwith (String.concat "\n" lines);
 		com.class_path <- lines @ com.class_path;
 	);
-	if !Common.display then begin
+	if com.display then begin
 		xml_out := None;
 		no_output := true;
 		com.warning <- store_message;
@@ -635,7 +636,7 @@ with
 	| Common.Abort (m,p) -> report m p
 	| Lexer.Error (m,p) -> report (Lexer.error_msg m) p
 	| Parser.Error (m,p) -> report (Parser.error_msg m) p
-	| Typecore.Error (Typecore.Forbid_package _,_) when !Common.display -> () (* assume we have a --next *)
+	| Typecore.Error (Typecore.Forbid_package _,_) when !Common.display_default -> () (* assume we have a --next *)
 	| Typecore.Error (m,p) -> report (Typecore.error_msg m) p
 	| Interp.Error (msg,p :: l) ->
 		store_message msg p;

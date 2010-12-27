@@ -1916,7 +1916,7 @@ let make_macro_api ctx p =
 			tp.tp_meta <- tp.tp_meta @ m;
 		);
 		Interp.print = (fun s ->
-			if not !Common.display then print_string s
+			if not ctx.com.display then print_string s
 		);
 	}
 
@@ -1931,6 +1931,7 @@ let load_macro ctx cpath f p =
 			let com2 = Common.clone ctx.com in
 			com2.package_rules <- PMap.empty;
 			com2.main_class <- None;
+			com2.display <- false;
 			List.iter (fun p -> com2.defines <- PMap.remove (platform_name p) com2.defines) platforms;
 			com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
 			com2.class_path <- List.map (fun p -> p ^ "neko" ^ "/_std/") com2.std_path @ com2.class_path;
@@ -2071,7 +2072,7 @@ let rec create com =
 			constructs = Hashtbl.create 0;
 			type_patches = Hashtbl.create 0;
 			delayed = [];
-			doinline = not (Common.defined com "no_inline");
+			doinline = not (Common.defined com "no_inline" || com.display);
 			hook_generate = [];
 			std = empty;
 			do_inherit = Codegen.on_inherit;

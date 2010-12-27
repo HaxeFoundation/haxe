@@ -637,7 +637,7 @@ let init_class ctx c p herits fields =
 		c.cl_extern <- true;
 		List.filter (fun f -> List.mem AStatic f.cff_access) fields, []
 	end else fields, herits in
-	if core_api && not !Common.display then delay ctx ((fun() -> init_core_api ctx c));
+	if core_api && not ctx.com.display then delay ctx ((fun() -> init_core_api ctx c));
 	let tthis = TInst (c,List.map snd c.cl_types) in
 	let rec extends_public c =
 		List.exists (fun (c,_) -> c.cl_path = (["haxe"],"Public") || extends_public c) c.cl_implements ||
@@ -721,7 +721,7 @@ let init_class ctx c p herits fields =
 	
 	(* ----------------------- COMPLETION ----------------------------- *)
 
-	let display_file = if !Common.display then String.lowercase (Common.get_full_path p.pfile) = String.lowercase (!Parser.resume_display).pfile else false in
+	let display_file = if ctx.com.display then String.lowercase (Common.get_full_path p.pfile) = String.lowercase (!Parser.resume_display).pfile else false in
 	let rec is_full_type t =
 		match t with
 		| TFun (args,ret) -> is_full_type ret && List.for_all (fun (_,_,t) -> is_full_type t) args
@@ -729,7 +729,7 @@ let init_class ctx c p herits fields =
 		| TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
 	in
 	let bind_type cf r p =
-		if !Common.display then begin
+		if ctx.com.display then begin
 			let cp = !Parser.resume_display in
 			if display_file && (cp.pmin = 0 || (p.pmin <= cp.pmin && p.pmax >= cp.pmax)) then begin
 				cf.cf_type <- TLazy r;
@@ -777,7 +777,7 @@ let init_class ctx c p herits fields =
 				cf_public = is_public f.cff_access None;
 				cf_params = [];
 			} in
-			let delay = if (ctx.com.dead_code_elimination && not !Common.display) then begin
+			let delay = if (ctx.com.dead_code_elimination && not ctx.com.display) then begin
 				(match e with
 				| None ->
 					let r = exc_protect (fun r ->
@@ -898,7 +898,7 @@ let init_class ctx c p herits fields =
 				cf.cf_expr <- Some (mk (TFunction f) t p);
 				t
 			) in
-			let delay = if (ctx.com.dead_code_elimination && not !Common.display) then begin
+			let delay = if (ctx.com.dead_code_elimination && not ctx.com.display) then begin
 				if ((c.cl_extern && not inline) || c.cl_interface) && cf.cf_name <> "__init__" then begin
 					(fun() -> ())
 				end else begin
@@ -921,7 +921,7 @@ let init_class ctx c p herits fields =
 			let check_get = ref (fun() -> ()) in
 			let check_set = ref (fun() -> ()) in
 			let check_method m t () =
-				if !Common.display then () else
+				if ctx.com.display then () else
 				try
 					let t2 = (if stat then (PMap.find m c.cl_statics).cf_type else fst (class_field c m)) in
 					unify_raise ctx t2 t p;
@@ -1227,7 +1227,7 @@ let type_module ctx m tdecls loadp =
 				ctx.local_using<- ctx.local_using @ [resolve_typedef ctx t])
 		| EClass d ->
 			let c = get_class d.d_name in
-			let checks = if not !Common.display then [check_overriding ctx c p; check_interfaces ctx c p] else [] in
+			let checks = if not ctx.com.display then [check_overriding ctx c p; check_interfaces ctx c p] else [] in
 			delays := !delays @ (checks @ init_class ctx c p d.d_flags d.d_data)
 		| EEnum d ->
 			let e = get_enum d.d_name in
