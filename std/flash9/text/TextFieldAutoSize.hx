@@ -1,6 +1,6 @@
 package flash.text;
 
-extern enum TextFieldAutoSize {
+@:fakeEnum(String) extern enum TextFieldAutoSize {
 	CENTER;
 	LEFT;
 	NONE;

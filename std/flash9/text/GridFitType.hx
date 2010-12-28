@@ -1,6 +1,6 @@
 package flash.text;
 
-extern enum GridFitType {
+@:fakeEnum(String) extern enum GridFitType {
 	NONE;
 	PIXEL;
 	SUBPIXEL;

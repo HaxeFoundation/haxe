@@ -1,6 +1,6 @@
 package flash.display;
 
-extern enum CapsStyle {
+@:fakeEnum(String) extern enum CapsStyle {
 	NONE;
 	ROUND;
 	SQUARE;

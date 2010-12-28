@@ -1,6 +1,6 @@
 package flash.display;
 
-extern enum LineScaleMode {
+@:fakeEnum(String) extern enum LineScaleMode {
 	HORIZONTAL;
 	NONE;
 	NORMAL;

@@ -1,6 +1,6 @@
 package flash.display;
 
-extern enum TriangleCulling {
+@:fakeEnum(String) extern enum TriangleCulling {
 	NEGATIVE;
 	NONE;
 	POSITIVE;

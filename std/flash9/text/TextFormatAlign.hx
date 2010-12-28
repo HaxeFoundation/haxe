@@ -1,6 +1,6 @@
 package flash.text;
 
-extern enum TextFormatAlign {
+@:fakeEnum(String) extern enum TextFormatAlign {
 	CENTER;
 	JUSTIFY;
 	LEFT;

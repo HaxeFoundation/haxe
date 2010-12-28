@@ -1,6 +1,6 @@
 package flash.display;
 
-extern enum ShaderPrecision {
+@:fakeEnum(String) extern enum ShaderPrecision {
 	FAST;
 	FULL;
 }

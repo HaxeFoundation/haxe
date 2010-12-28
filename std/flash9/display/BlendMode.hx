@@ -1,6 +1,6 @@
 package flash.display;
 
-extern enum BlendMode {
+@:fakeEnum(String) extern enum BlendMode {
 	ADD;
 	ALPHA;
 	DARKEN;

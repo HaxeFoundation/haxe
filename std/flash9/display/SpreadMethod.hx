@@ -1,6 +1,6 @@
 package flash.display;
 
-extern enum SpreadMethod {
+@:fakeEnum(String) extern enum SpreadMethod {
 	PAD;
 	REFLECT;
 	REPEAT;

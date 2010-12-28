@@ -1,6 +1,6 @@
 package flash.display;
 
-extern enum StageQuality {
+@:fakeEnum(String) extern enum StageQuality {
 	BEST;
 	HIGH;
 	LOW;

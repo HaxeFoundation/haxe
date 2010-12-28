@@ -1,6 +1,6 @@
 package flash.display;
 
-extern enum ActionScriptVersion {
+@:fakeEnum(UInt) extern enum ActionScriptVersion {
 	ACTIONSCRIPT2;
 	ACTIONSCRIPT3;
 }

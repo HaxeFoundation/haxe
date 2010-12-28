@@ -1,6 +1,6 @@
 package flash.text;
 
-extern enum TextFormatDisplay {
+@:fakeEnum(String) extern enum TextFormatDisplay {
 	BLOCK;
 	INLINE;
 }

@@ -1,6 +1,6 @@
 package flash.media;
 
-extern enum MicrophoneEnhancedMode {
+@:fakeEnum(String) extern enum MicrophoneEnhancedMode {
 	FULL_DUPLEX;
 	HALF_DUPLEX;
 	HEADSET;

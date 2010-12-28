@@ -906,9 +906,11 @@ and type_switch ctx e cases def need_val p =
 	let old = ctx.local_types in
 	let enum = ref None in
 	let used_cases = Hashtbl.create 0 in
+	let is_fake_enum e =
+		e.e_path = ([],"Bool") || has_meta ":fakeEnum" e.e_meta
+	in
 	(match follow eval.etype with
-	| TEnum ({ e_path = [],"Bool" },_)
-	| TEnum ({ e_path = ["flash"],_ ; e_extern = true },_) -> ()
+	| TEnum (e,_) when is_fake_enum e -> ()
 	| TEnum (e,params) ->
 		enum := Some (Some (e,params));
 		ctx.local_types <- TEnumDecl e :: ctx.local_types
@@ -928,6 +930,8 @@ and type_switch ctx e cases def need_val p =
 		let params = (match !enum with
 			| None ->
 				assert false
+			| Some None when is_fake_enum en ->
+				raise Exit
 			| Some None ->
 				let params = List.map (fun _ -> mk_mono()) en.e_types in
 				enum := Some (Some (en,params));

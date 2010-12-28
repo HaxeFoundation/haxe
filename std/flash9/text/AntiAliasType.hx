@@ -1,6 +1,6 @@
 package flash.text;
 
-extern enum AntiAliasType {
+@:fakeEnum(String) extern enum AntiAliasType {
 	ADVANCED;
 	NORMAL;
 }

@@ -159,10 +159,6 @@ let type_path ctx path =
 	let pack, name = real_path path in
 	HMPath (pack,name)
 
-let is_int_enum = function
-	| "ActionScriptVersion" | "SWFVersion" | "EventPhase" | "KeyLocation" | "XmlNodeType" -> true
-	| _ -> false
-
 let rec follow_basic t =
 	match t with
 	| TMono r ->
@@ -189,8 +185,6 @@ let rec follow_basic t =
 
 let rec type_id ctx t =
 	match follow_basic t with
-	| TEnum ({ e_path = path; e_extern = false },_) ->
-		type_path ctx path
 	| TInst ({ cl_path = ["haxe"],"Int32" },_) ->
 		type_path ctx ([],"Int")
 	| TInst ({ cl_path = ["flash"],"Vector" } as c,pl) ->
@@ -207,14 +201,17 @@ let rec type_id ctx t =
 			type_path ctx c.cl_path)
 	| TFun _ ->
 		type_path ctx ([],"Function")
-	| TEnum ({ e_path = ([],"Class") as path },_)
-	| TEnum ({ e_path = ([],"Bool") as path },_)
 	| TType ({ t_path = ([],"UInt") as path },_) ->
 		type_path ctx path
-	| TEnum ({ e_path = ("flash" :: _,name); e_extern = true },_) ->
-		HMPath ([],if is_int_enum name then "int" else "String")
 	| TEnum ({ e_path = [],"XmlType"; e_extern = true },_) ->
 		HMPath ([],"String")
+	| TEnum (e,_) ->
+		let rec loop = function
+			| [] -> type_path ctx e.e_path
+			| (":fakeEnum",[Ast.EConst (Ast.Type n),_],_) :: _ -> type_path ctx ([],n)
+			| _ :: l -> loop l
+		in
+		loop e.e_meta
 	| _ ->
 		HMPath ([],"Object")
 
@@ -236,9 +233,20 @@ let classify ctx t =
 		KFloat
 	| TEnum ({ e_path = [],"Bool" },_) ->
 		KBool
-	| TEnum ({ e_extern = true; e_path = "flash" :: _ , name },[]) ->
-		if is_int_enum name then KInt else KType (HMPath ([],"String"))
-	| TEnum _
+	| TEnum ({ e_path = [],"XmlType"; e_extern = true },_) ->
+		KType (HMPath ([],"String"))
+	| TEnum (e,_) ->
+		let rec loop = function
+			| [] -> KType (type_id ctx t)
+			| (":fakeEnum",[Ast.EConst (Type n),_],_) :: _ ->				
+				(match n with
+				| "Int" -> KInt
+				| "UInt" -> KUInt
+				| "String" -> KType (HMPath ([],"String"))
+				| _ -> assert false)
+			| _ :: l -> loop l
+		in
+		loop e.e_meta
 	| TInst _ ->
 		KType (type_id ctx t)
 	| TType ({ t_path = [],"UInt" },_) ->

@@ -200,8 +200,17 @@ let rec type_str ctx t p =
 		if e.e_extern then (match e.e_path with
 			| [], "Void" -> "void"
 			| [], "Bool" -> "Boolean"
-			| "flash" :: _ , _ -> "String"
-			| _ -> "Object"
+			| _ -> 
+				let rec loop = function
+					| [] -> "Object"
+					| (":fakeEnum",[Ast.EConst (Ast.Type n),_],_) :: _ ->
+						(match n with
+						| "Int" -> "int"
+						| "UInt" -> "uint"
+						| _ -> n)
+					| _ :: l -> loop l
+				in
+				loop e.e_meta
 		) else
 			s_path ctx true e.e_path p
 	| TInst ({ cl_path = ["flash"],"Vector" },[pt]) ->

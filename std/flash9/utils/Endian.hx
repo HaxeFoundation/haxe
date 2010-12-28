@@ -1,6 +1,6 @@
 package flash.utils;
 
-extern enum Endian {
+@:fakeEnum(String) extern enum Endian {
 	BIG_ENDIAN;
 	LITTLE_ENDIAN;
 }

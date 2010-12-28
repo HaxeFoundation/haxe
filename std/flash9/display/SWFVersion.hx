@@ -1,6 +1,6 @@
 package flash.display;
 
-extern enum SWFVersion {
+@:fakeEnum(UInt) extern enum SWFVersion {
 	FLASH1;
 	FLASH10;
 	FLASH2;

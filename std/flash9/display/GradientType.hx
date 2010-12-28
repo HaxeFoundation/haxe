@@ -1,6 +1,6 @@
 package flash.display;
 
-extern enum GradientType {
+@:fakeEnum(String) extern enum GradientType {
 	LINEAR;
 	RADIAL;
 }

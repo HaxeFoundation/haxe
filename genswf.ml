@@ -378,11 +378,14 @@ let build_class com c file =
 		(*
 			If the class only contains static String constants, make it an enum
 		*)
+		let real_type = ref "" in
 		let rec loop = function
 			| [] -> []
 			| f :: l ->
 				match f.cff_kind with
-				| FVar (Some (CTPath { tpackage = []; tname = "String" | "Int" | "UInt" }),None) when List.mem AStatic f.cff_access -> (f.cff_name,None,[],[],pos) :: loop l
+				| FVar (Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname }),None) when List.mem AStatic f.cff_access ->
+					if !real_type = "" then real_type := tname else if !real_type <> tname then raise Exit;
+					(f.cff_name,None,[],[],pos) :: loop l
 				| FFun (_,{ f_args = [] }) when f.cff_name = "new" -> loop l
 				| _ -> raise Exit
 		in
@@ -398,7 +401,7 @@ let build_class com c file =
 			d_name = path.tname;
 			d_doc = None;
 			d_params = [];
-			d_meta = [];
+			d_meta = [(":fakeEnum",[EConst (Type !real_type),pos],pos)];
 			d_flags = [EExtern];
 			d_data = constr;
 		} in
