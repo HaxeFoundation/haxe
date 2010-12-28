@@ -279,7 +279,7 @@ try
 				com.class_path <- ["/usr/lib/haxe/std/";"/usr/local/lib/haxe/std/";"";"/"]
 			else
 				let base_path = normalize_path (try executable_path() with _ -> "./") in
-				com.class_path <- [base_path ^ "std/";"";"/"]);
+				com.class_path <- [base_path ^ "std/";""]);
 	com.std_path <- List.filter (fun p -> ExtString.String.ends_with p "std/" || ExtString.String.ends_with p "std\\") com.class_path;
 	let set_platform pf file =
 		if com.platform <> Cross then failwith "Multiple targets";
@@ -357,7 +357,7 @@ try
 		("-swf-lib",Arg.String (fun file ->
 			let getSWF = Genswf.parse_swf com file in
 			let extract = Genswf.extract_data getSWF in
-			let build cl p = 
+			let build cl p =
 				match (try Some (Hashtbl.find (extract()) cl) with Not_found -> None) with
 				| None -> None
 				| Some c -> Some (Genswf.build_class com c file)
@@ -405,7 +405,7 @@ try
 			force_typing := true;
 			Common.add_filter com (fun() ->
 				List.iter (fun (_,_,extract) ->
-					Hashtbl.iter (fun n _ -> classes := n :: !classes) (extract())				
+					Hashtbl.iter (fun n _ -> classes := n :: !classes) (extract())
 				) com.swf_libs;
 			);
 			xml_out := Some "hx"
@@ -444,7 +444,7 @@ try
 		("--php-lib",Arg.String (fun f ->
  			if com.php_lib <> None then raise (Arg.Bad "Multiple --php-lib");
  			com.php_lib <- Some f;
- 		),"<filename> : select the name for the php lib folder");  
+ 		),"<filename> : select the name for the php lib folder");
 		("--js-namespace",Arg.String (fun f ->
 			if com.js_namespace <> None then raise (Arg.Bad "Multiple --js-namespace");
 			com.js_namespace <- Some f;
@@ -553,7 +553,7 @@ try
 		| Php -> add_std "php"; "php"
 		| Cpp -> add_std "cpp"; "cpp"
 	) in
-	
+
 	(* check file extension. In case of wrong commandline, we don't want
 		to accidentaly delete a source file. *)
 	if not !no_output && file_extension com.file = ext then delete_file com.file;
