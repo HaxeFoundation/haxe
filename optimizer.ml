@@ -39,10 +39,12 @@ let type_inline ctx cf f ethis params tret p =
 			match c.cl_super with
 			| None -> c.cl_types, pl
 			| Some (csup,spl) ->
-				let ct, cpl = get_params csup spl in
-				c.cl_types @ ct, pl @ (match apply_params c.cl_types pl (TInst (csup,spl)) with
+				let spl = (match apply_params c.cl_types pl (TInst (csup,spl)) with
 				| TInst (_,pl) -> pl
-				| _ -> assert false)
+				| _ -> assert false
+				) in
+				let ct, cpl = get_params csup spl in
+				c.cl_types @ ct, pl @ cpl
 		in
 		let tparams = (match follow ethis.etype with TInst (c,pl) -> get_params c pl | _ -> ([],[])) in
 		let pmonos = List.map (fun _ -> mk_mono()) cf.cf_params in
