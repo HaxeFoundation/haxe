@@ -403,11 +403,11 @@ try
 		("--neko-source", define "neko_source", ": keep generated neko source");
 		("--gen-hx-classes", Arg.Unit (fun() ->
 			force_typing := true;
-			Common.add_filter com (fun() ->
+			pre_compilation := (fun() ->
 				List.iter (fun (_,_,extract) ->
 					Hashtbl.iter (fun n _ -> classes := n :: !classes) (extract())
 				) com.swf_libs;
-			);
+			) :: !pre_compilation;
 			xml_out := Some "hx"
 		),"<file> : generate hx headers from SWF9 file");
 		("--next", Arg.Unit (fun() -> assert false), ": separate several haxe compilations");
