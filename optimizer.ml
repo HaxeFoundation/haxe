@@ -207,10 +207,8 @@ let type_inline ctx cf f ethis params tret p =
 		None
 	else
 		let wrap e =
-			match e.eexpr with
-			(* we can't mute the type of a TNew because it will be used later to get parameters *)
-			| TNew _ -> mk (TParenthesis e) tret e.epos
-			| _ -> { e with etype = tret }
+			(* we can't mute the type of the expression because it is not correct to do so *)
+			mk (TCast (e,None)) tret e.epos
 		in
 		let e = (match e.eexpr, init with
 			| TBlock [e] , None -> wrap e
