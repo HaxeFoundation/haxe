@@ -633,11 +633,12 @@ let begin_fun ctx args tret el stat p =
 			| TNull -> error ("In Flash9, null can't be used as basic type " ^ s_type (print_context()) t) p
 			| _ -> assert false)
 		| _, Some TNull -> HVNone
-		| _, Some c ->
+		| k, Some c ->
 			write ctx (HReg r.rid);
 			write ctx HNull;
 			let j = jump ctx J3Neq in
 			gen_constant ctx c t p;
+			coerce ctx k;
 			write ctx (HSetReg r.rid);
 			j();
 			HVNone
@@ -1747,7 +1748,9 @@ let generate_inits ctx =
 			getvar ctx (VGlobal (type_path ctx c.cl_path));
 			write ctx HTrue;
 			setvar ctx (VId id) None;
+			let branch = begin_branch ctx in
 			generate_class_statics ctx c false;
+			branch();
 			j()
 		| _ -> ()
 	) ctx.com.types;
