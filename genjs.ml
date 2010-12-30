@@ -448,9 +448,13 @@ and gen_expr ctx e =
 		newline ctx;
 		List.iter (fun (el,e2) ->
 			List.iter (fun e ->
-				spr ctx "case ";
-				gen_value ctx e;
-				spr ctx ":";
+				match e.eexpr with
+				| TConst(c) when c = TNull ->
+					spr ctx "case null: case undefined:";
+				| _ ->
+					spr ctx "case ";
+					gen_value ctx e;
+					spr ctx ":"
 			) el;
 			gen_expr ctx (mk_block e2);
 			print ctx "break";
