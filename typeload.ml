@@ -803,7 +803,6 @@ let init_class ctx c p herits fields =
 					) in
 					cf.cf_type <- TLazy r;
 					(fun () ->
-						if ctx.com.verbose then print_endline ("field " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name);
 						if not (keep f stat) then
 							delay ctx (remove_var_if_unreferenced cf stat)
 						else

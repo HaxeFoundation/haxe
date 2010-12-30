@@ -169,6 +169,19 @@ class Compiler {
 		} catch( e : haxe.io.Eof ) {
 		}
 	}
+	
+	/**
+		Mark a class (or array of classes) with the metadata @:keep
+	**/
+	public static function keepClass(?cl : String, ?acl : Array<String>)
+	{
+		if (null == acl)
+			acl = [];
+		if (null != cl)
+			acl.push(cl);
+		for(cl in acl)
+			addMetadata("@:keep", cl);
+	}
 
 	static function load( f, nargs ) : Dynamic {
 		#if macro

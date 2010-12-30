@@ -507,7 +507,7 @@ let filter_dead_classes com =
 	com.types <- List.filter (fun t ->
 		match t with
 		| TClassDecl c ->
-			if c.cl_extern then 
+			if (c.cl_extern or has_meta ":keep" c.cl_meta) then 
 				true 
 			else (match (c.cl_ordered_statics, c.cl_ordered_fields, c.cl_constructor) with
 			| ([], [], None) ->
