@@ -232,22 +232,22 @@ let s_ident n =
 haxe reserved words that match php ones: break, case, class, continue, default, do, else, extends, for, function, if, new, return, static, switch, var, while, interface, implements, public, private, try, catch, throw
  *)
 (* PHP only (for future use): cfunction, old_function *)
-	match n with
-	| "and" | "or" | "xor" | "__FILE__" | "exception" | "__LINE__" | "array"
+	match String.lowercase n with
+	| "and" | "or" | "xor" | "__file__" | "exception" | "__line__" | "array"
 	| "as" | "const" | "declare" | "die" | "echo"| "elseif" | "empty"
 	| "enddeclare" | "endfor" | "endforeach" | "endif" | "endswitch"
 	| "endwhile" | "eval" | "exit" | "foreach"| "global" | "include"
 	| "include_once" | "isset" | "list" | "print" | "require" | "require_once"
-	| "unset" | "use" | "__FUNCTION__" | "__CLASS__" | "__METHOD__" | "final" 
+	| "unset" | "use" | "__function__" | "__class__" | "__method__" | "final" 
 	| "php_user_filter" | "protected" | "abstract" | "__set" | "__get" | "__call"
 	| "clone" -> suf ^ n
 	| _ -> n
 	
 let s_ident_local n =
 	let suf = "h" in
-	match n with
-	| "GLOBALS" | "_SERVER" | "_GET" | "_POST" | "_COOKIE" | "_FILES" 
-	| "_ENV" | "_REQUEST" | "_SESSION" -> suf ^ n
+	match String.lowercase n with
+	| "globals" | "_server" | "_get" | "_post" | "_cookie" | "_files" 
+	| "_env" | "_request" | "_session" -> suf ^ n
 	| _ -> n
 	
 let create_directory com ldir =
