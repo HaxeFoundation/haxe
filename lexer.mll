@@ -298,7 +298,7 @@ and regexp = parse
 	| '\\' 'n' { add "\n"; regexp lexbuf }
 	| '\\' 't' { add "\t"; regexp lexbuf }
 	| '\\' ['\\' '$' '.' '*' '+' '^' '|' '{' '}' '[' ']' '(' ')' '?' '-' '0'-'9'] { add (lexeme lexbuf); regexp lexbuf }
-	| '\\' ['w' 'W' 'b' 'B' 's' 'S' 'd' 'D'] { add (lexeme lexbuf); regexp lexbuf }
+	| '\\' ['w' 'W' 'b' 'B' 's' 'S' 'd' 'D' 'x'] { add (lexeme lexbuf); regexp lexbuf }
 	| '\\' [^ '\\'] { error (Invalid_character (lexeme lexbuf).[1]) (lexeme_end lexbuf - 1) }
 	| '/' { regexp_options lexbuf, lexeme_end lexbuf }
 	| [^ '\\' '/' '\r' '\n']+ { store lexbuf; regexp lexbuf }
