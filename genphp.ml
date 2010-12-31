@@ -323,7 +323,7 @@ let unsupported msg p = error ("This expression cannot be generated to PHP: " ^ 
 
 let newline ctx =
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
-	| '}' | '{' | ':' -> print ctx "\n%s" ctx.tabs
+	| '}' | '{' | ':' | ' ' -> print ctx "\n%s" ctx.tabs
 	| _ -> print ctx ";\n%s" ctx.tabs
 
 let rec concat ctx s f = function
@@ -844,6 +844,7 @@ and unset_locals ctx old_l =
 			lst := ["$" ^  n] @ !lst;
 	) ctx.inv_locals;
 	if (List.length !lst) > 0 then begin
+		newline ctx;
 		spr ctx "unset(";
 		concat ctx "," (fun (s) -> spr ctx s; ) !lst;
 		spr ctx ")"
@@ -857,7 +858,6 @@ and gen_while_expr ctx e =
 		print ctx "{";
 		let bend = open_block ctx in
 		List.iter (fun e -> newline ctx; gen_expr ctx e) el;
-		newline ctx;
 		
 		unset_locals ctx old_l;
 		
@@ -1151,22 +1151,21 @@ and gen_expr ctx e =
 					match f.cf_expr with
 					| Some { eexpr = TFunction fd } ->
 						print ctx "if(!isset($this->%s)) $this->%s = " name name;
-						
 						gen_inline_function ctx fd true e.epos;
 						newline ctx;
 					| _ -> ()
 				) ctx.dynamic_methods;
 				if Codegen.constructor_side_effects e then begin
-					print ctx "if( !%s::$skip_constructor ) {" (s_path ctx (["php"],"Boot") false e.epos);
-					(fun() -> print ctx "}";
-					
-					
-					)
+					print ctx "if(!%s::$skip_constructor) {" (s_path ctx (["php"],"Boot") false e.epos);
+					(fun() -> print ctx "}")
 				end else
 					(fun() -> ());
 			end) in
 		let remaining = ref (List.length el) in
 		let build e =
+			(match e.eexpr with 
+			| TBlock [] -> ()
+			| _ -> newline ctx);
 			if (in_block && !remaining = 1) then begin
 				(match e.eexpr with
 				| TIf _
@@ -1201,10 +1200,8 @@ and gen_expr ctx e =
 			end else begin
 				gen_expr ctx e;
 			end;
-			newline ctx; 
 			decr remaining;
 		in
-		newline ctx; 
 		List.iter build el;
 		unset_locals ctx old_l;
 
@@ -1293,8 +1290,7 @@ and gen_expr ctx e =
 		| None -> ()
 		| Some e when e.eexpr = TConst(TNull) -> ()
 		| Some e ->
-			newline ctx;
-			spr ctx "else ";
+			spr ctx " else ";
 			restore_in_block ctx in_block;
 			gen_expr ctx (mk_block e));
 	| TUnop (op,Ast.Prefix,e) ->
@@ -1774,6 +1770,7 @@ let generate_inline_method ctx c m =
 	| l  -> spr ctx (String.concat ", " arguments)
 	);
 	spr ctx ") {";
+	let block = open_block ctx in
 	newline ctx;
 	
 	(* blocks *)
@@ -1784,7 +1781,7 @@ let generate_inline_method ctx c m =
 		newline ctx;
 	end;
 	gen_expr ctx m.iexpr;
-	
+	block();
 	old();
 	
 	newline ctx;
@@ -2050,12 +2047,12 @@ let generate com =
 					newline ctx;
 					gen_expr ctx e);
 				List.iter (generate_static_field_assign ctx c.cl_path) c.cl_ordered_statics;
-				newline ctx;
+(*				newline ctx; *)
 				if c.cl_path = (["php"], "Boot") & com.debug then begin
+					newline ctx;
 					print ctx "$%s = new _hx_array(array())" ctx.stack.Codegen.stack_var;
 					newline ctx;
 					print ctx "$%s = new _hx_array(array())" ctx.stack.Codegen.stack_exc_var;
-					newline ctx;
 				end;
 				
 				let rec loop l =
@@ -2065,7 +2062,8 @@ let generate com =
 						generate_inline_method ctx c h;
 						loop ctx.inline_methods
 				in
-				loop ctx.inline_methods;				
+				loop ctx.inline_methods;
+				newline ctx;				
 				close ctx
 		| TEnumDecl e ->
 			if e.e_extern then
