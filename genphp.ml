@@ -283,9 +283,9 @@ let init com cwd path def_type =
 	let dir = if cwd <> "" then com.file :: (cwd :: fst path) else com.file :: fst path; in
 	create [] dir;
 	let filename path =
-		(match snd path with
-		| "List" -> "HList";
-		| s -> s) in
+		(match path with
+		| [], "List" -> "HList";
+		| _, s -> s) in
 	let ch = open_out (String.concat "/" dir ^ "/" ^ (filename path) ^ (if def_type = 0 then ".class" else if def_type = 1 then ".enum"  else if def_type = 2 then ".interface" else ".extern") ^ ".php") in
 	let imports = Hashtbl.create 0 in
 	Hashtbl.add imports (snd path) [fst path];
@@ -2025,7 +2025,6 @@ let generate com =
 					newline ctx;
 					gen_expr ctx e);
 				List.iter (generate_static_field_assign ctx c.cl_path) c.cl_ordered_statics;
-(*				newline ctx; *)
 				if c.cl_path = (["php"], "Boot") & com.debug then begin
 					newline ctx;
 					print ctx "$%s = new _hx_array(array())" ctx.stack.Codegen.stack_var;
