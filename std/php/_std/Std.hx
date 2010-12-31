@@ -34,11 +34,11 @@
 	}
 
 	public inline static function int( x : Float ) : Int {
-		return untyped __php__("intval")(x);
+		return untyped __call__("intval", x);
 	}
 
 	public static function parseInt( x : String ) : Null<Int> {
-		untyped if (!__php__("is_numeric")(x)) {
+		untyped if (!__call__("is_numeric", x)) {
 			var matches = null;
 			__call__('preg_match', '/\\d+/', x, matches);
 			return __call__("count", matches) == 0 ? null : __call__('intval', matches[0]);

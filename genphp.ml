@@ -518,23 +518,18 @@ and gen_call ctx e el =
 		gen_value ctx e1;
 		spr ctx " === ";
 		gen_value ctx e2
+	| TLocal _, []
+	| TFunction _, []
+	| TCall _, []
+	| TBlock _, [] ->
+		ctx.is_call <- true;
+		spr ctx "call_user_func(";
+		gen_value ctx e;
+		ctx.is_call <- false;
+		spr ctx ")";
 	| TLocal _, el
-	| TFunction _, el ->
-		ctx.is_call <- true;
-		spr ctx "call_user_func_array(";
-		gen_value ctx e;
-		ctx.is_call <- false;
-		spr ctx ", array(";
-		concat ctx ", " (gen_value ctx) el;
-		spr ctx "))"
-	| TCall (x,_), el when (match x.eexpr with | TLocal _ -> false | _ -> true) ->
-		ctx.is_call <- true;
-		spr ctx "call_user_func_array(";
-		gen_value ctx e;
-		ctx.is_call <- false;
-		spr ctx ", array(";
-		concat ctx ", " (gen_value ctx) el;
-		spr ctx "))"
+	| TFunction _, el
+	| TCall _, el
 	| TBlock _, el ->
 		ctx.is_call <- true;
 		spr ctx "call_user_func_array(";
@@ -543,6 +538,16 @@ and gen_call ctx e el =
 		spr ctx ", array(";
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx "))"
+(*
+	| TCall (x,_), el when (match x.eexpr with | TLocal _ -> false | _ -> true) ->
+		ctx.is_call <- true;
+		spr ctx "call_user_func_array(";
+		gen_value ctx e;
+		ctx.is_call <- false;
+		spr ctx ", array(";
+		concat ctx ", " (gen_value ctx) el;
+		spr ctx "))"
+*)
 	| _ ->
 		ctx.is_call <- true;
 		gen_value ctx e;

@@ -40,11 +40,11 @@
 		if( global )
 			opt = a.join("");
 		this.options = opt;
-		this.re = "/" + untyped __php__("str_replace")("/", "\\/", r) + "/" + opt;
+		this.re = "/" + untyped __call__("str_replace", "/", "\\/", r) + "/" + opt;
 	}
 
 	public function match( s : String ) : Bool {
-		var p : Int = untyped __php__("preg_match")(re, s, matches, __php__("PREG_OFFSET_CAPTURE"));
+		var p : Int = untyped __call__("preg_match", re, s, matches, __php__("PREG_OFFSET_CAPTURE"));
 		if(p > 0)
 			last = s;
 		else
@@ -68,12 +68,12 @@
 
 	public function matchedRight() : String {
 		if( untyped __call__("count", matches) == 0 ) throw "No string matched";
-		var x : Int = untyped __php__("$this->matches[0][1]") + __php__("strlen")(__php__("$this->matches[0][0]"));
+		var x : Int = untyped __php__("$this->matches[0][1]") + __call__("strlen",__php__("$this->matches[0][0]"));
 		return last.substr(x);
 	}
 
 	public function matchedPos() : { pos : Int, len : Int } {
-		return untyped { pos : __php__("$this->matches[0][1]"), len : __php__("strlen")(__php__("$this->matches[0][0]")) };
+		return untyped { pos : __php__("$this->matches[0][1]"), len : __call__("strlen",__php__("$this->matches[0][0]")) };
 	}
 
 	public function split( s : String ) : Array<String> {

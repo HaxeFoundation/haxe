@@ -40,7 +40,7 @@ enum ValueType {
 	}
 
 	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> {
-		var s = untyped __php__("get_parent_class")(c.__tname__);
+		var s = untyped __call__("get_parent_class", c.__tname__);
 		if(s == false)
 			return null;
 		else
