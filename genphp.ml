@@ -43,6 +43,7 @@ type context = {
 	buf : Buffer.t;
 	path : path;
 	stack : Codegen.stack_context;
+	mutable nested_loops : int;
 	mutable inline_index : int;
 	mutable curclass : tclass;
 	mutable curmethod : string;
@@ -51,7 +52,6 @@ type context = {
 	mutable in_loop : bool;
 	mutable in_block : bool;
 	mutable in_instance_method : bool;
-	mutable handle_break : bool;
 	mutable imports : (string,string list list) Hashtbl.t;
 	mutable extern_required_paths : (string list * string) list;
 	mutable extern_classes_with_init : path list;
@@ -299,7 +299,6 @@ let init com cwd path def_type =
 		in_value = None;
 		in_loop = false;
 		in_instance_method = false;
-		handle_break = false;
 		imports = imports;
 		extern_required_paths = [];
 		extern_classes_with_init = [];
@@ -315,6 +314,7 @@ let init com cwd path def_type =
 		is_call = false;
 		cwd = cwd;
 		inline_methods = [];
+		nested_loops = 0;
 		inline_index = 0;
 		in_block = false;
 		lib_path = match com.php_lib with None -> "lib" | Some s -> s;
@@ -382,41 +382,9 @@ let define_local ctx l =
 	in
 	loop 1
 
-let rec iter_switch_break in_switch e =
-	match e.eexpr with
-	| TFunction _ | TWhile _ | TFor _ -> ()
-	| TSwitch _ | TMatch _ when not in_switch -> iter_switch_break true e
-	| TBreak when in_switch -> raise Exit
-	| _ -> iter (iter_switch_break in_switch) e
-
-let handle_break ctx e =
-	let old = ctx.in_loop, ctx.handle_break in
-	ctx.in_loop <- true;
-	try
-		iter_switch_break false e;
-		ctx.handle_break <- false;
-		(fun() ->
-			ctx.in_loop <- fst old;
-			ctx.handle_break <- snd old;
-		)
-	with
-		Exit ->
-			spr ctx "try {";
-			let b = open_block ctx in
-			newline ctx;
-			ctx.handle_break <- true;
-			(fun() ->
-				b();
-				ctx.in_loop <- fst old;
-				ctx.handle_break <- snd old;
-				newline ctx;
-				spr ctx "} catch(_hx_break_exception $»e){}";
-			)
-
 let this ctx =
 	if ctx.in_value <> None then "$»this" else "$this"
 
-(*let escape_bin s quotes = *)
 let escape_bin s =
 	let b = Buffer.create 0 in
 	for i = 0 to String.length s - 1 do
@@ -804,6 +772,7 @@ and gen_function ctx name f params p =
 
 	
 and gen_inline_function ctx f hasthis p =
+	ctx.nested_loops <- ctx.nested_loops - 1;
 	let old = ctx.in_value in
 	let old_l = ctx.locals in
 	let old_li = ctx.inv_locals in
@@ -835,7 +804,8 @@ and gen_inline_function ctx f hasthis p =
 	ctx.in_value <- old;
 	ctx.locals <- old_l;
 	ctx.inv_locals <- old_li;
-	ctx.local_types <- old_t
+	ctx.local_types <- old_t;
+	ctx.nested_loops <- ctx.nested_loops + 1;
 	
 and unset_locals ctx old_l =
 	let lst = ref [] in
@@ -851,8 +821,11 @@ and unset_locals ctx old_l =
 	end
 	
 and gen_while_expr ctx e =
-	match e.eexpr with
-	| TBlock (el) ->	
+	let old_loop = ctx.in_loop in
+	ctx.in_loop <- true;
+	ctx.nested_loops <- ctx.nested_loops + 1;
+	(match e.eexpr with
+	| TBlock (el) ->
 		let old_l = ctx.inv_locals in
 		let b = save_locals ctx in
 		print ctx "{";
@@ -866,7 +839,9 @@ and gen_while_expr ctx e =
 		print ctx "}";
 		b();
 	| _ ->
-		gen_expr ctx e
+		gen_expr ctx e);
+	ctx.nested_loops <- ctx.nested_loops - 1;
+	ctx.in_loop <- old_loop
 
 and gen_expr ctx e =
 	let in_block = ctx.in_block in
@@ -1128,11 +1103,9 @@ and gen_expr ctx e =
 			gen_value ctx e;
 			);
 	| TBreak ->
-		if not ctx.in_loop then unsupported "TBreak" e.epos;
-		if ctx.handle_break then spr ctx "throw new _hx_break_exception()" else spr ctx "break"
+		if ctx.in_loop then spr ctx "break" else print ctx "break %d" ctx.nested_loops
 	| TContinue ->
-		if not ctx.in_loop then unsupported "TContinue 1" e.epos;
-		spr ctx "continue"
+		if ctx.in_loop then spr ctx "continue" else print ctx "continue %d" ctx.nested_loops
 	| TBlock [] ->
 		spr ctx ""
 	| TBlock el ->
@@ -1319,28 +1292,23 @@ and gen_expr ctx e =
 		spr ctx (Ast.s_unop op)
 	| TWhile (cond,e,Ast.NormalWhile) ->
 		let old = save_locals ctx in
-		let handle_break = handle_break ctx e in
 		spr ctx "while";
 		gen_value ctx (parent cond);
 		spr ctx " ";
 		gen_while_expr ctx e;
-		handle_break();
 		old()
 	| TWhile (cond,e,Ast.DoWhile) ->
 		let old = save_locals ctx in
-		let handle_break = handle_break ctx e in
 		spr ctx "do ";
 		gen_while_expr ctx e;
 		spr ctx " while";
 		gen_value ctx (parent cond);
-		handle_break();
 		old()
 	| TObjectDecl fields ->
 		spr ctx "_hx_anonymous(array(";
 		concat ctx ", " (fun (f,e) -> print ctx "\"%s\" => " f; gen_value ctx e) fields;
 		spr ctx "))"
 	| TFor (v,t,it,e) ->
-		let handle_break = handle_break ctx e in
 		let b = save_locals ctx in
 		let tmp = define_local ctx "»it" in
 		let v = define_local ctx v in
@@ -1367,7 +1335,6 @@ and gen_expr ctx e =
 		newline ctx;
 		spr ctx "}";
 		b();
-		handle_break();
 	| TTry (e,catchs) ->
 		spr ctx "try ";
 		restore_in_block ctx in_block;
@@ -1430,6 +1397,9 @@ and gen_expr ctx e =
 		gen_value ctx e;
 		newline ctx;
 		print ctx "switch($%s->index) {" tmp;
+		let old_loop = ctx.in_loop in
+		ctx.in_loop <- false;
+		ctx.nested_loops <- ctx.nested_loops + 1;
 		newline ctx;
 		List.iter (fun (cl,params,e) ->
 			List.iter (fun c ->
@@ -1456,6 +1426,8 @@ and gen_expr ctx e =
 			newline ctx;
 			b()
 		) cases;
+		ctx.nested_loops <- ctx.nested_loops - 1;
+		ctx.in_loop <- old_loop;
 		(match def with
 		| None -> ()
 		| Some e ->
@@ -1468,6 +1440,9 @@ and gen_expr ctx e =
 		spr ctx "}";
 		b()
 	| TSwitch (e,cases,def) ->
+		let old_loop = ctx.in_loop in
+		ctx.in_loop <- false;
+		ctx.nested_loops <- ctx.nested_loops + 1;
 		let old = save_locals ctx in
 		spr ctx "switch";
 		gen_value ctx (parent e);
@@ -1494,6 +1469,8 @@ and gen_expr ctx e =
 			newline ctx;
 		);
 		spr ctx "}";
+		ctx.nested_loops <- ctx.nested_loops - 1;
+		ctx.in_loop <- old_loop;
 		old()
 	| TCast (e,None) ->
 		gen_expr ctx e
@@ -1770,6 +1747,7 @@ let generate_inline_method ctx c m =
 	| l  -> spr ctx (String.concat ", " arguments)
 	);
 	spr ctx ") {";
+	ctx.nested_loops <- ctx.nested_loops - 1;
 	let block = open_block ctx in
 	newline ctx;
 	
@@ -1783,7 +1761,7 @@ let generate_inline_method ctx c m =
 	gen_expr ctx m.iexpr;
 	block();
 	old();
-	
+	ctx.nested_loops <- ctx.nested_loops + 1;
 	newline ctx;
 	spr ctx "}"
 	
@@ -1870,7 +1848,6 @@ let createmain com e =
 		in_value = None;
 		in_loop = false;
 		in_instance_method = false;
-		handle_break = false;
 		imports = Hashtbl.create 0;
 		extern_required_paths = [];
 		extern_classes_with_init = [];
@@ -1886,6 +1863,7 @@ let createmain com e =
 		is_call = false;
 		cwd = "";
 		inline_methods = [];
+		nested_loops = 0;
 		inline_index = 0;
 		in_block = false;
 		lib_path = match com.php_lib with None -> "lib" | Some s -> s;
