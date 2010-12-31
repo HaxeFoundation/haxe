@@ -1962,21 +1962,29 @@ let generate com =
 	let extern_classes_with_init = ref [] in
 	let php_lib_path = (match com.php_lib with None -> "lib" | Some n -> n) in
  	create_directory com (Str.split (Str.regexp "/")  php_lib_path);    
-	(* check for fields with the same name but different casing *)
+	(* check for fields with the same name but different casing or conflicting statics/instance fields *)
+	let check_class_fields c =
+		let lc_names = ref [] in
+		let rec _check_class_fields c = 
+			let fname f = (match follow f.cf_type with
+				| TFun _ -> (s_type_path c.cl_path) ^ ".m_";
+				| _ -> 		"f_") ^ (String.lowercase f.cf_name) in
+			List.iter(fun f -> (
+				if List.exists (fun n -> n = fname f) !lc_names then
+					unsupported ("'" ^ f.cf_name ^ "' already exists with different case or it exists already in a superclass") c.cl_pos
+				else
+					lc_names := (fname f) :: !lc_names
+			)) (c.cl_ordered_fields @ c.cl_ordered_statics);
+			(match c.cl_super with
+			| Some (s,_) -> _check_class_fields s
+			| _ -> ())
+		in
+		_check_class_fields c
+	in
 	List.iter (fun t ->
 		(match t with
 		| TClassDecl c ->
-			let fname f = (String.lowercase f.cf_name) ^ match follow f.cf_type with
-			| TFun _ -> "m_";
-			| _ -> 		"f_" in
-			
-			let lc_names = ref [] in
-			List.iter(fun f -> (
-				if List.exists (fun n -> n = fname f) !lc_names then
-					unsupported ("'" ^ f.cf_name ^ "' already exists with different case") c.cl_pos
-				else
-					lc_names := (fname f) :: !lc_names
-			)) (c.cl_ordered_fields @ c.cl_ordered_statics)
+			check_class_fields c
 		| TEnumDecl e ->
 			let e_names = ref [] in
 			List.iter(fun en -> (
