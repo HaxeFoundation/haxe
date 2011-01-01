@@ -1173,7 +1173,7 @@ and gen_expr ctx e =
 					gen_expr ctx e1;
 				| _ -> 
 					spr ctx "return ";
-					gen_expr ctx e
+					gen_value ctx e
 				)
 			end else begin
 				gen_expr ctx e;
