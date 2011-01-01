@@ -1962,19 +1962,21 @@ let generate com =
 	let extern_classes_with_init = ref [] in
 	let php_lib_path = (match com.php_lib with None -> "lib" | Some n -> n) in
  	create_directory com (Str.split (Str.regexp "/")  php_lib_path);    
-	(* check for fields with the same name but different casing or conflicting statics/instance fields *)
+	(* check for methods with the same name but different case *)
 	let check_class_fields c =
 		let lc_names = ref [] in
 		let rec _check_class_fields c = 
-			let fname f = (match follow f.cf_type with
-				| TFun _ -> (s_type_path c.cl_path) ^ ".m_";
-				| _ -> 		"f_") ^ (String.lowercase f.cf_name) in
-			List.iter(fun f -> (
-				if List.exists (fun n -> n = fname f) !lc_names then
-					unsupported ("'" ^ f.cf_name ^ "' already exists with different case or it exists already in a superclass") c.cl_pos
-				else
-					lc_names := (fname f) :: !lc_names
-			)) (c.cl_ordered_fields @ c.cl_ordered_statics);
+			List.iter(fun cf ->
+				let name = String.lowercase cf.cf_name in
+				match cf.cf_kind with
+				| Method _ when not (List.exists (fun n -> String.lowercase n = name) c.cl_overrides) ->
+					if (List.exists (fun n -> n = name) !lc_names) then
+						unsupported ("method '" ^ cf.cf_name ^ "' already exists with different case in the hierarchy chain") c.cl_pos
+					else
+						lc_names := name :: !lc_names
+				| _ ->
+					()
+			) (c.cl_ordered_fields @ c.cl_ordered_statics);
 			(match c.cl_super with
 			| Some (s,_) -> _check_class_fields s
 			| _ -> ())
@@ -2031,7 +2033,9 @@ let generate com =
 				let ctx = init com php_lib_path c.cl_path (if c.cl_interface then 2 else 0) in
 				ctx.extern_classes_with_init <- !extern_classes_with_init;
 				ctx.all_dynamic_methods <- !all_dynamic_methods;
+				
 				generate_class ctx c;
+				
 				(match c.cl_init with
 				| None -> ()
 				| Some e ->
