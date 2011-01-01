@@ -47,7 +47,7 @@ class Lib {
 		return untyped __call__("fpassthru", __call__("fopen", file,  "r"));
 	}
 
-	public static inline function toPhpArray(a : Array<Dynamic>) : NativeArray {
+	public static function toPhpArray(a : Array<Dynamic>) : NativeArray {
 		return untyped __field__(a, '»a');
 	}
 
