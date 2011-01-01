@@ -1965,21 +1965,37 @@ let generate com =
 	(* check for methods with the same name but different case *)
 	let check_class_fields c =
 		let lc_names = ref [] in
-		let rec _check_class_fields c = 
+		let special_cases = ["toString"] in
+		let loop c lst static = 
+			let in_special_cases name =
+				(List.exists (fun n -> String.lowercase n = name) (special_cases @ c.cl_overrides))
+			in
 			List.iter(fun cf ->
 				let name = String.lowercase cf.cf_name in
-				match cf.cf_kind with
-				| Method _ when not (List.exists (fun n -> String.lowercase n = name) c.cl_overrides) ->
-					if (List.exists (fun n -> n = name) !lc_names) then
-						unsupported ("method '" ^ cf.cf_name ^ "' already exists with different case in the hierarchy chain") c.cl_pos
-					else
-						lc_names := name :: !lc_names
+				let prefixed_name s = (if s then "s_" else "i_") ^ name in
+				match cf.cf_kind, cf.cf_expr with
+				| (Method _, Some e) when not (in_special_cases name) ->
+					(try 
+						let lc = List.find (fun n -> 
+							let n = snd n in
+							if static then
+								(n = (prefixed_name false))
+							else
+								((n = (prefixed_name false)) or (n = (prefixed_name true)))
+						) !lc_names in
+						unsupported ("method '" ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name ^ "' already exists here '" ^ (fst lc) ^ "' (different case?)") c.cl_pos
+					with Not_found ->
+						lc_names := ((s_type_path c.cl_path) ^ "." ^ cf.cf_name, prefixed_name static) :: !lc_names)
 				| _ ->
 					()
-			) (c.cl_ordered_fields @ c.cl_ordered_statics);
-			(match c.cl_super with
+			) lst
+		in
+		let rec _check_class_fields cl = 
+			(match cl.cl_super with
 			| Some (s,_) -> _check_class_fields s
-			| _ -> ())
+			| _ -> ());
+			loop cl cl.cl_ordered_statics true;
+			loop cl cl.cl_ordered_fields false
 		in
 		_check_class_fields c
 	in
