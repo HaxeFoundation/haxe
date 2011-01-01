@@ -604,11 +604,11 @@ and gen_string_call ctx s e el =
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")"
 	| "cca" ->
-		spr ctx "ord(";
+		spr ctx "ord(substr(";
 		gen_value ctx e;
-		spr ctx "{";
+		spr ctx ",";
 		concat ctx ", " (gen_value ctx) el;
-		spr ctx "})"
+		spr ctx ",1))"
 	| "charCodeAt" ->
 		spr ctx "_hx_char_code_at(";
 		gen_value ctx e;

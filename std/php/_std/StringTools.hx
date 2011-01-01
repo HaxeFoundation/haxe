@@ -88,11 +88,11 @@
 	}
 
 	public static inline function fastCodeAt( s : String, index : Int ) : Int {
-		return s.charCodeAt(index);
+		return untyped s.cca(index);
 	}
 
 	public static inline function isEOF( c : Int ) : Bool {
-		return c == null;
+		return untyped __physeq__(c, 0);
 	}
 
 }
