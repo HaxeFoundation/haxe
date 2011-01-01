@@ -1559,11 +1559,11 @@ and gen_value ctx e =
 	| TCall _
 	| TUnop _
 	| TNew _
-	| TCast _
 	| TFunction _ ->
 		gen_expr ctx e
 	| TBlock [] ->
 		()
+	| TCast (e, _)
 	| TBlock [e] ->
 		gen_value ctx e
 	| TBlock _
