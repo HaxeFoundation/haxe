@@ -1437,10 +1437,15 @@ and gen_expr ctx e =
 		| None -> ()
 		| Some e ->
 			spr ctx "default:";
+			let old_loop = ctx.in_loop in
+			ctx.in_loop <- false;
+			ctx.nested_loops <- ctx.nested_loops + 1;
 			restore_in_block ctx in_block;
 			gen_expr ctx (mk_block e);
 			print ctx "break";
 			newline ctx;
+			ctx.nested_loops <- ctx.nested_loops - 1;
+			ctx.in_loop <- old_loop;
 		);
 		spr ctx "}";
 		b()
