@@ -465,7 +465,8 @@ try
 			config_macros := e :: !config_macros
 		)," : call the given macro before typing anything else");
 		("--dead-code-elimination", Arg.Unit (fun () ->
-			com.dead_code_elimination <- true
+			com.dead_code_elimination <- true;
+			Common.add_filter com (fun() -> Optimizer.filter_dead_code com);
 		)," : remove unused methods");
 		("-swf9",Arg.String (fun file ->
 			set_platform Flash file;
@@ -578,14 +579,11 @@ try
 		com.lines <- Lexer.build_line_index();
 		if com.platform = Flash9 then Common.add_filter com (fun() -> List.iter Codegen.fix_overrides com.types);
 		let filters = [
+			if com.foptimize then Optimizer.reduce_expression ctx else Optimizer.sanitize;
 			Codegen.check_local_vars_init;
 			Codegen.block_vars com;
 		] in
-		let filters = (match com.platform with Js | Php | Cpp -> Optimizer.sanitize :: filters | _ -> filters) in
-		let filters = (if not com.foptimize then filters else Optimizer.reduce_expression ctx :: filters) in
 		Codegen.post_process com filters;
-		if com.dead_code_elimination then
-			Common.add_filter com (fun() -> Optimizer.filter_dead_code com);
 		Common.add_filter com (fun() -> List.iter (Codegen.on_generate ctx) com.types);
 		List.iter (fun f -> f()) (List.rev com.filters);
 		if Common.defined com "dump" then Codegen.dump_types com;

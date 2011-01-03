@@ -197,15 +197,6 @@ let rec gen_call ctx e el =
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")"
 
-and gen_value_op ctx e =
-	match e.eexpr with
-	| TBinop (op,_,_) when op = Ast.OpAnd || op = Ast.OpOr || op = Ast.OpXor ->
-		spr ctx "(";
-		gen_value ctx e;
-		spr ctx ")";
-	| _ ->
-		gen_value ctx e
-
 and gen_expr ctx e =
 	match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
@@ -217,15 +208,10 @@ and gen_expr ctx e =
 		spr ctx "[";
 		gen_value ctx e2;
 		spr ctx "]";
-	| TBinop (op,{ eexpr = TField (e1,s) },e2) ->
-		gen_value_op ctx e1;
-		spr ctx (field s);
-		print ctx " %s " (Ast.s_binop op);
-		gen_value_op ctx e2;
 	| TBinop (op,e1,e2) ->
-		gen_value_op ctx e1;
+		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
-		gen_value_op ctx e2;
+		gen_value ctx e2;
 	| TField (x,s) ->
 		gen_value ctx x;
 		spr ctx (field s)
@@ -557,7 +543,11 @@ and gen_value ctx e =
 		loop el;
 		v();
 	| TIf (cond,e,eo) ->
-		spr ctx "(";
+		let cond = (match cond.eexpr with
+			| TParenthesis { eexpr = TBinop ((Ast.OpAssign | Ast.OpAssignOp _),_,_) } -> cond
+			| TParenthesis e -> e
+			| _ -> cond
+		) in
 		gen_value ctx cond;
 		spr ctx "?";
 		gen_value ctx e;
@@ -565,7 +555,6 @@ and gen_value ctx e =
 		(match eo with
 		| None -> spr ctx "null"
 		| Some e -> gen_value ctx e);
-		spr ctx ")"
 	| TSwitch (cond,cases,def) ->
 		let v = value true in
 		gen_expr ctx (mk (TSwitch (cond,

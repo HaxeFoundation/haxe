@@ -118,14 +118,14 @@ let type_inline ctx cf f ethis params tret p =
 			let term, t = (match def with Some d when term -> true, d.etype | _ -> false, e.etype) in
 			let cases = List.map (fun (i,vl,e) ->
 				let old = save_locals ctx in
-				let vl = opt (List.map (fun (n,t) -> opt (fun n -> add_local ctx n t) n, t)) vl in 
+				let vl = opt (List.map (fun (n,t) -> opt (fun n -> add_local ctx n t) n, t)) vl in
 				let e = map term e in
 				old();
 				i, vl, e
 			) cases in
 			{ e with eexpr = TMatch (map false e,en,cases,opt (map term) def); etype = t }
 		| TTry (e1,catches) ->
-			{ e with eexpr = TTry (map term e1,List.map (fun (v,t,e) -> 
+			{ e with eexpr = TTry (map term e1,List.map (fun (v,t,e) ->
 				let old = save_locals ctx in
 				let v = add_local ctx v t in
 				let e = map term e in
@@ -208,7 +208,10 @@ let type_inline ctx cf f ethis params tret p =
 	else
 		let wrap e =
 			(* we can't mute the type of the expression because it is not correct to do so *)
-			mk (TCast (e,None)) tret e.epos
+			if e.etype == tret then
+				e
+			else
+				mk (TParenthesis e) tret e.epos
 		in
 		let e = (match e.eexpr, init with
 			| TBlock [e] , None -> wrap e
@@ -340,16 +343,95 @@ let optimize_for_loop ctx i e1 e2 p =
 		None
 
 (* ---------------------------------------------------------------------- *)
+(* SANITIZE *)
+
+(*
+	makes sure that when an AST get generated to source code, it will not
+	generate expressions that evaluate differently. It is then necessary to
+	add parenthesises around some binary expressions when the AST does not
+	correspond to the natural operand priority order for the platform
+*)
+
+let conflicts op op2 left =
+	match op, op2 with
+	(*
+		these three have the same precedence in haXe but different in other languages
+	*)
+	| (OpOr | OpXor | OpAnd), (OpOr | OpXor | OpAnd) -> true
+	(*
+		bitshifts have higher priority in haXe than in ECMAScript
+	*)
+	| (OpShl | OpShr | OpUShr | OpEq | OpNotEq | OpGt | OpLt | OpGte | OpLte) , (OpShl | OpShr | OpUShr | OpEq | OpNotEq | OpGt | OpLt | OpGte | OpLte) -> true
+	(*
+		% have have higher priority than / * in haXe than in ECMAScript
+	*)
+	| OpMult, OpMult -> false
+	| (OpMult | OpDiv | OpMod) , (OpMult | OpDiv | OpMod) -> true
+	(*
+		there is no real ambiguity here, but it's more easy to read if both are separated
+	*)
+	| (OpBoolAnd | OpBoolOr), (OpBoolAnd | OpBoolOr) -> op != op2
+	| _ ->
+		Parser.swap op2 op
+
+let sanitize_expr e =
+	let parent e =
+		mk (TParenthesis e) e.etype e.epos
+	in
+	let block e =
+		mk (TBlock [e]) e.etype e.epos
+	in
+	match e.eexpr with
+	| TBinop (op,e1,e2) ->
+		let rec loop ee left =
+			match ee.eexpr with
+			| TBinop (op2,_,_) -> conflicts op op2 left
+			| TIf _ -> Parser.is_not_assign op
+			| TCast (e,None) -> loop e left
+			| _ -> false
+		in
+		let e1 = if loop e1 true then parent e1 else e1 in
+		let e2 = if loop e2 false then parent e2 else e2 in
+		{ e with eexpr = TBinop (op,e1,e2) }
+	| TUnop (op,mode,e2) ->
+		let rec loop ee =
+			match ee.eexpr with
+			| TBinop _ -> parent e2
+			| TCast (e,None) -> loop e
+			| _ -> e2
+		in
+		{ e with eexpr = TUnop (op,mode,loop e2) }
+	| TIf (e1,e2,eelse) ->
+		let e1 = (match e1.eexpr with
+			| TParenthesis _ -> e1
+			| _ -> parent e1
+		) in
+		let e2 = (match e2.eexpr, eelse with
+			| TIf (_,_,Some _) , _ | TIf (_,_,None), Some _ -> block e2
+			| _ -> e2
+		) in
+		{ e with eexpr = TIf (e1,e2,eelse) }
+	| TFunction f ->
+		(match f.tf_expr.eexpr with
+		| TBlock _ -> e
+		| _ -> { e with eexpr = TFunction { f with tf_expr = block f.tf_expr } })
+	| _ ->
+		e
+
+let rec sanitize e =
+	Type.map_expr sanitize (sanitize_expr e)
+
+(* ---------------------------------------------------------------------- *)
 (* REDUCE *)
 
-let rec reduce_loop ctx is_sub e =
+let rec reduce_loop ctx e =
 	let is_float t =
 		match follow t with
 		| TInst ({ cl_path = ([],"Float") },_) -> true
 		| _ -> false
 	in
-	let e = Type.map_expr (reduce_loop ctx (match e.eexpr with TBlock _ -> false | _ -> true)) e in
-	match e.eexpr with
+	let e = Type.map_expr (reduce_loop ctx) e in
+	sanitize_expr (match e.eexpr with
 	| TIf ({ eexpr = TConst (TBool t) },e1,e2) ->
 		(if t then e1 else match e2 with None -> { e with eexpr = TBlock [] } | Some e -> e)
 	| TWhile ({ eexpr = TConst (TBool false) },sub,flag) ->
@@ -454,7 +536,8 @@ let rec reduce_loop ctx is_sub e =
 			| OpAssign -> e
 			| _ ->
 				error "You cannot directly compare enums with arguments. Use either 'switch' or 'Type.enumEq'" e.epos)
-		| _ -> e)
+		| _ ->
+			e)
 	| TUnop (op,flag,esub) ->
 		(match op, esub.eexpr with
 		| Not, TConst (TBool f) -> { e with eexpr = TConst (TBool (not f)) }
@@ -479,8 +562,13 @@ let rec reduce_loop ctx is_sub e =
 			| Some e -> e)
 		| _ ->
 			e)
-	| TParenthesis ({ eexpr = TConst _ } as ec) | TBlock [{ eexpr = TConst _ } as ec] ->
+	| TBlock [{ eexpr = TConst _ } as ec] ->
 		{ ec with epos = e.epos }
+	| TParenthesis ec ->
+		(match ec.eexpr with
+		| TBinop _ -> e (* TODO : we could remove this after we check all operators works well *)
+		| TNew _ when ctx.com.platform = Cpp -> e (* TODO : fix in cpp generator *)
+		| _ -> { ec with epos = e.epos })
 	| TSwitch (_,cases,_) ->
 		List.iter (fun (cl,_) ->
 			List.iter (fun e ->
@@ -491,24 +579,24 @@ let rec reduce_loop ctx is_sub e =
 		) cases;
 		e
 	| _ ->
-		e
+		e)
 
 let reduce_expression ctx e =
-	if ctx.com.foptimize then reduce_loop ctx false e else e
-	
+	if ctx.com.foptimize then reduce_loop ctx e else e
+
 (* ---------------------------------------------------------------------- *)
 (* ELIMINATE DEAD CODE *)
 
 (*
-	if dead code elimination is on, any class without fields is eliminated from the output. Also inline members 
+	if dead code elimination is on, any class without fields is eliminated from the output. Also inline members
 	are eliminated unless marked as @:keep
 *)
-	
+
 let filter_dead_code com =
 	let s_class c = s_type_path c.cl_path in
 	let s_field c cf = (s_class c) ^ "." ^ cf.cf_name in
 	let remove_inlines c =
-		let remove_inline_fields lst = 
+		let remove_inline_fields lst =
 			List.filter(fun cf ->
 				match cf.cf_kind with
 				| Var k when ((k.v_read = AccInline) && (not (has_meta ":keep" cf.cf_meta))) ->
@@ -527,8 +615,8 @@ let filter_dead_code com =
 	com.types <- List.filter (fun t ->
 		match t with
 		| TClassDecl c ->
-			if (c.cl_extern or has_meta ":keep" c.cl_meta) then 
-				true 
+			if (c.cl_extern or has_meta ":keep" c.cl_meta) then
+				true
 			else (
 				remove_inlines c;
 				match (c.cl_ordered_statics, c.cl_ordered_fields, c.cl_constructor) with
@@ -540,35 +628,3 @@ let filter_dead_code com =
 		| _ ->
 			true
 	) com.types
-
-
-(* ---------------------------------------------------------------------- *)
-(* SANITIZE *)
-
-(*
-	makes sure that when an AST get generated to source code, it will not
-	generate expressions that evaluate differently. It is then necessary to
-	add parenthesises around some binary expressions when the AST does not
-	correspond to the natural operand priority order for the platform
-*)
-
-let rec sanitize e =
-	match e.eexpr with
-	| TBinop (op,e1,e2) ->
-		let parent e = mk (TParenthesis e) e.etype e.epos in
-		let e1 = sanitize e1 in
-		let e2 = sanitize e2 in
-		let e1 = (match e1.eexpr with
-			| TBinop (op2,_,_) when Parser.swap op2 op -> parent e1
-			| _ -> e1
-		) in
-		let e2 = (match e2.eexpr with
-			| TBinop (op2,_,_) when Parser.swap op2 op -> parent e2
-			| _ -> e2
-		) in
-		{ e with eexpr = TBinop (op,e1,e2) }
-	| TUnop (op,mode,({ eexpr = TBinop _ } as e)) ->
-		{ e with eexpr = TUnop (op,mode,mk (TParenthesis e) e.etype e.epos) }
-	| _ ->
-		Type.map_expr sanitize e
-

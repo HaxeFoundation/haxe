@@ -245,6 +245,7 @@ class TestMisc extends Test {
 		// check that operations are correctly generated
 		var x = 3; // prevent optimization
 		eq( 2 * foo(x), 16 );
+		eq( -foo(x), -8 );
 	}
 
 	function testEvalAccessOrder() {

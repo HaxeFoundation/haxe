@@ -181,6 +181,7 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 		tf.selectable = true;
 		#end
 		var classes = [
+			new TestOps(),
 			new TestBasetypes(),
 			new TestReflect(),
 			new TestBytes(),
@@ -192,7 +193,9 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 			new TestResource(),
 			new TestEReg(),
 			new TestType(),
+			#if !macro
 			new TestXML(),
+			#end
 			new TestMeta(),
 //			new TestRemoting(),
 		];

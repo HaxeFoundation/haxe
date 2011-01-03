@@ -1,43 +1,28 @@
 -cp ..
 -swf unit8.swf
+-swf-version 8
 -swf-header 300:300:30:FFFFFF
 -main unit.Test
--resource res1.txt
--resource res2.bin
--D noopt
+params.hxml
 --next
 -swf9 unit9.swf
 -main unit.Test
--debug
--cp ..
--resource res1.txt
--resource res2.bin
--D noopt
+params.hxml
 --next
 -as3 as3
 -cp ..
 -main unit.Test
--D noopt
 --next
 -js unit.js
 unit.Test
--cp ..
--resource res1.txt
--resource res2.bin
--D noopt
+params.hxml
 --next
 -neko unit.n
 -main unit.Test
--cp ..
--resource res1.txt
--resource res2.bin
--D noopt
+params.hxml
 --next
--cp ..
--resource res1.txt
--resource res2.bin
--D noopt
 -main unit.Test
+params.hxml
 --interp
 --next
 -neko remoting.n
@@ -46,18 +31,11 @@ unit.Test
 --next
 -php php
 -main unit.Test
--cp ..
--resource res1.txt
--resource res2.bin
--D noopt
+params.hxml
 --next
 -neko runcpp.n
 -main RunCpp
 --next
 -cpp cpp
--debug
 -main unit.Test
--cp ..
--resource res1.txt
--resource res2.bin
--D noopt
+params.hxml

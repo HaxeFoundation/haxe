@@ -283,7 +283,7 @@ let make_call ctx e params t p =
 		if f.cf_kind <> Method MethInline then raise Exit;
 		if not ctx.g.doinline then (match cl with Some { cl_extern = true } -> () | _ -> raise Exit);
 		ignore(follow f.cf_type); (* force evaluation *)
-		let params = List.map (Optimizer.reduce_expression ctx) params in
+		let params = List.map (ctx.g.do_optimize ctx) params in
 		(match f.cf_expr with
 		| Some { eexpr = TFunction fd } ->
 			(match Optimizer.type_inline ctx f fd ethis params t p with
