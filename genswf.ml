@@ -214,7 +214,7 @@ let build_class com c file =
 		let i = (match i with
 			| HMMultiName (Some id,ns) ->
 				let rec loop = function
-					| [] -> assert false
+					| [] -> HMPath ([],id)
 					| HNPublic (Some ns) :: _ -> HMPath (ExtString.String.nsplit ns ".",id)
 					| _ :: l -> loop l
 				in
