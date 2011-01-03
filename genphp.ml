@@ -829,22 +829,16 @@ and gen_while_expr ctx e =
 	let old_loop = ctx.in_loop in
 	ctx.in_loop <- true;
 	ctx.nested_loops <- ctx.nested_loops + 1;
+	let old_l = ctx.inv_locals in
+	let b = save_locals ctx in
 	(match e.eexpr with
 	| TBlock (el) ->
-		let old_l = ctx.inv_locals in
-		let b = save_locals ctx in
-		print ctx "{";
-		let bend = open_block ctx in
 		List.iter (fun e -> newline ctx; gen_expr ctx e) el;
-		
-		unset_locals ctx old_l;
-		
-		bend();
-		newline ctx;
-		print ctx "}";
-		b();
 	| _ ->
+		newline ctx;
 		gen_expr ctx e);
+	unset_locals ctx old_l;
+	b();
 	ctx.nested_loops <- ctx.nested_loops - 1;
 	ctx.in_loop <- old_loop
 
@@ -1156,7 +1150,8 @@ and gen_expr ctx e =
 				| TBreak
 				| TBlock _ ->
 					restore_in_block ctx in_block;
-					gen_expr ctx e
+					gen_expr ctx e;
+					unset_locals ctx old_l;
 				| TReturn (Some e1) ->
 					(match e1.eexpr with
 					| TIf _
@@ -1173,7 +1168,7 @@ and gen_expr ctx e =
 					gen_expr ctx e1;
 				| _ -> 
 					spr ctx "return ";
-					gen_value ctx e
+					gen_value ctx e;
 				)
 			end else begin
 				gen_expr ctx e;
@@ -1181,7 +1176,6 @@ and gen_expr ctx e =
 			decr remaining;
 		in
 		List.iter build el;
-		unset_locals ctx old_l;
 
 		bend();
 		newline ctx;
@@ -1299,14 +1293,21 @@ and gen_expr ctx e =
 		let old = save_locals ctx in
 		spr ctx "while";
 		gen_value ctx (parent cond);
-		spr ctx " ";
+		spr ctx " {";
+		let bend = open_block ctx in
 		gen_while_expr ctx e;
+		bend();
+		newline ctx;
+		spr ctx "}";
 		old()
 	| TWhile (cond,e,Ast.DoWhile) ->
 		let old = save_locals ctx in
-		spr ctx "do ";
+		spr ctx "do {";
+		let bend = open_block ctx in
 		gen_while_expr ctx e;
-		spr ctx " while";
+		bend();
+		newline ctx;
+		spr ctx "} while";
 		gen_value ctx (parent cond);
 		old()
 	| TObjectDecl fields ->
@@ -1333,10 +1334,11 @@ and gen_expr ctx e =
 		gen_value ctx it;
 		newline ctx;
 		print ctx "while($%s->hasNext()) {" tmp;
+		let bend = open_block ctx in
 		newline ctx;
 		print ctx "$%s = $%s->next()" v tmp;
-		newline ctx;
 		gen_while_expr ctx e;
+		bend();
 		newline ctx;
 		spr ctx "}";
 		b();
@@ -1347,13 +1349,13 @@ and gen_expr ctx e =
 		let old = save_locals ctx in
 		let ex = define_local ctx "»e" in
 		print ctx "catch(Exception $%s) {" ex;
+		let bend = open_block ctx in
 		let first = ref true in
 		let catchall = ref false in
 		let evar = define_local ctx "_ex_" in
 		newline ctx;
 		print ctx "$%s = ($%s instanceof HException) ? $%s->e : $%s" evar ex ex ex;
 		old();
-		newline ctx;
 		List.iter (fun (v,t,e) ->
 			let ev = define_local ctx v in
 			newline ctx;
@@ -1383,18 +1385,21 @@ and gen_expr ctx e =
 			| TMono _
 			| TDynamic _ ->
 				catchall := true;
-				print ctx "{ $%s = $%s" ev evar;
+				if not !first then spr ctx "{ ";
+				print ctx "$%s = $%s" ev evar;
 				newline ctx;
 				restore_in_block ctx in_block;
 				gen_expr ctx (mk_block e);
-				spr ctx "}");
+				if not !first then spr ctx "}"
+			);
 			b();
 			first := false;
 		) catchs;
-		if !catchall then
-			spr ctx "}"
-		else
-			print ctx " else throw $%s; }" ex
+		if not !catchall then
+			print ctx " else throw $%s;" ex;
+		bend();
+		newline ctx;
+		spr ctx "}"
 	| TMatch (e,_,cases,def) ->
 		let b = save_locals ctx in
 		let tmp = define_local ctx "»t" in
