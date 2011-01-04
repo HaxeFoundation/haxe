@@ -21,6 +21,7 @@
 	all : added --macros and haxe.macro.Compiler
 	all : allow macro type patches
 	flash9 : changed --gen-hx-classes implementation
+		now use 'haxe -swf-lib lib.swf --gen-hx-classes' instead
 	flash9 : added @:getter and @:setter
 	all : added @:require
 	flash9 : moved vector utils functions from flash.Lib to flash.Vector
