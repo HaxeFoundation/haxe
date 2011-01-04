@@ -597,14 +597,15 @@ let reduce_expression ctx e =
 let filter_dead_code com =
 	let s_class c = s_type_path c.cl_path in
 	let s_field c cf = (s_class c) ^ "." ^ cf.cf_name in
+	let keep c cf = (has_meta ":core_api" c.cl_meta) || (has_meta ":keep" c.cl_meta) || (has_meta ":keep" cf.cf_meta) in
 	let remove_inlines c =
 		let remove_inline_fields lst =
 			List.filter(fun cf ->
 				match cf.cf_kind with
-				| Var k when ((k.v_read = AccInline) && (not (has_meta ":keep" cf.cf_meta))) ->
+				| Var k when ((k.v_read = AccInline) && (not (keep c cf))) ->
 					if com.verbose then print_endline ("Remove inline var " ^ s_field c cf);
 					false;
-				| Method k when ((k = MethInline) && (not (has_meta ":keep" cf.cf_meta))) ->
+				| Method k when ((k = MethInline) && (not (keep c cf))) ->
 					if com.verbose then print_endline ("Remove inline method " ^ s_field c cf);
 					false;
 				| _ ->
