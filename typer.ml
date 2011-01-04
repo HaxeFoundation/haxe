@@ -280,7 +280,7 @@ let make_call ctx e params t p =
 			| TAnon a -> (try PMap.find fname a.a_fields with Not_found -> raise Exit), (match !(a.a_status) with Statics c -> Some c | _ -> None)
 			| _ -> raise Exit
 		) in
-		if f.cf_kind <> Method MethInline then raise Exit;
+		if ctx.com.display || f.cf_kind <> Method MethInline then raise Exit;
 		if not ctx.g.doinline then (match cl with Some { cl_extern = true } -> () | _ -> raise Exit);
 		ignore(follow f.cf_type); (* force evaluation *)
 		let params = List.map (ctx.g.do_optimize ctx) params in
@@ -321,7 +321,11 @@ let rec acc_get ctx g p =
 	| AKInline (e,f,t) ->
 		ignore(follow f.cf_type); (* force computing *)
 		(match f.cf_expr with
-		| None -> error "Recursive inline is not supported" p
+		| None ->
+			if ctx.com.display then
+				mk (TClosure (e,f.cf_name)) t p
+			else
+				error "Recursive inline is not supported" p
 		| Some { eexpr = TFunction _ } ->
 			let chk_class c = if c.cl_extern then error "Can't create closure on an inline extern method" p in
 			(match follow e.etype with
