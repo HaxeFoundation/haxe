@@ -521,6 +521,7 @@ and gen_call ctx e el =
 	| TLocal _, []
 	| TFunction _, []
 	| TCall _, []
+	| TParenthesis _, []
 	| TBlock _, [] ->
 		ctx.is_call <- true;
 		spr ctx "call_user_func(";
@@ -530,6 +531,7 @@ and gen_call ctx e el =
 	| TLocal _, el
 	| TFunction _, el
 	| TCall _, el
+	| TParenthesis _, el
 	| TBlock _, el ->
 		ctx.is_call <- true;
 		spr ctx "call_user_func_array(";
