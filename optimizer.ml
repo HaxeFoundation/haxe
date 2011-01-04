@@ -415,6 +415,8 @@ let sanitize_expr e =
 		(match f.tf_expr.eexpr with
 		| TBlock _ -> e
 		| _ -> { e with eexpr = TFunction { f with tf_expr = block f.tf_expr } })
+	| TCall ({ eexpr = TFunction _ } as f,args) ->
+		{ e with eexpr = TCall(parent f,args) }
 	| _ ->
 		e
 
