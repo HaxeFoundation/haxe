@@ -828,7 +828,8 @@ and unset_locals ctx old_l =
 and gen_while_expr ctx e =
 	let old_loop = ctx.in_loop in
 	ctx.in_loop <- true;
-	ctx.nested_loops <- ctx.nested_loops + 1;
+	let old_nested_loops = ctx.nested_loops in
+	ctx.nested_loops <- 1;
 	let old_l = ctx.inv_locals in
 	let b = save_locals ctx in
 	(match e.eexpr with
@@ -839,7 +840,7 @@ and gen_while_expr ctx e =
 		gen_expr ctx e);
 	unset_locals ctx old_l;
 	b();
-	ctx.nested_loops <- ctx.nested_loops - 1;
+	ctx.nested_loops <- old_nested_loops;
 	ctx.in_loop <- old_loop
 
 and gen_expr ctx e =
@@ -1435,23 +1436,18 @@ and gen_expr ctx e =
 			print ctx "break";
 			newline ctx;
 			b()
-		) cases;
-		ctx.nested_loops <- ctx.nested_loops - 1;
-		ctx.in_loop <- old_loop;
+		) cases;		
 		(match def with
 		| None -> ()
 		| Some e ->
 			spr ctx "default:";
-			let old_loop = ctx.in_loop in
-			ctx.in_loop <- false;
-			ctx.nested_loops <- ctx.nested_loops + 1;
 			restore_in_block ctx in_block;
 			gen_expr ctx (mk_block e);
 			print ctx "break";
 			newline ctx;
-			ctx.nested_loops <- ctx.nested_loops - 1;
-			ctx.in_loop <- old_loop;
 		);
+		ctx.nested_loops <- ctx.nested_loops - 1;
+		ctx.in_loop <- old_loop;
 		spr ctx "}";
 		b()
 	| TSwitch (e,cases,def) ->
