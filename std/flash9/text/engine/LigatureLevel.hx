@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-extern enum LigatureLevel {
+@:fakeEnum(String) extern enum LigatureLevel {
 	COMMON;
 	EXOTIC;
 	MINIMUM;

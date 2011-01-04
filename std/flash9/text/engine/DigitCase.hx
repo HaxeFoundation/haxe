@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-extern enum DigitCase {
+@:fakeEnum(String) extern enum DigitCase {
 	DEFAULT;
 	LINING;
 	OLD_STYLE;

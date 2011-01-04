@@ -1,6 +1,6 @@
 package flash.globalization;
 
-extern enum NationalDigitsType {
+@:fakeEnum(UInt) extern enum NationalDigitsType {
 	ARABIC_INDIC;
 	BALINESE;
 	BENGALI;

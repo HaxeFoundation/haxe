@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-extern enum Kerning {
+@:fakeEnum(String) extern enum Kerning {
 	AUTO;
 	OFF;
 	ON;

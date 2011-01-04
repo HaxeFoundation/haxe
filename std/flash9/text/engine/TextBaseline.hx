@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-extern enum TextBaseline {
+@:fakeEnum(String) extern enum TextBaseline {
 	ASCENT;
 	DESCENT;
 	IDEOGRAPHIC_BOTTOM;

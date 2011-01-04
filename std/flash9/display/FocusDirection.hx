@@ -1,6 +1,6 @@
 package flash.display;
 
-extern enum FocusDirection {
+@:fakeEnum(String) extern enum FocusDirection {
 	BOTTOM;
 	NONE;
 	TOP;

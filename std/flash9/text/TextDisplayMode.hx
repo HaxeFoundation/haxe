@@ -1,6 +1,6 @@
 package flash.text;
 
-extern enum TextDisplayMode {
+@:fakeEnum(String) extern enum TextDisplayMode {
 	CRT;
 	DEFAULT;
 	LCD;

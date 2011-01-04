@@ -1,6 +1,6 @@
 package flash.net;
 
-extern enum NetGroupSendMode {
+@:fakeEnum(String) extern enum NetGroupSendMode {
 	NEXT_DECREASING;
 	NEXT_INCREASING;
 }

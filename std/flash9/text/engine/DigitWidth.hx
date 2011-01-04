@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-extern enum DigitWidth {
+@:fakeEnum(String) extern enum DigitWidth {
 	DEFAULT;
 	PROPORTIONAL;
 	TABULAR;

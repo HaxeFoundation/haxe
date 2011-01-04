@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-extern enum BreakOpportunity {
+@:fakeEnum(String) extern enum BreakOpportunity {
 	ALL;
 	ANY;
 	AUTO;

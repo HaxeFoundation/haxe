@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-extern enum FontLookup {
+@:fakeEnum(String) extern enum FontLookup {
 	DEVICE;
 	EMBEDDED_CFF;
 }

@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-extern enum TypographicCase {
+@:fakeEnum(String) extern enum TypographicCase {
 	CAPS;
 	CAPS_AND_SMALL_CAPS;
 	DEFAULT;

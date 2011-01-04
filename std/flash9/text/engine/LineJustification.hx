@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-extern enum LineJustification {
+@:fakeEnum(String) extern enum LineJustification {
 	ALL_BUT_LAST;
 	ALL_INCLUDING_LAST;
 	UNJUSTIFIED;

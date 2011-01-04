@@ -1,6 +1,6 @@
 package flash.net;
 
-extern enum NetGroupReplicationStrategy {
+@:fakeEnum(String) extern enum NetGroupReplicationStrategy {
 	LOWEST_FIRST;
 	RAREST_FIRST;
 }

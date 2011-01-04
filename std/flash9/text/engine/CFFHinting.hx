@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-extern enum CFFHinting {
+@:fakeEnum(String) extern enum CFFHinting {
 	HORIZONTAL_STEM;
 	NONE;
 }

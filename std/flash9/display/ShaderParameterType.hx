@@ -1,6 +1,6 @@
 package flash.display;
 
-extern enum ShaderParameterType {
+@:fakeEnum(String) extern enum ShaderParameterType {
 	BOOL;
 	BOOL2;
 	BOOL3;

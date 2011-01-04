@@ -1,6 +1,6 @@
 package flash.net;
 
-extern enum URLLoaderDataFormat {
+@:fakeEnum(String) extern enum URLLoaderDataFormat {
 	BINARY;
 	TEXT;
 	VARIABLES;

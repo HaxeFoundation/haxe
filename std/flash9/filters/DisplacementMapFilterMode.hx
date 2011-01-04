@@ -1,6 +1,6 @@
 package flash.filters;
 
-extern enum DisplacementMapFilterMode {
+@:fakeEnum(String) extern enum DisplacementMapFilterMode {
 	CLAMP;
 	COLOR;
 	IGNORE;

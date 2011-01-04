@@ -1,6 +1,6 @@
 package flash.ui;
 
-extern enum KeyboardType {
+@:fakeEnum(String) extern enum KeyboardType {
 	ALPHANUMERIC;
 	KEYPAD;
 	NONE;

@@ -1,6 +1,6 @@
 package flash.events;
 
-extern enum GesturePhase {
+@:fakeEnum(String) extern enum GesturePhase {
 	ALL;
 	BEGIN;
 	END;

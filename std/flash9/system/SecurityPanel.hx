@@ -1,6 +1,6 @@
 package flash.system;
 
-extern enum SecurityPanel {
+@:fakeEnum(String) extern enum SecurityPanel {
 	CAMERA;
 	DEFAULT;
 	DISPLAY;

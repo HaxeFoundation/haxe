@@ -1,6 +1,6 @@
 package flash.globalization;
 
-extern enum DateTimeNameContext {
+@:fakeEnum(String) extern enum DateTimeNameContext {
 	FORMAT;
 	STANDALONE;
 }

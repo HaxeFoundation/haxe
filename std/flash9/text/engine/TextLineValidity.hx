@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-extern enum TextLineValidity {
+@:fakeEnum(String) extern enum TextLineValidity {
 	INVALID;
 	POSSIBLY_INVALID;
 	STATIC;

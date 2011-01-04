@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-extern enum TabAlignment {
+@:fakeEnum(String) extern enum TabAlignment {
 	CENTER;
 	DECIMAL;
 	END;

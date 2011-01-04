@@ -1,6 +1,6 @@
 package flash.globalization;
 
-extern enum DateTimeStyle {
+@:fakeEnum(String) extern enum DateTimeStyle {
 	CUSTOM;
 	LONG;
 	MEDIUM;

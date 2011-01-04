@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-extern enum TextRotation {
+@:fakeEnum(String) extern enum TextRotation {
 	AUTO;
 	ROTATE_0;
 	ROTATE_180;

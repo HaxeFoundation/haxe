@@ -1,6 +1,6 @@
 package flash.system;
 
-extern enum IMEConversionMode {
+@:fakeEnum(String) extern enum IMEConversionMode {
 	ALPHANUMERIC_FULL;
 	ALPHANUMERIC_HALF;
 	CHINESE;

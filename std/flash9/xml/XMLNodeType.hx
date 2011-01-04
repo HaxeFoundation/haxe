@@ -1,6 +1,6 @@
 package flash.xml;
 
-extern enum XMLNodeType {
+@:fakeEnum(UInt) extern enum XMLNodeType {
 	CDATA_NODE;
 	COMMENT_NODE;
 	DOCUMENT_TYPE_NODE;

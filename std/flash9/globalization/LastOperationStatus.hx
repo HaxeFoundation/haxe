@@ -1,6 +1,6 @@
 package flash.globalization;
 
-extern enum LastOperationStatus {
+@:fakeEnum(String) extern enum LastOperationStatus {
 	BUFFER_OVERFLOW_ERROR;
 	ERROR_CODE_UNKNOWN;
 	ILLEGAL_ARGUMENT_ERROR;

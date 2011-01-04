@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-extern enum TextLineCreationResult {
+@:fakeEnum(String) extern enum TextLineCreationResult {
 	COMPLETE;
 	EMERGENCY;
 	INSUFFICIENT_WIDTH;

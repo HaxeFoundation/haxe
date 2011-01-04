@@ -1,6 +1,6 @@
 package flash.display;
 
-extern enum PixelSnapping {
+@:fakeEnum(String) extern enum PixelSnapping {
 	ALWAYS;
 	AUTO;
 	NEVER;

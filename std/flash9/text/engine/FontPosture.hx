@@ -1,6 +1,6 @@
 package flash.text.engine;
 
-extern enum FontPosture {
+@:fakeEnum(String) extern enum FontPosture {
 	ITALIC;
 	NORMAL;
 }

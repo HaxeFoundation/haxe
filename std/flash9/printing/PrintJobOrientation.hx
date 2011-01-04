@@ -1,6 +1,6 @@
 package flash.printing;
 
-extern enum PrintJobOrientation {
+@:fakeEnum(String) extern enum PrintJobOrientation {
 	LANDSCAPE;
 	PORTRAIT;
 }

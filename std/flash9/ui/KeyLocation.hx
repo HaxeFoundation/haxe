@@ -1,6 +1,6 @@
 package flash.ui;
 
-extern enum KeyLocation {
+@:fakeEnum(UInt) extern enum KeyLocation {
 	D_PAD;
 	LEFT;
 	NUM_PAD;
