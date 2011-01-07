@@ -728,12 +728,17 @@ let init_class ctx c p herits fields =
 		| TMono r -> (match !r with None -> false | Some t -> is_full_type t)
 		| TInst _ | TEnum _ | TLazy _ | TDynamic _ | TAnon _ | TType _ -> true
 	in
-	let bind_type cf r p =
+	let bind_type cf r p macro =
 		if ctx.com.display then begin
 			let cp = !Parser.resume_display in
 			if display_file && (cp.pmin = 0 || (p.pmin <= cp.pmin && p.pmax >= cp.pmax)) then begin
-				cf.cf_type <- TLazy r;
-				(fun() -> ignore((!r)()))
+				if macro && not ctx.in_macro then
+					(* force macro system loading of this class in order to get completion *)
+					(fun() -> ignore(ctx.g.do_macro ctx c.cl_path cf.cf_name [] p))
+				else begin
+					cf.cf_type <- TLazy r;
+					(fun() -> ignore((!r)()))
+				end
 			end else begin
 				if not (is_full_type cf.cf_type) then cf.cf_type <- TLazy r;
 				(fun() -> ())
@@ -819,7 +824,7 @@ let init_class ctx c p herits fields =
 						cf.cf_expr <- Some (type_static_var ctx t e p);
 						t
 					) in
-					bind_type cf r (snd e)
+					bind_type cf r (snd e) false
 			) in
 			f, false, cf, delay
 		| FFun (params,fd) ->
@@ -912,7 +917,7 @@ let init_class ctx c p herits fields =
 			end else if ((c.cl_extern && not inline) || c.cl_interface) && cf.cf_name <> "__init__" then
 				(fun() -> ())
 			else
-				bind_type cf r (snd fd.f_expr)
+				bind_type cf r (snd fd.f_expr) is_macro
 			in
 			f, constr, cf, delay
 		| FProp (get,set,t) ->
