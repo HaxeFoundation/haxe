@@ -12,7 +12,7 @@ FILES = ast.cmx lexer.cmx type.cmx common.cmx parser.cmx typecore.cmx \
 	../neko/libs/include/ocaml/nast.cmx ../neko/libs/include/ocaml/binast.cmx ../neko/libs/include/ocaml/nxml.cmx \
 	genneko.cmx genas3.cmx genjs.cmx genswf8.cmx genswf9.cmx genswf.cmx genphp.cmx gencpp.cmx interp.cmx typer.cmx \
 	main.cmx
-	
+
 all: haxe.exe
 
 haxe.exe: $(FILES)
@@ -21,29 +21,29 @@ haxe.exe: $(FILES)
 ../neko/libs/include/ocaml/binast.cmx: ../neko/libs/include/ocaml/nast.cmx
 ../neko/libs/include/ocaml/nxml.cmx: ../neko/libs/include/ocaml/nast.cmx
 
-codegen.cmx: typeload.cmx typecore.cmx type.cmx genxml.cmx common.cmx ast.cmx 
-common.cmx: type.cmx lexer.cmx ast.cmx 
-genas3.cmx: type.cmx common.cmx codegen.cmx ast.cmx 
-gencpp.cmx: type.cmx common.cmx codegen.cmx ast.cmx 
-genjs.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx 
+codegen.cmx: typeload.cmx typecore.cmx type.cmx genxml.cmx common.cmx ast.cmx
+common.cmx: type.cmx lexer.cmx ast.cmx
+genas3.cmx: type.cmx common.cmx codegen.cmx ast.cmx
+gencpp.cmx: type.cmx common.cmx codegen.cmx ast.cmx
+genjs.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
 genneko.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx ../neko/libs/include/ocaml/binast.cmx ../neko/libs/include/ocaml/nxml.cmx
-genphp.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx 
-genswf.cmx: type.cmx genswf9.cmx genswf8.cmx common.cmx ast.cmx 
-genswf8.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx 
-genswf9.cmx: type.cmx lexer.cmx genswf8.cmx common.cmx codegen.cmx ast.cmx 
-genxml.cmx: type.cmx lexer.cmx common.cmx ast.cmx 
-lexer.cmx: ast.cmx 
+genphp.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
+genswf.cmx: type.cmx genswf9.cmx genswf8.cmx common.cmx ast.cmx
+genswf8.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
+genswf9.cmx: type.cmx lexer.cmx genswf8.cmx common.cmx codegen.cmx ast.cmx
+genxml.cmx: type.cmx lexer.cmx common.cmx ast.cmx
+lexer.cmx: ast.cmx
 main.cmx: typer.cmx typeload.cmx typecore.cmx type.cmx parser.cmx \
     optimizer.cmx lexer.cmx genxml.cmx genswf.cmx genphp.cmx genneko.cmx \
     genjs.cmx gencpp.cmx genas3.cmx common.cmx codegen.cmx ast.cmx interp.cmx
-optimizer.cmx: typecore.cmx type.cmx parser.cmx common.cmx ast.cmx 
-parser.cmx: parser.ml lexer.cmx common.cmx ast.cmx 
+optimizer.cmx: typecore.cmx type.cmx parser.cmx common.cmx ast.cmx
+parser.cmx: parser.ml lexer.cmx common.cmx ast.cmx
 	(ocamlopt -pp camlp4o $(CFLAGS) -c parser.ml 2>tmp.cmi && $(OUTPUT)) || ($(OUTPUT) && exit 1)
-type.cmx: ast.cmx 
+type.cmx: ast.cmx
 typecore.cmx: type.cmx common.cmx ast.cmx
-typeload.cmx: typecore.cmx type.cmx parser.cmx common.cmx ast.cmx 
+typeload.cmx: typecore.cmx type.cmx parser.cmx common.cmx ast.cmx
 typer.cmx: typeload.cmx typecore.cmx type.cmx parser.cmx optimizer.cmx \
-    lexer.cmx common.cmx codegen.cmx ast.cmx interp.cmx
+    lexer.cmx common.cmx codegen.cmx ast.cmx interp.cmx genjs.cmx
 interp.cmx: genneko.cmx type.cmx
 
 clean:

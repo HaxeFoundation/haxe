@@ -54,6 +54,8 @@ and vabstract =
 	| AZipD of zlib
 	| AUtf8 of UTF8.Buf.buf
 	| ASocket of Unix.file_descr
+	| ATExpr of texpr
+	| ATDecl of module_type
 
 and vfunction =
 	| Fun0 of (unit -> value)
@@ -93,6 +95,7 @@ type extern_api = {
 	typeof : Ast.expr -> Type.t;
 	type_patch : string -> string -> bool -> string option -> unit;
 	meta_patch : string -> string -> string option -> bool -> unit;
+	set_js_generator : (value -> unit) -> unit;
 }
 
 type context = {
@@ -102,7 +105,7 @@ type context = {
 	globals : (string, value) Hashtbl.t;
 	prototypes : (string list, vobject) Hashtbl.t;
 	mutable error : bool;
-	mutable enums : string array array;
+	mutable enums : (value * string) array array;
 	mutable do_call : value -> value -> value list -> pos -> value;
 	mutable do_string : value -> string;
 	mutable do_loadprim : value -> value -> value;
@@ -408,7 +411,7 @@ let builtins =
 			match vl with
 			| VFunction f :: _ :: _ ->
 				VClosure (vl, do_closure)
-			| _ -> exc (VString "Invalid closure arguments number")
+			| _ -> exc (VString "Can't create closure : value is not a function")
 		);
 		"apply", FunVar (fun vl ->
 			match vl with
@@ -1642,6 +1645,16 @@ let macro_lib =
 			| _ -> error());
 			VNull
 		);
+		"custom_js", Fun1 (fun f ->
+			match f with
+			| VFunction (Fun1 _) ->
+				let ctx = get_ctx() in
+				ctx.curapi.set_js_generator (fun api ->
+					ignore(catch_errors ctx (fun() -> ctx.do_call VNull f [api] null_pos));
+				);
+				VNull
+			| _ -> error()
+		);
 	]
 
 (* ---------------------------------------------------------------------- *)
@@ -2283,6 +2296,9 @@ type enum_index =
 	| ICType
 	| IField
 	| IType
+	| IFieldKind
+	| IMethodKind
+	| IVarAccess
 
 let enum_name = function
 	| IExpr -> "ExprDef"
@@ -2293,21 +2309,26 @@ let enum_name = function
 	| ICType -> "ComplexType"
 	| IField -> "FieldType"
 	| IType -> "Type"
+	| IFieldKind -> "FieldKind"
+	| IMethodKind -> "MethodKind"
+	| IVarAccess -> "VarAccess"
 
 let init ctx =
-	let enums = [IExpr;IBinop;IUnop;IConst;ITParam;ICType;IField;IType] in
+	let enums = [IExpr;IBinop;IUnop;IConst;ITParam;ICType;IField;IType;IFieldKind;IMethodKind;IVarAccess] in
 	let get_enum_proto e =
-		match get_path ctx ["haxe";"macro";enum_name e;"__constructs__"] null_pos with
-		| VObject cst ->
-			(match get_field cst "__a" with
+		match get_path ctx ["haxe";"macro";enum_name e] null_pos with
+		| VObject e ->
+			(match get_field e "__constructs__" with
+			| VObject cst ->
+				(match get_field cst "__a" with
 				| VArray a ->
 					Array.map (fun s ->
 						match s with
-						| VObject s -> (match get_field s "__s" with VString s -> s | _ -> assert false)
+						| VObject s -> (match get_field s "__s" with VString s -> get_field e s,s | _ -> assert false)
 						| _ -> assert false
 					) a
-				| _ -> assert false
-			)
+				| _ -> assert false)
+			| _ -> assert false)
 		| _ -> assert false
 	in
 	ctx.enums <- Array.of_list (List.map get_enum_proto enums)
@@ -2358,13 +2379,16 @@ let enc_hash h =
 let enc_obj l = VObject (obj l)
 
 let enc_enum (i:enum_index) index pl =
-	let eindex : int = Obj.magic i in
-	let etags = (get_ctx()).enums.(eindex) in
-	enc_inst ["haxe";"macro";enum_name i] [
-		"tag", VString etags.(index);
-		"index", VInt index;
-		"args", VArray (Array.of_list pl);
-	]
+	let eindex : int = Obj.magic i in	
+	let edef = (get_ctx()).enums.(eindex) in
+	if pl = [] then
+		fst edef.(index)
+	else
+		enc_inst ["haxe";"macro";enum_name i] [
+			"tag", VString (snd edef.(index));
+			"index", VInt index;
+			"args", VArray (Array.of_list pl);
+		]
 
 let encode_const c =
 	let tag, pl = match c with
@@ -2829,6 +2853,7 @@ let encode_meta m set =
 
 let rec encode_tenum e =
 	enc_obj [
+		"__t", encode_tdecl (TEnumDecl e);
 		"pack", enc_array (List.map enc_string (fst e.e_path));
 		"name", enc_string (snd e.e_path);
 		"pos", encode_pos e.e_pos;
@@ -2857,10 +2882,41 @@ and encode_cfield f =
 		"isPublic", VBool f.cf_public;
 		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) f.cf_params);
 		"meta", encode_meta f.cf_meta (fun m -> f.cf_meta <- m);
+		"expr", (match f.cf_expr with None -> VNull | Some e -> encode_texpr e);
+		"kind", encode_field_kind f.cf_kind;
 	]
+
+and encode_field_kind k =
+	let tag, pl = (match k with
+		| Type.Var v -> 0, [encode_var_access v.v_read; encode_var_access v.v_write]
+		| Method m -> 1, [encode_method_kind m]
+	) in
+	enc_enum IFieldKind tag pl
+
+and encode_var_access a =
+	let tag, pl = (match a with
+		| AccNormal -> 0, []
+		| AccNo -> 1, []
+		| AccNever -> 2, []
+		| AccResolve -> 3, []
+		| AccCall s -> 4, [enc_string s]
+		| AccInline	-> 5, []
+		| AccRequire s -> 6, [enc_string s]
+	) in
+	enc_enum IVarAccess tag pl
+
+and encode_method_kind m =
+	let tag, pl = (match m with
+		| MethNormal -> 0, []
+		| MethInline -> 1, []
+		| MethDynamic -> 2, []
+		| MethMacro -> 3, []
+	) in
+	enc_enum IMethodKind tag pl
 
 and encode_tclass c =
 	enc_obj [
+		"__t", encode_tdecl (TClassDecl c);
 		"pack", enc_array (List.map enc_string (fst c.cl_path));
 		"name", enc_string (snd c.cl_path);
 		"pos", encode_pos c.cl_pos;
@@ -2878,10 +2934,12 @@ and encode_tclass c =
 		"statics", encode_ref c.cl_ordered_statics (encode_array encode_cfield) (fun() -> "class fields");
 		"constructor", (match c.cl_constructor with None -> VNull | Some c -> encode_ref c encode_cfield (fun() -> "constructor"));
 		"meta", encode_meta c.cl_meta (fun m -> c.cl_meta <- m);
+		"init", (match c.cl_init with None -> VNull | Some e -> encode_texpr e);
 	]
 
 and encode_ttype t =
 	enc_obj [
+		"__t", encode_tdecl (TTypeDecl t);
 		"pack", enc_array (List.map enc_string (fst t.t_path));
 		"name", enc_string (snd t.t_path);
 		"pos", encode_pos t.t_pos;
@@ -2892,6 +2950,9 @@ and encode_ttype t =
 		"type", encode_type t.t_type;
 		"meta", encode_meta t.t_meta (fun m -> t.t_meta <- m);
 	]
+
+and encode_tdecl t =
+	VAbstract (ATDecl t)
 
 and encode_tanon a =
 	enc_obj [
@@ -2937,6 +2998,17 @@ and encode_type t =
 	in
 	let tag, pl = loop t in
 	enc_enum IType tag pl
+
+and encode_texpr e =
+	VAbstract (ATExpr e)
+
+let decode_tdecl v =
+	match v with
+	| VObject o ->
+		(match get_field o "__t" with
+		| VAbstract (ATDecl t) -> t
+		| _ -> raise Invalid_expr)
+	| _ -> raise Invalid_expr
 
 (* ---------------------------------------------------------------------- *)
 (* VALUE-TO-CONSTANT *)

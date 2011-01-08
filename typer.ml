@@ -1926,6 +1926,53 @@ let make_macro_api ctx p =
 		Interp.print = (fun s ->
 			if not ctx.com.display then print_string s
 		);
+		Interp.set_js_generator = (fun gen ->
+			let js_ctx = Genjs.alloc_ctx ctx.com in
+			ctx.com.js_gen <- Some (fun() ->
+				let ctx = Interp.enc_obj [
+					"outputFile", Interp.enc_string ctx.com.file;
+					"types", Interp.enc_array (List.map (fun t -> Interp.encode_type (make_instance t)) ctx.com.types);
+					"generateExpr", Interp.VFunction (Interp.Fun1 (fun v ->
+						match v with
+						| Interp.VAbstract (Interp.ATExpr e) ->
+							let str = Genjs.gen_single_expr js_ctx e false in
+							Interp.enc_string str
+						| _ -> failwith "Invalid expression";
+					));
+					"isKeyword", Interp.VFunction (Interp.Fun1 (fun v ->
+						Interp.VBool (Hashtbl.mem Genjs.kwds (Interp.dec_string v))
+					));
+					"quoteString", Interp.VFunction (Interp.Fun1 (fun v ->
+						Interp.enc_string ("\"" ^ Ast.s_escape (Interp.dec_string v) ^ "\"")
+					));
+					"buildMetaData", Interp.VFunction (Interp.Fun1 (fun t ->
+						match Codegen.build_metadata ctx.com (Interp.decode_tdecl t) with
+						| None -> Interp.VNull
+						| Some e -> Interp.encode_texpr e
+					));
+					"setDebugInfos", Interp.VFunction (Interp.Fun3 (fun c m s ->
+						Genjs.set_debug_infos js_ctx (match Interp.decode_tdecl c with TClassDecl c -> c | _ -> assert false) (Interp.dec_string m) (Interp.dec_bool s);
+						Interp.VNull
+					));
+					"generateConstructor", Interp.VFunction (Interp.Fun1 (fun v ->
+						match v with
+						| Interp.VAbstract (Interp.ATExpr e) ->
+							let str = Genjs.gen_single_expr js_ctx e true in
+							Interp.enc_string str
+						| _ -> failwith "Invalid expression";
+					));
+					"setTypeAccessor", Interp.VFunction (Interp.Fun1 (fun callb ->
+						js_ctx.Genjs.type_accessor <- (fun t -> 
+							let v = Interp.encode_type (make_instance t) in
+							let ret = Interp.call (Interp.get_ctx()) Interp.VNull callb [v] Nast.null_pos in
+							Interp.dec_string ret
+						);
+						Interp.VNull
+					));
+				] in
+				gen ctx
+			);
+		);
 	}
 
 let load_macro ctx cpath f p =

@@ -169,7 +169,7 @@ class Compiler {
 		} catch( e : haxe.io.Eof ) {
 		}
 	}
-	
+
 	/**
 		Mark a class (or array of classes) with the metadata @:keep
 	**/
@@ -181,6 +181,13 @@ class Compiler {
 			acl.push(cl);
 		for(cl in acl)
 			addMetadata("@:keep", cl);
+	}
+
+	/**
+		Change the default JS output by using a custom generator callback
+	**/
+	public static function setCustomJSGenerator( callb : JSGenApi -> Void ) {
+		load("custom_js",1)(callb);
 	}
 
 	static function load( f, nargs ) : Dynamic {

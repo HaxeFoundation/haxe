@@ -73,6 +73,7 @@ type context = {
 	mutable php_front : string option;
 	mutable php_lib : string option;
 	mutable swf_libs : (string * (unit -> Swf.swf) * (unit -> ((string list * string),As3hl.hl_class) Hashtbl.t)) list;
+	mutable js_gen : (unit -> unit) option;
 	(* typing *)
 	mutable basic : basic_types;
 	mutable lines : Lexer.line_index;
@@ -108,6 +109,7 @@ let create v =
 		php_lib = None;
 		swf_libs = [];
 		js_namespace = None;
+		js_gen = None;
 		load_extern_type = [];
 		warning = (fun _ _ -> assert false);
 		error = (fun _ _ -> assert false);
