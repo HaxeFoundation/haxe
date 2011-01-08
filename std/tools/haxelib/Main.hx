@@ -707,6 +707,7 @@ class Main {
 				neko.Lib.println("-L "+pdir+"ndll/");
 			}
 			neko.Lib.println(dir);
+			neko.Lib.println("-D "+d.project);
 		}
 	}
 

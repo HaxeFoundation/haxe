@@ -499,10 +499,14 @@ try
 		let lines = List.fold_left (fun acc l ->
 			let p = String.length l - 1 in
 			let l = (if l.[p] = '\r' then String.sub l 0 p else l) in
-			if p > 3 && String.sub l 0 3 = "-L " then begin
+			match (if p > 3 then String.sub l 0 3 else "") with
+			| "-D " ->
+				Common.define com (String.sub l 3 (String.length l - 3));
+				acc
+			| "-L " ->
 				libs := String.sub l 3 (String.length l - 3) :: !libs;
 				acc
-			end else
+			| _ ->
 				l :: acc
 		) [] lines in
 		if ret <> Unix.WEXITED 0 then failwith (String.concat "\n" lines);
