@@ -119,6 +119,22 @@ class Context {
 		return load("typeof", 1)(e);
 	}
 
+	/**
+		Get the informations stored into a given position.
+	**/
+	public static function getPosInfos( p : Position ) : { min : Int, max : Int, file : String } {
+		var i = load("get_pos_infos",1)(p);
+		i.file = new String(i.file);
+		return i;
+	}
+
+	/**
+		Build a position with the given informations.
+	**/
+	public static function makePosition( inf : { min : Int, max : Int, file : String } ) : Position {
+		return load("make_pos",3)(inf.min,inf.max,untyped inf.file.__s);
+	}
+
 	static function load( f, nargs ) : Dynamic {
 		#if macro
 		return neko.Lib.load("macro", f, nargs);

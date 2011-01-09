@@ -35,6 +35,10 @@ typedef JSGenApi = {
 	var types : Array<Type>;
 	/** the main call expression, if a -main class is defined **/
 	var main : Null<TypedExpr>;
+	/** the variable used to store the temporary stack in debug mode **/
+	var stackVar(default,null) : String;
+	/** the variable used to store the temporary exception in debug mode **/
+	var excVar(default,null) : String;
 	/** generate the JS code for a given typed expression **/
 	function generateExpr( e : TypedExpr ) : String;
 	/** define the JS code that gets generated when a class or enum is accessed in a typed expression **/

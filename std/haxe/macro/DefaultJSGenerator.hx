@@ -47,7 +47,7 @@ class DefaultJSGenerator {
 			forbidden.set(x, true);
 		api.setTypeAccessor(getType);
 	}
-	
+
 	function getType( t : Type ) {
 		return switch(t) {
 			case TInst(c, _): getPath(c.get());
@@ -59,7 +59,7 @@ class DefaultJSGenerator {
 	inline function print(str) {
 		buf.add(str);
 	}
-	
+
 	inline function newline() {
 		buf.add(";\n");
 	}
@@ -67,7 +67,7 @@ class DefaultJSGenerator {
 	inline function genExpr(e) {
 		print(api.generateExpr(e));
 	}
-	
+
 	@:macro static function fprint( e : Expr ) {
 		switch( e.expr ) {
 		case EConst(c):
@@ -76,13 +76,23 @@ class DefaultJSGenerator {
 				var exprs = [];
 				var r = ~/%((\([^\)]+\))|([A-Za-z_][A-Za-z0-9_]*))/;
 				var pos = e.pos;
+				var inf = Context.getPosInfos(pos);
+				inf.min++; // string quote
 				while( r.match(str) ) {
-					exprs.push({ expr : EConst(CString(r.matchedLeft())), pos : pos });
+					var left = r.matchedLeft();
+					if( left.length > 0 ) {
+						exprs.push( { expr : EConst(CString(left)), pos : pos } );
+						inf.min += left.length;
+					}
 					var v = r.matched(1);
-					if( v.charCodeAt(0) == "(".code )
+					if( v.charCodeAt(0) == "(".code ) {
+						var pos = Context.makePosition( { min : inf.min + 2, max : inf.min + v.length, file : inf.file } );
 						exprs.push(Context.parse(v.substr(1, v.length-2), pos));
-					else
-						exprs.push({ expr : EConst(CIdent(v)), pos : pos });
+					} else {
+						var pos = Context.makePosition( { min : inf.min + 1, max : inf.min + 1 + v.length, file : inf.file } );
+						exprs.push( { expr : EConst(CIdent(v)), pos : pos } );
+					}
+					inf.min += v.length + 1;
 					str = r.matchedRight();
 				}
 				exprs.push({ expr : EConst(CString(str)), pos : pos });
@@ -97,11 +107,11 @@ class DefaultJSGenerator {
 		Context.error("Expression should be a constant string", e.pos);
 		return null;
 	}
-	
+
 	function field(p) {
 		return api.isKeyword(p) ? '["' + p + '"]' : "." + p;
 	}
-	
+
 	function genPackage( p : Array<String> ) {
 		var full = null;
 		for( x in p ) {
@@ -119,16 +129,16 @@ class DefaultJSGenerator {
 			newline();
 		}
 	}
-	
+
 	function getPath( t : BaseType ) {
 		return (t.pack.length == 0) ? t.name : t.pack.join(".") + "." + t.name;
 	}
-	
+
 	function checkFieldName( c : ClassType, f : ClassField ) {
 		if( forbidden.exists(f.name) )
 			Context.error("The field " + f.name + " is not allowed in JS", c.pos);
 	}
-	
+
 	function genClassField( c : ClassType, p : String, f : ClassField ) {
 		checkFieldName(c, f);
 		var field = field(f.name);
@@ -158,14 +168,14 @@ class DefaultJSGenerator {
 			statics.add( { c : c, f : f } );
 		}
 	}
-	
+
 	function genClass( c : ClassType ) {
 		genPackage(c.pack);
 		var p = getPath(c);
 		fprint("%p = ");
 		api.setDebugInfos(c, "new", false);
 		if( c.constructor != null )
-			api.generateConstructor(c.constructor.get().expr);
+			print(api.generateConstructor(c.constructor.get().expr));
 		else
 			print("function() { }");
 		newline();
@@ -177,6 +187,7 @@ class DefaultJSGenerator {
 			fprint("%p.__super__ = %psup");
 			newline();
 			fprint("for(var k in %psup.prototype ) %p.prototype[k] = %psup.prototype[k]");
+			newline();
 		}
 		for( f in c.statics.get() )
 			genStaticField(c, p, f);
@@ -197,7 +208,7 @@ class DefaultJSGenerator {
 			newline();
 		}
 	}
-	
+
 	function genEnum( e : EnumType ) {
 		genPackage(e.pack);
 		var p = getPath(e);
@@ -229,8 +240,8 @@ class DefaultJSGenerator {
 			newline();
 		}
 	}
-	
-	
+
+
 	function genStaticValue( c : ClassType, cf : ClassField ) {
 		var p = getPath(c);
 		var f = field(cf.name);
@@ -238,7 +249,7 @@ class DefaultJSGenerator {
 		genExpr(cf.expr);
 		newline();
 	}
-	
+
 	function genType( t : Type ) {
 		switch( t ) {
 		case TInst(c, _):
@@ -269,14 +280,12 @@ class DefaultJSGenerator {
 		newline();
 		print("js.Boot.__res = {}");
 		newline();
-		/*
-		if com.debug then begin
-			print ctx "%s = []" ctx.stack.Codegen.stack_var;
-			newline ctx;
-			print ctx "%s = []" ctx.stack.Codegen.stack_exc_var;
-			newline ctx;
-		end;
-		*/
+		if( Context.defined("debug") ) {
+			fprint("%(api.stackVar) = []");
+			newline();
+			fprint("%(api.excVar) = []");
+			newline();
+		}
 		print("js.Boot.__init()");
 		newline();
 		for( e in inits ) {
@@ -295,7 +304,7 @@ class DefaultJSGenerator {
 		file.writeString(buf.toString());
 		file.close();
 	}
-	
+
 	#if macro
 	public static function use() {
 		Compiler.setCustomJSGenerator(function(api) new DefaultJSGenerator(api).generate());

@@ -1655,6 +1655,16 @@ let macro_lib =
 				VNull
 			| _ -> error()
 		);
+		"get_pos_infos", Fun1 (fun p ->
+			match p with
+			| VAbstract (APos p) -> VObject (obj ["min",VInt p.Ast.pmin;"max",VInt p.Ast.pmax;"file",VString p.Ast.pfile])
+			| _ -> error()
+		);
+		"make_pos", Fun3 (fun min max file ->
+			match min, max, file with
+			| VInt min, VInt max, VString file -> VAbstract (APos { Ast.pmin = min; Ast.pmax = max; Ast.pfile = file })
+			| _ -> error()
+		);
 	]
 
 (* ---------------------------------------------------------------------- *)
