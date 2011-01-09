@@ -38,10 +38,8 @@
 	}
 
 	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
-		if(__call__("is_string", o) && !__call__("is_array", func)) {
-			if(args.length == 0) return __call__("call_user_func", field(o, func));
-			else if(args.length == 1) return __call__("call_user_func", field(o, func), args[0]);
-			else return __call__("call_user_func", field(o, func), args[0], args[1]);
+		if (__call__("is_string", o) && !__call__("is_array", func)) {
+			return __call__("call_user_func_array", field(o, func), __field__(args, "»a"));
 		}
 		return __call__("call_user_func_array", __call__("is_callable", func) ? func : __call__("array", o, func), (null == args ? __call__("array") : __field__(args, "»a")));
 	}

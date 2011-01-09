@@ -7,11 +7,15 @@ class Boot {
 	static var skip_constructor = false;
 	static function __init__() : Void {
 		untyped __php__("
+function _hx_is_numeric($v)
+{
+	return is_numeric($v) && !is_string($v);
+}
 function _hx_add($a, $b) {
-	if(is_numeric($a) && is_numeric($b)) {
-		return $a + $b;
-	} else {
+	if (!_hx_is_numeric($a) || !_hx_is_numeric($b)) {
 		return $a . $b;
+	} else {
+		return $a + $b;
 	}
 }
 		
