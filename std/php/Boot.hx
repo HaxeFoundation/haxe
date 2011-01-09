@@ -7,10 +7,6 @@ class Boot {
 	static var skip_constructor = false;
 	static function __init__() : Void {
 		untyped __php__("
-function _hx_is_numeric($v)
-{
-	return is_numeric($v) && !is_string($v);
-}
 function _hx_add($a, $b) {
 	if (!_hx_is_numeric($a) || !_hx_is_numeric($b)) {
 		return $a . $b;
@@ -378,6 +374,11 @@ function _hx_instanceof($v, $t) {
 
 function _hx_is_lambda($s) {
 	return (is_string($s) && substr($s, 0, 8) == chr(0).'lambda_') || (is_array($s) && count($s) > 0 && (is_a($s[0], '_hx_lambda') || is_a($s[0], '_hx_lambda2')));
+}
+
+function _hx_is_numeric($v)
+{
+	return is_numeric($v) && !is_string($v);
 }
 
 function _hx_last_index_of($s, $value, $startIndex = null) {
