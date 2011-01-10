@@ -398,7 +398,7 @@ let member_type ctx field_object member =
 	with Not_found -> "?";;
 
 let is_interface obj =
-	match obj.etype with
+	match follow obj.etype with
 	| TInst (klass,params) -> klass.cl_interface
 	| _ -> false;;
 
@@ -2566,8 +2566,6 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	if (not class_def.cl_interface) then begin
 		(* Remap the specialised "extern" classes back to the generic names *)
 		let class_name_text = match class_path with
-			| ["cpp"], "CppDate__" -> "Date"
-			| ["cpp"], "CppXml__" -> "Xml"
 			| path -> join_class_path path "." in
 
 		output_cpp ("Class " ^ class_name ^ "::__mClass;\n\n");
