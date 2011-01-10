@@ -105,10 +105,15 @@ let rec make_class_directories base dir_list =
 	( match dir_list with
 	| [] -> ()
 	| dir :: remaining ->
-		let path = base ^ "/" ^ dir  in
-		if not (Sys.file_exists path) then
+		let path = match base with
+                   | "" ->  dir
+                   | "/" -> "/" ^ dir
+                   | _ -> base ^ "/" ^ dir  in
+                if ( not ( (path="") ||
+                     ( ((String.length path)=3) && ((String.sub path 1 1)=":") ) ) ) then
+		   if not (Sys.file_exists path) then
 			Unix.mkdir path 0o755;
-		make_class_directories path remaining
+		make_class_directories (if (path="") then "/" else path) remaining 
 	);;
 
 
@@ -124,7 +129,7 @@ let new_cpp_file base_dir = new_source_file base_dir "src" ".cpp";;
 let new_header_file base_dir = new_source_file base_dir "include" ".h";;
 
 let make_base_directory file =
-	make_class_directories "." (file :: []);;
+	make_class_directories "" ( ( Str.split_delim (Str.regexp_string "/") file ) );
 
 
 (* CPP code generation context *)
