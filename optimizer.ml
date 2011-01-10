@@ -420,8 +420,29 @@ let sanitize_expr e =
 	| _ ->
 		e
 
-let rec sanitize e =
-	Type.map_expr sanitize (sanitize_expr e)
+let reduce_expr ctx e =
+	match e.eexpr with
+	| TSwitch (_,cases,_) ->
+		List.iter (fun (cl,_) ->
+			List.iter (fun e ->
+				match e.eexpr with
+				| TCall ({ eexpr = TEnumField _ },_) -> error "Not-constant enum in switch cannot be matched" e.epos
+				| _ -> ()
+			) cl
+		) cases;
+		e
+	| TBlock [{ eexpr = TConst _ } as ec] ->
+		{ ec with epos = e.epos }
+	| TParenthesis ec ->
+		(match ec.eexpr with
+		| TBinop _ -> e (* TODO : we could remove this after we check all operators works well *)
+		| TNew _ when ctx.com.platform = Cpp -> e (* TODO : fix in cpp generator *)
+		| _ -> { ec with epos = e.epos })
+	| _ ->
+		e
+
+let rec sanitize ctx e =
+	sanitize_expr (reduce_expr ctx (Type.map_expr (sanitize ctx) e))
 
 (* ---------------------------------------------------------------------- *)
 (* REDUCE *)
@@ -564,24 +585,8 @@ let rec reduce_loop ctx e =
 			| Some e -> e)
 		| _ ->
 			e)
-	| TBlock [{ eexpr = TConst _ } as ec] ->
-		{ ec with epos = e.epos }
-	| TParenthesis ec ->
-		(match ec.eexpr with
-		| TBinop _ -> e (* TODO : we could remove this after we check all operators works well *)
-		| TNew _ when ctx.com.platform = Cpp -> e (* TODO : fix in cpp generator *)
-		| _ -> { ec with epos = e.epos })
-	| TSwitch (_,cases,_) ->
-		List.iter (fun (cl,_) ->
-			List.iter (fun e ->
-				match e.eexpr with
-				| TCall ({ eexpr = TEnumField _ },_) -> error "Not-constant enum in switch cannot be matched" e.epos
-				| _ -> ()
-			) cl
-		) cases;
-		e
 	| _ ->
-		e)
+		reduce_expr ctx e)
 
 let reduce_expression ctx e =
 	if ctx.com.foptimize then reduce_loop ctx e else e

@@ -583,7 +583,7 @@ try
 		com.lines <- Lexer.build_line_index();
 		if com.platform = Flash9 then Common.add_filter com (fun() -> List.iter Codegen.fix_overrides com.types);
 		let filters = [
-			if com.foptimize then Optimizer.reduce_expression ctx else Optimizer.sanitize;
+			if com.foptimize then Optimizer.reduce_expression ctx else Optimizer.sanitize ctx;
 			Codegen.check_local_vars_init;
 			Codegen.block_vars com;
 		] in
