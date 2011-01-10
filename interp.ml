@@ -1590,7 +1590,8 @@ let macro_lib =
 			let cache = ref [] in
 			let rec loop v =
 				match v with
-				| VNull | VBool _ | VInt _ | VFloat _ | VString _ | VAbstract _ -> v
+				| VNull | VBool _ | VInt _ | VFloat _ | VString _ -> v
+				| VAbstract (AInt32 _ | APos _) -> v
 				| _ ->
 					try
 						List.assq v !cache
@@ -1600,7 +1601,9 @@ let macro_lib =
 					let o2 = { ofields = Hashtbl.create 0; oproto = None } in
 					let v2 = VObject o2 in
 					cache := (v,v2) :: !cache;
-					Hashtbl.iter (fun k v -> Hashtbl.add o2.ofields k (loop v)) o.ofields;
+					Hashtbl.iter (fun k v -> 
+						if k <> "__class__" then Hashtbl.add o2.ofields k (loop v)
+					) o.ofields;
 					(match o.oproto with
 					| None -> ()
 					| Some p -> (match loop (VObject p) with VObject p2 -> o2.oproto <- Some p2 | _ -> assert false));
@@ -1618,8 +1621,18 @@ let macro_lib =
 					cache := (v,v2) :: !cache;
 					v2
 				| VClosure (vl,f) ->
-					let v2 = VClosure (List.map loop vl, Obj.magic (List.length !cache)) in
+					let v2 = VClosure ([], Obj.magic (List.length !cache)) in
 					cache := (v,v2) :: !cache;
+					v2
+				| VAbstract (AHash h) ->
+					let h2 = Hashtbl.create 0 in
+					let v2 = VAbstract (AHash h2) in
+					cache := (v, v2) :: !cache;
+					Hashtbl.iter (fun k v -> Hashtbl.add h2 k (loop v)) h2;
+					v2
+				| VAbstract _ ->
+					let v2 = VAbstract (Obj.magic (List.length !cache)) in
+					cache := (v, v2) :: !cache;
 					v2
 				| _ -> assert false
 			in
