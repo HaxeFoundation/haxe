@@ -294,7 +294,15 @@ let gen_function_header ctx name f params p =
 	let old_t = ctx.local_types in
 	ctx.in_value <- None;
 	ctx.local_types <- List.map snd params @ ctx.local_types;
-	print ctx "function%s(" (match name with None -> "" | Some n -> " " ^ n);
+	print ctx "function%s(" (match name with None -> "" | Some (n,meta) ->
+		let rec loop = function
+			| [] -> n
+			| (":getter",[Ast.EConst (Ast.Ident i | Ast.Type i),_],_) :: _ -> "get " ^ i
+			| (":setter",[Ast.EConst (Ast.Ident i | Ast.Type i),_],_) :: _ -> "set " ^ i
+			| _ :: l -> loop l
+		in
+		" " ^ loop meta
+	);
 	concat ctx "," (fun (arg,c,t) ->
 		let arg = define_local ctx arg in
 		let tstr = type_str ctx t p in
@@ -858,7 +866,7 @@ let generate_field ctx static f =
 					loop c
 		in
 		if not static then loop ctx.curclass;
-		let h = gen_function_header ctx (Some (s_ident f.cf_name)) fd f.cf_params p in
+		let h = gen_function_header ctx (Some (s_ident f.cf_name, f.cf_meta)) fd f.cf_params p in
 		gen_expr ctx (mk_block fd.tf_expr);
 		h();
 		newline ctx
