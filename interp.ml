@@ -1601,7 +1601,7 @@ let macro_lib =
 					let o2 = { ofields = Hashtbl.create 0; oproto = None } in
 					let v2 = VObject o2 in
 					cache := (v,v2) :: !cache;
-					Hashtbl.iter (fun k v -> 
+					Hashtbl.iter (fun k v ->
 						if k <> "__class__" then Hashtbl.add o2.ofields k (loop v)
 					) o.ofields;
 					(match o.oproto with
@@ -2352,7 +2352,7 @@ let init ctx =
 					) a
 				| _ -> assert false)
 			| _ -> assert false)
-		| _ -> assert false
+		| _ -> failwith ("haxe.macro." ^ enum_name e ^ " does not exists")
 	in
 	ctx.enums <- Array.of_list (List.map get_enum_proto enums)
 
@@ -2402,7 +2402,7 @@ let enc_hash h =
 let enc_obj l = VObject (obj l)
 
 let enc_enum (i:enum_index) index pl =
-	let eindex : int = Obj.magic i in	
+	let eindex : int = Obj.magic i in
 	let edef = (get_ctx()).enums.(eindex) in
 	if pl = [] then
 		fst edef.(index)
