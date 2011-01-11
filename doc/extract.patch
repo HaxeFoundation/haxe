@@ -170,6 +170,9 @@ flash.display.Stage.displayState : StageDisplayState;
 @:require(flash10) flash.events.FocusEvent.isRelatedObjectInaccessible
 @:require(flash10) flash.events.MouseEvent.isRelatedObjectInaccessible
 
+flash.events.IEventDispatcher.$listener : Dynamic -> Void;
+flash.events.EventDispatcher.$listener : Dynamic -> Void;
+
 flash.events.Event.eventPhase : EventPhase;
 flash.events.KeyboardEvent.keyLocation : flash.ui.KeyLocation;
 flash.events.KeyboardEvent.$keyLocationValue : flash.ui.KeyLocation;
