@@ -1247,9 +1247,13 @@ and gen_expression ctx retval expression =
 	| TReturn optional_expr ->
 		output "";
 		( match optional_expr with
-		| Some expression ->
+		| Some return_expression when ( (type_string expression.etype)="Void") ->
+			output "return null(";
+         gen_expression ctx true return_expression;
+			output ")";
+		| Some return_expression ->
 			output "return ";
-			gen_expression ctx true expression
+			gen_expression ctx true return_expression
 		| _ -> output "return null()"
 		)
 
