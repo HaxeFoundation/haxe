@@ -24,26 +24,26 @@
  */
 
 @:core_api class Hash<T>  {
-	private var h : Dynamic;
+	private var __Internal : Dynamic;
 
 	public function new() : Void {
-		h = {};
+		__Internal = {};
 	}
 
 	public function set( key : String, value : T ) : Void {
-		untyped h.__SetField(key,value);
+		untyped __Internal.__SetField(key,value);
 	}
 
 	public function get( key : String ) : Null<T> {
-		return untyped h.__Field(key);
+		return untyped __Internal.__Field(key);
 	}
 
 	public function exists( key : String ) : Bool {
-		return untyped h.__HasField(key);
+		return untyped __Internal.__HasField(key);
 	}
 
 	public function remove( key : String ) : Bool {
-		return untyped __global__.__hxcpp_anon_remove(h,key);
+		return untyped __global__.__hxcpp_anon_remove(__Internal,key);
 	}
 
 	/**
@@ -51,7 +51,7 @@
 	**/
 	public function keys() : Iterator<String> {
 		var a:Array<String> = [];
-		untyped h.__GetFields(a);
+		untyped __Internal.__GetFields(a);
 		return a.iterator();
 	}
 
@@ -60,11 +60,11 @@
 	**/
 	public function iterator() : Iterator<T> {
 		var a:Array<String> = [];
-		untyped h.__GetFields(a);
+		untyped __Internal.__GetFields(a);
 		var it = a.iterator();
 		return untyped {
 			hasNext : function() { return it.hasNext(); },
-			next : function() { return  untyped h.__Field(it.next()); }
+			next : function() { return  untyped __Internal.__Field(it.next()); }
 		};
 	}
 
