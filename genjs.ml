@@ -739,7 +739,7 @@ let alloc_ctx com =
 	ctx
 
 let gen_single_expr ctx e constr =
-	if constr then gen_constructor ctx e else gen_expr ctx e;
+	if constr then gen_constructor ctx e else gen_value ctx e;
 	let str = Buffer.contents ctx.buf in
 	Buffer.reset ctx.buf;
 	ctx.id_counter <- 0;
