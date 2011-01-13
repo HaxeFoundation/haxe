@@ -364,7 +364,10 @@ and type_string_suff suffix haxe_type =
 		| _ ->  type_string_suff suffix (apply_params type_def.t_types params type_def.t_type)
 		)
 	| TFun (args,haxe_type) -> "Dynamic" ^ suffix
-	| TAnon anon -> "Dynamic" ^ suffix
+	| TAnon a ->
+		(match !(a.a_status) with
+		| Statics c -> type_string_suff suffix (TInst (c,List.map snd c.cl_types))
+		| _ -> "Dynamic"  ^ suffix )
 	| TDynamic haxe_type -> "Dynamic" ^ suffix
 	| TLazy func -> type_string_suff suffix ((!func)())
 	)
@@ -385,8 +388,6 @@ let is_array haxe_type =
 	;;
  
 
-let is_dynamic haxe_type = type_string haxe_type ="Dynamic";;
-
 
 (* Get the type and output it to the stream *)
 let gen_type ctx haxe_type =
@@ -402,48 +403,31 @@ let member_type ctx field_object member =
 	try ( Hashtbl.find ctx.ctx_class_member_types name )
 	with Not_found -> "?";;
 
-let is_interface obj =
-	match follow obj.etype with
+let is_interface_type t =
+	match follow t with
 	| TInst (klass,params) -> klass.cl_interface
-	| _ -> false;;
+	| _ -> false
+;;
+
+let is_interface obj = is_interface_type obj.etype;;
 
 let is_function_member expression =
 	match (follow expression.etype) with | TFun (_,_) -> true | _ -> false;;
 
-(* Some fields of a dynamic object are internal and should be accessed directly,
-	rather than through the abstract interface.  In haxe code, these will be written
-	as "untyped" values.  *)
-let dynamic_access ctx field_object member is_function =
-	match member with
+let is_internal_member member = 
+   match member with
 	| "__Field" | "__IField" | "__Run" | "__Is" | "__GetClass" | "__GetType" | "__ToString"
-	| "__s" | "__GetPtr" | "__SetField" | "__length" | "__IsArray" | "__SetThis"
+	| "__s" | "__GetPtr" | "__SetField" | "__length" | "__IsArray" | "__SetThis" | "__Internal"
 	| "__EnumParams" | "__Index" | "__Tag" | "__GetFields" | "toString" | "__HasField"
-			-> false
-	| _ ->
-		let could_be_dynamic_interface haxe_type =
-   		if (is_array haxe_type) then false else
-				(match type_string haxe_type with
-				| "::String" | "Null" | "::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> false
-				| _ -> true ) in
-		let return_type = member_type ctx field_object member in
-		if ( (could_be_dynamic_interface field_object.etype) &&
-			  (return_type="?" || return_type="Dynamic") ) then true else
-		if ( (is_interface field_object) && (not is_function) ) then true else
-		(
-		match field_object.eexpr with
-		| TConst TThis when ((not ctx.ctx_real_this_ptr) && ctx.ctx_dynamic_this_ptr) -> true
-		| _ -> (match follow field_object.etype with
-			| TMono mono -> true
-			| TAnon anon -> true
-			| TDynamic haxe_type -> true
-			| other -> (type_string other ) = "Dynamic")
-		)
-;;
+			-> true
+   | _ -> false;;
+
 
 let is_dynamic_accessor name acc field class_def = 
  ( ( acc ^ "_" ^ field.cf_name) = name ) &&
   ( not (List.exists (fun f -> f.cf_name=name) class_def.cl_ordered_fields) )
 ;;
+
 
 let gen_arg_type_name name default_val arg_type prefix =
 	let remap_name = keyword_remap name in
@@ -788,26 +772,58 @@ let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_
 	find_undeclared_variables undeclared declarations this_suffix allow_this expression
 ;;
 
-let rec is_dynamic_result ctx caller expr name =
-   match expr with
-		| TArray (e1,e2) -> false
-		(* static access ... *)
-		| TTypeExpr type_def ->
-			let class_name = "::" ^ (join_class_path (t_path type_def) "::" ) in
-         let full_name = class_name ^ "." ^ name in
-         let dyn = try ( (Hashtbl.find ctx.ctx_class_member_types full_name) = "Dynamic" )
-                   with Not_found -> false in
-         dyn
-		| TParenthesis e -> is_dynamic_result ctx caller e.eexpr name
-		| TNew (klass,params,expressions) -> false
+
+let rec is_dynamic_in_cpp ctx expr =
+	let expr_type = type_string ( match follow expr.etype with TFun (args,ret) -> ret | _ -> expr.etype) in
+   ctx.ctx_output ( "/* idic: " ^ expr_type ^ " */" );
+	if ( expr_type="Dynamic" ) then
+		true
+	else begin
+		let result = (
+		match expr.eexpr with
+		| TField( obj, name ) -> ctx.ctx_output ("/* tfield  */");
+				is_dynamic_member_in_cpp ctx obj name
+		| TConst TThis when ((not ctx.ctx_real_this_ptr) && ctx.ctx_dynamic_this_ptr) ->
+				ctx.ctx_output ("/* dthis */"); true
+		| TArray (obj,index) -> let dyn = is_dynamic_in_cpp ctx obj in
+				ctx.ctx_output ("/* aidr:" ^ (if dyn then "Dyn" else "Not") ^ " */");
+				dyn;
+		| TCall(func,args) ->
+           (match follow func.etype with
+               | TFun (args,ret) -> ctx.ctx_output ("/* ret = "^ (type_string ret) ^" */");
+                   is_dynamic_in_cpp ctx func
+               | _ -> ctx.ctx_output "/* not TFun */";  true
+           );
+		| TParenthesis(expr) -> is_dynamic_in_cpp ctx expr
 		| TLocal name when name = "__global__" -> false
-		| TConst TSuper -> false
 		| TConst TNull -> true
-		(* | TBlock block -> false -  not sure *)
-      | _ ->
-          dynamic_access ctx caller name true
-	       (*let mem_type = member_type ctx caller name in
-	       mem_type="Dynamic" || mem_type="?" *)
+		| _ -> ctx.ctx_output "/* other */";  false (* others ? *) )
+		in
+		ctx.ctx_output (if result then "/* Y */" else "/* N */" );
+		result
+	end
+
+and is_dynamic_member_in_cpp ctx field_object member =
+	if (is_internal_member member) then false else
+	if (is_dynamic_in_cpp ctx field_object) then true else
+	match type_string field_object.etype with
+		(* Internal classes have no dynamic members *)
+		| "::String" | "Null" | "::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> ctx.ctx_output ("/* ok:" ^ (type_string field_object.etype)  ^ " */"); false
+		| "Dynamic" -> true
+		| name ->
+				let full_name = name ^ "." ^ member in
+				ctx.ctx_output ("/* t:" ^ full_name ^ " */");
+				try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in
+					ctx.ctx_output ("/* =" ^ mem_type ^ "*/");
+					mem_type ="Dynamic" )
+				with Not_found -> true
+;;
+
+let cast_if_required ctx expr to_type =
+	let expr_type = (type_string expr.etype) in
+   ctx.ctx_output ( "/* cir: " ^ expr_type ^ " */" );
+   if (is_dynamic_in_cpp ctx expr) then
+      ctx.ctx_output (".Cast< " ^ to_type ^ " >()" )
 ;;
 
 
@@ -1107,78 +1123,6 @@ and gen_expression ctx retval expression =
 		| Ast.OpEq -> gen_bin_op_string expr1 "==" expr2
 		| _ ->  gen_bin_op_string expr1 (Ast.s_binop op) expr2
 		in
-	let gen_member_access field_object member is_function return_type =
-		let remap_name = keyword_remap member in
-		begin
-		let check_dynamic_member_access member = begin
-			(match (dynamic_access ctx field_object member is_function) with
-			| true when (not (dynamic_internal member)) ->
-					let access = (if assigning then "->__FieldRef" else "->__Field") in
-					(* output ( "/* " ^ (type_string field_object.etype) ^ " */" ); *)
-					output ( access ^ "(" ^ (str member) ^ ")" );
-					if (not assigning) then begin
-						let return = type_string return_type in
-						if ( not (return="Dynamic") ) then
-							output (".Cast< " ^ return ^ " >()");
-					end
-			| _ ->
-			let member_name = remap_name ^
-				( if ( (not calling) && is_function && (not assigning)) then "_dyn()" else "" ) in
-			if ( (type_string field_object.etype)="::String") then
-				output ( "." ^ member_name)
-			else begin
-				output ( "->" ^ member_name);
-				if (not assigning) then begin
-					let expr_type = type_string return_type in
-					let mem_type = member_type ctx field_object member in
-					if ( (mem_type="Dynamic") && expr_type<>"Dynamic") then
-						output (".Cast< " ^ expr_type ^ " >()");
-				end;
-			end )
-		end in
-
-		match field_object.eexpr with
-		(* static access ... *)
-		| TTypeExpr type_def ->
-			let class_name = "::" ^ (join_class_path (t_path type_def) "::" ) in
-			if (class_name="::String") then
-				output ("::String::" ^ remap_name)
-			else
-				output (class_name ^ "_obj::" ^ remap_name);
-			if ( (not calling) && (not assigning) && is_function) then
-				output "_dyn()"
-		| TArray (e1,e2) ->
-			gen_expression ctx true e1;
-			output "[";
-			gen_expression ctx true e2;
-			output "]";
-			check_dynamic_member_access member
-		| TBlock block -> let func_name = use_anon_function_name ctx in
-			( try output ( func_name ^ "::Block(" ^
-				(Hashtbl.find ctx.ctx_local_return_block_args func_name) ^ ")" )
-			with Not_found ->
-			 (output ("/* Block function " ^ func_name ^ " not found */" ) ) );
-			check_dynamic_member_access member
-		| TParenthesis expr ->
-			output "(";
-			ctx.ctx_calling <- calling;
-			gen_expression ctx  true expr;
-			output ")";
-			check_dynamic_member_access member
-		| TNew (klass,params,expressions) ->
-			output ( ( class_string klass "_obj" params) ^ "::__new(" );
-			gen_expression_list expressions;
-			output ")";
-			output ( "->" ^ remap_name )
-		| TLocal name when name = "__global__" ->
-			output ("::" ^ member )
-		| TConst TSuper -> output (if ctx.ctx_real_this_ptr then "this" else "__this");
-						output ("->super::" ^ remap_name)
-		| TConst TNull -> output "null()"
-		| _ -> 
-			gen_expression ctx true  field_object;
-			check_dynamic_member_access member
-	end in
 
 	(match expression.eexpr with
 	| TConst TNull when not retval ->
@@ -1195,16 +1139,6 @@ and gen_expression ctx retval expression =
 		output "(";
 		gen_expression_list arg_list;
 		output ")";
-		(* This is a horrible hack - may need to prevent the strong typing of
-			the return value in the first place.
-			Eg.  haxe thinks List<X> first() is of type X, but cpp thinks it is Dynamic.
-		*)
-		if (not(expr_type="Void") && not(expr_type="Dynamic") && retval &&
-         (match func.eexpr with | TField(expr,name) -> 
-             is_dynamic_result ctx expr expr.eexpr name | _ -> false ) )
-        then
-				output (".Cast< " ^ expr_type ^ " >()");
-
 	| TBlock expr_list ->
 		if (retval) then begin
 			let func_name = use_anon_function_name ctx in
@@ -1275,7 +1209,7 @@ and gen_expression ctx retval expression =
 			output ("::" ^ (join_class_path enum.e_path "::") ^ "_obj::" ^ name)
 	| TArray (array_expr,_) when (is_null array_expr) -> output "Dynamic()"
 	| TArray (array_expr,index) ->
-		if ( (assigning && (is_array array_expr.etype)) || (is_dynamic array_expr.etype) ) then begin
+		if ( (assigning && (is_array array_expr.etype)) ) then begin
 			gen_expression ctx true array_expr;
 			output "[";
 			gen_expression ctx true index;
@@ -1287,6 +1221,11 @@ and gen_expression ctx retval expression =
 			output ",";
 			gen_expression ctx true index;
 			output ")";
+		end else if ( is_dynamic_in_cpp ctx array_expr ) then begin
+			gen_expression ctx true array_expr;
+			output "->__GetItem(";
+			gen_expression ctx true index;
+			output ")";
 		end else begin
 			gen_expression ctx true array_expr;
 			output "->__get(";
@@ -1296,9 +1235,49 @@ and gen_expression ctx retval expression =
 	(* Get precidence matching haxe ? *)
 	| TBinop (op,expr1,expr2) -> gen_bin_op op expr1 expr2
 	| TField (expr,name) when (is_null expr) -> output "Dynamic()"
-	| TClosure (expr,name)
-	| TField (expr,name) ->
-		gen_member_access expr name (is_function_member expression) expression.etype
+
+	| TClosure (field_object,member)
+	| TField (field_object,member) ->
+		let remap_name = keyword_remap member in
+		let already_dynamic = ref false in
+		(match field_object.eexpr with
+		(* static access ... *)
+		| TTypeExpr type_def ->
+			let class_name = "::" ^ (join_class_path (t_path type_def) "::" ) in
+			if (class_name="::String") then
+				output ("::String::" ^ remap_name)
+			else
+				output (class_name ^ "_obj::" ^ remap_name);
+		(* Special internal access *)
+		| TLocal name when name = "__global__" ->
+			output ("::" ^ member )
+		| TConst TSuper -> output (if ctx.ctx_real_this_ptr then "this" else "__this");
+						output ("->super::" ^ remap_name)
+		| TConst TThis when ctx.ctx_real_this_ptr -> output ( "this->" ^ remap_name )
+		| TConst TNull -> output "null()"
+		| _ -> 
+			gen_expression ctx true field_object;
+         if (is_internal_member member) then begin
+				output ( "->" ^ member );
+         (* dynamic_this objects seem to have the wront type... *)
+         end else if (is_dynamic_member_in_cpp ctx field_object member ) then begin
+            let access = (if assigning then "->__FieldRef" else "->__Field") in
+				(* output ( "/* " ^ (type_string field_object.etype) ^ " */" ); *)
+				output ( access ^ "(" ^ (str member) ^ ")" );
+            already_dynamic := true;
+         end else begin
+            if ((type_string field_object.etype)="::String" ) then
+				   output ( "." ^ remap_name )
+            else begin
+               cast_if_required ctx field_object (type_string field_object.etype);
+				   output ( "->" ^ remap_name )
+            end;
+         end;
+      );
+		if ( (not !already_dynamic) && (not calling) && (not assigning) && (is_function_member expression) ) then
+         output "_dyn()";
+
+
 	| TParenthesis expr when not retval ->
 			gen_expression ctx retval expr;
 	| TParenthesis expr -> output "("; gen_expression ctx retval expr; output ")"
@@ -1607,7 +1586,7 @@ and gen_expression ctx retval expression =
 
 
 (*
-let is_dynamic_method f =
+let is_dynamic_haxe_method f =
 	match follow f.cf_type with
 	| TFun _ when f.cf_expr = None -> true
 	| _ ->
@@ -1617,7 +1596,7 @@ let is_dynamic_method f =
 		| _ -> false);;
 *)
 
-let is_dynamic_method f =
+let is_dynamic_haxe_method f =
 		(match f.cf_expr, f.cf_kind with
 		| Some { eexpr = TFunction _ }, (Var _ | Method MethDynamic) -> true
 		| _ -> false);;
@@ -1625,7 +1604,7 @@ let is_dynamic_method f =
 
 let is_data_member field =
 	match field.cf_expr with
-	| Some { eexpr = TFunction function_def } -> is_dynamic_method field
+	| Some { eexpr = TFunction function_def } -> is_dynamic_haxe_method field
 	| _ -> true;;
 
 
@@ -1706,7 +1685,7 @@ let gen_field ctx class_def class_name ptr_name is_static is_external is_interfa
 		let ret = if is_void  then "(void)" else "return " in
 		let src_name = class_name ^ "::" ^ field.cf_name in
 
-		if (not (is_dynamic_method field)) then begin
+		if (not (is_dynamic_haxe_method field)) then begin
 			(* The actual function definition *)
 			output return_type;
 			output (" " ^ class_name ^ "::" ^ remap_name ^ "( " );
@@ -1781,7 +1760,7 @@ let gen_field_init ctx field =
 	(* Function field *)
 	| Some { eexpr = TFunction function_def } ->
 
-		if (is_dynamic_method field) then begin
+		if (is_dynamic_haxe_method field) then begin
 			let func_name = "__default_" ^ (remap_name) in
 			output ( "	hx::Static(" ^ remap_name ^ ") = new " ^ func_name ^ ";\n\n" );
 		end
@@ -1834,7 +1813,7 @@ let gen_member_def ctx class_def is_static is_extern is_interface field =
 	end else (match  field.cf_expr with
 	| Some { eexpr = TFunction orig_function_def } ->
 		let function_def = inherit_temlpate_types class_def field.cf_name is_static orig_function_def in
-		if ( is_dynamic_method field ) then begin
+		if ( is_dynamic_haxe_method field ) then begin
 			output ("Dynamic " ^ remap_name ^ ";\n");
 			output (if is_static then "		static " else "		");
 			(* external mem  Dynamic & *)
@@ -2044,7 +2023,9 @@ let generate_main common_ctx member_types super_deps class_def boot_classes init
 let begin_header_file output_h def_string =
 	output_h ("#ifndef INCLUDED_" ^ def_string ^ "\n");
 	output_h ("#define INCLUDED_" ^ def_string ^ "\n\n");
-	output_h "#include <hxcpp.h>\n\n";;
+	output_h "#ifndef HXCPP_H\n";
+	output_h "#include <hxcpp.h>\n";
+	output_h "#endif\n\n";;
 
 let end_header_file output_h def_string = 
 	output_h ("\n#endif /* INCLUDED_" ^ def_string ^ " */ \n");;
@@ -2408,7 +2389,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			(fun field -> let remap_name = keyword_remap field.cf_name in
 				match field.cf_expr with
 				| Some { eexpr = TFunction function_def } ->
-						if (is_dynamic_method field) then
+						if (is_dynamic_haxe_method field) then
 							output_cpp ("	" ^ remap_name ^ " = new __default_" ^ remap_name ^ "(this);\n")
 				| _ -> ()
 			)
@@ -2441,7 +2422,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 		let variable_field field =
 			(match field.cf_expr with
-			| Some { eexpr = TFunction function_def } -> is_dynamic_method field
+			| Some { eexpr = TFunction function_def } -> is_dynamic_haxe_method field
 			| _ -> (not is_extern) ||
 				(match follow field.cf_type with | TFun _ -> false | _ -> true) ) in
 
