@@ -2183,7 +2183,7 @@ let generate_enum_files common_ctx enum_def super_deps meta =
 		match constructor.ef_type with
 		| TFun (_,_) -> ()
 		| _ ->
-			output_cpp ( "Static(" ^ name ^ ") = hx::CreateEnum< " ^ class_name ^ " >(" ^ (str name) ^  "," ^
+			output_cpp ( "Static(" ^ (keyword_remap name) ^ ") = hx::CreateEnum< " ^ class_name ^ " >(" ^ (str name) ^  "," ^
 				(string_of_int constructor.ef_index) ^ ");\n" )
 	) enum_def.e_constrs;
 	output_cpp ("}\n\n");
