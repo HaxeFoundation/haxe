@@ -734,7 +734,7 @@ let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_
 			if  not (Hashtbl.mem declarations local_name) then
 				Hashtbl.replace undeclared local_name (type_string expression.etype)
 		| TMatch (condition, enum, cases, default) ->
-			Type.iter (find_undeclared_variables undeclared declarations this_suffix allow_this) condition;
+			find_undeclared_variables undeclared declarations this_suffix allow_this condition;
 			List.iter (fun (case_ids,params,expression) ->
 				let old_decs = Hashtbl.copy declarations in
 				(match params with
