@@ -1100,12 +1100,19 @@ and type_switch ctx e cases def need_val p =
 		let cases = List.map exprs cases in
 		mk (TSwitch (eval,cases,def)) (!t) p
 
+and type_ident_noerr ctx s t p mode =
+	try
+		type_ident ctx s t p mode
+	with Error (Unknown_ident _ as e,p) when not ctx.in_display ->
+		display_error ctx (error_msg e) p;
+		AKExpr (mk (TConst TNull) t_dynamic p)
+
 and type_access ctx e p mode =
 	match e with
 	| EConst (Ident s) ->
-		type_ident ctx s false p mode
+		type_ident_noerr ctx s false p mode
 	| EConst (Type s) ->
-		type_ident ctx s true p mode
+		type_ident_noerr ctx s true p mode
 	| EField _
 	| EType _ ->
 		let fields path e =
