@@ -316,7 +316,10 @@ let build_metadata com t =
 			error "Metadata should be constant" p
 	in
 	let make_meta_field ml =
-		mk (TObjectDecl (List.map (fun (f,el,_) ->
+		let h = Hashtbl.create 0 in
+		mk (TObjectDecl (List.map (fun (f,el,p) ->
+			if Hashtbl.mem h f then error ("Duplicate metadata '" ^ f ^ "'") p;
+			Hashtbl.add h f ();
 			f, mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map loop el)) (api.tarray t_dynamic) p
 		) ml)) (api.tarray t_dynamic) p
 	in
