@@ -76,7 +76,6 @@ type context = {
 	mutable js_gen : (unit -> unit) option;
 	(* typing *)
 	mutable basic : basic_types;
-	mutable lines : Lexer.line_index;
 }
 
 exception Abort of string * Ast.pos
@@ -121,8 +120,7 @@ let create v =
 			tnull = (fun _ -> assert false);
 			tstring = m;
 			tarray = (fun _ -> assert false);
-		};
-		lines = Lexer.build_line_index();
+		};		
 	}
 
 let clone com =

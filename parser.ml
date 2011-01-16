@@ -754,7 +754,7 @@ let parse ctx code =
 				| (Const (Int s),_) -> int_of_string s
 				| (t,p) -> error (Unexpected t) p
 			) in
-			Lexer.cur_line := line - 1;
+			!(Lexer.cur).Lexer.lline <- line - 1;
 			next_token();
 		| _ ->
 			tk

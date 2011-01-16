@@ -1161,7 +1161,7 @@ and gen_expression ctx retval expression =
 				find_local_functions_ctx ctx expression;
 				let want_value = (return_from_block && !remaining = 1) in
 				find_local_return_blocks_ctx ctx want_value expression;
-				let line = Lexer.find_line_index ctx.ctx_common.lines expression.epos in
+				let line = Lexer.get_error_line expression.epos in
 				output_i ("HX_SOURCE_POS(\"" ^ (Ast.s_escape expression.epos.pfile) ^ "\","
 					^ (string_of_int line) ^ ")\n" );
 				output_i "";

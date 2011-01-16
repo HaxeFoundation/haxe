@@ -40,14 +40,32 @@ let error_msg = function
 	| Invalid_escape -> "Invalid escape sequence"
 	| Invalid_option -> "Invalid regular expression option"
 
-let cur_file = ref ""
-let cur_line = ref 1
-let all_lines = Hashtbl.create 0
-let lines = ref []
+type lexer_file = {
+	lfile : string;
+	mutable lline : int;
+	mutable lmaxline : int;
+	mutable llines : (int * int) list;
+	mutable lrlines : (int * int) list;
+}
+
+let make_file file =
+	{
+		lfile = file;
+		lline = 1;
+		lmaxline = 1;
+		llines = [];
+		lrlines = [];		
+	}
+
+
+let cur = ref (make_file "")
+
+let all_files = Hashtbl.create 0
+
 let buf = Buffer.create 100
 
 let error e pos =
-	raise (Error (e,{ pmin = pos; pmax = pos; pfile = !cur_file }))
+	raise (Error (e,{ pmin = pos; pmax = pos; pfile = !cur.lfile }))
 
 let keywords =
 	let h = Hashtbl.create 3 in
@@ -61,47 +79,45 @@ let keywords =
 	h
 
 let init file =
-	cur_file := file;
-	cur_line := 1;
-	lines := []
-
-let save_lines() =
-	Hashtbl.replace all_lines !cur_file !lines
+	let f = make_file file in
+	cur := f;
+	Hashtbl.add all_files file f
 
 let save() =
-	save_lines();
-	!cur_file, !cur_line
+	!cur
 
-let restore (file,line) =
-	save_lines();
-	cur_file := file;
-	cur_line := line;
-	lines := Hashtbl.find all_lines file
+let restore c =	
+	cur := c
 
 let newline lexbuf =
-	lines :=  (lexeme_end lexbuf,!cur_line) :: !lines;
-	incr cur_line
+	let cur = !cur in
+	cur.llines <- (lexeme_end lexbuf,cur.lline) :: cur.llines;	
+	cur.lline <- cur.lline + 1
 
-let find_line p lines =
-	let rec loop line delta = function
-		| [] -> line + 1, p - delta
+let find_line p f =
+	let rec loop delta = function
+		| [] -> f.lmaxline, p - delta
 		| (lp,line) :: l when lp > p -> line, p - delta
-		| (lp,line) :: l -> loop line lp l
+		| (lp,_) :: l -> loop lp l
 	in
-	loop 0 0 lines
+	if f.lmaxline <> f.lline then begin
+		f.lmaxline <- f.lline;
+		f.lrlines <- List.rev f.llines;
+	end;
+	loop 0 f.lrlines
 
 let get_error_line p =
-	let lines = List.rev (try Hashtbl.find all_lines p.pfile with Not_found -> []) in
-	let l, _ = find_line p.pmin lines in
+	let file = (try Hashtbl.find all_files p.pfile with Not_found -> make_file p.pfile) in
+	let l, _ = find_line p.pmin file in
 	l
 
 let get_error_pos printer p =
 	if p.pmin = -1 then
 		"(unknown)"
 	else
-		let lines = List.rev (try Hashtbl.find all_lines p.pfile with Not_found -> []) in
-		let l1, p1 = find_line p.pmin lines in
-		let l2, p2 = find_line p.pmax lines in
+		let file = (try Hashtbl.find all_files p.pfile with Not_found -> make_file p.pfile) in
+		let l1, p1 = find_line p.pmin file in
+		let l2, p2 = find_line p.pmax file in
 		if l1 = l2 then begin
 			let s = (if p1 = p2 then Printf.sprintf " %d" p1 else Printf.sprintf "s %d-%d" p1 p2) in
 			Printf.sprintf "%s character%s" (printer p.pfile l1) s
@@ -114,7 +130,7 @@ let store lexbuf = Buffer.add_string buf (lexeme lexbuf)
 let add c = Buffer.add_string buf c
 
 let mk_tok t pmin pmax =
-	t , { pfile = !cur_file; pmin = pmin; pmax = pmax }
+	t , { pfile = !cur.lfile; pmin = pmin; pmax = pmax }
 
 let mk lexbuf t =
 	mk_tok t (lexeme_start lexbuf) (lexeme_end lexbuf)
@@ -126,33 +142,6 @@ let mk_ident lexbuf =
 
 let invalid_char lexbuf =
 	error (Invalid_character (lexeme_char lexbuf 0)) (lexeme_start lexbuf)
-
-type file_index = {
-	f_file : string;
-	f_lines : (int * int) list;
-	f_max_line : int;
-}
-
-type line_index = (string, file_index) PMap.t
-
-let make_index f lines =
-	{
-		f_file = f;
-		f_lines = List.rev lines;
-		f_max_line = (match lines with (_,line) :: _ -> line + 1 | [] -> 1);
-	}
-
-let build_line_index() =
-	Hashtbl.fold (fun f l acc -> PMap.add f (make_index f l) acc) all_lines PMap.empty
-
-let find_line_index idx p =
-	let idx = (try PMap.find p.pfile idx with Not_found -> make_index p.pfile []) in
-	let ppos = p.pmin in
-	let rec loop = function
-		| [] -> idx.f_max_line
-		| (lp,line) :: l -> if lp > ppos then line else loop l
-	in
-	loop idx.f_lines
 
 }
 

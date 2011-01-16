@@ -1190,7 +1190,7 @@ and gen_expr ctx e =
 		let old_meth = ctx.curmethod in
 		ctx.in_value <- None;
 		ctx.in_loop <- false;
-		ctx.curmethod <- ctx.curmethod ^ "@" ^ string_of_int (Lexer.find_line_index ctx.com.lines e.epos);
+		ctx.curmethod <- ctx.curmethod ^ "@" ^ string_of_int (Lexer.get_error_line e.epos);
 		gen_inline_function ctx f false e.epos;
 		ctx.curmethod <- old_meth;
 		ctx.in_value <- fst old;

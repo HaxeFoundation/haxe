@@ -65,7 +65,7 @@ let pos ctx p =
 	) in
 	{
 		psource = file;
-		pline = Lexer.find_line_index ctx.com.lines p;
+		pline = Lexer.get_error_line p;
 	}
 
 let gen_global_name ctx path =

@@ -1866,15 +1866,24 @@ let get_type_patch ctx t sub =
 
 let parse_string ctx s p =
 	let old = Lexer.save() in
+	let old_file = (try Some (Hashtbl.find Lexer.all_files p.pfile) with Not_found -> None) in
+	let restore() =
+		(match old_file with
+		| None -> ()
+		| Some f -> Hashtbl.replace Lexer.all_files p.pfile f);
+		Lexer.restore old;
+	in
 	Lexer.init p.pfile;
 	let _, decls = try
 		Parser.parse ctx.com (Lexing.from_string s)
 	with Parser.Error (e,_) ->
+		restore();
 		failwith (Parser.error_msg e)
 	| Lexer.Error (e,_) ->
+		restore();
 		failwith (Lexer.error_msg e)
 	in
-	Lexer.restore old;
+	restore();
 	match decls with
 	| [(d,_)] -> d
 	| _ -> assert false

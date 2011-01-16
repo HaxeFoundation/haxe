@@ -532,7 +532,7 @@ let begin_switch ctx =
 
 let debug_infos ?(is_min=true) ctx p =
 	if ctx.com.debug then begin
-		let line = Lexer.find_line_index ctx.com.lines (if is_min then p else { p with pmin = p.pmax }) in
+		let line = Lexer.get_error_line (if is_min then p else { p with pmin = p.pmax }) in
 		if ctx.last_file <> p.pfile then begin
 			write ctx (HDebugFile (if ctx.debugger then try Common.get_full_path p.pfile with _ -> p.pfile else p.pfile));
 			ctx.last_file <- p.pfile;

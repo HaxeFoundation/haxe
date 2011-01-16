@@ -256,7 +256,6 @@ try
 		has_error := true;
 	);
 	Parser.display_error := (fun e p ->
-		Lexer.save_lines();
 		com.error (Parser.error_msg e) p;
 	);
 	Parser.use_doc := false;
@@ -580,7 +579,6 @@ try
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
-		com.lines <- Lexer.build_line_index();
 		if com.platform = Flash9 then Common.add_filter com (fun() -> List.iter Codegen.fix_overrides com.types);
 		let filters = [
 			if com.foptimize then Optimizer.reduce_expression ctx else Optimizer.sanitize ctx;
