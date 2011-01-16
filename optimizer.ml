@@ -436,7 +436,6 @@ let reduce_expr ctx e =
 	| TParenthesis ec ->
 		(match ec.eexpr with
 		| TBinop _ -> e (* TODO : we could remove this after we check all operators works well *)
-		| TNew _ when ctx.com.platform = Cpp -> e (* TODO : fix in cpp generator *)
 		| _ -> { ec with epos = e.epos })
 	| _ ->
 		e
