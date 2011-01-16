@@ -1180,8 +1180,12 @@ and gen_expr ctx e =
 		in
 		List.iter build el;
 
+		if ctx.in_loop then begin
+			unset_locals ctx old_l;
+		end;
 		bend();
 		newline ctx;
+		
 		cb();
 		print ctx "}";
 		b();
