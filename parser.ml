@@ -553,6 +553,7 @@ and expr = parser
 			Display e -> display (make e))
 	| [< '(Unop op,p1) when is_prefix op; e = expr >] -> make_unop op e p1
 	| [< '(Binop OpSub,p1); e = expr >] -> make_unop Neg e p1
+	| [< '(Binop OpAdd,p1); e = expr >] -> e
 	| [< '(Kwd For,p); '(POpen,_); name = any_ident; '(Kwd In,_); it = expr; '(PClose,_); s >] ->
 		(try
 			let e = expr s in
