@@ -50,9 +50,10 @@ let apply_macro ctx path el p =
 	load a type or a subtype definition
 *)
 let rec load_type_def ctx p t =
-	let no_pack = t.tpackage = [] && t.tsub = None in
+	let no_pack = t.tpackage = [] in
 	let tname = (match t.tsub with None -> t.tname | Some n -> n) in
 	try
+		if t.tsub <> None then raise Not_found;
 		List.find (fun t2 ->
 			let tp = t_path t2 in
 			tp = (t.tpackage,tname) || (no_pack && snd tp = tname)
