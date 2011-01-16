@@ -1324,6 +1324,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 						e1
 					with Error (Unify _,_) ->
 						let acc = acc_get ctx (type_field ctx e1 "iterator" e1.epos MCall) e1.epos in
+						let acc = (match acc.eexpr with TClosure (e,f) -> { acc with eexpr = TField (e,f) } | _ -> acc) in
 						match follow acc.etype with
 						| TFun ([],it) ->
 							unify ctx it t e1.epos;
