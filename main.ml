@@ -579,7 +579,7 @@ try
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
-		if com.platform = Flash9 then Common.add_filter com (fun() -> List.iter Codegen.fix_overrides com.types);
+		if com.platform = Flash9 || com.platform = Cpp then Common.add_filter com (fun() -> List.iter Codegen.fix_overrides com.types);
 		let filters = [
 			if com.foptimize then Optimizer.reduce_expression ctx else Optimizer.sanitize ctx;
 			Codegen.check_local_vars_init;

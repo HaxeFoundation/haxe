@@ -1666,7 +1666,10 @@ let has_default_values args =
   When a specialized class inherits from a templated class, the inherited class
   contains the specialized type, rather than the generic template (Dynamic) type.
   C++ needs the inhertied functions to have the same types as the base types.
+ 
+  use Codegen.fix_overrides
 *)
+(*
 let rec inherit_temlpate_types class_def name is_static in_def =
 	match class_def.cl_super with
 	| None -> in_def
@@ -1686,6 +1689,7 @@ let rec inherit_temlpate_types class_def name is_static in_def =
 			end else
 				inherit_temlpate_types super name is_static in_def;
 ;;
+*)
 
 
 let gen_field ctx class_def class_name ptr_name is_static is_external is_interface field =
@@ -1703,8 +1707,7 @@ let gen_field ctx class_def class_name ptr_name is_static is_external is_interfa
 		| _ -> ()
 	end else (match  field.cf_expr with
 	(* Function field *)
-	| Some { eexpr = TFunction orig_function_def } ->
-      let function_def = inherit_temlpate_types class_def field.cf_name is_static orig_function_def in
+	| Some { eexpr = TFunction function_def } ->
 		let return_type = (type_string function_def.tf_type) in
 		let nargs = string_of_int (List.length function_def.tf_args) in
 		let is_void = (type_string function_def.tf_type ) = "Void" in
@@ -1837,8 +1840,7 @@ let gen_member_def ctx class_def is_static is_extern is_interface field =
 				output (" " ^ remap_name ^ ";\n" );
 			end
 	end else (match  field.cf_expr with
-	| Some { eexpr = TFunction orig_function_def } ->
-		let function_def = inherit_temlpate_types class_def field.cf_name is_static orig_function_def in
+	| Some { eexpr = TFunction function_def } ->
 		if ( is_dynamic_haxe_method field ) then begin
 			output ("Dynamic " ^ remap_name ^ ";\n");
 			output (if is_static then "		static " else "		");
