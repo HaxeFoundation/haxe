@@ -2817,7 +2817,7 @@ let create_member_types common_ctx =
 		in
 	List.iter (fun object_def ->
 		(match object_def with
-		| TClassDecl class_def when (match class_def.cl_kind with | KGeneric -> false | _ ->true) ->
+		| TClassDecl class_def ->
 			let class_name = "::" ^ (join_class_path class_def.cl_path "::") in
 			let rec add_all_fields class_def =
 				(match  class_def.cl_super with Some super -> add_all_fields (fst super) | _->(););
@@ -2875,9 +2875,6 @@ let generate common_ctx =
 
 	List.iter (fun object_def ->
 		(match object_def with
-		| TClassDecl class_def when (match class_def.cl_kind with | KGeneric -> true | _ ->false) ->
-			let name =  class_text class_def.cl_path in
-			(if debug then print_endline ("	ignore generic class " ^ name))
 		| TClassDecl class_def ->
 			let name =  class_text class_def.cl_path in
 			let is_internal = is_internal_class class_def.cl_path in
