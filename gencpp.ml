@@ -307,12 +307,24 @@ let cant_be_null = function
 	| "int" | "bool" | "double" -> true
 	| _ -> false
 
+let is_type_param haxe_type =
+	(match follow haxe_type with
+	| TInst (klass,params) ->
+			(match klass.cl_path with
+         | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") -> false
+			| _ -> klass.cl_kind = KTypeParameter
+			)
+   | _ -> false
+	)
+;;
+
 (*  Get a string to represent a type.
 	 The "suffix" will be nothing or "_obj", depending if we want the name of the
 	 pointer class or the pointee (_obj class *)
 let rec class_string klass suffix params =
 	(match klass.cl_path with
 	(* Array class *)
+	|  ([],"Array") when is_type_param (List.hd params) -> "Dynamic"
 	|  ([],"Array") -> (snd klass.cl_path) ^ suffix ^ "< " ^ (String.concat ","
 					 (List.map type_string  params) ) ^ " >"
 	(* FastIterator class *)
@@ -378,11 +390,11 @@ let is_array haxe_type =
 	match follow haxe_type with
 	| TInst (klass,params) -> 
 		(match klass.cl_path with
-		| [] , "Array" -> true
+		| [] , "Array" -> not (is_type_param (List.hd params))
 		| _ -> false )
 	| TType (type_def,params) ->
 		(match type_def.t_path with
-		| [] , "Array" -> true
+		| [] , "Array" ->  not (is_type_param (List.hd params))
 		| _ -> false )
 	| _ -> false
 	;;
@@ -806,6 +818,7 @@ let rec is_dynamic_in_cpp ctx expr =
 and is_dynamic_member_in_cpp ctx field_object member =
 	if (is_internal_member member) then false else
 	if (is_dynamic_in_cpp ctx field_object) then true else
+	if (is_array field_object.etype) then false else
 	match type_string field_object.etype with
 		(* Internal classes have no dynamic members *)
 		| "::String" | "Null" | "::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> ctx.ctx_output ("/* ok:" ^ (type_string field_object.etype)  ^ " */"); false
@@ -1209,19 +1222,20 @@ and gen_expression ctx retval expression =
 			output ("::" ^ (join_class_path enum.e_path "::") ^ "_obj::" ^ name)
 	| TArray (array_expr,_) when (is_null array_expr) -> output "Dynamic()"
 	| TArray (array_expr,index) ->
-		if ( (assigning && (is_array array_expr.etype)) ) then begin
+		let dynamic =  is_dynamic_in_cpp ctx array_expr in
+		if ( assigning && (not dynamic) ) then begin
 			gen_expression ctx true array_expr;
 			output "[";
 			gen_expression ctx true index;
 			output "]";
 		end else if (assigning) then begin
 			(* output (" /*" ^ (type_string array_expr.etype) ^ " */ "); *)
-			output "hxIndexRefNew(";
+			output "hx::IndexRef((";
 			gen_expression ctx true array_expr;
-			output ",";
+			output ").mPtr,";
 			gen_expression ctx true index;
 			output ")";
-		end else if ( is_dynamic_in_cpp ctx array_expr ) then begin
+		end else if ( dynamic ) then begin
 			gen_expression ctx true array_expr;
 			output "->__GetItem(";
 			gen_expression ctx true index;
@@ -1260,7 +1274,7 @@ and gen_expression ctx retval expression =
          if (is_internal_member member) then begin
 				output ( "->" ^ member );
          (* dynamic_this objects seem to have the wront type... *)
-         end else if (is_dynamic_member_in_cpp ctx field_object member ) then begin
+         end else if (is_dynamic_in_cpp ctx field_object ) then begin
             let access = (if assigning then "->__FieldRef" else "->__Field") in
 				(* output ( "/* " ^ (type_string field_object.etype) ^ " */" ); *)
 				output ( access ^ "(" ^ (str member) ^ ")" );
@@ -1296,17 +1310,29 @@ and gen_expression ctx retval expression =
 			output ("/* TObjectDecl block " ^ func_name ^ " not found */" ); )
 	| TArrayDecl decl_list ->
 		(* gen_type output expression.etype; *)
-		output ( (type_string_suff "_obj" expression.etype) ^ "::__new()");
+      let tstr = (type_string_suff "_obj" expression.etype) in
+      if tstr="Dynamic" then
+		   output "Dynamic( Array_obj<Dynamic>::__new()"
+      else
+		   output ( (type_string_suff "_obj" expression.etype) ^ "::__new()");
 		List.iter ( fun elem -> output ".Add(";
 							gen_expression ctx true elem;
 							output ")" ) decl_list;
+      if tstr="Dynamic" then output ")";
 	| TNew (klass,params,expressions) ->
-		if (klass.cl_path = ([],"String")) then
-			output "::String("
-		else
-			output ( ( class_string klass "_obj" params) ^ "::__new(" );
-		gen_expression_list expressions;
-		output ")"
+      let is_param_array = match klass.cl_path with
+       | ([],"Array") when is_type_param (List.hd params) -> true | _ -> false
+      in
+      if is_param_array then
+			   output "Dynamic( Array_obj<Dynamic>::__new() )"
+      else begin
+		   if (klass.cl_path = ([],"String")) then
+			   output "::String("
+		   else
+			   output ( ( class_string klass "_obj" params) ^ "::__new(" );
+		   gen_expression_list expressions;
+		   output ")"
+      end
 	| TUnop (Ast.NegBits,Ast.Prefix,expr) ->
 		output "~(int)(";
 		gen_expression ctx true expr;
