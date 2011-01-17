@@ -2072,8 +2072,9 @@ let new_placed_cpp_file common_ctx class_path =
 
 let generate_enum_files common_ctx enum_def super_deps meta =
 	let class_path = enum_def.e_path in
-	let class_name = (snd class_path) ^ "_obj" in
-	let smart_class_name =  (snd class_path)  in
+	let just_class_name =  (snd class_path) in
+	let class_name =  just_class_name ^ "_obj" in
+	let smart_class_name =  ("::" ^ (join_class_path class_path "::") )  in
 	(*let cpp_file = new_cpp_file common_ctx.file class_path in*)
 	let cpp_file = new_placed_cpp_file common_ctx class_path in
 	let output_cpp = (cpp_file#write) in
@@ -2247,7 +2248,7 @@ let generate_enum_files common_ctx enum_def super_deps meta =
 		output_h ("		::String GetEnumName( ) const { return " ^
 									(str (join_class_path class_path "."))  ^ "; }\n" );
 	output_h ("		::String __ToString() const { return " ^
-									(str (smart_class_name ^ ".") )^ " + tag; }\n\n");
+									(str (just_class_name ^ ".") )^ " + tag; }\n\n");
 
 
         if (has_meta) then
