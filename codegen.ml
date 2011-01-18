@@ -960,7 +960,7 @@ let fix_override c f fd =
 			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> assert false) in
 			let fd2 = { fd with tf_args = List.map2 (fun (n,c,t) (_,_,t2) -> (n,c,t2)) fd.tf_args targs; tf_type = tret } in
 			let fde = (match f.cf_expr with None -> assert false | Some e -> e) in
-			{ f with cf_expr = Some { fde with eexpr = TFunction fd2 } }
+			{ f with cf_expr = Some { fde with eexpr = TFunction fd2 }; cf_type = TFun(targs,tret) }
 		| _ -> f
 	) in
 	c.cl_fields <- PMap.add f.cf_name f c.cl_fields;
