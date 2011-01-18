@@ -379,6 +379,7 @@ and type_string_suff suffix haxe_type =
 	| TAnon a ->
 		(match !(a.a_status) with
 		| Statics c -> type_string_suff suffix (TInst (c,List.map snd c.cl_types))
+		| EnumStatics e -> type_string_suff suffix (TEnum (e,List.map snd e.e_types))
 		| _ -> "Dynamic"  ^ suffix )
 	| TDynamic haxe_type -> "Dynamic" ^ suffix
 	| TLazy func -> type_string_suff suffix ((!func)())
@@ -403,7 +404,14 @@ let is_array haxe_type =
 
 (* Get the type and output it to the stream *)
 let gen_type ctx haxe_type =
-	ctx.ctx_output (type_string haxe_type);;
+	match follow haxe_type with
+	| TAnon a ->
+		(match !(a.a_status) with
+		| Statics _ 
+		| EnumStatics _ -> ctx.ctx_output "::Class"
+		| _ ->  ctx.ctx_output "Dynamic")
+	| _ -> ctx.ctx_output (type_string haxe_type)
+;;
 
 (* Get the type and output it to the stream *)
 let gen_type_suff ctx haxe_type suff =
