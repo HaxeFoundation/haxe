@@ -173,14 +173,46 @@ class Compiler {
 	/**
 		Mark a class (or array of classes) with the metadata @:keep
 	**/
-	public static function keepClass(?cl : String, ?acl : Array<String>)
+	public static function keep(?path : String, ?paths : Array<String>, rec = false)
 	{
-		if (null == acl)
-			acl = [];
-		if (null != cl)
-			acl.push(cl);
-		for(cl in acl)
-			addMetadata("@:keep", cl);
+		if (null == paths)
+			paths = [];
+		if (null != path)
+			paths.push(path);
+		for (path in paths)
+		{
+			for ( p in Context.getClassPath() ) {
+				var p = p + path.split(".").join("/");
+				if (neko.FileSystem.exists(p) && neko.FileSystem.isDirectory(p))
+				{
+					for( file in neko.FileSystem.readDirectory(p) ) {
+						if( StringTools.endsWith(file, ".hx") ) {
+							var module = path + "." + file.substr(0, file.length - 3);
+							var types = Context.getModule(module);
+							for (type in types)
+							{
+								switch(type)
+								{
+									case TInst(cls, _):
+										addMetadata("@:keep", cls.toString());
+									default:
+										//
+								}
+							}
+						} else if( rec && neko.FileSystem.isDirectory(p + "/" + file) )
+							keep(path + "." + file, true);
+					}
+				} else {
+					try
+					{
+						// if it's not a loaded type or a type at all just continue the loop
+						Context.getType(path);
+						addMetadata("@:keep", path);
+						break;
+					} catch(e : Dynamic){}
+				}
+			}			
+		}
 	}
 
 	/**
