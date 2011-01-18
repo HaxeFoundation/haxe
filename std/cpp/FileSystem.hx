@@ -51,7 +51,8 @@ class FileSystem {
 	}
 
 	public static function rename( path : String, newpath : String ) {
-		untyped sys_rename(path,newpath);
+		if (sys_rename(path,newpath)==null)
+         throw "Could not rename:" + path + " to " + newpath;
 	}
 
 	public static function stat( path : String ) : FileStat {
@@ -82,15 +83,18 @@ class FileSystem {
 	}
 
 	public static function createDirectory( path : String ) {
-		sys_create_dir( path, 493 );
+		if (sys_create_dir( path, 493 )==null)
+         throw "Could not create directory:" + path;
 	}
 
 	public static function deleteFile( path : String ) {
-		file_delete(path);
+		if (file_delete(path)==null)
+         throw "Could not delete file:" + path;
 	}
 
 	public static function deleteDirectory( path : String ) {
-		sys_remove_dir(path);
+		if (sys_remove_dir(path)==null)
+         throw "Could not delete directory:" + path;
 	}
 
 	public static function readDirectory( path : String ) : Array<String> {
