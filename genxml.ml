@@ -207,9 +207,14 @@ let rec create_dir acc = function
 		(try Unix.mkdir path 0o777 with _ -> ());
 		create_dir path l
 
+let conv_path p =
+	match List.rev (fst p) with
+	| x :: l when x.[0] = '_' -> List.rev (("priv" ^ x) :: l), snd p
+	| _ -> p
+
 let generate_type com t =
 	let base_path = "hxclasses" in
-	let pack , name = t_path t in
+	let pack , name = conv_path (t_path t) in
 	create_dir "." (base_path :: pack);
 	match pack, name with
 	| ["flash";"net"], "NetStreamPlayTransitions"
@@ -234,6 +239,7 @@ let generate_type com t =
 			t
 	in
 	let rec path p tl =
+		let p = conv_path p in
 		(if fst p = pack then snd p else s_type_path p) ^ (match tl with [] -> "" | _ -> "<" ^ String.concat "," (List.map stype tl) ^ ">")
 	and stype t =
 		match t with
@@ -256,6 +262,8 @@ let generate_type com t =
 			stype ((!f)())
 		| TDynamic t2 ->
 			if t == t2 then "Dynamic" else "Dynamic<" ^ stype t2 ^ ">"
+		| TFun ([],ret) ->
+			"Void -> " ^ ftype ret
 		| TFun (args,ret) ->
 			String.concat " -> " (List.map (fun (_,_,t) -> ftype t) args) ^ " -> " ^ ftype ret
 	and ftype t =
@@ -288,7 +296,7 @@ let generate_type com t =
 	let print_meta ml =
 		List.iter (fun (m,pl,_) ->
 			match m with
-			| ":defparam" -> ()
+			| ":defparam" | ":core_api" -> ()
 			| _ ->
 			match pl with
 			| [] -> p "@%s " m
@@ -335,7 +343,8 @@ let generate_type com t =
 				| _ ->
 					assert false
 			) in
-			p "function %s(%s) : %s" f.cf_name (String.concat ", " (List.map sparam params)) (stype ret);
+			let tparams = (match f.cf_params with [] -> "" | l -> "<" ^ String.concat "," (List.map fst l) ^ ">") in
+			p "function %s%s(%s) : %s" f.cf_name tparams (String.concat ", " (List.map sparam params)) (stype ret);
 		);
 		p ";\n"
 	in
@@ -353,7 +362,7 @@ let generate_type com t =
 			| Some t ->
 				(match c.cl_path with
 				| ["flash";"errors"], _ -> ext
-				| _ -> (" implements " ^ stype t) :: ext)
+				| _ -> (" implements Dynamic<" ^ stype t ^ ">") :: ext)
 		) in
 		let ext = (match c.cl_path with
 			| ["flash";"utils"], "ByteArray" -> " implements ArrayAccess<Int>" :: ext
@@ -367,7 +376,7 @@ let generate_type com t =
 		p "%s" (String.concat "," (List.rev ext));
 		p " {\n";
 		let sort l =
-			let a = Array.of_list l in
+			let a = Array.of_list (List.filter (fun f -> f.cf_public && not (List.mem f.cf_name c.cl_overrides)) l) in
 			let name = function "new" -> "" | n -> n in
 			Array.sort (fun f1 f2 ->
 				match f1.cf_kind, f2.cf_kind with
