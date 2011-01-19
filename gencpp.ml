@@ -729,7 +729,7 @@ let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_
 		match expression.eexpr with
 		| TVars var_list ->
 			List.iter (fun (var_name, var_type, optional_init) ->
-				Hashtbl.add declarations var_name ();
+				Hashtbl.add declarations (keyword_remap var_name) ();
 				if (ctx.ctx_debug) then
 					output ("/* found var " ^ var_name ^ "*/ ");
 				match optional_init with
@@ -739,7 +739,7 @@ let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_
 		| TFunction func -> List.iter ( fun (arg_name, opt_val, arg_type) ->
 				if (ctx.ctx_debug) then
 					output ("/* found arg " ^ arg_name ^ " = " ^ (type_string arg_type) ^ " */ ");
-				Hashtbl.add declarations arg_name () ) func.tf_args;
+				Hashtbl.add declarations (keyword_remap arg_name) () ) func.tf_args;
 				find_undeclared_variables undeclared declarations this_suffix false func.tf_expr
 		| TTry (try_block,catches) ->
 			find_undeclared_variables undeclared declarations this_suffix allow_this try_block;
@@ -752,7 +752,7 @@ let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_
 				) catches;
 		| TLocal local_name ->
 			if  not (Hashtbl.mem declarations local_name) then
-				Hashtbl.replace undeclared local_name (type_string expression.etype)
+				Hashtbl.replace undeclared (keyword_remap local_name) (type_string expression.etype)
 		| TMatch (condition, enum, cases, default) ->
 			find_undeclared_variables undeclared declarations this_suffix allow_this condition;
 			List.iter (fun (case_ids,params,expression) ->
@@ -871,12 +871,12 @@ let rec define_local_function_ctx ctx func_name func_def =
 		List.iter ( fun (arg_name, opt_val, arg_type) ->
 			if (ctx.ctx_debug) then
 				output ("/* found arg " ^ arg_name ^ " = " ^ (type_string arg_type) ^" */ ");
-			Hashtbl.add declarations arg_name () ) func_def.tf_args;
+			Hashtbl.add declarations (keyword_remap arg_name) () ) func_def.tf_args;
 		find_undeclared_variables_ctx ctx undeclared declarations "" true func_def.tf_expr;
 
 		let has_this = Hashtbl.mem undeclared "this" in
 		if (has_this) then Hashtbl.remove undeclared "this";
-		let typed_vars = hash_iterate undeclared (fun key value -> value ^ "," ^ key ) in
+		let typed_vars = hash_iterate undeclared (fun key value -> value ^ "," ^ (keyword_remap key) ) in
 		let func_name_sep = func_name ^ (if List.length typed_vars > 0 then "," else "") in
 		output_i ("HX_BEGIN_LOCAL_FUNC" ^ (list_num typed_vars) ^ "(" ^ func_name_sep ^
 						(String.concat "," typed_vars) ^ ")\n" );
