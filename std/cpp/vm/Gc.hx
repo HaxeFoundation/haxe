@@ -12,9 +12,9 @@ class Gc
       untyped __global__.__hxcpp_collect();
    }
 
-   static public function trace(sought:Class<Dynamic>) : Void
+   static public function trace(sought:Class<Dynamic>,printInstances:Bool=true) : Int
    {
-      untyped __global__.__hxcpp_gc_trace(sought);
+      return untyped __global__.__hxcpp_gc_trace(sought,printInstances);
    }
 
 }
