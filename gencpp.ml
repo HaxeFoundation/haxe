@@ -510,6 +510,17 @@ let escape_stringw s l =
 	Buffer.add_char b '"';
 	Buffer.contents b;;
 
+let special_to_hex s =
+	let l = String.length s in
+	let b = Buffer.create 0 in
+	for i = 0 to l - 1 do
+		match Char.code (String.unsafe_get s i) with
+		| c when (c>127) || (c<32) ->
+			Buffer.add_string b (Printf.sprintf "\\x%02x\"\"" c)
+		| c -> Buffer.add_char b (Char.chr c)
+	done;
+	Buffer.contents b;;
+
 
 let has_utf8_chars s = 
 	let result = ref false in
@@ -530,7 +541,7 @@ let str s =
 		(* Output both wide and thin versions - let the compiler choose ... *)
 		let l = ref (String.length escaped) in
 		let q = escape_stringw (Ast.s_escape s) l in
-		("HX_CSTRING2(" ^ q ^ "," ^ (string_of_int !l) ^ ",\"" ^ null_escaped ^ "\" )")
+		("HX_CSTRING2(" ^ q ^ "," ^ (string_of_int !l) ^ ",\"" ^ (special_to_hex null_escaped) ^ "\" )")
         end else
 		(* The wide and thin versions are the same ...  *)
 		("HX_CSTRING(\"" ^ null_escaped ^ "\")")
