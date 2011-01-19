@@ -198,8 +198,11 @@ class Web {
 	/**
 		Returns all the GET parameters String
 	**/
-	public static inline function getParamsString() : String {
-		return untyped __php__("$_SERVER['QUERY_STRING']");
+	public static function getParamsString() : String {
+		if(untyped __call__("isset", __var__("_SERVER", "QUERY_STRING")))
+			return untyped __var__("_SERVER", "QUERY_STRING");
+		else
+			return "";
 	}
 
 	/**
