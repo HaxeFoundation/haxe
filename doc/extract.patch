@@ -378,6 +378,7 @@ flash.system.SystemUpdater.$typer : SystemAdapterType;
 
 flash.text.Font.fontStyle : FontStyle;
 flash.text.Font.fontType : FontType;
+static flash.text.Font.enumerateFonts : Array<Font>;
 flash.text.TextField.autoSize : TextFieldAutoSize;
 flash.text.TextField.antiAliasType : AntiAliasType;
 flash.text.TextField.gridFitType : GridFitType;
