@@ -376,11 +376,13 @@ and type_string_suff suffix haxe_type =
 		| _ ->  type_string_suff suffix (apply_params type_def.t_types params type_def.t_type)
 		)
 	| TFun (args,haxe_type) -> "Dynamic" ^ suffix
-	| TAnon a ->
+	| TAnon a -> "Dynamic"
+      (*
 		(match !(a.a_status) with
 		| Statics c -> type_string_suff suffix (TInst (c,List.map snd c.cl_types))
 		| EnumStatics e -> type_string_suff suffix (TEnum (e,List.map snd e.e_types))
 		| _ -> "Dynamic"  ^ suffix )
+      *)
 	| TDynamic haxe_type -> "Dynamic" ^ suffix
 	| TLazy func -> type_string_suff suffix ((!func)())
 	)
@@ -404,6 +406,8 @@ let is_array haxe_type =
 
 (* Get the type and output it to the stream *)
 let gen_type ctx haxe_type =
+	ctx.ctx_output (type_string haxe_type)
+   (*
 	match follow haxe_type with
 	| TAnon a ->
 		(match !(a.a_status) with
@@ -411,6 +415,7 @@ let gen_type ctx haxe_type =
 		| EnumStatics _ -> ctx.ctx_output "::Class"
 		| _ ->  ctx.ctx_output "Dynamic")
 	| _ -> ctx.ctx_output (type_string haxe_type)
+   *)
 ;;
 
 (* Get the type and output it to the stream *)
@@ -812,13 +817,28 @@ let rec is_dynamic_in_cpp ctx expr =
 	else begin
 		let result = (
 		match expr.eexpr with
-		| TField( obj, name ) -> ctx.ctx_output ("/* tfield  */");
-				is_dynamic_member_in_cpp ctx obj name
+		| TField( obj, name ) -> ctx.ctx_output ("/* ?tfield "^name^" */");
+				if (is_dynamic_member_lookup_in_cpp ctx obj name) then
+            (
+               ctx.ctx_output "/* tf=dynobj */";
+               true
+            )
+            else if (is_dynamic_member_return_in_cpp ctx obj name)  then
+            (
+               ctx.ctx_output "/* tf=dynret */";
+               true
+            )
+            else
+            (
+               ctx.ctx_output "/* tf=notdyn */";
+               false
+            )
 		| TConst TThis when ((not ctx.ctx_real_this_ptr) && ctx.ctx_dynamic_this_ptr) ->
 				ctx.ctx_output ("/* dthis */"); true
 		| TArray (obj,index) -> let dyn = is_dynamic_in_cpp ctx obj in
 				ctx.ctx_output ("/* aidr:" ^ (if dyn then "Dyn" else "Not") ^ " */");
 				dyn;
+		| TTypeExpr _ -> false
 		| TCall(func,args) ->
            (match follow func.etype with
                | TFun (args,ret) -> ctx.ctx_output ("/* ret = "^ (type_string ret) ^" */");
@@ -834,11 +854,15 @@ let rec is_dynamic_in_cpp ctx expr =
 		result
 	end
 
-and is_dynamic_member_in_cpp ctx field_object member =
+and is_dynamic_member_lookup_in_cpp ctx field_object member =
+   ctx.ctx_output ("/*mem."^member^".*/");
 	if (is_internal_member member) then false else
+	if (match field_object.eexpr with | TTypeExpr _ -> ctx.ctx_output "/*!TTypeExpr*/"; true | _ -> false) then false else
 	if (is_dynamic_in_cpp ctx field_object) then true else
-	if (is_array field_object.etype) then false else
-	match type_string field_object.etype with
+	if (is_array field_object.etype) then false else (
+	let tstr = type_string field_object.etype in
+   ctx.ctx_output ("/* ts:"^tstr^"*/");
+	match tstr with
 		(* Internal classes have no dynamic members *)
 		| "::String" | "Null" | "::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> ctx.ctx_output ("/* ok:" ^ (type_string field_object.etype)  ^ " */"); false
 		| "Dynamic" -> true
@@ -847,8 +871,29 @@ and is_dynamic_member_in_cpp ctx field_object member =
 				ctx.ctx_output ("/* t:" ^ full_name ^ " */");
 				try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in
 					ctx.ctx_output ("/* =" ^ mem_type ^ "*/");
-					mem_type ="Dynamic" )
+					false )
 				with Not_found -> true
+   )
+and is_dynamic_member_return_in_cpp ctx field_object member =
+	if (is_array field_object.etype) then false else
+	if (is_internal_member member) then false else
+   match field_object.eexpr with
+   | TTypeExpr t ->
+         let full_name = "::" ^ (join_class_path (t_path t) "::" ) ^ "." ^ member in
+		   ctx.ctx_output ("/*static:"^ full_name^"*/");
+			( try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in mem_type="Dynamic" )
+			with Not_found -> true )
+   | _ ->
+	   let tstr = type_string field_object.etype in
+	   (match tstr with
+		   (* Internal classes have no dynamic members *)
+		   | "::String" | "Null" | "::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> false
+		   | "Dynamic" -> ctx.ctx_output "/*D*/"; true
+		   | name ->
+				   let full_name = name ^ "." ^ member in
+		         ctx.ctx_output ("/*R:"^full_name^"*/");
+				   try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in mem_type="Dynamic" )
+				   with Not_found -> true )
 ;;
 
 let cast_if_required ctx expr to_type =
@@ -1290,10 +1335,10 @@ and gen_expression ctx retval expression =
 		| TConst TNull -> output "null()"
 		| _ -> 
 			gen_expression ctx true field_object;
+         output "/* TField */";
          if (is_internal_member member) then begin
 				output ( "->" ^ member );
-         (* dynamic_this objects seem to have the wront type... *)
-         end else if (is_dynamic_in_cpp ctx field_object ) then begin
+         end else if (is_dynamic_member_lookup_in_cpp ctx field_object member) then begin
             let access = (if assigning then "->__FieldRef" else "->__Field") in
 				(* output ( "/* " ^ (type_string field_object.etype) ^ " */" ); *)
 				output ( access ^ "(" ^ (str member) ^ ")" );
@@ -2347,7 +2392,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			let interface_name = "::" ^ (join_class_path imp_path "::" ) in
 			if ( not (Hashtbl.mem implemented_hash interface_name) ) then begin
 				Hashtbl.add implemented_hash interface_name ();
-				match (fst interface).cl_super with | Some super -> descend_interface super | _->();
+				List.iter descend_interface (fst interface).cl_implements;
 			end
 		in descend_interface imp
 	) (real_interfaces class_def.cl_implements);
@@ -2855,13 +2900,14 @@ let write_build_options filename options =
 
 let create_member_types common_ctx = 
 	let result = Hashtbl.create 0 in
-	let add_member class_name member =
+	let add_member class_name interface member =
 		match follow member.cf_type with
 		| TFun (_,ret) ->
          (*print_endline (class_name ^ "." ^ member.cf_name ^ "=" ^  (type_string ret) );*)
 			Hashtbl.add result (class_name ^ "." ^ member.cf_name) (type_string ret)
-		| _ ->
+		| _ when not interface ->
 			Hashtbl.add result (class_name ^ "." ^ member.cf_name) (type_string member.cf_type)
+      | _ -> ()
 		in
 	List.iter (fun object_def ->
 		(match object_def with
@@ -2869,8 +2915,8 @@ let create_member_types common_ctx =
 			let class_name = "::" ^ (join_class_path class_def.cl_path "::") in
 			let rec add_all_fields class_def =
 				(match  class_def.cl_super with Some super -> add_all_fields (fst super) | _->(););
-				List.iter (add_member class_name) class_def.cl_ordered_fields;
-				List.iter (add_member class_name) class_def.cl_ordered_statics
+				List.iter (add_member class_name class_def.cl_interface) class_def.cl_ordered_fields;
+				List.iter (add_member class_name class_def.cl_interface) class_def.cl_ordered_statics
 			in
 			add_all_fields class_def
 		| _ -> ( )
