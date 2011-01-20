@@ -394,6 +394,8 @@ try
 		),"<file>[@name] : add a named resource file");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
 		("-cmd", Arg.String (fun cmd ->
+			let len = String.length cmd in
+			let cmd = (if len > 0 && cmd.[0] = '"' && cmd.[len - 1] = '"' then String.sub cmd 1 (len - 2) else cmd) in
 			cmds := expand_env cmd :: !cmds
 		),": run the specified command after successful compilation");
 		("--flash-strict", define "flash_strict", ": more type strict flash API");
