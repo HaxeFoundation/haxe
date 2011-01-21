@@ -81,12 +81,12 @@ enum XmlType {
 	}
 
 	public static function createCData( data : String ) : Xml {
-		return wrap( null, new flash.xml.XML("<![CDATA[ "+data+" ]]>"), Xml.CData );
+		return wrap( null, new flash.xml.XML("<![CDATA["+data+"]]>"), Xml.CData );
 	}
 
 	public static function createComment( data : String ) : Xml {
 		XML.ignoreComments = false;
-		return wrap( null, new flash.xml.XML("<!-- "+data+" -->"), Xml.Comment );
+		return wrap( null, new flash.xml.XML("<!--"+data+"-->"), Xml.Comment );
 	}
 
 	public static function createDocType( data : String ) : Xml {
