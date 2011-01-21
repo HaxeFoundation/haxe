@@ -1678,6 +1678,11 @@ let macro_lib =
 			| VInt min, VInt max, VString file -> VAbstract (APos { Ast.pmin = min; Ast.pmax = max; Ast.pfile = file })
 			| _ -> error()
 		);
+		"add_resource", Fun2 (fun name data ->
+			match name, data with
+			| VString name, VString data -> Hashtbl.replace (get_ctx()).com.Common.resources name data; VNull
+			| _ -> error()
+		);
 	]
 
 (* ---------------------------------------------------------------------- *)

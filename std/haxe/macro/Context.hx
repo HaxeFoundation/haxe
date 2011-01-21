@@ -135,6 +135,13 @@ class Context {
 		return load("make_pos",3)(inf.min,inf.max,untyped inf.file.__s);
 	}
 
+	/**
+		Add or modify a resource that will be accessible with haxe.Resource api.
+	**/
+	public static function addResource( name : String, data : haxe.io.Bytes ) {
+		return load("add_resource",2)(untyped name.__s,data.getData());
+	}
+
 	static function load( f, nargs ) : Dynamic {
 		#if macro
 		return neko.Lib.load("macro", f, nargs);
