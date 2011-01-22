@@ -138,6 +138,7 @@ type context =
 {
 	mutable ctx_common : Common.context;
 	mutable ctx_output : string -> unit;
+	mutable ctx_dbgout : string -> unit;
 	mutable ctx_writer : source_writer;
 	mutable ctx_calling : bool;
 	mutable ctx_assigning : bool;
@@ -165,6 +166,7 @@ let new_context common_ctx writer debug =
 	ctx_common = common_ctx;
 	ctx_writer = writer;
 	ctx_output = (writer#write);
+	ctx_dbgout = if debug then (writer#write) else (fun _ -> ());
 	ctx_calling = false;
 	ctx_assigning = false;
 	ctx_debug = debug;
@@ -407,15 +409,6 @@ let is_array haxe_type =
 (* Get the type and output it to the stream *)
 let gen_type ctx haxe_type =
 	ctx.ctx_output (type_string haxe_type)
-   (*
-	match follow haxe_type with
-	| TAnon a ->
-		(match !(a.a_status) with
-		| Statics _ 
-		| EnumStatics _ -> ctx.ctx_output "::Class"
-		| _ ->  ctx.ctx_output "Dynamic")
-	| _ -> ctx.ctx_output (type_string haxe_type)
-   *)
 ;;
 
 (* Get the type and output it to the stream *)
@@ -812,66 +805,66 @@ let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_
 
 let rec is_dynamic_in_cpp ctx expr =
 	let expr_type = type_string ( match follow expr.etype with TFun (args,ret) -> ret | _ -> expr.etype) in
-   ctx.ctx_output ( "/* idic: " ^ expr_type ^ " */" );
+   ctx.ctx_dbgout ( "/* idic: " ^ expr_type ^ " */" );
 	if ( expr_type="Dynamic" ) then
 		true
 	else begin
 		let result = (
 		match expr.eexpr with
-		| TField( obj, name ) -> ctx.ctx_output ("/* ?tfield "^name^" */");
+		| TField( obj, name ) -> ctx.ctx_dbgout ("/* ?tfield "^name^" */");
 				if (is_dynamic_member_lookup_in_cpp ctx obj name) then
             (
-               ctx.ctx_output "/* tf=dynobj */";
+               ctx.ctx_dbgout "/* tf=dynobj */";
                true
             )
             else if (is_dynamic_member_return_in_cpp ctx obj name)  then
             (
-               ctx.ctx_output "/* tf=dynret */";
+               ctx.ctx_dbgout "/* tf=dynret */";
                true
             )
             else
             (
-               ctx.ctx_output "/* tf=notdyn */";
+               ctx.ctx_dbgout "/* tf=notdyn */";
                false
             )
 		| TConst TThis when ((not ctx.ctx_real_this_ptr) && ctx.ctx_dynamic_this_ptr) ->
-				ctx.ctx_output ("/* dthis */"); true
+				ctx.ctx_dbgout ("/* dthis */"); true
 		| TArray (obj,index) -> let dyn = is_dynamic_in_cpp ctx obj in
-				ctx.ctx_output ("/* aidr:" ^ (if dyn then "Dyn" else "Not") ^ " */");
+				ctx.ctx_dbgout ("/* aidr:" ^ (if dyn then "Dyn" else "Not") ^ " */");
 				dyn;
 		| TTypeExpr _ -> false
 		| TCall(func,args) ->
            (match follow func.etype with
-               | TFun (args,ret) -> ctx.ctx_output ("/* ret = "^ (type_string ret) ^" */");
+               | TFun (args,ret) -> ctx.ctx_dbgout ("/* ret = "^ (type_string ret) ^" */");
                    is_dynamic_in_cpp ctx func
-               | _ -> ctx.ctx_output "/* not TFun */";  true
+               | _ -> ctx.ctx_dbgout "/* not TFun */";  true
            );
 		| TParenthesis(expr) -> is_dynamic_in_cpp ctx expr
 		| TLocal name when name = "__global__" -> false
 		| TConst TNull -> true
-		| _ -> ctx.ctx_output "/* other */";  false (* others ? *) )
+		| _ -> ctx.ctx_dbgout "/* other */";  false (* others ? *) )
 		in
-		ctx.ctx_output (if result then "/* Y */" else "/* N */" );
+		ctx.ctx_dbgout (if result then "/* Y */" else "/* N */" );
 		result
 	end
 
 and is_dynamic_member_lookup_in_cpp ctx field_object member =
-   ctx.ctx_output ("/*mem."^member^".*/");
+   ctx.ctx_dbgout ("/*mem."^member^".*/");
 	if (is_internal_member member) then false else
-	if (match field_object.eexpr with | TTypeExpr _ -> ctx.ctx_output "/*!TTypeExpr*/"; true | _ -> false) then false else
+	if (match field_object.eexpr with | TTypeExpr _ -> ctx.ctx_dbgout "/*!TTypeExpr*/"; true | _ -> false) then false else
 	if (is_dynamic_in_cpp ctx field_object) then true else
 	if (is_array field_object.etype) then false else (
 	let tstr = type_string field_object.etype in
-   ctx.ctx_output ("/* ts:"^tstr^"*/");
+   ctx.ctx_dbgout ("/* ts:"^tstr^"*/");
 	match tstr with
 		(* Internal classes have no dynamic members *)
-		| "::String" | "Null" | "::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> ctx.ctx_output ("/* ok:" ^ (type_string field_object.etype)  ^ " */"); false
+		| "::String" | "Null" | "::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> ctx.ctx_dbgout ("/* ok:" ^ (type_string field_object.etype)  ^ " */"); false
 		| "Dynamic" -> true
 		| name ->
 				let full_name = name ^ "." ^ member in
-				ctx.ctx_output ("/* t:" ^ full_name ^ " */");
+				ctx.ctx_dbgout ("/* t:" ^ full_name ^ " */");
 				try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in
-					ctx.ctx_output ("/* =" ^ mem_type ^ "*/");
+					ctx.ctx_dbgout ("/* =" ^ mem_type ^ "*/");
 					false )
 				with Not_found -> true
    )
@@ -881,7 +874,7 @@ and is_dynamic_member_return_in_cpp ctx field_object member =
    match field_object.eexpr with
    | TTypeExpr t ->
          let full_name = "::" ^ (join_class_path (t_path t) "::" ) ^ "." ^ member in
-		   ctx.ctx_output ("/*static:"^ full_name^"*/");
+		   ctx.ctx_dbgout ("/*static:"^ full_name^"*/");
 			( try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in mem_type="Dynamic" )
 			with Not_found -> true )
    | _ ->
@@ -889,17 +882,17 @@ and is_dynamic_member_return_in_cpp ctx field_object member =
 	   (match tstr with
 		   (* Internal classes have no dynamic members *)
 		   | "::String" | "Null" | "::Class" | "::Enum" | "::Math" | "::ArrayAccess" -> false
-		   | "Dynamic" -> ctx.ctx_output "/*D*/"; true
+		   | "Dynamic" -> ctx.ctx_dbgout "/*D*/"; true
 		   | name ->
 				   let full_name = name ^ "." ^ member in
-		         ctx.ctx_output ("/*R:"^full_name^"*/");
+		         ctx.ctx_dbgout ("/*R:"^full_name^"*/");
 				   try ( let mem_type = (Hashtbl.find ctx.ctx_class_member_types full_name) in mem_type="Dynamic" )
 				   with Not_found -> true )
 ;;
 
 let cast_if_required ctx expr to_type =
 	let expr_type = (type_string expr.etype) in
-   ctx.ctx_output ( "/* cir: " ^ expr_type ^ " */" );
+   ctx.ctx_dbgout ( "/* cir: " ^ expr_type ^ " */" );
    if (is_dynamic_in_cpp ctx expr) then
       ctx.ctx_output (".Cast< " ^ to_type ^ " >()" )
 ;;
@@ -1336,7 +1329,7 @@ and gen_expression ctx retval expression =
 		| TConst TNull -> output "null()"
 		| _ -> 
 			gen_expression ctx true field_object;
-         output "/* TField */";
+         ctx.ctx_dbgout "/* TField */";
          if (is_internal_member member) then begin
 				output ( "->" ^ member );
          end else if (is_dynamic_member_lookup_in_cpp ctx field_object member) then begin
