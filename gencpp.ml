@@ -761,14 +761,15 @@ let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_
 			find_undeclared_variables undeclared declarations this_suffix allow_this try_block;
 			List.iter (fun (name,t,catch_expt) ->
 				let old_decs = Hashtbl.copy declarations in
-				Hashtbl.add declarations name ();
+				Hashtbl.add declarations (keyword_remap name) ();
 				find_undeclared_variables undeclared declarations this_suffix allow_this catch_expt;
 				Hashtbl.clear declarations;
 				Hashtbl.iter ( Hashtbl.add declarations ) old_decs
 				) catches;
 		| TLocal local_name ->
-			if  not (Hashtbl.mem declarations local_name) then
-				Hashtbl.replace undeclared (keyword_remap local_name) (type_string expression.etype)
+         let name = keyword_remap local_name in
+			if  not (Hashtbl.mem declarations name) then
+				Hashtbl.replace undeclared name (type_string expression.etype)
 		| TMatch (condition, enum, cases, default) ->
 			find_undeclared_variables undeclared declarations this_suffix allow_this condition;
 			List.iter (fun (case_ids,params,expression) ->
@@ -776,7 +777,7 @@ let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_
 				(match params with
 				| None -> ()
 				| Some l -> List.iter (fun (opt_name,t) ->
-					match opt_name with | Some name -> Hashtbl.add declarations name () | _ -> ()  )
+					match opt_name with | Some name -> Hashtbl.add declarations (keyword_remap name) () | _ -> ()  )
 					l  );
 				Type.iter (find_undeclared_variables undeclared declarations this_suffix allow_this) expression;
 				Hashtbl.clear declarations;
@@ -788,7 +789,7 @@ let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_
 			);
 		| TFor (var_name, var_type, init, loop) ->
 			let old_decs = Hashtbl.copy declarations in
-			Hashtbl.add declarations var_name ();
+			Hashtbl.add declarations (keyword_remap var_name) ();
 			find_undeclared_variables undeclared declarations this_suffix allow_this init;
 			find_undeclared_variables undeclared declarations this_suffix allow_this loop;
 			Hashtbl.clear declarations;
