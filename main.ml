@@ -581,7 +581,6 @@ try
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
-		if com.platform = Flash9 || com.platform = Cpp then Common.add_filter com (fun() -> List.iter Codegen.fix_overrides com.types);
 		let filters = [
 			if com.foptimize then Optimizer.reduce_expression ctx else Optimizer.sanitize ctx;
 			Codegen.check_local_vars_init;
@@ -590,6 +589,14 @@ try
 		Codegen.post_process com filters;
 		Common.add_filter com (fun() -> List.iter (Codegen.on_generate ctx) com.types);
 		List.iter (fun f -> f()) (List.rev com.filters);
+		(match !xml_out with
+		| None -> ()
+		| Some "hx" ->
+			Genxml.generate_hx com
+		| Some file ->
+			if com.verbose then print_endline ("Generating xml : " ^ com.file);
+			Genxml.generate com file);
+		if com.platform = Flash9 || com.platform = Cpp then List.iter Codegen.fix_overrides com.types;
 		if Common.defined com "dump" then Codegen.dump_types com;
 		(match com.platform with
 		| Cross ->
@@ -619,13 +626,6 @@ try
 			if com.verbose then print_endline ("Generating Cpp in : " ^ com.file);
 			Gencpp.generate com;
 		);
-		(match !xml_out with
-		| None -> ()
-		| Some "hx" ->
-			Genxml.generate_hx com
-		| Some file ->
-			if com.verbose then print_endline ("Generating xml : " ^ com.file);
-			Genxml.generate com file);
 	end;
 	if not !no_output then List.iter (fun cmd ->
 		let t = Common.timer "command" in
