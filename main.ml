@@ -596,7 +596,7 @@ try
 		| Some file ->
 			if com.verbose then print_endline ("Generating xml : " ^ com.file);
 			Genxml.generate com file);
-		if com.platform = Flash9 || com.platform = Cpp then List.iter Codegen.fix_overrides com.types;
+		if com.platform = Flash9 || com.platform = Cpp then List.iter (Codegen.fix_overrides com) com.types;
 		if Common.defined com "dump" then Codegen.dump_types com;
 		(match com.platform with
 		| Cross ->

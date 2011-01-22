@@ -931,7 +931,7 @@ let stack_block ctx c m e =
 	on some platforms which doesn't support type parameters, we must have the
 	exact same type for overriden/implemented function as the original one
 *)
-let fix_override c f fd =
+let fix_override com c f fd =
 	c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
 	let rec find_field c interf =
 		try
@@ -958,7 +958,31 @@ let fix_override c f fd =
 	let f = (match f2 with
 		| Some (interf,f2) ->
 			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> assert false) in
-			let fd2 = { fd with tf_args = List.map2 (fun (n,c,t) (_,_,t2) -> (n,c,t2)) fd.tf_args targs; tf_type = tret } in
+			let changed_args = ref [] in
+			let prefix = "_tmp_" in
+			let nargs = List.map2 (fun ((n,c,t) as cur) (_,_,t2) ->
+				try
+					type_eq EqStrict t t2;
+					cur
+				with Unify_error _ ->
+					changed_args := (n,t,t2) :: !changed_args;
+					(prefix ^ n,c,t2)
+			) fd.tf_args targs in
+			let fd2 = {
+				tf_args = nargs;
+				tf_type = tret;
+				tf_expr = (match List.rev !changed_args with
+					| [] -> fd.tf_expr
+					| args ->
+						let e = fd.tf_expr in
+						let el = (match e.eexpr with TBlock el -> el | _ -> [e]) in
+						let p = (match el with [] -> e.epos | e :: _ -> e.epos) in
+						let v = mk (TVars (List.map (fun (n,t,t2) ->
+							(n,t,Some (mk (TCast (mk (TLocal (prefix ^ n)) t2 p,None)) t p))
+						) args)) com.basic.tvoid p in
+						{ e with eexpr = TBlock (v :: el) }
+				);
+			} in
 			let fde = (match f.cf_expr with None -> assert false | Some e -> e) in
 			{ f with cf_expr = Some { fde with eexpr = TFunction fd2 }; cf_type = TFun(targs,tret) }
 		| _ -> f
@@ -966,13 +990,13 @@ let fix_override c f fd =
 	c.cl_fields <- PMap.add f.cf_name f c.cl_fields;
 	f
 
-let fix_overrides t =
+let fix_overrides com t =
 	match t with
 	| TClassDecl c ->
 		c.cl_ordered_fields <- List.map (fun f ->
 			match f.cf_expr, f.cf_kind with
 			| Some { eexpr = TFunction fd }, Method (MethNormal | MethInline) ->
-				fix_override c f fd
+				fix_override com c f fd
 			| _ ->
 				f
 		) c.cl_ordered_fields
