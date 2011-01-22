@@ -1270,7 +1270,7 @@ and gen_expression ctx retval expression =
 
 	| TConst const ->
 		(match const with
-		| TInt i -> output (Printf.sprintf "%ld" i)
+		| TInt i -> output (Printf.sprintf "(int)%ld" i)
 		| TFloat float_as_string -> output float_as_string
 		| TString s -> output (str s)
 		| TBool b -> output (if b then "true" else "false")
