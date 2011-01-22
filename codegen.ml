@@ -219,7 +219,7 @@ let rec build_generic ctx c p tl =
 		cg.cl_interface <- c.cl_interface;
 		cg.cl_constructor <- (match c.cl_constructor with None -> None | Some c -> Some (build_field c));
 		cg.cl_implements <- List.map (fun (i,tl) ->
-			(match build_type (TInst (i, List.map build_type tl)) with
+			(match follow (build_type (TInst (i, List.map build_type tl))) with
 			| TInst (i,tl) -> i, tl
 			| _ -> assert false)
 		) c.cl_implements;
