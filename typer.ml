@@ -1398,10 +1398,10 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		) in
 		mk (TReturn e) t_dynamic p
 	| EBreak ->
-		if not ctx.in_loop then error "Break outside loop" p;
+		if not ctx.in_loop then display_error ctx "Break outside loop" p;
 		mk TBreak t_dynamic p
 	| EContinue ->
-		if not ctx.in_loop then error "Continue outside loop" p;
+		if not ctx.in_loop then display_error ctx "Continue outside loop" p;
 		mk TContinue t_dynamic p
 	| ETry (e1,catches) ->
 		let e1 = type_expr ctx ~need_val e1 in
@@ -1439,7 +1439,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			let name = (match c.cl_path with [], name -> name | x :: _ , _ -> x) in
 			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;
 			let f = get_constructor c p in
-			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then error "Cannot access private constructor" p;
+			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then display_error ctx "Cannot access private constructor" p;
 			(match f.cf_kind with
 			| Var { v_read = AccRequire r } -> error_require r p
 			| _ -> ());

@@ -94,6 +94,13 @@ let rec load_type_def ctx p t =
 			with
 				Exit -> next()
 
+let check_param_constraints ctx types t pl c p =
+	List.iter (fun (i,tl) ->
+		let ti = try snd (List.find (fun (_,t) -> match follow t with TInst(i2,[]) -> i == i2 | _ -> false) types) with Not_found -> TInst (i,tl) in
+		let ti = apply_params types pl ti in
+		unify ctx t ti p
+	) c.cl_implements
+
 (* build an instance from a full type *)
 let rec load_instance ctx t p allow_no_params =
 	try
@@ -103,18 +110,18 @@ let rec load_instance ctx t p allow_no_params =
 		pt
 	with Not_found ->
 		let types , path , f = ctx.g.do_build_instance ctx (load_type_def ctx p t) p in
-		if allow_no_params && t.tparams = [] then
-			f (List.map (fun (name,t) ->
+		if allow_no_params && t.tparams = [] then begin
+			let pl = ref [] in
+			pl := List.map (fun (name,t) ->
 				match follow t with
 				| TInst (c,_) ->
 					let t = mk_mono() in
-					if c.cl_implements <> [] then delay ctx (fun() ->
-						List.iter (fun (i,tl) -> unify ctx t (TInst(i,tl)) p) c.cl_implements
-					);
+					if c.cl_implements <> [] then delay ctx (fun() -> check_param_constraints ctx types t (!pl) c p);
 					t;
 				| _ -> assert false
-			) types)
-		else if path = ([],"Dynamic") then
+			) types;
+			f (!pl)
+		end else if path = ([],"Dynamic") then
 			match t.tparams with
 			| [] -> t_dynamic
 			| [TPType t] -> TDynamic (load_complex_type ctx p t)
@@ -144,9 +151,7 @@ let rec load_instance ctx t p allow_no_params =
 				| TInst (c,[]) ->
 					let r = exc_protect (fun r ->
 						r := (fun() -> t);
-						List.iter (fun (i,params) ->
-							unify ctx t (apply_params types tparams (TInst (i,params))) p
-						) c.cl_implements;
+						check_param_constraints ctx types t tparams c p;
 						t
 					) in
 					delay ctx (fun () -> ignore(!r()));
@@ -466,7 +471,7 @@ let set_heritance ctx c herits p =
 	) herits in
 	List.iter loop (List.filter (ctx.g.do_inherit ctx c p) herits)
 
-let type_type_params ctx path p (n,flags) =
+let type_type_params ctx path get_params p (n,flags) =
 	let c = mk_class (fst path @ [snd path],n) p in
 	c.cl_kind <- KTypeParameter;
 	let t = TInst (c,[]) in
@@ -475,6 +480,7 @@ let type_type_params ctx path p (n,flags) =
 	| _ ->
 		let r = exc_protect (fun r ->
 			r := (fun _ -> t);
+			let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
 			set_heritance ctx c (List.map (fun t -> HImplements t) flags) p;
 			t
 		) in
@@ -492,7 +498,7 @@ let type_function ctx args ret static constr f p =
 				unify ctx e.etype t p;
 				match e.eexpr with
 				| TConst c -> Some c
-				| _ -> error "Parameter default value should be constant" p
+				| _ -> display_error ctx "Parameter default value should be constant" p; None
 		) in
 		let n = add_local ctx n t in
 		n, c, t
@@ -526,7 +532,7 @@ let type_function ctx args ret static constr f p =
 	if constr && (match ctx.curclass.cl_super with None -> false | Some (cl,_) -> cl.cl_constructor <> None) then
 		(try
 			loop e;
-			error "Missing super constructor call" p
+			display_error ctx "Missing super constructor call" p
 		with
 			Exit -> ());
 	locals();
@@ -628,7 +634,7 @@ let patch_class ctx c fields =
 
 let init_class ctx c p herits fields =
 	let fields = patch_class ctx c fields in
-	ctx.type_params <- c.cl_types;
+	let ctx = { ctx with type_params = c.cl_types } in
 	c.cl_extern <- List.mem HExtern herits;
 	c.cl_interface <- List.mem HInterface herits;
 	set_heritance ctx c herits p;
@@ -828,13 +834,15 @@ let init_class ctx c p herits fields =
 					bind_type cf r (snd e) false
 			) in
 			f, false, cf, delay
-		| FFun (params,fd) ->
-			let params = List.map (fun (n,flags) ->
+		| FFun (fparams,fd) ->
+			let params = ref [] in
+			params := List.map (fun (n,flags) ->
 				match flags with
 				| [] ->
-					type_type_params ctx ([],name) p (n,[])
+					type_type_params ctx ([],name) (fun() -> !params) p (n,[])
 				| _ -> error "This notation is not allowed because it can't be checked" p
-			) params in
+			) fparams;
+			let params = !params in
 			if inline && c.cl_interface then error "You can't declare inline methods in interfaces" p;
 			let is_macro = (is_macro && stat) || has_meta ":macro" f.cff_meta in
 			if is_macro && not stat then error "Only static methods can be macros" p;
@@ -932,7 +940,7 @@ let init_class ctx c p herits fields =
 					unify_raise ctx t2 t p;
 				with
 					| Error (Unify l,_) -> raise (Error (Stack (Custom ("In method " ^ m ^ " required by property " ^ name),Unify l),p))
-					| Not_found -> if not (c.cl_interface || c.cl_extern) then error ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
+					| Not_found -> if not (c.cl_interface || c.cl_extern) then display_error ctx ("Method " ^ m ^ " required by property " ^ name ^ " is missing") p
 			in
 			let get = (match get with
 				| "null" -> AccNo
@@ -1200,13 +1208,13 @@ let type_module ctx m tdecls loadp =
 		| EImport _ | EUsing _ -> ()
 		| EClass d ->
 			let c = get_class d.d_name in
-			c.cl_types <- List.map (type_type_params ctx c.cl_path p) d.d_params;
+			c.cl_types <- List.map (type_type_params ctx c.cl_path (fun() -> c.cl_types) p) d.d_params;
 		| EEnum d ->
 			let e = get_enum d.d_name in
-			e.e_types <- List.map (type_type_params ctx e.e_path p) d.d_params;
+			e.e_types <- List.map (type_type_params ctx e.e_path (fun() -> e.e_types) p) d.d_params;
 		| ETypedef d ->
 			let t = get_tdef d.d_name in
-			t.t_types <- List.map (type_type_params ctx t.t_path p) d.d_params;
+			t.t_types <- List.map (type_type_params ctx t.t_path (fun() -> t.t_types) p) d.d_params;
 	) tdecls;
 	(* back to PASS2 *)
 	List.iter (fun (d,p) ->
@@ -1236,7 +1244,7 @@ let type_module ctx m tdecls loadp =
 			delays := !delays @ (checks @ init_class ctx c p d.d_flags d.d_data)
 		| EEnum d ->
 			let e = get_enum d.d_name in
-			ctx.type_params <- e.e_types;
+			let ctx = { ctx with type_params = e.e_types } in
 			let et = TEnum (e,List.map snd e.e_types) in
 			let names = ref [] in
 			let index = ref 0 in
@@ -1292,7 +1300,7 @@ let type_module ctx m tdecls loadp =
 			e.e_extern <- e.e_extern || e.e_names = [];
 		| ETypedef d ->
 			let t = get_tdef d.d_name in
-			ctx.type_params <- t.t_types;
+			let ctx = { ctx with type_params = t.t_types } in
 			let tt = load_complex_type ctx p d.d_data in
 			if t.t_type == follow tt then error "Recursive typedef is not allowed" p;
 			(match t.t_type with
