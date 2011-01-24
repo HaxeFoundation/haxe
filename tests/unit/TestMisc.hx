@@ -52,6 +52,24 @@ class MyOtherDynamicClass extends MyDynamicClass {
 
 }
 
+interface IDefArgs {
+	public function get( x : Int = 5 ) : Int;
+}
+
+class BaseDefArgs {
+	public function get( x = 3 ) {
+		return x;
+	}
+}
+
+class ExtDefArgs extends BaseDefArgs, implements IDefArgs {
+	public function new() {
+	}
+	override function get( x = 7 ) {
+		return x;
+	}
+}
+
 class TestMisc extends Test {
 
 	function testClosure() {
@@ -270,6 +288,15 @@ class TestMisc extends Test {
 
 	function testStaticVarFun() {
 		eq( add(2,3), 5);
+	}
+	
+	function testDefArgs() {
+		var e = new ExtDefArgs();
+		eq( e.get(), 7 );
+		var b : BaseDefArgs = e;
+		eq( e.get(), 7 );
+		var i : IDefArgs = e;
+		eq( e.get(), 7 );
 	}
 
 }
