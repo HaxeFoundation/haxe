@@ -126,22 +126,35 @@ class TestXML extends Test {
 		eq( Xml.createDocument().toString(), "");
 		eq( Xml.createPCData("Hello").toString(), "Hello" );
 		#if flash8
-
 		// too hard for him
+		return;
+		#end
 
-		#elseif flash9
-		// flash9 printer love to include additional whitespaces
-		eq( Xml.createCData("<x>").toString(), "<![CDATA[ <x> ]]>" );
-		eq( Xml.createComment("Hello").toString(), "<!-- Hello -->" );
+		eq( Xml.createCData("<x>").toString(), "<![CDATA[<x>]]>" );
+		eq( Xml.createComment("Hello").toString(), "<!--Hello-->" );
+		
+		#if flash9
 		eq( Xml.createProlog("XHTML").toString(), "<?XHTML ?>");
 		// doctype is parsed but not printed
 		eq( Xml.createDocType("XHTML").toString(), "" );
 		#else
-		eq( Xml.createCData("<x>").toString(), "<![CDATA[<x>]]>" );
-		eq( Xml.createComment("Hello").toString(), "<!--Hello-->" );
-		eq( Xml.createDocType("XHTML").toString(), "<!DOCTYPE XHTML>" );
 		eq( Xml.createProlog("XHTML").toString(), "<?XHTML?>");
+		eq( Xml.createDocType("XHTML").toString(), "<!DOCTYPE XHTML>" );
 		#end
+				
+		eq( Xml.parse("<!--Hello-->").firstChild().nodeValue, "Hello" );
+		var c = Xml.createComment("Hello");
+		eq( c.nodeValue, "Hello" );
+		c.nodeValue = "Blabla";
+		eq( c.nodeValue, "Blabla" );
+		eq( c.toString(), "<!--Blabla-->");
+		eq( Xml.parse("<![CDATA[Hello]]>").firstChild().nodeValue, "Hello" );
+		var c = Xml.createCData("Hello");
+		eq( c.nodeValue, "Hello" );
+		c.nodeValue = "Blabla";
+		eq( c.nodeValue, "Blabla" );
+		eq( c.toString(), "<![CDATA[Blabla]]>");
+		eq( Xml.createPCData("Hello").nodeValue, "Hello" );
 	}
 
 	function testNS() {

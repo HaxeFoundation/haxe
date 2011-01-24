@@ -142,6 +142,8 @@ enum XmlType {
 		var nodeType = nodeType;
 		if( nodeType == Xml.Element || nodeType == Xml.Document )
 			throw "bad nodeType";
+		if( nodeType == Xml.Comment )
+			return _node.toString().substr(4,-7);
 		return _node.toString();
 	}
 
