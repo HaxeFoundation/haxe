@@ -148,7 +148,7 @@ let rec gen_call ctx e el =
 	match e.eexpr , el with
 	| TConst TSuper , params ->
 		(match ctx.current.cl_super with
-		| None -> assert false
+		| None -> error "Missing setDebugInfos current class" e.epos
 		| Some (c,_) ->
 			print ctx "%s.call(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
@@ -156,7 +156,7 @@ let rec gen_call ctx e el =
 		);
 	| TField ({ eexpr = TConst TSuper },name) , params ->
 		(match ctx.current.cl_super with
-		| None -> assert false
+		| None -> error "Missing setDebugInfos current class" e.epos
 		| Some (c,_) ->
 			print ctx "%s.prototype%s.call(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
