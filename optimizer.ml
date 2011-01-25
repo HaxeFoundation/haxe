@@ -115,15 +115,16 @@ let type_inline ctx cf f ethis params tret p =
 			old();
 			{ e with eexpr = TFor (v,t,e1,e2) }
 		| TMatch (e,en,cases,def) ->
-			let term, t = (match def with Some d when term -> true, d.etype | _ -> false, e.etype) in
+			let term, t = (match def with Some d when term -> true, ref d.etype | _ -> false, ref e.etype) in
 			let cases = List.map (fun (i,vl,e) ->
 				let old = save_locals ctx in
 				let vl = opt (List.map (fun (n,t) -> opt (fun n -> add_local ctx n t) n, t)) vl in
 				let e = map term e in
+				if is_null e.etype then t := e.etype;
 				old();
 				i, vl, e
 			) cases in
-			{ e with eexpr = TMatch (map false e,en,cases,opt (map term) def); etype = t }
+			{ e with eexpr = TMatch (map false e,en,cases,opt (map term) def); etype = !t }
 		| TTry (e1,catches) ->
 			{ e with eexpr = TTry (map term e1,List.map (fun (v,t,e) ->
 				let old = save_locals ctx in
@@ -155,7 +156,7 @@ let type_inline ctx cf f ethis params tret p =
 			let econd = map false econd in
 			let eif = map term eif in
 			let eelse = map term eelse in
-			{ e with eexpr = TIf(econd,eif,Some eelse); etype = eif.etype }
+			{ e with eexpr = TIf(econd,eif,Some eelse); etype = if is_null eif.etype then eif.etype else eelse.etype }
 		| TParenthesis _ | TIf (_,_,Some _) | TSwitch (_,_,Some _) ->
 			Type.map_expr (map term) e
 		| TUnop (op,pref,({ eexpr = TLocal s } as e1)) ->
