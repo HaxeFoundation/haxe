@@ -64,10 +64,22 @@ class Context {
 	}
 
 	/**
-		Returns the position at the place the macro is called
+		Returns the position at which the macro is called
 	**/
 	public static function currentPos() : Position {
 		return load("curpos", 0)();
+	}
+
+	/**
+		Returns the current class in which the macro is called
+	**/
+	public static function getLocalClass() : Null<Type.Ref<Type.ClassType>> {
+		var l : Type = load("curclass", 0)();
+		if( l == null ) return null;
+		return switch( l ) {
+		case TInst(c,_): c;
+		default: null;
+		}
 	}
 
 	/**

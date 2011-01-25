@@ -2000,6 +2000,7 @@ let make_macro_api ctx p =
 				gen ctx
 			);
 		);
+		Interp.get_cur_class = (fun() -> Some ctx.curclass);
 	}
 
 let load_macro ctx cpath f p =

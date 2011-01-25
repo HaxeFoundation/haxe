@@ -1097,6 +1097,25 @@ let resolve_typedef ctx t =
 		| TInst (c,_) -> TClassDecl c
 		| _ -> t
 
+let build_module_def ctx d fbuild =
+	let rec loop = function
+		| (":build",[ECall (epath,el),p],_) :: _ ->
+			let rec loop (e,p) =
+				match e with
+				| EConst (Ident i) | EConst (Type i) -> [i]
+				| EField (e,f) | EType (e,f) -> f :: loop e
+				| _ -> error "Build call parameter must be a class path" p
+			in
+			let s = String.concat "." (List.rev (loop epath)) in
+			if ctx.in_macro then error "You cannot used :build inside a macro : make sure that your enum is not used in macro" p;
+			(match apply_macro ctx s el p with
+			| None -> error "Build failure" p
+			| Some e -> fbuild e)
+		| _ :: l -> loop l
+		| [] -> []
+	in
+	loop d.d_meta
+
 let type_module ctx m tdecls loadp =
 	(* PASS 1 : build module structure - does not load any module or type - should be atomic ! *)
 	let decls = ref [] in
@@ -1241,37 +1260,37 @@ let type_module ctx m tdecls loadp =
 		| EClass d ->
 			let c = get_class d.d_name in
 			let checks = if not ctx.com.display then [check_overriding ctx c p; check_interfaces ctx c p] else [] in
-			delays := !delays @ (checks @ init_class ctx c p d.d_flags d.d_data)
+			let extra = build_module_def { ctx with curclass = c } d (fun (e,p) ->
+				match e with
+				| EBlock el ->					
+					List.map (fun (e,p) ->
+						let n, k = (match e with
+						| EVars [v,t,e] -> v, FVar (t,e)
+						| EFunction (Some n,f) -> (if n = "__new__" then "new" else n), FFun ([],f)
+						| _ -> error "Class build expression should be a single variable or a named function" p
+						) in						
+						{ cff_name = n; cff_doc = None; cff_pos = p; cff_meta = []; cff_access = [APublic]; cff_kind = k }
+					) el
+				| _ -> error "Class build macro must return a block" p
+			) in
+			delays := !delays @ (checks @ init_class ctx c p d.d_flags (d.d_data @ extra))
 		| EEnum d ->
 			let e = get_enum d.d_name in
 			let ctx = { ctx with type_params = e.e_types } in
 			let et = TEnum (e,List.map snd e.e_types) in
 			let names = ref [] in
 			let index = ref 0 in
-			let rec loop = function
-				| (":build",[ECall (epath,el),p],_) :: _ ->
-					let rec loop (e,p) =
+			let extra = build_module_def ctx d (fun (e,p) ->
+				match e with
+				| EArrayDecl el | EBlock el ->
+					List.map (fun (e,p) ->
 						match e with
-						| EConst (Ident i) | EConst (Type i) -> i
-						| EField (e,f) | EType (e,f) -> loop e ^ "." ^ f
-						| _ -> error "Build call parameter must be a class path" p
-					in
-					let s = loop epath in
-					if ctx.in_macro then error "You cannot used :build inside a macro : make sure that your enum is not used in macro" p;
-					(match apply_macro ctx s el p with
-					| None -> error "Enum build failure" p
-					| Some (EArrayDecl el,_) | Some (EBlock el,_) ->
-						List.map (fun (e,p) ->
-							match e with
-							| EConst (Ident i) | EConst (Type i) | EConst (String i) -> i, None, [], [], p
-							| _ -> error "Invalid enum constructor" p
-						) el
-					| _ -> error "Build macro must return an block" p
-					)
-				| _ :: l -> loop l
-				| [] -> []
-			in
-			let extra = loop d.d_meta in
+						| EConst (Ident i) | EConst (Type i) | EConst (String i) -> i, None, [], [], p
+						| EFunction (Some name,f) -> name, None, [], (List.map (fun (n,o,t,_) -> n,o,(match t with None -> error "Missing function parameter type" p | Some t -> t)) f.f_args), p
+						| _ -> error "Enum build expression should be a single identifier or a named function" p
+					) el
+				| _ -> error "Enum build macro must return an block" p
+			) in
 			List.iter (fun (c,doc,meta,t,p) ->
 				if c = "name" && Common.defined ctx.com "js" then error "This identifier cannot be used in Javascript" p;
 				let t = (match t with

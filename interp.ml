@@ -96,6 +96,7 @@ type extern_api = {
 	type_patch : string -> string -> bool -> string option -> unit;
 	meta_patch : string -> string -> string option -> bool -> unit;
 	set_js_generator : (value -> unit) -> unit;
+	get_cur_class : unit -> tclass option;
 }
 
 type context = {
@@ -1682,6 +1683,11 @@ let macro_lib =
 			match name, data with
 			| VString name, VString data -> Hashtbl.replace (get_ctx()).com.Common.resources name data; VNull
 			| _ -> error()
+		);
+		"curclass", Fun0 (fun() ->
+			match (get_ctx()).curapi.get_cur_class() with
+			| None -> VNull
+			| Some c -> encode_type (TInst (c,[]))
 		);
 	]
 

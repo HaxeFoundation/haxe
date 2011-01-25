@@ -6,7 +6,7 @@
 	flash9 : fixed issue with @:bind
 	flash9 : added some missing errors
 	flash9 : fixed TypedDictionary.exists
-	all : added @:build for enums
+	all : added @:build for enums and classes
 	neko : Std.parseFloat now returns NaN with invalid string
 	php: fixed Array.push must return the current length (issue 219)
 	php: fixed EReg.replace (issue 194)
