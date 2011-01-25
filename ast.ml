@@ -176,7 +176,7 @@ and expr_def =
 	| ENew of type_path * expr list
 	| EUnop of unop * unop_flag * expr
 	| EVars of (string * complex_type option * expr option) list
-	| EFunction of func
+	| EFunction of string option * func
 	| EBlock of expr list
 	| EFor of string * expr * expr
 	| EIf of expr * expr * expr option

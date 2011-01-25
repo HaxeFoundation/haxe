@@ -2548,8 +2548,9 @@ let encode_expr e =
 						"expr",null loop eo;
 					]
 				) vl)]
-			| EFunction f ->
+			| EFunction (name,f) ->
 				12, [enc_obj [
+					"name", null enc_string name;
 					"args", enc_array (List.map (fun (n,opt,t,e) ->
 						enc_obj [
 							"name", enc_string n;
@@ -2778,14 +2779,14 @@ let decode_expr v =
 				(dec_string (field v "name"),opt decode_type (field v "type"),opt loop (field v "expr"))
 			) (dec_array vl))
 		| 12, [f] ->
-			let f = {
+			let ft = {
 				f_args = List.map (fun o ->
 					(dec_string (field o "name"),dec_bool (field o "opt"),opt decode_type (field o "type"),opt loop (field o "value"))
 				) (dec_array (field f "args"));
 				f_type = opt decode_type (field f "ret");
 				f_expr = loop (field f "expr");
 			} in
-			EFunction f
+			EFunction (opt dec_string (field f "name"),ft)
 		| 13, [el] ->
 			EBlock (List.map loop (dec_array el))
 		| 14, [v;e1;e2] ->

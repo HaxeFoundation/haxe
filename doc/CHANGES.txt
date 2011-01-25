@@ -47,6 +47,7 @@
 	all : big speedup for compiler internal completion
 	all : added --macro keepClass('classname')
 	flash9 : fixed Xml.nodeValue for comments (does not include <!--/-->)
+	all : added named local functions (allow self-recursion)
 
 2010-08-14: 2.06
 	neko : change serializer to be able to handle instances of basic classes from other modules

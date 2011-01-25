@@ -1456,7 +1456,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		mk (TNew (c,params,el)) t p
 	| EUnop (op,flag,e) ->
 		type_unop ctx op flag e p
-	| EFunction f ->
+	| EFunction (name,f) ->
 		let rt = Typeload.load_type_opt ctx p f.f_type in
 		let args = List.map (fun (s,opt,t,c) ->
 			let t = Typeload.load_type_opt ctx p t in
@@ -1476,13 +1476,20 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				) args args2;
 			| _ -> ());
 		let ft = TFun (fun_args args,rt) in
+		let vname = (match name with
+			| None -> None
+			| Some v -> Some (add_local ctx v ft)
+		) in
 		let e , fargs = Typeload.type_function ctx args rt true false f p in
 		let f = {
 			tf_args = fargs;
 			tf_type = rt;
 			tf_expr = e;
 		} in
-		mk (TFunction f) ft p
+		let e = mk (TFunction f) ft p in
+		(match vname with
+		| None -> e
+		| Some v -> mk (TVars [v,ft,Some e]) ctx.t.tvoid p)
 	| EUntyped e ->
 		let old = ctx.untyped in
 		ctx.untyped <- true;

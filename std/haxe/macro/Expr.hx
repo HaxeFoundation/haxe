@@ -127,6 +127,7 @@ enum TypeParam {
 }
 
 typedef Function = {
+	var name : Null<String>;
 	var args : Array<FunctionArg>;
 	var ret : Null<ComplexType>;
 	var expr : Expr;

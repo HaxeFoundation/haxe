@@ -538,14 +538,14 @@ and expr = parser
 		| [< >] -> serror())
 	| [< '(POpen,p1); e = expr; '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
 	| [< '(BkOpen,p1); l = parse_array_decl; '(BkClose,p2); s >] -> expr_next (EArrayDecl l, punion p1 p2) s
-	| [< '(Kwd Function,p1); '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
+	| [< '(Kwd Function,p1); name = popt any_ident; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
 		let make e =
 			let f = {
 				f_type = t;
 				f_args = al;
 				f_expr = e;
 			} in
-			EFunction f, punion p1 (pos e)
+			EFunction (name,f), punion p1 (pos e)
 		in
 		(try
 			expr_next (make (expr s)) s
