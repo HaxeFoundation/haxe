@@ -18,7 +18,7 @@
 	all : added Lambda.indexOf and Lambda.concat
 	all : no longer allow inline vars as metadata values
 	neko : added getFieldsNames to neko.db.ResultSet (supported in Neko 1.8.2 mysql driver)
-	all : added --macros and haxe.macro.Compiler
+	all : added --macro and haxe.macro.Compiler
 	all : allow macro type patches
 	flash9 : changed --gen-hx-classes implementation
 		now use 'haxe -swf-lib lib.swf --gen-hx-classes' instead
