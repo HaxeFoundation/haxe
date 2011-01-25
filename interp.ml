@@ -512,7 +512,11 @@ let builtins =
 			ctx.curapi.print (ctx.do_string v)
 		) vl; VNull);
 		"throw", Fun1 (fun v -> exc v);
-		"rethrow", Fun1 (fun v -> exc v);
+		"rethrow", Fun1 (fun v -> 
+			let ctx = get_ctx() in
+			ctx.stack <- List.rev (List.map (fun p -> p,VNull,PMap.empty) ctx.exc) @ ctx.stack;
+			exc v
+		);
 		"istrue", Fun1 (fun v ->
 			match v with
 			| VNull | VInt 0 | VBool false -> VBool false
