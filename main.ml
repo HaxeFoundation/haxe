@@ -222,14 +222,14 @@ exception Hxml_found
 
 let rec process_params acc = function
 	| [] ->
-		init (List.rev acc)
+		init (List.rev acc) false
 	| "--next" :: l ->
-		init (List.rev acc);
+		init (List.rev acc) true;
 		process_params [] l
 	| x :: l ->
 		process_params (x :: acc) l
 
-and init params =
+and init params has_next =
 	let usage = Printf.sprintf
 		"haXe Compiler %d.%.2d - (c)2005-2010 Motion-Twin\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
 		(version / 100) (version mod 100) (if Sys.os_type = "Win32" then ".exe" else "")
@@ -576,7 +576,6 @@ try
 		Typer.finalize ctx;
 		t();
 		if !has_error then do_exit();
-		if !no_output then com.platform <- Cross;
 		let main, types, modules = Typer.generate ctx com.main_class in
 		com.main <- main;
 		com.types <- types;
@@ -599,14 +598,16 @@ try
 		if com.platform = Flash9 || com.platform = Cpp then List.iter (Codegen.fix_overrides com) com.types;
 		if Common.defined com "dump" then Codegen.dump_types com;
 		(match com.platform with
-		| Cross ->
+		| _ when !no_output ->
 			if !interp then begin
 				let ctx = Interp.create com (Typer.make_macro_api ctx Ast.null_pos) in
 				Interp.add_types ctx com.types;
 				(match com.main with
 				| None -> ()
 				| Some e -> ignore(Interp.eval_expr ctx e));
-			end;
+			end;			
+		| Cross ->
+			()
 		| Flash | Flash9 when !gen_as3 ->
 			if com.verbose then print_endline ("Generating AS3 in : " ^ com.file);
 			Genas3.generate com;
@@ -640,7 +641,7 @@ with
 	| Common.Abort (m,p) -> report m p
 	| Lexer.Error (m,p) -> report (Lexer.error_msg m) p
 	| Parser.Error (m,p) -> report (Parser.error_msg m) p
-	| Typecore.Error (Typecore.Forbid_package _,_) when !Common.display_default -> () (* assume we have a --next *)
+	| Typecore.Error (Typecore.Forbid_package _,_) when !Common.display_default && has_next -> ()
 	| Typecore.Error (m,p) -> report (Typecore.error_msg m) p
 	| Interp.Error (msg,p :: l) ->
 		store_message msg p;
