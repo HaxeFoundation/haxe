@@ -306,12 +306,6 @@ let build_metadata com t =
 			mk (TObjectDecl (List.map (fun (n,e) -> n, loop e) el)) (TAnon { a_fields = PMap.empty; a_status = ref Closed }) p
 		| EArrayDecl el ->
 			mk (TArrayDecl (List.map loop el)) (com.basic.tarray t_dynamic) p
-		| EUnop (Neg, Prefix, e) ->
-			let e = loop e in
-			(match e.eexpr with
-			| TConst (TInt i) -> { e with eexpr = TConst (TInt (Int32.neg i)) }
-			| TConst (TFloat f) -> { e with eexpr = TConst (TFloat ("-" ^ f)) }
-			| _ -> error "Metadata should be constant" p)
 		| _ ->
 			error "Metadata should be constant" p
 	in

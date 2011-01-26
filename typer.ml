@@ -864,10 +864,7 @@ and type_unop ctx op flag e p =
 			| k ->
 				if unify_int ctx e k then ctx.t.tint else ctx.t.tfloat)
 		) in
-		match op, e.eexpr with
-		| Neg , TConst (TInt i) -> mk (TConst (TInt (Int32.neg i))) t p
-		| Neg , TConst (TFloat f) when f.[0] != '-' -> mk (TConst (TFloat ("-" ^ f))) t p
-		| _ -> mk (TUnop (op,flag,e)) t p
+		mk (TUnop (op,flag,e)) t p
 	in
 	match acc with
 	| AKExpr e -> access e

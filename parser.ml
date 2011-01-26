@@ -549,7 +549,14 @@ and expr = parser
 		with
 			Display e -> display (make e))
 	| [< '(Unop op,p1) when is_prefix op; e = expr >] -> make_unop op e p1
-	| [< '(Binop OpSub,p1); e = expr >] -> make_unop Neg e p1
+	| [< '(Binop OpSub,p1); e = expr >] -> 
+		let neg s =
+			if s.[0] = '-' then String.sub s 1 (String.length s - 1) else "-" ^ s
+		in
+		(match make_unop Neg e p1 with
+		| EUnop (Neg,Prefix,(EConst (Int i),pc)),p -> EConst (Int (neg i)),p
+		| EUnop (Neg,Prefix,(EConst (Float j),pc)),p -> EConst (Float (neg j)),p
+		| e -> e)
 	| [< '(Binop OpAdd,p1); e = expr >] -> e
 	| [< '(Kwd For,p); '(POpen,_); name = any_ident; '(Kwd In,_); it = expr; '(PClose,_); s >] ->
 		(try
