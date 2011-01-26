@@ -209,40 +209,37 @@ and parse_package s = psep Dot ident s
 and parse_class_field_resume s =
 	if not (do_resume()) then
 		plist parse_class_field s
-	else
+	else try
+		let c = parse_class_field s in
+		c :: parse_class_field_resume s
+	with Stream.Error _ | Stream.Failure -> try
 		(* junk all tokens until we reach next variable/function or next type declaration *)
 		let rec loop() =
 			(match List.map fst (Stream.npeek 2 s) with
-			| At :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Override :: _ | Kwd Dynamic :: _ ->
+			| At :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ ->
 				raise Exit
 			| [] | Eof :: _ | Kwd Import :: _ | Kwd Using :: _ | Kwd Extern :: _ | Kwd Class :: _ | Kwd Interface :: _ | Kwd Enum :: _ | Kwd Typedef :: _ ->
 				raise Not_found
-			| [Kwd Private; Kwd Function]
-			| [Kwd Private; Kwd Var] ->
-				raise Exit
 			| [Kwd Private; Kwd Class]
 			| [Kwd Private; Kwd Interface]
 			| [Kwd Private; Kwd Enum]
 			| [Kwd Private; Kwd Typedef] ->
 				raise Not_found
+			| Kwd Private :: _ ->
+				raise Exit
 			| [Kwd Function; Const _]
 			| [Kwd Function; Kwd New] ->
 				raise Exit
+			| [BrClose; At] ->
+				raise Not_found
 			| _ -> ());
 			Stream.junk s;
 			loop();
 		in
-		try
-			loop();
-		with
-			| Not_found ->
-				[]
-			| Exit ->
-				try
-					let c = parse_class_field s in
-					c :: parse_class_field_resume s
-				with
-					Stream.Error _ | Stream.Failure -> parse_class_field_resume s
+		loop()
+	with 
+		| Not_found -> [] (* we have reached the next type declaration *)
+		| Exit -> parse_class_field_resume s
 
 and parse_common_flags = parser
 	| [< '(Kwd Private,_); l = parse_common_flags >] -> (HPrivate, EPrivate) :: l
