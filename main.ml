@@ -250,7 +250,9 @@ try
 	let pre_compilation = ref [] in
 	let interp = ref false in
 	Common.define com ("haxe_" ^ string_of_int version);
-	com.warning <- message;
+	com.warning <- (fun msg p ->
+		message ("Warning : " ^ msg) p
+	);
 	com.error <- (fun msg p ->
 		message msg p;
 		has_error := true;
