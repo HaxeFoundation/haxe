@@ -875,6 +875,15 @@ and gen_expr ctx e =
 			gen_value ctx e2;
 			spr ctx "]");
 	| TBinop (op,e1,e2) ->
+		(* these operators are non-assoc in php, let let's make sure to separate them with parenthesises *)
+		let non_assoc = function
+			| (Ast.OpEq | Ast.OpNotEq | Ast.OpGt | Ast.OpGte | Ast.OpLt | Ast.OpLte) -> true
+			| _ -> false
+		in		
+		(match e1.eexpr with
+		| TBinop (op2,_,_) when non_assoc op && non_assoc op2 ->
+			gen_expr ctx { e with eexpr = TBinop (op,mk (TParenthesis e1) e1.etype e1.epos,e2) }
+		| _ ->
 		let leftside e =
 			(match e.eexpr with
 			| TArray(te1, te2) ->
@@ -1036,7 +1045,7 @@ and gen_expr ctx e =
 			leftside e1;
 			print ctx " %s " (Ast.s_binop op);
 			gen_value_op ctx e2;
-		);
+		));
 	| TField (e1,s) 
 	| TClosure (e1,s) ->
 		(match follow e.etype with

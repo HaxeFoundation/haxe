@@ -353,27 +353,24 @@ let optimize_for_loop ctx i e1 e2 p =
 	correspond to the natural operand priority order for the platform
 *)
 
-let conflicts op op2 left =
-	match op, op2 with
-	(*
-		these three have the same precedence in haXe but different in other languages
-	*)
-	| (OpOr | OpXor | OpAnd), (OpOr | OpXor | OpAnd) -> true
-	(*
-		bitshifts have higher priority in haXe than in ECMAScript
-	*)
-	| (OpShl | OpShr | OpUShr | OpEq | OpNotEq | OpGt | OpLt | OpGte | OpLte) , (OpShl | OpShr | OpUShr | OpEq | OpNotEq | OpGt | OpLt | OpGte | OpLte) -> true
-	(*
-		% have have higher priority than / * in haXe than in ECMAScript
-	*)
-	| OpMult, OpMult -> false
-	| (OpMult | OpDiv | OpMod) , (OpMult | OpDiv | OpMod) -> true
-	(*
-		there is no real ambiguity here, but it's more easy to read if both are separated
-	*)
-	| (OpBoolAnd | OpBoolOr), (OpBoolAnd | OpBoolOr) -> op != op2
-	| _ ->
-		Parser.swap op2 op
+(*
+	this is the standard C++ operator precedence, which is also used by both JS and PHP
+*)
+let standard_precedence op =
+	let left = true and right = false in
+	match op with
+	| OpMult | OpDiv | OpMod -> 5, left
+	| OpAdd | OpSub -> 6, left
+	| OpShl | OpShr | OpUShr -> 7, left
+	| OpLt | OpLte | OpGt | OpGte -> 8, left
+	| OpEq | OpNotEq -> 9, left
+	| OpAnd -> 10, left
+	| OpXor -> 11, left
+	| OpOr -> 12, left
+	| OpInterval -> 13, right (* haxe specific *)
+	| OpBoolAnd -> 14, left
+	| OpBoolOr -> 15, left
+	| OpAssign | OpAssignOp _ -> 17, right
 
 let sanitize_expr e =
 	let parent e =
@@ -384,13 +381,18 @@ let sanitize_expr e =
 	in
 	match e.eexpr with
 	| TBinop (op,e1,e2) ->
+		let swap op1 op2 =
+			let p1, left1 = standard_precedence op1 in
+			let p2, _ = standard_precedence op2 in
+			left1 && p1 <= p2
+		in
 		let rec loop ee left =
 			match ee.eexpr with
-			| TBinop (op2,_,_) -> conflicts op op2 left
+			| TBinop (op2,_,_) -> if left then not (swap op2 op) else swap op op2
 			| TIf _ -> Parser.is_not_assign op
 			| TCast (e,None) -> loop e left
 			| _ -> false
-		in
+		in		
 		let e1 = if loop e1 true then parent e1 else e1 in
 		let e2 = if loop e2 false then parent e2 else e2 in
 		{ e with eexpr = TBinop (op,e1,e2) }
@@ -437,13 +439,7 @@ let reduce_expr ctx e =
 	| TBlock [{ eexpr = TConst _ } as ec] ->
 		{ ec with epos = e.epos }
 	| TParenthesis ec ->
-		(match ec.eexpr with
-		| TBinop _ -> e (* TODO : we could remove this after we check all operators works well *)
-		| _ -> { ec with epos = e.epos })
-	| TBlock el ->
-		(* TODO : we could remove this after we check all operators works well *)
-		let no_parent e = match e.eexpr with TParenthesis ec -> { ec with epos = e.epos } | _ -> e in
-		{ e with eexpr = TBlock (List.map no_parent el) }
+		{ ec with epos = e.epos }
 	| _ ->
 		e
 
