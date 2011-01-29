@@ -1,8 +1,8 @@
 -cp ..
 -swf unit8.swf
--swf-version 8
 -swf-header 300:300:30:FFFFFF
 -main unit.Test
+-swf-version 8
 params.hxml
 --next
 -swf9 unit9.swf
