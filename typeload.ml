@@ -417,6 +417,14 @@ let rec return_flow ctx e =
 (* PASS 1 & 2 : Module and Class Structure *)
 
 let set_heritance ctx c herits p =
+	let process_meta csup =
+		List.iter (fun m ->
+			match m with
+			| ":final", _, _ -> if not (Type.has_meta ":hack" c.cl_meta) then error "Cannot extend a final class" p;
+			| ":autoBuild", el, p -> c.cl_meta <- (":build",el,p) :: m :: c.cl_meta;
+			| _ -> ()
+		) csup.cl_meta
+	in
 	let rec loop = function
 		| HPrivate | HExtern | HInterface ->
 			()
@@ -429,12 +437,12 @@ let set_heritance ctx c herits p =
 			| TInst ({ cl_path = [],"Date" },_)
 			| TInst ({ cl_path = [],"Xml" },_) when ((not (platform ctx.com Cpp)) && (match c.cl_path with "mt" :: _ , _ -> false | _ -> true)) ->
 				error "Cannot extend basic class" p;
-			| TInst (cl,params) ->
-				if is_parent c cl then error "Recursive class" p;
+			| TInst (csup,params) ->
+				if is_parent c csup then error "Recursive class" p;
 				if c.cl_interface then error "Cannot extend an interface" p;
-				if cl.cl_interface then error "Cannot extend by using an interface" p;
-				if Type.has_meta ":final" cl.cl_meta && not (Type.has_meta ":hack" c.cl_meta) then error "Cannot extend a final class" p;
-				c.cl_super <- Some (cl,params)
+				if csup.cl_interface then error "Cannot extend by using an interface" p;
+				process_meta csup;
+				c.cl_super <- Some (csup,params)
 			| _ -> error "Should extend by using a class" p)
 		| HImplements t ->
 			let t = load_instance ctx t p false in
@@ -442,9 +450,10 @@ let set_heritance ctx c herits p =
 			| TInst ({ cl_path = [],"ArrayAccess"; cl_extern = true; },[t]) ->
 				if c.cl_array_access <> None then error "Duplicate array access" p;
 				c.cl_array_access <- Some t
-			| TInst (cl,params) ->
-				if is_parent c cl then error "Recursive class" p;
-				c.cl_implements <- (cl, params) :: c.cl_implements
+			| TInst (intf,params) ->
+				if is_parent c intf then error "Recursive class" p;
+				process_meta intf;
+				c.cl_implements <- (intf, params) :: c.cl_implements
 			| TDynamic t ->
 				if c.cl_dynamic <> None then error "Cannot have several dynamics" p;
 				c.cl_dynamic <- Some t
@@ -632,12 +641,65 @@ let patch_class ctx c fields =
 		in
 		List.rev (loop [] fields)
 
+let build_module_def ctx meta fbuild =
+	let rec loop = function
+		| (":build",args,p) :: l ->
+			let epath, el = (match args with
+				| [ECall (epath,el),p] -> epath, el
+				| _ -> error "Invalid build parameters" p
+			) in
+			let rec getpath (e,p) =
+				match e with
+				| EConst (Ident i) | EConst (Type i) -> [i]
+				| EField (e,f) | EType (e,f) -> f :: getpath e
+				| _ -> error "Build call parameter must be a class path" p
+			in
+			let s = String.concat "." (List.rev (getpath epath)) in
+			if ctx.in_macro then error "You cannot used :build inside a macro : make sure that your enum is not used in macro" p;
+			(match apply_macro ctx s el p with
+			| None -> error "Build failure" p
+			| Some e -> fbuild e) @ loop l
+		| _ :: l -> loop l
+		| [] -> []
+	in
+	loop meta
+
 let init_class ctx c p herits fields =
 	let fields = patch_class ctx c fields in
 	let ctx = { ctx with type_params = c.cl_types } in
 	c.cl_extern <- List.mem HExtern herits;
 	c.cl_interface <- List.mem HInterface herits;
 	set_heritance ctx c herits p;
+	let fields = fields @ build_module_def { ctx with curclass = c } c.cl_meta (fun (e,p) ->
+		match e with
+		| EBlock el ->					
+			List.map (fun (e,p) ->
+				let n, k = (match e with
+				| EVars [v,t,e] -> v, FVar (t,e)
+				| EFunction (Some n,f) -> (if n = "__new__" then "new" else n), FFun ([],f)
+				| _ -> error "Class build expression should be a single variable or a named function" p
+				) in
+				let accesses = [APublic; APrivate; AStatic; AOverride; ADynamic; AInline] in
+				let k = ref k in
+				let rec loop acc l =
+					match l with
+					| [] -> error "Missing name" p
+					| "property" :: get :: set :: l ->
+						(match !k with
+						| FVar (Some t,None) -> k := FProp (get,set,t); loop acc l
+						| _ -> error "Invalid property declaration" p)
+					| x :: l ->
+						try
+							let a = List.find (fun a -> Ast.s_access a = x) accesses in
+							loop (a :: acc) l
+						with Not_found ->
+							String.concat "__" (x :: l), acc
+				in
+				let n, access = loop [] (ExtString.String.nsplit n "__") in
+				{ cff_name = n; cff_doc = None; cff_pos = p; cff_meta = []; cff_access = if access = [] then [APublic] else access; cff_kind = !k }
+			) el
+		| _ -> error "Class build macro must return a block" p
+	) in	
 	let core_api = has_meta ":core_api" c.cl_meta in
 	let is_macro = has_meta ":macro" c.cl_meta in
 	let fields, herits = if is_macro && not ctx.in_macro then begin
@@ -1097,25 +1159,6 @@ let resolve_typedef ctx t =
 		| TInst (c,_) -> TClassDecl c
 		| _ -> t
 
-let build_module_def ctx d fbuild =
-	let rec loop = function
-		| (":build",[ECall (epath,el),p],_) :: _ ->
-			let rec loop (e,p) =
-				match e with
-				| EConst (Ident i) | EConst (Type i) -> [i]
-				| EField (e,f) | EType (e,f) -> f :: loop e
-				| _ -> error "Build call parameter must be a class path" p
-			in
-			let s = String.concat "." (List.rev (loop epath)) in
-			if ctx.in_macro then error "You cannot used :build inside a macro : make sure that your enum is not used in macro" p;
-			(match apply_macro ctx s el p with
-			| None -> error "Build failure" p
-			| Some e -> fbuild e)
-		| _ :: l -> loop l
-		| [] -> []
-	in
-	loop d.d_meta
-
 let type_module ctx m tdecls loadp =
 	(* PASS 1 : build module structure - does not load any module or type - should be atomic ! *)
 	let decls = ref [] in
@@ -1260,44 +1303,14 @@ let type_module ctx m tdecls loadp =
 		| EClass d ->
 			let c = get_class d.d_name in
 			let checks = if not ctx.com.display then [check_overriding ctx c p; check_interfaces ctx c p] else [] in
-			let extra = build_module_def { ctx with curclass = c } d (fun (e,p) ->
-				match e with
-				| EBlock el ->					
-					List.map (fun (e,p) ->
-						let n, k = (match e with
-						| EVars [v,t,e] -> v, FVar (t,e)
-						| EFunction (Some n,f) -> (if n = "__new__" then "new" else n), FFun ([],f)
-						| _ -> error "Class build expression should be a single variable or a named function" p
-						) in
-						let accesses = [APublic; APrivate; AStatic; AOverride; ADynamic; AInline] in
-						let k = ref k in
-						let rec loop acc l =
-							match l with
-							| [] -> error "Missing name" p
-							| "property" :: get :: set :: l ->
-								(match !k with
-								| FVar (Some t,None) -> k := FProp (get,set,t); loop acc l
-								| _ -> error "Invalid property declaration" p)
-							| x :: l ->
-								try
-									let a = List.find (fun a -> Ast.s_access a = x) accesses in
-									loop (a :: acc) l
-								with Not_found ->
-									String.concat "__" (x :: l), acc
-						in
-						let n, access = loop [] (ExtString.String.nsplit n "__") in
-						{ cff_name = n; cff_doc = None; cff_pos = p; cff_meta = []; cff_access = if access = [] then [APublic] else access; cff_kind = !k }
-					) el
-				| _ -> error "Class build macro must return a block" p
-			) in
-			delays := !delays @ (checks @ init_class ctx c p d.d_flags (d.d_data @ extra))
+			delays := !delays @ (checks @ init_class ctx c p d.d_flags d.d_data)
 		| EEnum d ->
 			let e = get_enum d.d_name in
 			let ctx = { ctx with type_params = e.e_types } in
 			let et = TEnum (e,List.map snd e.e_types) in
 			let names = ref [] in
 			let index = ref 0 in
-			let extra = build_module_def ctx d (fun (e,p) ->
+			let extra = build_module_def ctx e.e_meta (fun (e,p) ->
 				match e with
 				| EArrayDecl el | EBlock el ->
 					List.map (fun (e,p) ->
