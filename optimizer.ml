@@ -440,6 +440,10 @@ let reduce_expr ctx e =
 		(match ec.eexpr with
 		| TBinop _ -> e (* TODO : we could remove this after we check all operators works well *)
 		| _ -> { ec with epos = e.epos })
+	| TBlock el ->
+		(* TODO : we could remove this after we check all operators works well *)
+		let no_parent e = match e.eexpr with TParenthesis ec -> { ec with epos = e.epos } | _ -> e in
+		{ e with eexpr = TBlock (List.map no_parent el) }
 	| _ ->
 		e
 
