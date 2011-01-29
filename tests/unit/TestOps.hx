@@ -57,8 +57,24 @@ class TestOps extends Test {
 		eq( false ? 1 : 6 * 5, 30);
 		eq( (true ? 1 : 6) * 5, 5);
 		eq( (false ? 1 : 6) * 5, 30);
-
+		
+		eq( 1 + (5 == 6 ? 4 : 1), 2 );
+		eq( 1 + 1 == 3 ? 1 : 5, 5 );
+		
+		eq( -3 == 3 ? 0 : 1, 1 );
+		t( !true ? true : true );
+	
+		var k = false;
+		f(k = true ? false : true);
+		f(k);
+		f((k = true) ? false : true);
+		t(k);
+		
 		t( true || false && false );
+		
+		var x = 1;
+		eq( -x++, -1);
+		eq( -x--, -2);
 	}
 
 }

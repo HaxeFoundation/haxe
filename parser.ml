@@ -99,6 +99,7 @@ let rec make_binop op e ((v,p2) as e2) =
 let rec make_unop op ((v,p2) as e) p1 =
 	match v with
 	| EBinop (bop,e,e2) -> EBinop (bop, make_unop op e p1 , e2) , (punion p1 p2)
+	| ETernary (e1,e2,e3) -> ETernary (make_unop op e1 p1 , e2, e3), punion p1 p2
 	| _ ->
 		EUnop (op,Prefix,e), punion p1 p2
 

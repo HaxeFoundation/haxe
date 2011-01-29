@@ -546,6 +546,7 @@ and gen_value ctx e =
 		loop el;
 		v();
 	| TIf (cond,e,eo) ->
+		(* remove parenthesis unless it's an operation with higher precedence than ?: *)
 		let cond = (match cond.eexpr with
 			| TParenthesis { eexpr = TBinop ((Ast.OpAssign | Ast.OpAssignOp _),_,_) } -> cond
 			| TParenthesis e -> e

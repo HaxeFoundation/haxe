@@ -370,6 +370,7 @@ let standard_precedence op =
 	| OpInterval -> 13, right (* haxe specific *)
 	| OpBoolAnd -> 14, left
 	| OpBoolOr -> 15, left
+	| OpAssignOp OpAssign -> 16, right (* mimics ?: *)
 	| OpAssign | OpAssignOp _ -> 17, right
 
 let sanitize_expr e =
@@ -389,7 +390,7 @@ let sanitize_expr e =
 		let rec loop ee left =
 			match ee.eexpr with
 			| TBinop (op2,_,_) -> if left then not (swap op2 op) else swap op op2
-			| TIf _ -> Parser.is_not_assign op
+			| TIf _ -> if left then not (swap (OpAssignOp OpAssign) op) else swap op (OpAssignOp OpAssign)
 			| TCast (e,None) -> loop e left
 			| _ -> false
 		in		
