@@ -35,6 +35,7 @@ type ctx = {
 	mutable id_counter : int;
 	mutable curmethod : (string * bool);
 	mutable type_accessor : module_type -> string;
+	mutable separator : bool;
 }
 
 let s_path ctx = function
@@ -60,14 +61,14 @@ let field s = if Hashtbl.mem kwds s then "[\"" ^ s ^ "\"]" else "." ^ s
 let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
 let anon_field s = if Hashtbl.mem kwds s then "'" ^ s ^ "'" else s
 
-let spr ctx s = Buffer.add_string ctx.buf s
-let print ctx = Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
+let spr ctx s = ctx.separator <- false; Buffer.add_string ctx.buf s
+let print ctx = ctx.separator <- false; Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
 
 let unsupported p = error "This expression cannot be compiled to Javascript" p
 
-let newline ctx =
+let newline ctx =	
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
-	| '}' | '{' | ':' -> print ctx "\n%s" ctx.tabs
+	| '}' | '{' | ':' when not ctx.separator -> print ctx "\n%s" ctx.tabs	
 	| _ -> print ctx ";\n%s" ctx.tabs
 
 let rec concat ctx s f = function
@@ -324,7 +325,8 @@ and gen_expr ctx e =
 	| TObjectDecl fields ->
 		spr ctx "{ ";
 		concat ctx ", " (fun (f,e) -> print ctx "%s : " (anon_field f); gen_value ctx e) fields;
-		spr ctx "}"
+		spr ctx "}";
+		ctx.separator <- true
 	| TFor (v,_,it,e) ->
 		let handle_break = handle_break ctx e in
 		let id = ctx.id_counter in
@@ -734,6 +736,7 @@ let alloc_ctx com =
 		id_counter = 0;
 		curmethod = ("",false);
 		type_accessor = (fun _ -> assert false);
+		separator = false;
 	} in
 	ctx.type_accessor <- (fun t -> s_path ctx (t_path t));
 	ctx
