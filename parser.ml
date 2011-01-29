@@ -62,35 +62,32 @@ let is_resuming p =
 	let p2 = !resume_display in
 	p.pmax = p2.pmin && String.lowercase (Common.get_full_path p.pfile) = String.lowercase p2.pfile
 
-let priority = function
-	| OpAssign | OpAssignOp _ -> -4
-	| OpBoolOr -> -3
-	| OpBoolAnd -> -2
-	| OpInterval -> -2
-	| OpEq | OpNotEq | OpGt | OpLt | OpGte | OpLte -> -1
-	| OpOr | OpAnd | OpXor -> 0
-	| OpShl | OpShr | OpUShr -> 1
-	| OpAdd | OpSub -> 2
-	| OpMult | OpDiv -> 3
-	| OpMod -> 4
+let precedence op =
+	let left = true and right = false in
+	match op with
+	| OpMod -> 0, left
+	| OpMult | OpDiv -> 1, left
+	| OpAdd | OpSub -> 2, left
+	| OpShl | OpShr | OpUShr -> 3, left
+	| OpOr | OpAnd | OpXor -> 4, left
+	| OpEq | OpNotEq | OpGt | OpLt | OpGte | OpLte -> 5, left
+	| OpInterval -> 6, left
+	| OpBoolAnd -> 7, left
+	| OpBoolOr -> 8, left
+	| OpAssign | OpAssignOp _ -> 9, right
 
 let is_not_assign = function
 	| OpAssign | OpAssignOp _ -> false
 	| _ -> true
 
-let swap _op op =
-	let p1 = priority _op in
-	let p2 = priority op in
-	if p1 < p2 then
-		is_not_assign _op || is_not_assign op
-	else if p1 = p2 && p1 >= 0 then (* numerical ops are left-assoc *)
-		is_not_assign _op || is_not_assign op
-	else
-		false
+let swap op1 op2 =
+	let p1, left1 = precedence op1 in
+	let p2, _ = precedence op2 in
+	left1 && p1 <= p2
 
 let rec make_binop op e ((v,p2) as e2) =
 	match v with
-	| EBinop (_op,_e,_e2) when swap _op op ->
+	| EBinop (_op,_e,_e2) when swap op _op ->
 		let _e = make_binop op e _e in
 		EBinop (_op,_e,_e2) , punion (pos _e) (pos _e2)
 	| ETernary (e1,e2,e3) when is_not_assign op ->
@@ -237,7 +234,7 @@ and parse_class_field_resume s =
 			loop();
 		in
 		loop()
-	with 
+	with
 		| Not_found -> [] (* we have reached the next type declaration *)
 		| Exit -> parse_class_field_resume s
 
@@ -549,7 +546,7 @@ and expr = parser
 		with
 			Display e -> display (make e))
 	| [< '(Unop op,p1) when is_prefix op; e = expr >] -> make_unop op e p1
-	| [< '(Binop OpSub,p1); e = expr >] -> 
+	| [< '(Binop OpSub,p1); e = expr >] ->
 		let neg s =
 			if s.[0] = '-' then String.sub s 1 (String.length s - 1) else "-" ^ s
 		in
@@ -703,7 +700,7 @@ and parse_macro_cond allow_op s =
 		let e = (EConst (Ident t),p) in
 		if not allow_op then
 			None, e
-		else (match Stream.peek s with 
+		else (match Stream.peek s with
 			| Some (Binop op,_) ->
 				Stream.junk s;
 				let tk, e2 = (try parse_macro_cond true s with Stream.Failure -> serror()) in
