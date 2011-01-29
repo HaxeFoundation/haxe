@@ -305,6 +305,14 @@ let s_constant = function
 	| Type s -> s
 	| Regexp (r,o) -> "~/" ^ r ^ "/"
 
+let s_access = function
+	| APublic -> "public"
+	| APrivate -> "private"
+	| AStatic -> "static"
+	| AOverride -> "override"
+	| ADynamic -> "dynamic"
+	| AInline -> "inline"
+
 let s_keyword = function
 	| Function -> "function"
 	| Class -> "class"

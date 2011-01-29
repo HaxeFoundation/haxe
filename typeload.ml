@@ -1268,8 +1268,25 @@ let type_module ctx m tdecls loadp =
 						| EVars [v,t,e] -> v, FVar (t,e)
 						| EFunction (Some n,f) -> (if n = "__new__" then "new" else n), FFun ([],f)
 						| _ -> error "Class build expression should be a single variable or a named function" p
-						) in						
-						{ cff_name = n; cff_doc = None; cff_pos = p; cff_meta = []; cff_access = [APublic]; cff_kind = k }
+						) in
+						let accesses = [APublic; APrivate; AStatic; AOverride; ADynamic; AInline] in
+						let k = ref k in
+						let rec loop acc l =
+							match l with
+							| [] -> error "Missing name" p
+							| "property" :: get :: set :: l ->
+								(match !k with
+								| FVar (Some t,None) -> k := FProp (get,set,t); loop acc l
+								| _ -> error "Invalid property declaration" p)
+							| x :: l ->
+								try
+									let a = List.find (fun a -> Ast.s_access a = x) accesses in
+									loop (a :: acc) l
+								with Not_found ->
+									String.concat "__" (x :: l), acc
+						in
+						let n, access = loop [] (ExtString.String.nsplit n "__") in
+						{ cff_name = n; cff_doc = None; cff_pos = p; cff_meta = []; cff_access = if access = [] then [APublic] else access; cff_kind = !k }
 					) el
 				| _ -> error "Class build macro must return a block" p
 			) in
