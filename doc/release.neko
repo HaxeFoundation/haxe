@@ -43,15 +43,14 @@ else
 
 cmd("cp -R CHANGES.txt LICENSE.txt ../std "+dir);
 
-chdir(dir+"/std");
 cmd("haxe all.hxml");
-chdir("tools");
+chdir(dir+"/std/tools");
 
 // BUILD TOOLS
 
 chdir("haxedoc");
 cmd("haxe haxedoc.hxml");
-cmd(curdir+"haxedoc \"../../flash.xml;flash\" \"../../neko.xml;neko\" \"../../js.xml;js\" \"../../flash9.xml;flash9;flash\" \"../../php.xml;php\" \"../../cpp.xml;cpp\"");
+cmd(curdir+"haxedoc \"../../../../flash.xml;flash\" \"../../../../neko.xml;neko\" \"../../../../js.xml;js\" \"../../../../flash9.xml;flash9;flash\" \"../../../../php.xml;php\" \"../../../../cpp.xml;cpp\"");
 cmd("mv index.html content ../../../doc");
 cmd("mv haxedoc"+binext+" ../../..");
 chdir("..");

@@ -1,48 +1,37 @@
-
 -neko all.n
 --no-output
 -xml neko.xml
-haxe.ImportAll
+--macro ImportAll.run()
 
 --next
 
 -swf all.swf
+-swf-version 8
 --no-output
 -xml flash.xml
 -D flash_lite
-haxe.ImportAll
+--macro ImportAll.run()
 
 --next
 
 -js all.js
 --no-output
 -xml js.xml
-haxe.ImportAll
+--macro ImportAll.run()
 
 --next
 
--swf all_strict.swf
---no-output
--D flash_strict
--D flash_lite
--xml flash_strict.xml
-haxe.ImportAll
-
-
---next
-
--swf9 all9.swf
+-swf all9.swf
 --no-output
 -xml flash9.xml
-haxe.ImportAll
--D flash10
+--macro ImportAll.run()
 
 --next
 
 -php all_php
 --no-output
 -xml php.xml
-haxe.ImportAll
+--macro ImportAll.run()
 
 --next
 
@@ -51,9 +40,9 @@ haxe.ImportAll
 -xml cpp.xml
 -D xmldoc
 -D HXCPP_MULTI_THREADED
-haxe.ImportAll
+--macro ImportAll.run()
 
 --next
 
 -xml cross.xml
-haxe.ImportAll
+--macro ImportAll.run()
