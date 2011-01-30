@@ -43,7 +43,7 @@
 			__call__('preg_match', '/\\d+/', x, matches);
 			return __call__("count", matches) == 0 ? null : __call__('intval', matches[0]);
 		} else
-			return x.substr(0, 2).toLowerCase() == "0x" ? __php__("intval(substr($x, 2), 16)") : __php__("intval($x)");
+			return x.substr(0, 2).toLowerCase() == "0x" ? __php__("(int) hexdec(substr($x, 2))") : __php__("intval($x)");
 	}
 
 	public static function parseFloat( x : String ) : Float {
