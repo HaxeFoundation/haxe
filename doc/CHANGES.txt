@@ -51,6 +51,7 @@
 	all : use left-assoc for (==,!=,>,>=,<,<=)(==,!=,>,>=,<,<=) (&&)(&&) and (||)(||)
 	all : give prefix unary operators higher priority than ?:
 	php : fixed XML parsing
+	cpp : many fixes
 
 2010-08-14: 2.06
 	neko : change serializer to be able to handle instances of basic classes from other modules
