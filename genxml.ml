@@ -126,7 +126,8 @@ let rec exists f c =
 			| Some (csup,_) -> exists f csup
 
 let gen_type_decl com pos t =
-	let m = (try List.find (fun m -> List.memq t m.mtypes) com.modules with Not_found -> { mpath = t_path t; mtypes = [t] }) in
+	let path = t_path t in
+	let m = (try List.find (fun m -> List.exists (fun t2 -> t_path t2 = path) m.mtypes) com.modules with Not_found -> { mpath = t_path t; mtypes = [t] }) in
 	match t with
 	| TClassDecl c ->
 		let stats = List.map (gen_field ["static","1"]) c.cl_ordered_statics in
