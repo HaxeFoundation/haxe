@@ -20,7 +20,7 @@ open Printf
 open Genswf
 open Common
 
-let version = 206
+let version = 207
 
 let prompt = ref false
 let measure_times = ref false
@@ -231,7 +231,7 @@ let rec process_params acc = function
 
 and init params has_next =
 	let usage = Printf.sprintf
-		"haXe Compiler %d.%.2d - (c)2005-2010 Motion-Twin\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
+		"haXe Compiler %d.%.2d - (c)2005-2011 Motion-Twin\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
 		(version / 100) (version mod 100) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let classes = ref [([],"Std")] in
