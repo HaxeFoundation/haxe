@@ -75,6 +75,8 @@ class TestOps extends Test {
 		var x = 1;
 		eq( -x++, -1);
 		eq( -x--, -2);
+		
+		eq( ("bla" + "x").indexOf("x"), 3);
 	}
 
 }

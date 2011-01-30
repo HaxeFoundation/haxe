@@ -380,6 +380,12 @@ let sanitize_expr e =
 	let block e =
 		mk (TBlock [e]) e.etype e.epos
 	in
+	let need_parent e =
+		match e.eexpr with
+		| TConst _ | TLocal _ | TEnumField _ | TArray _ | TField _ | TParenthesis _ | TCall _ | TClosure _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ -> false
+		| TCast _ | TThrow _ | TReturn _ | TTry _ | TMatch _ | TSwitch _ | TFor _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
+		| TBlock _ | TVars _ | TFunction _ | TUnop _ -> true
+	in
 	match e.eexpr with
 	| TBinop (op,e1,e2) ->
 		let swap op1 op2 =
@@ -419,10 +425,12 @@ let sanitize_expr e =
 		(match f.tf_expr.eexpr with
 		| TBlock _ -> e
 		| _ -> { e with eexpr = TFunction { f with tf_expr = block f.tf_expr } })
-	| TCall (e2,args) ->
-		(match e2.eexpr with
-		| TConst _ | TLocal _ | TEnumField _ | TArray _ | TField _ | TParenthesis _ | TCall _ | TNew _ -> e
-		| _ -> { e with eexpr = TCall(parent e2,args) })
+	| TCall (e2,args) ->		
+		if need_parent e2 then { e with eexpr = TCall(parent e2,args) } else e
+	| TField (e2,f) ->
+		if need_parent e2 then { e with eexpr = TField(parent e2,f) } else e
+	| TArray (e1,e2) ->
+		if need_parent e1 then { e with eexpr = TArray(parent e1,e2) } else e
 	| _ ->
 		e
 
