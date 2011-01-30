@@ -1900,6 +1900,7 @@ let make_macro_api ctx p =
 	in
 	{
 		Interp.pos = p;
+		Interp.defined = Common.defined ctx.com;
 		Interp.get_type = (fun s ->
 			let path = parse_path s in
 			try

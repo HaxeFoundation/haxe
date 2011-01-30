@@ -87,6 +87,7 @@ type locals = (string, value ref) PMap.t
 
 type extern_api = {
 	pos : Ast.pos;
+	defined : string -> bool;
 	get_type : string -> Type.t option;
 	get_module : string -> Type.t list;
 	on_generate : (Type.t list -> unit) -> unit;
@@ -1559,7 +1560,7 @@ let macro_lib =
 		);
 		"defined", Fun1 (fun s ->
 			match s with
-			| VString s -> VBool (Common.defined (get_ctx()).com s)
+			| VString s -> VBool ((get_ctx()).curapi.defined s)
 			| _ -> error();
 		);
 		"get_type", Fun1 (fun s ->
