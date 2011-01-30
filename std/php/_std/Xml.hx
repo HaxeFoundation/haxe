@@ -61,11 +61,6 @@ enum XmlType {
 	}
 
 	private static function __character_data_handler(parser : Dynamic, data : String) : Void {
-		// TODO: this function can probably be simplified
-//		var lc : Xml = (build._children == null || build._children.length == 0) ? null : build._children[build._children.length-1];
-//		if(lc != null && Xml.PCData == lc.nodeType) {
-//			lc.nodeValue = lc.nodeValue + untyped __call__("htmlentities", data);
-//		} else
 		if((untyped __call__("strlen", data) == 1 && __call__("htmlentities", data) != data) || untyped __call__("htmlentities", data) == data) {
 			build.addChild(createPCData(untyped __call__("htmlentities", data)));
 		} else
@@ -73,10 +68,13 @@ enum XmlType {
 	}
 
 	private static function __default_handler(parser : Dynamic, data : String) : Void {
-		build.addChild(createPCData(data));
+		if ("<!--" == data.substr(0, 4))
+			build.addChild(createComment(data.substr(4, data.length-7)));
+		else
+			build.addChild(createPCData(data));
 	}
 
-	static var xmlChecker = new EReg("\\s*(<\\?xml|<!DOCTYPE)", "mi");
+	static var reHeader = ~/\s*(?:<\?(.+?)\?>)?(?:<!DOCTYPE ([^>]+)>)?/mi;
 
 	public static function parse( str : String ) : Xml {
 		build = createDocument();
@@ -87,10 +85,9 @@ enum XmlType {
 		untyped __call__("xml_parser_set_option", xml_parser, __php__("XML_OPTION_CASE_FOLDING"), 0);
 		untyped __call__("xml_parser_set_option", xml_parser, __php__("XML_OPTION_SKIP_WHITE"), 0);
 
-		var isComplete = xmlChecker.match(str);
-
-		if(!isComplete)
-			str = "<doc>"+str+"</doc>";
+		reHeader.match(str);
+		
+		str = "<doc>"+reHeader.matchedRight()+"</doc>";
 
 		if(1 != untyped __call__("xml_parse", xml_parser, str, true)) {
 			throw "Xml parse error ("+untyped __call__("xml_error_string", __call__("xml_get_error_code", xml_parser)) + ") line #" + __call__("xml_get_current_line_number", xml_parser);
@@ -98,15 +95,20 @@ enum XmlType {
 
 		untyped __call__("xml_parser_free", xml_parser);
 
-		if(isComplete) {
-			return build;
-		} else {
-			build = build._children[0];
-			build._parent = null;
-			build._nodeName = null;
-			build.nodeType = Document;
-			return build;
-		}
+		build = build._children[0];
+		build._parent = null;
+		build._nodeName = null;
+		build.nodeType = Document;
+		
+		var doctype = reHeader.matched(2);
+		if (null != doctype)
+			build.insertChild(createDocType(doctype), 0);
+			
+		var prolog = reHeader.matched(1);
+		if (null != prolog)
+			build.insertChild(createProlog(prolog), 0);
+
+		return build;
 	}
 
 	private function new() : Void;
@@ -378,7 +380,7 @@ enum XmlType {
 			return "<!--"+_nodeValue+"-->";
 		else if( nodeType == Xml.DocType )
 			return "<!DOCTYPE "+_nodeValue+">";
-		else if( nodeType == Xml.Prolog )
+		else if ( nodeType == Xml.Prolog )
 			return "<?"+_nodeValue+"?>";
 		
 

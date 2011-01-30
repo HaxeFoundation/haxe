@@ -76,8 +76,8 @@ class TestXML extends Test {
 
 		var x = Xml.parse(header + doctype + comment + xml);
 
-		#if (flash || php)
-		// doctype is well parsed but is not present in the parsed Xml (php, f8 and f9)
+		#if flash
+		// doctype is well parsed but is not present in the parsed Xml (f8 and f9)
 		doctype = '';
 		#end
 
