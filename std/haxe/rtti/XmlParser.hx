@@ -86,6 +86,20 @@ class XmlParser {
 		xroot(new Fast(x));
 	}
 
+	// merge inline and not inline
+	function mergeRights( f1 : ClassField, f2 : ClassField ) {
+		if( f1.get == RInline && f1.set == RNo && f2.get == RNormal && f2.set == RMethod ) {
+			f1.get = RNormal;
+			f1.set = RMethod;
+			return true;
+		}
+		return false;
+	}
+
+	function mergeFields( f : ClassField, f2 : ClassField ) {
+		return TypeApi.fieldEq(f,f2) || (f.name == f2.name && (mergeRights(f,f2) || mergeRights(f2,f)) && TypeApi.fieldEq(f,f2));
+	}
+
 	function mergeClasses( c : Classdef, c2 : Classdef ) {
 		// todo : compare supers & interfaces
 		if( c.isInterface != c2.isInterface )
@@ -98,7 +112,7 @@ class XmlParser {
 		for( f2 in c2.fields ) {
 			var found = null;
 			for( f in c.fields )
-				if( TypeApi.fieldEq(f,f2) ) {
+				if( mergeFields(f,f2) ) {
 					found = f;
 					break;
 				}
@@ -110,7 +124,7 @@ class XmlParser {
 		for( f2 in c2.statics ) {
 			var found = null;
 			for( f in c.statics )
-				if( TypeApi.fieldEq(f,f2) ) {
+				if( mergeFields(f,f2) ) {
 					found = f;
 					break;
 				}
