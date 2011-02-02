@@ -828,3 +828,24 @@ flash.globalization.StringTools.lastOperationStatus : LastOperationStatus;
 @:require(flash10_2) static flash.ui.Mouse.registerCursor;
 
 flash.media.MicrophoneEnhancedOptions.mode : MicrophoneEnhancedMode;
+
+@:require(flash11) static flash.display.Stage.stage3Ds;
+-flash.display.Stage3D.new;
+-flash.display3D.Context3D.new;
+-flash.display3D.IndexBuffer3D.new;
+-flash.display3D.Program3D.new;
+-flash.display3D.VertexBuffer3D.new;
+-flash.display3D.CubeTexture.new;
+-flash.display3D.TextureBase.new;
+-flash.display3D.Texture.new;
+
+flash.display3D.Context3D.$sourceFactor : Context3DBlendFactor;
+flash.display3D.Context3D.$destinationFactor : Context3DBlendFactor;
+flash.display3D.Context3D.$format : Context3DTextureFormat;
+flash.display3D.Context3D.$triangleFaceToCull : Context3DTriangleFace;
+flash.display3D.Context3D.$passCompareMode : Context3DCompareMode;
+flash.display3D.Context3D.$programType : Context3DProgramType;
+flash.display3D.Context3D.$actionOnBothPass : Context3DStencilAction;
+flash.display3D.Context3D.$actionOnDepthFail : Context3DStencilAction;
+flash.display3D.Context3D.$actionOnDepthPassStencilFail : Context3DStencilAction;
+flash.display3D.Context3D.$setVertexBufferAt__format : Context3DVertexBufferFormat;
