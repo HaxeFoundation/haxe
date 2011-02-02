@@ -620,7 +620,11 @@ let patch_class ctx c fields =
 				(match f.cff_kind with
 				| FFun (pl,ff) ->
 					let param ((n,opt,t,e) as p) =
-						try n, opt, (Hashtbl.find h (("$" ^ n),false)).tp_type, e with Not_found -> p
+						try
+							let t2 = (try Hashtbl.find h (("$" ^ f.cff_name ^ "__" ^ n),false) with Not_found -> Hashtbl.find h (("$" ^ n),false)) in
+							n, opt, t2.tp_type, e
+						with Not_found ->
+							p
 					in
 					f.cff_kind <- FFun (pl,{ ff with f_args = List.map param ff.f_args })
 				| _ -> ());

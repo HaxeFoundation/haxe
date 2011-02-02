@@ -363,6 +363,7 @@ let generate_type com t =
 			| Some t ->
 				(match c.cl_path with
 				| ["flash";"errors"], _ -> ext
+				| _ when t == t_dynamic -> " implements Dynamic" :: ext
 				| _ -> (" implements Dynamic<" ^ stype t ^ ">") :: ext)
 		) in
 		let ext = (match c.cl_path with
