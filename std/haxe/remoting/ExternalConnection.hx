@@ -70,7 +70,7 @@ class ExternalConnection implements Connection, implements Dynamic<Connection> {
 			data = flash.external.ExternalInterface.call("haxe.remoting.ExternalConnection.doCall",__data.name,__path.join("."),params);
 		#elseif js
 			var fobj : Dynamic = untyped window.document[__data.flash];
-			if( fobj == null ) fobj = untyped window.document.getElementById[__data.flash];
+			if( fobj == null ) fobj = untyped window.document.getElementById(__data.flash);
 			if( fobj == null ) throw "Could not find flash object '"+__data.flash+"'";
 			try	data = fobj.externalRemotingCall(__data.name,__path.join("."),params) catch( e : Dynamic ) {};
 		#end
