@@ -236,7 +236,14 @@ class Input {
 		var ch2 = readByte();
 		var ch3 = readByte();
 		var ch4 = readByte();
-		return bigEndian ? haxe.Int32.make((ch1 << 8) | ch2,(ch3 << 8) | ch4) : haxe.Int32.make((ch4 << 8) | ch3,(ch2 << 8) | ch1);
+#if php
+		var i = bigEndian ? ((ch1 << 8 | ch2) << 16 | (ch3 << 8 | ch4)) : ((ch4 << 8 | ch3) << 16 | (ch2 << 8 | ch1));
+		if (i > 0x7FFFFFFF)
+			untyped __php__("$i -= 0x100000000");
+		return haxe.Int32.ofInt(i);
+#else
+		return bigEndian ? haxe.Int32.make((ch1 << 8) | ch2, (ch3 << 8) | ch4) : haxe.Int32.make((ch4 << 8) | ch3, (ch2 << 8) | ch1);
+#end
 	}
 
 	public function readString( len : Int ) : String {
