@@ -666,7 +666,11 @@ let build_module_def ctx meta fbuild =
 		| _ :: l -> loop l
 		| [] -> []
 	in
-	loop meta
+	try
+		loop meta
+	with Error (Custom msg,p) ->
+		display_error ctx msg p;
+		[]
 
 let init_class ctx c p herits fields =
 	let fields = patch_class ctx c fields in
