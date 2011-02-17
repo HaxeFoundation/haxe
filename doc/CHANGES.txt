@@ -1,6 +1,7 @@
 2011-??-??: 2.08
 	js : added js.JQuery
 	all : added @:multitype
+	js : upgraded js.SWFObject from 1.4.4 inlined to 1.5 embedded
 
 2011-01-30: 2.07
 	all : fixed completion support with --remap
