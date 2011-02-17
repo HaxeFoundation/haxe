@@ -55,10 +55,7 @@
 
 	public function keys() : Iterator<Int> {
 		var a = new Array();
-		untyped __js__("
-			for( x in this.h )
-				a.push(x);
-		");
+		untyped __js__("for( x in this.h ) a.push(x)");
 		return a.iterator();
 	}
 

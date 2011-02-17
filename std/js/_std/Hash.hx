@@ -50,10 +50,7 @@
 			key = "$"+key;
 			return untyped this.hasOwnProperty.call(h,key);
 		}catch(e:Dynamic){
-			untyped __js__("
-				for(var i in this.h)
-					if( i == key ) return true;
-			");
+			untyped __js__("for(var i in this.h) if( i == key ) return true");
 			return false;
 		}
 	}
@@ -67,10 +64,7 @@
 
 	public function keys() : Iterator<String> {
 		var a = new Array<String>();
-		untyped __js__("
-			for(var i in this.h)
-				a.push(i.substr(1));
-		");
+		untyped __js__("for(var i in this.h) a.push(i.substr(1))");
 		return a.iterator();
 	}
 

@@ -71,6 +71,11 @@ let newline ctx =
 	| '}' | '{' | ':' when not ctx.separator -> print ctx "\n%s" ctx.tabs	
 	| _ -> print ctx ";\n%s" ctx.tabs
 
+let semicolon ctx =	
+	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
+	| '}' when not ctx.separator -> ()
+	| _ -> spr ctx ";"
+
 let rec concat ctx s f = function
 	| [] -> ()
 	| [x] -> f x
@@ -89,12 +94,7 @@ let fun_block ctx f p =
 	if ctx.com.debug then
 		Codegen.stack_block ctx.stack ctx.current (fst ctx.curmethod) e
 	else
-		mk_block e
-
-let parent e =
-	match e.eexpr with
-	| TParenthesis _ -> e
-	| _ -> mk (TParenthesis e) e.etype e.epos
+		e
 
 let open_block ctx =
 	let oldt = ctx.tabs in
@@ -298,14 +298,14 @@ and gen_expr ctx e =
 		spr ctx ")"
 	| TIf (cond,e,eelse) ->
 		spr ctx "if";
-		gen_value ctx (parent cond);
+		gen_value ctx cond;
 		spr ctx " ";
 		gen_expr ctx e;
 		(match eelse with
 		| None -> ()
 		| Some e ->
-			newline ctx;
-			spr ctx "else ";
+			semicolon ctx;
+			spr ctx " else ";
 			gen_expr ctx e);
 	| TUnop (op,Ast.Prefix,e) ->
 		spr ctx (Ast.s_unop op);
@@ -316,7 +316,7 @@ and gen_expr ctx e =
 	| TWhile (cond,e,Ast.NormalWhile) ->
 		let handle_break = handle_break ctx e in
 		spr ctx "while";
-		gen_value ctx (parent cond);
+		gen_value ctx cond;
 		spr ctx " ";
 		gen_expr ctx e;
 		handle_break();
@@ -325,7 +325,7 @@ and gen_expr ctx e =
 		spr ctx "do ";
 		gen_expr ctx e;
 		spr ctx " while";
-		gen_value ctx (parent cond);
+		gen_value ctx cond;
 		handle_break();
 	| TObjectDecl fields ->
 		spr ctx "{ ";
@@ -356,14 +356,13 @@ and gen_expr ctx e =
 		handle_break();
 	| TTry (e,catchs) ->
 		spr ctx "try ";
-		gen_expr ctx (mk_block e);
-		newline ctx;
+		gen_expr ctx e;
 		let vname = (match catchs with [(v,_,_)] -> v | _ ->
 			let id = ctx.id_counter in
 			ctx.id_counter <- ctx.id_counter + 1;
 			"$e" ^ string_of_int id
 		) in
-		print ctx "catch( %s ) {" vname;
+		print ctx " catch( %s ) {" vname;
 		let bend = open_block ctx in
 		let last = ref false in
 		List.iter (fun (v,t,e) ->
@@ -411,10 +410,23 @@ and gen_expr ctx e =
 		newline ctx;
 		spr ctx "}";
 	| TMatch (e,(estruct,_),cases,def) ->
-		spr ctx "var $e = ";
-		gen_value ctx e;
-		newline ctx;
-		spr ctx "switch( $e[1] ) {";
+		let evar = (if List.for_all (fun (_,pl,_) -> pl = None) cases then begin
+			spr ctx "switch( ";
+			gen_value ctx (if Optimizer.need_parent e then Codegen.mk_parent e else e);
+			spr ctx "[1] ) {";
+			"???"
+		end else begin
+			let v = (match e.eexpr with
+				| TLocal v -> v
+				| _ ->
+					spr ctx "var $e = ";
+					gen_value ctx e;
+					newline ctx;
+					"$e"
+			) in
+			print ctx "switch( %s[1] ) {" v;
+			v
+		end) in
 		List.iter (fun (cl,params,e) ->
 			List.iter (fun c ->
 				newline ctx;
@@ -422,18 +434,15 @@ and gen_expr ctx e =
 			) cl;
 			let bend = open_block ctx in
 			(match params with
-			| None | Some [] -> ()
+			| None -> ()
 			| Some l ->
 				let n = ref 1 in
 				let l = List.fold_left (fun acc (v,_) -> incr n; match v with None -> acc | Some v -> (v,!n) :: acc) [] l in
-				match l with
-				| [] -> ()
-				| l ->
-					newline ctx;
-					spr ctx "var ";
-					concat ctx ", " (fun (v,n) ->
-						print ctx "%s = $e[%d]" v n;
-					) l);
+				newline ctx;
+				spr ctx "var ";
+				concat ctx ", " (fun (v,n) ->
+					print ctx "%s = %s[%d]" v evar n;
+				) l);
 			gen_block ctx e;
 			if not (has_return e) then begin
 				newline ctx;
@@ -454,7 +463,7 @@ and gen_expr ctx e =
 		spr ctx "}"
 	| TSwitch (e,cases,def) ->
 		spr ctx "switch";
-		gen_value ctx (parent e);
+		gen_value ctx e;
 		spr ctx " {";
 		newline ctx;
 		List.iter (fun (el,e2) ->
@@ -608,8 +617,9 @@ and gen_value ctx e =
 		v()
 	| TTry (b,catchs) ->
 		let v = value true in
-		gen_expr ctx (mk (TTry (assign b,
-			List.map (fun (v,t,e) -> v, t , assign e) catchs
+		let block e = mk (TBlock [e]) e.etype e.epos in
+		gen_expr ctx (mk (TTry (block (assign b),
+			List.map (fun (v,t,e) -> v, t , block (assign e)) catchs
 		)) e.etype e.epos);
 		v()
 

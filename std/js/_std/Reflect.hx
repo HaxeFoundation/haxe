@@ -55,21 +55,13 @@
 		if( o == null ) return new Array();
 		var a = new Array();
 		if( o.hasOwnProperty ) {
-			__js__("
-				for(var i in o)
-					if( o.hasOwnProperty(i) )
-						a.push(i);
-			");
+			__js__("for(var i in o) if( o.hasOwnProperty(i) ) a.push(i)");
 		} else {
 			var t;
 			try{ t = o.__proto__; } catch( e : Dynamic ) { t = null; }
 			if( t != null )
 				o.__proto__ = null;
-			__js__("
-				for(var i in o)
-					if( i != \"__proto__\" )
-						a.push(i);
-			");
+			__js__("for(var i in o) if( i != \"__proto__\" ) a.push(i)");
 			if( t != null )
 				o.__proto__ = t;
 		}

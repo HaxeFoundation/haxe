@@ -373,24 +373,39 @@ let standard_precedence op =
 	| OpAssignOp OpAssign -> 16, right (* mimics ?: *)
 	| OpAssign | OpAssignOp _ -> 17, right
 
+let need_parent e =
+	match e.eexpr with
+	| TConst _ | TLocal _ | TEnumField _ | TArray _ | TField _ | TParenthesis _ | TCall _ | TClosure _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ -> false
+	| TCast _ | TThrow _ | TReturn _ | TTry _ | TMatch _ | TSwitch _ | TFor _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
+	| TBlock _ | TVars _ | TFunction _ | TUnop _ -> true
+
 let sanitize_expr e =
 	let parent e =
-		mk (TParenthesis e) e.etype e.epos
+		match e.eexpr with
+		| TParenthesis _ -> e
+		| _ -> mk (TParenthesis e) e.etype e.epos
 	in
 	let block e =
-		mk (TBlock [e]) e.etype e.epos
+		match e.eexpr with
+		| TBlock _ -> e
+		| _ -> mk (TBlock [e]) e.etype e.epos
 	in
 	let complex e =
 		(* complex expressions are the one that once generated to source consists in several expressions *)
 		match e.eexpr with
-		| TFor _ -> block e (* a temp var is needed for holding iterator *)
+		| TFor _ (* a temp var is needed for holding iterator *)
+		| TMatch _ (* a temp var is needed for holding enum *)
+		| TCall ({ eexpr = TLocal "__js__" },_) (* we never know *)
+			-> block e
 		| _ -> e
 	in
-	let need_parent e =
+	(* tells if the printed expresssion ends with an if without else *)
+	let rec has_if e =
 		match e.eexpr with
-		| TConst _ | TLocal _ | TEnumField _ | TArray _ | TField _ | TParenthesis _ | TCall _ | TClosure _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ -> false
-		| TCast _ | TThrow _ | TReturn _ | TTry _ | TMatch _ | TSwitch _ | TFor _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
-		| TBlock _ | TVars _ | TFunction _ | TUnop _ -> true
+		| TIf (_,_,None) -> true
+		| TWhile (_,e,NormalWhile) -> has_if e
+		| TFor (_,_,_,e) -> has_if e
+		| _ -> false
 	in
 	match e.eexpr with
 	| TBinop (op,e1,e2) ->
@@ -418,21 +433,12 @@ let sanitize_expr e =
 		in
 		{ e with eexpr = TUnop (op,mode,loop e2) }
 	| TIf (e1,e2,eelse) ->
-		let e1 = (match e1.eexpr with
-			| TParenthesis _ -> e1
-			| _ -> parent e1
-		) in
-		let e2 = (match e2.eexpr, eelse with
-			| TIf (_,_,Some _) , _ | TIf (_,_,None), Some _ -> block e2
-			| _ -> complex e2
-		) in
+		let e1 = parent e1 in
+		let e2 = (if (eelse <> None && has_if e2) || (match e2.eexpr with TIf _ -> true | _ -> false) then block e2 else complex e2) in
 		let eelse = (match eelse with None -> None | Some e -> Some (complex e)) in
 		{ e with eexpr = TIf (e1,e2,eelse) }
 	| TWhile (e1,e2,flag) ->
-		let e1 = (match e1.eexpr with
-			| TParenthesis _ -> e1
-			| _ -> parent e1
-		) in
+		let e1 = parent e1 in
 		let e2 = complex e2 in
 		{ e with eexpr = TWhile (e1,e2,flag) }
 	| TFor (v,t,e1,e2) ->
@@ -448,6 +454,13 @@ let sanitize_expr e =
 		if need_parent e2 then { e with eexpr = TField(parent e2,f) } else e
 	| TArray (e1,e2) ->
 		if need_parent e1 then { e with eexpr = TArray(parent e1,e2) } else e
+	| TTry (e1,catches) ->
+		let e1 = block e1 in
+		let catches = List.map (fun (v,t,e) -> v, t, block e) catches in
+		{ e with eexpr = TTry (e1,catches) }
+	| TSwitch (e1,cases,def) ->
+		let e1 = parent e1 in
+		{ e with eexpr = TSwitch (e1,cases,def) }
 	| _ ->
 		e
 
@@ -462,7 +475,7 @@ let reduce_expr ctx e =
 			) cl
 		) cases;
 		e
-	| TBlock [{ eexpr = TConst _ } as ec] ->
+	| TBlock [ec] ->
 		{ ec with epos = e.epos }
 	| TParenthesis ec ->
 		{ ec with epos = e.epos }
