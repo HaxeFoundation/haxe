@@ -1,3 +1,7 @@
+2011-??-??: 2.08
+	js : added js.JQuery
+	all : added @:multitype
+
 2011-01-30: 2.07
 	all : fixed completion support with --remap
 	all : added macros, added --interp

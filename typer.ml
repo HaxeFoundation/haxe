@@ -38,10 +38,11 @@ exception Display of t
 type access_kind =
 	| AKNo of string
 	| AKExpr of texpr
+	| AKField of texpr * tclass_field
 	| AKSet of texpr * string * t * string
 	| AKInline of texpr * tclass_field * t
 	| AKMacro of texpr * tclass_field
-	| AKUsing of texpr * texpr
+	| AKUsing of texpr * tclass_field * texpr
 
 let mk_infos ctx p params =
 	let file = if ctx.in_macro then p.pfile else Filename.basename p.pfile in
@@ -122,7 +123,7 @@ let type_expr_with_type ctx e t =
 let unify_call_params ctx name el args p inline =
 	let error txt =
 		let format_arg = (fun (name,opt,_) -> (if opt then "?" else "") ^ name) in
-		let argstr = "Function " ^ (match name with None -> "" | Some n -> "'" ^ n ^ "' ") ^ "requires " ^ (if args = [] then "no arguments" else "arguments : " ^ String.concat ", " (List.map format_arg args)) in
+		let argstr = "Function " ^ (match name with None -> "" | Some (n,_) -> "'" ^ n ^ "' ") ^ "requires " ^ (if args = [] then "no arguments" else "arguments : " ^ String.concat ", " (List.map format_arg args)) in
 		display_error ctx (txt ^ " arguments\n" ^ argstr) p
 	in
 	let arg_error ul name opt p =
@@ -158,7 +159,13 @@ let unify_call_params ctx name el args p inline =
 	let rec loop acc l l2 skip =
 		match l , l2 with
 		| [] , [] ->
-			if not (inline && ctx.g.doinline) && (match ctx.com.platform with Flash | Flash9 | Js -> true | _ -> false) then
+			if (match name with Some (_,meta) -> has_meta ":multitype" meta | _ -> false) then
+				let args = List.map fst (List.filter (fun o -> not (snd o)) acc) in
+				match List.rev args with
+				| [] -> error "Not enough"; []
+				| _ :: [] -> args
+				| args -> error "Too many"; args
+			else if not (inline && ctx.g.doinline) && (match ctx.com.platform with Flash | Flash9 | Js -> true | _ -> false) then
 				List.rev (no_opt acc)
 			else
 				List.rev (List.map fst acc)
@@ -297,9 +304,9 @@ let make_call ctx e params t p =
 let rec acc_get ctx g p =
 	match g with
 	| AKNo f -> error ("Field " ^ f ^ " cannot be accessed for reading") p
-	| AKExpr e -> e
+	| AKExpr e | AKField (e,_) -> e
 	| AKSet _ -> assert false
-	| AKUsing (et,e) ->
+	| AKUsing (et,_,e) ->
 		(* build a closure with first parameter applied *)
 		(match follow et.etype with
 		| TFun (_ :: args,ret) ->
@@ -350,10 +357,10 @@ let error_require r p =
 	error ("Accessing this field require " ^ r) p
 
 let field_access ctx mode f t e p =
-	let fnormal() = AKExpr (mk (TField (e,f.cf_name)) t p) in
+	let fnormal() = AKField ((mk (TField (e,f.cf_name)) t p),f) in
 	let normal() =
 		match follow e.etype with
-		| TAnon a -> (match !(a.a_status) with EnumStatics e -> AKExpr (mk (TEnumField (e,f.cf_name)) t p) | _ -> fnormal())
+		| TAnon a -> (match !(a.a_status) with EnumStatics e -> AKField ((mk (TEnumField (e,f.cf_name)) t p),f) | _ -> fnormal())
 		| _ -> fnormal()
 	in
 	match f.cf_kind with
@@ -427,7 +434,7 @@ let using_field ctx mode e i p =
 					(try unify_raise ctx e.etype t0 p with Error (Unify _,_) -> raise Not_found);
 					if follow e.etype == t_dynamic && follow t0 != t_dynamic then raise Not_found;
 					let et = type_module_type ctx (TClassDecl c) None p in
-					AKUsing (mk (TField (et,i)) t p,e)
+					AKUsing (mk (TField (et,i)) t p,f,e)
 				| _ -> raise Not_found)
 			with Not_found ->
 				loop l
@@ -660,10 +667,10 @@ let rec type_binop ctx op e1 e2 p =
 	match op with
 	| OpAssign ->
 		let e1 = type_access ctx (fst e1) (snd e1) MSet in
-		let e2 = type_expr_with_type ctx e2 (match e1 with AKNo _ | AKInline _ | AKUsing _ | AKMacro _ -> None | AKExpr e | AKSet(e,_,_,_) -> Some e.etype) in
+		let e2 = type_expr_with_type ctx e2 (match e1 with AKNo _ | AKInline _ | AKUsing _ | AKMacro _ -> None | AKExpr e | AKField (e,_) | AKSet(e,_,_,_) -> Some e.etype) in
 		(match e1 with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
-		| AKExpr e1 ->
+		| AKExpr e1 | AKField (e1,_) ->
 			unify ctx e2.etype e1.etype p;
 			check_assign ctx e1;
 			(match e1.eexpr , e2.eexpr with
@@ -680,7 +687,7 @@ let rec type_binop ctx op e1 e2 p =
 	| OpAssignOp op ->
 		(match type_access ctx (fst e1) (snd e1) MSet with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
-		| AKExpr e ->
+		| AKExpr e | AKField (e,_) ->
 			let eop = type_binop ctx op e1 e2 p in
 			(match eop.eexpr with
 			| TBinop (_,_,e2) ->
@@ -867,7 +874,7 @@ and type_unop ctx op flag e p =
 		mk (TUnop (op,flag,e)) t p
 	in
 	match acc with
-	| AKExpr e -> access e
+	| AKExpr e | AKField (e,_) -> access e
 	| AKInline _ | AKUsing _ when not set -> access (acc_get ctx acc p)
 	| AKNo s ->
 		error ("The field or identifier " ^ s ^ " is not accessible for " ^ (if set then "writing" else "reading")) p
@@ -1442,7 +1449,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			| _ -> ());
 			let el = (match follow (apply_params c.cl_types params (field_type f)) with
 			| TFun (args,r) ->
-				unify_call_params ctx (Some "new") el args p false
+				unify_call_params ctx (Some ("new",f.cf_meta)) el args p false
 			| _ ->
 				error "Constructor is not a function" p
 			) in
@@ -1655,7 +1662,7 @@ and type_call ctx e el p =
 			let f = get_constructor c p in
 			let el = (match follow (apply_params c.cl_types params (field_type f)) with
 			| TFun (args,_) ->
-				unify_call_params ctx (Some "new") el args p false
+				unify_call_params ctx (Some ("new",f.cf_meta)) el args p false
 			| _ ->
 				error "Constructor is not a function" p
 			) in
@@ -1669,14 +1676,13 @@ and type_call ctx e el p =
 		match type_access ctx (fst e) (snd e) MCall with
 		| AKInline (ethis,f,t) ->
 			let params, tret = (match follow t with
-				| TFun (args,r) -> unify_call_params ctx (Some f.cf_name) el args p true, r
+				| TFun (args,r) -> unify_call_params ctx (Some (f.cf_name,f.cf_meta)) el args p true, r
 				| _ -> error (s_type (print_context()) t ^ " cannot be called") p
 			) in
 			make_call ctx (mk (TField (ethis,f.cf_name)) t p) params tret p
-		| AKUsing (et,eparam) ->
-			let fname = (match et.eexpr with TField (_,f) -> f | _ -> assert false) in
+		| AKUsing (et,ef,eparam) ->
 			let params, tret = (match follow et.etype with
-				| TFun ( _ :: args,r) -> unify_call_params ctx (Some fname) el args p false, r
+				| TFun ( _ :: args,r) -> unify_call_params ctx (Some (ef.cf_name,ef.cf_meta)) el args p false, r
 				| _ -> assert false
 			) in
 			make_call ctx et (eparam::params) tret p
@@ -1687,11 +1693,14 @@ and type_call ctx e el p =
 				| None -> type_expr ctx (EConst (Ident "null"),p)
 				| Some e -> type_expr ctx e)
 			| _ -> assert false)
-		| acc ->
-			let e = acc_get ctx acc p in
+		| AKNo _ | AKSet _ as acc ->
+			ignore(acc_get ctx acc p);
+			assert false
+		| AKExpr e | AKField (e,_) as acc ->
 			let el , t = (match follow e.etype with
 			| TFun (args,r) ->
-				let el = unify_call_params ctx (match e.eexpr with TField (_,f) -> Some f | _ -> None) el args p false in
+				let fopts = (match acc with AKField (_,f) -> Some (f.cf_name,f.cf_meta) | _ -> match e.eexpr with TField (e,f) -> Some (f,[]) | _ -> None) in
+				let el = unify_call_params ctx fopts el args p false in
 				el , r
 			| TMono _ ->
 				let t = mk_mono() in
@@ -2112,7 +2121,7 @@ let type_macro ctx cpath f el p =
 
 let call_macro ctx path meth args p =
 	let ctx2, (margs,_), call = load_macro ctx path meth p in
-	let el = unify_call_params ctx2 (Some meth) args margs p false in
+	let el = unify_call_params ctx2 (Some (meth,[])) args margs p false in
 	call (List.map (fun e -> try Interp.make_const e with Exit -> error "Parameter should be a constant" e.epos) el)
 
 let call_init_macro ctx e =
