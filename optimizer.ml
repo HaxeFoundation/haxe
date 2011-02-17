@@ -391,10 +391,11 @@ let sanitize_expr e =
 		| _ -> mk (TBlock [e]) e.etype e.epos
 	in
 	let complex e =
-		(* complex expressions are the one that once generated to source consists in several expressions *)
+		(* complex expressions are the one that once generated to source consists in several expressions  *)
 		match e.eexpr with
-		| TFor _ (* a temp var is needed for holding iterator *)
-		| TMatch _ (* a temp var is needed for holding enum *)
+		| TVars _	(* needs to be put into blocks *)
+		| TFor _	(* a temp var is needed for holding iterator *)
+		| TMatch _	(* a temp var is needed for holding enum *)
 		| TCall ({ eexpr = TLocal "__js__" },_) (* we never know *)
 			-> block e
 		| _ -> e
