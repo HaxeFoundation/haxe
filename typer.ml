@@ -1057,11 +1057,13 @@ and type_switch ctx e cases def need_val p =
 				let params = (match !params with
 					| None -> None
 					| Some l ->
-						Some (List.map (fun (p,t) ->
+						let has = ref false in
+						let l = List.map (fun (p,t) ->
 							match p with
 							| None -> None, t
-							| Some v -> Some (add_local ctx v t), t
-						) l)
+							| Some v -> has := true; Some (add_local ctx v t), t
+						) l in
+						if !has then Some l else None
 				) in
 				let e = type_case_code e in
 				locals();
