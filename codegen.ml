@@ -596,12 +596,12 @@ let block_vars com e =
 			| _ ->
 				let args = List.map (fun (v,t) -> v, None, t) vars in
 				mk (TCall (
-					(mk (TFunction {
+					mk_parent (mk (TFunction {
 						tf_args = args;
 						tf_type = e.etype;
-						tf_expr = mk (TReturn (Some e)) e.etype e.epos;
+						tf_expr = mk_block (mk (TReturn (Some e)) e.etype e.epos);
 					}) (TFun (fun_args args,e.etype)) e.epos),
-					List.map (fun (v,t) -> mk (TLocal v) t e.epos) vars)
+					List.map (fun (v,t) -> mk (TLocal v) t e.epos) vars)					
 				) e.etype e.epos)
 		| _ ->
 			map_expr (wrap used) e
