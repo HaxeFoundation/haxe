@@ -32,6 +32,9 @@ let fcall e name el ret p =
 	let ft = tfun (List.map (fun e -> e.etype) el) ret in
 	mk (TCall (field e name ft p,el)) ret p
 
+let mk_parent e =
+	mk (TParenthesis e) e.etype e.epos
+
 let string com str p =
 	mk (TConst (TString str)) com.basic.tstring p
 
@@ -870,7 +873,7 @@ let stack_context_init com stack_var exc_var pos_var tmp_var use_add p =
 		stack_restore = [
 			binop OpAssign exc_e (mk (TArrayDecl []) st p) st p;
 			mk (TWhile (
-				binop OpGte	(field stack_e "length" t.tint p) (mk (TLocal pos_var) t.tint p) t.tbool p,
+				mk_parent (binop OpGte (field stack_e "length" t.tint p) (mk (TLocal pos_var) t.tint p) t.tbool p),
 				fcall exc_e "unshift" [fcall stack_e "pop" [] t.tstring p] t.tvoid p,
 				NormalWhile
 			)) t.tvoid p;
@@ -1071,7 +1074,7 @@ let rec is_volatile t =
 let set_default ctx a c t p =
 	let ve = mk (TLocal a) t p in
 	let cond =  TBinop (OpEq,ve,mk (TConst TNull) t p) in
-	mk (TIf (mk cond ctx.basic.tbool p, mk (TBinop (OpAssign,ve,mk (TConst c) t p)) t p,None)) ctx.basic.tvoid p
+	mk (TIf (mk_parent (mk cond ctx.basic.tbool p), mk (TBinop (OpAssign,ve,mk (TConst c) t p)) t p,None)) ctx.basic.tvoid p
 
 let bytes_serialize data =
 	let b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:" in
@@ -1173,5 +1176,5 @@ let default_cast ?(vtmp="$t") com e texpr t p =
 	let is = mk (TField (std,"is")) (tfun [t_dynamic;t_dynamic] api.tbool) p in
 	let is = mk (TCall (is,[vexpr;texpr])) api.tbool p in
 	let exc = mk (TThrow (mk (TConst (TString "Class cast error")) api.tstring p)) t p in
-	let check = mk (TIf (is,mk (TCast (vexpr,None)) t p,Some exc)) t p in
+	let check = mk (TIf (mk_parent is,mk (TCast (vexpr,None)) t p,Some exc)) t p in
 	mk (TBlock [var;check;vexpr]) t p
