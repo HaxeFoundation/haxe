@@ -2,6 +2,7 @@
 	js : added js.JQuery
 	all : added @:multitype
 	js : upgraded js.SWFObject from 1.4.4 inlined to 1.5 embedded
+	js : code generator beautify
 
 2011-01-30: 2.07
 	all : fixed completion support with --remap

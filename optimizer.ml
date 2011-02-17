@@ -380,6 +380,12 @@ let sanitize_expr e =
 	let block e =
 		mk (TBlock [e]) e.etype e.epos
 	in
+	let complex e =
+		(* complex expressions are the one that once generated to source consists in several expressions *)
+		match e.eexpr with
+		| TFor _ -> block e (* a temp var is needed for holding iterator *)
+		| _ -> e
+	in
 	let need_parent e =
 		match e.eexpr with
 		| TConst _ | TLocal _ | TEnumField _ | TArray _ | TField _ | TParenthesis _ | TCall _ | TClosure _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ -> false
@@ -418,9 +424,20 @@ let sanitize_expr e =
 		) in
 		let e2 = (match e2.eexpr, eelse with
 			| TIf (_,_,Some _) , _ | TIf (_,_,None), Some _ -> block e2
-			| _ -> e2
+			| _ -> complex e2
 		) in
+		let eelse = (match eelse with None -> None | Some e -> Some (complex e)) in
 		{ e with eexpr = TIf (e1,e2,eelse) }
+	| TWhile (e1,e2,flag) ->
+		let e1 = (match e1.eexpr with
+			| TParenthesis _ -> e1
+			| _ -> parent e1
+		) in
+		let e2 = complex e2 in
+		{ e with eexpr = TWhile (e1,e2,flag) }
+	| TFor (v,t,e1,e2) ->
+		let e2 = complex e2 in
+		{ e with eexpr = TFor (v,t,e1,e2) }
 	| TFunction f ->
 		(match f.tf_expr.eexpr with
 		| TBlock _ -> e

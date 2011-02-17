@@ -101,6 +101,13 @@ let open_block ctx =
 	ctx.tabs <- "\t" ^ ctx.tabs;
 	(fun() -> ctx.tabs <- oldt)
 
+let rec has_return e =
+	match e.eexpr with
+	| TBlock [] -> false
+	| TBlock el -> has_return (List.hd (List.rev el))
+	| TReturn _ -> true
+	| _ -> false
+
 let rec iter_switch_break in_switch e =
 	match e.eexpr with
 	| TFunction _ | TWhile _ | TFor _ -> ()
@@ -243,12 +250,10 @@ and gen_expr ctx e =
 	| TContinue ->
 		if not ctx.in_loop then unsupported e.epos;
 		spr ctx "continue"
-	| TBlock [] ->
-		spr ctx "null"
 	| TBlock el ->
 		print ctx "{";
 		let bend = open_block ctx in
-		List.iter (fun e -> newline ctx; gen_expr ctx e) el;
+		List.iter (gen_block ctx) el;
 		bend();
 		newline ctx;
 		print ctx "}";
@@ -329,26 +334,37 @@ and gen_expr ctx e =
 		ctx.separator <- true
 	| TFor (v,_,it,e) ->
 		let handle_break = handle_break ctx e in
-		let id = ctx.id_counter in
-		ctx.id_counter <- ctx.id_counter + 1;
-		print ctx "{ var $it%d = " id;
-		gen_value ctx it;
+		let it = (match it.eexpr with
+			| TLocal v -> v
+			| _ ->
+				let id = ctx.id_counter in
+				ctx.id_counter <- ctx.id_counter + 1;
+				let name = "$it" ^ string_of_int id in
+				print ctx "var %s = " name;
+				gen_value ctx it;
+				newline ctx;
+				name
+		) in
+		print ctx "while( %s.hasNext() ) {" it;
+		let bend = open_block ctx in
 		newline ctx;
-		print ctx "while( $it%d.hasNext() ) { var %s = $it%d.next()" id (ident v) id;
+		print ctx "var %s = %s.next()" (ident v) it;
+		gen_block ctx e;
+		bend();
 		newline ctx;
-		gen_expr ctx e;
-		newline ctx;
-		spr ctx "}}";
+		spr ctx "}";
 		handle_break();
 	| TTry (e,catchs) ->
 		spr ctx "try ";
 		gen_expr ctx (mk_block e);
 		newline ctx;
-		let id = ctx.id_counter in
-		ctx.id_counter <- ctx.id_counter + 1;
-		print ctx "catch( $e%d ) {" id;
+		let vname = (match catchs with [(v,_,_)] -> v | _ ->
+			let id = ctx.id_counter in
+			ctx.id_counter <- ctx.id_counter + 1;
+			"$e" ^ string_of_int id
+		) in
+		print ctx "catch( %s ) {" vname;
 		let bend = open_block ctx in
-		newline ctx;
 		let last = ref false in
 		List.iter (fun (v,t,e) ->
 			if !last then () else
@@ -367,29 +383,30 @@ and gen_expr ctx e =
 			match t with
 			| None ->
 				last := true;
-				spr ctx "{";
-				let bend = open_block ctx in
-				newline ctx;
-				print ctx "var %s = $e%d" v id;
-				newline ctx;
-				gen_expr ctx e;
-				bend();
-				newline ctx;
-				spr ctx "}"
+				if vname <> v then begin
+					newline ctx;
+					print ctx "var %s = %s" v vname;
+				end;
+				gen_block ctx e;
 			| Some t ->
-				print ctx "if( %s.__instanceof($e%d," (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) id;
+				newline ctx;
+				print ctx "if( %s.__instanceof(%s," (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) vname;
 				gen_value ctx (mk (TTypeExpr t) (mk_mono()) e.epos);
 				spr ctx ") ) {";
 				let bend = open_block ctx in
-				newline ctx;
-				print ctx "var %s = $e%d" v id;
-				newline ctx;
-				gen_expr ctx e;
+				if vname <> v then begin
+					newline ctx;
+					print ctx "var %s = %s" v vname;
+				end;
+				gen_block ctx e;
 				bend();
 				newline ctx;
 				spr ctx "} else "
 		) catchs;
-		if not !last then print ctx "throw($e%d)" id;
+		if not !last then begin
+			newline ctx;
+			print ctx "throw(%s)" vname;
+		end;
 		bend();
 		newline ctx;
 		spr ctx "}";
@@ -398,12 +415,12 @@ and gen_expr ctx e =
 		gen_value ctx e;
 		newline ctx;
 		spr ctx "switch( $e[1] ) {";
-		newline ctx;
 		List.iter (fun (cl,params,e) ->
 			List.iter (fun c ->
-				print ctx "case %d:" c;
 				newline ctx;
+				print ctx "case %d:" c;
 			) cl;
+			let bend = open_block ctx in
 			(match params with
 			| None | Some [] -> ()
 			| Some l ->
@@ -412,23 +429,28 @@ and gen_expr ctx e =
 				match l with
 				| [] -> ()
 				| l ->
+					newline ctx;
 					spr ctx "var ";
 					concat ctx ", " (fun (v,n) ->
 						print ctx "%s = $e[%d]" v n;
-					) l;
-					newline ctx);
-			gen_expr ctx (mk_block e);
-			print ctx "break";
-			newline ctx
+					) l);
+			gen_block ctx e;
+			if not (has_return e) then begin
+				newline ctx;
+				print ctx "break";
+			end;
+			bend();
 		) cases;
 		(match def with
 		| None -> ()
 		| Some e ->
-			spr ctx "default:";
-			gen_expr ctx (mk_block e);
-			print ctx "break";
 			newline ctx;
+			spr ctx "default:";
+			let bend = open_block ctx in
+			gen_block ctx e;
+			bend();
 		);
+		newline ctx;
 		spr ctx "}"
 	| TSwitch (e,cases,def) ->
 		spr ctx "switch";
@@ -445,16 +467,22 @@ and gen_expr ctx e =
 					gen_value ctx e;
 					spr ctx ":"
 			) el;
-			gen_expr ctx (mk_block e2);
-			print ctx "break";
+			let bend = open_block ctx in
+			gen_block ctx e2;
+			if not (has_return e2) then begin
+				newline ctx;
+				print ctx "break";
+			end;
+			bend();
 			newline ctx;
 		) cases;
 		(match def with
 		| None -> ()
 		| Some e ->
 			spr ctx "default:";
-			gen_expr ctx (mk_block e);
-			print ctx "break";
+			let bend = open_block ctx in
+			gen_block ctx e;
+			bend();
 			newline ctx;
 		);
 		spr ctx "}"
@@ -462,6 +490,11 @@ and gen_expr ctx e =
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
 		gen_expr ctx (Codegen.default_cast ctx.com e1 t e.etype e.epos)
+
+and gen_block ctx e =
+	match e.eexpr with
+	| TBlock el -> List.iter (gen_block ctx) el
+	| _ -> newline ctx; gen_expr ctx e
 
 and gen_value ctx e =
 	let assign e =
@@ -638,8 +671,15 @@ let gen_constructor ctx e =
 	| TFunction f  ->
 		let args  = List.map arg_name f.tf_args in
 		let a, args = (match args with [] -> "p" , ["p"] | x :: _ -> x, args) in
-		print ctx "function(%s) { if( %s === $_ ) return; " (String.concat "," (List.map ident args)) a;
-		gen_expr ctx (fun_block ctx f e.epos);
+		print ctx "function(%s) {" (String.concat "," (List.map ident args));
+		let bend = open_block ctx in
+		if Codegen.constructor_side_effects f.tf_expr then begin
+			newline ctx;
+			print ctx "if( %s === $_ ) return" a;
+		end;
+		gen_block ctx (fun_block ctx f e.epos);
+		bend();
+		newline ctx;
 		print ctx "}";
 	| _ -> assert false
 
