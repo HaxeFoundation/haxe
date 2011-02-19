@@ -204,7 +204,7 @@ class DefaultJSGenerator {
 		if( c.interfaces.length > 0 ) {
 			var me = this;
 			var inter = c.interfaces.map(function(i) return me.getPath(i.t.get())).join(",");
-			fprint("%p.prototype = [%inter]");
+			fprint("%p.__interfaces__ = [%inter]");
 			newline();
 		}
 	}
