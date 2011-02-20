@@ -119,6 +119,8 @@ type context = {
 	(* context *)
 	mutable curapi : extern_api;
 	mutable delayed : (unit -> value) DynArray.t;
+	(* optimized *)
+	switch_tables : (int, (expr_decl * expr option array option) list ref) Hashtbl.t;
 }
 
 type access =
@@ -1714,6 +1716,32 @@ let get_ident ctx s =
 	with Not_found ->
 		VNull
 
+let get_switch_table ctx e p =
+	try
+		List.assq e !(Hashtbl.find ctx.switch_tables p.pline)
+	with Not_found ->
+		let l = (try
+			Hashtbl.find ctx.switch_tables p.pline
+		with Not_found -> 
+			let l = ref [] in
+			Hashtbl.add ctx.switch_tables p.pline l;
+			l
+		) in
+		let cases = try Some (match e with
+		| ESwitch(_,cases,eo) ->			
+			let max = ref (-1) in
+			let ints = List.map (fun (cond,e) ->
+				match fst cond with
+				| EConst (Int i) -> if i < 0 then raise Exit; if i > !max then max := i; i, e
+				| _ -> raise Exit
+			) cases in
+			let a = Array.create (!max + 1) eo in
+			List.iter (fun (i,e) -> a.(i) <- Some e) (List.rev ints);
+			a;
+		| _ -> raise Exit) with Exit -> None in
+		l := (e,cases) :: !l;
+		cases
+
 let rec eval ctx (e,p) =
 	match e with
 	| EConst c ->
@@ -1906,17 +1934,22 @@ let rec eval ctx (e,p) =
 		VObject o
 	| ELabel l ->
 		assert false
-	| ESwitch (e,el,eo) ->
-		let v = eval ctx e in
-		let rec loop = function
-			| [] ->
-				(match eo with
-				| None -> VNull
-				| Some e -> eval ctx e)
-			| (c,e) :: l ->
-				if ctx.do_compare v (eval ctx c) = CEq then eval ctx e else loop l
-		in
-		loop el
+	| ESwitch (e1,el,eo) ->
+		(match eval ctx e1, get_switch_table ctx e p with
+		| VInt i, Some t ->
+			(match (if i >= 0 && i < Array.length t then t.(i) else eo) with
+			| None -> VNull
+			| Some e -> eval ctx e)
+		| v, _ ->
+			let rec loop = function
+				| [] ->
+					(match eo with
+					| None -> VNull
+					| Some e -> eval ctx e)
+				| (c,e) :: l ->
+					if ctx.do_compare v (eval ctx c) = CEq then eval ctx e else loop l
+			in
+			loop el)
 	| ENeko _ ->
 		throw ctx p "Inline neko code unsupported"
 
@@ -2266,6 +2299,8 @@ let create com api =
 		(* context *)
 		curapi = api;
 		delayed = DynArray.create();
+		(* opt *)
+		switch_tables = Hashtbl.create 0;
 	} in
 	ctx.do_call <- call ctx;
 	ctx.do_string <- to_string ctx 0;
