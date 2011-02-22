@@ -74,7 +74,7 @@ let check_assign ctx e =
 	match e.eexpr with
 	| TLocal _ | TArray _ | TField _ ->
 		()
-	| TTypeExpr _ when ctx.untyped ->
+	| TConst TThis | TTypeExpr _ when ctx.untyped ->
 		()
 	| _ ->
 		error "Invalid assign" e.epos
@@ -455,7 +455,7 @@ let type_ident ctx i is_type p mode =
 			AKNo i
 	| "this" ->
 		if not ctx.untyped && ctx.in_static then error "Cannot access this from a static function" p;
-		if mode = MGet then
+		if mode = MGet || ctx.untyped then
 			AKExpr (mk (TConst TThis) ctx.tthis p)
 		else
 			AKNo i
