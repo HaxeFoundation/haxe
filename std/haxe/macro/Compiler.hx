@@ -191,9 +191,11 @@ class Compiler {
 							var types = Context.getModule(module);
 							for (type in types)
 							{
+								trace(type);
 								switch(type)
 								{
 									case TInst(cls, _):
+										trace(cls.toString());
 										addMetadata("@:keep", cls.toString());
 									default:
 										//
@@ -203,15 +205,10 @@ class Compiler {
 							keep(path + "." + file, true);
 					}
 				} else {
-					try
-					{
-						// if it's not a loaded type or a type at all just continue the loop
-						Context.getType(path);
-						addMetadata("@:keep", path);
-						break;
-					} catch(e : Dynamic){}
+					addMetadata("@:keep", path);
+					break;
 				}
-			}			
+			}
 		}
 	}
 

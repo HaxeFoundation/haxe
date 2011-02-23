@@ -758,7 +758,7 @@ let init_class ctx c p herits fields =
 			PMap.exists f c.cl_fields || has_field f c.cl_super || List.exists (fun i -> has_field f (Some i)) c.cl_implements
 	in
 
-	(* ----------------------- DEAD CODE REMOVAL ----------------------------- *)
+	(* ----------------------- DEAD CODE ELIMINATION ----------------------------- *)
 
 	let is_main n = (match ctx.com.main_class with | Some cl when c.cl_path = cl -> true | _ -> false) && n = "main" in
 	let must_keep_types pf = match pf with
