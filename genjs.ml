@@ -324,6 +324,7 @@ and gen_expr ctx e =
 		let handle_break = handle_break ctx e in
 		spr ctx "do ";
 		gen_expr ctx e;
+		semicolon ctx;
 		spr ctx " while";
 		gen_value ctx cond;
 		handle_break();
