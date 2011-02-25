@@ -48,5 +48,26 @@ class TestType extends Test {
 		f( Type.enumEq(D(A),D(B)) );
 
 	}
-
+	
+	function testPossibleBug() {
+		var c = Type.getEnumConstructs(MyEnum);
+		var old = c[0];
+		c[0] = "modified";
+		eq( Type.getEnumConstructs(MyEnum)[0], old );
+		
+		var i = Type.getInstanceFields(TestType);
+		var old = i[0];
+		i[0] = "modified";
+		eq( Type.getInstanceFields(TestType)[0], old );
+		
+		var i = Type.getClassFields(TestType);
+		var old = i[0];
+		i[0] = "modified";
+		eq( Type.getClassFields(TestType)[0], old );
+		
+		// we don't check for Type.enumParameters modifications :
+		// we want it to be as fast as possible even if it references
+		// the current enum - since it's not cachable
+	}
+	
 }
