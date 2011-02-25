@@ -70,6 +70,19 @@ let type_constant com c p =
 	| Ident t | Type t -> error ("Invalid constant :  " ^ t) p
 	| Regexp _ -> error "Invalid constant" p
 
+let rec type_constant_value com (e,p) =
+	match e with
+	| EConst c ->
+		type_constant com c p
+	| EParenthesis e ->
+		type_constant_value com e
+	| EObjectDecl el ->
+		mk (TObjectDecl (List.map (fun (n,e) -> n, type_constant_value com e) el)) (TAnon { a_fields = PMap.empty; a_status = ref Closed }) p
+	| EArrayDecl el ->
+		mk (TArrayDecl (List.map (type_constant_value com) el)) (com.basic.tarray t_dynamic) p
+	| _ ->
+		error "Constant value expected" p
+
 (* -------------------------------------------------------------------------- *)
 (* REMOTING PROXYS *)
 
@@ -299,25 +312,12 @@ let build_metadata com t =
 		List.filter (fun (_,ml) -> ml <> []) l
 	in
 	let meta, fields, statics = filter meta, filter fields, filter statics in
-	let rec loop (e,p) =
-		match e with
-		| EConst c ->
-			type_constant com c p
-		| EParenthesis e ->
-			loop e
-		| EObjectDecl el ->
-			mk (TObjectDecl (List.map (fun (n,e) -> n, loop e) el)) (TAnon { a_fields = PMap.empty; a_status = ref Closed }) p
-		| EArrayDecl el ->
-			mk (TArrayDecl (List.map loop el)) (com.basic.tarray t_dynamic) p
-		| _ ->
-			error "Metadata should be constant" p
-	in
 	let make_meta_field ml =
 		let h = Hashtbl.create 0 in
 		mk (TObjectDecl (List.map (fun (f,el,p) ->
 			if Hashtbl.mem h f then error ("Duplicate metadata '" ^ f ^ "'") p;
 			Hashtbl.add h f ();
-			f, mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map loop el)) (api.tarray t_dynamic) p
+			f, mk (match el with [] -> TConst TNull | _ -> TArrayDecl (List.map (type_constant_value com) el)) (api.tarray t_dynamic) p
 		) ml)) (api.tarray t_dynamic) p
 	in
 	let make_meta l =
@@ -601,7 +601,7 @@ let block_vars com e =
 						tf_type = e.etype;
 						tf_expr = mk_block (mk (TReturn (Some e)) e.etype e.epos);
 					}) (TFun (fun_args args,e.etype)) e.epos),
-					List.map (fun (v,t) -> mk (TLocal v) t e.epos) vars)					
+					List.map (fun (v,t) -> mk (TLocal v) t e.epos) vars)
 				) e.etype e.epos)
 		| _ ->
 			map_expr (wrap used) e

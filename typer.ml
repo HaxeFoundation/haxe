@@ -1996,7 +1996,7 @@ let make_macro_api ctx p =
 						| _ -> failwith "Invalid expression";
 					));
 					"setTypeAccessor", Interp.VFunction (Interp.Fun1 (fun callb ->
-						js_ctx.Genjs.type_accessor <- (fun t -> 
+						js_ctx.Genjs.type_accessor <- (fun t ->
 							let v = Interp.encode_type (make_instance t) in
 							let ret = Interp.call (Interp.get_ctx()) Interp.VNull callb [v] Nast.null_pos in
 							Interp.dec_string ret
@@ -2069,28 +2069,60 @@ let load_macro ctx cpath f p =
 	in
 	ctx2, meth, call
 
-let type_macro ctx cpath f el p =
+let type_macro ctx cpath f (el:Ast.expr list) p =
 	let ctx2, (margs,mret), call_macro = load_macro ctx cpath f p in
-	let expr = Typeload.load_instance ctx2 { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None} p false in
+	let ctexpr = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
+	let expr = Typeload.load_instance ctx2 ctexpr p false in
 	unify ctx2 mret expr p;
-	let nargs = (match margs with
-		| [(_,_,t)] ->
-			(try
-				unify_raise ctx2 t expr p;
-				Some 1
-			with Error (Unify _,_) ->
-				unify ctx2 t (ctx2.t.tarray expr) p;
-				None)
-		| _ ->
-			List.iter (fun (_,_,t) -> unify ctx2 t expr p) margs;
-			Some (List.length margs)
+	let args = (try
+		(*
+			force default parameter types to haxe.macro.Expr, and if success allow to pass any value type since it will be encoded
+		*)
+		let eargs = List.map (fun (n,o,t) -> try unify_raise ctx2 t expr p; (n, o, t_dynamic), true with _ -> (n,o,t), false) margs in
+		(*
+			this is quite tricky here : we want to use unify_call_params which will type our AST expr
+			but we want to be able to get it back after it's been padded with nulls
+		*)
+		let index = ref (-1) in
+		let constants = List.map (fun e ->
+			let p = snd e in
+			let e = (try
+				ignore(Codegen.type_constant_value ctx.com e);
+				e
+			with _ ->
+				(* if it's not a constant, let's make something that is typed as haxe.macro.Expr - for nice error reporting *)
+				(EBlock [
+					(EVars ["__tmp",Some (CTPath ctexpr),Some (EConst (Ident "null"),p)],p);
+					(EConst (Ident "__tmp"),p);
+				],p)
+			) in
+			(* let's track the index by doing [e][index] (we will keep the expression type this way) *)
+			incr index;
+			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index))),p)),p)
+		) el in
+		let elt = unify_call_params ctx2 (Some (f,[])) constants (List.map fst eargs) p false in
+		List.map2 (fun (_,ise) e ->
+			let e, et = (match e.eexpr with
+				(* get back our index and real expression *)
+				| TArray ({ eexpr = TArrayDecl [e] }, { eexpr = TConst (TInt index) }) -> List.nth el (Int32.to_int index), e
+				(* added by unify_call_params *)
+				| TConst TNull -> (EConst (Ident "null"),e.epos), e
+				| _ -> assert false
+			) in
+			if ise then
+				Interp.encode_expr e
+			else match Interp.eval_expr (Interp.get_ctx()) et with
+				| None -> assert false
+				| Some v -> v
+		) eargs elt
+	with Error (e,p) ->
+		(* last try : maybe we have an Array<Expr> ? *)
+		match margs with
+		| [(_,_,t)] when (try unify_raise ctx2 t (ctx2.t.tarray expr) p; true with _ -> false) -> [Interp.enc_array (List.map Interp.encode_expr el)]
+		| _ -> raise (Error (e,p))
 	) in
-	(match nargs with
-	| Some n -> if List.length el <> n then error ("This macro requires " ^ string_of_int n ^ " arguments") p
-	| None -> ());
 	let call() =
-		let el = List.map Interp.encode_expr el in
-		match call_macro (if nargs = None then [Interp.enc_array el] else el) with
+		match call_macro args with
 		| None -> None
 		| Some v -> Some (try Interp.decode_expr v with Interp.Invalid_expr -> error "The macro didn't return a valid expression" p)
 	in
