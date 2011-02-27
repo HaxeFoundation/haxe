@@ -5,6 +5,7 @@
 	js : code generator beautify
 	all : ensure that modifying returned Type.getEnumConstructs array does not affect enum
 	all : allow macro typed parameters (other than Expr)
+	flash : added flash11 apis
 
 2011-01-30: 2.07
 	all : fixed completion support with --remap
