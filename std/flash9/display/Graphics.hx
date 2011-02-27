@@ -8,6 +8,7 @@ package flash.display;
 	@:require(flash10) function beginShaderFill(shader : Shader, ?matrix : flash.geom.Matrix) : Void;
 	function clear() : Void;
 	@:require(flash10) function copyFrom(sourceGraphics : Graphics) : Void;
+	@:require(flash11) function cubicCurveTo(controlX1 : Float, controlY1 : Float, controlX2 : Float, controlY2 : Float, anchorX : Float, anchorY : Float) : Void;
 	function curveTo(controlX : Float, controlY : Float, anchorX : Float, anchorY : Float) : Void;
 	function drawCircle(x : Float, y : Float, radius : Float) : Void;
 	function drawEllipse(x : Float, y : Float, width : Float, height : Float) : Void;

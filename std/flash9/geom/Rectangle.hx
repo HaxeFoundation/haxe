@@ -17,6 +17,7 @@ extern class Rectangle {
 	function contains(x : Float, y : Float) : Bool;
 	function containsPoint(point : Point) : Bool;
 	function containsRect(rect : Rectangle) : Bool;
+	@:require(flash11) function copyFrom(sourceRect : Rectangle) : Void;
 	function equals(toCompare : Rectangle) : Bool;
 	function inflate(dx : Float, dy : Float) : Void;
 	function inflatePoint(point : Point) : Void;
@@ -26,6 +27,7 @@ extern class Rectangle {
 	function offset(dx : Float, dy : Float) : Void;
 	function offsetPoint(point : Point) : Void;
 	function setEmpty() : Void;
+	@:require(flash11) function setTo(xa : Float, ya : Float, widtha : Float, heighta : Float) : Void;
 	function toString() : String;
 	function union(toUnion : Rectangle) : Rectangle;
 }

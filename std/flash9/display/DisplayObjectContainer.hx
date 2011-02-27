@@ -16,6 +16,7 @@ extern class DisplayObjectContainer extends InteractiveObject {
 	function getObjectsUnderPoint(point : flash.geom.Point) : Array<DisplayObject>;
 	function removeChild(child : DisplayObject) : DisplayObject;
 	function removeChildAt(index : Int) : DisplayObject;
+	@:require(flash11) function removeChildren() : Void;
 	function setChildIndex(child : DisplayObject, index : Int) : Void;
 	function swapChildren(child1 : DisplayObject, child2 : DisplayObject) : Void;
 	function swapChildrenAt(index1 : Int, index2 : Int) : Void;

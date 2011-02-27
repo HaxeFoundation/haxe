@@ -8,6 +8,7 @@ extern class MovieClip extends Sprite #if !flash_strict, implements Dynamic #end
 	var currentScene(default,null) : Scene;
 	var enabled : Bool;
 	var framesLoaded(default,null) : Int;
+	@:require(flash11) var isPlaying(default,null) : Bool;
 	var scenes(default,null) : Array<Scene>;
 	var totalFrames(default,null) : Int;
 	var trackAsMenu : Bool;

@@ -2,6 +2,7 @@ package flash.display;
 
 extern class Stage extends DisplayObjectContainer {
 	var align : StageAlign;
+	@:require(flash11) var allowsFullScreen(default,null) : Bool;
 	@:require(flash10_2) var color : UInt;
 	@:require(flash10) var colorCorrection : ColorCorrection;
 	@:require(flash10) var colorCorrectionSupport(default,null) : ColorCorrectionSupport;
@@ -14,6 +15,7 @@ extern class Stage extends DisplayObjectContainer {
 	var quality : StageQuality;
 	var scaleMode : StageScaleMode;
 	var showDefaultContextMenu : Bool;
+	@:require(flash11) var stage3Ds(default,null) : flash.Vector<Stage3D>;
 	var stageFocusRect : Bool;
 	var stageHeight : Int;
 	@:require(flash10_2) var stageVideos(default,null) : flash.Vector<flash.media.StageVideo>;

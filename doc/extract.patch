@@ -829,21 +829,73 @@ flash.globalization.StringTools.lastOperationStatus : LastOperationStatus;
 
 flash.media.MicrophoneEnhancedOptions.mode : MicrophoneEnhancedMode;
 
-@:require(flash11) static flash.display.Stage.stage3Ds;
+// FLASH 11 FEATURES
+
+@:require(flash11) flash.display.DisplayObjectContainer.removeChildren;
+@:require(flash11) flash.display.Graphics.cubicCurveTo;
+@:require(flash11) flash.display.GraphicsPath.cubicCurveTo;
+
+@:require(flash11) flash.display.InteractiveObject.needsSoftKeyboard;
+@:require(flash11) flash.display.InteractiveObject.softKeyboardInputAreaOfInterest;
+@:require(flash11) flash.display.InteractiveObject.requestSoftKeyboard;
+
+@:require(flash11) flash.display.MovieClip.isPlaying;
+
+@:require(flash11) flash.display.Stage.allowsFullScreen;
+@:require(flash11) flash.display.Stage.softKeyboardRect;
+@:require(flash11) flash.display.Stage.stage3Ds;
+@:require(flash11) flash.display.Stage3D;
+
+@:require(flash11) static flash.events.Event.CONTEXT3D_CREATE;
+@:require(flash11) static flash.events.Event.TEXT_INTERACTION_MODE_CHANGE;
+
+@:require(flash11) static flash.events.StageVideoEvent.RENDER_STATUS_AVAILABLE;
+@:require(flash11) static flash.events.StageVideoEvent.STAGE_VIDEO_STATE;
+
+@:require(flash11) flash.geom.Matrix3D.copyColumnFrom;
+@:require(flash11) flash.geom.Matrix3D.copyColumnTo;
+@:require(flash11) flash.geom.Matrix3D.copyFrom;
+@:require(flash11) flash.geom.Matrix3D.copyRawDataFrom;
+@:require(flash11) flash.geom.Matrix3D.copyRawDataTo;
+@:require(flash11) flash.geom.Matrix3D.copyRowFrom;
+@:require(flash11) flash.geom.Matrix3D.copyRowTo;
+@:require(flash11) flash.geom.Matrix3D.copyToMatrix3D;
+
+@:require(flash11) flash.geom.Matrix.copyColumnFrom;
+@:require(flash11) flash.geom.Matrix.copyColumnTo;
+@:require(flash11) flash.geom.Matrix.copyFrom;
+@:require(flash11) flash.geom.Matrix.copyRowFrom;
+@:require(flash11) flash.geom.Matrix.copyRowTo;
+@:require(flash11) flash.geom.Matrix.setTo;
+
+@:require(flash11) flash.geom.Point.copyFrom;
+@:require(flash11) flash.geom.Point.setTo;
+
+@:require(flash11) flash.geom.Rectangle.copyFrom;
+@:require(flash11) flash.geom.Rectangle.setTo;
+
+@:require(flash11) flash.geom.Vector3D.copyFrom;
+@:require(flash11) flash.geom.Vector3D.setTo;
+
+@:require(flash11) flash.media.Sound.loadMP3FromByteArray;
+@:require(flash11) flash.media.Sound.loadPCMFromByteArray;
+
 -flash.display.Stage3D.new;
 -flash.display3D.Context3D.new;
 -flash.display3D.IndexBuffer3D.new;
 -flash.display3D.Program3D.new;
 -flash.display3D.VertexBuffer3D.new;
--flash.display3D.CubeTexture.new;
--flash.display3D.TextureBase.new;
--flash.display3D.Texture.new;
+-flash.display3D.textures.CubeTexture.new;
+-flash.display3D.textures.TextureBase.new;
+-flash.display3D.textures.Texture.new;
 
 flash.display3D.Context3D.$sourceFactor : Context3DBlendFactor;
 flash.display3D.Context3D.$destinationFactor : Context3DBlendFactor;
 flash.display3D.Context3D.$format : Context3DTextureFormat;
 flash.display3D.Context3D.$triangleFaceToCull : Context3DTriangleFace;
+flash.display3D.Context3D.$triangleFace : Context3DTriangleFace;
 flash.display3D.Context3D.$passCompareMode : Context3DCompareMode;
+flash.display3D.Context3D.$compareMode : Context3DCompareMode;
 flash.display3D.Context3D.$programType : Context3DProgramType;
 flash.display3D.Context3D.$actionOnBothPass : Context3DStencilAction;
 flash.display3D.Context3D.$actionOnDepthFail : Context3DStencilAction;
