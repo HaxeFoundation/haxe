@@ -546,7 +546,7 @@ try
 						Common.define com def;
 						loop l
 				in
-				loop [9.;10.;10.1;10.2;11.];
+				loop [9.;10.;10.1;10.2;10.3;11.];
 				com.package_rules <- PMap.add "flash" (Directory "flash9") com.package_rules;
 				com.package_rules <- PMap.add "flash9" Forbidden com.package_rules;
 				com.platform <- Flash9;
