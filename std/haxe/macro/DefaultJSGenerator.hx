@@ -216,8 +216,8 @@ class DefaultJSGenerator {
 		var constructs = e.names.map(api.quoteString).join(",");
 		fprint("%p = { __ename__ : [%names], __constructs__ : [%constructs] }");
 		newline();
-		for( c in e.contructs.keys() ) {
-			var c = e.contructs.get(c);
+		for( c in e.constructs.keys() ) {
+			var c = e.constructs.get(c);
 			var f = field(c.name);
 			fprint("%p%f = ");
 			switch( c.type ) {
