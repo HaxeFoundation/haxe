@@ -495,6 +495,11 @@ let rec reduce_loop ctx e =
 		| TInst ({ cl_path = ([],"Float") },_) -> true
 		| _ -> false
 	in
+	let is_numeric t =
+		match follow t with
+		| TInst ({ cl_path = ([],("Float" | "Int")) },_) -> true
+		| _ -> false
+	in
 	let e = Type.map_expr (reduce_loop ctx) e in
 	sanitize_expr (match e.eexpr with
 	| TIf ({ eexpr = TConst (TBool t) },e1,e2) ->
@@ -505,11 +510,11 @@ let rec reduce_loop ctx e =
 		| DoWhile -> e) (* we cant remove while since sub can contain continue/break *)
 	| TBinop (op,e1,e2) ->
 		(match e1.eexpr, e2.eexpr with
-		| TConst (TInt 0l) , _ when op = OpAdd -> e2
+		| TConst (TInt 0l) , _ when op = OpAdd && is_numeric e2.etype -> e2
 		| TConst (TInt 1l) , _ when op = OpMult -> e2
 		| TConst (TFloat v) , _ when op = OpAdd && float_of_string v = 0. && is_float e2.etype -> e2
 		| TConst (TFloat v) , _ when op = OpMult && float_of_string v = 1. && is_float e2.etype -> e2
-		| _ , TConst (TInt 0l) when (match op with OpAdd | OpSub | OpShr | OpShl -> true | _ -> false) -> e1 (* bits operations might cause overflow *)
+		| _ , TConst (TInt 0l) when (match op with OpAdd -> is_numeric e1.etype | OpSub | OpShr | OpShl -> true | _ -> false) -> e1 (* bits operations might cause overflow *)
 		| _ , TConst (TInt 1l) when op = OpMult -> e1
 		| _ , TConst (TFloat v) when (match op with OpAdd | OpSub -> float_of_string v = 0. && is_float e1.etype | _ -> false) -> e1 (* bits operations might cause overflow *)
 		| _ , TConst (TFloat v) when op = OpMult && float_of_string v = 1. && is_float e1.etype -> e1
