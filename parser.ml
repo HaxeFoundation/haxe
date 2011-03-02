@@ -167,7 +167,7 @@ and parse_type_decl s =
 	| [< '(Kwd Using,p1); t = parse_type_path; p2 = semicolon >] -> EUsing t, punion p1 p2
 	| [< meta = parse_meta; c = parse_common_flags; s >] ->
 		match s with parser
-		| [< n , p1 = parse_enum_flags; doc = get_doc; '(Const (Type name),_); tl = parse_constraint_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] ->
+		| [< n , p1 = parse_enum_flags; doc = get_doc; name = type_name; tl = parse_constraint_params; '(BrOpen,_); l = plist parse_enum; '(BrClose,p2) >] ->
 			(EEnum {
 				d_name = name;
 				d_doc = doc;
@@ -176,7 +176,7 @@ and parse_type_decl s =
 				d_flags = List.map snd c @ n;
 				d_data = l
 			}, punion p1 p2)
-		| [< n , p1 = parse_class_flags; doc = get_doc; '(Const (Type name),_); tl = parse_constraint_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = parse_class_field_resume; s >] ->
+		| [< n , p1 = parse_class_flags; doc = get_doc; name = type_name; tl = parse_constraint_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = parse_class_field_resume; s >] ->
 			let p2 = (match s with parser
 				| [< '(BrClose,p2) >] -> p2
 				| [< >] -> if do_resume() then p1 else serror()
@@ -189,7 +189,7 @@ and parse_type_decl s =
 				d_flags = List.map fst c @ n @ hl;
 				d_data = fl;
 			}, punion p1 p2)
-		| [< '(Kwd Typedef,p1); doc = get_doc; '(Const (Type name),p2); tl = parse_constraint_params; '(Binop OpAssign,_); t = parse_complex_type; s >] ->
+		| [< '(Kwd Typedef,p1); doc = get_doc; name = type_name; tl = parse_constraint_params; '(Binop OpAssign,p2); t = parse_complex_type; s >] ->
 			(match s with parser
 			| [< '(Semicolon,_) >] -> ()
 			| [< >] -> ());
@@ -287,11 +287,16 @@ and parse_complex_type = parser
 and parse_type_path s = parse_type_path1 [] s
 
 and parse_type_path1 pack = parser
-	| [< '(Const (Ident name),_); '(Dot,p); s >] ->
-		if is_resuming p then
-			raise (TypePath (List.rev (name :: pack),None))
-		else
-			parse_type_path1 (name :: pack) s
+	| [< '(Const (Ident name),p); s >] ->
+		(match s with parser
+		| [< '(Dot,p); >] ->
+			if is_resuming p then
+				raise (TypePath (List.rev (name :: pack),None))
+			else
+				parse_type_path1 (name :: pack) s
+		| [< '(Semicolon,_) >] ->
+			error (Custom "Type name should start with an uppercase letter") p
+		| [< >] -> serror());
 	| [< '(Const (Type name),_); s >] ->
 		let sub = (match s with parser
 			| [< '(Dot,p); s >] ->
@@ -312,6 +317,11 @@ and parse_type_path1 pack = parser
 			tparams = params;
 			tsub = sub;
 		}
+
+and type_name = parser
+	| [< '(Const (Type name),_); >] -> name
+	| [< '(Const (Ident name),p); >] ->
+		error (Custom "Type name should start with an uppercase letter") p
 
 and parse_type_path_or_const = parser
 	| [< '(Const (String s),_) >] -> TPConst (String s)
@@ -436,7 +446,7 @@ and parse_constraint_params = parser
 	| [< >] -> []
 
 and parse_constraint_param = parser
-	| [< '(Const (Type name),_); s >] ->
+	| [< name = type_name; s >] ->
 		match s with parser
 		| [< '(DblDot,_); s >] ->
 			(match s with parser
