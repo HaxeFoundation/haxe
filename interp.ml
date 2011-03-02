@@ -515,7 +515,7 @@ let builtins =
 			ctx.curapi.print (ctx.do_string v)
 		) vl; VNull);
 		"throw", Fun1 (fun v -> exc v);
-		"rethrow", Fun1 (fun v -> 
+		"rethrow", Fun1 (fun v ->
 			let ctx = get_ctx() in
 			ctx.stack <- List.rev (List.map (fun p -> p,VNull,PMap.empty) ctx.exc) @ ctx.stack;
 			exc v
@@ -1722,13 +1722,13 @@ let get_switch_table ctx e p =
 	with Not_found ->
 		let l = (try
 			Hashtbl.find ctx.switch_tables p.pline
-		with Not_found -> 
+		with Not_found ->
 			let l = ref [] in
 			Hashtbl.add ctx.switch_tables p.pline l;
 			l
 		) in
 		let cases = try Some (match e with
-		| ESwitch(_,cases,eo) ->			
+		| ESwitch(_,cases,eo) ->
 			let max = ref (-1) in
 			let ints = List.map (fun (cond,e) ->
 				match fst cond with
@@ -2936,7 +2936,7 @@ let rec encode_tenum e =
 		"isExtern", VBool e.e_extern;
 		"exclude", VFunction (Fun0 (fun() -> e.e_extern <- true; VNull));
 		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) e.e_types);
-		"contructs", encode_pmap encode_efield e.e_constrs;
+		"constructs", encode_pmap encode_efield e.e_constrs;
 		"names", enc_array (List.map enc_string e.e_names);
 		"meta", encode_meta e.e_meta (fun m -> e.e_meta <- m);
 	]

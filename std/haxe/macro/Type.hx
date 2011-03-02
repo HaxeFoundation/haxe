@@ -87,7 +87,7 @@ typedef EnumField = {
 }
 
 typedef EnumType = {> BaseType,
-	var contructs : Hash<EnumField>;
+	var constructs : Hash<EnumField>;
 	var names : Array<String>;
 }
 
