@@ -428,7 +428,7 @@ try
 				Common.display_default := true;
 				Common.define com "display";
 				Parser.resume_display := {
-					Ast.pfile = Common.get_full_path file;
+					Ast.pfile = (try Common.get_full_path file with _ -> file);
 					Ast.pmin = pos;
 					Ast.pmax = pos;
 				};
