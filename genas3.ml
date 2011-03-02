@@ -850,6 +850,29 @@ let generate_field ctx static f =
 	ctx.in_static <- static;
 	ctx.locals <- PMap.empty;
 	ctx.inv_locals <- PMap.empty;
+	List.iter (fun(m,pl,_) ->
+		match m,pl with
+		| ":meta", [Ast.ECall ((Ast.EConst (Ast.Ident n | Ast.Type n),_),args),_] ->
+			let mk_arg (a,p) =
+				match a with
+				| Ast.EConst (Ast.String s) -> (None, s)
+				| Ast.EBinop (Ast.OpAssign,(Ast.EConst (Ast.Ident n | Ast.Type n),_),(Ast.EConst (Ast.String s),_)) -> (Some n, s)
+				| _ -> error "Invalid meta definition" p
+			in
+			print ctx "[%s" n;
+			(match args with
+			| [] -> ()
+			| _ ->
+				print ctx "(";
+				concat ctx "," (fun a ->
+					match mk_arg a with
+					| None, s -> gen_constant ctx (snd a) (TString s)
+					| Some s, e -> print ctx "%s=" s; gen_constant ctx (snd a) (TString e)
+				) args;
+				print ctx ")");
+			print ctx "]";
+		| _ -> ()
+	) f.cf_meta;
 	let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static) || f.cf_name = "resolve" in
 	let rights = (if static then "static " else "") ^ (if public then "public" else "protected") in
 	let p = ctx.curclass.cl_pos in
