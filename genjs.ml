@@ -271,6 +271,7 @@ and gen_expr ctx e =
 		ctx.curmethod <- old_meth;
 		ctx.in_value <- fst old;
 		ctx.in_loop <- snd old;
+		ctx.separator <- true
 	| TCall (e,el) ->
 		gen_call ctx e el
 	| TArrayDecl el ->
@@ -660,6 +661,7 @@ let gen_class_static_field ctx c f =
 			ctx.id_counter <- 0;
 			print ctx "%s%s = " (s_path ctx c.cl_path) (field f.cf_name);
 			gen_value ctx e;
+			ctx.separator <- false;
 			newline ctx
 		| _ ->
 			ctx.statics <- (c,f.cf_name,e) :: ctx.statics
@@ -675,6 +677,7 @@ let gen_class_field ctx c f =
 		ctx.curmethod <- (f.cf_name,false);
 		ctx.id_counter <- 0;
 		gen_value ctx e;
+		ctx.separator <- false;
 		newline ctx
 
 let gen_constructor ctx e =
