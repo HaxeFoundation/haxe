@@ -269,34 +269,30 @@ class Http {
 	}
 
 	public function customRequest( post : Bool, api : haxe.io.Output, ?sock : AbstractSocket, ?method : String  ) {
-		#if php
 		var url_regexp = ~/^(https?:\/\/)?([a-zA-Z\.0-9-]+)(:[0-9]+)?(.*)$/;
-		#else
-		var url_regexp = ~/^(http:\/\/)?([a-zA-Z\.0-9-]+)(:[0-9]+)?(.*)$/;
-		#end
 		if( !url_regexp.match(url) ) {
 			onError("Invalid URL");
 			return;
 		}
-		#if php
 		var secure = (url_regexp.matched(1) == "https://");
-		#end
-		if ( sock == null )
-			#if php
-			sock = (secure) ? Socket.newSslSocket() : new Socket();
-			#else
-			sock = new Socket();
-			#end
+		if( sock == null ) {
+			if( secure ) {
+				#if php
+				sock = Socket.newSslSocket();
+				#elseif hxssl
+				sock = new neko.tls.Socket();
+				#else
+				throw "Https is only supported with -lib hxssl";
+				#end
+			} else
+				sock = new Socket();
+		}
 		var host = url_regexp.matched(2);
 		var portString = url_regexp.matched(3);
 		var request = url_regexp.matched(4);
 		if( request == "" )
 			request = "/";
-		#if php
-		var port = if( portString == null || portString == "" ) ((!secure) ? 80 : 443) else Std.parseInt(portString.substr(1,portString.length-1));
-		#else
-		var port = if ( portString == null || portString == "" ) 80 else Std.parseInt(portString.substr(1, portString.length - 1));
-		#end
+		var port = if ( portString == null || portString == "" ) secure ? 443 : 80 else Std.parseInt(portString.substr(1, portString.length - 1));
 		var data;
 
 		var multipart = (file != null);
