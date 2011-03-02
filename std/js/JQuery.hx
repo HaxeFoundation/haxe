@@ -46,7 +46,7 @@ extern class JQuery implements ArrayAccess<JQuery> {
 
 	function css( prop : String, ?value : String ) : String;
 	function html( ?fill : String ) : String; // first element only
-	function val() : String; // for input elements
+	function val( ?value : String ) : String; // for input elements
 	function text( ?value : String ) : String;
 
 	// Size & Position
@@ -54,8 +54,8 @@ extern class JQuery implements ArrayAccess<JQuery> {
 	function height( ?value : Int ) : Int;
 	function innerWidth( ?value : Int ) : Int;
 	function innerHeight( ?value : Int ) : Int;
-	function outerWidth( ?value : Int ) : Int;
-	function outerHeight( ?value : Int ) : Int;
+	function outerWidth( ?includeMargin : Bool ) : Int;
+	function outerHeight( ?includeMargin : Bool ) : Int;
 	function scrollLeft( ?value : Int ) : Int;
 	function scrollTop( ?value : Int ) : Int;
 	function offset( ?value : { left : Int, top : Int } ) : { left : Int, top : Int };
