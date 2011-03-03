@@ -289,7 +289,7 @@ and parse_type_path s = parse_type_path1 [] s
 and parse_type_path1 pack = parser
 	| [< '(Const (Ident name),p); s >] ->
 		(match s with parser
-		| [< '(Dot,p); >] ->
+		| [< '(Dot,p) >] ->
 			if is_resuming p then
 				raise (TypePath (List.rev (name :: pack),None))
 			else
@@ -319,8 +319,8 @@ and parse_type_path1 pack = parser
 		}
 
 and type_name = parser
-	| [< '(Const (Type name),_); >] -> name
-	| [< '(Const (Ident name),p); >] ->
+	| [< '(Const (Type name),_) >] -> name
+	| [< '(Const (Ident name),p) >] ->
 		error (Custom "Type name should start with an uppercase letter") p
 
 and parse_type_path_or_const = parser
