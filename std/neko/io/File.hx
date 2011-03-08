@@ -46,15 +46,15 @@ class File {
 		return neko.Lib.bytesReference(getContent(path));
 	}
 
-	public static function read( path : String, binary : Bool ) {
+	public static function read( path : String, binary : Bool = true ) {
 		return new FileInput(untyped file_open(path.__s,(if( binary ) "rb" else "r").__s));
 	}
 
-	public static function write( path : String, binary : Bool ) {
+	public static function write( path : String, binary : Bool = true ) {
 		return new FileOutput(untyped file_open(path.__s,(if( binary ) "wb" else "w").__s));
 	}
 
-	public static function append( path : String, binary : Bool ) {
+	public static function append( path : String, binary : Bool = true ) {
 		return new FileOutput(untyped file_open(path.__s,(if( binary ) "ab" else "a").__s));
 	}
 
