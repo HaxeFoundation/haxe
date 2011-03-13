@@ -1,5 +1,6 @@
 package unit;
 import haxe.Int32;
+using haxe.Int32;
 
 class TestInt32 extends Test {
 
@@ -28,7 +29,8 @@ class TestInt32 extends Test {
 		eq( i(one), 1 );
 		eq( i(minone), -1 );
 		eq( i(i32(0x01020304)), 0x01020304 );
-		eq( i(Int32.make(0x0102,0x0304)), 0x01020304 );
+		eq( i(Int32.make(0x0102, 0x0304)), 0x01020304 );
+		eq( i(Int32.make(0x10102, 0x0304)), 0x01020304 );
 
 		// 31 bits overflow
 		exc( function() i(Int32.shl(one,30)) );
@@ -45,6 +47,16 @@ class TestInt32 extends Test {
 		eq( Int32.compare(minone,minone), 0 );
 		eq( Int32.compare(minone,zero), -1 );
 		eq( Int32.compare(zero,minone), 1 );
+
+		eq( Int32.ucompare(one,one), 0 );
+		eq( Int32.ucompare(one,zero), 1 );
+		eq( Int32.ucompare(zero,one), -1 );
+		eq( Int32.ucompare(minone,minone), 0 );
+		eq( Int32.ucompare(minone,zero), 1 );
+		eq( Int32.ucompare(zero,minone), -1 );
+		eq( Int32.ucompare((-1).ofInt(),(-2).ofInt()), 1 );
+		eq( Int32.ucompare((-2).ofInt(),(-1).ofInt()), -1 );
+
 
 		eq( i(Int32.add(one,one)), 2 );
 		eq( i(Int32.sub(minone,one)), -2 );
@@ -76,7 +88,19 @@ class TestInt32 extends Test {
 		eq( i(Int32.xor(i32(0xFE08BE39),i32(0xCBCDEF99))), 0x35C551A0 );
 		eq( i(Int32.neg(one)), -1 );
 		eq( i(Int32.complement(i32(55))), -56 );
-		eq( i(Int32.complement(i32(-0x10000))), 0xFFFF );
+		eq( i(Int32.complement(i32( -0x10000))), 0xFFFF );
+
+		// check overflows
+		eq( i(i32((1 << 29) * 255)), 0xE0000000 );
+
+		eq( 0x050BCDEF.ofInt().shl(8).ushr(8).toInt(), 0x0BCDEF );
+
+		eq( 0x050BCDEF.ofInt().shl(8).div(256.ofInt()).toInt(), 0x0BCDEF );
+
+		eq( 7.ofInt().div(3.ofInt()).mul(3.ofInt()).toInt(), 6 );
+
+		eq( 0x050BCDEF.ofInt().mul(256.ofInt()).mod(0xFF.ofInt()).toInt(), 200 );
+
 	}
 
 }

@@ -44,5 +44,8 @@ extern class CppInt32__ {
 	public static  function neg( a : Int32 ) : Int32;
 	public static  function complement( a : Int32 ) : Int32;
 	public static  function compare( a : Int32, b : Int32 ) : Int;
+	public static  function isNeg( a : Int32 ) : Bool;
+	public static  function isZero( a : Int32 ) : Bool;
+	public static  function ucompare( a : Int32, b : Int32 ) : Int;
 }
 

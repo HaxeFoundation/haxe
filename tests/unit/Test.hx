@@ -186,6 +186,7 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 			new TestReflect(),
 			new TestBytes(),
 			new TestInt32(),
+			new TestInt64(),
 			new TestIO(),
 			new TestLocals(),
 			new TestSerialize(),
