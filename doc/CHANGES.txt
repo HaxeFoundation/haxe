@@ -9,6 +9,7 @@
 	neko : added support for https to haxe.Http (using hxssl library)
 	all : added haxe.Int64
 	all : added haxe.Int32 isNeg,isZero,ucompare, fixed overflows for js/flash8/php
+	all : bugfix when optimizing inlined immediate function call
 
 2011-01-30: 2.07
 	all : fixed completion support with --remap

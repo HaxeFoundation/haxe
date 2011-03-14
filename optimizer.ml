@@ -24,7 +24,7 @@ open Typecore
 (* ---------------------------------------------------------------------- *)
 (* INLINING *)
 
-let type_inline ctx cf f ethis params tret p =
+let rec type_inline ctx cf f ethis params tret p =
 	let locals = save_locals ctx in
 	let hcount = Hashtbl.create 0 in
 	let lsets = Hashtbl.create 0 in
@@ -81,6 +81,7 @@ let type_inline ctx cf f ethis params tret p =
 		| None -> None
 		| Some e -> Some (f e)
 	in
+	let inlined_vars = List.map2 (fun (n,t) e -> n,(t,e)) ((vthis,ethis.etype) :: pnames) (ethis :: params) in
 	let has_vars = ref false in
 	(*
 		here, we try to eliminate final returns from the expression tree.
@@ -88,6 +89,7 @@ let type_inline ctx cf f ethis params tret p =
 		the type of returned expressions upwards ("return" expr itself being Dynamic)
 	*)
 	let rec map term e =
+		let po = e.epos in
 		let e = { e with epos = p } in
 		match e.eexpr with
 		| TLocal s ->
@@ -103,7 +105,7 @@ let type_inline ctx cf f ethis params tret p =
 			) vl in
 			{ e with eexpr = TVars vl }
 		| TReturn eo ->
-			if not term then error "Cannot inline a not final return" e.epos;
+			if not term then error "Cannot inline a not final return" po;
 			(match eo with
 			| None -> mk (TConst TNull) (mk_mono()) p
 			| Some e -> map term e)
@@ -170,9 +172,28 @@ let type_inline ctx cf f ethis params tret p =
 			| _ -> ());
 			{ e with eexpr = TBinop (op,map false e1,map false e2) }
 		| TConst TSuper ->
-			error "Cannot inline function containing super" e.epos
+			error "Cannot inline function containing super" po
 		| TFunction _ ->
-			error "Cannot inline functions containing closures" p
+			error "Cannot inline functions containing closures" po
+		| TCall ({ eexpr = TLocal s },el) ->
+			(*
+				Let's inline a local function call.
+				This is the only place where we can do it since it's required to track locals
+				of both original calling context and inlined function.
+				Since it's a bit early inlining, we also have to make sure that this local will not be writable.
+			*)
+			(try
+				let _, ef = List.assoc (local s) inlined_vars in
+				match ef.eexpr, follow ef.etype with
+				| TFunction func, TFun (_,rt) ->					
+					let cf = { cf_name = ""; cf_params = []; cf_type = ef.etype; cf_public = true; cf_doc = None; cf_meta = no_meta; cf_kind = Var { v_read = AccNormal; v_write = AccNo }; cf_expr = None } in
+					let inl = (try type_inline ctx cf func ethis el rt e.epos with Error (Custom _,_) -> None) in
+					(match inl with
+					| None -> raise Not_found
+					| Some e -> map term e (* loop *))
+				| _ -> raise Not_found
+			with Not_found ->
+				Type.map_expr (map false) e)
 		| _ ->
 			Type.map_expr (map false) e
 	in
@@ -180,15 +201,16 @@ let type_inline ctx cf f ethis params tret p =
 	locals();
 	let subst = ref PMap.empty in
 	Hashtbl.add hcount vthis this_count;
-	let vars = List.map2 (fun (n,t) e ->
+	let vars = List.map (fun (n,(t,e)) ->
 		let flag = not (Hashtbl.mem lsets n) && (match e.eexpr with
 			| TLocal _ | TConst _ | TFunction _ -> true
 			| _ ->
 				let used = !(Hashtbl.find hcount n) in
 				used <= 1
 		) in
+		if not flag && (match e.eexpr with TFunction _ -> true | _ -> false) then error "Cannot modify a closure parameter inside inline method" p;
 		(n,t,e,flag)
-	) ((vthis,ethis.etype) :: pnames) (ethis :: params) in
+	) inlined_vars in
 	let vars = List.fold_left (fun acc (n,t,e,flag) ->
 		if flag then begin
 			subst := PMap.add n e !subst;
@@ -624,16 +646,11 @@ let rec reduce_loop ctx e =
 				e
 		| _ -> e
 		)
-	| TCall ({ eexpr = TFunction func } as ef,el) ->
-		(match follow ef.etype with
-		| TFun (_,rt) ->
-			let cf = { cf_name = ""; cf_params = []; cf_type = ef.etype; cf_public = true; cf_doc = None; cf_meta = no_meta; cf_kind = Var { v_read = AccNormal; v_write = AccNo }; cf_expr = None } in
-			let inl = (try type_inline ctx cf func (mk (TConst TNull) (mk_mono()) e.epos) el rt e.epos with Error (Custom _,_) -> None) in
-			(match inl with
-			| None -> e
-			| Some e -> e)
-		| _ ->
-			e)
+	(*
+		disable : we need to call type_inline, but it requires to have good locals.
+		instead it's directly done in type_inline while inlining a function-parameter
+		| TCall ({ eexpr = TFunction func } as ef,el) ->
+	*)
 	| _ ->
 		reduce_expr ctx e)
 
