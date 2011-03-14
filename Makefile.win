@@ -25,7 +25,7 @@ codegen.cmx: typeload.cmx typecore.cmx type.cmx genxml.cmx common.cmx ast.cmx
 common.cmx: type.cmx lexer.cmx ast.cmx
 genas3.cmx: type.cmx common.cmx codegen.cmx ast.cmx
 gencpp.cmx: type.cmx common.cmx codegen.cmx ast.cmx
-genjs.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
+genjs.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx optimizer.cmx
 genneko.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx ../neko/libs/include/ocaml/binast.cmx ../neko/libs/include/ocaml/nxml.cmx
 genphp.cmx: type.cmx lexer.cmx common.cmx codegen.cmx ast.cmx
 genswf.cmx: type.cmx genswf9.cmx genswf8.cmx common.cmx ast.cmx
