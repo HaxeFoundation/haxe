@@ -241,7 +241,7 @@ let keyword_remap name =
 	| "register" | "short" | "signed" | "sizeof" | "template" | "typedef"
 	| "union" | "unsigned" | "void" | "volatile" | "or" | "and" | "xor" | "or_eq"
 	| "and_eq" | "xor_eq" | "typeof" | "stdin" | "stdout" | "stderr"
-	| "BIG_ENDIAN" | "LITTLE_ENDIAN" | "assert" | "NULL" | "wchar_t"
+	| "BIG_ENDIAN" | "LITTLE_ENDIAN" | "assert" | "NULL" | "wchar_t" | "EOF"
 	| "bool" | "const_cast" | "dynamic_cast" | "explicit" | "export" | "mutable" | "namespace"
  	| "reinterpret_cast" | "static_cast" | "typeid" | "typename" | "virtual"
 	| "struct" -> "_" ^ name
@@ -834,7 +834,7 @@ let rec is_dynamic_in_cpp ctx expr =
 				dyn;
 		| TTypeExpr _ -> false
 		| TCall(func,args) ->
-           (match follow func.etype with
+                 (match follow func.etype with
                | TFun (args,ret) -> ctx.ctx_dbgout ("/* ret = "^ (type_string ret) ^" */");
                    is_dynamic_in_cpp ctx func
                | _ -> ctx.ctx_dbgout "/* not TFun */";  true
@@ -953,7 +953,7 @@ let rec define_local_function_ctx ctx func_name func_def =
 			(* Save old values, and equalize for new input ... *)
 			let pop_names = push_anon_names ctx in
 
-			find_local_functions_ctx ctx func_def.tf_expr;
+			find_local_functions_ctx ctx false func_def.tf_expr;
 			find_local_return_blocks_ctx ctx false func_def.tf_expr;
 
 			(match func_def.tf_expr.eexpr with
@@ -990,11 +990,12 @@ let rec define_local_function_ctx ctx func_name func_def =
 	in
 	define_local_function func_name func_def
 
-and find_local_functions_ctx ctx expression =
+and find_local_functions_ctx ctx retval expression =
 	let output = ctx.ctx_output in
-	let rec find_local_functions expression =
+	let rec find_local_functions retval expression =
 		match expression.eexpr with
 		| TBlock _
+		| TTry (_, _)
 		| TObjectDecl _ -> ()  (* stop at block - since that block will define the function *)
 		(*| TCall (e,el) -> (* visit function object first, then args *)
 			find_local_functions e;
@@ -1005,8 +1006,16 @@ and find_local_functions_ctx ctx expression =
 			define_local_function_ctx ctx func_name func
 		| TField (obj,_) when (is_null obj) -> ( )
 		| TArray (obj,_) when (is_null obj) -> ( )
-		| _ -> Type.iter find_local_functions expression
-	in find_local_functions expression
+		| TIf ( _ , _ , _ ) when retval -> (* ? operator style *)
+		   iter_retval find_local_functions retval expression
+		| TMatch (_, _, _, _)
+		| TSwitch (_, _, _) when retval -> ( )
+		| TMatch ( cond , _, _, _)
+		| TWhile ( cond , _, _ )
+		| TIf ( cond , _, _ )
+		| TSwitch ( cond , _, _) -> iter_retval find_local_functions true cond
+		| _ -> iter_retval find_local_functions retval expression
+	in find_local_functions retval expression
 
 and find_local_return_blocks_ctx ctx retval expression =
 	let rec find_local_return_blocks retval expression =
@@ -1072,7 +1081,7 @@ and define_local_return_block_ctx ctx expression name =
 			let pop_names = push_anon_names ctx in
 			List.iter (function (name,value) ->
 				find_local_return_blocks_ctx ctx true value;
-				find_local_functions_ctx ctx value;
+				find_local_functions_ctx ctx true value;
 				output_i ( "__result->Add(" ^ (str name) ^ " , ");
 				gen_expression ctx true value;
 				output (");\n");
@@ -1203,6 +1212,13 @@ and gen_expression ctx retval expression =
 		gen_expression_list arg_list;
 		output ")";
 	| TCall (func, arg_list) ->
+      let rec is_variable e = match e.eexpr with
+         | TField _ -> false
+	      | TEnumField _ -> false
+		   | TLocal name when name = "__global__" -> false
+         | TParenthesis p -> is_variable p
+         | _ -> true
+      in
 		let expr_type = type_string expression.etype in
 		if (ctx.ctx_debug_type) then output ("/* TCALL ret=" ^ expr_type ^ "*/");
 		ctx.ctx_calling <- true;
@@ -1210,6 +1226,8 @@ and gen_expression ctx retval expression =
 		output "(";
 		gen_expression_list arg_list;
 		output ")";
+      if ( (is_variable func) && (expr_type<>"Dynamic") ) then
+         ctx.ctx_output (".Cast< " ^ expr_type ^ " >()" );
 	| TBlock expr_list ->
 		if (retval) then begin
 			let func_name = use_anon_function_name ctx in
@@ -1229,8 +1247,8 @@ and gen_expression ctx retval expression =
 			let pop_names = push_anon_names ctx in
 			let remaining = ref (List.length expr_list) in
 			List.iter (fun expression ->
-				find_local_functions_ctx ctx expression;
 				let want_value = (return_from_block && !remaining = 1) in
+				find_local_functions_ctx ctx want_value expression;
 				find_local_return_blocks_ctx ctx want_value expression;
 				let line = Lexer.get_error_line expression.epos in
 				output_i ("HX_SOURCE_POS(\"" ^ (Ast.s_escape expression.epos.pfile) ^ "\","
@@ -1426,7 +1444,8 @@ and gen_expression ctx retval expression =
 				| None -> output "null()"
 				| Some expression -> gen_expression ctx true expression )
 			else begin
-				gen_type ctx var_type;
+            let type_name = (type_string var_type) in
+				output (if type_name="Void" then "Dynamic" else type_name );
 				output (" " ^ (keyword_remap var_name) );
 				(match optional_init with
 				| None -> ()
@@ -1448,16 +1467,6 @@ and gen_expression ctx retval expression =
 		output_i "__SAFE_POINT\n";
 		ctx.ctx_writer#end_block;
 	| TIf (condition, if_expr, optional_else_expr)  ->
-		let output_if_expr expr terminate =
-			(match expr.eexpr with
-			| TBlock _ -> gen_expression ctx false expr
-			| _ ->  output "\n";
-				output_i "";
-				writer#indent_one;
-				gen_expression ctx false expr;
-				if (terminate) then output ";\n"
-			) in
-
 		(match optional_else_expr with
 		| Some else_expr -> 
 			if (retval) then begin
@@ -1486,7 +1495,7 @@ and gen_expression ctx retval expression =
 		| _ -> output "if (";
 			gen_expression ctx true condition;
 			output ")";
-			output_if_expr if_expr false
+			gen_expression ctx false (to_block if_expr);
 		)
 	| TWhile (condition, repeat, Ast.NormalWhile ) ->
 			output  "while(";
@@ -1855,7 +1864,7 @@ let gen_field_init ctx field =
 	(* Data field *)
 	| _ -> (match field.cf_expr with
 		| Some expr ->
-			find_local_functions_ctx ctx expr;
+			find_local_functions_ctx ctx true expr;
 			find_local_return_blocks_ctx ctx true expr;
 			output ( "	hx::Static(" ^ remap_name ^ ") = ");
 			gen_expression ctx true expr;
@@ -2453,7 +2462,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	(match class_def.cl_init with
 	| Some expression -> 
 		output_cpp ("void " ^ class_name^ "::__init__()");
-		gen_expression (new_context common_ctx cpp_file debug) false expression;
+		gen_expression (new_context common_ctx cpp_file debug) false (to_block expression);
 		output_cpp "\n\n";
 	| _ -> ());
 
