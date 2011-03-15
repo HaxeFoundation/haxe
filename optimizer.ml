@@ -116,7 +116,7 @@ let rec type_inline ctx cf f ethis params tret p =
 			let e2 = map false e2 in
 			old();
 			{ e with eexpr = TFor (v,t,e1,e2) }
-		| TMatch (e,en,cases,def) ->
+		| TMatch (v,en,cases,def) ->
 			let term, t = (match def with Some d when term -> true, ref d.etype | _ -> false, ref e.etype) in
 			let cases = List.map (fun (i,vl,e) ->
 				let old = save_locals ctx in
@@ -126,7 +126,7 @@ let rec type_inline ctx cf f ethis params tret p =
 				old();
 				i, vl, e
 			) cases in
-			{ e with eexpr = TMatch (map false e,en,cases,opt (map term) def); etype = !t }
+			{ e with eexpr = TMatch (map false v,en,cases,opt (map term) def); etype = !t }
 		| TTry (e1,catches) ->
 			{ e with eexpr = TTry (map term e1,List.map (fun (v,t,e) ->
 				let old = save_locals ctx in
