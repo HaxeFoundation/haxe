@@ -158,8 +158,22 @@ let semicolon s =
 let rec	parse_file s =
 	doc := None;
 	match s with parser
-	| [< '(Kwd Package,_); p = parse_package; _ = semicolon; l = plist parse_type_decl; '(Eof,_) >] -> p , l
-	| [< l = plist parse_type_decl; '(Eof,_) >] -> [] , l
+	| [< '(Kwd Package,_); p = parse_package; _ = semicolon; l = parse_type_decls []; '(Eof,_) >] -> p , l
+	| [< l = parse_type_decls []; '(Eof,_) >] -> [] , l
+
+and parse_type_decls acc s = 
+	try
+		match s with parser
+		| [< v = parse_type_decl; l = parse_type_decls (v :: acc) >] -> l
+		| [< >] -> List.rev acc
+	with (TypePath ([],Some name)) as e ->
+		(* resolve imports *)
+		List.iter (fun d ->
+			match fst d with
+			| EImport t when (t.tsub = None && t.tname = name) -> raise (TypePath (t.tpackage,Some t.tname))
+			| _ -> ()
+		) acc;
+		raise e
 
 and parse_type_decl s =
 	match s with parser
