@@ -953,8 +953,7 @@ let rec define_local_function_ctx ctx func_name func_def =
 			(* Save old values, and equalize for new input ... *)
 			let pop_names = push_anon_names ctx in
 
-			find_local_functions_ctx ctx false func_def.tf_expr;
-			find_local_return_blocks_ctx ctx false func_def.tf_expr;
+			find_local_functions_and_return_blocks_ctx ctx false func_def.tf_expr;
 
 			(match func_def.tf_expr.eexpr with
 			| TReturn (Some return_expression) when (func_type<>"Void") ->
@@ -990,43 +989,14 @@ let rec define_local_function_ctx ctx func_name func_def =
 	in
 	define_local_function func_name func_def
 
-and find_local_functions_ctx ctx retval expression =
+and find_local_functions_and_return_blocks_ctx ctx retval expression =
 	let output = ctx.ctx_output in
-	let rec find_local_functions retval expression =
-		match expression.eexpr with
-		| TBlock _
-		| TTry (_, _)
-		| TObjectDecl _ -> ()  (* stop at block - since that block will define the function *)
-		(*| TCall (e,el) -> (* visit function object first, then args *)
-			find_local_functions e;
-			List.iter find_local_functions  el *)
-		| TFunction func ->
-			let func_name = next_anon_function_name ctx in
-			output "\n";
-			define_local_function_ctx ctx func_name func
-		| TField (obj,_) when (is_null obj) -> ( )
-		| TArray (obj,_) when (is_null obj) -> ( )
-		| TIf ( _ , _ , _ ) when retval -> (* ? operator style *)
-		   iter_retval find_local_functions retval expression
-		| TMatch (_, _, _, _)
-		| TSwitch (_, _, _) when retval -> ( )
-		| TMatch ( cond , _, _, _)
-		| TWhile ( cond , _, _ )
-		| TIf ( cond , _, _ )
-		| TSwitch ( cond , _, _) -> iter_retval find_local_functions true cond
-		| _ -> iter_retval find_local_functions retval expression
-	in find_local_functions retval expression
-
-and find_local_return_blocks_ctx ctx retval expression =
-	let rec find_local_return_blocks retval expression =
+	let rec find_local_functions_and_return_blocks retval expression =
 		match expression.eexpr with
 		| TBlock _ ->
 			if (retval) then begin
 				define_local_return_block_ctx ctx expression (next_anon_function_name ctx);
 			end  (* else we are done *)
-		| TFunction func -> ()
-		| TArray ( obj, _ ) when (is_null obj)-> ( )
-		| TField ( obj, _ ) when (is_null obj)-> ( )
 		| TMatch (_, _, _, _)
 		| TTry (_, _)
 		| TSwitch (_, _, _) when retval ->
@@ -1037,13 +1007,26 @@ and find_local_return_blocks_ctx ctx retval expression =
                ("methodName", { eexpr = (TConst (TString meth)) }) :: [] ) -> ()
 		| TObjectDecl decl_list ->
 				let name = next_anon_function_name ctx in
-				(*
-				List.iter (fun (name,expr) -> iter_retval find_local_return_blocks true expr) decl_list;
-				*)
 				define_local_return_block_ctx ctx expression name;
-		| _ -> iter_retval find_local_return_blocks retval expression
-	in
-	find_local_return_blocks retval expression
+		(*| TCall (e,el) -> (* visit function object first, then args *)
+			find_local_functions_and_return_blocks e;
+			List.iter find_local_functions_and_return_blocks  el *)
+		| TFunction func ->
+			let func_name = next_anon_function_name ctx in
+			output "\n";
+			define_local_function_ctx ctx func_name func
+		| TField (obj,_) when (is_null obj) -> ( )
+		| TArray (obj,_) when (is_null obj) -> ( )
+		| TIf ( _ , _ , _ ) when retval -> (* ? operator style *)
+		   iter_retval find_local_functions_and_return_blocks retval expression
+		| TMatch (_, _, _, _)
+		| TSwitch (_, _, _) when retval -> ( )
+		| TMatch ( cond , _, _, _)
+		| TWhile ( cond , _, _ )
+		| TIf ( cond , _, _ )
+		| TSwitch ( cond , _, _) -> iter_retval find_local_functions_and_return_blocks true cond
+		| _ -> iter_retval find_local_functions_and_return_blocks retval expression
+	in find_local_functions_and_return_blocks retval expression
 
 and define_local_return_block_ctx ctx expression name =
 	let writer = ctx.ctx_writer in
@@ -1080,8 +1063,7 @@ and define_local_return_block_ctx ctx expression name =
 			output_i "hx::Anon __result = hx::Anon_obj::Create();\n";
 			let pop_names = push_anon_names ctx in
 			List.iter (function (name,value) ->
-				find_local_return_blocks_ctx ctx true value;
-				find_local_functions_ctx ctx true value;
+				find_local_functions_and_return_blocks_ctx ctx true value;
 				output_i ( "__result->Add(" ^ (str name) ^ " , ");
 				gen_expression ctx true value;
 				output (");\n");
@@ -1248,8 +1230,7 @@ and gen_expression ctx retval expression =
 			let remaining = ref (List.length expr_list) in
 			List.iter (fun expression ->
 				let want_value = (return_from_block && !remaining = 1) in
-				find_local_functions_ctx ctx want_value expression;
-				find_local_return_blocks_ctx ctx want_value expression;
+				find_local_functions_and_return_blocks_ctx ctx want_value expression;
 				let line = Lexer.get_error_line expression.epos in
 				output_i ("HX_SOURCE_POS(\"" ^ (Ast.s_escape expression.epos.pfile) ^ "\","
 					^ (string_of_int line) ^ ")\n" );
@@ -1864,8 +1845,7 @@ let gen_field_init ctx field =
 	(* Data field *)
 	| _ -> (match field.cf_expr with
 		| Some expr ->
-			find_local_functions_ctx ctx true expr;
-			find_local_return_blocks_ctx ctx true expr;
+			find_local_functions_and_return_blocks_ctx ctx true expr;
 			output ( "	hx::Static(" ^ remap_name ^ ") = ");
 			gen_expression ctx true expr;
 			output ";\n"
@@ -2269,7 +2249,7 @@ let generate_enum_files common_ctx enum_def super_deps meta =
 	(match meta with
 		| Some expr ->
 			let ctx = new_context common_ctx cpp_file false in
-			find_local_return_blocks_ctx ctx true expr;
+			find_local_functions_and_return_blocks_ctx ctx true expr;
 			output_cpp ("Static(__meta__) = ");
 			gen_expression ctx true expr;
 			output_cpp ";\n"
