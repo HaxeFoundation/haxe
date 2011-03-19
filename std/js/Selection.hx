@@ -44,6 +44,40 @@ class Selection {
 		return range.text;
 	}
 
+	public function select( start : Int, end : Int ) {
+		doc.focus();
+		// Mozilla
+		if( doc.selectionStart != null ) {
+			doc.selectionStart = start;
+			doc.selectionEnd = end;
+			return;
+		}
+		// FIX : IE count \r\n as one single char for selection
+		// operations, we must then deal with it
+		var value : String = doc.value;
+		var p = 0, delta = 0;
+		while( true ) {
+			var i = value.indexOf("\r\n", p);
+			if( i < 0 || i > start ) break;
+			delta++;
+			p = i + 2;
+		}
+		start -= delta;
+		while( true ) {
+			var i = value.indexOf("\r\n", p);
+			if( i < 0 || i > end ) break;
+			delta++;
+			p = i + 2;
+		}
+		end -= delta;
+		// IE
+		var r = doc.createTextRange();
+        r.moveEnd('textedit',-1);
+        r.moveStart('character',start);
+        r.moveEnd('character',end - start);
+        r.select();
+	}
+
 	public function insert( left : String, text : String, right : String ) {
 		doc.focus();
 		// Mozilla
