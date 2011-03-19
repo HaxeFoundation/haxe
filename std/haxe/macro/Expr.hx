@@ -24,8 +24,16 @@
  */
 package haxe.macro;
 
+#if neko
 extern enum Position {
 }
+#else
+typedef Position = {
+	var file : String;
+	var min : Int;
+	var max : Int;
+}
+#end
 
 enum Constant {
 	CInt( v : String );
@@ -64,7 +72,7 @@ enum Binop {
 
 enum Unop {
 	OpIncrement;
-	OpIDecrement;
+	OpDecrement;
 	OpNot;
 	OpNeg;
 	OpNegBits;
