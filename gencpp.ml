@@ -772,13 +772,13 @@ let find_undeclared_variables_ctx ctx undeclared declarations this_suffix allow_
 				| Some l -> List.iter (fun (opt_name,t) ->
 					match opt_name with | Some name -> Hashtbl.add declarations (keyword_remap name) () | _ -> ()  )
 					l  );
-				Type.iter (find_undeclared_variables undeclared declarations this_suffix allow_this) expression;
+				find_undeclared_variables undeclared declarations this_suffix allow_this expression;
 				Hashtbl.clear declarations;
 				Hashtbl.iter ( Hashtbl.add declarations ) old_decs
 				) cases;
 			(match default with | None -> ()
 			| Some expr ->
-				Type.iter (find_undeclared_variables undeclared declarations this_suffix allow_this) expr;
+				find_undeclared_variables undeclared declarations this_suffix allow_this expr;
 			);
 		| TFor (var_name, var_type, init, loop) ->
 			let old_decs = Hashtbl.copy declarations in
