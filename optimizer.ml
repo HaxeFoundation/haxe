@@ -234,7 +234,7 @@ let rec type_inline ctx cf f ethis params tret p =
 			if e.etype == tret then
 				e
 			else
-				mk (TParenthesis e) tret e.epos
+				mk (TCast (e,None)) tret e.epos
 		in
 		let e = (match e.eexpr, init with
 			| TBlock [e] , None -> wrap e
