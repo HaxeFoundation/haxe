@@ -75,7 +75,7 @@ let download_libs() =
 	cvs motiontwin "co ocaml/extc";
 	cvs motiontwin "co ocaml/extlib-dev";
 	cvs motiontwin "co ocaml/xml-light";
-	cvs motiontwin "co neko/libs/include/ocaml"
+	command "svn co http://nekovm.googlecode.com/svn/trunk/libs/include/ocaml neko/libs/include/ocaml";
 in
 
 let download() =
