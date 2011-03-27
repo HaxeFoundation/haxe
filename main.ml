@@ -538,15 +538,12 @@ try
 			if com.flash_version >= 9. then begin
 				let rec loop = function
 					| [] -> ()
-					| v :: _ when v > com.flash_version -> ()
-					| v :: l ->
-						let maj = int_of_float v in
-						let min = int_of_float (mod_float (v *. 10.) 10.) in
-						let def = "flash" ^ string_of_int maj ^ (if min = 0 then "" else "_" ^ string_of_int min) in
-						Common.define com def;
+					| (v,_) :: _ when v > com.flash_version -> ()
+					| (v,def) :: l ->
+						Common.define com ("flash" ^ def);
 						loop l
 				in
-				loop [9.;10.;10.1;10.2;10.3;11.];
+				loop Common.flash_versions;
 				com.package_rules <- PMap.add "flash" (Directory "flash9") com.package_rules;
 				com.package_rules <- PMap.add "flash9" Forbidden com.package_rules;
 				com.platform <- Flash9;
