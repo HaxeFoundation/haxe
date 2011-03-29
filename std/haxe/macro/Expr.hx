@@ -83,6 +83,8 @@ typedef Expr = {
 	var pos : Position;
 }
 
+typedef ExprRequire<T> = Expr;
+
 enum ExprDef {
 	EConst( c : Constant );
 	EArray( e1 : Expr, e2 : Expr );

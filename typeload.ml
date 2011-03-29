@@ -927,9 +927,14 @@ let init_class ctx c p herits fields =
 				}
 			else
 				let tdyn = Some (CTPath { tpackage = []; tname = "Dynamic"; tparams = []; tsub = None }) in
+				let to_dyn = function
+					| { tpackage = ["haxe";"macro"]; tname = "Expr"; tsub = Some "ExprRequire"; tparams = [TPType t] } -> Some t
+					| { tpackage = []; tname = "ExprRequire"; tsub = None; tparams = [TPType t] } -> Some t
+					| _ -> tdyn
+				in
 				{
 					f_type = tdyn;
-					f_args = List.map (fun (a,o,_,_) -> a,o,tdyn,None) fd.f_args;
+					f_args = List.map (fun (a,o,t,_) -> a,o,(match t with Some (CTPath t) -> to_dyn t | _ -> tdyn),None) fd.f_args;
 					f_expr = (EBlock [],p)
 				}
 			in
