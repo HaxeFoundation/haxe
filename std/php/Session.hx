@@ -93,7 +93,7 @@ class Session {
 	
 	public static function setCookieParams(?lifetime : Int, ?path : String, ?domain : String, ?secure : Bool, ?httponly : Bool) {
 		if(started) throw "You can't set the cookie params while the session is already in use";
-		untyped __call__("session_get_cookie_params", lifetime, path, domain, secure, httponly);
+		untyped __call__("session_set_cookie_params", lifetime, path, domain, secure, httponly);
 	}
 	
 	public static function getCookieParams() : { lifetime : Int, path : String, domain : String, secure : Bool, httponly : Bool} {
