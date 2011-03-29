@@ -33,7 +33,7 @@ extern class JQuery implements ArrayAccess<JQuery> {
 	var context(default,null) : Dom.HtmlDom;
 	var length(default, null) : Int;
 
-	function new( queryOrHtml : String, ?context : JQuery ) : Void;
+	@:multitype function new( ?html : String, ?j : JQuery, ?h : Dom.HtmlDom ) : Void;
 
 	// attributes
 	function addClass( className : String ) : JQuery;
