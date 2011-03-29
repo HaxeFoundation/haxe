@@ -1,4 +1,4 @@
-package flash.display;
+package flash.ui;
 
 @:final @:require(flash10_2) extern class MouseCursorData {
 	var data : flash.Vector<BitmapData>;

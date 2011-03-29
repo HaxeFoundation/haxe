@@ -777,7 +777,7 @@ flash.globalization.StringTools.lastOperationStatus : LastOperationStatus;
 
 // FP 10.2
 
-@:require(flash10_2) flash.display.MouseCursorData;
+@:require(flash10_2) flash.ui.MouseCursorData;
 @:require(flash10_2) flash.events.StageVideoEvent;
 @:require(flash10_2) flash.events.VideoEvent;
 @:require(flash10_2) flash.media.MicrophoneEnhancedMode;
