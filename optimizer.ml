@@ -395,9 +395,10 @@ let standard_precedence op =
 	| OpAssignOp OpAssign -> 16, right (* mimics ?: *)
 	| OpAssign | OpAssignOp _ -> 17, right
 
-let need_parent e =
+let rec need_parent e =
 	match e.eexpr with
 	| TConst _ | TLocal _ | TEnumField _ | TArray _ | TField _ | TParenthesis _ | TCall _ | TClosure _ | TNew _ | TTypeExpr _ | TObjectDecl _ | TArrayDecl _ -> false
+	| TCast (e,None) -> need_parent e
 	| TCast _ | TThrow _ | TReturn _ | TTry _ | TMatch _ | TSwitch _ | TFor _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
 	| TBlock _ | TVars _ | TFunction _ | TUnop _ -> true
 

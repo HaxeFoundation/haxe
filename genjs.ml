@@ -304,10 +304,13 @@ and gen_expr ctx e =
 		gen_expr ctx e;
 		(match eelse with
 		| None -> ()
-		| Some e ->
+		| Some e2 ->
+			(match e.eexpr with
+			| TObjectDecl _ -> ctx.separator <- false
+			| _ -> ());
 			semicolon ctx;
 			spr ctx " else ";
-			gen_expr ctx e);
+			gen_expr ctx e2);
 	| TUnop (op,Ast.Prefix,e) ->
 		spr ctx (Ast.s_unop op);
 		gen_value ctx e

@@ -1499,7 +1499,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	| EUntyped e ->
 		let old = ctx.untyped in
 		ctx.untyped <- true;
-		let e = type_expr ctx e in
+		let e = type_expr ctx ~need_val e in
 		ctx.untyped <- old;
 		{
 			eexpr = e.eexpr;
