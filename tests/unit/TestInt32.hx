@@ -101,6 +101,24 @@ class TestInt32 extends Test {
 
 		eq( 0x050BCDEF.ofInt().mul(256.ofInt()).mod(0xFF.ofInt()).toInt(), 200 );
 
+		// bit shifts are % 32
+		
+		eq( i(i32(5).shl(0)), 5 );
+		eq( i(i32(5).shr(0)), 5 );
+		eq( i(i32(5).ushr(0)), 5 );
+
+		eq( i(i32(5).shl(32)), 5 );
+		eq( i(i32(5).shr(32)), 5 );
+		eq( i(i32(5).ushr(32)), 5 );
+
+		eq( i(i32(5).shl(33)), 10 );
+		eq( i(i32(5).shr(33)), 2 );
+		eq( i(i32(5).ushr(33)), 2 );
+		
+		eq( i(i32(5).shl(-5)), 671088640 );
+		eq( i(i32(5).shr(-31)), 2 );
+		eq( i(i32(5).ushr(-31)), 2 );
+		
 	}
 
 }

@@ -159,15 +159,15 @@ class Int64 {
 	}
 
 	public static inline function shl( a : Int64, b : Int ) : Int64 {
-		return if( b < 32 ) new Int64( a.high.shl(b).or(a.low.ushr(32 - b)), a.low.shl(b) ) else new Int64( a.low.shl(b - 32), 0.ofInt() );
+		return if( b & 63 == 0 ) a else if( b & 63 < 32 ) new Int64( a.high.shl(b).or(a.low.ushr(32 - (b&63))), a.low.shl(b) ) else new Int64( a.low.shl(b - 32), 0.ofInt() );
 	}
 
 	public static inline function shr( a : Int64, b : Int ) : Int64 {
-		return if( b < 32 ) new Int64( a.high.shr(b), a.low.ushr(b).or(a.high.shl(32 - b)) ) else new Int64( a.high.shr(31), a.high.shr(b - 32) );
+		return if( b & 63 == 0 ) a else if( b & 63 < 32 ) new Int64( a.high.shr(b), a.low.ushr(b).or(a.high.shl(32 - (b&63))) ) else new Int64( a.high.shr(31), a.high.shr(b - 32) );
 	}
 
 	public static inline function ushr( a : Int64, b : Int ) : Int64 {
-		return if( b < 32 ) new Int64( a.high.ushr(b), a.low.ushr(b).or(a.high.shl(32 - b)) ) else new Int64( 0.ofInt(), a.high.ushr(b - 32) );
+		return if( b & 63 == 0 ) a else if( b & 63 < 32 ) new Int64( a.high.ushr(b), a.low.ushr(b).or(a.high.shl(32 - (b&63))) ) else new Int64( 0.ofInt(), a.high.ushr(b - 32) );
 	}
 
 	public static inline function and( a : Int64, b : Int64 ) : Int64 {
@@ -209,6 +209,10 @@ class Int64 {
 	public static inline function ucompare( a : Int64, b : Int64 ) : Int {
 		var v = Int32.ucompare(a.high,b.high);
 		return if( v != 0 ) v else Int32.ucompare(a.low, b.low);
+	}
+
+	public static inline function toStr( a : Int64 ) : String {
+		return a.toString();
 	}
 
 }

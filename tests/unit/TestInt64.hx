@@ -18,6 +18,8 @@ class TestInt64 extends Test {
 		eq32( p40.getLow(), 0, 0 );
 		eq32( p40.getHigh(), 0, 256 );
 		eq( Std.string(p40), "1099511627776" );
+		
+		eq( 1.ofInt().shl(0).toStr(), "1" );
 	}
 
 }
