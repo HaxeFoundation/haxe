@@ -1683,11 +1683,24 @@ and type_call ctx e el p =
 			) in
 			make_call ctx (mk (TField (ethis,f.cf_name)) t p) params tret p
 		| AKUsing (et,ef,eparam) ->
-			let params, tret = (match follow et.etype with
-				| TFun ( _ :: args,r) -> unify_call_params ctx (Some (ef.cf_name,ef.cf_meta)) el args p false, r
-				| _ -> assert false
-			) in
-			make_call ctx et (eparam::params) tret p
+			(match et.eexpr with
+			| TField (ec,_) ->
+				(match type_field ctx ec ef.cf_name p MCall with
+				| AKMacro _ ->
+					(match ec.eexpr with
+					| TTypeExpr (TClassDecl c) ->						
+						(match ctx.g.do_macro ctx c.cl_path ef.cf_name (e :: el) p with
+						| None -> type_expr ctx (EConst (Ident "null"),p)
+						| Some e -> type_expr ctx e)
+					| _ -> assert false)
+				| AKExpr _ | AKField _ | AKInline _ ->
+					let params, tret = (match follow et.etype with
+						| TFun ( _ :: args,r) -> unify_call_params ctx (Some (ef.cf_name,ef.cf_meta)) el args p false, r
+						| _ -> assert false
+					) in
+					make_call ctx et (eparam::params) tret p
+				| _ -> assert false)
+			| _ -> assert false)
 		| AKMacro (ethis,f) ->
 			(match ethis.eexpr with
 			| TTypeExpr (TClassDecl c) ->
