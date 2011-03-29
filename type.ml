@@ -123,6 +123,7 @@ and tclass_field = {
 	cf_name : string;
 	mutable cf_type : t;
 	cf_public : bool;
+	cf_pos : pos;
 	mutable cf_doc : Ast.documentation;
 	mutable cf_meta : metadata;
 	mutable cf_kind : field_kind;

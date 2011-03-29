@@ -234,9 +234,10 @@ let mk_anon fl = TAnon { a_fields = fl; a_status = not_opened; }
 let delay ctx f =
 	ctx.g.delayed <- f :: ctx.g.delayed
 
-let mk_field name t = {
+let mk_field name t p = {
 	cf_name = name;
 	cf_type = t;
+	cf_pos = p;
 	cf_doc = None;
 	cf_meta = no_meta;
 	cf_public = true;

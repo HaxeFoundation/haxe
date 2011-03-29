@@ -2985,7 +2985,7 @@ let generate common_ctx =
 	(match common_ctx.main with
 	| None -> ()
 	| Some e ->
-		let main_field = { cf_name = "__main__"; cf_type = t_dynamic; cf_expr = Some e; cf_public = true; cf_meta = []; cf_doc = None; cf_kind = Var { v_read = AccNormal; v_write = AccNormal; }; cf_params = [] } in
+		let main_field = { cf_name = "__main__"; cf_type = t_dynamic; cf_expr = Some e; cf_pos = e.epos; cf_public = true; cf_meta = []; cf_doc = None; cf_kind = Var { v_read = AccNormal; v_write = AccNormal; }; cf_params = [] } in
 		let class_def = { null_class with cl_path = ([],"@Main"); cl_ordered_statics = [main_field] } in
 		main_deps := find_referenced_types common_ctx (TClassDecl class_def) super_deps constructor_deps false;
 		generate_main common_ctx member_types super_deps class_def !boot_classes !init_classes);

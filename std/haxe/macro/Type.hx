@@ -63,6 +63,7 @@ typedef ClassField = {
 	var meta : Metadata;
 	var kind : FieldKind;
 	var expr : Null<TypedExpr>;
+	var pos : Expr.Position;
 }
 
 typedef ClassType = {> BaseType,
@@ -99,6 +100,7 @@ typedef Metadata = {
 	function get() : Array<{ name : String, params : Array<Expr>, pos : Expr.Position }>;
 	function add( name : String, params : Array<Expr>, pos : Expr.Position ) : Void;
 	function remove( name : String ) : Void;
+	function has( name : String ) : Bool;
 }
 
 enum FieldKind {

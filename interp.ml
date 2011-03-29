@@ -2924,6 +2924,10 @@ let encode_meta m set =
 			set (!meta);
 			VNull
 		));
+		"has", VFunction (Fun1 (fun k ->
+			let k = (try dec_string k with Invalid_expr -> raise Builtin_error) in
+			VBool (List.exists (fun (m,_,_) -> m = k) (!meta));
+		));
 	]
 
 let rec encode_tenum e =
@@ -2959,6 +2963,7 @@ and encode_cfield f =
 		"meta", encode_meta f.cf_meta (fun m -> f.cf_meta <- m);
 		"expr", (match f.cf_expr with None -> VNull | Some e -> encode_texpr e);
 		"kind", encode_field_kind f.cf_kind;
+		"pos", encode_pos f.cf_pos;
 	]
 
 and encode_field_kind k =

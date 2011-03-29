@@ -229,6 +229,7 @@ let rec type_module_type ctx t tparams p =
 					| TFun _ -> Method MethNormal
 					| _ -> Var { v_read = AccNormal; v_write = AccNo }
 				);
+				cf_pos = e.e_pos;
 				cf_doc = None;
 				cf_meta = no_meta;
 				cf_expr = None;
@@ -592,6 +593,7 @@ let rec type_field ctx e i p mode =
 				cf_doc = None;
 				cf_meta = no_meta;
 				cf_public = true;
+				cf_pos = p;
 				cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
 				cf_expr = None;
 				cf_params = [];
@@ -607,6 +609,7 @@ let rec type_field ctx e i p mode =
 			cf_doc = None;
 			cf_meta = no_meta;
 			cf_public = true;
+			cf_pos = p;
 			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
 			cf_expr = None;
 			cf_params = [];
@@ -1260,7 +1263,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let rec loop (l,acc) (f,e) =
 			if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;
 			let e = type_expr ctx e in
-			let cf = mk_field f e.etype in
+			let cf = mk_field f e.etype e.epos in
 			((f,e) :: l, PMap.add f cf acc)
 		in
 		let fields , types = List.fold_left loop ([],PMap.empty) fl in

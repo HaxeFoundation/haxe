@@ -186,7 +186,7 @@ let rec type_inline ctx cf f ethis params tret p =
 				let _, ef = List.assoc (local s) inlined_vars in
 				match ef.eexpr, follow ef.etype with
 				| TFunction func, TFun (_,rt) ->					
-					let cf = { cf_name = ""; cf_params = []; cf_type = ef.etype; cf_public = true; cf_doc = None; cf_meta = no_meta; cf_kind = Var { v_read = AccNormal; v_write = AccNo }; cf_expr = None } in
+					let cf = mk_field "" ef.etype e.epos in
 					let inl = (try type_inline ctx cf func ethis el rt e.epos with Error (Custom _,_) -> None) in
 					(match inl with
 					| None -> raise Not_found

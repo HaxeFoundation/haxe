@@ -222,6 +222,7 @@ and load_complex_type ctx p t =
 			PMap.add n {
 				cf_name = n;
 				cf_type = t;
+				cf_pos = p;
 				cf_public = (match pub with None -> true | Some p -> p);
 				cf_kind = access;
 				cf_params = [];
@@ -854,6 +855,7 @@ let init_class ctx c p herits fields =
 				cf_doc = f.cff_doc;
 				cf_meta = f.cff_meta;
 				cf_type = t;
+				cf_pos = f.cff_pos;
 				cf_kind = Var (if inline then { v_read = AccInline ; v_write = AccNever } else { v_read = AccNormal; v_write = AccNormal });
 				cf_expr = None;
 				cf_public = is_public f.cff_access None;
@@ -965,6 +967,7 @@ let init_class ctx c p herits fields =
 				cf_doc = f.cff_doc;
 				cf_meta = f.cff_meta;
 				cf_type = t;
+				cf_pos = f.cff_pos;
 				cf_kind = Method (if is_macro then MethMacro else if inline then MethInline else if dynamic then MethDynamic else MethNormal);
 				cf_expr = None;
 				cf_public = is_public f.cff_access parent;
@@ -1045,6 +1048,7 @@ let init_class ctx c p herits fields =
 				cf_name = name;
 				cf_doc = f.cff_doc;
 				cf_meta = f.cff_meta;
+				cf_pos = f.cff_pos;
 				cf_kind = Var { v_read = get; v_write = set };
 				cf_expr = None;
 				cf_type = ret;

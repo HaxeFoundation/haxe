@@ -275,6 +275,7 @@ let extend_xml_proxy ctx c t file p =
 						cf_name = id;
 						cf_type = t;
 						cf_public = true;
+						cf_pos = p;
 						cf_doc = None;
 						cf_meta = no_meta;
 						cf_kind = Var { v_read = AccResolve; v_write = AccNo };
@@ -396,7 +397,7 @@ let on_generate ctx t =
 			| _ -> ()
 		) c.cl_meta;
 		if has_rtti c && not (PMap.mem "__rtti" c.cl_statics) then begin
-			let f = mk_field "__rtti" ctx.t.tstring in
+			let f = mk_field "__rtti" ctx.t.tstring c.cl_pos in
 			let str = Genxml.gen_type_string ctx.com t in
 			f.cf_expr <- Some (mk (TConst (TString str)) f.cf_type c.cl_pos);
 			c.cl_ordered_statics <- f :: c.cl_ordered_statics;
@@ -412,7 +413,7 @@ let on_generate ctx t =
 		(match build_metadata ctx.com t with
 		| None -> ()
 		| Some e ->
-			let f = mk_field "__meta__" t_dynamic in
+			let f = mk_field "__meta__" t_dynamic c.cl_pos in
 			f.cf_expr <- Some e;
 			c.cl_ordered_statics <- f :: c.cl_ordered_statics;
 			c.cl_statics <- PMap.add f.cf_name f c.cl_statics);
