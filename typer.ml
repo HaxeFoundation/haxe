@@ -1688,7 +1688,12 @@ and type_call ctx e el p =
 				(match type_field ctx ec ef.cf_name p MCall with
 				| AKMacro _ ->
 					(match ec.eexpr with
-					| TTypeExpr (TClassDecl c) ->						
+					| TTypeExpr (TClassDecl c) ->
+						let e = (match fst e with
+							| EField (e,f) -> if f <> ef.cf_name then assert false; e
+							| EConst (Ident f | Type f) -> if f <> ef.cf_name then assert false; (EConst (Ident "this"),snd e)
+							| _ -> error "Unsupported" (snd e)
+						) in
 						(match ctx.g.do_macro ctx c.cl_path ef.cf_name (e :: el) p with
 						| None -> type_expr ctx (EConst (Ident "null"),p)
 						| Some e -> type_expr ctx e)
