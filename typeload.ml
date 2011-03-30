@@ -1405,9 +1405,9 @@ let parse_module ctx m p =
 	if pack <> !remap then begin
 		let spack m = if m = [] then "<empty>" else String.concat "." m in
 		if p == Ast.null_pos then
-			error ("Invalid commandline class : " ^ s_type_path m ^ " should be " ^ s_type_path (pack,snd m)) p
+			display_error ctx ("Invalid commandline class : " ^ s_type_path m ^ " should be " ^ s_type_path (pack,snd m)) p
 		else
-			error ("Invalid package : " ^ spack (fst m) ^ " should be " ^ spack pack) p
+			display_error ctx ("Invalid package : " ^ spack (fst m) ^ " should be " ^ spack pack) p
 	end;
 	if !remap <> fst m then
 		(* build typedefs to redirect to real package *)
