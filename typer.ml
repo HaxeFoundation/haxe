@@ -1715,7 +1715,22 @@ and type_call ctx e el p =
 				(match ctx.g.do_macro ctx c.cl_path f.cf_name el p with
 				| None -> type_expr ctx (EConst (Ident "null"),p)
 				| Some e -> type_expr ctx e)
-			| _ -> assert false)
+			| _ ->
+				(* member-macro call : since we will make a static call, let's found the actual class and not its subclass *)
+				(match follow ethis.etype with
+				| TInst (c,_) ->					
+					let rec loop c =
+						if PMap.mem f.cf_name c.cl_fields then
+							match ctx.g.do_macro ctx c.cl_path f.cf_name (Interp.make_ast ethis :: el) p with
+							| None -> type_expr ctx (EConst (Ident "null"),p)
+							| Some e -> type_expr ctx e
+						else
+							match c.cl_super with
+							| None -> assert false
+							| Some (csup,_) -> loop csup
+					in
+					loop c
+				| _ -> assert false))
 		| AKNo _ | AKSet _ as acc ->
 			ignore(acc_get ctx acc p);
 			assert false

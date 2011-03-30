@@ -3112,6 +3112,106 @@ let rec make_const e =
 	| _ ->
 		raise Exit
 
+(* ---------------------------------------------------------------------- *)
+(* TEXPR-TO-AST-EXPR *)
+
+open Ast
+
+let rec make_ast e =
+	let mk_path (pack,name) p =
+		match List.rev pack with
+		| [] -> (EConst (Type name),p)
+		| pl ->
+			let rec loop = function
+				| [] -> assert false
+				| [n] -> (EConst (Ident n),p)
+				| n :: l -> (EField (loop l, n),p)
+			in
+			(EType (loop pl,name),p)
+	in
+	let mk_const = function
+		| TInt i -> Int (Int32.to_string i)
+		| TFloat s -> Float s
+		| TString s -> String s
+		| TBool b -> Ident (if b then "true" else "false")
+		| TNull -> Ident "null"
+		| TThis -> Ident "this"
+		| TSuper -> Ident "super"
+	in
+	let tpath p pl =
+		CTPath {
+			tpackage = fst p;
+			tname = snd p;
+			tparams = List.map (fun t -> TPType t) pl;
+			tsub = None;
+		}
+	in
+	let rec mk_type = function
+		| TMono r ->
+			(match !r with
+			| None -> tpath ([],"Unknown") []
+			| Some t -> mk_type t)
+		| TEnum (e,pl) ->
+			tpath e.e_path (List.map mk_type pl)
+		| TInst (c,pl) ->
+			tpath c.cl_path (List.map mk_type pl)
+		| TType (t,pl) ->
+			tpath t.t_path (List.map mk_type pl)
+		| TFun (args,ret) ->
+			CTFunction (List.map (fun (_,_,t) -> mk_type t) args, mk_type ret)			
+		| TAnon a ->
+			CTAnonymous (PMap.foldi (fun _ f acc -> 
+				(f.cf_name,None,AFVar (mk_type f.cf_type), e.epos) :: acc
+			) a.a_fields [])
+		| (TDynamic t2) as t ->
+			tpath ([],"Dynamic") (if t == t_dynamic then [] else [mk_type t2])
+		| TLazy f ->
+			mk_type ((!f)())
+	in
+	let mk_ot t =
+		match follow t with
+		| TMono _ -> None
+		| _ -> Some (mk_type t)
+	in
+	let eopt = function None -> None | Some e -> Some (make_ast e) in
+	((match e.eexpr with
+	| TConst c ->
+		EConst (mk_const c)
+	| TLocal s -> EConst (Ident s)
+	| TEnumField (en,f) -> EField (mk_path en.e_path e.epos,f)
+	| TArray (e1,e2) -> EArray (make_ast e1,make_ast e2)
+	| TBinop (op,e1,e2) -> EBinop (op, make_ast e1, make_ast e2)
+	| TField (e,f) | TClosure (e,f) -> EField (make_ast e, f)
+	| TTypeExpr t -> fst (mk_path (t_path t) e.epos)
+	| TParenthesis e -> EParenthesis (make_ast e)
+	| TObjectDecl fl -> EObjectDecl (List.map (fun (f,e) -> f, make_ast e) fl)
+	| TArrayDecl el -> EArrayDecl (List.map make_ast el)
+	| TCall (e,el) -> ECall (make_ast e,List.map make_ast el)
+	| TNew (c,pl,el) -> ENew ((match mk_type (TInst (c,pl)) with CTPath p -> p | _ -> assert false),List.map make_ast el)
+	| TUnop (op,p,e) -> EUnop (op,p,make_ast e)
+	| TFunction f -> 
+		let arg (n,c,t) = n, false, mk_ot t, (match c with None -> None | Some c -> Some (EConst (mk_const c),e.epos)) in
+		EFunction (None,{ f_args = List.map arg f.tf_args; f_type = mk_ot f.tf_type; f_expr = make_ast f.tf_expr })
+	| TVars vl ->
+		EVars (List.map (fun (n,t,e) -> n, mk_ot t, eopt e) vl)
+	| TBlock el -> EBlock (List.map make_ast el)
+	| TFor (n,t,it,e) -> EFor (n,make_ast it,make_ast e)
+	| TIf (e,e1,e2) -> EIf (make_ast e,make_ast e1,eopt e2)
+	| TWhile (e1,e2,flag) -> EWhile (make_ast e1, make_ast e2, flag)
+	| TSwitch (e,cases,def) -> ESwitch (make_ast e,List.map (fun (vl,e) -> List.map make_ast vl, make_ast e) cases,eopt def)
+	| TMatch (e,en,cases,def) ->
+		let scases (idx,args,e) =
+			assert false
+		in
+		ESwitch (make_ast e,List.map scases cases,eopt def)
+	| TTry (e,catches) -> ETry (make_ast e,List.map (fun (n,t,e) -> n, mk_type t, make_ast e) catches)
+	| TReturn e -> EReturn (eopt e)
+	| TBreak -> EBreak
+	| TContinue -> EContinue
+	| TThrow e -> EThrow (make_ast e)
+	| TCast (e,t) -> ECast (make_ast e,(match t with None -> None | Some t -> Some (mk_type (match t with TClassDecl c -> TInst (c,[]) | TEnumDecl e -> TEnum (e,[]) | TTypeDecl t -> TType (t,[]))))))
+	,e.epos)
+
 ;;
 enc_array_ref := enc_array;
 encode_type_ref := encode_type;

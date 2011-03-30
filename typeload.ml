@@ -821,7 +821,9 @@ let init_class ctx c p herits fields =
 				if not (is_full_type cf.cf_type) then cf.cf_type <- TLazy r;
 				(fun() -> ())
 			end
-		end else begin
+		end else if macro && not ctx.in_macro then
+			(fun () -> ())
+		else begin
 			cf.cf_type <- TLazy r;
 			(fun () -> ignore(!r()))
 		end
@@ -917,7 +919,15 @@ let init_class ctx c p herits fields =
 			let params = !params in
 			if inline && c.cl_interface then error "You can't declare inline methods in interfaces" p;
 			let is_macro = (is_macro && stat) || has_meta ":macro" f.cff_meta in
-			if is_macro && not stat then error "Only static methods can be macros" p;
+			let f, stat, fd = if not is_macro || stat then 
+				f, stat, fd
+			else if ctx.in_macro then
+				(* non-static macros methods are turned into static when we are running the macro *)
+				{ f with cff_access = AStatic :: f.cff_access }, true, fd
+			else
+				(* remove display of first argument which will contain the "this" expression *)
+				f, stat, { fd with f_args = match fd.f_args with [] -> [] | _ :: l -> l }
+			in
 			let fd = if not is_macro then
 				fd
 			else if ctx.in_macro then
@@ -935,7 +945,7 @@ let init_class ctx c p herits fields =
 					| _ -> tdyn
 				in
 				{
-					f_type = tdyn;
+					f_type = (match fd.f_type with Some (CTPath t) -> to_dyn t | _ -> tdyn);
 					f_args = List.map (fun (a,o,t,_) -> a,o,(match t with Some (CTPath t) -> to_dyn t | _ -> tdyn),None) fd.f_args;
 					f_expr = (EBlock [],p)
 				}

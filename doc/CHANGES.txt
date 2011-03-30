@@ -11,6 +11,7 @@
 	all : added haxe.Int32 isNeg,isZero,ucompare, fixed overflows for js/flash8/php
 	all : bugfix when optimizing inlined immediate function call
 	all : fixed "using" on macro function
+	all : allowed member macros functions (called as static)
 
 2011-01-30: 2.07
 	all : fixed completion support with --remap
