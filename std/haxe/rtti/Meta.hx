@@ -34,7 +34,7 @@ class Meta {
 	**/
 	public static function getType( t : Dynamic ) : Dynamic<Array<Dynamic>> {
 		var meta : Dynamic = untyped t.__meta__;
-		return (meta == null) ? meta : meta.obj;
+		return (meta == null || meta.obj == null) ? {} : meta.obj;
 	}
 
 	/**
@@ -42,7 +42,7 @@ class Meta {
 	**/
 	public static function getStatics( t : Dynamic ) : Dynamic<Dynamic<Array<Dynamic>>> {
 		var meta : Dynamic = untyped t.__meta__;
-		return (meta == null) ? meta : meta.statics;
+		return (meta == null || meta.statics == null) ? {} : meta.statics;
 	}
 
 	/**
@@ -50,7 +50,7 @@ class Meta {
 	**/
 	public static function getFields( t : Dynamic ) : Dynamic<Dynamic<Array<Dynamic>>> {
 		var meta : Dynamic = untyped t.__meta__;
-		return (meta == null) ? meta : meta.fields;
+		return (meta == null || meta.fields == null) ? {} : meta.fields;
 	}
 
 }
