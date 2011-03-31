@@ -1970,7 +1970,10 @@ let make_macro_api ctx p =
 			| _ -> assert false
 		);
 		Interp.typeof = (fun e ->
-			let e = (try type_expr ctx ~need_val:true e with Error (msg,_) -> failwith (error_msg msg)) in
+			let old_err = ctx.com.error in
+			ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));
+			let e = (try type_expr ctx ~need_val:true e with Error (msg,_) -> ctx.com.error <- old_err; failwith (error_msg msg)) in
+			ctx.com.error <- old_err;
 			e.etype
 		);
 		Interp.type_patch = (fun t f s v ->
