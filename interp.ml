@@ -56,6 +56,7 @@ and vabstract =
 	| ASocket of Unix.file_descr
 	| ATExpr of texpr
 	| ATDecl of module_type
+	| AUnsafe of Obj.t
 
 and vfunction =
 	| Fun0 of (unit -> value)
@@ -143,12 +144,14 @@ exception Return of value
 
 let get_ctx_ref = ref (fun() -> assert false)
 let encode_type_ref = ref (fun t -> assert false)
+let decode_type_ref = ref (fun t -> assert false)
 let encode_expr_ref = ref (fun e -> assert false)
 let decode_expr_ref = ref (fun e -> assert false)
 let enc_array_ref = ref (fun l -> assert false)
 let get_ctx() = (!get_ctx_ref)()
 let enc_array (l:value list) : value = (!enc_array_ref) l
 let encode_type (t:Type.t) : value = (!encode_type_ref) t
+let decode_type (v:value) : Type.t = (!decode_type_ref) v
 let encode_expr (e:Ast.expr) : value = (!encode_expr_ref) e
 let decode_expr (e:value) : Ast.expr = (!decode_expr_ref) e
 
@@ -1696,6 +1699,9 @@ let macro_lib =
 			| None -> VNull
 			| Some c -> encode_type (TInst (c,[]))
 		);
+		"follow", Fun1 (fun v ->
+			encode_type (follow (decode_type v))
+		);
 	]
 
 (* ---------------------------------------------------------------------- *)
@@ -2751,21 +2757,21 @@ let rec decode_path t =
 
 and decode_tparam v =
 	match decode_enum v with
-	| 0,[t] -> TPType (decode_type t)
+	| 0,[t] -> TPType (decode_ctype t)
 	| 1,[c] -> TPConst (decode_const c)
 	| _ -> raise Invalid_expr
 
 and decode_field v =
 	let ftype = match decode_enum (field v "type") with
 		| 0, [t] ->
-			AFVar (decode_type t)
+			AFVar (decode_ctype t)
 		| 1, [t;get;set] ->
-			AFProp (decode_type t, dec_string get, dec_string set)
+			AFProp (decode_ctype t, dec_string get, dec_string set)
 		| 2, [pl;t] ->
 			let pl = List.map (fun p ->
-				(dec_string (field p "name"),dec_bool (field p "opt"),decode_type (field p "type"))
+				(dec_string (field p "name"),dec_bool (field p "opt"),decode_ctype (field p "type"))
 			) (dec_array pl) in
-			AFFun (pl, decode_type t)
+			AFFun (pl, decode_ctype t)
 		| _ ->
 			raise Invalid_expr
 	in
@@ -2776,16 +2782,16 @@ and decode_field v =
 		decode_pos (field v "pos")
 	)
 
-and decode_type t =
+and decode_ctype t =
 	match decode_enum t with
 	| 0, [p] ->
 		CTPath (decode_path p)
 	| 1, [a;r] ->
-		CTFunction (List.map decode_type (dec_array a), decode_type r)
+		CTFunction (List.map decode_ctype (dec_array a), decode_ctype r)
 	| 2, [fl] ->
 		CTAnonymous (List.map decode_field (dec_array fl))
 	| 3, [t] ->
-		CTParent (decode_type t)
+		CTParent (decode_ctype t)
 	| 4, [t;fl] ->
 		CTExtend (decode_path t, List.map decode_field (dec_array fl))
 	| _ ->
@@ -2822,14 +2828,14 @@ let decode_expr v =
 			EUnop (decode_unop op,(if f then Postfix else Prefix),loop e)
 		| 11, [vl] ->
 			EVars (List.map (fun v ->
-				(dec_string (field v "name"),opt decode_type (field v "type"),opt loop (field v "expr"))
+				(dec_string (field v "name"),opt decode_ctype (field v "type"),opt loop (field v "expr"))
 			) (dec_array vl))
 		| 12, [f] ->
 			let ft = {
 				f_args = List.map (fun o ->
-					(dec_string (field o "name"),dec_bool (field o "opt"),opt decode_type (field o "type"),opt loop (field o "value"))
+					(dec_string (field o "name"),dec_bool (field o "opt"),opt decode_ctype (field o "type"),opt loop (field o "value"))
 				) (dec_array (field f "args"));
-				f_type = opt decode_type (field f "ret");
+				f_type = opt decode_ctype (field f "ret");
 				f_expr = loop (field f "expr");
 			} in
 			EFunction (opt dec_string (field f "name"),ft)
@@ -2848,7 +2854,7 @@ let decode_expr v =
 			ESwitch (loop e,cases,opt loop eo)
 		| 18, [e;catches] ->
 			let catches = List.map (fun c ->
-				(dec_string (field c "name"),decode_type (field c "type"),loop (field c "expr"))
+				(dec_string (field c "name"),decode_ctype (field c "type"),loop (field c "expr"))
 			) (dec_array catches) in
 			ETry (loop e, catches)
 		| 19, [e] ->
@@ -2862,7 +2868,7 @@ let decode_expr v =
 		| 23, [e] ->
 			EThrow (loop e)
 		| 24, [e;t] ->
-			ECast (loop e,opt decode_type t)
+			ECast (loop e,opt decode_ctype t)
 		| 25, [e;f] ->
 			EDisplay (loop e,dec_bool f)
 		| 26, [t] ->
@@ -2882,7 +2888,13 @@ let encode_ref v convert tostr =
 		"get", VFunction (Fun0 (fun() -> convert v));
 		"__string", VFunction (Fun0 (fun() -> VString (tostr())));
 		"toString", VFunction (Fun0 (fun() -> enc_string (tostr())));
+		"$", VAbstract (AUnsafe (Obj.repr v));
 	]
+
+let decode_ref v : 'a =
+	match field v "$" with
+	| VAbstract (AUnsafe t) -> Obj.obj t
+	| _ -> raise Invalid_expr
 
 let encode_pmap convert m =
 	let h = Hashtbl.create 0 in
@@ -3079,6 +3091,18 @@ and encode_type t =
 	let tag, pl = loop t in
 	enc_enum IType tag pl
 
+and decode_type t =
+	match decode_enum t with
+	| 0, [] -> TMono (ref None)
+	| 1, [e; pl] -> TEnum (decode_ref e, List.map decode_type (dec_array pl))
+	| 2, [c; pl] -> TInst (decode_ref c, List.map decode_type (dec_array pl))
+	| 3, [t; pl] -> TType (decode_ref t, List.map decode_type (dec_array pl))
+	| 4, [pl; r] -> TFun (List.map (fun p -> dec_string (field p "name"), dec_bool (field p "opt"), decode_type (field p "t")) (dec_array pl), decode_type r)
+	| 5, [a] -> TAnon (decode_ref a)
+	| 6, [VNull] -> t_dynamic
+	| 6, [t] -> TDynamic (decode_type t)	
+	| _ -> raise Invalid_expr
+
 and encode_texpr e =
 	VAbstract (ATExpr e)
 
@@ -3215,5 +3239,6 @@ let rec make_ast e =
 ;;
 enc_array_ref := enc_array;
 encode_type_ref := encode_type;
+decode_type_ref := decode_type;
 encode_expr_ref := encode_expr;
 decode_expr_ref := decode_expr

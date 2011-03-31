@@ -132,6 +132,13 @@ class Context {
 	}
 
 	/**
+		Follow all typedefs to reach the actual real type
+	**/
+	public static function follow( t : Type ) : Type {
+		return load("follow", 1)(t);
+	}
+	
+	/**
 		Get the informations stored into a given position.
 	**/
 	public static function getPosInfos( p : Position ) : { min : Int, max : Int, file : String } {
