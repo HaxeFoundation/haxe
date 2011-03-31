@@ -70,7 +70,12 @@ class Unserializer {
  		#end
  		scache = new Array();
  		cache = new Array();
- 		setResolver(DEFAULT_RESOLVER);
+		var r = DEFAULT_RESOLVER;
+		if( r == null ) {
+			r = Type;
+			DEFAULT_RESOLVER = r;
+		}
+ 		setResolver(r);
  	}
 
  	public function setResolver( r ) {
