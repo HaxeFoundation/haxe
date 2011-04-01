@@ -710,7 +710,8 @@ if !measure_times then begin
 	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
 	Printf.eprintf "Total time : %.3fs\n" !tot;
 	Printf.eprintf "------------------------------------\n";
-	Hashtbl.iter (fun _ t ->
+	let timers = List.sort (fun t1 t2 -> compare t2.total t1.total) (Hashtbl.fold (fun _ t acc -> t :: acc) Common.htimers []) in
+	List.iter (fun t ->
 		Printf.eprintf "  %s : %.3fs, %.0f%%\n" t.name t.total (t.total *. 100. /. !tot);
-	) Common.htimers;
+	) timers;
 end;

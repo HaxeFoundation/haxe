@@ -369,7 +369,7 @@ let field_access ctx mode f t e p =
 		if mode = MSet && m <> MethDynamic && not ctx.untyped then error "Cannot rebind this method : please use 'dynamic' before method declaration" p;
 		(match m, mode with
 		| MethInline, _ -> AKInline (e,f,t)
-		| MethMacro, MGet -> error "Macro functions must be called immediatly" p
+		| MethMacro, MGet -> display_error ctx "Macro functions must be called immediatly" p; normal()
 		| MethMacro, MCall -> AKMacro (e,f)
 		| _ , MGet -> AKExpr (mk (TClosure (e,f.cf_name)) t p)
 		| _ -> normal())
