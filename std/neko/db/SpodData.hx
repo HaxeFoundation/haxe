@@ -20,6 +20,7 @@ private enum BuildError {
 class SpodData {
 
 	static var inst : SpodData = null;
+	static var simpleString = ~/^[A-Za-z0-9 ]*$/;
 
 	var cache : Hash<SpodInfos>;
 	var types : Hash<SpodType>;
@@ -40,7 +41,7 @@ class SpodData {
 		functions = new Hash();
 		for( f in [
 			{ name : "now", params : [], ret : DDateTime, sql : "NOW($)" },
-			{ name : "curdate", params : [], ret : DDate, sql : "CURDATE($)" },
+			{ name : "curDate", params : [], ret : DDate, sql : "CURDATE($)" },
 			{ name : "seconds", params : [DFloat], ret : DInterval, sql : "INTERVAL $ SECOND" },
 			{ name : "minutes", params : [DFloat], ret : DInterval, sql : "INTERVAL $ MINUTE" },
 			{ name : "hours", params : [DFloat], ret : DInterval, sql : "INTERVAL $ HOUR" },
@@ -103,7 +104,7 @@ class SpodData {
 			}
 		case TEnum(e, p):
 			var name = e.toString();
-			switch( name ) {
+			return switch( name ) {
 			case "Bool": DBool;
 			default: throw "Unsupported " + name;
 			}
@@ -288,6 +289,22 @@ class SpodData {
 	}
 	
 	function sqlQuoteValue( v : Expr, t : SpodType ) {
+		switch( v.expr ) {
+		case EConst(c):
+			switch( c ) {
+			case CInt(_), CFloat(_): return v;
+			case CString(s):
+				if( simpleString.match(s) ) return { expr : EConst(CString("'"+s+"'")), pos : v.pos };
+			case CIdent(n):
+				switch( n ) {
+				case "null": return { expr : EConst(CString("NULL")), pos : v.pos };
+				case "true": return { expr : EConst(CInt("1")), pos : v.pos };
+				case "false": return { expr : EConst(CInt("0")), pos : v.pos };
+				}
+			default:
+			}
+		default:
+		}
 		var meth = switch( t ) {
 		case DId, DInt, DUId, DUInt, DEncoded, DFlags(_): "quoteInt";
 		case DBigId, DBigInt, DSingle, DFloat: "quoteFloat";
@@ -333,6 +350,23 @@ class SpodData {
 		case 0, 1, 2, 3, 4, 5, 7: true;
 		default: false;
 		};
+	}
+	
+	function convertType( t : SpodType ) {
+		return TPath( {
+			name : switch( unifyClass(t) ) {
+			case 0: "Int";
+			case 1: "Float";
+			case 2: "Bool";
+			case 3: "String";
+			case 4: "Date";
+			case 5: "String";
+			default: throw "assert";
+			},
+			pack : [],
+			params : [],
+			sub : null,
+		});
 	}
 	
 	function unify( t : SpodType, rt : SpodType, pos : Position ) {
@@ -382,16 +416,15 @@ class SpodData {
 			unify(r2.t, r1.t, e2.pos);
 			unify(r1.t, r2.t, e1.pos);
 		}
-		// use some different operators if there is a possibility for NULL matching
-		var isNull = r1.n || r2.n;
 		var sql;
-		if( isNull ) {
+		// use some different operators if there is a possibility for comparing two NULLs
+		if( r1.n && r2.n ) {
 			sql = makeOp(" <=> ", r1.sql, r2.sql, pos);
 			if( !eq )
 				sql = sqlAdd(makeString("NOT(", pos), sqlAddString(sql, ")"), pos);
 		} else
 			sql = makeOp(eq?" = ":" != ", r1.sql, r2.sql, pos);
-		return { sql : sql, t : DBool, n : isNull };
+		return { sql : sql, t : DBool, n : r1.n || r2.n };
 	}
 	
 	function buildDefault( cond : Expr ) {
@@ -407,6 +440,7 @@ class SpodData {
 		case EObjectDecl(fl):
 			var first = true;
 			var sql = makeString("(", p);
+			var fields = new Hash();
 			for( f in fl ) {
 				var fi = current.hfields.get(f.field);
 				if( fi == null ) error("No database field " + f.field, p);
@@ -416,12 +450,16 @@ class SpodData {
 					sql = sqlAddString(sql, " AND ");
 				sql = sqlAddString(sql, quoteField(fi.name) + " = ");
 				sql = sqlAddValue(sql, f.expr, fi.t);
+				if( fields.exists(fi.name) )
+					error("Duplicate field " + fi.name, p);
+				else
+					fields.set(fi.name, true);
 			}
 			if( first ) sqlAddString(sql, "TRUE");
 			sql = sqlAddString(sql, ")");
 			return { sql : sql, t : DBool, n : false };
 		case EParenthesis(e):
-			var r = buildCond(cond);
+			var r = buildCond(e);
 			r.sql = sqlAdd(makeString("(", p), r.sql, p);
 			r.sql = sqlAddString(r.sql, ")");
 			return r;
@@ -498,17 +536,23 @@ class SpodData {
 			switch( c ) {
 			case CInt(s): return { sql : makeString(s, p), t : DInt, n : false };
 			case CFloat(s): return { sql : makeString(s, p), t : DFloat, n : false };
-			case CString(s): return { sql : if( ~/^[A-Za-z0-9 ]$/.match(s) ) makeString("'" + s + "'", p) else sqlQuoteValue(cond, DText), t : DString(s.length), n : false };
+			case CString(s): return { sql : sqlQuoteValue(cond, DText), t : DString(s.length), n : false };
 			case CRegexp(_): error("Unsupported", p);
 			case CIdent(n), CType(n):
 				var f = current.hfields.get(n);
 				if( f != null ) {
 					if( (try Context.typeof(cond) catch( e : Dynamic ) null) != null )
 						error("Possible conflict between variable and database field", p);
-					return { sql : makeString(n, p), t : f.t, n : f.isNull };
+					return { sql : makeString(f.name, p), t : f.t, n : f.isNull };
 				}
-				if( n == "null" )
+				switch( n ) {
+				case "null":
 					return { sql : makeString("NULL", p), t : DNull, n : true };
+				case "true":
+					return { sql : makeString("1", p), t : DBool, n : false };
+				case "false":
+					return { sql : makeString("0", p), t : DBool, n : false };
+				}
 				return buildDefault(cond);
 			}
 		case ECall(c, pl):
@@ -551,37 +595,171 @@ class SpodData {
 				}
 			default:
 			}
+			return buildDefault(cond);
 		case EField(_, _), EType(_, _):
 			return buildDefault(cond);
+		case EIf(e, e1, e2), ETernary(e, e1, e2):
+			if( e2 == null ) error("If must have an else statement", p);
+			var r1 = buildCond(e1);
+			var r2 = buildCond(e2);
+			unify(r2.t, r1.t, e2.pos);
+			unify(r1.t, r2.t, e1.pos);
+			return { sql : { expr : EIf(e, r1.sql, r2.sql), pos : p }, t : r1.t, n : r1.n || r2.n };
 		default:
 		}
 		error("Unsupported expression", p);
 		return null;
 	}
 	
-	function buildSingleCond( inf : SpodInfos, sql : Expr, cond : Expr ) {
-		switch( cond.expr ) {
-		case EObjectDecl(fl):
-			var first = true;
-			var key = inf.key.copy();
-			for( f in fl ) {
-				var fi = inf.hfields.get(f.field);
-				if( fi == null ) error("No database field " + f.field, cond.pos);
-				if( first )
-					first = false;
-				else
-					sql = sqlAddString(sql, " AND ");
-				sql = sqlAddString(sql, quoteField(fi.name) + " = ");
-				sql = sqlAddValue(sql, f.expr, fi.t);
-				key.remove(fi.name);
-			}
-			if( key.length > 0 )
-				error("Missing key '" + key[0] + "'", cond.pos);
+	function ensureType( e : Expr, rt : SpodType ) {
+		var t = try Context.typeof(e) catch( _ : Dynamic ) throw BuildError.EExpr(e);
+		switch( t ) {
+		case TMono:
+			// pseudo-cast
+			return { expr : EBlock([
+				{ expr : EVars([ { name : "__tmp", type : convertType(rt), expr : e } ]), pos : e.pos },
+				{ expr : EConst(CIdent("__tmp")), pos : e.pos },
+			]), pos : e.pos };
 		default:
-			if( inf.key.length > 1 )
-				error("You can't use a single value on a table with multiple keys (" + inf.key.join(",") + ")", cond.pos);
-			sql = sqlAddString(sql, quoteField(inf.key[0]) + " = ");
-			sql = sqlAddValue(sql, cond, inf.hfields.get(inf.key[0]).t);
+			var d = try makeType(t) catch( e : Dynamic ) try makeType(Context.follow(t)) catch( e : Dynamic ) throw BuildError.EExpr(sqlQuoteValue(e,rt)); // will produce an error
+			unify(d, rt, e.pos);
+			return e;
+		}
+	}
+	
+	function checkKeys( econd : Expr ) {
+		var p = econd.pos;
+		switch( econd.expr ) {
+		case EObjectDecl(fl):
+			var key = current.key.copy();
+			for( f in fl ) {
+				var fi = current.hfields.get(f.field);
+				if( fi == null ) error("No database field " + f.field, p);
+				if( !key.remove(f.field) ) {
+					if( Lambda.has(current.key, f.field) )
+						error("Duplicate field " + f.field, p);
+					else
+						error("Field " + f.field + " is not part of table key (" + current.key.join(",") + ")", p);
+				}
+				f.expr = ensureType(f.expr, fi.t);
+			}
+		default:
+			if( current.key.length > 1 )
+				error("You can't use a single value on a table with multiple keys (" + current.key.join(",") + ")", p);
+			var fi = current.hfields.get(current.key[0]);
+			var t = try Context.typeof(econd) catch( _ : Dynamic ) throw BuildError.EExpr(econd);
+			switch( t ) {
+			case TMono:
+				
+			default:
+				var d = try makeType(t) catch( e : Dynamic ) try makeType(Context.follow(t)) catch( e : Dynamic ) throw BuildError.EExpr(sqlQuoteValue(econd, fi.t));
+				unify(d, fi.t, p);
+			}
+		}
+	}
+	
+	function orderField(e) {
+		switch( e.expr ) {
+		case EConst(c):
+			switch( c ) {
+			case CIdent(t), CType(t):
+				if( !current.hfields.exists(t) )
+					error("Unknown database field", e.pos);
+				return quoteField(t);
+			default:
+			}
+		case EUnop(op, _, e):
+			if( op == OpNeg )
+				return orderField(e) + " DESC";
+		default:
+		}
+		error("Invalid order field", e.pos);
+		return null;
+	}
+	
+	function concatStrings( e : Expr ) {
+		var inf = { e : null, str : null };
+		browseStrings(inf, e);
+		if( inf.str != null ) {
+			var es = { expr : EConst(CString(inf.str)), pos : e.pos };
+			if( inf.e == null )
+				inf.e = es;
+			else
+				inf.e = { expr : EBinop(OpAdd, inf.e, es), pos : e.pos };
+		}
+		return inf.e;
+	}
+	
+	function browseStrings( inf : { e : Expr, str : String }, e : Expr ) {
+		switch( e.expr ) {
+		case EConst(c):
+			switch( c ) {
+			case CString(s):
+				if( inf.str == null )
+					inf.str = s;
+				else
+					inf.str += s;
+				return;
+			case CInt(s), CFloat(s):
+				if( inf.str != null ) {
+					inf.str += s;
+					return;
+				}
+			default:
+			}
+		case EBinop(op, e1, e2):
+			if( op == OpAdd ) {
+				browseStrings(inf,e1);
+				browseStrings(inf,e2);
+				return;
+			}
+		case EIf(cond, e1, e2):
+			e = { expr : EIf(cond, concatStrings(e1), concatStrings(e2)), pos : e.pos };
+		default:
+		}
+		if( inf.str != null ) {
+			e = { expr : EBinop(OpAdd, { expr : EConst(CString(inf.str)), pos : e.pos }, e), pos : e.pos };
+			inf.str = null;
+		}
+		if( inf.e == null )
+			inf.e = e;
+		else
+			inf.e = { expr : EBinop(OpAdd, inf.e, e), pos : e.pos };
+	}
+
+	function buildOptions( eopt : Expr ) {
+		var opts = new Hash();
+		var p = eopt.pos;
+		var sql = makeString("",p);
+		switch( eopt.expr ) {
+		case EObjectDecl(fields):
+			for( o in fields ) {
+				if( opts.exists(o.field) ) error("Duplicate option " + o.field, p);
+				switch( o.field ) {
+				case "orderBy":
+					var fields = switch( o.expr.expr ) {
+					case EArrayDecl(vl): Lambda.array(Lambda.map(vl, orderField));
+					default: [orderField(o.expr)];
+					};
+					sql = sqlAddString(sql, " ORDER BY " + fields.join(","));
+				case "limit":
+					var limits = switch( o.expr.expr ) {
+					case EArrayDecl(vl): Lambda.array(Lambda.map(vl, buildDefault));
+					default: [buildDefault(o.expr)];
+					}
+					if( limits.length == 0 || limits.length > 2 ) error("Invalid limits", o.expr.pos);
+					var l0 = limits[0], l1 = limits[1];
+					unify(l0.t, DInt, l0.sql.pos);
+					if( l1 != null ) unify(l1.t, DInt, l1.sql.pos);
+					sql = sqlAdd(sqlAddString(sql, " LIMIT "), l0.sql, p);
+					if( l1 != null )
+						sql = sqlAdd(sqlAddString(sql, ","), l1.sql, p);
+				default:
+					error("Unknown option '" + o.field + "'", p);
+				}
+			}
+		default:
+			error("Options should be { orderBy : field, limit : [a,b] }", p);
 		}
 		return sql;
 	}
@@ -658,27 +836,44 @@ class SpodData {
 		return inf;
 	}
 	
-	static function buildSQL( em : Expr, econd : Expr, prefix : String, ?single : Bool ) {
+	static function buildSQL( em : Expr, econd : Expr, prefix : String, ?eopt : Expr ) {
 		var pos = Context.currentPos();
 		var inf = getManagerInfos(Context.typeof(em));
 		var sql = { expr : EConst(CString(prefix + " " + inst.quoteField(inf.name) + " WHERE ")), pos : econd.pos };
 		inst.current = inf;
 		inst.initManager(pos);
-		if( single )
-			return inst.buildSingleCond(inf, sql, econd);
 		var r = try inst.buildCond(econd) catch( e : BuildError ) switch( e ) { case EExpr(e): return e; };
 		if( r.t != DBool ) Context.error("Expression should be a condition", econd.pos);
-		return inst.sqlAdd(sql, r.sql, sql.pos);
+		if( eopt != null && !Type.enumEq(eopt.expr, EConst(CIdent("null"))) )
+			r.sql = inst.sqlAdd(r.sql, inst.buildOptions(eopt), eopt.pos);
+		var sql = inst.sqlAdd(sql, r.sql, sql.pos);
+		#if !display
+		sql = inst.concatStrings(sql);
+		#end
+		return sql;
 	}
 	
 	public static function macroGet( em : Expr, econd : Expr, elock : Expr ) {
-		var sql = buildSQL(em, econd, "SELECT * FROM", true);
 		var pos = Context.currentPos();
-		return { expr : ECall({ expr : EField(em,"unsafeObject"), pos : pos },[sql,elock]), pos : pos };
+		var inf = getManagerInfos(Context.typeof(em));
+		inst.current = inf;
+		inst.initManager(pos);
+		try inst.checkKeys(econd) catch( e : BuildError ) switch( e ) { case EExpr(e): return e; };
+		switch( econd.expr ) {
+		case EObjectDecl(_):
+			return { expr : ECall({ expr : EField(em,"unsafeGetWithKeys"), pos : pos },[econd,elock]), pos : pos };
+		default:
+			return { expr : ECall({ expr : EField(em,"unsafeGet"), pos : pos },[econd,elock]), pos : pos };
+		}
 	}
 	
-	public static function macroSearch( em : Expr, econd : Expr, elock : Expr, ?single ) {
-		var sql = buildSQL(em, econd, "SELECT * FROM");
+	public static function macroSearch( em : Expr, econd : Expr, eopt : Expr, elock : Expr, ?single ) {
+		if( elock == null || Type.enumEq(elock.expr, EConst(CIdent("null"))) ) {
+			var tmp = eopt;
+			eopt = elock;
+			elock = tmp;
+		}
+		var sql = buildSQL(em, econd, "SELECT * FROM", eopt);
 		var pos = Context.currentPos();
 		var e = { expr : ECall( { expr : EField(em, "unsafeObjects"), pos : pos }, [sql,elock]), pos : pos };
 		if( single )

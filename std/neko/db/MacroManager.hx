@@ -98,20 +98,29 @@ class MacroManager<T : Object> {
 		return SpodData.macroGet(ethis,id,lock);
 	}
 
-	@:macro public function object(ethis, cond, ?lock:haxe.macro.Expr.ExprRequire<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<T> #end {
-		return SpodData.macroSearch(ethis, cond, lock, true);
+	@:macro public function select(ethis, cond, ?options, ?lock:haxe.macro.Expr.ExprRequire<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<T> #end {
+		return SpodData.macroSearch(ethis, cond, options, lock, true);
 	}
 
-	@:macro public function search(ethis, cond, ?lock:haxe.macro.Expr.ExprRequire<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<List<T>> #end {
-		return SpodData.macroSearch(ethis, cond, lock);
+	@:macro public function search(ethis, cond, ?options, ?lock:haxe.macro.Expr.ExprRequire<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<List<T>> #end {
+		return SpodData.macroSearch(ethis, cond, options, lock);
 	}
 
 	@:macro public function count(ethis, cond) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<Int> #end {
 		return SpodData.macroCount(ethis, cond);
 	}
 
-	@:macro public function delete(ethis, cond) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<Void> #end {
+	@:macro public function deleteCond(ethis, cond) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<Void> #end {
 		return SpodData.macroDelete(ethis, cond);
+	}
+	
+	public function dynamicSearch( x : {}, ?lock : Bool ) : List<T> {
+		var s = new StringBuf();
+		s.add("SELECT * FROM ");
+		s.add(table_name);
+		s.add(" WHERE ");
+		addCondition(s,x);
+		return unsafeObjects(s.toString(),lock);
 	}
 	
 	// for backward compatibility
@@ -120,8 +129,12 @@ class MacroManager<T : Object> {
 		return SpodData.macroGet(ethis,cond,lock);
 	}
 
-	@:macro public function objects(ethis, cond, ?lock:haxe.macro.Expr.ExprRequire<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<List<T>> #end {
-		return SpodData.macroSearch(ethis, cond, lock);
+	@:macro public function object(ethis, cond, ?options, ?lock:haxe.macro.Expr.ExprRequire<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<T> #end {
+		return SpodData.macroSearch(ethis, cond, options, lock, true);
+	}
+	
+	@:macro public function objects(ethis, cond, ?options, ?lock:haxe.macro.Expr.ExprRequire<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<List<T>> #end {
+		return SpodData.macroSearch(ethis, cond, options, lock);
 	}
 	#end
 
@@ -332,13 +345,36 @@ class MacroManager<T : Object> {
 		unsafeExecute(sql);
 	}
 	
-	public function dynamicSearch( x : {}, ?lock : Bool ) : List<T> {
+	public function unsafeGet( id : Dynamic, ?lock : Bool ) : T {
+		if( lock == null ) lock = true;
+		if( table_keys.length != 1 )
+			throw "Invalid number of keys";
+		if( id == null )
+			return null;
+		var x : Dynamic = getFromCacheKey(Std.string(id) + table_name);
+		if( x != null && (!lock || x.update != no_update) )
+			return x;
 		var s = new StringBuf();
 		s.add("SELECT * FROM ");
 		s.add(table_name);
 		s.add(" WHERE ");
-		addCondition(s,x);
-		return unsafeObjects(s.toString(),lock);
+		s.add(quoteField(table_keys[0]));
+		s.add(" = ");
+		cnx.addValue(s,id);
+		return unsafeObject(s.toString(), lock);
+	}
+	
+	public function unsafeGetWithKeys( keys : { }, ?lock : Bool ) : T {
+		if( lock == null ) lock = true;
+		var x : Dynamic = getFromCacheKey(makeCacheKey(cast keys));
+		if( x != null && (!lock || x.update != no_update) )
+			return x;
+		var s = new StringBuf();
+		s.add("SELECT * FROM ");
+		s.add(table_name);
+		s.add(" WHERE ");
+		addKeys(s,keys);
+		return unsafeObject(s.toString(),lock);
 	}
 
 	function addCondition(s : StringBuf,x) {
@@ -400,7 +436,6 @@ class MacroManager<T : Object> {
 		var lock = r.lock;
 		if( manager == null || manager.table_keys == null ) throw ("Invalid manager for relation "+table_name+":"+r.prop);
 		if( manager.table_keys.length != 1 ) throw ("Relation " + r.prop + "(" + r.key + ") on a multiple key table");
-		var sql = "SELECT * FROM " + manager.table_name + " WHERE " + quoteField(manager.table_keys[0]) + " = ";
 		Reflect.setField(class_proto.prototype,"get_"+r.prop,function() {
 			var othis = untyped this;
 			var f = Reflect.field(othis,hprop);
@@ -409,12 +444,12 @@ class MacroManager<T : Object> {
 			var id = Reflect.field(othis, hkey);
 			if( id == null )
 				return null;
-			f = manager.unsafeObject(sql+id,lock);
+			f = manager.unsafeGet(id,lock);
 			// it's highly possible that in that case the object has been inserted
 			// after we started our transaction : in that case, let's lock it, since
 			// it's still better than returning 'null' while it exists
 			if( f == null && id != null && !lock )
-				f = manager.unsafeObject(sql+id,true);
+				f = manager.unsafeGet(id,true);
 			Reflect.setField(othis,hprop,f);
 			return f;
 		});
