@@ -185,7 +185,7 @@ let rec type_inline ctx cf f ethis params tret p =
 			(try
 				let _, ef = List.assoc (local s) inlined_vars in
 				match ef.eexpr, follow ef.etype with
-				| TFunction func, TFun (_,rt) ->					
+				| TFunction func, TFun (_,rt) ->
 					let cf = mk_field "" ef.etype e.epos in
 					let inl = (try type_inline ctx cf func ethis el rt e.epos with Error (Custom _,_) -> None) in
 					(match inl with
@@ -444,7 +444,7 @@ let sanitize_expr e =
 			| TIf _ -> if left then not (swap (OpAssignOp OpAssign) op) else swap op (OpAssignOp OpAssign)
 			| TCast (e,None) -> loop e left
 			| _ -> false
-		in		
+		in
 		let e1 = if loop e1 true then parent e1 else e1 in
 		let e2 = if loop e2 false then parent e2 else e2 in
 		{ e with eexpr = TBinop (op,e1,e2) }
@@ -472,7 +472,7 @@ let sanitize_expr e =
 		(match f.tf_expr.eexpr with
 		| TBlock _ -> e
 		| _ -> { e with eexpr = TFunction { f with tf_expr = block f.tf_expr } })
-	| TCall (e2,args) ->		
+	| TCall (e2,args) ->
 		if need_parent e2 then { e with eexpr = TCall(parent e2,args) } else e
 	| TField (e2,f) ->
 		if need_parent e2 then { e with eexpr = TField(parent e2,f) } else e
@@ -501,8 +501,14 @@ let reduce_expr ctx e =
 			) cl
 		) cases;
 		e
-	| TBlock [ec] ->
-		{ ec with epos = e.epos }
+	| TBlock l ->
+		(match List.rev l with
+		| [] -> e
+		| ec :: l ->
+			(* remove all no-ops : not-final constants in blocks *)
+			match List.filter (fun e -> match e.eexpr with TConst _ -> false | _ -> true) l with
+			| [] -> { ec with epos = e.epos }
+			| l -> { e with eexpr = TBlock (List.rev (ec :: l)) })
 	| TParenthesis ec ->
 		{ ec with epos = e.epos }
 	| _ ->
