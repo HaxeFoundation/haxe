@@ -61,4 +61,10 @@ extern class SFlags<T> {
 	public inline function unset( v : T ) : Void {
 		untyped this &= 0xFFFFFFF - (1 << Type.enumIndex(v));
 	}
+	public inline static function ofInt<T>( i : Int ) : SFlags<T> {
+		return cast i;
+	}
+	public inline static function toInt( s : SFlags<Dynamic> ) : Int {
+		return cast s;
+	}
 }

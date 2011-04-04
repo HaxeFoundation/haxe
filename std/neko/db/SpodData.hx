@@ -61,7 +61,7 @@ class SpodData {
 		#end
 		return null;
 	}
-	
+
 	function makeInt( t : haxe.macro.Type ) {
 		switch( t ) {
 		case TInst(c, _):
@@ -90,7 +90,7 @@ class SpodData {
 		}
 		return null;
 	}
-	
+
 	function makeType( t : haxe.macro.Type ) {
 		switch( t ) {
 		case TInst(c, p):
@@ -100,6 +100,20 @@ class SpodData {
 			case "Float": DFloat;
 			case "String": DText;
 			case "Date": DDateTime;
+			case "mt.db.SFlags", "neko.db.SFlags":
+				switch( p[0] ) {
+				case TEnum(e,_):
+					var cl = e.get().names;
+					var prefix = cl[0];
+					for( c in cl )
+						while( prefix.length > 0 && c.substr(0, prefix.length) != prefix )
+							prefix = prefix.substr(0, -1);
+					for( i in 0...cl.length )
+						cl[i] = cl[i].substr(prefix.length);
+					return DFlags(cl);
+				default:
+					throw "Flags parameter should be an enum";
+				}
 			default: throw "Unsupported " + name;
 			}
 		case TEnum(e, p):
@@ -127,7 +141,7 @@ class SpodData {
 		}
 		throw "Unsupported " + Std.string(t);
 	}
-	
+
 	function makeIdent( e : Expr ) {
 		return switch( e.expr ) {
 		case EConst(c):
@@ -262,12 +276,12 @@ class SpodData {
 		cache.set(cname, i);
 		return i;
 	}
-	
+
 	function quoteField( f : String ) {
 		var m : { private var KEYWORDS : Hash<Bool>; } = Manager;
 		return m.KEYWORDS.exists(f.toLowerCase()) ? "`"+f+"`" : f;
 	}
-	
+
 	function initManager( pos : Position ) {
 		manager = { expr : EType({ expr : EField({ expr : EConst(CIdent("neko")), pos : pos },"db"), pos : pos }, "Manager"), pos : pos };
 	}
@@ -279,15 +293,15 @@ class SpodData {
 	inline function makeOp( op : String, e1, e2, pos ) {
 		return sqlAdd(sqlAddString(e1,op),e2,pos);
 	}
-	
+
 	inline function sqlAdd( e1 : Expr, e2 : Expr, pos : Position ) {
 		return { expr : EBinop(OpAdd, e1, e2), pos : pos };
 	}
-	
+
 	inline function sqlAddString( sql : Expr, s : String ) {
 		return { expr : EBinop(OpAdd, sql, makeString(s,sql.pos)), pos : sql.pos };
 	}
-	
+
 	function sqlQuoteValue( v : Expr, t : SpodType ) {
 		switch( v.expr ) {
 		case EConst(c):
@@ -316,11 +330,11 @@ class SpodData {
 		};
 		return { expr : ECall( { expr : EField(manager, meth), pos : v.pos }, [v]), pos : v.pos }
 	}
-	
+
 	inline function sqlAddValue( sql : Expr, v : Expr, t : SpodType ) {
 		return { expr : EBinop(OpAdd, sql, sqlQuoteValue(v,t)), pos : sql.pos };
 	}
-	
+
 	function unifyClass( t : SpodType ) {
 		return switch( t ) {
 		case DId, DInt, DUId, DUInt, DEncoded, DFlags(_): 0;
@@ -333,25 +347,25 @@ class SpodData {
 		case DNull: 7;
 		};
 	}
-	
+
 	function tryUnify( t, rt ) {
 		if( t == rt ) return true;
 		var c = unifyClass(t);
 		var rc = unifyClass(rt);
 		return c == rc || (c == 0 && rc == 1); // allow Int-to-Float expansion
 	}
-	
+
 	function typeStr( t : SpodType ) {
 		return Std.string(t).substr(1);
 	}
-	
+
 	function canStringify( t : SpodType ) {
 		return switch( unifyClass(t) ) {
 		case 0, 1, 2, 3, 4, 5, 7: true;
 		default: false;
 		};
 	}
-	
+
 	function convertType( t : SpodType ) {
 		return TPath( {
 			name : switch( unifyClass(t) ) {
@@ -368,12 +382,12 @@ class SpodData {
 			sub : null,
 		});
 	}
-	
+
 	function unify( t : SpodType, rt : SpodType, pos : Position ) {
 		if( !tryUnify(t, rt) )
 			error(typeStr(t) + " should be " + typeStr(rt), pos);
 	}
-	
+
 	function buildCmp( op, e1, e2, pos ) {
 		var r1 = buildCond(e1);
 		var r2 = buildCond(e2);
@@ -382,7 +396,7 @@ class SpodData {
 			unify(r1.t, DInt, e1.pos);
 		return { sql : makeOp(op, r1.sql, r2.sql, pos), t : DBool, n : r1.n || r2.n };
 	}
-	
+
 	function buildNum( op, e1, e2, pos ) {
 		var r1 = buildCond(e1);
 		var r2 = buildCond(e2);
@@ -396,7 +410,7 @@ class SpodData {
 		if( c2 > 1 ) unify(r2.t, DInt, e2.pos);
 		return { sql : makeOp(op, r1.sql, r2.sql, pos), t : (c1 + c2) == 0 ? DInt : DFloat, n : r1.n || r2.n };
 	}
-	
+
 	function buildInt( op, e1, e2, pos ) {
 		var r1 = buildCond(e1);
 		var r2 = buildCond(e2);
@@ -404,7 +418,7 @@ class SpodData {
 		unify(r2.t, DInt, e2.pos);
 		return { sql : makeOp(op, r1.sql, r2.sql, pos), t : DInt, n : r1.n || r2.n };
 	}
-	
+
 	function buildEq( eq, e1, e2, pos ) {
 		var r1 = buildCond(e1);
 		var r2 = buildCond(e2);
@@ -426,13 +440,13 @@ class SpodData {
 			sql = makeOp(eq?" = ":" != ", r1.sql, r2.sql, pos);
 		return { sql : sql, t : DBool, n : r1.n || r2.n };
 	}
-	
+
 	function buildDefault( cond : Expr ) {
 		var t = try Context.typeof(cond) catch( e : Dynamic ) throw BuildError.EExpr(cond);
 		var d = try makeType(t) catch( e : Dynamic ) try makeType(Context.follow(t)) catch( e : Dynamic ) error("Unsupported type " + Std.string(t), cond.pos);
 		return { sql : sqlQuoteValue(cond, d), t : d, n : false }; // assume values are never checked for null's
 	}
-	
+
 	function buildCond( cond : Expr ) {
 		var sql = null;
 		var p = cond.pos;
@@ -610,7 +624,7 @@ class SpodData {
 		error("Unsupported expression", p);
 		return null;
 	}
-	
+
 	function ensureType( e : Expr, rt : SpodType ) {
 		var t = try Context.typeof(e) catch( _ : Dynamic ) throw BuildError.EExpr(e);
 		switch( t ) {
@@ -626,7 +640,7 @@ class SpodData {
 			return e;
 		}
 	}
-	
+
 	function checkKeys( econd : Expr ) {
 		var p = econd.pos;
 		switch( econd.expr ) {
@@ -650,14 +664,14 @@ class SpodData {
 			var t = try Context.typeof(econd) catch( _ : Dynamic ) throw BuildError.EExpr(econd);
 			switch( t ) {
 			case TMono:
-				
+
 			default:
 				var d = try makeType(t) catch( e : Dynamic ) try makeType(Context.follow(t)) catch( e : Dynamic ) throw BuildError.EExpr(sqlQuoteValue(econd, fi.t));
 				unify(d, fi.t, p);
 			}
 		}
 	}
-	
+
 	function orderField(e) {
 		switch( e.expr ) {
 		case EConst(c):
@@ -676,7 +690,7 @@ class SpodData {
 		error("Invalid order field", e.pos);
 		return null;
 	}
-	
+
 	function concatStrings( e : Expr ) {
 		var inf = { e : null, str : null };
 		browseStrings(inf, e);
@@ -689,7 +703,7 @@ class SpodData {
 		}
 		return inf.e;
 	}
-	
+
 	function browseStrings( inf : { e : Expr, str : String }, e : Expr ) {
 		switch( e.expr ) {
 		case EConst(c):
@@ -763,7 +777,7 @@ class SpodData {
 		}
 		return sql;
 	}
-	
+
 	public static function getInfos( t : haxe.macro.Type ) {
 		var c = switch( t ) {
 		case TInst(c, _): if( c.toString() == "neko.db.Object" ) return null; c;
@@ -777,10 +791,10 @@ class SpodData {
 		return i.getSpodInfos(c);
 	}
 
-	
+
 	#if macro
 	static var RTTI = false;
-	
+
 	public static function addRtti() {
 		var eret = { expr : EBlock([]), pos : Context.currentPos() };
 		if( RTTI ) return eret;
@@ -810,7 +824,7 @@ class SpodData {
 		});
 		return eret;
 	}
-	
+
 	static function getManagerInfos( t : haxe.macro.Type ) {
 		var param = null;
 		switch( t ) {
@@ -835,7 +849,7 @@ class SpodData {
 			Context.error("This method must be called from a specific Manager", Context.currentPos());
 		return inf;
 	}
-	
+
 	static function buildSQL( em : Expr, econd : Expr, prefix : String, ?eopt : Expr ) {
 		var pos = Context.currentPos();
 		var inf = getManagerInfos(Context.typeof(em));
@@ -852,7 +866,7 @@ class SpodData {
 		#end
 		return sql;
 	}
-	
+
 	public static function macroGet( em : Expr, econd : Expr, elock : Expr ) {
 		var pos = Context.currentPos();
 		var inf = getManagerInfos(Context.typeof(em));
@@ -866,7 +880,7 @@ class SpodData {
 			return { expr : ECall({ expr : EField(em,"unsafeGet"), pos : pos },[econd,elock]), pos : pos };
 		}
 	}
-	
+
 	public static function macroSearch( em : Expr, econd : Expr, eopt : Expr, elock : Expr, ?single ) {
 		if( elock == null || Type.enumEq(elock.expr, EConst(CIdent("null"))) ) {
 			var tmp = eopt;
@@ -886,13 +900,13 @@ class SpodData {
 		var pos = Context.currentPos();
 		return { expr : ECall({ expr : EField(em,"unsafeCount"), pos : pos },[sql]), pos : pos };
 	}
-	
+
 	public static function macroDelete( em : Expr, econd : Expr ) {
 		var sql = buildSQL(em, econd, "DELETE FROM");
 		var pos = Context.currentPos();
 		return { expr : ECall({ expr : EField(em,"unsafeDelete"), pos : pos },[sql]), pos : pos };
 	}
-	
+
 	#end
 
 }
