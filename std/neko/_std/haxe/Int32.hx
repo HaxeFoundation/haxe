@@ -114,6 +114,7 @@ package haxe;
 
 	static function __init__() : Void untyped {
 		__i32__new = neko.Lib.load("std","int32_new",1);
+		__i32__kind = __dollar__getkind(__i32__new(0));
 		__i32__to_int = neko.Lib.load("std","int32_to_int",1);
 		__i32__add = neko.Lib.load("std","int32_add",2);
 		__i32__sub = neko.Lib.load("std","int32_sub",2);
