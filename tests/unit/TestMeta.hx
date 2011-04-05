@@ -40,9 +40,6 @@ package unit;
 		eq( fields(m), "_" );
 		eq( fields(m._), "new" );
 
-		var m = haxe.rtti.Meta.getStatics(E);
-		eq( m, null );
-
 		var m = haxe.rtti.Meta.getStatics(TestMeta);
 		eq( fields(m), "foo" );
 		eq( fields(m.foo), "_int#complex#empty" );
