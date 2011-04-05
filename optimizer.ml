@@ -565,7 +565,7 @@ let rec reduce_loop ctx e =
 				)
 			in
 			let ebool t =
-				{ e with eexpr = TConst (TBool (t (Int32.compare a b))) }
+				{ e with eexpr = TConst (TBool (t (Int32.compare b a))) }
 			in
 			(match op with
 			| OpAdd -> check_overflow Int64.add
@@ -594,7 +594,7 @@ let rec reduce_loop ctx e =
 					e
 			in
 			let ebool t =
-				{ e with eexpr = TConst (TBool (t (compare a b))) }
+				{ e with eexpr = TConst (TBool (t (compare (float_of_string b) (float_of_string a)))) }
 			in
 			(match op with
 			| OpAdd -> fop (+.)
