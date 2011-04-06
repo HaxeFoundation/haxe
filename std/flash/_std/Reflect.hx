@@ -63,7 +63,7 @@
 	}
 
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {
-		return untyped f1["f"] == f2["f"] && f1["o"] == f2["o"] && f1["f"] != null;
+		return untyped f1 == f2 || (f1["f"] == f2["f"] && f1["o"] == f2["o"] && f1["f"] != null);
 	}
 
 	public static function isObject( v : Dynamic ) : Bool untyped {
