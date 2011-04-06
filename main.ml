@@ -218,6 +218,34 @@ let lookup_classes com fpath =
 	in
 	loop com.class_path
 
+let add_swf_lib com file =
+	let swf_data = ref None in
+	let swf_classes = ref None in
+	let getSWF = (fun() ->
+		match !swf_data with
+		| None ->
+			let d = Genswf.parse_swf com file in
+			swf_data := Some d;
+			d
+		| Some d -> d
+	) in
+	let extract = (fun() ->
+		match !swf_classes with
+		| None -> 
+			let d = Genswf.extract_data (getSWF()) in
+			swf_classes := Some d;
+			d
+		| Some d -> d
+	) in
+	let build cl p =
+		match (try Some (Hashtbl.find (extract()) cl) with Not_found -> None) with
+		| None -> None
+		| Some c -> Some (Genswf.build_class com c file)
+	in
+	com.load_extern_type <- com.load_extern_type @ [build];
+	com.swf_libs <- (file,getSWF,extract) :: com.swf_libs
+
+
 exception Hxml_found
 
 let rec process_params acc = function
@@ -356,15 +384,7 @@ try
 				_ -> raise (Arg.Bad "Invalid SWF header format")
 		),"<header> : define SWF header (width:height:fps:color)");
 		("-swf-lib",Arg.String (fun file ->
-			let getSWF = Genswf.parse_swf com file in
-			let extract = Genswf.extract_data getSWF in
-			let build cl p =
-				match (try Some (Hashtbl.find (extract()) cl) with Not_found -> None) with
-				| None -> None
-				| Some c -> Some (Genswf.build_class com c file)
-			in
-			com.load_extern_type <- com.load_extern_type @ [build];
-			com.swf_libs <- (file,getSWF,extract) :: com.swf_libs
+			add_swf_lib com file
 		),"<file> : add the SWF library to the compiled SWF");
 		("-x", Arg.String (fun file ->
 			let neko_file = file ^ ".n" in
@@ -710,7 +730,7 @@ if !measure_times then begin
 	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
 	Printf.eprintf "Total time : %.3fs\n" !tot;
 	Printf.eprintf "------------------------------------\n";
-	let timers = List.sort (fun t1 t2 -> compare t2.total t1.total) (Hashtbl.fold (fun _ t acc -> t :: acc) Common.htimers []) in
+	let timers = List.sort (fun t1 t2 -> compare t1.name t2.name) (Hashtbl.fold (fun _ t acc -> t :: acc) Common.htimers []) in
 	List.iter (fun t ->
 		Printf.eprintf "  %s : %.3fs, %.0f%%\n" t.name t.total (t.total *. 100. /. !tot);
 	) timers;

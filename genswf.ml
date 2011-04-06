@@ -417,33 +417,26 @@ let build_class com c file =
 	} in
 	(path.tpackage, [(EClass class_data,pos)])
 
-let extract_data swf =
-	let cache = ref None in
-	(fun() ->
-		match !cache with
-		| Some h -> h
-		| None ->
-			let _, tags = swf() in
-			let t = Common.timer "read swf" in
-			let h = Hashtbl.create 0 in
-			let rec loop_field f =
-				match f.hlf_kind with
-				| HFClass c ->
-					let path = make_tpath f.hlf_name in
-					(match path with
-					| { tpackage = []; tname = "Float" | "Bool" | "MethodClosure" | "Int" | "UInt" | "Dynamic" } -> ()
-					| _ -> Hashtbl.add h (path.tpackage,path.tname) c)
-				| _ -> ()
-			in
-			List.iter (fun t ->
-				match t.tdata with
-				| TActionScript3 (_,as3) ->
-					List.iter (fun i -> Array.iter loop_field i.hls_fields) (As3hlparse.parse as3)
-				| _ -> ()
-			) tags;
-			cache := Some h;
-			t();
-			h)
+let extract_data (_,tags) =
+	let t = Common.timer "read swf" in
+	let h = Hashtbl.create 0 in
+	let rec loop_field f =
+		match f.hlf_kind with
+		| HFClass c ->
+			let path = make_tpath f.hlf_name in
+			(match path with
+			| { tpackage = []; tname = "Float" | "Bool" | "MethodClosure" | "Int" | "UInt" | "Dynamic" } -> ()
+			| _ -> Hashtbl.add h (path.tpackage,path.tname) c)
+		| _ -> ()
+	in
+	List.iter (fun t ->
+		match t.tdata with
+		| TActionScript3 (_,as3) ->
+			List.iter (fun i -> Array.iter loop_field i.hls_fields) (As3hlparse.parse as3)
+		| _ -> ()
+	) tags;
+	t();
+	h
 
 let remove_debug_infos as3 =
 	let hl = As3hlparse.parse as3 in
@@ -516,25 +509,19 @@ let remove_debug_infos as3 =
 	As3hlparse.flatten (List.map loop_static hl)
 
 let parse_swf com file =
-	let data = ref None in
-	(fun () ->
-		match !data with
-		| Some swf -> swf
-		| None ->
-			let t = Common.timer "read swf" in
-			let file = (try Common.find_file com file with Not_found -> failwith ("SWF Library not found : " ^ file)) in
-			let ch = IO.input_channel (open_in_bin file) in
-			let h, tags = (try Swf.parse ch with _ -> failwith ("The input swf " ^ file ^ " is corrupted")) in
-			IO.close_in ch;
-			List.iter (fun t ->
-				match t.tdata with
-				| TActionScript3 (id,as3) when not com.debug && not com.display ->
-					t.tdata <- TActionScript3 (id,remove_debug_infos as3)
-				| _ -> ()
-			) tags;
-			t();
-			data := Some (h,tags);
-			(h,tags))
+	let t = Common.timer "read swf" in
+	let file = (try Common.find_file com file with Not_found -> failwith ("SWF Library not found : " ^ file)) in
+	let ch = IO.input_channel (open_in_bin file) in
+	let h, tags = (try Swf.parse ch with _ -> failwith ("The input swf " ^ file ^ " is corrupted")) in
+	IO.close_in ch;
+	List.iter (fun t ->
+		match t.tdata with
+		| TActionScript3 (id,as3) when not com.debug && not com.display ->
+			t.tdata <- TActionScript3 (id,remove_debug_infos as3)
+		| _ -> ()
+	) tags;
+	t();
+	(h,tags)
 
 (* ------------------------------- *)
 

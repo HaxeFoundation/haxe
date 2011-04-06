@@ -1691,7 +1691,9 @@ let macro_lib =
 		);
 		"add_resource", Fun2 (fun name data ->
 			match name, data with
-			| VString name, VString data -> Hashtbl.replace (get_ctx()).com.Common.resources name data; VNull
+			| VString name, VString data ->
+				(* ressources are shared between the commons *)
+				Hashtbl.replace (get_ctx()).com.Common.resources name data; VNull
 			| _ -> error()
 		);
 		"curclass", Fun0 (fun() ->
