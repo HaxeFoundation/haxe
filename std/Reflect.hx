@@ -67,7 +67,6 @@ extern class Reflect {
 
 	/**
 		Compare two methods closures. Returns true if it's the same method of the same instance.
-		Does not work on Neko platform.
 	**/
 	public static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool;
 
