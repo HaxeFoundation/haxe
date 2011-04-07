@@ -9,15 +9,18 @@ MODULES = \
 MLI = $(MODULES:=.mli)
 SRC = $(MLI) $(MODULES:=.ml) extLib.ml
 
-all: 
+all:
 	ocamlc -a -o extLib.cma $(SRC)
-opt: 
-	ocamlopt -a -o extLib.cmxa $(SRC)
+opt:
+	ocamlopt -g -a -o extLib.cmxa $(SRC)
 doc:
 	ocamlc -c $(MODULES:=.mli)
 	mkdir -p doc/
 	ocamldoc -sort -html -d doc/ $(MODULES:=.mli)
 	cp odoc_style.css doc/style.css
+
+copy:
+	mv *.cmi *.cmx *.cma *.cmxa extLib.lib c:/ocaml/lib/
 
 install:
 	cp META.txt META
