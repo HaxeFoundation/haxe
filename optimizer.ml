@@ -487,6 +487,11 @@ let sanitize_expr e =
 		let cases = List.map (fun (el,e) -> el, complex e) cases in
 		let def = (match def with None -> None | Some e -> Some (complex e)) in
 		{ e with eexpr = TSwitch (e1,cases,def) }
+	| TMatch (e1, en, cases, def) ->
+		let e1 = parent e1 in
+		let cases = List.map (fun (el,vars,e) -> el, vars, complex e) cases in
+		let def = (match def with None -> None | Some e -> Some (complex e)) in
+		{ e with eexpr = TMatch (e1,en,cases,def) }
 	| _ ->
 		e
 
