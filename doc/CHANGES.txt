@@ -15,6 +15,7 @@
 	neko : added spod_macro support
 	neko : allowed serialization of haxe.Int32 (as Int)
 	all : fixed invalid optimization of two constant numbers comparison
+	flash8 : bugfix Std.parseInt with some hex values
 
 2011-01-30: 2.07
 	all : fixed completion support with --remap

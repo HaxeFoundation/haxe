@@ -107,6 +107,7 @@ class TestBasetypes extends Test {
 		eq( Std.parseInt("a10"), null );
 		eq( Std.parseInt(null), null );
 		eq( Std.parseInt("0xFF"), 255 );
+		eq( Std.parseInt("0x123"), 291 );
 		unspec(function() Std.parseInt("0xFG"));
 
 		eq( Std.parseFloat("0"), 0. );
