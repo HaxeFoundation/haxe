@@ -270,7 +270,11 @@ class SpodData {
 				i.indexes.push( { keys : idx, unique : unique } );
 			case ":table":
 				if( m.params.length != 1 ) error("Invalid :table", m.pos);
-				i.name = makeIdent(m.params[0]);
+				i.name = switch( m.params[0].expr ) {
+				case EConst(c): switch( c ) { case CString(s): s; default: null; }
+				default: null;
+				};
+				if( i.name == null ) error("Invalid :table value", m.params[0].pos);
 			default:
 			}
 		// check primary key defined
