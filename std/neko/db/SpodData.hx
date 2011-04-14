@@ -268,9 +268,12 @@ class SpodData {
 					if( !i.hfields.exists(idx[k]) )
 						error("This field does not exists", m.params[k].pos);
 				i.indexes.push( { keys : idx, unique : unique } );
+			case ":table":
+				if( m.params.length != 1 ) error("Invalid :table", m.pos);
+				i.name = makeIdent(m.params[0]);
 			default:
 			}
-		// check primary key defeined
+		// check primary key defined
 		if( i.key == null )
 			error("Table is missing unique id, use either SId or @:id", c.pos);
 		cache.set(cname, i);
