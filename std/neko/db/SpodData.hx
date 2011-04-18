@@ -450,8 +450,9 @@ class SpodData {
 
 	function buildDefault( cond : Expr ) {
 		var t = try Context.typeof(cond) catch( e : Dynamic ) throw BuildError.EExpr(cond);
+		isNull = false;
 		var d = try makeType(t) catch( e : Dynamic ) try makeType(Context.follow(t)) catch( e : Dynamic ) error("Unsupported type " + Std.string(t), cond.pos);
-		return { sql : sqlQuoteValue(cond, d), t : d, n : false }; // assume values are never checked for null's
+		return { sql : sqlQuoteValue(cond, d), t : d, n : isNull };
 	}
 
 	function buildCond( cond : Expr ) {
