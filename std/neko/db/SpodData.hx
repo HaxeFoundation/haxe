@@ -439,7 +439,7 @@ class SpodData {
 		}
 		var sql;
 		// use some different operators if there is a possibility for comparing two NULLs
-		if( r1.n && r2.n ) {
+		if( r1.n && r2.n || (!eq && (r1.n || r2.n)) ) {
 			sql = makeOp(" <=> ", r1.sql, r2.sql, pos);
 			if( !eq )
 				sql = sqlAdd(makeString("NOT(", pos), sqlAddString(sql, ")"), pos);
