@@ -113,7 +113,7 @@ class MacroManager<T : Object> {
 	@:macro public function deleteCond(ethis, cond) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<Void> #end {
 		return SpodData.macroDelete(ethis, cond);
 	}
-	
+
 	public function dynamicSearch( x : {}, ?lock : Bool ) : List<T> {
 		var s = new StringBuf();
 		s.add("SELECT * FROM ");
@@ -122,21 +122,6 @@ class MacroManager<T : Object> {
 		addCondition(s,x);
 		return unsafeObjects(s.toString(),lock);
 	}
-	
-	// for backward compatibility
-	#if spod_compat
-	@:macro public function getWithKeys(ethis,cond,?lock:haxe.macro.Expr.ExprRequire<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<T> #end {
-		return SpodData.macroGet(ethis,cond,lock);
-	}
-
-	@:macro public function object(ethis, cond, ?options, ?lock:haxe.macro.Expr.ExprRequire<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<T> #end {
-		return SpodData.macroSearch(ethis, cond, options, lock, true);
-	}
-	
-	@:macro public function objects(ethis, cond, ?options, ?lock:haxe.macro.Expr.ExprRequire<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<List<T>> #end {
-		return SpodData.macroSearch(ethis, cond, options, lock);
-	}
-	#end
 
 	function quote( s : String ) : String {
 		return cnx.quote( s );
@@ -344,7 +329,7 @@ class MacroManager<T : Object> {
 	public function unsafeDelete( sql : String ) {
 		unsafeExecute(sql);
 	}
-	
+
 	public function unsafeGet( id : Dynamic, ?lock : Bool ) : T {
 		if( lock == null ) lock = true;
 		if( table_keys.length != 1 )
@@ -363,7 +348,7 @@ class MacroManager<T : Object> {
 		cnx.addValue(s,id);
 		return unsafeObject(s.toString(), lock);
 	}
-	
+
 	public function unsafeGetWithKeys( keys : { }, ?lock : Bool ) : T {
 		if( lock == null ) lock = true;
 		var x : Dynamic = getFromCacheKey(makeCacheKey(cast keys));
