@@ -133,6 +133,7 @@ class SpodData {
 			if( p.length == 1 )
 				switch( name ) {
 				case "SString": return DString(makeInt(p[0]));
+				case "SBytes": return DBytes(makeInt(p[0]));
 				case "SNull", "Null": isNull = true; return makeType(p[0]);
 				default:
 				}
