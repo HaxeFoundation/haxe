@@ -350,7 +350,8 @@ class SpodData {
 		case DBool: 2;
 		case DString(_), DTinyText, DSmallText, DText, DSerialized: 3;
 		case DDate, DDateTime: 4;
-		case DSmallBinary, DLongBinary, DBinary, DBytes(_), DNekoSerialized: 5;
+		// allow bytes/string comparisons, reserve 5 for future change
+		case DSmallBinary, DLongBinary, DBinary, DBytes(_), DNekoSerialized: 3;
 		case DInterval: 6;
 		case DNull: 7;
 		};
