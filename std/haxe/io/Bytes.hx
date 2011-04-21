@@ -204,6 +204,20 @@ class Bytes {
 		#end
 	}
 
+	public function toHex() : String {
+		var s = new StringBuf();
+		var chars = [];
+		var str = "0123456789abcdef";
+		for( i in 0...str.length )
+			chars.push(str.charCodeAt(i));
+		for( i in 0...length ) {
+			var c = get(i);
+			s.addChar(chars[c >> 4]);
+			s.addChar(chars[c & 15]);
+		}
+		return s.toString();
+	}
+
 	public inline function getData() : BytesData {
 		return b;
 	}
