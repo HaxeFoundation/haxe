@@ -44,6 +44,7 @@ typedef SSmallBinary = String
 typedef SLongBinary = String
 typedef SBinary = String
 typedef SBytes<Const> = String
+typedef STinyInt = Int
 
 // extra
 typedef SNull<T> = T

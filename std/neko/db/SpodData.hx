@@ -328,7 +328,7 @@ class SpodData {
 		default:
 		}
 		var meth = switch( t ) {
-		case DId, DInt, DUId, DUInt, DEncoded, DFlags(_): "quoteInt";
+		case DId, DInt, DUId, DUInt, DEncoded, DFlags(_), DTinyInt: "quoteInt";
 		case DBigId, DBigInt, DSingle, DFloat: "quoteFloat";
 		case DBool: "quoteBool";
 		case DString(_), DTinyText, DSmallText, DText, DSerialized: "quoteString";
@@ -345,7 +345,7 @@ class SpodData {
 
 	function unifyClass( t : SpodType ) {
 		return switch( t ) {
-		case DId, DInt, DUId, DUInt, DEncoded, DFlags(_): 0;
+		case DId, DInt, DUId, DUInt, DEncoded, DFlags(_), DTinyInt: 0;
 		case DBigId, DBigInt, DSingle, DFloat: 1;
 		case DBool: 2;
 		case DString(_), DTinyText, DSmallText, DText, DSerialized: 3;

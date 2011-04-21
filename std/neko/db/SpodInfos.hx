@@ -48,6 +48,7 @@ enum SpodType {
 	DSerialized;
 	DNekoSerialized;
 	DFlags( flags : Array<String> );
+	DTinyInt;
 	// specific for intermediate calculus
 	DInterval;
 	DNull;
