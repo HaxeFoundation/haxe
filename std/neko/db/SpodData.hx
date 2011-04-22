@@ -757,6 +757,7 @@ class SpodData {
 		var sql = makeString("",p);
 		switch( eopt.expr ) {
 		case EObjectDecl(fields):
+			var limit = null;
 			for( o in fields ) {
 				if( opts.exists(o.field) ) error("Duplicate option " + o.field, p);
 				switch( o.field ) {
@@ -775,12 +776,15 @@ class SpodData {
 					var l0 = limits[0], l1 = limits[1];
 					unify(l0.t, DInt, l0.sql.pos);
 					if( l1 != null ) unify(l1.t, DInt, l1.sql.pos);
-					sql = sqlAdd(sqlAddString(sql, " LIMIT "), l0.sql, p);
-					if( l1 != null )
-						sql = sqlAdd(sqlAddString(sql, ","), l1.sql, p);
+					limit = { l0 : l0, l1 : l1 };
 				default:
 					error("Unknown option '" + o.field + "'", p);
 				}
+			}
+			if( limit != null ) {
+				sql = sqlAdd(sqlAddString(sql, " LIMIT "), limit.l0.sql, p);
+				if( limit.l1 != null )
+					sql = sqlAdd(sqlAddString(sql, ","), limit.l1.sql, p);
 			}
 		default:
 			error("Options should be { orderBy : field, limit : [a,b] }", p);
