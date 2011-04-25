@@ -237,7 +237,7 @@ haxe reserved words that match php ones: break, case, class, continue, default, 
 	| "as" | "const" | "declare" | "die" | "echo"| "elseif" | "empty"
 	| "enddeclare" | "endfor" | "endforeach" | "endif" | "endswitch"
 	| "endwhile" | "eval" | "exit" | "foreach"| "global" | "include"
-	| "include_once" | "isset" | "list" | "print" | "require" | "require_once"
+	| "include_once" | "isset" | "list" | "namespace" | "print" | "require" | "require_once"
 	| "unset" | "use" | "__function__" | "__class__" | "__method__" | "final" 
 	| "php_user_filter" | "protected" | "abstract" | "__set" | "__get" | "__call"
 	| "clone" -> suf ^ n
