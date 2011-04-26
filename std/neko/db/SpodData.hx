@@ -620,7 +620,7 @@ class SpodData {
 			default:
 			}
 			return buildDefault(cond);
-		case EField(_, _), EType(_, _):
+		case EField(_, _), EType(_, _), EDisplay(_):
 			return buildDefault(cond);
 		case EIf(e, e1, e2), ETernary(e, e1, e2):
 			if( e2 == null ) error("If must have an else statement", p);
