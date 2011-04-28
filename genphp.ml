@@ -1286,7 +1286,7 @@ and gen_expr ctx e =
 		(match e.eexpr with
 		| TArray(te1, te2) ->
 			gen_value ctx te1;
-			spr ctx "->»a[";
+			spr ctx "[";
 			gen_value ctx te2;
 			spr ctx "]";
 		| TField (e1,s) ->
