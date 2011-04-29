@@ -245,6 +245,29 @@ let add_swf_lib com file =
 	com.load_extern_type <- com.load_extern_type @ [build];
 	com.swf_libs <- (file,getSWF,extract) :: com.swf_libs
 
+let add_libs com l libs =
+	match l with
+	| [] -> ()
+	| l ->
+		let cmd = "haxelib path " ^ String.concat " " l in
+		let p = Unix.open_process_in cmd in
+		let lines = Std.input_list p in
+		let ret = Unix.close_process_in p in
+		let lines = List.fold_left (fun acc l ->
+			let p = String.length l - 1 in
+			let l = (if l.[p] = '\r' then String.sub l 0 p else l) in
+			match (if p > 3 then String.sub l 0 3 else "") with
+			| "-D " ->
+				Common.define com (String.sub l 3 (String.length l - 3));
+				acc
+			| "-L " ->
+				libs := String.sub l 3 (String.length l - 3) :: !libs;
+				acc
+			| _ ->
+				l :: acc
+		) [] lines in
+		if ret <> Unix.WEXITED 0 then failwith (String.concat "\n" lines);
+		com.class_path <- lines @ com.class_path
 
 exception Hxml_found
 
@@ -269,7 +292,8 @@ try
 	let swf_header = ref None in
 	let cmds = ref [] in
 	let config_macros = ref [] in
-	let libs = ref [] in
+	let neko_libs = ref [] in
+	let cp_libs = ref [] in
 	let has_error = ref false in
 	let gen_as3 = ref false in
 	let no_output = ref false in
@@ -321,6 +345,8 @@ try
 	let define f = Arg.Unit (fun () -> Common.define com f) in
 	let basic_args_spec = [
 		("-cp",Arg.String (fun path ->
+			add_libs com (!cp_libs) neko_libs;
+			cp_libs := [];
 			com.class_path <- normalize_path path :: com.class_path
 		),"<path> : add a directory to find source files");
 		("-js",Arg.String (set_platform Js),"<file> : compile code to JavaScript file");
@@ -351,7 +377,7 @@ try
 			classes := cpath :: !classes
 		),"<class> : select startup class");
 		("-lib",Arg.String (fun l ->
-			libs := l :: !libs;
+			cp_libs := l :: !cp_libs;
 			Common.define com l;
 		),"<library[:version]> : use a haxelib library");
 		("-D",Arg.String (fun var ->
@@ -511,30 +537,7 @@ try
 			classes := make_path cl :: !classes
 	in
 	Arg.parse_argv ~current args (basic_args_spec @ adv_args_spec) args_callback usage;
-	(match !libs with
-	| [] -> ()
-	| l ->
-		libs := [];
-		let cmd = "haxelib path " ^ String.concat " " l in
-		let p = Unix.open_process_in cmd in
-		let lines = Std.input_list p in
-		let ret = Unix.close_process_in p in
-		let lines = List.fold_left (fun acc l ->
-			let p = String.length l - 1 in
-			let l = (if l.[p] = '\r' then String.sub l 0 p else l) in
-			match (if p > 3 then String.sub l 0 3 else "") with
-			| "-D " ->
-				Common.define com (String.sub l 3 (String.length l - 3));
-				acc
-			| "-L " ->
-				libs := String.sub l 3 (String.length l - 3) :: !libs;
-				acc
-			| _ ->
-				l :: acc
-		) [] lines in
-		if ret <> Unix.WEXITED 0 then failwith (String.concat "\n" lines);
-		com.class_path <- lines @ com.class_path;
-	);
+	add_libs com (!cp_libs) neko_libs;
 	if com.display then begin
 		xml_out := None;
 		no_output := true;
@@ -637,7 +640,7 @@ try
 			Genswf.generate com !swf_header;
 		| Neko ->
 			if com.verbose then print_endline ("Generating neko : " ^ com.file);
-			Genneko.generate com !libs;
+			Genneko.generate com !neko_libs;
 		| Js ->
 			if com.verbose then print_endline ("Generating js : " ^ com.file);
 			Genjs.generate com
