@@ -25,46 +25,7 @@
 package haxe;
 
 class Resource {
-#if php
-	static function cleanName(name : String) : String {
-		return ~/[\\\/:?"*<>|]/.replace(name, '_');
-	}
 
-	static function getDir() {
-		return untyped __call__('dirname', __php__('__FILE__'))+"/../../res";
-	}
-
-	static function getPath(name : String) {
-		return getDir()+'/'+cleanName(name);
-	}
-
-	public static function listNames() : Array<String> {
-		var a = php.FileSystem.readDirectory(getDir());
-		if(a[0] == '.') a.shift();
-		if(a[0] == '..') a.shift();
-		return a;
-	}
-
-	public static function getString( name : String ) {
-		return php.io.File.getContent(getPath(name));
-	}
-
-	public static function getBytes( name : String ) {
-		return php.io.File.getBytes(getPath(name));
-	}
-#elseif cpp
-	public static function listNames() : Array<String> {
-		return untyped __global__.__hxcpp_resource_names();
-	}
-	public static function getString(name:String) : String {
-		return untyped __global__.__hxcpp_resource_string(name);
-	}
-	public static function getBytes(name:String) : haxe.io.Bytes {
-		var array:haxe.io.BytesData = untyped __global__.__hxcpp_resource_bytes(name);
-		if (array==null) return null;
-		return haxe.io.Bytes.ofData(array);
-	}
-#else
 	static var content : Array<{ name : String, data : String, str : String }>;
 
 	public static function listNames() : Array<String> {
@@ -113,5 +74,5 @@ class Resource {
 		content = untyped __resources__();
 		#end
 	}
-#end
+
 }

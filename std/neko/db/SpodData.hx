@@ -62,6 +62,24 @@ class SpodData {
 		return null;
 	}
 
+	public dynamic function typeof( e : Expr ) : haxe.macro.Type {
+		#if macro
+		return Context.typeof(e);
+		#else
+		throw "not implemented";
+		return null;
+		#end
+	}
+
+	public dynamic function follow( t : haxe.macro.Type ) : haxe.macro.Type {
+		#if macro
+		return Context.follow(t);
+		#else
+		throw "not implemented";
+		return null;
+		#end
+	}
+
 	function makeInt( t : haxe.macro.Type ) {
 		switch( t ) {
 		case TInst(c, _):
@@ -451,9 +469,9 @@ class SpodData {
 	}
 
 	function buildDefault( cond : Expr ) {
-		var t = try Context.typeof(cond) catch( e : Dynamic ) throw BuildError.EExpr(cond);
+		var t = try typeof(cond) catch( e : Dynamic ) throw BuildError.EExpr(cond);
 		isNull = false;
-		var d = try makeType(t) catch( e : Dynamic ) try makeType(Context.follow(t)) catch( e : Dynamic ) error("Unsupported type " + Std.string(t), cond.pos);
+		var d = try makeType(t) catch( e : Dynamic ) try makeType(follow(t)) catch( e : Dynamic ) error("Unsupported type " + Std.string(t), cond.pos);
 		return { sql : sqlQuoteValue(cond, d), t : d, n : isNull };
 	}
 
@@ -565,7 +583,7 @@ class SpodData {
 			case CIdent(n), CType(n):
 				var f = current.hfields.get(n);
 				if( f != null ) {
-					if( (try Context.typeof(cond) catch( e : Dynamic ) null) != null )
+					if( (try typeof(cond) catch( e : Dynamic ) null) != null )
 						error("Possible conflict between variable and database field", p);
 					return { sql : makeString(f.name, p), t : f.t, n : f.isNull };
 				}
@@ -636,7 +654,7 @@ class SpodData {
 	}
 
 	function ensureType( e : Expr, rt : SpodType ) {
-		var t = try Context.typeof(e) catch( _ : Dynamic ) throw BuildError.EExpr(e);
+		var t = try typeof(e) catch( _ : Dynamic ) throw BuildError.EExpr(e);
 		switch( t ) {
 		case TMono:
 			// pseudo-cast
@@ -645,7 +663,7 @@ class SpodData {
 				{ expr : EConst(CIdent("__tmp")), pos : e.pos },
 			]), pos : e.pos };
 		default:
-			var d = try makeType(t) catch( e : Dynamic ) try makeType(Context.follow(t)) catch( e : Dynamic ) throw BuildError.EExpr(sqlQuoteValue(e,rt)); // will produce an error
+			var d = try makeType(t) catch( e : Dynamic ) try makeType(follow(t)) catch( e : Dynamic ) throw BuildError.EExpr(sqlQuoteValue(e,rt)); // will produce an error
 			unify(d, rt, e.pos);
 			return e;
 		}
@@ -671,12 +689,12 @@ class SpodData {
 			if( current.key.length > 1 )
 				error("You can't use a single value on a table with multiple keys (" + current.key.join(",") + ")", p);
 			var fi = current.hfields.get(current.key[0]);
-			var t = try Context.typeof(econd) catch( _ : Dynamic ) throw BuildError.EExpr(econd);
+			var t = try typeof(econd) catch( _ : Dynamic ) throw BuildError.EExpr(econd);
 			switch( t ) {
 			case TMono:
 
 			default:
-				var d = try makeType(t) catch( e : Dynamic ) try makeType(Context.follow(t)) catch( e : Dynamic ) throw BuildError.EExpr(sqlQuoteValue(econd, fi.t));
+				var d = try makeType(t) catch( e : Dynamic ) try makeType(follow(t)) catch( e : Dynamic ) throw BuildError.EExpr(sqlQuoteValue(econd, fi.t));
 				unify(d, fi.t, p);
 			}
 		}
