@@ -411,7 +411,6 @@ and gen_expr ctx e =
 				spr ctx "} else "
 		) catchs;
 		if not !last then begin
-			newline ctx;
 			print ctx "throw(%s)" vname;
 		end;
 		bend();
