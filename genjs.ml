@@ -224,6 +224,9 @@ and gen_expr ctx e =
 	| TField (x,s) ->
 		gen_value ctx x;
 		spr ctx (field s)
+	| TClosure ({ eexpr = TTypeExpr _ } as x,s) ->
+		gen_value ctx x;
+		spr ctx (field s)
 	| TClosure (x,s) ->
 		spr ctx "$closure(";
 		gen_value ctx x;
