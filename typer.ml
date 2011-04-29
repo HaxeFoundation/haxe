@@ -2067,11 +2067,11 @@ let load_macro ctx cpath f p =
 			List.iter (fun p -> com2.defines <- PMap.remove (platform_name p) com2.defines) platforms;
 			com2.class_path <- List.filter (fun s -> not (ExtString.String.exists s "/_std/")) com2.class_path;
 			com2.class_path <- List.map (fun p -> p ^ "neko" ^ "/_std/") com2.std_path @ com2.class_path;
-			com2.defines <- PMap.foldi (fun k _ acc -> 
-				if List.exists (fun (_,d) -> "flash" ^ d = k) Common.flash_versions then
-					acc
-				else
-					PMap.add k () acc
+			com2.defines <- PMap.foldi (fun k _ acc ->
+				match k with
+				| "no_traces" -> acc
+				| _ when List.exists (fun (_,d) -> "flash" ^ d = k) Common.flash_versions -> acc
+				| _ -> PMap.add k () acc
 			) com2.defines PMap.empty;
 			Common.define com2 "macro";
 			Common.init_platform com2 Neko;

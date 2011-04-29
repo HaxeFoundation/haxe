@@ -1599,10 +1599,20 @@ let macro_lib =
 		);
 		"signature", Fun1 (fun v ->
 			let cache = ref [] in
+			let hfiles = Hashtbl.create 0 in
+			let get_file f =
+				try 
+					Hashtbl.find hfiles f
+				with Not_found ->
+					let ff = (try Common.get_full_path f with _ -> f) in
+					Hashtbl.add hfiles f ff;
+					ff
+			in
 			let rec loop v =
 				match v with
 				| VNull | VBool _ | VInt _ | VFloat _ | VString _ -> v
-				| VAbstract (AInt32 _ | APos _) -> v
+				| VAbstract (AInt32 _) -> v
+				| VAbstract (APos p) -> VAbstract (APos { p with Ast.pfile = get_file p.Ast.pfile })
 				| _ ->
 					try
 						List.assq v !cache
