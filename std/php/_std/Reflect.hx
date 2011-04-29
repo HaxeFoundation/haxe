@@ -74,8 +74,7 @@
 			return false;
 		if(untyped __call__("is_object", v))
 			return untyped __php__("$v instanceof _hx_anonymous") || Type.getClass(v) != null;
-		if(untyped __php__("is_string($v) && !_hx_is_lambda($v)")) return true;
-		return false;
+		return untyped __php__("is_string($v) && !_hx_is_lambda($v)");
 	}
 
 	public static function deleteField( o : Dynamic, f : String ) : Bool {
