@@ -62,8 +62,6 @@ class Sys {
 				cmd += " "+escapeArgument(a);
 		}
 		var result = 0;
-		var output = "";
-//		untyped __call__("exec", cmd, output, result);
 		untyped __call__("system", cmd, result);
 		return result;
 	}
