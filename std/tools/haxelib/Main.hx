@@ -664,7 +664,7 @@ class Main {
 	function checkRec( prj : String, version : String, l : List<{ project : String, version : String }> ) {
 		var pdir = getRepository() + Datas.safe(prj);
 		if( !neko.FileSystem.exists(pdir) )
-			throw "Project "+prj+" is not installed";
+			throw "Project "+prj+" is not installed : run 'haxelib install "+prj+"'";
 		var version = if( version != null ) version else neko.io.File.getContent(pdir+"/.current");
 		var vdir = pdir + "/" + Datas.safe(version);
 		if( !neko.FileSystem.exists(vdir) )
