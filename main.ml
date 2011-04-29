@@ -195,7 +195,7 @@ let parse_hxml file =
 		else if l.[0] = '-' then
 			try
 				let a, b = ExtString.String.split l " " in
-				[a; b]
+				[a; ExtString.String.strip b]
 			with
 				_ -> [l]
 		else
