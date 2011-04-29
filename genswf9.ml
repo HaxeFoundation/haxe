@@ -1728,8 +1728,7 @@ let generate_class_statics ctx c const =
 let need_init ctx c =
 	not ctx.swc && not c.cl_extern && List.exists (fun f -> match f.cf_expr with Some e -> not (is_const e) | _ -> false) c.cl_ordered_statics
 
-let generate_inits ctx =
-	let finit = begin_fun ctx [] ctx.com.basic.tvoid [] true null_pos in
+let generate_extern_inits ctx =
 	List.iter (fun t ->
 		match t with
 		| TClassDecl c when c.cl_extern ->
@@ -1737,7 +1736,11 @@ let generate_inits ctx =
 			| None -> ()
 			| Some e -> gen_expr ctx false e);
 		| _ -> ()
-	) ctx.com.types;
+	) ctx.com.types
+
+let generate_inits ctx =
+	let finit = begin_fun ctx [] ctx.com.basic.tvoid [] true null_pos in
+	if not ctx.swc then generate_extern_inits ctx;
 	List.iter (fun t ->
 		match t with
 		| TClassDecl c when need_init ctx c ->
@@ -1781,6 +1784,7 @@ let generate_class_init ctx c hc =
 	) c.cl_ordered_statics;
 	if not c.cl_interface then write ctx HPopScope;
 	write ctx (HInitProp (type_path ctx c.cl_path));
+	if ctx.swc && c.cl_path = ctx.boot then generate_extern_inits ctx;
 	(match c.cl_init with
 	| None -> ()
 	| Some e ->
@@ -2189,11 +2193,28 @@ let generate com boot_name =
 		try_scope_reg = None;
 		for_call = false;
 	} in
+	let types = if ctx.swc && com.main_class = None then
+		(*
+			make sure that both Boot and RealBoot are the first two classes in the SWC
+			this way initializing RealBoot will also run externs __init__ blocks before
+			another class static is defined
+		*)
+		let hd = ref [] in
+		let types = List.fold_left (fun acc t ->
+			match t_path t with
+			| ["flash";"_Boot"],"RealBoot" -> hd := !hd @ [t]; acc
+			| ["flash"], "Boot" -> hd := t :: !hd; acc
+			| _ -> t :: acc
+		) [] com.types in
+		!hd @ List.rev types
+	else
+		com.types
+	in
 	let classes = List.fold_left (fun acc t ->
 		match generate_type ctx t with
 		| None -> acc
 		| Some (m,f) -> (t,m,f) :: acc
-	) [] com.types in
+	) [] types in
 	List.rev classes
 
 ;;
