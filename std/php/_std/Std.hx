@@ -51,6 +51,6 @@
 	}
 
 	public static function random( x : Int ) : Int {
-		return untyped __call__("rand", 0, x-1);
+		return untyped __call__("mt_rand", 0, x-1);
 	}
 }
