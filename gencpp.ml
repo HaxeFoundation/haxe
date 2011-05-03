@@ -928,7 +928,8 @@ let rec define_local_function_ctx ctx func_name func_def =
 		if (has_this) then Hashtbl.remove undeclared "this";
 		let typed_vars = hash_iterate undeclared (fun key value -> value ^ "," ^ (keyword_remap key) ) in
 		let func_name_sep = func_name ^ (if List.length typed_vars > 0 then "," else "") in
-		output_i ("HX_BEGIN_LOCAL_FUNC" ^ (list_num typed_vars) ^ "(" ^ func_name_sep ^
+		output_i ("HX_BEGIN_LOCAL_FUNC_S" ^ (list_num typed_vars) ^ "(" ^
+         (if has_this then "hx::LocalThisFunc," else "hx::LocalFunc,") ^ func_name_sep ^
 						(String.concat "," typed_vars) ^ ")\n" );
 
 		(* actual function, called "run" *)
@@ -972,11 +973,6 @@ let rec define_local_function_ctx ctx func_name func_def =
 			writer#end_block;
 		end;
 		pop_real_this_ptr();
-
-		if (has_this) then begin
-			output_i "Dynamic __this;\n";
-			output_i "void __SetThis(Dynamic inThis) { __this = inThis; }\n";
-		end;
 
 		let return = if (type_string func_def.tf_type ) = "Void" then "(void)" else "return" in
 		output_i ("HX_END_LOCAL_FUNC" ^ (list_num args_and_types) ^ "(" ^ return ^ ")\n\n");
