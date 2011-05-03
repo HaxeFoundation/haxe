@@ -458,7 +458,7 @@ try
 				) com.swf_libs;
 			) :: !pre_compilation;
 			xml_out := Some "hx"
-		),"<file> : generate hx headers from SWF9 file");
+		),": generate hx headers for all input classes");
 		("--next", Arg.Unit (fun() -> assert false), ": separate several haxe compilations");
 		("--display", Arg.String (fun file_pos ->
 			match file_pos with
