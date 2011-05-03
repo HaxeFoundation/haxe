@@ -25,20 +25,20 @@
 
 @:core_api class EReg {
 
-	var r : Dynamic;
+	var r : flash.utils.RegExp;
 	var result : {> Array<String>, index : Int, input : String };
 
 	public function new( r : String, opt : String ) : Void {
-		this.r = untyped __new__(__global__["RegExp"],r,opt);
+		this.r = new flash.utils.RegExp(r,opt);
 	}
 
 	public function match( s : String ) : Bool {
-		result = untyped r.exec(s);
+		result = r.exec(s);
 		return (result != null);
 	}
 
 	public function matched( n : Int ) : String {
-		return untyped if( result != null && n >= 0 && n < result.length ) result[n] else throw "EReg::matched";
+		return if( result != null && n >= 0 && n < result.length ) result[n] else throw "EReg::matched";
 	}
 
 	public function matchedLeft() : String {

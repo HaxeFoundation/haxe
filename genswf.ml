@@ -158,6 +158,7 @@ let rec make_tpath = function
 			| [] , "XMLList" -> ["flash";"xml"], "XMLList"
 			| [] , "QName" -> ["flash";"utils"], "QName"
 			| [] , "Namespace" -> ["flash";"utils"], "Namespace"
+			| [] , "RegExp" -> ["flash";"utils"], "RegExp"
 			| ["__AS3__";"vec"] , "Vector" -> ["flash"], "Vector"
 			| _ -> pack, name
 		in
