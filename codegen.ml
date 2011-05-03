@@ -101,7 +101,11 @@ let extend_remoting ctx c t p async prot =
 		Error (Module_not_found _,p2) when p == p2 ->
 	(* build it *)
 	if ctx.com.verbose then print_endline ("Building proxy for " ^ s_type_path path);
-	let decls = (try Typeload.parse_module ctx path p with e -> ctx.com.package_rules <- rules; raise e) in
+	let decls = (try
+		Typeload.parse_module ctx path p
+	with 
+		| Not_found -> ctx.com.package_rules <- rules; error ("Could not load proxy module " ^ s_type_path path ^ (if fst path = [] then " (try using absolute path)" else "")) p
+		| e -> ctx.com.package_rules <- rules; raise e) in
 	ctx.com.package_rules <- rules;
 	let base_fields = [
 		{ cff_name = "__cnx"; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = []; cff_kind = FVar (Some (CTPath { tpackage = ["haxe";"remoting"]; tname = if async then "AsyncConnection" else "Connection"; tparams = []; tsub = None }),None) };
