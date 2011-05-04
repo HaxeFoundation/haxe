@@ -2644,7 +2644,18 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			List.iter (gen_field_init ctx ) class_def.cl_ordered_statics;
 			output_cpp ("}\n\n");
 		end;
-	end;
+	end else begin
+		let class_name_text = join_class_path class_path "." in
+
+		output_cpp ("Class " ^ class_name ^ "::__mClass;\n\n");
+
+		output_cpp ("void " ^ class_name ^ "::__register()\n{\n");
+		output_cpp ("	Static(__mClass) = hx::RegisterClass(" ^ (str class_name_text)  ^
+				", hx::TCanCast< " ^ class_name ^ "> ,0,0,\n");
+		output_cpp ("	0, 0,\n");
+		output_cpp ("	&super::__SGetClass(), 0, 0);\n");
+		output_cpp ("}\n\n");
+   end;
 
 	gen_close_namespace output_cpp class_path;
 
@@ -2722,7 +2733,9 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		if (has_init_field class_def) then
 			output_h "		static void __init__();\n\n";
 		output_h ("		::String __ToString() const { return " ^ (str smart_class_name) ^ "; }\n\n");
-	end;
+	end else begin
+		output_h ("		HX_DO_INTERFACE_RTTI;\n");
+   end;
 
 
 	(match class_def.cl_array_access with
@@ -2954,8 +2967,7 @@ let generate common_ctx =
 			if (is_internal) then
 				( if debug then print_endline (" internal class " ^ name ))
 			else begin
-				if (not class_def.cl_interface) then
-					boot_classes := class_def.cl_path ::  !boot_classes;
+				boot_classes := class_def.cl_path ::  !boot_classes;
 				if (has_init_field class_def) then
 					init_classes := class_def.cl_path ::  !init_classes;
 				let deps = generate_class_files common_ctx member_types super_deps constructor_deps class_def in
