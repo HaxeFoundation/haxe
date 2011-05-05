@@ -281,6 +281,12 @@ List.filter (function (t,pl) ->
 	| _ -> true
 );;
 
+let rec is_function_expr expr =
+   match expr.eexpr with
+   | TParenthesis expr -> is_function_expr expr
+   | TFunction _ -> true
+   | _ -> false;;
+
 
 let rec has_rtti_interface c interface =
 	List.exists (function (t,pl) ->
@@ -1062,6 +1068,7 @@ and define_local_return_block_ctx ctx expression name =
 				find_local_functions_and_return_blocks_ctx ctx true value;
 				output_i ( "__result->Add(" ^ (str name) ^ " , ");
 				gen_expression ctx true value;
+				output (if is_function_expr value then ",true" else ",false" );
 				output (");\n");
 			) decl_list;
 			pop_names();
@@ -1676,7 +1683,6 @@ let is_data_member field =
 	match field.cf_expr with
 	| Some { eexpr = TFunction function_def } -> is_dynamic_haxe_method field
 	| _ -> true;;
-
 
 let default_value_string = function
 	| TInt i -> Printf.sprintf "%ld" i
