@@ -56,19 +56,35 @@ class Compiler {
 	/**
 		Include for compilation all classes defined in the given package excluding the ones referenced in the ignore list.
 	**/
-	public static function include( pack : String, ?rec = true, ?ignore : Array<String> ) {
-		for( p in Context.getClassPath() ) {
-			var p = p + pack.split(".").join("/");
-			if( !neko.FileSystem.exists(p) || !neko.FileSystem.isDirectory(p) )
+	public static function include( pack : String, ?rec = true, ?ignore : Array<String>, ?classPaths : Array<String> ) {
+		var skip = if(null == ignore) {
+			function(c) return false;
+		} else {
+			function(c) return Lambda.has(ignore, c);
+		}
+		neko.Lib.print("pack: " + pack);
+		if(null == classPaths)
+			classPaths = Context.getClassPath();
+		// normalize class path
+		for( i in 0...classPaths.length ) {
+			var cp = StringTools.replace(classPaths[i], "\\", "/");
+			if(StringTools.endsWith(cp, "/"))
+				cp = cp.substr(0, -1);
+			classPaths[i] = cp;
+		}
+		for( cp in classPaths ) {
+			var path = ('' == pack) ? cp : cp + "/" + pack.split(".").join("/");
+			pack = '' == pack ? '' : pack + '.';
+			if( !neko.FileSystem.exists(path) || !neko.FileSystem.isDirectory(path) )
 				continue;
-			for( file in neko.FileSystem.readDirectory(p) ) {
+			for( file in neko.FileSystem.readDirectory(path) ) {
 				if( StringTools.endsWith(file, ".hx") ) {
-					var cl = pack + "." + file.substr(0, file.length - 3);
-					if( ignore != null && Lambda.has(ignore, cl) )
+					var cl = pack + file.substr(0, file.length - 3);
+					if( skip(cl) )
 						continue;
 					Context.getModule(cl);
-				} else if( rec && neko.FileSystem.isDirectory(p + "/" + file) )
-					include(pack + "." + file, true, ignore);
+				} else if( rec && neko.FileSystem.isDirectory(path + "/" + file) && !skip(pack + file) )
+					include(pack + file, true, ignore, classPaths);
 			}
 		}
 	}
