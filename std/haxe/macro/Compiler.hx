@@ -207,11 +207,9 @@ class Compiler {
 							var types = Context.getModule(module);
 							for (type in types)
 							{
-								trace(type);
 								switch(type)
 								{
 									case TInst(cls, _):
-										trace(cls.toString());
 										addMetadata("@:keep", cls.toString());
 									default:
 										//
