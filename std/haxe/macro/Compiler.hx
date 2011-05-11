@@ -62,7 +62,6 @@ class Compiler {
 		} else {
 			function(c) return Lambda.has(ignore, c);
 		}
-		neko.Lib.print("pack: " + pack);
 		if(null == classPaths)
 			classPaths = Context.getClassPath();
 		// normalize class path
@@ -72,14 +71,14 @@ class Compiler {
 				cp = cp.substr(0, -1);
 			classPaths[i] = cp;
 		}
+		var prefix = '' == pack ? '' : pack + '.';
 		for( cp in classPaths ) {
 			var path = ('' == pack) ? cp : cp + "/" + pack.split(".").join("/");
-			pack = '' == pack ? '' : pack + '.';
 			if( !neko.FileSystem.exists(path) || !neko.FileSystem.isDirectory(path) )
 				continue;
 			for( file in neko.FileSystem.readDirectory(path) ) {
 				if( StringTools.endsWith(file, ".hx") ) {
-					var cl = pack + file.substr(0, file.length - 3);
+					var cl = prefix + file.substr(0, file.length - 3);
 					if( skip(cl) )
 						continue;
 					Context.getModule(cl);
