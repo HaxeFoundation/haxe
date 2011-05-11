@@ -28,7 +28,7 @@ typedef JqEvent = {
 	function stopPropagation() : Void;
 }
 
-extern class JQuery implements ArrayAccess<JQuery> {
+extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 
 	var context(default,null) : Dom.HtmlDom;
 	var length(default, null) : Int;
