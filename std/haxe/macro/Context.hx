@@ -134,8 +134,8 @@ class Context {
 	/**
 		Follow all typedefs to reach the actual real type
 	**/
-	public static function follow( t : Type ) : Type {
-		return load("follow", 1)(t);
+	public static function follow( t : Type, ?once : Bool ) : Type {
+		return load("follow", 2)(t,once);
 	}
 	
 	/**

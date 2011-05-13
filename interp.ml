@@ -1713,8 +1713,22 @@ let macro_lib =
 			| None -> VNull
 			| Some c -> encode_type (TInst (c,[]))
 		);
-		"follow", Fun1 (fun v ->
-			encode_type (follow (decode_type v))
+		"follow", Fun2 (fun v once ->
+			let t = decode_type v in
+			let follow_once t =
+				match t with
+				| TMono r ->
+					(match !r with
+					| None -> t
+					| Some t -> t)
+				| TEnum _ | TInst _ | TFun _ | TAnon _ | TDynamic _ ->
+					t
+				| TType (t,tl) ->
+					apply_params t.t_types tl t.t_type
+				| TLazy f ->
+					(!f)()
+			in
+			encode_type (match once with VNull | VBool false -> follow t | VBool true -> follow_once t | _ -> error())
 		);
 	]
 
