@@ -1642,8 +1642,10 @@ let macro_lib =
 					cache := (v,v2) :: !cache;
 					v2
 				| VClosure (vl,f) ->
-					let v2 = VClosure ([], Obj.magic (List.length !cache)) in
+					let rl = ref [] in
+					let v2 = VClosure (Obj.magic rl, Obj.magic (List.length !cache)) in
 					cache := (v,v2) :: !cache;
+					rl := List.map loop vl;
 					v2
 				| VAbstract (AHash h) ->
 					let h2 = Hashtbl.create 0 in

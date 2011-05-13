@@ -273,6 +273,8 @@ and gen_expr ctx e =
 		gen_binop ctx p op e1 e2
 	| TField (e,f) ->
 		field p (gen_expr ctx e) f
+	| TClosure (({ eexpr = TTypeExpr _ } as e),f) ->
+		field p (gen_expr ctx e) f
 	| TClosure (e2,f) ->
 		(match follow e.etype with
 		| TFun (args,_) ->
