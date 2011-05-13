@@ -43,7 +43,7 @@ extern class Reflect {
 	/**
 		Set an object field value.
 	**/
-	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void;
+	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void;
 
 	/**
 		Call a method with the given object and arguments.

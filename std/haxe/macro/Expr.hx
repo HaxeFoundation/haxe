@@ -98,7 +98,7 @@ enum ExprDef {
 	ENew( t : TypePath, params : Array<Expr> );
 	EUnop( op : Unop, postFix : Bool, e : Expr );
 	EVars( vars : Array<{ name : String, type : Null<ComplexType>, expr : Null<Expr> }> );
-	EFunction( f : Function );
+	EFunction( name : Null<String>, f : Function );
 	EBlock( exprs : Array<Expr> );
 	EFor( v : String, it : Expr, expr : Expr );
 	EIf( econd : Expr, eif : Expr, eelse : Null<Expr> );
@@ -137,10 +137,10 @@ enum TypeParam {
 }
 
 typedef Function = {
-	var name : Null<String>;
 	var args : Array<FunctionArg>;
 	var ret : Null<ComplexType>;
-	var expr : Expr;
+	var expr : Null<Expr>;
+	var params : Array<{ name : String, constraints : Array<ComplexType> }>;
 }
 
 typedef FunctionArg = {
@@ -150,16 +150,29 @@ typedef FunctionArg = {
 	var value : Null<Expr>;
 }
 
+typedef Metadata = Array<{ name : String, params : Array<Expr>, pos : Position }>;
+
 typedef Field = {
 	var name : String;
-	var isPublic : Null<Bool>;
-	var type : FieldType;
+	var doc : Null<String>;
+	var access : Array<Access>;
+	var kind : FieldType;
 	var pos : Position;
+	var meta : Metadata;
+}
+
+enum Access {
+	APublic;
+	APrivate;
+	AStatic;
+	AOverride;
+	ADynamic;
+	AInline;
 }
 
 enum FieldType {
-	FVar( t : ComplexType );
-	FProp( t : ComplexType, get : String, set : String );
-	FFun( args : Array<{ name : String, opt : Bool, type : ComplexType }>, ret : ComplexType );
+	FVar( t : Null<ComplexType>, e : Null<Expr> );
+	FFun( f : Function );
+	FProp( get : String, set : String, t : ComplexType );
 }
 

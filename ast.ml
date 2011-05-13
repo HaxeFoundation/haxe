@@ -145,22 +145,18 @@ and type_param_or_const =
 	| TPType of complex_type
 	| TPConst of constant
 
-and anonymous_field =
-	| AFVar of complex_type
-	| AFProp of complex_type * string * string
-	| AFFun of (string * bool * complex_type) list * complex_type
-
 and complex_type =
 	| CTPath of type_path
 	| CTFunction of complex_type list * complex_type
-	| CTAnonymous of (string * bool option * anonymous_field * pos) list
+	| CTAnonymous of class_field list
 	| CTParent of complex_type
-	| CTExtend of type_path * (string * bool option * anonymous_field * pos) list
+	| CTExtend of type_path * class_field list
 
-type func = {
+and func = {
+	f_params : type_param list;
 	f_args : (string * bool * complex_type option * expr option) list;
 	f_type : complex_type option;
-	f_expr : expr;
+	f_expr : expr option;
 }
 
 and expr_def =
@@ -195,13 +191,13 @@ and expr_def =
 
 and expr = expr_def * pos
 
-type type_param = string * type_path list
+and type_param = string * complex_type list
 
-type documentation = string option
+and documentation = string option
 
-type metadata = (string * expr list * pos) list
+and metadata = (string * expr list * pos) list
 
-type access =
+and access =
 	| APublic
 	| APrivate
 	| AStatic
@@ -209,12 +205,12 @@ type access =
 	| ADynamic
 	| AInline
 
-type class_field_kind =
+and class_field_kind =
 	| FVar of complex_type option * expr option
-	| FFun of type_param list * func
+	| FFun of func
 	| FProp of string * string * complex_type
 
-type class_field = {
+and class_field = {
 	cff_name : string;
 	cff_doc : documentation;
 	cff_pos : pos;

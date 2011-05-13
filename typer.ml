@@ -1966,7 +1966,7 @@ let make_macro_api ctx p =
 			let head = "class X{static function main() " in
 			let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
 			match parse_string ctx (head ^ s ^ "}") p with
-			| EClass { d_data = [{ cff_name = "main"; cff_kind = FFun (_,{ f_expr = e }) }]} -> e
+			| EClass { d_data = [{ cff_name = "main"; cff_kind = FFun { f_expr = Some e } }]} -> e
 			| _ -> assert false
 		);
 		Interp.typeof = (fun e ->

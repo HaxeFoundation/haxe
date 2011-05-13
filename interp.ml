@@ -2391,6 +2391,7 @@ type enum_index =
 	| IFieldKind
 	| IMethodKind
 	| IVarAccess
+	| IAccess
 
 let enum_name = function
 	| IExpr -> "ExprDef"
@@ -2404,6 +2405,7 @@ let enum_name = function
 	| IFieldKind -> "FieldKind"
 	| IMethodKind -> "MethodKind"
 	| IVarAccess -> "VarAccess"
+	| IAccess -> "Access"
 
 let init ctx =
 	let enums = [IExpr;IBinop;IUnop;IConst;ITParam;ICType;IField;IType;IFieldKind;IMethodKind;IVarAccess] in
@@ -2542,23 +2544,39 @@ and encode_tparam = function
 	| TPType t -> enc_enum ITParam 0 [encode_type t]
 	| TPConst c -> enc_enum ITParam 1 [encode_const c]
 
-and encode_field (f,pub,field,pos) =
-	let tag, pl = match field with
-		| AFVar t -> 0, [encode_type t]
-		| AFProp (t,get,set) -> 1, [encode_type t; enc_string get; enc_string set]
-		| AFFun (pl,t) -> 2, [enc_array (List.map (fun (n,opt,t) ->
-			enc_obj [
-				"name", enc_string n;
-				"opt", VBool opt;
-				"type", encode_type t
-			]
-		) pl); encode_type t]
+and encode_access a =
+	let tag = match a with
+		| APublic -> 0
+		| APrivate -> 1
+		| AStatic -> 2
+		| AOverride -> 3
+		| ADynamic -> 4
+		| AInline -> 5
+	in
+	enc_enum IAccess tag []
+
+and encode_meta_content m =
+	enc_array (List.map (fun (m,ml,p) ->
+		enc_obj [
+			"name", enc_string m;
+			"params", enc_array (List.map encode_expr ml);
+			"pos", encode_pos p;
+		]
+	) m)
+
+and encode_field (f:class_field) =
+	let tag, pl = match f.cff_kind with
+		| FVar (t,e) -> 0, [null encode_type t; null encode_expr e]
+		| FFun f -> 1, [encode_fun f]
+		| FProp (get,set, t) -> 2, [enc_string get; enc_string set; encode_type t]
 	in
 	enc_obj [
-		"name",enc_string f;
-		"isPublic",null (fun b -> VBool b) pub;
-		"type", enc_enum IField tag pl;
-		"pos", encode_pos pos;
+		"name",enc_string f.cff_name;
+		"doc", null enc_string f.cff_doc;
+		"pos", encode_pos f.cff_pos;
+		"kind", enc_enum IField tag pl;
+		"meta", encode_meta_content f.cff_meta;
+		"access", enc_array (List.map encode_access f.cff_access);
 	]
 
 and encode_type t =
@@ -2576,7 +2594,27 @@ and encode_type t =
 	in
 	enc_enum ICType tag pl
 
-let encode_expr e =
+and encode_fun f =
+	enc_obj [
+		"params", enc_array (List.map (fun (n,cl) ->
+			enc_obj [
+				"name", enc_string n;
+				"constraints", enc_array (List.map encode_type cl);
+			]
+		) f.f_params);
+		"args", enc_array (List.map (fun (n,opt,t,e) ->
+			enc_obj [
+				"name", enc_string n;
+				"opt", VBool opt;
+				"type", null encode_type t;
+				"value", null encode_expr e;
+			]
+		) f.f_args);
+		"ret", null encode_type f.f_type;
+		"expr", null encode_expr f.f_expr
+	]
+
+and encode_expr e =
 	let rec loop (e,p) =
 		let tag, pl = match e with
 			| EConst c ->
@@ -2613,19 +2651,7 @@ let encode_expr e =
 					]
 				) vl)]
 			| EFunction (name,f) ->
-				12, [enc_obj [
-					"name", null enc_string name;
-					"args", enc_array (List.map (fun (n,opt,t,e) ->
-						enc_obj [
-							"name", enc_string n;
-							"opt", VBool opt;
-							"type", null encode_type t;
-							"value", null loop e;
-						]
-					) f.f_args);
-					"ret", null encode_type f.f_type;
-					"expr", loop f.f_expr
-				]]
+				12, [null enc_string name; encode_fun f]
 			| EBlock el ->
 				13, [enc_array (List.map loop el)]
 			| EFor (v,e,eloop) ->
@@ -2773,26 +2799,52 @@ and decode_tparam v =
 	| 1,[c] -> TPConst (decode_const c)
 	| _ -> raise Invalid_expr
 
+and decode_fun v =
+	{
+		f_params = List.map (fun v ->
+			(dec_string (field v "name"), List.map decode_ctype (dec_array (field v "constraints")))
+		) (dec_array (field v "params"));
+		f_args = List.map (fun o ->
+			(dec_string (field o "name"),dec_bool (field o "opt"),opt decode_ctype (field o "type"),opt decode_expr (field o "value"))
+		) (dec_array (field v "args"));
+		f_type = opt decode_ctype (field v "ret");
+		f_expr = opt decode_expr (field v "expr");
+	}
+
+and decode_access v =
+	match decode_enum v with
+	| 0, [] -> APublic
+	| 1, [] -> APrivate
+	| 2, [] -> AStatic
+	| 3, [] -> AOverride
+	| 4, [] -> ADynamic
+	| 5, [] -> AInline
+	| _ -> raise Invalid_expr
+
+and decode_meta_content v =
+	List.map (fun v ->
+		(dec_string (field v "name"), List.map decode_expr (dec_array (field v "params")), decode_pos (field v "pos"))
+	) (dec_array v)
+
 and decode_field v =
-	let ftype = match decode_enum (field v "type") with
-		| 0, [t] ->
-			AFVar (decode_ctype t)
-		| 1, [t;get;set] ->
-			AFProp (decode_ctype t, dec_string get, dec_string set)
-		| 2, [pl;t] ->
-			let pl = List.map (fun p ->
-				(dec_string (field p "name"),dec_bool (field p "opt"),decode_ctype (field p "type"))
-			) (dec_array pl) in
-			AFFun (pl, decode_ctype t)
+	let fkind = match decode_enum (field v "kind") with
+		| 0, [t;e] ->
+			FVar (opt decode_ctype t, opt decode_expr e)
+		| 1, [f] ->
+			FFun (decode_fun f)
+		| 2, [get;set; t] ->
+			FProp (dec_string get, dec_string set, decode_ctype t)
 		| _ ->
 			raise Invalid_expr
 	in
-	(
-		dec_string (field v "name"),
-		opt dec_bool (field v "isPublic"),
-		ftype,
-		decode_pos (field v "pos")
-	)
+	{
+		cff_name = dec_string (field v "name");
+		cff_doc = opt dec_string (field v "doc");
+		cff_pos = decode_pos (field v "pos");
+		cff_kind = fkind;
+		cff_access = List.map decode_access (dec_array (field v "access"));
+		cff_meta = decode_meta_content (field v "meta");
+	}
 
 and decode_ctype t =
 	match decode_enum t with
@@ -2842,15 +2894,8 @@ let decode_expr v =
 			EVars (List.map (fun v ->
 				(dec_string (field v "name"),opt decode_ctype (field v "type"),opt loop (field v "expr"))
 			) (dec_array vl))
-		| 12, [f] ->
-			let ft = {
-				f_args = List.map (fun o ->
-					(dec_string (field o "name"),dec_bool (field o "opt"),opt decode_ctype (field o "type"),opt loop (field o "value"))
-				) (dec_array (field f "args"));
-				f_type = opt decode_ctype (field f "ret");
-				f_expr = loop (field f "expr");
-			} in
-			EFunction (opt dec_string (field f "name"),ft)
+		| 12, [fname;f] ->
+			EFunction (opt dec_string fname,decode_fun f)
 		| 13, [el] ->
 			EBlock (List.map loop (dec_array el))
 		| 14, [v;e1;e2] ->
@@ -2925,13 +2970,7 @@ let encode_meta m set =
 	let meta = ref m in
 	enc_obj [
 		"get", VFunction (Fun0 (fun() ->
-			enc_array (List.map (fun (m,ml,p) ->
-				enc_obj [
-					"name", enc_string m;
-					"params", enc_array (List.map encode_expr ml);
-					"pos", encode_pos p;
-				]
-			) (!meta))
+			encode_meta_content (!meta)
 		));
 		"add", VFunction (Fun3 (fun k vl p ->
 			(try
@@ -3197,14 +3236,20 @@ let rec make_ast e =
 			CTFunction (List.map (fun (_,_,t) -> mk_type t) args, mk_type ret)			
 		| TAnon a ->
 			CTAnonymous (PMap.foldi (fun _ f acc -> 
-				(f.cf_name,None,AFVar (mk_type f.cf_type), e.epos) :: acc
+				{
+					cff_name = f.cf_name;
+					cff_kind = FVar (mk_ot f.cf_type,None);
+					cff_pos = e.epos;
+					cff_doc = f.cf_doc;
+					cff_meta = f.cf_meta;
+					cff_access = [];
+				} :: acc
 			) a.a_fields [])
 		| (TDynamic t2) as t ->
 			tpath ([],"Dynamic") (if t == t_dynamic then [] else [mk_type t2])
 		| TLazy f ->
 			mk_type ((!f)())
-	in
-	let mk_ot t =
+	and mk_ot t =
 		match follow t with
 		| TMono _ -> None
 		| _ -> Some (mk_type t)
@@ -3227,7 +3272,7 @@ let rec make_ast e =
 	| TUnop (op,p,e) -> EUnop (op,p,make_ast e)
 	| TFunction f -> 
 		let arg (n,c,t) = n, false, mk_ot t, (match c with None -> None | Some c -> Some (EConst (mk_const c),e.epos)) in
-		EFunction (None,{ f_args = List.map arg f.tf_args; f_type = mk_ot f.tf_type; f_expr = make_ast f.tf_expr })
+		EFunction (None,{ f_params = []; f_args = List.map arg f.tf_args; f_type = mk_ot f.tf_type; f_expr = Some (make_ast f.tf_expr) })
 	| TVars vl ->
 		EVars (List.map (fun (n,t,e) -> n, mk_ot t, eopt e) vl)
 	| TBlock el -> EBlock (List.map make_ast el)

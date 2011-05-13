@@ -290,9 +290,9 @@ and parse_complex_type = parser
 			| [< '(Binop OpGt,_); t = parse_type_path; '(Comma,_); s >] ->
 				(match s with parser
 				| [< name = any_ident; l = parse_type_anonymous_resume name >] -> CTExtend (t,l)
-				| [< l = plist (parse_signature_field None); '(BrClose,_) >] -> CTExtend (t,l)
+				| [< l = parse_class_field_resume; '(BrClose,_) >] -> CTExtend (t,l)
 				| [< >] -> serror())
-			| [< l = plist (parse_signature_field None); '(BrClose,_) >] -> CTAnonymous l
+			| [< l = parse_class_field_resume; '(BrClose,_) >] -> CTAnonymous l
 			| [< >] -> serror()
 		) in
 		parse_complex_type_next t s
@@ -354,7 +354,14 @@ and parse_complex_type_next t = parser
 
 and parse_type_anonymous_resume name = parser
 	| [< '(DblDot,p); t = parse_complex_type; s >] ->
-		(name, None, AFVar t, p) ::
+		{
+			cff_name = name;
+			cff_meta = [];
+			cff_access = [];
+			cff_doc = None;
+			cff_kind = FVar (Some t,None);
+			cff_pos = p;
+		} ::
 		match s with parser
 		| [< '(BrClose,_) >] -> []
 		| [< '(Comma,_) >] ->
@@ -395,17 +402,18 @@ and parse_class_field s =
 				) in
 				name, punion p1 p2, FVar (t,e))
 		| [< '(Kwd Function,p1); name = parse_fun_name; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
-			let e = (match s with parser
-				| [< e = toplevel_expr >] -> e
-				| [< '(Semicolon,p) >] -> (EBlock [],p)
+			let e, p2 = (match s with parser
+				| [< e = toplevel_expr >] -> Some e, pos e
+				| [< '(Semicolon,p) >] -> None, p
 				| [< >] -> serror()
 			) in
 			let f = {
+				f_params = pl;
 				f_args = al;
 				f_type = t;
 				f_expr = e;
 			} in
-			name, punion p1 (pos e), FFun (pl,f)
+			name, punion p1 p2, FFun f
 		| [< >] ->
 			if al = [] then raise Stream.Failure else serror()
 		) in
@@ -417,17 +425,6 @@ and parse_class_field s =
 			cff_pos = pos;
 			cff_kind = k;
 		}
-
-and parse_signature_field flag = parser
-	| [< '(Kwd Var,p1); name = any_ident; s >] ->
-		(match s with parser
-		| [< '(DblDot,_); t = parse_complex_type; p2 = semicolon >] -> (name,flag,AFVar t,punion p1 p2)
-		| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_complex_type; p2 = semicolon >] -> (name,flag,AFProp (t,i1,i2),punion p1 p2)
-		| [< >] -> serror())
-	| [< '(Kwd Function,p1); name = any_ident; '(POpen,_); al = psep Comma parse_fun_param_type; '(PClose,_); '(DblDot,_); t = parse_complex_type; p2 = semicolon >] ->
-		(name,flag,AFFun (al,t),punion p1 p2)
-	| [< '(Kwd Private,_) when flag = None; s >] -> parse_signature_field (Some false) s
-	| [< '(Kwd Public,_) when flag = None; s >] -> parse_signature_field (Some true) s
 
 and parse_cf_rights allow_static l = parser
 	| [< '(Kwd Static,_) when allow_static; l = parse_cf_rights false (AStatic :: l) >] -> l
@@ -464,8 +461,8 @@ and parse_constraint_param = parser
 		match s with parser
 		| [< '(DblDot,_); s >] ->
 			(match s with parser
-			| [< '(POpen,_); l = psep Comma parse_type_path; '(PClose,_) >] -> (name,l)
-			| [< t = parse_type_path >] -> (name,[t])
+			| [< '(POpen,_); l = psep Comma parse_complex_type; '(PClose,_) >] -> (name,l)
+			| [< t = parse_complex_type >] -> (name,[t])
 			| [< >] -> serror())
 		| [< >] -> (name,[])
 
@@ -557,12 +554,13 @@ and expr = parser
 		| [< >] -> serror())
 	| [< '(POpen,p1); e = expr; '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
 	| [< '(BkOpen,p1); l = parse_array_decl; '(BkClose,p2); s >] -> expr_next (EArrayDecl l, punion p1 p2) s
-	| [< '(Kwd Function,p1); name = popt any_ident; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
+	| [< '(Kwd Function,p1); name = popt any_ident; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
 		let make e =
 			let f = {
+				f_params = pl;
 				f_type = t;
 				f_args = al;
-				f_expr = e;
+				f_expr = Some e;
 			} in
 			EFunction (name,f), punion p1 (pos e)
 		in

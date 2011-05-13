@@ -319,12 +319,13 @@ let build_class com c file =
 					args @ List.map (fun _ -> incr pn; ("p" ^ string_of_int !pn,true,Some (make_type None),None)) [1;2;3;4;5]
 				else args in
 				let f = {
+					f_params = [];
 					f_args = args;
 					f_type = Some (make_type t.hlmt_ret);
-					f_expr = (EBlock [],pos)
+					f_expr = None;
 				} in
 				cf.cff_meta <- mk_meta();
-				cf.cff_kind <- FFun ([],f);
+				cf.cff_kind <- FFun f;
 				cf :: acc
 			| MK3Getter ->
 				Hashtbl.add getters (name,stat) m.hlm_type.hlmt_ret;
@@ -387,7 +388,7 @@ let build_class com c file =
 				| FVar (Some (CTPath { tpackage = []; tname = ("String" | "Int" | "UInt") as tname }),None) when List.mem AStatic f.cff_access ->
 					if !real_type = "" then real_type := tname else if !real_type <> tname then raise Exit;
 					(f.cff_name,None,[],[],pos) :: loop l
-				| FFun (_,{ f_args = [] }) when f.cff_name = "new" -> loop l
+				| FFun { f_args = [] } when f.cff_name = "new" -> loop l
 				| _ -> raise Exit
 		in
 		(match path.tpackage, path.tname with
