@@ -880,6 +880,8 @@ flash.media.MicrophoneEnhancedOptions.mode : MicrophoneEnhancedMode;
 @:require(flash11) flash.media.Sound.loadMP3FromByteArray;
 @:require(flash11) flash.media.Sound.loadPCMFromByteArray;
 
+@:require(flash11) flash.net.Socket.bytesPending;
+
 -flash.display.Stage3D.new;
 -flash.display3D.Context3D.new;
 -flash.display3D.IndexBuffer3D.new;
