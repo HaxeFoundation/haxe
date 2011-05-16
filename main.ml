@@ -64,7 +64,8 @@ let do_exit() =
 	exit 1
 
 let report msg p =
-	messages := format msg p :: !messages;
+	let inf = if !Common.display_default then Printf.sprintf " (display %s@%d)" (!Parser.resume_display).Ast.pfile (!Parser.resume_display).Ast.pmin else "" in
+	messages := format (msg ^ inf) p :: !messages;
 	do_exit()
 
 let htmlescape s =
