@@ -190,11 +190,7 @@ and parse_type_decl s =
 				d_flags = List.map snd c @ n;
 				d_data = l
 			}, punion p1 p2)
-		| [< n , p1 = parse_class_flags; doc = get_doc; name = type_name; tl = parse_constraint_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl = parse_class_field_resume; s >] ->
-			let p2 = (match s with parser
-				| [< '(BrClose,p2) >] -> p2
-				| [< >] -> if do_resume() then p1 else serror()
-			) in
+		| [< n , p1 = parse_class_flags; doc = get_doc; name = type_name; tl = parse_constraint_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields p1 >] ->
 			(EClass {
 				d_name = name;
 				d_doc = doc;
@@ -218,13 +214,18 @@ and parse_type_decl s =
 
 and parse_package s = psep Dot ident s
 
+and parse_class_fields p1 s =
+	let l = parse_class_field_resume s in
+	let p2 = (match s with parser
+		| [< '(BrClose,p2) >] -> p2
+		| [< >] -> if do_resume() then p1 else serror()
+	) in
+	l, p2
+
 and parse_class_field_resume s =
 	if not (do_resume()) then
 		plist parse_class_field s
-	else match Stream.peek s with
-		| Some (BrClose,_) -> []
-		| _ ->
-	try
+	else try
 		let c = parse_class_field s in
 		c :: parse_class_field_resume s
 	with Stream.Error _ | Stream.Failure -> try
@@ -287,15 +288,15 @@ and parse_type_opt = parser
 
 and parse_complex_type = parser
 	| [< '(POpen,_); t = parse_complex_type; '(PClose,_); s >] -> parse_complex_type_next (CTParent t) s
-	| [< '(BrOpen,_); s >] ->
+	| [< '(BrOpen,p1); s >] ->
 		let t = (match s with parser
 			| [< name = any_ident >] -> CTAnonymous (parse_type_anonymous_resume name s)
 			| [< '(Binop OpGt,_); t = parse_type_path; '(Comma,_); s >] ->
 				(match s with parser
 				| [< name = any_ident; l = parse_type_anonymous_resume name >] -> CTExtend (t,l)
-				| [< l = parse_class_field_resume; '(BrClose,_) >] -> CTExtend (t,l)
+				| [< l, _ = parse_class_fields p1 >] -> CTExtend (t,l)
 				| [< >] -> serror())
-			| [< l = parse_class_field_resume; '(BrClose,_) >] -> CTAnonymous l
+			| [< l, _ = parse_class_fields p1 >] -> CTAnonymous l
 			| [< >] -> serror()
 		) in
 		parse_complex_type_next t s
