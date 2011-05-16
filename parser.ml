@@ -221,7 +221,10 @@ and parse_package s = psep Dot ident s
 and parse_class_field_resume s =
 	if not (do_resume()) then
 		plist parse_class_field s
-	else try
+	else match Stream.peek s with
+		| Some (BrClose,_) -> []
+		| _ ->
+	try
 		let c = parse_class_field s in
 		c :: parse_class_field_resume s
 	with Stream.Error _ | Stream.Failure -> try
