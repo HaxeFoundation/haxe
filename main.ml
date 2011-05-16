@@ -231,7 +231,7 @@ let add_swf_lib com file =
 	) in
 	let extract = (fun() ->
 		match !swf_classes with
-		| None -> 
+		| None ->
 			let d = Genswf.extract_data (getSWF()) in
 			swf_classes := Some d;
 			d
@@ -347,7 +347,7 @@ try
 		("-cp",Arg.String (fun path ->
 			add_libs com (!cp_libs) neko_libs;
 			cp_libs := [];
-			com.class_path <- normalize_path path :: com.class_path
+			com.class_path <- normalize_path (expand_env path) :: com.class_path
 		),"<path> : add a directory to find source files");
 		("-js",Arg.String (set_platform Js),"<file> : compile code to JavaScript file");
 		("-swf",Arg.String (set_platform Flash),"<file> : compile code to Flash SWF file");
@@ -629,7 +629,7 @@ try
 				(match com.main with
 				| None -> ()
 				| Some e -> ignore(Interp.eval_expr ctx e));
-			end;			
+			end;
 		| Cross ->
 			()
 		| Flash | Flash9 when !gen_as3 ->
