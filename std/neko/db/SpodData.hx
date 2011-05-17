@@ -827,9 +827,8 @@ class SpodData {
 	#if macro
 	static var RTTI = false;
 
-	public static function addRtti() {
-		var eret = { expr : EBlock([]), pos : Context.currentPos() };
-		if( RTTI ) return eret;
+	public static function addRtti( fields ) {
+		if( RTTI ) return fields;
 		RTTI = true;
 		Context.getType("neko.db.SpodInfos");
 		Context.onGenerate(function(types) {
@@ -854,7 +853,7 @@ class SpodData {
 				default:
 				}
 		});
-		return eret;
+		return fields;
 	}
 
 	static function getManagerInfos( t : haxe.macro.Type ) {

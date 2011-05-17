@@ -667,7 +667,7 @@ let patch_class ctx c fields =
 		in
 		List.rev (loop [] fields)
 
-let build_module_def ctx meta fbuild =
+let build_module_def ctx meta fvars fbuild =
 	let rec loop = function
 		| (":build",args,p) :: l ->
 			let epath, el = (match args with
@@ -682,17 +682,16 @@ let build_module_def ctx meta fbuild =
 			in
 			let s = String.concat "." (List.rev (getpath epath)) in
 			if ctx.in_macro then error "You cannot used :build inside a macro : make sure that your enum is not used in macro" p;
-			(match apply_macro ctx s el p with
+			(match apply_macro ctx s (fvars() :: el) p with
 			| None -> error "Build failure" p
-			| Some e -> fbuild e) @ loop l
+			| Some e -> fbuild e; loop l)
 		| _ :: l -> loop l
-		| [] -> []
+		| [] -> ()
 	in
 	try
 		loop meta
 	with Error (Custom msg,p) ->
-		display_error ctx msg p;
-		[]
+		display_error ctx msg p
 
 let init_class ctx c p herits fields =
 	let fields = patch_class ctx c fields in
@@ -700,36 +699,14 @@ let init_class ctx c p herits fields =
 	c.cl_extern <- List.mem HExtern herits;
 	c.cl_interface <- List.mem HInterface herits;
 	set_heritance ctx c herits p;
-	let fields = fields @ build_module_def { ctx with curclass = c } c.cl_meta (fun (e,p) ->
+	let fields = ref fields in
+	let get_fields() = (EVars ["fields",Some (CTAnonymous !fields),None],p) in
+	build_module_def { ctx with curclass = c } c.cl_meta get_fields (fun (e,p) ->
 		match e with
-		| EBlock el ->					
-			List.map (fun (e,p) ->
-				let n, k = (match e with
-				| EVars [v,t,e] -> v, FVar (t,e)
-				| EFunction (Some n,f) -> (if n = "__new__" then "new" else n), FFun f
-				| _ -> error "Class build expression should be a single variable or a named function" p
-				) in
-				let accesses = [APublic; APrivate; AStatic; AOverride; ADynamic; AInline] in
-				let k = ref k in
-				let rec loop acc l =
-					match l with
-					| [] -> error "Missing name" p
-					| "property" :: get :: set :: l ->
-						(match !k with
-						| FVar (Some t,None) -> k := FProp (get,set,t); loop acc l
-						| _ -> error "Invalid property declaration" p)
-					| x :: l ->
-						try
-							let a = List.find (fun a -> Ast.s_access a = x) accesses in
-							loop (a :: acc) l
-						with Not_found ->
-							String.concat "__" (x :: l), acc
-				in
-				let n, access = loop [] (ExtString.String.nsplit n "__") in
-				{ cff_name = n; cff_doc = None; cff_pos = p; cff_meta = []; cff_access = if access = [] then [APublic] else access; cff_kind = !k }
-			) el
-		| _ -> error "Class build macro must return a block" p
-	) in	
+		| EVars [_,Some (CTAnonymous f),None] -> fields := f
+		| _ -> error "Class build macro must return a single variable with anonymous fields" p
+	);
+	let fields = !fields in
 	let core_api = has_meta ":core_api" c.cl_meta in
 	let is_macro = has_meta ":macro" c.cl_meta in
 	let fields, herits = if is_macro && not ctx.in_macro then begin
@@ -1361,20 +1338,37 @@ let type_module ctx m tdecls loadp =
 		| EEnum d ->
 			let e = get_enum d.d_name in
 			let ctx = { ctx with type_params = e.e_types } in
+			let constructs = ref d.d_data in
+			let get_constructs() =
+				let cl = List.map (fun (c,doc,meta,pl,p) ->
+					{
+						cff_name = c;
+						cff_doc = doc;
+						cff_meta = meta;
+						cff_pos = p;
+						cff_access = [];
+						cff_kind = (match pl with
+							| [] -> FVar (None,None)
+							| _ -> FFun { f_params = []; f_type = None; f_expr = None; f_args = List.map (fun (n,o,t) -> n,o,Some t,None) pl });
+					}
+				) (!constructs) in
+				(EVars ["constructs",Some (CTAnonymous cl),None],p) 
+			in
+			build_module_def ctx e.e_meta get_constructs (fun (e,p) ->
+				match e with
+				| EVars [_,Some (CTAnonymous fields),None] ->
+					constructs := List.map (fun f ->
+						(f.cff_name,f.cff_doc,f.cff_meta,(match f.cff_kind with
+						| FVar (None,None) -> []
+						| FFun { f_params = []; f_type = None; f_expr = None; f_args = pl } -> List.map (fun (n,o,t,_) -> match t with None -> error "Missing function parameter type" f.cff_pos | Some t -> n,o,t) pl
+						| _ -> error "Invalid enum constructor in @:build result" p
+						),f.cff_pos)
+					) fields
+				| _ -> error "Enum build macro must return a single variable with anonymous object fields" p
+			);
 			let et = TEnum (e,List.map snd e.e_types) in
 			let names = ref [] in
 			let index = ref 0 in
-			let extra = build_module_def ctx e.e_meta (fun (e,p) ->
-				match e with
-				| EArrayDecl el | EBlock el ->
-					List.map (fun (e,p) ->
-						match e with
-						| EConst (Ident i) | EConst (Type i) | EConst (String i) -> i, None, [], [], p
-						| EFunction (Some name,f) -> name, None, [], (List.map (fun (n,o,t,_) -> n,o,(match t with None -> error "Missing function parameter type" p | Some t -> t)) f.f_args), p
-						| _ -> error "Enum build expression should be a single identifier or a named function" p
-					) el
-				| _ -> error "Enum build macro must return an block" p
-			) in
 			List.iter (fun (c,doc,meta,t,p) ->
 				if c = "name" && Common.defined ctx.com "js" then error "This identifier cannot be used in Javascript" p;
 				let t = (match t with
@@ -1398,7 +1392,7 @@ let type_module ctx m tdecls loadp =
 				} e.e_constrs;
 				incr index;
 				names := c :: !names;
-			) (d.d_data @ extra);
+			) (!constructs);
 			e.e_names <- List.rev !names;
 			e.e_extern <- e.e_extern || e.e_names = [];
 		| ETypedef d ->

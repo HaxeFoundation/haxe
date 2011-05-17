@@ -17,6 +17,7 @@
 	all : fixed invalid optimization of two constant numbers comparison
 	flash8 : bugfix Std.parseInt with some hex values
 	flash9 : added flash.utils.RegExp
+	all : changed @:build behavior, now takes/returns a var with anonymous fields
 
 2011-01-30: 2.07
 	all : fixed completion support with --remap
