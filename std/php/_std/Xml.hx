@@ -111,7 +111,7 @@ enum XmlType {
 		return build;
 	}
 
-	private function new() : Void;
+	private function new() : Void {}
 
 	public static function createElement( name : String ) : Xml {
 		var r = new Xml();
