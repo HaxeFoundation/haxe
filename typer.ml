@@ -1697,7 +1697,7 @@ and type_call ctx e el p =
 							| EConst (Ident f | Type f) -> if f <> ef.cf_name then assert false; (EConst (Ident "this"),snd e)
 							| _ -> error "Unsupported" (snd e)
 						) in
-						(match ctx.g.do_macro ctx c.cl_path ef.cf_name (e :: el) p with
+						(match ctx.g.do_macro ctx MExpr c.cl_path ef.cf_name (e :: el) p with
 						| None -> type_expr ctx (EConst (Ident "null"),p)
 						| Some e -> type_expr ctx e)
 					| _ -> assert false)
@@ -1712,7 +1712,7 @@ and type_call ctx e el p =
 		| AKMacro (ethis,f) ->
 			(match ethis.eexpr with
 			| TTypeExpr (TClassDecl c) ->
-				(match ctx.g.do_macro ctx c.cl_path f.cf_name el p with
+				(match ctx.g.do_macro ctx MExpr c.cl_path f.cf_name el p with
 				| None -> type_expr ctx (EConst (Ident "null"),p)
 				| Some e -> type_expr ctx e)
 			| _ ->
@@ -1721,7 +1721,7 @@ and type_call ctx e el p =
 				| TInst (c,_) ->					
 					let rec loop c =
 						if PMap.mem f.cf_name c.cl_fields then
-							match ctx.g.do_macro ctx c.cl_path f.cf_name (Interp.make_ast ethis :: el) p with
+							match ctx.g.do_macro ctx MExpr c.cl_path f.cf_name (Interp.make_ast ethis :: el) p with
 							| None -> type_expr ctx (EConst (Ident "null"),p)
 							| Some e -> type_expr ctx e
 						else
@@ -2049,6 +2049,9 @@ let make_macro_api ctx p =
 			);
 		);
 		Interp.get_cur_class = (fun() -> Some ctx.curclass);
+		Interp.get_build_fields = (fun() -> 
+			Interp.enc_array (List.map Interp.encode_field (ctx.g.get_build_fields()))
+		)
 	}
 
 let load_macro ctx cpath f p =
@@ -2098,7 +2101,7 @@ let load_macro ctx cpath f p =
 		| TInst (c,_) -> (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
 		| _ -> error "Macro should be called on a class" p
 	) in
-	let meth = (match follow meth.cf_type with TFun (args,ret) -> args,ret | _ -> error "Macro call should be a method" p) in
+	let meth = (match follow meth.cf_type with TFun (args,ret) -> args,ret,meth.cf_pos | _ -> error "Macro call should be a method" p) in
 	let in_macro = ctx.in_macro in
 	if not in_macro then begin
 		finalize ctx2;
@@ -2114,11 +2117,18 @@ let load_macro ctx cpath f p =
 	in
 	ctx2, meth, call
 
-let type_macro ctx cpath f (el:Ast.expr list) p =
-	let ctx2, (margs,mret), call_macro = load_macro ctx cpath f p in
+let type_macro ctx mode cpath f (el:Ast.expr list) p =
+	let ctx2, (margs,mret,mpos), call_macro = load_macro ctx cpath f p in
 	let ctexpr = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
 	let expr = Typeload.load_instance ctx2 ctexpr p false in
-	unify ctx2 mret expr p;
+	let ctfields = { tpackage = []; tname = "Array"; tparams = [TPType (CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = Some "Field" })]; tsub = None } in
+	(match mode with
+	| MExpr ->
+		unify ctx2 mret expr mpos;
+	| MBuild _ ->
+		let tfields = Typeload.load_instance ctx2 ctfields p false in
+		unify ctx2 mret tfields mpos
+	);
 	let args = (try
 		(*
 			force default parameter types to haxe.macro.Expr, and if success allow to pass any value type since it will be encoded
@@ -2169,7 +2179,13 @@ let type_macro ctx cpath f (el:Ast.expr list) p =
 	let call() =
 		match call_macro args with
 		| None -> None
-		| Some v -> Some (try Interp.decode_expr v with Interp.Invalid_expr -> error "The macro didn't return a valid expression" p)
+		| Some v -> 
+			try
+				Some (match mode with
+				| MExpr -> Interp.decode_expr v
+				| MBuild _ -> (EVars ["fields",Some (CTAnonymous (match v with Interp.VNull -> ctx.g.get_build_fields() | _ -> List.map Interp.decode_field (Interp.dec_array v))),None],p))
+			with Interp.Invalid_expr ->
+				error "The macro didn't return a valid result" p
 	in
 	let e = (if ctx.in_macro then begin
 		(*
@@ -2199,7 +2215,7 @@ let type_macro ctx cpath f (el:Ast.expr list) p =
 	e
 
 let call_macro ctx path meth args p =
-	let ctx2, (margs,_), call = load_macro ctx path meth p in
+	let ctx2, (margs,_,_), call = load_macro ctx path meth p in
 	let el = unify_call_params ctx2 (Some (meth,[])) args margs p false in
 	call (List.map (fun e -> try Interp.make_const e with Exit -> error "Parameter should be a constant" e.epos) el)
 
@@ -2244,6 +2260,7 @@ let rec create com =
 			delayed = [];
 			doinline = not (Common.defined com "no_inline" || com.display);
 			hook_generate = [];
+			get_build_fields = (fun() -> []);
 			std = empty;
 			do_inherit = Codegen.on_inherit;
 			do_create = create;

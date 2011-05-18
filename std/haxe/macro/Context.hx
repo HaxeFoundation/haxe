@@ -160,6 +160,13 @@ class Context {
 	public static function addResource( name : String, data : haxe.io.Bytes ) {
 		return load("add_resource",2)(untyped name.__s,data.getData());
 	}
+	
+	/**
+		Returns the list of fields for the current type inside the build macro.
+	**/
+	public static function getBuildFields() : Array<Field> {
+		return load("build_fields", 0)();
+	}
 
 	static function load( f, nargs ) : Dynamic {
 		#if macro

@@ -827,8 +827,8 @@ class SpodData {
 	#if macro
 	static var RTTI = false;
 
-	public static function addRtti( fields ) {
-		if( RTTI ) return fields;
+	public static function addRtti() : Array<Field> {
+		if( RTTI ) return null;
 		RTTI = true;
 		Context.getType("neko.db.SpodInfos");
 		Context.onGenerate(function(types) {
@@ -853,7 +853,7 @@ class SpodData {
 				default:
 				}
 		});
-		return fields;
+		return null;
 	}
 
 	static function getManagerInfos( t : haxe.macro.Type ) {

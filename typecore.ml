@@ -25,6 +25,10 @@ type type_patch = {
 	mutable tp_meta : Ast.metadata;
 }
 
+type macro_mode =
+	| MExpr
+	| MBuild
+
 type typer_globals = {
 	types_module : (path, path) Hashtbl.t;
 	modules : (path , module_def) Hashtbl.t;
@@ -36,10 +40,11 @@ type typer_globals = {
 	mutable std : module_def;
 	mutable hook_generate : (unit -> unit) list;
 	type_patches : (path, (string * bool, type_patch) Hashtbl.t * type_patch) Hashtbl.t;
+	mutable get_build_fields : unit -> Ast.class_field list;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> Ast.pos -> Ast.class_flag -> bool;
 	do_create : Common.context -> typer;
-	do_macro : typer -> path -> string -> Ast.expr list -> Ast.pos -> Ast.expr option;
+	do_macro : typer -> macro_mode -> path -> string -> Ast.expr list -> Ast.pos -> Ast.expr option;
 	do_load_module : typer -> path -> pos -> module_def;
 	do_optimize : typer -> texpr -> texpr;
 	do_build_instance : typer -> module_type -> pos -> ((string * t) list * path * (t list -> t));

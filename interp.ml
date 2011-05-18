@@ -99,6 +99,7 @@ type extern_api = {
 	meta_patch : string -> string -> string option -> bool -> unit;
 	set_js_generator : (value -> unit) -> unit;
 	get_cur_class : unit -> tclass option;
+	get_build_fields : unit -> value;
 }
 
 type context = {
@@ -1729,6 +1730,9 @@ let macro_lib =
 					(!f)()
 			in
 			encode_type (match once with VNull | VBool false -> follow t | VBool true -> follow_once t | _ -> error())
+		);
+		"build_fields", Fun0 (fun() ->
+			(get_ctx()).curapi.get_build_fields()
 		);
 	]
 

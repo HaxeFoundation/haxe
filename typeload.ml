@@ -37,12 +37,12 @@ let type_static_var ctx t e p =
 	| TType ({ t_path = ([],"UInt") },[]) -> { e with etype = t }
 	| _ -> e
 
-let apply_macro ctx path el p =
+let apply_macro ctx mode path el p =
 	let cpath, meth = (match List.rev (ExtString.String.nsplit path ".") with
 		| meth :: name :: pack -> (List.rev pack,name), meth
 		| _ -> error "Invalid macro path" p
 	) in
-	ctx.g.do_macro ctx cpath meth el p
+	ctx.g.do_macro ctx mode cpath meth el p
 
 (** since load_type_def and load_instance are used in PASS2, they should not access the structure of a type **)
 
@@ -682,7 +682,11 @@ let build_module_def ctx meta fvars fbuild =
 			in
 			let s = String.concat "." (List.rev (getpath epath)) in
 			if ctx.in_macro then error "You cannot used :build inside a macro : make sure that your enum is not used in macro" p;
-			(match apply_macro ctx s (fvars() :: el) p with
+			let old = ctx.g.get_build_fields in
+			ctx.g.get_build_fields <- fvars;
+			let r = try apply_macro ctx MBuild s el p with e -> ctx.g.get_build_fields <- old; raise e in
+			ctx.g.get_build_fields <- old;
+			(match r with
 			| None -> error "Build failure" p
 			| Some e -> fbuild e; loop l)
 		| _ :: l -> loop l
@@ -700,7 +704,7 @@ let init_class ctx c p herits fields =
 	c.cl_interface <- List.mem HInterface herits;
 	set_heritance ctx c herits p;
 	let fields = ref fields in
-	let get_fields() = (EVars ["fields",Some (CTAnonymous !fields),None],p) in
+	let get_fields() = !fields in
 	build_module_def { ctx with curclass = c } c.cl_meta get_fields (fun (e,p) ->
 		match e with
 		| EVars [_,Some (CTAnonymous f),None] -> fields := f
@@ -810,7 +814,7 @@ let init_class ctx c p herits fields =
 			if display_file && (cp.pmin = 0 || (p.pmin <= cp.pmin && p.pmax >= cp.pmax)) then begin
 				if macro && not ctx.in_macro then
 					(* force macro system loading of this class in order to get completion *)
-					(fun() -> ignore(ctx.g.do_macro ctx c.cl_path cf.cf_name [] p))
+					(fun() -> ignore(ctx.g.do_macro ctx MExpr c.cl_path cf.cf_name [] p))
 				else begin
 					cf.cf_type <- TLazy r;
 					(fun() -> ignore((!r)()))
@@ -1340,7 +1344,7 @@ let type_module ctx m tdecls loadp =
 			let ctx = { ctx with type_params = e.e_types } in
 			let constructs = ref d.d_data in
 			let get_constructs() =
-				let cl = List.map (fun (c,doc,meta,pl,p) ->
+				List.map (fun (c,doc,meta,pl,p) ->
 					{
 						cff_name = c;
 						cff_doc = doc;
@@ -1351,8 +1355,7 @@ let type_module ctx m tdecls loadp =
 							| [] -> FVar (None,None)
 							| _ -> FFun { f_params = []; f_type = None; f_expr = None; f_args = List.map (fun (n,o,t) -> n,o,Some t,None) pl });
 					}
-				) (!constructs) in
-				(EVars ["constructs",Some (CTAnonymous cl),None],p) 
+				) (!constructs)
 			in
 			build_module_def ctx e.e_meta get_constructs (fun (e,p) ->
 				match e with
