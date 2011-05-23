@@ -190,7 +190,7 @@ and parse_type_decl s =
 				d_flags = List.map snd c @ n;
 				d_data = l
 			}, punion p1 p2)
-		| [< n , p1 = parse_class_flags; doc = get_doc; name = type_name; tl = parse_constraint_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields p1 >] ->
+		| [< n , p1 = parse_class_flags; doc = get_doc; name = type_name; tl = parse_constraint_params; hl = psep Comma parse_class_herit; '(BrOpen,_); fl, p2 = parse_class_fields false p1 >] ->
 			(EClass {
 				d_name = name;
 				d_doc = doc;
@@ -214,20 +214,20 @@ and parse_type_decl s =
 
 and parse_package s = psep Dot ident s
 
-and parse_class_fields p1 s =
-	let l = parse_class_field_resume s in
+and parse_class_fields tdecl p1 s =
+	let l = parse_class_field_resume tdecl s in
 	let p2 = (match s with parser
 		| [< '(BrClose,p2) >] -> p2
 		| [< >] -> if do_resume() then p1 else serror()
 	) in
 	l, p2
 
-and parse_class_field_resume s =
+and parse_class_field_resume tdecl s =
 	if not (do_resume()) then
 		plist parse_class_field s
 	else try
 		let c = parse_class_field s in
-		c :: parse_class_field_resume s
+		c :: parse_class_field_resume tdecl s
 	with Stream.Error _ | Stream.Failure -> try
 		(* junk all tokens until we reach next variable/function or next type declaration *)
 		let rec loop() =
@@ -248,6 +248,8 @@ and parse_class_field_resume s =
 				raise Exit
 			| [BrClose; At] ->
 				raise Not_found
+			| BrClose :: _ when tdecl ->
+				raise Not_found
 			| _ -> ());
 			Stream.junk s;
 			loop();
@@ -255,7 +257,7 @@ and parse_class_field_resume s =
 		loop()
 	with
 		| Not_found -> [] (* we have reached the next type declaration *)
-		| Exit -> parse_class_field_resume s
+		| Exit -> parse_class_field_resume tdecl s
 
 and parse_common_flags = parser
 	| [< '(Kwd Private,_); l = parse_common_flags >] -> (HPrivate, EPrivate) :: l
@@ -294,9 +296,9 @@ and parse_complex_type = parser
 			| [< '(Binop OpGt,_); t = parse_type_path; '(Comma,_); s >] ->
 				(match s with parser
 				| [< name = any_ident; l = parse_type_anonymous_resume name >] -> CTExtend (t,l)
-				| [< l, _ = parse_class_fields p1 >] -> CTExtend (t,l)
+				| [< l, _ = parse_class_fields true p1 >] -> CTExtend (t,l)
 				| [< >] -> serror())
-			| [< l, _ = parse_class_fields p1 >] -> CTAnonymous l
+			| [< l, _ = parse_class_fields true p1 >] -> CTAnonymous l
 			| [< >] -> serror()
 		) in
 		parse_complex_type_next t s
