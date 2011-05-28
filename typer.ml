@@ -2125,7 +2125,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	(match mode with
 	| MExpr ->
 		unify ctx2 mret expr mpos;
-	| MBuild _ ->
+	| MBuild ->
 		let tfields = Typeload.load_instance ctx2 ctfields p false in
 		unify ctx2 mret tfields mpos
 	);
@@ -2183,7 +2183,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			try
 				Some (match mode with
 				| MExpr -> Interp.decode_expr v
-				| MBuild _ -> (EVars ["fields",Some (CTAnonymous (match v with Interp.VNull -> ctx.g.get_build_fields() | _ -> List.map Interp.decode_field (Interp.dec_array v))),None],p))
+				| MBuild -> (EVars ["fields",Some (CTAnonymous (match v with Interp.VNull -> ctx.g.get_build_fields() | _ -> List.map Interp.decode_field (Interp.dec_array v))),None],p))
 			with Interp.Invalid_expr ->
 				error "The macro didn't return a valid result" p
 	in
