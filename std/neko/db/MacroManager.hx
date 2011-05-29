@@ -205,7 +205,7 @@ class MacroManager<T : Object> {
 	function doSync( i : T ) {
 		object_cache.remove(makeCacheKey(i));
 		var s = new StringBuf();
-		s.add("SELECT * FROM");
+		s.add("SELECT * FROM ");
 		s.add(table_name);
 		s.add(" WHERE ");
 		addKeys(s, i);
