@@ -770,21 +770,22 @@ class SpodData {
 	}
 
 	function buildOptions( eopt : Expr ) {
-		var opts = new Hash();
 		var p = eopt.pos;
-		var sql = makeString("",p);
+		var opts = new Hash();
+		var opt = { limit : null, orderBy : null, forceIndex : null };
 		switch( eopt.expr ) {
 		case EObjectDecl(fields):
 			var limit = null;
 			for( o in fields ) {
 				if( opts.exists(o.field) ) error("Duplicate option " + o.field, p);
+				opts.set(o.field, true);
 				switch( o.field ) {
 				case "orderBy":
 					var fields = switch( o.expr.expr ) {
 					case EArrayDecl(vl): Lambda.array(Lambda.map(vl, orderField));
 					default: [orderField(o.expr)];
 					};
-					sql = sqlAddString(sql, " ORDER BY " + fields.join(","));
+					opt.orderBy = fields.join(",");
 				case "limit":
 					var limits = switch( o.expr.expr ) {
 					case EArrayDecl(vl): Lambda.array(Lambda.map(vl, buildDefault));
@@ -793,21 +794,29 @@ class SpodData {
 					if( limits.length == 0 || limits.length > 2 ) error("Invalid limits", o.expr.pos);
 					var l0 = limits[0], l1 = limits[1];
 					unify(l0.t, DInt, l0.sql.pos);
-					if( l1 != null ) unify(l1.t, DInt, l1.sql.pos);
-					limit = { l0 : l0, l1 : l1 };
+					if( l1 != null )
+						unify(l1.t, DInt, l1.sql.pos);
+					opt.limit = { pos : l0.sql, len : l1 == null ? null : l1.sql };
+				case "forceIndex":
+					var fields = switch( o.expr.expr ) {
+					case EArrayDecl(vl): Lambda.array(Lambda.map(vl, makeIdent));
+					default: [makeIdent(o.expr)];
+					}
+					for( f in fields )
+						if( !current.hfields.exists(f) )
+							error("Unknown field " + f, o.expr.pos);
+					var idx = fields.join(",");
+					if( !Lambda.exists(current.indexes, function(i) return i.keys.join(",") == idx) && !Lambda.exists(current.relations,function(r) return r.key == idx) )
+						error("These fields are not indexed", o.expr.pos);
+					opt.forceIndex = idx;
 				default:
 					error("Unknown option '" + o.field + "'", p);
 				}
 			}
-			if( limit != null ) {
-				sql = sqlAdd(sqlAddString(sql, " LIMIT "), limit.l0.sql, p);
-				if( limit.l1 != null )
-					sql = sqlAdd(sqlAddString(sql, ","), limit.l1.sql, p);
-			}
 		default:
 			error("Options should be { orderBy : field, limit : [a,b] }", p);
 		}
-		return sql;
+		return opt;
 	}
 
 	public static function getInfos( t : haxe.macro.Type ) {
@@ -884,13 +893,27 @@ class SpodData {
 	static function buildSQL( em : Expr, econd : Expr, prefix : String, ?eopt : Expr ) {
 		var pos = Context.currentPos();
 		var inf = getManagerInfos(Context.typeof(em));
-		var sql = { expr : EConst(CString(prefix + " " + inst.quoteField(inf.name) + " WHERE ")), pos : econd.pos };
+		var sql = { expr : EConst(CString(prefix + " " + inst.quoteField(inf.name))), pos : econd.pos };
 		inst.current = inf;
 		inst.initManager(pos);
 		var r = try inst.buildCond(econd) catch( e : BuildError ) switch( e ) { case EExpr(e): return e; };
 		if( r.t != DBool ) Context.error("Expression should be a condition", econd.pos);
-		if( eopt != null && !Type.enumEq(eopt.expr, EConst(CIdent("null"))) )
-			r.sql = inst.sqlAdd(r.sql, inst.buildOptions(eopt), eopt.pos);
+		if( eopt != null && !Type.enumEq(eopt.expr, EConst(CIdent("null"))) ) {
+			var opt = inst.buildOptions(eopt);
+			if( opt.orderBy != null )
+				r.sql = inst.sqlAddString(r.sql, " ORDER BY " + opt.orderBy);
+			if( opt.limit != null ) {
+				r.sql = inst.sqlAddString(r.sql, " LIMIT ");
+				r.sql = inst.sqlAdd(r.sql, opt.limit.pos, pos);
+				if( opt.limit.len != null ) {
+					r.sql = inst.sqlAddString(r.sql, ",");
+					r.sql = inst.sqlAdd(r.sql, opt.limit.len, pos);
+				}
+			}
+			if( opt.forceIndex != null )
+				sql = inst.sqlAddString(sql, " FORCE INDEX (" + inf.name+"_"+opt.forceIndex+")");
+		}
+		sql = inst.sqlAddString(sql, " WHERE ");
 		var sql = inst.sqlAdd(sql, r.sql, sql.pos);
 		#if !display
 		sql = inst.concatStrings(sql);
