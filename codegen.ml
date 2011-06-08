@@ -422,6 +422,14 @@ let on_generate ctx t =
 			f.cf_expr <- Some e;
 			c.cl_ordered_statics <- f :: c.cl_ordered_statics;
 			c.cl_statics <- PMap.add f.cf_name f c.cl_statics);
+	| TEnumDecl e ->
+		List.iter (fun m ->
+			match m with
+			| ":native",[Ast.EConst (Ast.String name),p],mp ->
+				e.e_meta <- (":real",[Ast.EConst (Ast.String (s_type_path e.e_path)),p],mp) :: e.e_meta;
+				e.e_path <- parse_path name;
+			| _ -> ()
+		) e.e_meta;
 	| _ ->
 		()
 

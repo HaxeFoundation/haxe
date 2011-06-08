@@ -174,7 +174,7 @@ and tenum_field = {
 }
 
 and tenum = {
-	e_path : path;
+	mutable e_path : path;
 	e_pos : Ast.pos;
 	e_doc : Ast.documentation;
 	e_private : bool;

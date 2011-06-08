@@ -18,6 +18,7 @@
 	flash8 : bugfix Std.parseInt with some hex values
 	flash9 : added flash.utils.RegExp
 	all : changed @:build behavior, now takes/returns a var with anonymous fields
+	all : added @:native support for enums
 
 2011-01-30: 2.07
 	all : fixed completion support with --remap
