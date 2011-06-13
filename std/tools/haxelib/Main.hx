@@ -522,6 +522,7 @@ class Main {
 				"/usr/lib/haxe/"+REPNAME;
 			else
 				throw "This is the first time you are runing haxelib. Please run haxelib setup first";
+		rep = StringTools.trim(rep);
 		if( setup ) {
 			print("Please enter haxelib repository path with write access");
 			print("Hit enter for default ("+rep+")");
