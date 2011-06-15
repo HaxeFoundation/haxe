@@ -286,7 +286,7 @@ let init com cwd path def_type =
 		(match path with
 		| [], "List" -> "HList";
 		| _, s -> s) in
-	let ch = open_out (String.concat "/" dir ^ "/" ^ (filename path) ^ (if def_type = 0 then ".class" else if def_type = 1 then ".enum"  else if def_type = 2 then ".interface" else ".extern") ^ ".php") in
+	let ch = open_out_bin (String.concat "/" dir ^ "/" ^ (filename path) ^ (if def_type = 0 then ".class" else if def_type = 1 then ".enum"  else if def_type = 2 then ".interface" else ".extern") ^ ".php") in
 	let imports = Hashtbl.create 0 in
 	Hashtbl.add imports (snd path) [fst path];
 	{
@@ -1868,7 +1868,7 @@ let createmain com e =
 		com = com;
 		stack = stack_init com false;
 		tabs = "";
-		ch = open_out (com.file ^ "/" ^ filename);
+		ch = open_out_bin (com.file ^ "/" ^ filename);
 		path = ([], "");
 		buf = Buffer.create (1 lsl 14);
 		in_value = None;
