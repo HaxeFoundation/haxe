@@ -52,6 +52,7 @@ typedef SEncoded = Int
 typedef SSerialized = String
 typedef SNekoSerialized = String
 
+@:native("Int")
 extern class SFlags<T> {
 	public inline function get( v : T ) : Bool {
 		return (cast this) & (1 << Type.enumIndex(v)) != 0;
