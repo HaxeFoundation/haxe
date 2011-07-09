@@ -19,6 +19,7 @@
 	flash9 : added flash.utils.RegExp
 	all : changed @:build behavior, now takes/returns a var with anonymous fields
 	all : added @:native support for enums
+	neko : changed the result of array-assign expression (was null)
 
 2011-01-30: 2.07
 	all : fixed completion support with --remap

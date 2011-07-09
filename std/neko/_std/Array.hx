@@ -247,7 +247,7 @@
 		return this.__a[pos];
 	}
 
-	private function __set( pos : Int, v : T ) : Void {
+	private function __set( pos : Int, v : T ) : T {
 		var a = this.__a;
 		if( this.length <= pos ) {
 			var l = pos + 1;
@@ -259,6 +259,7 @@
 			this.length = l;
 		}
 		a[pos] = v;
+		return v;
 	}
 
 	private function __double(l:Int) : Void {
