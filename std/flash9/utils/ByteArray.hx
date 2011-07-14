@@ -8,11 +8,7 @@ extern class ByteArray implements IDataOutput, implements IDataInput, implements
 	var position : UInt;
 	function new() : Void;
 	@:require(flash10) function clear() : Void;
-	#if flash11
-	function compress(?algorithm : CompressionAlgorithm) : Void;
-	#else
-	function compress() : Void;
-	#end
+	function compress(#if flash11 ?algorithm : CompressionAlgorithm #end) : Void;
 	@:require(flash10) function deflate() : Void;
 	@:require(flash10) function inflate() : Void;
 	function readBoolean() : Bool;
@@ -30,11 +26,7 @@ extern class ByteArray implements IDataOutput, implements IDataInput, implements
 	function readUnsignedInt() : UInt;
 	function readUnsignedShort() : UInt;
 	function toString() : String;
-	#if flash11
-	function uncompress(?algorithm : CompressionAlgorithm) : Void;
-	#else
-	function uncompress() : Void;
-	#end
+	function uncompress(#if flash11 ?algorithm : CompressionAlgorithm #end) : Void;
 	function writeBoolean(value : Bool) : Void;
 	function writeByte(value : Int) : Void;
 	function writeBytes(bytes : ByteArray, offset : UInt = 0, length : UInt = 0) : Void;
