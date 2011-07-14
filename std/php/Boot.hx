@@ -58,7 +58,7 @@ class _hx_array implements ArrayAccess, IteratorAggregate {
 	}
 
 	function join($sep) {
-		return implode($this->»a, $sep);
+		return implode($sep, $this->»a);
 	}
 
 	function pop() {
@@ -121,7 +121,7 @@ class _hx_array implements ArrayAccess, IteratorAggregate {
 	}
 
 	function toString() {
-		return '['.implode($this->»a, ', ').']';
+		return '['.implode(', ', $this->»a).']';
 	}
 
 	function __toString() {
