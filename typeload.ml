@@ -334,6 +334,10 @@ let check_overriding ctx c p () =
 		PMap.iter (fun i f ->
 			try
 				let t , f2 = raw_class_field (fun f -> f.cf_type) csup i in
+				(* allow to define fields that are not defined for this platform version in superclass *)
+				(match f2.cf_kind with
+				| Var { v_read = AccRequire _ } -> raise Not_found;
+				| _ -> ());
 				ignore(follow f.cf_type); (* force evaluation *)
 				let p = (match f.cf_expr with None -> p | Some e -> e.epos) in
 				if not (List.mem i c.cl_overrides) then

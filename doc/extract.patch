@@ -571,8 +571,6 @@ flash.ui.Multitouch.inputMode : MultitouchInputMode;
 
 @:require(flash10_1) static flash.ui.ContextMenu.isSupported;
 
-
-static flash.ui.Mouse.cursor : MouseCursor;
 @:require(flash10) static flash.ui.Mouse.cursor;
 
 @:require(flash10_1) static flash.ui.Keyboard.A;
