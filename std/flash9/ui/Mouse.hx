@@ -1,7 +1,7 @@
 package flash.ui;
 
 extern class Mouse {
-	@:require(flash10) static var cursor : MouseCursor;
+	@:require(flash10) static var cursor : Dynamic;
 	@:require(flash10_1) static var supportsCursor(default,null) : Bool;
 	@:require(flash11) static var supportsNativeCursor(default,null) : Bool;
 	static function hide() : Void;
