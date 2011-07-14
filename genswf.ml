@@ -391,14 +391,10 @@ let build_class com c file =
 				| FFun { f_args = [] } when f.cff_name = "new" -> loop l
 				| _ -> raise Exit
 		in
-		(match path.tpackage, path.tname with
-		| ["flash";"net"], "URLRequestMethod"
-		| ["flash";"filters"], "BitmapFilterQuality"
-		| ["flash";"display"], ("BitmapDataChannel" | "GraphicsPathCommand")  -> raise Exit
-		| _ -> ());
 		List.iter (function HExtends _ | HImplements _ -> raise Exit | _ -> ()) flags;
 		let constr = loop fields in
-		if constr = [] then raise Exit;
+		let name = "fakeEnum:" ^ String.concat "." (path.tpackage @ [path.tname]) in
+		if not (Common.defined com name) then raise Exit;
 		let enum_data = {
 			d_name = path.tname;
 			d_doc = None;

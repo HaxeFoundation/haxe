@@ -88,6 +88,7 @@ type locals = (string, value ref) PMap.t
 
 type extern_api = {
 	pos : Ast.pos;
+	define : string -> unit;
 	defined : string -> bool;
 	get_type : string -> Type.t option;
 	get_module : string -> Type.t list;
@@ -1562,6 +1563,11 @@ let macro_lib =
 		"resolve", Fun1 (fun file ->
 			match file with
 			| VString s -> VString (try Common.find_file (get_ctx()).com s with Not_found -> failwith ("File not found '" ^ s ^ "'"))
+			| _ -> error();
+		);
+		"define", Fun1 (fun s ->
+			match s with
+			| VString s -> (get_ctx()).curapi.define s; VNull
 			| _ -> error();
 		);
 		"defined", Fun1 (fun s ->

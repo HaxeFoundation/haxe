@@ -35,6 +35,10 @@ class Compiler {
 	static var ident = ~/^[A-Za-z_][A-Za-z0-9_]*$/;
 	static var path = ~/^[A-Za-z_][A-Za-z0-9_.]*$/;
 
+	public static function define( flag : String ) {
+		untyped load("define", 1)(flag.__s);
+	}
+	
 	public static function removeField( className : String, field : String, ?isStatic : Bool ) {
 		if( !path.match(className) ) throw "Invalid "+className;
 		if( !ident.match(field) ) throw "Invalid "+field;
@@ -167,6 +171,10 @@ class Compiler {
 					var p = type.split(".");
 					var field = if( p.length > 1 && p[p.length-2].charAt(0) >= "a" ) null else p.pop();
 					addMetadata(meta,p.join("."),field,isStatic);
+					continue;
+				}
+				if( StringTools.startsWith(r, "enum ") ) {
+					define("fakeEnum:" + r.substr(5));
 					continue;
 				}
 				var rp = r.split(" : ");
