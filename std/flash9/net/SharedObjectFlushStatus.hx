@@ -1,6 +1,7 @@
 package flash.net;
 
-@:fakeEnum(String) extern enum SharedObjectFlushStatus {
-	FLUSHED;
-	PENDING;
+extern class SharedObjectFlushStatus {
+	function new() : Void;
+	static var FLUSHED : String;
+	static var PENDING : String;
 }

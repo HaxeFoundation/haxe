@@ -1,6 +1,7 @@
 package flash.net;
 
-@:fakeEnum(String) extern enum NetGroupReplicationStrategy {
-	LOWEST_FIRST;
-	RAREST_FIRST;
+extern class NetGroupReplicationStrategy {
+	function new() : Void;
+	static var LOWEST_FIRST : String;
+	static var RAREST_FIRST : String;
 }

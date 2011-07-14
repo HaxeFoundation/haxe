@@ -1,6 +1,7 @@
 package flash.net.drm;
 
-@:fakeEnum(String) extern enum AuthenticationMethod {
-	ANONYMOUS;
-	USERNAME_AND_PASSWORD;
+extern class AuthenticationMethod {
+	function new() : Void;
+	static var ANONYMOUS : String;
+	static var USERNAME_AND_PASSWORD : String;
 }

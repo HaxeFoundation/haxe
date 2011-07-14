@@ -1,6 +1,7 @@
 package flash.net;
 
-@:fakeEnum(String) extern enum NetGroupReceiveMode {
-	EXACT;
-	NEAREST;
+extern class NetGroupReceiveMode {
+	function new() : Void;
+	static var EXACT : String;
+	static var NEAREST : String;
 }

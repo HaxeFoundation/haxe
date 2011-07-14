@@ -6,6 +6,6 @@ extern class NetStreamPlayOptions extends flash.events.EventDispatcher, implemen
 	var oldStreamName : String;
 	var start : Float;
 	var streamName : String;
-	var transition : NetStreamPlayTransitions;
+	var transition : String;
 	function new() : Void;
 }

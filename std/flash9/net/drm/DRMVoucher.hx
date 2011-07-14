@@ -8,4 +8,5 @@ extern class DRMVoucher {
 	var voucherEndDate(default,null) : Date;
 	var voucherStartDate(default,null) : Date;
 	function new() : Void;
+	function toByteArray() : flash.utils.ByteArray;
 }

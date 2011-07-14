@@ -1,7 +1,8 @@
 package flash.net;
 
-@:fakeEnum(String) extern enum NetStreamAppendBytesAction {
-	END_SEQUENCE;
-	RESET_BEGIN;
-	RESET_SEEK;
+extern class NetStreamAppendBytesAction {
+	function new() : Void;
+	static var END_SEQUENCE : String;
+	static var RESET_BEGIN : String;
+	static var RESET_SEEK : String;
 }

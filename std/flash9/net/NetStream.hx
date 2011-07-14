@@ -34,12 +34,14 @@ extern class NetStream extends flash.events.EventDispatcher {
 	@:require(flash10) var peerStreams(default,null) : Array<Dynamic>;
 	var soundTransform : flash.media.SoundTransform;
 	var time(default,null) : Float;
+	@:require(flash11) var useHardwareDecoder : Bool;
 	var videoCodec(default,null) : UInt;
 	@:require(flash10_1) var videoReliable : Bool;
 	@:require(flash10_1) var videoSampleAccess : Bool;
+	@:require(flash11) var videoStreamSettings : flash.media.VideoStreamSettings;
 	function new(connection : NetConnection, ?peerID : String) : Void;
 	@:require(flash10_1) function appendBytes(bytes : flash.utils.ByteArray) : Void;
-	@:require(flash10_1) function appendBytesAction(netStreamAppendBytesAction : NetStreamAppendBytesAction) : Void;
+	@:require(flash10_1) function appendBytesAction(netStreamAppendBytesAction : String) : Void;
 	@:require(flash10_1) function attach(connection : NetConnection) : Void;
 	function attachAudio(microphone : flash.media.Microphone) : Void;
 	function attachCamera(theCamera : flash.media.Camera, snapshotMilliseconds : Int = -1) : Void;
