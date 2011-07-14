@@ -35,6 +35,7 @@ extern class TextField extends flash.display.InteractiveObject {
 	var text : String;
 	var textColor : UInt;
 	var textHeight(default,null) : Float;
+	@:require(flash11) var textInteractionMode(default,null) : TextInteractionMode;
 	var textWidth(default,null) : Float;
 	var thickness : Float;
 	var type : TextFieldType;
