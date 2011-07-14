@@ -107,7 +107,8 @@ class PhpXml__ {
 		}
 	}
 
-	private function new();
+	private function new() {
+	}
 
 	public static function createElement( name : String ) : PhpXml__ {
 		var r = new PhpXml__();

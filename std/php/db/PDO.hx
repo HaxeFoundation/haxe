@@ -173,7 +173,8 @@ private class PDOConnection implements Connection {
 }
 
 private class TypeStrategy {
-	public function new();
+	public function new() {
+	}
 	public function map(data : NativeArray) : Dynamic
 	{
 		return throw "must override";
