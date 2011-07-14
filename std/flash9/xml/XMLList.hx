@@ -36,6 +36,7 @@ package flash.xml;
 	function setName(name : Dynamic) : Void;
 	function setNamespace(ns : Dynamic) : Void;
 	function text() : XMLList;
+	@:require(flash11) function toJSON(k : String) : Dynamic;
 	function toString() : String;
 	function toXMLString() : String;
 	function valueOf() : XMLList;

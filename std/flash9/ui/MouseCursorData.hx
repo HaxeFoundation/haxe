@@ -4,6 +4,5 @@ package flash.ui;
 	var data : flash.Vector<flash.display.BitmapData>;
 	var frameRate : Float;
 	var hotSpot : flash.geom.Point;
-	var name : String;
-	function new(name : String) : Void;
+	function new() : Void;
 }
