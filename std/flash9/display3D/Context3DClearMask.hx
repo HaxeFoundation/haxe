@@ -1,8 +1,8 @@
 package flash.display3D;
 
-@:fakeEnum(Int) extern enum Context3DClearMask {
-	ALL;
-	COLOR;
-	DEPTH;
-	STENCIL;
+extern class Context3DClearMask {
+	static var ALL : Int;
+	static var COLOR : Int;
+	static var DEPTH : Int;
+	static var STENCIL : Int;
 }

@@ -6,6 +6,7 @@ extern class Stage extends DisplayObjectContainer {
 	@:require(flash10_2) var color : UInt;
 	@:require(flash10) var colorCorrection : ColorCorrection;
 	@:require(flash10) var colorCorrectionSupport(default,null) : ColorCorrectionSupport;
+	@:require(flash11) var displayContextInfo(default,null) : String;
 	var displayState : StageDisplayState;
 	var focus : InteractiveObject;
 	var frameRate : Float;
@@ -15,6 +16,7 @@ extern class Stage extends DisplayObjectContainer {
 	var quality : StageQuality;
 	var scaleMode : StageScaleMode;
 	var showDefaultContextMenu : Bool;
+	@:require(flash11) var softKeyboardRect(default,null) : flash.geom.Rectangle;
 	@:require(flash11) var stage3Ds(default,null) : flash.Vector<Stage3D>;
 	var stageFocusRect : Bool;
 	var stageHeight : Int;

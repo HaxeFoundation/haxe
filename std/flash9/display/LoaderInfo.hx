@@ -18,7 +18,7 @@ extern class LoaderInfo extends flash.events.EventDispatcher {
 	var parentAllowsChild(default,null) : Bool;
 	var sameDomain(default,null) : Bool;
 	var sharedEvents(default,null) : flash.events.EventDispatcher;
-	var swfVersion(default,null) : SWFVersion;
+	var swfVersion(default,null) : UInt;
 	@:require(flash10_1) var uncaughtErrorEvents(default,null) : flash.events.UncaughtErrorEvents;
 	var url(default,null) : String;
 	var width(default,null) : Int;

@@ -1,6 +1,6 @@
 package flash.display3D;
 
-@:final extern class Context3D {
+@:final extern class Context3D extends flash.events.EventDispatcher {
 	var driverInfo(default,null) : String;
 	var enableErrorChecking : Bool;
 	function clear(red : Float = 0, green : Float = 0, blue : Float = 0, alpha : Float = 1, depth : Float = 1, stencil : UInt = 0, mask : UInt = 0xFFFFFFFF) : Void;
