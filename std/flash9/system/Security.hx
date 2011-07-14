@@ -8,6 +8,7 @@ extern class Security {
 	static var REMOTE : String;
 	static var disableAVM1Loading : Bool;
 	static var exactSettings : Bool;
+	@:require(flash11) static var pageDomain(default,null) : String;
 	static var sandboxType(default,null) : String;
 	static function allowDomain(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
 	static function allowInsecureDomain(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;
