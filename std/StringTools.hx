@@ -254,7 +254,7 @@ class StringTools {
 		#if neko
 		return untyped __dollar__sget(s.__s, index);
 		#elseif cpp
-		return (s == null) ? 0 : s.cca(index);
+		return s.cca(index);
 		#elseif flash9
 		return s.cca(index);
 		#elseif flash
