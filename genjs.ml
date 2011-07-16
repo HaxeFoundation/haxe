@@ -29,7 +29,7 @@ type ctx = {
 	mutable statics : (tclass * string * texpr) list;
 	mutable inits : texpr list;
 	mutable tabs : string;
-	mutable in_value : bool;
+	mutable in_value : tvar option;
 	mutable in_loop : bool;
 	mutable handle_break : bool;
 	mutable id_counter : int;
@@ -39,7 +39,7 @@ type ctx = {
 }
 
 let s_path ctx = function
-	| ([],p) -> 
+	| ([],p) ->
 		(match ctx.namespace with
 		| None -> p
 		| Some ns -> ns ^ "." ^ p)
@@ -66,12 +66,12 @@ let print ctx = ctx.separator <- false; Printf.kprintf (fun s -> Buffer.add_stri
 
 let unsupported p = error "This expression cannot be compiled to Javascript" p
 
-let newline ctx =	
+let newline ctx =
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
-	| '}' | '{' | ':' when not ctx.separator -> print ctx "\n%s" ctx.tabs	
+	| '}' | '{' | ':' when not ctx.separator -> print ctx "\n%s" ctx.tabs
 	| _ -> print ctx ";\n%s" ctx.tabs
 
-let semicolon ctx =	
+let semicolon ctx =
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
 	| '}' when not ctx.separator -> ()
 	| _ -> spr ctx ";"
@@ -86,10 +86,10 @@ let rec concat ctx s f = function
 
 let fun_block ctx f p =
 	let e = (match f.tf_expr with { eexpr = TBlock [{ eexpr = TBlock _ } as e] } -> e | e -> e) in
-	let e = List.fold_left (fun e (a,c,t) ->
+	let e = List.fold_left (fun e (a,c) ->
 		match c with
 		| None | Some TNull -> e
-		| Some c -> Codegen.concat (Codegen.set_default ctx.com a c t p) e
+		| Some c -> Codegen.concat (Codegen.set_default ctx.com a c p) e
 	) e f.tf_args in
 	if ctx.com.debug then
 		Codegen.stack_block ctx.stack ctx.current (fst ctx.curmethod) e
@@ -139,7 +139,7 @@ let handle_break ctx e =
 				spr ctx "} catch( e ) { if( e != \"__break__\" ) throw e; }";
 			)
 
-let this ctx = if ctx.in_value then "$this" else "this"
+let this ctx = match ctx.in_value with None -> "this" | Some _ -> "$this"
 
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
@@ -170,26 +170,26 @@ let rec gen_call ctx e el =
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
 			spr ctx ")";
 		);
-	| TCall (x,_) , el when x.eexpr <> TLocal "__js__" ->
+	| TCall (x,_) , el when (match x.eexpr with TLocal { v_name = "__js__" } -> false | _ -> true) ->
 		spr ctx "(";
 		gen_value ctx e;
 		spr ctx ")";
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
-	| TLocal "__new__" , { eexpr = TConst (TString cl) } :: params ->
+	| TLocal { v_name = "__new__" }, { eexpr = TConst (TString cl) } :: params ->
 		print ctx "new %s(" cl;
 		concat ctx "," (gen_value ctx) params;
 		spr ctx ")";
-	| TLocal "__new__" , e :: params ->
+	| TLocal { v_name = "__new__" }, e :: params ->
 		spr ctx "new ";
 		gen_value ctx e;
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) params;
 		spr ctx ")";
-	| TLocal "__js__", [{ eexpr = TConst (TString code) }] ->
+	| TLocal { v_name = "__js__" }, [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
-	| TLocal "__resources__", [] ->
+	| TLocal { v_name = "__resources__" }, [] ->
 		spr ctx "[";
 		concat ctx "," (fun (name,data) ->
 			spr ctx "{ ";
@@ -209,7 +209,7 @@ let rec gen_call ctx e el =
 and gen_expr ctx e =
 	match e.eexpr with
 	| TConst c -> gen_constant ctx e.epos c
-	| TLocal s -> spr ctx (ident s)
+	| TLocal v -> spr ctx (ident v.v_name)
 	| TEnumField (e,s) ->
 		print ctx "%s%s" (ctx.type_accessor (TEnumDecl e)) (field s)
 	| TArray (e1,e2) ->
@@ -240,7 +240,7 @@ and gen_expr ctx e =
 		gen_value ctx e;
 		spr ctx ")";
 	| TReturn eo ->
-		if ctx.in_value then unsupported e.epos;
+		if ctx.in_value <> None then unsupported e.epos;
 		(match eo with
 		| None ->
 			spr ctx "return"
@@ -263,7 +263,7 @@ and gen_expr ctx e =
 	| TFunction f ->
 		let old = ctx.in_value, ctx.in_loop in
 		let old_meth = ctx.curmethod in
-		ctx.in_value <- false;
+		ctx.in_value <- None;
 		ctx.in_loop <- false;
 		if snd ctx.curmethod then
 			ctx.curmethod <- (fst ctx.curmethod ^ "@" ^ string_of_int (Lexer.get_error_line e.epos), true)
@@ -288,8 +288,8 @@ and gen_expr ctx e =
 		()
 	| TVars vl ->
 		spr ctx "var ";
-		concat ctx ", " (fun (n,_,e) ->
-			spr ctx (ident n);
+		concat ctx ", " (fun (v,e) ->
+			spr ctx (ident v.v_name);
 			match e with
 			| None -> ()
 			| Some e ->
@@ -340,10 +340,10 @@ and gen_expr ctx e =
 		concat ctx ", " (fun (f,e) -> print ctx "%s : " (anon_field f); gen_value ctx e) fields;
 		spr ctx "}";
 		ctx.separator <- true
-	| TFor (v,_,it,e) ->
+	| TFor (v,it,e) ->
 		let handle_break = handle_break ctx e in
 		let it = (match it.eexpr with
-			| TLocal v -> v
+			| TLocal v -> v.v_name
 			| _ ->
 				let id = ctx.id_counter in
 				ctx.id_counter <- ctx.id_counter + 1;
@@ -356,7 +356,7 @@ and gen_expr ctx e =
 		print ctx "while( %s.hasNext() ) {" it;
 		let bend = open_block ctx in
 		newline ctx;
-		print ctx "var %s = %s.next()" (ident v) it;
+		print ctx "var %s = %s.next()" (ident v.v_name) it;
 		gen_block ctx e;
 		bend();
 		newline ctx;
@@ -365,7 +365,7 @@ and gen_expr ctx e =
 	| TTry (e,catchs) ->
 		spr ctx "try ";
 		gen_expr ctx e;
-		let vname = (match catchs with [(v,_,_)] -> v | _ ->
+		let vname = (match catchs with [(v,_)] -> v.v_name | _ ->
 			let id = ctx.id_counter in
 			ctx.id_counter <- ctx.id_counter + 1;
 			"$e" ^ string_of_int id
@@ -373,9 +373,9 @@ and gen_expr ctx e =
 		print ctx " catch( %s ) {" vname;
 		let bend = open_block ctx in
 		let last = ref false in
-		List.iter (fun (v,t,e) ->
+		List.iter (fun (v,e) ->
 			if !last then () else
-			let t = (match follow t with
+			let t = (match follow v.v_type with
 			| TEnum (e,_) -> Some (TEnumDecl e)
 			| TInst (c,_) -> Some (TClassDecl c)
 			| TFun _
@@ -390,9 +390,9 @@ and gen_expr ctx e =
 			match t with
 			| None ->
 				last := true;
-				if vname <> v then begin
+				if vname <> v.v_name then begin
 					newline ctx;
-					print ctx "var %s = %s" v vname;
+					print ctx "var %s = %s" v.v_name vname;
 				end;
 				gen_block ctx e;
 			| Some t ->
@@ -401,9 +401,9 @@ and gen_expr ctx e =
 				gen_value ctx (mk (TTypeExpr t) (mk_mono()) e.epos);
 				spr ctx ") ) {";
 				let bend = open_block ctx in
-				if vname <> v then begin
+				if vname <> v.v_name then begin
 					newline ctx;
-					print ctx "var %s = %s" v vname;
+					print ctx "var %s = %s" v.v_name vname;
 				end;
 				gen_block ctx e;
 				bend();
@@ -424,7 +424,7 @@ and gen_expr ctx e =
 			"???"
 		end else begin
 			let v = (match e.eexpr with
-				| TLocal v -> v
+				| TLocal v -> v.v_name
 				| _ ->
 					spr ctx "var $e = ";
 					gen_value ctx e;
@@ -444,7 +444,7 @@ and gen_expr ctx e =
 			| None -> ()
 			| Some l ->
 				let n = ref 1 in
-				let l = List.fold_left (fun acc (v,_) -> incr n; match v with None -> acc | Some v -> (v,!n) :: acc) [] l in
+				let l = List.fold_left (fun acc v -> incr n; match v with None -> acc | Some v -> (v.v_name,!n) :: acc) [] l in
 				newline ctx;
 				spr ctx "var ";
 				concat ctx ", " (fun (v,n) ->
@@ -515,33 +515,27 @@ and gen_block ctx e =
 and gen_value ctx e =
 	let assign e =
 		mk (TBinop (Ast.OpAssign,
-			mk (TLocal "$r") t_dynamic e.epos,
+			mk (TLocal (match ctx.in_value with None -> assert false | Some v -> v)) t_dynamic e.epos,
 			e
 		)) e.etype e.epos
 	in
-	let value block =
+	let value() =
 		let old = ctx.in_value, ctx.in_loop in
-		ctx.in_value <- true;
+		let r = alloc_var "$r" t_dynamic in
+		ctx.in_value <- Some r;
 		ctx.in_loop <- false;
 		spr ctx "(function($this) ";
-		let b = if block then begin
-			spr ctx "{";
-			let b = open_block ctx in
-			newline ctx;
-			spr ctx "var $r";
-			newline ctx;
-			b
-		end else
-			(fun() -> ())
-		in
+		spr ctx "{";
+		let b = open_block ctx in
+		newline ctx;
+		spr ctx "var $r";
+		newline ctx;
 		(fun() ->
-			if block then begin
-				newline ctx;
-				spr ctx "return $r";
-				b();
-				newline ctx;
-				spr ctx "}";
-			end;
+			newline ctx;
+			spr ctx "return $r";
+			b();
+			newline ctx;
+			spr ctx "}";
 			ctx.in_value <- fst old;
 			ctx.in_loop <- snd old;
 			print ctx "(%s))" (this ctx)
@@ -575,13 +569,13 @@ and gen_value ctx e =
 	| TWhile _
 	| TThrow _ ->
 		(* value is discarded anyway *)
-		let v = value true in
+		let v = value() in
 		gen_expr ctx e;
 		v()
 	| TBlock [e] ->
 		gen_value ctx e
 	| TBlock el ->
-		let v = value true in
+		let v = value() in
 		let rec loop = function
 			| [] ->
 				spr ctx "return null";
@@ -609,24 +603,24 @@ and gen_value ctx e =
 		| None -> spr ctx "null"
 		| Some e -> gen_value ctx e);
 	| TSwitch (cond,cases,def) ->
-		let v = value true in
+		let v = value() in
 		gen_expr ctx (mk (TSwitch (cond,
 			List.map (fun (e1,e2) -> (e1,assign e2)) cases,
 			match def with None -> None | Some e -> Some (assign e)
 		)) e.etype e.epos);
 		v()
 	| TMatch (cond,enum,cases,def) ->
-		let v = value true in
+		let v = value() in
 		gen_expr ctx (mk (TMatch (cond,enum,
 			List.map (fun (constr,params,e) -> (constr,params,assign e)) cases,
 			match def with None -> None | Some e -> Some (assign e)
 		)) e.etype e.epos);
 		v()
 	| TTry (b,catchs) ->
-		let v = value true in
+		let v = value() in
 		let block e = mk (TBlock [e]) e.etype e.epos in
 		gen_expr ctx (mk (TTry (block (assign b),
-			List.map (fun (v,t,e) -> v, t , block (assign e)) catchs
+			List.map (fun (v,e) -> v, block (assign e)) catchs
 		)) e.etype e.epos);
 		v()
 
@@ -639,7 +633,7 @@ let generate_package_create ctx (p,_) =
 			(match acc with
 			| [] ->
 				print ctx "if(typeof %s=='undefined') %s = {}" p p;
-			| _ -> 
+			| _ ->
 				let p = String.concat "." (List.rev acc) ^ (field p) in
 		        print ctx "if(!%s) %s = {}" p p);
 			newline ctx;
@@ -649,7 +643,7 @@ let generate_package_create ctx (p,_) =
 
 let check_field_name c f =
 	match f.cf_name with
-	| "prototype" | "__proto__" | "constructor" -> 
+	| "prototype" | "__proto__" | "constructor" ->
 		error ("The field name '" ^ f.cf_name ^ "'  is not allowed in JS") (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos);
 	| _ -> ()
 
@@ -745,7 +739,7 @@ let generate_enum ctx e =
 		print ctx "%s%s = " p (field f.ef_name);
 		(match f.ef_type with
 		| TFun (args,_) ->
-			let sargs = String.concat "," (List.map arg_name args) in
+			let sargs = String.concat "," (List.map (fun (n,_,_) -> n) args) in
 			print ctx "function(%s) { var $x = [\"%s\",%d,%s]; $x.__enum__ = %s; $x.toString = $estr; return $x; }" sargs f.ef_name f.ef_index sargs p;
 		| _ ->
 			print ctx "[\"%s\",%d]" f.ef_name f.ef_index;
@@ -790,7 +784,7 @@ let alloc_ctx com =
 		inits = [];
 		current = null_class;
 		tabs = "";
-		in_value = false;
+		in_value = None;
 		in_loop = false;
 		handle_break = false;
 		id_counter = 0;
@@ -822,7 +816,7 @@ let generate com =
 	newline ctx;
 	(match ctx.namespace with
 		| None -> ()
-		| Some ns -> 
+		| Some ns ->
 			print ctx "if(typeof %s=='undefined') %s = {}" ns ns;
 			newline ctx);
 	List.iter (generate_type ctx) com.types;
@@ -832,7 +826,7 @@ let generate com =
 	newline ctx;
 	(match ctx.namespace with
 		| None -> ()
-		| Some ns -> 
+		| Some ns ->
 			print ctx "js.Boot.__ns = '%s'" ns;
 			newline ctx);
 	if com.debug then begin

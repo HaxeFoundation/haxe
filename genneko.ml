@@ -30,8 +30,6 @@ type context = {
 	mutable macros : bool;
 	mutable curclass : string;
 	mutable curmethod : string;
-	mutable locals : (string , bool) PMap.t;
-	mutable curblock : texpr list;
 	mutable inits : (tclass * texpr) list;
 }
 
@@ -79,57 +77,6 @@ let gen_global_name ctx path =
 		ctx.curglobal <- ctx.curglobal + 1;
 		Hashtbl.add ctx.globals path name;
 		name
-
-let add_local ctx v p =
-	let rec loop flag e =
-		match e.eexpr with
-		| TLocal a ->
-			if flag && a = v then raise Exit
-		| TFunction f ->
-			if not (List.exists (fun (a,_,_) -> a = v) f.tf_args) then loop true f.tf_expr
-		| TVars l ->
-			if List.exists (fun (a,_,_) -> a = v) l then raise Not_found;
-			Type.iter (loop flag) e
-		| TFor (a,_,e1,e2) ->
-			loop flag e1;
-			if a <> v then loop flag e2
-		| TMatch (e,_,cases,eo) ->
-			loop flag e;
-			(match eo with None -> () | Some e -> loop flag e);
-			List.iter (fun (_,params,e) ->
-				match params with
-				| Some l when List.exists (fun (a,_) -> a = Some v) l -> ()
-				| _ -> loop flag e
-			) cases
-		| TBlock l ->
-			(try
-				List.iter (loop flag) l
-			with
-				Not_found -> ())
-		| TTry (e,catchs) ->
-			loop flag e;
-			List.iter (fun (a,_,e) -> if a <> v then loop flag e) catchs
-		| _ ->
-			Type.iter (loop flag) e
-	in
-	let isref = (try
-		List.iter (loop false) ctx.curblock;
-		false
-	with
-		| Not_found -> false
-		| Exit -> true
-	) in
-	ctx.locals <- PMap.add v isref ctx.locals;
-	isref
-
-let block ctx curblock =
-	let l = ctx.locals in
-	let b = ctx.curblock in
-	ctx.curblock <- curblock;
-	(fun() ->
-		ctx.locals <- l;
-		ctx.curblock <- b;
-	)
 
 let null p =
 	(EConst Null,p)
@@ -237,7 +184,7 @@ and gen_call ctx p e el =
 			this p;
 			array p (List.map (gen_expr ctx) el)
 		]
-	| TLocal "__resources__", [] ->
+	| TLocal { v_name = "__resources__" }, [] ->
 		call p (builtin p "array") (Hashtbl.fold (fun name data acc ->
 			(EObject [("name",gen_constant ctx e.epos (TString name));("data",gen_big_string ctx p data)],p) :: acc
 		) ctx.com.resources [])
@@ -257,12 +204,11 @@ and gen_expr ctx e =
 	match e.eexpr with
 	| TConst c ->
 		gen_constant ctx e.epos c
-	| TLocal s ->
-		let isref = try PMap.find s ctx.locals with Not_found -> false in
-		if isref then
-			(EArray (ident p s,int p 0),p)
+	| TLocal v ->
+		if v.v_capture then
+			(EArray (ident p v.v_name,int p 0),p)
 		else
-			ident p s
+			ident p v.v_name
 	| TEnumField (e,f) ->
 		field p (gen_type_path p e.e_path) f
 	| TArray (e1,e2) ->
@@ -304,65 +250,48 @@ and gen_expr ctx e =
 	| TUnop (op,flag,e) ->
 		gen_unop ctx p op flag e
 	| TVars vl ->
-		(EVars (List.map (fun (v,_,e) ->
-			let isref = add_local ctx v p in
+		(EVars (List.map (fun (v,e) ->
 			let e = (match e with
 				| None ->
-					if isref then
+					if v.v_capture then
 						Some (call p (builtin p "array") [null p])
 					else
 						None
 				| Some e ->
 					let e = gen_expr ctx e in
-					if isref then
+					if v.v_capture then
 						Some (call p (builtin p "array") [e])
 					else
 						Some e
 			) in
-			v , e
+			v.v_name , e
 		) vl),p)
 	| TFunction f ->
-		let b = block ctx [f.tf_expr] in
-		let inits = List.fold_left (fun acc (a,c,t) ->
+		let inits = List.fold_left (fun acc (a,c) ->
 			let acc = (match c with
 				| None | Some TNull -> acc
-				| Some c ->	gen_expr ctx (Codegen.set_default ctx.com a c t e.epos) :: acc
+				| Some c ->	gen_expr ctx (Codegen.set_default ctx.com a c e.epos) :: acc
 			) in
-			if add_local ctx a p then
-				(EBinop ("=",ident p a,call p (builtin p "array") [ident p a]),p) :: acc
+			if a.v_capture then
+				(EBinop ("=",ident p a.v_name,call p (builtin p "array") [ident p a.v_name]),p) :: acc
 			else
 				acc
 		) [] f.tf_args in
 		let e = gen_expr ctx f.tf_expr in
 		let e = (match inits with [] -> e | _ -> EBlock (List.rev (e :: inits)),p) in
-		let e = (EFunction (List.map arg_name f.tf_args, with_return e),p) in
-		b();
-		e
+		(EFunction (List.map arg_name f.tf_args, with_return e),p)
 	| TBlock el ->
-		let b = block ctx el in
-		let rec loop = function
-			| [] -> []
-			| e :: l ->
-				ctx.curblock <- l;
-				let e = gen_expr ctx e in
-				e :: loop l
-		in
-		let e = (EBlock (loop el), p) in
-		b();
-		e
-	| TFor (v, _, it, e) ->
+		(EBlock (List.map (gen_expr ctx) el), p)
+	| TFor (v, it, e) ->
 		let it = gen_expr ctx it in
-		let b = block ctx [e] in
-		let isref = add_local ctx v p in
 		let e = gen_expr ctx e in
-		b();
 		let next = call p (field p (ident p "@tmp") "next") [] in
-		let next = (if isref then call p (builtin p "array") [next] else next) in
+		let next = (if v.v_capture then call p (builtin p "array") [next] else next) in
 		(EBlock
 			[(EVars ["@tmp", Some it],p);
 			(EWhile (call p (field p (ident p "@tmp") "hasNext") [],
 				(EBlock [
-					(EVars [v, Some next],p);
+					(EVars [v.v_name, Some next],p);
 					e
 				],p)
 			,NormalWhile),p)]
@@ -374,9 +303,9 @@ and gen_expr ctx e =
 	| TTry (e,catchs) ->
 		let rec loop = function
 			| [] -> call p (builtin p "rethrow") [ident p "@tmp"]
-			| (v,t,e) :: l ->
+			| (v,e) :: l ->
 				let e2 = loop l in
-				let path = (match follow t with
+				let path = (match follow v.v_type with
 					| TInst (c,_) -> Some c.cl_path
 					| TEnum (e,_) -> Some e.e_path
 					| TDynamic _ -> None
@@ -386,14 +315,11 @@ and gen_expr ctx e =
 					| None -> (EConst True,p)
 					| Some path -> call p (field p (gen_type_path p (["neko"],"Boot")) "__instanceof") [ident p "@tmp"; gen_type_path p path]
 				) in
-				let b = block ctx [e] in
-				let isref = add_local ctx v p in
 				let id = ident p "@tmp" in
-				let id = (if isref then call p (builtin p "array") [id] else id) in
+				let id = (if v.v_capture then call p (builtin p "array") [id] else id) in
 				let e = gen_expr ctx e in
-				b();
 				(EIf (cond,(EBlock [
-					EVars [v,Some id],p;
+					EVars [v.v_name,Some id],p;
 					e;
 				],p),Some e2),p)
 		in
@@ -427,21 +353,18 @@ and gen_expr ctx e =
 			| None ->
 				gen_expr ctx e
 			| Some el ->
-				let b = block ctx [e] in
 				let count = ref (-1) in
-				let vars = List.fold_left (fun acc (v,_) ->
+				let vars = List.fold_left (fun acc v ->
 					incr count;
 					match v with
 					| None ->
 						acc
 					| Some v ->
-						let isref = add_local ctx v p in
 						let e = (EArray (ident p "@tmp",int p (!count)),p) in
-						let e = (if isref then call p (builtin p "array") [e] else e) in
-						(v , Some e) :: acc
+						let e = (if v.v_capture then call p (builtin p "array") [e] else e) in
+						(v.v_name , Some e) :: acc
 				) [] el in
 				let e = gen_expr ctx e in
-				b();
 				(EBlock [
 					(EVars ["@tmp",Some (field p (ident p "@tmp") "args")],p);
 					(match vars with [] -> null p | _ -> EVars vars,p);
@@ -535,7 +458,7 @@ let gen_class ctx c =
 	| Some f ->
 		(match follow f.cf_type with
 		| TFun (args,_) ->
-			let params = List.map arg_name args in
+			let params = List.map (fun (n,_,_) -> n) args in
 			gen_method ctx p f ["new",(EFunction (params,(EBlock [
 				(EVars ["@o",Some (call p (builtin p "new") [null p])],p);
 				(call p (builtin p "objsetproto") [ident p "@o"; clpath]);
@@ -598,7 +521,7 @@ let gen_enum_constr ctx path c =
 	let p = pos ctx c.ef_pos in
 	(EBinop ("=",field p path c.ef_name, match follow c.ef_type with
 		| TFun (params,_) ->
-			let params = List.map arg_name params in
+			let params = List.map (fun (n,_,_) -> n) params in
 			(EFunction (params,
 				(EBlock [
 					(EVars ["@tmp",Some (EObject [
@@ -766,8 +689,6 @@ let new_context com macros =
 		curclass = "$boot";
 		curmethod = "$init";
 		inits = [];
-		curblock = [];
-		locals = PMap.empty;
 	}
 
 let header() =
@@ -819,7 +740,7 @@ let build ctx types =
 let generate com libs =
 	let ctx = new_context com false in
 	let t = Common.timer "neko generation" in
-	let libs = (ENeko (generate_libs_init libs) , { psource = "<header>"; pline = 1; }) in	
+	let libs = (ENeko (generate_libs_init libs) , { psource = "<header>"; pline = 1; }) in
 	let el = build ctx com.types in
 	let emain = (match com.main with None -> [] | Some e -> [gen_expr ctx e]) in
 	let e = (EBlock ((header()) @ libs :: el @ emain), null_pos) in

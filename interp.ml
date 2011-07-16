@@ -3177,7 +3177,7 @@ and decode_type t =
 	| 4, [pl; r] -> TFun (List.map (fun p -> dec_string (field p "name"), dec_bool (field p "opt"), decode_type (field p "t")) (dec_array pl), decode_type r)
 	| 5, [a] -> TAnon (decode_ref a)
 	| 6, [VNull] -> t_dynamic
-	| 6, [t] -> TDynamic (decode_type t)	
+	| 6, [t] -> TDynamic (decode_type t)
 	| _ -> raise Invalid_expr
 
 and encode_texpr e =
@@ -3259,9 +3259,9 @@ let rec make_ast e =
 		| TType (t,pl) ->
 			tpath t.t_path (List.map mk_type pl)
 		| TFun (args,ret) ->
-			CTFunction (List.map (fun (_,_,t) -> mk_type t) args, mk_type ret)			
+			CTFunction (List.map (fun (_,_,t) -> mk_type t) args, mk_type ret)
 		| TAnon a ->
-			CTAnonymous (PMap.foldi (fun _ f acc -> 
+			CTAnonymous (PMap.foldi (fun _ f acc ->
 				{
 					cff_name = f.cf_name;
 					cff_kind = FVar (mk_ot f.cf_type,None);
@@ -3284,7 +3284,7 @@ let rec make_ast e =
 	((match e.eexpr with
 	| TConst c ->
 		EConst (mk_const c)
-	| TLocal s -> EConst (Ident s)
+	| TLocal v -> EConst (Ident v.v_name)
 	| TEnumField (en,f) -> EField (mk_path en.e_path e.epos,f)
 	| TArray (e1,e2) -> EArray (make_ast e1,make_ast e2)
 	| TBinop (op,e1,e2) -> EBinop (op, make_ast e1, make_ast e2)
@@ -3296,13 +3296,13 @@ let rec make_ast e =
 	| TCall (e,el) -> ECall (make_ast e,List.map make_ast el)
 	| TNew (c,pl,el) -> ENew ((match mk_type (TInst (c,pl)) with CTPath p -> p | _ -> assert false),List.map make_ast el)
 	| TUnop (op,p,e) -> EUnop (op,p,make_ast e)
-	| TFunction f -> 
-		let arg (n,c,t) = n, false, mk_ot t, (match c with None -> None | Some c -> Some (EConst (mk_const c),e.epos)) in
+	| TFunction f ->
+		let arg (v,c) = v.v_name, false, mk_ot v.v_type, (match c with None -> None | Some c -> Some (EConst (mk_const c),e.epos)) in
 		EFunction (None,{ f_params = []; f_args = List.map arg f.tf_args; f_type = mk_ot f.tf_type; f_expr = Some (make_ast f.tf_expr) })
 	| TVars vl ->
-		EVars (List.map (fun (n,t,e) -> n, mk_ot t, eopt e) vl)
+		EVars (List.map (fun (v,e) -> v.v_name, mk_ot v.v_type, eopt e) vl)
 	| TBlock el -> EBlock (List.map make_ast el)
-	| TFor (n,t,it,e) -> EFor (n,make_ast it,make_ast e)
+	| TFor (v,it,e) -> EFor (v.v_name,make_ast it,make_ast e)
 	| TIf (e,e1,e2) -> EIf (make_ast e,make_ast e1,eopt e2)
 	| TWhile (e1,e2,flag) -> EWhile (make_ast e1, make_ast e2, flag)
 	| TSwitch (e,cases,def) -> ESwitch (make_ast e,List.map (fun (vl,e) -> List.map make_ast vl, make_ast e) cases,eopt def)
@@ -3311,7 +3311,7 @@ let rec make_ast e =
 			assert false
 		in
 		ESwitch (make_ast e,List.map scases cases,eopt def)
-	| TTry (e,catches) -> ETry (make_ast e,List.map (fun (n,t,e) -> n, mk_type t, make_ast e) catches)
+	| TTry (e,catches) -> ETry (make_ast e,List.map (fun (v,e) -> v.v_name, mk_type v.v_type, make_ast e) catches)
 	| TReturn e -> EReturn (eopt e)
 	| TBreak -> EBreak
 	| TContinue -> EContinue

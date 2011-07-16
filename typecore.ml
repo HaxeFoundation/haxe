@@ -73,9 +73,7 @@ and typer = {
 	mutable in_loop : bool;
 	mutable in_display : bool;
 	mutable ret : t;
-	mutable locals : (string, t) PMap.t;
-	mutable locals_map : (string, string) PMap.t;
-	mutable locals_map_inv : (string, string) PMap.t;
+	mutable locals : (string, tvar) PMap.t;
 	mutable opened : anon_status ref list;
 	mutable param_type : t option;
 }
@@ -169,34 +167,18 @@ let exc_protect f =
 
 let save_locals ctx =
 	let locals = ctx.locals in
-	let map = ctx.locals_map in
-	let inv = ctx.locals_map_inv in
-	(fun() ->
-		ctx.locals <- locals;
-		ctx.locals_map <- map;
-		ctx.locals_map_inv <- inv;
-	)
+	(fun() -> ctx.locals <- locals)
 
-let add_local ctx v t =
-	let rec loop n =
-		let nv = (if n = 0 then v else v ^ string_of_int n) in
-		if PMap.mem nv ctx.locals || PMap.mem nv ctx.locals_map_inv then
-			loop (n+1)
-		else begin
-			ctx.locals <- PMap.add v t ctx.locals;
-			if n <> 0 then begin
-				ctx.locals_map <- PMap.add v nv ctx.locals_map;
-				ctx.locals_map_inv <- PMap.add nv v ctx.locals_map_inv;
-			end;
-			nv
-		end
-	in
-	loop 0
+let add_local ctx n t =
+	let v = alloc_var n t in
+	ctx.locals <- PMap.add n v ctx.locals;
+	v
 
 let gen_local ctx t =
+	(* ensure that our generated local does not mask an existing one *)
 	let rec loop n =
 		let nv = (if n = 0 then "_g" else "_g" ^ string_of_int n) in
-		if PMap.mem nv ctx.locals || PMap.mem nv ctx.locals_map_inv then
+		if PMap.mem nv ctx.locals then
 			loop (n+1)
 		else
 			nv

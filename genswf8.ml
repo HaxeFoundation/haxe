@@ -58,7 +58,6 @@ type context = {
 	mutable static_init : bool;
 
 	(* loops *)
-	mutable cur_block : texpr list;
 	mutable breaks : (unit -> unit) list;
 	mutable continues : (int -> unit) list;
 	mutable loop_stack : int;
@@ -401,11 +400,9 @@ let begin_func ctx need_super need_args args =
 let open_block ctx =
 	let old_regs = ctx.regs in
 	let old_rcount = ctx.reg_count in
-	let old_block = ctx.cur_block in
 	(fun() ->
 		ctx.regs <- old_regs;
 		ctx.reg_count <- old_rcount;
-		ctx.cur_block <- old_block;
 	)
 
 let begin_loop ctx =
@@ -447,10 +444,10 @@ let segment ctx =
 (* -------------------------------------------------------------- *)
 (* Generation Helpers *)
 
-let define_var ctx v ef exprs =
-	if ctx.flash6 || List.exists (Codegen.local_find false v) exprs || ctx.static_init then begin
-		push ctx [VStr (v,false)];
-		ctx.regs <- PMap.add v NoReg ctx.regs;
+let define_var ctx v ef =
+	if ctx.flash6 || v.v_capture || ctx.static_init then begin
+		push ctx [VStr (v.v_name,false)];
+		ctx.regs <- PMap.add v.v_name NoReg ctx.regs;
 		match ef with
 		| None ->
 			write ctx ALocalVar
@@ -459,7 +456,7 @@ let define_var ctx v ef exprs =
 			write ctx ALocalAssign
 	end else begin
 		let r = alloc_reg ctx in
-		ctx.regs <- PMap.add v (Reg r) ctx.regs;
+		ctx.regs <- PMap.add v.v_name (Reg r) ctx.regs;
 		match ef with
 		| None -> ()
 		| Some f ->
@@ -470,8 +467,8 @@ let define_var ctx v ef exprs =
 let alloc_tmp ctx =
 	let r = alloc_reg ctx in
 	if ctx.flash6 then
-		let name = "$" ^ string_of_int r in
-		define_var ctx name None [];
+		let name = "$" ^ string_of_int r in		
+		define_var ctx (alloc_var name t_dynamic) None;
 		TmpVar (name,r);
 	else
 		TmpReg r
@@ -578,11 +575,11 @@ let rec gen_access ?(read_write=false) ctx forcall e =
 			VarStr
 		end else
 			VarReg 1
-	| TLocal "__arguments__" ->
+	| TLocal { v_name = "__arguments__" } ->
 		push ctx [VStr ("arguments",true)];
 		VarStr
-	| TLocal s ->
-		access_local ctx s
+	| TLocal v ->
+		access_local ctx v.v_name
 	| TField (e2,f) ->
 		gen_expr ctx true e2;
 		if read_write then write ctx ADup;
@@ -602,9 +599,9 @@ let rec gen_access ?(read_write=false) ctx forcall e =
 		push ctx [VStr (f,is_protected ctx e.etype f)];
 		VarClosure
 	| TArray (ea,eb) ->
-		if read_write then 
-			try 
-				let r = (match ea.eexpr with TLocal l -> (match PMap.find l ctx.regs with Reg r -> r | _ -> raise Not_found) | _ -> raise Not_found) in
+		if read_write then
+			try
+				let r = (match ea.eexpr with TLocal l -> (match PMap.find l.v_name ctx.regs with Reg r -> r | _ -> raise Not_found) | _ -> raise Not_found) in
 				push ctx [VReg r];
 				gen_expr ctx true eb;
 				write ctx ADup;
@@ -644,7 +641,7 @@ and gen_access_rw ctx e =
 	match e.eexpr with
 	| TField ({ eexpr = TLocal _ },_) | TArray ({ eexpr = TLocal _ },{ eexpr = TConst _ }) | TArray ({ eexpr = TLocal _ },{ eexpr = TLocal _ }) ->
 		ignore(gen_access ctx false e);
-		gen_access ctx false e		
+		gen_access ctx false e
 	| TField _ | TArray _ ->
 		gen_access ~read_write:true ctx false e
 	| _ ->
@@ -656,10 +653,10 @@ and gen_try_catch ctx retval e catchs =
 	gen_expr ctx retval e;
 	let end_try = start_try() in
 	let end_throw = ref true in
-	let jumps = List.map (fun (name,t,e) ->
+	let jumps = List.map (fun (v,e) ->
 		if not !end_throw then
 			(fun () -> ())
-		else let t = (match follow t with
+		else let t = (match follow v.v_type with
 			| TEnum (e,_) -> Some (TEnumDecl e)
 			| TInst (c,_) -> Some (TClassDecl c)
 			| TFun _
@@ -683,7 +680,7 @@ and gen_try_catch ctx retval e catchs =
 			cjmp ctx
 		) in
 		let block = open_block ctx in
-		define_var ctx name (Some (fun() -> push ctx [VReg 0])) [e];
+		define_var ctx v (Some (fun() -> push ctx [VReg 0]));
 		gen_expr ctx retval e;
 		block();
 		if retval then ctx.stack_size <- ctx.stack_size - 1;
@@ -754,16 +751,16 @@ and gen_match ctx retval e cases def =
 		let nregs = ctx.reg_count in
 		List.iter (fun j -> j()) jl;
 		let n = ref 1 in
-		List.iter (fun (a,t) ->
+		List.iter (fun v ->
 			incr n;
-			match a with
+			match v with
 			| None -> ()
-			| Some a ->
-				define_var ctx a (Some (fun() ->
+			| Some v ->
+				define_var ctx v (Some (fun() ->
 					get_tmp ctx renum;
 					push ctx [VInt !n];
 					write ctx AObjGet
-				)) [e]
+				))
 		) (match args with None -> [] | Some l -> l);
 		gen_expr ctx retval e;
 		if retval then ctx.stack_size <- ctx.stack_size - 1;
@@ -858,49 +855,50 @@ and gen_unop ctx retval op flag e =
 		let k = gen_access_rw ctx e in
 		getvar ctx k;
 		(* store preincr value for later access *)
-		if retval && flag = Postfix then write ctx (ASetReg 0);		
+		if retval && flag = Postfix then write ctx (ASetReg 0);
 		write ctx (match op with Increment -> AIncrement | Decrement -> ADecrement | _ -> assert false);
 		setvar ~retval:(retval && flag = Prefix) ctx k;
 		if retval && flag = Postfix then push ctx [VReg 0]
 
 and gen_call ctx e el =
-	match e.eexpr, el with
-	| TLocal "__instanceof__" ,  [e1;e2] ->
+	let loc = match e.eexpr with TLocal v -> v.v_name | _ -> "" in
+	match loc, el with
+	| "__instanceof__" ,  [e1;e2] ->
 		gen_expr ctx true e1;
 		gen_expr ctx true e2;
 		write ctx AInstanceOf
-	| TLocal "__typeof__" , [e] ->
+	| "__typeof__" , [e] ->
 		gen_expr ctx true e;
 		write ctx ATypeOf
-	| TLocal "__delete__" , [e1; e2] ->
+	| "__delete__" , [e1; e2] ->
 		gen_expr ctx true e1;
 		gen_expr ctx true e2;
 		write ctx ADeleteObj
-	| TLocal "__random__" , [e] ->
+	| "__random__" , [e] ->
 		gen_expr ctx true e;
 		write ctx ARandom
-	| TLocal "__trace__" , [e] ->
+	| "__trace__" , [e] ->
 		gen_expr ctx true e;
 		write ctx ATrace
-	| TLocal "__eval__" , [e] ->
+	| "__eval__" , [e] ->
 		gen_expr ctx true e;
 		write ctx AEval
-	| TLocal "__gettimer__", [] ->
+	| "__gettimer__", [] ->
 		write ctx AGetTimer
-	| TLocal "__undefined__", [] ->
-		push ctx [VUndefined]		
-	| TLocal "__geturl__" , url :: target :: post ->
+	| "__undefined__", [] ->
+		push ctx [VUndefined]
+	| "__geturl__" , url :: target :: post ->
 		gen_expr ctx true url;
 		gen_expr ctx true target;
 		write ctx (AGetURL2 (match post with [] -> 0 | [{ eexpr = TConst (TString "GET") }] -> 1 | _ -> 2))
-	| TLocal "__new__", e :: el ->
+	| "__new__", e :: el ->
 		let nargs = List.length el in
 		List.iter (gen_expr ctx true) (List.rev el);
 		push ctx [VInt nargs];
 		let k = gen_access ctx true e in
 		new_call ctx k nargs
-	| TLocal "__keys__", [e2]
-	| TLocal "__hkeys__", [e2] ->
+	| "__keys__", [e2]
+	| "__hkeys__", [e2] ->
 		let r = alloc_tmp ctx in
 		push ctx [VInt 0; VStr ("Array",true)];
 		new_call ctx VarStr 0;
@@ -914,7 +912,7 @@ and gen_call ctx e el =
 		push ctx [VNull];
 		write ctx AEqual;
 		let jump_end = cjmp ctx in
-		if e.eexpr = TLocal "__hkeys__" then begin
+		if loc = "__hkeys__" then begin
 			push ctx [VInt 1; VInt 1; VReg 0; VStr ("substr",true)];
 			call ctx VarObj 1;
 		end else begin
@@ -929,19 +927,19 @@ and gen_call ctx e el =
 		jump_end();
 		get_tmp ctx r;
 		free_tmp ctx r e2.epos;
-	| TLocal "__physeq__" ,  [e1;e2] ->
+	| "__physeq__" ,  [e1;e2] ->
 		gen_expr ctx true e1;
 		gen_expr ctx true e2;
 		write ctx APhysEqual;
-	| TLocal "__unprotect__", [{ eexpr = TConst (TString s) }] ->
+	| "__unprotect__", [{ eexpr = TConst (TString s) }] ->
 		push ctx [VStr (s,false)]
-	| TLocal "__resources__", [] ->
+	| "__resources__", [] ->
 		let count = ref 0 in
 		Hashtbl.iter (fun name data ->
 			incr count;
 			push ctx [VStr ("name",false);VStr (name,true)];
 			(* if the data contains \0 or is not UTF8 valid, encode into bytes *)
-			(try 
+			(try
 				(try ignore(String.index data '\000'); raise Exit; with Not_found -> ());
 				UTF8.validate data;
 				push ctx [VStr ("str",false)];
@@ -954,7 +952,7 @@ and gen_call ctx e el =
 			ctx.stack_size <- ctx.stack_size - 4;
 		) ctx.com.resources;
 		init_array ctx !count
-	| TLocal "__FSCommand2__", l ->
+	| "__FSCommand2__", l ->
 		let nargs = List.length l in
 		List.iter (gen_expr ctx true) (List.rev l);
 		push ctx [VInt nargs];
@@ -988,10 +986,8 @@ and gen_expr_2 ctx retval e =
 			| [] ->
 				if retval then push ctx [VNull]
 			| [e] ->
-				ctx.cur_block <- [];
 				gen_expr ctx retval e
 			| e :: l ->
-				ctx.cur_block <- l;
 				gen_expr ctx false e;
 				loop l
 		in
@@ -999,8 +995,8 @@ and gen_expr_2 ctx retval e =
 		loop el;
 		b()
 	| TVars vl ->
-		List.iter (fun (v,t,e) ->
-			define_var ctx v (match e with None -> None | Some e -> Some (fun() -> gen_expr ctx true e)) ctx.cur_block
+		List.iter (fun (v,e) ->
+			define_var ctx v (match e with None -> None | Some e -> Some (fun() -> gen_expr ctx true e))
 		) vl;
 		if retval then push ctx [VNull]
 	| TArrayDecl el ->
@@ -1019,7 +1015,18 @@ and gen_expr_2 ctx retval e =
 		let block = open_block ctx in
 		let old_in_loop = ctx.in_loop in
 		let old_meth = ctx.curmethod in
-		let reg_super = Codegen.local_find true "super" f.tf_expr in
+		let rec loop e =
+			match e.eexpr with
+			| TConst TSuper -> raise Exit
+			| _ -> Type.iter loop e
+		in
+		let reg_super = try loop f.tf_expr; false with Exit -> true in
+		let rec loop e =
+			match e.eexpr with
+			| TLocal { v_name = "__arguments__" } -> raise Exit
+			| _ -> Type.iter loop e
+		in
+		let reg_args = try loop f.tf_expr; false with Exit -> true in
 		if snd ctx.curmethod then
 			ctx.curmethod <- (fst ctx.curmethod ^ "@" ^ string_of_int (Lexer.get_error_line e.epos), true)
 		else
@@ -1033,25 +1040,25 @@ and gen_expr_2 ctx retval e =
 		ctx.reg_count <- (if reg_super then 2 else 1);
 		ctx.in_loop <- false;
 		let pargs = ref [] in
-		let rargs = List.map (fun (a,_,t) ->
-			let no_reg = ctx.flash6 || Codegen.local_find false a f.tf_expr in
+		let rargs = List.map (fun (v,_) ->
+			let no_reg = ctx.flash6 || v.v_capture in
 			if no_reg then begin
-				ctx.regs <- PMap.add a NoReg ctx.regs;
-				pargs := unprotect a :: !pargs;
-				0 , a
+				ctx.regs <- PMap.add v.v_name NoReg ctx.regs;
+				pargs := unprotect v.v_name :: !pargs;
+				0 , v.v_name
 			end else begin
 				let r = alloc_reg ctx in
-				ctx.regs <- PMap.add a (Reg r) ctx.regs;
+				ctx.regs <- PMap.add v.v_name (Reg r) ctx.regs;
 				pargs := false :: !pargs;
 				r , ""
 			end
 		) f.tf_args in
-		let tf = begin_func ctx reg_super (Codegen.local_find true "__arguments__" f.tf_expr) rargs in
+		let tf = begin_func ctx reg_super reg_args rargs in
 		ctx.fun_pargs <- (ctx.code_pos, List.rev !pargs) :: ctx.fun_pargs;
-		List.iter (fun (a,c,t) ->
+		List.iter (fun (v,c) ->
 			match c with
 			| None | Some TNull -> ()
-			| Some c -> gen_expr ctx false (Codegen.set_default ctx.com a c t e.epos)
+			| Some c -> gen_expr ctx false (Codegen.set_default ctx.com v c e.epos)
 		) f.tf_args;
 		if ctx.com.debug then begin
 			gen_expr ctx false (ctx.stack.Codegen.stack_push ctx.curclass (fst ctx.curmethod));
@@ -1161,7 +1168,7 @@ and gen_expr_2 ctx retval e =
 		gen_expr ctx retval (Codegen.default_cast ctx.com e1 t e.etype e.epos)
 	| TMatch (e,_,cases,def) ->
 		gen_match ctx retval e cases def
-	| TFor (v,_,it,e) ->
+	| TFor (v,it,e) ->
 		gen_expr ctx true it;
 		let r = alloc_tmp ctx in
 		set_tmp ctx r;
@@ -1181,12 +1188,12 @@ and gen_expr_2 ctx retval e =
 			get_tmp ctx r;
 			push ctx [VStr ("next",false)];
 			call ctx VarObj 0;
-		)) [e];
+		));
 		gen_expr ctx false e;
 		j_begin false;
 		j_end();
 		loop_end cont_pos;
-		if retval then getvar ctx (access_local ctx v);
+		if retval then getvar ctx (access_local ctx v.v_name);
 		b();
 		free_tmp ctx r null_pos
 
@@ -1507,7 +1514,6 @@ let generate com =
 		regs = PMap.empty;
 		reg_count = 0;
 		reg_max = 0;
-		cur_block = [];
 		breaks = [];
 		continues = [];
 		loop_stack = 0;

@@ -25,7 +25,7 @@ open Typecore
 (* TOOLS *)
 
 type switch_mode =
-	| CMatch of (tenum_field * (string option * t) list option * pos)
+	| CMatch of (tenum_field * (string * t) option list option * pos)
 	| CExpr of texpr
 
 type access_mode =
@@ -195,10 +195,8 @@ let unify_call_params ctx name el args p inline =
 	loop [] el args []
 
 let type_local ctx i p =
-	(* local lookup *)
-	let t = PMap.find i ctx.locals in
-	let i = (try PMap.find i ctx.locals_map with Not_found -> i) in
-	mk (TLocal i) t p
+	let v = PMap.find i ctx.locals in
+	mk (TLocal v) v.v_type p
 
 let rec type_module_type ctx t tparams p =
 	match t with
@@ -295,7 +293,10 @@ let make_call ctx e params t p =
 		(match f.cf_expr with
 		| Some { eexpr = TFunction fd } ->
 			(match Optimizer.type_inline ctx f fd ethis params t p with
-			| None -> raise Exit
+			| None -> 
+				(match cl with
+				| Some { cl_extern = true } -> error "Inline could not be done" p
+				| _ -> raise Exit)
 			| Some e -> e)
 		| _ ->
 			error "Recursive inline is not supported" p)
@@ -313,14 +314,16 @@ let rec acc_get ctx g p =
 		| TFun (_ :: args,ret) ->
 			let tcallb = TFun (args,ret) in
 			let twrap = TFun ([("_e",false,e.etype)],tcallb) in
-			let ecall = make_call ctx et (List.map (fun (n,_,t) -> mk (TLocal n) t p) (("_e",false,e.etype) :: args)) ret p in
+			let args = List.map (fun (n,_,t) -> alloc_var n t) args in
+			let ve = alloc_var "_e" e.etype in
+			let ecall = make_call ctx et (List.map (fun v -> mk (TLocal v) v.v_type p) (ve :: args)) ret p in
 			let ecallb = mk (TFunction {
-				tf_args = List.map (fun (n,_,t) -> n,None,t) args;
+				tf_args = List.map (fun v -> v,None) args;
 				tf_type = ret;
 				tf_expr = mk (TReturn (Some ecall)) t_dynamic p;
 			}) tcallb p in
 			let ewrap = mk (TFunction {
-				tf_args = [("_e",None,e.etype)];
+				tf_args = [ve,None];
 				tf_type = tcallb;
 				tf_expr = mk (TReturn (Some ecallb)) t_dynamic p;
 			}) twrap p in
@@ -528,7 +531,8 @@ let type_ident ctx i is_type p mode =
 		AKExpr e
 	with Not_found ->
 		if ctx.untyped then
-			AKExpr (mk (TLocal i) (mk_mono()) p)
+			let t = mk_mono() in
+			AKExpr (mk (TLocal (alloc_var i t)) t p)
 		else begin
 			if ctx.in_static && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
 			raise (Error (Unknown_ident i,p))
@@ -677,7 +681,7 @@ let rec type_binop ctx op e1 e2 p =
 			unify ctx e2.etype e1.etype p;
 			check_assign ctx e1;
 			(match e1.eexpr , e2.eexpr with
-			| TLocal i1 , TLocal i2
+			| TLocal i1 , TLocal i2 when i1 == i2 -> error "Assigning a value to itself" p
 			| TField ({ eexpr = TConst TThis },i1) , TField ({ eexpr = TConst TThis },i2) when i1 = i2 ->
 				error "Assigning a value to itself" p
 			| _ , _ -> ());
@@ -703,11 +707,11 @@ let rec type_binop ctx op e1 e2 p =
 			let l = save_locals ctx in
 			let v = gen_local ctx e.etype in
 			let ev = mk (TLocal v) e.etype p in
-			let get = type_binop ctx op (EField ((EConst (Ident v),p),f),p) e2 p in
+			let get = type_binop ctx op (EField ((EConst (Ident v.v_name),p),f),p) e2 p in
 			unify ctx get.etype t p;
 			l();
 			mk (TBlock [
-				mk (TVars [v,e.etype,Some e]) ctx.t.tvoid p;
+				mk (TVars [v,Some e]) ctx.t.tvoid p;
 				make_call ctx (mk (TField (ev,m)) (tfun [t] t) p) [get] t p
 			]) t p
 		| AKInline _ | AKUsing _ | AKMacro _ ->
@@ -889,25 +893,25 @@ and type_unop ctx op flag e p =
 		let ev = mk (TLocal v) e.etype p in
 		let op = (match op with Increment -> OpAdd | Decrement -> OpSub | _ -> assert false) in
 		let one = (EConst (Int "1"),p) in
-		let eget = (EField ((EConst (Ident v),p),f),p) in
+		let eget = (EField ((EConst (Ident v.v_name),p),f),p) in
 		match flag with
 		| Prefix ->
 			let get = type_binop ctx op eget one p in
 			unify ctx get.etype t p;
 			l();
 			mk (TBlock [
-				mk (TVars [v,e.etype,Some e]) ctx.t.tvoid p;
+				mk (TVars [v,Some e]) ctx.t.tvoid p;
 				make_call ctx (mk (TField (ev,m)) (tfun [t] t) p) [get] t p
 			]) t p
 		| Postfix ->
 			let v2 = gen_local ctx t in
 			let ev2 = mk (TLocal v2) t p in
 			let get = type_expr ctx eget in
-			let plusone = type_binop ctx op (EConst (Ident v2),p) one p in
+			let plusone = type_binop ctx op (EConst (Ident v2.v_name),p) one p in
 			unify ctx get.etype t p;
 			l();
 			mk (TBlock [
-				mk (TVars [v,e.etype,Some e; v2,t,Some get]) ctx.t.tvoid p;
+				mk (TVars [v,Some e; v2,Some get]) ctx.t.tvoid p;
 				make_call ctx (mk (TField (ev,m)) (tfun [plusone.etype] t) p) [plusone] t p;
 				ev2
 			]) t p
@@ -962,7 +966,7 @@ and type_switch ctx e cases def need_val p =
 				| [None] -> List.map (fun _ -> None) l
 				| _ -> error ("This constructor requires " ^ string_of_int (List.length l) ^ " arguments") p
 			) in
-			Some (List.map2 (fun p (_,_,t) -> p, apply_params en.e_types params t) pl l)
+			Some (List.map2 (fun p (_,_,t) -> match p with None -> None | Some p -> Some (p, apply_params en.e_types params t)) pl l)
 		| TEnum _ ->
 			if pl <> [] then error "This constructor does not require any argument" p;
 			None
@@ -1038,9 +1042,11 @@ and type_switch ctx e cases def need_val p =
 			let l2 = (match p2 with None -> [] | Some l -> l) in
 			let rec loop = function
 				| [] , [] -> true
-				| (n,_) :: l , [] | [] , (n,_) :: l -> n = None && loop (l,[])
-				| (n1,t1) :: l1, (n2,t2) :: l2 ->
-					n1 = n2 && (n1 = None || type_iseq t1 t2) && loop (l1,l2)
+				| None :: l , [] | [] , None :: l -> loop (l,[])
+				| None :: l1, None :: l2 -> loop (l1,l2)
+				| Some (n1,t1) :: l1, Some (n2,t2) :: l2 ->
+					n1 = n2 && type_iseq t1 t2 && loop (l1,l2)
+				| _ -> false
 			in
 			loop (l1,l2)
 		in
@@ -1061,10 +1067,10 @@ and type_switch ctx e cases def need_val p =
 					| None -> None
 					| Some l ->
 						let has = ref false in
-						let l = List.map (fun (p,t) ->
-							match p with
-							| None -> None, t
-							| Some v -> has := true; Some (add_local ctx v t), t
+						let l = List.map (fun v ->
+							match v with
+							| None -> None
+							| Some (v,t) -> has := true; Some (add_local ctx v t)
 						) l in
 						if !has then Some l else None
 				) in
@@ -1301,14 +1307,11 @@ and type_expr ctx ?(need_val=true) (e,p) =
 						unify ctx e.etype t p;
 						Some e
 				) in
-				let v = add_local ctx v t in
-				v , t , e
+				add_local ctx v t, e
 			with
 				Error (e,p) ->
 					display_error ctx (error_msg e) p;
-					let t = t_dynamic in
-					let v = add_local ctx v t in
-					v , t, None
+					add_local ctx v t_dynamic, None
 		) vl in
 		mk (TVars vl) ctx.t.tvoid p
 	| EFor (i,e1,e2) ->
@@ -1343,7 +1346,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 					)
 				) in
 				let e2 = type_expr ~need_val:false ctx e2 in
-				mk (TFor (i,pt,e1,e2)) ctx.t.tvoid p
+				mk (TFor (i,e1,e2)) ctx.t.tvoid p
 		) in
 		ctx.in_loop <- old_loop;
 		old_locals();
@@ -1433,7 +1436,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			locals();
 			if need_val then unify ctx e.etype e1.etype e.epos;
 			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this type here") e.epos;
-			v , t , e
+			v , e
 		) catches in
 		mk (TTry (e1,catches)) (if not need_val then ctx.t.tvoid else e1.etype) p
 	| EThrow e ->
@@ -1498,7 +1501,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let e = mk (TFunction f) ft p in
 		(match vname with
 		| None -> e
-		| Some v -> mk (TVars [v,ft,Some e]) ctx.t.tvoid p)
+		| Some v -> mk (TVars [v,Some e]) ctx.t.tvoid p)
 	| EUntyped e ->
 		let old = ctx.untyped in
 		ctx.untyped <- true;
@@ -1625,10 +1628,11 @@ and type_call ctx e el p =
 				match args, params with
 				| _ , [] ->
 					let k = ref 0 in
-					let fun_arg = ("f",None,e.etype) in
-					let first_args = List.map (fun t -> incr k; "a" ^ string_of_int !k, None, t) (List.rev eargs) in
-					let missing_args = List.map (fun (_,opt,t) -> incr k; "a" ^ string_of_int !k, (if opt then Some TNull else None), t) args in
-					let vexpr (v,_,t) = mk (TLocal v) t p in
+					let fun_args l = List.map (fun (v,c) -> v.v_name, c<>None, v.v_type) l in
+					let fun_arg = alloc_var "f" e.etype,None in
+					let first_args = List.map (fun t -> incr k; alloc_var ("a" ^ string_of_int !k) t, None) (List.rev eargs) in
+					let missing_args = List.map (fun (_,opt,t) -> incr k; alloc_var ("a" ^ string_of_int !k) t, (if opt then Some TNull else None)) args in
+					let vexpr (v,_) = mk (TLocal v) v.v_type p in
 					let func = mk (TFunction {
 						tf_args = missing_args;
 						tf_type = ret;
@@ -1656,7 +1660,8 @@ and type_call ctx e el p =
 	| (EConst (Ident "__unprotect__"),_) , [(EConst (String _),_) as e] ->
 		let e = type_expr ctx e in
 		if Common.defined ctx.com "flash" then
-			mk (TCall (mk (TLocal "__unprotect__") (tfun [e.etype] e.etype) p,[e])) e.etype e.epos
+			let t = tfun [e.etype] e.etype in
+			mk (TCall (mk (TLocal (alloc_var "__unprotect__" t)) t p,[e])) e.etype e.epos
 		else
 			e
 	| (EConst (Ident "super"),sp) , el ->
@@ -1718,7 +1723,7 @@ and type_call ctx e el p =
 			| _ ->
 				(* member-macro call : since we will make a static call, let's found the actual class and not its subclass *)
 				(match follow ethis.etype with
-				| TInst (c,_) ->					
+				| TInst (c,_) ->
 					let rec loop c =
 						if PMap.mem f.cf_name c.cl_fields then
 							match ctx.g.do_macro ctx MExpr c.cl_path f.cf_name (Interp.make_ast ethis :: el) p with
@@ -2279,8 +2284,6 @@ let rec create com =
 		in_macro = Common.defined com "macro";
 		ret = mk_mono();
 		locals = PMap.empty;
-		locals_map = PMap.empty;
-		locals_map_inv = PMap.empty;
 		local_types = [];
 		local_using = [];
 		type_params = [];

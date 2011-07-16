@@ -31,12 +31,11 @@ type context = {
 	mutable get_sets : (string * bool,string) Hashtbl.t;
 	mutable curclass : tclass;
 	mutable tabs : string;
-	mutable in_value : string option;
+	mutable in_value : tvar option;
 	mutable in_static : bool;
 	mutable handle_break : bool;
 	mutable imports : (string,string list list) Hashtbl.t;
-	mutable locals : (string,string) PMap.t;
-	mutable inv_locals : (string,string) PMap.t;
+	mutable gen_uid : int;
 	mutable local_types : t list;
 	mutable constructor_block : bool;
 }
@@ -118,8 +117,7 @@ let init infos path =
 		handle_break = false;
 		imports = imports;
 		curclass = null_class;
-		locals = PMap.empty;
-		inv_locals = PMap.empty;
+		gen_uid = 0;
 		local_types = [];
 		get_sets = Hashtbl.create 0;
 		constructor_block = false;
@@ -137,21 +135,12 @@ let close ctx =
 	close_out ctx.ch
 
 let save_locals ctx =
-	let old = ctx.locals in
-	(fun() -> ctx.locals <- old)
+	let old = ctx.gen_uid in
+	(fun() -> ctx.gen_uid <- old)
 
-let define_local ctx l =
-	let rec loop n =
-		let name = (if n = 1 then s_ident l else l ^ string_of_int n) in
-		if PMap.mem name ctx.inv_locals then
-			loop (n+1)
-		else begin
-			ctx.locals <- PMap.add l name ctx.locals;
-			ctx.inv_locals <- PMap.add name l ctx.inv_locals;
-			name
-		end
-	in
-	loop 1
+let gen_local ctx l =
+	ctx.gen_uid <- ctx.gen_uid + 1;
+	if ctx.gen_uid = 1 then l else l ^ string_of_int ctx.gen_uid
 
 let spr ctx s = Buffer.add_string ctx.buf s
 let print ctx = Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
@@ -200,7 +189,7 @@ let rec type_str ctx t p =
 		if e.e_extern then (match e.e_path with
 			| [], "Void" -> "void"
 			| [], "Bool" -> "Boolean"
-			| _ -> 
+			| _ ->
 				let rec loop = function
 					| [] -> "Object"
 					| (":fakeEnum",[Ast.EConst (Ast.Type n),_],_) :: _ ->
@@ -215,7 +204,7 @@ let rec type_str ctx t p =
 			s_path ctx true e.e_path p
 	| TInst ({ cl_path = ["flash"],"Vector" },[pt]) ->
 		"Vector.<" ^ type_str ctx pt p ^ ">"
-	| TInst (c,_) ->		
+	| TInst (c,_) ->
 		(match c.cl_kind with
 		| KNormal | KGeneric | KGenericInstance _ -> s_path ctx false c.cl_path p
 		| KTypeParameter | KExtension _ | KConstant _  -> "*")
@@ -289,8 +278,7 @@ let gen_constant ctx p = function
 
 let gen_function_header ctx name f params p =
 	let old = ctx.in_value in
-	let old_l = ctx.locals in
-	let old_li = ctx.inv_locals in
+	let locals = save_locals ctx in
 	let old_t = ctx.local_types in
 	ctx.in_value <- None;
 	ctx.local_types <- List.map snd params @ ctx.local_types;
@@ -303,10 +291,9 @@ let gen_function_header ctx name f params p =
 		in
 		" " ^ loop meta
 	);
-	concat ctx "," (fun (arg,c,t) ->
-		let arg = define_local ctx arg in
-		let tstr = type_str ctx t p in
-		print ctx "%s : %s" arg tstr;
+	concat ctx "," (fun (v,c) ->
+		let tstr = type_str ctx v.v_type p in
+		print ctx "%s : %s" (s_ident v.v_name) tstr;
 		match c with
 		| None ->
 			if ctx.constructor_block then print ctx " = %s" (default_value tstr);
@@ -317,8 +304,7 @@ let gen_function_header ctx name f params p =
 	print ctx ") : %s " (type_str ctx f.tf_type p);
 	(fun () ->
 		ctx.in_value <- old;
-		ctx.locals <- old_l;
-		ctx.inv_locals <- old_li;
+		locals();
 		ctx.local_types <- old_t;
 	)
 
@@ -331,71 +317,71 @@ let rec gen_call ctx e el r =
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) el;
 		spr ctx ")";
-	| TLocal "__is__" , [e1;e2] ->
+	| TLocal { v_name = "__is__" } , [e1;e2] ->
 		gen_value ctx e1;
 		spr ctx " is ";
 		gen_value ctx e2;
-	| TLocal "__as__" , [e1;e2] ->
+	| TLocal { v_name = "__as__" }, [e1;e2] ->
 		gen_value ctx e1;
 		spr ctx " as ";
 		gen_value ctx e2;
-	| TLocal "__int__" , [e] ->
+	| TLocal { v_name = "__int__" }, [e] ->
 		spr ctx "int(";
 		gen_value ctx e;
 		spr ctx ")";
-	| TLocal "__float__" , [e] ->
+	| TLocal { v_name = "__float__" }, [e] ->
 		spr ctx "Number(";
 		gen_value ctx e;
 		spr ctx ")";
-	| TLocal "__typeof__", [e] ->
+	| TLocal { v_name = "__typeof__" }, [e] ->
 		spr ctx "typeof ";
 		gen_value ctx e;
-	| TLocal "__keys__", [e] ->
+	| TLocal { v_name = "__keys__" }, [e] ->
 		let ret = (match ctx.in_value with None -> assert false | Some r -> r) in
-		print ctx "%s = new Array()" ret;
+		print ctx "%s = new Array()" ret.v_name;
 		newline ctx;
 		let b = save_locals ctx in
-		let tmp = define_local ctx "$k" in
+		let tmp = gen_local ctx "$k" in
 		print ctx "for(var %s : String in " tmp;
 		gen_value ctx e;
-		print ctx ") %s.push(%s)" ret tmp;
+		print ctx ") %s.push(%s)" ret.v_name tmp;
 		b();
-	| TLocal "__hkeys__", [e] ->
+	| TLocal { v_name = "__hkeys__" }, [e] ->
 		let ret = (match ctx.in_value with None -> assert false | Some r -> r) in
-		print ctx "%s = new Array()" ret;
+		print ctx "%s = new Array()" ret.v_name;
 		newline ctx;
 		let b = save_locals ctx in
-		let tmp = define_local ctx "$k" in
+		let tmp = gen_local ctx "$k" in
 		print ctx "for(var %s : String in " tmp;
 		gen_value ctx e;
-		print ctx ") %s.push(%s.substr(1))" ret tmp;
+		print ctx ") %s.push(%s.substr(1))" ret.v_name tmp;
 		b();
-	| TLocal "__foreach__", [e] ->
+	| TLocal { v_name = "__foreach__" }, [e] ->
 		let ret = (match ctx.in_value with None -> assert false | Some r -> r) in
-		print ctx "%s = new Array()" ret;
+		print ctx "%s = new Array()" ret.v_name;
 		newline ctx;
 		let b = save_locals ctx in
-		let tmp = define_local ctx "$k" in
+		let tmp = gen_local ctx "$k" in
 		print ctx "for each(var %s : * in " tmp;
 		gen_value ctx e;
-		print ctx ") %s.push(%s)" ret tmp;
+		print ctx ") %s.push(%s)" ret.v_name tmp;
 		b();
-	| TLocal "__new__", e :: args ->
+	| TLocal { v_name = "__new__" }, e :: args ->
 		spr ctx "new ";
 		gen_value ctx e;
 		spr ctx "(";
 		concat ctx "," (gen_value ctx) args;
 		spr ctx ")";
-	| TLocal "__delete__", [e;f] ->
+	| TLocal { v_name = "__delete__" }, [e;f] ->
 		spr ctx "delete(";
 		gen_value ctx e;
 		spr ctx "[";
 		gen_value ctx f;
 		spr ctx "]";
 		spr ctx ")";
-	| TLocal "__unprotect__", [e] ->
+	| TLocal { v_name = "__unprotect__" }, [e] ->
 		gen_value ctx e
-	| TLocal "__vector__", [e] ->
+	| TLocal { v_name = "__vector__" }, [e] ->
 		spr ctx (type_str ctx r e.epos);
 		spr ctx "(";
 		gen_value ctx e;
@@ -472,11 +458,11 @@ and gen_expr ctx e =
 	match e.eexpr with
 	| TConst c ->
 		gen_constant ctx e.epos c
-	| TLocal s ->
-		spr ctx (try PMap.find s ctx.locals with Not_found -> error ("Unknown local " ^ s) e.epos)
+	| TLocal v ->
+		spr ctx (s_ident v.v_name)
 	| TEnumField (en,s) ->
 		print ctx "%s.%s" (s_path ctx true en.e_path e.epos) (s_ident s)
-	| TArray ({ eexpr = TLocal "__global__" },{ eexpr = TConst (TString s) }) ->
+	| TArray ({ eexpr = TLocal { v_name = "__global__" } },{ eexpr = TConst (TString s) }) ->
 		let path = Ast.parse_path s in
 		spr ctx (s_path ctx false path e.epos)
 	| TArray (e1,e2) ->
@@ -493,8 +479,6 @@ and gen_expr ctx e =
 		gen_value_op ctx e1;
 		print ctx " %s " (Ast.s_binop op);
 		gen_value_op ctx e2;
-	| TField ({ eexpr = TTypeExpr t },s) when t_path t = ctx.curclass.cl_path && not (PMap.mem s ctx.locals) ->
-		print ctx "%s" (s_ident s)
 	| TField (e,s) | TClosure (e,s) ->
    		gen_value ctx e;
 		gen_field_access ctx e.etype s
@@ -548,7 +532,7 @@ and gen_expr ctx e =
 		let h = gen_function_header ctx None f [] e.epos in
 		let old = ctx.in_static in
 		ctx.in_static <- true;
-		gen_expr ctx (mk_block f.tf_expr);
+		gen_expr ctx f.tf_expr;
 		ctx.in_static <- old;
 		h();
 	| TCall (v,el) ->
@@ -564,10 +548,9 @@ and gen_expr ctx e =
 		()
 	| TVars vl ->
 		spr ctx "var ";
-		concat ctx ", " (fun (n,t,v) ->
-			let n = define_local ctx n in
-			print ctx "%s : %s" n (type_str ctx t e.epos);
-			match v with
+		concat ctx ", " (fun (v,eo) ->
+			print ctx "%s : %s" (s_ident v.v_name) (type_str ctx v.v_type e.epos);
+			match eo with
 			| None -> ()
 			| Some e ->
 				spr ctx " = ";
@@ -614,15 +597,14 @@ and gen_expr ctx e =
 		spr ctx "{ ";
 		concat ctx ", " (fun (f,e) -> print ctx "%s : " (s_ident f); gen_value ctx e) fields;
 		spr ctx "}"
-	| TFor (v,t,it,e) ->
+	| TFor (v,it,e) ->
 		let handle_break = handle_break ctx e in
 		let b = save_locals ctx in
-		let tmp = define_local ctx "$it" in
+		let tmp = gen_local ctx "$it" in
 		print ctx "{ var %s : * = " tmp;
 		gen_value ctx it;
 		newline ctx;
-		let v = define_local ctx v in
-		print ctx "while( %s.hasNext() ) { var %s : %s = %s.next()" tmp v (type_str ctx t e.epos) tmp;
+		print ctx "while( %s.hasNext() ) { var %s : %s = %s.next()" tmp (s_ident v.v_name) (type_str ctx v.v_type e.epos) tmp;
 		newline ctx;
 		gen_expr ctx e;
 		newline ctx;
@@ -631,21 +613,18 @@ and gen_expr ctx e =
 		handle_break();
 	| TTry (e,catchs) ->
 		spr ctx "try ";
-		gen_expr ctx (mk_block e);
-		List.iter (fun (v,t,e) ->
+		gen_expr ctx e;
+		List.iter (fun (v,e) ->
 			newline ctx;
-			let b = save_locals ctx in
-			let v = define_local ctx v in
-			print ctx "catch( %s : %s )" v (type_str ctx t e.epos);
-			gen_expr ctx (mk_block e);
-			b();
+			print ctx "catch( %s : %s )" (s_ident v.v_name) (type_str ctx v.v_type e.epos);
+			gen_expr ctx e;
 		) catchs;
 	| TMatch (e,_,cases,def) ->
 		print ctx "{";
 		let bend = open_block ctx in
 		newline ctx;
 		let b = save_locals ctx in
-		let tmp = define_local ctx "$e" in
+		let tmp = gen_local ctx "$e" in
 		print ctx "var %s : enum = " tmp;
 		gen_value ctx e;
 		newline ctx;
@@ -661,17 +640,16 @@ and gen_expr ctx e =
 			| None | Some [] -> ()
 			| Some l ->
 				let n = ref (-1) in
-				let l = List.fold_left (fun acc (v,t) -> incr n; match v with None -> acc | Some v -> (v,t,!n) :: acc) [] l in
+				let l = List.fold_left (fun acc v -> incr n; match v with None -> acc | Some v -> (v,!n) :: acc) [] l in
 				match l with
 				| [] -> ()
 				| l ->
 					spr ctx "var ";
-					concat ctx ", " (fun (v,t,n) ->
-						let v = define_local ctx v in
-						print ctx "%s : %s = %s.params[%d]" v (type_str ctx t e.epos) tmp n;
+					concat ctx ", " (fun (v,n) ->
+						print ctx "%s : %s = %s.params[%d]" (s_ident v.v_name) (type_str ctx v.v_type e.epos) tmp n;
 					) l;
 					newline ctx);
-			gen_expr ctx (mk_block e);
+			gen_expr ctx e;
 			print ctx "break";
 			newline ctx;
 			b()
@@ -680,7 +658,7 @@ and gen_expr ctx e =
 		| None -> ()
 		| Some e ->
 			spr ctx "default:";
-			gen_expr ctx (mk_block e);
+			gen_expr ctx e;
 			print ctx "break";
 			newline ctx;
 		);
@@ -700,7 +678,7 @@ and gen_expr ctx e =
 				gen_value ctx e;
 				spr ctx ":";
 			) el;
-			gen_expr ctx (mk_block e2);
+			gen_expr ctx e2;
 			print ctx "break";
 			newline ctx;
 		) cases;
@@ -708,7 +686,7 @@ and gen_expr ctx e =
 		| None -> ()
 		| Some e ->
 			spr ctx "default:";
-			gen_expr ctx (mk_block e);
+			gen_expr ctx e;
 			print ctx "break";
 			newline ctx;
 		);
@@ -723,7 +701,7 @@ and gen_expr ctx e =
 and gen_value ctx e =
 	let assign e =
 		mk (TBinop (Ast.OpAssign,
-			mk (TLocal (match ctx.in_value with None -> assert false | Some v -> "$r")) t_dynamic e.epos,
+			mk (TLocal (match ctx.in_value with None -> assert false | Some r -> r)) t_dynamic e.epos,
 			e
 		)) e.etype e.epos
 	in
@@ -731,8 +709,8 @@ and gen_value ctx e =
 		let old = ctx.in_value in
 		let t = type_str ctx e.etype e.epos in
 		let locs = save_locals ctx in
-		let tmp = define_local ctx "$r" in
-		ctx.in_value <- Some tmp;
+		let r = alloc_var (gen_local ctx "$r") e.etype in
+		ctx.in_value <- Some r;
 		if ctx.in_static then
 			print ctx "function() : %s " t
 		else
@@ -741,7 +719,7 @@ and gen_value ctx e =
 			spr ctx "{";
 			let b = open_block ctx in
 			newline ctx;
-			print ctx "var %s : %s" tmp t;
+			print ctx "var %s : %s" r.v_name t;
 			newline ctx;
 			b
 		end else
@@ -750,7 +728,7 @@ and gen_value ctx e =
 		(fun() ->
 			if block then begin
 				newline ctx;
-				print ctx "return %s" tmp;
+				print ctx "return %s" r.v_name;
 				b();
 				newline ctx;
 				spr ctx "}";
@@ -764,7 +742,7 @@ and gen_value ctx e =
 		)
 	in
 	match e.eexpr with
-	| TCall ({ eexpr = TLocal "__keys__" },_) | TCall ({ eexpr = TLocal "__hkeys__" },_) ->
+	| TCall ({ eexpr = TLocal { v_name = "__keys__" } },_) | TCall ({ eexpr = TLocal { v_name = "__hkeys__" } },_) ->
 		let v = value true in
 		gen_expr ctx e;
 		v()
@@ -841,15 +819,14 @@ and gen_value ctx e =
 	| TTry (b,catchs) ->
 		let v = value true in
 		gen_expr ctx (mk (TTry (assign b,
-			List.map (fun (v,t,e) -> v, t , assign e) catchs
+			List.map (fun (v,e) -> v, assign e) catchs
 		)) e.etype e.epos);
 		v()
 
 let generate_field ctx static f =
 	newline ctx;
 	ctx.in_static <- static;
-	ctx.locals <- PMap.empty;
-	ctx.inv_locals <- PMap.empty;
+	ctx.gen_uid <- 0;
 	List.iter (fun(m,pl,_) ->
 		match m,pl with
 		| ":meta", [Ast.ECall ((Ast.EConst (Ast.Ident n | Ast.Type n),_),args),_] ->
@@ -890,7 +867,7 @@ let generate_field ctx static f =
 		in
 		if not static then loop ctx.curclass;
 		let h = gen_function_header ctx (Some (s_ident f.cf_name, f.cf_meta)) fd f.cf_params p in
-		gen_expr ctx (mk_block fd.tf_expr);
+		gen_expr ctx fd.tf_expr;
 		h();
 		newline ctx
 	| _ ->
@@ -905,7 +882,7 @@ let generate_field ctx static f =
 					if o then print ctx " = %s" (default_value tstr);
 				) args;
 				print ctx ") : %s " (type_str ctx r p);
-			| _ when is_getset -> 
+			| _ when is_getset ->
 				let t = type_str ctx f.cf_type p in
 				let id = s_ident f.cf_name in
 				(match f.cf_kind with
@@ -1070,7 +1047,7 @@ let generate_enum ctx e =
 		print ctx "public static var __meta__ : * = ";
 		gen_expr ctx e;
 		newline ctx);
-	print ctx "public static var __constructs__ : Array = [%s];" (String.concat "," (List.map (fun s -> "\"" ^ Ast.s_escape s ^ "\"") e.e_names));	
+	print ctx "public static var __constructs__ : Array = [%s];" (String.concat "," (List.map (fun s -> "\"" ^ Ast.s_escape s ^ "\"") e.e_names));
 	cl();
 	newline ctx;
 	print ctx "}";

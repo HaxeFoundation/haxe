@@ -605,16 +605,16 @@ let build_dependencies t =
 			List.iter add_type pl;
 			List.iter add_expr el;
 		| TFunction f ->
-			List.iter (fun (_,_,t) -> add_type t) f.tf_args;
+			List.iter (fun (v,_) -> add_type v.v_type) f.tf_args;
 			add_type f.tf_type;
 			add_expr f.tf_expr;
-		| TFor (_,t,e1,e2) ->
-			add_type t;
+		| TFor (v,e1,e2) ->
+			add_type v.v_type;
 			add_expr e1;
 			add_expr e2;
 		| TVars vl ->
-			List.iter (fun (_,t,e) ->
-				add_type t;
+			List.iter (fun (v,e) ->
+				add_type v.v_type;
 				match e with
 				| None -> ()
 				| Some e -> add_expr e

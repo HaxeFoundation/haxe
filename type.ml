@@ -65,8 +65,15 @@ and tconstant =
 	| TThis
 	| TSuper
 
+and tvar = {
+	v_id : int;
+	mutable v_name : string;
+	mutable v_type : t;
+	mutable v_capture : bool;
+}
+
 and tfunc = {
-	tf_args : (string * tconstant option * t) list;
+	tf_args : (tvar * tconstant option) list;
 	tf_type : t;
 	tf_expr : texpr;
 }
@@ -85,7 +92,7 @@ and tanon = {
 
 and texpr_expr =
 	| TConst of tconstant
-	| TLocal of string
+	| TLocal of tvar
 	| TEnumField of tenum * string
 	| TArray of texpr * texpr
 	| TBinop of Ast.binop * texpr * texpr
@@ -99,14 +106,14 @@ and texpr_expr =
 	| TNew of tclass * tparams * texpr list
 	| TUnop of Ast.unop * Ast.unop_flag * texpr
 	| TFunction of tfunc
-	| TVars of (string * t * texpr option) list
+	| TVars of (tvar * texpr option) list
 	| TBlock of texpr list
-	| TFor of string * t * texpr * texpr
+	| TFor of tvar * texpr * texpr
 	| TIf of texpr * texpr * texpr option
 	| TWhile of texpr * texpr * Ast.while_flag
 	| TSwitch of texpr * (texpr list * texpr) list * texpr option
-	| TMatch of texpr * (tenum * tparams) * (int list * (string option * t) list option * texpr) list * texpr option
-	| TTry of texpr * (string * t * texpr) list
+	| TMatch of texpr * (tenum * tparams) * (int list * tvar option list option * texpr) list * texpr option
+	| TTry of texpr * (tvar * texpr) list
 	| TReturn of texpr option
 	| TBreak
 	| TContinue
@@ -205,6 +212,10 @@ type module_def = {
 	mtypes : module_type list;
 }
 
+let alloc_var =
+	let uid = ref 0 in
+	(fun n t -> incr uid; { v_name = n; v_type = t; v_id = !uid; v_capture = false })
+
 let mk e t p = { eexpr = e; etype = t; epos = p }
 
 let mk_block e =
@@ -251,7 +262,7 @@ let null_class =
 	c.cl_private <- true;
 	c
 
-let arg_name (name,_,_) = name
+let arg_name (a,_) = a.v_name
 
 let t_private = function
 	| TClassDecl c -> c.cl_private
@@ -871,7 +882,7 @@ let iter f e =
 		()
 	| TArray (e1,e2)
 	| TBinop (_,e1,e2)
-	| TFor (_,_,e1,e2)
+	| TFor (_,e1,e2)
 	| TWhile (e1,e2,_) ->
 		f e1;
 		f e2;
@@ -892,7 +903,7 @@ let iter f e =
 		f e;
 		List.iter f el
 	| TVars vl ->
-		List.iter (fun (_,_,e) -> match e with None -> () | Some e -> f e) vl
+		List.iter (fun (_,e) -> match e with None -> () | Some e -> f e) vl
 	| TFunction fu ->
 		f fu.tf_expr
 	| TIf (e,e1,e2) ->
@@ -909,7 +920,7 @@ let iter f e =
 		(match def with None -> () | Some e -> f e)
 	| TTry (e,catches) ->
 		f e;
-		List.iter (fun (_,_,e) -> f e) catches
+		List.iter (fun (_,e) -> f e) catches
 	| TReturn eo ->
 		(match eo with None -> () | Some e -> f e)
 
@@ -926,8 +937,8 @@ let map_expr f e =
 		{ e with eexpr = TArray (f e1,f e2) }
 	| TBinop (op,e1,e2) ->
 		{ e with eexpr = TBinop (op,f e1,f e2) }
-	| TFor (v,t,e1,e2) ->
-		{ e with eexpr = TFor (v,t,f e1,f e2) }
+	| TFor (v,e1,e2) ->
+		{ e with eexpr = TFor (v,f e1,f e2) }
 	| TWhile (e1,e2,flag) ->
 		{ e with eexpr = TWhile (f e1,f e2,flag) }
 	| TThrow e1 ->
@@ -951,7 +962,7 @@ let map_expr f e =
 	| TCall (e1,el) ->
 		{ e with eexpr = TCall (f e1, List.map f el) }
 	| TVars vl ->
-		{ e with eexpr = TVars (List.map (fun (v,t,e) -> v , t , match e with None -> None | Some e -> Some (f e)) vl) }
+		{ e with eexpr = TVars (List.map (fun (v,e) -> v , match e with None -> None | Some e -> Some (f e)) vl) }
 	| TFunction fu ->
 		{ e with eexpr = TFunction { fu with tf_expr = f fu.tf_expr } }
 	| TIf (ec,e1,e2) ->
@@ -961,13 +972,13 @@ let map_expr f e =
 	| TMatch (e1,t,cases,def) ->
 		{ e with eexpr = TMatch (f e1, t, List.map (fun (cl,params,e) -> cl, params, f e) cases, match def with None -> None | Some e -> Some (f e)) }
 	| TTry (e1,catches) ->
-		{ e with eexpr = TTry (f e1, List.map (fun (v,t,e) -> v, t, f e) catches) }
+		{ e with eexpr = TTry (f e1, List.map (fun (v,e) -> v, f e) catches) }
 	| TReturn eo ->
 		{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f e)) }
 	| TCast (e1,t) ->
 		{ e with eexpr = TCast (f e1,t) }
 
-let map_expr_type f ft e =
+let map_expr_type f ft fv e =
 	match e.eexpr with
 	| TConst _
 	| TLocal _
@@ -980,8 +991,8 @@ let map_expr_type f ft e =
 		{ e with eexpr = TArray (f e1,f e2); etype = ft e.etype }
 	| TBinop (op,e1,e2) ->
 		{ e with eexpr = TBinop (op,f e1,f e2); etype = ft e.etype }
-	| TFor (v,t,e1,e2) ->
-		{ e with eexpr = TFor (v,ft t,f e1,f e2); etype = ft e.etype }
+	| TFor (v,e1,e2) ->
+		{ e with eexpr = TFor (fv v,f e1,f e2); etype = ft e.etype }
 	| TWhile (e1,e2,flag) ->
 		{ e with eexpr = TWhile (f e1,f e2,flag); etype = ft e.etype }
 	| TThrow e1 ->
@@ -1008,11 +1019,11 @@ let map_expr_type f ft e =
 	| TCall (e1,el) ->
 		{ e with eexpr = TCall (f e1, List.map f el); etype = ft e.etype }
 	| TVars vl ->
-		{ e with eexpr = TVars (List.map (fun (v,t,e) -> v , ft t , match e with None -> None | Some e -> Some (f e)) vl); etype = ft e.etype }
+		{ e with eexpr = TVars (List.map (fun (v,e) -> fv v, match e with None -> None | Some e -> Some (f e)) vl); etype = ft e.etype }
 	| TFunction fu ->
 		let fu = {
 			tf_expr = f fu.tf_expr;
-			tf_args = List.map (fun (n,o,t) -> n, o, ft t) fu.tf_args;
+			tf_args = List.map (fun (v,o) -> fv v, o) fu.tf_args;
 			tf_type = ft fu.tf_type;
 		} in
 		{ e with eexpr = TFunction fu; etype = ft e.etype }
@@ -1021,9 +1032,16 @@ let map_expr_type f ft e =
 	| TSwitch (e1,cases,def) ->
 		{ e with eexpr = TSwitch (f e1, List.map (fun (el,e2) -> List.map f el, f e2) cases, match def with None -> None | Some e -> Some (f e)); etype = ft e.etype }
 	| TMatch (e1,(en,pl),cases,def) ->
-		{ e with eexpr = TMatch (f e1, (en,List.map ft pl), List.map (fun (cl,params,e) -> cl, params, f e) cases, match def with None -> None | Some e -> Some (f e)); etype = ft e.etype }
+		let map_case (cl,params,e) =
+			let params = match params with
+				| None -> None
+				| Some l -> Some (List.map (function None -> None | Some v -> Some (fv v)) l)
+			in
+			cl, params, f e
+		in
+		{ e with eexpr = TMatch (f e1, (en,List.map ft pl), List.map map_case cases, match def with None -> None | Some e -> Some (f e)); etype = ft e.etype }
 	| TTry (e1,catches) ->
-		{ e with eexpr = TTry (f e1, List.map (fun (v,t,e) -> v, ft t, f e) catches); etype = ft e.etype }
+		{ e with eexpr = TTry (f e1, List.map (fun (v,e) -> fv v, f e) catches); etype = ft e.etype }
 	| TReturn eo ->
 		{ e with eexpr = TReturn (match eo with None -> None | Some e -> Some (f e)); etype = ft e.etype }
 	| TCast (e1,t) ->
@@ -1048,7 +1066,7 @@ let s_expr_kind e =
 	| TFunction _ -> "Function"
 	| TVars _ -> "Vars"
 	| TBlock _ -> "Block"
-	| TFor (_,_,_,_) -> "For"
+	| TFor (_,_,_) -> "For"
 	| TIf (_,_,_) -> "If"
 	| TWhile (_,_,_) -> "While"
 	| TSwitch (_,_,_) -> "Switch"
@@ -1073,11 +1091,12 @@ let rec s_expr s_type e =
 		| TThis -> "this"
 		| TSuper -> "super"
 	in
+	let s_var v = v.v_name ^ ":" ^ string_of_int v.v_id in
 	let str = (match e.eexpr with
 	| TConst c ->
 		"Const " ^ s_const c
-	| TLocal s ->
-		"Local " ^ s
+	| TLocal v ->
+		"Local " ^ s_var v
 	| TEnumField (e,f) ->
 		sprintf "EnumField %s.%s" (s_type_path e.e_path) f
 	| TArray (e1,e2) ->
@@ -1105,14 +1124,14 @@ let rec s_expr s_type e =
 		| Prefix -> sprintf "(%s %s)" (s_unop op) (loop e)
 		| Postfix -> sprintf "(%s %s)" (loop e) (s_unop op))
 	| TFunction f ->
-		let args = slist (fun (n,o,t) -> sprintf "%s : %s%s" n (s_type t) (match o with None -> "" | Some c -> " = " ^ s_const c)) f.tf_args in
+		let args = slist (fun (v,o) -> sprintf "%s : %s%s" (s_var v) (s_type v.v_type) (match o with None -> "" | Some c -> " = " ^ s_const c)) f.tf_args in
 		sprintf "Function(%s) : %s = %s" args (s_type f.tf_type) (loop f.tf_expr)
 	| TVars vl ->
-		sprintf "Vars %s" (slist (fun (v,t,eo) -> sprintf "%s : %s%s" v (s_type t) (match eo with None -> "" | Some e -> " = " ^ loop e)) vl)
+		sprintf "Vars %s" (slist (fun (v,eo) -> sprintf "%s : %s%s" (s_var v) (s_type v.v_type) (match eo with None -> "" | Some e -> " = " ^ loop e)) vl)
 	| TBlock el ->
 		sprintf "Block {\n%s}" (String.concat "" (List.map (fun e -> sprintf "%s;\n" (loop e)) el))
-	| TFor (v,t,econd,e) ->
-		sprintf "For (%s : %s in %s,%s)" v (s_type t) (loop econd) (loop e)
+	| TFor (v,econd,e) ->
+		sprintf "For (%s : %s in %s,%s)" (s_var v) (s_type v.v_type) (loop econd) (loop e)
 	| TIf (e,e1,e2) ->
 		sprintf "If (%s,%s%s)" (loop e) (loop e1) (match e2 with None -> "" | Some e -> "," ^ loop e)
 	| TWhile (econd,e,flag) ->
@@ -1122,11 +1141,11 @@ let rec s_expr s_type e =
 	| TSwitch (e,cases,def) ->
 		sprintf "Switch (%s,(%s)%s)" (loop e) (slist (fun (cl,e) -> sprintf "case %s: %s" (slist loop cl) (loop e)) cases) (match def with None -> "" | Some e -> "," ^ loop e)
 	| TMatch (e,(en,tparams),cases,def) ->
-		let args vl = slist (fun (so,t) -> sprintf "%s : %s" (match so with None -> "_" | Some s -> s) (s_type t)) vl in
+		let args vl = slist (function None -> "_" | Some v -> sprintf "%s : %s" (s_var v) (s_type v.v_type)) vl in
 		let cases = slist (fun (il,vl,e) -> sprintf "case %s%s : %s" (slist string_of_int il) (match vl with None -> "" | Some vl -> sprintf "(%s)" (args vl)) (loop e)) cases in
 		sprintf "Match %s (%s,(%s)%s)" (s_type (TEnum (en,tparams))) (loop e) cases (match def with None -> "" | Some e -> "," ^ loop e)
 	| TTry (e,cl) ->
-		sprintf "Try %s(%s) " (loop e) (slist (fun (v,t,e) -> sprintf "catch( %s : %s ) %s" v (s_type t) (loop e)) cl)
+		sprintf "Try %s(%s) " (loop e) (slist (fun (v,e) -> sprintf "catch( %s : %s ) %s" (s_var v) (s_type v.v_type) (loop e)) cl)
 	| TReturn None ->
 		"Return"
 	| TReturn (Some e) ->

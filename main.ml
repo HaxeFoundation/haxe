@@ -608,7 +608,8 @@ try
 		let filters = [
 			if com.foptimize then Optimizer.reduce_expression ctx else Optimizer.sanitize ctx;
 			Codegen.check_local_vars_init;
-			Codegen.block_vars com;
+			Codegen.captured_vars com;
+			Codegen.rename_local_vars com;
 		] in
 		Codegen.post_process com filters;
 		Common.add_filter com (fun() -> List.iter (Codegen.on_generate ctx) com.types);

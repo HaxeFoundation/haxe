@@ -435,7 +435,7 @@ let rec return_flow ctx e =
 		(match def with None -> () | Some e -> return_flow e)
 	| TTry (e,cases) ->
 		return_flow e;
-		List.iter (fun (_,_,e) -> return_flow e) cases;
+		List.iter (fun (_,e) -> return_flow e) cases;
 	| _ ->
 		error()
 
@@ -535,8 +535,7 @@ let type_function ctx args ret static constr f p =
 				| TConst c -> Some c
 				| _ -> display_error ctx "Parameter default value should be constant" p; None
 		) in
-		let n = add_local ctx n t in
-		n, c, t
+		add_local ctx n t, c
 	) args in
 	let old_ret = ctx.ret in
 	let old_static = ctx.in_static in
@@ -794,15 +793,15 @@ let init_class ctx c p herits fields =
 		| None ->
 			if ctx.com.verbose then print_endline ("Remove method " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name);
 			remove_field cf stat
-		| _ -> ()) 
+		| _ -> ())
 	in
-	let remove_var_if_unreferenced cf stat = (fun () ->	
+	let remove_var_if_unreferenced cf stat = (fun () ->
 		if not (has_meta ":?keep" cf.cf_meta) then begin
 			if ctx.com.verbose then print_endline ("Remove var " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name);
 			remove_field cf stat
 		end)
 	in
-	
+
 	(* ----------------------- COMPLETION ----------------------------- *)
 
 	let display_file = if ctx.com.display then String.lowercase (Common.get_full_path p.pfile) = String.lowercase (!Parser.resume_display).pfile else false in
@@ -925,7 +924,7 @@ let init_class ctx c p herits fields =
 			let params = !params in
 			if inline && c.cl_interface then error "You can't declare inline methods in interfaces" p;
 			let is_macro = (is_macro && stat) || has_meta ":macro" f.cff_meta in
-			let f, stat, fd = if not is_macro || stat then 
+			let f, stat, fd = if not is_macro || stat then
 				f, stat, fd
 			else if ctx.in_macro then
 				(* non-static macros methods are turned into static when we are running the macro *)
@@ -1012,7 +1011,7 @@ let init_class ctx c p herits fields =
 					(fun() -> ())
 				end else begin
 					cf.cf_type <- TLazy r;
-					(fun() -> 
+					(fun() ->
 						if not (keep f stat) then begin
 							delay ctx (remove_method_if_unreferenced cf stat)
 						end else
@@ -1087,7 +1086,7 @@ let init_class ctx c p herits fields =
 						loop l
 				| _ -> error "Invalid require identifier" p
 			in
-			loop conds			
+			loop conds
 		| _ :: l ->
 			check_require l
 	in
@@ -1274,8 +1273,6 @@ let type_module ctx m tdecls loadp =
 		ret = ctx.ret;
 		current = m;
 		locals = PMap.empty;
-		locals_map = PMap.empty;
-		locals_map_inv = PMap.empty;
 		local_types = ctx.g.std.mtypes @ m.mtypes;
 		local_using = [];
 		type_params = [];
@@ -1415,7 +1412,7 @@ let type_module ctx m tdecls loadp =
 			| _ -> assert false);
 	) tdecls;
 	(* PASS 3 : type checking, delayed until all modules and types are built *)
-	List.iter (delay ctx) (List.rev (!delays));	
+	List.iter (delay ctx) (List.rev (!delays));
 	m
 
 let parse_module ctx m p =
