@@ -66,10 +66,10 @@ let rec type_inline ctx cf f ethis params tret p =
 			Hashtbl.add locals v.v_id i;
 			Hashtbl.add locals i.i_subst.v_id i;
 			i
-	in	
-	let read_local v = 
-		try 
-			Hashtbl.find locals v.v_id 
+	in
+	let read_local v =
+		try
+			Hashtbl.find locals v.v_id
 		with Not_found ->
 			{
 				i_var = v;
@@ -85,7 +85,7 @@ let rec type_inline ctx cf f ethis params tret p =
 		| e :: pl, (v, opt) :: al ->
 			(*
 				if we pass a Null<T> var to an inlined method that needs a T.
-				we need to force a local var to be created on some platforms.				
+				we need to force a local var to be created on some platforms.
 			*)
 			if is_nullable v.v_type && is_null e.etype && (match ctx.com.platform with Flash9 | Cpp -> true | _ -> false) then (local v).i_write <- true;
 			(match e.eexpr, opt with
@@ -123,15 +123,15 @@ let rec type_inline ctx cf f ethis params tret p =
 		match e.eexpr with
 		| TLocal v ->
 			let l = read_local v in
-			l.i_read <- l.i_read + if !in_loop then 2 else 1;
+			l.i_read <- l.i_read + (if !in_loop then 2 else 1);
 			{ e with eexpr = TLocal l.i_subst }
 		| TConst TThis ->
 			let l = read_local vthis in
-			l.i_read <- l.i_read + if !in_loop then 2 else 1;
+			l.i_read <- l.i_read + (if !in_loop then 2 else 1);
 			{ e with eexpr = TLocal l.i_subst }
 		| TVars vl ->
 			has_vars := true;
-			let vl = List.map (fun (v,e) ->				
+			let vl = List.map (fun (v,e) ->
 				(local v).i_subst,opt (map false) e
 			) vl in
 			{ e with eexpr = TVars vl }
@@ -154,7 +154,7 @@ let rec type_inline ctx cf f ethis params tret p =
 			in_loop := true;
 			let eloop = map false eloop in
 			in_loop := old;
-			{ e with eexpr = TWhile (cond,eloop,flag) }			
+			{ e with eexpr = TWhile (cond,eloop,flag) }
 		| TMatch (v,en,cases,def) ->
 			let term, t = (match def with Some d when term -> true, ref d.etype | _ -> false, ref e.etype) in
 			let cases = List.map (fun (i,vl,e) ->
