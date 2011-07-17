@@ -981,12 +981,13 @@ let map_expr f e =
 let map_expr_type f ft fv e =
 	match e.eexpr with
 	| TConst _
-	| TLocal _
 	| TEnumField _
 	| TBreak
 	| TContinue
 	| TTypeExpr _ ->
 		{ e with etype = ft e.etype }
+	| TLocal v ->
+		{ e with eexpr = TLocal (fv v); etype = ft e.etype }
 	| TArray (e1,e2) ->
 		{ e with eexpr = TArray (f e1,f e2); etype = ft e.etype }
 	| TBinop (op,e1,e2) ->
