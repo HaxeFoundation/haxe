@@ -768,13 +768,16 @@ let check_local_vars_init e =
 	let rec loop vars e =
 		match e.eexpr with
 		| TLocal v ->
-			let init = (try PMap.find v.v_name !vars with Not_found -> true) in
+			let init = (try PMap.find v.v_id !vars with Not_found -> true) in
 			if not init then error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos;
 		| TVars vl ->
 			List.iter (fun (v,eo) ->
-				let init = (match eo with None -> false | Some e -> loop vars e; true) in
-				declared := v.v_name :: !declared;
-				vars := PMap.add v.v_name init !vars
+				match eo with 
+				| None ->
+					declared := v.v_id :: !declared;
+					vars := PMap.add v.v_id false !vars
+				| Some e -> 
+					loop vars e
 			) vl
 		| TBlock el ->
 			let old = !declared in
@@ -783,9 +786,9 @@ let check_local_vars_init e =
 			List.iter (loop vars) el;
 			restore vars old_vars (List.rev !declared);
 			declared := old;
-		| TBinop (OpAssign,{ eexpr = TLocal v },e) ->
+		| TBinop (OpAssign,{ eexpr = TLocal v },e) when PMap.mem v.v_id !vars ->
 			loop vars e;
-			vars := PMap.add v.v_name true !vars
+			vars := PMap.add v.v_id true !vars
 		| TIf (e1,e2,eo) ->
 			loop vars e1;
 			let vbase = !vars in
@@ -807,17 +810,6 @@ let check_local_vars_init e =
 			| DoWhile ->
 				loop vars e;
 				loop vars cond)
-		| TFor (v,it,e) ->
-			loop vars it;
-			let old = !vars in
-			vars := PMap.add v.v_name true !vars;
-			loop vars e;
-			vars := old;
-		| TFunction f ->
-			let old = !vars in
-			vars := List.fold_left (fun acc (v,_) -> PMap.add v.v_name true acc) !vars f.tf_args;
-			loop vars f.tf_expr;
-			vars := old;
 		| TTry (e,catches) ->
 			let cvars = List.map (fun (v,e) ->
 				let old = !vars in
@@ -849,12 +841,8 @@ let check_local_vars_init e =
 			let old = !vars in
 			let cvars = List.map (fun (_,vl,e) ->
 				vars := old;
-				let tvars = (match vl with
-					| None -> []
-					| Some vl -> List.map (function None -> "" | Some v -> vars := PMap.add v.v_name true !vars; v.v_name) vl
-				) in
 				loop vars e;
-				restore vars old tvars;
+				restore vars old [];
 				!vars
 			) cases in
 			(match def with None -> () | Some e -> vars := old; loop vars e);
