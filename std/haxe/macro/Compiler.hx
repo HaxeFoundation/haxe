@@ -75,9 +75,9 @@ class Compiler {
 				cp = cp.substr(0, -1);
 			classPaths[i] = cp;
 		}
-		var prefix = '' == pack ? '' : pack + '.';
+		var prefix = pack == '' ? '' : pack + '.';
 		for( cp in classPaths ) {
-			var path = ('' == pack) ? cp : cp + "/" + pack.split(".").join("/");
+			var path = pack == '' ? cp : cp + "/" + pack.split(".").join("/");
 			if( !neko.FileSystem.exists(path) || !neko.FileSystem.isDirectory(path) )
 				continue;
 			for( file in neko.FileSystem.readDirectory(path) ) {
@@ -86,8 +86,8 @@ class Compiler {
 					if( skip(cl) )
 						continue;
 					Context.getModule(cl);
-				} else if( rec && neko.FileSystem.isDirectory(path + "/" + file) && !skip(pack + file) )
-					include(pack + file, true, ignore, classPaths);
+				} else if( rec && neko.FileSystem.isDirectory(path + "/" + file) && !skip(prefix + file) )
+					include(prefix + file, true, ignore, classPaths);
 			}
 		}
 	}
