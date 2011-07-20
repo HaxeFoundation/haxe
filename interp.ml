@@ -122,14 +122,13 @@ type context = {
 	(* context *)
 	mutable curapi : extern_api;
 	mutable delayed : (unit -> value) DynArray.t;
-	(* optimized *)
-	switch_tables : (int, (expr_decl * expr option array option) list ref) Hashtbl.t;
 }
 
 type access =
-	| AccField of value * string
-	| AccArray of value * value
+	| AccField of (unit -> value) * string
+	| AccArray of (unit -> value) * (unit -> value)
 	| AccVar of string
+	| AccThis
 
 exception Runtime of value
 exception Builtin_error
@@ -1760,90 +1759,86 @@ let get_ident ctx s =
 	with Not_found ->
 		VNull
 
-let get_switch_table ctx e p =
-	try
-		List.assq e !(Hashtbl.find ctx.switch_tables p.pline)
-	with Not_found ->
-		let l = (try
-			Hashtbl.find ctx.switch_tables p.pline
-		with Not_found ->
-			let l = ref [] in
-			Hashtbl.add ctx.switch_tables p.pline l;
-			l
-		) in
-		let cases = try Some (match e with
-		| ESwitch(_,cases,eo) ->
-			let max = ref (-1) in
-			let ints = List.map (fun (cond,e) ->
-				match fst cond with
-				| EConst (Int i) -> if i < 0 then raise Exit; if i > !max then max := i; i, e
-				| _ -> raise Exit
-			) cases in
-			let a = Array.create (!max + 1) eo in
-			List.iter (fun (i,e) -> a.(i) <- Some e) (List.rev ints);
-			a;
-		| _ -> raise Exit) with Exit -> None in
-		l := (e,cases) :: !l;
-		cases
-
 let rec eval ctx (e,p) =
 	match e with
 	| EConst c ->
 		(match c with
-		| True -> VBool true
-		| False -> VBool false
-		| Null -> VNull
-		| This -> ctx.vthis
-		| Int i -> VInt i
-		| Float f -> VFloat (float_of_string f)
-		| String s -> VString s
-		| Builtin s -> (try Hashtbl.find builtins s with Not_found -> throw ctx p ("Builtin not found '" ^ s ^ "'"))
-		| Ident s -> get_ident ctx s)
+		| True -> (fun() -> VBool true)
+		| False -> (fun() -> VBool false)
+		| Null -> (fun() -> VNull)
+		| This -> (fun() -> ctx.vthis)
+		| Int i -> (fun() -> VInt i)
+		| Float f -> 
+			let f = float_of_string f in
+			(fun() -> VFloat f)			
+		| String s -> (fun() -> VString s)
+		| Builtin s -> 
+			let b = (try Hashtbl.find builtins s with Not_found -> throw ctx p ("Builtin not found '" ^ s ^ "'")) in
+			(fun() -> b)
+		| Ident s ->
+			(fun() -> get_ident ctx s))
 	| EBlock el ->
+		let el = List.map (eval ctx) el in
 		let rec loop = function
 			| [] -> VNull
-			| [e] -> eval ctx e
+			| [e] -> e()
 			| e :: l ->
-				ignore(eval ctx e);
+				ignore(e());
 				loop l
 		in
-		let old = ctx.locals in
-		let v = loop el in
-		ctx.locals <- old;
-		v
+		(fun() ->
+			let old = ctx.locals in
+			let v = loop el in
+			ctx.locals <- old;
+			v)
 	| EParenthesis e ->
 		eval ctx e
 	| EField (e,f) ->
-		(match eval ctx e with
-		| VObject o -> get_field o f
-		| _ -> throw ctx p ("Invalid field access : " ^ f))
+		let e = eval ctx e in
+		(fun() ->
+			match e() with
+			| VObject o -> get_field o f
+			| _ -> throw ctx p ("Invalid field access : " ^ f)
+		)
 	| ECall (e,el) ->
-		let pl = List.map (eval ctx) el in
+		let el = List.map (eval ctx) el in
 		(match fst e with
 		| EField (e,f) ->
-			let o = eval ctx e in
-			let f = (match o with
+			let e = eval ctx e in
+			(fun() ->
+				let pl = List.map (fun f -> f()) el in
+				let o = e() in
+				let f = (match o with
 				| VObject o -> get_field o f
 				| _ -> throw ctx p ("Invalid field access : " ^ f)
-			) in
-			call ctx o f pl p
+				) in
+				call ctx o f pl p
+			)
 		| _ ->
-			call ctx ctx.vthis (eval ctx e) pl p)
+			let e = eval ctx e in
+			(fun() ->
+				let pl = List.map (fun f -> f()) el in
+				call ctx ctx.vthis (e()) pl p
+			))
 	| EArray (e1,e2) ->
-		let index = eval ctx e2 in
-		acc_get ctx p (AccArray (eval ctx e1,index));
+		let e1 = eval ctx e1 in
+		let e2 = eval ctx e2 in
+		let acc = AccArray (e1,e2) in
+		acc_get ctx p acc
 	| EVars vl ->
-		List.iter (fun (v,eo) ->
-			let value = (match eo with None -> VNull | Some e -> eval ctx e) in
-			local ctx v value
-		) vl;
-		VNull
+		let vl = List.map (fun (v,eo) -> v, (match eo with None -> (fun() -> VNull) | Some e -> eval ctx e)) vl in
+		(fun() ->
+			List.iter (fun (v,e) -> local ctx v (e())) vl;
+			VNull
+		)
 	| EWhile (econd,e,NormalWhile) ->
+		let econd = eval ctx econd in
+		let e = eval ctx e in
 		let rec loop() =
-			match eval ctx econd with
+			match econd() with
 			| VBool true ->
 				let v = (try
-					ignore(eval ctx e); None
+					ignore(e()); None
 				with
 					| Continue -> None
 					| Break v -> Some v
@@ -1854,11 +1849,13 @@ let rec eval ctx (e,p) =
 			| _ ->
 				VNull
 		in
-		(try loop() with Sys.Break -> throw ctx p "Ctrl+C")
+		(fun() -> try loop() with Sys.Break -> throw ctx p "Ctrl+C")
 	| EWhile (econd,e,DoWhile) ->
+		let e = eval ctx e in
+		let econd = eval ctx econd in
 		let rec loop() =
 			let v = (try
-				ignore(eval ctx e); None
+				ignore(e()); None
 			with
 				| Continue -> None
 				| Break v -> Some v
@@ -1866,134 +1863,177 @@ let rec eval ctx (e,p) =
 			match v with
 			| Some v -> v
 			| None ->
-				match eval ctx econd with
+				match econd() with
 				| VBool true -> loop()
 				| _ -> VNull
 		in
-		loop()
+		loop
 	| EIf (econd,eif,eelse) ->
-		(match eval ctx econd with
-		| VBool true -> eval ctx eif
-		| _ -> match eelse with
-			| None -> VNull
-			| Some e -> eval ctx e)
+		let econd = eval ctx econd in
+		let eif = eval ctx eif in
+		let eelse = (match eelse with None -> (fun() -> VNull) | Some e -> eval ctx e) in
+		(fun() ->
+			match econd() with
+			| VBool true -> eif()
+			| _ -> eelse()
+		)
 	| ETry (e,exc,ecatch) ->
-		let locals = ctx.locals in
-		let vthis = ctx.vthis in
-		let stack = ctx.stack in
-		(try
-			eval ctx e
-		with Runtime v ->
-			let rec loop n l =
-				if n = 0 then List.map (fun (p,_,_) -> p) l else
-				match l with
-				| [] -> []
-				| _ :: l -> loop (n - 1) l
-			in
-			ctx.exc <- loop (List.length stack) (List.rev ctx.stack);
-			ctx.stack <- stack;
-			ctx.locals <- locals;
-			ctx.vthis <- vthis;
-			local ctx exc v;
-			eval ctx ecatch);
+		let e = eval ctx e in
+		let ecatch = eval ctx ecatch in
+		(fun() ->
+			let locals = ctx.locals in
+			let vthis = ctx.vthis in
+			let stack = ctx.stack in
+			try
+				e()
+			with Runtime v ->
+				let rec loop n l =
+					if n = 0 then List.map (fun (p,_,_) -> p) l else
+					match l with
+					| [] -> []
+					| _ :: l -> loop (n - 1) l
+				in
+				ctx.exc <- loop (List.length stack) (List.rev ctx.stack);
+				ctx.stack <- stack;
+				ctx.locals <- locals;
+				ctx.vthis <- vthis;
+				local ctx exc v;
+				ecatch());
 	| EFunction (pl,e) ->
-		let locals = ctx.locals in
-		VFunction (match pl with
+		let e = eval ctx e in
+		(match pl with
 		| [] ->
-			Fun0 (fun() ->
-				ctx.locals <- locals;
-				eval ctx e
-			)
+			(fun() ->
+				let locals = ctx.locals in
+				VFunction (Fun0 (fun() -> 
+					ctx.locals <- locals;
+					e();
+				)))
 		| [a] ->
-			Fun1 (fun v ->
-				ctx.locals <- locals;
-				local ctx a v;
-				eval ctx e
-			)
+			(fun() ->
+				let locals = ctx.locals in
+				VFunction (Fun1 (fun v ->
+					ctx.locals <- locals;
+					local ctx a v;
+					e();
+				)))
 		| [a;b] ->
-			Fun2 (fun va vb ->
-				ctx.locals <- locals;
-				local ctx a va;
-				local ctx b vb;
-				eval ctx e
-			)
+			(fun() ->
+				let locals = ctx.locals in
+				VFunction (Fun2 (fun va vb ->
+					ctx.locals <- locals;
+					local ctx a va;
+					local ctx b vb;
+					e();
+				)))
 		| [a;b;c] ->
-			Fun3 (fun va vb vc ->
-				ctx.locals <- locals;
-				local ctx a va;
-				local ctx b vb;
-				local ctx c vc;
-				eval ctx e
-			)
+			(fun() ->
+				let locals = ctx.locals in
+				VFunction (Fun3 (fun va vb vc ->
+					ctx.locals <- locals;
+					local ctx a va;
+					local ctx b vb;
+					local ctx c vc;
+					e();
+				)))
 		| [a;b;c;d] ->
-			Fun4 (fun va vb vc vd ->
-				ctx.locals <- locals;
-				local ctx a va;
-				local ctx b vb;
-				local ctx c vc;
-				local ctx d vd;
-				eval ctx e
-			)
+			(fun() ->
+				let locals = ctx.locals in
+				VFunction (Fun4 (fun va vb vc vd ->
+					ctx.locals <- locals;
+					local ctx a va;
+					local ctx b vb;
+					local ctx c vc;
+					local ctx d vd;
+					e();
+				)))
 		| [a;b;c;d;pe] ->
-			Fun5 (fun va vb vc vd ve ->
-				ctx.locals <- locals;
-				local ctx a va;
-				local ctx b vb;
-				local ctx c vc;
-				local ctx d vd;
-				local ctx pe ve;
-				eval ctx e
-			)
-		| pl ->
-			FunVar (fun vl ->
-				if List.length vl != List.length pl then exc (VString "Invalid call");
-				ctx.locals <- locals;
-				List.iter2 (local ctx) pl vl;
-				eval ctx e
-			)
+			(fun() ->
+				let locals = ctx.locals in
+				VFunction (Fun5 (fun va vb vc vd ve ->
+					ctx.locals <- locals;
+					local ctx a va;
+					local ctx b vb;
+					local ctx c vc;
+					local ctx d vd;
+					local ctx pe ve;
+					e();
+				)))
+		| _ ->
+			(fun() ->
+				let locals = ctx.locals in
+				VFunction (FunVar (fun vl ->
+					if List.length vl != List.length pl then exc (VString "Invalid call");
+					ctx.locals <- locals;
+					List.iter2 (local ctx) pl vl;
+					e()
+				)))
 		)
 	| EBinop (op,e1,e2) ->
 		eval_op ctx op e1 e2 p
 	| EReturn None ->
-		raise (Return VNull)
+		(fun() -> raise (Return VNull))
 	| EReturn (Some e) ->
-		raise (Return (eval ctx e))
+		let e = eval ctx e in
+		(fun() -> raise (Return (e())))
 	| EBreak None ->
-		raise (Break VNull)
+		(fun() -> raise (Break VNull))
 	| EBreak (Some e) ->
-		raise (Break (eval ctx e))
+		let e = eval ctx e in
+		(fun() -> raise (Break (e())))
 	| EContinue ->
-		raise Continue
+		(fun() -> raise Continue)
 	| ENext (e1,e2) ->
-		ignore(eval ctx e1);
-		eval ctx e2
+		let e1 = eval ctx e1 in
+		let e2 = eval ctx e2 in
+		(fun() -> ignore(e1()); e2())
 	| EObject fl ->
-		let o = {
-			ofields = Hashtbl.create 0;
-			oproto = None;
-		} in
-		List.iter (fun (f,e) ->
-			Hashtbl.add o.ofields f (eval ctx e)
-		) fl;
-		VObject o
+		let fl = List.map (fun (f,e) -> f, eval ctx e) fl in
+		(fun() ->
+			let o = {
+				ofields = Hashtbl.create 0;
+				oproto = None;
+			} in
+			List.iter (fun (f,e) ->
+				Hashtbl.add o.ofields f (e())
+			) fl;
+			VObject o
+		)
 	| ELabel l ->
 		assert false
 	| ESwitch (e1,el,eo) ->
-		(match eval ctx e1, get_switch_table ctx e p with
-		| VInt i, Some t ->
-			(match (if i >= 0 && i < Array.length t then t.(i) else eo) with
-			| None -> VNull
-			| Some e -> eval ctx e)
-		| v, _ ->
+		let e1 = eval ctx e1 in
+		let el = List.map (fun (cond,e) -> cond, eval ctx cond, eval ctx e) el in
+		let eo = (match eo with None -> (fun() -> VNull) | Some e -> eval ctx e) in
+		let cases = (try
+			let max = ref (-1) in
+			let ints = List.map (fun (cond,_,e) ->
+				match fst cond with
+				| EConst (Int i) -> if i < 0 then raise Exit; if i > !max then max := i; i, e
+				| _ -> raise Exit
+			) el in
+			let a = Array.create (!max + 1) eo in
+			List.iter (fun (i,e) -> a.(i) <- e) (List.rev ints);
+			Some a;
+		with
+			Exit -> None
+		) in
+		let def v =
 			let rec loop = function
-				| [] ->
-					(match eo with
-					| None -> VNull
-					| Some e -> eval ctx e)
-				| (c,e) :: l ->
-					if ctx.do_compare v (eval ctx c) = CEq then eval ctx e else loop l
+				| [] -> eo()
+				| (_,c,e) :: l ->
+					if ctx.do_compare v (c()) = CEq then e() else loop l
 			in
-			loop el)
+			loop el
+		in
+		(match cases with
+		| None -> (fun() -> def (e1()))
+		| Some t ->
+			(fun() ->
+				match e1() with
+				| VInt i -> if i >= 0 && i < Array.length t then t.(i)() else eo()
+				| v -> def v
+			))
 	| ENeko _ ->
 		throw ctx p "Inline neko code unsupported"
 
@@ -2008,53 +2048,101 @@ and eval_access ctx (e,p) =
 		let v = eval ctx e in
 		AccField (v,f)
 	| EArray (e,eindex) ->
-		let idx = eval ctx eindex in
 		let v = eval ctx e in
+		let idx = eval ctx eindex in
 		AccArray (v,idx)
 	| EConst (Ident s) ->
 		AccVar s
+	| EConst This ->
+		AccThis
+	| _ ->
+		throw ctx p "Invalid assign"
+
+and eval_access_get_set ctx (e,p) =
+	match e with
+	| EField (e,f) ->
+		let v = eval ctx e in
+		let cache = ref VNull in
+		AccField ((fun() -> cache := v(); !cache),f), AccField((fun() -> !cache), f)
+	| EArray (e,eindex) ->
+		let v = eval ctx e in
+		let idx = eval ctx eindex in
+		let vcache = ref VNull and icache = ref VNull in
+		AccArray ((fun() -> vcache := v(); !vcache),(fun() -> icache := idx(); !icache)), AccArray ((fun() -> !vcache),(fun() -> !icache))
+	| EConst (Ident s) ->
+		AccVar s, AccVar s
+	| EConst This ->
+		AccThis, AccThis
 	| _ ->
 		throw ctx p "Invalid assign"
 
 and acc_get ctx p = function
 	| AccField (v,f) ->
-		(match v with
-		| VObject o -> get_field o f
-		| _ -> throw ctx p ("Invalid field access : " ^ f))
+		(fun() ->
+			match v() with
+			| VObject o -> get_field o f
+			| _ -> throw ctx p ("Invalid field access : " ^ f))
 	| AccArray (e,index) ->
-		(match index, e with
-		| VInt i, VArray a -> (try Array.get a i with _ -> VNull)
-		| _, VObject o ->
-			(match eval_oop ctx p o "__get" [index] with
-			| None -> throw ctx p "Invalid array access"
-			| Some v -> v)
-		| _ -> throw ctx p "Invalid array access")
+		(fun() ->
+			let e = e() in
+			let index = index() in
+			(match index, e with
+			| VInt i, VArray a -> (try Array.get a i with _ -> VNull)
+			| _, VObject o ->
+				(match eval_oop ctx p o "__get" [index] with
+				| None -> throw ctx p "Invalid array access"
+				| Some v -> v)
+			| _ -> throw ctx p "Invalid array access"))
 	| AccVar s ->
-		get_ident ctx s
+		(fun() ->
+			get_ident ctx s
+		)
+	| AccThis ->
+		(fun() -> ctx.vthis)
 
 and acc_set ctx p acc value =
 	match acc with
 	| AccField (v,f) ->
-		(match v with
-		| VObject o -> Hashtbl.replace o.ofields f value; value
-		| _ -> throw ctx p ("Invalid field access : " ^ f))
+		(fun() ->
+			let v = v() in
+			let value = value() in
+			match v with
+			| VObject o -> Hashtbl.replace o.ofields f value; value
+			| _ -> throw ctx p ("Invalid field access : " ^ f))		
 	| AccArray (e,index) ->
-		(match index, e with
-		| VInt i, VArray a -> (try Array.set a i value; value with _ -> throw ctx p "Invalid array access")
-		| _, VObject o ->
-			(match eval_oop ctx p o "__set" [index;value] with
-			| None -> throw ctx p "Invalid array access"
-			| Some _ -> value);
-		| _ -> throw ctx p "Invalid array access")
+		(fun() ->
+			let e = e() in
+			let index = index() in
+			let value = value() in
+			(match index, e with
+			| VInt i, VArray a -> (try Array.set a i value; value with _ -> throw ctx p "Invalid array access")
+			| _, VObject o ->
+				(match eval_oop ctx p o "__set" [index;value] with
+				| None -> throw ctx p "Invalid array access"
+				| Some _ -> value);
+			| _ -> throw ctx p "Invalid array access"))
 	| AccVar s ->
-		(try
-			let v = PMap.find s ctx.locals in
-			v := value;
-		with Not_found ->
-			Hashtbl.replace ctx.globals s value);
-		value
+		(fun() ->
+			let value = value() in
+			(try
+				let v = PMap.find s ctx.locals in
+				v := value;
+			with Not_found ->
+				Hashtbl.replace ctx.globals s value);
+			value)
+	| AccThis ->
+		(fun() ->
+			let value = value() in
+			ctx.vthis <- value;
+			value)
 
 and number_op ctx p sop iop fop oop rop v1 v2 =
+	(fun() ->
+		let v1 = v1() in
+		let v2 = v2() in
+		exc_number_op ctx p sop iop fop oop rop v1 v2)
+
+and exc_number_op ctx p sop iop fop oop rop v1 v2 =
 	match v1, v2 with
 	| VInt a, VInt b -> VInt (iop a b)
 	| VFloat a, VInt b -> VFloat (fop a (float_of_int b))
@@ -2079,26 +2167,35 @@ and number_op ctx p sop iop fop oop rop v1 v2 =
 		throw ctx p sop
 
 and int_op ctx p op iop v1 v2 =
-	match v1, v2 with
-	| VInt a, VInt b -> VInt (iop a b)
-	| _ -> throw ctx p op
+	(fun() ->
+		let v1 = v1() in
+		let v2 = v2() in
+		match v1, v2 with
+		| VInt a, VInt b -> VInt (iop a b)
+		| _ -> throw ctx p op)
 
 and base_op ctx op v1 v2 p =
 	match op with
 	| "+" ->
-		(match v1, v2 with
-		| VInt _, VInt _ | VInt _ , VFloat _ | VFloat _ , VInt _ | VFloat _ , VFloat _ | VObject _ , _ | _ , VObject _ -> number_op ctx p op (+) (+.) "__add" "__radd" v1 v2
-		| VString a, _ -> VString (a ^ ctx.do_string v2)
-		| _, VString b -> VString (ctx.do_string v1 ^ b)
-		| _ -> throw ctx p op)
+		(fun() ->
+			let v1 = v1() in
+			let v2 = v2() in
+			match v1, v2 with
+			| VInt _, VInt _ | VInt _ , VFloat _ | VFloat _ , VInt _ | VFloat _ , VFloat _ | VObject _ , _ | _ , VObject _ -> exc_number_op ctx p op (+) (+.) "__add" "__radd" v1 v2
+			| VString a, _ -> VString (a ^ ctx.do_string v2)
+			| _, VString b -> VString (ctx.do_string v1 ^ b)
+			| _ -> throw ctx p op)
 	| "-" ->
 		number_op ctx p op (-) (-.) "__sub" "__rsub" v1 v2
 	| "*" ->
 		number_op ctx p op ( * ) ( *. ) "__mult" "__rmul" v1 v2
 	| "/" ->
-		(match v1, v2 with
-		| VInt i, VInt j -> VFloat ((float_of_int i) /. (float_of_int j))
-		| _ -> number_op ctx p op (/) (/.) "__div" "__rdiv" v1 v2)
+		(fun() ->
+			let v1 = v1() in
+			let v2 = v2() in
+			match v1, v2 with
+			| VInt i, VInt j -> VFloat ((float_of_int i) /. (float_of_int j))
+			| _ -> exc_number_op ctx p op (/) (/.) "__div" "__rdiv" v1 v2)
 	| "%" ->
 		number_op ctx p op (fun x y -> x mod y) mod_float "__mod" "__rmod" v1 v2
 	| "&" ->
@@ -2127,64 +2224,89 @@ and eval_op ctx op e1 e2 p =
 	| "==" ->
 		let v1 = eval ctx e1 in
 		let v2 = eval ctx e2 in
-		(match ctx.do_compare v1 v2 with
-		| CEq -> VBool true
-		| _ -> VBool false)
+		(fun() ->
+			let v1 = v1() in
+			let v2 = v2() in
+			match ctx.do_compare v1 v2 with
+			| CEq -> VBool true
+			| _ -> VBool false)
 	| "!=" ->
 		let v1 = eval ctx e1 in
 		let v2 = eval ctx e2 in
-		(match ctx.do_compare v1 v2 with
-		| CEq -> VBool false
-		| _ -> VBool true)
+		(fun() ->
+			let v1 = v1() in
+			let v2 = v2() in
+			match ctx.do_compare v1 v2 with
+			| CEq -> VBool false
+			| _ -> VBool true)
 	| ">" ->
 		let v1 = eval ctx e1 in
 		let v2 = eval ctx e2 in
-		(match ctx.do_compare v1 v2 with
-		| CSup -> VBool true
-		| _ -> VBool false)
+		(fun() ->
+			let v1 = v1() in
+			let v2 = v2() in
+			match ctx.do_compare v1 v2 with
+			| CSup -> VBool true
+			| _ -> VBool false)
 	| ">=" ->
 		let v1 = eval ctx e1 in
 		let v2 = eval ctx e2 in
-		(match ctx.do_compare v1 v2 with
-		| CSup | CEq -> VBool true
-		| _ -> VBool false)
+		(fun() ->
+			let v1 = v1() in
+			let v2 = v2() in
+			match ctx.do_compare v1 v2 with
+			| CSup | CEq -> VBool true
+			| _ -> VBool false)
 	| "<" ->
 		let v1 = eval ctx e1 in
 		let v2 = eval ctx e2 in
-		(match ctx.do_compare v1 v2 with
-		| CInf -> VBool true
-		| _ -> VBool false)
+		(fun() ->
+			let v1 = v1() in
+			let v2 = v2() in
+			match ctx.do_compare v1 v2 with
+			| CInf -> VBool true
+			| _ -> VBool false)
 	| "<=" ->
 		let v1 = eval ctx e1 in
 		let v2 = eval ctx e2 in
-		(match ctx.do_compare v1 v2 with
-		| CInf | CEq -> VBool true
-		| _ -> VBool false)
+		(fun() ->
+			let v1 = v1() in
+			let v2 = v2() in
+			match ctx.do_compare v1 v2 with
+			| CInf | CEq -> VBool true
+			| _ -> VBool false)
 	| "+" | "-" | "*" | "/" | "%" | "|" | "&" | "^" | "<<" | ">>" | ">>>" ->
 		let v1 = eval ctx e1 in
 		let v2 = eval ctx e2 in
 		base_op ctx op v1 v2 p
 	| "+=" | "-=" | "*=" | "/=" | "%=" | "<<=" | ">>=" | ">>>=" | "|=" | "&=" | "^=" ->
-		let acc = eval_access ctx e1 in
-		let v1 = acc_get ctx p acc in
+		let aset, aget = eval_access_get_set ctx e1 in
+		let v1 = acc_get ctx p aget in
 		let v2 = eval ctx e2 in
 		let v = base_op ctx (String.sub op 0 (String.length op - 1)) v1 v2 p in
-		acc_set ctx p acc v
+		acc_set ctx p aset v
 	| "&&" ->
-		(match eval ctx e1 with
-		| VBool false as v -> v
-		| _ -> eval ctx e2)
+		let e1 = eval ctx e1 in
+		let e2 = eval ctx e2 in
+		(fun() ->
+			match e1() with
+			| VBool false as v -> v
+			| _ -> e2())
 	| "||" ->
-		(match eval ctx e1 with
-		| VBool true as v -> v
-		| _ -> eval ctx e2)
+		let e1 = eval ctx e1 in
+		let e2 = eval ctx e2 in
+		(fun() -> 
+			match e1() with
+			| VBool true as v -> v
+			| _ -> e2())
 	| "++=" | "--=" ->
-		let acc = eval_access ctx e1 in
-		let v1 = acc_get ctx p acc in
+		let aset, aget = eval_access_get_set ctx e1 in
+		let v1 = acc_get ctx p aget in
 		let v2 = eval ctx e2 in
-		let v = base_op ctx (String.sub op 0 1) v1 v2 p in
-		ignore(acc_set ctx p acc v);
-		v1
+		let vcache = ref VNull in
+		let v = base_op ctx (String.sub op 0 1) (fun() -> vcache := v1(); !vcache) v2 p in
+		let set = acc_set ctx p aset v in
+		(fun() -> ignore(set()); !vcache)
 	| _ ->
 		throw ctx p ("Unsupported " ^ op)
 
@@ -2343,15 +2465,13 @@ let create com api =
 		(* context *)
 		curapi = api;
 		delayed = DynArray.create();
-		(* opt *)
-		switch_tables = Hashtbl.create 0;
 	} in
 	ctx.do_call <- call ctx;
 	ctx.do_string <- to_string ctx 0;
 	ctx.do_loadprim <- load_prim ctx;
 	ctx.do_compare <- compare ctx;
 	select ctx;
-	List.iter (fun e -> ignore(eval ctx e)) (Genneko.header());
+	List.iter (fun e -> ignore((eval ctx e)())) (Genneko.header());
 	ctx
 
 let add_types ctx types =
@@ -2363,11 +2483,11 @@ let add_types ctx types =
 		end
 	) types in
 	let e = (EBlock (Genneko.build ctx.gen types), null_pos) in
-	ignore(catch_errors ctx (fun() -> ignore(eval ctx e)))
+	ignore(catch_errors ctx (fun() -> ignore((eval ctx e)())))
 
 let eval_expr ctx e =
 	let e = Genneko.gen_expr ctx.gen e in
-	catch_errors ctx (fun() -> eval ctx e)
+	catch_errors ctx (fun() -> (eval ctx e)())
 
 let get_path ctx path p =
 	let rec loop = function
@@ -2375,7 +2495,7 @@ let get_path ctx path p =
 		| [x] -> (EConst (Ident x),p)
 		| x :: l -> (EField (loop l,x),p)
 	in
-	eval ctx (loop (List.rev path))
+	(eval ctx (loop (List.rev path)))()
 
 let set_error ctx e =
 	ctx.error <- e

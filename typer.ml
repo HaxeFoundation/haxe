@@ -2211,7 +2211,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			Interp.unwind_stack mctx;
 			match call() with
 			| None -> raise Interp.Abort
-			| Some e -> Interp.eval mctx (Genneko.gen_expr mctx.Interp.gen (type_expr ctx e))
+			| Some e -> (Interp.eval mctx (Genneko.gen_expr mctx.Interp.gen (type_expr ctx e)))()
 		) in
 		let e = (EConst (Ident "__dollar__delay_call"),p) in
 		Some (EUntyped (ECall (e,[EConst (Int (string_of_int pos)),p]),p),p)
