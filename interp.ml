@@ -116,7 +116,7 @@ type context = {
 	mutable do_loadprim : value -> value -> value;
 	mutable do_compare : value -> value -> cmp;
 	mutable locals : locals;
-	mutable stack : (pos * value * locals) list;
+	mutable callstack : (pos * value * locals) list;
 	mutable exc : pos list;
 	mutable vthis : value;
 	(* context *)
@@ -175,7 +175,7 @@ let catch_errors ctx ?(final=(fun() -> ())) f =
 		Some v
 	with Runtime v ->
 		final();
-		raise (Error (ctx.do_string v,List.map (fun (p,_,_) -> make_pos p) ctx.stack))
+		raise (Error (ctx.do_string v,List.map (fun (p,_,_) -> make_pos p) ctx.callstack))
 	| Abort ->
 		final();
 		None
@@ -521,7 +521,7 @@ let builtins =
 		"throw", Fun1 (fun v -> exc v);
 		"rethrow", Fun1 (fun v ->
 			let ctx = get_ctx() in
-			ctx.stack <- List.rev (List.map (fun p -> p,VNull,PMap.empty) ctx.exc) @ ctx.stack;
+			ctx.callstack <- List.rev (List.map (fun p -> p,VNull,PMap.empty) ctx.exc) @ ctx.callstack;
 			exc v
 		);
 		"istrue", Fun1 (fun v ->
@@ -560,7 +560,7 @@ let builtins =
 			build_stack (get_ctx()).exc
 	 	);
 	 	"callstack", Fun0 (fun() ->
-	 		build_stack (List.map (fun (p,_,_) -> p) (get_ctx()).stack)
+	 		build_stack (List.map (fun (p,_,_) -> p) (get_ctx()).callstack)
 	 	);
 	 	"version", Fun0 (fun() ->
 	 		VInt 0
@@ -1745,7 +1745,7 @@ let macro_lib =
 (* EVAL *)
 
 let throw ctx p msg =
-	ctx.stack <- (p,ctx.vthis,ctx.locals) :: ctx.stack;
+	ctx.callstack <- (p,ctx.vthis,ctx.locals) :: ctx.callstack;
 	exc (VString msg)
 
 let local ctx var value =
@@ -1883,7 +1883,7 @@ let rec eval ctx (e,p) =
 		(fun() ->
 			let locals = ctx.locals in
 			let vthis = ctx.vthis in
-			let stack = ctx.stack in
+			let stack = ctx.callstack in
 			try
 				e()
 			with Runtime v ->
@@ -1893,8 +1893,8 @@ let rec eval ctx (e,p) =
 					| [] -> []
 					| _ :: l -> loop (n - 1) l
 				in
-				ctx.exc <- loop (List.length stack) (List.rev ctx.stack);
-				ctx.stack <- stack;
+				ctx.exc <- loop (List.length stack) (List.rev ctx.callstack);
+				ctx.callstack <- stack;
 				ctx.locals <- locals;
 				ctx.vthis <- vthis;
 				local ctx exc v;
@@ -2313,10 +2313,10 @@ and eval_op ctx op e1 e2 p =
 and call ctx vthis vfun pl p =
 	let oldthis = ctx.vthis in
 	let locals = ctx.locals in
-	let oldstack = ctx.stack in
+	let oldstack = ctx.callstack in
 	ctx.locals <- PMap.empty;
 	ctx.vthis <- vthis;
-	ctx.stack <- (p,oldthis,locals) :: ctx.stack;
+	ctx.callstack <- (p,oldthis,locals) :: ctx.callstack;
 	let ret = (try
 		(match vfun with
 		| VClosure (vl,f) ->
@@ -2339,7 +2339,7 @@ and call ctx vthis vfun pl p =
 		| Builtin_error | Invalid_argument _ -> exc (VString "Invalid call")) in
 	ctx.locals <- locals;
 	ctx.vthis <- oldthis;
-	ctx.stack <- oldstack;
+	ctx.callstack <- oldstack;
 	ret
 
 (* ---------------------------------------------------------------------- *)
@@ -2454,7 +2454,7 @@ let create com api =
 		globals = Hashtbl.create 0;
 		enums = [||];
 		locals = PMap.empty;
-		stack = [];
+		callstack = [];
 		exc = [];
 		vthis = VNull;
 		(* api *)
@@ -2515,10 +2515,10 @@ let call_path ctx path f vl api =
 	)
 
 let unwind_stack ctx =
-	match ctx.stack with
+	match ctx.callstack with
 	| [] -> ()
 	| (p,vthis,locals) :: l ->
-		ctx.stack <- l;
+		ctx.callstack <- l;
 		ctx.vthis <- vthis;
 		ctx.locals <- locals
 
