@@ -84,8 +84,6 @@ type cmp =
 	| CInf
 	| CUndef
 
-type locals = (string, value ref) PMap.t
-
 type extern_api = {
 	pos : Ast.pos;
 	define : string -> unit;
@@ -103,11 +101,17 @@ type extern_api = {
 	get_build_fields : unit -> value;
 }
 
+type callstack = {
+	cpos : pos;
+	cthis : value;
+	cstack : int;
+	cenv : value array;
+}
+
 type context = {
 	com : Common.context;
 	gen : Genneko.context;
 	types : (Type.path,bool) Hashtbl.t;
-	globals : (string, value) Hashtbl.t;
 	prototypes : (string list, vobject) Hashtbl.t;
 	mutable error : bool;
 	mutable enums : (value * string) array array;
@@ -115,20 +119,30 @@ type context = {
 	mutable do_string : value -> string;
 	mutable do_loadprim : value -> value -> value;
 	mutable do_compare : value -> value -> cmp;
-	mutable locals : locals;
-	mutable callstack : (pos * value * locals) list;
+	(* runtime *)
+	mutable stack : value DynArray.t;
+	mutable callstack : callstack list;
 	mutable exc : pos list;
 	mutable vthis : value;
+	mutable venv : value array;
 	(* context *)
 	mutable curapi : extern_api;
 	mutable delayed : (unit -> value) DynArray.t;
+	(* eval *)
+	mutable locals_map : (string, int) PMap.t;
+	mutable locals_count : int;
+	mutable locals_barrier : int;
+	mutable locals_env : string DynArray.t;
+	mutable globals : (string, value ref) PMap.t;
 }
 
 type access =
+	| AccThis
+	| AccLocal of int
+	| AccGlobal of value ref
+	| AccEnv of int
 	| AccField of (unit -> value) * string
 	| AccArray of (unit -> value) * (unit -> value)
-	| AccVar of string
-	| AccThis
 
 exception Runtime of value
 exception Builtin_error
@@ -168,15 +182,32 @@ let make_pos p =
 let warn ctx msg p =
 	ctx.com.Common.warning msg (make_pos p)
 
+let rec pop ctx n =
+	if n > 0 then begin
+		DynArray.delete_last ctx.stack;
+		pop ctx (n - 1);
+	end
+
+let pop_ret ctx f n =
+	let v = f() in
+	pop ctx n;
+	v
+
+let push ctx v =
+	DynArray.add ctx.stack v
+
 let catch_errors ctx ?(final=(fun() -> ())) f =
+	let n = DynArray.length ctx.stack in
 	try
 		let v = f() in
 		final();
 		Some v
 	with Runtime v ->
+		pop ctx (DynArray.length ctx.stack - n);
 		final();
-		raise (Error (ctx.do_string v,List.map (fun (p,_,_) -> make_pos p) ctx.callstack))
+		raise (Error (ctx.do_string v,List.map (fun s -> make_pos s.cpos) ctx.callstack))
 	| Abort ->
+		pop ctx (DynArray.length ctx.stack - n);
 		final();
 		None
 
@@ -521,7 +552,7 @@ let builtins =
 		"throw", Fun1 (fun v -> exc v);
 		"rethrow", Fun1 (fun v ->
 			let ctx = get_ctx() in
-			ctx.callstack <- List.rev (List.map (fun p -> p,VNull,PMap.empty) ctx.exc) @ ctx.callstack;
+			ctx.callstack <- List.rev (List.map (fun p -> { cpos = p; cthis = ctx.vthis; cstack = DynArray.length ctx.stack; cenv = ctx.venv }) ctx.exc) @ ctx.callstack;
 			exc v
 		);
 		"istrue", Fun1 (fun v ->
@@ -560,7 +591,7 @@ let builtins =
 			build_stack (get_ctx()).exc
 	 	);
 	 	"callstack", Fun0 (fun() ->
-	 		build_stack (List.map (fun (p,_,_) -> p) (get_ctx()).callstack)
+	 		build_stack (List.map (fun s -> s.cpos) (get_ctx()).callstack)
 	 	);
 	 	"version", Fun0 (fun() ->
 	 		VInt 0
@@ -1607,7 +1638,7 @@ let macro_lib =
 			let cache = ref [] in
 			let hfiles = Hashtbl.create 0 in
 			let get_file f =
-				try 
+				try
 					Hashtbl.find hfiles f
 				with Not_found ->
 					let ff = (try Common.get_full_path f with _ -> f) in
@@ -1745,19 +1776,42 @@ let macro_lib =
 (* EVAL *)
 
 let throw ctx p msg =
-	ctx.callstack <- (p,ctx.vthis,ctx.locals) :: ctx.callstack;
+	ctx.callstack <- { cpos = p; cthis = ctx.vthis; cstack = DynArray.length ctx.stack; cenv = ctx.venv } :: ctx.callstack;
 	exc (VString msg)
 
-let local ctx var value =
-	ctx.locals <- PMap.add var (ref value) ctx.locals
+let declare ctx var =
+	ctx.locals_map <- PMap.add var ctx.locals_count ctx.locals_map;
+	ctx.locals_count <- ctx.locals_count + 1
+
+let save_locals ctx =
+	let old, oldcount = ctx.locals_map, ctx.locals_count in
+	(fun() ->
+		let n = ctx.locals_count - oldcount in
+		ctx.locals_count <- oldcount;
+		ctx.locals_map <- old;
+		n;
+	)
 
 let get_ident ctx s =
 	try
-		!(PMap.find s ctx.locals)
+		let index = PMap.find s ctx.locals_map in
+		if index >= ctx.locals_barrier then
+			AccLocal (ctx.locals_count - index)
+		else (try
+			AccEnv (DynArray.index_of (fun s2 -> s = s2) ctx.locals_env)
+		with Not_found ->
+			let index = DynArray.length ctx.locals_env in
+			DynArray.add ctx.locals_env s;
+			AccEnv index
+		)
 	with Not_found -> try
-		Hashtbl.find ctx.globals s
+		AccGlobal (PMap.find s ctx.globals)
 	with Not_found ->
-		VNull
+		let g = ref VNull in
+		ctx.globals <- PMap.add s g ctx.globals;
+		AccGlobal g
+
+let no_env = [||]
 
 let rec eval ctx (e,p) =
 	match e with
@@ -1768,17 +1822,19 @@ let rec eval ctx (e,p) =
 		| Null -> (fun() -> VNull)
 		| This -> (fun() -> ctx.vthis)
 		| Int i -> (fun() -> VInt i)
-		| Float f -> 
+		| Float f ->
 			let f = float_of_string f in
-			(fun() -> VFloat f)			
+			(fun() -> VFloat f)
 		| String s -> (fun() -> VString s)
-		| Builtin s -> 
+		| Builtin s ->
 			let b = (try Hashtbl.find builtins s with Not_found -> throw ctx p ("Builtin not found '" ^ s ^ "'")) in
 			(fun() -> b)
 		| Ident s ->
-			(fun() -> get_ident ctx s))
+			acc_get ctx p (get_ident ctx s))
 	| EBlock el ->
+		let old = save_locals ctx in
 		let el = List.map (eval ctx) el in
+		let n = old() in
 		let rec loop = function
 			| [] -> VNull
 			| [e] -> e()
@@ -1787,9 +1843,8 @@ let rec eval ctx (e,p) =
 				loop l
 		in
 		(fun() ->
-			let old = ctx.locals in
 			let v = loop el in
-			ctx.locals <- old;
+			pop ctx n;
 			v)
 	| EParenthesis e ->
 		eval ctx e
@@ -1826,48 +1881,52 @@ let rec eval ctx (e,p) =
 		let acc = AccArray (e1,e2) in
 		acc_get ctx p acc
 	| EVars vl ->
-		let vl = List.map (fun (v,eo) -> v, (match eo with None -> (fun() -> VNull) | Some e -> eval ctx e)) vl in
+		let vl = List.map (fun (v,eo) ->
+			let eo = (match eo with None -> (fun() -> VNull) | Some e -> eval ctx e) in
+			declare ctx v;
+			eo
+		) vl in
 		(fun() ->
-			List.iter (fun (v,e) -> local ctx v (e())) vl;
+			List.iter (fun e -> push ctx (e())) vl;
 			VNull
 		)
 	| EWhile (econd,e,NormalWhile) ->
 		let econd = eval ctx econd in
 		let e = eval ctx e in
-		let rec loop() =
+		let rec loop st =
 			match econd() with
 			| VBool true ->
 				let v = (try
 					ignore(e()); None
 				with
-					| Continue -> None
-					| Break v -> Some v
+					| Continue -> pop ctx (DynArray.length ctx.stack - st); None
+					| Break v -> pop ctx (DynArray.length ctx.stack - st); Some v
 				) in
 				(match v with
-				| None -> loop()
+				| None -> loop st
 				| Some v -> v)
 			| _ ->
 				VNull
 		in
-		(fun() -> try loop() with Sys.Break -> throw ctx p "Ctrl+C")
+		(fun() -> try loop (DynArray.length ctx.stack) with Sys.Break -> throw ctx p "Ctrl+C")
 	| EWhile (econd,e,DoWhile) ->
 		let e = eval ctx e in
 		let econd = eval ctx econd in
-		let rec loop() =
+		let rec loop st =
 			let v = (try
 				ignore(e()); None
 			with
-				| Continue -> None
-				| Break v -> Some v
+				| Continue -> pop ctx (DynArray.length ctx.stack - st); None
+				| Break v -> pop ctx (DynArray.length ctx.stack - st); Some v
 			) in
 			match v with
 			| Some v -> v
 			| None ->
 				match econd() with
-				| VBool true -> loop()
+				| VBool true -> loop st
 				| _ -> VNull
 		in
-		loop
+		(fun() -> loop (DynArray.length ctx.stack))
 	| EIf (econd,eif,eelse) ->
 		let econd = eval ctx econd in
 		let eif = eval ctx eif in
@@ -1878,95 +1937,118 @@ let rec eval ctx (e,p) =
 			| _ -> eelse()
 		)
 	| ETry (e,exc,ecatch) ->
+		let old = save_locals ctx in
 		let e = eval ctx e in
+		let n1 = old() in
+		declare ctx exc;
 		let ecatch = eval ctx ecatch in
+		let n2 = old() in
 		(fun() ->
-			let locals = ctx.locals in
 			let vthis = ctx.vthis in
+			let venv = ctx.venv in
 			let stack = ctx.callstack in
+			let size = DynArray.length ctx.stack in
 			try
-				e()
+				pop_ret ctx e n1
 			with Runtime v ->
 				let rec loop n l =
-					if n = 0 then List.map (fun (p,_,_) -> p) l else
+					if n = 0 then List.map (fun s -> s.cpos) l else
 					match l with
 					| [] -> []
 					| _ :: l -> loop (n - 1) l
 				in
 				ctx.exc <- loop (List.length stack) (List.rev ctx.callstack);
 				ctx.callstack <- stack;
-				ctx.locals <- locals;
 				ctx.vthis <- vthis;
-				local ctx exc v;
-				ecatch());
+				ctx.venv <- venv;
+				pop ctx (DynArray.length ctx.stack - size);
+				push ctx v;
+				pop_ret ctx ecatch n2
+			)
 	| EFunction (pl,e) ->
+		let old = save_locals ctx in
+		let oldb, oldenv = ctx.locals_barrier, ctx.locals_env in
+		ctx.locals_barrier <- ctx.locals_count;
+		ctx.locals_env <- DynArray.create();
+		List.iter (declare ctx) pl;
 		let e = eval ctx e in
+		ignore(old());
+		let env = ctx.locals_env in
+		ctx.locals_barrier <- oldb;
+		ctx.locals_env <- oldenv;
+		let env = DynArray.to_array (DynArray.map (fun s ->
+			acc_get ctx p (get_ident ctx s)) env
+		) in
+		let init_env = if Array.length env = 0 then
+			(fun() -> no_env)
+		else
+			(fun() -> Array.map (fun e -> e()) env)
+		in
 		(match pl with
 		| [] ->
 			(fun() ->
-				let locals = ctx.locals in
-				VFunction (Fun0 (fun() -> 
-					ctx.locals <- locals;
-					e();
-				)))
+				let env = init_env() in
+				VFunction (Fun0 (fun() ->
+					ctx.venv <- env;
+					e())))
 		| [a] ->
 			(fun() ->
-				let locals = ctx.locals in
+				let env = init_env() in
 				VFunction (Fun1 (fun v ->
-					ctx.locals <- locals;
-					local ctx a v;
+					ctx.venv <- env;
+					push ctx v;
 					e();
 				)))
 		| [a;b] ->
 			(fun() ->
-				let locals = ctx.locals in
+				let env = init_env() in
 				VFunction (Fun2 (fun va vb ->
-					ctx.locals <- locals;
-					local ctx a va;
-					local ctx b vb;
+					ctx.venv <- env;
+					push ctx va;
+					push ctx vb;
 					e();
 				)))
 		| [a;b;c] ->
 			(fun() ->
-				let locals = ctx.locals in
+				let env = init_env() in
 				VFunction (Fun3 (fun va vb vc ->
-					ctx.locals <- locals;
-					local ctx a va;
-					local ctx b vb;
-					local ctx c vc;
+					ctx.venv <- env;
+					push ctx va;
+					push ctx vb;
+					push ctx vc;
 					e();
 				)))
 		| [a;b;c;d] ->
 			(fun() ->
-				let locals = ctx.locals in
+				let env = init_env() in
 				VFunction (Fun4 (fun va vb vc vd ->
-					ctx.locals <- locals;
-					local ctx a va;
-					local ctx b vb;
-					local ctx c vc;
-					local ctx d vd;
+					ctx.venv <- env;
+					push ctx va;
+					push ctx vb;
+					push ctx vc;
+					push ctx vd;
 					e();
 				)))
 		| [a;b;c;d;pe] ->
 			(fun() ->
-				let locals = ctx.locals in
+				let env = init_env() in
 				VFunction (Fun5 (fun va vb vc vd ve ->
-					ctx.locals <- locals;
-					local ctx a va;
-					local ctx b vb;
-					local ctx c vc;
-					local ctx d vd;
-					local ctx pe ve;
+					ctx.venv <- env;
+					push ctx va;
+					push ctx vb;
+					push ctx vc;
+					push ctx vd;
+					push ctx ve;
 					e();
 				)))
 		| _ ->
 			(fun() ->
-				let locals = ctx.locals in
+				let env = init_env() in
 				VFunction (FunVar (fun vl ->
 					if List.length vl != List.length pl then exc (VString "Invalid call");
-					ctx.locals <- locals;
-					List.iter2 (local ctx) pl vl;
-					e()
+					ctx.venv <- env;
+					List.iter (push ctx) vl;
+					e();
 				)))
 		)
 	| EBinop (op,e1,e2) ->
@@ -2052,7 +2134,7 @@ and eval_access ctx (e,p) =
 		let idx = eval ctx eindex in
 		AccArray (v,idx)
 	| EConst (Ident s) ->
-		AccVar s
+		get_ident ctx s
 	| EConst This ->
 		AccThis
 	| _ ->
@@ -2070,7 +2152,8 @@ and eval_access_get_set ctx (e,p) =
 		let vcache = ref VNull and icache = ref VNull in
 		AccArray ((fun() -> vcache := v(); !vcache),(fun() -> icache := idx(); !icache)), AccArray ((fun() -> !vcache),(fun() -> !icache))
 	| EConst (Ident s) ->
-		AccVar s, AccVar s
+		let acc = get_ident ctx s in
+		acc, acc
 	| EConst This ->
 		AccThis, AccThis
 	| _ ->
@@ -2093,12 +2176,14 @@ and acc_get ctx p = function
 				| None -> throw ctx p "Invalid array access"
 				| Some v -> v)
 			| _ -> throw ctx p "Invalid array access"))
-	| AccVar s ->
-		(fun() ->
-			get_ident ctx s
-		)
+	| AccLocal i ->
+		(fun() -> DynArray.get ctx.stack (DynArray.length ctx.stack - i))
+	| AccGlobal g ->
+		(fun() -> !g)
 	| AccThis ->
 		(fun() -> ctx.vthis)
+	| AccEnv i ->
+		(fun() -> ctx.venv.(i))
 
 and acc_set ctx p acc value =
 	match acc with
@@ -2108,7 +2193,7 @@ and acc_set ctx p acc value =
 			let value = value() in
 			match v with
 			| VObject o -> Hashtbl.replace o.ofields f value; value
-			| _ -> throw ctx p ("Invalid field access : " ^ f))		
+			| _ -> throw ctx p ("Invalid field access : " ^ f))
 	| AccArray (e,index) ->
 		(fun() ->
 			let e = e() in
@@ -2121,19 +2206,25 @@ and acc_set ctx p acc value =
 				| None -> throw ctx p "Invalid array access"
 				| Some _ -> value);
 			| _ -> throw ctx p "Invalid array access"))
-	| AccVar s ->
+	| AccLocal i ->
 		(fun() ->
 			let value = value() in
-			(try
-				let v = PMap.find s ctx.locals in
-				v := value;
-			with Not_found ->
-				Hashtbl.replace ctx.globals s value);
+			DynArray.set ctx.stack (DynArray.length ctx.stack - i) value;
+			value)
+	| AccGlobal g ->
+		(fun() ->
+			let value = value() in
+			g := value;
 			value)
 	| AccThis ->
 		(fun() ->
 			let value = value() in
 			ctx.vthis <- value;
+			value)
+	| AccEnv i ->
+		(fun() ->
+			let value = value() in
+			ctx.venv.(i) <- value;
 			value)
 
 and number_op ctx p sop iop fop oop rop v1 v2 =
@@ -2295,7 +2386,7 @@ and eval_op ctx op e1 e2 p =
 	| "||" ->
 		let e1 = eval ctx e1 in
 		let e2 = eval ctx e2 in
-		(fun() -> 
+		(fun() ->
 			match e1() with
 			| VBool true as v -> v
 			| _ -> e2())
@@ -2312,11 +2403,11 @@ and eval_op ctx op e1 e2 p =
 
 and call ctx vthis vfun pl p =
 	let oldthis = ctx.vthis in
-	let locals = ctx.locals in
+	let stackpos = DynArray.length ctx.stack in
 	let oldstack = ctx.callstack in
-	ctx.locals <- PMap.empty;
+	let oldenv = ctx.venv in
 	ctx.vthis <- vthis;
-	ctx.callstack <- (p,oldthis,locals) :: ctx.callstack;
+	ctx.callstack <- { cpos = p; cthis = oldthis; cstack = stackpos; cenv = oldenv } :: ctx.callstack;
 	let ret = (try
 		(match vfun with
 		| VClosure (vl,f) ->
@@ -2337,9 +2428,10 @@ and call ctx vthis vfun pl p =
 		| Sys_error msg | Failure msg -> exc (VString msg)
 		| Unix.Unix_error (_,cmd,msg) -> exc (VString ("Error " ^ cmd ^ " " ^ msg))
 		| Builtin_error | Invalid_argument _ -> exc (VString "Invalid call")) in
-	ctx.locals <- locals;
 	ctx.vthis <- oldthis;
+	ctx.venv <- oldenv;
 	ctx.callstack <- oldstack;
+	pop ctx (DynArray.length ctx.stack - stackpos);
 	ret
 
 (* ---------------------------------------------------------------------- *)
@@ -2451,12 +2543,19 @@ let create com api =
 		types = Hashtbl.create 0;
 		error = false;
 		prototypes = Hashtbl.create 0;
-		globals = Hashtbl.create 0;
 		enums = [||];
-		locals = PMap.empty;
+		(* eval *)
+		locals_map = PMap.empty;
+		locals_count = 0;
+		locals_barrier = 0;
+		locals_env = DynArray.create();
+		globals = PMap.empty;
+		(* runtime *)
 		callstack = [];
+		stack = DynArray.create();
 		exc = [];
 		vthis = VNull;
+		venv = [||];
 		(* api *)
 		do_call = Obj.magic();
 		do_string = Obj.magic();
@@ -2517,10 +2616,10 @@ let call_path ctx path f vl api =
 let unwind_stack ctx =
 	match ctx.callstack with
 	| [] -> ()
-	| (p,vthis,locals) :: l ->
+	| s :: l ->
 		ctx.callstack <- l;
-		ctx.vthis <- vthis;
-		ctx.locals <- locals
+		ctx.vthis <- s.cthis;
+		pop ctx (DynArray.length ctx.stack - s.cstack)
 
 (* ---------------------------------------------------------------------- *)
 (* EXPR ENCODING *)
