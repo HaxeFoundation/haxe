@@ -1556,13 +1556,18 @@ let z_lib =
 		);
 		"deflate_buffer", Fun5 (fun z src pos dst dpos ->
 			match z, src, pos, dst, dpos with
-			| VAbstract (AZipI z), VString src, VInt pos, VString dst, VInt dpos ->
+			| VAbstract (AZipD z), VString src, VInt pos, VString dst, VInt dpos ->
 				let r = Extc.zlib_deflate z.z src pos (String.length src - pos) dst dpos (String.length dst - dpos) z.z_flush in
 				VObject (obj [
 					"done", VBool r.Extc.z_finish;
 					"read", VInt r.Extc.z_read;
 					"write", VInt r.Extc.z_wrote;
 				])
+			| _ -> error()
+		);
+		"deflate_bound", Fun2 (fun z size ->
+			match z, size with
+			| VAbstract (AZipD z), VInt size -> VInt (size + 1024)
 			| _ -> error()
 		);
 	]
