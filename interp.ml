@@ -36,7 +36,7 @@ type value =
 	| VClosure of value list * (value list -> value list -> value)
 
 and vobject = {
-	ofields : (string,value) Hashtbl.t;
+	mutable ofields : (int * value) array;
 	mutable oproto : vobject option;
 }
 
@@ -113,6 +113,7 @@ type context = {
 	gen : Genneko.context;
 	types : (Type.path,bool) Hashtbl.t;
 	prototypes : (string list, vobject) Hashtbl.t;
+	fields_cache : (int,string) Hashtbl.t;
 	mutable error : bool;
 	mutable enums : (value * string) array array;
 	mutable do_call : value -> value -> value list -> pos -> value;
@@ -211,16 +212,49 @@ let catch_errors ctx ?(final=(fun() -> ())) f =
 		final();
 		None
 
-let obj fields =
-	let h = Hashtbl.create 0 in
-	List.iter (fun (k,v) -> Hashtbl.replace h k v) fields;
-	{
-		ofields = h;
-		oproto = None;
-	}
+let hash f =
+	let h = ref 0 in
+	for i = 0 to String.length f - 1 do
+		h := !h * 223 + int_of_char (String.unsafe_get f i);
+	done;
+	!h
+
+let h_get = hash "__get" and h_set = hash "__set"
+and h_add = hash "__add" and h_radd = hash "__radd"
+and h_sub = hash "__sub" and h_rsub = hash "__rsub"
+and h_mult = hash "__mult" and h_rmult = hash "__rmult"
+and h_div = hash "__div" and h_rdiv = hash "__rdiv"
+and h_mod = hash "__mod" and h_rmod = hash "__rmod"
+and h_string = hash "__string" and h_compare = hash "__compare"
+
+and h_constructs = hash "__constructs__" and h_a = hash "__a" and h_s = hash "__s"
+and h_class = hash "__class__"
 
 let exc v =
 	raise (Runtime v)
+
+let hash_field ctx f =
+	let h = hash f in
+	(try
+		let f2 = Hashtbl.find ctx.fields_cache h in
+		if f <> f2 then exc (VString ("Field conflict between " ^ f ^ " and " ^ f2));
+	with Not_found ->
+		Hashtbl.add ctx.fields_cache h f);
+	h
+
+let field_name ctx fid =
+	try
+		Hashtbl.find ctx.fields_cache fid
+	with Not_found ->
+		"???"
+
+let obj fields =
+	let fields = Array.of_list (List.map (fun (k,v) -> hash k, v) fields) in
+	Array.sort (fun (k1,_) (k2,_) -> compare k1 k2) fields;
+	{
+		ofields = fields;
+		oproto = None;
+	}
 
 let parse_int s =
 	let rec loop_hex i =
@@ -278,21 +312,81 @@ let nargs = function
 	| Fun5 _ -> 5
 	| FunVar _ -> -1
 
-let rec get_field o fname =
-	try
-		Hashtbl.find o.ofields fname
-	with Not_found ->
-		match o.oproto with
-		| None -> VNull
-		| Some p -> get_field p fname
+let rec get_field o fid =
+	let rec loop min max =
+		if min < max then begin
+			let mid = (min + max) lsr 1 in
+			let cid, v = Array.unsafe_get o.ofields mid in
+			if cid < fid then
+				loop (mid + 1) max
+			else if cid > fid then
+				loop min mid
+			else
+				v
+		end else
+			match o.oproto with
+			| None -> VNull
+			| Some p -> get_field p fid
+	in
+	loop 0 (Array.length o.ofields)
 
-let rec get_field_opt o fname =
-	try
-		Some (Hashtbl.find o.ofields fname)
-	with Not_found ->
-		match o.oproto with
-		| None -> None
-		| Some p -> get_field_opt p fname
+let set_field o fid v =
+	let rec loop min max =
+		let mid = (min + max) lsr 1 in
+		if min < max then begin
+			let cid, _ = Array.unsafe_get o.ofields mid in
+			if cid < fid then
+				loop (mid + 1) max
+			else if cid > fid then
+				loop min mid
+			else
+				Array.unsafe_set o.ofields mid (cid,v)
+		end else
+			let fields = Array.make (Array.length o.ofields + 1) (fid,v) in
+			Array.blit o.ofields 0 fields 0 mid;
+			Array.blit o.ofields mid fields (mid + 1) (Array.length o.ofields - mid);
+			o.ofields <- fields
+	in
+	loop 0 (Array.length o.ofields)
+
+let rec remove_field o fid =
+	let rec loop min max =
+		let mid = (min + max) lsr 1 in
+		if min < max then begin
+			let cid, v = Array.unsafe_get o.ofields mid in
+			if cid < fid then
+				loop (mid + 1) max
+			else if cid > fid then
+				loop min mid
+			else begin
+				let fields = Array.make (Array.length o.ofields - 1) (fid,VNull) in
+				Array.blit o.ofields 0 fields 0 mid;
+				Array.blit o.ofields (mid + 1) fields mid (Array.length o.ofields - mid - 1);
+				o.ofields <- fields;
+				true
+			end
+		end else
+			false
+	in
+	loop 0 (Array.length o.ofields)
+
+let rec get_field_opt o fid =
+	let rec loop min max =
+		if min < max then begin
+			let mid = (min + max) lsr 1 in
+			let cid, v = Array.unsafe_get o.ofields mid in
+			if cid < fid then
+				loop (mid + 1) max
+			else if cid > fid then
+				loop min mid
+			else
+				Some v
+		end else
+			match o.oproto with
+			| None -> None
+			| Some p -> get_field_opt p fid
+	in
+	loop 0 (Array.length o.ofields)
 
 let make_library fl =
 	let h = Hashtbl.create 0 in
@@ -386,46 +480,46 @@ let builtins =
 	(* object *)
 		"new", Fun1 (fun o ->
 			match o with
-			| VNull -> VObject (obj [])
-			| VObject o -> VObject { ofields = Hashtbl.copy o.ofields; oproto = o.oproto }
+			| VNull -> VObject { ofields = [||]; oproto = None }
+			| VObject o -> VObject { ofields = Array.copy o.ofields; oproto = o.oproto }
 			| _ -> error()
 		);
 		"objget", Fun2 (fun o f ->
 			match o with
-			| VObject o -> get_field o (vstring f)
+			| VObject o -> get_field o (vint f)
 			| _ -> VNull
 		);
 		"objset", Fun3 (fun o f v ->
 			match o with
-			| VObject o -> Hashtbl.replace o.ofields (vstring f) v; v
+			| VObject o -> set_field o (vint f) v; v
 			| _ -> VNull
 		);
 		"objcall", Fun3 (fun o f pl ->
 			match o with
 			| VObject oo ->
-				(get_ctx()).do_call o (get_field oo (vstring f)) (Array.to_list (varray pl)) p
+				(get_ctx()).do_call o (get_field oo (vint f)) (Array.to_list (varray pl)) p
 			| _ -> VNull
 		);
 		"objfield", Fun2 (fun o f ->
 			match o with
-			| VObject o -> VBool (Hashtbl.mem o.ofields (vstring f))
+			| VObject o ->
+				let p = o.oproto in
+				o.oproto <- None;
+				let v = get_field_opt o (vint f) in
+				o.oproto <- p;
+				VBool (v <> None)
 			| _ -> VBool false
 		);
 		"objremove", Fun2 (fun o f ->
-			let o = vobj o in
-			let f =  vstring f in
-			if Hashtbl.mem o.ofields f then begin
-				Hashtbl.remove o.ofields f;
-				VBool true
-			end else
-				VBool false
+			VBool (remove_field (vobj o) (vint f))
 		);
 		"objfields", Fun1 (fun o ->
-			let fl = Hashtbl.fold (fun f _ acc -> VString f :: acc) (vobj o).ofields [] in
-			VArray (Array.of_list fl)
+			VArray (Array.map (fun (fid,_) -> VInt fid) (vobj o).ofields)
 		);
-		"hash", Fun1 (fun v -> VString (String.copy (vstring v)));
-		"field", Fun1 (fun v -> VString (vstring v));
+		"hash", Fun1 (fun v -> VInt (hash_field (get_ctx()) (vstring v)));
+		"field", Fun1 (fun v ->
+			try VString (Hashtbl.find (get_ctx()).fields_cache (vint v)) with Not_found -> VNull
+		);
 		"objsetproto", Fun2 (fun o p ->
 			let o = vobj o in
 			(match p with
@@ -501,6 +595,7 @@ let builtins =
 		"iskind", Fun2 (fun v k ->
 			match v, k with
 			| VAbstract a, VAbstract (AKind k) -> VBool (Obj.tag (Obj.repr a) = Obj.tag (Obj.repr k))
+			| _, VAbstract (AKind _) -> VBool false
 			| _ -> error()
 		);
 	(* hash *)
@@ -624,7 +719,7 @@ let builtins =
 		"loadmodule",VFunction (Fun2 (fun a b -> assert false));
 	] in
 	Hashtbl.add h "loader" (VObject loader);
-	Hashtbl.add h "exports" (VObject { ofields = Hashtbl.create 0; oproto = None });
+	Hashtbl.add h "exports" (VObject { ofields = [||]; oproto = None });
 	h
 
 (* ---------------------------------------------------------------------- *)
@@ -1370,17 +1465,17 @@ let std_lib =
 			| VString str, VObject events ->
 				let ctx = get_ctx() in
 				let p = { psource = "parse_xml"; pline = 0 } in
-				let xml = get_field events "xml" in
-				let don = get_field events "done" in
-				let pcdata = get_field events "pcdata" in
+				let xml = get_field events (hash "xml") in
+				let don = get_field events (hash "done") in
+				let pcdata = get_field events (hash "pcdata") in
 				(*
 
 				Since we use the Xml parser, we don't have support for
 				- CDATA
 				- comments, prolog, doctype (allowed but skipped)
 
-				let cdata = get_field events "cdata" in
-				let comment = get_field events "comment" in
+				let cdata = get_field events (hash "cdata") in
+				let comment = get_field events (hash "comment") in
 				*)
 				let rec loop = function
 					| Xml.Element (node, attribs, children) ->
@@ -1647,6 +1742,7 @@ let macro_lib =
 					Hashtbl.find hfiles f
 				with Not_found ->
 					let ff = (try Common.get_full_path f with _ -> f) in
+					let ff = String.concat "/" (ExtString.String.nsplit ff "\\") in
 					Hashtbl.add hfiles f ff;
 					ff
 			in
@@ -1661,12 +1757,10 @@ let macro_lib =
 					with Not_found ->
 				match v with
 				| VObject o ->
-					let o2 = { ofields = Hashtbl.create 0; oproto = None } in
+					let o2 = { ofields = [||]; oproto = None } in
 					let v2 = VObject o2 in
 					cache := (v,v2) :: !cache;
-					Hashtbl.iter (fun k v ->
-						if k <> "__class__" then Hashtbl.add o2.ofields k (loop v)
-					) o.ofields;
+					Array.iter (fun (f,v) -> if f <> h_class then set_field o2 f (loop v)) o.ofields;
 					(match o.oproto with
 					| None -> ()
 					| Some p -> (match loop (VObject p) with VObject p2 -> o2.oproto <- Some p2 | _ -> assert false));
@@ -1855,9 +1949,10 @@ let rec eval ctx (e,p) =
 		eval ctx e
 	| EField (e,f) ->
 		let e = eval ctx e in
+		let h = hash_field ctx f in
 		(fun() ->
 			match e() with
-			| VObject o -> get_field o f
+			| VObject o -> get_field o h
 			| _ -> throw ctx p ("Invalid field access : " ^ f)
 		)
 	| ECall (e,el) ->
@@ -1865,11 +1960,12 @@ let rec eval ctx (e,p) =
 		(match fst e with
 		| EField (e,f) ->
 			let e = eval ctx e in
+			let h = hash_field ctx f in
 			(fun() ->
 				let pl = List.map (fun f -> f()) el in
 				let o = e() in
 				let f = (match o with
-				| VObject o -> get_field o f
+				| VObject o -> get_field o h
 				| _ -> throw ctx p ("Invalid field access : " ^ f)
 				) in
 				call ctx o f pl p
@@ -2075,15 +2171,15 @@ let rec eval ctx (e,p) =
 		let e2 = eval ctx e2 in
 		(fun() -> ignore(e1()); e2())
 	| EObject fl ->
-		let fl = List.map (fun (f,e) -> f, eval ctx e) fl in
+		let fl = List.map (fun (f,e) -> hash_field ctx f, eval ctx e) fl in
+		let fields = Array.of_list (List.map (fun (f,_) -> f,VNull) fl) in
+		Array.sort (fun (f1,_) (f2,_) -> compare f1 f2) fields;
 		(fun() ->
 			let o = {
-				ofields = Hashtbl.create 0;
+				ofields = Array.copy fields;
 				oproto = None;
 			} in
-			List.iter (fun (f,e) ->
-				Hashtbl.add o.ofields f (e())
-			) fl;
+			List.iter (fun (f,e) -> set_field o f (e())) fl;
 			VObject o
 		)
 	| ELabel l ->
@@ -2166,9 +2262,10 @@ and eval_access_get_set ctx (e,p) =
 
 and acc_get ctx p = function
 	| AccField (v,f) ->
+		let h = hash_field ctx f in
 		(fun() ->
 			match v() with
-			| VObject o -> get_field o f
+			| VObject o -> get_field o h
 			| _ -> throw ctx p ("Invalid field access : " ^ f))
 	| AccArray (e,index) ->
 		(fun() ->
@@ -2177,7 +2274,7 @@ and acc_get ctx p = function
 			(match index, e with
 			| VInt i, VArray a -> (try Array.get a i with _ -> VNull)
 			| _, VObject o ->
-				(match eval_oop ctx p o "__get" [index] with
+				(match eval_oop ctx p o h_get [index] with
 				| None -> throw ctx p "Invalid array access"
 				| Some v -> v)
 			| _ -> throw ctx p "Invalid array access"))
@@ -2193,11 +2290,12 @@ and acc_get ctx p = function
 and acc_set ctx p acc value =
 	match acc with
 	| AccField (v,f) ->
+		let h = hash_field ctx f in
 		(fun() ->
 			let v = v() in
 			let value = value() in
 			match v with
-			| VObject o -> Hashtbl.replace o.ofields f value; value
+			| VObject o -> set_field o h value; value
 			| _ -> throw ctx p ("Invalid field access : " ^ f))
 	| AccArray (e,index) ->
 		(fun() ->
@@ -2207,7 +2305,7 @@ and acc_set ctx p acc value =
 			(match index, e with
 			| VInt i, VArray a -> (try Array.set a i value; value with _ -> throw ctx p "Invalid array access")
 			| _, VObject o ->
-				(match eval_oop ctx p o "__set" [index;value] with
+				(match eval_oop ctx p o h_set [index;value] with
 				| None -> throw ctx p "Invalid array access"
 				| Some _ -> value);
 			| _ -> throw ctx p "Invalid array access"))
@@ -2277,23 +2375,23 @@ and base_op ctx op v1 v2 p =
 			let v1 = v1() in
 			let v2 = v2() in
 			match v1, v2 with
-			| VInt _, VInt _ | VInt _ , VFloat _ | VFloat _ , VInt _ | VFloat _ , VFloat _ | VObject _ , _ | _ , VObject _ -> exc_number_op ctx p op (+) (+.) "__add" "__radd" v1 v2
+			| VInt _, VInt _ | VInt _ , VFloat _ | VFloat _ , VInt _ | VFloat _ , VFloat _ | VObject _ , _ | _ , VObject _ -> exc_number_op ctx p op (+) (+.) h_add h_radd v1 v2
 			| VString a, _ -> VString (a ^ ctx.do_string v2)
 			| _, VString b -> VString (ctx.do_string v1 ^ b)
 			| _ -> throw ctx p op)
 	| "-" ->
-		number_op ctx p op (-) (-.) "__sub" "__rsub" v1 v2
+		number_op ctx p op (-) (-.) h_sub h_rsub v1 v2
 	| "*" ->
-		number_op ctx p op ( * ) ( *. ) "__mult" "__rmul" v1 v2
+		number_op ctx p op ( * ) ( *. ) h_mult h_rmult v1 v2
 	| "/" ->
 		(fun() ->
 			let v1 = v1() in
 			let v2 = v2() in
 			match v1, v2 with
 			| VInt i, VInt j -> VFloat ((float_of_int i) /. (float_of_int j))
-			| _ -> exc_number_op ctx p op (/) (/.) "__div" "__rdiv" v1 v2)
+			| _ -> exc_number_op ctx p op (/) (/.) h_div h_rdiv v1 v2)
 	| "%" ->
-		number_op ctx p op (fun x y -> x mod y) mod_float "__mod" "__rmod" v1 v2
+		number_op ctx p op (fun x y -> x mod y) mod_float h_mod h_rmod v1 v2
 	| "&" ->
 		int_op ctx p op (fun x y -> x land y) v1 v2
 	| "|" ->
@@ -2428,7 +2526,7 @@ and call ctx vthis vfun pl p =
 			| _, FunVar f -> f pl
 			| _ -> exc (VString (Printf.sprintf "Invalid call (%d args instead of %d)" (List.length pl) (nargs f))))
 		| _ ->
-			exc (VString ("Invalid call " ^ ctx.do_string vfun)))
+			exc (VString "Invalid call"))
 	with Return v -> v
 		| Sys_error msg | Failure msg -> exc (VString msg)
 		| Unix.Unix_error (_,cmd,msg) -> exc (VString ("Error " ^ cmd ^ " " ^ msg))
@@ -2462,19 +2560,19 @@ let rec to_string ctx n v =
 	| VFunction f -> "#function:"  ^ string_of_int (nargs f)
 	| VClosure _ -> "#function:-1"
 	| VObject o ->
-		match eval_oop ctx null_pos o "__string" [] with
+		match eval_oop ctx null_pos o h_string [] with
 		| Some (VString s) -> s
 		| _ ->
 			let b = Buffer.create 0 in
 			let first = ref true in
 			Buffer.add_char b '{';
-			Hashtbl.iter (fun f v ->
+			Array.iter (fun (f,v) ->
 				if !first then begin
 					Buffer.add_char b ' ';
 					first := false;
 				end else
 					Buffer.add_string b ", ";
-				Buffer.add_string b f;
+				Buffer.add_string b (field_name ctx f);
 				Buffer.add_string b " => ";
 				Buffer.add_string b (to_string ctx n v);
 			) o.ofields;
@@ -2500,7 +2598,7 @@ let rec compare ctx a b =
 	| VString s, VBool _ -> scmp s (to_string ctx 0 b)
 	| VObject oa, VObject ob ->
 		if oa == ob then CEq else
-			(match eval_oop ctx null_pos oa "__compare" [b] with
+			(match eval_oop ctx null_pos oa h_compare [b] with
 			| Some (VInt i) -> if i = 0 then CEq else if i < 0 then CInf else CSup
 			| _ -> CUndef)
 	| VAbstract a, VAbstract b ->
@@ -2561,6 +2659,7 @@ let create com api =
 		exc = [];
 		vthis = VNull;
 		venv = [||];
+		fields_cache = Hashtbl.create 0;
 		(* api *)
 		do_call = Obj.magic();
 		do_string = Obj.magic();
@@ -2613,7 +2712,7 @@ let call_path ctx path f vl api =
 	catch_errors ctx ~final:(fun() -> ctx.curapi <- old) (fun() ->
 		match get_path ctx path p with
 		| VObject o ->
-			let f = get_field o f in
+			let f = get_field o (hash f) in
 			call ctx (VObject o) f vl p
 		| _ -> assert false
 	)
@@ -2662,13 +2761,13 @@ let init ctx =
 	let get_enum_proto e =
 		match get_path ctx ["haxe";"macro";enum_name e] null_pos with
 		| VObject e ->
-			(match get_field e "__constructs__" with
+			(match get_field e h_constructs with
 			| VObject cst ->
-				(match get_field cst "__a" with
+				(match get_field cst h_a with
 				| VArray a ->
 					Array.map (fun s ->
 						match s with
-						| VObject s -> (match get_field s "__s" with VString s -> get_field e s,s | _ -> assert false)
+						| VObject s -> (match get_field s h_s with VString s -> get_field e (hash s),s | _ -> assert false)
 						| _ -> assert false
 					) a
 				| _ -> assert false)
@@ -2687,8 +2786,6 @@ let encode_pos p =
 	VAbstract (APos p)
 
 let enc_inst path fields =
-	let h = Hashtbl.create 0 in
-	List.iter (fun (f,v) -> Hashtbl.add h f v) fields;
 	let ctx = get_ctx() in
 	let p = (try Hashtbl.find ctx.prototypes path with Not_found -> try
 		(match get_path ctx (path@["prototype"]) Nast.null_pos with
@@ -2697,10 +2794,9 @@ let enc_inst path fields =
 	with Runtime _ ->
 		failwith ("Prototype not found " ^ String.concat "." path)
 	) in
-	VObject {
-		ofields = h;
-		oproto = Some p;
-	}
+	let o = obj fields in
+	o.oproto <- Some p;
+	VObject o
 
 let enc_array l =
 	let a = Array.of_list l in
@@ -2967,7 +3063,7 @@ let decode_pos = function
 
 let field v f =
 	match v with
-	| VObject o -> (try Hashtbl.find o.ofields f with Not_found -> VNull)
+	| VObject o -> get_field o (hash f)
 	| _ -> raise Invalid_expr
 
 let decode_enum v =
@@ -3410,7 +3506,7 @@ and encode_texpr e =
 let decode_tdecl v =
 	match v with
 	| VObject o ->
-		(match get_field o "__t" with
+		(match get_field o (hash "__t") with
 		| VAbstract (ATDecl t) -> t
 		| _ -> raise Invalid_expr)
 	| _ -> raise Invalid_expr
