@@ -691,7 +691,12 @@ with
 					(f.Type.cf_name,Type.s_type ctx f.Type.cf_type,match f.Type.cf_doc with None -> "" | Some d -> d) :: acc
 			) a.Type.a_fields [] in
 			let fields = if !measure_times then begin
-				close_time();
+				let rec loop() =
+					match !curtime with
+					| [] -> ()
+					| _ -> close_time(); loop();
+				in
+				loop();
 				let tot = ref 0. in
 				Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
 				let fields = ("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. start), "") :: fields in

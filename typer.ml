@@ -1944,6 +1944,19 @@ let parse_string ctx s p =
 	| [(d,_)] -> d
 	| _ -> assert false
 
+let macro_timer ctx path =
+	Common.timer (if Common.defined ctx.com "macrotimes" then "macro " ^ path else "macro execution")
+
+let typing_timer f =
+	let t = Common.timer "typing" in
+	try
+		let r = f() in
+		t();
+		r
+	with e ->
+		t();
+		raise e
+
 let make_macro_api ctx p =
 	let make_instance = function
 		| TClassDecl c -> TInst (c,List.map snd c.cl_types)
@@ -1955,18 +1968,26 @@ let make_macro_api ctx p =
 		Interp.defined = Common.defined ctx.com;
 		Interp.define = Common.define ctx.com;
 		Interp.get_type = (fun s ->
-			let path = parse_path s in
-			try
-				Some (Typeload.load_instance ctx { tpackage = fst path; tname = snd path; tparams = []; tsub = None } p true)
-			with Error (Module_not_found _,p2) when p == p2 ->
-				None
+			typing_timer (fun() ->
+				let path = parse_path s in
+				try
+					Some (Typeload.load_instance ctx { tpackage = fst path; tname = snd path; tparams = []; tsub = None } p true)
+				with Error (Module_not_found _,p2) when p == p2 ->
+					None
+			)
 		);
 		Interp.get_module = (fun s ->
-			let path = parse_path s in
-			List.map make_instance (Typeload.load_module ctx path p).mtypes
+			typing_timer (fun() ->
+				let path = parse_path s in
+				List.map make_instance (Typeload.load_module ctx path p).mtypes
+			)
 		);
 		Interp.on_generate = (fun f ->
-			Common.add_filter ctx.com (fun() -> f (List.map make_instance ctx.com.types))
+			Common.add_filter ctx.com (fun() -> 
+				let t = macro_timer ctx "onGenerate" in
+				f (List.map make_instance ctx.com.types);
+				t()
+			)
 		);
 		Interp.parse_string = (fun s p ->
 			let head = "class X{static function main() " in
@@ -1976,22 +1997,26 @@ let make_macro_api ctx p =
 			| _ -> assert false
 		);
 		Interp.typeof = (fun e ->
-			let old_err = ctx.com.error in
-			ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));
-			let e = (try type_expr ctx ~need_val:true e with Error (msg,_) -> ctx.com.error <- old_err; failwith (error_msg msg)) in
-			ctx.com.error <- old_err;
-			e.etype
+			typing_timer (fun() ->
+				let old_err = ctx.com.error in
+				ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));
+				let e = (try type_expr ctx ~need_val:true e with Error (msg,_) -> ctx.com.error <- old_err; failwith (error_msg msg)) in
+				ctx.com.error <- old_err;
+				e.etype
+			)
 		);
 		Interp.type_patch = (fun t f s v ->
-			let v = (match v with None -> None | Some s ->
-				match parse_string ctx ("typedef T = " ^ s) null_pos with
-				| ETypedef { d_data = ct } -> Some ct
-				| _ -> assert false
-			) in
-			let tp = get_type_patch ctx t (Some (f,s)) in
-			match v with
-			| None -> tp.tp_remove <- true
-			| Some _ -> tp.tp_type <- v
+			typing_timer (fun() ->
+				let v = (match v with None -> None | Some s ->
+					match parse_string ctx ("typedef T = " ^ s) null_pos with
+					| ETypedef { d_data = ct } -> Some ct
+					| _ -> assert false
+				) in
+				let tp = get_type_patch ctx t (Some (f,s)) in
+				match v with
+				| None -> tp.tp_remove <- true
+				| Some _ -> tp.tp_type <- v
+			);
 		);
 		Interp.meta_patch = (fun m t f s ->
 			let m = (match parse_string ctx (m ^ " typedef T = T") null_pos with
@@ -2007,7 +2032,7 @@ let make_macro_api ctx p =
 		Interp.set_js_generator = (fun gen ->
 			let js_ctx = Genjs.alloc_ctx ctx.com in
 			ctx.com.js_gen <- Some (fun() ->
-				let ctx = Interp.enc_obj [
+				let jsctx = Interp.enc_obj [
 					"outputFile", Interp.enc_string ctx.com.file;
 					"types", Interp.enc_array (List.map (fun t -> Interp.encode_type (make_instance t)) ctx.com.types);
 					"main", (match ctx.com.main with None -> Interp.VNull | Some e -> Interp.encode_texpr e);
@@ -2051,7 +2076,9 @@ let make_macro_api ctx p =
 					"stackVar", Interp.enc_string (js_ctx.Genjs.stack.Codegen.stack_var);
 					"excVar", Interp.enc_string (js_ctx.Genjs.stack.Codegen.stack_exc_var);
 				] in
-				gen ctx
+				let t = macro_timer ctx "jsGenerator" in
+				gen jsctx;
+				t()
 			);
 		);
 		Interp.get_cur_class = (fun() -> Some ctx.curclass);
@@ -2061,7 +2088,12 @@ let make_macro_api ctx p =
 	}
 
 let load_macro ctx cpath f p =
-	let t = Common.timer "macro execution" in
+	(*
+		The time measured here takes into account both macro typing an init, but benchmarks
+		shows that - unless you re doing heavy statics vars init - the time is mostly spent in
+		typing the classes needed for macro execution.
+	*)
+	let t = macro_timer ctx "typing (+init)" in
 	let api = make_macro_api ctx p in
 	let ctx2 = (match ctx.g.macros with
 		| Some (select,ctx) ->
@@ -2115,10 +2147,12 @@ let load_macro ctx cpath f p =
 		ctx2.com.types <- types;
 		ctx2.com.Common.modules <- modules;
 		Interp.add_types mctx types;
-	end else t();
+	end;
+	t();
 	let call args =
+		let t = macro_timer ctx (s_type_path cpath ^ "." ^ f) in
 		let r = Interp.call_path mctx ((fst cpath) @ [snd cpath]) f args api in
-		if not in_macro then t();
+		t();
 		r
 	in
 	ctx2, meth, call
