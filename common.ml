@@ -120,7 +120,7 @@ let create v =
 			tnull = (fun _ -> assert false);
 			tstring = m;
 			tarray = (fun _ -> assert false);
-		};		
+		};
 	}
 
 let clone com =
@@ -190,7 +190,7 @@ let get_full_path = Extc.get_full_path
 
 type timer_infos = {
 	name : string;
-	mutable start : float;
+	mutable start : float list;
 	mutable total : float;
 }
 
@@ -200,20 +200,24 @@ let htimers = Hashtbl.create 0
 let new_timer name =
 	try
 		let t = Hashtbl.find htimers name in
-		t.start <- get_time();
+		t.start <- get_time() :: t.start;
 		t
 	with Not_found ->
-		let t = { name = name; start = get_time(); total = 0.; } in
+		let t = { name = name; start = [get_time()]; total = 0.; } in
 		Hashtbl.add htimers name t;
 		t
 
 let curtime = ref []
 
 let close t =
-	let dt = get_time() -. t.start in
+	let start = (match t.start with
+		| [] -> assert false
+		| s :: l -> t.start <- l; s
+	) in
+	let dt = get_time() -. start in
 	t.total <- t.total +. dt;
 	curtime := List.tl !curtime;
-	List.iter (fun ct -> ct.start <- ct.start +. dt) !curtime
+	List.iter (fun ct -> ct.start <- List.map (fun t -> t +. dt) ct.start) !curtime
 
 let timer name =
 	let t = new_timer name in
@@ -223,4 +227,4 @@ let timer name =
 let rec close_time() =
 	match !curtime with
 	| [] -> ()
-	| t :: _ -> close t	
+	| t :: _ -> close t
