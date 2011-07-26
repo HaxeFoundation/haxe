@@ -23,6 +23,7 @@
 	flash9 : no longer auto create enums from SWF classes
 		(need explicit "enum" type patch)
 	all : optimized variable tracking/renaming
+	all : added -D macrotimes support
 
 2011-01-30: 2.07
 	all : fixed completion support with --remap
