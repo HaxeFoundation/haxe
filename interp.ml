@@ -248,7 +248,7 @@ let field_name ctx fid =
 	with Not_found ->
 		"???"
 
-let obj fields =
+let obj hash fields =
 	let fields = Array.of_list (List.map (fun (k,v) -> hash k, v) fields) in
 	Array.sort (fun (k1,_) (k2,_) -> compare k1 k2) fields;
 	{
@@ -713,7 +713,7 @@ let builtins =
 	let h = Hashtbl.create 0 in
 	List.iter (fun (n,f) -> Hashtbl.add h n (VFunction f)) funcs;
 	List.iter (fun (n,v) -> Hashtbl.add h n v) vals;
-	let loader = obj [
+	let loader = obj hash [
 		"args",VArray [||];
 		"loadprim",VFunction (Fun2 (fun a b -> (get_ctx()).do_loadprim a b));
 		"loadmodule",VFunction (Fun2 (fun a b -> assert false));
@@ -885,7 +885,7 @@ let std_lib =
 		);
 		"date_get_hour", Fun1 (fun d ->
 			let t = Unix.localtime (date d) in
-			let o = obj [
+			let o = obj (hash_field (get_ctx())) [
 				"h", VInt t.tm_hour;
 				"m", VInt t.tm_min;
 				"s", VInt t.tm_sec;
@@ -894,7 +894,7 @@ let std_lib =
 		);
 		"date_get_day", Fun1 (fun d ->
 			let t = Unix.localtime (date d) in
-			let o = obj [
+			let o = obj (hash_field (get_ctx())) [
 				"d", VInt t.tm_mday;
 				"m", VInt (t.tm_mon + 1);
 				"y", VInt (t.tm_year + 1900);
@@ -1332,7 +1332,7 @@ let std_lib =
 		);
 		"sys_stat", Fun1 (fun file ->
 			let s = Unix.stat (vstring file) in
-			VObject (obj [
+			VObject (obj (hash_field (get_ctx())) [
 				"gid", VInt s.st_gid;
 				"uid", VInt s.st_uid;
 				"atime", VAbstract (AInt32 (Int32.of_float s.st_atime));
@@ -1476,10 +1476,10 @@ let std_lib =
 
 				let cdata = get_field events (hash "cdata") in
 				let comment = get_field events (hash "comment") in
-				*)
+				*)				
 				let rec loop = function
 					| Xml.Element (node, attribs, children) ->
-						ignore(ctx.do_call o xml [VString node;VObject (obj (List.map (fun (a,v) -> a, VString v) attribs))] p);
+						ignore(ctx.do_call o xml [VString node;VObject (obj (hash_field ctx) (List.map (fun (a,v) -> a, VString v) attribs))] p);
 						List.iter loop children;
 						ignore(ctx.do_call o don [] p);
 					| Xml.PCData s ->
@@ -1591,7 +1591,7 @@ let reg_lib =
 			| VAbstract (AReg r), VInt n ->
 				(match (try r.r_groups.(n) with _ -> failwith ("Invalid group " ^ string_of_int n)) with
 				| None -> VNull
-				| Some (pos,pend) -> VObject (obj ["pos",VInt pos;"len",VInt (pend - pos)]))
+				| Some (pos,pend) -> VObject (obj (hash_field (get_ctx())) ["pos",VInt pos;"len",VInt (pend - pos)]))
 			| _ -> error()
 		);
 		(* regexp_replace : not used by haXe *)
@@ -1642,7 +1642,7 @@ let z_lib =
 			match z, src, pos, dst, dpos with
 			| VAbstract (AZipI z), VString src, VInt pos, VString dst, VInt dpos ->
 				let r = Extc.zlib_inflate z.z src pos (String.length src - pos) dst dpos (String.length dst - dpos) z.z_flush in
-				VObject (obj [
+				VObject (obj (hash_field (get_ctx())) [
 					"done", VBool r.Extc.z_finish;
 					"read", VInt r.Extc.z_read;
 					"write", VInt r.Extc.z_wrote;
@@ -1653,7 +1653,7 @@ let z_lib =
 			match z, src, pos, dst, dpos with
 			| VAbstract (AZipD z), VString src, VInt pos, VString dst, VInt dpos ->
 				let r = Extc.zlib_deflate z.z src pos (String.length src - pos) dst dpos (String.length dst - dpos) z.z_flush in
-				VObject (obj [
+				VObject (obj (hash_field (get_ctx())) [
 					"done", VBool r.Extc.z_finish;
 					"read", VInt r.Extc.z_read;
 					"write", VInt r.Extc.z_wrote;
@@ -1829,7 +1829,7 @@ let macro_lib =
 		);
 		"get_pos_infos", Fun1 (fun p ->
 			match p with
-			| VAbstract (APos p) -> VObject (obj ["min",VInt p.Ast.pmin;"max",VInt p.Ast.pmax;"file",VString p.Ast.pfile])
+			| VAbstract (APos p) -> VObject (obj (hash_field (get_ctx())) ["min",VInt p.Ast.pmin;"max",VInt p.Ast.pmax;"file",VString p.Ast.pfile])
 			| _ -> error()
 		);
 		"make_pos", Fun3 (fun min max file ->
@@ -2794,7 +2794,7 @@ let enc_inst path fields =
 	with Runtime _ ->
 		failwith ("Prototype not found " ^ String.concat "." path)
 	) in
-	let o = obj fields in
+	let o = obj hash fields in
 	o.oproto <- Some p;
 	VObject o
 
@@ -2816,7 +2816,7 @@ let enc_hash h =
 		"h", VAbstract (AHash h);
 	]
 
-let enc_obj l = VObject (obj l)
+let enc_obj l = VObject (obj hash l)
 
 let enc_enum (i:enum_index) index pl =
 	let eindex : int = Obj.magic i in
@@ -3527,7 +3527,7 @@ let rec make_const e =
 	| TParenthesis e ->
 		make_const e
 	| TObjectDecl el ->
-		VObject (obj (List.map (fun (f,e) -> f, make_const e) el))
+		VObject (obj (hash_field (get_ctx())) (List.map (fun (f,e) -> f, make_const e) el))
 	| TArrayDecl al ->
 		enc_array (List.map make_const al)
 	| _ ->
