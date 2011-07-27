@@ -196,20 +196,20 @@ class Boot extends flash.display.MovieClip {
 	static function __init__() untyped {
 		var aproto = Array.prototype;
 		aproto.copy = function() {
-			return this.slice();
+			return __this__.slice();
 		};
 		aproto.insert = function(i,x) {
-			this.splice(i,0,x);
+			__this__.splice(i,0,x);
 		};
 		aproto.remove = function(obj) {
-			var idx = this.indexOf(obj);
+			var idx = __this__.indexOf(obj);
 			if( idx == -1 ) return false;
-			this.splice(idx,1);
+			__this__.splice(idx,1);
 			return true;
 		}
 		aproto.iterator = function() {
 			var cur = 0;
-			var arr : Array<Dynamic> = this;
+			var arr : Array<Dynamic> = __this__;
 			return {
 				hasNext : function() {
 					return cur < arr.length;
@@ -224,7 +224,7 @@ class Boot extends flash.display.MovieClip {
 		aproto.setPropertyIsEnumerable("remove", false);
 		aproto.setPropertyIsEnumerable("iterator", false);
 		String.prototype.charCodeAt = function(i) : Null<Int> {
-			var s : String = this;
+			var s : String = __this__;
 			var x : Float = s.cca(i);
 			if( __global__["isNaN"](x) )
 				return null;

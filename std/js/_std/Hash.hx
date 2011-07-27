@@ -72,8 +72,8 @@
 		return untyped {
 			ref : h,
 			it : keys(),
-			hasNext : function() { return this.it.hasNext(); },
-			next : function() { var i = this.it.next(); return this.ref["$"+i]; }
+			hasNext : function() { return __this__.it.hasNext(); },
+			next : function() { var i = __this__.it.next(); return __this__.ref["$"+i]; }
 		};
 	}
 

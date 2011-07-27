@@ -26,7 +26,7 @@
 @:core_api class Reflect {
 
 	public inline static function hasField( o : Dynamic, field : String ) : Bool untyped {
-		return this["hasOwnProperty"]["call"](o,field);
+		return __this__["hasOwnProperty"]["call"](o,field);
 	}
 
 	public inline static function field( o : Dynamic, field : String ) : Dynamic untyped {
@@ -72,7 +72,7 @@
 	}
 
 	public static function deleteField( o : Dynamic, f : String ) : Bool untyped {
-		if( this["hasOwnProperty"]["call"](o,f) != true ) return false;
+		if( __this__["hasOwnProperty"]["call"](o,f) != true ) return false;
 		__delete__(o,f);
 		return true;
 	}

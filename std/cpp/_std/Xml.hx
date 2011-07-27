@@ -54,34 +54,34 @@ enum XmlType {
 			cur : x,
 			xml : function(name,att) {
 				var x : Dynamic = new Xml();
-				x._parent = untyped this.cur;
+				x._parent = untyped __this__.cur;
 				x.nodeType = Xml.Element;
 				x._nodeName = new String(name);
 				x._attributes = att;
 				x._children = new Array();
 				untyped {
 					var i = 0;
-					this.cur.addChild(x);
-					this.cur = x;
+					__this__.cur.addChild(x);
+					__this__.cur = x;
 				}
 			},
 			cdata : function(text) {
 				var x = new Xml();
-				x._parent = untyped this.cur;
+				x._parent = untyped __this__.cur;
 				x.nodeType = Xml.CData;
 				x._nodeValue = new String(text);
-				untyped this.cur.addChild(x);
+				untyped __this__.cur.addChild(x);
 			},
 			pcdata : function(text) {
 				var x = new Xml();
-				x._parent = untyped this.cur;
+				x._parent = untyped __this__.cur;
 				x.nodeType = Xml.PCData;
 				x._nodeValue = new String(text);
-				untyped this.cur.addChild(x);
+				untyped __this__.cur.addChild(x);
 			},
 			comment : function(text:String) {
 				var x = new Xml();
-				x._parent = untyped this.cur;
+				x._parent = untyped __this__.cur;
 				if( untyped text.cca(0) == 63 ) {
 					x.nodeType = Xml.Prolog;
 					text = new String(text);
@@ -91,17 +91,17 @@ enum XmlType {
 					text = new String(text);
 				}
 				x._nodeValue = text;
-				untyped this.cur.addChild(x);
+				untyped __this__.cur.addChild(x);
 			},
 			doctype : function(text) {
 				var x = new Xml();
-				x._parent = untyped this.cur;
+				x._parent = untyped __this__.cur;
 				x.nodeType = Xml.DocType;
 				x._nodeValue = (new String(text)).substr(1);
-				untyped this.cur.addChild(x);
+				untyped __this__.cur.addChild(x);
 			},
 			done : function() {
-				untyped this.cur = this.cur._parent;
+				untyped __this__.cur = __this__.cur._parent;
 			}
 		};
 		untyped _parse(str,parser);
@@ -245,24 +245,24 @@ enum XmlType {
 		return untyped {
 			cur: 0,
 			hasNext : function() {
-				var k:Int = this.cur;
+				var k:Int = __this__.cur;
 				var l = children.length;
 				while( k < l ) {
 					if( children[k].nodeType == Xml.Element )
 						break;
 					k += 1;
 				}
-				this.cur = k;
+				__this__.cur = k;
 				return k < l;
 			},
 			next : function() {
-				var k = this.cur;
+				var k = __this__.cur;
 				var l = children.length;
 				while( k < l ) {
 					var n = children[k];
 					k += 1;
 					if( n.nodeType == Xml.Element ) {
-						this.cur = k;
+						__this__.cur = k;
 						return n;
 					}
 				}
@@ -278,7 +278,7 @@ enum XmlType {
 		return untyped {
 			cur: 0,
 			hasNext : function() {
-				var k = this.cur;
+				var k = __this__.cur;
 				var l = children.length;
 				while( k < l ) {
 					var n = children[k];
@@ -286,17 +286,17 @@ enum XmlType {
 						break;
 					k++;
 				}
-				this.cur = k;
+				__this__.cur = k;
 				return k < l;
 			},
 			next : function() {
-				var k = this.cur;
+				var k = __this__.cur;
 				var l = children.length;
 				while( k < l ) {
 					var n = children[k];
 					k++;
 					if( n.nodeType == Xml.Element && n._nodeName == name ) {
-						this.cur = k;
+						__this__.cur = k;
 						return n;
 					}
 				}

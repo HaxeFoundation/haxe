@@ -58,10 +58,10 @@ extern class SFlags<T> {
 		return (cast this) & (1 << Type.enumIndex(v)) != 0;
 	}
 	public inline function set( v : T ) : Void {
-		untyped this |= 1 << Type.enumIndex(v);
+		untyped __this__ |= 1 << Type.enumIndex(v);
 	}
 	public inline function unset( v : T ) : Void {
-		untyped this &= 0xFFFFFFF - (1 << Type.enumIndex(v));
+		untyped __this__ &= 0xFFFFFFF - (1 << Type.enumIndex(v));
 	}
 	public inline static function ofInt<T>( i : Int ) : SFlags<T> {
 		return cast i;

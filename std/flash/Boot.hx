@@ -224,14 +224,14 @@ class Boot {
 			g.haxeInitDone = true;
 			Array.prototype["copy"] = Array.prototype["slice"];
 			Array.prototype["insert"] = function(i,x) {
-				this["splice"](i,0,x);
+				__this__["splice"](i,0,x);
 			};
 			Array.prototype["remove"] = function(obj) {
 				var i = 0;
-				var l = this["length"];
+				var l = __this__["length"];
 				while( i < l ) {
-					if( this[i] == obj ) {
-						this["splice"](i,1);
+					if( __this__[i] == obj ) {
+						__this__["splice"](i,1);
 						return true;
 					}
 					i++;
@@ -241,12 +241,12 @@ class Boot {
 			Array.prototype["iterator"] = function() {
 				return {
 					cur : 0,
-					arr : this,
+					arr : __this__,
 					hasNext : function() {
-						return this.cur < this.arr["length"];
+						return __this__.cur < __this__.arr["length"];
 					},
 					next : function() {
-						return this.arr[this.cur++];
+						return __this__.arr[__this__.cur++];
 					}
 				}
 			};
@@ -254,7 +254,7 @@ class Boot {
 			var cca = String.prototype["charCodeAt"];
 			String.prototype["cca"] = cca;
 			String.prototype["charCodeAt"] = function(i) {
-				var x = this["cca"](i);
+				var x = __this__["cca"](i);
 				if( x <= 0 ) // fast NaN
 					return null;
 				return x;

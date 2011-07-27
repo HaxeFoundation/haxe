@@ -422,7 +422,7 @@ class MacroManager<T : Object> {
 		if( manager == null || manager.table_keys == null ) throw ("Invalid manager for relation "+table_name+":"+r.prop);
 		if( manager.table_keys.length != 1 ) throw ("Relation " + r.prop + "(" + r.key + ") on a multiple key table");
 		Reflect.setField(class_proto.prototype,"get_"+r.prop,function() {
-			var othis = untyped this;
+			var othis = untyped __this__;
 			var f = Reflect.field(othis,hprop);
 			if( f != null )
 				return f;
@@ -439,7 +439,7 @@ class MacroManager<T : Object> {
 			return f;
 		});
 		Reflect.setField(class_proto.prototype,"set_"+r.prop,function(f) {
-			var othis = untyped this;
+			var othis = untyped __this__;
 			Reflect.setField(othis,hprop,f);
 			Reflect.setField(othis,hkey,Reflect.field(f,manager.table_keys[0]));
 			return f;

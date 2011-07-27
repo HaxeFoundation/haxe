@@ -153,14 +153,14 @@ class List<T> {
 		return cast {
 			h : h,
 			hasNext : function() {
-				return untyped (this.h != null);
+				return untyped (__this__.h != null);
 			},
 			next : function() {
 				untyped {
-					if( this.h == null )
+					if( __this__.h == null )
 						return null;
-					var x = this.h[0];
-					this.h = this.h[1];
+					var x = __this__.h[0];
+					__this__.h = __this__.h[1];
 					return x;
 				}
 			}

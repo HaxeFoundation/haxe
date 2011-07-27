@@ -58,8 +58,8 @@
 		return untyped {
 			ref : h,
 			it : __keys__(h)["iterator"](),
-			hasNext : function() { return this.it[__unprotect__("hasNext")](); },
-			next : function() { var i = this.it[__unprotect__("next")](); return this.ref[i]; }
+			hasNext : function() { return __this__.it[__unprotect__("hasNext")](); },
+			next : function() { var i = __this__.it[__unprotect__("next")](); return __this__.ref[i]; }
 		};
 	}
 

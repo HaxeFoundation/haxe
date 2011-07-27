@@ -148,7 +148,7 @@ extern class Date
 			}
 		};
 		d.prototype[#if as3 "toStringHX" #else "toString" #end] = function() {
-			var date : Date = this;
+			var date : Date = __this__;
 			var m = date.getMonth() + 1;
 			var d = date.getDate();
 			var h = date.getHours();

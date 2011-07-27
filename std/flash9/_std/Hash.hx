@@ -58,8 +58,8 @@
 		return untyped {
 			ref : h,
 			it : __keys__(h).iterator(),
-			hasNext : function() { return this.it.hasNext(); },
-			next : function() { var i : Dynamic = this.it.next(); return this.ref[i]; }
+			hasNext : function() { return __this__.it.hasNext(); },
+			next : function() { var i : Dynamic = __this__.it.next(); return __this__.ref[i]; }
 		};
 	}
 

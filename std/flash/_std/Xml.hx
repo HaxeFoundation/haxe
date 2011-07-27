@@ -167,11 +167,11 @@ enum XmlType {
 		return untyped {
 			cur: this.__x[untyped "firstChild"],
 			hasNext : function(){
-				return this.cur != null;
+				return __this__.cur != null;
 			},
 			next : function(){
-				var r = convert(this.cur);
-				this.cur = this.cur["nextSibling"];
+				var r = convert(__this__.cur);
+				__this__.cur = __this__.cur["nextSibling"];
 				return r;
 			}
 		}
@@ -183,21 +183,21 @@ enum XmlType {
 		return untyped {
 			cur: this.__x[untyped "firstChild"],
 			hasNext : function() {
-				var r = this.cur;
+				var r = __this__.cur;
 				while( r != null && r["nodeType"] != 1 )
 					r = r["nextSibling"];
-				this.cur = r;
+				__this__.cur = r;
 				return r != null;
 			},
 			next : function(){
-				var r = this.cur;
+				var r = __this__.cur;
 				while( r != null && r["nodeType"] != 1 )
 					r = r["nextSibling"];
 				if( r == null ) {
-					this.cur = null;
+					__this__.cur = null;
 					return null;
 				}
-				this.cur = r["nextSibling"];
+				__this__.cur = r["nextSibling"];
 				return convert(r);
 			}
 		}
@@ -209,21 +209,21 @@ enum XmlType {
 		return untyped {
 			cur: this.__x[untyped "firstChild"],
 			hasNext : function() {
-				var r = this.cur;
+				var r = __this__.cur;
 				while( r != null && (r["nodeType"] != 1 || r["nodeName"] != name) )
 					r = r["nextSibling"];
-				this.cur = r;
+				__this__.cur = r;
 				return r != null;
 			},
 			next : function(){
-				var r = this.cur;
+				var r = __this__.cur;
 				while( r != null && (r["nodeType"] != 1 || r["nodeName"] != name) )
 					r = r["nextSibling"];
 				if( r == null ) {
-					this.cur = null;
+					__this__.cur = null;
 					return null;
 				}
-				this.cur = r["nextSibling"];
+				__this__.cur = r["nextSibling"];
 				return convert(r);
 			}
 		}

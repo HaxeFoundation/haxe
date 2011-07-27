@@ -458,8 +458,8 @@ let type_ident ctx i is_type p mode =
 		else
 			AKNo i
 	| "this" ->
-		if not ctx.untyped && ctx.in_static then error "Cannot access this from a static function" p;
-		if mode = MGet || ctx.untyped then
+		if ctx.in_static then display_error ctx "Cannot access this from a static function" p;
+		if mode = MGet then
 			AKExpr (mk (TConst TThis) ctx.tthis p)
 		else
 			AKNo i
@@ -530,10 +530,13 @@ let type_ident ctx i is_type p mode =
 		let e = (try type_type ctx ([],i) p with Error (Module_not_found ([],name),_) when name = i -> raise Not_found) in
 		AKExpr e
 	with Not_found ->
-		if ctx.untyped then
-			let t = mk_mono() in
-			AKExpr (mk (TLocal (alloc_var i t)) t p)
-		else begin
+		if ctx.untyped then begin
+			if i = "__this__" then
+				AKExpr (mk (TConst TThis) ctx.tthis p)
+			else
+				let t = mk_mono() in
+				AKExpr (mk (TLocal (alloc_var i t)) t p)
+		end else begin
 			if ctx.in_static && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
 			raise (Error (Unknown_ident i,p))
 		end
