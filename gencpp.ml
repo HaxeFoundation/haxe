@@ -660,6 +660,8 @@ let rec iter_retval f retval e =
 		List.iter (fun (_,e) -> f false e) catches
 	| TReturn eo ->
 		(match eo with None -> () | Some e -> f true e)
+	| TCast (e,None) ->
+		f retval e
 	| TCast (e,_) ->
 		f true e
 ;;
