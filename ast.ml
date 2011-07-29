@@ -125,6 +125,7 @@ type token =
 	| Macro of string
 	| Question
 	| At
+	| Dollar of string
 
 type unop_flag =
 	| Prefix
@@ -403,6 +404,7 @@ let s_token = function
 	| Macro s -> "#" ^ s
 	| Question -> "?"
 	| At -> "@"
+	| Dollar v -> "$" ^ v
 
 let unescape s =
 	let b = Buffer.create 0 in

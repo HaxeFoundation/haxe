@@ -251,6 +251,11 @@ and token = parse
 			let v = String.sub v 1 (String.length v - 1) in
 			mk lexbuf (Macro v)
 		}
+	| '$' ['_' 'a'-'z' 'A'-'Z' '0'-'9']* {
+			let v = lexeme lexbuf in
+			let v = String.sub v 1 (String.length v - 1) in
+			mk lexbuf (Dollar v)
+		}
 	| ident { mk_ident lexbuf }
 	| idtype { mk lexbuf (Const (Type (lexeme lexbuf))) }
 	| _ { invalid_char lexbuf }
