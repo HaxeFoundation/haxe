@@ -1357,9 +1357,7 @@ and gen_call ctx retval e el r =
 			incr count;
 			write ctx (HString "name");
 			write ctx (HString name);
-			write ctx (HString "data");
-			write ctx (HString (Codegen.bytes_serialize data));
-			write ctx (HObject 2);
+			write ctx (HObject 1);
 		) ctx.com.resources;
 		write ctx (HArray !count)
 	| TLocal { v_name = "__vmem_set__" }, [{ eexpr = TConst (TInt code) };e1;e2] ->
@@ -2171,6 +2169,17 @@ let generate_type ctx t =
 	| TTypeDecl _ ->
 		None
 
+let resource_path name = 
+	(["_res"],"_" ^ String.concat "_" (ExtString.String.nsplit name "."))
+
+let generate_resource ctx name =	
+	let c = mk_class (resource_path name) null_pos in
+	c.cl_super <- Some (mk_class (["flash";"utils"],"ByteArray") null_pos,[]);
+	let t = TClassDecl c in
+	match generate_type ctx t with
+	| Some (m,f) -> (t,m,f)
+	| None -> assert false
+
 let generate com boot_name =
 	let ctx = {
 		com = com;
@@ -2208,11 +2217,12 @@ let generate com boot_name =
 	else
 		com.types
 	in
+	let res = Hashtbl.fold (fun name _ acc -> generate_resource ctx name :: acc) com.resources [] in
 	let classes = List.fold_left (fun acc t ->
 		match generate_type ctx t with
 		| None -> acc
 		| Some (m,f) -> (t,m,f) :: acc
-	) [] types in
+	) res types in
 	List.rev classes
 
 ;;

@@ -811,8 +811,15 @@ let build_swf9 com file swc =
 		) code in
 		[tag (TActionScript3 (None,As3hlparse.flatten inits))]
 	) in
-	let clips = [tag (TF9Classes [{ f9_cid = None; f9_classname = boot_name }])] in
-	code @ clips
+	let cid = ref 0 in
+	let classes = ref [{ f9_cid = None; f9_classname = boot_name }] in
+	let res = Hashtbl.fold (fun name data acc ->
+		incr cid;
+		classes := { f9_cid = Some !cid; f9_classname = s_type_path (Genswf9.resource_path name) } :: !classes;
+		tag (TBinaryData (!cid,data)) :: acc
+	) com.resources [] in
+	let clips = [tag (TF9Classes (List.rev !classes))] in
+	res @ code @ clips
 
 let merge com file priority (h1,tags1) (h2,tags2) =
   (* prioritize header+bgcolor for first swf *)
