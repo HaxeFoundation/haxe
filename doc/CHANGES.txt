@@ -28,6 +28,7 @@
 	all : added untyped __this__ support (prepare for 'this' spec. change)
 	flash9 : store resources in bytes tag instead of bytecode
 	all : allow $ prefixed identifiers (for macros usage only)
+	all : allow to access modules subtype statics with pack.Mod.Type.value
 
 2011-01-30: 2.07
 	all : fixed completion support with --remap

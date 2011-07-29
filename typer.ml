@@ -259,8 +259,8 @@ let rec type_module_type ctx t tparams p =
 		| _ ->
 			error (s_type_path s.t_path ^ " is not a value") p
 
-let type_type ctx tpath p =
-	type_module_type ctx (Typeload.load_type_def ctx p { tpackage = fst tpath; tname = snd tpath; tparams = []; tsub = None }) None p
+let type_type ctx ?(tsub=None) tpath p =
+	type_module_type ctx (Typeload.load_type_def ctx p { tpackage = fst tpath; tname = snd tpath; tparams = []; tsub = tsub }) None p
 
 let get_constructor c p =
 	let rec loop c =
@@ -293,7 +293,7 @@ let make_call ctx e params t p =
 		(match f.cf_expr with
 		| Some { eexpr = TFunction fd } ->
 			(match Optimizer.type_inline ctx f fd ethis params t p with
-			| None -> 
+			| None ->
 				(match cl with
 				| Some { cl_extern = true } -> error "Inline could not be done" p
 				| _ -> raise Exit)
@@ -1169,12 +1169,23 @@ and type_access ctx e p mode =
 					loop (x :: acc) path
 				| (name,true,p) as x :: path ->
 					let pack = List.rev_map (fun (x,_,_) -> x) acc in
-					try
-						let e = type_type ctx (pack,name) p in
-						fields path (fun _ -> AKExpr e)
-					with
-						Error (Module_not_found m,_) when m = (pack,name) ->
-							loop ((List.rev path) @ x :: acc) []
+					let def() =
+						try
+							let e = type_type ctx (pack,name) p in
+							fields path (fun _ -> AKExpr e)
+						with
+							Error (Module_not_found m,_) when m = (pack,name) ->
+								loop ((List.rev path) @ x :: acc) []
+					in
+					match path with
+					| (sname,true,p) :: path ->
+						(try
+							let e = type_type ctx ~tsub:(Some sname) (pack,name) p in
+							fields path (fun _ -> AKExpr e)
+						with
+							Error ((Module_not_found m | Type_not_found (m,_)),_) when m = (pack,name) ->
+								def())
+					| _ -> def()
 			in
 			match path with
 			| [] -> assert false
@@ -1986,7 +1997,7 @@ let make_macro_api ctx p =
 			)
 		);
 		Interp.on_generate = (fun f ->
-			Common.add_filter ctx.com (fun() -> 
+			Common.add_filter ctx.com (fun() ->
 				let t = macro_timer ctx "onGenerate" in
 				f (List.map make_instance ctx.com.types);
 				t()
@@ -2085,7 +2096,7 @@ let make_macro_api ctx p =
 			);
 		);
 		Interp.get_cur_class = (fun() -> Some ctx.curclass);
-		Interp.get_build_fields = (fun() -> 
+		Interp.get_build_fields = (fun() ->
 			Interp.enc_array (List.map Interp.encode_field (ctx.g.get_build_fields()))
 		)
 	}
@@ -2222,7 +2233,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	let call() =
 		match call_macro args with
 		| None -> None
-		| Some v -> 
+		| Some v ->
 			try
 				Some (match mode with
 				| MExpr -> Interp.decode_expr v
