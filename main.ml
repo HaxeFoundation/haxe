@@ -611,7 +611,7 @@ try
 			Codegen.captured_vars com;
 			Codegen.rename_local_vars com;
 		] in
-		Codegen.post_process com filters;
+		Codegen.post_process com.types filters;
 		Common.add_filter com (fun() -> List.iter (Codegen.on_generate ctx) com.types);
 		List.iter (fun f -> f()) (List.rev com.filters);
 		(match !xml_out with

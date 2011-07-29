@@ -2685,6 +2685,7 @@ let add_types ctx types =
 			true;
 		end
 	) types in
+	Codegen.post_process types [Codegen.captured_vars ctx.com];
 	let e = (EBlock (Genneko.build ctx.gen types), null_pos) in
 	ignore(catch_errors ctx (fun() -> ignore((eval ctx e)())))
 

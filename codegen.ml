@@ -862,7 +862,7 @@ let check_local_vars_init e =
 (* -------------------------------------------------------------------------- *)
 (* POST PROCESS *)
 
-let post_process ctx filters =
+let post_process types filters =
 	List.iter (fun t ->
 		match t with
 		| TClassDecl c ->
@@ -883,7 +883,7 @@ let post_process ctx filters =
 				c.cl_init <- Some (List.fold_left (fun e f -> f e) e filters));
 		| TEnumDecl _ -> ()
 		| TTypeDecl _ -> ()
-	) ctx.types
+	) types
 
 (* -------------------------------------------------------------------------- *)
 (* STACK MANAGEMENT EMULATION *)
