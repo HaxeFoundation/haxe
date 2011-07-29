@@ -110,7 +110,7 @@ class MacroManager<T : Object> {
 		return SpodData.macroCount(ethis, cond);
 	}
 
-	@:macro public function deleteCond(ethis, cond) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<Void> #end {
+	@:macro public function delete(ethis, cond) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<Void> #end {
 		return SpodData.macroDelete(ethis, cond);
 	}
 

@@ -459,7 +459,7 @@ class SpodData {
 		}
 		var sql;
 		// use some different operators if there is a possibility for comparing two NULLs
-		if( r1.n && r2.n || (!eq && (r1.n || r2.n)) ) {
+		if( r1.n || r2.n ) {
 			sql = makeOp(" <=> ", r1.sql, r2.sql, pos);
 			if( !eq )
 				sql = sqlAdd(makeString("NOT(", pos), sqlAddString(sql, ")"), pos);
@@ -581,10 +581,10 @@ class SpodData {
 			case CString(s): return { sql : sqlQuoteValue(cond, DText), t : DString(s.length), n : false };
 			case CRegexp(_): error("Unsupported", p);
 			case CIdent(n), CType(n):
-				var f = current.hfields.get(n);
-				if( f != null ) {
-					if( (try typeof(cond) catch( e : Dynamic ) null) != null )
-						error("Possible conflict between variable and database field", p);
+				if( n.charCodeAt(0) == "$".code ) {
+					n = n.substr(1);
+					var f = current.hfields.get(n);
+					if( f == null ) error("Unknown database field '" + n + "'", p);
 					return { sql : makeString(f.name, p), t : f.t, n : f.isNull };
 				}
 				switch( n ) {
@@ -959,6 +959,22 @@ class SpodData {
 		var sql = buildSQL(em, econd, "DELETE FROM");
 		var pos = Context.currentPos();
 		return { expr : ECall({ expr : EField(em,"unsafeDelete"), pos : pos },[sql]), pos : pos };
+	}
+	
+	public static function macroBuild() {
+		var fields = Context.getBuildFields();
+		for( f in fields )
+			for( m in f.meta )
+				if( m.name == ":relation" ) {
+					switch( f.kind ) {
+					case FVar(t, _):
+						f.kind = FProp("dynamic", "dynamic", t);
+					default:
+						Context.error("Invalid relation field type", f.pos);
+					}
+					break;
+				}
+		return fields;
 	}
 
 	#end
