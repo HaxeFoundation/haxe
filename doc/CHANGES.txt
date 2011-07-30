@@ -1,6 +1,6 @@
 2011-??-??: 2.08
 	js : added js.JQuery
-	all : added @:multitype
+	all : added @:overload
 	js : upgraded js.SWFObject from 1.4.4 inlined to 1.5 embedded
 	js : code generator beautify
 	all : ensure that modifying returned Type.getEnumConstructs array does not affect enum
@@ -29,6 +29,7 @@
 	flash9 : store resources in bytes tag instead of bytecode
 	all : allow $ prefixed identifiers (for macros usage only)
 	all : allow to access modules subtype statics with pack.Mod.Type.value
+		and fixed identifier resolution order
 
 2011-01-30: 2.07
 	all : fixed completion support with --remap
