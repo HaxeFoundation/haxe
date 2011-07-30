@@ -33,7 +33,9 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	var context(default,null) : Dom.HtmlDom;
 	var length(default, null) : Int;
 
-	@:multitype function new( ?html : String, ?j : JQuery, ?h : Dom.HtmlDom ) : Void;
+	@:overload(function(j:JQuery):Void{})
+	@:overload(function(j:Dom.HtmlDom):Void{})
+	function new( html : String ) : Void;
 
 	// attributes
 	function addClass( className : String ) : JQuery;
@@ -41,26 +43,49 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	function hasClass( className : String ) : Bool;
 	function toggleClass( className : String, ?addRemove : Bool ) : JQuery;
 
-	function attr( name : String, ?value : String ) : String;
+	@:overload(function(name:String,value:String):JQuery)
+	function attr( name : String ) : String;
+
 	function removeAttr( attr : String ) : JQuery;
 
-	function css( prop : String, ?value : String ) : String;
-	function html( ?fill : String ) : String; // first element only
-	function val( ?value : String ) : String; // for input elements
-	function text( ?value : String ) : String;
+	@:overload(function(prop:String,value:String):JQuery)
+	function css( prop : String ) : String;
+
+	@:overload(function(html:String):JQuery)
+	function html() : String;
+
+	@:overload(function(value:String):JQuery)
+	function val() : String;
+
+	@:overload(function(text:String):JQuery)
+	function text() : String;
 
 	// Size & Position
-	function width( ?value : Int ) : Int;
-	function height( ?value : Int ) : Int;
-	function innerWidth( ?value : Int ) : Int;
-	function innerHeight( ?value : Int ) : Int;
+	@:overload(function(value:Int):JQuery)
+	function width() : Int;
+	@:overload(function(value:Int):JQuery)
+	function height() : Int;
+	@:overload(function(value:Int):JQuery)
+	function innerWidth() : Int;
+	@:overload(function(value:Int):JQuery)
+	function innerHeight() : Int;
+
 	function outerWidth( ?includeMargin : Bool ) : Int;
 	function outerHeight( ?includeMargin : Bool ) : Int;
-	function scrollLeft( ?value : Int ) : Int;
-	function scrollTop( ?value : Int ) : Int;
-	function offset( ?value : { left : Int, top : Int } ) : { left : Int, top : Int };
+
+	@:overload(function(value:Int):JQuery)
+	function scrollLeft() : Int;
+
+	@:overload(function(value:Int):JQuery)
+	function scrollTop() : Int;
+
+	@:overload(function(value: { left : Int, top : Int }):JQuery)
+	function offset() : { left : Int, top : Int };
+
 	function offsetParent() : JQuery;
-	function position( ?value : { left : Int, top : Int } ) : { left : Int, top : Int };
+
+	@:overload(function(value: { left : Int, top : Int }):JQuery)
+	function position() : { left : Int, top : Int };
 
 	// current group manipulation
 	function add( selectorOrHTML : String, ?context : JQuery ) : JQuery;
@@ -95,23 +120,61 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	function toArray() : Array<Dom.HtmlDom>;
 
 	// DOM changes
-	@:multitype function before( ?html : String, ?j : JQuery, ?h : Dom.HtmlDom ) : JQuery;
-	@:multitype function after( ?html : String, ?j : JQuery, ?h : Dom.HtmlDom ) : JQuery;
-	@:multitype function append( ?html : String, ?j : JQuery, ?h : Dom.HtmlDom ) : JQuery;
-	@:multitype function appendTo( ?html : String, ?j : JQuery, ?h : Dom.HtmlDom ) : JQuery;
+	@:overload(function(value:JQuery):JQuery)
+	@:overload(function(value:Dom.HtmlDom):JQuery)
+	function before( html : String ) : JQuery;
+
+	@:overload(function(value:JQuery):JQuery)
+	@:overload(function(value:Dom.HtmlDom):JQuery)
+	function after( html : String ) : JQuery;
+
+	@:overload(function(value:JQuery):JQuery)
+	@:overload(function(value:Dom.HtmlDom):JQuery)
+	function append( html : String ) : JQuery;
+
+	@:overload(function(value:JQuery):JQuery)
+	@:overload(function(value:Dom.HtmlDom):JQuery)
+	function appendTo( html : String ) : JQuery;
+
 	function detach( ?selector : String ) : JQuery;
 	function empty() : JQuery; // remove all texts
-	@:multitype function insertBefore( ?html : String, ?j : JQuery, ?h : Dom.HtmlDom ) : JQuery;
-	@:multitype function insertAfter( ?html : String, ?j : JQuery, ?h : Dom.HtmlDom ) : JQuery;
-	@:multitype function prepend( ?html : String, ?j : JQuery, ?h : Dom.HtmlDom ) : JQuery;
-	@:multitype function prependTo( ?html : String, ?j : JQuery, ?h : Dom.HtmlDom ) : JQuery;
+
+	@:overload(function(value:JQuery):JQuery)
+	@:overload(function(value:Dom.HtmlDom):JQuery)
+	function insertBefore( html : String ) : JQuery;
+
+	@:overload(function(value:JQuery):JQuery)
+	@:overload(function(value:Dom.HtmlDom):JQuery)
+	function insertAfter( html : String ) : JQuery;
+
+	@:overload(function(value:JQuery):JQuery)
+	@:overload(function(value:Dom.HtmlDom):JQuery)
+	function prepend( html : String ) : JQuery;
+
+	@:overload(function(value:JQuery):JQuery)
+	@:overload(function(value:Dom.HtmlDom):JQuery)
+	function prependTo( html : String ) : JQuery;
+
 	function remove( ?selector : String ) : JQuery;
 	function replaceAll( selector : String ) : JQuery;
-	@:multitype function replaceWith( ?html : String, ?j : JQuery, ?h : Dom.HtmlDom ) : JQuery;
+
+	@:overload(function(value:JQuery):JQuery)
+	@:overload(function(value:Dom.HtmlDom):JQuery)
+	function replaceWith( html : String ) : JQuery;
+
 	function unwrap() : JQuery;
-	@:multitype function wrap( ?html : String, ?j : JQuery, ?h : Dom.HtmlDom ) : JQuery;
-	@:multitype function wrapAll( ?html : String, ?j : JQuery, ?h : Dom.HtmlDom ) : JQuery;
-	@:multitype function wrapInner( ?html : String, ?j : JQuery, ?h : Dom.HtmlDom ) : JQuery;
+
+	@:overload(function(value:JQuery):JQuery)
+	@:overload(function(value:Dom.HtmlDom):JQuery)
+	function wrap( html : String ) : JQuery;
+
+	@:overload(function(value:JQuery):JQuery)
+	@:overload(function(value:Dom.HtmlDom):JQuery)	
+	function wrapAll( html : String ) : JQuery;
+	
+	@:overload(function(value:JQuery):JQuery)
+	@:overload(function(value:Dom.HtmlDom):JQuery)
+	function wrapInner( html : String ) : JQuery;
 
 	// animation
 	function animate( properties : { }, ?duration : Int, ?callb : Void -> Void ) : JQuery;
