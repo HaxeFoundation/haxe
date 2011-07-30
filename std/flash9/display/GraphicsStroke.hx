@@ -8,5 +8,5 @@ package flash.display;
 	var pixelHinting : Bool;
 	var scaleMode : LineScaleMode;
 	var thickness : Float;
-	function new(thickness : Float = 0./*NaN*/, pixelHinting : Bool = false, ?scaleMode : String, ?caps : String, ?joints : String, miterLimit : Float = 3, ?fill : IGraphicsFill) : Void;
+	function new(thickness : Float = 0./*NaN*/, pixelHinting : Bool = false, ?scaleMode : LineScaleMode, ?caps : CapsStyle, ?joints : JointStyle, miterLimit : Float = 3, ?fill : IGraphicsFill) : Void;
 }

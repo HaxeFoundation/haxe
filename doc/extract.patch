@@ -121,9 +121,9 @@ flash.display.GraphicsPath.$winding : GraphicsPathWinding;
 flash.display.GraphicsStroke.scaleMode : LineScaleMode;
 flash.display.GraphicsStroke.caps : CapsStyle;
 flash.display.GraphicsStroke.joints : JointStyle;
-flash.display.GraphicsStroke.$_scaleMode : LineScaleMode;
-flash.display.GraphicsStroke.$_caps : CapsStyle;
-flash.display.GraphicsStroke.$_joints : JointStyle;
+flash.display.GraphicsStroke.$scaleMode : LineScaleMode;
+flash.display.GraphicsStroke.$caps : CapsStyle;
+flash.display.GraphicsStroke.$joints : JointStyle;
 
 flash.display.GraphicsTrianglePath.culling : TriangleCulling;
 flash.display.GraphicsTrianglePath.$culling : TriangleCulling;
