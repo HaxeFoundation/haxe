@@ -818,8 +818,24 @@ let build_swf9 com file swc =
 		classes := { f9_cid = Some !cid; f9_classname = s_type_path (Genswf9.resource_path name) } :: !classes;
 		tag (TBinaryData (!cid,data)) :: acc
 	) com.resources [] in
+	let bmp = List.fold_left (fun acc t ->
+		match t with
+		| TClassDecl c ->
+			let rec loop = function
+				| [] -> acc
+				| (":bitmap",[EConst (String file),p],_) :: l ->
+					let file = try Common.find_file com file with Not_found -> file in
+					let data = (try Std.input_file ~bin:true file with _  -> error "File not found" p) in
+					incr cid;
+					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
+					tag (TBitsJPEG2 { bd_id = !cid; bd_data = data; bd_table = None; bd_alpha = None; bd_deblock = None }) :: loop l
+				| _ :: l -> loop l
+			in
+			loop c.cl_meta
+		| _ -> acc
+	) [] com.types in
 	let clips = [tag (TF9Classes (List.rev !classes))] in
-	res @ code @ clips
+	res @ bmp @ code @ clips
 
 let merge com file priority (h1,tags1) (h2,tags2) =
   (* prioritize header+bgcolor for first swf *)
