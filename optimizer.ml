@@ -81,7 +81,7 @@ let rec type_inline ctx cf f ethis params tret p =
 	(* use default values for null/unset arguments *)
 	let rec loop pl al =
 		match pl, al with
-		| [], [] -> []
+		| _, [] -> []
 		| e :: pl, (v, opt) :: al ->
 			(*
 				if we pass a Null<T> var to an inlined method that needs a T.
@@ -92,11 +92,7 @@ let rec type_inline ctx cf f ethis params tret p =
 			| TConst TNull , Some c -> mk (TConst c) v.v_type e.epos
 			| _ -> e) :: loop pl al
 		| [], (v,opt) :: al ->
-			(match opt with
-			| None -> assert false
-			| Some c -> mk (TConst c) v.v_type p) :: loop [] al
-		| _ :: _, [] ->
-			assert false
+			mk (TConst (match opt with None -> TNull | Some c -> c)) v.v_type p :: loop [] al
 	in
 	(*
 		Build the expr/var subst list
