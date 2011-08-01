@@ -64,7 +64,7 @@ let rec load_type_def ctx p t =
 				let m = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
 				let tpath = (t.tpackage,tname) in
 				try
-					List.find (fun t -> not (t_private t) && t_path t = tpath) m.mtypes
+					List.find (fun t -> not (t_infos t).mt_private && t_path t = tpath) m.mtypes
 				with
 					Not_found -> raise (Error (Type_not_found (m.mpath,tname),p))
 			in
@@ -1219,6 +1219,7 @@ let type_module ctx m tdecls loadp =
 			let priv = List.mem HPrivate d.d_flags in
 			let path = decl_with_name d.d_name p priv in
 			let c = mk_class path p in
+			c.cl_module <- m;
 			c.cl_private <- priv;
 			c.cl_doc <- d.d_doc;
 			c.cl_meta <- d.d_meta;
@@ -1234,6 +1235,7 @@ let type_module ctx m tdecls loadp =
 			let path = decl_with_name d.d_name p priv in
 			let e = {
 				e_path = path;
+				e_module = m;
 				e_pos = p;
 				e_doc = d.d_doc;
 				e_meta = d.d_meta;
@@ -1249,6 +1251,7 @@ let type_module ctx m tdecls loadp =
 			let path = decl_with_name d.d_name p priv in
 			let t = {
 				t_path = path;
+				t_module = m;
 				t_pos = p;
 				t_doc = d.d_doc;
 				t_private = priv;
@@ -1321,7 +1324,7 @@ let type_module ctx m tdecls loadp =
 			(match t.tsub with
 			| None ->
 				let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
-				let types = List.filter (fun t -> not (t_private t)) md.mtypes in
+				let types = List.filter (fun t -> not (t_infos t).mt_private) md.mtypes in
 				ctx.local_types <- ctx.local_types @ types
 			| Some _ ->
 				let t = load_type_def ctx p t in
@@ -1331,7 +1334,7 @@ let type_module ctx m tdecls loadp =
 			(match t.tsub with
 			| None ->
 				let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
-				let types = List.filter (fun t -> not (t_private t)) md.mtypes in
+				let types = List.filter (fun t -> not (t_infos t).mt_private) md.mtypes in
 				ctx.local_using <- ctx.local_using @ (List.map (resolve_typedef ctx) types);
 			| Some _ ->
 				let t = load_type_def ctx p t in

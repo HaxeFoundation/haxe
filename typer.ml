@@ -211,6 +211,7 @@ let rec type_module_type ctx t tparams p =
 	| TClassDecl c ->
 		let t_tmp = {
 			t_path = fst c.cl_path, "#" ^ snd c.cl_path;
+			t_module = c.cl_path;
 			t_doc = None;
 			t_pos = c.cl_pos;
 			t_type = TAnon {
@@ -244,6 +245,7 @@ let rec type_module_type ctx t tparams p =
 		) e.e_constrs PMap.empty in
 		let t_tmp = {
 			t_path = fst e.e_path, "#" ^ snd e.e_path;
+			t_module = e.e_path;
 			t_doc = None;
 			t_pos = e.e_pos;
 			t_type = TAnon {

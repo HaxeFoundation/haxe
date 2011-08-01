@@ -111,6 +111,13 @@ class Context {
 	}
 
 	/**
+		Build an expression corresponding to the given runtime value. Only basic types + enums are supported.
+	**/
+	public static function makeExpr( v : Dynamic, pos : Position ) : Expr {
+		return load("make_expr", 2)(v, pos);
+	}
+	
+	/**
 		Quickly build an hashed MD5 signature for any given value
 	**/
 	public static function signature( v : Dynamic ) : String {

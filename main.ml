@@ -722,7 +722,7 @@ with
 			try
 				let ctx = Typer.create com in
 				let m = Typeload.load_module ctx (p,c) Ast.null_pos in
-				report_list (List.map (fun t -> snd (Type.t_path t),"","") (List.filter (fun t -> not (Type.t_private t)) m.Type.mtypes))
+				report_list (List.map (fun t -> snd (Type.t_path t),"","") (List.filter (fun t -> not (Type.t_infos t).Type.mt_private) m.Type.mtypes))
 			with _ ->
 				report ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos
 		);

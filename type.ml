@@ -148,12 +148,23 @@ and tclass_kind =
 
 and metadata = Ast.metadata
 
+and tinfos = {
+	mt_path : path;
+	mt_module : path;
+	mt_pos : Ast.pos;
+	mt_private : bool;
+	mt_doc : Ast.documentation;
+	mutable mt_meta : metadata;
+}
+
 and tclass = {
 	mutable cl_path : path;
+	mutable cl_module : path;
 	mutable cl_pos : Ast.pos;
 	mutable cl_private : bool;
 	mutable cl_doc : Ast.documentation;
 	mutable cl_meta : metadata;
+
 	mutable cl_kind : tclass_kind;
 	mutable cl_extern : bool;
 	mutable cl_interface : bool;
@@ -182,10 +193,12 @@ and tenum_field = {
 
 and tenum = {
 	mutable e_path : path;
+	e_module : path;
 	e_pos : Ast.pos;
-	e_doc : Ast.documentation;
 	e_private : bool;
+	e_doc : Ast.documentation;
 	mutable e_meta : metadata;
+
 	mutable e_extern : bool;
 	mutable e_types : (string * t) list;
 	mutable e_constrs : (string , tenum_field) PMap.t;
@@ -194,9 +207,10 @@ and tenum = {
 
 and tdef = {
 	t_path : path;
+	t_module : path;
 	t_pos : Ast.pos;
-	t_doc : Ast.documentation;
 	t_private : bool;
+	t_doc : Ast.documentation;
 	mutable t_meta : metadata;
 	mutable t_types : (string * t) list;
 	mutable t_type : t;
@@ -236,6 +250,7 @@ let fun_args l = List.map (fun (a,c,t) -> a, c <> None, t) l
 let mk_class path pos =
 	{
 		cl_path = path;
+		cl_module = path;
 		cl_pos = pos;
 		cl_doc = None;
 		cl_meta = [];
@@ -264,20 +279,13 @@ let null_class =
 
 let arg_name (a,_) = a.v_name
 
-let t_private = function
-	| TClassDecl c -> c.cl_private
-	| TEnumDecl e -> e.e_private
-	| TTypeDecl t -> t.t_private
+let t_infos t : tinfos =
+	match t with
+	| TClassDecl c -> Obj.magic c
+	| TEnumDecl e -> Obj.magic e
+	| TTypeDecl t -> Obj.magic t
 
-let t_path = function
-	| TClassDecl c -> c.cl_path
-	| TEnumDecl e -> e.e_path
-	| TTypeDecl t -> t.t_path
-
-let t_pos = function
-	| TClassDecl c -> c.cl_pos
-	| TEnumDecl e -> e.e_pos
-	| TTypeDecl t -> t.t_pos
+let t_path t = (t_infos t).mt_path
 
 let print_context() = ref []
 

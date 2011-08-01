@@ -124,11 +124,11 @@ let ident = parser
 	| [< '(Const (Ident i),_) >] -> i
 
 let any_ident = parser
-	| [< '(Const (Ident i),_) >] -> i
-	| [< '(Const (Type t),_) >] -> t
+	| [< '(Const (Ident i),p) >] -> i, p
+	| [< '(Const (Type t),p) >] -> t, p
 
 let property_ident = parser
-	| [< i = any_ident >] -> i
+	| [< i, _ = any_ident >] -> i
 	| [< '(Kwd Dynamic,_) >] -> "dynamic"
 	| [< '(Kwd Default,_) >] -> "default"
 
@@ -292,10 +292,10 @@ and parse_complex_type = parser
 	| [< '(POpen,_); t = parse_complex_type; '(PClose,_); s >] -> parse_complex_type_next (CTParent t) s
 	| [< '(BrOpen,p1); s >] ->
 		let t = (match s with parser
-			| [< name = any_ident >] -> CTAnonymous (parse_type_anonymous_resume name s)
+			| [< name, p = any_ident >] -> CTAnonymous (parse_type_anonymous_resume name p s)
 			| [< '(Binop OpGt,_); t = parse_type_path; '(Comma,_); s >] ->
 				(match s with parser
-				| [< name = any_ident; l = parse_type_anonymous_resume name >] -> CTExtend (t,l)
+				| [< name, p = any_ident; l = parse_type_anonymous_resume name p >] -> CTExtend (t,l)
 				| [< l, _ = parse_class_fields true p1 >] -> CTExtend (t,l)
 				| [< >] -> serror())
 			| [< l, _ = parse_class_fields true p1 >] -> CTAnonymous l
@@ -358,22 +358,24 @@ and parse_complex_type_next t = parser
 			CTFunction ([t] , t2))
 	| [< >] -> t
 
-and parse_type_anonymous_resume name = parser
-	| [< '(DblDot,p); t = parse_complex_type; s >] ->
-		{
-			cff_name = name;
-			cff_meta = [];
-			cff_access = [];
-			cff_doc = None;
-			cff_kind = FVar (Some t,None);
-			cff_pos = p;
-		} ::
+and parse_type_anonymous_resume name p1 = parser
+	| [< '(DblDot,_); t = parse_complex_type; s >] ->
+		let next p2 acc = 
+			{
+				cff_name = name;
+				cff_meta = [];
+				cff_access = [];
+				cff_doc = None;
+				cff_kind = FVar (Some t,None);
+				cff_pos = punion p1 p2;
+			} :: acc
+		in
 		match s with parser
-		| [< '(BrClose,_) >] -> []
-		| [< '(Comma,_) >] ->
+		| [< '(BrClose,p2) >] -> next p2 []
+		| [< '(Comma,p2) >] ->
 			(match s with parser
-			| [< '(BrClose,_) >] -> []
-			| [< name = any_ident; s >] -> parse_type_anonymous_resume name s
+			| [< '(BrClose,_) >] -> next p2 []
+			| [< name, p = any_ident; s >] -> next p2 (parse_type_anonymous_resume name p s)
 			| [< >] -> serror());
 		| [< >] -> serror()
 
@@ -381,22 +383,22 @@ and parse_enum s =
 	doc := None;
 	let meta = parse_meta s in
 	match s with parser
-	| [< name = any_ident; doc = get_doc; s >] ->
+	| [< name, p1 = any_ident; doc = get_doc; s >] ->
 		match s with parser
-		| [< '(POpen,_); l = psep Comma parse_enum_param; '(PClose,_); p = semicolon; >] -> (name,doc,meta,l,p)
-		| [< '(Semicolon,p) >] -> (name,doc,meta,[],p)
+		| [< '(POpen,_); l = psep Comma parse_enum_param; '(PClose,_); p = semicolon; >] -> (name,doc,meta,l,punion p1 p)
+		| [< '(Semicolon,p) >] -> (name,doc,meta,[],punion p1 p)
 		| [< >] -> serror()
 
 and parse_enum_param = parser
-	| [< '(Question,_); name = any_ident; '(DblDot,_); t = parse_complex_type >] -> (name,true,t)
-	| [< name = any_ident; '(DblDot,_); t = parse_complex_type >] -> (name,false,t)
+	| [< '(Question,_); name, _ = any_ident; '(DblDot,_); t = parse_complex_type >] -> (name,true,t)
+	| [< name, _ = any_ident; '(DblDot,_); t = parse_complex_type >] -> (name,false,t)
 
 and parse_class_field s =
 	doc := None;
 	match s with parser
 	| [< meta = parse_meta; al = parse_cf_rights true []; doc = get_doc; s >] ->
 		let name, pos, k = (match s with parser
-		| [< '(Kwd Var,p1); name = any_ident; s >] ->
+		| [< '(Kwd Var,p1); name, _ = any_ident; s >] ->
 			(match s with parser
 			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_complex_type; p2 = semicolon >] ->
 				name, punion p1 p2, FProp (i1,i2,t)
@@ -447,8 +449,8 @@ and parse_fun_name = parser
 	| [< '(Kwd New,_) >] -> "new"
 
 and parse_fun_param = parser
-	| [< '(Question,_); name = any_ident; t = parse_type_opt; c = parse_fun_param_value >] -> (name,true,t,c)
-	| [< name = any_ident; t = parse_type_opt; c = parse_fun_param_value >] -> (name,false,t,c)
+	| [< '(Question,_); name, _ = any_ident; t = parse_type_opt; c = parse_fun_param_value >] -> (name,true,t,c)
+	| [< name, _ = any_ident; t = parse_type_opt; c = parse_fun_param_value >] -> (name,false,t,c)
 
 and parse_fun_param_value = parser
 	| [< '(Binop OpAssign,_); e = expr >] -> Some e
@@ -516,7 +518,7 @@ and parse_block_elt = parser
 and parse_obj_decl = parser
 	| [< '(Comma,_); s >] ->
 		(match s with parser
-		| [< name = any_ident; '(DblDot,_); e = expr; l = parse_obj_decl >] -> (name,e) :: l
+		| [< name, _ = any_ident; '(DblDot,_); e = expr; l = parse_obj_decl >] -> (name,e) :: l
 		| [< >] -> [])
 	| [< >] -> []
 
@@ -529,7 +531,7 @@ and parse_array_decl = parser
 		[]
 
 and parse_var_decl = parser
-	| [< name = any_ident; t = parse_type_opt; s >] ->
+	| [< name, _ = any_ident; t = parse_type_opt; s >] ->
 		match s with parser
 		| [< '(Binop OpAssign,_); e = expr >] -> (name,t,Some e)
 		| [< >] -> (name,t,None)
@@ -568,7 +570,7 @@ and expr = parser
 				f_args = al;
 				f_expr = Some e;
 			} in
-			EFunction (name,f), punion p1 (pos e)
+			EFunction ((match name with None -> None | Some (name,_) -> Some name),f), punion p1 (pos e)
 		in
 		(try
 			expr_next (make (expr s)) s
@@ -590,7 +592,7 @@ and expr = parser
 		| [< '(Const (Int i),p); e = expr_next (EConst (Int i),p) >] -> e
 		| [< '(Const (Float f),p); e = expr_next (EConst (Float f),p) >] -> e
 		| [< >] -> serror()) */*)
-	| [< '(Kwd For,p); '(POpen,_); name = any_ident; '(Kwd In,_); it = expr; '(PClose,_); s >] ->
+	| [< '(Kwd For,p); '(POpen,_); name, _ = any_ident; '(Kwd In,_); it = expr; '(PClose,_); s >] ->
 		(try
 			let e = expr s in
 			(EFor (name,it,e),punion p (pos e))
@@ -693,7 +695,7 @@ and parse_switch_cases eswitch cases = parser
 		List.rev cases , None
 
 and parse_catch etry = parser
-	| [< '(Kwd Catch,p); '(POpen,_); name = any_ident; s >] ->
+	| [< '(Kwd Catch,p); '(POpen,_); name, _ = any_ident; s >] ->
 		match s with parser
 		| [< '(DblDot,_); t = parse_complex_type; '(PClose,_); s >] ->
 			(try

@@ -1734,6 +1734,54 @@ let macro_lib =
 			| VString s, VAbstract (APos p) -> encode_expr ((get_ctx()).curapi.parse_string s p)
 			| _ -> error()
 		);
+		"make_expr", Fun2 (fun v p ->
+			match p with
+			| VAbstract (APos p) ->
+				let h_enum = hash "__enum__" and h_et = hash "__et__" in
+				let h_tag = hash "tag" and h_args = hash "args" in		
+				let ctx = get_ctx() in
+				let error v = failwith ("Unsupported value " ^ ctx.do_string v) in
+				let rec loop = function
+					| VNull -> (Ast.EConst (Ast.Ident "null"),p)
+					| VBool b -> (Ast.EConst (Ast.Ident (if b then "true" else "false")),p)
+					| VInt i -> (Ast.EConst (Ast.Int (string_of_int i)),p)
+					| VFloat f -> (Ast.EConst (Ast.Float (string_of_float f)),p)
+					| VString _ | VArray _ | VAbstract _ | VFunction _ | VClosure _ as v -> error v
+					| VObject o as v ->
+						match o.oproto with
+						| None ->
+							let fields = List.fold_left (fun acc (fid,v) -> (field_name ctx fid, loop v) :: acc) [] (Array.to_list o.ofields) in
+							(Ast.EObjectDecl fields, p)
+						| Some proto ->
+							match get_field_opt proto h_enum, get_field_opt o h_a, get_field_opt o h_s with
+							| _, Some (VArray a), _ ->
+								(Ast.EArrayDecl (List.map loop (Array.to_list a)),p)
+							| _, _, Some (VString s) ->
+								(Ast.EConst (Ast.String s),p)
+							| Some (VObject en), _, _ ->
+								(match get_field en h_et, get_field o h_tag with
+								| VAbstract (ATDecl (TEnumDecl et)), VString tag ->
+									let is_ident n = n <> "" && n.[0] < 'A' || n.[0] > 'Z' in
+									let rec path = function
+										| [] -> assert false
+										| [name] -> (Ast.EConst (if is_ident name then Ast.Ident name else Ast.Type name),p)
+										| name :: l -> if is_ident name then (Ast.EField (path l,name),p) else (Ast.EType (path l,name),p)
+									in
+									let epath = path (List.rev (if et.e_module = et.e_path then fst et.e_path @ [snd et.e_path] else fst et.e_module @ [snd et.e_module;snd et.e_path])) in
+									let e = (Ast.EField (epath,tag),p) in
+									(match get_field_opt o h_args with
+									| Some (VArray args) -> 
+										let args = List.map loop (Array.to_list args) in
+										(Ast.ECall (e,args),p)
+									| _ -> e)								
+								| _ -> 
+									error v)
+							| _ ->
+								error v
+				in
+				encode_expr (loop v)
+			| _ -> error()
+		);
 		"signature", Fun1 (fun v ->
 			let cache = ref [] in
 			let hfiles = Hashtbl.create 0 in
@@ -1955,6 +2003,8 @@ let rec eval ctx (e,p) =
 			| VObject o -> get_field o h
 			| _ -> throw ctx p ("Invalid field access : " ^ f)
 		)
+	| ECall ((EConst (Builtin "typewrap"),_),[t]) ->
+		(fun() -> VAbstract (ATDecl (Obj.magic t)))
 	| ECall (e,el) ->
 		let el = List.map (eval ctx) el in
 		(match fst e with
@@ -3340,19 +3390,25 @@ let encode_meta m set =
 		));
 	]
 
-let rec encode_tenum e =
-	enc_obj [
-		"__t", encode_tdecl (TEnumDecl e);
-		"pack", enc_array (List.map enc_string (fst e.e_path));
-		"name", enc_string (snd e.e_path);
-		"pos", encode_pos e.e_pos;
-		"isPrivate", VBool e.e_private;
+let rec encode_mtype t fields =
+	let i = t_infos t in
+	enc_obj ([
+		"__t", 	VAbstract (ATDecl t);
+		"pack", enc_array (List.map enc_string (fst i.mt_path));
+		"name", enc_string (snd i.mt_path);
+		"pos", encode_pos i.mt_pos;
+		"module", enc_string (s_type_path i.mt_module);
+		"isPrivate", VBool i.mt_private;
+		"meta", encode_meta i.mt_meta (fun m -> i.mt_meta <- m);
+	] @ fields)
+
+and encode_tenum e =
+	encode_mtype (TEnumDecl e) [
 		"isExtern", VBool e.e_extern;
 		"exclude", VFunction (Fun0 (fun() -> e.e_extern <- true; VNull));
 		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) e.e_types);
 		"constructs", encode_pmap encode_efield e.e_constrs;
 		"names", enc_array (List.map enc_string e.e_names);
-		"meta", encode_meta e.e_meta (fun m -> e.e_meta <- m);
 	]
 
 and encode_efield f =
@@ -3405,12 +3461,7 @@ and encode_method_kind m =
 	enc_enum IMethodKind tag pl
 
 and encode_tclass c =
-	enc_obj [
-		"__t", encode_tdecl (TClassDecl c);
-		"pack", enc_array (List.map enc_string (fst c.cl_path));
-		"name", enc_string (snd c.cl_path);
-		"pos", encode_pos c.cl_pos;
-		"isPrivate", VBool c.cl_private;
+	encode_mtype (TClassDecl c) [
 		"isExtern", VBool c.cl_extern;
 		"exclude", VFunction (Fun0 (fun() -> c.cl_extern <- true; c.cl_init <- None; VNull));
 		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) c.cl_types);
@@ -3423,26 +3474,16 @@ and encode_tclass c =
 		"fields", encode_ref c.cl_ordered_fields (encode_array encode_cfield) (fun() -> "class fields");
 		"statics", encode_ref c.cl_ordered_statics (encode_array encode_cfield) (fun() -> "class fields");
 		"constructor", (match c.cl_constructor with None -> VNull | Some c -> encode_ref c encode_cfield (fun() -> "constructor"));
-		"meta", encode_meta c.cl_meta (fun m -> c.cl_meta <- m);
 		"init", (match c.cl_init with None -> VNull | Some e -> encode_texpr e);
 	]
 
 and encode_ttype t =
-	enc_obj [
-		"__t", encode_tdecl (TTypeDecl t);
-		"pack", enc_array (List.map enc_string (fst t.t_path));
-		"name", enc_string (snd t.t_path);
-		"pos", encode_pos t.t_pos;
-		"isPrivate", VBool t.t_private;
+	encode_mtype (TTypeDecl t) [
 		"isExtern", VBool false;
 		"exclude", VFunction (Fun0 (fun() -> VNull));
 		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) t.t_types);
 		"type", encode_type t.t_type;
-		"meta", encode_meta t.t_meta (fun m -> t.t_meta <- m);
 	]
-
-and encode_tdecl t =
-	VAbstract (ATDecl t)
 
 and encode_tanon a =
 	enc_obj [

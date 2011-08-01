@@ -862,7 +862,7 @@ let merge com file priority (h1,tags1) (h2,tags2) =
 				let path = parse_path e.exp_name in
 				let b = List.exists (fun t -> t_path t = path) com.types in
 				if not b && fst path = [] then List.iter (fun t ->
-					if snd (t_path t) = snd path then error ("Linkage name '" ^ snd path ^ "' in '" ^ file ^  "' should be '" ^ s_type_path (t_path t) ^"'") (t_pos t);
+					if snd (t_path t) = snd path then error ("Linkage name '" ^ snd path ^ "' in '" ^ file ^  "' should be '" ^ s_type_path (t_path t) ^"'") (t_infos t).mt_pos;
 				) com.types;
 				b
 			) el in
@@ -947,9 +947,9 @@ let generate com swf_header =
 								if has_meta ":bind" c.cl_meta then
 									toremove := (t_path t) :: !toremove
 								else
-									error ("Class already exists in '" ^ file ^ "', use @:bind to redefine it") (t_pos t)
+									error ("Class already exists in '" ^ file ^ "', use @:bind to redefine it") (t_infos t).mt_pos
 							| _ ->
-								error ("Invalid redefinition of class defined in '" ^ file ^ "'") (t_pos t)
+								error ("Invalid redefinition of class defined in '" ^ file ^ "'") (t_infos t).mt_pos
 					) com.types;
 				) el
 			| _ -> ()

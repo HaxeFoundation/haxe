@@ -645,6 +645,11 @@ let gen_name ctx acc t =
 			| None -> []
 			| Some e -> [EBinop ("=",field p path "__meta__", gen_expr ctx e),p]
 		) in
+		let meta = if ctx.macros then
+			(EBinop ("=",field p path "__et__",call p (builtin p "typewrap") [Obj.magic t]),p) :: meta
+		else
+			meta
+		in
 		setname :: setconstrs :: meta @ acc
 	| TClassDecl c ->
 		if c.cl_extern then
