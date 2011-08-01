@@ -1476,7 +1476,7 @@ let std_lib =
 
 				let cdata = get_field events (hash "cdata") in
 				let comment = get_field events (hash "comment") in
-				*)				
+				*)
 				let rec loop = function
 					| Xml.Element (node, attribs, children) ->
 						ignore(ctx.do_call o xml [VString node;VObject (obj (hash_field ctx) (List.map (fun (a,v) -> a, VString v) attribs))] p);
@@ -1737,10 +1737,20 @@ let macro_lib =
 		"make_expr", Fun2 (fun v p ->
 			match p with
 			| VAbstract (APos p) ->
-				let h_enum = hash "__enum__" and h_et = hash "__et__" in
-				let h_tag = hash "tag" and h_args = hash "args" in		
+				let h_enum = hash "__enum__" and h_et = hash "__et__" and h_ct = hash "__ct__" in
+				let h_tag = hash "tag" and h_args = hash "args" in
 				let ctx = get_ctx() in
 				let error v = failwith ("Unsupported value " ^ ctx.do_string v) in
+				let is_ident n = n <> "" && n.[0] < 'A' || n.[0] > 'Z' in
+				let make_path t =
+					let rec loop = function
+						| [] -> assert false
+						| [name] -> (Ast.EConst (if is_ident name then Ast.Ident name else Ast.Type name),p)
+						| name :: l -> if is_ident name then (Ast.EField (loop l,name),p) else (Ast.EType (loop l,name),p)
+					in
+					let t = t_infos t in
+					loop (List.rev (if t.mt_module = t.mt_path then fst t.mt_path @ [snd t.mt_path] else fst t.mt_module @ [snd t.mt_module;snd t.mt_path]))
+				in
 				let rec loop = function
 					| VNull -> (Ast.EConst (Ast.Ident "null"),p)
 					| VBool b -> (Ast.EConst (Ast.Ident (if b then "true" else "false")),p)
@@ -1750,8 +1760,12 @@ let macro_lib =
 					| VObject o as v ->
 						match o.oproto with
 						| None ->
-							let fields = List.fold_left (fun acc (fid,v) -> (field_name ctx fid, loop v) :: acc) [] (Array.to_list o.ofields) in
-							(Ast.EObjectDecl fields, p)
+							(match get_field_opt o h_ct with
+							| Some (VAbstract (ATDecl t)) ->
+								make_path t
+							| _ ->
+								let fields = List.fold_left (fun acc (fid,v) -> (field_name ctx fid, loop v) :: acc) [] (Array.to_list o.ofields) in
+								(Ast.EObjectDecl fields, p))
 						| Some proto ->
 							match get_field_opt proto h_enum, get_field_opt o h_a, get_field_opt o h_s with
 							| _, Some (VArray a), _ ->
@@ -1760,21 +1774,14 @@ let macro_lib =
 								(Ast.EConst (Ast.String s),p)
 							| Some (VObject en), _, _ ->
 								(match get_field en h_et, get_field o h_tag with
-								| VAbstract (ATDecl (TEnumDecl et)), VString tag ->
-									let is_ident n = n <> "" && n.[0] < 'A' || n.[0] > 'Z' in
-									let rec path = function
-										| [] -> assert false
-										| [name] -> (Ast.EConst (if is_ident name then Ast.Ident name else Ast.Type name),p)
-										| name :: l -> if is_ident name then (Ast.EField (path l,name),p) else (Ast.EType (path l,name),p)
-									in
-									let epath = path (List.rev (if et.e_module = et.e_path then fst et.e_path @ [snd et.e_path] else fst et.e_module @ [snd et.e_module;snd et.e_path])) in
-									let e = (Ast.EField (epath,tag),p) in
+								| VAbstract (ATDecl t), VString tag ->
+									let e = (Ast.EField (make_path t,tag),p) in
 									(match get_field_opt o h_args with
-									| Some (VArray args) -> 
+									| Some (VArray args) ->
 										let args = List.map loop (Array.to_list args) in
 										(Ast.ECall (e,args),p)
-									| _ -> e)								
-								| _ -> 
+									| _ -> e)
+								| _ ->
 									error v)
 							| _ ->
 								error v

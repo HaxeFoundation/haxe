@@ -508,6 +508,11 @@ let gen_class ctx c =
 		| [] , name -> [(EBinop ("=",field p (ident p "@classes") name,ident p name),p)]
 		| _ -> []
 	in
+	let emeta = if ctx.macros then
+		(EBinop ("=",field p stpath "__ct__",call p (builtin p "typewrap") [Obj.magic (TClassDecl c)]),p) :: emeta
+	else
+		emeta
+	in
 	let eextends = (match c.cl_super with
 		| None -> []
 		| Some (c,_) ->
