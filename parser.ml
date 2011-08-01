@@ -161,7 +161,7 @@ let rec	parse_file s =
 	| [< '(Kwd Package,_); p = parse_package; _ = semicolon; l = parse_type_decls []; '(Eof,_) >] -> p , l
 	| [< l = parse_type_decls []; '(Eof,_) >] -> [] , l
 
-and parse_type_decls acc s = 
+and parse_type_decls acc s =
 	try
 		match s with parser
 		| [< v = parse_type_decl; l = parse_type_decls (v :: acc) >] -> l
@@ -360,7 +360,7 @@ and parse_complex_type_next t = parser
 
 and parse_type_anonymous_resume name p1 = parser
 	| [< '(DblDot,_); t = parse_complex_type; s >] ->
-		let next p2 acc = 
+		let next p2 acc =
 			{
 				cff_name = name;
 				cff_meta = [];
@@ -552,8 +552,7 @@ and expr = parser
 			| [< '(Comma,_); t = parse_complex_type; '(PClose,p2); s >] -> expr_next (ECast (e,Some t),punion p1 p2) s
 			| [< '(PClose,p2); s >] -> expr_next (ECast (e,None),punion p1 (pos e)) s
 			| [< >] -> serror())
-		| [< e = expr; s >] -> expr_next (ECast (e,None),punion p1 (pos e)) s
-		| [< >] -> serror())
+		| [< e = secure_expr >] -> expr_next (ECast (e,None),punion p1 (pos e)) s)
 	| [< '(Kwd Throw,p); e = expr >] -> (EThrow e,p)
 	| [< '(Kwd New,p1); t = parse_type_path; '(POpen,p); s >] ->
 		if is_resuming p then display (EDisplayNew t,punion p1 p);
@@ -573,7 +572,7 @@ and expr = parser
 			EFunction ((match name with None -> None | Some (name,_) -> Some name),f), punion p1 (pos e)
 		in
 		(try
-			expr_next (make (expr s)) s
+			expr_next (make (try expr s with Stream.Failure -> (EBlock [],p1))) s
 		with
 			Display e -> display (make e))
 	| [< '(Unop op,p1) when is_prefix op; e = expr >] -> make_unop op e p1
@@ -594,13 +593,13 @@ and expr = parser
 		| [< >] -> serror()) */*)
 	| [< '(Kwd For,p); '(POpen,_); name, _ = any_ident; '(Kwd In,_); it = expr; '(PClose,_); s >] ->
 		(try
-			let e = expr s in
+			let e = secure_expr s in
 			(EFor (name,it,e),punion p (pos e))
 		with
 			Display e -> display (EFor (name,it,e),punion p (pos e)))
 	| [< '(Kwd If,p); '(POpen,_); cond = expr; '(PClose,_); e1 = expr; s >] ->
-		let e2 , s = (match s with parser
-			| [< '(Kwd Else,_); e2 = expr; s >] -> Some e2 , s
+		let e2 = (match s with parser
+			| [< '(Kwd Else,_); e2 = expr; s >] -> Some e2
 			| [< >] ->
 				(*
 					we can't directly npeek 2 elements because this might
@@ -612,12 +611,10 @@ and expr = parser
 					| [(Semicolon,_); (Kwd Else,_)] ->
 						Stream.junk s;
 						Stream.junk s;
-						(match s with parser
-						| [< e2 = expr; s >] -> Some e2, s
-						| [< >] -> serror())
-					| _ -> None , s)
+						Some (secure_expr s)
+					| _ -> None)
 				| _ ->
-					None , s
+					None
 		) in
 		(EIf (cond,e1,e2), punion p (match e2 with None -> pos e1 | Some e -> pos e))
 	| [< '(Kwd Return,p); e = popt expr >] -> (EReturn e, match e with None -> p | Some e -> punion p (pos e))
@@ -625,7 +622,7 @@ and expr = parser
 	| [< '(Kwd Continue,p) >] -> (EContinue,p)
 	| [< '(Kwd While,p1); '(POpen,_); cond = expr; '(PClose,_); s >] ->
 		(try
-			let e = expr s in
+			let e = secure_expr s in
 			(EWhile (cond,e,NormalWhile),punion p1 (pos e))
 		with
 			Display e -> display (EWhile (cond,e,NormalWhile),punion p1 (pos e)))
@@ -662,18 +659,13 @@ and expr_next e1 = parser
 			| [< '(Binop OpGt,_) >] ->
 				(match s with parser
 				| [< '(Binop OpAssign,_); e2 = expr >] -> make_binop (OpAssignOp OpUShr) e1 e2
-				| [< e2 = expr >] -> make_binop OpUShr e1 e2
-				| [< >] -> serror())
+				| [< e2 = secure_expr >] -> make_binop OpUShr e1 e2)
 			| [< '(Binop OpAssign,_); e2 = expr >] -> make_binop (OpAssignOp OpShr) e1 e2
-			| [< e2 = expr >] -> make_binop OpShr e1 e2
-			| [< >] -> serror())
+			| [< e2 = secure_expr >] -> make_binop OpShr e1 e2)
 		| [< '(Binop OpAssign,_); s >] ->
-			(match s with parser
-			| [< e2 = expr >] -> make_binop OpGte e1 e2
-			| [< >] -> serror())
-		| [< e2 = expr >] ->
-			make_binop OpGt e1 e2
-		| [< >] -> serror())
+			make_binop OpGte e1 (secure_expr s)
+		| [< e2 = secure_expr >] ->
+			make_binop OpGt e1 e2)
 	| [< '(Binop op,_); e2 = expr >] ->
 		make_binop op e1 e2
 	| [< '(Unop op,p) when is_postfix e1 op; s >] ->
@@ -699,9 +691,7 @@ and parse_catch etry = parser
 		match s with parser
 		| [< '(DblDot,_); t = parse_complex_type; '(PClose,_); s >] ->
 			(try
-				match s with parser
-				| [< e = expr >] ->	(name,t,e)
-				| [< >] -> serror()
+				(name,t,secure_expr s)
 			with
 				Display e -> display (ETry (etry,[name,t,e]),punion (pos etry) (pos e)))
 		| [< '(_,p) >] -> error Missing_type p
@@ -749,6 +739,11 @@ and toplevel_expr s =
 		expr s
 	with
 		Display e -> e
+
+and secure_expr s =
+	match s with parser
+	| [< e = expr >] -> e
+	| [< >] -> serror()
 
 let parse ctx code =
 	let old = Lexer.save() in

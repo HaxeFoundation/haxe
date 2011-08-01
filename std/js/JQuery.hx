@@ -33,8 +33,8 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	var context(default,null) : Dom.HtmlDom;
 	var length(default, null) : Int;
 
-	@:overload(function(j:JQuery):Void{})
-	@:overload(function(j:Dom.HtmlDom):Void{})
+	@:overload(function(j:JQuery):Void)
+	@:overload(function(j:Dom.HtmlDom):Void)
 	function new( html : String ) : Void;
 
 	// attributes
@@ -169,9 +169,9 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	function wrap( html : String ) : JQuery;
 
 	@:overload(function(value:JQuery):JQuery)
-	@:overload(function(value:Dom.HtmlDom):JQuery)	
+	@:overload(function(value:Dom.HtmlDom):JQuery)
 	function wrapAll( html : String ) : JQuery;
-	
+
 	@:overload(function(value:JQuery):JQuery)
 	@:overload(function(value:Dom.HtmlDom):JQuery)
 	function wrapInner( html : String ) : JQuery;
