@@ -97,7 +97,7 @@ type extern_api = {
 	type_patch : string -> string -> bool -> string option -> unit;
 	meta_patch : string -> string -> string option -> bool -> unit;
 	set_js_generator : (value -> unit) -> unit;
-	get_cur_class : unit -> tclass option;
+	get_local_type : unit -> t option;
 	get_build_fields : unit -> value;
 }
 
@@ -1899,10 +1899,10 @@ let macro_lib =
 				Hashtbl.replace (get_ctx()).com.Common.resources name data; VNull
 			| _ -> error()
 		);
-		"curclass", Fun0 (fun() ->
-			match (get_ctx()).curapi.get_cur_class() with
+		"local_type", Fun0 (fun() ->
+			match (get_ctx()).curapi.get_local_type() with
 			| None -> VNull
-			| Some c -> encode_type (TInst (c,[]))
+			| Some t -> encode_type t
 		);
 		"follow", Fun2 (fun v once ->
 			let t = decode_type v in

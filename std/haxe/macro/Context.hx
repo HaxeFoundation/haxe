@@ -74,12 +74,21 @@ class Context {
 		Returns the current class in which the macro is called
 	**/
 	public static function getLocalClass() : Null<Type.Ref<Type.ClassType>> {
-		var l : Type = load("curclass", 0)();
+		var l : Type = load("local_type", 0)();
 		if( l == null ) return null;
 		return switch( l ) {
 		case TInst(c,_): c;
 		default: null;
 		}
+	}
+
+	/**
+		Returns the current type in/on which the macro is called
+	**/
+	public static function getLocalType() : Null<Type> {
+		var l : Type = load("local_type", 0)();
+		if( l == null ) return null;
+		return l;
 	}
 
 	/**
@@ -116,7 +125,7 @@ class Context {
 	public static function makeExpr( v : Dynamic, pos : Position ) : Expr {
 		return load("make_expr", 2)(v, pos);
 	}
-	
+
 	/**
 		Quickly build an hashed MD5 signature for any given value
 	**/
@@ -144,7 +153,7 @@ class Context {
 	public static function follow( t : Type, ?once : Bool ) : Type {
 		return load("follow", 2)(t,once);
 	}
-	
+
 	/**
 		Get the informations stored into a given position.
 	**/
@@ -167,7 +176,7 @@ class Context {
 	public static function addResource( name : String, data : haxe.io.Bytes ) {
 		return load("add_resource",2)(untyped name.__s,data.getData());
 	}
-	
+
 	/**
 		Returns the list of fields for the current type inside the build macro.
 	**/

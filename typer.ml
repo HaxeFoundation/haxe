@@ -2106,9 +2106,23 @@ let make_macro_api ctx p =
 				t()
 			);
 		);
-		Interp.get_cur_class = (fun() -> Some ctx.curclass);
+		Interp.get_local_type = (fun() -> 
+			match ctx.g.get_build_infos() with
+			| Some (mt,_) ->
+				Some (match mt with
+					| TClassDecl c -> TInst (c,[])
+					| TEnumDecl e -> TEnum (e,[])
+					| TTypeDecl t -> TType (t,[]))
+			| None ->
+				if ctx.curclass == null_class then
+					None
+				else
+					Some (TInst (ctx.curclass,[])))
+		;
 		Interp.get_build_fields = (fun() ->
-			Interp.enc_array (List.map Interp.encode_field (ctx.g.get_build_fields()))
+			match ctx.g.get_build_infos() with
+			| None -> Interp.VNull
+			| Some (_,fields) -> Interp.enc_array (List.map Interp.encode_field fields)
 		)
 	}
 
@@ -2248,7 +2262,16 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			try
 				Some (match mode with
 				| MExpr -> Interp.decode_expr v
-				| MBuild -> (EVars ["fields",Some (CTAnonymous (match v with Interp.VNull -> ctx.g.get_build_fields() | _ -> List.map Interp.decode_field (Interp.dec_array v))),None],p))
+				| MBuild -> 
+					let fields = (match v with
+						| Interp.VNull ->
+							(match ctx.g.get_build_infos() with
+							| None -> assert false
+							| Some (_,fields) -> fields)
+						| _ ->
+							List.map Interp.decode_field (Interp.dec_array v)
+					) in
+					(EVars ["fields",Some (CTAnonymous fields),None],p))
 			with Interp.Invalid_expr ->
 				error "The macro didn't return a valid result" p
 	in
@@ -2325,7 +2348,7 @@ let rec create com =
 			delayed = [];
 			doinline = not (Common.defined com "no_inline" || com.display);
 			hook_generate = [];
-			get_build_fields = (fun() -> []);
+			get_build_infos = (fun() -> None);
 			std = empty;
 			do_inherit = Codegen.on_inherit;
 			do_create = create;

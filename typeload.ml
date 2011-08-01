@@ -670,7 +670,7 @@ let patch_class ctx c fields =
 		in
 		List.rev (loop [] fields)
 
-let build_module_def ctx meta fvars fbuild =
+let build_module_def ctx mt meta fvars fbuild =
 	let rec loop = function
 		| (":build",args,p) :: l ->
 			let epath, el = (match args with
@@ -685,10 +685,10 @@ let build_module_def ctx meta fvars fbuild =
 			in
 			let s = String.concat "." (List.rev (getpath epath)) in
 			if ctx.in_macro then error "You cannot used :build inside a macro : make sure that your enum is not used in macro" p;
-			let old = ctx.g.get_build_fields in
-			ctx.g.get_build_fields <- fvars;
-			let r = try apply_macro ctx MBuild s el p with e -> ctx.g.get_build_fields <- old; raise e in
-			ctx.g.get_build_fields <- old;
+			let old = ctx.g.get_build_infos in
+			ctx.g.get_build_infos <- (fun() -> Some (mt, fvars()));
+			let r = try apply_macro ctx MBuild s el p with e -> ctx.g.get_build_infos <- old; raise e in
+			ctx.g.get_build_infos <- old;
 			(match r with
 			| None -> error "Build failure" p
 			| Some e -> fbuild e; loop l)
@@ -708,7 +708,7 @@ let init_class ctx c p herits fields =
 	set_heritance ctx c herits p;
 	let fields = ref fields in
 	let get_fields() = !fields in
-	build_module_def { ctx with curclass = c } c.cl_meta get_fields (fun (e,p) ->
+	build_module_def ctx (TClassDecl c) c.cl_meta get_fields (fun (e,p) ->
 		match e with
 		| EVars [_,Some (CTAnonymous f),None] -> fields := f
 		| _ -> error "Class build macro must return a single variable with anonymous fields" p
@@ -1361,7 +1361,7 @@ let type_module ctx m tdecls loadp =
 					}
 				) (!constructs)
 			in
-			build_module_def ctx e.e_meta get_constructs (fun (e,p) ->
+			build_module_def ctx (TEnumDecl e) e.e_meta get_constructs (fun (e,p) ->
 				match e with
 				| EVars [_,Some (CTAnonymous fields),None] ->
 					constructs := List.map (fun f ->

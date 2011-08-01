@@ -40,7 +40,7 @@ type typer_globals = {
 	mutable std : module_def;
 	mutable hook_generate : (unit -> unit) list;
 	type_patches : (path, (string * bool, type_patch) Hashtbl.t * type_patch) Hashtbl.t;
-	mutable get_build_fields : unit -> Ast.class_field list;
+	mutable get_build_infos : unit -> (module_type * Ast.class_field list) option;
 	(* api *)
 	do_inherit : typer -> Type.tclass -> Ast.pos -> Ast.class_flag -> bool;
 	do_create : Common.context -> typer;
