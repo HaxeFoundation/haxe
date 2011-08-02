@@ -185,9 +185,9 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	function fadeTo( duration : Int, opacity : Float, ?call : Void -> Void ) : JQuery;
 	function fadeToggle( ?duration : Int, ?call : Void -> Void ) : JQuery;
 	function show( ?duration : Int, ?call : Void -> Void ) : JQuery;
-	function sliceDown( ?duration : Int, ?call : Void -> Void ) : JQuery;
-	function sliceToggle( ?duration : Int, ?call : Void -> Void ) : JQuery;
-	function sliceUp( ?duration : Int, ?call : Void -> Void ) : JQuery;
+	function slideDown( ?duration : Int, ?call : Void -> Void ) : JQuery;
+	function slideToggle( ?duration : Int, ?call : Void -> Void ) : JQuery;
+	function slideUp( ?duration : Int, ?call : Void -> Void ) : JQuery;
 	function stop( ?clearQueue : Bool, ?jumpToEnd : Bool ) : JQuery;
 	function toggle( ?duration : Int, ?call : Void -> Void ) : JQuery;
 
