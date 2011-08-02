@@ -191,7 +191,7 @@ let rec unify_call_params ctx name el args r p inline =
 			(match List.rev skip with
 			| [] -> error "Too many"
 			| [name,ul] -> arg_error ul name true p
-			| _ -> error "Invalid")			
+			| _ -> error "Invalid")
 		| ee :: l, (name,opt,t) :: l2 ->
 			let e = type_expr_with_type ctx ee (Some t) in
 			try
@@ -492,7 +492,7 @@ let type_ident ctx i is_type p mode =
 			AKNo i
 	| _ ->
 	try
-		let v = PMap.find i ctx.locals in		
+		let v = PMap.find i ctx.locals in
 		AKExpr (mk (TLocal v) v.v_type p)
 	with Not_found -> try
 		(* member variable lookup *)
@@ -1195,21 +1195,19 @@ and type_access ctx e p mode =
 						let check_module m v =
 							try
 								let md = Typeload.load_module ctx m p in
-								(* first look for main type with static var - most likely *)
-								(try								
-									let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = m) md.mtypes in
-									(match t with
-									| TClassDecl c when PMap.mem sname c.cl_statics -> Some (get_static t)
-									| TEnumDecl e when PMap.mem sname e.e_constrs -> Some (get_static t)
-									| _ -> raise Not_found)
-								with Not_found -> try
-								(* then look for subtype *)
+								(* first look for existing subtype *)
+								(try
 									let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = (fst m,sname)) md.mtypes in
 									Some (fun _ -> AKExpr (type_module_type ctx t None p))
+								with Not_found -> try
+								(* then look for main type statics *)
+									if fst m = [] then raise Not_found; (* ensure that we use def() to resolve local types first *)
+									let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = m) md.mtypes in
+									Some (get_static t)
 								with Not_found ->
 									None)
 							with Error (Module_not_found m2,_) when m = m2 ->
-								None								
+								None
 						in
 						let rec loop pack =
 							match check_module (pack,name) sname with
@@ -1219,9 +1217,9 @@ and type_access ctx e p mode =
 								| [] -> def()
 								| _ :: l -> loop (List.rev l)
 						in
-						(match path with
+						(match pack with
 						| [] -> loop (fst ctx.current.mpath)
-						| _ -> 
+						| _ ->
 							match check_module (pack,name) sname with
 							| Some r -> r
 							| None -> def());
@@ -2136,7 +2134,7 @@ let make_macro_api ctx p =
 				t()
 			);
 		);
-		Interp.get_local_type = (fun() -> 
+		Interp.get_local_type = (fun() ->
 			match ctx.g.get_build_infos() with
 			| Some (mt,_) ->
 				Some (match mt with
@@ -2292,7 +2290,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			try
 				Some (match mode with
 				| MExpr -> Interp.decode_expr v
-				| MBuild -> 
+				| MBuild ->
 					let fields = (match v with
 						| Interp.VNull ->
 							(match ctx.g.get_build_infos() with
