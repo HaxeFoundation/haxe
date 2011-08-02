@@ -269,8 +269,8 @@ let rec type_module_type ctx t tparams p =
 		| _ ->
 			error (s_type_path s.t_path ^ " is not a value") p
 
-let type_type ctx ?(tsub=None) tpath p =
-	type_module_type ctx (Typeload.load_type_def ctx p { tpackage = fst tpath; tname = snd tpath; tparams = []; tsub = tsub }) None p
+let type_type ctx tpath p =
+	type_module_type ctx (Typeload.load_type_def ctx p { tpackage = fst tpath; tname = snd tpath; tparams = []; tsub = None }) None p
 
 let get_constructor c p =
 	let rec loop c =
@@ -1189,12 +1189,42 @@ and type_access ctx e p mode =
 					in
 					match path with
 					| (sname,true,p) :: path ->
-						(try
-							let e = type_type ctx ~tsub:(Some sname) (pack,name) p in
-							fields path (fun _ -> AKExpr e)
-						with
-							Error ((Module_not_found m | Type_not_found (m,_)),_) when m = (pack,name) ->
-								def())
+						let get_static t =
+							fields ((sname,true,p) :: path) (fun _ -> AKExpr (type_module_type ctx t None p))
+						in
+						let check_module m v =
+							try
+								let md = Typeload.load_module ctx m p in
+								(* first look for main type with static var - most likely *)
+								(try								
+									let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = m) md.mtypes in
+									(match t with
+									| TClassDecl c when PMap.mem sname c.cl_statics -> Some (get_static t)
+									| TEnumDecl e when PMap.mem sname e.e_constrs -> Some (get_static t)
+									| _ -> raise Not_found)
+								with Not_found -> try
+								(* then look for subtype *)
+									let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = (fst m,sname)) md.mtypes in
+									Some (fun _ -> AKExpr (type_module_type ctx t None p))
+								with Not_found ->
+									None)
+							with Error (Module_not_found m2,_) when m = m2 ->
+								None								
+						in
+						let rec loop pack =
+							match check_module (pack,name) sname with
+							| Some r -> r
+							| None ->
+								match List.rev pack with
+								| [] -> def()
+								| _ :: l -> loop (List.rev l)
+						in
+						(match path with
+						| [] -> loop (fst ctx.current.mpath)
+						| _ -> 
+							match check_module (pack,name) sname with
+							| Some r -> r
+							| None -> def());
 					| _ -> def()
 			in
 			match path with
