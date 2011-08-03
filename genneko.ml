@@ -268,14 +268,14 @@ and gen_expr ctx e =
 		) vl),p)
 	| TFunction f ->
 		let inits = List.fold_left (fun acc (a,c) ->
-			let acc = (match c with
-				| None | Some TNull -> acc
-				| Some c ->	gen_expr ctx (Codegen.set_default ctx.com a c e.epos) :: acc
-			) in
-			if a.v_capture then
+			let acc = if a.v_capture then
 				(EBinop ("=",ident p a.v_name,call p (builtin p "array") [ident p a.v_name]),p) :: acc
 			else
 				acc
+			in
+			match c with
+			| None | Some TNull -> acc
+			| Some c ->	gen_expr ctx (Codegen.set_default ctx.com a c e.epos) :: acc			
 		) [] f.tf_args in
 		let e = gen_expr ctx f.tf_expr in
 		let e = (match inits with [] -> e | _ -> EBlock (List.rev (e :: inits)),p) in
