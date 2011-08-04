@@ -186,7 +186,7 @@ class Dispatch {
 				return MRFloat;
 			case "String":
 				return MRString;
-			case "Dispatch":
+			case "haxe.web.Dispatch":
 				return MRDispatch;
 			default:
 				var c = i.get();
@@ -259,14 +259,13 @@ class Dispatch {
 
 	static function makeConfig( obj : Expr ) {
 		var p = obj.pos;
-		var t = Context.typeof(obj);
+		var t = try Context.typeof(obj) catch( e : Dynamic ) return { expr : EObjectDecl([ { field : "obj", expr : obj }, { field : "rules", expr : { expr : EConst(CIdent("null")), pos : p } } ]), pos : p };
 		switch( Context.follow(t) ) {
 		case TAnonymous(fl):
 			var fields = [];
 			for( f in fl.get().fields ) {
 				if( f.name.substr(0, 2) != "do" )
 					continue;
-
 				var r = makeRule(f);
 				fields.push( { field : f.name.charAt(2).toLowerCase() + f.name.substr(3), expr : Context.makeExpr(r,p) } );
 			}
