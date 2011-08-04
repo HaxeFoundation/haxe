@@ -960,10 +960,12 @@ class SpodData {
 		var pos = Context.currentPos();
 		return { expr : ECall({ expr : EField(em,"unsafeDelete"), pos : pos },[sql]), pos : pos };
 	}
-	
+
 	public static function macroBuild() {
 		var fields = Context.getBuildFields();
-		for( f in fields )
+		var hasManager = false;
+		for( f in fields ) {
+			if( f.name == "manager") hasManager = true;
 			for( m in f.meta )
 				if( m.name == ":relation" ) {
 					switch( f.kind ) {
@@ -974,6 +976,17 @@ class SpodData {
 					}
 					break;
 				}
+		}
+		if( !hasManager ) {
+			var inst = Context.getLocalClass().get();
+			if( inst.meta.has(":skip") )
+				return fields;
+			var p = inst.pos;
+			var tinst = TPath( { pack : inst.pack, name : inst.name, sub : null, params : [] } );
+			var path = inst.pack.copy().concat([inst.name]).join(".");
+			var enew = { expr : ENew( { pack : ["neko", "db"], name : "Manager", sub : null, params : [TPType(tinst)] }, [Context.parse(path, p)]), pos : p }
+			fields.push({ name : "manager", meta : [], kind : FVar(null,enew), doc : null, access : [AStatic,APublic], pos : p });
+		}
 		return fields;
 	}
 
