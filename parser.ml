@@ -572,7 +572,7 @@ and expr = parser
 			EFunction ((match name with None -> None | Some (name,_) -> Some name),f), punion p1 (pos e)
 		in
 		(try
-			expr_next (make (try expr s with Stream.Failure -> (EBlock [],p1))) s
+			expr_next (make (secure_expr s)) s
 		with
 			Display e -> display (make e))
 	| [< '(Unop op,p1) when is_prefix op; e = expr >] -> make_unop op e p1
