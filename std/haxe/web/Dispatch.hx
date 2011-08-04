@@ -97,6 +97,7 @@ class Dispatch {
 			r = Reflect.field(cfg.rules, "default");
 			if( r == null )
 				throw DENotFound(name);
+			parts.unshift(name);
 			name = "default";
 		}
 		name = resolveName(name);
