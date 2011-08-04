@@ -84,13 +84,14 @@ class Dispatch {
 	}
 
 	function resolveName( name : String ) {
-		return "do" + name.charAt(0).toUpperCase() + name.substr(1);
+		return name;
 	}
 
 	public function runtimeDispatch( cfg : Config ) {
 		name = parts.shift();
 		if( name == null )
 			name = "default";
+		name = resolveName(name);
 		this.obj = cfg.obj;
 		var r : DispatchRule = Reflect.field(cfg.rules, name);
 		if( r == null ) {
@@ -100,7 +101,7 @@ class Dispatch {
 			parts.unshift(name);
 			name = "default";
 		}
-		name = resolveName(name);
+		name = "do" + name.charAt(0).toUpperCase() + name.substr(1);
 		var args = [];
 		loop(args, r);
 		Reflect.callMethod(obj, Reflect.field(obj, name), args);
