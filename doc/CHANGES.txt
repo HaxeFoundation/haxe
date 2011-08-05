@@ -31,6 +31,8 @@
 	all : allow to access modules subtype statics with pack.Mod.Type.value
 		and fixed identifier resolution order
 	flash9 : added @:bitmap("file") for simple embedding
+	all : added haxe.web.Dispatch
+	js : added js.Storage
 
 2011-01-30: 2.07
 	all : fixed completion support with --remap
