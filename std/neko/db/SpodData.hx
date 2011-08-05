@@ -602,26 +602,28 @@ class SpodData {
 			case EConst(co):
 				switch(co) {
 				case CIdent(t), CType(t):
-					var f = functions.get(t);
-					if( f == null ) error("Unknown method " + t, c.pos);
-					if( f.params.length != pl.length ) error("Function " + f.name + " requires " + f.params.length + " parameters", p);
-					var parts = f.sql.split("$");
-					var sql = makeString(parts[0], p);
-					var first = true;
-					var isNull = false;
-					for( i in 0...f.params.length ) {
-						var r = buildCond(pl[i]);
-						if( r.n ) isNull = true;
-						unify(r.t, f.params[i], pl[i].pos);
-						if( first )
-							first = false;
-						else
-							sql = sqlAddString(sql, ",");
-						sql = sqlAdd(sql, r.sql, p);
+					if( t.charCodeAt(0) == '$'.code ) {
+						var f = functions.get(t.substr(1));
+						if( f == null ) error("Unknown method " + t, c.pos);
+						if( f.params.length != pl.length ) error("Function " + f.name + " requires " + f.params.length + " parameters", p);
+						var parts = f.sql.split("$");
+						var sql = makeString(parts[0], p);
+						var first = true;
+						var isNull = false;
+						for( i in 0...f.params.length ) {
+							var r = buildCond(pl[i]);
+							if( r.n ) isNull = true;
+							unify(r.t, f.params[i], pl[i].pos);
+							if( first )
+								first = false;
+							else
+								sql = sqlAddString(sql, ",");
+							sql = sqlAdd(sql, r.sql, p);
+						}
+						sql = sqlAddString(sql, parts[1]);
+						// assume that for all SQL functions, a NULL parameter will make a NULL result
+						return { sql : sql, t : f.ret, n : isNull };
 					}
-					sql = sqlAddString(sql, parts[1]);
-					// assume that for all SQL functions, a NULL parameter will make a NULL result
-					return { sql : sql, t : f.ret, n : isNull };
 				default:
 				}
 			case EField(e, f), EType(e, f):
@@ -633,6 +635,18 @@ class SpodData {
 						unify(r.t, DText, e.pos);
 						unify(v.t, DText, pl[0].pos);
 						return { sql : makeOp(" LIKE ", r.sql, v.sql, p), t : DBool, n : r.n || v.n };
+					}
+				case "has":
+					if( pl.length == 1 ) {
+						var r = buildCond(e);
+						switch( r.t ) {
+						case DFlags(vals):
+							var id = makeIdent(pl[0]);
+							var idx = Lambda.indexOf(vals,id);
+							if( idx < 0 ) error("Flag should be "+vals.join(","), pl[0].pos);
+							return { sql : sqlAddString(r.sql, " AND " + (1 << idx) + " != 0"), t : DBool, n : r.n };
+						default:
+						}
 					}
 				}
 			default:
