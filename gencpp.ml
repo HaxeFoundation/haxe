@@ -410,6 +410,15 @@ let is_array haxe_type =
 	| _ -> false
 	;;
 
+let is_array_implementer haxe_type =
+	match follow haxe_type with
+	| TInst (klass,params) ->
+		(match klass.cl_array_access with
+		| Some _ -> true
+		| _ -> false )
+	| _ -> false
+	;;
+
 
 
 (* Get the type and output it to the stream *)
@@ -1286,10 +1295,18 @@ and gen_expression ctx retval expression =
 	| TArray (array_expr,index) ->
 		let dynamic =  is_dynamic_in_cpp ctx array_expr in
 		if ( assigning && (not dynamic) ) then begin
-			gen_expression ctx true array_expr;
-			output "[";
-			gen_expression ctx true index;
-			output "]";
+         if (is_array_implementer array_expr.etype) then begin
+			   output "hx::__ArrayImplRef(";
+			   gen_expression ctx true array_expr;
+			   output ",";
+			   gen_expression ctx true index;
+			   output ")";
+         end else begin
+			   gen_expression ctx true array_expr;
+			   output "[";
+			   gen_expression ctx true index;
+			   output "]";
+         end
 		end else if (assigning) then begin
 			(* output (" /*" ^ (type_string array_expr.etype) ^ " */ "); *)
 			output "hx::IndexRef((";
