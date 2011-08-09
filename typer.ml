@@ -1198,7 +1198,7 @@ and type_access ctx e p mode =
 								(* first look for existing subtype *)
 								(try
 									let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = (fst m,sname)) md.mtypes in
-									Some (fun _ -> AKExpr (type_module_type ctx t None p))
+									Some (fields path (fun _ -> AKExpr (type_module_type ctx t None p)))
 								with Not_found -> try
 								(* then look for main type statics *)
 									if fst m = [] then raise Not_found; (* ensure that we use def() to resolve local types first *)
