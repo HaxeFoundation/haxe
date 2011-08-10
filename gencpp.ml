@@ -1944,12 +1944,12 @@ let gen_member_def ctx class_def is_static is_extern is_interface field =
 			gen_type ctx field.cf_type;
 			output (" &" ^ remap_name ^ "_dyn() { return " ^ remap_name ^ ";}\n" )
 		| _ ->  (match field.cf_kind with
-			| Var { v_read = AccCall name } when (is_dynamic_accessor name "get" field class_def) ->
+			| Var { v_read = AccCall name } when (not is_static) && (is_dynamic_accessor name "get" field class_def) ->
 				output ("\t\tDynamic get_" ^ field.cf_name ^ ";\n" )
 			| _ -> ()
 			);
 			(match field.cf_kind with
-			| Var { v_write = AccCall name } when  (is_dynamic_accessor name "set" field class_def) ->
+			| Var { v_write = AccCall name } when (not is_static) &&  (is_dynamic_accessor name "set" field class_def) ->
 				output ("\t\tDynamic set_" ^ field.cf_name ^ ";\n" )
 			| _ -> ()
 			)
