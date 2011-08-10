@@ -284,6 +284,7 @@ List.filter (function (t,pl) ->
 let rec is_function_expr expr =
    match expr.eexpr with
    | TParenthesis expr -> is_function_expr expr
+   | TCast (e,None) -> is_function_expr e
    | TFunction _ -> true
    | _ -> false;;
 
@@ -745,6 +746,7 @@ let rec is_null expr =
    match expr.eexpr with
    | TConst TNull -> true
    | TParenthesis expr -> is_null expr
+   | TCast (e,None) -> is_null e
    | _ -> false
 ;;
 
@@ -857,6 +859,7 @@ let rec is_dynamic_in_cpp ctx expr =
                | _ -> ctx.ctx_dbgout "/* not TFun */";  true
            );
 		| TParenthesis(expr) -> is_dynamic_in_cpp ctx expr
+      | TCast (e,None) -> is_dynamic_in_cpp ctx e
 		| TLocal { v_name = "__global__" } -> false
 		| TConst TNull -> true
 		| _ -> ctx.ctx_dbgout "/* other */";  false (* others ? *) )
@@ -1213,6 +1216,7 @@ and gen_expression ctx retval expression =
 	     | TEnumField _ -> false
 		 | TLocal { v_name = "__global__" } -> false
          | TParenthesis p -> is_variable p
+         | TCast (e,None) -> is_variable e
          | _ -> true
       in
 		let expr_type = type_string expression.etype in
