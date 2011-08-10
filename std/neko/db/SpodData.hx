@@ -490,7 +490,7 @@ class SpodData {
 					first = false;
 				else
 					sql = sqlAddString(sql, " AND ");
-				sql = sqlAddString(sql, quoteField(fi.name) + " = ");
+				sql = sqlAddString(sql, quoteField(fi.name) + (fi.isNull ? " <=> " : " = "));
 				sql = sqlAddValue(sql, f.expr, fi.t);
 				if( fields.exists(fi.name) )
 					error("Duplicate field " + fi.name, p);
