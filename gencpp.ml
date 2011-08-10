@@ -1667,8 +1667,11 @@ and gen_expression ctx retval expression =
 	| TThrow expression -> output "hx::Throw (";
 			gen_expression ctx true expression;
 			output ")"
-	| TCast (expression,None) ->
-		gen_expression ctx retval expression
+	| TCast (cast,None) ->
+		let void_cast = retval && ((type_string expression.etype)="Void" ) in
+      if (void_cast) then output "Void(";
+		gen_expression ctx retval cast;
+      if (void_cast) then output ")";
 	| TCast (e1,Some t) ->
 		let class_name = (join_class_path (t_path t) "::" ) in
 		if (class_name="Array") then
