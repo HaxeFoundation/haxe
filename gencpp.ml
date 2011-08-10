@@ -954,7 +954,7 @@ let rec define_local_function_ctx ctx func_name func_def =
 
 		(* actual function, called "run" *)
 		let args_and_types = List.map
-				(fun (v,_) -> (type_string v.v_type) ^ " " ^ v.v_name ) func_def.tf_args in
+				(fun (v,_) -> (type_string v.v_type) ^ " " ^ (keyword_remap v.v_name) ) func_def.tf_args in
 		let block = is_block func_def.tf_expr in
 		let func_type = type_string func_def.tf_type in
 		output_i (func_type ^ " run(" ^ (String.concat "," args_and_types) ^ ")");
