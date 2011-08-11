@@ -38,4 +38,8 @@ extern class Storage {
 		return untyped try window['localStorage'] catch( e : Dynamic ) null;
 	}
 
+	public static inline function getSession() : Storage {
+		return untyped try window['sessionStorage'] catch( e : Dynamic ) null;
+	}
+
 }
