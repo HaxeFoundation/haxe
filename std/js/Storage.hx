@@ -35,7 +35,7 @@ extern class Storage {
 	public function key( index : Int ) : String;
 
 	public static inline function getLocal() : Storage {
-		return untyped window['localStorage'];
+		return untyped try window['localStorage'] catch( e : Dynamic ) null;
 	}
 
 }
