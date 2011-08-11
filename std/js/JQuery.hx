@@ -88,7 +88,10 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	function position() : { left : Int, top : Int };
 
 	// current group manipulation
-	function add( selectorOrHTML : String, ?context : JQuery ) : JQuery;
+	@:overload(function(value:js.JQuery):js.JQuery{})
+	@:overload(function(value:js.Dom.HtmlDom):js.JQuery{})
+	@:overload(function(value:Array<js.Dom.HtmlDom>):js.JQuery{})
+	function add( selector : String, ?context : JQuery ) : JQuery;
 	function andSelf() : JQuery;
 	function children( ?selector : String ) : JQuery;
 	function clone( ?withDataAndEvents : Bool ) : JQuery;
@@ -209,6 +212,7 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	function mouseleave( ?callb : JqEvent -> Void ) : JQuery;
 	function mouseout( ?callb : JqEvent -> Void ) : JQuery;
 	function mouseover( ?callb : JqEvent -> Void ) : JQuery;
+	function mousemove( ?callb : JqEvent -> Void ) : JQuery;
 	function mouseup( ?callb : JqEvent -> Void ) : JQuery;
 	function load( ?callb : JqEvent -> Void ) : JQuery;
 	function ready( callb : JqEvent -> Void ) : JQuery;
