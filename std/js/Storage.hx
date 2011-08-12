@@ -26,8 +26,8 @@ package js;
 
 extern class Storage {
 
-	public function getItem( key : String ) : Dynamic;
-	public function setItem( key : String, v : Dynamic ) : Void;
+	public function getItem( key : String ) : String;
+	public function setItem( key : String, v : String ) : Void;
 	public function removeItem( key : String ) : Void;
 	public function clear() : Void;
 
