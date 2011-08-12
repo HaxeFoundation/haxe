@@ -62,9 +62,10 @@
 		var a:Array<String> = [];
 		untyped __Internal.__GetFields(a);
 		var it = a.iterator();
+		var me = this;
 		return untyped {
 			hasNext : function() { return it.hasNext(); },
-			next : function() { return  untyped __Internal.__Field(it.next()); }
+			next : function() { return me.__Internal.__Field(it.next()); }
 		};
 	}
 

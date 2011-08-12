@@ -29,7 +29,7 @@ let type_function_param ctx t e opt p =
 		t, Some e
 
 let type_static_var ctx t e p =
-	ctx.in_static <- true;
+	ctx.curfun <- FStatic;
 	let e = type_expr ctx e true in
 	unify ctx e.etype t p;
 	(* specific case for UInt statics *)
@@ -522,7 +522,7 @@ let type_type_params ctx path get_params p (n,flags) =
 		delay ctx (fun () -> ignore(!r()));
 		n, TLazy r
 
-let type_function ctx args ret static constr f p =
+let type_function ctx args ret fmode f p =
 	let locals = save_locals ctx in
 	let fargs = List.map (fun (n,c,t) ->
 		let c = (match c with
@@ -538,11 +538,9 @@ let type_function ctx args ret static constr f p =
 		add_local ctx n t, c
 	) args in
 	let old_ret = ctx.ret in
-	let old_static = ctx.in_static in
-	let old_constr = ctx.in_constructor in
+	let old_fun = ctx.curfun in
 	let old_opened = ctx.opened in
-	ctx.in_static <- static;
-	ctx.in_constructor <- constr;
+	ctx.curfun <- fmode;
 	ctx.ret <- ret;
 	ctx.opened <- [];
 	let e = type_expr ctx (match f.f_expr with None -> error "Function body required" p | Some e -> e) false in
@@ -563,17 +561,24 @@ let type_function ctx args ret static constr f p =
 		| TFunction _ -> ()
 		| _ -> Type.iter loop e
 	in
-	if constr && (match ctx.curclass.cl_super with None -> false | Some (cl,_) -> cl.cl_constructor <> None) then
+	if fmode = FConstructor && (match ctx.curclass.cl_super with None -> false | Some (cl,_) -> cl.cl_constructor <> None) then
 		(try
 			loop e;
 			display_error ctx "Missing super constructor call" p
 		with
 			Exit -> ());
 	locals();
+	let e = if ctx.curfun <> FMember then e else (match ctx.vthis with
+		| None -> e
+		| Some v ->
+			let ev = mk (TVars [v,Some (mk (TConst TThis) ctx.tthis p)]) ctx.t.tvoid p in
+			match e.eexpr with
+			| TBlock l -> { e with eexpr = TBlock (ev::l) }
+			| _ -> mk (TBlock [ev;e]) e.etype p
+	) in
 	List.iter (fun r -> r := Closed) ctx.opened;
 	ctx.ret <- old_ret;
-	ctx.in_static <- old_static;
-	ctx.in_constructor <- old_constr;
+	ctx.curfun <- old_fun;
 	ctx.opened <- old_opened;
 	e , fargs
 
@@ -841,6 +846,7 @@ let init_class ctx c p herits fields =
 		let p = f.cff_pos in
 		let stat = List.mem AStatic f.cff_access in
 		let inline = List.mem AInline f.cff_access in
+		let ctx = { ctx with curclass = c; tthis = tthis } in
 		match f.cff_kind with
 		| FVar (t,e) ->
 			if not stat && has_field name c.cl_super then error ("Redefinition of variable " ^ name ^ " in subclass is not allowed") p;
@@ -884,7 +890,6 @@ let init_class ctx c p herits fields =
 							ignore(!r())
 					)
 				| Some e ->
-					let ctx = { ctx with curclass = c; tthis = tthis } in
 					let r = exc_protect (fun r ->
 						r := (fun() -> t);
 						if ctx.com.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
@@ -903,7 +908,6 @@ let init_class ctx c p herits fields =
 			end else (match e with
 				| None -> (fun() -> ())
 				| Some e ->
-					let ctx = { ctx with curclass = c; tthis = tthis } in
 					let r = exc_protect (fun r ->
 						r := (fun() -> t);
 						if ctx.com.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
@@ -960,12 +964,8 @@ let init_class ctx c p herits fields =
 			let parent = (if not stat then get_parent c name else None) in
 			let dynamic = List.mem ADynamic f.cff_access || (match parent with Some { cf_kind = Method MethDynamic } -> true | _ -> false) in
 			if inline && dynamic then error "You can't have both 'inline' and 'dynamic'" p;
-			let ctx = { ctx with
-				curclass = c;
-				curmethod = name;
-				tthis = tthis;
-				type_params = if stat then params else params @ ctx.type_params;
-			} in
+			ctx.curmethod <- name;
+			ctx.type_params <- if stat then params else params @ ctx.type_params;
 			let ret = type_opt ctx p fd.f_type in
 			let args = List.map (fun (name,opt,t,c) ->
 				let t, c = type_function_param ctx (type_opt ctx p t) c opt p in
@@ -993,7 +993,7 @@ let init_class ctx c p herits fields =
 			let r = exc_protect (fun r ->
 				r := (fun() -> t);
 				if ctx.com.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
-				let e , fargs = type_function ctx args ret stat constr fd p in
+				let e , fargs = type_function ctx args ret (if constr then FConstructor else if stat then FStatic else FMember) fd p in
 				let f = {
 					tf_args = fargs;
 					tf_type = ret;
@@ -1280,15 +1280,15 @@ let type_module ctx m tdecls loadp =
 		local_using = [];
 		type_params = [];
 		curmethod = "";
+		curfun = FStatic;
 		untyped = false;
 		in_super_call = false;
-		in_constructor = false;
-		in_static = false;
 		in_macro = ctx.in_macro;
 		in_display = false;
 		in_loop = false;
 		opened = [];
 		param_type = None;
+		vthis = None;
 	} in
 	let delays = ref [] in
 	let get_class name =

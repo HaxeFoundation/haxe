@@ -455,6 +455,23 @@ let using_field ctx mode e i p =
 	in
 	loop ctx.local_using
 
+let get_this ctx p =
+	match ctx.curfun with
+	| FStatic -> 
+		error "Cannot access this from a static function" p
+	| FMemberLocal ->
+		if ctx.untyped then display_error ctx "Cannot access this in 'untyped' mode : use either '__this__' or var 'me = this' (transitional)" p;
+		let v = (match ctx.vthis with
+			| None ->
+				let v = alloc_var "me" ctx.tthis in
+				ctx.vthis <- Some v;
+				v
+			| Some v -> v
+		) in		
+		mk (TLocal v) ctx.tthis p
+	| FConstructor | FMember ->
+		mk (TConst TThis) ctx.tthis p
+
 let type_ident ctx i is_type p mode =
 	match i with
 	| "true" ->
@@ -468,9 +485,8 @@ let type_ident ctx i is_type p mode =
 		else
 			AKNo i
 	| "this" ->
-		if ctx.in_static then display_error ctx "Cannot access this from a static function" p;
 		if mode = MGet then
-			AKExpr (mk (TConst TThis) ctx.tthis p)
+			AKExpr (get_this ctx p)
 		else
 			AKNo i
 	| "super" ->
@@ -478,7 +494,10 @@ let type_ident ctx i is_type p mode =
 			| None -> error "Current class does not have a superclass" p
 			| Some (c,params) -> TInst(c,params)
 		) in
-		if ctx.in_static then error "Cannot access super from a static function" p;
+		(match ctx.curfun with
+		| FMember | FConstructor -> ()
+		| FStatic -> error "Cannot access super inside a static function" p;
+		| FMemberLocal -> error "Cannot access super inside a local function" p);
 		if mode = MSet || not ctx.in_super_call then
 			AKNo i
 		else begin
@@ -496,12 +515,14 @@ let type_ident ctx i is_type p mode =
 		AKExpr (mk (TLocal v) v.v_type p)
 	with Not_found -> try
 		(* member variable lookup *)
-		if ctx.in_static then raise Not_found;
+		if ctx.curfun = FStatic then raise Not_found;
 		let t , f = class_field ctx.curclass i in
-		field_access ctx mode f t (mk (TConst TThis) ctx.tthis p) p
+		field_access ctx mode f t (get_this ctx p) p
 	with Not_found -> try
-		if ctx.in_static then raise Not_found;
-		using_field ctx mode (mk (TConst TThis) ctx.tthis p) i p
+		if ctx.curfun = FStatic then raise Not_found;
+		(match using_field ctx mode (mk (TConst TThis) ctx.tthis p) i p with
+		| AKUsing (et,f,_) -> AKUsing (et,f,get_this ctx p)
+		| _ -> assert false)
 	with Not_found -> try
 		(* static variable lookup *)
 		let f = PMap.find i ctx.curclass.cl_statics in
@@ -1128,7 +1149,7 @@ and type_ident_noerr ctx i is_type p mode =
 				let t = mk_mono() in
 				AKExpr (mk (TLocal (alloc_var i t)) t p)
 		end else begin
-			if ctx.in_static && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
+			if ctx.curfun = FStatic && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
 			let err = Unknown_ident i in
 			if ctx.in_display then raise (Error (err,p));
 			display_error ctx (error_msg err) p;
@@ -1546,7 +1567,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			| None -> None
 			| Some v -> Some (add_local ctx v ft)
 		) in
-		let e , fargs = Typeload.type_function ctx args rt true false f p in
+		let e , fargs = Typeload.type_function ctx args rt (match ctx.curfun with FStatic -> FStatic | _ -> FMemberLocal) f p in
 		let f = {
 			tf_args = fargs;
 			tf_type = rt;
@@ -1719,7 +1740,7 @@ and type_call ctx e el p =
 		else
 			e
 	| (EConst (Ident "super"),sp) , el ->
-		if ctx.in_static || not ctx.in_constructor then error "Cannot call superconstructor outside class constructor" p;
+		if ctx.curfun <> FConstructor then error "Cannot call superconstructor outside class constructor" p;
 		let el, t = (match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
@@ -2386,8 +2407,7 @@ let rec create com =
 			do_build_instance = Codegen.build_instance;
 		};
 		untyped = false;
-		in_constructor = false;
-		in_static = false;
+		curfun = FStatic;
 		in_loop = false;
 		in_super_call = false;
 		in_display = false;
@@ -2403,6 +2423,7 @@ let rec create com =
 		current = empty;
 		opened = [];
 		param_type = None;
+		vthis = None;
 	} in
 	ctx.g.std <- (try
 		Typeload.load_module ctx ([],"StdTypes") null_pos

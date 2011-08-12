@@ -25,6 +25,12 @@ type type_patch = {
 	mutable tp_meta : Ast.metadata;
 }
 
+type current_fun =
+	| FMember
+	| FStatic
+	| FConstructor
+	| FMemberLocal
+
 type macro_mode =
 	| MExpr
 	| MBuild
@@ -68,14 +74,14 @@ and typer = {
 	mutable curmethod : string;
 	mutable untyped : bool;
 	mutable in_super_call : bool;
-	mutable in_constructor : bool;
-	mutable in_static : bool;
 	mutable in_loop : bool;
 	mutable in_display : bool;
+	mutable curfun : current_fun;
 	mutable ret : t;
 	mutable locals : (string, tvar) PMap.t;
 	mutable opened : anon_status ref list;
 	mutable param_type : t option;
+	mutable vthis : tvar option;
 }
 
 type error_msg =
