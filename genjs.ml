@@ -85,12 +85,11 @@ let rec concat ctx s f = function
 		concat ctx s f l
 
 let fun_block ctx f p =
-	let e = (match f.tf_expr with { eexpr = TBlock [{ eexpr = TBlock _ } as e] } -> e | e -> e) in
 	let e = List.fold_left (fun e (a,c) ->
 		match c with
 		| None | Some TNull -> e
 		| Some c -> Codegen.concat (Codegen.set_default ctx.com a c p) e
-	) e f.tf_args in
+	) f.tf_expr f.tf_args in
 	if ctx.com.debug then
 		Codegen.stack_block ctx.stack ctx.current (fst ctx.curmethod) e
 	else
