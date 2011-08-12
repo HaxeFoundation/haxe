@@ -31,7 +31,7 @@ class Timer {
 	private var id : Null<Int>;
 
 	#if js
-	private static var arr = new Array<Timer>();
+	private static var arr : Array<Timer>;
 	private var timerId : Int;
 	#end
 
@@ -43,6 +43,7 @@ class Timer {
 			var me = this;
 			id = untyped _global["setInterval"](function() { me.run(); },time_ms);
 		#elseif js
+			if( arr == null ) arr = [];
 			id = arr.length;
 			arr[id] = this;
 			timerId = untyped window.setInterval("haxe.Timer.arr["+id+"].run();",time_ms);
