@@ -34,6 +34,7 @@ type current_fun =
 type macro_mode =
 	| MExpr
 	| MBuild
+	| MMacroType
 
 type typer_globals = {
 	types_module : (path, path) Hashtbl.t;

@@ -142,9 +142,10 @@ and tclass_kind =
 	| KNormal
 	| KTypeParameter
 	| KExtension of tclass * tparams
-	| KConstant of tconstant
+	| KExpr of Ast.expr
 	| KGeneric
 	| KGenericInstance of tclass * tparams
+	| KMacroType
 
 and metadata = Ast.metadata
 

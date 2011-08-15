@@ -79,6 +79,20 @@ class Dispatch {
 		var cfg = makeConfig(obj);
 		return { expr : ECall({ expr : EField(ethis, "runtimeDispatch"), pos : p }, [cfg]), pos : p };
 	}
+	
+	@:macro public function getParams( ethis : Expr ) : Expr {
+		var p = Context.currentPos();
+		if( PARAMS == null ) {
+			PARAMS = new Array();
+			Context.onGenerate(buildParams);
+		}
+		var index = PARAMS.length;
+		var t = Context.allocMonomorph();
+		PARAMS.push( { p : p, t : t } );
+		var call = { expr : ECall( { expr : EField(ethis, "runtimeGetParams"), pos : p }, [ { expr : EConst(CInt(Std.string(index))), pos : p } ]), pos : p };
+		var rt = TPath( { pack : ["haxe", "macro"], name : "MacroType", params : [TPExpr(Context.parse("haxe.web.Dispatch.getRunParam("+index+")",p))], sub : null } );
+		return { expr : EBlock([ { expr : EVars([ { name : "tmp", type : rt, expr : call } ]), pos : p }, { expr : EConst(CIdent("tmp")), pos : p } ]), pos : p };
+	}
 
 	public dynamic function onMeta( v : String, args : Null<Array<Dynamic>> ) {
 	}
@@ -105,6 +119,13 @@ class Dispatch {
 		var args = [];
 		loop(args, r);
 		Reflect.callMethod(obj, Reflect.field(obj, name), args);
+	}
+	
+	static var GET_RULES;
+	public function runtimeGetParams( cfgIndex : Int ) : Dynamic {
+		if( GET_RULES == null )
+			GET_RULES = haxe.Unserializer.run(haxe.rtti.Meta.getType(Dispatch).getParams[0]);
+		return checkParams(GET_RULES[cfgIndex], true);
 	}
 
 	function match( v : String, r : MatchRule ) : Dynamic {
@@ -142,24 +163,25 @@ class Dispatch {
 		}
 	}
 
+	function checkParams( params : Array<{ name : String, opt : Bool, rule : MatchRule }>, opt ) {
+		var po = { };
+		for( p in params ) {
+			var v = this.params.get(p.name);
+			if( v == null ) {
+				if( p.opt ) continue;
+				if( opt ) return null;
+				throw DEMissingParam(p.name);
+			}
+			Reflect.setField(po, p.name, match(v, p.rule));
+		}
+		return po;
+	}
+	
 	function loop( args : Array<Dynamic>, r ) {
 		switch( r ) {
 		case DRArgs(r, params, opt):
 			loop(args, r);
-			var po = { };
-			for( p in params ) {
-				var v = this.params.get(p.name);
-				if( v == null ) {
-					if( p.opt ) continue;
-					if( opt ) {
-						po = null;
-						break;
-					}
-					throw DEMissingParam(p.name);
-				}
-				Reflect.setField(po, p.name, match(v, p.rule));
-			}
-			args.push(po);
+			args.push( checkParams(params, opt) );
 		case DRMatch(r):
 			args.push(match(parts.shift(), r));
 		case DRMult(rl):
@@ -216,6 +238,26 @@ class Dispatch {
 		return null;
 	}
 
+	static function makeArgs( t : haxe.macro.Type, p ) {
+		var args = [];
+		switch( Context.follow(t) ) {
+		case TAnonymous(a):
+			for( f in a.get().fields ) {
+				var r = getType(f.type, f.pos);
+				var opt = false;
+				switch( f.type ) {
+				case TType(t, _):
+					if( t.get().name == "Null" ) opt = true;
+				default:
+				}
+				args.push( { name : f.name, rule : r, opt : opt } );
+			}
+		default:
+			Context.error("Arguments should be an anonymous object", p);
+		}
+		return args;
+	}
+	
 	static function makeRule( f : ClassField ) : DispatchRule {
 		switch( Context.follow(f.type) ) {
 		case TFun(pl, _):
@@ -226,23 +268,8 @@ class Dispatch {
 				if( p.name == "args" ) {
 					if( args != null )
 						Context.error("Duplicate arguments", f.pos);
-					args = [];
 					argsOpt = p.opt;
-					switch( Context.follow(p.t) ) {
-					case TAnonymous(a):
-						for( f in a.get().fields ) {
-							var r = getType(f.type, f.pos);
-							var opt = false;
-							switch( f.type ) {
-							case TType(t, _):
-								if( t.get().name == "Null" ) opt = true;
-							default:
-							}
-							args.push( { name : f.name, rule : r, opt : opt } );
-						}
-					default:
-						Context.error("Arguments should be an anonymous object", f.pos);
-					}
+					args = makeArgs(p.t,f.pos);
 					continue;
 				}
 				if( args != null ) Context.error("Arguments should be last parameter", f.pos);
@@ -296,7 +323,7 @@ class Dispatch {
 				}
 				if( Reflect.fields(fields).length == 0 )
 					Context.error("No dispatch method found", p);
-				var str = haxe.Serializer.run(fields);
+				var str = serialize(fields);
 				i.meta.add("dispatchConfig", [ { expr : EConst(CString(str)), pos : p } ], p);
 			}
 			return { expr : EUntyped ({ expr : ECall({ expr : EField(Context.makeExpr(Dispatch,p),"extractConfig"), pos : p },[obj]), pos : p }), pos : p };
@@ -306,6 +333,32 @@ class Dispatch {
 		return null;
 	}
 
+	static var PARAMS = null;
+
+	static function buildParams(_) {
+		var rules = [];
+		for( p in PARAMS )
+			rules.push(makeArgs(p.t, p.p));
+		var str = serialize(rules);
+		switch( Context.getType("haxe.web.Dispatch") ) {
+		case TInst(c, _):
+			var c = c.get();
+			c.meta.add("getParams",[{ expr : EConst(CString(str)), pos : c.pos }],c.pos);
+		default:
+		}
+	}
+	
+	static function serialize( v : Dynamic ) {
+		var s = new haxe.Serializer();
+		s.useEnumIndex = true;
+		s.serialize(v);
+		return s.toString();
+	}
+	
+	public static function getRunParam(i:Int) {
+		return PARAMS[i].t;
+	}
+	
 	public dynamic static function checkMeta( f : ClassField ) {
 	}
 

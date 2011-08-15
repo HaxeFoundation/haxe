@@ -2249,13 +2249,17 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	let ctx2, (margs,mret,mpos), call_macro = load_macro ctx cpath f p in
 	let ctexpr = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
 	let expr = Typeload.load_instance ctx2 ctexpr p false in
-	let ctfields = { tpackage = []; tname = "Array"; tparams = [TPType (CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = Some "Field" })]; tsub = None } in
 	(match mode with
 	| MExpr ->
 		unify ctx2 mret expr mpos;
 	| MBuild ->
+		let ctfields = { tpackage = []; tname = "Array"; tparams = [TPType (CTPath { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = Some "Field" })]; tsub = None } in
 		let tfields = Typeload.load_instance ctx2 ctfields p false in
 		unify ctx2 mret tfields mpos
+	| MMacroType ->
+		let cttype = { tpackage = ["haxe";"macro"]; tname = "Type"; tparams = []; tsub = None } in
+		let ttype = Typeload.load_instance ctx2 cttype p false in
+		unify ctx2 mret ttype mpos
 	);
 	let args = (try
 		(*
@@ -2320,7 +2324,11 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 						| _ ->
 							List.map Interp.decode_field (Interp.dec_array v)
 					) in
-					(EVars ["fields",Some (CTAnonymous fields),None],p))
+					(EVars ["fields",Some (CTAnonymous fields),None],p)
+				| MMacroType ->
+					ctx.ret <- Interp.decode_type v;
+					(EBlock [],p)
+				)
 			with Interp.Invalid_expr ->
 				error "The macro didn't return a valid result" p
 	in

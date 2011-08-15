@@ -30,7 +30,7 @@ typedef Ref<T> = {
 }
 
 enum Type {
-	TMono;
+	TMono( t : Ref<Null<Type>> );
 	TEnum( t : Ref<EnumType>, params : Array<Type> );
 	TInst( t : Ref<ClassType>, params : Array<Type> );
 	TType( t : Ref<DefType>, params : Array<Type> );

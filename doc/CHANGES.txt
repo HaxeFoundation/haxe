@@ -34,6 +34,7 @@
 	js : added js.Storage
 	all : allow this + member variables access in local functions
 		added untyped __this__ support and transition error
+	all : added haxe.macro.MacroType
 
 2011-01-30: 2.07
 	all : fixed completion support with --remap

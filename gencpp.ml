@@ -2841,8 +2841,9 @@ let kind_string = function
 	| KNormal -> "KNormal"
 	| KTypeParameter -> "KTypeParameter"
 	| KExtension _ -> "KExtension"
-	| KConstant _ -> "KConstant"
+	| KExpr _ -> "KExpr"
 	| KGeneric -> "KGeneric"
+	| KMacroType -> "KMacroType"
 	| KGenericInstance _ -> "KGenericInstance";;
 
 

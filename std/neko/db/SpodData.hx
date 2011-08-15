@@ -670,7 +670,7 @@ class SpodData {
 	function ensureType( e : Expr, rt : SpodType ) {
 		var t = try typeof(e) catch( _ : Dynamic ) throw BuildError.EExpr(e);
 		switch( t ) {
-		case TMono:
+		case TMono(_):
 			// pseudo-cast
 			return { expr : EBlock([
 				{ expr : EVars([ { name : "__tmp", type : convertType(rt), expr : e } ]), pos : e.pos },
@@ -705,8 +705,8 @@ class SpodData {
 			var fi = current.hfields.get(current.key[0]);
 			var t = try typeof(econd) catch( _ : Dynamic ) throw BuildError.EExpr(econd);
 			switch( t ) {
-			case TMono:
-
+			case TMono(_):
+				// will be unified by dynamicGet
 			default:
 				var d = try makeType(t) catch( e : Dynamic ) try makeType(follow(t)) catch( e : Dynamic ) throw BuildError.EExpr(sqlQuoteValue(econd, fi.t));
 				unify(d, fi.t, p);

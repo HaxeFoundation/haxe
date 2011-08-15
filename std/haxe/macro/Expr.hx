@@ -133,7 +133,7 @@ typedef TypePath = {
 
 enum TypeParam {
 	TPType( t : ComplexType );
-	TPConst( c : Constant );
+	TPExpr( e : Expr );
 }
 
 typedef Function = {

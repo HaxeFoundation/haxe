@@ -130,20 +130,20 @@ let rec load_instance ctx t p allow_no_params =
 			if List.length types <> List.length t.tparams then error ("Invalid number of type parameters for " ^ s_type_path path) p;
 			let tparams = List.map (fun t ->
 				match t with
-				| TPConst c ->
-					let name, const = (match c with
-						| String s -> "S" ^ s, TString s
-						| Int i -> "I" ^ i, TInt (Int32.of_string i)
-						| Float f -> "F" ^ f, TFloat f
-						| _ -> assert false
+				| TPExpr e ->
+					let name = (match fst e with
+						| EConst (String s) -> "S" ^ s
+						| EConst (Int i) -> "I" ^ i
+						| EConst (Float f) -> "F" ^ f
+						| _ -> "Expr"			
 					) in
 					let c = mk_class ([],name) p in
-					c.cl_kind <- KConstant const;
+					c.cl_kind <- KExpr e;
 					TInst (c,[])
 				| TPType t -> load_complex_type ctx p t
 			) t.tparams in
 			let params = List.map2 (fun t (name,t2) ->
-				let isconst = (match t with TInst ({ cl_kind = KConstant _ },_) -> true | _ -> false) in
+				let isconst = (match t with TInst ({ cl_kind = KExpr _ },_) -> true | _ -> false) in
 				if isconst <> (name = "Const") && t != t_dynamic then error (if isconst then "Constant value unexpected here" else "Constant value excepted as type parameter") p;
 				match follow t2 with
 				| TInst ({ cl_implements = [] }, []) ->
@@ -710,6 +710,7 @@ let init_class ctx c p herits fields =
 	let ctx = { ctx with type_params = c.cl_types } in
 	c.cl_extern <- List.mem HExtern herits;
 	c.cl_interface <- List.mem HInterface herits;
+	if c.cl_path = (["haxe";"macro"],"MacroType") then c.cl_kind <- KMacroType;
 	set_heritance ctx c herits p;
 	let fields = ref fields in
 	let get_fields() = !fields in
@@ -1168,7 +1169,7 @@ let init_class ctx c p herits fields =
 							| _ :: _ -> true
 						and is_qual_param = function
 							| TPType t -> is_qualified t
-							| TPConst _ -> false (* prevent multiple incompatible types *)
+							| TPExpr _ -> false (* prevent multiple incompatible types *)
 						in
 						let t = (match t with
 							| Some t when is_qualified t -> Some t
@@ -1487,7 +1488,8 @@ let load_module ctx m p =
 				parse_module ctx m p
 			with Not_found ->
 				let rec loop = function
-					| [] -> raise (Error (Module_not_found m,p))
+					| [] -> 
+						raise (Error (Module_not_found m,p))
 					| load :: l ->
 						match load m p with
 						| None -> loop l

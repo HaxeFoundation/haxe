@@ -144,7 +144,7 @@ type type_path = {
 
 and type_param_or_const =
 	| TPType of complex_type
-	| TPConst of constant
+	| TPExpr of expr
 
 and complex_type =
 	| CTPath of type_path

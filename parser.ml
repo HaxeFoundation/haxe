@@ -344,10 +344,9 @@ and type_name = parser
 		error (Custom "Type name should start with an uppercase letter") p
 
 and parse_type_path_or_const = parser
-	| [< '(Const (String s),_) >] -> TPConst (String s)
-	| [< '(Const (Int i),_) >] -> TPConst (Int i)
-	| [< '(Const (Float f),_) >] -> TPConst (Float f)
 	| [< t = parse_complex_type >] -> TPType t
+	| [< '(Const c,p) >] -> TPExpr (EConst c,p)
+	| [< e = expr >] -> TPExpr e
 
 and parse_complex_type_next t = parser
 	| [< '(Arrow,_); t2 = parse_complex_type >] ->

@@ -184,6 +184,13 @@ class Context {
 		return load("build_fields", 0)();
 	}
 
+	/**
+		Allocate a new monomorphic type (Unknown) that might be inferred later.
+	**/
+	public static function allocMonomorph() : Type {
+		return load("alloc_mono", 0)();
+	}
+
 	static function load( f, nargs ) : Dynamic {
 		#if macro
 		return neko.Lib.load("macro", f, nargs);

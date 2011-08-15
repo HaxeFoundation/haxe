@@ -1924,6 +1924,9 @@ let macro_lib =
 		"build_fields", Fun0 (fun() ->
 			(get_ctx()).curapi.get_build_fields()
 		);
+		"alloc_mono", Fun0 (fun() ->
+			encode_type (mk_mono())
+		);
 	]
 
 (* ---------------------------------------------------------------------- *)
@@ -2946,7 +2949,7 @@ let rec encode_path t =
 
 and encode_tparam = function
 	| TPType t -> enc_enum ITParam 0 [encode_type t]
-	| TPConst c -> enc_enum ITParam 1 [encode_const c]
+	| TPExpr e -> enc_enum ITParam 1 [encode_expr e]
 
 and encode_access a =
 	let tag = match a with
@@ -3200,7 +3203,7 @@ let rec decode_path t =
 and decode_tparam v =
 	match decode_enum v with
 	| 0,[t] -> TPType (decode_ctype t)
-	| 1,[c] -> TPConst (decode_const c)
+	| 1,[e] -> TPExpr (decode_expr e)
 	| _ -> raise Invalid_expr
 
 and decode_fun v =
@@ -3507,7 +3510,7 @@ and encode_type t =
 	let rec loop = function
 		| TMono r ->
 			(match !r with
-			| None -> 0, []
+			| None -> 0, [encode_ref r (fun r -> match !r with None -> VNull | Some t -> encode_type t) (fun() -> "<mono>")]
 			| Some t -> loop t)
 		| TEnum (e, pl) ->
 			1 , [encode_ref e encode_tenum (fun() -> s_type_path e.e_path); encode_tparams pl]
@@ -3539,7 +3542,7 @@ and encode_type t =
 
 and decode_type t =
 	match decode_enum t with
-	| 0, [] -> TMono (ref None)
+	| 0, [r] -> TMono (decode_ref r)
 	| 1, [e; pl] -> TEnum (decode_ref e, List.map decode_type (dec_array pl))
 	| 2, [c; pl] -> TInst (decode_ref c, List.map decode_type (dec_array pl))
 	| 3, [t; pl] -> TType (decode_ref t, List.map decode_type (dec_array pl))

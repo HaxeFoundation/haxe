@@ -348,6 +348,37 @@ let build_metadata com t =
 		Some (mk (TObjectDecl meta_obj) t_dynamic p)
 
 (* -------------------------------------------------------------------------- *)
+(* MACRO TYPE *)
+
+let build_macro_type ctx pl p =
+	let path, field, args = (match pl with
+		| [TInst ({ cl_kind = KExpr e },_)] ->
+			let e = (match e with (EBlock [e],_) -> e | _ -> e) in
+			(match fst e with
+			| ECall (e,args) ->
+				let rec loop e =
+					match fst e with
+					| EField (e,f) | EType (e,f) -> f :: loop e
+					| EConst (Ident i | Type i) -> [i]
+					| _ -> error "Invalid macro call" p
+				in
+				(match loop e with
+				| meth :: cl :: path -> (List.rev path,cl), meth, args
+				| _ -> error "Invalid macro call" p)
+			| _ ->
+				error "Invalid macro call" p)
+		| _ ->
+			error "MacroType require a single expression parameter" p
+	) in
+	let old = ctx.ret in
+	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
+		| None -> mk_mono() 
+		| Some _ -> ctx.ret
+	) in
+	ctx.ret <- old;
+	t
+
+(* -------------------------------------------------------------------------- *)
 (* API EVENTS *)
 
 let build_instance ctx mtype p =
@@ -364,6 +395,15 @@ let build_instance ctx mtype p =
 				) in
 				delay ctx (fun() -> ignore ((!r)()));
 				TLazy r
+			| KMacroType ->
+				let r = exc_protect (fun r ->
+					let t = mk_mono() in
+					r := (fun() -> t);
+					unify_raise ctx (build_macro_type ctx pl p) t p;
+					t
+				) in
+				delay ctx (fun() -> ignore ((!r)()));
+				TLazy r				
 			| _ ->
 				TInst (c,pl)
 		) in
@@ -387,7 +427,7 @@ let on_inherit ctx c p h =
 	| HImplements { tpackage = ["haxe";"rtti"]; tname = "Generic"; tparams = [] } ->
 		c.cl_kind <- KGeneric;
 		false
-	| HExtends { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPConst(String file);TPType t] } ->
+	| HExtends { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPExpr(EConst (String file),p);TPType t] } ->
 		extend_xml_proxy ctx c t file p;
 		true
 	| _ ->
