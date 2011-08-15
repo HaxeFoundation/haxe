@@ -2026,6 +2026,14 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only =
 				(* Must visit args too, Type.iter will visit the expressions ... *)
 				| TFunction func_def ->
 					List.iter (fun (v,_) -> visit_type v.v_type) func_def.tf_args;
+				| TConst TSuper ->
+                (match expression.etype with
+	             | TInst (klass,params) ->
+                   (try let construct_type = Hashtbl.find constructor_deps klass.cl_path in
+					      visit_type construct_type.cf_type
+                   with Not_found -> () )
+                | _ -> print_endline ("TSuper : Odd etype?")
+                )
 				| _ -> ()
 			);
 			Type.iter visit_expression expression;
