@@ -316,24 +316,13 @@ let cant_be_null = function
 	| "int" | "bool" | "double" -> true
 	| _ -> false
 
-let is_type_param haxe_type =
-	(match follow haxe_type with
-	| TInst (klass,params) ->
-			(match klass.cl_path with
-         | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") -> false
-			| _ -> klass.cl_kind = KTypeParameter
-			)
-   | _ -> false
-	)
-;;
-
 (*  Get a string to represent a type.
 	 The "suffix" will be nothing or "_obj", depending if we want the name of the
 	 pointer class or the pointee (_obj class *)
 let rec class_string klass suffix params =
 	(match klass.cl_path with
 	(* Array class *)
-	|  ([],"Array") when is_type_param (List.hd params) -> "Dynamic"
+	|  ([],"Array") when is_dynamic_array_param (List.hd params) -> "Dynamic"
 	|  ([],"Array") -> (snd klass.cl_path) ^ suffix ^ "< " ^ (String.concat ","
 					 (List.map type_string  params) ) ^ " >"
 	(* FastIterator class *)
@@ -376,6 +365,7 @@ and type_string_suff suffix haxe_type =
 			| _ -> assert false);
 		| [] , "Array" ->
 			(match params with
+			| [t] when (type_string (follow t)) = "Dynamic" -> "Dynamic"
 			| [t] -> "Array< " ^ (type_string (follow t) ) ^ " >"
 			| _ -> assert false)
 		| ["cpp"] , "FastIterator" ->
@@ -396,17 +386,34 @@ and type_string_suff suffix haxe_type =
 	| TLazy func -> type_string_suff suffix ((!func)())
 	)
 and type_string haxe_type =
-	type_string_suff "" haxe_type;;
+	type_string_suff "" haxe_type
+
+and is_dynamic_array_param haxe_type =
+   if (type_string (follow haxe_type)) = "Dynamic" then true
+	else (match follow haxe_type with
+	| TInst (klass,params) ->
+			(match klass.cl_path with
+         | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") -> false
+			| _ -> klass.cl_kind = KTypeParameter
+			)
+   | _ -> false
+	)
+;;
+
+
+
+
+
 
 let is_array haxe_type =
 	match follow haxe_type with
 	| TInst (klass,params) ->
 		(match klass.cl_path with
-		| [] , "Array" -> not (is_type_param (List.hd params))
+		| [] , "Array" -> not (is_dynamic_array_param (List.hd params))
 		| _ -> false )
 	| TType (type_def,params) ->
 		(match type_def.t_path with
-		| [] , "Array" ->  not (is_type_param (List.hd params))
+		| [] , "Array" ->  not (is_dynamic_array_param (List.hd params))
 		| _ -> false )
 	| _ -> false
 	;;
@@ -1404,7 +1411,7 @@ and gen_expression ctx retval expression =
       if tstr="Dynamic" then output ")";
 	| TNew (klass,params,expressions) ->
       let is_param_array = match klass.cl_path with
-       | ([],"Array") when is_type_param (List.hd params) -> true | _ -> false
+       | ([],"Array") when is_dynamic_array_param (List.hd params) -> true | _ -> false
       in
       if is_param_array then
 			   output "Dynamic( Array_obj<Dynamic>::__new() )"
