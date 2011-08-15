@@ -2367,6 +2367,9 @@ let has_init_field class_def =
 	| Some _ -> true
 	| _ -> false;;
 
+let is_macro meta =
+  Type.has_meta ":macro" meta
+;;
 
 let generate_class_files common_ctx member_types super_deps constructor_deps class_def =
 	let is_extern = class_def.cl_extern in
@@ -3012,7 +3015,7 @@ let generate common_ctx =
 		| TClassDecl class_def ->
 			let name =  class_text class_def.cl_path in
 			let is_internal = is_internal_class class_def.cl_path in
-			if (is_internal) then
+			if (is_internal || (is_macro class_def.cl_meta) ) then
 				( if debug then print_endline (" internal class " ^ name ))
 			else begin
 				boot_classes := class_def.cl_path ::  !boot_classes;
