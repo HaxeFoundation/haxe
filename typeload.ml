@@ -568,14 +568,14 @@ let type_function ctx args ret fmode f p =
 		with
 			Exit -> ());
 	locals();
-	let e = if ctx.curfun <> FMember then e else (match ctx.vthis with
-		| None -> e
-		| Some v ->
+	let e = match ctx.curfun, ctx.vthis with
+		| (FMember|FConstructor), Some v ->
 			let ev = mk (TVars [v,Some (mk (TConst TThis) ctx.tthis p)]) ctx.t.tvoid p in
-			match e.eexpr with
+			(match e.eexpr with
 			| TBlock l -> { e with eexpr = TBlock (ev::l) }
-			| _ -> mk (TBlock [ev;e]) e.etype p
-	) in
+			| _ -> mk (TBlock [ev;e]) e.etype p)
+		| _ -> e
+	in
 	List.iter (fun r -> r := Closed) ctx.opened;
 	ctx.ret <- old_ret;
 	ctx.curfun <- old_fun;
