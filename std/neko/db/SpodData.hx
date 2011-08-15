@@ -237,7 +237,7 @@ class SpodData {
 			isNull = false;
 			var fi = {
 				name : f.name,
-				t : try makeType(f.type) catch( e : Dynamic ) error(Std.string(e),f.pos),
+				t : try makeType(f.type) catch( e : String ) error(e,f.pos),
 				isNull : isNull,
 			};
 			switch( fi.t ) {
@@ -469,9 +469,9 @@ class SpodData {
 	}
 
 	function buildDefault( cond : Expr ) {
-		var t = try typeof(cond) catch( e : Dynamic ) throw BuildError.EExpr(cond);
+		var t = typeof(cond);
 		isNull = false;
-		var d = try makeType(t) catch( e : Dynamic ) try makeType(follow(t)) catch( e : Dynamic ) error("Unsupported type " + Std.string(t), cond.pos);
+		var d = try makeType(t) catch( e : String ) try makeType(follow(t)) catch( e : String ) error("Unsupported type " + Std.string(t), cond.pos);
 		return { sql : sqlQuoteValue(cond, d), t : d, n : isNull };
 	}
 
@@ -668,7 +668,7 @@ class SpodData {
 	}
 
 	function ensureType( e : Expr, rt : SpodType ) {
-		var t = try typeof(e) catch( _ : Dynamic ) throw BuildError.EExpr(e);
+		var t = typeof(e);
 		switch( t ) {
 		case TMono(_):
 			// pseudo-cast
@@ -677,7 +677,7 @@ class SpodData {
 				{ expr : EConst(CIdent("__tmp")), pos : e.pos },
 			]), pos : e.pos };
 		default:
-			var d = try makeType(t) catch( e : Dynamic ) try makeType(follow(t)) catch( e : Dynamic ) throw BuildError.EExpr(sqlQuoteValue(e,rt)); // will produce an error
+			var d = try makeType(t) catch( _ : String ) try makeType(follow(t)) catch( _ : String ) throw BuildError.EExpr(sqlQuoteValue(e,rt)); // will produce an error
 			unify(d, rt, e.pos);
 			return e;
 		}
@@ -703,12 +703,12 @@ class SpodData {
 			if( current.key.length > 1 )
 				error("You can't use a single value on a table with multiple keys (" + current.key.join(",") + ")", p);
 			var fi = current.hfields.get(current.key[0]);
-			var t = try typeof(econd) catch( _ : Dynamic ) throw BuildError.EExpr(econd);
+			var t = typeof(econd);
 			switch( t ) {
 			case TMono(_):
 				// will be unified by dynamicGet
 			default:
-				var d = try makeType(t) catch( e : Dynamic ) try makeType(follow(t)) catch( e : Dynamic ) throw BuildError.EExpr(sqlQuoteValue(econd, fi.t));
+				var d = try makeType(t) catch( e : String ) try makeType(follow(t)) catch( e : String ) throw BuildError.EExpr(sqlQuoteValue(econd, fi.t));
 				unify(d, fi.t, p);
 			}
 		}
