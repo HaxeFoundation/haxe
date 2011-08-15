@@ -202,6 +202,13 @@ class MacroManager<T : Object> {
 	}
 
 
+	function doLock( x : T ) {
+		if( (cast x).update != no_update )
+			return;
+		Reflect.deleteField(x, "update");
+		doSync(x);
+	}
+	
 	function doSync( i : T ) {
 		object_cache.remove(makeCacheKey(i));
 		var s = new StringBuf();

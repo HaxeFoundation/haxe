@@ -49,6 +49,9 @@ class Object #if spod_rtti implements haxe.rtti.Infos #end {
 		private function doSync( o : Object ) : Void;
 		private function doDelete( o : Object ) : Void;
 		private function objectToString( o : Object ) : String;
+		#if spod_macro
+		private function doLock( o : Object ) : Void;
+		#end
 	};
 
 
@@ -70,6 +73,12 @@ class Object #if spod_rtti implements haxe.rtti.Infos #end {
 	public function delete() {
 		local_manager.doDelete(this);
 	}
+	
+	#if spod_macro
+	public function lock() {
+		local_manager.doLock(this);
+	}
+	#end
 
 	public function toString() {
 		return local_manager.objectToString(this);
