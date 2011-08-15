@@ -176,3 +176,14 @@ enum FieldType {
 	FProp( get : String, set : String, t : ComplexType );
 }
 
+/**
+	This error can be used to handle or produce compilation errors in macros.
+**/
+class Error {
+	public var message : String;
+	public var pos : Expr.Position;
+	public function new(m,p) {
+		this.message = m;
+		this.pos = p;
+	}
+}

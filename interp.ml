@@ -115,6 +115,7 @@ type context = {
 	prototypes : (string list, vobject) Hashtbl.t;
 	fields_cache : (int,string) Hashtbl.t;
 	mutable error : bool;
+	mutable error_proto : vobject;
 	mutable enums : (value * string) array array;
 	mutable do_call : value -> value -> value list -> pos -> value;
 	mutable do_string : value -> string;
@@ -196,21 +197,6 @@ let pop_ret ctx f n =
 
 let push ctx v =
 	DynArray.add ctx.stack v
-
-let catch_errors ctx ?(final=(fun() -> ())) f =
-	let n = DynArray.length ctx.stack in
-	try
-		let v = f() in
-		final();
-		Some v
-	with Runtime v ->
-		pop ctx (DynArray.length ctx.stack - n);
-		final();
-		raise (Error (ctx.do_string v,List.map (fun s -> make_pos s.cpos) ctx.callstack))
-	| Abort ->
-		pop ctx (DynArray.length ctx.stack - n);
-		final();
-		None
 
 let hash f =
 	let h = ref 0 in
@@ -387,6 +373,33 @@ let rec get_field_opt o fid =
 			| Some p -> get_field_opt p fid
 	in
 	loop 0 (Array.length o.ofields)
+
+let catch_errors ctx ?(final=(fun() -> ())) f =
+	let n = DynArray.length ctx.stack in
+	try
+		let v = f() in
+		final();
+		Some v
+	with Runtime v ->
+		pop ctx (DynArray.length ctx.stack - n);
+		final();
+		let rec loop o =
+			if o == ctx.error_proto then true else match o.oproto with None -> false | Some p -> loop p
+		in
+		(match v with
+		| VObject o when loop o ->
+			(match get_field o (hash "message"), get_field o (hash "pos") with
+			| VObject msg, VAbstract (APos pos) ->
+				(match get_field msg h_s with
+				| VString msg -> raise (Typecore.Error (Typecore.Custom msg,pos))
+				| _ -> ());
+			| _ -> ());
+		| _ -> ());
+		raise (Error (ctx.do_string v,List.map (fun s -> make_pos s.cpos) ctx.callstack))
+	| Abort ->
+		pop ctx (DynArray.length ctx.stack - n);
+		final();
+		None
 
 let make_library fl =
 	let h = Hashtbl.create 0 in
@@ -2705,6 +2718,7 @@ let create com api =
 		gen = Genneko.new_context com true;
 		types = Hashtbl.create 0;
 		error = false;
+		error_proto = { ofields = [||]; oproto = None };
 		prototypes = Hashtbl.create 0;
 		enums = [||];
 		(* eval *)
@@ -2835,7 +2849,8 @@ let init ctx =
 			| _ -> assert false)
 		| _ -> failwith ("haxe.macro." ^ enum_name e ^ " does not exists")
 	in
-	ctx.enums <- Array.of_list (List.map get_enum_proto enums)
+	ctx.enums <- Array.of_list (List.map get_enum_proto enums);
+	ctx.error_proto <- (match get_path ctx ["haxe";"macro";"Error";"prototype"] null_pos with VObject p -> p | _ -> failwith ("haxe.macro.Error does not exists"))
 
 open Ast
 
@@ -2850,7 +2865,7 @@ let enc_inst path fields =
 	let ctx = get_ctx() in
 	let p = (try Hashtbl.find ctx.prototypes path with Not_found -> try
 		(match get_path ctx (path@["prototype"]) Nast.null_pos with
-		| VObject o -> o
+		| VObject o -> Hashtbl.add ctx.prototypes path o; o
 		| _ -> raise (Runtime VNull))
 	with Runtime _ ->
 		failwith ("Prototype not found " ^ String.concat "." path)
@@ -2890,6 +2905,9 @@ let enc_enum (i:enum_index) index pl =
 			"index", VInt index;
 			"args", VArray (Array.of_list pl);
 		]
+
+let compiler_error msg pos =
+	exc (enc_inst ["haxe";"macro";"Error"] [("message",enc_string msg);("pos",encode_pos pos)])
 
 let encode_const c =
 	let tag, pl = match c with

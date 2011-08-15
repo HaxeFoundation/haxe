@@ -32,7 +32,7 @@ class Context {
 
 #if neko
 	/**
-		Display a compilation error at the given position in code
+		Display a compilation error at the given position in code and abort the current macro call
 	**/
 	public static function error( msg : String, pos : Position ) : Dynamic {
 		return load("error",2)(untyped msg.__s, pos);

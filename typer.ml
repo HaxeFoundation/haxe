@@ -457,7 +457,7 @@ let using_field ctx mode e i p =
 
 let get_this ctx p =
 	match ctx.curfun with
-	| FStatic -> 
+	| FStatic ->
 		error "Cannot access this from a static function" p
 	| FMemberLocal ->
 		if ctx.untyped then display_error ctx "Cannot access this in 'untyped' mode : use either '__this__' or var 'me = this' (transitional)" p;
@@ -467,7 +467,7 @@ let get_this ctx p =
 				ctx.vthis <- Some v;
 				v
 			| Some v -> v
-		) in		
+		) in
 		mk (TLocal v) ctx.tthis p
 	| FConstructor | FMember ->
 		mk (TConst TThis) ctx.tthis p
@@ -2006,12 +2006,12 @@ let parse_string ctx s p =
 	Lexer.init p.pfile;
 	let _, decls = try
 		Parser.parse ctx.com (Lexing.from_string s)
-	with Parser.Error (e,_) ->
+	with Parser.Error (e,p) ->
 		restore();
-		failwith (Parser.error_msg e)
-	| Lexer.Error (e,_) ->
+		error (Parser.error_msg e) p
+	| Lexer.Error (e,p) ->
 		restore();
-		failwith (Lexer.error_msg e)
+		error (Lexer.error_msg e) p
 	in
 	restore();
 	match decls with
@@ -2021,15 +2021,22 @@ let parse_string ctx s p =
 let macro_timer ctx path =
 	Common.timer (if Common.defined ctx.com "macrotimes" then "macro " ^ path else "macro execution")
 
-let typing_timer f =
+let typing_timer ctx f =
 	let t = Common.timer "typing" in
+	let old = ctx.com.error in
+	ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));
 	try
 		let r = f() in
 		t();
 		r
-	with e ->
-		t();
-		raise e
+	with Error (ekind,p) ->
+			ctx.com.error <- old;
+			t();
+			Interp.compiler_error (Typecore.error_msg ekind) p
+		| e ->
+			ctx.com.error <- old;
+			t();
+			raise e
 
 let make_macro_api ctx p =
 	let make_instance = function
@@ -2042,7 +2049,7 @@ let make_macro_api ctx p =
 		Interp.defined = Common.defined ctx.com;
 		Interp.define = Common.define ctx.com;
 		Interp.get_type = (fun s ->
-			typing_timer (fun() ->
+			typing_timer ctx (fun() ->
 				let path = parse_path s in
 				try
 					Some (Typeload.load_instance ctx { tpackage = fst path; tname = snd path; tparams = []; tsub = None } p true)
@@ -2051,7 +2058,7 @@ let make_macro_api ctx p =
 			)
 		);
 		Interp.get_module = (fun s ->
-			typing_timer (fun() ->
+			typing_timer ctx (fun() ->
 				let path = parse_path s in
 				List.map make_instance (Typeload.load_module ctx path p).mtypes
 			)
@@ -2064,23 +2071,19 @@ let make_macro_api ctx p =
 			)
 		);
 		Interp.parse_string = (fun s p ->
-			let head = "class X{static function main() " in
-			let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
-			match parse_string ctx (head ^ s ^ "}") p with
-			| EClass { d_data = [{ cff_name = "main"; cff_kind = FFun { f_expr = Some e } }]} -> e
-			| _ -> assert false
-		);
-		Interp.typeof = (fun e ->
-			typing_timer (fun() ->
-				let old_err = ctx.com.error in
-				ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));
-				let e = (try type_expr ctx ~need_val:true e with Error (msg,_) -> ctx.com.error <- old_err; failwith (error_msg msg)) in
-				ctx.com.error <- old_err;
-				e.etype
+			typing_timer ctx (fun() ->
+				let head = "class X{static function main() " in
+				let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
+				match parse_string ctx (head ^ s ^ "}") p with
+				| EClass { d_data = [{ cff_name = "main"; cff_kind = FFun { f_expr = Some e } }]} -> e
+				| _ -> assert false
 			)
 		);
+		Interp.typeof = (fun e ->
+			typing_timer ctx (fun() -> (type_expr ctx ~need_val:true e).etype)
+		);
 		Interp.type_patch = (fun t f s v ->
-			typing_timer (fun() ->
+			typing_timer ctx (fun() ->
 				let v = (match v with None -> None | Some s ->
 					match parse_string ctx ("typedef T = " ^ s) null_pos with
 					| ETypedef { d_data = ct } -> Some ct
