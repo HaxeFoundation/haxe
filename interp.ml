@@ -1937,9 +1937,6 @@ let macro_lib =
 		"build_fields", Fun0 (fun() ->
 			(get_ctx()).curapi.get_build_fields()
 		);
-		"alloc_mono", Fun0 (fun() ->
-			encode_type (mk_mono())
-		);
 	]
 
 (* ---------------------------------------------------------------------- *)

@@ -79,7 +79,7 @@ class Dispatch {
 		var cfg = makeConfig(obj);
 		return { expr : ECall({ expr : EField(ethis, "runtimeDispatch"), pos : p }, [cfg]), pos : p };
 	}
-	
+
 	@:macro public function getParams( ethis : Expr ) : Expr {
 		var p = Context.currentPos();
 		if( PARAMS == null ) {
@@ -87,7 +87,7 @@ class Dispatch {
 			Context.onGenerate(buildParams);
 		}
 		var index = PARAMS.length;
-		var t = Context.allocMonomorph();
+		var t = Context.typeof({ expr : EConst(CIdent("null")), pos : p });
 		PARAMS.push( { p : p, t : t } );
 		var call = { expr : ECall( { expr : EField(ethis, "runtimeGetParams"), pos : p }, [ { expr : EConst(CInt(Std.string(index))), pos : p } ]), pos : p };
 		var rt = TPath( { pack : ["haxe", "macro"], name : "MacroType", params : [TPExpr(Context.parse("haxe.web.Dispatch.getRunParam("+index+")",p))], sub : null } );
@@ -120,7 +120,7 @@ class Dispatch {
 		loop(args, r);
 		Reflect.callMethod(obj, Reflect.field(obj, name), args);
 	}
-	
+
 	static var GET_RULES;
 	public function runtimeGetParams( cfgIndex : Int ) : Dynamic {
 		if( GET_RULES == null )
@@ -176,7 +176,7 @@ class Dispatch {
 		}
 		return po;
 	}
-	
+
 	function loop( args : Array<Dynamic>, r ) {
 		switch( r ) {
 		case DRArgs(r, params, opt):
@@ -257,7 +257,7 @@ class Dispatch {
 		}
 		return args;
 	}
-	
+
 	static function makeRule( f : ClassField ) : DispatchRule {
 		switch( Context.follow(f.type) ) {
 		case TFun(pl, _):
@@ -347,18 +347,18 @@ class Dispatch {
 		default:
 		}
 	}
-	
+
 	static function serialize( v : Dynamic ) {
 		var s = new haxe.Serializer();
 		s.useEnumIndex = true;
 		s.serialize(v);
 		return s.toString();
 	}
-	
+
 	public static function getRunParam(i:Int) {
 		return PARAMS[i].t;
 	}
-	
+
 	public dynamic static function checkMeta( f : ClassField ) {
 	}
 
