@@ -1717,6 +1717,13 @@ let is_data_member field =
 	| Some { eexpr = TFunction function_def } -> is_dynamic_haxe_method field
 	| _ -> true;;
 
+
+let is_override class_def field =
+   List.mem field class_def.cl_overrides
+;;
+
+			   (* external mem  Dynamic & *)
+
 let default_value_string = function
 	| TInt i -> Printf.sprintf "%ld" i
 	| TFloat float_as_string -> float_as_string
@@ -1924,10 +1931,11 @@ let gen_member_def ctx class_def is_static is_extern is_interface field =
 	end else (match  field.cf_expr with
 	| Some { eexpr = TFunction function_def } ->
 		if ( is_dynamic_haxe_method field ) then begin
-			output ("Dynamic " ^ remap_name ^ ";\n");
-			output (if is_static then "		static " else "		");
-			(* external mem  Dynamic & *)
-			output ("inline Dynamic &" ^ remap_name ^ "_dyn() " ^ "{return " ^ remap_name^ "; }\n")
+         if ( not (is_override class_def field.cf_name ) ) then begin
+			   output ("Dynamic " ^ remap_name ^ ";\n");
+			   output (if is_static then "		static " else "		");
+			   output ("inline Dynamic &" ^ remap_name ^ "_dyn() " ^ "{return " ^ remap_name^ "; }\n")
+          end
 		end else begin
 			let return_type = (type_string function_def.tf_type) in
 			if (not is_static) then output "virtual ";
