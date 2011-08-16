@@ -229,6 +229,7 @@ let build_class com c file =
 	let pos = { pfile = file ^ "@" ^ s_type_path (path.tpackage,path.tname); pmin = 0; pmax = 0 } in
 	let getters = Hashtbl.create 0 in
 	let setters = Hashtbl.create 0 in
+	let override = Hashtbl.create 0 in
 	let as3_native = Common.defined com "as3_native" in
 	let is_xml = (match path.tpackage, path.tname with
 		| ["flash";"xml"], ("XML" | "XMLList") -> true
@@ -272,7 +273,10 @@ let build_class com c file =
 			else
 				cf.cff_kind <- FVar (Some (make_type v.hlv_type),None);
 			cf :: acc
-		| HFMethod m when not m.hlm_override ->
+		| HFMethod m when m.hlm_override ->
+			Hashtbl.add override (name,stat) ();
+			acc
+		| HFMethod m ->
 			(match m.hlm_kind with
 			| MK3Normal ->
 				let t = m.hlm_type in
@@ -368,10 +372,11 @@ let build_class com c file =
 		}
 	in
 	let fields = Hashtbl.fold (fun (name,stat) t acc ->
+		if Hashtbl.mem override (name,stat) then acc else
 		make_get_set name stat (Some t) (try Some (Hashtbl.find setters (name,stat)) with Not_found -> None) :: acc
 	) getters fields in
 	let fields = Hashtbl.fold (fun (name,stat) t acc ->
-		if Hashtbl.mem getters (name,stat) then
+		if Hashtbl.mem getters (name,stat) || Hashtbl.mem override (name,stat) then
 			acc
 		else
 			make_get_set name stat None (Some t) :: acc
