@@ -95,7 +95,7 @@ class Http {
 		params.set(param,value);
 	}
 
-	#if (neko || js || cpp)
+	#if (neko || js || cpp || php)
 	public function setPostData( data : String ) {
 		postData = data;
 	}
