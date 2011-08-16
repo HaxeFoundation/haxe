@@ -344,6 +344,7 @@ and type_name = parser
 		error (Custom "Type name should start with an uppercase letter") p
 
 and parse_type_path_or_const = parser
+	| [< '(POpen,_); e = expr; '(PClose,_) >] -> TPExpr e
 	| [< t = parse_complex_type >] -> TPType t
 	| [< '(Const c,p) >] -> TPExpr (EConst c,p)
 	| [< e = expr >] -> TPExpr e

@@ -352,23 +352,18 @@ let build_metadata com t =
 
 let build_macro_type ctx pl p =
 	let path, field, args = (match pl with
-		| [TInst ({ cl_kind = KExpr e },_)] ->
-			let e = (match e with (EBlock [e],_) -> e | _ -> e) in
-			(match fst e with
-			| ECall (e,args) ->
-				let rec loop e =
-					match fst e with
-					| EField (e,f) | EType (e,f) -> f :: loop e
-					| EConst (Ident i | Type i) -> [i]
-					| _ -> error "Invalid macro call" p
-				in
-				(match loop e with
-				| meth :: cl :: path -> (List.rev path,cl), meth, args
-				| _ -> error "Invalid macro call" p)
-			| _ ->
-				error "Invalid macro call" p)
+		| [TInst ({ cl_kind = KExpr (ECall (e,args),_) },_)] ->
+			let rec loop e =
+				match fst e with
+				| EField (e,f) | EType (e,f) -> f :: loop e
+				| EConst (Ident i | Type i) -> [i]
+				| _ -> error "Invalid macro call" p
+			in
+			(match loop e with
+			| meth :: cl :: path -> (List.rev path,cl), meth, args
+			| _ -> error "Invalid macro call" p)
 		| _ ->
-			error "MacroType require a single expression parameter" p
+			error "MacroType require a single expression call parameter" p
 	) in
 	let old = ctx.ret in
 	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
