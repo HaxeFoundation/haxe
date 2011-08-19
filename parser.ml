@@ -228,36 +228,64 @@ and parse_class_field_resume tdecl s =
 	else try
 		let c = parse_class_field s in
 		c :: parse_class_field_resume tdecl s
-	with Stream.Error _ | Stream.Failure -> try
-		(* junk all tokens until we reach next variable/function or next type declaration *)
-		let rec loop() =
-			(match List.map fst (Stream.npeek 2 s) with
-			| At :: _ | Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ ->
-				raise Exit
-			| [] | Eof :: _ | Kwd Import :: _ | Kwd Using :: _ | Kwd Extern :: _ | Kwd Class :: _ | Kwd Interface :: _ | Kwd Enum :: _ | Kwd Typedef :: _ ->
-				raise Not_found
-			| [Kwd Private; Kwd Class]
-			| [Kwd Private; Kwd Interface]
-			| [Kwd Private; Kwd Enum]
-			| [Kwd Private; Kwd Typedef] ->
-				raise Not_found
-			| Kwd Private :: _ ->
-				raise Exit
-			| [Kwd Function; Const _]
-			| [Kwd Function; Kwd New] ->
-				raise Exit
-			| [BrClose; At] ->
-				raise Not_found
-			| BrClose :: _ when tdecl ->
-				raise Not_found
-			| _ -> ());
-			Stream.junk s;
-			loop();
+	with Stream.Error _ | Stream.Failure ->
+		(* look for next variable/function or next type declaration *)
+		let rec junk k =
+			if k <= 0 then () else begin
+				Stream.junk s;
+				junk (k - 1);
+			end
 		in
-		loop()
-	with
-		| Not_found -> [] (* we have reached the next type declaration *)
-		| Exit -> parse_class_field_resume tdecl s
+		(*
+			walk back tokens which are prefixing a type/field declaration
+		*)
+		let rec junk_tokens k =
+			if k = 0 then
+				()
+			else match List.rev_map fst (Stream.npeek k s) with
+			| Kwd Private :: _ -> junk_tokens (k - 1)
+			| (Const (Ident _ | Type _) | Kwd _) :: DblDot :: At :: l
+			| (Const (Ident _ | Type _) | Kwd _) :: At :: l ->
+				junk_tokens (List.length l)
+			| PClose :: l ->
+				(* count matching parenthesises for metadata call *)
+				let rec loop n = function
+					| [] -> []
+					| POpen :: l -> if n = 0 then l else loop (n - 1) l
+					| PClose :: l -> loop (n + 1) l
+					| _ :: l -> loop n l
+				in
+				(match loop 0 l with
+				| (Const (Ident _ | Type _) | Kwd _) :: At :: l
+				| (Const (Ident _ | Type _) | Kwd _) :: DblDot :: At :: l -> junk_tokens (List.length l)
+				| _ ->
+					junk k)
+			| _ ->
+				junk k
+		in
+		let rec loop k =
+			match List.rev_map fst (Stream.npeek k s) with
+			(* field declaration *)
+			| Const _ :: Kwd Function :: _
+			| Kwd New :: Kwd Function :: _ ->
+				junk_tokens (k - 2);
+				parse_class_field_resume tdecl s
+			| Kwd Public :: _ | Kwd Static :: _ | Kwd Var :: _ | Kwd Override :: _ | Kwd Dynamic :: _ | Kwd Inline :: _ ->
+				junk_tokens (k - 1);
+				parse_class_field_resume tdecl s
+			| BrClose :: _ when tdecl ->
+				junk_tokens (k - 1);
+				[]
+			(* type declaration *)
+			| Eof :: _ | Kwd Import :: _ | Kwd Using :: _ | Kwd Extern :: _ | Kwd Class :: _ | Kwd Interface :: _ | Kwd Enum :: _ | Kwd Typedef :: _ ->
+				junk_tokens (k - 1);
+				[]
+			| [] ->
+				[]
+			| _ ->
+				loop (k + 1)
+		in
+		loop 1
 
 and parse_common_flags = parser
 	| [< '(Kwd Private,_); l = parse_common_flags >] -> (HPrivate, EPrivate) :: l
