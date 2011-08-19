@@ -467,7 +467,7 @@ let sanitize_expr e =
 	| TUnop (op,mode,e2) ->
 		let rec loop ee =
 			match ee.eexpr with
-			| TBinop _ -> parent e2
+			| TBinop _ | TIf _ -> parent e2
 			| TCast (e,None) -> loop e
 			| _ -> e2
 		in
