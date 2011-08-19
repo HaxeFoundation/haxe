@@ -254,6 +254,8 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	//	return untyped this["map"](function() return f(cur)).get();
 	//}
 
+	function iterator() : Iterator<JQuery>;
+	
 
 	// haxe-additions
 	inline function noBubble( events : String ) : JQuery { return (cast this).bind(events, false); }
@@ -294,5 +296,6 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 		q.fn.loadURL = q.fn.load;
 		q.fn.toggleClick = q.fn.toggle;
 		q.of = q;
+		q.fn.iterator = function() return { pos : 0, j : __this__, hasNext : function() return __this__.pos < __this__.j.length, next : function() return $(__this__.j[__this__.pos++]) };
 	}
 }
