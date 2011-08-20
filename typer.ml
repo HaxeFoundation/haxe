@@ -1576,7 +1576,22 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let e = mk (TFunction f) ft p in
 		(match vname with
 		| None -> e
-		| Some v -> mk (TVars [v,Some e]) ctx.t.tvoid p)
+		| Some v -> 
+			let rec loop = function
+				| Codegen.Block f | Codegen.Loop f | Codegen.Function f -> f loop
+				| Codegen.Use v2 when v == v2 -> raise Exit
+				| Codegen.Use _ | Codegen.Declare _ -> ()
+			in
+			let is_rec = (try Codegen.local_usage loop e; false with Exit -> true) in
+			if is_rec then begin
+				let vnew = add_local ctx v.v_name ft in
+				mk (TVars [vnew,Some (mk (TBlock [
+					mk (TVars [v,Some (mk (TConst TNull) ft p)]) ctx.t.tvoid p;
+					mk (TBinop (OpAssign,mk (TLocal v) ft p,e)) ft p;
+					mk (TLocal v) ft p
+				]) ft p)]) ctx.t.tvoid p
+			end else
+				mk (TVars [v,Some e]) ctx.t.tvoid p)
 	| EUntyped e ->
 		let old = ctx.untyped in
 		ctx.untyped <- true;
