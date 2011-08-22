@@ -2039,7 +2039,10 @@ let macro_timer ctx path =
 let typing_timer ctx f =
 	let t = Common.timer "typing" in
 	let old = ctx.com.error in
-	ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));
+	(*
+		disable resumable errors... unless we are in display mode (we want to reach point of completion)
+	*)
+	if not ctx.com.display then ctx.com.error <- (fun e p -> raise (Error(Custom e,p)));
 	try
 		let r = f() in
 		t();
