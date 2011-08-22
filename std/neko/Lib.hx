@@ -67,15 +67,15 @@ class Lib {
 		Serialize using native Neko serialization. This will return a Binary string that can be
 		stored for long term usage. The serialized data is optimized for speed and not for size.
 	**/
-	public static function serialize( v : Dynamic ) : String {
-		return new String(__serialize(v));
+	public static function serialize( v : Dynamic ) : haxe.io.Bytes {
+		return haxe.io.Bytes.ofData(__serialize(v));
 	}
 
 	/**
 		Unserialize a string using native Neko serialization. See [serialize].
 	**/
-	public static function unserialize( s : String ) : Dynamic {
-		return untyped __unserialize(s.__s,__dollar__loader);
+	public static function unserialize( s : haxe.io.Bytes ) : Dynamic {
+		return untyped __unserialize(s.getData(),__dollar__loader);
 	}
 
 	/**
@@ -85,8 +85,8 @@ class Lib {
 		some data into mod_neko that was serialized on a different server using a different
 		file path.
 	**/
-	public static function localUnserialize( s : String ) : Dynamic {
-		return untyped __unserialize(s.__s,{
+	public static function localUnserialize( s : haxe.io.Bytes ) : Dynamic {
+		return untyped __unserialize(s.getData(),{
 			loadmodule : function(m,l) { return __dollar__exports; },
 			loadprim : function(p,n) { return __dollar__loader.loadprim(p,n); }
 		});
