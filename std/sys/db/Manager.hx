@@ -149,6 +149,7 @@ class Manager<T : Object> {
 		}
 		s.add(")");
 		unsafeExecute(s.toString());
+		untyped x._lock = true;
 		// table with one key not defined : suppose autoincrement
 		if( table_keys.length == 1 && Reflect.field(x,table_keys[0]) == null )
 			Reflect.setField(x,table_keys[0],getCnx().lastInsertId());
