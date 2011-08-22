@@ -84,7 +84,7 @@
 	}
 
 	public static function copy<T>( o : T ) : T {
-		if(untyped __call__("is_string", o)) return o;
+		if (untyped __call__("is_string", o)) return o;
 		var o2 : Dynamic = {};
 		for( f in Reflect.fields(o) )
 			Reflect.setField(o2,f,Reflect.field(o,f));

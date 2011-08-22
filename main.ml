@@ -495,6 +495,11 @@ try
  			if com.php_lib <> None then raise (Arg.Bad "Multiple --php-lib");
  			com.php_lib <- Some f;
  		),"<filename> : select the name for the php lib folder");
+		("--php-prefix", Arg.String (fun f ->
+			if com.php_prefix <> None then raise (Arg.Bad "Multiple --php-prefix");
+			com.php_prefix <- Some f;
+			Common.define com "php_prefix";
+		),"<name> : prefix all classes with given name");
 		("--js-namespace",Arg.String (fun f ->
 			if com.js_namespace <> None then raise (Arg.Bad "Multiple --js-namespace");
 			com.js_namespace <- Some f;

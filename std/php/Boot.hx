@@ -6,6 +6,7 @@ class Boot {
 	static var tpaths;
 	static var skip_constructor = false;
 	static function __init__() : Void {
+		var _hx_class_prefix = untyped __prefix__();
 		untyped __php__("
 function _hx_add($a, $b) {
 	if (!_hx_is_numeric($a) || !_hx_is_numeric($b)) {
@@ -17,8 +18,7 @@ function _hx_add($a, $b) {
 		
 function _hx_anonymous($arr = array()) {
 	$o = new _hx_anonymous();
-	reset($arr);
-	while(list($k, $v) = each($arr))
+	foreach($arr as $k => $v)
 		$o->$k = $v;
 	return $o;
 }
@@ -196,6 +196,9 @@ class _hx_array_iterator implements Iterator {
 
 function _hx_array_get($a, $pos) { return $a[$pos]; }
 
+function _hx_array_increment($a, $pos) { return $a[$pos] += 1; }
+function _hx_array_decrement($a, $pos) { return $a[$pos] -= 1; }
+
 function _hx_array_assign($a, $i, $v) { return $a[$i] = $v; }
 
 class _hx_break_exception extends Exception {}
@@ -279,8 +282,8 @@ function _hx_explode2($s, $delimiter) {
 function _hx_field($o, $field) {
 	if(_hx_has_field($o, $field)) {
 		if($o instanceof _hx_type) {
-			if(is_callable(array($o->__tname__, $field))) {
-				return array($o->__tname__, $field);
+			if(is_callable($c = array($o->__tname__, $field)) && !property_exists($o->__tname__, $field)) {
+				return $c;
 			} else {
 				$name = $o->__tname__;
 				return eval('return '.$name.'::$'.$field.';');
@@ -768,14 +771,20 @@ _hx_register_type(new _hx_enum('Void',     'Void'));
 $_hx_libdir = dirname(__FILE__) . '/..';
 $_hx_autload_cache_file = $_hx_libdir . '/../cache/haxe_autoload.php';
 if(!file_exists($_hx_autload_cache_file)) {
-	function _hx_build_paths($d, &$_hx_types_array, $pack) {
+	function _hx_build_paths($d, &$_hx_types_array, $pack, $prefix) {
 		$h = opendir($d);
 		while(false !== ($f = readdir($h))) {
 			$p = $d.'/'.$f;
 			if($f == '.' || $f == '..')
 				continue;
-			if(is_file($p) && substr($f, -4) == '.php') {
+				if (is_file($p) && substr($f, -4) == '.php') {
 				$bn = basename($f, '.php');
+				if ($prefix)
+				{
+					if ($prefix != substr($bn, 0, $lenprefix = strlen($prefix)))
+						continue;
+					$bn = substr($bn, $lenprefix);
+				}
 				if(substr($bn, -6) == '.class') {
 					$bn = substr($bn, 0, -6);
 					$t = 0;
@@ -793,13 +802,13 @@ if(!file_exists($_hx_autload_cache_file)) {
 				$qname = ($bn == 'HList' && empty($pack)) ? 'List' : join(array_merge($pack, array($bn)), '.');
 				$_hx_types_array[] = array(
 					'path' => $p,
-					'name' => $bn,
+					'name' => $prefix . $bn,
 					'type' => $t,
 					'qname' => $qname,
-					'phpname' => join(array_merge($pack, array($bn)), '_')
+					'phpname' => join(array_merge($pack, array($prefix . $bn)), '_')
 				);
 			} else if(is_dir($p))
-				_hx_build_paths($p, $_hx_types_array, array_merge($pack, array($f)));
+				_hx_build_paths($p, $_hx_types_array, array_merge($pack, array($f)), $prefix);
 		}
 		closedir($h);
 	}
@@ -807,7 +816,7 @@ if(!file_exists($_hx_autload_cache_file)) {
 	$_hx_cache_content = '<?php\n\n';
 	$_hx_types_array = array();
 
-	_hx_build_paths($_hx_libdir, $_hx_types_array, array());
+	_hx_build_paths($_hx_libdir, $_hx_types_array, array(), $_hx_class_prefix);
 
 	for($i=0;$i<count($_hx_types_array);$i++) {
 		$_hx_cache_content .= '_hx_register_type(new ';

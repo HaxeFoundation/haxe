@@ -201,14 +201,28 @@ let is_string_expr e = is_string_type e.etype
 let spr ctx s = Buffer.add_string ctx.buf s
 let print ctx = Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
 
+(*--php-prefix - added by skial bainn*)
+let prefix_class com name = 
+	match com.php_prefix with
+	| Some prefix_class (* when not (String.length name <= 2 || String.sub name 0 2 = "__") *) -> 
+		prefix_class ^ name
+	| _ ->
+		name
+
+let prefix_init_replace com code = 
+	let r = Str.regexp "php_Boot" in
+	Str.global_replace r ("php_" ^ (prefix_class com "Boot")) code
+
 let s_path ctx path isextern p =
 	if isextern then begin
 		register_extern_required_path ctx path;
 		snd path
 	end else begin
 		(match path with
-		| ([],"List")			-> "HList"
-		| ([],name)				-> name
+		(*--php-prefix*)
+		| ([],"List")			-> (prefix_class ctx.com "HList")
+		(*--php-prefix*)
+		| ([],name)				-> (prefix_class ctx.com name)
 		| (pack,name) ->
 			(try
 				(match Hashtbl.find ctx.imports name with
@@ -218,7 +232,8 @@ let s_path ctx path isextern p =
 					if not (List.mem pack packs) then Hashtbl.replace ctx.imports name (pack :: packs))
 			with Not_found ->
 				Hashtbl.add ctx.imports name [pack]);
-			String.concat "_" pack ^ "_" ^ name);
+			(*--php-prefix*)
+			String.concat "_" pack ^ "_" ^ (prefix_class ctx.com name))
 	end
 
 let s_path_haxe path =
@@ -283,9 +298,10 @@ let init com cwd path def_type =
 	let dir = if cwd <> "" then com.file :: (cwd :: fst path) else com.file :: fst path; in
 	create [] dir;
 	let filename path =
-		(match path with
+		prefix_class com (match path with
 		| [], "List" -> "HList";
 		| _, s -> s) in
+	(*--php-prefix*)
 	let ch = open_out_bin (String.concat "/" dir ^ "/" ^ (filename path) ^ (if def_type = 0 then ".class" else if def_type = 1 then ".enum"  else if def_type = 2 then ".interface" else ".extern") ^ ".php") in
 	let imports = Hashtbl.create 0 in
 	Hashtbl.add imports (snd path) [fst path];
@@ -351,14 +367,14 @@ let inc_extern_path ctx path =
 	let pre = if ctx.cwd = "" then ctx.lib_path ^ "/" else "" in
 	match path with
 		| ([],name) ->
-		pre ^ (slashes (List.length (fst ctx.path))) ^ name ^ ".extern.php"
+		pre ^ (slashes (List.length (fst ctx.path))) ^ (prefix_class ctx.com name) ^ ".extern.php"
 		| (pack,name) ->
-		pre ^ (slashes (List.length (fst ctx.path))) ^ String.concat "/" pack ^ "/" ^ name ^ ".extern.php"
+		pre ^ (slashes (List.length (fst ctx.path))) ^ String.concat "/" pack ^ "/" ^ (prefix_class ctx.com name) ^ ".extern.php"
 
 let close ctx =
 	output_string ctx.ch "<?php\n";
 	List.iter (fun path ->
-		if path <> ctx.path then output_string ctx.ch ("require_once dirname(__FILE__).'/" ^ inc_extern_path ctx path ^ "';\n");
+		if path <> ctx.path then output_string ctx.ch ("require_once dirname(__FILE__).'/" ^ (inc_extern_path ctx path) ^ "';\n");
 	) (List.rev ctx.extern_required_paths);
 	output_string ctx.ch "\n";
 	output_string ctx.ch (Buffer.contents ctx.buf);
@@ -498,6 +514,12 @@ and gen_call ctx e el =
 		spr ctx "->";
 		gen_value ctx f;
 		gen_array_args ctx el;
+	| TLocal { v_name = "__prefix__" }, [] ->
+		(match ctx.com.php_prefix with
+		| Some prefix -> 
+			print ctx "\"%s\"" prefix
+		| None ->
+			spr ctx "null")
 	| TLocal { v_name = "__var__" }, { eexpr = TConst (TString code) } :: el ->
 		print ctx "$%s" code;
 		gen_array_args ctx el;
@@ -510,14 +532,17 @@ and gen_call ctx e el =
 		concat ctx ", " (gen_value ctx) el;
 		spr ctx ")";
 	| TLocal { v_name = "__php__" }, [{ eexpr = TConst (TString code) }] ->
-		spr ctx code
+		(*--php-prefix*)
+		spr ctx (prefix_init_replace ctx.com code)
 	| TLocal { v_name = "__instanceof__" },  [e1;{ eexpr = TConst (TString t) }] ->
 		gen_value ctx e1;
 		print ctx " instanceof %s" t;
 	| TLocal { v_name = "__physeq__" },  [e1;e2] ->
+		spr ctx "(";
 		gen_value ctx e1;
 		spr ctx " === ";
-		gen_value ctx e2
+		gen_value ctx e2;
+		spr ctx ")"
 	| TLocal _, []
 	| TFunction _, []
 	| TCall _, []
@@ -991,7 +1016,8 @@ and gen_expr ctx e =
 					gen_value ctx f;
 					print ctx ", \"%s\")" s;
 				| _ ->
-					gen_field_op ctx e1);
+					gen_field_op ctx e1;
+				);
 
 				spr ctx s_phop;
 
@@ -1282,16 +1308,43 @@ and gen_expr ctx e =
 			restore_in_block ctx in_block;
 			gen_expr ctx (mk_block e));
 	| TUnop (op,Ast.Prefix,e) ->
-		spr ctx (Ast.s_unop op);
 		(match e.eexpr with
 		| TArray(te1, te2) ->
-			gen_value ctx te1;
-			spr ctx "[";
-			gen_value ctx te2;
-			spr ctx "]";
+			(match op with
+			| Increment ->
+				spr ctx "_hx_array_increment(";
+				gen_value ctx te1;
+				spr ctx ",";
+				gen_value ctx te2;
+				spr ctx ")";
+			| Decrement ->
+				spr ctx "_hx_array_decrement(";
+				gen_value ctx te1;
+				spr ctx ",";
+				gen_value ctx te2;
+				spr ctx ")";
+(*
+				let t = define_local ctx "»t" in
+				gen_value ctx te1;
+				print ctx "[%s = " t;
+				gen_value ctx te2;
+				spr ctx "] = ";
+				gen_value ctx te1;
+				print ctx "[%s]" t;
+				print ctx "[%s]" t;
+*)
+			| _ ->
+				spr ctx (Ast.s_unop op);
+				gen_value ctx te1;
+				spr ctx "[";
+				gen_value ctx te2;
+				spr ctx "]";
+			);
 		| TField (e1,s) ->
+			spr ctx (Ast.s_unop op);
 			gen_field_access ctx true e1 s
 		| _ ->
+			spr ctx (Ast.s_unop op);
 			gen_value ctx e)
 	| TUnop (op,Ast.Postfix,e) ->
 		(match e.eexpr with
@@ -1564,6 +1617,34 @@ and inline_function ctx args hasthis e =
 
 		ctx.inline_methods <- ctx.inline_methods @ [block];
 		block.iname
+
+and canbe_ternary_param e =
+	match e.eexpr with
+	| TTypeExpr _
+	| TConst _
+	| TLocal _
+	| TEnumField _
+	| TParenthesis _
+	| TObjectDecl _
+	| TArrayDecl _
+	| TCall _
+	| TUnop _
+	| TNew _
+	| TCast (_, _)
+	| TBlock [_] ->
+		true
+	| TIf (_,e,eelse) ->
+		cangen_ternary e eelse
+	| _ ->
+		false
+		
+and cangen_ternary e eelse =
+	match eelse with 
+	| Some other ->
+		(canbe_ternary_param e) && (canbe_ternary_param other)
+	| _ -> 
+		false
+		
 and gen_value ctx e =
 	match e.eexpr with
 	| TTypeExpr _
@@ -1587,6 +1668,34 @@ and gen_value ctx e =
 	| TCast (e, _)
 	| TBlock [e] ->
 		gen_value ctx e
+	| TIf (cond,e,eelse) when (cangen_ternary e eelse) ->
+		spr ctx "(";
+		gen_value ctx cond;
+		spr ctx " ? ";
+		gen_value ctx e;
+		
+		(match eelse with
+		| Some e ->
+			spr ctx " : ";
+			gen_value ctx e
+		| _ ->());
+		spr ctx ")";
+	
+(*
+	| TIf (cond,e,eelse) ->
+		spr ctx "if";
+		gen_value ctx (parent cond);
+		spr ctx " ";
+		restore_in_block ctx in_block;
+		gen_expr ctx (mk_block e);
+		(match eelse with
+		| None -> ()
+		| Some e when e.eexpr = TConst(TNull) -> ()
+		| Some e ->
+			spr ctx " else ";
+			restore_in_block ctx in_block;
+			gen_expr ctx (mk_block e));
+*)
 	| TBlock _
 	| TBreak
 	| TContinue
@@ -1779,11 +1888,21 @@ let generate_inline_method ctx c m =
 
 	(* blocks *)
 	if ctx.com.debug then begin
+		(*--php-prefix*)
+		print_endline (s_path_haxe c.cl_path);
+		spr ctx "$»spos = $GLOBALS['%s']->length";
+		newline ctx;
+	end;
+(*
+	if ctx.com.debug then begin
+		(*--php-prefix*)
+		print_endline (s_path_haxe c.cl_path);
 		print ctx "\t$GLOBALS['%s']->push('%s:lambda_%d')" "%s" (s_path_haxe c.cl_path) m.iindex;
 		newline ctx;
 		spr ctx "\t$»spos = $GLOBALS['%s']->length";
 		newline ctx;
 	end;
+*)
 	gen_expr ctx m.iexpr;
 	block();
 	old();
@@ -1855,7 +1974,7 @@ let generate_class ctx c =
 		print ctx "\tfunction __toString() { return $this->toString(); }";
 		newline ctx
 	end else if (not c.cl_interface) && (not c.cl_extern) then begin
-		print ctx "\tfunction __toString() { return '%s'; }" ((s_path_haxe c.cl_path)) ;
+		print ctx "\tfunction __toString() { return '%s'; }" (s_path_haxe c.cl_path) ;
 		newline ctx
 	end;
 
@@ -1900,7 +2019,7 @@ let createmain com e =
 }";
 	newline ctx;
 	newline ctx;
-	spr ctx ("require_once dirname(__FILE__).'/" ^ ctx.lib_path ^ "/php/Boot.class.php';\n\n");
+	spr ctx ("require_once dirname(__FILE__).'/" ^ ctx.lib_path ^ "/php/" ^ (prefix_class com "Boot.class.php';\n\n"));
 	gen_value ctx e;
 	newline ctx;
 	spr ctx "\n?>";
@@ -2064,6 +2183,7 @@ let generate com =
 				| Some e ->
 					let ctx = init com php_lib_path c.cl_path 3 in
 					gen_expr ctx e;
+					newline ctx;
 					close ctx;
 					);
 			end else

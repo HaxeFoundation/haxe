@@ -51,7 +51,7 @@ enum XmlType {
 	private static var build : Xml;
 	private static function __start_element_handler(parser : Dynamic, name : String, attribs : ArrayAccess<String>) : Void {
 		var node = createElement(name);
-		untyped __php__("while(list($k, $v) = each($attribs)) $node->set($k, $v)");
+		untyped __php__("foreach($attribs as $k => $v) $node->set($k, $v)");
 		build.addChild(node);
 		build = node;
 	}
@@ -198,10 +198,11 @@ enum XmlType {
 		return _attributes.get( att );
 	}
 
+	// TODO: check correct transform function
 	public function set( att : String, value : String ) : Void {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		_attributes.set( att, untyped __call__("htmlspecialchars", value, __php__('ENT_COMPAT'), 'UTF-8'));
+		_attributes.set( att, untyped __call__("str_replace", "'", '&apos;', __call__("htmlspecialchars", value, __php__('ENT_COMPAT'), 'UTF-8')));
 	}
 
 	public function remove( att : String ) : Void{

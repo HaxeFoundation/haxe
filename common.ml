@@ -72,6 +72,7 @@ type context = {
 	mutable resources : (string,string) Hashtbl.t;
 	mutable php_front : string option;
 	mutable php_lib : string option;
+	mutable php_prefix : string option;
 	mutable swf_libs : (string * (unit -> Swf.swf) * (unit -> ((string list * string),As3hl.hl_class) Hashtbl.t)) list;
 	mutable js_gen : (unit -> unit) option;
 	(* typing *)
@@ -108,6 +109,7 @@ let create v =
 		php_lib = None;
 		swf_libs = [];
 		js_namespace = None;
+		php_prefix = None;
 		js_gen = None;
 		load_extern_type = [];
 		warning = (fun _ _ -> assert false);
