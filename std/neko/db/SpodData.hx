@@ -122,12 +122,14 @@ class SpodData {
 				switch( p[0] ) {
 				case TEnum(e,_):
 					var cl = e.get().names;
-					var prefix = cl[0];
-					for( c in cl )
-						while( prefix.length > 0 && c.substr(0, prefix.length) != prefix )
-							prefix = prefix.substr(0, -1);
-					for( i in 0...cl.length )
-						cl[i] = cl[i].substr(prefix.length);
+					if( cl.length > 1 ) {
+						var prefix = cl[0];
+						for( c in cl )
+							while( prefix.length > 0 && c.substr(0, prefix.length) != prefix )
+								prefix = prefix.substr(0, -1);
+						for( i in 0...cl.length )
+							cl[i] = cl[i].substr(prefix.length);
+					}
 					return DFlags(cl);
 				default:
 					throw "Flags parameter should be an enum";
