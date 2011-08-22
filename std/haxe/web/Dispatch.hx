@@ -93,6 +93,10 @@ class Dispatch {
 		var rt = TPath( { pack : ["haxe", "macro"], name : "MacroType", params : [TPExpr(Context.parse("haxe.web.Dispatch.getRunParam("+index+")",p))], sub : null } );
 		return { expr : EBlock([ { expr : EVars([ { name : "tmp", type : rt, expr : call } ]), pos : p }, { expr : EConst(CIdent("tmp")), pos : p } ]), pos : p };
 	}
+	
+	public function setParams(p) {
+		params = p;
+	}
 
 	public dynamic function onMeta( v : String, args : Null<Array<Dynamic>> ) {
 	}
