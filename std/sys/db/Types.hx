@@ -22,35 +22,80 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package neko.db;
+package sys.db;
 
 // basic types
+
+/** int with auto increment **/
 typedef SId = Int
-typedef SInt = Int
+
+/** int unsigned with auto increment **/
 typedef SUId = Int
-typedef SUInt = Int
+
+/** big int with auto increment **/
 typedef SBigId = Float
+
+typedef SInt = Int
+
+typedef SUInt = Int
+
 typedef SBigInt = Float
+
+/** single precision float **/
 typedef SSingle = Float
+
+/** double precision float **/
 typedef SFloat = Float
+
+/** use tinyint(1) to distinguish with int **/
 typedef SBool = Bool
+
+/** same as varchar(n) **/
 typedef SString<Const> = String
+
+/** date only, use SDateTime for date+time **/
 typedef SDate = Date
+
+/** mysql DateTime **/
 typedef SDateTime = Date
+
+/** TinyText (up to 255 bytes) **/
 typedef STinyText = String
+
+/** Text (up to 64KB) **/
 typedef SSmallText = String
+
+/** MediumText (up to 24MB) **/
 typedef SText = String
-typedef SSmallBinary = String
-typedef SLongBinary = String
-typedef SBinary = String
-typedef SBytes<Const> = String
+
+/** Blob type (up to 64KB) **/
+typedef SSmallBinary = haxe.io.Bytes
+
+/** LongBlob type (up to 4GB) **/
+typedef SLongBinary = haxe.io.Bytes
+
+/** MediumBlob type (up to 24MB) **/
+typedef SBinary = haxe.io.Bytes
+
+/** same as binary(n) **/
+typedef SBytes<Const> = haxe.io.Bytes
+
+/** TinyInt [-128...127] **/
 typedef STinyInt = Int
 
 // extra
+
+/** specify that this field is nullable **/
 typedef SNull<T> = T
+
+/** specify that the integer use custom encoding **/
 typedef SEncoded = Int
+
+/** haxe Serialized string **/
 typedef SSerialized = String
-typedef SNekoSerialized = String
+
+/** native neko serialized bytes **/
+typedef SNekoSerialized = haxe.io.Bytes
 
 @:native("Int")
 extern class SFlags<T> {

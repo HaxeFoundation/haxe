@@ -22,8 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package neko.db;
-#if !spod_macro
+package sys.db;
 
 class Transaction {
 
@@ -44,7 +43,11 @@ class Transaction {
 			}
 			if( logError == null ) {
 				Manager.cnx.rollback();
+				#if neko
 				neko.Lib.rethrow(e);
+				#else
+				throw e;
+				#end
 			}
 			logError(e); // should ROLLBACK if needed
 		}
@@ -68,4 +71,3 @@ class Transaction {
 	}
 
 }
-#end

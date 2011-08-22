@@ -220,7 +220,7 @@ class Dispatch {
 				return MRDispatch;
 			default:
 				var c = i.get();
-				if( c.superClass != null && c.superClass.t.toString() == "neko.db.Object" ) {
+				if( c.superClass != null && (c.superClass.t.toString() == "neko.db.Object" || c.superClass.t.toString() == "sys.db.Object") ) {
 					var lock = switch( t ) {
 					case TType(t, _): t.get().name == "Lock";
 					default: false;

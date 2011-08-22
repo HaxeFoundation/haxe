@@ -22,50 +22,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package neko.db;
-#if !spod_macro
+package sys.db;
 
-class Transaction {
+interface ResultSet {
 
-	public static function isDeadlock(e : Dynamic) {
-		return Std.is(e,String) && (~/Deadlock found/.match(e) || ~/Lock wait timeout/.match(e));
-	}
+	var length(getLength,null) : Int;
+	var nfields(getNFields,null) : Int;
 
-	private static function runMainLoop(mainFun,logError,count) {
-		try {
-			mainFun();
-		} catch( e : Dynamic ) {
-			if( count > 0 && isDeadlock(e) ) {
-				Manager.cleanup();
-				Manager.cnx.rollback(); // should be already done, but in case...
-				Manager.cnx.startTransaction();
-				runMainLoop(mainFun,logError,count-1);
-				return;
-			}
-			if( logError == null ) {
-				Manager.cnx.rollback();
-				neko.Lib.rethrow(e);
-			}
-			logError(e); // should ROLLBACK if needed
-		}
-	}
 
-	public static function main( cnx, mainFun : Void -> Void, logError : Dynamic -> Void ) {
-		Manager.initialize();
-		Manager.cnx = cnx;
-		Manager.cnx.startTransaction();
-		runMainLoop(mainFun,logError,3);
-		try {
-			Manager.cnx.commit();
-		} catch( e : String ) {
-			// sqlite can have errors on commit
-			if( ~/Database is busy/.match(e) )
-				logError(e);
-		}
-		Manager.cnx.close();
-		Manager.cnx = null;
-		Manager.cleanup();
-	}
+	function hasNext() : Bool;
+	function next() : Dynamic;
+	function results() : List<Dynamic>;
+	function getResult( n : Int ) : String;
+	function getIntResult( n : Int ) : Int;
+	function getFloatResult( n : Int ) : Float;
+	function getFieldsNames() : Null<Array<String>>;
 
 }
-#end

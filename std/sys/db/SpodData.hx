@@ -1,5 +1,5 @@
-package neko.db;
-import neko.db.SpodInfos;
+package sys.db;
+import sys.db.SpodInfos;
 import haxe.macro.Expr;
 import haxe.macro.Type.VarAccess;
 #if macro
@@ -96,11 +96,11 @@ class SpodData {
 		case TInst(c, p):
 			var name = c.toString();
 			var cl = c.get();
-			if( cl.superClass != null && cl.superClass.t.toString() == "neko.db.Object" )
+			if( cl.superClass != null && cl.superClass.t.toString() == "sys.db.Object" )
 				return name;
 		case TType(t, p):
 			var name = t.toString();
-			if( p.length == 1 && (name == "Null" || name == "neko.db.SNull" || name == "mt.db.SNull") ) {
+			if( p.length == 1 && (name == "Null" || name == "sys.db.SNull") ) {
 				isNull = true;
 				return makeSpod(p[0]);
 			}
@@ -118,7 +118,7 @@ class SpodData {
 			case "Float": DFloat;
 			case "String": DText;
 			case "Date": DDateTime;
-			case "mt.db.SFlags", "neko.db.SFlags":
+			case "sys.db.SFlags":
 				switch( p[0] ) {
 				case TEnum(e,_):
 					var cl = e.get().names;
@@ -144,10 +144,8 @@ class SpodData {
 			}
 		case TType(t, p):
 			var name = t.toString();
-			if( StringTools.startsWith(name, "neko.db.") )
-				name = name.substr(8);
-			else if( StringTools.startsWith(name, "mt.db.") )
-				name = name.substr(6);
+			if( StringTools.startsWith(name, "sys.db.") )
+				name = name.substr(7);
 			var k = types.get(name);
 			if( k != null ) return k;
 			if( p.length == 1 )
@@ -210,7 +208,7 @@ class SpodData {
 							params.push({ i : makeIdent(p), p : p.pos });
 						isNull = false;
 						var t = makeSpod(f.type);
-						if( t == null ) error("Relation type should be a neko.db.Object", f.pos);
+						if( t == null ) error("Relation type should be a sys.db.Object", f.pos);
 						var r = {
 							prop : f.name,
 							key : params.shift().i,
@@ -242,9 +240,12 @@ class SpodData {
 				t : try makeType(f.type) catch( e : String ) error(e,f.pos),
 				isNull : isNull,
 			};
-			switch( fi.t ) {
-			case DId, DUId: if( i.key == null ) i.key = [fi.name] else error("Multiple table id declaration", f.pos);
-			default:
+			var isId = switch( fi.t ) {
+			case DId, DUId: true;
+			default: fi.name == "id";
+			}
+			if( isId ) {
+				if( i.key == null ) i.key = [fi.name] else error("Multiple table id declaration", f.pos);
 			}
 			i.fields.push(fi);
 			i.hfields.set(fi.name, fi);
@@ -311,7 +312,7 @@ class SpodData {
 	}
 
 	function initManager( pos : Position ) {
-		manager = { expr : EType({ expr : EField({ expr : EConst(CIdent("neko")), pos : pos },"db"), pos : pos }, "Manager"), pos : pos };
+		manager = { expr : EType({ expr : EField({ expr : EConst(CIdent("sys")), pos : pos },"db"), pos : pos }, "Manager"), pos : pos };
 	}
 
 	inline function makeString( s : String, pos ) {
@@ -837,7 +838,7 @@ class SpodData {
 
 	public static function getInfos( t : haxe.macro.Type ) {
 		var c = switch( t ) {
-		case TInst(c, _): if( c.toString() == "neko.db.Object" ) return null; c;
+		case TInst(c, _): if( c.toString() == "sys.db.Object" ) return null; c;
 		default: return null;
 		};
 		var i = inst;
@@ -855,7 +856,7 @@ class SpodData {
 	public static function addRtti() : Array<Field> {
 		if( RTTI ) return null;
 		RTTI = true;
-		Context.getType("neko.db.SpodInfos");
+		Context.getType("sys.db.SpodInfos");
 		Context.onGenerate(function(types) {
 			for( t in types )
 				switch( t ) {
@@ -863,7 +864,7 @@ class SpodData {
 					var c = c.get();
 					var cur = c.superClass;
 					while( cur != null ) {
-						if( cur.t.toString() == "neko.db.Object" )
+						if( cur.t.toString() == "sys.db.Object" )
 							break;
 						cur = cur.t.get().superClass;
 					}
@@ -886,7 +887,7 @@ class SpodData {
 		switch( t ) {
 		case TInst(c, p):
 			while( true ) {
-				if( c.toString() == "neko.db.MacroManager" ) {
+				if( c.toString() == "sys.db.Manager" ) {
 					param = p[0];
 					break;
 				}
@@ -896,7 +897,7 @@ class SpodData {
 				p = csup.params;
 			}
 		case TType(t, p):
-			if( p.length == 1 && t.toString() == "neko.db.Manager" )
+			if( p.length == 1 && t.toString() == "sys.db.Manager" )
 				param = p[0];
 		default:
 		}
@@ -1000,7 +1001,7 @@ class SpodData {
 			var p = inst.pos;
 			var tinst = TPath( { pack : inst.pack, name : inst.name, sub : null, params : [] } );
 			var path = inst.pack.copy().concat([inst.name]).join(".");
-			var enew = { expr : ENew( { pack : ["neko", "db"], name : "Manager", sub : null, params : [TPType(tinst)] }, [Context.parse(path, p)]), pos : p }
+			var enew = { expr : ENew( { pack : ["sys", "db"], name : "Manager", sub : null, params : [TPType(tinst)] }, [Context.parse(path, p)]), pos : p }
 			fields.push({ name : "manager", meta : [], kind : FVar(null,enew), doc : null, access : [AStatic,APublic], pos : p });
 		}
 		return fields;

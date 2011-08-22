@@ -22,10 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package neko.db;
-#if !spod_macro
-
-import neko.db.Connection;
+package sys.db;
 
 private class D {
 
@@ -38,19 +35,19 @@ private class D {
 	public static var select_db = load("select_db",2);
 	public static var request = load("request",2);
 	public static var close = load("close",1);
-	public static var escape = load("escape",2);
+	public static var escape = load("escape", 2);
+	public static var set_conv_funs = load("set_conv_funs", 4);
 	public static var result_get_length = load("result_get_length",1);
 	public static var result_get_nfields = load("result_get_nfields",1);
 	public static var result_next = load("result_next",1);
 	public static var result_get = load("result_get",2);
 	public static var result_get_int = load("result_get_int",2);
 	public static var result_get_float = load("result_get_float",2);
-	public static var result_set_conv_date = load("result_set_conv_date",2);
 	public static var result_fields_names = neko.Lib.loadLazy(lib,"result_get_fields_names",1);
 
 }
 
-private class MysqlResultSet implements ResultSet {
+private class MysqlResultSet implements sys.db.ResultSet {
 
 	public var length(getLength,null) : Int;
 	public var nfields(getNFields,null) : Int;
@@ -82,19 +79,6 @@ private class MysqlResultSet implements ResultSet {
 			return c;
 		}
 		c = D.result_next(__r);
-		if( c == null )
-			return null;
-		untyped {
-			var f = __dollar__objfields(c);
-			var i = 0;
-			var l = __dollar__asize(f);
-			while( i < l ) {
-				var v = __dollar__objget(c,f[i]);
-				if( __dollar__typeof(v) == __dollar__tstring )
-					__dollar__objset(c,f[i],new String(v));
-				i = i + 1;
-			}
-		}
 		return c;
 	}
 
@@ -133,18 +117,18 @@ private class MysqlResultSet implements ResultSet {
 
 }
 
-private class MysqlConnection implements Connection {
+private class MysqlConnection implements sys.db.Connection {
 
 	private var __c : Void;
 
 	public function new(c) {
 		__c = c;
+		D.set_conv_funs(c, function(s) return new String(s), function(d) return untyped Date.new1(d), function(b) return haxe.io.Bytes.ofData(b));
 	}
 
-	public function request( s : String ) : ResultSet {
+	public function request( s : String ) : sys.db.ResultSet {
 		try {
-			var r = D.request(this.__c,untyped s.__s);
-			D.result_set_conv_date(r,function(d) { return untyped Date.new1(d); });
+			var r = D.request(this.__c, untyped s.__s);
 			return new MysqlResultSet(r);
 		} catch( e : Dynamic ) {
 			untyped if( __dollar__typeof(e) == __dollar__tobject && __dollar__typeof(e.msg) == __dollar__tstring )
@@ -202,7 +186,7 @@ private class MysqlConnection implements Connection {
 	private static var __use_date = Date;
 }
 
-class Mysql {
+@:core_api class Mysql {
 
 	public static function connect( params : {
 		host : String,
@@ -211,7 +195,7 @@ class Mysql {
 		pass : String,
 		socket : String,
 		database : String
-	} ) : neko.db.Connection {
+	} ) : sys.db.Connection {
 		var o = untyped {
 			host : params.host.__s,
 			port : params.port,
@@ -230,5 +214,3 @@ class Mysql {
 	}
 
 }
-
-#end

@@ -22,54 +22,50 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package neko.db;
+package sys.db;
 import Reflect;
-import neko.db.Connection;
+import sys.db.Connection;
+
+#if !spod_macro
+#error "Please use -D spod_macro when using new SPOD version"
+#end
 
 /**
 	SPOD Manager : the persistent object database manager. See the tutorial on
 	haXe website to learn how to use SPOD.
 **/
-#if !macro @:build(neko.db.SpodData.addRtti()) #end
-class MacroManager<T : Object> {
+#if !macro @:build(sys.db.SpodData.addRtti()) #end
+class Manager<T : Object> {
 
 	/* ----------------------------- STATICS ------------------------------ */
-	public static var cnx(default,setConnection) : Connection;
+	public static var cnx(default, setConnection) : Connection;
+	public static var lockMode : String;
+
+	private static inline var cache_field = "__cache__";
+
 	private static var object_cache : Hash<Object> = new Hash();
 	private static var init_list : List<Manager<Dynamic>> = new List();
-	private static var cache_field = "__cache__";
-	private static var no_update : Dynamic = function() { throw "Cannot update not locked object"; }
-	private static var LOCKS = ["","",""];
+
 	private static var KEYWORDS = {
 		var h = new Hash();
-		for( k in ["read","write","desc","out","group","version","option",
-				"primary","exists","from","key","keys","limit","lock","use",
-				"create","order","range"] )
-			h.set(k,true);
+		for( k in "ADD|ALL|ALTER|ANALYZE|AND|AS|ASC|ASENSITIVE|BEFORE|BETWEEN|BIGINT|BINARY|BLOB|BOTH|BY|CALL|CASCADE|CASE|CHANGE|CHAR|CHARACTER|CHECK|COLLATE|COLUMN|CONDITION|CONSTRAINT|CONTINUE|CONVERT|CREATE|CROSS|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP|CURRENT_USER|CURSOR|DATABASE|DATABASES|DAY_HOUR|DAY_MICROSECOND|DAY_MINUTE|DAY_SECOND|DEC|DECIMAL|DECLARE|DEFAULT|DELAYED|DELETE|DESC|DESCRIBE|DETERMINISTIC|DISTINCT|DISTINCTROW|DIV|DOUBLE|DROP|DUAL|EACH|ELSE|ELSEIF|ENCLOSED|ESCAPED|EXISTS|EXIT|EXPLAIN|FALSE|FETCH|FLOAT|FLOAT4|FLOAT8|FOR|FORCE|FOREIGN|FROM|FULLTEXT|GRANT|GROUP|HAVING|HIGH_PRIORITY|HOUR_MICROSECOND|HOUR_MINUTE|HOUR_SECOND|IF|IGNORE|IN|INDEX|INFILE|INNER|INOUT|INSENSITIVE|INSERT|INT|INT1|INT2|INT3|INT4|INT8|INTEGER|INTERVAL|INTO|IS|ITERATE|JOIN|KEY|KEYS|KILL|LEADING|LEAVE|LEFT|LIKE|LIMIT|LINES|LOAD|LOCALTIME|LOCALTIMESTAMP|LOCK|LONG|LONGBLOB|LONGTEXT|LOOP|LOW_PRIORITY|MATCH|MEDIUMBLOB|MEDIUMINT|MEDIUMTEXT|MIDDLEINT|MINUTE_MICROSECOND|MINUTE_SECOND|MOD|MODIFIES|NATURAL|NOT|NO_WRITE_TO_BINLOG|NULL|NUMERIC|ON|OPTIMIZE|OPTION|OPTIONALLY|OR|ORDER|OUT|OUTER|OUTFILE|PRECISION|PRIMARY|PROCEDURE|PURGE|READ|READS|REAL|REFERENCES|REGEXP|RELEASE|RENAME|REPEAT|REPLACE|REQUIRE|RESTRICT|RETURN|REVOKE|RIGHT|RLIKE|SCHEMA|SCHEMAS|SECOND_MICROSECOND|SELECT|SENSITIVE|SEPARATOR|SET|SHOW|SMALLINT|SONAME|SPATIAL|SPECIFIC|SQL|SQLEXCEPTION|SQLSTATE|SQLWARNING|SQL_BIG_RESULT|SQL_CALC_FOUND_ROWS|SQL_SMALL_RESULT|SSL|STARTING|STRAIGHT_JOIN|TABLE|TERMINATED|THEN|TINYBLOB|TINYINT|TINYTEXT|TO|TRAILING|TRIGGER|TRUE|UNDO|UNION|UNIQUE|UNLOCK|UNSIGNED|UPDATE|USAGE|USE|USING|UTC_DATE|UTC_TIME|UTC_TIMESTAMP|VALUES|VARBINARY|VARCHAR|VARCHARACTER|VARYING|WHEN|WHERE|WHILE|WITH|WRITE|XOR|YEAR_MONTH|ZEROFILL|ASENSITIVE|CALL|CONDITION|CONNECTION|CONTINUE|CURSOR|DECLARE|DETERMINISTIC|EACH|ELSEIF|EXIT|FETCH|GOTO|INOUT|INSENSITIVE|ITERATE|LABEL|LEAVE|LOOP|MODIFIES|OUT|READS|RELEASE|REPEAT|RETURN|SCHEMA|SCHEMAS|SENSITIVE|SPECIFIC|SQL|SQLEXCEPTION|SQLSTATE|SQLWARNING|TRIGGER|UNDO|UPGRADE|WHILE".split("|") )
+			h.set(k.toLowerCase(),true);
 		h;
 	}
 
 	private static function setConnection( c : Connection ) {
-		Reflect.setField(Manager,"cnx",c);
-		if( c != null ) {
-			if( c.dbName() == "MySQL" ) {
-				LOCKS[1] = " LOCK IN SHARE MODE";
-				LOCKS[2] = " FOR UPDATE";
-			} else {
-				LOCKS[1] = "";
-				LOCKS[2] = "";
-			}
-		}
+		cnx = c;
+		lockMode = (c != null && c.dbName() == "MySQL") ? " FOR UPDATE" : "";
 		return c;
 	}
 
 	/* ---------------------------- BASIC API ----------------------------- */
+
 	var table_infos : SpodInfos;
 	var table_name : String;
 	var table_fields : List<String>;
 	var table_keys : Array<String>;
 	var class_proto : { prototype : Dynamic };
-	var lock_mode : Int;
 
 	public function new( classval : Class<T> ) {
 		var m : Array<Dynamic> = haxe.rtti.Meta.getType(classval).rtti;
@@ -77,16 +73,13 @@ class MacroManager<T : Object> {
 		table_infos = haxe.Unserializer.run(m[0]);
 		table_name = quoteField(table_infos.name);
 		table_keys = table_infos.key;
-		class_proto = cast classval;
-		lock_mode = 2;
-
-		// get the proto fields not marked private (excluding methods)
 		table_fields = new List();
 		for( f in table_infos.fields )
 			table_fields.add(f.name);
 
 		// set the manager and ready for further init
-		class_proto.prototype.local_manager = this;
+		class_proto = cast classval;
+		class_proto.prototype._manager = this;
 		init_list.add(this);
 	}
 
@@ -124,7 +117,7 @@ class MacroManager<T : Object> {
 	}
 
 	function quote( s : String ) : String {
-		return cnx.quote( s );
+		return getCnx().quote( s );
 	}
 
 	/* -------------------------- SPODOBJECT API -------------------------- */
@@ -152,17 +145,19 @@ class MacroManager<T : Object> {
 				first = false;
 			else
 				s.add(", ");
-			cnx.addValue(s,v);
+			getCnx().addValue(s,v);
 		}
 		s.add(")");
 		unsafeExecute(s.toString());
 		// table with one key not defined : suppose autoincrement
 		if( table_keys.length == 1 && Reflect.field(x,table_keys[0]) == null )
-			Reflect.setField(x,table_keys[0],cnx.lastInsertId());
+			Reflect.setField(x,table_keys[0],getCnx().lastInsertId());
 		addToCache(x);
 	}
 
 	function doUpdate( x : T ) {
+		if( untyped !x._lock )
+			throw "Cannot update a not locked object";
 		unmake(x);
 		var s = new StringBuf();
 		s.add("UPDATE ");
@@ -180,7 +175,7 @@ class MacroManager<T : Object> {
 					mod = true;
 				s.add(quoteField(f));
 				s.add(" = ");
-				cnx.addValue(s,v);
+				getCnx().addValue(s,v);
 				Reflect.setField(cache,f,v);
 			}
 		}
@@ -201,22 +196,17 @@ class MacroManager<T : Object> {
 		removeFromCache(x);
 	}
 
-
-	function doLock( x : T ) {
-		if( (cast x).update != no_update )
+	function doLock( i : T ) {
+		if( untyped i._lock )
 			return;
-		Reflect.deleteField(x, "update");
-		doSync(x);
-	}
-	
-	function doSync( i : T ) {
+		untyped i._lock = true;
 		object_cache.remove(makeCacheKey(i));
 		var s = new StringBuf();
 		s.add("SELECT * FROM ");
 		s.add(table_name);
 		s.add(" WHERE ");
 		addKeys(s, i);
-		var i2 = unsafeObject(s.toString(),(cast i).update != no_update);
+		var i2 = unsafeObject(s.toString(),untyped i._lock);
 		// delete all fields
 		for( f in Reflect.fields(i) )
 			Reflect.deleteField(i,f);
@@ -259,8 +249,7 @@ class MacroManager<T : Object> {
 		addToCache(x);
 		untyped __dollar__objsetproto(x,class_proto.prototype);
 		Reflect.setField(x,cache_field,untyped __dollar__new(x));
-		if( !lock )
-			x.update = no_update;
+		untyped x._lock = lock;
 	}
 
 	function make( x : T ) {
@@ -285,12 +274,12 @@ class MacroManager<T : Object> {
 			var f = Reflect.field(x,k);
 			if( f == null )
 				throw ("Missing key "+k);
-			cnx.addValue(s,f);
+			getCnx().addValue(s,f);
 		}
 	}
 
 	function unsafeExecute( sql : String ) {
-		return cnx.request(sql);
+		return getCnx().request(sql);
 	}
 
 	public function unsafeObject( sql : String, lock : Bool ) : T {
@@ -298,7 +287,7 @@ class MacroManager<T : Object> {
 			lock = true;
 			sql += getLockMode();
 		}
-		var r = cnx.request(sql).next();
+		var r = unsafeExecute(sql).next();
 		if( r == null )
 			return null;
 		var c = getFromCache(r,lock);
@@ -314,7 +303,7 @@ class MacroManager<T : Object> {
 			lock = true;
 			sql += getLockMode();
 		}
-		var l = cnx.request(sql).results();
+		var l = unsafeExecute(sql).results();
 		var l2 = new List<T>();
 		for( x in l ) {
 			var c = getFromCache(x,lock);
@@ -344,7 +333,7 @@ class MacroManager<T : Object> {
 		if( id == null )
 			return null;
 		var x : Dynamic = getFromCacheKey(Std.string(id) + table_name);
-		if( x != null && (!lock || x.update != no_update) )
+		if( x != null && (!lock || x._lock) )
 			return x;
 		var s = new StringBuf();
 		s.add("SELECT * FROM ");
@@ -352,14 +341,14 @@ class MacroManager<T : Object> {
 		s.add(" WHERE ");
 		s.add(quoteField(table_keys[0]));
 		s.add(" = ");
-		cnx.addValue(s,id);
+		getCnx().addValue(s,id);
 		return unsafeObject(s.toString(), lock);
 	}
 
 	public function unsafeGetWithKeys( keys : { }, ?lock : Bool ) : T {
 		if( lock == null ) lock = true;
 		var x : Dynamic = getFromCacheKey(makeCacheKey(cast keys));
-		if( x != null && (!lock || x.update != no_update) )
+		if( x != null && (!lock || x._lock) )
 			return x;
 		var s = new StringBuf();
 		s.add("SELECT * FROM ");
@@ -383,7 +372,7 @@ class MacroManager<T : Object> {
 					s.add(" IS NULL");
 				else {
 					s.add(" = ");
-					cnx.addValue(s,d);
+					getCnx().addValue(s,d);
 				}
 			}
 		if( first )
@@ -392,16 +381,16 @@ class MacroManager<T : Object> {
 
 	/* --------------------------- MISC API  ------------------------------ */
 
-	inline function getLockMode() {
-		return LOCKS[lock_mode];
-	}
-
-	public function setLockMode( exclusive, readShared ) {
-		lock_mode = exclusive ? 2 : (readShared ? 1 : 0);
-	}
-
 	public function dbClass() : Class<Dynamic> {
 		return cast class_proto;
+	}
+
+	function getCnx() {
+		return cnx;
+	}
+
+	function getLockMode() {
+		return lockMode;
 	}
 
 	/* --------------------------- INIT / CLEANUP ------------------------- */
@@ -488,10 +477,10 @@ class MacroManager<T : Object> {
 
 	function getFromCache( x : T, lock : Bool ) : T {
 		var c : Dynamic = object_cache.get(makeCacheKey(x));
-		if( c != null && lock && c.update == no_update ) {
-			// restore update method since now the object is locked
-			c.update = class_proto.prototype.update;
-			// and synchronize the fields since our result is up-to-date !
+		if( c != null && lock && !c._lock ) {
+			// mark as locked
+			c._lock = true;
+			// synchronize the fields since our result is up-to-date !
 			for( f in Reflect.fields(c) )
 				Reflect.deleteField(c,f);
 			for( f in Reflect.fields(x) )

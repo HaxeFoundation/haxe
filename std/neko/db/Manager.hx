@@ -30,8 +30,6 @@ typedef Manager<T : Object> = mt.db.ShardManager<T>;
 
 #elseif spod_macro
 
-typedef Manager<T : Object> = neko.db.MacroManager<T>;
-
 #else
 
 import Reflect;

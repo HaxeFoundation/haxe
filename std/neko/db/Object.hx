@@ -28,7 +28,7 @@ package neko.db;
 	SPOD Object : the persistent object base type. See the tutorial on haXe
 	website to learn how to use SPOD.
 **/
-#if spod_macro @:autoBuild(neko.db.SpodData.macroBuild()) #end
+#if spod_macro #else
 class Object #if spod_rtti implements haxe.rtti.Infos #end {
 
 /*
@@ -49,9 +49,6 @@ class Object #if spod_rtti implements haxe.rtti.Infos #end {
 		private function doSync( o : Object ) : Void;
 		private function doDelete( o : Object ) : Void;
 		private function objectToString( o : Object ) : String;
-		#if spod_macro
-		private function doLock( o : Object ) : Void;
-		#end
 	};
 
 
@@ -73,15 +70,11 @@ class Object #if spod_rtti implements haxe.rtti.Infos #end {
 	public function delete() {
 		local_manager.doDelete(this);
 	}
-	
-	#if spod_macro
-	public function lock() {
-		local_manager.doLock(this);
-	}
-	#end
 
 	public function toString() {
 		return local_manager.objectToString(this);
 	}
 
 }
+
+#end
