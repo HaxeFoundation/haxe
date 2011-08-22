@@ -1,3 +1,27 @@
+/*
+ * Copyright (c) 2005-2011, The haXe Project Contributors
+ * All rights reserved.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *   - Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   - Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE HAXE PROJECT CONTRIBUTORS "AS IS" AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE HAXE PROJECT CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+ * DAMAGE.
+ */
 package sys.db;
 import sys.db.SpodInfos;
 import haxe.macro.Expr;
@@ -17,9 +41,9 @@ private enum BuildError {
 	EExpr( e : Expr );
 }
 
-class SpodData {
+class SpodMacros {
 
-	static var inst : SpodData = null;
+	static var inst : SpodMacros = null;
 	static var simpleString = ~/^[A-Za-z0-9 ]*$/;
 
 	var cache : Hash<SpodInfos>;
@@ -118,6 +142,7 @@ class SpodData {
 			case "Float": DFloat;
 			case "String": DText;
 			case "Date": DDateTime;
+			case "haxe.io.Bytes": DBinary;
 			case "sys.db.SFlags":
 				switch( p[0] ) {
 				case TEnum(e,_):
@@ -371,8 +396,7 @@ class SpodData {
 		case DBool: 2;
 		case DString(_), DTinyText, DSmallText, DText, DSerialized: 3;
 		case DDate, DDateTime: 4;
-		// allow bytes/string comparisons, reserve 5 for future change
-		case DSmallBinary, DLongBinary, DBinary, DBytes(_), DNekoSerialized: 3;
+		case DSmallBinary, DLongBinary, DBinary, DBytes(_), DNekoSerialized: 5;
 		case DInterval: 6;
 		case DNull: 7;
 		};
@@ -404,7 +428,7 @@ class SpodData {
 			case 2: "Bool";
 			case 3: "String";
 			case 4: "Date";
-			case 5: "String";
+			case 5: "haxe.io.Bytes";
 			default: throw "assert";
 			},
 			pack : [],
@@ -843,7 +867,7 @@ class SpodData {
 		};
 		var i = inst;
 		if( i == null ) {
-			i = new SpodData();
+			i = new SpodMacros();
 			inst = i;
 		}
 		return i.getSpodInfos(c);

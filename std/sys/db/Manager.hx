@@ -34,7 +34,7 @@ import sys.db.Connection;
 	SPOD Manager : the persistent object database manager. See the tutorial on
 	haXe website to learn how to use SPOD.
 **/
-#if !macro @:build(sys.db.SpodData.addRtti()) #end
+#if !macro @:build(sys.db.SpodMacros.addRtti()) #end
 class Manager<T : Object> {
 
 	/* ----------------------------- STATICS ------------------------------ */
@@ -88,23 +88,23 @@ class Manager<T : Object> {
 	}
 
 	@:macro public function get(ethis,id,?lock:haxe.macro.Expr.ExprRequire<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<T> #end {
-		return SpodData.macroGet(ethis,id,lock);
+		return SpodMacros.macroGet(ethis,id,lock);
 	}
 
 	@:macro public function select(ethis, cond, ?options, ?lock:haxe.macro.Expr.ExprRequire<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<T> #end {
-		return SpodData.macroSearch(ethis, cond, options, lock, true);
+		return SpodMacros.macroSearch(ethis, cond, options, lock, true);
 	}
 
 	@:macro public function search(ethis, cond, ?options, ?lock:haxe.macro.Expr.ExprRequire<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<List<T>> #end {
-		return SpodData.macroSearch(ethis, cond, options, lock);
+		return SpodMacros.macroSearch(ethis, cond, options, lock);
 	}
 
 	@:macro public function count(ethis, cond) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<Int> #end {
-		return SpodData.macroCount(ethis, cond);
+		return SpodMacros.macroCount(ethis, cond);
 	}
 
 	@:macro public function delete(ethis, cond) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<Void> #end {
-		return SpodData.macroDelete(ethis, cond);
+		return SpodMacros.macroDelete(ethis, cond);
 	}
 
 	public function dynamicSearch( x : {}, ?lock : Bool ) : List<T> {
@@ -522,7 +522,7 @@ class Manager<T : Object> {
 		return quoteAny(v);
 	}
 
-	public static inline function quoteBytes( v : String ) {
+	public static inline function quoteBytes( v : haxe.io.Bytes ) {
 		return quoteAny(v);
 	}
 

@@ -28,7 +28,7 @@ package sys.db;
 	SPOD Object : the persistent object base type. See the tutorial on haXe
 	website to learn how to use SPOD.
 **/
-@:autoBuild(sys.db.SpodData.macroBuild())
+@:autoBuild(sys.db.SpodMacros.macroBuild())
 class Object {
 
 	var _locked(default,never) : Bool;
