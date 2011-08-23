@@ -99,6 +99,9 @@ typedef SNekoSerialized = haxe.io.Bytes
 
 @:native("Int")
 extern class SFlags<T> {
+	public inline function init() : Void {
+		untyped __this__ = 0;
+	}
 	public inline function get( v : T ) : Bool {
 		return (cast this) & (1 << Type.enumIndex(v)) != 0;
 	}

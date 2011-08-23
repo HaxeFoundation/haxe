@@ -296,7 +296,6 @@ class SpodMacros {
 		for( m in c.meta.get() )
 			switch( m.name ) {
 			case ":id":
-				if( i.key != null ) error("Multiple unique id", m.pos);
 				i.key = [];
 				for( p in m.params ) {
 					var id = makeIdent(p);
