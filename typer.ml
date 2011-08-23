@@ -100,25 +100,10 @@ let classify t =
 	| _ -> KOther
 
 let type_field_rec = ref (fun _ _ _ _ _ -> assert false)
+let type_expr_with_type_rec = ref (fun _ _ _ -> assert false)
 
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
-
-let type_expr_with_type ctx e t =
-	match e with
-	| (EFunction _,_) ->
-		let old = ctx.param_type in
-		(try
-			ctx.param_type <- t;
-			let e = type_expr ctx e true in
-			ctx.param_type <- old;
-			e
-		with
-			exc ->
-				ctx.param_type <- old;
-				raise exc)
-	| _ ->
-		type_expr ctx e true
 
 let rec unify_call_params ctx name el args r p inline =
 	let next() =
@@ -193,7 +178,7 @@ let rec unify_call_params ctx name el args r p inline =
 			| [name,ul] -> arg_error ul name true p
 			| _ -> error "Invalid")
 		| ee :: l, (name,opt,t) :: l2 ->
-			let e = type_expr_with_type ctx ee (Some t) in
+			let e = (!type_expr_with_type_rec) ctx ee (Some t) in
 			try
 				unify_raise ctx e.etype t e.epos;
 				loop ((e,false) :: acc) l l2 skip
@@ -1155,6 +1140,40 @@ and type_ident_noerr ctx i is_type p mode =
 			display_error ctx (error_msg err) p;
 			AKExpr (mk (TConst TNull) t_dynamic p)
 		end
+
+and type_expr_with_type ctx e t =
+	match e with
+	| (EFunction _,_) ->
+		let old = ctx.param_type in
+		(try
+			ctx.param_type <- t;
+			let e = type_expr ctx e in
+			ctx.param_type <- old;
+			e
+		with
+			exc ->
+				ctx.param_type <- old;
+				raise exc)
+	| (EConst (Ident s | Type s),p) ->
+		(try
+			acc_get ctx (type_ident ctx s (match fst e with EConst (Ident _) -> false | _ -> true) p MGet) p
+		with Not_found -> try
+			(match t with
+			| None -> raise Not_found
+			| Some t ->
+				match follow t with
+				| TEnum (e,pl) ->
+					(try 
+						let ef = PMap.find s e.e_constrs in
+						mk (TEnumField (e,s)) (apply_params e.e_types pl ef.ef_type) p
+					with Not_found ->
+						display_error ctx ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path) p;
+						mk (TConst TNull) t p)
+				| _ -> raise Not_found)
+		with Not_found ->
+			type_expr ctx e)
+	| _ ->
+		type_expr ctx e
 
 and type_access ctx e p mode =
 	match e with
@@ -2491,3 +2510,4 @@ let rec create com =
 
 ;;
 type_field_rec := type_field;
+type_expr_with_type_rec := type_expr_with_type;
