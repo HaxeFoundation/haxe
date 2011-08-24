@@ -44,6 +44,7 @@ enum MatchRule {
 	MRString;
 	MRDispatch;
 	MRSpod( c : String, lock : Bool );
+	MROpt( r : MatchRule );
 }
 
 enum DispatchRule {
@@ -164,6 +165,10 @@ class Dispatch {
 			#else
 			return untyped cl.manager.get(v, lock);
 			#end
+		case MROpt(r) :
+			if( v == null )
+				return null;
+			return match(v, r);
 		}
 	}
 
@@ -277,7 +282,9 @@ class Dispatch {
 					continue;
 				}
 				if( args != null ) Context.error("Arguments should be last parameter", f.pos);
-				rules.push(getType(p.t, f.pos));
+				var r = getType(p.t, f.pos);
+				if( p.opt ) r = MROpt(r);
+				rules.push(r);
 			}
 			var rule = if( rules.length == 1 )
 				DRMatch(rules[0]);
