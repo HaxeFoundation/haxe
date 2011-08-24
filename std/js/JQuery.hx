@@ -16,7 +16,16 @@ typedef JqEvent = {
 	var pageX : Int;
 	var pageY : Int;
 
+	var wheelDelta : Int;
+
 	// keys
+	var keyCode : Int;
+	var charCode : Int;
+	var shiftKey : Bool;
+	var ctrlKey : Bool;
+	var altKey : Bool;
+	var metaKey : Bool;
+
 	var which : Int;
 
 	// propagation
@@ -255,7 +264,7 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	//}
 
 	function iterator() : Iterator<JQuery>;
-	
+
 
 	// haxe-additions
 	inline function noBubble( events : String ) : JQuery { return (cast this).bind(events, false); }
