@@ -2383,14 +2383,12 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		*)
 		let ctx = {
 			ctx with locals = ctx.locals;
-		} in
+		} in		
 		let mctx = Interp.get_ctx() in
 		let pos = Interp.alloc_delayed mctx (fun() ->
-			(* remove $delay_call calls from the stack *)
-			Interp.unwind_stack mctx;
 			match call() with
-			| None -> raise Interp.Abort
-			| Some e -> (Interp.eval mctx (Genneko.gen_expr mctx.Interp.gen (type_expr ctx e)))()
+			| None -> (fun() -> raise Interp.Abort)
+			| Some e -> Interp.eval mctx (Genneko.gen_expr mctx.Interp.gen (type_expr ctx e))
 		) in
 		let e = (EConst (Ident "__dollar__delay_call"),p) in
 		Some (EUntyped (ECall (e,[EConst (Int (string_of_int pos)),p]),p),p)

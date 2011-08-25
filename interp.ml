@@ -129,7 +129,7 @@ type context = {
 	mutable venv : value array;
 	(* context *)
 	mutable curapi : extern_api;
-	mutable delayed : (unit -> value) DynArray.t;
+	mutable delayed : (unit -> (unit -> value)) DynArray.t;
 	(* eval *)
 	mutable locals_map : (string, int) PMap.t;
 	mutable locals_count : int;
@@ -704,13 +704,6 @@ let builtins =
 	 	"version", Fun0 (fun() ->
 	 		VInt 0
 	 	);
-	(* extra *)
-		"delay_call",Fun1 (fun i ->
-			let ctx = get_ctx() in
-			match i with
-			| VInt i when i >= 0 && i < DynArray.length ctx.delayed -> (DynArray.get ctx.delayed i)()
-			| _ -> error()
-		);
 	] in
 	let vals = [
 		"tnull", VInt 0;
@@ -2025,6 +2018,44 @@ let rec eval ctx (e,p) =
 		)
 	| ECall ((EConst (Builtin "typewrap"),_),[t]) ->
 		(fun() -> VAbstract (ATDecl (Obj.magic t)))
+	| ECall ((EConst (Builtin "delay_call"),_),[EConst (Int index),_]) ->
+		let f = DynArray.get ctx.delayed index in
+		let fbuild = ref None in
+		let old = { ctx with com = ctx.com } in
+		let compile_delayed_call() =
+			let oldl, oldc, oldb, olde = ctx.locals_map, ctx.locals_count, ctx.locals_barrier, ctx.locals_env in
+			ctx.locals_map <- old.locals_map;
+			ctx.locals_count <- old.locals_count;
+			ctx.locals_barrier <- old.locals_barrier;
+			ctx.locals_env <- DynArray.copy old.locals_env;
+			let save = save_locals ctx in
+			let e = f() in
+			let n = save() in
+			let e = if DynArray.length ctx.locals_env = DynArray.length old.locals_env then
+				e
+			else
+				let n = DynArray.get ctx.locals_env (DynArray.length ctx.locals_env - 1) in
+				(fun() -> exc (VString ("Macro-in-macro call can't access to closure variable '" ^ n ^ "'")))
+			in
+			ctx.locals_map <- oldl;
+			ctx.locals_count <- oldc;
+			ctx.locals_barrier <- oldb;
+			ctx.locals_env <- olde;
+			(fun() ->
+				let v = e() in
+				pop ctx n;
+				v
+			)
+		in
+		(fun() ->
+			let e = (match !fbuild with
+			| Some e -> e
+			| None ->
+				let e = compile_delayed_call() in
+				fbuild := Some e;
+				e
+			) in
+			e())
 	| ECall (e,el) ->
 		let el = List.map (eval ctx) el in
 		(match fst e with
@@ -2788,14 +2819,6 @@ let call_path ctx path f vl api =
 			call ctx (VObject o) f vl p
 		| _ -> assert false
 	)
-
-let unwind_stack ctx =
-	match ctx.callstack with
-	| [] -> ()
-	| s :: l ->
-		ctx.callstack <- l;
-		ctx.vthis <- s.cthis;
-		pop ctx (DynArray.length ctx.stack - s.cstack)
 
 (* ---------------------------------------------------------------------- *)
 (* EXPR ENCODING *)
