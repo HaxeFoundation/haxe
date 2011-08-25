@@ -213,9 +213,16 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	function focusin( ?callb : JqEvent -> Void ) : JQuery;
 	function focusout( ?callb : JqEvent -> Void ) : JQuery;
 	function hover( onOver : JqEvent -> Void, ?onOut : Void -> Void ) : JQuery;
+
+	@:overload(function( callb : js.JQuery.JqEvent -> Bool ) : js.JQuery {})
 	function keydown( ?callb : JqEvent -> Void ) : JQuery;
+
+	@:overload(function( callb : js.JQuery.JqEvent -> Bool ) : js.JQuery {})
 	function keypress( ?callb : JqEvent -> Void ) : JQuery;
+
+	@:overload(function( callb : js.JQuery.JqEvent -> Bool ) : js.JQuery {})
 	function keyup( ?callb : JqEvent -> Void ) : JQuery;
+
 	function mousedown( ?callb : JqEvent -> Void ) : JQuery;
 	function mouseenter( ?callb : JqEvent -> Void ) : JQuery;
 	function mouseleave( ?callb : JqEvent -> Void ) : JQuery;
