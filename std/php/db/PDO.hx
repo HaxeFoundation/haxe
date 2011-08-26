@@ -40,7 +40,7 @@ class PDO
 		return new PDOConnection(dsn, user, password, options);
 	}
 }
-	
+
 extern class PDOClass
 {
 //	public function new(dns : String, ?username : String, ?password : String, ?driver_options : NativeArray) : Void;
@@ -135,7 +135,7 @@ private class PDOConnection implements Connection {
 			return "x'"+base16_encode(s)+"'";
 		return pdo.quote(s);
 	}
-	
+
 	public function addValue( s : StringBuf, v : Dynamic ) {
 		if( untyped __call__("is_int", v) || __call__("is_null", v))
 			s.add(v);
@@ -179,7 +179,7 @@ private class TypeStrategy {
 	{
 		return throw "must override";
 	}
-	
+
 	public static function convert(v : String, type : String) : Dynamic {
 		if (v == null) return v;
 		switch(type) {
@@ -237,7 +237,7 @@ private class DBNativeStrategy extends PHPNativeStrategy {
 		this.dbname = dbname.toLowerCase();
 		this.key = dbname + SUFFIX;
 	}
-	
+
 	override function map(data : NativeArray) : Dynamic {
 		if (!untyped __call__("isset", data[key]))
 			return super.map(data);
@@ -261,10 +261,10 @@ private class BaseResultSet implements php.db.ResultSet {
 	var _fields : Int;
 	var _columnNames : Array<String>;
 	var _columnTypes : Array<String>;
-	
+
 	public var length(getLength, null) : Int;
 	public var nfields(getNFields, null) : Int;
-	
+
 	public function new(pdo : PDOStatement, typeStrategy : TypeStrategy)
 	{
 		this.pdo = pdo;
@@ -274,7 +274,7 @@ private class BaseResultSet implements php.db.ResultSet {
 		this._columnTypes = [];
 		feedColumns();
 	}
-	
+
 	private function feedColumns() {
 		for (i in 0..._fields) {
 			var data = pdo.getColumnMeta(i);
@@ -282,19 +282,19 @@ private class BaseResultSet implements php.db.ResultSet {
 			_columnTypes.push(typeStrategy.map(data));
 		}
 	}
-	
+
 	public function getFloatResult(index : Int) : Float {
 		return untyped __call__("floatval", getResult(index));
 	}
-	
+
 	public function getIntResult(index : Int) : Int {
 		return untyped __call__("intval", getResult(index));
 	}
-	
+
 	public function getResult(index : Int) : String {
 		return throw "must override";
 	}
-	
+
 	public function hasNext() : Bool {
 		return throw "must override";
 	}
@@ -302,11 +302,11 @@ private class BaseResultSet implements php.db.ResultSet {
 	function getLength() : Int {
 		return throw "must override";
 	}
-	
+
 	function nextRow() : NativeArray {
 		return throw "must override";
 	}
-	
+
 	public function next() : Dynamic {
 		var row = nextRow();
 		var o : Dynamic = { };
@@ -314,11 +314,11 @@ private class BaseResultSet implements php.db.ResultSet {
 			Reflect.setField(o, _columnNames[i], TypeStrategy.convert(row[i], _columnTypes[i]));
 		return o;
 	}
-	
+
 	function getNFields() : Int {
 		return _fields;
 	}
-	
+
 	public function results() : List<Dynamic>
 	{
 		var list = new List();
@@ -326,13 +326,17 @@ private class BaseResultSet implements php.db.ResultSet {
 			list.add(next());
 		return list;
 	}
+
+	public function getFieldsNames() : Array<String> {
+		return throw "Not implemented";
+	}
 }
 
 private class AllResultSet extends BaseResultSet {
 	var all : NativeArray;
 	var pos : Int;
 	var _length : Int;
-	
+
 	public function new(pdo : PDOStatement, typeStrategy : TypeStrategy)
 	{
 		super(pdo, typeStrategy);
@@ -340,14 +344,14 @@ private class AllResultSet extends BaseResultSet {
 		this.pos = 0;
 		this._length = untyped __call__("count", all);
 	}
-	
+
 	override function getResult(index : Int) : String {
 		untyped if(__call__("isset", all[0]) && __call__("isset", all[0][index]))
 			return all[0][index];
 		else
 			return null;
 	}
-	
+
 	override function hasNext() : Bool {
 		return pos < _length;
 	}
@@ -355,7 +359,7 @@ private class AllResultSet extends BaseResultSet {
 	override function getLength() : Int {
 		return _length;
 	}
-	
+
 	override function nextRow() : NativeArray {
 		return all[pos++];
 	}
@@ -367,7 +371,7 @@ private class PDOResultSet extends BaseResultSet {
 	{
 		super(pdo, typeStrategy);
 	}
-	
+
 	override function getResult(index : Int) : String {
 		if (!hasNext())
 			return null;
@@ -379,7 +383,7 @@ private class PDOResultSet extends BaseResultSet {
 			cacheRow();
 		return (untyped cache);
 	}
-	
+
 	override function getLength() {
 		if (untyped __physeq__(pdo, false))
 			return 0;
@@ -389,7 +393,7 @@ private class PDOResultSet extends BaseResultSet {
 	private function cacheRow() {
 		cache = untyped pdo.fetch(__php__("PDO::FETCH_NUM"), __php__("PDO::FETCH_ORI_NEXT"));
 	}
-	
+
 	override function nextRow()
 	{
 		if (!hasNext())

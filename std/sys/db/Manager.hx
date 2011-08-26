@@ -26,7 +26,7 @@ package sys.db;
 import Reflect;
 import sys.db.Connection;
 
-#if !spod_macro
+#if (!spod_macro && !doc_gen && !macro)
 #error "Please use -D spod_macro when using new SPOD version"
 #end
 

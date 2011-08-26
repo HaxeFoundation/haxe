@@ -106,7 +106,7 @@ private class SqliteResultSet implements ResultSet {
 	public function new( r ) {
 		this.r = r;
 	}
-	
+
 	private function getLength() {
 		if(untyped __physeq__(r, true))
 			return untyped __call__("sqlite_changes", r);
@@ -143,7 +143,7 @@ private class SqliteResultSet implements ResultSet {
 		if(!fetchRow()) return null;
 		return untyped __call__("_hx_anonymous", cRow);
 	}
-	
+
 	public function results() : List<Dynamic> {
 		var l = new List();
 		while( true ) {
@@ -168,6 +168,11 @@ private class SqliteResultSet implements ResultSet {
 	public function getFloatResult( n : Int ) : Float {
 		return untyped __call__("floatval", getResult(n));
 	}
+
+	public function getFieldsNames() : Array<String> {
+		return throw "Not implemented";
+	}
+
 }
 
 class Sqlite {

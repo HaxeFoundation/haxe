@@ -27,7 +27,10 @@ import haxe.macro.Context;
 class ImportAll {
 
 	public static function run( ?pack ) {
-		if( pack == null ) pack = "";
+		if( pack == null ) {
+			pack = "";
+			haxe.macro.Compiler.define("doc_gen");
+		}
 		switch( pack ) {
 		case "php":
 			if( !Context.defined("php") ) return;
@@ -43,6 +46,8 @@ class ImportAll {
 			if( !Context.defined("flash9") ) return;
 		case "mt","mtwin":
 			return;
+		case "sys":
+			if( !Context.defined("neko") && !Context.defined("php") && !Context.defined("cpp") ) return;
 		case "tools":
 			return;
 		}

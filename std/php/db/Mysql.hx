@@ -189,6 +189,14 @@ private class MysqlResultSet implements ResultSet {
 	public function getFloatResult( n : Int ) : Float {
 		return untyped __call__("floatval", getResult(n));
 	}
+
+	public function getFieldsNames() : Array<String> {
+		var fields = [];
+		for( i in 0...nfields )
+			fields.push(untyped __call__("mysql_field_name", __r, i));
+		return fields;
+	}
+
 }
 
 class Mysql {
