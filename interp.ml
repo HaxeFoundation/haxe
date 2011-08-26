@@ -1517,8 +1517,10 @@ let reg_lib =
 		"regexp_new_options", Fun2 (fun str opt ->
 			match str, opt with
 			| VString str, VString opt ->
+				let case_sensitive = ref true in
 				List.iter (function
 					| 'm' -> () (* always ON ? *)
+					| 'i' -> case_sensitive := false
 					| c -> failwith ("Unsupported regexp option '" ^ String.make 1 c ^ "'")
 				) (ExtString.String.explode opt);
 				let buf = Buffer.create 0 in
@@ -1529,6 +1531,7 @@ let reg_lib =
 						| 'n' -> Buffer.add_char buf '\n'
 						| 'r' -> Buffer.add_char buf '\r'
 						| 't' -> Buffer.add_char buf '\t'
+						| 'd' -> Buffer.add_string buf "[0-9]"
 						| '\\' -> Buffer.add_string buf "\\\\"
 						| '(' | ')' -> Buffer.add_char buf c
 						| '1'..'9' | '+' | '$' | '^' | '*' | '?' | '.' | '[' | ']' ->
@@ -1554,7 +1557,7 @@ let reg_lib =
 				loop '\000' false (ExtString.String.explode str);
 				let str = Buffer.contents buf in
 				let r = {
-					r = Str.regexp str;
+					r = if !case_sensitive then Str.regexp str else Str.regexp_case_fold str;
 					r_string = "";
 					r_groups = [||];
 				} in
