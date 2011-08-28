@@ -207,6 +207,12 @@ let is_internal_header = function
 	| path -> is_internal_class path
 
 
+let is_cpp_class = function 
+	| ("cpp"::_ , _)  -> true
+	| ( [] , "Xml" )  -> true
+	| ( [] , "EReg" )  -> true
+	| ( ["haxe"] , "Log" )  -> true
+   | _ -> false;;
 
 let is_block exp = match exp.eexpr with | TBlock _ -> true | _ -> false ;;
 
@@ -2140,8 +2146,12 @@ let generate_main common_ctx member_types super_deps class_def boot_classes init
 		output_boot ("::" ^ ( join_class_path class_path "::" ) ^ "_obj::__register();\n") ) boot_classes;
 	List.iter ( fun class_path ->
 		output_boot ("::" ^ ( join_class_path class_path "::" ) ^ "_obj::__init__();\n") ) (List.rev init_classes);
+   let dump_boot = 
 	List.iter ( fun class_path ->
-		output_boot ("::" ^ ( join_class_path class_path "::" ) ^ "_obj::__boot();\n") ) (List.rev boot_classes);
+		output_boot ("::" ^ ( join_class_path class_path "::" ) ^ "_obj::__boot();\n") ) in
+   dump_boot (List.filter  (fun path -> is_cpp_class path )  (List.rev boot_classes));
+   dump_boot (List.filter  (fun path -> not (is_cpp_class path) )  (List.rev boot_classes));
+
 	output_boot "}\n\n";
 	boot_file#close;;
 
