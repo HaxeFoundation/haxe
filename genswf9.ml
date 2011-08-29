@@ -80,6 +80,7 @@ type context = {
 	debugger : bool;
 	swc : bool;
 	boot : path;
+	mutable debug : bool;
 	mutable last_line : int;
 	mutable last_file : string;
 	(* per-function *)
@@ -405,7 +406,7 @@ let define_local ctx ?(init=false) v p =
 			LScope pos
 		end else
 			let r = alloc_reg ctx (classify ctx t) in
-			if ctx.com.debug then write ctx (HDebugReg (name, r.rid, ctx.last_line));
+			if ctx.debug then write ctx (HDebugReg (name, r.rid, ctx.last_line));
 			r.rinit <- init;
 			LReg r
 	) in
@@ -529,7 +530,7 @@ let begin_switch ctx =
 
 
 let debug_infos ?(is_min=true) ctx p =
-	if ctx.com.debug then begin
+	if ctx.debug then begin
 		let line = Lexer.get_error_line (if is_min then p else { p with pmin = p.pmax }) in
 		if ctx.last_file <> p.pfile then begin
 			write ctx (HDebugFile (if ctx.debugger then try Common.get_full_path p.pfile with _ -> p.pfile else p.pfile));
@@ -1875,8 +1876,12 @@ let generate_field_kind ctx f c stat =
 				| _ :: l -> lookup_kind l
 			in
 			let name, kind = lookup_kind f.cf_meta in
+			let old = ctx.debug in
+			ctx.debug <- old || has_meta ":debug" f.cf_meta;
+			let m = generate_method ctx fdata stat in
+			ctx.debug <- old;
 			Some (HFMethod {
-				hlm_type = generate_method ctx fdata stat;
+				hlm_type = m;
 				hlm_final = stat;
 				hlm_override = not stat && loop c name;
 				hlm_kind = kind;
@@ -2183,6 +2188,7 @@ let generate_resource ctx name =
 let generate com boot_name =
 	let ctx = {
 		com = com;
+		debug = com.Common.debug;
 		boot = ([],boot_name);
 		debugger = Common.defined com "fdb";
 		swc = Common.defined com "swc";
