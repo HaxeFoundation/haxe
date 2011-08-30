@@ -94,7 +94,7 @@ class Main {
 		if( neko.Web.isModNeko ) {
 			var h = neko.Web.getParams();
 			var dataFile = neko.Web.getCwd()+".data";
-			var data : TypeRoot = try neko.Lib.unserialize(neko.io.File.getContent(dataFile)) catch( e : Dynamic ) null;
+			var data : TypeRoot = try neko.Lib.unserialize(neko.io.File.getBytes(dataFile)) catch( e : Dynamic ) null;
 			if( h.get("reload") != null || data == null ) {
 				var baseDir = "../data/media/";
 				loadFile(baseDir+"flash.xml","flash");
@@ -104,9 +104,9 @@ class Main {
 				loadFile(baseDir+"php.xml","php");
 				parser.sort();
 				data = parser.root;
-				var str = neko.Lib.serialize(data);
+				var bytes = neko.Lib.serialize(data);
 				var f = neko.io.File.write(dataFile,true);
-				f.writeString(str);
+				f.write(bytes);
 				f.close();
 			}
 			var html = new HtmlPrinter("/api/","","");
