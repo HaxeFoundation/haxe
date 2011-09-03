@@ -756,7 +756,7 @@ let generate com libs =
 	let e = (EBlock ((header()) @ libs :: el @ emain), null_pos) in
 	let neko_file = (try Filename.chop_extension com.file with _ -> com.file) ^ ".neko" in
 	let ch = IO.output_channel (open_out_bin neko_file) in
-	let source = Common.defined com "neko_source" in
+	let source = Common.defined com "neko-source" in
 	if source then Nxml.write ch (Nxml.to_xml e) else Binast.write ch e;
 	IO.close_out ch;
 	t();

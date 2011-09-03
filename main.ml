@@ -450,7 +450,6 @@ try
 		("--flash-strict", define "flash_strict", ": more type strict flash API");
 		("--no-traces", define "no_traces", ": don't compile trace calls in the program");
 		("--flash-use-stage", define "flash_use_stage", ": place objects found on the stage of the SWF lib");
-		("--neko-source", define "neko_source", ": keep generated neko source");
 		("--gen-hx-classes", Arg.Unit (fun() ->
 			force_typing := true;
 			pre_compilation := (fun() ->
