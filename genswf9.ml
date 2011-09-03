@@ -1936,39 +1936,46 @@ let generate_class ctx c =
 			| _ -> assert false
 	) in
 	let has_protected = ref None in
+	let make_name f = 
+		let rec find_meta c =
+			try
+				let f = PMap.find f.cf_name c.cl_fields in
+				if List.mem f.cf_name c.cl_overrides then raise Not_found;
+				f.cf_meta
+			with Not_found ->
+				match c.cl_super with
+				| None -> []
+				| Some (c,_) -> find_meta c
+		in
+		let protect() =
+			let p = (match c.cl_path with [], n -> n | p, n -> String.concat "." p ^ ":" ^ n) in
+			has_protected := Some p;
+			HMName (f.cf_name,HNProtected p)
+		in
+		let rec loop_meta = function
+			| [] ->
+				if not f.cf_public && Common.defined ctx.com "swf-protected" then
+					protect()
+				else
+					ident f.cf_name
+			| x :: l ->
+				match x with
+				| ((":getter" | ":setter"),[EConst (Ident f | Type f),_],_) -> ident f
+				| (":ns",[EConst (String ns),_],_) -> HMName (f.cf_name,HNNamespace ns)
+				| (":protected",[],_) -> protect()
+				| _ -> loop_meta l
+		in
+		if c.cl_interface then
+			HMName (f.cf_name, HNNamespace (match c.cl_path with [],n -> n | l,n -> String.concat "." l ^ ":" ^ n))
+		else
+			loop_meta (find_meta c)
+	in
 	let fields = PMap.fold (fun f acc ->
 		match generate_field_kind ctx f c false with
 		| None -> acc
 		| Some k ->
-			let rec find_meta c =
-				try
-					let f = PMap.find f.cf_name c.cl_fields in
-					if List.mem f.cf_name c.cl_overrides then raise Not_found;
-					f.cf_meta
-				with Not_found ->
-					match c.cl_super with
-					| None -> []
-					| Some (c,_) -> find_meta c
-			in
-			let rec loop_meta = function
-				| [] -> ident f.cf_name
-				| x :: l ->
-					match x with
-					| ((":getter" | ":setter"),[EConst (Ident f | Type f),_],_) -> ident f
-					| (":ns",[EConst (String ns),_],_) -> HMName (f.cf_name,HNNamespace ns)
-					| (":protected",[],_) ->
-						let p = (match c.cl_path with [], n -> n | p, n -> String.concat "." p ^ ":" ^ n) in
-						has_protected := Some p;
-						HMName (f.cf_name,HNProtected p)
-					| _ -> loop_meta l
-			in
-			let name = if c.cl_interface then
-				HMName (f.cf_name, HNNamespace (match c.cl_path with [],n -> n | l,n -> String.concat "." l ^ ":" ^ n))
-			else
-				loop_meta (find_meta c)
-			in
 			{
-				hlf_name = name;
+				hlf_name = make_name f;
 				hlf_slot = 0;
 				hlf_kind = k;
 				hlf_metas = extract_meta f.cf_meta;
@@ -1994,7 +2001,7 @@ let generate_class ctx c =
 		let count = (match k with HFMethod _ -> st_meth_count | HFVar _ -> st_field_count | _ -> assert false) in
 		incr count;
 		{
-			hlf_name = ident f.cf_name;
+			hlf_name = make_name f;
 			hlf_slot = !count;
 			hlf_kind = k;
 			hlf_metas = extract_meta f.cf_meta;
