@@ -60,9 +60,20 @@ enum XmlType {
 		build = build.getParent();
 	}
 
+	private static function __decodeattr(value : String) : String
+	{
+		return untyped __call__("str_replace", "'", '&apos;', __call__("htmlspecialchars", value, __php__('ENT_COMPAT'), 'UTF-8'));
+	}
+	
+	private static function __decodeent(value : String) : String
+	{
+		return untyped __call__("str_replace", "'", '&apos;', __call__("htmlentities", value, __php__('ENT_COMPAT'), 'UTF-8'));
+	}
+	
 	private static function __character_data_handler(parser : Dynamic, data : String) : Void {
-		if((untyped __call__("strlen", data) == 1 && __call__("htmlentities", data) != data) || untyped __call__("htmlentities", data) == data) {
-			build.addChild(createPCData(untyped __call__("htmlentities", data)));
+		var d = __decodeent(data);
+		if((untyped __call__("strlen", data) == 1 && d != data) || d == data) {
+			build.addChild(createPCData(d));
 		} else
 			build.addChild(createCData(data));
 	}
@@ -202,7 +213,7 @@ enum XmlType {
 	public function set( att : String, value : String ) : Void {
 		if( nodeType != Xml.Element )
 			throw "bad nodeType";
-		_attributes.set( att, untyped __call__("str_replace", "'", '&apos;', __call__("htmlspecialchars", value, __php__('ENT_COMPAT'), 'UTF-8')));
+		_attributes.set( att, __decodeattr(value) );
 	}
 
 	public function remove( att : String ) : Void{

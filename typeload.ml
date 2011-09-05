@@ -781,8 +781,35 @@ let init_class ctx c p herits fields =
 		| Php -> [["php"], "Boot"]
 		| Cpp -> [["cpp"], "Boot"]
 		| _ -> [] in
-	let must_keep_class = (List.exists (fun p -> p = c.cl_path) (must_keep_types ctx.com.platform)) in
-	let keep f stat = core_api || (is_main f.cff_name) || c.cl_extern || must_keep_class || has_meta ":keep" c.cl_meta || has_meta ":keep" f.cff_meta || (stat && f.cff_name = "__init__") in
+	let must_keep_class =
+		List.exists (fun p -> p = c.cl_path) (must_keep_types ctx.com.platform)
+		|| c.cl_extern
+		|| has_meta ":keep" c.cl_meta 
+	in
+	let keep f stat =
+		   core_api 
+		|| (is_main f.cff_name)
+		|| must_keep_class 
+		|| has_meta ":keep" f.cff_meta 
+		|| (stat && f.cff_name = "__init__") 
+		|| (not stat 
+			&& f.cff_name = "resolve"
+			&& (match c.cl_dynamic with
+			| Some _ -> true
+			| None -> false
+			);
+		)
+	in
+	let rec setkeeper c =
+		match c.cl_super with
+		| Some (s,_) -> 
+			s.cl_meta <- if has_meta ":keep" s.cl_meta then s.cl_meta else begin
+				if ctx.com.verbose then print_endline ("Marking class " ^ (s_type_path s.cl_path) ^ " with :keep");
+				(":keep", [], p) :: s.cl_meta
+			end;
+			setkeeper s
+		| _ -> ()
+	in
 	let remove_by_cfname item lst = List.filter (fun i -> item <> i.cf_name) lst in
 	let remove_field cf stat =
 		if stat then begin
@@ -799,13 +826,15 @@ let init_class ctx c p herits fields =
 		| None ->
 			if ctx.com.verbose then print_endline ("Remove method " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name);
 			remove_field cf stat
-		| _ -> ())
+		| _ -> 
+			setkeeper c;
+			())
 	in
 	let remove_var_if_unreferenced cf stat = (fun () ->
 		if not (has_meta ":?keep" cf.cf_meta) then begin
 			if ctx.com.verbose then print_endline ("Remove var " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name);
 			remove_field cf stat
-		end)
+		end else setkeeper c)
 	in
 
 	(* ----------------------- COMPLETION ----------------------------- *)
