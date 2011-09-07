@@ -107,7 +107,7 @@ class Lib {
 		untyped __php__("$_hx_types_array = array();
  		$_hx_cache_content = '';
  		//Calling this function will put all types present in the specified types in the $_hx_types_array
- 		_hx_build_paths($pathToLib, $_hx_types_array, array(),);
+ 		_hx_build_paths($pathToLib, $_hx_types_array, array(), $prefix);
  
  		for($i=0;$i<count($_hx_types_array);$i++) {
  			//For every type that has been found, create its description
