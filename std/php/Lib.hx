@@ -103,10 +103,11 @@ class Lib {
  	*/
  	public static function loadLib(pathToLib : String) : Void
  	{
+		var prefix = untyped __prefix__();
 		untyped __php__("$_hx_types_array = array();
  		$_hx_cache_content = '';
  		//Calling this function will put all types present in the specified types in the $_hx_types_array
- 		_hx_build_paths($pathToLib, $_hx_types_array, array());
+ 		_hx_build_paths($pathToLib, $_hx_types_array, array(),);
  
  		for($i=0;$i<count($_hx_types_array);$i++) {
  			//For every type that has been found, create its description
