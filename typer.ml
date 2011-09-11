@@ -411,7 +411,7 @@ let field_access ctx mode f t e p =
 			let tresolve = tfun [ctx.t.tstring] t in
 			AKExpr (make_call ctx (mk (TField (e,"resolve")) tresolve p) [fstring] t p)
 		| AccNever ->
-			AKNo f.cf_name
+			if ctx.untyped then normal() else AKNo f.cf_name
 		| AccInline ->
 			AKInline (e,f,t)
 		| AccRequire r ->
