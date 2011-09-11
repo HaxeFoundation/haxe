@@ -976,10 +976,15 @@ class SpodMacros {
 	}
 
 	public static function macroSearch( em : Expr, econd : Expr, eopt : Expr, elock : Expr, ?single ) {
-		if( elock == null || Type.enumEq(elock.expr, EConst(CIdent("null"))) ) {
-			var tmp = eopt;
-			eopt = elock;
-			elock = tmp;
+		// allow both search(e,opts) and search(e,lock)
+		if( eopt != null && (elock == null || Type.enumEq(elock.expr, EConst(CIdent("null")))) ) {
+			switch( eopt.expr ) {
+			case EObjectDecl(_):
+			default:
+				var tmp = eopt;
+				eopt = elock;
+				elock = tmp;
+			}
 		}
 		var sql = buildSQL(em, econd, "SELECT * FROM", eopt);
 		var pos = Context.currentPos();
