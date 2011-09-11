@@ -35,6 +35,9 @@ class Object {
 	var _manager(default,never) : sys.db.Manager<Dynamic>;
 
 	public function new() {
+		#if php
+		if( _manager == null ) untyped _manager = Type.getClass(this).manager;
+		#end
 	}
 
 	public function insert() {
@@ -48,7 +51,7 @@ class Object {
 	public function lock() {
 		untyped _manager.doLock(this);
 	}
-	
+
 	public function delete() {
 		untyped _manager.doDelete(this);
 	}

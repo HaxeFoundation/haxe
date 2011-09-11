@@ -79,8 +79,10 @@ class Manager<T : Object> {
 
 		// set the manager and ready for further init
 		class_proto = cast classval;
+		#if neko
 		class_proto.prototype._manager = this;
 		init_list.add(this);
+		#end
 	}
 
 	public function all( ?lock: Bool ) : List<T> {
@@ -247,10 +249,19 @@ class Manager<T : Object> {
 	/* ---------------------------- INTERNAL API -------------------------- */
 
 	function cacheObject( x : T, lock : Bool ) {
-		addToCache(x);
-		untyped __dollar__objsetproto(x,class_proto.prototype);
-		Reflect.setField(x,cache_field,untyped __dollar__new(x));
-		untyped x._lock = lock;
+		#if neko
+		var o = untyped __dollar__new(x);
+		untyped __dollar__objsetproto(o, class_proto.prototype);
+		#else
+		var o : T = Type.createEmptyInstance(cast class_proto);
+		for( f in Reflect.fields(x) )
+			Reflect.setField(o, f, Reflect.field(x, f));
+		untyped o._manager = this;
+		#end
+		Reflect.setField(o,cache_field,x);
+		addToCache(o);
+		untyped o._lock = lock;
+		return o;
 	}
 
 	function make( x : T ) {
@@ -294,7 +305,7 @@ class Manager<T : Object> {
 		var c = getFromCache(r,lock);
 		if( c != null )
 			return c;
-		cacheObject(r,lock);
+		r = cacheObject(r,lock);
 		make(r);
 		return r;
 	}
@@ -311,7 +322,7 @@ class Manager<T : Object> {
 			if( c != null )
 				l2.add(c);
 			else {
-				cacheObject(x,lock);
+				x = cacheObject(x,lock);
 				make(x);
 				l2.add(x);
 			}
@@ -442,6 +453,27 @@ class Manager<T : Object> {
 			return f;
 		});
 	}
+
+	#if !neko
+
+	function __get( x : Dynamic, prop : String, key : String, lock ) {
+		var v = Reflect.field(x,prop);
+		if( v != null )
+			return v.value;
+		var x = unsafeGet(Reflect.field(x, key), lock);
+		Reflect.setField(x,prop,{ value : x });
+		return x;
+	}
+
+	function __set( x : Dynamic, prop : String, key : String, v : T ) {
+		Reflect.setField(x,prop,{ value : v });
+		if( v == null )
+			Reflect.setField(x,key,null);
+		else
+			Reflect.setField(x,key,Reflect.field(v,table_keys[0]));
+	}
+
+	#end
 
 	/* ---------------------------- OBJECT CACHE -------------------------- */
 
