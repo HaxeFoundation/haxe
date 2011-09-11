@@ -129,12 +129,32 @@ class Manager<T : Object> {
 		var s = new StringBuf();
 		var fields = new List();
 		var values = new List();
+		var pos = 0;
 		for( f in table_fields ) {
 			var v = Reflect.field(x,f);
 			if( v != null ) {
 				fields.add(quoteField(f));
 				values.add(v);
+			} else {
+				var inf = table_infos.fields[pos];
+				// if the field is not defined, give it a default value on insert
+				if( !inf.isNull )
+					switch( inf.t ) {
+					case DUInt, DTinyInt, DInt, DSingle, DFloat, DFlags(_), DBigInt:
+						Reflect.setField(x, f, 0);
+					case DBool:
+						Reflect.setField(x, f, false);
+					case DTinyText, DText, DString(_), DSmallText, DSerialized:
+						Reflect.setField(x, f, "");
+					case DSmallBinary, DNekoSerialized, DLongBinary, DBytes(_), DBinary:
+						Reflect.setField(x, f, haxe.io.Bytes.alloc(0));
+					case DDate, DDateTime:
+						// default date might depend on database
+					case DId, DUId, DBigId, DNull, DInterval, DEncoded:
+						// no default value for these
+					}
 			}
+			pos++;
 		}
 		s.add("INSERT INTO ");
 		s.add(table_name);
