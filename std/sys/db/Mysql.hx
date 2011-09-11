@@ -28,10 +28,10 @@ extern class Mysql {
 
 	public static function connect( params : {
 		host : String,
-		port : Int,
+		port : Null<Int>,
 		user : String,
 		pass : String,
-		socket : String,
+		socket : Null<String>,
 		database : String
 	} ) : sys.db.Connection;
 

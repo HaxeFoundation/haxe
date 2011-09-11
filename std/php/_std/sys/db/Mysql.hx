@@ -203,10 +203,10 @@ private class MysqlResultSet implements ResultSet {
 
 	public static function connect( params : {
 		host : String,
-		port : Int,
+		port : Null<Int>,
 		user : String,
 		pass : String,
-		socket : String,
+		socket : Null<String>,
 		database : String
 	} ) : sys.db.Connection {
 		var c = untyped __call__("mysql_connect",
