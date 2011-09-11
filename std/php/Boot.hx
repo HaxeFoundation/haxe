@@ -563,8 +563,18 @@ function _hx_string_rec($o, $s) {
 		if(is_callable($o)) return '«function»';
 		$str = '[';
 		$s .= \"\t\";
-		for($i = 0; $i < count($o); $i++)
-			$str .= ($i > 0 ? ', ' : '') . _hx_string_rec($o[$i], $s);
+		$first = true;
+		$assoc = true;
+		foreach($o as $k => $v)
+		{
+			if ($first && $k === 0)
+				$assoc = false;
+			$str .= ($first ? '' : ', ') . ($assoc 
+				? _hx_string_rec($k, $s) . '=>' . _hx_string_rec($o[$k], $s)
+				: _hx_string_rec($o[$k], $s)
+			);
+			$first = false;
+		}
 		$str .= ']';
 		return $str;
 	}
