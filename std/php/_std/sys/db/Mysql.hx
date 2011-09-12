@@ -137,7 +137,7 @@ private class MysqlResultSet implements ResultSet {
 			case "datetime", "date":
 				return Date.fromString(v);
 			case "blob":
-				return haxe.io.Bytes.ofData(v);
+				return haxe.io.Bytes.ofData(cast v);
 			default:
 				return v;
 		}
