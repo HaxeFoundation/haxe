@@ -372,6 +372,7 @@ and gen_expr ctx e =
 		print ctx " catch( %s ) {" vname;
 		let bend = open_block ctx in
 		let last = ref false in
+		let else_block = ref false in
 		List.iter (fun (v,e) ->
 			if !last then () else
 			let t = (match follow v.v_type with
@@ -389,13 +390,18 @@ and gen_expr ctx e =
 			match t with
 			| None ->
 				last := true;
+				if !else_block then print ctx "{";
 				if vname <> v.v_name then begin
 					newline ctx;
 					print ctx "var %s = %s" v.v_name vname;
 				end;
 				gen_block ctx e;
+				if !else_block then begin
+					newline ctx;
+					print ctx "}";
+				end
 			| Some t ->
-				newline ctx;
+				if not !else_block then newline ctx;
 				print ctx "if( %s.__instanceof(%s," (ctx.type_accessor (TClassDecl { null_class with cl_path = ["js"],"Boot" })) vname;
 				gen_value ctx (mk (TTypeExpr t) (mk_mono()) e.epos);
 				spr ctx ") ) {";
@@ -407,11 +413,10 @@ and gen_expr ctx e =
 				gen_block ctx e;
 				bend();
 				newline ctx;
-				spr ctx "} else "
+				spr ctx "} else ";
+				else_block := true
 		) catchs;
-		if not !last then begin
-			print ctx "throw(%s)" vname;
-		end;
+		if not !last then print ctx "throw(%s)" vname;
 		bend();
 		newline ctx;
 		spr ctx "}";
