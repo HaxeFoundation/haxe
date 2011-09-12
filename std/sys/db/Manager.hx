@@ -417,6 +417,10 @@ class Manager<T : Object> {
 		return cast class_proto;
 	}
 
+	public function dbInfos() {
+		return table_infos;
+	}
+
 	function getCnx() {
 		return cnx;
 	}
