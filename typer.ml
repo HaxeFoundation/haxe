@@ -649,24 +649,38 @@ let unify_int ctx e k =
 	let is_dynamic_field t f =
 		match follow t with
 		| TAnon a ->
-			(try is_dynamic (PMap.find f a.a_fields).cf_type with Not_found -> true)
-		| _ -> true
+			(try is_dynamic (PMap.find f a.a_fields).cf_type with Not_found -> false)
+		| TInst (c,pl) ->
+			(try is_dynamic (apply_params c.cl_types pl (fst (class_field c f))) with Not_found -> false)
+		| _ -> 
+			true
 	in
 	let is_dynamic_return t =
 		match follow t with
 		| TFun (_,r) -> is_dynamic r
 		| _ -> true
 	in
-	let maybe_dynamic_mono() =
+	(* 
+		This is some quick analysis that matches the most common cases of dynamic-to-mono convertions
+	*) 
+	let rec maybe_dynamic_mono e =
 		match e.eexpr with
-		| TLocal _ when not (is_dynamic e.etype)  -> false
-		| TArray({ etype = t },_) when not (is_dynamic_array t) -> false
-		| TField({ etype = t },f) when not (is_dynamic_field t f) -> false
-		| TCall({ etype = t },_) when not (is_dynamic_return t) -> false
-		| _ -> true
+		| TLocal _ -> is_dynamic e.etype
+		| TArray({ etype = t } as e,_) -> is_dynamic_array t || maybe_dynamic_rec e t
+		| TField({ etype = t } as e,f) -> is_dynamic_field t f || maybe_dynamic_rec e t
+		| TCall({ etype = t } as e,_) -> is_dynamic_return t || maybe_dynamic_rec e t
+		| TParenthesis e -> maybe_dynamic_mono e
+		| TIf (_,a,Some b) -> maybe_dynamic_mono a || maybe_dynamic_mono b		
+		| _ -> false
+	and maybe_dynamic_rec e t =
+		match follow t with
+		| TMono _ | TDynamic _ -> maybe_dynamic_mono e
+		(* we might have inferenced a tmono into a single field *)
+		| TAnon a when !(a.a_status) = Opened -> maybe_dynamic_mono e
+		| _ -> false
 	in
 	match k with
-	| KUnk | KDyn when maybe_dynamic_mono() ->
+	| KUnk | KDyn when maybe_dynamic_mono e ->
 		unify ctx e.etype ctx.t.tfloat e.epos;
 		false
 	| _ ->
