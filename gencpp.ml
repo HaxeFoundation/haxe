@@ -1794,8 +1794,8 @@ let gen_field ctx class_def class_name ptr_name is_static is_external is_interfa
 	let remap_name = keyword_remap field.cf_name in
 	if (is_external || is_interface) then begin
 		(* Just the dynamic glue ... *)
-		match follow field.cf_type with
-		| TFun (args,result) ->
+		match follow field.cf_type, field.cf_kind  with
+		| TFun (args,result), Method _  ->
 			if (is_static) then output "STATIC_";
 			let ret = if ((type_string result ) = "Void" ) then "" else "return " in
 			output ("HX_DEFINE_DYNAMIC_FUNC" ^ (string_of_int (List.length args)) ^
@@ -1911,8 +1911,8 @@ let gen_member_def ctx class_def is_static is_extern is_interface field =
 
 	output (if is_static then "		static " else "		");
 	if (is_extern || is_interface) then begin
-		match follow field.cf_type with
-		| TFun (args,return_type) ->
+		match follow field.cf_type, field.cf_kind with
+		| TFun (args,return_type), Method _  ->
 			output ( (if (not is_static) then "virtual " else "" ) ^ type_string return_type);
 			output (" " ^ remap_name ^ "( " );
 			output (String.concat "," (List.map (fun (name,opt,typ) ->
@@ -2820,8 +2820,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	if (class_def.cl_interface) then begin
 		output_h ("#define DELEGATE_" ^ (join_class_path  class_def.cl_path "_" ) ^ " \\\n");
 		List.iter (fun field ->
-		match follow field.cf_type with
-		| TFun (args,return_type) ->
+		match follow field.cf_type, field.cf_kind  with
+		| TFun (args,return_type), Method _ ->
 			(* TODO : virtual ? *)
 			let remap_name = keyword_remap field.cf_name in
 			output_h ( "virtual "  ^ (type_string return_type) ^ " " ^ remap_name ^ "( " );
@@ -2962,11 +2962,12 @@ let write_build_options filename options =
 let create_member_types common_ctx =
 	let result = Hashtbl.create 0 in
 	let add_member class_name interface member =
-		match follow member.cf_type with
-		| TFun (_,ret) ->
+		match follow member.cf_type, member.cf_kind with
+		| _, Var _ when interface -> ()
+		| TFun (_,ret), _ ->
          (*print_endline (class_name ^ "." ^ member.cf_name ^ "=" ^  (type_string ret) );*)
 			Hashtbl.add result (class_name ^ "." ^ member.cf_name) (type_string ret)
-		| _ when not interface ->
+		| _,_ when not interface ->
 			Hashtbl.add result (class_name ^ "." ^ member.cf_name) (type_string member.cf_type)
       | _ -> ()
 		in
