@@ -1307,7 +1307,8 @@ and gen_expression ctx retval expression =
 
 	| TLocal v -> output (keyword_remap v.v_name);
 	| TEnumField (enum, name) ->
-			output ("::" ^ (join_class_path enum.e_path "::") ^ "_obj::" ^ name)
+			output ("::" ^ (join_class_path enum.e_path "::") ^ "_obj::" ^ name);
+		   if ( not calling ) then output "_dyn()";
 	| TArray (array_expr,_) when (is_null array_expr) -> output "Dynamic()"
 	| TArray (array_expr,index) ->
 		let dynamic =  is_dynamic_in_cpp ctx array_expr in
@@ -1627,7 +1628,7 @@ and gen_expression ctx retval expression =
 		if (has_params) then begin
 			writer#begin_block;
 			List.iter (fun (name,vtype,id) -> output_i
-			((type_string vtype) ^ " " ^ name ^
+			((type_string vtype) ^ " " ^ (keyword_remap name) ^
 				" = " ^ tmp_var ^ "->__Param(" ^ (string_of_int id) ^ ");\n"))
 					(tmatch_params_to_args params);
 		end;
@@ -2369,7 +2370,9 @@ let generate_enum_files common_ctx enum_def super_deps meta =
 			output_h ( "(" ^ (gen_tfun_arg_list args) ^");\n");
 			output_h ( "		static Dynamic " ^ name ^ "_dyn();\n");
 		| _ ->
-			output_h ";\n"
+			output_h ";\n";
+		   output_h ( "		static inline " ^  smart_class_name ^ " " ^ name ^
+                  "_dyn() { return " ^name ^ "; }\n" );
 	) enum_def.e_constrs;
 
 	output_h "};\n\n";
