@@ -147,7 +147,6 @@ type context =
 	mutable ctx_return_from_internal_node : bool;
 	mutable ctx_debug : bool;
 	mutable ctx_debug_type : bool;
-	mutable ctx_do_safe_point : bool;
 	mutable ctx_real_this_ptr : bool;
 	mutable ctx_dynamic_this_ptr : bool;
 	mutable ctx_push_src_pos : string;
@@ -174,7 +173,6 @@ let new_context common_ctx writer debug =
 	ctx_push_src_pos = "";
 	ctx_return_from_block = false;
 	ctx_return_from_internal_node = false;
-	ctx_do_safe_point = false;
 	ctx_real_this_ptr = true;
 	ctx_dynamic_this_ptr = false;
 	ctx_static_id_curr = 0;
@@ -737,24 +735,6 @@ let tmatch_params_to_args params =
 		List.fold_left
 			(fun acc v -> incr n; match v with None -> acc | Some v -> (v.v_name,v.v_type,!n) :: acc) [] l)
 
-exception AlreadySafe;;
-exception PossibleRecursion;;
-
-let expression_needs_safe_point expression =
-	try (
-	let rec needs_safe expression always_executed  =
-	   (* TODO - fill this out *)
-		Type.iter (fun expr -> match expr.eexpr with
-			| TNew (_,_,_) when always_executed -> raise AlreadySafe
-			| TCall (_,_) -> raise PossibleRecursion
-			| _ -> needs_safe expr false;
-			) expression in
-	needs_safe expression true;
-	false;
-	) with  AlreadySafe -> false
-	      | PossibleRecursion -> true
-;;
-
 let rec is_null expr =
    match expr.eexpr with
    | TConst TNull -> true
@@ -974,16 +954,13 @@ let rec define_local_function_ctx ctx func_name func_def =
 
 		let pop_real_this_ptr = clear_real_this_ptr ctx true in
 
-		let do_safe = expression_needs_safe_point func_def.tf_expr in
 		if (block) then begin
 			writer#begin_block;
-			ctx.ctx_do_safe_point <- do_safe;
 			gen_expression ctx false func_def.tf_expr;
 			output_i "return null();\n";
 			writer#end_block;
 		end else begin
 			writer#begin_block;
-			if (do_safe) then output_i "__SAFE_POINT;\n";
 			(* Save old values, and equalize for new input ... *)
 			let pop_names = push_anon_names ctx in
 
@@ -1133,8 +1110,6 @@ and gen_expression ctx retval expression =
 	ctx.ctx_return_from_block <- false;
 	let return_from_internal_node = ctx.ctx_return_from_internal_node in
 	ctx.ctx_return_from_internal_node <- false;
-	let do_safe_point = ctx.ctx_do_safe_point in
-	ctx.ctx_do_safe_point <- false;
 	let push_src_pos = ctx.ctx_push_src_pos in
 	ctx.ctx_push_src_pos <- "";
 
@@ -1254,7 +1229,6 @@ and gen_expression ctx retval expression =
 			)
 		end else begin
 			writer#begin_block;
-			if (do_safe_point) then output_i "__SAFE_POINT\n";
 			if (push_src_pos<>"") then output_i ("HX_SOURCE_PUSH(\"" ^ push_src_pos ^ "\")\n");
 			(* Save old values, and equalize for new input ... *)
 			let pop_names = push_anon_names ctx in
@@ -1485,7 +1459,6 @@ and gen_expression ctx retval expression =
 		output_i "";
 		gen_expression ctx false loop;
 		output ";\n";
-		output_i "__SAFE_POINT\n";
 		ctx.ctx_writer#end_block;
 	| TIf (condition, if_expr, optional_else_expr)  ->
 		(match optional_else_expr with
@@ -1522,11 +1495,9 @@ and gen_expression ctx retval expression =
 			output  "while(";
 			gen_expression ctx true condition;
 			output ")";
-			ctx.ctx_do_safe_point <- true;
          gen_expression ctx false (to_block repeat)
 	| TWhile (condition, repeat, Ast.DoWhile ) ->
 			output "do";
-			ctx.ctx_do_safe_point <- true;
 			gen_expression ctx false (to_block repeat);
 			output "while(";
 			gen_expression ctx true condition;
@@ -1819,7 +1790,6 @@ let gen_field ctx class_def class_name ptr_name is_static is_external is_interfa
 			output ")";
 			ctx.ctx_real_this_ptr <- true;
 			ctx.ctx_dynamic_this_ptr <- false;
-			ctx.ctx_do_safe_point <- expression_needs_safe_point function_def.tf_expr;
 			if (has_default_values function_def.tf_args) then begin
 				ctx.ctx_writer#begin_block;
 				generate_default_values ctx function_def.tf_args "__o_";
