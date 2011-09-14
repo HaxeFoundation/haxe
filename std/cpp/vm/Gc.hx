@@ -17,4 +17,21 @@ class Gc
       return untyped __global__.__hxcpp_gc_trace(sought,printInstances);
    }
 
+   #if gc_extra
+   // Can't add these until the next hxcpp release....
+   static public function safePoint() : Void
+   {
+      untyped __global__.__hxcpp_gc_safe_point();
+   }
+
+   static public function enterGCFreeZone() : Void
+   {
+      untyped __global__.__hxcpp_enter_gc_free_zone();
+   }
+
+   static public function exitGCFreeZone() : Void
+   {
+      untyped __global__.__hxcpp_exit_gc_free_zone();
+   }
+   #end
 }

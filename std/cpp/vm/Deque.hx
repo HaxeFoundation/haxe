@@ -24,7 +24,6 @@
  */
 package cpp.vm;
 
-#if HXCPP_MULTI_THREADED
 
 class Deque<T> {
 	var q : Dynamic;
@@ -42,6 +41,3 @@ class Deque<T> {
 	}
 }
 
-#else
-You_need_to_define_HXCPP_MULTI_THREADED_to_use_the_Deque_class
-#end
