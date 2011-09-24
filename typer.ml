@@ -2234,7 +2234,7 @@ let make_macro_api ctx p =
 			| Some (_,fields) -> Interp.enc_array (List.map Interp.encode_field fields)
 		);
 		Interp.define_type = (fun v ->
-			let m, tdef, pos = Interp.decode_type_def v in
+			let m, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc (Interp.VString "Invalid type definition")) in
 			ignore(Typeload.type_module ctx m [tdef,pos] pos);
 		);
 	}
