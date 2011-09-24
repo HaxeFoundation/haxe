@@ -506,8 +506,6 @@ and gen_expr ctx e =
 	| TContinue ->
 		if ctx.in_value <> None then unsupported e.epos;
 		spr ctx "continue"
-	| TBlock [] ->
-		spr ctx "null"
 	| TBlock el ->
 		let b = save_locals ctx in
 		print ctx "{";
@@ -678,7 +676,12 @@ and gen_expr ctx e =
 				gen_value ctx e;
 				spr ctx ":";
 			) el;
-			gen_expr ctx e2;
+			newline ctx;
+			(match e2.eexpr with
+			| TBlock [] -> ()
+			| _ -> 
+				gen_expr ctx e2;
+				newline ctx);
 			print ctx "break";
 			newline ctx;
 		) cases;
@@ -686,7 +689,12 @@ and gen_expr ctx e =
 		| None -> ()
 		| Some e ->
 			spr ctx "default:";
-			gen_expr ctx e;
+			newline ctx;
+			(match e.eexpr with
+			| TBlock [] -> ()
+			| _ -> 
+				gen_expr ctx e;
+				newline ctx);
 			print ctx "break";
 			newline ctx;
 		);
@@ -776,6 +784,8 @@ and gen_value ctx e =
 		let v = value true in
 		gen_expr ctx e;
 		v()
+	| TBlock [] ->
+		spr ctx "null"
 	| TBlock [e] ->
 		gen_value ctx e
 	| TBlock el ->
