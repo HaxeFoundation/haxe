@@ -428,11 +428,16 @@ and parse_class_field s =
 		let name, pos, k = (match s with parser
 		| [< '(Kwd Var,p1); name, _ = any_ident; s >] ->
 			(match s with parser
-			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_complex_type; p2 = semicolon >] ->
-				name, punion p1 p2, FProp (i1,i2,t)
+			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_complex_type >] ->
+				let e , p2 = (match s with parser
+				| [< '(Binop OpAssign,_); e = toplevel_expr; p2 = semicolon >] -> Some e , p2
+				| [< '(Semicolon,p2) >] -> None , p2
+				| [< >] -> serror()
+				) in
+				name, punion p1 p2, FProp (i1,i2,t, e)
 			| [< t = parse_type_opt; s >] ->
 				let e , p2 = (match s with parser
-				| [< '(Binop OpAssign,_) when List.mem AStatic al; e = toplevel_expr; p2 = semicolon >] -> Some e , p2
+				| [< '(Binop OpAssign,_); e = toplevel_expr; p2 = semicolon >] -> Some e , p2
 				| [< '(Semicolon,p2) >] -> None , p2
 				| [< >] -> serror()
 				) in

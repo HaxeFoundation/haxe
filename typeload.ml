@@ -229,7 +229,8 @@ and load_complex_type ctx p t =
 					no_expr f.f_expr;
 					let args = List.map (fun (name,o,t,e) -> no_expr e; name, o, topt t) f.f_args in
 					TFun (args,topt f.f_type), Method (if !dyn then MethDynamic else MethNormal)
-				| FProp (i1,i2,t) ->
+				| FProp (i1,i2,t,e) ->
+					no_expr e;
 					let access m get =
 						match m with
 						| "null" -> AccNo
@@ -669,7 +670,7 @@ let patch_class ctx c fields =
 					| Some t ->
 						f.cff_kind <- match f.cff_kind with
 						| FVar (_,e) -> FVar (Some t,e)
-						| FProp (get,set,_) -> FProp (get,set,t)
+						| FProp (get,set,_,eo) -> FProp (get,set,t,eo)
 						| FFun f -> FFun { f with f_type = Some t });
 					loop (f :: acc) l
 		in
@@ -881,7 +882,10 @@ let init_class ctx c p herits fields =
 		| FVar (t,e) ->
 			if not stat && has_field name c.cl_super then error ("Redefinition of variable " ^ name ^ " in subclass is not allowed") p;
 			if inline && not stat then error "Inline variable must be static" p;
-			if inline && e = None then error "Inline variable must be initialized" p;
+			(match e with
+			| None when inline -> error "Inline variable must be initialized" p
+			| Some (_,p) when not stat -> display_error ctx "Member variable initialization is not allowed outside of class constructor" p
+			| _ -> ());
 			let t = (match t with
 				| None ->
 					if not stat then display_error ctx ("Type required for member variable " ^ name) p;
@@ -1054,7 +1058,10 @@ let init_class ctx c p herits fields =
 				bind_type cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos) is_macro
 			in
 			f, constr, cf, delay
-		| FProp (get,set,t) ->
+		| FProp (get,set,t,eo) ->
+			(match eo with
+			| None -> ()
+			| Some e -> error "Property initialization is not allowed" (snd e));
 			let ret = load_complex_type ctx p t in
 			let check_get = ref (fun() -> ()) in
 			let check_set = ref (fun() -> ()) in
@@ -1187,7 +1194,7 @@ let init_class ctx c p herits fields =
 						and is_qual_field f =
 							match f.cff_kind with
 							| FVar (t,_) -> is_qual_opt t
-							| FProp (_,_,t) -> is_qualified t
+							| FProp (_,_,t,_) -> is_qualified t
 							| FFun f -> List.for_all (fun (_,_,t,_) -> is_qual_opt t) f.f_args && is_qual_opt f.f_type
 						and is_qual_opt = function
 							| None -> true

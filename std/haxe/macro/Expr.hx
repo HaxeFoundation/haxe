@@ -106,7 +106,7 @@ enum ExprDef {
 	EWhile( econd : Expr, e : Expr, normalWhile : Bool );
 	ESwitch( e : Expr, cases : Array<{ values : Array<Expr>, expr : Expr }>, edef : Null<Expr> );
 	ETry( e : Expr, catches : Array<{ name : String, type : ComplexType, expr : Expr }> );
-	EReturn( e : Null<Expr> );
+	EReturn( ?e : Null<Expr> );
 	EBreak;
 	EContinue;
 	EUntyped( e : Expr );
@@ -172,9 +172,9 @@ enum Access {
 }
 
 enum FieldType {
-	FVar( t : Null<ComplexType>, e : Null<Expr> );
+	FVar( t : Null<ComplexType>, ?e : Null<Expr> );
 	FFun( f : Function );
-	FProp( get : String, set : String, t : ComplexType );
+	FProp( get : String, set : String, t : ComplexType, ?e : Null<Expr> );
 }
 
 /**

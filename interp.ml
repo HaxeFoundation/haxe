@@ -3016,7 +3016,7 @@ and encode_field (f:class_field) =
 	let tag, pl = match f.cff_kind with
 		| FVar (t,e) -> 0, [null encode_type t; null encode_expr e]
 		| FFun f -> 1, [encode_fun f]
-		| FProp (get,set, t) -> 2, [enc_string get; enc_string set; encode_type t]
+		| FProp (get,set, t, e) -> 2, [enc_string get; enc_string set; encode_type t; null encode_expr e]
 	in
 	enc_obj [
 		"name",enc_string f.cff_name;
@@ -3282,8 +3282,8 @@ and decode_field v =
 			FVar (opt decode_ctype t, opt decode_expr e)
 		| 1, [f] ->
 			FFun (decode_fun f)
-		| 2, [get;set; t] ->
-			FProp (dec_string get, dec_string set, decode_ctype t)
+		| 2, [get;set; t; e] ->
+			FProp (dec_string get, dec_string set, decode_ctype t, opt decode_expr e)
 		| _ ->
 			raise Invalid_expr
 	in

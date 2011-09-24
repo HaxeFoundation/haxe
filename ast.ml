@@ -210,7 +210,7 @@ and access =
 and class_field_kind =
 	| FVar of complex_type option * expr option
 	| FFun of func
-	| FProp of string * string * complex_type
+	| FProp of string * string * complex_type * expr option
 
 and class_field = {
 	cff_name : string;
