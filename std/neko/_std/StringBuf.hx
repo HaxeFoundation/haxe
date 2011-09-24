@@ -31,7 +31,7 @@
 		b = __make();
 	}
 
-	public inline function add( ?x : Dynamic ) : Void {
+	public inline function add( x : Dynamic ) : Void {
 		__add(b,x);
 	}
 
