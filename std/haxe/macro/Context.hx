@@ -184,6 +184,13 @@ class Context {
 		return load("build_fields", 0)();
 	}
 
+	/**
+		Define a new type based on the given definition.
+	**/
+	public static function defineType( t : TypeDefinition ) : Void {
+		load("define_type", 1)(t);
+	}
+
 	static function load( f, nargs ) : Dynamic {
 		#if macro
 		return neko.Lib.load("macro", f, nargs);

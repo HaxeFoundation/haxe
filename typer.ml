@@ -652,7 +652,7 @@ let unify_int ctx e k =
 			(try is_dynamic (PMap.find f a.a_fields).cf_type with Not_found -> false)
 		| TInst (c,pl) ->
 			(try is_dynamic (apply_params c.cl_types pl (fst (class_field c f))) with Not_found -> false)
-		| _ -> 
+		| _ ->
 			true
 	in
 	let is_dynamic_return t =
@@ -660,9 +660,9 @@ let unify_int ctx e k =
 		| TFun (_,r) -> is_dynamic r
 		| _ -> true
 	in
-	(* 
+	(*
 		This is some quick analysis that matches the most common cases of dynamic-to-mono convertions
-	*) 
+	*)
 	let rec maybe_dynamic_mono e =
 		match e.eexpr with
 		| TLocal _ -> is_dynamic e.etype
@@ -670,7 +670,7 @@ let unify_int ctx e k =
 		| TField({ etype = t } as e,f) -> is_dynamic_field t f || maybe_dynamic_rec e t
 		| TCall({ etype = t } as e,_) -> is_dynamic_return t || maybe_dynamic_rec e t
 		| TParenthesis e -> maybe_dynamic_mono e
-		| TIf (_,a,Some b) -> maybe_dynamic_mono a || maybe_dynamic_mono b		
+		| TIf (_,a,Some b) -> maybe_dynamic_mono a || maybe_dynamic_mono b
 		| _ -> false
 	and maybe_dynamic_rec e t =
 		match follow t with
@@ -1177,7 +1177,7 @@ and type_expr_with_type ctx e t =
 			| Some t ->
 				match follow t with
 				| TEnum (e,pl) ->
-					(try 
+					(try
 						let ef = PMap.find s e.e_constrs in
 						mk (TEnumField (e,s)) (apply_params e.e_types pl ef.ef_type) p
 					with Not_found ->
@@ -1615,7 +1615,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let e = mk (TFunction f) ft p in
 		(match vname with
 		| None -> e
-		| Some v -> 
+		| Some v ->
 			let rec loop = function
 				| Codegen.Block f | Codegen.Loop f | Codegen.Function f -> f loop
 				| Codegen.Use v2 when v == v2 -> raise Exit
@@ -2226,13 +2226,17 @@ let make_macro_api ctx p =
 				if ctx.curclass == null_class then
 					None
 				else
-					Some (TInst (ctx.curclass,[])))
-		;
+					Some (TInst (ctx.curclass,[]))
+		);
 		Interp.get_build_fields = (fun() ->
 			match ctx.g.get_build_infos() with
 			| None -> Interp.VNull
 			| Some (_,fields) -> Interp.enc_array (List.map Interp.encode_field fields)
-		)
+		);
+		Interp.define_type = (fun v ->
+			let m, tdef, pos = Interp.decode_type_def v in
+			ignore(Typeload.type_module ctx m [tdef,pos] pos);
+		);
 	}
 
 let load_macro ctx cpath f p =
@@ -2403,7 +2407,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		*)
 		let ctx = {
 			ctx with locals = ctx.locals;
-		} in		
+		} in
 		let mctx = Interp.get_ctx() in
 		let pos = Interp.alloc_delayed mctx (fun() ->
 			match call() with

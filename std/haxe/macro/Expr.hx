@@ -177,6 +177,23 @@ enum FieldType {
 	FProp( get : String, set : String, t : ComplexType, ?e : Null<Expr> );
 }
 
+typedef TypeDefinition = {
+	var pack : Array<String>;
+	var name : String;
+	var pos : Position;
+	var meta : Metadata;
+	var params : Array<{ name : String, constraints : Array<ComplexType> }>;
+	var isExtern : Bool;
+	var kind : TypeDefKind;
+	var fields : Array<Field>;
+}
+
+enum TypeDefKind {
+	TDEnum;
+	TDStructure;
+	TDClass( ?extend : TypePath, ?implement : Array<TypePath>, ?isInterface : Bool );
+}
+
 /**
 	This error can be used to handle or produce compilation errors in macros.
 **/

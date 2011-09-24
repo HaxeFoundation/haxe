@@ -99,6 +99,7 @@ type extern_api = {
 	set_js_generator : (value -> unit) -> unit;
 	get_local_type : unit -> t option;
 	get_build_fields : unit -> value;
+	define_type : value -> unit;
 }
 
 type callstack = {
@@ -1933,6 +1934,10 @@ let macro_lib =
 		"build_fields", Fun0 (fun() ->
 			(get_ctx()).curapi.get_build_fields()
 		);
+		"define_type", Fun1 (fun v ->
+			(get_ctx()).curapi.define_type v;
+			VNull
+		);
 	]
 
 (* ---------------------------------------------------------------------- *)
@@ -3609,6 +3614,53 @@ let decode_tdecl v =
 	| _ -> raise Invalid_expr
 
 (* ---------------------------------------------------------------------- *)
+(* TYPE DEFINITION *)
+
+let decode_type_def v =
+	let pack = List.map dec_string (dec_array (field v "pack")) in
+	let name = dec_string (field v "name") in
+	let meta = decode_meta_content (field v "meta") in
+	let pos = decode_pos (field v "pos") in
+	let isExtern = dec_bool (field v "isExtern") in
+	let params = List.map (fun v ->
+		(dec_string (field v "name"), List.map decode_ctype (dec_array (field v "constraints")))
+	) (dec_array (field v "params")) in
+	let fields = List.map decode_field (dec_array (field v "fields")) in
+	let mk fl dl =
+		{
+			d_name = name;
+			d_doc = None;
+			d_params = params;
+			d_meta = meta;
+			d_flags = fl;
+			d_data = dl;
+		}
+	in
+	let tdef = (match decode_enum (field v "kind") with
+	| 0, [] ->
+		let conv f =
+			let loop (n,opt,t,_) =
+				match t with
+				| None -> raise Invalid_expr
+				| Some t -> n, opt, t
+			in
+			f.cff_name, f.cff_doc, f.cff_meta, (match f.cff_kind with FVar (None,None) -> [] | FFun f -> List.map loop f.f_args | _ -> raise Invalid_expr), f.cff_pos
+		in
+		EEnum (mk (if isExtern then [EExtern] else []) (List.map conv fields))
+	| 1, [] ->
+		ETypedef (mk (if isExtern then [EExtern] else []) (CTAnonymous fields))
+	| 2, [ext;impl;interf] ->
+		let flags = if isExtern then [HExtern] else [] in
+		let flags = (match interf with VNull | VBool false -> flags | VBool true -> HInterface :: flags | _ -> raise Invalid_expr) in
+		let flags = (match opt decode_path ext with None -> flags | Some t -> HExtends t :: flags) in
+		let flags = (match opt (fun v -> List.map decode_path (dec_array v)) impl with None -> flags | Some l -> List.map (fun t -> HImplements t) l @ flags) in
+		EClass (mk flags fields)
+	| _ ->
+		raise Invalid_expr
+	) in
+	(pack, name), tdef, pos
+
+(* ---------------------------------------------------------------------- *)
 (* VALUE-TO-CONSTANT *)
 
 let rec make_const e =
@@ -3720,7 +3772,7 @@ let rec make_ast e =
 		EVars (List.map (fun (v,e) -> v.v_name, mk_ot v.v_type, eopt e) vl)
 	| TBlock el -> EBlock (List.map make_ast el)
 	| TFor (v,it,e) ->
-		let ein = (EIn ((EConst (Ident v.v_name),it.epos),make_ast it),it.epos) in 
+		let ein = (EIn ((EConst (Ident v.v_name),it.epos),make_ast it),it.epos) in
 		EFor (ein,make_ast e)
 	| TIf (e,e1,e2) -> EIf (make_ast e,make_ast e1,eopt e2)
 	| TWhile (e1,e2,flag) -> EWhile (make_ast e1, make_ast e2, flag)
