@@ -1051,7 +1051,9 @@ let fix_override com c f fd =
 			in
 			loop c.cl_implements
 		with Not_found ->
-			interf, PMap.find f.cf_name c.cl_fields
+			let f = PMap.find f.cf_name c.cl_fields in
+			(match f.cf_kind with Var { v_read = AccRequire _ } -> raise Not_found | _ -> ());
+			interf, f
 	in
 	let f2 = (try Some (find_field c true) with Not_found -> None) in
 	let f = (match f2 with
