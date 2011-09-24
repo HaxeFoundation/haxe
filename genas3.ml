@@ -135,8 +135,7 @@ let close ctx =
 	close_out ctx.ch
 
 let save_locals ctx =
-	let old = ctx.gen_uid in
-	(fun() -> ctx.gen_uid <- old)
+	(fun() -> ())
 
 let gen_local ctx l =
 	ctx.gen_uid <- ctx.gen_uid + 1;
@@ -627,11 +626,10 @@ and gen_expr ctx e =
 		gen_value ctx e;
 		newline ctx;
 		print ctx "switch( %s.index ) {" tmp;
-		newline ctx;
 		List.iter (fun (cl,params,e) ->
 			List.iter (fun c ->
-				print ctx "case %d:" c;
 				newline ctx;
+				print ctx "case %d:" c;
 			) cl;
 			let b = save_locals ctx in
 			(match params with
@@ -642,24 +640,24 @@ and gen_expr ctx e =
 				match l with
 				| [] -> ()
 				| l ->
+					newline ctx;
 					spr ctx "var ";
 					concat ctx ", " (fun (v,n) ->
 						print ctx "%s : %s = %s.params[%d]" (s_ident v.v_name) (type_str ctx v.v_type e.epos) tmp n;
-					) l;
-					newline ctx);
-			gen_expr ctx e;
+					) l);
+			gen_block ctx e;
 			print ctx "break";
-			newline ctx;
 			b()
 		) cases;
 		(match def with
 		| None -> ()
 		| Some e ->
-			spr ctx "default:";
-			gen_expr ctx e;
-			print ctx "break";
 			newline ctx;
+			spr ctx "default:";
+			gen_block ctx e;
+			print ctx "break";
 		);
+		newline ctx;
 		spr ctx "}";
 		bend();
 		newline ctx;
@@ -676,12 +674,7 @@ and gen_expr ctx e =
 				gen_value ctx e;
 				spr ctx ":";
 			) el;
-			newline ctx;
-			(match e2.eexpr with
-			| TBlock [] -> ()
-			| _ -> 
-				gen_expr ctx e2;
-				newline ctx);
+			gen_block ctx e2;
 			print ctx "break";
 			newline ctx;
 		) cases;
@@ -689,12 +682,7 @@ and gen_expr ctx e =
 		| None -> ()
 		| Some e ->
 			spr ctx "default:";
-			newline ctx;
-			(match e.eexpr with
-			| TBlock [] -> ()
-			| _ -> 
-				gen_expr ctx e;
-				newline ctx);
+			gen_block ctx e;
 			print ctx "break";
 			newline ctx;
 		);
@@ -706,12 +694,23 @@ and gen_expr ctx e =
 	| TCast (e1,Some t) ->
 		gen_expr ctx (Codegen.default_cast ctx.inf.com e1 t e.etype e.epos)
 
+and gen_block ctx e =
+	newline ctx;
+	match e.eexpr with
+	| TBlock [] -> ()
+	| _ -> 
+		gen_expr ctx e;
+		newline ctx
+
 and gen_value ctx e =
 	let assign e =
 		mk (TBinop (Ast.OpAssign,
 			mk (TLocal (match ctx.in_value with None -> assert false | Some r -> r)) t_dynamic e.epos,
 			e
 		)) e.etype e.epos
+	in
+	let block e =
+		mk (TBlock [e]) e.etype e.epos
 	in
 	let value block =
 		let old = ctx.in_value in
@@ -828,8 +827,8 @@ and gen_value ctx e =
 		v()
 	| TTry (b,catchs) ->
 		let v = value true in
-		gen_expr ctx (mk (TTry (assign b,
-			List.map (fun (v,e) -> v, assign e) catchs
+		gen_expr ctx (mk (TTry (block (assign b),
+			List.map (fun (v,e) -> v, block (assign e)) catchs
 		)) e.etype e.epos);
 		v()
 

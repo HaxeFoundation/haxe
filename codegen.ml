@@ -757,9 +757,10 @@ let captured_vars com e =
 (* RENAME LOCAL VARS *)
 
 let rename_local_vars com e =
+	let is_as3 = Common.defined com "as3" in
 	let rec loop vars = function
 		| Block f | Loop f | Function f ->
-			f (loop (ref !vars));
+			f (loop (if is_as3 then vars else ref !vars));
 		| Declare v ->
 			(try
 				let vid = PMap.find v.v_name (!vars) in

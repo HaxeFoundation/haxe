@@ -532,6 +532,8 @@ let reduce_expr ctx e =
 			| l -> { e with eexpr = TBlock (List.rev (ec :: l)) })
 	| TParenthesis ec ->
 		{ ec with epos = e.epos }
+	| TTry (e,[]) ->
+		e
 	| _ ->
 		e
 
