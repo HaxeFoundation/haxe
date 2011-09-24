@@ -152,6 +152,9 @@ enum ValueType {
 		a.remove("__construct__");
 		a.remove("prototype");
 		a.remove("new");
+		#if macro
+		a.remove("__ct__");
+		#end
 		return a;
 	}
 
