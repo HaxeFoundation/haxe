@@ -175,7 +175,8 @@ and expr_def =
 	| EVars of (string * complex_type option * expr option) list
 	| EFunction of string option * func
 	| EBlock of expr list
-	| EFor of string * expr * expr
+	| EFor of expr * expr
+	| EIn of expr * expr
 	| EIf of expr * expr * expr option
 	| EWhile of expr * expr * while_flag
 	| ESwitch of expr * (expr list * expr) list * expr option

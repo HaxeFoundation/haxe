@@ -3102,21 +3102,23 @@ and encode_expr e =
 				12, [null enc_string name; encode_fun f]
 			| EBlock el ->
 				13, [enc_array (List.map loop el)]
-			| EFor (v,e,eloop) ->
-				14, [enc_string v;loop e;loop eloop]
+			| EFor (e,eloop) ->
+				14, [loop e;loop eloop]
+			| EIn (e1,e2) ->
+				15, [loop e1;loop e2]
 			| EIf (econd,e,eelse) ->
-				15, [loop econd;loop e;null loop eelse]
+				16, [loop econd;loop e;null loop eelse]
 			| EWhile (econd,e,flag) ->
-				16, [loop econd;loop e;VBool (match flag with NormalWhile -> true | DoWhile -> false)]
+				17, [loop econd;loop e;VBool (match flag with NormalWhile -> true | DoWhile -> false)]
 			| ESwitch (e,cases,eopt) ->
-				17, [loop e;enc_array (List.map (fun (ecl,e) ->
+				18, [loop e;enc_array (List.map (fun (ecl,e) ->
 					enc_obj [
 						"values",enc_array (List.map loop ecl);
 						"expr",loop e
 					]
 				) cases);null loop eopt]
 			| ETry (e,catches) ->
-				18, [loop e;enc_array (List.map (fun (v,t,e) ->
+				19, [loop e;enc_array (List.map (fun (v,t,e) ->
 					enc_obj [
 						"name",enc_string v;
 						"type",encode_type t;
@@ -3124,23 +3126,23 @@ and encode_expr e =
 					]
 				) catches)]
 			| EReturn eo ->
-				19, [null loop eo]
+				20, [null loop eo]
 			| EBreak ->
-				20, []
-			| EContinue ->
 				21, []
+			| EContinue ->
+				22, []
 			| EUntyped e ->
-				22, [loop e]
-			| EThrow e ->
 				23, [loop e]
+			| EThrow e ->
+				24, [loop e]
 			| ECast (e,t) ->
-				24, [loop e; null encode_type t]
+				25, [loop e; null encode_type t]
 			| EDisplay (e,flag) ->
-				25, [loop e; VBool flag]
+				26, [loop e; VBool flag]
 			| EDisplayNew t ->
-				26, [encode_path t]
+				27, [encode_path t]
 			| ETernary (econd,e1,e2) ->
-				27, [loop econd;loop e1;loop e2]
+				28, [loop econd;loop e1;loop e2]
 		in
 		enc_obj [
 			"pos", encode_pos p;
@@ -3346,39 +3348,41 @@ let decode_expr v =
 			EFunction (opt dec_string fname,decode_fun f)
 		| 13, [el] ->
 			EBlock (List.map loop (dec_array el))
-		| 14, [v;e1;e2] ->
-			EFor (dec_string v, loop e1, loop e2)
-		| 15, [e1;e2;e3] ->
+		| 14, [e1;e2] ->
+			EFor (loop e1, loop e2)
+		| 15, [e1;e2] ->
+			EIn (loop e1, loop e2)
+		| 16, [e1;e2;e3] ->
 			EIf (loop e1, loop e2, opt loop e3)
-		| 16, [e1;e2;VBool flag] ->
+		| 17, [e1;e2;VBool flag] ->
 			EWhile (loop e1,loop e2,if flag then NormalWhile else DoWhile)
-		| 17, [e;cases;eo] ->
+		| 18, [e;cases;eo] ->
 			let cases = List.map (fun c ->
 				(List.map loop (dec_array (field c "values")),loop (field c "expr"))
 			) (dec_array cases) in
 			ESwitch (loop e,cases,opt loop eo)
-		| 18, [e;catches] ->
+		| 19, [e;catches] ->
 			let catches = List.map (fun c ->
 				(dec_string (field c "name"),decode_ctype (field c "type"),loop (field c "expr"))
 			) (dec_array catches) in
 			ETry (loop e, catches)
-		| 19, [e] ->
+		| 20, [e] ->
 			EReturn (opt loop e)
-		| 20, [] ->
-			EBreak
 		| 21, [] ->
+			EBreak
+		| 22, [] ->
 			EContinue
-		| 22, [e] ->
-			EUntyped (loop e)
 		| 23, [e] ->
+			EUntyped (loop e)
+		| 24, [e] ->
 			EThrow (loop e)
-		| 24, [e;t] ->
+		| 25, [e;t] ->
 			ECast (loop e,opt decode_ctype t)
-		| 25, [e;f] ->
+		| 26, [e;f] ->
 			EDisplay (loop e,dec_bool f)
-		| 26, [t] ->
+		| 27, [t] ->
 			EDisplayNew (decode_path t)
-		| 27, [e1;e2;e3] ->
+		| 28, [e1;e2;e3] ->
 			ETernary (loop e1,loop e2,loop e3)
 		| _ ->
 			raise Invalid_expr
@@ -3715,7 +3719,9 @@ let rec make_ast e =
 	| TVars vl ->
 		EVars (List.map (fun (v,e) -> v.v_name, mk_ot v.v_type, eopt e) vl)
 	| TBlock el -> EBlock (List.map make_ast el)
-	| TFor (v,it,e) -> EFor (v.v_name,make_ast it,make_ast e)
+	| TFor (v,it,e) ->
+		let ein = (EIn ((EConst (Ident v.v_name),it.epos),make_ast it),it.epos) in 
+		EFor (ein,make_ast e)
 	| TIf (e,e1,e2) -> EIf (make_ast e,make_ast e1,eopt e2)
 	| TWhile (e1,e2,flag) -> EWhile (make_ast e1, make_ast e2, flag)
 	| TSwitch (e,cases,def) -> ESwitch (make_ast e,List.map (fun (vl,e) -> List.map make_ast vl, make_ast e) cases,eopt def)

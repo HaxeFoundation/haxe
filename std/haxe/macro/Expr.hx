@@ -100,7 +100,8 @@ enum ExprDef {
 	EVars( vars : Array<{ name : String, type : Null<ComplexType>, expr : Null<Expr> }> );
 	EFunction( name : Null<String>, f : Function );
 	EBlock( exprs : Array<Expr> );
-	EFor( v : String, it : Expr, expr : Expr );
+	EFor( it : Expr, expr : Expr );
+	EIn( e1 : Expr, e2 : Expr );
 	EIf( econd : Expr, eif : Expr, eelse : Null<Expr> );
 	EWhile( econd : Expr, e : Expr, normalWhile : Bool );
 	ESwitch( e : Expr, cases : Array<{ values : Array<Expr>, expr : Expr }>, edef : Null<Expr> );

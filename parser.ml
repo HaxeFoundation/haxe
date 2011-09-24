@@ -619,12 +619,12 @@ and expr = parser
 		| [< '(Const (Int i),p); e = expr_next (EConst (Int i),p) >] -> e
 		| [< '(Const (Float f),p); e = expr_next (EConst (Float f),p) >] -> e
 		| [< >] -> serror()) */*)
-	| [< '(Kwd For,p); '(POpen,_); name, _ = any_ident; '(Kwd In,_); it = expr; '(PClose,_); s >] ->
+	| [< '(Kwd For,p); '(POpen,_); it = expr; '(PClose,_); s >] ->
 		(try
 			let e = secure_expr s in
-			(EFor (name,it,e),punion p (pos e))
+			(EFor (it,e),punion p (pos e))
 		with
-			Display e -> display (EFor (name,it,e),punion p (pos e)))
+			Display e -> display (EFor (it,e),punion p (pos e)))
 	| [< '(Kwd If,p); '(POpen,_); cond = expr; '(PClose,_); e1 = expr; s >] ->
 		let e2 = (match s with parser
 			| [< '(Kwd Else,_); e2 = expr; s >] -> Some e2
@@ -700,6 +700,8 @@ and expr_next e1 = parser
 		expr_next (EUnop (op,Postfix,e1), punion (pos e1) p) s
 	| [< '(Question,_); e2 = expr; '(DblDot,_); e3 = expr >] ->
 		(ETernary (e1,e2,e3),punion (pos e1) (pos e3))
+	| [< '(Kwd In,_); e2 = expr >] ->
+		(EIn (e1,e2), punion (pos e1) (pos e2))
 	| [< >] -> e1
 
 and parse_switch_cases eswitch cases = parser

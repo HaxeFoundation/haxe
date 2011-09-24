@@ -1422,7 +1422,11 @@ and type_expr ctx ?(need_val=true) (e,p) =
 					add_local ctx v t_dynamic, None
 		) vl in
 		mk (TVars vl) ctx.t.tvoid p
-	| EFor (i,e1,e2) ->
+	| EFor (it,e2) ->
+		let i, e1 = (match it with
+			| (EIn ((EConst (Ident i | Type i),_),e),_) -> i, e
+			| _ -> error "For expression should be 'v in expr'" (snd it)
+		) in
 		let e1 = type_expr ctx e1 in
 		let old_loop = ctx.in_loop in
 		let old_locals = save_locals ctx in
@@ -1459,6 +1463,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		ctx.in_loop <- old_loop;
 		old_locals();
 		e
+	| EIn _ ->
+		error "This expression is not allowed outside a for loop" p
 	| ETernary (e1,e2,e3) ->
 		type_expr ctx ~need_val (EIf (e1,e2,Some e3),p)
 	| EIf (e,e1,e2) ->
