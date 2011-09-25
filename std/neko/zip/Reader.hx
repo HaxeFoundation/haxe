@@ -237,11 +237,10 @@ class Reader {
 		var type = i.readByte();
 		var lname = i.readUntil(0);
 		i.read(99 - lname.length); // skip
-		var ustar = i.readString(8);
-		if( ustar != "ustar  \x00" && ustar != "ustar\x00\x00\x00" ) {
-			//trace(StringTools.urlEncode(ustar));
+		var ustar = i.readString(5);
+		if( ustar != "ustar" )
 			throw "Not an tar ustar file";
-		}
+		i.readString(3); // skip
 		var uname = i.readUntil(0);
 		i.read(31 - uname.length);
 		var gname = i.readUntil(0);
