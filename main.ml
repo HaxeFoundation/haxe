@@ -20,7 +20,7 @@ open Printf
 open Genswf
 open Common
 
-let version = 207
+let version = 208
 
 let prompt = ref false
 let measure_times = ref false

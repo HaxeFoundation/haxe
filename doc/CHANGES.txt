@@ -1,4 +1,4 @@
-2011-??-??: 2.08
+2011-09-25: 2.08
 	js : added js.JQuery
 	all : added @:overload
 	js : upgraded js.SWFObject from 1.4.4 inlined to 1.5 embedded
