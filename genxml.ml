@@ -110,9 +110,9 @@ let gen_constr e =
 	) in
 	node e.ef_name args t
 
-let gen_type_params ipos priv path params pos m =
+let gen_type_params ipos priv path params pos mpath =
 	let mpriv = (if priv then [("private","1")] else []) in
-	let mpath = (if m.mpath <> path then [("module",snd (gen_path m.mpath false))] else []) in
+	let mpath = (if mpath <> path then [("module",snd (gen_path mpath false))] else []) in
 	let file = (if ipos && pos <> null_pos then [("file",pos.pfile)] else []) in
 	gen_path path priv :: ("params", String.concat ":" (List.map fst params)) :: (file @ mpriv @ mpath)
 
@@ -126,8 +126,7 @@ let rec exists f c =
 			| Some (csup,_) -> exists f csup
 
 let gen_type_decl com pos t =
-	let path = t_path t in
-	let m = (try List.find (fun m -> List.exists (fun t2 -> t_path t2 = path) m.mtypes) com.modules with Not_found -> { mpath = t_path t; mtypes = [t] }) in
+	let m = (t_infos t).mt_module in
 	match t with
 	| TClassDecl c ->
 		let stats = List.map (gen_field ["static","1"]) c.cl_ordered_statics in

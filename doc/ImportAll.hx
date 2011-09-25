@@ -52,6 +52,8 @@ class ImportAll {
 			return;
 		}
 		for( p in Context.getClassPath() ) {
+			if( p == "/" )
+				continue;
 			// skip if we have a classpath to haxe
 			if( pack.length == 0 && neko.FileSystem.exists(p+"std") )
 				continue;
