@@ -198,6 +198,7 @@ class XmlParser {
 				continue;
 			// compare params ?
 			if( tinf.path == inf.path ) {
+				var sameType = true;
 				if( tinf.module == inf.module && tinf.doc == inf.doc && tinf.isPrivate == inf.isPrivate )
 					switch( ct ) {
 					case TClassdecl(c):
@@ -206,6 +207,7 @@ class XmlParser {
 							if( mergeClasses(c,c2) )
 								return;
 						default:
+							sameType = false;
 						}
 					case TEnumdecl(e):
 						switch( t ) {
@@ -213,6 +215,7 @@ class XmlParser {
 							if( mergeEnums(e,e2) )
 								return;
 						default:
+							sameType = false;
 						}
 					case TTypedecl(td):
 						switch( t ) {
@@ -222,9 +225,15 @@ class XmlParser {
 						default:
 						}
 					case TPackage(_,_,_):
+						sameType = false;
 					}
 				// we already have a mapping, but which is incompatible
-				throw "Incompatibilities between "+tinf.path+" in "+tinf.platforms.join(",")+" and "+curplatform;
+				var msg = if( tinf.module != inf.module ) "module "+inf.module+" should be "+tinf.module;
+					else if( tinf.doc != inf.doc ) "documentation is different";
+					else if( tinf.isPrivate != inf.isPrivate ) "private flag is different";
+					else if( !sameType ) "type kind is different";
+					else "could not merge definition";
+				throw "Incompatibilities between "+tinf.path+" in "+tinf.platforms.join(",")+" and "+curplatform+" ("+msg+")";
 			}
 		}
 		cur.push(t);

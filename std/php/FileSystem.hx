@@ -51,7 +51,7 @@ class FileSystem {
 	}
 
 	public static inline function rename( path : String, newpath : String ) {
-		return untyped __call__("rename", path, newpath);
+		untyped __call__("rename", path, newpath);
 	}
 
 	public static function stat( path : String ) : FileStat {
@@ -91,15 +91,15 @@ class FileSystem {
 	}
 
 	public static inline function createDirectory( path : String ) {
-		return untyped __call__("@mkdir", path, 493); // php default is 0777, neko is 0755
+		untyped __call__("@mkdir", path, 493); // php default is 0777, neko is 0755
 	}
 
 	public static inline function deleteFile( path : String ) {
-		return untyped __call__("@unlink", path);
+		untyped __call__("@unlink", path);
 	}
 
 	public static inline function deleteDirectory( path : String ) {
-		return untyped __call__("@rmdir", path);
+		untyped __call__("@rmdir", path);
 	}
 
 	public static function readDirectory( path : String ) : Array<String> {

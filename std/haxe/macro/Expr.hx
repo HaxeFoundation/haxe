@@ -24,7 +24,7 @@
  */
 package haxe.macro;
 
-#if neko
+#if macro
 extern enum Position {
 }
 #else

@@ -56,7 +56,7 @@ class Object {
 		untyped _manager.doDelete(this);
 	}
 
-	public function toString() {
+	public function toString() : String {
 		return untyped _manager.objectToString(this);
 	}
 

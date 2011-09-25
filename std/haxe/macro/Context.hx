@@ -174,7 +174,7 @@ class Context {
 		Add or modify a resource that will be accessible with haxe.Resource api.
 	**/
 	public static function addResource( name : String, data : haxe.io.Bytes ) {
-		return load("add_resource",2)(untyped name.__s,data.getData());
+		load("add_resource",2)(untyped name.__s,data.getData());
 	}
 
 	/**
