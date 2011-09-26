@@ -346,6 +346,7 @@ and gen_expr ctx e =
 	| TCast (e1,Some t) ->
 		gen_expr ctx (Codegen.default_cast ctx.com e1 t e.etype e.epos)
 	| TMatch (e,_,cases,eo) ->
+		let p = pos ctx e.epos in
 		let etmp = (EVars ["@tmp",Some (gen_expr ctx e)],p) in
 		let eindex = field p (ident p "@tmp") "index" in
 		let gen_params params e =
