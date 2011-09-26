@@ -640,6 +640,13 @@ let rec reduce_loop ctx e =
 			| OpBoolAnd -> ebool (&&)
 			| OpBoolOr -> ebool (||)
 			| _ -> e)
+		| TConst a, TConst b when op = OpEq || op = OpNotEq ->
+			let ebool b =
+				{ e with eexpr = TConst (TBool (if op = OpEq then b else not b)) }
+			in
+			(match a, b with
+			| TInt a, TFloat b | TFloat b, TInt a -> ebool (Int32.to_float a = float_of_string b)
+			| _ -> ebool (a = b))
 		| TConst (TBool a), _ ->
 			(match op with
 			| OpBoolAnd -> if a then e2 else { e with eexpr = TConst (TBool false) }
