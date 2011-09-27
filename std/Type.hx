@@ -144,5 +144,11 @@ extern class Type {
 		Returns the index of the constructor of an enum
 	**/
 	public static function enumIndex( e : Dynamic ) : Int;
+
+	/**
+		Returns the list of all enum values that don't take any parameter.
+	**/
+	public static function allEnums<T>( e : Enum<T> ) : Array<T>;
+
 }
 

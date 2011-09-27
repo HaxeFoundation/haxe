@@ -148,5 +148,11 @@ enum ValueType {
 			return e.__Index();
 	}
 
+	public static function allEnums<T>( e : Enum<T> ) : Array<T> {
+		var all = [];
+		throw "TODO";
+		return all;
+	}
+
 }
 

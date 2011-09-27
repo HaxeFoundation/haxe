@@ -70,4 +70,8 @@ class TestType extends Test {
 		// the current enum - since it's not cachable
 	}
 	
+	function testAllField() {
+		eq( Type.allEnums(MyEnum).join("#"), "A#B" );
+	}
+	
 }

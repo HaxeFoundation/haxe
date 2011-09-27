@@ -225,5 +225,16 @@ enum ValueType {
 		return e.index;
 	}
 
+	public static function allEnums<T>( e : Enum<T> ) : Array<T> {
+		var all = [];
+		for( c in getEnumConstructs(e) ) {
+			var v = Reflect.field(e,c);
+			if( !Reflect.isFunction(v) )
+				all.push(v);
+		}
+		return all;
+	}
+
+
 }
 
