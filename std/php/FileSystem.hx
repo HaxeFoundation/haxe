@@ -78,7 +78,7 @@ class FileSystem {
 		if (untyped __physeq__(p, false))
 			return null;
 		else
-			return p;s
+			return p;
 	}
 
 	public static function kind( path : String ) : FileKind {
