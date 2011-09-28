@@ -74,7 +74,11 @@ class FileSystem {
 	}
 
 	public static inline function fullPath( relpath : String ) : String {
-		return untyped __call__("realpath", relpath);
+		var p = untyped __call__("realpath", relpath);
+		if (untyped __physeq__(p, false))
+			return null;
+		else
+			return p;s
 	}
 
 	public static function kind( path : String ) : FileKind {
