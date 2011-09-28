@@ -32,7 +32,7 @@
 	}
 
 	public function getTime() : Float {
-		return __t*1000;
+		return __t * 1000;
 	}
 
 	private function getPhpTime() : Float {
@@ -73,7 +73,7 @@
 	}
 
 	public static function now() : Date {
-		return fromPhpTime(untyped __call__("time"));
+		return fromPhpTime(untyped __call__("round", __call__("microtime", true), 3));
 	}
 
 	static function fromPhpTime( t : Float ) : Date {
@@ -84,7 +84,7 @@
 
 	public static function fromTime( t : Float ) : Date {
 		var d = new Date(2000,1,1,0,0,0);
-		d.__t = t/1000;
+		d.__t = t / 1000;
 		return d;
 	}
 
