@@ -79,6 +79,11 @@ enum XmlType {
 	}
 
 	private static function __default_handler(parser : Dynamic, data : String) : Void {
+		//On some PHP setups (seems to happen when libexpat is used) we may get called for such "entities" although character_data will correctly be called afterward.
+		if(data == "<![CDATA[")
+			return;
+		if(data == "]]>")
+			return;
 		if ("<!--" == data.substr(0, 4))
 			build.addChild(createComment(data.substr(4, data.length-7)));
 		else
