@@ -186,7 +186,7 @@ let find_file ctx f =
 	in
 	loop ctx.class_path
 
-let get_full_path = Extc.get_full_path
+let get_full_path f = try Extc.get_full_path f with _ -> f
 
 (* ------------------------- TIMERS ----------------------------- *)
 
