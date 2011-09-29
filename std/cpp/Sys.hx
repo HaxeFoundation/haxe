@@ -84,7 +84,6 @@ class Sys {
 			result.set( vars[i], vars[i+1] );
 			i+=2;
 		}
-		trace(result);
 		return result;
 	}
 
