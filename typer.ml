@@ -1439,7 +1439,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				let e1 = (match follow e1.etype with
 				| TMono _
 				| TDynamic _ ->
-					error "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e1.epos;
+					display_error ctx "You can't iterate on a Dynamic value, please specify Iterator or Iterable" e1.epos;
+					e1
 				| TLazy _ ->
 					assert false
 				| _ ->
