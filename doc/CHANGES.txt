@@ -1,6 +1,7 @@
 2012-??-??: 3.00
 	all : optimized const == const and const != const (with different const types)
 	all : add Type.allEnums(e)
+	all : fixed some issue with completion
 
 2011-09-25: 2.08
 	js : added js.JQuery

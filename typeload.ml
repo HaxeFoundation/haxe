@@ -1142,8 +1142,8 @@ let init_class ctx c p herits fields =
 			if c.cl_constructor <> None then error "Duplicate constructor" p;
 			c.cl_constructor <- Some f;
 		end else if not is_static || f.cf_name <> "__init__" then begin
-			if PMap.mem f.cf_name (if is_static then c.cl_statics else c.cl_fields) then error ("Duplicate class field declaration : " ^ f.cf_name) p;
-			if PMap.exists f.cf_name (if is_static then c.cl_fields else c.cl_statics) then error ("Same field name can't be use for both static and instance : " ^ f.cf_name) p;
+			if PMap.mem f.cf_name (if is_static then c.cl_statics else c.cl_fields) then display_error ctx ("Duplicate class field declaration : " ^ f.cf_name) p;
+			if PMap.exists f.cf_name (if is_static then c.cl_fields else c.cl_statics) then display_error ctx ("Same field name can't be use for both static and instance : " ^ f.cf_name) p;
 			if is_static then begin
 				c.cl_statics <- PMap.add f.cf_name f c.cl_statics;
 				c.cl_ordered_statics <- f :: c.cl_ordered_statics;
