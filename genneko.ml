@@ -173,7 +173,7 @@ and gen_unop ctx p op flag e =
 	| Decrement -> (EBinop ((if flag = Prefix then "-=" else "--="), gen_expr ctx e , int p 1),p)
 	| Not -> call p (builtin p "not") [gen_expr ctx e]
 	| Neg -> (EBinop ("-",int p 0, gen_expr ctx e),p)
-	| NegBits -> error "Operation not available" e.epos
+	| NegBits -> (EBinop ("-",int p (-1), gen_expr ctx e),p)
 
 and gen_call ctx p e el =
 	match e.eexpr , el with

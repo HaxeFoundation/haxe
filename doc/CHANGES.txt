@@ -2,6 +2,8 @@
 	all : optimized const == const and const != const (with different const types)
 	all : add Type.allEnums(e)
 	all : fixed some issue with completion
+	flash9 : fixed -D swfprotected with swc output
+	neko : added ~ implementation
 
 2011-09-25: 2.08
 	js : added js.JQuery
