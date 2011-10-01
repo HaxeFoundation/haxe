@@ -1983,7 +1983,17 @@ let generate_class ctx c =
 	) c.cl_fields [] in
 	let fields = if c.cl_path <> ctx.boot then fields else
 		{
-			hlf_name = ident "init";
+			hlf_name = make_name {
+				cf_name = "init";
+				cf_public = false; 
+				cf_meta = [];
+				cf_doc = None;
+				cf_pos = c.cl_pos;
+				cf_type = TFun ([],t_dynamic);
+				cf_params = [];
+				cf_expr = None;
+				cf_kind = Method MethNormal;
+			};
 			hlf_slot = 0;
 			hlf_kind = (HFMethod {
 				hlm_type = generate_inits ctx;
