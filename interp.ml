@@ -1305,7 +1305,9 @@ let std_lib =
 			| _ -> error()
 		);
 		"get_cwd", Fun0 (fun() ->
-			VString (Unix.getcwd())
+			let dir = Unix.getcwd() in
+			let l = String.length dir in
+			VString (if l = 0 then "./" else match dir.[l - 1] with '/' | '\\' -> dir | _ -> dir ^ "/")
 		);
 		"set_cwd", Fun1 (fun s ->
 			Unix.chdir (vstring s);
