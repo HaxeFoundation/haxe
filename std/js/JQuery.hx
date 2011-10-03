@@ -48,7 +48,7 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 
 	// attributes
 	function addClass( className : String ) : JQuery;
-	function removeClass( className : String ) : JQuery;
+	function removeClass( ?className : String ) : JQuery;
 	function hasClass( className : String ) : Bool;
 	function toggleClass( className : String, ?addRemove : Bool ) : JQuery;
 
