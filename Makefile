@@ -46,5 +46,5 @@ clean:
 	rm -rf extc_stubs.o
 
 export:
-	cp haxe*.exe $(EXPORT)
+	cp haxe*.exe doc/CHANGES.txt $(EXPORT)
 	rsync -a --exclude .svn --exclude *.n --exclude std/mt --delete std $(EXPORT)
