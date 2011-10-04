@@ -35,11 +35,25 @@ extern class Storage {
 	public function key( index : Int ) : String;
 
 	public static inline function getLocal() : Storage {
-		return untyped try window['localStorage'] catch( e : Dynamic ) null;
+		var s : Storage;
+		try {
+			s = untyped window['localStorage'];
+			s.getItem('');
+		} catch( e : Dynamic ) {
+			s = null;
+		}
+		return s;
 	}
 
 	public static inline function getSession() : Storage {
-		return untyped try window['sessionStorage'] catch( e : Dynamic ) null;
+		var s : Storage;
+		try {
+			s = untyped window['sessionStorage'];
+			s.getItem('');
+		} catch( e : Dynamic ) {
+			s = null;
+		}
+		return s;
 	}
 
 }
