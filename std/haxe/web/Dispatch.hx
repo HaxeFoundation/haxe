@@ -61,6 +61,11 @@ enum DispatchError {
 	DEMissingParam( p : String );
 }
 
+private class Redirect {
+	public function new() {
+	}
+}
+
 class Dispatch {
 
 	var parts : Array<String>;
@@ -69,7 +74,7 @@ class Dispatch {
 	var name : String;
 	var obj : Dynamic;
 
-	public function new(url, params) {
+	public function new(url:String, params) {
 		parts = url.split("/");
 		if( parts[0] == "" ) parts.shift();
 		this.params = params;
@@ -94,7 +99,7 @@ class Dispatch {
 		var rt = TPath( { pack : ["haxe", "macro"], name : "MacroType", params : [TPExpr(Context.parse("haxe.web.Dispatch.getRunParam("+index+")",p))], sub : null } );
 		return { expr : EBlock([ { expr : EVars([ { name : "tmp", type : rt, expr : call } ]), pos : p }, { expr : EConst(CIdent("tmp")), pos : p } ]), pos : p };
 	}
-	
+
 	public function setParams(p) {
 		params = p;
 	}
@@ -123,7 +128,18 @@ class Dispatch {
 		name = "do" + name.charAt(0).toUpperCase() + name.substr(1);
 		var args = [];
 		loop(args, r);
-		Reflect.callMethod(obj, Reflect.field(obj, name), args);
+		try {
+			Reflect.callMethod(obj, Reflect.field(obj, name), args);
+		} catch( e : Redirect ) {
+			runtimeDispatch(cfg);
+		}
+	}
+
+	public function redirect( url : String, ?params : Hash<String> ) {
+		parts = url.split("/");
+		if( parts[0] == "" ) parts.shift();
+		if( params != null ) this.params = params;
+		throw new Redirect();
 	}
 
 	static var GET_RULES;
