@@ -3471,6 +3471,7 @@ and encode_tenum e =
 		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) e.e_types);
 		"constructs", encode_pmap encode_efield e.e_constrs;
 		"names", enc_array (List.map enc_string e.e_names);
+		"doc", null enc_string e.e_doc;
 	]
 
 and encode_efield f =
@@ -3480,6 +3481,7 @@ and encode_efield f =
 		"pos", encode_pos f.ef_pos;
 		"index", VInt f.ef_index;
 		"meta", encode_meta f.ef_meta (fun m -> f.ef_meta <- m);
+		"doc", null enc_string f.ef_doc;
 	]
 
 and encode_cfield f =
@@ -3492,6 +3494,7 @@ and encode_cfield f =
 		"expr", (match f.cf_expr with None -> VNull | Some e -> encode_texpr e);
 		"kind", encode_field_kind f.cf_kind;
 		"pos", encode_pos f.cf_pos;
+		"doc", null enc_string f.cf_doc;
 	]
 
 and encode_field_kind k =

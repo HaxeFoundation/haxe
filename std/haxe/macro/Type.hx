@@ -53,6 +53,7 @@ typedef BaseType = {
 	var isExtern : Bool;
 	var params : Array<{ name : String, t : Type }>;
 	var meta : MetaAccess;
+	var doc : Null<String>;
 	function exclude() : Void;
 }
 
@@ -65,6 +66,7 @@ typedef ClassField = {
 	var kind : FieldKind;
 	var expr : Null<TypedExpr>;
 	var pos : Expr.Position;
+	var doc : Null<String>;
 }
 
 typedef ClassType = {> BaseType,
@@ -86,6 +88,7 @@ typedef EnumField = {
 	var pos : Expr.Position;
 	var meta : MetaAccess;
 	var index : Int;
+	var doc : Null<String>;
 }
 
 typedef EnumType = {> BaseType,
