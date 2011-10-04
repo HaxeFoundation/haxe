@@ -304,7 +304,7 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 
 	private static function __init__() : Void untyped {
 		#if !noEmbedJS
-		haxe.macro.Tools.includeFile("js/jquery-1.5.min.js");
+		haxe.macro.Tools.includeFile("js/jquery-latest.min.js");
 		#end
 		var q : Dynamic = window.jQuery;
 		js.JQuery = q;
