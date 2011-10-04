@@ -31,7 +31,7 @@ type in_local = {
 	mutable i_read : int;
 }
 
-let rec type_inline ctx cf f ethis params tret p =
+let rec type_inline ctx cf f ethis params tret p force =
 	(* type substitution on both class and function type parameters *)
 	let has_params, map_type =
 		let rec get_params c pl =
@@ -236,7 +236,7 @@ let rec type_inline ctx cf f ethis params tret p =
 
 		This could be fixed with better post process code cleanup (planed)
 	*)
-	if Common.platform ctx.com Js && (init <> None || !has_vars) then begin
+	if Common.platform ctx.com Js && not force && (init <> None || !has_vars) then begin
 		None
 	end else
 		let wrap e =
@@ -687,7 +687,7 @@ let rec reduce_loop ctx e =
 		let cf = mk_field "" ef.etype e.epos in
 		let ethis = mk (TConst TThis) t_dynamic e.epos in
 		let rt = (match follow ef.etype with TFun (_,rt) -> rt | _ -> assert false) in
-		let inl = (try type_inline ctx cf func ethis el rt e.epos with Error (Custom _,_) -> None) in
+		let inl = (try type_inline ctx cf func ethis el rt e.epos false with Error (Custom _,_) -> None) in
 		(match inl with
 		| None -> reduce_expr ctx e
 		| Some e -> reduce_loop ctx e)
