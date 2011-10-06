@@ -582,4 +582,25 @@ class Manager<T : Object> {
 		return quoteAny(v);
 	}
 
+	static function quoteAnyList( v : String, it : Iterable<Dynamic> ) {
+		var b = new StringBuf();
+		var first = true;
+		if( it != null )
+			for( v in it ) {
+				if( first ) first = false else b.addChar(','.code);
+				cnx.addValue(b, v);
+			}
+		if( first )
+			return "FALSE";
+		return v + " IN (" + b.toString() + ")";
+	}
+
+	public static inline function quoteIntList( v : String, it : Iterable<Int> ) {
+		return quoteAnyList(v, it);
+	}
+
+	public static function quoteStringList( v : String, it : Iterable<String> ) {
+		return quoteAnyList(v, it);
+	}
+	
 }

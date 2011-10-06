@@ -687,6 +687,16 @@ class SpodMacros {
 			unify(r2.t, r1.t, e2.pos);
 			unify(r1.t, r2.t, e1.pos);
 			return { sql : { expr : EIf(e, r1.sql, r2.sql), pos : p }, t : r1.t, n : r1.n || r2.n };
+		case EIn(e, v):
+			var e = buildCond(e);
+			switch( unifyClass(e.t) ) {
+			case 0: // int
+				return { sql : { expr : ECall( { expr : EField(manager, "quoteIntList"), pos : p }, [e.sql, v]), pos : p }, t : DBool, n : e.n };
+			case 3: // string
+				return { sql : { expr : ECall( { expr : EField(manager, "quoteStringList"), pos : p }, [e.sql, v]), pos : p }, t : DBool, n : e.n };
+			default:
+				error("'in' operator not supported for type " + typeStr(e.t), e.sql.pos);
+			}
 		default:
 		}
 		error("Unsupported expression", p);
