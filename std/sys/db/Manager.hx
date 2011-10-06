@@ -222,25 +222,13 @@ class Manager<T : Object> {
 	function doLock( i : T ) {
 		if( untyped i._lock )
 			return;
-		untyped i._lock = true;
-		object_cache.remove(makeCacheKey(i));
 		var s = new StringBuf();
 		s.add("SELECT * FROM ");
 		s.add(table_name);
 		s.add(" WHERE ");
 		addKeys(s, i);
-		var i2 = unsafeObject(s.toString(),untyped i._lock);
-		// delete all fields
-		for( f in Reflect.fields(i) )
-			Reflect.deleteField(i,f);
-		// copy fields from new object
-		for( f in Reflect.fields(i2) )
-			Reflect.setField(i,f,Reflect.field(i2,f));
-		// set same field-cache
-		Reflect.setField(i,cache_field,Reflect.field(i2,cache_field));
-		// rebuild in case it's needed
-		make(i);
-		addToCache(i);
+		// will force sync
+		unsafeObject(s.toString(),true);
 	}
 
 	function objectToString( it : T ) : String {
