@@ -535,13 +535,13 @@ class Manager<T : Object> {
 	function getFromCache( x : T, lock : Bool ) : T {
 		var c : Dynamic = object_cache.get(makeCacheKey(x));
 		if( c != null && lock && !c._lock ) {
-			// mark as locked
-			c._lock = true;
 			// synchronize the fields since our result is up-to-date !
 			for( f in Reflect.fields(c) )
 				Reflect.deleteField(c,f);
 			for( f in Reflect.fields(x) )
 				Reflect.setField(c,f,Reflect.field(x,f));
+			// mark as locked
+			c._lock = true;
 			// use the new object as our cache of fields
 			Reflect.setField(c,cache_field,x);
 			// remake object
