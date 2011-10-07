@@ -57,6 +57,7 @@ and vabstract =
 	| ATExpr of texpr
 	| ATDecl of module_type
 	| AUnsafe of Obj.t
+	| ALazyType of (unit -> Type.t) ref
 
 and vfunction =
 	| Fun0 of (unit -> value)
@@ -2637,6 +2638,8 @@ and call ctx vthis vfun pl p =
 			| [a;b;c;d;e], Fun5 f -> f a b c d e
 			| _, FunVar f -> f pl
 			| _ -> exc (VString (Printf.sprintf "Invalid call (%d args instead of %d)" (List.length pl) (nargs f))))
+		| VAbstract (ALazyType f) ->
+			encode_type ((!f)())
 		| _ ->
 			exc (VString "Invalid call"))
 	with Return v -> v
@@ -3492,7 +3495,7 @@ and encode_efield f =
 and encode_cfield f =
 	enc_obj [
 		"name", enc_string f.cf_name;
-		"type", encode_type f.cf_type;
+		"type", (match f.cf_kind with Method _ -> encode_lazy_type f.cf_type | _ -> encode_type f.cf_type);
 		"isPublic", VBool f.cf_public;
 		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) f.cf_params);
 		"meta", encode_meta f.cf_meta (fun m -> f.cf_meta <- m);
@@ -3595,10 +3598,23 @@ and encode_type t =
 			else
 				6, [encode_type tsub]
 		| TLazy f ->
-			loop ((!f)())
+			loop (!f())
 	in
 	let tag, pl = loop t in
 	enc_enum IType tag pl
+
+and encode_lazy_type t =
+	let rec loop = function
+		| TMono r ->
+			(match !r with
+			| Some t -> loop t
+			| _ -> encode_type t)
+		| TLazy f ->
+			enc_enum IType 7 [VAbstract (ALazyType f)]
+		| _ ->
+			encode_type t
+	in
+	loop t
 
 and decode_type t =
 	match decode_enum t with
@@ -3610,6 +3626,7 @@ and decode_type t =
 	| 5, [a] -> TAnon (decode_ref a)
 	| 6, [VNull] -> t_dynamic
 	| 6, [t] -> TDynamic (decode_type t)
+	| 7, [VAbstract (ALazyType f)] -> TLazy f
 	| _ -> raise Invalid_expr
 
 and encode_texpr e =

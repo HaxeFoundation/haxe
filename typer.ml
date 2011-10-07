@@ -1741,8 +1741,9 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			error "Not a class" p)
 	| ECheckType (e,t) ->
 		let e = type_expr ctx ~need_val e in
-		unify ctx e.etype (Typeload.load_complex_type ctx p t) e.epos;
-		e
+		let t = Typeload.load_complex_type ctx p t in
+		unify ctx e.etype t e.epos;
+		if e.etype == t then e else mk (TCast (e,None)) t p
 
 and type_call ctx e el p =
 	match e, el with

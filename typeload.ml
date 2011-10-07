@@ -929,6 +929,7 @@ let init_class ctx c p herits fields =
 						if ctx.com.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
 						cf.cf_meta <- if has_meta ":?keep" cf.cf_meta then f.cff_meta else (":?keep", [], p) :: f.cff_meta;
 						cf.cf_expr <- Some (type_static_var ctx t e p);
+						cf.cf_type <- t;
 						t
 					) in
 					cf.cf_type <- TLazy r;
@@ -946,6 +947,7 @@ let init_class ctx c p herits fields =
 						r := (fun() -> t);
 						if ctx.com.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
 						cf.cf_expr <- Some (type_static_var ctx t e p);
+						cf.cf_type <- t;
 						t
 					) in
 					bind_type cf r (snd e) false
@@ -1038,6 +1040,7 @@ let init_class ctx c p herits fields =
 					| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
 					| _ -> c.cl_init <- Some e);
 				cf.cf_expr <- Some (mk (TFunction f) t p);
+				cf.cf_type <- t;
 				t
 			) in
 			let delay = if (ctx.com.dead_code_elimination && not ctx.com.display) then begin

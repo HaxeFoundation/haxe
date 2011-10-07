@@ -37,6 +37,7 @@ enum Type {
 	TFun( args : Array<{ name : String, opt : Bool, t : Type }>, ret : Type );
 	TAnonymous( a : Ref<AnonType> );
 	TDynamic( t : Null<Type> );
+	TLazy( f : Void -> Type );
 }
 
 typedef AnonType = {
