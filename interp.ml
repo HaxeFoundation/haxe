@@ -86,6 +86,7 @@ type cmp =
 
 type extern_api = {
 	pos : Ast.pos;
+	on_error : string -> Ast.pos -> bool -> unit;
 	define : string -> unit;
 	defined : string -> bool;
 	get_type : string -> Type.t option;
@@ -1690,12 +1691,12 @@ let macro_lib =
 		"curpos", Fun0 (fun() -> VAbstract (APos (get_ctx()).curapi.pos));
 		"error", Fun2 (fun msg p ->
 			match msg, p with
-			| VString s, VAbstract (APos p) -> (get_ctx()).com.Common.error s p; raise Abort
+			| VString s, VAbstract (APos p) -> (get_ctx()).curapi.on_error s p false; raise Abort
 			| _ -> error()
 		);
 		"warning", Fun2 (fun msg p ->
 			match msg, p with
-			| VString s, VAbstract (APos p) -> (get_ctx()).com.Common.warning s p; VNull;
+			| VString s, VAbstract (APos p) -> (get_ctx()).curapi.on_error s p true; VNull;
 			| _ -> error()
 		);
 		"class_path", Fun0 (fun() ->

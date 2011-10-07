@@ -2108,6 +2108,9 @@ let make_macro_api ctx p =
 	in
 	{
 		Interp.pos = p;
+		Interp.on_error = (fun msg p warn ->
+			(if warn then ctx.com.warning else ctx.com.error) msg p
+		);
 		Interp.defined = Common.defined ctx.com;
 		Interp.define = Common.define ctx.com;
 		Interp.get_type = (fun s ->
