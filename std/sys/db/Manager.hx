@@ -108,7 +108,7 @@ class Manager<T : Object> {
 	@:macro public function delete(ethis, cond) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<Void> #end {
 		return SpodMacros.macroDelete(ethis, cond);
 	}
-
+	
 	public function dynamicSearch( x : {}, ?lock : Bool ) : List<T> {
 		var s = new StringBuf();
 		s.add("SELECT * FROM ");
@@ -377,6 +377,10 @@ class Manager<T : Object> {
 		addKeys(s,keys);
 		return unsafeObject(s.toString(),lock);
 	}
+	
+	public function unsafeGetId( o : T ) : Dynamic {
+		return o == null ? null : Reflect.field(o, table_keys[0]);
+	}
 
 	function addCondition(s : StringBuf,x) {
 		var first = true;
@@ -540,37 +544,13 @@ class Manager<T : Object> {
 
 	/* ---------------------------- QUOTES -------------------------- */
 
-	static function quoteAny( v : Dynamic ) {
+	public static function quoteAny( v : Dynamic ) {
 		var s = new StringBuf();
 		cnx.addValue(s, v);
 		return s.toString();
 	}
 
-	public static inline function quoteInt( v : Int ) {
-		return quoteAny(v);
-	}
-
-	public static inline function quoteFloat( v : Float ) {
-		return quoteAny(v);
-	}
-
-	public static inline function quoteDate( v : Date ) {
-		return quoteAny(v);
-	}
-
-	public static inline function quoteString( v : String ) {
-		return quoteAny(v);
-	}
-
-	public static inline function quoteBool( v : Bool ) {
-		return quoteAny(v);
-	}
-
-	public static inline function quoteBytes( v : haxe.io.Bytes ) {
-		return quoteAny(v);
-	}
-
-	static function quoteAnyList( v : String, it : Iterable<Dynamic> ) {
+	public static function quoteList( v : String, it : Iterable<Dynamic> ) {
 		var b = new StringBuf();
 		var first = true;
 		if( it != null )
@@ -581,14 +561,6 @@ class Manager<T : Object> {
 		if( first )
 			return "FALSE";
 		return v + " IN (" + b.toString() + ")";
-	}
-
-	public static inline function quoteIntList( v : String, it : Iterable<Int> ) {
-		return quoteAnyList(v, it);
-	}
-
-	public static function quoteStringList( v : String, it : Iterable<String> ) {
-		return quoteAnyList(v, it);
 	}
 	
 }

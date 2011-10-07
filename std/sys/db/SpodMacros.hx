@@ -37,32 +37,41 @@ private typedef SqlFunction = {
 	var sql : String;
 }
 
-private enum BuildError {
-	EExpr( e : Expr );
-}
-
 class SpodMacros {
 
-	static var inst : SpodMacros = null;
+	static var GLOBAL = null;
 	static var simpleString = ~/^[A-Za-z0-9 ]*$/;
 
-	var cache : Hash<SpodInfos>;
-	var types : Hash<SpodType>;
 	var isNull : Bool;
 	var manager : Expr;
-	var current : SpodInfos;
-	var functions : Hash<SqlFunction>;
+	var inf : SpodInfos;
+	var g : {
+		var cache : Hash<SpodInfos>;
+		var types : Hash<SpodType>;
+		var functions : Hash<SqlFunction>;
+	};
 
-	function new() {
-		cache = new Hash();
-		types = new Hash();
+	function new(c) {
+		if( GLOBAL != null )
+			g = GLOBAL;
+		else {
+			g = initGlobals();
+			GLOBAL = g;
+		}
+		inf = getSpodInfos(c);
+	}
+
+	function initGlobals()
+	{
+		var cache = new Hash();
+		var types = new Hash();
 		for( c in Type.getEnumConstructs(SpodType) ) {
 			var e : Dynamic = Reflect.field(SpodType, c);
 			if( Std.is(e, SpodType) )
 				types.set("S"+c.substr(1), e);
 		}
 		types.remove("SNull");
-		functions = new Hash();
+		var functions = new Hash();
 		for( f in [
 			{ name : "now", params : [], ret : DDateTime, sql : "NOW($)" },
 			{ name : "curDate", params : [], ret : DDate, sql : "CURDATE($)" },
@@ -75,6 +84,7 @@ class SpodMacros {
 			{ name : "date", params : [DDateTime], ret : DDate, sql : "DATE($)" },
 		])
 			functions.set(f.name, f);
+		return { cache : cache, types : types, functions : functions };
 	}
 
 	public dynamic function error( msg : String, pos : Position ) : Dynamic {
@@ -171,7 +181,7 @@ class SpodMacros {
 			var name = t.toString();
 			if( StringTools.startsWith(name, "sys.db.") )
 				name = name.substr(7);
-			var k = types.get(name);
+			var k = g.types.get(name);
 			if( k != null ) return k;
 			if( p.length == 1 )
 				switch( name ) {
@@ -199,7 +209,7 @@ class SpodMacros {
 
 	function getSpodInfos( c : haxe.macro.Type.Ref<haxe.macro.Type.ClassType> ) : SpodInfos {
 		var cname = c.toString();
-		var i = cache.get(cname);
+		var i = g.cache.get(cname);
 		if( i != null ) return i;
 		i = {
 			key : null,
@@ -326,7 +336,7 @@ class SpodMacros {
 		// check primary key defined
 		if( i.key == null )
 			error("Table is missing unique id, use either SId or @:id", c.pos);
-		cache.set(cname, i);
+		g.cache.set(cname, i);
 		return i;
 	}
 
@@ -372,16 +382,7 @@ class SpodMacros {
 			}
 		default:
 		}
-		var meth = switch( t ) {
-		case DId, DInt, DUId, DUInt, DEncoded, DFlags(_), DTinyInt: "quoteInt";
-		case DBigId, DBigInt, DSingle, DFloat: "quoteFloat";
-		case DBool: "quoteBool";
-		case DString(_), DTinyText, DSmallText, DText, DSerialized: "quoteString";
-		case DDate, DDateTime: "quoteDate";
-		case DSmallBinary, DLongBinary, DBinary, DBytes(_), DNekoSerialized: "quoteBytes";
-		case DInterval, DNull: throw "assert";
-		};
-		return { expr : ECall( { expr : EField(manager, meth), pos : v.pos }, [v]), pos : v.pos }
+		return { expr : ECall( { expr : EField(manager, "quoteAny"), pos : v.pos }, [ensureType(v,t)]), pos : v.pos }
 	}
 
 	inline function sqlAddValue( sql : Expr, v : Expr, t : SpodType ) {
@@ -420,6 +421,7 @@ class SpodMacros {
 	}
 
 	function convertType( t : SpodType ) {
+		var pack = [];
 		return TPath( {
 			name : switch( unifyClass(t) ) {
 			case 0: "Int";
@@ -427,10 +429,10 @@ class SpodMacros {
 			case 2: "Bool";
 			case 3: "String";
 			case 4: "Date";
-			case 5: "haxe.io.Bytes";
+			case 5: pack = ["haxe", "io"];  "Bytes";
 			default: throw "assert";
 			},
-			pack : [],
+			pack : pack,
 			params : [],
 			sub : null,
 		});
@@ -472,8 +474,24 @@ class SpodMacros {
 		return { sql : makeOp(op, r1.sql, r2.sql, pos), t : DInt, n : r1.n || r2.n };
 	}
 
-	function buildEq( eq, e1, e2, pos ) {
-		var r1 = buildCond(e1);
+	function buildEq( eq, e1 : Expr, e2, pos ) {
+		var r1 = null;
+		switch( e1.expr ) {
+		case EConst(c):
+			switch( c ) {
+			case CIdent(i):
+				if( i.charCodeAt(0) == "$".code ) {
+					var tmp = { field : i.substr(1), expr : e2 };
+					var f = getField(tmp);
+					r1 = { sql : makeString(tmp.field, e1.pos), t : f.t, n : f.isNull };
+					e2 = tmp.expr;
+				}
+			default:
+			}
+		default:
+		}
+		if( r1 == null )
+			r1 = buildCond(e1);
 		var r2 = buildCond(e2);
 		if( r2.t == DNull ) {
 			if( !r1.n )
@@ -501,6 +519,29 @@ class SpodMacros {
 		return { sql : sqlQuoteValue(cond, d), t : d, n : isNull };
 	}
 
+	function getField( f : { field : String, expr : Expr } ) {
+		var fi = inf.hfields.get(f.field);
+		if( fi == null ) {
+			for( r in inf.relations )
+				if( r.prop == f.field ) {
+					var path = r.type.split(".");
+					var p = f.expr.pos;
+					path.push("manager");
+					var first = path.shift();
+					var mpath = { expr : EConst(first.charCodeAt(0) <= 'Z'.code ? CType(first) : CIdent(first)), pos : p };
+					for( e in path )
+						mpath = { expr : e.charCodeAt(0) <= 'Z'.code ? EType(mpath, e) : EField(mpath, e), pos : p };
+					var m = getManagerInfos(typeof(mpath), p);
+					var getid = { expr : ECall( { expr : EField(mpath, "unsafeGetId"), pos : p }, [f.expr]), pos : p };
+					f.field = r.key;
+					f.expr = ensureType(getid, m.inf.hfields.get(m.inf.key[0]).t);
+					return inf.hfields.get(r.key);
+				}
+			error("No database field '" + f.field+"'", f.expr.pos);
+		}
+		return fi;
+	}
+
 	function buildCond( cond : Expr ) {
 		var sql = null;
 		var p = cond.pos;
@@ -510,8 +551,7 @@ class SpodMacros {
 			var sql = makeString("(", p);
 			var fields = new Hash();
 			for( f in fl ) {
-				var fi = current.hfields.get(f.field);
-				if( fi == null ) error("No database field " + f.field, p);
+				var fi = getField(f);
 				if( first )
 					first = false;
 				else
@@ -609,7 +649,7 @@ class SpodMacros {
 			case CIdent(n), CType(n):
 				if( n.charCodeAt(0) == "$".code ) {
 					n = n.substr(1);
-					var f = current.hfields.get(n);
+					var f = inf.hfields.get(n);
 					if( f == null ) error("Unknown database field '" + n + "'", p);
 					return { sql : makeString(f.name, p), t : f.t, n : f.isNull };
 				}
@@ -629,7 +669,7 @@ class SpodMacros {
 				switch(co) {
 				case CIdent(t), CType(t):
 					if( t.charCodeAt(0) == '$'.code ) {
-						var f = functions.get(t.substr(1));
+						var f = g.functions.get(t.substr(1));
 						if( f == null ) error("Unknown method " + t, c.pos);
 						if( f.params.length != pl.length ) error("Function " + f.name + " requires " + f.params.length + " parameters", p);
 						var parts = f.sql.split("$");
@@ -689,64 +729,45 @@ class SpodMacros {
 			return { sql : { expr : EIf(e, r1.sql, r2.sql), pos : p }, t : r1.t, n : r1.n || r2.n };
 		case EIn(e, v):
 			var e = buildCond(e);
-			switch( unifyClass(e.t) ) {
-			case 0: // int
-				return { sql : { expr : ECall( { expr : EField(manager, "quoteIntList"), pos : p }, [e.sql, v]), pos : p }, t : DBool, n : e.n };
-			case 3: // string
-				return { sql : { expr : ECall( { expr : EField(manager, "quoteStringList"), pos : p }, [e.sql, v]), pos : p }, t : DBool, n : e.n };
-			default:
-				error("'in' operator not supported for type " + typeStr(e.t), e.sql.pos);
-			}
+			var t = TPath({
+				pack : [],
+				name : "Iterable",
+				params : [TPType(convertType(e.t))],
+				sub : null,
+			});
+			return { sql : { expr : ECall( { expr : EField(manager, "quoteList"), pos : p }, [e.sql, { expr : ECheckType(v,t), pos : p } ]), pos : p }, t : DBool, n : e.n };
 		default:
+			return buildDefault(cond);
 		}
 		error("Unsupported expression", p);
 		return null;
 	}
 
 	function ensureType( e : Expr, rt : SpodType ) {
-		var t = typeof(e);
-		switch( t ) {
-		case TMono(_):
-			// pseudo-cast
-			return { expr : EBlock([
-				{ expr : EVars([ { name : "__tmp", type : convertType(rt), expr : e } ]), pos : e.pos },
-				{ expr : EConst(CIdent("__tmp")), pos : e.pos },
-			]), pos : e.pos };
-		default:
-			var d = try makeType(t) catch( _ : String ) try makeType(follow(t)) catch( _ : String ) throw BuildError.EExpr(sqlQuoteValue(e,rt)); // will produce an error
-			unify(d, rt, e.pos);
-			return e;
-		}
+		return { expr : ECheckType(e, convertType(rt)), pos : e.pos };
 	}
 
 	function checkKeys( econd : Expr ) {
 		var p = econd.pos;
 		switch( econd.expr ) {
 		case EObjectDecl(fl):
-			var key = current.key.copy();
+			var key = inf.key.copy();
 			for( f in fl ) {
-				var fi = current.hfields.get(f.field);
-				if( fi == null ) error("No database field " + f.field, p);
-				if( !key.remove(f.field) ) {
-					if( Lambda.has(current.key, f.field) )
-						error("Duplicate field " + f.field, p);
+				var fi = getField(f);
+				if( !key.remove(fi.name) ) {
+					if( Lambda.has(inf.key, fi.name) )
+						error("Duplicate field " + fi.name, p);
 					else
-						error("Field " + f.field + " is not part of table key (" + current.key.join(",") + ")", p);
+						error("Field " + f.field + " is not part of table key (" + inf.key.join(",") + ")", p);
 				}
 				f.expr = ensureType(f.expr, fi.t);
 			}
+			return econd;
 		default:
-			if( current.key.length > 1 )
-				error("You can't use a single value on a table with multiple keys (" + current.key.join(",") + ")", p);
-			var fi = current.hfields.get(current.key[0]);
-			var t = typeof(econd);
-			switch( t ) {
-			case TMono(_):
-				// will be unified by dynamicGet
-			default:
-				var d = try makeType(t) catch( e : String ) try makeType(follow(t)) catch( e : String ) throw BuildError.EExpr(sqlQuoteValue(econd, fi.t));
-				unify(d, fi.t, p);
-			}
+			if( inf.key.length > 1 )
+				error("You can't use a single value on a table with multiple keys (" + inf.key.join(",") + ")", p);
+			var fi = inf.hfields.get(inf.key[0]);
+			return ensureType(econd, fi.t);
 		}
 	}
 
@@ -755,7 +776,7 @@ class SpodMacros {
 		case EConst(c):
 			switch( c ) {
 			case CIdent(t), CType(t):
-				if( !current.hfields.exists(t) )
+				if( !inf.hfields.exists(t) )
 					error("Unknown database field", e.pos);
 				return quoteField(t);
 			default:
@@ -853,10 +874,10 @@ class SpodMacros {
 					default: [makeIdent(o.expr)];
 					}
 					for( f in fields )
-						if( !current.hfields.exists(f) )
+						if( !inf.hfields.exists(f) )
 							error("Unknown field " + f, o.expr.pos);
 					var idx = fields.join(",");
-					if( !Lambda.exists(current.indexes, function(i) return i.keys.join(",") == idx) && !Lambda.exists(current.relations,function(r) return r.key == idx) )
+					if( !Lambda.exists(inf.indexes, function(i) return i.keys.join(",") == idx) && !Lambda.exists(inf.relations,function(r) return r.key == idx) )
 						error("These fields are not indexed", o.expr.pos);
 					opt.forceIndex = idx;
 				default:
@@ -874,12 +895,7 @@ class SpodMacros {
 		case TInst(c, _): if( c.toString() == "sys.db.Object" ) return null; c;
 		default: return null;
 		};
-		var i = inst;
-		if( i == null ) {
-			i = new SpodMacros();
-			inst = i;
-		}
-		return i.getSpodInfos(c);
+		return new SpodMacros(c);
 	}
 
 
@@ -903,11 +919,11 @@ class SpodMacros {
 					}
 					if( cur == null || c.meta.has(":skip") )
 						continue;
-					var inf = getInfos(t);
+					var inst = getInfos(t);
 					var s = new haxe.Serializer();
 					s.useEnumIndex = true;
 					s.useCache = true;
-					s.serialize(inf);
+					s.serialize(inst.inf);
 					c.meta.add("rtti", [ { expr : EConst(CString(s.toString())), pos : c.pos } ], c.pos);
 				default:
 				}
@@ -915,7 +931,7 @@ class SpodMacros {
 		return null;
 	}
 
-	static function getManagerInfos( t : haxe.macro.Type ) {
+	static function getManagerInfos( t : haxe.macro.Type, pos ) {
 		var param = null;
 		switch( t ) {
 		case TInst(c, p):
@@ -934,19 +950,18 @@ class SpodMacros {
 				param = p[0];
 		default:
 		}
-		var inf = if( param == null ) null else getInfos(param);
-		if( inf == null )
+		var inst = if( param == null ) null else getInfos(param);
+		if( inst == null )
 			Context.error("This method must be called from a specific Manager", Context.currentPos());
-		return inf;
+		inst.initManager(pos);
+		return inst;
 	}
 
 	static function buildSQL( em : Expr, econd : Expr, prefix : String, ?eopt : Expr ) {
 		var pos = Context.currentPos();
-		var inf = getManagerInfos(Context.typeof(em));
-		var sql = { expr : EConst(CString(prefix + " " + inst.quoteField(inf.name))), pos : econd.pos };
-		inst.current = inf;
-		inst.initManager(pos);
-		var r = try inst.buildCond(econd) catch( e : BuildError ) switch( e ) { case EExpr(e): return e; };
+		var inst = getManagerInfos(Context.typeof(em),pos);
+		var sql = { expr : EConst(CString(prefix + " " + inst.quoteField(inst.inf.name))), pos : econd.pos };
+		var r = inst.buildCond(econd);
 		if( r.t != DBool ) Context.error("Expression should be a condition", econd.pos);
 		if( eopt != null && !Type.enumEq(eopt.expr, EConst(CIdent("null"))) ) {
 			var opt = inst.buildOptions(eopt);
@@ -961,7 +976,7 @@ class SpodMacros {
 				}
 			}
 			if( opt.forceIndex != null )
-				sql = inst.sqlAddString(sql, " FORCE INDEX (" + inf.name+"_"+opt.forceIndex+")");
+				sql = inst.sqlAddString(sql, " FORCE INDEX (" + inst.inf.name+"_"+opt.forceIndex+")");
 		}
 		sql = inst.sqlAddString(sql, " WHERE ");
 		var sql = inst.sqlAdd(sql, r.sql, sql.pos);
@@ -973,10 +988,8 @@ class SpodMacros {
 
 	public static function macroGet( em : Expr, econd : Expr, elock : Expr ) {
 		var pos = Context.currentPos();
-		var inf = getManagerInfos(Context.typeof(em));
-		inst.current = inf;
-		inst.initManager(pos);
-		try inst.checkKeys(econd) catch( e : BuildError ) switch( e ) { case EExpr(e): return e; };
+		var inst = getManagerInfos(Context.typeof(em),pos);
+		econd = inst.checkKeys(econd);
 		switch( econd.expr ) {
 		case EObjectDecl(_):
 			return { expr : ECall({ expr : EField(em,"unsafeGetWithKeys"), pos : pos },[econd,elock]), pos : pos };
