@@ -334,10 +334,11 @@ function _hx_get_object_vars($o) {
 	if(isset($o->»dynamics))
 		$a = array_merge($a, array_keys($o->»dynamics));
 	$arr = array();
-	while($k = current($a)) {
+	for($i=0;$i<count($a); $i++)
+	{
+		$k = '' . $a[$i];
 		if(substr($k, 0, 1) != '»')
 			$arr[] = $k;
-		next($a);
 	}
 	return $arr;
 }
