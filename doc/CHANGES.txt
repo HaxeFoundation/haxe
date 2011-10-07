@@ -5,7 +5,8 @@
 	flash9 : fixed -D swfprotected with swc output
 	neko : added ~ implementation
 	js : upgraded jquery version
-	spod macros : added "in" operator
+	sys : added "in" operator for spod macros
+	macro : added ECheckType
 
 2011-09-25: 2.08
 	js : added js.JQuery

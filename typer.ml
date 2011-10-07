@@ -1739,6 +1739,10 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			raise (Display t)
 		| _ ->
 			error "Not a class" p)
+	| ECheckType (e,t) ->
+		let e = type_expr ctx ~need_val e in
+		unify ctx e.etype (Typeload.load_complex_type ctx p t) e.epos;
+		e
 
 and type_call ctx e el p =
 	match e, el with

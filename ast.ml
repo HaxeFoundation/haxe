@@ -190,6 +190,7 @@ and expr_def =
 	| EDisplay of expr * bool
 	| EDisplayNew of type_path
 	| ETernary of expr * expr * expr
+	| ECheckType of expr * complex_type
 
 and expr = expr_def * pos
 

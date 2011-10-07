@@ -3150,6 +3150,8 @@ and encode_expr e =
 				27, [encode_path t]
 			| ETernary (econd,e1,e2) ->
 				28, [loop econd;loop e1;loop e2]
+			| ECheckType (e,t) ->
+				29, [loop e; encode_type t]
 		in
 		enc_obj [
 			"pos", encode_pos p;
@@ -3391,6 +3393,8 @@ let decode_expr v =
 			EDisplayNew (decode_path t)
 		| 28, [e1;e2;e3] ->
 			ETernary (loop e1,loop e2,loop e3)
+		| 29, [e;t] ->
+			ECheckType (loop e, decode_ctype t)
 		| _ ->
 			raise Invalid_expr
 	in
