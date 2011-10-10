@@ -40,6 +40,7 @@ class TableCreate {
 		case DString(n): "VARCHAR("+n+")";
 		case DDate: "DATE";
 		case DDateTime: "DATETIME";
+		case DTimeStamp: "TIMESTAMP DEFAULT 0";
 		case DTinyText: "TINYTEXT";
 		case DSmallText: "TEXT";
 		case DText, DSerialized: "MEDIUMTEXT";

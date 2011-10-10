@@ -148,7 +148,7 @@ class Manager<T : Object> {
 						Reflect.setField(x, f, "");
 					case DSmallBinary, DNekoSerialized, DLongBinary, DBytes(_), DBinary:
 						Reflect.setField(x, f, haxe.io.Bytes.alloc(0));
-					case DDate, DDateTime:
+					case DDate, DDateTime, DTimeStamp:
 						// default date might depend on database
 					case DId, DUId, DBigId, DNull, DInterval, DEncoded:
 						// no default value for these

@@ -59,6 +59,9 @@ typedef SDate = Date
 /** mysql DateTime **/
 typedef SDateTime = Date
 
+/** mysql Timestamp **/
+typedef STimeStamp = Date
+
 /** TinyText (up to 255 bytes) **/
 typedef STinyText = String
 

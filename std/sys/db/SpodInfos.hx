@@ -37,6 +37,7 @@ enum SpodType {
 	DString( n : Int );
 	DDate;
 	DDateTime;
+	DTimeStamp;
 	DTinyText;
 	DSmallText;
 	DText;

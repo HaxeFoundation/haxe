@@ -113,6 +113,15 @@ class SpodMacros {
 		return null;
 		#end
 	}
+	
+	public dynamic function getManager( t : haxe.macro.Type, p : Position ) : SpodMacros {
+		#if macro
+		return getManagerInfos(t, p);
+		#else
+		throw "not implemented";
+		return null;
+		#end
+	}
 
 	function makeInt( t : haxe.macro.Type ) {
 		switch( t ) {
@@ -395,7 +404,7 @@ class SpodMacros {
 		case DBigId, DBigInt, DSingle, DFloat: 1;
 		case DBool: 2;
 		case DString(_), DTinyText, DSmallText, DText, DSerialized: 3;
-		case DDate, DDateTime: 4;
+		case DDate, DDateTime, DTimeStamp: 4;
 		case DSmallBinary, DLongBinary, DBinary, DBytes(_), DNekoSerialized: 5;
 		case DInterval: 6;
 		case DNull: 7;
@@ -531,7 +540,7 @@ class SpodMacros {
 					var mpath = { expr : EConst(first.charCodeAt(0) <= 'Z'.code ? CType(first) : CIdent(first)), pos : p };
 					for( e in path )
 						mpath = { expr : e.charCodeAt(0) <= 'Z'.code ? EType(mpath, e) : EField(mpath, e), pos : p };
-					var m = getManagerInfos(typeof(mpath), p);
+					var m = getManager(typeof(mpath),p);
 					var getid = { expr : ECall( { expr : EField(mpath, "unsafeGetId"), pos : p }, [f.expr]), pos : p };
 					f.field = r.key;
 					f.expr = ensureType(getid, m.inf.hfields.get(m.inf.key[0]).t);
