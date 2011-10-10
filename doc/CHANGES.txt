@@ -8,6 +8,7 @@
 	sys : added "in" operator for spod macros, added relation access in expressions
 	macro : added ECheckType
 	macro : added TLazy for not-yet-typed class fields
+	js/php/neko : added haxe.web.Request
 
 2011-09-25: 2.08
 	js : added js.JQuery
