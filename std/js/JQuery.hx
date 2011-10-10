@@ -121,6 +121,7 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	function parent( ?selector : String ) : JQuery;
 	function parents( ?selector : String ) : JQuery;
 	function parentsUntil( ?selector : String ) : JQuery;
+	@:overload(function(value:js.Dom.HtmlDom):js.JQuery{})
 	function not( selector : String ) : JQuery;
 	function prev( ?selector : String ) : JQuery;
 	function prevAll( ?selector : String ) : JQuery;
