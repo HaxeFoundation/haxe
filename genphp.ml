@@ -1889,7 +1889,7 @@ let generate_inline_method ctx c m =
 	(* blocks *)
 	if ctx.com.debug then begin
 		(*--php-prefix*)
-		print_endline (s_path_haxe c.cl_path);
+(*		print_endline (s_path_haxe c.cl_path); *)
 		spr ctx "$»spos = $GLOBALS['%s']->length";
 		newline ctx;
 	end;
