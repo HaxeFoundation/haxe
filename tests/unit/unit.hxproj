@@ -1,14 +1,16 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<project>
+<project version="2">
   <!-- Output SWF options -->
   <output>
-    <movie disabled="False" />
+    <movie outputType="Application" />
     <movie input="" />
     <movie path="unit8.swf" />
     <movie fps="30" />
     <movie width="300" />
     <movie height="300" />
     <movie version="8" />
+    <movie minorVersion="0" />
+    <movie platform="Flash Player" />
     <movie background="#FFFFFF" />
   </output>
   <!-- Other classes to be compiled into your SWF -->
@@ -62,4 +64,6 @@
     <option testMovie="OpenDocument" />
     <option testMovieCommand="http://dev.unit-tests/unit.html" />
   </options>
+  <!-- Plugin storage -->
+  <storage />
 </project>

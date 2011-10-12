@@ -312,4 +312,13 @@ class TestMisc extends Test {
 		eq(b.toString(), "-451.456nulltruefalseHello!laR");
 	}
 	
+	#if !macro
+	function testFormat()
+	{
+		var x = 5;
+		var y = 6;
+		eq(Std.format("$x${x+y}"), "511");
+	}
+	#end
+	
 }

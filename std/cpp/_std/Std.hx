@@ -48,4 +48,8 @@
 		return untyped __global__.rand() % x;
 	}
 
+	@:macro public static function format( fmt : haxe.macro.Expr.ExprRequire<String> ) : haxe.macro.Expr.ExprRequire<String> {
+		return haxe.macro.Format.format(fmt);
+	}
+
 }

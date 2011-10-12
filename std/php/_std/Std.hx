@@ -53,4 +53,8 @@
 	public static function random( x : Int ) : Int {
 		return untyped __call__("mt_rand", 0, x-1);
 	}
+
+	@:macro public static function format( fmt : haxe.macro.Expr.ExprRequire<String> ) : haxe.macro.Expr.ExprRequire<String> {
+		return haxe.macro.Context.format(fmt);
+	}
 }

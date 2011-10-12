@@ -56,6 +56,10 @@
 		return untyped Math.floor(Math.random()*x);
 	}
 
+	@:macro public static function format( fmt : haxe.macro.Expr.ExprRequire<String> ) : haxe.macro.Expr.ExprRequire<String> {
+		return haxe.macro.Context.format(fmt);
+	}
+
 	static function __init__() : Void untyped {
 		String.prototype.__class__ = String;
 		String.__name__ = ["String"];

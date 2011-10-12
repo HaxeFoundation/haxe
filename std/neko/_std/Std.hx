@@ -60,6 +60,10 @@
 		return untyped Math._rand_int(Math.__rnd,x);
 	}
 
+	@:macro public static function format( fmt : haxe.macro.Expr.ExprRequire<String> ) : haxe.macro.Expr.ExprRequire<String> {
+		return haxe.macro.Format.format(fmt);
+	}
+
 	static function __init__() : Void untyped {
 		Int = { __name__ : ["Int"] };
 		Float = { __name__ : ["Float"] };
