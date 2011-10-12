@@ -207,6 +207,10 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	// Events
 	function blur( ?callb : JqEvent -> Void ) : JQuery;
 	function change( ?callb : JqEvent -> Void ) : JQuery;
+	
+	@:overload(function(callb:Void->Void):js.JQuery { } )
+	@:overload(function(callb:js.JQuery.JqEvent->Void):js.JQuery{})
+	@:overload(function(callb:Void->Bool):js.JQuery{})
 	function click( ?callb : JqEvent -> Void ) : JQuery;
 	function dblclick( ?callb : JqEvent -> Void ) : JQuery;
 	function error( ?callb : JqEvent -> Void ) : JQuery;
