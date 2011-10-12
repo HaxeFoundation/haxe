@@ -97,6 +97,12 @@ class Format {
 				var len = i - start;
 				var ident = str.substr(start, len);
 				add( { expr : EConst(CIdent(ident)), pos : make(len) } );
+			} else if( c == '$'.code ) {
+				start = i++;
+				continue;
+			} else {
+				start = i - 1;
+				continue;
 			}
 			start = i;
 		}
