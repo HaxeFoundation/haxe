@@ -80,6 +80,7 @@ type context = {
 	debugger : bool;
 	swc : bool;
 	boot : path;
+	swf_protected : bool;
 	mutable debug : bool;
 	mutable last_line : int;
 	mutable last_file : string;
@@ -1954,7 +1955,7 @@ let generate_class ctx c =
 		in
 		let rec loop_meta = function
 			| [] ->
-				if not f.cf_public && Common.defined ctx.com "swf-protected" then
+				if not f.cf_public && ctx.swf_protected then
 					protect()
 				else
 					ident f.cf_name
@@ -1981,11 +1982,11 @@ let generate_class ctx c =
 				hlf_metas = extract_meta f.cf_meta;
 			} :: acc
 	) c.cl_fields [] in
-	let fields = if c.cl_path <> ctx.boot then fields else
+	let fields = if c.cl_path <> ctx.boot then fields else begin
 		{
 			hlf_name = make_name {
 				cf_name = "init";
-				cf_public = false; 
+				cf_public = ctx.swc && ctx.swf_protected; 
 				cf_meta = [];
 				cf_doc = None;
 				cf_pos = c.cl_pos;
@@ -2003,7 +2004,7 @@ let generate_class ctx c =
 			});
 			hlf_metas = None;
 		} :: fields
-	in
+	end in
 	let st_field_count = ref 0 in
 	let st_meth_count = ref 0 in
 	let statics = List.map (fun f ->
@@ -2209,6 +2210,7 @@ let generate com boot_name =
 		boot = ([],boot_name);
 		debugger = Common.defined com "fdb";
 		swc = Common.defined com "swc";
+		swf_protected = Common.defined com "swf_protected";
 		code = DynArray.create();
 		locals = PMap.empty;
 		infos = default_infos();

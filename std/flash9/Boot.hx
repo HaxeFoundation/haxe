@@ -77,7 +77,7 @@ class Boot extends flash.display.MovieClip {
 		start();
 	}
 
-	function init() {
+	#if (swc && swf_protected) public #end function init() {
 		throw "assert";
 	}
 
