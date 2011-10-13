@@ -1009,6 +1009,7 @@ let init_class ctx c p herits fields =
 			) fd.f_args in
 			let t = TFun (fun_args args,ret) in
 			let constr = (name = "new") in
+			if constr then Hashtbl.add ctx.g.constructs c.cl_path (f.cff_access,fd);
 			if constr && c.cl_interface then error "An interface cannot have a constructor" p;
 			if c.cl_interface && not stat && fd.f_expr <> None then error "An interface method cannot have a body" p;
 			if constr then (match fd.f_type with
@@ -1164,6 +1165,9 @@ let init_class ctx c p herits fields =
 		define a default inherited constructor.
 		This is actually pretty tricky since we can't assume that the constructor of the
 		superclass has been defined yet because type structure is not stabilized wrt recursion.
+
+		Generating a constructor after typing could be possible but is quite hard because we don't have the
+		default values for arguments in the function type
 	*)
 	let rec define_constructor ctx c =
 		try
