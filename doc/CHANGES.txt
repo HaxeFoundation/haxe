@@ -10,6 +10,7 @@
 	macro : added TLazy for not-yet-typed class fields
 	js/php/neko : added haxe.web.Request
 	all : added Std.format
+	js : trace() output fallback on console.log if no id="haxe:trace"
 
 2011-09-25: 2.08
 	js : added js.JQuery
