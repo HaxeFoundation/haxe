@@ -155,6 +155,8 @@ class Boot extends flash.display.MovieClip {
 			var first = true;
 			for( i in 0...k.length ) {
 				var key = k[i];
+				if( key == "toString" )
+					try return v.toString() catch( e : Dynamic ) {}
 				if( first )
 					first = false;
 				else

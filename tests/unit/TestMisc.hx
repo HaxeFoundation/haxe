@@ -312,6 +312,12 @@ class TestMisc extends Test {
 		eq(b.toString(), "-451.456nulltruefalseHello!laR");
 	}
 	
+	function testToString():Void
+	{
+		var x = { toString : function() return "foo" };
+		eq( Std.string(x), "foo" );
+	}
+	
 	#if !macro
 	function testFormat()
 	{

@@ -240,7 +240,9 @@ and gen_expr ctx e =
 	| TParenthesis e ->
 		(EParenthesis (gen_expr ctx e),p)
 	| TObjectDecl fl ->
-		(EObject (List.map (fun (f,e) -> f , gen_expr ctx e) fl),p)
+		let hasToString = ref false in
+		let fl = List.map (fun (f,e) -> if f = "toString" then hasToString := (match follow e.etype with TFun ([],_) -> true | _ -> false); f , gen_expr ctx e) fl in
+		(EObject (if !hasToString then ("__string",ident p "@default__string") :: fl else fl),p)
 	| TArrayDecl el ->
 		call p (field p (ident p "Array") "new1") [array p (List.map (gen_expr ctx) el); int p (List.length el)]
 	| TCall (e,el) ->
@@ -473,12 +475,7 @@ let gen_class ctx c =
 	let fstring = (try
 		let f = PMap.find "toString" c.cl_fields in
 		match follow f.cf_type with
-		| TFun ([],_) ->
-			["__string",(EFunction ([],(EBlock [
-				EVars ["@s",Some (call p (field p (this p) "toString") [])] ,p;
-				EIf ((EBinop ("!=",call p (builtin p "typeof") [ident p "@s"],builtin p "tobject"),p),(EReturn (Some (null p)),p),None),p;
-				EReturn (Some (field p (ident p "@s") "__s")),p;
-			],p)),p)]
+		| TFun ([],_) -> ["__string",ident p "@default__string"]
 		| _ -> []
 	with Not_found ->
 		[]
@@ -721,6 +718,11 @@ let header() =
 		"@serialize",func [] (call p (fields ["neko";"Boot";"__serialize"]) [this p]);
 		"@tag_serialize",func [] (call p (fields ["neko";"Boot";"__tagserialize"]) [this p]);
 		"@lazy_error",func ["e"] (call p (builtin p "varargs") [func ["_"] (call p (builtin p "throw") [ident p "e"])]);
+		"@default__string",func [] (EBlock [
+			EVars ["@s",Some (call p (field p (this p) "toString") [])] ,p;
+			EIf ((EBinop ("!=",call p (builtin p "typeof") [ident p "@s"],builtin p "tobject"),p),(EReturn (Some (null p)),p),None),p;
+			EReturn (Some (field p (ident p "@s") "__s")),p;
+		],p)
 	] in
 	let inits = inits @ List.map (fun nargs ->
 		let args = Array.to_list (Array.init nargs (fun i -> Printf.sprintf "%c" (char_of_int (int_of_char 'a' + i)))) in
