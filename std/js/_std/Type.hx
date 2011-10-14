@@ -115,7 +115,8 @@ enum ValueType {
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped {
-		return __new__(cl,__js__("$_"));
+		__js__("function empty() {}; empty.prototype = cl.prototype");
+		return __js__("new empty()");
 	}
 
 	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T {
@@ -137,7 +138,8 @@ enum ValueType {
 	}
 
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
-		var a = Reflect.fields(untyped c.prototype);
+		var a = [];
+		untyped __js__("for(var i in c.prototype) a.push(i)");
 		a.remove("__class__");
 		return a;
 	}

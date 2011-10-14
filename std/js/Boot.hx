@@ -59,18 +59,6 @@ class Boot {
 		}
 	}
 
-	private static function __closure(o,f) {
-		untyped {
-			var m = o[f];
-			if( m == null )
-				return null;
-			var f = function() { return m.apply(o,arguments); };
-			f.scope = o;
-			f.method = m;
-			return f;
-		}
-	}
-
 	private static function __string_rec(o,s) {
 		untyped {
 			if( o == null )
@@ -254,7 +242,14 @@ class Boot {
 				}
 				return oldsub.apply(__this__,[pos,len]);
 			};
-			__js__("$closure = js.Boot.__closure");
+			Function.prototype["$bind"] = function(o){ 
+				var f = function(){ 
+					return f.method.apply(f.scope, arguments); 
+				}
+				f.scope = o;
+				f.method = __this__;
+				return f;
+			}
 		}
 	}
 

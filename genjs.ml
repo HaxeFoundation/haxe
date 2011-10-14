@@ -71,6 +71,11 @@ let newline ctx =
 	| '}' | '{' | ':' when not ctx.separator -> print ctx "\n%s" ctx.tabs
 	| _ -> print ctx ";\n%s" ctx.tabs
 
+let newprop ctx =
+	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
+	| '{' -> print ctx "\n%s" ctx.tabs
+	| _ -> print ctx "\n%s," ctx.tabs
+
 let semicolon ctx =
 	match Buffer.nth ctx.buf (Buffer.length ctx.buf - 1) with
 	| '}' when not ctx.separator -> ()
@@ -227,11 +232,16 @@ and gen_expr ctx e =
 		gen_value ctx x;
 		spr ctx (field s)
 	| TClosure (x,s) ->
-		spr ctx "$closure(";
-		gen_value ctx x;
-		spr ctx ",";
-		gen_constant ctx e.epos (TString s);
-		spr ctx ")";
+		(match x.eexpr with
+		| TConst _ | TLocal _ ->  
+			gen_value ctx x; 
+			print ctx ".%s.$bind(" s; 
+			gen_value ctx x; 
+			print ctx ")"
+		| _ -> 
+			print ctx "($_=";
+			gen_value ctx x;
+			print ctx ",$_.%s.$bind($_))" s)
 	| TTypeExpr t ->
 		spr ctx (ctx.type_accessor t)
 	| TParenthesis e ->
@@ -636,14 +646,16 @@ let generate_package_create ctx (p,_) =
 			Hashtbl.add ctx.packages (p :: acc) ();
 			(match acc with
 			| [] ->
-				print ctx "if(typeof %s=='undefined') %s = {}" p p;
+				print ctx "if(typeof %s=='undefined') var %s = {}" p p;
 			| _ ->
 				let p = String.concat "." (List.rev acc) ^ (field p) in
 		        print ctx "if(!%s) %s = {}" p p);
 			newline ctx;
 			loop (p :: acc) l
 	in
-	loop [] p
+	match p with
+	| [] -> print ctx "var "
+	| _ -> loop [] p
 
 let check_field_name c f =
 	match f.cf_name with
@@ -671,29 +683,23 @@ let gen_class_static_field ctx c f =
 
 let gen_class_field ctx c f =
 	check_field_name c f;
-	print ctx "%s.prototype%s = " (s_path ctx c.cl_path) (field f.cf_name);
+	newprop ctx;
+	print ctx "%s: " (anon_field f.cf_name);
 	match f.cf_expr with
 	| None ->
 		print ctx "null";
-		newline ctx
 	| Some e ->
 		ctx.curmethod <- (f.cf_name,false);
 		ctx.id_counter <- 0;
 		gen_value ctx e;
-		ctx.separator <- false;
-		newline ctx
+		ctx.separator <- false
 
 let gen_constructor ctx e =
 	match e.eexpr with
 	| TFunction f  ->
 		let args  = List.map arg_name f.tf_args in
-		let a, args = (match args with [] -> "p" , ["p"] | x :: _ -> x, args) in
 		print ctx "function(%s) {" (String.concat "," (List.map ident args));
 		let bend = open_block ctx in
-		if Codegen.constructor_side_effects f.tf_expr then begin
-			newline ctx;
-			print ctx "if( %s === $_ ) return" a;
-		end;
 		gen_block ctx (fun_block ctx f e.epos);
 		bend();
 		newline ctx;
@@ -713,24 +719,33 @@ let generate_class ctx c =
 	newline ctx;
 	print ctx "%s.__name__ = [%s]" p (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst c.cl_path @ [snd c.cl_path])));
 	newline ctx;
+	(match c.cl_implements with
+	| [] -> ()
+	| l ->
+		print ctx "%s.__interfaces__ = [%s]" p (String.concat "," (List.map (fun (i,_) -> s_path ctx i.cl_path) l));
+		newline ctx;
+	);
+
+	List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
+
 	(match c.cl_super with
-	| None -> ()
+	| None -> print ctx "%s.prototype = {" p;
 	| Some (csup,_) ->
 		let psup = s_path ctx csup.cl_path in
 		print ctx "%s.__super__ = %s" p psup;
 		newline ctx;
-		print ctx "for(var k in %s.prototype ) %s.prototype[k] = %s.prototype[k]" psup p psup;
-		newline ctx;
+		print ctx "%s.prototype = $extend(%s.prototype,{" p psup;
 	);
-	List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
+
+	let bend = open_block ctx in
 	List.iter (fun f -> match f.cf_kind with Var { v_read = AccResolve } -> () | _ -> gen_class_field ctx c f) c.cl_ordered_fields;
-	print ctx "%s.prototype.__class__ = %s" p p;
-	newline ctx;
-	match c.cl_implements with
-	| [] -> ()
-	| l ->
-		print ctx "%s.__interfaces__ = [%s]" p (String.concat "," (List.map (fun (i,_) -> s_path ctx i.cl_path) l));
-		newline ctx
+	newprop ctx;
+	print ctx "__class__: %s" p;
+	
+	bend();
+	print ctx "\n}";
+	(match c.cl_super with None -> () | _ -> print ctx ")");
+	newline ctx
 
 let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
@@ -816,16 +831,19 @@ let generate com =
 	| Some g -> g()
 	| None ->
 	let ctx = alloc_ctx com in
-	print ctx "$estr = function() { return js.Boot.__string_rec(this,''); }";
+	print ctx "var $_, $estr = function() { return js.Boot.__string_rec(this,''); }
+function $extend(from, fields) {
+	function inherit() {}; inherit.prototype = from; var proto = new inherit();
+	for (var name in fields) proto[name] = fields[name];
+	return proto;
+}";
 	newline ctx;
 	(match ctx.namespace with
 		| None -> ()
 		| Some ns ->
-			print ctx "if(typeof %s=='undefined') %s = {}" ns ns;
+			print ctx "if(typeof %s=='undefined') var %s = {}" ns ns;
 			newline ctx);
 	List.iter (generate_type ctx) com.types;
-	print ctx "$_ = {}";
-	newline ctx;
 	print ctx "js.Boot.__res = {}";
 	newline ctx;
 	(match ctx.namespace with
