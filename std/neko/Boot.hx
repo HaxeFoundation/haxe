@@ -73,7 +73,7 @@ class Boot {
 				return true;
 			switch __dollar__typeof(o) {
 			case __dollar__tint: return (cl == Int || cl == Float);
-			case __dollar__tfloat: return cl == Float;
+			case __dollar__tfloat: return cl == Float || (cl == Int && __dollar__int(o) == o);
 			case __dollar__tbool: return cl == Bool;
 			case __dollar__tobject:
 				if( cl == null )

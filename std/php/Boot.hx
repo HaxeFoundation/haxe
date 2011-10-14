@@ -15,7 +15,7 @@ function _hx_add($a, $b) {
 		return $a + $b;
 	}
 }
-		
+
 function _hx_anonymous($arr = array()) {
 	$o = new _hx_anonymous();
 	foreach($arr as $k => $v)
@@ -52,7 +52,7 @@ class _hx_array implements ArrayAccess, IteratorAggregate {
 	function iterator() {
 		return new _hx_array_iterator($this->»a);
 	}
-	
+
 	function getIterator() {
 		return $this->iterator();
 	}
@@ -367,7 +367,7 @@ function _hx_instanceof($v, $t) {
 		case 'Array'  : return is_array($v);
 		case 'String' : return is_string($v) && !_hx_is_lambda($v);
 		case 'Bool'   : return is_bool($v);
-		case 'Int'    : return is_int($v);
+		case 'Int'    : return is_int($v) || (is_float($v) && intval($v) == $v);
 		case 'Float'  : return is_float($v) || is_int($v);
 		case 'Dynamic': return true;
 		case 'Class'  : return ($v instanceof _hx_class || $v instanceof _hx_interface) && $v->__tname__ != 'Enum';
@@ -570,7 +570,7 @@ function _hx_string_rec($o, $s) {
 		{
 			if ($first && $k === 0)
 				$assoc = false;
-			$str .= ($first ? '' : ', ') . ($assoc 
+			$str .= ($first ? '' : ', ') . ($assoc
 				? _hx_string_rec($k, $s) . '=>' . _hx_string_rec($o[$k], $s)
 				: _hx_string_rec($o[$k], $s)
 			);
