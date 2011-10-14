@@ -68,11 +68,10 @@ private class Redirect {
 
 class Dispatch {
 
-	var parts : Array<String>;
-	var params : Hash<String>;
-
-	var name : String;
-	var obj : Dynamic;
+	public var parts : Array<String>;
+	public var params : Hash<String>;
+	public var name : String;
+	public var obj : Dynamic;
 
 	public function new(url:String, params) {
 		parts = url.split("/");
@@ -98,10 +97,6 @@ class Dispatch {
 		var call = { expr : ECall( { expr : EField(ethis, "runtimeGetParams"), pos : p }, [ { expr : EConst(CInt(Std.string(index))), pos : p } ]), pos : p };
 		var rt = TPath( { pack : ["haxe", "macro"], name : "MacroType", params : [TPExpr(Context.parse("haxe.web.Dispatch.getRunParam("+index+")",p))], sub : null } );
 		return { expr : EBlock([ { expr : EVars([ { name : "tmp", type : rt, expr : call } ]), pos : p }, { expr : EConst(CIdent("tmp")), pos : p } ]), pos : p };
-	}
-
-	public function setParams(p) {
-		params = p;
 	}
 
 	public dynamic function onMeta( v : String, args : Null<Array<Dynamic>> ) {
@@ -275,6 +270,7 @@ class Dispatch {
 					if( t.get().name == "Null" ) opt = true;
 				default:
 				}
+				if( r == MRBool ) opt = true;
 				args.push( { name : f.name, rule : r, opt : opt } );
 			}
 		default:
