@@ -2380,13 +2380,14 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	let constructor_type_var_list =
 		match class_def.cl_constructor with
 		| Some definition ->
-				(match  definition.cf_type with
-					| TFun (args,_) -> List.map (fun (a,_,t) -> (type_string t,a) )  args
-					| _ ->  (match definition.cf_expr with
+					(match definition.cf_expr with
 						| Some { eexpr = TFunction function_def } ->
 							List.map (fun (v,o) -> gen_arg_type_name v.v_name o v.v_type "__o_")
 									function_def.tf_args;
-						| _ -> [] )
+						| _ -> 
+							(match follow definition.cf_type with
+								| TFun (args,_) -> List.map (fun (a,_,t) -> (type_string t,a) )  args
+								| _ -> [])
 					)
 		| _ -> [] in
 	let constructor_var_list = List.map snd constructor_type_var_list in
