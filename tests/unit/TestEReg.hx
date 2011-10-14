@@ -21,7 +21,7 @@ class TestEReg extends Test {
 		eq( r.matched(0), "aaa" );
 		eq( r.matchedLeft(), "" );
 		eq( r.matchedRight(), "" );
-		eq( r.matched(1), null ); // JS/IE7 bug
+		eq( r.matched(1), null ); // JS/IE7-8 bug
 		eq( r.matched(2), "" );
 		unspec(function() r.matched(3));
 		unspec(function() r.matched(-1));
@@ -29,7 +29,7 @@ class TestEReg extends Test {
 		var r = ~/^(b)?$/;
 		t( r.match("") );
 		eq( r.matched(0), "" );
-		eq( r.matched(1), null ); // JS/IE7 bug
+		eq( r.matched(1), null ); // JS/IE7-8 bug
 		
 		t( ~/\//.match("/") );
 		
