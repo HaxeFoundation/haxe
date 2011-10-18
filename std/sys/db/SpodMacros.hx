@@ -637,6 +637,12 @@ class SpodMacros {
 			case OpNot:
 				var sql = makeString("!", p);
 				unify(r.t, DBool, e.pos);
+				switch( r.sql.expr ) {
+				case EConst(_):
+				default:
+					r.sql = sqlAddString(r.sql, ")");
+					sql = sqlAddString(sql, "(");
+				}
 				return { sql : sqlAdd(sql, r.sql, p), t : DBool, n : r.n };
 			case OpNegBits:
 				var sql = makeString("~", p);
@@ -719,7 +725,7 @@ class SpodMacros {
 							var id = makeIdent(pl[0]);
 							var idx = Lambda.indexOf(vals,id);
 							if( idx < 0 ) error("Flag should be "+vals.join(","), pl[0].pos);
-							return { sql : sqlAddString(r.sql, " AND " + (1 << idx) + " != 0"), t : DBool, n : r.n };
+							return { sql : sqlAddString(r.sql, " & " + (1 << idx) + " != 0"), t : DBool, n : r.n };
 						default:
 						}
 					}
