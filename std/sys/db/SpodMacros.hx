@@ -863,6 +863,11 @@ class SpodMacros {
 				case "orderBy":
 					var fields = switch( o.expr.expr ) {
 					case EArrayDecl(vl): Lambda.array(Lambda.map(vl, orderField));
+					case ECall(v, pl):
+						if( pl.length != 0 || !Type.enumEq(v.expr, EConst(CIdent("rand"))) )
+							[orderField(o.expr)]
+						else
+							["RAND()"];
 					default: [orderField(o.expr)];
 					};
 					opt.orderBy = fields.join(",");
