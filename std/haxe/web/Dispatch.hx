@@ -171,11 +171,14 @@ class Dispatch {
 			if( v == null ) throw DEInvalidValue;
 			var cl = Type.resolveClass(c);
 			if( cl == null ) throw "assert";
+			var o : Dynamic;
 			#if spod_macro
-			return untyped cl.manager.unsafeGet(v, lock);
+			o = untyped cl.manager.unsafeGet(v, lock);
 			#else
-			return untyped cl.manager.get(v, lock);
+			o = untyped cl.manager.get(v, lock);
 			#end
+			if( o == null ) throw DEInvalidValue;
+			return o;
 		case MROpt(r) :
 			if( v == null )
 				return null;
