@@ -71,7 +71,7 @@ class Dispatch {
 	public var parts : Array<String>;
 	public var params : Hash<String>;
 	public var name : String;
-	public var obj : Dynamic;
+	public var cfg : Config;
 
 	public function new(url:String, params) {
 		parts = url.split("/");
@@ -111,7 +111,7 @@ class Dispatch {
 		if( name == null )
 			name = "default";
 		name = resolveName(name);
-		this.obj = cfg.obj;
+		this.cfg = cfg;
 		var r : DispatchRule = Reflect.field(cfg.rules, name);
 		if( r == null ) {
 			r = Reflect.field(cfg.rules, "default");
@@ -124,7 +124,7 @@ class Dispatch {
 		var args = [];
 		loop(args, r);
 		try {
-			Reflect.callMethod(obj, Reflect.field(obj, name), args);
+			Reflect.callMethod(cfg.obj, Reflect.field(cfg.obj, name), args);
 		} catch( e : Redirect ) {
 			runtimeDispatch(cfg);
 		}
@@ -212,7 +212,7 @@ class Dispatch {
 				args.push(match(parts.shift(), r));
 		case DRMeta(r):
 			loop(args, r);
-			var c = Type.getClass(obj);
+			var c = Type.getClass(cfg.obj);
 			if( c == null ) throw "assert";
 			var m = Reflect.field(haxe.rtti.Meta.getFields(c), name);
 			if( m == null ) throw "assert";
