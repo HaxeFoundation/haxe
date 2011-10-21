@@ -160,7 +160,7 @@ class Dispatch {
 			if( v == null ) throw DEMissing;
 			return v;
 		case MRBool:
-			return v != null && v != "0" && v != "false";
+			return v != null && v != "0" && v != "false" && v != "null";
 		case MRDispatch:
 			if( v != null )
 				parts.unshift(v);
