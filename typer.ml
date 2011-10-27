@@ -282,16 +282,20 @@ let make_call ctx e params t p =
 			| _ -> raise Exit
 		) in
 		if ctx.com.display || f.cf_kind <> Method MethInline then raise Exit;
-		if not ctx.g.doinline then (match cl with Some { cl_extern = true } -> () | _ -> raise Exit);
+		let is_extern = (match cl with 
+			| Some { cl_extern = true } -> true
+			| _ when has_meta ":extern" f.cf_meta -> true
+			| _ -> false
+		) in
+		if not ctx.g.doinline && not is_extern then raise Exit;
 		ignore(follow f.cf_type); (* force evaluation *)
 		let params = List.map (ctx.g.do_optimize ctx) params in
 		(match f.cf_expr with
 		| Some { eexpr = TFunction fd } ->
 			(match Optimizer.type_inline ctx f fd ethis params t p (match cl with Some { cl_extern = true } -> true | _ -> false) with
 			| None ->
-				(match cl with
-				| Some { cl_extern = true } -> error "Inline could not be done" p
-				| _ -> raise Exit)
+				if is_extern then error "Inline could not be done" p;
+				raise Exit
 			| Some e -> e)
 		| _ ->
 			error "Recursive inline is not supported" p)
@@ -333,7 +337,7 @@ let rec acc_get ctx g p =
 			else
 				error "Recursive inline is not supported" p
 		| Some { eexpr = TFunction _ } ->
-			let chk_class c = if c.cl_extern then error "Can't create closure on an inline extern method" p in
+			let chk_class c = if c.cl_extern || has_meta ":extern" f.cf_meta then error "Can't create closure on an inline extern method" p in
 			(match follow e.etype with
 			| TInst (c,_) -> chk_class c
 			| TAnon a -> (match !(a.a_status) with Statics c -> chk_class c | _ -> ())
