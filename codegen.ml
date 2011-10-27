@@ -453,7 +453,7 @@ let on_generate ctx t =
 			c.cl_statics <- PMap.add f.cf_name f c.cl_statics;
 		end;
 		if not ctx.in_macro then List.iter (fun f ->
-			if f.cf_kind == Method MethMacro || has_meta ":extern" f.cf_meta then begin
+			if f.cf_kind = Method MethMacro || has_meta ":extern" f.cf_meta then begin
 				c.cl_statics <- PMap.remove f.cf_name c.cl_statics;
 				c.cl_ordered_statics <- List.filter (fun f2 -> f != f2) c.cl_ordered_statics;
 			end
