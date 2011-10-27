@@ -58,6 +58,7 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	function removeAttr( attr : String ) : JQuery;
 
 	@:overload(function(prop:String,value:String):js.JQuery{})
+	@:overload(function(map:{}):js.JQuery{})
 	function css( prop : String ) : String;
 
 	@:overload(function(html:String):js.JQuery{})
@@ -207,7 +208,7 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	// Events
 	function blur( ?callb : JqEvent -> Void ) : JQuery;
 	function change( ?callb : JqEvent -> Void ) : JQuery;
-	
+
 	@:overload(function(callb:Void->Void):js.JQuery { } )
 	@:overload(function(callb:js.JQuery.JqEvent->Void):js.JQuery{})
 	@:overload(function(callb:Void->Bool):js.JQuery{})
@@ -275,15 +276,8 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	//	return untyped this["map"](function() return f(cur)).get();
 	//}
 
+	// haXe addition
 	function iterator() : Iterator<JQuery>;
-
-
-	// haxe-additions
-	inline function noBubble( events : String ) : JQuery { return (cast this).bind(events, false); }
-	inline function loadURL( url : String, ?callb : Void -> Void ) : JQuery { return (cast this).load(url,callb); }
-	inline function toggleClick( ?first : Void -> Void, ?second : Void -> Void ) : JQuery { return (cast this).toggle(first, second); }
-
-	inline static function of( d : Dom.HtmlDom ) : JQuery { return new js.JQuery(cast d); }
 
 	/**
 		Return the current JQuery element (in a callback), similar to $(this) in JS.
@@ -313,10 +307,6 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 		#end
 		var q : Dynamic = window.jQuery;
 		js.JQuery = q;
-		q.fn.noBubble = q.fn.bind;
-		q.fn.loadURL = q.fn.load;
-		q.fn.toggleClick = q.fn.toggle;
-		q.of = q;
 		q.fn.iterator = function() return { pos : 0, j : __this__, hasNext : function() return __this__.pos < __this__.j.length, next : function() return $(__this__.j[__this__.pos++]) };
 	}
 }
