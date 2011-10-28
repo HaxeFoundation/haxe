@@ -313,7 +313,7 @@ try
 	Parser.display_error := (fun e p ->
 		com.error (Parser.error_msg e) p;
 	);
-	Parser.use_doc := false;
+	Parser.use_doc := !Common.display_default;
 	(try
 		let p = Sys.getenv "HAXE_LIBRARY_PATH" in
 		let rec loop = function
@@ -473,6 +473,7 @@ try
 				com.display <- true;
 				Common.display_default := true;
 				Common.define com "display";
+				Parser.use_doc := true;
 				Parser.resume_display := {
 					Ast.pfile = Common.get_full_path file;
 					Ast.pmin = pos;
