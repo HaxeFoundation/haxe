@@ -572,6 +572,7 @@ flash.ui.Multitouch.inputMode : MultitouchInputMode;
 @:require(flash10_1) static flash.ui.ContextMenu.isSupported;
 
 @:require(flash10) static flash.ui.Mouse.cursor;
+static flash.ui.Mouse.cursor : Dynamic;
 
 @:require(flash10_1) static flash.ui.Keyboard.A;
 @:require(flash10_1) static flash.ui.Keyboard.B;
@@ -1059,4 +1060,41 @@ flash.utils.ByteArray.$algorithm : CompressionAlgorithm;
 enum flash.text.TextInteractionMode;
 
 flash.text.TextField.textInteractionMode : TextInteractionMode;
+
+// 11.2
+
+enum flash.display.BitmapCompressColorSpace;
+
+@:require(flash11_2) flash.display.BitmapData.compress;
+@:require(flash11_2) flash.media.Camera.position;
+@:require(flash11_2) flash.media.Camera.copyToByteArray;
+@:require(flash11_2) flash.media.Camera.copyToVector;
+@:require(flash11_2) flash.media.Camera.drawToBitmapData;
+@:require(flash11_2) flash.media.StageVideo.attachCamera;
+@:require(flash11_2) flash.net.NetStream.dispose;
+
+@:require(flash11_2) flash.display.StageWorker;
+@:require(flash11_2) flash.display.Worker;
+@:require(flash11_2) flash.events.GameInputEvent;
+@:require(flash11_2) flash.events.ThrottleEvent;
+
+flash.events.ThrottleEvent.$type : ThrottleType;
+
+enum flash.events.ThrottleType;
+
+@:require(flash11_2) flash.ui.GameInput;
+-flash.ui.GameInput.new;
+
+@:require(flash11_2) flash.utils.Telemetry;
+
+enum flash.ui.GameInputFinger;
+enum flash.ui.GameInputHand;
+enum flash.ui.GameInputControlType;
+
+flash.ui.GameInputControl.finger : flash.ui.GameInputFinger;
+flash.ui.GameInputControl.hand : flash.ui.GameInputHand;
+flash.ui.GameInputControl.type : flash.ui.GameInputControlType;
+
+
+
 

@@ -50,4 +50,5 @@ extern class Event {
 	static var TAB_INDEX_CHANGE : String;
 	@:require(flash11) static var TEXT_INTERACTION_MODE_CHANGE : String;
 	static var UNLOAD : String;
+	static var VIDEO_FRAME : String;
 }

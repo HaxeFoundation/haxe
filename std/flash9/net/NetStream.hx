@@ -46,6 +46,7 @@ extern class NetStream extends flash.events.EventDispatcher {
 	function attachAudio(microphone : flash.media.Microphone) : Void;
 	function attachCamera(theCamera : flash.media.Camera, snapshotMilliseconds : Int = -1) : Void;
 	function close() : Void;
+	@:require(flash11_2) function dispose() : Void;
 	@:require(flash10) function onPeerConnect(subscriber : NetStream) : Bool;
 	function pause() : Void;
 	function play(?p1 : Dynamic, ?p2 : Dynamic, ?p3 : Dynamic, ?p4 : Dynamic, ?p5 : Dynamic) : Void;

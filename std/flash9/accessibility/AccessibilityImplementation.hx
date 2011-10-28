@@ -15,5 +15,7 @@ extern class AccessibilityImplementation {
 	function get_accSelection() : Array<Dynamic>;
 	function get_accState(childID : UInt) : UInt;
 	function get_accValue(childID : UInt) : String;
+	function get_selectionActiveIndex() : Dynamic;
+	function get_selectionAnchorIndex() : Dynamic;
 	function isLabeledBy(labelBounds : flash.geom.Rectangle) : Bool;
 }

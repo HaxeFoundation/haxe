@@ -543,6 +543,8 @@ let swf_ver = function
 	| 10.2 -> 11
 	| 10.3 -> 12
 	| 11. -> 13
+	| 11.1 -> 14
+	| 11.2 -> 15
 	| _ -> assert false
 
 let convert_header com (w,h,fps,bg) =
