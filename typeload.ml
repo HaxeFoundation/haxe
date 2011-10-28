@@ -650,7 +650,7 @@ let patch_class ctx c fields =
 	| Some (h,hcl) ->
 		c.cl_meta <- c.cl_meta @ hcl.tp_meta;
 		let rec loop acc = function
-			| [] -> List.rev acc
+			| [] -> acc
 			| f :: l ->
 				(* patch arguments types *)
 				(match f.cff_kind with
