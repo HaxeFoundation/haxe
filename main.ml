@@ -681,41 +681,33 @@ with
 	| Failure msg | Arg.Bad msg -> report ("Error : " ^ msg) Ast.null_pos
 	| Arg.Help msg -> print_string msg
 	| Hxml_found -> ()
-	| Typer.Display t ->
-		(*
-			documentation is currently not output even when activated
-			because the parse 'eats' it when used in "resume" mode
-		*)
+	| Typer.DisplayFields fields ->
 		let ctx = Type.print_context() in
-		(match Type.follow t with
-		| Type.TAnon a ->
-			let fields = PMap.fold (fun f acc ->
-				if not f.Type.cf_public then
-					acc
-				else
-					(f.Type.cf_name,Type.s_type ctx f.Type.cf_type,match f.Type.cf_doc with None -> "" | Some d -> d) :: acc
-			) a.Type.a_fields [] in
-			let fields = if !measure_times then begin
-				let rec loop() =
-					match !curtime with
-					| [] -> ()
-					| _ -> close_time(); loop();
-				in
-				loop();
-				let tot = ref 0. in
-				Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
-				let fields = ("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. start), "") :: fields in
-				Hashtbl.fold (fun _ t acc ->
-					("@TIME " ^ t.name, Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot), "") :: acc
-				) Common.htimers fields;
-			end else
-				fields
+		let fields = List.map (fun (name,t,doc) -> name, Type.s_type ctx t, (match doc with None -> "" | Some d -> d)) fields in
+		let fields = if !measure_times then begin
+			let rec loop() =
+				match !curtime with
+				| [] -> ()
+				| _ -> close_time(); loop();
 			in
-			report_list fields;
-		| _ ->
+			loop();
+			let tot = ref 0. in
+			Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
+			let fields = ("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. start), "") :: fields in
+			Hashtbl.fold (fun _ t acc ->
+				("@TIME " ^ t.name, Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot), "") :: acc
+			) Common.htimers fields;
+		end else
+			fields
+		in
+		report_list fields;
+	| Typer.DisplayTypes tl ->
+		let ctx = Type.print_context() in
+		List.iter (fun t ->
 			prerr_endline "<type>";
 			prerr_endline (htmlescape (Type.s_type ctx t));
-			prerr_endline "</type>");
+			prerr_endline "</type>";
+		) tl;
 		exit 0;
 	| Parser.TypePath (p,c) ->
 		(match c with

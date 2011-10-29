@@ -33,7 +33,8 @@ type access_mode =
 	| MSet
 	| MCall
 
-exception Display of t
+exception DisplayTypes of t list
+exception DisplayFields of (string * t * documentation) list
 
 type access_kind =
 	| AKNo of string
@@ -78,6 +79,16 @@ let check_assign ctx e =
 		()
 	| _ ->
 		error "Invalid assign" e.epos
+
+let rec get_overloads ctx p = function
+	| (":overload",[(EFunction (None,fu),p)],_) :: l ->
+		let topt = function None -> t_dynamic | Some t -> (try Typeload.load_complex_type ctx p t with _ -> t_dynamic) in
+		let args = List.map (fun (a,opt,t,_) ->  a,opt,topt t) fu.f_args in
+		TFun (args,topt fu.f_type) :: get_overloads ctx p l
+	| _ :: l ->
+		get_overloads ctx p l
+	| [] ->
+		[]
 
 type type_class =
 	| KInt
@@ -1671,7 +1682,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		ctx.in_display <- true;
 		let e = (try type_expr ctx e with Error (Unknown_ident n,_) -> raise (Parser.TypePath ([n],None))) in
 		ctx.in_display <- old;
-		let t = (match follow e.etype with
+		let fields = (match follow e.etype with
 			| TInst (c,params) ->
 				let priv = is_parent c ctx.curclass in
 				let merge ?(cond=(fun _ -> true)) a b =
@@ -1688,14 +1699,15 @@ and type_expr ctx ?(need_val=true) (e,p) =
 					let m = merge ~cond:(fun f -> priv || f.cf_public) c.cl_fields m in
 					PMap.map (fun f -> { f with cf_type = apply_params c.cl_types params f.cf_type; cf_public = true; }) m
 				in
-				let fields = loop c params in
-				TAnon { a_fields = fields; a_status = ref Closed; }
-			| TAnon a as t ->
+				loop c params
+			| TAnon a ->
 				(match !(a.a_status) with
 				| Statics c when is_parent c ctx.curclass ->
-					TAnon { a_fields = PMap.map (fun f -> { f with cf_public = true }) a.a_fields; a_status = ref Closed }
-				| _ -> t)
-			| t -> t
+					PMap.map (fun f -> { f with cf_public = true }) a.a_fields
+				| _ ->
+					a.a_fields)
+			| _ ->
+				PMap.empty
 		) in
 		(*
 			add 'using' methods compatible with this type
@@ -1721,26 +1733,30 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				!acc
 		in
 		let use_methods = loop PMap.empty ctx.local_using in
+		let fields = PMap.fold (fun f acc -> PMap.add f.cf_name f acc) fields use_methods in
+		let fields = PMap.fold (fun f acc -> f :: acc) fields [] in
 		let t = (if iscall then
-			match follow t with
-			| TFun _ -> t
+			match follow e.etype with
+			| TFun _ -> e.etype
 			| _ -> t_dynamic
-		else if PMap.is_empty use_methods then
-			t
-		else match follow t with
-			| TAnon a -> TAnon { a_fields = PMap.fold (fun f acc -> PMap.add f.cf_name f acc) a.a_fields use_methods; a_status = ref Closed; }
-			| _ -> TAnon { a_fields = use_methods; a_status = ref Closed }
+		else match fields with
+			| [] -> e.etype
+			| _ ->
+				let get_field acc f = 
+					if not f.cf_public then acc else (f.cf_name,f.cf_type,f.cf_doc) :: List.map (fun t -> f.cf_name,t,f.cf_doc) (get_overloads ctx p f.cf_meta) @ acc
+				in
+				raise (DisplayFields (List.fold_left get_field [] fields))
 		) in
 		(match follow t with
-		| TMono _ | TDynamic _ when ctx.in_macro -> mk (TConst TNull) t p
-		| _ -> raise (Display t))
+		| TMono _ | TDynamic _ when ctx.in_macro -> mk (TConst TNull) t p		
+		| _ -> raise (DisplayTypes [t]))
 	| EDisplayNew t ->
 		let t = Typeload.load_instance ctx t p true in
 		(match follow t with
 		| TInst (c,params) ->
 			let f = get_constructor c p in
 			let t = apply_params c.cl_types params (field_type f) in
-			raise (Display t)
+			raise (DisplayTypes (t :: get_overloads ctx p f.cf_meta))
 		| _ ->
 			error "Not a class" p)
 	| ECheckType (e,t) ->
