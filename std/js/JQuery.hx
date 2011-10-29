@@ -62,6 +62,7 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	function css( prop : String ) : String;
 
 	@:overload(function(html:String):js.JQuery{})
+	@:overload(function(html:js.JQuery):js.JQuery{})
 	function html() : String;
 
 	@:overload(function(value:String):js.JQuery{})
