@@ -61,18 +61,18 @@
 	}
 
 	static function __init__() : Void untyped {
-		String.prototype.__class__ = String;
+		String.prototype.__class__ = $hxClasses['String'] = String;
 		String.__name__ = ["String"];
-		Array.prototype.__class__ = Array;
+		Array.prototype.__class__ = $hxClasses['Array'] = Array;
 		Array.__name__ = ["Array"];
-		Int = { __name__ : ["Int"] };
-		Dynamic = { __name__ : ["Dynamic"] };
-		Float = __js__("Number");
+		Int = $hxClasses['Int'] = { __name__ : ["Int"] };
+		Dynamic = $hxClasses['Dynamic'] = { __name__ : ["Dynamic"] };
+		Float = $hxClasses['Float'] = __js__("Number");
 		Float.__name__ = ["Float"];
-		Bool = { __ename__ : ["Bool"] };
-		Class = { __name__ : ["Class"] };
+		Bool = $hxClasses['Bool'] = { __ename__ : ["Bool"] };
+		Class = $hxClasses['Class'] = { __name__ : ["Class"] };
 		Enum = {};
-		Void = { __ename__ : ["Void"] };
+		Void = $hxClasses['Void'] = { __ename__ : ["Void"] };
 	}
 
 }

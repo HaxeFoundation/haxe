@@ -165,8 +165,8 @@ extern class Date
 		#elseif flash
 		d.prototype[__unprotect__("__class__")] = d;
 		d[__unprotect__("__name__")] = ["Date"];
-		#else
-		d.prototype.__class__ = d;
+		#elseif js
+		d.prototype.__class__ = $hxClasses['Date'] = d;
 		d.__name__ = ["Date"];
 		#end
 	}

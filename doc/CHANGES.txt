@@ -15,7 +15,7 @@
 	js : replaced $closure by function.$bind + changes in output format
 	all : allowed @:extern on static methods (no generate + no closure + force inlining)
 	all : added documentation in --display infos + display overloads in completion
-	js : removed --js-namespace
+	js : removed --js-namespace, added $hxClasses
 
 2011-09-25: 2.08
 	js : added js.JQuery

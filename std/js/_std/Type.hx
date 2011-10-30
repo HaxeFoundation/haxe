@@ -67,12 +67,7 @@ enum ValueType {
 	}
 
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
-		var cl : Class<Dynamic>;
-		try {
-			cl = eval(name);
-		} catch( e : Dynamic ) {
-			cl = null;
-		}
+		var cl : Class<Dynamic> = $hxClasses[name];
 		// ensure that this is a class
 		if( cl == null || cl.__name__ == null )
 			return null;
@@ -80,12 +75,7 @@ enum ValueType {
 	}
 
 	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped {
-		var e : Dynamic;
-		try {
-			e = eval(name);
-		} catch( err : Dynamic ) {
-			e = null;
-		}
+		var e : Dynamic = $hxClasses[name];
 		// ensure that this is an enum
 		if( e == null || e.__ename__ == null )
 			return null;

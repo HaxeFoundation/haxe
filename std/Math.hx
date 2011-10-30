@@ -66,6 +66,9 @@ extern class Math
 		Math.NEGATIVE_INFINITY = Number["NEGATIVE_INFINITY"];
 		Math.POSITIVE_INFINITY = Number["POSITIVE_INFINITY"];
 	#end
+	#if js
+		$hxClasses['Math'] = Math;
+	#end
 		Math.isFinite = function(i) {
 			return
 			#if flash9

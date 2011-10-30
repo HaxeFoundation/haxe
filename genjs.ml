@@ -706,7 +706,7 @@ let generate_class ctx c =
 	ctx.id_counter <- 0;
 	let p = s_path ctx c.cl_path in
 	generate_package_create ctx c.cl_path;
-	print ctx "%s = " p;
+	print ctx "%s = $hxClasses[\"%s\"] = " p p;
 	(match c.cl_constructor with
 	| Some { cf_expr = Some e } -> gen_constructor ctx e
 	| _ -> print ctx "function() { }");
@@ -745,7 +745,7 @@ let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
 	generate_package_create ctx e.e_path;
 	let ename = List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst e.e_path @ [snd e.e_path]) in
-	print ctx "%s = { __ename__ : [%s], __constructs__ : [%s] }" p (String.concat "," ename) (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
+	print ctx "%s = $hxClasses[\"%s\"] = { __ename__ : [%s], __constructs__ : [%s] }" p p (String.concat "," ename) (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
 	newline ctx;
 	List.iter (fun n ->
 		let f = PMap.find n e.e_constrs in
@@ -824,7 +824,7 @@ let generate com =
 	| Some g -> g()
 	| None ->
 	let ctx = alloc_ctx com in
-	print ctx "var $_, $estr = function() { return js.Boot.__string_rec(this,''); }
+	print ctx "var $_, $hxClasses = {}, $estr = function() { return js.Boot.__string_rec(this,''); }
 function $extend(from, fields) {
 	function inherit() {}; inherit.prototype = from; var proto = new inherit();
 	for (var name in fields) proto[name] = fields[name];
