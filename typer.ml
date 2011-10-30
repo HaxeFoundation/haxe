@@ -1409,6 +1409,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				is_null := true;
 				t := ctx.t.tnull !t;
 			| _ -> ());
+			if e.etype == t_dynamic then t := t_dynamic;
 			(try
 				unify_raise ctx e.etype (!t) e.epos;
 			with Error (Unify _,_) -> try
