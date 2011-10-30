@@ -1878,7 +1878,7 @@ let generate_field_kind ctx f c stat =
 			in
 			let name, kind = lookup_kind f.cf_meta in
 			let old = ctx.debug in
-			ctx.debug <- old || has_meta ":debug" f.cf_meta;
+			ctx.debug <- (old || has_meta ":debug" f.cf_meta) && not (has_meta ":nodebug" f.cf_meta);
 			let m = generate_method ctx fdata stat in
 			ctx.debug <- old;
 			Some (HFMethod {
