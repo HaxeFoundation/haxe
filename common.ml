@@ -60,7 +60,6 @@ type context = {
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable error : string -> pos -> unit;
 	mutable warning : string -> pos -> unit;
-	mutable js_namespace : string option;
 	mutable load_extern_type : (path -> pos -> Ast.package option) list; (* allow finding types which are not in sources *)
 	mutable filters : (unit -> unit) list;
 	(* output *)
@@ -108,7 +107,6 @@ let create v =
 		php_front = None;
 		php_lib = None;
 		swf_libs = [];
-		js_namespace = None;
 		php_prefix = None;
 		js_gen = None;
 		load_extern_type = [];

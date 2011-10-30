@@ -24,7 +24,6 @@ type ctx = {
 	buf : Buffer.t;
 	packages : (string list,unit) Hashtbl.t;
 	stack : Codegen.stack_context;
-	namespace : string option;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
 	mutable inits : texpr list;
@@ -38,12 +37,7 @@ type ctx = {
 	mutable separator : bool;
 }
 
-let s_path ctx = function
-	| ([],p) ->
-		(match ctx.namespace with
-		| None -> p
-		| Some ns -> ns ^ "." ^ p)
-	| p -> Ast.s_type_path p
+let s_path ctx = Ast.s_type_path
 
 let kwds =
 	let h = Hashtbl.create 0 in
@@ -646,7 +640,7 @@ let generate_package_create ctx (p,_) =
 			Hashtbl.add ctx.packages (p :: acc) ();
 			(match acc with
 			| [] ->
-				print ctx "if(typeof %s=='undefined') var %s = {}" p p;
+				print ctx "var %s = %s || {}" p p;
 			| _ ->
 				let p = String.concat "." (List.rev acc) ^ (field p) in
 		        print ctx "if(!%s) %s = {}" p p);
@@ -798,7 +792,6 @@ let alloc_ctx com =
 		stack = Codegen.stack_init com false;
 		buf = Buffer.create 16000;
 		packages = Hashtbl.create 0;
-		namespace = com.js_namespace;
 		statics = [];
 		inits = [];
 		current = null_class;
@@ -838,19 +831,9 @@ function $extend(from, fields) {
 	return proto;
 }";
 	newline ctx;
-	(match ctx.namespace with
-		| None -> ()
-		| Some ns ->
-			print ctx "if(typeof %s=='undefined') var %s = {}" ns ns;
-			newline ctx);
 	List.iter (generate_type ctx) com.types;
 	print ctx "js.Boot.__res = {}";
 	newline ctx;
-	(match ctx.namespace with
-		| None -> ()
-		| Some ns ->
-			print ctx "js.Boot.__ns = '%s'" ns;
-			newline ctx);
 	if com.debug then begin
 		print ctx "%s = []" ctx.stack.Codegen.stack_var;
 		newline ctx;

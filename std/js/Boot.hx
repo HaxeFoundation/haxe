@@ -183,12 +183,6 @@ class Boot {
 		untyped {
 			Lib.isIE = (__js__("typeof document!='undefined'") && document.all != null && __js__("typeof window!='undefined'") && window.opera == null );
 			Lib.isOpera = (__js__("typeof window!='undefined'") && window.opera != null );
-#if js_namespace
-			__js__("eval(js.Boot.__ns).Array = Array");
-			__js__("eval(js.Boot.__ns).String = String");
-			__js__("eval(js.Boot.__ns).Math = Math");
-			__js__("eval(js.Boot.__ns).Date = Date");
-#end
 			Array.prototype.copy = Array.prototype.slice;
 			Array.prototype.insert = function(i,x) {
 				__this__.splice(i,0,x);

@@ -69,14 +69,7 @@ enum ValueType {
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
 		var cl : Class<Dynamic>;
 		try {
-			#if js_namespace
-			if (name.indexOf('.') < 0)
-				cl = eval(js.Boot.__ns + '.' + name);
-			else
-				cl = eval(name);
-			#else
 			cl = eval(name);
-			#end
 		} catch( e : Dynamic ) {
 			cl = null;
 		}
@@ -89,14 +82,7 @@ enum ValueType {
 	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped {
 		var e : Dynamic;
 		try {
-			#if js_namespace
-			if (name.indexOf('.') < 0)
-				e = eval(js.Boot.__ns + '.' + name);
-			else
-				e = eval(name);
-			#else
 			e = eval(name);
-			#end
 		} catch( err : Dynamic ) {
 			e = null;
 		}

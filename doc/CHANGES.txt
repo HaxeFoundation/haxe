@@ -4,7 +4,7 @@
 	all : fixed some issue with completion
 	flash9 : fixed -D swfprotected with swc output
 	neko : added ~ implementation
-	js : upgraded jquery version
+	js : upgraded jquery version, more api overloads
 	sys : added "in" operator for spod macros, added relation access in expressions
 	macro : added ECheckType
 	macro : added TLazy for not-yet-typed class fields
@@ -12,10 +12,10 @@
 	all : added Std.format
 	js : trace() output fallback on console.log if no id="haxe:trace"
 	all : ensure that Std.is(2.0,Int) returns true on all platforms
-	js : replaced $closure by function.$bind + change in output format
+	js : replaced $closure by function.$bind + changes in output format
 	all : allowed @:extern on static methods (no generate + no closure + force inlining)
-	all : added documentation in --display infos
-	all : display overloads in completion
+	all : added documentation in --display infos + display overloads in completion
+	js : removed --js-namespace
 
 2011-09-25: 2.08
 	js : added js.JQuery

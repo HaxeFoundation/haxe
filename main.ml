@@ -500,11 +500,6 @@ try
 			com.php_prefix <- Some f;
 			Common.define com "php_prefix";
 		),"<name> : prefix all classes with given name");
-		("--js-namespace",Arg.String (fun f ->
-			if com.js_namespace <> None then raise (Arg.Bad "Multiple --js-namespace");
-			com.js_namespace <- Some f;
-			Common.define com "js_namespace";
-		),"<namespace> : create a namespace where root types are defined");
 		("--remap", Arg.String (fun s ->
 			let pack, target = (try ExtString.String.split s ":" with _ -> raise (Arg.Bad "Invalid format")) in
 			com.package_rules <- PMap.add pack (Remap target) com.package_rules;
