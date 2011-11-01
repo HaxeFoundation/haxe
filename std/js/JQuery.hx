@@ -237,6 +237,11 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	function mouseover( ?callb : JqEvent -> Void ) : JQuery;
 	function mousemove( ?callb : JqEvent -> Void ) : JQuery;
 	function mouseup( ?callb : JqEvent -> Void ) : JQuery;
+
+	// AJAX overloads
+	@:overload(function( url:String, ?data : {}, ?callb : String -> String -> Void ) : js.JQuery {})
+	@:overload(function( url:String, ?data : {}, ?callb : String -> Void ) : js.JQuery {})
+	@:overload(function( url:String, ?data : {}, ?callb : Void -> Void ) : js.JQuery {})
 	function load( ?callb : JqEvent -> Void ) : JQuery;
 	function ready( callb : JqEvent -> Void ) : JQuery;
 	function resize( ?callb : JqEvent -> Void ) : JQuery;
