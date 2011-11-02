@@ -19,6 +19,16 @@ class Gc
 
    #if gc_extra
    // Can't add these until the next hxcpp release....
+   static public function doNotKill(inObject:Dynamic) : Void
+   {
+      untyped __global__.__hxcpp_gc_do_not_kill(inObject);
+   }
+
+   static public function getNextZombie() : Dynamic
+   {
+      return untyped __global__.__hxcpp_get_next_zombie();
+   }
+
    static public function safePoint() : Void
    {
       untyped __global__.__hxcpp_gc_safe_point();
