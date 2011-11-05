@@ -243,7 +243,7 @@ let keyword_remap name =
 	| "auto" | "char" | "const" | "delete" | "double" | "enum"
 	| "extern" | "float" | "friend" | "goto" | "long" | "operator" | "protected"
 	| "register" | "short" | "signed" | "sizeof" | "template" | "typedef"
-	| "union" | "unsigned" | "void" | "volatile" | "or" | "and" | "xor" | "or_eq"
+	| "union" | "unsigned" | "void" | "volatile" | "or" | "and" | "xor" | "or_eq" | "not"
 	| "and_eq" | "xor_eq" | "typeof" | "stdin" | "stdout" | "stderr"
 	| "BIG_ENDIAN" | "LITTLE_ENDIAN" | "assert" | "NULL" | "wchar_t" | "EOF"
 	| "bool" | "const_cast" | "dynamic_cast" | "explicit" | "export" | "mutable" | "namespace"
