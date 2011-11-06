@@ -257,6 +257,14 @@ let keyword_remap name =
   to use include paths to get this right, I think it is easier just to chnage the name *)
 let include_remap = function | ([],"Math") -> ([],"hxMath") | x -> x;;
 
+let get_code meta key =
+	let rec loop = function
+		| [] -> ""
+		| (k,[Ast.EConst (Ast.String name),_],_) :: _  when k=key-> name ^ "\n"
+		| _ :: l -> loop l
+		in
+	loop meta
+;;
 
 (* Add include to source code *)
 let add_include writer class_path =
@@ -1792,19 +1800,26 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 			output ")";
 			ctx.ctx_real_this_ptr <- true;
 			ctx.ctx_dynamic_this_ptr <- false;
+         let code = (get_code field.cf_meta ":functionCode") in
+         let tail_code = (get_code field.cf_meta ":functionTailCode") in
 			if (has_default_values function_def.tf_args) then begin
 				ctx.ctx_writer#begin_block;
 				generate_default_values ctx function_def.tf_args "__o_";
 				output ("\tHX_SOURCE_PUSH(\"" ^ src_name ^ "\");\n");
+            output code;
 				gen_expression ctx false function_def.tf_expr;
+            output tail_code;
 				if (is_void) then output "return null();\n";
 				ctx.ctx_writer#end_block;
 			end else begin
-				if (is_void) then ctx.ctx_writer#begin_block;
+				let add_block = is_void || (code <> "") || (tail_code <> "") in
+				if (add_block) then ctx.ctx_writer#begin_block;
 				ctx.ctx_push_src_pos <- src_name;
+				output code;
 				gen_expression ctx false (to_block function_def.tf_expr);
-				if (is_void) then begin
-					output "return null();\n";
+				output tail_code;
+				if (add_block) then begin
+					if (is_void) then output "return null();\n";
 					ctx.ctx_writer#end_block;
 				end;
 			end;
@@ -2367,6 +2382,7 @@ let is_macro meta =
   Type.has_meta ":macro" meta
 ;;
 
+
 let generate_class_files common_ctx member_types super_deps constructor_deps class_def =
 	let class_path = class_def.cl_path in
 	let class_name = (snd class_def.cl_path) ^ "_obj" in
@@ -2423,8 +2439,12 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	) (real_interfaces class_def.cl_implements);
 	let implemented = hash_keys implemented_hash in
 
+	output_cpp ( get_code class_def.cl_meta ":cppFileCode" );
+
 	gen_open_namespace output_cpp class_path;
 	output_cpp "\n";
+
+	output_cpp ( get_code class_def.cl_meta ":cppNamespaceCode" );
 
 	if (not class_def.cl_interface) then begin
 		output_cpp ("Void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")\n{\n");
@@ -2729,8 +2749,11 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
    let referenced = find_referenced_types ctx.ctx_common (TClassDecl class_def) super_deps (Hashtbl.create 0) true in
 	List.iter ( gen_forward_decl h_file ) referenced;
 
+	output_h ( get_code class_def.cl_meta ":headerCode" );
+
 	gen_open_namespace output_h class_path;
 	output_h "\n\n";
+	output_h ( get_code class_def.cl_meta ":headerNamespaceCode" );
 
 	output_h ("class " ^ class_name ^ " : public " ^ super );
 	output_h "{\n	public:\n";
@@ -2778,6 +2801,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	let interface = class_def.cl_interface in
 	List.iter (gen_member_def ctx class_def false interface) class_def.cl_ordered_fields;
 	List.iter (gen_member_def ctx class_def true interface)  class_def.cl_ordered_statics;
+
+	output_h ( get_code class_def.cl_meta ":headerClassCode" );
 
 	output_h "};\n\n";
 
@@ -2892,8 +2917,7 @@ let add_class_to_buildfile buildfile class_def =
 
 	output_string buildfile ( "  </file>\n" );;
 
-
-let write_build_data filename classes main_deps exe_name =
+let write_build_data filename classes main_deps build_extra exe_name =
 	let buildfile = open_out filename in
 	output_string buildfile "<xml>\n";
 	output_string buildfile "<files id=\"haxe\">\n";
@@ -2912,6 +2936,7 @@ let write_build_data filename classes main_deps exe_name =
 	output_string buildfile "</files>\n";
 	output_string buildfile ("<set name=\"HAXE_OUTPUT\" value=\"" ^ exe_name ^ "\" />\n");
 	output_string buildfile "<include name=\"${HXCPP}/build-tool/BuildCommon.xml\"/>\n";
+	output_string buildfile build_extra;
 	output_string buildfile "</xml>\n";
 	close_out buildfile;;
 
@@ -2992,6 +3017,7 @@ let generate common_ctx =
 	let super_deps = create_super_dependencies common_ctx in
 	let constructor_deps = create_constructor_dependencies common_ctx in
 	let main_deps = ref [] in
+	let build_xml = ref "" in
 
 	List.iter (fun object_def ->
 		(match object_def with
@@ -3002,6 +3028,7 @@ let generate common_ctx =
 			if (is_internal || (is_macro class_def.cl_meta) ) then
 				( if debug then print_endline (" internal class " ^ name ))
 			else begin
+				build_xml := !build_xml ^ (get_code class_def.cl_meta ":buildXml");
 				boot_classes := class_def.cl_path ::  !boot_classes;
 				if (has_init_field class_def) then
 					init_classes := class_def.cl_path ::  !init_classes;
@@ -3040,7 +3067,7 @@ let generate common_ctx =
 	| Some path -> (snd path)
 	| _ -> "output" in
 
-	write_build_data (common_ctx.file ^ "/Build.xml") !exe_classes !main_deps output_name;
+	write_build_data (common_ctx.file ^ "/Build.xml") !exe_classes !main_deps !build_xml output_name;
 	write_build_options (common_ctx.file ^ "/Options.txt") common_ctx.defines;
 	if ( not (Common.defined common_ctx "no-compilation") ) then begin
 		let old_dir = Sys.getcwd() in

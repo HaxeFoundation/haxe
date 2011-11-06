@@ -17,8 +17,12 @@ class Gc
       return untyped __global__.__hxcpp_gc_trace(sought,printInstances);
    }
 
-   #if gc_extra
    // Can't add these until the next hxcpp release....
+   @:functionCode("\n#ifdef HXCPP_GC_FUNCTIONS_1\n")
+   @:functionTailCode('\n#else\n#error "Please upgrade yout version of HXCPP"\n#endif\n')
+   static public function versionCheck() { return true; }
+
+
    static public function doNotKill(inObject:Dynamic) : Void
    {
       untyped __global__.__hxcpp_gc_do_not_kill(inObject);
@@ -43,5 +47,4 @@ class Gc
    {
       untyped __global__.__hxcpp_exit_gc_free_zone();
    }
-   #end
 }
