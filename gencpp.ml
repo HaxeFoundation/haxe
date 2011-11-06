@@ -199,10 +199,10 @@ let is_internal_class = function
 (* The internal header files are also defined in the hx/Object.h file, so you do
 	 #include them separately.  However, the Int32 and Math classes do have their
 	 own header files (these are under the hxcpp tree) so these should be included *)
-let is_internal_header = function
-	| ([],"@Main") -> true
-	| (["cpp"], "CppInt32__") | ([],"Math") -> false
-	| path -> is_internal_class path
+let include_class_header = function
+	| ([],"@Main") -> false
+	| (["cpp"], "CppInt32__") | ([],"Math") -> true
+	| path -> not ( is_internal_class path )
 
 
 let is_cpp_class = function 
@@ -345,6 +345,8 @@ let rec class_string klass suffix params =
 				| _ -> "/*NULL*/" ^ (type_string t) )
 			| _ -> assert false);
 	(* Normal class *)
+	| path when klass.cl_extern && (not (is_internal_class path) )->
+            (join_class_path klass.cl_path "::") ^ suffix
 	| _ -> "::" ^ (join_class_path klass.cl_path "::") ^ suffix
 	)
 and type_string_suff suffix haxe_type =
@@ -1760,11 +1762,11 @@ let rec inherit_temlpate_types class_def name is_static in_def =
 *)
 
 
-let gen_field ctx class_def class_name ptr_name is_static is_external is_interface field =
+let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 	let output = ctx.ctx_output in
 	ctx.ctx_real_this_ptr <- not is_static;
 	let remap_name = keyword_remap field.cf_name in
-	if (is_external || is_interface) then begin
+	if (is_interface) then begin
 		(* Just the dynamic glue ... *)
 		match follow field.cf_type, field.cf_kind  with
 		| TFun (args,result), Method _  ->
@@ -1876,12 +1878,12 @@ let gen_field_init ctx field =
 
 
 
-let gen_member_def ctx class_def is_static is_extern is_interface field =
+let gen_member_def ctx class_def is_static is_interface field =
 	let output = ctx.ctx_output in
 	let remap_name = keyword_remap field.cf_name in
 
 	output (if is_static then "		static " else "		");
-	if (is_extern || is_interface) then begin
+	if (is_interface) then begin
 		match follow field.cf_type, field.cf_kind with
 		| TFun (args,return_type), Method _  ->
 			output ( (if (not is_static) then "virtual " else "" ) ^ type_string return_type);
@@ -1976,6 +1978,8 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only =
 		| TInst (klass,params) ->
 			(match klass.cl_path with
          | ([],"Array") | ([],"Class") | (["cpp"],"FastIterator") -> List.iter visit_type params
+         | (["cpp"],"CppInt32__") -> add_type klass.cl_path;
+         | _ when klass.cl_extern -> ()
 			| _ -> if (klass.cl_kind <> KTypeParameter ) then add_type klass.cl_path;
 			)
 		| TFun (args,haxe_type) -> visit_type haxe_type;
@@ -2065,7 +2069,8 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only =
 		(match class_def.cl_init with Some expression -> visit_types expression | _ -> ())
 	| TEnumDecl enum_def -> visit_enum enum_def
 	| TTypeDecl _ -> (* These are expanded *) ());
-	List.sort inc_cmp (List.filter (fun path -> not (is_internal_header path) ) (pmap_keys !types))
+
+	List.sort inc_cmp (List.filter (fun path -> (include_class_header path) ) (pmap_keys !types))
 	;;
 
 
@@ -2363,7 +2368,6 @@ let is_macro meta =
 ;;
 
 let generate_class_files common_ctx member_types super_deps constructor_deps class_def =
-	let is_extern = class_def.cl_extern in
 	let class_path = class_def.cl_path in
 	let class_name = (snd class_def.cl_path) ^ "_obj" in
 	let smart_class_name =  (snd class_def.cl_path)  in
@@ -2423,47 +2427,41 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	output_cpp "\n";
 
 	if (not class_def.cl_interface) then begin
-		if (not is_extern) then begin
-			output_cpp ("Void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")\n{\n");
-			(match class_def.cl_constructor with
-				| Some definition ->
-						(match  definition.cf_expr with
-						| Some { eexpr = TFunction function_def } ->
-							if (has_default_values function_def.tf_args) then begin
-								generate_default_values ctx function_def.tf_args "__o_";
-								gen_expression ctx false (to_block function_def.tf_expr);
-								output_cpp ";\n";
-							end else begin
-								gen_expression ctx false (to_block function_def.tf_expr);
-								output_cpp ";\n";
-								(*gen_expression (new_context common_ctx cpp_file debug ) false function_def.tf_expr;*)
-							end
-						| _ -> ()
-						)
-				| _ -> ());
+		output_cpp ("Void " ^ class_name ^ "::__construct(" ^ constructor_type_args ^ ")\n{\n");
+		(match class_def.cl_constructor with
+			| Some definition ->
+					(match  definition.cf_expr with
+					| Some { eexpr = TFunction function_def } ->
+						if (has_default_values function_def.tf_args) then begin
+							generate_default_values ctx function_def.tf_args "__o_";
+							gen_expression ctx false (to_block function_def.tf_expr);
+							output_cpp ";\n";
+						end else begin
+							gen_expression ctx false (to_block function_def.tf_expr);
+							output_cpp ";\n";
+							(*gen_expression (new_context common_ctx cpp_file debug ) false function_def.tf_expr;*)
+						end
+					| _ -> ()
+					)
+			| _ -> ());
 			output_cpp "	return null();\n";
 			output_cpp "}\n\n";
-		end;
 
 		(* Destructor goes in the cpp file so we can "see" the full definition of the member vars *)
 		output_cpp ( class_name ^ "::~" ^ class_name ^ "() { }\n\n");
-		if (not is_extern) then
-			output_cpp ("Dynamic " ^ class_name ^ "::__CreateEmpty() { return  new " ^ class_name ^ "; }\n");
+		output_cpp ("Dynamic " ^ class_name ^ "::__CreateEmpty() { return  new " ^ class_name ^ "; }\n");
 
 		output_cpp (ptr_name ^ " " ^ class_name ^ "::__new(" ^constructor_type_args ^")\n");
 
-		let create_result ext =
-			if (ext) then
-				output_cpp ("{  " ^ ptr_name ^ " result = __CreateEmpty();\n")
-			else
-				output_cpp ("{  " ^ ptr_name ^ " result = new " ^ class_name ^ "();\n");
+		let create_result () =
+			output_cpp ("{  " ^ ptr_name ^ " result = new " ^ class_name ^ "();\n");
 			in
-		create_result is_extern;
+		create_result ();
 		output_cpp ("	result->__construct(" ^ constructor_args ^ ");\n");
 		output_cpp ("	return result;}\n\n");
 
 		output_cpp ("Dynamic " ^ class_name ^ "::__Create(hx::DynamicArray inArgs)\n");
-		create_result is_extern;
+		create_result ();
 		output_cpp ("	result->__construct(" ^ (array_arg_list constructor_var_list) ^ ");\n");
 		output_cpp ("	return result;}\n\n");
 		if ( (List.length implemented) > 0 ) then begin
@@ -2486,10 +2484,10 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 
 	List.iter
-		(gen_field ctx class_def class_name smart_class_name false is_extern class_def.cl_interface)
+		(gen_field ctx class_def class_name smart_class_name false class_def.cl_interface)
 		class_def.cl_ordered_fields;
 	List.iter
-		(gen_field ctx class_def class_name smart_class_name true is_extern class_def.cl_interface)
+		(gen_field ctx class_def class_name smart_class_name true class_def.cl_interface)
 		class_def.cl_ordered_statics;
 	output_cpp "\n";
 
@@ -2537,8 +2535,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		let variable_field field =
 			(match field.cf_expr with
 			| Some { eexpr = TFunction function_def } -> is_dynamic_haxe_method field
-			| _ -> (not is_extern) ||
-				(match follow field.cf_type with | TFun _ -> false | _ -> true) ) in
+			| _ -> true)
+		in
 
 		let all_fields = class_def.cl_ordered_statics @ class_def.cl_ordered_fields in
 		let all_variables = List.filter variable_field all_fields in
@@ -2681,11 +2679,9 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp ("	&super::__SGetClass(), 0, sMarkStatics);\n");
 		output_cpp ("}\n\n");
 
-		if (not is_extern) then begin
-			output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
-			List.iter (gen_field_init ctx ) class_def.cl_ordered_statics;
-			output_cpp ("}\n\n");
-		end;
+		output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
+		List.iter (gen_field_init ctx ) class_def.cl_ordered_statics;
+		output_cpp ("}\n\n");
 	end else begin
 		let class_name_text = join_class_path class_path "." in
 
@@ -2701,9 +2697,6 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 	gen_close_namespace output_cpp class_path;
 
-	if (is_extern) then begin
-		output_cpp ("\n\n#include<extern/" ^ (join_class_path class_path  "/") ^ ".cpp>\n\n");
-	end;
 	cpp_file#close;
 
 
@@ -2746,10 +2739,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 	if (not class_def.cl_interface) then begin
 		output_h ("		" ^ class_name ^  "();\n");
-		if (is_extern) then
-			output_h ("		virtual Void __construct(" ^ constructor_type_args ^ ")=0;\n")
-		else
-			output_h ("		Void __construct(" ^ constructor_type_args ^ ");\n");
+		output_h ("		Void __construct(" ^ constructor_type_args ^ ");\n");
 		output_h "\n	public:\n";
 		output_h ("		static " ^ptr_name^ " __new(" ^constructor_type_args ^");\n");
 		output_h ("		static Dynamic __CreateEmpty();\n");
@@ -2786,8 +2776,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 
 	let interface = class_def.cl_interface in
-	List.iter (gen_member_def ctx class_def false is_extern interface) class_def.cl_ordered_fields;
-	List.iter (gen_member_def ctx class_def true is_extern interface)  class_def.cl_ordered_statics;
+	List.iter (gen_member_def ctx class_def false interface) class_def.cl_ordered_fields;
+	List.iter (gen_member_def ctx class_def true interface)  class_def.cl_ordered_statics;
 
 	output_h "};\n\n";
 
@@ -3005,6 +2995,7 @@ let generate common_ctx =
 
 	List.iter (fun object_def ->
 		(match object_def with
+		| TClassDecl class_def when class_def.cl_extern -> ()
 		| TClassDecl class_def ->
 			let name =  class_text class_def.cl_path in
 			let is_internal = is_internal_class class_def.cl_path in
