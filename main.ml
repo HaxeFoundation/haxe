@@ -696,6 +696,7 @@ with
 			fields
 		in
 		report_list fields;
+		exit 0
 	| Typer.DisplayTypes tl ->
 		let ctx = Type.print_context() in
 		List.iter (fun t ->
