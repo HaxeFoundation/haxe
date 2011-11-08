@@ -456,7 +456,7 @@ and gen_expr ctx e =
 				newline ctx;
 				spr ctx "var ";
 				concat ctx ", " (fun (v,n) ->
-					print ctx "%s = %s[%d]" v evar n;
+					print ctx "%s = %s[%d]" (ident v) evar n;
 				) l);
 			gen_block ctx e;
 			if not (has_return e) then begin
