@@ -273,7 +273,10 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 
 	// other tools
 	function get() : Array<Dom.HtmlDom>;
+	
+	@:overload(function(j:js.JQuery):Bool{})
 	function is( selector : String ) : Bool;
+	
 	function data<T>( key : String, ?value : T ) : T;
 	function removeData( ?key : String ) : JQuery;
 	function serialize() : String;
