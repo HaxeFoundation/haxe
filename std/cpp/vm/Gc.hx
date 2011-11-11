@@ -19,7 +19,7 @@ class Gc
 
    // Can't add these until the next hxcpp release....
    @:functionCode("\n#ifdef HXCPP_GC_FUNCTIONS_1\n")
-   @:functionTailCode('\n#else\n#error "Please upgrade yout version of HXCPP"\n#endif\n')
+   @:functionTailCode('\n#else\n#error "Please upgrade your version of HXCPP"\n#endif\n')
    static public function versionCheck() { return true; }
 
 
