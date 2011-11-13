@@ -1949,7 +1949,7 @@ let gen_member_def ctx class_def is_static is_interface field =
 		(* Add a "dyn" function for variable to unify variable/function access *)
 		(match follow field.cf_type with
 		| TFun (_,_) ->
-			output "	";
+			output (if is_static then "		static " else "		");
 			gen_type ctx field.cf_type;
 			output (" &" ^ remap_name ^ "_dyn() { return " ^ remap_name ^ ";}\n" )
 		| _ ->  (match field.cf_kind with
