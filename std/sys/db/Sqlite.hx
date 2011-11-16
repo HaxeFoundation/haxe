@@ -24,16 +24,9 @@
  */
 package sys.db;
 
-class Mysql {
+class Sqlite {
 
-	public static function connect( params : {
-		host : String,
-		port : Null<Int>,
-		user : String,
-		pass : String,
-		socket : Null<String>,
-		database : String
-	} ) : sys.db.Connection {
+	public static function open( file : String ) : Connection {
 		throw "Not implemented for this platform";
 		return null;
 	}
