@@ -52,7 +52,9 @@ class Lib {
 		return o;
 	}
 
-	public static function getURL( url : flash.net.URLRequest, ?target : String ) {
+	public static function getURL( url : flash.net.URLRequest, ?target : String, ?allowScripts : Bool ) {
+		if( !allowScripts && url != null && url.url.toLowerCase.substr(0,11) == "javascript:" )
+			throw "Scripts not allowed in URL";
 		var f = untyped __global__["flash.net.navigateToURL"];
 		if( target == null )
 			f(url);

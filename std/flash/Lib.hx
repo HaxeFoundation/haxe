@@ -39,7 +39,9 @@ class Lib {
 		return untyped __eval__(str);
 	}
 
-	public static function getURL( url : String, ?target : String ) {
+	public static function getURL( url : String, ?target : String, ?allowScripts ) {
+		if( !allowScripts && url.toLowerCase.substr(0,11) == "javascript:" )
+			throw "Scripts not allowed in URL";
 		untyped __geturl__(url,if( target == null ) "_self" else target);
 	}
 
