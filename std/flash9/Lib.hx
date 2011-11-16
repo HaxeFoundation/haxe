@@ -57,7 +57,7 @@ class Lib {
 			var url = url.url;
 			while( true ) {
 				var c = url.charCodeAt(0);
-				if( c == ' '.code || c == '\n'.code || c == '\r'.code )
+				if( c == ' '.code || c == '\n'.code || c == '\r'.code || c == '\t'.code )
 					url = url.substr(1);
 				else break;
 			}
