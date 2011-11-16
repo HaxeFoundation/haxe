@@ -40,8 +40,16 @@ class Lib {
 	}
 
 	public static function getURL( url : String, ?target : String, ?allowScripts ) {
-		if( !allowScripts && url.toLowerCase.substr(0,11) == "javascript:" )
-			throw "Scripts not allowed in URL";
+		if( !allowScripts ) {
+			while( true ) {
+				var c = url.charCodeAt(0);
+				if( c == ' '.code || c == '\n'.code || c == '\r'.code )
+					url = url.substr(1);
+				else break;
+			}
+			if( url.toLowerCase().substr(0,11) == "javascript:" )
+				throw "Scripts not allowed in URL";
+		}
 		untyped __geturl__(url,if( target == null ) "_self" else target);
 	}
 
