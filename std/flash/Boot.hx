@@ -273,6 +273,7 @@ class Boot {
 		// fix firefox default alignement
 		if( _global["Stage"]["align"] == "" )
 			_global["Stage"]["align"] = "LT";
+		#if mt mt.flash.Init.check(); #end
 	}
 
 }

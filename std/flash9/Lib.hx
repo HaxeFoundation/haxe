@@ -52,18 +52,7 @@ class Lib {
 		return o;
 	}
 
-	public static function getURL( url : flash.net.URLRequest, ?target : String, ?allowScripts : Bool ) {
-		if( !allowScripts && url != null ) {
-			var url = url.url;
-			while( true ) {
-				var c = url.charCodeAt(0);
-				if( c == ' '.code || c == '\n'.code || c == '\r'.code || c == '\t'.code )
-					url = url.substr(1);
-				else break;
-			}
-			if( url.toLowerCase().substr(0,11) == "javascript:" )
-				throw "Scripts not allowed in URL";
-		}
+	public static function getURL( url : flash.net.URLRequest, ?target : String ) {
 		var f = untyped __global__["flash.net.navigateToURL"];
 		if( target == null )
 			f(url);

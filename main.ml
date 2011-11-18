@@ -539,6 +539,7 @@ try
 	in
 	Arg.parse_argv ~current args (basic_args_spec @ adv_args_spec) args_callback usage;
 	add_libs com (!cp_libs) neko_libs;
+	(try ignore(Common.find_file com "mt/Include.hx"); Common.define com "mt"; with Not_found -> ());
 	if com.display then begin
 		xml_out := None;
 		no_output := true;
