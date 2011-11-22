@@ -9,6 +9,5 @@ package flash.media;
 	var viewPort : flash.geom.Rectangle;
 	var zoom : flash.geom.Point;
 	function new() : Void;
-	@:require(flash11_2) function attachCamera(theCamera : Camera) : Void;
 	function attachNetStream(netStream : flash.net.NetStream) : Void;
 }

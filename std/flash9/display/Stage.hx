@@ -13,6 +13,7 @@ extern class Stage extends DisplayObjectContainer {
 	var fullScreenHeight(default,null) : UInt;
 	var fullScreenSourceRect : flash.geom.Rectangle;
 	var fullScreenWidth(default,null) : UInt;
+	@:require(flash11_2) var mouseLock : Bool;
 	var quality : StageQuality;
 	var scaleMode : StageScaleMode;
 	var showDefaultContextMenu : Bool;

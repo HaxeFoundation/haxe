@@ -19,6 +19,7 @@ package flash.display3D;
 	function setCulling(triangleFaceToCull : Context3DTriangleFace) : Void;
 	function setDepthTest(depthMask : Bool, passCompareMode : Context3DCompareMode) : Void;
 	function setProgram(program : Program3D) : Void;
+	@:require(flash11_2) function setProgramConstantsFromByteArray(programType : Context3DProgramType, firstRegister : Int, numRegisters : Int, data : flash.utils.ByteArray, byteArrayOffset : UInt) : Void;
 	function setProgramConstantsFromMatrix(programType : Context3DProgramType, firstRegister : Int, matrix : flash.geom.Matrix3D, transposedMatrix : Bool = false) : Void;
 	function setProgramConstantsFromVector(programType : Context3DProgramType, firstRegister : Int, data : flash.Vector<Float>, numRegisters : Int = -1) : Void;
 	function setRenderToBackBuffer() : Void;

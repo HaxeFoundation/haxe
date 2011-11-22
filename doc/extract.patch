@@ -1083,6 +1083,7 @@ flash.events.ThrottleEvent.$type : ThrottleType;
 enum flash.events.ThrottleType;
 
 @:require(flash11_2) flash.ui.GameInput;
+@:require(flash11_2) flash.ui.GameInputDevice;
 -flash.ui.GameInput.new;
 
 @:require(flash11_2) flash.utils.Telemetry;
@@ -1095,6 +1096,22 @@ flash.ui.GameInputControl.finger : flash.ui.GameInputFinger;
 flash.ui.GameInputControl.hand : flash.ui.GameInputHand;
 flash.ui.GameInputControl.type : flash.ui.GameInputControlType;
 
+
+// 11.2 beta 2
+
+@:require(flash11_2) flash.display3D.Context3D.setProgramConstantsFromByteArray
+@:require(flash11_2) flash.display.Stage.mouseLock;
+
+@:require(flash11_2) flash.events.MouseEvent.movementX;
+@:require(flash11_2) flash.events.MouseEvent.movementY;
+
+@:require(flash11_2) static flash.events.MouseEvent.CONTEXT_MENU;
+@:require(flash11_2) static flash.events.MouseEvent.MIDDLE_CLICK;
+@:require(flash11_2) static flash.events.MouseEvent.MIDDLE_MOUSE_DOWN;
+@:require(flash11_2) static flash.events.MouseEvent.MIDDLE_MOUSE_UP;
+@:require(flash11_2) static flash.events.MouseEvent.RIGHT_CLICK;
+@:require(flash11_2) static flash.events.MouseEvent.RIGHT_MOUSE_DOWN;
+@:require(flash11_2) static flash.events.MouseEvent.RIGHT_MOUSE_UP;
 
 
 
