@@ -359,6 +359,12 @@ class Main {
 
 	function install() {
 		var prj = param("Library name");
+		if( neko.FileSystem.exists(prj) && !neko.FileSystem.isDirectory(prj) ) {
+			if( !StringTools.endsWith(prj,".zip") )
+				throw "Local file to install must be a zip";
+			doInstallFile(prj,true,true);
+			return;
+		}
 		var inf = site.infos(prj);
 		if( inf.curversion == null )
 			throw "This library has not yet released a version";
