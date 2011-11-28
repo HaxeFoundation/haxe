@@ -108,22 +108,22 @@ class Main {
 	function new() {
 		args = neko.Sys.args();
 		commands = new List();
-		addCommand("install",install,"install a given project");
-		addCommand("list",list,"list all installed projects",false);
-		addCommand("upgrade",upgrade,"upgrade all installed projects");
-		addCommand("remove",remove,"remove a given project/version",false);
-		addCommand("set",set,"set the current version for a project",false);
-		addCommand("search",search,"list projects matching a word");
-		addCommand("info",info,"list informations on a given project");
+		addCommand("install",install,"install a given library");
+		addCommand("list",list,"list all installed libraries",false);
+		addCommand("upgrade",upgrade,"upgrade all installed libraries");
+		addCommand("remove",remove,"remove a given library/version",false);
+		addCommand("set",set,"set the current version for a library",false);
+		addCommand("search",search,"list libraries matching a word");
+		addCommand("info",info,"list informations on a given library");
 		addCommand("user",user,"list informations on a given user");
 		addCommand("register",register,"register a new user");
-		addCommand("submit",submit,"submit or update a project package");
+		addCommand("submit",submit,"submit or update a library package");
 		addCommand("setup",setup,"set the haxelib repository path",false);
 		addCommand("config",config,"print the repository path",false);
 		addCommand("path",path,"give paths to libraries",false);
-		addCommand("run",run,"run the specified project with parameters",false);
+		addCommand("run",run,"run the specified library with parameters",false);
 		addCommand("test",test,"install the specified package localy",false);
-		addCommand("dev",dev,"set the development directory for a given project",false);
+		addCommand("dev",dev,"set the development directory for a given library",false);
 		initSite();
 	}
 
@@ -246,11 +246,11 @@ class Main {
 		var l = site.search(word);
 		for( s in l )
 			print(s.name);
-		print(l.length+" projects found");
+		print(l.length+" libraries found");
 	}
 
 	function info() {
-		var prj = param("Project name");
+		var prj = param("Library name");
 		var inf = site.infos(prj);
 		print("Name: "+inf.name);
 		print("Tags: "+inf.tags.join(", "));
@@ -272,9 +272,9 @@ class Main {
 		print("Id: "+inf.name);
 		print("Name: "+inf.fullname);
 		print("Mail: "+inf.email);
-		print("Projects: ");
+		print("Libraries: ");
 		if( inf.projects.length == 0 )
-			print("  (no projects)");
+			print("  (no libraries)");
 		for( p in inf.projects )
 			print("  "+p);
 	}
@@ -328,7 +328,7 @@ class Main {
 					break;
 				}
 			if( !found )
-				throw "Project "+d.project+" does not have version "+d.version;
+				throw "Library "+d.project+" does not have version "+d.version;
 		}
 
 		// check if this version already exists
@@ -358,10 +358,10 @@ class Main {
 	}
 
 	function install() {
-		var prj = param("Project name");
+		var prj = param("Library name");
 		var inf = site.infos(prj);
 		if( inf.curversion == null )
-			throw "This project has not yet released a version";
+			throw "This library has not yet released a version";
 		var reqversion = paramOpt();
 		var version = if( reqversion != null ) reqversion else inf.curversion;
 		var found = false;
@@ -601,7 +601,7 @@ class Main {
 		if( update )
 			print("Done");
 		else
-			print("All projects are up-to-date");
+			print("All libraries are up-to-date");
 	}
 
 	function deleteRec(dir) {
@@ -616,32 +616,32 @@ class Main {
 	}
 
 	function remove() {
-		var prj = param("Project");
+		var prj = param("Library");
 		var version = paramOpt();
 		var rep = getRepository();
 		var pdir = rep + Datas.safe(prj);
 
 		if( version == null ) {
 			if( !neko.FileSystem.exists(pdir) )
-				throw "Project "+prj+" is not installed";
+				throw "Library "+prj+" is not installed";
 			deleteRec(pdir);
-			print("Project "+prj+" removed");
+			print("Library "+prj+" removed");
 			return;
 		}
 
 		var vdir = pdir + "/" + Datas.safe(version);
 		if( !neko.FileSystem.exists(vdir) )
-			throw "Project "+prj+" does not have version "+version+" installed";
+			throw "Library "+prj+" does not have version "+version+" installed";
 
 		var cur = neko.io.File.getContent(pdir+"/.current");
 		if( cur == version )
-			throw "Can't remove current version of project "+prj;
+			throw "Can't remove current version of library "+prj;
 		deleteRec(vdir);
-		print("Project "+prj+" version "+version+" removed");
+		print("Library "+prj+" version "+version+" removed");
 	}
 
 	function set() {
-		var prj = param("Project");
+		var prj = param("Library");
 		var version = param("Version");
 		setCurrent(prj,version,false);
 	}
@@ -650,7 +650,7 @@ class Main {
 		var pdir = getRepository() + Datas.safe(prj);
 		var vdir = pdir + "/" + Datas.safe(version);
 		if( !neko.FileSystem.exists(vdir) )
-			throw "Project "+prj+" version "+version+" is not installed";
+			throw "Library "+prj+" version "+version+" is not installed";
 		var current = pdir+"/.current";
 		if( neko.io.File.getContent(current) == version )
 			return;
@@ -659,22 +659,22 @@ class Main {
 		var f = neko.io.File.write(current,true);
 		f.writeString(version);
 		f.close();
-		print("Project "+prj+" current version is now "+version);
+		print("Library "+prj+" current version is now "+version);
 	}
 
 	function checkRec( prj : String, version : String, l : List<{ project : String, version : String }> ) {
 		var pdir = getRepository() + Datas.safe(prj);
 		if( !neko.FileSystem.exists(pdir) )
-			throw "Project "+prj+" is not installed : run 'haxelib install "+prj+"'";
+			throw "Library "+prj+" is not installed : run 'haxelib install "+prj+"'";
 		var version = if( version != null ) version else neko.io.File.getContent(pdir+"/.current");
 		var vdir = pdir + "/" + Datas.safe(version);
 		if( !neko.FileSystem.exists(vdir) )
-			throw "Project "+prj+" version "+version+" is not installed";
+			throw "Library "+prj+" version "+version+" is not installed";
 		for( p in l )
 			if( p.project == prj ) {
 				if( p.version == version )
 					return;
-				throw "Project "+prj+" has two version included "+version+" and "+p.version;
+				throw "Library "+prj+" has two version included "+version+" and "+p.version;
 			}
 		l.add({ project : prj, version : version });
 		var xml = neko.io.File.getContent(vdir+"/haxelib.xml");
@@ -704,7 +704,7 @@ class Main {
 			if( neko.FileSystem.exists(ndir) ) {
 				var sysdir = ndir+"/"+neko.Sys.systemName();
 				if( !neko.FileSystem.exists(sysdir) )
-					throw "Project "+d.project+" version "+d.version+" does not have a neko dll for your system";
+					throw "Library "+d.project+" version "+d.version+" does not have a neko dll for your system";
 				neko.Lib.println("-L "+pdir+"ndll/");
 			}
 			neko.Lib.println(dir);
@@ -714,7 +714,7 @@ class Main {
 
 	function dev() {
 		var rep = getRepository();
-		var project = param("Project");
+		var project = param("Library");
 		var dir = paramOpt();
 		var proj = rep + Datas.safe(project);
 		if( !neko.FileSystem.exists(proj) ) {
@@ -738,17 +738,17 @@ class Main {
 
 	function run() {
 		var rep = getRepository();
-		var project = param("Project");
+		var project = param("Library");
 		var pdir = rep + Datas.safe(project);
 		if( !neko.FileSystem.exists(pdir) )
-			throw "Project "+project+" is not installed";
+			throw "Library "+project+" is not installed";
 		pdir += "/";
 		var version = neko.io.File.getContent(pdir+".current");
 		var dev = try neko.io.File.getContent(pdir+".dev") catch( e : Dynamic ) null;
 		var vdir = dev!=null ? dev : pdir + Datas.safe(version);
 		var rdir = vdir + "/run.n";
 		if( !neko.FileSystem.exists(rdir) )
-			throw "Project "+project+" version "+version+" does not have a run script";
+			throw "Library "+project+" version "+version+" does not have a run script";
 		args.push(neko.Sys.getCwd());
 		neko.Sys.setCwd(vdir);
 		var cmd = "neko run.n";
