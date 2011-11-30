@@ -273,10 +273,10 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 
 	// other tools
 	function get() : Array<Dom.HtmlDom>;
-	
+
 	@:overload(function(j:js.JQuery):Bool{})
 	function is( selector : String ) : Bool;
-	
+
 	function data<T>( key : String, ?value : T ) : T;
 	function removeData( ?key : String ) : JQuery;
 	function serialize() : String;
@@ -299,11 +299,12 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	static function contains( parent : Dom.HtmlDom, child : Dom.HtmlDom ) : Bool;
 	static function noConflict( ?removeAll : Bool ) : Void;
 	static function parseJSON( json : String ) : Dynamic;
+	static function globalEval( js : String ) : Void;
 
 
 	//static function parseXML
 	//static function get, post
-	//static function getJSON, getScript, globalEval, grep
+	//static function getJSON, getScript, grep
 	//static function is*, makeArray, map, merge, noop, now, param, proxy, sub, trim, type, unique
 
 	private static inline function getCurrent() : JQuery {
