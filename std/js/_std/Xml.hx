@@ -36,10 +36,10 @@ enum XmlType {
 	public static var Prolog(default,null) : XmlType;
 	public static var Document(default,null) : XmlType;
 
-	static var enode = ~/^<([a-zA-Z0-9:_-]+)/;
+	static var enode = ~/^<([a-zA-Z0-9:._-]+)/;
 	static var ecdata = ~/^<!\[CDATA\[/i;
 	static var edoctype = ~/^<!DOCTYPE /i;
-	static var eend = ~/^<\/([a-zA-Z0-9:_-]+)>/;
+	static var eend = ~/^<\/([a-zA-Z0-9:._-]+)>/;
 	static var epcdata = ~/^[^<]+/;
 	static var ecomment = ~/^<!--/;
 	static var eprolog = ~/^<\?[^\?]+\?>/;
