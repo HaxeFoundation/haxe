@@ -348,7 +348,7 @@ let rec acc_get ctx g p =
 			else
 				error "Recursive inline is not supported" p
 		| Some { eexpr = TFunction _ } ->
-			let chk_class c = if c.cl_extern || has_meta ":extern" f.cf_meta then error "Can't create closure on an inline extern method" p in
+			let chk_class c = if c.cl_extern || has_meta ":extern" f.cf_meta then display_error ctx "Can't create closure on an inline extern method" p in
 			(match follow e.etype with
 			| TInst (c,_) -> chk_class c
 			| TAnon a -> (match !(a.a_status) with Statics c -> chk_class c | _ -> ())
