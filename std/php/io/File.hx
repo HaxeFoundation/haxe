@@ -50,15 +50,15 @@ class File {
 		return untyped __call__("file_put_contents", path, content);
 	}
 
-	public static function read( path : String, binary : Bool ) {
+	public static function read( path : String, binary : Bool = true ) {
 		return new FileInput(untyped __call__('fopen', path, binary ? "rb" : "r"));
 	}
 
-	public static function write( path : String, binary : Bool ) {
+	public static function write( path : String, binary : Bool = true ) {
 		return new FileOutput(untyped __call__('fopen', path, binary ? "wb" : "w"));
 	}
 
-	public static function append( path : String, binary : Bool ) {
+	public static function append( path : String, binary : Bool = true ) {
 		return new FileOutput(untyped __call__('fopen', path, binary ? "ab" : "a"));
 	}
 

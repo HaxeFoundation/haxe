@@ -47,15 +47,15 @@ class File {
 		return haxe.io.Bytes.ofData(data);
 	}
 
-	public static function read( path : String, binary : Bool ) {
+	public static function read( path : String, binary : Bool = true ) {
 		return new FileInput(file_open(path,(if( binary ) "rb" else "r")));
 	}
 
-	public static function write( path : String, binary : Bool ) {
+	public static function write( path : String, binary : Bool = true ) {
 		return new FileOutput(file_open(path,(if( binary ) "wb" else "w")));
 	}
 
-	public static function append( path : String, binary : Bool ) {
+	public static function append( path : String, binary : Bool = true ) {
 		return new FileOutput(file_open(path,(if( binary ) "ab" else "a")));
 	}
 
