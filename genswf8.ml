@@ -1552,11 +1552,11 @@ let generate com =
 	ctx.reg_count <- 0;
 	(* ---- *)
 	List.iter (fun t -> gen_type_def ctx t) com.types;
-	let global_try = gen_try ctx in
 	gen_boot ctx;
 	List.iter (fun m -> gen_movieclip ctx m) ctx.movieclips;
 	ctx.static_init <- true;
 	List.iter (gen_expr ctx false) (List.rev ctx.inits);
+	let global_try = gen_try ctx in
 	List.iter (gen_class_static_init ctx) (List.rev ctx.statics);
 	(match com.main with
 	| None -> ()
