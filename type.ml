@@ -470,6 +470,36 @@ let rec follow t =
 		follow (apply_params t.t_types tl t.t_type)
 	| _ -> t
 
+let rec is_nullable = function
+	| TMono r ->
+		(match !r with None -> true | Some t -> is_nullable t)
+	| TType ({ t_path = ([],"Null") },[_]) ->
+		false
+	| TLazy f ->
+		is_nullable (!f())
+	| TType (t,tl) ->
+		is_nullable (apply_params t.t_types tl t.t_type)
+	| TFun _ ->
+		true
+	| TInst ({ cl_path = (["haxe"],"Int32") },[])
+	| TInst ({ cl_path = ([],"Int") },[])
+	| TInst ({ cl_path = ([],"Float") },[])
+	| TEnum ({ e_path = ([],"Bool") },[]) -> true
+	| _ ->
+		false
+
+let rec is_null = function
+	| TMono r ->
+		(match !r with None -> false | Some t -> is_null t)
+	| TType ({ t_path = ([],"Null") },[t]) ->
+		is_nullable t
+	| TLazy f ->
+		is_null (!f())
+	| TType (t,tl) ->
+		is_null (apply_params t.t_types tl t.t_type)
+	| _ ->
+		false
+
 let rec link e a b =
 	(* tell if setting a == b will create a type-loop *)
 	let rec loop t =
@@ -800,9 +830,14 @@ let rec unify a b =
 					Unify_error l -> error (invalid_field n :: l)
 			with
 				Not_found ->
-					if is_closed a1 then error [has_no_field a n];
-					if not (link (ref None) a f2.cf_type) then error [];
-					a1.a_fields <- PMap.add n f2 a1.a_fields
+					match !(a1.a_status) with
+					| Opened ->
+						if not (link (ref None) a f2.cf_type) then error [];
+						a1.a_fields <- PMap.add n f2 a1.a_fields
+					| Const when is_null f2.cf_type ->
+						()
+					| _ ->
+						error [has_no_field a n];
 			) a2.a_fields;
 			(match !(a1.a_status) with
 			| Const when not (PMap.is_empty a2.a_fields) ->

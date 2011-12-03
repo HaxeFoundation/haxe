@@ -192,36 +192,6 @@ let gen_local ctx t =
 	in
 	add_local ctx (loop 0) t
 
-let rec is_nullable = function
-	| TMono r ->
-		(match !r with None -> true | Some t -> is_nullable t)
-	| TType ({ t_path = ([],"Null") },[_]) ->
-		false
-	| TLazy f ->
-		is_nullable (!f())
-	| TType (t,tl) ->
-		is_nullable (apply_params t.t_types tl t.t_type)
-	| TFun _ ->
-		true
-	| TInst ({ cl_path = (["haxe"],"Int32") },[])
-	| TInst ({ cl_path = ([],"Int") },[])
-	| TInst ({ cl_path = ([],"Float") },[])
-	| TEnum ({ e_path = ([],"Bool") },[]) -> true
-	| _ ->
-		false
-
-let rec is_null = function
-	| TMono r ->
-		(match !r with None -> false | Some t -> is_null t)
-	| TType ({ t_path = ([],"Null") },[t]) ->
-		is_nullable t
-	| TLazy f ->
-		is_null (!f())
-	| TType (t,tl) ->
-		is_null (apply_params t.t_types tl t.t_type)
-	| _ ->
-		false
-
 let not_opened = ref Closed
 let mk_anon fl = TAnon { a_fields = fl; a_status = not_opened; }
 
