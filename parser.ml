@@ -553,6 +553,7 @@ and parse_obj_decl = parser
 	| [< '(Comma,_); s >] ->
 		(match s with parser
 		| [< name, _ = any_ident; '(DblDot,_); e = expr; l = parse_obj_decl >] -> (name,e) :: l
+		| [< '(Const (String name),_); '(DblDot,_); e = expr; l = parse_obj_decl >] -> (name,e) :: l
 		| [< >] -> [])
 	| [< >] -> []
 
