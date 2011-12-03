@@ -231,7 +231,7 @@ class DefaultJSGenerator {
 	}
 
 	public function generate() {
-		print("$estr = function() { return js.Boot.__string_rec(this,''); }");
+		print("var $_, $hxClasses = $hxClasses || {}, $estr = function() { return js.Boot.__string_rec(this,''); }");
 		newline();
 		/*
 		(match ctx.namespace with
