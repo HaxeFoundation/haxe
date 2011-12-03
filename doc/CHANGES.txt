@@ -19,6 +19,7 @@
 	flash : output traces to native trace() when using -D fdb or -D nativeTrace
 	all : allowed abitrary string fields in anonymous objects
 	all : structure fields which are Null<X> are now optional (for constant values)
+	all : allowed optional args in functions types (?Int -> Void)
 
 2011-09-25: 2.08
 	js : added js.JQuery

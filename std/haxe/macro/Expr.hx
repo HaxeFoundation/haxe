@@ -124,6 +124,7 @@ enum ComplexType {
 	TAnonymous( fields : Array<Field> );
 	TParent( t : ComplexType );
 	TExtend( p : TypePath, fields : Array<Field> );
+	TOptional( t : ComplexType );
 }
 
 typedef TypePath = {

@@ -152,6 +152,7 @@ and complex_type =
 	| CTAnonymous of class_field list
 	| CTParent of complex_type
 	| CTExtend of type_path * class_field list
+	| CTOptional of complex_type
 
 and func = {
 	f_params : type_param list;

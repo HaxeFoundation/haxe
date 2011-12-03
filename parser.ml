@@ -331,21 +331,26 @@ and parse_type_opt = parser
 	| [< '(DblDot,_); t = parse_complex_type >] -> Some t
 	| [< >] -> None
 
-and parse_complex_type = parser
-	| [< '(POpen,_); t = parse_complex_type; '(PClose,_); s >] -> parse_complex_type_next (CTParent t) s
+and parse_complex_type s =
+	let t = parse_complex_type_inner s in
+	parse_complex_type_next t s
+
+and parse_complex_type_inner = parser
+	| [< '(POpen,_); t = parse_complex_type; '(PClose,_) >] -> CTParent t
 	| [< '(BrOpen,p1); s >] ->
-		let t = (match s with parser
-			| [< name, p = any_ident >] -> CTAnonymous (parse_type_anonymous_resume name p s)
-			| [< '(Binop OpGt,_); t = parse_type_path; '(Comma,_); s >] ->
-				(match s with parser
-				| [< name, p = any_ident; l = parse_type_anonymous_resume name p >] -> CTExtend (t,l)
-				| [< l, _ = parse_class_fields true p1 >] -> CTExtend (t,l)
-				| [< >] -> serror())
-			| [< l, _ = parse_class_fields true p1 >] -> CTAnonymous l
-			| [< >] -> serror()
-		) in
-		parse_complex_type_next t s
-	| [< t = parse_type_path; s >] -> parse_complex_type_next (CTPath t) s
+		(match s with parser
+		| [< name, p = any_ident >] -> CTAnonymous (parse_type_anonymous_resume name p s)
+		| [< '(Binop OpGt,_); t = parse_type_path; '(Comma,_); s >] ->
+			(match s with parser
+			| [< name, p = any_ident; l = parse_type_anonymous_resume name p >] -> CTExtend (t,l)
+			| [< l, _ = parse_class_fields true p1 >] -> CTExtend (t,l)
+			| [< >] -> serror())
+		| [< l, _ = parse_class_fields true p1 >] -> CTAnonymous l
+		| [< >] -> serror())
+	| [< '(Question,_); t = parse_complex_type_inner >] ->
+		CTOptional t
+	| [< t = parse_type_path >] ->
+		CTPath t
 
 and parse_type_path s = parse_type_path1 [] s
 

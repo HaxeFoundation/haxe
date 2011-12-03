@@ -167,6 +167,7 @@ and load_complex_type ctx p t =
 	match t with
 	| CTParent t -> load_complex_type ctx p t
 	| CTPath t -> load_instance ctx t p false
+	| CTOptional _ -> error "Optional type not allowed outside function arguments" p
 	| CTExtend (t,l) ->
 		(match load_complex_type ctx p (CTAnonymous l) with
 		| TAnon a ->
@@ -259,7 +260,10 @@ and load_complex_type ctx p t =
 		| [CTPath { tpackage = []; tparams = []; tname = "Void" }] ->
 			TFun ([],load_complex_type ctx p r)
 		| _ ->
-			TFun (List.map (fun t -> "",false,load_complex_type ctx p t) args,load_complex_type ctx p r)
+			TFun (List.map (fun t ->
+				let t, opt = (match t with CTOptional t -> t, true | _ -> t,false) in
+				"",opt,load_complex_type ctx p t
+			) args,load_complex_type ctx p r)
 
 let hide_types ctx =
 	let old_locals = ctx.local_types in
@@ -1203,6 +1207,7 @@ let init_class ctx c p herits fields =
 							| CTFunction (tl,t) -> List.for_all is_qualified tl && is_qualified t
 							| CTAnonymous fl -> List.for_all is_qual_field fl
 							| CTExtend (t,fl) -> is_qual_name t && List.for_all is_qual_field fl
+							| CTOptional t -> is_qualified t
 						and is_qual_field f =
 							match f.cff_kind with
 							| FVar (t,_) -> is_qual_opt t
