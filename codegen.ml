@@ -438,6 +438,10 @@ let rec has_rtti c =
 let on_generate ctx t =
 	match t with
 	| TClassDecl c ->
+		if c.cl_private then begin
+			let rpath = (fst c.cl_module,"_" ^ snd c.cl_module) in
+			if Hashtbl.mem ctx.g.types_module rpath then error ("This private class name will clash with " ^ s_type_path rpath) c.cl_pos;
+		end;
 		List.iter (fun m ->
 			match m with
 			| ":native",[Ast.EConst (Ast.String name),p],mp ->
