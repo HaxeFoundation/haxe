@@ -1389,11 +1389,14 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let e = type_expr ctx ~need_val e in
 		mk (TParenthesis e) e.etype p
 	| EObjectDecl fl ->
+		let pf = Parser.quoted_ident_prefix in
+		let pflen = String.length pf in
 		let rec loop (l,acc) (f,e) =
+			let f, add = if String.length f >= pflen && String.sub f 0 pflen = pf then String.sub f pflen (String.length f - pflen), false else f, true in
 			if PMap.mem f acc then error ("Duplicate field in object declaration : " ^ f) p;
 			let e = type_expr ctx e in
 			let cf = mk_field f e.etype e.epos in
-			((f,e) :: l, PMap.add f cf acc)
+			((f,e) :: l, if add then PMap.add f cf acc else acc)
 		in
 		let fields , types = List.fold_left loop ([],PMap.empty) fl in
 		let x = ref Const in

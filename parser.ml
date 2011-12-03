@@ -43,6 +43,21 @@ let error_msg = function
 let error m p = raise (Error (m,p))
 let display_error : (error_msg -> pos -> unit) ref = ref (fun _ _ -> assert false)
 
+let quoted_ident_prefix = "@$__hx__"
+
+let quote_ident s =
+	try
+		for i = 0 to String.length s - 1 do
+			match String.unsafe_get s i with
+			| 'a'..'z' | 'A'..'Z' | '_' -> ()
+			| '0'..'9' when i > 0 -> ()
+			| _ -> raise Exit
+		done;
+		if Hashtbl.mem Lexer.keywords s then raise Exit;
+		s
+	with Exit ->
+		quoted_ident_prefix ^ s
+
 let cache = ref (DynArray.create())
 let doc = ref None
 let use_doc = ref false
@@ -514,7 +529,7 @@ and parse_class_herit = parser
 and block1 = parser
 	| [< '(Const (Ident name),p); s >] -> block2 name (Ident name) p s
 	| [< '(Const (Type name),p); s >] -> block2 name (Type name) p s
-	| [< '(Const (String name),p); s >] -> block2 name (String name) p s
+	| [< '(Const (String name),p); s >] -> block2 (quote_ident name) (String name) p s
 	| [< b = block [] >] -> EBlock b
 
 and block2 name ident p = parser
@@ -553,7 +568,7 @@ and parse_obj_decl = parser
 	| [< '(Comma,_); s >] ->
 		(match s with parser
 		| [< name, _ = any_ident; '(DblDot,_); e = expr; l = parse_obj_decl >] -> (name,e) :: l
-		| [< '(Const (String name),_); '(DblDot,_); e = expr; l = parse_obj_decl >] -> (name,e) :: l
+		| [< '(Const (String name),_); '(DblDot,_); e = expr; l = parse_obj_decl >] -> (quote_ident name,e) :: l
 		| [< >] -> [])
 	| [< >] -> []
 
