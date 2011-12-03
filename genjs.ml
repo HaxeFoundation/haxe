@@ -51,9 +51,21 @@ let kwds =
 	];
 	h
 
+let valid_js_ident s =
+	try
+		for i = 0 to String.length s - 1 do
+			match String.unsafe_get s i with
+			| 'a'..'z' | 'A'..'Z' | '$' | '_' -> ()
+			| '0'..'9' when i > 0 -> ()
+			| _ -> raise Exit
+		done;
+		true
+	with Exit ->
+		false
+
 let field s = if Hashtbl.mem kwds s then "[\"" ^ s ^ "\"]" else "." ^ s
 let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
-let anon_field s = if Hashtbl.mem kwds s then "'" ^ s ^ "'" else s
+let anon_field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "'" ^ s ^ "'" else s
 
 let spr ctx s = ctx.separator <- false; Buffer.add_string ctx.buf s
 let print ctx = ctx.separator <- false; Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)

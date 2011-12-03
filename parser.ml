@@ -512,13 +512,14 @@ and parse_class_herit = parser
 	| [< '(Kwd Implements,_); t = parse_type_path >] -> HImplements t
 
 and block1 = parser
-	| [< '(Const (Ident name),p); s >] -> block2 name true p s
-	| [< '(Const (Type name),p); s >] -> block2 name false p s
+	| [< '(Const (Ident name),p); s >] -> block2 name (Ident name) p s
+	| [< '(Const (Type name),p); s >] -> block2 name (Type name) p s
+	| [< '(Const (String name),p); s >] -> block2 name (String name) p s
 	| [< b = block [] >] -> EBlock b
 
 and block2 name ident p = parser
 	| [< '(DblDot,_); e = expr; l = parse_obj_decl >] -> EObjectDecl ((name,e) :: l)
-	| [< e = expr_next (EConst (if ident then Ident name else Type name),p); s >] ->
+	| [< e = expr_next (EConst ident,p); s >] ->
 		try
 			let _ = semicolon s in
 			let b = block [e] s in
