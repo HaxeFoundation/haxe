@@ -20,11 +20,22 @@ open Printf
 open Genswf
 open Common
 
+type context = {
+	com : Common.context;
+	mutable messages : string list;
+	mutable prompt : bool;
+	mutable params : string list;
+	mutable has_next : bool;
+	mutable has_error : bool;
+}
+
+exception Abort
+exception Completion of string
+
 let version = 208
 
-let prompt = ref false
 let measure_times = ref false
-let start = get_time()
+let start_time = get_time()
 
 let executable_path() =
 	Extc.executable_path()
@@ -47,38 +58,26 @@ let format msg p =
 		sprintf "%s : %s" epos msg
 	end
 
-let message msg p =
-	prerr_endline (format msg p)
+let message ctx msg p =
+	ctx.messages <- format msg p :: ctx.messages
 
-let messages = ref []
-
-let store_message msg p =
-	messages := format msg p :: !messages
-
-let do_exit() =
-	List.iter prerr_endline (List.rev (!messages));
-	if !prompt then begin
-		print_endline "Press enter to exit...";
-		ignore(read_line());
-	end;
-	exit 1
-
-let report msg p =
-	let inf = if !Common.display_default then Printf.sprintf " (display %s@%d)" (!Parser.resume_display).Ast.pfile (!Parser.resume_display).Ast.pmin else "" in
-	messages := format (msg ^ inf) p :: !messages;
-	do_exit()
+let error ctx msg p =
+	message ctx msg p;
+	ctx.has_error <- true
 
 let htmlescape s =
 	let s = String.concat "&lt;" (ExtString.String.nsplit s "<") in
 	let s = String.concat "&gt;" (ExtString.String.nsplit s ">") in
 	s
 
-let report_list l =
-	prerr_endline "<list>";
+let complete_fields fields =
+	let b = Buffer.create 0 in
+	Buffer.add_string b "<list>\n";
 	List.iter (fun (n,t,d) ->
-		prerr_endline (Printf.sprintf "<i n=\"%s\"><t>%s</t><d>%s</d></i>" n (htmlescape t) (htmlescape d));
-	) (List.sort (fun (a,_,_) (b,_,_) -> compare a b) l);
-	prerr_endline "</list>"
+		Buffer.add_string b (Printf.sprintf "<i n=\"%s\"><t>%s</t><d>%s</d></i>\n" n (htmlescape t) (htmlescape d))
+	) (List.sort (fun (a,_,_) (b,_,_) -> compare a b) fields);
+	Buffer.add_string b "</list>\n";
+	raise (Completion (Buffer.contents b))
 
 let file_extension f =
 	let cl = ExtString.String.nsplit f "." in
@@ -272,24 +271,45 @@ let add_libs com l libs =
 		com.class_path <- lines @ com.class_path;
 		t()
 
-exception Hxml_found
+let create_context params =
+	{
+		com = Common.create version;
+		params = params;
+		prompt = false;
+		messages = [];
+		has_next = false;
+		has_error = false;
+	}
 
-let rec process_params acc = function
+let default_flush ctx =
+	List.iter prerr_endline (List.rev ctx.messages);
+	if ctx.prompt then begin
+		print_endline "Press enter to exit...";
+		ignore(read_line());
+	end;
+	if ctx.has_error then exit 1
+
+let rec process_params flush acc = function
 	| [] ->
-		init (List.rev acc) false
+		let ctx = create_context (List.rev acc) in
+		init flush ctx;
+		flush ctx
 	| "--next" :: l ->
-		init (List.rev acc) true;
-		process_params [] l
+		let ctx = create_context (List.rev acc) in
+		ctx.has_next <- true;
+		init flush ctx;
+		flush ctx;
+		process_params flush [] l
 	| x :: l ->
-		process_params (x :: acc) l
+		process_params flush (x :: acc) l
 
-and init params has_next =
+and init flush ctx =
 	let usage = Printf.sprintf
 		"haXe Compiler %d.%.2d - (c)2005-2011 Motion-Twin\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
 		(version / 100) (version mod 100) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
+	let com = ctx.com in
 	let classes = ref [([],"Std")] in
-	let com = Common.create version in
 try
 	let xml_out = ref None in
 	let swf_header = ref None in
@@ -297,7 +317,6 @@ try
 	let config_macros = ref [] in
 	let neko_libs = ref [] in
 	let cp_libs = ref [] in
-	let has_error = ref false in
 	let gen_as3 = ref false in
 	let no_output = ref false in
 	let did_something = ref false in
@@ -305,16 +324,9 @@ try
 	let pre_compilation = ref [] in
 	let interp = ref false in
 	Common.define com ("haxe_" ^ string_of_int version);
-	com.warning <- (fun msg p ->
-		message ("Warning : " ^ msg) p
-	);
-	com.error <- (fun msg p ->
-		message msg p;
-		has_error := true;
-	);
-	Parser.display_error := (fun e p ->
-		com.error (Parser.error_msg e) p;
-	);
+	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
+	com.error <- error ctx;
+	Parser.display_error := (fun e p -> com.error (Parser.error_msg e) p);
 	Parser.use_doc := !Common.display_default;
 	(try
 		let p = Sys.getenv "HAXE_LIBRARY_PATH" in
@@ -443,7 +455,7 @@ try
 			if Hashtbl.mem com.resources name then failwith ("Duplicate resource name " ^ name);
 			Hashtbl.add com.resources name data
 		),"<file>[@name] : add a named resource file");
-		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
+		("-prompt", Arg.Unit (fun() -> ctx.prompt <- true),": prompt on error");
 		("-cmd", Arg.String (fun cmd ->
 			let len = String.length cmd in
 			let cmd = (if len > 0 && cmd.[0] = '"' && cmd.[len - 1] = '"' then String.sub cmd 1 (len - 2) else cmd) in
@@ -467,8 +479,7 @@ try
 			| "classes" ->
 				pre_compilation := (fun() -> raise (Parser.TypePath (["."],None))) :: !pre_compilation;
 			| "keywords" ->
-				report_list (Hashtbl.fold (fun k _ acc -> (k,"","") :: acc) Lexer.keywords []);
-				exit 0;
+				complete_fields (Hashtbl.fold (fun k _ acc -> (k,"","") :: acc) Lexer.keywords [])
 			| _ ->
 				let file, pos = try ExtString.String.split file_pos "@" with _ -> failwith ("Invalid format : " ^ file_pos) in
 				let pos = try int_of_string pos with _ -> failwith ("Invalid format : "  ^ pos) in
@@ -526,7 +537,7 @@ try
 		),"<file> : [deprecated] compile code to Flash9 SWF file");
 	] in
 	let current = ref 0 in
-	let args = Array.of_list ("" :: params) in
+	let args = Array.of_list ("" :: ctx.params) in
 	let rec args_callback cl =
 		match List.rev (ExtString.String.nsplit cl ".") with
 		| x :: _ when String.lowercase x = "hxml" ->
@@ -534,8 +545,8 @@ try
 			let p1 = Array.to_list (Array.sub args 1 (!current - 1)) in
 			let p2 = Array.to_list (Array.sub args (!current + 1) (Array.length args - !current - 1)) in
 			if com.verbose then print_endline ("Processing HXML : " ^ cl);
-			process_params [] (p1 @ hxml_args @ p2);
-			raise Hxml_found
+			process_params flush [] (p1 @ hxml_args @ p2);
+			raise Abort
 		| _ ->
 			classes := make_path cl :: !classes
 	in
@@ -545,12 +556,9 @@ try
 	if com.display then begin
 		xml_out := None;
 		no_output := true;
-		com.warning <- store_message;
+		com.warning <- message ctx;
+		com.error <- error ctx;
 		com.main_class <- None;
-		com.error <- (fun msg p ->
-			store_message msg p;
-			has_error := true;
-		);
 		classes := lookup_classes com (!Parser.resume_display).Ast.pfile;
 	end;
 	let add_std dir =
@@ -586,7 +594,7 @@ try
 		| Cpp -> add_std "cpp"; "cpp"
 	) in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
-	if com.display && not has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
+	if com.display && not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;
 
 	(* check file extension. In case of wrong commandline, we don't want
 		to accidentaly delete a source file. *)
@@ -598,25 +606,25 @@ try
 		if com.verbose then print_endline ("Classpath : " ^ (String.concat ";" com.class_path));
 		let t = Common.timer "typing" in
 		Typecore.type_expr_ref := (fun ctx e need_val -> Typer.type_expr ~need_val ctx e);
-		let ctx = Typer.create com in
-		List.iter (Typer.call_init_macro ctx) (List.rev !config_macros);
-		List.iter (fun cpath -> ignore(ctx.Typecore.g.Typecore.do_load_module ctx cpath Ast.null_pos)) (List.rev !classes);
-		Typer.finalize ctx;
+		let tctx = Typer.create com in
+		List.iter (Typer.call_init_macro tctx) (List.rev !config_macros);
+		List.iter (fun cpath -> ignore(tctx.Typecore.g.Typecore.do_load_module tctx cpath Ast.null_pos)) (List.rev !classes);
+		Typer.finalize tctx;
 		t();
-		if !has_error then do_exit();
+		if ctx.has_error then raise Abort;
 		let t = Common.timer "filters" in
-		let main, types, modules = Typer.generate ctx com.main_class in
+		let main, types, modules = Typer.generate tctx com.main_class in
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;
 		let filters = [
-			if com.foptimize then Optimizer.reduce_expression ctx else Optimizer.sanitize ctx;
+			if com.foptimize then Optimizer.reduce_expression tctx else Optimizer.sanitize tctx;
 			Codegen.check_local_vars_init;
 			Codegen.captured_vars com;
 			Codegen.rename_local_vars com;
 		] in
 		Codegen.post_process com.types filters;
-		Common.add_filter com (fun() -> List.iter (Codegen.on_generate ctx) com.types);
+		Common.add_filter com (fun() -> List.iter (Codegen.on_generate tctx) com.types);
 		List.iter (fun f -> f()) (List.rev com.filters);
 		(match !xml_out with
 		| None -> ()
@@ -631,7 +639,7 @@ try
 		(match com.platform with
 		| _ when !no_output ->
 			if !interp then begin
-				let ctx = Interp.create com (Typer.make_macro_api ctx Ast.null_pos) in
+				let ctx = Interp.create com (Typer.make_macro_api tctx Ast.null_pos) in
 				Interp.add_types ctx com.types;
 				(match com.main with
 				| None -> ()
@@ -669,18 +677,26 @@ try
 		t();
 	) (List.rev !cmds)
 with
-	| Common.Abort (m,p) -> report m p
-	| Lexer.Error (m,p) -> report (Lexer.error_msg m) p
-	| Parser.Error (m,p) -> report (Parser.error_msg m) p
-	| Typecore.Error (Typecore.Forbid_package _,_) when !Common.display_default && has_next -> ()
-	| Typecore.Error (m,p) -> report (Typecore.error_msg m) p
+	| Abort ->
+		()
+	| Common.Abort (m,p) ->
+		error ctx m p
+	| Lexer.Error (m,p) ->
+		error ctx (Lexer.error_msg m) p
+	| Parser.Error (m,p) ->
+		error ctx (Parser.error_msg m) p
+	| Typecore.Error (Typecore.Forbid_package _,_) when !Common.display_default && ctx.has_next ->
+		()
+	| Typecore.Error (m,p) ->
+		error ctx (Typecore.error_msg m) p
 	| Interp.Error (msg,p :: l) ->
-		store_message msg p;
-		List.iter (store_message "Called from") l;
-		report "Aborted" Ast.null_pos;
-	| Failure msg | Arg.Bad msg -> report ("Error : " ^ msg) Ast.null_pos
-	| Arg.Help msg -> print_string msg
-	| Hxml_found -> ()
+		message ctx msg p;
+		List.iter (message ctx "Called from") l;
+		error ctx "Aborted" Ast.null_pos;
+	| Failure msg | Arg.Bad msg ->
+		error ctx ("Error : " ^ msg) Ast.null_pos
+	| Arg.Help msg -> 
+		print_string msg
 	| Typer.DisplayFields fields ->
 		let ctx = Type.print_context() in
 		let fields = List.map (fun (name,t,doc) -> name, Type.s_type ctx t, (match doc with None -> "" | Some d -> d)) fields in
@@ -693,45 +709,50 @@ with
 			loop();
 			let tot = ref 0. in
 			Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
-			let fields = ("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. start), "") :: fields in
+			let fields = ("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. start_time), "") :: fields in
 			Hashtbl.fold (fun _ t acc ->
 				("@TIME " ^ t.name, Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot), "") :: acc
 			) Common.htimers fields;
 		end else
 			fields
 		in
-		report_list fields;
-		exit 0
+		complete_fields fields
 	| Typer.DisplayTypes tl ->
 		let ctx = Type.print_context() in
+		let b = Buffer.create 0 in
 		List.iter (fun t ->
-			prerr_endline "<type>";
-			prerr_endline (htmlescape (Type.s_type ctx t));
-			prerr_endline "</type>";
+			Buffer.add_string b "<type>";
+			Buffer.add_string b (htmlescape (Type.s_type ctx t));
+			Buffer.add_string b "</type>\n";
 		) tl;
-		exit 0;
+		raise (Completion (Buffer.contents b))
 	| Parser.TypePath (p,c) ->
 		(match c with
 		| None ->
 			let packs, classes = read_type_path com p in
-			if packs = [] && classes = [] then report ("No classes found in " ^ String.concat "." p) Ast.null_pos;
-			report_list (List.map (fun f -> f,"","") (packs @ classes))
+			if packs = [] && classes = [] then
+				error ctx ("No classes found in " ^ String.concat "." p) Ast.null_pos
+			else
+				complete_fields (List.map (fun f -> f,"","") (packs @ classes))
 		| Some c ->
 			try
 				let ctx = Typer.create com in
 				let m = Typeload.load_module ctx (p,c) Ast.null_pos in
-				report_list (List.map (fun t -> snd (Type.t_path t),"","") (List.filter (fun t -> not (Type.t_infos t).Type.mt_private) m.Type.mtypes))
+				complete_fields (List.map (fun t -> snd (Type.t_path t),"","") (List.filter (fun t -> not (Type.t_infos t).Type.mt_private) m.Type.mtypes))
 			with _ ->
-				report ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos
-		);
-		exit 0;
+				error ctx ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos)
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) ->
-		report (Printexc.to_string e) Ast.null_pos
+		error ctx (Printexc.to_string e) Ast.null_pos
 
 ;;
 let all = Common.timer "other" in
 Sys.catch_break true;
-process_params [] (List.tl (Array.to_list Sys.argv));
+(try
+	process_params default_flush [] (List.tl (Array.to_list Sys.argv));
+with Completion c ->
+	prerr_endline c;
+	exit 0
+);
 all();
 if !measure_times then begin
 	let tot = ref 0. in
