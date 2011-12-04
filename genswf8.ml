@@ -56,6 +56,7 @@ type context = {
 	mutable curmethod : (string * bool);
 	mutable fun_pargs : (int * bool list) list;
 	mutable static_init : bool;
+	mutable extern_boot : bool;
 
 	(* loops *)
 	mutable breaks : (unit -> unit) list;
@@ -67,8 +68,6 @@ type context = {
 let invalid_expr p = error "Invalid expression" p
 let stack_error p = error "Stack error" p
 let protect_all = ref true
-let extern_boot = ref false
-let debug_pass = ref ""
 
 (* -------------------------------------------------------------- *)
 (* Bytecode Helpers *)
@@ -1075,7 +1074,7 @@ and gen_expr_2 ctx retval e =
 			let j = cjmp ctx in
 			push ctx [VReg 0];
 			push ctx [VInt 1];
-			getvar ctx (gen_path ctx (["flash"],"Boot") (!extern_boot));
+			getvar ctx (gen_path ctx (["flash"],"Boot") ctx.extern_boot);
 			push ctx [VStr ("__exc",false)];
 			call ctx VarObj 1;
 			write ctx AReturn;
@@ -1338,7 +1337,7 @@ let gen_type_def ctx t =
 			()
 		else
 		let have_constr = ref false in
-		if c.cl_path = (["flash"] , "Boot") then extern_boot := false;
+		if c.cl_path = (["flash"] , "Boot") then ctx.extern_boot <- false;
 		let acc = gen_path ctx c.cl_path false in
 		let rec loop s =
 			match s.cl_super with
@@ -1442,7 +1441,7 @@ let gen_type_def ctx t =
 
 let gen_boot ctx =
 	(* r0 = Boot *)
-	getvar ctx (gen_path ctx (["flash"],"Boot") (!extern_boot));
+	getvar ctx (gen_path ctx (["flash"],"Boot") ctx.extern_boot);
 	write ctx (ASetReg 0);
 	write ctx APop;
 	(* r0.__init(eval("this")) *)
@@ -1526,10 +1525,10 @@ let generate com =
 		fun_pargs = [];
 		in_loop = false;
 		static_init = false;
+		extern_boot = true;
 	} in
 	write ctx (AStringPool []);
 	protect_all := not (Common.defined com "swf-mark");
-	extern_boot := true;
 	if com.debug then begin
 		push ctx [VStr (ctx.stack.Codegen.stack_var,false); VInt 0];
 		write ctx AInitArray;
@@ -1565,7 +1564,7 @@ let generate com =
 	let end_try = global_try() in
 	(* flash.Boot.__trace(exc) *)
 	push ctx [VReg 0; VInt 1];
-	getvar ctx (gen_path ctx (["flash"],"Boot") (!extern_boot));
+	getvar ctx (gen_path ctx (["flash"],"Boot") ctx.extern_boot);
 	push ctx [VStr ("__exc",false)];
 	call ctx VarObj 1;
 	write ctx APop;
