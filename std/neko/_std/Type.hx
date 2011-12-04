@@ -140,6 +140,7 @@ enum ValueType {
 		a.remove("__class__");
 		a.remove("__serialize");
 		a.remove("__string");
+		a.remove("__properties__");
 		return a;
 	}
 
@@ -150,6 +151,7 @@ enum ValueType {
 		a.remove("__super__");
 		a.remove("__string");
 		a.remove("__construct__");
+		a.remove("__properties__");
 		a.remove("prototype");
 		a.remove("new");
 		#if macro
@@ -211,7 +213,7 @@ enum ValueType {
 	public inline static function enumIndex( e : Dynamic ) : Int {
 		return e.index;
 	}
-	
+
 	public static function allEnums<T>( e : Enum<T> ) : Array<T> {
 		var all = [];
 		var cst : Array<String> = untyped e.__constructs__;

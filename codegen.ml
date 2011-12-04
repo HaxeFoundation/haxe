@@ -83,6 +83,24 @@ let rec type_constant_value com (e,p) =
 	| _ ->
 		error "Constant value expected" p
 
+let rec has_properties c =
+	List.exists (fun f ->
+		match f.cf_kind with
+		| Var { v_read = AccCall _ } -> true
+		| Var { v_write = AccCall _ } -> true
+		| _ -> false
+	) c.cl_ordered_fields || (match c.cl_super with Some (c,_) -> has_properties c | _ -> false)
+
+let get_properties fields =
+	List.fold_left (fun acc f ->
+		let acc = (match f.cf_kind with
+		| Var { v_read = AccCall getter } -> ("get_" ^ f.cf_name , getter) :: acc
+		| _ -> acc) in
+		match f.cf_kind with
+		| Var { v_write = AccCall setter } -> ("set_" ^ f.cf_name , setter) :: acc
+		| _ -> acc
+	) [] fields	
+
 (* -------------------------------------------------------------------------- *)
 (* REMOTING PROXYS *)
 

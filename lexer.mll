@@ -136,9 +136,8 @@ let mk lexbuf t =
 	mk_tok t (lexeme_start lexbuf) (lexeme_end lexbuf)
 
 let mk_ident lexbuf =
-	match lexeme lexbuf with
-	| s ->
-		mk lexbuf (try Kwd (Hashtbl.find keywords s) with Not_found -> Const (Ident s))
+	let s = lexeme lexbuf in
+	mk lexbuf (try Kwd (Hashtbl.find keywords s) with Not_found -> Const (Ident s))
 
 let invalid_char lexbuf =
 	error (Invalid_character (lexeme_char lexbuf 0)) (lexeme_start lexbuf)

@@ -1,6 +1,58 @@
 package unit;
 import Type;
 
+class ClassWithProp {
+	public var x(getX, setX) : Int;
+	var _x : Int;
+	
+	public function new() {
+		_x = 5;
+	}
+	
+	function getX() {
+		return _x;
+	}
+	function setX(v) {
+		_x = v;
+		return v;
+	}
+	
+	public static var STAT_X(default, setStatX) : Int;
+	
+	static function setStatX(v) {
+		STAT_X = v * 2;
+		return v;
+	}
+	
+	static function __init__() {
+		STAT_X = 3;
+	}
+	
+	
+}
+
+class SubClassWithProp extends ClassWithProp {
+	public var y(default, setY) : Int;
+	
+	public function new() {
+		super();
+		y = 10;
+	}
+	
+	override function getX() {
+		return _x + 1;
+	}
+	
+	function getY() {
+		return y;
+	}
+	
+	function setY(v) {
+		y = v;
+		return v;
+	}
+}
+
 class TestReflect extends Test {
 
 	static var TYPES = [
@@ -185,6 +237,38 @@ class TestReflect extends Test {
 		f( Reflect.compareMethods(a.add,a.get) );
 		f( Reflect.compareMethods(a.add,null) );
 		f( Reflect.compareMethods(null,a.add) );
+	}
+	
+	function testGetProp() {
+		
+		var c = new ClassWithProp();
+		eq( c.x, 5);
+		eq( Reflect.getProperty(c, "x"), 5);
+		Reflect.setProperty(c, "x", 10);
+		eq( c.x, 10);
+		eq( Reflect.getProperty(c, "x"), 10);
+		
+		var c = new SubClassWithProp();
+		eq( c.x, 6);
+		eq( Reflect.getProperty(c, "x"), 6);
+		eq( c.y, 10);
+		eq( Reflect.getProperty(c, "y"), 10);
+		
+		Reflect.setProperty(c, "x", 10);
+		Reflect.setProperty(c, "y", 20);
+		
+		eq( c.x, 11);
+		eq( Reflect.getProperty(c, "x"), 11);
+		eq( c.y, 20);
+		eq( Reflect.getProperty(c, "y"), 20);
+		
+		eq( ClassWithProp.STAT_X, 6 );
+		eq( Reflect.getProperty(ClassWithProp, "STAT_X"), 6 );
+		
+		Reflect.setProperty(ClassWithProp, "STAT_X", 8);
+		
+		eq( ClassWithProp.STAT_X, 16 );
+		eq( Reflect.getProperty(ClassWithProp, "STAT_X"), 16 );
 	}
 
 }

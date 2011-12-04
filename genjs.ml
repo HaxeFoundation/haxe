@@ -732,6 +732,16 @@ let generate_class ctx c =
 		newline ctx;
 	);
 
+	let gen_props props = 
+		String.concat "," (List.map (fun (p,v) -> p ^":\""^v^"\"") props)
+	in
+
+	(match Codegen.get_properties c.cl_ordered_statics with
+	| [] -> ()
+	| props ->
+		print ctx "%s.__properties__ = {%s}" p (gen_props props);
+		newline ctx);
+
 	List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
 
 	(match c.cl_super with
@@ -747,6 +757,17 @@ let generate_class ctx c =
 	List.iter (fun f -> match f.cf_kind with Var { v_read = AccResolve } -> () | _ -> gen_class_field ctx c f) c.cl_ordered_fields;
 	newprop ctx;
 	print ctx "__class__: %s" p;
+
+	let props = Codegen.get_properties c.cl_ordered_fields in
+	(match c.cl_super with
+	| _ when props = [] -> ()
+	| Some (csup,_) when Codegen.has_properties csup ->
+		newprop ctx;
+		let psup = s_path ctx csup.cl_path in
+		print ctx "__properties__: $extend(%s.prototype.__properties__,{%s})" psup (gen_props props)
+	| _ ->
+		newprop ctx;
+		print ctx "__properties__: {%s}" (gen_props props));
 	
 	bend();
 	print ctx "\n}";

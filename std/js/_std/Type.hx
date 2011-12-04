@@ -117,14 +117,16 @@ enum ValueType {
 		var a = [];
 		untyped __js__("for(var i in c.prototype) a.push(i)");
 		a.remove("__class__");
+		a.remove("__properties__");
 		return a;
 	}
 
 	public static function getClassFields( c : Class<Dynamic> ) : Array<String> {
 		var a = Reflect.fields(c);
-		a.remove(__unprotect__("__name__"));
-		a.remove(__unprotect__("__interfaces__"));
-		a.remove(__unprotect__("__super__"));
+		a.remove("__name__");
+		a.remove("__interfaces__");
+		a.remove("__properties__");
+		a.remove("__super__");
 		a.remove("prototype");
 		return a;
 	}

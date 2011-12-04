@@ -46,6 +46,17 @@ extern class Reflect {
 	public static function setField( o : Dynamic, field : String, value : Dynamic ) : Void;
 
 	/**
+		Similar to field but also supports property (might be slower).
+	**/
+	public static function getProperty( o : Dynamic, field : String ) : Dynamic;
+
+	/**
+		Similar to setField but also supports property (might be slower).
+	**/
+	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void;
+
+
+	/**
 		Call a method with the given object and arguments.
 	**/
 	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic;

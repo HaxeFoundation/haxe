@@ -26,31 +26,43 @@
 @:core_api class Reflect {
 
 	public static function hasField( o : Dynamic, field : String ) : Bool untyped {
-		return __dollar__typeof(o) == __dollar__tobject && __dollar__objfield(o,__dollar__hash(field.__s));
+		return $typeof(o) == $tobject && $objfield(o,$hash(field.__s));
 	}
 
 	public inline static function field( o : Dynamic, field : String ) : Dynamic untyped {
-		return if( __dollar__typeof(o) != __dollar__tobject ) null else __dollar__objget(o,__dollar__hash(field.__s));
+		return if( $typeof(o) != $tobject ) null else $objget(o,$hash(field.__s));
 	}
 
 	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
-		if( __dollar__typeof(o) == __dollar__tobject )
-			__dollar__objset(o,__dollar__hash(field.__s),value);
+		if( $typeof(o) == $tobject )
+			$objset(o,$hash(field.__s),value);
+	}
+
+	public static inline function getProperty( o : Dynamic, field : String ) : Dynamic untyped {
+		var tmp;
+		return if( $typeof(o) != $tobject ) null else if( o.__properties__ != null && (tmp=$objget(o.__properties__,$hash("get_".__s+field.__s))) != null ) $call($objget(o,$hash(tmp)),o,$array()) else $objget(o,$hash(field.__s));
+	}
+
+	public static inline function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
+		if( $typeof(o) == $tobject ) {
+			var tmp;
+			if( o.__properties__ != null && (tmp=$objget(o.__properties__,$hash("set_".__s+field.__s))) != null ) $call($objget(o,$hash(tmp)),o,$array(value)) else $objset(o,$hash(field.__s),value);
+		}
 	}
 
 	public inline static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
-		return __dollar__call(func,o,args.__neko());
+		return $call(func,o,args.__neko());
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> untyped {
-		if( __dollar__typeof(o) != __dollar__tobject )
+		if( $typeof(o) != $tobject )
 			return new Array<String>();
 		else {
-			var a : neko.NativeArray<Int> = __dollar__objfields(o);
+			var a : neko.NativeArray<Int> = $objfields(o);
 			var i = 0;
-			var l = __dollar__asize(a);
+			var l = $asize(a);
 			while( i < l ) {
-				a[i] = new String(__dollar__field(a[i]));
+				a[i] = new String($field(a[i]));
 				i++;
 			}
 			return Array.new1(a,l);
@@ -58,11 +70,11 @@
 	}
 
 	public static function isFunction( f : Dynamic ) : Bool untyped {
-		return __dollar__typeof(f) == __dollar__tfunction;
+		return $typeof(f) == $tfunction;
 	}
 
 	public inline static function compare<T>( a : T, b : T ) : Int {
-		return untyped __dollar__compare(a,b);
+		return untyped $compare(a,b);
 	}
 
 	public inline static function compareMethods( f1 : Dynamic, f2 : Dynamic ) : Bool {
@@ -70,19 +82,19 @@
 	}
 
 	public static function isObject( v : Dynamic ) : Bool untyped {
-		return __dollar__typeof(v) == __dollar__tobject && v.__enum__ == null;
+		return $typeof(v) == $tobject && v.__enum__ == null;
 	}
 
 	public inline static function deleteField( o : Dynamic, f : String ) : Bool untyped {
-		return __dollar__objremove(o,__dollar__hash(f.__s));
+		return $objremove(o,$hash(f.__s));
 	}
 
 	public inline static function copy<T>( o : T ) : T {
-		return untyped __dollar__new(o);
+		return untyped $new(o);
 	}
 
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic {
-		return untyped __dollar__varargs(function(a) { return f(Array.new1(a,__dollar__asize(a))); });
+		return untyped $varargs(function(a) { return f(Array.new1(a,$asize(a))); });
 	}
 
 	#if neko

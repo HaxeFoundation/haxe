@@ -39,6 +39,14 @@
 			o.__SetField(field,value);
 	}
 
+	public static inline function getProperty( o : Dynamic, field : String ) : Dynamic {
+		return Reflect.field(o,field);
+	}
+
+	public static inline function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
+		setField(o,field,value);
+	}
+
 	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
 			if (func!=null && func.__GetType()==__global__.vtString)
 				func = o.__Field(func);

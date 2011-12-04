@@ -47,6 +47,16 @@
 		o[field] = value;
 	}
 
+	public static inline function getProperty( o : Dynamic, field : String ) : Dynamic untyped {
+		var tmp;
+		return if( o == null ) null else if( o.__properties__ && (tmp=o.__properties__["get_"+field]) ) o[tmp]() else o[field];
+	}
+
+	public static inline function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
+		var tmp;
+		if( o.__properties__ && (tmp=o.__properties__["set_"+field]) ) o[tmp](value) else o[field] = value;
+	}
+
 	public inline static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
 		return func.apply(o,args);
 	}

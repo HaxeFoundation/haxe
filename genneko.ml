@@ -204,6 +204,8 @@ and gen_expr ctx e =
 	match e.eexpr with
 	| TConst c ->
 		gen_constant ctx e.epos c
+	| TLocal v when v.v_name.[0] = '$' ->
+		(EConst (Builtin (String.sub v.v_name 1 (String.length v.v_name - 1))),p)
 	| TLocal v ->
 		if v.v_capture then
 			(EArray (ident p v.v_name,int p 0),p)
@@ -491,9 +493,14 @@ let gen_class ctx c =
 	let build (f,e) = (EBinop ("=",field p (ident p "@tmp") f,e),p) in
 	let tmp = (EVars ["@tmp",Some (call p (builtin p "new") [null p])],p) in
 	let estat = (EBinop ("=", stpath, ident p "@tmp"),p) in
+	let gen_props props = (EObject (List.map (fun (n,s) -> n,str p s) props),p) in
+	let sprops = (match Codegen.get_properties c.cl_ordered_statics with
+		| [] -> []
+		| l -> ["__properties__",gen_props l]
+	) in
 	let sfields = List.map build
 		(
-			("prototype",clpath) ::
+			("prototype",clpath) :: sprops @
 			PMap.fold (gen_method ctx p) c.cl_statics (fnew @ others)
 		)
 	in
@@ -501,8 +508,23 @@ let gen_class ctx c =
 	let mfields = List.map build
 		(PMap.fold (gen_method ctx p) c.cl_fields (fserialize :: fstring))
 	in
+	let props = Codegen.get_properties c.cl_ordered_fields in
 	let emeta = (EBinop ("=",field p clpath "__class__",stpath),p) ::
-		match c.cl_path with
+		(match props with
+		| [] -> []
+		| _ ->
+			let props = gen_props props in
+			let props = (match c.cl_super with
+				| Some (csup,_) when Codegen.has_properties csup ->
+					(EBlock [
+						(EVars ["@tmp",Some props],p);
+						call p (builtin p "objsetproto") [ident p "@tmp";field p (field p (gen_type_path p csup.cl_path) "prototype") "__properties__"];
+						ident p "@tmp"
+					],p)
+				| _ -> props					
+			) in
+			[EBinop ("=",field p clpath "__properties__",props),p])
+		@ match c.cl_path with
 		| [] , name -> [(EBinop ("=",field p (ident p "@classes") name,ident p name),p)]
 		| _ -> []
 	in
