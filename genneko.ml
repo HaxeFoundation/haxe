@@ -772,10 +772,10 @@ let build ctx types =
 	let vars = List.concat (List.map (gen_static_vars ctx) types) in
 	packs @ methods @ boot :: names @ inits @ vars
 
-let generate com libs =
+let generate com =
 	let ctx = new_context com false in
 	let t = Common.timer "neko generation" in
-	let libs = (ENeko (generate_libs_init libs) , { psource = "<header>"; pline = 1; }) in
+	let libs = (ENeko (generate_libs_init com.neko_libs) , { psource = "<header>"; pline = 1; }) in
 	let el = build ctx com.types in
 	let emain = (match com.main with None -> [] | Some e -> [gen_expr ctx e]) in
 	let e = (EBlock ((header()) @ libs :: el @ emain), null_pos) in

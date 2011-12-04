@@ -179,10 +179,8 @@ let expand_env path =
 	let r = Str.regexp "%\\([^%]+\\)%" in
 	Str.global_substitute r (fun s -> try Sys.getenv (Str.matched_group 1 s) with Not_found -> "") path
 
-let parse_hxml file =
-	let ch = IO.input_channel (try open_in_bin file with _ -> failwith ("File not found " ^ file)) in
-	let lines = Str.split (Str.regexp "[\r\n]+") (IO.read_all ch) in
-	IO.close_in ch;
+let parse_hxml_data data =
+	let lines = Str.split (Str.regexp "[\r\n]+") data in
 	List.concat (List.map (fun l ->
 		let l = ExtString.String.strip l in
 		let renv = Str.regexp "%\\([A-Za-z0-9_]+\\)%" in
@@ -201,6 +199,12 @@ let parse_hxml file =
 		else
 			[l]
 	) lines)
+
+let parse_hxml file =
+	let ch = IO.input_channel (try open_in_bin file with _ -> failwith ("File not found " ^ file)) in
+	let data = IO.read_all ch in
+	IO.close_in ch;
+	parse_hxml_data data
 
 let lookup_classes com fpath =
 	let spath = String.lowercase fpath in
@@ -245,15 +249,32 @@ let add_swf_lib com file =
 	com.load_extern_type <- com.load_extern_type @ [build];
 	com.swf_libs <- (file,getSWF,extract) :: com.swf_libs
 
-let add_libs com l libs =
-	match l with
-	| [] -> ()
-	| l ->
+let add_libs com libs =
+	let call_haxelib() =
 		let t = Common.timer "haxelib" in
-		let cmd = "haxelib path " ^ String.concat " " l in
+		let cmd = "haxelib path " ^ String.concat " " libs in
 		let p = Unix.open_process_in cmd in
 		let lines = Std.input_list p in
 		let ret = Unix.close_process_in p in
+		if ret <> Unix.WEXITED 0 then failwith (String.concat "\n" lines);
+		t();
+		lines
+	in
+	match libs with
+	| [] -> ()
+	| _ ->
+		let lines = match !Common.global_cache with
+			| Some cache ->
+				(try
+					(* if we are compiling, really call haxelib since library path might have changed *)
+					if not com.display then raise Not_found;
+					Hashtbl.find cache.cached_haxelib libs
+				with Not_found ->
+					let lines = call_haxelib() in
+					Hashtbl.replace cache.cached_haxelib libs lines;
+					lines)
+			| _ -> call_haxelib()
+		in
 		let lines = List.fold_left (fun acc l ->
 			let p = String.length l - 1 in
 			let l = (if l.[p] = '\r' then String.sub l 0 p else l) in
@@ -262,14 +283,12 @@ let add_libs com l libs =
 				Common.define com (String.sub l 3 (String.length l - 3));
 				acc
 			| "-L " ->
-				libs := String.sub l 3 (String.length l - 3) :: !libs;
+				com.neko_libs <- String.sub l 3 (String.length l - 3) :: com.neko_libs;
 				acc
 			| _ ->
 				l :: acc
 		) [] lines in
-		if ret <> Unix.WEXITED 0 then failwith (String.concat "\n" lines);
-		com.class_path <- lines @ com.class_path;
-		t()
+		com.class_path <- lines @ com.class_path
 
 let create_context params =
 	{
@@ -280,6 +299,30 @@ let create_context params =
 		has_next = false;
 		has_error = false;
 	}
+
+let setup_cache rcom cache =
+	Common.global_cache := Some cache;
+	Typeload.parse_hook := (fun com file p ->
+		let sign = (match com.defines_signature with
+			| Some s -> s
+			| None ->
+				let s = Digest.string (String.concat "@" (PMap.foldi (fun k _ acc -> k :: acc) com.defines [])) in
+				com.defines_signature <- Some s;
+				s
+		) in
+		let ffile = Common.get_full_path file in
+		let ftime = try (Unix.stat ffile).Unix.st_mtime with _ -> 0. in
+		let fkey = ffile ^ "!" ^ sign in
+		try
+			let time, data = Hashtbl.find cache.cached_files fkey in
+			if time <> ftime then raise Not_found;
+			data
+		with Not_found ->
+			let data = Typeload.parse_file com file p in
+			if rcom.verbose && not com.verbose then print_endline ("Parsed " ^ ffile);
+			Hashtbl.replace cache.cached_files fkey (ftime,data);
+			data
+	)
 
 let default_flush ctx =
 	List.iter prerr_endline (List.rev ctx.messages);
@@ -300,8 +343,68 @@ let rec process_params flush acc = function
 		init flush ctx;
 		flush ctx;
 		process_params flush [] l
-	| x :: l ->
-		process_params flush (x :: acc) l
+	| arg :: l ->
+		match List.rev (ExtString.String.nsplit arg ".") with
+		| "hxml" :: _ -> process_params flush acc (parse_hxml arg @ l)
+		| _ -> process_params flush (arg :: acc) l
+
+and wait_loop com host port =
+	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
+	(try Unix.bind sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't wait on " ^ host ^ ":" ^ string_of_int port));
+	Unix.listen sock 10;
+	Sys.catch_break false;
+	let verbose = com.verbose in
+	if verbose then print_endline ("Waiting on " ^ host ^ ":" ^ string_of_int port);
+	let bufsize = 1024 in
+	let tmp = String.create bufsize in
+	setup_cache com (Common.create_cache());
+	while true do
+		let sin, _ = Unix.accept sock in
+		let t0 = get_time() in
+		Unix.set_nonblock sin;
+		if verbose then print_endline "Client connected";
+		let b = Buffer.create 0 in
+		let rec read_loop() = 
+			try
+				let r = Unix.recv sin tmp 0 bufsize [] in
+				if verbose then Printf.printf "Reading %d bytes\n" r;
+				Buffer.add_substring b tmp 0 r;
+				if r > 0 && tmp.[r-1] = '\000' then Buffer.sub b 0 (Buffer.length b - 1) else read_loop();
+			with Unix.Unix_error(Unix.EWOULDBLOCK,_,_) -> 
+				if verbose then print_endline "Waiting for data...";
+				ignore(Unix.select [] [] [] 0.1);
+				read_loop()
+		in
+		let send str =
+			let rec loop pos len =
+				if len = 0 then 
+					()
+				else 
+					let s = Unix.send sin str pos len [] in
+					loop (pos + s) (len - s)
+			in
+			loop 0 (String.length str)
+		in
+		let flush ctx =
+			List.iter (fun s -> send (s ^ "\n")) (List.rev ctx.messages)
+		in
+		(try
+			let data = parse_hxml_data (read_loop()) in
+			if verbose then print_endline ("Processing Arguments [" ^ String.concat "," data ^ "]");
+			(try
+				Common.display_default := false;
+				Parser.resume_display := Ast.null_pos;
+				process_params flush [] data
+			with Completion str ->
+				if verbose then print_endline ("Completion Response =\n" ^ str);
+				send str
+			);
+			if verbose then Printf.printf "Time spent : %.3fs\n" (get_time() -. t0);
+		with Unix.Unix_error _ ->
+			if verbose then print_endline "Connection Aborted");
+		if verbose then print_endline "Closing connection";
+		Unix.close sin;		
+	done
 
 and init flush ctx =
 	let usage = Printf.sprintf
@@ -315,14 +418,13 @@ try
 	let swf_header = ref None in
 	let cmds = ref [] in
 	let config_macros = ref [] in
-	let neko_libs = ref [] in
 	let cp_libs = ref [] in
 	let gen_as3 = ref false in
 	let no_output = ref false in
 	let did_something = ref false in
 	let force_typing = ref false in
 	let pre_compilation = ref [] in
-	let interp = ref false in
+	let interp = ref false in	
 	Common.define com ("haxe_" ^ string_of_int version);
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
 	com.error <- error ctx;
@@ -360,7 +462,7 @@ try
 	let define f = Arg.Unit (fun () -> Common.define com f) in
 	let basic_args_spec = [
 		("-cp",Arg.String (fun path ->
-			add_libs com (!cp_libs) neko_libs;
+			add_libs com (!cp_libs);
 			cp_libs := [];
 			com.class_path <- normalize_path (expand_env path) :: com.class_path
 		),"<path> : add a directory to find source files");
@@ -531,6 +633,31 @@ try
 			com.dead_code_elimination <- true;
 			Common.add_filter com (fun() -> Optimizer.filter_dead_code com);
 		)," : remove unused methods");
+		("--cache", Arg.String (fun cache ->
+			match !Common.global_cache with
+			| Some _ ->
+				raise (Arg.Bad "Cache already defined")
+			| _ ->				
+				let file = try Common.find_file com cache with Not_found -> cache in
+				let data = try
+					let ch = open_in_bin file in
+					let data = Marshal.from_channel ch in
+					close_in ch;
+					if data.cache_version <> Common.cache_version then raise Exit;
+					data
+				with _ ->
+					Common.create_cache()
+				in
+				data.cache_file <- Some file;
+				setup_cache com data				
+		),"<file> : use the cache file to speedup compilation");
+		("--wait", Arg.String (fun hp ->
+			let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
+			wait_loop com host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port"))
+		),"<[host:]port> : wait on the given port for commands to run)");
+		("--cwd", Arg.String (fun dir ->
+			(try Unix.chdir dir with _ -> raise (Arg.Bad "Invalid directory"))
+		),"<dir> : set current working directory");
 		("-swf9",Arg.String (fun file ->
 			set_platform Flash file;
 			if com.flash_version < 9. then com.flash_version <- 9.;
@@ -538,20 +665,9 @@ try
 	] in
 	let current = ref 0 in
 	let args = Array.of_list ("" :: ctx.params) in
-	let rec args_callback cl =
-		match List.rev (ExtString.String.nsplit cl ".") with
-		| x :: _ when String.lowercase x = "hxml" ->
-			let hxml_args = parse_hxml cl in
-			let p1 = Array.to_list (Array.sub args 1 (!current - 1)) in
-			let p2 = Array.to_list (Array.sub args (!current + 1) (Array.length args - !current - 1)) in
-			if com.verbose then print_endline ("Processing HXML : " ^ cl);
-			process_params flush [] (p1 @ hxml_args @ p2);
-			raise Abort
-		| _ ->
-			classes := make_path cl :: !classes
-	in
+	let args_callback cl = classes := make_path cl :: !classes in
 	Arg.parse_argv ~current args (basic_args_spec @ adv_args_spec) args_callback usage;
-	add_libs com (!cp_libs) neko_libs;
+	add_libs com (!cp_libs);
 	(try ignore(Common.find_file com "mt/Include.hx"); Common.define com "mt"; with Not_found -> ());
 	if com.display then begin
 		xml_out := None;
@@ -655,7 +771,7 @@ try
 			Genswf.generate com !swf_header;
 		| Neko ->
 			if com.verbose then print_endline ("Generating neko : " ^ com.file);
-			Genneko.generate com !neko_libs;
+			Genneko.generate com;
 		| Js ->
 			if com.verbose then print_endline ("Generating js : " ^ com.file);
 			Genjs.generate com
@@ -749,6 +865,12 @@ let all = Common.timer "other" in
 Sys.catch_break true;
 (try
 	process_params default_flush [] (List.tl (Array.to_list Sys.argv));
+	(match !Common.global_cache with
+	| Some ({ cache_file = Some file } as cache) ->
+		let ch = open_out_bin file in
+		Marshal.to_channel ch cache [];
+		close_out ch
+	| _ -> ())
 with Completion c ->
 	prerr_endline c;
 	exit 0

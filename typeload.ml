@@ -21,6 +21,18 @@ open Type
 open Common
 open Typecore
 
+let parse_file com file p =
+	let ch = (try open_in_bin file with _ -> error ("Could not open " ^ file) p) in
+	let t = Common.timer "parsing" in
+	Lexer.init file;
+	let data = (try Parser.parse com (Lexing.from_channel ch) with e -> close_in ch; t(); raise e) in
+	close_in ch;
+	t();
+	if com.verbose then print_endline ("Parsed " ^ file);
+	data
+
+let parse_hook = ref parse_file
+
 let type_function_param ctx t e opt p =
 	match e with
 	| None ->
@@ -1487,13 +1499,7 @@ let parse_module ctx m p =
 			String.concat "/" (x :: l) ^ "/" ^ name
 	) ^ ".hx" in
 	let file = Common.find_file ctx.com file in
-	let ch = (try open_in_bin file with _ -> error ("Could not open " ^ file) p) in
-	let t = Common.timer "parsing" in
-	Lexer.init file;
-	let pack , decls = (try Parser.parse ctx.com (Lexing.from_channel ch) with e -> close_in ch; t(); raise e) in
-	t();
-	close_in ch;
-	if ctx.com.verbose then print_endline ("Parsed " ^ file);
+	let pack, decls = (!parse_hook) ctx.com file p in
 	if pack <> !remap then begin
 		let spack m = if m = [] then "<empty>" else String.concat "." m in
 		if p == Ast.null_pos then

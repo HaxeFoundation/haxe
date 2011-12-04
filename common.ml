@@ -62,6 +62,7 @@ type context = {
 	mutable warning : string -> pos -> unit;
 	mutable load_extern_type : (path -> pos -> Ast.package option) list; (* allow finding types which are not in sources *)
 	mutable filters : (unit -> unit) list;
+	mutable defines_signature : string option;
 	(* output *)
 	mutable file : string;
 	mutable flash_version : float;
@@ -69,6 +70,7 @@ type context = {
 	mutable main : Type.texpr option;
 	mutable types : Type.module_type list;
 	mutable resources : (string,string) Hashtbl.t;
+	mutable neko_libs : string list;
 	mutable php_front : string option;
 	mutable php_lib : string option;
 	mutable php_prefix : string option;
@@ -78,9 +80,27 @@ type context = {
 	mutable basic : basic_types;
 }
 
+type global_cache = {
+	cache_version : int;
+	mutable cache_file : string option;
+	mutable cached_haxelib : (string list, string list) Hashtbl.t;
+	mutable cached_files : (string, float * Ast.package) Hashtbl.t;
+}
+
 exception Abort of string * Ast.pos
 
 let display_default = ref false
+
+let cache_version = 1
+let global_cache : global_cache option ref = ref None
+
+let create_cache() =
+	{
+		cache_version = cache_version;
+		cache_file = None;
+		cached_files = Hashtbl.create 0;
+		cached_haxelib = Hashtbl.create 0;
+	}
 
 let create v =
 	let m = Type.mk_mono() in
@@ -107,9 +127,11 @@ let create v =
 		php_front = None;
 		php_lib = None;
 		swf_libs = [];
+		neko_libs = [];
 		php_prefix = None;
 		js_gen = None;
 		load_extern_type = [];
+		defines_signature = None;
 		warning = (fun _ _ -> assert false);
 		error = (fun _ _ -> assert false);
 		basic = {
@@ -156,7 +178,8 @@ let defined ctx v = PMap.mem v ctx.defines
 let define ctx v =
 	ctx.defines <- PMap.add v () ctx.defines;
 	let v = String.concat "_" (ExtString.String.nsplit v "-") in
-	ctx.defines <- PMap.add v () ctx.defines
+	ctx.defines <- PMap.add v () ctx.defines;
+	ctx.defines_signature <- None
 
 let init_platform com pf =
 	com.platform <- pf;
