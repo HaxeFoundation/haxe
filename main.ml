@@ -250,6 +250,7 @@ let add_libs com l libs =
 	match l with
 	| [] -> ()
 	| l ->
+		let t = Common.timer "haxelib" in
 		let cmd = "haxelib path " ^ String.concat " " l in
 		let p = Unix.open_process_in cmd in
 		let lines = Std.input_list p in
@@ -268,7 +269,8 @@ let add_libs com l libs =
 				l :: acc
 		) [] lines in
 		if ret <> Unix.WEXITED 0 then failwith (String.concat "\n" lines);
-		com.class_path <- lines @ com.class_path
+		com.class_path <- lines @ com.class_path;
+		t()
 
 exception Hxml_found
 
@@ -602,6 +604,7 @@ try
 		Typer.finalize ctx;
 		t();
 		if !has_error then do_exit();
+		let t = Common.timer "filters" in
 		let main, types, modules = Typer.generate ctx com.main_class in
 		com.main <- main;
 		com.types <- types;
@@ -624,6 +627,7 @@ try
 			Genxml.generate com file);
 		if com.platform = Flash9 || com.platform = Cpp then List.iter (Codegen.fix_overrides com) com.types;
 		if Common.defined com "dump" then Codegen.dump_types com;
+		t();
 		(match com.platform with
 		| _ when !no_output ->
 			if !interp then begin
