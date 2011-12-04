@@ -23,7 +23,6 @@ open Common
 type context = {
 	com : Common.context;
 	mutable messages : string list;
-	mutable prompt : bool;
 	mutable params : string list;
 	mutable has_next : bool;
 	mutable has_error : bool;
@@ -35,6 +34,7 @@ exception Completion of string
 let version = 208
 
 let measure_times = ref false
+let prompt = ref false
 let start_time = get_time()
 
 let executable_path() =
@@ -294,7 +294,6 @@ let create_context params =
 	{
 		com = Common.create version;
 		params = params;
-		prompt = false;
 		messages = [];
 		has_next = false;
 		has_error = false;
@@ -326,7 +325,7 @@ let setup_cache rcom cache =
 
 let default_flush ctx =
 	List.iter prerr_endline (List.rev ctx.messages);
-	if ctx.prompt then begin
+	if ctx.has_error && !prompt then begin
 		print_endline "Press enter to exit...";
 		ignore(read_line());
 	end;
@@ -557,7 +556,7 @@ try
 			if Hashtbl.mem com.resources name then failwith ("Duplicate resource name " ^ name);
 			Hashtbl.add com.resources name data
 		),"<file>[@name] : add a named resource file");
-		("-prompt", Arg.Unit (fun() -> ctx.prompt <- true),": prompt on error");
+		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
 		("-cmd", Arg.String (fun cmd ->
 			let len = String.length cmd in
 			let cmd = (if len > 0 && cmd.[0] = '"' && cmd.[len - 1] = '"' then String.sub cmd 1 (len - 2) else cmd) in
