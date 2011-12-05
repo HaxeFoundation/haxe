@@ -836,9 +836,9 @@ with
 		let ctx = Type.print_context() in
 		let b = Buffer.create 0 in
 		List.iter (fun t ->
-			Buffer.add_string b "<type>";
-			Buffer.add_string b (htmlescape (Type.s_type ctx t));
-			Buffer.add_string b "</type>\n";
+			Buffer.add_string b "<type>\n";
+			Buffer.add_string b (htmlescape (Type.s_type ctx t));			
+			Buffer.add_string b "\n</type>\n";
 		) tl;
 		raise (Completion (Buffer.contents b))
 	| Parser.TypePath (p,c) ->
