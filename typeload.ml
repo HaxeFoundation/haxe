@@ -901,7 +901,7 @@ let init_class ctx c p herits fields =
 		let ctx = { ctx with curclass = c; tthis = tthis } in
 		match f.cff_kind with
 		| FVar (t,e) ->
-			if not stat && has_field name c.cl_super then error ("Redefinition of variable " ^ name ^ " in subclass is not allowed") p;
+			if not stat && has_field name c.cl_super then display_error ctx ("Redefinition of variable " ^ name ^ " in subclass is not allowed") p;
 			if inline && not stat then error "Inline variable must be static" p;
 			(match e with
 			| None when inline -> error "Inline variable must be initialized" p
