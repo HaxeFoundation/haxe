@@ -113,7 +113,7 @@ class SpodMacros {
 		return null;
 		#end
 	}
-	
+
 	public dynamic function getManager( t : haxe.macro.Type, p : Position ) : SpodMacros {
 		#if macro
 		return getManagerInfos(t, p);
@@ -666,7 +666,7 @@ class SpodMacros {
 					n = n.substr(1);
 					var f = inf.hfields.get(n);
 					if( f == null ) error("Unknown database field '" + n + "'", p);
-					return { sql : makeString(f.name, p), t : f.t, n : f.isNull };
+					return { sql : makeString(quoteField(f.name), p), t : f.t, n : f.isNull };
 				}
 				switch( n ) {
 				case "null":
