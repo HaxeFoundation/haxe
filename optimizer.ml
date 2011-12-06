@@ -555,6 +555,11 @@ let rec reduce_loop ctx e =
 		| _ -> false
 	in
 	let e = Type.map_expr (reduce_loop ctx) e in
+	let check_float op f1 f2 =
+		let f = op f1 f2 in
+		let fstr = string_of_float f in
+		if float_of_string fstr = f then { e with eexpr = TConst (TFloat fstr) } else e
+	in
 	sanitize_expr (match e.eexpr with
 	| TIf ({ eexpr = TConst (TBool t) },e1,e2) ->
 		(if t then e1 else match e2 with None -> { e with eexpr = TBlock [] } | Some e -> e)
@@ -594,6 +599,7 @@ let rec reduce_loop ctx e =
 			| OpAdd -> check_overflow Int64.add
 			| OpSub -> check_overflow Int64.sub
 			| OpMult -> check_overflow Int64.mul
+			| OpDiv -> check_float ( /. ) (Int32.to_float a) (Int32.to_float b)
 			| OpAnd -> opt Int32.logand
 			| OpOr -> opt Int32.logor
 			| OpXor -> opt Int32.logxor
@@ -607,20 +613,24 @@ let rec reduce_loop ctx e =
 			| OpLt -> ebool ((<) 0)
 			| OpLte -> ebool ((<=) 0)
 			| _ -> e)
-		| TConst (TFloat a), TConst (TFloat b) ->
-			let fop f =
-				let v = f (float_of_string a) (float_of_string b) in
-				let vstr = string_of_float v in
-				if v = float_of_string vstr then
-					{ e with eexpr = TConst (TFloat vstr) }
-				else
-					e
-			in
+		| TConst ((TFloat _ | TInt _) as ca), TConst ((TFloat _ | TInt _) as cb) ->
+			let fa = (match ca with
+				| TFloat a -> float_of_string a
+				| TInt a -> Int32.to_float a
+				| _ -> assert false 
+			) in
+			let fb = (match cb with
+				| TFloat b -> float_of_string b
+				| TInt b -> Int32.to_float b
+				| _ -> assert false 
+			) in
+			let fop op = check_float op fa fb in
 			let ebool t =
-				{ e with eexpr = TConst (TBool (t (compare (float_of_string b) (float_of_string a)))) }
+				{ e with eexpr = TConst (TBool (t (compare fa fb))) }
 			in
 			(match op with
 			| OpAdd -> fop (+.)
+			| OpDiv -> fop (/.)
 			| OpSub -> fop (-.)
 			| OpMult -> fop ( *. )
 			| OpEq -> ebool ((=) 0)
