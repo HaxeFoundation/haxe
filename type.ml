@@ -311,7 +311,7 @@ let rec s_type ctx t =
 			(if b then "?" else "") ^ (if s = "" then "" else s ^ " : ") ^ s_fun ctx t true
 		) l) ^ " -> " ^ s_fun ctx t false
 	| TAnon a ->
-		let fl = PMap.fold (fun f acc -> (" " ^ f.cf_name ^ " : " ^ s_type ctx f.cf_type) :: acc) a.a_fields [] in
+	let fl = PMap.fold (fun f acc -> ((if List.exists (function ":optional",_,_ -> true | _ -> false) f.cf_meta then " ?" else " ") ^ f.cf_name ^ " : " ^ s_type ctx f.cf_type) :: acc) a.a_fields [] in
 		"{" ^ (if not (is_closed a) then "+" else "") ^  String.concat "," fl ^ " }"
 	| TDynamic t2 ->
 		"Dynamic" ^ s_type_params ctx (if t == t2 then [] else [t2])
@@ -834,7 +834,7 @@ let rec unify a b =
 					| Opened ->
 						if not (link (ref None) a f2.cf_type) then error [];
 						a1.a_fields <- PMap.add n f2 a1.a_fields
-					| Const when is_null f2.cf_type ->
+					| Const when has_meta ":optional" f2.cf_meta ->
 						()
 					| _ ->
 						error [has_no_field a n];

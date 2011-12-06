@@ -339,10 +339,10 @@ and parse_complex_type_inner = parser
 	| [< '(POpen,_); t = parse_complex_type; '(PClose,_) >] -> CTParent t
 	| [< '(BrOpen,p1); s >] ->
 		(match s with parser
-		| [< name, p = any_ident >] -> CTAnonymous (parse_type_anonymous_resume name p s)
+		| [< l = parse_type_anonymous false >] -> CTAnonymous l
 		| [< '(Binop OpGt,_); t = parse_type_path; '(Comma,_); s >] ->
 			(match s with parser
-			| [< name, p = any_ident; l = parse_type_anonymous_resume name p >] -> CTExtend (t,l)
+			| [< l = parse_type_anonymous false >] -> CTExtend (t,l)
 			| [< l, _ = parse_class_fields true p1 >] -> CTExtend (t,l)
 			| [< >] -> serror())
 		| [< l, _ = parse_class_fields true p1 >] -> CTAnonymous l
@@ -406,15 +406,16 @@ and parse_complex_type_next t = parser
 			CTFunction ([t] , t2))
 	| [< >] -> t
 
-and parse_type_anonymous_resume name p1 = parser
-	| [< '(DblDot,_); t = parse_complex_type; s >] ->
+and parse_type_anonymous opt = parser
+	| [< '(Question,_) when not opt; s >] -> parse_type_anonymous true s
+	| [< name, p1 = any_ident; '(DblDot,_); t = parse_complex_type; s >] ->
 		let next p2 acc =
 			{
 				cff_name = name;
 				cff_meta = [];
 				cff_access = [];
 				cff_doc = None;
-				cff_kind = FVar (Some t,None);
+				cff_kind = FVar (Some (if opt then CTOptional t else t),None);
 				cff_pos = punion p1 p2;
 			} :: acc
 		in
@@ -423,7 +424,7 @@ and parse_type_anonymous_resume name p1 = parser
 		| [< '(Comma,p2) >] ->
 			(match s with parser
 			| [< '(BrClose,_) >] -> next p2 []
-			| [< name, p = any_ident; s >] -> next p2 (parse_type_anonymous_resume name p s)
+			| [< l = parse_type_anonymous false >] -> next p2 l
 			| [< >] -> serror());
 		| [< >] -> serror()
 
