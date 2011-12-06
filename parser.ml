@@ -410,6 +410,10 @@ and parse_type_anonymous opt = parser
 	| [< '(Question,_) when not opt; s >] -> parse_type_anonymous true s
 	| [< name, p1 = any_ident; '(DblDot,_); t = parse_complex_type; s >] ->
 		let next p2 acc =
+			let t = if not opt then t else (match t with
+				| CTPath { tpackage = []; tname = "Null" } -> t
+				| _ -> CTPath { tpackage = []; tname = "Null"; tsub = None; tparams = [TPType t] }
+			) in
 			{
 				cff_name = name;
 				cff_meta = if opt then [":optional",[],p1] else [];
