@@ -557,8 +557,8 @@ let rec reduce_loop ctx e =
 	let e = Type.map_expr (reduce_loop ctx) e in
 	let check_float op f1 f2 =
 		let f = op f1 f2 in
-		let fstr = string_of_float f in
-		if float_of_string fstr = f then { e with eexpr = TConst (TFloat fstr) } else e
+		let fstr = string_of_float f in		
+		if (match classify_float f with FP_nan | FP_infinite -> false | _ -> float_of_string fstr = f) then { e with eexpr = TConst (TFloat fstr) } else e
 	in
 	sanitize_expr (match e.eexpr with
 	| TIf ({ eexpr = TConst (TBool t) },e1,e2) ->
