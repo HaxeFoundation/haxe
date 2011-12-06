@@ -233,24 +233,15 @@ and load_complex_type ctx p t =
 				| ADynamic when (match f.cff_kind with FFun _ -> true | _ -> false) -> dyn := true
 				| AStatic | AOverride | AInline | ADynamic -> error ("Invalid access " ^ Ast.s_access a) p
 			) f.cff_access;
-			let t , access, meta = (match f.cff_kind with
+			let t , access = (match f.cff_kind with
 				| FVar (t, e) ->
 					no_expr e;
-					let t, meta = (match t with
-						| Some (CTOptional t) -> 
-							let t = (match t with
-							| CTPath { tpackage = []; tname = "Null"; tparams = [_] } -> t
-							| _ -> CTPath { tpackage = []; tname = "Null"; tparams = [TPType t]; tsub = None }
-							) in
-							Some t, (":optional",[],f.cff_pos) :: f.cff_meta
-						| _ -> t, f.cff_meta
-					) in
-					topt t, Var { v_read = AccNormal; v_write = AccNormal }, meta
-				| FFun ff ->
-					if ff.f_params <> [] then error "Type parameters are not allowed in structures" p;
-					no_expr ff.f_expr;
-					let args = List.map (fun (name,o,t,e) -> no_expr e; name, o, topt t) ff.f_args in
-					TFun (args,topt ff.f_type), Method (if !dyn then MethDynamic else MethNormal), f.cff_meta
+					topt t, Var { v_read = AccNormal; v_write = AccNormal }
+				| FFun f ->
+					if f.f_params <> [] then error "Type parameters are not allowed in structures" p;
+					no_expr f.f_expr;
+					let args = List.map (fun (name,o,t,e) -> no_expr e; name, o, topt t) f.f_args in
+					TFun (args,topt f.f_type), Method (if !dyn then MethDynamic else MethNormal)
 				| FProp (i1,i2,t,e) ->
 					no_expr e;
 					let access m get =
@@ -261,7 +252,7 @@ and load_complex_type ctx p t =
 						| "dynamic" -> AccCall ((if get then "get_"  else "set_") ^ n)
 						| _ -> AccCall m
 					in
-					load_complex_type ctx p t, Var { v_read = access i1 true; v_write = access i2 false }, f.cff_meta
+					load_complex_type ctx p t, Var { v_read = access i1 true; v_write = access i2 false }
 			) in
 			PMap.add n {
 				cf_name = n;
@@ -272,7 +263,7 @@ and load_complex_type ctx p t =
 				cf_params = [];
 				cf_expr = None;
 				cf_doc = f.cff_doc;
-				cf_meta = meta;
+				cf_meta = f.cff_meta;
 			} acc
 		in
 		mk_anon (List.fold_left loop PMap.empty l)

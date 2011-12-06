@@ -412,10 +412,10 @@ and parse_type_anonymous opt = parser
 		let next p2 acc =
 			{
 				cff_name = name;
-				cff_meta = [];
+				cff_meta = if opt then [":optional",[],p1] else [];
 				cff_access = [];
 				cff_doc = None;
-				cff_kind = FVar (Some (if opt then CTOptional t else t),None);
+				cff_kind = FVar (Some t,None);
 				cff_pos = punion p1 p2;
 			} :: acc
 		in
