@@ -112,7 +112,7 @@ class Boot {
 				__js__("for( var k in o ) { ");
 					if( hasp && !o.hasOwnProperty(k) )
 						__js__("continue");
-					if( k == "prototype" || k == "__class__" || k == "__super__" || k == "__interfaces__" )
+					if( k == "prototype" || k == "__class__" || k == "__super__" || k == "__interfaces__" || k == "__properties__" )
 						__js__("continue");
 					if( str.length != 2 )
 						str += ", \n";
@@ -236,9 +236,9 @@ class Boot {
 				}
 				return oldsub.apply(__this__,[pos,len]);
 			};
-			Function.prototype["$bind"] = function(o){ 
-				var f = function(){ 
-					return f.method.apply(f.scope, arguments); 
+			Function.prototype["$bind"] = function(o){
+				var f = function(){
+					return f.method.apply(f.scope, arguments);
 				}
 				f.scope = o;
 				f.method = __this__;

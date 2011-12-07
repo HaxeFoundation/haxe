@@ -93,6 +93,7 @@ class Manager<T : Object> {
 		apriv = if( apriv == null ) new Array() else apriv.copy();
 		apriv.push("local_manager");
 		apriv.push("__class__");
+		apriv.push("__properties__");
 
 		// get the proto fields not marked private (excluding methods)
 		table_fields = new List();
