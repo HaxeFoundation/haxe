@@ -54,14 +54,13 @@ class Http {
 	public var noShutdown : Bool;
 	public var cnxTimeout : Float;
 	public var responseHeaders : Hash<String>;
-	var postData : String;
 	var chunk_size : Null<Int>;
 	var chunk_buf : haxe.io.Bytes;
 	var file : { param : String, filename : String, io : haxe.io.Input, size : Int };
 #elseif js
 	public var async : Bool;
-	var postData : String;
 #end
+	var postData : String;
 	var headers : Hash<String>;
 	var params : Hash<String>;
 
@@ -95,11 +94,12 @@ class Http {
 		params.set(param,value);
 	}
 
-	#if (neko || js || cpp || php)
 	public function setPostData( data : String ) {
+		#if (flash && !flash9)
+		throw "Not available";
+		#end
 		postData = data;
 	}
-	#end
 
 	public function request( post : Bool ) : Void {
 		var me = this;
@@ -195,12 +195,16 @@ class Http {
 		var bug = small_url.split("xxx");
 
 		var request = new flash.net.URLRequest( small_url );
-		for( k in headers.keys() ){
+		for( k in headers.keys() )
 			request.requestHeaders.push( new flash.net.URLRequestHeader(k,headers.get(k)) );
-		}
 
-		request.data = vars;
-		request.method = if( post ) "POST" else "GET";
+		if( postData != null ) {
+			request.data = postData;
+			request.method = "POST";
+		} else {
+			request.data = vars;
+			request.method = if( post ) "POST" else "GET";
+		}
 
 		try {
 			loader.load( request );
