@@ -27,13 +27,13 @@ import sys.db.SpodInfos;
 
 class TableCreate {
 
-	public static function getTypeSQL( t : SpodType ) {
+	public static function getTypeSQL( t : SpodType, dbName : String ) {
 		return switch( t ) {
-		case DId: "INT AUTO_INCREMENT";
-		case DUId: "INT UNSIGNED AUTO_INCREMENT";
-		case DInt, DEncoded, DFlags(_): "INT";
+		case DId: "INTEGER "+(dbName == "SQLite" ? "PRIMARY KEY AUTOINCREMENT" : "AUTO_INCREMENT");
+		case DUId: "INTEGER UNSIGNED "+(dbName == "SQLite" ? "PRIMARY KEY AUTOINCREMENT" : "AUTO_INCREMENT");
+		case DInt, DEncoded, DFlags(_): "INTEGER";
 		case DTinyInt: "TINYINT";
-		case DUInt: "INT UNSIGNED";
+		case DUInt: "INTEGER UNSIGNED";
 		case DSingle: "FLOAT";
 		case DFloat: "DOUBLE";
 		case DBool: "TINYINT(1)";
@@ -58,19 +58,20 @@ class TableCreate {
 		function quote(v:String):String {
 			return untyped manager.quoteField(v);
 		}
+		var cnx : Connection = untyped manager.getCnx();
+		if( cnx == null )
+			throw "SQL Connection not initialized on Manager";
+		var dbName = cnx.dbName();
 		var infos = manager.dbInfos();
 		var sql = "CREATE TABLE "+quote(infos.name)+ " (";
 		var decls = [];
 		for( f in infos.fields )
-			decls.push(quote(f.name)+" "+getTypeSQL(f.t)+(f.isNull ? "" : " NOT NULL"));
+			decls.push(quote(f.name)+" "+getTypeSQL(f.t,dbName)+(f.isNull ? "" : " NOT NULL"));
 		decls.push("PRIMARY KEY ("+Lambda.map(infos.key,quote).join(",")+")");
 		sql += decls.join(",");
 		sql += ")";
 		if( engine != null )
 			sql += "ENGINE="+engine;
-		var cnx : Connection = untyped manager.getCnx();
-		if( cnx == null )
-			throw "SQL Connection not initialized on Manager";
 		cnx.request(sql);
 	}
 
