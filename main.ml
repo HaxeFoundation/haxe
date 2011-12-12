@@ -369,7 +369,7 @@ and wait_loop com host port =
 				if verbose then Printf.printf "Reading %d bytes\n" r;
 				Buffer.add_substring b tmp 0 r;
 				if r > 0 && tmp.[r-1] = '\000' then Buffer.sub b 0 (Buffer.length b - 1) else read_loop();
-			with Unix.Unix_error(Unix.EWOULDBLOCK,_,_) ->
+			with Unix.Unix_error((Unix.EWOULDBLOCK|Unix.EAGAIN),_,_) ->
 				if verbose then print_endline "Waiting for data...";
 				ignore(Unix.select [] [] [] 0.1);
 				read_loop()
