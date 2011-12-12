@@ -363,22 +363,22 @@ and wait_loop com host port =
 		Unix.set_nonblock sin;
 		if verbose then print_endline "Client connected";
 		let b = Buffer.create 0 in
-		let rec read_loop() = 
+		let rec read_loop() =
 			try
 				let r = Unix.recv sin tmp 0 bufsize [] in
 				if verbose then Printf.printf "Reading %d bytes\n" r;
 				Buffer.add_substring b tmp 0 r;
 				if r > 0 && tmp.[r-1] = '\000' then Buffer.sub b 0 (Buffer.length b - 1) else read_loop();
-			with Unix.Unix_error(Unix.EWOULDBLOCK,_,_) -> 
+			with Unix.Unix_error(Unix.EWOULDBLOCK,_,_) ->
 				if verbose then print_endline "Waiting for data...";
 				ignore(Unix.select [] [] [] 0.1);
 				read_loop()
 		in
 		let send str =
 			let rec loop pos len =
-				if len = 0 then 
+				if len = 0 then
 					()
-				else 
+				else
 					let s = Unix.send sin str pos len [] in
 					loop (pos + s) (len - s)
 			in
@@ -389,6 +389,7 @@ and wait_loop com host port =
 		in
 		(try
 			let data = parse_hxml_data (read_loop()) in
+			Unix.clear_nonblock sin;
 			if verbose then print_endline ("Processing Arguments [" ^ String.concat "," data ^ "]");
 			(try
 				Common.display_default := false;
@@ -402,7 +403,7 @@ and wait_loop com host port =
 		with Unix.Unix_error _ ->
 			if verbose then print_endline "Connection Aborted");
 		if verbose then print_endline "Closing connection";
-		Unix.close sin;		
+		Unix.close sin;
 	done
 
 and init flush ctx =
@@ -423,7 +424,7 @@ try
 	let did_something = ref false in
 	let force_typing = ref false in
 	let pre_compilation = ref [] in
-	let interp = ref false in	
+	let interp = ref false in
 	Common.define com ("haxe_" ^ string_of_int version);
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
 	com.error <- error ctx;
@@ -636,7 +637,7 @@ try
 			match !Common.global_cache with
 			| Some _ ->
 				raise (Arg.Bad "Cache already defined")
-			| _ ->				
+			| _ ->
 				let file = try Common.find_file com cache with Not_found -> cache in
 				let data = try
 					let ch = open_in_bin file in
@@ -648,7 +649,7 @@ try
 					Common.create_cache()
 				in
 				data.cache_file <- Some file;
-				setup_cache com data				
+				setup_cache com data
 		),"<file> : use the cache file to speedup compilation");
 		("--wait", Arg.String (fun hp ->
 			let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
@@ -810,7 +811,7 @@ with
 		error ctx "Aborted" Ast.null_pos;
 	| Failure msg | Arg.Bad msg ->
 		error ctx ("Error : " ^ msg) Ast.null_pos
-	| Arg.Help msg -> 
+	| Arg.Help msg ->
 		print_string msg
 	| Typer.DisplayFields fields ->
 		let ctx = Type.print_context() in
@@ -837,7 +838,7 @@ with
 		let b = Buffer.create 0 in
 		List.iter (fun t ->
 			Buffer.add_string b "<type>\n";
-			Buffer.add_string b (htmlescape (Type.s_type ctx t));			
+			Buffer.add_string b (htmlescape (Type.s_type ctx t));
 			Buffer.add_string b "\n</type>\n";
 		) tl;
 		raise (Completion (Buffer.contents b))
