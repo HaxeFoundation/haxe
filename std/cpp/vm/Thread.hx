@@ -65,8 +65,8 @@ class Thread {
 		return untyped __global__.__hxcpp_thread_read_message(block);
 	}
 
-	function __compare(t) {
-		return untyped handle == t.handle;
+	function __compare(t) : Int {
+		return handle == t.handle ? 0 : 1;
 	}
 
 }
