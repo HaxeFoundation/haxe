@@ -1067,10 +1067,8 @@ and define_local_return_block_ctx ctx expression name =
 				(Hashtbl.find undeclared var) ^ (reference var)) ) vars));
 		output (")");
 		let return_data = ret_type <> "Void" in
-		if (not return_data) then begin
-			writer#begin_block;
-			output_i "";
-		end;
+		writer#begin_block;
+		output_i "";
 
 		let pop_real_this_ptr = clear_real_this_ptr ctx false in
 		(match expression.eexpr with
@@ -1097,10 +1095,8 @@ and define_local_return_block_ctx ctx expression name =
 			ctx.ctx_return_from_internal_node <- return_data;
 			gen_expression ctx false (to_block expression);
 		);
-		if (not return_data) then begin
-			output_i "return null();\n";
-			writer#end_block;
-		end;
+		output_i "return null();\n";
+		writer#end_block;
 		pop_real_this_ptr();
 		writer#end_block_line;
 		output ";\n";
@@ -2091,8 +2087,7 @@ let find_referenced_types ctx obj super_deps constructor_deps header_only =
 
 
 
-let generate_main common_ctx member_types super_deps class_def boot_classes init_classes =
-	let base_dir = common_ctx.file in
+let generate_main common_ctx member_types super_deps class_def =
 	(* main routine should be a single static function *)
 	let main_expression =
 		(match class_def.cl_ordered_statics with
@@ -2120,9 +2115,26 @@ let generate_main common_ctx member_types super_deps class_def boot_classes init
 		cpp_file#close;
 	in
 	generate_startup "__main__" true;
-	generate_startup "__lib__" false;
+	generate_startup "__lib__" false
+   ;;
 
+let generate_dummy_main common_ctx =
+	let generate_startup filename is_main =
+		let main_file = new_cpp_file common_ctx.file ([],filename) in
+		let output_main = (main_file#write) in
+		output_main "#include <hxcpp.h>\n\n";
+		output_main "#include <stdio.h>\n\n";
+		output_main ( if is_main then "HX_BEGIN_MAIN\n\n" else "HX_BEGIN_LIB_MAIN\n\n" );
+		output_main ( if is_main then "HX_END_MAIN\n\n" else "HX_END_LIB_MAIN\n\n" );
+		main_file#close;
+	in
+	generate_startup "__main__" true;
+	generate_startup "__lib__" false
+   ;;
+
+let generate_boot common_ctx boot_classes init_classes =
 	(* Write boot class too ... *)
+	let base_dir = common_ctx.file in
 	let boot_file = new_cpp_file base_dir ([],"__boot__") in
 	let output_boot = (boot_file#write) in
 	output_boot "#include <hxcpp.h>\n\n";
@@ -3052,13 +3064,17 @@ let generate common_ctx =
 		);
 	) common_ctx.types;
 
+   
 	(match common_ctx.main with
-	| None -> ()
+	| None -> generate_dummy_main common_ctx
 	| Some e ->
 		let main_field = { cf_name = "__main__"; cf_type = t_dynamic; cf_expr = Some e; cf_pos = e.epos; cf_public = true; cf_meta = []; cf_doc = None; cf_kind = Var { v_read = AccNormal; v_write = AccNormal; }; cf_params = [] } in
 		let class_def = { null_class with cl_path = ([],"@Main"); cl_ordered_statics = [main_field] } in
 		main_deps := find_referenced_types common_ctx (TClassDecl class_def) super_deps constructor_deps false;
-		generate_main common_ctx member_types super_deps class_def !boot_classes !init_classes);
+		generate_main common_ctx member_types super_deps class_def
+	);
+
+	generate_boot common_ctx !boot_classes !init_classes;
 
 	write_resources common_ctx;
 
