@@ -1433,7 +1433,7 @@ let type_module ctx m tdecls loadp =
 					constructs := List.map (fun f ->
 						(f.cff_name,f.cff_doc,f.cff_meta,(match f.cff_kind with
 						| FVar (None,None) -> []
-						| FFun { f_params = []; f_type = None; f_expr = None; f_args = pl } -> List.map (fun (n,o,t,_) -> match t with None -> error "Missing function parameter type" f.cff_pos | Some t -> n,o,t) pl
+						| FFun { f_params = []; f_type = None; f_expr = (None|Some (EBlock [],_)); f_args = pl } -> List.map (fun (n,o,t,_) -> match t with None -> error "Missing function parameter type" f.cff_pos | Some t -> n,o,t) pl
 						| _ -> error "Invalid enum constructor in @:build result" p
 						),f.cff_pos)
 					) fields
