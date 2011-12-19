@@ -221,7 +221,7 @@ class Boot {
 			String.prototype.charCodeAt = function(i) {
 				var x = __this__.cca(i);
 				if( x != x ) // fast isNaN
-					return null;
+					return __js__('undefined'); // isNaN will still return true
 				return x;
 			};
 			var oldsub = String.prototype.substr;
