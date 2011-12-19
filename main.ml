@@ -176,24 +176,23 @@ let rec read_type_path com p =
 let delete_file f = try Sys.remove f with _ -> ()
 
 let expand_env path =
-	let r = Str.regexp "%\\([^%]+\\)%" in
+	let r = Str.regexp "%\\([A-Za-z0-9_]+\\)%" in
 	Str.global_substitute r (fun s -> try Sys.getenv (Str.matched_group 1 s) with Not_found -> "") path
+
+let unquote v =
+	let len = String.length v in
+	if len > 0 && v.[0] = '"' && v.[len - 1] = '"' then String.sub v 1 (len - 2) else v
 
 let parse_hxml_data data =
 	let lines = Str.split (Str.regexp "[\r\n]+") data in
 	List.concat (List.map (fun l ->
-		let l = ExtString.String.strip l in
-		let renv = Str.regexp "%\\([A-Za-z0-9_]+\\)%" in
-		let l = Str.global_substitute renv (fun _ ->
-			let e = Str.matched_group 1 l in
-			try Sys.getenv e with Not_found -> "%" ^ e ^ "%"
-		) l in
+		let l = unquote (expand_env (ExtString.String.strip l)) in
 		if l = "" || l.[0] = '#' then
 			[]
 		else if l.[0] = '-' then
 			try
 				let a, b = ExtString.String.split l " " in
-				[a; ExtString.String.strip b]
+				[unquote a; unquote (ExtString.String.strip b)]
 			with
 				_ -> [l]
 		else
@@ -563,9 +562,7 @@ try
 		),"<file>[@name] : add a named resource file");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
 		("-cmd", Arg.String (fun cmd ->
-			let len = String.length cmd in
-			let cmd = (if len > 0 && cmd.[0] = '"' && cmd.[len - 1] = '"' then String.sub cmd 1 (len - 2) else cmd) in
-			cmds := expand_env cmd :: !cmds
+			cmds := expand_env (unquote cmd) :: !cmds
 		),": run the specified command after successful compilation");
 		("--flash-strict", define "flash_strict", ": more type strict flash API");
 		("--no-traces", define "no_traces", ": don't compile trace calls in the program");
