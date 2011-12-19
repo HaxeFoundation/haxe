@@ -342,6 +342,10 @@ let rec process_params flush acc = function
 		init flush ctx;
 		flush ctx;
 		process_params flush [] l
+	| "--cwd" :: dir :: l ->
+		(* we need to change it immediately since it will affect hxml loading *)
+		(try Unix.chdir dir with _ -> ());
+		process_params flush (dir :: "--cwd" :: acc) l
 	| arg :: l ->
 		match List.rev (ExtString.String.nsplit arg ".") with
 		| "hxml" :: _ -> process_params flush acc (parse_hxml arg @ l)
