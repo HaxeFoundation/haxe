@@ -713,8 +713,13 @@ class SpodMacros {
 					if( pl.length == 1 ) {
 						var r = buildCond(e);
 						var v = buildCond(pl[0]);
-						unify(r.t, DText, e.pos);
-						unify(v.t, DText, pl[0].pos);
+						if( !tryUnify(r.t, DText) ) {
+							if( tryUnify(r.t, DBinary) )
+								unify(v.t, DBinary, pl[0].pos);
+							else
+								unify(r.t, DText, e.pos);
+						} else
+							unify(v.t, DText, pl[0].pos);
 						return { sql : makeOp(" LIKE ", r.sql, v.sql, p), t : DBool, n : r.n || v.n };
 					}
 				case "has":
