@@ -45,7 +45,7 @@ class Datas {
 	public static var DOCXML = "haxedoc.xml";
 	public static var REPOSITORY = "files";
 	public static var alphanum = ~/^[A-Za-z0-9_.-]+$/;
-	static var LICENSES = ["GPL","LGPL","BSD","Public"];
+	static var LICENSES = ["GPL","LGPL","BSD","Public","MIT"];
 
 	static function requiredAttribute( x : Xml, name ) {
 		var v = x.get(name);

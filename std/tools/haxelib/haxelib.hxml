@@ -1,5 +1,5 @@
 -neko index.n
--main tools.haxelib.Main
+-main tools.haxelib.Site
 --next
 -neko haxelib.n
 -main tools.haxelib.Main

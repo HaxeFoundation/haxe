@@ -21,7 +21,7 @@
   <build>
     <option directives="" />
     <option flashStrict="False" />
-    <option mainClass="tools.haxelib.Main" />
+    <option mainClass="tools.haxelib.Site" />
     <option enabledebug="False" />
     <option additional="--next&#xA;-neko haxelib.n&#xA;&#xA;-main tools.haxelib.Main&#xA;&#xA;-cmd nekotools boot haxelib.n" />
   </build>
