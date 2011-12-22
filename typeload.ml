@@ -1066,9 +1066,11 @@ let init_class ctx c p herits fields =
 				t
 			) in
 			let delay = if (ctx.com.dead_code_elimination && not ctx.com.display) then begin
-				if ((c.cl_extern && not inline) || c.cl_interface) && cf.cf_name <> "__init__" then begin
+				if ((c.cl_extern && not inline) || c.cl_interface) && cf.cf_name <> "__init__" then
 					(fun() -> ())
-				end else begin
+				else if is_macro && not ctx.in_macro then 
+					(fun () -> ())
+				else begin
 					cf.cf_type <- TLazy r;
 					(fun() ->
 						if not (keep f stat) then begin
