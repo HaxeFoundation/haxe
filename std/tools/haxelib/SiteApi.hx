@@ -149,11 +149,12 @@ class SiteApi {
 		var curtags = otags.map(function(t) return t.tag).join(":");
 
 		// update public infos
-		if( infos.desc != p.description || p.website != infos.website || pdevs.length != devs.length || tags.join(":") != curtags ) {
+		if( infos.desc != p.description || p.website != infos.website || p.license != infos.license || pdevs.length != devs.length || tags.join(":") != curtags ) {
 			if( u.id != p.owner.id )
 				throw "Only project owner can modify project infos";
 			p.description = infos.desc;
 			p.website = infos.website;
+			p.license = infos.license;
 			p.update();
 			if( pdevs.length != devs.length ) {
 				for( d in pdevs )
