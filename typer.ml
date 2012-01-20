@@ -1803,7 +1803,7 @@ and type_call ctx e el p =
 						tf_args = fun_arg :: first_args;
 						tf_type = func.etype;
 						tf_expr = mk (TReturn (Some func)) e.etype p;
-					}) (TFun (fun_args first_args,func.etype)) p in
+					}) (TFun (("f", false, e.etype) :: fun_args first_args,func.etype)) p in
 					mk (TCall (func,e :: eparams)) (TFun (fun_args missing_args,ret)) p
 				| [], _ -> error "Too many callback arguments" p
 				| (_,_,t) :: args , e :: params ->
