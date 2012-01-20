@@ -887,7 +887,7 @@ let parse ctx code =
 		| Macro "if" ->
 			skip_tokens_loop p test (skip_tokens p false)
 		| Eof ->
-			error Unclosed_macro p
+			if do_resume() then tk else error Unclosed_macro p
 		| _ ->
 			skip_tokens p test
 
@@ -904,7 +904,7 @@ let parse ctx code =
 	) in
 	try
 		let l = parse_file s in
-		(match !mstack with [] -> () | p :: _ -> error Unclosed_macro p);
+		(match !mstack with p :: _ when not (do_resume()) -> error Unclosed_macro p | _ -> ());
 		cache := old_cache;
 		Lexer.restore old;
 		l
