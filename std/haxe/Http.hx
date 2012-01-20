@@ -136,7 +136,7 @@ class Http {
 				uri = "";
 			else
 				uri += "&";
-			uri += StringTools.urlDecode(p)+"="+StringTools.urlEncode(params.get(p));
+			uri += StringTools.urlEncode(p)+"="+StringTools.urlEncode(params.get(p));
 		}
 		try {
 			if( post )
