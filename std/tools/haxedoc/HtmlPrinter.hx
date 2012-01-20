@@ -424,8 +424,11 @@ class HtmlPrinter {
 		print(makePathUrl(path,"type"));
 		if( params != null && !params.isEmpty() ) {
 			print("&lt;");
-			for( t in params )
+			var first = true;
+			for( t in params ) {
+				if( first ) first = false else print(", ");
 				processType(t);
+			}
 			print("&gt;");
 		}
 	}
