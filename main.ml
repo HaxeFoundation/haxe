@@ -35,7 +35,7 @@ let version = 208
 
 let measure_times = ref false
 let prompt = ref false
-let start_time = get_time()
+let start_time = ref (get_time())
 
 let executable_path() =
 	Extc.executable_path()
@@ -397,6 +397,8 @@ and wait_loop com host port =
 			(try
 				Common.display_default := false;
 				Parser.resume_display := Ast.null_pos;
+				measure_times := false;
+				start_time := get_time();
 				process_params flush [] data
 			with Completion str ->
 				if verbose then print_endline ("Completion Response =\n" ^ str);
@@ -826,7 +828,7 @@ with
 			loop();
 			let tot = ref 0. in
 			Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
-			let fields = ("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. start_time), "") :: fields in
+			let fields = ("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. !start_time), "") :: fields in
 			Hashtbl.fold (fun _ t acc ->
 				("@TIME " ^ t.name, Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot), "") :: acc
 			) Common.htimers fields;
