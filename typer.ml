@@ -2001,7 +2001,21 @@ let generate ctx main =
 			loop_enum p e
 		| TNew (c,_,_) ->
 			iter (walk_expr p) e;
-			loop_class p c
+			loop_class p c;
+			let rec loop c =
+				if PMap.mem (c.cl_path,"new") (!statics) then
+					()
+				else begin
+					statics := PMap.add (c.cl_path,"new") () !statics;
+					(match c.cl_constructor with
+					| Some { cf_expr = Some e } -> walk_expr p e
+					| _ -> ());
+					match c.cl_super with
+					| None -> ()
+					| Some (csup,_) -> loop csup
+				end
+			in
+			loop c
 		| TMatch (_,(enum,_),_,_) ->
 			loop_enum p enum;
 			iter (walk_expr p) e
