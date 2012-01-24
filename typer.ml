@@ -519,6 +519,7 @@ let type_ident ctx i is_type p mode =
 		let t , f = class_field ctx.curclass i in
 		field_access ctx mode f t (get_this ctx p) p
 	with Not_found -> try
+		(* lookup using on 'this' *)
 		if ctx.curfun = FStatic then raise Not_found;
 		(match using_field ctx mode (mk (TConst TThis) ctx.tthis p) i p with
 		| AKUsing (et,f,_) -> AKUsing (et,f,get_this ctx p)
@@ -1166,7 +1167,10 @@ and type_ident_noerr ctx i is_type p mode =
 			if ctx.curfun = FStatic && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
 			let err = Unknown_ident i in
 			if ctx.in_display then raise (Error (err,p));
-			display_error ctx (error_msg err) p;
+			if List.exists (fun (i2,_) -> i2 = i) ctx.type_params then
+				display_error ctx ("Type parameter " ^ i ^ " is only available at compilation and is not a runtime value") p
+			else
+				display_error ctx (error_msg err) p;
 			AKExpr (mk (TConst TNull) t_dynamic p)
 		end
 
@@ -1674,7 +1678,9 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				if follow pt != t_dynamic then error "Cast type parameters must be Dynamic" p;
 			) params;
 			(match follow t with
-			| TInst (c,_) -> TClassDecl c
+			| TInst (c,_) -> 
+				if c.cl_kind = KTypeParameter then error "Can't cast to a type parameter" p;
+				TClassDecl c
 			| TEnum (e,_) -> TEnumDecl e
 			| _ -> assert false);
 		| _ ->
