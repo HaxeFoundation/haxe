@@ -593,7 +593,7 @@ let rec reduce_loop ctx e =
 				)
 			in
 			let ebool t =
-				{ e with eexpr = TConst (TBool (t (Int32.compare b a))) }
+				{ e with eexpr = TConst (TBool (t (Int32.compare a b) 0)) }
 			in
 			(match op with
 			| OpAdd -> check_overflow Int64.add
@@ -606,12 +606,12 @@ let rec reduce_loop ctx e =
 			| OpShl -> opt (fun a b -> Int32.shift_left a (Int32.to_int b))
 			| OpShr -> opt (fun a b -> Int32.shift_right a (Int32.to_int b))
 			| OpUShr -> opt (fun a b -> Int32.shift_right_logical a (Int32.to_int b))
-			| OpEq -> ebool ((=) 0)
-			| OpNotEq -> ebool ((<>) 0)
-			| OpGt -> ebool ((>) 0)
-			| OpGte -> ebool ((>=) 0)
-			| OpLt -> ebool ((<) 0)
-			| OpLte -> ebool ((<=) 0)
+			| OpEq -> ebool (=)
+			| OpNotEq -> ebool (<>)
+			| OpGt -> ebool (>)
+			| OpGte -> ebool (>=)
+			| OpLt -> ebool (<)
+			| OpLte -> ebool (<=)
 			| _ -> e)
 		| TConst ((TFloat _ | TInt _) as ca), TConst ((TFloat _ | TInt _) as cb) ->
 			let fa = (match ca with
@@ -626,19 +626,19 @@ let rec reduce_loop ctx e =
 			) in
 			let fop op = check_float op fa fb in
 			let ebool t =
-				{ e with eexpr = TConst (TBool (t (compare fa fb))) }
+				{ e with eexpr = TConst (TBool (t (compare fa fb) 0)) }
 			in
 			(match op with
 			| OpAdd -> fop (+.)
 			| OpDiv -> fop (/.)
 			| OpSub -> fop (-.)
 			| OpMult -> fop ( *. )
-			| OpEq -> ebool ((=) 0)
-			| OpNotEq -> ebool ((<>) 0)
-			| OpGt -> ebool ((>) 0)
-			| OpGte -> ebool ((>=) 0)
-			| OpLt -> ebool ((<) 0)
-			| OpLte -> ebool ((<=) 0)
+			| OpEq -> ebool (=)
+			| OpNotEq -> ebool (<>)
+			| OpGt -> ebool (>)
+			| OpGte -> ebool (>=)
+			| OpLt -> ebool (<)
+			| OpLte -> ebool (<=)
 			| _ -> e)
 		| TConst (TBool a), TConst (TBool b) ->
 			let ebool f =
