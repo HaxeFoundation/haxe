@@ -323,11 +323,11 @@ class Template {
 		case OpForeach(e,loop):
 			var v : Dynamic = e();
 			try {
-				if( v.hasNext == null ) {
-					var x : Dynamic = v.iterator();
-					if( x.hasNext == null ) throw null;
-					v = x;
-				}
+				var x : Dynamic = v.iterator();
+				if( x.hasNext == null ) throw null;
+				v = x;
+			} catch( e : Dynamic ) try {
+				if( v.hasNext == null ) throw null;
 			} catch( e : Dynamic ) {
 				throw "Cannot iter on " + v;
 			}
