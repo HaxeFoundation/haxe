@@ -127,6 +127,7 @@ type context = {
 	(* runtime *)
 	mutable stack : value DynArray.t;
 	mutable callstack : callstack list;
+	mutable callsize : int;
 	mutable exc : pos list;
 	mutable vthis : value;
 	mutable venv : value array;
@@ -2161,6 +2162,7 @@ let rec eval ctx (e,p) =
 			let vthis = ctx.vthis in
 			let venv = ctx.venv in
 			let stack = ctx.callstack in
+			let csize = ctx.callsize in
 			let size = DynArray.length ctx.stack in
 			try
 				pop_ret ctx e n1
@@ -2173,6 +2175,7 @@ let rec eval ctx (e,p) =
 				in
 				ctx.exc <- loop (List.length stack) (List.rev ctx.callstack);
 				ctx.callstack <- stack;
+				ctx.callsize <- csize;
 				ctx.vthis <- vthis;
 				ctx.venv <- venv;
 				pop ctx (DynArray.length ctx.stack - size);
@@ -2621,9 +2624,12 @@ and call ctx vthis vfun pl p =
 	let oldthis = ctx.vthis in
 	let stackpos = DynArray.length ctx.stack in
 	let oldstack = ctx.callstack in
+	let oldsize = ctx.callsize in
 	let oldenv = ctx.venv in
 	ctx.vthis <- vthis;
 	ctx.callstack <- { cpos = p; cthis = oldthis; cstack = stackpos; cenv = oldenv } :: ctx.callstack;
+	ctx.callsize <- oldsize + 1;
+	if oldsize > 200 then exc (VString "Stack overflow");
 	let ret = (try
 		(match vfun with
 		| VClosure (vl,f) ->
@@ -2649,6 +2655,7 @@ and call ctx vthis vfun pl p =
 	ctx.vthis <- oldthis;
 	ctx.venv <- oldenv;
 	ctx.callstack <- oldstack;
+	ctx.callsize <- oldsize;
 	pop ctx (DynArray.length ctx.stack - stackpos);
 	ret
 
@@ -2771,6 +2778,7 @@ let create com api =
 		globals = PMap.empty;
 		(* runtime *)
 		callstack = [];
+		callsize = 0;
 		stack = DynArray.create();
 		exc = [];
 		vthis = VNull;
