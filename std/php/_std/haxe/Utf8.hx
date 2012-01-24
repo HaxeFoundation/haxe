@@ -22,88 +22,67 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package neko;
+package haxe;
 
+@:core_api
 class Utf8 {
 
-	var __b : Void;
+	var __b : String;
 
-	public function new( ?size : Int ) {
-		__b = utf8_buf_alloc(if( size == null ) 1 else size);
+	public function new() : Void {
+		__b = '';
 	}
 
-	public function addChar( c : Int ) {
-		utf8_buf_add(__b,c);
+	public function addChar( c : Int ) : Void {
+		__b += uchr(c);
 	}
 
-	public function toString() {
-		return new String(utf8_buf_content(__b));
+	public function toString() : String {
+		return __b;
 	}
 
 	public static function encode( s : String ) : String {
-		s = untyped s.__s;
-		var sl = untyped __dollar__ssize(s);
-		var buf = utf8_buf_alloc( sl );
-		var i = 0;
-		while( i < sl ) {
-			utf8_buf_add(buf,untyped __dollar__sget(s,i));
-			i += 1;
-		}
-		return new String( utf8_buf_content(buf) );
+		return untyped __call__("utf8_encode", s);
 	}
 
 	public static function decode( s : String ) : String {
-		s = untyped s.__s;
-		var sl = untyped __dollar__ssize(s);
-		var ret = untyped __dollar__smake(sl);
-		var i = 0;
-		utf8_iter(s,function(c) {
-			if( c == 8364 ) // euro symbol
-				c = 164;
-			else if( c == 0xFEFF ) // BOM
-				return;
-			else if( c > 255 )
-				throw "Utf8::decode invalid character ("+c+")";
-			untyped __dollar__sset(ret,i,c);
-			i += 1;
-		});
-		return new String( untyped __dollar__ssub(ret,0,i) );
+		return untyped __call__("utf8_decode", s);
 	}
 
-	public static function iter( s : String, chars : Int -> Void ) {
-		utf8_iter(untyped s.__s,chars);
+	public static function iter(s : String, chars : Int -> Void ) : Void {
+		var len = length(s);
+		for(i in 0...len)
+			chars(charCodeAt(s, i));
 	}
 
 	public static function charCodeAt( s : String, index : Int ) : Int {
-		return utf8_get(untyped s.__s,index);
+		return uord(sub(s, index, 1));
+	}
+
+	static function uchr(i : Int) : String {
+		return untyped __php__("mb_convert_encoding(pack('N',$i), 'UTF-8', 'UCS-4BE')");
+	}
+
+	static function uord(s : String) : Int untyped {
+		var c : Array<Int> = untyped __php__("unpack('N', mb_convert_encoding($s, 'UCS-4BE', 'UTF-8'))");
+		return c[1];
 	}
 
 	public static function validate( s : String ) : Bool {
-		return utf8_validate(untyped s.__s);
+		return untyped __call__("mb_check_encoding", s, enc);
 	}
 
 	public static function length( s : String ) : Int {
-		return utf8_length(untyped s.__s);
+		return untyped __call__("mb_strlen", s, enc);
 	}
 
 	public static function compare( a : String, b : String ) : Int {
-		return utf8_compare(untyped a.__s,untyped b.__s);
+		return untyped __call__("strcmp", a, b);
 	}
 
 	public static function sub( s : String, pos : Int, len : Int ) : String {
-		return new String(utf8_sub(untyped s.__s,pos,len));
+		return untyped __call__("mb_substr", s, pos, len, enc);
 	}
 
-	static var utf8_buf_alloc = Lib.load("std","utf8_buf_alloc",1);
-	static var utf8_buf_add = Lib.load("std","utf8_buf_add",2);
-	static var utf8_buf_content = Lib.load("std","utf8_buf_content",1);
-	static var utf8_buf_length = Lib.load("std","utf8_buf_length",1);
-	static var utf8_iter = Lib.load("std","utf8_iter",2);
-
-	static var utf8_get = Lib.load("std","utf8_get",2);
-	static var utf8_validate = Lib.load("std","utf8_validate",1);
-	static var utf8_length = Lib.load("std","utf8_length",1);
-	static var utf8_compare = Lib.load("std","utf8_compare",2);
-	static var utf8_sub = Lib.load("std","utf8_sub",3);
-
+	private static inline var enc = "UTF-8";
 }

@@ -25,6 +25,7 @@
 	all : added --cache, --wait and --cwd
 	all : fixed completion in macros calls arguments
 	all : fixed DCE removing empty but still used interfaces/superclasses
+	all : added haxe.Utf8 (crossplatform)
 
 2011-09-25: 2.08
 	js : added js.JQuery

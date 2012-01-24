@@ -1,16 +1,17 @@
-package cpp;
+package haxe;
 
+@:core_api
 class Utf8
 {
    var __s:Array<Int>;
 
-	public function new( ?size : Null<Int> ) {
+	public function new( ?size : Null<Int> ) : Void {
       __s = new Array<Int>();
       if (size!=null && size>0)
          __s[size-1] = 0;
 	}
 
-	public function addChar( c : Int ) {
+	public function addChar( c : Int ) : Void {
       __s.push(c);
 	}
 
@@ -30,7 +31,7 @@ class Utf8
 		return untyped __global__.__hxcpp_utf8_string_to_char_bytes(s);
 	}
 
-	public static function iter( s : String, chars : Int -> Void ) {
+	public static function iter( s : String, chars : Int -> Void ) : Void {
       var array:Array<Int> = untyped __global__.__hxcpp_utf8_string_to_char_array(s);
       for(a in array)
          chars(a);

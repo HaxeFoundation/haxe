@@ -639,6 +639,7 @@ let init_core_api ctx c =
 				if f2.cf_kind <> f.cf_kind then begin
 					match f2.cf_kind, f.cf_kind with
 					| Method MethInline, Method MethNormal -> () (* allow to add 'inline' *)
+					| Method MethNormal, Method MethInline -> () (* allow to disable 'inline' *)
 					| _ ->
 						error ("Field " ^ i ^ " has different property access than core type") p;
 				end;
