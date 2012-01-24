@@ -2671,7 +2671,10 @@ let rec to_string ctx n v =
 	| VBool true -> "true"
 	| VBool false -> "false"
 	| VInt i -> string_of_int i
-	| VFloat f -> string_of_float f
+	| VFloat f -> 
+		let s = string_of_float f in
+		let len = String.length s in
+		if String.unsafe_get s (len - 1) = '.' then String.sub s 0 (len - 1) else s
 	| VString s -> s
 	| VArray vl -> "[" ^ String.concat "," (Array.to_list (Array.map (to_string ctx n) vl)) ^ "]"
 	| VAbstract a ->
