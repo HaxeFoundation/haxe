@@ -133,14 +133,14 @@ let rec unify_call_params ctx name el args r p inline =
 			in
 			loop meta
 	in
-	let error txt =
+	let error acc txt =
 		match next() with
 		| Some l -> l
 		| None ->
 		let format_arg = (fun (name,opt,_) -> (if opt then "?" else "") ^ name) in
 		let argstr = "Function " ^ (match name with None -> "" | Some (n,_) -> "'" ^ n ^ "' ") ^ "requires " ^ (if args = [] then "no arguments" else "arguments : " ^ String.concat ", " (List.map format_arg args)) in
 		display_error ctx (txt ^ " arguments\n" ^ argstr) p;
-		[], r
+		List.rev (List.map fst acc), r
 	in
 	let arg_error ul name opt p =
 		match next() with
@@ -182,14 +182,14 @@ let rec unify_call_params ctx name el args r p inline =
 			else
 				List.rev (List.map fst acc), r
 		| [] , (_,false,_) :: _ ->
-			error "Not enough"
+			error (List.fold_left (fun acc (_,_,t) -> default_value t :: acc) acc l2) "Not enough"
 		| [] , (name,true,t) :: l ->
 			loop (default_value t :: acc) [] l skip
 		| _ , [] ->
 			(match List.rev skip with
-			| [] -> error "Too many"
+			| [] -> error acc "Too many"
 			| [name,ul] -> arg_error ul name true p
-			| _ -> error "Invalid")
+			| _ -> error acc "Invalid")
 		| ee :: l, (name,opt,t) :: l2 ->
 			let e = (!type_expr_with_type_rec) ctx ee (Some t) in
 			try
