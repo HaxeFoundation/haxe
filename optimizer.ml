@@ -715,19 +715,32 @@ let reduce_expression ctx e =
 *)
 
 let filter_dead_code com =
-	let s_class c = s_type_path c.cl_path in
+	let filtered = ref (List.fold_left (fun acc t ->
+		match t with
+		| TClassDecl c when c.cl_extern || has_meta ":keep" c.cl_meta ->
+			acc
+		| TClassDecl ({ cl_ordered_statics = []; cl_ordered_fields = []; cl_constructor = None } as c) ->
+			PMap.add c.cl_path () acc
+		| _ ->
+			acc
+	) PMap.empty com.types) in
+	(* make sure used superclasses and interfaces are kept as well *)
+	let rec use_class c =
+		filtered := PMap.remove c.cl_path !filtered;
+		List.iter (fun (i,_) ->
+			filtered := PMap.remove i.cl_path !filtered;
+		) c.cl_implements;
+		match c.cl_super with
+		| None -> ()
+		| Some (csup,_) -> use_class csup
+	in
+	List.iter (fun t ->
+		match t with
+		| TClassDecl c when not (PMap.mem c.cl_path !filtered) -> use_class c
+		| _ -> ()
+	) com.types;
 	com.types <- List.filter (fun t ->
 		match t with
-		| TClassDecl c ->
-			if (c.cl_extern or has_meta ":keep" c.cl_meta) then
-				true
-			else (
-				match (c.cl_ordered_statics, c.cl_ordered_fields, c.cl_constructor) with
-				| ([], [], None) ->
-					if com.verbose then print_endline ("Remove class " ^ s_class c);
-					false
-				| _ ->
-					true)
-		| _ ->
-			true
+		| TClassDecl c when PMap.mem c.cl_path !filtered -> false
+		| _ -> true
 	) com.types

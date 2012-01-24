@@ -23,6 +23,8 @@
 	all : added Reflect.getProperty/setProperty 
 		(partial support : neko, js only so far)
 	all : added --cache, --wait and --cwd
+	all : fixed completion in macros calls arguments
+	all : fixed DCE removing empty but still used interfaces/superclasses
 
 2011-09-25: 2.08
 	js : added js.JQuery
