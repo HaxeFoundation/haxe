@@ -26,6 +26,7 @@
 #else
 #	include <limits.h>
 #	include <unistd.h>
+#	include <caml/memory.h>
 #endif
 #ifdef __APPLE__
 #	include <sys/param.h>
@@ -177,9 +178,12 @@ CAMLprim value get_full_path( value f ) {
 		failwith("get_full_path");
 	return caml_copy_string(path);
 #else
-	char path[PATH_MAX];
-	if( realpath(String_val(f),path) == NULL )
+	value cpath;
+	char *path = realpath(String_val(f),NULL);
+	if( path == NULL )
 		failwith("get_full_path");
-	return caml_copy_string(path);
+	cpath = caml_copy_string(path);
+	free(path);
+	return cpath;
 #endif
 }
