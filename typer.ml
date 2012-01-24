@@ -81,7 +81,7 @@ let check_assign ctx e =
 		error "Invalid assign" e.epos
 
 let rec get_overloads ctx p = function
-	| (":overload",[(EFunction (None,fu),p)],_) :: l ->
+	| (":overload",[(EFunction (_,fu),p)],_) :: l ->
 		let topt = function None -> t_dynamic | Some t -> (try Typeload.load_complex_type ctx p t with _ -> t_dynamic) in
 		let args = List.map (fun (a,opt,t,_) ->  a,opt,topt t) fu.f_args in
 		TFun (args,topt fu.f_type) :: get_overloads ctx p l
@@ -123,7 +123,9 @@ let rec unify_call_params ctx name el args r p inline =
 		| Some (n,meta) ->
 			let rec loop = function
 				| [] -> None
-				| (":overload",[(EFunction (None,f),p)],_) :: l ->
+				| (":overload",[(EFunction (fname,f),p)],_) :: l ->
+					if fname <> None then error "Function name must not be part of @:overload" p;
+					(match f.f_expr with Some (EBlock [], _) -> () | _ -> error "Overload must only declare an empty method body {}" p);
 					let topt = function None -> error "Explicit type required" p | Some t -> Typeload.load_complex_type ctx p t in
 					let args = List.map (fun (a,opt,t,_) ->  a,opt,topt t) f.f_args in
 					Some (unify_call_params ctx (Some (n,l)) el args (topt f.f_type) p inline)
