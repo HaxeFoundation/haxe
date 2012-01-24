@@ -829,13 +829,13 @@ let parse ctx code =
 			next_token()
 		| Macro "end" ->
 			(match !mstack with
-			| [] -> raise Exit
+			| [] -> tk
 			| _ :: l ->
 				mstack := l;
 				next_token())
 		| Macro "else" | Macro "elseif" ->
 			(match !mstack with
-			| [] -> raise Exit
+			| [] -> tk
 			| _ :: l ->
 				mstack := l;
 				process_token (skip_tokens (snd tk) false))
@@ -895,12 +895,9 @@ let parse ctx code =
 
 	in
 	let s = Stream.from (fun _ ->
-		try
-			let t = next_token() in
-			DynArray.add (!cache) t;
-			Some t
-		with
-			Exit -> None
+		let t = next_token() in
+		DynArray.add (!cache) t;
+		Some t
 	) in
 	try
 		let l = parse_file s in
