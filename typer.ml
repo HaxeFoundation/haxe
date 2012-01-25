@@ -1875,7 +1875,7 @@ and type_call ctx e el p =
 					| _ -> assert false)
 				| AKExpr _ | AKField _ | AKInline _ ->
 					let params, tret = (match follow et.etype with
-						| TFun ( _ :: args,r) -> unify_call_params ctx (Some (ef.cf_name,ef.cf_meta)) el args r p false
+						| TFun ( _ :: args,r) -> unify_call_params ctx (Some (ef.cf_name,ef.cf_meta)) el args r p (ef.cf_kind = Method MethInline)
 						| _ -> assert false
 					) in
 					make_call ctx et (eparam::params) tret p
