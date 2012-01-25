@@ -564,6 +564,7 @@ type unify_error =
 	| Invalid_visibility of string
 	| Not_matching_optional of string
 	| Cant_force_optional
+	| Invariant_parameter of t * t
 
 exception Unify_error of unify_error list
 
@@ -901,10 +902,13 @@ let rec unify a b =
 		error [cannot_unify a b]
 
 and unify_types a b tl1 tl2 =
-	try
-		List.iter2 (type_eq EqRightDynamic) tl1 tl2
-	with
-		Unify_error l -> error ((cannot_unify a b) :: l)
+	List.iter2 (fun t1 t2 ->
+		try
+			type_eq EqRightDynamic t1 t2 
+		with Unify_error l ->
+			let err = cannot_unify a b in
+			error (try unify t1 t2; (err :: (Invariant_parameter (t1,t2)) :: l) with _ -> err :: l)
+	) tl1 tl2
 
 and unify_with_access t1 f2 =
 	match f2.cf_kind with

@@ -127,6 +127,8 @@ let unify_error_msg ctx = function
 		"Optional attribute of parameter " ^ n ^ " differs"
 	| Cant_force_optional ->
 		"Optional parameters can't be forced"
+	| Invariant_parameter _ ->
+		"Type parameters are invariant"
 
 let rec error_msg = function
 	| Module_not_found m -> "Class not found : " ^ Ast.s_type_path m
