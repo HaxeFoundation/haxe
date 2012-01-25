@@ -3187,6 +3187,11 @@ let opt f v =
 	| VNull -> None
 	| _ -> Some (f v)
 
+let opt_list f v =
+	match v with
+	| VNull -> []
+	| _ -> f v
+
 let decode_pos = function
 	| VAbstract (APos p) -> p
 	| _ -> raise Invalid_expr
@@ -3318,8 +3323,8 @@ and decode_field v =
 		cff_doc = opt dec_string (field v "doc");
 		cff_pos = decode_pos (field v "pos");
 		cff_kind = fkind;
-		cff_access = List.map decode_access (dec_array (field v "access"));
-		cff_meta = decode_meta_content (field v "meta");
+		cff_access = List.map decode_access (opt_list dec_array (field v "access"));
+		cff_meta = opt_list decode_meta_content (field v "meta");
 	}
 
 and decode_ctype t =

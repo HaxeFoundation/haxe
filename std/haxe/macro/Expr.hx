@@ -131,7 +131,7 @@ typedef TypePath = {
 	var pack : Array<String>;
 	var name : String;
 	var params : Array<TypeParam>;
-	var sub : Null<String>;
+	@:optional var sub : Null<String>;
 }
 
 enum TypeParam {
@@ -150,18 +150,18 @@ typedef FunctionArg = {
 	var name : String;
 	var opt : Bool;
 	var type : Null<ComplexType>;
-	var value : Null<Expr>;
+	@:optional var value : Null<Expr>;
 }
 
 typedef Metadata = Array<{ name : String, params : Array<Expr>, pos : Position }>;
 
 typedef Field = {
 	var name : String;
-	var doc : Null<String>;
-	var access : Array<Access>;
+	@:optional var doc : Null<String>;
+	@:optional var access : Array<Access>;
 	var kind : FieldType;
 	var pos : Position;
-	var meta : Metadata;
+	@:optional var meta : Metadata;
 }
 
 enum Access {
