@@ -395,7 +395,7 @@ and parse_type_path_or_const = parser
 	(* we can't allow (expr) here *)
 	| [< t = parse_complex_type >] -> TPType t
 	| [< '(Const c,p) >] -> TPExpr (EConst c,p)
-	| [< e = expr >] -> TPExpr (match fst e with EBlock [e] -> e | _ -> e)
+	| [< e = expr >] -> TPExpr e
 
 and parse_complex_type_next t = parser
 	| [< '(Arrow,_); t2 = parse_complex_type >] ->

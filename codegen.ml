@@ -370,7 +370,8 @@ let build_metadata com t =
 
 let build_macro_type ctx pl p =
 	let path, field, args = (match pl with
-		| [TInst ({ cl_kind = KExpr (ECall (e,args),_) },_)] ->
+		| [TInst ({ cl_kind = KExpr (ECall (e,args),_) },_)]
+		| [TInst ({ cl_kind = KExpr (EArrayDecl [ECall (e,args),_],_) },_)] ->
 			let rec loop e =
 				match fst e with
 				| EField (e,f) | EType (e,f) -> f :: loop e
