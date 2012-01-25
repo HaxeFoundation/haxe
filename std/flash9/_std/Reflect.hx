@@ -45,20 +45,19 @@
 	public static inline function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
 		setField(o,field,value);
 	}
-	
+
 	public inline static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
 		return func.apply(o,args);
 	}
 
 	public static function fields( o : Dynamic ) : Array<String> untyped {
 		if( o == null ) return new Array();
-		var a : Array<String> = __keys__(o);
 		var i = 0;
-		while( i < a.length ){
-			if( !o.hasOwnProperty(a[i]) )
-				a.splice(i,1);
-			else
-				++i;
+		var a = [];
+		while( untyped __has_next__(o,i) ) {
+			var prop = untyped __forin__(o,i);
+			if( o.hasOwnProperty(prop) )
+				a.push(prop);
 		}
 		return a;
 	}

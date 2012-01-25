@@ -1300,6 +1300,18 @@ and gen_call ctx retval e el r =
 	| TLocal { v_name = "__float__" }, [e] ->
 		gen_expr ctx true e;
 		write ctx HToNumber
+	| TLocal { v_name = "__foreach__" }, [obj;counter] ->
+		gen_expr ctx true obj;
+		gen_expr ctx true counter;
+		write ctx HForEach
+	| TLocal { v_name = "__forin__" }, [obj;counter] ->
+		gen_expr ctx true obj;
+		gen_expr ctx true counter;
+		write ctx HForIn
+	| TLocal { v_name = "__has_next__" }, [obj;counter] ->
+		let oreg = match gen_access ctx obj Read with VReg r -> r | _ -> error "Must be a local variable" obj.epos in
+		let creg = match gen_access ctx counter Read with VReg r -> r | _ -> error "Must be a local variable" obj.epos in
+		write ctx (HNext (oreg.rid,creg.rid))
 	| TLocal { v_name = "__hkeys__" }, [e2]
 	| TLocal { v_name = "__foreach__" }, [e2]
 	| TLocal { v_name = "__keys__" }, [e2] ->
