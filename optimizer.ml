@@ -113,6 +113,7 @@ let rec type_inline ctx cf f ethis params tret p force =
 	in
 	let has_vars = ref false in
 	let in_loop = ref false in
+	let cancel_inlining = ref false in
 	let rec map term e =
 		let po = e.epos in
 		let e = { e with epos = p } in
@@ -120,6 +121,9 @@ let rec type_inline ctx cf f ethis params tret p force =
 		| TLocal v ->
 			let l = read_local v in
 			l.i_read <- l.i_read + (if !in_loop then 2 else 1);
+			(* never inline a function which contain a delayed macro because its bound
+				to its variables and not the calling method *)
+			if v.v_name = "__dollar__delay_call" then cancel_inlining := true;
 			{ e with eexpr = TLocal l.i_subst }
 		| TConst TThis ->
 			let l = read_local vthis in
@@ -236,7 +240,7 @@ let rec type_inline ctx cf f ethis params tret p force =
 
 		This could be fixed with better post process code cleanup (planed)
 	*)
-	if Common.platform ctx.com Js && not force && (init <> None || !has_vars) then begin
+	if !cancel_inlining || (Common.platform ctx.com Js && not force && (init <> None || !has_vars)) then begin
 		None
 	end else
 		let wrap e =
