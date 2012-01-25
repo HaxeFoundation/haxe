@@ -540,6 +540,7 @@ class Main {
 					neko.FileSystem.createDirectory(rep);
 				} catch( e : Dynamic ) {
 					print("Failed to create directory '"+rep+"' ("+Std.string(e)+"), maybe you need appropriate user rights");
+					print("Check also that the parent directory exists");
 					neko.Sys.exit(1);
 				}
 			}
