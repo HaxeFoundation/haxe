@@ -393,6 +393,7 @@ and type_name = parser
 
 and parse_type_path_or_const = parser
 	(* we can't allow (expr) here *)
+	| [< '(BkOpen,p1); l = parse_array_decl; '(BkClose,p2); s >] -> TPExpr (EArrayDecl l, punion p1 p2)
 	| [< t = parse_complex_type >] -> TPType t
 	| [< '(Const c,p) >] -> TPExpr (EConst c,p)
 	| [< e = expr >] -> TPExpr e
