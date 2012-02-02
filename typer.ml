@@ -1169,11 +1169,17 @@ and type_ident_noerr ctx i is_type p mode =
 			if ctx.curfun = FStatic && PMap.mem i ctx.curclass.cl_fields then error ("Cannot access " ^ i ^ " in static function") p;
 			let err = Unknown_ident i in
 			if ctx.in_display then raise (Error (err,p));
-			if List.exists (fun (i2,_) -> i2 = i) ctx.type_params then
-				display_error ctx ("Type parameter " ^ i ^ " is only available at compilation and is not a runtime value") p
-			else
+			if ctx.com.display then begin
 				display_error ctx (error_msg err) p;
-			AKExpr (mk (TConst TNull) t_dynamic p)
+				let t = mk_mono() in
+				AKExpr (mk (TLocal (add_local ctx i t)) t p)
+			end else begin
+				if List.exists (fun (i2,_) -> i2 = i) ctx.type_params then
+					display_error ctx ("Type parameter " ^ i ^ " is only available at compilation and is not a runtime value") p
+				else
+					display_error ctx (error_msg err) p;
+				AKExpr (mk (TConst TNull) t_dynamic p)
+			end
 		end
 
 and type_expr_with_type ctx e t =
