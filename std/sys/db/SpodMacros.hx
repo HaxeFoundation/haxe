@@ -492,7 +492,7 @@ class SpodMacros {
 				if( i.charCodeAt(0) == "$".code ) {
 					var tmp = { field : i.substr(1), expr : e2 };
 					var f = getField(tmp);
-					r1 = { sql : makeString(tmp.field, e1.pos), t : f.t, n : f.isNull };
+					r1 = { sql : makeString(quoteField(tmp.field), e1.pos), t : f.t, n : f.isNull };
 					e2 = tmp.expr;
 				}
 			default:
