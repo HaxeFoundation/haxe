@@ -2071,9 +2071,9 @@ let generate ctx main =
 				let t = field_type f in
 				(match follow t with
 				| TFun ([],r) -> t, r
-				| _ -> error ("Invalid -main : " ^ s_type_path cl ^ " has invalid main function") null_pos);
+				| _ -> error ("Invalid -main : " ^ s_type_path cl ^ " has invalid main function") c.cl_pos);
 			with
-				Not_found -> error ("Invalid -main : " ^ s_type_path cl ^ " does not have static function main") null_pos
+				Not_found -> error ("Invalid -main : " ^ s_type_path cl ^ " does not have static function main") c.cl_pos
 		) in
 		let emain = type_type ctx cl null_pos in
 		Some (mk (TCall (mk (TField (emain,"main")) ft null_pos,[])) r null_pos);
