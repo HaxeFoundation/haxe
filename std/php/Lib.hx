@@ -60,9 +60,20 @@ class Lib {
 		untyped __php__("reset($arr); while(list($k, $v) = each($arr)) $h->set($k, $v)");
 		return h;
 	}
-	
+
 	public static function associativeArrayOfHash(hash : Hash<Dynamic>) : NativeArray {
 		return untyped hash.h;
+	}
+
+	public static function objectOfAssociativeArray(arr : NativeArray) : Dynamic {
+		untyped __php__("foreach($arr as $key => $value){
+			if(is_array($value)) $arr[$key] = php_Lib::objectOfAssociativeArray($value);
+		}");
+		return untyped __call__("_hx_anonymous", arr);
+	}
+
+	public static function associativeArrayOfObject(ob : Dynamic) : NativeArray {
+		return untyped __php__("(array) $ob");
 	}
 
 	/**
@@ -97,7 +108,7 @@ class Lib {
 		}
 		return o;
 	}
-	
+
 	/**
 	*  Loads types defined in the specified directory.
  	*/
@@ -108,7 +119,7 @@ class Lib {
  		$_hx_cache_content = '';
  		//Calling this function will put all types present in the specified types in the $_hx_types_array
  		_hx_build_paths($pathToLib, $_hx_types_array, array(), $prefix);
- 
+
  		for($i=0;$i<count($_hx_types_array);$i++) {
  			//For every type that has been found, create its description
  			$t = null;

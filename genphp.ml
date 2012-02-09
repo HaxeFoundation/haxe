@@ -1381,7 +1381,7 @@ and gen_expr ctx e =
 		old()
 	| TObjectDecl fields ->
 		spr ctx "_hx_anonymous(array(";
-		concat ctx ", " (fun (f,e) -> print ctx "\"%s\" => " f; gen_value ctx e) fields;
+		concat ctx ", " (fun (f,e) -> print ctx "\"%s\" => " (escape_bin f); gen_value ctx e) fields;
 		spr ctx "))"
 	| TFor (v,it,e) ->
 		let b = save_locals ctx in
