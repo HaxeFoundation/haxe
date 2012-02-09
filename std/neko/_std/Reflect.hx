@@ -35,7 +35,7 @@
 
 	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
 		if( $typeof(o) == $tobject )
-			$objset(o,$fasthash(field.__s),value);
+			$objset(o,$hash(field.__s),value);
 	}
 
 	public static inline function getProperty( o : Dynamic, field : String ) : Dynamic untyped {
@@ -46,7 +46,7 @@
 	public static inline function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
 		if( $typeof(o) == $tobject ) {
 			var tmp;
-			if( o.__properties__ != null && (tmp=$objget(o.__properties__,$fasthash("set_".__s+field.__s))) != null ) $call($objget(o,$fasthash(tmp)),o,$array(value)) else $objset(o,$fasthash(field.__s),value);
+			if( o.__properties__ != null && (tmp=$objget(o.__properties__,$fasthash("set_".__s+field.__s))) != null ) $call($objget(o,$fasthash(tmp)),o,$array(value)) else $objset(o,$hash(field.__s),value);
 		}
 	}
 
