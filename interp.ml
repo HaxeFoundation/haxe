@@ -534,6 +534,7 @@ let builtins =
 			VArray (Array.map (fun (fid,_) -> VInt fid) (vobj o).ofields)
 		);
 		"hash", Fun1 (fun v -> VInt (hash_field (get_ctx()) (vstring v)));
+		"fasthash", Fun1 (fun v -> VInt (hash (vstring v)));
 		"field", Fun1 (fun v ->
 			try VString (Hashtbl.find (get_ctx()).fields_cache (vint v)) with Not_found -> VNull
 		);

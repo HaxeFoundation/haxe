@@ -26,27 +26,27 @@
 @:core_api class Reflect {
 
 	public static function hasField( o : Dynamic, field : String ) : Bool untyped {
-		return $typeof(o) == $tobject && $objfield(o,$hash(field.__s));
+		return $typeof(o) == $tobject && $objfield(o,$fasthash(field.__s));
 	}
 
 	public inline static function field( o : Dynamic, field : String ) : Dynamic untyped {
-		return if( $typeof(o) != $tobject ) null else $objget(o,$hash(field.__s));
+		return if( $typeof(o) != $tobject ) null else $objget(o,$fasthash(field.__s));
 	}
 
 	public inline static function setField( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
 		if( $typeof(o) == $tobject )
-			$objset(o,$hash(field.__s),value);
+			$objset(o,$fasthash(field.__s),value);
 	}
 
 	public static inline function getProperty( o : Dynamic, field : String ) : Dynamic untyped {
 		var tmp;
-		return if( $typeof(o) != $tobject ) null else if( o.__properties__ != null && (tmp=$objget(o.__properties__,$hash("get_".__s+field.__s))) != null ) $call($objget(o,$hash(tmp)),o,$array()) else $objget(o,$hash(field.__s));
+		return if( $typeof(o) != $tobject ) null else if( o.__properties__ != null && (tmp=$objget(o.__properties__,$fasthash("get_".__s+field.__s))) != null ) $call($objget(o,$fasthash(tmp)),o,$array()) else $objget(o,$fasthash(field.__s));
 	}
 
 	public static inline function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
 		if( $typeof(o) == $tobject ) {
 			var tmp;
-			if( o.__properties__ != null && (tmp=$objget(o.__properties__,$hash("set_".__s+field.__s))) != null ) $call($objget(o,$hash(tmp)),o,$array(value)) else $objset(o,$hash(field.__s),value);
+			if( o.__properties__ != null && (tmp=$objget(o.__properties__,$fasthash("set_".__s+field.__s))) != null ) $call($objget(o,$fasthash(tmp)),o,$array(value)) else $objset(o,$fasthash(field.__s),value);
 		}
 	}
 
@@ -86,7 +86,7 @@
 	}
 
 	public inline static function deleteField( o : Dynamic, f : String ) : Bool untyped {
-		return $objremove(o,$hash(f.__s));
+		return $objremove(o,$fasthash(f.__s));
 	}
 
 	public inline static function copy<T>( o : T ) : T {
