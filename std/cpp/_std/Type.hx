@@ -149,9 +149,17 @@ enum ValueType {
 	}
 
 	public static function allEnums<T>( e : Enum<T> ) : Array<T> {
-		var all = [];
-		throw "TODO";
-		return all;
+      var names:Array<String> =  untyped e.GetClassFields();
+		var enums = new Array<T>();
+      for(name in names)
+      {
+         try {
+            var result:T = untyped e.mConstructEnum(name,null);
+            enums.push( result );
+         } catch ( invalidArgCount:String) {
+         }
+      }
+		return enums;
 	}
 
 }
