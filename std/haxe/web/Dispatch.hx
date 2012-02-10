@@ -239,12 +239,17 @@ class Dispatch {
 				return MRDispatch;
 			default:
 				var c = i.get();
-				if( c.superClass != null && (c.superClass.t.toString() == "neko.db.Object" || c.superClass.t.toString() == "sys.db.Object") ) {
-					var lock = switch( t ) {
-					case TType(t, _): t.get().name == "Lock";
-					default: false;
+				var csup = c.superClass;
+				while( csup != null ) {
+					var name = csup.t.toString();
+					if( name == "neko.db.Object" || name == "sys.db.Object" ) {
+						var lock = switch( t ) {
+						case TType(t, _): t.get().name == "Lock";
+						default: false;
+						}
+						return MRSpod(i.toString(), lock);
 					}
-					return MRSpod(i.toString(), lock);
+					csup = csup.t.get().superClass;
 				}
 				Context.error("Unsupported dispatch type '"+i.toString()+"'",p);
 			}
