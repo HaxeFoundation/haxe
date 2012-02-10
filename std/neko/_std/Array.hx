@@ -287,6 +287,7 @@
 		return a;
 	}
 
+	#if !macro
 	static function __init__() : Void {
 		try {
 			var msort : Dynamic = neko.Lib.load("std","merge_sort",3);
@@ -294,5 +295,6 @@
 		} catch( e : Dynamic ) {
 		}
 	}
+	#end
 
 }
