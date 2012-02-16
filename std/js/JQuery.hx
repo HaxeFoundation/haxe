@@ -108,6 +108,8 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	function clone( ?withDataAndEvents : Bool ) : JQuery;
 	function closest( selector : String, ?context : JQuery ) : JQuery;
 	function contents() : JQuery;
+
+	@:overload(function( f : Int -> js.Dom.HtmlDom -> Void ):js.JQuery{})
 	function each( f : Void -> Void ) : JQuery;
 	function end() : JQuery;
 	function eq( index : Int ) : JQuery;
