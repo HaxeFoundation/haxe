@@ -144,15 +144,17 @@ class Dispatch {
 		return checkParams(GET_RULES[cfgIndex], true);
 	}
 
-	function match( v : String, r : MatchRule ) : Dynamic {
+	function match( v : String, r : MatchRule, opt : Bool ) : Dynamic {
 		switch( r ) {
 		case MRInt:
 			if( v == null ) throw DEMissing;
+			if( opt && v == "" ) return null;
 			var v = Std.parseInt(v);
 			if( v == null ) throw DEInvalidValue;
 			return v;
 		case MRFloat:
 			if( v == null ) throw DEMissing;
+			if( opt && v == "" ) return null;
 			var v = Std.parseFloat(v);
 			if( Math.isNaN(v) ) throw DEInvalidValue;
 			return v;
@@ -180,9 +182,9 @@ class Dispatch {
 			if( o == null ) throw DEInvalidValue;
 			return o;
 		case MROpt(r) :
-			if( v == null || (v == "" && (r == MRInt || r == MRFloat)) )
+			if( v == null )
 				return null;
-			return match(v, r);
+			return match(v, r, true);
 		}
 	}
 
@@ -195,7 +197,7 @@ class Dispatch {
 				if( opt ) return null;
 				throw DEMissingParam(p.name);
 			}
-			Reflect.setField(po, p.name, match(v, p.rule));
+			Reflect.setField(po, p.name, match(v, p.rule,p.opt));
 		}
 		return po;
 	}
@@ -206,10 +208,10 @@ class Dispatch {
 			loop(args, r);
 			args.push( checkParams(params, opt) );
 		case DRMatch(r):
-			args.push(match(parts.shift(), r));
+			args.push(match(parts.shift(), r, false));
 		case DRMult(rl):
 			for( r in rl )
-				args.push(match(parts.shift(), r));
+				args.push(match(parts.shift(), r, false));
 		case DRMeta(r):
 			loop(args, r);
 			var c = Type.getClass(cfg.obj);
