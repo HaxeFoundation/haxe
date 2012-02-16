@@ -34,7 +34,7 @@ class SocketInput extends haxe.io.Input {
 		__s = s;
 	}
 
-	public override function readByte() {
+	public override function readByte() : Int {
 		return try {
 			socket_recv_char(__s);
 		} catch( e : Dynamic ) {
