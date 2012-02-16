@@ -180,7 +180,7 @@ class Dispatch {
 			if( o == null ) throw DEInvalidValue;
 			return o;
 		case MROpt(r) :
-			if( v == null )
+			if( v == null || (v == "" && (r == MRInt || r == MRFloat)) )
 				return null;
 			return match(v, r);
 		}
