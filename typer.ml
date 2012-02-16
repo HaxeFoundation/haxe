@@ -295,7 +295,7 @@ let make_call ctx e params t p =
 			| _ -> raise Exit
 		) in
 		if ctx.com.display || f.cf_kind <> Method MethInline then raise Exit;
-		let is_extern = (match cl with 
+		let is_extern = (match cl with
 			| Some { cl_extern = true } -> true
 			| _ when has_meta ":extern" f.cf_meta -> true
 			| _ -> false
@@ -1686,7 +1686,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				if follow pt != t_dynamic then error "Cast type parameters must be Dynamic" p;
 			) params;
 			(match follow t with
-			| TInst (c,_) -> 
+			| TInst (c,_) ->
 				if c.cl_kind = KTypeParameter then error "Can't cast to a type parameter" p;
 				TClassDecl c
 			| TEnum (e,_) -> TEnumDecl e
@@ -1760,13 +1760,13 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		else match fields with
 			| [] -> e.etype
 			| _ ->
-				let get_field acc f = 
+				let get_field acc f =
 					if not f.cf_public then acc else (f.cf_name,f.cf_type,f.cf_doc) :: List.map (fun t -> f.cf_name,t,f.cf_doc) (get_overloads ctx p f.cf_meta) @ acc
 				in
 				raise (DisplayFields (List.fold_left get_field [] fields))
 		) in
 		(match follow t with
-		| TMono _ | TDynamic _ when ctx.in_macro -> mk (TConst TNull) t p		
+		| TMono _ | TDynamic _ when ctx.in_macro -> mk (TConst TNull) t p
 		| _ -> raise (DisplayTypes [t]))
 	| EDisplayNew t ->
 		let t = Typeload.load_instance ctx t p true in
@@ -2161,11 +2161,7 @@ let make_macro_api ctx p =
 	in
 	{
 		Interp.pos = p;
-		Interp.on_error = (fun msg p warn ->
-			(if warn then ctx.com.warning else ctx.com.error) msg p
-		);
-		Interp.defined = Common.defined ctx.com;
-		Interp.define = Common.define ctx.com;
+		Interp.get_com = (fun() -> ctx.com);
 		Interp.get_type = (fun s ->
 			typing_timer ctx (fun() ->
 				let path = parse_path s in
@@ -2220,9 +2216,6 @@ let make_macro_api ctx p =
 			) in
 			let tp = get_type_patch ctx t (match f with None -> None | Some f -> Some (f,s)) in
 			tp.tp_meta <- tp.tp_meta @ m;
-		);
-		Interp.print = (fun s ->
-			if not ctx.com.display then print_string s
 		);
 		Interp.set_js_generator = (fun gen ->
 			let js_ctx = Genjs.alloc_ctx ctx.com in

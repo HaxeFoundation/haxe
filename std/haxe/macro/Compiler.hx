@@ -38,7 +38,7 @@ class Compiler {
 	public static function define( flag : String ) {
 		untyped load("define", 1)(flag.__s);
 	}
-	
+
 	public static function removeField( className : String, field : String, ?isStatic : Bool ) {
 		if( !path.match(className) ) throw "Invalid "+className;
 		if( !ident.match(field) ) throw "Invalid "+field;
@@ -55,6 +55,10 @@ class Compiler {
 		if( !path.match(className) ) throw "Invalid "+className;
 		if( field != null && !ident.match(field) ) throw "Invalid "+field;
 		untyped load("meta_patch",4)(meta.__s,className.__s,(field == null)?null:field.__s,isStatic == true);
+	}
+
+	public static function addClassPath( path : String ) {
+		untyped load("add_class_path",1)(path.__s);
 	}
 
 	/**

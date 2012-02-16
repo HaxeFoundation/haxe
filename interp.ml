@@ -16,6 +16,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *)
+open Common
 open Nast
 open Unix
 open Type
@@ -87,13 +88,10 @@ type cmp =
 
 type extern_api = {
 	pos : Ast.pos;
-	on_error : string -> Ast.pos -> bool -> unit;
-	define : string -> unit;
-	defined : string -> bool;
+	get_com : unit -> Common.context;
 	get_type : string -> Type.t option;
 	get_module : string -> Type.t list;
 	on_generate : (Type.t list -> unit) -> unit;
-	print : string -> unit;
 	parse_string : string -> Ast.pos -> Ast.expr;
 	typeof : Ast.expr -> Type.t;
 	type_patch : string -> string -> bool -> string option -> unit;
@@ -660,7 +658,9 @@ let builtins =
 	(* misc *)
 		"print", FunVar (fun vl -> List.iter (fun v ->
 			let ctx = get_ctx() in
-			ctx.curapi.print (ctx.do_string v)
+			let com = ctx.curapi.get_com() in
+			let str = ctx.do_string v in
+			if not com.display then print_string str
 		) vl; VNull);
 		"throw", Fun1 (fun v -> exc v);
 		"rethrow", Fun1 (fun v ->
@@ -1690,35 +1690,41 @@ let macro_lib =
 	let error() =
 		raise Builtin_error
 	in
+	let ccom() =
+		(get_ctx()).curapi.get_com()
+	in
 	make_library [
 		"curpos", Fun0 (fun() -> VAbstract (APos (get_ctx()).curapi.pos));
 		"error", Fun2 (fun msg p ->
 			match msg, p with
-			| VString s, VAbstract (APos p) -> (get_ctx()).curapi.on_error s p false; raise Abort
+			| VString s, VAbstract (APos p) ->
+				(ccom()).Common.error s p;
+				raise Abort
 			| _ -> error()
 		);
 		"warning", Fun2 (fun msg p ->
 			match msg, p with
-			| VString s, VAbstract (APos p) -> (get_ctx()).curapi.on_error s p true; VNull;
+			| VString s, VAbstract (APos p) ->
+				(ccom()).warning s p;
+				VNull;
 			| _ -> error()
 		);
 		"class_path", Fun0 (fun() ->
-			let cp = (get_ctx()).com.Common.class_path in
-			VArray (Array.of_list (List.map (fun s -> VString s) cp));
+			VArray (Array.of_list (List.map (fun s -> VString s) (ccom()).class_path));
 		);
 		"resolve", Fun1 (fun file ->
 			match file with
-			| VString s -> VString (try Common.find_file (get_ctx()).com s with Not_found -> failwith ("File not found '" ^ s ^ "'"))
+			| VString s -> VString (try Common.find_file (ccom()) s with Not_found -> failwith ("File not found '" ^ s ^ "'"))
 			| _ -> error();
 		);
 		"define", Fun1 (fun s ->
 			match s with
-			| VString s -> (get_ctx()).curapi.define s; VNull
+			| VString s -> Common.define (ccom()) s; VNull
 			| _ -> error();
 		);
 		"defined", Fun1 (fun s ->
 			match s with
-			| VString s -> VBool ((get_ctx()).curapi.defined s)
+			| VString s -> VBool (Common.defined (ccom()) s)
 			| _ -> error();
 		);
 		"get_type", Fun1 (fun s ->
@@ -1910,9 +1916,7 @@ let macro_lib =
 		);
 		"add_resource", Fun2 (fun name data ->
 			match name, data with
-			| VString name, VString data ->
-				(* ressources are shared between the commons *)
-				Hashtbl.replace (get_ctx()).com.Common.resources name data; VNull
+			| VString name, VString data -> Hashtbl.replace (ccom()).resources name data; VNull
 			| _ -> error()
 		);
 		"local_type", Fun0 (fun() ->
@@ -1943,6 +1947,15 @@ let macro_lib =
 		"define_type", Fun1 (fun v ->
 			(get_ctx()).curapi.define_type v;
 			VNull
+		);
+		"add_class_path", Fun1 (fun v ->
+			match v with
+			| VString cp ->
+				let com = ccom() in
+				com.class_path <- cp :: com.class_path;
+				VNull
+			| _ ->
+				error()
 		);
 	]
 
@@ -2672,7 +2685,7 @@ let rec to_string ctx n v =
 	| VBool true -> "true"
 	| VBool false -> "false"
 	| VInt i -> string_of_int i
-	| VFloat f -> 
+	| VFloat f ->
 		let s = string_of_float f in
 		let len = String.length s in
 		if String.unsafe_get s (len - 1) = '.' then String.sub s 0 (len - 1) else s
