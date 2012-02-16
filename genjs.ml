@@ -716,6 +716,9 @@ let generate_class ctx c =
 	ctx.current <- c;
 	ctx.curmethod <- ("new",true);
 	ctx.id_counter <- 0;
+	(match c.cl_path with
+	| [],"Function" -> error "This class redefine a native one" c.cl_pos
+	| _ -> ());
 	let p = s_path ctx c.cl_path in
 	generate_package_create ctx c.cl_path;
 	print ctx "%s = $hxClasses[\"%s\"] = " p p;
