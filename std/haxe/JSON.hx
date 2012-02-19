@@ -165,7 +165,7 @@ class JSON {
 	#if !haxeJSON
 		#if js
 		static function __init__() untyped {
-			if( 'typeof(JSON)') != __js__('undefined') )
+			if( __js__('typeof(JSON)') != 'undefined' )
 				JSON = __js__('JSON');
 		}
 		#end
