@@ -27,7 +27,7 @@ package haxe;
 #if (flash_10_3 && !haxeJSON)
 @:native('JSON') extern
 #end
-class JSON {
+class Json {
 
 #if !(flash_10_3 && !haxeJSON)
 	var buf : StringBuf;
@@ -159,14 +159,14 @@ class JSON {
 */
 
 	public static function stringify( value : Dynamic ) : String {
-		return new JSON().toString(value);
+		return new Json().toString(value);
 	}
 
 	#if !haxeJSON
 		#if js
 		static function __init__() untyped {
 			if( __js__('typeof(JSON)') != 'undefined' )
-				JSON = __js__('JSON');
+				Json = __js__('JSON');
 		}
 		#end
 	#end
