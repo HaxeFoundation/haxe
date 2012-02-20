@@ -31,7 +31,7 @@ package sys.db;
 @:autoBuild(sys.db.SpodMacros.macroBuild()) @:skipFields
 class Object {
 
-	var _locked(default,never) : Bool;
+	var _lock(default,never) : Bool;
 	var _manager(default,never) : sys.db.Manager<Dynamic>;
 
 	public function new() {
