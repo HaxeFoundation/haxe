@@ -194,18 +194,41 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	function wrapInner( html : String ) : JQuery;
 
 	// animation
+	@:overload(function(properties:{},?duration:Int,?easing:String,?call:Void->Void) : js.JQuery{})
 	function animate( properties : { }, ?duration : Int, ?callb : Void -> Void ) : JQuery;
+
 	function delay( duration : Int, ?queueName : String ) : JQuery;
+
+	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : js.JQuery{})
 	function hide( ?duration : Int, ?call : Void -> Void ) : JQuery;
+
+	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : js.JQuery{})
 	function fadeIn( ?duration : Int, ?call : Void -> Void ) : JQuery;
+
+	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : js.JQuery{})
 	function fadeOut( ?duration : Int, ?call : Void -> Void ) : JQuery;
+
+	@:overload(function(duration:Int,opacity:Float,?easing:String,?call:Void->Void) : js.JQuery{})
 	function fadeTo( duration : Int, opacity : Float, ?call : Void -> Void ) : JQuery;
+
+	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : js.JQuery{})
 	function fadeToggle( ?duration : Int, ?call : Void -> Void ) : JQuery;
+
+	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : js.JQuery{})
 	function show( ?duration : Int, ?call : Void -> Void ) : JQuery;
+
+	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : js.JQuery{})
 	function slideDown( ?duration : Int, ?call : Void -> Void ) : JQuery;
+
+	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : js.JQuery{})
 	function slideToggle( ?duration : Int, ?call : Void -> Void ) : JQuery;
+
+	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : js.JQuery{})
 	function slideUp( ?duration : Int, ?call : Void -> Void ) : JQuery;
+
 	function stop( ?clearQueue : Bool, ?jumpToEnd : Bool ) : JQuery;
+
+	@:overload(function(?duration:Int,?easing:String,?call:Void->Void) : js.JQuery{})
 	function toggle( ?duration : Int, ?call : Void -> Void ) : JQuery;
 
 	// Events
