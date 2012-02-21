@@ -56,6 +56,10 @@ class Object {
 		untyped _manager.doDelete(this);
 	}
 
+	public function isLocked() {
+		return _lock;
+	}
+
 	public function toString() : String {
 		return untyped _manager.objectToString(this);
 	}
