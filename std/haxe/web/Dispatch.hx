@@ -30,7 +30,7 @@ import haxe.macro.Type.ClassField;
 import haxe.macro.Context;
 #end
 
-typedef Config = {
+typedef DispatchConfig = {
 	var obj : Dynamic;
 	var rules : Dynamic;
 }
@@ -71,7 +71,7 @@ class Dispatch {
 	public var parts : Array<String>;
 	public var params : Hash<String>;
 	public var name : String;
-	public var cfg : Config;
+	public var cfg : DispatchConfig;
 
 	public function new(url:String, params) {
 		parts = url.split("/");
@@ -106,7 +106,7 @@ class Dispatch {
 		return name;
 	}
 
-	public function runtimeDispatch( cfg : Config ) {
+	public function runtimeDispatch( cfg : DispatchConfig ) {
 		name = parts.shift();
 		if( name == null )
 			name = "default";
@@ -397,7 +397,7 @@ class Dispatch {
 
 	#end
 
-	@:macro public static function make( obj : ExprRequire<{}> ) : ExprRequire<Config> {
+	@:macro public static function make( obj : ExprRequire<{}> ) : ExprRequire<DispatchConfig> {
 		return makeConfig(obj);
 	}
 
@@ -407,7 +407,7 @@ class Dispatch {
 		return { expr : ECall({ expr : EField({ expr : ENew({ name : "Dispatch", pack : ["haxe","web"], params : [], sub : null },[url,params]), pos : p },"runtimeDispatch"), pos : p },[cfg]), pos : p };
 	}
 
-	static function extractConfig( obj : Dynamic ) : Config {
+	static function extractConfig( obj : Dynamic ) : DispatchConfig {
 		// extract the config from the class metadata (cache result)
 		var c = Type.getClass(obj);
 		var dc = haxe.rtti.Meta.getType(c);
