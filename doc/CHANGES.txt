@@ -22,7 +22,7 @@
 	all : allowed optional args in functions types (?Int -> Void)
 	all : added Reflect.getProperty/setProperty
 		(partial support : neko, js only so far)
-	all : added --wait and --cwd
+	all : added --wait and --cwd and --connect (parsed files and module caching)
 	all : fixed completion in macros calls arguments
 	all : fixed DCE removing empty but still used interfaces/superclasses
 	all : added haxe.Utf8 (crossplatform)
