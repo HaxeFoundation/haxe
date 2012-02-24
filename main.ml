@@ -31,6 +31,7 @@ type context = {
 type cache = {
 	mutable c_haxelib : (string list, string list) Hashtbl.t;
 	mutable c_files : (string, float * Ast.package) Hashtbl.t;
+	mutable c_modules : (Type.path * string, float * Type.module_def) Hashtbl.t;
 }
 
 exception Abort
@@ -63,6 +64,16 @@ let format msg p =
 		let msg = String.concat ("\n" ^ epos ^ " : ") (ExtString.String.nsplit msg "\n") in
 		sprintf "%s : %s" epos msg
 	end
+
+let ssend sock str =
+	let rec loop pos len =
+		if len = 0 then
+			()
+		else
+			let s = Unix.send sock str pos len [] in
+			loop (pos + s) (len - s)
+	in
+	loop 0 (String.length str)
 
 let message ctx msg p =
 	ctx.messages <- format msg p :: ctx.messages
@@ -327,6 +338,14 @@ let rec process_params flush acc = function
 		(* we need to change it immediately since it will affect hxml loading *)
 		(try Unix.chdir dir with _ -> ());
 		process_params flush (dir :: "--cwd" :: acc) l
+	| "--connect" :: hp :: l ->
+		(match !global_cache with
+		| None ->
+			let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
+			do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l) 
+		| Some _ ->
+			(* already connected : skip *)
+			process_params flush acc l)
 	| arg :: l ->
 		match List.rev (ExtString.String.nsplit arg ".") with
 		| "hxml" :: _ -> process_params flush acc (parse_hxml arg @ l)
@@ -344,13 +363,14 @@ and wait_loop boot_com host port =
 	let cache = {
 		c_haxelib = Hashtbl.create 0;
 		c_files = Hashtbl.create 0;
+		c_modules = Hashtbl.create 0;
 	} in
 	global_cache := Some cache;
 	let get_signature com = 
 		match com.defines_signature with
 		| Some s -> s
 		| None ->
-			let s = Digest.string (String.concat "@" (PMap.foldi (fun k _ acc -> k :: acc) com.defines [])) in
+			let s = Digest.string (String.concat "@" (PMap.foldi (fun k _ acc -> if k = "display" then acc else k :: acc) com.defines [])) in
 			com.defines_signature <- Some s;
 			s
 	in
@@ -368,9 +388,64 @@ and wait_loop boot_com host port =
 			data
 		with Not_found ->
 			let data = Typeload.parse_file com2 file p in
-			if verbose && not com2.verbose then print_endline ("Parsed " ^ ffile);
+			if verbose then print_endline ("Parsed " ^ ffile);
 			Hashtbl.replace cache.c_files fkey (ftime,data);
 			data
+	);
+	let cache_module sign m =
+		Hashtbl.replace cache.c_modules (m.Type.mpath,sign) (file_time m.Type.mfile,m);
+		List.iter (fun t -> 
+			match t with
+			| Type.TClassDecl c -> c.Type.cl_restore()
+			| _ -> ()
+		) m.Type.mtypes
+	in
+	let modules_added = Hashtbl.create 0 in
+	Typeload.type_module_hook := (fun (ctx:Typecore.typer) mpath p ->
+		let com2 = ctx.Typecore.com in
+		let sign = get_signature com2 in
+		let modules_checked = Hashtbl.create 0 in
+		let dep = ref None in
+		let rec check m =
+			try
+				Hashtbl.find modules_added m.Type.mpath
+			with Not_found -> try
+				!(Hashtbl.find modules_checked m.Type.mpath)
+			with Not_found -> 
+			let ok = ref true in
+			Hashtbl.add modules_checked m.Type.mpath ok;
+			try
+				let time, m = Hashtbl.find cache.c_modules (m.Type.mpath,sign) in
+				if m.Type.mfile <> Common.get_full_path (Typeload.resolve_module_file com2 m.Type.mpath (ref[]) p) then raise Not_found;
+				if file_time m.Type.mfile <> time then raise Not_found;
+				PMap.iter (fun m2 _ -> if not (check m2) then begin dep := Some m2; raise Not_found end) !(m.Type.mdeps);
+				true
+			with Not_found ->
+				Hashtbl.add modules_added m.Type.mpath false;
+				ok := false;
+				!ok
+		in
+		let rec add_modules m =
+			if Hashtbl.mem modules_added m.Type.mpath then
+				()
+			else begin
+				Hashtbl.add modules_added m.Type.mpath true;
+				if verbose then print_endline ("Reusing  cached module " ^ Ast.s_type_path m.Type.mpath);
+				Typeload.add_module ctx m p;
+				PMap.iter (fun m2 _ -> add_modules m2) !(m.Type.mdeps);
+			end
+		in
+		try
+			let _, m = Hashtbl.find cache.c_modules (mpath,sign) in
+			if com2.dead_code_elimination then raise Not_found;
+			if not (check m) then begin
+				if verbose then print_endline ("Skipping cached module " ^ Ast.s_type_path mpath ^ (match !dep with None -> "" | Some m -> "(" ^ Ast.s_type_path m.Type.mpath ^ ")"));
+				raise Not_found;
+			end;
+			add_modules m;
+			Some m
+		with Not_found ->
+			None
 	);
 	while true do
 		let sin, _ = Unix.accept sock in
@@ -389,18 +464,13 @@ and wait_loop boot_com host port =
 				ignore(Unix.select [] [] [] 0.1);
 				read_loop()
 		in
-		let send str =
-			let rec loop pos len =
-				if len = 0 then
-					()
-				else
-					let s = Unix.send sin str pos len [] in
-					loop (pos + s) (len - s)
-			in
-			loop 0 (String.length str)
-		in
 		let flush ctx =
-			List.iter (fun s -> send (s ^ "\n")) (List.rev ctx.messages)
+			Hashtbl.clear modules_added;
+			if not ctx.com.dead_code_elimination then begin
+				List.iter (cache_module (get_signature ctx.com)) ctx.com.modules;
+				if verbose then print_endline ("Cached " ^ string_of_int (List.length ctx.com.modules) ^ " modules");
+			end;
+			List.iter (fun s -> ssend sin (s ^ "\n")) (List.rev ctx.messages);
 		in
 		(try
 			let data = parse_hxml_data (read_loop()) in
@@ -410,11 +480,14 @@ and wait_loop boot_com host port =
 				Common.display_default := false;
 				Parser.resume_display := Ast.null_pos;
 				measure_times := false;
+				Hashtbl.clear Common.htimers;
+				let _ = Common.timer "other" in
+				Hashtbl.clear modules_added;
 				start_time := get_time();
 				process_params flush [] data
 			with Completion str ->
 				if verbose then print_endline ("Completion Response =\n" ^ str);
-				send str
+				ssend sin str
 			);
 			if verbose then Printf.printf "Time spent : %.3fs\n" (get_time() -. t0);
 		with Unix.Unix_error _ ->
@@ -422,6 +495,22 @@ and wait_loop boot_com host port =
 		if verbose then print_endline "Closing connection";
 		Unix.close sin;
 	done
+
+and do_connect host port args =	
+	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
+	(try Unix.connect sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port));
+	ssend sock ("--cwd " ^ Unix.getcwd() ^ "\n");
+	List.iter (fun p -> ssend sock (p ^ "\n")) args;
+	ssend sock "\000";
+	let buf = Buffer.create 0 in
+	let tmp = String.create 100 in
+	let rec loop() =
+		let b = Unix.recv sock tmp 0 100 [] in		
+		Buffer.add_substring buf tmp 0 b;
+		if b > 0 then loop()
+	in
+	loop();
+	prerr_endline (Buffer.contents buf)
 
 and init flush ctx =
 	let usage = Printf.sprintf
@@ -652,6 +741,9 @@ try
 			let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
 			wait_loop com host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port"))
 		),"<[host:]port> : wait on the given port for commands to run)");
+		("--connect",Arg.String (fun _ ->
+			assert false
+		),"<[host:]port> : connect on the given port and run commands there)");
 		("--cwd", Arg.String (fun dir ->
 			(try Unix.chdir dir with _ -> raise (Arg.Bad "Invalid directory"))
 		),"<dir> : set current working directory");

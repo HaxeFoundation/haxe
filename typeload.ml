@@ -32,6 +32,7 @@ let parse_file com file p =
 	data
 
 let parse_hook = ref parse_file
+let type_module_hook = ref (fun _ _ _ -> None)
 
 let type_function_param ctx t e opt p =
 	match e with
@@ -1517,6 +1518,9 @@ let load_module ctx m p =
 		Hashtbl.find ctx.g.modules m
 	with
 		Not_found ->
+			match !type_module_hook ctx m p with
+			| Some m -> m
+			| None ->
 			let file, decls = (try
 				parse_module ctx m p
 			with Not_found ->
