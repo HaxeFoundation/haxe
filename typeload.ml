@@ -1246,7 +1246,7 @@ let add_module ctx m p =
 	List.iter decl_type m.mtypes;
 	Hashtbl.add ctx.g.modules m.mpath m
 
-let type_module ctx m tdecls loadp =
+let type_module ctx m file tdecls loadp =
 	(* PASS 1 : build module structure - does not load any module or type - should be atomic ! *)
 	let decls = ref [] in
 	let make_path name priv =
@@ -1299,6 +1299,8 @@ let type_module ctx m tdecls loadp =
 	let m = {
 		mpath = m;
 		mtypes = List.rev !decls;
+		mfile = Common.get_full_path file;
+		mdeps = ref PMap.empty;
 	} in
 	add_module ctx m loadp;
 	(* PASS 2 : build types structure - does not type any expression ! *)
@@ -1479,7 +1481,7 @@ let parse_module ctx m p =
 		else
 			display_error ctx ("Invalid package : " ^ spack (fst m) ^ " should be " ^ spack pack) p
 	end;
-	if !remap <> fst m then
+	file, if !remap <> fst m then
 		(* build typedefs to redirect to real package *)
 		List.rev (List.fold_left (fun acc (t,p) ->
 			let build f d =
@@ -1511,11 +1513,11 @@ let parse_module ctx m p =
 		decls
 
 let load_module ctx m p =
-	try
+	let m2 = (try
 		Hashtbl.find ctx.g.modules m
 	with
 		Not_found ->
-			let decls = (try
+			let file, decls = (try
 				parse_module ctx m p
 			with Not_found ->
 				let rec loop = function
@@ -1524,8 +1526,11 @@ let load_module ctx m p =
 					| load :: l ->
 						match load m p with
 						| None -> loop l
-						| Some (_,a) -> a
+						| Some (file,(_,a)) -> file, a
 				in
 				loop ctx.com.load_extern_type
 			) in
-			type_module ctx m decls p
+			type_module ctx m file decls p
+	) in
+	ctx.current.mdeps := PMap.add m2 () !(ctx.current.mdeps);
+	m2

@@ -2276,7 +2276,7 @@ let make_macro_api ctx p =
 		);
 		Interp.define_type = (fun v ->
 			let m, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc (Interp.VString "Invalid type definition")) in
-			ignore(Typeload.type_module ctx m [tdef,pos] pos);
+			ignore(Typeload.type_module ctx m "" [tdef,pos] pos);
 		);
 	}
 
@@ -2495,6 +2495,8 @@ let rec create com =
 	let empty =	{
 		mpath = [] , "";
 		mtypes = [];
+		mfile = "";
+		mdeps = ref PMap.empty;
 	} in
 	let ctx = {
 		com = com;

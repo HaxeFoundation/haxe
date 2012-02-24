@@ -119,7 +119,7 @@ let extend_remoting ctx c t p async prot =
 		Error (Module_not_found _,p2) when p == p2 ->
 	(* build it *)
 	if ctx.com.verbose then print_endline ("Building proxy for " ^ s_type_path path);
-	let decls = (try
+	let file, decls = (try
 		Typeload.parse_module ctx path p
 	with
 		| Not_found -> ctx.com.package_rules <- rules; error ("Could not load proxy module " ^ s_type_path path ^ (if fst path = [] then " (try using absolute path)" else "")) p
@@ -170,7 +170,7 @@ let extend_remoting ctx c t p async prot =
 			(EClass { c with d_flags = []; d_name = new_name; d_data = fields },p)
 		| _ -> d
 	) decls in
-	let m = Typeload.type_module ctx (t.tpackage,new_name) decls p in
+	let m = Typeload.type_module ctx (t.tpackage,new_name) file decls p in
 	try
 		List.find (fun tdecl -> snd (t_path tdecl) = new_name) m.mtypes
 	with Not_found ->
@@ -216,6 +216,8 @@ let rec build_generic ctx c p tl =
 		let cg = mk_class (pack,name) c.cl_pos in
 		let mg = {
 			mpath = cg.cl_path;
+			mfile = m.mfile;
+			mdeps = m.mdeps; (* share *)
 			mtypes = [TClassDecl cg];
 		} in
 		Hashtbl.add ctx.g.modules mg.mpath mg;
@@ -454,6 +456,18 @@ let rec has_rtti c =
 		| _ -> false
 	) c.cl_implements || (match c.cl_super with None -> false | Some (c,_) -> has_rtti c)
 
+let restore c =
+	let meta = c.cl_meta and path = c.cl_path in
+	let fl = c.cl_fields and ofl = c.cl_ordered_fields and st = c.cl_statics and ost = c.cl_ordered_statics in
+	(fun() -> 
+		c.cl_meta <- meta;
+		c.cl_path <- path;
+		c.cl_fields <- fl;
+		c.cl_ordered_fields <- ofl;
+		c.cl_statics <- st;
+		c.cl_ordered_statics <- ost;
+	)
+
 let on_generate ctx t =
 	match t with
 	| TClassDecl c ->
@@ -461,6 +475,7 @@ let on_generate ctx t =
 			let rpath = (fst c.cl_module,"_" ^ snd c.cl_module) in
 			if Hashtbl.mem ctx.g.types_module rpath then error ("This private class name will clash with " ^ s_type_path rpath) c.cl_pos;
 		end;
+		c.cl_restore <- restore c;
 		List.iter (fun m ->
 			match m with
 			| ":native",[Ast.EConst (Ast.String name),p],mp ->

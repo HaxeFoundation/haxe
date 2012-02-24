@@ -60,7 +60,7 @@ type context = {
 	mutable package_rules : (string,package_rule) PMap.t;
 	mutable error : string -> pos -> unit;
 	mutable warning : string -> pos -> unit;
-	mutable load_extern_type : (path -> pos -> Ast.package option) list; (* allow finding types which are not in sources *)
+	mutable load_extern_type : (path -> pos -> (string * Ast.package) option) list; (* allow finding types which are not in sources *)
 	mutable filters : (unit -> unit) list;
 	mutable defines_signature : string option;
 	(* output *)

@@ -249,7 +249,7 @@ let add_swf_lib com file =
 	let build cl p =
 		match (try Some (Hashtbl.find (extract()) cl) with Not_found -> None) with
 		| None -> None
-		| Some c -> Some (Genswf.build_class com c file)
+		| Some c -> Some (file, Genswf.build_class com c file)
 	in
 	com.load_extern_type <- com.load_extern_type @ [build];
 	com.swf_libs <- (file,getSWF,extract) :: com.swf_libs

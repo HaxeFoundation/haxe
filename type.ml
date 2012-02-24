@@ -181,6 +181,8 @@ and tclass = {
 	mutable cl_constructor : tclass_field option;
 	mutable cl_init : texpr option;
 	mutable cl_overrides : string list;
+
+	mutable cl_restore : unit -> unit;
 }
 
 and tenum_field = {
@@ -225,6 +227,8 @@ and module_type =
 type module_def = {
 	mpath : path;
 	mtypes : module_type list;
+	mfile : string;
+	mdeps : (module_def,unit) PMap.t ref;
 }
 
 let alloc_var =
@@ -271,6 +275,7 @@ let mk_class path pos =
 		cl_constructor = None;
 		cl_init = None;
 		cl_overrides = [];
+		cl_restore = (fun() -> ());
 	}
 
 let null_class =
