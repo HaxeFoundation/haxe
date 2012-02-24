@@ -28,6 +28,11 @@ type context = {
 	mutable has_error : bool;
 }
 
+type cache = {
+	mutable c_haxelib : (string list, string list) Hashtbl.t;
+	mutable c_files : (string, float * Ast.package) Hashtbl.t;
+}
+
 exception Abort
 exception Completion of string
 
@@ -36,6 +41,7 @@ let version = 208
 let measure_times = ref false
 let prompt = ref false
 let start_time = ref (get_time())
+let global_cache = ref None
 
 let executable_path() =
 	Extc.executable_path()
@@ -262,15 +268,15 @@ let add_libs com libs =
 	match libs with
 	| [] -> ()
 	| _ ->
-		let lines = match !Common.global_cache with
+		let lines = match !global_cache with
 			| Some cache ->
 				(try
 					(* if we are compiling, really call haxelib since library path might have changed *)
 					if not com.display then raise Not_found;
-					Hashtbl.find cache.cached_haxelib libs
+					Hashtbl.find cache.c_haxelib libs
 				with Not_found ->
 					let lines = call_haxelib() in
-					Hashtbl.replace cache.cached_haxelib libs lines;
+					Hashtbl.replace cache.c_haxelib libs lines;
 					lines)
 			| _ -> call_haxelib()
 		in
@@ -297,30 +303,6 @@ let create_context params =
 		has_next = false;
 		has_error = false;
 	}
-
-let setup_cache rcom cache =
-	Common.global_cache := Some cache;
-	Typeload.parse_hook := (fun com file p ->
-		let sign = (match com.defines_signature with
-			| Some s -> s
-			| None ->
-				let s = Digest.string (String.concat "@" (PMap.foldi (fun k _ acc -> k :: acc) com.defines [])) in
-				com.defines_signature <- Some s;
-				s
-		) in
-		let ffile = Common.get_full_path file in
-		let ftime = try (Unix.stat ffile).Unix.st_mtime with _ -> 0. in
-		let fkey = ffile ^ "!" ^ sign in
-		try
-			let time, data = Hashtbl.find cache.cached_files fkey in
-			if time <> ftime then raise Not_found;
-			data
-		with Not_found ->
-			let data = Typeload.parse_file com file p in
-			if rcom.verbose && not com.verbose then print_endline ("Parsed " ^ ffile);
-			Hashtbl.replace cache.cached_files fkey (ftime,data);
-			data
-	)
 
 let default_flush ctx =
 	List.iter prerr_endline (List.rev ctx.messages);
@@ -350,16 +332,46 @@ let rec process_params flush acc = function
 		| "hxml" :: _ -> process_params flush acc (parse_hxml arg @ l)
 		| _ -> process_params flush (arg :: acc) l
 
-and wait_loop com host port =
+and wait_loop boot_com host port =
 	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
 	(try Unix.bind sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't wait on " ^ host ^ ":" ^ string_of_int port));
 	Unix.listen sock 10;
 	Sys.catch_break false;
-	let verbose = com.verbose in
+	let verbose = boot_com.verbose in
 	if verbose then print_endline ("Waiting on " ^ host ^ ":" ^ string_of_int port);
 	let bufsize = 1024 in
 	let tmp = String.create bufsize in
-	setup_cache com (Common.create_cache());
+	let cache = {
+		c_haxelib = Hashtbl.create 0;
+		c_files = Hashtbl.create 0;
+	} in
+	global_cache := Some cache;
+	let get_signature com = 
+		match com.defines_signature with
+		| Some s -> s
+		| None ->
+			let s = Digest.string (String.concat "@" (PMap.foldi (fun k _ acc -> k :: acc) com.defines [])) in
+			com.defines_signature <- Some s;
+			s
+	in
+	let file_time file =
+		try (Unix.stat file).Unix.st_mtime with _ -> 0.
+	in
+	Typeload.parse_hook := (fun com2 file p ->
+		let sign = get_signature com2 in
+		let ffile = Common.get_full_path file in
+		let ftime = file_time ffile in
+		let fkey = ffile ^ "!" ^ sign in
+		try
+			let time, data = Hashtbl.find cache.c_files fkey in
+			if time <> ftime then raise Not_found;
+			data
+		with Not_found ->
+			let data = Typeload.parse_file com2 file p in
+			if verbose && not com2.verbose then print_endline ("Parsed " ^ ffile);
+			Hashtbl.replace cache.c_files fkey (ftime,data);
+			data
+	);
 	while true do
 		let sin, _ = Unix.accept sock in
 		let t0 = get_time() in
@@ -636,24 +648,6 @@ try
 			com.dead_code_elimination <- true;
 			Common.add_filter com (fun() -> Optimizer.filter_dead_code com);
 		)," : remove unused methods");
-		("--cache", Arg.String (fun cache ->
-			match !Common.global_cache with
-			| Some _ ->
-				raise (Arg.Bad "Cache already defined")
-			| _ ->
-				let file = try Common.find_file com cache with Not_found -> cache in
-				let data = try
-					let ch = open_in_bin file in
-					let data = Marshal.from_channel ch in
-					close_in ch;
-					if data.cache_version <> Common.cache_version then raise Exit;
-					data
-				with _ ->
-					Common.create_cache()
-				in
-				data.cache_file <- Some file;
-				setup_cache com data
-		),"<file> : use the cache file to speedup compilation");
 		("--wait", Arg.String (fun hp ->
 			let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
 			wait_loop com host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port"))
@@ -868,12 +862,6 @@ let all = Common.timer "other" in
 Sys.catch_break true;
 (try
 	process_params default_flush [] (List.tl (Array.to_list Sys.argv));
-	(match !Common.global_cache with
-	| Some ({ cache_file = Some file } as cache) ->
-		let ch = open_out_bin file in
-		Marshal.to_channel ch cache [];
-		close_out ch
-	| _ -> ())
 with Completion c ->
 	prerr_endline c;
 	exit 0
