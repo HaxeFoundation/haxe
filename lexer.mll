@@ -81,7 +81,7 @@ let keywords =
 let init file =
 	let f = make_file file in
 	cur := f;
-	Hashtbl.add all_files file f
+	Hashtbl.replace all_files file f
 
 let save() =
 	!cur
