@@ -742,6 +742,14 @@ let rec raw_class_field build_type c i =
 
 let class_field = raw_class_field field_type
 
+let rec get_constructor build_type c =
+	match c.cl_constructor, c.cl_super with
+	| Some c, _ -> build_type c, c
+	| None, None -> raise Not_found
+	| None, Some (csup,cparams) ->
+		let t, c = get_constructor build_type csup in
+		apply_params csup.cl_types cparams t, c
+
 let rec unify a b =
 	if a == b then
 		()

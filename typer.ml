@@ -270,21 +270,9 @@ let rec type_module_type ctx t tparams p =
 let type_type ctx tpath p =
 	type_module_type ctx (Typeload.load_type_def ctx p { tpackage = fst tpath; tname = snd tpath; tparams = []; tsub = None }) None p
 
-let get_constructor c p =
-	let rec loop c =
-		match c.cl_constructor with
-		| Some f -> f
-		| None ->
-			if not c.cl_extern then raise Not_found;
-			match c.cl_super with
-			| None -> raise Not_found
-			| Some (csup,[]) -> loop csup
-			| Some (_,_) -> error (s_type_path c.cl_path ^ " must define its own constructor") p
-	in
-	try
-		loop c
-	with Not_found ->
-		error (s_type_path c.cl_path ^ " does not have a constructor") p
+let get_constructor c params p =
+	let ct, f = (try Type.get_constructor field_type c with Not_found -> error (s_type_path c.cl_path ^ " does not have a constructor") p) in
+	apply_params c.cl_types params ct, f
 
 let make_call ctx e params t p =
 	try
@@ -1596,12 +1584,12 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		| TInst (c,params) ->
 			let name = (match c.cl_path with [], name -> name | x :: _ , _ -> x) in
 			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;
-			let f = get_constructor c p in
+			let ct, f = get_constructor c params p in
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then display_error ctx "Cannot access private constructor" p;
 			(match f.cf_kind with
 			| Var { v_read = AccRequire r } -> error_require r p
 			| _ -> ());
-			let el, _ = (match follow (apply_params c.cl_types params (field_type f)) with
+			let el, _ = (match follow ct with
 			| TFun (args,r) ->
 				unify_call_params ctx (Some ("new",f.cf_meta)) el args r p false
 			| _ ->
@@ -1772,9 +1760,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let t = Typeload.load_instance ctx t p true in
 		(match follow t with
 		| TInst (c,params) ->
-			let f = get_constructor c p in
-			let t = apply_params c.cl_types params (field_type f) in
-			raise (DisplayTypes (t :: get_overloads ctx p f.cf_meta))
+			let ct, f = get_constructor c params p in
+			raise (DisplayTypes (ct :: get_overloads ctx p f.cf_meta))
 		| _ ->
 			error "Not a class" p)
 	| ECheckType (e,t) ->
@@ -1842,8 +1829,8 @@ and type_call ctx e el p =
 		let el, t = (match ctx.curclass.cl_super with
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
-			let f = get_constructor c p in
-			let el, _ = (match follow (apply_params c.cl_types params (field_type f)) with
+			let ct, f = get_constructor c params p in
+			let el, _ = (match follow ct with
 			| TFun (args,r) ->
 				unify_call_params ctx (Some ("new",f.cf_meta)) el args r p false
 			| _ ->
@@ -2517,7 +2504,6 @@ let rec create com =
 			macros = None;
 			modules = Hashtbl.create 0;
 			types_module = Hashtbl.create 0;
-			constructs = Hashtbl.create 0;
 			type_patches = Hashtbl.create 0;
 			delayed = [];
 			doinline = not (Common.defined com "no_inline" || com.display);

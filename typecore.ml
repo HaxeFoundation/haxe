@@ -40,7 +40,6 @@ type typer_globals = {
 	types_module : (path, path) Hashtbl.t;
 	modules : (path , module_def) Hashtbl.t;
 	mutable delayed : (unit -> unit) list;
-	constructs : (path , Ast.access list * Ast.func) Hashtbl.t;
 	doinline : bool;
 	mutable core_api : typer option;
 	mutable macros : ((unit -> unit) * typer) option;

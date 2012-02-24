@@ -583,7 +583,13 @@ let type_function ctx args ret fmode f p =
 		| TFunction _ -> ()
 		| _ -> Type.iter loop e
 	in
-	if fmode = FConstructor && (match ctx.curclass.cl_super with None -> false | Some (cl,_) -> cl.cl_constructor <> None) then
+	let has_super_constr() =
+		match ctx.curclass.cl_super with 
+		| None -> false
+		| Some (csup,_) -> 
+			try ignore(get_constructor (fun f->f.cf_type) csup); true with Not_found -> false
+	in
+	if fmode = FConstructor && has_super_constr() then
 		(try
 			loop e;
 			display_error ctx "Missing super constructor call" p
@@ -1031,7 +1037,6 @@ let init_class ctx c p herits fields =
 			) fd.f_args in
 			let t = TFun (fun_args args,ret) in
 			let constr = (name = "new") in
-			if constr then Hashtbl.add ctx.g.constructs c.cl_path (f.cff_access,fd);
 			if constr && c.cl_interface then error "An interface cannot have a constructor" p;
 			if c.cl_interface && not stat && fd.f_expr <> None then error "An interface method cannot have a body" p;
 			if constr then (match fd.f_type with
@@ -1186,75 +1191,36 @@ let init_class ctx c p herits fields =
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
 	(*
-		define a default inherited constructor.
-		This is actually pretty tricky since we can't assume that the constructor of the
-		superclass has been defined yet because type structure is not stabilized wrt recursion.
-
-		Generating a constructor after typing could be possible but is quite hard because we don't have the
-		default values for arguments in the function type
+		make sure a default contructor with same access as super one will be added to the class structure at some point.
 	*)
-	let rec define_constructor ctx c =
-		try
-			Some (Hashtbl.find ctx.g.constructs c.cl_path)
-		with Not_found ->
-			match c.cl_super with
-			| None -> None
-			| Some (csuper,_) ->
-				match define_constructor ctx csuper with
-				| None -> None
-				| Some (acc,f) as infos ->
-					let p = c.cl_pos in
-					let esuper = (ECall ((EConst (Ident "super"),p),List.map (fun (n,_,_,_) -> (EConst (Ident n),p)) f.f_args),p) in
-					let acc = (if csuper.cl_extern && acc = [] then [APublic] else acc) in
-					let fnew = { f with f_expr = Some esuper; f_args = List.map (fun (a,opt,t,def) ->
-						(*
-							we are removing the type and letting the type inference
-							work because the current package is not the same as the superclass one
-							or there might be private and/or imported types
-
-							if we are an extern class then we need a type
-							if the type is Dynamic also because it would not propagate
-							if we have a package declaration, we are sure it's fully qualified
-						*)
-						let rec is_qualified = function
-							| CTPath t -> is_qual_name t
-							| CTParent t -> is_qualified t
-							| CTFunction (tl,t) -> List.for_all is_qualified tl && is_qualified t
-							| CTAnonymous fl -> List.for_all is_qual_field fl
-							| CTExtend (t,fl) -> is_qual_name t && List.for_all is_qual_field fl
-							| CTOptional t -> is_qualified t
-						and is_qual_field f =
-							match f.cff_kind with
-							| FVar (t,_) -> is_qual_opt t
-							| FProp (_,_,t,_) -> is_qualified t
-							| FFun f -> List.for_all (fun (_,_,t,_) -> is_qual_opt t) f.f_args && is_qual_opt f.f_type
-						and is_qual_opt = function
-							| None -> true
-							| Some t -> is_qualified t
-						and is_qual_name t =
-							match t.tpackage with
-							| [] -> t.tname = "Dynamic" && List.for_all is_qual_param t.tparams
-							| _ :: _ -> true
-						and is_qual_param = function
-							| TPType t -> is_qualified t
-							| TPExpr _ -> false (* prevent multiple incompatible types *)
-						in
-						let t = (match t with
-							| Some t when is_qualified t -> Some t
-							| _ -> None
-						) in
-						a,opt,t,def
-					) f.f_args } in
-					let _, _, cf, delayed = loop_cf { cff_name = "new"; cff_pos = p; cff_doc = None; cff_meta = []; cff_access = acc; cff_kind = FFun fnew } in
-					c.cl_constructor <- Some cf;
-					Hashtbl.add ctx.g.constructs c.cl_path (acc,f);
-					delay ctx delayed;
-					infos
+	let rec add_constructor c =
+		match c.cl_constructor, c.cl_super with
+		| None, Some (csup,cparams) when not c.cl_extern ->
+			add_constructor csup;
+			(match csup.cl_constructor with
+			| None -> ()
+			| Some cf ->
+				let args = (match follow (apply_params csup.cl_types cparams cf.cf_type) with
+					| TFun (args,_) -> args
+					| _ -> assert false
+				) in
+				let p = c.cl_pos in
+				let vars = List.map (fun (n,o,t) -> 
+					let t = if o then ctx.t.tnull t else t in
+					alloc_var n t, (if o then Some TNull else None)
+				) args in
+				let super_call = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p,List.map (fun (v,_) -> mk (TLocal v) v.v_type p) vars)) ctx.t.tvoid p in				
+				let constr = mk (TFunction {
+					tf_args = vars;
+					tf_type = TFun (args,ctx.t.tvoid);
+					tf_expr = super_call;
+				}) (TFun (List.map (fun (v,c) -> v.v_name, c <> None, v.v_type) vars,ctx.t.tvoid)) p in
+				c.cl_constructor <- Some { cf with cf_pos = p; cf_type = constr.etype; cf_meta = []; cf_doc = None; cf_expr = Some constr })
+		| _ ->
+			(* nothing to do *)
+			()	
 	in
-	(*
-		extern classes will browse superclass to find a constructor
-	*)
-	if not c.cl_extern then ignore(define_constructor ctx c);
+	delay ctx (fun() -> add_constructor c);
 	fl
 
 let resolve_typedef ctx t =
@@ -1266,42 +1232,42 @@ let resolve_typedef ctx t =
 		| TInst (c,_) -> TClassDecl c
 		| _ -> t
 
+let add_module ctx m p =
+	let decl_type t =
+		let t = t_infos t in
+		try
+			let m2 = Hashtbl.find ctx.g.types_module t.mt_path in
+			if m.mpath <> m2 && String.lowercase (s_type_path m2) = String.lowercase (s_type_path m.mpath) then error ("Module " ^ s_type_path m2 ^ " is loaded with a different case than " ^ s_type_path m.mpath) p;
+			error ("Type name " ^ s_type_path t.mt_path ^ " is redefined from module " ^ s_type_path m2) p
+		with
+			Not_found ->
+				Hashtbl.add ctx.g.types_module t.mt_path m.mpath
+	in
+	List.iter decl_type m.mtypes;
+	Hashtbl.add ctx.g.modules m.mpath m
+
 let type_module ctx m tdecls loadp =
 	(* PASS 1 : build module structure - does not load any module or type - should be atomic ! *)
 	let decls = ref [] in
-	let decl_with_name name p priv =
-		let tpath = if priv then (fst m @ ["_" ^ snd m], name) else (fst m, name) in
-		if priv && List.exists (fun t -> tpath = t_path t) (!decls) then error ("Type name " ^ name ^ " is already defined in this module") p;
-		try
-			let m2 = Hashtbl.find ctx.g.types_module tpath in
-			if m <> m2 && String.lowercase (s_type_path m2) = String.lowercase (s_type_path m) then error ("Module " ^ s_type_path m2 ^ " is loaded with a different case than " ^ s_type_path m) loadp;
-			error ("Type name " ^ s_type_path tpath ^ " is redefined from module " ^ s_type_path m2) p
-		with
-			Not_found ->
-				Hashtbl.add ctx.g.types_module tpath m;
-				tpath
+	let make_path name priv =
+		if List.exists (fun t -> snd (t_path t) = name) (!decls) then error ("Type name " ^ name ^ " is already defined in this module") loadp;
+		if priv then (fst m @ ["_" ^ snd m], name) else (fst m, name)
 	in
 	List.iter (fun (d,p) ->
 		match d with
 		| EImport _ | EUsing _ -> ()
 		| EClass d ->
 			let priv = List.mem HPrivate d.d_flags in
-			let path = decl_with_name d.d_name p priv in
+			let path = make_path d.d_name priv in
 			let c = mk_class path p in
 			c.cl_module <- m;
 			c.cl_private <- priv;
 			c.cl_doc <- d.d_doc;
 			c.cl_meta <- d.d_meta;
-			(* store the constructor for later usage *)
-			List.iter (fun cf ->
-				match cf with
-				| { cff_name = "new"; cff_kind = FFun f } -> Hashtbl.add ctx.g.constructs path (cf.cff_access,f)
-				| _ -> ()
-			) d.d_data;
 			decls := TClassDecl c :: !decls
 		| EEnum d ->
 			let priv = List.mem EPrivate d.d_flags in
-			let path = decl_with_name d.d_name p priv in
+			let path = make_path d.d_name priv in
 			let e = {
 				e_path = path;
 				e_module = m;
@@ -1317,7 +1283,7 @@ let type_module ctx m tdecls loadp =
 			decls := TEnumDecl e :: !decls
 		| ETypedef d ->
 			let priv = List.mem EPrivate d.d_flags in
-			let path = decl_with_name d.d_name p priv in
+			let path = make_path d.d_name priv in
 			let t = {
 				t_path = path;
 				t_module = m;
@@ -1334,7 +1300,7 @@ let type_module ctx m tdecls loadp =
 		mpath = m;
 		mtypes = List.rev !decls;
 	} in
-	Hashtbl.add ctx.g.modules m.mpath m;
+	add_module ctx m loadp;
 	(* PASS 2 : build types structure - does not type any expression ! *)
 	let ctx = {
 		com = ctx.com;
@@ -1487,13 +1453,12 @@ let type_module ctx m tdecls loadp =
 	List.iter (delay ctx) (List.rev (!delays));
 	m
 
-let parse_module ctx m p =
-	let remap = ref (fst m) in
+let resolve_module_file com m remap p =
 	let file = (match m with
 		| [] , name -> name
 		| x :: l , name ->
 			let x = (try
-				match PMap.find x ctx.com.package_rules with
+				match PMap.find x com.package_rules with
 				| Forbidden -> raise (Error (Forbid_package (x,m),p));
 				| Directory d -> d
 				| Remap d -> remap := d :: l; d
@@ -1501,7 +1466,11 @@ let parse_module ctx m p =
 			) in
 			String.concat "/" (x :: l) ^ "/" ^ name
 	) ^ ".hx" in
-	let file = Common.find_file ctx.com file in
+	Common.find_file com file
+
+let parse_module ctx m p =
+	let remap = ref (fst m) in
+	let file = resolve_module_file ctx.com m remap p in
 	let pack, decls = (!parse_hook) ctx.com file p in
 	if pack <> !remap then begin
 		let spack m = if m = [] then "<empty>" else String.concat "." m in
