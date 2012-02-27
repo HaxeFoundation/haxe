@@ -909,15 +909,15 @@ let init_class ctx c p herits fields =
 		let ctx = { ctx with curclass = c; tthis = tthis } in
 		match f.cff_kind with
 		| FVar (t,e) ->
-			if not stat && has_field name c.cl_super then display_error ctx ("Redefinition of variable " ^ name ^ " in subclass is not allowed") p;
+			if not stat && has_field name c.cl_super then error ("Redefinition of variable " ^ name ^ " in subclass is not allowed") p;
 			if inline && not stat then error "Inline variable must be static" p;
 			(match e with
 			| None when inline -> error "Inline variable must be initialized" p
-			| Some (_,p) when not stat -> display_error ctx "Member variable initialization is not allowed outside of class constructor" p
+			| Some (_,p) when not stat -> error "Member variable initialization is not allowed outside of class constructor" p
 			| _ -> ());
 			let t = (match t with
 				| None ->
-					if not stat then display_error ctx ("Type required for member variable " ^ name) p;
+					if not stat then error ("Type required for member variable " ^ name) p;
 					mk_mono()
 				| Some t ->
 					let old = ctx.type_params in
@@ -1162,33 +1162,38 @@ let init_class ctx c p herits fields =
 			check_require l
 	in
 	let cl_req = check_require c.cl_meta in
-	let fl = List.map (fun f ->
-		let fd , constr, f , delayed = loop_cf f in
-		let is_static = List.mem AStatic fd.cff_access in
-		if is_static && f.cf_name = "name" && Common.defined ctx.com "js" then error "This identifier cannot be used in Javascript for statics" p;
-		if (is_static || constr) && c.cl_interface && f.cf_name <> "__init__" then error "You can't declare static fields in interfaces" p;
-		let req = check_require fd.cff_meta in
-		let req = (match req with None -> if is_static || constr then cl_req else None | _ -> req) in
-		(match req with
-		| None -> ()
-		| Some r -> f.cf_kind <- Var { v_read = AccRequire r; v_write = AccRequire r });
-		if constr then begin
-			if c.cl_constructor <> None then error "Duplicate constructor" p;
-			c.cl_constructor <- Some f;
-		end else if not is_static || f.cf_name <> "__init__" then begin
-			if PMap.mem f.cf_name (if is_static then c.cl_statics else c.cl_fields) then display_error ctx ("Duplicate class field declaration : " ^ f.cf_name) p;
-			if PMap.exists f.cf_name (if is_static then c.cl_fields else c.cl_statics) then display_error ctx ("Same field name can't be use for both static and instance : " ^ f.cf_name) p;
-			if is_static then begin
-				c.cl_statics <- PMap.add f.cf_name f c.cl_statics;
-				c.cl_ordered_statics <- f :: c.cl_ordered_statics;
-			end else begin
-				c.cl_fields <- PMap.add f.cf_name f c.cl_fields;
-				c.cl_ordered_fields <- f :: c.cl_ordered_fields;
-				if List.mem AOverride fd.cff_access then c.cl_overrides <- f.cf_name :: c.cl_overrides;
+	let fl = List.fold_left (fun acc f ->
+		try 
+			let p = f.cff_pos in
+			let fd , constr, f , delayed = loop_cf f in
+			let is_static = List.mem AStatic fd.cff_access in
+			if is_static && f.cf_name = "name" && Common.defined ctx.com "js" then error "This identifier cannot be used in Javascript for statics" p;
+			if (is_static || constr) && c.cl_interface && f.cf_name <> "__init__" then error "You can't declare static fields in interfaces" p;
+			let req = check_require fd.cff_meta in
+			let req = (match req with None -> if is_static || constr then cl_req else None | _ -> req) in
+			(match req with
+			| None -> ()
+			| Some r -> f.cf_kind <- Var { v_read = AccRequire r; v_write = AccRequire r });
+			if constr then begin
+				if c.cl_constructor <> None then error "Duplicate constructor" p;
+				c.cl_constructor <- Some f;
+			end else if not is_static || f.cf_name <> "__init__" then begin
+				if PMap.mem f.cf_name (if is_static then c.cl_statics else c.cl_fields) then error ("Duplicate class field declaration : " ^ f.cf_name) p;
+				if PMap.exists f.cf_name (if is_static then c.cl_fields else c.cl_statics) then error ("Same field name can't be use for both static and instance : " ^ f.cf_name) p;
+				if is_static then begin
+					c.cl_statics <- PMap.add f.cf_name f c.cl_statics;
+					c.cl_ordered_statics <- f :: c.cl_ordered_statics;
+				end else begin
+					c.cl_fields <- PMap.add f.cf_name f c.cl_fields;
+					c.cl_ordered_fields <- f :: c.cl_ordered_fields;
+					if List.mem AOverride fd.cff_access then c.cl_overrides <- f.cf_name :: c.cl_overrides;
+				end;
 			end;
-		end;
-		delayed
-	) fields in
+			delayed :: acc
+		with Error (Custom str,p) ->
+			display_error ctx str p;
+			acc
+	) [] fields in
 	c.cl_ordered_statics <- List.rev c.cl_ordered_statics;
 	c.cl_ordered_fields <- List.rev c.cl_ordered_fields;
 	(*
@@ -1222,7 +1227,7 @@ let init_class ctx c p herits fields =
 			()	
 	in
 	delay ctx (fun() -> add_constructor c);
-	fl
+	List.rev fl
 
 let resolve_typedef ctx t =
 	match t with
