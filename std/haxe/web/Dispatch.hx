@@ -376,6 +376,7 @@ class Dispatch {
 		switch( Context.getType("haxe.web.Dispatch") ) {
 		case TInst(c, _):
 			var c = c.get();
+			c.meta.remove("getParams");
 			c.meta.add("getParams",[{ expr : EConst(CString(str)), pos : c.pos }],c.pos);
 		default:
 		}
