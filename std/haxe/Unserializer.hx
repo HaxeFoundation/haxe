@@ -137,24 +137,15 @@ class Unserializer {
 	}
 
 	function unserializeEnum( edecl, tag ) {
-		var constr = Reflect.field(edecl,tag);
-		if( constr == null )
-			throw "Unknown enum tag "+Type.getEnumName(edecl)+"."+tag;
 		if( get(pos++) != ":".code )
 			throw "Invalid enum format";
 		var nargs = readDigits();
-		if( nargs == 0 ) {
-			cache.push(constr);
-			return constr;
-		}
+		if( nargs == 0 )
+			return Type.createEnum(edecl,tag);
 		var args = new Array();
-		while( nargs > 0 ) {
+		while( nargs-- > 0 )
 			args.push(unserialize());
-			nargs -= 1;
-		}
-		var e = Reflect.callMethod(edecl,constr,args);
-		cache.push(e);
-		return e;
+		return Type.createEnum(edecl,tag,args);
 	}
 
  	public function unserialize() : Dynamic {
@@ -244,7 +235,9 @@ class Unserializer {
 			var edecl = resolver.resolveEnum(name);
 			if( edecl == null )
 				throw "Enum not found " + name;
-			return unserializeEnum(edecl,unserialize());
+			var e = unserializeEnum(edecl, unserialize());
+			cache.push(e);
+			return e;
  		case "j".code:
 			var name = unserialize();
 			var edecl = resolver.resolveEnum(name);
@@ -255,7 +248,9 @@ class Unserializer {
 			var tag = Type.getEnumConstructs(edecl)[index];
 			if( tag == null )
 				throw "Unknown enum index "+name+"@"+index;
-			return unserializeEnum(edecl,tag);
+			var e = unserializeEnum(edecl, tag);
+			cache.push(e);
+			return e;
 		case "l".code:
 			var l = new List();
 			cache.push(l);
