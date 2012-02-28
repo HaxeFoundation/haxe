@@ -171,13 +171,13 @@ class Dispatch {
 			if( v == null ) throw DEMissing;
 			var v = Std.parseInt(v);
 			if( v == null ) throw DEInvalidValue;
-			var cl = Type.resolveClass(c);
+			var cl : Dynamic = Type.resolveClass(c);
 			if( cl == null ) throw "assert";
 			var o : Dynamic;
 			#if spod_macro
-			o = untyped cl.manager.unsafeGet(v, lock);
+			o = cl.manager.unsafeGet(v, lock);
 			#else
-			o = untyped cl.manager.get(v, lock);
+			o = cl.manager.get(v, lock);
 			#end
 			if( o == null ) throw DEInvalidValue;
 			return o;
