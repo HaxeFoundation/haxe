@@ -166,8 +166,9 @@ let rec type_inline ctx cf f ethis params tret p force =
 			{ e with eexpr = TMatch (map false v,en,cases,opt (map term) def); etype = !t }
 		| TTry (e1,catches) ->
 			{ e with eexpr = TTry (map term e1,List.map (fun (v,e) ->
+				let lv = (local v).i_subst in
 				let e = map term e in
-				(local v).i_subst,e
+				lv,e
 			) catches) }
 		| TBlock l ->
 			let old = save_locals ctx in
