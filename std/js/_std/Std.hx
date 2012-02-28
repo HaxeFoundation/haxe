@@ -68,7 +68,8 @@
 		Dynamic = $hxClasses['Dynamic'] = { __name__ : ["Dynamic"] };
 		Float = $hxClasses['Float'] = __js__("Number");
 		Float.__name__ = ["Float"];
-		Bool = $hxClasses['Bool'] = { __ename__ : ["Bool"] };
+		Bool = $hxClasses['Bool'] = __js__("Boolean");
+		Bool.__ename__ = ["Bool"];
 		Class = $hxClasses['Class'] = { __name__ : ["Class"] };
 		Enum = {};
 		Void = $hxClasses['Void'] = { __ename__ : ["Void"] };
