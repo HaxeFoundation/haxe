@@ -292,6 +292,7 @@ and regexp = parse
 	| '\\' 't' { add "\t"; regexp lexbuf }
 	| '\\' ['\\' '$' '.' '*' '+' '^' '|' '{' '}' '[' ']' '(' ')' '?' '-' '0'-'9'] { add (lexeme lexbuf); regexp lexbuf }
 	| '\\' ['w' 'W' 'b' 'B' 's' 'S' 'd' 'D' 'x'] { add (lexeme lexbuf); regexp lexbuf }
+	| '\\' ['u' 'U'] ['0'-'9' 'a'-'f' 'A'-'F'] ['0'-'9' 'a'-'f' 'A'-'F'] ['0'-'9' 'a'-'f' 'A'-'F'] ['0'-'9' 'a'-'f' 'A'-'F'] { add (lexeme lexbuf); regexp lexbuf }
 	| '\\' [^ '\\'] { error (Invalid_character (lexeme lexbuf).[1]) (lexeme_end lexbuf - 1) }
 	| '/' { regexp_options lexbuf, lexeme_end lexbuf }
 	| [^ '\\' '/' '\r' '\n']+ { store lexbuf; regexp lexbuf }
