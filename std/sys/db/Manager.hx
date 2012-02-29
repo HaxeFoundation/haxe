@@ -108,7 +108,7 @@ class Manager<T : Object> {
 	@:macro public function delete(ethis, cond) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<Void> #end {
 		return SpodMacros.macroDelete(ethis, cond);
 	}
-	
+
 	public function dynamicSearch( x : {}, ?lock : Bool ) : List<T> {
 		var s = new StringBuf();
 		s.add("SELECT * FROM ");
@@ -377,7 +377,7 @@ class Manager<T : Object> {
 		addKeys(s,keys);
 		return unsafeObject(s.toString(),lock);
 	}
-	
+
 	public function unsafeGetId( o : T ) : Dynamic {
 		return o == null ? null : Reflect.field(o, table_keys[0]);
 	}
@@ -534,6 +534,10 @@ class Manager<T : Object> {
 				Reflect.setField(c,f,Reflect.field(x,f));
 			// mark as locked
 			c._lock = true;
+			// restore our manager
+			#if !neko
+			untyped c._manager = this;
+			#end
 			// use the new object as our cache of fields
 			Reflect.setField(c,cache_field,x);
 			// remake object
@@ -562,5 +566,5 @@ class Manager<T : Object> {
 			return "FALSE";
 		return v + " IN (" + b.toString() + ")";
 	}
-	
+
 }
