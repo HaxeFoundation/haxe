@@ -27,10 +27,15 @@ import sys.db.SpodInfos;
 
 class TableCreate {
 
+	static function autoInc( dbName ) {
+		// on SQLite, autoincrement is necessary to be primary key as well
+		return dbName == "SQLite" ? "PRIMARY KEY AUTOINCREMENT" : "AUTO_INCREMENT";
+	}
+
 	public static function getTypeSQL( t : SpodType, dbName : String ) {
 		return switch( t ) {
-		case DId: "INTEGER "+(dbName == "SQLite" ? "PRIMARY KEY AUTOINCREMENT" : "AUTO_INCREMENT");
-		case DUId: "INTEGER UNSIGNED "+(dbName == "SQLite" ? "PRIMARY KEY AUTOINCREMENT" : "AUTO_INCREMENT");
+		case DId: "INTEGER "+autoInc(dbName);
+		case DUId: "INTEGER UNSIGNED "+autoInc(dbName);
 		case DInt, DEncoded, DFlags(_): "INTEGER";
 		case DTinyInt: "TINYINT";
 		case DUInt: "INTEGER UNSIGNED";
@@ -48,7 +53,7 @@ class TableCreate {
 		case DBinary, DNekoSerialized: "MEDIUMBLOB";
 		case DLongBinary: "LONGBLOB";
 		case DBigInt: "BIGINT";
-		case DBigId: "BIGINT AUTO_INCREMENT";
+		case DBigId: "BIGINT "+autoInc(dbName);
 		case DBytes(n): "BINARY(" + n + ")";
 		case DNull, DInterval: throw "assert";
 		};
@@ -65,9 +70,16 @@ class TableCreate {
 		var infos = manager.dbInfos();
 		var sql = "CREATE TABLE "+quote(infos.name)+ " (";
 		var decls = [];
-		for( f in infos.fields )
+		var hasID = false;
+		for( f in infos.fields ) {
+			switch( f.t ) {
+			case DId, DUId, DBigId: hasID = true;
+			default:
+			}
 			decls.push(quote(f.name)+" "+getTypeSQL(f.t,dbName)+(f.isNull ? "" : " NOT NULL"));
-		decls.push("PRIMARY KEY ("+Lambda.map(infos.key,quote).join(",")+")");
+		}
+		if( dbName != "SQLite" || !hasID )
+			decls.push("PRIMARY KEY ("+Lambda.map(infos.key,quote).join(",")+")");
 		sql += decls.join(",");
 		sql += ")";
 		if( engine != null )
