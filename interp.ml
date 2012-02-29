@@ -2663,6 +2663,7 @@ and call ctx vthis vfun pl p =
 		| _ ->
 			exc (VString "Invalid call"))
 	with Return v -> v
+		| Stack_overflow -> exc (VString "Compiler Stack overflow")
 		| Sys_error msg | Failure msg -> exc (VString msg)
 		| Unix.Unix_error (_,cmd,msg) -> exc (VString ("Error " ^ cmd ^ " " ^ msg))
 		| Builtin_error | Invalid_argument _ -> exc (VString "Invalid call")) in
