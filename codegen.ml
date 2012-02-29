@@ -267,7 +267,11 @@ let rec build_generic ctx c p tl =
 		);
 		cg.cl_kind <- KGenericInstance (c,tl);
 		cg.cl_interface <- c.cl_interface;
-		cg.cl_constructor <- (match c.cl_constructor with None -> None | Some c -> Some (build_field c));
+		cg.cl_constructor <- (match c.cl_constructor, c.cl_super with 
+			| None, None -> None 
+			| Some c, _ -> Some (build_field c)
+			| _ -> error "Please define a constructor for this class in order to use haxe.rtti.Generic" c.cl_pos
+		);
 		cg.cl_implements <- List.map (fun (i,tl) ->
 			(match follow (build_type (TInst (i, List.map build_type tl))) with
 			| TInst (i,tl) -> i, tl
