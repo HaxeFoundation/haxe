@@ -28,6 +28,7 @@
 	all : added haxe.Utf8 (crossplatform)
 	neko : Reflect now uses $fasthash (require neko 1.8.2)
 	all : allow \uXXXX in regexp (although not supported everywhere)
+	js : make difference between values and statements expressions in JSGenApi
 
 2011-09-25: 2.08
 	js : added js.JQuery

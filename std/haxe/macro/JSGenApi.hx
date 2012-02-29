@@ -39,8 +39,10 @@ typedef JSGenApi = {
 	var stackVar(default,null) : String;
 	/** the variable used to store the temporary exception in debug mode **/
 	var excVar(default,null) : String;
-	/** generate the JS code for a given typed expression **/
-	function generateExpr( e : TypedExpr ) : String;
+	/** generate the JS code for any given typed expression **/
+	function generateStatement( e : TypedExpr ) : String;
+	/** generate the JS code for a given typed expression-value **/
+	function generateValue( e : TypedExpr ) : String;
 	/** define the JS code that gets generated when a class or enum is accessed in a typed expression **/
 	function setTypeAccessor( callb : Type -> String ) : Void;
 	/** tells if the given identifier is a JS keyword **/
@@ -51,6 +53,4 @@ typedef JSGenApi = {
 	function buildMetaData( t : BaseType ) : Null<TypedExpr>;
 	/** set the current class/method for debug stack management **/
 	function setDebugInfos( c : ClassType, meth : String, isStatic : Bool ) : Void;
-	/** generate the JS code for a given class constructor **/
-	function generateConstructor( e : TypedExpr ) : String;
 }

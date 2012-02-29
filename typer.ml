@@ -2211,7 +2211,7 @@ let make_macro_api ctx p =
 					"outputFile", Interp.enc_string ctx.com.file;
 					"types", Interp.enc_array (List.map (fun t -> Interp.encode_type (make_instance t)) ctx.com.types);
 					"main", (match ctx.com.main with None -> Interp.VNull | Some e -> Interp.encode_texpr e);
-					"generateExpr", Interp.VFunction (Interp.Fun1 (fun v ->
+					"generateValue", Interp.VFunction (Interp.Fun1 (fun v ->
 						match v with
 						| Interp.VAbstract (Interp.ATExpr e) ->
 							let str = Genjs.gen_single_expr js_ctx e false in
@@ -2233,7 +2233,7 @@ let make_macro_api ctx p =
 						Genjs.set_debug_infos js_ctx (match Interp.decode_tdecl c with TClassDecl c -> c | _ -> assert false) (Interp.dec_string m) (Interp.dec_bool s);
 						Interp.VNull
 					));
-					"generateConstructor", Interp.VFunction (Interp.Fun1 (fun v ->
+					"generateStatement", Interp.VFunction (Interp.Fun1 (fun v ->
 						match v with
 						| Interp.VAbstract (Interp.ATExpr e) ->
 							let str = Genjs.gen_single_expr js_ctx e true in

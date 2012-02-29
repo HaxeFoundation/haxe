@@ -700,21 +700,9 @@ let gen_class_field ctx c f =
 		gen_value ctx e;
 		ctx.separator <- false
 
-let gen_constructor ctx e =
-	match e.eexpr with
-	| TFunction f  ->
-		let args  = List.map arg_name f.tf_args in
-		print ctx "function(%s) {" (String.concat "," (List.map ident args));
-		let bend = open_block ctx in
-		gen_block ctx (fun_block ctx f e.epos);
-		bend();
-		newline ctx;
-		print ctx "}";
-	| _ -> assert false
-
 let generate_class ctx c =
 	ctx.current <- c;
-	ctx.curmethod <- ("new",true);
+	ctx.curmethod <- ("new",false);
 	ctx.id_counter <- 0;
 	(match c.cl_path with
 	| [],"Function" -> error "This class redefine a native one" c.cl_pos
@@ -723,7 +711,7 @@ let generate_class ctx c =
 	generate_package_create ctx c.cl_path;
 	print ctx "%s = $hxClasses[\"%s\"] = " p p;
 	(match c.cl_constructor with
-	| Some { cf_expr = Some e } -> gen_constructor ctx e
+	| Some { cf_expr = Some e } -> gen_expr ctx e
 	| _ -> print ctx "function() { }");
 	newline ctx;
 	print ctx "%s.__name__ = [%s]" p (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst c.cl_path @ [snd c.cl_path])));
@@ -843,8 +831,8 @@ let alloc_ctx com =
 	ctx.type_accessor <- (fun t -> s_path ctx (t_path t));
 	ctx
 
-let gen_single_expr ctx e constr =
-	if constr then gen_constructor ctx e else gen_value ctx e;
+let gen_single_expr ctx e expr =
+	if expr then gen_expr ctx e else gen_value ctx e;
 	let str = Buffer.contents ctx.buf in
 	Buffer.reset ctx.buf;
 	ctx.id_counter <- 0;

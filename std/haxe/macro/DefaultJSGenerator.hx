@@ -65,7 +65,7 @@ class DefaultJSGenerator {
 	}
 
 	inline function genExpr(e) {
-		print(api.generateExpr(e));
+		print(api.generateValue(e));
 	}
 
 	@:macro static function fprint( e : Expr ) {
@@ -113,7 +113,7 @@ class DefaultJSGenerator {
 			print("null");
 		else {
 			api.setDebugInfos(c, f.name, false);
-			print(api.generateExpr(f.expr));
+			genExpr(f.expr);
 		}
 		newline();
 	}
@@ -141,7 +141,7 @@ class DefaultJSGenerator {
 		fprint("$p = ");
 		api.setDebugInfos(c, "new", false);
 		if( c.constructor != null )
-			print(api.generateConstructor(c.constructor.get().expr));
+			genExpr(c.constructor.get().expr);
 		else
 			print("function() { }");
 		newline();
@@ -233,13 +233,6 @@ class DefaultJSGenerator {
 	public function generate() {
 		print("var $_, $hxClasses = $hxClasses || {}, $estr = function() { return js.Boot.__string_rec(this,''); }");
 		newline();
-		/*
-		(match ctx.namespace with
-		| None -> ()
-		| Some ns ->
-			print ctx "if(typeof %s=='undefined') %s = {}" ns ns;
-			newline ctx);
-		*/
 		for( t in api.types )
 			genType(t);
 		print("$_ = {}");
@@ -255,7 +248,7 @@ class DefaultJSGenerator {
 		print("js.Boot.__init()");
 		newline();
 		for( e in inits ) {
-			genExpr(e);
+			print(api.generateStatement(e));
 			newline();
 		}
 		for( s in statics ) {
