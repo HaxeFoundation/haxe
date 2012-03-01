@@ -73,7 +73,12 @@ class TableCreate {
 		var hasID = false;
 		for( f in infos.fields ) {
 			switch( f.t ) {
-			case DId, DUId, DBigId: hasID = true;
+			case DId:
+				hasID = true;
+			case DUId, DBigId:
+				hasID = true;
+				if( dbName == "SQLite" )
+					throw "S"+Std.string(f.t).substr(1)+" is not supported by "+dbName+" : use SId instead";
 			default:
 			}
 			decls.push(quote(f.name)+" "+getTypeSQL(f.t,dbName)+(f.isNull ? "" : " NOT NULL"));
