@@ -83,11 +83,29 @@ enum ValueType {
 	}
 
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped {
-		if( args.length <= 3 )
+		switch( args.length ) {
+		case 0:
+			return __new__(cl);
+		case 1:
+			return __new__(cl,args[0]);
+		case 2:
+			return __new__(cl,args[0],args[1]);
+		case 3:
 			return __new__(cl,args[0],args[1],args[2]);
-		if( args.length > 8 )
+		case 4:
+			return __new__(cl,args[0],args[1],args[2],args[3]);
+		case 5:
+			return __new__(cl,args[0],args[1],args[2],args[3],args[4]);
+		case 6:
+			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5]);
+		case 7:
+			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6]);
+		case 8:
+			return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7]);
+		default:
 			throw "Too many arguments";
-		return __new__(cl,args[0],args[1],args[2],args[3],args[4],args[5],args[6],args[7]);
+		}
+		return null;
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped {
