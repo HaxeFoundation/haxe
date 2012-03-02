@@ -1474,7 +1474,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 							unify ctx it t e1.epos;
 							make_call ctx acc [] t e1.epos
 						| _ ->
-							error "The field iterator is not a method" e1.epos
+							display_error ctx "The field iterator is not a method" e1.epos;
+							mk (TConst TNull) t_dynamic p
 					)
 				) in
 				let e2 = type_expr ~need_val:false ctx e2 in
