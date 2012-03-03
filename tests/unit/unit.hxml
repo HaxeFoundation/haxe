@@ -6,7 +6,8 @@
 -swf-version 8
 params.hxml
 --next
--swf9 unit9.swf
+-swf unit9.swf
+-swf-version 11
 -main unit.Test
 params.hxml
 --next

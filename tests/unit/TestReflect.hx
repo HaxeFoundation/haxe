@@ -239,6 +239,7 @@ class TestReflect extends Test {
 		f( Reflect.compareMethods(null,a.add) );
 	}
 	
+	#if haxe3
 	function testGetProp() {
 		
 		var c = new ClassWithProp();
@@ -270,5 +271,6 @@ class TestReflect extends Test {
 		eq( ClassWithProp.STAT_X, 16 );
 		eq( Reflect.getProperty(ClassWithProp, "STAT_X"), 16 );
 	}
+	#end
 
 }

@@ -327,4 +327,15 @@ class TestMisc extends Test {
 	}
 	#end
 	
+	function testJSon() {
+		var str = haxe.Json.stringify( { x : -4500, y : 1.456, a : ["hello", "wor'\"\n\t\rd"] } );
+		str = str.substr(1, str.length - 2); // remove {}
+		var parts = str.split(",");
+		t( parts.remove('"x":-4500') );
+		t( parts.remove('"y":1.456') );
+		t( parts.remove('"a":["hello"') );
+		t( parts.remove('"wor\'\\"\\n\\t\\rd"]') );
+		eq( parts.join("#"), "" );
+	}
+	
 }
