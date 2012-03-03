@@ -24,12 +24,12 @@
  */
 package haxe;
 
-#if (flash_10_3 && !haxeJSON)
+#if (flash11 && !haxeJSON)
 @:native('JSON') extern
 #end
 class Json {
 
-#if !(flash_10_3 && !haxeJSON)
+#if (haxeJSON || !flash11)
 	var buf : StringBuf;
 
 	function new() {
@@ -159,7 +159,14 @@ class Json {
 */
 
 	public static function stringify( value : Dynamic ) : String {
+		#if (__php && !haxeJSON)
+		// don't use because of arrays wrappers
+		return untyped __call__("json_encode", value);
+		#elseif (flash11 && !haxeJSON)
+		return null;
+		#else
 		return new Json().toString(value);
+		#end
 	}
 
 	#if !haxeJSON
