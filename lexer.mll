@@ -106,9 +106,12 @@ let find_line p f =
 	end;
 	loop 0 f.lrlines
 
-let get_error_line p =
+let find_pos p =
 	let file = (try Hashtbl.find all_files p.pfile with Not_found -> make_file p.pfile) in
-	let l, _ = find_line p.pmin file in
+	find_line p.pmin file
+
+let get_error_line p =
+	let l, _ = find_pos p in
 	l
 
 let get_error_pos printer p =

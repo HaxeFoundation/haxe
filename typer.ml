@@ -2230,8 +2230,8 @@ let make_macro_api ctx p =
 						| None -> Interp.VNull
 						| Some e -> Interp.encode_texpr e
 					));
+					(* TODO(bruno): Deprecated, remove *)
 					"setDebugInfos", Interp.VFunction (Interp.Fun3 (fun c m s ->
-						Genjs.set_debug_infos js_ctx (match Interp.decode_tdecl c with TClassDecl c -> c | _ -> assert false) (Interp.dec_string m) (Interp.dec_bool s);
 						Interp.VNull
 					));
 					"generateStatement", Interp.VFunction (Interp.Fun1 (fun v ->
