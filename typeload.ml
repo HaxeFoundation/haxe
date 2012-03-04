@@ -148,7 +148,7 @@ let rec load_instance ctx t p allow_no_params =
 						| EConst (String s) -> "S" ^ s
 						| EConst (Int i) -> "I" ^ i
 						| EConst (Float f) -> "F" ^ f
-						| _ -> "Expr"			
+						| _ -> "Expr"
 					) in
 					let c = mk_class ([],name) p in
 					c.cl_kind <- KExpr e;
@@ -585,9 +585,9 @@ let type_function ctx args ret fmode f p =
 		| _ -> Type.iter loop e
 	in
 	let has_super_constr() =
-		match ctx.curclass.cl_super with 
+		match ctx.curclass.cl_super with
 		| None -> false
-		| Some (csup,_) -> 
+		| Some (csup,_) ->
 			try ignore(get_constructor (fun f->f.cf_type) csup); true with Not_found -> false
 	in
 	if fmode = FConstructor && has_super_constr() then
@@ -756,7 +756,7 @@ let init_class ctx c p herits fields =
 		c.cl_extern <- true;
 		List.filter (fun f -> List.mem AStatic f.cff_access) fields, []
 	end else fields, herits in
-	if core_api && not ctx.com.display then delay ctx ((fun() -> init_core_api ctx c));
+	if core_api && not (ctx.com.display || ctx.com.dead_code_elimination) then delay ctx (fun() -> init_core_api ctx c);
 	let tthis = TInst (c,List.map snd c.cl_types) in
 	let rec extends_public c =
 		List.exists (fun (c,_) -> c.cl_path = (["haxe"],"Public") || extends_public c) c.cl_implements ||
@@ -800,73 +800,6 @@ let init_class ctx c p herits fields =
 			PMap.exists f c.cl_fields || has_field f c.cl_super || List.exists (fun i -> has_field f (Some i)) c.cl_implements
 	in
 
-	(* ----------------------- DEAD CODE ELIMINATION ----------------------------- *)
-
-	let is_main n = (match ctx.com.main_class with | Some cl when c.cl_path = cl -> true | _ -> false) && n = "main" in
-	let must_keep_types pf = match pf with
-		| Flash -> [["flash"], "Boot"]
-		| Flash9 -> [["flash"; "_Boot"], "RealBoot"; ["flash"], "Boot"]
-		| Js -> [["js"], "Boot"]
-		| Neko -> [["neko"], "Boot"]
-		| Php -> [["php"], "Boot"]
-		| Cpp -> [["cpp"], "Boot"]
-		| _ -> [] in
-	let must_keep_class =
-		List.exists (fun p -> p = c.cl_path) (must_keep_types ctx.com.platform)
-		|| c.cl_extern
-		|| has_meta ":keep" c.cl_meta 
-	in
-	let keep f stat =
-		   core_api 
-		|| (is_main f.cff_name)
-		|| must_keep_class 
-		|| has_meta ":keep" f.cff_meta 
-		|| (stat && f.cff_name = "__init__") 
-		|| (not stat 
-			&& f.cff_name = "resolve"
-			&& (match c.cl_dynamic with
-			| Some _ -> true
-			| None -> false
-			);
-		)
-	in
-	let rec setkeeper c =
-		match c.cl_super with
-		| Some (s,_) -> 
-			s.cl_meta <- if has_meta ":keep" s.cl_meta then s.cl_meta else begin
-				if ctx.com.verbose then print_endline ("Marking class " ^ (s_type_path s.cl_path) ^ " with :keep");
-				(":keep", [], p) :: s.cl_meta
-			end;
-			setkeeper s
-		| _ -> ()
-	in
-	let remove_by_cfname item lst = List.filter (fun i -> item <> i.cf_name) lst in
-	let remove_field cf stat =
-		if stat then begin
-			c.cl_statics <- PMap.remove cf.cf_name c.cl_statics;
-			c.cl_ordered_statics <- remove_by_cfname cf.cf_name c.cl_ordered_statics;
-		end else begin
-			if cf.cf_name = "new" then c.cl_constructor <- None;
-			c.cl_fields <- PMap.remove cf.cf_name c.cl_fields;
-			c.cl_ordered_fields <- remove_by_cfname cf.cf_name c.cl_ordered_fields;
-		end
-	in
-	let remove_method_if_unreferenced cf stat = (fun () ->
-		match cf.cf_expr with
-		| None ->
-			if ctx.com.verbose then print_endline ("Remove method " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name);
-			remove_field cf stat
-		| _ -> 
-			setkeeper c;
-			())
-	in
-	let remove_var_if_unreferenced cf stat = (fun () ->
-		if not (has_meta ":?keep" cf.cf_meta) then begin
-			if ctx.com.verbose then print_endline ("Remove var " ^ (s_type_path c.cl_path) ^ "." ^ cf.cf_name);
-			remove_field cf stat
-		end else setkeeper c)
-	in
-
 	(* ----------------------- COMPLETION ----------------------------- *)
 
 	let display_file = if ctx.com.display then String.lowercase (Common.get_full_path p.pfile) = String.lowercase (!Parser.resume_display).pfile else false in
@@ -895,7 +828,7 @@ let init_class ctx c p herits fields =
 			(fun () -> ())
 		else begin
 			cf.cf_type <- TLazy r;
-			(fun () -> ignore(!r()))
+			if ctx.com.dead_code_elimination && cf.cf_name <> "__init__" then (fun() -> ()) else (fun () -> ignore(!r()))
 		end
 	in
 
@@ -907,6 +840,9 @@ let init_class ctx c p herits fields =
 		let stat = List.mem AStatic f.cff_access in
 		let inline = List.mem AInline f.cff_access in
 		let ctx = { ctx with curclass = c; tthis = tthis } in
+		let mark_used cf =
+			if ctx.com.dead_code_elimination then cf.cf_meta <- (":?used",[],p) :: cf.cf_meta
+		in
 		match f.cff_kind with
 		| FVar (t,e) ->
 			if not stat && has_field name c.cl_super then error ("Redefinition of variable " ^ name ^ " in subclass is not allowed") p;
@@ -937,44 +873,22 @@ let init_class ctx c p herits fields =
 				cf_public = is_public f.cff_access None;
 				cf_params = [];
 			} in
-			let delay = if (ctx.com.dead_code_elimination && not ctx.com.display) then begin
-				(match e with
+			let delay = (match e with
+				| None when ctx.com.dead_code_elimination && not ctx.com.display ->
+					let r = exc_protect (fun r ->
+						r := (fun() -> t);
+						mark_used cf;
+						t
+					) in
+					cf.cf_type <- TLazy r;
+					(fun() -> ())
 				| None ->
-					let r = exc_protect (fun r ->
-						r := (fun() -> t);
-						cf.cf_meta <- if has_meta ":?keep" cf.cf_meta then f.cff_meta else (":?keep", [], p) :: f.cff_meta;
-						t
-					) in
-					cf.cf_type <- TLazy r;
-					(fun() ->
-						if not (keep f stat) then
-							delay ctx (remove_var_if_unreferenced cf stat)
-						else
-							ignore(!r())
-					)
+					(fun() -> ())
 				| Some e ->
 					let r = exc_protect (fun r ->
 						r := (fun() -> t);
 						if ctx.com.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
-						cf.cf_meta <- if has_meta ":?keep" cf.cf_meta then f.cff_meta else (":?keep", [], p) :: f.cff_meta;
-						cf.cf_expr <- Some (type_static_var ctx t e p);
-						cf.cf_type <- t;
-						t
-					) in
-					cf.cf_type <- TLazy r;
-					(fun () ->
-						if not (keep f stat) then
-							delay ctx (remove_var_if_unreferenced cf stat)
-						else
-							ignore(!r())
-					)
-				)
-			end else (match e with
-				| None -> (fun() -> ())
-				| Some e ->
-					let r = exc_protect (fun r ->
-						r := (fun() -> t);
-						if ctx.com.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
+						mark_used cf;
 						cf.cf_expr <- Some (type_static_var ctx t e p);
 						cf.cf_type <- t;
 						t
@@ -1068,25 +982,12 @@ let init_class ctx c p herits fields =
 					(match e.eexpr with
 					| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
 					| _ -> c.cl_init <- Some e);
+				mark_used cf;
 				cf.cf_expr <- Some (mk (TFunction f) t p);
 				cf.cf_type <- t;
 				t
 			) in
-			let delay = if (ctx.com.dead_code_elimination && not ctx.com.display) then begin
-				if ((c.cl_extern && not inline) || c.cl_interface) && cf.cf_name <> "__init__" then
-					(fun() -> ())
-				else if is_macro && not ctx.in_macro then 
-					(fun () -> ())
-				else begin
-					cf.cf_type <- TLazy r;
-					(fun() ->
-						if not (keep f stat) then begin
-							delay ctx (remove_method_if_unreferenced cf stat)
-						end else
-							ignore((!r)())
-					)
-				end
-			end else if ((c.cl_extern && not inline) || c.cl_interface) && cf.cf_name <> "__init__" then
+			let delay = if ((c.cl_extern && not inline) || c.cl_interface) && cf.cf_name <> "__init__" then
 				(fun() -> ())
 			else
 				bind_type cf r (match fd.f_expr with Some e -> snd e | None -> f.cff_pos) is_macro
@@ -1163,7 +1064,7 @@ let init_class ctx c p herits fields =
 	in
 	let cl_req = check_require c.cl_meta in
 	let fl = List.fold_left (fun acc f ->
-		try 
+		try
 			let p = f.cff_pos in
 			let fd , constr, f , delayed = loop_cf f in
 			let is_static = List.mem AStatic fd.cff_access in
@@ -1211,11 +1112,11 @@ let init_class ctx c p herits fields =
 					| _ -> assert false
 				) in
 				let p = c.cl_pos in
-				let vars = List.map (fun (n,o,t) -> 
+				let vars = List.map (fun (n,o,t) ->
 					let t = if o then ctx.t.tnull t else t in
 					alloc_var n t, (if o then Some TNull else None)
 				) args in
-				let super_call = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p,List.map (fun (v,_) -> mk (TLocal v) v.v_type p) vars)) ctx.t.tvoid p in				
+				let super_call = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p,List.map (fun (v,_) -> mk (TLocal v) v.v_type p) vars)) ctx.t.tvoid p in
 				let constr = mk (TFunction {
 					tf_args = vars;
 					tf_type = TFun (args,ctx.t.tvoid);
@@ -1224,7 +1125,7 @@ let init_class ctx c p herits fields =
 				c.cl_constructor <- Some { cf with cf_pos = p; cf_type = constr.etype; cf_meta = []; cf_doc = None; cf_expr = Some constr })
 		| _ ->
 			(* nothing to do *)
-			()	
+			()
 	in
 	delay ctx (fun() -> add_constructor c);
 	List.rev fl
@@ -1530,7 +1431,7 @@ let load_module ctx m p =
 				parse_module ctx m p
 			with Not_found ->
 				let rec loop = function
-					| [] -> 
+					| [] ->
 						raise (Error (Module_not_found m,p))
 					| load :: l ->
 						match load m p with

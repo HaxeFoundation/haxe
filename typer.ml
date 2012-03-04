@@ -90,6 +90,14 @@ let rec get_overloads ctx p = function
 	| [] ->
 		[]
 
+let rec mark_used_class ctx c =
+	if ctx.com.dead_code_elimination && not (has_meta ":?used" c.cl_meta) then begin
+		c.cl_meta <- (":?used",[],c.cl_pos) :: c.cl_meta;
+		match c.cl_super with
+		| Some (csup,_) -> mark_used_class ctx csup
+		| _ -> ()
+	end
+
 type type_class =
 	| KInt
 	| KFloat
@@ -1583,6 +1591,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let t = Typeload.load_instance ctx t p true in
 		let el, c , params = (match follow t with
 		| TInst (c,params) ->
+			mark_used_class ctx c;
 			let name = (match c.cl_path with [], name -> name | x :: _ , _ -> x) in
 			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;
 			let ct, f = get_constructor c params p in
@@ -1921,14 +1930,116 @@ and type_call ctx e el p =
 			) in
 			mk (TCall (e,el)) t p
 
+
+
+(* ---------------------------------------------------------------------- *)
+(* DEAD CODE ELIMINATION *)
+
+let dce_check_class ctx c =
+	let keep_whole_class = c.cl_extern || has_meta ":keep" c.cl_meta || (match c.cl_path with ["php"],"Boot" | ["neko"],"Boot" | ["flash"],"Boot" -> true | _ -> false)  in
+	let keep stat f =
+		keep_whole_class
+		|| has_meta ":?used" f.cf_meta
+		|| has_meta ":keep" f.cf_meta
+		|| (stat && f.cf_name = "__init__")
+		|| (not stat && f.cf_name = "resolve" && (match c.cl_dynamic with Some _ -> true | None -> false))
+		|| (f.cf_name = "new" && has_meta ":?used" c.cl_meta)
+		|| match String.concat "." (fst c.cl_path @ [snd c.cl_path;f.cf_name]) with
+		| "js.Boot.__init" | "flash._Boot.RealBoot.new"
+		| "js.Boot.__string_rec" (* used by $estr *)
+		| "js.Boot.__instanceof" (* used by catch( e : T ) *)
+			-> true
+		| _ -> false
+	in
+	keep
+
+(*
+	make sure that all things we are supposed to keep are correctly typed
+*)
+let dce_finalize ctx =
+	let check_class c =
+		let keep = dce_check_class ctx c in
+		let check stat f = if keep stat f then ignore(follow f.cf_type) in
+		(match c.cl_constructor with Some f -> check false f | _ -> ());
+		List.iter (check false) c.cl_ordered_fields;
+		List.iter (check true) c.cl_ordered_statics;
+	in
+	Hashtbl.iter (fun _ m ->
+		List.iter (fun t ->
+			match t with
+			| TClassDecl c -> check_class c
+			| _ -> ()
+		) m.mtypes
+	) ctx.g.modules
+
+(*
+	remove unused fields and mark unused classes as extern
+*)
+let dce_optimize ctx =
+	let check_class c =
+		let keep = dce_check_class ctx c in
+		c.cl_constructor <- (match c.cl_constructor with Some f when not (keep false f) -> None | x -> x);
+		c.cl_ordered_fields <- List.filter (keep false) c.cl_ordered_fields;
+		c.cl_ordered_statics <- List.filter (keep true) c.cl_ordered_statics;
+		c.cl_fields <- List.fold_left (fun acc f -> PMap.add f.cf_name f acc) PMap.empty c.cl_ordered_fields;
+		c.cl_statics <- List.fold_left (fun acc f -> PMap.add f.cf_name f acc) PMap.empty c.cl_ordered_statics;
+		if c.cl_ordered_statics = [] && c.cl_ordered_fields = [] then
+			match c with
+			| { cl_extern = true }
+			| { cl_path = ["flash";"_Boot"],"RealBoot" }
+				-> ()
+			| _ when has_meta ":?used" c.cl_meta || has_meta ":keep" c.cl_meta || (match c.cl_constructor with Some f -> has_meta ":?used" f.cf_meta | _ -> false)
+				-> ()
+			| _ ->
+				if ctx.com.verbose then print_endline ("Removing " ^ s_type_path c.cl_path);
+				c.cl_extern <- true;
+				(match c.cl_path with [],"Std" -> () | _ -> c.cl_init <- None);
+				c.cl_meta <- [":native",[(EConst (String "Dynamic"),c.cl_pos)],c.cl_pos]; (* make sure the type will not be referenced *)
+	in
+	if ctx.com.verbose then print_endline "Performing dead code optimization";
+	Hashtbl.iter (fun _ m ->
+		List.iter (fun t ->
+			match t with
+			| TClassDecl c -> check_class c
+			| _ -> ()
+		) m.mtypes
+	) ctx.g.modules
+
 (* ---------------------------------------------------------------------- *)
 (* FINALIZATION *)
+
+let get_main ctx =
+	match ctx.com.main_class with
+	| None -> None
+	| Some cl ->
+		let t = Typeload.load_type_def ctx null_pos { tpackage = fst cl; tname = snd cl; tparams = []; tsub = None } in
+		let ft, r = (match t with
+		| TEnumDecl _ | TTypeDecl _ ->
+			error ("Invalid -main : " ^ s_type_path cl ^ " is not a class") null_pos
+		| TClassDecl c ->
+			try
+				let f = PMap.find "main" c.cl_statics in
+				let t = field_type f in
+				(match follow t with
+				| TFun ([],r) -> t, r
+				| _ -> error ("Invalid -main : " ^ s_type_path cl ^ " has invalid main function") c.cl_pos);
+			with
+				Not_found -> error ("Invalid -main : " ^ s_type_path cl ^ " does not have static function main") c.cl_pos
+		) in
+		let emain = type_type ctx cl null_pos in
+		Some (mk (TCall (mk (TField (emain,"main")) ft null_pos,[])) r null_pos)
 
 let rec finalize ctx =
 	let delays = ctx.g.delayed in
 	ctx.g.delayed <- [];
 	match delays with
-	| [] -> () (* at last done *)
+	| [] when ctx.com.dead_code_elimination ->
+		ignore(get_main ctx);
+		dce_finalize ctx;
+		if ctx.g.delayed = [] then dce_optimize ctx else finalize ctx
+	| [] ->
+		(* at last done *)
+		()
 	| l ->
 		List.iter (fun f -> f()) l;
 		finalize ctx
@@ -1938,7 +2049,7 @@ type state =
 	| Done
 	| NotYet
 
-let generate ctx main =
+let generate ctx =
 	let types = ref [] in
 	let modules = ref [] in
 	let states = Hashtbl.create 0 in
@@ -2046,27 +2157,7 @@ let generate ctx main =
 
 	in
 	Hashtbl.iter (fun _ m -> modules := m :: !modules; List.iter loop m.mtypes) ctx.g.modules;
-	let main = (match main with
-	| None -> None
-	| Some cl ->
-		let t = Typeload.load_type_def ctx null_pos { tpackage = fst cl; tname = snd cl; tparams = []; tsub = None } in
-		let ft, r = (match t with
-		| TEnumDecl _ | TTypeDecl _ ->
-			error ("Invalid -main : " ^ s_type_path cl ^ " is not a class") null_pos
-		| TClassDecl c ->
-			try
-				let f = PMap.find "main" c.cl_statics in
-				let t = field_type f in
-				(match follow t with
-				| TFun ([],r) -> t, r
-				| _ -> error ("Invalid -main : " ^ s_type_path cl ^ " has invalid main function") c.cl_pos);
-			with
-				Not_found -> error ("Invalid -main : " ^ s_type_path cl ^ " does not have static function main") c.cl_pos
-		) in
-		let emain = type_type ctx cl null_pos in
-		Some (mk (TCall (mk (TField (emain,"main")) ft null_pos,[])) r null_pos);
-	) in
-	main, List.rev !types, List.rev !modules
+	get_main ctx, List.rev !types, List.rev !modules
 
 (* ---------------------------------------------------------------------- *)
 (* MACROS *)
@@ -2322,7 +2413,7 @@ let load_macro ctx cpath f p =
 			ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Expr") p);
 			ignore(Typeload.load_module ctx2 (["haxe";"macro"],"Type") p);
 			finalize ctx2;
-			let _, types, _ = generate ctx2 None in
+			let _, types, _ = generate ctx2 in
 			Interp.add_types mctx types;
 			Interp.init mctx;
 			ctx2
@@ -2338,7 +2429,7 @@ let load_macro ctx cpath f p =
 	let in_macro = ctx.in_macro in
 	if not in_macro then begin
 		finalize ctx2;
-		let _, types, modules = generate ctx2 None in
+		let _, types, modules = generate ctx2 in
 		ctx2.com.types <- types;
 		ctx2.com.Common.modules <- modules;
 		Interp.add_types mctx types;

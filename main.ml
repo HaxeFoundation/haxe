@@ -342,7 +342,7 @@ let rec process_params flush acc = function
 		(match !global_cache with
 		| None ->
 			let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
-			do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l) 
+			do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l)
 		| Some _ ->
 			(* already connected : skip *)
 			process_params flush acc l)
@@ -366,7 +366,7 @@ and wait_loop boot_com host port =
 		c_modules = Hashtbl.create 0;
 	} in
 	global_cache := Some cache;
-	let get_signature com = 
+	let get_signature com =
 		match com.defines_signature with
 		| Some s -> s
 		| None ->
@@ -394,7 +394,7 @@ and wait_loop boot_com host port =
 	);
 	let cache_module sign m =
 		Hashtbl.replace cache.c_modules (m.Type.mpath,sign) (file_time m.Type.mfile,m);
-		List.iter (fun t -> 
+		List.iter (fun t ->
 			match t with
 			| Type.TClassDecl c -> c.Type.cl_restore()
 			| _ -> ()
@@ -411,7 +411,7 @@ and wait_loop boot_com host port =
 				Hashtbl.find modules_added m.Type.mpath
 			with Not_found -> try
 				!(Hashtbl.find modules_checked m.Type.mpath)
-			with Not_found -> 
+			with Not_found ->
 			let ok = ref true in
 			Hashtbl.add modules_checked m.Type.mpath ok;
 			try
@@ -496,7 +496,7 @@ and wait_loop boot_com host port =
 		Unix.close sin;
 	done
 
-and do_connect host port args =	
+and do_connect host port args =
 	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
 	(try Unix.connect sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port));
 	ssend sock ("--cwd " ^ Unix.getcwd() ^ "\n");
@@ -505,7 +505,7 @@ and do_connect host port args =
 	let buf = Buffer.create 0 in
 	let tmp = String.create 100 in
 	let rec loop() =
-		let b = Unix.recv sock tmp 0 100 [] in		
+		let b = Unix.recv sock tmp 0 100 [] in
 		Buffer.add_substring buf tmp 0 b;
 		if b > 0 then loop()
 	in
@@ -818,7 +818,7 @@ try
 		t();
 		if ctx.has_error then raise Abort;
 		let t = Common.timer "filters" in
-		let main, types, modules = Typer.generate tctx com.main_class in
+		let main, types, modules = Typer.generate tctx in
 		com.main <- main;
 		com.types <- types;
 		com.modules <- modules;

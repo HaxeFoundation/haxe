@@ -129,7 +129,7 @@ let create v =
 
 let clone com =
 	let t = com.basic in
-	{ com with basic = { t with tvoid = t.tvoid } }
+	{ com with basic = { t with tvoid = t.tvoid }; main_class = None; }
 
 let platforms = [
 	Flash;
