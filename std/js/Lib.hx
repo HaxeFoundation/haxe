@@ -47,8 +47,10 @@ class Lib {
 	}
 
 	static function __init__() untyped {
-		document = untyped __js__("document");
-		window = untyped __js__("window");
+		if( __js__("typeof document") != "undefined" )
+			document = __js__("document");
+		if( __js__("typeof window") != "undefined" )
+			window = __js__("window");
 		#if debug
 __js__('onerror = function(msg,url,line) {
 		var stack = $s.copy();
