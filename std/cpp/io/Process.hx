@@ -50,6 +50,7 @@ private class Stdin extends haxe.io.Output {
 		} catch( e : Dynamic ) {
 			throw new haxe.io.Eof();
 		}
+		return 0;
 	}
 
 	static var _stdin_write = cpp.Lib.load("std","process_stdin_write",4);

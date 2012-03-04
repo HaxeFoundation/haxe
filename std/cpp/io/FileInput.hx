@@ -64,7 +64,7 @@ class FileInput extends haxe.io.Input {
 	}
 
 	public function seek( p : Int, pos : FileSeek ) {
-		file_seek(__f,p,switch( pos ) { case SeekBegin: 0; case SeekCur: 1; case SeekEnd: 2; });
+		file_seek(__f,p,pos==SeekBegin ? 0 : pos==SeekCur ? 1 :  2 );
 	}
 
 	public function tell() : Int {
