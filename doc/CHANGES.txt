@@ -1,4 +1,4 @@
-2012-??-??: 3.00
+2012-??-??: 2.09
 	all : optimized const == const and const != const (with different const types)
 	all : add Type.allEnums(e)
 	all : fixed some issue with completion
@@ -18,7 +18,7 @@
 	js : removed --js-namespace, added $hxClasses
 	flash : output traces to native trace() when using -D fdb or -D nativeTrace
 	all : allowed abitrary string fields in anonymous objects
-	all : structure fields which are Null<X> are now optional (for constant values)
+	all : allowed optional structure fields (for constant structs)
 	all : allowed optional args in functions types (?Int -> Void)
 	all : added Reflect.getProperty/setProperty
 		(partial support : neko, js only so far)
@@ -29,8 +29,7 @@
 	neko : Reflect now uses $fasthash (require neko 1.8.2)
 	all : allow \uXXXX in regexp (although not supported everywhere)
 	js : make difference between values and statements expressions in JSGenApi
-	js : replaced stack emulation when compiling with -debug with source mapping:
-		http://peter.sh/2012/01/css-selector-profiler-source-mapping-and-software-rendering/
+	js : added source mapping with -debug (replace previous stack emulation)
 
 2011-09-25: 2.08
 	js : added js.JQuery
