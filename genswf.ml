@@ -836,6 +836,12 @@ let build_swf9 com file swc =
 					incr cid;
 					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
 					tag (TBitsJPEG2 { bd_id = !cid; bd_data = data; bd_table = None; bd_alpha = None; bd_deblock = None }) :: loop l
+				| (":file",[EConst (String file),p],_) :: l ->
+					let file = try Common.find_file com file with Not_found -> file in
+					let data = (try Std.input_file ~bin:true file with _  -> error "File not found" p) in
+					incr cid;
+					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
+					tag (TBinaryData (!cid,data)) :: loop l
 				| _ :: l -> loop l
 			in
 			loop c.cl_meta

@@ -30,6 +30,7 @@
 	all : allow \uXXXX in regexp (although not supported everywhere)
 	js : make difference between values and statements expressions in JSGenApi
 	js : added source mapping with -debug (replace previous stack emulation)
+	flash : added @:file("a.dat") class File extends flash.utils.ByteArray
 
 2011-09-25: 2.08
 	js : added js.JQuery
