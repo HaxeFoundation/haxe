@@ -1986,6 +1986,7 @@ let dce_optimize ctx =
 		if c.cl_ordered_statics = [] && c.cl_ordered_fields = [] then
 			match c with
 			| { cl_extern = true }
+			| { cl_interface = true }
 			| { cl_path = ["flash";"_Boot"],"RealBoot" }
 				-> ()
 			| _ when has_meta ":?used" c.cl_meta || has_meta ":keep" c.cl_meta || (match c.cl_constructor with Some f -> has_meta ":?used" f.cf_meta | _ -> false)
