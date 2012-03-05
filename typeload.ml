@@ -1044,6 +1044,14 @@ let init_class ctx c p herits fields =
 				cf_public = is_public f.cff_access None;
 				cf_params = [];
 			} in
+			if ctx.com.dead_code_elimination && not ctx.com.display then begin
+				let r = exc_protect (fun r ->
+					r := (fun() -> ret);
+					mark_used cf;
+					ret
+				) in
+				cf.cf_type <- TLazy r;
+			end;
 			f, false, cf, (fun() -> (!check_get)(); (!check_set)())
 	in
 	let rec check_require = function
