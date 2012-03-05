@@ -735,7 +735,6 @@ try
 		)," : call the given macro before typing anything else");
 		("--dead-code-elimination", Arg.Unit (fun () ->
 			com.dead_code_elimination <- true;
-			Common.add_filter com (fun() -> Optimizer.filter_dead_code com);
 		)," : remove unused methods");
 		("--wait", Arg.String (fun hp ->
 			let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in

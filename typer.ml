@@ -1936,7 +1936,7 @@ and type_call ctx e el p =
 (* DEAD CODE ELIMINATION *)
 
 let dce_check_class ctx c =
-	let keep_whole_class = c.cl_extern || has_meta ":keep" c.cl_meta || (match c.cl_path with ["php"],"Boot" | ["neko"],"Boot" | ["flash"],"Boot" -> true | _ -> false)  in
+	let keep_whole_class = c.cl_extern || c.cl_interface || has_meta ":keep" c.cl_meta || (match c.cl_path with ["php"],"Boot" | ["neko"],"Boot" | ["flash"],"Boot" -> true | _ -> false)  in
 	let keep stat f =
 		keep_whole_class
 		|| has_meta ":?used" f.cf_meta
@@ -1978,6 +1978,7 @@ let dce_finalize ctx =
 let dce_optimize ctx =
 	let check_class c =
 		let keep = dce_check_class ctx c in
+		let keep stat f = if not (keep stat f) then begin if ctx.com.verbose then print_endline ("Removing " ^ s_type_path c.cl_path ^ "." ^ f.cf_name); false; end else true in
 		c.cl_constructor <- (match c.cl_constructor with Some f when not (keep false f) -> None | x -> x);
 		c.cl_ordered_fields <- List.filter (keep false) c.cl_ordered_fields;
 		c.cl_ordered_statics <- List.filter (keep true) c.cl_ordered_statics;
