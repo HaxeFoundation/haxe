@@ -390,13 +390,11 @@ class Http {
 			b.add(headers.get(h));
 			b.add("\r\n");
 		}
+		b.add("\r\n");
 		if( postData != null)
 			b.add(postData);
-		else {
-			b.add("\r\n");
-			if( post && uri != null )
-				b.add(uri);
-		}
+		else if( post && uri != null )
+			b.add(uri);
 		try {
 			if( Http.PROXY != null )
 				sock.connect(new Host(Http.PROXY.host),Http.PROXY.port);
