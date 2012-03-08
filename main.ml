@@ -393,12 +393,12 @@ and wait_loop boot_com host port =
 			data
 	);
 	let cache_module sign m =
-		Hashtbl.replace cache.c_modules (m.Type.mpath,sign) (file_time m.Type.mfile,m);
+		Hashtbl.replace cache.c_modules (m.Type.m_path,sign) (file_time m.Type.m_file,m);
 		List.iter (fun t ->
 			match t with
 			| Type.TClassDecl c -> c.Type.cl_restore()
 			| _ -> ()
-		) m.Type.mtypes
+		) m.Type.m_types
 	in
 	let modules_added = Hashtbl.create 0 in
 	Typeload.type_module_hook := (fun (ctx:Typecore.typer) mpath p ->
@@ -408,38 +408,38 @@ and wait_loop boot_com host port =
 		let dep = ref None in
 		let rec check m =
 			try
-				Hashtbl.find modules_added m.Type.mpath
+				Hashtbl.find modules_added m.Type.m_path
 			with Not_found -> try
-				!(Hashtbl.find modules_checked m.Type.mpath)
+				!(Hashtbl.find modules_checked m.Type.m_path)
 			with Not_found ->
 			let ok = ref true in
-			Hashtbl.add modules_checked m.Type.mpath ok;
+			Hashtbl.add modules_checked m.Type.m_path ok;
 			try
-				let time, m = Hashtbl.find cache.c_modules (m.Type.mpath,sign) in
-				if m.Type.mfile <> Common.get_full_path (Typeload.resolve_module_file com2 m.Type.mpath (ref[]) p) then raise Not_found;
-				if file_time m.Type.mfile <> time then raise Not_found;
-				PMap.iter (fun m2 _ -> if not (check m2) then begin dep := Some m2; raise Not_found end) !(m.Type.mdeps);
+				let time, m = Hashtbl.find cache.c_modules (m.Type.m_path,sign) in
+				if m.Type.m_file <> Common.get_full_path (Typeload.resolve_module_file com2 m.Type.m_path (ref[]) p) then raise Not_found;
+				if file_time m.Type.m_file <> time then raise Not_found;
+				PMap.iter (fun m2 _ -> if not (check m2) then begin dep := Some m2; raise Not_found end) !(m.Type.m_deps);
 				true
 			with Not_found ->
-				Hashtbl.add modules_added m.Type.mpath false;
+				Hashtbl.add modules_added m.Type.m_path false;
 				ok := false;
 				!ok
 		in
 		let rec add_modules m =
-			if Hashtbl.mem modules_added m.Type.mpath then
+			if Hashtbl.mem modules_added m.Type.m_path then
 				()
 			else begin
-				Hashtbl.add modules_added m.Type.mpath true;
-				if verbose then print_endline ("Reusing  cached module " ^ Ast.s_type_path m.Type.mpath);
+				Hashtbl.add modules_added m.Type.m_path true;
+				if verbose then print_endline ("Reusing  cached module " ^ Ast.s_type_path m.Type.m_path);
 				Typeload.add_module ctx m p;
-				PMap.iter (fun m2 _ -> add_modules m2) !(m.Type.mdeps);
+				PMap.iter (fun m2 _ -> add_modules m2) !(m.Type.m_deps);
 			end
 		in
 		try
 			let _, m = Hashtbl.find cache.c_modules (mpath,sign) in
 			if com2.dead_code_elimination then raise Not_found;
 			if not (check m) then begin
-				if verbose then print_endline ("Skipping cached module " ^ Ast.s_type_path mpath ^ (match !dep with None -> "" | Some m -> "(" ^ Ast.s_type_path m.Type.mpath ^ ")"));
+				if verbose then print_endline ("Skipping cached module " ^ Ast.s_type_path mpath ^ (match !dep with None -> "" | Some m -> "(" ^ Ast.s_type_path m.Type.m_path ^ ")"));
 				raise Not_found;
 			end;
 			add_modules m;
@@ -942,7 +942,7 @@ with
 			try
 				let ctx = Typer.create com in
 				let m = Typeload.load_module ctx (p,c) Ast.null_pos in
-				complete_fields (List.map (fun t -> snd (Type.t_path t),"","") (List.filter (fun t -> not (Type.t_infos t).Type.mt_private) m.Type.mtypes))
+				complete_fields (List.map (fun t -> snd (Type.t_path t),"","") (List.filter (fun t -> not (Type.t_infos t).Type.mt_private) m.Type.m_types))
 			with _ ->
 				error ctx ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos)
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) ->

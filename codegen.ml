@@ -172,7 +172,7 @@ let extend_remoting ctx c t p async prot =
 	) decls in
 	let m = Typeload.type_module ctx (t.tpackage,new_name) file decls p in
 	try
-		List.find (fun tdecl -> snd (t_path tdecl) = new_name) m.mtypes
+		List.find (fun tdecl -> snd (t_path tdecl) = new_name) m.m_types
 	with Not_found ->
 		error ("Module " ^ s_type_path path ^ " does not define type " ^ t.tname) p
 	) in
@@ -212,15 +212,18 @@ let rec build_generic ctx c p tl =
 		Typeload.load_instance ctx { tpackage = pack; tname = name; tparams = []; tsub = None } p false
 	with Error(Module_not_found path,_) when path = (pack,name) ->
 		let m = (try Hashtbl.find ctx.g.modules (Hashtbl.find ctx.g.types_module c.cl_path) with Not_found -> assert false) in
-		let ctx = { ctx with local_types = m.mtypes @ ctx.local_types } in
-		let cg = mk_class (pack,name) c.cl_pos in
+		let ctx = { ctx with local_types = m.m_types @ ctx.local_types } in
 		let mg = {
-			mpath = cg.cl_path;
-			mfile = m.mfile;
-			mdeps = m.mdeps; (* share *)
-			mtypes = [TClassDecl cg];
+			m_id = alloc_mid();
+			m_path = (pack,name);
+			m_file = m.m_file;
+			m_deps = m.m_deps; (* share *)
+			m_types = [];
+			m_processed = 0;
 		} in
-		Hashtbl.add ctx.g.modules mg.mpath mg;
+		let cg = mk_class mg (pack,name) c.cl_pos in
+		mg.m_types <- [TClassDecl cg];
+		Hashtbl.add ctx.g.modules mg.m_path mg;
 		let rec loop l1 l2 =
 			match l1, l2 with
 			| [] , [] -> []
@@ -461,10 +464,11 @@ let rec has_rtti c =
 	) c.cl_implements || (match c.cl_super with None -> false | Some (c,_) -> has_rtti c)
 
 let restore c =
-	let meta = c.cl_meta and path = c.cl_path in
+	let meta = c.cl_meta and path = c.cl_path and ext = c.cl_extern in
 	let fl = c.cl_fields and ofl = c.cl_ordered_fields and st = c.cl_statics and ost = c.cl_ordered_statics in
 	(fun() -> 
 		c.cl_meta <- meta;
+		c.cl_extern <- ext;
 		c.cl_path <- path;
 		c.cl_fields <- fl;
 		c.cl_ordered_fields <- ofl;
@@ -476,7 +480,7 @@ let on_generate ctx t =
 	match t with
 	| TClassDecl c ->
 		if c.cl_private then begin
-			let rpath = (fst c.cl_module,"_" ^ snd c.cl_module) in
+			let rpath = (fst c.cl_module.m_path,"_" ^ snd c.cl_module.m_path) in
 			if Hashtbl.mem ctx.g.types_module rpath then error ("This private class name will clash with " ^ s_type_path rpath) c.cl_pos;
 		end;
 		c.cl_restore <- restore c;
@@ -939,8 +943,14 @@ let check_local_vars_init e =
 (* -------------------------------------------------------------------------- *)
 (* POST PROCESS *)
 
+let pp_counter = ref 1
+
 let post_process types filters =
+	(* ensure that we don't process twice the same (cached) module *)
 	List.iter (fun t ->
+		let m = (t_infos t).mt_module in
+		if m.m_processed = 0 then m.m_processed <- !pp_counter;
+		if m.m_processed = !pp_counter then
 		match t with
 		| TClassDecl c ->
 			let process_field f =
@@ -960,7 +970,8 @@ let post_process types filters =
 				c.cl_init <- Some (List.fold_left (fun e f -> f e) e filters));
 		| TEnumDecl _ -> ()
 		| TTypeDecl _ -> ()
-	) types
+	) types;
+	incr pp_counter
 
 (* -------------------------------------------------------------------------- *)
 (* STACK MANAGEMENT EMULATION *)

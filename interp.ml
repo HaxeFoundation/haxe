@@ -1771,7 +1771,7 @@ let macro_lib =
 						| name :: l -> if is_ident name then (Ast.EField (loop l,name),p) else (Ast.EType (loop l,name),p)
 					in
 					let t = t_infos t in
-					loop (List.rev (if t.mt_module = t.mt_path then fst t.mt_path @ [snd t.mt_path] else fst t.mt_module @ [snd t.mt_module;snd t.mt_path]))
+					loop (List.rev (if t.mt_module.m_path = t.mt_path then fst t.mt_path @ [snd t.mt_path] else fst t.mt_module.m_path @ [snd t.mt_module.m_path;snd t.mt_path]))
 				in
 				let rec loop = function
 					| VNull -> (Ast.EConst (Ast.Ident "null"),p)
@@ -3502,7 +3502,7 @@ let rec encode_mtype t fields =
 		"pack", enc_array (List.map enc_string (fst i.mt_path));
 		"name", enc_string (snd i.mt_path);
 		"pos", encode_pos i.mt_pos;
-		"module", enc_string (s_type_path i.mt_module);
+		"module", enc_string (s_type_path i.mt_module.m_path);
 		"isPrivate", VBool i.mt_private;
 		"meta", encode_meta i.mt_meta (fun m -> i.mt_meta <- m);
 	] @ fields)

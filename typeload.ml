@@ -77,9 +77,9 @@ let rec load_type_def ctx p t =
 				let m = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
 				let tpath = (t.tpackage,tname) in
 				try
-					List.find (fun t -> not (t_infos t).mt_private && t_path t = tpath) m.mtypes
+					List.find (fun t -> not (t_infos t).mt_private && t_path t = tpath) m.m_types
 				with
-					Not_found -> raise (Error (Type_not_found (m.mpath,tname),p))
+					Not_found -> raise (Error (Type_not_found (m.m_path,tname),p))
 			in
 			let rec loop = function
 				| [] -> raise Exit
@@ -92,7 +92,7 @@ let rec load_type_def ctx p t =
 			in
 			try
 				if not no_pack then raise Exit;
-				(match fst ctx.current.mpath with
+				(match fst ctx.current.m_path with
 				| [] -> raise Exit
 				| x :: _ ->
 					(* this can occur due to haxe remoting : a module can be
@@ -103,7 +103,7 @@ let rec load_type_def ctx p t =
 						| Forbidden -> raise Exit
 						| _ -> ())
 					with Not_found -> ());
-				loop (List.rev (fst ctx.current.mpath));
+				loop (List.rev (fst ctx.current.m_path));
 			with
 				Exit -> next()
 
@@ -150,7 +150,7 @@ let rec load_instance ctx t p allow_no_params =
 						| EConst (Float f) -> "F" ^ f
 						| _ -> "Expr"
 					) in
-					let c = mk_class ([],name) p in
+					let c = mk_class null_module ([],name) p in
 					c.cl_kind <- KExpr e;
 					TInst (c,[])
 				| TPType t -> load_complex_type ctx p t
@@ -187,7 +187,7 @@ and load_complex_type ctx p t =
 			let rec loop t =
 				match follow t with
 				| TInst (c,tl) ->
-					let c2 = mk_class (fst c.cl_path,"+" ^ snd c.cl_path) p in
+					let c2 = mk_class null_module (fst c.cl_path,"+" ^ snd c.cl_path) p in
 					c2.cl_private <- true;
 					PMap.iter (fun f _ ->
 						try
@@ -281,7 +281,7 @@ and load_complex_type ctx p t =
 let hide_types ctx =
 	let old_locals = ctx.local_types in
 	let old_type_params = ctx.type_params in
-	ctx.local_types <- ctx.g.std.mtypes;
+	ctx.local_types <- ctx.g.std.m_types;
 	ctx.type_params <- [];
 	(fun() ->
 		ctx.local_types <- old_locals;
@@ -530,7 +530,7 @@ let set_heritance ctx c herits p =
 	List.iter loop (List.filter (ctx.g.do_inherit ctx c p) herits)
 
 let type_type_params ctx path get_params p (n,flags) =
-	let c = mk_class (fst path @ [snd path],n) p in
+	let c = mk_class ctx.current (fst path @ [snd path],n) p in
 	c.cl_kind <- KTypeParameter;
 	let t = TInst (c,[]) in
 	match flags with
@@ -1152,14 +1152,14 @@ let add_module ctx m p =
 		let t = t_infos t in
 		try
 			let m2 = Hashtbl.find ctx.g.types_module t.mt_path in
-			if m.mpath <> m2 && String.lowercase (s_type_path m2) = String.lowercase (s_type_path m.mpath) then error ("Module " ^ s_type_path m2 ^ " is loaded with a different case than " ^ s_type_path m.mpath) p;
+			if m.m_path <> m2 && String.lowercase (s_type_path m2) = String.lowercase (s_type_path m.m_path) then error ("Module " ^ s_type_path m2 ^ " is loaded with a different case than " ^ s_type_path m.m_path) p;
 			error ("Type name " ^ s_type_path t.mt_path ^ " is redefined from module " ^ s_type_path m2) p
 		with
 			Not_found ->
-				Hashtbl.add ctx.g.types_module t.mt_path m.mpath
+				Hashtbl.add ctx.g.types_module t.mt_path m.m_path
 	in
-	List.iter decl_type m.mtypes;
-	Hashtbl.add ctx.g.modules m.mpath m
+	List.iter decl_type m.m_types;
+	Hashtbl.add ctx.g.modules m.m_path m
 
 let type_module ctx m file tdecls loadp =
 	(* PASS 1 : build module structure - does not load any module or type - should be atomic ! *)
@@ -1168,13 +1168,21 @@ let type_module ctx m file tdecls loadp =
 		if List.exists (fun t -> snd (t_path t) = name) (!decls) then error ("Type name " ^ name ^ " is already defined in this module") loadp;
 		if priv then (fst m @ ["_" ^ snd m], name) else (fst m, name)
 	in
+	let m = {
+		m_id = alloc_mid();
+		m_path = m;
+		m_types = [];
+		m_file = Common.get_full_path file;
+		m_deps = ref PMap.empty;
+		m_processed = 0;
+	} in
 	List.iter (fun (d,p) ->
 		match d with
 		| EImport _ | EUsing _ -> ()
 		| EClass d ->
 			let priv = List.mem HPrivate d.d_flags in
 			let path = make_path d.d_name priv in
-			let c = mk_class path p in
+			let c = mk_class m path p in
 			c.cl_module <- m;
 			c.cl_private <- priv;
 			c.cl_doc <- d.d_doc;
@@ -1211,12 +1219,7 @@ let type_module ctx m file tdecls loadp =
 			} in
 			decls := TTypeDecl t :: !decls
 	) tdecls;
-	let m = {
-		mpath = m;
-		mtypes = List.rev !decls;
-		mfile = Common.get_full_path file;
-		mdeps = ref PMap.empty;
-	} in
+	m.m_types <- List.rev !decls;
 	add_module ctx m loadp;
 	(* PASS 2 : build types structure - does not type any expression ! *)
 	let ctx = {
@@ -1228,7 +1231,7 @@ let type_module ctx m file tdecls loadp =
 		ret = ctx.ret;
 		current = m;
 		locals = PMap.empty;
-		local_types = ctx.g.std.mtypes @ m.mtypes;
+		local_types = ctx.g.std.m_types @ m.m_types;
 		local_using = [];
 		type_params = [];
 		curmethod = "";
@@ -1244,15 +1247,15 @@ let type_module ctx m file tdecls loadp =
 	} in
 	let delays = ref [] in
 	let get_class name =
-		let c = List.find (fun d -> match d with TClassDecl { cl_path = _ , n } -> n = name | _ -> false) m.mtypes in
+		let c = List.find (fun d -> match d with TClassDecl { cl_path = _ , n } -> n = name | _ -> false) m.m_types in
 		match c with TClassDecl c -> c | _ -> assert false
 	in
 	let get_enum name =
-		let e = List.find (fun d -> match d with TEnumDecl { e_path = _ , n } -> n = name | _ -> false) m.mtypes in
+		let e = List.find (fun d -> match d with TEnumDecl { e_path = _ , n } -> n = name | _ -> false) m.m_types in
 		match e with TEnumDecl e -> e | _ -> assert false
 	in
 	let get_tdef name =
-		let s = List.find (fun d -> match d with TTypeDecl { t_path = _ , n } -> n = name | _ -> false) m.mtypes in
+		let s = List.find (fun d -> match d with TTypeDecl { t_path = _ , n } -> n = name | _ -> false) m.m_types in
 		match s with TTypeDecl s -> s | _ -> assert false
 	in
 	(* here is an additional PASS 1 phase, which handle the type parameters declaration, with lazy contraints *)
@@ -1276,7 +1279,7 @@ let type_module ctx m file tdecls loadp =
 			(match t.tsub with
 			| None ->
 				let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
-				let types = List.filter (fun t -> not (t_infos t).mt_private) md.mtypes in
+				let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
 				ctx.local_types <- ctx.local_types @ types
 			| Some _ ->
 				let t = load_type_def ctx p t in
@@ -1286,7 +1289,7 @@ let type_module ctx m file tdecls loadp =
 			(match t.tsub with
 			| None ->
 				let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
-				let types = List.filter (fun t -> not (t_infos t).mt_private) md.mtypes in
+				let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
 				ctx.local_using <- ctx.local_using @ (List.map (resolve_typedef ctx) types);
 			| Some _ ->
 				let t = load_type_def ctx p t in
@@ -1450,5 +1453,5 @@ let load_module ctx m p =
 			) in
 			type_module ctx m file decls p
 	) in
-	ctx.current.mdeps := PMap.add m2 () !(ctx.current.mdeps);
+	ctx.current.m_deps := PMap.add m2 () !(ctx.current.m_deps);
 	m2

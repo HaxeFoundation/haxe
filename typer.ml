@@ -217,7 +217,7 @@ let rec type_module_type ctx t tparams p =
 	| TClassDecl c ->
 		let t_tmp = {
 			t_path = fst c.cl_path, "#" ^ snd c.cl_path;
-			t_module = c.cl_path;
+			t_module = c.cl_module;
 			t_doc = None;
 			t_pos = c.cl_pos;
 			t_type = TAnon {
@@ -251,7 +251,7 @@ let rec type_module_type ctx t tparams p =
 		) e.e_constrs PMap.empty in
 		let t_tmp = {
 			t_path = fst e.e_path, "#" ^ snd e.e_path;
-			t_module = e.e_path;
+			t_module = e.e_module;
 			t_doc = None;
 			t_pos = e.e_pos;
 			t_type = TAnon {
@@ -1274,12 +1274,12 @@ and type_access ctx e p mode =
 								let md = Typeload.load_module ctx m p in
 								(* first look for existing subtype *)
 								(try
-									let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = (fst m,sname)) md.mtypes in
+									let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = (fst m,sname)) md.m_types in
 									Some (fields path (fun _ -> AKExpr (type_module_type ctx t None p)))
 								with Not_found -> try
 								(* then look for main type statics *)
 									if fst m = [] then raise Not_found; (* ensure that we use def() to resolve local types first *)
-									let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = m) md.mtypes in
+									let t = List.find (fun t -> not (t_infos t).mt_private && t_path t = m) md.m_types in
 									Some (get_static t)
 								with Not_found ->
 									None)
@@ -1295,7 +1295,7 @@ and type_access ctx e p mode =
 								| _ :: l -> loop (List.rev l)
 						in
 						(match pack with
-						| [] -> loop (fst ctx.current.mpath)
+						| [] -> loop (fst ctx.current.m_path)
 						| _ ->
 							match check_module (pack,name) sname with
 							| Some r -> r
@@ -1970,7 +1970,7 @@ let dce_finalize ctx =
 			match t with
 			| TClassDecl c -> check_class c
 			| _ -> ()
-		) m.mtypes
+		) m.m_types
 	) ctx.g.modules
 
 (*
@@ -2005,7 +2005,7 @@ let dce_optimize ctx =
 			match t with
 			| TClassDecl c -> check_class c
 			| _ -> ()
-		) m.mtypes
+		) m.m_types
 	) ctx.g.modules
 
 (* ---------------------------------------------------------------------- *)
@@ -2054,7 +2054,6 @@ type state =
 
 let generate ctx =
 	let types = ref [] in
-	let modules = ref [] in
 	let states = Hashtbl.create 0 in
 	let state p = try Hashtbl.find states p with Not_found -> NotYet in
 	let statics = ref PMap.empty in
@@ -2159,8 +2158,9 @@ let generate ctx =
 		) c.cl_statics
 
 	in
-	Hashtbl.iter (fun _ m -> modules := m :: !modules; List.iter loop m.mtypes) ctx.g.modules;
-	get_main ctx, List.rev !types, List.rev !modules
+	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_file m2.m_file) (Hashtbl.fold (fun _ m acc -> m :: acc) ctx.g.modules []) in	
+	List.iter (fun m -> List.iter loop m.m_types) sorted_modules;
+	get_main ctx, List.rev !types, sorted_modules
 
 (* ---------------------------------------------------------------------- *)
 (* MACROS *)
@@ -2256,7 +2256,7 @@ let make_macro_api ctx p =
 		Interp.get_module = (fun s ->
 			typing_timer ctx (fun() ->
 				let path = parse_path s in
-				List.map make_instance (Typeload.load_module ctx path p).mtypes
+				List.map make_instance (Typeload.load_module ctx path p).m_types
 			)
 		);
 		Interp.on_generate = (fun f ->
@@ -2423,7 +2423,7 @@ let load_macro ctx cpath f p =
 	) in
 	let mctx = Interp.get_ctx() in
 	let m = (try Hashtbl.find ctx.g.types_module cpath with Not_found -> cpath) in
-	ctx2.local_types <- (Typeload.load_module ctx2 m p).mtypes;
+	ctx2.local_types <- (Typeload.load_module ctx2 m p).m_types;
 	let meth = (match Typeload.load_instance ctx2 { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = None } p true with
 		| TInst (c,_) -> (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
 		| _ -> error "Macro should be called on a class" p
@@ -2587,12 +2587,6 @@ let call_init_macro ctx e =
 (* TYPER INITIALIZATION *)
 
 let rec create com =
-	let empty =	{
-		mpath = [] , "";
-		mtypes = [];
-		mfile = "";
-		mdeps = ref PMap.empty;
-	} in
 	let ctx = {
 		com = com;
 		t = com.basic;
@@ -2606,7 +2600,7 @@ let rec create com =
 			doinline = not (Common.defined com "no_inline" || com.display);
 			hook_generate = [];
 			get_build_infos = (fun() -> None);
-			std = empty;
+			std = null_module;
 			do_inherit = Codegen.on_inherit;
 			do_create = create;
 			do_macro = type_macro;
@@ -2628,7 +2622,7 @@ let rec create com =
 		curmethod = "";
 		curclass = null_class;
 		tthis = mk_mono();
-		current = empty;
+		current = null_module;
 		opened = [];
 		param_type = None;
 		vthis = None;
@@ -2657,13 +2651,13 @@ let rec create com =
 				let cpp = platform com Cpp in
 				ctx.t.tnull <- if not (f9 || cpp) then (fun t -> t) else (fun t -> if is_nullable t then TType (td,[t]) else t);
 			| _ -> ());
-	) ctx.g.std.mtypes;
+	) ctx.g.std.m_types;
 	let m = Typeload.load_module ctx ([],"String") null_pos in
-	(match m.mtypes with
+	(match m.m_types with
 	| [TClassDecl c] -> ctx.t.tstring <- TInst (c,[])
 	| _ -> assert false);
 	let m = Typeload.load_module ctx ([],"Array") null_pos in
-	(match m.mtypes with
+	(match m.m_types with
 	| [TClassDecl c] -> ctx.t.tarray <- (fun t -> TInst (c,[t]))
 	| _ -> assert false);
 	ctx

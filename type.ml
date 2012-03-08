@@ -151,7 +151,7 @@ and metadata = Ast.metadata
 
 and tinfos = {
 	mt_path : path;
-	mt_module : path;
+	mt_module : module_def;
 	mt_pos : Ast.pos;
 	mt_private : bool;
 	mt_doc : Ast.documentation;
@@ -160,7 +160,7 @@ and tinfos = {
 
 and tclass = {
 	mutable cl_path : path;
-	mutable cl_module : path;
+	mutable cl_module : module_def;
 	mutable cl_pos : Ast.pos;
 	mutable cl_private : bool;
 	mutable cl_doc : Ast.documentation;
@@ -196,7 +196,7 @@ and tenum_field = {
 
 and tenum = {
 	mutable e_path : path;
-	e_module : path;
+	e_module : module_def;
 	e_pos : Ast.pos;
 	e_private : bool;
 	e_doc : Ast.documentation;
@@ -210,7 +210,7 @@ and tenum = {
 
 and tdef = {
 	t_path : path;
-	t_module : path;
+	t_module : module_def;
 	t_pos : Ast.pos;
 	t_private : bool;
 	t_doc : Ast.documentation;
@@ -224,16 +224,22 @@ and module_type =
 	| TEnumDecl of tenum
 	| TTypeDecl of tdef
 
-type module_def = {
-	mpath : path;
-	mtypes : module_type list;
-	mfile : string;
-	mdeps : (module_def,unit) PMap.t ref;
+and module_def = {
+	m_id : int;
+	m_path : path;
+	m_file : string;
+	mutable m_types : module_type list;
+	mutable m_processed : int;
+	m_deps : (module_def,unit) PMap.t ref;
 }
 
 let alloc_var =
 	let uid = ref 0 in
 	(fun n t -> incr uid; { v_name = n; v_type = t; v_id = !uid; v_capture = false })
+
+let alloc_mid = 
+	let mid = ref 0 in
+	(fun() -> incr mid; !mid)
 
 let mk e t p = { eexpr = e; etype = t; epos = p }
 
@@ -252,10 +258,10 @@ let tfun pl r = TFun (List.map (fun t -> "",false,t) pl,r)
 
 let fun_args l = List.map (fun (a,c,t) -> a, c <> None, t) l
 
-let mk_class path pos =
+let mk_class m path pos =
 	{
 		cl_path = path;
-		cl_module = path;
+		cl_module = m;
 		cl_pos = pos;
 		cl_doc = None;
 		cl_meta = [];
@@ -278,8 +284,17 @@ let mk_class path pos =
 		cl_restore = (fun() -> ());
 	}
 
+let null_module = {
+		m_id = alloc_mid();
+		m_path = [] , "";
+		m_types = [];
+		m_file = "";
+		m_processed = 0;
+		m_deps = ref PMap.empty;
+	}
+
 let null_class =
-	let c = mk_class ([],"") Ast.null_pos in
+	let c = mk_class null_module ([],"") Ast.null_pos in
 	c.cl_private <- true;
 	c
 

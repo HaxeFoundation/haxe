@@ -2208,8 +2208,8 @@ let resource_path name =
 	(["_res"],"_" ^ String.concat "_" (ExtString.String.nsplit name "."))
 
 let generate_resource ctx name =	
-	let c = mk_class (resource_path name) null_pos in
-	c.cl_super <- Some (mk_class (["flash";"utils"],"ByteArray") null_pos,[]);
+	let c = mk_class null_module (resource_path name) null_pos in
+	c.cl_super <- Some (mk_class null_module (["flash";"utils"],"ByteArray") null_pos,[]);
 	let t = TClassDecl c in
 	match generate_type ctx t with
 	| Some (m,f) -> (t,m,f)

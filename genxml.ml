@@ -110,9 +110,9 @@ let gen_constr e =
 	) in
 	node e.ef_name args t
 
-let gen_type_params ipos priv path params pos mpath =
+let gen_type_params ipos priv path params pos m =
 	let mpriv = (if priv then [("private","1")] else []) in
-	let mpath = (if mpath <> path then [("module",snd (gen_path mpath false))] else []) in
+	let mpath = (if m.m_path <> path then [("module",snd (gen_path m.m_path false))] else []) in
 	let file = (if ipos && pos <> null_pos then [("file",pos.pfile)] else []) in
 	gen_path path priv :: ("params", String.concat ":" (List.map fst params)) :: (file @ mpriv @ mpath)
 
