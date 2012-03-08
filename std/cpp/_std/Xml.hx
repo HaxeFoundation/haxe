@@ -98,7 +98,8 @@ enum XmlType {
 				x._parent = untyped __this__.cur;
 				x.nodeType = Xml.DocType;
 				x._nodeValue = (new String(text)).substr(1);
-				untyped __this__.cur.addChild(x);
+				var p : Xml = untyped __this__.cur;
+				p.addChild(x);
 			},
 			done : function() {
 				untyped __this__.cur = __this__.cur._parent;
