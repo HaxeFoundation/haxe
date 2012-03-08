@@ -225,10 +225,14 @@ let close t =
 		| [] -> assert false
 		| s :: l -> t.start <- l; s
 	) in
-	let dt = get_time() -. start in
+	let now = get_time() in
+	let dt = now -. start in
 	t.total <- t.total +. dt;
-	curtime := List.tl !curtime;
-	List.iter (fun ct -> ct.start <- List.map (fun t -> t +. dt) ct.start) !curtime
+	(match !curtime with
+	| [] -> assert false
+	| tt :: l -> if t == tt then curtime := l else failwith ("Closing " ^ t.name ^ " while " ^ tt.name ^ " in use"));	
+	(* because of rounding errors while adding small times, we need to make sure that we don't have start > now *)
+	List.iter (fun ct -> ct.start <- List.map (fun t -> let s = t +. dt in if s > now then now else s) ct.start) !curtime
 
 let timer name =
 	let t = new_timer name in
