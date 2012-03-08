@@ -2158,7 +2158,7 @@ let generate ctx =
 		) c.cl_statics
 
 	in
-	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_file m2.m_file) (Hashtbl.fold (fun _ m acc -> m :: acc) ctx.g.modules []) in	
+	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_path m2.m_path) (Hashtbl.fold (fun _ m acc -> m :: acc) ctx.g.modules []) in	
 	List.iter (fun m -> List.iter loop m.m_types) sorted_modules;
 	get_main ctx, List.rev !types, sorted_modules
 
