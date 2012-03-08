@@ -96,6 +96,14 @@ let complete_fields fields =
 	Buffer.add_string b "</list>\n";
 	raise (Completion (Buffer.contents b))
 
+let report_times print =
+	let tot = ref 0. in
+	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
+	print (Printf.sprintf "Total time : %.3fs" !tot);
+	print "------------------------------------";
+	let timers = List.sort (fun t1 t2 -> compare t1.name t2.name) (Hashtbl.fold (fun _ t acc -> t :: acc) Common.htimers []) in
+	List.iter (fun t -> print (Printf.sprintf "  %s : %.3fs, %.0f%%" t.name t.total (t.total *. 100. /. !tot))) timers
+
 let file_extension f =
 	let cl = ExtString.String.nsplit f "." in
 	match List.rev cl with
@@ -482,10 +490,12 @@ and wait_loop boot_com host port =
 				Parser.resume_display := Ast.null_pos;
 				measure_times := false;
 				Hashtbl.clear Common.htimers;
-				let _ = Common.timer "other" in
+				let other = Common.timer "other" in
 				Hashtbl.clear modules_added;
 				start_time := get_time();
-				process_params flush [] data
+				process_params flush [] data;
+				other();
+				if !measure_times then report_times (fun s -> ssend sin (s ^ "\n"))
 			with Completion str ->
 				if verbose then print_endline ("Completion Response =\n" ^ str);
 				ssend sin str
@@ -950,7 +960,7 @@ with
 		error ctx (Printexc.to_string e) Ast.null_pos
 
 ;;
-let all = Common.timer "other" in
+let other = Common.timer "other" in
 Sys.catch_break true;
 (try
 	process_params default_flush [] (List.tl (Array.to_list Sys.argv));
@@ -958,14 +968,5 @@ with Completion c ->
 	prerr_endline c;
 	exit 0
 );
-all();
-if !measure_times then begin
-	let tot = ref 0. in
-	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
-	Printf.eprintf "Total time : %.3fs\n" !tot;
-	Printf.eprintf "------------------------------------\n";
-	let timers = List.sort (fun t1 t2 -> compare t1.name t2.name) (Hashtbl.fold (fun _ t acc -> t :: acc) Common.htimers []) in
-	List.iter (fun t ->
-		Printf.eprintf "  %s : %.3fs, %.0f%%\n" t.name t.total (t.total *. 100. /. !tot);
-	) timers;
-end;
+other();
+if !measure_times then report_times prerr_endline
