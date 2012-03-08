@@ -64,6 +64,7 @@ type context = {
 	mutable filters : (unit -> unit) list;
 	mutable defines_signature : string option;
 	mutable print : string -> unit;
+	mutable get_macros : unit -> context option;
 	(* output *)
 	mutable file : string;
 	mutable flash_version : float;
@@ -117,6 +118,7 @@ let create v =
 		js_gen = None;
 		load_extern_type = [];
 		defines_signature = None;
+		get_macros = (fun() -> None);
 		warning = (fun _ _ -> assert false);
 		error = (fun _ _ -> assert false);
 		basic = {

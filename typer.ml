@@ -2389,6 +2389,7 @@ let load_macro ctx cpath f p =
 			ctx
 		| None ->
 			let com2 = Common.clone ctx.com in
+			ctx.com.get_macros <- (fun() -> Some com2);
 			com2.package_rules <- PMap.empty;
 			com2.main_class <- None;
 			com2.display <- false;

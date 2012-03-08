@@ -412,11 +412,12 @@ and wait_loop boot_com host port =
 	Typeload.type_module_hook := (fun (ctx:Typecore.typer) mpath p ->
 		let com2 = ctx.Typecore.com in
 		let sign = get_signature com2 in
+		let added = (try Hashtbl.find modules_added sign with Not_found -> let added = Hashtbl.create 0 in Hashtbl.add modules_added sign added; added) in
 		let modules_checked = Hashtbl.create 0 in
 		let dep = ref None in
 		let rec check m =
 			try
-				Hashtbl.find modules_added m.Type.m_path
+				Hashtbl.find added m.Type.m_path
 			with Not_found -> try
 				!(Hashtbl.find modules_checked m.Type.m_path)
 			with Not_found ->
@@ -429,15 +430,15 @@ and wait_loop boot_com host port =
 				PMap.iter (fun m2 _ -> if not (check m2) then begin dep := Some m2; raise Not_found end) !(m.Type.m_deps);
 				true
 			with Not_found ->
-				Hashtbl.add modules_added m.Type.m_path false;
+				Hashtbl.add added m.Type.m_path false;
 				ok := false;
 				!ok
 		in
 		let rec add_modules m =
-			if Hashtbl.mem modules_added m.Type.m_path then
+			if Hashtbl.mem added m.Type.m_path then
 				()
 			else begin
-				Hashtbl.add modules_added m.Type.m_path true;
+				Hashtbl.add added m.Type.m_path true;
 				if verbose then print_endline ("Reusing  cached module " ^ Ast.s_type_path m.Type.m_path);
 				Typeload.add_module ctx m p;
 				PMap.iter (fun m2 _ -> add_modules m2) !(m.Type.m_deps);
@@ -472,12 +473,18 @@ and wait_loop boot_com host port =
 				ignore(Unix.select [] [] [] 0.1);
 				read_loop()
 		in
+		let rec cache_context com =
+			if not com.dead_code_elimination then begin
+				List.iter (cache_module (get_signature com)) com.modules;
+				if verbose then print_endline ("Cached " ^ string_of_int (List.length com.modules) ^ " modules");				
+			end;
+			match com.get_macros() with
+			| None -> ()
+			| Some com -> cache_context com
+		in
 		let flush ctx =
 			Hashtbl.clear modules_added;
-			if not ctx.com.dead_code_elimination then begin
-				List.iter (cache_module (get_signature ctx.com)) ctx.com.modules;
-				if verbose then print_endline ("Cached " ^ string_of_int (List.length ctx.com.modules) ^ " modules");
-			end;
+			cache_context ctx.com;
 			List.iter (fun s -> ssend sin (s ^ "\n"); if verbose then print_endline ("> " ^ s)) (List.rev ctx.messages);
 		in
 		(try
