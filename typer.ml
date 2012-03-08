@@ -1936,7 +1936,7 @@ and type_call ctx e el p =
 (* DEAD CODE ELIMINATION *)
 
 let dce_check_class ctx c =
-	let keep_whole_class = c.cl_extern || c.cl_interface || has_meta ":keep" c.cl_meta || (match c.cl_path with ["php"],"Boot" | ["neko"],"Boot" | ["flash"],"Boot" -> true | _ -> false)  in
+	let keep_whole_class = c.cl_extern || c.cl_interface || has_meta ":keep" c.cl_meta || (match c.cl_path with ["php"],"Boot" | ["neko"],"Boot" | ["flash"],"Boot" | [],"Array" | [],"String" -> true | _ -> false)  in
 	let keep stat f =
 		keep_whole_class
 		|| has_meta ":?used" f.cf_meta
@@ -1945,6 +1945,7 @@ let dce_check_class ctx c =
 		|| (not stat && f.cf_name = "resolve" && (match c.cl_dynamic with Some _ -> true | None -> false))
 		|| (f.cf_name = "new" && has_meta ":?used" c.cl_meta)
 		|| match String.concat "." (fst c.cl_path @ [snd c.cl_path;f.cf_name]) with
+		| "EReg.new"
 		| "js.Boot.__init" | "flash._Boot.RealBoot.new"
 		| "js.Boot.__string_rec" (* used by $estr *)
 		| "js.Boot.__instanceof" (* used by catch( e : T ) *)
