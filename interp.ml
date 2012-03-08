@@ -659,8 +659,7 @@ let builtins =
 		"print", FunVar (fun vl -> List.iter (fun v ->
 			let ctx = get_ctx() in
 			let com = ctx.curapi.get_com() in
-			let str = ctx.do_string v in
-			if not com.display then print_string str
+			com.print (ctx.do_string v)
 		) vl; VNull);
 		"throw", Fun1 (fun v -> exc v);
 		"rethrow", Fun1 (fun v ->
@@ -802,7 +801,7 @@ let std_lib =
 		"math_cos", Fun1 (fun v -> VFloat (cos (num v)));
 		"math_sin", Fun1 (fun v -> VFloat (sin (num v)));
 		"math_tan", Fun1 (fun v -> VFloat (tan (num v)));
-		"math_log", Fun1 (fun v -> VFloat (log (num v)));
+		"math_log", Fun1 (fun v -> VFloat (Pervasives.log (num v)));
 		"math_exp", Fun1 (fun v -> VFloat (exp (num v)));
 		"math_acos", Fun1 (fun v -> VFloat (acos (num v)));
 		"math_asin", Fun1 (fun v -> VFloat (asin (num v)));

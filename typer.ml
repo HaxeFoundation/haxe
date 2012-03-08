@@ -1979,7 +1979,7 @@ let dce_finalize ctx =
 let dce_optimize ctx =
 	let check_class c =
 		let keep = dce_check_class ctx c in
-		let keep stat f = if not (keep stat f) then begin if ctx.com.verbose then print_endline ("Removing " ^ s_type_path c.cl_path ^ "." ^ f.cf_name); false; end else true in
+		let keep stat f = if not (keep stat f) then begin if ctx.com.verbose then Common.log ctx.com ("Removing " ^ s_type_path c.cl_path ^ "." ^ f.cf_name); false; end else true in
 		c.cl_constructor <- (match c.cl_constructor with Some f when not (keep false f) -> None | x -> x);
 		c.cl_ordered_fields <- List.filter (keep false) c.cl_ordered_fields;
 		c.cl_ordered_statics <- List.filter (keep true) c.cl_ordered_statics;
@@ -1994,12 +1994,12 @@ let dce_optimize ctx =
 			| _ when has_meta ":?used" c.cl_meta || has_meta ":keep" c.cl_meta || (match c.cl_constructor with Some f -> has_meta ":?used" f.cf_meta | _ -> false)
 				-> ()
 			| _ ->
-				if ctx.com.verbose then print_endline ("Removing " ^ s_type_path c.cl_path);
+				Common.log ctx.com ("Removing " ^ s_type_path c.cl_path);
 				c.cl_extern <- true;
 				(match c.cl_path with [],"Std" -> () | _ -> c.cl_init <- None);
 				c.cl_meta <- [":native",[(EConst (String "Dynamic"),c.cl_pos)],c.cl_pos]; (* make sure the type will not be referenced *)
 	in
-	if ctx.com.verbose then print_endline "Performing dead code optimization";
+	Common.log ctx.com "Performing dead code optimization";
 	Hashtbl.iter (fun _ m ->
 		List.iter (fun t ->
 			match t with
@@ -2063,7 +2063,7 @@ let generate ctx =
 		match state p with
 		| Done -> ()
 		| Generating ->
-			prerr_endline ("Warning : maybe loop in static generation of " ^ s_type_path p);
+			ctx.com.warning ("Warning : maybe loop in static generation of " ^ s_type_path p) (t_infos t).mt_pos;
 		| NotYet ->
 			Hashtbl.add states p Generating;
 			let t = (match t with

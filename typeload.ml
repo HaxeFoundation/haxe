@@ -28,7 +28,7 @@ let parse_file com file p =
 	let data = (try Parser.parse com (Lexing.from_channel ch) with e -> close_in ch; t(); raise e) in
 	close_in ch;
 	t();
-	if com.verbose then print_endline ("Parsed " ^ file);
+	Common.log com ("Parsed " ^ file);
 	data
 
 let parse_hook = ref parse_file
@@ -887,7 +887,7 @@ let init_class ctx c p herits fields =
 				| Some e ->
 					let r = exc_protect (fun r ->
 						r := (fun() -> t);
-						if ctx.com.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
+						if ctx.com.verbose then Common.log ctx.com ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
 						mark_used cf;
 						cf.cf_expr <- Some (type_static_var ctx t e p);
 						cf.cf_type <- t;
@@ -971,7 +971,7 @@ let init_class ctx c p herits fields =
 			} in
 			let r = exc_protect (fun r ->
 				r := (fun() -> t);
-				if ctx.com.verbose then print_endline ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
+				if ctx.com.verbose then Common.log ctx.com ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
 				let e , fargs = type_function ctx args ret (if constr then FConstructor else if stat then FStatic else FMember) fd p in
 				let f = {
 					tf_args = fargs;

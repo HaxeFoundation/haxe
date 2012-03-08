@@ -118,7 +118,7 @@ let extend_remoting ctx c t p async prot =
 	with
 		Error (Module_not_found _,p2) when p == p2 ->
 	(* build it *)
-	if ctx.com.verbose then print_endline ("Building proxy for " ^ s_type_path path);
+	Common.log ctx.com ("Building proxy for " ^ s_type_path path);
 	let file, decls = (try
 		Typeload.parse_module ctx path p
 	with

@@ -147,9 +147,6 @@ let property_ident = parser
 	| [< '(Kwd Dynamic,_) >] -> "dynamic"
 	| [< '(Kwd Default,_) >] -> "default"
 
-let log m s =
-	prerr_endline m
-
 let get_doc s =
 	let d = !doc in
 	doc := None;

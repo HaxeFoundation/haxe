@@ -63,6 +63,7 @@ type context = {
 	mutable load_extern_type : (path -> pos -> (string * Ast.package) option) list; (* allow finding types which are not in sources *)
 	mutable filters : (unit -> unit) list;
 	mutable defines_signature : string option;
+	mutable print : string -> unit;
 	(* output *)
 	mutable file : string;
 	mutable flash_version : float;
@@ -83,6 +84,7 @@ type context = {
 exception Abort of string * Ast.pos
 
 let display_default = ref false
+let default_print = ref print_string
 
 let create v =
 	let m = Type.mk_mono() in
@@ -94,6 +96,7 @@ let create v =
 		foptimize = true;
 		dead_code_elimination = false;
 		platform = Cross;
+		print = !default_print;
 		std_path = [];
 		class_path = [];
 		main_class = None;
@@ -126,6 +129,9 @@ let create v =
 			tarray = (fun _ -> assert false);
 		};
 	}
+
+let log com str =
+	if com.verbose then com.print (str ^ "\n")
 
 let clone com =
 	let t = com.basic in

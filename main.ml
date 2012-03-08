@@ -470,7 +470,7 @@ and wait_loop boot_com host port =
 				List.iter (cache_module (get_signature ctx.com)) ctx.com.modules;
 				if verbose then print_endline ("Cached " ^ string_of_int (List.length ctx.com.modules) ^ " modules");
 			end;
-			List.iter (fun s -> ssend sin (s ^ "\n")) (List.rev ctx.messages);
+			List.iter (fun s -> ssend sin (s ^ "\n"); if verbose then print_endline ("> " ^ s)) (List.rev ctx.messages);
 		in
 		(try
 			let data = parse_hxml_data (read_loop()) in
@@ -478,6 +478,7 @@ and wait_loop boot_com host port =
 			if verbose then print_endline ("Processing Arguments [" ^ String.concat "," data ^ "]");
 			(try
 				Common.display_default := false;
+				Common.default_print := ssend sin;
 				Parser.resume_display := Ast.null_pos;
 				measure_times := false;
 				Hashtbl.clear Common.htimers;
@@ -510,7 +511,7 @@ and do_connect host port args =
 		if b > 0 then loop()
 	in
 	loop();
-	prerr_endline (Buffer.contents buf)
+	prerr_string (Buffer.contents buf)
 
 and init flush ctx =
 	let usage = Printf.sprintf
@@ -807,7 +808,7 @@ try
 	if !classes = [([],"Std")] && not !force_typing then begin
 		if !cmds = [] && not !did_something then Arg.usage basic_args_spec usage;
 	end else begin
-		if com.verbose then print_endline ("Classpath : " ^ (String.concat ";" com.class_path));
+		Common.log com ("Classpath : " ^ (String.concat ";" com.class_path));
 		let t = Common.timer "typing" in
 		Typecore.type_expr_ref := (fun ctx e need_val -> Typer.type_expr ~need_val ctx e);
 		let tctx = Typer.create com in
@@ -835,7 +836,7 @@ try
 		| Some "hx" ->
 			Genxml.generate_hx com
 		| Some file ->
-			if com.verbose then print_endline ("Generating xml : " ^ com.file);
+			Common.log com ("Generating xml : " ^ com.file);
 			Genxml.generate com file);
 		if com.platform = Flash9 || com.platform = Cpp then List.iter (Codegen.fix_overrides com) com.types;
 		if Common.defined com "dump" then Codegen.dump_types com;
@@ -852,22 +853,22 @@ try
 		| Cross ->
 			()
 		| Flash | Flash9 when !gen_as3 ->
-			if com.verbose then print_endline ("Generating AS3 in : " ^ com.file);
+			Common.log com ("Generating AS3 in : " ^ com.file);
 			Genas3.generate com;
 		| Flash | Flash9 ->
-			if com.verbose then print_endline ("Generating swf : " ^ com.file);
+			Common.log com ("Generating swf : " ^ com.file);
 			Genswf.generate com !swf_header;
 		| Neko ->
-			if com.verbose then print_endline ("Generating neko : " ^ com.file);
+			Common.log com ("Generating neko : " ^ com.file);
 			Genneko.generate com;
 		| Js ->
-			if com.verbose then print_endline ("Generating js : " ^ com.file);
+			Common.log com ("Generating js : " ^ com.file);
 			Genjs.generate com
 		| Php ->
-			if com.verbose then print_endline ("Generating PHP in : " ^ com.file);
+			Common.log com ("Generating PHP in : " ^ com.file);
 			Genphp.generate com;
 		| Cpp ->
-			if com.verbose then print_endline ("Generating Cpp in : " ^ com.file);
+			Common.log com ("Generating Cpp in : " ^ com.file);
 			Gencpp.generate com;
 		);
 	end;
