@@ -954,7 +954,7 @@ class SpodMacros {
 							break;
 						cur = cur.t.get().superClass;
 					}
-					if( cur == null || c.meta.has(":skip") )
+					if( cur == null || c.meta.has(":skip") || c.meta.has("rtti") )
 						continue;
 					var inst = getInfos(t);
 					var s = new haxe.Serializer();
