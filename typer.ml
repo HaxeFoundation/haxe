@@ -2258,7 +2258,7 @@ let make_macro_api ctx p =
 		Interp.get_module = (fun s ->
 			typing_timer ctx (fun() ->
 				let path = parse_path s in
-				Typeload.load_module ctx path p
+				List.map make_instance (Typeload.load_module ctx path p).m_types
 			)
 		);
 		Interp.on_generate = (fun f ->
