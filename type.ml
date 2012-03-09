@@ -239,6 +239,7 @@ and module_def_extra = {
 	mutable m_processed : int;
 	mutable m_kind : module_kind;
 	mutable m_binded_res : (string, string) PMap.t;
+	mutable m_macro_delayed : (unit -> unit) DynArray.t;
 }
 
 and module_kind =
@@ -309,6 +310,7 @@ let null_module = {
 			m_deps = PMap.empty;
 			m_kind = MFake;
 			m_binded_res = PMap.empty;
+			m_macro_delayed = DynArray.create();
 		};
 	}
 
