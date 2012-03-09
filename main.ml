@@ -398,6 +398,9 @@ and wait_loop boot_com host port =
 			| _ -> ()
 		) m.m_types
 	in
+	let check_module_path com m p =
+		m.m_extra.m_file = Common.get_full_path (Typeload.resolve_module_file com m.m_path (ref[]) p)
+	in
 	let modules_added = Hashtbl.create 0 in
 	Typeload.type_module_hook := (fun (ctx:Typecore.typer) mpath p ->
 		let com2 = ctx.Typecore.com in
@@ -407,7 +410,9 @@ and wait_loop boot_com host port =
 		let dep = ref None in
 		let rec check m =
 			try
-				Hashtbl.find added m.m_id
+				(match Hashtbl.find added m.m_id with
+				| None -> true
+				| x -> dep := x; false)
 			with Not_found -> try
 				!(Hashtbl.find modules_checked m.m_id)
 			with Not_found ->
@@ -415,12 +420,19 @@ and wait_loop boot_com host port =
 			Hashtbl.add modules_checked m.m_id ok;
 			try
 				let m = Hashtbl.find cache.c_modules (m.m_path,m.m_extra.m_sign) in
-				if m.m_extra.m_kind <> MFake && m.m_extra.m_file <> Common.get_full_path (Typeload.resolve_module_file com2 m.m_path (ref[]) p) then raise Not_found;
+				(match m.m_extra.m_kind with
+				| MFake -> () (* don't get classpath *)
+				| MCode -> if not (check_module_path com2 m p) then raise Not_found;
+				| MMacro when ctx.Typecore.in_macro -> if not (check_module_path com2 m p) then raise Not_found;
+				| MMacro ->
+					let _, mctx = Typer.get_macro_context ctx p in
+					if not (check_module_path mctx.Typecore.com m p) then raise Not_found;
+				);
 				if file_time m.m_extra.m_file <> m.m_extra.m_time then raise Not_found;
 				PMap.iter (fun _ m2 -> if not (check m2) then begin dep := Some m2; raise Not_found end) m.m_extra.m_deps;
 				true
 			with Not_found ->
-				Hashtbl.add added m.m_id false;
+				Hashtbl.add added m.m_id (match !dep with None -> Some m | x -> x);
 				ok := false;
 				!ok
 		in
@@ -428,9 +440,9 @@ and wait_loop boot_com host port =
 			if Hashtbl.mem added m.m_id then
 				()
 			else begin
-				Hashtbl.add added m.m_id true;
+				Hashtbl.add added m.m_id None;
 				(match m0.m_extra.m_kind, m.m_extra.m_kind with
-				| MCode, MMacro | MMacro, MCode -> 
+				| MCode, MMacro | MMacro, MCode ->
 					(* this was just a dependency to check : do not add to the context *)
 					()
 				| _ ->

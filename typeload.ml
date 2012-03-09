@@ -1179,6 +1179,7 @@ let type_module ctx m file tdecls loadp =
 			m_deps = PMap.empty;
 			m_processed = 0;
 			m_kind = if ctx.in_macro then MMacro else MCode;
+			m_binded_res = PMap.empty;
 		};
 	} in
 	List.iter (fun (d,p) ->

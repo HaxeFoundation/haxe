@@ -101,6 +101,7 @@ type extern_api = {
 	get_build_fields : unit -> value;
 	define_type : value -> unit;
 	module_dependency : string -> string -> unit;
+	current_module : unit -> module_def;
 }
 
 type callstack = {
@@ -1916,7 +1917,11 @@ let macro_lib =
 		);
 		"add_resource", Fun2 (fun name data ->
 			match name, data with
-			| VString name, VString data -> Hashtbl.replace (ccom()).resources name data; VNull
+			| VString name, VString data -> 
+				Hashtbl.replace (ccom()).resources name data;
+				let m = (get_ctx()).curapi.current_module() in
+				m.m_extra.m_binded_res <- PMap.add name data m.m_extra.m_binded_res;
+				VNull
 			| _ -> error()
 		);
 		"local_type", Fun0 (fun() ->
