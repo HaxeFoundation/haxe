@@ -378,7 +378,9 @@ and wait_loop boot_com host port =
 		match com.defines_signature with
 		| Some s -> s
 		| None ->
-			let s = Digest.string (String.concat "@" (PMap.foldi (fun k _ acc -> if k = "display" then acc else k :: acc) com.defines [])) in
+			let str = String.concat "@" (PMap.foldi (fun k _ acc -> if k = "display" || k = "use_rtti_doc" then acc else k :: acc) com.defines []) in
+			let s = Digest.string str in
+			if verbose then print_endline ("Signature = " ^ Digest.to_hex s ^ "(" ^ str ^ ")");
 			com.defines_signature <- Some s;
 			s
 	in
@@ -554,7 +556,7 @@ try
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
 	com.error <- error ctx;
 	Parser.display_error := (fun e p -> com.error (Parser.error_msg e) p);
-	Parser.use_doc := !Common.display_default;
+	Parser.use_doc := !Common.display_default || (!global_cache <> None);
 	(try
 		let p = Sys.getenv "HAXE_LIBRARY_PATH" in
 		let rec loop = function
