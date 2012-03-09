@@ -2373,7 +2373,9 @@ let make_macro_api ctx p =
 		);
 		Interp.define_type = (fun v ->
 			let m, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc (Interp.VString "Invalid type definition")) in
-			ignore(Typeload.type_module ctx m "" [tdef,pos] pos);
+			let mdep = Typeload.type_module ctx m ctx.current.m_extra.m_file [tdef,pos] pos in
+			mdep.m_extra.m_kind <- MFake;
+			ctx.current.m_extra.m_deps <- PMap.add mdep () ctx.current.m_extra.m_deps;
 		);
 		Interp.module_dependency = (fun mpath file ->
 			let m = typing_timer ctx (fun() -> Typeload.load_module ctx (parse_path mpath) p) in
@@ -2382,15 +2384,20 @@ let make_macro_api ctx p =
 				let mdep = {
 					m_id = alloc_mid();
 					m_path = (["$DEP"],file);
-					m_file = file;
 					m_types = [];
-					m_deps = ref PMap.empty;
-					m_processed = 0;
+					m_extra = {
+						m_file = file;
+						m_sign = Common.get_signature ctx.com;
+						m_time = file_time file;
+						m_deps = PMap.empty;
+						m_processed = 0;
+						m_kind = MFake;
+					};
 				} in
 				Hashtbl.add fake_modules file mdep;
 				mdep
 			) in
-			(m.m_deps) := PMap.add mdep () !(m.m_deps);
+			m.m_extra.m_deps <- PMap.add mdep () m.m_extra.m_deps;
 			Hashtbl.replace ctx.g.modules mdep.m_path mdep
 		);
 	}
@@ -2444,7 +2451,9 @@ let load_macro ctx cpath f p =
 	) in
 	let mctx = Interp.get_ctx() in
 	let m = (try Hashtbl.find ctx.g.types_module cpath with Not_found -> cpath) in
-	ctx2.local_types <- (Typeload.load_module ctx2 m p).m_types;
+	let mloaded = Typeload.load_module ctx2 m p in
+	ctx2.local_types <- mloaded.m_types;
+	ctx.current.m_extra.m_deps <- PMap.add mloaded () ctx.current.m_extra.m_deps;
 	let meth = (match Typeload.load_instance ctx2 { tpackage = fst cpath; tname = snd cpath; tparams = []; tsub = None } p true with
 		| TInst (c,_) -> (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
 		| _ -> error "Macro should be called on a class" p

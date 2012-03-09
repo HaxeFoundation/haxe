@@ -139,6 +139,18 @@ let clone com =
 	let t = com.basic in
 	{ com with basic = { t with tvoid = t.tvoid }; main_class = None; }
 
+let file_time file =
+	try (Unix.stat file).Unix.st_mtime with _ -> 0.
+
+let get_signature com =
+	match com.defines_signature with
+	| Some s -> s
+	| None ->
+		let str = String.concat "@" (PMap.foldi (fun k _ acc -> if k = "display" || k = "use_rtti_doc" then acc else k :: acc) com.defines []) in
+		let s = Digest.string str in
+		com.defines_signature <- Some s;
+		s
+
 let platforms = [
 	Flash;
 	Js;

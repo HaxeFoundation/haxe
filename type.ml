@@ -227,11 +227,23 @@ and module_type =
 and module_def = {
 	m_id : int;
 	m_path : path;
-	m_file : string;
 	mutable m_types : module_type list;
-	mutable m_processed : int;
-	m_deps : (module_def,unit) PMap.t ref;
+	m_extra : module_def_extra;
 }
+
+and module_def_extra = {
+	m_file : string;
+	m_sign : string;
+	m_time : float;
+	mutable m_deps : (module_def,unit) PMap.t;
+	mutable m_processed : int;
+	mutable m_kind : module_kind;
+}
+
+and module_kind =
+	| MCode
+	| MMacro
+	| MFake
 
 let alloc_var =
 	let uid = ref 0 in
@@ -288,9 +300,14 @@ let null_module = {
 		m_id = alloc_mid();
 		m_path = [] , "";
 		m_types = [];
-		m_file = "";
-		m_processed = 0;
-		m_deps = ref PMap.empty;
+		m_extra = {
+			m_file = "";
+			m_sign = "";
+			m_time = 0.;
+			m_processed = 0;
+			m_deps = PMap.empty;
+			m_kind = MFake;
+		};
 	}
 
 let null_class =

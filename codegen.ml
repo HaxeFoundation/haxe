@@ -216,10 +216,8 @@ let rec build_generic ctx c p tl =
 		let mg = {
 			m_id = alloc_mid();
 			m_path = (pack,name);
-			m_file = m.m_file;
-			m_deps = m.m_deps; (* share *)
 			m_types = [];
-			m_processed = 0;
+			m_extra = m.m_extra; (* share *)
 		} in
 		let cg = mk_class mg (pack,name) c.cl_pos in
 		mg.m_types <- [TClassDecl cg];
@@ -948,7 +946,7 @@ let pp_counter = ref 1
 let post_process types filters =
 	(* ensure that we don't process twice the same (cached) module *)
 	List.iter (fun t ->
-		let m = (t_infos t).mt_module in
+		let m = (t_infos t).mt_module.m_extra in
 		if m.m_processed = 0 then m.m_processed <- !pp_counter;
 		if m.m_processed = !pp_counter then
 		match t with

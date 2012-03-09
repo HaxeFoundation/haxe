@@ -1172,9 +1172,14 @@ let type_module ctx m file tdecls loadp =
 		m_id = alloc_mid();
 		m_path = m;
 		m_types = [];
-		m_file = Common.get_full_path file;
-		m_deps = ref PMap.empty;
-		m_processed = 0;
+		m_extra = {
+			m_file = Common.get_full_path file;
+			m_sign = Common.get_signature ctx.com;
+			m_time = file_time file;
+			m_deps = PMap.empty;
+			m_processed = 0;
+			m_kind = if ctx.in_macro then MMacro else MCode;
+		};
 	} in
 	List.iter (fun (d,p) ->
 		match d with
@@ -1453,5 +1458,5 @@ let load_module ctx m p =
 			) in
 			type_module ctx m file decls p
 	) in
-	ctx.current.m_deps := PMap.add m2 () !(ctx.current.m_deps);
+	ctx.current.m_extra.m_deps <- PMap.add m2 () ctx.current.m_extra.m_deps;
 	m2
