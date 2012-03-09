@@ -25,10 +25,10 @@ type package_rule =
 
 type platform =
 	| Cross
-	| Flash
+	| Flash8
 	| Js
 	| Neko
-	| Flash9
+	| Flash
 	| Php
 	| Cpp
 
@@ -152,20 +152,20 @@ let get_signature com =
 		s
 
 let platforms = [
-	Flash;
+	Flash8;
 	Js;
 	Neko;
-	Flash9;
+	Flash;
 	Php;
 	Cpp
 ]
 
 let platform_name = function
 	| Cross -> "cross"
-	| Flash -> "flash"
+	| Flash8 -> "flash8"
 	| Js -> "js"
 	| Neko -> "neko"
-	| Flash9 -> "flash9"
+	| Flash -> "flash"
 	| Php -> "php"
 	| Cpp -> "cpp"
 

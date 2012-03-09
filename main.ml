@@ -590,7 +590,7 @@ try
 		com.file <- file;
 		Unix.putenv "__file__" file;
 		Unix.putenv "__platform__" file;
-		if (pf = Flash || pf = Flash9) && file_extension file = "swc" then Common.define com "swc";
+		if (pf = Flash8 || pf = Flash) && file_extension file = "swc" then Common.define com "swc";
 	in
 	let define f = Arg.Unit (fun () -> Common.define com f) in
 	let basic_args_spec = [
@@ -600,10 +600,9 @@ try
 			com.class_path <- normalize_path (expand_env path) :: com.class_path
 		),"<path> : add a directory to find source files");
 		("-js",Arg.String (set_platform Js),"<file> : compile code to JavaScript file");
-		("-swf",Arg.String (set_platform Flash),"<file> : compile code to Flash SWF file");
+		("-swf",Arg.String (set_platform Flash8),"<file> : compile code to Flash SWF file");
 		("-as3",Arg.String (fun dir ->
 			set_platform Flash dir;
-			if com.flash_version < 9. then com.flash_version <- 9.;
 			gen_as3 := true;
 			Common.define com "as3";
 			Common.define com "no_inline";
@@ -775,7 +774,6 @@ try
 		),"<dir> : set current working directory");
 		("-swf9",Arg.String (fun file ->
 			set_platform Flash file;
-			if com.flash_version < 9. then com.flash_version <- 9.;
 		),"<file> : [deprecated] compile code to Flash9 SWF file");
 	] in
 	let current = ref 0 in
@@ -800,7 +798,7 @@ try
 			(* no platform selected *)
 			set_platform Cross "";
 			"?"
-		| Flash | Flash9 ->
+		| Flash8 | Flash ->
 			if com.flash_version >= 9. then begin
 				let rec loop = function
 					| [] -> ()
@@ -810,13 +808,14 @@ try
 						loop l
 				in
 				loop Common.flash_versions;
-				com.package_rules <- PMap.add "flash" (Directory "flash9") com.package_rules;
-				com.package_rules <- PMap.add "flash9" Forbidden com.package_rules;
-				com.platform <- Flash9;
-				add_std "flash9";
-			end else begin
-				Common.define com ("flash" ^ string_of_int (int_of_float com.flash_version));
 				add_std "flash";
+			end else begin
+				com.package_rules <- PMap.add "flash" (Directory "flash8") com.package_rules;
+				com.package_rules <- PMap.add "flash8" Forbidden com.package_rules;
+				Common.define com "flash";
+				Common.define com ("flash" ^ string_of_int (int_of_float com.flash_version));
+				com.platform <- Flash8;
+				add_std "flash8";
 			end;
 			"swf"
 		| Neko -> add_std "neko"; "n"
@@ -835,6 +834,7 @@ try
 		if !cmds = [] && not !did_something then Arg.usage basic_args_spec usage;
 	end else begin
 		Common.log com ("Classpath : " ^ (String.concat ";" com.class_path));
+		Common.log com ("Defines : " ^ (String.concat ";" (PMap.foldi (fun v _ acc -> v :: acc) com.defines [])));
 		let t = Common.timer "typing" in
 		Typecore.type_expr_ref := (fun ctx e need_val -> Typer.type_expr ~need_val ctx e);
 		let tctx = Typer.create com in
@@ -864,7 +864,7 @@ try
 		| Some file ->
 			Common.log com ("Generating xml : " ^ com.file);
 			Genxml.generate com file);
-		if com.platform = Flash9 || com.platform = Cpp then List.iter (Codegen.fix_overrides com) com.types;
+		if com.platform = Flash || com.platform = Cpp then List.iter (Codegen.fix_overrides com) com.types;
 		if Common.defined com "dump" then Codegen.dump_types com;
 		t();
 		(match com.platform with
@@ -878,10 +878,10 @@ try
 			end;
 		| Cross ->
 			()
-		| Flash | Flash9 when !gen_as3 ->
+		| Flash8 | Flash when !gen_as3 ->
 			Common.log com ("Generating AS3 in : " ^ com.file);
 			Genas3.generate com;
-		| Flash | Flash9 ->
+		| Flash8 | Flash ->
 			Common.log com ("Generating swf : " ^ com.file);
 			Genswf.generate com !swf_header;
 		| Neko ->

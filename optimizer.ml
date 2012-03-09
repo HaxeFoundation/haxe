@@ -125,7 +125,7 @@ let rec type_inline ctx cf f ethis params tret p force =
 				if we pass a Null<T> var to an inlined method that needs a T.
 				we need to force a local var to be created on some platforms.
 			*)
-			if is_nullable v.v_type && is_null e.etype && (match ctx.com.platform with Flash9 | Cpp -> true | _ -> false) then (local v).i_write <- true;
+			if is_nullable v.v_type && is_null e.etype && (match ctx.com.platform with Flash | Cpp -> true | _ -> false) then (local v).i_write <- true;
 			(match e.eexpr, opt with
 			| TConst TNull , Some c -> mk (TConst c) v.v_type e.epos
 			| _ -> e) :: loop pl al

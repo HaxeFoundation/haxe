@@ -185,7 +185,7 @@ let rec unify_call_params ctx name el args r p inline =
 	let rec loop acc l l2 skip =
 		match l , l2 with
 		| [] , [] ->
-			if not (inline && ctx.g.doinline) && (match ctx.com.platform with Flash | Flash9 | Js -> true | _ -> false) then
+			if not (inline && ctx.g.doinline) && (match ctx.com.platform with Flash8 | Flash | Js -> true | _ -> false) then
 				List.rev (no_opt acc), r
 			else
 				List.rev (List.map fst acc), r
@@ -413,7 +413,7 @@ let field_access ctx mode f t e p =
 				normal()
 		| AccCall m ->
 			if m = ctx.curmethod && (match e.eexpr with TConst TThis -> true | TTypeExpr (TClassDecl c) when c == ctx.curclass -> true | _ -> false) then
-				let prefix = (match ctx.com.platform with Flash9 when Common.defined ctx.com "as3" -> "$" | _ -> "") in
+				let prefix = (match ctx.com.platform with Flash when Common.defined ctx.com "as3" -> "$" | _ -> "") in
 				AKExpr (mk (TField (e,prefix ^ f.cf_name)) t p)
 			else if mode = MSet then
 				AKSet (e,m,t,f.cf_name)
@@ -577,7 +577,7 @@ let rec type_field ctx e i p mode =
 		in
 		(try
 			let t , f = class_field c i in
-			if e.eexpr = TConst TSuper && (match f.cf_kind with Var _ -> true | _ -> false) && Common.platform ctx.com Flash9 then error "Cannot access superclass variable for calling : needs to be a proper method" p;
+			if e.eexpr = TConst TSuper && (match f.cf_kind with Var _ -> true | _ -> false) && Common.platform ctx.com Flash then error "Cannot access superclass variable for calling : needs to be a proper method" p;
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then display_error ctx ("Cannot access to private field " ^ i) p;
 			field_access ctx mode f (apply_params c.cl_types params t) e p
 		with Not_found -> try
@@ -623,7 +623,7 @@ let rec type_field ctx e i p mode =
 			field_access ctx mode f (field_type f) e p
 		)
 	| TMono r ->
-		if ctx.untyped && (match ctx.com.platform with Flash -> Common.defined ctx.com "swf-mark" | _ -> false) then ctx.com.warning "Mark" p;
+		if ctx.untyped && (match ctx.com.platform with Flash8 -> Common.defined ctx.com "swf-mark" | _ -> false) then ctx.com.warning "Mark" p;
 		let f = {
 			cf_name = i;
 			cf_type = mk_mono();
@@ -2683,7 +2683,7 @@ let rec create com =
 		| TTypeDecl td ->
 			(match snd td.t_path with
 			| "Null" ->
-				let f9 = platform com Flash9 in
+				let f9 = platform com Flash in
 				let cpp = platform com Cpp in
 				ctx.t.tnull <- if not (f9 || cpp) then (fun t -> t) else (fun t -> if is_nullable t then TType (td,[t]) else t);
 			| _ -> ());

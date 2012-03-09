@@ -789,7 +789,7 @@ let captured_vars com e =
 		e
 	| Cpp ->
 		do_wrap (all_vars e) e
-	| Flash | Flash9 ->
+	| Flash8 | Flash ->
 		let used = all_vars e in
 		PMap.iter (fun _ v -> v.v_capture <- true) used;
 		out_loop e
