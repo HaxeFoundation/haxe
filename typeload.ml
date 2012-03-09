@@ -1458,5 +1458,5 @@ let load_module ctx m p =
 			) in
 			type_module ctx m file decls p
 	) in
-	ctx.current.m_extra.m_deps <- PMap.add m2 () ctx.current.m_extra.m_deps;
+	add_dependency ctx.current m2;
 	m2

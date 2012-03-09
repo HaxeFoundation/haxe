@@ -417,7 +417,7 @@ and wait_loop boot_com host port =
 				let m = Hashtbl.find cache.c_modules (m.m_path,m.m_extra.m_sign) in
 				if m.m_extra.m_kind <> MFake && m.m_extra.m_file <> Common.get_full_path (Typeload.resolve_module_file com2 m.m_path (ref[]) p) then raise Not_found;
 				if file_time m.m_extra.m_file <> m.m_extra.m_time then raise Not_found;
-				PMap.iter (fun m2 _ -> if not (check m2) then begin dep := Some m2; raise Not_found end) m.m_extra.m_deps;
+				PMap.iter (fun _ m2 -> if not (check m2) then begin dep := Some m2; raise Not_found end) m.m_extra.m_deps;
 				true
 			with Not_found ->
 				Hashtbl.add added m.m_id false;
@@ -436,7 +436,7 @@ and wait_loop boot_com host port =
 				| _ ->
 					if verbose then print_endline ("Reusing  cached module " ^ Ast.s_type_path m.m_path);
 					Typeload.add_module ctx m p;
-					PMap.iter (fun m2 _ -> add_modules m0 m2) m.m_extra.m_deps);
+					PMap.iter (fun _ m2 -> add_modules m0 m2) m.m_extra.m_deps);
 			end
 		in
 		try

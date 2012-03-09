@@ -235,7 +235,7 @@ and module_def_extra = {
 	m_file : string;
 	m_sign : string;
 	m_time : float;
-	mutable m_deps : (module_def,unit) PMap.t;
+	mutable m_deps : (int,module_def) PMap.t;
 	mutable m_processed : int;
 	mutable m_kind : module_kind;
 }
@@ -314,6 +314,9 @@ let null_class =
 	let c = mk_class null_module ([],"") Ast.null_pos in
 	c.cl_private <- true;
 	c
+
+let add_dependency m mdep =
+	m.m_extra.m_deps <- PMap.add mdep.m_id mdep m.m_extra.m_deps
 
 let arg_name (a,_) = a.v_name
 
