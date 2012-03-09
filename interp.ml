@@ -100,6 +100,7 @@ type extern_api = {
 	get_local_type : unit -> t option;
 	get_build_fields : unit -> value;
 	define_type : value -> unit;
+	module_dependency : string -> string -> unit;
 }
 
 type callstack = {
@@ -1955,6 +1956,13 @@ let macro_lib =
 				VNull
 			| _ ->
 				error()
+		);
+		"module_dependency", Fun2 (fun m file ->
+			match m, file with
+			| VString m, VString file ->
+				(get_ctx()).curapi.module_dependency m file;
+				VNull
+			| _ -> error()
 		);
 	]
 

@@ -2158,7 +2158,7 @@ let generate ctx =
 		) c.cl_statics
 
 	in
-	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_path m2.m_path) (Hashtbl.fold (fun _ m acc -> m :: acc) ctx.g.modules []) in	
+	let sorted_modules = List.sort (fun m1 m2 -> compare m1.m_path m2.m_path) (Hashtbl.fold (fun _ m acc -> m :: acc) ctx.g.modules []) in
 	List.iter (fun m -> List.iter loop m.m_types) sorted_modules;
 	get_main ctx, List.rev !types, sorted_modules
 
@@ -2235,6 +2235,8 @@ let typing_timer ctx f =
 			t();
 			raise e
 
+let fake_modules = Hashtbl.create 0
+
 let make_macro_api ctx p =
 	let make_instance = function
 		| TClassDecl c -> TInst (c,List.map snd c.cl_types)
@@ -2256,7 +2258,7 @@ let make_macro_api ctx p =
 		Interp.get_module = (fun s ->
 			typing_timer ctx (fun() ->
 				let path = parse_path s in
-				List.map make_instance (Typeload.load_module ctx path p).m_types
+				Typeload.load_module ctx path p
 			)
 		);
 		Interp.on_generate = (fun f ->
@@ -2372,6 +2374,24 @@ let make_macro_api ctx p =
 		Interp.define_type = (fun v ->
 			let m, tdef, pos = (try Interp.decode_type_def v with Interp.Invalid_expr -> Interp.exc (Interp.VString "Invalid type definition")) in
 			ignore(Typeload.type_module ctx m "" [tdef,pos] pos);
+		);
+		Interp.module_dependency = (fun mpath file ->
+			let m = typing_timer ctx (fun() -> Typeload.load_module ctx (parse_path mpath) p) in
+			let file = Extc.get_full_path file in
+			let mdep = (try Hashtbl.find fake_modules file with Not_found ->
+				let mdep = {
+					m_id = alloc_mid();
+					m_path = (["$DEP"],file);
+					m_file = file;
+					m_types = [];
+					m_deps = ref PMap.empty;
+					m_processed = 0;
+				} in
+				Hashtbl.add fake_modules file mdep;
+				mdep
+			) in
+			(m.m_deps) := PMap.add mdep () !(m.m_deps);
+			Hashtbl.replace ctx.g.modules mdep.m_path mdep
 		);
 	}
 

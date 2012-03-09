@@ -410,6 +410,9 @@ and wait_loop boot_com host port =
 			| _ -> ()
 		) m.Type.m_types
 	in
+	let is_fake_module m =
+		fst m.Type.m_path = ["$DEP"]
+	in
 	let modules_added = Hashtbl.create 0 in
 	Typeload.type_module_hook := (fun (ctx:Typecore.typer) mpath p ->
 		let com2 = ctx.Typecore.com in
@@ -427,7 +430,7 @@ and wait_loop boot_com host port =
 			Hashtbl.add modules_checked m.Type.m_path ok;
 			try
 				let time, m = Hashtbl.find cache.c_modules (m.Type.m_path,sign) in
-				if m.Type.m_file <> Common.get_full_path (Typeload.resolve_module_file com2 m.Type.m_path (ref[]) p) then raise Not_found;
+				if not (is_fake_module m) && m.Type.m_file <> Common.get_full_path (Typeload.resolve_module_file com2 m.Type.m_path (ref[]) p) then raise Not_found;
 				if file_time m.Type.m_file <> time then raise Not_found;
 				PMap.iter (fun m2 _ -> if not (check m2) then begin dep := Some m2; raise Not_found end) !(m.Type.m_deps);
 				true
@@ -478,7 +481,7 @@ and wait_loop boot_com host port =
 		let rec cache_context com =
 			if not com.dead_code_elimination then begin
 				List.iter (cache_module (get_signature com)) com.modules;
-				if verbose then print_endline ("Cached " ^ string_of_int (List.length com.modules) ^ " modules");				
+				if verbose then print_endline ("Cached " ^ string_of_int (List.length com.modules) ^ " modules");
 			end;
 			match com.get_macros() with
 			| None -> ()

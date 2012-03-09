@@ -191,6 +191,15 @@ class Context {
 		load("define_type", 1)(t);
 	}
 
+
+	/**
+		Manually add a dependency between a module and a third party file :
+		make sure the module gets recompiled (if it was cached) in case the extern file has been modified as well.
+	**/
+	public static function registerModuleDependency( modulePath : String, externFile : String ) {
+		load("module_dependency", 2)(untyped modulePath.__s,untyped externFile.__s);
+	}
+
 	static function load( f, nargs ) : Dynamic {
 		#if macro
 		return neko.Lib.load("macro", f, nargs);
