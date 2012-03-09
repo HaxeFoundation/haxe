@@ -40,9 +40,9 @@ class ImportAll {
 			if( !Context.defined("js") ) return;
 		case "cpp":
 			if( !Context.defined("cpp") ) return;
-		case "flash":
+		case "flash8":
 			if( !Context.defined("flash") || Context.defined("flash9") ) return;
-		case "flash9":
+		case "flash":
 			if( !Context.defined("flash9") ) return;
 		case "mt","mtwin":
 			return;
@@ -68,7 +68,7 @@ class ImportAll {
 				var full = (pack == "") ? file : pack + "." + file;
 				if( StringTools.endsWith(file, ".hx") ) {
 					var cl = full.substr(0, full.length - 3);
-					if( StringTools.startsWith(cl,"flash9.") )
+					if( StringTools.startsWith(cl,"flash8.") )
 						cl = "flash."+cl.substr(7);
 					switch( cl ) {
 					case "ImportAll", "neko.db.MacroManager": continue;

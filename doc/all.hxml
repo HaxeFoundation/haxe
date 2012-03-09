@@ -8,7 +8,7 @@
 -swf all.swf
 -swf-version 8
 --no-output
--xml flash.xml
+-xml flash8.xml
 -D flash_lite
 --macro ImportAll.run()
 
