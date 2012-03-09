@@ -202,7 +202,7 @@ let delete_file f = try Sys.remove f with _ -> ()
 
 let expand_env path =
 	let r = Str.regexp "%\\([A-Za-z0-9_]+\\)%" in
-	Str.global_substitute r (fun s -> try Sys.getenv (Str.matched_group 1 s) with Not_found -> "") path
+	Str.global_substitute r (fun s -> let key = Str.matched_group 1 s in try Sys.getenv key with Not_found -> "%" ^ key ^ "%") path
 
 let unquote v =
 	let len = String.length v in
