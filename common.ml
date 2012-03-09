@@ -241,7 +241,8 @@ let timer name =
 	curtime := t :: !curtime;
 	(function() -> close t)
 
-let rec close_time() =
+let rec close_times() =
 	match !curtime with
 	| [] -> ()
-	| t :: _ -> close t
+	| t :: _ -> close t; close_times()
+

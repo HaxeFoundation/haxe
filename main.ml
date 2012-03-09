@@ -496,12 +496,13 @@ and wait_loop boot_com host port =
 				Common.default_print := ssend sin;
 				Parser.resume_display := Ast.null_pos;
 				measure_times := false;
+				close_times();
 				Hashtbl.clear Common.htimers;
-				let other = Common.timer "other" in
+				let _ = Common.timer "other" in
 				Hashtbl.clear modules_added;
 				start_time := get_time();
 				process_params flush [] data;
-				other();
+				close_times();
 				if !measure_times then report_times (fun s -> ssend sin (s ^ "\n"))
 			with Completion str ->
 				if verbose then print_endline ("Completion Response =\n" ^ str);
@@ -923,12 +924,7 @@ with
 		let ctx = Type.print_context() in
 		let fields = List.map (fun (name,t,doc) -> name, Type.s_type ctx t, (match doc with None -> "" | Some d -> d)) fields in
 		let fields = if !measure_times then begin
-			let rec loop() =
-				match !curtime with
-				| [] -> ()
-				| _ -> close_time(); loop();
-			in
-			loop();
+			close_times();
 			let tot = ref 0. in
 			Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
 			let fields = ("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. !start_time), "") :: fields in
