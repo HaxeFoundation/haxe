@@ -589,7 +589,7 @@ try
 		Common.init_platform com pf;
 		com.file <- file;
 		Unix.putenv "__file__" file;
-		Unix.putenv "__platform__" file;
+		Unix.putenv "__platform__" (platform_name pf);
 		if (pf = Flash8 || pf = Flash) && file_extension file = "swc" then Common.define com "swc";
 	in
 	let define f = Arg.Unit (fun () -> Common.define com f) in
@@ -808,6 +808,9 @@ try
 						loop l
 				in
 				loop Common.flash_versions;
+				Common.define com "flash";
+				com.defines <- PMap.remove "flash8" com.defines;
+				com.package_rules <- PMap.remove "flash" com.package_rules;
 				add_std "flash";
 			end else begin
 				com.package_rules <- PMap.add "flash" (Directory "flash8") com.package_rules;
