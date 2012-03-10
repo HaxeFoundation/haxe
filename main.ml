@@ -614,7 +614,7 @@ try
 			com.class_path <- normalize_path (expand_env path) :: com.class_path
 		),"<path> : add a directory to find source files");
 		("-js",Arg.String (set_platform Js),"<file> : compile code to JavaScript file");
-		("-swf",Arg.String (set_platform Flash8),"<file> : compile code to Flash SWF file");
+		("-swf",Arg.String (set_platform Flash),"<file> : compile code to Flash SWF file");
 		("-as3",Arg.String (fun dir ->
 			set_platform Flash dir;
 			gen_as3 := true;
