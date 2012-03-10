@@ -133,6 +133,7 @@ type context = {
 	mutable venv : value array;
 	(* context *)
 	mutable curapi : extern_api;
+	mutable delayed : (unit -> (unit -> value)) DynArray.t;
 	(* eval *)
 	mutable locals_map : (string, int) PMap.t;
 	mutable locals_count : int;
@@ -2011,8 +2012,6 @@ let get_ident ctx s =
 
 let no_env = [||]
 
-let delayed_fun = ref None
-
 let rec eval ctx (e,p) =
 	match e with
 	| EConst c ->
@@ -2058,19 +2057,8 @@ let rec eval ctx (e,p) =
 		)
 	| ECall ((EConst (Builtin "typewrap"),_),[t]) ->
 		(fun() -> VAbstract (ATDecl (Obj.magic t)))
-	| ECall ((EConst (Builtin "delay_call"),_),[(EConst (Int mid),_);(EConst (Int index),_)]) ->
-		(*
-			This is again super tricky : we need to retreive the delayed call stored into the module
-		*)
-		let mref = (try List.find (fun m -> m.m_id = mid) ctx.com.modules with _ -> assert false) in
-		let fsetup = (try DynArray.get mref.m_extra.m_macro_delayed index with _ -> assert false) in
-		delayed_fun := None;
-		fsetup();
-		let f = (match !delayed_fun with
-		| None -> assert false
-		| Some f -> delayed_fun := None; f
-		) in
-		(* -- done -- *)
+	| ECall ((EConst (Builtin "delay_call"),_),[EConst (Int index),_]) ->
+		let f = DynArray.get ctx.delayed index in
 		let fbuild = ref None in
 		let old = { ctx with com = ctx.com } in
 		let compile_delayed_call() =
@@ -2798,9 +2786,9 @@ let load_prim ctx f n =
 	| _ ->
 		exc (VString "Invalid call")
 
-let alloc_delayed m f =
-	let pos = DynArray.length m.m_extra.m_macro_delayed in
-	DynArray.add m.m_extra.m_macro_delayed (fun() -> delayed_fun := Some f);
+let alloc_delayed ctx f =
+	let pos = DynArray.length ctx.delayed in
+	DynArray.add ctx.delayed f;
 	pos
 
 let create com api =
@@ -2833,6 +2821,7 @@ let create com api =
 		do_compare = Obj.magic();
 		(* context *)
 		curapi = api;
+		delayed = DynArray.create();
 	} in
 	ctx.do_call <- call ctx;
 	ctx.do_string <- to_string ctx 0;

@@ -2393,7 +2393,6 @@ let make_macro_api ctx p =
 						m_processed = 0;
 						m_kind = MFake;
 						m_binded_res = PMap.empty;
-						m_macro_delayed = DynArray.create();
 					};
 				} in
 				Hashtbl.add fake_modules file mdep;
@@ -2466,7 +2465,8 @@ let load_macro ctx cpath f p =
 		| _ -> error "Macro should be called on a class" p
 	) in
 	let meth = (match follow meth.cf_type with TFun (args,ret) -> args,ret,meth.cf_pos | _ -> error "Macro call should be a method" p) in
-	if not ctx.in_macro then begin
+	let in_macro = ctx.in_macro in
+	if not in_macro then begin
 		finalize ctx2;
 		let _, types, modules = generate ctx2 in
 		ctx2.com.types <- types;
@@ -2572,26 +2572,24 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	let e = (if ctx.in_macro then begin
 		(*
 			this is super-tricky : we can't evaluate a macro inside a macro because we might trigger some cycles.
-			So instead, we generate a $delay_call(i) expression that will only evaluate the
+			So instead, we generate a haxe.macro.Context.delayedCalled(i) expression that will only evaluate the
 			macro if/when it is called.
 
 			The tricky part is that the whole delayed-evaluation process has to use the same contextual informations
 			as if it was evaluated now.
-
-			Actually, there's still an issue with module caching : the macro-context used is the cached one, not the real
-			runtime one. However, because of dependency resolution, it should not cause much trouble - I hope
 		*)
 		let ctx = {
 			ctx with locals = ctx.locals;
 		} in
 		let mctx = Interp.get_ctx() in
-		let pos = Interp.alloc_delayed ctx.current (fun() ->
+		let pos = Interp.alloc_delayed mctx (fun() ->
 			match call() with
 			| None -> (fun() -> raise Interp.Abort)
 			| Some e -> Interp.eval mctx (Genneko.gen_expr mctx.Interp.gen (type_expr ctx e))
 		) in
+		ctx.current.m_extra.m_time <- -1.; (* disable caching for modules having macro-in-macro *)
 		let e = (EConst (Ident "__dollar__delay_call"),p) in
-		Some (EUntyped (ECall (e,[EConst (Int (string_of_int ctx.current.m_id)),p;EConst (Int (string_of_int pos)),p]),p),p)
+		Some (EUntyped (ECall (e,[EConst (Int (string_of_int pos)),p]),p),p)
 	end else
 		call()
 	) in
