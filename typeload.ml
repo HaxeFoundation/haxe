@@ -1307,6 +1307,12 @@ let type_module ctx m file tdecls loadp =
 		| EEnum d ->
 			let e = get_enum d.d_name in
 			let ctx = { ctx with type_params = e.e_types } in
+			let h = (try Some (Hashtbl.find ctx.g.type_patches e.e_path) with Not_found -> None) in
+			(match h with
+			| None -> ()
+			| Some (h,hcl) ->
+				Hashtbl.iter (fun _ _ -> error "Field type patch not supported for enums" e.e_pos) h;
+				e.e_meta <- e.e_meta @ hcl.tp_meta);
 			let constructs = ref d.d_data in
 			let get_constructs() =
 				List.map (fun (c,doc,meta,pl,p) ->
