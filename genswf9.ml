@@ -147,6 +147,7 @@ let real_path = function
 	| [] , "Float" -> [] , "Number"
 	| [] , "Bool" -> [] , "Boolean"
 	| [] , "Enum" -> [] , "Class"
+	| [] , "EnumValue" -> [] , "Object"
 	| ["flash";"xml"], "XML" -> [], "XML"
 	| ["flash";"xml"], "XMLList" -> [], "XMLList"
 	| ["flash";"utils"], "QName" -> [] , "QName"

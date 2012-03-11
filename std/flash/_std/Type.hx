@@ -49,7 +49,7 @@ enum ValueType {
 		return c;
 	}
 
-	public static function getEnum( o : Dynamic ) : Enum<Dynamic> untyped {
+	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped {
 		var cname = __global__["flash.utils.getQualifiedClassName"](o);
 		if( cname == "null" || cname.substr(0,8) == "builtin." )
 			return null;
@@ -259,16 +259,16 @@ enum ValueType {
 		return true;
 	}
 
-	public static function enumConstructor( e : Dynamic ) : String {
-		return e.tag;
+	public static function enumConstructor( e : EnumValue ) : String {
+		return untyped e.tag;
 	}
 
-	public static function enumParameters( e : Dynamic ) : Array<Dynamic> {
-		return if( e.params == null ) [] else e.params;
+	public static function enumParameters( e : EnumValue ) : Array<Dynamic> {
+		return untyped if( e.params == null ) [] else e.params;
 	}
 
-	public inline static function enumIndex( e : Dynamic ) : Int {
-		return e.index;
+	public inline static function enumIndex( e : EnumValue ) : Int {
+		return untyped e.index;
 	}
 
 	public static function allEnums<T>( e : Enum<T> ) : Array<T> {

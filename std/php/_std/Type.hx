@@ -32,7 +32,7 @@ enum ValueType {
 			return __call__("_hx_ttype", c);
 	}
 
-	public static function getEnum( o : Dynamic ) : Enum<Dynamic> untyped {
+	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped {
 		if(!__php__("$o instanceof Enum"))
 			return null;
 		else
@@ -210,19 +210,19 @@ enum ValueType {
 		return true;
 	}
 
-	public static function enumConstructor( e : Dynamic ) : String {
-		return e.tag;
+	public static function enumConstructor( e : EnumValue ) : String {
+		return untyped e.tag;
 	}
 
-	public static function enumParameters( e : Dynamic ) : Array<Dynamic> {
+	public static function enumParameters( e : EnumValue ) : Array<Dynamic> untyped {
 		if(e.params == null)
 			return [];
 		else
-			return untyped __php__("new _hx_array($e->params)");
+			return __php__("new _hx_array($e->params)");
 	}
 
-	public inline static function enumIndex( e : Dynamic ) : Int {
-		return e.index;
+	public inline static function enumIndex( e : EnumValue ) : Int {
+		return untyped e.index;
 	}
 
 	public static function allEnums<T>( e : Enum<T> ) : Array<T> {

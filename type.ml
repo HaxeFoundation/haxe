@@ -910,6 +910,8 @@ let rec unify a b =
 		(match !(an.a_status) with
 		| EnumStatics e -> unify (TEnum (e,List.map snd e.e_types)) pt
 		| _ -> error [cannot_unify a b])
+	| TEnum _, TInst ({ cl_path = [],"EnumValue" },[]) ->
+		()
 	| TDynamic t , _ ->
 		if t == a then
 			()

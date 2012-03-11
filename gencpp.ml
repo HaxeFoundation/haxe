@@ -344,6 +344,7 @@ let rec class_string klass suffix params =
 	|  ([],"#Int") -> "/* # */int"
 	|  (["haxe";"io"],"Unsigned_char__") -> "unsigned char"
 	|  ([],"Class") -> "::Class"
+	|  ([],"EnumValue") -> "Dynamic"
 	|  ([],"Null") -> (match params with
 			| [t] ->
 				(match follow t with

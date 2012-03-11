@@ -53,7 +53,7 @@ extern class Type {
 	/**
 		Returns the enum of a value or [null] if this value is not an Enum instance.
 	**/
-	public static function getEnum( o : Dynamic ) : Enum<Dynamic>;
+	public static function getEnum( o : EnumValue ) : Enum<Dynamic>;
 
 
 	/**
@@ -133,17 +133,17 @@ extern class Type {
 	/**
 		Returns the constructor of an enum
 	**/
-	public static function enumConstructor( e : Dynamic ) : String;
+	public static function enumConstructor( e : EnumValue ) : String;
 
 	/**
 		Returns the parameters of an enum
 	**/
-	public static function enumParameters( e : Dynamic ) : Array<Dynamic>;
+	public static function enumParameters( e : EnumValue ) : Array<Dynamic>;
 
 	/**
 		Returns the index of the constructor of an enum
 	**/
-	public static function enumIndex( e : Dynamic ) : Int;
+	public static function enumIndex( e : EnumValue ) : Int;
 
 	/**
 		Returns the list of all enum values that don't take any parameter.

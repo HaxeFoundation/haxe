@@ -46,7 +46,7 @@ enum ValueType {
 		return p.__class__;
 	}
 
-	public static function getEnum( o : Dynamic ) : Enum<Dynamic> untyped {
+	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped {
 		if( __dollar__typeof(o) != __dollar__tobject )
 			return null;
 		return o.__enum__;
@@ -202,16 +202,16 @@ enum ValueType {
 		return true;
 	}
 
-	public static function enumConstructor( e : Dynamic ) : String {
-		return new String(e.tag);
+	public static function enumConstructor( e : EnumValue ) : String {
+		return new String(untyped e.tag);
 	}
 
-	public static function enumParameters( e : Dynamic ) : Array<Dynamic> {
-		return if( e.args == null ) [] else untyped Array.new1(e.args,__dollar__asize(e.args));
+	public static function enumParameters( e : EnumValue ) : Array<Dynamic> {
+		return untyped if( e.args == null ) [] else Array.new1(e.args,__dollar__asize(e.args));
 	}
 
-	public inline static function enumIndex( e : Dynamic ) : Int {
-		return e.index;
+	public inline static function enumIndex( e : EnumValue ) : Int {
+		return untyped e.index;
 	}
 
 	public static function allEnums<T>( e : Enum<T> ) : Array<T> {

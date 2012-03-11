@@ -101,7 +101,7 @@ typedef SSerialized = String
 typedef SNekoSerialized = haxe.io.Bytes
 
 @:native("Int")
-extern class SFlags<T> {
+extern class SFlags<T:EnumValue> {
 	public inline function init() : Void {
 		untyped __this__ = 0;
 	}
@@ -114,7 +114,7 @@ extern class SFlags<T> {
 	public inline function unset( v : T ) : Void {
 		untyped __this__ &= 0xFFFFFFF - (1 << Type.enumIndex(v));
 	}
-	public inline static function ofInt<T>( i : Int ) : SFlags<T> {
+	public inline static function ofInt( i : Int ) : SFlags<Dynamic> {
 		return cast i;
 	}
 	public inline function toInt() : Int {

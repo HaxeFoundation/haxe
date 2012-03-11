@@ -45,7 +45,7 @@ enum ValueType {
 		return o.__class__;
 	}
 
-	public static function getEnum( o : Dynamic ) : Enum<Dynamic> untyped {
+	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped {
 		if( o == null )
 			return null;
 		return o.__enum__;
@@ -202,16 +202,16 @@ enum ValueType {
 		return true;
 	}
 
-	public inline static function enumConstructor( e : Dynamic ) : String {
-		return e[0];
+	public inline static function enumConstructor( e : EnumValue ) : String {
+		return untyped e[0];
 	}
 
-	public inline static function enumParameters( e : Dynamic ) : Array<Dynamic> {
-		return e.slice(2);
+	public inline static function enumParameters( e : EnumValue ) : Array<Dynamic> {
+		return untyped e.slice(2);
 	}
 
-	public inline static function enumIndex( e : Dynamic ) : Int {
-		return e[1];
+	public inline static function enumIndex( e : EnumValue ) : Int {
+		return untyped e[1];
 	}
 
 	public static function allEnums<T>( e : Enum<T> ) : Array<T> {
