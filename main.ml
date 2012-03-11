@@ -746,6 +746,9 @@ try
 			com.foptimize <- false;
 			Common.define com "no_opt";
 		), ": disable code optimizations");
+		("--js-modern", Arg.Unit (fun() ->
+			Common.define com "js_modern";
+		), ": wrap JS output in a closure, strict mode, and other upcoming features");
 		("--php-front",Arg.String (fun f ->
 			if com.php_front <> None then raise (Arg.Bad "Multiple --php-front");
 			com.php_front <- Some f;

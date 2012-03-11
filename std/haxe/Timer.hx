@@ -113,7 +113,9 @@ class Timer {
 
 	#if js
 	static function __init__() untyped {
-		if( __js__('typeof')(haxe_timers) == 'undefined' ) haxe_timers = [];
+		if( __js__('typeof')(haxe_timers) == 'undefined' ) {
+			var haxe_timers = [];
+		}
 	}
 	#end
 	

@@ -42,6 +42,7 @@ type ctx = {
 	packages : (string list,unit) Hashtbl.t;
 	stack : Codegen.stack_context;
 	smap : sourcemap;
+	js_modern : bool;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
 	mutable inits : texpr list;
@@ -778,10 +779,17 @@ let generate_package_create ctx (p,_) =
 			Hashtbl.add ctx.packages (p :: acc) ();
 			(match acc with
 			| [] ->
-				print ctx "var %s = %s || {}" p p;
+				if ctx.js_modern then
+					print ctx "var %s = {}" p
+				else
+					print ctx "var %s = %s || {}" p p
 			| _ ->
 				let p = String.concat "." (List.rev acc) ^ (field p) in
-		        print ctx "if(!%s) %s = {}" p p);
+				if ctx.js_modern then
+					print ctx "%s = {}" p
+				else
+					print ctx "if(!%s) %s = {}" p p
+			);
 			newline ctx;
 			loop (p :: acc) l
 	in
@@ -835,11 +843,18 @@ let generate_class ctx c =
 	| _ -> ());
 	let p = s_path ctx c.cl_path in
 	generate_package_create ctx c.cl_path;
-	print ctx "%s = $hxClasses[\"%s\"] = " p p;
+	if ctx.js_modern then
+		print ctx "%s = " p
+	else
+		print ctx "%s = $hxClasses[\"%s\"] = " p p;
 	(match c.cl_constructor with
 	| Some { cf_expr = Some e } -> gen_expr ctx e
 	| _ -> print ctx "function() { }");
 	newline ctx;
+	if ctx.js_modern then begin
+		print ctx "$hxClasses[\"%s\"] = %s" p p;
+		newline ctx;
+	end;
 	print ctx "%s.__name__ = [%s]" p (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst c.cl_path @ [snd c.cl_path])));
 	newline ctx;
 	(match c.cl_implements with
@@ -953,6 +968,7 @@ let alloc_ctx com =
 			sources_hash = Hashtbl.create 0;
 			mappings = Buffer.create 16;
 		};
+		js_modern = Common.defined com "js_modern";
 		statics = [];
 		inits = [];
 		current = null_class;
@@ -981,12 +997,17 @@ let generate com =
 	| Some g -> g()
 	| None ->
 	let ctx = alloc_ctx com in
-	print ctx "var $_, $hxClasses = $hxClasses || {}, $estr = function() { return js.Boot.__string_rec(this,''); }
+	if ctx.js_modern then begin
+		print ctx "(function () {";
+		newline ctx;
+	end;
+	let hxClasses = if ctx.js_modern then "{}" else "$hxClasses || {}" in
+	print ctx "var $_, $hxClasses = %s, $estr = function() { return js.Boot.__string_rec(this,''); }
 function $extend(from, fields) {
 	function inherit() {}; inherit.prototype = from; var proto = new inherit();
 	for (var name in fields) proto[name] = fields[name];
 	return proto;
-}";
+}" hxClasses;
 	newline ctx;
 	List.iter (generate_type ctx) com.types;
 	print ctx "js.Boot.__res = {}";
@@ -1007,6 +1028,7 @@ function $extend(from, fields) {
 	(match com.main with
 	| None -> ()
 	| Some e -> gen_expr ctx e);
+	if ctx.js_modern then print ctx "})()";
 	if com.debug then write_mappings ctx;
 	let ch = open_out_bin com.file in
 	output_string ch (Buffer.contents ctx.buf);
