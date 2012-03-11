@@ -266,11 +266,14 @@ let classify ctx t =
 	| TLazy _ ->
 		assert false
 
-let ident i =
-	(* some field identifiers might cause issues with SWC *)
+(* some field identifiers might cause issues with SWC *)
+let reserved i =
 	match i with
-	| "int" -> HMPath ([],"_" ^ i)
-	| _ -> HMPath ([],i)
+	| "int" -> "_" ^ i
+	| _ -> i
+
+let ident i =
+	HMPath ([],reserved i)
 
 let as3 p =
 	HMName (p,HNNamespace "http://adobe.com/AS3/2006/builtin")
@@ -1980,7 +1983,7 @@ let generate_class ctx c =
 				| _ -> loop_meta l
 		in
 		if c.cl_interface then
-			HMName (f.cf_name, HNNamespace (match c.cl_path with [],n -> n | l,n -> String.concat "." l ^ ":" ^ n))
+			HMName (reserved f.cf_name, HNNamespace (match c.cl_path with [],n -> n | l,n -> String.concat "." l ^ ":" ^ n))
 		else
 			loop_meta (find_meta c)
 	in
