@@ -213,6 +213,17 @@ let hash f =
 	done;
 	!h
 
+let constants =
+	let h = Hashtbl.create 0 in
+	List.iter (fun f -> Hashtbl.add h (hash f) f) 
+	["done";"read";"write";"min";"max";"file";"args";"loadprim";"loadmodule";"__a";"__s";"h";
+    "tag";"index";"length";"message";"pack";"name";"params";"sub";"doc";"kind";"meta";"access";
+	"constraints";"opt";"type";"value";"ret";"expr";"field";"values";"get";"__string";"toString";
+	"$";"add";"remove";"has";"__t";"module";"isPrivate";"isPublic";"isExtern";"isInterface";"exclude";
+	"constructs";"names";"superClass";"interfaces";"fields";"statics";"constructor";"init";"t";
+	"gid";"uid";"atime";"mtime";"ctime";"dev";"ino";"nlink";"rdev";"size";"mode";"pos";"len"];
+	h
+
 let h_get = hash "__get" and h_set = hash "__set"
 and h_add = hash "__add" and h_radd = hash "__radd"
 and h_sub = hash "__sub" and h_rsub = hash "__rsub"
@@ -2833,7 +2844,7 @@ let create com api =
 		exc = [];
 		vthis = VNull;
 		venv = [||];
-		fields_cache = Hashtbl.create 0;
+		fields_cache = Hashtbl.copy constants;
 		(* api *)
 		do_call = Obj.magic();
 		do_string = Obj.magic();
