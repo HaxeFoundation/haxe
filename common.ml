@@ -242,9 +242,12 @@ let close t =
 	let now = get_time() in
 	let dt = now -. start in
 	t.total <- t.total +. dt;
-	(match !curtime with
-	| [] -> assert false
-	| tt :: l -> if t == tt then curtime := l else failwith ("Closing " ^ t.name ^ " while " ^ tt.name ^ " in use"));	
+	let rec loop() =
+		match !curtime with
+		| [] -> failwith ("Timer " ^ t.name ^ " closed while not active")
+		| tt :: l -> curtime := l; if t != tt then loop()
+	in
+	loop();
 	(* because of rounding errors while adding small times, we need to make sure that we don't have start > now *)
 	List.iter (fun ct -> ct.start <- List.map (fun t -> let s = t +. dt in if s > now then now else s) ct.start) !curtime
 
