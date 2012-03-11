@@ -23,6 +23,8 @@ open Type
 
 type context = {
 	com : Common.context;
+	mutable flush : unit -> unit;
+	mutable setup : unit -> unit;
 	mutable messages : string list;
 	mutable params : string list;
 	mutable has_next : bool;
@@ -315,15 +317,6 @@ let add_libs com libs =
 		) [] lines in
 		com.class_path <- lines @ com.class_path
 
-let create_context params =
-	{
-		com = Common.create version;
-		params = params;
-		messages = [];
-		has_next = false;
-		has_error = false;
-	}
-
 let default_flush ctx =
 	List.iter prerr_endline (List.rev ctx.messages);
 	if ctx.has_error && !prompt then begin
@@ -332,21 +325,34 @@ let default_flush ctx =
 	end;
 	if ctx.has_error then exit 1
 
-let rec process_params flush acc = function
+let create_context params =
+	let ctx = {
+		com = Common.create version;
+		params = params;
+		flush = (fun()->());
+		setup = (fun()->());
+		messages = [];
+		has_next = false;
+		has_error = false;
+	} in
+	ctx.flush <- (fun() -> default_flush ctx);
+	ctx
+
+let rec process_params create acc = function
 	| [] ->
-		let ctx = create_context (List.rev acc) in
-		init flush ctx;
-		flush ctx
+		let ctx = create (List.rev acc) in
+		init ctx;
+		ctx.flush()
 	| "--next" :: l ->
-		let ctx = create_context (List.rev acc) in
+		let ctx = create (List.rev acc) in
 		ctx.has_next <- true;
-		init flush ctx;
-		flush ctx;
-		process_params flush [] l
+		init ctx;
+		ctx.flush();
+		process_params create [] l
 	| "--cwd" :: dir :: l ->
 		(* we need to change it immediately since it will affect hxml loading *)
 		(try Unix.chdir dir with _ -> ());
-		process_params flush (dir :: "--cwd" :: acc) l
+		process_params create (dir :: "--cwd" :: acc) l
 	| "--connect" :: hp :: l ->
 		(match !global_cache with
 		| None ->
@@ -354,11 +360,11 @@ let rec process_params flush acc = function
 			do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l)
 		| Some _ ->
 			(* already connected : skip *)
-			process_params flush acc l)
+			process_params create acc l)
 	| arg :: l ->
 		match List.rev (ExtString.String.nsplit arg ".") with
-		| "hxml" :: _ -> process_params flush acc (parse_hxml arg @ l)
-		| _ -> process_params flush (arg :: acc) l
+		| "hxml" :: _ -> process_params create acc (parse_hxml arg @ l)
+		| _ -> process_params create (arg :: acc) l
 
 and wait_loop boot_com host port =
 	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
@@ -366,6 +372,7 @@ and wait_loop boot_com host port =
 	Unix.listen sock 10;
 	Sys.catch_break false;
 	let verbose = boot_com.verbose in
+	let has_parse_error = ref false in
 	if verbose then print_endline ("Waiting on " ^ host ^ ":" ^ string_of_int port);
 	let bufsize = 1024 in
 	let tmp = String.create bufsize in
@@ -385,9 +392,10 @@ and wait_loop boot_com host port =
 			if time <> ftime then raise Not_found;
 			data
 		with Not_found ->
+			has_parse_error := false;
 			let data = Typeload.parse_file com2 file p in
 			if verbose then print_endline ("Parsed " ^ ffile);
-			Hashtbl.replace cache.c_files fkey (ftime,data);
+			if not !has_parse_error then Hashtbl.replace cache.c_files fkey (ftime,data);
 			data
 	);
 	let cache_module m =
@@ -490,11 +498,18 @@ and wait_loop boot_com host port =
 			| None -> ()
 			| Some com -> cache_context com
 		in
-		let flush ctx =
-			Hashtbl.clear modules_added;
-			cache_context ctx.com;
-			List.iter (fun s -> ssend sin (s ^ "\n"); if verbose then print_endline ("> " ^ s)) (List.rev ctx.messages);
-			if ctx.has_error then ssend sin "\x02\n";
+		let create params =
+			let ctx = create_context params in
+			ctx.flush <- (fun() ->
+				Hashtbl.clear modules_added;
+				cache_context ctx.com;
+				List.iter (fun s -> ssend sin (s ^ "\n"); if verbose then print_endline ("> " ^ s)) (List.rev ctx.messages);
+				if ctx.has_error then ssend sin "\x02\n";
+			);
+			ctx.setup <- (fun() ->
+				Parser.display_error := (fun e p -> has_parse_error := true; ctx.com.error (Parser.error_msg e) p);
+			);
+			ctx
 		in
 		(try
 			let data = parse_hxml_data (read_loop()) in
@@ -510,7 +525,7 @@ and wait_loop boot_com host port =
 				let _ = Common.timer "other" in
 				Hashtbl.clear modules_added;
 				start_time := get_time();
-				process_params flush [] data;
+				process_params create [] data;
 				close_times();
 				if !measure_times then report_times (fun s -> ssend sin (s ^ "\n"))
 			with Completion str ->
@@ -553,7 +568,7 @@ and do_connect host port args =
 	List.iter print lines;
 	if !has_error then exit 1
 
-and init flush ctx =
+and init ctx =
 	let usage = Printf.sprintf
 		"haXe Compiler %d.%.2d - (c)2005-2011 Motion-Twin\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
 		(version / 100) (version mod 100) (if Sys.os_type = "Win32" then ".exe" else "")
@@ -853,6 +868,7 @@ try
 	if !classes = [([],"Std")] && not !force_typing then begin
 		if !cmds = [] && not !did_something then Arg.usage basic_args_spec usage;
 	end else begin
+		ctx.setup();
 		Common.log com ("Classpath : " ^ (String.concat ";" com.class_path));
 		Common.log com ("Defines : " ^ (String.concat ";" (PMap.foldi (fun v _ acc -> v :: acc) com.defines [])));
 		let t = Common.timer "typing" in
@@ -994,7 +1010,7 @@ with
 let other = Common.timer "other" in
 Sys.catch_break true;
 (try
-	process_params default_flush [] (List.tl (Array.to_list Sys.argv));
+	process_params create_context [] (List.tl (Array.to_list Sys.argv));
 with Completion c ->
 	prerr_endline c;
 	exit 0
