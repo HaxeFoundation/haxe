@@ -461,7 +461,30 @@ let rec need_parent e =
 	| TCast _ | TThrow _ | TReturn _ | TTry _ | TMatch _ | TSwitch _ | TFor _ | TIf _ | TWhile _ | TBinop _ | TContinue | TBreak
 	| TBlock _ | TVars _ | TFunction _ | TUnop _ -> true
 
-let sanitize_expr e =
+let rec add_final_return e t =
+	let def_return p =		
+		let c = (match follow t with
+			| TInst ({ cl_path = [],"Int" },_) -> TInt 0l
+			| TInst ({ cl_path = [],"Float" },_) -> TFloat "0."
+			| TEnum ({ e_path = [],"Bool" },_) -> TBool false
+			| _ -> TNull
+		) in
+		{ eexpr = TReturn (Some { eexpr = TConst c; epos = p; etype = t }); etype = t; epos = p }
+	in
+	match e.eexpr with
+	| TBlock el ->
+		(match List.rev el with
+		| [] -> e
+		| elast :: el ->
+			match add_final_return elast t with
+			| { eexpr = TBlock el2 } -> { e with eexpr = TBlock ((List.rev el) @ el2) }
+			| elast -> { e with eexpr = TBlock (List.rev (elast :: el)) })
+	| TReturn _ ->
+		e
+	| _ ->
+		{ e with eexpr = TBlock [e;def_return e.epos] }
+
+let sanitize_expr com e =
 	let parent e =
 		match e.eexpr with
 		| TParenthesis _ -> e
@@ -528,9 +551,17 @@ let sanitize_expr e =
 		let e2 = complex e2 in
 		{ e with eexpr = TFor (v,e1,e2) }
 	| TFunction f ->
-		(match f.tf_expr.eexpr with
-		| TBlock _ -> e
-		| _ -> { e with eexpr = TFunction { f with tf_expr = block f.tf_expr } })
+		let f = (match com.platform, follow f.tf_type with
+			| _, TEnum ({ e_path = [],"Void" },[]) -> f
+			| Flash , t when Common.defined com "as3" -> { f with tf_expr = add_final_return f.tf_expr t }
+			| Cpp, t -> { f with tf_expr = add_final_return f.tf_expr t }
+			| _ -> f 
+		) in
+		let f = (match f.tf_expr.eexpr with
+			| TBlock _ -> f
+			| _ -> { f with tf_expr = block f.tf_expr }
+		) in
+		{ e with eexpr = TFunction f }
 	| TCall (e2,args) ->
 		if need_parent e2 then { e with eexpr = TCall(parent e2,args) } else e
 	| TField (e2,f) ->
@@ -581,7 +612,7 @@ let reduce_expr ctx e =
 		e
 
 let rec sanitize ctx e =
-	sanitize_expr (reduce_expr ctx (Type.map_expr (sanitize ctx) e))
+	sanitize_expr ctx.com (reduce_expr ctx (Type.map_expr (sanitize ctx) e))
 
 (* ---------------------------------------------------------------------- *)
 (* REDUCE *)
@@ -603,7 +634,7 @@ let rec reduce_loop ctx e =
 		let fstr = string_of_float f in		
 		if (match classify_float f with FP_nan | FP_infinite -> false | _ -> float_of_string fstr = f) then { e with eexpr = TConst (TFloat fstr) } else e
 	in
-	sanitize_expr (match e.eexpr with
+	sanitize_expr ctx.com (match e.eexpr with
 	| TIf ({ eexpr = TConst (TBool t) },e1,e2) ->
 		(if t then e1 else match e2 with None -> { e with eexpr = TBlock [] } | Some e -> e)
 	| TWhile ({ eexpr = TConst (TBool false) },sub,flag) ->
