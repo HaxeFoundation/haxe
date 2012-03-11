@@ -26,7 +26,6 @@ type context = {
 	mutable flush : unit -> unit;
 	mutable setup : unit -> unit;
 	mutable messages : string list;
-	mutable params : string list;
 	mutable has_next : bool;
 	mutable has_error : bool;
 }
@@ -327,8 +326,7 @@ let default_flush ctx =
 
 let create_context params =
 	let ctx = {
-		com = Common.create version;
-		params = params;
+		com = Common.create version params;
 		flush = (fun()->());
 		setup = (fun()->());
 		messages = [];
@@ -809,7 +807,7 @@ try
 		),"<file> : [deprecated] compile code to Flash9 SWF file");
 	] in
 	let current = ref 0 in
-	let args = Array.of_list ("" :: ctx.params) in
+	let args = Array.of_list ("" :: ctx.com.args) in
 	let args_callback cl = classes := make_path cl :: !classes in
 	Arg.parse_argv ~current args (basic_args_spec @ adv_args_spec) args_callback usage;
 	add_libs com (!cp_libs);

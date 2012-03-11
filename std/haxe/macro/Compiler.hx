@@ -61,6 +61,14 @@ class Compiler {
 		untyped load("add_class_path",1)(path.__s);
 	}
 
+	public static function getOutput() : String {
+		return new String(untyped load("get_output",0)());
+	}
+
+	public static function setOutput( fileOrDir : String ) {
+		untyped load("set_output",1)(untyped fileOrDir.__s);
+	}
+
 	/**
 		Include for compilation all classes defined in the given package excluding the ones referenced in the ignore list.
 	**/

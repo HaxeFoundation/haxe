@@ -124,6 +124,8 @@ type context = {
 	mutable do_string : value -> string;
 	mutable do_loadprim : value -> value -> value;
 	mutable do_compare : value -> value -> cmp;
+	mutable loader : value;
+	mutable exports : value;
 	(* runtime *)
 	mutable stack : value DynArray.t;
 	mutable callstack : callstack list;
@@ -727,13 +729,6 @@ let builtins =
 	let h = Hashtbl.create 0 in
 	List.iter (fun (n,f) -> Hashtbl.add h n (VFunction f)) funcs;
 	List.iter (fun (n,v) -> Hashtbl.add h n v) vals;
-	let loader = obj hash [
-		"args",VArray [||];
-		"loadprim",VFunction (Fun2 (fun a b -> (get_ctx()).do_loadprim a b));
-		"loadmodule",VFunction (Fun2 (fun a b -> assert false));
-	] in
-	Hashtbl.add h "loader" (VObject loader);
-	Hashtbl.add h "exports" (VObject { ofields = [||]; oproto = None });
 	h
 
 (* ---------------------------------------------------------------------- *)
@@ -1977,6 +1972,14 @@ let macro_lib =
 				encode_expr (make_ast e)
 			| _ -> error()
 		);
+		"get_output", Fun0 (fun() ->
+			VString (ccom()).file
+		);
+		"set_output", Fun1 (fun s ->
+			match s with
+			| VString s -> (ccom()).file <- s; VNull
+			| _ -> error()
+		);
 	]
 
 (* ---------------------------------------------------------------------- *)
@@ -2033,6 +2036,10 @@ let rec eval ctx (e,p) =
 			let f = float_of_string f in
 			(fun() -> VFloat f)
 		| String s -> (fun() -> VString s)
+		| Builtin "loader" ->
+			(fun() -> ctx.loader)
+		| Builtin "exports" ->
+			(fun() -> ctx.exports)
 		| Builtin s ->
 			let b = (try Hashtbl.find builtins s with Not_found -> throw ctx p ("Builtin not found '" ^ s ^ "'")) in
 			(fun() -> b)
@@ -2800,6 +2807,11 @@ let alloc_delayed ctx f =
 	pos
 
 let create com api =
+	let loader = obj hash [
+		"args",VArray (Array.of_list (List.map (fun s -> VString s) com.args));
+		"loadprim",VFunction (Fun2 (fun a b -> (get_ctx()).do_loadprim a b));
+		"loadmodule",VFunction (Fun2 (fun a b -> assert false));
+	] in
 	let ctx = {
 		com = com;
 		gen = Genneko.new_context com true;
@@ -2830,6 +2842,8 @@ let create com api =
 		(* context *)
 		curapi = api;
 		delayed = DynArray.create();
+		loader = VObject loader;
+		exports = VObject { ofields = [||]; oproto = None };
 	} in
 	ctx.do_call <- call ctx;
 	ctx.do_string <- to_string ctx 0;
