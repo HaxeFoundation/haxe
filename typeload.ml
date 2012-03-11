@@ -1392,7 +1392,12 @@ let resolve_module_file com m remap p =
 			) in
 			String.concat "/" (x :: l) ^ "/" ^ name
 	) ^ ".hx" in
-	Common.find_file com file
+	let file = Common.find_file com file in
+	match String.lowercase (snd m) with
+	| "con" | "aux" | "prn" | "nul" | "com1" | "com2" | "com3" | "lpt1" | "lpt2" | "lpt3" when Sys.os_type = "Win32" ->
+		(* these names are reserved by the OS - old DOS legacy, such files cannot be easily created but are reported as visible *)
+		if (try (Unix.stat file).Unix.st_size with _ -> 0) > 0 then file else raise Not_found
+	| _ -> file
 
 let parse_module ctx m p =
 	let remap = ref (fst m) in
