@@ -336,6 +336,30 @@ class TestMisc extends Test {
 		t( parts.remove('"a":["hello"') );
 		t( parts.remove('"wor\'\\"\\n\\t\\rd"]') );
 		eq( parts.join("#"), "" );
+		
+		// no support for regexps
+		#if flash8
+		return;
+		#end
+		
+		function id(v:Dynamic,?pos) eq(haxe.Json.parse(haxe.Json.stringify(v)),v);
+		
+		id(true);
+		id(false);
+		id(null);
+		id(0);
+		id(145);
+		id( -145 );
+		id(0.15461);
+		id( -485.15461);
+		id( 1e10 );
+		id( -1e-10 );
+		id( "" );
+		id( "hello" );
+		id( "he\n\r\t\\\\llo");
+		
+		eq( haxe.Json.parse('"\\u00E9"'), "é" );
+		
 	}
 	
 }

@@ -36,6 +36,9 @@ class Json {
 
 #if (haxeJSON || !flash11)
 	var buf : StringBuf;
+	var str : String;
+	var pos : Int;
+	var reg_float : EReg;
 
 	function new() {
 	}
@@ -155,13 +158,180 @@ class Json {
 		buf.add("'");
 	}
 	#end
+
+	function doParse( str : String ) {
+		reg_float = ~/^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?/;
+		this.str = str;
+		this.pos = 0;
+		return parseRec();
+	}
+
+	function invalidChar() {
+		pos--; // rewind
+		throw "Invalid char "+StringTools.fastCodeAt(str,pos)+" at position "+pos;
+	}
+
+	inline function nextChar() {
+		return StringTools.fastCodeAt(str,pos++);
+	}
+
+	function parseRec() : Dynamic {
+		while( true ) {
+			var c = nextChar();
+			switch( c ) {
+			case ' '.code, '\r'.code, '\n'.code, '\t'.code:
+				// loop
+			case '{'.code:
+				var obj = {}, field = null, comma : Null<Bool> = null;
+				while( true ) {
+					var c = nextChar();
+					switch( c ) {
+					case ' '.code, '\r'.code, '\n'.code, '\t'.code:
+						// loop
+					case '}'.code:
+						if( field != null || comma == false )
+							invalidChar();
+						return obj;
+					case ':'.code:
+						if( field == null )
+							invalidChar();
+						Reflect.setField(obj,field,parseRec());
+						field = null;
+						comma = true;
+					case ','.code:
+						if( comma ) comma = false else invalidChar();
+					case '"'.code:
+						if( comma ) invalidChar();
+						field = parseString();
+					default:
+						invalidChar();
+					}
+				}
+			case '['.code:
+				var arr = [], comma : Null<Bool> = null;
+				while( true ) {
+					var c = nextChar();
+					switch( c ) {
+					case ' '.code, '\r'.code, '\n'.code, '\t'.code:
+						// loop
+					case ']'.code:
+						if( comma == false ) invalidChar();
+						return arr;
+					case ','.code:
+						if( comma ) comma = false else invalidChar();
+					default:
+						if( comma ) invalidChar();
+						arr.push(parseRec());
+						comma = true;
+					}
+				}
+			case 't'.code:
+				var save = pos;
+				if( nextChar() != 'r'.code || nextChar() != 'u'.code || nextChar() != 'e'.code ) {
+					pos = save;
+					invalidChar();
+				}
+				return true;
+			case 'f'.code:
+				var save = pos;
+				if( nextChar() != 'a'.code || nextChar() != 'l'.code || nextChar() != 's'.code || nextChar() != 'e'.code ) {
+					pos = save;
+					invalidChar();
+				}
+				return false;
+			case 'n'.code:
+				var save = pos;
+				if( nextChar() != 'u'.code || nextChar() != 'l'.code || nextChar() != 'l'.code ) {
+					pos = save;
+					invalidChar();
+				}
+				return null;
+			case '"'.code:
+				return parseString();
+			case '0'.code, '1'.code,'2'.code,'3'.code,'4'.code,'5'.code,'6'.code,'7'.code,'8'.code,'9'.code,'-'.code:
+				pos--;
+				if( !reg_float.match(str.substr(pos)) )
+					throw "Invalid float at position "+pos;
+				var v = reg_float.matched(0);
+				pos += v.length;
+				return Std.parseFloat(v);
+			default:
+				invalidChar();
+			}
+		}
+		return null;
+	}
+
+	function parseString() {
+		var start = pos;
+		var buf = new StringBuf();
+		while( true ) {
+			var c = nextChar();
+			if( c == '"'.code )
+				break;
+			if( c == '\\'.code ) {
+				buf.addSub(str,start, pos - start - 1);
+				c = nextChar();
+				switch( c ) {
+				case "r".code: buf.addChar("\r".code);
+				case "n".code: buf.addChar("\n".code);
+				case "t".code: buf.addChar("\t".code);
+				case "b".code: buf.addChar(8);
+				case "f".code: buf.addChar(12);
+				case "/".code, '\\'.code, '"'.code: buf.addChar(c);
+				case 'u'.code:
+					var uc = Std.parseInt("0x" + str.substr(pos, 4));
+					pos += 4;
+					#if (neko || php || cpp)
+					if( uc <= 0x7F )
+						buf.addChar(uc);
+					else if( uc <= 0x7FF ) {
+						buf.addChar(0xC0 | (uc >> 6));
+						buf.addChar(0x80 | (uc & 63));
+					} else if( uc <= 0xFFFF ) {
+						buf.addChar(0xE0 | (uc >> 12));
+						buf.addChar(0x80 | ((uc >> 6) & 63));
+						buf.addChar(0x80 | (uc & 63));
+					} else {
+						buf.addChar(0xF0 | (uc >> 18));
+						buf.addChar(0x80 | ((uc >> 12) & 63));
+						buf.addChar(0x80 | ((uc >> 6) & 63));
+						buf.addChar(0x80 | (uc & 63));
+					}
+					#else
+					buf.addChar(uc);
+					#end
+				default:
+					throw "Invalid escape sequence \\" + String.fromCharCode(c) + " at position " + (pos - 1);
+				}
+				start = pos;
+			}
+			#if (neko || php || cpp)
+			// ensure utf8 chars are not cut
+			else if( c >= 0x80 ) {
+				pos++;
+				if( c >= 0xE0 ) pos += 1 + (c & 32);
+			}
+			#end
+			else if( StringTools.isEOF(c) )
+				throw "Unclosed string";
+		}
+		buf.addSub(str,start, pos - start - 1);
+		return buf.toString();
+	}
+
 #end
 
-/*
-	public static function parse( text : String ) {
-		return new JSON().doParse(text);
+	public static function parse( text : String ) : Dynamic {
+		#if (__php && !haxeJSON)
+		// don't use because of arrays wrappers
+		return untyped __call__("json_encode", value);
+		#elseif (flash11 && !haxeJSON)
+		return null;
+		#else
+		return new Json().doParse(text);
+		#end
 	}
-*/
 
 	public static function stringify( value : Dynamic ) : String {
 		#if (__php && !haxeJSON)
