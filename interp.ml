@@ -92,7 +92,7 @@ type extern_api = {
 	get_type : string -> Type.t option;
 	get_module : string -> Type.t list;
 	on_generate : (Type.t list -> unit) -> unit;
-	parse_string : string -> Ast.pos -> Ast.expr;
+	parse_string : string -> Ast.pos -> bool -> Ast.expr;
 	typeof : Ast.expr -> Type.t;
 	type_patch : string -> string -> bool -> string option -> unit;
 	meta_patch : string -> string -> string option -> bool -> unit;
@@ -1752,9 +1752,9 @@ let macro_lib =
 				VNull
 			| _ -> error()
 		);
-		"parse", Fun2 (fun s p ->
-			match s, p with
-			| VString s, VAbstract (APos p) -> encode_expr ((get_ctx()).curapi.parse_string s p)
+		"parse", Fun3 (fun s p b ->
+			match s, p, b with
+			| VString s, VAbstract (APos p), VBool b -> encode_expr ((get_ctx()).curapi.parse_string s p b)
 			| _ -> error()
 		);
 		"make_expr", Fun2 (fun v p ->

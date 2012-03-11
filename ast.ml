@@ -443,3 +443,67 @@ let unescape s =
 	in
 	loop false 0;
 	Buffer.contents b
+
+
+let map_expr loop (e,p) =
+	let opt f o =
+		match o with None -> None | Some v -> Some (f v)
+	in
+	let rec tparam = function
+		| TPType t -> TPType (ctype t)
+		| TPExpr e -> TPExpr (loop e)
+	and cfield f = 
+		{ f with cff_kind = (match f.cff_kind with
+			| FVar (t,e) -> FVar (opt ctype t, opt loop e)
+			| FFun f -> FFun (func f)
+			| FProp (get,set,t,e) -> FProp (get,set,ctype t,opt loop e))
+		}
+	and ctype = function
+		| CTPath t -> CTPath (tpath t)
+		| CTFunction (cl,c) -> CTFunction (List.map ctype cl, ctype c)
+		| CTAnonymous fl -> CTAnonymous (List.map cfield fl)
+		| CTParent t -> CTParent (ctype t)
+		| CTExtend (t,fl) -> CTExtend (tpath t, List.map cfield fl)
+		| CTOptional t -> CTOptional (ctype t)
+	and func f =
+		{	
+			f_params = List.map (fun (n,tl) -> n,List.map ctype tl)  f.f_params;
+			f_args = List.map (fun (n,o,t,e) -> n,o,opt ctype t,opt loop e) f.f_args;
+			f_type = opt ctype f.f_type;
+			f_expr = opt loop f.f_expr;
+		}
+	and tpath t = { t with tparams = List.map tparam t.tparams }
+	in
+	let e = (match e with
+	| EConst _ -> e
+	| EArray (e1,e2) -> EArray (loop e1, loop e2)
+	| EBinop (op,e1,e2) -> EBinop (op,loop e1, loop e2)
+	| EField (e,f) -> EField (loop e, f)
+	| EType (e,f) -> EType (loop e, f)
+	| EParenthesis e -> EParenthesis (loop e)
+	| EObjectDecl fl -> EObjectDecl (List.map (fun (f,e) -> f,loop e) fl)
+	| EArrayDecl el -> EArrayDecl (List.map loop el)
+	| ECall (e,el) -> ECall (loop e, List.map loop el)
+	| ENew (t,el) -> ENew (tpath t,List.map loop el)
+	| EUnop (op,f,e) -> EUnop (op,f,loop e)
+	| EVars vl -> EVars (List.map (fun (n,t,eo) -> n,opt ctype t,opt loop eo) vl)
+	| EFunction (n,f) -> EFunction (n,func f)
+	| EBlock el -> EBlock (List.map loop el)
+	| EFor (e1,e2) -> EFor (loop e1, loop e2)
+	| EIn (e1,e2) -> EIn (loop e1, loop e2)
+	| EIf (e,e1,e2) -> EIf (loop e, loop e1, opt loop e2)
+	| EWhile (econd,e,f) -> EWhile (loop econd, loop e, f)
+	| ESwitch (e,cases,def) -> ESwitch (loop e, List.map (fun (el,e) -> List.map loop el, loop e) cases, opt loop def)
+	| ETry (e, catches) -> ETry (loop e, List.map (fun (n,t,e) -> n,ctype t,loop e) catches)
+	| EReturn e -> EReturn (opt loop e)
+	| EBreak -> EBreak
+	| EContinue -> EContinue
+	| EUntyped e -> EUntyped (loop e)
+	| EThrow e -> EThrow (loop e)
+	| ECast (e,t) -> ECast (loop e,opt ctype t)
+	| EDisplay (e,f) -> EDisplay (loop e,f)
+	| EDisplayNew t -> EDisplayNew (tpath t)
+	| ETernary (e1,e2,e3) -> ETernary (loop e1,loop e2,loop e3)
+	| ECheckType (e,t) -> ECheckType (loop e, ctype t)
+	) in
+	(e,p)

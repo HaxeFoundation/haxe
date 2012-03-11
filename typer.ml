@@ -2188,24 +2188,27 @@ let get_type_patch ctx t sub =
 			Hashtbl.add h k tp;
 			tp
 
-let parse_string ctx s p =
+let parse_string ctx s p inlined =
 	let old = Lexer.save() in
 	let old_file = (try Some (Hashtbl.find Lexer.all_files p.pfile) with Not_found -> None) in
+	let old_display = !Parser.resume_display in
 	let restore() =
 		(match old_file with
 		| None -> ()
 		| Some f -> Hashtbl.replace Lexer.all_files p.pfile f);
+		if not inlined then Parser.resume_display := old_display;
 		Lexer.restore old;
 	in
 	Lexer.init p.pfile;
+	if not inlined then Parser.resume_display := null_pos;
 	let _, decls = try
 		Parser.parse ctx.com (Lexing.from_string s)
-	with Parser.Error (e,p) ->
+	with Parser.Error (e,pe) ->
 		restore();
-		error (Parser.error_msg e) p
-	| Lexer.Error (e,p) ->
+		error (Parser.error_msg e) (if inlined then pe else p)
+	| Lexer.Error (e,pe) ->
 		restore();
-		error (Lexer.error_msg e) p
+		error (Lexer.error_msg e) (if inlined then pe else p)
 	in
 	restore();
 	match decls with
@@ -2268,12 +2271,13 @@ let make_macro_api ctx p =
 				t()
 			)
 		);
-		Interp.parse_string = (fun s p ->
+		Interp.parse_string = (fun s p inl ->
 			typing_timer ctx (fun() ->
 				let head = "class X{static function main() " in
 				let head = (if p.pmin > String.length head then head ^ String.make (p.pmin - String.length head) ' ' else head) in
-				match parse_string ctx (head ^ s ^ "}") p with
-				| EClass { d_data = [{ cff_name = "main"; cff_kind = FFun { f_expr = Some e } }]} -> e
+				let rec loop e = let e = Ast.map_expr loop e in (fst e,p) in
+				match parse_string ctx (head ^ s ^ "}") p inl with
+				| EClass { d_data = [{ cff_name = "main"; cff_kind = FFun { f_expr = Some e } }]} -> if inl then e else loop e
 				| _ -> assert false
 			)
 		);
@@ -2283,7 +2287,7 @@ let make_macro_api ctx p =
 		Interp.type_patch = (fun t f s v ->
 			typing_timer ctx (fun() ->
 				let v = (match v with None -> None | Some s ->
-					match parse_string ctx ("typedef T = " ^ s) null_pos with
+					match parse_string ctx ("typedef T = " ^ s) null_pos false with
 					| ETypedef { d_data = ct } -> Some ct
 					| _ -> assert false
 				) in
@@ -2294,7 +2298,7 @@ let make_macro_api ctx p =
 			);
 		);
 		Interp.meta_patch = (fun m t f s ->
-			let m = (match parse_string ctx (m ^ " typedef T = T") null_pos with
+			let m = (match parse_string ctx (m ^ " typedef T = T") null_pos false with
 				| ETypedef t -> t.d_meta
 				| _ -> assert false
 			) in
@@ -2603,7 +2607,7 @@ let call_macro ctx path meth args p =
 let call_init_macro ctx e =
 	let p = { pfile = "--macro"; pmin = 0; pmax = 0 } in
 	let api = make_macro_api ctx p in
-	let e = api.Interp.parse_string e p in
+	let e = api.Interp.parse_string e p false in
 	match fst e with
 	| ECall (e,args) ->
 		let rec loop e =

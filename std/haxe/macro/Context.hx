@@ -113,10 +113,17 @@ class Context {
 	}
 
 	/**
-		Parse an expression.
+		Parse a constructed string into the corresponding expression.
 	**/
 	public static function parse( expr : String, pos : Position ) : Expr {
-		return load("parse", 2)(untyped expr.__s, pos);
+		return load("parse", 3)(untyped expr.__s, pos, false);
+	}
+
+	/**
+		Parse a string contained into source code into the corresponding expression. Errors positions are reported within this string
+	**/
+	public static function parseInlineString( expr : String, pos : Position ) : Expr {
+		return load("parse", 3)(untyped expr.__s, pos, true);
 	}
 
 	/**
