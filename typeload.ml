@@ -1127,7 +1127,7 @@ let init_class ctx c p herits fields =
 				let super_call = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p,List.map (fun (v,_) -> mk (TLocal v) v.v_type p) vars)) ctx.t.tvoid p in
 				let constr = mk (TFunction {
 					tf_args = vars;
-					tf_type = TFun (args,ctx.t.tvoid);
+					tf_type = ctx.t.tvoid;
 					tf_expr = super_call;
 				}) (TFun (List.map (fun (v,c) -> v.v_name, c <> None, v.v_type) vars,ctx.t.tvoid)) p in
 				c.cl_constructor <- Some { cf with cf_pos = p; cf_type = constr.etype; cf_meta = []; cf_doc = None; cf_expr = Some constr })
