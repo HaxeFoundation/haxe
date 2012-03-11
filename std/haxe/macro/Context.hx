@@ -200,6 +200,13 @@ class Context {
 
 
 	/**
+		Return the raw expression corresponding to the given typed expression.
+	**/
+	public static function getTypedExpr( t : Type.TypedExpr ) : Expr {
+		return load("get_typed_expr",1)(t);
+	}
+
+	/**
 		Manually add a dependency between a module and a third party file :
 		make sure the module gets recompiled (if it was cached) in case the extern file has been modified as well.
 	**/
