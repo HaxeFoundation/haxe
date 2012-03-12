@@ -42,18 +42,14 @@ class Lib {
 		return untyped __js__("eval")(code);
 	}
 
-	public static inline function typeof( code : String ) : String {
-		return untyped __js__("typeof")(code);
-	}
-
 	public static inline function setErrorHandler( f ) {
 		onerror = f;
 	}
 
 	static function __init__() {
-		if( typeof("document") != "undefined" )
+		if( untyped __js__("typeof document") != "undefined" )
 			document = untyped __js__("document");
-		if( typeof("window") != "undefined" ) {
+		if( untyped __js__("typeof window") != "undefined" ) {
 			window = untyped __js__("window");
 			window.onerror = function( msg, url, line ) {
 				var f = Lib.onerror;
