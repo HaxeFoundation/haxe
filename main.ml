@@ -401,6 +401,15 @@ and wait_loop boot_com host port =
 		List.iter (fun t ->
 			match t with
 			| TClassDecl c -> c.cl_restore()
+			| TEnumDecl e ->
+				let rec loop acc = function
+					| [] -> ()
+					| (":real",[Ast.EConst (Ast.String path),_],_) :: l ->
+						e.e_path <- Ast.parse_path path;
+						e.e_meta <- (List.rev acc) @ l;
+					| x :: l -> loop (x::acc) l
+				in
+				loop [] e.e_meta
 			| _ -> ()
 		) m.m_types
 	in
