@@ -40,7 +40,6 @@ type ctx = {
 	com : Common.context;
 	buf : Buffer.t;
 	packages : (string list,unit) Hashtbl.t;
-	stack : Codegen.stack_context;
 	smap : sourcemap;
 	js_modern : bool;
 	mutable current : tclass;
@@ -954,7 +953,6 @@ let generate_type ctx = function
 let alloc_ctx com =
 	let ctx = {
 		com = com;
-		stack = Codegen.stack_init com false;
 		buf = Buffer.create 16000;
 		packages = Hashtbl.create 0;
 		smap = {
@@ -1012,12 +1010,6 @@ function $extend(from, fields) {
 	List.iter (generate_type ctx) com.types;
 	print ctx "js.Boot.__res = {}";
 	newline ctx;
-	if com.debug then begin
-		print ctx "%s = []" ctx.stack.Codegen.stack_var;
-		newline ctx;
-		print ctx "%s = []" ctx.stack.Codegen.stack_exc_var;
-		newline ctx;
-	end;
 	print ctx "js.Boot.__init()";
 	newline ctx;
 	List.iter (fun e ->

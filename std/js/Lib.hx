@@ -50,34 +50,17 @@ class Lib {
 		onerror = f;
 	}
 
-	static function __init__() untyped {
-		if( __js__("typeof document") != "undefined" )
-			document = __js__("document");
-		if( __js__("typeof window") != "undefined" ) {
-			window = __js__("window");
-			#if debug
-	__js__('window.onerror = function(msg,url,line) {
-			var stack = $s.copy();
-			var f = js.Lib.onerror;
-			$s.splice(0,$s.length);
-			if( f == null ) {
-				var i = stack.length;
-				var s = "";
-				while( --i >= 0 )
-					s += "Called from "+stack[i]+"\\n";
-				alert(msg+"\\n\\n"+s);
-				return false;
-			}
-			return f(msg,stack);
-		}');
-			#else
-	__js__('window.onerror = function(msg,url,line) {
-			var f = js.Lib.onerror;
-			if( f == null )
-				return false;
-			return f(msg,[url+":"+line]);
-		}');
-			#end
+	static function __init__() {
+		if( typeof("document") != "undefined" )
+			document = untyped __js__("document");
+		if( typeof("window") != "undefined" ) {
+			window = untyped __js__("window");
+			window.onerror = function( msg, url, line ) {
+				var f = Lib.onerror;
+				if( f == null )
+					return false;
+				return f(msg, [url+":"+line]);
+			};
 		}
 	}
 

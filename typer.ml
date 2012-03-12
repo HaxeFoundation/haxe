@@ -2330,10 +2330,6 @@ let make_macro_api ctx p =
 						| None -> Interp.VNull
 						| Some e -> Interp.encode_texpr e
 					));
-					(* TODO(bruno): Deprecated, remove *)
-					"setDebugInfos", Interp.VFunction (Interp.Fun3 (fun c m s ->
-						Interp.VNull
-					));
 					"generateStatement", Interp.VFunction (Interp.Fun1 (fun v ->
 						match v with
 						| Interp.VAbstract (Interp.ATExpr e) ->
@@ -2349,8 +2345,6 @@ let make_macro_api ctx p =
 						);
 						Interp.VNull
 					));
-					"stackVar", Interp.enc_string (js_ctx.Genjs.stack.Codegen.stack_var);
-					"excVar", Interp.enc_string (js_ctx.Genjs.stack.Codegen.stack_exc_var);
 				] in
 				let t = macro_timer ctx "jsGenerator" in
 				gen jsctx;

@@ -112,7 +112,6 @@ class DefaultJSGenerator {
 		if( f.expr == null )
 			print("null");
 		else {
-			api.setDebugInfos(c, f.name, false);
 			genExpr(f.expr);
 		}
 		newline();
@@ -127,7 +126,6 @@ class DefaultJSGenerator {
 		} else switch( f.kind ) {
 		case FMethod(_):
 			fprint("$p$field = ");
-			api.setDebugInfos(c, f.name, true);
 			genExpr(f.expr);
 			newline();
 		default:
@@ -139,7 +137,6 @@ class DefaultJSGenerator {
 		genPackage(c.pack);
 		var p = getPath(c);
 		fprint("$p = ");
-		api.setDebugInfos(c, "new", false);
 		if( c.constructor != null )
 			genExpr(c.constructor.get().expr);
 		else
@@ -239,12 +236,6 @@ class DefaultJSGenerator {
 		newline();
 		print("js.Boot.__res = {}");
 		newline();
-		if( Context.defined("debug") ) {
-			fprint("${api.stackVar} = []");
-			newline();
-			fprint("${api.excVar} = []");
-			newline();
-		}
 		print("js.Boot.__init()");
 		newline();
 		for( e in inits ) {

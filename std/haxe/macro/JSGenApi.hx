@@ -35,10 +35,6 @@ typedef JSGenApi = {
 	var types : Array<Type>;
 	/** the main call expression, if a -main class is defined **/
 	var main : Null<TypedExpr>;
-	/** the variable used to store the temporary stack in debug mode **/
-	var stackVar(default,null) : String;
-	/** the variable used to store the temporary exception in debug mode **/
-	var excVar(default,null) : String;
 	/** generate the JS code for any given typed expression **/
 	function generateStatement( e : TypedExpr ) : String;
 	/** generate the JS code for a given typed expression-value **/
@@ -51,6 +47,4 @@ typedef JSGenApi = {
 	function quoteString( s : String ) : String;
 	/** create the metadata expression for the given type **/
 	function buildMetaData( t : BaseType ) : Null<TypedExpr>;
-	/** set the current class/method for debug stack management **/
-	function setDebugInfos( c : ClassType, meth : String, isStatic : Bool ) : Void;
 }

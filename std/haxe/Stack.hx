@@ -52,7 +52,7 @@ class Stack {
 			var a = makeStack( new flash.errors.Error().getStackTrace() );
 			a.shift(); // remove Stack.callstack()
 			return a;
-		#elseif (flash || js)
+		#elseif flash
 			return makeStack("$s");
 		#elseif php
 			return makeStack("%s");
@@ -85,7 +85,7 @@ class Stack {
 				i--;
 			}
 			return a;
-		#elseif (flash || js)
+		#elseif flash
 			return makeStack("$e");
 		#elseif php
 			return makeStack("%e");
@@ -168,8 +168,8 @@ class Stack {
 				s = r.matchedRight();
 			}
 			return a;
-		#elseif (flash || js)
-			var a : Array<String> = untyped #if flash __eval__(s) #else try __js__("eval")(s) catch( e : Dynamic ) [] #end;
+		#elseif flash
+			var a : Array<String> = untyped __eval__(s);
 			var m = new Array();
 			for( i in 0...a.length - if(s == "$s") 2 else 0 ) {
 				var d = a[i].split("::");
