@@ -43,6 +43,7 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	var length(default, null) : Int;
 
 	@:overload(function(j:js.JQuery):Void{})
+	@:overload(function(j:js.Dom.Window):Void{})
 	@:overload(function(j:js.Dom.HtmlDom):Void{})
 	function new( html : String ) : Void;
 
