@@ -42,6 +42,10 @@ class Lib {
 		return untyped __js__("eval")(code);
 	}
 
+	public static inline function typeof( code : String ) : String {
+		return untyped __js__("typeof")(code);
+	}
+
 	public static function setErrorHandler( f ) {
 		onerror = f;
 	}
