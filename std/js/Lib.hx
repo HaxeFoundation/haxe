@@ -38,7 +38,7 @@ class Lib {
 		untyped __js__("alert")(js.Boot.__string_rec(v,""));
 	}
 
-	public static function eval( code : String ) : Dynamic {
+	public static inline function eval( code : String ) : Dynamic {
 		return untyped __js__("eval")(code);
 	}
 
@@ -46,7 +46,7 @@ class Lib {
 		return untyped __js__("typeof")(code);
 	}
 
-	public static function setErrorHandler( f ) {
+	public static inline function setErrorHandler( f ) {
 		onerror = f;
 	}
 
