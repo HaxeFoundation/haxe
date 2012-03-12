@@ -628,6 +628,7 @@ typedef Window = {
 	var onresize : Event -> Void;
 	var onscroll : Event -> Void;
 	var onunload : Event -> Void;
-	var onerror : Event -> Void;
+
+	var onerror : String -> String -> Int -> Bool;
 
 }
