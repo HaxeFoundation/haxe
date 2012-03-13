@@ -23,17 +23,16 @@ open Common
 type pos = Ast.pos
 
 type sourcemap = {
-	mutable source_last_line : int;
-	mutable source_last_col : int;
-	mutable source_last_file : int;
-
-	mutable print_comma : bool;
-	mutable output_last_col : int;
-	mutable output_current_col : int;
-
 	sources : (string) DynArray.t;
 	sources_hash : (string, int) Hashtbl.t;
 	mappings : Buffer.t;
+
+	mutable source_last_line : int;
+	mutable source_last_col : int;
+	mutable source_last_file : int;
+	mutable print_comma : bool;
+	mutable output_last_col : int;
+	mutable output_current_col : int;
 }
 
 type ctx = {
@@ -42,6 +41,7 @@ type ctx = {
 	packages : (string list,unit) Hashtbl.t;
 	smap : sourcemap;
 	js_modern : bool;
+
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
 	mutable inits : texpr list;
