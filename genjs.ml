@@ -185,12 +185,15 @@ let write_mappings ctx =
 	print ctx "\n//@ sourceMappingURL=%s.map" basefile;
 	let channel = open_out_bin (ctx.com.file ^ ".map") in
 	let sources = DynArray.to_list ctx.smap.sources in
+	let to_url file =
+		ExtString.String.map (fun c -> if c == '\\' then '/' else c) (Common.get_full_path file)
+	in
 	output_string channel "{\n";
 	output_string channel "\"version\":3,\n";
 	output_string channel ("\"file\":\"" ^ basefile ^ "\",\n");
 	output_string channel ("\"sourceRoot\":\"file://\",\n");
 	output_string channel ("\"sources\":[" ^
-		(String.concat "," (List.map (fun s -> "\"" ^ Common.get_full_path s ^ "\"") sources)) ^
+		(String.concat "," (List.map (fun s -> "\"" ^ to_url s ^ "\"") sources)) ^
 		"],\n");
 	output_string channel "\"names\":[],\n";
 	output_string channel "\"mappings\":\"";
