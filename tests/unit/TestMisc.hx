@@ -343,6 +343,10 @@ class TestMisc extends Test {
 		#end
 		
 		function id(v:Dynamic,?pos) eq(haxe.Json.parse(haxe.Json.stringify(v)),v);
+		function deepId(v:Dynamic) {
+			var str = haxe.Json.stringify(v);
+			eq(haxe.Json.stringify(haxe.Json.parse(str)), str);
+		}
 		
 		id(true);
 		id(false);
@@ -357,6 +361,10 @@ class TestMisc extends Test {
 		id( "" );
 		id( "hello" );
 		id( "he\n\r\t\\\\llo");
+
+		deepId( {field: 4} );
+		deepId( {test: {nested: null}} );
+		deepId( {array: [1,2,3,"str"] );
 		
 		eq( haxe.Json.parse('"\\u00E9"'), "é" );
 		
