@@ -364,7 +364,7 @@ class TestMisc extends Test {
 
 		deepId( {field: 4} );
 		deepId( {test: {nested: null}} );
-		deepId( {array: [1,2,3,"str"] );
+		deepId( {array: [1,2,3,"str"]} );
 		
 		eq( haxe.Json.parse('"\\u00E9"'), "é" );
 		
