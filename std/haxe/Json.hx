@@ -221,6 +221,7 @@ class Json {
 						if( comma ) comma = false else invalidChar();
 					default:
 						if( comma ) invalidChar();
+						pos--;
 						arr.push(parseRec());
 						comma = true;
 					}
