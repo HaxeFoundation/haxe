@@ -140,7 +140,7 @@ class Manager<T : Object> {
 				// if the field is not defined, give it a default value on insert
 				if( !inf.isNull )
 					switch( inf.t ) {
-					case DUInt, DTinyInt, DInt, DSingle, DFloat, DFlags(_), DBigInt:
+					case DUInt, DTinyInt, DInt, DSingle, DFloat, DFlags(_), DBigInt, DTinyUInt, DSmallInt, DSmallUInt, DMediumInt, DMediumUInt:
 						Reflect.setField(x, f, 0);
 					case DBool:
 						Reflect.setField(x, f, false);

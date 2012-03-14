@@ -48,8 +48,13 @@ enum SpodType {
 	DEncoded;
 	DSerialized;
 	DNekoSerialized;
-	DFlags( flags : Array<String> );
+	DFlags( flags : Array<String>, autoSize : Bool );
 	DTinyInt;
+	DTinyUInt;
+	DSmallInt;
+	DSmallUInt;
+	DMediumInt;
+	DMediumUInt;
 	// specific for intermediate calculus
 	DInterval;
 	DNull;

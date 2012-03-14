@@ -36,9 +36,14 @@ class TableCreate {
 		return switch( t ) {
 		case DId: "INTEGER "+autoInc(dbName);
 		case DUId: "INTEGER UNSIGNED "+autoInc(dbName);
-		case DInt, DEncoded, DFlags(_): "INTEGER";
-		case DTinyInt: "TINYINT";
+		case DInt, DEncoded: "INTEGER";
 		case DUInt: "INTEGER UNSIGNED";
+		case DTinyInt: "TINYINT";
+		case DTinyUInt: "TINYINT UNSIGNED";
+		case DSmallInt: "SMALLINT";
+		case DSmallUInt: "SMALLINT UNSIGNED";
+		case DMediumInt: "MEDIUMINT";
+		case DMediumUInt: "MEDIUMINT UNSIGNED";
 		case DSingle: "FLOAT";
 		case DFloat: "DOUBLE";
 		case DBool: "TINYINT(1)";
@@ -55,6 +60,7 @@ class TableCreate {
 		case DBigInt: "BIGINT";
 		case DBigId: "BIGINT "+autoInc(dbName);
 		case DBytes(n): "BINARY(" + n + ")";
+		case DFlags(fl, auto): getTypeSQL(auto ? (fl.length <= 8 ? DTinyUInt : (fl.length <= 16 ? DSmallUInt : (fl.length <= 24 ? DMediumUInt : DInt))) : DInt, dbName);
 		case DNull, DInterval: throw "assert";
 		};
 	}

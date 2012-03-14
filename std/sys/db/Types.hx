@@ -83,8 +83,23 @@ typedef SBinary = haxe.io.Bytes
 /** same as binary(n) **/
 typedef SBytes<Const> = haxe.io.Bytes
 
-/** TinyInt [-128...127] **/
+/** one byte signed [-128...127] **/
 typedef STinyInt = Int
+
+/** two bytes signed [-32768...32767] **/
+typedef SSmallInt = Int;
+
+/** three bytes signed [-8388608...8388607] **/
+typedef SMediumInt = Int;
+
+/** one byte [0...255] **/
+typedef STinyUInt = Int
+
+/** two bytes [0...65535] **/
+typedef SSmallUInt = Int;
+
+/** three bytes [0...16777215] **/
+typedef SMediumUInt = Int;
 
 // extra
 
@@ -100,6 +115,7 @@ typedef SSerialized = String
 /** native neko serialized bytes **/
 typedef SNekoSerialized = haxe.io.Bytes
 
+/** a set of bitflags of different enum values **/
 @:native("Int")
 extern class SFlags<T> {
 	public inline function init() : Void {
@@ -121,3 +137,7 @@ extern class SFlags<T> {
 		return cast this;
 	}
 }
+
+/** same as [SFlags] but will adapt the storage size to the number of flags **/
+typedef SSmallFlags<T> = SFlags<T>;
+

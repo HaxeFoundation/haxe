@@ -155,6 +155,25 @@ class SpodMacros {
 		}
 		return null;
 	}
+	
+	function getFlags( t : haxe.macro.Type ) {
+		switch( t ) {
+		case TEnum(e,_):
+			var cl = e.get().names;
+			if( cl.length > 1 ) {
+				var prefix = cl[0];
+				for( c in cl )
+					while( prefix.length > 0 && c.substr(0, prefix.length) != prefix )
+						prefix = prefix.substr(0, -1);
+				for( i in 0...cl.length )
+					cl[i] = cl[i].substr(prefix.length);
+			}
+			if( cl.length > 31 ) throw "Too many flags";
+			return cl;
+		default:
+			throw "Flags parameter should be an enum";
+		}
+	}
 
 	function makeType( t : haxe.macro.Type ) {
 		switch( t ) {
@@ -166,22 +185,7 @@ class SpodMacros {
 			case "String": DText;
 			case "Date": DDateTime;
 			case "haxe.io.Bytes": DBinary;
-			case "sys.db.SFlags":
-				switch( p[0] ) {
-				case TEnum(e,_):
-					var cl = e.get().names;
-					if( cl.length > 1 ) {
-						var prefix = cl[0];
-						for( c in cl )
-							while( prefix.length > 0 && c.substr(0, prefix.length) != prefix )
-								prefix = prefix.substr(0, -1);
-						for( i in 0...cl.length )
-							cl[i] = cl[i].substr(prefix.length);
-					}
-					return DFlags(cl);
-				default:
-					throw "Flags parameter should be an enum";
-				}
+			case "sys.db.SFlags": DFlags(getFlags(p[0]),false);
 			default: throw "Unsupported " + name;
 			}
 		case TEnum(e, p):
@@ -201,6 +205,7 @@ class SpodMacros {
 				case "SString": return DString(makeInt(p[0]));
 				case "SBytes": return DBytes(makeInt(p[0]));
 				case "SNull", "Null": isNull = true; return makeType(p[0]);
+				case "SSmallFlags": return DFlags(getFlags(p[0]),true);
 				default:
 				}
 			throw "Unsupported " + name;
@@ -412,7 +417,7 @@ class SpodMacros {
 
 	function unifyClass( t : SpodType ) {
 		return switch( t ) {
-		case DId, DInt, DUId, DUInt, DEncoded, DFlags(_), DTinyInt: 0;
+		case DId, DInt, DUId, DUInt, DEncoded, DFlags(_), DTinyInt, DTinyUInt, DSmallInt, DSmallUInt, DMediumInt, DMediumUInt: 0;
 		case DBigId, DBigInt, DSingle, DFloat: 1;
 		case DBool: 2;
 		case DString(_), DTinyText, DSmallText, DText, DSerialized: 3;
@@ -738,7 +743,7 @@ class SpodMacros {
 					if( pl.length == 1 ) {
 						var r = buildCond(e);
 						switch( r.t ) {
-						case DFlags(vals):
+						case DFlags(vals,_):
 							var id = makeIdent(pl[0]);
 							var idx = Lambda.indexOf(vals,id);
 							if( idx < 0 ) error("Flag should be "+vals.join(","), pl[0].pos);
