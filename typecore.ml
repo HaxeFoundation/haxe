@@ -210,3 +210,27 @@ let mk_field name t p = {
 	cf_expr = None;
 	cf_params = [];
 }
+
+let fake_modules = Hashtbl.create 0
+let create_fake_module ctx file =
+	let file = Extc.get_full_path file in
+	let mdep = (try Hashtbl.find fake_modules file with Not_found ->
+		let mdep = {
+			m_id = alloc_mid();
+			m_path = (["$DEP"],file);
+			m_types = [];
+			m_extra = {
+				m_file = file;
+				m_sign = Common.get_signature ctx.com;
+				m_time = file_time file;
+				m_deps = PMap.empty;
+				m_processed = 0;
+				m_kind = MFake;
+				m_binded_res = PMap.empty;
+			};
+		} in
+		Hashtbl.add fake_modules file mdep;
+		mdep
+	) in
+	Hashtbl.replace ctx.g.modules mdep.m_path mdep;
+	mdep

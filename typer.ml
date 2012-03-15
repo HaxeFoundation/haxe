@@ -2238,8 +2238,6 @@ let typing_timer ctx f =
 			t();
 			raise e
 
-let fake_modules = Hashtbl.create 0
-
 let make_macro_api ctx p =
 	let make_instance = function
 		| TClassDecl c -> TInst (c,List.map snd c.cl_types)
@@ -2377,27 +2375,7 @@ let make_macro_api ctx p =
 		);
 		Interp.module_dependency = (fun mpath file ->
 			let m = typing_timer ctx (fun() -> Typeload.load_module ctx (parse_path mpath) p) in
-			let file = Extc.get_full_path file in
-			let mdep = (try Hashtbl.find fake_modules file with Not_found ->
-				let mdep = {
-					m_id = alloc_mid();
-					m_path = (["$DEP"],file);
-					m_types = [];
-					m_extra = {
-						m_file = file;
-						m_sign = Common.get_signature ctx.com;
-						m_time = file_time file;
-						m_deps = PMap.empty;
-						m_processed = 0;
-						m_kind = MFake;
-						m_binded_res = PMap.empty;
-					};
-				} in
-				Hashtbl.add fake_modules file mdep;
-				mdep
-			) in
-			add_dependency m mdep;
-			Hashtbl.replace ctx.g.modules mdep.m_path mdep
+			add_dependency m (create_fake_module ctx file);
 		);
 		Interp.current_module = (fun() ->
 			ctx.current

@@ -291,6 +291,7 @@ let rec build_generic ctx c p tl =
 let extend_xml_proxy ctx c t file p =
 	let t = Typeload.load_complex_type ctx p t in
 	let file = (try Common.find_file ctx.com file with Not_found -> file) in
+	add_dependency c.cl_module (create_fake_module ctx file);
 	let used = ref PMap.empty in
 	let print_results() =
 		PMap.iter (fun id used ->
