@@ -244,7 +244,7 @@ class SpodMacros {
 		while( csup != null ) {
 			var c = csup.t.get();
 			if( !c.meta.has(":skipFields") )
-				fields = fields.concat(c.fields.get());
+				fields = c.fields.get().concat(fields);
 			csup = c.superClass;
 		}
 		for( f in fields ) {
