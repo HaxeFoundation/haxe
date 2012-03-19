@@ -25,13 +25,8 @@
 
 @:core_api class Reflect {
 
-	public static function hasField( o : Dynamic, field : String ) : Bool untyped {
-		if( o.hasOwnProperty != null )
-			return o.hasOwnProperty(field);
-		var arr = fields(o);
-		for( t in arr.iterator() )
-			if( t == field ) return true;
-		return false;
+	public static function hasField( o : Dynamic, field : String ) : Bool {
+		return untyped Object.prototype.hasOwnProperty.call(o, field);
 	}
 
 	public inline static function field( o : Dynamic, field : String ) : Dynamic untyped {
@@ -61,19 +56,13 @@
 		return func.apply(o,args);
 	}
 
-	public static function fields( o : Dynamic ) : Array<String> untyped {
-		if( o == null ) return new Array();
-		var a = new Array();
-		if( o.hasOwnProperty ) {
-			__js__("for(var i in o) if( o.hasOwnProperty(i) ) a.push(i)");
-		} else {
-			var t;
-			try{ t = o.__proto__; } catch( e : Dynamic ) { t = null; }
-			if( t != null )
-				o.__proto__ = null;
-			__js__("for(var i in o) if( i != \"__proto__\" ) a.push(i)");
-			if( t != null )
-				o.__proto__ = t;
+	public static function fields( o : Dynamic ) : Array<String> {
+		var a = [];
+		if (o != null) untyped {
+			var hasOwnProperty = Object.prototype.hasOwnProperty;
+			__js__("for( var f in o ) {");
+			if( hasOwnProperty.call(o, f) ) a.push(f);
+			__js__("}");
 		}
 		return a;
 	}

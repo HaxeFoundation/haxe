@@ -40,19 +40,13 @@
 	}
 
 	public function exists( key : String ) : Bool {
-		try {
-			key = "$"+key;
-			return untyped this.hasOwnProperty.call(h,key);
-		}catch(e:Dynamic){
-			untyped __js__("for(var i in this.h) if( i == key ) return true");
-			return false;
-		}
+		return untyped Object.prototype.hasOwnProperty.call(h,"$"+key);
 	}
 
 	public function remove( key : String ) : Bool {
-		if( !exists(key) )
-			return false;
-		untyped __js__("delete")(h["$"+key]);
+		key = "$"+key;
+		if( untyped !Object.prototype.hasOwnProperty.call(h,key) ) return false;
+		untyped __js__("delete")(h[key]);
 		return true;
 	}
 
