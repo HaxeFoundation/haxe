@@ -168,15 +168,28 @@ class ThreadServer<Client,Message> {
 	}
 
 	function addClient( sock : neko.net.Socket ) {
-		var infos : ClientInfos<Client> = {
-			thread : threads[Std.random(nthreads)],
-			client : clientConnected(sock),
-			sock : sock,
-			buf : haxe.io.Bytes.alloc(initialBufferSize),
-			bufpos : 0,
-		};
-		sock.custom = infos;
-		infos.thread.t.sendMessage({ s : sock, cnx : true });
+		var start = Std.random(nthreads);
+		for( i in 0...nthreads ) {
+			var t = threads[(start + i)%nthreads];
+			if( t.socks.length < maxSockPerThread ) {
+				var infos : ClientInfos<Client> = {
+					thread : ,
+					client : clientConnected(sock),
+					sock : sock,
+					buf : haxe.io.Bytes.alloc(initialBufferSize),
+					bufpos : 0,
+				};
+				sock.custom = infos;
+				infos.thread.t.sendMessage({ s : sock, cnx : true });
+				return;
+			}
+		}
+		refuseClient(sock);
+	}
+
+	function refuseClient( sock : neko.net.Socket) {
+		// we have reached maximum number of active clients
+		sock.close();
 	}
 
 	function runTimer() {
