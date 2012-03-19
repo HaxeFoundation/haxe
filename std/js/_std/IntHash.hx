@@ -40,11 +40,11 @@
 	}
 
 	public function exists( key : Int ) : Bool {
-		return untyped h.hasOwnProperty(key);
+		return untyped Object.prototype.hasOwnProperty.call(key);
 	}
 
 	public function remove( key : Int ) : Bool {
-		if( untyped !h.hasOwnProperty(key) ) return false;
+		if( untyped !Object.prototype.hasOwnProperty.call(h,key) ) return false;
 		untyped  __js__("delete")(h[key]);
 		return true;
 	}
