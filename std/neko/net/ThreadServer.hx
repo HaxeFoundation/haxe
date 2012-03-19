@@ -173,7 +173,7 @@ class ThreadServer<Client,Message> {
 			var t = threads[(start + i)%nthreads];
 			if( t.socks.length < maxSockPerThread ) {
 				var infos : ClientInfos<Client> = {
-					thread : ,
+					thread : t,
 					client : clientConnected(sock),
 					sock : sock,
 					buf : haxe.io.Bytes.alloc(initialBufferSize),
