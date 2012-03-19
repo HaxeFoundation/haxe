@@ -40,11 +40,11 @@
 	}
 
 	public function exists( key : Int ) : Bool {
-		return untyped h[key] != null;
+		return untyped h.hasOwnProperty(key);
 	}
 
 	public function remove( key : Int ) : Bool {
-		if( untyped h[key] == null ) return false;
+		if( untyped !h.hasOwnProperty(key) ) return false;
 		untyped  __js__("delete")(h[key]);
 		return true;
 	}
