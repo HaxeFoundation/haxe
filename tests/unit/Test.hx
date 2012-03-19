@@ -154,7 +154,11 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 
 	static function onError( e : Dynamic, msg : String, context : String ) {
 		var msg = "???";
-		var stack = haxe.Stack.toString(haxe.Stack.exceptionStack());
+		var stack :String = #if js
+			e.stack;
+		#else
+			haxe.Stack.toString(haxe.Stack.exceptionStack());
+		#end
 		try msg = Std.string(e) catch( e : Dynamic ) {};
 		reportCount = 0;
 		report("ABORTED : "+msg+" in "+context);
