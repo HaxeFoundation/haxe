@@ -1000,7 +1000,7 @@ let generate com =
 	let ctx = alloc_ctx com in
 	if ctx.js_modern then begin
 		(* Additional ES5 strict mode keywords. *)
-		List.iter (fun s -> Hashtbl.add kwds s ()) [ "arguments"; "eval" ];
+		List.iter (fun s -> Hashtbl.replace kwds s ()) [ "arguments"; "eval" ];
 
 		(* Wrap output in a closure. *)
 		print ctx "(function () { \"use strict\"";
