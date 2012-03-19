@@ -238,7 +238,7 @@ class Boot {
 			};
 			Function.prototype["$bind"] = function(o){
 				var f = function(){
-					return f.method.apply(f.scope, arguments);
+					return f.method.apply(f.scope, untyped __js__("arguments"));
 				}
 				f.scope = o;
 				f.method = __this__;

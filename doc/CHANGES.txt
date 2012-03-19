@@ -31,7 +31,7 @@
 	js : make difference between values and statements expressions in JSGenApi
 	js : added source mapping with -debug (replace previous stack emulation)
 	flash : added @:file("a.dat") class File extends flash.utils.ByteArray
-	js : added --js-modern for wrapping output in a closure
+	js : added --js-modern for wrapping output in a closure and ES5 strict mode
 
 2011-09-25: 2.08
 	js : added js.JQuery

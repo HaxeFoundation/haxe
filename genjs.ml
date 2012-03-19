@@ -999,9 +999,14 @@ let generate com =
 	| None ->
 	let ctx = alloc_ctx com in
 	if ctx.js_modern then begin
-		print ctx "(function () {";
+		(* Additional ES5 strict mode keywords. *)
+		List.iter (fun s -> Hashtbl.add kwds s ()) [ "arguments"; "eval" ];
+
+		(* Wrap output in a closure. *)
+		print ctx "(function () { \"use strict\"";
 		newline ctx;
 	end;
+
 	let hxClasses = if ctx.js_modern then "{}" else "$hxClasses || {}" in
 	print ctx "var $_, $hxClasses = %s, $estr = function() { return js.Boot.__string_rec(this,''); }
 function $extend(from, fields) {

@@ -28,11 +28,7 @@
 	private var h : Dynamic;
 
 	public function new() : Void {
-		h = untyped __js__("{}");
-		untyped if( h.__proto__ != null ) {
-			h.__proto__ = null;
-			__js__("delete")(h.__proto__);
-		};
+		h = untyped ( Object.create != null ) ? Object.create(null) : {};
 	}
 
 	public function set( key : Int, value : T ) : Void {
@@ -55,7 +51,7 @@
 
 	public function keys() : Iterator<Int> {
 		var a = new Array();
-		untyped __js__("for( x in this.h ) a.push(x|0)");
+		untyped __js__("for( var x in this.h ) a.push(x|0)");
 		return a.iterator();
 	}
 
