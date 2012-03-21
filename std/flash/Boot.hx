@@ -110,13 +110,24 @@ class Boot extends flash.display.MovieClip {
 	}
 
 	public static function __set_trace_color(rgb) {
-		getTrace().textColor = rgb;
+		var tf = getTrace();
+		tf.textColor = rgb;
+		tf.filters = [];
 	}
 
 	public static function getTrace() {
 		var mc = flash.Lib.current;
 		if( tf == null ) {
 			tf = new flash.text.TextField();
+			#if flash10_2
+			var color = 0xFFFFFF, glow = 0;
+			if( mc.stage != null ) {
+				glow = mc.stage.color;
+				color = 0xFFFFFF - glow;
+			}
+			tf.textColor = color;
+			tf.filters = [new flash.filters.GlowFilter(glow, 1, 2, 2, 20)];
+			#end
 			var format = tf.getTextFormat();
 			format.font = "_sans";
 			tf.defaultTextFormat = format;
