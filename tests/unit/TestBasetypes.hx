@@ -139,5 +139,56 @@ class TestBasetypes extends Test {
 		
 		t( StringTools.isEOF(StringTools.fastCodeAt("", 0)) );
 	}
+	
+	function testHash() {
+		var h = new Hash();
+		h.set("x", -1);
+		h.set("abcd", 8546);
+		eq( h.get("x"), -1);
+		eq( h.get("abcd"), 8546 );
+		eq( h.get("e"), null );
 
+		var k = Lambda.array(h);
+		k.sort(Reflect.compare);
+		eq( k.join("#"), "-1#8546" );
+		
+		var k = Lambda.array( { iterator : h.keys } );
+		k.sort(Reflect.compare);
+		eq( k.join("#"), "abcd#x" );
+		
+		t( h.exists("x") );
+		t( h.exists("abcd") );
+		f( h.exists("e") );
+		h.remove("abcd");
+		t( h.exists("x") );
+		f( h.exists("abcd") );
+		f( h.exists("e") );
+		eq( h.get("abcd"), null);
+	}
+
+	function testIntHash() {
+		var h = new IntHash();
+		h.set(0, -1);
+		h.set(-4815, 8546);
+		eq( h.get(0), -1);
+		eq( h.get(-4815), 8546 );
+		eq( h.get(456), null );
+
+		var k = Lambda.array(h);
+		k.sort(Reflect.compare);
+		eq( k.join("#"), "-1#8546" );
+		
+		var k = Lambda.array( { iterator : h.keys } );
+		k.sort(Reflect.compare);
+		eq( k.join("#"), "-4815#0" );
+		
+		t( h.exists(0) );
+		t( h.exists(-4815) );
+		f( h.exists(456) );
+		h.remove(-4815);
+		t( h.exists(0) );
+		f( h.exists(-4815) );
+		f( h.exists(456) );
+		eq( h.get(-4815), null);
+	}
 }

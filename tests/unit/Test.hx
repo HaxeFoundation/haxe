@@ -144,7 +144,7 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 	}
 
 	static function resetTimer() {
-		#if (neko || php)
+		#if (neko || php || cpp)
 		#else
 		if( timer != null ) timer.stop();
 		timer = new haxe.Timer(10000);
