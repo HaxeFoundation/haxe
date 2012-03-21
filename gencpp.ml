@@ -1353,9 +1353,10 @@ and gen_expression ctx retval expression =
          if (is_internal_member member) then begin
 				output ( "->" ^ member );
          end else if (is_dynamic_member_lookup_in_cpp ctx field_object member) then begin
-            let access = (if assigning then "->__FieldRef" else "->__Field") in
-				(* output ( "/* " ^ (type_string field_object.etype) ^ " */" ); *)
-				output ( access ^ "(" ^ (str member) ^ ")" );
+            if assigning then
+				    output ( "->__FieldRef(" ^ (str member) ^ ")" )
+            else
+				    output ( "->__Field(" ^ (str member) ^ ",true)" );
             already_dynamic := true;
          end else begin
             if ((type_string field_object.etype)="::String" ) then
@@ -2259,7 +2260,7 @@ let generate_enum_files common_ctx enum_def super_deps meta =
 		output_cpp ("}\n\n");
 
 	(* Dynamic "Get" Field function - string version *)
-	output_cpp ("Dynamic " ^ class_name ^ "::__Field(const ::String &inName)\n{\n");
+	output_cpp ("Dynamic " ^ class_name ^ "::__Field(const ::String &inName,bool inCallProp)\n{\n");
 	if (has_meta) then
 		output_cpp "	if (inName==HX_CSTRING(\"__meta__\")) return __meta__;\n";
 	let dump_constructor_test _ constr =
@@ -2269,7 +2270,7 @@ let generate_enum_files common_ctx enum_def super_deps meta =
 		output_cpp (";\n")
 	in
 	PMap.iter dump_constructor_test enum_def.e_constrs;
-	output_cpp ("	return super::__Field(inName);\n}\n\n");
+	output_cpp ("	return super::__Field(inName,inCallProp);\n}\n\n");
 
 	if (has_meta) then output_cpp ("Dynamic " ^ class_name ^ "::__meta__;\n");
 
@@ -2594,11 +2595,12 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 
 		(* Dynamic "Get" Field function - string version *)
-		output_cpp ("Dynamic " ^ class_name ^ "::__Field(const ::String &inName)\n{\n");
+		output_cpp ("Dynamic " ^ class_name ^ "::__Field(const ::String &inName,bool inCallProp)\n{\n");
 		let get_field_dat = List.map (fun f ->
 			(f.cf_name, String.length f.cf_name, "return " ^
 				(match f.cf_kind with
-				| Var { v_read = AccCall prop } -> (keyword_remap prop) ^ "()"
+				| Var { v_read = AccCall prop } -> "inCallProp ? " ^ (keyword_remap prop) ^ "() : " ^ 
+				        ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()")
 				| _ -> ((keyword_remap f.cf_name) ^ if (variable_field f) then "" else "_dyn()")
 				) ^ ";"
 			) )
@@ -2606,7 +2608,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		dump_quick_field_test (get_field_dat all_fields);
 		if (implement_dynamic) then
 			output_cpp "	HX_CHECK_DYNAMIC_GET_FIELD(inName);\n";
-		output_cpp ("	return super::__Field(inName);\n}\n\n");
+		output_cpp ("	return super::__Field(inName,inCallProp);\n}\n\n");
 
 
 		(* Dynamic "Get" Field function - int version *)
@@ -2643,25 +2645,24 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 
 		(* Dynamic "Set" Field function *)
-		output_cpp ("Dynamic " ^ class_name ^ "::__SetField(const ::String &inName," ^
-						"const Dynamic &inValue)\n{\n");
+		output_cpp ("Dynamic " ^ class_name ^ "::__SetField(const ::String &inName,const Dynamic &inValue,bool inCallProp)\n{\n");
 
 		let set_field_dat = List.map (fun f ->
 			(f.cf_name, String.length f.cf_name,
 				(match f.cf_kind with
-				| Var { v_write = AccCall prop } -> "return " ^ (keyword_remap prop) ^ "(inValue);"
-				| _ -> (keyword_remap f.cf_name) ^ "=inValue.Cast< " ^ (type_string f.cf_type) ^
-				         " >(); return inValue;"
-				)  )
+				| Var { v_write = AccCall prop } -> "if (inCallProp) return " ^ (keyword_remap prop) ^ "(inValue);"
+            | _ -> ""
+				) ^ (keyword_remap f.cf_name) ^ "=inValue.Cast< " ^ (type_string f.cf_type) ^ " >(); return inValue;"
+         )
 		) in
 
 		dump_quick_field_test (set_field_dat all_variables);
 		if (implement_dynamic) then begin
-			output_cpp ("	try { return super::__SetField(inName,inValue); }\n");
+			output_cpp ("	try { return super::__SetField(inName,inValue,inCallProp); }\n");
 			output_cpp ("	catch(Dynamic e) { HX_DYNAMIC_SET_FIELD(inName,inValue); }\n");
 			output_cpp "	return inValue;\n}\n\n";
 		end else
-			output_cpp ("	return super::__SetField(inName,inValue);\n}\n\n");
+			output_cpp ("	return super::__SetField(inName,inValue,inCallProp);\n}\n\n");
 
 		(* For getting a list of data members (eg, for serialization) *)
 		let append_field =

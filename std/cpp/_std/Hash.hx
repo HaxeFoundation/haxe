@@ -31,11 +31,11 @@
 	}
 
 	public function set( key : String, value : T ) : Void {
-		untyped __Internal.__SetField(key,value);
+		untyped __Internal.__SetField(key,value,true);
 	}
 
 	public function get( key : String ) : Null<T> {
-		return untyped __Internal.__Field(key);
+		return untyped __Internal.__Field(key,true);
 	}
 
 	public function exists( key : String ) : Bool {
@@ -65,7 +65,7 @@
 		var me = this;
 		return untyped {
 			hasNext : function() { return it.hasNext(); },
-			next : function() { return me.__Internal.__Field(it.next()); }
+			next : function() { return me.__Internal.__Field(it.next(),true); }
 		};
 	}
 
