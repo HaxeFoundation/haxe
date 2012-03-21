@@ -40,7 +40,7 @@
 	}
 
 	public function exists( key : Int ) : Bool {
-		return untyped Object.prototype.hasOwnProperty.call(key);
+		return untyped Object.prototype.hasOwnProperty.call(h,key);
 	}
 
 	public function remove( key : Int ) : Bool {
