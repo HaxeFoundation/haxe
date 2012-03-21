@@ -141,7 +141,7 @@ class TestBasetypes extends Test {
 	}
 	
 	function testHash() {
-		var h = new Hash();
+		var h = new Hash<Null<Int>>();
 		h.set("x", -1);
 		h.set("abcd", 8546);
 		eq( h.get("x"), -1);
@@ -164,10 +164,15 @@ class TestBasetypes extends Test {
 		f( h.exists("abcd") );
 		f( h.exists("e") );
 		eq( h.get("abcd"), null);
+		
+		h.set("x", null);
+		t( h.exists("x") );
+		t( h.remove("x") );
+		f( h.remove("x") );
 	}
 
 	function testIntHash() {
-		var h = new IntHash();
+		var h = new IntHash<Null<Int>>();
 		h.set(0, -1);
 		h.set(-4815, 8546);
 		eq( h.get(0), -1);
@@ -189,6 +194,11 @@ class TestBasetypes extends Test {
 		t( h.exists(0) );
 		f( h.exists(-4815) );
 		f( h.exists(456) );
-		eq( h.get(-4815), null);
+		eq( h.get( -4815), null);
+		
+		h.set(65, null);
+		t( h.exists(65) );
+		t( h.remove(65) );
+		f( h.remove(65) );
 	}
 }
