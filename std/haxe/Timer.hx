@@ -25,14 +25,10 @@
 package haxe;
 
 class Timer {
-	#if (neko || php)
+	#if (neko || php || cpp)
 	#else
 
 	private var id : Null<Int>;
-
-	#if js
-	private var timerId : Int;
-	#end
 
 	public function new( time_ms : Int ){
 		#if flash9
@@ -42,10 +38,8 @@ class Timer {
 			var me = this;
 			id = untyped _global["setInterval"](function() { me.run(); },time_ms);
 		#elseif js
-			var arr : Array<Timer> = untyped haxe_timers;
-			id = arr.length;
-			arr[id] = this;
-			timerId = untyped window.setInterval("haxe_timers["+id+"].run();",time_ms);
+			var me = this;
+			id = untyped window.setInterval(function() me.run(),time_ms);
 		#end
 	}
 
@@ -57,16 +51,7 @@ class Timer {
 		#elseif flash
 			untyped _global["clearInterval"](id);
 		#elseif js
-			untyped window.clearInterval(timerId);
-			var arr = untyped haxe_timers;
-			arr[id] = null;
-			if( id > 100 && id == arr.length - 1 ) {
-				// compact array
-				var p = id - 1;
-				while( p >= 0 && arr[p] == null )
-					p--;
-				arr = arr.slice(0,p+1);
-			}
+			untyped window.clearInterval(id);
 		#end
 		id = null;
 	}
@@ -84,7 +69,7 @@ class Timer {
 	}
 
 	#end
-	
+
 	public static function measure<T>( f : Void -> T, ?pos : PosInfos ) : T {
 		var t0 = stamp();
 		var r = f();
@@ -111,12 +96,4 @@ class Timer {
 		#end
 	}
 
-	#if js
-	static function __init__() untyped {
-		if( __js__('typeof')(haxe_timers) == 'undefined' ) {
-			var haxe_timers = [];
-		}
-	}
-	#end
-	
 }

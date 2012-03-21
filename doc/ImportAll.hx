@@ -72,7 +72,7 @@ class ImportAll {
 						cl = "flash."+cl.substr(7);
 					switch( cl ) {
 					case "ImportAll", "neko.db.MacroManager": continue;
-					case "haxe.TimerQueue": if( Context.defined("neko") || Context.defined("php") ) continue;
+					case "haxe.TimerQueue": if( Context.defined("neko") || Context.defined("php") || Context.defined("cpp") ) continue;
 					case "haxe.web.Request": if( !(Context.defined("neko") || Context.defined("php") || Context.defined("js")) ) continue;
 					case "haxe.macro.DefaultJSGenerator","haxe.macro.Context", "haxe.macro.Compiler": if( !Context.defined("neko") ) continue;
 					case "haxe.remoting.SocketWrapper": if( !Context.defined("flash") ) continue;

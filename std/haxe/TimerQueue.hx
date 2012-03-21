@@ -24,7 +24,7 @@
  */
 package haxe;
 
-#if neko
+#if (neko || php || cpp)
 #error
 #end
 
