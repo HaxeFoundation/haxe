@@ -200,5 +200,11 @@ class TestBasetypes extends Test {
 		t( h.exists(65) );
 		t( h.remove(65) );
 		f( h.remove(65) );
+		
+		var h = new IntHash();
+		h.set(1, ['a', 'b']);
+		t( h.exists(1) );
+		t( h.remove(1) );
+		f( h.remove(1) );
 	}
 }
