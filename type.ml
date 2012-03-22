@@ -318,7 +318,7 @@ let null_class =
 	c
 
 let add_dependency m mdep =
-	m.m_extra.m_deps <- PMap.add mdep.m_id mdep m.m_extra.m_deps
+	if m != null_module then m.m_extra.m_deps <- PMap.add mdep.m_id mdep m.m_extra.m_deps
 
 let arg_name (a,_) = a.v_name
 

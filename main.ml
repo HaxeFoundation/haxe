@@ -479,6 +479,7 @@ and wait_loop boot_com host port =
 		with Not_found ->
 			None
 	);
+	let run_count = ref 0 in
 	while true do
 		let sin, _ = Unix.accept sock in
 		let t0 = get_time() in
@@ -544,6 +545,17 @@ and wait_loop boot_com host port =
 			if verbose then print_endline "Connection Aborted");
 		if verbose then print_endline "Closing connection";
 		Unix.close sin;
+		(* prevent too much fragmentation by doing some compactions every X run *)
+		incr run_count;		
+		if !run_count mod 1 = 50 then begin
+			let t0 = get_time() in
+			Gc.compact();
+			if verbose then begin
+				let stat = Gc.quick_stat() in
+				let size = (float_of_int stat.Gc.heap_words) *. 4. in
+				print_endline (Printf.sprintf "Compacted memory %.3fs %.1fMB" (get_time() -. t0) (size /. (1024. *. 1024.)));
+			end
+		end
 	done
 
 and do_connect host port args =
