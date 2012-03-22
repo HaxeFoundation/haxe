@@ -323,6 +323,8 @@ class Dispatch {
 
 	static function makeConfig( obj : Expr ) {
 		var p = obj.pos;
+		if( Context.defined("display") )
+			return { expr :  EObjectDecl([ { field : "obj", expr : obj }, { field : "rules", expr : { expr : EObjectDecl([]), pos : p } } ]), pos : p };
 		var t = Context.typeof(obj);
 		switch( Context.follow(t) ) {
 		case TAnonymous(fl):
