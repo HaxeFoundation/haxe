@@ -325,7 +325,7 @@ let gen_close_namespace output class_path =
 (* The basic types can have default values and are passesby value *)
 let cant_be_null = function
 	| "Int" | "Bool" | "Float" | "::String" | "::haxe::io::Unsigned_char__" -> true
-	| "int" | "bool" | "double" -> true
+	| "int" | "bool" | "double" | "float" -> true
 	| _ -> false
 
 (*  Get a string to represent a type.
@@ -490,10 +490,18 @@ let gen_arg_type_name name default_val arg_type prefix =
 	let type_str = (type_string arg_type) in
 	match default_val with
 	| Some TNull  -> (type_str,remap_name)
-	| Some constant when (cant_be_null type_str) -> ("Dynamic",prefix ^ remap_name)
+	| Some constant when (cant_be_null type_str) -> ("hx::Null<" ^ type_str ^ ">",prefix ^ remap_name)
 	| Some constant  -> (type_str,prefix ^ remap_name)
 	| _ -> (type_str,remap_name);;
 
+let gen_interface_arg_type_name name opt typ =
+	let type_str = (type_string typ) in
+   (if (opt && (cant_be_null type_str) ) then
+      "hx::Null<" ^ type_str ^ ">"
+   else
+      type_str )
+      ^ " " ^ (keyword_remap name) ^ (if opt then "=null()" else "")
+;;
 
 (* Generate prototype text, including allowing default values to be null *)
 let gen_arg name default_val arg_type prefix =
@@ -1721,13 +1729,14 @@ let default_value_string = function
 
 let generate_default_values ctx args prefix =
   List.iter ( fun (v,o) -> let type_str = type_string v.v_type in
+   let name = (keyword_remap v.v_name) in
 	match o with
 	| Some TNull -> ()
 	| Some const when (type_str=="::String") ->
-		ctx.ctx_output ("if (" ^ v.v_name ^ " == null() ) "
-			^ v.v_name ^ "=" ^ (default_value_string const) ^ ");\n")
+		ctx.ctx_output ("if (" ^ name ^ " == null() ) "
+			^ name ^ "=" ^ (default_value_string const) ^ ");\n")
 	| Some const ->
-		ctx.ctx_output (type_str ^ " " ^ v.v_name ^ " = " ^ prefix ^ v.v_name ^ ".Default(" ^
+		ctx.ctx_output (type_str ^ " " ^ name ^ " = " ^ prefix ^ name ^ ".Default(" ^
 			(default_value_string const) ^ ");\n")
 	| _ -> () ) args;;
 
@@ -1901,8 +1910,7 @@ let gen_member_def ctx class_def is_static is_interface field =
 		| TFun (args,return_type), Method _  ->
 			output ( (if (not is_static) then "virtual " else "" ) ^ type_string return_type);
 			output (" " ^ remap_name ^ "( " );
-			output (String.concat "," (List.map (fun (name,opt,typ) ->
-				(type_string typ) ^ " " ^ name ^ (if opt then "=null()" else "")) args));
+			output (String.concat "," (List.map (fun (name,opt,typ) -> gen_interface_arg_type_name name opt typ) args));
 			output (if (not is_static) then ")=0;\n" else ");\n");
 			(*if (not is_interface) then begin*)
 				output (if is_static then "		static " else "		");
@@ -2828,10 +2836,9 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			(* TODO : virtual ? *)
 			let remap_name = keyword_remap field.cf_name in
 			output_h ( "virtual "  ^ (type_string return_type) ^ " " ^ remap_name ^ "( " );
-			output_h (String.concat "," (List.map (fun (name,opt,typ) ->
-				(type_string typ) ^ " " ^ name ^ (if opt then "=null()" else "")) args));
+			output_h (String.concat "," (List.map (fun (name,opt,typ) -> gen_interface_arg_type_name name opt typ )args));
 			output_h (") { return mDelegate->" ^ remap_name^ "(");
-			output_h (String.concat "," (List.map (fun (name,opt,typ) -> name) args));
+			output_h (String.concat "," (List.map (fun (name,opt,typ) -> (keyword_remap name)) args));
 			output_h ");}  \\\n";
 			output_h ("virtual Dynamic " ^ remap_name ^ "_dyn() { return mDelegate->" ^
 						remap_name ^ "_dyn();}  \\\n");
