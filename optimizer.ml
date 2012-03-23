@@ -925,8 +925,8 @@ let optimize_completion_expr e =
 			in
 			(try
 				let e = subst_locals locals s in
-				let e = (EBlock [(EVars (List.rev !tmp_locals),p);e],p) in
-				raise (Return (EDisplay (e,call),p))
+				let e = (EBlock [(EVars (List.rev !tmp_locals),p);(EDisplay (e,call),p)],p) in
+				raise (Return e)
 			with Exit ->
 				map e)
 		| EDisplayNew _ ->
