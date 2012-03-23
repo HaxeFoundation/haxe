@@ -443,7 +443,10 @@ and wait_loop boot_com host port =
 					let _, mctx = Typer.get_macro_context ctx p in
 					if not (check_module_path mctx.Typecore.com m p) then raise Not_found;
 				);
-				if file_time m.m_extra.m_file <> m.m_extra.m_time then raise Not_found;
+				if file_time m.m_extra.m_file <> m.m_extra.m_time then begin
+					if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules m.m_extra.m_file;
+					raise Not_found;
+				end;
 				PMap.iter (fun _ m2 -> if not (check m2) then begin dep := Some m2; raise Not_found end) m.m_extra.m_deps;
 				true
 			with Not_found ->
