@@ -815,10 +815,10 @@ let optimize_completion_expr e =
 			with Not_found ->
 				());
 			e
-		| EBinop (OpAssign,(EConst (Ident n | Type n),_),e) ->
+		| EBinop (OpAssign,(EConst (Ident n | Type n),_),esub) ->
 			(try
 				(match get_local n with
-				| None, None -> decl n None (Some e)
+				| None, None -> decl n None (Some esub)
 				| _ -> ())
 			with Not_found -> 
 				());
@@ -858,8 +858,30 @@ let optimize_completion_expr e =
 			let efor = loop efor in
 			old();
 			(EFor ((EIn (id,it),p),efor),p)
-		| ESwitch _ ->
+		| EReturn _ ->
+			typing_side_effect := true;
 			map e
+		| ESwitch (e,cases,def) ->
+			let e = loop e in			
+			let cases = List.map (fun (el,e) ->
+				let el = List.map loop el in
+				let old = save() in
+				List.iter (fun e ->
+					match fst e with
+					| ECall (_,pl) ->
+						List.iter (fun p ->
+							match fst p with
+							| EConst (Ident i | Type i) -> decl i None None (* sadly *)
+							| _ -> ()
+						) pl
+					| _ -> ()
+				) el;
+				let e = loop e in
+				old();
+				el, e
+			) cases in
+			let def = (match def with None -> None | Some e -> Some (loop e)) in
+			(ESwitch (e,cases,def),p)
 		| ETry (et,cl) ->
 			let et = loop et in
 			let cl = List.map (fun (n,t,e) ->
