@@ -148,7 +148,12 @@ let get_signature com =
 	match com.defines_signature with
 	| Some s -> s
 	| None ->
-		let str = String.concat "@" (PMap.foldi (fun k _ acc -> if k = "display" || k = "use_rtti_doc" then acc else k :: acc) com.defines []) in
+		let str = String.concat "@" (PMap.foldi (fun k _ acc -> 
+			(* don't make much difference between these special compilation flags *)
+			match k with
+			| "display" | "use_rtti_doc" | "macrotimes" -> acc
+			| _ -> k :: acc
+		) com.defines []) in
 		let s = Digest.string str in
 		com.defines_signature <- Some s;
 		s
