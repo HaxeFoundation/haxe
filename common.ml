@@ -241,7 +241,7 @@ type timer_infos = {
 	mutable total : float;
 }
 
-let get_time = Unix.gettimeofday
+let get_time = Extc.cpu_time
 let htimers = Hashtbl.create 0
 
 let new_timer name =
