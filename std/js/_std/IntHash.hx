@@ -28,7 +28,7 @@
 	private var h : Dynamic;
 
 	public function new() : Void {
-		h = untyped ( Object.create != null ) ? Object.create(null) : {};
+		h = {};
 	}
 
 	public function set( key : Int, value : T ) : Void {
@@ -40,11 +40,11 @@
 	}
 
 	public function exists( key : Int ) : Bool {
-		return untyped Object.prototype.hasOwnProperty.call(h,key);
+		return untyped h.hasOwnProperty(key);
 	}
 
 	public function remove( key : Int ) : Bool {
-		if( untyped !Object.prototype.hasOwnProperty.call(h,key) ) return false;
+		if( untyped !h.hasOwnProperty(key) ) return false;
 		untyped  __js__("delete")(h[key]);
 		return true;
 	}
