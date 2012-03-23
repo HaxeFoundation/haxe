@@ -26,6 +26,8 @@
 #else
 #	include <limits.h>
 #	include <unistd.h>
+#	include <sys/time.h>
+#	include <sys/times.h>
 #	include <caml/memory.h>
 #endif
 #ifdef __APPLE__
@@ -37,6 +39,10 @@
 #	include <sys/param.h>
 #	include <sys/sysctl.h>
 #	include <sys/user.h>
+#endif
+
+#ifndef CLK_TCK
+#	define CLK_TCK	100
 #endif
 
 
@@ -185,5 +191,33 @@ CAMLprim value get_full_path( value f ) {
 	cpath = caml_copy_string(path);
 	free(path);
 	return cpath;
+#endif
+}
+
+
+CAMLprim value sys_cpu_time() {
+#ifdef _WIN32
+#define EPOCH_DIFF	(134774*24*60*60.0)
+	static LARGE_INTEGER freq;
+	static int freq_init = -1;
+	LARGE_INTEGER counter;
+	if( freq_init == -1 )
+		freq_init = QueryPerformanceFrequency(&freq);
+	if( !freq_init || !QueryPerformanceCounter(&counter) ) {
+		SYSTEMTIME t;
+		FILETIME ft;
+		ULARGE_INTEGER ui;
+		GetSystemTime(&t);
+		if( !SystemTimeToFileTime(&t,&ft) )
+			failwith("sys_cpu_time");
+		ui.LowPart = ft.dwLowDateTime;
+		ui.HighPart = ft.dwHighDateTime;
+		return caml_copy_double( ((double)ui.QuadPart) / 10000000.0 - EPOCH_DIFF );
+	}
+	return caml_copy_double( ((double)counter.QuadPart) / ((double)freq.QuadPart) );
+#else
+	struct tms t;
+	times(&t);
+	return caml_copy_double( ((double)(t.tms_utime + t.tms_stime)) / CLK_TCK );
 #endif
 }
