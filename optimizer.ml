@@ -944,7 +944,7 @@ let optimize_completion c fields =
 		if cp.pmin = 0 || (f.cff_pos.pmin <= cp.pmin && f.cff_pos.pmax >= cp.pmax) then
 			let k = try (match f.cff_kind with
 				| FVar (t,Some e) -> FVar (t,Some (optimize_completion_expr e))
-				| FFun fn -> (match optimize_completion_expr (EFunction (None,fn),f.cff_pos) with (EFunction (None,fn),_) -> FFun fn | e -> FVar(None,Some e))
+				| FFun fn -> (match optimize_completion_expr (EFunction (None,fn),f.cff_pos) with (EFunction (None,fn),_) -> FFun fn | e -> FFun({ fn with f_expr = Some e; f_args = []; }))
 				| k -> k
 			) with Exit -> f.cff_kind in
 			{ f with cff_kind = k }
