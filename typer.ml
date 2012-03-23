@@ -1701,8 +1701,15 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let fields = (match follow e.etype with
 			| TInst (c,params) ->
 				let priv = is_parent c ctx.curclass in
+				let opt_field f =
+					match f.cf_type with
+					| TLazy _ ->
+						(* this is not yet typed, let's put a fake method : this will speedup results *)
+						{ f with cf_type = TFun ([],ctx.t.tvoid) }
+					| _ -> f
+				in
 				let merge ?(cond=(fun _ -> true)) a b =
-					PMap.foldi (fun k f m -> if cond f then PMap.add k f m else m) a b
+					PMap.foldi (fun k f m -> if cond f then PMap.add k (opt_field f) m else m) a b
 				in
 				let rec loop c params =
 					let m = List.fold_left (fun m (i,params) ->
