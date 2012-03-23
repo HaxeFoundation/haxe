@@ -571,9 +571,8 @@ and wait_loop boot_com host port =
 and do_connect host port args =
 	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
 	(try Unix.connect sock (Unix.ADDR_INET (Unix.inet_addr_of_string host,port)) with _ -> failwith ("Couldn't connect on " ^ host ^ ":" ^ string_of_int port));
-	ssend sock ("--cwd " ^ Unix.getcwd() ^ "\n");
-	List.iter (fun p -> ssend sock (p ^ "\n")) args;
-	ssend sock "\000";
+	let args = ("--cwd " ^ Unix.getcwd()) :: args in
+	ssend sock (String.concat "" (List.map (fun a -> a ^ "\n") args) ^ "\000");
 	let buf = Buffer.create 0 in
 	let tmp = String.create 100 in
 	let rec loop() =
