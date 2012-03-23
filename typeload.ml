@@ -34,6 +34,7 @@ let parse_file com file p =
 
 let parse_hook = ref parse_file
 let type_module_hook = ref (fun _ _ _ -> None)
+let return_partial_type = ref false
 
 let type_function_param ctx t e opt p =
 	match e with
@@ -891,11 +892,13 @@ let init_class ctx c p herits fields =
 					(fun() -> ())
 				| Some e ->
 					let r = exc_protect (fun r ->
-						r := (fun() -> t);
-						if ctx.com.verbose then Common.log ctx.com ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
-						mark_used cf;
-						cf.cf_expr <- Some (type_static_var ctx t e p);
-						cf.cf_type <- t;
+						if not !return_partial_type then begin
+							r := (fun() -> t);
+							if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ name);
+							mark_used cf;
+							cf.cf_expr <- Some (type_static_var ctx t e p);
+							cf.cf_type <- t;
+						end;
 						t
 					) in
 					bind_type cf r (snd e) false
@@ -975,22 +978,24 @@ let init_class ctx c p herits fields =
 				cf_params = params;
 			} in
 			let r = exc_protect (fun r ->
-				r := (fun() -> t);
-				incr stats.s_methods_typed;
-				if ctx.com.verbose then Common.log ctx.com ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
-				let e , fargs = type_function ctx args ret (if constr then FConstructor else if stat then FStatic else FMember) fd p in
-				let f = {
-					tf_args = fargs;
-					tf_type = ret;
-					tf_expr = e;
-				} in
-				if stat && name = "__init__" then
-					(match e.eexpr with
-					| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
-					| _ -> c.cl_init <- Some e);
-				mark_used cf;
-				cf.cf_expr <- Some (mk (TFunction f) t p);
-				cf.cf_type <- t;
+				if not !return_partial_type then begin
+					r := (fun() -> t);
+					incr stats.s_methods_typed;
+					if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ name);
+					let e , fargs = type_function ctx args ret (if constr then FConstructor else if stat then FStatic else FMember) fd p in
+					let f = {
+						tf_args = fargs;
+						tf_type = ret;
+						tf_expr = e;
+					} in
+					if stat && name = "__init__" then
+						(match e.eexpr with
+						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
+						| _ -> c.cl_init <- Some e);
+					mark_used cf;
+					cf.cf_expr <- Some (mk (TFunction f) t p);
+					cf.cf_type <- t;
+				end;
 				t
 			) in
 			let delay = if ((c.cl_extern && not inline) || c.cl_interface) && cf.cf_name <> "__init__" then

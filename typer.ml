@@ -1698,18 +1698,21 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		ctx.in_display <- true;
 		let e = (try type_expr ctx e with Error (Unknown_ident n,_) -> raise (Parser.TypePath ([n],None))) in
 		ctx.in_display <- old;
+		let opt_type t =
+			match t with
+			| TLazy f ->
+				Typeload.return_partial_type := true;
+				let t = (!f)() in
+				Typeload.return_partial_type := false;
+				t
+			| _ ->
+				t
+		in
 		let fields = (match follow e.etype with
 			| TInst (c,params) ->
 				let priv = is_parent c ctx.curclass in
-				let opt_field f =
-					match f.cf_type with
-					| TLazy _ ->
-						(* this is not yet typed, let's put a fake method : this will speedup results *)
-						{ f with cf_type = TFun ([],ctx.t.tvoid) }
-					| _ -> f
-				in
 				let merge ?(cond=(fun _ -> true)) a b =
-					PMap.foldi (fun k f m -> if cond f then PMap.add k (opt_field f) m else m) a b
+					PMap.foldi (fun k f m -> if cond f then PMap.add k f m else m) a b
 				in
 				let rec loop c params =
 					let m = List.fold_left (fun m (i,params) ->
@@ -1720,13 +1723,13 @@ and type_expr ctx ?(need_val=true) (e,p) =
 						| Some (csup,cparams) -> merge m (loop csup cparams)
 					) in
 					let m = merge ~cond:(fun f -> priv || f.cf_public) c.cl_fields m in
-					PMap.map (fun f -> { f with cf_type = apply_params c.cl_types params f.cf_type; cf_public = true; }) m
+					PMap.map (fun f -> { f with cf_type = apply_params c.cl_types params (opt_type f.cf_type); cf_public = true; }) m
 				in
 				loop c params
 			| TAnon a ->
 				(match !(a.a_status) with
 				| Statics c when is_parent c ctx.curclass ->
-					PMap.map (fun f -> { f with cf_public = true }) a.a_fields
+					PMap.map (fun f -> { f with cf_public = true; cf_type = opt_type f.cf_type }) a.a_fields
 				| _ ->
 					a.a_fields)
 			| _ ->
@@ -1743,6 +1746,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				| TClassDecl c ->
 					let rec dup t = Type.map dup t in
 					List.iter (fun f ->
+						let f = { f with cf_type = opt_type f.cf_type } in
 						match follow (field_type f) with
 						| TFun ((_,_,t) :: args, ret) when (try unify_raise ctx (dup e.etype) t e.epos; true with _ -> false) ->
 							let f = { f with cf_type = TFun (args,ret); cf_params = [] } in

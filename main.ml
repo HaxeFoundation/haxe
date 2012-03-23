@@ -530,6 +530,7 @@ and wait_loop boot_com host port =
 				Common.display_default := false;
 				Common.default_print := (fun str -> ssend sin ("\x01" ^ str));
 				Parser.resume_display := Ast.null_pos;
+				Typeload.return_partial_type := false;
 				measure_times := false;
 				close_times();
 				stats.s_files_parsed := 0;
