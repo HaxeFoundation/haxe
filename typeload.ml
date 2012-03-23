@@ -25,6 +25,7 @@ let parse_file com file p =
 	let ch = (try open_in_bin file with _ -> error ("Could not open " ^ file) p) in
 	let t = Common.timer "parsing" in
 	Lexer.init file;
+	incr stats.s_files_parsed;
 	let data = (try Parser.parse com (Lexing.from_channel ch) with e -> close_in ch; t(); raise e) in
 	close_in ch;
 	t();
@@ -736,6 +737,7 @@ let build_module_def ctx mt meta fvars fbuild =
 		display_error ctx msg p
 
 let init_class ctx c p herits fields =
+	incr stats.s_classes_built;
 	let fields = patch_class ctx c fields in
 	let ctx = { ctx with type_params = c.cl_types } in
 	c.cl_extern <- List.mem HExtern herits;
@@ -974,6 +976,7 @@ let init_class ctx c p herits fields =
 			} in
 			let r = exc_protect (fun r ->
 				r := (fun() -> t);
+				incr stats.s_methods_typed;
 				if ctx.com.verbose then Common.log ctx.com ("Typing " ^ s_type_path c.cl_path ^ "." ^ name);
 				let e , fargs = type_function ctx args ret (if constr then FConstructor else if stat then FStatic else FMember) fd p in
 				let f = {

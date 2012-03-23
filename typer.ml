@@ -2459,6 +2459,7 @@ let load_macro ctx cpath f p =
 	t();
 	let call args =
 		let t = macro_timer ctx (s_type_path cpath ^ "." ^ f) in
+		incr stats.s_macros_called;
 		let r = Interp.call_path mctx ((fst cpath) @ [snd cpath]) f args api in
 		t();
 		r

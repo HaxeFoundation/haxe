@@ -532,6 +532,10 @@ and wait_loop boot_com host port =
 				Parser.resume_display := Ast.null_pos;
 				measure_times := false;
 				close_times();
+				stats.s_files_parsed := 0;
+				stats.s_classes_built := 0;
+				stats.s_methods_typed := 0;
+				stats.s_macros_called := 0;
 				Hashtbl.clear Common.htimers;
 				let _ = Common.timer "other" in
 				Hashtbl.clear modules_added;
@@ -543,13 +547,15 @@ and wait_loop boot_com host port =
 				if verbose then print_endline ("Completion Response =\n" ^ str);
 				ssend sin str
 			);
-			if verbose then Printf.printf "Time spent : %.3fs\n" (get_time() -. t0);
+			if verbose then begin
+				print_endline (Printf.sprintf "Stats = %d files, %d classes, %d methods, %d macros" !(stats.s_files_parsed) !(stats.s_classes_built) !(stats.s_methods_typed) !(stats.s_macros_called));
+				print_endline (Printf.sprintf "Time spent : %.3fs" (get_time() -. t0));
+			end
 		with Unix.Unix_error _ ->
 			if verbose then print_endline "Connection Aborted");
-		if verbose then print_endline "Closing connection";
 		Unix.close sin;
 		(* prevent too much fragmentation by doing some compactions every X run *)
-		incr run_count;		
+		incr run_count;
 		if !run_count mod 1 = 50 then begin
 			let t0 = get_time() in
 			Gc.compact();
@@ -558,7 +564,7 @@ and wait_loop boot_com host port =
 				let size = (float_of_int stat.Gc.heap_words) *. 4. in
 				print_endline (Printf.sprintf "Compacted memory %.3fs %.1fMB" (get_time() -. t0) (size /. (1024. *. 1024.)));
 			end
-		end
+		end else Gc.minor();
 	done
 
 and do_connect host port args =

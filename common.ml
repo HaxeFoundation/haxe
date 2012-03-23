@@ -44,6 +44,13 @@ type basic_types = {
 	mutable tarray : t -> t;
 }
 
+type stats = {
+	s_files_parsed : int ref;
+	s_classes_built : int ref;
+	s_methods_typed : int ref;
+	s_macros_called : int ref;
+}
+
 type context = {
 	(* config *)
 	version : int;
@@ -87,6 +94,14 @@ exception Abort of string * Ast.pos
 
 let display_default = ref false
 let default_print = ref print_string
+
+let stats =
+	{
+		s_files_parsed = ref 0;
+		s_classes_built = ref 0;
+		s_methods_typed = ref 0;
+		s_macros_called = ref 0;
+	}
 
 let create v args =
 	let m = Type.mk_mono() in
