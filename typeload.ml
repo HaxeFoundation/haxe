@@ -803,6 +803,9 @@ let init_class ctx c p herits fields =
 	(* ----------------------- COMPLETION ----------------------------- *)
 
 	let display_file = if ctx.com.display then String.lowercase (Common.get_full_path p.pfile) = String.lowercase (!Parser.resume_display).pfile else false in
+
+	let fields = if not display_file || Common.defined ctx.com "no-copt" then fields else Optimizer.optimize_completion c fields in
+
 	let rec is_full_type t =
 		match t with
 		| TFun (args,ret) -> is_full_type ret && List.for_all (fun (_,_,t) -> is_full_type t) args

@@ -784,3 +784,150 @@ let rec reduce_loop ctx e =
 
 let reduce_expression ctx e =
 	if ctx.com.foptimize then reduce_loop ctx e else e
+
+(* ---------------------------------------------------------------------- *)
+(* COMPLETION *)
+
+exception Return of Ast.expr
+
+type compl_locals = {
+	mutable r : (string, (complex_type option * (int * Ast.expr * compl_locals) option)) PMap.t;
+}
+
+let optimize_completion_expr e =
+	let iid = ref 0 in
+	let typing_side_effect = ref false in
+	let locals : compl_locals = { r = PMap.empty } in
+	let save() = let old = locals.r in (fun() -> locals.r <- old) in
+	let get_local n = PMap.find n locals.r in
+	let decl n t e =
+		typing_side_effect := true;
+		locals.r <- PMap.add n (t,(match e with None -> None | Some e -> incr iid; Some (!iid,e,{ r = locals.r }))) locals.r
+	in
+	let rec loop e =
+		let p = snd e in
+		match fst e with
+		| EConst (Ident n | Type n) ->
+			(try
+				(match get_local n with
+				| Some _ , _ -> ()
+				| _ -> typing_side_effect := true)
+			with Not_found ->
+				());
+			e
+		| EBinop (OpAssign,(EConst (Ident n | Type n),_),e) ->
+			(try
+				(match get_local n with
+				| None, None -> decl n None (Some e)
+				| _ -> ())
+			with Not_found -> 
+				());
+			map e
+		| EVars vl ->
+			let vl = List.map (fun (v,t,e) ->
+				let e = (match e with None -> None | Some e -> Some (loop e)) in
+				decl v t e;
+				(v,t,e)
+			) vl in
+			(EVars vl,p)
+		| EBlock el ->
+			let old = save() in
+			let told = ref (!typing_side_effect) in
+			let el = List.fold_left (fun acc e ->
+				typing_side_effect := false;
+				let e = loop e in
+				if !typing_side_effect then begin told := true; e :: acc end else acc
+			) [] el in
+			old();
+			typing_side_effect := !told;
+			(EBlock (List.rev el),p)
+		| EFunction (v,f) ->
+			(match v with
+			| None -> ()
+			| Some name -> 
+				decl name None (Some e));
+			let old = save() in
+			List.iter (fun (n,_,t,e) -> decl n t e) f.f_args;
+			let e = map e in
+			old();
+			e
+		| EFor ((EIn ((EConst (Ident n | Type n),_) as id,it),p),efor) ->
+			let it = loop it in
+			let old = save() in
+			decl n None (Some (ECall ((EField ((ECall ((EField (it,"iterator"),p),[]),p),"next"),p),[]),p));
+			let efor = loop efor in
+			old();
+			(EFor ((EIn (id,it),p),efor),p)
+		| ESwitch _ ->
+			map e
+		| ETry (et,cl) ->
+			let et = loop et in
+			let cl = List.map (fun (n,t,e) ->
+				let old = save() in
+				decl n (Some t) None;
+				let e = loop e in
+				old();
+				n, t, e
+			) cl in
+			(ETry (et,cl),p)
+		| EDisplay (s,call) ->
+			typing_side_effect := true;
+			let tmp_locals = ref [] in
+			let tmp_hlocals = ref PMap.empty in
+			let rec subst_locals locals e =
+				match fst e with
+				| EConst (Ident n | Type n) ->
+					let p = snd e in
+					(try
+						(match PMap.find n locals.r with
+						| Some t , _ -> (ECheckType ((EConst (Ident "null"),p),t),p)
+						| _, Some (id,e,lc) ->
+							let name = (try
+								PMap.find id (!tmp_hlocals)
+							with Not_found ->
+								let e = subst_locals lc e in
+								let name = "$tmp_" ^ string_of_int id in
+								tmp_locals := (name,None,Some e) :: !tmp_locals;
+								tmp_hlocals := PMap.add id name !tmp_hlocals;
+								name
+							) in
+							(EConst (Ident name),p)
+						| None, None ->
+							(* we can't replace the var *)
+							raise Exit)
+					with Not_found ->
+						(* not found locals are most likely to be member/static vars *)
+						e)
+				| _ ->
+					Ast.map_expr (subst_locals locals) e
+			in
+			(try
+				let e = subst_locals locals s in
+				let e = (EBlock [(EVars (List.rev !tmp_locals),p);e],p) in
+				raise (Return (EDisplay (e,call),p))
+			with Exit ->
+				map e)
+		| EDisplayNew _ ->
+			raise (Return e)
+		| _ ->
+			map e
+	and map e =
+		Ast.map_expr loop e
+	in
+	(try loop e with Return e -> e)
+
+let optimize_completion c fields =
+	let cp = !Parser.resume_display in
+	List.map (fun f ->
+		if cp.pmin = 0 || (f.cff_pos.pmin <= cp.pmin && f.cff_pos.pmax >= cp.pmax) then
+			let k = try (match f.cff_kind with
+				| FVar (t,Some e) -> FVar (t,Some (optimize_completion_expr e))
+				| FFun fn -> (match optimize_completion_expr (EFunction (None,fn),f.cff_pos) with (EFunction (None,fn),_) -> FFun fn | e -> FVar(None,Some e))
+				| k -> k
+			) with Exit -> f.cff_kind in
+			{ f with cff_kind = k }
+		else
+			f
+	) fields
+
+(* ---------------------------------------------------------------------- *)

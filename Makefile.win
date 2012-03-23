@@ -8,7 +8,7 @@ LFLAGS=-g -o haxe.exe -I ../neko/libs/include/ocaml
 OUTPUT=sed 's/File "\([^"]\+\)", line \([0-9]\+\), \(.*\)/\1(\2): \3/' tmp.cmi
 
 FILES = ast.cmx lexer.cmx type.cmx common.cmx parser.cmx typecore.cmx \
-	genxml.cmx typeload.cmx codegen.cmx optimizer.cmx \
+	genxml.cmx optimizer.cmx typeload.cmx codegen.cmx \
 	../neko/libs/include/ocaml/nast.cmx ../neko/libs/include/ocaml/binast.cmx ../neko/libs/include/ocaml/nxml.cmx \
 	genneko.cmx genas3.cmx genjs.cmx genswf8.cmx genswf9.cmx genswf.cmx genphp.cmx gencpp.cmx interp.cmx typer.cmx \
 	main.cmx
@@ -41,7 +41,7 @@ parser.cmx: parser.ml lexer.cmx common.cmx ast.cmx
 	(ocamlopt -pp camlp4o $(CFLAGS) -c parser.ml 2>tmp.cmi && $(OUTPUT)) || ($(OUTPUT) && exit 1)
 type.cmx: ast.cmx
 typecore.cmx: type.cmx common.cmx ast.cmx
-typeload.cmx: typecore.cmx type.cmx parser.cmx common.cmx ast.cmx
+typeload.cmx: typecore.cmx type.cmx parser.cmx common.cmx ast.cmx optimizer.cmx
 typer.cmx: typeload.cmx typecore.cmx type.cmx parser.cmx optimizer.cmx \
     lexer.cmx common.cmx codegen.cmx ast.cmx interp.cmx genjs.cmx
 interp.cmx: genneko.cmx type.cmx
