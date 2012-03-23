@@ -146,7 +146,7 @@ let compile() =
 	] in
 	let mlist = [
 		"ast";"lexer";"type";"common";"parser";"typecore";
-		"genxml";"typeload";"codegen";"optimizer";
+		"genxml";"optimizer";"typeload";"codegen";
 		neko^"/nast";neko^"/binast";neko^"/nxml";
 		"genneko";"genas3";"genjs";"genswf8";"genswf9";"genswf";"genphp";"gencpp";
 		"interp";"typer";"main";
