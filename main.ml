@@ -416,55 +416,54 @@ and wait_loop boot_com host port =
 	let check_module_path com m p =
 		m.m_extra.m_file = Common.get_full_path (Typeload.resolve_module_file com m.m_path (ref[]) p)
 	in
-	let modules_added = Hashtbl.create 0 in
+	let compilation_step = ref 0 in
+	let compilation_mark = ref 0 in
+	let mark_loop = ref 0 in
 	Typeload.type_module_hook := (fun (ctx:Typecore.typer) mpath p ->
+		let t = Common.timer "module cache check" in
 		let com2 = ctx.Typecore.com in
 		let sign = get_signature com2 in
-		let added = (try Hashtbl.find modules_added sign with Not_found -> let added = Hashtbl.create 0 in Hashtbl.add modules_added sign added; added) in
-		let modules_checked = Hashtbl.create 0 in
 		let dep = ref None in
+		incr mark_loop;
+		let mark = !mark_loop in
+		let start_mark = !compilation_mark in
 		let rec check m =
-			try
-				(match Hashtbl.find added m.m_id with
-				| None -> true
-				| x -> dep := x; false)
-			with Not_found -> try
-				!(Hashtbl.find modules_checked m.m_id)
-			with Not_found ->
-			let ok = ref true in
-			Hashtbl.add modules_checked m.m_id ok;
-			try
-				let m = Hashtbl.find cache.c_modules (m.m_path,m.m_extra.m_sign) in
-				(match m.m_extra.m_kind with
-				| MFake -> () (* don't get classpath *)
-				| MCode -> if not (check_module_path com2 m p) then raise Not_found;
-				| MMacro when ctx.Typecore.in_macro -> if not (check_module_path com2 m p) then raise Not_found;
-				| MMacro ->
-					let _, mctx = Typer.get_macro_context ctx p in
-					if not (check_module_path mctx.Typecore.com m p) then raise Not_found;
-				);
-				if file_time m.m_extra.m_file <> m.m_extra.m_time then begin
-					if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules m.m_extra.m_file;
-					raise Not_found;
+			if m.m_extra.m_dirty then begin
+				dep := Some m;
+				false
+			end else if m.m_extra.m_mark = mark then
+				true
+			else try
+				if m.m_extra.m_mark <= start_mark then begin
+					(match m.m_extra.m_kind with
+					| MFake -> () (* don't get classpath *)
+					| MCode -> if not (check_module_path com2 m p) then raise Not_found;
+					| MMacro when ctx.Typecore.in_macro -> if not (check_module_path com2 m p) then raise Not_found;
+					| MMacro ->
+						let _, mctx = Typer.get_macro_context ctx p in
+						if not (check_module_path mctx.Typecore.com m p) then raise Not_found;
+					);
+					if file_time m.m_extra.m_file <> m.m_extra.m_time then begin
+						if m.m_extra.m_kind = MFake then Hashtbl.remove Typecore.fake_modules m.m_extra.m_file;
+						raise Not_found;
+					end;
 				end;
+				m.m_extra.m_mark <- mark;
 				PMap.iter (fun _ m2 -> if not (check m2) then begin dep := Some m2; raise Not_found end) m.m_extra.m_deps;
 				true
 			with Not_found ->
-				Hashtbl.add added m.m_id (match !dep with None -> Some m | x -> x);
-				ok := false;
-				!ok
+				m.m_extra.m_dirty <- true;
+				false
 		in
 		let rec add_modules m0 m =
-			if Hashtbl.mem added m.m_id then
-				()
-			else begin
-				Hashtbl.add added m.m_id None;
+			if m.m_extra.m_added < !compilation_step then begin
 				(match m0.m_extra.m_kind, m.m_extra.m_kind with
 				| MCode, MMacro | MMacro, MCode ->
 					(* this was just a dependency to check : do not add to the context *)
 					()
 				| _ ->
 					if verbose then print_endline ("Reusing  cached module " ^ Ast.s_type_path m.m_path);
+					m.m_extra.m_added <- !compilation_step;
 					Typeload.add_module ctx m p;
 					PMap.iter (Hashtbl.add com2.resources) m.m_extra.m_binded_res;
 					PMap.iter (fun _ m2 -> add_modules m0 m2) m.m_extra.m_deps);
@@ -478,8 +477,10 @@ and wait_loop boot_com host port =
 				raise Not_found;
 			end;
 			add_modules m m;
+			t();
 			Some m
 		with Not_found ->
+			t();
 			None
 	);
 	let run_count = ref 0 in
@@ -512,7 +513,8 @@ and wait_loop boot_com host port =
 		let create params =
 			let ctx = create_context params in
 			ctx.flush <- (fun() ->
-				Hashtbl.clear modules_added;
+				incr compilation_step;
+				compilation_mark := !mark_loop;
 				cache_context ctx.com;
 				List.iter (fun s -> ssend sin (s ^ "\n"); if verbose then print_endline ("> " ^ s)) (List.rev ctx.messages);
 				if ctx.has_error then ssend sin "\x02\n";
@@ -539,7 +541,8 @@ and wait_loop boot_com host port =
 				stats.s_macros_called := 0;
 				Hashtbl.clear Common.htimers;
 				let _ = Common.timer "other" in
-				Hashtbl.clear modules_added;
+				incr compilation_step;
+				compilation_mark := !mark_loop;
 				start_time := get_time();
 				process_params create [] data;
 				close_times();

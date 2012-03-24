@@ -235,6 +235,9 @@ and module_def_extra = {
 	m_file : string;
 	m_sign : string;
 	mutable m_time : float;
+	mutable m_dirty : bool;
+	mutable m_added : int;
+	mutable m_mark : int;
 	mutable m_deps : (int,module_def) PMap.t;
 	mutable m_processed : int;
 	mutable m_kind : module_kind;
@@ -297,19 +300,25 @@ let mk_class m path pos =
 		cl_restore = (fun() -> ());
 	}
 
+let module_extra file sign time kind = 
+	{
+		m_file = file;
+		m_sign = sign;
+		m_dirty = false;
+		m_added = 0;
+		m_mark = 0;
+		m_time = time;
+		m_processed = 0;
+		m_deps = PMap.empty;
+		m_kind = kind;
+		m_binded_res = PMap.empty;
+	}
+
 let null_module = {
 		m_id = alloc_mid();
 		m_path = [] , "";
 		m_types = [];
-		m_extra = {
-			m_file = "";
-			m_sign = "";
-			m_time = 0.;
-			m_processed = 0;
-			m_deps = PMap.empty;
-			m_kind = MFake;
-			m_binded_res = PMap.empty;
-		};
+		m_extra = module_extra "" "" 0. MFake;
 	}
 
 let null_class =
@@ -318,7 +327,7 @@ let null_class =
 	c
 
 let add_dependency m mdep =
-	if m != null_module then m.m_extra.m_deps <- PMap.add mdep.m_id mdep m.m_extra.m_deps
+	if m != null_module && m != mdep then m.m_extra.m_deps <- PMap.add mdep.m_id mdep m.m_extra.m_deps
 
 let arg_name (a,_) = a.v_name
 

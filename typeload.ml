@@ -1183,15 +1183,7 @@ let type_module ctx m file tdecls loadp =
 		m_id = alloc_mid();
 		m_path = m;
 		m_types = [];
-		m_extra = {
-			m_file = Common.get_full_path file;
-			m_sign = Common.get_signature ctx.com;
-			m_time = file_time file;
-			m_deps = PMap.empty;
-			m_processed = 0;
-			m_kind = if ctx.in_macro then MMacro else MCode;
-			m_binded_res = PMap.empty;
-		};
+		m_extra = module_extra (Common.get_full_path file) (Common.get_signature ctx.com) (file_time file) (if ctx.in_macro then MMacro else MCode);
 	} in
 	List.iter (fun (d,p) ->
 		match d with
