@@ -490,14 +490,14 @@ let gen_arg_type_name name default_val arg_type prefix =
 	let type_str = (type_string arg_type) in
 	match default_val with
 	| Some TNull  -> (type_str,remap_name)
-	| Some constant when (cant_be_null type_str) -> ("hx::Null<" ^ type_str ^ ">",prefix ^ remap_name)
+	| Some constant when (cant_be_null type_str) -> ("hx::Null< " ^ type_str ^ " > ",prefix ^ remap_name)
 	| Some constant  -> (type_str,prefix ^ remap_name)
 	| _ -> (type_str,remap_name);;
 
 let gen_interface_arg_type_name name opt typ =
 	let type_str = (type_string typ) in
    (if (opt && (cant_be_null type_str) ) then
-      "hx::Null<" ^ type_str ^ ">"
+      "hx::Null< " ^ type_str ^ " > "
    else
       type_str )
       ^ " " ^ (keyword_remap name) ^ (if opt then "=null()" else "")
