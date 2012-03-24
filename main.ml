@@ -393,7 +393,7 @@ and wait_loop boot_com host port =
 			has_parse_error := false;
 			let data = Typeload.parse_file com2 file p in
 			if verbose then print_endline ("Parsed " ^ ffile);
-			if not !has_parse_error then Hashtbl.replace cache.c_files fkey (ftime,data);
+			if not !has_parse_error && ffile <> (!Parser.resume_display).Ast.pfile then Hashtbl.replace cache.c_files fkey (ftime,data);
 			data
 	);
 	let cache_module m =
@@ -521,6 +521,14 @@ and wait_loop boot_com host port =
 			);
 			ctx.setup <- (fun() ->
 				Parser.display_error := (fun e p -> has_parse_error := true; ctx.com.error (Parser.error_msg e) p);
+				if ctx.com.display then begin
+					let file = (!Parser.resume_display).Ast.pfile in
+					let fkey = file ^ "!" ^ get_signature ctx.com in
+					(* force parsing again : if the completion point have been changed *)
+					Hashtbl.remove cache.c_files fkey;
+					(* force module reloading (if cached) *)
+					Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- true) cache.c_modules
+				end
 			);
 			ctx
 		in
