@@ -199,6 +199,12 @@ class XmlParser {
 			// compare params ?
 			if( tinf.path == inf.path ) {
 				var sameType = true;
+				if( (tinf.doc == null) != (inf.doc == null) ) {
+					if( inf.doc == null )
+						inf.doc = tinf.doc;
+					else
+						tinf.doc = inf.doc;
+				}
 				if( tinf.module == inf.module && tinf.doc == inf.doc && tinf.isPrivate == inf.isPrivate )
 					switch( ct ) {
 					case TClassdecl(c):
