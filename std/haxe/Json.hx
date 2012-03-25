@@ -255,7 +255,9 @@ class Json {
 					throw "Invalid float at position "+pos;
 				var v = reg_float.matched(0);
 				pos += v.length;
-				return Std.parseFloat(v);
+				var f = Std.parseFloat(v);
+				var i = Std.int(f);
+				return if( i == f ) i else f;
 			default:
 				invalidChar();
 			}
