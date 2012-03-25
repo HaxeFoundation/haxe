@@ -137,7 +137,7 @@ class ExampleJSGenerator {
 		genPackage(c.pack);
 		api.setCurrentClass(c);
 		var p = getPath(c);
-		fprint("$p = $hxClasses['$p'] = ");
+		fprint("$p = $$hxClasses['$p'] = ");
 		if( c.constructor != null )
 			genExpr(c.constructor.get().expr);
 		else
@@ -178,7 +178,7 @@ class ExampleJSGenerator {
 		var p = getPath(e);
 		var names = p.split(".").map(api.quoteString).join(",");
 		var constructs = e.names.map(api.quoteString).join(",");
-		fprint("$p = $hxClasses['$p'] = { __ename__ : [$names], __constructs__ : [$constructs] }");
+		fprint("$p = $$hxClasses['$p'] = { __ename__ : [$names], __constructs__ : [$constructs] }");
 		newline();
 		for( c in e.constructs.keys() ) {
 			var c = e.constructs.get(c);
