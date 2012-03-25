@@ -1879,6 +1879,8 @@ let generate_field_kind ctx f c stat =
 				PMap.exists name c.cl_fields || loop c name
 		in
 		(match f.cf_kind with
+		| Method MethDynamic when List.mem f.cf_name c.cl_overrides ->
+			None
 		| Var _ | Method MethDynamic ->
 			Some (HFVar {
 				hlv_type = Some (type_path ctx ([],"Function"));
