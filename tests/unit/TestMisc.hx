@@ -20,24 +20,25 @@ class MyDynamicClass {
 		return v + x + y;
 	}
 
-#if php
 	static var Z = 10;
 
 	public dynamic static function staticDynamic(x,y) {
 		return Z + x + y;
 	}
-#else
-	static var V = 10;
 
-	public dynamic static function staticDynamic(x,y) {
-		return V + x + y;
-	}
-#end
 }
 
 class MyDynamicSubClass extends MyDynamicClass {
 
 	override function add(x,y) {
+		return (v + x + y) * 2;
+	}
+
+}
+
+class MyDynamicSubClass2 extends MyDynamicClass {
+
+	override dynamic function add(x,y) {
 		return (v + x + y) * 2;
 	}
 
@@ -122,6 +123,13 @@ class TestMisc extends Test {
 		eq( callback(inst.add,1)(2), 206 );
 		eq( add(1,2), 206 );
 
+		// check overriden dynamic method
+		var inst = new MyDynamicSubClass2(100);
+		var add = inst.add;
+		eq( inst.add(1,2), 206 );
+		eq( callback(inst.add,1)(2), 206 );
+		eq( add(1,2), 206 );
+		
 		// check redefined dynamic method
 		inst.add = function(x,y) return inst.get() * 2 + x + y;
 		var add = inst.add;
@@ -342,7 +350,7 @@ class TestMisc extends Test {
 		return;
 		#end
 		
-		function id(v:Dynamic,?pos) eq(haxe.Json.parse(haxe.Json.stringify(v)),v);
+		function id(v:Dynamic,?pos:haxe.PosInfos) eq(haxe.Json.parse(haxe.Json.stringify(v)),v);
 		function deepId(v:Dynamic) {
 			var str = haxe.Json.stringify(v);
 			eq(haxe.Json.stringify(haxe.Json.parse(str)), str);
