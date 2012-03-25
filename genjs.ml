@@ -50,7 +50,6 @@ type ctx = {
 	mutable in_loop : bool;
 	mutable handle_break : bool;
 	mutable id_counter : int;
-	mutable curmethod : (string * bool);
 	mutable type_accessor : module_type -> string;
 	mutable separator : bool;
 }
@@ -293,7 +292,7 @@ let rec gen_call ctx e el =
 	match e.eexpr , el with
 	| TConst TSuper , params ->
 		(match ctx.current.cl_super with
-		| None -> error "Missing setDebugInfos current class" e.epos
+		| None -> error "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
 			print ctx "%s.call(%s" (ctx.type_accessor (TClassDecl c)) (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
@@ -301,7 +300,7 @@ let rec gen_call ctx e el =
 		);
 	| TField ({ eexpr = TConst TSuper },name) , params ->
 		(match ctx.current.cl_super with
-		| None -> error "Missing setDebugInfos current class" e.epos
+		| None -> error "Missing api.setCurrentClass" e.epos
 		| Some (c,_) ->
 			print ctx "%s.prototype%s.call(%s" (ctx.type_accessor (TClassDecl c)) (field name) (this ctx);
 			List.iter (fun p -> print ctx ","; gen_value ctx p) params;
@@ -404,16 +403,10 @@ and gen_expr ctx e =
 		print ctx "}";
 	| TFunction f ->
 		let old = ctx.in_value, ctx.in_loop in
-		let old_meth = ctx.curmethod in
 		ctx.in_value <- None;
 		ctx.in_loop <- false;
-		if snd ctx.curmethod then
-			ctx.curmethod <- (fst ctx.curmethod ^ "@" ^ string_of_int (Lexer.get_error_line e.epos), true)
-		else
-			ctx.curmethod <- (fst ctx.curmethod, true);
 		print ctx "function(%s) " (String.concat "," (List.map ident (List.map arg_name f.tf_args)));
 		gen_expr ctx (fun_block ctx f e.epos);
-		ctx.curmethod <- old_meth;
 		ctx.in_value <- fst old;
 		ctx.in_loop <- snd old;
 		ctx.separator <- true
@@ -814,7 +807,6 @@ let gen_class_static_field ctx c f =
 	| Some e ->
 		match e.eexpr with
 		| TFunction _ ->
-			ctx.curmethod <- (f.cf_name,false);
 			ctx.id_counter <- 0;
 			print ctx "%s%s = " (s_path ctx c.cl_path) (field f.cf_name);
 			gen_value ctx e;
@@ -831,14 +823,12 @@ let gen_class_field ctx c f =
 	| None ->
 		print ctx "null";
 	| Some e ->
-		ctx.curmethod <- (f.cf_name,false);
 		ctx.id_counter <- 0;
 		gen_value ctx e;
 		ctx.separator <- false
 
 let generate_class ctx c =
 	ctx.current <- c;
-	ctx.curmethod <- ("new",false);
 	ctx.id_counter <- 0;
 	(match c.cl_path with
 	| [],"Function" -> error "This class redefine a native one" c.cl_pos
@@ -953,6 +943,9 @@ let generate_type ctx = function
 	| TEnumDecl e -> generate_enum ctx e
 	| TTypeDecl _ -> ()
 
+let set_current_class ctx c =
+	ctx.current <- c
+
 let alloc_ctx com =
 	let ctx = {
 		com = com;
@@ -978,7 +971,6 @@ let alloc_ctx com =
 		in_loop = false;
 		handle_break = false;
 		id_counter = 0;
-		curmethod = ("",false);
 		type_accessor = (fun _ -> assert false);
 		separator = false;
 	} in

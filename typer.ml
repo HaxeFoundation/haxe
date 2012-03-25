@@ -2354,6 +2354,10 @@ let make_macro_api ctx p =
 						);
 						Interp.VNull
 					));
+					"setCurrentClass", Interp.VFunction (Interp.Fun1 (fun c ->
+						Genjs.set_current_class js_ctx (match Interp.decode_tdecl c with TClassDecl c -> c | _ -> assert false);
+						Interp.VNull
+					));
 				] in
 				let t = macro_timer ctx "jsGenerator" in
 				gen jsctx;
