@@ -1053,7 +1053,9 @@ with
 				let ctx = Typer.create com in
 				let m = Typeload.load_module ctx (p,c) Ast.null_pos in
 				complete_fields (List.map (fun t -> snd (t_path t),"","") (List.filter (fun t -> not (t_infos t).mt_private) m.m_types))
-			with _ ->
+			with Completion c ->
+				raise (Completion c)
+			| _ ->
 				error ctx ("Could not load module " ^ (Ast.s_type_path (p,c))) Ast.null_pos)
 	| e when (try Sys.getenv "OCAMLRUNPARAM" <> "b" with _ -> true) ->
 		error ctx (Printexc.to_string e) Ast.null_pos
