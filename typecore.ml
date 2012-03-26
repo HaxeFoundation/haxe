@@ -213,7 +213,7 @@ let mk_field name t p = {
 
 let fake_modules = Hashtbl.create 0
 let create_fake_module ctx file =
-	let file = Extc.get_full_path file in
+	let file = Common.unique_full_path file in
 	let mdep = (try Hashtbl.find fake_modules file with Not_found ->
 		let mdep = {
 			m_id = alloc_mid();

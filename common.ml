@@ -233,6 +233,10 @@ let find_file ctx f =
 
 let get_full_path f = try Extc.get_full_path f with _ -> f
 
+let unique_full_path =
+	if Sys.os_type <> "Win32" && Sys.os_type <> "Cygwin" then get_full_path else
+	(fun f -> String.lowercase (String.concat "/" (ExtString.String.nsplit (get_full_path f) "\\")))
+
 (* ------------------------- TIMERS ----------------------------- *)
 
 type timer_infos = {

@@ -392,7 +392,7 @@ and wait_loop boot_com host port =
 	global_cache := Some cache;
 	Typeload.parse_hook := (fun com2 file p ->
 		let sign = get_signature com2 in
-		let ffile = Common.get_full_path file in
+		let ffile = Common.unique_full_path file in
 		let ftime = file_time ffile in
 		let fkey = ffile ^ "!" ^ sign in
 		try
@@ -424,7 +424,7 @@ and wait_loop boot_com host port =
 		) m.m_types
 	in
 	let check_module_path com m p =
-		m.m_extra.m_file = Common.get_full_path (Typeload.resolve_module_file com m.m_path (ref[]) p)
+		m.m_extra.m_file = Common.unique_full_path (Typeload.resolve_module_file com m.m_path (ref[]) p)
 	in
 	let compilation_step = ref 0 in
 	let compilation_mark = ref 0 in
@@ -797,7 +797,7 @@ try
 				Common.define com "display";
 				Parser.use_doc := true;
 				Parser.resume_display := {
-					Ast.pfile = Common.get_full_path file;
+					Ast.pfile = Common.unique_full_path file;
 					Ast.pmin = pos;
 					Ast.pmax = pos;
 				};

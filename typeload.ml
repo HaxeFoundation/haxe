@@ -805,7 +805,7 @@ let init_class ctx c p herits fields =
 
 	(* ----------------------- COMPLETION ----------------------------- *)
 
-	let display_file = if ctx.com.display then String.lowercase (Common.get_full_path p.pfile) = String.lowercase (!Parser.resume_display).pfile else false in
+	let display_file = if ctx.com.display then Common.unique_full_path p.pfile = (!Parser.resume_display).pfile else false in
 
 	let fields = if not display_file || Common.defined ctx.com "no-copt" then fields else Optimizer.optimize_completion c fields in
 
@@ -1183,7 +1183,7 @@ let type_module ctx m file tdecls loadp =
 		m_id = alloc_mid();
 		m_path = m;
 		m_types = [];
-		m_extra = module_extra (Common.get_full_path file) (Common.get_signature ctx.com) (file_time file) (if ctx.in_macro then MMacro else MCode);
+		m_extra = module_extra (Common.unique_full_path file) (Common.get_signature ctx.com) (file_time file) (if ctx.in_macro then MMacro else MCode);
 	} in
 	List.iter (fun (d,p) ->
 		match d with

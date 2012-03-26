@@ -75,7 +75,7 @@ let display e = raise (Display e)
 
 let is_resuming p =
 	let p2 = !resume_display in
-	p.pmax = p2.pmin && String.lowercase (Common.get_full_path p.pfile) = String.lowercase p2.pfile
+	p.pmax = p2.pmin && Common.unique_full_path p.pfile = p2.pfile
 
 let precedence op =
 	let left = true and right = false in

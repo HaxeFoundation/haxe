@@ -1827,8 +1827,7 @@ let macro_lib =
 				try
 					Hashtbl.find hfiles f
 				with Not_found ->
-					let ff = Common.get_full_path f in
-					let ff = String.concat "/" (ExtString.String.nsplit ff "\\") in
+					let ff = Common.unique_full_path f in
 					Hashtbl.add hfiles f ff;
 					ff
 			in
