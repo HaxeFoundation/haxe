@@ -242,16 +242,17 @@ let parse_hxml file =
 	IO.close_in ch;
 	parse_hxml_data data
 
-let lookup_classes com fpath =
-	let spath = String.lowercase fpath in
+let lookup_classes com spath =	
 	let rec loop = function
 		| [] -> []
 		| cp :: l ->
 			let cp = (if cp = "" then "./" else cp) in
-			let c = normalize_path (Common.get_full_path cp) in
+			let c = normalize_path (Common.unique_full_path cp) in
 			let clen = String.length c in
-			if clen < String.length fpath && String.sub spath 0 clen = String.lowercase c then begin
-				let path = String.sub fpath clen (String.length fpath - clen) in
+			if clen < String.length spath && String.sub spath 0 clen = c then begin
+				let path = String.sub spath clen (String.length spath - clen) in
+				(* make sure the completion filename is capitalized - needed for Windows *)
+				let path = String.concat "/" (match List.rev (ExtString.String.nsplit path "/") with name :: l -> List.rev (String.capitalize name :: l) | [] -> []) in
 				(try [make_path path] with _ -> loop l)
 			end else
 				loop l
