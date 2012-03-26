@@ -202,9 +202,19 @@ let rec read_type_path com p =
 
 let delete_file f = try Sys.remove f with _ -> ()
 
-let expand_env path =
+let expand_env ?(h=None) path  =
 	let r = Str.regexp "%\\([A-Za-z0-9_]+\\)%" in
-	Str.global_substitute r (fun s -> let key = Str.matched_group 1 s in try Sys.getenv key with Not_found -> "%" ^ key ^ "%") path
+	Str.global_substitute r (fun s ->
+		let key = Str.matched_group 1 s in
+		try
+			Sys.getenv key
+		with Not_found -> try
+			match h with
+			| None -> raise Not_found
+			| Some h -> Hashtbl.find h key
+		with Not_found ->
+			"%" ^ key ^ "%"
+	) path
 
 let unquote v =
 	let len = String.length v in
@@ -213,7 +223,7 @@ let unquote v =
 let parse_hxml_data data =
 	let lines = Str.split (Str.regexp "[\r\n]+") data in
 	List.concat (List.map (fun l ->
-		let l = unquote (expand_env (ExtString.String.strip l)) in
+		let l = unquote (ExtString.String.strip l) in
 		if l = "" || l.[0] = '#' then
 			[]
 		else if l.[0] = '-' then
@@ -656,8 +666,6 @@ try
 		if com.platform <> Cross then failwith "Multiple targets";
 		Common.init_platform com pf;
 		com.file <- file;
-		Unix.putenv "__file__" file;
-		Unix.putenv "__platform__" (platform_name pf);
 		if (pf = Flash8 || pf = Flash) && file_extension file = "swc" then Common.define com "swc";
 	in
 	let define f = Arg.Unit (fun () -> Common.define com f) in
@@ -665,7 +673,7 @@ try
 		("-cp",Arg.String (fun path ->
 			add_libs com (!cp_libs);
 			cp_libs := [];
-			com.class_path <- normalize_path (expand_env path) :: com.class_path
+			com.class_path <- normalize_path path :: com.class_path
 		),"<path> : add a directory to find source files");
 		("-js",Arg.String (set_platform Js),"<file> : compile code to JavaScript file");
 		("-swf",Arg.String (set_platform Flash),"<file> : compile code to Flash SWF file");
@@ -759,7 +767,7 @@ try
 		),"<file>[@name] : add a named resource file");
 		("-prompt", Arg.Unit (fun() -> prompt := true),": prompt on error");
 		("-cmd", Arg.String (fun cmd ->
-			cmds := expand_env (unquote cmd) :: !cmds
+			cmds := unquote cmd :: !cmds
 		),": run the specified command after successful compilation");
 		("--flash-strict", define "flash_strict", ": more type strict flash API");
 		("--no-traces", define "no_traces", ": don't compile trace calls in the program");
@@ -849,7 +857,7 @@ try
 		),"<file> : [deprecated] compile code to Flash9 SWF file");
 	] in
 	let current = ref 0 in
-	let args = Array.of_list ("" :: ctx.com.args) in
+	let args = Array.of_list ("" :: List.map expand_env ctx.com.args) in
 	let args_callback cl = classes := make_path cl :: !classes in
 	Arg.parse_argv ~current args (basic_args_spec @ adv_args_spec) args_callback usage;
 	add_libs com (!cp_libs);
@@ -975,7 +983,11 @@ try
 		);
 	end;
 	if not !no_output then List.iter (fun cmd ->
+		let h = Hashtbl.create 0 in
+		Hashtbl.add h "__file__" com.file;
+		Hashtbl.add h "__platform__" (platform_name com.platform);
 		let t = Common.timer "command" in
+		let cmd = expand_env ~h:(Some h) cmd in
 		let len = String.length cmd in
 		if len > 3 && String.sub cmd 0 3 = "cd " then
 			Sys.chdir (String.sub cmd 3 (len - 3))
