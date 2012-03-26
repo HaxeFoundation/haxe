@@ -497,7 +497,10 @@ let type_ident ctx i is_type p mode =
 		| FStatic -> error "Cannot access super inside a static function" p;
 		| FMemberLocal -> error "Cannot access super inside a local function" p);
 		if mode = MSet || not ctx.in_super_call then
-			AKNo i
+			if mode = MGet && ctx.com.display then
+				AKExpr (mk (TConst TSuper) t p)
+			else
+				AKNo i
 		else begin
 			ctx.in_super_call <- false;
 			AKExpr (mk (TConst TSuper) t p)
