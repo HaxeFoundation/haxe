@@ -1048,10 +1048,21 @@ with
 				error ctx ("No classes found in " ^ String.concat "." p) Ast.null_pos
 			else
 				complete_fields (List.map (fun f -> f,"","") (packs @ classes))
-		| Some c ->
+		| Some (c,cur_package) ->
 			try
 				let ctx = Typer.create com in
-				let m = Typeload.load_module ctx (p,c) Ast.null_pos in
+				let rec lookup p = 
+					try
+						Typeload.load_module ctx (p,c) Ast.null_pos
+					with e ->
+						if cur_package then 
+							match List.rev p with
+							| [] -> raise e
+							| _ :: p -> lookup (List.rev p)
+						else
+							raise e
+				in
+				let m = lookup p in
 				complete_fields (List.map (fun t -> snd (t_path t),"","") (List.filter (fun t -> not (t_infos t).mt_private) m.m_types))
 			with Completion c ->
 				raise (Completion c)
