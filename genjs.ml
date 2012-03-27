@@ -52,6 +52,7 @@ type ctx = {
 	mutable id_counter : int;
 	mutable type_accessor : module_type -> string;
 	mutable separator : bool;
+	mutable found_expose : bool;
 }
 
 let s_path ctx = Ast.s_type_path
@@ -62,7 +63,7 @@ let kwds =
 		"abstract"; "as"; "boolean"; "break"; "byte"; "case"; "catch"; "char"; "class"; "continue"; "const";
 		"debugger"; "default"; "delete"; "do"; "double"; "else"; "enum"; "export"; "extends"; "false"; "final";
 		"finally"; "float"; "for"; "function"; "goto"; "if"; "implements"; "import"; "in"; "instanceof"; "int";
-        "interface"; "is"; "long"; "namespace"; "native"; "new"; "null"; "package"; "private"; "protected";
+		"interface"; "is"; "long"; "namespace"; "native"; "new"; "null"; "package"; "private"; "protected";
 		"public"; "return"; "short"; "static"; "super"; "switch"; "synchronized"; "this"; "throw"; "throws";
 		"transient"; "true"; "try"; "typeof"; "use"; "var"; "void"; "volatile"; "while"; "with"
 	];
@@ -274,6 +275,22 @@ let handle_break ctx e =
 				newline ctx;
 				spr ctx "} catch( e ) { if( e != \"__break__\" ) throw e; }";
 			)
+
+let handle_expose ctx path meta =
+	let rec loop = function
+		| (":expose", args, pos) :: l ->
+			ctx.found_expose <- true;
+			let exposed_path = (match args with
+				| [EConst (String s), _] -> s
+				| [] -> path
+				| _ -> error "Invalid @:expose parameters" pos
+			) in
+			print ctx "$hxExpose(%s, \"%s\")" path exposed_path;
+			newline ctx
+		| _ :: l -> loop l
+		| [] -> ()
+	in
+	loop meta
 
 let this ctx = match ctx.in_value with None -> "this" | Some _ -> "$this"
 
@@ -807,11 +824,13 @@ let gen_class_static_field ctx c f =
 	| Some e ->
 		match e.eexpr with
 		| TFunction _ ->
+			let path = (s_path ctx c.cl_path) ^ (field f.cf_name) in
 			ctx.id_counter <- 0;
-			print ctx "%s%s = " (s_path ctx c.cl_path) (field f.cf_name);
+			print ctx "%s = " path;
 			gen_value ctx e;
 			ctx.separator <- false;
-			newline ctx
+			newline ctx;
+			handle_expose ctx path f.cf_meta
 		| _ ->
 			ctx.statics <- (c,f.cf_name,e) :: ctx.statics
 
@@ -847,6 +866,7 @@ let generate_class ctx c =
 		print ctx "$hxClasses[\"%s\"] = %s" p p;
 		newline ctx;
 	end;
+	handle_expose ctx p c.cl_meta;
 	print ctx "%s.__name__ = [%s]" p (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst c.cl_path @ [snd c.cl_path])));
 	newline ctx;
 	(match c.cl_implements with
@@ -973,6 +993,7 @@ let alloc_ctx com =
 		id_counter = 0;
 		type_accessor = (fun _ -> assert false);
 		separator = false;
+		found_expose = false;
 	} in
 	ctx.type_accessor <- (fun t -> s_path ctx (t_path t));
 	ctx
@@ -1020,7 +1041,24 @@ function $extend(from, fields) {
 	(match com.main with
 	| None -> ()
 	| Some e -> gen_expr ctx e);
-	if ctx.js_modern then print ctx "})()";
+	if ctx.found_expose then begin
+		newline ctx;
+		print ctx
+"function $hxExpose(src, path) {
+	var o = window;
+	var parts = path.split(\".\");
+	for(var ii = 0; ii < parts.length-1; ++ii) {
+		var p = parts[ii];
+		if(typeof o[p] == \"undefined\") o[p] = {};
+		o = o[p];
+	}
+	o[parts[parts.length-1]] = src;
+}";
+	end;
+	if ctx.js_modern then begin
+		newline ctx;
+		print ctx "})()";
+	end;
 	if com.debug then write_mappings ctx;
 	let ch = open_out_bin com.file in
 	output_string ch (Buffer.contents ctx.buf);
