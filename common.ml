@@ -93,7 +93,6 @@ type context = {
 exception Abort of string * Ast.pos
 
 let display_default = ref false
-let default_print = ref print_string
 
 let stats =
 	{
@@ -114,7 +113,7 @@ let create v args =
 		foptimize = true;
 		dead_code_elimination = false;
 		platform = Cross;
-		print = !default_print;
+		print = print_string;
 		std_path = [];
 		class_path = [];
 		main_class = None;

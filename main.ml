@@ -541,6 +541,7 @@ and wait_loop boot_com host port =
 					Hashtbl.iter (fun _ m -> if m.m_extra.m_file = file then m.m_extra.m_dirty <- true) cache.c_modules
 				end
 			);
+			ctx.com.print <- (fun str -> ssend sin ("\x01" ^ String.concat "\x01" (ExtString.String.nsplit str "\n") ^ "\n"));
 			ctx
 		in
 		(try
@@ -549,7 +550,6 @@ and wait_loop boot_com host port =
 			if verbose then print_endline ("Processing Arguments [" ^ String.concat "," data ^ "]");
 			(try
 				Common.display_default := false;
-				Common.default_print := (fun str -> ssend sin ("\x01" ^ str));
 				Parser.resume_display := Ast.null_pos;
 				Typeload.return_partial_type := false;
 				measure_times := false;
@@ -605,9 +605,9 @@ and do_connect host port args =
 	loop();
 	let has_error = ref false in
 	let rec print line =
-		match (if line == "" then '\x00' else line.[0]) with
+		match (if line = "" then '\x00' else line.[0]) with
 		| '\x01' ->
-			print_endline (String.concat "" (ExtString.String.nsplit line "\x01"))
+			print_string (String.concat "\n" (List.tl (ExtString.String.nsplit line "\x01")))
 		| '\x02' ->
 			has_error := true;
 		| _ ->
