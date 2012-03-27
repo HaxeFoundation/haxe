@@ -526,9 +526,8 @@ and wait_loop boot_com host port =
 			ctx.flush <- (fun() ->
 				incr compilation_step;
 				compilation_mark := !mark_loop;
-				cache_context ctx.com;
 				List.iter (fun s -> ssend sin (s ^ "\n"); if verbose then print_endline ("> " ^ s)) (List.rev ctx.messages);
-				if ctx.has_error then ssend sin "\x02\n";
+				if ctx.has_error then ssend sin "\x02\n" else cache_context ctx.com;
 			);
 			ctx.setup <- (fun() ->
 				Parser.display_error := (fun e p -> has_parse_error := true; ctx.com.error (Parser.error_msg e) p);
@@ -992,8 +991,19 @@ try
 		let len = String.length cmd in
 		if len > 3 && String.sub cmd 0 3 = "cd " then
 			Sys.chdir (String.sub cmd 3 (len - 3))
-		else
-			if Sys.command cmd <> 0 then failwith "Command failed";
+		else begin
+			let binary_string s =
+				if Sys.os_type = "Windows" || Sys.os_type = "Cygwin" then s else String.concat "\n" (ExtString.String.nsplit s "\r\n")
+			in
+			let pout, pin, perr = Unix.open_process_full cmd (Unix.environment()) in
+			let serr = binary_string (IO.read_all (IO.input_channel perr)) in
+			let sout = binary_string (IO.read_all (IO.input_channel pout)) in
+			if serr <> "" then ctx.messages <- (if serr.[String.length serr - 1] = '\n' then String.sub serr 0 (String.length serr - 1) else serr) :: ctx.messages;
+			if sout <> "" then ctx.com.print sout;
+			match Unix.close_process_full (pout,pin,perr) with
+			| Unix.WEXITED e -> if e <> 0 then failwith ("Command failed with error " ^ string_of_int e)
+			| Unix.WSIGNALED s | Unix.WSTOPPED s -> failwith ("Command stopped with signal " ^ string_of_int s)
+		end;
 		t();
 	) (List.rev !cmds)
 with
