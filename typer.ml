@@ -2403,9 +2403,12 @@ let make_macro_api ctx p =
 			mdep.m_extra.m_kind <- MFake;
 			add_dependency ctx.current mdep;
 		);
-		Interp.module_dependency = (fun mpath file ->
+		Interp.module_dependency = (fun mpath file ismacro ->
 			let m = typing_timer ctx (fun() -> Typeload.load_module ctx (parse_path mpath) p) in
-			add_dependency m (create_fake_module ctx file);
+			if ismacro then
+				m.m_extra.m_macro_calls <- file :: List.filter ((<>) file) m.m_extra.m_macro_calls
+			else
+				add_dependency m (create_fake_module ctx file);
 		);
 		Interp.current_module = (fun() ->
 			ctx.current

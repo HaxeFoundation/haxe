@@ -478,6 +478,7 @@ and wait_loop boot_com host port =
 					Typeload.add_module ctx m p;
 					PMap.iter (Hashtbl.add com2.resources) m.m_extra.m_binded_res;
 					PMap.iter (fun _ m2 -> add_modules m0 m2) m.m_extra.m_deps);
+					List.iter (Typer.call_init_macro ctx) m.m_extra.m_macro_calls
 			end
 		in
 		try

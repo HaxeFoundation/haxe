@@ -970,6 +970,7 @@ class SpodMacros {
 				default:
 				}
 		});
+		Context.registerModuleReuseCall("sys.db.Manager", "sys.db.SpodMacros.addRtti()");
 		return null;
 	}
 

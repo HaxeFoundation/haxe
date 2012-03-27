@@ -100,7 +100,7 @@ type extern_api = {
 	get_local_type : unit -> t option;
 	get_build_fields : unit -> value;
 	define_type : value -> unit;
-	module_dependency : string -> string -> unit;
+	module_dependency : string -> string -> bool -> unit;
 	current_module : unit -> module_def;
 }
 
@@ -1972,7 +1972,14 @@ let macro_lib =
 		"module_dependency", Fun2 (fun m file ->
 			match m, file with
 			| VString m, VString file ->
-				(get_ctx()).curapi.module_dependency m file;
+				(get_ctx()).curapi.module_dependency m file false;
+				VNull
+			| _ -> error()
+		);
+		"module_reuse_call", Fun2 (fun m mcall ->
+			match m, mcall with
+			| VString m, VString mcall ->
+				(get_ctx()).curapi.module_dependency m mcall true;
 				VNull
 			| _ -> error()
 		);

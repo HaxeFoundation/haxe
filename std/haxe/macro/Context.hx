@@ -214,6 +214,13 @@ class Context {
 		load("module_dependency", 2)(untyped modulePath.__s,untyped externFile.__s);
 	}
 
+	/**
+		Add a macro call to perform in case the module is reused by the compilation cache.
+	**/
+	public static function registerModuleReuseCall( modulePath : String, macroCall : String ) {
+		load("module_reuse_call", 2)(untyped modulePath.__s,untyped macroCall.__s);
+	}
+
 	static function load( f, nargs ) : Dynamic {
 		#if macro
 		return neko.Lib.load("macro", f, nargs);
