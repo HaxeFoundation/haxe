@@ -1942,9 +1942,21 @@ and type_call ctx e el p =
 				else
 					error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
 			) in
+			if ctx.com.dead_code_elimination then 
+				(match e.eexpr, el with
+				| TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = [],"Std"  }) },"string"), [ep] -> check_to_string ctx ep.etype
+				| _ -> ());
 			mk (TCall (e,el)) t p
 
-
+and check_to_string ctx t =
+	match follow t with
+	| TInst (c,_) ->
+		(try 
+			let _, f = class_field c "toString" in
+			ignore(follow f.cf_type);
+		with Not_found ->
+			())
+	| _ -> ()
 
 (* ---------------------------------------------------------------------- *)
 (* DEAD CODE ELIMINATION *)
