@@ -62,6 +62,9 @@ type keyword =
 	| Callback
 	| Inline
 	| Using
+	| Null
+	| True
+	| False
 
 type binop =
 	| OpAdd
@@ -352,6 +355,9 @@ let s_keyword = function
 	| Callback -> "callback"
 	| Inline -> "inline"
 	| Using -> "using"
+	| Null -> "null"
+	| True -> "true"
+	| False -> "false"
 
 let rec s_binop = function
 	| OpAdd -> "+"

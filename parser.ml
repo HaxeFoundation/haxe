@@ -142,10 +142,15 @@ let any_ident = parser
 	| [< '(Const (Ident i),p) >] -> i, p
 	| [< '(Const (Type t),p) >] -> t, p
 
+let any_enum_ident = parser
+	| [< i = any_ident >] -> i
+	| [< '(Kwd k,p) when Filename.basename p.pfile = "StdTypes.hx" >] -> s_keyword k, p 
+
 let property_ident = parser
 	| [< i, _ = any_ident >] -> i
 	| [< '(Kwd Dynamic,_) >] -> "dynamic"
 	| [< '(Kwd Default,_) >] -> "default"
+	| [< '(Kwd Null,_) >] -> "null"
 
 let get_doc s =
 	let d = !doc in
@@ -434,7 +439,7 @@ and parse_enum s =
 	doc := None;
 	let meta = parse_meta s in
 	match s with parser
-	| [< name, p1 = any_ident; doc = get_doc; s >] ->
+	| [< name, p1 = any_enum_ident; doc = get_doc; s >] ->
 		match s with parser
 		| [< '(POpen,_); l = psep Comma parse_enum_param; '(PClose,_); p = semicolon; >] -> (name,doc,meta,l,punion p1 p)
 		| [< '(Semicolon,p) >] -> (name,doc,meta,[],punion p1 p)
@@ -602,6 +607,9 @@ and expr = parser
 		| _ -> e)
 	| [< '(Const c,p); s >] -> expr_next (EConst c,p) s
 	| [< '(Kwd This,p); s >] -> expr_next (EConst (Ident "this"),p) s
+	| [< '(Kwd True,p); s >] -> expr_next (EConst (Ident "true"),p) s
+	| [< '(Kwd False,p); s >] -> expr_next (EConst (Ident "false"),p) s
+	| [< '(Kwd Null,p); s >] -> expr_next (EConst (Ident "null"),p) s
 	| [< '(Kwd Callback,p); s >] -> expr_next (EConst (Ident "callback"),p) s
 	| [< '(Kwd Cast,p1); s >] ->
 		(match s with parser

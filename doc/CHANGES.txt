@@ -1,7 +1,7 @@
 2012-??-??: 2.09
 	all : optimized const == const and const != const (with different const types)
 	all : add Type.allEnums(e)
-	all : fixed some issue with completion
+	all : big improvements with completion speed and fixed many issues
 	flash9 : fixed -D swfprotected with swc output
 	neko : added ~ implementation
 	js : upgraded jquery version, more api overloads
@@ -32,6 +32,7 @@
 	js : added source mapping with -debug (replace previous stack emulation)
 	flash : added @:file("a.dat") class File extends flash.utils.ByteArray
 	js : added --js-modern for wrapping output in a closure and ES5 strict mode
+	all : null, true and false are now keywords
 
 2011-09-25: 2.08
 	js : added js.JQuery
