@@ -191,7 +191,11 @@ CAMLprim value get_full_path( value f ) {
 		char c = cur[0];
 		if( c >= 'a' && c <= 'z' )
 			cur[0] = c - 'a' + 'A';
-		cur += 3;
+		cur += 2;
+		if( cur[0] == '\\' )
+			cur++;
+		if( cur[0] == 0 )
+			cur = NULL;
 	}
 	while( cur ) {
 		char *next = strchr(cur,'\\');
