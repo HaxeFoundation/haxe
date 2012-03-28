@@ -180,8 +180,32 @@ CAMLprim value executable_path(value u) {
 CAMLprim value get_full_path( value f ) {
 #ifdef _WIN32
 	char path[MAX_PATH];
+	char *cur;
 	if( GetFullPathName(String_val(f),MAX_PATH,path,NULL) == 0 )
 		failwith("get_full_path");
+	cur = (char*)path;
+	if( cur[0] == '\\' && cur[1] == '\\' ) {
+		cur = strchr(cur,'\\');
+		if( cur != NULL ) cur++;
+	} else if( cur[0] != 0 && cur[1] == ':' ) {
+		char c = cur[0];
+		if( c >= 'a' && c <= 'z' )
+			cur[0] = c - 'a' + 'A';
+		cur += 3;
+	}
+	while( cur ) {
+		char *next = strchr(cur,'\\');
+		SHFILEINFOA infos;
+		if( next != NULL )
+			*next = 0;
+		if( SHGetFileInfoA( path, 0, &infos, sizeof(infos), SHGFI_DISPLAYNAME ) != 0 )
+			memcpy(cur,infos.szDisplayName,strlen(infos.szDisplayName)+1);
+		if( next != NULL ) {
+			*next = '\\';
+			cur = next + 1;
+		} else
+			cur = NULL;
+	}
 	return caml_copy_string(path);
 #else
 	value cpath;
