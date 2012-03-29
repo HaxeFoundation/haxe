@@ -374,6 +374,8 @@ and parse_type_path1 pack = parser
 					raise (TypePath (List.rev pack,Some (name,false)))
 				else match s with parser
 					| [< '(Const (Type name),_) >] -> Some name
+					| [< '(Binop OpOr,_) when do_resume() >] ->
+						raise (TypePath (List.rev pack,Some (name,false)))
 					| [< >] -> serror())
 			| [< >] -> None
 		) in
@@ -387,6 +389,8 @@ and parse_type_path1 pack = parser
 			tparams = params;
 			tsub = sub;
 		}
+	| [< '(Binop OpOr,_) when do_resume() >] ->
+		raise (TypePath (List.rev pack,None))
 
 and type_name = parser
 	| [< '(Const (Type name),_) >] -> name
