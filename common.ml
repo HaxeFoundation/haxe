@@ -232,7 +232,7 @@ let find_file ctx f =
 
 let get_full_path f = try Extc.get_full_path f with _ -> f
 
-let unique_full_path = get_full_path
+let unique_full_path = if Sys.os_type = "Win32" || Sys.os_type = "Cygwin" then (fun f -> String.lowercase (get_full_path f)) else get_full_path
 
 (* ------------------------- TIMERS ----------------------------- *)
 
@@ -242,7 +242,7 @@ type timer_infos = {
 	mutable total : float;
 }
 
-let get_time = Extc.cpu_time
+let get_time = Extc.time
 let htimers = Hashtbl.create 0
 
 let new_timer name =

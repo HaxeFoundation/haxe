@@ -247,7 +247,7 @@ let lookup_classes com spath =
 		| [] -> []
 		| cp :: l ->
 			let cp = (if cp = "" then "./" else cp) in
-			let c = normalize_path (Common.unique_full_path cp) in
+			let c =  Extc.get_real_path (Common.unique_full_path (normalize_path cp)) in
 			let clen = String.length c in
 			if clen < String.length spath && String.sub spath 0 clen = c then begin
 				let path = String.sub spath clen (String.length spath - clen) in
@@ -872,8 +872,9 @@ try
 		com.warning <- message ctx;
 		com.error <- error ctx;
 		com.main_class <- None;
-		classes := lookup_classes com (!Parser.resume_display).Ast.pfile;
-		Common.log com ("Display file : " ^ (!Parser.resume_display).Ast.pfile);
+		let real = Extc.get_real_path (!Parser.resume_display).Ast.pfile in
+		classes := lookup_classes com real;
+		Common.log com ("Display file : " ^ real);
 		Common.log com ("Classes found : ["  ^ (String.concat "," (List.map Ast.s_type_path !classes)) ^ "]");
 	end;
 	let add_std dir =
