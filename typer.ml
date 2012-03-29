@@ -1679,7 +1679,13 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		mk (TCast (e,None)) (mk_mono()) p
 	| ECast (e, Some t) ->
 		(* force compilation of class "Std" since we might need it *)
-		ignore(Typeload.load_type_def ctx p { tpackage = []; tparams = []; tname = "Std"; tsub = None });
+		(match ctx.com.platform with
+		| Js | Flash8 | Neko | Flash ->
+			let std = Typeload.load_type_def ctx p { tpackage = []; tparams = []; tname = "Std"; tsub = None } in
+			(* ensure typing / mark for DCE *)
+			ignore(follow (try PMap.find "is" (match std with TClassDecl c -> c.cl_statics | _ -> assert false) with Not_found -> assert false).cf_type)
+		| Cpp | Php | Cross ->
+			());
 		let t = Typeload.load_complex_type ctx (pos e) t in
 		let texpr = (match follow t with
 		| TInst (_,params) | TEnum (_,params) ->
