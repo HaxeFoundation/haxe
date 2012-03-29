@@ -180,10 +180,24 @@ CAMLprim value executable_path(value u) {
 CAMLprim value get_full_path( value f ) {
 #ifdef _WIN32
 	char path[MAX_PATH];
-	char *cur;
 	if( GetFullPathName(String_val(f),MAX_PATH,path,NULL) == 0 )
 		failwith("get_full_path");
-	cur = (char*)path;
+	return caml_copy_string(path);
+#else
+	value cpath;
+	char *path = realpath(String_val(f),NULL);
+	if( path == NULL )
+		failwith("get_full_path");
+	cpath = caml_copy_string(path);
+	free(path);
+	return cpath;
+#endif
+}
+
+CAMLprim value get_real_path( value path ) {
+#ifdef _WIN32
+	value path2 = caml_copy_string(String_val(path));
+	char *cur = String_val(path2);
 	if( cur[0] == '\\' && cur[1] == '\\' ) {
 		cur = strchr(cur,'\\');
 		if( cur != NULL ) cur++;
@@ -202,7 +216,7 @@ CAMLprim value get_full_path( value f ) {
 			*next = 0;
 		else if( *cur == 0 )
 			break;
-		if( SHGetFileInfoA( path, 0, &infos, sizeof(infos), SHGFI_DISPLAYNAME ) != 0 )
+		if( SHGetFileInfoA( String_val(path2), 0, &infos, sizeof(infos), SHGFI_DISPLAYNAME ) != 0 )
 			memcpy(cur,infos.szDisplayName,strlen(infos.szDisplayName)+1);
 		if( next != NULL ) {
 			*next = '\\';
@@ -210,20 +224,13 @@ CAMLprim value get_full_path( value f ) {
 		} else
 			cur = NULL;
 	}
-	return caml_copy_string(path);
+	return path2;
 #else
-	value cpath;
-	char *path = realpath(String_val(f),NULL);
-	if( path == NULL )
-		failwith("get_full_path");
-	cpath = caml_copy_string(path);
-	free(path);
-	return cpath;
+	return path;
 #endif
 }
 
-
-CAMLprim value sys_cpu_time() {
+CAMLprim value sys_time() {
 #ifdef _WIN32
 #define EPOCH_DIFF	(134774*24*60*60.0)
 	static LARGE_INTEGER freq;

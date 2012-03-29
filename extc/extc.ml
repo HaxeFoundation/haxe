@@ -43,8 +43,9 @@ external zlib_inflate_end : zstream -> unit = "zlib_inflate_end"
 
 external _executable_path : string -> string = "executable_path"
 external get_full_path : string -> string = "get_full_path"
+external get_real_path : string -> string = "get_real_path"
 
-external cpu_time : unit -> float = "sys_cpu_time"
+external time : unit -> float = "sys_time"
 
 (* support for backward compatibility *)
 let zlib_inflate_init() = zlib_inflate_init2 15
