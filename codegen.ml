@@ -99,7 +99,7 @@ let get_properties fields =
 		match f.cf_kind with
 		| Var { v_write = AccCall setter } -> ("set_" ^ f.cf_name , setter) :: acc
 		| _ -> acc
-	) [] fields	
+	) [] fields
 
 (* -------------------------------------------------------------------------- *)
 (* REMOTING PROXYS *)
@@ -268,8 +268,8 @@ let rec build_generic ctx c p tl =
 		);
 		cg.cl_kind <- KGenericInstance (c,tl);
 		cg.cl_interface <- c.cl_interface;
-		cg.cl_constructor <- (match c.cl_constructor, c.cl_super with 
-			| None, None -> None 
+		cg.cl_constructor <- (match c.cl_constructor, c.cl_super with
+			| None, None -> None
 			| Some c, _ -> Some (build_field c)
 			| _ -> error "Please define a constructor for this class in order to use haxe.rtti.Generic" c.cl_pos
 		);
@@ -394,7 +394,7 @@ let build_macro_type ctx pl p =
 	) in
 	let old = ctx.ret in
 	let t = (match ctx.g.do_macro ctx MMacroType path field args p with
-		| None -> mk_mono() 
+		| None -> mk_mono()
 		| Some _ -> ctx.ret
 	) in
 	ctx.ret <- old;
@@ -425,7 +425,7 @@ let build_instance ctx mtype p =
 					t
 				) in
 				delay ctx (fun() -> ignore ((!r)()));
-				TLazy r				
+				TLazy r
 			| _ ->
 				TInst (c,pl)
 		) in
@@ -465,7 +465,7 @@ let rec has_rtti c =
 let restore c =
 	let meta = c.cl_meta and path = c.cl_path and ext = c.cl_extern in
 	let fl = c.cl_fields and ofl = c.cl_ordered_fields and st = c.cl_statics and ost = c.cl_ordered_statics in
-	(fun() -> 
+	(fun() ->
 		c.cl_meta <- meta;
 		c.cl_extern <- ext;
 		c.cl_path <- path;
@@ -705,8 +705,8 @@ let captured_vars com e =
 		if PMap.is_empty used then
 			e
 		else
-			let used = PMap.map (fun v -> 
-				let vt = v.v_type in 
+			let used = PMap.map (fun v ->
+				let vt = v.v_type in
 				v.v_type <- t.tarray vt;
 				v.v_capture <- true;
 				vt
@@ -777,7 +777,7 @@ let captured_vars com e =
 		!used
 	in
 	match com.platform with
-	| Php | Cross -> 
+	| Php | Cross ->
 		e
 	| Neko ->
 		(*
@@ -801,31 +801,119 @@ let captured_vars com e =
 (* RENAME LOCAL VARS *)
 
 let rename_local_vars com e =
-	let is_as3 = Common.defined com "as3" in
-	let rec loop vars = function
-		| Block f | Loop f | Function f ->
-			f (loop (if is_as3 then vars else ref !vars));
-		| Declare v ->
+	let as3 = Common.defined com "as3" in
+	let no_scope = com.platform = Js || as3 in
+	let vars = ref PMap.empty in
+	let all_vars = ref PMap.empty in
+	let vtemp = alloc_var "~" t_dynamic in
+	let rebuild_vars = ref false in
+	let rebuild m =
+		PMap.fold (fun v acc -> PMap.add v.v_name v acc) m PMap.empty
+	in
+	let save() = 
+		let old = !vars in 
+		if as3 then (fun() -> ()) else (fun() -> vars := if !rebuild_vars then rebuild old else old)
+	in
+	let rename v =
+		let count = ref 1 in
+		while PMap.mem (v.v_name ^ string_of_int !count) (!vars) do
+			incr count;
+		done;
+		v.v_name <- v.v_name ^ string_of_int !count;
+	in
+	let declare v =
+		(try
+			let v2 = PMap.find v.v_name (!vars) in
+			(*
+				block_vars will create some wrapper-functions that are declaring
+				the same variable twice. In that case do not perform a rename since
+				we are sure it's actually the same variable
+			*)
+			if v == v2 then raise Not_found;
+			rename v;
+		with Not_found ->
+			());
+		vars := PMap.add v.v_name v !vars;
+		if no_scope then all_vars := PMap.add v.v_name v !all_vars;
+	in
+	let check t =
+		match (t_infos t).mt_path with
+		| [], name | name :: _, _ ->
+			let vars = if no_scope then all_vars else vars in
 			(try
-				let vid = PMap.find v.v_name (!vars) in
-				(*
-					block_vars will create some wrapper-functions that are declaring
-					the same variable twice. In that case do not perform a rename since
-					we are sure it's actually the same variable
-				*)
-				if vid = v.v_id then raise Not_found;
-				let count = ref 1 in
-				while PMap.mem (v.v_name ^ string_of_int !count) (!vars) do
-					incr count;
-				done;
-				v.v_name <- v.v_name ^ string_of_int !count;
+				let v = PMap.find name !vars in
+				if v == vtemp then raise Not_found; (* ignore *)
+				rename v;
+				rebuild_vars := true;
+				vars := PMap.add v.v_name v !vars
 			with Not_found ->
 				());
-			vars := PMap.add v.v_name v.v_id !vars;
-		| Use _ ->
-			()
+			vars := PMap.add name vtemp !vars
 	in
-	local_usage (loop (ref PMap.empty)) e;
+	let check_type t =
+		match follow t with
+		| TInst (c,_) -> check (TClassDecl c)
+		| TEnum (e,_) -> check (TEnumDecl e)
+		| TType (t,_) -> check (TTypeDecl t)
+		| TMono _ | TLazy _ | TAnon _ | TDynamic _ | TFun _ -> ()
+	in
+	let rec loop e =
+		match e.eexpr with
+		| TVars l ->
+			List.iter (fun (v,e) ->
+				if no_scope then declare v;
+				(match e with None -> () | Some e -> loop e);
+				if not no_scope then declare v;
+			) l
+		| TFunction tf ->
+			let old = save() in
+			List.iter (fun (v,_) -> declare v) tf.tf_args;
+			loop tf.tf_expr;
+			old()
+		| TBlock el ->
+			let old = save() in
+			List.iter loop el;
+			old()
+		| TFor (v,it,e) ->
+			loop it;
+			let old = save() in
+			declare v;
+			loop e;
+			old()
+		| TTry (e,catchs) ->
+			loop e;
+			List.iter (fun (v,e) ->
+				let old = save() in
+				declare v;
+				check_type v.v_type;
+				loop e;
+				old()
+			) catchs;
+		| TMatch (e,_,cases,def) ->
+			loop e;
+			List.iter (fun (_,vars,e) ->
+				let old = save() in
+				(match vars with
+				| None -> ()
+				| Some l ->	List.iter (function None -> () | Some v -> declare v) l);
+				loop e;
+				old();
+			) cases;
+			(match def with None -> () | Some e -> loop e);
+		| TTypeExpr t ->
+			check t
+		| TEnumField (e,_) ->
+			check (TEnumDecl e)
+		| TNew (c,_,_) ->
+			Type.iter loop e;
+			check (TClassDecl c);
+		| TCast (e,Some t) ->
+			loop e;
+			check t;
+		| _ ->
+			Type.iter loop e
+	in
+	loop e;
 	e
 
 (* -------------------------------------------------------------------------- *)
@@ -852,11 +940,11 @@ let check_local_vars_init e =
 			if not init then error ("Local variable " ^ v.v_name ^ " used without being initialized") e.epos;
 		| TVars vl ->
 			List.iter (fun (v,eo) ->
-				match eo with 
+				match eo with
 				| None ->
 					declared := v.v_id :: !declared;
 					vars := PMap.add v.v_id false !vars
-				| Some e -> 
+				| Some e ->
 					loop vars e
 			) vl
 		| TBlock el ->

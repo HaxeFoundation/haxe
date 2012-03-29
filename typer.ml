@@ -57,20 +57,6 @@ let mk_infos ctx p params =
 			("methodName", (EConst (String ctx.curmethod),p)) :: params
 	) ,p)
 
-let check_locals_masking ctx e =
-	let path = (match e.eexpr with
-		| TEnumField (e,_)
-		| TTypeExpr (TEnumDecl e) ->
-			Some e.e_path
-		| TTypeExpr (TClassDecl c) ->
-			Some c.cl_path
-		| _ -> None
-	) in
-	match path with
-	| Some ([],name) | Some (name::_,_) when PMap.mem name ctx.locals ->
-		error ("Local variable '" ^ name ^ "' is preventing usage of this type here") e.epos;
-	| _ -> ()
-
 let check_assign ctx e =
 	match e.eexpr with
 	| TLocal _ | TArray _ | TField _ ->
@@ -228,9 +214,7 @@ let rec type_module_type ctx t tparams p =
 			t_types = [];
 			t_meta = no_meta;
 		} in
-		let e = mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p in
-		check_locals_masking ctx e;
-		e
+		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
 	| TEnumDecl e ->
 		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_types | Some l -> l) in
 		let fl = PMap.fold (fun f acc ->
@@ -262,9 +246,7 @@ let rec type_module_type ctx t tparams p =
 			t_types = e.e_types;
 			t_meta = no_meta;
 		} in
-		let e = mk (TTypeExpr (TEnumDecl e)) (TType (t_tmp,types)) p in
-		check_locals_masking ctx e;
-		e
+		mk (TTypeExpr (TEnumDecl e)) (TType (t_tmp,types)) p
 	| TTypeDecl s ->
 		let t = apply_params s.t_types (List.map (fun _ -> mk_mono()) s.t_types) s.t_type in
 		match follow t with
@@ -552,7 +534,6 @@ let type_ident ctx i is_type p mode =
 						Not_found -> loop l
 		in
 		let e = loop ctx.local_types in
-		check_locals_masking ctx e;
 		if mode = MSet then
 			AKNo i
 		else
