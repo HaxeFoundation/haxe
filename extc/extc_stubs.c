@@ -194,14 +194,14 @@ CAMLprim value get_full_path( value f ) {
 		cur += 2;
 		if( cur[0] == '\\' )
 			cur++;
-		if( cur[0] == 0 )
-			cur = NULL;
 	}
 	while( cur ) {
 		char *next = strchr(cur,'\\');
 		SHFILEINFOA infos;
 		if( next != NULL )
 			*next = 0;
+		else if( *cur == 0 )
+			break;
 		if( SHGetFileInfoA( path, 0, &infos, sizeof(infos), SHGFI_DISPLAYNAME ) != 0 )
 			memcpy(cur,infos.szDisplayName,strlen(infos.szDisplayName)+1);
 		if( next != NULL ) {
