@@ -1212,6 +1212,20 @@ and type_expr_with_type ctx e t =
 				| _ -> raise Not_found)
 		with Not_found ->
 			type_expr ctx e)
+	| (EArrayDecl el,p) ->
+		(match t with
+		| None -> type_expr ctx e
+		| Some t ->
+			match follow t with
+			| TInst ({ cl_path = [],"Array" },[tp]) ->
+				let el = List.map (fun e ->
+					let e = type_expr_with_type ctx e (Some tp) in
+					unify ctx e.etype tp e.epos;
+					e
+				) el in
+				mk (TArrayDecl el) t p
+			| _ ->
+				type_expr ctx e)
 	| _ ->
 		type_expr ctx e
 

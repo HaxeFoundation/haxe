@@ -145,7 +145,7 @@ implements Dynamic
 	dynamic function onUnload() : Void;
 
 #if flash8
-	var filters : Array<Dynamic>; // does not use variance here.
+	var filters : Array<flash.filters.BitmapFilter>;
 	var blendMode : Dynamic;
 	var cacheAsBitmap : Bool;
 	var opaqueBackground : Int;

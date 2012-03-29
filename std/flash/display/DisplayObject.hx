@@ -6,7 +6,7 @@ extern class DisplayObject extends flash.events.EventDispatcher, implements IBit
 	var blendMode : BlendMode;
 	@:require(flash10) var blendShader(null,default) : Shader;
 	var cacheAsBitmap : Bool;
-	var filters : Array<Dynamic>;
+	var filters : Array<flash.filters.BitmapFilter>;
 	var height : Float;
 	var loaderInfo(default,null) : LoaderInfo;
 	var mask : DisplayObject;
