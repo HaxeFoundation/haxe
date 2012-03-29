@@ -96,6 +96,7 @@ let compile_libs() =
 	command ("ocamlc" ^ c_opts ^ " -I .. -I ../" ^ zlib_path ^ " extc_stubs.c");
 
 	let options = "-cclib ../ocaml/extc/extc_stubs" ^ obj_ext ^ " -cclib " ^ zlib ^ " extc.ml" in
+	let options = if Sys.os_type = "Win32" then options ^ " -cclib shell32.lib" else options in
 	if bytecode then command ("ocamlc -a -I .. -o extc.cma " ^ options);
 	if native then command ("ocamlopt -a -I .. -o extc.cmxa " ^ options);
 	Sys.chdir "../..";
