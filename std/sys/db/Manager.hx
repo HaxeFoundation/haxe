@@ -63,7 +63,6 @@ class Manager<T : Object> {
 
 	var table_infos : SpodInfos;
 	var table_name : String;
-	var table_fields : List<String>;
 	var table_keys : Array<String>;
 	var class_proto : { prototype : Dynamic };
 
@@ -73,10 +72,6 @@ class Manager<T : Object> {
 		table_infos = haxe.Unserializer.run(m[0]);
 		table_name = quoteField(table_infos.name);
 		table_keys = table_infos.key;
-		table_fields = new List();
-		for( f in table_infos.fields )
-			table_fields.add(f.name);
-
 		// set the manager and ready for further init
 		class_proto = cast classval;
 		#if neko
@@ -129,32 +124,29 @@ class Manager<T : Object> {
 		var s = new StringBuf();
 		var fields = new List();
 		var values = new List();
-		var pos = 0;
-		for( f in table_fields ) {
-			var v = Reflect.field(x,f);
+		for( f in table_infos.fields ) {
+			var name = f.name;
+			var v = Reflect.field(x,name);
 			if( v != null ) {
-				fields.add(quoteField(f));
+				fields.add(quoteField(name));
 				values.add(v);
-			} else {
-				var inf = table_infos.fields[pos];
+			} else if( !f.isNull ) {
 				// if the field is not defined, give it a default value on insert
-				if( !inf.isNull )
-					switch( inf.t ) {
-					case DUInt, DTinyInt, DInt, DSingle, DFloat, DFlags(_), DBigInt, DTinyUInt, DSmallInt, DSmallUInt, DMediumInt, DMediumUInt:
-						Reflect.setField(x, f, 0);
-					case DBool:
-						Reflect.setField(x, f, false);
-					case DTinyText, DText, DString(_), DSmallText, DSerialized:
-						Reflect.setField(x, f, "");
-					case DSmallBinary, DNekoSerialized, DLongBinary, DBytes(_), DBinary:
-						Reflect.setField(x, f, haxe.io.Bytes.alloc(0));
-					case DDate, DDateTime, DTimeStamp:
-						// default date might depend on database
-					case DId, DUId, DBigId, DNull, DInterval, DEncoded:
-						// no default value for these
-					}
+				switch( f.t ) {
+				case DUInt, DTinyInt, DInt, DSingle, DFloat, DFlags(_), DBigInt, DTinyUInt, DSmallInt, DSmallUInt, DMediumInt, DMediumUInt:
+					Reflect.setField(x, name, 0);
+				case DBool:
+					Reflect.setField(x, name, false);
+				case DTinyText, DText, DString(_), DSmallText, DSerialized:
+					Reflect.setField(x, name, "");
+				case DSmallBinary, DNekoSerialized, DLongBinary, DBytes(_), DBinary:
+					Reflect.setField(x, name, haxe.io.Bytes.alloc(0));
+				case DDate, DDateTime, DTimeStamp:
+					// default date might depend on database
+				case DId, DUId, DBigId, DNull, DInterval, DEncoded:
+					// no default value for these
+				}
 			}
-			pos++;
 		}
 		s.add("INSERT INTO ");
 		s.add(table_name);
@@ -178,6 +170,17 @@ class Manager<T : Object> {
 		addToCache(x);
 	}
 
+	inline function isBinary( t : SpodInfos.SpodType ) {
+		return switch( t ) {
+			case DSmallBinary, DNekoSerialized, DLongBinary, DBytes(_), DBinary: true;
+			default: false;
+		};
+	}
+
+	inline function hasBinaryChanged( a : haxe.io.Bytes, b : haxe.io.Bytes ) {
+		return a != b && (a == null || b == null || a.compare(b) != 0);
+	}
+
 	function doUpdate( x : T ) {
 		if( untyped !x._lock )
 			throw "Cannot update a not locked object";
@@ -188,18 +191,19 @@ class Manager<T : Object> {
 		s.add(" SET ");
 		var cache = Reflect.field(x,cache_field);
 		var mod = false;
-		for( f in table_fields ) {
-			var v = Reflect.field(x,f);
-			var vc = Reflect.field(cache,f);
-			if( v != vc ) {
+		for( f in table_infos.fields ) {
+			var name = f.name;
+			var v : Dynamic = Reflect.field(x,name);
+			var vc : Dynamic = Reflect.field(cache,name);
+			if( v != vc && (!isBinary(f.t) || hasBinaryChanged(v,vc)) ) {
 				if( mod )
 					s.add(", ");
 				else
 					mod = true;
-				s.add(quoteField(f));
+				s.add(quoteField(name));
 				s.add(" = ");
 				getCnx().addValue(s,v);
-				Reflect.setField(cache,f,v);
+				Reflect.setField(cache,name,v);
 			}
 		}
 		if( !mod )
@@ -419,6 +423,17 @@ class Manager<T : Object> {
 
 	function getLockMode() {
 		return lockMode;
+	}
+
+	/**
+		Remove the cached value for the given Object field : this will ensure
+		that the value is updated when calling .update(). This is necessary if
+		you are modifying binary data in-place since the cache will be modified
+		as well.
+	**/
+	public function forceUpdate( o : T, field : String ) {
+		// set a reference that will ensure != and .compare() != 0
+		Reflect.setField(Reflect.field(o,cache_field),field,null);
 	}
 
 	/* --------------------------- INIT / CLEANUP ------------------------- */
