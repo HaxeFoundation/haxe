@@ -1012,19 +1012,28 @@ try
 				we need to read available content on process out/err if we want to prevent
 				the process from blocking when the pipe is full
 			*)
+			let is_process_running() =
+				fst (Unix.waitpid [Unix.WNOHANG] (-1)) = 0
+			in
 			let rec loop() =
-				let ch, _,_ = (try Unix.select [iout;ierr] [] [] (-1.) with _ -> [],[],[]) in
+				let (ch,_,_), timeout = (try Unix.select [iout;ierr] [] [] 0.02, true with _ -> ([],[],[]),false) in
 				match ch with
 				| [] ->
 					(* make sure we read all *)
-					Buffer.add_string berr (IO.read_all (IO.input_channel perr));
-					Buffer.add_string bout (IO.read_all (IO.input_channel pout));
+					if timeout && is_process_running() then
+						loop()
+					else begin
+						Buffer.add_string berr (IO.read_all (IO.input_channel perr));
+						Buffer.add_string bout (IO.read_all (IO.input_channel pout));
+					end
 				| s :: _ ->
 					let n = Unix.read s tmp 0 (String.length tmp) in
 					Buffer.add_substring (if s == iout then bout else berr) tmp 0 n;
 					loop()
 			in
+			Sys.catch_break false;
 			loop();
+			Sys.catch_break true;
 			let serr = binary_string (Buffer.contents berr) in
 			let sout = binary_string (Buffer.contents bout) in
 			if serr <> "" then ctx.messages <- (if serr.[String.length serr - 1] = '\n' then String.sub serr 0 (String.length serr - 1) else serr) :: ctx.messages;
