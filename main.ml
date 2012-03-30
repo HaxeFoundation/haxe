@@ -1000,11 +1000,33 @@ try
 			Sys.chdir (String.sub cmd 3 (len - 3))
 		else begin
 			let binary_string s =
-				if Sys.os_type = "Windows" || Sys.os_type = "Cygwin" then s else String.concat "\n" (ExtString.String.nsplit s "\r\n")
+				if Sys.os_type <> "Win32" && Sys.os_type <> "Cygwin" then s else String.concat "\n" (Str.split (Str.regexp "\r\n") s)
 			in
 			let pout, pin, perr = Unix.open_process_full cmd (Unix.environment()) in
-			let serr = binary_string (IO.read_all (IO.input_channel perr)) in
-			let sout = binary_string (IO.read_all (IO.input_channel pout)) in
+			let iout = Unix.descr_of_in_channel pout in
+			let ierr = Unix.descr_of_in_channel perr in
+			let berr = Buffer.create 0 in
+			let bout = Buffer.create 0 in
+			let tmp = String.create 1024 in
+			(*
+				we need to read available content on process out/err if we want to prevent
+				the process from blocking when the pipe is full
+			*)
+			let rec loop() =
+				let ch, _,_ = (try Unix.select [iout;ierr] [] [] (-1.) with _ -> [],[],[]) in
+				match ch with
+				| [] ->
+					(* make sure we read all *)
+					Buffer.add_string berr (IO.read_all (IO.input_channel perr));
+					Buffer.add_string bout (IO.read_all (IO.input_channel pout));
+				| s :: _ ->
+					let n = Unix.read s tmp 0 (String.length tmp) in
+					Buffer.add_substring (if s == iout then bout else berr) tmp 0 n;
+					loop()
+			in
+			loop();
+			let serr = binary_string (Buffer.contents berr) in
+			let sout = binary_string (Buffer.contents bout) in
 			if serr <> "" then ctx.messages <- (if serr.[String.length serr - 1] = '\n' then String.sub serr 0 (String.length serr - 1) else serr) :: ctx.messages;
 			if sout <> "" then ctx.com.print sout;
 			match Unix.close_process_full (pout,pin,perr) with
