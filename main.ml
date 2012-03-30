@@ -989,6 +989,7 @@ try
 			Gencpp.generate com;
 		);
 	end;
+	Sys.catch_break false;
 	if not !no_output then List.iter (fun cmd ->
 		let h = Hashtbl.create 0 in
 		Hashtbl.add h "__file__" com.file;
@@ -1015,13 +1016,13 @@ try
 			let is_process_running() =
 				fst (Unix.waitpid [Unix.WNOHANG] (-1)) = 0
 			in
-			let rec loop() =
-				let (ch,_,_), timeout = (try Unix.select [iout;ierr] [] [] 0.02, true with _ -> ([],[],[]),false) in
+			let rec loop ins =
+				let (ch,_,_), timeout = (try Unix.select ins [] [] 0.02, true with _ -> ([],[],[]),false) in
 				match ch with
 				| [] ->
 					(* make sure we read all *)
 					if timeout && is_process_running() then
-						loop()
+						loop ins
 					else begin
 						Buffer.add_string berr (IO.read_all (IO.input_channel perr));
 						Buffer.add_string bout (IO.read_all (IO.input_channel pout));
@@ -1029,11 +1030,9 @@ try
 				| s :: _ ->
 					let n = Unix.read s tmp 0 (String.length tmp) in
 					Buffer.add_substring (if s == iout then bout else berr) tmp 0 n;
-					loop()
+					loop (if n = 0 then List.filter ((!=) s) ins else ins)
 			in
-			Sys.catch_break false;
-			loop();
-			Sys.catch_break true;
+			loop [iout;ierr];
 			let serr = binary_string (Buffer.contents berr) in
 			let sout = binary_string (Buffer.contents bout) in
 			if serr <> "" then ctx.messages <- (if serr.[String.length serr - 1] = '\n' then String.sub serr 0 (String.length serr - 1) else serr) :: ctx.messages;
