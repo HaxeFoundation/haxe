@@ -50,8 +50,13 @@
 	}
 
 	public function keys() : Iterator<Int> {
-		var a = new Array();
-		untyped __js__("for( var x in this.h ) a.push(x|0)");
+		var a = [];
+		untyped {
+			__js__("for( var key in this.h ) {");
+				if( h.hasOwnProperty(key) )
+					a.push(key|0);
+			__js__("}");
+		}
 		return a.iterator();
 	}
 
