@@ -800,9 +800,14 @@ let optimize_completion_expr e =
 	let locals : compl_locals = { r = PMap.empty } in
 	let save() = let old = locals.r in (fun() -> locals.r <- old) in
 	let get_local n = PMap.find n locals.r in
+	let maybe_typed e =
+		match fst e with
+		| EConst (Ident "null") -> false
+		| _ -> true
+	in
 	let decl n t e =
 		typing_side_effect := true;
-		locals.r <- PMap.add n (t,(match e with None -> None | Some e -> incr iid; Some (!iid,e,{ r = locals.r }))) locals.r
+		locals.r <- PMap.add n (t,(match e with Some e when maybe_typed e -> incr iid; Some (!iid,e,{ r = locals.r }) | _ -> None)) locals.r
 	in
 	let rec loop e =
 		let p = snd e in
@@ -818,7 +823,7 @@ let optimize_completion_expr e =
 		| EBinop (OpAssign,(EConst (Ident n | Type n),_),esub) ->
 			(try
 				(match get_local n with
-				| None, None -> decl n None (Some esub)
+				| None, None when maybe_typed esub -> decl n None (Some esub)
 				| _ -> ())
 			with Not_found -> 
 				());
