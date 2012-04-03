@@ -65,7 +65,7 @@ typedef ClassField = {
 	var params : Array<{ name : String, t : Type }>;
 	var meta : MetaAccess;
 	var kind : FieldKind;
-	var expr : Null<TypedExpr>;
+	function expr() : Null<TypedExpr>;
 	var pos : Expr.Position;
 	var doc : Null<String>;
 }

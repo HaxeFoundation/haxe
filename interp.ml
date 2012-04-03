@@ -3585,7 +3585,7 @@ and encode_cfield f =
 		"isPublic", VBool f.cf_public;
 		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) f.cf_params);
 		"meta", encode_meta f.cf_meta (fun m -> f.cf_meta <- m);
-		"expr", (match f.cf_expr with None -> VNull | Some e -> encode_texpr e);
+		"expr", (VFunction (Fun0 (fun() -> ignore(follow f.cf_type); (match f.cf_expr with None -> VNull | Some e -> encode_texpr e))));
 		"kind", encode_field_kind f.cf_kind;
 		"pos", encode_pos f.cf_pos;
 		"doc", null enc_string f.cf_doc;
