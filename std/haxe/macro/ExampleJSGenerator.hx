@@ -195,7 +195,7 @@ class ExampleJSGenerator {
 				newline();
 				fprint("$p$f.toString = $$estr");
 				newline();
-				fprint("$p$f.__enum__ = $$p");
+				fprint("$p$f.__enum__ = $p");
 			}
 			newline();
 		}
