@@ -109,10 +109,11 @@ class ExampleJSGenerator {
 		checkFieldName(c, f);
 		var field = field(f.name);
 		fprint("$p.prototype$field = ");
-		if( f.expr == null )
+		var e = f.expr();
+		if( e == null )
 			print("null");
 		else {
-			genExpr(f.expr);
+			genExpr(e);
 		}
 		newline();
 	}
@@ -120,13 +121,14 @@ class ExampleJSGenerator {
 	function genStaticField( c : ClassType, p : String, f : ClassField ) {
 		checkFieldName(c, f);
 		var field = field(f.name);
-		if( f.expr == null ) {
+		var e = f.expr();
+		if( e == null ) {
 			fprint("$p$field = null");
 			newline();
 		} else switch( f.kind ) {
 		case FMethod(_):
 			fprint("$p$field = ");
-			genExpr(f.expr);
+			genExpr(e);
 			newline();
 		default:
 			statics.add( { c : c, f : f } );
@@ -139,7 +141,7 @@ class ExampleJSGenerator {
 		var p = getPath(c);
 		fprint("$p = $$hxClasses['$p'] = ");
 		if( c.constructor != null )
-			genExpr(c.constructor.get().expr);
+			genExpr(c.constructor.get().expr());
 		else
 			print("function() { }");
 		newline();
@@ -210,7 +212,7 @@ class ExampleJSGenerator {
 		var p = getPath(c);
 		var f = field(cf.name);
 		fprint("$p$f = ");
-		genExpr(cf.expr);
+		genExpr(cf.expr());
 		newline();
 	}
 
