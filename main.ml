@@ -1014,7 +1014,7 @@ try
 				the process from blocking when the pipe is full
 			*)
 			let is_process_running() =
-				fst (Unix.waitpid [Unix.WNOHANG] (-1)) = 0
+				try fst (Unix.waitpid [Unix.WNOHANG] (-1)) = 0 with Unix.Unix_error (Unix.ECHILD,_,_) -> false
 			in
 			let rec loop ins =
 				let (ch,_,_), timeout = (try Unix.select ins [] [] 0.02, true with _ -> ([],[],[]),false) in
