@@ -2927,6 +2927,7 @@ type enum_index =
 	| IMethodKind
 	| IVarAccess
 	| IAccess
+	| IClassKind
 
 let enum_name = function
 	| IExpr -> "ExprDef"
@@ -2941,9 +2942,10 @@ let enum_name = function
 	| IMethodKind -> "MethodKind"
 	| IVarAccess -> "VarAccess"
 	| IAccess -> "Access"
+	| IClassKind -> "ClassKind"
 
 let init ctx =
-	let enums = [IExpr;IBinop;IUnop;IConst;ITParam;ICType;IField;IType;IFieldKind;IMethodKind;IVarAccess;IAccess] in
+	let enums = [IExpr;IBinop;IUnop;IConst;ITParam;ICType;IField;IType;IFieldKind;IMethodKind;IVarAccess;IAccess;IClassKind] in
 	let get_enum_proto e =
 		match get_path ctx ["haxe";"macro";enum_name e] null_pos with
 		| VObject e ->
@@ -3619,8 +3621,21 @@ and encode_method_kind m =
 	) in
 	enc_enum IMethodKind tag pl
 
+and encode_class_kind k =
+	let tag, pl = (match k with
+		| KNormal -> 0, []
+		| KTypeParameter -> 1, []
+		| KExtension (cl, params) -> 2, [encode_tclass cl; encode_tparams params]
+		| KExpr e -> 3, [encode_expr e]
+		| KGeneric -> 4, []
+		| KGenericInstance (cl, params) -> 5, [encode_tclass cl; encode_tparams params]
+		| KMacroType -> 6, []
+	) in
+	enc_enum IClassKind tag pl
+
 and encode_tclass c =
 	encode_mtype (TClassDecl c) [
+		"kind", encode_class_kind c.cl_kind;
 		"isExtern", VBool c.cl_extern;
 		"exclude", VFunction (Fun0 (fun() -> c.cl_extern <- true; c.cl_init <- None; VNull));
 		"params", enc_array (List.map (fun (n,t) -> enc_obj ["name",enc_string n;"t",encode_type t]) c.cl_types);
