@@ -1,5 +1,7 @@
 // types patches configuration for playerglobal.swc
 
+flash.display.DisplayObject.filters : Array<flash.filters.BitmapFilter>;
+
 -flash.accessibility.Accessibility.new
 @:require(flash10_1) flash.accessibility.ISearchableText
 @:require(flash10_1) flash.accessibility.ISimpleTextSelection
