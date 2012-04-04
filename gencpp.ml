@@ -500,7 +500,7 @@ let gen_interface_arg_type_name name opt typ =
       "hx::Null< " ^ type_str ^ " > "
    else
       type_str )
-      ^ " " ^ (keyword_remap name) ^ (if opt then "=null()" else "")
+   ^ " " ^ (keyword_remap name)
 ;;
 
 (* Generate prototype text, including allowing default values to be null *)
