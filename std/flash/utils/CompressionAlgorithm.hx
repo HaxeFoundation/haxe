@@ -1,6 +1,6 @@
 package flash.utils;
 
-@:fakeEnum(String) extern enum CompressionAlgorithm {
+@:fakeEnum(String) @:require(flash11) extern enum CompressionAlgorithm {
 	DEFLATE;
 	ZLIB;
 }

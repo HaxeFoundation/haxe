@@ -1,6 +1,6 @@
 package flash.display;
 
-@:fakeEnum(String) extern enum ColorCorrection {
+@:fakeEnum(String) @:require(flash10_1) extern enum ColorCorrection {
 	DEFAULT;
 	OFF;
 	ON;

@@ -1,6 +1,6 @@
 package flash.desktop;
 
-@:fakeEnum(String) extern enum ClipboardFormats {
+@:fakeEnum(String) @:require(flash10) extern enum ClipboardFormats {
 	AIR_PREFIX;
 	BITMAP_FORMAT;
 	FILE_LIST_FORMAT;

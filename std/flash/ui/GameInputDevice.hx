@@ -1,6 +1,6 @@
 package flash.ui;
 
-@:require(flash11_2) @:final extern class GameInputDevice extends flash.events.EventDispatcher {
+@:final @:require(flash11_2) extern class GameInputDevice extends flash.events.EventDispatcher {
 	var enabled : Bool;
 	var id(default,null) : String;
 	var name(default,null) : String;
