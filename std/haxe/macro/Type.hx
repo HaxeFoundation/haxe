@@ -73,10 +73,10 @@ typedef ClassField = {
 enum ClassKind {
 	KNormal;
 	KTypeParameter;
-	KExtension(cl:Type, params:Array<Type>);
+	KExtension(cl:Ref<ClassType>, params:Array<Type>);
 	KExpr(expr:Expr);
 	KGeneric;
-	KGenericInstance(cl:Type, params:Array<Type>);
+	KGenericInstance(cl:Ref<ClassType>, params:Array<Type>);
 	KMacroType;
 }
 

@@ -215,7 +215,7 @@ let hash f =
 
 let constants =
 	let h = Hashtbl.create 0 in
-	List.iter (fun f -> Hashtbl.add h (hash f) f) 
+	List.iter (fun f -> Hashtbl.add h (hash f) f)
 	["done";"read";"write";"min";"max";"file";"args";"loadprim";"loadmodule";"__a";"__s";"h";
     "tag";"index";"length";"message";"pack";"name";"params";"sub";"doc";"kind";"meta";"access";
 	"constraints";"opt";"type";"value";"ret";"expr";"field";"values";"get";"__string";"toString";
@@ -1924,7 +1924,7 @@ let macro_lib =
 		);
 		"add_resource", Fun2 (fun name data ->
 			match name, data with
-			| VString name, VString data -> 
+			| VString name, VString data ->
 				Hashtbl.replace (ccom()).resources name data;
 				let m = (get_ctx()).curapi.current_module() in
 				m.m_extra.m_binded_res <- PMap.add name data m.m_extra.m_binded_res;
@@ -3625,10 +3625,10 @@ and encode_class_kind k =
 	let tag, pl = (match k with
 		| KNormal -> 0, []
 		| KTypeParameter -> 1, []
-		| KExtension (cl, params) -> 2, [encode_tclass cl; encode_tparams params]
+		| KExtension (cl, params) -> 2, [encode_clref cl; encode_tparams params]
 		| KExpr e -> 3, [encode_expr e]
 		| KGeneric -> 4, []
-		| KGenericInstance (cl, params) -> 5, [encode_tclass cl; encode_tparams params]
+		| KGenericInstance (cl, params) -> 5, [encode_clref cl; encode_tparams params]
 		| KMacroType -> 6, []
 	) in
 	enc_enum IClassKind tag pl
@@ -3906,7 +3906,7 @@ let rec make_ast e =
 	| TIf (e,e1,e2) -> EIf (make_ast e,make_ast e1,eopt e2)
 	| TWhile (e1,e2,flag) -> EWhile (make_ast e1, make_ast e2, flag)
 	| TSwitch (e,cases,def) -> ESwitch (make_ast e,List.map (fun (vl,e) -> List.map make_ast vl, make_ast e) cases,eopt def)
-	| TMatch (e,(en,_),cases,def) ->		
+	| TMatch (e,(en,_),cases,def) ->
 		let scases (idx,args,e) =
 			let p = e.epos in
 			let unused = (EConst (Ident "_"),p) in
@@ -3915,12 +3915,12 @@ let rec make_ast e =
 				| Some l -> Some (List.map (function None -> unused | Some v -> (EConst (if is_ident v.v_name then Ident v.v_name else Type v.v_name),p)) l)
 			) in
 			let mk_args n =
-				match args with 
+				match args with
 				| None -> [unused]
-				| Some args -> 
+				| Some args ->
 					args @ Array.to_list (Array.make (n - List.length args) unused)
 			in
-			List.map (fun i -> 
+			List.map (fun i ->
 				let c = (try List.nth en.e_names i with _ -> assert false) in
 				let cfield = (try PMap.find c en.e_constrs with Not_found -> assert false) in
 				let c = (EConst (if is_ident c then Ident c else Type c),p) in
