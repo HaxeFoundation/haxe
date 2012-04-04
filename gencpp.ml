@@ -1833,9 +1833,11 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 
 			output "\n\n";
 			(* generate dynamic version too ... *)
-			if (is_static) then output "STATIC_";
-			output ("HX_DEFINE_DYNAMIC_FUNC" ^ nargs ^ "(" ^ class_name ^ "," ^
+         if ( not (is_override class_def field.cf_name ) ) then begin
+				if (is_static) then output "STATIC_";
+				output ("HX_DEFINE_DYNAMIC_FUNC" ^ nargs ^ "(" ^ class_name ^ "," ^
 							 remap_name ^ "," ^ ret ^ ")\n\n");
+			end;
 
 		end else begin
 			ctx.ctx_real_this_ptr <- false;
@@ -1943,9 +1945,11 @@ let gen_member_def ctx class_def is_static is_interface field =
 			output (" " ^ remap_name ^ "( " );
 			output (gen_arg_list function_def.tf_args "" );
 			output ");\n";
-			output (if is_static then "		static " else "		");
-			output ("Dynamic " ^ remap_name ^ "_dyn();\n" )
+         if ( not (is_override class_def field.cf_name ) ) then begin
+				output (if is_static then "		static " else "		");
+				output ("Dynamic " ^ remap_name ^ "_dyn();\n" )
 			end;
+		end;
 		output "\n";
 	| _ ->
 		(* Variable access *)
