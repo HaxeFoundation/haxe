@@ -1009,12 +1009,19 @@ try
 			let berr = Buffer.create 0 in
 			let bout = Buffer.create 0 in
 			let tmp = String.create 1024 in
+			let result = ref None in
 			(*
 				we need to read available content on process out/err if we want to prevent
 				the process from blocking when the pipe is full
 			*)
 			let is_process_running() =
-				try fst (Unix.waitpid [Unix.WNOHANG] (-1)) = 0 with Unix.Unix_error (Unix.ECHILD,_,_) -> false
+				let pid, r = Unix.waitpid [Unix.WNOHANG] (-1) in
+				if pid = 0 then
+					true
+				else begin
+					result := Some r;
+					false;
+				end
 			in
 			let rec loop ins =
 				let (ch,_,_), timeout = (try Unix.select ins [] [] 0.02, true with _ -> ([],[],[]),false) in
@@ -1037,7 +1044,7 @@ try
 			let sout = binary_string (Buffer.contents bout) in
 			if serr <> "" then ctx.messages <- (if serr.[String.length serr - 1] = '\n' then String.sub serr 0 (String.length serr - 1) else serr) :: ctx.messages;
 			if sout <> "" then ctx.com.print sout;
-			match Unix.close_process_full (pout,pin,perr) with
+			match (try Unix.close_process_full (pout,pin,perr) with Unix.Unix_error (Unix.ECHILD,_,_) -> (match !result with None -> assert false | Some r -> r)) with
 			| Unix.WEXITED e -> if e <> 0 then failwith ("Command failed with error " ^ string_of_int e)
 			| Unix.WSIGNALED s | Unix.WSTOPPED s -> failwith ("Command stopped with signal " ^ string_of_int s)
 		end;
