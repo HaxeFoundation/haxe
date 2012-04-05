@@ -53,7 +53,7 @@ enum XmlType {
 		var parser = {
 			cur : x,
 			xml : function(name,att) {
-				var x : Dynamic = new Xml();
+				var x = new Xml();
 				x._parent = untyped __this__.cur;
 				x.nodeType = Xml.Element;
 				x._nodeName = new String(name);
