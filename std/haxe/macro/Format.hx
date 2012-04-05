@@ -82,7 +82,7 @@ class Format {
 				start++;
 				var len = i - start - 1;
 				var expr = str.substr(start, len);
-				add(Context.parse(expr, make(len)));
+				add(Context.parseInlineString(expr, make(len)));
 				pos.min++;
 				start++;
 			} else if( (c >= 'a'.code && c <= 'z'.code) || (c >= 'A'.code && c <= 'Z'.code) || c == '_'.code ) {
@@ -111,7 +111,7 @@ class Format {
 			add({ expr : EConst(CString(str.substr(start,len))), pos : make(len) });
 		if( expr == null )
 			expr = { expr : EConst(CString("")), pos : make(0) };
-		return expr;
+		return { expr : ECheckType(expr,TPath({ pack : [], name : "String", params : [] })), pos : expr.pos };
 	}
 	#end
 
