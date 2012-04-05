@@ -479,9 +479,10 @@ let is_internal_member member =
    | _ -> false;;
 
 
-let is_dynamic_accessor name acc field class_def =
+let rec is_dynamic_accessor name acc field class_def =
  ( ( acc ^ "_" ^ field.cf_name) = name ) &&
   ( not (List.exists (fun f -> f.cf_name=name) class_def.cl_ordered_fields) )
+   && (match class_def.cl_super with None -> true | Some (parent,_) -> is_dynamic_accessor name acc field parent )
 ;;
 
 
