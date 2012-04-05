@@ -97,7 +97,10 @@ class Loader {
 		Set a module in the loader cache.
 	**/
 	public function setCache( name : String, m : Module ) {
-		Reflect.setField(untyped l.cache,name,m.m);
+		if( m == null )
+			Reflect.deleteField(untyped l.cache,name);
+		else
+			Reflect.setField(untyped l.cache,name,m.m);
 	}
 
 	/**
