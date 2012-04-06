@@ -28,6 +28,7 @@ extern class MouseEvent extends Event {
 	static var MOUSE_OVER : String;
 	static var MOUSE_UP : String;
 	static var MOUSE_WHEEL : String;
+	@:require(flash11_3) static var RELEASE_OUTSIDE : String;
 	@:require(flash11_2) static var RIGHT_CLICK : String;
 	@:require(flash11_2) static var RIGHT_MOUSE_DOWN : String;
 	@:require(flash11_2) static var RIGHT_MOUSE_UP : String;

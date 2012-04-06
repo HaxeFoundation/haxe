@@ -1099,7 +1099,7 @@ flash.ui.GameInputControl.hand : flash.ui.GameInputHand;
 flash.ui.GameInputControl.type : flash.ui.GameInputControlType;
 
 
-// 11.2 beta 2
+// 11.2
 
 @:require(flash11_2) flash.display3D.Context3D.setProgramConstantsFromByteArray
 @:require(flash11_2) flash.display.Stage.mouseLock;
@@ -1116,4 +1116,35 @@ flash.ui.GameInputControl.type : flash.ui.GameInputControlType;
 @:require(flash11_2) static flash.events.MouseEvent.RIGHT_MOUSE_UP;
 
 
+// 11.3
 
+@:require(flash11_3) flash.display3D.Context3D.createRectangleTexture
+@:require(flash11_3) flash.display.BitmapData.drawWithQuality
+
+flash.display.BitmapData.$quality : StageQuality;
+
+enum flash.display.BitmapEncodingColorSpace;
+
+flash.display.JPEGXREncoderOptions.$colorSpace : BitmapEncodingColorSpace;
+flash.display.JPEGXREncoderOptions.colorSpace : BitmapEncodingColorSpace;
+
+@:require(flash11_3) flash.display.BitmapData.encode
+@:require(flash11_3) flash.display.Stage.allowsFullScreenInteractive
+
+@:require(flash11_3) static flash.events.Event.FRAME_LABEL;
+@:require(flash11_3) static flash.events.Event.SUSPEND;
+
+@:require(flash11_3) static flash.events.FullScreenEvent.FULL_SCREEN_INTERACTIVE_ACCEPTED;
+@:require(flash11_3) flash.events.FullScreenEvent.interactive;
+
+@:require(flash11_3) static flash.events.MouseEvent.RELEASE_OUTSIDE;
+
+@:require(flash11_3) flash.net.NetStream.useJitterBuffer;
+
+@:require(flash11_3) flash.system.ApplicationDomain.getQualifiedDefinitionNames;
+
+@:require(flash11_3) flash.system.SecurityDomain.domainID;
+
+@:require(flash11_3) flash.system.ApplicationInstaller;
+@:require(flash11_3) flash.system.AuthorizedFeatures;
+@:require(flash11_3) flash.system.AuthorizedFeaturesLoader;

@@ -31,6 +31,7 @@ extern class Event {
 	static var ENTER_FRAME : String;
 	@:require(flash10) static var EXIT_FRAME : String;
 	@:require(flash10) static var FRAME_CONSTRUCTED : String;
+	@:require(flash11_3) static var FRAME_LABEL : String;
 	static var FULLSCREEN : String;
 	static var ID3 : String;
 	static var INIT : String;
@@ -45,6 +46,7 @@ extern class Event {
 	static var SELECT : String;
 	@:require(flash10) static var SELECT_ALL : String;
 	static var SOUND_COMPLETE : String;
+	@:require(flash11_3) static var SUSPEND : String;
 	static var TAB_CHILDREN_CHANGE : String;
 	static var TAB_ENABLED_CHANGE : String;
 	static var TAB_INDEX_CHANGE : String;

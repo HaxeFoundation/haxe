@@ -5,5 +5,5 @@ package flash.display;
 	var visible : Bool;
 	var x : Float;
 	var y : Float;
-	function requestContext3D(?context3DRenderMode : String) : Void;
+	function requestContext3D(?context3DRenderMode : String, ?profile : String) : Void;
 }

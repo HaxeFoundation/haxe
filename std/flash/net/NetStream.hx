@@ -35,6 +35,7 @@ extern class NetStream extends flash.events.EventDispatcher {
 	var soundTransform : flash.media.SoundTransform;
 	var time(default,null) : Float;
 	@:require(flash11) var useHardwareDecoder : Bool;
+	@:require(flash11_3) var useJitterBuffer : Bool;
 	var videoCodec(default,null) : UInt;
 	@:require(flash10_1) var videoReliable : Bool;
 	@:require(flash10_1) var videoSampleAccess : Bool;

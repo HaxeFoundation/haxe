@@ -5,6 +5,7 @@ package flash.system;
 	var parentDomain(default,null) : ApplicationDomain;
 	function new(?parentDomain : ApplicationDomain) : Void;
 	function getDefinition(name : String) : Dynamic;
+	@:require(flash11_3) function getQualifiedDefinitionNames() : flash.Vector<String>;
 	function hasDefinition(name : String) : Bool;
 	@:require(flash10) static var MIN_DOMAIN_MEMORY_LENGTH(default,null) : UInt;
 	static var currentDomain(default,null) : ApplicationDomain;

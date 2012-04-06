@@ -14,6 +14,8 @@ extern class BitmapData implements IBitmapDrawable {
 	function copyPixels(sourceBitmapData : BitmapData, sourceRect : flash.geom.Rectangle, destPoint : flash.geom.Point, ?alphaBitmapData : BitmapData, ?alphaPoint : flash.geom.Point, mergeAlpha : Bool = false) : Void;
 	function dispose() : Void;
 	function draw(source : IBitmapDrawable, ?matrix : flash.geom.Matrix, ?colorTransform : flash.geom.ColorTransform, ?blendMode : BlendMode, ?clipRect : flash.geom.Rectangle, smoothing : Bool = false) : Void;
+	@:require(flash11_3) function drawWithQuality(source : IBitmapDrawable, ?matrix : flash.geom.Matrix, ?colorTransform : flash.geom.ColorTransform, ?blendMode : BlendMode, ?clipRect : flash.geom.Rectangle, smoothing : Bool = false, ?quality : StageQuality) : Void;
+	@:require(flash11_3) function encode(rect : flash.geom.Rectangle, compressor : Dynamic, ?byteArray : flash.utils.ByteArray) : flash.utils.ByteArray;
 	function fillRect(rect : flash.geom.Rectangle, color : UInt) : Void;
 	function floodFill(x : Int, y : Int, color : UInt) : Void;
 	function generateFilterRect(sourceRect : flash.geom.Rectangle, filter : flash.filters.BitmapFilter) : flash.geom.Rectangle;
