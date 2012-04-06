@@ -171,6 +171,35 @@ class Module {
 		return new Module(m);
 	}
 
+	/**
+		Extract the globals names from the given module
+	**/
+	public static function readGlobalsNames( i : haxe.io.Input ) {
+		if( i.readByte() != 0x4E || i.readByte() != 0x45 || i.readByte() != 0x4B || i.readByte() != 0x4F )
+			throw "Not a neko file";
+		var nglobals = i.readUInt30();
+		var nfields = i.readUInt30();
+		var codesize = i.readUInt30();
+		var a = new Array();
+		for( k in 0...nglobals ) {
+			switch(i.readByte()) {
+			case 1:
+				a.push(i.readUntil(0));
+			case 2:
+				a.push("<fun:"+(i.readUInt30()&0xFFFFFF)+">");
+			case 3:
+				a.push("STRING:"+i.readString(i.readUInt16()));
+			case 4:
+				a.push("FLOAT:"+i.readUntil(0));
+			case 5:
+				a.push("DEBUG");
+			default:
+				throw "assert";
+			}
+		}
+		return a;
+	}
+
 	function __compare( other : Module ) {
 		return untyped __dollar__compare(this.m,other.m);
 	}
