@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, The haXe Project Contributors
+ * Copyright (c) 2005-2012, The haXe Project Contributors
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -23,36 +23,37 @@
  * DAMAGE.
  *
  */
-package neko.net;
+package sys.net;
 
+/**
+	A given IP host name.
+**/
+extern class Host {
 
-class Host {
+	/**
+		The actual IP corresponding to the host.
+	**/
+	var ip(default,null) : haxe.Int32;
 
-	public var ip(default,null) : haxe.Int32;
+	/**
+		Creates a new Host : the name can be an IP in the form "127.0.0.1" or an host name such as "google.com", in which case
+		the corresponding IP address is resolved using DNS. An exception occur if the host name could not be found.
+	**/
+	function new( name : String ) : Void;
 
-	public function new( name : String ) {
-		ip = host_resolve(untyped name.__s);
-	}
+	/**
+		Returns the IP representation of the host
+	**/
+	function toString() : String;
 
-	public function toString() : String {
-		return new String(host_to_string(ip));
-	}
+	/**
+		Perform a reverse-DNS query to resolve a host name from an IP.
+	**/
+	function reverse() : String;
 
-	public function reverse() {
-		return new String(host_reverse(ip));
-	}
-
-	public static function localhost() : String {
-		return new String(host_local());
-	}
-
-	static function __init__() {
-		neko.Lib.load("std","socket_init",0)();
-	}
-
-	private static var host_resolve = neko.Lib.load("std","host_resolve",1);
-	private static var host_reverse = neko.Lib.load("std","host_reverse",1);
-	private static var host_to_string = neko.Lib.load("std","host_to_string",1);
-	private static var host_local = neko.Lib.load("std","host_local",0);
+	/**
+		Returns the local computer host name
+	**/
+	static function localhost() : String;
 
 }

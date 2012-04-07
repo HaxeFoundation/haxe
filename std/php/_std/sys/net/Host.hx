@@ -21,54 +21,39 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
+ *
  */
-package neko.net;
-import neko.net.Socket;
-import haxe.io.Error;
+package sys.net;
 
-class SocketInput extends haxe.io.Input {
 
-	var __s : SocketHandle;
+class Host {
 
-	public function new(s) {
-		__s = s;
-	}
+	private var _ip : String;
+	public var ip(default,null) : haxe.Int32;
 
-	public override function readByte() : Int {
-		return try {
-			socket_recv_char(__s);
-		} catch( e : Dynamic ) {
-			if( e == "Blocking" )
-				throw Blocked;
-			else if( __s == null )
-				throw Custom(e);
-			else
-				throw new haxe.io.Eof();
+	public function new( name : String ) : Void {
+		if(~/^(\d{1,3}\.){3}\d{1,3}$/.match(name)) {
+		  _ip = name;
+		} else {
+			_ip = untyped __call__('gethostbyname', name);
+			if(_ip == name) {
+				ip = haxe.Int32.ofInt(0);
+				return;
+			}
 		}
+		var p = _ip.split('.');
+		ip = haxe.Int32.ofInt(untyped __call__('intval', __call__('sprintf', '%02X%02X%02X%02X', p[3], p[2], p[1], p[0]), 16));
 	}
 
-	public override function readBytes( buf : haxe.io.Bytes, pos : Int, len : Int ) : Int {
-		var r;
-		try {
-			r = socket_recv(__s,buf.getData(),pos,len);
-		} catch( e : Dynamic ) {
-			if( e == "Blocking" )
-				throw Blocked;
-			else
-				throw Custom(e);
-		}
-		if( r == 0 )
-			throw new haxe.io.Eof();
-		return r;
+	public function toString() : String {
+		return _ip;
 	}
 
-	public override function close() {
-		super.close();
-		if( __s != null ) socket_close(__s);
+	public function reverse() : String {
+		return untyped __call__('gethostbyaddress', _ip);
 	}
 
-	private static var socket_recv = neko.Lib.load("std","socket_recv",4);
-	private static var socket_recv_char = neko.Lib.load("std","socket_recv_char",1);
-	private static var socket_close = neko.Lib.load("std","socket_close",1);
-
+	public static function localhost() : String {
+		return untyped __var__('_SERVER', 'HTTP_HOST');
+	}
 }

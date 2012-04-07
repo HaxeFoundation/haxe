@@ -56,7 +56,7 @@ class ThreadRemotingServer extends ThreadServer<haxe.remoting.SocketConnection,S
 		super.run(host,port);
 	}
 
-	public override function clientConnected( s : neko.net.Socket ) {
+	public override function clientConnected( s : sys.net.Socket ) {
 		var ctx = new haxe.remoting.Context();
 		var cnx = haxe.remoting.SocketConnection.create(s,ctx);
 		var me = this;

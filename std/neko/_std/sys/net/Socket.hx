@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, The haXe Project Contributors
+ * Copyright (c) 2005-2012, The haXe Project Contributors
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -22,22 +22,111 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * Contributor: Lee McColl Sylvester
  */
-package neko.net;
+package sys.net;
+import haxe.io.Error;
 
-enum SocketHandle {
+private enum SocketHandle {
 }
 
+private class SocketOutput extends haxe.io.Output {
+
+	var __s : SocketHandle;
+
+	public function new(s) {
+		__s = s;
+	}
+
+	public override function writeByte( c : Int ) {
+		try {
+			socket_send_char(__s, c);
+		} catch( e : Dynamic ) {
+			if( e == "Blocking" )
+				throw Blocked;
+			else
+				throw Custom(e);
+		}
+	}
+
+	public override function writeBytes( buf : haxe.io.Bytes, pos : Int, len : Int) : Int {
+		return try {
+			socket_send(__s, buf.getData(), pos, len);
+		} catch( e : Dynamic ) {
+			if( e == "Blocking" )
+				throw Blocked;
+			else
+				throw Custom(e);
+		}
+	}
+
+	public override function close() {
+		super.close();
+		if( __s != null ) socket_close(__s);
+	}
+
+	private static var socket_close = neko.Lib.load("std","socket_close",1);
+	private static var socket_send_char = neko.Lib.load("std","socket_send_char",2);
+	private static var socket_send = neko.Lib.load("std","socket_send",4);
+
+}
+
+private class SocketInput extends haxe.io.Input {
+
+	var __s : SocketHandle;
+
+	public function new(s) {
+		__s = s;
+	}
+
+	public override function readByte() : Int {
+		return try {
+			socket_recv_char(__s);
+		} catch( e : Dynamic ) {
+			if( e == "Blocking" )
+				throw Blocked;
+			else if( __s == null )
+				throw Custom(e);
+			else
+				throw new haxe.io.Eof();
+		}
+	}
+
+	public override function readBytes( buf : haxe.io.Bytes, pos : Int, len : Int ) : Int {
+		var r;
+		try {
+			r = socket_recv(__s,buf.getData(),pos,len);
+		} catch( e : Dynamic ) {
+			if( e == "Blocking" )
+				throw Blocked;
+			else
+				throw Custom(e);
+		}
+		if( r == 0 )
+			throw new haxe.io.Eof();
+		return r;
+	}
+
+	public override function close() {
+		super.close();
+		if( __s != null ) socket_close(__s);
+	}
+
+	private static var socket_recv = neko.Lib.load("std","socket_recv",4);
+	private static var socket_recv_char = neko.Lib.load("std","socket_recv_char",1);
+	private static var socket_close = neko.Lib.load("std","socket_close",1);
+
+}
+
+@:core_api
 class Socket {
 
 	private var __s : SocketHandle;
-	public var input(default,null) : SocketInput;
-	public var output(default,null) : SocketOutput;
+	public var input(default,null) : haxe.io.Input;
+	public var output(default,null) : haxe.io.Output;
 	public var custom : Dynamic;
 
-	public function new( ?s ) {
-		__s = if( s == null ) socket_new(false) else s;
+	public function new() : Void {
+		__s = socket_new(false);
 		input = new SocketInput(__s);
 		output = new SocketOutput(__s);
 	}
@@ -56,11 +145,11 @@ class Socket {
 		return socket_read(__s);
 	}
 
-	public function write( content : String ) {
+	public function write( content : String ) : Void {
 		socket_write(__s, untyped content.__s);
 	}
 
-	public function connect(host : Host, port : Int) {
+	public function connect(host : Host, port : Int) : Void {
 		try {
 			socket_connect(__s, host.ip, port);
 		} catch( s : String ) {
@@ -71,20 +160,25 @@ class Socket {
 		}
 	}
 
-	public function listen(connections : Int) {
+	public function listen(connections : Int) : Void {
 		socket_listen(__s, connections);
 	}
 
-	public function shutdown( read : Bool, write : Bool ){
+	public function shutdown( read : Bool, write : Bool ) : Void {
 		socket_shutdown(__s,read,write);
 	}
 
-	public function bind(host : Host, port : Int) {
+	public function bind(host : Host, port : Int) : Void {
 		socket_bind(__s, host.ip, port);
 	}
 
 	public function accept() : Socket {
-		return new Socket(socket_accept(__s));
+		var c = socket_accept(__s);
+		var s = Type.createEmptyInstance(Socket);
+		s.__s = c;
+		s.input = new SocketInput(c);
+		s.output = new SocketOutput(c);
+		return s;
 	}
 
 	public function peer() : { host : Host, port : Int } {
@@ -101,28 +195,23 @@ class Socket {
 		return { host : h, port : a[1] };
 	}
 
-	public function setTimeout( timeout : Float ) {
+	public function setTimeout( timeout : Float ) : Void {
 		socket_set_timeout(__s, timeout);
 	}
 
-	public function waitForRead() {
+	public function waitForRead() : Void {
 		select([this],null,null,null);
 	}
 
-	public function setBlocking( b : Bool ) {
+	public function setBlocking( b : Bool ) : Void {
 		socket_set_blocking(__s,b);
 	}
 
-	public function setFastSend( b : Bool ) {
+	public function setFastSend( b : Bool ) : Void {
 		socket_set_fast_send(__s,b);
 	}
 
-	public static function newUdpSocket() {
-		return new Socket(socket_new(true));
-	}
-
-	// STATICS
-	public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, timeout : Float) : {read: Array<Socket>,write: Array<Socket>,others: Array<Socket>} {
+	public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : {read: Array<Socket>,write: Array<Socket>,others: Array<Socket>} {
 		var c = untyped __dollar__hnew( 1 );
 		var f = function( a : Array<Socket> ){
 			if( a == null ) return null;

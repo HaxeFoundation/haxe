@@ -24,18 +24,11 @@
  */
 package haxe;
 
-#if neko
-import neko.net.Host;
-import neko.net.Socket;
-#elseif cpp
-import cpp.net.Host;
-import cpp.net.Socket;
-#elseif php
-import php.net.Host;
-import php.net.Socket;
-#end
+#if sys
 
-#if (neko || php || cpp)
+import sys.net.Host;
+import sys.net.Socket;
+
 private typedef AbstractSocket = {
 	var input(default,null) : haxe.io.Input;
 	var output(default,null) : haxe.io.Output;
@@ -45,12 +38,13 @@ private typedef AbstractSocket = {
 	function close() : Void;
 	function shutdown( read : Bool, write : Bool ) : Void;
 }
+
 #end
 
 class Http {
 
 	public var url : String;
-#if (neko || php || cpp)
+#if sys
 	public var noShutdown : Bool;
 	public var cnxTimeout : Float;
 	public var responseHeaders : Hash<String>;
@@ -64,7 +58,7 @@ class Http {
 	var headers : Hash<String>;
 	var params : Hash<String>;
 
-	#if (neko || php || cpp)
+	#if sys
 	public static var PROXY : { host : String, port : Int, auth : { user : String, pass : String } } = null;
 	#end
 
@@ -78,7 +72,7 @@ class Http {
 		params = new Hash();
 		#if js
 		async = true;
-		#elseif (neko || php || cpp)
+		#elseif sys
 		cnxTimeout = 10;
 		#end
 		#if php
@@ -247,7 +241,7 @@ class Http {
 		}
 		if( !r.sendAndLoad(small_url,r,if( param ) { if( post ) "POST" else "GET"; } else null) )
 			onError("Failed to initialize Connection");
-	#elseif (neko || php || cpp)
+	#elseif sys
 		var me = this;
 		var output = new haxe.io.BytesOutput();
 		var old = onError;
@@ -266,7 +260,7 @@ class Http {
 	#end
 	}
 
-#if (neko || php || cpp)
+#if sys
 
 	public function fileTransfert( argname : String, filename : String, file : haxe.io.Input, size : Int ) {
 		this.file = { param : argname, filename : filename, io : file, size : size };
@@ -282,7 +276,7 @@ class Http {
 		if( sock == null ) {
 			if( secure ) {
 				#if php
-				sock = Socket.newSslSocket();
+				sock = new php.net.SslSocket();
 				#elseif hxssl
 				sock = new neko.tls.Socket();
 				#else

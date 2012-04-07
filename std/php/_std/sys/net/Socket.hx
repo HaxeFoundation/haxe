@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, The haXe Project Contributors
+ * Copyright (c) 2005-2012, The haXe Project Contributors
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -22,30 +22,27 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * Contributor: Lee McColl Sylvester
  */
-package php.net;
+package sys.net;
 
 import sys.io.File;
 
-typedef SocketHandle = FileHandle;
-
+@:core_api
 class Socket {
-	private var __s : SocketHandle;
-	public var input(default,null) : SocketInput;
-	public var output(default,null) : SocketOutput;
+
+	private var __s : FileHandle;
+	private var protocol : String;
+	public var input(default,null) : haxe.io.Input;
+	public var output(default,null) : haxe.io.Output;
 	public var custom : Dynamic;
 
-	public var protocol(default, null) : String;
-
-	public function new( ?s ) {
-		__s = s;
-		input = untyped new SocketInput(__s);
-		output = untyped new SocketOutput(__s);
+	public function new() : Void {
+		input = untyped new sys.io.FileInput(null);
+		output = untyped new sys.io.FileOutput(null);
 		protocol = "tcp";
 	}
 
-	private function assignHandler() {
+	private function assignHandler() : Void {
 		untyped input.__f = __s;
 		untyped output.__f = __s;
 	}
@@ -66,11 +63,11 @@ class Socket {
 		return b;
 	}
 
-	public function write( content : String ) {
+	public function write( content : String ) : Void {
 		return untyped __call__('fwrite', __s, content);
 	}
 
-	public function connect(host : Host, port : Int) {
+	public function connect(host : Host, port : Int) : Void {
 		var errs = null;
 		var errn = null;
 		var r = untyped __call__('stream_socket_client', protocol + '://' +host._ip + ':' + port, errn, errs);
@@ -79,14 +76,15 @@ class Socket {
 		assignHandler();
 	}
 
-	public function listen(connections : Int) {
+	public function listen(connections : Int) : Void {
+		throw "Not implemented";
 /* TODO: ??????
 		var r = untyped __call__('socket_listen', __s, connections);
 		checkError(r);
 */
 	}
 
-	public function shutdown( read : Bool, write : Bool ){
+	public function shutdown( read : Bool, write : Bool ) : Void {
 		var r;
 		if(untyped __call__("function_exists", "stream_socket_shutdown")) {
 			var rw = read && write ? 2 : (write ? 1 : (read ? 0 : 2));
@@ -97,7 +95,7 @@ class Socket {
 		checkError(r, 0, 'Unable to Shutdown');
 	}
 
-	public function bind(host : Host, port : Int) {
+	public function bind(host : Host, port : Int) : Void {
 		var errs = null;
 		var errn = null;
 		var r = untyped __call__('stream_socket_server', protocol + '://' +host._ip + ':' + port, errn, errs, (protocol=="udp") ? __php__('STREAM_SERVER_BIND') : __php__('STREAM_SERVER_BIND | STREAM_SERVER_LISTEN'));
@@ -109,10 +107,13 @@ class Socket {
 	public function accept() : Socket {
 		var r = untyped __call__('stream_socket_accept', __s);
 		checkError(r, 0, 'Unable to accept connections on socket');
-		return untyped new Socket(cast r);
+		var s = new Socket();
+		s.__s = cast r;
+		s.assignHandler();
+		return s;
 	}
 
-	private function hpOfString(s : String) {
+	private function hpOfString(s : String) : { host : Host, port : Int } {
 		var parts = s.split(':');
 		if(parts.length == 2) {
 			return { host : new Host(parts[0]), port : Std.parseInt(parts[1]) };
@@ -133,32 +134,27 @@ class Socket {
 		return hpOfString(r);
 	}
 
-	public function setTimeout( timeout : Float ) {
+	public function setTimeout( timeout : Float ) : Void {
 		var s = Std.int(timeout);
 		var ms = Std.int((timeout-s)*1000000);
 		var r = untyped __call__('stream_set_timeout', __s, s, ms);
 		checkError(r, 0, 'Unable to set timeout');
 	}
 
-	public function setBlocking( b : Bool ) {
+	public function setBlocking( b : Bool ) : Void {
 		var r = untyped __call__('stream_set_blocking', __s, b);
 		checkError(r, 0, 'Unable to block');
 	}
 
-	// STATICS
-	public static function newUdpSocket() {
-		var s = new Socket();
-		s.protocol = "udp";
-		return s;
+	public function setFastSend( b : Bool ) : Void {
+		throw "Not implemented";
 	}
 
-	public static function newSslSocket() {
-		var s = new Socket();
-		s.protocol = "ssl";
- 		return s;
- 	}
+	public function waitForRead() : Void {
+		select([this],null,null);
+	}
 
-	private static function checkError(r : Bool, code : Int, msg : String) {
+	private static function checkError(r : Bool, code : Int, msg : String) : Void {
 		if(!untyped __physeq__(r, false)) return;
 		throw haxe.io.Error.Custom('Error ['+code+']: ' +msg);
 	}
@@ -170,10 +166,11 @@ class Socket {
 	private static function getProtocol(protocol : String) : Int {
 		return untyped __call__('getprotobyname', protocol);
  	}
-}
 
-enum SocketDomain {
-	AfInet;
-	AfInet6;
-	AfUnix;
+	public static function select(read : Array<Socket>, write : Array<Socket>, others : Array<Socket>, ?timeout : Float) : { read: Array<Socket>,write: Array<Socket>,others: Array<Socket> }
+	{
+		throw "Not implemented";
+		return null;
+	}
+
 }

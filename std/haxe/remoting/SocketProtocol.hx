@@ -31,12 +31,8 @@ typedef Socket =
 		flash.XMLSocket
 	#elseif js
 		js.XMLSocket
-	#elseif neko
-		neko.net.Socket
-	#elseif php
-		php.net.Socket
-	#elseif cpp
-		cpp.net.Socket
+	#elseif sys
+		sys.net.Socket
 	#else
 		Dynamic
 	#end

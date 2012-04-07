@@ -23,6 +23,7 @@
  * DAMAGE.
  */
 package neko.net;
+import sys.net.Socket;
 
 private typedef ServerClient<ClientData> = {
 	var sock : Socket;
@@ -182,7 +183,7 @@ class ServerLoop<ClientData> {
 	/**
 		Run the server. This function should never return.
 	**/
-	public function run( host : Host, port : Int ) {
+	public function run( host : sys.net.Host, port : Int ) {
 		var serv = new Socket();
 		serv.bind(host,port);
 		serv.listen(listenCount);
