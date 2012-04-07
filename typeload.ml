@@ -76,6 +76,7 @@ let rec load_type_def ctx p t =
 	with
 		Not_found ->
 			let next() =
+				let t = (match t.tpackage with "__" :: l -> { t with tpackage = l } | _ -> t) in
 				let m = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
 				let tpath = (t.tpackage,tname) in
 				try
