@@ -908,10 +908,21 @@ try
 				add_std "flash8";
 			end;
 			"swf"
-		| Neko -> add_std "neko"; "n"
-		| Js -> add_std "js"; "js"
-		| Php -> add_std "php"; "php"
-		| Cpp -> add_std "cpp"; "cpp"
+		| Neko ->
+			Common.define com "sys";
+			add_std "neko";
+			"n"
+		| Js ->
+			add_std "js";
+			"js"
+		| Php ->
+			Common.define com "sys";
+			add_std "php";
+			"php"
+		| Cpp ->
+			Common.define com "sys";
+			add_std "cpp";
+			"cpp"
 	) in
 	(* if we are at the last compilation step, allow all packages accesses - in case of macros or opening another project file *)
 	if com.display && not ctx.has_next then com.package_rules <- PMap.foldi (fun p r acc -> match r with Forbidden -> acc | _ -> PMap.add p r acc) com.package_rules PMap.empty;

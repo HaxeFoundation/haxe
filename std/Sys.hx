@@ -26,6 +26,7 @@
 /**
 	This class gives you access to many base functionalities of system platforms. Looks in [sys] sub packages for more system APIs.
 **/
+@:require(sys)
 extern class Sys {
 
 	/**

@@ -209,6 +209,9 @@ let init_platform com pf =
 	let name = platform_name pf in
 	let forbid acc p = if p = name || PMap.mem p acc then acc else PMap.add p Forbidden acc in
 	com.package_rules <- List.fold_left forbid com.package_rules (List.map platform_name platforms);
+	(match pf with
+	| Cpp | Php | Neko -> ()
+	| _ -> com.package_rules <- PMap.add "sys" Forbidden com.package_rules);
 	define com name
 
 let error msg p = raise (Abort (msg,p))
