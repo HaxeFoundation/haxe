@@ -909,18 +909,15 @@ try
 			end;
 			"swf"
 		| Neko ->
-			Common.define com "sys";
 			add_std "neko";
 			"n"
 		| Js ->
 			add_std "js";
 			"js"
 		| Php ->
-			Common.define com "sys";
 			add_std "php";
 			"php"
 		| Cpp ->
-			Common.define com "sys";
 			add_std "cpp";
 			"cpp"
 	) in
