@@ -76,8 +76,15 @@ let rec load_type_def ctx p t =
 	with
 		Not_found ->
 			let next() =
-				let t = (match t.tpackage with "__" :: l -> { t with tpackage = l } | _ -> t) in
-				let m = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
+				let t, m = (try
+					t, ctx.g.do_load_module ctx (t.tpackage,t.tname) p
+				with Error (Module_not_found _,p2) as e when p == p2 -> 
+					match t.tpackage with
+					| "std" :: l ->
+						let t = { t with tpackage = l } in
+						t, ctx.g.do_load_module ctx (t.tpackage,t.tname) p
+					| _ -> raise e
+				) in
 				let tpath = (t.tpackage,tname) in
 				try
 					List.find (fun t -> not (t_infos t).mt_private && t_path t = tpath) m.m_types

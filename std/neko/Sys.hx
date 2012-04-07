@@ -1,5 +1,5 @@
 package neko;
 
 #if !haxe3
-typedef Sys = __.Sys;
+typedef Sys = std.Sys;
 #end

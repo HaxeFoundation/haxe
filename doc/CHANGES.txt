@@ -35,7 +35,7 @@
 	all : null, true and false are now keywords
 	all : neko.io.Path, cpp.io.Path and php.io.Path are now haxe.io.Path
 	neko, cpp, php : added Sys class, sys.io and sys.net packages and "sys" define
-	all : allow to access root package with __ prefix (__.Type for example)
+	all : allow to access root package with std prefix (std.Type for example)
 
 2011-09-25: 2.08
 	js : added js.JQuery
