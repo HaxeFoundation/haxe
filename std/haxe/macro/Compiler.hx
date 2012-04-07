@@ -132,7 +132,7 @@ class Compiler {
 	**/
 	public static function excludeFile( fileName : String ) {
 		fileName = Context.resolvePath(fileName);
-		var f = neko.io.File.read(fileName,true);
+		var f = sys.io.File.read(fileName,true);
 		var classes = new Hash();
 		try {
 			while( true ) {
@@ -159,7 +159,7 @@ class Compiler {
 	**/
 	public static function patchTypes( file : String ) : Void {
 		var file = Context.resolvePath(file);
-		var f = neko.io.File.read(file, true);
+		var f = sys.io.File.read(file, true);
 		try {
 			while( true ) {
 				var r = StringTools.trim(f.readLine());

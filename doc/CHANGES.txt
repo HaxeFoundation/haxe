@@ -33,6 +33,8 @@
 	flash : added @:file("a.dat") class File extends flash.utils.ByteArray
 	js : added --js-modern for wrapping output in a closure and ES5 strict mode
 	all : null, true and false are now keywords
+	all : neko.io.Path, cpp.io.Path and php.io.Path are now haxe.io.Path
+	neko, cpp, php : added Sys class and sys.io package
 
 2011-09-25: 2.08
 	js : added js.JQuery

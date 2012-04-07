@@ -22,66 +22,58 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package php.io;
+package sys.io;
 
 enum FileHandle {
-}
-
-enum FileSeek {
-	SeekBegin;
-	SeekCur;
-	SeekEnd;
 }
 
 /**
 	API for reading and writing to files.
 **/
-class File {
+@:core_api class File {
 
 	public static function getContent( path : String ) : String {
-		return untyped __call__("file_get_contents", path);
+		return new String(file_contents(untyped path.__s));
 	}
 
-	public static function getBytes( path : String ) {
-		return haxe.io.Bytes.ofString(getContent(path));
+	public static function getBytes( path : String ) : haxe.io.Bytes {
+		return neko.Lib.bytesReference(getContent(path));
 	}
 
-	public static function putContent( path : String, content : String) : Int {
-		return untyped __call__("file_put_contents", path, content);
+	public static function saveContent( path : String, content : String ) : Void {
+		var f = write(path);
+		f.writeString(content);
+		f.close();
 	}
 
-	public static function read( path : String, binary : Bool = true ) {
-		return new FileInput(untyped __call__('fopen', path, binary ? "rb" : "r"));
+	public static function saveBytes( path : String, bytes : haxe.io.Bytes ) : Void {
+		var f = write(path);
+		f.write(bytes);
+		f.close();
 	}
 
-	public static function write( path : String, binary : Bool = true ) {
-		return new FileOutput(untyped __call__('fopen', path, binary ? "wb" : "w"));
+	public static function read( path : String, binary : Bool = true ) : FileInput {
+		return untyped new FileInput(file_open(path.__s,(if( binary ) "rb" else "r").__s));
 	}
 
-	public static function append( path : String, binary : Bool = true ) {
-		return new FileOutput(untyped __call__('fopen', path, binary ? "ab" : "a"));
+	public static function write( path : String, binary : Bool = true ) : FileOutput {
+		return untyped new FileOutput(file_open(path.__s,(if( binary ) "wb" else "w").__s));
 	}
 
-	public static function copy( src : String, dst : String ) {
-		untyped __call__("copy", src, dst);
+	public static function append( path : String, binary : Bool = true ) : FileOutput {
+		return untyped new FileOutput(file_open(path.__s,(if( binary ) "ab" else "a").__s));
 	}
 
-	public static function stdin() {
-		return new FileInput(untyped __call__('fopen', 'php://stdin', "r"));
+	public static function copy( src : String, dst : String ) : Void {
+		var s = read(src,true);
+		var d = write(dst,true);
+		d.writeInput(s);
+		s.close();
+		d.close();
 	}
 
-	public static function stdout() {
-		return new FileOutput(untyped __call__('fopen', 'php://stdout', "w"));
-	}
+	private static var file_contents = neko.Lib.load("std","file_contents",1);
+	private static var file_open = neko.Lib.load("std","file_open",2);
 
-	public static function stderr() {
-		return new FileOutput(untyped __call__('fopen', 'php://stderr', "w"));
-	}
 
-	public static function getChar( echo : Bool ) : Int {
-		var v : Int = untyped __call__("fgetc", __php__("STDIN"));
-		if(echo)
-			untyped __call__('echo', v);
-		return v;
-	}
 }

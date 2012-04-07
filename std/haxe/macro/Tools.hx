@@ -23,7 +23,7 @@ class Tools {
 		default: null;
 		}
 		if( str == null ) Context.error("Should be a constant string", fileName.pos);
-		var f = try neko.io.File.getContent(Context.resolvePath(str)) catch( e : Dynamic ) Context.error(Std.string(e), fileName.pos);
+		var f = try sys.io.File.getContent(Context.resolvePath(str)) catch( e : Dynamic ) Context.error(Std.string(e), fileName.pos);
 		var p = Context.currentPos();
 		return { expr : EUntyped( { expr : ECall( { expr : EConst(CIdent("__js__")), pos : p }, [ { expr : EConst(CString(f)), pos : p } ]), pos : p } ), pos : p };
 	}

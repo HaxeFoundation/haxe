@@ -57,11 +57,11 @@ class ThreadServer<Client,Message> {
 
 	public function new() {
 		threads = new Array();
-		nthreads = if( neko.Sys.systemName() == "Windows" ) 150 else 10;
+		nthreads = if( Sys.systemName() == "Windows" ) 150 else 10;
 		messageHeaderSize = 1;
 		listen = 10;
 		connectLag = 0.5;
-		errorOutput = neko.io.File.stderr();
+		errorOutput = Sys.stderr();
 		initialBufferSize = (1 << 10);
 		maxBufferSize = (1 << 16);
 		maxSockPerThread = 64;

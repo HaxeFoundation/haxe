@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package php.io;
+package sys.io;
 import php.NativeArray;
 
 private class Stdin extends haxe.io.Output {
@@ -79,6 +79,7 @@ private class Stdout extends haxe.io.Input {
 	}
 }
 
+@:core_api
 class Process {
 	var p : Void;
 	var st : NativeArray;
@@ -87,7 +88,7 @@ class Process {
 	public var stderr(default,null) : haxe.io.Input;
 	public var stdin(default,null) : haxe.io.Output;
 
-	public function new( cmd : String, args : Array<String> ) {
+	public function new( cmd : String, args : Array<String> ) : Void {
 		var pipes = untyped __call__("array");
 		var descriptorspec = untyped __php__("array(
 			array('pipe', 'r'),
@@ -100,8 +101,8 @@ class Process {
 		stdout = new Stdout(pipes[1]);
 		stderr = new Stdout(pipes[2]);
 	}
-	
-	public function close() {
+
+	public function close() : Void {
 		if(null == st)
 			st = untyped __call__('proc_get_status', p);
 		replaceStream(stderr);
@@ -109,7 +110,7 @@ class Process {
 		cl = untyped __call__('proc_close', p);
 	}
 
-	function sargs(args : Array<String>) {
+	function sargs(args : Array<String>) : String {
 		var b = '';
 		for(arg in args) {
 			arg = arg.split('"').join('\"');
@@ -125,7 +126,11 @@ class Process {
 		return r[untyped 'pid'];
 	}
 
-	function replaceStream(input : haxe.io.Input) {
+	public function kill() : Void {
+		untyped __call__('proc_terminate',p);
+	}
+
+	function replaceStream(input : haxe.io.Input) : Void {
 		var fp = untyped __call__("fopen", "php://memory", "r+");
 		while(true) {
 			var s = untyped __call__("fread", untyped input.p, 8192);
@@ -141,7 +146,7 @@ class Process {
 		{
 			st = untyped __call__('proc_get_status', p);
 			while(st[untyped 'running']) {
-				php.Sys.sleep(0.01);
+				Sys.sleep(0.01);
 				st = untyped __call__('proc_get_status', p);
 			}
 			close();

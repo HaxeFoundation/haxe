@@ -24,4 +24,4 @@
  */
 package php.net;
 
-typedef SocketInput = php.io.FileInput;
+typedef SocketInput = sys.io.FileInput;

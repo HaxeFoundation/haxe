@@ -24,4 +24,4 @@
  */
 package php.net;
 
-typedef SocketOutput = php.io.FileOutput;
+typedef SocketOutput = sys.io.FileOutput;

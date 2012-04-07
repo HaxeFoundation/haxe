@@ -83,7 +83,6 @@ extern class PDOStatement
 }
 
 import php.Lib;
-import php.Sys;
 
 private class PDOConnection implements Connection {
 

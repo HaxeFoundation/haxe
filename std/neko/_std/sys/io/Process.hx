@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package neko.io;
+package sys.io;
 
 private class Stdin extends haxe.io.Output {
 
@@ -88,14 +88,14 @@ private class Stdout extends haxe.io.Input {
 
 }
 
-class Process {
+@:core_api class Process {
 
 	var p : Void;
 	public var stdout(default,null) : haxe.io.Input;
 	public var stderr(default,null) : haxe.io.Input;
 	public var stdin(default,null) : haxe.io.Output;
 
-	public function new( cmd : String, args : Array<String> ) {
+	public function new( cmd : String, args : Array<String> ) : Void {
 		p = try _run(untyped cmd.__s,neko.Lib.haxeToNeko(args)) catch( e : Dynamic ) throw "Process creation failure : "+cmd;
 		stdin = new Stdin(p);
 		stdout = new Stdout(p,true);
@@ -110,11 +110,11 @@ class Process {
 		return _exit(p);
 	}
 
-	public function close() {
+	public function close() : Void {
 		_close(p);
 	}
 
-	public function kill() {
+	public function kill() : Void {
 		_kill(p);
 	}
 

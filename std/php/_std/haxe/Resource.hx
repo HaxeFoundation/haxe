@@ -47,11 +47,11 @@ class Resource {
 	}
 
 	public static function getString( name : String ) : String {
-		return php.io.File.getContent(getPath(name));
+		return sys.io.File.getContent(getPath(name));
 	}
 
 	public static function getBytes( name : String ) : haxe.io.Bytes {
-		return php.io.File.getBytes(getPath(name));
+		return sys.io.File.getBytes(getPath(name));
 	}
 
 }

@@ -26,9 +26,9 @@
  */
 package php.net;
 
-import php.io.File;
+import sys.io.File;
 
-typedef SocketHandle = php.io.FileHandle;
+typedef SocketHandle = FileHandle;
 
 class Socket {
 	private var __s : SocketHandle;
@@ -40,8 +40,8 @@ class Socket {
 
 	public function new( ?s ) {
 		__s = s;
-		input = new SocketInput(__s);
-		output = new SocketOutput(__s);
+		input = untyped new SocketInput(__s);
+		output = untyped new SocketOutput(__s);
 		protocol = "tcp";
 	}
 
@@ -151,7 +151,7 @@ class Socket {
 		s.protocol = "udp";
 		return s;
 	}
-	
+
 	public static function newSslSocket() {
 		var s = new Socket();
 		s.protocol = "ssl";

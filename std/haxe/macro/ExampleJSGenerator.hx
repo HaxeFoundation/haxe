@@ -253,9 +253,7 @@ class ExampleJSGenerator {
 			genExpr(api.main);
 			newline();
 		}
-		var file = neko.io.File.write(api.outputFile, true);
-		file.writeString(buf.toString());
-		file.close();
+		sys.io.File.saveContent(api.outputFile, buf.toString());
 	}
 
 	#if macro
