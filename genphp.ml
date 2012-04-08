@@ -739,6 +739,12 @@ and gen_field_access ctx isvar e s =
 		gen_value ctx e;
 		spr ctx ")";
 		gen_member_access ctx isvar e s
+	| TCast (ec, _) when (match ec.eexpr with | TNew _ -> true | _ -> false) ->
+		spr ctx "_hx_deref(";
+		ctx.is_call <- false;
+		gen_value ctx e;
+		spr ctx ")";
+		gen_member_access ctx isvar e s
 	| _ ->
 		gen_expr ctx e;
 		gen_member_access ctx isvar e s
