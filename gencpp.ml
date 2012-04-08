@@ -1907,7 +1907,6 @@ let gen_member_def ctx class_def is_static is_interface field =
 	let output = ctx.ctx_output in
 	let remap_name = keyword_remap field.cf_name in
 
-	output (if is_static then "		static " else "		");
 	if (is_interface) then begin
 		match follow field.cf_type, field.cf_kind with
 		| TFun (args,return_type), Method _  ->
@@ -1915,23 +1914,12 @@ let gen_member_def ctx class_def is_static is_interface field =
 			output (" " ^ remap_name ^ "( " );
 			output (String.concat "," (List.map (fun (name,opt,typ) -> gen_interface_arg_type_name name opt typ) args));
 			output (if (not is_static) then ")=0;\n" else ");\n");
-			(*if (not is_interface) then begin*)
-				output (if is_static then "		static " else "		");
-				output ("Dynamic " ^ remap_name ^ "_dyn();\n" );
-			(*end else
-				output ("		virtual Dynamic " ^ remap_name ^ "_dyn() = 0;\n\n" );*)
-		| _ ->
-			if (is_interface) then begin
-				(*
-				output "virtual ";
-				gen_type ctx field.cf_type;
-				output (" & __get_" ^ remap_name ^ "()=0;\n" ) *)
-				output "\n";
-			end else begin
-				gen_type ctx field.cf_type;
-				output (" " ^ remap_name ^ ";\n" );
-			end
-	end else (match  field.cf_expr with
+			output (if is_static then "		static " else "		");
+			output ("Dynamic " ^ remap_name ^ "_dyn();\n" );
+		| _ -> (* no variables in interface - use dynamic delegation *)  ( )
+	end else begin
+	output (if is_static then "		static " else "		");
+   (match  field.cf_expr with
 	| Some { eexpr = TFunction function_def } ->
 		if ( is_dynamic_haxe_method field ) then begin
          if ( not (is_override class_def field.cf_name ) ) then begin
@@ -1974,7 +1962,8 @@ let gen_member_def ctx class_def is_static is_interface field =
 			| _ -> ()
 			)
 		)
-	)
+	);
+   end
 	;;
 
 
