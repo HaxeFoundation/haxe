@@ -136,7 +136,7 @@ and type_string haxe_type =
 	type_string_suff "" haxe_type;;
 
 let debug_expression expression type_too =
-	"/* " ^ Type.s_expr_kind expression ^ (if (type_too) then " = " ^ (type_string expression.etype) else "") ^ " */";;
+	"/* " ^ Type.s_expr_kind expression ^ (if (type_too) then " = " ^ (type_string (follow expression.etype)) else "") ^ " */";;
 
 let rec register_extern_required_path ctx path =
 	if (List.exists(fun p -> p = path) ctx.extern_classes_with_init) && not (List.exists(fun p -> p = path) ctx.extern_required_paths) then
@@ -145,7 +145,7 @@ let rec register_extern_required_path ctx path =
 let s_expr_expr = Type.s_expr_kind
 
 let s_expr_name e =
-	s_type (print_context()) e.etype
+	s_type (print_context()) (follow e.etype)
 
 let s_type_name t =
 	s_type (print_context()) t
@@ -1018,7 +1018,6 @@ and gen_expr ctx e =
 				| _ ->
 					gen_field_op ctx e1;
 				);
-
 				spr ctx s_phop;
 
 				(match e2.eexpr with
@@ -1037,7 +1036,7 @@ and gen_expr ctx e =
 				gen_field_op ctx e2;
 			end else if
 				   ((se1 = "Int" || se1 = "Float" || se1 = "Null<Int>" || se1 = "Null<Float>")
-				   && (se1 = "Int" || se1 = "Float" || se1 = "Null<Int>" || se1 = "Null<Float>"))
+				&& (se1 = "Int" || se1 = "Float" || se1 = "Null<Int>" || se1 = "Null<Float>"))
 				|| (is_unknown_expr e1 && is_unknown_expr e2)
 				|| is_anonym_expr e1
 				|| is_anonym_expr e2
@@ -1049,15 +1048,19 @@ and gen_expr ctx e =
 				gen_field_op ctx e2;
 				spr ctx ")";
 			end else if
-				   se1 == se2
-				|| (match e1.eexpr with | TConst _ | TLocal _ | TArray _  | TNew _ -> true | _ -> false)
-				|| (match e2.eexpr with | TConst _ | TLocal _ | TArray _  | TNew _ -> true | _ -> false)
-				|| is_string_expr e1
-				|| is_string_expr e2
-				|| is_anonym_expr e1
-				|| is_anonym_expr e2
-				|| is_unknown_expr e1
-				|| is_unknown_expr e2
+				(  
+					   se1 == se2
+					|| (match e1.eexpr with | TConst _ | TLocal _ | TArray _  | TNew _ -> true | _ -> false)
+					|| (match e2.eexpr with | TConst _ | TLocal _ | TArray _  | TNew _ -> true | _ -> false)
+					|| is_string_expr e1
+					|| is_string_expr e2
+					|| is_anonym_expr e1
+					|| is_anonym_expr e2 
+					|| is_unknown_expr e1
+					|| is_unknown_expr e2
+				)
+				&& (type_string (follow e1.etype)) <> "Dynamic"
+				&& (type_string (follow e2.etype)) <> "Dynamic"
 			then begin
 				gen_field_op ctx e1;
 				spr ctx s_phop;
