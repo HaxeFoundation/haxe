@@ -22,35 +22,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package php;
+package sys;
 
-typedef FileStat = {
-	var gid : Int;
-	var uid : Int;
-	var atime : Date;
-	var mtime : Date;
-	var ctime : Date;
-	var dev : Int;
-	var ino : Int;
-	var nlink : Int;
-	var rdev : Int;
-	var size : Int;
-	var mode : Int;
-}
-
-enum FileKind {
+private enum FileKind {
 	kdir;
 	kfile;
 	kother( k : String );
 }
 
+@:core_api
 class FileSystem {
 
 	public static inline function exists( path : String ) : Bool {
 		return untyped __call__("file_exists", path);
 	}
 
-	public static inline function rename( path : String, newpath : String ) {
+	public static inline function rename( path : String, newpath : String ) : Void {
 		untyped __call__("rename", path, newpath);
 	}
 
@@ -81,7 +68,7 @@ class FileSystem {
 			return p;
 	}
 
-	public static function kind( path : String ) : FileKind {
+	static function kind( path : String ) : FileKind {
 		var k = untyped __call__("filetype", path);
 		switch(k) {
 			case "file": return kfile;
@@ -94,15 +81,15 @@ class FileSystem {
 		return untyped __call__("is_dir", path);
 	}
 
-	public static inline function createDirectory( path : String ) {
+	public static inline function createDirectory( path : String ) : Void {
 		untyped __call__("@mkdir", path, 493); // php default is 0777, neko is 0755
 	}
 
-	public static inline function deleteFile( path : String ) {
+	public static inline function deleteFile( path : String ) : Void {
 		untyped __call__("@unlink", path);
 	}
 
-	public static inline function deleteDirectory( path : String ) {
+	public static inline function deleteDirectory( path : String ) : Void {
 		untyped __call__("@rmdir", path);
 	}
 

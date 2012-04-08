@@ -22,35 +22,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package cpp;
+package sys;
 
-typedef FileStat = {
-	var gid : Int;
-	var uid : Int;
-	var atime : Date;
-	var mtime : Date;
-	var ctime : Date;
-	var dev : Int;
-	var ino : Int;
-	var nlink : Int;
-	var rdev : Int;
-	var size : Int;
-	var mode : Int;
-}
-
-enum FileKind {
+private enum FileKind {
 	kdir;
 	kfile;
 	kother( k : String );
 }
 
+@:core_api
 class FileSystem {
 
 	public static function exists( path : String ) : Bool {
 		return sys_exists(path);
 	}
 
-	public static function rename( path : String, newpath : String ) {
+	public static function rename( path : String, newpath : String ) : Void {
 		if (sys_rename(path,newpath)==null)
          throw "Could not rename:" + path + " to " + newpath;
 	}
@@ -69,7 +56,7 @@ class FileSystem {
 		return new String(file_full_path(relpath));
 	}
 
-	public static function kind( path : String ) : FileKind {
+	static function kind( path : String ) : FileKind {
 		var k:String = sys_file_type(path);
 		return switch(k) {
 		case "file": kfile;
@@ -82,17 +69,17 @@ class FileSystem {
 		return kind(path) == kdir;
 	}
 
-	public static function createDirectory( path : String ) {
+	public static function createDirectory( path : String ) : Void {
 		if (sys_create_dir( path, 493 )==null)
          throw "Could not create directory:" + path;
 	}
 
-	public static function deleteFile( path : String ) {
+	public static function deleteFile( path : String ) : Void {
 		if (file_delete(path)==null)
          throw "Could not delete file:" + path;
 	}
 
-	public static function deleteDirectory( path : String ) {
+	public static function deleteDirectory( path : String ) : Void {
 		if (sys_remove_dir(path)==null)
          throw "Could not delete directory:" + path;
 	}
@@ -101,14 +88,14 @@ class FileSystem {
 		return sys_read_dir(path);
 	}
 
-	private static var sys_exists = Lib.load("std","sys_exists",1);
-	private static var file_delete = Lib.load("std","file_delete",1);
-	private static var sys_rename = Lib.load("std","sys_rename",2);
-	private static var sys_stat = Lib.load("std","sys_stat",1);
-	private static var sys_file_type = Lib.load("std","sys_file_type",1);
-	private static var sys_create_dir = Lib.load("std","sys_create_dir",2);
-	private static var sys_remove_dir = Lib.load("std","sys_remove_dir",1);
-	private static var sys_read_dir = Lib.load("std","sys_read_dir",1);
-	private static var file_full_path = Lib.load("std","file_full_path",1);
+	private static var sys_exists = cpp.Lib.load("std","sys_exists",1);
+	private static var file_delete = cpp.Lib.load("std","file_delete",1);
+	private static var sys_rename = cpp.Lib.load("std","sys_rename",2);
+	private static var sys_stat = cpp.Lib.load("std","sys_stat",1);
+	private static var sys_file_type = cpp.Lib.load("std","sys_file_type",1);
+	private static var sys_create_dir = cpp.Lib.load("std","sys_create_dir",2);
+	private static var sys_remove_dir = cpp.Lib.load("std","sys_remove_dir",1);
+	private static var sys_read_dir = cpp.Lib.load("std","sys_read_dir",1);
+	private static var file_full_path = cpp.Lib.load("std","file_full_path",1);
 
 }

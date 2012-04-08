@@ -61,7 +61,7 @@ class ProxyDetect {
 	}
 
 	static function detectFF( basedir : String ) {
-		var files = try neko.FileSystem.readDirectory(basedir) catch( e : Dynamic ) return null;
+		var files = try sys.FileSystem.readDirectory(basedir) catch( e : Dynamic ) return null;
 		var profile = null;
 		for( f in files )
 			if( f.substr(-8) == ".default" ) {
@@ -98,7 +98,7 @@ class ProxyDetect {
 		}
 		// it's possible that if registry access was disabled the proxy file is not created
 		var content = try sys.io.File.getContent(temp) catch( e : Dynamic ) return null;
-		neko.FileSystem.deleteFile(temp);
+		sys.FileSystem.deleteFile(temp);
 		// turn 16-bit string into 8-bit one
 		var b = new StringBuf();
 		var p = 0;

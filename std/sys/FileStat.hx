@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005-2008, The haXe Project Contributors
+ * Copyright (c) 2005-2012, The haXe Project Contributors
  * All rights reserved.
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -22,36 +22,27 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package haxe;
+package sys;
 
-@:core_api
-class Resource {
-
-	static function cleanName(name : String) : String {
-		return ~/[\\\/:?"*<>|]/.replace(name, '_');
-	}
-
-	static function getDir() : String {
-		return untyped __call__('dirname', __php__('__FILE__'))+"/../../res";
-	}
-
-	static function getPath(name : String) : String {
-		return getDir()+'/'+cleanName(name);
-	}
-
-	public static function listNames() : Array<String> {
-		var a = sys.FileSystem.readDirectory(getDir());
-		if(a[0] == '.') a.shift();
-		if(a[0] == '..') a.shift();
-		return a;
-	}
-
-	public static function getString( name : String ) : String {
-		return sys.io.File.getContent(getPath(name));
-	}
-
-	public static function getBytes( name : String ) : haxe.io.Bytes {
-		return sys.io.File.getBytes(getPath(name));
-	}
-
+/**
+	File informations, as given by [sys.FileSystem.stat]
+**/
+typedef FileStat = {
+	/** the user group id for the file **/
+	var gid : Int;
+	/** the user id for the file **/
+	var uid : Int;
+	/** the last access time for the file (when enabled by the file system) **/
+	var atime : Date;
+	/** the last modification time for the file **/
+	var mtime : Date;
+	/** the creation time for the file **/
+	var ctime : Date;
+	/** the size of the file **/
+	var size : Int;
+	var dev : Int;
+	var ino : Int;
+	var nlink : Int;
+	var rdev : Int;
+	var mode : Int;
 }

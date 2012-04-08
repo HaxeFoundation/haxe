@@ -26,7 +26,7 @@ import haxe.macro.Context;
 
 class ImportAll {
 
-	public static function run( ?pack ) {	
+	public static function run( ?pack ) {
 		if( pack == null ) {
 			pack = "";
 			haxe.macro.Compiler.define("doc_gen");
@@ -55,14 +55,14 @@ class ImportAll {
 			if( p == "/" )
 				continue;
 			// skip if we have a classpath to haxe
-			if( pack.length == 0 && neko.FileSystem.exists(p+"std") )
+			if( pack.length == 0 && sys.FileSystem.exists(p+"std") )
 				continue;
 			var p = p + pack.split(".").join("/");
 			if( StringTools.endsWith(p,"/") )
 				p = p.substr(0,-1);
-			if( !neko.FileSystem.exists(p) || !neko.FileSystem.isDirectory(p) )
+			if( !sys.FileSystem.exists(p) || !sys.FileSystem.isDirectory(p) )
 				continue;
-			for( file in neko.FileSystem.readDirectory(p) ) {
+			for( file in sys.FileSystem.readDirectory(p) ) {
 				if( file == ".svn" || file == "_std" )
 					continue;
 				var full = (pack == "") ? file : pack + "." + file;
@@ -80,7 +80,7 @@ class ImportAll {
 					case "haxe.remoting.SyncSocketConnection": if( !(Context.defined("neko") || Context.defined("php") || Context.defined("cpp")) ) continue;
 					}
 					Context.getModule(cl);
-				} else if( neko.FileSystem.isDirectory(p + "/" + file) )
+				} else if( sys.FileSystem.isDirectory(p + "/" + file) )
 					run(full);
 			}
 		}

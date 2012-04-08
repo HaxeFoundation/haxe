@@ -90,15 +90,15 @@ class Compiler {
 		var prefix = pack == '' ? '' : pack + '.';
 		for( cp in classPaths ) {
 			var path = pack == '' ? cp : cp + "/" + pack.split(".").join("/");
-			if( !neko.FileSystem.exists(path) || !neko.FileSystem.isDirectory(path) )
+			if( !sys.FileSystem.exists(path) || !sys.FileSystem.isDirectory(path) )
 				continue;
-			for( file in neko.FileSystem.readDirectory(path) ) {
+			for( file in sys.FileSystem.readDirectory(path) ) {
 				if( StringTools.endsWith(file, ".hx") ) {
 					var cl = prefix + file.substr(0, file.length - 3);
 					if( skip(cl) )
 						continue;
 					Context.getModule(cl);
-				} else if( rec && neko.FileSystem.isDirectory(path + "/" + file) && !skip(prefix + file) )
+				} else if( rec && sys.FileSystem.isDirectory(path + "/" + file) && !skip(prefix + file) )
 					include(prefix + file, true, ignore, classPaths);
 			}
 		}
@@ -218,9 +218,9 @@ class Compiler {
 		{
 			for ( p in Context.getClassPath() ) {
 				var p = p + path.split(".").join("/");
-				if (neko.FileSystem.exists(p) && neko.FileSystem.isDirectory(p))
+				if (sys.FileSystem.exists(p) && sys.FileSystem.isDirectory(p))
 				{
-					for( file in neko.FileSystem.readDirectory(p) ) {
+					for( file in sys.FileSystem.readDirectory(p) ) {
 						if( StringTools.endsWith(file, ".hx") ) {
 							var module = path + "." + file.substr(0, file.length - 3);
 							var types = Context.getModule(module);
@@ -234,7 +234,7 @@ class Compiler {
 										//
 								}
 							}
-						} else if( rec && neko.FileSystem.isDirectory(p + "/" + file) )
+						} else if( rec && sys.FileSystem.isDirectory(p + "/" + file) )
 							keep(path + "." + file, true);
 					}
 				} else {
