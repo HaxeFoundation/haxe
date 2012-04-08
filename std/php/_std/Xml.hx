@@ -72,10 +72,16 @@ enum XmlType {
 	
 	private static function __character_data_handler(parser : Dynamic, data : String) : Void {
 		var d = __decodeent(data);
-		if((untyped __call__("strlen", data) == 1 && d != data) || d == data) {
-			build.addChild(createPCData(d));
-		} else
+		if ((untyped __call__("strlen", data) == 1 && d != data) || d == data) {
+			var last = build._children[build._children.length - 1];
+			if (null != last && last.nodeType == Xml.PCData)
+			{
+				last.nodeValue += d;
+			} else
+				build.addChild(createPCData(d));
+		} else {
 			build.addChild(createCData(data));
+		}
 	}
 
 	private static function __default_handler(parser : Dynamic, data : String) : Void {
