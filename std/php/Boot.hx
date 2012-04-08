@@ -523,7 +523,10 @@ function _hx_string_rec($o, $s) {
 			}
 			return $b;
 		} else {
-			if($o instanceof _hx_anonymous) {
+			if ($o instanceof _hx_anonymous) {
+				if ($o->toString && is_callable($o->toString)) {
+					return call_user_func($o->toString);
+				}
 				$rfl = new ReflectionObject($o);
 				$b2 = \"{\n\";
 				$s .= \"\t\";
