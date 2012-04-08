@@ -103,7 +103,7 @@ class _hx_array implements ArrayAccess, IteratorAggregate {
 	}
 
 	function slice($pos, $end) {
-		if($end == null)
+		if($end === null)
 			return new _hx_array(array_slice($this->»a, $pos));
 		else
 			return new _hx_array(array_slice($this->»a, $pos, $end-$pos));
