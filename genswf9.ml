@@ -1989,7 +1989,56 @@ let generate_class ctx c =
 		else
 			loop_meta (find_meta c)
 	in
+	let generate_prop f acc alloc_slot =
+		match f.cf_kind with
+		| Method _ -> acc
+		| Var v ->
+			let p = f.cf_pos in
+			let ethis = mk (TConst TThis) (TInst (c,[])) p in
+			let acc = (match v.v_read with
+				| AccCall n when n <> "get_" ^ f.cf_name ->
+					(* generate get_xxx method *)
+					let fk = begin_fun ctx [] f.cf_type [ethis] false p in
+					gen_expr ctx false (mk (TReturn (Some (mk (TCall (mk (TField (ethis,n)) t_dynamic p,[])) f.cf_type p))) t_dynamic p);
+					let m = fk() in
+					{
+						hlf_name = ident ("get_" ^ f.cf_name);
+						hlf_slot = alloc_slot();
+						hlf_kind = HFMethod {
+							hlm_type = m;
+							hlm_final = false;
+							hlm_override = false;
+							hlm_kind = MK3Normal;
+						};
+						hlf_metas = None;
+					} :: acc
+				| _ -> 
+					acc
+			) in
+			let acc = (match v.v_write with
+				| AccCall n when n <> "set_" ^ f.cf_name ->
+					(* generatee set_xxx method *)
+					let v = alloc_var "tmp" f.cf_type in
+					let fk = begin_fun ctx [v,None] f.cf_type [ethis] false p in
+					gen_expr ctx false (mk (TReturn (Some (mk (TCall (mk (TField (ethis,n)) t_dynamic p,[mk (TLocal v) v.v_type p])) f.cf_type p))) t_dynamic p);
+					let m = fk() in
+					{
+						hlf_name = ident ("set_" ^ f.cf_name);
+						hlf_slot = alloc_slot();
+						hlf_kind = HFMethod {
+							hlm_type = m;
+							hlm_final = false;
+							hlm_override = false;
+							hlm_kind = MK3Normal;
+						};
+						hlf_metas = None;
+					} :: acc
+				| _ -> acc
+			) in
+			acc
+	in
 	let fields = PMap.fold (fun f acc ->
+		let acc = generate_prop f acc (fun() -> 0) in
 		match generate_field_kind ctx f c false with
 		| None -> acc
 		| Some k ->
@@ -2025,7 +2074,8 @@ let generate_class ctx c =
 	end in
 	let st_field_count = ref 0 in
 	let st_meth_count = ref 0 in
-	let statics = List.map (fun f ->
+	let statics = List.rev (List.fold_left (fun acc f ->
+		let acc = generate_prop f acc (fun() -> incr st_meth_count; !st_meth_count) in
 		let k = (match generate_field_kind ctx f c true with None -> assert false | Some k -> k) in
 		let count = (match k with HFMethod _ -> st_meth_count | HFVar _ -> st_field_count | _ -> assert false) in
 		incr count;
@@ -2034,8 +2084,8 @@ let generate_class ctx c =
 			hlf_slot = !count;
 			hlf_kind = k;
 			hlf_metas = extract_meta f.cf_meta;
-		}
-	) c.cl_ordered_statics in
+		} :: acc
+	) [] c.cl_ordered_statics) in
 	let statics = if not (need_init ctx c) then statics else
 		{
 			hlf_name = ident "init__";

@@ -38,12 +38,22 @@
 		o[field] = value;
 	}
 
-	public static inline function getProperty( o : Dynamic, field : String ) : Dynamic {
-		return Reflect.field(o,field);
+	public static function getProperty( o : Dynamic, field : String ) : Dynamic untyped {
+		try {
+			return o["get_" + field]();
+		} catch( e : Dynamic ) {
+			return o[field];
+		} catch( e : Dynamic ) {
+			return null;
+		}
 	}
 
-	public static inline function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
-		setField(o,field,value);
+	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
+		try {
+			o["set_" + field](value);
+		} catch( e : Dynamic ) {
+			o[field] = value;
+		}
 	}
 
 	public inline static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
