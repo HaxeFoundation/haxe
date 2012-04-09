@@ -939,7 +939,7 @@ let init_class ctx c p herits fields =
 						| TPType t -> lookup_type t
 						| TPExpr _ -> false
 					in
-					if lookup_fun { fd with f_type = None; f_params = [] } then error "This notation is not allowed because it can't be checked" p);
+					if lookup_fun { fd with f_type = None; f_params = [] } && not (has_meta ":allowConstrainst" f.cff_meta) then error "This notation is not allowed because it can't be checked" p);
 				type_type_params ctx ([],name) (fun() -> !params) p (n,flags)
 			) fd.f_params;
 			let params = !params in
