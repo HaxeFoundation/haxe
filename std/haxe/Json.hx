@@ -125,7 +125,6 @@ class Json {
 			var c = StringTools.fastCodeAt(s,i++);
 			if( StringTools.isEOF(c) ) break;
 			switch( c ) {
-			case '/'.code: buf.add('\\/');
 			case '"'.code: buf.add('\\"');
 			case '\\'.code: buf.add('\\\\');
 			case '\n'.code: buf.add('\\n');
