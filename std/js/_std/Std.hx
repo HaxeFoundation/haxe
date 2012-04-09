@@ -56,7 +56,7 @@ import js.Boot;
 		return untyped Math.floor(Math.random()*x);
 	}
 
-	@:macro public static function format( fmt : haxe.macro.Expr.ExprRequire<String> ) : haxe.macro.Expr.ExprRequire<String> {
+	@:macro public static function format( fmt : haxe.macro.Expr.ExprOf<String> ) : haxe.macro.Expr.ExprOf<String> {
 		return haxe.macro.Context.format(fmt);
 	}
 

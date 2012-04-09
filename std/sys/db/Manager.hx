@@ -84,23 +84,23 @@ class Manager<T : Object> {
 		return unsafeObjects("SELECT * FROM " + table_name,lock);
 	}
 
-	@:macro public function get(ethis,id,?lock:haxe.macro.Expr.ExprRequire<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<T> #end {
+	@:macro public function get(ethis,id,?lock:haxe.macro.Expr.ExprOf<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprOf<T> #end {
 		return SpodMacros.macroGet(ethis,id,lock);
 	}
 
-	@:macro public function select(ethis, cond, ?options, ?lock:haxe.macro.Expr.ExprRequire<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<T> #end {
+	@:macro public function select(ethis, cond, ?options, ?lock:haxe.macro.Expr.ExprOf<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprOf<T> #end {
 		return SpodMacros.macroSearch(ethis, cond, options, lock, true);
 	}
 
-	@:macro public function search(ethis, cond, ?options, ?lock:haxe.macro.Expr.ExprRequire<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<List<T>> #end {
+	@:macro public function search(ethis, cond, ?options, ?lock:haxe.macro.Expr.ExprOf<Bool>) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprOf<List<T>> #end {
 		return SpodMacros.macroSearch(ethis, cond, options, lock);
 	}
 
-	@:macro public function count(ethis, cond) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<Int> #end {
+	@:macro public function count(ethis, cond) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprOf<Int> #end {
 		return SpodMacros.macroCount(ethis, cond);
 	}
 
-	@:macro public function delete(ethis, cond) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprRequire<Void> #end {
+	@:macro public function delete(ethis, cond) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprOf<Void> #end {
 		return SpodMacros.macroDelete(ethis, cond);
 	}
 

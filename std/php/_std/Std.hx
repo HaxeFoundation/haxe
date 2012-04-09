@@ -54,7 +54,7 @@
 		return untyped __call__("mt_rand", 0, x-1);
 	}
 
-	@:macro public static function format( fmt : haxe.macro.Expr.ExprRequire<String> ) : haxe.macro.Expr.ExprRequire<String> {
+	@:macro public static function format( fmt : haxe.macro.Expr.ExprOf<String> ) : haxe.macro.Expr.ExprOf<String> {
 		return haxe.macro.Context.format(fmt);
 	}
 }

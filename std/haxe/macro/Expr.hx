@@ -83,7 +83,11 @@ typedef Expr = {
 	var pos : Position;
 }
 
+#if !haxe3
 typedef ExprRequire<T> = Expr;
+#end
+
+typedef ExprOf<T> = Expr;
 
 enum ExprDef {
 	EConst( c : Constant );

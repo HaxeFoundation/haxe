@@ -63,6 +63,6 @@ extern class Std {
 	public static function random( x : Int ) : Int;
 
 
-	@:macro public static function format( fmt : haxe.macro.Expr.ExprRequire<String> ) : haxe.macro.Expr.ExprRequire<String>;
+	@:macro public static function format( fmt : haxe.macro.Expr.ExprOf<String> ) : haxe.macro.Expr.ExprOf<String>;
 
 }
