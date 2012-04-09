@@ -61,7 +61,7 @@ extern class EnumFlags<T:EnumValue> {
 	/**
 		Convert a integer bitflag into a typed one (this is a no-op, it doesn't have any impact on speed).
 	**/
-	public inline static function ofInt( i : Int ) : EnumFlags<Dynamic> {
+	public inline static function ofInt<T:EnumValue>( i : Int ) : EnumFlags<T> {
 		return cast i;
 	}
 
