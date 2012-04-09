@@ -1769,8 +1769,8 @@ let generate_field ctx static f =
 			gen_function ctx (s_ident f.cf_name) fd f.cf_params p
 	| _ ->
 		if ctx.curclass.cl_interface then
-			match follow f.cf_type with
-			| TFun (args,r) ->
+			match follow f.cf_type, f.cf_kind with
+			| TFun (args,r), Method _ ->
 				print ctx "function %s(" (s_ident f.cf_name);
 				concat ctx ", " (fun (arg,o,t) ->
 					s_funarg ctx arg t p o;
