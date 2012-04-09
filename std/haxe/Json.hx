@@ -327,7 +327,7 @@ class Json {
 	public static function parse( text : String ) : Dynamic {
 		#if (__php && !haxeJSON)
 		// don't use because of arrays wrappers
-		return untyped __call__("json_encode", value);
+		return untyped __call__("json_decode", value);
 		#elseif (flash11 && !haxeJSON)
 		return null;
 		#else
@@ -337,8 +337,12 @@ class Json {
 
 	public static function stringify( value : Dynamic ) : String {
 		#if (__php && !haxeJSON)
-		// don't use because of arrays wrappers
-		return untyped __call__("json_encode", value);
+		// slash behavior is incosistent with other platforms
+		var r = untyped __call__("json_encode", value);
+		if (untyped __physeq__(r, false))
+			return throw "invalid json";
+		else
+			return r;
 		#elseif (flash11 && !haxeJSON)
 		return null;
 		#else

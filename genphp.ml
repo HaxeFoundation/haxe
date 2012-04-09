@@ -1719,11 +1719,21 @@ and gen_value ctx e =
 	| TTry _ ->
 		inline_block ctx e
 
+let rec is_instance_method_defined cls m =
+	if PMap.exists m cls.cl_fields then
+		true
+	else
+		match cls.cl_super with
+		| Some (scls, _) ->
+			is_instance_method_defined scls m
+		| None ->
+			false
+		
 let is_method_defined ctx m static =
 	if static then
 		PMap.exists m ctx.curclass.cl_statics
 	else
-		PMap.exists m ctx.curclass.cl_fields
+		is_instance_method_defined ctx.curclass m
 
 let generate_self_method ctx rights m static setter =
 	if setter then (
