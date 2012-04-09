@@ -116,28 +116,8 @@ typedef SSerialized = String
 typedef SNekoSerialized = haxe.io.Bytes
 
 /** a set of bitflags of different enum values **/
-@:native("Int")
-extern class SFlags<T> {
-	public inline function init() : Void {
-		untyped __this__ = 0;
-	}
-	public inline function get( v : T ) : Bool {
-		return (cast this) & (1 << Type.enumIndex(cast v)) != 0;
-	}
-	public inline function set( v : T ) : Void {
-		untyped __this__ |= 1 << Type.enumIndex(cast v);
-	}
-	public inline function unset( v : T ) : Void {
-		untyped __this__ &= 0xFFFFFFF - (1 << Type.enumIndex(cast v));
-	}
-	public inline static function ofInt<E>( i : Int ) : SFlags<E> {
-		return cast i;
-	}
-	public inline function toInt() : Int {
-		return cast this;
-	}
-}
+typedef SFlags<T:EnumValue> = haxe.EnumFlags<T>
 
 /** same as [SFlags] but will adapt the storage size to the number of flags **/
-typedef SSmallFlags<T> = SFlags<T>;
+typedef SSmallFlags<T:EnumValue> = SFlags<T>;
 

@@ -185,7 +185,6 @@ class SpodMacros {
 			case "String": DText;
 			case "Date": DDateTime;
 			case "haxe.io.Bytes": DBinary;
-			case "sys.db.SFlags": DFlags(getFlags(p[0]),false);
 			default: throw "Unsupported " + name;
 			}
 		case TEnum(e, p):
@@ -205,6 +204,7 @@ class SpodMacros {
 				case "SString": return DString(makeInt(p[0]));
 				case "SBytes": return DBytes(makeInt(p[0]));
 				case "SNull", "Null": isNull = true; return makeType(p[0]);
+				case "SFlags": return DFlags(getFlags(p[0]),false);
 				case "SSmallFlags": return DFlags(getFlags(p[0]),true);
 				default:
 				}
