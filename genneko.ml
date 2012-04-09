@@ -156,7 +156,13 @@ let rec gen_big_string ctx p s =
 let gen_constant ctx pe c =
 	let p = pos ctx pe in
 	match c with
-	| TInt i -> (try int p (Int32.to_int i) with _ -> error "This integer is too big to be compiled to a Neko 31-bit integer. Please use a Float instead" pe)
+	| TInt i ->
+		(try
+			let h = Int32.to_int (Int32.shift_right_logical i 24) in
+			if (h land 128 = 0) <> (h land 64 = 0) then raise Exit;
+			int p (Int32.to_int i)
+		with _ ->
+			error "This integer is too big to be compiled to a Neko 31-bit integer. Please use a Float instead" pe)
 	| TFloat f -> (EConst (Float f),p)
 	| TString s -> call p (field p (ident p "String") "new") [gen_big_string ctx p s]
 	| TBool b -> (EConst (if b then True else False),p)
