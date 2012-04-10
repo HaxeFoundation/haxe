@@ -45,7 +45,7 @@
 	}
 
 	public static function random( x : Int ) : Int {
-		return untyped __global__.rand() % x;
+		return untyped __global__.__hxcpp_irand(x);
 	}
 
 	@:macro public static function format( fmt : haxe.macro.Expr.ExprOf<String> ) : haxe.macro.Expr.ExprOf<String> {
