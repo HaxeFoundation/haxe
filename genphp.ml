@@ -1989,7 +1989,29 @@ let generate_class ctx c =
 	);
 
 	List.iter (generate_field ctx true) c.cl_ordered_statics;
+	
+	let gen_props props = 
+		String.concat "," (List.map (fun (p,v) -> "\"" ^ p ^ "\" => \"" ^ v ^ "\"") props)
+	in
 
+	let rec fields c =
+		let list = Codegen.get_properties (c.cl_ordered_statics @ c.cl_ordered_fields) in
+		match c.cl_super with
+		| Some (csup, _) ->
+			list @ fields csup
+		| None ->
+			list
+	in
+	
+	(match fields c with
+	| [] ->
+		()
+	| props ->
+		newline ctx;
+		print ctx "static $__properties__ = array(%s)" (gen_props props);
+	);
+		
+		
 	cl();
 	newline ctx;
 

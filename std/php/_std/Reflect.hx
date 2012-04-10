@@ -37,14 +37,24 @@
 		untyped __setfield__(o, field, value);
 	}
 
-	public static inline function getProperty( o : Dynamic, field : String ) : Dynamic {
-		return Reflect.field(o,field);
+	public static function getProperty( o : Dynamic, field : String ) : Dynamic {
+		if (null == o) return null;
+		var cls : String = Std.is(o, Class) ? untyped __php__("$o->__tname__") : untyped __call__("get_class", o);
+		if (untyped __php__("$cls::$__properties__ && isset($cls::$__properties__['get_'.$field]) && ($field = $cls::$__properties__['get_'.$field])"))
+			return untyped __php__("$o->$field()");
+		else
+			return untyped __php__("$o->$field");
 	}
 
-	public static inline function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void {
-		setField(o,field,value);
+	public static function setProperty( o : Dynamic, field : String, value : Dynamic ) : Void untyped {
+		if (null == o) return null;
+		var cls : String = Std.is(o, Class) ? untyped __php__("$o->__tname__") : untyped __call__("get_class", o);
+		if (untyped __php__("$cls::$__properties__ && isset($cls::$__properties__['set_'.$field]) && ($field = $cls::$__properties__['set_'.$field])"))
+			return untyped __php__("$o->$field($value)");
+		else
+			return untyped __php__("$o->$field = $value");
 	}
-	
+
 	public static function callMethod( o : Dynamic, func : Dynamic, args : Array<Dynamic> ) : Dynamic untyped {
 		if (__call__("is_string", o) && !__call__("is_array", func)) {
 			return __call__("call_user_func_array", field(o, func), __field__(args, "»a"));
