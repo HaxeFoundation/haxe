@@ -40,7 +40,9 @@
 		if( global )
 			opt = a.join("");
 		this.options = opt;
-		this.re = "/" + untyped __call__("str_replace", "/", "\\/", r) + "/" + opt;
+		var p : String = untyped __call__("str_replace", "/", "\\/", r);
+		p = untyped __call__("str_replace", "\\\\/", "\\\\\\/", p);
+		this.re = "/" + p + "/" + opt;
 	}
 
 	public function match( s : String ) : Bool {
