@@ -739,7 +739,7 @@ and gen_field_access ctx isvar e s =
 		gen_value ctx e;
 		spr ctx ")";
 		gen_member_access ctx isvar e s
-	| TCast (ec, _) when (match ec.eexpr with | TNew _ -> true | _ -> false) ->
+	| TCast (ec, _) when (match ec.eexpr with | TNew _ | TArrayDecl _ -> true | _ -> false) ->
 		spr ctx "_hx_deref(";
 		ctx.is_call <- false;
 		gen_value ctx e;
@@ -895,6 +895,12 @@ and gen_expr ctx e =
 		(match e1.eexpr with
 		| TCall _
 		| TArrayDecl _ ->
+			spr ctx "_hx_array_get(";
+			gen_value ctx e1;
+			spr ctx ", ";
+			gen_value ctx e2;
+			spr ctx ")";
+		| TCast (ec, _) when (match ec.eexpr with | TArrayDecl _ -> true | _ -> false) ->
 			spr ctx "_hx_array_get(";
 			gen_value ctx e1;
 			spr ctx ", ";
