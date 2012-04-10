@@ -32,8 +32,6 @@
 	var options : String;
 	var re : String;
 	var matches : ArrayAccess<Dynamic>;
-
-	static var QUOTE : String = untyped __call__("preg_quote", "/", "/");
 	
 	public function new( r : String, opt : String ) : Void {
 		this.pattern = r;
