@@ -33,6 +33,8 @@
 	var re : String;
 	var matches : ArrayAccess<Dynamic>;
 
+	static var QUOTE : String = untyped __call__("preg_quote", "/", "/");
+	
 	public function new( r : String, opt : String ) : Void {
 		this.pattern = r;
 		var a = opt.split("g");
@@ -40,9 +42,7 @@
 		if( global )
 			opt = a.join("");
 		this.options = opt;
-		var p : String = untyped __call__("str_replace", "/", "\\/", r);
-		p = untyped __call__("str_replace", "\\\\/", "\\\\\\/", p);
-		this.re = "/" + p + "/" + opt;
+		this.re = untyped __php__("'\"' . str_replace('\"','\\\\\"',$r) . '\"' . $opt");
 	}
 
 	public function match( s : String ) : Bool {
