@@ -39,7 +39,7 @@ enum XmlType {
 	private var _nodeName : String;
 	private var _nodeValue : String;
 	private var _attributes : Dynamic<String>;
-	private var _children : Array<Dynamic>;
+	private var _children : Array<Xml>;
 	private var _parent : Xml;
 
 	function new() : Void {
