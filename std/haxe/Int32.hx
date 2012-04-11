@@ -35,7 +35,7 @@ class Int32 {
 	}
 
 	static inline function clamp( x : Int32 ) : Int32 {
-		#if (js || flash8)
+		#if (js || flash8 || php)
 		return cast ((cast x) | 0); // force to-int convertion
 		#else
 		return x;
