@@ -14,7 +14,10 @@ class TestInt64 extends Test {
 		eq( ( -1).ofInt().toInt(), -1 );
 		eq( Std.string(156.ofInt()), "156" );
 		
-		var p40 = (1 << 20).ofInt().shl(20);
+		var v = (1 << 20).ofInt();
+		eq( Std.string(v), "1048576" );
+		
+		var p40 = v.shl(20);
 		eq32( p40.getLow(), 0, 0 );
 		eq32( p40.getHigh(), 0, 256 );
 		eq( Std.string(p40), "1099511627776" );
