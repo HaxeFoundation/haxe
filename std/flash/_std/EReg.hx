@@ -62,7 +62,8 @@
 	public function split( s : String ) : Array<String> {
 		// we can't use directly s.split because it's ignoring the 'g' flag
 		var d = "#__delim__#";
-		return untyped s.replace(r,d).split(d);
+		var s : String = untyped s.replace(r, d);
+		return s.split(d);
 	}
 
 	public function replace( s : String, by : String ) : String {
