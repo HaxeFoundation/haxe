@@ -29,7 +29,7 @@ class Utf8 {
 
 	var __b : String;
 
-	public function new() : Void {
+	public function new( ?size : Int ) : Void {
 		__b = '';
 	}
 

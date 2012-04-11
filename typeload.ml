@@ -639,34 +639,37 @@ let init_core_api ctx c =
 		(match c.cl_doc with
 		| None -> c.cl_doc <- ccore.cl_doc
 		| Some _ -> ());
+		let compare_fields f f2 =
+			let p = (match f2.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
+			(try
+				type_eq EqCoreType (apply_params ccore.cl_types (List.map snd c.cl_types) f.cf_type) f2.cf_type
+			with Unify_error l ->
+				display_error ctx ("Field " ^ f.cf_name ^ " has different type than in core type") p;
+				display_error ctx (error_msg (Unify l)) p);
+			if f2.cf_public <> f.cf_public then error ("Field " ^ f.cf_name ^ " has different visibility than core type") p;
+			(match f2.cf_doc with
+			| None -> f2.cf_doc <- f.cf_doc
+			| Some _ -> ());
+			if f2.cf_kind <> f.cf_kind then begin
+				match f2.cf_kind, f.cf_kind with
+				| Method MethInline, Method MethNormal -> () (* allow to add 'inline' *)
+				| Method MethNormal, Method MethInline -> () (* allow to disable 'inline' *)
+				| _ ->
+					error ("Field " ^ f.cf_name ^ " has different property access than core type") p;
+			end;
+			(match follow f.cf_type, follow f2.cf_type with
+			| TFun (pl1,_), TFun (pl2,_) ->
+				if List.length pl1 != List.length pl2 then assert false;
+				List.iter2 (fun (n1,_,_) (n2,_,_) ->
+					if n1 <> n2 then error ("Method parameter name '" ^ n2 ^ "' should be '" ^ n1 ^ "'") p;
+				) pl1 pl2;
+			| _ -> ());
+		in
 		let check_fields fcore fl =
 			PMap.iter (fun i f ->
 				if not f.cf_public then () else
 				let f2 = try PMap.find f.cf_name fl with Not_found -> error ("Missing field " ^ i ^ " required by core type") c.cl_pos in
-				let p = (match f2.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
-				(try
-					type_eq EqCoreType (apply_params ccore.cl_types (List.map snd c.cl_types) f.cf_type) f2.cf_type
-				with Unify_error l ->
-					display_error ctx ("Field " ^ i ^ " has different type than in core type") p;
-					display_error ctx (error_msg (Unify l)) p);
-				if f2.cf_public <> f.cf_public then error ("Field " ^ i ^ " has different visibility than core type") p;
-				(match f2.cf_doc with
-				| None -> f2.cf_doc <- f.cf_doc
-				| Some _ -> ());
-				if f2.cf_kind <> f.cf_kind then begin
-					match f2.cf_kind, f.cf_kind with
-					| Method MethInline, Method MethNormal -> () (* allow to add 'inline' *)
-					| Method MethNormal, Method MethInline -> () (* allow to disable 'inline' *)
-					| _ ->
-						error ("Field " ^ i ^ " has different property access than core type") p;
-				end;
-				(match follow f.cf_type, follow f2.cf_type with
-				| TFun (pl1,_), TFun (pl2,_) ->
-					if List.length pl1 != List.length pl2 then assert false;
-					List.iter2 (fun (n1,_,_) (n2,_,_) ->
-						if n1 <> n2 then error ("Method parameter name '" ^ n2 ^ "' should be '" ^ n1 ^ "'") p;
-					) pl1 pl2;
-				| _ -> ());
+				compare_fields f f2;
 			) fcore;
 			PMap.iter (fun i f ->
 				let p = (match f.cf_expr with None -> c.cl_pos | Some e -> e.epos) in
@@ -675,6 +678,12 @@ let init_core_api ctx c =
 		in
 		check_fields ccore.cl_fields c.cl_fields;
 		check_fields ccore.cl_statics c.cl_statics;
+		(match ccore.cl_constructor, c.cl_constructor with
+		| None, None -> ()
+		| Some f, Some f2 -> compare_fields f f2
+		| None, Some { cf_public = false } -> ()
+		| _ -> error "Constructor differs from core type" c.cl_pos)
+
 	| _ -> assert false
 
 let patch_class ctx c fields =

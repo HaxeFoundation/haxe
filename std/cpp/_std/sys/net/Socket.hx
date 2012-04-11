@@ -28,11 +28,9 @@ package sys.net;
 
 import haxe.io.Error;
 
-private typedef SocketHandle = Dynamic;
-
 private class SocketInput extends haxe.io.Input {
 
-	var __s : SocketHandle;
+	var __s : Dynamic;
 
 	public function new(s) {
 		__s = s;
@@ -81,7 +79,7 @@ private class SocketInput extends haxe.io.Input {
 
 private class SocketOutput extends haxe.io.Output {
 
-	var __s : SocketHandle;
+	var __s : Dynamic;
 
 	public function new(s) {
 		__s = s;
@@ -126,7 +124,7 @@ private class SocketOutput extends haxe.io.Output {
 @:core_api
 class Socket {
 
-	private var __s : SocketHandle;
+	private var __s : Dynamic;
 	public var input(default,null) : haxe.io.Input;
 	public var output(default,null) : haxe.io.Output;
 	public var custom : Dynamic;

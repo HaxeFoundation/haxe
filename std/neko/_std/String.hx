@@ -34,12 +34,12 @@
 
 	public var length(default,null) : Int;
 
-	public function new(s:String) : Void {
+	public function new(string:String) : Void {
 		untyped {
-			if( __dollar__typeof(s) != __dollar__tstring )
-				s = __dollar__string(s);
-			this.__s = s;
-			this.length = __dollar__ssize(s);
+			if( __dollar__typeof(string) != __dollar__tstring )
+				s = __dollar__string(string);
+			this.__s = string;
+			this.length = __dollar__ssize(string);
 		}
 	}
 
