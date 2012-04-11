@@ -16,10 +16,6 @@ class TestInt32 extends Test {
 		// constants
 		eq( 0xFE08BE39, -32981447 );
 
-		// 31bits platforms might overflow on the last bit of the constant
-		allow( 0x5E08BE39 >> 16, [0x5E08,0xFFFFDE08] );
-		allow( 0xAE08BE39 >>> 16, [0xAE08,0x2E08] );
-
 		var one = i32(1);
 		var minone = i32(-1);
 		var zero = i32(0);
