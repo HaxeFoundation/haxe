@@ -412,20 +412,6 @@ and wait_loop boot_com host port =
 	);
 	let cache_module m =
 		Hashtbl.replace cache.c_modules (m.m_path,m.m_extra.m_sign) m;
-		List.iter (fun t ->
-			match t with
-			| TClassDecl c -> c.cl_restore()
-			| TEnumDecl e ->
-				let rec loop acc = function
-					| [] -> ()
-					| (":real",[Ast.EConst (Ast.String path),_],_) :: l ->
-						e.e_path <- Ast.parse_path path;
-						e.e_meta <- (List.rev acc) @ l;
-					| x :: l -> loop (x::acc) l
-				in
-				loop [] e.e_meta
-			| _ -> ()
-		) m.m_types
 	in
 	let check_module_path com m p =
 		m.m_extra.m_file = Common.unique_full_path (Typeload.resolve_module_file com m.m_path (ref[]) p)
@@ -478,6 +464,20 @@ and wait_loop boot_com host port =
 				| _ ->
 					if verbose then print_endline ("Reusing  cached module " ^ Ast.s_type_path m.m_path);
 					m.m_extra.m_added <- !compilation_step;
+					List.iter (fun t ->
+						match t with
+						| TClassDecl c -> c.cl_restore()
+						| TEnumDecl e ->
+							let rec loop acc = function
+								| [] -> ()
+								| (":real",[Ast.EConst (Ast.String path),_],_) :: l ->
+									e.e_path <- Ast.parse_path path;
+									e.e_meta <- (List.rev acc) @ l;
+								| x :: l -> loop (x::acc) l
+							in
+							loop [] e.e_meta
+						| _ -> ()
+					) m.m_types;
 					Typeload.add_module ctx m p;
 					PMap.iter (Hashtbl.add com2.resources) m.m_extra.m_binded_res;
 					PMap.iter (fun _ m2 -> add_modules m0 m2) m.m_extra.m_deps);
