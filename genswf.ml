@@ -844,6 +844,97 @@ let build_swf9 com file swc =
 					incr cid;
 					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
 					tag (TBinaryData (!cid,data)) :: loop l
+				| (":sound",[EConst (String file),p],_) :: l ->
+					let file = try Common.find_file com file with Not_found -> file in
+					let data = (try Std.input_file ~bin:true file with _  -> error "File not found" p) in
+					let make_flags fmt mono freq bits =
+						let fbits = (match freq with 5512 when fmt <> 2 -> 0 | 11025 -> 1 | 22050 -> 2 | 44100 -> 3 | _ -> failwith ("Unsupported frequency " ^ string_of_int freq)) in
+						let bbits = (match bits with 8 -> 0 | 16 -> 1 | _ -> failwith ("Unsupported bits " ^ string_of_int bits)) in
+						(fmt lsl 4) lor (fbits lsl 2) lor (bbits lsl 1) lor (if mono then 0 else 1)
+					in
+					let flags, samples, data = (match List.rev (ExtString.String.nsplit (String.lowercase file) ".") with
+						| "wav" :: _ -> 
+							(try 
+								let i = IO.input_string data in
+								if IO.nread i 4 <> "RIFF" then raise Exit;
+								ignore(IO.nread i 4); (* size *)
+								if IO.nread i 4 <> "WAVE" || IO.nread i 4 <> "fmt " || IO.read_i32 i <> 0x10 then raise Exit;
+								if IO.read_ui16 i <> 1 then failwith "Not a PCM file";
+								let chan = IO.read_ui16 i in
+								if chan > 2 then failwith "Too many channels";
+								let freq = IO.read_i32 i in
+								ignore(IO.read_i32 i);
+								ignore(IO.read_i16 i);
+								let bits = IO.read_ui16 i in
+								if IO.nread i 4 <> "data" then raise Exit;
+								let data_size = IO.read_i32 i in
+								let data = IO.nread i data_size in								
+								make_flags 0 (chan = 1) freq bits, (data_size * 8 / (chan * bits)), data
+							with Exit | IO.No_more_input | IO.Overflow _ ->
+								error "Invalid WAV file" p
+							| Failure msg ->
+								error ("Invalid WAV file (" ^ msg ^ ")") p
+							)
+						| "mp3" :: _ ->
+							(try
+								let i = IO.input_string data in
+								if IO.read_byte i <> 0xFF then raise Exit;								
+								let ver = ((IO.read_byte i) lsr 3) land 3 in
+								let sampling = [|11025;0;22050;44100|].(ver) in
+								ignore(IO.read_byte i);
+								let mono = (IO.read_byte i) lsr 6 = 3 in
+								let samples = ref 0 in
+								let i = IO.input_string data in
+								let rec read_frame() =
+									match (try IO.read_byte i with IO.No_more_input -> -1) with
+									| -1 ->
+										()
+									| 73 -> 
+										(* ID3 *)
+										if IO.nread i 2 <> "D3" then raise Exit;
+										ignore(IO.read_ui16 i); (* version *)
+										ignore(IO.read_byte i); (* flags *)
+										let size = IO.read_byte i land 0x7F in
+										let size = size lsl 7 lor (IO.read_byte i land 0x7F) in
+										let size = size lsl 7 lor (IO.read_byte i land 0x7F) in
+										let size = size lsl 7 lor (IO.read_byte i land 0x7F) in
+										ignore(IO.nread i size); (* id3 data *)
+										read_frame()
+									| 0xFF ->
+										let infos = IO.read_byte i in
+										let ver = (infos lsr 3) land 3 in
+										let layer = (infos lsr 1) land 3 in
+										let bits = IO.read_byte i in
+										let bitrate = (if ver = 3 then [|0;32;40;48;56;64;80;96;112;128;160;192;224;256;320;-1|] else [|0;8;16;24;32;40;48;56;64;80;96;112;128;144;160;-1|]).(bits lsr 4) in
+										let srate = [|
+											[|11025;-1;22050;44100|];
+											[|12000;-1;24000;48000|];
+											[|8000;-1;16000;32000|];
+											[|-1;-1;-1;-1|]
+										|].((bits lsr 2) land 2).(ver) in
+										let pad = (bits lsr 1) land 1 in
+										ignore(IO.read_byte i);
+										let bpp = (if ver = 3 then 144 else 72) in
+										let size = ((bpp * bitrate * 1000) / srate) + pad - 4 in										
+										ignore(IO.nread i size);
+										samples := !samples + (if layer = 3 then 384 else 1152);
+										read_frame()
+									| _ ->
+										raise Exit
+								in
+								read_frame();
+								make_flags 2 mono sampling 16, (!samples), ("\x00\x00" ^ data)
+							with Exit | IO.No_more_input | IO.Overflow _ ->
+								error "Invalid MP3 file" p
+							| Failure msg ->
+								error ("Invalid MP3 file (" ^ msg ^ ")") p
+							)
+						| _ ->
+							error "Sound extension not supported (only WAV or MP3)" p
+					) in
+					incr cid;
+					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
+					tag (TSound { so_id = !cid; so_flags = flags; so_samples = samples; so_data = data }) :: loop l
 				| _ :: l -> loop l
 			in
 			loop c.cl_meta

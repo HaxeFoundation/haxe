@@ -30,6 +30,7 @@
 	js : make difference between values and statements expressions in JSGenApi
 	js : added source mapping with -debug (replace previous stack emulation)
 	flash : added @:file("a.dat") class File extends flash.utils.ByteArray
+	flash : added @:sound("file.wav|mp3") class S extends flash.media.Sound
 	js : added --js-modern for wrapping output in a closure and ES5 strict mode
 	all : null, true and false are now keywords
 	all : neko.io.Path, cpp.io.Path and php.io.Path are now haxe.io.Path
