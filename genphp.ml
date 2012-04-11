@@ -894,13 +894,15 @@ and gen_expr ctx e =
 	| TArray (e1,e2) ->
 		(match e1.eexpr with
 		| TCall _
+		| TBlock _
+		| TParenthesis _
 		| TArrayDecl _ ->
 			spr ctx "_hx_array_get(";
 			gen_value ctx e1;
 			spr ctx ", ";
 			gen_value ctx e2;
 			spr ctx ")";
-		| TCast (ec, _) when (match ec.eexpr with | TArrayDecl _ -> true | _ -> false) ->
+		| TCast (ec, _) when (match ec.eexpr with | TArrayDecl _  | TBlock _ -> true | _ -> false) ->
 			spr ctx "_hx_array_get(";
 			gen_value ctx e1;
 			spr ctx ", ";
