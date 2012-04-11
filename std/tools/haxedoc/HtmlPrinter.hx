@@ -114,7 +114,7 @@ class HtmlPrinter {
 	}
 
 	function fmtpath(path : String) {
-		if( path.substr(0,7) == "flash9." )
+		if( path.substr(0,7) == "flash8." )
 			return "flash."+path.substr(7);
 		var pack = path.split(".");
 		if( pack.length > 1 && pack[pack.length-2].charAt(0) == "_" ) {
