@@ -38,10 +38,10 @@
 	all : allow to access root package with std prefix (std.Type for example)
 	all : added haxe.EnumFlags
 	sys : io.File.getChar/stdin/stdout/stderr are now in Sys class
-   cpp : Reflect.getField and Reflect.setField no longer call property functions.  Use Reflect.getProperty and Refelect.setProperty instead.
-   cpp : Default arguments now use Null<T> for performance increase and interface compatibility
-   cpp : Added metadata options for injecting native cpp code into headers, classes and functions
-
+	cpp : Reflect.getField and Reflect.setField no longer call property functions.  Use Reflect.getProperty and Refelect.setProperty instead.
+	cpp : Default arguments now use Null<T> for performance increase and interface compatibility
+	cpp : Added metadata options for injecting native cpp code into headers, classes and functions
+	php : added php.Lib.mail
 
 2011-09-25: 2.08
 	js : added js.JQuery
