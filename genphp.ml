@@ -953,7 +953,7 @@ and gen_expr ctx e =
 		(match op with
 		| Ast.OpAssign ->
 			(match e1.eexpr with
-			| TArray(te1, te2) when (match te1.eexpr with TCall _ -> true | _ -> false) ->
+			| TArray(te1, te2) when (match te1.eexpr with | TCall _ | TParenthesis _ -> true | _ -> false) ->
 				spr ctx "_hx_array_assign(";
 				gen_value ctx te1;
 				spr ctx ", ";
