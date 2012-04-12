@@ -623,7 +623,7 @@ and do_connect host port args =
 
 and init ctx =
 	let usage = Printf.sprintf
-		"haXe Compiler %d.%.2d - (c)2005-2011 Motion-Twin\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
+		"haXe Compiler %d.%.2d - (c)2005-2012 Motion-Twin\n Usage : haxe%s -main <class> [-swf|-js|-neko|-php|-cpp|-as3] <output> [options]\n Options :"
 		(version / 100) (version mod 100) (if Sys.os_type = "Win32" then ".exe" else "")
 	in
 	let com = ctx.com in

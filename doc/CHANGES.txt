@@ -1,4 +1,4 @@
-2012-??-??: 2.09
+2012-04-14: 2.09
 	all : optimized const == const and const != const (with different const types)
 	all : add Type.allEnums(e)
 	all : big improvements with completion speed and fixed many issues
