@@ -57,7 +57,7 @@ class Lib {
 
 	public static function hashOfAssociativeArray<T>(arr : NativeArray) : Hash<T> {
 		var h = new Hash<T>();
-		untyped __php__("reset($arr); while(list($k, $v) = each($arr)) $h->set($k, $v)");
+		untyped h.h = arr;
 		return h;
 	}
 
