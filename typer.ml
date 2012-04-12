@@ -1201,12 +1201,16 @@ and type_expr_with_type ctx e t =
 		| Some t ->
 			match follow t with
 			| TInst ({ cl_path = [],"Array" },[tp]) ->
-				let el = List.map (fun e ->
-					let e = type_expr_with_type ctx e (Some tp) in
-					unify ctx e.etype tp e.epos;
-					e
-				) el in
-				mk (TArrayDecl el) t p
+				(match follow tp with
+				| TMono _ ->					
+					type_expr ctx e
+				| _ ->
+					let el = List.map (fun e ->
+						let e = type_expr_with_type ctx e (Some tp) in
+						unify ctx e.etype tp e.epos;
+						e
+					) el in
+					mk (TArrayDecl el) t p)
 			| _ ->
 				type_expr ctx e)
 	| _ ->
