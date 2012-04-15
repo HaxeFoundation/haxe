@@ -40,12 +40,17 @@ extern class Float { }
 **/
 extern class Int extends Float { }
 
-#if (flash9 || flash9doc)
+#if (flash9 || flash9doc || cs)
 /**
 	The unsigned Int type is only defined for Flash9. It's currently
 	handled the same as a normal Int.
 **/
 typedef UInt = Int
+#end
+
+#if (jvm || cs)
+typedef Single = Float;
+typedef Int64 = Int;
 #end
 
 /**

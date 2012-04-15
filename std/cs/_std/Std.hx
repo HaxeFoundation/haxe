@@ -22,47 +22,65 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  */
-package haxe;
-
-class Log {
-
-	public static dynamic function trace( v : Dynamic, ?infos : PosInfos ) : Void {
-		#if flash
-			#if (fdb || nativeTrace)
-		var pstr = infos == null ? "(null)" : infos.fileName+":"+infos.lineNumber;
-		untyped __global__["trace"](pstr+": "+flash.Boot.__string_rec(v,""));
-			#else
-		untyped flash.Boot.__trace(v,infos);
-			#end
-		#elseif neko
-		untyped __dollar__print(infos.fileName+":"+infos.lineNumber+": ",v,"\n");
-		#elseif js
-		untyped js.Boot.__trace(v,infos);
-		#elseif php
-		untyped __call__('_hx_trace', v,infos);
-		#elseif cpp
-		untyped __trace(v,infos);
-		#elseif cs
-		var str = infos.fileName + ":" + infos.lineNumber + ": " + v;
-		untyped __cs__("System.Console.WriteLine(str)");
-		#elseif jvm
-		var str = infos.fileName + ":" + infos.lineNumber + ": " + v;
-		untyped __java__("java.lang.System.out.println(str)");
-		#end
+import cs.Boot;
+import cs.Lib;
+import haxe.lang.Exceptions;
+ 
+@:core_api @:nativegen class Std {
+	public static function is( v : Dynamic, t : Dynamic ) : Bool 
+	{
+		var clt:Class<Dynamic> = cast t;
+		if (clt == null)
+			return false;
+		
+		var native:cs.native.Type = untyped clt.nativeType();
+		
+		return native.IsAssignableFrom(Lib.getNativeType(v));
 	}
 
-	public static dynamic function clear() : Void {
-		#if flash
-		untyped flash.Boot.__clear_trace();
-		#elseif js
-		untyped js.Boot.__clear_trace();
-		#end
+	public static function string( s : Dynamic ) : String {
+		return s + "";
 	}
 
-	#if flash
-	public static dynamic function setColor( rgb : Int ) {
-		untyped flash.Boot.__set_trace_color(rgb);
+	public static inline function int( x : Float ) : Int {
+		return cast x;
 	}
-	#end
+	
+	@:functionBody('
+			try 
+			{
+				return new Haxe.Lang.Null<int>(System.Int32.Parse(x), true);
+			} 
+			catch (System.FormatException fe)
+			{
+				return default(Haxe.Lang.Null<int>);
+			}
+	')
+	public static function parseInt( x : String ) : Null<Int> {
+		return null;
+	}
+
+	@:functionBody('
+			try 
+			{
+				return System.Double.Parse(x);
+			} 
+			catch (System.FormatException fe)
+			{
+				return double.NaN;
+			}
+	')
+	public static function parseFloat( x : String ) : Float {
+		return null;
+	}
+
+	public static function random( x : Int ) : Int {
+		return untyped Math.rand.Next(x);
+	}
+
+	@:macro public static function format( fmt : haxe.macro.Expr.ExprRequire<String> ) : haxe.macro.Expr.ExprRequire<String> {
+		return haxe.macro.Format.format(fmt);
+	}
 
 }
+	

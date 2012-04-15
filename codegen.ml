@@ -688,7 +688,7 @@ let captured_vars com e =
 			) f.tf_args in
 			let e = { e with eexpr = TFunction { f with tf_args = fargs; tf_expr = !fexpr } } in
 			(match com.platform with
-			| Cpp -> e
+			| Cpp | Java | Cs -> e
 			| _ ->
 				mk (TCall (
 					mk_parent (mk (TFunction {
@@ -788,6 +788,10 @@ let captured_vars com e =
 		let used = all_vars e in
 		PMap.iter (fun _ v -> v.v_capture <- true) used;
 		e
+	| Cs | Java ->
+		let used = all_vars e in
+		PMap.iter (fun _ v -> v.v_capture <- true) used;
+		do_wrap used e
 	| Cpp ->
 		do_wrap (all_vars e) e
 	| Flash8 | Flash ->
@@ -802,7 +806,7 @@ let captured_vars com e =
 
 let rename_local_vars com e =
 	let as3 = Common.defined com "as3" in
-	let no_scope = com.platform = Js || as3 in
+	let no_scope = com.platform = Js || com.platform = Java || com.platform = Cs || as3 in
 	let vars = ref PMap.empty in
 	let all_vars = ref PMap.empty in
 	let vtemp = alloc_var "~" t_dynamic in

@@ -1681,7 +1681,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 	| ECast (e, Some t) ->
 		(* force compilation of class "Std" since we might need it *)
 		(match ctx.com.platform with
-		| Js | Flash8 | Neko | Flash ->
+		| Js | Flash8 | Neko | Flash | Java | Cs ->
 			let std = Typeload.load_type_def ctx p { tpackage = []; tparams = []; tname = "Std"; tsub = None } in
 			(* ensure typing / mark for DCE *)
 			ignore(follow (try PMap.find "is" (match std with TClassDecl c -> c.cl_statics | _ -> assert false) with Not_found -> assert false).cf_type)
@@ -2703,7 +2703,9 @@ let rec create com =
 			| "Null" ->
 				let f9 = platform com Flash in
 				let cpp = platform com Cpp in
-				ctx.t.tnull <- if not (f9 || cpp) then (fun t -> t) else (fun t -> if is_nullable t then TType (td,[t]) else t);
+				let cs = platform com Cs in
+				let java = platform com Java in
+				ctx.t.tnull <- if not (f9 || cpp || cs || java) then (fun t -> t) else (fun t -> if is_nullable t then TType (td,[t]) else t);
 			| _ -> ());
 	) ctx.g.std.m_types;
 	let m = Typeload.load_module ctx ([],"String") null_pos in

@@ -31,6 +31,8 @@ type platform =
 	| Flash
 	| Php
 	| Cpp
+	| Cs
+	| Java
 
 type pos = Ast.pos
 
@@ -178,7 +180,9 @@ let platforms = [
 	Neko;
 	Flash;
 	Php;
-	Cpp
+	Cpp;
+	Cs;
+	Java;
 ]
 
 let platform_name = function
@@ -189,6 +193,8 @@ let platform_name = function
 	| Flash -> "flash"
 	| Php -> "php"
 	| Cpp -> "cpp"
+	| Cs -> "cs"
+	| Java -> "jvm"
 
 let flash_versions = List.map (fun v ->
 	let maj = int_of_float v in
