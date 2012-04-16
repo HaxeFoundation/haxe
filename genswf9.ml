@@ -292,8 +292,8 @@ let property ctx p t =
 		| _ -> as3 p, None, false);
 	| TInst ({ cl_path = [],"String" },_) ->
 		(match p with
-		| "length" (* Int in AS3/haXe *) -> ident p, None, false
-		| "charCodeAt" (* use haXe version *) -> ident p, None, true
+		| "length" (* Int in AS3/Haxe *) -> ident p, None, false
+		| "charCodeAt" (* use Haxe version *) -> ident p, None, true
 		| "cca" -> as3 "charCodeAt", None, false
 		| _ -> as3 p, None, false);
 	| TAnon a ->

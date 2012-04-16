@@ -714,7 +714,7 @@ let build_swc_catalog com types =
 	"<?xml version=\"1.0\" encoding =\"utf-8\"?>\n" ^ Xml.to_string_fmt x
 
 let make_as3_public data =
-	(* set all protected+private fields to public - this will enable overriding/reflection in haXe classes *)
+	(* set all protected+private fields to public - this will enable overriding/reflection in Haxe classes *)
 	let ns = Array.mapi (fun i ns ->
 		match ns with
 		| A3NPrivate _

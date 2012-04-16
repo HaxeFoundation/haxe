@@ -82,7 +82,7 @@ let reserved =
 	List.iter (fun l -> Hashtbl.add h l ())
 	(* these ones are defined in order to prevent recursion in some Std functions *)
 	["is";"as";"int";"uint";"const";"getTimer";"typeof";"parseInt";"parseFloat";
-	(* AS3 keywords which are not haXe ones *)
+	(* AS3 keywords which are not Haxe ones *)
 	"each";"label";"finally";"with";"final";"internal";"native";"const";"namespace";"include";"delete";
 	(* some globals give some errors with Flex SDK as well *)
 	"print";"trace";

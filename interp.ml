@@ -899,7 +899,7 @@ let std_lib =
 				let t = Unix.localtime (date d) in
 				VString (Printf.sprintf "%.4d-%.2d-%.2d %.2d:%.2d:%.2d" (t.tm_year + 1900) (t.tm_mon + 1) t.tm_mday t.tm_hour t.tm_min t.tm_sec)
 			| VString _ ->
-				exc (VString "Custom date format is not supported") (* use native haXe implementation *)
+				exc (VString "Custom date format is not supported") (* use native Haxe implementation *)
 			| _ ->
 				error()
 		);
@@ -1619,9 +1619,9 @@ let reg_lib =
 				| Some (pos,pend) -> VObject (obj (hash_field (get_ctx())) ["pos",VInt pos;"len",VInt (pend - pos)]))
 			| _ -> error()
 		);
-		(* regexp_replace : not used by haXe *)
-		(* regexp_replace_all : not used by haXe *)
-		(* regexp_replace_fun : not used by haXe *)
+		(* regexp_replace : not used by Haxe *)
+		(* regexp_replace_all : not used by Haxe *)
+		(* regexp_replace_fun : not used by Haxe *)
 	]
 
 (* ---------------------------------------------------------------------- *)

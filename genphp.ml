@@ -2064,7 +2064,7 @@ let createmain com e =
 	} in
 
 	spr ctx "if(version_compare(PHP_VERSION, '5.1.0', '<')) {
-    exit('Your current PHP version is: ' . PHP_VERSION . '. haXe/PHP generates code for version 5.1.0 or later');
+    exit('Your current PHP version is: ' . PHP_VERSION . '. Haxe/PHP generates code for version 5.1.0 or later');
 }";
 	newline ctx;
 	newline ctx;
