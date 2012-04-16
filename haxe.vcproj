@@ -71,7 +71,16 @@
 				RelativePath=".\genas3.ml">
 			</File>
 			<File
+				RelativePath=".\gencommon.ml">
+			</File>
+			<File
 				RelativePath=".\gencpp.ml">
+			</File>
+			<File
+				RelativePath=".\gencs.ml">
+			</File>
+			<File
+				RelativePath=".\genjava.ml">
 			</File>
 			<File
 				RelativePath=".\genjs.ml">
