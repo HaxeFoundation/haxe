@@ -1,6 +1,6 @@
 include Makefile
 
-LIBS += shell32.lib libs/extc/extc_stubs.obj libs/extc/zlib/zlib.lib
+NATIVE_LIBS = shell32.lib libs/extc/extc_stubs.obj libs/extc/zlib/zlib.lib
 
 FILTER=sed 's/File "\([^"]\+\)", line \([0-9]\+\), \(.*\)/\1(\2): \3/' tmp.cmi
 

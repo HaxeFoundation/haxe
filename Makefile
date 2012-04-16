@@ -12,6 +12,8 @@ CC_PARSER_CMD = ocamlopt -pp camlp4o $(CFLAGS) -c parser.ml
 LIBS=unix.cmxa str.cmxa libs/extlib/extLib.cmxa libs/xml-light/xml-light.cmxa libs/swflib/swflib.cmxa \
 	libs/extc/extc.cmxa libs/neko/neko.cmxa
 
+NATIVE_LIBS=-cclib -lz -cclib libs/extc/extc_stubs.o
+
 MODULES=ast type lexer common genxml parser typecore optimizer typeload \
 	codegen genas3 gencommon gencpp genjs genneko genphp genswf8 \
 	gencs genjava genswf9 interp genswf typer main
@@ -26,7 +28,7 @@ libs:
 	(cd libs/xml-light; make xml-light.cmxa)
 
 haxe: $(MODULES:=.cmx)
-	ocamlopt -o $(OUTPUT) $(LIBS) $(MODULES:=.cmx)
+	ocamlopt -o $(OUTPUT) $(NATIVE_LIBS) $(LIBS) $(MODULES:=.cmx)
 
 codegen.cmx: typeload.cmx typecore.cmx type.cmx genxml.cmx common.cmx ast.cmx
 
