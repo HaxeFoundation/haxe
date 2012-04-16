@@ -73,11 +73,8 @@ xml_lexer.cmx: xml_lexer.ml xml_lexer.cmi
 
 clean:
 	rm -f xml-light.cma test.exe dtd.cmo dtd.cmi test.cmo test.cmi xml.cmo xml.cmi xmlParser.cmo xmlParser.cmi dtd.cmi xml.cmi xmlParser.cmi xml_lexer.cmi xml_lexer.cmo xml_lexer.ml xml_parser.mli xml_parser.cmi xml_parser.ml xml_parser.cmo
-	rm -f xml_light.lib xml_light.a xml-light.cmxa test_opt.exe dtd.cmx dtd.obj dtd.o test.cmx test.obj test.o xml.cmx xml.obj xml.o xmlParser.cmx xmlParser.obj xmlParser.o xml_lexer.cmx xml_lexer.obj xml_lexer.o xml_parser.cmx xml_parser.obj xml_parser.o
+	rm -f xml-light.lib xml-light.a xml-light.cmxa test_opt.exe dtd.cmx dtd.obj dtd.o test.cmx test.obj test.o xml.cmx xml.obj xml.o xmlParser.cmx xmlParser.obj xmlParser.o xml_lexer.cmx xml_lexer.obj xml_lexer.o xml_parser.cmx xml_parser.obj xml_parser.o
 
-wclean:
-	-@del xml-light.cma test.exe dtd.cmo dtd.cmi test.cmo test.cmi xml.cmo xml.cmi xmlParser.cmo xmlParser.cmi dtd.cmi xml.cmi xmlParser.cmi xml_lexer.cmi xml_lexer.cmo xml_lexer.ml xml_parser.mli xml_parser.cmi xml_parser.ml xml_parser.cmo 2>NUL
-	-@del xml_light.lib xml_light.a xml-light.cmxa test_opt.exe dtd.cmx dtd.obj dtd.o test.cmx test.obj test.o xml.cmx xml.obj xml.o xmlParser.cmx xmlParser.obj xmlParser.o xml_lexer.cmx xml_lexer.obj xml_lexer.o xml_parser.cmx xml_parser.obj xml_parser.o 2>NUL
 
 # SUFFIXES
 .ml.cmo:
