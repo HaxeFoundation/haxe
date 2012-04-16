@@ -2005,13 +2005,13 @@ let generate_class ctx c =
 			list
 	in
 	
-	(match fields c with
-	| [] ->
-		()
-	| props ->
-		newline ctx;
-		print ctx "static $__properties__ = array(%s)" (gen_props props);
-	);
+	if not c.cl_interface then (match fields c with
+		| [] ->
+			()
+		| props ->
+			newline ctx;
+			print ctx "static $__properties__ = array(%s)" (gen_props props);
+		);
 		
 		
 	cl();

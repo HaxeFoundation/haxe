@@ -1,7 +1,11 @@
 package unit;
 import Type;
 
-class ClassWithProp {
+interface InterfWithProp {
+	public var x(getX, setX) : Int;
+}
+
+class ClassWithProp implements InterfWithProp {
 	public var x(getX, setX) : Int;
 	var _x : Int;
 
@@ -242,6 +246,14 @@ class TestReflect extends Test {
 	function testGetProp() {
 
 		var c = new ClassWithProp();
+		eq( c.x, 5);
+
+		eq( Reflect.getProperty(c, "x"), 5);
+		Reflect.setProperty(c, "x", 10);
+		eq( c.x, 10);
+		eq( Reflect.getProperty(c, "x"), 10);
+		
+		var c : InterfWithProp = new ClassWithProp();
 		eq( c.x, 5);
 
 		eq( Reflect.getProperty(c, "x"), 5);
