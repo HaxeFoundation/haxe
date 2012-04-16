@@ -53,7 +53,7 @@ class Boot extends flash.display.MovieClip {
 	public static var skip_constructor = false;
 
 	function start() {
-		#if mt mt.flash.Init.check(); #end
+		#if (mt && !doc_gen) mt.flash.Init.check(); #end
 		#if dontWaitStage
 			init();
 		#else
