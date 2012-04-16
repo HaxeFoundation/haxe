@@ -138,6 +138,8 @@ class Socket {
 	public function close() : Void {
 		socket_close(__s);
 		untyped {
+			var input : SocketInput = cast input;
+			var output : SocketOutput = cast output;
 			input.__s = null;
 			output.__s = null;
 		}
