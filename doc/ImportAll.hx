@@ -48,7 +48,7 @@ class ImportAll {
 			return;
 		case "sys":
 			if( !Context.defined("neko") && !Context.defined("php") && !Context.defined("cpp") ) return;
-		case "tools":
+		case "tools", "jvm", "cs":
 			return;
 		}
 		for( p in Context.getClassPath() ) {
