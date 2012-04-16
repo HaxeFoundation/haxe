@@ -36,7 +36,7 @@ let exe_ext = match os_type with "Win32" | "Cygwin" -> ".exe" | _ -> ""
 let ocamloptflags = match os_type with "Unix" -> "-cclib -fno-stack-protector " | _ -> ""
 
 let zlib_path = match os_type with
-	| "Win32" -> "../ocaml/extc/zlib/"
+	| "Win32" -> "libs/extc/zlib/"
 	| _ -> "./"
 
 let zlib = match os_type with
@@ -68,87 +68,84 @@ let modules l ext =
 
 ;;
 
-let motiontwin = ":pserver:anonymous@cvs.motion-twin.com:/cvsroot" in
-
-let download_libs() =
-	cvs motiontwin "co ocaml/swflib";
-	cvs motiontwin "co ocaml/extc";
-	cvs motiontwin "co ocaml/extlib-dev";
-	cvs motiontwin "co ocaml/xml-light";
-	command "svn co http://nekovm.googlecode.com/svn/trunk/libs/include/ocaml neko/libs/include/ocaml";
-in
 
 let download() =
 	command "svn co http://haxe.googlecode.com/svn/trunk haxe";
-	download_libs();
 in
 
 let compile_libs() =
+	Sys.chdir "haxe/libs";
+
 	(* EXTLIB *)
-	Sys.chdir "ocaml/extlib-dev";
+	Sys.chdir "extlib";
 	command ("ocaml install.ml -nodoc -d .. " ^ (if bytecode then "-b " else "") ^ (if native then "-n" else ""));
 	msg "";
-	Sys.chdir "../..";
+	Sys.chdir "..";
 
 	(* EXTC *)
-	Sys.chdir "ocaml/extc";
+	Sys.chdir "extc";
 	let c_opts = (if Sys.ocaml_version < "3.08" then " -ccopt -Dcaml_copy_string=copy_string " else " ") in
-	command ("ocamlc" ^ c_opts ^ " -I .. -I ../" ^ zlib_path ^ " extc_stubs.c");
+	command ("ocamlc" ^ c_opts ^ " -I .. -I ../../" ^ zlib_path ^ " extc_stubs.c");
 
-	let options = "-cclib ../ocaml/extc/extc_stubs" ^ obj_ext ^ " -cclib " ^ zlib ^ " extc.ml" in
+	let options = "-cclib libs/extc/extc_stubs" ^ obj_ext ^ " -cclib " ^ zlib ^ " extc.ml" in
 	let options = if Sys.os_type = "Win32" then options ^ " -cclib shell32.lib" else options in
 	if bytecode then command ("ocamlc -a -I .. -o extc.cma " ^ options);
 	if native then command ("ocamlopt -a -I .. -o extc.cmxa " ^ options);
-	Sys.chdir "../..";
+	Sys.chdir "..";
 
 	(* SWFLIB *)
-	Sys.chdir "ocaml/swflib";
+	Sys.chdir "swflib";
 	let files = "-I .. -I ../extc as3.mli as3hl.mli as3code.ml as3parse.ml as3hlparse.ml swf.ml actionScript.ml swfParser.ml" in
 	if bytecode then command ("ocamlc -a -o swflib.cma " ^ files);
 	if native then command ("ocamlopt -a -o swflib.cmxa " ^ files);
-	Sys.chdir "../..";
+	Sys.chdir "..";
+
+	(* NEKO *)
+	Sys.chdir "neko";
+	let files = "-I .. nast.ml nxml.ml binast.ml" in
+	if bytecode then command ("ocamlc -a -o neko.cma " ^ files);
+	if native then command ("ocamlopt -a -o neko.cmxa " ^ files);
+	Sys.chdir "..";
 
 	(* XML-LIGHT *)
-	Sys.chdir "ocaml/xml-light";
+	Sys.chdir "xml-light";
 	command ("ocamlyacc	xml_parser.mly");
 	command ("ocamlc xml.mli dtd.mli xml_parser.mli xml_lexer.mli");
 	command ("ocamllex xml_lexer.mll");
 	let files = "xml_parser.ml xml_lexer.ml dtd.ml xmlParser.mli xmlParser.ml xml.ml" in
 	if bytecode then command ("ocamlc -a -o xml-light.cma " ^ files);
 	if native then command ("ocamlopt -a -o xml-light.cmxa " ^ files);
-	Sys.chdir "../..";
+	Sys.chdir "..";
 
+	Sys.chdir "../..";
 in
 
 let compile() =
 
 	(try Unix.mkdir "bin" 0o740 with Unix.Unix_error(Unix.EEXIST,_,_) -> ());
 
-	compile_libs();
-
-	(* HAXE *)
 	Sys.chdir "haxe";
+	(* HAXE *)
 	command "ocamllex lexer.mll";
 	let libs = [
-		"../ocaml/extLib";
-		"../ocaml/extc/extc";
-		"../ocaml/swflib/swflib";
-		"../ocaml/xml-light/xml-light";
+		"libs/extLib";
+		"libs/extc/extc";
+		"libs/swflib/swflib";
+		"libs/xml-light/xml-light";
+		"libs/neko/neko";
 		"unix";
 		"str"
 	] in
-	let neko = "../neko/libs/include/ocaml" in
 	let paths = [
-		"../ocaml";
-		"../ocaml/swflib";
-		"../ocaml/xml-light";
-		"../ocaml/extc";
-		neko
+		"libs";
+		"libs/swflib";
+		"libs/xml-light";
+		"libs/extc";
+		"libs/neko"
 	] in
 	let mlist = [
 		"ast";"lexer";"type";"common";"parser";"typecore";
 		"genxml";"optimizer";"typeload";"codegen";
-		neko^"/nast";neko^"/binast";neko^"/nxml";
 		"gencommon";"genneko";"genas3";"genjs";"genswf8";"genswf9";"genswf";"genphp";"gencpp";"gencs";"genjava";
 		"interp";"typer";"main";
 	] in
@@ -157,12 +154,20 @@ let compile() =
 	ocamlc (path_str ^ " -pp camlp4o " ^ modules mlist ".ml");
 	if bytecode then command ("ocamlc -custom -o ../bin/haxe-byte" ^ exe_ext ^ libs_str ".cma" ^ modules mlist ".cmo");
 	if native then command ("ocamlopt -o ../bin/haxe" ^ exe_ext ^ libs_str ".cmxa" ^ modules mlist ".cmx");
+in
+
+let make_std() =
+
+	if Sys.file_exists "../bin/std" then command (if os_type = "Win32" then "rmdir /S /Q ..\\bin\\std" else "rm -rf ../bin/std");
+	command "svn export -q std ../bin/std";
 
 in
 let startdir = Sys.getcwd() in
 try
 	download();
+	compile_libs();
 	compile();
+	make_std();
 	Sys.chdir startdir;
 with
 	Failure msg ->
