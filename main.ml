@@ -247,7 +247,7 @@ let lookup_classes com spath =
 		| [] -> []
 		| cp :: l ->
 			let cp = (if cp = "" then "./" else cp) in
-			let c =  Extc.get_real_path (Common.unique_full_path (normalize_path cp)) in
+			let c = normalize_path (Extc.get_real_path (Common.unique_full_path cp)) in
 			let clen = String.length c in
 			if clen < String.length spath && String.sub spath 0 clen = c then begin
 				let path = String.sub spath clen (String.length spath - clen) in
