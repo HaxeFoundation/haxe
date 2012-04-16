@@ -862,6 +862,7 @@ let init_class ctx c p herits fields =
 		let p = f.cff_pos in
 		let stat = List.mem AStatic f.cff_access in
 		let inline = List.mem AInline f.cff_access in
+		let override = List.mem AOverride f.cff_access in
 		let ctx = { ctx with curclass = c; tthis = tthis } in
 		let mark_used cf =
 			if ctx.com.dead_code_elimination then cf.cf_meta <- (":?used",[],p) :: cf.cf_meta
@@ -870,6 +871,7 @@ let init_class ctx c p herits fields =
 		| FVar (t,e) ->
 			if not stat && has_field name c.cl_super then error ("Redefinition of variable " ^ name ^ " in subclass is not allowed") p;
 			if inline && not stat then error "Inline variable must be static" p;
+			if override then error "You cannot override variables" p;
 			(match e with
 			| None when inline -> error "Inline variable must be initialized" p
 			| Some (_,p) when not stat -> error "Member variable initialization is not allowed outside of class constructor" p
@@ -1047,6 +1049,7 @@ let init_class ctx c p herits fields =
 			(match eo with
 			| None -> ()
 			| Some e -> error "Property initialization is not allowed" (snd e));
+			if override then error "You cannot override properties" p;
 			let ret = load_complex_type ctx p t in
 			let check_get = ref (fun() -> ()) in
 			let check_set = ref (fun() -> ()) in
