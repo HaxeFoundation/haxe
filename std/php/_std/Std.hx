@@ -46,11 +46,8 @@
 			return x.substr(0, 2).toLowerCase() == "0x" ? __php__("(int) hexdec(substr($x, 2))") : __php__("intval($x)");
 	}
 
-	static var NAN : Float = untyped __call__("acos", 1.01);
 	public static function parseFloat( x : String ) : Float {
-		var v : Float = untyped __call__("floatval", x),
-			s = "" + v;
-		return x.substr(0, s.length) == s ? v : NAN;
+		return untyped __php__("is_numeric($x) ? floatval($x) : acos(1.01)");
 	}
 
 	public static function random( x : Int ) : Int {
