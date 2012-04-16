@@ -2,10 +2,12 @@ include Makefile
 
 OUTPUT=haxe.exe
 
+OCAMLOPT=ocamlopt.opt
+
 NATIVE_LIBS = shell32.lib libs/extc/extc_stubs.obj libs/extc/zlib/zlib.lib
 
 FILTER=sed 's/File "\([^"]\+\)", line \([0-9]\+\), \(.*\)/\1(\2): \3/' tmp.cmi
 
-CC_CMD=(ocamlopt $(CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
-CC_PARSER_CMD=(ocamlopt -pp camlp4o $(CFLAGS) -c parser.ml 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
+CC_CMD=($(OCAMLOPT) $(CFLAGS) -c $< 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
+CC_PARSER_CMD=($(OCAMLOPT) -pp camlp4o $(CFLAGS) -c parser.ml 2>tmp.cmi && $(FILTER)) || ($(FILTER) && exit 1)
 

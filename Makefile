@@ -4,10 +4,12 @@
 
 OUTPUT=haxe
 
+OCAMLOPT=ocamlopt
+
 CFLAGS= -g -I libs/extlib -I libs/extc -I libs/neko -I libs/swflib -I libs/xml-light
 
-CC_CMD = ocamlopt $(CFLAGS) -c $<
-CC_PARSER_CMD = ocamlopt -pp camlp4o $(CFLAGS) -c parser.ml
+CC_CMD = $(OCAMLOPT) $(CFLAGS) -c $<
+CC_PARSER_CMD = $(OCAMLOPT) -pp camlp4o $(CFLAGS) -c parser.ml
 
 LIBS=unix.cmxa str.cmxa libs/extlib/extLib.cmxa libs/xml-light/xml-light.cmxa libs/swflib/swflib.cmxa \
 	libs/extc/extc.cmxa libs/neko/neko.cmxa
@@ -28,7 +30,7 @@ libs:
 	(cd libs/xml-light; make xml-light.cmxa)
 
 haxe: $(MODULES:=.cmx)
-	ocamlopt -o $(OUTPUT) $(NATIVE_LIBS) $(LIBS) $(MODULES:=.cmx)
+	$(OCAMLOPT) -o $(OUTPUT) $(NATIVE_LIBS) $(LIBS) $(MODULES:=.cmx)
 
 codegen.cmx: typeload.cmx typecore.cmx type.cmx genxml.cmx common.cmx ast.cmx
 
