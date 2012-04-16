@@ -7957,7 +7957,7 @@ struct
           if is_some null_vt && is_none null_et then
             handle_unwrap e.etype (run v)
           else if is_none null_vt && is_some null_et then
-            handle_wrap ({ run v with etype = get (is_null_t e.etype) })
+            handle_wrap ({ (run v) with etype = get (is_null_t e.etype) })
           else
             Type.map_expr run e
         | TField(ef, field) when is_some (is_null_t ef.etype) ->
