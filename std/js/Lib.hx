@@ -34,6 +34,16 @@ class Lib {
 	public static var window : Window;
 	static var onerror : String -> Array<String> -> Bool = null;
 
+	/**
+		Inserts a 'debugger' statement that will make a breakpoint if a debugger is available.
+	**/
+	public static inline function debug() {
+		untyped __js__("debugger");
+	}
+
+	/**
+		Display an alert message box containing the given message
+	**/
 	public static function alert( v : Dynamic ) {
 		untyped __js__("alert")(js.Boot.__string_rec(v,""));
 	}
