@@ -2,7 +2,7 @@ package tools.hxinst;
 
 class Main {
 
-	static var SYS = neko.Sys.systemName();
+	static var SYS = Sys.systemName();
 	static var NULL = if( SYS == "Windows" ) "NUL" else "/dev/null";
 	#if xcross
 	static var wnd : xcross.Winlog;
@@ -24,7 +24,7 @@ class Main {
 		}
 		baseDir = if( SYS == "Windows" ) {
 			// use C:/ for Vista, Win7
-			var baseDir = (neko.Sys.getEnv("ALLUSERSPROFILE") == "C:\\ProgramData") ? "C:" : neko.Sys.getEnv("ProgramFiles");
+			var baseDir = (Sys.getEnv("ALLUSERSPROFILE") == "C:\\ProgramData") ? "C:" : Sys.getEnv("ProgramFiles");
 			baseDir + "/Motion-Twin";
 		} else
 			libDir;
@@ -42,8 +42,8 @@ class Main {
 		#else
 		var answer = null;
 		while( true ) {
-			neko.Lib.print(txt+" [y/n] ");
-			switch( neko.io.File.stdin().readLine() ) {
+			Sys.print(txt+" [y/n] ");
+			switch( Sys.stdin().readLine() ) {
 			case "n": answer = false; break;
 			case "y": answer = true; break;
 			}
@@ -56,7 +56,7 @@ class Main {
 		#if xcross
 		xcross.Api.error("Error",txt);
 		#else
-		neko.io.File.stderr().writeString(txt+"\n");
+		Sys.stderr().writeString(txt+"\n");
 		#end
 		throw "Installation aborted";
 	}
@@ -65,9 +65,9 @@ class Main {
 		#if xcross
 		wnd.log(txt);
 		#else
-		neko.Lib.println(txt);
+		Sys.println(txt);
 		#end
-		neko.Sys.sleep(0.03);
+		Sys.sleep(0.03);
 	}
 
 	function version(v : { major : Int, minor : Int, build : Int }, twoDigitMinor ) {
@@ -77,12 +77,12 @@ class Main {
 
 	function command( cmd ) {
 		display("Execute "+cmd);
-		if( neko.Sys.command(cmd) != 0 )
+		if( Sys.command(cmd) != 0 )
 			error("Command '"+cmd+"' failed !");
 	}
 
 	function commandOutput( cmd ) {
-		var p = try new neko.io.Process(cmd,[]) catch( e : Dynamic ) return "";
+		var p = try new sys.io.Process(cmd,[]) catch( e : Dynamic ) return "";
 		return p.stderr.readAll().toString() + p.stdout.readAll().toString();
 	}
 
@@ -109,12 +109,12 @@ class Main {
 
 	function checkRights() {
 		try {
-			if( !neko.FileSystem.exists(baseDir) )
-				neko.FileSystem.createDirectory(baseDir);
+			if( !sys.FileSystem.exists(baseDir) )
+				sys.FileSystem.createDirectory(baseDir);
 			var tmp = baseDir + "/.tmp.haxe.inst";
-			var f = neko.io.File.write(tmp,true);
+			var f = sys.io.File.write(tmp,true);
 			f.close();
-			neko.FileSystem.deleteFile(tmp);
+			sys.FileSystem.deleteFile(tmp);
 			return true;
 		} catch( e : Dynamic ) {
 			#if xcross
@@ -140,7 +140,7 @@ class Main {
 			"/opt/haxe",
 		];
 		for( d in dirs )
-			if( !debug && neko.FileSystem.exists(d) )
+			if( !debug && sys.FileSystem.exists(d) )
 				error("A previous haXe/Neko version seems to be installed in '"+d+"', please remove it first");
 		if( debug )
 			display("DEBUG MODE ON");
@@ -276,12 +276,12 @@ class Main {
 		#if xcross
 		wnd.logProgress(txt);
 		#else
-		neko.Lib.print(txt+"\r");
+		Sys.print(txt+"\r");
 		#end
 	}
 
 	function download( url, file ) {
-		if( neko.FileSystem.exists(file) ) {
+		if( sys.FileSystem.exists(file) ) {
 			display("Using local version of "+file+", skipping download");
 			return;
 		}
@@ -303,17 +303,17 @@ class Main {
 		#if xcross
 		wnd.log("");
 		#else
-		neko.Lib.print("\n");
+		Sys.print("\n");
 		#end
 
-		var f = neko.io.File.write(file,true);
+		var f = sys.io.File.write(file,true);
 		f.write(str.getBytes());
 		f.close();
 	}
 
 	function unzip( file ) {
-		var ch = neko.io.File.read(file,true);
-		var entries = if( neko.io.Path.extension(file) == "zip" ) neko.zip.Reader.readZip(ch) else neko.zip.Reader.readTar(ch,true);
+		var ch = sys.io.File.read(file,true);
+		var entries = if( haxe.io.Path.extension(file) == "zip" ) neko.zip.Reader.readZip(ch) else neko.zip.Reader.readTar(ch,true);
 		ch.close();
 		return entries;
 	}
@@ -321,8 +321,8 @@ class Main {
 	function copy( file, isNeko ) {
 		var data = unzip(file);
 		var dir = baseDir + "/" + if( isNeko ) "neko" else "haxe";
-		if( !neko.FileSystem.exists(dir) )
-			neko.FileSystem.createDirectory(dir);
+		if( !sys.FileSystem.exists(dir) )
+			sys.FileSystem.createDirectory(dir);
 		if( !isNeko ) {
 			try {
 				removeRec(dir+"/std");
@@ -338,17 +338,17 @@ class Main {
 					continue;
 				var ddir = dir+"/"+path.join("/");
 				display("Installing directory "+path.join("/"));
-				if( !neko.FileSystem.exists(ddir) )
-					neko.FileSystem.createDirectory(ddir);
+				if( !sys.FileSystem.exists(ddir) )
+					sys.FileSystem.createDirectory(ddir);
 				continue;
 			}
 			var filename = dir + "/" + path.join("/");
-			var ch = neko.io.File.write(filename,true);
+			var ch = sys.io.File.write(filename,true);
 			ch.write(neko.zip.Reader.unzip(f));
 			ch.close();
 			if( SYS != "Windows" ) {
-				var exe = neko.io.Path.extension(filename) == "";
-				neko.Sys.command("chmod "+(if( exe ) 755 else 644)+" "+filename);
+				var exe = haxe.io.Path.extension(filename) == "";
+				Sys.command("chmod "+(if( exe ) 755 else 644)+" "+filename);
 			}
 		}
 	}
@@ -378,24 +378,24 @@ class Main {
 		link("haxe","haxedoc",binDir);
 		// HAXELIB setup
 		var haxelib = baseDir + "/haxe/lib";
-		if( !neko.FileSystem.exists(haxelib) ) {
-			neko.FileSystem.createDirectory(haxelib);
-			neko.Sys.command("chmod 777 "+haxelib);
+		if( !sys.FileSystem.exists(haxelib) ) {
+			sys.FileSystem.createDirectory(haxelib);
+			Sys.command("chmod 777 "+haxelib);
 		}
 	}
 
 	function removeRec( file ) {
-		if( !neko.FileSystem.isDirectory(file) ) {
-			neko.FileSystem.deleteFile(file);
+		if( !sys.FileSystem.isDirectory(file) ) {
+			sys.FileSystem.deleteFile(file);
 			return;
 		}
-		for( f in neko.FileSystem.readDirectory(file) )
+		for( f in sys.FileSystem.readDirectory(file) )
 			removeRec(file+"/"+f);
-		neko.FileSystem.deleteDirectory(file);
+		sys.FileSystem.deleteDirectory(file);
 	}
 
 	static function main() {
-		var debug = neko.Sys.getEnv("INST_DEBUG") != null;
+		var debug = Sys.getEnv("INST_DEBUG") != null;
 		var i = new Main(debug);
 		if( !i.checkRights() )
 			return;
