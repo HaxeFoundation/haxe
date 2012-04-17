@@ -37,7 +37,7 @@
 	public function new(string:String) : Void {
 		untyped {
 			if( __dollar__typeof(string) != __dollar__tstring )
-				s = __dollar__string(string);
+				string = __dollar__string(string);
 			this.__s = string;
 			this.length = __dollar__ssize(string);
 		}
