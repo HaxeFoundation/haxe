@@ -198,7 +198,7 @@ class SiteApi {
 				switch( x ) {
 				case TPackage(name,_,_):
 					switch( name ) {
-					case "flash","flash9","haxe","js","neko","cpp","php","tools": // don't include haXe core types
+					case "flash","flash8","sys","cs","java","flash9","haxe","js","neko","cpp","php","tools": // don't include haXe core types
 					default: roots.push(x);
 					}
 				default:
