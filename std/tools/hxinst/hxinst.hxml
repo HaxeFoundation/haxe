@@ -2,4 +2,4 @@
 -neko hxinst.n
 -main tools.hxinst.Main
 -lib xcross
--cmd haxelib run xcross -bundle "haXe Installer" hxinst.n
+-cmd haxelib run xcross -bundle "Haxe Installer" hxinst.n

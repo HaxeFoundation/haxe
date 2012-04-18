@@ -141,7 +141,7 @@ class Main {
 		];
 		for( d in dirs )
 			if( !debug && sys.FileSystem.exists(d) )
-				error("A previous haXe/Neko version seems to be installed in '"+d+"', please remove it first");
+				error("A previous Haxe/Neko version seems to be installed in '"+d+"', please remove it first");
 		if( debug )
 			display("DEBUG MODE ON");
 
@@ -159,7 +159,7 @@ class Main {
 		}
 
 		// GET haxe Version
-		display("Getting Local haXe Version");
+		display("Getting Local Haxe Version");
 		var content = commandOutput("haxe");
 		var r = ~/^Haxe Compiler ([0-9]+)\.([0-9]+)/;
 		var haxeVersion = null;
@@ -182,8 +182,8 @@ class Main {
 				build : Std.parseInt(r.matched(4))
 			};
 
-		// GET haXe files list
-		display("Getting Latest haXe Version");
+		// GET Haxe files list
+		display("Getting Latest Haxe Version");
 		var haxeFile = null;
 		var r = ~/^haxe-([0-9]+)\.([0-9]+)(-win|-linux|-osx)(\.zip|\.tar\.gz)$/;
 		for( f in haxe.Http.requestUrl("http://haxe.org/wiki/latest").split("\n") )
@@ -206,7 +206,7 @@ class Main {
 				break;
 			}
 		if( haxeFile == null )
-			error("No haXe File found for your plaform");
+			error("No Haxe File found for your plaform");
 
 		// GET Neko files list
 		display("Getting Latest Neko Version");
@@ -232,13 +232,13 @@ class Main {
 				break;
 			}
 		if( nekoFile == null )
-			error("No haXe File found for your plaform");
+			error("No Haxe File found for your plaform");
 
 		// ASK QUESTIONS IF OK TO INSTALL
 		var needHaxe = newVersion(haxeVersion,haxeFile.version);
 		var needNeko = newVersion(nekoVersion,nekoFile.version);
 		if( !needHaxe && !needNeko ) {
-			if( !ask("Both your haXe and Neko versions are up-to-date, do you want to reinstall everything ?") )
+			if( !ask("Both your Haxe and Neko versions are up-to-date, do you want to reinstall everything ?") )
 				throw "Installation Aborted";
 			needHaxe = true;
 			needNeko = true;
@@ -250,7 +250,7 @@ class Main {
 					txt += " and ";
 			}
 			if( needHaxe )
-				txt += "haXe "+version(haxeFile.version,true);
+				txt += "Haxe "+version(haxeFile.version,true);
 			if( !ask("Do you want to install "+txt+" ?") )
 				error("Installation Aborted");
 		}
@@ -400,7 +400,7 @@ class Main {
 		if( !i.checkRights() )
 			return;
 		#if xcross
-		wnd = new xcross.Winlog("haXe Installer");
+		wnd = new xcross.Winlog("Haxe Installer");
 		wnd.button = "Exit";
 		wnd.enabled = false;
 		wnd.onClick = function() {
