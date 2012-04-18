@@ -1,3 +1,6 @@
+2012-??-??: 3.0
+	flash : fixed Xml.parent exception if parent does not exists
+	
 2012-04-14: 2.09
 	all : optimized const == const and const != const (with different const types)
 	all : add Type.allEnums(e)

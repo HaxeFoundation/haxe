@@ -175,7 +175,8 @@ enum XmlType {
 	}
 
 	private function getParent() :Xml {
-		return wrap( _map, _node.parent() );
+		var p = _node.parent();
+		return p == null ? null : wrap( _map, p );
 	}
 
 	private static function wrap( map : flash.utils.Dictionary, node : XML, ?type : XmlType ) : Xml {
