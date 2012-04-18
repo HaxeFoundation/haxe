@@ -14,7 +14,7 @@ CC_PARSER_CMD = $(OCAMLOPT) -pp camlp4o $(CFLAGS) -c parser.ml
 LIBS=unix.cmxa str.cmxa libs/extlib/extLib.cmxa libs/xml-light/xml-light.cmxa libs/swflib/swflib.cmxa \
 	libs/extc/extc.cmxa libs/neko/neko.cmxa
 
-NATIVE_LIBS=-cclib -lz -cclib libs/extc/extc_stubs.o
+NATIVE_LIBS=-cclib libs/extc/extc_stubs.o -cclib -lz
 
 MODULES=ast type lexer common genxml parser typecore optimizer typeload \
 	codegen genas3 gencommon gencpp genjs genneko genphp genswf8 \
