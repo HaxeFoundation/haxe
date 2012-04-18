@@ -1,1 +1,1 @@
-hdiutil create -srcfolder "Haxe Installer.app" -volname "Haxe Installer" -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDZ0 -imagekey zlib-level=9 hxinst.dmg
+hdiutil create -srcfolder "Haxe Installer.app" -volname "Haxe Installer" -fs HFS+ -fsargs "-c c=64,a=16,e=16" -format UDZO -imagekey zlib-level=9 hxinst.dmg
