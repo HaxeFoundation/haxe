@@ -1092,6 +1092,8 @@ let configure gen =
   
   EnumToClass.configure gen (Some (fun e -> mk_cast gen.gcon.basic.tint e)) false true (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Enum")) );
   
+  InterfaceVarsDeleteModf.configure gen;
+  
   let dynamic_object = (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"DynamicObject")) ) in
   
   let object_iface = get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"IHxObject")) in

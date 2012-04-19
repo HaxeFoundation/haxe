@@ -8389,6 +8389,72 @@ struct
     gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
   
 end;;
+
+(* ******************************************* *)
+(* Interface Variables Removal Modf *)
+(* ******************************************* *)
+
+(*
+  
+  This module filter will take care of sanitizing interfaces for targets that do not support
+  variables declaration in interfaces. By now this will mean that if anything is typed as the interface,
+  and a variable access is made, a FNotFound will be returned for the field_access, so
+  the field will be only accessible by reflection.
+  Speed-wise, ideally it would be best to create getProp/setProp functions in this case and change
+  the AST to call them when accessing by interface. (TODO)
+  But right now it will be accessed by reflection.
+  
+  dependencies:
+    
+  
+*)
+
+module InterfaceVarsDeleteModf =
+struct
+
+  let name = "interface_vars"
+  
+  let priority = solve_deps name []
+  
+  let run gen =
+    let run md = match md with
+      | TClassDecl ( { cl_interface = true } as cl ) ->
+        let to_add = ref [] in
+        let fields = List.filter (fun cf -> 
+          match cf.cf_kind with
+            | Var vkind ->
+              (match vkind.v_read with
+                | AccCall str ->
+                  let newcf = mk_class_field str (TFun([],cf.cf_type)) true cf.cf_pos (Method MethNormal) [] in
+                  to_add := newcf :: !to_add;
+                | _ -> ()
+              );
+              (match vkind.v_write with
+                | AccCall str ->
+                  let newcf = mk_class_field str (TFun(["val",false,cf.cf_type],cf.cf_type)) true cf.cf_pos (Method MethNormal) [] in
+                  to_add := newcf :: !to_add;
+                | _ -> ()
+              );
+              cl.cl_fields <- PMap.remove cf.cf_name cl.cl_fields;
+              false
+            | _ -> true
+        ) cl.cl_ordered_fields in
+        cl.cl_ordered_fields <- !to_add @ fields;
+        List.iter (fun cf -> cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields) !to_add;
+        
+        md
+      | _ -> md
+    in
+    run
+  
+  let configure gen =
+    let run = run gen in
+    let map md = Some(run md) in
+    gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
+  
+  
+end;;
+
 (*
 (* ******************************************* *)
 (* Example *)
