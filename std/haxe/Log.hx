@@ -45,7 +45,7 @@ class Log {
 		#elseif cs
 		var str = infos.fileName + ":" + infos.lineNumber + ": " + v;
 		untyped __cs__("System.Console.WriteLine(str)");
-		#elseif jvm
+		#elseif java
 		var str = infos.fileName + ":" + infos.lineNumber + ": " + v;
 		untyped __java__("java.lang.System.out.println(str)");
 		#end

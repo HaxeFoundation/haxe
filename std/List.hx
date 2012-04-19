@@ -150,7 +150,7 @@ class List<T> {
 		Returns an iterator on the elements of the list.
 	**/
 	public function iterator() : Iterator<T> {
-		#if (jvm || cs)
+		#if (java || cs)
 		var h = h;
 		return cast {
 			hasNext : function() {

@@ -48,7 +48,7 @@ extern class Int extends Float { }
 typedef UInt = Int
 #end
 
-#if (jvm || cs)
+#if (java || cs)
 typedef Single = Float;
 typedef Int64 = Int;
 #end
