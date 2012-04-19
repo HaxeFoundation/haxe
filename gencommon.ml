@@ -7388,8 +7388,11 @@ struct
             convert e
           else if has_parameters e then
             convert e
-          else
+          else begin
+            (* take off the :hxgen meta from it, if there's any *)
+            e.e_meta <- List.filter (fun (n,_,_) -> not (n = ":hxgen")) e.e_meta;
             md
+          end
         | _ -> md
       in
       run
