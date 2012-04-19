@@ -48,6 +48,8 @@ class StringTools {
 			return __call__("rawurlencode", s);
 		#elseif cpp
 			return s.__URLEncode();
+		#elseif jvm
+			return untyped __java__("java.net.URLEncoder.encode(s)");
 		#else
 			return null;
 		#end
@@ -69,6 +71,8 @@ class StringTools {
 			return __call__("urldecode", s);
 		#elseif cpp
 			return s.__URLDecode();
+		#elseif jvm
+			return untyped __java__("java.net.URLDecoder.decode(s)");
 		#else
 			return null;
 		#end
@@ -95,17 +99,25 @@ class StringTools {
 	/**
 		Tells if the string [s] starts with the string [start].
 	**/
-	public static function startsWith( s : String, start : String ) {
-		return( s.length >= start.length && s.substr(0,start.length) == start );
+	public static #if jvm inline #end function startsWith( s : String, start : String ) {
+		#if jvm
+		return untyped s.startsWith(start);
+		#else
+		return( s.length >= start.length && s.substr(0, start.length) == start );
+		#end
 	}
 
 	/**
 		Tells if the string [s] ends with the string [end].
 	**/
-	public static function endsWith( s : String, end : String ) {
+	public static #if jvm inline #end function endsWith( s : String, end : String ) {
+		#if jvm
+		return untyped s.endsWith(start);
+		#else
 		var elen = end.length;
 		var slen = s.length;
-		return( slen >= elen && s.substr(slen-elen,elen) == end );
+		return( slen >= elen && s.substr(slen - elen, elen) == end );
+		#end
 	}
 
 	/**
@@ -216,9 +228,11 @@ class StringTools {
 	/**
 		Replace all occurences of the string [sub] in the string [s] by the string [by].
 	**/
-	public #if php inline #end static function replace( s : String, sub : String, by : String ) : String {
+	public #if (php || jvm) inline #end static function replace( s : String, sub : String, by : String ) : String {
 		#if php
 		return untyped __call__("str_replace", sub, by, s);
+		#elseif jvm
+		return untyped s.replace(sub, by);
 		#else
 		return s.split(sub).join(by);
 		#end

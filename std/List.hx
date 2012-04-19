@@ -150,6 +150,23 @@ class List<T> {
 		Returns an iterator on the elements of the list.
 	**/
 	public function iterator() : Iterator<T> {
+		#if (jvm || cs)
+		var h = h;
+		return cast {
+			hasNext : function() {
+				return (h != null);
+			},
+			next : function() {
+				{
+					if( h == null )
+						return null;
+					var x = h[0];
+					h = h[1];
+					return x;
+				}
+			}
+		}
+		#else
 		return cast {
 			h : h,
 			hasNext : function() {
@@ -165,6 +182,7 @@ class List<T> {
 				}
 			}
 		}
+		#end
 	}
 
 	/**
