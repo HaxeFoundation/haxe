@@ -26,23 +26,23 @@ open Printf
 open Option
 
 let is_boxed_type t = match follow t with
-  | TInst ({ cl_path = (["jvm";"native";"lang"], "Boolean") }, [])
-  | TInst ({ cl_path = (["jvm";"native";"lang"], "Double") }, [])
-  | TInst ({ cl_path = (["jvm";"native";"lang"], "Integer") }, [])
-  | TInst ({ cl_path = (["jvm";"native";"lang"], "Byte") }, [])
-  | TInst ({ cl_path = (["jvm";"native";"lang"], "Short") }, [])
-  | TInst ({ cl_path = (["jvm";"native";"lang"], "Character") }, [])
-  | TInst ({ cl_path = (["jvm";"native";"lang"], "Float") }, []) -> true
+  | TInst ({ cl_path = (["java";"lang"], "Boolean") }, [])
+  | TInst ({ cl_path = (["java";"lang"], "Double") }, [])
+  | TInst ({ cl_path = (["java";"lang"], "Integer") }, [])
+  | TInst ({ cl_path = (["java";"lang"], "Byte") }, [])
+  | TInst ({ cl_path = (["java";"lang"], "Short") }, [])
+  | TInst ({ cl_path = (["java";"lang"], "Character") }, [])
+  | TInst ({ cl_path = (["java";"lang"], "Float") }, []) -> true
   | _ -> false
 
 let unboxed_type gen t tbyte tshort tchar tfloat = match follow t with
-  | TInst ({ cl_path = (["jvm";"native";"lang"], "Boolean") }, []) -> gen.gcon.basic.tbool
-  | TInst ({ cl_path = (["jvm";"native";"lang"], "Double") }, []) -> gen.gcon.basic.tfloat
-  | TInst ({ cl_path = (["jvm";"native";"lang"], "Integer") }, []) -> gen.gcon.basic.tint
-  | TInst ({ cl_path = (["jvm";"native";"lang"], "Byte") }, []) -> tbyte
-  | TInst ({ cl_path = (["jvm";"native";"lang"], "Short") }, []) -> tshort
-  | TInst ({ cl_path = (["jvm";"native";"lang"], "Character") }, []) -> tchar
-  | TInst ({ cl_path = (["jvm";"native";"lang"], "Float") }, []) -> tfloat
+  | TInst ({ cl_path = (["java";"lang"], "Boolean") }, []) -> gen.gcon.basic.tbool
+  | TInst ({ cl_path = (["java";"lang"], "Double") }, []) -> gen.gcon.basic.tfloat
+  | TInst ({ cl_path = (["java";"lang"], "Integer") }, []) -> gen.gcon.basic.tint
+  | TInst ({ cl_path = (["java";"lang"], "Byte") }, []) -> tbyte
+  | TInst ({ cl_path = (["java";"lang"], "Short") }, []) -> tshort
+  | TInst ({ cl_path = (["java";"lang"], "Character") }, []) -> tchar
+  | TInst ({ cl_path = (["java";"lang"], "Float") }, []) -> tfloat
   | _ -> assert false
 
 let rec t_has_type_param t = match follow t with
@@ -131,7 +131,7 @@ struct
   
   let traverse gen runtime_cl =
     let basic = gen.gcon.basic in
-    let float_cl = get_cl ( get_type gen (["jvm";"native";"lang"], "Double")) in
+    let float_cl = get_cl ( get_type gen (["java";"lang"], "Double")) in
     
     let is_var = alloc_var "__is__" t_dynamic in
       let block = ref [] in
@@ -148,19 +148,19 @@ struct
           { e with eexpr = TBlock(ret) }
         
         (* Math changes *)
-        | TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["jvm";"native";"lang"], "Math") }) ) }, "NaN" ) ->
+        | TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["java";"lang"], "Math") }) ) }, "NaN" ) ->
           mk_static_field_access_infer float_cl "NaN" e.epos []
-        | TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["jvm";"native";"lang"], "Math") }) ) }, "NEGATIVE_INFINITY" ) ->
+        | TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["java";"lang"], "Math") }) ) }, "NEGATIVE_INFINITY" ) ->
           mk_static_field_access_infer float_cl "NEGATIVE_INFINITY" e.epos []
-        | TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["jvm";"native";"lang"], "Math") }) ) }, "POSITIVE_INFINITY" ) ->
+        | TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["java";"lang"], "Math") }) ) }, "POSITIVE_INFINITY" ) ->
           mk_static_field_access_infer float_cl "POSITIVE_INFINITY" e.epos []
-        | TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["jvm";"native";"lang"], "Math") }) ) }, "isNaN" ) ->
+        | TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["java";"lang"], "Math") }) ) }, "isNaN" ) ->
           mk_static_field_access_infer float_cl "isNaN" e.epos []
-        | TCall( { eexpr = TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["jvm";"native";"lang"], "Math") }) ) }, "floor" ) }, _)
-        | TCall( { eexpr = TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["jvm";"native";"lang"], "Math") }) ) }, "round" ) }, _)
-        | TCall( { eexpr = TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["jvm";"native";"lang"], "Math") }) ) }, "ceil" ) }, _) ->
+        | TCall( { eexpr = TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["java";"lang"], "Math") }) ) }, "floor" ) }, _)
+        | TCall( { eexpr = TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["java";"lang"], "Math") }) ) }, "round" ) }, _)
+        | TCall( { eexpr = TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["java";"lang"], "Math") }) ) }, "ceil" ) }, _) ->
           mk_cast basic.tint (Type.map_expr run e)
-        | TCall( ( { eexpr = TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["jvm";"native";"lang"], "Math") }) ) }, "isFinite" ) } as efield ), [v]) ->
+        | TCall( ( { eexpr = TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["java";"lang"], "Math") }) ) }, "isFinite" ) } as efield ), [v]) ->
           { e with eexpr = 
             TUnop(Ast.Not, Ast.Prefix, {
               e with eexpr = TCall( mk_static_field_access_infer float_cl "isInfinite" efield.epos [], [run v] )
@@ -486,11 +486,11 @@ struct
   
   let traverse gen runtime_cl =
     let basic = gen.gcon.basic in
-    let tchar = match ( get_type gen (["jvm"], "Char16") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
-    let tbyte = match ( get_type gen (["jvm"], "Int8") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
-    let tshort = match ( get_type gen (["jvm"], "Int16") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
+    let tchar = match ( get_type gen (["java"], "Char16") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
+    let tbyte = match ( get_type gen (["java"], "Int8") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
+    let tshort = match ( get_type gen (["java"], "Int16") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
     let tsingle = match ( get_type gen ([], "Single") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
-    let bool_cl = get_cl ( get_type gen (["jvm";"native";"lang"], "Boolean")) in
+    let bool_cl = get_cl ( get_type gen (["java";"lang"], "Boolean")) in
     let string_ext = get_cl ( get_type gen (["haxe";"lang"], "StringExt")) in
     
     let is_string t = match follow t with | TInst({ cl_path = ([], "String") }, []) -> true | _ -> false in
@@ -498,7 +498,7 @@ struct
     let rec run e =
       match e.eexpr with 
         (* for new NativeArray<T> issues *)
-        | TNew(({ cl_path = (["jvm"], "NativeArray") } as cl), [t], el) when t_has_type_param t ->
+        | TNew(({ cl_path = (["java"], "NativeArray") } as cl), [t], el) when t_has_type_param t ->
           mk_cast (TInst(cl,[t])) (mk_cast t_dynamic ({ e with eexpr = TNew(cl, [t_empty], List.map run el) }))
         
         (* Std.int() *)
@@ -583,7 +583,7 @@ struct
 end;;
  
 let connecting_string = "?" (* ? see list here http://www.fileformat.info/info/unicode/category/index.htm and here for C# http://msdn.microsoft.com/en-us/library/aa664670.aspx *)
-let default_package = "jvm" (* I'm having this separated as I'm still not happy with having a cs package. Maybe dotnet would be better? *)
+let default_package = "java" (* I'm having this separated as I'm still not happy with having a cs package. Maybe dotnet would be better? *)
 let strict_mode = ref false (* strict mode is so we can check for unexpected information *)
 
 (* reserved c# words *)
@@ -641,7 +641,7 @@ let configure gen =
   *)
   let change_param_type md params =
     match md with
-      | TClassDecl( { cl_path = (["jvm"], "NativeArray") } ) -> params
+      | TClassDecl( { cl_path = (["java"], "NativeArray") } ) -> params
       | _ ->
         match params with
           | [] -> []
@@ -656,9 +656,9 @@ let configure gen =
                   | TInst ({ cl_path = ([],"Int") },[])
                   | TType ({ t_path = [],"Int64" },[])
                   | TType ({ t_path = ["haxe"],"Int64" },[])
-                  | TType ({ t_path = ["jvm"],"Int8" },[])
-                  | TType ({ t_path = ["jvm"],"Int16" },[])
-                  | TType ({ t_path = ["jvm"],"Char16" },[])
+                  | TType ({ t_path = ["java"],"Int8" },[])
+                  | TType ({ t_path = ["java"],"Int16" },[])
+                  | TType ({ t_path = ["java"],"Char16" },[])
                   | TType ({ t_path = [],"Single" },[]) -> basic.tnull f_t
                   (*| TType ({ t_path = [], "Null"*)
                   | _ -> t
@@ -667,7 +667,6 @@ let configure gen =
   
   let rec change_ns ns = match ns with
     | [] -> ["haxe"; "root"]
-    | "jvm" :: "native" :: tl -> "java" :: (change_ns tl)
     | _ -> ns
   in
   
@@ -689,9 +688,9 @@ let configure gen =
       | TInst( { cl_path = (["haxe"], "Int32") }, [] )
       | TInst( { cl_path = (["haxe"], "Int64") }, [] )
       | TType ({ t_path = [],"Int64" },[])
-      | TType ({ t_path = ["jvm"],"Int8" },[])
-      | TType ({ t_path = ["jvm"],"Int16" },[])
-      | TType ({ t_path = ["jvm"],"Char16" },[])
+      | TType ({ t_path = ["java"],"Int8" },[])
+      | TType ({ t_path = ["java"],"Int16" },[])
+      | TType ({ t_path = ["java"],"Char16" },[])
       | TType ({ t_path = [],"Single" },[])
       | TType ({ t_path = [],"Null" },[_]) -> Some t
 			| TInst( { cl_path = ([], "EnumValue") }, _  ) -> Some t_dynamic
@@ -745,17 +744,17 @@ let configure gen =
       | TInst ({ cl_path = ([],"Float") },[]) -> "double"
       | TInst ({ cl_path = ([],"Int") },[]) -> "int"
       | TType ({ t_path = [],"Int64" },[]) -> "long"
-      | TType ({ t_path = ["jvm"],"Int8" },[]) -> "byte"
-      | TType ({ t_path = ["jvm"],"Int16" },[]) -> "short"
-      | TType ({ t_path = ["jvm"],"Char16" },[]) -> "char"
+      | TType ({ t_path = ["java"],"Int8" },[]) -> "byte"
+      | TType ({ t_path = ["java"],"Int16" },[]) -> "short"
+      | TType ({ t_path = ["java"],"Char16" },[]) -> "char"
       | TType ({ t_path = [],"Single" },[]) -> "float"
       | TInst ({ cl_path = ["haxe"],"Int32" },[]) -> "int"
       | TInst ({ cl_path = ["haxe"],"Int64" },[]) -> "long"
       | TInst ({ cl_path = ([], "Dynamic") }, _) -> "java.lang.Object"
-      | TInst({ cl_path = (["jvm"], "NativeArray") }, [param]) ->
+      | TInst({ cl_path = (["java"], "NativeArray") }, [param]) ->
         let rec check_t_s t =
           match real_type t with
-            | TInst({ cl_path = (["jvm"], "NativeArray") }, [param]) ->
+            | TInst({ cl_path = (["java"], "NativeArray") }, [param]) ->
               (check_t_s param) ^ "[]"
             | _ -> t_s (run_follow gen t)
         in
@@ -784,9 +783,9 @@ let configure gen =
       | TType ({ t_path = [],"Int64" },[]) -> "java.lang.Long"
       | TInst ({ cl_path = ["haxe"],"Int64" },[]) -> "java.lang.Long"
       | TInst ({ cl_path = ["haxe"],"Int32" },[]) -> "java.lang.Integer"
-      | TType ({ t_path = ["jvm"],"Int8" },[]) -> "java.lang.Byte"
-      | TType ({ t_path = ["jvm"],"Int16" },[]) -> "java.lang.Short"
-      | TType ({ t_path = ["jvm"],"Char16" },[]) -> "java.lang.Character"
+      | TType ({ t_path = ["java"],"Int8" },[]) -> "java.lang.Byte"
+      | TType ({ t_path = ["java"],"Int16" },[]) -> "java.lang.Short"
+      | TType ({ t_path = ["java"],"Char16" },[]) -> "java.lang.Character"
       | TType ({ t_path = [],"Single" },[]) -> "java.lang.Float"
       | TDynamic _ -> "?"
       | TInst (cl, params) -> t_s (TInst(cl, change_param_type (TClassDecl cl) params))
@@ -920,7 +919,7 @@ let configure gen =
             so we'll just ignore all type parameters, and hope for the best!
           *)
           let rec transform_t t = match gen.gfollow#run_f t with
-            | TInst( ({ cl_path = (["jvm"], "NativeArray") } as narr), [t]) ->
+            | TInst( ({ cl_path = (["java"], "NativeArray") } as narr), [t]) ->
               TInst(narr, [transform_t t])
             | TInst(cl, params) -> TInst(cl, List.map (fun _ -> t_dynamic) params)
             | TEnum(e, params) -> TEnum(e, List.map (fun _ -> t_dynamic) params)
@@ -996,10 +995,10 @@ let configure gen =
             acc + 1
           ) 0 el);
           write w ")"
-        | TNew (({ cl_path = (["jvm"], "NativeArray") } as cl), params, [ size ]) ->
+        | TNew (({ cl_path = (["java"], "NativeArray") } as cl), params, [ size ]) ->
           let rec check_t_s t times =
             match real_type t with
-              | TInst({ cl_path = (["jvm"], "NativeArray") }, [param]) ->
+              | TInst({ cl_path = (["java"], "NativeArray") }, [param]) ->
                 (check_t_s param (times+1))
               | _ -> 
                 print w "new %s[" (t_s (run_follow gen t));
@@ -1508,7 +1507,7 @@ let configure gen =
     match e.eexpr with 
       | TArray(e1, e2) -> 
         ( match follow e1.etype with 
-          | TInst({ cl_path = (["jvm"], "NativeArray") }, _) -> false
+          | TInst({ cl_path = (["java"], "NativeArray") }, _) -> false
           | _ -> true ) 
       | _ -> assert false
   ) "__get" "__set" );
@@ -1611,7 +1610,7 @@ let configure gen =
   
   FilterClosures.configure gen (FilterClosures.traverse gen (fun e1 s -> true) closure_func);
     
-  let base_exception = get_cl (get_type gen (["jvm"; "native"; "lang"], "Throwable")) in
+  let base_exception = get_cl (get_type gen (["java"; "lang"], "Throwable")) in
   let base_exception_t = TInst(base_exception, []) in
   
   let hx_exception = get_cl (get_type gen (["haxe";"lang"], "HaxeException")) in
@@ -1691,7 +1690,7 @@ let configure gen =
       | _ -> assert false
   ) true );
 
-  let native_arr_cl = get_cl ( get_type gen (["jvm"], "NativeArray") ) in
+  let native_arr_cl = get_cl ( get_type gen (["java"], "NativeArray") ) in
   
   ExpressionUnwrap.configure gen (ExpressionUnwrap.traverse gen (fun e -> Some { eexpr = TVars([mk_temp gen "expr" e.etype, Some e]); etype = gen.gcon.basic.tvoid; epos = e.epos }));
   

@@ -112,7 +112,7 @@ class StringTools {
 	**/
 	public static #if jvm inline #end function endsWith( s : String, end : String ) {
 		#if jvm
-		return untyped s.endsWith(start);
+		return untyped s.endsWith(end);
 		#else
 		var elen = end.length;
 		var slen = s.length;
