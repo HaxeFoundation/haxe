@@ -73,7 +73,7 @@ class Bytes {
 		b = untyped __php__("substr($this->b, 0, $pos) . substr($src->b, $srcpos, $len) . substr($this->b, $pos+$len)"); //__call__("substr", b, 0, pos)+__call__("substr", src.b, srcpos, len)+__call__("substr", b, pos+len);
 		#elseif flash9
 		b.position = pos;
-		b.writeBytes(src.b,srcpos,len);
+		if( len > 0 ) b.writeBytes(src.b,srcpos,len);
 		#else
 		var b1 = b;
 		var b2 = src.b;
