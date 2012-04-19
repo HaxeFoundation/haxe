@@ -3509,9 +3509,20 @@ struct
           let is_float = match follow fun_ret_type with | TInst({ cl_path = ([], "Float") },[]) -> true | _ -> false in
           match cur_arity with
             | -1 ->
+              let dynargs = api (-1) (t_dynamic) None in
+              let switch_cond = { eexpr = TField(dynargs, "length"); etype = basic.tint; epos = pos } in
+              let switch_cond = {
+                eexpr = TIf(
+                  { eexpr = TBinop(Ast.OpEq, dynargs, null dynargs.etype pos); etype = basic.tbool; epos = pos; },
+                  { eexpr = TConst(TInt(Int32.zero)); etype = basic.tint; epos = pos },
+                  Some switch_cond);
+                etype = basic.tint;
+                epos = pos;
+              } in
+            
               let switch = 
               {
-                eexpr = TSwitch( { eexpr = TField(api (-1) (t_dynamic) None, "length"); etype = basic.tint; epos = pos }, 
+                eexpr = TSwitch( switch_cond, 
                   loop_cases api !max_arity [], 
                   Some({ eexpr = TThrow(mk_string "Too many arguments"); etype = basic.tvoid; epos = pos; }) );
                 etype = basic.tvoid;
@@ -8191,8 +8202,8 @@ struct
   
   let traverse gen should_warn =
     
-    let do_warn pos =
-      if should_warn then gen.gcon.warning "Unreacheable code" pos else ()
+    let do_warn =
+      if should_warn then gen.gcon.warning "Unreacheable code" else (fun pos -> ())
     in
     
     let return_loop expr kind =
