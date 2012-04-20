@@ -59,7 +59,10 @@ class TestInt32 extends Test {
 		eq( i(Int32.mul(i32(5),i32(100))), 500 );
 
 		// overflow
-		eq( i(Int32.mul(i32(160427),i32(160427))), 0xFE08BE39 );
+		eq( i(Int32.mul(i32(160427), i32(160427))), 0xFE08BE39 );
+		
+		// float overflow
+		eq( i(Int32.mul(f(0x811C,0x9DAE), i32(16777619))), -301188886 );
 
 		// signed divide and modulo
 		eq( i(Int32.div(i32(0x3E08BE39),i32(16))), 0x03E08BE3 );

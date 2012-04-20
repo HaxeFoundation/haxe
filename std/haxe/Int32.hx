@@ -64,7 +64,11 @@ class Int32 {
 	}
 
 	public static inline function mul( a : Int32, b : Int32 ) : Int32 {
+		#if (flash8 || php || js)
+		return add(cast ((cast a) * ((cast b) & 0xFFFF)),clamp(cast ((cast a) * ((cast b) >>> 16) << 16)));
+		#else
 		return clamp(cast ((cast a) * (cast b)));
+		#end
 	}
 
 	public static inline function div( a : Int32, b : Int32 ) : Int32 {
