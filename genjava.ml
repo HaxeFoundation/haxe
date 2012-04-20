@@ -232,7 +232,7 @@ struct
 
   let name = "java_specific"
   
-  let priority = solve_deps name [ DAfter ExpressionUnwrap.priority; DAfter ObjectDeclMap.priority; DAfter ArrayDeclSynf.priority ]
+  let priority = solve_deps name [ DAfter ExpressionUnwrap.priority; DAfter ObjectDeclMap.priority; DAfter ArrayDeclSynf.priority; DBefore IntDivisionSynf.priority ]
   
   let java_hash s =
     let h = ref Int32.zero in
@@ -1693,6 +1693,8 @@ let configure gen =
   let native_arr_cl = get_cl ( get_type gen (["java"], "NativeArray") ) in
   
   ExpressionUnwrap.configure gen (ExpressionUnwrap.traverse gen (fun e -> Some { eexpr = TVars([mk_temp gen "expr" e.etype, Some e]); etype = gen.gcon.basic.tvoid; epos = e.epos }));
+  
+  IntDivisionSynf.configure gen (IntDivisionSynf.default_implementation gen true);
   
   UnreachableCodeEliminationSynf.configure gen (UnreachableCodeEliminationSynf.traverse gen true);
   
