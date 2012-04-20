@@ -166,7 +166,7 @@ let rec unify_call_params ctx name el args r p inline =
 			let e = type_expr ctx infos true in
 			(e, true)
 		else
-			(null (if ctx.com.platform = Cpp then ctx.t.tnull t else t) p, true)
+			(null (ctx.t.tnull t) p, true)
 	in
 	let rec loop acc l l2 skip =
 		match l , l2 with
