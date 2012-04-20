@@ -36,20 +36,6 @@ enum XmlType {
 	public static var Prolog(default,null) : XmlType;
 	public static var Document(default,null) : XmlType;
 
-	static var enode = ~/^<([a-zA-Z0-9:._-]+)/;
-	static var ecdata = ~/^<!\[CDATA\[/i;
-	static var edoctype = ~/^<!DOCTYPE /i;
-	static var eend = ~/^<\/([a-zA-Z0-9:._-]+)>/;
-	static var epcdata = ~/^[^<]+/;
-	static var ecomment = ~/^<!--/;
-	static var eprolog = ~/^<\?[^\?]+\?>/;
-
-	static var eattribute = ~/^\s*([a-zA-Z0-9:_-]+)\s*=\s*(["'])([^\2]*?)\2/; //"
-	static var eclose = ~/^[ \r\n\t]*(>|(\/>))/;
-	static var ecdata_end = ~/\]\]>/;
-	static var edoctype_elt = ~/[\[|\]>]/;
-	static var ecomment_end = ~/-->/;
-
 	public var nodeType(default,null) : XmlType;
 	public var nodeName(getNodeName,setNodeName) : String;
 	public var nodeValue(getNodeValue,setNodeValue) : String;
@@ -62,103 +48,7 @@ enum XmlType {
 	var _parent : Xml;
 
 	public static function parse( str : String ) : Xml {
-		var rules = [enode,epcdata,eend,ecdata,edoctype,ecomment,eprolog];
-		var nrules = rules.length;
-		var current = Xml.createDocument();
-
-		var stack = new List();
-		while( str.length > 0 ) {
-			var i = 0;
-			while( i < nrules ) {
-				var r = rules[i];
-				if( r.match(str) ) {
-					switch( i ) {
-					case 0: // Node
-						var x = Xml.createElement(r.matched(1));
-						current.addChild(x);
-						str = r.matchedRight();
-						while( eattribute.match(str) ) {
-							x.set(eattribute.matched(1),eattribute.matched(3));
-							str = eattribute.matchedRight();
-						}
-						if( !eclose.match(str) ) {
-							i = nrules;
-							break;
-						}
-						if( eclose.matched(1) == ">" ) {
-							stack.push(current);
-							current = x;
-						}
-						str = eclose.matchedRight();
-					case 1: // PCData
-						var x = Xml.createPCData(r.matched(0));
-						current.addChild(x);
-						str = r.matchedRight();
-					case 2: // End Node
-						untyped if( current._children != null && current._children.length == 0 ) {
-							var e = Xml.createPCData("");
-							current.addChild(e);
-						}
-						untyped if( r.matched(1) != current._nodeName || stack.isEmpty() ) {
-							i = nrules;
-							break;
-						}
-						current = stack.pop();
-						str = r.matchedRight();
-					case 3: // CData
-						str = r.matchedRight();
-						if( !ecdata_end.match(str) )
-							throw "End of CDATA section not found";
-						var x = Xml.createCData(ecdata_end.matchedLeft());
-						current.addChild(x);
-						str = ecdata_end.matchedRight();
-					case 4: // DocType
-						var pos = 0;
-						var count = 0;
-						var old = str;
-						while( true ) {
-							if( !edoctype_elt.match(str) )
-								throw "End of DOCTYPE section not found";
-							var p = edoctype_elt.matchedPos();
-							pos += p.pos + p.len;
-							str = edoctype_elt.matchedRight();
-							switch( edoctype_elt.matched(0) ) {
-							case "[": count++;
-							case "]": count--; if( count < 0 ) throw "Invalid ] found in DOCTYPE declaration";
-							default:
-								if( count == 0 )
-									break;
-							}
-						}
-						var x = Xml.createDocType(old.substr(10,pos-11));
-						current.addChild(x);
-					case 5: // Comment
-						if( !ecomment_end.match(str) )
-							throw "Unclosed Comment";
-						var p = ecomment_end.matchedPos();
-						var x = Xml.createComment(str.substr(4,p.pos+p.len-7));
-						current.addChild(x);
-						str = ecomment_end.matchedRight();
-					case 6: // Prolog
-						var prolog = r.matched(0);
-						var x = Xml.createProlog(prolog.substr(2,prolog.length - 4));
-						current.addChild(x);
-						str = r.matchedRight();
-					}
-					break;
-				}
-				i += 1;
-			}
-			if( i == nrules ) {
-				if( str.length > 10 )
-					throw ("Xml parse error : Unexpected "+str.substr(0,10)+"...");
-				else
-					throw ("Xml parse error : Unexpected "+str);
-			}
-		}
-		if( !stack.isEmpty() )
-			throw "Xml parse error : Unclosed "+stack.last().nodeName;
-		untyped return current;
+		return haxe.xml.Parser.parse(str);
 	}
 
 	private function new() : Void {
