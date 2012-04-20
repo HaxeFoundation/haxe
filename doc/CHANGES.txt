@@ -6,6 +6,7 @@
 	flash : fixed haxe.io.Bytes.blit when len=0
 	js/php/flash8 : fixed haxe.Int32.mul overflow on 52 bits
 	js : forbid static 'length' (issue since object is a Function)
+	all : does not allow overriding var/prop
 
 2012-04-14: 2.09
 	all : optimized const == const and const != const (with different const types)
