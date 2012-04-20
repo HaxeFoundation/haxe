@@ -7,6 +7,7 @@
 	js/php/flash8 : fixed haxe.Int32.mul overflow on 52 bits
 	js : forbid static 'length' (issue since object is a Function)
 	all : does not allow overriding var/prop
+	flash : removed wrapping for Xml nodes, use instead specific compare when comparing two typed nodes
 
 2012-04-14: 2.09
 	all : optimized const == const and const != const (with different const types)

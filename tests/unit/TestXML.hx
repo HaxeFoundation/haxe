@@ -13,12 +13,15 @@ class TestXML extends Test {
 	function testBasic() {
 		var x = Xml.parse('<a href="hello">World<b/></a>');
 
+		t( x.firstChild() == x.firstChild() );
+		
 		eq( x.nodeType, Xml.Document );
 		checkExc(x);
 
 		x = x.firstChild();
 		eq( x.nodeType, Xml.Element );
 
+		
 		// nodeName
 		eq( x.nodeName, "a" );
 		x.nodeName = "b";

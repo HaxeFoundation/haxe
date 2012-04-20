@@ -970,7 +970,7 @@ let rec gen_expr_content ctx retval e =
 		getvar ctx (gen_access ctx e Read);
 		coerce ctx (classify ctx e.etype)
 	| TBinop (op,e1,e2) ->
-		gen_binop ctx retval op e1 e2 e.etype
+		gen_binop ctx retval op e1 e2 e.etype e.epos
 	| TCall (f,el) ->
 		gen_call ctx retval f el e.etype
 	| TNew ({ cl_path = [],"Array" },_,[]) ->
@@ -1511,7 +1511,7 @@ and check_binop ctx e1 e2 =
 	| _ -> false) in
 	if invalid then error "Comparison of Int and UInt might lead to unexpected results" (punion e1.epos e2.epos);
 
-and gen_binop ctx retval op e1 e2 t =
+and gen_binop ctx retval op e1 e2 t p =
 	let write_op op =
 		let iop = (match op with
 			| OpAdd -> Some A3OIAdd
@@ -1553,6 +1553,16 @@ and gen_binop ctx retval op e1 e2 t =
 		gen_expr ctx true e2;
 		write ctx (HOp o)
 	in
+	let gen_eq() =
+		match e1.eexpr, e2.eexpr with
+		| TConst TNull, _  | _ , TConst TNull -> gen_op A3OEq
+		| _ ->
+		match follow e1.etype, follow e2.etype with		
+		| TInst ({ cl_path = [],"Xml" } as c,_) , _ | _ , TInst ({ cl_path = [],"Xml" } as c,_) ->
+			gen_expr ctx true (mk (TCall (mk (TField (mk (TTypeExpr (TClassDecl c)) t_dynamic p,"compare")) t_dynamic p,[e1;e2])) ctx.com.basic.tbool p);
+		| _ ->
+			gen_op A3OEq
+	in
 	match op with
 	| OpAssign ->
 		let acc = gen_access ctx e1 Write in
@@ -1587,9 +1597,9 @@ and gen_binop ctx retval op e1 e2 t =
 		gen_expr ctx true e2;
 		write_op op
 	| OpEq ->
-		gen_op A3OEq
+		gen_eq()
 	| OpNotEq ->
-		gen_op A3OEq;
+		gen_eq();
 		write ctx (HOp A3ONot)
 	| OpGt ->
 		gen_op A3OGt
