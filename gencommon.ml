@@ -1083,7 +1083,14 @@ let field_access gen (t:t) (field:string) : (tfield_access) =
                 let cf = PMap.find field cl.cl_fields in
                 (* found *)
                 (* get actual type *)
-                let actual_t = List.fold_left (fun t (cl,params) -> apply_params cl.cl_types (gen.greal_type_param (TClassDecl cl) params) t) cf.cf_type acc in
+                let get_real_t = match cf.cf_kind with
+                  | Var _ -> (fun t -> gen.greal_type t)
+                  | _ -> (fun t -> 
+                    let args, ret = get_fun t in
+                    TFun(List.map (fun (n,o,t) -> (n,o,gen.greal_type t)) args, gen.greal_type ret)
+                  )
+                in
+                let actual_t = List.fold_left (fun t (cl,params) -> apply_params cl.cl_types (gen.greal_type_param (TClassDecl cl) params) (get_real_t t)) cf.cf_type acc in
                 Hashtbl.add gen.greal_field_types (orig_cl.cl_path, hashtbl_field) (Some (cf, actual_t));
                 FClassField(orig_cl, orig_params, cf, false, actual_t)
               with | Not_found ->
