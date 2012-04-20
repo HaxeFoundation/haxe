@@ -52,15 +52,15 @@
 		length++;
 	}
 
-	public function first() : T {
+	public function first() : Null<T> {
 		return if( h == null ) null else h[0];
 	}
 
-	public function last() : T {
+	public function last() : Null<T> {
 		return if( q == null ) null else q[0];
 	}
 
-	public function pop() : T {
+	public function pop() : Null<T> {
 		if( h == null )
 			return null;
 		var x = h[0];

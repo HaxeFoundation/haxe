@@ -77,7 +77,7 @@ class List<T> {
 		Returns the first element of the list, or null
 		if the list is empty.
 	**/
-	public function first() : T {
+	public function first() : Null<T> {
 		return if( h == null ) null else h[0];
 	}
 
@@ -85,7 +85,7 @@ class List<T> {
 		Returns the last element of the list, or null
 		if the list is empty.
 	**/
-	public function last() : T {
+	public function last() : Null<T> {
 		return if( q == null ) null else q[0];
 	}
 
@@ -95,7 +95,7 @@ class List<T> {
 		returns it or simply returns null if the
 		list is empty.
 	**/
-	public function pop() : T {
+	public function pop() : Null<T> {
 		if( h == null )
 			return null;
 		var x = h[0];
