@@ -566,10 +566,7 @@ let gen_constant ctx c t p =
 		write ctx (if b then HTrue else HFalse);
 	| TNull ->
 		write ctx HNull;
-		(match classify ctx t with
-		| KInt | KBool | KUInt | KFloat ->
-			error ("In Flash9, null can't be used as basic type " ^ s_type (print_context()) t) p
-		| x -> coerce ctx x)
+		coerce ctx (classify ctx t)
 	| TThis ->
 		write ctx HThis
 	| TSuper ->

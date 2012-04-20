@@ -525,27 +525,27 @@ let rec follow t =
 
 let rec is_nullable = function
 	| TMono r ->
-		(match !r with None -> true | Some t -> is_nullable t)
+		(match !r with None -> false | Some t -> is_nullable t)
 	| TType ({ t_path = ([],"Null") },[_]) ->
-		false
+		true
 	| TLazy f ->
 		is_nullable (!f())
 	| TType (t,tl) ->
 		is_nullable (apply_params t.t_types tl t.t_type)
 	| TFun _ ->
-		true
+		false
 	| TInst ({ cl_path = (["haxe"],"Int32") },[])
 	| TInst ({ cl_path = ([],"Int") },[])
 	| TInst ({ cl_path = ([],"Float") },[])
-	| TEnum ({ e_path = ([],"Bool") },[]) -> true
+	| TEnum ({ e_path = ([],"Bool") },[]) -> false
 	| _ ->
-		false
+		true
 
 let rec is_null = function
 	| TMono r ->
 		(match !r with None -> false | Some t -> is_null t)
 	| TType ({ t_path = ([],"Null") },[t]) ->
-		is_nullable t
+		not (is_nullable t)
 	| TLazy f ->
 		is_null (!f())
 	| TType (t,tl) ->

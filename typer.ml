@@ -166,7 +166,7 @@ let rec unify_call_params ctx name el args r p inline =
 			let e = type_expr ctx infos true in
 			(e, true)
 		else
-			(null t p, true)
+			(null (if ctx.com.platform = Cpp then ctx.t.tnull t else t) p, true)
 	in
 	let rec loop acc l l2 skip =
 		match l , l2 with
@@ -2701,11 +2701,7 @@ let rec create com =
 		| TTypeDecl td ->
 			(match snd td.t_path with
 			| "Null" ->
-				let f9 = platform com Flash in
-				let cpp = platform com Cpp in
-				let cs = platform com Cs in
-				let java = platform com Java in
-				ctx.t.tnull <- if not (f9 || cpp || cs || java) then (fun t -> t) else (fun t -> if is_nullable t then TType (td,[t]) else t);
+				ctx.t.tnull <- if not (is_static_platform com) then (fun t -> t) else (fun t -> if not (is_nullable t) then TType (td,[t]) else t);
 			| _ -> ());
 	) ctx.g.std.m_types;
 	let m = Typeload.load_module ctx ([],"String") null_pos in

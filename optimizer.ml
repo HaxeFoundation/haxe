@@ -125,7 +125,7 @@ let rec type_inline ctx cf f ethis params tret p force =
 				if we pass a Null<T> var to an inlined method that needs a T.
 				we need to force a local var to be created on some platforms.
 			*)
-			if is_nullable v.v_type && is_null e.etype && (match ctx.com.platform with Flash | Cpp -> true | _ -> false) then (local v).i_write <- true;
+			if is_static_platform ctx.com && not (is_nullable v.v_type) && is_null e.etype then (local v).i_write <- true;
 			(match e.eexpr, opt with
 			| TConst TNull , Some c -> mk (TConst c) v.v_type e.epos
 			| _ -> e) :: loop pl al
@@ -514,6 +514,13 @@ let sanitize_expr com e =
 		| _ -> false
 	in
 	match e.eexpr with
+	| TConst TNull ->
+		if is_static_platform com && not (is_nullable e.etype) then 
+			(match follow e.etype with
+			| TMono _ -> () (* in these cases the null will cast to default value *)
+			| TFun _ -> () (* this is a bit a particular case, maybe flash-specific actually *)
+			| _ -> error ("On static platforms, null can't be used as basic type " ^ s_type (print_context()) e.etype) e.epos);
+		e
 	| TBinop (op,e1,e2) ->
 		let swap op1 op2 =
 			let p1, left1 = standard_precedence op1 in

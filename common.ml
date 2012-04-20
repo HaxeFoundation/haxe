@@ -224,6 +224,11 @@ let error msg p = raise (Abort (msg,p))
 
 let platform ctx p = ctx.platform = p
 
+let is_static_platform ctx =
+	match ctx.platform with
+	| Cpp | Flash | Cs | Java -> true
+	| _ -> false
+
 let add_filter ctx f =
 	ctx.filters <- f :: ctx.filters
 
