@@ -9,7 +9,10 @@ package haxe.lang;
  */
 @:abstract @:nativegen @:native("haxe.lang.Function") private class Function 
 {
-	
+	function new(arity:Int, type:Int)
+	{
+		
+	}
 }
 
 @:nativegen @:native("haxe.lang.Closure") private class Closure extends Function
@@ -17,8 +20,44 @@ package haxe.lang;
 	
 }
 
-/*
-@:nativegen @:native("haxe.lang.VarArgsFunction") private class VarArgsFunction extends Function
+@:nativegen @:native("haxe.lang.VarArgsBase") private class VarArgsBase extends Function
 {
+	public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
+	{
+		throw "Abstract implementation";
+	}
+}
+
+@:nativegen class VarArgsFunction extends VarArgsBase
+{
+	private var fun:Array<Dynamic>->Dynamic;
 	
-}*/
+	public function new(fun)
+	{
+		super(-1, -1);
+		this.fun = fun;
+	}
+	
+	override public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic
+	{
+		return fun(dynArgs);
+	}
+}
+
+@:nativegen class NativeMethodFunction extends VarArgsBase
+{
+	private var obj:Dynamic;
+	private var field:String;
+	
+	public function new(obj, field)
+	{
+		super(-1, -1);
+		this.obj = obj;
+		this.field = field;
+	}
+	
+	override public function __hx_invokeDynamic(dynArgs:Array<Dynamic>):Dynamic 
+	{
+		return untyped __java__("haxe.lang.Runtime.slowCallField(this.obj, this.field, dynArgs)");
+	}
+}

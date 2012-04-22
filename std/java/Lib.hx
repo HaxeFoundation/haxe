@@ -6,7 +6,8 @@ import java.lang.Class;
  * @author waneck
  */
 
-class Lib 
+//we cannot use the java package for custom classes, so we're redefining it as "haxe.java.Lib"
+@:native('haxe.java.Lib') class Lib 
 {
 
 	public static function toNativeReadOnlyArray<T>(arr:Array<T>, equalLengthRequired:Bool):NativeArray<T>

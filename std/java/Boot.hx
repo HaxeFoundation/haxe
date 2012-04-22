@@ -21,7 +21,7 @@ import haxe.lang.FieldLookup;
  * @author waneck
  */
 
-class Boot 
+extern class Boot 
 {
 
 	

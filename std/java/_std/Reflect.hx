@@ -1,3 +1,5 @@
+import haxe.lang.Function;
+import java.Boot;
 /*
  * Copyright (c) 2005, The haXe Project Contributors
  * All rights reserved.
@@ -33,12 +35,10 @@
 		Tells if an object has a field set. This doesn't take into account the object prototype (class methods).
 	**/
 	@:functionBody('
-		//TODO make slow path
 		if (o instanceof haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) o).__hx_getField(field, false, false, true) != haxe.lang.Runtime.undefined;
 		
-		return false;
-	
+		return haxe.lang.Runtime.slowHasField(o, field);
 	')
 	public static function hasField( o : Dynamic, field : String ) : Bool
 	{
@@ -49,12 +49,10 @@
 		Returns the field of an object, or null if [o] is not an object or doesn't have this field.
 	**/
 	@:functionBody('
-		//TODO make slow path
 		if (o instanceof haxe.lang.IHxObject)
 			return ((haxe.lang.IHxObject) o).__hx_getField(field, false, false, false);
 		
 		return haxe.lang.Runtime.slowGetField(o, field, false);
-	
 	')
 	public static function field( o : Dynamic, field : String ) : Dynamic
 	{
@@ -66,7 +64,6 @@
 		Set an object field value.
 	**/
 	@:functionBody('
-		//TODO make slow path
 		if (o instanceof haxe.lang.IHxObject)
 			((haxe.lang.IHxObject) o).__hx_setField(field, false, value);
 		
@@ -114,7 +111,26 @@
 			((haxe.lang.IHxObject) o).__hx_getFields(ret, false);
 			return ret;
 		} else {
-			return null;
+			Array<String> ret = new Array<String>();
+			
+			if (o instanceof java.lang.Class)
+			{
+				Class<?> cl = (java.lang.Class) o;
+				
+				for(java.lang.reflect.Field f : cl.getFields())
+				{
+					if (java.lang.reflect.Modifier.isStatic(f.getModifiers()))
+						ret.push(f.getName());
+				}
+				
+				for(java.lang.reflect.Method m : cl.getMethods())
+				{
+					if (java.lang.reflect.Modifier.isStatic(m.getModifiers()))
+						ret.push(m.getName());
+				}
+			}
+			
+			return ret;
 		}
 	')
 	public static function fields( o : Dynamic ) : Array<String>
@@ -207,7 +223,7 @@
 	**/
 	public static function makeVarArgs( f : Array<Dynamic> -> Dynamic ) : Dynamic
 	{
-		return null;
+		return new VarArgsFunction(f);
 	}
 	
 	

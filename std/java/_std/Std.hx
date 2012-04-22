@@ -50,7 +50,7 @@ import haxe.lang.Exceptions;
 	}
 
 	public static inline function string( s : Dynamic ) : String {
-		return cast s;
+		return s + "";
 	}
 
 	public static inline function int( x : Float ) : Int {

@@ -6984,6 +6984,64 @@ struct
           | _ -> ()
     ) gen.gcon.types
     
+  let implement_varargs_cl ctx cl =
+    let pos = cl.cl_pos in
+    let gen = ctx.rcf_gen in
+    let basic = gen.gcon.basic in 
+    
+    let this_t = TInst(cl, List.map snd cl.cl_types) in
+    let this = { eexpr = TConst(TThis); etype = this_t ; epos = pos } in
+    let mk_this field t = { eexpr = TField(this, field); etype = t; epos = pos } in
+    
+    let invokedyn = gen.gmk_internal_name "hx" "invokeDynamic" in
+    let idyn_t = TFun([gen.gmk_internal_name "fn" "dynargs", false, basic.tarray t_dynamic], t_dynamic) in
+    let this_idyn = mk_this invokedyn idyn_t in
+    
+    let map_fn arity ret vars api =
+      
+      let rec loop i acc =
+        if i < 0 then 
+          acc
+        else
+          let obj = api i t_dynamic None in
+          loop (i - 1) (obj :: acc)
+      in
+      
+      let call_arg = if arity = (-1) then 
+        api (-1) t_dynamic None
+      else if arity = 0 then
+        null (basic.tarray t_empty) pos
+      else
+        { eexpr = TArrayDecl(loop (arity - 1) []); etype = basic.tarray t_empty; epos = pos }
+      in
+      
+      let expr = {
+        eexpr = TCall(
+          this_idyn, 
+          [ call_arg ]
+        );
+        etype = t_dynamic;
+        epos = pos
+      } in
+      
+      let expr = match follow ret with
+        | TInst({ cl_path = ([], "Float") }, []) -> mk_cast ret expr
+        | _ -> expr
+      in
+      
+      [], mk_return expr
+    in
+    
+    let all_cfs = List.filter (fun cf -> cf.cf_name <> "new" && cf.cf_name <> (invokedyn) && match cf.cf_kind with Method _ -> true | _ -> false) (ctx.rcf_ft.map_base_classfields cl true map_fn) in
+    
+    cl.cl_ordered_fields <- cl.cl_ordered_fields @ all_cfs;
+    List.iter (fun cf -> 
+      cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields
+    ) all_cfs;
+    
+    List.iter (fun cf ->
+      cl.cl_overrides <- cf.cf_name :: cl.cl_overrides
+    ) cl.cl_ordered_fields
   
   let implement_closure_cl ctx cl =
     let pos = cl.cl_pos in
@@ -7017,6 +7075,8 @@ struct
       
       let call_arg = if arity = (-1) then 
         api (-1) t_dynamic None
+      else if arity = 0 then
+        null (basic.tarray t_empty) pos
       else
         { eexpr = TArrayDecl(loop (arity - 1) []); etype = basic.tarray t_empty; epos = pos }
       in

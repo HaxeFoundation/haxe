@@ -1494,6 +1494,7 @@ let configure gen =
   
   let closure_func = ReflectionCFs.implement_closure_cl rcf_ctx ( get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Closure")) ) in
   
+  ReflectionCFs.implement_varargs_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"], "VarArgsBase")) );
   
   ReflectionCFs.configure rcf_ctx;
   

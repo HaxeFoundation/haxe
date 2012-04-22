@@ -273,6 +273,8 @@ class StringTools {
 		return s.cca(index);
 		#elseif flash
 		return s["cca"](index);
+		#elseif java
+		return s.charCodeAt(index);
 		#else
 		return s.cca(index);
 		#end
