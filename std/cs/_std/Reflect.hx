@@ -91,7 +91,7 @@
 	**/
 	public static function isFunction( f : Dynamic ) : Bool
 	{
-		return null;
+		return false;
 	}
 
 	/**

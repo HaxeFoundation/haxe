@@ -71,7 +71,7 @@ import haxe.lang.Exceptions;
 			}
 	')
 	public static function parseFloat( x : String ) : Float {
-		return null;
+		return 0.0;
 	}
 
 	public static function random( x : Int ) : Int {

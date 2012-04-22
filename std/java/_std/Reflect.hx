@@ -130,7 +130,7 @@
 	')
 	public static function isFunction( f : Dynamic ) : Bool
 	{
-		return null;
+		return false;
 	}
 
 	/**
@@ -141,7 +141,7 @@
 	')
 	public static function compare<T>( a : T, b : T ) : Int
 	{
-		return null;
+		return 0;
 	}
 
 	/**
