@@ -1744,4 +1744,6 @@ let generate con =
   ] in
   List.iter (fun cf -> gen.gbase_class_fields <- PMap.add cf.cf_name cf gen.gbase_class_fields) basic_fns;
   
-  configure gen
+  try
+    configure gen
+  with | TypeNotFound path -> con.error ("Error. Module '" ^ (path_s path) ^ "' is required and was not included in build.")  Ast.null_pos
