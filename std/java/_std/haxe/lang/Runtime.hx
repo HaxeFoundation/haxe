@@ -238,6 +238,7 @@ package haxe.lang;
 		}
 		
 		java.lang.reflect.Field f = cl.getField(field);
+		f.setAccessible(true);
 		return f.get(obj);
 	} catch (Throwable t)
 	{
@@ -280,6 +281,9 @@ package haxe.lang;
 		
 		try {
 			java.lang.reflect.Field f = cl.getField(field);
+			f.setAccessible(true);
+			
+			//FIXME we must evaluate if field to be set receives either int or double
 			if (isInt(value))
 			{
 				f.setInt(obj, toInt(value));
@@ -414,6 +418,7 @@ package haxe.lang;
 				}
 			}
 			
+			found.setAccessible(true);
 			return found.invoke(obj, objs);
 		} catch(Throwable t) {
 			throw HaxeException.wrap(t);
