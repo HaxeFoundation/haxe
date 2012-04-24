@@ -915,7 +915,15 @@ let init_class ctx c p herits fields =
 							r := (fun() -> t);
 							if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ name);
 							mark_used cf;
-							cf.cf_expr <- Some (type_static_var ctx t e p);
+							let e = type_static_var ctx t e p in
+							let e = (if inline then 
+								let e = ctx.g.do_optimize ctx e in
+								(match e.eexpr with
+								| TConst _ -> ()
+								| _ -> display_error ctx "Inline variable must be a constant value" p);
+								e
+							else e) in
+							cf.cf_expr <- Some e;
 							cf.cf_type <- t;
 						end;
 						t
