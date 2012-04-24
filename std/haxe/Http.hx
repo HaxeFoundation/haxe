@@ -499,18 +499,23 @@ class Http {
 		headers.pop();
 		responseHeaders = new Hash();
 		var size = null;
+		var chunked = false;
 		for( hline in headers ) {
 			var a = hline.split(": ");
 			var hname = a.shift();
 			var hval = if( a.length == 1 ) a[0] else a.join(": ");
-			responseHeaders.set(hname,hval);
-			if( hname.toLowerCase() == "content-length" )
-				size = Std.parseInt(hval);
+			responseHeaders.set(hname, hval);
+			switch(hname.toLowerCase())
+			{
+				case "content-length":
+					size = Std.parseInt(hval);
+				case "transfer-encoding":
+					chunked = (hval.toLowerCase() == "chunked");
+			}
 		}
 
 		onStatus(status);
 
-		var chunked = responseHeaders.get("Transfer-Encoding") == "chunked";
 		var chunk_re = ~/^([0-9A-Fa-f]+)[ ]*\r\n/m;
 		chunk_size = null;
 		chunk_buf = null;
