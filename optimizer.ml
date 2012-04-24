@@ -45,6 +45,17 @@ let api_inline ctx c field params p =
 	| ([],"Type"),"enumIndex",[{ eexpr = TCall({ eexpr = TEnumField (en,f) },pl) }] when List.for_all (fun e -> not (has_side_effect e)) pl ->
 		let c = (try PMap.find f en.e_constrs with Not_found -> assert false) in
 		Some (mk (TConst (TInt (Int32.of_int c.ef_index))) ctx.t.tint p)
+	| ([],"Std"),"int",[{ eexpr = TConst (TInt _) } as e] ->
+		Some { e with epos = p }
+	| ([],"Std"),"int",[{ eexpr = TConst (TFloat f) }] ->
+		let f = float_of_string f in
+		(match classify_float f with
+		| FP_infinite | FP_nan ->
+			None
+		| _ when f <= Int32.to_float Int32.min_int -. 1. || f >= Int32.to_float Int32.max_int +. 1. ->
+			None (* out range, keep platform-specific behavior *)
+		| _ ->
+			Some { eexpr = TConst (TInt (Int32.of_float f)); etype = ctx.t.tint; epos = p })
 	| _ ->
 		None
 
