@@ -795,7 +795,8 @@ and parse_macro_cond allow_op s =
 	| [< '(Kwd k,p) >] ->
 		parse_macro_ident allow_op (s_keyword k) p s
 	| [< '(POpen, p1); _,e = parse_macro_cond true; '(PClose, p2) >] ->
-		None, (EParenthesis e,punion p1 p2)
+		let e = (EParenthesis e,punion p1 p2) in 
+		if allow_op then parse_macro_op e s else None, e
 	| [< '(Unop op,p); tk, e = parse_macro_cond allow_op >] ->
 		tk, make_unop op e p
 
@@ -803,14 +804,17 @@ and parse_macro_ident allow_op t p s =
 	let e = (EConst (Ident t),p) in
 	if not allow_op then
 		None, e
-	else match Stream.peek s with
-		| Some (Binop op,_) ->
-			Stream.junk s;
-			let tk, e2 = (try parse_macro_cond true s with Stream.Failure -> serror()) in
-			tk, make_binop op e e2
-		| tk ->
-			tk, e
+	else 
+		parse_macro_op e s
 
+and parse_macro_op e s =
+	match Stream.peek s with
+	| Some (Binop op,_) ->
+		Stream.junk s;
+		let tk, e2 = (try parse_macro_cond true s with Stream.Failure -> serror()) in
+		tk, make_binop op e e2
+	| tk ->
+		tk, e
 
 and toplevel_expr s =
 	try
