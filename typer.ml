@@ -572,6 +572,13 @@ let rec type_field ctx e i p mode =
 			loop_dyn c params
 		with Not_found ->
 			if PMap.mem i c.cl_statics then error ("Cannot access static field " ^ i ^ " from a class instance") p;
+			if ctx.com.display && i = "iterator" && c.cl_path = (["flash"],"Vector") then begin
+				let it = TAnon {
+					a_fields = PMap.add "next" (mk_field "next" (TFun([],List.hd params)) p) PMap.empty;
+					a_status = ref Closed;
+				} in
+				AKExpr (mk (TField (e,i)) (TFun([],it)) p)
+			end else
 			no_field())
 	| TDynamic t ->
 		(try
