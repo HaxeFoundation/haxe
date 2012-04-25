@@ -285,8 +285,6 @@ enum XmlType {
 
 	public function iterator() : Iterator<Xml> {
 		var children:XMLList = _node.children();
-		if( children == null )
-			throw "bad nodetype";
 		var wrappers :Array<Xml> = wraps(children);
 		var cur = 0;
 		return {
@@ -301,8 +299,6 @@ enum XmlType {
 
 	public function elements() : Iterator<Xml> {
 		var elements:XMLList = _node.elements();
-		if( elements == null )
-			throw "bad nodetype";
 		var wrappers :Array<Xml> = wraps(elements);
 		var cur = 0;
 		return {
@@ -322,8 +318,6 @@ enum XmlType {
 			elements = _node.elements(name);
 		else
 			elements = _node.elements();
-		if( elements == null )
-			throw "bad nodetype";
 		var wrappers :Array<Xml> = wraps(elements);
 		if( ns.length != 1 )
 			for( w in wrappers.copy() )
@@ -342,8 +336,6 @@ enum XmlType {
 
 	public function firstChild() : Xml {
 		var children:XMLList = _node.children();
-		if( children == null )
-			throw "bad nodetype";
 		if( children.length() == 0 )
 			return null;
 		return wrap( children[0] );
@@ -351,8 +343,6 @@ enum XmlType {
 
 	public function firstElement() : Xml {
 		var elements:XMLList = _node.elements();
-		if( elements == null )
-			throw "bad nodetype";
 		if( elements.length() == 0 )
 			return null;
 		return wrap( elements[0] );
@@ -360,15 +350,11 @@ enum XmlType {
 
 	public function addChild( x : Xml ) : Void {
 		var children:XMLList = _node.children();
-		if( children == null )
-			throw "bad nodetype";
 		_node.appendChild(x._node);
 	}
 
 	public function removeChild( x : Xml ) : Bool {
 		var children:XMLList = _node.children();
-		if( children == null )
-			throw "bad nodetype";
 		if( _node != x._node.parent() )
 			return false;
 		var i = x._node.childIndex();
@@ -378,8 +364,6 @@ enum XmlType {
 
 	public function insertChild( x : Xml, pos : Int ) : Void {
 		var children:XMLList = _node.children();
-		if( children == null )
-			throw "bad nodetype";
 		if( pos < children.length() )
 			_node.insertChildBefore(children[pos], x._node);
 		else
