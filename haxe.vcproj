@@ -29,8 +29,8 @@
 			ConfigurationType="0">
 			<Tool
 				Name="VCNMakeTool"
-				BuildCommandLine="make -f Makefile.win haxe"
-				ReBuildCommandLine="make -f Makefile.win clean_haxe haxe"
+				BuildCommandLine="make MSVC=1 -f Makefile.win haxe"
+				ReBuildCommandLine="make MSVC=1 -f Makefile.win clean_haxe haxe"
 				CleanCommandLine="make -f Makefile.win clean_haxe"
 				Output="haxe.exe"/>
 		</Configuration>
