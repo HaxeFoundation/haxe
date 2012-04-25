@@ -284,6 +284,8 @@ enum XmlType {
 	}
 
 	public function iterator() : Iterator<Xml> {
+		if( nodeType != Xml.Element && nodeType != Xml.Document )
+			throw "bad nodeType";		
 		var children:XMLList = _node.children();
 		var wrappers :Array<Xml> = wraps(children);
 		var cur = 0;
@@ -298,6 +300,8 @@ enum XmlType {
 	}
 
 	public function elements() : Iterator<Xml> {
+		if( nodeType != Xml.Element && nodeType != Xml.Document )
+			throw "bad nodeType";		
 		var elements:XMLList = _node.elements();
 		var wrappers :Array<Xml> = wraps(elements);
 		var cur = 0;
@@ -312,6 +316,8 @@ enum XmlType {
 	}
 
 	public function elementsNamed( name : String ) : Iterator<Xml> {
+		if( nodeType != Xml.Element && nodeType != Xml.Document )
+			throw "bad nodeType";	
 		var ns = name.split(":");
 		var elements:XMLList;
 		if( ns.length == 1 )
@@ -335,6 +341,8 @@ enum XmlType {
 	}
 
 	public function firstChild() : Xml {
+		if( nodeType != Xml.Element && nodeType != Xml.Document )
+			throw "bad nodeType";
 		var children:XMLList = _node.children();
 		if( children.length() == 0 )
 			return null;
@@ -342,6 +350,8 @@ enum XmlType {
 	}
 
 	public function firstElement() : Xml {
+		if( nodeType != Xml.Element && nodeType != Xml.Document )
+			throw "bad nodeType";
 		var elements:XMLList = _node.elements();
 		if( elements.length() == 0 )
 			return null;
@@ -349,11 +359,15 @@ enum XmlType {
 	}
 
 	public function addChild( x : Xml ) : Void {
+		if( nodeType != Xml.Element && nodeType != Xml.Document )
+			throw "bad nodeType";		
 		var children:XMLList = _node.children();
 		_node.appendChild(x._node);
 	}
 
 	public function removeChild( x : Xml ) : Bool {
+		if( nodeType != Xml.Element && nodeType != Xml.Document )
+			throw "bad nodeType";		
 		var children:XMLList = _node.children();
 		if( _node != x._node.parent() )
 			return false;
@@ -363,6 +377,8 @@ enum XmlType {
 	}
 
 	public function insertChild( x : Xml, pos : Int ) : Void {
+		if( nodeType != Xml.Element && nodeType != Xml.Document )
+			throw "bad nodeType";
 		var children:XMLList = _node.children();
 		if( pos < children.length() )
 			_node.insertChildBefore(children[pos], x._node);

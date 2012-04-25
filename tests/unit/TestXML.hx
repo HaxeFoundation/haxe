@@ -174,4 +174,20 @@ class TestXML extends Test {
 		eq( h.nodeName, "xhtml:em" );
 	}
 
+	function testNodetype() {
+		var element = Xml.createElement("x");
+
+		var l = [Xml.createPCData("x"), Xml.createCData("x"), Xml.createDocType("x"), Xml.createProlog("x") #if !flash8, Xml.createComment("x") #end];
+		for (xml in l)
+		{
+			exc(function() xml.firstChild());
+			exc(function() xml.firstElement());
+			exc(function() xml.elements());
+			exc(function() xml.elementsNamed("x"));
+			exc(function() xml.addChild(element));
+			exc(function() xml.removeChild(element));
+			exc(function() xml.insertChild(element, 0));
+			exc(function() for (x in xml) null);
+		}	
+	}	
 }

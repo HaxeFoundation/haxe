@@ -123,10 +123,14 @@ enum XmlType {
 	}
 
 	public function firstChild() : Xml {
+		if( nodeType != Xml.Element && nodeType != Xml.Document )
+			throw "bad nodeType";		
 		return convert(this.__x[untyped "firstChild"]);
 	}
 
 	public function firstElement() : Xml {
+		if( nodeType != Xml.Element && nodeType != Xml.Document )
+			throw "bad nodeType";		
 		var e : Dynamic = __x[untyped "firstChild"];
 		while( e != null && e[untyped "nodeType"] != 1 )
 			e = e[untyped "nextSibling"];
