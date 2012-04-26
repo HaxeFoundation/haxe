@@ -592,6 +592,7 @@ class Main {
 				var oldCwd = Sys.getCwd();
 				Sys.setCwd(rep + "/" + p + "/git");
 				Sys.command("git pull");
+				// TODO: update haxelib.xml version?
 				Sys.setCwd(oldCwd);
 			}
 			else
@@ -789,12 +790,15 @@ class Main {
 		}
 		var revision = command("git", ["rev-parse", "HEAD"]).out;
 		
-		var devPath = libPath + (subDir == null ? "" : "/" + subDir);		
-		var haxelib = "<project name='" +libName + "' url='" +gitPath + "' license='BSD'>"
-			+"<description></description>"
-			+"<version name='" +revision + "'>Updated from git.</version>"
-			+"</project>";
-		sys.io.File.saveContent(devPath +"/haxelib.xml", haxelib);
+		var devPath = libPath + (subDir == null ? "" : "/" + subDir);
+		if (!sys.FileSystem.exists(devPath +"/haxelib.xml"))
+		{
+			var haxelib = "<project name='" +libName + "' url='" +gitPath + "' license='BSD'>"
+				+"<description></description>"
+				+"<version name='" +revision + "'>Updated from git.</version>"
+				+"</project>";
+			sys.io.File.saveContent(devPath +"/haxelib.xml", haxelib);
+		}
 		
 		Sys.setCwd(libPath + "/../");
 		sys.io.File.saveContent(".current", "dev");
