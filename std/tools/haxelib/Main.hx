@@ -124,6 +124,7 @@ class Main {
 		addCommand("run",run,"run the specified library with parameters",false);
 		addCommand("test",test,"install the specified package localy",false);
 		addCommand("dev",dev,"set the development directory for a given library",false);
+		addCommand("git",git,"uses git repository as library");
 		initSite();
 	}
 
@@ -585,19 +586,29 @@ class Main {
 			if( p.charAt(0) == "." || !sys.FileSystem.isDirectory(rep+"/"+p) )
 				continue;
 			var p = Datas.unsafe(p);
-			print("Checking "+p);
-			var inf = try site.infos(p) catch( e : Dynamic ) { Sys.println(e); continue; };
-			if( !sys.FileSystem.exists(rep+Datas.safe(p)+"/"+Datas.safe(inf.curversion)) ) {
-				if( prompt )
-					switch ask("Upgrade "+p+" to "+inf.curversion) {
-					case Yes:
-					case Always: prompt = false;
-					case No: continue;
-					}
-				doInstall(p,inf.curversion,true);
-				update = true;
-			} else
-				setCurrent(p,inf.curversion,true);
+			print("Checking " + p);
+			if (sys.FileSystem.exists(rep + "/" + p + "/git") && sys.FileSystem.isDirectory(rep + "/" + p + "/git"))
+			{
+				var oldCwd = Sys.getCwd();
+				Sys.setCwd(rep + "/" + p + "/git");
+				Sys.command("git pull");
+				Sys.setCwd(oldCwd);
+			}
+			else
+			{
+				var inf = try site.infos(p) catch( e : Dynamic ) { Sys.println(e); continue; };
+				if( !sys.FileSystem.exists(rep+Datas.safe(p)+"/"+Datas.safe(inf.curversion)) ) {
+					if( prompt )
+						switch ask("Upgrade "+p+" to "+inf.curversion) {
+						case Yes:
+						case Always: prompt = false;
+						case No: continue;
+						}
+					doInstall(p,inf.curversion,true);
+					update = true;
+				} else
+					setCurrent(p, inf.curversion, true);
+			}
 		}
 		if( update )
 			print("Done");
@@ -621,7 +632,11 @@ class Main {
 		var version = paramOpt();
 		var rep = getRepository();
 		var pdir = rep + Datas.safe(prj);
-
+		if ( sys.FileSystem.exists(pdir + "/git"))
+		{
+			print("Removing git libs is currently not supported.");
+			return;
+		}
 		if( version == null ) {
 			if( !sys.FileSystem.exists(pdir) )
 				throw "Library "+prj+" is not installed";
@@ -667,6 +682,8 @@ class Main {
 			throw "Library "+prj+" is not installed : run 'haxelib install "+prj+"'";
 		var version = if( version != null ) version else sys.io.File.getContent(pdir+"/.current");
 		var vdir = pdir + "/" + Datas.safe(version);
+		if (StringTools.endsWith(vdir, "dev"))
+			vdir = sys.io.File.getContent(pdir + "/.dev");
 		if( !sys.FileSystem.exists(vdir) )
 			throw "Library "+prj+" version "+version+" is not installed";
 		for( p in l )
@@ -731,6 +748,60 @@ class Main {
 		}
 	}
 
+	function git() {
+		var libName = param("Library name");
+		var rep = getRepository();
+		var libPath = rep + Datas.safe(libName) + "/git";
+		
+		if( sys.FileSystem.exists(libPath) ) {
+			print("You already have a git version of "+libName+" installed");
+			return;
+		}
+		
+		var gitPath = param("Git path");
+		var subDir = paramOpt();
+		
+		var split = gitPath.split("@");
+		var rev = if (split.length == 2) {
+			gitPath = split[0];
+			split[1];
+		}
+		else
+			null;
+				
+		print("Installing " +libName + " from " +gitPath);
+		var ret = command("git", ["clone", gitPath, libPath]);
+		if (ret.code != 0)
+		{
+			print("Could not clone git repository: " +ret.out);
+			return;
+		}
+		Sys.setCwd(libPath);
+		if (rev != null)
+		{
+			var ret = command("git", ["checkout", rev]);
+			if (ret.code != 0)
+			{
+				print("Could not checkout revision: " +ret.out);
+				// TODO: We might have to get rid of the cloned repository here
+				return;
+			}
+		}
+		var revision = command("git", ["rev-parse", "HEAD"]).out;
+		
+		var devPath = libPath + (subDir == null ? "" : "/" + subDir);		
+		var haxelib = "<project name='" +libName + "' url='" +gitPath + "' license='BSD'>"
+			+"<description></description>"
+			+"<version name='" +revision + "'>Updated from git.</version>"
+			+"</project>";
+		sys.io.File.saveContent(devPath +"/haxelib.xml", haxelib);
+		
+		Sys.setCwd(libPath + "/../");
+		sys.io.File.saveContent(".current", "dev");
+		sys.io.File.saveContent(".dev", devPath);
+		print("Done");
+	}
+	
 	function run() {
 		var rep = getRepository();
 		var project = param("Library");
@@ -739,7 +810,7 @@ class Main {
 			throw "Library "+project+" is not installed";
 		pdir += "/";
 		var version = sys.io.File.getContent(pdir+".current");
-		var dev = try sys.io.File.getContent(pdir+".dev") catch( e : Dynamic ) null;
+		var dev = try sys.io.File.getContent(pdir + ".dev") catch ( e : Dynamic ) null;
 		var vdir = dev!=null ? dev : pdir + Datas.safe(version);
 		var rdir = vdir + "/run.n";
 		if( !sys.FileSystem.exists(rdir) )
@@ -762,6 +833,11 @@ class Main {
 		var file = param("Package");
 		doInstallFile(file,true,true);
 	}
+	
+	function command( cmd:String, args:Array<String> ) {
+		var p = new neko.io.Process(cmd, args);
+		return { code:p.exitCode(), out:p.exitCode() == 0 ? p.stdout.readAll().toString() : p.stderr.readAll().toString() };
+	}	
 
 	// ----------------------------------
 
