@@ -61,19 +61,19 @@ import js.Boot;
 	}
 
 	static function __init__() : Void untyped {
-		String.prototype.__class__ = $hxClasses["String"] = String;
+		String.prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["String"] = String,String);
 		String.__name__ = ["String"];
-		Array.prototype.__class__ = $hxClasses["Array"] = Array;
+		Array.prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["Array"] = Array,Array);
 		Array.__name__ = ["Array"];
-		var Int = $hxClasses["Int"] = { __name__ : ["Int"] };
-		var Dynamic = $hxClasses["Dynamic"] = { __name__ : ["Dynamic"] };
-		var Float = $hxClasses["Float"] = __js__("Number");
+		var Int = __feature__("Type.resolveClass", $hxClasses["Int"] = { __name__ : ["Int"] }, { __name__ : ["Int"] });
+		var Dynamic = __feature__("Type.resolveClass", $hxClasses["Dynamic"] = { __name__ : ["Dynamic"] }, { __name__ : ["Dynamic"] });
+		var Float = __feature__("Type.resolveClass", $hxClasses["Float"] = __js__("Number"), __js__("Number"));
 		Float.__name__ = ["Float"];
-		var Bool = $hxClasses["Bool"] = __js__("Boolean");
+		var Bool = __feature__("Type.resolveEnum",$hxClasses["Bool"] = __js__("Boolean"), __js__("Boolean"));
 		Bool.__ename__ = ["Bool"];
-		var Class = $hxClasses["Class"] = { __name__ : ["Class"] };
+		var Class = __feature__("Type.resolveClass", $hxClasses["Class"] = { __name__ : ["Class"] }, { __name__ : ["Class"] });
 		var Enum = {};
-		var Void = $hxClasses["Void"] = { __ename__ : ["Void"] };
+		var Void = __feature__("Type.resolveEnum", $hxClasses["Void"] = { __ename__ : ["Void"] }, { __ename__ : ["Void"] });
 	}
 
 }

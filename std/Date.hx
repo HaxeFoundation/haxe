@@ -166,7 +166,7 @@ extern class Date
 		d.prototype[__unprotect__("__class__")] = d;
 		d[__unprotect__("__name__")] = ["Date"];
 		#elseif js
-		d.prototype.__class__ = $hxClasses['Date'] = d;
+		d.prototype.__class__ = __feature__('Type.resolveClass',$hxClasses['Date'] = d,d);
 		d.__name__ = ["Date"];
 		#end
 	}

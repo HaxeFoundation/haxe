@@ -41,6 +41,7 @@ type ctx = {
 	packages : (string list,unit) Hashtbl.t;
 	smap : sourcemap;
 	js_modern : bool;
+	mutable features : (string, bool) PMap.t;
 
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
@@ -84,6 +85,24 @@ let valid_js_ident s =
 let field s = if Hashtbl.mem kwds s then "[\"" ^ s ^ "\"]" else "." ^ s
 let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
 let anon_field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "'" ^ s ^ "'" else s
+
+let has_feature ctx f =
+	try
+		PMap.find f ctx.features
+	with Not_found ->
+		match List.rev (ExtString.String.nsplit f ".") with
+		| [] | _ :: [] -> assert false
+		| meth :: cl :: pack ->
+			let r = (try 
+				let path = List.rev pack, cl in
+				(match List.find (fun t -> t_path t = path) ctx.com.types with
+				| TClassDecl c -> PMap.exists meth c.cl_statics || PMap.exists meth c.cl_fields
+				| _ -> false)
+			with Not_found ->
+				false
+			) in
+			ctx.features <- PMap.add f r ctx.features;
+			r	
 
 let handle_newlines ctx str =
 	if ctx.com.debug then
@@ -342,6 +361,12 @@ let rec gen_call ctx e el =
 		spr ctx ")";
 	| TLocal { v_name = "__js__" }, [{ eexpr = TConst (TString code) }] ->
 		spr ctx (String.concat "\n" (ExtString.String.nsplit code "\r\n"))
+	| TLocal { v_name = "__feature__" }, { eexpr = TConst (TString f) } :: eif :: eelse ->
+		(if has_feature ctx f then
+			gen_value ctx eif
+		else match eelse with
+			| [] -> ()
+			| e :: _ -> gen_value ctx e)			
 	| TLocal { v_name = "__resources__" }, [] ->
 		spr ctx "[";
 		concat ctx "," (fun (name,data) ->
@@ -856,7 +881,8 @@ let generate_class ctx c =
 	| _ -> ());
 	let p = s_path ctx c.cl_path in
 	generate_package_create ctx c.cl_path;
-	if ctx.js_modern then
+	let hxClasses = has_feature ctx "Type.resolveClass" in
+	if ctx.js_modern || not hxClasses then
 		print ctx "%s = " p
 	else
 		print ctx "%s = $hxClasses[\"%s\"] = " p p;
@@ -864,7 +890,7 @@ let generate_class ctx c =
 	| Some { cf_expr = Some e } -> gen_expr ctx e
 	| _ -> print ctx "function() { }");
 	newline ctx;
-	if ctx.js_modern then begin
+	if ctx.js_modern && hxClasses then begin
 		print ctx "$hxClasses[\"%s\"] = %s" p p;
 		newline ctx;
 	end;
@@ -924,7 +950,9 @@ let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
 	generate_package_create ctx e.e_path;
 	let ename = List.map (fun s -> Printf.sprintf "\"%s\"" (Ast.s_escape s)) (fst e.e_path @ [snd e.e_path]) in
-	print ctx "%s = $hxClasses[\"%s\"] = { __ename__ : [%s], __constructs__ : [%s] }" p p (String.concat "," ename) (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
+	print ctx "%s = " p;
+	if has_feature ctx "Type.resolveEnum" then print ctx "$hxClasses[\"%s\"] = " p;
+	print ctx "{ __ename__ : [%s], __constructs__ : [%s] }" (String.concat "," ename) (String.concat "," (List.map (fun s -> Printf.sprintf "\"%s\"" s) e.e_names));
 	newline ctx;
 	List.iter (fun n ->
 		let f = PMap.find n e.e_constrs in
@@ -973,6 +1001,7 @@ let alloc_ctx com =
 		com = com;
 		buf = Buffer.create 16000;
 		packages = Hashtbl.create 0;
+		features = PMap.empty;
 		smap = {
 			source_last_line = 0;
 			source_last_col = 0;
@@ -1022,13 +1051,18 @@ let generate com =
 		newline ctx;
 	end;
 
-	let hxClasses = if ctx.js_modern then "{}" else "$hxClasses || {}" in
-	print ctx "var $_, $hxClasses = %s, $estr = function() { return js.Boot.__string_rec(this,''); }
-function $extend(from, fields) {
+	print ctx "var $_";
+	if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then print ctx ", $hxClasses = %s" (if ctx.js_modern then "{}" else "$hxClasses || {}");
+	if List.exists (function TEnumDecl { e_extern = false } -> true | _ -> false) com.types then print ctx ", $estr = function() { return js.Boot.__string_rec(this,''); }";
+	if List.exists (function TClassDecl { cl_extern = false; cl_super = Some _ } -> true | _ -> false) com.types then begin
+		print ctx ";";
+		newline ctx;
+		print ctx "function $extend(from, fields) {
 	function inherit() {}; inherit.prototype = from; var proto = new inherit();
 	for (var name in fields) proto[name] = fields[name];
 	return proto;
-}" hxClasses;
+}";
+	end;
 	newline ctx;
 	List.iter (generate_type ctx) com.types;
 	print ctx "js.Boot.__res = {}";

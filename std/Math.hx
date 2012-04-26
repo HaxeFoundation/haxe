@@ -67,7 +67,7 @@ extern class Math
 		Math.POSITIVE_INFINITY = Number["POSITIVE_INFINITY"];
 	#end
 	#if js
-		$hxClasses['Math'] = Math;
+		__feature__("Type.resolveClass",$hxClasses['Math'] = Math);
 	#end
 		Math.isFinite = function(i) {
 			return
