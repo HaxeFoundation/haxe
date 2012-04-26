@@ -640,7 +640,10 @@ try
 	let force_typing = ref false in
 	let pre_compilation = ref [] in
 	let interp = ref false in
-	Common.define com ("haxe_" ^ string_of_int version);
+	for i = 0 to 2 do
+		let v = version - i in
+		if v / 100 = version / 100 then Common.define com ("haxe_" ^ string_of_int version);
+	done;
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
 	com.error <- error ctx;
 	Parser.display_error := (fun e p -> com.error (Parser.error_msg e) p);
