@@ -642,7 +642,7 @@ try
 	let interp = ref false in
 	for i = 0 to 2 do
 		let v = version - i in
-		if v / 100 = version / 100 then Common.define com ("haxe_" ^ string_of_int version);
+		if v / 100 = version / 100 then Common.define com ("haxe_" ^ string_of_int v);
 	done;
 	com.warning <- (fun msg p -> message ctx ("Warning : " ^ msg) p);
 	com.error <- error ctx;
@@ -929,10 +929,10 @@ try
 		| Cpp ->
 			add_std "cpp";
 			"cpp"
-		| Cs -> 
+		| Cs ->
 			Gencs.before_generate com;
 			add_std "cs"; "cs"
-		| Java -> 
+		| Java ->
 			Genjava.before_generate com;
 			add_std "java"; "java"
 	) in
