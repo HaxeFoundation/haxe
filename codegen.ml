@@ -217,11 +217,13 @@ let rec build_generic ctx c p tl =
 			m_id = alloc_mid();
 			m_path = (pack,name);
 			m_types = [];
-			m_extra = m.m_extra; (* share *)
+			m_extra = module_extra (s_type_path (pack,name)) m.m_extra.m_sign 0. MFake;
 		} in
 		let cg = mk_class mg (pack,name) c.cl_pos in
 		mg.m_types <- [TClassDecl cg];
 		Hashtbl.add ctx.g.modules mg.m_path mg;
+		add_dependency mg m;
+		add_dependency ctx.current mg;
 		let rec loop l1 l2 =
 			match l1, l2 with
 			| [] , [] -> []
