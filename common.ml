@@ -164,7 +164,7 @@ let get_signature com =
 	match com.defines_signature with
 	| Some s -> s
 	| None ->
-		let str = String.concat "@" (PMap.foldi (fun k _ acc -> 
+		let str = String.concat "@" (PMap.foldi (fun k _ acc ->
 			(* don't make much difference between these special compilation flags *)
 			match k with
 			| "display" | "use_rtti_doc" | "macrotimes" -> acc
@@ -173,6 +173,11 @@ let get_signature com =
 		let s = Digest.string str in
 		com.defines_signature <- Some s;
 		s
+
+let file_extension file =
+	match List.rev (ExtString.String.nsplit file ".") with
+	| e :: _ -> String.lowercase e
+	| [] -> ""
 
 let platforms = [
 	Flash8;

@@ -106,12 +106,6 @@ let report_times print =
 	let timers = List.sort (fun t1 t2 -> compare t1.name t2.name) (Hashtbl.fold (fun _ t acc -> t :: acc) Common.htimers []) in
 	List.iter (fun t -> print (Printf.sprintf "  %s : %.3fs, %.0f%%" t.name t.total (t.total *. 100. /. !tot))) timers
 
-let file_extension f =
-	let cl = ExtString.String.nsplit f "." in
-	match List.rev cl with
-	| [] -> ""
-	| x :: _ -> x
-
 let make_path f =
 	let f = String.concat "/" (ExtString.String.nsplit f "\\") in
 	let cl = ExtString.String.nsplit f "." in
