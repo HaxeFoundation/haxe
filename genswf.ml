@@ -837,7 +837,30 @@ let build_swf9 com file swc =
 					let data = (try Std.input_file ~bin:true file with _  -> error "File not found" p) in
 					incr cid;
 					classes := { f9_cid = Some !cid; f9_classname = s_type_path c.cl_path } :: !classes;
-					tag (TBitsJPEG2 { bd_id = !cid; bd_data = data; bd_table = None; bd_alpha = None; bd_deblock = None }) :: loop l
+					let raw() =
+						tag (TBitsJPEG2 { bd_id = !cid; bd_data = data; bd_table = None; bd_alpha = None; bd_deblock = Some 0 })
+					in
+					let t = (match file_extension file with
+						| "png" ->
+							(*
+								There is a bug in Flash PNG decoder for 24-bits PNGs : Color such has 0xFF00FF is decoded as 0xFE00FE.
+								In that particular case, we will then embed the decoded PNG bytes instead.
+							*)
+							(try
+								let png = Png.parse (IO.input_string data) in
+								let h = Png.header png in
+								(match h.Png.png_color with
+								| Png.ClTrueColor (Png.TBits8,Png.NoAlpha) ->
+									let data = Extc.unzip (Png.data png) in
+									let raw_data = Png.filter png data in
+									let cmp_data = Extc.zip raw_data in
+									tag ~ext:true (TBitsLossless2 { bll_id = !cid; bll_format = 5; bll_width = h.Png.png_width; bll_height = h.Png.png_height; bll_data = cmp_data })
+								| _ -> raw())
+							with Exit ->
+								raw())
+						| _ -> raw()
+					) in
+					t :: loop l
 				| (":file",[EConst (String file),p],_) :: l ->
 					let file = try Common.find_file com file with Not_found -> file in
 					let data = (try Std.input_file ~bin:true file with _  -> error "File not found" p) in
@@ -852,9 +875,9 @@ let build_swf9 com file swc =
 						let bbits = (match bits with 8 -> 0 | 16 -> 1 | _ -> failwith ("Unsupported bits " ^ string_of_int bits)) in
 						(fmt lsl 4) lor (fbits lsl 2) lor (bbits lsl 1) lor (if mono then 0 else 1)
 					in
-					let flags, samples, data = (match List.rev (ExtString.String.nsplit (String.lowercase file) ".") with
-						| "wav" :: _ -> 
-							(try 
+					let flags, samples, data = (match file_extension file with
+						| "wav" ->
+							(try
 								let i = IO.input_string data in
 								if IO.nread i 4 <> "RIFF" then raise Exit;
 								ignore(IO.nread i 4); (* size *)
@@ -868,17 +891,17 @@ let build_swf9 com file swc =
 								let bits = IO.read_ui16 i in
 								if IO.nread i 4 <> "data" then raise Exit;
 								let data_size = IO.read_i32 i in
-								let data = IO.nread i data_size in								
+								let data = IO.nread i data_size in
 								make_flags 0 (chan = 1) freq bits, (data_size * 8 / (chan * bits)), data
 							with Exit | IO.No_more_input | IO.Overflow _ ->
 								error "Invalid WAV file" p
 							| Failure msg ->
 								error ("Invalid WAV file (" ^ msg ^ ")") p
 							)
-						| "mp3" :: _ ->
+						| "mp3" ->
 							(try
 								let i = IO.input_string data in
-								if IO.read_byte i <> 0xFF then raise Exit;								
+								if IO.read_byte i <> 0xFF then raise Exit;
 								let ver = ((IO.read_byte i) lsr 3) land 3 in
 								let sampling = [|11025;0;22050;44100|].(ver) in
 								ignore(IO.read_byte i);
@@ -889,7 +912,7 @@ let build_swf9 com file swc =
 									match (try IO.read_byte i with IO.No_more_input -> -1) with
 									| -1 ->
 										()
-									| 73 -> 
+									| 73 ->
 										(* ID3 *)
 										if IO.nread i 2 <> "D3" then raise Exit;
 										ignore(IO.read_ui16 i); (* version *)
@@ -915,7 +938,7 @@ let build_swf9 com file swc =
 										let pad = (bits lsr 1) land 1 in
 										ignore(IO.read_byte i);
 										let bpp = (if ver = 3 then 144 else 72) in
-										let size = ((bpp * bitrate * 1000) / srate) + pad - 4 in										
+										let size = ((bpp * bitrate * 1000) / srate) + pad - 4 in
 										ignore(IO.nread i size);
 										samples := !samples + (if layer = 3 then 384 else 1152);
 										read_frame()
