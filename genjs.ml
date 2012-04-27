@@ -399,6 +399,10 @@ and gen_expr ctx e =
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
 		gen_value ctx e2;
+	| TField (x,"iterator") when Common.defined ctx.com "js-iterator-wrap" ->
+		print ctx "$iterator(";
+		gen_value ctx x;
+		print ctx ")";
 	| TField (x,s) ->
 		gen_value ctx x;
 		spr ctx (field s)
