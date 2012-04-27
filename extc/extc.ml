@@ -33,7 +33,7 @@ type zresult = {
 	z_wrote : int;
 }
 
-external zlib_deflate_init : int -> zstream = "zlib_deflate_init"
+external zlib_deflate_init2 : int -> int -> zstream = "zlib_deflate_init2"
 external zlib_deflate : zstream -> src:string -> spos:int -> slen:int -> dst:string -> dpos:int -> dlen:int -> zflush -> zresult = "zlib_deflate_bytecode" "zlib_deflate"
 external zlib_deflate_end : zstream -> unit = "zlib_deflate_end"
 
@@ -45,9 +45,12 @@ external _executable_path : string -> string = "executable_path"
 external get_full_path : string -> string = "get_full_path"
 external get_real_path : string -> string = "get_real_path"
 
+external zlib_deflate_bound : zstream -> int -> int = "zlib_deflate_bound"
+
 external time : unit -> float = "sys_time"
 
 (* support for backward compatibility *)
+let zlib_deflate_init lvl = zlib_deflate_init2 lvl 15
 let zlib_inflate_init() = zlib_inflate_init2 15
 
 let executable_path() =

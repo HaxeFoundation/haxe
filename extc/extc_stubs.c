@@ -59,9 +59,9 @@ value zlib_new_stream() {
 	return z;
 }
 
-CAMLprim value zlib_deflate_init(value lvl) {
+CAMLprim value zlib_deflate_init2(value lvl,value wbits) {
 	value z = zlib_new_stream();
-	if( deflateInit(zval(z),Int_val(lvl)) != Z_OK )
+	if( deflateInit2(zval(z),Int_val(lvl),Z_DEFLATED,Int_val(wbits),8,Z_DEFAULT_STRATEGY) != Z_OK )
 		failwith("zlib_deflate_init");
 	return z;
 }
@@ -135,6 +135,10 @@ CAMLprim value zlib_inflate_end(value zv) {
 	if( inflateEnd(zval(zv)) != 0 )
 		failwith("zlib_inflate_end");
 	return Val_unit;
+}
+
+CAMLprim value zlib_deflate_bound(value zv,value len) {
+	return Val_int(deflateBound(zval(zv),Int_val(len)));
 }
 
 CAMLprim value executable_path(value u) {
