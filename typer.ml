@@ -84,6 +84,9 @@ let rec mark_used_class ctx c =
 		| _ -> ()
 	end
 
+let mark_used_field ctx f =
+	if ctx.com.dead_code_elimination && not (has_meta ":?used" f.cf_meta) then f.cf_meta <- (":?used",[],f.cf_pos) :: f.cf_meta
+
 type type_class =
 	| KInt
 	| KFloat
@@ -1609,6 +1612,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			if PMap.mem name ctx.locals then error ("Local variable " ^ name ^ " is preventing usage of this class here") p;
 			let ct, f = get_constructor c params p in
 			if not f.cf_public && not (is_parent c ctx.curclass) && not ctx.untyped then display_error ctx "Cannot access private constructor" p;
+			mark_used_field ctx f;
 			(match f.cf_kind with
 			| Var { v_read = AccRequire r } -> error_require r p
 			| _ -> ());
@@ -1870,6 +1874,7 @@ and type_call ctx e el p =
 		| None -> error "Current class does not have a super" p
 		| Some (c,params) ->
 			let ct, f = get_constructor c params p in
+			mark_used_field ctx f;
 			let el, _ = (match follow ct with
 			| TFun (args,r) ->
 				unify_call_params ctx (Some ("new",f.cf_meta)) el args r p false

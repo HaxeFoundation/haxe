@@ -1041,7 +1041,7 @@ let init_class ctx c p herits fields =
 						(match e.eexpr with
 						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
 						| _ -> c.cl_init <- Some e);
-					mark_used cf;
+					if not constr then mark_used cf;
 					cf.cf_expr <- Some (mk (TFunction f) t p);
 					cf.cf_type <- t;
 				end;
