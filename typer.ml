@@ -214,6 +214,7 @@ let rec type_module_type ctx t tparams p =
 			t_types = [];
 			t_meta = no_meta;
 		} in
+		if ctx.com.dead_code_elimination && not (has_meta ":?used" c.cl_meta) then c.cl_meta <- (":?used",[],p) :: c.cl_meta;
 		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
 	| TEnumDecl e ->
 		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_types | Some l -> l) in
@@ -246,6 +247,7 @@ let rec type_module_type ctx t tparams p =
 			t_types = e.e_types;
 			t_meta = no_meta;
 		} in
+		if ctx.com.dead_code_elimination && not (has_meta ":?used" e.e_meta) then e.e_meta <- (":?used",[],p) :: e.e_meta;
 		mk (TTypeExpr (TEnumDecl e)) (TType (t_tmp,types)) p
 	| TTypeDecl s ->
 		let t = apply_params s.t_types (List.map (fun _ -> mk_mono()) s.t_types) s.t_type in
