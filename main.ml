@@ -344,33 +344,42 @@ let create_context params =
 	ctx.flush <- (fun() -> default_flush ctx);
 	ctx
 
-let rec process_params create acc = function
-	| [] ->
-		let ctx = create (List.rev acc) in
-		init ctx;
-		ctx.flush()
-	| "--next" :: l ->
-		let ctx = create (List.rev acc) in
-		ctx.has_next <- true;
-		init ctx;
-		ctx.flush();
-		process_params create [] l
-	| "--cwd" :: dir :: l ->
-		(* we need to change it immediately since it will affect hxml loading *)
-		(try Unix.chdir dir with _ -> ());
-		process_params create (dir :: "--cwd" :: acc) l
-	| "--connect" :: hp :: l ->
-		(match !global_cache with
-		| None ->
-			let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
-			do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l)
-		| Some _ ->
-			(* already connected : skip *)
-			process_params create acc l)
-	| arg :: l ->
-		match List.rev (ExtString.String.nsplit arg ".") with
-		| "hxml" :: _ -> process_params create acc (parse_hxml arg @ l)
-		| _ -> process_params create (arg :: acc) l
+let rec process_params create pl =
+	let rec loop acc = function
+		| [] ->
+			let ctx = create (List.rev acc) in
+			init ctx;
+			ctx.flush()
+		| "--next" :: l ->
+			let ctx = create (List.rev acc) in
+			ctx.has_next <- true;
+			init ctx;
+			ctx.flush();
+			loop [] l
+		| "--cwd" :: dir :: l ->
+			(* we need to change it immediately since it will affect hxml loading *)
+			(try Unix.chdir dir with _ -> ());
+			loop (dir :: "--cwd" :: acc) l
+		| "--connect" :: hp :: l ->
+			(match !global_cache with
+			| None ->
+				let host, port = (try ExtString.String.split hp ":" with _ -> "127.0.0.1", hp) in
+				do_connect host (try int_of_string port with _ -> raise (Arg.Bad "Invalid port")) ((List.rev acc) @ l)
+			| Some _ ->
+				(* already connected : skip *)
+				loop acc l)
+		| arg :: l ->
+			match List.rev (ExtString.String.nsplit arg ".") with
+			| "hxml" :: _ -> loop acc (parse_hxml arg @ l)
+			| _ -> loop (arg :: acc) l
+	in
+	(* put --display in front if it was last parameter *)
+	let pl = (match List.rev pl with
+		| file :: "--display" :: pl -> "--display" :: file :: List.rev pl
+		| "use_rtti_doc" :: "-D" :: file :: "--display" :: pl -> "--display" :: file :: List.rev pl
+		| _ -> pl
+	) in
+	loop [] pl
 
 and wait_loop boot_com host port =
 	let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
@@ -560,7 +569,7 @@ and wait_loop boot_com host port =
 				incr compilation_step;
 				compilation_mark := !mark_loop;
 				start_time := get_time();
-				process_params create [] data;
+				process_params create data;
 				close_times();
 				if !measure_times then report_times (fun s -> ssend sin (s ^ "\n"))
 			with Completion str ->
@@ -1153,7 +1162,7 @@ with
 let other = Common.timer "other" in
 Sys.catch_break true;
 (try
-	process_params create_context [] (List.tl (Array.to_list Sys.argv));
+	process_params create_context (List.tl (Array.to_list Sys.argv));
 with Completion c ->
 	prerr_endline c;
 	exit 0
