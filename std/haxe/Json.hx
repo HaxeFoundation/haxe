@@ -143,7 +143,7 @@ class Json {
 		var u = new haxe.Utf8();
 		haxe.Utf8.iter(s,function(c) {
 			switch( c ) {
-			case '/'.code, '\\'.code, '"'.code: u.addChar('\\'.code); u.addChar(c);
+			case '\\'.code, '"'.code: u.addChar('\\'.code); u.addChar(c);
 			case '\n'.code: u.addChar('\\'.code); u.addChar('n'.code);
 			case '\r'.code: u.addChar('\\'.code); u.addChar('r'.code);
 			case '\t'.code: u.addChar('\\'.code); u.addChar('t'.code);
@@ -152,9 +152,9 @@ class Json {
 			default: u.addChar(c);
 			}
 		});
-		buf.add("'");
+		buf.add('"');
 		buf.add(u.toString());
-		buf.add("'");
+		buf.add('"');
 	}
 	#end
 
