@@ -54,6 +54,7 @@ let s_path ctx stat path p =
 		| "Dynamic" -> "Object"
 		| "Bool" -> "Boolean"
 		| "Enum" -> "Class"
+		| "EnumValue" -> "Object"
 		| _ -> name)
 	| (["flash"],"FlashXml__") ->
 		"Xml"
@@ -698,7 +699,7 @@ and gen_block ctx e =
 	newline ctx;
 	match e.eexpr with
 	| TBlock [] -> ()
-	| _ -> 
+	| _ ->
 		gen_expr ctx e;
 		newline ctx
 

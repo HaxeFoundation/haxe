@@ -14,6 +14,7 @@
 	all : optimized Std.int(123) and Std.int(123.45)
 	js : remove $hxClasses generation if Type.resolveClass/resolveEnum not referenced
 	flash : bugfix for @:bitmap with 24-bits PNG (flash decode wrong colors)
+	as3 : fixed EnumValue becomes Object
 
 2012-04-14: 2.09
 	all : optimized const == const and const != const (with different const types)
