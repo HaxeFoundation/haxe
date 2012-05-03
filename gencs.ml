@@ -159,11 +159,11 @@ struct
         (* end Std.int() *)
         
         | TField(ef, "length") when is_string ef.etype ->
-          { e with eexpr = TField(ef, "Length") }
+          { e with eexpr = TField(run ef, "Length") }
         | TField(ef, ("toLowerCase")) when is_string ef.etype ->
-          { e with eexpr = TField(ef, "ToLower") }
+          { e with eexpr = TField(run ef, "ToLower") }
         | TField(ef, ("toUpperCase")) when is_string ef.etype ->
-          { e with eexpr = TField(ef, "ToUpper") }
+          { e with eexpr = TField(run ef, "ToUpper") }
         
         | TCall( ( { eexpr = TField({ eexpr = TTypeExpr (TClassDecl cl) }, "fromCharCode") } ), [cc] ) ->
           { e with eexpr = TNew(get_cl_from_t basic.tstring, [], [mk_cast tchar cc; mk_int gen 1 cc.epos]) }
@@ -175,7 +175,7 @@ struct
         | TCall( ( { eexpr = TField(ef, ("lastIndexOf" as field)) } ), args )
         | TCall( ( { eexpr = TField(ef, ("split" as field)) } ), args )
         | TCall( ( { eexpr = TField(ef, ("substr" as field)) } ), args ) when is_string ef.etype ->
-          { e with eexpr = TCall(mk_static_field_access_infer string_ext field e.epos [], [ef] @ args) }
+          { e with eexpr = TCall(mk_static_field_access_infer string_ext field e.epos [], [run ef] @ (List.map run args)) }
         
         | TCast(expr, _) when is_int_float e.etype && not (is_int_float expr.etype) ->
           let needs_cast = match gen.gfollow#run_f e.etype with
@@ -204,6 +204,39 @@ struct
           
         | TBinop( Ast.OpUShr, e1, e2 ) ->
           mk_cast e.etype { e with eexpr = TBinop( Ast.OpShr, mk_cast (TType(uint,[])) (run e1), run e2 ) }
+        
+        | TBinop( Ast.OpAssignOp Ast.OpUShr, e1, e2 ) ->
+          let mk_ushr local = 
+            { e with eexpr = TBinop(Ast.OpAssign, local, run { e with eexpr = TBinop(Ast.OpUShr, local, run e2) }) }
+          in
+          
+          let mk_local obj =
+            let var = mk_temp gen "opUshr" obj.etype in
+            let added = { obj with eexpr = TVars([var, Some(obj)]); etype = basic.tvoid } in
+            let local = mk_local var obj.epos in
+            local, added
+          in
+          
+          let e1 = run e1 in
+          
+          let ret = match e1.eexpr with
+            | TField({ eexpr = TLocal _ }, _)
+            | TField({ eexpr = TTypeExpr _ }, _)
+            | TArray({ eexpr = TLocal _ }, _)
+            | TLocal(_) -> 
+              mk_ushr e1
+            | TField(fexpr, field) ->
+              let local, added = mk_local fexpr in
+              { e with eexpr = TBlock([ added; mk_ushr { e1 with eexpr = TField(local, field) }  ]); }
+            | TArray(ea1, ea2) ->
+              let local, added = mk_local ea1 in
+              { e with eexpr = TBlock([ added; mk_ushr { e1 with eexpr = TArray(local, ea2) }  ]); }
+            | _ -> (* invalid left-side expression *)
+              assert false
+          in
+          
+          ret
+        
         | _ -> Type.map_expr run e
     in
     run
