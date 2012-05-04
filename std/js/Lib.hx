@@ -28,8 +28,6 @@ import js.Dom;
 
 class Lib {
 
-	public static var isIE : Bool;
-	public static var isOpera : Bool;
 	public static var document : Document;
 	public static var window : Window;
 	static var onerror : String -> Array<String> -> Bool = null;

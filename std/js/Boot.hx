@@ -181,8 +181,6 @@ class Boot {
 
 	private static function __init() {
 		untyped {
-			Lib.isIE = (__js__("typeof document!='undefined'") && document.all != null && __js__("typeof window!='undefined'") && window.opera == null );
-			Lib.isOpera = (__js__("typeof window!='undefined'") && window.opera != null );
 			Array.prototype.copy = Array.prototype.slice;
 			Array.prototype.insert = function(i,x) {
 				__this__.splice(i,0,x);
