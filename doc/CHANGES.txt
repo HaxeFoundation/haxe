@@ -15,6 +15,7 @@
 	js : remove $hxClasses generation if Type.resolveClass/resolveEnum not referenced
 	flash : bugfix for @:bitmap with 24-bits PNG (flash decode wrong colors)
 	as3 : fixed EnumValue becomes Object
+	js : removed js.Lib.isIE/isOpera (not complete, use js.JQuery.browser instead)
 
 2012-04-14: 2.09
 	all : optimized const == const and const != const (with different const types)

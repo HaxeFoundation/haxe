@@ -849,6 +849,8 @@ let check_field_name c f stat =
 let gen_class_static_field ctx c f =
 	check_field_name c f true;
 	match f.cf_expr with
+	| None | Some { eexpr = TConst TNull } when not (has_feature ctx "Type.getClassFields") ->
+		()
 	| None ->
 		print ctx "%s%s = null" (s_path ctx c.cl_path) (field f.cf_name);
 		newline ctx
@@ -867,12 +869,16 @@ let gen_class_static_field ctx c f =
 
 let gen_class_field ctx c f =
 	check_field_name c f false;
-	newprop ctx;
-	print ctx "%s: " (anon_field f.cf_name);
 	match f.cf_expr with
+	| None | Some { eexpr = TConst TNull } when not (has_feature ctx "Type.getInstanceFields") ->
+		()
 	| None ->
+		newprop ctx;
+		print ctx "%s: " (anon_field f.cf_name);
 		print ctx "null";
 	| Some e ->
+		newprop ctx;
+		print ctx "%s: " (anon_field f.cf_name);
 		ctx.id_counter <- 0;
 		gen_value ctx e;
 		ctx.separator <- false
