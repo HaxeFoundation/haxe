@@ -975,6 +975,25 @@ let configure gen =
         true
     in
     
+    let is_main = 
+      match gen.gcon.main_class with
+        | Some ( (_,"Main") as path) when path = cl.cl_path ->
+          (* 
+            for cases where the main class is called Main, there will be a problem with creating the entry point there. 
+            In this special case, a special entry point class will be created 
+          *)
+          write w "public class EntryPoint__Main";
+          begin_block w;
+          write w "public static void Main()";
+          begin_block w;
+          print w "global::%s.main();" (path_s path);
+          end_block w;
+          end_block w;
+          false
+        | Some path when path = cl.cl_path -> true
+        | _ -> false
+    in
+    
     let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
     let is_final = clt = "struct" || has_meta ":final" cl.cl_meta in
     
@@ -1000,14 +1019,12 @@ let configure gen =
     in
     loop cl.cl_meta;
     
-    (match gen.gcon.main_class with
-      | Some path when path = cl.cl_path ->
-        write w "public static void Main()";
-        begin_block w;
-        write w "main();";
-        end_block w
-      | _ -> ()
-    );
+    if is_main then begin
+      write w "public static void Main()";
+      begin_block w;
+      write w "main();";
+      end_block w
+    end;
     
     (match cl.cl_init with
       | None -> ()
