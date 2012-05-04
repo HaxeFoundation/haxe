@@ -3677,6 +3677,7 @@ struct
   (* ******************************************* *)
 
   (*
+    TODO: create Module filter and take implementation off configure
     
     This submodule is by now specially made for the .NET platform. There might be other targets that will
     make use of this, but it IS very specific.

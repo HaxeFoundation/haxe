@@ -246,6 +246,87 @@ struct
     gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
   
 end;;
+
+(* Type Parameters Handling *)
+let handle_type_params gen ifaces =
+  let basic = gen.gcon.basic in
+    (*
+      starting to set gtparam_cast.
+    *)
+    
+    (* NativeArray: the most important. *)
+    
+    (*
+      var new_arr = new NativeArray<TO_T>(old_arr.Length);
+      var i = -1;
+      while( i < old_arr.Length )
+      {
+        new_arr[i] = (TO_T) old_arr[i];
+      }
+    *)
+    
+    let native_arr_cl = get_cl ( get_type gen (["cs"], "NativeArray") ) in
+    
+    let get_narr_param t = match follow t with
+      | TInst({ cl_path = (["cs"], "NativeArray") }, [param]) -> param
+      | _ -> assert false
+    in
+    
+    let gtparam_cast_native_array e to_t =
+      let old_param = get_narr_param e.etype in
+      let new_param = get_narr_param to_t in
+      
+      let new_v = mk_temp gen "new_arr" to_t in
+      let i = mk_temp gen "i" basic.tint in
+      let old_len = { eexpr = TField(e, "Length"); etype = basic.tint; epos = e.epos } in
+      let block = [
+        { 
+          eexpr = TVars(
+          [ 
+            new_v, Some( {
+              eexpr = TNew(native_arr_cl, [new_param], [old_len] );
+              etype = to_t;
+              epos = e.epos
+            } );
+            i, Some( mk_int gen (-1) e.epos )
+          ]); 
+          etype = basic.tvoid; 
+          epos = e.epos };
+        { 
+          eexpr = TWhile(
+            { 
+              eexpr = TBinop(
+                Ast.OpLt, 
+                { eexpr = TUnop(Ast.Increment, Ast.Prefix, mk_local i e.epos); etype = basic.tint; epos = e.epos },
+                old_len
+              );
+              etype = basic.tbool;
+              epos = e.epos
+            },
+            {
+              eexpr = TBinop(
+                Ast.OpAssign,
+                { eexpr = TArray(mk_local new_v e.epos, mk_local i e.epos); etype = new_param; epos = e.epos },
+                mk_cast new_param (mk_cast t_dynamic { eexpr = TArray(e, mk_local i e.epos); etype = old_param; epos = e.epos })
+              );
+              etype = new_param;
+              epos = e.epos
+            },
+            Ast.NormalWhile
+          );
+          etype = basic.tvoid;
+          epos = e.epos;
+        };
+        mk_local new_v e.epos
+      ] in
+      { eexpr = TBlock(block); etype = to_t; epos = e.epos }
+    in
+    
+    Hashtbl.add gen.gtparam_cast (["cs"], "NativeArray") gtparam_cast_native_array;
+    (* end set gtparam_cast *)
+  
+  let my_ifaces = TypeParams.RealTypeParams.configure gen (fun e t -> gen.gcon.warning ("Cannot cast to " ^ (debug_type t)) e.epos; mk_cast t e) in
+  ifaces := my_ifaces
  
 let connecting_string = "?" (* ? see list here http://www.fileformat.info/info/unicode/category/index.htm and here for C# http://msdn.microsoft.com/en-us/library/aa664670.aspx *)
 let default_package = "cs" (* I'm having this separated as I'm still not happy with having a cs package. Maybe dotnet would be better? *)
@@ -1214,6 +1295,8 @@ let configure gen =
     mk_cast ecall.etype { ecall with eexpr = TCall(infer, call_args) }
   in
   
+  handle_type_params gen ifaces;
+  
   let rcf_ctx = ReflectionCFs.new_ctx gen closure_t object_iface true rcf_on_getset_field rcf_on_call_field (fun hash hash_array ->
     { hash with eexpr = TCall(rcf_static_find, [hash; hash_array]); etype=basic.tint }
   ) (fun hash -> { hash with eexpr = TCall(rcf_static_lookup, [hash]); etype = gen.gcon.basic.tstring } ) in
@@ -1225,7 +1308,6 @@ let configure gen =
   ReflectionCFs.configure_dynamic_field_access rcf_ctx false;
   
   let closure_func = ReflectionCFs.implement_closure_cl rcf_ctx ( get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Closure")) ) in
-  
   
   ReflectionCFs.configure rcf_ctx;
   
@@ -1415,90 +1497,11 @@ let configure gen =
       | _ -> assert false
   ) true ) ;
   
-  (*
-    starting to set gtparam_cast.
-  *)
-  
-  (* NativeArray: the most important. *)
-  
-  (*
-    var new_arr = new NativeArray<TO_T>(old_arr.Length);
-    var i = -1;
-    while( i < old_arr.Length )
-    {
-      new_arr[i] = (TO_T) old_arr[i];
-    }
-  *)
-  
-  let native_arr_cl = get_cl ( get_type gen (["cs"], "NativeArray") ) in
-  
-  let get_narr_param t = match follow t with
-    | TInst({ cl_path = (["cs"], "NativeArray") }, [param]) -> param
-    | _ -> assert false
-  in
-  
-  let gtparam_cast_native_array e to_t =
-    let old_param = get_narr_param e.etype in
-    let new_param = get_narr_param to_t in
-    
-    let new_v = mk_temp gen "new_arr" to_t in
-    let i = mk_temp gen "i" basic.tint in
-    let old_len = { eexpr = TField(e, "Length"); etype = basic.tint; epos = e.epos } in
-    let block = [
-      { 
-        eexpr = TVars(
-        [ 
-          new_v, Some( {
-            eexpr = TNew(native_arr_cl, [new_param], [old_len] );
-            etype = to_t;
-            epos = e.epos
-          } );
-          i, Some( mk_int gen (-1) e.epos )
-        ]); 
-        etype = basic.tvoid; 
-        epos = e.epos };
-      { 
-        eexpr = TWhile(
-          { 
-            eexpr = TBinop(
-              Ast.OpLt, 
-              { eexpr = TUnop(Ast.Increment, Ast.Prefix, mk_local i e.epos); etype = basic.tint; epos = e.epos },
-              old_len
-            );
-            etype = basic.tbool;
-            epos = e.epos
-          },
-          {
-            eexpr = TBinop(
-              Ast.OpAssign,
-              { eexpr = TArray(mk_local new_v e.epos, mk_local i e.epos); etype = new_param; epos = e.epos },
-              mk_cast new_param (mk_cast t_dynamic { eexpr = TArray(e, mk_local i e.epos); etype = old_param; epos = e.epos })
-            );
-            etype = new_param;
-            epos = e.epos
-          },
-          Ast.NormalWhile
-        );
-        etype = basic.tvoid;
-        epos = e.epos;
-      };
-      mk_local new_v e.epos
-    ] in
-    { eexpr = TBlock(block); etype = to_t; epos = e.epos }
-  in
-  
-  Hashtbl.add gen.gtparam_cast (["cs"], "NativeArray") gtparam_cast_native_array;
-  
-  (* end set gtparam_cast *)
-  
-  let my_ifaces = TypeParams.RealTypeParams.configure gen (fun e t -> gen.gcon.warning ("Cannot cast to " ^ (debug_type t)) e.epos; mk_cast t e) in
-  
-  ifaces := my_ifaces;
-  
   ExpressionUnwrap.configure gen (ExpressionUnwrap.traverse gen (fun e -> Some { eexpr = TVars([mk_temp gen "expr" e.etype, Some e]); etype = gen.gcon.basic.tvoid; epos = e.epos }));
   
   IntDivisionSynf.configure gen (IntDivisionSynf.default_implementation gen true);
   
+  let native_arr_cl = get_cl ( get_type gen (["cs"], "NativeArray") ) in
   ArrayDeclSynf.configure gen (ArrayDeclSynf.default_implementation gen native_arr_cl);
   
   let goto_special = alloc_var "__goto__" t_dynamic in
