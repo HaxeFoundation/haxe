@@ -512,7 +512,7 @@ struct
         | TField( ef, "length" ) when is_string ef.etype ->
           { e with eexpr = TCall(Type.map_expr run e, []) }
         | TCall( ( { eexpr = TField({ eexpr = TTypeExpr (TTypeDecl t) }, "fromCharCode") } ), [cc] ) when is_string (follow (TType(t,List.map snd t.t_types))) ->
-          { e with eexpr = TNew(get_cl_from_t basic.tstring, [], [mk_cast tchar cc; mk_int gen 1 cc.epos]) }
+          { e with eexpr = TNew(get_cl_from_t basic.tstring, [], [mk_cast tchar (run cc); mk_int gen 1 cc.epos]) }
         | TCall( ( { eexpr = TField(ef, ("charAt" as field)) } ), args )
         | TCall( ( { eexpr = TField(ef, ("charCodeAt" as field)) } ), args )
         | TCall( ( { eexpr = TField(ef, ("split" as field)) } ), args )
