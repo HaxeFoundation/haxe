@@ -1214,7 +1214,7 @@ and type_expr_with_type ctx e t =
 			match follow t with
 			| TInst ({ cl_path = [],"Array" },[tp]) ->
 				(match follow tp with
-				| TMono _ ->					
+				| TMono _ ->
 					type_expr ctx e
 				| _ ->
 					let el = List.map (fun e ->
@@ -1963,7 +1963,7 @@ and type_call ctx e el p =
 				else
 					error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
 			) in
-			if ctx.com.dead_code_elimination then 
+			if ctx.com.dead_code_elimination then
 				(match e.eexpr, el with
 				| TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = [],"Std"  }) },"string"), [ep] -> check_to_string ctx ep.etype
 				| _ -> ());
@@ -1972,7 +1972,7 @@ and type_call ctx e el p =
 and check_to_string ctx t =
 	match follow t with
 	| TInst (c,_) ->
-		(try 
+		(try
 			let _, f = class_field c "toString" in
 			ignore(follow f.cf_type);
 		with Not_found ->
@@ -2720,12 +2720,12 @@ let rec create com =
 						if not (is_nullable ~no_lazy:true t) then TType (td,[t]) else t
 					with Exit ->
 						(* don't force lazy evaluation *)
-						let r = exc_protect (fun r ->
-							let tnull = TType (td,[t]) in
-							(* assume null as-default wrt recursion *)
-							r := (fun() -> tnull);
-							if not (is_nullable t) then tnull else begin r := (fun() -> t); t; end
-						) in
+						let r = ref (fun() -> assert false) in
+						r := (fun() ->
+							let t = (if not (is_nullable t) then TType (td,[t]) else t) in
+							r := (fun() -> t);
+							t
+						);
 						TLazy r
 				in
 				ctx.t.tnull <- if not (is_static_platform com) then (fun t -> t) else mk_null;
