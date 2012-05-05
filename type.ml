@@ -523,13 +523,13 @@ let rec follow t =
 		follow (apply_params t.t_types tl t.t_type)
 	| _ -> t
 
-let rec is_nullable = function
+let rec is_nullable ?(no_lazy=false) = function
 	| TMono r ->
 		(match !r with None -> false | Some t -> is_nullable t)
 	| TType ({ t_path = ([],"Null") },[_]) ->
 		true
 	| TLazy f ->
-		is_nullable (!f())
+		if no_lazy then raise Exit else is_nullable (!f())
 	| TType (t,tl) ->
 		is_nullable (apply_params t.t_types tl t.t_type)
 	| TFun _ ->

@@ -2715,7 +2715,20 @@ let rec create com =
 		| TTypeDecl td ->
 			(match snd td.t_path with
 			| "Null" ->
-				ctx.t.tnull <- if not (is_static_platform com) then (fun t -> t) else (fun t -> if not (is_nullable t) then TType (td,[t]) else t);
+				let mk_null t =
+					try
+						if not (is_nullable ~no_lazy:true t) then TType (td,[t]) else t
+					with Exit ->
+						(* don't force lazy evaluation *)
+						let r = exc_protect (fun r ->
+							let tnull = TType (td,[t]) in
+							(* assume null as-default wrt recursion *)
+							r := (fun() -> tnull);
+							if not (is_nullable t) then tnull else begin r := (fun() -> t); t; end
+						) in
+						TLazy r
+				in
+				ctx.t.tnull <- if not (is_static_platform com) then (fun t -> t) else mk_null;
 			| _ -> ());
 	) ctx.g.std.m_types;
 	let m = Typeload.load_module ctx ([],"String") null_pos in
