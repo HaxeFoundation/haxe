@@ -186,7 +186,7 @@ let gen_local ctx t =
 	(* ensure that our generated local does not mask an existing one *)
 	let rec loop n =
 		let nv = (if n = 0 then "_g" else "_g" ^ string_of_int n) in
-		if PMap.mem nv ctx.locals then
+		if (PMap.mem nv ctx.locals) || (PMap.mem nv ctx.curclass.cl_fields) then
 			loop (n+1)
 		else
 			nv
