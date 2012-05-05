@@ -37,11 +37,11 @@ let type_module_hook = ref (fun _ _ _ -> None)
 let return_partial_type = ref false
 
 let type_function_param ctx t e opt p =
-	match e with
-	| None ->
-		if opt then ctx.t.tnull t, Some (EConst (Ident "null"),p) else t, None
-	| Some e ->
-		t, Some e
+	if opt then
+		let e = (match e with None -> Some (EConst (Ident "null"),p) | _ -> e) in
+		ctx.t.tnull t, e
+	else
+		t, e
 
 let type_static_var ctx t e p =
 	ctx.curfun <- FStatic;

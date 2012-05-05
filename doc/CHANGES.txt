@@ -16,6 +16,7 @@
 	flash : bugfix for @:bitmap with 24-bits PNG (flash decode wrong colors)
 	as3 : fixed EnumValue becomes Object
 	js : removed js.Lib.isIE/isOpera (not complete, use js.JQuery.browser instead)
+	all : function parameters are nullable if they are declared with '?'
 
 2012-04-14: 2.09
 	all : optimized const == const and const != const (with different const types)
