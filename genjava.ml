@@ -844,6 +844,19 @@ let configure gen =
         t_s (TType(t, []))
   in
   
+  (*
+    it seems that Java doesn't like when you create a new array with the type parameter defined
+    so we'll just ignore all type parameters, and hope for the best!
+  *)
+  let rec transform_nativearray_t t = match real_type t with
+    | TInst( ({ cl_path = (["java"], "NativeArray") } as narr), [t]) ->
+      TInst(narr, [transform_nativearray_t t])
+    | TInst(cl, params) -> TInst(cl, List.map (fun _ -> t_dynamic) params)
+    | TEnum(e, params) -> TEnum(e, List.map (fun _ -> t_dynamic) params)
+    | TType(t, params) -> TType(t, List.map (fun _ -> t_dynamic) params)
+    | _ -> t
+  in
+  
   let expr_s w e =
     in_value := false;
     let rec expr_s w e =
@@ -915,20 +928,7 @@ let configure gen =
           ) 0 el);
           write w "}) )"
         | TArrayDecl el ->
-          (*
-            it seems that Java doesn't like when you create a new array with the type parameter defined
-            so we'll just ignore all type parameters, and hope for the best!
-          *)
-          let rec transform_t t = match real_type t with
-            | TInst( ({ cl_path = (["java"], "NativeArray") } as narr), [t]) ->
-              TInst(narr, [transform_t t])
-            | TInst(cl, params) -> TInst(cl, List.map (fun _ -> t_dynamic) params)
-            | TEnum(e, params) -> TEnum(e, List.map (fun _ -> t_dynamic) params)
-            | TType(t, params) -> TType(t, List.map (fun _ -> t_dynamic) params)
-            | _ -> t
-          in
-          
-          print w "new %s" (param_t_s (transform_t e.etype));
+          print w "new %s" (param_t_s (transform_nativearray_t e.etype));
           let is_double = match follow e.etype with
            | TInst(_,[ t ]) -> ( match follow t with | TInst({ cl_path=([],"Float") },[]) -> Some t | _ -> None )
            | _ -> None
@@ -1002,7 +1002,7 @@ let configure gen =
               | TInst({ cl_path = (["java"], "NativeArray") }, [param]) ->
                 (check_t_s param (times+1))
               | _ -> 
-                print w "new %s[" (t_s (run_follow gen t));
+                print w "new %s[" (t_s (transform_nativearray_t t));
                 expr_s w size;
                 print w "]";
                 let rec loop i =
