@@ -1203,7 +1203,34 @@ let configure gen =
       | Method mkind -> 
         let is_virtual = is_new || (not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false) in
         let is_override = match cf.cf_name with
-          | "toString" | "equals" when not is_static -> true
+          | "equals" when not is_static ->
+            (match cf.cf_type with
+              | TFun([_,_,t], ret) ->
+                (match (real_type t, real_type ret) with 
+                  | TDynamic _, TEnum( { e_path = ([], "Bool") }, [])
+                  | TAnon _, TEnum( { e_path = ([], "Bool") }, []) -> true
+                  | _ -> List.mem cf.cf_name cl.cl_overrides 
+                )
+              | _ -> List.mem cf.cf_name cl.cl_overrides)
+          | "toString" when not is_static ->
+            (match cf.cf_type with
+              | TFun([], ret) ->
+                (match real_type ret with
+                  | TInst( { cl_path = ([], "String") }, []) -> true
+                  | _ -> gen.gcon.error "A toString() function should return a String!" cf.cf_pos; false
+                )
+              | _ -> List.mem cf.cf_name cl.cl_overrides
+            )
+          | "hashCode" when not is_static ->
+            (match cf.cf_type with
+              | TFun([], ret) ->
+                (match real_type ret with
+                  | TInst( { cl_path = ([], "Int") }, []) ->
+                    true
+                  | _ -> gen.gcon.error "A hashCode() function should return an Int!" cf.cf_pos; false
+                )
+              | _ -> List.mem cf.cf_name cl.cl_overrides
+            )
           | _ -> List.mem cf.cf_name cl.cl_overrides 
         in
         let visibility = if is_interface then "" else "public" in
