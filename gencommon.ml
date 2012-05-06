@@ -8325,7 +8325,11 @@ end;;
 
 (*
   
-  In some source code platforms, the code won't compile if there is unreacheable code. 
+  In some source code platforms, the code won't compile if there is unreacheable code, so this filter will take off any unreachable code.
+    If the parameter "handle_switch_break" is set to true, it will already add a "break" statement on switch cases when suitable;
+      in order to not confuse with while break, it will be a special expression __sbreak__
+    If the parameter "handle_not_final_returns" is set to true, it will also add final returns when functions are detected to be lacking of them.
+      (Will respect __fallback__ expressions)
   
   dependencies:
     This must be the LAST syntax filter to run. It expects ExpressionUnwrap to have run correctly, since this will only work for source-code based targets
@@ -8344,7 +8348,7 @@ struct
     | BreaksLoop
     | BreaksFunction
   
-  let unify_kind e1 e2 =
+  let aggregate_kind e1 e2 =
     match e1, e2 with
       | Normal, _ 
       | _, Normal -> Normal
@@ -8352,7 +8356,8 @@ struct
       | _, BreaksLoop -> BreaksLoop
       | BreaksFunction, BreaksFunction -> BreaksFunction
   
-  let traverse gen should_warn =
+  let traverse gen should_warn handle_switch_break handle_not_final_returns =
+    let basic = gen.gcon.basic in
     
     let do_warn =
       if should_warn then gen.gcon.warning "Unreacheable code" else (fun pos -> ())
@@ -8362,6 +8367,29 @@ struct
       match kind with
         | Normal | BreaksLoop -> expr, Normal
         | _ -> expr, kind
+    in
+    
+    let sbreak = alloc_var "__sbreak__" t_dynamic in
+    let mk_sbreak = mk_local sbreak in
+    
+    let rec has_fallback expr = match expr.eexpr with
+      | TBlock(bl) -> (match List.rev bl with
+        | { eexpr = TLocal { v_name = "__fallback__" } } :: _ -> true
+        | ({ eexpr = TBlock(_) } as bl) :: _ -> has_fallback bl
+        | _ -> false)
+      | TLocal { v_name = "__fallback__" } -> true
+      | _ -> false
+    in
+    
+    let handle_case = if handle_switch_break then
+      (fun (expr,kind) ->
+        match kind with
+          | Normal when has_fallback expr -> expr
+          | Normal -> Codegen.concat expr (mk_sbreak expr.epos)
+          | BreaksLoop | BreaksFunction -> expr
+      )
+    else
+      fst
     in
     
     let rec process_expr expr =
@@ -8391,7 +8419,13 @@ struct
           
           { expr with eexpr = TBlock(List.rev !new_block) }, !ret_kind
         | TFunction tf ->
-          let changed, _ = process_expr tf.tf_expr in
+          let changed, kind = process_expr tf.tf_expr in
+          let changed = if handle_not_final_returns && not (is_void tf.tf_type) && kind <> BreaksFunction then 
+            Codegen.concat changed { eexpr = TReturn( Some (null tf.tf_type expr.epos) ); etype = basic.tvoid; epos = expr.epos } 
+          else
+            changed
+          in 
+          
           { expr with eexpr = TFunction({ tf with tf_expr = changed }) }, Normal
         | TFor(var, cond, block) ->
           let changed_block, kind = process_expr block in
@@ -8402,31 +8436,31 @@ struct
         | TIf(cond, eif, Some eelse) ->
           let eif, eif_k = process_expr eif in
           let eelse, eelse_k = process_expr eelse in
-          let k = unify_kind eif_k eelse_k in
+          let k = aggregate_kind eif_k eelse_k in
           { expr with eexpr = TIf(cond, eif, Some eelse) }, k
         | TWhile(cond, block, flag) ->
           let block, k = process_expr block in
           return_loop { expr with eexpr = TWhile(cond,block,flag) } k
         | TSwitch(cond, el_e_l, None) ->
-          { expr with eexpr = TSwitch(cond, List.map (fun (el, e) -> (el, fst (process_expr e))) el_e_l, None) }, Normal
+          { expr with eexpr = TSwitch(cond, List.map (fun (el, e) -> (el, handle_case (process_expr e))) el_e_l, None) }, Normal
         | TSwitch(cond, el_e_l, Some def) ->
           let def, k = process_expr def in
           let k = ref k in
           let ret = { expr with eexpr = TSwitch(cond, List.map (fun (el, e) -> 
             let e, ek = process_expr e in
-            k := unify_kind !k ek;
-            (el, e)
+            k := aggregate_kind !k ek;
+            (el, handle_case (e, ek))
           ) el_e_l, Some def) } in
           ret, !k
         | TMatch(cond, ep, il_vopt_e_l, None) ->
-          { expr with eexpr = TMatch(cond, ep, List.map (fun (il, vopt, e) -> (il, vopt, fst (process_expr e))) il_vopt_e_l, None) }, Normal
+          { expr with eexpr = TMatch(cond, ep, List.map (fun (il, vopt, e) -> (il, vopt, handle_case (process_expr e))) il_vopt_e_l, None) }, Normal
         | TMatch(cond, ep, il_vopt_e_l, Some def) ->
           let def, k = process_expr def in
           let k = ref k in
           let ret = { expr with eexpr = TMatch(cond, ep, List.map (fun (il, vopt, e) -> 
             let e, ek = process_expr e in
-            k := unify_kind !k ek;
-            (il, vopt, e)
+            k := aggregate_kind !k ek;
+            (il, vopt, handle_case (e, ek))
           ) il_vopt_e_l, Some def) } in
           ret, !k
         | TTry (e, catches) ->
@@ -8434,7 +8468,7 @@ struct
           let k = ref k in
           let ret = { expr with eexpr = TTry(e, List.map (fun (v, e) ->
             let e, ek = process_expr e in
-            k := unify_kind !k ek;
+            k := aggregate_kind !k ek;
             (v, e)
           ) catches) } in
           ret, !k

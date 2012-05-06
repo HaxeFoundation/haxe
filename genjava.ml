@@ -878,6 +878,7 @@ let configure gen =
             | TThis -> write w "this"
             | TSuper -> write w "super")
         | TLocal { v_name = "__fallback__" } -> ()
+        | TLocal { v_name = "__sbreak__" } -> write w "break"
         | TLocal { v_name = "__undefined__" } ->
           write w (t_s (TInst(runtime_cl, List.map (fun _ -> t_dynamic) runtime_cl.cl_types)));
           write w ".undefined";
@@ -1113,8 +1114,6 @@ let configure gen =
             in_value := false;
             expr_s w (mk_block e);
             newline w;
-            
-            (if not (JavaSpecificSynf.is_final_return_expr true e) then write w "break;");
             newline w
           ) ele_l;
           if is_some default then begin
@@ -1123,7 +1122,6 @@ let configure gen =
             in_value := false;
             expr_s w (get default);
             newline w;
-            (if not (JavaSpecificSynf.is_final_return_expr true (get default)) then write w "break;");
           end;
           end_block w
         | TTry (tryexpr, ve_l) ->
@@ -1675,7 +1673,7 @@ let configure gen =
   
   IntDivisionSynf.configure gen (IntDivisionSynf.default_implementation gen true);
   
-  UnreachableCodeEliminationSynf.configure gen (UnreachableCodeEliminationSynf.traverse gen true);
+  UnreachableCodeEliminationSynf.configure gen (UnreachableCodeEliminationSynf.traverse gen true true true);
   
   ArrayDeclSynf.configure gen (ArrayDeclSynf.default_implementation gen native_arr_cl);
   
