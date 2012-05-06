@@ -73,6 +73,12 @@ class TestRunner {
 				alert("haxe:trace element not found")
 			else
 				d.innerHTML += msg;
+		#elseif cs
+			var str:String = v;
+			untyped __cs__("System.Console.WriteLine(str)");
+		#elseif java
+			var str:String = v;
+			untyped __java__("java.lang.System.out.println(str)");
 		#end
 	}
 
