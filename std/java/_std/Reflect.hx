@@ -36,7 +36,7 @@ import java.Boot;
 	**/
 	@:functionBody('
 		if (o instanceof haxe.lang.IHxObject)
-			return ((haxe.lang.IHxObject) o).__hx_getField(field, false, false, true) != haxe.lang.Runtime.undefined;
+			return ((haxe.lang.IHxObject) o).__hx_getField(field, false, true) != haxe.lang.Runtime.undefined;
 		
 		return haxe.lang.Runtime.slowHasField(o, field);
 	')
@@ -50,7 +50,7 @@ import java.Boot;
 	**/
 	@:functionBody('
 		if (o instanceof haxe.lang.IHxObject)
-			return ((haxe.lang.IHxObject) o).__hx_getField(field, false, false, false);
+			return ((haxe.lang.IHxObject) o).__hx_getField(field, false, false);
 		
 		return haxe.lang.Runtime.slowGetField(o, field, false);
 	')
@@ -65,7 +65,7 @@ import java.Boot;
 	**/
 	@:functionBody('
 		if (o instanceof haxe.lang.IHxObject)
-			((haxe.lang.IHxObject) o).__hx_setField(field, false, value);
+			((haxe.lang.IHxObject) o).__hx_setField(field, value);
 		
 		 haxe.lang.Runtime.slowSetField(o, field, value);
 	')
@@ -108,7 +108,7 @@ import java.Boot;
 		if (o instanceof haxe.lang.IHxObject)
 		{
 			Array<String> ret = new Array<String>();
-			((haxe.lang.IHxObject) o).__hx_getFields(ret, false);
+			((haxe.lang.IHxObject) o).__hx_getFields(ret);
 			return ret;
 		} else {
 			Array<String> ret = new Array<String>();

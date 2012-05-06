@@ -38,13 +38,7 @@ enum ValueType {
 @:core_api class Type {
 	
 	@:functionBody('
-		if (o instanceof haxe.lang.IHxObject)
-		{
-			return ((haxe.lang.IHxObject) o).__hx_getClass();
-		} else {
-			//TODO implement slow method
-			return null;
-		}
+		return (java.lang.Class<T>) o.getClass();
 	')
 	public static function getClass<T>( o : T ) : Class<T> untyped 
 	{
@@ -52,13 +46,7 @@ enum ValueType {
 	}
 	
 	@:functionBody('
-		if (o instanceof haxe.lang.IHxObject)
-		{
-			return ((haxe.lang.IHxObject) o).__hx_getClass();
-		} else {
-			//TODO implement slow method
-			return null;
-		}
+		return o.getClass();
 	')
 	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped 
 	{
@@ -71,7 +59,7 @@ enum ValueType {
 	}
 	
 	public static function getClassName( c : Class<Dynamic> ) : String untyped {
-		var name:String = cast(c.nativeType(), java.lang.Class<Dynamic>).getName();
+		var name:String = c.getName();
 		if (name.startsWith("haxe.root."))
 			return name.substr(10);
 			
@@ -86,7 +74,7 @@ enum ValueType {
 	}
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String untyped {
-		return cast(e.nativeType(), java.lang.Class<Dynamic>).getName();
+		return e.getName();
 	}
 
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped 
@@ -102,22 +90,25 @@ enum ValueType {
 
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped 
 	{
+		//TODO first see if __hx_create exists
 		return cl.__hx_create(args);
 	}
 
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped 
 	{
+		//TODO first see if __hx_createEmpty exists
 		return cl.__hx_createEmpty();
 	}
 	
 	@:functionBody('
-		if (params == null) {
-			T ret = (T) e.__hx_getField(constr, false, false, false);
+		if (params == null) 
+		{
+			T ret = (T) haxe.lang.Runtime.slowGetField(e, constr, false);
 			if (ret instanceof haxe.lang.Function)
 				throw haxe.lang.HaxeException.wrap("Constructor " + constr + " needs parameters");
 			return ret;
 		} else {
-			return (T)e.__hx_invokeField(constr, false, params);
+			return (T) haxe.lang.Runtime.slowCallField(e, constr, params);
 		}
 	')
 	public static function createEnum<T>( e : Enum<T>, constr : String, ?params : Array<Dynamic> ) : T 
@@ -126,32 +117,33 @@ enum ValueType {
 	}
 	
 	@:functionBody('
-		if (params == null) {
+		/*if (params == null) {
 			T ret = (T) e.__hx_getField(index + "", false, false, false);
 			if (ret instanceof haxe.lang.Function)
 				throw haxe.lang.HaxeException.wrap("Constructor " + index + " needs parameters");
 			return ret;
 		} else {
 			return (T)e.__hx_invokeField(index + "", false, params);
-		}
+		}*/
+		return null; //TODO
 	')
 	public static function createEnumIndex<T>( e : Enum<T>, index : Int, ?params : Array<Dynamic> ) : T {
 		return null;
 	}
-
-	static function describe( t : Dynamic, fact : Bool ) : Array<String> untyped {
-		return null;
-	}
 	
 	@:functionBody('
-		if (c instanceof haxe.lang.IHxObject)
+		Array<String> ret = new Array<String>();
+		for (java.lang.reflect.Field f : c.getDeclaredFields())
 		{
-			Array<String> ret = new Array<String>();
-			((haxe.lang.IHxObject) c).__hx_getFields(ret, true);
-			return ret;
-		} else {
-			return null;
+			ret.push(f.getName());
 		}
+		
+		for (java.lang.reflect.Method m : c.getDeclaredMethods())
+		{
+			ret.push(m.getName());
+		}
+		
+		return ret;
 	')
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
 		return null;
@@ -170,8 +162,8 @@ enum ValueType {
 		
 		if (v instanceof haxe.lang.IHxObject) {
 			haxe.lang.IHxObject vobj = (haxe.lang.IHxObject) v;
-			haxe.lang.Class cl = vobj.__hx_getClass();
-			if (cl == null)
+			java.lang.Class cl = vobj.getClass();
+			if (v instanceof haxe.lang.DynamicObject)
 				return ValueType.TObject;
 			else if (v instanceof haxe.lang.Enum)
 				return ValueType.TEnum(cl);
@@ -186,11 +178,11 @@ enum ValueType {
 		} else if (v instanceof haxe.lang.Function) {
 			return ValueType.TFunction;
 		} else if (v instanceof java.lang.Enum) {
-			return ValueType.TEnum(new haxe.lang.NativeClassWrapper(v.getClass()));
+			return ValueType.TEnum(v.getClass());
 		} else if (v instanceof java.lang.Boolean) {
 			return ValueType.TBool;
 		} else {
-			return ValueType.TClass(new haxe.lang.NativeClassWrapper(v.getClass()));
+			return ValueType.TClass(v.getClass());
 		}
 	')
 	public static function typeof( v : Dynamic ) : ValueType untyped 

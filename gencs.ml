@@ -1298,7 +1298,7 @@ let configure gen =
   
   let rcf_ctx = ReflectionCFs.new_ctx gen closure_t object_iface true rcf_on_getset_field rcf_on_call_field (fun hash hash_array ->
     { hash with eexpr = TCall(rcf_static_find, [hash; hash_array]); etype=basic.tint }
-  ) (fun hash -> { hash with eexpr = TCall(rcf_static_lookup, [hash]); etype = gen.gcon.basic.tstring } ) in
+  ) (fun hash -> { hash with eexpr = TCall(rcf_static_lookup, [hash]); etype = gen.gcon.basic.tstring } ) true in
   
   ReflectionCFs.UniversalBaseClass.default_config gen (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
   

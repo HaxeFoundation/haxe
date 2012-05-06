@@ -12,28 +12,28 @@ package haxe.lang;
 	public static java.lang.Object getField(haxe.lang.IHxObject obj, java.lang.String field, boolean throwErrors)
 	{
 		if (obj == null && !throwErrors) return null;
-		return obj.__hx_getField(field, false, throwErrors, false);
+		return obj.__hx_getField(field, throwErrors, false);
 	}
 	
 	public static double getField_f(haxe.lang.IHxObject obj, java.lang.String field, boolean throwErrors)
 	{
 		if (obj == null && !throwErrors) return 0.0;
-		return obj.__hx_getField_f(field, false, throwErrors);
+		return obj.__hx_getField_f(field, throwErrors);
 	}
 	
 	public static java.lang.Object setField(haxe.lang.IHxObject obj, java.lang.String field, java.lang.Object value)
 	{
-		return obj.__hx_setField(field, false, value);
+		return obj.__hx_setField(field, value);
 	}
 	
 	public static double setField_f(haxe.lang.IHxObject obj, java.lang.String field, double value)
 	{
-		return obj.__hx_setField_f(field, false, value);
+		return obj.__hx_setField_f(field, value);
 	}
 	
 	public static java.lang.Object callField(haxe.lang.IHxObject obj, java.lang.String field, Array<?> args)
 	{
-		return obj.__hx_invokeField(field, false, args);
+		return obj.__hx_invokeField(field, args);
 	}
 ')
 @:keep private class Runtime 
@@ -432,7 +432,7 @@ package haxe.lang;
 	@:functionBody('
 		if (obj instanceof haxe.lang.IHxObject)
 		{
-			return ((haxe.lang.IHxObject) obj).__hx_invokeField(field, false, args);
+			return ((haxe.lang.IHxObject) obj).__hx_invokeField(field, args);
 		}
 		
 		return slowCallField(obj, field, args);
@@ -445,7 +445,7 @@ package haxe.lang;
 	@:functionBody('
 	
 		if (obj instanceof haxe.lang.IHxObject)
-			return ((haxe.lang.IHxObject) obj).__hx_getField(field, false, throwErrors, false);
+			return ((haxe.lang.IHxObject) obj).__hx_getField(field, throwErrors, false);
 		
 		return slowGetField(obj, field, throwErrors);
 	
@@ -458,7 +458,7 @@ package haxe.lang;
 	@:functionBody('
 	
 		if (obj instanceof haxe.lang.IHxObject)
-			return ((haxe.lang.IHxObject) obj).__hx_getField_f(field, false, throwErrors);
+			return ((haxe.lang.IHxObject) obj).__hx_getField_f(field, throwErrors);
 		
 		return toDouble(slowGetField(obj, field, throwErrors));
 	
@@ -471,7 +471,7 @@ package haxe.lang;
 	@:functionBody('
 	
 		if (obj instanceof haxe.lang.IHxObject)
-			return ((haxe.lang.IHxObject) obj).__hx_setField(field, false, value);
+			return ((haxe.lang.IHxObject) obj).__hx_setField(field, value);
 		
 		return slowSetField(obj, field, value);
 	
@@ -484,7 +484,7 @@ package haxe.lang;
 	@:functionBody('
 	
 		if (obj instanceof haxe.lang.IHxObject)
-			return ((haxe.lang.IHxObject) obj).__hx_setField_f(field, false, value);
+			return ((haxe.lang.IHxObject) obj).__hx_setField_f(field, value);
 		
 		return toDouble(slowSetField(obj, field, value));
 	
