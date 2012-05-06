@@ -325,8 +325,7 @@ let handle_type_params gen ifaces =
     Hashtbl.add gen.gtparam_cast (["cs"], "NativeArray") gtparam_cast_native_array;
     (* end set gtparam_cast *)
   
-  let my_ifaces = TypeParams.RealTypeParams.configure gen (fun e t -> gen.gcon.warning ("Cannot cast to " ^ (debug_type t)) e.epos; mk_cast t e) in
-  ifaces := my_ifaces
+  TypeParams.RealTypeParams.default_config gen (fun e t -> gen.gcon.warning ("Cannot cast to " ^ (debug_type t)) e.epos; mk_cast t e) ifaces
  
 let connecting_string = "?" (* ? see list here http://www.fileformat.info/info/unicode/category/index.htm and here for C# http://msdn.microsoft.com/en-us/library/aa664670.aspx *)
 let default_package = "cs" (* I'm having this separated as I'm still not happy with having a cs package. Maybe dotnet would be better? *)
@@ -447,7 +446,7 @@ let configure gen =
     | (ns,clname) -> path_s (change_ns ns, change_clname clname)
   in
   
-  let ifaces = ref (Hashtbl.create 0) in
+  let ifaces = Hashtbl.create 1 in
   
   let ti64 = match ( get_type gen ([], "Int64") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
   
@@ -460,12 +459,12 @@ let configure gen =
       | TInst(_, []) -> t
       | TInst(cl, params) when 
         List.exists (fun t -> match follow t with | TDynamic _ -> true | _ -> false) params &&
-        Hashtbl.mem !ifaces cl.cl_path -> 
-          TInst(Hashtbl.find !ifaces cl.cl_path, [])
+        Hashtbl.mem ifaces cl.cl_path -> 
+          TInst(Hashtbl.find ifaces cl.cl_path, [])
       | TEnum(e, params) when
         List.exists (fun t -> match follow t with | TDynamic _ -> true | _ -> false) params &&
-        Hashtbl.mem !ifaces e.e_path -> 
-          TInst(Hashtbl.find !ifaces e.e_path, [])
+        Hashtbl.mem ifaces e.e_path -> 
+          TInst(Hashtbl.find ifaces e.e_path, [])
       | TInst(cl, params) -> TInst(cl, change_param_type (TClassDecl cl) params)
       | TEnum(e, params) -> TEnum(e, change_param_type (TEnumDecl e) params)
       (* | TType({ t_path = ([], "Null") }, [t]) -> TInst(null_t, [t]) *)
@@ -1301,7 +1300,7 @@ let configure gen =
     { hash with eexpr = TCall(rcf_static_find, [hash; hash_array]); etype=basic.tint }
   ) (fun hash -> { hash with eexpr = TCall(rcf_static_lookup, [hash]); etype = gen.gcon.basic.tstring } ) in
   
-  ReflectionCFs.set_universal_base_class gen (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
+  ReflectionCFs.UniversalBaseClass.default_config gen (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
   
   ReflectionCFs.implement_class_methods rcf_ctx ( get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Class")) );
   

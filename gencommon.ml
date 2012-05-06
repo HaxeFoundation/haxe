@@ -148,7 +148,7 @@ rules were devised:
 (* ******************************************* *)
 
 let assertions = false (* when assertions == true, many assertions will be made to guarantee the quality of the data input *)
-let debug_mode = ref true
+let debug_mode = ref false
 let trace s = () (* if !debug_mode then print_endline s else ()*)
 
 (* helper function for creating Anon types of class / enum modules *)
@@ -350,7 +350,6 @@ class ['tp, 'ret] rule_dispatcher name ignore_not_found =
     List.rev !ret
   
   method run_from (priority:float) (tp:'tp) : 'ret option =
-    trace ((String.concat "\t" !indent) ^ "running " ^ name ^ " from " ^ (string_of_float priority));
     let t = if !debug_mode then fun () -> () else Common.timer "rule dispatcher" in
     let ok = ref ignore_not_found in
     let ret = ref None in
@@ -376,7 +375,6 @@ class ['tp, 'ret] rule_dispatcher name ignore_not_found =
       | h::t -> indent := t); 
     
     (if not (!ok) then raise NoRulesApplied);
-    trace ((String.concat "\t" !indent) ^ "end " ^ name);
     t();
     !ret
   
@@ -401,6 +399,7 @@ class ['tp] rule_map_dispatcher name =
         if key < priority then begin
           let q = Hashtbl.find tbl key in
           Stack.iter (fun (n, rule) ->
+            trace ("running rule " ^ n);
             let t = if !debug_mode then Common.timer ("rule map dispatcher rule: " ^ n) else fun () -> () in
             let r = rule(!cur) in
             t();
@@ -818,11 +817,15 @@ let run_filters gen =
     let rec loop processed not_processed =
       match not_processed with
         | hd :: tl ->
+          trace ("type " ^ (snd (t_path hd)));
           let new_hd = filter#run_f hd in
           
           let added_types_new = !added_types in
           added_types := [];
-          let added_types = List.map (fun (t,p) -> get (filter#run_from p t)) added_types_new in
+          let added_types = List.map (fun (t,p) -> 
+            trace ("added type " ^ (snd (t_path t)));
+            get (filter#run_from p t)
+          ) added_types_new in
           
           loop ( added_types @ (new_hd :: processed) ) tl
         | [] ->
@@ -3677,8 +3680,6 @@ struct
   (* ******************************************* *)
 
   (*
-    TODO: create Module filter and take implementation off configure
-    
     This submodule is by now specially made for the .NET platform. There might be other targets that will
     make use of this, but it IS very specific.
     
@@ -3728,121 +3729,161 @@ struct
       | TTypeDecl(t) ->
         not (has_meta ":$nativegeneric" t.t_meta)
     
-    
-    let rec set_hxgeneric gen = function
-      | TClassDecl(cl)  ->
-        (* first see if any meta is present (already processed) *)
-        if has_meta ":$nativegeneric" cl.cl_meta then 
-          false 
-        else if has_meta ":$hxgeneric" cl.cl_meta then 
-          true 
-        else if not (is_hxgen (TClassDecl cl)) then
-          (cl.cl_meta <- (":$nativegeneric", [], cl.cl_pos) :: cl.cl_meta;
-          false)
-        else begin
-          (* 
-            if it's not present, see if any superclass is nativegeneric. 
-            nativegeneric is inherited, while hxgeneric can be later changed to nativegeneric
-          *)
-          match cl.cl_super with
-            | Some (c,_) when not (set_hxgeneric gen (TClassDecl c)) ->
-              cl.cl_meta <- (":$nativegeneric", [], cl.cl_pos) :: cl.cl_meta;
-              false
-            | _ ->
-              (* see if it's a generic class *)
-              match cl.cl_types with
-                | [] ->
-                  (* if it's not, then it will be hxgeneric *)
-                  cl.cl_meta <- (":$hxgeneric", [], cl.cl_pos) :: cl.cl_meta;
-                  true
-                | _ ->
-                  (* if it is, loop through all fields + statics and look for non-hxgeneric 
-                    generic classes that have KTypeParameter as params *)
-                  let rec loop cfs =
-                    match cfs with
-                      | [] -> false
-                      | cf :: cfs -> 
-                        let t = follow (gen.greal_type cf.cf_type) in
-                        match t with
-                          | TInst( { cl_kind = KTypeParameter }, _ ) -> loop cfs
-                          | TInst(cl,p) when has_type_params t && not(set_hxgeneric gen (TClassDecl cl)) ->
-                            if not (Hashtbl.mem gen.gtparam_cast cl.cl_path) then true else loop cfs
-                          | TEnum(e,p) when has_type_params t && not(set_hxgeneric gen (TEnumDecl e)) ->
-                            if not (Hashtbl.mem gen.gtparam_cast e.e_path) then true else loop cfs
-                          | _ -> loop cfs
-                  in
-                  if loop (cl.cl_ordered_fields @ cl.cl_ordered_statics) then 
-                    (cl.cl_meta <- (":$nativegeneric", [], cl.cl_pos) :: cl.cl_meta;
-                    false)
-                  else
-                    (cl.cl_meta <- (":$hxgeneric", [], cl.cl_pos) :: cl.cl_meta;
-                    true)
-        end
-      | TEnumDecl e ->
-        if has_meta ":$nativegeneric" e.e_meta then 
-          false 
-        else if has_meta ":$hxgeneric" e.e_meta then 
-          true 
-        else if not (is_hxgen (TEnumDecl e)) then
-          (e.e_meta <- (":$nativegeneric", [], e.e_pos) :: e.e_meta;
-          false)
-        else begin
-          (* if enum is not generic, then it's hxgeneric *)
-          match e.e_types with
-            | [] ->
-              e.e_meta <- (":$hxgeneric", [], e.e_pos) :: e.e_meta;
-              true
-            | _ ->
-              let rec loop efs =
-                match efs with
-                  | [] -> false
-                  | ef :: efs ->
-                    let t = follow (gen.greal_type ef.ef_type) in
-                    match t with
-                      | TInst( { cl_kind = KTypeParameter }, _ ) -> loop efs
-                      | TInst(cl,p) when has_type_params t && not(set_hxgeneric gen (TClassDecl cl)) ->
-                        if not (Hashtbl.mem gen.gtparam_cast cl.cl_path) then true else loop efs
-                      | TEnum(e, p) when has_type_params t && not(set_hxgeneric gen (TEnumDecl e)) ->
-                        if not (Hashtbl.mem gen.gtparam_cast e.e_path) then true else loop efs
-                      | _ -> loop efs
-              in
-              let efs = PMap.fold (fun ef acc -> ef :: acc) e.e_constrs [] in
-              if loop efs then
-                (e.e_meta <- (":$nativegeneric", [], e.e_pos) :: e.e_meta;
-                false)
-              else
-                (e.e_meta <- (":$hxgeneric", [], e.e_pos) :: e.e_meta;
-                true)
-        end
-      | _ -> assert false
-    
-    (* | Some (cs,tls) ->
-          loop cs (List.map (apply_params c.cl_types tl) tls) 
-      List.fold_left (fun (acc,params) (cl,p) ->
-        let params = match params with
-          | [] -> p
-          | _ -> List.map (apply_params cl.cl_types params) p
+    let rec set_hxgeneric gen mds isfirst md = 
+      let path = t_path md in
+      if List.exists (fun m -> path = t_path m) mds then begin
+        if isfirst then 
+          None (* we still can't determine *)
+        else
+          Some true (* if we're in second pass and still can't determine, it's because it can be hxgeneric *)
+      end else begin
+        let has_unresolved = ref false in
+        let is_false v = 
+          match v with
+            | Some false -> true
+            | None -> has_unresolved := true; false
+            | Some true -> false
         in
         
-        let fields = List.fold_left (fun acc cf -> 
-          (* if cf is a var, and if this var has type parameters, and if they are not hxgen *)
-          match follow (gen.greal_type (gen.gfollow#run_f (cf.cf_type))) with
-            | TInst(cl, (_ :: _) as p) when not (is_hxgen (TClassDecl cl)) ->
-              cf :: acc
-            | TEnum(e, (_ :: _) as p) when not (is_hxgen (TEnumDecl e)) ->
-              cf :: acc
-            | _ -> acc
-        ) cl.cl_ordered_fields in
-        
-        (fields @ acc, params)
-      ) ([],[]) classes*)
+        let mds = md :: mds in
+        match md with
+          | TClassDecl(cl)  ->
+            (* first see if any meta is present (already processed) *)
+            if has_meta ":$nativegeneric" cl.cl_meta then 
+              Some false 
+            else if has_meta ":$hxgeneric" cl.cl_meta then 
+              Some true 
+            else if not (is_hxgen md) then
+              (cl.cl_meta <- (":$nativegeneric", [], cl.cl_pos) :: cl.cl_meta;
+              Some false)
+            else begin
+              (* 
+                if it's not present, see if any superclass is nativegeneric. 
+                nativegeneric is inherited, while hxgeneric can be later changed to nativegeneric
+              *)
+              (* on the first pass, our job is to find any evidence that makes it not be hxgeneric. Otherwise it will be hxgeneric *)
+              match cl.cl_super with
+                | Some (c,_) when is_false (set_hxgeneric gen mds isfirst (TClassDecl c)) ->
+                  cl.cl_meta <- (":$nativegeneric", [], cl.cl_pos) :: cl.cl_meta;
+                  Some false
+                | _ ->
+                  (* see if it's a generic class *)
+                  match cl.cl_types with
+                    | [] ->
+                      (* if it's not, then it will be hxgeneric *)
+                      cl.cl_meta <- (":$hxgeneric", [], cl.cl_pos) :: cl.cl_meta;
+                      Some true
+                    | _ ->
+                      (* if it is, loop through all fields + statics and look for non-hxgeneric 
+                        generic classes that have KTypeParameter as params *)
+                      let rec loop cfs =
+                        match cfs with
+                          | [] -> false
+                          | cf :: cfs -> 
+                            let t = follow (gen.greal_type cf.cf_type) in
+                            match t with
+                              | TInst( { cl_kind = KTypeParameter }, _ ) -> loop cfs
+                              | TInst(cl,p) when has_type_params t && is_false (set_hxgeneric gen mds isfirst (TClassDecl cl)) ->
+                                if not (Hashtbl.mem gen.gtparam_cast cl.cl_path) then true else loop cfs
+                              | TEnum(e,p) when has_type_params t && is_false (set_hxgeneric gen mds isfirst (TEnumDecl e)) ->
+                                if not (Hashtbl.mem gen.gtparam_cast e.e_path) then true else loop cfs
+                              | _ -> loop cfs
+                      in
+                      if loop cl.cl_ordered_fields then begin
+                        cl.cl_meta <- (":$nativegeneric", [], cl.cl_pos) :: cl.cl_meta;
+                        Some false
+                      end else if isfirst && !has_unresolved then
+                        None
+                      else begin
+                        cl.cl_meta <- (":$hxgeneric", [], cl.cl_pos) :: cl.cl_meta;
+                        Some true
+                      end
+            end
+          | TEnumDecl e ->
+            if has_meta ":$nativegeneric" e.e_meta then 
+              Some false 
+            else if has_meta ":$hxgeneric" e.e_meta then 
+              Some true 
+            else if not (is_hxgen (TEnumDecl e)) then begin
+              e.e_meta <- (":$nativegeneric", [], e.e_pos) :: e.e_meta;
+              Some false
+            end else begin
+              (* if enum is not generic, then it's hxgeneric *)
+              match e.e_types with
+                | [] ->
+                  e.e_meta <- (":$hxgeneric", [], e.e_pos) :: e.e_meta;
+                  Some true
+                | _ ->
+                  let rec loop efs =
+                    match efs with
+                      | [] -> false
+                      | ef :: efs ->
+                        let t = follow (gen.greal_type ef.ef_type) in
+                        match t with
+                          | TFun(args, _) ->
+                            if List.exists (fun (n,o,t) -> 
+                              let t = follow t in
+                              match t with
+                                | TInst( { cl_kind = KTypeParameter }, _ ) -> 
+                                  false
+                                | TInst(cl,p) when has_type_params t && is_false (set_hxgeneric gen mds isfirst (TClassDecl cl)) ->
+                                  not (Hashtbl.mem gen.gtparam_cast cl.cl_path)
+                                | TEnum(e,p) when has_type_params t && is_false (set_hxgeneric gen mds isfirst (TEnumDecl e)) ->
+                                  not (Hashtbl.mem gen.gtparam_cast e.e_path)
+                                | _ -> false
+                            ) args then
+                              true
+                            else
+                              loop efs
+                          | _ -> loop efs
+                  in
+                  let efs = PMap.fold (fun ef acc -> ef :: acc) e.e_constrs [] in
+                  if loop efs then begin
+                    e.e_meta <- (":$nativegeneric", [], e.e_pos) :: e.e_meta;
+                    Some false
+                  end else if isfirst && !has_unresolved then
+                    None
+                  else begin
+                    e.e_meta <- (":$hxgeneric", [], e.e_pos) :: e.e_meta;
+                    Some true
+                  end
+            end
+          | _ -> assert false
+      end
+    
+    let set_hxgeneric gen md =
+      match set_hxgeneric gen [] true md with
+        | None ->
+          get (set_hxgeneric gen [] false md)
+        | Some v -> v
     
     let params_has_tparams params =
       List.fold_left (fun acc t -> acc || has_type_params t) false params
     
-    let configure gen (dyn_tparam_cast:texpr->t->texpr) =
-    
-      let rec get_fields cl params_cl params_cf acc =
+    (* ******************************************* *)
+    (* RealTypeParamsModf *)
+    (* ******************************************* *)
+
+    (*
+      
+      This is the module filter of Real Type Parameters. It will traverse through all types and look for hxgeneric classes (only classes). 
+      When found, a parameterless interface will be created and associated via the "ifaces" Hashtbl to the original class.
+      Also a "cast" function will be automatically generated which will handle unsafe downcasts to more specific type parameters (necessary for serialization)
+      
+      dependencies:
+        Anything that may create hxgeneric classes must run before it.
+        Should run before ReflectionCFs (this dependency will be added to ReflectionCFs), so the added interfaces also get to be real IHxObject's
+      
+    *)
+
+    module RealTypeParamsModf =
+    struct
+
+      let name = "real_type_params_modf"
+      
+      let priority = solve_deps name []
+      
+      let rec get_fields gen cl params_cl params_cf acc =
         let fields = List.fold_left (fun acc cf ->
           match follow (gen.greal_type (gen.gfollow#run_f (cf.cf_type))) with
             | TInst(cli, ((_ :: _) as p)) when (not (is_hxgeneric (TClassDecl cli))) && params_has_tparams p ->
@@ -3853,10 +3894,9 @@ struct
         ) [] cl.cl_ordered_fields in
         match cl.cl_super with
           | Some(cs, tls) ->
-            get_fields cs (List.map (apply_params cl.cl_types params_cl) tls) (List.map (apply_params cl.cl_types params_cf) tls) (fields @ acc)
+            get_fields gen cs (List.map (apply_params cl.cl_types params_cl) tls) (List.map (apply_params cl.cl_types params_cf) tls) (fields @ acc)
           | None -> (fields @ acc)
-      in
-      
+          
       (* 
         Creates a cast classfield, with the desired name
         
@@ -3866,13 +3906,13 @@ struct
         looking at previous superclasses and whenever a generic class is found, its cast argument must be overriden. the toughest part is to know how to type
         the current type correctly.
       *)
-      let create_cast_cfield cl name =
+      let create_cast_cfield gen cl name =
         let basic = gen.gcon.basic in
         let cparams = List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) cl.cl_types in
         let cfield = mk_class_field name (TFun([], t_dynamic)) false cl.cl_pos (Method MethNormal) cparams in
         let params = List.map snd cparams in
         
-        let fields = get_fields cl (List.map snd cl.cl_types) params [] in
+        let fields = get_fields gen cl (List.map snd cl.cl_types) params [] in
         
         (* now create the contents of the function *)
         (* 
@@ -3919,7 +3959,7 @@ struct
             let expr = 
             {
               eexpr = TBinop(OpAssign, { eexpr = TField(local_new_me, cf.cf_name); etype = t_cf; epos = pos }, 
-                try (Hashtbl.find gen.gtparam_cast (get_path t_cf)) this_field t_cf with | Not_found -> dyn_tparam_cast this_field t_cf
+                try (Hashtbl.find gen.gtparam_cast (get_path t_cf)) this_field t_cf with | Not_found -> (* if not found tparam cast, it shouldn't be a valid hxgeneric *) assert false
               );
               etype = t_cf;
               epos = pos;
@@ -4002,89 +4042,86 @@ struct
         cfield.cf_expr <- Some( { eexpr = TFunction(fn); etype = cfield.cf_type; epos = pos } );
         
         cfield
-      in
       
-      let ifaces = Hashtbl.create 10 in
-      
-      (* create a common interface without type parameters and only a __Cast<> function *)
-      let handle_module_type add_iface = function 
-        | TClassDecl ( { cl_extern = false; cl_interface = false; cl_types = hd :: tl } as cl ) when is_hxgeneric (TClassDecl(cl)) ->
-          let iface = mk_class cl.cl_module cl.cl_path cl.cl_pos in
-          iface.cl_array_access <- Option.map (apply_params (cl.cl_types) (List.map (fun _ -> t_dynamic) cl.cl_types)) cl.cl_array_access;
-          iface.cl_module <- cl.cl_module;
-          iface.cl_meta <- (":hxgen", [], cl.cl_pos) :: iface.cl_meta;
-          Hashtbl.add ifaces cl.cl_path iface;
-          
-          iface.cl_interface <- true;
-          cl.cl_implements <- (iface, []) :: cl.cl_implements;
-          
-          let original_name = cast_field_name in
-          let name = String.concat "." ((fst cl.cl_path) @ [snd cl.cl_path; original_name]) (* explicitly define it *) in
-          let cast_cf = create_cast_cfield cl name in
-          
-          cl.cl_ordered_fields <- cast_cf :: cl.cl_ordered_fields;
-          let iface_cf = mk_class_field original_name cast_cf.cf_type false cast_cf.cf_pos (Method MethNormal) cast_cf.cf_params in
-          
-          iface_cf.cf_type <- cast_cf.cf_type;
-          iface.cl_fields <- PMap.add original_name iface_cf iface.cl_fields;
-          iface.cl_ordered_fields <- [iface_cf];
-          
-          add_iface iface;
-          ()
-          
-        | _ -> ()
-      in
-      
-      let traverse =
-        let change_expr e iface params =
-          let field = { eexpr = TField(mk_cast (TInst(iface,[])) e, "cast"); etype = TFun([], t_dynamic); epos = e.epos } in
-          let call = { eexpr = TCall(field, []); etype = t_dynamic; epos = e.epos } in
-          
-          gen.gparam_func_call call field params []
+      let default_implementation gen ifaces =
+        let add_iface cl = 
+          gen.gadd_to_module (TClassDecl cl) (max_dep);
         in
         
-        let rec run e =
-          match e.eexpr with 
-              | TCast(cast_expr, _) ->
-                (* see if casting to a native generic class *)
-                let t = follow (gen.greal_type e.etype) in
-                (match t with
-                  | TInst(cl, p1 :: pl) when is_hxgeneric (TClassDecl cl) ->
-                    let iface = Hashtbl.find ifaces cl.cl_path in
-                    mk_cast e.etype (change_expr (Type.map_expr run cast_expr) iface (p1 :: pl))
-                  | TEnum(en, p1 :: pl) when is_hxgeneric (TEnumDecl en) ->
-                    let iface = Hashtbl.find ifaces en.e_path in
-                    mk_cast e.etype (change_expr (Type.map_expr run cast_expr) iface (p1 :: pl))
-                  | _ -> Type.map_expr run e
-                )
-              | _ -> Type.map_expr run e
+        let rec run md =
+          match md with 
+            | TClassDecl ({ cl_extern = false; cl_interface = false; cl_types = hd :: tl } as cl) when set_hxgeneric gen md ->
+              let iface = mk_class cl.cl_module cl.cl_path cl.cl_pos in
+              iface.cl_array_access <- Option.map (apply_params (cl.cl_types) (List.map (fun _ -> t_dynamic) cl.cl_types)) cl.cl_array_access;
+              iface.cl_module <- cl.cl_module;
+              iface.cl_meta <- (":hxgen", [], cl.cl_pos) :: iface.cl_meta;
+              Hashtbl.add ifaces cl.cl_path iface;
+              
+              iface.cl_interface <- true;
+              cl.cl_implements <- (iface, []) :: cl.cl_implements;
+              
+              let original_name = cast_field_name in
+              let name = String.concat "." ((fst cl.cl_path) @ [snd cl.cl_path; original_name]) (* explicitly define it *) in
+              let cast_cf = create_cast_cfield gen cl name in
+              
+              cl.cl_ordered_fields <- cast_cf :: cl.cl_ordered_fields;
+              let iface_cf = mk_class_field original_name cast_cf.cf_type false cast_cf.cf_pos (Method MethNormal) cast_cf.cf_params in
+              
+              iface_cf.cf_type <- cast_cf.cf_type;
+              iface.cl_fields <- PMap.add original_name iface_cf iface.cl_fields;
+              iface.cl_ordered_fields <- [iface_cf];
+              
+              add_iface iface;
+              md
+            | TTypeDecl _ -> md
+            | TEnumDecl _ -> 
+              ignore (set_hxgeneric gen md);
+              md
+            | _ -> ignore (set_hxgeneric gen md); md
         in
         run
+      
+      let configure gen mapping_func =
+        let map e = Some(mapping_func e) in
+        gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
+      
+    end;;
+    
+    (* create a common interface without type parameters and only a __Cast<> function *)
+    let default_implementation gen (dyn_tparam_cast:texpr->t->texpr) ifaces =
+      let change_expr e iface params =
+        let field = { eexpr = TField(mk_cast (TInst(iface,[])) e, "cast"); etype = TFun([], t_dynamic); epos = e.epos } in
+        let call = { eexpr = TCall(field, []); etype = t_dynamic; epos = e.epos } in
+        
+        gen.gparam_func_call call field params []
       in
       
-      (* first we'll set all modules as either hxgeneric or as nativegeneric *)
-      List.iter (fun md -> 
-        match md with
-          | TTypeDecl _ -> ()
-          | _ -> ignore (set_hxgeneric gen md)
-      ) gen.gcon.types;
-      
-      gen.gcon.modules <- List.map (fun md ->
-        let added = ref [] in
-        let add_iface cl =
-          gen.gcon.types <- (TClassDecl cl) :: gen.gcon.types;
-          added := (TClassDecl cl) :: !added
-        in
-        List.iter (handle_module_type add_iface) md.m_types;
-        
-        { md with m_types = md.m_types @ (!added) }
-      ) gen.gcon.modules;
-      
+      let rec run e =
+        match e.eexpr with 
+            | TCast(cast_expr, _) ->
+              (* see if casting to a native generic class *)
+              let t = follow (gen.greal_type e.etype) in
+              (match t with
+                | TInst(cl, p1 :: pl) when is_hxgeneric (TClassDecl cl) ->
+                  let iface = Hashtbl.find ifaces cl.cl_path in
+                  mk_cast e.etype (change_expr (Type.map_expr run cast_expr) iface (p1 :: pl))
+                | TEnum(en, p1 :: pl) when is_hxgeneric (TEnumDecl en) ->
+                  let iface = Hashtbl.find ifaces en.e_path in
+                  mk_cast e.etype (change_expr (Type.map_expr run cast_expr) iface (p1 :: pl))
+                | _ -> Type.map_expr run e
+              )
+            | _ -> Type.map_expr run e
+      in
+      run
+    
+    let configure gen traverse =
       let map e = Some(traverse e) in
-      gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map;
-      
-      ifaces
-      
+      gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
+    
+    let default_config gen (dyn_tparam_cast:texpr->t->texpr) ifaces =
+      configure gen (default_implementation gen dyn_tparam_cast ifaces);
+      RealTypeParamsModf.configure gen (RealTypeParamsModf.default_implementation gen ifaces)
+    
   end;;
   
   (* ******************************************* *)
@@ -6966,24 +7003,6 @@ struct
       cl.cl_fields <- PMap.add dyn_fun.cf_name dyn_fun cl.cl_fields;
       (if !is_override then cl.cl_overrides <- dyn_fun.cf_name :: cl.cl_overrides)
     end
-  
-  
-  let set_universal_base_class gen baseclass baseinterface basedynamic =
-    baseinterface.cl_meta <- (":$baseinterface", [], baseinterface.cl_pos) :: baseinterface.cl_meta;
-    List.iter (fun md ->
-      if is_hxgen md then 
-        match md with
-          | TClassDecl ( { cl_interface = true } as cl ) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
-            cl.cl_implements <- (baseinterface, []) :: cl.cl_implements
-          | TClassDecl ( { cl_super = None } as cl ) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
-            if is_some cl.cl_dynamic then
-              cl.cl_super <- Some (basedynamic,[])
-            else
-              cl.cl_super <- Some (baseclass,[])
-          | TClassDecl ( { cl_super = Some(super,_) } as cl ) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && not ( is_hxgen (TClassDecl super) ) ->
-            cl.cl_implements <- (baseinterface, []) :: cl.cl_implements
-          | _ -> ()
-    ) gen.gcon.types
     
   let implement_varargs_cl ctx cl =
     let pos = cl.cl_pos in
@@ -7233,11 +7252,55 @@ struct
     List.iter (process_cf true) cl.cl_ordered_statics;
     cl.cl_ordered_statics <- cl.cl_ordered_statics @ !new_fields
   
+  (* ******************************************* *)
+  (* UniversalBaseClass *)
+  (* ******************************************* *)
+
   (*
-    mutable rcf_on_getset_field : texpr->texpr->string->int32 option->texpr option->bool->texpr;
     
-    mutable rcf_on_call_field : texpr->texpr->string->int32 option->texpr list->texpr;
+    Sets the universal base class for hxgen types (HxObject / IHxObject)
+    
+    dependencies:
+      As a rule, it should be one of the last module filters to run so any @:hxgen class created in the process 
+      -Should- only run after TypeParams.RealTypeParams.Modf, since 
+    
   *)
+
+  module UniversalBaseClass =
+  struct
+
+    let name = "rcf_universal_base_class"
+    
+    let priority = min_dep +. 10.
+    
+    let default_implementation gen baseclass baseinterface basedynamic =
+      baseinterface.cl_meta <- (":$baseinterface", [], baseinterface.cl_pos) :: baseinterface.cl_meta;
+      let rec run md =
+        (if is_hxgen md then 
+          match md with
+            | TClassDecl ( { cl_interface = true } as cl ) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
+              cl.cl_implements <- (baseinterface, []) :: cl.cl_implements
+            | TClassDecl ( { cl_super = None } as cl ) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && cl.cl_path <> basedynamic.cl_path ->
+              if is_some cl.cl_dynamic then
+                cl.cl_super <- Some (basedynamic,[])
+              else
+                cl.cl_super <- Some (baseclass,[])
+            | TClassDecl ( { cl_super = Some(super,_) } as cl ) when cl.cl_path <> baseclass.cl_path && cl.cl_path <> baseinterface.cl_path && not ( is_hxgen (TClassDecl super) ) ->
+              cl.cl_implements <- (baseinterface, []) :: cl.cl_implements
+            | _ -> ()
+        );
+        md
+      in
+      run
+    
+    let configure gen mapping_func =
+      let map e = Some(mapping_func e) in
+      gen.gmodule_filters#add ~name:name ~priority:(PCustom priority) map
+    
+    let default_config gen baseclass baseinterface basedynamic =
+      configure gen (default_implementation gen baseclass baseinterface basedynamic)
+    
+  end;;
   
   let configure ctx =
     let gen = ctx.rcf_gen in
@@ -7346,6 +7409,7 @@ struct
    
     dependencies:
       Should run before ReflectionCFs, in order to enable proper reflection access.
+      Should run before TypeParams.RealTypeParams.RealTypeParamsModf, since generic enums must be first converted to generic classes
   *)
 
   module EnumToClassModf =
@@ -7353,7 +7417,7 @@ struct
 
     let name = "enum_to_class_mod"
     
-    let priority = solve_deps name [DBefore ReflectionCFs.priority]
+    let priority = solve_deps name [DBefore ReflectionCFs.priority; DBefore TypeParams.RealTypeParams.RealTypeParamsModf.priority]
     
     let pmap_exists fn pmap = try PMap.iter (fun a b -> if fn a b then raise Exit) pmap; false with | Exit -> true
     

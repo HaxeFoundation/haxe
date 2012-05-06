@@ -1486,7 +1486,7 @@ let configure gen =
     { hash with eexpr = TCall(rcf_static_find, [hash; hash_array]); etype=basic.tint }
   ) (fun hash -> hash ) in
   
-  ReflectionCFs.set_universal_base_class gen (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
+  ReflectionCFs.UniversalBaseClass.default_config gen (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"HxObject")) ) object_iface dynamic_object;
   
   ReflectionCFs.implement_class_methods rcf_ctx ( get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Class")) );
   
