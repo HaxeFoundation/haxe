@@ -919,7 +919,7 @@ let configure gen =
             it seems that Java doesn't like when you create a new array with the type parameter defined
             so we'll just ignore all type parameters, and hope for the best!
           *)
-          let rec transform_t t = match gen.gfollow#run_f t with
+          let rec transform_t t = match real_type t with
             | TInst( ({ cl_path = (["java"], "NativeArray") } as narr), [t]) ->
               TInst(narr, [transform_t t])
             | TInst(cl, params) -> TInst(cl, List.map (fun _ -> t_dynamic) params)
