@@ -38,7 +38,20 @@ package haxe.lang;
 ')
 @:keep private class Runtime 
 {
-	public static var undefined:Dynamic = {};
+	public static var undefined:Dynamic = { };
+	
+	@:functionBody('
+		if (obj instanceof haxe.lang.IHxObject)
+		{
+			return new haxe.lang.Closure(field, (haxe.lang.IHxObject)obj);
+		} else {
+			return new haxe.lang.NativeMethodFunction(obj, field);
+		}
+	')
+	public static function closure(obj:Dynamic, field:String):Dynamic
+	{
+		return null;
+	}
 	
 	@:functionBody('
 			if (v1 == v2)

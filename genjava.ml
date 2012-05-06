@@ -1517,6 +1517,23 @@ let configure gen =
   
   let closure_func = ReflectionCFs.implement_closure_cl rcf_ctx ( get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Closure")) ) in
   
+  let closure_func eclosure e field is_static =
+    let is_hxobject = match real_type e.etype with
+      | TInst(cl,_) -> is_hxgen (TClassDecl cl)
+      | TEnum(e, _) -> is_hxgen (TEnumDecl e)
+      | TType(t, _) -> is_hxgen (TTypeDecl t)
+      | TDynamic _ | TAnon _ -> false
+      | _ -> assert false
+    in
+    if is_hxobject then 
+      closure_func eclosure e field is_static 
+    else begin
+      let static = mk_static_field_access_infer (runtime_cl) "closure" eclosure.epos [] in
+      let field = { eexpr = TConst(TString field); etype = basic.tstring; epos = eclosure.epos } in
+      mk_cast eclosure.etype { eclosure with eexpr = TCall(static, [ e; field ]); etype = t_dynamic }
+    end
+  in
+  
   ReflectionCFs.implement_varargs_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"], "VarArgsBase")) );
   
   ReflectionCFs.configure rcf_ctx;
