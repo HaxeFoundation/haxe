@@ -359,7 +359,7 @@ class Dispatch {
 					}
 					if( i.superClass == null )
 						break;
-					i = i.superClass.get();
+					i = i.superClass.t.get();
 				}
 				if( Reflect.fields(fields).length == 0 )
 					Context.error("No dispatch method found", p);
