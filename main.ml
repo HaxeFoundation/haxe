@@ -879,8 +879,6 @@ try
 	add_libs com (!cp_libs);
 	(try ignore(Common.find_file com "mt/Include.hx"); Common.define com "mt"; with Not_found -> ());
 	if com.display then begin
-		xml_out := None;
-		no_output := true;
 		com.warning <- message ctx;
 		com.error <- error ctx;
 		com.main_class <- None;
@@ -960,6 +958,10 @@ try
 		Typer.finalize tctx;
 		t();
 		if ctx.has_error then raise Abort;
+		if com.display then begin
+			if ctx.has_next then raise Abort;
+			failwith "No completion point was found";
+		end;
 		let t = Common.timer "filters" in
 		let main, types, modules = Typer.generate tctx in
 		com.main <- main;
