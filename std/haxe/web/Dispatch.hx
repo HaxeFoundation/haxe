@@ -344,17 +344,22 @@ class Dispatch {
 			// store the config inside the class metadata (only once)
 			if( !i.meta.has("dispatchConfig") ) {
 				var fields = {};
-				for( f in i.fields.get() ) {
-					if( f.name.substr(0, 2) != "do" )
-						continue;
-					var r = makeRule(f);
-					for( m in f.meta.get() )
-						if( m.name.charAt(0) != ":" ) {
-							checkMeta(f);
-							r = DRMeta(r);
-							break;
-						}
-					Reflect.setField(fields, f.name.charAt(2).toLowerCase() + f.name.substr(3), r);
+				while( true ) {
+					for( f in i.fields.get() ) {
+						if( f.name.substr(0, 2) != "do" )
+							continue;
+						var r = makeRule(f);
+						for( m in f.meta.get() )
+							if( m.name.charAt(0) != ":" ) {
+								checkMeta(f);
+								r = DRMeta(r);
+								break;
+							}
+						Reflect.setField(fields, f.name.charAt(2).toLowerCase() + f.name.substr(3), r);
+					}
+					if( i.superClass == null )
+						break;
+					i = i.superClass.get();
 				}
 				if( Reflect.fields(fields).length == 0 )
 					Context.error("No dispatch method found", p);
