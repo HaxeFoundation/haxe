@@ -148,8 +148,9 @@ rules were devised:
 (* ******************************************* *)
 
 let assertions = false (* when assertions == true, many assertions will be made to guarantee the quality of the data input *)
-let debug_mode = ref false
+let debug_mode = ref true
 let trace s = () (* if !debug_mode then print_endline s else ()*)
+let trace s = if !debug_mode then print_endline s else ()
 
 (* helper function for creating Anon types of class / enum modules *)
 
@@ -4353,14 +4354,21 @@ struct
       | TEnum(en, params_to), TInst(cl, params_from)
       | TInst(cl, params_to), TEnum(en, params_from) ->
         (* this is here for max compatibility with EnumsToClass module *)
-        if en.e_path = cl.cl_path then
+        if en.e_path = cl.cl_path && en.e_extern then begin
           (try
             List.iter2 (type_eq (if gen.gallow_tp_dynamic_conversion then EqRightDynamic else EqStrict)) params_from params_to;
             e
           with 
+            | Invalid_argument("List.iter2") ->
+              (*
+                this is a hack for RealTypeParams. Since there is no way at this stage to know if the class is the actual
+                EnumsToClass derived from the enum, we need to imply from possible ArgumentErrors (because of RealTypeParams interfaces),
+                that they would only happen if they were a RealTypeParams created interface
+              *)
+              e
             | Unify_error _ -> do_unsafe_cast ()
           )
-        else
+        end else
           do_unsafe_cast ()
       | TType(t_to, params_to), TType(t_from, params_from) when t_to == t_from ->
         if gen.gspecial_needs_cast real_to_t real_from_t then
