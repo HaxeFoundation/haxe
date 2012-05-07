@@ -1431,7 +1431,7 @@ let configure gen =
   
   ClosuresToClass.configure gen (ClosuresToClass.default_implementation closure_t (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Function")) ));
   
-  EnumToClass.configure gen (None) false true (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Enum")) );
+  EnumToClass.configure gen (None) false true (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Enum")) ) false;
   
   InterfaceVarsDeleteModf.configure gen;
   

@@ -7456,7 +7456,7 @@ struct
         false
       with | Exit -> true
     
-    let convert gen t base_class en = 
+    let convert gen t base_class en should_be_hxgen = 
       let basic = gen.gcon.basic in
       let pos = en.e_pos in
       
@@ -7530,7 +7530,7 @@ struct
       cl.cl_ordered_statics <- constructs_cf :: cfs ;
       cl.cl_statics <- PMap.add "constructs" constructs_cf cl.cl_statics;
       
-      cl.cl_meta <- (":hxgen",[],cl.cl_pos) :: cl.cl_meta;
+      (if should_be_hxgen then cl.cl_meta <- (":hxgen",[],cl.cl_pos) :: cl.cl_meta);
       gen.gadd_to_module (TClassDecl cl) (max_dep);
       
       TEnumDecl en
@@ -7541,9 +7541,10 @@ struct
         convert_all : bool - should we convert all enums? If set, convert_if_has_meta will be ignored.
         convert_if_has_meta : bool - should we convert only if it has meta?
         enum_base_class : tclass - the enum base class. 
+        should_be_hxgen : bool - should the created enum be hxgen?
     *)
-    let traverse gen t convert_all convert_if_has_meta enum_base_class =
-      let convert = convert gen t enum_base_class in
+    let traverse gen t convert_all convert_if_has_meta enum_base_class should_be_hxgen =
+      let convert e = convert gen t enum_base_class e should_be_hxgen in
       let run md = match md with
         | TEnumDecl e when is_hxgen md ->
           if convert_all then 
@@ -7673,9 +7674,9 @@ struct
     
   end;;
   
-  let configure gen opt_get_native_enum_tag convert_all convert_if_has_meta enum_base_class =
+  let configure gen opt_get_native_enum_tag convert_all convert_if_has_meta enum_base_class should_be_hxgen =
     let t = new_t () in
-    EnumToClassModf.configure gen (EnumToClassModf.traverse gen t convert_all convert_if_has_meta enum_base_class);
+    EnumToClassModf.configure gen (EnumToClassModf.traverse gen t convert_all convert_if_has_meta enum_base_class should_be_hxgen);
     EnumToClassExprf.configure gen (EnumToClassExprf.traverse gen t opt_get_native_enum_tag)
   
 end;;
