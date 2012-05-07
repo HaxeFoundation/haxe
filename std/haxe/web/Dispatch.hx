@@ -215,9 +215,12 @@ class Dispatch {
 		case DRMeta(r):
 			loop(args, r);
 			var c = Type.getClass(cfg.obj);
-			if( c == null ) throw "assert";
-			var m = Reflect.field(haxe.rtti.Meta.getFields(c), name);
-			if( m == null ) throw "assert";
+			var m;
+			do {
+				if( c == null ) throw "assert";
+				m = Reflect.field(haxe.rtti.Meta.getFields(c), name);
+				c = Type.getSuperClass(c);
+			} while( m == null );
 			for( mv in Reflect.fields(m) )
 				onMeta(mv, Reflect.field(m, mv));
 		}
