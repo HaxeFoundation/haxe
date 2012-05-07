@@ -577,6 +577,10 @@ let rec type_field ctx e i p mode =
 			loop_dyn c params
 		with Not_found ->
 			if PMap.mem i c.cl_statics then error ("Cannot access static field " ^ i ^ " from a class instance") p;
+			(*
+				This is a fix to deal with optimize_completion which will call iterator()
+				on the expression for/in, which vectors do no have.
+			*)
 			if ctx.com.display && i = "iterator" && c.cl_path = (["flash"],"Vector") then begin
 				let it = TAnon {
 					a_fields = PMap.add "next" (mk_field "next" (TFun([],List.hd params)) p) PMap.empty;
