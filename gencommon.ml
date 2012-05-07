@@ -148,9 +148,8 @@ rules were devised:
 (* ******************************************* *)
 
 let assertions = false (* when assertions == true, many assertions will be made to guarantee the quality of the data input *)
-let debug_mode = ref true
+let debug_mode = ref false
 let trace s = () (* if !debug_mode then print_endline s else ()*)
-let trace s = if !debug_mode then print_endline s else ()
 
 (* helper function for creating Anon types of class / enum modules *)
 
