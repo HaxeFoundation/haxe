@@ -7482,7 +7482,10 @@ struct
         let cf = match follow ef.ef_type with 
           | TFun(params,ret) ->
             let dup_types = List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) en.e_types in
-            let cf = mk_class_field name ef.ef_type true pos (Method MethNormal) dup_types in
+            let ef_type = apply_params en.e_types (List.map snd dup_types) ef.ef_type in
+            let params, ret = get_fun ef_type in
+            
+            let cf = mk_class_field name ef_type true pos (Method MethNormal) dup_types in
             cf.cf_meta <- [];
             
             let tf_args = List.map (fun (name,opt,t) ->  (alloc_var name t, if opt then Some TNull else None) ) params in
@@ -7493,17 +7496,21 @@ struct
                 tf_type = ret;
                 tf_expr = mk_block ( mk_return { eexpr = TNew(cl,List.map snd dup_types, [mk_int gen old_i pos; arr_decl] ); etype = TInst(cl, List.map snd dup_types); epos = pos } );
               });
-              etype = ef.ef_type;
+              etype = ef_type;
               epos = pos
             } in
             cf.cf_expr <- Some expr;
             cf
           | _ ->
-            let cf = mk_class_field name ef.ef_type true pos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
+            let actual_t = match follow ef.ef_type with
+              | TEnum(e, p) -> TEnum(e, List.map (fun _ -> t_empty) p)
+              | _ -> assert false
+            in
+            let cf = mk_class_field name actual_t true pos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
             cf.cf_meta <- [];
             cf.cf_expr <- Some {
-              eexpr = TNew(cl, List.map (fun _ -> t_dynamic) cl.cl_types, [mk_int gen old_i pos; null (basic.tarray t_empty) pos]);
-              etype = TInst(cl, List.map (fun _ -> t_dynamic) cl.cl_types);
+              eexpr = TNew(cl, List.map (fun _ -> t_empty) cl.cl_types, [mk_int gen old_i pos; null (basic.tarray t_empty) pos]);
+              etype = TInst(cl, List.map (fun _ -> t_empty) cl.cl_types);
               epos = pos;
             };
             cf
