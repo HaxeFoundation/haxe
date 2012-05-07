@@ -100,8 +100,8 @@ class Manager<T : Object> {
 		return SpodMacros.macroCount(ethis, cond);
 	}
 
-	@:macro public function delete(ethis, cond) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprOf<Void> #end {
-		return SpodMacros.macroDelete(ethis, cond);
+	@:macro public function delete(ethis, cond, ?options) : #if macro haxe.macro.Expr #else haxe.macro.Expr.ExprOf<Void> #end {
+		return SpodMacros.macroDelete(ethis, cond, options);
 	}
 
 	public function dynamicSearch( x : {}, ?lock : Bool ) : List<T> {

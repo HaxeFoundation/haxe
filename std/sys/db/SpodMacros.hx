@@ -155,7 +155,7 @@ class SpodMacros {
 		}
 		return null;
 	}
-	
+
 	function getFlags( t : haxe.macro.Type ) {
 		switch( t ) {
 		case TEnum(e,_):
@@ -1066,8 +1066,8 @@ class SpodMacros {
 		return { expr : ECall({ expr : EField(em,"unsafeCount"), pos : pos },[sql]), pos : pos };
 	}
 
-	public static function macroDelete( em : Expr, econd : Expr ) {
-		var sql = buildSQL(em, econd, "DELETE FROM");
+	public static function macroDelete( em : Expr, econd : Expr, eopt : Expr ) {
+		var sql = buildSQL(em, econd, "DELETE FROM", eopt);
 		var pos = Context.currentPos();
 		return { expr : ECall({ expr : EField(em,"unsafeDelete"), pos : pos },[sql]), pos : pos };
 	}
