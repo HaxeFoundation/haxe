@@ -33,6 +33,8 @@ let is_cs_basic_type t =
     | TInst( { cl_path = ([], "Float") }, [] )
     | TEnum( { e_path = ([], "Bool") }, [] ) -> 
       true
+    | TEnum(e, _) when not (has_meta ":$class" e.e_meta) -> true
+    | TInst(cl, _) when has_meta ":struct" cl.cl_meta -> true
     | _ -> false
     
 let is_int_float t =
@@ -450,7 +452,7 @@ let configure gen =
   
   let ti64 = match ( get_type gen ([], "Int64") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
   
-  let real_type t =
+  let rec real_type t =
     let t = gen.gfollow#run_f t in
     match t with
       | TInst( { cl_path = (["haxe"], "Int32") }, [] ) -> gen.gcon.basic.tint
@@ -467,7 +469,17 @@ let configure gen =
           TInst(Hashtbl.find ifaces e.e_path, [])
       | TInst(cl, params) -> TInst(cl, change_param_type (TClassDecl cl) params)
       | TEnum(e, params) -> TEnum(e, change_param_type (TEnumDecl e) params)
-      (* | TType({ t_path = ([], "Null") }, [t]) -> TInst(null_t, [t]) *)
+      | TType({ t_path = ([], "Null") }, [t]) -> 
+        (* 
+          Null<> handling is a little tricky.
+          It will only change to haxe.lang.Null<> when the actual type is non-nullable or a type parameter
+          It works on cases such as Hash<T> returning Null<T> since cast_detect will invoke real_type at the original type,
+          Null<T>, which will then return the type haxe.lang.Null<>
+        *)
+        (match real_type t with
+          | TInst( { cl_kind = KTypeParameter }, _ ) -> TInst(null_t, [t])
+          | _ when is_cs_basic_type t -> TInst(null_t, [t])
+          | _ -> real_type t)
       | TType _ -> t
       | TAnon (anon) when (match !(anon.a_status) with | Statics _ | EnumStatics _ -> true | _ -> false) -> t
       | TAnon _ -> dynamic_anon
@@ -1173,6 +1185,8 @@ let configure gen =
   Hashtbl.add gen.gspecial_vars "__as__" true;
   Hashtbl.add gen.gspecial_vars "__cs__" true;
   
+  Hashtbl.add gen.gsupported_conversions (["haxe"; "lang"], "Null") (fun t1 t2 -> true);
+  
   gen.greal_type <- real_type;
   gen.greal_type_param <- change_param_type;
   
@@ -1190,18 +1204,16 @@ let configure gen =
   
   StubClosureImpl.configure gen (StubClosureImpl.default_implementation gen float_cl 10 (fun e _ _ -> e));*)
   
-  let tnull = match (Hashtbl.find gen.gtypes ([],"Null")) with | TTypeDecl t -> t | _ -> assert false in
-  
   HardNullableSynf.configure gen (HardNullableSynf.traverse gen 
     (fun e ->
-      match gen.gfollow#run_f e.etype with
-        | TType({ t_path = ([], "Null") }, [t]) ->
+      match real_type e.etype with
+        | TInst({ cl_path = (["haxe";"lang"], "Null") }, [t]) ->
           { eexpr = TField(e, "value"); etype = t; epos = e.epos }
         | _ -> 
-          gen.gcon.error "This expression is not a Nullable expression" e.epos; assert false
+          trace (debug_type e.etype); gen.gcon.error "This expression is not a Nullable expression" e.epos; assert false
     ) 
     (fun v has_value ->
-      { eexpr = TNew(null_t, [v.etype], [mk_cast v.etype v; { eexpr = TConst(TBool has_value); etype = gen.gcon.basic.tbool; epos = v.epos } ]); etype = TType(tnull, [v.etype]); epos = v.epos }
+      { eexpr = TNew(null_t, [v.etype], [mk_cast v.etype v; { eexpr = TConst(TBool has_value); etype = gen.gcon.basic.tbool; epos = v.epos } ]); etype = TInst(null_t, [v.etype]); epos = v.epos }
     ) 
     (fun e ->
       {

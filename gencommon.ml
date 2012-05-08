@@ -479,6 +479,12 @@ type generator_ctx =
   (* does this 'special type' needs cast to this other type? *)
   (* this is here so we can implement custom behavior for "opaque" typedefs *)
   mutable gspecial_needs_cast : t->t->bool;
+  (* sometimes we may want to support unrelated conversions on cast detection *)
+  (* for example, haxe.lang.Null<T> -> T on C# *)
+  (* every time an unrelated conversion is found, each to/from path is searched on this hashtbl *)
+  (* if found, the function will be executed with from_type, to_type. If returns true, it means that *)
+  (* it is a supported conversion, and the unsafe cast routine changes to a simple cast *)
+  gsupported_conversions : (path, t->t->bool) Hashtbl.t;
   
   (* API for filters *)
   (* add type can be called at any time, and will add a new module_def that may or may not be filtered *)
@@ -650,6 +656,7 @@ let new_ctx con =
     gon_unsafe_cast = (fun t t2 pos -> (gen.gcon.warning ("Type " ^ (debug_type t2) ^ " is being cast to the unrelated type " ^ (s_type (print_context()) t)) pos));
     gneeds_box = (fun t -> false);
     gspecial_needs_cast = (fun to_t from_t -> true);
+    gsupported_conversions = Hashtbl.create 0;
     
     gadd_type = (fun md should_filter ->
       if should_filter then begin
@@ -4295,9 +4302,34 @@ struct
         false
       | _ -> true
   
-  let do_unsafe_cast gen to_t e  =
-    gen.gon_unsafe_cast to_t e.etype e.epos;
-    mk_cast to_t (mk_cast t_dynamic e)
+  let do_unsafe_cast gen from_t to_t e  =
+    let t_path t =
+      match t with
+        | TInst(cl, _) -> cl.cl_path
+        | TEnum(e, _) -> e.e_path
+        | TType(t, _) -> t.t_path
+        | TDynamic _ -> ([], "Dynamic")
+        | _ -> raise Not_found
+    in
+    let do_default () =
+      gen.gon_unsafe_cast to_t e.etype e.epos;
+      mk_cast to_t (mk_cast t_dynamic e)
+    in
+    (* TODO: there really should be a better way to write that *)
+    try
+      if (Hashtbl.find gen.gsupported_conversions (t_path from_t)) from_t to_t then
+        mk_cast to_t e
+      else
+        do_default()
+    with
+      | Not_found ->
+        try
+          if (Hashtbl.find gen.gsupported_conversions (t_path to_t)) from_t to_t then
+            mk_cast to_t e
+          else
+            do_default()
+        with
+          | Not_found -> do_default()
   
   (* ****************************** *)
   (* cast handler *)
@@ -4307,7 +4339,7 @@ struct
     at the backend level, since most probably Anons and TInst will have a different representation there
   *)
   let rec handle_cast gen e real_to_t real_from_t =
-    let do_unsafe_cast () = do_unsafe_cast gen real_to_t { e with etype = real_from_t } in
+    let do_unsafe_cast () = do_unsafe_cast gen real_from_t real_to_t { e with etype = real_from_t } in
     let to_t, from_t = real_to_t, real_from_t in
     
     let e = { e with etype = real_from_t } in
@@ -8071,6 +8103,7 @@ end;;
   a call to the new Null<T> creation;
   Also casts from Null<T> to T or direct uses of Null<T> (call, field access, array access, closure)
   will result in the actual value being accessed
+  For compatibility with the C# target, HardNullable will accept both Null<T> and haxe.lang.Null<T> types
   
   dependencies:
     
@@ -8084,23 +8117,25 @@ struct
   
   let priority = solve_deps name []
   
-  let rec is_null_t t = match t with
-    | TType( { t_path = ([], "Null") }, [of_t]) ->
+  let rec is_null_t gen t = match gen.greal_type t with
+    | TType( { t_path = ([], "Null") }, [of_t])
+    | TInst( { cl_path = (["haxe";"lang"], "Null") }, [of_t]) ->
       let rec take_off_null t =
-        match is_null_t t with | None -> t | Some s -> take_off_null s
+        match is_null_t gen t with | None -> t | Some s -> take_off_null s
       in
       
       Some (take_off_null of_t)
-    | TMono r -> (match !r with | Some t -> is_null_t t | None -> None)
-    | TLazy f -> is_null_t (!f())
+    | TMono r -> (match !r with | Some t -> is_null_t gen t | None -> None)
+    | TLazy f -> is_null_t gen (!f())
     | TType (t, tl) ->
-      is_null_t (apply_params t.t_types tl t.t_type)
+      is_null_t gen (apply_params t.t_types tl t.t_type)
     | _ -> None
   
   let follow_addon gen t =
     let rec strip_off_nullable t =
       let t = gen.gfollow#run_f t in
       match t with
+        (* haxe.lang.Null<haxe.lang.Null<>> wouldn't be a valid construct, so only follow Null<> *)
         | TType ( { t_path = ([], "Null") }, [of_t] ) -> strip_off_nullable of_t
         | _ -> t
     in
@@ -8127,6 +8162,7 @@ struct
           wrap_val e true
     in
     
+    let is_null_t = is_null_t gen in
     let rec run e =
       let null_et = is_null_t e.etype in
       match e.eexpr with 

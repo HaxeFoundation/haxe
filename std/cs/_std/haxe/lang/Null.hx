@@ -44,10 +44,13 @@ package haxe.lang;
 		}
 	}
 	
+	@:functionBody('
+		if (this.hasValue)
+			return value;
+		return null;
+	')
 	public function toDynamic():Dynamic
 	{
-		if (hasValue) 
-			return value;
 		return null;
 	}
 }
