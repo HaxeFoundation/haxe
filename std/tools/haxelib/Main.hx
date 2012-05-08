@@ -778,10 +778,9 @@ class Main {
 			null;
 
 		print("Installing " +libName + " from " +gitPath);
-		var ret = command("git", ["clone", gitPath, libPath]);
-		if (ret.code != 0)
+		if (neko.Sys.command("git clone \"" +gitPath + "\" \"" +libPath + "\"") != 0)
 		{
-			print("Could not clone git repository: " +ret.out);
+			print("Could not clone git repository");
 			return;
 		}
 		Sys.setCwd(libPath);
