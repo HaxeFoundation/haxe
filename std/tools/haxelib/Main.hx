@@ -497,6 +497,30 @@ class Main {
 		}
 		return true;
 	}
+	
+	function safeDelete( file ) {
+		try
+		{
+			sys.FileSystem.deleteFile(file);
+			return true;
+		}
+		catch (e:Dynamic)
+		{
+			if (neko.Sys.systemName() == "Windows")
+			{
+				try
+				{
+					neko.Sys.command("attrib -R \"" +file+ "\"");
+					sys.FileSystem.deleteFile(file);
+					return true;
+				} catch (e:Dynamic)
+				{
+				}
+			}
+			
+			return false;
+		}
+	}
 
 	function getRepository( ?setup : Bool ) {
 		var sysname = Sys.systemName();
@@ -623,7 +647,7 @@ class Main {
 			if( sys.FileSystem.isDirectory(path) )
 				deleteRec(path);
 			else
-				sys.FileSystem.deleteFile(path);
+				safeDelete(path);
 		}
 		sys.FileSystem.deleteDirectory(dir);
 	}
@@ -633,11 +657,11 @@ class Main {
 		var version = paramOpt();
 		var rep = getRepository();
 		var pdir = rep + Datas.safe(prj);
-		if ( sys.FileSystem.exists(pdir + "/git"))
-		{
-			print("Removing git libs is currently not supported.");
-			return;
-		}
+		//if ( sys.FileSystem.exists(pdir + "/git"))
+		//{
+			//print("Removing git libs is currently not supported.");
+			//return;
+		//}
 		if( version == null ) {
 			if( !sys.FileSystem.exists(pdir) )
 				throw "Library "+prj+" is not installed";
