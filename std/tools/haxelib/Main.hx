@@ -750,11 +750,24 @@ class Main {
 	}
 
 	function git() {
-		try command("git", [])
-		catch (e:Dynamic)
+		var gitExists = function()
+			try { command("git", []); return true; } catch (e:Dynamic) return false;
+		if (!gitExists())
 		{
-			print("Could not execute git, please make sure it is installed and available in your PATH.");
-			return;
+			var match = ~/(.*)git([\\|\/])cmd$/ ;
+			for (path in Sys.getEnv("PATH").split(";"))
+			{
+				if (match.match(path.toLowerCase()))
+				{
+					var newPath = match.matched(1) + "git" +match.matched(2) + "bin";
+					Sys.putEnv("PATH", Sys.getEnv("PATH") + ";" +newPath);
+				}
+			}
+			if (!gitExists())
+			{
+				print("Could not execute git, please make sure it is installed and available in your PATH.");
+				return;
+			}
 		}
 		var libName = param("Library name");
 		var rep = getRepository();
