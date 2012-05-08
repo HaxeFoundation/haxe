@@ -37,13 +37,14 @@ let is_cs_basic_type t =
     | TInst(cl, _) when has_meta ":struct" cl.cl_meta -> true
     | _ -> false
     
-let is_int_float t =
+let rec is_int_float t =
   match follow t with
     | TInst( { cl_path = (["haxe"], "Int32") }, [] )
     | TInst( { cl_path = (["haxe"], "Int64") }, [] )
     | TInst( { cl_path = ([], "Int") }, [] )
     | TInst( { cl_path = ([], "Float") }, [] ) -> 
       true
+    | TInst( { cl_path = (["haxe"; "lang"], "Null") }, [t] ) -> is_int_float t
     | _ -> false
 
 let parse_explicit_iface =
@@ -1186,6 +1187,8 @@ let configure gen =
   Hashtbl.add gen.gspecial_vars "__cs__" true;
   
   Hashtbl.add gen.gsupported_conversions (["haxe"; "lang"], "Null") (fun t1 t2 -> true);
+  let last_needs_box = gen.gneeds_box in
+  gen.gneeds_box <- (fun t -> match t with | TInst( { cl_path = (["haxe"; "lang"], "Null") }, _ ) -> true | _ -> last_needs_box t);
   
   gen.greal_type <- real_type;
   gen.greal_type_param <- change_param_type;
@@ -1369,6 +1372,18 @@ let configure gen =
   let is_double t = match follow t with | TInst({ cl_path = ([], "Float") }, []) -> true | _ -> false in
   let is_int t = match follow t with | TInst({ cl_path = ([], "Int") }, []) -> true | _ -> false in
   
+  let is_null t = match real_type t with
+    | TInst( { cl_path = (["haxe";"lang"], "Null") }, _ ) -> true
+    | _ -> false
+  in
+  
+  let is_null_expr e = is_null e.etype || match e.eexpr with
+    | TField(tf, f) -> (match field_access gen (real_type tf.etype) f with
+      | FClassField(_,_,_,_,actual_t) -> is_null actual_t
+      | _ -> false)
+    | _ -> false
+  in
+  
   DynamicOperators.configure gen 
     (DynamicOperators.abstract_implementation gen (fun e -> match e.eexpr with
       | TBinop (Ast.OpEq, e1, e2)
@@ -1379,7 +1394,7 @@ let configure gen =
       | TBinop (Ast.OpGte, e1, e2)
       | TBinop (Ast.OpGt, e1, e2) -> is_dynamic e.etype or is_dynamic_expr e1 or is_dynamic_expr e2 or is_string e1.etype or is_string e2.etype
       | TBinop (_, e1, e2) -> is_dynamic e.etype or is_dynamic_expr e1 or is_dynamic_expr e2
-      | TUnop (_, _, e1) -> is_dynamic_expr e1
+      | TUnop (_, _, e1) -> is_dynamic_expr e1 || is_null_expr e1 (* we will see if the expression is Null<T> also, as the unwrap from Unop will be the same *)
       | _ -> false)
     (fun e1 e2 -> 
       let is_null e = match e.eexpr with | TConst(TNull) | TLocal({ v_name = "__undefined__" }) -> true | _ -> false in

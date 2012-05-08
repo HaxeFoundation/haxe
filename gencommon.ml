@@ -4590,12 +4590,15 @@ struct
       let was_in_value = !in_value in
       in_value := true;
       match e.eexpr with 
-        | TBinop (op,e1,e2) ->
-          (match op with
-            | OpAssign | OpAssignOp _ ->
-              { e with eexpr = TBinop(op, Type.map_expr run e1, handle (run e2) e1.etype e2.etype) }
-            | _ -> Type.map_expr run e
-          )  
+        | TBinop ( (Ast.OpAssign as op),({ eexpr = TField(tf, f) } as e1), e2 )
+        | TBinop ( (Ast.OpAssignOp _ as op),({ eexpr = TField(tf, f) } as e1), e2 ) ->
+          (match field_access gen (gen.greal_type tf.etype) f with
+            | FClassField(_,_,_,_,actual_t) -> { e with eexpr = TBinop(op, Type.map_expr run e1, handle (run e2) actual_t e2.etype) }
+            | _ -> { e with eexpr = TBinop(op, Type.map_expr run e1, handle (run e2) e1.etype e2.etype) }
+          )
+        | TBinop ( (Ast.OpAssign as op),e1,e2)
+        | TBinop ( (Ast.OpAssignOp _ as op),e1,e2) ->
+          { e with eexpr = TBinop(op, Type.map_expr run e1, handle (run e2) e1.etype e2.etype) }
         | TField(ef, f) ->
           handle_type_parameter gen None e (run ef) f []
         | TArrayDecl el ->
