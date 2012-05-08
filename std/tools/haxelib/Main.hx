@@ -750,6 +750,12 @@ class Main {
 	}
 
 	function git() {
+		try command("git", [])
+		catch (e:Dynamic)
+		{
+			print("Could not execute git, please make sure it is installed and available in your PATH.");
+			return;
+		}
 		var libName = param("Library name");
 		var rep = getRepository();
 		var libPath = rep + Datas.safe(libName) + "/git";
