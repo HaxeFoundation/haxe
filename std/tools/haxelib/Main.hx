@@ -762,14 +762,15 @@ class Main {
 		var gitPath = param("Git path");
 		var subDir = paramOpt();
 		
-		var split = gitPath.split("@");
-		var rev = if (split.length == 2) {
-			gitPath = split[0];
-			split[1];
+		var match = ~/@([0-9]+)/;
+		var rev = if (match.match(gitPath) && match.matchedRight() == "")
+		{
+			gitPath = match.matchedLeft();
+			match.matched(1);
 		}
 		else
 			null;
-				
+
 		print("Installing " +libName + " from " +gitPath);
 		var ret = command("git", ["clone", gitPath, libPath]);
 		if (ret.code != 0)
