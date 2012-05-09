@@ -657,11 +657,6 @@ class Main {
 		var version = paramOpt();
 		var rep = getRepository();
 		var pdir = rep + Datas.safe(prj);
-		//if ( sys.FileSystem.exists(pdir + "/git"))
-		//{
-			//print("Removing git libs is currently not supported.");
-			//return;
-		//}
 		if( version == null ) {
 			if( !sys.FileSystem.exists(pdir) )
 				throw "Library "+prj+" is not installed";
@@ -768,8 +763,13 @@ class Main {
 				sys.FileSystem.deleteFile(devfile);
 			print("Development directory disabled");
 		} else {
-			sys.io.File.saveContent(devfile,dir);
-			print("Development directory set to "+dir);
+			try {
+				sys.io.File.saveContent(devfile, dir);
+				print("Development directory set to "+dir);
+			}
+			catch (e:Dynamic) {
+				print("Could not write to " +proj + "/.dev");
+			}
 		}
 	}
 
