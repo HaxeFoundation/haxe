@@ -74,4 +74,9 @@ class TestType extends Test {
 		eq( Type.allEnums(MyEnum).join("#"), "A#B" );
 	}
 	
+	function testWiderVisibility()
+	{
+		var c = new MyClass.MyChild();
+		eq(12, c.a());
+	}
 }

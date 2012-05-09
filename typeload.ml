@@ -370,8 +370,8 @@ let check_overriding ctx c p () =
 				let p = (match f.cf_expr with None -> p | Some e -> e.epos) in
 				if not (List.mem i c.cl_overrides) then
 					display_error ctx ("Field " ^ i ^ " should be declared with 'override' since it is inherited from superclass") p
-				else if f.cf_public <> f2.cf_public then
-					display_error ctx ("Field " ^ i ^ " has different visibility (public/private) than superclass one") p
+				else if not f.cf_public && f2.cf_public then
+					display_error ctx ("Field " ^ i ^ " has less visibility (public/private) than superclass one") p
 				else (match f.cf_kind, f2.cf_kind with
 				| _, Method MethInline ->
 					display_error ctx ("Field " ^ i ^ " is inlined and cannot be overridden") p

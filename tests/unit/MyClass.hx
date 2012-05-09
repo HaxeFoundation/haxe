@@ -24,5 +24,13 @@ class MyClass {
 	public function add(x,y) {
 		return val + x + y;
 	}
+}
 
+class MyParent {
+	public function new() { }
+	function a() return 11
+}
+
+class MyChild extends MyParent {
+	public override function a() { return 12; }
 }
