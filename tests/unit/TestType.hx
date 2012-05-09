@@ -74,9 +74,14 @@ class TestType extends Test {
 		eq( Type.allEnums(MyEnum).join("#"), "A#B" );
 	}
 	
-	function testWiderVisibility()
-	{
-		var c = new MyClass.MyChild();
+	function testWiderVisibility() {
+		var c = new MyClass.MyChild1();
 		eq(12, c.a());
+	}
+	
+	function testUnifyMin()	{
+		#if !macro
+		Test.typedAs([new MyClass.MyChild1(), new MyClass.MyChild2()], { var _:Array<MyClass.MyParent>; _;} );
+		#end
 	}
 }

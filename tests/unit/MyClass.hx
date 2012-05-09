@@ -31,6 +31,10 @@ class MyParent {
 	function a() return 11
 }
 
-class MyChild extends MyParent {
+class MyChild1 extends MyParent {
 	public override function a() { return 12; }
+}
+
+class MyChild2 extends MyParent {
+	
 }
