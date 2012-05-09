@@ -1446,6 +1446,17 @@ and type_access ctx e p mode =
 	| _ ->
 		AKExpr (type_expr ctx (e,p))
 
+and type_exprs_unified ctx ?(need_val=true) el =
+	match el with
+	| [] -> [], mk_mono()
+	| [e] ->
+		let te = type_expr ctx ~need_val e in
+		[te], te.etype
+	| _ ->
+		let tl = List.map (type_expr ctx ~need_val) el in
+		let t = try unify_min_raise ctx tl with _ -> t_dynamic in
+		tl, t
+
 and type_expr ctx ?(need_val=true) (e,p) =
 	match e with
 	| EField ((EConst (String s),p),"code") ->
@@ -1510,26 +1521,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		ctx.opened <- x :: ctx.opened;
 		mk (TObjectDecl (List.rev fields)) (TAnon { a_fields = types; a_status = x }) p
 	| EArrayDecl el ->
-		let t = ref (mk_mono()) in
-		let is_null = ref false in
-		let el = List.map (fun e ->
-			let e = type_expr ctx e in
-			(match e.eexpr with
-			| TConst TNull when not !is_null ->
-				is_null := true;
-				t := ctx.t.tnull !t;
-			| _ -> ());
-			if e.etype == t_dynamic then t := t_dynamic;
-			(try
-				unify_raise ctx e.etype (!t) e.epos;
-			with Error (Unify _,_) -> try
-				unify_raise ctx (!t) e.etype e.epos;
-				t := e.etype;
-			with Error (Unify _,_) ->
-				t := t_dynamic);
-			e
-		) el in
-		mk (TArrayDecl el) (ctx.t.tarray !t) p
+		let tl, t = type_exprs_unified ctx el in
+		mk (TArrayDecl tl) (ctx.t.tarray t) p
 	| EVars vl ->
 		let vl = List.map (fun (v,t,e) ->
 			try
