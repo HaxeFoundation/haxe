@@ -8526,6 +8526,7 @@ struct
           { expr with eexpr = TSwitch(cond, List.map (fun (el, e) -> (el, handle_case (process_expr e))) el_e_l, None) }, Normal
         | TSwitch(cond, el_e_l, Some def) ->
           let def, k = process_expr def in
+          let def = handle_case (def, k) in
           let k = ref k in
           let ret = { expr with eexpr = TSwitch(cond, List.map (fun (el, e) -> 
             let e, ek = process_expr e in
@@ -8537,6 +8538,7 @@ struct
           { expr with eexpr = TMatch(cond, ep, List.map (fun (il, vopt, e) -> (il, vopt, handle_case (process_expr e))) il_vopt_e_l, None) }, Normal
         | TMatch(cond, ep, il_vopt_e_l, Some def) ->
           let def, k = process_expr def in
+          let def = handle_case (def, k) in
           let k = ref k in
           let ret = { expr with eexpr = TMatch(cond, ep, List.map (fun (il, vopt, e) -> 
             let e, ek = process_expr e in

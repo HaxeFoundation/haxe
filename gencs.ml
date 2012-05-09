@@ -619,6 +619,7 @@ let configure gen =
             | TNull -> print w "default(%s)" (t_s e.etype)
             | TThis -> write w "this"
             | TSuper -> write w "base")
+        | TLocal { v_name = "__sbreak__" } -> write w "break"
         | TLocal { v_name = "__undefined__" } ->
           write w (t_s (TInst(runtime_cl, List.map (fun _ -> t_dynamic) runtime_cl.cl_types)));
           write w ".undefined";
@@ -823,7 +824,6 @@ let configure gen =
             in_value := false;
             expr_s w (mk_block e);
             newline w;
-            write w "break;";
             newline w
           ) ele_l;
           if is_some default then begin
@@ -832,7 +832,6 @@ let configure gen =
             in_value := false;
             expr_s w (get default);
             newline w;
-            write w "break;"
           end;
           end_block w
         | TTry (tryexpr, ve_l) ->
@@ -1526,6 +1525,8 @@ let configure gen =
   ExpressionUnwrap.configure gen (ExpressionUnwrap.traverse gen (fun e -> Some { eexpr = TVars([mk_temp gen "expr" e.etype, Some e]); etype = gen.gcon.basic.tvoid; epos = e.epos }));
   
   IntDivisionSynf.configure gen (IntDivisionSynf.default_implementation gen true);
+  
+  UnreachableCodeEliminationSynf.configure gen (UnreachableCodeEliminationSynf.traverse gen true true true);
   
   let native_arr_cl = get_cl ( get_type gen (["cs"], "NativeArray") ) in
   ArrayDeclSynf.configure gen (ArrayDeclSynf.default_implementation gen native_arr_cl);
