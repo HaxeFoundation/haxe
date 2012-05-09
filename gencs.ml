@@ -1248,7 +1248,7 @@ let configure gen =
       trace (debug_expr e);
       {
         eexpr = TCall({
-            eexpr = TField(e, "toDynamic");
+            eexpr = TField(mk_paren e, "toDynamic");
             etype = TFun([], t_dynamic);
             epos = e.epos
           }, []);

@@ -4364,7 +4364,7 @@ struct
       | TMono _, _
       | TDynamic _, _
       | TAnon _, _ when gen.gneeds_box real_from_t -> 
-        mk_cast to_t (mk_paren e)
+        mk_cast to_t e
       | TMono _, _
       | TDynamic _, _ -> e
       | _, TMono _
