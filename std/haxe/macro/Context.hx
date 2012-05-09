@@ -92,6 +92,15 @@ class Context {
 	}
 
 	/**
+		Returns the name of the method from which the macro was called
+	**/	
+	public static function getLocalMethod() : Null<String> {
+		var l : String = load("local_method", 0)();
+		if (l == "") return null;
+		return l;
+	}
+	
+	/**
 		Tells is the given compiler directive has been defined with -D
 	**/
 	public static function defined( s : String ) : Bool {

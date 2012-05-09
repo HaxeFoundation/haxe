@@ -98,6 +98,7 @@ type extern_api = {
 	meta_patch : string -> string -> string option -> bool -> unit;
 	set_js_generator : (value -> unit) -> unit;
 	get_local_type : unit -> t option;
+	get_local_method : unit -> string;
 	get_build_fields : unit -> value;
 	define_type : value -> unit;
 	module_dependency : string -> string -> bool -> unit;
@@ -1935,6 +1936,9 @@ let macro_lib =
 			match (get_ctx()).curapi.get_local_type() with
 			| None -> VNull
 			| Some t -> encode_type t
+		);
+		"local_method", Fun0 (fun() ->
+			VString ((get_ctx()).curapi.get_local_method())
 		);
 		"follow", Fun2 (fun v once ->
 			let t = decode_type v in
