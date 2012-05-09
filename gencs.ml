@@ -1219,6 +1219,12 @@ let configure gen =
   
   StubClosureImpl.configure gen (StubClosureImpl.default_implementation gen float_cl 10 (fun e _ _ -> e));*)
   
+  let tp_v = alloc_var "$type_param" t_dynamic in
+  let mk_tp t pos = { eexpr = TLocal(tp_v); etype = t; epos = pos } in
+  TypeParams.configure gen (fun ecall efield params elist ->
+    { ecall with eexpr = TCall(efield, (List.map (fun t -> mk_tp t ecall.epos ) params) @ elist) }
+  );
+  
   HardNullableSynf.configure gen (HardNullableSynf.traverse gen 
     (fun e ->
       match real_type e.etype with
@@ -1227,10 +1233,19 @@ let configure gen =
         | _ -> 
           trace (debug_type e.etype); gen.gcon.error "This expression is not a Nullable expression" e.epos; assert false
     ) 
-    (fun v has_value ->
-      { eexpr = TNew(null_t, [v.etype], [mk_cast v.etype v; { eexpr = TConst(TBool has_value); etype = gen.gcon.basic.tbool; epos = v.epos } ]); etype = TInst(null_t, [v.etype]); epos = v.epos }
+    (fun v t has_value ->
+      match has_value, real_type v.etype with
+        | true, TDynamic _ | true, TAnon _ | true, TMono _ ->
+          {
+            eexpr = TCall(mk_static_field_access_infer null_t "ofDynamic" v.epos [t], [mk_tp t v.epos; v]);
+            etype = TInst(null_t, [t]);
+            epos = v.epos
+          }
+        | _ -> 
+          { eexpr = TNew(null_t, [t], [mk_cast t v; { eexpr = TConst(TBool has_value); etype = gen.gcon.basic.tbool; epos = v.epos } ]); etype = TInst(null_t, [t]); epos = v.epos }
     ) 
     (fun e ->
+      trace (debug_expr e);
       {
         eexpr = TCall({
             eexpr = TField(e, "toDynamic");
@@ -1511,11 +1526,6 @@ let configure gen =
       }
     end
   ));
-  
-  let v = alloc_var "$type_param" t_dynamic in
-  TypeParams.configure gen (fun ecall efield params elist ->
-    { ecall with eexpr = TCall(efield, (List.map (fun t -> { eexpr = TLocal(v); etype = t; epos = ecall.epos }) params) @ elist) }
-  );
   
   CastDetect.configure gen (CastDetect.default_implementation gen (Some (TEnum(empty_e, []))));
   

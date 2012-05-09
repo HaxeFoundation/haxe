@@ -4364,7 +4364,7 @@ struct
       | TMono _, _
       | TDynamic _, _
       | TAnon _, _ when gen.gneeds_box real_from_t -> 
-        mk_cast to_t e
+        mk_cast to_t (mk_paren e)
       | TMono _, _
       | TDynamic _, _ -> e
       | _, TMono _
@@ -8184,12 +8184,12 @@ struct
           mk_cast to_t (unwrap_null e)
     in
     
-    let handle_wrap e =
+    let handle_wrap e t =
       match e.eexpr with
         | TConst(TNull) ->
-          wrap_val e false
+          wrap_val e t false
         | _ ->
-          wrap_val e true
+          wrap_val e t true
     in
     
     let is_null_t = is_null_t gen in
@@ -8201,7 +8201,7 @@ struct
           if is_some null_vt && is_none null_et then
             handle_unwrap e.etype (run v)
           else if is_none null_vt && is_some null_et then
-            handle_wrap ({ (run v) with etype = get (is_null_t e.etype) })
+            handle_wrap (run v) (get (is_null_t e.etype))
           else
             Type.map_expr run e
         | TField(ef, field) when is_some (is_null_t ef.etype) ->
@@ -8236,7 +8236,7 @@ struct
               (* if it is Null<T>, we need to convert the result again to null *)
               let e_t = (is_null_t e.etype) in
               if is_some e_t then
-                wrap_val { eexpr = TBinop(op, e1, e2); etype = get e_t; epos = e.epos } true
+                wrap_val { eexpr = TBinop(op, e1, e2); etype = get e_t; epos = e.epos } (get e_t) true
               else
                 { e with eexpr = TBinop(op, e1, e2) }
           )
