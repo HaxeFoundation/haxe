@@ -1898,86 +1898,80 @@ and type_call ctx e el p =
 		(match e with
 		| EField ((EConst (Ident "super"),_),_) , _ | EType ((EConst (Ident "super"),_),_) , _ -> ctx.in_super_call <- true
 		| _ -> ());
-		match type_access ctx (fst e) (snd e) MCall with
-		| AKInline (ethis,f,t) ->
-			let params, tret = (match follow t with
-				| TFun (args,r) -> unify_call_params ctx (Some (f.cf_name,f.cf_meta)) el args r p true
-				| _ -> error (s_type (print_context()) t ^ " cannot be called") p
-			) in
-			make_call ctx (mk (TField (ethis,f.cf_name)) t p) params tret p
-		| AKUsing (et,ef,eparam) ->
-			(match et.eexpr with
-			| TField (ec,_) ->
-				(match type_field ctx ec ef.cf_name p MCall with
-				| AKMacro _ ->
-					(match ec.eexpr with
-					| TTypeExpr (TClassDecl c) ->
-						let e = (match fst e with
-							| EField (e,f) -> if f <> ef.cf_name then assert false; e
-							| EConst (Ident f | Type f) -> if f <> ef.cf_name then assert false; (EConst (Ident "this"),snd e)
-							| _ -> error "Unsupported" (snd e)
+		let rec loop acc el =
+			match acc with
+			| AKInline (ethis,f,t) ->
+				let params, tret = (match follow t with
+					| TFun (args,r) -> unify_call_params ctx (Some (f.cf_name,f.cf_meta)) el args r p true
+					| _ -> error (s_type (print_context()) t ^ " cannot be called") p
+				) in
+				make_call ctx (mk (TField (ethis,f.cf_name)) t p) params tret p
+			| AKUsing (et,ef,eparam) ->
+				(match et.eexpr with
+				| TField (ec,_) ->
+					let acc = (type_field ctx ec ef.cf_name p MCall) in
+					(match acc with
+					| AKMacro _ ->
+						loop acc (Interp.make_ast eparam :: el)
+					| AKExpr _ | AKField _ | AKInline _ ->
+						let params, tret = (match follow et.etype with
+							| TFun ( _ :: args,r) -> unify_call_params ctx (Some (ef.cf_name,ef.cf_meta)) el args r p (ef.cf_kind = Method MethInline)
+							| _ -> assert false
 						) in
-						(match ctx.g.do_macro ctx MExpr c.cl_path ef.cf_name (e :: el) p with
-						| None -> type_expr ctx (EConst (Ident "null"),p)
-						| Some e -> type_expr ctx e)
+						make_call ctx et (eparam::params) tret p
 					| _ -> assert false)
-				| AKExpr _ | AKField _ | AKInline _ ->
-					let params, tret = (match follow et.etype with
-						| TFun ( _ :: args,r) -> unify_call_params ctx (Some (ef.cf_name,ef.cf_meta)) el args r p (ef.cf_kind = Method MethInline)
-						| _ -> assert false
-					) in
-					make_call ctx et (eparam::params) tret p
 				| _ -> assert false)
-			| _ -> assert false)
-		| AKMacro (ethis,f) ->
-			(match ethis.eexpr with
-			| TTypeExpr (TClassDecl c) ->
-				(match ctx.g.do_macro ctx MExpr c.cl_path f.cf_name el p with
-				| None -> type_expr ctx (EConst (Ident "null"),p)
-				| Some e -> type_expr ctx e)
-			| _ ->
-				(* member-macro call : since we will make a static call, let's found the actual class and not its subclass *)
-				(match follow ethis.etype with
-				| TInst (c,_) ->
-					let rec loop c =
-						if PMap.mem f.cf_name c.cl_fields then
-							match ctx.g.do_macro ctx MExpr c.cl_path f.cf_name (Interp.make_ast ethis :: el) p with
-							| None -> type_expr ctx (EConst (Ident "null"),p)
-							| Some e -> type_expr ctx e
-						else
-							match c.cl_super with
-							| None -> assert false
-							| Some (csup,_) -> loop csup
-					in
-					loop c
-				| _ -> assert false))
-		| AKNo _ | AKSet _ as acc ->
-			ignore(acc_get ctx acc p);
-			assert false
-		| AKExpr e | AKField (e,_) as acc ->
-			let el , t = (match follow e.etype with
-			| TFun (args,r) ->
-				let fopts = (match acc with AKField (_,f) -> Some (f.cf_name,f.cf_meta) | _ -> match e.eexpr with TField (e,f) -> Some (f,[]) | _ -> None) in
-				unify_call_params ctx fopts el args r p false
-			| TMono _ ->
-				let t = mk_mono() in
-				let el = List.map (type_expr ctx) el in
-				unify ctx (tfun (List.map (fun e -> e.etype) el) t) e.etype e.epos;
-				el, t
-			| t ->
-				let el = List.map (type_expr ctx) el in
-				el, if t == t_dynamic then
-					t_dynamic
-				else if ctx.untyped then
-					mk_mono()
-				else
-					error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
-			) in
-			if ctx.com.dead_code_elimination then
-				(match e.eexpr, el with
-				| TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = [],"Std"  }) },"string"), [ep] -> check_to_string ctx ep.etype
-				| _ -> ());
-			mk (TCall (e,el)) t p
+			| AKMacro (ethis,f) ->
+				(match ethis.eexpr with
+				| TTypeExpr (TClassDecl c) ->
+					(match ctx.g.do_macro ctx MExpr c.cl_path f.cf_name el p with
+					| None -> type_expr ctx (EConst (Ident "null"),p)
+					| Some e -> type_expr ctx e)
+				| _ ->
+					(* member-macro call : since we will make a static call, let's found the actual class and not its subclass *)
+					(match follow ethis.etype with
+					| TInst (c,_) ->
+						let rec loop c =
+							if PMap.mem f.cf_name c.cl_fields then
+								match ctx.g.do_macro ctx MExpr c.cl_path f.cf_name (Interp.make_ast ethis :: el) p with
+								| None -> type_expr ctx (EConst (Ident "null"),p)
+								| Some e -> type_expr ctx e
+							else
+								match c.cl_super with
+								| None -> assert false
+								| Some (csup,_) -> loop csup
+						in
+						loop c
+					| _ -> assert false))
+			| AKNo _ | AKSet _ as acc ->
+				ignore(acc_get ctx acc p);
+				assert false
+			| AKExpr e | AKField (e,_) as acc ->
+				let el , t = (match follow e.etype with
+				| TFun (args,r) ->
+					let fopts = (match acc with AKField (_,f) -> Some (f.cf_name,f.cf_meta) | _ -> match e.eexpr with TField (e,f) -> Some (f,[]) | _ -> None) in
+					unify_call_params ctx fopts el args r p false
+				| TMono _ ->
+					let t = mk_mono() in
+					let el = List.map (type_expr ctx) el in
+					unify ctx (tfun (List.map (fun e -> e.etype) el) t) e.etype e.epos;
+					el, t
+				| t ->
+					let el = List.map (type_expr ctx) el in
+					el, if t == t_dynamic then
+						t_dynamic
+					else if ctx.untyped then
+						mk_mono()
+					else
+						error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
+				) in
+				if ctx.com.dead_code_elimination then
+					(match e.eexpr, el with
+					| TField ({ eexpr = TTypeExpr (TClassDecl { cl_path = [],"Std"  }) },"string"), [ep] -> check_to_string ctx ep.etype
+					| _ -> ());
+				mk (TCall (e,el)) t p
+		in
+		loop (type_access ctx (fst e) (snd e) MCall) el
 
 and check_to_string ctx t =
 	match follow t with
