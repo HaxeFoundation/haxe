@@ -36,6 +36,11 @@ let is_cs_basic_type t =
     | TEnum(e, _) when not (has_meta ":$class" e.e_meta) -> true
     | TInst(cl, _) when has_meta ":struct" cl.cl_meta -> true
     | _ -> false
+
+let is_tparam t = 
+  match follow t with
+    | TInst( { cl_kind = KTypeParameter }, [] ) -> true
+    | _ -> false
     
 let rec is_int_float t =
   match follow t with
@@ -114,6 +119,14 @@ struct
     let is_var = alloc_var "__is__" t_dynamic in
     let block = ref [] in
     let is_string t = match follow t with | TInst({ cl_path = ([], "String") }, []) -> true | _ -> false in
+    
+    let clstring = match basic.tstring with | TInst(cl,_) -> cl | _ -> assert false in
+    
+    let is_struct t = (* not basic type *)
+      match follow t with
+        | TInst(cl, _) when has_meta ":struct" cl.cl_meta -> true
+        | _ -> false
+    in
     
     let rec run e =
       match e.eexpr with 
@@ -252,6 +265,28 @@ struct
           in
           
           ret
+        
+        | TBinop( (Ast.OpNotEq as op), e1, e2)
+        | TBinop( (Ast.OpEq as op), e1, e2) when is_string e1.etype || is_string e2.etype ->
+          let mk_ret e = match op with | Ast.OpNotEq -> { e with eexpr = TUnop(Ast.Not, Ast.Prefix, e) } | _ -> e in
+          mk_ret { e with 
+            eexpr = TCall({
+              eexpr = TField(mk_classtype_access clstring e.epos, "Equals");
+              etype = TFun(["obj1",false,basic.tstring; "obj2",false,basic.tstring], basic.tbool);
+              epos = e1.epos
+            }, [ run e1; run e2 ])
+          }
+        
+        | TBinop( (Ast.OpNotEq as op), e1, e2)
+        | TBinop( (Ast.OpEq as op), e1, e2) when is_struct e1.etype || is_struct e2.etype ->
+          let mk_ret e = match op with | Ast.OpNotEq -> { e with eexpr = TUnop(Ast.Not, Ast.Prefix, e) } | _ -> e in
+          mk_ret { e with 
+            eexpr = TCall({
+              eexpr = TField(run e1, "Equals");
+              etype = TFun(["obj1",false,t_dynamic;], basic.tbool);
+              epos = e1.epos
+            }, [ run e2 ])
+          }
         
         | _ -> Type.map_expr run e
     in
@@ -1256,6 +1291,7 @@ let configure gen =
         epos = e.epos
       }
     )
+    true
   );
   
   IteratorsInterface.configure gen (fun e -> e);
@@ -1411,11 +1447,20 @@ let configure gen =
     | _ -> false
   in
   
+  let should_handle_opeq t = 
+    match real_type t with
+      | TDynamic _ | TAnon _ | TMono _
+      | TInst( { cl_kind = KTypeParameter }, _ )
+      | TInst( { cl_path = ([], "String") }, [] )
+      | TInst( { cl_path = (["haxe";"lang"], "Null") }, _ ) -> true
+      | _ -> false
+  in
+  
   DynamicOperators.configure gen 
     (DynamicOperators.abstract_implementation gen (fun e -> match e.eexpr with
       | TBinop (Ast.OpEq, e1, e2)
-      | TBinop (Ast.OpAdd, e1, e2)
-      | TBinop (Ast.OpNotEq, e1, e2) -> is_dynamic e1.etype or is_dynamic e2.etype or is_type_param e1.etype or is_type_param e2.etype
+      | TBinop (Ast.OpNotEq, e1, e2) -> should_handle_opeq e1.etype or should_handle_opeq e2.etype
+      | TBinop (Ast.OpAdd, e1, e2) -> is_dynamic e1.etype or is_dynamic e2.etype or is_type_param e1.etype or is_type_param e2.etype
       | TBinop (Ast.OpLt, e1, e2)
       | TBinop (Ast.OpLte, e1, e2)
       | TBinop (Ast.OpGte, e1, e2)
@@ -1429,19 +1474,10 @@ let configure gen =
       if is_null e1 || is_null e2 then 
         { e1 with eexpr = TBinop(Ast.OpEq, e1, e2); etype = basic.tbool }
       else begin
-        let is_ref = match follow e1.etype, follow e2.etype with
+        let is_basic = is_cs_basic_type (follow e1.etype) || is_cs_basic_type (follow e2.etype) in
+        let is_ref = if is_basic then false else match follow e1.etype, follow e2.etype with
           | TDynamic _, _
           | _, TDynamic _
-          | TInst({ cl_path = ([], "Float") },[]), _
-          | TInst( { cl_path = (["haxe"], "Int32") }, [] ), _
-          | TInst( { cl_path = (["haxe"], "Int64") }, [] ), _
-          | TInst({ cl_path = ([], "Int") },[]), _
-          | TEnum({ e_path = ([], "Bool") },[]), _
-          | _, TInst({ cl_path = ([], "Float") },[])
-          | _, TInst({ cl_path = ([], "Int") },[]) 
-          | _, TInst( { cl_path = (["haxe"], "Int32") }, [] )
-          | _, TInst( { cl_path = (["haxe"], "Int64") }, [] )
-          | _, TEnum({ e_path = ([], "Bool") },[]) 
           | TInst( { cl_kind = KTypeParameter }, [] ), _
           | _, TInst( { cl_kind = KTypeParameter }, [] ) -> false
           | _, _ -> true

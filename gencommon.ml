@@ -8175,7 +8175,7 @@ struct
         Some( TType(tdef, [ strip_off_nullable of_t ]) )
       | _ -> None
   
-  let traverse gen unwrap_null wrap_val null_to_dynamic =
+  let traverse gen unwrap_null wrap_val null_to_dynamic handle_opeq =
     let handle_unwrap to_t e =
       match gen.gfollow#run_f to_t with 
         | TDynamic _ | TMono _ | TAnon _ ->
@@ -8224,6 +8224,8 @@ struct
             | Ast.OpAssign
             | Ast.OpAssignOp _ ->
               Type.map_expr run e (* casts are already dealt with normal CastDetection module *)
+            | Ast.OpEq | Ast.OpNotEq when not handle_opeq ->
+              Type.map_expr run e
             | _ ->
               let e1 = if is_some e1_t then 
                 handle_unwrap (get e1_t) (run e1)
