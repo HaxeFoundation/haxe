@@ -47,6 +47,19 @@ let rec is_int_float t =
     | TInst( { cl_path = (["haxe"; "lang"], "Null") }, [t] ) -> is_int_float t
     | _ -> false
 
+let rec is_null t =
+  match t with
+    | TInst( { cl_path = (["haxe"; "lang"], "Null") }, _ )
+    | TType( { t_path = ([], "Null") }, _ ) -> true
+    | TType( t, tl ) -> is_null (apply_params t.t_types tl t.t_type)
+    | TMono r ->
+      (match !r with
+      | Some t -> is_null t
+      | _ -> false)
+    | TLazy f ->
+      is_null (!f())
+    | _ -> false
+    
 let parse_explicit_iface =
   let regex = Str.regexp "\\." in
   let parse_explicit_iface str =
@@ -180,7 +193,7 @@ struct
         | TCall( ( { eexpr = TField(ef, ("substr" as field)) } ), args ) when is_string ef.etype ->
           { e with eexpr = TCall(mk_static_field_access_infer string_ext field e.epos [], [run ef] @ (List.map run args)) }
         
-        | TCast(expr, _) when is_int_float e.etype && not (is_int_float expr.etype) ->
+        | TCast(expr, _) when is_int_float e.etype && not (is_int_float expr.etype) && not (is_null e.etype) ->
           let needs_cast = match gen.gfollow#run_f e.etype with
             | TInst _ -> false
             | _ -> true
