@@ -7566,7 +7566,32 @@ struct
       cl.cl_ordered_statics <- constructs_cf :: cfs ;
       cl.cl_statics <- PMap.add "constructs" constructs_cf cl.cl_statics;
       
-      (if should_be_hxgen then cl.cl_meta <- (":hxgen",[],cl.cl_pos) :: cl.cl_meta);
+      (if should_be_hxgen then 
+        cl.cl_meta <- (":hxgen",[],cl.cl_pos) :: cl.cl_meta
+      else begin
+        (* create the constructor *)
+        let tf_args = [ alloc_var "index" basic.tint, None; alloc_var "params" (basic.tarray t_empty), None ] in
+        let ftype = TFun(fun_args tf_args, basic.tvoid) in
+        let ctor = mk_class_field "new" ftype true pos (Method MethNormal) [] in
+        let me = TInst(cl, List.map snd cl.cl_types) in
+        ctor.cf_expr <-
+        Some {
+          eexpr = TFunction(
+          {
+            tf_args = tf_args;
+            tf_type = basic.tvoid;
+            tf_expr = mk_block {
+              eexpr = TCall({ eexpr = TConst TSuper; etype = me; epos = pos }, List.map (fun (v,_) -> mk_local v pos) tf_args);
+              etype = basic.tvoid;
+              epos = pos;
+            }
+          });
+          etype = ftype;
+          epos = pos
+        };
+        
+        cl.cl_constructor <- Some ctor
+      end);
       gen.gadd_to_module (TClassDecl cl) (max_dep);
       
       TEnumDecl en
