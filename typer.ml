@@ -432,7 +432,12 @@ let using_field ctx mode e i p =
 				let t = field_type f in
 				(match follow t with
 				| TFun ((_,_,t0) :: args,r) ->
-					(try unify_raise ctx e.etype t0 p with Error (Unify _,_) -> raise Not_found);
+					let t0 = (try match t0 with
+					| TType({t_path=["haxe";"macro"], ("ExprOf"|"ExprRequire")}, [t]) ->
+						(try unify_raise ctx e.etype t p with Error (Unify _,_) -> raise Not_found); t;
+					| _ -> raise Not_found
+					with Not_found ->
+						(try unify_raise ctx e.etype t0 p with Error (Unify _,_) -> raise Not_found); t0) in
 					if follow e.etype == t_dynamic && follow t0 != t_dynamic then raise Not_found;
 					let et = type_module_type ctx (TClassDecl c) None p in
 					AKUsing (mk (TField (et,i)) t p,f,e)
@@ -1775,6 +1780,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 					List.iter (fun f ->
 						let f = { f with cf_type = opt_type f.cf_type } in
 						match follow (field_type f) with
+						| TFun((_,_,TType({t_path=["haxe";"macro"], ("ExprOf"|"ExprRequire")}, [t])) :: args, ret)
 						| TFun ((_,_,t) :: args, ret) when (try unify_raise ctx (dup e.etype) t e.epos; true with _ -> false) ->
 							let f = { f with cf_type = TFun (args,ret); cf_params = [] } in
 							if follow e.etype == t_dynamic && follow t != t_dynamic then
