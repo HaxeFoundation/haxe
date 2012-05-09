@@ -4593,7 +4593,9 @@ struct
         | TBinop ( (Ast.OpAssign as op),({ eexpr = TField(tf, f) } as e1), e2 )
         | TBinop ( (Ast.OpAssignOp _ as op),({ eexpr = TField(tf, f) } as e1), e2 ) ->
           (match field_access gen (gen.greal_type tf.etype) f with
-            | FClassField(_,_,_,_,actual_t) -> { e with eexpr = TBinop(op, Type.map_expr run e1, handle (run e2) actual_t e2.etype) }
+            | FClassField(cl,params,_,is_static,actual_t) -> 
+              let actual_t = if is_static then actual_t else apply_params cl.cl_types params actual_t in
+              { e with eexpr = TBinop(op, Type.map_expr run e1, handle (run e2) actual_t e2.etype) }
             | _ -> { e with eexpr = TBinop(op, Type.map_expr run e1, handle (run e2) e1.etype e2.etype) }
           )
         | TBinop ( (Ast.OpAssign as op),e1,e2)
