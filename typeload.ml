@@ -586,8 +586,8 @@ let type_function ctx args ret fmode f p =
 	let have_ret = (try loop e; false with Exit -> true) in
 	if have_ret then
 		(try return_flow ctx e with Exit -> ())
-	else
-		unify ctx ret ctx.t.tvoid p;
+	else (try unify_raise ctx ret ctx.t.tvoid p
+		with Error(Unify _,_) -> display_error ctx ("Missing return: " ^ (s_type (print_context()) ret))  p);
 	let rec loop e =
 		match e.eexpr with
 		| TCall ({ eexpr = TConst TSuper },_) -> raise Exit
