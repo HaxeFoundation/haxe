@@ -1602,18 +1602,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				mk (TIf (e,e1,None)) ctx.t.tvoid p
 		| Some e2 ->
 			let e2 = type_expr ctx ~need_val e2 in
-			let t = if not need_val then ctx.t.tvoid else (try
-				(match e1.eexpr, e2.eexpr with
-				| _ , TConst TNull -> ctx.t.tnull e1.etype
-				| TConst TNull, _ -> ctx.t.tnull e2.etype
-				| _  ->
-					unify_raise ctx e1.etype e2.etype p;
-					if is_null e1.etype then ctx.t.tnull e2.etype else e2.etype)
-			with
-				Error (Unify _,_) ->
-					unify ctx e2.etype e1.etype p;
-					if is_null e2.etype then ctx.t.tnull e1.etype else e1.etype
-			) in
+			let t = if not need_val then ctx.t.tvoid else unify_min_raise ctx [e1; e2] in
 			mk (TIf (e,e1,Some e2)) t p)
 	| EWhile (cond,e,NormalWhile) ->
 		let old_loop = ctx.in_loop in
