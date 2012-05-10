@@ -160,7 +160,20 @@ class TestType extends Test {
 		Test.typedAs(switch(false) { case true: null; default: false; }, tnullbool);
 		Test.typedAs(switch(false) { case true: true; default: null; }, tnullbool);
 		Test.typedAs(switch(false) { case true: new Unrelated(); default: {s:"foo"}; }, ts);
-		Test.typedAs(switch(false) { case true: {s:"foo"}; default: new Unrelated(); }, ts);
+		Test.typedAs(switch(false) { case true: { s:"foo" }; default: new Unrelated(); }, ts);
+		
+		// return
+		
+		Test.typedAs(function() { return new Child1(); return new Child2(); } (), tbase);
+		Test.typedAs(function() { return new Child1(); return new Child2(); return new Base(); } (), tbase);
+		Test.typedAs(function() { return new Child1(); return new Child2_1(); return new Base(); } (), tbase);
+		Test.typedAs(function() { return new Child2(); return new Unrelated(); } (), ti1);
+		Test.typedAs(function() { return new Child2_1(); return new Unrelated(); } (), ti1);
+		
+		Test.typedAs(function() { return null; return false; } (), tnullbool);
+		Test.typedAs(function() { return true; return null; } (), tnullbool);
+		Test.typedAs(function() { return new Unrelated(); return {s:"foo"}; } (), ts);
+		Test.typedAs(function() { return {s:"foo"}; return new Unrelated(); } (), ts);
 		#end
 		
 	}
