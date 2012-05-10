@@ -1117,27 +1117,14 @@ and type_switch ctx e cases def need_val p =
 		el, e2
 	) cases in
 	ctx.local_types <- old;
-	let t = ref (mk_mono()) in
+	let el = ref [] in
 	let type_case_code e =
 		let e = (match e with
 			| (EBlock [],p) when need_val -> (EConst (Ident "null"),p)
 			| _ -> e
 		) in
 		let e = type_expr ~need_val ctx e in
-		if need_val then begin
-			try
-				(match e.eexpr with
-				| TBlock [{ eexpr = TConst TNull }] -> t := ctx.t.tnull !t;
-				| _ -> ());
-				unify_raise ctx e.etype (!t) e.epos;
-				if is_null e.etype then t := ctx.t.tnull !t;
-			with Error (Unify _,_) -> try
-				unify_raise ctx (!t) e.etype e.epos;
-				t := if is_null !t then ctx.t.tnull e.etype else e.etype;
-			with Error (Unify _,_) ->
-				(* will display the error *)
-				unify ctx e.etype (!t) e.epos;
-		end;
+		el := !el @ [e];
 		e
 	in
 	let def = (match def with
@@ -1207,7 +1194,8 @@ and type_switch ctx e cases def need_val p =
 			| [] -> ()
 			| _ -> display_error ctx ("Some constructors are not matched : " ^ String.concat "," l) p
 		);
-		mk (TMatch (eval,(enum,enparams),List.map indexes cases,def)) (!t) p
+		let t = if not need_val then ctx.t.tvoid else unify_min_raise ctx !el in
+		mk (TMatch (eval,(enum,enparams),List.map indexes cases,def)) t p
 	| _ ->
 		let consts = Hashtbl.create 0 in
 		let exprs (el,e) =
@@ -1226,7 +1214,8 @@ and type_switch ctx e cases def need_val p =
 			el, e
 		in
 		let cases = List.map exprs cases in
-		mk (TSwitch (eval,cases,def)) (!t) p
+		let t = if not need_val then ctx.t.tvoid else unify_min_raise ctx !el in
+		mk (TSwitch (eval,cases,def)) t p
 
 and type_ident_noerr ctx i is_type p mode =
 	try
