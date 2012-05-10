@@ -1288,6 +1288,7 @@ let type_module ctx m file tdecls loadp =
 		curclass = ctx.curclass;
 		tthis = ctx.tthis;
 		ret = ctx.ret;
+		ret_exprs = [];
 		current = m;
 		locals = PMap.empty;
 		local_types = ctx.g.std.m_types @ m.m_types;

@@ -78,6 +78,7 @@ and typer = {
 	mutable in_display : bool;
 	mutable curfun : current_fun;
 	mutable ret : t;
+	mutable ret_exprs : texpr list;
 	mutable locals : (string, tvar) PMap.t;
 	mutable opened : anon_status ref list;
 	mutable param_type : t option;
@@ -226,3 +227,78 @@ let create_fake_module ctx file =
 	) in
 	Hashtbl.replace ctx.g.modules mdep.m_path mdep;
 	mdep
+
+let unify_min_raise ctx el =
+	let rec base_types t =
+		let tl = ref [] in
+		let rec loop t = (match t with
+		| TInst(cl, params) ->
+			List.iter (fun (ic, ip) ->
+				let t = apply_params cl.cl_types params (TInst (ic,ip)) in
+				loop t
+			) cl.cl_implements;	
+			(match cl.cl_super with None -> () | Some (csup, pl) ->
+				let t = apply_params cl.cl_types params (TInst (csup,pl)) in
+				loop t);
+			tl := t :: !tl;
+		| TType ({ t_path = ([],"Null") },[t]) -> loop t;
+		| TLazy f -> loop (!f())
+		| TMono r -> (match !r with None -> () | Some t -> loop t)
+		| _ -> tl := t :: !tl) in
+		loop t;
+		tl in
+
+	match el with
+	| [] -> mk_mono()
+	| [e] -> e.etype
+	| _ ->
+		let rec chk_null e = is_null e.etype ||
+			match e.eexpr with
+			| TConst TNull -> true
+			| TBlock el ->
+				(match List.rev el with
+				| [] -> false
+				| e :: _ -> chk_null e)
+			| TParenthesis e -> chk_null e
+			| _ -> false
+		in
+		let t = ref (mk_mono()) in
+		let is_null = ref false in
+		let has_error = ref false in
+
+		(* First pass: Try normal unification and find out if null is involved. *)
+		List.iter (fun e -> 
+			if not !is_null && chk_null e then begin
+				is_null := true;
+				t := ctx.t.tnull !t
+			end;
+			(try
+				unify_raise ctx e.etype (!t) e.epos;
+			with Error (Unify _,_) -> try
+				unify_raise ctx (!t) e.etype e.epos;
+				t := e.etype;
+			with Error (Unify _,_) -> has_error := true);
+		) el;
+		if not !has_error then !t else begin
+			(* Second pass: Get all base types (interfaces, super classes and their interfaces) of most general type.
+			   Then for each additional type filter all types that do not unify. *)
+			let common_types = base_types !t in
+			let loop e = 
+				let first_error = ref None in
+				let filter t = (try unify_raise ctx e.etype t e.epos; true
+					with Error (Unify l, p) as err -> if !first_error = None then first_error := Some(err); false)
+				in
+				common_types := List.filter filter !common_types;
+				(match !common_types, !first_error with
+					| [], Some err -> raise err
+					| _ -> ());
+			in
+			List.iter loop (List.tl el);
+			List.hd !common_types
+		end
+
+let unify_min ctx el = 
+	try unify_min_raise ctx el
+	with Error (Unify l,p) ->
+		display_error ctx (error_msg (Unify l)) p;
+		(List.hd el).etype
