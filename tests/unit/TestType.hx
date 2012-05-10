@@ -1,5 +1,6 @@
 package unit;
 import unit.MyEnum;
+import unit.MyClass;
 
 class TestType extends Test {
 
@@ -81,7 +82,43 @@ class TestType extends Test {
 	
 	function testUnifyMin()	{
 		#if !macro
-		Test.typedAs([new MyClass.MyChild1(), new MyClass.MyChild2()], { var _:Array<MyClass.MyParent>; _;} );
+
+		var ti1:Array<I1>;
+		var tbase:Array<Base>;
+		var tpbase:Array<PClassBase<Float>>;
+		#if (flash9 || cpp)
+		var tnullbool:Array<Null<Bool>>;
+		var tnullbase:Array<Null<Base>>;
+		#else
+		var tnullbool:Array<Bool>;
+		var tnullbase:Array<Base>;
+		#end
+		var tchild1:Array<Child1>;
+		var ts:Array<{s:String}>;
+		
+		Test.typedAs([new Child1(), new Child2()], tbase);
+		Test.typedAs([new Child1(), new Child2(), new Base()], tbase);
+		Test.typedAs([new Child1(), new Child2_1(), new Base()], tbase);	
+		Test.typedAs([new Child2(), new Unrelated()], ti1);
+		Test.typedAs([new Child2_1(), new Unrelated()], ti1);
+
+		Test.typedAs([new ClassI2(), new Child2()], ti1);
+		Test.typedAs([new CI1(), new CI2()], tbase);
+		Test.typedAs([new CII1(), new CII2()], tbase);
+		
+		Test.typedAs([new PClass1(), new PClass2(2.0)], tpbase);
+		
+		Test.typedAs([null, false], tnullbool);
+		Test.typedAs([false, null], tnullbool);
+		Test.typedAs([null, new Base()], tnullbase);
+		Test.typedAs([new Base(), null], tnullbase); // TODO: this fails on flash9 and cpp
+		Test.typedAs([new Base()], tbase);
+		Test.typedAs([new Base(), new Child1()], tbase);
+		Test.typedAs([new Child1(), new Base()], tbase);
+		Test.typedAs([new Child1(), new Child1()], tchild1);
+		Test.typedAs([ { s:"foo" }, new Unrelated()], ts);
+		Test.typedAs([new Unrelated(), { s:"foo" } ], ts);
+
 		#end
 	}
 }

@@ -35,6 +35,21 @@ class MyChild1 extends MyParent {
 	public override function a() { return 12; }
 }
 
-class MyChild2 extends MyParent {
-	
-}
+interface I1 { }
+class Base { public var s:String; public function new() { } }
+class Child1 extends Base { public function new() { super(); } }
+class Child2 extends Base, implements I1 { public function new() { super(); } }
+class Child2_1 extends Child2 { public function new() { super(); } }
+class Unrelated implements I1 { public var s:String; public var t:Int;  public function new() { } }
+
+interface I2 implements I1 { }
+class ClassI2 implements I2 { public function new() { } }
+
+class CI1 extends Base, implements I1 { public function new() { super(); } }
+class CI2 extends Base, implements I1 { public function new() { super(); } }
+class CII1 extends CI1 { public function new() { super(); } }
+class CII2 extends CI2 { public function new() { super(); } }
+
+class PClassBase<T> { public function new() {  } }
+class PClass1<T> extends PClassBase<Float> { public function new() { super(); } }
+class PClass2<T> extends PClassBase<T> { public function new(t:T) { super(); } }
