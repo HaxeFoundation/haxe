@@ -174,8 +174,9 @@ let unify_min_raise ctx el =
 					with Error (Unify l, p) as err -> if !first_error = None then first_error := Some(err); false)
 				in
 				common_types := List.filter filter !common_types;
-				if List.length !common_types = 0 then
-					match !first_error with Some err -> raise err | None -> assert false
+				(match !common_types, !first_error with
+					| [], Some err -> raise err
+					| _ -> ());
 			in
 			List.iter loop (List.tl el);
 			List.hd !common_types
@@ -185,7 +186,7 @@ let unify_min ctx el =
 	try unify_min_raise ctx el
 	with Error (Unify l,p) ->
 		display_error ctx (error_msg (Unify l)) p;
-		t_dynamic
+		(List.hd el).etype
 
 let rec unify_call_params ctx name el args r p inline =
 	let next() =
