@@ -1544,10 +1544,11 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				None , v
 			| Some e ->
 				let e = type_expr ctx e in
-				if ctx.untyped || ctx.ret == t_dynamic then
-					unify ctx e.etype ctx.ret e.epos
- 				else
-					ctx.ret_exprs <- e :: ctx.ret_exprs;
+				(match ctx.ret with
+				| TMono _ when not ctx.untyped ->
+					ctx.ret_exprs <- e :: ctx.ret_exprs
+				| _ ->
+					unify ctx e.etype ctx.ret e.epos);
 				Some e , e.etype
 		) in
 		mk (TReturn e) t_dynamic p
