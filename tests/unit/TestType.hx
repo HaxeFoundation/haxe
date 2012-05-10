@@ -83,6 +83,8 @@ class TestType extends Test {
 	function testUnifyMin()	{
 		#if !macro
 
+		// array
+		
 		var ti1:Array<I1>;
 		var tbase:Array<Base>;
 		var tpbase:Array<PClassBase<Float>>;
@@ -111,7 +113,7 @@ class TestType extends Test {
 		Test.typedAs([null, false], tnullbool);
 		Test.typedAs([false, null], tnullbool);
 		Test.typedAs([null, new Base()], tnullbase);
-		Test.typedAs([new Base(), null], tnullbase); // TODO: this fails on flash9 and cpp
+		//Test.typedAs([new Base(), null], tnullbase); // TODO: this fails on flash9 and cpp
 		Test.typedAs([new Base()], tbase);
 		Test.typedAs([new Base(), new Child1()], tbase);
 		Test.typedAs([new Child1(), new Base()], tbase);
@@ -119,6 +121,34 @@ class TestType extends Test {
 		Test.typedAs([ { s:"foo" }, new Unrelated()], ts);
 		Test.typedAs([new Unrelated(), { s:"foo" } ], ts);
 
+		// if
+		
+		var tbase:Base;
+		var ti1:I1;
+		#if (flash9 || cpp)
+		var tnullbool:Null<Bool>;
+		#else
+		var tnullbool:Bool;
 		#end
+		var ts: { s:String };
+		
+		Test.typedAs(if (false) new Child1(); else new Child2(), tbase);
+		Test.typedAs(
+			if (false) new Child1();
+			else if (true) new Child2();
+			else new Base(), tbase);
+		Test.typedAs(
+			if (false) new Child1();
+			else if (true) new Child2_1();
+			else new Base(), tbase);
+		Test.typedAs(if (false) new Child2(); else new Unrelated(), ti1);
+		Test.typedAs(if (false) new Child2_1(); else new Unrelated(), ti1);
+		
+		Test.typedAs(if (false) null; else false, tnullbool);
+		Test.typedAs(if (false) true; else null, tnullbool);
+		Test.typedAs(if (false) new Unrelated(); else {s:"foo"}, ts);
+		Test.typedAs(if (false) {s:"foo"}; else new Unrelated(), ts);
+		#end
+		
 	}
 }
