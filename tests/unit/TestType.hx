@@ -80,7 +80,7 @@ class TestType extends Test {
 		eq(12, c.a());
 	}
 	
-	function testUnifyMin()	{
+	function testUnifyMin() {
 		#if !macro
 
 		// array
@@ -147,7 +147,20 @@ class TestType extends Test {
 		Test.typedAs(if (false) null; else false, tnullbool);
 		Test.typedAs(if (false) true; else null, tnullbool);
 		Test.typedAs(if (false) new Unrelated(); else {s:"foo"}, ts);
-		Test.typedAs(if (false) {s:"foo"}; else new Unrelated(), ts);
+		Test.typedAs(if (false) { s:"foo" }; else new Unrelated(), ts);
+		
+		//switch
+		
+		Test.typedAs(switch(false) { case true: new Child1(); case false: new Child2(); }, tbase);
+		Test.typedAs(switch(1) { case 0: new Child1(); case 1: new Child2(); case 2: new Base(); }, tbase);
+		Test.typedAs(switch(1) { case 0: new Child1(); case 1: new Child2_1(); default: new Base(); }, tbase);
+		Test.typedAs(switch(false) { case true: new Child2(); case false: new Unrelated(); }, ti1);
+		Test.typedAs(switch(false) { case true: new Child2_1(); case false: new Unrelated(); }, ti1);
+		
+		Test.typedAs(switch(false) { case true: null; default: false; }, tnullbool);
+		Test.typedAs(switch(false) { case true: true; default: null; }, tnullbool);
+		Test.typedAs(switch(false) { case true: new Unrelated(); default: {s:"foo"}; }, ts);
+		Test.typedAs(switch(false) { case true: {s:"foo"}; default: new Unrelated(); }, ts);
 		#end
 		
 	}
