@@ -52,11 +52,6 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 		report(v+" not in "+Std.string(values),pos);
 	}
 
-	@:macro static function typedAs(actual:haxe.macro.Expr, expected:haxe.macro.Expr) {
-		var tExpected = haxe.macro.Context.typeof(expected);
-		var tActual = haxe.macro.Context.typeof(actual);
-		return haxe.macro.Context.parse("{Test.count++; eq('" +Std.string(tActual) + "', '" +Std.string(tExpected) + "');}", haxe.macro.Context.currentPos());
-	}
 	function infos( m : String ) {
 		reportInfos = m;
 	}

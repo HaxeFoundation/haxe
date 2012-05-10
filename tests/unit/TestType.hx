@@ -11,6 +11,12 @@ class TestType extends Test {
 		return s;
 		#end
 	}
+	
+	@:macro static function typedAs(actual:haxe.macro.Expr, expected:haxe.macro.Expr) {
+		var tExpected = haxe.macro.Context.typeof(expected);
+		var tActual = haxe.macro.Context.typeof(actual);
+		return haxe.macro.Context.parse("{Test.count++; eq('" +Std.string(tActual) + "', '" +Std.string(tExpected) + "');}", haxe.macro.Context.currentPos());
+	}	
 
 	public function testType() {
 		var name = u("unit")+"."+u("MyClass");
@@ -98,28 +104,28 @@ class TestType extends Test {
 		var tchild1:Array<Child1>;
 		var ts:Array<{s:String}>;
 		
-		Test.typedAs([new Child1(), new Child2()], tbase);
-		Test.typedAs([new Child1(), new Child2(), new Base()], tbase);
-		Test.typedAs([new Child1(), new Child2_1(), new Base()], tbase);	
-		Test.typedAs([new Child2(), new Unrelated()], ti1);
-		Test.typedAs([new Child2_1(), new Unrelated()], ti1);
+		typedAs([new Child1(), new Child2()], tbase);
+		typedAs([new Child1(), new Child2(), new Base()], tbase);
+		typedAs([new Child1(), new Child2_1(), new Base()], tbase);	
+		typedAs([new Child2(), new Unrelated()], ti1);
+		typedAs([new Child2_1(), new Unrelated()], ti1);
 
-		Test.typedAs([new ClassI2(), new Child2()], ti1);
-		Test.typedAs([new CI1(), new CI2()], tbase);
-		Test.typedAs([new CII1(), new CII2()], tbase);
+		typedAs([new ClassI2(), new Child2()], ti1);
+		typedAs([new CI1(), new CI2()], tbase);
+		typedAs([new CII1(), new CII2()], tbase);
 		
-		Test.typedAs([new PClass1(), new PClass2(2.0)], tpbase);
+		typedAs([new PClass1(), new PClass2(2.0)], tpbase);
 		
-		Test.typedAs([null, false], tnullbool);
-		Test.typedAs([false, null], tnullbool);
-		Test.typedAs([null, new Base()], tnullbase);
-		//Test.typedAs([new Base(), null], tnullbase); // TODO: this fails on flash9 and cpp
-		Test.typedAs([new Base()], tbase);
-		Test.typedAs([new Base(), new Child1()], tbase);
-		Test.typedAs([new Child1(), new Base()], tbase);
-		Test.typedAs([new Child1(), new Child1()], tchild1);
-		Test.typedAs([ { s:"foo" }, new Unrelated()], ts);
-		Test.typedAs([new Unrelated(), { s:"foo" } ], ts);
+		typedAs([null, false], tnullbool);
+		typedAs([false, null], tnullbool);
+		typedAs([null, new Base()], tnullbase);
+		//typedAs([new Base(), null], tnullbase); // TODO: this fails on flash9 and cpp
+		typedAs([new Base()], tbase);
+		typedAs([new Base(), new Child1()], tbase);
+		typedAs([new Child1(), new Base()], tbase);
+		typedAs([new Child1(), new Child1()], tchild1);
+		typedAs([ { s:"foo" }, new Unrelated()], ts);
+		typedAs([new Unrelated(), { s:"foo" } ], ts);
 
 		// if
 		
@@ -132,48 +138,50 @@ class TestType extends Test {
 		#end
 		var ts: { s:String };
 		
-		Test.typedAs(if (false) new Child1(); else new Child2(), tbase);
-		Test.typedAs(
+		typedAs(if (false) new Child1(); else new Child2(), tbase);
+		typedAs(
 			if (false) new Child1();
 			else if (true) new Child2();
 			else new Base(), tbase);
-		Test.typedAs(
+		typedAs(
 			if (false) new Child1();
 			else if (true) new Child2_1();
 			else new Base(), tbase);
-		Test.typedAs(if (false) new Child2(); else new Unrelated(), ti1);
-		Test.typedAs(if (false) new Child2_1(); else new Unrelated(), ti1);
+		typedAs(if (false) new Child2(); else new Unrelated(), ti1);
+		typedAs(if (false) new Child2_1(); else new Unrelated(), ti1);
 		
-		Test.typedAs(if (false) null; else false, tnullbool);
-		Test.typedAs(if (false) true; else null, tnullbool);
-		Test.typedAs(if (false) new Unrelated(); else {s:"foo"}, ts);
-		Test.typedAs(if (false) { s:"foo" }; else new Unrelated(), ts);
+		typedAs(if (false) null; else false, tnullbool);
+		typedAs(if (false) true; else null, tnullbool);
+		typedAs(if (false) new Unrelated(); else {s:"foo"}, ts);
+		typedAs(if (false) { s:"foo" }; else new Unrelated(), ts);
 		
 		//switch
 		
-		Test.typedAs(switch(false) { case true: new Child1(); case false: new Child2(); }, tbase);
-		Test.typedAs(switch(1) { case 0: new Child1(); case 1: new Child2(); case 2: new Base(); }, tbase);
-		Test.typedAs(switch(1) { case 0: new Child1(); case 1: new Child2_1(); default: new Base(); }, tbase);
-		Test.typedAs(switch(false) { case true: new Child2(); case false: new Unrelated(); }, ti1);
-		Test.typedAs(switch(false) { case true: new Child2_1(); case false: new Unrelated(); }, ti1);
+		typedAs(switch(false) { case true: new Child1(); case false: new Child2(); }, tbase);
+		typedAs(switch(1) { case 0: new Child1(); case 1: new Child2(); case 2: new Base(); }, tbase);
+		typedAs(switch(1) { case 0: new Child1(); case 1: new Child2_1(); default: new Base(); }, tbase);
+		typedAs(switch(false) { case true: new Child2(); case false: new Unrelated(); }, ti1);
+		typedAs(switch(false) { case true: new Child2_1(); case false: new Unrelated(); }, ti1);
 		
-		Test.typedAs(switch(false) { case true: null; default: false; }, tnullbool);
-		Test.typedAs(switch(false) { case true: true; default: null; }, tnullbool);
-		Test.typedAs(switch(false) { case true: new Unrelated(); default: {s:"foo"}; }, ts);
-		Test.typedAs(switch(false) { case true: { s:"foo" }; default: new Unrelated(); }, ts);
+		typedAs(switch(false) { case true: null; default: false; }, tnullbool);
+		typedAs(switch(false) { case true: true; default: null; }, tnullbool);
+		typedAs(switch(false) { case true: new Unrelated(); default: {s:"foo"}; }, ts);
+		typedAs(switch(false) { case true: { s:"foo" }; default: new Unrelated(); }, ts);
 		
 		// return
 		
-		Test.typedAs(function() { return new Child1(); return new Child2(); } (), tbase);
-		Test.typedAs(function() { return new Child1(); return new Child2(); return new Base(); } (), tbase);
-		Test.typedAs(function() { return new Child1(); return new Child2_1(); return new Base(); } (), tbase);
-		Test.typedAs(function() { return new Child2(); return new Unrelated(); } (), ti1);
-		Test.typedAs(function() { return new Child2_1(); return new Unrelated(); } (), ti1);
+		typedAs(function() { return new Child1(); return new Child2(); } (), tbase);
+		typedAs(function() { return new Child1(); return new Child2(); return new Base(); } (), tbase);
+		typedAs(function() { return new Child1(); return new Child2_1(); return new Base(); } (), tbase);
+		typedAs(function() { return new Child2(); return new Unrelated(); } (), ti1);
+		typedAs(function() { return new Child2_1(); return new Unrelated(); } (), ti1);
 		
-		Test.typedAs(function() { return null; return false; } (), tnullbool);
-		Test.typedAs(function() { return true; return null; } (), tnullbool);
-		Test.typedAs(function() { return new Unrelated(); return {s:"foo"}; } (), ts);
-		Test.typedAs(function() { return {s:"foo"}; return new Unrelated(); } (), ts);
+		typedAs(function() { return null; return false; } (), tnullbool);
+		typedAs(function() { return true; return null; } (), tnullbool);
+		typedAs(function() { return new Unrelated(); return {s:"foo"}; } (), ts);
+		typedAs(function() { return { s:"foo" }; return new Unrelated(); } (), ts);
+		
+		//typedAs(function() { return null; return untyped false; } (), tnullbool);
 		#end
 		
 	}
