@@ -300,5 +300,5 @@ let unify_min_raise ctx el =
 let unify_min ctx el = 
 	try unify_min_raise ctx el
 	with Error (Unify l,p) ->
-		display_error ctx (error_msg (Unify l)) p;
+		if not ctx.untyped then display_error ctx (error_msg (Unify l)) p;
 		(List.hd el).etype
