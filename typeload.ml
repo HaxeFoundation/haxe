@@ -925,6 +925,7 @@ let init_class ctx c p herits fields =
 								let e = ctx.g.do_optimize ctx e in
 								(match e.eexpr with
 								| TConst _ -> ()
+								| TBinop ((OpAdd|OpSub|OpMult|OpDiv|OpMod),{ eexpr = TConst (TInt _|TString _|TFloat _) },{ eexpr = TConst (TInt _|TString _|TFloat _) }) -> ()
 								| _ -> display_error ctx "Inline variable must be a constant value" p);
 								e
 							else e) in
