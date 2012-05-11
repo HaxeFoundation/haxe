@@ -272,11 +272,12 @@ let unify_min_raise ctx el =
 				is_null := true;
 				t := ctx.t.tnull !t
 			end;
+			let et = follow e.etype in
 			(try
-				unify_raise ctx e.etype (!t) e.epos;
+				unify_raise ctx et (!t) e.epos;
 			with Error (Unify _,_) -> try
-				unify_raise ctx (!t) e.etype e.epos;
-				t := e.etype;
+				unify_raise ctx (!t) et e.epos;
+				t := et;
 			with Error (Unify _,_) -> has_error := true);
 		) el;
 		if not !has_error then !t else begin

@@ -181,6 +181,10 @@ class TestType extends Test {
 		typedAs(function() { return new Unrelated(); return {s:"foo"}; } (), ts);
 		typedAs(function() { return { s:"foo" }; return new Unrelated(); } (), ts);
 		
+		#if flash9
+		typedAs(function() { return 0; var v:UInt = 0; return v; } (), 1);
+		#end
+		
 		//typedAs(function() { return null; return untyped false; } (), tnullbool);
 		#end
 		
