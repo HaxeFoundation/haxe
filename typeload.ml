@@ -923,10 +923,14 @@ let init_class ctx c p herits fields =
 							let e = type_static_var ctx t e p in
 							let e = (if inline then 
 								let e = ctx.g.do_optimize ctx e in
-								(match e.eexpr with
-								| TConst _ -> ()
-								| TBinop ((OpAdd|OpSub|OpMult|OpDiv|OpMod),{ eexpr = TConst (TInt _|TString _|TFloat _) },{ eexpr = TConst (TInt _|TString _|TFloat _) }) -> ()
-								| _ -> display_error ctx "Inline variable must be a constant value" p);
+								let rec is_const e =
+									match e.eexpr with
+									| TConst _ -> true
+									| TBinop ((OpAdd|OpSub|OpMult|OpDiv|OpMod),e1,e2) -> is_const e1 && is_const e2
+									| TParenthesis e -> is_const e
+									| _ -> false
+								in
+								if not (is_const e) then display_error ctx "Inline variable must be a constant value" p;
 								e
 							else e) in
 							cf.cf_expr <- Some e;
