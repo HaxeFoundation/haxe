@@ -976,6 +976,7 @@ try
 		Codegen.post_process com.types filters;
 		Common.add_filter com (fun() -> List.iter (Codegen.on_generate tctx) com.types);
 		List.iter (fun f -> f()) (List.rev com.filters);
+		if ctx.has_error then raise Abort;
 		(match !xml_out with
 		| None -> ()
 		| Some "hx" ->

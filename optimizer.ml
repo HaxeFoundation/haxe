@@ -530,7 +530,7 @@ let sanitize_expr com e =
 			(match follow e.etype with
 			| TMono _ -> () (* in these cases the null will cast to default value *)
 			| TFun _ -> () (* this is a bit a particular case, maybe flash-specific actually *)
-			| _ -> error ("On static platforms, null can't be used as basic type " ^ s_type (print_context()) e.etype) e.epos);
+			| _ -> com.error ("On static platforms, null can't be used as basic type " ^ s_type (print_context()) e.etype) e.epos);
 		e
 	| TBinop (op,e1,e2) ->
 		let swap op1 op2 =
