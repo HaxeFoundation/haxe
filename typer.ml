@@ -380,6 +380,9 @@ let field_access ctx mode f t e p =
 			| TInst (c,_) when is_parent c ctx.curclass -> normal()
 			| TAnon a ->
 				(match !(a.a_status) with
+				| Opened when mode = MSet ->
+					f.cf_kind <- Var { v with v_write = AccNormal };
+					normal()
 				| Statics c2 when ctx.curclass == c2 -> normal()
 				| _ -> if ctx.untyped then normal() else AKNo f.cf_name)
 			| _ ->

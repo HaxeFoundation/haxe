@@ -884,7 +884,11 @@ let rec unify a b =
 			PMap.iter (fun n f2 ->
 			try
 				let f1 = PMap.find n a1.a_fields in
-				if not (unify_kind f1.cf_kind f2.cf_kind) then error [invalid_kind n f1.cf_kind f2.cf_kind];
+				if not (unify_kind f1.cf_kind f2.cf_kind) then 
+					(match !(a1.a_status), f1.cf_kind, f2.cf_kind with
+					| Opened, Var { v_read = AccNormal; v_write = AccNo }, Var { v_read = AccNormal; v_write = AccNormal } ->
+						f1.cf_kind <- f2.cf_kind;
+					| _ -> error [invalid_kind n f1.cf_kind f2.cf_kind]);
 				if f2.cf_public && not f1.cf_public then error [invalid_visibility n];
 				try
 					unify_with_access f1.cf_type f2;
