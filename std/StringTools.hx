@@ -50,6 +50,8 @@ class StringTools {
 			return s.__URLEncode();
 		#elseif java
 			return untyped __java__("java.net.URLEncoder.encode(s)");
+		#elseif cs
+			return untyped __cs__("System.Uri.EscapeUriString(s)");
 		#else
 			return null;
 		#end
@@ -73,6 +75,8 @@ class StringTools {
 			return s.__URLDecode();
 		#elseif java
 			return untyped __java__("java.net.URLDecoder.decode(s)");
+		#elseif cs
+			return untyped __cs__("System.Uri.UnescapeDataString(s)");
 		#else
 			return null;
 		#end
@@ -99,9 +103,11 @@ class StringTools {
 	/**
 		Tells if the string [s] starts with the string [start].
 	**/
-	public static #if java inline #end function startsWith( s : String, start : String ) {
+	public static #if (java || cs) inline #end function startsWith( s : String, start : String ) {
 		#if java
 		return untyped s.startsWith(start);
+		#elseif cs
+		return untyped s.StartsWith(start);
 		#else
 		return( s.length >= start.length && s.substr(0, start.length) == start );
 		#end
@@ -110,9 +116,11 @@ class StringTools {
 	/**
 		Tells if the string [s] ends with the string [end].
 	**/
-	public static #if java inline #end function endsWith( s : String, end : String ) {
+	public static #if (java || cs) inline #end function endsWith( s : String, end : String ) {
 		#if java
 		return untyped s.endsWith(end);
+		#elseif cs
+		return untyped s.EndsWith(end);
 		#else
 		var elen = end.length;
 		var slen = s.length;
@@ -131,9 +139,11 @@ class StringTools {
 	/**
 		Removes spaces at the left of the String [s].
 	**/
-	public #if php inline #end static function ltrim( s : String ) : String {
+	public #if (php || cs) inline #end static function ltrim( s : String ) : String {
 		#if php
 		return untyped __call__("ltrim", s);
+		#elseif cs
+		return untyped s.TrimStart();
 		#else
 		var l = s.length;
 		var r = 0;
@@ -150,9 +160,11 @@ class StringTools {
 	/**
 		Removes spaces at the right of the String [s].
 	**/
-	public #if php inline #end static function rtrim( s : String ) : String {
+	public #if (php || cs) inline #end static function rtrim( s : String ) : String {
 		#if php
 		return untyped __call__("rtrim", s);
+		#elseif cs
+		return untyped s.TrimEnd();
 		#else
 		var l = s.length;
 		var r = 0;
@@ -170,9 +182,11 @@ class StringTools {
 	/**
 		Removes spaces at the beginning and the end of the String [s].
 	**/
-	public #if php inline #end static function trim( s : String ) : String {
+	public #if (php || cs) inline #end static function trim( s : String ) : String {
 		#if php
 		return untyped __call__("trim", s);
+		#elseif cs
+		return untyped s.Trim();
 		#else
 		return ltrim(rtrim(s));
 		#end
@@ -233,6 +247,8 @@ class StringTools {
 		return untyped __call__("str_replace", sub, by, s);
 		#elseif java
 		return untyped s.replace(sub, by);
+		#elseif cs
+		return untyped s.Replace(sub, by);
 		#else
 		return s.split(sub).join(by);
 		#end
@@ -264,7 +280,7 @@ class StringTools {
 		Provides a fast native string charCodeAt access. Since the EOF value might vary depending on the platforms, always test with StringTools.isEOF.
 		Only guaranteed to work if index in [0,s.length] range. Might not work with strings containing \0 char.
 	**/
-	public static inline function fastCodeAt( s : String, index : Int ) : Int untyped {
+		public static #if !cs inline #end function fastCodeAt( s : String, index : Int ) : Int untyped {
 		#if neko
 		return untyped __dollar__sget(s.__s, index);
 		#elseif cpp
@@ -275,6 +291,11 @@ class StringTools {
 		return s["cca"](index);
 		#elseif java
 		return s.charCodeAt(index);
+		#elseif cs
+		if (cast(index, UInt) >= s.length)
+			return 0;
+		else
+			return cast(untyped s[index], Int);
 		#else
 		return s.cca(index);
 		#end
@@ -292,6 +313,8 @@ class StringTools {
 		return c != c; // fast NaN
 		#elseif neko
 		return c == null;
+		#elseif cs
+		return c == 0;
 		#else
 		return false;
 		#end
