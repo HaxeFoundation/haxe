@@ -1591,6 +1591,8 @@ let configure gen =
     )
   );
   
+  DefaultArguments.configure gen (DefaultArguments.traverse gen);
+  
   CSharpSpecificSynf.configure gen (CSharpSpecificSynf.traverse gen runtime_cl);
   
   run_filters gen;

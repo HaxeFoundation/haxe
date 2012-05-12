@@ -8609,6 +8609,10 @@ struct
       | Some const ->
         let basic = gen.gcon.basic in
         let nullable_var = mk_temp gen var.v_name (basic.tnull var.v_type) in
+        let const_t = match const with 
+          | TString _ -> basic.tstring | TInt _ -> basic.tint | TFloat _ -> basic.tfloat 
+          | TNull _ -> var.v_type | TBool _ -> basic.tbool | _ -> assert false 
+        in
         (* var v = (temp_var == null) ? const : cast temp_var; *)
         block := 
         {
@@ -8616,7 +8620,7 @@ struct
           {
             eexpr = TIf(
               { eexpr = TBinop(Ast.OpEq, mk_local nullable_var pos, null nullable_var.v_type pos); etype = basic.tbool; epos = pos },
-              { eexpr = TConst(const); etype = var.v_type; epos = pos },
+              mk_cast var.v_type { eexpr = TConst(const); etype = const_t; epos = pos },
               Some(mk_cast var.v_type (mk_local nullable_var pos))
             );
             etype = var.v_type;
