@@ -1,5 +1,5 @@
 package;
-import cs.native.Random;
+import system.Random;
 
 /**
  * ...
@@ -10,7 +10,7 @@ import cs.native.Random;
 {
 	public static inline function __init__():Void
 	{
-		PI = cs.native.Math.PI;
+		PI = system.Math.PI;
 		NaN = untyped __cs__("double.NaN");
 		NEGATIVE_INFINITY = untyped __cs__("double.NegativeInfinity");
 		POSITIVE_INFINITY = untyped __cs__("double.PositiveInfinity");
@@ -26,7 +26,7 @@ import cs.native.Random;
 
 	public static inline function abs(v:Float):Float
 	{
-		return cs.native.Math.Abs(v);
+		return system.Math.Abs(v);
 	}
 	
 	public static inline function min(a:Float, b:Float):Float
@@ -41,72 +41,72 @@ import cs.native.Random;
 	
 	public static inline function sin(v:Float):Float
 	{
-		return cs.native.Math.Sin(v);
+		return system.Math.Sin(v);
 	}
 	
 	public static inline function cos(v:Float):Float
 	{
-		return cs.native.Math.Cos(v);
+		return system.Math.Cos(v);
 	}
 	
 	public static inline function atan2(y:Float, x:Float):Float
 	{
-		return cs.native.Math.Atan2(y, x);
+		return system.Math.Atan2(y, x);
 	}
 	
 	public static inline function tan(v:Float):Float
 	{
-		return cs.native.Math.Tan(v);
+		return system.Math.Tan(v);
 	}
 	
 	public static inline function exp(v:Float):Float
 	{
-		return cs.native.Math.Exp(v);
+		return system.Math.Exp(v);
 	}
 	
 	public static inline function log(v:Float):Float
 	{
-		return cs.native.Math.Log(v);
+		return system.Math.Log(v);
 	}
 	
 	public static inline function sqrt(v:Float):Float
 	{
-		return cs.native.Math.Sqrt(v);
+		return system.Math.Sqrt(v);
 	}
 	
 	public static inline function round(v:Float):Int
 	{
-		return Std.int(cs.native.Math.Round(v)) ;
+		return Std.int(system.Math.Round(v)) ;
 	}
 	
 	public static inline function floor(v:Float):Int
 	{
-		return Std.int(cs.native.Math.Floor(v));
+		return Std.int(system.Math.Floor(v));
 	}
 	
 	public static inline function ceil(v:Float):Int
 	{
-		return Std.int(cs.native.Math.Ceiling(v));
+		return Std.int(system.Math.Ceiling(v));
 	}
 	
 	public static inline function atan(v:Float):Float
 	{
-		return cs.native.Math.Atan(v);
+		return system.Math.Atan(v);
 	}
 	
 	public static inline function asin(v:Float):Float
 	{
-		return cs.native.Math.Asin(v);
+		return system.Math.Asin(v);
 	}
 	
 	public static inline function acos(v:Float):Float
 	{
-		return cs.native.Math.Acos(v);
+		return system.Math.Acos(v);
 	}
 	
 	public static inline function pow(v:Float, exp:Float):Float
 	{
-		return cs.native.Math.Pow(v, exp);
+		return system.Math.Pow(v, exp);
 	}
 	
 	public static inline function random() : Float

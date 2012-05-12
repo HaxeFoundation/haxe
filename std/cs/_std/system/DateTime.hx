@@ -1,4 +1,4 @@
-package cs.native;
+package system;
 import haxe.Int64;
 
 /**
@@ -6,6 +6,7 @@ import haxe.Int64;
  * @author waneck
  */
 
+@:native("System.DateTime")
 extern class DateTime 
 {
 
@@ -26,7 +27,7 @@ extern class DateTime
 	static var UtcNow(default, null):DateTime;
 }
 
-
+@:native("System.DayOfWeek")
 extern enum DayOfWeek
 {
 	Sunday;
@@ -37,7 +38,7 @@ extern enum DayOfWeek
 	Friday;
 	Saturday;
 }
-
+@:native("System.TimeSpan")
 extern class TimeSpan
 {
 	static var TicksPerMillisecond(default, null):Int;

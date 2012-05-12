@@ -1,5 +1,5 @@
 package cs;
-import cs.native.Type;
+import system.Type;
 
 /**
  * ...
@@ -21,7 +21,7 @@ class Lib
 	}
 	
 	@:functionBody('
-			throw new Haxe.Lang.HaxeException("This function cannot be accessed at runtime");
+			throw new haxe.lang.HaxeException("This function cannot be accessed at runtime");
 	')
 	public static inline function as<T>(obj:Dynamic, cl:Class<T>):T
 	{

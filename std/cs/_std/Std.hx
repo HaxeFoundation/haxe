@@ -33,7 +33,7 @@ import haxe.lang.Exceptions;
 		if (clt == null)
 			return false;
 		
-		var native:cs.native.Type = untyped clt.nativeType();
+		var native:system.Type = untyped clt.nativeType();
 		
 		return native.IsAssignableFrom(Lib.getNativeType(v));
 	}
@@ -49,11 +49,11 @@ import haxe.lang.Exceptions;
 	@:functionBody('
 			try 
 			{
-				return new Haxe.Lang.Null<int>(System.Int32.Parse(x), true);
+				return new haxe.lang.Null<int>(System.Int32.Parse(x), true);
 			} 
 			catch (System.FormatException fe)
 			{
-				return default(Haxe.Lang.Null<int>);
+				return default(haxe.lang.Null<int>);
 			}
 	')
 	public static function parseInt( x : String ) : Null<Int> {

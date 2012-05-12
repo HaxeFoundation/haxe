@@ -1,5 +1,5 @@
 package;
-import cs.native.DateTime;
+import system.DateTime;
 import haxe.Int64;
 
 /**

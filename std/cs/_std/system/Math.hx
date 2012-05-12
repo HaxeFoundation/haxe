@@ -1,11 +1,6 @@
-package cs.native;
+package system;
 
-/**
- * ...
- * @author waneck
- */
-
-@:nativegen extern class Math
+@:native("System.Math") @:nativegen extern class Math
 {
 	public static var PI(default, null) : Float;
 

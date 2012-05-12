@@ -1,10 +1,6 @@
-package cs.native;
+package system;
 
-/**
- * ...
- * @author waneck
- */
-
+@:native("System.Type")
 extern class Type 
 {
 	

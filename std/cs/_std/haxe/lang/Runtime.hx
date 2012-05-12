@@ -9,31 +9,31 @@ package haxe.lang;
 //it's private so we don't have access to it in normal haxe code
 @:native('haxe.lang.Runtime')
 @:classContents('
-	public static object getField(Haxe.Lang.HxObject obj, string field, int fieldHash, bool throwErrors)
+	public static object getField(haxe.lang.HxObject obj, string field, int fieldHash, bool throwErrors)
 	{
 		if (obj == null && !throwErrors) return null;
-		return obj.__hx_getField(field, (fieldHash == 0) ? Haxe.Lang.FieldLookup.hash(field) : fieldHash, false, throwErrors, false);
+		return obj.__hx_getField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, throwErrors, false);
 	}
 	
-	public static double getField_f(Haxe.Lang.HxObject obj, string field, int fieldHash, bool throwErrors)
+	public static double getField_f(haxe.lang.HxObject obj, string field, int fieldHash, bool throwErrors)
 	{
 		if (obj == null && !throwErrors) return 0.0;
-		return obj.__hx_getField_f(field, (fieldHash == 0) ? Haxe.Lang.FieldLookup.hash(field) : fieldHash, false, throwErrors);
+		return obj.__hx_getField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, throwErrors);
 	}
 	
-	public static object setField(Haxe.Lang.HxObject obj, string field, int fieldHash, object value)
+	public static object setField(haxe.lang.HxObject obj, string field, int fieldHash, object value)
 	{
-		return obj.__hx_setField(field, (fieldHash == 0) ? Haxe.Lang.FieldLookup.hash(field) : fieldHash, false, value);
+		return obj.__hx_setField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, value);
 	}
 	
-	public static double setField_f(Haxe.Lang.HxObject obj, string field, int fieldHash, double value)
+	public static double setField_f(haxe.lang.HxObject obj, string field, int fieldHash, double value)
 	{
-		return obj.__hx_setField_f(field, (fieldHash == 0) ? Haxe.Lang.FieldLookup.hash(field) : fieldHash, false, value);
+		return obj.__hx_setField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, value);
 	}
 	
-	public static object callField(Haxe.Lang.HxObject obj, string field, int fieldHash, Array args)
+	public static object callField(haxe.lang.HxObject obj, string field, int fieldHash, Array args)
 	{
-		return obj.__hx_invokeField(field, (fieldHash == 0) ? Haxe.Lang.FieldLookup.hash(field) : fieldHash, false, args);
+		return obj.__hx_invokeField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, args);
 	}
 ')
 @:keep private class Runtime 
@@ -252,7 +252,7 @@ package haxe.lang;
 			obj = null;
 		}
 
-		int length = (int)Haxe.Lang.Runtime.getField_f(args, "length", 520590566, true);
+		int length = (int)haxe.lang.Runtime.getField_f(args, "length", 520590566, true);
 		object[] oargs = new object[length];
 		System.Type[] ts = new System.Type[length];
 		for (int i = 0; i < length; i++)
@@ -270,9 +270,9 @@ package haxe.lang;
 	}
 	
 	@:functionBody('
-		Haxe.Lang.HxObject hxObj = obj as Haxe.Lang.HxObject;
+		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
-			return hxObj.__hx_invokeField(field, (fieldHash == 0) ? Haxe.Lang.FieldLookup.hash(field) : fieldHash, false, args);
+			return hxObj.__hx_invokeField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, args);
 		
 		return slowCallField(obj, field, fieldHash, args);
 	')
@@ -283,9 +283,9 @@ package haxe.lang;
 	
 	@:functionBody('
 	
-		Haxe.Lang.HxObject hxObj = obj as Haxe.Lang.HxObject;
+		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
-			return hxObj.__hx_getField(field, (fieldHash == 0) ? Haxe.Lang.FieldLookup.hash(field) : fieldHash, false, throwErrors, false);
+			return hxObj.__hx_getField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, throwErrors, false);
 		
 		return slowGetField(obj, field, fieldHash, throwErrors);
 	
@@ -297,9 +297,9 @@ package haxe.lang;
 	
 	@:functionBody('
 	
-		Haxe.Lang.HxObject hxObj = obj as Haxe.Lang.HxObject;
+		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
-			return hxObj.__hx_getField_f(field, (fieldHash == 0) ? Haxe.Lang.FieldLookup.hash(field) : fieldHash, false, throwErrors);
+			return hxObj.__hx_getField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, throwErrors);
 		
 		return (double)slowGetField(obj, field, fieldHash, throwErrors);
 	
@@ -311,9 +311,9 @@ package haxe.lang;
 	
 	@:functionBody('
 	
-		Haxe.Lang.HxObject hxObj = obj as Haxe.Lang.HxObject;
+		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
-			return hxObj.__hx_setField(field, (fieldHash == 0) ? Haxe.Lang.FieldLookup.hash(field) : fieldHash, false, value);
+			return hxObj.__hx_setField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, value);
 		
 		return slowSetField(obj, field, fieldHash, value);
 	
@@ -325,9 +325,9 @@ package haxe.lang;
 	
 	@:functionBody('
 	
-		Haxe.Lang.HxObject hxObj = obj as Haxe.Lang.HxObject;
+		haxe.lang.HxObject hxObj = obj as haxe.lang.HxObject;
 		if (hxObj != null)
-			return hxObj.__hx_setField_f(field, (fieldHash == 0) ? Haxe.Lang.FieldLookup.hash(field) : fieldHash, false, value);
+			return hxObj.__hx_setField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, value);
 		
 		return (double)slowSetField(obj, field, fieldHash, value);
 	
@@ -345,7 +345,7 @@ package haxe.lang;
 		classes.set(name, cl);
 	}
 	
-	public static function getClass(name:String, t:cs.native.Type):Class<Dynamic>
+	public static function getClass(name:String, t:system.Type):Class<Dynamic>
 	{
 		var ret:Class<Dynamic> = classes.get(name);
 		if (ret == null)
@@ -363,7 +363,7 @@ package haxe.lang;
 	
 	return null;
 	')
-	public static function slowGetClass(name:String, t:cs.native.Type):Class<Dynamic>
+	public static function slowGetClass(name:String, t:system.Type):Class<Dynamic>
 	{
 		return null;
 	}

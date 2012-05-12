@@ -1,10 +1,6 @@
-package cs.native;
-
-/**
- * ...
- * @author ...
- */
-
+package system;
+ 
+@:native("System.Array")
 extern class Array 
 {
 

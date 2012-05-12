@@ -1,10 +1,6 @@
-package cs.native;
+package system;
 
-/**
- * ...
- * @author waneck
- */
-
+@:native("System.Random")
 extern class Random 
 {
 

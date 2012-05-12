@@ -451,18 +451,7 @@ let configure gen =
   
   let runtime_cl = get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Runtime")) in
   
-  let rec change_ns ns = match ns with
-    | "cs" :: "native" :: tl -> "System" :: (change_ns tl)
-    | _ -> List.map (fun s ->
-      let ch = String.get s 0 in
-			let ch = if Char.uppercase ch <> ch then
-					Char.uppercase ch
-				else
-					Char.lowercase ch
-			in
-      (Char.escaped ch) ^ (String.sub s 1 ((String.length s) - 1))
-    ) ns 
-  in
+  let change_ns ns = ns in
   
   let change_clname n = n in
   
@@ -577,13 +566,13 @@ let configure gen =
       | TInst ({ cl_kind = KTypeParameter; cl_path=p }, []) -> snd p
       | TMono r -> (match !r with | None -> "object" | Some t -> t_s (run_follow gen t))
       | TInst ({ cl_path = [], "String" }, []) -> "string"
-      | TInst ({ cl_path = [], "Class" }, _) | TInst ({ cl_path = [], "Enum" }, _) -> "Haxe.Lang.Class"
+      | TInst ({ cl_path = [], "Class" }, _) | TInst ({ cl_path = [], "Enum" }, _) -> "haxe.lang.Class"
       | TEnum (({e_path = p;} as e), params) -> (path_param_s (TEnumDecl e) p params)
       | TInst (({cl_path = p;} as cl), params) -> (path_param_s (TClassDecl cl) p params)
       | TType (({t_path = p;} as t), params) -> (path_param_s (TTypeDecl t) p params)
       | TAnon (anon) ->
         (match !(anon.a_status) with
-          | Statics _ | EnumStatics _ -> "Haxe.Lang.Class"
+          | Statics _ | EnumStatics _ -> "haxe.lang.Class"
           | _ -> "object")
       | TDynamic _ -> "object"
       (* No Lazy type nor Function type made. That's because function types will be at this point be converted into other types *)
@@ -1511,7 +1500,7 @@ let configure gen =
   
   FilterClosures.configure gen (FilterClosures.traverse gen (fun e1 s -> true) closure_func);
     
-  let base_exception = get_cl (get_type gen (["cs"; "native"], "Exception")) in
+  let base_exception = get_cl (get_type gen (["System"], "Exception")) in
   let base_exception_t = TInst(base_exception, []) in
   
   let hx_exception = get_cl (get_type gen (["haxe";"lang"], "HaxeException")) in

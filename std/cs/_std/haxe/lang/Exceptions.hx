@@ -1,21 +1,5 @@
 package haxe.lang;
-
-/**
- * ...
- * @author waneck
- */
-
-@:native("cs.native.Exception") @:nativegen extern class Exception
-{
-	public var message:String;
-	
-	private function new():Void;
-}
-
-@:native("cs.native.NullArgumentException") @:nativegen extern class NullArgumentException extends Exception
-{
-	public function new():Void;
-}
+import system.Exception;
 
 //should NOT be usable inside haxe code
 @:nativegen @:keep @:native("haxe.lang.HaxeException") private class HaxeException extends Exception
