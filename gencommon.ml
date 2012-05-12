@@ -1488,12 +1488,20 @@ struct
               match is_super_hxgen cl with
                 | true ->
                   (* can call super empty *)
-                  let ret = { 
+                  let ret_empty = { 
                     eexpr = TCall({ eexpr = TConst(TSuper); etype = me.v_type; epos = cl.cl_pos }, [ empty_ctor_expr ]);
                     etype = basic.tvoid;
                     epos = cl.cl_pos
                   } in
-                  ret, ret
+                  
+                  let ret = match last_static_ctor, !super_call with
+                    | None, Some super ->
+                      (* it has an empty constructor, but we cannot call an out of placed super *)
+                      super
+                    | _ -> ret_empty
+                  in
+                  
+                  ret, ret_empty
                 | false ->
                   match prev_ctor cl with
                     | None ->
