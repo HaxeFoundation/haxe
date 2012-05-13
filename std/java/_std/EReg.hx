@@ -34,15 +34,59 @@ class EReg {
 	private var pattern:String;
 	private var matcher:Matcher;
 	private var cur:String;
+	private var isGlobal:Bool;
 	
 	/**
 		Creates a new regular expression with pattern [r] and
 		options [opt].
 	**/
 	public function new( r : String, opt : String ) {
-		//FIXME opt is ignored by now
-		matcher = Pattern.compile(r).matcher("");
+		var flags = 0;
+		for (i in 0...opt.length)
+		{
+			switch(StringTools.fastCodeAt(opt, i))
+			{
+				case 'i'.code:
+					flags |= Pattern.CASE_INSENSITIVE;
+				case 'm'.code:
+					flags |= Pattern.MULTILINE;
+				case 's'.code:
+					flags |= Pattern.DOTALL;
+				case 'g'.code:
+					isGlobal = true;
+			}
+		}
+		
+		matcher = Pattern.compile(convert(r), flags).matcher("");
 		pattern = r;
+	}
+	
+	private static function convert(r:String):String
+	{
+		//some references of the implementation:
+		//http://stackoverflow.com/questions/809647/java-vs-javascript-regex-problem
+		//http://stackoverflow.com/questions/4788413/how-to-convert-javascript-regex-to-safe-java-regex
+		//Some necessary changes:
+		//
+		// \0  -> \x00
+		// \v  -> \x0b
+		// [^] -> [\s\S]
+		// unescaped ', " -> \', \"
+		/* FIXME
+		var pat = new StringBuf();
+		var len = r.length;
+		var i = 0;
+		while (i < len)
+		{
+			var c = StringTools.fastCodeAt(r, i++);
+			switch(c)
+			{
+				case '\\'.code: //escape-sequence
+					
+			}
+		}
+		*/
+		return r;
 	}
 
 	/**
@@ -52,7 +96,14 @@ class EReg {
 	public function match( s : String ) : Bool {
 		cur = s;
 		matcher = matcher.reset(s);
-		return matcher.find();
+		var ret = matcher.find();
+		//FIXME look into why find() sometimes returns a 0-length match
+		while (ret && matcher.start() - matcher.end() == 0)
+		{
+			ret = matcher.find();
+		}
+		
+		return ret;
 	}
 
 	/**
@@ -62,7 +113,10 @@ class EReg {
 	**/
 	public function matched( n : Int ) : String 
 	{
-		return matcher.group(n);
+		if (n == 0)
+			return matcher.group();
+		else
+			return matcher.group(n);
 	}
 
 	/**
@@ -71,7 +125,7 @@ class EReg {
 	**/
 	public function matchedLeft() : String 
 	{
-		return cur.substr(0, matcher.start());
+		return untyped cur.substring(0, matcher.start());
 	}
 
 	/**
@@ -80,7 +134,7 @@ class EReg {
 	**/
 	public function matchedRight() : String 
 	{
-		return cur.substr(matcher.end());
+		return untyped cur.substring(matcher.end(), cur.length);
 	}
 
 	/**
@@ -96,12 +150,17 @@ class EReg {
 		Split a string by using the regular expression to match
 		the separators.
 	**/
-	@:functionBody('
-		return new Array<String>(s.split(this.pattern));
-	')
 	public function split( s : String ) : Array<String> 
 	{
-		return null;
+		if (isGlobal)
+		{
+			return Array.ofNative(matcher.pattern().split(s));
+		} else {
+			var m = matcher;
+			m.reset(s);
+			m.find();
+			return untyped [s.substring(0, m.start()), s.substring(m.end(), s.length)];
+		}
 	}
 
 	/**
@@ -110,8 +169,15 @@ class EReg {
 		while replacing. [$$] means the [$] character.
 	**/
 	public function replace( s : String, by : String ) : String {
+		var matcher = matcher;
 		matcher.reset(s);
-		return matcher.replaceAll(by);
+		if (isGlobal)
+		{
+			return matcher.replaceAll(by);
+		} else {
+			matcher.find();
+			return untyped (s.substring(0, matcher.start()) + by + s.substring(matcher.end(), s.length));
+		}
 	}
 
 	/**

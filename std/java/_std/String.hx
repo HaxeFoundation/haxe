@@ -98,6 +98,8 @@ extern class String {
 	private function endsWith( str : String ) : Bool;
 	
 	private function replace( sub : String, by : String ) : String;
+	
+	private function substring( begin : Int, end : Int ) : String;
 
 	static function fromCharCode( code : Int ) : String;
 
