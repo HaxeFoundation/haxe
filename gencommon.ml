@@ -8611,7 +8611,7 @@ struct
         let nullable_var = mk_temp gen var.v_name (basic.tnull var.v_type) in
         let const_t = match const with 
           | TString _ -> basic.tstring | TInt _ -> basic.tint | TFloat _ -> basic.tfloat 
-          | TNull _ -> var.v_type | TBool _ -> basic.tbool | _ -> assert false 
+          | TNull -> var.v_type | TBool _ -> basic.tbool | _ -> assert false 
         in
         (* var v = (temp_var == null) ? const : cast temp_var; *)
         block := 
@@ -8790,6 +8790,52 @@ struct
   
 end;;
 
+(* ******************************************* *)
+(* Global Namespace Change *)
+(* ******************************************* *)
+
+(*
+  
+  For some parts of the Haxe API implementation, we need to access some
+  otherwise private packages. One of the way to do it is with the 
+  __global__ magic. Like Flash9, it will be accessed like that:
+  __global__("path.to.class").
+  In order to not interfere with normal code, we need to run this filter
+  as the first filter run by expression filters.
+  
+  dependencies:
+    Must be the first expression filter to be run
+  
+*
+
+module GlobalNamespaceChange =
+struct
+
+  let name = "global_namespace"
+  
+  let priority = max_dep
+  
+  let default_implementation gen =
+    let rec run e =
+      match e.eexpr with 
+        | TArray({ eexpr = TLocal { v_name = "__global__" } }, { eexpr = TConst(TString str) }) ->
+          let path = match List.rev (ExtString.String.nsplit f ".") with
+            | [] -> assert false
+            | cl :: pack -> (List.rev pack, cl)
+          in
+          (try
+            match Hashtbl.find path with
+              | TClassDecl cl -> 
+          with | Not_found -> gen.gcon.error ("Package not found: " ^  str) e.epos)
+    in
+    run
+  
+  let configure gen (mapping_func:texpr->texpr) =
+    let map e = Some(mapping_func e) in
+    gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
+  
+end;;
+*)
 (*
 (* ******************************************* *)
 (* Example *)
