@@ -96,14 +96,7 @@ class EReg {
 	public function match( s : String ) : Bool {
 		cur = s;
 		matcher = matcher.reset(s);
-		var ret = matcher.find();
-		//FIXME look into why find() sometimes returns a 0-length match
-		while (ret && matcher.start() - matcher.end() == 0)
-		{
-			ret = matcher.find();
-		}
-		
-		return ret;
+		return matcher.find();
 	}
 
 	/**
