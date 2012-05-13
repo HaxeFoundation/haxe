@@ -8770,16 +8770,11 @@ struct
     let basic = gen.gcon.basic in
     let rec run e =
       match e.eexpr with 
-        | TBinop((Ast.OpDiv as op), e1, e2)
-        | TBinop(((Ast.OpAssignOp (Ast.OpDiv)) as op), e1, e2) when is_int e1.etype && is_int e2.etype ->
+        | TBinop((Ast.OpDiv as op), e1, e2) when is_int e1.etype && is_int e2.etype ->
           { e with eexpr = TBinop(op, mk_cast basic.tfloat (run e1), run e2) }
         | TCall(
             { eexpr = TField( { eexpr = TTypeExpr ( TClassDecl ({ cl_path = ([], "Std") }) ) }, "int") },
             [ ({ eexpr = TBinop((Ast.OpDiv as op), e1, e2) } as ebinop ) ]
-          )
-        | TCall(
-            { eexpr = TField( { eexpr = TTypeExpr ( TClassDecl ({ cl_path = ([], "Std") }) ) }, "int") },
-            [ ({ eexpr = TBinop(((Ast.OpAssignOp (Ast.OpDiv)) as op), e1, e2) } as ebinop ) ]
           ) when catch_int_div && is_int e1.etype && is_int e2.etype ->
           { ebinop with eexpr = TBinop(op, run e1, run e2); etype = basic.tint }
         | TCast( ({ eexpr = TBinop((Ast.OpDiv as op), e1, e2) } as ebinop ), _ )

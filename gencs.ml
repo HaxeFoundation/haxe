@@ -102,7 +102,7 @@ struct
 
   let name = "csharp_specific"
   
-  let priority = solve_deps name [DBefore ExpressionUnwrap.priority; DBefore ClassInstance.priority]
+  let priority = solve_deps name [DBefore ExpressionUnwrap.priority; DBefore ClassInstance.priority; DAfter TryCatchWrapper.priority]
   
   let get_cl_from_t t =
     match follow t with
@@ -140,8 +140,8 @@ struct
           { e with eexpr = TBlock(ret) }
         (* Std.is() *)
         | TCall(
-            { eexpr = TField( { eexpr = TTypeExpr ( TClassDecl ({ cl_path = ([], "Std") }) ) }, "is") },
-            [obj; { eexpr = TTypeExpr(md) }]
+            { eexpr = TField( { eexpr = TTypeExpr ( TClassDecl { cl_path = ([], "Std") } ) }, "is") },
+            [ obj; { eexpr = TTypeExpr(md) }]
           ) ->
           let mk_is obj md =
             { e with eexpr = TCall( { eexpr = TLocal is_var; etype = t_dynamic; epos = e.epos }, [ 

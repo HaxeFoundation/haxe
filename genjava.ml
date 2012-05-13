@@ -170,7 +170,7 @@ struct
         
         (* Std.is() *)
         | TCall(
-            { eexpr = TField( { eexpr = TTypeExpr ( TClassDecl ({ cl_path = ([], "Std") }) ) }, "is") },
+            { eexpr = TField( { eexpr = TTypeExpr ( TClassDecl { cl_path = ([], "Std") } ) }, "is") },
             [ obj; { eexpr = TTypeExpr(md) } ]
           ) ->
           let mk_is obj md =
@@ -179,7 +179,6 @@ struct
               { eexpr = TTypeExpr md; etype = t_dynamic (* this is after all a syntax filter *); epos = e.epos }
             ] ) }
           in
-          let obj = run obj in
           (match follow_module follow md with
             | TClassDecl({ cl_path = ([], "Float") }) ->
               {

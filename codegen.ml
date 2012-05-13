@@ -807,8 +807,8 @@ let captured_vars com e =
 (* RENAME LOCAL VARS *)
 
 let rename_local_vars com e =
-	let as3 = Common.defined com "as3" in
-	let no_scope = com.platform = Js || com.platform = Java || com.platform = Cs || as3 in
+	let as3 = Common.defined com "as3" || com.platform = Cs in (* C# demands a similar behavior than AS3 *)
+	let no_scope = com.platform = Js || com.platform = Java || as3 in
 	let vars = ref PMap.empty in
 	let all_vars = ref PMap.empty in
 	let vtemp = alloc_var "~" t_dynamic in
