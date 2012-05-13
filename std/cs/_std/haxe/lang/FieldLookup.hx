@@ -67,7 +67,7 @@ package haxe.lang;
 				var field = fields[mid];
 				if (field != s)
 					return -(key + 1); //special case
-				return key;
+				return mid;
 			}
 		}
 		//if not found, min holds the value where we should insert the key
@@ -91,7 +91,7 @@ package haxe.lang;
 			} else if (hash > imid) {
 				min = mid + 1;
 			} else {
-				return min;
+				return mid;
 			}
 		}
 		//if not found, return a negative value of where it should be inserted

@@ -1311,7 +1311,7 @@ let configure gen =
     let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
     let is_final = has_meta ":final" cl.cl_meta in
     
-    print w "%s %s%s %s" access (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));
+    print w "%s %s %s %s" access (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));
     (* type parameters *)
     let params, _ = get_string_params cl.cl_types in
     let cl_p_to_string (cl,p) = path_param_s (TClassDecl cl) cl.cl_path p in

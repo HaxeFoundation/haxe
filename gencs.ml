@@ -959,7 +959,7 @@ let configure gen =
         let ret_type, args = match cf.cf_type with | TFun (strbtl, t) -> (t, strbtl) | _ -> assert false in
         
         (* public static void funcName *)
-        print w "%s %s%s %s %s" (visibility) v_n (String.concat " " modifiers) (if is_new then "" else rett_s (run_follow gen ret_type)) (change_field name);
+        print w "%s %s %s %s %s" (visibility) v_n (String.concat " " modifiers) (if is_new then "" else rett_s (run_follow gen ret_type)) (change_field name);
         let params, params_ext = get_string_params cf.cf_params in
         (* <T>(string arg1, object arg2) with T : object *)
         print w "%s(%s)%s" (params) (String.concat ", " (List.map (fun (name, _, t) -> sprintf "%s %s" (t_s (run_follow gen t)) (change_id name)) args)) (params_ext);
@@ -1126,7 +1126,7 @@ let configure gen =
     let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
     let is_final = clt = "struct" || has_meta ":final" cl.cl_meta in
     
-    print w "%s %s%s %s" access (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));
+    print w "%s %s %s %s" access (String.concat " " modifiers) clt (change_clname (snd cl.cl_path));
     (* type parameters *)
     let params, params_ext = get_string_params cl.cl_types in
     let extends_implements = (match cl.cl_super with | None -> [] | Some (cl,p) -> [path_param_s (TClassDecl cl) cl.cl_path p]) @ (List.map (fun (cl,p) -> path_param_s (TClassDecl cl) cl.cl_path p) cl.cl_implements) in

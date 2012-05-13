@@ -60,7 +60,7 @@ package haxe.lang;
 				System.TypeCode t1 = v1c.GetTypeCode();
 				System.TypeCode t2 = v2c.GetTypeCode();
 				if (t1 == t2)
-					return t1.Equals(t2);
+					return v1c.Equals(v2c);
 				
 				switch(t1)
 				{
