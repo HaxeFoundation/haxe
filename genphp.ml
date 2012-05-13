@@ -255,7 +255,7 @@ haxe reserved words that match php ones: break, case, class, continue, default, 
 	| "include_once" | "isset" | "list" | "namespace" | "print" | "require" | "require_once"
 	| "unset" | "use" | "__function__" | "__class__" | "__method__" | "final"
 	| "php_user_filter" | "protected" | "abstract" | "__set" | "__get" | "__call"
-	| "clone" -> suf ^ n
+	| "clone" | "instanceof" -> suf ^ n
 	| _ -> n
 
 let s_ident_local n =
