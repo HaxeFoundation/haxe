@@ -38,7 +38,20 @@ package haxe.lang;
 ')
 @:keep private class Runtime 
 {
-	public static var undefined:Dynamic = {};
+	public static var undefined:Dynamic = { };
+	
+	@:functionBody('
+		if (obj is haxe.lang.IHxObject)
+		{
+			return new haxe.lang.Closure(field, hash, (haxe.lang.IHxObject)obj);
+		} else {
+			return new haxe.lang.NativeMethodFunction(obj, field);
+		}
+	')
+	public static function closure(obj:Dynamic, hash:Int, field:String):Dynamic
+	{
+		return null;
+	}
 	
 	@:functionBody('
 			if (System.Object.ReferenceEquals(v1, v2))
@@ -195,17 +208,43 @@ package haxe.lang;
 		} else {
 			System.Reflection.PropertyInfo prop = t.GetProperty(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Instance);
 			if (prop == null)
-				if (throwErrors) 
-					throw HaxeException.wrap("Cannot access field \'" + field + "\'.");
-				else
-					return null;
+			{
+				System.Reflection.MethodInfo m = t.GetMethod(field,  System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Instance);
+				if (m != null)
+				{
+					return new haxe.lang.NativeMethodFunction(obj, field);
+				} else {
+					if (throwErrors) 
+						throw HaxeException.wrap("Cannot access field \'" + field + "\'.");
+					else
+						return null;
+				}
+			}
 			return prop.GetValue(obj, null);
 		}
 	
 	')
-	public static function slowGetField(obj:Dynamic, field:String, fieldHash:Int, throwErrors:Bool):Dynamic
+	public static function slowGetField(obj:Dynamic, field:String, throwErrors:Bool):Dynamic
 	{
 		return null;
+	}
+	
+	@:functionBody('
+		if (obj == null) return false;
+		System.Type t = obj as System.Type;
+        if (t == null)
+		{
+			t = obj.GetType();
+		} else {
+			obj = null;
+		}
+
+		System.Reflection.MemberInfo[] mi = t.GetMember(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Instance);
+		return mi != null && mi.Length > 0;
+	')
+	public static function slowHasField(obj:Dynamic, field:String):Bool
+	{
+		return false;
 	}
 	
 	@:functionBody('
@@ -233,7 +272,7 @@ package haxe.lang;
 		}
 		
 	')
-	public static function slowSetField(obj:Dynamic, field:String, fieldHash:Int, value:Dynamic):Dynamic
+	public static function slowSetField(obj:Dynamic, field:String, value:Dynamic):Dynamic
 	{
 		//not implemented yet;
 		throw "Not implemented";
@@ -264,7 +303,7 @@ package haxe.lang;
 		System.Reflection.MethodInfo mi = t.GetMethod(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Instance, null, ts, null);
 		return mi.Invoke(obj, oargs);
 	')
-	public static function slowCallField(obj:Dynamic, field:String, fieldHash:Int, args:Array<Dynamic>):Dynamic
+	public static function slowCallField(obj:Dynamic, field:String, args:Array<Dynamic>):Dynamic
 	{
 		throw "not implemented";
 	}
@@ -274,7 +313,7 @@ package haxe.lang;
 		if (hxObj != null)
 			return hxObj.__hx_invokeField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, args);
 		
-		return slowCallField(obj, field, fieldHash, args);
+		return slowCallField(obj, field, args);
 	')
 	public static function callField(obj:Dynamic, field:String, fieldHash:Int, args:Array<Dynamic>):Dynamic
 	{
@@ -287,7 +326,7 @@ package haxe.lang;
 		if (hxObj != null)
 			return hxObj.__hx_getField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, throwErrors, false);
 		
-		return slowGetField(obj, field, fieldHash, throwErrors);
+		return slowGetField(obj, field, throwErrors);
 	
 	')
 	public static function getField(obj:Dynamic, field:String, fieldHash:Int, throwErrors:Bool):Dynamic
@@ -301,7 +340,7 @@ package haxe.lang;
 		if (hxObj != null)
 			return hxObj.__hx_getField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, throwErrors);
 		
-		return (double)slowGetField(obj, field, fieldHash, throwErrors);
+		return (double)slowGetField(obj, field, throwErrors);
 	
 	')
 	public static function getField_f(obj:Dynamic, field:String, fieldHash:Int, throwErrors:Bool):Float
@@ -315,7 +354,7 @@ package haxe.lang;
 		if (hxObj != null)
 			return hxObj.__hx_setField(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, value);
 		
-		return slowSetField(obj, field, fieldHash, value);
+		return slowSetField(obj, field, value);
 	
 	')
 	public static function setField(obj:Dynamic, field:String, fieldHash:Int, value:Dynamic):Dynamic
@@ -329,7 +368,7 @@ package haxe.lang;
 		if (hxObj != null)
 			return hxObj.__hx_setField_f(field, (fieldHash == 0) ? haxe.lang.FieldLookup.hash(field) : fieldHash, false, value);
 		
-		return (double)slowSetField(obj, field, fieldHash, value);
+		return (double)slowSetField(obj, field, value);
 	
 	')
 	public static function setField_f(obj:Dynamic, field:String, fieldHash:Int, value:Float):Float

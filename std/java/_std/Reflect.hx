@@ -173,6 +173,10 @@ import java.Boot;
 			haxe.lang.Closure f2c = (haxe.lang.Closure) f2;
 			
 			return haxe.lang.Runtime.refEq(f1c.target, f2c.target) && f1c.field.equals(f2c.field);
+		} else if (f1 instanceof haxe.lang.NativeMethodFunction && f2 instanceof haxe.lang.NativeMethodFunction) {
+			haxe.lang.NativeMethodFunction f1n = (haxe.lang.NativeMethodFunction) f1;
+			haxe.lang.NativeMethodFunction f2n = (haxe.lang.NativeMethodFunction) f2;
+			return haxe.lang.Runtime.refEq(f1n.obj, f2n.obj) && f1n.field.equals(f2n.field);
 		}
 		
 		

@@ -28,7 +28,7 @@ package haxe.lang;
 		
 		while (min < max)
 		{
-			var mid = Std.int(min + (max - min) / 2); //overflow safe
+			var mid = min + Std.int((max - min) / 2);
 			var imid = ids[mid];
 			if (key < imid)
 			{
@@ -66,8 +66,8 @@ package haxe.lang;
 			} else {
 				var field = fields[mid];
 				if (field != s)
-					return -(key + 1); //special case
-				return mid;
+					return ~key; //special case
+				return key;
 			}
 		}
 		//if not found, min holds the value where we should insert the key

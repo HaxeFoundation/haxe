@@ -17,6 +17,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *)
+open Gencommon.ReflectionCFs
 open Ast
 open Common
 open Gencommon
@@ -330,6 +331,7 @@ let handle_type_params gen ifaces =
       let new_v = mk_temp gen "new_arr" to_t in
       let i = mk_temp gen "i" basic.tint in
       let old_len = { eexpr = TField(e, "Length"); etype = basic.tint; epos = e.epos } in
+      let obj_v = mk_temp gen "obj" t_dynamic in
       let block = [
         { 
           eexpr = TVars(
@@ -354,15 +356,32 @@ let handle_type_params gen ifaces =
               etype = basic.tbool;
               epos = e.epos
             },
-            {
-              eexpr = TBinop(
-                Ast.OpAssign,
-                { eexpr = TArray(mk_local new_v e.epos, mk_local i e.epos); etype = new_param; epos = e.epos },
-                mk_cast new_param (mk_cast t_dynamic { eexpr = TArray(e, mk_local i e.epos); etype = old_param; epos = e.epos })
-              );
-              etype = new_param;
-              epos = e.epos
-            },
+            { eexpr = TBlock [
+              {
+                eexpr = TVars([obj_v, Some (mk_cast t_dynamic { eexpr = TArray(e, mk_local i e.epos); etype = old_param; epos = e.epos })]);
+                etype = basic.tvoid;
+                epos = e.epos
+              };
+              {
+                eexpr = TIf({
+                  eexpr = TBinop(Ast.OpNotEq, mk_local obj_v e.epos, null e.etype e.epos);
+                  etype = basic.tbool;
+                  epos = e.epos
+                }, 
+                {
+                  eexpr = TBinop(
+                    Ast.OpAssign,
+                    { eexpr = TArray(mk_local new_v e.epos, mk_local i e.epos); etype = new_param; epos = e.epos },
+                    mk_cast new_param (mk_local obj_v e.epos)
+                  );
+                  etype = new_param;
+                  epos = e.epos
+                },
+                None);
+                etype = basic.tvoid;
+                epos = e.epos
+              }
+            ]; etype = basic.tvoid; epos = e.epos },
             Ast.NormalWhile
           );
           etype = basic.tvoid;
@@ -945,7 +964,14 @@ let configure gen =
       | Method (MethDynamic) -> 
         if not is_interface then begin 
           let access, modifiers = get_fun_modifiers cf.cf_meta "public" [] in
-          print w "%s %s%s %s %s;" access (if is_static then "static " else "") (String.concat " " modifiers) (t_s (run_follow gen cf.cf_type)) (change_field name)
+          (match cf.cf_expr with
+            | Some e ->
+              print w "%s %s%s %s %s = " access (if is_static then "static " else "") (String.concat " " modifiers) (t_s (run_follow gen cf.cf_type)) (change_field name);
+              expr_s w e;
+              write w ";"
+            | None ->
+              print w "%s %s%s %s %s;" access (if is_static then "static " else "") (String.concat " " modifiers) (t_s (run_follow gen cf.cf_type)) (change_field name)
+          )
         end (* TODO see how (get,set) variable handle when they are interfaces *)
       | Method mkind -> 
         let is_virtual = not is_final && match mkind with | MethInline -> false | _ when not is_new -> true | _ -> false in
@@ -1375,6 +1401,8 @@ let configure gen =
   
   let closure_func = ReflectionCFs.implement_closure_cl rcf_ctx ( get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Closure")) ) in
   
+  ReflectionCFs.implement_varargs_cl rcf_ctx ( get_cl (get_type gen (["haxe";"lang"], "VarArgsBase")) );
+  
   ReflectionCFs.configure rcf_ctx;
   
   let objdecl_fn = ReflectionCFs.implement_dynamic_object_ctor rcf_ctx dynamic_object in
@@ -1596,6 +1624,34 @@ let configure gen =
   CSharpSpecificSynf.configure gen (CSharpSpecificSynf.traverse gen runtime_cl);
   
   run_filters gen;
+  (* after the filters have been run, add all hashed fields to FieldLookup *)
+  
+  let hashes = Hashtbl.fold (fun i s acc -> (i,s) :: acc) rcf_ctx.rcf_hash_fields [] in
+  let hashes = List.sort (fun (i,s) (i2,s2) -> compare i i2) hashes in
+  
+  let flookup_cl = get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"], "FieldLookup")) in
+  (try
+    let basic = gen.gcon.basic in
+    let change_array = ArrayDeclSynf.default_implementation gen native_arr_cl in
+    let cl = flookup_cl in
+    let field_ids = PMap.find "fieldIds" cl.cl_statics in
+    let fields = PMap.find "fields" cl.cl_statics in
+    
+    field_ids.cf_expr <- Some (change_array { 
+      eexpr = TArrayDecl(List.map (fun (i,s) -> { eexpr = TConst(TInt ( Int32.of_int i)); etype = basic.tint; epos = field_ids.cf_pos }) hashes);
+      etype = basic.tarray basic.tint;
+      epos = field_ids.cf_pos
+    });
+    
+    fields.cf_expr <- Some (change_array {
+      eexpr = TArrayDecl(List.map (fun (i,s) -> { eexpr = TConst(TString s); etype = basic.tstring; epos = fields.cf_pos }) hashes);
+      etype = basic.tarray basic.tstring;
+      epos = fields.cf_pos
+    })
+    
+  with | Not_found -> 
+    gen.gcon.error "Fields 'fieldIds' and 'fields' were not found in class haxe.lang.FieldLookup" flookup_cl.cl_pos
+  );
   
   TypeParams.RenameTypeParameters.run gen;
   
