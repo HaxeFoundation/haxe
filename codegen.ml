@@ -828,6 +828,8 @@ let rename_local_vars com e =
 		v.v_name <- v.v_name ^ string_of_int !count;
 	in
 	let declare v =
+		(* chop escape char for all local variables generated *)
+		if String.unsafe_get v.v_name 0 = String.unsafe_get gen_local_prefix 0 then v.v_name <- "_g" ^ String.sub v.v_name 1 (String.length v.v_name - 1);
 		(try
 			let v2 = PMap.find v.v_name (!vars) in
 			(*
