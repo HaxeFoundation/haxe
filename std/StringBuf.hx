@@ -35,6 +35,10 @@ class StringBuf {
 	public function new() {
 		#if (js || cpp)
 			b = new Array();
+		#elseif cs
+			b = new cs.StringBuilder();
+		#elseif java
+			b = new java.lang.StringBuilder();
 		#else
 			b = "";
 		#end
@@ -48,6 +52,10 @@ class StringBuf {
 			b[b.length] = x == null ? 'null' : x;
 		#elseif cpp
 			b[b.length] = x;
+		#elseif cs
+			b.Append(x);
+		#elseif java
+			b.append(x);
 		#else
 			b += x;
 		#end
@@ -64,6 +72,12 @@ class StringBuf {
 				b += s.substr(pos,len);
 		#elseif (js || cpp)
 			b[b.length] = s.substr(pos,len);
+		#elseif cs
+			var l:Int = (len == null) ? (s.length - pos) : len;
+			b.Append(s, pos, l);
+		#elseif java
+			var l:Int = (len == null) ? s.length : len;
+			b.append(s, pos, l);
 		#else
 			b += s.substr(pos,len);
 		#end
@@ -77,6 +91,10 @@ class StringBuf {
 			b[b.length] = String.fromCharCode(c);
 		#elseif (flash && !flash9)
 			b += String["fromCharCode"](c);
+		#elseif cs
+			b.Append(cast(c, cs.StdTypes.Char16));
+		#elseif java
+			b.append(cast(c, java.StdTypes.Char16));
 		#else
 			b += String.fromCharCode(c);
 		#end
@@ -89,6 +107,10 @@ class StringBuf {
 	public inline function toString() : String {
 		#if (js || cpp)
 			return b.join("");
+		#elseif cs
+			return b.ToString();
+		#elseif java
+			return b.toString();
 		#else
 			return b;
 		#end
@@ -97,6 +119,10 @@ class StringBuf {
 	private var b :
 	#if (js || cpp)
 		Array<Dynamic>
+	#elseif cs 
+	cs.StringBuilder
+	#elseif java
+		java.lang.StringBuilder
 	#else
 		String
 	#end;
