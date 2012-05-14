@@ -95,6 +95,7 @@ class Utf8 {
 	/**
 		Returns the number of UTF8 chars of the String.
 	**/
+	#if js @:extern #end
 	public static inline function length( s : String ) : Int {
 		return s.length;
 	}
