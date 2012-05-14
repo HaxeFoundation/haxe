@@ -264,8 +264,8 @@ let rec unify_call_params ctx name el args r p inline =
 			| [name,ul] -> arg_error ul name true p
 			| _ -> error acc "Invalid")
 		| ee :: l, (name,opt,t) :: l2 ->
-			let e = (!type_expr_with_type_rec) ctx ee (Some t) in
 			try
+				let e = (!type_expr_with_type_rec) ctx ee (Some t) in
 				unify_raise ctx e.etype t e.epos;
 				loop ((e,false) :: acc) l l2 skip
 			with
@@ -273,7 +273,7 @@ let rec unify_call_params ctx name el args r p inline =
 					if opt then
 						loop (default_value t :: acc) (ee :: l) l2 ((name,ul) :: skip)
 					else
-						arg_error ul name false e.epos
+						arg_error ul name false (snd ee)
 	in
 	loop [] el args []
 
@@ -1332,7 +1332,7 @@ and type_expr_with_type ctx e t =
 				| _ ->
 					let el = List.map (fun e ->
 						let e = type_expr_with_type ctx e (Some tp) in
-						unify ctx e.etype tp e.epos;
+						unify_raise ctx e.etype tp e.epos;
 						e
 					) el in
 					mk (TArrayDecl el) t p)
