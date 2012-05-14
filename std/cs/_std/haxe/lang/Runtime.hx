@@ -201,15 +201,15 @@ package haxe.lang;
 			obj = null;
 		}
 
-		System.Reflection.FieldInfo f = t.GetField(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Instance);
+		System.Reflection.FieldInfo f = t.GetField(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
 		if (f != null)
 		{
 			return f.GetValue(obj);
 		} else {
-			System.Reflection.PropertyInfo prop = t.GetProperty(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Instance);
+			System.Reflection.PropertyInfo prop = t.GetProperty(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
 			if (prop == null)
 			{
-				System.Reflection.MethodInfo m = t.GetMethod(field,  System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Instance);
+				System.Reflection.MethodInfo m = t.GetMethod(field,  System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
 				if (m != null)
 				{
 					return new haxe.lang.NativeMethodFunction(obj, field);
@@ -239,7 +239,7 @@ package haxe.lang;
 			obj = null;
 		}
 
-		System.Reflection.MemberInfo[] mi = t.GetMember(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Instance);
+		System.Reflection.MemberInfo[] mi = t.GetMember(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
 		return mi != null && mi.Length > 0;
 	')
 	public static function slowHasField(obj:Dynamic, field:String):Bool
@@ -259,13 +259,13 @@ package haxe.lang;
 			obj = null;
 		}
 
-		System.Reflection.FieldInfo f = t.GetField(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Instance);
+		System.Reflection.FieldInfo f = t.GetField(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
 		if (f != null)
 		{
 			f.SetValue(obj, @value);
 			return @value;
 		} else {
-			System.Reflection.PropertyInfo prop = t.GetProperty(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Instance);
+			System.Reflection.PropertyInfo prop = t.GetProperty(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
 			prop.SetValue(obj, @value, null);
 
 			return @value;
@@ -300,7 +300,7 @@ package haxe.lang;
 			ts[i] = oargs[i].GetType();
 		}
 
-		System.Reflection.MethodInfo mi = t.GetMethod(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Instance, null, ts, null);
+		System.Reflection.MethodInfo mi = t.GetMethod(field, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.FlattenHierarchy | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance, null, ts, null);
 		return mi.Invoke(obj, oargs);
 	')
 	public static function slowCallField(obj:Dynamic, field:String, args:Array<Dynamic>):Dynamic
