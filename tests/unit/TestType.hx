@@ -194,6 +194,8 @@ class TestType extends Test {
 	function testCallback()
 	{
 		var func = function(a:Int, b:String, c:Float) return a;
+
+		#if !macro
 		var tstringfloat = function(b:String, c:Float) return 0;
 		var tfloat = function(c:Float) return 0;
 		var tvoid = function() return 0;
@@ -230,6 +232,8 @@ class TestType extends Test {
 		typedAs(callback(func, _, "22", _), tintfloat);
 		typedAs(callback(func, _, "22", 12), tint);
 		typedAs(callback(func, 12, _, 12), tstring);
+		
+		#end
 		
 		// values
 		
