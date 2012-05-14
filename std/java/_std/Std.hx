@@ -156,6 +156,7 @@ import haxe.lang.Exceptions;
 				ret += ((int) (c - \'0\'));
 			} else if (foundAny && c == \'E\' || c == \'e\') {
 				boolean eNeg = false;
+				boolean eFoundAny = false;
 				if (i + 1 < len && x.charAt(i + 1) == \'-\')
 				{
 					eNeg = true;
@@ -167,8 +168,9 @@ import haxe.lang.Exceptions;
 					c = x.charAt(i);
 					if (c >= \'0\' && c <= \'9\')
 					{
-						if (!foundAny && c == \'0\')
+						if (!eFoundAny && c == \'0\')
 							continue;
+						eFoundAny = true;
 						e *= 10.0;
 						e += ((int) (c - \'0\'));
 					} else {

@@ -38,7 +38,7 @@ import haxe.lang.Exceptions;
 		return native.IsAssignableFrom(Lib.getNativeType(v));
 	}
 
-	public static function string( s : Dynamic ) : String {
+	public static inline function string( s : Dynamic ) : String {
 		return s + "";
 	}
 
@@ -46,32 +46,149 @@ import haxe.lang.Exceptions;
 		return cast x;
 	}
 	
-	@:functionBody('
-			try 
-			{
-				return new haxe.lang.Null<int>(System.Int32.Parse(x), true);
-			} 
-			catch (System.FormatException fe)
-			{
-				return default(haxe.lang.Null<int>);
-			}
-	')
 	public static function parseInt( x : String ) : Null<Int> {
-		return null;
+		if (x == null) return null;
+		
+		x = StringTools.ltrim(x);
+		var ret = 0;
+		var base = 10;
+		var i = -1;
+		if (StringTools.startsWith(x, "0x"))
+		{
+			i = 1;
+			base = 16;
+		}
+		
+		var len = x.length;
+		var foundAny = false;
+		var isNeg = false;
+		var hasValue = false;
+		while (++i < len)
+		{
+			var c = cast(untyped x[i], Int); //fastCodeAt
+			if (!foundAny && c == '-'.code) 
+			{
+				isNeg = true;
+				continue;
+			}
+			
+			if (c >= '0'.code && c <= '9'.code)
+			{
+				if (!foundAny && c == '0'.code)
+				{
+					hasValue = true;
+					continue;
+				}
+				ret *= base; foundAny = true;
+				
+				ret += c - '0'.code;
+			} else if (base == 16) {
+				if (c >= 'a'.code && c <= 'f'.code) {
+					ret *= base; foundAny = true;
+					ret += c - 'a'.code + 10;
+				} else if (c >= 'A'.code && c <= 'F'.code) {
+					ret *= base; foundAny = true;
+					ret += c - 'A'.code + 10;
+				} else {
+					break;
+				}
+			} else {
+				break;
+			}
+		}
+		
+		if (foundAny || hasValue)
+			return isNeg ? -ret : ret;
+		else
+			return null;
 	}
 
-	@:functionBody('
-			try 
-			{
-				return System.Double.Parse(x);
-			} 
-			catch (System.FormatException fe)
-			{
-				return double.NaN;
-			}
-	')
 	public static function parseFloat( x : String ) : Float {
-		return 0.0;
+		if (x == null) return Math.NaN;
+		x = StringTools.ltrim(x);
+		
+		var ret = 0.0;
+		var div = 0.0;
+		var e = 0.0;
+		
+		var len = x.length;
+		var hasValue = false;
+		var foundAny = false;
+		var isNeg = false;
+		var i = -1;
+		while (++i < len)
+		{
+			var c = cast(untyped x[i], Int); //fastCodeAt
+			if (!foundAny && c == '-'.code)
+			{
+				isNeg = true;
+				continue;
+			}
+			
+			if (c == '.'.code)
+			{
+				if (div != 0.0)
+					break;
+				div = 1.0;
+				
+				continue;
+			}
+			
+			if (c >= '0'.code && c <= '9'.code)
+			{
+				if (!foundAny && c == '0'.code)
+				{
+					hasValue = true;
+					continue;
+				}
+				
+				ret *= 10; foundAny = true; div *= 10;
+				
+				ret += c - '0'.code;
+			} else if (foundAny && (c == 'e'.code || c == 'E'.code)) {
+				var eNeg = false;
+				var eFoundAny = false;
+				if (i + 1 < len && untyped cast(x[i + 1], Int) == '-'.code)
+				{
+					eNeg = true;
+					i++;
+				}
+				
+				while (++i < len)
+				{
+					c = untyped cast(x[i], Int);
+					if (c >= '0'.code && c <= '9'.code)
+					{
+						if (!eFoundAny && c == '0'.code)
+							continue;
+						eFoundAny = true;
+						e *= 10;
+						e += c - '0'.code;
+					} else {
+						break;
+					}
+				}
+				
+				if (eNeg) e = -e;
+			} else {
+				break;
+			}
+		}
+		
+		if (div == 0.0) div = 1.0;
+		
+		if (foundAny || hasValue)
+		{
+			ret = isNeg ? -(ret / div) : (ret / div);
+			if (e != 0.0)
+			{
+				return ret * Math.pow(10.0, e);
+			} else {
+				return ret;
+			}
+		} else {
+			return Math.NaN;
+		}
 	}
 
 	public static function random( x : Int ) : Int {
