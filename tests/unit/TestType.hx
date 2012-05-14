@@ -193,6 +193,7 @@ class TestType extends Test {
 	
 	function testCallback()
 	{
+		
 		var func = function(a:Int, b:String, c:Float) return a;
 
 		#if !macro
@@ -252,6 +253,13 @@ class TestType extends Test {
 		eq(1, callback(callback(func, 1), "2", 3)());
 		eq(1, callback(callback(func, 1, _), "2")(3));
 		eq(1, callback(callback(func, _, "2"), 1)(3));
+		
+		var a = 5;
+		var b = "foo";
+		var cb = callback(func, a);
+		a = 6;
+		func = function(a,b,c):Int return throw "error";
+		eq(5, cb(b, 0));
 	}
 	
 	#end
