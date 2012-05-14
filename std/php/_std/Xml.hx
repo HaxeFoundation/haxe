@@ -210,7 +210,7 @@ enum XmlType {
 		return _nodeValue = v;
 	}
 
-	private function getParent() : Xml {
+	private inline function getParent() : Xml {
 		return _parent;
 	}
 
@@ -247,92 +247,17 @@ enum XmlType {
 
 	public function iterator() : Iterator<Xml> {
 		if( _children == null ) throw "bad nodetype";
-		var me = this;
-		var it = null;
-		it = untyped {
-			cur: 0,
-			x: me._children,
-			hasNext : function(){
-				return it.cur < it.x.length;
-			},
-			next : function(){
-				return it.x[it.cur++];
-			}
-		}
-		return cast it;
+		return _children.iterator();
 	}
 
 	public function elements() : Iterator<Xml> {
 		if( _children == null ) throw "bad nodetype";
-		var me = this;
-		var it = null;
-		it =  untyped {
-			cur: 0,
-			x: me._children,
-			hasNext : function() {
-				var k = it.cur;
-				var l = it.x.length;
-				while( k < l ) {
-
-					if( it.x[k].nodeType == Xml.Element )
-						__php__("break");
-					k += 1;
-				}
-				it.cur = k;
-				return k < l;
-			},
-			next : function() {
-				var k = it.cur;
-				var l = it.x.length;
-				while( k < l ) {
-					var n = it.x[k];
-					k += 1;
-					if( n.nodeType == Xml.Element ) {
-						it.cur = k;
-						return n;
-					}
-				}
-				return null;
-			}
-		}
-		return cast it;
+		return Lambda.filter(_children, function(child) return child.nodeType == Xml.Element).iterator();
 	}
 
 	public function elementsNamed( name : String ) : Iterator<Xml> {
 		if( _children == null ) throw "bad nodetype";
-
-		var me = this;
-		var it = null;
-		it =  untyped {
-			cur: 0,
-			x: me._children,
-			hasNext : function() {
-				var k = it.cur;
-				var l = it.x.length;
-				while( k < l ) {
-					var n = it.x[k];
-					if( n.nodeType == Xml.Element && n._nodeName == name )
-						__php__("break");
-					k++;
-				}
-				it.cur = k;
-				return k < l;
-			},
-			next : function() {
-				var k = it.cur;
-				var l = it.x.length;
-				while( k < l ) {
-					var n = it.x[k];
-					k++;
-					if( n.nodeType == Xml.Element && n._nodeName == name ) {
-						it.cur = k;
-						return n;
-					}
-				}
-				return null;
-			}
-		}
-		return cast it;
+		return Lambda.filter(_children, function(child) return child.nodeType == Xml.Element && child.nodeName == name).iterator();
 	}
 
 	public function firstChild() : Xml {
@@ -343,14 +268,9 @@ enum XmlType {
 
 	public function firstElement() : Xml {
 		if( _children == null ) throw "bad nodetype";
-		var cur = 0;
-		var l = _children.length;
-		while( cur < l ) {
-			var n = _children[cur];
-			if( n.nodeType == Xml.Element )
-				return n;
-			cur++;
-		}
+		for (child in _children)
+			if (child.nodeType == Xml.Element)
+				return child;
 		return null;
 	}
 
