@@ -187,6 +187,68 @@ class TestType extends Test {
 		
 		//typedAs(function() { return null; return untyped false; } (), tnullbool);
 		#end
-		
 	}
+	
+	#if false
+	
+	function testCallback()
+	{
+		var func = function(a:Int, b:String, c:Float) return a;
+		var tstringfloat = function(b:String, c:Float) return 0;
+		var tfloat = function(c:Float) return 0;
+		var tvoid = function() return 0;
+		var tintstring = function(a:Int, b:String) return 0;
+		var tintfloat = function(a:Int, c:Float) return 0;
+		var tint = function(a:Int) return 0;	
+		var tstring = function(b:String) return 0;	
+
+		// all missing
+		
+		typedAs(callback(func), func);
+		typedAs(callback(func, _), func);
+		typedAs(callback(func, _, _), func);
+		typedAs(callback(func, _, _, _), func);
+
+		// all given
+		
+		typedAs(callback(func, 22, "2", 13), tvoid);
+
+		// last missing
+		
+		typedAs(callback(func, 22, "2"), tfloat);
+		typedAs(callback(func, 22, "2", _), tfloat);
+		
+		// first given
+		
+		typedAs(callback(func, 22), tstringfloat);
+		typedAs(callback(func, 22, _), tstringfloat);
+		typedAs(callback(func, 22, _, _), tstringfloat);
+		
+		// mixed
+		
+		typedAs(callback(func, _, _, 12), tintstring);
+		typedAs(callback(func, _, "22", _), tintfloat);
+		typedAs(callback(func, _, "22", 12), tint);
+		typedAs(callback(func, 12, _, 12), tstring);
+		
+		// values
+		
+		eq(1, callback(func)(1, "2", 3));
+		eq(2, callback(func, 2)("2", 3));
+		eq(2, callback(func, 2, "3")(3));
+		eq(2, callback(func, 2, "3", 4)());
+		
+		eq(1, callback(func, _, "2", 3)(1));
+		eq(1, callback(func, _, "2")(1, 3));
+		eq(1, callback(func, _)(1, "2", 3));
+		
+		eq(1, callback(func, _, "2", _)(1, 2));
+		
+		eq(1, callback(callback(func), _, "2", 3)(1));
+		eq(1, callback(callback(func, 1), "2", 3)());
+		eq(1, callback(callback(func, 1, _), "2")(3));
+		eq(1, callback(callback(func, _, "2"), 1)(3));
+	}
+	
+	#end
 }
