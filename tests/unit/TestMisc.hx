@@ -179,6 +179,10 @@ class TestMisc extends Test {
 	function opt3( ?x : Null<Int> = 5, ?y : Null<Float> = 6 ) {
 		return { x : x, y : y };
 	}
+	
+	function opt4( x = 10 ) : Null<Int> {
+		return x + 1;
+	}
 
 	function testOptionalParams() {
 		eq( opt1().x, null );
@@ -214,6 +218,22 @@ class TestMisc extends Test {
 		// skipping
 		eq( opt3(7.4).x, 5 );
 		eq( opt3(7.4).y, 7.4 );
+		
+		eq( opt4(), 11 );
+		#if !(flash9 || cpp || cs || java)
+		eq( opt4(null), 11 );
+		#end
+		
+		var opt4b : ?Int -> Null<Int> = opt4;
+		eq( opt4b(), 11 );
+		eq( opt4b(3), 4 );
+		#if !(flash9 || cpp || cs || java)
+		eq( opt4b(null), 11 );
+		#end
+
+		// don't compile because we restrict nullability of function param or return type
+		// var opt4c : ?Null<Int> -> Null<Int> = opt4;
+		// var opt4c : ?Int -> Int = opt4;
 	}
 
 	function testIncr() {

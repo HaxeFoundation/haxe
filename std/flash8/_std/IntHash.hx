@@ -53,7 +53,7 @@
 		var l : Array<Int> = untyped __keys__(h);
 		for( x in 0...l.length )
 			l[x] = Std.int(l[x]);
-		return l.iterator();
+		return cast l.iterator();
 	}
 
 	public function iterator() : Iterator<T> {
