@@ -364,7 +364,7 @@ let make_call ctx e params t p =
 		let params = List.map (ctx.g.do_optimize ctx) params in
 		(match f.cf_expr with
 		| Some { eexpr = TFunction fd } ->
-			(match Optimizer.type_inline ctx f fd ethis params t p (match cl with Some { cl_extern = true } -> true | _ -> false) with
+			(match Optimizer.type_inline ctx f fd ethis params t p is_extern with
 			| None ->
 				if is_extern then error "Inline could not be done" p;
 				raise Exit
