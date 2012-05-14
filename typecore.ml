@@ -78,7 +78,6 @@ and typer = {
 	mutable in_display : bool;
 	mutable curfun : current_fun;
 	mutable ret : t;
-	mutable ret_exprs : texpr list;
 	mutable locals : (string, tvar) PMap.t;
 	mutable opened : anon_status ref list;
 	mutable param_type : t option;

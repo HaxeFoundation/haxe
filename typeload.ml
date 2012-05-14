@@ -571,16 +571,12 @@ let type_function ctx args ret fmode f p =
 		add_local ctx n t, c
 	) args in
 	let old_ret = ctx.ret in
-	let old_ret_exprs = ctx.ret_exprs in
 	let old_fun = ctx.curfun in
 	let old_opened = ctx.opened in
 	ctx.curfun <- fmode;
 	ctx.ret <- ret;
-	ctx.ret_exprs <- [];
 	ctx.opened <- [];
 	let e = type_expr ctx (match f.f_expr with None -> error "Function body required" p | Some e -> e) false in
-	let t = unify_min ctx ctx.ret_exprs in
-	unify ctx t ctx.ret e.epos;
 	let rec loop e =
 		match e.eexpr with
 		| TReturn (Some _) -> raise Exit
@@ -621,7 +617,6 @@ let type_function ctx args ret fmode f p =
 	in
 	List.iter (fun r -> r := Closed) ctx.opened;
 	ctx.ret <- old_ret;
-	ctx.ret_exprs <- old_ret_exprs;
 	ctx.curfun <- old_fun;
 	ctx.opened <- old_opened;
 	e , fargs
@@ -1298,7 +1293,6 @@ let type_module ctx m file tdecls loadp =
 		curclass = ctx.curclass;
 		tthis = ctx.tthis;
 		ret = ctx.ret;
-		ret_exprs = [];
 		current = m;
 		locals = PMap.empty;
 		local_types = ctx.g.std.m_types @ m.m_types;

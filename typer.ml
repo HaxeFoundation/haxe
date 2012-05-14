@@ -1547,11 +1547,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				None , v
 			| Some e ->
 				let e = type_expr ctx e in
-				(match ctx.ret with
-				| TMono _ when not ctx.untyped ->
-					ctx.ret_exprs <- e :: ctx.ret_exprs
-				| _ ->
-					unify ctx e.etype ctx.ret e.epos);
+				unify ctx e.etype ctx.ret e.epos;
 				Some e , e.etype
 		) in
 		mk (TReturn e) t_dynamic p
@@ -2668,7 +2664,6 @@ let rec create com =
 		in_display = false;
 		in_macro = Common.defined com "macro";
 		ret = mk_mono();
-		ret_exprs = [];
 		locals = PMap.empty;
 		local_types = [];
 		local_using = [];
