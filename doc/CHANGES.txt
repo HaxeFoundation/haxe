@@ -17,6 +17,12 @@
 	as3 : fixed EnumValue becomes Object
 	js : removed js.Lib.isIE/isOpera (not complete, use js.JQuery.browser instead)
 	all : function parameters are nullable if they are declared with '?'
+	all : added support for finding common base types of multiple types (unify_min) for array, switch, if
+	php : do not implement duplicate interfaces
+	haxelib : added git support through haxelib git
+	all : allow derived classes to widen method visibility
+	macro : added haxe.macro.Context.getLocalMethod
+	macro : improved support of "using" macro functions
 
 2012-04-14: 2.09
 	all : optimized const == const and const != const (with different const types)
