@@ -729,6 +729,41 @@ let rec type_field ctx e i p mode =
 	| _ ->
 		try using_field ctx mode e i p with Not_found -> no_field()
 
+let type_callback ctx e params p =
+	let e = type_expr ctx e true in
+	let args,ret = match follow e.etype with TFun(args, ret) -> args, ret | _ -> error "First parameter of callback is not a function" p in
+	let rec loop args params given_args missing_args ordered_args = match args, params with
+		| [], [] -> given_args,missing_args,ordered_args
+		| [], _ -> error "Too many callback arguments" p
+		| (n,o,t) :: args , ([] as params)
+		| (n,o,t) :: args , (EConst(Ident "_"),_) :: params ->
+			let v = alloc_var n t in
+			loop args params given_args (missing_args @ [v,o,None]) (ordered_args @ [v])
+		| (n,o,t) :: args , param :: params ->
+			let e = type_expr ctx param true in
+			unify ctx e.etype t p;
+			let v = alloc_var n t in
+			loop args params (given_args @ [v,o,Some e]) missing_args (ordered_args @ [v])
+	in
+	let given_args,missing_args,ordered_args = loop args params [] [] [] in
+	let loc = alloc_var "__hx_call" e.etype in
+	let vexpr v = mk (TLocal v) v.v_type p in
+	let given_args = (loc,false,Some e) :: given_args in
+	let fun_args l = List.map (fun (v,o,_) -> v.v_name, o, v.v_type) l in
+	let t_inner = TFun(fun_args missing_args, ret) in
+	let call = make_call ctx (vexpr loc) (List.map vexpr ordered_args) ret p in
+	let func = mk (TFunction {
+		tf_args = List.map (fun (v,_,_) -> v,None) missing_args;
+		tf_type = ret;
+		tf_expr = mk (TReturn (Some call)) ret p;
+	}) t_inner p in
+	let func = mk (TFunction {
+		tf_args = List.map (fun (v,_,_) -> v,None) given_args;
+		tf_type = t_inner;
+		tf_expr = mk (TReturn (Some func)) t_inner p;
+	}) (TFun(fun_args given_args, t_inner)) p in
+	make_call ctx func (List.map (fun (_,_,e) -> (match e with Some e -> e | None -> assert false)) given_args) t_inner p
+
 (*
 	We want to try unifying as an integer and apply side effects.
 	However, in case the value is not a normal Monomorph but one issued
@@ -1884,39 +1919,7 @@ and type_call ctx e el p =
 		let infos = mk_infos ctx p params in
 		type_expr ctx (ECall ((EField ((EType ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[e;EUntyped infos,p]),p)
 	| (EConst (Ident "callback"),p) , e :: params ->
-		let e = type_expr ctx e in
-		let eparams = List.map (type_expr ctx) params in
-		(match follow e.etype with
-		| TFun (args,ret) ->
-			let rec loop args params eargs =
-				match args, params with
-				| _ , [] ->
-					let k = ref 0 in
-					let fun_args l = List.map (fun (v,c) -> v.v_name, c<>None, v.v_type) l in
-					let fun_arg = alloc_var "f" e.etype,None in
-					let first_args = List.map (fun t -> incr k; alloc_var ("a" ^ string_of_int !k) t, None) (List.rev eargs) in
-					let missing_args = List.map (fun (_,opt,t) -> incr k; alloc_var ("a" ^ string_of_int !k) t, (if opt then Some TNull else None)) args in
-					let vexpr (v,_) = mk (TLocal v) v.v_type p in
-					let func = mk (TFunction {
-						tf_args = missing_args;
-						tf_type = ret;
-						tf_expr = mk (TReturn (Some (
-							make_call ctx (vexpr fun_arg) (List.map vexpr (first_args @ missing_args)) ret p
-						))) ret p;
-					}) (TFun (fun_args missing_args,ret)) p in
-					let func = mk (TFunction {
-						tf_args = fun_arg :: first_args;
-						tf_type = func.etype;
-						tf_expr = mk (TReturn (Some func)) e.etype p;
-					}) (TFun (("f", false, e.etype) :: fun_args first_args,func.etype)) p in
-					mk (TCall (func,e :: eparams)) (TFun (fun_args missing_args,ret)) p
-				| [], _ -> error "Too many callback arguments" p
-				| (_,_,t) :: args , e :: params ->
-					unify ctx e.etype t p;
-					loop args params (t :: eargs)
-			in
-			loop args eparams []
-		| _ -> error "First parameter of callback is not a function" p);
+		type_callback ctx e params p
 	| (EConst (Ident "type"),_) , [e] ->
 		let e = type_expr ctx e in
 		ctx.com.warning (s_type (print_context()) e.etype) e.epos;

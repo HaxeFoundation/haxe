@@ -174,9 +174,7 @@ class TestType extends Test {
 
 		#end
 	}
-	
-	#if false
-	
+
 	function testCallback()
 	{
 		
@@ -247,6 +245,4 @@ class TestType extends Test {
 		func = function(a,b,c):Int return throw "error";
 		eq(5, cb(b, 0));
 	}
-	
-	#end
 }
