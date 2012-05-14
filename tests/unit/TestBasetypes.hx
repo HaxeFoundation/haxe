@@ -120,7 +120,9 @@ class TestBasetypes extends Test {
 		t( Math.isNaN(Std.parseFloat("abcd")) );
 		t( Math.isNaN(Std.parseFloat("a10")) );
 		t( Math.isNaN(Std.parseFloat(null)) );
-
+		eq( Std.parseFloat("5.3 "), 5.3 );
+		eq( Std.parseFloat("0.0"), 0. );
+		eq( Std.parseFloat("5.3 1"), 5.3 );
 	}
 
 	function testStringTools() {

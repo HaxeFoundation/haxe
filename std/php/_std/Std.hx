@@ -47,7 +47,13 @@
 	}
 
 	public static function parseFloat( x : String ) : Float {
-		return untyped __php__("is_numeric($x) ? floatval($x) : acos(1.01)");
+		var v : Float = untyped __call__("floatval", x);
+		untyped	if (v==0.0) {
+			x=untyped __call__("rtrim", x);
+			v=untyped __call__("floatval", x);
+			if (v == 0.0 && !__call__("is_numeric", x)) v = untyped __call__("acos", 1.01);
+		}
+		return v;
 	}
 
 	public static function random( x : Int ) : Int {
