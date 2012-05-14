@@ -162,6 +162,7 @@ let rec type_inline ctx cf f ethis params tret p force =
 	in
 	let has_vars = ref false in
 	let in_loop = ref false in
+	let in_local_fun = ref false in
 	let cancel_inlining = ref false in
 	let rec map term e =
 		let po = e.epos in
@@ -184,7 +185,7 @@ let rec type_inline ctx cf f ethis params tret p force =
 				(local v).i_subst,opt (map false) e
 			) vl in
 			{ e with eexpr = TVars vl }
-		| TReturn eo ->
+		| TReturn eo when not !in_local_fun ->
 			if not term then error "Cannot inline a not final return" po;
 			(match eo with
 			| None -> mk (TConst TNull) f.tf_type p
@@ -251,10 +252,17 @@ let rec type_inline ctx cf f ethis params tret p force =
 		| TBinop ((OpAssign | OpAssignOp _),{ eexpr = TLocal v },_) ->
 			(read_local v).i_write <- true;
 			Type.map_expr (map false) e;
+		| TFunction f ->
+			(match f.tf_args with [] -> () | _ -> has_vars := true);
+			let old = save_locals ctx and old_fun = !in_local_fun in
+			let args = List.map (function(v,c) -> (local v).i_subst, c) f.tf_args in
+			in_local_fun := true;
+			let expr = map false f.tf_expr in
+			in_local_fun := old_fun;
+			old();
+			{ e with eexpr = TFunction { tf_args = args; tf_expr = expr; tf_type = f.tf_type } }
 		| TConst TSuper ->
-			error "Cannot inline function containing super" po
-		| TFunction _ ->
-			error "Cannot inline functions containing closures" po
+			error "Cannot inline function containing super" po			
 		| _ ->
 			Type.map_expr (map false) e
 	in
