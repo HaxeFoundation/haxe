@@ -524,7 +524,7 @@ class Main {
 	}
 
 	function getConfigPath()
-		return Sys.getEnv("HOME") + (Sys.systemName() == "Windows" ? "\\" : "/") + ".haxelib"
+		return Sys.getEnv("HOME") + "/.haxelib"
 	
 	function getRepository() {
 		if (repPath == null)
@@ -532,16 +532,8 @@ class Main {
 			try
 			{
 				var path = sys.io.File.getContent(getConfigPath());
-				if (Sys.systemName() == "Windows")
-				{
-					if (!StringTools.endsWith(path, "\\"))
-						path += "\\";
-				}
-				else
-				{
-					if (!StringTools.endsWith(path, "/"))
-						path += "/";
-				}
+				if (!(StringTools.endsWith(path, "/") || (Sys.systemName() == "Windows" && StringTools.endsWith(path, "\\"))))
+					path += "/";
 				repPath = path;
 			}
 			catch (e:Dynamic)
@@ -561,7 +553,7 @@ class Main {
 			var haxepath = Sys.getEnv("HAXEPATH");
 			if( haxepath == null )
 				throw "HAXEPATH environment variable not defined, please run haxesetup.exe first";			
-			Sys.getEnv("HAXEPATH") + "\\" +REPNAME;			
+			Sys.getEnv("HAXEPATH") + "/" +REPNAME;			
 		}
 		else
 			"/usr/lib/haxe/" + REPNAME;
