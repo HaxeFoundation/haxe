@@ -408,12 +408,23 @@ let define_local ctx ?(init=false) v p =
 			let topt = type_opt ctx t in
 			let pos = (try
 				let slot , _ , t = (List.find (fun (_,x,_) -> name = x) ctx.block_vars) in
-				if t <> topt then error ("Local variable '" ^ name ^ "' captured with same name but different types") p;
+				if t <> topt then begin
+					(* we need to rename it since slots are accessed on a by-name basis *)
+					let rec rename i =
+						let name = name ^ string_of_int i in
+						if List.exists (fun(_,x,_) -> name = x) ctx.block_vars then
+							rename (i + 1)
+						else
+							v.v_name <- name
+					in
+					rename 1;
+					raise Not_found
+				end;
 				slot
 			with
 				Not_found ->
 					let n = List.length ctx.block_vars + 1 in
-					ctx.block_vars <- (n,name,topt) :: ctx.block_vars;
+					ctx.block_vars <- (n,v.v_name,topt) :: ctx.block_vars;
 					n
 			) in
 			LScope pos
