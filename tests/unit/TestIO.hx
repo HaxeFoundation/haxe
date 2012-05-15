@@ -45,8 +45,8 @@ class TestIO extends Test {
 		o.writeByte(98);
 		#if (neko || flash9 || php || cpp)
 		o.writeDouble(1.23);
-		o.writeFloat(1.2e10);
 		#end
+		o.writeFloat(1.2e10);
 		o.writeByte(99);
 
 		var str = "Héllo World !";
@@ -93,12 +93,12 @@ class TestIO extends Test {
 		eq( i.readByte(), 98 );
 		#if (neko || flash9 || php || cpp)
 		eq( i.readDouble(), 1.23 );
-		eq( i.readFloat(), 1.2e10 );
 		#else
 		// these two are not implemented
 		exc(function() i.readDouble());
-		exc(function() i.readFloat());
+		//exc(function() i.readFloat());
 		#end
+		eq( i.readFloat(), 1.2e10 );
 		eq( i.readByte(), 99 );
 
 		eq( i.readString(haxe.io.Bytes.ofString(str).length), str );

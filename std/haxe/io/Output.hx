@@ -31,7 +31,7 @@ package haxe.io;
 	Output.
 **/
 class Output {
-
+	private static var LN2 = Math.log(2);
 	public var bigEndian(default,setEndian) : Bool;
 
 	public function writeByte( c : Int ) : Void {
@@ -101,7 +101,25 @@ class Output {
 		#elseif php
 		write(untyped Bytes.ofString(__call__('pack', 'f', x)));
 		#else
-		throw "Not implemented";
+		if (x == 0.0)
+		{
+			writeByte(0); writeByte(0);	writeByte(0); writeByte(0);
+			return;
+		}
+		var exp = Math.floor(Math.log(Math.abs(x)) / LN2);
+		var sig = (Math.floor(Math.abs(x) / Math.pow(2, exp) * (2 << 22)) & 0x7FFFFF);
+		var b1 = (exp + 0x7F) >> 1 | (exp>0 ? ((x<0) ? 1<<7 : 1<<6) : ((x<0) ? 1<<7 : 0)),
+			b2 = (exp + 0x7F) << 7 & 0xFF | (sig >> 16 & 0x7F),
+			b3 = (sig >> 8) & 0xFF,
+			b4 = sig & 0xFF;
+		if (bigEndian)
+		{
+			writeByte(b4); writeByte(b3); writeByte(b2); writeByte(b1);
+		}
+		else
+		{
+			writeByte(b1); writeByte(b2); writeByte(b3); writeByte(b4);
+		}
 		#end
 	}
 

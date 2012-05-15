@@ -147,8 +147,19 @@ class Input {
 			var a = untyped __call__('unpack', 'f', readString(4));
 			return a[1];
 		#else
-			throw "Not implemented";
-			return 0;
+			var bytes = [];
+			bytes.push(readByte());
+			bytes.push(readByte());
+			bytes.push(readByte());
+			bytes.push(readByte());
+			if (bigEndian)
+				bytes.reverse();
+			var sign = 1 - ((bytes[0] >> 7) << 1);
+			var exp = (((bytes[0] << 1) & 0xFF) | (bytes[1] >> 7)) - 127;
+			var sig = ((bytes[1] & 0x7F) << 16) | (bytes[2] << 8) | bytes[3];
+			if (sig == 0 && exp == -127)
+				return 0.0;
+			return sign*(1 + Math.pow(2, -23)*sig)*Math.pow(2, exp);
 		#end
 	}
 
@@ -162,7 +173,7 @@ class Input {
 			return a[1];
 		#else
 			throw "Not implemented";
-			return 0;
+			return 0.0;
 		#end
 	}
 
