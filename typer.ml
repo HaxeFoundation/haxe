@@ -213,7 +213,7 @@ let rec unify_call_params ctx name el args r p inline =
 		let format_arg = (fun (name,opt,_) -> (if opt then "?" else "") ^ name) in
 		let argstr = "Function " ^ (match name with None -> "" | Some (n,_) -> "'" ^ n ^ "' ") ^ "requires " ^ (if args = [] then "no arguments" else "arguments : " ^ String.concat ", " (List.map format_arg args)) in
 		display_error ctx (txt ^ " arguments\n" ^ argstr) p;
-		List.rev (List.map fst acc), r
+		List.rev (List.map fst acc), (TFun(args,r))
 	in
 	let arg_error ul name opt p =
 		match next() with
@@ -251,9 +251,9 @@ let rec unify_call_params ctx name el args r p inline =
 		match l , l2 with
 		| [] , [] ->
 			if not (inline && ctx.g.doinline) && (match ctx.com.platform with Flash8 | Flash | Js -> true | _ -> false) then
-				List.rev (no_opt acc), r
+				List.rev (no_opt acc), (TFun(args,r))
 			else
-				List.rev (List.map fst acc), r
+				List.rev (List.map fst acc), (TFun(args,r))
 		| [] , (_,false,_) :: _ ->
 			error (List.fold_left (fun acc (_,_,t) -> default_value t :: acc) acc l2) "Not enough"
 		| [] , (name,true,t) :: l ->
@@ -1958,11 +1958,11 @@ and type_call ctx e el p =
 		let rec loop acc el =
 			match acc with
 			| AKInline (ethis,f,t) ->
-				let params, tret = (match follow t with
+				let params, tfunc = (match follow t with
 					| TFun (args,r) -> unify_call_params ctx (Some (f.cf_name,f.cf_meta)) el args r p true
 					| _ -> error (s_type (print_context()) t ^ " cannot be called") p
 				) in
-				make_call ctx (mk (TField (ethis,f.cf_name)) t p) params tret p
+				make_call ctx (mk (TField (ethis,f.cf_name)) t p) params (match tfunc with TFun(_,r) -> r | _ -> assert false) p
 			| AKUsing (et,ef,eparam) ->
 				(match et.eexpr with
 				| TField (ec,_) ->
@@ -1971,11 +1971,12 @@ and type_call ctx e el p =
 					| AKMacro _ ->
 						loop acc (Interp.make_ast eparam :: el)
 					| AKExpr _ | AKField _ | AKInline _ ->
-						let params, tret = (match follow et.etype with
+						let params, tfunc = (match follow et.etype with
 							| TFun ( _ :: args,r) -> unify_call_params ctx (Some (ef.cf_name,ef.cf_meta)) el args r p (ef.cf_kind = Method MethInline)
 							| _ -> assert false
 						) in
-						make_call ctx et (eparam::params) tret p
+						let et = {et with etype = tfunc} in
+						make_call ctx et (eparam::params) (match tfunc with TFun(_,r) -> r | _ -> assert false) p
 					| _ -> assert false)
 				| _ -> assert false)
 			| AKMacro (ethis,f) ->
@@ -2004,23 +2005,24 @@ and type_call ctx e el p =
 				ignore(acc_get ctx acc p);
 				assert false
 			| AKExpr e | AKField (e,_) as acc ->
-				let el , t = (match follow e.etype with
+				let el , t, e = (match follow e.etype with
 				| TFun (args,r) ->
 					let fopts = (match acc with AKField (_,f) -> Some (f.cf_name,f.cf_meta) | _ -> match e.eexpr with TField (e,f) -> Some (f,[]) | _ -> None) in
-					unify_call_params ctx fopts el args r p false
+					let el, tfunc = unify_call_params ctx fopts el args r p false in
+					el,(match tfunc with TFun(_,r) -> r | _ -> assert false), {e with etype = tfunc}
 				| TMono _ ->
 					let t = mk_mono() in
 					let el = List.map (type_expr ctx) el in
 					unify ctx (tfun (List.map (fun e -> e.etype) el) t) e.etype e.epos;
-					el, t
+					el, t, e
 				| t ->
 					let el = List.map (type_expr ctx) el in
-					el, if t == t_dynamic then
+					el, (if t == t_dynamic then
 						t_dynamic
 					else if ctx.untyped then
 						mk_mono()
 					else
-						error (s_type (print_context()) e.etype ^ " cannot be called") e.epos
+						error (s_type (print_context()) e.etype ^ " cannot be called") e.epos), e
 				) in
 				if ctx.com.dead_code_elimination then
 					(match e.eexpr, el with
