@@ -81,6 +81,7 @@ type context = {
 	swc : bool;
 	boot : path;
 	swf_protected : bool;
+	mutable cur_class : tclass;
 	mutable debug : bool;
 	mutable last_line : int;
 	mutable last_file : string;
@@ -93,7 +94,6 @@ type context = {
 	mutable continues : (int -> unit) list;
 	mutable in_static : bool;
 	mutable block_vars : (hl_slot * string * hl_name option) list;
-	mutable used_vars : (string , pos) PMap.t;
 	mutable try_scope_reg : register option;
 	mutable for_call : bool;
 }
@@ -401,6 +401,23 @@ let pop ctx n =
 	loop n;
 	ctx.infos.istack <- old
 
+let is_member ctx name =
+	let rec loop c =
+		PMap.mem name c.cl_fields || (match c.cl_super with None -> false | Some (c,_) -> loop c)
+	in
+	loop ctx.cur_class
+
+let rename_block_var ctx v = 
+	(* we need to rename it since slots are accessed on a by-name basis *)
+	let rec loop i =
+		let name = v.v_name ^ string_of_int i in
+		if List.exists (fun(_,x,_) -> name = x) ctx.block_vars || is_member ctx name then
+			loop (i + 1)
+		else
+			v.v_name <- name
+	in
+	loop 1
+
 let define_local ctx ?(init=false) v p =
 	let name = v.v_name in
 	let t = v.v_type in
@@ -408,21 +425,14 @@ let define_local ctx ?(init=false) v p =
 			let topt = type_opt ctx t in
 			let pos = (try
 				let slot , _ , t = (List.find (fun (_,x,_) -> name = x) ctx.block_vars) in
-				if t <> topt then begin
-					(* we need to rename it since slots are accessed on a by-name basis *)
-					let rec rename i =
-						let name = name ^ string_of_int i in
-						if List.exists (fun(_,x,_) -> name = x) ctx.block_vars then
-							rename (i + 1)
-						else
-							v.v_name <- name
-					in
-					rename 1;
-					raise Not_found
+				if t <> topt || is_member ctx name then begin
+					rename_block_var ctx v;
+					raise Not_found;
 				end;
 				slot
 			with
 				Not_found ->
+					if is_member ctx v.v_name then rename_block_var ctx v;
 					let n = List.length ctx.block_vars + 1 in
 					ctx.block_vars <- (n,v.v_name,topt) :: ctx.block_vars;
 					n
@@ -617,10 +627,8 @@ let begin_fun ctx args tret el stat p =
 	let old_static = ctx.in_static in
 	let last_line = ctx.last_line in
 	let old_treg = ctx.try_scope_reg in
-	let old_uvars = ctx.used_vars in
 	ctx.infos <- default_infos();
 	ctx.code <- DynArray.create();
-	ctx.used_vars <- PMap.empty;
 	ctx.trys <- [];
 	ctx.block_vars <- [];
 	ctx.in_static <- stat;
@@ -695,13 +703,6 @@ let begin_fun ctx args tret el stat p =
 	ctx.try_scope_reg <- (try List.iter loop_try el; None with Exit -> Some (alloc_reg ctx KDynamic));
 	(fun () ->
 		let hasblock = ctx.block_vars <> [] || ctx.trys <> [] in
-		List.iter (fun (_,v,_) ->
-			try
-				let p = PMap.find v ctx.used_vars in
-				error ("Accessing to this member variable is prevented by local '" ^ v ^ "' used in closure") p
-			with
-				Not_found -> ()
-		) ctx.block_vars;
 		let code = DynArray.to_list ctx.code in
 		let extra = (
 			if hasblock then begin
@@ -761,7 +762,6 @@ let begin_fun ctx args tret el stat p =
 		ctx.in_static <- old_static;
 		ctx.last_line <- last_line;
 		ctx.try_scope_reg <- old_treg;
-		ctx.used_vars <- old_uvars;
 		mt
 	)
 
@@ -799,9 +799,6 @@ let pop_value ctx retval =
 let gen_expr_ref = ref (fun _ _ _ -> assert false)
 let gen_expr ctx e retval = (!gen_expr_ref) ctx e retval
 
-let use_var ctx f p =
-	if not (PMap.mem f ctx.used_vars) then ctx.used_vars <- PMap.add f p ctx.used_vars
-
 let gen_access ctx e (forset : 'a) : 'a access =
 	match e.eexpr with
 	| TLocal v ->
@@ -811,7 +808,6 @@ let gen_access ctx e (forset : 'a) : 'a access =
 		if closure && not ctx.for_call then error "In Flash9, this method cannot be accessed this way : please define a local function" e1.epos;
 		(match e1.eexpr with
 		| TConst TThis when not ctx.in_static ->
-			use_var ctx f e.epos;
 			write ctx (HFindProp id)
 		| _ -> gen_expr ctx true e1);
 		(match k with
@@ -1440,14 +1436,12 @@ and gen_call ctx retval e el r =
 		List.iter (gen_expr ctx true) el;
 		write ctx (HConstructSuper (List.length el));
 	| TField ({ eexpr = TConst TSuper },f) , _ ->
-		use_var ctx f e.epos;
 		let id = ident f in
 		write ctx (HFindPropStrict id);
 		List.iter (gen_expr ctx true) el;
 		write ctx (HCallSuper (id,List.length el));
 		coerce ctx (classify ctx r);
 	| TField ({ eexpr = TConst TThis },f) , _ when not ctx.in_static ->
-		use_var ctx f e.epos;
 		let id = ident f in
 		write ctx (HFindProp id);
 		List.iter (gen_expr ctx true) el;
@@ -1958,6 +1952,7 @@ let generate_field_kind ctx f c stat =
 
 let generate_class ctx c =
 	let name = type_path ctx c.cl_path in
+	ctx.cur_class <- c;
 	let cid , cnargs = (match c.cl_constructor with
 		| None ->
 			if c.cl_interface then
@@ -2306,6 +2301,7 @@ let generate com boot_name =
 	let ctx = {
 		com = com;
 		debug = com.Common.debug;
+		cur_class = null_class;
 		boot = ([],boot_name);
 		debugger = Common.defined com "fdb";
 		swc = Common.defined com "swc";
@@ -2317,7 +2313,6 @@ let generate com boot_name =
 		breaks = [];
 		continues = [];
 		block_vars = [];
-		used_vars = PMap.empty;
 		in_static = false;
 		last_line = -1;
 		last_file = "";
