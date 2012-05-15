@@ -734,6 +734,14 @@ let type_callback ctx e params p =
 	let e = type_expr ctx e true in
 	let args,ret = match follow e.etype with TFun(args, ret) -> args, ret | _ -> error "First parameter of callback is not a function" p in
 	let vexpr v = mk (TLocal v) v.v_type p in
+	let acount = ref 0 in
+	let alloc_name n =
+		if n = "" || String.length n > 2 then begin
+			incr acount;
+			"a" ^ string_of_int !acount;
+		end else
+			n
+	in
 	let rec loop args params given_args missing_args ordered_args = match args, params with
 		| [], [] -> given_args,missing_args,ordered_args
 		| [], _ -> error "Too many callback arguments" p
@@ -742,16 +750,16 @@ let type_callback ctx e params p =
 			loop args [] given_args missing_args a
 		| (n,o,t) :: args , ([] as params)
 		| (n,o,t) :: args , (EConst(Ident "_"),_) :: params ->
-			let v = alloc_var n t in
+			let v = alloc_var (alloc_name n) t in
 			loop args params given_args (missing_args @ [v,o,None]) (ordered_args @ [vexpr v])
 		| (n,o,t) :: args , param :: params ->
 			let e = type_expr ctx param true in
 			unify ctx e.etype t p;
-			let v = alloc_var n t in
+			let v = alloc_var (alloc_name n) t in
 			loop args params (given_args @ [v,o,Some e]) missing_args (ordered_args @ [vexpr v])
 	in
 	let given_args,missing_args,ordered_args = loop args params [] [] [] in
-	let loc = alloc_var "__hx_call" e.etype in
+	let loc = alloc_var "f" e.etype in
 	let given_args = (loc,false,Some e) :: given_args in
 	let fun_args l = List.map (fun (v,o,_) -> v.v_name, o, v.v_type) l in
 	let t_inner = TFun(fun_args missing_args, ret) in
