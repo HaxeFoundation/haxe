@@ -248,5 +248,16 @@ class TestType extends Test {
 		a = 6;
 		func = function(a,b,c):Int return throw "error";
 		eq(5, cb(b, 0));
+		
+		var optfunc = function(a:Int, b:Int, ?c:Int = 2) return a + b + c;
+		eq(6, callback(optfunc, 1)(3));
+		eq(6, callback(optfunc, 1, 3)());
+		
+		eq(7, callback(optfunc, _, _, _)(1, 2, 4));
+		eq(7, callback(optfunc, _, 2, _)(1, 4));
+		
+		var foo = function ( x : Int, ?p : haxe.PosInfos ) { return "foo" + x; }
+		var f : Void -> String = callback(foo, 0);
+ 		eq("foo0", f());
 	}
 }

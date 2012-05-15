@@ -733,26 +733,29 @@ let rec type_field ctx e i p mode =
 let type_callback ctx e params p =
 	let e = type_expr ctx e true in
 	let args,ret = match follow e.etype with TFun(args, ret) -> args, ret | _ -> error "First parameter of callback is not a function" p in
+	let vexpr v = mk (TLocal v) v.v_type p in
 	let rec loop args params given_args missing_args ordered_args = match args, params with
 		| [], [] -> given_args,missing_args,ordered_args
 		| [], _ -> error "Too many callback arguments" p
+		| (n,o,t) :: args , [] when o ->
+			let a = match ctx.com.platform with Neko | Php -> (ordered_args @ [(mk (TConst TNull) t_dynamic p)]) | _ -> ordered_args in
+			loop args [] given_args missing_args a
 		| (n,o,t) :: args , ([] as params)
 		| (n,o,t) :: args , (EConst(Ident "_"),_) :: params ->
 			let v = alloc_var n t in
-			loop args params given_args (missing_args @ [v,o,None]) (ordered_args @ [v])
+			loop args params given_args (missing_args @ [v,o,None]) (ordered_args @ [vexpr v])
 		| (n,o,t) :: args , param :: params ->
 			let e = type_expr ctx param true in
 			unify ctx e.etype t p;
 			let v = alloc_var n t in
-			loop args params (given_args @ [v,o,Some e]) missing_args (ordered_args @ [v])
+			loop args params (given_args @ [v,o,Some e]) missing_args (ordered_args @ [vexpr v])
 	in
 	let given_args,missing_args,ordered_args = loop args params [] [] [] in
 	let loc = alloc_var "__hx_call" e.etype in
-	let vexpr v = mk (TLocal v) v.v_type p in
 	let given_args = (loc,false,Some e) :: given_args in
 	let fun_args l = List.map (fun (v,o,_) -> v.v_name, o, v.v_type) l in
 	let t_inner = TFun(fun_args missing_args, ret) in
-	let call = make_call ctx (vexpr loc) (List.map vexpr ordered_args) ret p in
+	let call = make_call ctx (vexpr loc) ordered_args ret p in
 	let func = mk (TFunction {
 		tf_args = List.map (fun (v,_,_) -> v,None) missing_args;
 		tf_type = ret;
