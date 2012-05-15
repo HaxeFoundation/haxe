@@ -65,6 +65,7 @@ let api_inline ctx c field params p =
 type in_local = {
 	i_var : tvar;
 	i_subst : tvar;
+	mutable i_captured : bool;
 	mutable i_write : bool;
 	mutable i_read : int;
 }
@@ -109,6 +110,7 @@ let rec type_inline ctx cf f ethis params tret p force =
 			let i = {
 				i_var = v;
 				i_subst = alloc_var v.v_name v.v_type;
+				i_captured = false;
 				i_write = false;
 				i_read = 0;
 			} in
@@ -123,6 +125,7 @@ let rec type_inline ctx cf f ethis params tret p force =
 			{
 				i_var = v;
 				i_subst = v;
+				i_captured = false;
 				i_write = false;
 				i_read = 0;
 			}
@@ -170,6 +173,7 @@ let rec type_inline ctx cf f ethis params tret p force =
 		match e.eexpr with
 		| TLocal v ->
 			let l = read_local v in
+			if !in_local_fun then l.i_captured <- true;
 			l.i_read <- l.i_read + (if !in_loop then 2 else 1);
 			(* never inline a function which contain a delayed macro because its bound
 				to its variables and not the calling method *)
@@ -272,12 +276,27 @@ let rec type_inline ctx cf f ethis params tret p force =
 		with the actual value, either create a temp var
 	*)
 	let subst = ref PMap.empty in
+	let is_constant e =
+		let rec loop e = 
+			match e.eexpr with
+			| TLocal _
+			| TConst TThis (* not really, but should not be move inside a function body *)
+				-> raise Exit
+			| TEnumField _ 
+			| TTypeExpr _
+			| TConst _ -> ()			
+			| _ -> 
+				Type.iter loop e
+		in
+		try loop e; true with Exit -> false
+	in
 	let vars = List.fold_left (fun acc (i,e) ->
 		let flag = (match e.eexpr with
 			| TLocal _ | TConst _ -> not i.i_write
 			| TFunction _ -> if i.i_write then error "Cannot modify a closure parameter inside inline method" p; true
 			| _ -> not i.i_write && i.i_read <= 1
 		) in
+		let flag = flag && (not i.i_captured || is_constant e) in
 		if flag then begin
 			subst := PMap.add i.i_subst.v_id e !subst;
 			acc
