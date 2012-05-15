@@ -58,7 +58,7 @@
 					a.push(key.substr(1));
 			__js__("}");
 		}
-		return cast a.iterator();
+		return a.iterator();
 	}
 
 	public function iterator() : Iterator<T> {

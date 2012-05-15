@@ -82,7 +82,7 @@
 	**/
 	public function keys() : Iterator<Int> 
 	{
-		return cast keysArr.iterator();
+		return keysArr.iterator();
 	}
 
 	/**
@@ -90,7 +90,7 @@
 	**/
 	public function iterator() : Iterator<T> 
 	{
-		return cast valuesArr.iterator();
+		return valuesArr.iterator();
 	}
 
 	/**

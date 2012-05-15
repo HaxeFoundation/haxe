@@ -858,11 +858,9 @@ let rec unify a b =
 		if not (loop c1 tl1) then error [cannot_unify a b]
 	| TFun (l1,r1) , TFun (l2,r2) when List.length l1 = List.length l2 ->
 		(try
-			if not (is_null r2) && is_null r1 then (match follow r2 with TMono _ | TDynamic _ -> () | _ -> error [cannot_unify r2 r1]);
 			unify r1 r2;
 			List.iter2 (fun (_,o1,t1) (_,o2,t2) ->
 				if o1 && not o2 then error [Cant_force_optional];
-				if not (is_null t2) && is_null t1 then (match follow t2 with TMono _ | TDynamic _ -> () | _ -> error [cannot_unify t1 t2]);
 				unify t1 t2
 			) l2 l1 (* contravariance *)
 		with

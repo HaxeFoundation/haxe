@@ -49,7 +49,7 @@
 
 	public function keys() : Iterator<Int> {
 		var a:Array<Int> = untyped __global__.__int_hash_keys(h);
-		return cast a.iterator();
+		return a.iterator();
 	}
 
 	public function iterator() : Iterator<T> {
