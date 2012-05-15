@@ -234,6 +234,11 @@ class TestMisc extends Test {
 		// don't compile because we restrict nullability of function param or return type
 		// var opt4c : ?Null<Int> -> Null<Int> = opt4;
 		// var opt4c : ?Int -> Int = opt4;
+		
+		var opt5 = function(a:Int, ?b = 2) return a + b;
+		eq(3, opt5(1));
+		eq(3, opt5(1, 2));
+		eq(3, opt5(1, null));
 	}
 
 	function testIncr() {
