@@ -423,20 +423,9 @@ let define_local ctx ?(init=false) v p =
 	let t = v.v_type in
 	let l = (if v.v_capture then begin
 			let topt = type_opt ctx t in
-			let pos = (try
-				let slot , _ , t = (List.find (fun (_,x,_) -> name = x) ctx.block_vars) in
-				if t <> topt || is_member ctx name then begin
-					rename_block_var ctx v;
-					raise Not_found;
-				end;
-				slot
-			with
-				Not_found ->
-					if is_member ctx v.v_name then rename_block_var ctx v;
-					let n = List.length ctx.block_vars + 1 in
-					ctx.block_vars <- (n,v.v_name,topt) :: ctx.block_vars;
-					n
-			) in
+			if List.exists (fun (_,x,_) -> name = x) ctx.block_vars || is_member ctx name then rename_block_var ctx v;
+			let pos = List.length ctx.block_vars + 1 in
+			ctx.block_vars <- (pos,v.v_name,topt) :: ctx.block_vars;
 			LScope pos
 		end else
 			let r = alloc_reg ctx (classify ctx t) in
