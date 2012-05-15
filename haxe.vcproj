@@ -17,9 +17,9 @@
 			ConfigurationType="0">
 			<Tool
 				Name="VCNMakeTool"
-				BuildCommandLine="ocamake -g -pp camlp4o haxe.vcproj extLib.cma swfLib.cma unix.cma"
-				ReBuildCommandLine="ocamake -all -g -pp camlp4o haxe.vcproj extLib.cma swfLib.cma unix.cma"
-				CleanCommandLine="ocamake -clean -pp camlp4o haxe.vcproj"
+				BuildCommandLine="make MSVC=1 -j4 -f Makefile.win haxe"
+				ReBuildCommandLine="make MSVC=1 -f Makefile.win clean_haxe haxe"
+				CleanCommandLine="make -f Makefile.win clean_haxe"
 				Output="haxe.exe"/>
 		</Configuration>
 		<Configuration
@@ -42,26 +42,26 @@
 			Name="neko"
 			Filter="">
 			<File
-				RelativePath="..\neko\libs\include\ocaml\binast.ml">
+				RelativePath=".\libs\neko\binast.ml">
 			</File>
 			<File
-				RelativePath="..\neko\libs\include\ocaml\nast.ml">
+				RelativePath=".\libs\neko\nast.ml">
 			</File>
 			<File
-				RelativePath="..\neko\libs\include\ocaml\nxml.ml">
+				RelativePath=".\libs\neko\nxml.ml">
 			</File>
 		</Filter>
 		<Filter
 			Name="AS3"
 			Filter="">
 			<File
-				RelativePath="..\..\mtcvs\swflib\as3.mli">
+				RelativePath=".\libs\swflib\as3.mli">
 			</File>
 			<File
-				RelativePath="..\..\mtcvs\swflib\as3hl.mli">
+				RelativePath=".\libs\swflib\as3hl.mli">
 			</File>
 			<File
-				RelativePath="..\..\mtcvs\swflib\swf.ml">
+				RelativePath=".\libs\swflib\swf.ml">
 			</File>
 		</Filter>
 		<Filter
