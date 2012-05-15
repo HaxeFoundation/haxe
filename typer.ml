@@ -108,7 +108,7 @@ let classify t =
 	| _ -> KOther
 
 let type_field_rec = ref (fun _ _ _ _ _ -> assert false)
-let type_expr_with_type_rec = ref (fun _ _ _ -> assert false)
+let type_expr_with_type_rec = ref (fun ~unify _ _ _ -> assert false)
 
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
@@ -265,7 +265,7 @@ let rec unify_call_params ctx name el args r p inline =
 			| _ -> error acc "Invalid")
 		| ee :: l, (name,opt,t) :: l2 ->
 			try
-				let e = (!type_expr_with_type_rec) ctx ee (Some t) in
+				let e = (!type_expr_with_type_rec) ~unify:unify_raise ctx ee (Some t) in
 				unify_raise ctx e.etype t e.epos;
 				loop ((e,false) :: acc) l l2 skip
 			with
@@ -830,7 +830,7 @@ let rec type_binop ctx op e1 e2 p =
 	match op with
 	| OpAssign ->
 		let e1 = type_access ctx (fst e1) (snd e1) MSet in
-		let e2 = type_expr_with_type ctx e2 (match e1 with AKNo _ | AKInline _ | AKUsing _ | AKMacro _ -> None | AKExpr e | AKField (e,_) | AKSet(e,_,_,_) -> Some e.etype) in
+		let e2 = type_expr_with_type ~unify ctx e2 (match e1 with AKNo _ | AKInline _ | AKUsing _ | AKMacro _ -> None | AKExpr e | AKField (e,_) | AKSet(e,_,_,_) -> Some e.etype) in
 		(match e1 with
 		| AKNo s -> error ("Cannot access field or identifier " ^ s ^ " for writing") p
 		| AKExpr e1 | AKField (e1,_) ->
@@ -1292,7 +1292,7 @@ and type_ident_noerr ctx i is_type p mode =
 			end
 		end
 
-and type_expr_with_type ctx e t =
+and type_expr_with_type ~unify ctx e t =
 	match e with
 	| (EFunction _,_) ->
 		let old = ctx.param_type in
@@ -1334,8 +1334,8 @@ and type_expr_with_type ctx e t =
 					type_expr ctx e
 				| _ ->
 					let el = List.map (fun e ->
-						let e = type_expr_with_type ctx e (Some tp) in
-						unify_raise ctx e.etype tp e.epos;
+						let e = type_expr_with_type ~unify ctx e (Some tp) in
+						unify ctx e.etype tp e.epos;
 						e
 					) el in
 					mk (TArrayDecl el) t p)
@@ -1563,7 +1563,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				let e = (match e with
 					| None -> None
 					| Some e ->
-						let e = type_expr_with_type ctx e (Some t) in
+						let e = type_expr_with_type ~unify ctx e (Some t) in
 						unify ctx e.etype t p;
 						Some e
 				) in
