@@ -104,7 +104,8 @@ class Main {
 	var commands : List<{ name : String, doc : String, f : Void -> Void, net : Bool }>;
 	var siteUrl : String;
 	var site : SiteProxy;
-
+	var repPath : String;
+	
 	function new() {
 		args = Sys.args();
 		commands = new List();
@@ -166,7 +167,7 @@ class Main {
 		return null;
 	}
 
-	function addCommand( name, f, doc, ?net = true ) {
+	function addCommand( name, f:Void->Dynamic, doc, ?net = true ) {
 		commands.add({ name : name, doc : doc, f : f, net : net });
 	}
 
@@ -522,58 +523,67 @@ class Main {
 		}
 	}
 
-	function getRepository( ?setup : Bool ) {
-		var sysname = Sys.systemName();
-		if( sysname == "Windows" ) {
-			var haxepath = Sys.getEnv("HAXEPATH");
-			if( haxepath == null )
-				throw "HAXEPATH environment variable not defined, please run haxesetup.exe first";
-			var last = haxepath.charAt(haxepath.length - 1);
-			if( last != "/" && last != "\\" )
-				haxepath += "/";
-			var rep = haxepath+REPNAME;
-			try {
-				safeDir(rep);
-			} catch( e : Dynamic ) {
-				throw "The directory defined by HAXEPATH does not exist, please run haxesetup.exe again";
-			}
-			return rep+"\\";
-		}
-		var config = Sys.getEnv("HOME")+"/.haxelib";
-		var rep = try
-			sys.io.File.getContent(config)
-		catch( e : Dynamic ) try
-			sys.io.File.getContent("/etc/.haxelib")
-		catch( e : Dynamic )
-			if( setup )
-				"/usr/lib/haxe/"+REPNAME;
-			else
-				throw "This is the first time you are runing haxelib. Please run haxelib setup first";
-		rep = StringTools.trim(rep);
-		if( setup ) {
-			print("Please enter haxelib repository path with write access");
-			print("Hit enter for default ("+rep+")");
-			var line = param("Path");
-			if( line != "" )
-				rep = line;
-			if( !sys.FileSystem.exists(rep) ) {
-				try {
-					sys.FileSystem.createDirectory(rep);
-				} catch( e : Dynamic ) {
-					print("Failed to create directory '"+rep+"' ("+Std.string(e)+"), maybe you need appropriate user rights");
-					print("Check also that the parent directory exists");
-					Sys.exit(1);
+	function getConfigPath()
+		return Sys.getEnv("HOME") + (Sys.systemName() == "Windows" ? "\\" : "/") + ".haxelib"
+	
+	function getRepository() {
+		if (repPath == null)
+		{
+			try
+			{
+				var path = sys.io.File.getContent(getConfigPath());
+				if (Sys.systemName() == "Windows")
+				{
+					if (!StringTools.endsWith(path, "\\"))
+						path += "\\";
 				}
+				else
+				{
+					if (!StringTools.endsWith(path, "/"))
+						path += "/";
+				}
+				repPath = path;
 			}
-			sys.io.File.saveContent(config,rep);
-		} else if( !sys.FileSystem.exists(rep) )
-			throw "haxelib Repository "+rep+" does not exists. Please run haxelib setup again";
-		return rep+"/";
+			catch (e:Dynamic)
+			{
+				repPath = setup();
+			}
+		}
+		return repPath;
 	}
 
 	function setup() {
-		var path = getRepository(true);
-		print("haxelib repository is now "+path);
+		var config = getConfigPath();
+		var rep = if (sys.FileSystem.exists(config))
+			sys.io.File.getContent(config);
+		else if (Sys.systemName() == "Windows")
+		{
+			var haxepath = Sys.getEnv("HAXEPATH");
+			if( haxepath == null )
+				throw "HAXEPATH environment variable not defined, please run haxesetup.exe first";			
+			Sys.getEnv("HAXEPATH") + "\\" +REPNAME;			
+		}
+		else
+			"/usr/lib/haxe/" + REPNAME;
+			
+		print("Please enter haxelib repository path with write access");
+		print("Hit enter for default (" + rep + ")");
+		var line = param("Path");
+		if( line != "" )
+			rep = line;
+		if (!sys.FileSystem.exists(rep))
+		{
+			try {
+				sys.FileSystem.createDirectory(rep);
+			} catch( e : Dynamic ) {
+				print("Failed to create directory '"+rep+"' ("+Std.string(e)+"), maybe you need appropriate user rights");
+				print("Check also that the parent directory exists");
+				Sys.exit(1);
+			}
+		}
+		sys.io.File.saveContent(config, rep);
+		print("haxelib repository is now " + rep);
+		return rep;
 	}
 
 	function config() {
