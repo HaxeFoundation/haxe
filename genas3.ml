@@ -54,7 +54,7 @@ let s_path ctx stat path p =
 		| "Dynamic" -> "Object"
 		| "Bool" -> "Boolean"
 		| "Enum" -> "Class"
-		| "EnumValue" -> "Object"
+		| "EnumValue" -> "enum"
 		| _ -> name)
 	| (["flash"],"FlashXml__") ->
 		"Xml"
