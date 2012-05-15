@@ -62,7 +62,8 @@ class TestIO extends Test {
 		#if !neko
 		// in neko, we can't represent invalid 31 bits integers anyway
 		excv(function() o.writeInt31(1 << 30),Overflow);
-		excv(function() o.writeInt31(-((1 << 30) + 1)),Overflow);
+		excv(function() o.writeInt31( -((1 << 30) + 1)), Overflow);
+		excv(function() o.writeUInt30(0x40 << 24),Overflow);
 		#end
 		o.writeInt8(-5);
 		excv(function() o.writeInt8(128),Overflow);
@@ -75,7 +76,6 @@ class TestIO extends Test {
 		excv(function() o.writeUInt24(-1),Overflow);
 		o.writeUInt30(0x3FAABBCC);
 		excv(function() o.writeUInt30(-1),Overflow);
-		excv(function() o.writeUInt30(0x40 << 24),Overflow);
 
 		o.writeInt32(haxe.Int32.make(0xA0FF,0xEEDD));
 		o.writeInt32(haxe.Int32.make(0xC0FF,0xEEDD));
