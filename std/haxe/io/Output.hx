@@ -103,7 +103,7 @@ class Output {
 		#else
 		if (x == 0.0)
 		{
-			writeByte(0); writeByte(0);	writeByte(0); writeByte(0);
+			writeByte(0); writeByte(0); writeByte(0); writeByte(0);
 			return;
 		}
 		var exp = Math.floor(Math.log(Math.abs(x)) / LN2);
@@ -131,7 +131,35 @@ class Output {
 		#elseif php
 		write(untyped Bytes.ofString(__call__('pack', 'd', x)));
 		#else
-		throw "Not implemented";
+		if (x == 0.0) 
+		{
+			writeByte(0); writeByte(0); writeByte(0); writeByte(0);
+			writeByte(0); writeByte(0); writeByte(0); writeByte(0);
+			return;
+		}
+        
+		var exp = Math.floor(Math.log(Math.abs(x)) / LN2);
+		var sig : Int = Math.floor(Math.abs(x) / Math.pow(2, exp) * Math.pow(2, 52));
+		var sig_h = (sig & cast 34359738367);
+		var sig_l = Math.floor((sig / Math.pow(2,32)));
+		var b1 = (exp + 0x3FF) >> 4 | (exp>0 ? ((x<0) ? 1<<7 : 1<<6) : ((x<0) ? 1<<7 : 0)),
+			b2 = (exp + 0x3FF) << 4 & 0xFF | (sig_l >> 16 & 0xF),
+			b3 = (sig_l >> 8) & 0xFF,
+			b4 = sig_l & 0xFF,
+			b5 = (sig_h >> 24) & 0xFF,
+			b6 = (sig_h >> 16) & 0xFF,
+			b7 = (sig_h >> 8) & 0xFF,
+			b8 = sig_h & 0xFF;
+		if (bigEndian)
+		{
+			writeByte(b8); writeByte(b7); writeByte(b6); writeByte(b5);
+			writeByte(b4); writeByte(b3); writeByte(b2); writeByte(b1);
+		}
+		else
+		{
+			writeByte(b1); writeByte(b2); writeByte(b3); writeByte(b4);
+			writeByte(b5); writeByte(b6); writeByte(b7); writeByte(b8);
+		}
 		#end
 	}
 

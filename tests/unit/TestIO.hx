@@ -43,10 +43,14 @@ class TestIO extends Test {
 		excv(function() o.writeBytes(b,3,20),OutsideBounds);
 
 		o.writeByte(98);
-		#if (neko || flash9 || php || cpp)
 		o.writeDouble(1.23);
-		#end
+		o.writeDouble(-1.23);
+		o.writeDouble(0.0);
+		o.writeDouble(-0.0);
 		o.writeFloat(1.2e10);
+		o.writeFloat(-1.2e10);
+		o.writeFloat(0.0);
+		o.writeFloat(-0.0);
 		o.writeByte(99);
 
 		var str = "Héllo World !";
@@ -91,14 +95,14 @@ class TestIO extends Test {
 		eq( i.read(5).compare(b.sub(3,5)), 0 );
 
 		eq( i.readByte(), 98 );
-		#if (neko || flash9 || php || cpp)
 		eq( i.readDouble(), 1.23 );
-		#else
-		// these two are not implemented
-		exc(function() i.readDouble());
-		//exc(function() i.readFloat());
-		#end
+		eq( i.readDouble(), -1.23 );
+		eq( i.readDouble(), 0.0 );
+		eq( i.readDouble(), -0.0 );
 		eq( i.readFloat(), 1.2e10 );
+		eq( i.readFloat(), -1.2e10 );
+		eq( i.readFloat(), 0.0 );
+		eq( i.readFloat(), -0.0 );
 		eq( i.readByte(), 99 );
 
 		eq( i.readString(haxe.io.Bytes.ofString(str).length), str );
