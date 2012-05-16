@@ -127,6 +127,30 @@
 		return new String(untyped __dollar__ssub(this.__s,pos,len));
 	}
 
+	public function substring( startIndex : Int, ?endIndex : Int ) : String {
+		if ( endIndex == null) {
+			endIndex = length;
+		} else if ( endIndex < 0 ) {
+			endIndex = 0;
+		} else if ( endIndex > length ) {
+			endIndex = length;
+		}
+		
+		if ( startIndex < 0 ) {
+			startIndex = 0;
+		} else if ( startIndex > length ) {
+			startIndex = length;
+		}
+		
+		if ( startIndex > endIndex ) {
+			var tmp = startIndex;
+			startIndex = endIndex;
+			endIndex = tmp;
+		}
+		
+		return substr( startIndex, endIndex - startIndex );
+	}
+
 	public function toLowerCase() : String {
 		untyped {
 			var s = this.__s;

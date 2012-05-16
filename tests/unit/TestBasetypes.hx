@@ -51,6 +51,70 @@ class TestBasetypes extends Test {
 		eq( str.charCodeAt(2), "c".code );
 		eq( str.charCodeAt(-1), null );
 		eq( str.charCodeAt(3), null );
+		
+		// substr tests
+		var sentence:String = "Pack my box with five dozen liquor jugs.";
+		eq(sentence.substr(0, 4), "Pack");
+		eq(sentence.substr(5, 2), "my");
+		eq(sentence.substr(0), sentence);
+		eq(sentence.substr(35), "jugs.");
+		eq(sentence.substr(40), "");
+		eq(sentence.substr(42), "");
+		eq(sentence.substr(-5, 4), "jugs");
+		eq(sentence.substr(-5), "jugs.");
+		eq(sentence.substr(-42), sentence);
+		eq(sentence.substr(4, 0), "");
+		eq(sentence.substr(0, -36), "Pack");
+		
+		// null should not be swallowed
+		eq("hello" +null, "hellonull");
+		eq(null + "hello", "nullhello");
+
+		var x = { hello:"world", val:5 };
+		var xs = "" + x;
+		// Output should contain hello followed by world, and val followed by 5.
+		// The order of fields and operator between key and value remain unspecified.
+		var h = xs.indexOf("hello");
+		t(h != -1);
+		t(xs.indexOf("world", h) != -1);
+		h = xs.indexOf("val");
+		t(h != -1);
+		t(xs.indexOf("5", h) != -1);
+		eq(x + "", xs);
+
+		// Let's just make sure this is not 10 on any platform.
+		eq(5 + "5", "55");
+		eq("5" + 5, "55");
+		eq("5" + 5.1, "55.1");
+		
+		// Some precedence checks.
+		eq(1 + 1 + 1 + 1 + "1", "41");
+		eq("1" + 1 + 1 + 1 + 1, "11111");
+		eq(1 + 1 + "1" + 1 * 2, "212");
+		
+		// Brackets around array values should not be stripped.
+		var x = [1, "hello"];
+		eq("" + x, "[1, hello]");
+		eq(x + "", "" + x);
+
+		// This is also true for iterables that are arrays.
+		var x:Iterable<Dynamic> = [1, "hello"];
+		eq("" + x, "[1, hello]");
+		eq(x + "", "" + x);		
+		
+		// I don't think this should throw an exception on PHP.
+		try {
+			"" + x.iterator();
+		} catch (e:Dynamic)	{
+			Test.report("Could not convert Iterator to String");
+		}
+		
+		// This also seems rather odd on some platforms.
+		var x = ["4", 1];
+		t(Std.is(x[0], String));
+		t(Std.is(x[0] + x[0], String));
+		t(Std.is(x[1] + x[1], Int));
+		t(Std.is(x[0] + x[1], String));		
 	}
 
 	function testMath() {

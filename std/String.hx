@@ -85,6 +85,14 @@ extern class String {
 	function substr( pos : Int, ?len : Int ) : String;
 
 	/**
+		Returns a part of the String, taking from [startIndex] to [endIndex] - 1.
+		If [endIndex] is not specified, length is used.
+		If [startIndex] or [endIndex] is smaller than 0, than 0 is used.
+		If [startIndex] > [endIndex] then they are swaped.
+	**/
+	function substring( startIndex : Int, ?endIndex : Int ) : String;
+
+	/**
 		Returns the String itself.
 	**/
 	function toString() : String;
