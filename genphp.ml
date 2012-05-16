@@ -198,6 +198,19 @@ let rec is_string_type t =
 
 let is_string_expr e = is_string_type e.etype
 
+let to_string ctx e = 
+	let v = alloc_var "__call__" t_dynamic in
+	let f = mk (TLocal v) t_dynamic e.epos in
+	mk (TCall (f, [ Codegen.string ctx.com "_hx_string_rec" e.epos; e; Codegen.string ctx.com "" e.epos])) ctx.com.basic.tstring e.epos
+
+let as_string_expr ctx e =
+	match e.eexpr with
+	| TConst (TNull) ->
+		to_string ctx e
+	| _ when not (is_string_expr e) ->
+		to_string ctx e
+	| _ -> e 
+
 let spr ctx s = Buffer.add_string ctx.buf s
 let print ctx = Printf.kprintf (fun s -> Buffer.add_string ctx.buf s)
 
@@ -977,7 +990,7 @@ and gen_expr ctx e =
 		| Ast.OpAssignOp(Ast.OpAdd) when (is_string_expr e1 || is_string_expr e2) ->
 			leftside e1;
 			spr ctx " .= ";
-			gen_value_op ctx e2;
+			gen_value_op ctx (as_string_expr ctx e2);
 		| Ast.OpAssignOp(Ast.OpShl) ->
 			leftside e1;
 			spr ctx " <<= ";
@@ -1001,9 +1014,9 @@ and gen_expr ctx e =
 			gen_value_op ctx e2;
 			spr ctx ")";
 		| Ast.OpAdd when (is_string_expr e1 || is_string_expr e2) ->
-			gen_value_op ctx e1;
+			gen_value_op ctx (as_string_expr ctx e1);
 			spr ctx " . ";
-			gen_value_op ctx e2;
+			gen_value_op ctx (as_string_expr ctx e2);
 		| Ast.OpShl ->
 			gen_value_op ctx e1;
 			spr ctx " << ";
