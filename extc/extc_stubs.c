@@ -220,8 +220,12 @@ CAMLprim value get_real_path( value path ) {
 			*next = 0;
 		else if( *cur == 0 )
 			break;
-		if( SHGetFileInfoA( String_val(path2), 0, &infos, sizeof(infos), SHGFI_DISPLAYNAME ) != 0 )
-			memcpy(cur,infos.szDisplayName,strlen(infos.szDisplayName)+1);
+		if( SHGetFileInfoA( String_val(path2), 0, &infos, sizeof(infos), SHGFI_DISPLAYNAME ) != 0 ) {
+			// some special names might be expended to their localized name, so make sure we only
+			// change the casing and not the whole content
+			if( strcmpi(infos.szDisplayName,cur) == 0 )
+				memcpy(cur,infos.szDisplayName,strlen(infos.szDisplayName)+1);
+		}
 		if( next != NULL ) {
 			*next = '\\';
 			cur = next + 1;
