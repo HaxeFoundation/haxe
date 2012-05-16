@@ -33,6 +33,7 @@
 	}
 
 	public function match( s : String ) : Bool {
+		if( r.global ) r.lastIndex = 0;
 		result = r.exec(s);
 		return (result != null);
 	}

@@ -46,6 +46,14 @@ class TestEReg extends Test {
 		f( ~/\\$/.match('\\$') );
 		t( ~/\\\$/.match('\\$') );
 		
+		// check that global flag does not prevent matching several times (lastIndex in JS/Flash)
+		var r = ~/cat/g;
+		t( r.match("catneko") );
+		t( r.match("catneko") );
+		
+		eq( ~/a+/.replace("aabbccaa", "x"), "xbbccaa" );
+		eq( ~/a+/g.replace("aabbccaa", "x"), "xbbccx" );
+		
 		#end
 	}
 
