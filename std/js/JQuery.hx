@@ -57,6 +57,9 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	function attr( name : String ) : String;
 
 	function removeAttr( attr : String ) : JQuery;
+	
+	@:overload(function(name:String,value:Dynamic):js.JQuery{})
+	function prop( name : String ) : Dynamic;
 
 	@:overload(function(prop:String,value:String):js.JQuery{})
 	@:overload(function(map:{}):js.JQuery{})
@@ -298,6 +301,7 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	// TODO
 
 	// other tools
+	@:overload(function(index:Int):js.Dom.HtmlDom{})
 	function get() : Array<Dom.HtmlDom>;
 
 	@:overload(function(j:js.JQuery):Bool{})
