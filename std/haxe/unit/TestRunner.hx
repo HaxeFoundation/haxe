@@ -75,10 +75,10 @@ class TestRunner {
 				d.innerHTML += msg;
 		#elseif cs
 			var str:String = v;
-			untyped __cs__("System.Console.WriteLine(str)");
+			untyped __cs__("System.Console.Write(str)");
 		#elseif java
 			var str:String = v;
-			untyped __java__("java.lang.System.out.println(str)");
+			untyped __java__("java.lang.System.out.print(str)");
 		#end
 	}
 
