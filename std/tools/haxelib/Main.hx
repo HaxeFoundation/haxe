@@ -885,7 +885,8 @@ class Main {
 	
 	function command( cmd:String, args:Array<String> ) {
 		var p = new neko.io.Process(cmd, args);
-		return { code:p.exitCode(), out:p.exitCode() == 0 ? p.stdout.readAll().toString() : p.stderr.readAll().toString() };
+		var code = p.exitCode();
+		return { code:code, out: code == 0 ? p.stdout.readAll().toString() : p.stderr.readAll().toString() };
 	}	
 
 	// ----------------------------------
