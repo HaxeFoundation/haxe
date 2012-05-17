@@ -691,7 +691,12 @@ and gen_expr ctx e =
 	| TCast (e,None) ->
 		gen_expr ctx e
 	| TCast (e1,Some t) ->
-		gen_expr ctx (Codegen.default_cast ctx.com e1 t e.etype e.epos)
+		spr ctx "js.Boot.__cast(";
+		gen_expr ctx e1;
+		spr ctx " , ";
+		spr ctx (ctx.type_accessor t);
+		spr ctx ")"
+
 
 and gen_block ctx e =
 	match e.eexpr with
@@ -750,8 +755,14 @@ and gen_value ctx e =
 	| TBreak
 	| TContinue ->
 		unsupported e.epos
-	| TCast (e1,t) ->
-		gen_value ctx (match t with None -> e1 | Some t -> Codegen.default_cast ctx.com e1 t e.etype e.epos)
+	| TCast (e1, None) ->
+		gen_value ctx e1
+	| TCast (e1, Some t) ->
+		spr ctx "js.Boot.__cast(";
+		gen_value ctx e1;
+		spr ctx " , ";
+		spr ctx (ctx.type_accessor t);
+		spr ctx ")"	
 	| TVars _
 	| TFor _
 	| TWhile _
