@@ -26,7 +26,7 @@ import js.Boot;
 
 @:core_api class Std {
 
-	public static function is( v : Dynamic, t : Dynamic ) : Bool {
+	public static inline function is( v : Dynamic, t : Dynamic ) : Bool {
 		return untyped js.Boot.__instanceof(v,t);
 	}
 
