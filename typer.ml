@@ -1983,8 +1983,9 @@ and type_call ctx e el p =
 							| TFun ( _ :: args,r) -> unify_call_params ctx (Some (ef.cf_name,ef.cf_meta)) el args r p (ef.cf_kind = Method MethInline)
 							| _ -> assert false
 						) in
-						let et = {et with etype = tfunc} in
-						make_call ctx et (eparam::params) (match tfunc with TFun(_,r) -> r | _ -> assert false) p
+						let args,r = match tfunc with TFun(args,r) -> args,r | _ -> assert false in
+						let et = {et with etype = TFun(("",false,eparam.etype) :: args,r)} in
+						make_call ctx et (eparam::params) r p
 					| _ -> assert false)
 				| _ -> assert false)
 			| AKMacro (ethis,f) ->
