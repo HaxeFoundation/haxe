@@ -351,6 +351,13 @@ let valid_redefinition ctx f1 t1 f2 t2 =
 		(* in case args differs, or if an interface var *)
 		valid t1 t2
 
+let copy_meta meta_src meta_target sl =
+	let meta = ref meta_target in
+	List.iter (fun (m,e,p) ->
+		if List.mem m sl then meta := (m,e,p) :: !meta
+	) meta_src;
+	!meta
+
 let check_overriding ctx c p () =
 	match c.cl_super with
 	| None ->
@@ -938,6 +945,13 @@ let init_class ctx c p herits fields =
 			) in
 			f, false, cf, delay
 		| FFun fd ->
+			(match c.cl_super with
+				| None -> ()
+				| Some (c,_) ->
+					try
+						let sf = PMap.find name c.cl_fields in
+						f.cff_meta <- copy_meta sf.cf_meta f.cff_meta [":overload"];
+					with Not_found -> ());
 			let params = ref [] in
 			params := List.map (fun (n,flags) ->
 				(match flags with
