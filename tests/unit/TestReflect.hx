@@ -63,7 +63,7 @@ class TestReflect extends Test {
 		null,Int,String,Bool,Float,
 		Array,Hash,List,Date,Xml,Math,
 		unit.MyEnum,unit.MyClass,unit.MySubClass,
-		Class,Enum,Void,Dynamic,
+		Class,Enum,Void,Dynamic,unit.MyInterface
 	];
 
 	static inline function u( s : String ) : String {
@@ -82,7 +82,8 @@ class TestReflect extends Test {
 		"null","Int","String","Bool","Float",
 		"Array",u("Hash"),u("List"),"Date","Xml","Math",
 		u2("unit","MyEnum"),u2("unit","MyClass"),u2("unit","MySubClass"),
-		#if !flash9 u #end("Class"),u("Enum"),u("Void"),u("Dynamic"),
+		#if !flash9 u #end("Class"), u("Enum"), u("Void"), u("Dynamic"),
+		u2("unit","MyInterface")
 	];
 
 	public function testTypes() {

@@ -59,7 +59,7 @@ enum ValueType {
 
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
 		var c = untyped __call__("_hx_qtype", name);
-		if(__php__("$c instanceof _hx_class"))
+		if(__php__("$c instanceof _hx_class || $c instanceof _hx_interface"))
 			return c;
 		else
 			return null;
