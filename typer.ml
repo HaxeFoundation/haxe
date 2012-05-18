@@ -1349,6 +1349,24 @@ and type_expr_with_type ~unify ctx e t =
 					mk (TArrayDecl el) t p)
 			| _ ->
 				type_expr ctx e)
+	| (EObjectDecl el,p) ->
+		(match t with
+		| None -> type_expr ctx e
+		| Some t ->
+			match follow t with
+			| TAnon a ->
+				(try 
+					let el = List.map (fun (n, e) ->
+						let t = (PMap.find n a.a_fields).cf_type in
+						let e = type_expr_with_type ~unify ctx e (Some t) in
+						unify ctx e.etype t e.epos;
+						(n,e)
+					) el in
+					mk (TObjectDecl el) t p
+				with Not_found ->
+					type_expr ctx e)
+			| _ ->
+				type_expr ctx e)
 	| _ ->
 		type_expr ctx e
 

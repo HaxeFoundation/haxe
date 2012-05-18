@@ -275,6 +275,7 @@ class TestType extends Test {
 		var b:Dynamic = "bar";
 		f(typeError(a = { v:0.2 } ));
 		f(typeError(a = { v:0 } ));
+		typedAs(a = { v: 0 }, a);
 		typedAs(a = { v: 0.2 }, a);
 		t(typeError(a = { v: "foo" } ));
 		f(typeError(a = { v: untyped "foo" } ));
