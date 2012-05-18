@@ -267,4 +267,20 @@ class TestType extends Test {
 		var f : Void -> String = callback(foo, 0);
  		eq("foo0", f());
 	}
+	
+	function testConstantAnonCovariance()
+	{
+		#if !macro
+		var a: { v:Float };
+		var b:Dynamic = "bar";
+		f(typeError(a = { v:0.2 } ));
+		f(typeError(a = { v:0 } ));
+		typedAs(a = { v: 0.2 }, a);
+		t(typeError(a = { v: "foo" } ));
+		f(typeError(a = { v: untyped "foo" } ));
+		f(typeError(a = { v: b } ));
+		f(typeError( { var b: { v:Dynamic } = { v: "foo" };} ));
+		t(typeError( { var b: { v:Int } = { v: 1.2 };} ));
+		#end
+	}
 }
