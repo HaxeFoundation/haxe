@@ -16,7 +16,15 @@ class TestType extends Test {
 		var tExpected = haxe.macro.Context.typeof(expected);
 		var tActual = haxe.macro.Context.typeof(actual);
 		return haxe.macro.Context.parse("{Test.count++; eq('" +Std.string(tActual) + "', '" +Std.string(tExpected) + "');}", haxe.macro.Context.currentPos());
-	}	
+	}
+	
+	@:macro static function typeError(e:haxe.macro.Expr) {
+		var result = try {
+			haxe.macro.Context.typeof(e);
+			"false";
+		} catch (e:Dynamic) "true";
+		return { pos: haxe.macro.Context.currentPos(), expr: haxe.macro.Expr.ExprDef.EConst(haxe.macro.Expr.Constant.CIdent(result)) };
+	}
 
 	public function testType() {
 		var name = u("unit")+"."+u("MyClass");
@@ -181,7 +189,6 @@ class TestType extends Test {
 
 	function testCallback()
 	{
-		
 		var func = function(a:Int, b:String, c:Float) return a;
 
 		#if !macro
