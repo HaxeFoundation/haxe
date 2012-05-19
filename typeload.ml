@@ -330,7 +330,7 @@ let load_type_opt ?(opt=false) ctx p t =
 
 let valid_redefinition ctx f1 t1 f2 t2 =
 	let valid t1 t2 =
-		unify_raise ctx t1 t2 f2.cf_pos;
+		unify_raise ctx t1 t2 f1.cf_pos;
 		if is_null t1 <> is_null t2 then raise (Unify_error [Cannot_unify (t1,t2)]);
 	in
 	let t1, t2 = (match f1.cf_params, f2.cf_params with
