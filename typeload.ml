@@ -346,7 +346,6 @@ let valid_redefinition ctx f1 t1 f2 t2 =
 			if o1 <> o2 then raise (Unify_error [Not_matching_optional n]);
 			valid a2 a1;
 		) args1 args2;
-		unify_raise ctx r1 r2 f2.cf_pos;
 		valid r1 r2;
 	| _ , _ ->
 		(* in case args differs, or if an interface var *)
