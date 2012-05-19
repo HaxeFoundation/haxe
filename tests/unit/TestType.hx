@@ -284,4 +284,43 @@ class TestType extends Test {
 		t(typeError( { var b: { v:Int } = { v: 1.2 };} ));
 		#end
 	}
+	
+	function testCovariantReturn()
+	{
+		#if !macro
+		var b:Base = null;
+		var c1:Child1 = null;
+		
+		var c = new Cov2();
+		typedAs(c.covariant(), c1);
+		t(Std.is(c.covariant(), Child1));
+		t(Std.is(cast(c, Cov1).covariant(), Child1));
+		
+		// base class reference
+		var br:Cov1 = c;
+		typedAs(br.covariant(), b);
+		t(Std.is(br.covariant(), Child1));
+		
+		// interface reference
+		var ir:CovI = c;
+		typedAs(ir.covariant(), b);
+		t(Std.is(ir.covariant(), Child1));
+		
+		// dynamic
+		var dr:Dynamic = c;
+		t(Std.is(dr.covariant(), Child1));		
+		#end
+	}
+	
+	function testContravariantArgs()
+	{
+		#if !macro
+		var b = function(arg:Base):Void { };
+		var c1 = function(arg:Child1):Void { };
+		
+		var c = new Ctrv2();
+		typedAs(c.contravariant, b);
+		typedAs(cast (c, Ctrv1).contravariant, c1);
+		#end
+	}
 }

@@ -61,3 +61,27 @@ class CII2 extends CI2 { public function new() { super(); } }
 class PClassBase<T> { public function new() {  } }
 class PClass1<T> extends PClassBase<Float> { public function new() { super(); } }
 class PClass2<T> extends PClassBase<T> { public function new(t:T) { super(); } }
+
+interface CovI {
+	public function covariant():Base;
+}
+
+class Cov1 {
+	public function new() { }
+	public function covariant():Base { return new Base(); }
+}
+
+class Cov2 extends Cov1, implements CovI {
+	public function new() { super(); }
+	public override function covariant():Child1 { return new Child1(); }
+}
+
+class Ctrv1 {
+	public function new() { }
+	public function contravariant(arg:Child1) { }
+}
+
+class Ctrv2 extends Ctrv1 {
+	public function new() { super(); }
+	public override function contravariant(arg:Base) { }
+}
