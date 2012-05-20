@@ -1186,34 +1186,35 @@ let stack_block ctx c m e =
 	on some platforms which doesn't support type parameters, we must have the
 	exact same type for overriden/implemented function as the original one
 *)
+
+let rec find_field c f =
+	try
+		(match c.cl_super with
+		| None ->
+			raise Not_found
+		| Some (c,_) ->
+			find_field c f)
+	with Not_found -> try
+		let rec loop = function
+			| [] ->
+				raise Not_found
+			| (c,_) :: l ->
+				try
+					find_field c f
+				with
+					Not_found -> loop l
+		in
+		loop c.cl_implements
+	with Not_found ->
+		let f = PMap.find f.cf_name c.cl_fields in
+		(match f.cf_kind with Var { v_read = AccRequire _ } -> raise Not_found | _ -> ());
+		f
+
 let fix_override com c f fd =
 	c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
-	let rec find_field c interf =
-		try
-			(match c.cl_super with
-			| None ->
-				raise Not_found
-			| Some (c,_) ->
-				find_field c false)
-		with Not_found -> try
-			let rec loop = function
-				| [] ->
-					raise Not_found
-				| (c,_) :: l ->
-					try
-						find_field c true
-					with
-						Not_found -> loop l
-			in
-			loop c.cl_implements
-		with Not_found ->
-			let f = PMap.find f.cf_name c.cl_fields in
-			(match f.cf_kind with Var { v_read = AccRequire _ } -> raise Not_found | _ -> ());
-			interf, f
-	in
-	let f2 = (try Some (find_field c c.cl_interface) with Not_found -> None) in
+	let f2 = (try Some (find_field c f) with Not_found -> None) in
 	let f = (match f2,fd with
-		| Some (interf,f2), Some(fd) ->
+		| Some (f2), Some(fd) when f != f2 ->
 			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> assert false) in
 			let changed_args = ref [] in
 			let prefix = "_tmp_" in
@@ -1243,10 +1244,11 @@ let fix_override com c f fd =
 			} in
 			let fde = (match f.cf_expr with None -> assert false | Some e -> e) in
 			{ f with cf_expr = Some { fde with eexpr = TFunction fd2 }; cf_type = TFun(targs,tret) }
-		| Some(true,f2), None ->
+		| Some(f2), None when c.cl_interface ->
 			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> assert false) in
 			{ f with cf_type = TFun(targs,tret) }
-		| _ -> f
+		| _ ->
+			f
 	) in
 	c.cl_fields <- PMap.add f.cf_name f c.cl_fields;
 	f
@@ -1265,6 +1267,19 @@ let fix_overrides com t =
 		) c.cl_ordered_fields
 	| _ ->
 		()
+
+(*	
+	PHP does not allow abstract classes extending other abstract classes to override any fields, so these duplicates
+	must be removed from the child interface
+*)	
+let fix_abstract_inheritance com t =
+	match t with
+	| TClassDecl c when c.cl_interface ->
+		c.cl_ordered_fields <- List.filter (fun f ->
+			try (find_field c f) == f
+			with Not_found -> false
+		) c.cl_ordered_fields
+	| _ -> ()
 
 (* -------------------------------------------------------------------------- *)
 (* MISC FEATURES *)

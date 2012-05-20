@@ -2237,6 +2237,7 @@ let generate com =
 				all_dynamic_methods := dynamic_methods_names c.cl_ordered_statics @ !all_dynamic_methods;
 		| _ -> ())
 	) com.types;
+	List.iter (Codegen.fix_abstract_inheritance com) com.types;
 	List.iter (fun t ->
 		(match t with
 		| TClassDecl c ->
