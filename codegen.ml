@@ -1214,7 +1214,7 @@ let fix_override com c f fd =
 	c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
 	let f2 = (try Some (find_field c f) with Not_found -> None) in
 	let f = (match f2,fd with
-		| Some (f2), Some(fd) when f != f2 ->
+		| Some (f2), Some(fd) ->
 			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> assert false) in
 			let changed_args = ref [] in
 			let prefix = "_tmp_" in
@@ -1276,8 +1276,10 @@ let fix_abstract_inheritance com t =
 	match t with
 	| TClassDecl c when c.cl_interface ->
 		c.cl_ordered_fields <- List.filter (fun f ->
-			try (find_field c f) == f
-			with Not_found -> false
+			let b = try (find_field c f) == f
+			with Not_found -> false in
+			if not b then c.cl_fields <- PMap.remove f.cf_name c.cl_fields;
+			b;
 		) c.cl_ordered_fields
 	| _ -> ()
 
