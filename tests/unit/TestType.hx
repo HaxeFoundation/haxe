@@ -290,6 +290,7 @@ class TestType extends Test {
 		#if !macro
 		var b:Base = null;
 		var c1:Child1 = null;
+		var c2_1:Child2_1 = null;
 		
 		var c = new Cov2();
 		typedAs(c.covariant(), c1);
@@ -308,7 +309,12 @@ class TestType extends Test {
 		
 		// dynamic
 		var dr:Dynamic = c;
-		t(Std.is(dr.covariant(), Child1));		
+		t(Std.is(dr.covariant(), Child1));
+		
+		// interface covariance
+		var c3 = new Cov3();
+		typedAs(c3.covariant(), c2_1);
+		t(Std.is(c3.covariant(), Child2_1));
 		#end
 	}
 	

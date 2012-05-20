@@ -66,6 +66,10 @@ interface CovI {
 	public function covariant():Base;
 }
 
+interface CovI2 implements CovI {
+	public function covariant():Child2;
+}
+
 class Cov1 {
 	public function new() { }
 	public function covariant():Base { return new Base(); }
@@ -74,6 +78,12 @@ class Cov1 {
 class Cov2 extends Cov1, implements CovI {
 	public function new() { super(); }
 	public override function covariant():Child1 { return new Child1(); }
+}
+
+class Cov3 implements CovI2
+{
+	public function new() { }
+	public function covariant():Child2_1 { return new Child2_1(); }
 }
 
 class Ctrv1 {

@@ -1211,9 +1211,9 @@ let fix_override com c f fd =
 			(match f.cf_kind with Var { v_read = AccRequire _ } -> raise Not_found | _ -> ());
 			interf, f
 	in
-	let f2 = (try Some (find_field c true) with Not_found -> None) in
-	let f = (match f2 with
-		| Some (interf,f2) ->
+	let f2 = (try Some (find_field c c.cl_interface) with Not_found -> None) in
+	let f = (match f2,fd with
+		| Some (interf,f2), Some(fd) ->
 			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> assert false) in
 			let changed_args = ref [] in
 			let prefix = "_tmp_" in
@@ -1243,6 +1243,9 @@ let fix_override com c f fd =
 			} in
 			let fde = (match f.cf_expr with None -> assert false | Some e -> e) in
 			{ f with cf_expr = Some { fde with eexpr = TFunction fd2 }; cf_type = TFun(targs,tret) }
+		| Some(true,f2), None ->
+			let targs, tret = (match follow f2.cf_type with TFun (args,ret) -> args, ret | _ -> assert false) in
+			{ f with cf_type = TFun(targs,tret) }
 		| _ -> f
 	) in
 	c.cl_fields <- PMap.add f.cf_name f c.cl_fields;
@@ -1254,7 +1257,9 @@ let fix_overrides com t =
 		c.cl_ordered_fields <- List.map (fun f ->
 			match f.cf_expr, f.cf_kind with
 			| Some { eexpr = TFunction fd }, Method (MethNormal | MethInline) ->
-				fix_override com c f fd
+				fix_override com c f (Some fd)
+			| None, Method (MethNormal | MethInline) when c.cl_interface ->
+				fix_override com c f None
 			| _ ->
 				f
 		) c.cl_ordered_fields
