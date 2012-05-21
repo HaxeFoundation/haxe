@@ -2622,7 +2622,20 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		let ttype = Typeload.load_instance ctx2 cttype p false in
 		unify ctx2 mret ttype mpos
 	);
-	let args = (try
+	(*
+		if the function's last argument is of Array<Expr>, split the argument list and use [] for unify_call_params
+	*)
+	let el,el2 = match List.rev margs with
+		| (_,_,TInst({cl_path=([], "Array")},[expr])) :: rest ->
+			let el,el2 = ExtList.List.split_nth ((List.length margs) - 1) el in
+			(* 
+				if there's only one excess argument and it's an array declaration, use that instead
+			*)
+			let el2 = match el2 with [EArrayDecl e,p] -> e | _ -> el2 in
+			el @ [EArrayDecl [],p],el2
+		| _ -> el,[]
+	in
+	let args =
 		(*
 			force default parameter types to haxe.macro.Expr, and if success allow to pass any value type since it will be encoded
 		*)
@@ -2663,12 +2676,11 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 				| None -> assert false
 				| Some v -> v
 		) eargs elt
-	with Error (e,p) ->
-		(* last try : maybe we have an Array<Expr> ? *)
-		match margs with
-		| [(_,_,t)] when (try unify_raise ctx2 t (ctx2.t.tarray expr) p; true with _ -> false) -> [Interp.enc_array (List.map Interp.encode_expr el)]
-		| _ -> raise (Error (e,p))
-	) in
+	in
+	let args = match el2 with
+		| [] -> args
+		| _ -> (match List.rev args with _::args -> args | [] -> []) @ [Interp.enc_array (List.map Interp.encode_expr el2)]
+	in
 	let call() =
 		match call_macro args with
 		| None -> None
