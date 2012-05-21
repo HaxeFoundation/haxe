@@ -1302,6 +1302,11 @@ and type_ident_noerr ctx i is_type p mode =
 
 and type_expr_with_type ~unify ctx e t =
 	match e with
+	| (EParenthesis e,p) ->
+		let e = type_expr_with_type ~unify ctx e t in
+		mk (TParenthesis e) e.etype p;
+	| (ECall (e,el),p) ->
+		type_call ctx e el t p
 	| (EFunction _,_) ->
 		let old = ctx.param_type in
 		(try
@@ -1726,7 +1731,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let e = type_expr ctx e in
 		mk (TThrow e) (mk_mono()) p
 	| ECall (e,el) ->
-		type_call ctx e el p
+		type_call ctx e el None p
 	| ENew (t,el) ->
 		let t = Typeload.load_instance ctx t p true in
 		let el, c , params = (match follow t with
@@ -1939,7 +1944,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		unify ctx e.etype t e.epos;
 		if e.etype == t then e else mk (TCast (e,None)) t p
 
-and type_call ctx e el p =
+and type_call ctx e el t p =
 	match e, el with
 	| (EConst (Ident "trace"),p) , e :: el ->
 		if Common.defined ctx.com "no_traces" then
@@ -2011,7 +2016,7 @@ and type_call ctx e el p =
 				| TTypeExpr (TClassDecl c) ->
 					(match ctx.g.do_macro ctx MExpr c.cl_path f.cf_name el p with
 					| None -> type_expr ctx (EConst (Ident "null"),p)
-					| Some e -> type_expr ctx e)
+					| Some e -> type_expr_with_type unify ctx e t)
 				| _ ->
 					(* member-macro call : since we will make a static call, let's found the actual class and not its subclass *)
 					(match follow ethis.etype with
