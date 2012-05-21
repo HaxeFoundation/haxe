@@ -281,7 +281,10 @@ class TestType extends Test {
 		f(typeError(a = { v: untyped "foo" } ));
 		f(typeError(a = { v: b } ));
 		f(typeError( { var b: { v:Dynamic } = { v: "foo" };} ));
-		t(typeError( { var b: { v:Int } = { v: 1.2 };} ));
+		t(typeError( { var b: { v:Int } = { v: 1.2 }; } ));
+		t(typeError( { var b: { v:Int } = { v:0, w:"foo" }; }));
+		t(typeError( { var b: { v:Int } = { v:0, v:2 }; } ));
+		t(typeError( { var b: { v:Int, w:String } = { v:0 }; } ));
 		#end
 	}
 	
