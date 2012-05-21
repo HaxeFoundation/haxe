@@ -2631,13 +2631,20 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		if the function's last argument is of Array<Expr>, split the argument list and use [] for unify_call_params
 	*)
 	let el,el2 = match List.rev margs with
-		| (_,_,TInst({cl_path=([], "Array")},[expr])) :: rest ->
-			let el,el2 = ExtList.List.split_nth ((List.length margs) - 1) el in
-			(* 
-				if there's only one excess argument and it's an array declaration, use that instead
-			*)
-			let el2 = match el2 with [EArrayDecl e,p] -> e | _ -> el2 in
-			el @ [EArrayDecl [],p],el2
+		| (_,_,TInst({cl_path=([], "Array")},[e])) :: rest when (try Type.type_eq EqStrict e expr; true with _ -> false) ->
+			let rec loop el1 el2 margs el = match margs,el with
+				| _,[] ->
+					el1,el2
+				| _ :: [], (EArrayDecl e,_) :: [] ->
+					(el1 @ [EArrayDecl [],p]),e
+				| [], e :: el ->
+					loop el1 (el2 @ [e]) [] el
+				| _ :: [], e :: el ->
+					loop (el1 @ [EArrayDecl [],p]) el2 [] (e :: el)
+				| _ :: margs, e :: el ->
+					loop (el1 @ [e]) el2 margs el
+			in
+			loop [] [] margs el
 		| _ -> el,[]
 	in
 	let args =
