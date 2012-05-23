@@ -23,6 +23,15 @@
 	all : allow derived classes to widen method visibility
 	macro : added haxe.macro.Context.getLocalMethod
 	macro : improved support of "using" macro functions
+	php : optimized Xml implementation
+	php : fixed Reflect.get/setProperty not working on PHP < 5.3
+	all : support for callback(f, _, x)
+	all : allow private access between classes that have a common base class
+	all : added Output.writeFloat/Double and Input.readFloat/Double
+	all : support for var:{x:Float} = { x = 1 }
+	all : allow contravariant function arguments and covariant function returns
+	macro : support for final Array<Expr> argument as rest argument
+	macro : use top-down inference on macro calls
 
 2012-04-14: 2.09
 	all : optimized const == const and const != const (with different const types)
