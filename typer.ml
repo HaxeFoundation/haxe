@@ -1364,7 +1364,7 @@ and type_expr_with_type ~unify ctx e t =
 		| None -> type_expr ctx e
 		| Some t ->
 			match follow t with
-			| TAnon a ->
+			| TAnon a when not (PMap.is_empty a.a_fields) ->
 				let fields = Hashtbl.create 0 in
 				let el = List.map (fun (n, e) ->
 					let n,add = object_field n in
