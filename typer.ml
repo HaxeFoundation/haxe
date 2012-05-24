@@ -1250,7 +1250,7 @@ and type_switch ctx e cases def need_val p =
 			| [] -> ()
 			| _ -> display_error ctx ("Some constructors are not matched : " ^ String.concat "," l) p
 		);
-		let t = if not need_val then ctx.t.tvoid else unify_min_raise ctx !el in
+		let t = if not need_val then (mk_mono()) else unify_min_raise ctx !el in
 		mk (TMatch (eval,(enum,enparams),List.map indexes cases,def)) t p
 	| _ ->
 		let consts = Hashtbl.create 0 in
@@ -1270,7 +1270,7 @@ and type_switch ctx e cases def need_val p =
 			el, e
 		in
 		let cases = List.map exprs cases in
-		let t = if not need_val then ctx.t.tvoid else unify_min_raise ctx !el in
+		let t = if not need_val then (mk_mono()) else unify_min_raise ctx !el in
 		mk (TSwitch (eval,cases,def)) t p
 
 and type_ident_noerr ctx i is_type p mode =
