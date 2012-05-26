@@ -271,6 +271,7 @@ class TestType extends Test {
 	function testConstantAnonCovariance()
 	{
 		#if !macro
+		var func = function (str:String, ?str1: { x:Float, y:Int }, ?str2: { w:Float, h:Int } ) { };
 		var a: { v:Float };
 		var b:Dynamic = "bar";
 		f(typeError(a = { v:0.2 } ));
@@ -285,6 +286,10 @@ class TestType extends Test {
 		t(typeError( { var b: { v:Int } = { v:0, w:"foo" }; }));
 		t(typeError( { var b: { v:Int } = { v:0, v:2 }; } ));
 		t(typeError( { var b: { v:Int, w:String } = { v:0 }; } ));
+		typedAs({ v: 0.2, " foo":2 }, a);		
+		t(typeError(a = { v:0, " foo":2 } ));
+		f(typeError(func("foo", { x:1.2, y:2 } )));
+		f(typeError(func("foo", { w:1.2, h:2 } )));
 		#end
 	}
 	
