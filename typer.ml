@@ -1365,19 +1365,35 @@ and type_expr_with_type ~unify ctx e t =
 		| Some t ->
 			match follow t with
 			| TAnon a when not (PMap.is_empty a.a_fields) ->
-				let fields = Hashtbl.create 0 in
+				let fields = ref PMap.empty in
+				let extra_fields = ref [] in
 				let el = List.map (fun (n, e) ->
 					let n,add = object_field n in
-					if Hashtbl.mem fields n then error ("Duplicate field in object declaration : " ^ n) (snd e);
-					let t = try (PMap.find n a.a_fields).cf_type with Not_found -> if ctx.untyped then t_dynamic else error ("Structure has extra field : " ^ n) (snd e) in
-					Hashtbl.add fields n true;
-					let e = type_expr_with_type ~unify ctx e (Some t) in
-					unify ctx e.etype t e.epos;
+					if PMap.mem n !fields then error ("Duplicate field in object declaration : " ^ n) p;
+					let e = try
+						let t = (PMap.find n a.a_fields).cf_type in
+						let e = type_expr_with_type ~unify ctx e (Some t) in
+						unify ctx e.etype t e.epos;
+						{e with etype = t}
+					with Not_found ->
+						extra_fields := n :: !extra_fields;
+						type_expr ctx e
+					in
+					if add then begin
+						let cf = mk_field n e.etype e.epos in
+						fields := PMap.add n cf !fields;
+					end;
 					(n,e)
 				) el in
-				if not ctx.untyped then	PMap.iter (fun n cf ->
-						if not (has_meta ":optional" cf.cf_meta) && not (Hashtbl.mem fields n) then error ("Structure has no field " ^ n) p;
-					) a.a_fields;
+ 				let t = (TAnon { a_fields = !fields; a_status = ref Const }) in
+				if not ctx.untyped then begin
+					(match !extra_fields with
+						| [] -> ()
+						| _ -> raise (Error (Unify (List.map (fun n -> has_extra_field t n) !extra_fields),p)));
+					PMap.iter (fun n cf ->
+							if not (has_meta ":optional" cf.cf_meta) && not (PMap.mem n !fields) then raise (Error (Unify [has_no_field t n],p));
+					) a.a_fields
+				end;
 				a.a_status := Closed;
 				mk (TObjectDecl el) t p
 			| _ ->
