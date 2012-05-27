@@ -1752,7 +1752,8 @@ let before_generate con =
   List.iter (Codegen.fix_overrides con) con.types
 
 let generate con =
-	let gen = new_ctx con in
+  let gen = new_ctx con in
+  gen.gallow_tp_dynamic_conversion <- true;
   
   let basic = con.basic in
   (* make the basic functions in java *)

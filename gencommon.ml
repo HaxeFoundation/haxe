@@ -7551,7 +7551,7 @@ struct
             cf
           | _ ->
             let actual_t = match follow ef.ef_type with
-              | TEnum(e, p) -> TEnum(e, List.map (fun _ -> t_empty) p)
+              | TEnum(e, p) -> TEnum(e, List.map (fun _ -> t_dynamic) p)
               | _ -> assert false
             in
             let cf = mk_class_field name actual_t true pos (Var { v_read = AccNormal; v_write = AccNormal }) [] in
