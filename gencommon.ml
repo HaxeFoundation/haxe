@@ -4120,9 +4120,6 @@ struct
                 | TInst(cl, p1 :: pl) when is_hxgeneric (TClassDecl cl) ->
                   let iface = Hashtbl.find ifaces cl.cl_path in
                   mk_cast e.etype (change_expr (Type.map_expr run cast_expr) iface (p1 :: pl))
-                | TEnum(en, p1 :: pl) when is_hxgeneric (TEnumDecl en) ->
-                  let iface = Hashtbl.find ifaces en.e_path in
-                  mk_cast e.etype (change_expr (Type.map_expr run cast_expr) iface (p1 :: pl))
                 | _ -> Type.map_expr run e
               )
             | _ -> Type.map_expr run e
@@ -7504,7 +7501,7 @@ struct
         false
       with | Exit -> true
     
-    let convert gen t base_class en should_be_hxgen = 
+    let convert gen t base_class en should_be_hxgen handle_type_params = 
       let basic = gen.gcon.basic in
       let pos = en.e_pos in
       
@@ -7518,7 +7515,14 @@ struct
       en.e_meta <- (":$class", [], pos) :: en.e_meta;
       cl.cl_module <- en.e_module;
       cl.cl_meta <- ( ":$enum", [], pos ) :: cl.cl_meta;
-      cl.cl_types <- en.e_types;
+      let c_types = 
+        if handle_type_params then
+          List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) en.e_types 
+        else
+          []
+      in
+      
+      cl.cl_types <- c_types;
       
       let i = ref 0 in
       let cfs = List.map (fun name ->
@@ -7529,8 +7533,20 @@ struct
         
         let cf = match follow ef.ef_type with 
           | TFun(params,ret) ->
-            let dup_types = List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) en.e_types in
-            let ef_type = apply_params en.e_types (List.map snd dup_types) ef.ef_type in
+            let dup_types = 
+              if handle_type_params then
+                List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) en.e_types 
+              else
+                []
+            in
+            
+            let ef_type = 
+              if handle_type_params then
+                apply_params en.e_types (List.map snd dup_types) ef.ef_type 
+              else
+                apply_params en.e_types (List.map (fun _ -> t_dynamic) en.e_types) ef.ef_type
+            in
+            
             let params, ret = get_fun ef_type in
             
             let cf = mk_class_field name ef_type true pos (Method MethNormal) dup_types in
@@ -7616,8 +7632,8 @@ struct
         enum_base_class : tclass - the enum base class. 
         should_be_hxgen : bool - should the created enum be hxgen?
     *)
-    let traverse gen t convert_all convert_if_has_meta enum_base_class should_be_hxgen =
-      let convert e = convert gen t enum_base_class e should_be_hxgen in
+    let traverse gen t convert_all convert_if_has_meta enum_base_class should_be_hxgen handle_tparams =
+      let convert e = convert gen t enum_base_class e should_be_hxgen handle_tparams in
       let run md = match md with
         | TEnumDecl e when is_hxgen md ->
           if convert_all then 
@@ -7747,9 +7763,9 @@ struct
     
   end;;
   
-  let configure gen opt_get_native_enum_tag convert_all convert_if_has_meta enum_base_class should_be_hxgen =
+  let configure gen opt_get_native_enum_tag convert_all convert_if_has_meta enum_base_class should_be_hxgen handle_tparams =
     let t = new_t () in
-    EnumToClassModf.configure gen (EnumToClassModf.traverse gen t convert_all convert_if_has_meta enum_base_class should_be_hxgen);
+    EnumToClassModf.configure gen (EnumToClassModf.traverse gen t convert_all convert_if_has_meta enum_base_class should_be_hxgen handle_tparams);
     EnumToClassExprf.configure gen (EnumToClassExprf.traverse gen t opt_get_native_enum_tag)
   
 end;;

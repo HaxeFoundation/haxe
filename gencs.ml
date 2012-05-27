@@ -586,9 +586,9 @@ let configure gen =
       | TMono r -> (match !r with | None -> "object" | Some t -> t_s (run_follow gen t))
       | TInst ({ cl_path = [], "String" }, []) -> "string"
       | TInst ({ cl_path = [], "Class" }, _) | TInst ({ cl_path = [], "Enum" }, _) -> "haxe.lang.Class"
-      | TEnum (({e_path = p;} as e), params) -> (path_param_s (TEnumDecl e) p params)
-      | TInst (({cl_path = p;} as cl), params) -> (path_param_s (TClassDecl cl) p params)
-      | TType (({t_path = p;} as t), params) -> (path_param_s (TTypeDecl t) p params)
+      | TEnum ({ e_path = p }, params) -> (path_s p)
+      | TInst (({ cl_path = p } as cl), params) -> (path_param_s (TClassDecl cl) p params)
+      | TType (({ t_path = p } as t), params) -> (path_param_s (TTypeDecl t) p params)
       | TAnon (anon) ->
         (match !(anon.a_status) with
           | Statics _ | EnumStatics _ -> "haxe.lang.Class"
@@ -1313,7 +1313,7 @@ let configure gen =
   
   ClosuresToClass.configure gen (ClosuresToClass.default_implementation closure_t (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Function")) ));
   
-  EnumToClass.configure gen (Some (fun e -> mk_cast gen.gcon.basic.tint e)) false true (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Enum")) ) true;
+  EnumToClass.configure gen (Some (fun e -> mk_cast gen.gcon.basic.tint e)) false true (get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Enum")) ) true false;
   
   InterfaceVarsDeleteModf.configure gen;
   
