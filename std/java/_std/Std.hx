@@ -60,7 +60,6 @@ import haxe.lang.Exceptions;
 	@:functionBody('
 		if (x == null) return null;
 		
-		x = x.trim();
 		int ret = 0;
 		int base = 10;
 		
@@ -73,20 +72,30 @@ import haxe.lang.Exceptions;
 		int len = x.length();
 		boolean foundAny = false;
 		boolean isNeg = false;
-		boolean hasValue = false;
 		for (int i = 0; i < len; i++)
 		{
 			char c = x.charAt(i);
-			if (!foundAny && c == \'-\') {
-				isNeg = true;
-				continue;
+			if (!foundAny) 
+			{
+				switch(c)
+				{
+					case \'-\':
+						isNeg = true;
+						continue;
+					case \'\\n\': 
+					case \'\\t\': 
+					case \'\\r\': 
+					case \' \': 
+						if (isNeg) return null;
+						continue;
+				}
 			}
 			
 			if (c >= \'0\' && c <= \'9\')
 			{
 				if (!foundAny && c == \'0\')
 				{
-					hasValue = true;
+					foundAny = true;
 					continue;
 				}
 				ret *= base; foundAny = true;
@@ -107,7 +116,7 @@ import haxe.lang.Exceptions;
 			}
 		}
 		
-		if (foundAny || hasValue)
+		if (foundAny)
 			return isNeg ? -ret : ret;
 		else
 			return null;
@@ -125,15 +134,25 @@ import haxe.lang.Exceptions;
 		double e = 0.0;
 		
 		int len = x.length();
-		boolean hasValue = false;
 		boolean foundAny = false;
 		boolean isNeg = false;
 		for (int i = 0; i < len; i++)
 		{
 			char c = x.charAt(i);
-			if (!foundAny && c == \'-\') {
-				isNeg = true;
-				continue;
+			if (!foundAny) 
+			{
+				switch(c)
+				{
+					case \'-\':
+						isNeg = true;
+						continue;
+					case \'\\n\': 
+					case \'\\t\': 
+					case \'\\r\': 
+					case \' \': 
+					if (isNeg) return java.lang.Double.NaN;
+						continue;
+				}
 			}
 			
 			if (c == \'.\') {
@@ -148,7 +167,7 @@ import haxe.lang.Exceptions;
 			{
 				if (!foundAny && c == \'0\')
 				{
-					hasValue = true;
+					foundAny = true;
 					continue;
 				}
 				ret *= 10.0; foundAny = true; div *= 10.0;
@@ -157,10 +176,17 @@ import haxe.lang.Exceptions;
 			} else if (foundAny && c == \'E\' || c == \'e\') {
 				boolean eNeg = false;
 				boolean eFoundAny = false;
-				if (i + 1 < len && x.charAt(i + 1) == \'-\')
+				
+				char next = x.charAt(i + 1);
+				if (i + 1 < len)
 				{
-					eNeg = true;
-					i++;
+					if (next == \'-\')
+					{
+						eNeg = true;
+						i++;
+					} else if (next == \'+\') {
+						i++;
+					}
 				}
 				
 				while (++i < len)
@@ -186,7 +212,7 @@ import haxe.lang.Exceptions;
 		
 		if (div == 0.0) div = 1.0;
 		
-		if (foundAny || hasValue)
+		if (foundAny)
 		{
 			ret = isNeg ? -(ret / div) : (ret / div);
 			if (e != 0.0)

@@ -49,7 +49,6 @@ import haxe.lang.Exceptions;
 	public static function parseInt( x : String ) : Null<Int> {
 		if (x == null) return null;
 		
-		x = StringTools.ltrim(x);
 		var ret = 0;
 		var base = 10;
 		var i = -1;
@@ -62,21 +61,28 @@ import haxe.lang.Exceptions;
 		var len = x.length;
 		var foundAny = false;
 		var isNeg = false;
-		var hasValue = false;
 		while (++i < len)
 		{
 			var c = cast(untyped x[i], Int); //fastCodeAt
-			if (!foundAny && c == '-'.code) 
+			if (!foundAny) 
 			{
-				isNeg = true;
-				continue;
+				switch(c)
+				{
+					case '-'.code:
+						isNeg = true;
+						continue;
+					case ' '.code, '\t'.code, '\n'.code, '\r'.code:
+						if (isNeg)
+							return null;
+						continue;
+				}
 			}
 			
 			if (c >= '0'.code && c <= '9'.code)
 			{
 				if (!foundAny && c == '0'.code)
 				{
-					hasValue = true;
+					foundAny = true;
 					continue;
 				}
 				ret *= base; foundAny = true;
@@ -97,7 +103,7 @@ import haxe.lang.Exceptions;
 			}
 		}
 		
-		if (foundAny || hasValue)
+		if (foundAny)
 			return isNeg ? -ret : ret;
 		else
 			return null;
@@ -112,17 +118,24 @@ import haxe.lang.Exceptions;
 		var e = 0.0;
 		
 		var len = x.length;
-		var hasValue = false;
 		var foundAny = false;
 		var isNeg = false;
 		var i = -1;
 		while (++i < len)
 		{
 			var c = cast(untyped x[i], Int); //fastCodeAt
-			if (!foundAny && c == '-'.code)
+			if (!foundAny) 
 			{
-				isNeg = true;
-				continue;
+				switch(c)
+				{
+					case '-'.code:
+						isNeg = true;
+						continue;
+					case ' '.code, '\t'.code, '\n'.code, '\r'.code:
+						if (isNeg)
+							return Math.NaN;
+						continue;
+				}
 			}
 			
 			if (c == '.'.code)
@@ -138,7 +151,7 @@ import haxe.lang.Exceptions;
 			{
 				if (!foundAny && c == '0'.code)
 				{
-					hasValue = true;
+					foundAny = true;
 					continue;
 				}
 				
@@ -148,10 +161,16 @@ import haxe.lang.Exceptions;
 			} else if (foundAny && (c == 'e'.code || c == 'E'.code)) {
 				var eNeg = false;
 				var eFoundAny = false;
-				if (i + 1 < len && untyped cast(x[i + 1], Int) == '-'.code)
+				if (i + 1 < len)
 				{
-					eNeg = true;
-					i++;
+					var next = untyped cast(x[i + 1], Int);
+					if (next == '-'.code)
+					{
+						eNeg = true;
+						i++;
+					} else if (next == '+'.code) {
+						i++;
+					}
 				}
 				
 				while (++i < len)
@@ -177,7 +196,7 @@ import haxe.lang.Exceptions;
 		
 		if (div == 0.0) div = 1.0;
 		
-		if (foundAny || hasValue)
+		if (foundAny)
 		{
 			ret = isNeg ? -(ret / div) : (ret / div);
 			if (e != 0.0)
