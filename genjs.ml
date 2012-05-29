@@ -925,15 +925,18 @@ let generate_class ctx c =
 		newline ctx;
 	);
 
-	let gen_props props = 
-		String.concat "," (List.map (fun (p,v) -> p ^":\""^v^"\"") props)
-	in
+	let gen_props props =
+		String.concat "," (List.map (fun (p,v) -> p ^":\""^v^"\"") props) in
+	let has_property_reflection =
+		(has_feature ctx "Reflect.getProperty") || (has_feature ctx "Reflect.setProperty") in
 
-	(match Codegen.get_properties c.cl_ordered_statics with
-	| [] -> ()
-	| props ->
-		print ctx "%s.__properties__ = {%s}" p (gen_props props);
-		newline ctx);
+	if has_property_reflection then begin
+		(match Codegen.get_properties c.cl_ordered_statics with
+		| [] -> ()
+		| props ->
+			print ctx "%s.__properties__ = {%s}" p (gen_props props);
+			newline ctx);
+	end;
 
 	List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
 
@@ -951,17 +954,19 @@ let generate_class ctx c =
 	newprop ctx;
 	print ctx "__class__: %s" p;
 
-	let props = Codegen.get_properties c.cl_ordered_fields in
-	(match c.cl_super with
-	| _ when props = [] -> ()
-	| Some (csup,_) when Codegen.has_properties csup ->
-		newprop ctx;
-		let psup = s_path ctx csup.cl_path in
-		print ctx "__properties__: $extend(%s.prototype.__properties__,{%s})" psup (gen_props props)
-	| _ ->
-		newprop ctx;
-		print ctx "__properties__: {%s}" (gen_props props));
-	
+	if has_property_reflection then begin
+		let props = Codegen.get_properties c.cl_ordered_fields in
+		(match c.cl_super with
+		| _ when props = [] -> ()
+		| Some (csup,_) when Codegen.has_properties csup ->
+			newprop ctx;
+			let psup = s_path ctx csup.cl_path in
+			print ctx "__properties__: $extend(%s.prototype.__properties__,{%s})" psup (gen_props props)
+		| _ ->
+			newprop ctx;
+			print ctx "__properties__: {%s}" (gen_props props));
+	end;
+
 	bend();
 	print ctx "\n}";
 	(match c.cl_super with None -> () | _ -> print ctx ")");
