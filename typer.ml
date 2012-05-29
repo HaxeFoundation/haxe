@@ -1305,10 +1305,10 @@ and type_ident_noerr ctx i is_type p mode =
 			end
 		end
 
-and type_expr_with_type ctx e t =
+and type_expr_with_type_raise ctx e t =
 	match e with
 	| (EParenthesis e,p) ->
-		let e = type_expr_with_type ~unify ctx e t in
+		let e = type_expr_with_type_raise ctx e t in
 		mk (TParenthesis e) e.etype p;
 	| (ECall (e,el),p) ->
 		type_call ctx e el t p
@@ -1352,7 +1352,7 @@ and type_expr_with_type ctx e t =
 					type_expr ctx e
 				| _ ->
 					let el = List.map (fun e ->
-						let e = type_expr_with_type ctx e (Some tp) in
+						let e = type_expr_with_type_raise ctx e (Some tp) in
 						unify_raise ctx e.etype tp e.epos;
 						e
 					) el in
@@ -1372,7 +1372,7 @@ and type_expr_with_type ctx e t =
 					if PMap.mem n !fields then error ("Duplicate field in object declaration : " ^ n) p;
 					let e = try
 						let t = (PMap.find n a.a_fields).cf_type in
-						let e = type_expr_with_type ~unify ctx e (Some t) in
+						let e = type_expr_with_type_raise ctx e (Some t) in
 						unify ctx e.etype t e.epos;
 						{e with etype = t}
 					with Not_found ->
@@ -1400,6 +1400,14 @@ and type_expr_with_type ctx e t =
 				type_expr ctx e)
 	| _ ->
 		type_expr ctx e
+
+and type_expr_with_type ctx e t =
+	try
+		type_expr_with_type_raise ctx e t
+	with
+		Error(Unify l,p) ->
+			if not ctx.untyped then display_error ctx (error_msg (Unify l)) p;
+			mk (TConst TNull) t_dynamic p
 
 and type_access ctx e p mode =
 	match e with
@@ -2040,7 +2048,7 @@ and type_call ctx e el t p =
 				| TTypeExpr (TClassDecl c) ->
 					(match ctx.g.do_macro ctx MExpr c.cl_path f.cf_name el p with
 					| None -> type_expr ctx (EConst (Ident "null"),p)
-					| Some e -> type_expr_with_type unify ctx e t)
+					| Some e -> type_expr_with_type ctx e t)
 				| _ ->
 					(* member-macro call : since we will make a static call, let's found the actual class and not its subclass *)
 					(match follow ethis.etype with
@@ -2885,4 +2893,4 @@ let rec create com =
 
 ;;
 type_field_rec := type_field;
-type_expr_with_type_rec := type_expr_with_type;
+type_expr_with_type_rec := type_expr_with_type_raise;
