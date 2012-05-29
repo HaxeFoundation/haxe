@@ -113,7 +113,7 @@ let object_field f =
 	if String.length f >= pflen && String.sub f 0 pflen = pf then String.sub f pflen (String.length f - pflen), false else f, true
 
 let type_field_rec = ref (fun _ _ _ _ _ -> assert false)
-let type_expr_with_type_rec = ref (fun _ _ _ -> assert false)
+let type_expr_with_type_raise_rec = ref (fun _ _ _ -> assert false)
 
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
@@ -270,7 +270,7 @@ let rec unify_call_params ctx name el args r p inline =
 			| _ -> error acc "Invalid")
 		| ee :: l, (name,opt,t) :: l2 ->
 			try
-				let e = (!type_expr_with_type_rec) ctx ee (Some t) in
+				let e = (!type_expr_with_type_raise_rec) ctx ee (Some t) in
 				unify_raise ctx e.etype t e.epos;
 				loop ((e,false) :: acc) l l2 skip
 			with
@@ -2893,4 +2893,4 @@ let rec create com =
 
 ;;
 type_field_rec := type_field;
-type_expr_with_type_rec := type_expr_with_type_raise;
+type_expr_with_type_raise_rec := type_expr_with_type_raise;
