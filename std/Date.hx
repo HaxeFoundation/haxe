@@ -103,7 +103,7 @@ extern class Date
 	static function fromString( s : String ) : Date;
 
 
-#if (js || flash)
+#if flash
 	private static function __init__() : Void untyped {
 		var d #if !swf_mark : Dynamic #end = Date;
 		d.now = function() {
@@ -165,9 +165,6 @@ extern class Date
 		#elseif flash
 		d.prototype[__unprotect__("__class__")] = d;
 		d[__unprotect__("__name__")] = ["Date"];
-		#elseif js
-		d.prototype.__class__ = __feature__('Type.resolveClass',$hxClasses['Date'] = d,d);
-		d.__name__ = ["Date"];
 		#end
 	}
 #end

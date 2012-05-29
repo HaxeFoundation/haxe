@@ -29,6 +29,43 @@
  */
 class HxOverrides {
 
+	public static function Date_toString( date :Date ) : String {
+		var m = date.getMonth() + 1;
+		var d = date.getDate();
+		var h = date.getHours();
+		var mi = date.getMinutes();
+		var s = date.getSeconds();
+		return date.getFullYear()
+			+"-"+(if( m < 10 ) "0"+m else ""+m)
+			+"-"+(if( d < 10 ) "0"+d else ""+d)
+			+" "+(if( h < 10 ) "0"+h else ""+h)
+			+":"+(if( mi < 10 ) "0"+mi else ""+mi)
+			+":"+(if( s < 10 ) "0"+s else ""+s);
+	}
+
+	public static function Date_fromString( s : String ) : Date {
+		switch( s.length ) {
+		case 8: // hh:mm:ss
+			var k = s.split(":");
+			var d : Date = untyped __new__(Date);
+			untyped d["setTime"](0);
+			untyped d["setUTCHours"](k[0]);
+			untyped d["setUTCMinutes"](k[1]);
+			untyped d["setUTCSeconds"](k[2]);
+			return d;
+		case 10: // YYYY-MM-DD
+			var k = s.split("-");
+			return new Date(cast k[0],cast untyped k[1] - 1,cast k[2],0,0,0);
+		case 19: // YYYY-MM-DD hh:mm:ss
+			var k = s.split(" ");
+			var y = k[0].split("-");
+			var t = k[1].split(":");
+			return new Date(cast y[0],cast untyped y[1] - 1,cast y[2],cast t[0],cast t[1],cast t[2]);
+		default:
+			throw "Invalid date format : " + s;
+		}
+	}
+
 	public static function String_charCodeAt( s : String, index : Int ) : Null<Int> {
 		var x = (untyped s).charCodeAt(index);
 		if( x != x ) // fast isNaN

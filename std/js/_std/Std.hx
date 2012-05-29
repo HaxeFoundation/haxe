@@ -65,6 +65,8 @@ import js.Boot;
 		String.__name__ = ["String"];
 		Array.prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["Array"] = Array,Array);
 		Array.__name__ = ["Array"];
+		Date.prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["Date"] = Date,Date);
+		Date.__name__ = ["Date"];
 		var Int = __feature__("Type.resolveClass", $hxClasses["Int"] = { __name__ : ["Int"] }, { __name__ : ["Int"] });
 		var Dynamic = __feature__("Type.resolveClass", $hxClasses["Dynamic"] = { __name__ : ["Dynamic"] }, { __name__ : ["Dynamic"] });
 		var Float = __feature__("Type.resolveClass", $hxClasses["Float"] = __js__("Number"), __js__("Number"));
