@@ -656,7 +656,7 @@ let rec type_field ctx e i p mode =
 				| Some (c,params) -> loop_dyn c params
 		in
 		(try
-			let rec share_parent csup c = if is_parent csup c then true else match csup.cl_super with None -> false | Some (csup,_) -> share_parent csup c in 
+			let rec share_parent csup c = if (is_parent csup c) && (PMap.mem i csup.cl_fields) then true else match csup.cl_super with None -> false | Some (csup,_) -> share_parent csup c in
 			let t , f = class_field c i in
 			if e.eexpr = TConst TSuper && (match f.cf_kind with Var _ -> true | _ -> false) && Common.platform ctx.com Flash then error "Cannot access superclass variable for calling : needs to be a proper method" p;
 			if not f.cf_public && not (share_parent c ctx.curclass) && not ctx.untyped then display_error ctx ("Cannot access to private field " ^ i) p;
