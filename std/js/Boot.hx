@@ -179,7 +179,7 @@ class Boot {
 		}
 	}
 
-	private static function __cast(o : Dynamic, t : Dynamic) {
+	@:keep private static function __cast(o : Dynamic, t : Dynamic) {
 		if (__instanceof(o, t)) return o;
 		else throw "Cannot cast " +Std.string(o) + " to " +Std.string(t);
 	}
