@@ -105,6 +105,8 @@ let unify_error_msg ctx = function
 		"Invalid type for field " ^ s ^ " :"
 	| Has_no_field (t,n) ->
 		s_type ctx t ^ " has no field " ^ n
+	| Has_no_runtime_field (t,n) ->
+		s_type ctx t ^ "." ^ n ^ " is not accessible at runtime"
 	| Has_extra_field (t,n) ->
 		s_type ctx t ^ " has extra field " ^ n
 	| Invalid_kind (f,a,b) ->
