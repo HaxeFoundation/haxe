@@ -219,26 +219,6 @@ class Boot {
 					}
 				}
 			};
-			if( String.prototype.cca == null )
-				String.prototype.cca = String.prototype.charCodeAt;
-			String.prototype.charCodeAt = function(i) {
-				var x = __this__.cca(i);
-				if( x != x ) // fast isNaN
-					return __js__('undefined'); // isNaN will still return true
-				return x;
-			};
-			var oldsub = String.prototype.substr;
-			String.prototype.substr = function(pos,len){
-				if( pos != null && pos != 0 && len != null && len < 0 ) return "";
-				if( len == null ) len = __this__.length;
-				if( pos < 0 ){
-					pos = __this__.length + pos;
-					if( pos < 0 ) pos = 0;
-				}else if( len < 0 ){
-					len = __this__.length + len - pos;
-				}
-				return oldsub.apply(__this__,[pos,len]);
-			};
 			Function.prototype["$bind"] = function(o){
 				var f = function(){
 					return f.method.apply(f.scope, untyped __js__("arguments"));

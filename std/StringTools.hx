@@ -296,6 +296,8 @@ class StringTools {
 			return 0;
 		else
 			return cast(untyped s[index], Int);
+		#elseif js
+		return (untyped s).charCodeAt(index);
 		#else
 		return s.cca(index);
 		#end
