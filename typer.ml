@@ -68,7 +68,7 @@ let check_assign ctx e =
 
 let rec get_overloads ctx p = function
 	| (":overload",[(EFunction (_,fu),p)],_) :: l ->
-		let topt = function None -> t_dynamic | Some t -> (try Typeload.load_complex_type ctx p t with _ -> t_dynamic) in
+		let topt = function None -> t_dynamic | Some t -> (try Typeload.load_complex_type ctx p t with | Error (Protect _,_) as e -> raise e | Error _ -> t_dynamic) in
 		let args = List.map (fun (a,opt,t,_) ->  a,opt,topt t) fu.f_args in
 		TFun (args,topt fu.f_type) :: get_overloads ctx p l
 	| _ :: l ->
@@ -1552,7 +1552,7 @@ and type_exprs_unified ctx ?(need_val=true) el =
 		[te], te.etype
 	| _ ->
 		let tl = List.map (type_expr ctx ~need_val) el in
-		let t = try unify_min_raise ctx tl with _ -> t_dynamic in
+		let t = try unify_min_raise ctx tl with Error (Unify _,_) -> t_dynamic in
 		tl, t
 
 and type_expr ctx ?(need_val=true) (e,p) =
@@ -1933,7 +1933,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 						let f = { f with cf_type = opt_type f.cf_type } in
 						match follow (field_type f) with
 						| TFun((_,_,TType({t_path=["haxe";"macro"], ("ExprOf"|"ExprRequire")}, [t])) :: args, ret)
-						| TFun ((_,_,t) :: args, ret) when (try unify_raise ctx (dup e.etype) t e.epos; true with _ -> false) ->
+						| TFun ((_,_,t) :: args, ret) when (try unify_raise ctx (dup e.etype) t e.epos; true with Error (Unify _,_) -> false) ->
 							let f = { f with cf_type = TFun (args,ret); cf_params = [] } in
 							if follow e.etype == t_dynamic && follow t != t_dynamic then
 								()
@@ -2664,7 +2664,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		if the function's last argument is of Array<Expr>, split the argument list and use [] for unify_call_params
 	*)
 	let el,el2 = match List.rev margs with
-		| (_,_,TInst({cl_path=([], "Array")},[e])) :: rest when (try Type.type_eq EqStrict e expr; true with _ -> false) ->
+		| (_,_,TInst({cl_path=([], "Array")},[e])) :: rest when (try Type.type_eq EqStrict e expr; true with Unify_error _ -> false) ->
 			let rec loop el1 el2 margs el = match margs,el with
 				| _,[] ->
 					el1,el2
@@ -2684,7 +2684,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 		(*
 			force default parameter types to haxe.macro.Expr, and if success allow to pass any value type since it will be encoded
 		*)
-		let eargs = List.map (fun (n,o,t) -> try unify_raise ctx2 t expr p; (n, o, t_dynamic), true with _ -> (n,o,t), false) margs in
+		let eargs = List.map (fun (n,o,t) -> try unify_raise ctx2 t expr p; (n, o, t_dynamic), true with Error (Unify _,_) -> (n,o,t), false) margs in
 		(*
 			this is quite tricky here : we want to use unify_call_params which will type our AST expr
 			but we want to be able to get it back after it's been padded with nulls
@@ -2695,7 +2695,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			let e = (try
 				ignore(Codegen.type_constant_value ctx.com e);
 				e
-			with _ ->
+			with Error (Custom _,_) ->
 				(* if it's not a constant, let's make something that is typed as haxe.macro.Expr - for nice error reporting *)
 				(EBlock [
 					(EVars ["__tmp",Some (CTPath ctexpr),Some (EConst (Ident "null"),p)],p);
