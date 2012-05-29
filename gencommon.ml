@@ -8521,8 +8521,15 @@ struct
               false
             | _ -> true
         ) cl.cl_ordered_fields in
-        cl.cl_ordered_fields <- !to_add @ fields;
-        List.iter (fun cf -> cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields) !to_add;
+        
+        cl.cl_ordered_fields <- fields;
+        
+        List.iter (fun cf ->
+          if not (PMap.mem cf.cf_name cl.cl_fields) then begin
+            cl.cl_ordered_fields <- cf :: cl.cl_ordered_fields;
+            cl.cl_fields <- PMap.add cf.cf_name cf cl.cl_fields
+          end
+        ) !to_add;
         
         md
       | _ -> md
