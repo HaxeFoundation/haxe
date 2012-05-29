@@ -1309,19 +1309,6 @@ struct
               get_last_static_ctor super params
       in
       
-      (*let rec change_t t cl params =
-        let t = apply_params cl.cl_types params t in
-        match cl.cl_super with
-          | None -> t
-          | Some (super,tl) ->
-            let params = List.map (apply_params cl.cl_types params) tl in
-            if PMap.mem static_ctor_name cl.cl_statics then 
-              t
-            else
-              change_t t super params
-      in
-      let change_t t params = change_t t cl params in*)
-      
       let rec prev_ctor cl =
         match cl.cl_super with  
           | None -> None
@@ -1600,238 +1587,6 @@ struct
   
 end;;
 
-(*module OverloadingCtor =
-struct
-  
-  let priority = 0.0
-  
-  let set_new_create_empty gen empty_ctor_expr =
-    let old = gen.gtools.rf_create_empty in
-    gen.gtools.rf_create_empty <- (fun cl params pos ->
-      if is_hxgen (TClassDecl cl) then 
-        { eexpr = TNew(cl,params,[empty_ctor_expr]); etype = TInst(cl,params); epos = pos }
-      else
-        old cl params pos
-    )
-  
-  let configure gen (empty_ctor_type : t) (empty_ctor_expr : texpr) error_if_super_not_first =
-    (*
-      takes the expression of the ctor, creates a new static class field for the ctor, and 
-      puts the contents there. Replaces super() calls to last constructors' function.
-      returns the expression for this ctor
-    *)
-    let ctor_name = gen.gmk_internal_name "hx" "ctor" in
-    
-    set_new_create_empty gen empty_ctor_expr;
-    
-    let rec change_this_calls to_expr e =
-      match e.eexpr with
-        | TConst(TThis) -> to_expr
-        | _ -> Type.map_expr (change_this_calls to_expr) e
-    in
-    
-    (* given the constructor expression and the class it belongs, create a new classfield with the code *)
-    let create_static_ctor (ctor_expr_contents : texpr) (args : (string * bool * t) list) (last_constructor : texpr option) cl has_super_hxgen =
-      let super_call = ref None in
-      
-      let rec map_expr e =
-        match e.eexpr with
-          | TCall({eexpr=TConst(TSuper)}, args) ->
-            super_call := Some(e);
-            (match last_constructor with
-              | None -> 
-                (* this case happens when you extend a non-hxgen class. FIXME add a warning if not first decl *) 
-                {eexpr=TConst(TNull); etype=t_dynamic; epos=e.epos}
-              | Some s -> { e with eexpr = TCall(s, { eexpr = TConst(TThis); epos = e.epos; etype = TInst(cl, List.map (snd) cl.cl_types) } :: args); })
-          | _ -> Type.map_expr map_expr e
-      in
-      
-      let has_super = is_some !super_call in
-      (* add a "me" as the first arg for the __ctor *)
-      let me_type = TInst(cl, List.map (snd) cl.cl_types) in
-      let me_var = alloc_var "me" me_type in
-      let args = ("me", false, me_type) :: args in
-      let ctor_expr_contents = match ctor_expr_contents.eexpr with
-        | TFunction tf -> 
-          let tfargs = (me_var, None) :: tf.tf_args in
-          {ctor_expr_contents with eexpr = TFunction
-            {
-              tf_args = tfargs;
-              tf_type = gen.gcon.basic.tvoid;
-              tf_expr = tf.tf_expr;
-            }
-          }
-        | _ -> assert false
-      in
-      
-      let last_ctor_expr = map_expr ctor_expr_contents in
-      let fun_t = (TFun (args, gen.gcon.basic.tvoid)) in
-      let clparams = List.map (fun (s,t) -> (s, TInst (map_param (get_cl_t t), []))) cl.cl_types in
-      let nf = mk_class_field (ctor_name) fun_t false cl.cl_pos (Method(MethNormal)) clparams in
-      nf.cf_expr <- Some(change_this_calls ({eexpr=TLocal(me_var); etype=me_type; epos=cl.cl_pos}) last_ctor_expr);
-      cl.cl_ordered_statics <- nf :: cl.cl_ordered_statics;
-      cl.cl_statics <- PMap.add ctor_name nf cl.cl_statics;
-      (* returning MyClass.__hx_ctor, so we can call it *)
-      (* let mk_static_field_access cl field fieldt pos = *)
-      let ctor_path = mk_static_field_access cl ctor_name fun_t cl.cl_pos in
-      (* now we should get ctor_expr_contents, maintain the TFunction but change the expr to just a call to our declared ctor *)
-      let new_ctor_expr = match ctor_expr_contents.eexpr with
-        | TFunction tf ->
-          let hxctor_call = 
-          {
-            eexpr = TCall(ctor_path, 
-              List.map (fun (v, _) -> 
-                if v.v_id = me_var.v_id then 
-                  {eexpr = TConst(TThis); etype = v.v_type; epos = cl.cl_pos;} 
-                else
-                  {eexpr = TLocal(v); etype = v.v_type; epos = cl.cl_pos;}) tf.tf_args
-            );
-            etype = gen.gcon.basic.tvoid;
-            epos = cl.cl_pos;
-          } in
-          
-          { ctor_expr_contents with eexpr = TFunction({
-            tf_args = tf.tf_args;
-            tf_type = tf.tf_type;
-            tf_expr =
-            {
-              eexpr = TBlock(
-                if has_super_hxgen then 
-                  { eexpr=TCall({eexpr=TConst(TSuper); etype=TInst(cl,List.map snd cl.cl_types); epos=cl.cl_pos;}, [empty_ctor_expr]); etype=gen.gcon.basic.tvoid; epos=cl.cl_pos; } :: [hxctor_call] 
-                else if has_super then 
-                  get !super_call :: [hxctor_call] 
-                else [hxctor_call]);
-              etype = gen.gcon.basic.tvoid;
-              epos = cl.cl_pos;
-            }
-          }) }
-        | _ -> assert false
-      in
-      (new_ctor_expr, ctor_path)
-    in
-    
-    let create_empty_ctor cl =
-      let ftype = (TFun ([("empty", false, empty_ctor_type)], gen.gcon.basic.tvoid)) in
-      let ef = mk_class_field "new" ftype true cl.cl_pos (Method(MethNormal)) [] in
-      (* creating the empty ctor *)
-      let empty_var = alloc_var "empty" empty_ctor_type in
-      
-      ef.cf_expr <- Some({
-        eexpr = TFunction({tf_args = [empty_var, None]; tf_type = gen.gcon.basic.tvoid; tf_expr = {eexpr = TBlock([]); etype = gen.gcon.basic.tvoid; epos = cl.cl_pos};});
-        etype = ftype;
-        epos = cl.cl_pos;
-      });
-      
-      ef
-    in
-    
-    (* ************* the run func *)
-    let run cl =
-      let has_hxgen_super = map_default (fun (c,_) -> is_hxgen (TClassDecl(c))) false cl.cl_super in
-      match cl.cl_constructor with
-        | None ->
-          (* if no constructor found, see at first if there is an hxgen'd superclass. if there is, we can use it; if not, we must create the ctors *)
-          if not has_hxgen_super then begin
-            (* we must create the ctors, then... We'll look for the last one to use as reference, if there is one *)
-            match get_last_ctor cl with
-              | None ->
-                (* if not found, just create a default constructor and the empty constructor *)
-                let ctor_t = (TFun ([], gen.gcon.basic.tvoid)) in
-                let def_ctor = mk_class_field "new" ctor_t true cl.cl_pos (Method(MethNormal)) [] in
-                cl.cl_constructor <- Some(def_ctor);
-                cl.cl_ordered_fields <- def_ctor :: cl.cl_ordered_fields;
-                let expr_contents = 
-                {
-                  eexpr = TFunction({
-                    tf_args = [];
-                    tf_type = gen.gcon.basic.tvoid;
-                    tf_expr = {
-                      eexpr = TBlock([]);
-                      etype = gen.gcon.basic.tvoid;
-                      epos = cl.cl_pos
-                    };
-                  });
-                  etype = ctor_t;
-                  epos = cl.cl_pos;
-                } in
-                let new_ctor_expr, _ = create_static_ctor expr_contents [] None cl has_hxgen_super in
-                def_ctor.cf_expr <- Some(new_ctor_expr);
-                let empty_ctor = create_empty_ctor cl in
-                cl.cl_ordered_fields <- empty_ctor :: cl.cl_ordered_fields
-              | Some ctor ->
-                (* if found, create the default constructor with the last args, and the empty constructor with super(null,null...) *)
-                let args = match follow ctor.cf_type with
-                  | TFun (args, _) -> args
-                  | _ -> assert false
-                in
-                let ctor_t = (TFun (args, gen.gcon.basic.tvoid)) in
-                let def_ctor = mk_class_field "new" ctor_t true cl.cl_pos (Method(MethNormal)) [] in
-                
-                let vars = List.map (fun (name,_,t) -> (alloc_var name t, None)) args in
-                let ctor_contents = 
-                {
-                  eexpr = TFunction({
-                    tf_args = vars;
-                    tf_type = gen.gcon.basic.tvoid;
-                    tf_expr = mk_block ({
-                        eexpr = TCall(
-                          {eexpr=TConst(TSuper); etype=TInst(cl, List.map snd cl.cl_types); epos=cl.cl_pos},
-                          List.map (fun (v,_) ->
-                            {eexpr=TLocal(v); etype=v.v_type; epos=cl.cl_pos}
-                          ) vars);
-                        etype = gen.gcon.basic.tvoid;
-                        epos = cl.cl_pos;
-                      });
-                  });
-                  etype = ctor_t;
-                  epos = cl.cl_pos;
-                } in
-                
-                let new_ctor_expr, _ = create_static_ctor ctor_contents args None cl has_hxgen_super in
-                def_ctor.cf_expr <- Some(new_ctor_expr);
-                let empty_ctor = create_empty_ctor cl in
-                cl.cl_ordered_fields <- empty_ctor :: cl.cl_ordered_fields
-               
-            (* now create two ctors: *)
-          end
-        | Some ctor -> 
-          (* 
-            if we have a constructor, we must create both the empty and the static __hx_ctor
-            first, find the last __hx_ctor so we can call it super. If there is none, check for super() expressions. 
-            if found, issue error if it isn't the first thing called. If it is, use the same super() expr for the create empty,
-            with all values as null
-          *)
-          let last_hx_ctor cl =
-            let rec last_hx_ctor c tl =
-              if PMap.mem ctor_name c.cl_statics then 
-                Some(PMap.find ctor_name c.cl_statics, c, tl) 
-              else
-                Option.map_default (fun (super, superl) -> last_hx_ctor super (List.map (apply_params c.cl_types tl) superl) ) None c.cl_super
-            in
-            Option.map_default (fun (super,tl) -> last_hx_ctor super tl) None cl.cl_super
-          in
-          let last_hx_ctor_expr = Option.map (fun (cf,cl,tl) -> 
-            {eexpr = TField({eexpr = TTypeExpr(TClassDecl(cl)); etype = anon_of_classtype cl; epos = cl.cl_pos}, ctor_name); etype = apply_params cl.cl_types tl cf.cf_type; epos = cl.cl_pos} 
-          ) (last_hx_ctor cl) in
-          let args = match follow ctor.cf_type with
-            | TFun (args, _) -> args
-            | _ -> assert false
-          in
-          let def_ctor = ctor in
-          let new_ctor_expr, _ = create_static_ctor (get ctor.cf_expr) args last_hx_ctor_expr cl has_hxgen_super in
-          def_ctor.cf_expr <- Some(new_ctor_expr);
-          let empty_ctor = create_empty_ctor cl in
-          cl.cl_ordered_fields <- empty_ctor :: cl.cl_ordered_fields
-    in
-    
-    let mod_filter = function
-      | TClassDecl cl -> (if not cl.cl_extern && is_hxgen (TClassDecl cl) && not (has_meta ":skip_ctor" cl.cl_meta) then run cl); None
-      | _ -> None in
-    
-    gen.gmodule_filters#add ~name:"overloading_ctor" ~priority:(PCustom priority) mod_filter
-  
-end;;
-*)
 (* ******************************************* *)
 (* init function module *)
 (* ******************************************* *)
@@ -4526,7 +4281,7 @@ struct
                 *)
                 let cf_params = List.map (fun t -> match follow t with | TDynamic _ -> t_empty | _ -> t) params in
                 (* params are inverted *)
-                let cf_params = List.rev cf_params in
+                (*let cf_params = List.rev cf_params in*)
                 let t = apply_params cl.cl_types (gen.greal_type_param (TClassDecl cl) params) actual_t in
                 let t = apply_params cf.cf_params (gen.greal_type_param (TClassDecl cl) cf_params) t in
                 
@@ -6373,12 +6128,29 @@ struct
         let do_field cf cf_type is_static =
           let get_field ethis name = { eexpr = TField (ethis, name); etype = cf_type; epos = pos } in
           let this = if is_static then mk_classtype_access cl pos else { eexpr = TConst(TThis); etype = t; epos = pos } in
-          mk_return { eexpr = TBinop(Ast.OpAssign, 
-              get_field this cf.cf_name,
-              mk_cast cf_type value_local);
-            etype = cf_type;
-            epos = pos;
-          }
+          match is_float, follow cf_type with
+            | true, TInst( { cl_kind = KTypeParameter }, [] ) -> 
+              let bl = 
+              [
+                { 
+                  eexpr = TBinop(Ast.OpAssign, 
+                    get_field this cf.cf_name,
+                    mk_cast cf_type (mk_cast t_dynamic value_local));
+                  etype = cf_type;
+                  epos = pos;
+                };
+                mk_return value_local
+              ] in
+              { eexpr = TBlock bl; etype = value_local.etype; epos = pos }
+            | _ ->
+              mk_return 
+              { 
+                eexpr = TBinop(Ast.OpAssign, 
+                  get_field this cf.cf_name,
+                  mk_cast cf_type value_local);
+                etype = cf_type;
+                epos = pos;
+              }
         in
         
         (mk_do_default tf_args do_default, do_default, do_field, tf_args)
@@ -6406,15 +6178,22 @@ struct
           (do_default, tf_args @ [ throw_errors,None ])
         end in
         
-        let get_field cf cf_type ethis name = match cf.cf_kind with
+        let get_field cf cf_type ethis name = 
+          match cf.cf_kind with
             | Var _
             | Method MethDynamic -> { eexpr = TField (ethis, name); etype = cf_type; epos = pos }
             | _ -> { eexpr = TClosure (ethis, name); etype = cf_type; epos = pos }
-          in
-        (mk_do_default tf_args do_default, do_default, (fun cf cf_type static ->
+        in
+        
+        let do_field cf cf_type static = 
           let this = if static then mk_classtype_access cl pos else { eexpr = TConst(TThis); etype = t; epos = pos } in
-          mk_return (maybe_cast (get_field cf cf_type this cf.cf_name ))
-        ), tf_args)
+          match is_float, follow cf_type with
+            | true, TInst( { cl_kind = KTypeParameter }, [] ) -> 
+              mk_return (mk_cast basic.tfloat (mk_cast t_dynamic (get_field cf cf_type this cf.cf_name)))
+            | _ ->
+              mk_return (maybe_cast (get_field cf cf_type this cf.cf_name ))
+        in
+        (mk_do_default tf_args do_default, do_default, do_field, tf_args)
       end in
       
       let get_fields static =

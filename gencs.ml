@@ -736,6 +736,7 @@ let configure gen =
               | _ -> (params, el)
           in
           let params, el = extract_tparams [] el in
+          let params = List.rev params in
           
           expr_s w e;
           

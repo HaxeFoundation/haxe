@@ -660,6 +660,10 @@ let configure gen =
                   | TType ({ t_path = ["java"],"Char16" },[])
                   | TType ({ t_path = [],"Single" },[]) -> basic.tnull f_t
                   (*| TType ({ t_path = [], "Null"*)
+                  | TInst (cl, ((_ :: _) as p)) ->
+                    TInst(cl, List.map (fun _ -> t_dynamic) p)
+                  | TEnum (e, ((_ :: _) as p)) ->
+                    TEnum(e, List.map (fun _ -> t_dynamic) p)
                   | _ -> t
               ) params
   in
