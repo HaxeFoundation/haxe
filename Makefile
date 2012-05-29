@@ -30,7 +30,7 @@ MODULES=ast type lexer common genxml parser typecore optimizer typeload \
 	codegen genas3 gencommon gencpp genjs genneko genphp genswf8 \
 	gencs genjava genswf9 interp genswf typer main
 
-all: libs haxe
+all: libs haxe tools
 
 libs:
 	(cd libs/extlib; make opt)
@@ -41,6 +41,10 @@ libs:
 
 haxe: $(MODULES:=.cmx)
 	$(OCAMLOPT) -o $(OUTPUT) $(NATIVE_LIBS) $(LIBS) $(MODULES:=.cmx)
+
+tools:
+	(cd std/tools/haxedoc && haxe haxedoc.hxml && cp haxedoc ../../..)
+	(cd std/tools/haxelib && haxe haxelib.hxml && cp haxelib ../../..)
 
 export:
 	cp haxe*.exe doc/CHANGES.txt $(EXPORT)
