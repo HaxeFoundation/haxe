@@ -5,7 +5,7 @@ import haxe.Int64;
  * ...
  * @author waneck
  */
-
+@:SuppressWarnings("deprecation")
 class Date 
 {
 	private var date:java.util.Date;

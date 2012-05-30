@@ -30,6 +30,9 @@
 	the standard [String] of being bloated and thus increasing the size of
 	each application using it.
 **/
+#if java
+@:SuppressWarnings("deprecation")
+#end
 class StringTools {
 
 	/**

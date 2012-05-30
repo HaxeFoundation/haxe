@@ -1307,9 +1307,24 @@ let configure gen =
         false
     in
     
+    let rec loop_meta meta acc =
+      match meta with
+        | (":SuppressWarnings", [Ast.EConst (Ast.String w),_],_) :: meta -> loop_meta meta (w :: acc)
+        | _ :: meta -> loop_meta meta acc
+        | _ -> acc
+    in
+    
+    let suppress_warnings = loop_meta cl.cl_meta [ "rawtypes"; "unchecked" ] in
+    
     write w "import haxe.root.*;";
     newline w;
-    write w "@SuppressWarnings(value={\"rawtypes\", \"unchecked\"})";
+    write w "@SuppressWarnings(value={";
+    let first = ref true in
+    List.iter (fun s ->
+      (if !first then first := false else write w ", ");
+      print w "\"%s\"" (escape s)
+    ) suppress_warnings;
+    write w "})";
     newline w;
     
     let clt, access, modifiers = get_class_modifiers cl.cl_meta (if cl.cl_interface then "interface" else "class") "public" [] in
