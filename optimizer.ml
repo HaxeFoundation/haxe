@@ -247,7 +247,7 @@ let rec type_inline ctx cf f ethis params tret p force =
 			let econd = map false econd in
 			let eif = map term eif in
 			let eelse = map term eelse in
-			{ e with eexpr = TIf(econd,eif,Some eelse); etype = if is_null eif.etype then eif.etype else eelse.etype }
+			{ e with eexpr = TIf(econd,eif,Some eelse); }
 		| TParenthesis _ | TIf (_,_,Some _) | TSwitch (_,_,Some _) ->
 			Type.map_expr (map term) e
 		| TUnop ((Increment|Decrement),_,{ eexpr = TLocal v }) ->
