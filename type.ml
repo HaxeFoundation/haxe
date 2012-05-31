@@ -534,6 +534,8 @@ let rec is_nullable ?(no_lazy=false) = function
 		is_nullable (apply_params t.t_types tl t.t_type)
 	| TFun _ ->
 		false
+	| TInst ({ cl_kind = KTypeParameter },_) ->
+		false
 	| TInst ({ cl_path = (["haxe"],"Int32") },[])
 	| TInst ({ cl_path = ([],"Int") },[])
 	| TInst ({ cl_path = ([],"Float") },[])
