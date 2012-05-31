@@ -1854,6 +1854,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		mk (TCast (e,None)) (mk_mono()) p
 	| ECast (e, Some t) ->
 		(* force compilation of class "Std" since we might need it *)
+		activate_feature ctx FtTypedCast;
 		(match ctx.com.platform with
 		| Js | Flash8 | Neko | Flash | Java | Cs ->
 			let std = Typeload.load_type_def ctx p { tpackage = []; tparams = []; tname = "Std"; tsub = None } in
@@ -2115,8 +2116,8 @@ let dce_check_metadata ctx meta =
 		| ":?used",_
 		| ":keep",_ ->
 			true
-(* 		| ":feature",el ->
-			List.exists (fun e -> match e with (EConst(String s),_) when has_feature ctx s -> true | _ -> false) el *)
+ 		| ":feature",el ->
+			List.exists (fun e -> match e with (EConst(String s),_) when has_feature ctx s -> true | _ -> false) el
 		| _ -> false
 	) meta
 
@@ -2824,6 +2825,7 @@ let rec create com =
 			modules = Hashtbl.create 0;
 			types_module = Hashtbl.create 0;
 			type_patches = Hashtbl.create 0;
+			features = Hashtbl.create 0;
 			delayed = [];
 			doinline = not (Common.defined com "no_inline" || com.display);
 			hook_generate = [];
