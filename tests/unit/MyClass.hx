@@ -40,7 +40,6 @@ class MyChild1 extends MyParent {
 
 class MyChild2 extends MyParent {
 	public function test1(mc1:MyChild1) return mc1.b()
-	public function test2(mc1:MyChild1) return mc1.c()
 }
 
 interface I1 { }

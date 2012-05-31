@@ -95,7 +95,6 @@ class TestType extends Test {
 		
 		var mc2 = new MyChild2();
 		eq(21, mc2.test1(new MyChild1()));
-		eq(19, mc2.test2(new MyChild1()));
 	}
 	
 	function testUnifyMin() {
