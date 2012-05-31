@@ -1164,8 +1164,13 @@ with
 ;;
 let other = Common.timer "other" in
 Sys.catch_break true;
+let args = List.tl (Array.to_list Sys.argv) in
 (try
-	process_params create_context (List.tl (Array.to_list Sys.argv));
+	let server = Sys.getenv "HAXE_COMPILATION_SERVER" in
+	let host, port = (try ExtString.String.split server ":" with _ -> "127.0.0.1", server) in
+	do_connect host (try int_of_string port with _ -> failwith "Invalid HAXE_COMPILATION_SERVER port") args
+with Not_found -> try
+	process_params create_context args
 with Completion c ->
 	prerr_endline c;
 	exit 0
