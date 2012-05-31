@@ -2123,9 +2123,10 @@ let dce_check_metadata ctx meta =
 	) meta
 
 let dce_check_class ctx c =
-	let keep_whole_class = c.cl_extern || c.cl_interface || has_meta ":keep" c.cl_meta || (match c.cl_path with ["php"],"Boot" | ["neko"],"Boot" | ["flash"],"Boot" | [],"Array" | [],"String" -> true | _ -> false)  in
+	let keep_whole_class = c.cl_interface || has_meta ":keep" c.cl_meta || (match c.cl_path with ["php"],"Boot" | ["neko"],"Boot" | ["flash"],"Boot" | [],"Array" | [],"String" -> true | _ -> false)  in
 	let keep stat f =
 		keep_whole_class
+		|| (c.cl_extern && (match f.cf_kind with Method MethInline -> false | _ -> true))
 		|| dce_check_metadata ctx f.cf_meta
 		|| (stat && f.cf_name = "__init__")
 		|| (not stat && f.cf_name = "resolve" && (match c.cl_dynamic with Some _ -> true | None -> false))
