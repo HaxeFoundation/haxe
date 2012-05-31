@@ -2109,12 +2109,22 @@ and check_to_string ctx t =
 (* ---------------------------------------------------------------------- *)
 (* DEAD CODE ELIMINATION *)
 
+let dce_check_metadata ctx meta =
+	List.exists (fun (m,e,_) ->
+		match m,e with
+		| ":?used",_
+		| ":keep",_ ->
+			true
+(* 		| ":feature",el ->
+			List.exists (fun e -> match e with (EConst(String s),_) when has_feature ctx s -> true | _ -> false) el *)
+		| _ -> false
+	) meta
+
 let dce_check_class ctx c =
 	let keep_whole_class = c.cl_extern || c.cl_interface || has_meta ":keep" c.cl_meta || (match c.cl_path with ["php"],"Boot" | ["neko"],"Boot" | ["flash"],"Boot" | [],"Array" | [],"String" -> true | _ -> false)  in
 	let keep stat f =
 		keep_whole_class
-		|| has_meta ":?used" f.cf_meta
-		|| has_meta ":keep" f.cf_meta
+		|| dce_check_metadata ctx f.cf_meta
 		|| (stat && f.cf_name = "__init__")
 		|| (not stat && f.cf_name = "resolve" && (match c.cl_dynamic with Some _ -> true | None -> false))
 		|| (f.cf_name = "new" && has_meta ":?used" c.cl_meta)
