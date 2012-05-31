@@ -152,28 +152,30 @@ let unify_min_raise ctx el =
 			| TParenthesis e -> chk_null e
 			| _ -> false
 		in
-		let t = ref (mk_mono()) in
 		let is_null = ref false in
-		let has_error = ref false in
 
 		(* First pass: Try normal unification and find out if null is involved. *)
-		List.iter (fun e -> 
-			if not !is_null && chk_null e then begin
-				is_null := true;
-				t := ctx.t.tnull !t
-			end;
-			let et = follow e.etype in
-			(try
-				unify_raise ctx et (!t) e.epos;
-			with Error (Unify _,_) -> try
-				unify_raise ctx (!t) et e.epos;
-				t := et;
-			with Error (Unify _,_) -> has_error := true);
-		) el;
-		if not !has_error then !t else begin
+		let rec loop t = function
+			| [] ->
+				false, (if !is_null then ctx.t.tnull t else t)
+			| e :: el ->
+				if not !is_null && chk_null e then is_null := true;
+				try
+					unify_raise ctx e.etype t e.epos;
+					loop t el
+				with Error (Unify _,_) -> try
+					unify_raise ctx t e.etype e.epos;
+					loop e.etype el
+				with Error (Unify _,_) ->
+					true, t
+		in
+		let has_error, t = loop (mk_mono()) el in
+		if not has_error then
+			t
+		else begin
 			(* Second pass: Get all base types (interfaces, super classes and their interfaces) of most general type.
 			   Then for each additional type filter all types that do not unify. *)
-			let common_types = base_types !t in
+			let common_types = base_types t in
 			let loop e = 
 				let first_error = ref None in
 				let filter t = (try unify_raise ctx e.etype t e.epos; true
