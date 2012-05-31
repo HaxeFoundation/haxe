@@ -146,7 +146,7 @@ class Boot {
 		return __interfLoop(cc.__super__,cl);
 	}
 
-	private static function __instanceof(o : Dynamic,cl) {
+	@:feature("is") private static function __instanceof(o : Dynamic,cl) {
 		untyped {
 			try {
 				if( __js__("o instanceof cl") ) {

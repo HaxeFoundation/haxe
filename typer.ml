@@ -1744,6 +1744,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 					List.iter (fun pt ->
 						if pt != t_dynamic then error "Catch class parameter must be Dynamic" p;
 					) params;
+					activate_feature ctx FtIs;
 					(match path with
 					| x :: _ , _ -> x
 					| [] , name -> name)
@@ -2133,7 +2134,6 @@ let dce_check_class ctx c =
 		| "EReg.new"
 		| "js.Boot.__init" | "flash._Boot.RealBoot.new"
 		| "js.Boot.__string_rec" (* used by $estr *)
-		| "js.Boot.__instanceof" (* used by catch( e : T ) *)
 			-> true
 		| _ -> false
 	in
