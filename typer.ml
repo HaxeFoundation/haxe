@@ -1614,8 +1614,9 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		ctx.opened <- x :: ctx.opened;
 		mk (TObjectDecl (List.rev fields)) (TAnon { a_fields = types; a_status = x }) p
 	| EArrayDecl el ->
-		let tl, t = type_exprs_unified ctx el in
-		mk (TArrayDecl tl) (ctx.t.tarray t) p
+		let el = List.map (type_expr ctx) el in
+		let t = unify_min ctx el in
+		mk (TArrayDecl el) (ctx.t.tarray t) p
 	| EVars vl ->
 		let vl = List.map (fun (v,t,e) ->
 			try
