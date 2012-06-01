@@ -59,7 +59,7 @@ class SubClassWithProp extends ClassWithProp {
 
 class TestReflect extends Test {
 
-	static var TYPES = [
+	static var TYPES : Array<Dynamic> = [
 		null,Int,String,Bool,Float,
 		Array,Hash,List,Date,Xml,Math,
 		unit.MyEnum,unit.MyClass,unit.MySubClass,

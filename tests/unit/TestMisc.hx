@@ -399,8 +399,9 @@ class TestMisc extends Test {
 		id( "he\n\r\t\\\\llo");
 
 		deepId( {field: 4} );
-		deepId( {test: {nested: null}} );
-		deepId( {array: [1,2,3,"str"]} );
+		deepId( { test: { nested: null }} );
+		var mix : Array<Dynamic> = [1, 2, 3, "str"];
+		deepId( {array: mix} );
 		
 		eq( haxe.Json.parse('"\\u00E9"'), "é" );
 		

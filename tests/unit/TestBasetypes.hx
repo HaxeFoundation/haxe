@@ -91,17 +91,18 @@ class TestBasetypes extends Test {
 		eq(1 + 1 + 1 + 1 + "1", "41");
 		eq("1" + 1 + 1 + 1 + 1, "11111");
 		eq(1 + 1 + "1" + 1 * 2, "212");
+
+		// check recursive formating
+		var x = [[1], [2, 3]];
+		eq("" + x, "[[1],[2,3]]");
 		
 		// Brackets around array values should not be stripped.
-		var x = [1, "hello"];
+		var x : Array<Dynamic> = [1, "hello"];
 		eq("" + x, "[1,hello]");
 		eq(x + "", "" + x);
 		
-		var x = [[1], [2, 3]];
-		eq("" + x, "[[1],[2,3]]");
-
 		// This is also true for iterables that are arrays.
-		var x:Iterable<Dynamic> = [1, "hello"];
+		var x:Iterable<Dynamic> = x;
 		eq("" + x, "[1,hello]");
 		eq(x + "", "" + x);
 		
@@ -120,7 +121,7 @@ class TestBasetypes extends Test {
 		eq( Std.string(e), "C(0,h)");
 		
 		// This also seems rather odd on some platforms.
-		var x = ["4", 1];
+		var x : Array<Dynamic> = ["4", 1];
 		t(Std.is(x[0], String));
 		t(Std.is(x[0] + x[0], String));
 		t(Std.is(x[1] + x[1], Int));
