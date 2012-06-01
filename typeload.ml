@@ -265,7 +265,7 @@ and load_complex_type ctx p t =
 					in
 					load_complex_type ctx p t, Var { v_read = access i1 true; v_write = access i2 false }
 			) in
-			PMap.add n {
+			let cf = {
 				cf_name = n;
 				cf_type = t;
 				cf_pos = p;
@@ -275,7 +275,10 @@ and load_complex_type ctx p t =
 				cf_expr = None;
 				cf_doc = f.cff_doc;
 				cf_meta = f.cff_meta;
-			} acc
+				cf_overloads = [];
+			} in
+			init_meta_overloads ctx cf;
+			PMap.add n cf acc
 		in
 		mk_anon (List.fold_left loop PMap.empty l)
 	| CTFunction (args,r) ->
@@ -287,6 +290,22 @@ and load_complex_type ctx p t =
 				let t, opt = (match t with CTOptional t -> t, true | _ -> t,false) in
 				"",opt,load_complex_type ctx p t
 			) args,load_complex_type ctx p r)
+
+and init_meta_overloads ctx cf =
+	let overloads = ref [] in
+	cf.cf_meta <- List.filter (fun m ->
+		match m with
+		| (":overload",[(EFunction (fname,f),p)],_)  ->
+			if fname <> None then error "Function name must not be part of @:overload" p;
+			(match f.f_expr with Some (EBlock [], _) -> () | _ -> error "Overload must only declare an empty method body {}" p);
+			let topt = function None -> error "Explicit type required" p | Some t -> load_complex_type ctx p t in
+			let args = List.map (fun (a,opt,t,_) ->  a,opt,topt t) f.f_args in
+			overloads := (args,topt f.f_type) :: !overloads;
+			false
+		| _ ->
+			true
+	) cf.cf_meta;
+	cf.cf_overloads <- List.map (fun (args,ret) -> { cf with cf_type = TFun (args,ret) }) (List.rev !overloads)
 
 let hide_types ctx =
 	let old_locals = ctx.local_types in
@@ -905,6 +924,7 @@ let init_class ctx c p herits fields =
 				cf_expr = None;
 				cf_public = is_public f.cff_access None;
 				cf_params = [];
+				cf_overloads = [];
 			} in
 			let delay = (match e with
 				| None when ctx.com.dead_code_elimination && not ctx.com.display ->
@@ -946,13 +966,6 @@ let init_class ctx c p herits fields =
 			) in
 			f, false, cf, delay
 		| FFun fd ->
-			(match c.cl_super with
-				| None -> ()
-				| Some (c,_) ->
-					try
-						let sf = PMap.find name c.cl_fields in
-						f.cff_meta <- copy_meta sf.cf_meta f.cff_meta [":overload"];
-					with Not_found -> ());
 			let params = ref [] in
 			params := List.map (fun (n,flags) ->
 				(match flags with
@@ -1046,7 +1059,9 @@ let init_class ctx c p herits fields =
 				cf_expr = None;
 				cf_public = is_public f.cff_access parent;
 				cf_params = params;
+				cf_overloads = [];
 			} in
+			init_meta_overloads ctx cf;
 			let r = exc_protect (fun r ->
 				if not !return_partial_type then begin
 					r := (fun() -> t);
@@ -1125,6 +1140,7 @@ let init_class ctx c p herits fields =
 				cf_type = ret;
 				cf_public = is_public f.cff_access None;
 				cf_params = [];
+				cf_overloads = [];
 			} in
 			if ctx.com.dead_code_elimination && not ctx.com.display then begin
 				let r = exc_protect (fun r ->

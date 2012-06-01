@@ -323,6 +323,7 @@ let extend_xml_proxy ctx c t file p =
 						cf_kind = Var { v_read = AccResolve; v_write = AccNo };
 						cf_params = [];
 						cf_expr = None;
+						cf_overloads = [];
 					} in
 					c.cl_fields <- PMap.add id f c.cl_fields;
 				with

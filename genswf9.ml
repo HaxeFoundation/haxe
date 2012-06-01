@@ -2076,6 +2076,7 @@ let generate_class ctx c =
 				cf_params = [];
 				cf_expr = None;
 				cf_kind = Method MethNormal;
+				cf_overloads = [];
 			};
 			hlf_slot = 0;
 			hlf_kind = (HFMethod {

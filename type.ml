@@ -136,6 +136,7 @@ and tclass_field = {
 	mutable cf_kind : field_kind;
 	cf_params : (string * t) list;
 	mutable cf_expr : texpr option;
+	mutable cf_overloads : tclass_field list;
 }
 
 and tclass_kind =

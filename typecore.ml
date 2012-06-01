@@ -218,6 +218,7 @@ let mk_field name t p = {
 	cf_kind = Var { v_read = AccNormal; v_write = AccNormal };
 	cf_expr = None;
 	cf_params = [];
+	cf_overloads = [];
 }
 
 let fake_modules = Hashtbl.create 0

@@ -1006,6 +1006,7 @@ let mk_class_field name t public pos kind params =
     cf_kind = kind;
     cf_params = params;
     cf_expr = None;
+	cf_overloads = [];
   }
 
 let mk_iterator_access gen t expr =
@@ -4257,7 +4258,7 @@ struct
           | _ ->
             let ecall = match e with | None -> trace f; trace cf.cf_name; gen.gcon.error "This field should be called immediately" ef.epos; assert false | Some ecall -> ecall in
             match cf.cf_params with
-              | _ when has_meta ":overload" cf.cf_meta ->
+              | _ when cf.cf_overloads <> [] ->
                 mk_cast ecall.etype { ecall with eexpr = TCall({ e1 with eexpr = TField(ef, f) }, elist ) }
               | [] ->
                 let args, ret = get_args actual_t in

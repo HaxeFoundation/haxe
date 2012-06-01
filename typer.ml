@@ -66,16 +66,6 @@ let check_assign ctx e =
 	| _ ->
 		error "Invalid assign" e.epos
 
-let rec get_overloads ctx p = function
-	| (":overload",[(EFunction (_,fu),p)],_) :: l ->
-		let topt = function None -> t_dynamic | Some t -> (try Typeload.load_complex_type ctx p t with | Error (Protect _,_) as e -> raise e | Error _ -> t_dynamic) in
-		let args = List.map (fun (a,opt,t,_) ->  a,opt,topt t) fu.f_args in
-		TFun (args,topt fu.f_type) :: get_overloads ctx p l
-	| _ :: l ->
-		get_overloads ctx p l
-	| [] ->
-		[]
-
 let rec mark_used_class ctx c =
 	if ctx.com.dead_code_elimination && not (has_meta ":?used" c.cl_meta) then begin
 		c.cl_meta <- (":?used",[],c.cl_pos) :: c.cl_meta;
@@ -195,29 +185,24 @@ let unify_min ctx el =
 		if not ctx.untyped then display_error ctx (error_msg (Unify l)) p;
 		(List.hd el).etype
 
-let rec unify_call_params ctx name el args r p inline =
+let rec unify_call_params ctx cf el args r p inline =
 	let next() =
-		match name with
-		| None -> None
-		| Some (n,meta) ->
-			let rec loop = function
-				| [] -> None
-				| (":overload",[(EFunction (fname,f),p)],_) :: l ->
-					if fname <> None then error "Function name must not be part of @:overload" p;
-					(match f.f_expr with Some (EBlock [], _) -> () | _ -> error "Overload must only declare an empty method body {}" p);
-					let topt = function None -> error "Explicit type required" p | Some t -> Typeload.load_complex_type ctx p t in
-					let args = List.map (fun (a,opt,t,_) ->  a,opt,topt t) f.f_args in
-					Some (unify_call_params ctx (Some (n,l)) el args (topt f.f_type) p inline)
-				| _ :: l -> loop l
-			in
-			loop meta
+		match cf with
+		| Some { cf_overloads = o :: l } ->
+			let args, ret = (match field_type o with
+				| TFun (tl,t) -> tl, t
+				| _ -> assert false
+			) in
+			Some (unify_call_params ctx (Some { o with cf_overloads = l }) el args ret p inline)
+		| _ ->
+			None
 	in
 	let error acc txt =
 		match next() with
 		| Some l -> l
 		| None ->
 		let format_arg = (fun (name,opt,_) -> (if opt then "?" else "") ^ name) in
-		let argstr = "Function " ^ (match name with None -> "" | Some (n,_) -> "'" ^ n ^ "' ") ^ "requires " ^ (if args = [] then "no arguments" else "arguments : " ^ String.concat ", " (List.map format_arg args)) in
+		let argstr = "Function " ^ (match cf with None -> "" | Some f -> "'" ^ f.cf_name ^ "' ") ^ "requires " ^ (if args = [] then "no arguments" else "arguments : " ^ String.concat ", " (List.map format_arg args)) in
 		display_error ctx (txt ^ " arguments\n" ^ argstr) p;
 		List.rev (List.map fst acc), (TFun(args,r))
 	in
@@ -317,6 +302,7 @@ let rec type_module_type ctx t tparams p =
 				cf_meta = no_meta;
 				cf_expr = None;
 				cf_params = [];
+				cf_overloads = [];
 			} acc
 		) e.e_constrs PMap.empty in
 		let t_tmp = {
@@ -712,6 +698,7 @@ let rec type_field ctx e i p mode =
 				cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
 				cf_expr = None;
 				cf_params = [];
+				cf_overloads = [];
 			} in
 			a.a_fields <- PMap.add i f a.a_fields;
 			field_access ctx mode f (field_type f) e p
@@ -728,6 +715,7 @@ let rec type_field ctx e i p mode =
 			cf_kind = Var { v_read = AccNormal; v_write = (match mode with MSet -> AccNormal | MGet | MCall -> AccNo) };
 			cf_expr = None;
 			cf_params = [];
+			cf_overloads = [];
 		} in
 		let x = ref Opened in
 		let t = TAnon { a_fields = PMap.add i f PMap.empty; a_status = x } in
@@ -1789,7 +1777,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			| _ -> ());
 			let el, _ = (match follow ct with
 			| TFun (args,r) ->
-				unify_call_params ctx (Some ("new",f.cf_meta)) el args r p false
+				unify_call_params ctx (Some f) el args r p false
 			| _ ->
 				error "Constructor is not a function" p
 			) in
@@ -1966,7 +1954,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 			| [] -> e.etype
 			| _ ->
 				let get_field acc f =
-					if not f.cf_public then acc else (f.cf_name,f.cf_type,f.cf_doc) :: List.map (fun t -> f.cf_name,t,f.cf_doc) (get_overloads ctx p f.cf_meta) @ acc
+					List.fold_left (fun acc f -> if f.cf_public then (f.cf_name,f.cf_type,f.cf_doc) :: acc else acc) acc (f :: f.cf_overloads)
 				in
 				raise (DisplayFields (List.fold_left get_field [] fields))
 		) in
@@ -1978,7 +1966,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		(match follow t with
 		| TInst (c,params) ->
 			let ct, f = get_constructor c params p in
-			raise (DisplayTypes (ct :: get_overloads ctx p f.cf_meta))
+			raise (DisplayTypes (ct :: List.map (fun f -> f.cf_type) f.cf_overloads))
 		| _ ->
 			error "Not a class" p)
 	| ECheckType (e,t) ->
@@ -2018,7 +2006,7 @@ and type_call ctx e el t p =
 			mark_used_field ctx f;
 			let el, _ = (match follow ct with
 			| TFun (args,r) ->
-				unify_call_params ctx (Some ("new",f.cf_meta)) el args r p false
+				unify_call_params ctx (Some f) el args r p false
 			| _ ->
 				error "Constructor is not a function" p
 			) in
@@ -2033,7 +2021,7 @@ and type_call ctx e el t p =
 			match acc with
 			| AKInline (ethis,f,t) ->
 				let params, tfunc = (match follow t with
-					| TFun (args,r) -> unify_call_params ctx (Some (f.cf_name,f.cf_meta)) el args r p true
+					| TFun (args,r) -> unify_call_params ctx (Some f) el args r p true
 					| _ -> error (s_type (print_context()) t ^ " cannot be called") p
 				) in
 				make_call ctx (mk (TField (ethis,f.cf_name)) t p) params (match tfunc with TFun(_,r) -> r | _ -> assert false) p
@@ -2046,7 +2034,7 @@ and type_call ctx e el t p =
 						loop acc (Interp.make_ast eparam :: el)
 					| AKExpr _ | AKField _ | AKInline _ ->
 						let params, tfunc = (match follow et.etype with
-							| TFun ( _ :: args,r) -> unify_call_params ctx (Some (ef.cf_name,ef.cf_meta)) el args r p (ef.cf_kind = Method MethInline)
+							| TFun ( _ :: args,r) -> unify_call_params ctx (Some ef) el args r p (ef.cf_kind = Method MethInline)
 							| _ -> assert false
 						) in
 						let args,r = match tfunc with TFun(args,r) -> args,r | _ -> assert false in
@@ -2082,7 +2070,7 @@ and type_call ctx e el t p =
 			| AKExpr e | AKField (e,_) as acc ->
 				let el , t, e = (match follow e.etype with
 				| TFun (args,r) ->
-					let fopts = (match acc with AKField (_,f) -> Some (f.cf_name,f.cf_meta) | _ -> match e.eexpr with TField (e,f) -> Some (f,[]) | _ -> None) in
+					let fopts = (match acc with AKField (_,f) -> Some f | _ -> None) in
 					let el, tfunc = unify_call_params ctx fopts el args r p false in
 					el,(match tfunc with TFun(_,r) -> r | _ -> assert false), {e with etype = tfunc}
 				| TMono _ ->
@@ -2646,7 +2634,7 @@ let load_macro ctx cpath f p =
 		| TInst (c,_) -> (try PMap.find f c.cl_statics with Not_found -> error ("Method " ^ f ^ " not found on class " ^ s_type_path cpath) p)
 		| _ -> error "Macro should be called on a class" p
 	) in
-	let meth = (match follow meth.cf_type with TFun (args,ret) -> args,ret,meth.cf_pos | _ -> error "Macro call should be a method" p) in
+	let meth = (match follow meth.cf_type with TFun (args,ret) -> args,ret,meth | _ -> error "Macro call should be a method" p) in
 	let in_macro = ctx.in_macro in
 	if not in_macro then begin
 		finalize ctx2;
@@ -2666,7 +2654,8 @@ let load_macro ctx cpath f p =
 	ctx2, meth, call
 
 let type_macro ctx mode cpath f (el:Ast.expr list) p =
-	let ctx2, (margs,mret,mpos), call_macro = load_macro ctx cpath f p in
+	let ctx2, (margs,mret,mfield), call_macro = load_macro ctx cpath f p in
+	let mpos = mfield.cf_pos in
 	let ctexpr = { tpackage = ["haxe";"macro"]; tname = "Expr"; tparams = []; tsub = None } in
 	let expr = Typeload.load_instance ctx2 ctexpr p false in
 	(match mode with
@@ -2727,7 +2716,7 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 			incr index;
 			(EArray ((EArrayDecl [e],p),(EConst (Int (string_of_int (!index))),p)),p)
 		) el in
-		let elt, _ = unify_call_params ctx2 (Some (f,[])) constants (List.map fst eargs) t_dynamic p false in
+		let elt, _ = unify_call_params ctx2 (Some mfield) constants (List.map fst eargs) t_dynamic p false in
 		List.map2 (fun (_,ise) e ->
 			let e, et = (match e.eexpr with
 				(* get back our index and real expression *)
@@ -2798,8 +2787,8 @@ let type_macro ctx mode cpath f (el:Ast.expr list) p =
 	e
 
 let call_macro ctx path meth args p =
-	let ctx2, (margs,_,_), call = load_macro ctx path meth p in
-	let el, _ = unify_call_params ctx2 (Some (meth,[])) args margs t_dynamic p false in
+	let ctx2, (margs,_,mfield), call = load_macro ctx path meth p in
+	let el, _ = unify_call_params ctx2 (Some mfield) args margs t_dynamic p false in
 	call (List.map (fun e -> try Interp.make_const e with Exit -> error "Parameter should be a constant" e.epos) el)
 
 let call_init_macro ctx e =
