@@ -152,20 +152,19 @@ let unify_min_raise ctx el =
 			| TParenthesis e -> chk_null e
 			| _ -> false
 		in
-		let is_null = ref false in
 
 		(* First pass: Try normal unification and find out if null is involved. *)
 		let rec loop t = function
 			| [] ->
-				false, (if !is_null then ctx.t.tnull t else t)
+				false, t
 			| e :: el ->
-				if not !is_null && chk_null e then is_null := true;
+				let t = if chk_null e then ctx.t.tnull t else t in
 				try
 					unify_raise ctx e.etype t e.epos;
 					loop t el
 				with Error (Unify _,_) -> try
 					unify_raise ctx t e.etype e.epos;
-					loop e.etype el
+					loop (if is_null t then ctx.t.tnull e.etype else e.etype) el
 				with Error (Unify _,_) ->
 					true, t
 		in
