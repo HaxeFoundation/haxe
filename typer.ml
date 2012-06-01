@@ -892,7 +892,23 @@ let rec type_binop ctx op e1 e2 p =
 	let e2 = type_expr ctx e2 in
 	let tint = ctx.t.tint in
 	let tfloat = ctx.t.tfloat in
-	let mk_op t = mk (TBinop (op,e1,e2)) t p in
+	let to_string e = 
+		match classify e.etype with
+		| KUnk | KDyn | KParam _ | KOther -> 
+			let std = type_type ctx ([],"Std") e.epos in
+			let acc = acc_get ctx (type_field ctx std "string" e.epos MCall) e.epos in
+			let acc = (match acc.eexpr with TClosure (e,f) -> { acc with eexpr = TField (e,f) } | _ -> acc) in
+			make_call ctx acc [e] ctx.t.tstring e.epos
+		| KInt | KFloat | KString -> e
+	in
+	let mk_op t =
+		if op = OpAdd && (classify t) = KString then
+			let e1 = to_string e1 in
+			let e2 = to_string e2 in
+			mk (TBinop (op,e1,e2)) t p
+		else
+			mk (TBinop (op,e1,e2)) t p
+	in
 	match op with
 	| OpAdd ->
 		mk_op (match classify e1.etype, classify e2.etype with
