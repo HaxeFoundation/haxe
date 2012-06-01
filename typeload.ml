@@ -1371,9 +1371,11 @@ let type_module ctx m file tdecls loadp =
 				let md = ctx.g.do_load_module ctx (t.tpackage,t.tname) p in
 				let types = List.filter (fun t -> not (t_infos t).mt_private) md.m_types in
 				ctx.local_using <- ctx.local_using @ (List.map (resolve_typedef ctx) types);
+				ctx.local_types <- ctx.local_types @ types
 			| Some _ ->
 				let t = load_type_def ctx p t in
-				ctx.local_using<- ctx.local_using @ [resolve_typedef ctx t])
+				ctx.local_using<- ctx.local_using @ [resolve_typedef ctx t];
+				ctx.local_types <- ctx.local_types @ [t])
 		| EClass d ->
 			let c = get_class d.d_name in
 			let checks = if not ctx.com.display then [check_overriding ctx c p; check_interfaces ctx c p] else [] in
