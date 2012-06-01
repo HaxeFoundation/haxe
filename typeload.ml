@@ -885,6 +885,7 @@ let init_class ctx c p herits fields =
 	in
 
 	let bind_var ctx cf e stat =
+		let p = cf.cf_pos in
 		if not stat && has_field cf.cf_name c.cl_super then error ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed") p;
 		let t = cf.cf_type in
 		match e with
@@ -899,6 +900,7 @@ let init_class ctx c p herits fields =
 		| None ->
 			(fun() -> ())
 		| Some e ->
+			if not stat then error "Member variable initialization is not allowed outside of class constructor" p;
 			let r = exc_protect (fun r ->
 				if not !return_partial_type then begin
 					r := (fun() -> t);
@@ -941,11 +943,9 @@ let init_class ctx c p herits fields =
 		match f.cff_kind with
 		| FVar (t,e) ->
 			if inline && not stat then error "Inline variable must be static" p;
+			if inline && e = None then error "Inline variable must be initialized" p;
 			if override then error "You cannot override variables" p;
-			(match e with
-			| None when inline -> error "Inline variable must be initialized" p
-			| Some (_,p) when not stat -> error "Member variable initialization is not allowed outside of class constructor" p
-			| _ -> ());
+
 			let t = (match t with
 				| None ->
 					if not stat then error ("Type required for member variable " ^ name) p;
