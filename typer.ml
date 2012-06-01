@@ -1325,9 +1325,14 @@ and type_expr_with_type_raise ctx e t =
 				ctx.param_type <- old;
 				raise exc)
 	| (EConst (Ident s | Type s),p) ->
+		let old = ctx.local_types in
+		ctx.local_types <- [];
 		(try
-			acc_get ctx (type_ident ctx s (match fst e with EConst (Ident _) -> false | _ -> true) p MGet) p
+			let e = acc_get ctx (type_ident ctx s (match fst e with EConst (Ident _) -> false | _ -> true) p MGet) p in
+			ctx.local_types <- old;
+			e
 		with Not_found -> try
+			ctx.local_types <- old;
 			(match t with
 			| None -> raise Not_found
 			| Some t ->
