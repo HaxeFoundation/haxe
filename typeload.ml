@@ -853,6 +853,8 @@ let init_class ctx c p herits fields =
 
 	let fields = if not display_file || Common.defined ctx.com "no-copt" then fields else Optimizer.optimize_completion c fields in
 
+	let mark_used cf = if ctx.com.dead_code_elimination then cf.cf_meta <- (":?used",[],p) :: cf.cf_meta in
+
 	let rec is_full_type t =
 		match t with
 		| TFun (args,ret) -> is_full_type ret && List.for_all (fun (_,_,t) -> is_full_type t) args
@@ -882,6 +884,51 @@ let init_class ctx c p herits fields =
 		end
 	in
 
+	let bind_var ctx cf e stat =
+		if not stat && has_field cf.cf_name c.cl_super then error ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed") p;
+		let t = cf.cf_type in
+		match e with
+		| None when ctx.com.dead_code_elimination && not ctx.com.display ->
+			let r = exc_protect (fun r ->
+				r := (fun() -> t);
+				mark_used cf;
+				t
+			) in
+			cf.cf_type <- TLazy r;
+			(fun() -> ())
+		| None ->
+			(fun() -> ())
+		| Some e ->
+			let r = exc_protect (fun r ->
+				if not !return_partial_type then begin
+					r := (fun() -> t);
+					if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
+					mark_used cf;
+					let e = type_static_var ctx t e p in
+					let e = (match cf.cf_kind with
+					| Var { v_read = AccInline } ->
+						let e = ctx.g.do_optimize ctx e in
+						let rec is_const e =
+							match e.eexpr with
+							| TConst _ -> true
+							| TBinop ((OpAdd|OpSub|OpMult|OpDiv|OpMod),e1,e2) -> is_const e1 && is_const e2
+							| TParenthesis e -> is_const e
+							| TTypeExpr _ -> true
+							| _ -> false
+						in
+						if not (is_const e) then display_error ctx "Inline variable must be a constant value" p;
+						e
+					| _ ->
+						e
+					) in
+					cf.cf_expr <- Some e;
+					cf.cf_type <- t;
+				end;
+				t
+			) in
+			bind_type cf r (snd e) false
+	in
+
 	(* ----------------------- FIELD INIT ----------------------------- *)
 
 	let loop_cf f =
@@ -891,12 +938,8 @@ let init_class ctx c p herits fields =
 		let inline = List.mem AInline f.cff_access in
 		let override = List.mem AOverride f.cff_access in
 		let ctx = { ctx with curclass = c; tthis = tthis } in
-		let mark_used cf =
-			if ctx.com.dead_code_elimination then cf.cf_meta <- (":?used",[],p) :: cf.cf_meta
-		in
 		match f.cff_kind with
 		| FVar (t,e) ->
-			if not stat && has_field name c.cl_super then error ("Redefinition of variable " ^ name ^ " in subclass is not allowed") p;
 			if inline && not stat then error "Inline variable must be static" p;
 			if override then error "You cannot override variables" p;
 			(match e with
@@ -926,44 +969,7 @@ let init_class ctx c p herits fields =
 				cf_params = [];
 				cf_overloads = [];
 			} in
-			let delay = (match e with
-				| None when ctx.com.dead_code_elimination && not ctx.com.display ->
-					let r = exc_protect (fun r ->
-						r := (fun() -> t);
-						mark_used cf;
-						t
-					) in
-					cf.cf_type <- TLazy r;
-					(fun() -> ())
-				| None ->
-					(fun() -> ())
-				| Some e ->
-					let r = exc_protect (fun r ->
-						if not !return_partial_type then begin
-							r := (fun() -> t);
-							if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ name);
-							mark_used cf;
-							let e = type_static_var ctx t e p in
-							let e = (if inline then 
-								let e = ctx.g.do_optimize ctx e in
-								let rec is_const e =
-									match e.eexpr with
-									| TConst _ -> true
-									| TBinop ((OpAdd|OpSub|OpMult|OpDiv|OpMod),e1,e2) -> is_const e1 && is_const e2
-									| TParenthesis e -> is_const e
-									| TTypeExpr _ -> true
-									| _ -> false
-								in
-								if not (is_const e) then display_error ctx "Inline variable must be a constant value" p;
-								e
-							else e) in
-							cf.cf_expr <- Some e;
-							cf.cf_type <- t;
-						end;
-						t
-					) in
-					bind_type cf r (snd e) false
-			) in
+			let delay = bind_var ctx cf e stat in
 			f, false, cf, delay
 		| FFun fd ->
 			let params = ref [] in
@@ -1090,9 +1096,6 @@ let init_class ctx c p herits fields =
 			in
 			f, constr, cf, delay
 		| FProp (get,set,t,eo) ->
-			(match eo with
-			| None -> ()
-			| Some e -> error "Property initialization is not allowed" (snd e));
 			if override then error "You cannot override properties" p;
 			let ret = load_complex_type ctx p t in
 			let check_get = ref (fun() -> ()) in
@@ -1142,15 +1145,8 @@ let init_class ctx c p herits fields =
 				cf_params = [];
 				cf_overloads = [];
 			} in
-			if ctx.com.dead_code_elimination && not ctx.com.display then begin
-				let r = exc_protect (fun r ->
-					r := (fun() -> ret);
-					mark_used cf;
-					ret
-				) in
-				cf.cf_type <- TLazy r;
-			end;
-			f, false, cf, (fun() -> (!check_get)(); (!check_set)())
+			let delay = bind_var ctx cf eo stat in
+			f, false, cf, (fun() -> delay(); (!check_get)(); (!check_set)())
 	in
 	let rec check_require = function
 		| [] -> None

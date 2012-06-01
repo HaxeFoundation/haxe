@@ -26,6 +26,10 @@ class MyDynamicClass {
 		return Z + x + y;
 	}
 
+	public static var W(getW, setW) : Int = 55;
+	static function getW() return W + 2
+	static function setW(v) { W = v; return v; }
+	
 }
 
 class MyDynamicSubClass extends MyDynamicClass {
@@ -33,7 +37,7 @@ class MyDynamicSubClass extends MyDynamicClass {
 	override function add(x,y) {
 		return (v + x + y) * 2;
 	}
-
+	
 }
 
 class MyDynamicSubClass2 extends MyDynamicClass {
@@ -100,6 +104,10 @@ class TestMisc extends Test {
 		// check enum
 		var c = MyEnum.C;
 		t( Type.enumEq(MyEnum.C(1,"hello"), c(1,"hello")) );
+	}
+	
+	function testPropertyInit() {
+		eq(MyDynamicClass.W, 57);
 	}
 
 	function testInlineClosure() {
