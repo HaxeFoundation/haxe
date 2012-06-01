@@ -45,7 +45,7 @@ let type_function_param ctx t e opt p =
 
 let type_static_var ctx t e p =
 	ctx.curfun <- FStatic;
-	let e = type_expr ctx e true in
+	let e = type_expr_with_type ctx e (Some t) false in
 	unify ctx e.etype t p;
 	(* specific case for UInt statics *)
 	match t with

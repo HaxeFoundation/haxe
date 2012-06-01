@@ -102,6 +102,7 @@ type error_msg =
 exception Error of error_msg * pos
 
 let type_expr_ref : (typer -> Ast.expr -> bool -> texpr) ref = ref (fun _ _ _ -> assert false)
+let type_expr_with_type_ref : (typer -> Ast.expr -> t option -> bool -> texpr) ref = ref (fun _ _ _ -> assert false)
 
 let unify_error_msg ctx = function
 	| Cannot_unify (t1,t2) ->
@@ -154,6 +155,8 @@ let display_error ctx msg p = ctx.com.error msg p
 let error msg p = raise (Error (Custom msg,p))
 
 let type_expr ctx e need_val = (!type_expr_ref) ctx e need_val
+
+let type_expr_with_type ctx e t do_raise = (!type_expr_with_type_ref) ctx e t do_raise
 
 let unify ctx t1 t2 p =
 	try
