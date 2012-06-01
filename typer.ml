@@ -1986,7 +1986,7 @@ and type_call ctx e el t p =
 		type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[e;EUntyped infos,p]),p)
 	| (EConst (Ident "callback"),p) , e :: params ->
 		type_callback ctx e params p
-	| (EConst (Ident "type"),_) , [e] ->
+	| (EConst (Ident "$type"),_) , [e] ->
 		let e = type_expr ctx e in
 		ctx.com.warning (s_type (print_context()) e.etype) e.epos;
 		e
