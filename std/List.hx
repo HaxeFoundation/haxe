@@ -62,7 +62,7 @@ class List<T> {
 		Push an element at the beginning of the list.
 	**/
 	public function push( item : T ) {
-		var x = #if neko
+		var x : Array<Dynamic> = #if neko
 			untyped __dollar__array(item,h)
 		#else
 			[item,h]
