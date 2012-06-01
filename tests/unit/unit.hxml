@@ -7,7 +7,6 @@
 params.hxml
 --next
 -swf unit9.swf
--swf-header 300:650:30:FFFFFF
 -swf-version 11
 -main unit.Test
 params.hxml
@@ -17,8 +16,7 @@ params.hxml
 -main unit.Test
 --next
 -js unit.js
--main unit.Test
---js-modern
+unit.Test
 params.hxml
 --next
 -neko unit.n

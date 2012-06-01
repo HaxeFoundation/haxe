@@ -102,7 +102,7 @@
 		for( i in it ) {
 			s.add(i);
 			if( it.hasNext() )
-				s.add(", ");
+				s.addChar(",".code);
 		}
 		s.add("]");
 		return s.toString();
