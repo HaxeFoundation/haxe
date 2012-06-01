@@ -534,8 +534,15 @@ let rec is_nullable ?(no_lazy=false) = function
 		is_nullable (apply_params t.t_types tl t.t_type)
 	| TFun _ ->
 		false
-	| TInst ({ cl_kind = KTypeParameter },_) ->
-		false
+(*
+	Type parameters will most of the time be nullable objects, so we don't want to make it hard for users
+	to have to specify Null<T> all over the place, so while they could be a basic type, let's assume they will not.
+	
+	This will still cause issues with inlining and haxe.rtti.Generic. In that case proper explicit Null<T> is required to
+	work correctly with basic types. This could still be fixed by redoing a nullability inference on the typed AST.
+
+	| TInst ({ cl_kind = KTypeParameter },_) -> false
+*)
 	| TInst ({ cl_path = (["haxe"],"Int32") },[])
 	| TInst ({ cl_path = ([],"Int") },[])
 	| TInst ({ cl_path = ([],"Float") },[])
