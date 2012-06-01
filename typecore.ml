@@ -38,7 +38,7 @@ type macro_mode =
 
 type feature =
 	| FtTypedCast
-	| FtIs
+	| FtTypedCatch
 
 type typer_globals = {
 	types_module : (path, path) Hashtbl.t;
@@ -242,7 +242,7 @@ let create_fake_module ctx file =
 
 let feature_name = function
 	| FtTypedCast -> "typed_cast"
-	| FtIs -> "is"
+	| FtTypedCatch -> "typed_catch"
 
 let activate_feature ctx ft = Hashtbl.replace ctx.g.features (feature_name ft) ft
 let has_feature ctx s = Hashtbl.mem ctx.g.features s

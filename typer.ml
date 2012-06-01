@@ -1741,7 +1741,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 					List.iter (fun pt ->
 						if pt != t_dynamic then error "Catch class parameter must be Dynamic" p;
 					) params;
-					activate_feature ctx FtIs;
+					activate_feature ctx FtTypedCatch;
 					(match path with
 					| x :: _ , _ -> x
 					| [] , name -> name)
