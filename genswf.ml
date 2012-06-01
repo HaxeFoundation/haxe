@@ -404,7 +404,7 @@ let build_class com c file =
 			d_name = path.tname;
 			d_doc = None;
 			d_params = [];
-			d_meta = [(":fakeEnum",[EConst (Type !real_type),pos],pos)];
+			d_meta = [(":fakeEnum",[EConst (Ident !real_type),pos],pos)];
 			d_flags = [EExtern];
 			d_data = constr;
 		} in

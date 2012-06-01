@@ -1773,12 +1773,11 @@ let macro_lib =
 				let h_tag = hash "tag" and h_args = hash "args" in
 				let ctx = get_ctx() in
 				let error v = failwith ("Unsupported value " ^ ctx.do_string v) in
-				let is_ident n = n <> "" && n.[0] < 'A' || n.[0] > 'Z' in
 				let make_path t =
 					let rec loop = function
 						| [] -> assert false
-						| [name] -> (Ast.EConst (if is_ident name then Ast.Ident name else Ast.Type name),p)
-						| name :: l -> if is_ident name then (Ast.EField (loop l,name),p) else (Ast.EType (loop l,name),p)
+						| [name] -> (Ast.EConst (Ast.Ident name),p)
+						| name :: l -> (Ast.EField (loop l,name),p)
 					in
 					let t = t_infos t in
 					loop (List.rev (if t.mt_module.m_path = t.mt_path then fst t.mt_path @ [snd t.mt_path] else fst t.mt_module.m_path @ [snd t.mt_module.m_path;snd t.mt_path]))
@@ -3032,8 +3031,7 @@ let encode_const c =
 	| Float s -> 1, [enc_string s]
 	| String s -> 2, [enc_string s]
 	| Ident s -> 3, [enc_string s]
-	| Type s -> 4, [enc_string s]
-	| Regexp (s,opt) -> 5, [enc_string s;enc_string opt]
+	| Regexp (s,opt) -> 4, [enc_string s;enc_string opt]
 	in
 	enc_enum IConst tag pl
 
@@ -3169,25 +3167,23 @@ and encode_expr e =
 				2, [encode_binop op;loop e1;loop e2]
 			| EField (e,f) ->
 				3, [loop e;enc_string f]
-			| EType (e,f) ->
-				4, [loop e;enc_string f]
 			| EParenthesis e ->
-				5, [loop e]
+				4, [loop e]
 			| EObjectDecl fl ->
-				6, [enc_array (List.map (fun (f,e) -> enc_obj [
+				5, [enc_array (List.map (fun (f,e) -> enc_obj [
 					"field",enc_string f;
 					"expr",loop e;
 				]) fl)]
 			| EArrayDecl el ->
-				7, [enc_array (List.map loop el)]
+				6, [enc_array (List.map loop el)]
 			| ECall (e,el) ->
-				8, [loop e;enc_array (List.map loop el)]
+				7, [loop e;enc_array (List.map loop el)]
 			| ENew (p,el) ->
-				9, [encode_path p; enc_array (List.map loop el)]
+				8, [encode_path p; enc_array (List.map loop el)]
 			| EUnop (op,flag,e) ->
-				10, [encode_unop op; VBool (match flag with Prefix -> false | Postfix -> true); loop e]
+				9, [encode_unop op; VBool (match flag with Prefix -> false | Postfix -> true); loop e]
 			| EVars vl ->
-				11, [enc_array (List.map (fun (v,t,eo) ->
+				10, [enc_array (List.map (fun (v,t,eo) ->
 					enc_obj [
 						"name",enc_string v;
 						"type",null encode_type t;
@@ -3195,26 +3191,26 @@ and encode_expr e =
 					]
 				) vl)]
 			| EFunction (name,f) ->
-				12, [null enc_string name; encode_fun f]
+				11, [null enc_string name; encode_fun f]
 			| EBlock el ->
-				13, [enc_array (List.map loop el)]
+				12, [enc_array (List.map loop el)]
 			| EFor (e,eloop) ->
-				14, [loop e;loop eloop]
+				13, [loop e;loop eloop]
 			| EIn (e1,e2) ->
-				15, [loop e1;loop e2]
+				14, [loop e1;loop e2]
 			| EIf (econd,e,eelse) ->
-				16, [loop econd;loop e;null loop eelse]
+				15, [loop econd;loop e;null loop eelse]
 			| EWhile (econd,e,flag) ->
-				17, [loop econd;loop e;VBool (match flag with NormalWhile -> true | DoWhile -> false)]
+				16, [loop econd;loop e;VBool (match flag with NormalWhile -> true | DoWhile -> false)]
 			| ESwitch (e,cases,eopt) ->
-				18, [loop e;enc_array (List.map (fun (ecl,e) ->
+				17, [loop e;enc_array (List.map (fun (ecl,e) ->
 					enc_obj [
 						"values",enc_array (List.map loop ecl);
 						"expr",loop e
 					]
 				) cases);null loop eopt]
 			| ETry (e,catches) ->
-				19, [loop e;enc_array (List.map (fun (v,t,e) ->
+				18, [loop e;enc_array (List.map (fun (v,t,e) ->
 					enc_obj [
 						"name",enc_string v;
 						"type",encode_type t;
@@ -3222,25 +3218,25 @@ and encode_expr e =
 					]
 				) catches)]
 			| EReturn eo ->
-				20, [null loop eo]
+				19, [null loop eo]
 			| EBreak ->
-				21, []
+				20, []
 			| EContinue ->
-				22, []
+				21, []
 			| EUntyped e ->
-				23, [loop e]
+				22, [loop e]
 			| EThrow e ->
-				24, [loop e]
+				23, [loop e]
 			| ECast (e,t) ->
-				25, [loop e; null encode_type t]
+				24, [loop e; null encode_type t]
 			| EDisplay (e,flag) ->
-				26, [loop e; VBool flag]
+				25, [loop e; VBool flag]
 			| EDisplayNew t ->
-				27, [encode_path t]
+				26, [encode_path t]
 			| ETernary (econd,e1,e2) ->
-				28, [loop econd;loop e1;loop e2]
+				27, [loop econd;loop e1;loop e2]
 			| ECheckType (e,t) ->
-				29, [loop e; encode_type t]
+				28, [loop e; encode_type t]
 		in
 		enc_obj [
 			"pos", encode_pos p;
@@ -3299,8 +3295,8 @@ let decode_const c =
 	| 1, [s] -> Float (dec_string s)
 	| 2, [s] -> String (dec_string s)
 	| 3, [s] -> Ident (dec_string s)
-	| 4, [s] -> Type (dec_string s)
-	| 5, [s;opt] -> Regexp (dec_string s, dec_string opt)
+	| 4, [s;opt] -> Regexp (dec_string s, dec_string opt)
+	| 5, [s] -> Ident (dec_string s) (** deprecated CType, keep until 3.0 release **)
 	| _ -> raise Invalid_expr
 
 let rec decode_op op =
@@ -3429,68 +3425,68 @@ let decode_expr v =
 			EBinop (decode_op op, loop e1, loop e2)
 		| 3, [e;f] ->
 			EField (loop e, dec_string f)
-		| 4, [e;f] ->
-			EType (loop e, dec_string f)
-		| 5, [e] ->
+		| 4, [e] ->
 			EParenthesis (loop e)
-		| 6, [a] ->
+		| 5, [a] ->
 			EObjectDecl (List.map (fun o ->
 				(dec_string (field o "field"), loop (field o "expr"))
 			) (dec_array a))
-		| 7, [a] ->
+		| 6, [a] ->
 			EArrayDecl (List.map loop (dec_array a))
-		| 8, [e;el] ->
+		| 7, [e;el] ->
 			ECall (loop e,List.map loop (dec_array el))
-		| 9, [t;el] ->
+		| 8, [t;el] ->
 			ENew (decode_path t,List.map loop (dec_array el))
-		| 10, [op;VBool f;e] ->
+		| 9, [op;VBool f;e] ->
 			EUnop (decode_unop op,(if f then Postfix else Prefix),loop e)
-		| 11, [vl] ->
+		| 10, [vl] ->
 			EVars (List.map (fun v ->
 				(dec_string (field v "name"),opt decode_ctype (field v "type"),opt loop (field v "expr"))
 			) (dec_array vl))
-		| 12, [fname;f] ->
+		| 11, [fname;f] ->
 			EFunction (opt dec_string fname,decode_fun f)
-		| 13, [el] ->
+		| 12, [el] ->
 			EBlock (List.map loop (dec_array el))
-		| 14, [e1;e2] ->
+		| 13, [e1;e2] ->
 			EFor (loop e1, loop e2)
-		| 15, [e1;e2] ->
+		| 14, [e1;e2] ->
 			EIn (loop e1, loop e2)
-		| 16, [e1;e2;e3] ->
+		| 15, [e1;e2;e3] ->
 			EIf (loop e1, loop e2, opt loop e3)
-		| 17, [e1;e2;VBool flag] ->
+		| 16, [e1;e2;VBool flag] ->
 			EWhile (loop e1,loop e2,if flag then NormalWhile else DoWhile)
-		| 18, [e;cases;eo] ->
+		| 17, [e;cases;eo] ->
 			let cases = List.map (fun c ->
 				(List.map loop (dec_array (field c "values")),loop (field c "expr"))
 			) (dec_array cases) in
 			ESwitch (loop e,cases,opt loop eo)
-		| 19, [e;catches] ->
+		| 18, [e;catches] ->
 			let catches = List.map (fun c ->
 				(dec_string (field c "name"),decode_ctype (field c "type"),loop (field c "expr"))
 			) (dec_array catches) in
 			ETry (loop e, catches)
-		| 20, [e] ->
+		| 19, [e] ->
 			EReturn (opt loop e)
-		| 21, [] ->
+		| 20, [] ->
 			EBreak
-		| 22, [] ->
+		| 21, [] ->
 			EContinue
-		| 23, [e] ->
+		| 22, [e] ->
 			EUntyped (loop e)
-		| 24, [e] ->
+		| 23, [e] ->
 			EThrow (loop e)
-		| 25, [e;t] ->
+		| 24, [e;t] ->
 			ECast (loop e,opt decode_ctype t)
-		| 26, [e;f] ->
+		| 25, [e;f] ->
 			EDisplay (loop e,dec_bool f)
-		| 27, [t] ->
+		| 26, [t] ->
 			EDisplayNew (decode_path t)
-		| 28, [e1;e2;e3] ->
+		| 27, [e1;e2;e3] ->
 			ETernary (loop e1,loop e2,loop e3)
-		| 29, [e;t] ->
+		| 28, [e;t] ->
 			ECheckType (loop e, decode_ctype t)
+		| 29, [e;f] ->
+			EField (loop e, dec_string f) (*** deprecated EType, keep until haxe 3 **)
 		| _ ->
 			raise Invalid_expr
 	in
@@ -3822,14 +3818,14 @@ open Ast
 let rec make_ast e =
 	let mk_path (pack,name) p =
 		match List.rev pack with
-		| [] -> (EConst (Type name),p)
+		| [] -> (EConst (Ident name),p)
 		| pl ->
 			let rec loop = function
 				| [] -> assert false
 				| [n] -> (EConst (Ident n),p)
 				| n :: l -> (EField (loop l, n),p)
 			in
-			(EType (loop pl,name),p)
+			(EField (loop pl,name),p)
 	in
 	let mk_const = function
 		| TInt i -> Int (Int32.to_string i)
@@ -3882,12 +3878,11 @@ let rec make_ast e =
 		| _ -> Some (mk_type t)
 	in
 	let eopt = function None -> None | Some e -> Some (make_ast e) in
-	let is_ident n = n.[0] < 'A' || n.[0] > 'Z' in
 	((match e.eexpr with
 	| TConst c ->
 		EConst (mk_const c)
-	| TLocal v -> EConst (if is_ident v.v_name then Ident v.v_name else Type v.v_name)
-	| TEnumField (en,f) -> if is_ident f then EField (mk_path en.e_path e.epos,f) else EType (mk_path en.e_path e.epos,f)
+	| TLocal v -> EConst (Ident v.v_name)
+	| TEnumField (en,f) -> EField (mk_path en.e_path e.epos,f)
 	| TArray (e1,e2) -> EArray (make_ast e1,make_ast e2)
 	| TBinop (op,e1,e2) -> EBinop (op, make_ast e1, make_ast e2)
 	| TField (e,f) | TClosure (e,f) -> EField (make_ast e, f)
@@ -3916,7 +3911,7 @@ let rec make_ast e =
 			let unused = (EConst (Ident "_"),p) in
 			let args = (match args with
 				| None -> None
-				| Some l -> Some (List.map (function None -> unused | Some v -> (EConst (if is_ident v.v_name then Ident v.v_name else Type v.v_name),p)) l)
+				| Some l -> Some (List.map (function None -> unused | Some v -> (EConst (Ident v.v_name),p)) l)
 			) in
 			let mk_args n =
 				match args with
@@ -3927,7 +3922,7 @@ let rec make_ast e =
 			List.map (fun i ->
 				let c = (try List.nth en.e_names i with _ -> assert false) in
 				let cfield = (try PMap.find c en.e_constrs with Not_found -> assert false) in
-				let c = (EConst (if is_ident c then Ident c else Type c),p) in
+				let c = (EConst (Ident c),p) in
 				(match follow cfield.ef_type with TFun (eargs,_) -> (ECall (c,mk_args (List.length eargs)),p) | _ -> c)
 			) idx, make_ast e
 		in

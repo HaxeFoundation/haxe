@@ -192,7 +192,7 @@ let rec type_str ctx t p =
 			| _ ->
 				let rec loop = function
 					| [] -> "Object"
-					| (":fakeEnum",[Ast.EConst (Ast.Type n),_],_) :: _ ->
+					| (":fakeEnum",[Ast.EConst (Ast.Ident n),_],_) :: _ ->
 						(match n with
 						| "Int" -> "int"
 						| "UInt" -> "uint"
@@ -285,8 +285,8 @@ let gen_function_header ctx name f params p =
 	print ctx "function%s(" (match name with None -> "" | Some (n,meta) ->
 		let rec loop = function
 			| [] -> n
-			| (":getter",[Ast.EConst (Ast.Ident i | Ast.Type i),_],_) :: _ -> "get " ^ i
-			| (":setter",[Ast.EConst (Ast.Ident i | Ast.Type i),_],_) :: _ -> "set " ^ i
+			| (":getter",[Ast.EConst (Ast.Ident i),_],_) :: _ -> "get " ^ i
+			| (":setter",[Ast.EConst (Ast.Ident i),_],_) :: _ -> "set " ^ i
 			| _ :: l -> loop l
 		in
 		" " ^ loop meta
@@ -839,11 +839,11 @@ let generate_field ctx static f =
 	ctx.gen_uid <- 0;
 	List.iter (fun(m,pl,_) ->
 		match m,pl with
-		| ":meta", [Ast.ECall ((Ast.EConst (Ast.Ident n | Ast.Type n),_),args),_] ->
+		| ":meta", [Ast.ECall ((Ast.EConst (Ast.Ident n),_),args),_] ->
 			let mk_arg (a,p) =
 				match a with
 				| Ast.EConst (Ast.String s) -> (None, s)
-				| Ast.EBinop (Ast.OpAssign,(Ast.EConst (Ast.Ident n | Ast.Type n),_),(Ast.EConst (Ast.String s),_)) -> (Some n, s)
+				| Ast.EBinop (Ast.OpAssign,(Ast.EConst (Ast.Ident n),_),(Ast.EConst (Ast.String s),_)) -> (Some n, s)
 				| _ -> error "Invalid meta definition" p
 			in
 			print ctx "[%s" n;

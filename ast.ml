@@ -102,7 +102,6 @@ type constant =
 	| Float of string
 	| String of string
 	| Ident of string
-	| Type of string
 	| Regexp of string * string
 
 type token =
@@ -169,7 +168,6 @@ and expr_def =
 	| EArray of expr * expr
 	| EBinop of binop * expr * expr
 	| EField of expr * string
-	| EType of expr * string
 	| EParenthesis of expr
 	| EObjectDecl of (string * expr) list
 	| EArrayDecl of expr list
@@ -259,10 +257,15 @@ type type_decl = type_def * pos
 
 type package = string list * type_decl list
 
+let is_lower_ident i =
+	match String.unsafe_get i 0 with
+	| 'a'..'z' | '_' -> true
+	| _ -> false
+
 let pos = snd
 
 let is_postfix (e,_) = function
-	| Increment | Decrement -> (match e with EConst _ | EField _ | EType _ | EArray _ -> true | _ -> false)
+	| Increment | Decrement -> (match e with EConst _ | EField _ | EArray _ -> true | _ -> false)
 	| Not | Neg | NegBits -> false
 
 let is_prefix = function
@@ -305,7 +308,6 @@ let s_constant = function
 	| Float s -> s
 	| String s -> "\"" ^ s_escape s ^ "\""
 	| Ident s -> s
-	| Type s -> s
 	| Regexp (r,o) -> "~/" ^ r ^ "/"
 
 let s_access = function
@@ -485,7 +487,6 @@ let map_expr loop (e,p) =
 	| EArray (e1,e2) -> EArray (loop e1, loop e2)
 	| EBinop (op,e1,e2) -> EBinop (op,loop e1, loop e2)
 	| EField (e,f) -> EField (loop e, f)
-	| EType (e,f) -> EType (loop e, f)
 	| EParenthesis e -> EParenthesis (loop e)
 	| EObjectDecl fl -> EObjectDecl (List.map (fun (f,e) -> f,loop e) fl)
 	| EArrayDecl el -> EArrayDecl (List.map loop el)

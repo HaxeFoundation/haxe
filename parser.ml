@@ -136,18 +136,17 @@ let rec psep sep f = parser
 	| [< >] -> []
 
 let ident = parser
-	| [< '(Const (Ident i),_) >] -> i
+	| [< '(Const (Ident i),p) >] -> i,p
 
-let any_ident = parser
-	| [< '(Const (Ident i),p) >] -> i, p
-	| [< '(Const (Type t),p) >] -> t, p
+let lower_ident = parser
+	| [< '(Const (Ident i),p) when is_lower_ident i >] -> i
 
 let any_enum_ident = parser
-	| [< i = any_ident >] -> i
+	| [< i = ident >] -> i
 	| [< '(Kwd k,p) when Filename.basename p.pfile = "StdTypes.hx" >] -> s_keyword k, p 
 
 let property_ident = parser
-	| [< i, _ = any_ident >] -> i
+	| [< i, _ = ident >] -> i
 	| [< '(Kwd Dynamic,_) >] -> "dynamic"
 	| [< '(Kwd Default,_) >] -> "default"
 	| [< '(Kwd Null,_) >] -> "null"
@@ -229,7 +228,7 @@ and parse_type_decl s =
 				d_data = t;
 			}, punion p1 p2)
 
-and parse_package s = psep Dot ident s
+and parse_package s = psep Dot lower_ident s
 
 and parse_class_fields tdecl p1 s =
 	let l = parse_class_field_resume tdecl s in
@@ -261,8 +260,8 @@ and parse_class_field_resume tdecl s =
 				()
 			else match List.rev_map fst (Stream.npeek k s) with
 			| Kwd Private :: _ -> junk_tokens (k - 1)
-			| (Const (Ident _ | Type _) | Kwd _) :: DblDot :: At :: l
-			| (Const (Ident _ | Type _) | Kwd _) :: At :: l ->
+			| (Const (Ident _) | Kwd _) :: DblDot :: At :: l
+			| (Const (Ident _) | Kwd _) :: At :: l ->
 				junk_tokens (List.length l)
 			| PClose :: l ->
 				(* count matching parenthesises for metadata call *)
@@ -273,8 +272,8 @@ and parse_class_field_resume tdecl s =
 					| _ :: l -> loop n l
 				in
 				(match loop 0 l with
-				| (Const (Ident _ | Type _) | Kwd _) :: At :: l
-				| (Const (Ident _ | Type _) | Kwd _) :: DblDot :: At :: l -> junk_tokens (List.length l)
+				| (Const (Ident _) | Kwd _) :: At :: l
+				| (Const (Ident _) | Kwd _) :: DblDot :: At :: l -> junk_tokens (List.length l)
 				| _ ->
 					junk k)
 			| _ ->
@@ -318,7 +317,6 @@ and parse_meta = parser
 
 and meta_name = parser
 	| [< '(Const (Ident i),p) >] -> i, p
-	| [< '(Const (Type t),p) >] -> t, p
 	| [< '(Kwd k,p) >] -> s_keyword k,p
 	| [< '(DblDot,_); s >] -> let n, p = meta_name s in ":" ^ n, p
 
@@ -358,44 +356,47 @@ and parse_type_path s = parse_type_path1 [] s
 
 and parse_type_path1 pack = parser
 	| [< '(Const (Ident name),p); s >] ->
-		(match s with parser
-		| [< '(Dot,p) >] ->
-			if is_resuming p then
-				raise (TypePath (List.rev (name :: pack),None))
-			else
-				parse_type_path1 (name :: pack) s
-		| [< '(Semicolon,_) >] ->
-			error (Custom "Type name should start with an uppercase letter") p
-		| [< >] -> serror());
-	| [< '(Const (Type name),_); s >] ->
-		let sub = (match s with parser
-			| [< '(Dot,p); s >] ->
-				(if is_resuming p then
-					raise (TypePath (List.rev pack,Some (name,false)))
-				else match s with parser
-					| [< '(Const (Type name),_) >] -> Some name
-					| [< '(Binop OpOr,_) when do_resume() >] ->
+		if is_lower_ident name then
+			(match s with parser
+			| [< '(Dot,p) >] ->
+				if is_resuming p then
+					raise (TypePath (List.rev (name :: pack),None))
+				else
+					parse_type_path1 (name :: pack) s
+			| [< '(Semicolon,_) >] ->
+				error (Custom "Type name should start with an uppercase letter") p
+			| [< >] -> serror())
+		else
+			let sub = (match s with parser
+				| [< '(Dot,p); s >] ->
+					(if is_resuming p then
 						raise (TypePath (List.rev pack,Some (name,false)))
-					| [< >] -> serror())
-			| [< >] -> None
-		) in
-		let params = (match s with parser
-			| [< '(Binop OpLt,_); l = psep Comma parse_type_path_or_const; '(Binop OpGt,_) >] -> l
-			| [< >] -> []
-		) in
-		{
-			tpackage = List.rev pack;
-			tname = name;
-			tparams = params;
-			tsub = sub;
-		}
+					else match s with parser
+						| [< '(Const (Ident name),_) when not (is_lower_ident name) >] -> Some name
+						| [< '(Binop OpOr,_) when do_resume() >] ->
+							raise (TypePath (List.rev pack,Some (name,false)))
+						| [< >] -> serror())
+				| [< >] -> None
+			) in
+			let params = (match s with parser
+				| [< '(Binop OpLt,_); l = psep Comma parse_type_path_or_const; '(Binop OpGt,_) >] -> l
+				| [< >] -> []
+			) in
+			{
+				tpackage = List.rev pack;
+				tname = name;
+				tparams = params;
+				tsub = sub;
+			}
 	| [< '(Binop OpOr,_) when do_resume() >] ->
 		raise (TypePath (List.rev pack,None))
 
 and type_name = parser
-	| [< '(Const (Type name),_) >] -> name
 	| [< '(Const (Ident name),p) >] ->
-		error (Custom "Type name should start with an uppercase letter") p
+		if is_lower_ident name then
+			error (Custom "Type name should start with an uppercase letter") p
+		else
+			name
 
 and parse_type_path_or_const = parser
 	(* we can't allow (expr) here *)
@@ -415,7 +416,7 @@ and parse_complex_type_next t = parser
 
 and parse_type_anonymous opt = parser
 	| [< '(Question,_) when not opt; s >] -> parse_type_anonymous true s
-	| [< name, p1 = any_ident; '(DblDot,_); t = parse_complex_type; s >] ->
+	| [< name, p1 = ident; '(DblDot,_); t = parse_complex_type; s >] ->
 		let next p2 acc =
 			let t = if not opt then t else (match t with
 				| CTPath { tpackage = []; tname = "Null" } -> t
@@ -450,15 +451,15 @@ and parse_enum s =
 		| [< >] -> serror()
 
 and parse_enum_param = parser
-	| [< '(Question,_); name, _ = any_ident; '(DblDot,_); t = parse_complex_type >] -> (name,true,t)
-	| [< name, _ = any_ident; '(DblDot,_); t = parse_complex_type >] -> (name,false,t)
+	| [< '(Question,_); name, _ = ident; '(DblDot,_); t = parse_complex_type >] -> (name,true,t)
+	| [< name, _ = ident; '(DblDot,_); t = parse_complex_type >] -> (name,false,t)
 
 and parse_class_field s =
 	doc := None;
 	match s with parser
 	| [< meta = parse_meta; al = parse_cf_rights true []; doc = get_doc; s >] ->
 		let name, pos, k = (match s with parser
-		| [< '(Kwd Var,p1); name, _ = any_ident; s >] ->
+		| [< '(Kwd Var,p1); name, _ = ident; s >] ->
 			(match s with parser
 			| [< '(POpen,_); i1 = property_ident; '(Comma,_); i2 = property_ident; '(PClose,_); '(DblDot,_); t = parse_complex_type >] ->
 				let e , p2 = (match s with parser
@@ -510,20 +511,19 @@ and parse_cf_rights allow_static l = parser
 
 and parse_fun_name = parser
 	| [< '(Const (Ident name),_) >] -> name
-	| [< '(Const (Type name),_) >] -> name
 	| [< '(Kwd New,_) >] -> "new"
 
 and parse_fun_param = parser
-	| [< '(Question,_); name, _ = any_ident; t = parse_type_opt; c = parse_fun_param_value >] -> (name,true,t,c)
-	| [< name, _ = any_ident; t = parse_type_opt; c = parse_fun_param_value >] -> (name,false,t,c)
+	| [< '(Question,_); name, _ = ident; t = parse_type_opt; c = parse_fun_param_value >] -> (name,true,t,c)
+	| [< name, _ = ident; t = parse_type_opt; c = parse_fun_param_value >] -> (name,false,t,c)
 
 and parse_fun_param_value = parser
 	| [< '(Binop OpAssign,_); e = toplevel_expr >] -> Some e
 	| [< >] -> None
 
 and parse_fun_param_type = parser
-	| [< '(Question,_); name = any_ident; '(DblDot,_); t = parse_complex_type >] -> (name,true,t)
-	| [< name = any_ident; '(DblDot,_); t = parse_complex_type >] -> (name,false,t)
+	| [< '(Question,_); name = ident; '(DblDot,_); t = parse_complex_type >] -> (name,true,t)
+	| [< name = ident; '(DblDot,_); t = parse_complex_type >] -> (name,false,t)
 
 and parse_constraint_params = parser
 	| [< '(Binop OpLt,_); l = psep Comma parse_constraint_param; '(Binop OpGt,_) >] -> l
@@ -545,7 +545,6 @@ and parse_class_herit = parser
 
 and block1 = parser
 	| [< '(Const (Ident name),p); s >] -> block2 name (Ident name) p s
-	| [< '(Const (Type name),p); s >] -> block2 name (Type name) p s
 	| [< '(Const (String name),p); s >] -> block2 (quote_ident name) (String name) p s
 	| [< b = block [] >] -> EBlock b
 
@@ -584,7 +583,7 @@ and parse_block_elt = parser
 and parse_obj_decl = parser
 	| [< '(Comma,_); s >] ->
 		(match s with parser
-		| [< name, _ = any_ident; '(DblDot,_); e = expr; l = parse_obj_decl >] -> (name,e) :: l
+		| [< name, _ = ident; '(DblDot,_); e = expr; l = parse_obj_decl >] -> (name,e) :: l
 		| [< '(Const (String name),_); '(DblDot,_); e = expr; l = parse_obj_decl >] -> (quote_ident name,e) :: l
 		| [< >] -> [])
 	| [< >] -> []
@@ -598,7 +597,7 @@ and parse_array_decl = parser
 		[]
 
 and parse_var_decl = parser
-	| [< name, _ = any_ident; t = parse_type_opt; s >] ->
+	| [< name, _ = ident; t = parse_type_opt; s >] ->
 		match s with parser
 		| [< '(Binop OpAssign,_); e = expr >] -> (name,t,Some e)
 		| [< >] -> (name,t,None)
@@ -631,7 +630,7 @@ and expr = parser
 		| [< >] -> serror())
 	| [< '(POpen,p1); e = expr; '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
 	| [< '(BkOpen,p1); l = parse_array_decl; '(BkClose,p2); s >] -> expr_next (EArrayDecl l, punion p1 p2) s
-	| [< '(Kwd Function,p1); name = popt any_ident; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
+	| [< '(Kwd Function,p1); name = popt ident; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
 		let make e =
 			let f = {
 				f_params = pl;
@@ -708,7 +707,6 @@ and expr_next e1 = parser
 		if is_resuming p then display (EDisplay (e1,false),p);
 		(match s with parser
 		| [< '(Const (Ident f),p2) when p.pmax = p2.pmin; s >] -> expr_next (EField (e1,f) , punion (pos e1) p2) s
-		| [< '(Const (Type t),p2) when p.pmax = p2.pmin; s >] -> expr_next (EType (e1,t) , punion (pos e1) p2) s
 		| [< '(Binop OpOr,p2) when do_resume() >] -> display (EDisplay (e1,false),p) (* help for debug display mode *)
 		| [< >] ->
 			(* turn an integer followed by a dot into a float *)
@@ -759,7 +757,7 @@ and parse_switch_cases eswitch cases = parser
 		List.rev cases , None
 
 and parse_catch etry = parser
-	| [< '(Kwd Catch,p); '(POpen,_); name, _ = any_ident; s >] ->
+	| [< '(Kwd Catch,p); '(POpen,_); name, _ = ident; s >] ->
 		match s with parser
 		| [< '(DblDot,_); t = parse_complex_type; '(PClose,_); s >] ->
 			(try
@@ -790,7 +788,7 @@ and parse_call_params ec s =
 
 and parse_macro_cond allow_op s =
 	match s with parser
-	| [< '(Const (Ident t | Type t),p) >] ->
+	| [< '(Const (Ident t),p) >] ->
 		parse_macro_ident allow_op t p s
 	| [< '(Kwd k,p) >] ->
 		parse_macro_ident allow_op (s_keyword k) p s

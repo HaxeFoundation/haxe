@@ -549,7 +549,7 @@ let get_this ctx p =
 	| FConstructor | FMember ->
 		mk (TConst TThis) ctx.tthis p
 
-let type_ident ctx i is_type p mode =
+let type_ident ?(imported_enums=true) ctx i p mode =
 	match i with
 	| "true" ->
 		if mode = MGet then
@@ -611,6 +611,7 @@ let type_ident ctx i is_type p mode =
 		(* check_locals_masking already done in type_type *)
 		field_access ctx mode f (field_type f) e p
 	with Not_found ->
+		if not imported_enums then raise Not_found;
 		(* lookup imported enums *)
 		let rec loop l =
 			match l with
@@ -1148,13 +1149,13 @@ and type_switch ctx e cases def need_val p =
 		try
 			(match !enum, e with
 			| None, _ -> raise Exit
-			| Some (Some (en,params)), (EConst (Ident i | Type i),p) ->
+			| Some (Some (en,params)), (EConst (Ident i),p) ->
 				if not (PMap.mem i en.e_constrs) then error ("This constructor is not part of the enum " ^ s_type_path en.e_path) p;
 			| _ -> ());
 			let pl = List.map (fun e ->
 				match fst e with
 				| EConst (Ident "_") -> None
-				| EConst (Ident i | Type i) -> Some i
+				| EConst (Ident i) -> Some i
 				| _ -> raise Exit
 			) pl in
 			let e = type_expr ctx e in
@@ -1274,12 +1275,12 @@ and type_switch ctx e cases def need_val p =
 		let t = if not need_val then (mk_mono()) else unify_min ctx !el in
 		mk (TSwitch (eval,cases,def)) t p
 
-and type_ident_noerr ctx i is_type p mode =
+and type_ident_noerr ctx i p mode =
 	try
-		type_ident ctx i is_type p mode
+		type_ident ctx i p mode
 	with Not_found -> try
 		(* lookup type *)
-		if not is_type then raise Not_found;
+		if is_lower_ident i then raise Not_found;
 		let e = (try type_type ctx ([],i) p with Error (Module_not_found ([],name),_) when name = i -> raise Not_found) in
 		AKExpr e
 	with Not_found ->
@@ -1324,15 +1325,10 @@ and type_expr_with_type_raise ctx e t =
 			exc ->
 				ctx.param_type <- old;
 				raise exc)
-	| (EConst (Ident s | Type s),p) ->
-		let old = ctx.local_types in
-		ctx.local_types <- [];
+	| (EConst (Ident s),p) ->
 		(try
-			let e = acc_get ctx (type_ident ctx s (match fst e with EConst (Ident _) -> false | _ -> true) p MGet) p in
-			ctx.local_types <- old;
-			e
+			acc_get ctx (type_ident ~imported_enums:false ctx s p MGet) p
 		with Not_found -> try
-			ctx.local_types <- old;
 			(match t with
 			| None -> raise Not_found
 			| Some t ->
@@ -1418,11 +1414,8 @@ and type_expr_with_type ctx e t =
 and type_access ctx e p mode =
 	match e with
 	| EConst (Ident s) ->
-		type_ident_noerr ctx s false p mode
-	| EConst (Type s) ->
-		type_ident_noerr ctx s true p mode
-	| EField _
-	| EType _ ->
+		type_ident_noerr ctx s p mode
+	| EField _ ->
 		let fields path e =
 			List.fold_left (fun e (f,_,p) ->
 				let e = acc_get ctx (e MGet) p in
@@ -1437,7 +1430,7 @@ and type_access ctx e p mode =
 					| [] -> assert false
 					| (name,flag,p) :: path ->
 						try
-							fields path (type_access ctx (EConst (if flag then Type name else Ident name)) p)
+							fields path (type_access ctx (EConst (Ident name)) p)
 						with
 							Error (Unknown_ident _,p2) as e when p = p2 ->
 								try
@@ -1509,20 +1502,16 @@ and type_access ctx e p mode =
 			| [] -> assert false
 			| (name,_,p) :: pnext ->
 				try
-					fields pnext (fun _ -> type_ident ctx name false p MGet)
+					fields pnext (fun _ -> type_ident ctx name p MGet)
 				with
 					Not_found -> loop [] path
 		in
 		let rec loop acc e =
 			match fst e with
 			| EField (e,s) ->
-				loop ((s,false,p) :: acc) e
-			| EType (e,s) ->
-				loop ((s,true,p) :: acc) e
+				loop ((s,not (is_lower_ident s),p) :: acc) e
 			| EConst (Ident i) ->
-				type_path ((i,false,p) :: acc)
-			| EConst (Type i) ->
-				type_path ((i,true,p) :: acc)
+				type_path ((i,not (is_lower_ident i),p) :: acc)
 			| _ ->
 				fields acc (type_access ctx (fst e) (snd e))
 		in
@@ -1567,10 +1556,8 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		if UTF8.length s <> 1 then error "String must be a single UTF8 char" p;
 		mk (TConst (TInt (Int32.of_int (UChar.code (UTF8.get s 0))))) ctx.t.tint p
 	| EField _
-	| EType _
 	| EArray _
-	| EConst (Ident _)
-	| EConst (Type _) ->
+	| EConst (Ident _) ->
 		acc_get ctx (type_access ctx e p MGet) p
 	| EConst (Regexp (r,opt)) ->
 		let str = mk (TConst (TString r)) ctx.t.tstring p in
@@ -1645,7 +1632,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		mk (TVars vl) ctx.t.tvoid p
 	| EFor (it,e2) ->
 		let i, e1 = (match it with
-			| (EIn ((EConst (Ident i | Type i),_),e),_) -> i, e
+			| (EIn ((EConst (Ident i),_),e),_) -> i, e
 			| _ -> error "For expression should be 'v in expr'" (snd it)
 		) in
 		let e1 = type_expr ctx e1 in
@@ -1992,7 +1979,7 @@ and type_call ctx e el t p =
 		else
 		let params = (match el with [] -> [] | _ -> ["customParams",(EArrayDecl el , p)]) in
 		let infos = mk_infos ctx p params in
-		type_expr ctx (ECall ((EField ((EType ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[e;EUntyped infos,p]),p)
+		type_expr ctx (ECall ((EField ((EField ((EConst (Ident "haxe"),p),"Log"),p),"trace"),p),[e;EUntyped infos,p]),p)
 	| (EConst (Ident "callback"),p) , e :: params ->
 		type_callback ctx e params p
 	| (EConst (Ident "type"),_) , [e] ->
@@ -2024,7 +2011,7 @@ and type_call ctx e el t p =
 		mk (TCall (mk (TConst TSuper) t sp,el)) ctx.t.tvoid p
 	| _ ->
 		(match e with
-		| EField ((EConst (Ident "super"),_),_) , _ | EType ((EConst (Ident "super"),_),_) , _ -> ctx.in_super_call <- true
+		| EField ((EConst (Ident "super"),_),_) , _ -> ctx.in_super_call <- true
 		| _ -> ());
 		let rec loop acc el =
 			match acc with
@@ -2807,8 +2794,8 @@ let call_init_macro ctx e =
 	| ECall (e,args) ->
 		let rec loop e =
 			match fst e with
-			| EField (e,f) | EType (e,f) -> f :: loop e
-			| EConst (Ident i | Type i) -> [i]
+			| EField (e,f) -> f :: loop e
+			| EConst (Ident i) -> [i]
 			| _ -> error "Invalid macro call" p
 		in
 		let path, meth = (match loop e with

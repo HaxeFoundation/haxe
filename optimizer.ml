@@ -857,7 +857,7 @@ let optimize_completion_expr e =
 	let rec loop e =
 		let p = snd e in
 		match fst e with
-		| EConst (Ident n | Type n) ->
+		| EConst (Ident n) ->
 			(try
 				(match get_local n with
 				| Some _ , _ -> ()
@@ -865,7 +865,7 @@ let optimize_completion_expr e =
 			with Not_found ->
 				());
 			e
-		| EBinop (OpAssign,(EConst (Ident n | Type n),_),esub) ->
+		| EBinop (OpAssign,(EConst (Ident n),_),esub) ->
 			(try
 				(match get_local n with
 				| None, None when maybe_typed esub -> decl n None (Some esub)
@@ -901,7 +901,7 @@ let optimize_completion_expr e =
 			let e = map e in
 			old();
 			e
-		| EFor ((EIn ((EConst (Ident n | Type n),_) as id,it),p),efor) ->
+		| EFor ((EIn ((EConst (Ident n),_) as id,it),p),efor) ->
 			let it = loop it in
 			let old = save() in
 			decl n None (Some (ECall ((EField ((ECall ((EField (it,"iterator"),p),[]),p),"next"),p),[]),p));
@@ -921,7 +921,7 @@ let optimize_completion_expr e =
 					| ECall (_,pl) ->
 						List.iter (fun p ->
 							match fst p with
-							| EConst (Ident i | Type i) -> decl i None None (* sadly *)
+							| EConst (Ident i) -> decl i None None (* sadly *)
 							| _ -> ()
 						) pl
 					| _ -> ()
@@ -948,7 +948,7 @@ let optimize_completion_expr e =
 			let tmp_hlocals = ref PMap.empty in
 			let rec subst_locals locals e =
 				match fst e with
-				| EConst (Ident n | Type n) ->
+				| EConst (Ident n) ->
 					let p = snd e in
 					(try
 						(match PMap.find n locals.r with

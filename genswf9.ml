@@ -218,7 +218,7 @@ let rec type_id ctx t =
 	| TEnum (e,_) ->
 		let rec loop = function
 			| [] -> type_path ctx e.e_path
-			| (":fakeEnum",[Ast.EConst (Ast.Type n),_],_) :: _ -> type_path ctx ([],n)
+			| (":fakeEnum",[Ast.EConst (Ast.Ident n),_],_) :: _ -> type_path ctx ([],n)
 			| _ :: l -> loop l
 		in
 		loop e.e_meta
@@ -248,7 +248,7 @@ let classify ctx t =
 	| TEnum (e,_) ->
 		let rec loop = function
 			| [] -> KType (type_id ctx t)
-			| (":fakeEnum",[Ast.EConst (Type n),_],_) :: _ ->
+			| (":fakeEnum",[Ast.EConst (Ident n),_],_) :: _ ->
 				(match n with
 				| "Int" -> KInt
 				| "UInt" -> KUInt
@@ -1861,11 +1861,11 @@ let generate_enum_init ctx e hc meta =
 let extract_meta meta =
 	let rec loop = function
 		| [] -> []
-		| (":meta",[ECall ((EConst (Ident n | Type n),_),args),_],_) :: l ->
+		| (":meta",[ECall ((EConst (Ident n),_),args),_],_) :: l ->
 			let mk_arg (a,p) =
 				match a with
 				| EConst (String s) -> (None, s)
-				| EBinop (OpAssign,(EConst (Ident n | Type n),_),(EConst (String s),_)) -> (Some n, s)
+				| EBinop (OpAssign,(EConst (Ident n),_),(EConst (String s),_)) -> (Some n, s)
 				| _ -> error "Invalid meta definition" p
 			in
 			{ hlmeta_name = n; hlmeta_data = Array.of_list (List.map mk_arg args) } :: loop l
@@ -1896,8 +1896,8 @@ let generate_field_kind ctx f c stat =
 		| _ ->
 			let rec lookup_kind = function
 				| [] -> f.cf_name, MK3Normal
-				| (":getter",[EConst (Ident f | Type f),_],_) :: _ -> f, MK3Getter
-				| (":setter",[EConst (Ident f | Type f),_],_) :: _ -> f, MK3Setter
+				| (":getter",[EConst (Ident f),_],_) :: _ -> f, MK3Getter
+				| (":setter",[EConst (Ident f),_],_) :: _ -> f, MK3Setter
 				| _ :: l -> lookup_kind l
 			in
 			let name, kind = lookup_kind f.cf_meta in
@@ -1986,7 +1986,7 @@ let generate_class ctx c =
 					ident f.cf_name
 			| x :: l ->
 				match x with
-				| ((":getter" | ":setter"),[EConst (Ident f | Type f),_],_) -> ident f
+				| ((":getter" | ":setter"),[EConst (Ident f),_],_) -> ident f
 				| (":ns",[EConst (String ns),_],_) -> HMName (f.cf_name,HNNamespace ns)
 				| (":protected",[],_) -> protect()
 				| _ -> loop_meta l

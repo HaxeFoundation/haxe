@@ -40,8 +40,10 @@ enum Constant {
 	CFloat( f : String );
 	CString( s : String );
 	CIdent( s : String );
-	CType( s : String );
 	CRegexp( r : String, opt : String );
+	#if !haxe3
+	CType( s : String );
+	#end
 }
 
 enum Binop {
@@ -94,7 +96,6 @@ enum ExprDef {
 	EArray( e1 : Expr, e2 : Expr );
 	EBinop( op : Binop, e1 : Expr, e2 : Expr );
 	EField( e : Expr, field : String );
-	EType( e : Expr, field : String );
 	EParenthesis( e : Expr );
 	EObjectDecl( fields : Array<{ field : String, expr : Expr }> );
 	EArrayDecl( values : Array<Expr> );
@@ -120,6 +121,9 @@ enum ExprDef {
 	EDisplayNew( t : TypePath );
 	ETernary( econd : Expr, eif : Expr, eelse : Expr );
 	ECheckType( e : Expr, t : ComplexType );
+	#if !haxe3
+	EType( e : Expr, field : String );
+	#end	
 }
 
 enum ComplexType {

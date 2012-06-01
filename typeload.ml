@@ -741,8 +741,8 @@ let build_module_def ctx mt meta fvars fbuild =
 			) in
 			let rec getpath (e,p) =
 				match e with
-				| EConst (Ident i) | EConst (Type i) -> [i]
-				| EField (e,f) | EType (e,f) -> f :: getpath e
+				| EConst (Ident i) -> [i]
+				| EField (e,f) -> f :: getpath e
 				| _ -> error "Build call parameter must be a class path" p
 			in
 			let s = String.concat "." (List.rev (getpath epath)) in
@@ -1141,7 +1141,7 @@ let init_class ctx c p herits fields =
 		| (":require",conds,_) :: l ->
 			let rec loop = function
 				| [] -> check_require l
-				| (EConst (Ident i | Type i),_) :: l ->
+				| (EConst (Ident i),_) :: l ->
 					if not (Common.defined ctx.com i) then
 						Some i
 					else
@@ -1534,6 +1534,10 @@ let load_module ctx m p =
 			with Not_found ->
 				let rec loop = function
 					| [] ->
+						if s_type_path m = "neko.db._Mysql.D" then begin
+							prerr_endline (String.concat ";" (fst m));
+							assert false;
+						end;
 						raise (Error (Module_not_found m,p))
 					| load :: l ->
 						match load m p with

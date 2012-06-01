@@ -259,7 +259,7 @@ and token = parse
 			mk lexbuf (Dollar v)
 		}
 	| ident { mk_ident lexbuf }
-	| idtype { mk lexbuf (Const (Type (lexeme lexbuf))) }
+	| idtype { mk lexbuf (Const (Ident (lexeme lexbuf))) }
 	| _ { invalid_char lexbuf }
 
 and comment = parse
