@@ -113,6 +113,14 @@ package haxe.lang;
 	}
 	
 	@:functionBody('
+		return (obj == null) ? false : ((java.lang.Boolean) obj).booleanValue();
+	')
+	public static function toBool(obj:Dynamic):Bool
+	{
+		return false;
+	}
+	
+	@:functionBody('
 		return (obj == null) ? 0 : ((java.lang.Number) obj).intValue();
 	')
 	public static function toInt(obj:Dynamic):Int

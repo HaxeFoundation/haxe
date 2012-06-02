@@ -479,7 +479,6 @@ struct
     let tbyte = match ( get_type gen (["java"], "Int8") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
     let tshort = match ( get_type gen (["java"], "Int16") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
     let tsingle = match ( get_type gen ([], "Single") ) with | TTypeDecl t -> TType(t,[]) | _ -> assert false in
-    let bool_cl = get_cl ( get_type gen (["java";"lang"], "Boolean")) in
     let string_ext = get_cl ( get_type gen (["haxe";"lang"], "StringExt")) in
     
     let is_string t = match follow t with | TInst({ cl_path = ([], "String") }, []) -> true | _ -> false in
@@ -514,8 +513,15 @@ struct
           (* let unboxed_type gen t tbyte tshort tchar tfloat = match follow t with *)
           run { e with etype = unboxed_type gen e.etype tbyte tshort tchar tsingle }
         
-        | TCast(expr, m) when is_bool e.etype ->
-          { e with eexpr = TCast(mk_cast (TInst(bool_cl, [])) (run expr), m) }
+        | TCast(expr, _) when is_bool e.etype ->
+          {
+            eexpr = TCall(
+              mk_static_field_access_infer runtime_cl "toBool" expr.epos [],
+              [ run expr ]
+            );
+            etype = basic.tbool;
+            epos = e.epos
+          }
         
         | TCast(expr, _) when is_int_float gen e.etype && not (is_int_float gen expr.etype) ->
           let needs_cast = match gen.gfollow#run_f e.etype with
