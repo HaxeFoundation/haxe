@@ -522,7 +522,7 @@ let configure gen =
   
   let rec real_type t =
     let t = gen.gfollow#run_f t in
-    match t with
+    let ret = match t with
       | TInst( { cl_path = (["haxe"], "Int32") }, [] ) -> gen.gcon.basic.tint
       | TInst( { cl_path = (["haxe"], "Int64") }, [] ) -> ti64
       | TEnum(_, [])
@@ -553,6 +553,8 @@ let configure gen =
       | TAnon _ -> dynamic_anon
       | TFun _ -> TInst(fn_cl,[])
       | _ -> t_dynamic
+    in
+    ret
   and
   
   (* 
@@ -694,25 +696,31 @@ let configure gen =
     let rec expr_s w e =
       let was_in_value = !in_value in
       in_value := true;
-      match e.eexpr with
+      (match e.eexpr with
         | TConst c ->
           (match c with
             | TInt i32 -> 
-              print w "%ld" i32;
-              (match real_type e.etype with
+              write w (Int32.to_string i32);
+              (*match real_type e.etype with
                 | TType( { t_path = ([], "Int64") }, [] ) -> write w "L";
                 | _ -> ()
-              )
+              *)
             | TFloat s -> 
               write w s;
               (if String.get s (String.length s - 1) = '.' then write w "0");
-              (match real_type e.etype with
+              (*match real_type e.etype with
                 | TType( { t_path = ([], "Single") }, [] ) -> write w "f"
                 | _ -> ()
-              )
-            | TString s -> print w "\"%s\"" (escape s)
+              *)
+            | TString s -> 
+              write w "\"";
+              write w (escape s);
+              write w "\""
             | TBool b -> write w (if b then "true" else "false")
-            | TNull -> print w "default(%s)" (t_s e.etype)
+            | TNull -> 
+              write w "default(";
+              write w (t_s e.etype);
+              write w ")"
             | TThis -> write w "this"
             | TSuper -> write w "base")
         | TLocal { v_name = "__sbreak__" } -> write w "break"
@@ -854,15 +862,20 @@ let configure gen =
           expr_s w e
         | TBlock el ->
           begin_block w;
+          (*
+            Line directives are turned off right now because:
+              1 - It makes harder to debug when the generated code internals are the problem
+              2 - Lexer.get_error_line is a very expensive operation
           let last_line = ref (-1) in
           let line_directive p =
             let cur_line = Lexer.get_error_line p in
             let is_relative_path = (String.sub p.pfile 0 1) = "." in
             let file = if is_relative_path then "../" ^ p.pfile else p.pfile in
             if cur_line <> ((!last_line)+1) then begin print w "//#line %d \"%s\"" cur_line (Ast.s_escape file); newline w end;
-            last_line := cur_line in
+            last_line := cur_line 
+          in *)
           List.iter (fun e -> 
-            line_directive e.epos;
+            (*line_directive e.epos;*)
             in_value := false;
             expr_s w e;
             (if has_semicolon e then write w ";");
@@ -969,6 +982,7 @@ let configure gen =
         | TObjectDecl _ -> write w "[ obj decl not supported ]"; if !strict_mode then assert false
         | TFunction _ -> write w "[ func decl not supported ]"; if !strict_mode then assert false
         | TMatch _ -> write w "[ match not supported ]"; if !strict_mode then assert false
+    )
     in
     expr_s w e
   in
@@ -1085,7 +1099,7 @@ let configure gen =
           
         end);
       newline w;
-      newline w
+      newline w;
   in
   
   let check_special_behaviors w cl =
@@ -1243,6 +1257,7 @@ let configure gen =
     List.iter (gen_class_field w false cl is_final) cl.cl_ordered_fields;
     check_special_behaviors w cl;
     end_block w;
+    
     if should_close then end_block w
   in
     
@@ -1722,5 +1737,6 @@ let before_generate con =
 
 let generate con =
   let gen = new_ctx con in
-  configure gen
+  configure gen;
+  debug_mode := false
   

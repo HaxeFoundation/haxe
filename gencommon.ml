@@ -162,6 +162,7 @@ rules were devised:
 let assertions = false (* when assertions == true, many assertions will be made to guarantee the quality of the data input *)
 let debug_mode = ref false
 let trace s = if !debug_mode then print_endline s else ()
+let timer name = if !debug_mode then Common.timer name else fun () -> ()
 
 (* helper function for creating Anon types of class / enum modules *)
 
@@ -254,7 +255,7 @@ struct
 
   let new_source_writer () =
     {
-      sw_buf = Buffer.create 100;
+      sw_buf = Buffer.create (1 lsl 14);
       sw_has_content = false;
       sw_indent = "";
       sw_indents = [];
@@ -263,9 +264,11 @@ struct
   let contents w = Buffer.contents w.sw_buf
   
   let write w x =
+    let t = timer "write contents" in
     (if not w.sw_has_content then begin w.sw_has_content <- true; Buffer.add_string w.sw_buf w.sw_indent; Buffer.add_string w.sw_buf x; end else Buffer.add_string w.sw_buf x);
     let len = (String.length x)-1 in
-    if len >= 0 && String.get x len = '\n' then begin w.sw_has_content <- false end else w.sw_has_content <- true
+    if len >= 0 && String.get x len = '\n' then begin w.sw_has_content <- false end else w.sw_has_content <- true;
+    t()
 
   let push_indent w = w.sw_indents <- "\t"::w.sw_indents; w.sw_indent <- String.concat "" w.sw_indents
 
@@ -280,7 +283,9 @@ struct
 
   let end_block w = pop_indent w; (if w.sw_has_content then newline w); write w "}"; newline w
 
-  let print w = (if not w.sw_has_content then begin w.sw_has_content <- true; Buffer.add_string w.sw_buf w.sw_indent end); bprintf w.sw_buf
+  let print w = 
+    (if not w.sw_has_content then begin w.sw_has_content <- true; Buffer.add_string w.sw_buf w.sw_indent end);
+    bprintf w.sw_buf;
   
 end;;
 
@@ -864,14 +869,14 @@ let run_filters gen =
   gen.gcon.types <- run_filters gen.gsyntax_filters;
   List.iter (fun fn -> fn()) gen.gafter_filters_ended;
   
-  reorder_modules gen;
-  debug_mode := false
+  reorder_modules gen
 
 (* ******************************************* *)
 (* basic generation module that source code compilation implementations can use *)
 (* ******************************************* *)
 
 let write_file gen w source_dir path extension = 
+  let t = timer "write file" in
   let s_path = gen.gcon.file ^ "/" ^  source_dir  ^ "/" ^ (String.concat "/" (fst path)) ^ "/" ^ (snd path) ^ "." ^ (extension) in
   (* create the folders if they don't exist *)
   let rec create acc = function
@@ -885,7 +890,7 @@ let write_file gen w source_dir path extension =
   create [] p;
   
   let contents = SourceWriter.contents w in
-  let should_write = if Sys.file_exists s_path then begin
+  let should_write = if not (Common.defined gen.gcon "replace_files") && Sys.file_exists s_path then begin
     let in_file = open_in s_path in
     let old_contents = Std.input_all in_file in
     close_in in_file;
@@ -896,7 +901,8 @@ let write_file gen w source_dir path extension =
     let f = open_out s_path in
     output_string f contents;
     close_out f
-  end
+  end;
+  t()
 
 (*
   helper function to create the source structure. Will send each module_def to the function passed.
@@ -8263,7 +8269,7 @@ end;;
 
 (*
   
-  In some source code platforms, the code won't compile if there is unreacheable code, so this filter will take off any unreachable code.
+  In some source code platforms, the code won't compile if there is Unreachable code, so this filter will take off any unreachable code.
     If the parameter "handle_switch_break" is set to true, it will already add a "break" statement on switch cases when suitable;
       in order to not confuse with while break, it will be a special expression __sbreak__
     If the parameter "handle_not_final_returns" is set to true, it will also add final returns when functions are detected to be lacking of them.
@@ -8298,7 +8304,7 @@ struct
     let basic = gen.gcon.basic in
     
     let do_warn =
-      if should_warn then gen.gcon.warning "Unreacheable code" else (fun pos -> ())
+      if should_warn then gen.gcon.warning "Unreachable code" else (fun pos -> ())
     in
     
     let return_loop expr kind =
@@ -8338,11 +8344,11 @@ struct
         
         | TBlock bl ->
           let new_block = ref [] in
-          let is_unreacheable = ref false in
+          let is_Unreachable = ref false in
           let ret_kind = ref Normal in
           
           List.iter (fun e ->
-            if !is_unreacheable then
+            if !is_Unreachable then
               do_warn e.epos 
             else begin
               let changed_e, kind = process_expr e in
@@ -8350,7 +8356,7 @@ struct
               match kind with
                 | BreaksLoop | BreaksFunction -> 
                   ret_kind := kind;
-                  is_unreacheable := true
+                  is_Unreachable := true
                 | _ -> ()
             end
           ) bl;
