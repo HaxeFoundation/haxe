@@ -39,7 +39,7 @@ import haxe.lang.Exceptions;
 	}
 
 	public static inline function string( s : Dynamic ) : String {
-		return s + "";
+		return cast s;
 	}
 
 	public static inline function int( x : Float ) : Int {

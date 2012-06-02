@@ -1006,7 +1006,7 @@ let mk_class_field name t public pos kind params =
     cf_kind = kind;
     cf_params = params;
     cf_expr = None;
-	cf_overloads = [];
+    cf_overloads = [];
   }
 
 let mk_iterator_access gen t expr =
@@ -4281,8 +4281,6 @@ struct
                   correctly use class field type parameters with RealTypeParams
                 *)
                 let cf_params = List.map (fun t -> match follow t with | TDynamic _ -> t_empty | _ -> t) params in
-                (* params are inverted *)
-                (*let cf_params = List.rev cf_params in*)
                 let t = apply_params cl.cl_types (gen.greal_type_param (TClassDecl cl) params) actual_t in
                 let t = apply_params cf.cf_params (gen.greal_type_param (TClassDecl cl) cf_params) t in
                 
