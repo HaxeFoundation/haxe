@@ -1496,6 +1496,8 @@ let configure gen =
         let is_ref = if is_basic then false else match follow e1.etype, follow e2.etype with
           | TDynamic _, _
           | _, TDynamic _
+          | TInst( { cl_path = ([], "String") }, [] ), _
+          | _, TInst( { cl_path = ([], "String") }, [] )
           | TInst( { cl_kind = KTypeParameter }, [] ), _
           | _, TInst( { cl_kind = KTypeParameter }, [] ) -> false
           | _, _ -> true
