@@ -1151,15 +1151,25 @@ let configure gen =
         newline w
       end
     end;
-    if PMap.mem "toString" cl.cl_fields && not (List.mem "toString" cl.cl_overrides) then begin
-      (* FIXME we need to check for compatible type first *)
-      write w "public override string ToString()";
-      begin_block w;
-      write w "return (string) this.toString();";
-      end_block w;
-      newline w;
-      newline w
-    end
+    (try
+      let cf = PMap.find "toString" cl.cl_fields in
+      (if List.mem "toString" cl.cl_overrides then raise Not_found);
+      (match cf.cf_type with
+        | TFun([], ret) ->
+          (match real_type ret with
+            | TInst( { cl_path = ([], "String") }, []) ->
+              write w "public override string ToString()";
+              begin_block w;
+              write w "return this.toString();";
+              end_block w;
+              newline w;
+              newline w
+            | _ -> 
+              gen.gcon.error "A toString() function should return a String!" cf.cf_pos
+          )
+        | _ -> ()
+      )
+    with | Not_found -> ())
   in
 
   let gen_class w cl =

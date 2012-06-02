@@ -23,7 +23,7 @@ import system.Exception;
 		return obj;
 	}
 	
-	public function toString()
+	public function toString():String
 	{
 		return "Haxe Exception: " + obj;
 	}
