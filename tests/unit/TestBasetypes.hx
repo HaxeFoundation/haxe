@@ -211,6 +211,8 @@ class TestBasetypes extends Test {
 		eq( StringTools.fastCodeAt(str, 0), "a".code );
 		eq( StringTools.fastCodeAt(str, 1), "b".code );
 		eq( StringTools.fastCodeAt(str, 2), "c".code );
+		eq(StringTools.fastCodeAt(String.fromCharCode(128), 0), 128);
+		eq(StringTools.fastCodeAt(String.fromCharCode(255), 0), 255);
 		f( StringTools.isEOF(StringTools.fastCodeAt(str, 2)) );
 		t( StringTools.isEOF(StringTools.fastCodeAt(str, 3)) );
 		
