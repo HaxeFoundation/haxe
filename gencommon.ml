@@ -471,7 +471,7 @@ type generator_ctx =
   (* this is a cache for all field access types *)
   greal_field_types : (path * string, (tclass_field (* does the cf exist *) * t (*cf's type in relation to current class type params *) ) option) Hashtbl.t;
   (* this function allows any code to handle casts as if it were inside the cast_detect module *)
-  mutable ghandle_cast : texpr->t->t->texpr;
+  mutable ghandle_cast : t->t->texpr->texpr;
   (* when an unsafe cast is made, we can warn the user *)
   mutable gon_unsafe_cast : t->t->pos->unit;
   (* does this type needs to be boxed? Normally always false, unless special type handling must be made *)
@@ -652,7 +652,7 @@ let new_ctx con =
     gtypes = types;
     
     greal_field_types = Hashtbl.create 0;
-    ghandle_cast = (fun e to_t from_t -> mk_cast to_t e);
+    ghandle_cast = (fun to_t from_t e -> mk_cast to_t e);
     gon_unsafe_cast = (fun t t2 pos -> (gen.gcon.warning ("Type " ^ (debug_type t2) ^ " is being cast to the unrelated type " ^ (s_type (print_context()) t)) pos));
     gneeds_box = (fun t -> false);
     gspecial_needs_cast = (fun to_t from_t -> true);
@@ -4483,6 +4483,7 @@ struct
     run
   
   let configure gen (mapping_func:texpr->texpr) =
+    gen.ghandle_cast <- (fun tto tfrom expr -> handle_cast gen expr (gen.greal_type tto) (gen.greal_type tfrom));
     let map e = Some(mapping_func e) in
     gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
   
@@ -7981,13 +7982,18 @@ struct
         Some( TType(tdef, [ strip_off_nullable of_t ]) )
       | _ -> None
   
-  let traverse gen unwrap_null wrap_val null_to_dynamic handle_opeq =
+  let traverse gen unwrap_null wrap_val null_to_dynamic handle_opeq handle_cast =
     let handle_unwrap to_t e =
-      match gen.gfollow#run_f to_t with 
+      let e_null_t = get (is_null_t gen e.etype) in
+      match gen.greal_type to_t with 
         | TDynamic _ | TMono _ | TAnon _ ->
-          null_to_dynamic e
+          (match e_null_t with
+            | TDynamic _ | TMono _ | TAnon _ ->
+              gen.ghandle_cast to_t e_null_t (unwrap_null e)
+            | _ -> null_to_dynamic e
+          )
         | _ ->
-          mk_cast to_t (unwrap_null e)
+          gen.ghandle_cast to_t e_null_t (unwrap_null e)
     in
     
     let handle_wrap e t =
@@ -8000,16 +8006,26 @@ struct
     
     let is_null_t = is_null_t gen in
     let rec run e =
-      let null_et = is_null_t e.etype in
       match e.eexpr with 
         | TCast(v, _) ->
+          let null_et = is_null_t e.etype in
           let null_vt = is_null_t v.etype in
-          if is_some null_vt && is_none null_et then
-            handle_unwrap e.etype (run v)
-          else if is_none null_vt && is_some null_et then
-            handle_wrap (run v) (get (is_null_t e.etype))
-          else
-            Type.map_expr run e
+          (match null_vt, null_et with
+            | Some(vt), None ->
+              (match v.eexpr with
+                (* is there an unnecessary cast to Nullable? *)
+                | TCast(v2, _) ->
+                  run { v with etype = e.etype }
+                | _ ->
+                  handle_unwrap e.etype (run v)
+              )
+            | None, Some(et) ->
+              handle_wrap (run v) et
+            | Some(vt), Some(et) when handle_cast ->
+              handle_wrap (gen.ghandle_cast et vt (handle_unwrap vt (run v))) et
+            | _ ->
+              Type.map_expr run e
+          )
         | TField(ef, field) when is_some (is_null_t ef.etype) ->
           let to_t = get (is_null_t ef.etype) in
           { e with eexpr = TField(handle_unwrap to_t (run ef), field) }

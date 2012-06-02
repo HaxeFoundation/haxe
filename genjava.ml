@@ -134,19 +134,9 @@ struct
     let float_cl = get_cl ( get_type gen (["java";"lang"], "Double")) in
     
     let is_var = alloc_var "__is__" t_dynamic in
-      let block = ref [] in
     
     let rec run e =
       match e.eexpr with 
-        | TBlock bl ->
-          let old_block = !block in
-          block := [];
-          List.iter (fun e -> let e = run e in block := e :: !block) bl;
-          let ret = List.rev !block in
-          block := old_block;
-          
-          { e with eexpr = TBlock(ret) }
-        
         (* Math changes *)
         | TField( { eexpr = TTypeExpr( TClassDecl( { cl_path = (["java";"lang"], "Math") }) ) }, "NaN" ) ->
           mk_static_field_access_infer float_cl "NaN" e.epos []

@@ -1,10 +1,5 @@
 package haxe.lang;
 
-/**
- * ...
- * @author waneck
- */
-
 @:struct @:nativegen @:native("haxe.lang.Null") private class Nullable<T>
 {
 	

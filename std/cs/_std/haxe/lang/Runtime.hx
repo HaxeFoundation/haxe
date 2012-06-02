@@ -85,6 +85,12 @@ package haxe.lang;
 				}
 			}
 			
+			System.ValueType v1v = v1 as System.ValueType;
+			if (v1v != null)
+			{
+				return v1.Equals(v2);
+			}
+			
 			//add here haxe.lang.Equatable test
 			
 			return false;
