@@ -1037,7 +1037,9 @@ let configure gen =
             print w "%s " (t_s var.v_type);
             write_id w var.v_name;
             (match eopt with
-              | None -> ()
+              | None -> 
+                write w " = ";
+                expr_s w (null var.v_type e.epos)
               | Some e ->
                 write w " = ";
                 expr_s w e
