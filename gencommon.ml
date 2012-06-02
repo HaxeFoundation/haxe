@@ -62,6 +62,18 @@ let debug_type = (s_type (print_context()))
 
 let debug_expr = s_expr debug_type
 
+let follow_once t =
+  match t with
+	| TMono r ->
+		(match !r with
+		| Some t -> t
+		| _ -> t_dynamic (* avoid infinite loop / should be the same in this context *))
+	| TLazy f ->
+		!f()
+	| TType (t,tl) ->
+		apply_params t.t_types tl t.t_type
+	| _ -> t
+
 let t_empty = TAnon({ a_fields = PMap.empty; a_status = ref (Closed) })
 
 (* the undefined is a special var that works like null, but can have special meaning *)
@@ -3403,39 +3415,62 @@ struct
   
   let priority = max_dep -. 20.
   
-  let iter2 = List.iter2
-  (*
-  let rec iter2 f a1 a2 =
-    match (a1, a2) with
-      | (h1 :: tl1), (h2 :: tl2) -> f h1 h2; iter2 f tl1 tl2
-      | _ -> ()*)
-  
   (* this function will receive the original function argument, the applied function argument and the original function parameters. *)
   (* from this info, it will infer the applied tparams for the function *)
   (* this function is used by CastDetection module *)
   let infer_params gen pos (original_args:((string * bool * t) list * t)) (applied_args:((string * bool * t) list * t)) (params:(string * t) list) : tparams =
     let args_list args = ( List.map (fun (_,_,t) -> t) (fst args) ) @ [snd args] in
     let params_tbl = Hashtbl.create (List.length params) in
-    (*List.iter (fun (s,t) -> match t with | TInst(cl,[]) -> Hashtbl.add params_tbl cl.cl_path cl | _ -> assert false) params;*)
     
-    let rec get_arg is_follow original applied = 
+    let pmap_iter2 fn orig_pmap applied_pmap =
+      PMap.iter (fun name cf -> 
+        try
+          let applied_cf = PMap.find name applied_pmap in
+          fn cf applied_cf
+        with | Not_found -> () (* 'swallow' not_found expressions as there might be unsafe casts or untyped behavior here *)
+      ) orig_pmap
+    in
+    
+    let rec get_arg original applied = 
       match (original, applied) with
         | TInst( ({ cl_kind = KTypeParameter } as cl ), []), _ ->
           Hashtbl.replace params_tbl cl.cl_path applied
         | TInst(cl, params), TInst(cl2, params2) ->
-          iter2 (get_arg is_follow) params params2
+          List.iter2 (get_arg) params params2
         | TEnum(e, params), TEnum(e2, params2) ->
-          iter2 (get_arg is_follow) params params2
+          List.iter2 (get_arg) params params2
         | TFun(params, ret), TFun(params2, ret2) ->
-          iter2 (get_arg false) ( args_list (params, ret) ) ( args_list (params2, ret2) )
-        | _ -> if not(is_follow) then get_arg true (follow original) (follow applied)
+          List.iter2 (get_arg) ( args_list (params, ret) ) ( args_list (params2, ret2) )
+        | TAnon (a_original), TAnon (a_applied) ->
+          pmap_iter2 (fun cf_o cf_a -> get_arg cf_o.cf_type cf_a.cf_type ) a_original.a_fields a_applied.a_fields
+        | TAnon (a_original), TInst(cl, params) ->
+          PMap.iter (fun name cf ->
+            match field_access gen applied name with
+              | FClassField (cl, params, cf, is_static, actual_t) ->
+                let t = apply_params cl.cl_types params actual_t in
+                get_arg cf.cf_type t
+              | FDynamicField t -> get_arg cf.cf_type (apply_params cl.cl_types params t)
+              | FNotFound -> (* the field may not be there *) ()
+              | _ -> assert false
+          ) a_original.a_fields
+        | TType(t_o, params_o), TType(t_a, params_a) when t_o == t_a ->
+          List.iter2 (get_arg) params_o params_a
+        | _, TType _
+        | _, TMono _
+        | _, TLazy _ ->
+          get_arg original (follow_once applied)
+        | TType _, _
+        | TMono _, _
+        | TLazy _, _ ->
+          get_arg (follow_once original) applied
+        | _ -> ()
     in
     
     let original = args_list original_args in
     let applied = args_list applied_args in
     
-    iter2 (fun original applied ->
-      get_arg false original applied
+    List.iter2 (fun original applied ->
+      get_arg original applied
     ) original applied;
     
     List.map (fun (_,t) ->
