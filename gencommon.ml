@@ -161,7 +161,7 @@ rules were devised:
 
 let assertions = false (* when assertions == true, many assertions will be made to guarantee the quality of the data input *)
 let debug_mode = ref false
-let trace s = () (* if !debug_mode then print_endline s else ()*)
+let trace s = if !debug_mode then print_endline s else ()
 
 (* helper function for creating Anon types of class / enum modules *)
 
@@ -362,7 +362,6 @@ class ['tp, 'ret] rule_dispatcher name ignore_not_found =
     List.rev !ret
   
   method run_from (priority:float) (tp:'tp) : 'ret option =
-    let t = if !debug_mode then fun () -> () else Common.timer "rule dispatcher" in
     let ok = ref ignore_not_found in
     let ret = ref None in
     indent := "\t" :: !indent;
@@ -387,7 +386,6 @@ class ['tp, 'ret] rule_dispatcher name ignore_not_found =
       | h::t -> indent := t); 
     
     (if not (!ok) then raise NoRulesApplied);
-    t();
     !ret
   
   method run (tp:'tp) : 'ret option =
@@ -403,7 +401,6 @@ class ['tp] rule_map_dispatcher name =
   method run_f tp = get (self#run tp)
   
   method run_from (priority:float) (tp:'tp) : 'ret option =
-    let t = if !debug_mode then fun () -> () else Common.timer "rule map dispatcher" in
     let cur = ref tp in
     (try begin
       List.iter (fun key -> 
@@ -421,7 +418,6 @@ class ['tp] rule_map_dispatcher name =
       ) keys
       
     end with Exit -> ()); 
-    t();
     Some (!cur)
     
 end;;
@@ -786,6 +782,7 @@ let run_filters_from gen t filters =
       | TTypeDecl _ -> ()
 
 let run_filters gen =
+  (if Common.defined gen.gcon "gencommon_debug" then debug_mode := true);
   let run_filters filter = 
     let rec loop acc mds =
       match mds with
@@ -867,7 +864,8 @@ let run_filters gen =
   gen.gcon.types <- run_filters gen.gsyntax_filters;
   List.iter (fun fn -> fn()) gen.gafter_filters_ended;
   
-  reorder_modules gen
+  reorder_modules gen;
+  debug_mode := false
 
 (* ******************************************* *)
 (* basic generation module that source code compilation implementations can use *)
