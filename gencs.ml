@@ -705,6 +705,7 @@ let configure gen =
               )
             | TFloat s -> 
               write w s;
+              (if String.get s (String.length s - 1) = '.' then write w "0");
               (match real_type e.etype with
                 | TType( { t_path = ([], "Single") }, [] ) -> write w "f"
                 | _ -> ()

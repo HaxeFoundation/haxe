@@ -866,6 +866,8 @@ let configure gen =
               )
             | TFloat s -> 
               write w s;
+              (* fix for Int notation, which only fit in a Float *)
+              (if not (String.contains s '.' || String.contains s 'e' || String.contains s 'E') then write w ".0");
               (match real_type e.etype with
                 | TType( { t_path = ([], "Single") }, [] ) -> write w "f"
                 | _ -> ()
