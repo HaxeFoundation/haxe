@@ -2942,4 +2942,5 @@ let rec create com =
 
 ;;
 type_field_rec := type_field;
+unify_min_ref := unify_min;
 type_expr_with_type_ref := (fun ctx e t do_raise -> if do_raise then type_expr_with_type_raise ctx e t else type_expr_with_type ctx e t);
