@@ -1733,6 +1733,8 @@ let configure gen =
   
   ExpressionUnwrap.configure gen (ExpressionUnwrap.traverse gen (fun e -> Some { eexpr = TVars([mk_temp gen "expr" e.etype, Some e]); etype = gen.gcon.basic.tvoid; epos = e.epos }));
   
+  UnnecessaryCastsRemoval.configure gen;
+  
   IntDivisionSynf.configure gen (IntDivisionSynf.default_implementation gen true);
   
   UnreachableCodeEliminationSynf.configure gen (UnreachableCodeEliminationSynf.traverse gen true true true);

@@ -8650,6 +8650,66 @@ struct
   
 end;;
 
+(* ******************************************* *)
+(* UnnecessaryCastsRemoval *)
+(* ******************************************* *)
+
+(*
+  
+  This module will take care of simplifying unnecessary casts, specially those made by the compiler
+  when inlining. Right now, it will only take care of casts used as a statement, which are always useless;
+  TODO: Take care of more cases, e.g. when the to and from types are the same
+  
+  dependencies:
+    This must run after CastDetection, but before ExpressionUnwrap
+  
+*)
+
+module UnnecessaryCastsRemoval =
+struct
+
+  let name = "casts_removal"
+  
+  let priority = solve_deps name [DAfter CastDetect.priority; DBefore ExpressionUnwrap.priority]
+  
+  let rec take_off_cast run e =
+    match e.eexpr with
+      | TCast (c, _) ->
+        take_off_cast run c
+      | _ -> run e
+  
+  let default_implementation gen =
+    let rec traverse e =
+      match e.eexpr with 
+        | TBlock bl ->
+          let bl = List.map (fun e ->
+            take_off_cast traverse e
+          ) bl in
+          { e with eexpr = TBlock bl }
+        | TTry (block, catches) ->
+          { e with eexpr = TTry(traverse (mk_block block), List.map (fun (v,block) -> (v, traverse (mk_block block))) catches) }
+        | TMatch (cond,ep,il_vol_e_l,default) ->
+          { e with eexpr = TMatch(cond,ep,List.map (fun (il,vol,e) -> (il,vol,traverse (mk_block e))) il_vol_e_l, Option.map (fun e -> traverse (mk_block e)) default) }
+        | TSwitch (cond,el_e_l, default) ->
+          { e with eexpr = TSwitch(cond, List.map (fun (el,e) -> (el, traverse (mk_block e))) el_e_l, Option.map (fun e -> traverse (mk_block e)) default) }
+        | TWhile (cond,block,flag) ->
+          {e with eexpr = TWhile(cond,traverse (mk_block block), flag) }
+        | TIf (cond, eif, eelse) ->
+          { e with eexpr = TIf(cond, traverse (mk_block eif), Option.map (fun e -> traverse (mk_block e)) eelse) }
+        | TFor (v,it,block) ->
+          { e with eexpr = TFor(v,it, traverse (mk_block block)) }
+        | TFunction (tfunc) ->
+          { e with eexpr = TFunction({ tfunc with tf_expr = traverse (mk_block tfunc.tf_expr) }) }
+        | _ -> e (* if expression doesn't have a block, we will exit *)
+    in
+    traverse
+  
+  let configure gen =
+    let map e = Some(default_implementation gen e) in
+    gen.gsyntax_filters#add ~name:name ~priority:(PCustom priority) map
+  
+end;;
+
 (*
 (* ******************************************* *)
 (* Example *)
