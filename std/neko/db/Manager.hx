@@ -39,6 +39,7 @@ import neko.db.Connection;
 	SPOD Manager : the persistent object database manager. See the tutorial on
 	haXe website to learn how to use SPOD.
 **/
+@:unifyMinDynamic
 class Manager<T : Object> {
 
 	/* ----------------------------- STATICS ------------------------------ */

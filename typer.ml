@@ -127,7 +127,7 @@ let rec base_types t =
 	| TMono r -> (match !r with None -> () | Some t -> loop t)
 	| _ -> tl := t :: !tl) in
 	loop t;
-	tl
+	!tl
 
 let rec unify_min_raise ctx (el:texpr list) : t =
 	match el with
@@ -193,6 +193,16 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 			(* Second pass: Get all base types (interfaces, super classes and their interfaces) of most general type.
 			   Then for each additional type filter all types that do not unify. *)
 			let common_types = base_types t in
+			let dyn_types = List.fold_left (fun acc t ->
+				let rec loop c =
+					has_meta ":unifyMinDynamic" c.cl_meta || (match c.cl_super with None -> false | Some (c,_) -> loop c)
+				in
+				match t with 
+				| TInst (c,params) when params <> [] && loop c ->
+					TInst (c,List.map (fun _ -> t_dynamic) params) :: acc
+				| _ -> acc
+			) [] common_types in
+			let common_types = ref (match List.rev dyn_types with [] -> common_types | l -> common_types @ l) in
 			let loop e = 
 				let first_error = ref None in
 				let filter t = (try unify_raise ctx e.etype t e.epos; true
