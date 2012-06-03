@@ -119,13 +119,6 @@ class TestBasetypes extends Test {
 		
 		var e = MyEnum.C(0, "h");
 		eq( Std.string(e), "C(0,h)");
-		
-		// This also seems rather odd on some platforms.
-		var x : Array<Dynamic> = ["4", 1];
-		t(Std.is(x[0], String));
-		//t(Std.is(x[0] + x[0], String));
-		t(Std.is(x[1] + x[1], Int));
-		//t(Std.is(x[0] + x[1], String));
 	}
 
 	function testMath() {

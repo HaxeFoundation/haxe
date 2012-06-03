@@ -202,6 +202,7 @@ class Test #if swf_mark implements mt.Protect #end #if as3 implements haxe.Publi
 			new TestXML(),
 			#end
 			new TestMeta(),
+			//new TestUnspecified(),
 //			new TestRemoting(),
 		];
 		var current = null;
