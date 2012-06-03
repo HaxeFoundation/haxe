@@ -734,8 +734,13 @@ let configure gen =
           print w "%s." (path_s e.e_path); write_field w s
         | TArray (e1, e2) ->
           expr_s w e1; write w "["; expr_s w e2; write w "]"
-        | TBinop (op, e1, e2) ->
+        | TBinop ((Ast.OpAssign as op), e1, e2)
+        | TBinop ((Ast.OpAssignOp _ as op), e1, e2) ->
           expr_s w e1; write w ( " " ^ (Ast.s_binop op) ^ " " ); expr_s w e2
+        | TBinop (op, e1, e2) ->
+          write w "( ";
+          expr_s w e1; write w ( " " ^ (Ast.s_binop op) ^ " " ); expr_s w e2;
+          write w " )"
         | TField (e, s) | TClosure (e, s) ->
           expr_s w e; write w "."; write_field w s
         | TTypeExpr mt ->
