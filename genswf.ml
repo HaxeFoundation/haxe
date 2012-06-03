@@ -550,11 +550,15 @@ let swf_ver = function
 	| _ -> assert false
 
 let convert_header com (w,h,fps,bg) =
-	if max w h >= 1639 then failwith "-swf-header : size too large";
+	let high = (max w h) * 20 in
+	let rec loop b =		
+		if 1 lsl b > high then b else loop (b + 1)
+	in
+	let bits = loop 0 in
 	{
 		h_version = swf_ver com.flash_version;
 		h_size = {
-			rect_nbits = if (max w h) >= 820 then 16 else 15;
+			rect_nbits = bits + 1;
 			left = 0;
 			top = 0;
 			right = w * 20;
