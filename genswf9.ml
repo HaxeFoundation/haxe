@@ -243,6 +243,8 @@ let classify ctx t =
 		KFloat
 	| TEnum ({ e_path = [],"Bool" },_) ->
 		KBool
+	| TEnum ({ e_path = [],"Void" },_) ->
+		KDynamic
 	| TEnum ({ e_path = [],"XmlType"; e_extern = true },_) ->
 		KType (HMPath ([],"String"))
 	| TEnum (e,_) ->
