@@ -122,6 +122,6 @@ extern class Array<T> {
 	/**
 		Returns an iterator of the Array values.
 	**/
-	function iterator() : Iterator<Null<T>>;
+	function iterator() : Iterator<T>;
 
 }
