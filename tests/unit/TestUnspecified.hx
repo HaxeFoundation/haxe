@@ -4,9 +4,7 @@ class TestUnspecified extends Test
 {
 	public function testModuloZero()
 	{
-		#if macro
-			// Division_by_zero
-		#elseif neko
+		#if neko
 			exc(function() 1 % 0);
 		#elseif cpp
 			// Crashes
