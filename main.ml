@@ -324,6 +324,65 @@ let add_libs com libs =
 		) [] lines in
 		com.class_path <- lines @ com.class_path
 
+let run_command ctx cmd =	
+	let h = Hashtbl.create 0 in
+	Hashtbl.add h "__file__" ctx.com.file;
+	Hashtbl.add h "__platform__" (platform_name ctx.com.platform);
+	let t = Common.timer "command" in
+	let cmd = expand_env ~h:(Some h) cmd in
+	let len = String.length cmd in
+	if len > 3 && String.sub cmd 0 3 = "cd " then
+		Sys.chdir (String.sub cmd 3 (len - 3))
+	else
+	let binary_string s =
+		if Sys.os_type <> "Win32" && Sys.os_type <> "Cygwin" then s else String.concat "\n" (Str.split (Str.regexp "\r\n") s)
+	in
+	let pout, pin, perr = Unix.open_process_full cmd (Unix.environment()) in
+	let iout = Unix.descr_of_in_channel pout in
+	let ierr = Unix.descr_of_in_channel perr in
+	let berr = Buffer.create 0 in
+	let bout = Buffer.create 0 in
+	let tmp = String.create 1024 in
+	let result = ref None in
+	(*
+		we need to read available content on process out/err if we want to prevent
+		the process from blocking when the pipe is full
+	*)
+	let is_process_running() =
+		let pid, r = Unix.waitpid [Unix.WNOHANG] (-1) in
+		if pid = 0 then
+			true
+		else begin
+			result := Some r;
+			false;
+		end
+	in
+	let rec loop ins =
+		let (ch,_,_), timeout = (try Unix.select ins [] [] 0.02, true with _ -> ([],[],[]),false) in
+		match ch with
+		| [] ->
+			(* make sure we read all *)
+			if timeout && is_process_running() then
+				loop ins
+			else begin
+				Buffer.add_string berr (IO.read_all (IO.input_channel perr));
+				Buffer.add_string bout (IO.read_all (IO.input_channel pout));
+			end
+		| s :: _ ->
+			let n = Unix.read s tmp 0 (String.length tmp) in
+			Buffer.add_substring (if s == iout then bout else berr) tmp 0 n;
+			loop (if n = 0 then List.filter ((!=) s) ins else ins)
+	in
+	loop [iout;ierr];
+	let serr = binary_string (Buffer.contents berr) in
+	let sout = binary_string (Buffer.contents bout) in
+	if serr <> "" then ctx.messages <- (if serr.[String.length serr - 1] = '\n' then String.sub serr 0 (String.length serr - 1) else serr) :: ctx.messages;
+	if sout <> "" then ctx.com.print sout;
+	(match (try Unix.close_process_full (pout,pin,perr) with Unix.Unix_error (Unix.ECHILD,_,_) -> (match !result with None -> assert false | Some r -> r)) with
+	| Unix.WEXITED e -> if e <> 0 then failwith ("Command failed with error " ^ string_of_int e)
+	| Unix.WSIGNALED s | Unix.WSTOPPED s -> failwith ("Command stopped with signal " ^ string_of_int s));
+	t()
+
 let default_flush ctx =
 	List.iter prerr_endline (List.rev ctx.messages);
 	if ctx.has_error && !prompt then begin
@@ -370,7 +429,7 @@ let rec process_params create pl =
 				loop acc l)
 		| arg :: l ->
 			match List.rev (ExtString.String.nsplit arg ".") with
-			| "hxml" :: _ -> loop acc (parse_hxml arg @ l)
+			| "hxml" :: _ when (match acc with "-cmd" :: _ -> false | _ -> true) -> loop acc (parse_hxml arg @ l)
 			| _ -> loop (arg :: acc) l
 	in
 	(* put --display in front if it was last parameter *)
@@ -1025,66 +1084,7 @@ try
 		);
 	end;
 	Sys.catch_break false;
-	if not !no_output then List.iter (fun cmd ->
-		let h = Hashtbl.create 0 in
-		Hashtbl.add h "__file__" com.file;
-		Hashtbl.add h "__platform__" (platform_name com.platform);
-		let t = Common.timer "command" in
-		let cmd = expand_env ~h:(Some h) cmd in
-		let len = String.length cmd in
-		if len > 3 && String.sub cmd 0 3 = "cd " then
-			Sys.chdir (String.sub cmd 3 (len - 3))
-		else begin
-			let binary_string s =
-				if Sys.os_type <> "Win32" && Sys.os_type <> "Cygwin" then s else String.concat "\n" (Str.split (Str.regexp "\r\n") s)
-			in
-			let pout, pin, perr = Unix.open_process_full cmd (Unix.environment()) in
-			let iout = Unix.descr_of_in_channel pout in
-			let ierr = Unix.descr_of_in_channel perr in
-			let berr = Buffer.create 0 in
-			let bout = Buffer.create 0 in
-			let tmp = String.create 1024 in
-			let result = ref None in
-			(*
-				we need to read available content on process out/err if we want to prevent
-				the process from blocking when the pipe is full
-			*)
-			let is_process_running() =
-				let pid, r = Unix.waitpid [Unix.WNOHANG] (-1) in
-				if pid = 0 then
-					true
-				else begin
-					result := Some r;
-					false;
-				end
-			in
-			let rec loop ins =
-				let (ch,_,_), timeout = (try Unix.select ins [] [] 0.02, true with _ -> ([],[],[]),false) in
-				match ch with
-				| [] ->
-					(* make sure we read all *)
-					if timeout && is_process_running() then
-						loop ins
-					else begin
-						Buffer.add_string berr (IO.read_all (IO.input_channel perr));
-						Buffer.add_string bout (IO.read_all (IO.input_channel pout));
-					end
-				| s :: _ ->
-					let n = Unix.read s tmp 0 (String.length tmp) in
-					Buffer.add_substring (if s == iout then bout else berr) tmp 0 n;
-					loop (if n = 0 then List.filter ((!=) s) ins else ins)
-			in
-			loop [iout;ierr];
-			let serr = binary_string (Buffer.contents berr) in
-			let sout = binary_string (Buffer.contents bout) in
-			if serr <> "" then ctx.messages <- (if serr.[String.length serr - 1] = '\n' then String.sub serr 0 (String.length serr - 1) else serr) :: ctx.messages;
-			if sout <> "" then ctx.com.print sout;
-			match (try Unix.close_process_full (pout,pin,perr) with Unix.Unix_error (Unix.ECHILD,_,_) -> (match !result with None -> assert false | Some r -> r)) with
-			| Unix.WEXITED e -> if e <> 0 then failwith ("Command failed with error " ^ string_of_int e)
-			| Unix.WSIGNALED s | Unix.WSTOPPED s -> failwith ("Command stopped with signal " ^ string_of_int s)
-		end;
-		t();
-	) (List.rev !cmds)
+	if not !no_output then List.iter (run_command ctx) (List.rev !cmds)
 with
 	| Abort ->
 		()
