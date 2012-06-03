@@ -119,14 +119,17 @@ let rec base_types t =
 			let t = apply_params cl.cl_types params (TInst (csup,pl)) in
 			loop t);
 		tl := t :: !tl;
-	| TType ({ t_path = ([],"Null") },[t]) -> loop t;
+	| TType (td,pl) ->
+		loop (apply_params td.t_types pl td.t_type);
+		(* prioritize the most generic definition *)
+		tl := t :: !tl;
 	| TLazy f -> loop (!f())
 	| TMono r -> (match !r with None -> () | Some t -> loop t)
 	| _ -> tl := t :: !tl) in
 	loop t;
 	tl
 
-let unify_min_raise ctx el =
+let rec unify_min_raise ctx (el:texpr list) : t =
 	match el with
 	| [] -> mk_mono()
 	| [e] -> e.etype
@@ -160,7 +163,33 @@ let unify_min_raise ctx el =
 		let has_error, t = loop (mk_mono()) el in
 		if not has_error then
 			t
-		else begin
+		else try
+			(* specific case for const anon : we don't want to hide fields but restrict their common type *)
+			let fcount = ref (-1) in
+			let field_count a = 
+				PMap.fold (fun _ acc -> acc + 1) a.a_fields 0
+			in
+			let expr f = match f.cf_expr with None -> mk (TBlock []) f.cf_type f.cf_pos | Some e -> e in
+			let fields = List.fold_left (fun acc e -> 
+				match follow e.etype with
+				| TAnon a when !(a.a_status) = Const ->
+					a.a_status := Closed;
+					if !fcount = -1 then begin
+						fcount := field_count a;
+						PMap.map (fun f -> [expr f]) a.a_fields
+					end else begin
+						if !fcount <> field_count a then raise Not_found;
+						PMap.mapi (fun n el -> expr (PMap.find n a.a_fields) :: el) acc
+					end
+				| _ ->
+					raise Not_found
+			) PMap.empty el in			
+			let fields = PMap.foldi (fun n el acc -> 
+				let t = try unify_min_raise ctx el with Error (Unify _, _) -> raise Not_found in
+				PMap.add n (mk_field n t (List.hd el).epos) acc
+			) fields PMap.empty in
+			TAnon { a_fields = fields; a_status = ref Closed }
+		with Not_found ->
 			(* Second pass: Get all base types (interfaces, super classes and their interfaces) of most general type.
 			   Then for each additional type filter all types that do not unify. *)
 			let common_types = base_types t in
@@ -170,13 +199,12 @@ let unify_min_raise ctx el =
 					with Error (Unify l, p) as err -> if !first_error = None then first_error := Some(err); false)
 				in
 				common_types := List.filter filter !common_types;
-				(match !common_types, !first_error with
-					| [], Some err -> raise err
-					| _ -> ());
+				match !common_types, !first_error with
+				| [], Some err -> raise err
+				| _ -> ()
 			in
 			List.iter loop (List.tl el);
 			List.hd !common_types
-		end
 
 let unify_min ctx el = 
 	try unify_min_raise ctx el
