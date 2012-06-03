@@ -1128,7 +1128,7 @@ and type_unop ctx op flag e p =
 				ev2
 			]) t p
 
-and type_switch ctx e cases def need_val p =
+and type_switch ctx e cases def need_val with_type p =
 	let eval = type_expr ctx e in
 	let old = ctx.local_types in
 	let enum = ref None in
@@ -1222,7 +1222,7 @@ and type_switch ctx e cases def need_val p =
 			| (EBlock [],p) when need_val -> (EConst (Ident "null"),p)
 			| _ -> e
 		) in
-		let e = type_expr ~need_val ctx e in
+		let e = if need_val then type_expr_with_type ctx e with_type else type_expr ~need_val ctx e in
 		el := !el @ [e];
 		e
 	in
@@ -1349,13 +1349,14 @@ and type_ident_noerr ctx i p mode =
 		end
 
 and type_expr_with_type_raise ctx e t =
-	match e with
-	| (EParenthesis e,p) ->
+	let p = snd e in
+	match fst e with
+	| EParenthesis e ->
 		let e = type_expr_with_type_raise ctx e t in
 		mk (TParenthesis e) e.etype p;
-	| (ECall (e,el),p) ->
+	| ECall (e,el) ->
 		type_call ctx e el t p
-	| (EFunction _,_) ->
+	| EFunction _ ->
 		let old = ctx.param_type in
 		(try
 			ctx.param_type <- t;
@@ -1366,7 +1367,31 @@ and type_expr_with_type_raise ctx e t =
 			exc ->
 				ctx.param_type <- old;
 				raise exc)
-	| (EConst (Ident s),p) ->
+	| EBlock l ->
+		let locals = save_locals ctx in
+		let rec loop = function
+			| [] -> []
+			| [e] ->
+				(try
+					[type_expr_with_type_raise ctx e t]
+				with
+					Error (e,p) -> display_error ctx (error_msg e) p; [])
+			| e :: l ->
+				try
+					let e = type_expr ctx ~need_val:false e in
+					e :: loop l
+				with
+					Error (e,p) -> display_error ctx (error_msg e) p; loop l
+		in
+		let l = loop l in
+		locals();
+		let rec loop = function
+			| [] -> ctx.t.tvoid
+			| [e] -> e.etype
+			| _ :: l -> loop l
+		in
+		mk (TBlock l) (loop l) p
+	| EConst (Ident s) ->
 		(try
 			acc_get ctx (type_ident ~imported_enums:false ctx s p MGet) p
 		with Not_found -> try
@@ -1384,7 +1409,7 @@ and type_expr_with_type_raise ctx e t =
 				| _ -> raise Not_found)
 		with Not_found ->
 			type_expr ctx e)
-	| (EArrayDecl el,p) ->
+	| EArrayDecl el ->
 		(match t with
 		| None -> type_expr ctx e
 		| Some t ->
@@ -1402,7 +1427,7 @@ and type_expr_with_type_raise ctx e t =
 					mk (TArrayDecl el) t p)
 			| _ ->
 				type_expr ctx e)
-	| (EObjectDecl el,p) ->
+	| EObjectDecl el ->
 		(match t with
 		| None -> type_expr ctx e
 		| Some t ->
@@ -1441,6 +1466,8 @@ and type_expr_with_type_raise ctx e t =
 				mk (TObjectDecl el) t p
 			| _ ->
 				type_expr ctx e)
+	| ESwitch (e,cases,def) ->
+		type_switch ctx e cases def true t p
 	| _ ->
 		type_expr ctx e
 
@@ -1579,17 +1606,6 @@ and type_access ctx e p mode =
 		AKExpr (mk (TArray (e1,e2)) pt p)
 	| _ ->
 		AKExpr (type_expr ctx (e,p))
-
-and type_exprs_unified ctx ?(need_val=true) el =
-	match el with
-	| [] -> [], mk_mono()
-	| [e] ->
-		let te = type_expr ctx ~need_val e in
-		[te], te.etype
-	| _ ->
-		let tl = List.map (type_expr ctx ~need_val) el in
-		let t = try unify_min_raise ctx tl with Error (Unify _,_) -> t_dynamic in
-		tl, t
 
 and type_expr ctx ?(need_val=true) (e,p) =
 	match e with
@@ -1751,7 +1767,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		unify ctx cond.etype ctx.t.tbool cond.epos;
 		mk (TWhile (cond,e,DoWhile)) ctx.t.tvoid p
 	| ESwitch (e,cases,def) ->
-		type_switch ctx e cases def need_val p
+		type_switch ctx e cases def need_val None p
 	| EReturn e ->
 		let e , t = (match e with
 			| None ->
