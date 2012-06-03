@@ -1775,7 +1775,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 				unify ctx v ctx.ret p;
 				None , v
 			| Some e ->
-				let e = type_expr ctx e in
+				let e = type_expr_with_type ctx e (Some ctx.ret) in
 				unify ctx e.etype ctx.ret e.epos;
 				Some e , e.etype
 		) in
