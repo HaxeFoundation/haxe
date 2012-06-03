@@ -1367,6 +1367,8 @@ and type_expr_with_type_raise ctx e t =
 			exc ->
 				ctx.param_type <- old;
 				raise exc)
+	| EBlock [] ->
+		type_expr ctx e
 	| EBlock l ->
 		let locals = save_locals ctx in
 		let rec loop = function
