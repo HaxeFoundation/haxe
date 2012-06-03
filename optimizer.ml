@@ -275,7 +275,7 @@ let rec type_inline ctx cf f ethis params tret p force =
 			old();
 			{ e with eexpr = TFunction { tf_args = args; tf_expr = expr; tf_type = f.tf_type } }
 		| TConst TSuper ->
-			error "Cannot inline function containing super" po			
+			error "Cannot inline function containing super" po
 		| _ ->
 			Type.map_expr (map false) e
 	in
@@ -286,15 +286,15 @@ let rec type_inline ctx cf f ethis params tret p force =
 	*)
 	let subst = ref PMap.empty in
 	let is_constant e =
-		let rec loop e = 
+		let rec loop e =
 			match e.eexpr with
 			| TLocal _
 			| TConst TThis (* not really, but should not be move inside a function body *)
 				-> raise Exit
-			| TEnumField _ 
+			| TEnumField _
 			| TTypeExpr _
-			| TConst _ -> ()			
-			| _ -> 
+			| TConst _ -> ()
+			| _ ->
 				Type.iter loop e
 		in
 		try loop e; true with Exit -> false
@@ -331,10 +331,11 @@ let rec type_inline ctx cf f ethis params tret p force =
 	end else
 		let wrap e =
 			(* we can't mute the type of the expression because it is not correct to do so *)
-			if e.etype == tret then
+			(try
+				type_eq EqStrict (if has_params then map_type e.etype else e.etype) tret;
 				e
-			else
-				mk (TCast (e,None)) tret e.epos
+			with Unify_error _ ->
+				mk (TCast (e,None)) tret e.epos)
 		in
 		let e = (match e.eexpr, init with
 			| TBlock [e] , None -> wrap e
@@ -509,7 +510,7 @@ let rec need_parent e =
 	| TBlock _ | TVars _ | TFunction _ | TUnop _ -> true
 
 let rec add_final_return e t =
-	let def_return p =		
+	let def_return p =
 		let c = (match follow t with
 			| TInst ({ cl_path = [],"Int" },_) -> TInt 0l
 			| TInst ({ cl_path = [],"Float" },_) -> TFloat "0."
@@ -562,7 +563,7 @@ let sanitize_expr com e =
 	in
 	match e.eexpr with
 	| TConst TNull ->
-		if is_static_platform com && not (is_nullable e.etype) then 
+		if is_static_platform com && not (is_nullable e.etype) then
 			(match follow e.etype with
 			| TMono _ -> () (* in these cases the null will cast to default value *)
 			| TFun _ -> () (* this is a bit a particular case, maybe flash-specific actually *)
@@ -609,7 +610,7 @@ let sanitize_expr com e =
 			| _, TEnum ({ e_path = [],"Void" },[]) -> f
 			| Flash , t when Common.defined com "as3" -> { f with tf_expr = add_final_return f.tf_expr t }
 			| Cpp, t -> { f with tf_expr = add_final_return f.tf_expr t }
-			| _ -> f 
+			| _ -> f
 		) in
 		let f = (match f.tf_expr.eexpr with
 			| TBlock _ -> f
@@ -685,7 +686,7 @@ let rec reduce_loop ctx e =
 	let e = Type.map_expr (reduce_loop ctx) e in
 	let check_float op f1 f2 =
 		let f = op f1 f2 in
-		let fstr = string_of_float f in		
+		let fstr = string_of_float f in
 		if (match classify_float f with FP_nan | FP_infinite -> false | _ -> float_of_string fstr = f) then { e with eexpr = TConst (TFloat fstr) } else e
 	in
 	sanitize_expr ctx.com (match e.eexpr with
@@ -745,12 +746,12 @@ let rec reduce_loop ctx e =
 			let fa = (match ca with
 				| TFloat a -> float_of_string a
 				| TInt a -> Int32.to_float a
-				| _ -> assert false 
+				| _ -> assert false
 			) in
 			let fb = (match cb with
 				| TFloat b -> float_of_string b
 				| TInt b -> Int32.to_float b
-				| _ -> assert false 
+				| _ -> assert false
 			) in
 			let fop op = check_float op fa fb in
 			let ebool t =
@@ -833,6 +834,8 @@ let rec reduce_loop ctx e =
 		(match inl with
 		| None -> reduce_expr ctx e
 		| Some e -> reduce_loop ctx e)
+	| TCall ({ eexpr = TClosure (o,name) } as f,el) ->
+		{ e with eexpr = TCall ({ f with eexpr = TField (o,name) },el) }
 	| _ ->
 		reduce_expr ctx e)
 
@@ -879,7 +882,7 @@ let optimize_completion_expr e =
 				(match get_local n with
 				| None, None when maybe_typed esub -> decl n None (Some esub)
 				| _ -> ())
-			with Not_found -> 
+			with Not_found ->
 				());
 			map e
 		| EVars vl ->
@@ -903,7 +906,7 @@ let optimize_completion_expr e =
 		| EFunction (v,f) ->
 			(match v with
 			| None -> ()
-			| Some name -> 
+			| Some name ->
 				decl name None (Some e));
 			let old = save() in
 			List.iter (fun (n,_,t,e) -> decl n t e) f.f_args;
@@ -921,7 +924,7 @@ let optimize_completion_expr e =
 			typing_side_effect := true;
 			map e
 		| ESwitch (e,cases,def) ->
-			let e = loop e in			
+			let e = loop e in
 			let cases = List.map (fun (el,e) ->
 				let el = List.map loop el in
 				let old = save() in
