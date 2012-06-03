@@ -917,6 +917,7 @@ let rec type_binop ctx op e1 e2 p =
 	let e2 = type_expr ctx e2 in
 	let tint = ctx.t.tint in
 	let tfloat = ctx.t.tfloat in
+	let tstring = ctx.t.tstring in
 	let to_string e = 
 		match classify e.etype with
 		| KUnk | KDyn | KParam _ | KOther -> 
@@ -956,9 +957,10 @@ let rec type_binop ctx op e1 e2 p =
 			unify ctx e2.etype e1.etype e2.epos;
 			e2.etype
 		| _ , KString
+		| KString , _ ->
+			tstring			
 		| _ , KDyn ->
 			e2.etype
-		| KString , _
 		| KDyn , _ ->
 			e1.etype
 		| KUnk , KUnk ->
