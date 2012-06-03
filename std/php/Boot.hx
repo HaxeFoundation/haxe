@@ -236,6 +236,17 @@ function _hx_equal($x, $y) {
 	}
 }
 
+function _hx_mod($x, $y) {
+	if (is_int($x) && is_int($y)) {
+		if ($y == 0) return 0;
+		return $x % $y;
+	}
+	if (!is_nan($x) && !is_nan($y) && !is_finite($y) && is_finite($x)) {
+		return $x;
+	} 
+	return fmod($x, $y);
+}
+
 function _hx_error_handler($errno, $errmsg, $filename, $linenum, $vars) {
 	$msg = $errmsg . ' (errno: ' . $errno . ') in ' . $filename . ' at line #' . $linenum;
 	$e = new HException($msg, $errmsg, $errno, _hx_anonymous(array('fileName' => 'Boot.hx', 'lineNumber' => __LINE__, 'className' => 'php.Boot', 'methodName' => '_hx_error_handler')));

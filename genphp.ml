@@ -964,6 +964,12 @@ and gen_expr ctx e =
 				gen_field_op ctx e1;
 				) in
 		(match op with
+		| Ast.OpMod ->
+			spr ctx "_hx_mod(";
+			gen_value_op ctx e1;
+			spr ctx ", ";
+			gen_value_op ctx e2;
+			spr ctx ")";
 		| Ast.OpAssign ->
 			(match e1.eexpr with
 			| TArray(te1, te2) when (match te1.eexpr with | TCall _ | TParenthesis _ -> true | _ -> false) ->
@@ -999,6 +1005,14 @@ and gen_expr ctx e =
 			leftside e1;
 			spr ctx " = ";
 			spr ctx "_hx_shift_right(";
+			gen_value_op ctx e1;
+			spr ctx ", ";
+			gen_value_op ctx e2;
+			spr ctx ")";
+		| Ast.OpAssignOp(Ast.OpMod) ->
+			leftside e1;
+			spr ctx " = ";
+			spr ctx "_hx_mod(";
 			gen_value_op ctx e1;
 			spr ctx ", ";
 			gen_value_op ctx e2;
