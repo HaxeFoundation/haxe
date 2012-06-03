@@ -210,20 +210,27 @@ let rec type_inline ctx cf f ethis params tret p force =
 			in_loop := old;
 			{ e with eexpr = TWhile (cond,eloop,flag) }
 		| TMatch (v,en,cases,def) ->
-			let term, t = (match def with Some d when term -> true, ref d.etype | _ -> false, ref e.etype) in
+			let term = term && def <> None in
 			let cases = List.map (fun (i,vl,e) ->
 				let vl = opt (List.map (fun v -> opt (fun v -> (local v).i_subst) v)) vl in
-				let e = map term e in
-				if is_null e.etype then t := e.etype;
-				i, vl, e
+				i, vl, map term e
 			) cases in
-			{ e with eexpr = TMatch (map false v,en,cases,opt (map term) def); etype = !t }
+			let def = opt (map term) def in
+			{ e with eexpr = TMatch (map false v,en,cases,def); etype = if term then unify_min ctx ((List.map (fun (_,_,e) -> e) cases) @ (match def with None -> [] | Some e -> [e])) else e.etype }
+		| TSwitch (e1,cases,def) when term ->
+			let term = term && def <> None in
+			let cases = List.map (fun (el,e) ->
+				let el = List.map (map false) el in
+				el, map term e
+			) cases in
+			let def = opt (map term) def in
+			{ e with eexpr = TSwitch (map false e1,cases,def); etype = unify_min ctx ((List.map snd cases) @ (match def with None -> [] | Some e -> [e])) }
 		| TTry (e1,catches) ->
 			{ e with eexpr = TTry (map term e1,List.map (fun (v,e) ->
 				let lv = (local v).i_subst in
 				let e = map term e in
 				lv,e
-			) catches) }
+			) catches); etype = if term then unify_min ctx (e1::List.map snd catches) else e.etype }
 		| TBlock l ->
 			let old = save_locals ctx in
 			let t = ref e.etype in
@@ -247,9 +254,10 @@ let rec type_inline ctx cf f ethis params tret p force =
 			let econd = map false econd in
 			let eif = map term eif in
 			let eelse = map term eelse in
-			{ e with eexpr = TIf(econd,eif,Some eelse); }
-		| TParenthesis _ | TIf (_,_,Some _) | TSwitch (_,_,Some _) ->
-			Type.map_expr (map term) e
+			{ e with eexpr = TIf(econd,eif,Some eelse); etype = unify_min ctx [eif;eelse] }
+		| TParenthesis e1 ->
+			let e1 = map term e1 in
+			mk (TParenthesis e1) e1.etype e.epos
 		| TUnop ((Increment|Decrement),_,{ eexpr = TLocal v }) ->
 			(read_local v).i_write <- true;
 			Type.map_expr (map false) e
