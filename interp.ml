@@ -2568,7 +2568,7 @@ and base_op ctx op v1 v2 p =
 			| VInt i, VInt j -> VFloat ((float_of_int i) /. (float_of_int j))
 			| _ -> exc_number_op ctx p op (/) (/.) h_div h_rdiv v1 v2)
 	| "%" ->
-		number_op ctx p op (fun x y -> x mod y) mod_float h_mod h_rmod v1 v2
+		number_op ctx p op (fun x y -> if y = 0 then throw ctx p op; x mod y) mod_float h_mod h_rmod v1 v2
 	| "&" ->
 		int_op ctx p op (fun x y -> x land y) v1 v2
 	| "|" ->
