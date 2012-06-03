@@ -38,7 +38,14 @@ enum ValueType {
 @:core_api class Type {
 	
 	@:functionBody('
-		return (java.lang.Class<T>) o.getClass();
+		if (o instanceof java.lang.Enum || o instanceof haxe.lang.Enum)
+			return null;
+		
+		java.lang.Class<T> ret = (java.lang.Class<T>) o.getClass();
+		String name = ret.getName();
+		if (name == "java.lang.Object" || name == "haxe.lang.Dynamic" || name == "java.lang.Class")
+			return null;
+		return ret;
 	')
 	public static function getClass<T>( o : T ) : Class<T> untyped 
 	{
@@ -46,13 +53,18 @@ enum ValueType {
 	}
 	
 	@:functionBody('
-		return o.getClass();
+		if (o instanceof java.lang.Enum || o instanceof haxe.lang.Enum)
+			return o.getClass();
+		return null;
 	')
 	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped 
 	{
 		return null;
 	}
-
+	
+	@:functionBody('
+		return (c == null) ? null : c.getSuperclass();
+	')
 	public static function getSuperClass( c : Class<Dynamic> ) : Class<Dynamic> untyped 
 	{
 		return null;
@@ -65,18 +77,33 @@ enum ValueType {
 			
 		return switch(name)
 		{
-			case "int": "Int";
-			case "double": "Float";
+			case "int", "java.lang.Integer": "Int";
+			case "double", "java.lang.Double": "Float";
 			case "java.lang.String": "String";
-			case "boolean": "Bool";
+			case "boolean", "java.lang.Boolean": "Bool";
 			default: name;
 		}
 	}
 
 	public static function getEnumName( e : Enum<Dynamic> ) : String untyped {
-		return e.getName();
+		var ret:String = e.getName();
+		if (ret.startsWith("haxe.root."))
+			return ret.substr(10);
+			
+		return ret;
 	}
 
+	@:functionBody('
+		try {
+			if (name.indexOf(".") == -1)
+				name = "haxe.root." + name;
+			return java.lang.Class.forName(name);
+		}
+		catch (java.lang.ClassNotFoundException e)
+		{
+			return null;
+		}
+	')
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped 
 	{
 		return null;
@@ -85,19 +112,128 @@ enum ValueType {
 
 	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped 
 	{
-		return null;
+		return resolveClass(name);
 	}
 
+	@:functionBody('
+		try {
+			int len = args.length;
+			java.lang.Class[] cls = new java.lang.Class[len];
+			java.lang.Object[] objs = new java.lang.Object[len];
+			
+			java.lang.reflect.Constructor[] ms = cl.getConstructors();
+			int msl = ms.length;
+			int lstRes = 0;
+			int realMsl = 0;
+			for(int i =0; i < msl; i++)
+			{
+				if (!ms[i].isVarArgs() && ms[i].getParameterTypes().length != len)
+				{
+					ms[i] = null;
+				} else {
+					ms[lstRes] = ms[i];
+					if (lstRes != i)
+						ms[i] = null;
+					lstRes++;
+					realMsl++;
+				}
+			}
+			
+			boolean hasNumber = false;
+			
+			for (int i = 0; i < len; i++)
+			{
+				Object o = args.__get(i);
+				objs[i]= o;
+				cls[i] = o.getClass();
+				
+				if (!(o instanceof java.lang.Number))
+				{
+					lstRes = 0;
+					msl = realMsl;
+					
+					for (int j = 0; j < msl; j++)
+					{
+						java.lang.Class[] allcls = ms[j].getParameterTypes();
+						if (i < allcls.length)
+						{
+							if (!allcls[i].isAssignableFrom(cls[i]))
+							{
+								ms[j] = null;
+							} else {
+								ms[lstRes] = ms[j];
+								if (lstRes != j)
+									ms[j] = null;
+								lstRes++;
+								realMsl++;
+							}
+						}
+					}
+					
+					if (realMsl == 0)
+						return null;
+				} else {
+					hasNumber = true;
+				}
+				
+			}
+			
+			java.lang.reflect.Constructor found = ms[0];
+			
+			if (hasNumber)
+			{
+				java.lang.Class[] allcls = found.getParameterTypes();
+				
+				for (int i = 0; i < len; i++)
+				{
+					java.lang.Object o = objs[i];
+					if (o instanceof java.lang.Number)
+					{
+						java.lang.Class curCls = null;
+						if (i < allcls.length)
+						{
+							curCls = allcls[i];
+							if (!curCls.isAssignableFrom(o.getClass()))
+							{
+								String name = curCls.getName();
+								if (name.equals("double") || name.equals("java.lang.Double"))
+								{
+									objs[i] = ((java.lang.Number)o).doubleValue();
+								} else if (name.equals("int") || name.equals("java.lang.Integer"))
+								{
+									objs[i] = ((java.lang.Number)o).intValue();
+								} else if (name.equals("float") || name.equals("java.lang.Float"))
+								{
+									objs[i] = ((java.lang.Number)o).floatValue();
+								} else if (name.equals("byte") || name.equals("java.lang.Byte"))
+								{
+									objs[i] = ((java.lang.Number)o).byteValue();
+								} else if (name.equals("short") || name.equals("java.lang.Short"))
+								{
+									objs[i] = ((java.lang.Number)o).shortValue();
+								}
+							}
+						} //else varargs not handled TODO
+					}
+				}
+			}
+			
+			found.setAccessible(true);
+			return (T) found.newInstance(objs);
+		} catch(Throwable t) {
+			return null;
+		}
+	')
 	public static function createInstance<T>( cl : Class<T>, args : Array<Dynamic> ) : T untyped 
 	{
-		//TODO first see if __hx_create exists
-		return cl.__hx_create(args);
+		return null;
 	}
-
+	
 	public static function createEmptyInstance<T>( cl : Class<T> ) : T untyped 
 	{
-		//TODO first see if __hx_createEmpty exists
-		return cl.__hx_createEmpty();
+		if (Reflect.hasField(cl, "__hx_createEmpty"))
+			return cl.__hx_createEmpty();
+		return createInstance(cl, []);
 	}
 	
 	@:functionBody('
@@ -135,12 +271,16 @@ enum ValueType {
 		Array<String> ret = new Array<String>();
 		for (java.lang.reflect.Field f : c.getDeclaredFields())
 		{
-			ret.push(f.getName());
+			java.lang.String fname = f.getName();
+			if (!java.lang.reflect.Modifier.isStatic(f.getModifiers()) && !fname.startsWith("__hx_"))
+				ret.push(fname);
 		}
 		
 		for (java.lang.reflect.Method m : c.getDeclaredMethods())
 		{
-			ret.push(m.getName());
+			java.lang.String mname = m.getName();
+			if (!java.lang.reflect.Modifier.isStatic(m.getModifiers()) && !mname.startsWith("__hx_"))
+				ret.push(mname);
 		}
 		
 		return ret;
@@ -148,13 +288,33 @@ enum ValueType {
 	public static function getInstanceFields( c : Class<Dynamic> ) : Array<String> {
 		return null;
 	}
-
+	
+	@:functionBody('
+		Array<String> ret = new Array<String>();
+		for (java.lang.reflect.Field f : c.getDeclaredFields())
+		{
+			java.lang.String fname = f.getName();
+			if (java.lang.reflect.Modifier.isStatic(f.getModifiers()) && !fname.startsWith("__hx_"))
+			ret.push(fname);
+		}
+		
+		for (java.lang.reflect.Method m : c.getDeclaredMethods())
+		{
+			java.lang.String mname = m.getName();
+			if (java.lang.reflect.Modifier.isStatic(m.getModifiers()) && !mname.startsWith("__hx_"))
+				ret.push(mname);
+		}
+		
+		return ret;
+	')
 	public static function getClassFields( c : Class<Dynamic> ) : Array<String> {
 		return null;
 	}
-
+	
 	public static function getEnumConstructs( e : Enum<Dynamic> ) : Array<String> {
-		return null;
+		if (Reflect.hasField(e, "constructs"))
+			return untyped e.constructs;
+		return getClassFields(cast e);
 	}
 	
 	@:functionBody('
@@ -181,6 +341,8 @@ enum ValueType {
 			return ValueType.TEnum(v.getClass());
 		} else if (v instanceof java.lang.Boolean) {
 			return ValueType.TBool;
+		} else if (v instanceof java.lang.Class) {
+			return ValueType.TObject;
 		} else {
 			return ValueType.TClass(v.getClass());
 		}
@@ -195,14 +357,23 @@ enum ValueType {
 		return a.equals(b);
 	}
 
+	@:functionBody('
+		if (e instanceof java.lang.Enum)
+			return ((java.lang.Enum) e).name();
+		else
+			return ((haxe.lang.Enum) e).getTag();
+	')
 	public static function enumConstructor( e : EnumValue ) : String untyped
 	{
-		return e.tag;
+		return null;
 	}
 
+	@:functionBody('
+		return ( e instanceof java.lang.Enum ) ? new haxe.root.Array() : ((haxe.lang.Enum) e).params;
+	')
 	public static function enumParameters( e : EnumValue ) : Array<Dynamic> untyped
 	{
-		return if( e.params == null ) [] else e.params;
+		return null;
 	}
 	
 	@:functionBody('
@@ -222,4 +393,3 @@ enum ValueType {
 	}
 
 }
-

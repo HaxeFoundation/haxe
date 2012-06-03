@@ -34,19 +34,21 @@ import haxe.lang.Exceptions;
 		var clt:Class<Dynamic> = cast t;
 		if (clt == null)
 			return false;
+		var name = untyped __java__("clt.getName()");
 		
-		if (t == Float)
+		switch(name)
 		{
-			return untyped __java__('haxe.lang.Runtime.isDouble(v)');
-		} else if (t == Int) {
-			return untyped __java__('haxe.lang.Runtime.isInt(v)');
-		} else if (t == Bool) {
-			return untyped __java__('v instanceof java.lang.Boolean');
+			case "double", "java.lang.Double":
+				return untyped __java__('haxe.lang.Runtime.isDouble(v)');
+			case "int", "java.lang.Integer":
+				return untyped __java__('haxe.lang.Runtime.isInt(v)');
+			case "boolean", "java.lang.Boolean":
+				return untyped __java__('v instanceof java.lang.Boolean');
 		}
-			
-		var native:java.lang.Class<Dynamic> = untyped clt.nativeType();
 		
-		return native.isAssignableFrom(Lib.getNativeType(v));
+		var clv:Class<Dynamic> = untyped __java__('v.getClass()');
+		
+		return untyped clt.isAssignableFrom(clv);
 	}
 
 	public static inline function string( s : Dynamic ) : String {
