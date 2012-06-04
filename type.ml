@@ -887,7 +887,7 @@ let rec unify a b =
 				with
 					Unify_error l -> error (invalid_field n :: l));
 				(match f1.cf_kind with
-				| Method MethInline when c.cl_extern || has_meta ":extern" f1.cf_meta ->
+				| Method MethInline when (c.cl_extern || has_meta ":extern" f1.cf_meta) && not (has_meta ":runtime" f1.cf_meta) ->
 					error [Has_no_runtime_field (a,n)]
 				| _ -> ());
 			) an.a_fields;
