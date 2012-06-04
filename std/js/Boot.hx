@@ -59,6 +59,19 @@ class Boot {
 		}
 	}
 
+	static inline function isClass(o:Dynamic) : Bool {
+		return o.__name__;
+	}
+
+	static inline function isEnum(e:Dynamic) : Bool {
+		return e.__ename__;
+	}
+
+	static inline function getClass(o:Dynamic) : Dynamic {
+		return o.__class__;
+	}
+
+	@:feature("has_enum")
 	private static function __string_rec(o,s) {
 		untyped {
 			if( o == null )
@@ -66,12 +79,12 @@ class Boot {
 			if( s.length >= 5 )
 				return "<...>"; // too much deep recursion
 			var t = __js__("typeof(o)");
-			if( t == "function" && (o.__name__ != null || o.__ename__ != null) )
+			if( t == "function" && (isClass(o) || isEnum(o)) )
 				t = "object";
 			switch( t ) {
 			case "object":
 				if( __js__("o instanceof Array") ) {
-					if( o.__enum__ != null ) {
+					if( o.__enum__ ) {
 						if( o.length == 2 )
 							return o[0];
 						var str = o[0]+"(";
@@ -154,7 +167,7 @@ class Boot {
 						return (o.__enum__ == null);
 					return true;
 				}
-				if( __interfLoop(o.__class__,cl) )
+				if( __interfLoop(js.Boot.getClass(o),cl) )
 					return true;
 			} catch( e : Dynamic ) {
 				if( cl == null )
@@ -174,7 +187,10 @@ class Boot {
 			default:
 				if( o == null )
 					return false;
-				return o.__enum__ == cl || ( cl == Class && o.__name__ != null ) || ( cl == Enum && o.__ename__ != null );
+				// do not use isClass/isEnum here
+				__feature__("Class.*",if( cl == Class && o.__name__ != null ) return true);
+				__feature__("Enum.*",if( cl == Enum && o.__ename__ != null ) return true);
+				return o.__enum__ == cl;
 			}
 		}
 	}
@@ -183,51 +199,16 @@ class Boot {
 		if (__instanceof(o, t)) return o;
 		else throw "Cannot cast " +Std.string(o) + " to " +Std.string(t);
 	}
-	
-	private static function __init() {
-		untyped {
-			Array.prototype.copy = Array.prototype.slice;
-			Array.prototype.insert = function(i,x) {
-				__this__.splice(i,0,x);
-			};
-			Array.prototype.remove = if( Array.prototype.indexOf ) function(obj) {
-				var idx = __this__.indexOf(obj);
-				if( idx == -1 ) return false;
-				__this__.splice(idx,1);
-				return true;
-			} else function(obj) {
-				var i = 0;
-				var l = __this__.length;
-				while( i < l ) {
-					if( __this__[i] == obj ) {
-						__this__.splice(i,1);
-						return true;
-					}
-					i++;
-				}
-				return false;
-			};
-			Array.prototype.iterator = function() {
-				return {
-					cur : 0,
-					arr : __this__,
-					hasNext : function() {
-						return __this__.cur < __this__.arr.length;
-					},
-					next : function() {
-						return __this__.arr[__this__.cur++];
-					}
-				}
-			};
-			Function.prototype["$bind"] = function(o){
-				var f = function(){
-					return f.method.apply(f.scope, untyped __js__("arguments"));
-				}
-				f.scope = o;
-				f.method = __this__;
-				return f;
+
+	static function __init__() untyped {
+		__feature__("use.$bind",Function.prototype["$bind"] = function(o){
+			var f = function(){
+				return f.method.apply(f.scope, untyped __js__("arguments"));
 			}
-		}
+			f.scope = o;
+			f.method = __this__;
+			return f;
+		});
 	}
 
 }

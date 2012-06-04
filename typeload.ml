@@ -1457,6 +1457,7 @@ let type_module ctx m file tdecls loadp =
 			) (!constructs);
 			e.e_names <- List.rev !names;
 			e.e_extern <- e.e_extern || e.e_names = [];
+			if not e.e_extern then activate_feature ctx FtHasEnum;
 		| ETypedef d ->
 			let t = get_tdef d.d_name in
 			let ctx = { ctx with type_params = t.t_types } in

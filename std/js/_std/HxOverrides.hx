@@ -29,7 +29,7 @@
  */
 class HxOverrides {
 
-	public static function Date_toString( date :Date ) : String {
+	static function dateStr( date :Date ) : String {
 		var m = date.getMonth() + 1;
 		var d = date.getDate();
 		var h = date.getHours();
@@ -43,7 +43,7 @@ class HxOverrides {
 			+":"+(if( s < 10 ) "0"+s else ""+s);
 	}
 
-	public static function Date_fromString( s : String ) : Date {
+	static function strDate( s : String ) : Date {
 		switch( s.length ) {
 		case 8: // hh:mm:ss
 			var k = s.split(":");
@@ -66,14 +66,14 @@ class HxOverrides {
 		}
 	}
 
-	public static function String_charCodeAt( s : String, index : Int ) : Null<Int> {
-		var x = (untyped s).charCodeAt(index);
+	static function cca( s : String, index : Int ) : Null<Int> {
+		var x = (cast s).charCodeAt(index);
 		if( x != x ) // fast isNaN
 			return untyped undefined; // isNaN will still return true
 		return x;
 	}
 
-	public static function String_substr( s : String, pos : Int, ?len : Int ) : String {
+	static function substr( s : String, pos : Int, ?len : Int ) : String {
 		if( pos != null && pos != 0 && len != null && len < 0 ) return "";
 		if( len == null ) len = s.length;
 		if( pos < 0 ){
@@ -85,4 +85,42 @@ class HxOverrides {
 
 		return (untyped s).substr(pos, len);
 	}
+
+	static function remove<T>( a : Array<T>, obj : T ) {
+		var i = 0;
+		var l = a.length;
+		while( i < l ) {
+			if( a[i] == obj ) {
+				a.splice(i,1);
+				return true;
+			}
+			i++;
+		}
+		return false;
+	}
+
+	static function iter<T>( a : Array<T> ) : Iterator<T> untyped {
+		return {
+			cur : 0,
+			arr : a,
+			hasNext : function() {
+				return __this__.cur < __this__.arr.length;
+			},
+			next : function() {
+				return __this__.arr[__this__.cur++];
+			}
+		};
+	}
+
+	static function __init__() untyped {
+		__feature__('HxOverrides.remove',
+			if( Array.prototype.indexOf ) __js__('HxOverrides').remove = function(a,o) {
+				var i = a.indexOf(o);
+				if( i == -1 ) return false;
+				a.splice(i,1);
+				return true;
+			}
+		);
+	}
+
 }

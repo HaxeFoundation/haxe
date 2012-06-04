@@ -25,6 +25,7 @@
 
 @:core_api extern class String {
 	var length(default,null) : Int;
+
 	function new(string:String) : Void;
 	function toUpperCase() : String;
 	function toLowerCase() : String;
@@ -33,14 +34,15 @@
 	function lastIndexOf( str : String, ?startIndex : Int ) : Int;
 	function split( delimiter : String ) : Array<String>;
 	function toString() : String;
-	static function fromCharCode( code : Int ) : String;
 	function substring( startIndex : Int, ?endIndex : Int ) : String;
 
 	inline function charCodeAt( index : Int) : Null<Int> {
-		return HxOverrides.String_charCodeAt(this, index);
+		return untyped HxOverrides.cca(this, index);
 	}
 
 	inline function substr( pos : Int, ?len : Int ) : String {
-		return HxOverrides.String_substr(this, pos, len);
+		return untyped HxOverrides.substr(this, pos, len);
 	}
+
+	static function fromCharCode( code : Int ) : String;
 }

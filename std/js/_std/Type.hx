@@ -40,9 +40,7 @@ enum ValueType {
 	public static function getClass<T>( o : T ) : Class<T> untyped {
 		if( o == null )
 			return null;
-		if( o.__enum__ != null )
-			return null;
-		return o.__class__;
+		return js.Boot.getClass(o);
 	}
 
 	public static function getEnum( o : EnumValue ) : Enum<Dynamic> untyped {
@@ -69,7 +67,7 @@ enum ValueType {
 	public static function resolveClass( name : String ) : Class<Dynamic> untyped {
 		var cl : Class<Dynamic> = $hxClasses[name];
 		// ensure that this is a class
-		if( cl == null || cl.__name__ == null )
+		if( cl == null || !js.Boot.isClass(cl) )
 			return null;
 		return cl;
 	}
@@ -77,7 +75,7 @@ enum ValueType {
 	public static function resolveEnum( name : String ) : Enum<Dynamic> untyped {
 		var e : Dynamic = $hxClasses[name];
 		// ensure that this is an enum
-		if( e == null || e.__ename__ == null )
+		if( e == null || !js.Boot.isEnum(e) )
 			return null;
 		return e;
 	}
@@ -169,12 +167,12 @@ enum ValueType {
 			var e = v.__enum__;
 			if( e != null )
 				return TEnum(e);
-			var c = v.__class__;
+			var c = js.Boot.getClass(v);
 			if( c != null )
 				return TClass(c);
 			return TObject;
 		case "function":
-			if( v.__name__ != null )
+			if( js.Boot.isClass(v) || js.Boot.isEnum(v) )
 				return TObject;
 			return TFunction;
 		case "undefined":

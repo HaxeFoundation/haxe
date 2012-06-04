@@ -61,21 +61,37 @@ import js.Boot;
 	}
 
 	static function __init__() : Void untyped {
-		String.prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["String"] = String,String);
-		String.__name__ = ["String"];
-		Array.prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["Array"] = Array,Array);
-		Array.__name__ = ["Array"];
-		Date.prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["Date"] = Date,Date);
-		Date.__name__ = ["Date"];
-		var Int = __feature__("Type.resolveClass", $hxClasses["Int"] = { __name__ : ["Int"] }, { __name__ : ["Int"] });
-		var Dynamic = __feature__("Type.resolveClass", $hxClasses["Dynamic"] = { __name__ : ["Dynamic"] }, { __name__ : ["Dynamic"] });
-		var Float = __feature__("Type.resolveClass", $hxClasses["Float"] = __js__("Number"), __js__("Number"));
-		Float.__name__ = ["Float"];
-		var Bool = __feature__("Type.resolveEnum",$hxClasses["Bool"] = __js__("Boolean"), __js__("Boolean"));
-		Bool.__ename__ = ["Bool"];
-		var Class = __feature__("Type.resolveClass", $hxClasses["Class"] = { __name__ : ["Class"] }, { __name__ : ["Class"] });
-		var Enum = {};
-		var Void = __feature__("Type.resolveEnum", $hxClasses["Void"] = { __ename__ : ["Void"] }, { __ename__ : ["Void"] });
+		__feature__("js.Boot.getClass",String.prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["String"] = String,String));
+		__feature__("js.Boot.isClass",String.__name__ = __feature__("Type.getClassName",["String"],true));
+		__feature__("js.Boot.getClass",Array.prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["Array"] = Array,Array));
+		__feature__("js.Boot.isClass",Array.__name__ = __feature__("Type.getClassName",["Array"],true));
+		__feature__("Date.*", {
+			__feature__("js.Boot.getClass",__js__('Date').prototype.__class__ = __feature__("Type.resolveClass",$hxClasses["Date"] = __js__('Date'),__js__('Date')));
+			__feature__("js.Boot.isClass",__js__('Date').__name__ = ["Date"]);
+		});
+		__feature__("Int.*",{
+			var Int = __feature__("Type.resolveClass", $hxClasses["Int"] = { __name__ : ["Int"] }, { __name__ : ["Int"] });
+		});
+		__feature__("Dynamic.*",{
+			var Dynamic = __feature__("Type.resolveClass", $hxClasses["Dynamic"] = { __name__ : ["Dynamic"] }, { __name__ : ["Dynamic"] });
+		});
+		__feature__("Float.*",{
+			var Float = __feature__("Type.resolveClass", $hxClasses["Float"] = __js__("Number"), __js__("Number"));
+			Float.__name__ = ["Float"];
+		});
+		__feature__("Bool.*",{
+			var Bool = __feature__("Type.resolveEnum",$hxClasses["Bool"] = __js__("Boolean"), __js__("Boolean"));
+			Bool.__ename__ = ["Bool"];
+		});
+		__feature__("Class.*",{
+			var Class = __feature__("Type.resolveClass", $hxClasses["Class"] = { __name__ : ["Class"] }, { __name__ : ["Class"] });
+		});
+		__feature__("Enum.*",{
+			var Enum = {};
+		});
+		__feature__("Void.*",{
+			var Void = __feature__("Type.resolveEnum", $hxClasses["Void"] = { __ename__ : ["Void"] }, { __ename__ : ["Void"] });
+		});
 	}
 
 }

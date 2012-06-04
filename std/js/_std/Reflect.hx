@@ -68,7 +68,7 @@
 	}
 
 	public static function isFunction( f : Dynamic ) : Bool untyped {
-		return __js__("typeof(f)") == "function" && f.__name__ == null;
+		return __js__("typeof(f)") == "function" && !(js.Boot.isClass(f) || js.Boot.isEnum(f));
 	}
 
 	public static function compare<T>( a : T, b : T ) : Int {
@@ -87,7 +87,7 @@
 		if( v == null )
 			return false;
 		var t = __js__("typeof(v)");
-		return (t == "string" || (t == "object" && !v.__enum__) || (t == "function" && v.__name__ != null));
+		return (t == "string" || (t == "object" && !v.__enum__) || (t == "function" && (js.Boot.isClass(v) || js.Boot.isEnum(v))));
 	}
 
 	public static function deleteField( o : Dynamic, f : String ) : Bool untyped {

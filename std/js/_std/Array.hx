@@ -23,33 +23,38 @@
  * DAMAGE.
  */
 
-@:core_api extern class Date {
+@:core_api
+extern class Array<T> {
 
-	function new(year : Int, month : Int, day : Int, hour : Int, min : Int, sec : Int ) : Void;
-	function getTime() : Float;
-	function getHours() : Int;
-	function getMinutes() : Int;
-	function getSeconds() : Int;
-	function getFullYear() : Int;
-	function getMonth() : Int;
-	function getDate() : Int;
-	function getDay() : Int;
+	var length(default,null) : Int;
 
-	inline function toString() : String {
-		return untyped HxOverrides.dateStr(this);
+	function new() : Void;
+	function concat( a : Array<T> ) : Array<T>;
+	function join( sep : String ) : String;
+	function pop() : Null<T>;
+	function push(x : T) : Int;
+	function reverse() : Void;
+	function shift() : Null<T>;
+	function slice( pos : Int, ?end : Int ) : Array<T>;
+	function sort( f : T -> T -> Int ) : Void;
+	function splice( pos : Int, len : Int ) : Array<T>;
+	function toString() : String;
+	function unshift( x : T ) : Void;
+
+	inline function insert( pos : Int, x : T ) : Void {
+		(untyped this).splice(pos,0,x);
 	}
 
-	static inline function now() : Date {
-		return untyped __new__(Date);
+	inline function remove( x : T ) : Bool {
+		return untyped HxOverrides.remove(this,x);
 	}
 
-	static inline function fromTime( t : Float ) : Date {
-		var d : Date = untyped __new__(Date);
-		untyped d["setTime"]( t );
-		return d;
+	inline function copy() : Array<T> {
+		return (untyped this).slice();
 	}
 
-	static inline function fromString( s : String ) : Date {
-		return untyped HxOverrides.strDate(s);
+	@:runtime inline function iterator() : Iterator<T> {
+		return untyped HxOverrides.iter(this);
 	}
+
 }
