@@ -37,6 +37,7 @@ typedef JqEvent = {
 	function stopPropagation() : Void;
 }
 
+@:initPackage
 extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 
 	var context(default,null) : Dom.HtmlDom;
@@ -57,7 +58,7 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	function attr( name : String ) : String;
 
 	function removeAttr( attr : String ) : JQuery;
-	
+
 	@:overload(function(name:String,value:Dynamic):js.JQuery{})
 	function prop( name : String ) : Dynamic;
 

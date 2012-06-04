@@ -1076,7 +1076,7 @@ let generate_type ctx = function
 			ctx.boot_init <- Some e
 		| Some e ->
 			ctx.inits <- e :: ctx.inits);
-		if not c.cl_extern then generate_class ctx c
+		if not c.cl_extern then generate_class ctx c else if has_meta ":initPackage" c.cl_meta then generate_package_create ctx c.cl_path
 	| TEnumDecl e when e.e_extern ->
 		()
 	| TEnumDecl e -> generate_enum ctx e
