@@ -1744,6 +1744,9 @@ let before_generate con =
 
 let generate con =
   let gen = new_ctx con in
-  configure gen;
+  (try
+    configure gen
+  with | TypeNotFound path -> 
+    con.error ("Error. Module '" ^ (path_s path) ^ "' is required and was not included in build.")  Ast.null_pos);
   debug_mode := false
   
