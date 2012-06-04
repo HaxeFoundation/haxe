@@ -317,7 +317,9 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	//}
 
 	// haXe addition
-	function iterator() : Iterator<JQuery>;
+	@:runtime inline function iterator() : Iterator<JQuery> {
+		return untyped this["iterator"]();
+	}
 
 	/**
 		Return the current JQuery element (in a callback), similar to $(this) in JS.
@@ -348,6 +350,8 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 		#end
 		var q : Dynamic = window.jQuery;
 		js.JQuery = q;
-		q.fn.iterator = function() return { pos : 0, j : __this__, hasNext : function() return __this__.pos < __this__.j.length, next : function() return $(__this__.j[__this__.pos++]) };
+		__feature__('js.JQuery.iterator',
+			q.fn.iterator = function() return { pos : 0, j : __this__, hasNext : function() return __this__.pos < __this__.j.length, next : function() return $(__this__.j[__this__.pos++]) }
+		);
 	}
 }
