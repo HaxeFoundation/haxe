@@ -1,5 +1,6 @@
 package js;
 
+@:initPackage
 extern class SWFObject {
 
 	function new( swf : String, id : String, width : Int, height : Int, ver : String, color : String /*...*/ ) : Void;

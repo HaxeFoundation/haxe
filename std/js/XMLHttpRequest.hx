@@ -24,6 +24,7 @@
  */
 package js;
 
+@:initPackage
 extern class XMLHttpRequest {
 
 	var onreadystatechange : Void -> Void;
