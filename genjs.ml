@@ -1160,10 +1160,6 @@ let generate com =
 	end;
 	newline ctx;
 	List.iter (generate_type ctx) com.types;
-	if has_feature ctx "haxe.Resource.content" then begin
-		print ctx "js.Boot.__res = {}";
-		newline ctx;
-	end;
 	let rec chk_features e =
 		match e.eexpr with
 		| TClosure _ -> add_feature ctx "use.$bind"

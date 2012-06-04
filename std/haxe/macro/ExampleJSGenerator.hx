@@ -235,12 +235,6 @@ class ExampleJSGenerator {
 		newline();
 		for( t in api.types )
 			genType(t);
-		print("$_ = {}");
-		newline();
-		print("js.Boot.__res = {}");
-		newline();
-		print("js.Boot.__init()");
-		newline();
 		for( e in inits ) {
 			print(api.generateStatement(e));
 			newline();
