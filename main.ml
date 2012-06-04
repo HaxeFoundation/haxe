@@ -102,9 +102,11 @@ let report_times print =
 	let tot = ref 0. in
 	Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
 	print (Printf.sprintf "Total time : %.3fs" !tot);
-	print "------------------------------------";
-	let timers = List.sort (fun t1 t2 -> compare t1.name t2.name) (Hashtbl.fold (fun _ t acc -> t :: acc) Common.htimers []) in
-	List.iter (fun t -> print (Printf.sprintf "  %s : %.3fs, %.0f%%" t.name t.total (t.total *. 100. /. !tot))) timers
+	if !tot > 0. then begin
+		print "------------------------------------";
+		let timers = List.sort (fun t1 t2 -> compare t1.name t2.name) (Hashtbl.fold (fun _ t acc -> t :: acc) Common.htimers []) in
+		List.iter (fun t -> print (Printf.sprintf "  %s : %.3fs, %.0f%%" t.name t.total (t.total *. 100. /. !tot))) timers
+	end
 
 let make_path f =
 	let f = String.concat "/" (ExtString.String.nsplit f "\\") in
@@ -1114,9 +1116,11 @@ with
 			let tot = ref 0. in
 			Hashtbl.iter (fun _ t -> tot := !tot +. t.total) Common.htimers;
 			let fields = ("@TOTAL", Printf.sprintf "%.3fs" (get_time() -. !start_time), "") :: fields in
-			Hashtbl.fold (fun _ t acc ->
-				("@TIME " ^ t.name, Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot), "") :: acc
-			) Common.htimers fields;
+			if !tot > 0. then
+				Hashtbl.fold (fun _ t acc ->
+					("@TIME " ^ t.name, Printf.sprintf "%.3fs (%.0f%%)" t.total (t.total *. 100. /. !tot), "") :: acc
+				) Common.htimers fields
+			else fields
 		end else
 			fields
 		in
