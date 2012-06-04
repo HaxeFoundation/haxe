@@ -919,11 +919,16 @@ let gen_class_static_field ctx c f =
 		| _ ->
 			ctx.statics <- (c,f.cf_name,e) :: ctx.statics
 
+let can_gen_class_field ctx = function
+	| { cf_kind = Var { v_read = AccResolve } } -> false
+	| { cf_expr = (None | Some { eexpr = TConst TNull }) } when not (has_feature ctx "Type.getInstanceFields") ->
+		false
+	| _ ->
+		true
+
 let gen_class_field ctx c f =
 	check_field_name c f false;
 	match f.cf_expr with
-	| None | Some { eexpr = TConst TNull } when not (has_feature ctx "Type.getInstanceFields") ->
-		()
 	| None ->
 		newprop ctx;
 		print ctx "%s: " (anon_field f.cf_name);
@@ -987,39 +992,43 @@ let generate_class ctx c =
 
 	List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
 
-	(match c.cl_super with
-	| None -> print ctx "%s.prototype = {" p;
-	| Some (csup,_) ->
-		let psup = s_path ctx csup.cl_path in
-		print ctx "%s.__super__ = %s" p psup;
-		newline ctx;
-		print ctx "%s.prototype = $extend(%s.prototype,{" p psup;
-	);
-
-	let bend = open_block ctx in
-	List.iter (fun f -> match f.cf_kind with Var { v_read = AccResolve } -> () | _ -> gen_class_field ctx c f) c.cl_ordered_fields;
-	if has_feature ctx "js.Boot.getClass" then begin
-		newprop ctx;
-		print ctx "__class__: %s" p;
-	end;
-
-	if has_property_reflection then begin
-		let props = Codegen.get_properties c.cl_ordered_fields in
+	let has_class = has_feature ctx "js.Boot.getClass" in
+	let has_prototype = c.cl_super <> None || has_class || List.exists (can_gen_class_field ctx) c.cl_ordered_fields in
+	if has_prototype then begin
 		(match c.cl_super with
-		| _ when props = [] -> ()
-		| Some (csup,_) when Codegen.has_properties csup ->
-			newprop ctx;
+		| None -> print ctx "%s.prototype = {" p;
+		| Some (csup,_) ->
 			let psup = s_path ctx csup.cl_path in
-			print ctx "__properties__: $extend(%s.prototype.__properties__,{%s})" psup (gen_props props)
-		| _ ->
-			newprop ctx;
-			print ctx "__properties__: {%s}" (gen_props props));
-	end;
+			print ctx "%s.__super__ = %s" p psup;
+			newline ctx;
+			print ctx "%s.prototype = $extend(%s.prototype,{" p psup;
+		);
 
-	bend();
-	print ctx "\n}";
-	(match c.cl_super with None -> () | _ -> print ctx ")");
-	newline ctx
+		let bend = open_block ctx in
+		List.iter (fun f -> if can_gen_class_field ctx f then gen_class_field ctx c f) c.cl_ordered_fields;
+		if has_class then begin
+			newprop ctx;
+			print ctx "__class__: %s" p;
+		end;
+
+		if has_property_reflection then begin
+			let props = Codegen.get_properties c.cl_ordered_fields in
+			(match c.cl_super with
+			| _ when props = [] -> ()
+			| Some (csup,_) when Codegen.has_properties csup ->
+				newprop ctx;
+				let psup = s_path ctx csup.cl_path in
+				print ctx "__properties__: $extend(%s.prototype.__properties__,{%s})" psup (gen_props props)
+			| _ ->
+				newprop ctx;
+				print ctx "__properties__: {%s}" (gen_props props));
+		end;
+
+		bend();
+		print ctx "\n}";
+		(match c.cl_super with None -> () | _ -> print ctx ")");
+		newline ctx
+	end
 
 let generate_enum ctx e =
 	let p = s_path ctx e.e_path in
