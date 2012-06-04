@@ -443,6 +443,7 @@ let rec acc_get ctx g p =
 			| TInst (c,_) -> chk_class c
 			| TAnon a -> (match !(a.a_status) with Statics c -> chk_class c | _ -> ())
 			| _ -> ());
+			mark_used_field ctx f;
 			mk (TClosure (e,f.cf_name)) t p
 		| Some e ->
 			let rec loop e = Type.map_expr loop { e with epos = p } in
@@ -476,7 +477,9 @@ let field_access ctx mode f t e p =
 		| MethInline, _ -> AKInline (e,f,t)
 		| MethMacro, MGet -> display_error ctx "Macro functions must be called immediatly" p; normal()
 		| MethMacro, MCall -> AKMacro (e,f)
-		| _ , MGet -> AKExpr (mk (TClosure (e,f.cf_name)) t p)
+		| _ , MGet ->
+			mark_used_field ctx f;
+			AKExpr (mk (TClosure (e,f.cf_name)) t p)
 		| _ -> normal())
 	| Var v ->
 		match (match mode with MGet | MCall -> v.v_read | MSet -> v.v_write) with

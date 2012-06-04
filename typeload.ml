@@ -884,7 +884,7 @@ let init_class ctx c p herits fields =
 		end
 	in
 
-	let bind_var ctx cf e stat =
+	let bind_var ctx cf e stat inline =
 		let p = cf.cf_pos in
 		if not stat && has_field cf.cf_name c.cl_super then error ("Redefinition of variable " ^ cf.cf_name ^ " in subclass is not allowed") p;
 		let t = cf.cf_type in
@@ -905,7 +905,7 @@ let init_class ctx c p herits fields =
 				if not !return_partial_type then begin
 					r := (fun() -> t);
 					if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
-					mark_used cf;
+					if not inline then mark_used cf;
 					let e = type_static_var ctx t e p in
 					let e = (match cf.cf_kind with
 					| Var { v_read = AccInline } ->
@@ -969,7 +969,7 @@ let init_class ctx c p herits fields =
 				cf_params = [];
 				cf_overloads = [];
 			} in
-			let delay = bind_var ctx cf e stat in
+			let delay = bind_var ctx cf e stat inline in
 			f, false, cf, delay
 		| FFun fd ->
 			let params = ref [] in
@@ -1083,7 +1083,7 @@ let init_class ctx c p herits fields =
 						(match e.eexpr with
 						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
 						| _ -> c.cl_init <- Some e);
-					if not constr then mark_used cf;
+					if not (constr || inline) then mark_used cf;
 					cf.cf_expr <- Some (mk (TFunction f) t p);
 					cf.cf_type <- t;
 				end;
@@ -1145,7 +1145,7 @@ let init_class ctx c p herits fields =
 				cf_params = [];
 				cf_overloads = [];
 			} in
-			let delay = bind_var ctx cf eo stat in
+			let delay = bind_var ctx cf eo stat inline in
 			f, false, cf, (fun() -> delay(); (!check_get)(); (!check_set)())
 	in
 	let rec check_require = function

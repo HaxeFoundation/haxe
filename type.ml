@@ -887,8 +887,10 @@ let rec unify a b =
 				with
 					Unify_error l -> error (invalid_field n :: l));
 				(match f1.cf_kind with
-				| Method MethInline when (c.cl_extern || has_meta ":extern" f1.cf_meta) && not (has_meta ":runtime" f1.cf_meta) ->
-					error [Has_no_runtime_field (a,n)]
+				| Method MethInline ->
+					if (c.cl_extern || has_meta ":extern" f1.cf_meta) && not (has_meta ":runtime" f1.cf_meta) then error [Has_no_runtime_field (a,n)];
+					(* mark as used so it's not removed by DCE *)
+					if not (has_meta ":?used" f1.cf_meta) then f1.cf_meta <- (":?used",[],f1.cf_pos) :: f1.cf_meta;
 				| _ -> ());
 			) an.a_fields;
 			if !(an.a_status) = Opened then an.a_status := Closed;
