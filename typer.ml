@@ -74,6 +74,9 @@ let rec mark_used_class ctx c =
 		| _ -> ()
 	end
 
+let mark_used_enum ctx e  =
+	if ctx.com.dead_code_elimination && not (has_meta ":?used" e.e_meta) then e.e_meta <- (":?used",[],e.e_pos) :: e.e_meta
+
 let mark_used_field ctx f =
 	if ctx.com.dead_code_elimination && not (has_meta ":?used" f.cf_meta) then f.cf_meta <- (":?used",[],f.cf_pos) :: f.cf_meta
 
@@ -321,7 +324,7 @@ let rec type_module_type ctx t tparams p =
 			t_types = [];
 			t_meta = no_meta;
 		} in
-		if ctx.com.dead_code_elimination && not (has_meta ":?used" c.cl_meta) then c.cl_meta <- (":?used",[],p) :: c.cl_meta;
+		mark_used_class ctx c;
 		mk (TTypeExpr (TClassDecl c)) (TType (t_tmp,[])) p
 	| TEnumDecl e ->
 		let types = (match tparams with None -> List.map (fun _ -> mk_mono()) e.e_types | Some l -> l) in
@@ -355,7 +358,7 @@ let rec type_module_type ctx t tparams p =
 			t_types = e.e_types;
 			t_meta = no_meta;
 		} in
-		if ctx.com.dead_code_elimination && not (has_meta ":?used" e.e_meta) then e.e_meta <- (":?used",[],p) :: e.e_meta;
+		mark_used_enum ctx e;
 		mk (TTypeExpr (TEnumDecl e)) (TType (t_tmp,types)) p
 	| TTypeDecl s ->
 		let t = apply_params s.t_types (List.map (fun _ -> mk_mono()) s.t_types) s.t_type in
@@ -653,6 +656,7 @@ let type_ident ?(imported_enums=true) ctx i p mode =
 				| TEnumDecl e ->
 					try
 						let ef = PMap.find i e.e_constrs in
+						mark_used_enum ctx e;
 						mk (TEnumField (e,i)) (monomorphs e.e_types ef.ef_type) p
 					with
 						Not_found -> loop l
@@ -1409,6 +1413,7 @@ and type_expr_with_type_raise ctx e t =
 				| TEnum (e,pl) ->
 					(try
 						let ef = PMap.find s e.e_constrs in
+						mark_used_enum ctx e;
 						mk (TEnumField (e,s)) (apply_params e.e_types pl ef.ef_type) p
 					with Not_found ->
 						display_error ctx ("Identifier '" ^ s ^ "' is not part of enum " ^ s_type_path e.e_path) p;
@@ -2216,6 +2221,8 @@ let dce_finalize ctx =
 		List.iter (fun t ->
 			match t with
 			| TClassDecl c -> check_class c
+			| TEnumDecl e ->
+				if not (dce_check_metadata ctx e.e_meta) then e.e_extern <- true
 			| _ -> ()
 		) m.m_types
 	) ctx.g.modules
