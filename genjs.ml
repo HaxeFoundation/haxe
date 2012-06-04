@@ -1149,19 +1149,24 @@ let generate com =
 		newline ctx;
 	end;
 
-	print ctx "var $_";
-	if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then print ctx ", $hxClasses = %s" (if ctx.js_modern then "{}" else "$hxClasses || {}");
-	if List.exists (function TEnumDecl { e_extern = false } -> true | _ -> false) com.types then print ctx ", $estr = function() { return js.Boot.__string_rec(this,''); }";
+	let vars = [] in
+	let vars = (if has_feature ctx "Type.resolveClass" || has_feature ctx "Type.resolveEnum" then ("$hxClasses = " ^ (if ctx.js_modern then "{}" else "$hxClasses || {}")) :: vars else vars) in
+	let vars = (if List.exists (function TEnumDecl { e_extern = false } -> true | _ -> false) com.types then "$estr = function() { return js.Boot.__string_rec(this,''); }" :: vars else vars) in
+	(match List.rev vars with
+	| [] -> ()
+	| vl ->
+		print ctx "var %s" (String.concat "," vl);
+		ctx.separator <- true;
+		newline ctx
+	);
 	if List.exists (function TClassDecl { cl_extern = false; cl_super = Some _ } -> true | _ -> false) com.types then begin
-		print ctx ";";
-		newline ctx;
 		print ctx "function $extend(from, fields) {
 	function inherit() {}; inherit.prototype = from; var proto = new inherit();
 	for (var name in fields) proto[name] = fields[name];
 	return proto;
-}";
+}
+";
 	end;
-	newline ctx;
 	List.iter (generate_type ctx) com.types;
 	let rec chk_features e =
 		if is_dynamic_iterator ctx e then add_feature ctx "use.$iterator";
@@ -1177,6 +1182,10 @@ let generate com =
 		add_feature ctx "use.$bind";
 		print ctx "var $iterator = function(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? o.iterator.$bind(o) : o.iterator; }";
 		ctx.separator <- true;
+		newline ctx;
+	end;
+	if has_feature ctx "use.$bind" then begin
+		print ctx "var $_";
 		newline ctx;
 	end;
 	(match ctx.boot_init with
