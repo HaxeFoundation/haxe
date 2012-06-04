@@ -240,7 +240,7 @@ let hash_iterate hash visitor =
 let keyword_remap name =
 	match name with
 	| "int"
-	| "auto" | "char" | "const" | "delete" | "double" | "enum"
+	| "auto" | "char" | "const" | "delete" | "double" | "Float" | "enum"
 	| "extern" | "float" | "friend" | "goto" | "long" | "operator" | "protected"
 	| "register" | "short" | "signed" | "sizeof" | "template" | "typedef"
 	| "union" | "unsigned" | "void" | "volatile" | "or" | "and" | "xor" | "or_eq" | "not"
@@ -363,7 +363,7 @@ and type_string_suff suffix haxe_type =
 	| TMono r -> (match !r with None -> "Dynamic" ^ suffix | Some t -> type_string_suff suffix t)
 	| TEnum ({ e_path = ([],"Void") },[]) -> "Void"
 	| TEnum ({ e_path = ([],"Bool") },[]) -> "bool"
-	| TInst ({ cl_path = ([],"Float") },[]) -> "double"
+	| TInst ({ cl_path = ([],"Float") },[]) -> "Float"
 	| TInst ({ cl_path = ([],"Int") },[]) -> "int"
 	| TEnum (enum,params) ->  "::" ^ (join_class_path enum.e_path "::") ^ suffix
 	| TInst (klass,params) ->  (class_string klass suffix params)
@@ -1152,7 +1152,7 @@ and gen_expression ctx retval expression =
 		let cast = (match op with
 			| ">>" | "<<" | "&" | "|" | "^"  -> "int("
 			| "&&" | "||" -> "bool("
-			| "/" -> "double("
+			| "/" -> "Float("
 			| _ -> "") in
 		if (op <> "=") then output "(";
 		if ( cast <> "") then output cast;
@@ -2286,7 +2286,7 @@ let generate_enum_files common_ctx enum_def super_deps meta =
 
 	output_cpp "	::String(null()) };\n\n";
 
-	(* ENUM - MARK function - only used with internal GC *)
+	(* ENUM - Mark static as used by GC *)
 	output_cpp "static void sMarkStatics(HX_MARK_PARAMS) {\n";
 	PMap.iter (fun _ constructor ->
 		let name = keyword_remap constructor.ef_name in
@@ -2294,10 +2294,21 @@ let generate_enum_files common_ctx enum_def super_deps meta =
 		| TFun (_,_) -> ()
 		| _ -> output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::" ^ name ^ ",\"" ^ name ^ "\");\n") )
 	enum_def.e_constrs;
-        if (has_meta) then
+	if (has_meta) then
 		output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::__meta__,\"__meta__\");\n");
 	output_cpp "};\n\n";
 
+	(* ENUM - Visit static as used by GC *)
+	output_cpp "static void sVisitStatic(HX_VISIT_PARAMS) {\n";
+	PMap.iter (fun _ constructor ->
+		let name = keyword_remap constructor.ef_name in
+		match constructor.ef_type with
+		| TFun (_,_) -> ()
+		| _ -> output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::" ^ name ^ ",\"" ^ name ^ "\");\n") )
+	enum_def.e_constrs;
+	if (has_meta) then
+		output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::__meta__,\"__meta__\");\n");
+	output_cpp "};\n\n";
 
 	output_cpp "static ::String sMemberFields[] = { ::String(null()) };\n";
 
@@ -2310,7 +2321,7 @@ let generate_enum_files common_ctx enum_def super_deps meta =
 	output_cpp ("\nStatic(__mClass) = hx::RegisterClass(" ^ text_name ^
 					", hx::TCanCast< " ^ class_name ^ " >,sStaticFields,sMemberFields,\n");
 	output_cpp ("	&__Create_" ^ class_name ^ ", &__Create,\n");
-	output_cpp ("	&super::__SGetClass(), &Create" ^ class_name ^ ", sMarkStatics);\n");
+	output_cpp ("	&super::__SGetClass(), &Create" ^ class_name ^ ", sMarkStatics, sVisitStatic);\n");
 	output_cpp ("}\n\n");
 
 	output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
@@ -2544,28 +2555,37 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			class_def.cl_ordered_fields;
 		output_cpp "}\n\n";
 
-		(* MARK function - only used with internal GC *)
+
+		let dump_field_iterator macro field =
+			if (is_data_member field) then begin
+				let remap_name = keyword_remap field.cf_name in
+				output_cpp ("	" ^ macro ^ "(" ^ remap_name ^ ",\"" ^ field.cf_name^ "\");\n");
+
+					(match field.cf_kind with Var { v_read = AccCall name } when (is_dynamic_accessor name "get" field class_def) ->
+						output_cpp ("\t" ^ macro ^ "(" ^ name ^ "," ^ "\"" ^ name ^ "\");\n" ) | _ -> ());
+					(match field.cf_kind with Var { v_write = AccCall name } when  (is_dynamic_accessor name "set" field class_def) ->
+						output_cpp ("\t" ^ macro ^ "(" ^ name ^ "," ^ "\"" ^ name ^ "\");\n" ) | _ -> ());
+				end
+		in
+
+
+		(* MARK function - explicitly mark all child pointers *)
 		output_cpp ("void " ^ class_name ^ "::__Mark(HX_MARK_PARAMS)\n{\n");
 		output_cpp ("	HX_MARK_BEGIN_CLASS(" ^ smart_class_name ^ ");\n");
 		if (implement_dynamic) then
 			output_cpp "	HX_MARK_DYNAMIC;\n";
-		List.iter
-			(fun field ->
-				if (is_data_member field) then begin
-					let remap_name = keyword_remap field.cf_name in
-					output_cpp ("	HX_MARK_MEMBER_NAME(" ^ remap_name ^ ",\"" ^ field.cf_name^ "\");\n");
-
-					(match field.cf_kind with Var { v_read = AccCall name } when (is_dynamic_accessor name "get" field class_def) ->
-						output_cpp ("\tHX_MARK_MEMBER_NAME(" ^ name ^ "," ^ "\"" ^ name ^ "\");\n" ) | _ -> ());
-					(match field.cf_kind with Var { v_write = AccCall name } when  (is_dynamic_accessor name "set" field class_def) ->
-						output_cpp ("\tHX_MARK_MEMBER_NAME(" ^ name ^ "," ^ "\"" ^ name ^ "\");\n" ) | _ -> ());
-				end
-
-			) class_def.cl_ordered_fields;
+		List.iter (dump_field_iterator "HX_MARK_MEMBER_NAME") class_def.cl_ordered_fields;
 		(match  class_def.cl_super with Some _ -> output_cpp "	super::__Mark(HX_MARK_ARG);\n" | _ -> () );
 		output_cpp "	HX_MARK_END_CLASS();\n";
 		output_cpp "}\n\n";
 
+		(* Visit function - explicitly visit all child pointers *)
+		output_cpp ("void " ^ class_name ^ "::__Visit(HX_VISIT_PARAMS)\n{\n");
+		if (implement_dynamic) then
+			output_cpp "	HX_VISIT_DYNAMIC;\n";
+		List.iter (dump_field_iterator "HX_VISIT_MEMBER_NAME") class_def.cl_ordered_fields;
+		(match  class_def.cl_super with Some _ -> output_cpp "	super::__Visit(HX_VISIT_ARG);\n" | _ -> () );
+		output_cpp "}\n\n";
 
 
 		let variable_field field =
@@ -2629,11 +2649,11 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			let dump_field_test = (fun f ->
 				let remap_name = keyword_remap f.cf_name in
 				output_cpp ("	if (inFieldID==__id_" ^ remap_name ^ ") return "  ^
-					( if (return_type="double") then "hx::ToDouble( " else "" ) ^
+					( if (return_type="Float") then "hx::ToDouble( " else "" ) ^
 					(match f.cf_kind with
 					| Var { v_read = AccCall prop } -> (keyword_remap prop) ^ "()"
 					| _ -> ((keyword_remap f.cf_name) ^ if ( variable_field f) then "" else "_dyn()")
-					) ^ ( if (return_type="double") then " ) " else "" ) ^ ";\n");
+					) ^ ( if (return_type="Float") then " ) " else "" ) ^ ";\n");
 				) in
 			List.iter dump_field_test all_fields;
 			if (implement_dynamic) then
@@ -2688,11 +2708,19 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		List.iter dump_field_name  class_def.cl_ordered_fields;
 		output_cpp "	String(null()) };\n\n";
 
-		(* MARK function - only used with internal GC *)
+		(* Mark static variables as used *)
 		output_cpp "static void sMarkStatics(HX_MARK_PARAMS) {\n";
 		List.iter (fun field ->
 			if (is_data_member field) then
 				output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
+			class_def.cl_ordered_statics;
+		output_cpp "};\n\n";
+
+		(* Visit static variables *)
+		output_cpp "static void sVisitStatics(HX_VISIT_PARAMS) {\n";
+		List.iter (fun field ->
+			if (is_data_member field) then
+				output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
 			class_def.cl_ordered_statics;
 		output_cpp "};\n\n";
 
@@ -2712,7 +2740,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp ("	Static(__mClass) = hx::RegisterClass(" ^ (str class_name_text)  ^
 				", hx::TCanCast< " ^ class_name ^ "> ,sStaticFields,sMemberFields,\n");
 		output_cpp ("	&__CreateEmpty, &__Create,\n");
-		output_cpp ("	&super::__SGetClass(), 0, sMarkStatics);\n");
+		output_cpp ("	&super::__SGetClass(), 0, sMarkStatics, sVisitStatics);\n");
 		output_cpp ("}\n\n");
 
 		output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
@@ -2792,6 +2820,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_h ("		static void __boot();\n");
 		output_h ("		static void __register();\n");
 		output_h ("		void __Mark(HX_MARK_PARAMS);\n");
+		output_h ("		void __Visit(HX_VISIT_PARAMS);\n");
 
 		List.iter (fun interface_name ->
 			output_h ("		inline operator " ^ interface_name ^ "_obj *()\n			" ^
