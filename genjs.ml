@@ -95,7 +95,7 @@ let has_feature ctx f =
 		match List.rev (ExtString.String.nsplit f ".") with
 		| [] | _ :: [] -> assert false
 		| meth :: cl :: pack ->
-			let r = (try 
+			let r = (try
 				let path = List.rev pack, cl in
 				(match List.find (fun t -> t_path t = path) ctx.com.types with
 				| t when meth = "*" -> (not ctx.com.dead_code_elimination) || has_meta ":?used" (t_infos t).mt_meta
@@ -321,6 +321,13 @@ let handle_expose ctx path meta =
 
 let this ctx = match ctx.in_value with None -> "this" | Some _ -> "$this"
 
+let is_dynamic_iterator ctx e =
+	match e.eexpr with
+	| TClosure (x,"iterator") | TField (x,"iterator") ->
+		has_feature ctx "HxOverrides.iter" && (match follow x.etype with TInst ({ cl_path = [],"Array" },_) | TAnon _ | TDynamic _ | TMono _ -> true | _ -> false)
+	| _ ->
+		false
+
 let gen_constant ctx p = function
 	| TInt i -> print ctx "%ld" i
 	| TFloat s -> spr ctx s
@@ -374,7 +381,7 @@ let rec gen_call ctx e el in_value =
 			gen_value ctx eif
 		else match eelse with
 			| [] -> ()
-			| e :: _ -> gen_value ctx e)			
+			| e :: _ -> gen_value ctx e)
 	| TLocal { v_name = "__resources__" }, [] ->
 		spr ctx "[";
 		concat ctx "," (fun (name,data) ->
@@ -422,16 +429,12 @@ and gen_expr ctx e =
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
 		gen_value ctx e2;
-	| TField (x,"iterator") when has_feature ctx "HxOverrides.iter" ->
-		(match follow x.etype with		
-		| TAnon _ | TDynamic _ | TMono _ ->
-			add_feature ctx "use.$iterator";
-			print ctx "$iterator(";
-			gen_value ctx x;
-			print ctx ")";
-		| _ ->
-			gen_value ctx x;
-			spr ctx (field "iterator"))			
+	| TClosure (x,"iterator")
+	| TField (x,"iterator") when is_dynamic_iterator ctx e ->
+		add_feature ctx "use.$iterator";
+		print ctx "$iterator(";
+		gen_value ctx x;
+		print ctx ")";
 	| TField (x,s) ->
 		gen_value ctx x;
 		spr ctx (field s)
@@ -441,12 +444,12 @@ and gen_expr ctx e =
 	| TClosure (x,s) ->
 		add_feature ctx "use.$bind";
 		(match x.eexpr with
-		| TConst _ | TLocal _ ->  
-			gen_value ctx x; 
-			print ctx ".%s.$bind(" s; 
-			gen_value ctx x; 
+		| TConst _ | TLocal _ ->
+			gen_value ctx x;
+			print ctx ".%s.$bind(" s;
+			gen_value ctx x;
 			print ctx ")"
-		| _ -> 
+		| _ ->
 			print ctx "($_=";
 			gen_value ctx x;
 			print ctx ",$_.%s.$bind($_))" s)
@@ -803,7 +806,7 @@ and gen_value ctx e =
 		gen_value ctx e1;
 		spr ctx " , ";
 		spr ctx (ctx.type_accessor t);
-		spr ctx ")"	
+		spr ctx ")"
 	| TVars _
 	| TFor _
 	| TWhile _
@@ -1133,7 +1136,7 @@ let generate com =
 	| Some g -> g()
 	| None ->
 	let ctx = alloc_ctx com in
-	
+
 	if has_feature ctx "Class.*" || has_feature ctx "Type.getClassName" then add_feature ctx "js.Boot.isClass";
 	if has_feature ctx "Enum.*" || has_feature ctx "Type.getEnumName" then add_feature ctx "js.Boot.isEnum";
 
@@ -1161,19 +1164,18 @@ let generate com =
 	newline ctx;
 	List.iter (generate_type ctx) com.types;
 	let rec chk_features e =
+		if is_dynamic_iterator ctx e then add_feature ctx "use.$iterator";
 		match e.eexpr with
-		| TClosure _ -> add_feature ctx "use.$bind"
-		| TField (x,"iterator") when has_feature ctx "HxOverrides.iter" ->
-			(match follow x.etype with
-			| TAnon _ | TMono _ | TDynamic _ -> add_feature ctx "use.$iterator"
-			| _ -> ())
-		| _ -> Type.iter chk_features e
+		| TClosure _ ->
+			add_feature ctx "use.$bind"
+		| _ ->
+			Type.iter chk_features e
 	in
 	List.iter chk_features ctx.inits;
 	List.iter (fun (_,_,e) -> chk_features e) ctx.statics;
 	if has_feature ctx "use.$iterator" then begin
 		add_feature ctx "use.$bind";
-		print ctx "var $iterator = function(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? o.iterator.$bind(o) : o.iterator; }";	
+		print ctx "var $iterator = function(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? o.iterator.$bind(o) : o.iterator; }";
 		ctx.separator <- true;
 		newline ctx;
 	end;
