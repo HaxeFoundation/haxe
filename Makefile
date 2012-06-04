@@ -116,6 +116,7 @@ clean_libs:
 
 clean_haxe:
 	rm -f $(MODULES:=.obj) $(MODULES:=.o) $(MODULES:=.cmx) $(MODULES:=.cmi) lexer.ml
+	rm -f $(OUTPUT) haxelib haxedoc
 
 # SUFFIXES
 .ml.cmx:
