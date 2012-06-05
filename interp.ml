@@ -59,6 +59,7 @@ and vabstract =
 	| ATDecl of module_type
 	| AUnsafe of Obj.t
 	| ALazyType of (unit -> Type.t) ref
+	| ANekoAbstract of Extc.value
 
 and vfunction =
 	| Fun0 of (unit -> value)
@@ -425,6 +426,125 @@ let make_library fl =
 	let h = Hashtbl.create 0 in
 	List.iter (fun (n,f) -> Hashtbl.add h n f) fl;
 	h
+
+(* ---------------------------------------------------------------------- *)
+(* NEKO INTEROP *)
+
+type primitive = (string * Extc.value * int)
+
+type neko_context = {
+	load : string -> int -> primitive;
+	call : primitive -> value list -> value;
+}
+
+let neko =
+	let neko = Extc.dlopen (if Sys.os_type = "Win32" || Sys.os_type = "Cygwin" then "neko.dll" else "libneko.so") in
+	let null = Extc.dlint 0 in
+	if Obj.magic neko == null then
+		None
+	else
+	let load v =
+		let s = Extc.dlsym neko v in
+		if (Obj.magic s) == null then failwith ("Could not load neko." ^ v);
+		s
+	in
+	ignore(Extc.dlcall0 (load "neko_global_init"));
+	let vm = Extc.dlcall1 (load "neko_vm_alloc") null in
+	ignore(Extc.dlcall1 (load "neko_vm_select") vm);
+	let loader = Extc.dlcall2 (load "neko_default_loader") null null in
+	let lp_id = Extc.dlcall1 (load "neko_val_id") (Extc.dlstring "loadprim") in
+	let ocall2 = load "neko_val_ocall2" in
+	let callN = load "neko_val_callN" in
+	let callEx = load "neko_val_callEx" in
+	let alloc_string = load "neko_alloc_string" in
+
+	let alloc_root = load "neko_alloc_root" in
+	let free_root = load "neko_free_root" in
+
+	let alloc_root v =
+		let r = Extc.dlcall1 alloc_root (Extc.dlint 1) in
+		Extc.dlsetptr r v;
+		r
+	in
+	let free_root r =
+		ignore(Extc.dlcall1 free_root r)
+	in
+
+	ignore(alloc_root vm);
+	ignore(alloc_root loader);
+
+	let alloc_string s =
+		Extc.dlcall1 alloc_string (Extc.dlstring s)
+	in
+	let alloc_int (i:int) : Extc.value =
+		Obj.magic i
+	in
+	let loadprim n args =
+		let p = Extc.dlcall4 ocall2 loader lp_id (alloc_string n) (alloc_int args) in
+		ignore(alloc_root p);
+		(n,p,args)
+	in
+	let call_raw_prim (_,p,nargs) (args:Extc.value array) =
+		Extc.dlcall3 callN p (Obj.magic args) (Extc.dlint nargs)
+	in
+
+	(* a bit tricky since load "val_true" does not work as expected on Windows *)
+	let unser = loadprim "std@unserialize" 2 in
+	let val_true = call_raw_prim unser [|alloc_string "T";loader|] in
+	let val_false = call_raw_prim unser [|alloc_string "F";loader|] in
+	let val_null = call_raw_prim unser [|alloc_string "N";loader|] in
+	let is_64 = call_raw_prim (loadprim "std@sys_is64" 0) [||] == val_true in
+
+	(* objects fields support *)
+
+	let neko_val_iter_fields = load "neko_val_iter_fields" in
+
+	(* wrapping *)
+
+	let value_neko = function
+		| VNull -> val_null
+		| VBool b -> if b then val_true else val_false
+		| VInt i -> alloc_int i
+		| VAbstract (ANekoAbstract a) -> a
+		| VString s -> alloc_string s (* make a copy *)
+		| _ -> assert false
+	in
+	let rec neko_value (v:Extc.value) =
+		if Obj.is_int (Obj.magic v) then
+			VInt (Obj.magic v)
+		else
+			let head = Extc.dltoint (Extc.dlptr v) in
+			match head land 7 with
+			| 0 -> VNull
+			| 2 -> VBool (v == val_true)
+			| 3 -> VString (Extc.dlalloc_mem (Extc.dladdr v 4) (head lsr 3)) (* copy *)
+			| 4 ->
+				let r = ref [] in
+				ignore(Extc.dlcall3 neko_val_iter_fields v (Extc.dlcallback 2) (Obj.magic (fun v id -> r := (v,id) :: !r; val_null)));
+				let fields = List.rev_map (fun (v,id) -> (Extc.dltoint id), neko_value v) !r in
+				VObject { ofields = Array.of_list fields; oproto = None }
+			| 5 ->
+				VArray (Array.init (head lsr 3) (fun i -> neko_value (Extc.dladdr v (4 + i * (if is_64 then 8 else 4)))))
+			| 7 ->
+				let r = alloc_root v in
+				let a = ANekoAbstract v in
+				Gc.finalise (fun _ -> free_root r) a;
+				VAbstract a
+			| t ->
+				failwith ("Unsupported Neko value tag " ^ string_of_int t)
+	in	
+	let callprim (n,p,nargs) args =
+		let arr = Array.of_list (List.map value_neko args) in
+		let exc = ref null in
+		if Array.length arr <> nargs then failwith n;
+		let ret = Extc.dlcall5 callEx val_null p (Obj.magic arr) (Extc.dlint nargs) (Obj.magic exc) in
+		if !exc != null then raise (Runtime (neko_value !exc));
+		neko_value ret
+	in
+	Some {
+		load = loadprim;
+		call = callprim;
+	}	
 
 (* ---------------------------------------------------------------------- *)
 (* BUILTINS *)
@@ -1529,6 +1649,8 @@ let reg_lib =
 	let error() =
 		raise Builtin_error
 	in
+	match neko with
+	| None ->
 	make_library [
 		(* regexp_new : deprecated *)
 		"regexp_new_options", Fun2 (fun str opt ->
@@ -1624,6 +1746,18 @@ let reg_lib =
 		(* regexp_replace_all : not used by Haxe *)
 		(* regexp_replace_fun : not used by Haxe *)
 	]
+	| Some neko ->
+	let regexp_new_options = neko.load "regexp@regexp_new_options" 2 in
+	let regexp_match = neko.load "regexp@regexp_match" 4 in
+	let regexp_matched = neko.load "regexp@regexp_matched" 2 in
+	let regexp_matched_pos = neko.load "regexp@regexp_matched_pos" 2 in
+	make_library [
+		"regexp_new_options", Fun2 (fun str opt -> neko.call regexp_new_options [str;opt]);
+		"regexp_match", Fun4 (fun r str pos len -> neko.call regexp_match [r;str;pos;len]);
+		"regexp_matched", Fun2 (fun r n -> neko.call regexp_matched [r;n]);
+		"regexp_matched_pos", Fun2 (fun r n -> neko.call regexp_matched_pos [r;n]);
+	]
+
 
 (* ---------------------------------------------------------------------- *)
 (* ZLIB LIBRARY *)
