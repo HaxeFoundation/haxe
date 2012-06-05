@@ -49,6 +49,28 @@ external zlib_deflate_bound : zstream -> int -> int = "zlib_deflate_bound"
 
 external time : unit -> float = "sys_time"
 
+type library
+type sym
+type value
+
+external dlopen : string -> library = "sys_dlopen"
+external dlsym : library -> string -> sym = "sys_dlsym"
+external dlcall0 : sym -> value = "sys_dlcall0"
+external dlcall1 : sym -> value -> value = "sys_dlcall1"
+external dlcall2 : sym -> value -> value -> value = "sys_dlcall2"
+external dlcall3 : sym -> value -> value -> value -> value = "sys_dlcall3"
+external dlcall4 : sym -> value -> value -> value -> value -> value = "sys_dlcall4"
+external dlcall5 : sym -> value -> value -> value -> value -> value -> value = "sys_dlcall5_bc" "sys_dlcall5"
+external dlint : int -> value = "sys_dlint"
+external dltoint : value -> int = "sys_dltoint"
+external dlstring : string -> value = "%identity"
+external dladdr : value -> int -> value = "sys_dladdr"
+external dlptr : value -> value = "sys_dlptr"
+external dlsetptr : value -> value -> unit = "sys_dlsetptr"
+external dlalloc_string : value -> string = "sys_dlalloc_string"
+external dlalloc_mem : value -> int -> string = "sys_dlalloc_mem"
+external dlcallback : int -> value = "sys_dlcallback"
+
 (* support for backward compatibility *)
 let zlib_deflate_init lvl = zlib_deflate_init2 lvl 15
 let zlib_inflate_init() = zlib_inflate_init2 15

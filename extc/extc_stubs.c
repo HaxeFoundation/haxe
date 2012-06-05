@@ -18,12 +18,14 @@
  */
 
 #include <caml/alloc.h>
+#include <caml/callback.h>
 #include <caml/mlvalues.h>
 #include <caml/fail.h>
 #include <zlib.h>
 #ifdef _WIN32
 #	include <windows.h>
 #else
+#	include <dlfcn.h>
 #	include <limits.h>
 #	include <unistd.h>
 #	include <sys/time.h>
@@ -263,4 +265,118 @@ CAMLprim value sys_time() {
 	times(&t);
 	return caml_copy_double( ((double)(t.tms_utime + t.tms_stime)) / CLK_TCK );
 #endif
+}
+
+CAMLprim value sys_dlopen( value lib ) {
+#ifdef _WIN32
+	return (value)LoadLibrary(String_val(lib));
+#else
+	return (value)dlopen(String_val(lib),RTLD_LAZY);
+#endif
+}
+
+CAMLprim value sys_dlsym( value dl, value name ) {
+#ifdef _WIN32
+	return (value)GetProcAddress((HANDLE)dl,String_val(name));
+#else
+	return (value)dlsym(dl,String_val(name));
+#endif
+}
+
+CAMLprim value sys_dlint( value i ) {
+	return Int_val(i);
+}
+
+CAMLprim value sys_dltoint( value i ) {
+	return Val_int((int)i);
+}
+
+typedef value (*c_prim0)();
+typedef value (*c_prim1)(value);
+typedef value (*c_prim2)(value,value);
+typedef value (*c_prim3)(value,value,value);
+typedef value (*c_prim4)(value,value,value,value);
+typedef value (*c_prim5)(value,value,value,value,value);
+
+CAMLprim value sys_dlcall0( value f ) {
+	return ((c_prim0)f)();
+}
+
+CAMLprim value sys_dlcall1( value f, value a ) {
+	return ((c_prim1)f)(a);
+}
+
+CAMLprim value sys_dlcall2( value f, value a, value b ) {
+	return ((c_prim2)f)(a,b);
+}
+
+CAMLprim value sys_dlcall3( value f, value a, value b, value c ) {
+	return ((c_prim3)f)(a,b,c);
+}
+
+CAMLprim value sys_dlcall4( value f, value a, value b, value c, value d ) {
+	return ((c_prim4)f)(a,b,c,d);
+}
+
+CAMLprim value sys_dlcall5( value f, value a, value b, value c, value d, value e ) {
+	return ((c_prim5)f)(a,b,c,d,e);
+}
+
+CAMLprim value sys_dlcall5_bc( value *args, int nargs ) {
+	return ((c_prim5)args[0])(args[1],args[2],args[3],args[4],args[5]);
+}
+
+CAMLprim value sys_dladdr( value v, value a ) {
+	return (value)((char*)v + Int_val(a));
+}
+
+CAMLprim value sys_dlptr( value v ) {
+	return *((value*)v);
+}
+
+CAMLprim value sys_dlsetptr( value p, value v ) {
+	*((value*)p) = v;
+	return Val_unit;
+}
+
+CAMLprim value sys_dlalloc_string( value v ) {
+	return caml_copy_string((char*)v);
+}
+
+CAMLprim value sys_dlalloc_mem( value v, value len ) {
+	value s = caml_alloc_string(Int_val(len));
+	memcpy(String_val(s),(char*)v,Int_val(len));
+	return s;
+}
+
+static value __callb0( value callb ) {
+	return caml_callbackN(callb,0,NULL);
+}
+
+static value __callb1( value a, value callb ) {
+	return caml_callback(callb,a);
+}
+
+static value __callb2( value a, value b, value callb ) {
+	return caml_callback2(callb,a,b);
+}
+
+static value __callb3( value a, value b, value c, value callb ) {
+	return caml_callback3(callb,a,b,c);
+}
+
+CAMLprim value sys_dlcallback( value nargs ) {
+	switch( Int_val(nargs) ) {
+	case 0:
+		return (value)__callb0;
+	case 1:
+		return (value)__callb1;
+	case 2:
+		return (value)__callb2;
+	case 3:
+		return (value)__callb3;
+	default:
+		failwith("dlcallback(too_many_args)");
+	}
+	return Val_unit;
 }
