@@ -1180,7 +1180,7 @@ let generate com =
 	List.iter (fun (_,_,e) -> chk_features e) ctx.statics;
 	if has_feature ctx "use.$iterator" then begin
 		add_feature ctx "use.$bind";
-		print ctx "var $iterator = function(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? o.iterator.$bind(o) : o.iterator; }";
+		print ctx "function $iterator(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? o.iterator.$bind(o) : o.iterator; }";
 		ctx.separator <- true;
 		newline ctx;
 	end;
