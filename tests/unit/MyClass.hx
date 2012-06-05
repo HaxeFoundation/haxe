@@ -95,8 +95,6 @@ class Ctrv2 extends Ctrv1 {
 	public override function contravariant(arg:Base) { }
 }
 
-#if false
-
 class InitBase {
 	public var i = 2;
 	public var s = "foo";
@@ -129,5 +127,3 @@ class InitProperties {
 	
 	public function new() { }
 }
-
-#end

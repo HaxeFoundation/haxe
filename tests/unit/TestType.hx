@@ -339,8 +339,6 @@ class TestType extends Test {
 		#end
 	}
 	
-	#if false
-	
 	function testInitFields()
 	{
 		var c = new InitBase();
@@ -370,6 +368,4 @@ class TestType extends Test {
 		eq(c.accDynamic, 3);
 		exc(function() c.accFunc = 4);
 	}
-	
-	#end
 }
