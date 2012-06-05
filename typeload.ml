@@ -43,13 +43,12 @@ let type_function_param ctx t e opt p =
 	else
 		t, e
 
-let type_static_var ctx t e p =
-	ctx.curfun <- FStatic;
+let type_var_field ctx t e stat p =
+	if stat then ctx.curfun <- FStatic;
 	let e = type_expr_with_type ctx e (Some t) false in
 	unify ctx e.etype t p;
-	(* specific case for UInt statics *)
 	match t with
-	| TType ({ t_path = ([],"UInt") },[]) -> { e with etype = t }
+	| TType ({ t_path = ([],"UInt") },[]) when stat -> { e with etype = t }
 	| _ -> e
 
 let apply_macro ctx mode path el p =
@@ -900,13 +899,12 @@ let init_class ctx c p herits fields =
 		| None ->
 			(fun() -> ())
 		| Some e ->
-			if not stat then error "Member variable initialization is not allowed outside of class constructor" p;
 			let r = exc_protect (fun r ->
 				if not !return_partial_type then begin
 					r := (fun() -> t);
 					if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
 					if not inline then mark_used cf;
-					let e = type_static_var ctx t e p in
+					let e = type_var_field ctx t e stat p in
 					let e = (match cf.cf_kind with
 					| Var { v_read = AccInline } ->
 						let e = ctx.g.do_optimize ctx e in
@@ -947,8 +945,9 @@ let init_class ctx c p herits fields =
 			if override then error "You cannot override variables" p;
 
 			let t = (match t with
+				| None when not stat && e = None ->
+					error ("Type required for member variable " ^ name) p;
 				| None ->
-					if not stat then error ("Type required for member variable " ^ name) p;
 					mk_mono()
 				| Some t ->
 					let old = ctx.type_params in
