@@ -94,3 +94,40 @@ class Ctrv2 extends Ctrv1 {
 	public function new() { super(); }
 	public override function contravariant(arg:Base) { }
 }
+
+#if false
+
+class InitBase {
+	public var i = 2;
+	public var s = "foo";
+	public var b = true;
+	
+	public function new() { }
+}
+
+class InitChild extends InitBase { }
+
+class InitChildWithCtor extends InitBase {
+	public var t:Class<Dynamic> = String;
+	public function new(_) {
+		super();
+	}
+}
+
+class InitWithoutCtor {
+	public var i = 2;
+}
+
+class InitProperties {
+	public var accNull(default, null):Int = 3;
+	public var accDefault(default, default):Int = 3;
+	public var accFunc(default, set_accFunc):Int = 3;
+	public var accNever(default, never):Int = 3;
+	public var accDynamic(default, dynamic):Int = 3;
+	
+	function set_accFunc(v) return throw "setter was called"
+	
+	public function new() { }
+}
+
+#end

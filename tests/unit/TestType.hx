@@ -338,4 +338,38 @@ class TestType extends Test {
 		typedAs(cast (c, Ctrv1).contravariant, c1);
 		#end
 	}
+	
+	#if false
+	
+	function testInitFields()
+	{
+		var c = new InitBase();
+		eq(c.i, 2);
+		eq(c.s, "foo");
+		eq(c.b, true);
+		
+		var c = new InitChild();
+		eq(c.i, 2);
+		eq(c.s, "foo");
+		eq(c.b, true);
+		
+		var c = new InitChildWithCtor(null);
+		eq(c.i, 2);
+		eq(c.s, "foo");
+		eq(c.b, true);
+		eq(c.t, String);
+		
+		var c = Type.createInstance(InitWithoutCtor, []);
+		eq(c.i, 2);
+		
+		var c = new InitProperties();
+		eq(c.accNull, 3);
+		eq(c.accDefault, 3);
+		eq(c.accFunc, 3);
+		eq(c.accNever, 3);
+		eq(c.accDynamic, 3);
+		exc(function() c.accFunc = 4);
+	}
+	
+	#end
 }
