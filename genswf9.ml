@@ -667,6 +667,15 @@ let begin_fun ctx args tret el stat p =
 		| Some l -> dparams := Some (v :: l)
 	in
 
+	let args, varargs = (match List.rev args with
+		| (({ v_name = "__arguments__"; v_type = t } as v),_) :: l ->
+			(match follow t with
+			| TInst ({ cl_path = ([],"Array") },_) -> List.rev l, Some (v,true)
+			| _ -> List.rev l, Some(v,false))
+		| _ ->			
+			args, None
+	) in
+
 	List.iter (fun (v,c) ->
 		let t = v.v_type in
 		define_local ctx v ~init:true p;
@@ -680,11 +689,13 @@ let begin_fun ctx args tret el stat p =
 			setvar ctx acc None
 	) args;
 
+	(match varargs with
+	| None -> ()
+	| Some (v,_) ->
+		define_local ctx v ~init:true p;
+		ignore(alloc_reg ctx (classify ctx v.v_type)));
+
 	let dparams = (match !dparams with None -> None | Some l -> Some (List.rev l)) in
-	let args, varargs = (match args with
-		| [{ v_name = "__arguments__" },_] -> [], true
-		| _ -> args, false
-	) in
 	let rec loop_try e =
 		match e.eexpr with
 		| TFunction _ -> ()
@@ -741,7 +752,8 @@ let begin_fun ctx args tret el stat p =
 			hlf_locals = Array.of_list (List.map (fun (id,name,t) -> ident name, t, id, false) ctx.block_vars);
 		} in
 		let mt = { (end_fun ctx args dparams tret) with
-			hlmt_var_args = varargs;
+			hlmt_var_args = (match varargs with Some (_,true) -> true | _ -> false);
+			hlmt_arguments_defined = (match varargs with Some (_,false) -> true | _ -> false);
 			hlmt_new_block = hasblock;
 			hlmt_function = Some f;
 		} in
