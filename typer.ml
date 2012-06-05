@@ -1437,6 +1437,9 @@ and type_expr_with_type_raise ctx e t =
 						e
 					) el in
 					mk (TArrayDecl el) t p)
+			| TDynamic _ ->
+				let el = List.map (type_expr ctx) el in
+				mk (TArrayDecl el) (ctx.t.tarray t_dynamic) (snd e)				
 			| _ ->
 				type_expr ctx e)
 	| EObjectDecl el ->
