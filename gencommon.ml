@@ -263,6 +263,8 @@ struct
   
   let contents w = Buffer.contents w.sw_buf
   
+  let len w = Buffer.length w.sw_buf
+  
   let write w x =
     let t = timer "write contents" in
     (if not w.sw_has_content then begin w.sw_has_content <- true; Buffer.add_string w.sw_buf w.sw_indent; Buffer.add_string w.sw_buf x; end else Buffer.add_string w.sw_buf x);

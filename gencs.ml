@@ -481,7 +481,13 @@ let configure gen =
   
   let runtime_cl = get_cl (Hashtbl.find gen.gtypes (["haxe";"lang"],"Runtime")) in
   
-  let change_ns ns = ns in
+  let no_root = Common.defined gen.gcon "no-root" in
+  
+  let change_ns = if no_root then 
+    function 
+      | [] -> ["haxe";"root"] 
+      | ns -> ns
+  else fun ns -> ns in
   
   let change_clname n = n in
   
@@ -1192,7 +1198,7 @@ let configure gen =
   in
 
   let gen_class w cl =
-    let should_close = match fst cl.cl_path with
+    let should_close = match change_ns (fst (cl.cl_path)) with
       | [] -> false
       | ns -> 
         print w "namespace %s" (String.concat "." (change_ns ns));
@@ -1288,6 +1294,7 @@ let configure gen =
     match md_tp with
       | TClassDecl cl ->
         if not cl.cl_extern then begin
+          (if no_root && len w = 0 then write w "using haxe.root;"; newline w;);
           gen_class w cl;
           newline w;
           newline w
@@ -1295,6 +1302,7 @@ let configure gen =
         (not cl.cl_extern)
       | TEnumDecl e ->
         if not e.e_extern then begin
+          (if no_root && len w = 0 then write w "using haxe.root;"; newline w;);
           gen_enum w e;
           newline w;
           newline w
