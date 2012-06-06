@@ -425,6 +425,11 @@ and gen_expr ctx e =
 		spr ctx "[";
 		gen_value ctx e2;
 		spr ctx "]";
+	| TBinop (op,{ eexpr = TField (x,"iterator") },e2) ->
+		gen_value ctx x;
+		spr ctx (field "iterator");
+		print ctx " %s " (Ast.s_binop op);
+		gen_value ctx e2;		
 	| TBinop (op,e1,e2) ->
 		gen_value ctx e1;
 		print ctx " %s " (Ast.s_binop op);
