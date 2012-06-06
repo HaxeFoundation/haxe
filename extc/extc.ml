@@ -70,6 +70,7 @@ external dlsetptr : value -> value -> unit = "sys_dlsetptr"
 external dlalloc_string : value -> string = "sys_dlalloc_string"
 external dlalloc_mem : value -> int -> string = "sys_dlalloc_mem"
 external dlcallback : int -> value = "sys_dlcallback"
+external dlcaml_callback : int -> value = "sys_dlcaml_callback"
 
 (* support for backward compatibility *)
 let zlib_deflate_init lvl = zlib_deflate_init2 lvl 15

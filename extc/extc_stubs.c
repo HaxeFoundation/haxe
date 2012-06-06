@@ -380,3 +380,23 @@ CAMLprim value sys_dlcallback( value nargs ) {
 	}
 	return Val_unit;
 }
+
+static value __caml_callb1( value a ) {
+	return caml_callback(*caml_named_value("dlcallb1"),a);
+}
+
+static value __caml_callb2( value a, value b ) {
+	return caml_callback2(*caml_named_value("dlcallb2"),a,b);
+}
+
+CAMLprim value sys_dlcaml_callback( value nargs ) {
+	switch( Int_val(nargs) ) {
+	case 1:
+		return (value)__caml_callb1;
+	case 2:
+		return (value)__caml_callb2;
+	default:
+		failwith("sys_dlcaml_callback(too_many_args)");
+	}
+	return Val_unit;
+}
