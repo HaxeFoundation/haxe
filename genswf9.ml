@@ -1890,6 +1890,15 @@ let extract_meta meta =
 	| l -> Some (Array.of_list l)
 
 let generate_field_kind ctx f c stat =
+	let method_kind() =
+		let rec loop = function
+			| [] -> f.cf_name, MK3Normal
+			| (":getter",[EConst (Ident f),_],_) :: _ -> f, MK3Getter
+			| (":setter",[EConst (Ident f),_],_) :: _ -> f, MK3Setter
+			| _ :: l -> loop l
+		in
+		loop f.cf_meta
+	in
 	match f.cf_expr with
 	| Some { eexpr = TFunction fdata } ->
 		let rec loop c name =
@@ -1908,13 +1917,7 @@ let generate_field_kind ctx f c stat =
 				hlv_const = false;
 			})
 		| _ ->
-			let rec lookup_kind = function
-				| [] -> f.cf_name, MK3Normal
-				| (":getter",[EConst (Ident f),_],_) :: _ -> f, MK3Getter
-				| (":setter",[EConst (Ident f),_],_) :: _ -> f, MK3Setter
-				| _ :: l -> lookup_kind l
-			in
-			let name, kind = lookup_kind f.cf_meta in
+			let name, kind = method_kind() in
 			let old = ctx.debug in
 			ctx.debug <- (old || has_meta ":debug" f.cf_meta) && not (has_meta ":nodebug" f.cf_meta);
 			let m = generate_method ctx fdata stat in
@@ -1940,7 +1943,7 @@ let generate_field_kind ctx f c stat =
 				hlm_type = end_fun ctx (List.map (fun (a,opt,t) -> alloc_var a t, (if opt then Some TNull else None)) args) dparams tret;
 				hlm_final = false;
 				hlm_override = false;
-				hlm_kind = MK3Normal;
+				hlm_kind = snd (method_kind());
 			})
 		| _ ->
 			None)
