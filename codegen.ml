@@ -458,6 +458,48 @@ let on_inherit ctx c p h =
 	| _ ->
 		true
 
+(* -------------------------------------------------------------------------- *)
+(* FINAL GENERATION *)
+
+(*
+	Adds member field initializations as assignments to the constructor
+*)
+let add_field_inits com c =
+	let inits = List.filter (fun cf ->
+		match cf.cf_kind,cf.cf_expr with
+		| Var _, Some _ -> true
+		| _ -> false
+	) c.cl_ordered_fields in
+	match inits with
+	| [] -> ()
+	| _ ->
+		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_types)) c.cl_pos in
+		let el = List.map (fun cf ->
+			match cf.cf_expr with
+			| None -> assert false 
+			| Some e ->
+				let lhs = mk (TField(ethis,cf.cf_name)) e.etype e.epos in
+				mk (TBinop(OpAssign,lhs,e)) lhs.etype e.epos
+		) inits in
+		match c.cl_constructor with
+		| None ->
+			let ct = TFun([],com.basic.tvoid) in
+			let ce = mk (TFunction {
+				tf_args = [];
+				tf_type = com.basic.tvoid;
+				tf_expr = mk (TBlock el) com.basic.tvoid c.cl_pos;
+			}) ct c.cl_pos in
+			let ctor = mk_field "new" ct c.cl_pos in
+			c.cl_constructor <- Some { ctor with cf_expr = Some ce };
+		| Some cf ->
+			match cf.cf_expr with
+			| Some { eexpr = TFunction f } ->
+				let bl = match f.tf_expr with {eexpr = TBlock b } -> b | x -> [x] in
+				let ce = mk (TFunction {f with tf_expr = mk (TBlock (el @ bl)) com.basic.tvoid c.cl_pos }) cf.cf_type cf.cf_pos in
+				c.cl_constructor <- Some {cf with cf_expr = Some ce }
+			| _ ->
+				assert false
+
 let rec has_rtti c =
 	List.exists (function (t,pl) ->
 		match t, pl with
@@ -515,6 +557,7 @@ let on_generate ctx t =
 				c.cl_ordered_fields <- List.filter (fun f2 -> f != f2) c.cl_ordered_fields;
 			end
 		) c.cl_ordered_fields;
+		add_field_inits ctx.com c;
 		(match build_metadata ctx.com t with
 		| None -> ()
 		| Some e ->
@@ -1283,53 +1326,6 @@ let fix_abstract_inheritance com t =
 			b;
 		) c.cl_ordered_fields
 	| _ -> ()
-
-
-(* -------------------------------------------------------------------------- *)
-(* MEMBER FIELD INIT *)
-
-(*
-	Adds member field initializations as assignments to the constructor
-*)
-let add_field_inits ctx =
-	let loop c =
-		let inits = List.filter (fun cf ->
-			match cf.cf_kind,cf.cf_expr with
-			| Var _, Some _ -> true
-			| _ -> false
-		) c.cl_ordered_fields in
-		match inits with
-		| [] -> ()
-		| _ ->
-			let ethis = mk (TConst TThis) t_dynamic c.cl_pos in
-			let el = List.map (fun cf ->
-				match cf.cf_expr with None -> assert false | Some e ->
-					let lhs = mk (TField(ethis,cf.cf_name)) e.etype e.epos in
-					mk (TBinop(OpAssign,lhs,e)) lhs.etype e.epos
-			) inits in
-			let ct = (TFun([],ctx.basic.tvoid)) in
-			match c.cl_constructor with
-				| None ->
-					let ce = mk (TFunction {
-						tf_args = [];
-						tf_type = ctx.basic.tvoid;
-						tf_expr = mk (TBlock el) ctx.basic.tvoid c.cl_pos;
-					}) ct c.cl_pos in
-					let ctor = mk_field "new" ct c.cl_pos in
-					c.cl_constructor <- Some ({ctor with cf_expr = Some ce});
-				| Some cf ->
-					(match cf.cf_expr with
-					| Some({eexpr = TFunction(f)}) ->
-						let bl = match f.tf_expr with {eexpr = TBlock b } -> b | x -> [x] in
-						let ce = mk (TFunction {f with tf_expr = mk (TBlock (el @ bl)) ctx.basic.tvoid c.cl_pos }) cf.cf_type cf.cf_pos in
-						c.cl_constructor <- Some ({cf with cf_expr = Some ce})
-					| _ -> assert false)
-	in
-	List.iter (fun t ->
-		match t with
-		| TClassDecl c -> loop c
-		| _ -> ()
-	) ctx.types
 
 (* -------------------------------------------------------------------------- *)
 (* MISC FEATURES *)

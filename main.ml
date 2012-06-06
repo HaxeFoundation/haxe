@@ -1047,10 +1047,6 @@ try
 			Genxml.generate com file);
 		if com.platform = Flash || com.platform = Cpp then List.iter (Codegen.fix_overrides com) com.types;
 		if Common.defined com "dump" then Codegen.dump_types com;
-		(* At this point the typer did finalize, which means that the delayed add_constructor calls were made and 
-		   DCE has run. There is also no need to let the generated init expressions go through the filters, and they
-		   should not be dumped either because they are just an implementation detail. *)
-		(match com.platform with Php | Flash8 -> () | _ -> Codegen.add_field_inits com);	
 		t();
 		(match com.platform with
 		| _ when !no_output ->
