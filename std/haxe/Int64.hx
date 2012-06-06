@@ -36,6 +36,8 @@ class Int64 {
 	}
 
 	function toString() {
+		if (high.isZero() && low.isZero())
+			return "0";
 		var str = "";
 		var neg = false;
 		var i = this;

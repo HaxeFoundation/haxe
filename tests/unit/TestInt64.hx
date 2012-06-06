@@ -23,6 +23,8 @@ class TestInt64 extends Test {
 		eq( Std.string(p40), "1099511627776" );
 		
 		eq( 1.ofInt().shl(0).toStr(), "1" );
+		
+		eq(Int64.ofInt(0).toStr(), "0");
 	}
 
 }
