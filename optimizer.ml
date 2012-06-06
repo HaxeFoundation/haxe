@@ -327,6 +327,8 @@ let rec type_inline ctx cf f ethis params tret p force =
 		This could be fixed with better post process code cleanup (planed)
 	*)
 	if !cancel_inlining || (Common.platform ctx.com Js && not force && (init <> None || !has_vars)) then begin
+		(* we have to make sure that we mark the field as used here so DCE does not remove it *)
+		mark_used_field ctx cf;
 		None
 	end else
 		let wrap e =

@@ -251,3 +251,6 @@ let feature_name = function
 
 let activate_feature ctx ft = Hashtbl.replace ctx.g.features (feature_name ft) ft
 let has_feature ctx s = Hashtbl.mem ctx.g.features s
+
+let mark_used_field ctx f =
+	if ctx.com.dead_code_elimination && not (has_meta ":?used" f.cf_meta) then f.cf_meta <- (":?used",[],f.cf_pos) :: f.cf_meta

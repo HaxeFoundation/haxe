@@ -77,9 +77,6 @@ let rec mark_used_class ctx c =
 let mark_used_enum ctx e  =
 	if ctx.com.dead_code_elimination && not (has_meta ":?used" e.e_meta) then e.e_meta <- (":?used",[],e.e_pos) :: e.e_meta
 
-let mark_used_field ctx f =
-	if ctx.com.dead_code_elimination && not (has_meta ":?used" f.cf_meta) then f.cf_meta <- (":?used",[],f.cf_pos) :: f.cf_meta
-
 type type_class =
 	| KInt
 	| KFloat
