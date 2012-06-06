@@ -405,7 +405,7 @@ let generate_type com t =
 			| TFun (args,_) -> p "(%s)" (String.concat ", " (List.map sparam (List.map (fun (a,o,t) -> a,(if o then Some (Ident "null") else None),t) args)))
 			| _ -> ());
 			p ";\n";
-		) (sort e.e_names);
+		) (if has_meta ":fakeEnum" e.e_meta then sort e.e_names else e.e_names);
 		p "}\n"
 	| TTypeDecl t ->
 		print_meta t.t_meta;
