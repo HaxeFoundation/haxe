@@ -77,6 +77,9 @@ let rec mark_used_class ctx c =
 let mark_used_enum ctx e  =
 	if ctx.com.dead_code_elimination && not (has_meta ":?used" e.e_meta) then e.e_meta <- (":?used",[],e.e_pos) :: e.e_meta
 
+let mark_used_field ctx f =
+	if ctx.com.dead_code_elimination && not (has_meta ":?used" f.cf_meta) then f.cf_meta <- (":?used",[],f.cf_pos) :: f.cf_meta
+
 type type_class =
 	| KInt
 	| KFloat
@@ -99,7 +102,7 @@ let classify t =
 
 let object_field f =
 	let pf = Parser.quoted_ident_prefix in
-	let pflen = String.length pf in		
+	let pflen = String.length pf in
 	if String.length f >= pflen && String.sub f 0 pflen = pf then String.sub f pflen (String.length f - pflen), false else f, true
 
 let type_field_rec = ref (fun _ _ _ _ _ -> assert false)
@@ -114,7 +117,7 @@ let rec base_types t =
 		List.iter (fun (ic, ip) ->
 			let t = apply_params cl.cl_types params (TInst (ic,ip)) in
 			loop t
-		) cl.cl_implements;	
+		) cl.cl_implements;
 		(match cl.cl_super with None -> () | Some (csup, pl) ->
 			let t = apply_params cl.cl_types params (TInst (csup,pl)) in
 			loop t);
@@ -166,11 +169,11 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 		else try
 			(* specific case for const anon : we don't want to hide fields but restrict their common type *)
 			let fcount = ref (-1) in
-			let field_count a = 
+			let field_count a =
 				PMap.fold (fun _ acc -> acc + 1) a.a_fields 0
 			in
 			let expr f = match f.cf_expr with None -> mk (TBlock []) f.cf_type f.cf_pos | Some e -> e in
-			let fields = List.fold_left (fun acc e -> 
+			let fields = List.fold_left (fun acc e ->
 				match follow e.etype with
 				| TAnon a when !(a.a_status) = Const ->
 					a.a_status := Closed;
@@ -183,8 +186,8 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 					end
 				| _ ->
 					raise Not_found
-			) PMap.empty el in			
-			let fields = PMap.foldi (fun n el acc -> 
+			) PMap.empty el in
+			let fields = PMap.foldi (fun n el acc ->
 				let t = try unify_min_raise ctx el with Error (Unify _, _) -> raise Not_found in
 				PMap.add n (mk_field n t (List.hd el).epos) acc
 			) fields PMap.empty in
@@ -197,13 +200,13 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 				let rec loop c =
 					has_meta ":unifyMinDynamic" c.cl_meta || (match c.cl_super with None -> false | Some (c,_) -> loop c)
 				in
-				match t with 
+				match t with
 				| TInst (c,params) when params <> [] && loop c ->
 					TInst (c,List.map (fun _ -> t_dynamic) params) :: acc
 				| _ -> acc
 			) [] common_types in
 			let common_types = ref (match List.rev dyn_types with [] -> common_types | l -> common_types @ l) in
-			let loop e = 
+			let loop e =
 				let first_error = ref None in
 				let filter t = (try unify_raise ctx e.etype t e.epos; true
 					with Error (Unify l, p) as err -> if !first_error = None then first_error := Some(err); false)
@@ -216,7 +219,7 @@ let rec unify_min_raise ctx (el:texpr list) : t =
 			List.iter loop (List.tl el);
 			List.hd !common_types
 
-let unify_min ctx el = 
+let unify_min ctx el =
 	try unify_min_raise ctx el
 	with Error (Unify l,p) ->
 		if not ctx.untyped then display_error ctx (error_msg (Unify l)) p;
@@ -395,6 +398,8 @@ let make_call ctx e params t p =
 		| Some { eexpr = TFunction fd } ->
 			(match Optimizer.type_inline ctx f fd ethis params t p is_extern with
 			| None ->
+				(* we have to make sure that we mark the field as used here so DCE does not remove it *)
+				mark_used_field ctx f;
 				if is_extern then error "Inline could not be done" p;
 				raise Exit
 			| Some e -> e)
@@ -922,9 +927,9 @@ let rec type_binop ctx op e1 e2 p =
 	let tint = ctx.t.tint in
 	let tfloat = ctx.t.tfloat in
 	let tstring = ctx.t.tstring in
-	let to_string e = 
+	let to_string e =
 		match classify e.etype with
-		| KUnk | KDyn | KParam _ | KOther -> 
+		| KUnk | KDyn | KParam _ | KOther ->
 			let std = type_type ctx ([],"Std") e.epos in
 			let acc = acc_get ctx (type_field ctx std "string" e.epos MCall) e.epos in
 			let acc = (match acc.eexpr with TClosure (e,f) -> { acc with eexpr = TField (e,f) } | _ -> acc) in
@@ -962,7 +967,7 @@ let rec type_binop ctx op e1 e2 p =
 			e2.etype
 		| _ , KString
 		| KString , _ ->
-			tstring			
+			tstring
 		| _ , KDyn ->
 			e2.etype
 		| KDyn , _ ->
@@ -1436,7 +1441,7 @@ and type_expr_with_type_raise ctx e t =
 					mk (TArrayDecl el) t p)
 			| TDynamic _ ->
 				let el = List.map (type_expr ctx) el in
-				mk (TArrayDecl el) (ctx.t.tarray t_dynamic) (snd e)				
+				mk (TArrayDecl el) (ctx.t.tarray t_dynamic) (snd e)
 			| _ ->
 				type_expr ctx e)
 	| EObjectDecl el ->
@@ -2050,7 +2055,7 @@ and type_call ctx e el t p =
 		let params = (match el with [] -> [] | _ -> ["customParams",(EArrayDecl el , p)]) in
 		let infos = mk_infos ctx p params in
 		if platform ctx.com Js && el = [] then
-			let e = type_expr ctx e in	
+			let e = type_expr ctx e in
 			let infos = type_expr ctx infos in
 			mk (TCall (mk (TLocal (alloc_var "`trace" t_dynamic)) t_dynamic p,[e;infos])) ctx.t.tvoid p
 		else
