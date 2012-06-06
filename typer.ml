@@ -1812,7 +1812,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 					List.iter (fun pt ->
 						if pt != t_dynamic then error "Catch class parameter must be Dynamic" p;
 					) params;
-					activate_feature ctx FtTypedCatch;
+					add_feature ctx.com "typed_catch";
 					(match path with
 					| x :: _ , _ -> x
 					| [] , name -> name)
@@ -1922,15 +1922,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		let e = type_expr ctx e in
 		mk (TCast (e,None)) (mk_mono()) p
 	| ECast (e, Some t) ->
-		(* force compilation of class "Std" since we might need it *)
-		activate_feature ctx FtTypedCast;
-		(match ctx.com.platform with
-		| Js | Flash8 | Neko | Flash | Java | Cs ->
-			let std = Typeload.load_type_def ctx p { tpackage = []; tparams = []; tname = "Std"; tsub = None } in
-			(* ensure typing / mark for DCE *)
-			ignore(follow (try PMap.find "is" (match std with TClassDecl c -> c.cl_statics | _ -> assert false) with Not_found -> assert false).cf_type)
-		| Cpp | Php | Cross ->
-			());
+		add_feature ctx.com "typed_cast";
 		let t = Typeload.load_complex_type ctx (pos e) t in
 		let texpr = (match follow t with
 		| TInst (_,params) | TEnum (_,params) ->
@@ -2054,7 +2046,7 @@ and type_call ctx e el t p =
 		else
 		let params = (match el with [] -> [] | _ -> ["customParams",(EArrayDecl el , p)]) in
 		let infos = mk_infos ctx p params in
-		if platform ctx.com Js && el = [] then
+		if platform ctx.com Js && el = [] && not (defined ctx.com "all_features") then
 			let e = type_expr ctx e in
 			let infos = type_expr ctx infos in
 			mk (TCall (mk (TLocal (alloc_var "`trace" t_dynamic)) t_dynamic p,[e;infos])) ctx.t.tvoid p
@@ -2191,7 +2183,7 @@ let dce_check_metadata ctx meta =
 		| ":keep",_ ->
 			true
  		| ":feature",el ->
-			List.exists (fun e -> match e with (EConst(String s),_) when has_feature ctx s -> true | _ -> false) el
+			List.exists (fun e -> match e with (EConst(String s),_) -> has_feature ctx.com s | _ -> false) el
 		| _ -> false
 	) meta
 
@@ -2215,6 +2207,13 @@ let dce_check_class ctx c =
 	make sure that all things we are supposed to keep are correctly typed
 *)
 let dce_finalize ctx =
+	let feature_changed = ref false in
+	let add_feature f =
+		if not (has_feature ctx.com f) then begin
+			add_feature ctx.com f;
+			feature_changed := true;
+		end
+	in
 	let check_class c =
 		let keep = dce_check_class ctx c in
 		let check stat f = if keep stat f then ignore(follow f.cf_type) in
@@ -2227,10 +2226,12 @@ let dce_finalize ctx =
 			match t with
 			| TClassDecl c -> check_class c
 			| TEnumDecl e ->
-				if not (dce_check_metadata ctx e.e_meta) then e.e_extern <- true
+				if not (dce_check_metadata ctx e.e_meta) then e.e_extern <- true;
+				if not e.e_extern then add_feature "has_enum";
 			| _ -> ()
 		) m.m_types
-	) ctx.g.modules
+	) ctx.g.modules;
+	not !feature_changed
 
 (*
 	remove unused fields and mark unused classes as extern
@@ -2297,8 +2298,7 @@ let rec finalize ctx =
 	match delays with
 	| [] when ctx.com.dead_code_elimination ->
 		ignore(get_main ctx);
-		dce_finalize ctx;
-		if ctx.g.delayed = [] then dce_optimize ctx else finalize ctx
+		if dce_finalize ctx && ctx.g.delayed = [] then dce_optimize ctx else finalize ctx
 	| [] ->
 		(* at last done *)
 		()
@@ -2900,7 +2900,6 @@ let rec create com =
 			modules = Hashtbl.create 0;
 			types_module = Hashtbl.create 0;
 			type_patches = Hashtbl.create 0;
-			features = Hashtbl.create 0;
 			delayed = [];
 			doinline = not (Common.defined com "no_inline" || com.display);
 			hook_generate = [];

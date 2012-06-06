@@ -1083,6 +1083,7 @@ let init_class ctx c p herits fields =
 						| TBlock [] | TBlock [{ eexpr = TConst _ }] | TConst _ | TObjectDecl [] -> ()
 						| _ -> c.cl_init <- Some e);
 					if not (constr || inline) then mark_used cf;
+					if has_meta ":defineFeature" cf.cf_meta then add_feature ctx.com (s_type_path c.cl_path ^ "." ^ cf.cf_name);
 					cf.cf_expr <- Some (mk (TFunction f) t p);
 					cf.cf_type <- t;
 				end;
@@ -1456,7 +1457,6 @@ let type_module ctx m file tdecls loadp =
 			) (!constructs);
 			e.e_names <- List.rev !names;
 			e.e_extern <- e.e_extern || e.e_names = [];
-			if not e.e_extern then activate_feature ctx FtHasEnum;
 		| ETypedef d ->
 			let t = get_tdef d.d_name in
 			let ctx = { ctx with type_params = t.t_types } in

@@ -78,6 +78,7 @@ type context = {
 	(* output *)
 	mutable file : string;
 	mutable flash_version : float;
+	mutable features : (string,bool) Hashtbl.t;
 	mutable modules : Type.module_def list;
 	mutable main : Type.texpr option;
 	mutable types : Type.module_type list;
@@ -113,6 +114,7 @@ let create v args =
 		display = !display_default;
 		verbose = false;
 		foptimize = true;
+		features = Hashtbl.create 0;
 		dead_code_elimination = false;
 		platform = Cross;
 		print = print_string;
@@ -224,6 +226,31 @@ let init_platform com pf =
 	| Cpp | Php | Neko -> define com "sys"
 	| _ -> com.package_rules <- PMap.add "sys" Forbidden com.package_rules);
 	define com name
+
+let add_feature com f =
+	Hashtbl.replace com.features f true
+
+let rec has_feature com f =
+	try
+		Hashtbl.find com.features f
+	with Not_found ->
+		if com.types = [] then defined com "all_features" else
+		match List.rev (ExtString.String.nsplit f ".") with
+		| [] -> assert false
+		| [cl] -> has_feature com (cl ^ ".*") 
+		| meth :: cl :: pack ->
+			let r = (try
+				let path = List.rev pack, cl in
+				(match List.find (fun t -> t_path t = path) com.types with
+				| t when meth = "*" -> (not com.dead_code_elimination) || has_meta ":?used" (t_infos t).mt_meta
+				| TClassDecl c -> PMap.exists meth c.cl_statics || PMap.exists meth c.cl_fields
+				| _ -> false)
+			with Not_found ->
+				false
+			) in
+			let r = r || defined com "all_features" in
+			Hashtbl.add com.features f r;
+			r
 
 let error msg p = raise (Abort (msg,p))
 

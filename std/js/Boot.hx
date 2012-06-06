@@ -59,15 +59,15 @@ class Boot {
 		}
 	}
 
-	static inline function isClass(o:Dynamic) : Bool {
+	@:defineFeature static inline function isClass(o:Dynamic) : Bool {
 		return o.__name__;
 	}
 
-	static inline function isEnum(e:Dynamic) : Bool {
+	@:defineFeature static inline function isEnum(e:Dynamic) : Bool {
 		return e.__ename__;
 	}
 
-	static inline function getClass(o:Dynamic) : Dynamic {
+	@:defineFeature static inline function getClass(o:Dynamic) : Dynamic {
 		return o.__class__;
 	}
 

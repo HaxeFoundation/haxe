@@ -40,9 +40,7 @@ type ctx = {
 	buf : Buffer.t;
 	packages : (string list,unit) Hashtbl.t;
 	smap : sourcemap;
-	js_modern : bool;
-	all_features : bool;
-	mutable features : (string, bool) PMap.t;
+	js_modern : bool;	
 	mutable boot_init : texpr option;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
@@ -87,28 +85,8 @@ let field s = if Hashtbl.mem kwds s then "[\"" ^ s ^ "\"]" else "." ^ s
 let ident s = if Hashtbl.mem kwds s then "$" ^ s else s
 let anon_field s = if Hashtbl.mem kwds s || not (valid_js_ident s) then "'" ^ s ^ "'" else s
 
-let has_feature ctx f =
-	if ctx.all_features then true else
-	try
-		PMap.find f ctx.features
-	with Not_found ->
-		match List.rev (ExtString.String.nsplit f ".") with
-		| [] | _ :: [] -> assert false
-		| meth :: cl :: pack ->
-			let r = (try
-				let path = List.rev pack, cl in
-				(match List.find (fun t -> t_path t = path) ctx.com.types with
-				| t when meth = "*" -> (not ctx.com.dead_code_elimination) || has_meta ":?used" (t_infos t).mt_meta
-				| TClassDecl c -> PMap.exists meth c.cl_statics || PMap.exists meth c.cl_fields
-				| _ -> false)
-			with Not_found ->
-				false
-			) in
-			ctx.features <- PMap.add f r ctx.features;
-			r
-
-let add_feature ctx f =
-	ctx.features <- PMap.add f true ctx.features
+let has_feature ctx = Common.has_feature ctx.com
+let add_feature ctx = Common.add_feature ctx.com
 
 let handle_newlines ctx str =
 	if ctx.com.debug then
@@ -394,7 +372,7 @@ let rec gen_call ctx e el in_value =
 		) (Hashtbl.fold (fun name data acc -> (name,data) :: acc) ctx.com.resources []);
 		spr ctx "]";
 	| TLocal { v_name = "`trace" }, [e;infos] ->
-		if has_feature (if ctx.all_features then { ctx with all_features = false } else ctx) "haxe.Log.trace" then begin
+		if has_feature ctx "haxe.Log.trace" then begin
 			let t = (try List.find (fun t -> t_path t = (["haxe"],"Log")) ctx.com.types with _ -> assert false) in
 			spr ctx (ctx.type_accessor t);
 			spr ctx ".trace(";
@@ -1000,7 +978,7 @@ let generate_class ctx c =
 
 	List.iter (gen_class_static_field ctx c) c.cl_ordered_statics;
 
-	let has_class = has_feature ctx "js.Boot.getClass" in
+	let has_class = has_feature ctx "js.Boot.getClass" && (c.cl_super <> None || c.cl_ordered_fields <> [] || c.cl_constructor <> None) in
 	let has_prototype = c.cl_super <> None || has_class || List.exists (can_gen_class_field ctx) c.cl_ordered_fields in
 	if has_prototype then begin
 		(match c.cl_super with
@@ -1098,7 +1076,6 @@ let alloc_ctx com =
 		com = com;
 		buf = Buffer.create 16000;
 		packages = Hashtbl.create 0;
-		features = PMap.empty;
 		smap = {
 			source_last_line = 0;
 			source_last_col = 0;
@@ -1110,7 +1087,6 @@ let alloc_ctx com =
 			sources_hash = Hashtbl.create 0;
 			mappings = Buffer.create 16;
 		};
-		all_features = Common.defined com "all_features";
 		js_modern = Common.defined com "js_modern";
 		statics = [];
 		inits = [];
@@ -1142,8 +1118,8 @@ let generate com =
 	| None ->
 	let ctx = alloc_ctx com in
 
-	if has_feature ctx "Class.*" || has_feature ctx "Type.getClassName" then add_feature ctx "js.Boot.isClass";
-	if has_feature ctx "Enum.*" || has_feature ctx "Type.getEnumName" then add_feature ctx "js.Boot.isEnum";
+	if has_feature ctx "Class" || has_feature ctx "Type.getClassName" then add_feature ctx "js.Boot.isClass";
+	if has_feature ctx "Enum" || has_feature ctx "Type.getEnumName" then add_feature ctx "js.Boot.isEnum";
 
 	if ctx.js_modern then begin
 		(* Additional ES5 strict mode keywords. *)

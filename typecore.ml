@@ -36,15 +36,9 @@ type macro_mode =
 	| MBuild
 	| MMacroType
 
-type feature =
-	| FtTypedCast
-	| FtTypedCatch
-	| FtHasEnum
-
 type typer_globals = {
 	types_module : (path, path) Hashtbl.t;
 	modules : (path , module_def) Hashtbl.t;
-	features : (string, feature) Hashtbl.t;
 	mutable delayed : (unit -> unit) list;
 	doinline : bool;
 	mutable core_api : typer option;
@@ -244,10 +238,3 @@ let create_fake_module ctx file =
 	Hashtbl.replace ctx.g.modules mdep.m_path mdep;
 	mdep
 
-let feature_name = function
-	| FtTypedCast -> "typed_cast"
-	| FtTypedCatch -> "typed_catch"
-	| FtHasEnum -> "has_enum"
-
-let activate_feature ctx ft = Hashtbl.replace ctx.g.features (feature_name ft) ft
-let has_feature ctx s = Hashtbl.mem ctx.g.features s
