@@ -68,7 +68,7 @@ external dladdr : value -> int -> value = "sys_dladdr"
 external dlptr : value -> value = "sys_dlptr"
 external dlsetptr : value -> value -> unit = "sys_dlsetptr"
 external dlalloc_string : value -> string = "sys_dlalloc_string"
-external dlalloc_mem : value -> int -> string = "sys_dlalloc_mem"
+external dlmemcpy : value -> value -> int -> unit = "sys_dlmemcpy"
 external dlcallback : int -> value = "sys_dlcallback"
 external dlcaml_callback : int -> value = "sys_dlcaml_callback"
 

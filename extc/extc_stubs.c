@@ -343,10 +343,9 @@ CAMLprim value sys_dlalloc_string( value v ) {
 	return caml_copy_string((char*)v);
 }
 
-CAMLprim value sys_dlalloc_mem( value v, value len ) {
-	value s = caml_alloc_string(Int_val(len));
-	memcpy(String_val(s),(char*)v,Int_val(len));
-	return s;
+CAMLprim value sys_dlmemcpy( value dst, value src, value len ) {
+	memcpy((char*)dst,(char*)src,Int_val(len));
+	return Val_unit;
 }
 
 static value __callb0( value callb ) {
