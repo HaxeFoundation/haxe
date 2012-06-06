@@ -501,7 +501,8 @@ let neko =
 
 	let is_64 = call_raw_prim (loadprim "std@sys_is64" 0) [||] == val_true in
 	let ptr_size = if is_64 then 8 else 4 in
-	let val_field v i = Extc.dladdr v (4 + i * ptr_size) in
+	let val_field v i = Extc.dladdr v ((i + 1) * ptr_size) in
+	let val_str v = Extc.dladdr v 4 in
 
 	(* alloc support *)
 
@@ -533,7 +534,7 @@ let neko =
 		let head = Extc.dltoint (Extc.dlptr v) in
 		let size = head lsr 3 in
 		let s = String.create size in
-		Extc.dlmemcpy (Extc.dlstring s) (val_field v 0) size;
+		Extc.dlmemcpy (Extc.dlstring s) (val_str v) size;
 		s
 	in
 
@@ -640,7 +641,7 @@ let neko =
 			buffers := [];
 			(* copy back data *)
 			List.iter (fun (buf,v) ->
-				Extc.dlmemcpy (Extc.dlstring buf) (val_field v 0) (String.length buf);
+				Extc.dlmemcpy (Extc.dlstring buf) (val_str v) (String.length buf);
 			) l);
 		neko_value ret
 	in
