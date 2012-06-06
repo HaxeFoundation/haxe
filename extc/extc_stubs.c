@@ -28,6 +28,7 @@
 #	include <dlfcn.h>
 #	include <limits.h>
 #	include <unistd.h>
+#	include <string.h>
 #	include <sys/time.h>
 #	include <sys/times.h>
 #	include <caml/memory.h>
@@ -279,7 +280,7 @@ CAMLprim value sys_dlsym( value dl, value name ) {
 #ifdef _WIN32
 	return (value)GetProcAddress((HANDLE)dl,String_val(name));
 #else
-	return (value)dlsym(dl,String_val(name));
+	return (value)dlsym((void*)dl,String_val(name));
 #endif
 }
 
