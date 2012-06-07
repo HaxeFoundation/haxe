@@ -2300,6 +2300,7 @@ let generate_enum_files common_ctx enum_def super_deps meta =
 
 	(* ENUM - Visit static as used by GC *)
 	output_cpp "static void sVisitStatic(HX_VISIT_PARAMS) {\n";
+	output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
 	PMap.iter (fun _ constructor ->
 		let name = keyword_remap constructor.ef_name in
 		match constructor.ef_type with
@@ -2718,10 +2719,15 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 		(* Visit static variables *)
 		output_cpp "static void sVisitStatics(HX_VISIT_PARAMS) {\n";
+		output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
 		List.iter (fun field ->
 			if (is_data_member field) then
 				output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
 			class_def.cl_ordered_statics;
+   (*
+	   if (has_meta) then
+		   output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::__meta__,\"__meta__\");\n");
+  *)
 		output_cpp "};\n\n";
 
 	end;
@@ -2875,6 +2881,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_h "	public:\n";
 		output_h ("		" ^ smart_class_name ^ "_delegate_(IMPL *inDelegate) : mDelegate(inDelegate) {}\n");
 		output_h ("		hx::Object *__GetRealObject() { return mDelegate; }\n");
+		output_h ("		void __Visit(HX_VISIT_PARAMS) { HX_VISIT_OBJECT(mDelegate); }\n");
 		let rec dump_delegate interface =
 			output_h ("		DELEGATE_" ^ (join_class_path  interface.cl_path "_" ) ^ "\n");
 			match interface.cl_super with | Some super -> dump_delegate (fst super) | _ -> ();
