@@ -104,8 +104,7 @@ class Main {
 	var commands : List<{ name : String, doc : String, f : Void -> Void, net : Bool }>;
 	var siteUrl : String;
 	var site : SiteProxy;
-	var repPath : String;
-	
+
 	function new() {
 		args = Sys.args();
 		commands = new List();
@@ -167,7 +166,7 @@ class Main {
 		return null;
 	}
 
-	function addCommand( name, f:Void->Dynamic, doc, ?net = true ) {
+	function addCommand( name, f, doc, ?net = true ) {
 		commands.add({ name : name, doc : doc, f : f, net : net });
 	}
 
@@ -498,7 +497,7 @@ class Main {
 		}
 		return true;
 	}
-	
+
 	function safeDelete( file ) {
 		try
 		{
@@ -518,64 +517,71 @@ class Main {
 				{
 				}
 			}
-			
+
 			return false;
 		}
 	}
 
-	function getConfigPath()
-		return Sys.getEnv("HOME") + "/.haxelib"
-	
-	function getRepository() {
-		if (repPath == null)
-		{
-			try
-			{
-				var path = sys.io.File.getContent(getConfigPath());
-				if (!(StringTools.endsWith(path, "/") || (Sys.systemName() == "Windows" && StringTools.endsWith(path, "\\"))))
-					path += "/";
-				repPath = path;
-			}
-			catch (e:Dynamic)
-			{
-				repPath = setup();
-			}
+	function getRepository( ?setup : Bool ) {
+		var win = Sys.systemName() == "Windows";
+		var haxepath = Sys.getEnv("HAXEPATH");
+		if( haxepath != null ) {
+			var last = haxepath.charAt(haxepath.length - 1);
+			if( last != "/" && last != "\\" )
+				haxepath += "/";
 		}
-		return repPath;
+		var config_file;
+		if( win )
+			config_file = Sys.getEnv("HOMEDRIVE") + Sys.getEnv("HOMEPATH");
+		else
+			config_file = Sys.getEnv("HOME");
+		config_file += "/.haxelib";
+		var rep = try
+			sys.io.File.getContent(config_file)
+		catch( e : Dynamic ) try
+			sys.io.File.getContent("/etc/.haxelib")
+		catch( e : Dynamic ) {
+			if( setup ) {
+				(win ? haxepath : "/usr/lib/haxe/")+REPNAME;
+			} else if( win ) {
+				// Windows have a default directory (no need for setup)
+				if( haxepath == null )
+					throw "HAXEPATH environment variable not defined, please run haxesetup.exe first";
+				var rep = haxepath+REPNAME;
+				try {
+					safeDir(rep);
+				} catch( e : Dynamic ) {
+					throw "The directory defined by HAXEPATH does not exist, please run haxesetup.exe again";
+				}
+				return rep+"\\";
+			} else
+				throw "This is the first time you are runing haxelib. Please run haxelib setup first";
+		}
+		rep = StringTools.trim(rep);
+		if( setup ) {
+			print("Please enter haxelib repository path with write access");
+			print("Hit enter for default (" + rep + ")");
+			var line = param("Path");
+			if( line != "" )
+				rep = line;
+			if( !sys.FileSystem.exists(rep) ) {
+				try {
+					sys.FileSystem.createDirectory(rep);
+				} catch( e : Dynamic ) {
+					print("Failed to create directory '"+rep+"' ("+Std.string(e)+"), maybe you need appropriate user rights");
+					print("Check also that the parent directory exists");
+					Sys.exit(1);
+				}
+			}
+			sys.io.File.saveContent(config_file, rep);
+		} else if( !sys.FileSystem.exists(rep) )
+			throw "haxelib Repository "+rep+" does not exists. Please run haxelib setup again";
+		return rep+"/";
 	}
 
 	function setup() {
-		var config = getConfigPath();
-		var rep = if (sys.FileSystem.exists(config))
-			sys.io.File.getContent(config);
-		else if (Sys.systemName() == "Windows")
-		{
-			var haxepath = Sys.getEnv("HAXEPATH");
-			if( haxepath == null )
-				throw "HAXEPATH environment variable not defined, please run haxesetup.exe first";			
-			Sys.getEnv("HAXEPATH") + "/" +REPNAME;			
-		}
-		else
-			"/usr/lib/haxe/" + REPNAME;
-			
-		print("Please enter haxelib repository path with write access");
-		print("Hit enter for default (" + rep + ")");
-		var line = param("Path");
-		if( line != "" )
-			rep = line;
-		if (!sys.FileSystem.exists(rep))
-		{
-			try {
-				sys.FileSystem.createDirectory(rep);
-			} catch( e : Dynamic ) {
-				print("Failed to create directory '"+rep+"' ("+Std.string(e)+"), maybe you need appropriate user rights");
-				print("Check also that the parent directory exists");
-				Sys.exit(1);
-			}
-		}
-		sys.io.File.saveContent(config, rep);
-		print("haxelib repository is now " + rep);
-		return rep;
+		var path = getRepository(true);
+		print("haxelib repository is now "+path);
 	}
 
 	function config() {
@@ -798,15 +804,15 @@ class Main {
 		var libName = param("Library name");
 		var rep = getRepository();
 		var libPath = rep + Datas.safe(libName) + "/git";
-		
+
 		if( sys.FileSystem.exists(libPath) ) {
 			print("You already have a git version of "+libName+" installed");
 			return;
 		}
-		
+
 		var gitPath = param("Git path");
 		var subDir = paramOpt();
-		
+
 		var match = ~/@([0-9]+)/;
 		var rev = if (match.match(gitPath) && match.matchedRight() == "")
 		{
@@ -834,7 +840,7 @@ class Main {
 			}
 		}
 		var revision = command("git", ["rev-parse", "HEAD"]).out;
-		
+
 		var devPath = libPath + (subDir == null ? "" : "/" + subDir);
 		if (!sys.FileSystem.exists(devPath +"/haxelib.xml"))
 		{
@@ -844,13 +850,13 @@ class Main {
 				+"</project>";
 			sys.io.File.saveContent(devPath +"/haxelib.xml", haxelib);
 		}
-		
+
 		Sys.setCwd(libPath + "/../");
 		sys.io.File.saveContent(".current", "dev");
 		sys.io.File.saveContent(".dev", devPath);
 		print("Done");
 	}
-	
+
 	function run() {
 		var rep = getRepository();
 		var project = param("Library");
@@ -882,12 +888,12 @@ class Main {
 		var file = param("Package");
 		doInstallFile(file,true,true);
 	}
-	
+
 	function command( cmd:String, args:Array<String> ) {
 		var p = new neko.io.Process(cmd, args);
 		var code = p.exitCode();
 		return { code:code, out: code == 0 ? p.stdout.readAll().toString() : p.stderr.readAll().toString() };
-	}	
+	}
 
 	// ----------------------------------
 
