@@ -362,7 +362,9 @@ class Http {
 			b.add(uri);
 		}
 		b.add(" HTTP/1.1\r\nHost: "+host+"\r\n");
-		if( postData == null && post && uri != null ) {
+		if( postData != null )
+			b.add("Content-Length: "+postData.length+"\r\n");
+		else if( post && uri != null ) {
 			if( multipart || headers.get("Content-Type") == null ) {
 				b.add("Content-Type: ");
 				if( multipart ) {
