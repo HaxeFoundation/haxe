@@ -503,6 +503,7 @@ let neko =
 	let ptr_size = if is_64 then 8 else 4 in
 	let val_field v i = Extc.dladdr v ((i + 1) * ptr_size) in
 	let val_str v = Extc.dladdr v 4 in
+	let val_fun_env v = Extc.dladdr v (8 + ptr_size) in
 
 	(* alloc support *)
 
@@ -569,7 +570,7 @@ let neko =
 			let a = Extc.dlcall2 alloc_abstract null (Obj.magic index) in
 			if Extc.dlptr (val_field a 1) != Obj.magic index then assert false;
 			ignore(Extc.dlcall2 val_gc a on_abstract_gc);
-			Extc.dlsetptr (val_field callb 2) a;
+			Extc.dlsetptr (val_fun_env callb) a;
 			callb
 		| VArray a ->
 			let va = Extc.dlcall1 alloc_array (Extc.dlint (Array.length a)) in
