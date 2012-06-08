@@ -439,8 +439,10 @@ type neko_context = {
 }
 
 let neko =
-	let neko = Extc.dlopen (if Sys.os_type = "Win32" || Sys.os_type = "Cygwin" then "neko.dll" else "libneko.so") in
+	let is_win = Sys.os_type = "Win32" || Sys.os_type = "Cygwin" in
+	let neko = Extc.dlopen (if is_win then "neko.dll" else "libneko.so") in
 	let null = Extc.dlint 0 in
+	let neko = if Obj.magic neko == null && not is_win then Extc.dlopen "libneko.dylib" else neko in
 	if Obj.magic neko == null then
 		None
 	else
