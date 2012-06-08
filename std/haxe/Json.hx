@@ -261,7 +261,6 @@ class Json {
 				invalidChar();
 			}
 		}
-		return null;
 	}
 
 	function parseString() {

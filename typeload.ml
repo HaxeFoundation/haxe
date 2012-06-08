@@ -495,6 +495,15 @@ let rec return_flow ctx e =
 	| TTry (e,cases) ->
 		return_flow e;
 		List.iter (fun (_,e) -> return_flow e) cases;
+	| TWhile({eexpr = (TConst (TBool true))},e,_) ->
+		(* a special case for "inifite" while loops that have no break *)
+		let rec loop e = match e.eexpr with
+			(* ignore nested loops to not accidentally get one of its breaks *)
+			| TWhile _ | TFor _ -> ()
+			| TBreak -> error()
+			| _ -> Type.iter loop e
+		in
+		loop e
 	| _ ->
 		error()
 

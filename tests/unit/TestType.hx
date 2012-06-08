@@ -368,4 +368,17 @@ class TestType extends Test {
 		eq(c.accDynamic, 3);
 		exc(function() c.accFunc = 4);
 	}
+	
+	function testReturnFlow()
+	{
+		var l = function():String
+		{
+			while (true)
+			{
+				return "foo";
+			}
+			// some platforms may have to add an implicit return null here
+		}
+		eq(l(), "foo");
+	}
 }
