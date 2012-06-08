@@ -232,7 +232,8 @@ class Manager<T : Object> {
 		s.add(" WHERE ");
 		addKeys(s, i);
 		// will force sync
-		unsafeObject(s.toString(),true);
+		if( unsafeObject(s.toString(),true) != i )
+			throw "Could not lock object (was deleted ?); try restarting transaction";
 	}
 
 	function objectToString( it : T ) : String {

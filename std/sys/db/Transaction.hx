@@ -27,7 +27,7 @@ package sys.db;
 class Transaction {
 
 	public static function isDeadlock(e : Dynamic) {
-		return Std.is(e,String) && (~/Deadlock found/.match(e) || ~/Lock wait timeout/.match(e));
+		return Std.is(e,String) && ~/try restarting transaction/.match(e);
 	}
 
 	private static function runMainLoop(mainFun,logError,count) {
