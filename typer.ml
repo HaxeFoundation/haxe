@@ -2176,26 +2176,29 @@ and check_to_string ctx t =
 (* ---------------------------------------------------------------------- *)
 (* DEAD CODE ELIMINATION *)
 
-let dce_check_metadata ctx meta =
-	List.exists (fun (m,e,_) ->
+let dce_check_metadata ctx ?(auto_keep=false) meta =
+	let keep = ref auto_keep in
+	let r = List.exists (fun (m,e,_) ->
 		match m,e with
 		| ":?used",_
 		| ":keep",_ ->
 			true
+		| ":defineFeature",_ ->
+			keep := false;
+			false
  		| ":feature",el ->
 			List.exists (fun e -> match e with (EConst(String s),_) -> has_feature ctx.com s | _ -> false) el
 		| _ -> false
-	) meta
+	) meta in
+	r || !keep
 
 let dce_check_class ctx c =
 	let keep_whole_class = c.cl_interface || has_meta ":keep" c.cl_meta || (match c.cl_path with ["php"],"Boot" | ["neko"],"Boot" | ["flash"],"Boot" | [],"Array" | [],"String" -> not (platform ctx.com Js) | _ -> false)  in
 	let keep stat f =
 		keep_whole_class
-		|| (c.cl_extern && (match f.cf_kind with Method MethInline -> false | _ -> true))
-		|| dce_check_metadata ctx f.cf_meta
+		|| dce_check_metadata ctx ~auto_keep:(c.cl_extern && f.cf_kind <> Method MethInline) f.cf_meta
 		|| (stat && f.cf_name = "__init__")
 		|| (not stat && f.cf_name = "resolve" && (match c.cl_dynamic with Some _ -> true | None -> false))
-		|| (f.cf_name = "new" && has_meta ":?used" c.cl_meta)
 		|| match String.concat "." (fst c.cl_path @ [snd c.cl_path;f.cf_name]) with
 		| "EReg.new" -> true
 		| "flash._Boot.RealBoot.new" -> true
@@ -2251,7 +2254,7 @@ let dce_optimize ctx =
 			| { cl_interface = true }
 			| { cl_path = ["flash";"_Boot"],"RealBoot" }
 				-> ()
-			| _ when has_meta ":?used" c.cl_meta || has_meta ":keep" c.cl_meta || (match c.cl_constructor with Some f -> has_meta ":?used" f.cf_meta | _ -> false)
+			| _ when dce_check_metadata ctx c.cl_meta || (match c.cl_constructor with Some f -> dce_check_metadata ctx f.cf_meta | _ -> false)
 				-> ()
 			| _ ->
 				Common.log ctx.com ("Removing " ^ s_type_path c.cl_path);

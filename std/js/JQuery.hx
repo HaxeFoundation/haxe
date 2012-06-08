@@ -317,9 +317,7 @@ extern class JQuery implements ArrayAccess<Dom.HtmlDom> {
 	//}
 
 	// haXe addition
-	@:runtime inline function iterator() : Iterator<JQuery> {
-		return untyped this["iterator"]();
-	}
+	@:defineFeature function iterator() : Iterator<JQuery>;
 
 	/**
 		Return the current JQuery element (in a callback), similar to $(this) in JS.
