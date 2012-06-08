@@ -798,7 +798,8 @@ let generate com =
 		Sys.rename ((try Filename.chop_extension com.file with _ -> com.file) ^ "2.neko") neko_file;
 	end;
 	let c = Common.timer "neko compilation" in
-	if command ("nekoc \"" ^ neko_file ^ "\"") <> 0 then failwith "Neko compilation failure";
+	let version = if Common.defined com "neko_v2" then "-version 2 " else "" in
+	if command ("nekoc " ^ version ^ "\"" ^ neko_file ^ "\"") <> 0 then failwith "Neko compilation failure";
 	c();
 	let output = Filename.chop_extension neko_file ^ ".n" in
 	if output <> com.file then begin
