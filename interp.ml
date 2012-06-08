@@ -214,8 +214,7 @@ let hash f =
 	for i = 0 to String.length f - 1 do
 		h := !h * 223 + int_of_char (String.unsafe_get f i);
 	done;
-	(* truncate for 64 bits ints *)
-	!h land 0x7FFFFFFF
+	if Sys.word_size = 64 then Int32.to_int (Int32.shift_right (Int32.shift_left (Int32.of_int !h) 1) 1) else !h
 
 let constants =
 	let h = Hashtbl.create 0 in
