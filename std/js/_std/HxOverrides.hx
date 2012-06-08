@@ -67,7 +67,11 @@ class HxOverrides {
 	}
 
 	static function cca( s : String, index : Int ) : Null<Int> {
+		#if mt
+		var x = (cast s).cca(index);
+		#else
 		var x = (cast s).charCodeAt(index);
+		#end
 		if( x != x ) // fast isNaN
 			return untyped undefined; // isNaN will still return true
 		return x;
@@ -121,6 +125,9 @@ class HxOverrides {
 				return true;
 			}
 		);
+		#if mt
+		if( String.prototype.cca == null ) String.prototype.cca = String.prototype.charCodeAt;
+		#end
 	}
 
 }

@@ -300,7 +300,11 @@ class StringTools {
 		else
 			return cast(untyped s[index], Int);
 		#elseif js
+			#if mt
+		return (untyped s).cca(index);
+			#else
 		return (untyped s).charCodeAt(index);
+			#endif
 		#else
 		return s.cca(index);
 		#end
