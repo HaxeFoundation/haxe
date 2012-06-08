@@ -304,7 +304,7 @@ class StringTools {
 		return (untyped s).cca(index);
 			#else
 		return (untyped s).charCodeAt(index);
-			#endif
+			#end
 		#else
 		return s.cca(index);
 		#end
