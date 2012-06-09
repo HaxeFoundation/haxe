@@ -840,13 +840,11 @@ let run_filters gen =
     let rec loop processed not_processed =
       match not_processed with
         | hd :: tl ->
-          trace ("type " ^ (snd (t_path hd)));
           let new_hd = filter#run_f hd in
           
           let added_types_new = !added_types in
           added_types := [];
           let added_types = List.map (fun (t,p) -> 
-            trace ("added type " ^ (snd (t_path t)));
             get (filter#run_from p t)
           ) added_types_new in
           
@@ -2617,8 +2615,6 @@ struct
         (* get all captured variables it uses *)
         let captured_ht, tparams = get_captured fexpr in
         let captured = Hashtbl.fold (fun _ e acc -> e :: acc) captured_ht [] in
-        
-        List.iter (fun e -> trace (debug_expr e)) captured;
         
         (*let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(map_param cl, []) )) tparams in*)
         let cltypes = List.map (fun cl -> (snd cl.cl_path, TInst(cl, []) )) tparams in
@@ -5106,6 +5102,16 @@ struct
             let e1 = problematic_expression_unwrap false e1 (expr_kind e1) in
             let e2 = problematic_expression_unwrap false e2 (expr_kind e2) in
             { expr with eexpr = TArray(e1, e2) }
+          | KExprWithStatement, TCall(( { eexpr = TField (ef_left, f) } as ef ), eargs) ->
+            { expr with eexpr = TCall(
+              { ef with eexpr = TField(problematic_expression_unwrap false ef_left (expr_kind ef_left), f) },
+              List.map (fun e -> problematic_expression_unwrap false e (expr_kind e)) eargs)
+            }
+          | KExprWithStatement, TCall(( { eexpr = TEnumField _ } as ef ), eargs) ->
+            { expr with eexpr = TCall(
+              ef,
+              List.map (fun e -> problematic_expression_unwrap false e (expr_kind e)) eargs)
+            }
           | KExprWithStatement, _ -> Type.map_expr (fun e -> problematic_expression_unwrap false e (expr_kind e)) expr
       in
       problematic_expression_unwrap true expr e_type
@@ -5127,9 +5133,9 @@ struct
                     | Some { eexpr = TConst(TNull) } (* no op *) ->
                       ()
                     | Some e -> 
-                      if has_problematic_expressions (get_kinds e) then 
+                      if has_problematic_expressions (get_kinds e) then begin
                         process_statement e
-                      else
+                      end else
                         new_block := (traverse e) :: !new_block
                     | None ->
                     (
@@ -5138,9 +5144,9 @@ struct
                         match !acc with
                           | hd :: tl ->
                             acc := tl;
-                            if has_problematic_expressions (hd :: tl) then 
+                            if has_problematic_expressions (hd :: tl) then begin
                               problematic_expression_unwrap add_statement e hd
-                            else
+                            end else
                               e
                           | [] -> assert false
                       ) e in
@@ -8086,7 +8092,35 @@ struct
           (match op with
             | Ast.OpAssign
             | Ast.OpAssignOp _ ->
-              Type.map_expr run e (* casts are already dealt with normal CastDetection module *)
+              (match e1_t, e2_t with
+                | Some t1, Some t2 ->
+                  (match op with
+                    | Ast.OpAssign -> 
+                      { e with eexpr = TBinop( op, run e1, handle_wrap ( handle_unwrap t2 (run e2) ) t1 ) }
+                    | Ast.OpAssignOp op ->
+                      (match e1.eexpr with
+                        | TLocal _ ->
+                          { e with eexpr = TBinop( Ast.OpAssign, e1, handle_wrap { e with eexpr = TBinop (op, handle_unwrap t1 e1, handle_unwrap t2 (run e2) ) } t1 ) }
+                        | _ ->
+                          let v, e1, evars = match e1.eexpr with
+                            | TField(ef, f) ->
+                              let v = mk_temp gen "nullbinop" ef.etype in
+                              v, { e1 with eexpr = TField(mk_local v ef.epos, f) }, ef
+                            | _ -> 
+                              let v = mk_temp gen "nullbinop" e1.etype in
+                              v, mk_local v e1.epos, e1
+                          in
+                          { e with eexpr = TBlock([
+                            { eexpr = TVars([v, Some evars ]); etype = gen.gcon.basic.tvoid; epos = e.epos };
+                            { e with eexpr = TBinop( Ast.OpAssign, e1, handle_wrap { e with eexpr = TBinop (op, handle_unwrap t1 e1, handle_unwrap t2 (run e2) ) } t1 ) }
+                          ]) }
+                      )
+                    | _ -> assert false
+                  )
+                  
+                | _ ->
+                  Type.map_expr run e (* casts are already dealt with normal CastDetection module *)
+              )
             | Ast.OpEq | Ast.OpNotEq when not handle_opeq ->
               Type.map_expr run e
             | _ ->

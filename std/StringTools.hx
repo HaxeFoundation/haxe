@@ -293,7 +293,7 @@ class StringTools {
 		#elseif flash
 		return s["cca"](index);
 		#elseif java
-		return s.charCodeAt(index);
+		return cast s.charCodeAt(index);
 		#elseif cs
 		if (cast(index, UInt) >= s.length)
 			return 0;
@@ -323,6 +323,8 @@ class StringTools {
 		#elseif neko
 		return c == null;
 		#elseif cs
+		return c == 0;
+		#elseif java
 		return c == 0;
 		#else
 		return false;
