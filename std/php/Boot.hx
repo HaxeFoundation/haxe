@@ -121,7 +121,7 @@ class _hx_array implements ArrayAccess, IteratorAggregate {
 	}
 
 	function toString() {
-		return '['.implode(',', $this->»a).']';
+		return '['.implode(',', array_map('_hx_string_rec',$this->»a,array())).']';
 	}
 
 	function __toString() {

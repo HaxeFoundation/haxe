@@ -119,6 +119,8 @@ class TestBasetypes extends Test {
 		
 		var e = MyEnum.C(0, "h");
 		eq( Std.string(e), "C(0,h)");
+		
+		eq(Std.string([e]), "[C(0,h)]");
 	}
 
 	function testMath() {
