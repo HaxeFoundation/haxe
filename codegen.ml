@@ -479,6 +479,7 @@ let add_field_inits com c =
 			| None -> assert false 
 			| Some e ->
 				let lhs = mk (TField(ethis,cf.cf_name)) e.etype e.epos in
+				cf.cf_expr <- None;
 				mk (TBinop(OpAssign,lhs,e)) lhs.etype e.epos
 		) inits in
 		match c.cl_constructor with
@@ -557,7 +558,7 @@ let on_generate ctx t =
 				c.cl_ordered_fields <- List.filter (fun f2 -> f != f2) c.cl_ordered_fields;
 			end
 		) c.cl_ordered_fields;
-		add_field_inits ctx.com c;
+		(match ctx.com.platform with Php | Flash8 -> () | _ -> add_field_inits ctx.com c);
 		(match build_metadata ctx.com t with
 		| None -> ()
 		| Some e ->
