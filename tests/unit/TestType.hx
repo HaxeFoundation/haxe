@@ -345,6 +345,9 @@ class TestType extends Test {
 		eq(c.i, 2);
 		eq(c.s, "foo");
 		eq(c.b, true);
+		t(c.a[0]);
+		f(c.a[1]);
+		eq(c.complex, 25);
 		
 		var c = new InitChild();
 		eq(c.i, 2);

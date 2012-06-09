@@ -465,8 +465,17 @@ let on_inherit ctx c p h =
 	Adds member field initializations as assignments to the constructor
 *)
 let add_field_inits com c =
+	let rec can_init_inline cf e = match com.platform,e.eexpr with
+		(* Flash8 and As3 can init anything (it seems) *)
+		| Flash8, _ -> true
+		| Flash,_ when Common.defined com "as3" -> true
+		(* Php can init literals when the field has no setter *)
+		| Php, TConst _ when (match cf.cf_kind with Var({v_write = AccCall _}) -> false | _ -> true) -> true
+		| _ -> false
+	in
 	let inits = List.filter (fun cf ->
 		match cf.cf_kind,cf.cf_expr with
+		| Var _, Some e when can_init_inline cf e -> false
 		| Var _, Some _ -> true
 		| _ -> false
 	) c.cl_ordered_fields in
@@ -476,7 +485,7 @@ let add_field_inits com c =
 		let ethis = mk (TConst TThis) (TInst (c,List.map snd c.cl_types)) c.cl_pos in
 		let el = List.map (fun cf ->
 			match cf.cf_expr with
-			| None -> assert false 
+			| None -> assert false
 			| Some e ->
 				let lhs = mk (TField(ethis,cf.cf_name)) e.etype e.epos in
 				cf.cf_expr <- None;
@@ -558,7 +567,7 @@ let on_generate ctx t =
 				c.cl_ordered_fields <- List.filter (fun f2 -> f != f2) c.cl_ordered_fields;
 			end
 		) c.cl_ordered_fields;
-		(match ctx.com.platform with Php | Flash8 -> () | _ -> add_field_inits ctx.com c);
+		add_field_inits ctx.com c;
 		(match build_metadata ctx.com t with
 		| None -> ()
 		| Some e ->

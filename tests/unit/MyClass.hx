@@ -99,7 +99,8 @@ class InitBase {
 	public var i = 2;
 	public var s = "foo";
 	public var b = true;
-	
+	public var a = [true, false];
+	public var complex = { var i = 10; for (v in 0...15) i++; i; };
 	public function new() { }
 }
 
