@@ -1685,7 +1685,7 @@ let configure gen =
   
   IntDivisionSynf.configure gen (IntDivisionSynf.default_implementation gen true);
   
-  UnreachableCodeEliminationSynf.configure gen (UnreachableCodeEliminationSynf.traverse gen true true true);
+  UnreachableCodeEliminationSynf.configure gen (UnreachableCodeEliminationSynf.traverse gen true true true false);
   
   let native_arr_cl = get_cl ( get_type gen (["cs"], "NativeArray") ) in
   ArrayDeclSynf.configure gen (ArrayDeclSynf.default_implementation gen native_arr_cl);

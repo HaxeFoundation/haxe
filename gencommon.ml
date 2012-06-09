@@ -8276,6 +8276,8 @@ end;;
       in order to not confuse with while break, it will be a special expression __sbreak__
     If the parameter "handle_not_final_returns" is set to true, it will also add final returns when functions are detected to be lacking of them.
       (Will respect __fallback__ expressions)
+    If the parameter "java_mode" is set to true, some additional checks following the java unreachable specs 
+      (http://docs.oracle.com/javase/specs/jls/se7/html/jls-14.html#jls-14.21) will be added
   
   dependencies:
     This must be the LAST syntax filter to run. It expects ExpressionUnwrap to have run correctly, since this will only work for source-code based targets
@@ -8302,7 +8304,23 @@ struct
       | _, BreaksLoop -> BreaksLoop
       | BreaksFunction, BreaksFunction -> BreaksFunction
   
-  let traverse gen should_warn handle_switch_break handle_not_final_returns =
+  let aggregate_constant op c1 c2=
+    match op, c1, c2 with
+      | OpEq, Some v1, Some v2 -> Some (TBool (v1 = v2))
+      | OpNotEq, Some v1, Some v2 -> Some (TBool (v1 <> v2))
+      | OpBoolOr, Some (TBool v1) , Some (TBool v2) -> Some (TBool (v1 || v2))
+      | OpBoolAnd, Some (TBool v1) , Some (TBool v2) -> Some (TBool (v1 && v2))
+      | OpAssign, _, Some v2 -> Some v2
+      | _ -> None
+  
+  let rec get_constant_expr e =
+    match e.eexpr with
+      | TConst (v) -> Some v
+      | TBinop(op, v1, v2) -> aggregate_constant op (get_constant_expr v1) (get_constant_expr v2)
+      | TParenthesis(e) -> get_constant_expr e
+      | _ -> None
+  
+  let traverse gen should_warn handle_switch_break handle_not_final_returns java_mode =
     let basic = gen.gcon.basic in
     
     let do_warn =
@@ -8338,19 +8356,22 @@ struct
       fst
     in
     
+    let has_break = ref false in
+    
     let rec process_expr expr =
       match expr.eexpr with
         | TReturn _ | TThrow _ -> expr, BreaksFunction
-        | TContinue | TBreak -> expr, BreaksLoop
+        | TContinue -> expr, BreaksLoop 
+        | TBreak -> has_break := true; expr, BreaksLoop
         | TCall( { eexpr = TLocal { v_name = "__goto__" } }, _ ) -> expr, BreaksLoop
         
         | TBlock bl ->
           let new_block = ref [] in
-          let is_Unreachable = ref false in
+          let is_unreachable = ref false in
           let ret_kind = ref Normal in
           
           List.iter (fun e ->
-            if !is_Unreachable then
+            if !is_unreachable then
               do_warn e.epos 
             else begin
               let changed_e, kind = process_expr e in
@@ -8358,7 +8379,7 @@ struct
               match kind with
                 | BreaksLoop | BreaksFunction -> 
                   ret_kind := kind;
-                  is_Unreachable := true
+                  is_unreachable := true
                 | _ -> ()
             end
           ) bl;
@@ -8374,19 +8395,48 @@ struct
           
           { expr with eexpr = TFunction({ tf with tf_expr = changed }) }, Normal
         | TFor(var, cond, block) ->
+          let last_has_break = !has_break in
+          has_break := false;
+          
           let changed_block, kind = process_expr block in
+          has_break := last_has_break;
           let expr = { expr with eexpr = TFor(var, cond, changed_block) } in
           return_loop expr kind
         | TIf(cond, eif, None) ->
-          { expr with eexpr = TIf(cond, fst (process_expr eif), None) }, Normal
+          if java_mode then
+            match get_constant_expr cond with
+              | Some (TBool true) ->
+                process_expr eif
+              | _ ->
+                { expr with eexpr = TIf(cond, fst (process_expr eif), None) }, Normal
+          else
+            { expr with eexpr = TIf(cond, fst (process_expr eif), None) }, Normal
         | TIf(cond, eif, Some eelse) ->
           let eif, eif_k = process_expr eif in
           let eelse, eelse_k = process_expr eelse in
           let k = aggregate_kind eif_k eelse_k in
           { expr with eexpr = TIf(cond, eif, Some eelse) }, k
         | TWhile(cond, block, flag) ->
+          let last_has_break = !has_break in
+          has_break := false;
+          
           let block, k = process_expr block in
-          return_loop { expr with eexpr = TWhile(cond,block,flag) } k
+          if java_mode then
+            match get_constant_expr cond, !has_break with
+              | Some (TBool true), false -> 
+                has_break := last_has_break;
+                { expr with eexpr = TWhile(cond, block, flag) }, BreaksFunction
+              | Some (TBool false), _ ->
+                has_break := last_has_break;
+                do_warn expr.epos;
+                null expr.etype expr.epos, k
+              | _ ->
+                has_break := last_has_break;
+                return_loop { expr with eexpr = TWhile(cond,block,flag) } k
+          else begin
+            has_break := last_has_break;
+            return_loop { expr with eexpr = TWhile(cond,block,flag) } k
+          end
         | TSwitch(cond, el_e_l, None) ->
           { expr with eexpr = TSwitch(cond, List.map (fun (el, e) -> (el, handle_case (process_expr e))) el_e_l, None) }, Normal
         | TSwitch(cond, el_e_l, Some def) ->
