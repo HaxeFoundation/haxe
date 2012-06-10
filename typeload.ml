@@ -1221,15 +1221,28 @@ let init_class ctx c p herits fields =
 			(match csup.cl_constructor with
 			| None -> ()
 			| Some cf ->
-				let args = (match follow (apply_params csup.cl_types cparams cf.cf_type) with
-					| TFun (args,_) -> args
-					| _ -> assert false
+				ignore (follow cf.cf_type); (* make sure it's typed *)
+				let args = (match cf.cf_expr with
+					| Some { eexpr = TFunction f } -> 
+						List.map (fun (v,def) -> 
+							(*
+								let's optimize a bit the output by not always copying the default value 
+								into the inherited constructor when it's not necessary for the platform
+							*)
+							match ctx.com.platform, def with
+							| (Php | Js | Neko | Flash8), Some _ -> v, (Some TNull)
+							| Flash, Some (TString _) -> v, (Some TNull)
+							| Cpp, Some (TString _) -> v, def
+							| Cpp, Some _ -> { v with v_type = ctx.t.tnull v.v_type }, (Some TNull)
+							| _ -> v, def
+						) f.tf_args
+					| _ ->
+						match follow cf.cf_type with
+						| TFun (args,_) -> List.map (fun (n,o,t) -> alloc_var n t, if o then Some TNull else None) args
+						| _ -> assert false
 				) in
 				let p = c.cl_pos in
-				let vars = List.map (fun (n,o,t) ->
-					let t = if o then ctx.t.tnull t else t in
-					alloc_var n t, (if o then Some TNull else None)
-				) args in
+				let vars = List.map (fun (v,def) -> alloc_var v.v_name (apply_params csup.cl_types cparams v.v_type), def) args in
 				let super_call = mk (TCall (mk (TConst TSuper) (TInst (csup,cparams)) p,List.map (fun (v,_) -> mk (TLocal v) v.v_type p) vars)) ctx.t.tvoid p in
 				let constr = mk (TFunction {
 					tf_args = vars;

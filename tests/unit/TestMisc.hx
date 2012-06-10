@@ -75,6 +75,33 @@ class ExtDefArgs extends BaseDefArgs, implements IDefArgs {
 	}
 }
 
+class BaseConstrOpt {
+	public var s : String;
+	public var i : Int;
+	public var b : Bool;
+	public function new( s = "test", i = -5, b = true ) {
+		this.s = s;
+		this.i = i;
+		this.b = b;
+	}
+}
+
+class SubConstrOpt extends BaseConstrOpt {
+	public function new() {
+		super();
+	}
+}
+
+class SubConstrOpt2 extends BaseConstrOpt {
+	// default inherited constructor
+}
+
+class SubConstrOpt3 extends BaseConstrOpt {
+	public function new( s = "test2", i = -6 ) {
+		super(s,i);
+	}
+}
+
 class TestMisc extends Test {
 
 	function testClosure() {
@@ -413,5 +440,32 @@ class TestMisc extends Test {
 		
 		eq( haxe.Json.parse('"\\u00E9"'), "é" );
 		
+	}
+	
+	function testConstructorsOpts() {
+		var b = new BaseConstrOpt();
+		eq(b.s, "test");
+		eq(b.i, -5);
+		eq(b.b, true);
+		
+		var b = new BaseConstrOpt(null, 99);
+		eq(b.s, "test");
+		eq(b.i, 99);
+		eq(b.b, true);
+
+		var b = new SubConstrOpt();
+		eq(b.s, "test");
+		eq(b.i, -5);
+		eq(b.b, true);
+		
+		var b = new SubConstrOpt2();
+		eq(b.s, "test");
+		eq(b.i, -5);
+		eq(b.b, true);
+		
+		var b = new SubConstrOpt3();
+		eq(b.s, "test2");
+		eq(b.i, -6);
+		eq(b.b, true);
 	}
 }
