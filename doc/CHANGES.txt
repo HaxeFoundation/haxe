@@ -32,6 +32,13 @@
 	all : allow contravariant function arguments and covariant function returns
 	macro : support for final Array<Expr> argument as rest argument
 	macro : use top-down inference on macro calls
+	all : made "using" imply "import"
+	all : made String output more consistent across platforms
+	all : allow direct member variable/property and static property initialization
+	js : greatly reduced amount of generated code by using smarter DCE
+	all : do not report individual times if total compilation time is rounded to 0
+	php : made modulo operations more consistent
+	all : bugfix for Int64.toString not working with 0
 
 2012-04-14: 2.09
 	all : optimized const == const and const != const (with different const types)
