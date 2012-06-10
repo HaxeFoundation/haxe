@@ -2711,6 +2711,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 		(* Mark static variables as used *)
 		output_cpp "static void sMarkStatics(HX_MARK_PARAMS) {\n";
+		output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
 		List.iter (fun field ->
 			if (is_data_member field) then
 				output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
