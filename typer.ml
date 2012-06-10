@@ -699,6 +699,25 @@ let rec type_field ctx e i p mode =
 			using_field ctx mode e i p
 		with Not_found -> try
 			loop_dyn c params
+		with Not_found -> try
+			(* if any class in the tree has @:resolve metadata, call the corresponding macro *)
+			let rec loop c =
+				try
+					let er = match List.filter (fun (m,_,_) -> m = ":resolve") c.cl_meta with
+						| [] -> raise Not_found
+						| (_,[(EField(ef,v),_)],_) :: [] -> type_expr ctx ef true,v
+						| _ -> error ("Argument to @:resolve must be a Expr->String->Expr macro") c.cl_pos
+					in
+					(match (fst er).eexpr with
+						| TTypeExpr (TClassDecl c) ->
+							(match ctx.g.do_macro ctx MExpr c.cl_path (snd er) [Interp.make_ast e;EConst (String i),p] p with
+							| Some e -> AKExpr (type_expr ctx e true)
+							| None -> raise Not_found)
+						| _ -> error ("Argument to @:resolve must be a Expr->String->Expr macro") (fst er).epos);
+				with Not_found ->
+					(match c.cl_super with None -> raise Not_found | Some (csup,_) -> loop csup)
+			in
+			loop c;
 		with Not_found ->
 			if PMap.mem i c.cl_statics then error ("Cannot access static field " ^ i ^ " from a class instance") p;
 			(*
