@@ -1087,17 +1087,23 @@ let configure gen =
                         | None -> ()
                         | Some sc ->
                           write w " : ";
-                          expr_s w sc
+                          let t = Common.timer "expression to string" in
+                          expr_s w sc;
+                          t()
                       );
                       begin_block w;
                       write w "unchecked ";
+                      let t = Common.timer "expression to string" in
                       expr_s w { expr with eexpr = TBlock(rest) };
+                      t();
                       end_block w
                     | _ -> assert false
                 end else begin
                   begin_block w;
                   write w "unchecked ";
+                  let t = Common.timer "expression to string" in
                   expr_s w expr;
+                  t();
                   end_block w
                 end)
               | (":functionBody", [Ast.EConst (Ast.String contents),_],_) :: tl ->

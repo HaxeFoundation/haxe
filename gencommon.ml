@@ -266,11 +266,9 @@ struct
   let len w = Buffer.length w.sw_buf
   
   let write w x =
-    let t = timer "write contents" in
     (if not w.sw_has_content then begin w.sw_has_content <- true; Buffer.add_string w.sw_buf w.sw_indent; Buffer.add_string w.sw_buf x; end else Buffer.add_string w.sw_buf x);
     let len = (String.length x)-1 in
-    if len >= 0 && String.get x len = '\n' then begin w.sw_has_content <- false end else w.sw_has_content <- true;
-    t()
+    if len >= 0 && String.get x len = '\n' then begin w.sw_has_content <- false end else w.sw_has_content <- true
 
   let push_indent w = w.sw_indents <- "\t"::w.sw_indents; w.sw_indent <- String.concat "" w.sw_indents
 
@@ -789,6 +787,8 @@ let run_filters_from gen t filters =
       | TTypeDecl _ -> ()
 
 let run_filters gen =
+  (* first of all, we have to make sure that the filters won't trigger a major Gc collection *)
+  let t = Common.timer "gencommon_filters" in
   (if Common.defined gen.gcon "gencommon_debug" then debug_mode := true);
   let run_filters filter = 
     let rec loop acc mds =
@@ -869,7 +869,8 @@ let run_filters gen =
   gen.gcon.types <- run_filters gen.gsyntax_filters;
   List.iter (fun fn -> fn()) gen.gafter_filters_ended;
   
-  reorder_modules gen
+  reorder_modules gen;
+  t()
 
 (* ******************************************* *)
 (* basic generation module that source code compilation implementations can use *)
