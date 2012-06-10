@@ -881,7 +881,7 @@ let generate_field ctx static f =
 		| _ -> ()
 	) f.cf_meta;
 	let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static) || f.cf_name = "resolve" || has_meta ":public" f.cf_meta in
-	let rights = (if static then "static final " else "") ^ (if public then "public" else "protected") in
+	let rights = (if static then "static " else "") ^ (if public then "public" else "protected") in
 	let p = ctx.curclass.cl_pos in
 	match f.cf_expr, f.cf_kind with
 	| Some { eexpr = TFunction fd }, Method (MethNormal | MethInline) ->
@@ -1063,7 +1063,7 @@ let generate_enum ctx e =
 		newline ctx;
 		match c.ef_type with
 		| TFun (args,_) ->
-			print ctx "public static final function %s(" c.ef_name;
+			print ctx "public static function %s(" c.ef_name;
 			concat ctx ", " (fun (a,o,t) ->
 				print ctx "%s : %s" (s_ident a) (type_str ctx t c.ef_pos);
 				if o then spr ctx " = null";
