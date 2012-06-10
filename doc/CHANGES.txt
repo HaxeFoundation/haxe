@@ -1,18 +1,16 @@
-2012-??-??: 3.0
-	flash : fixed Xml.parent exception if parent does not exists
+2012-??-??: 2.10
 	all : fixed List and Null<T> for first, last, pop
 	js : added js.Lib.debug()
 	flash : fixed Xml.parent() when no parent
 	flash : fixed haxe.io.Bytes.blit when len=0
 	js/php/flash8 : fixed haxe.Int32.mul overflow on 52 bits
-	js : forbid static 'length' (issue since object is a Function)
+	js : fixed haxe.Utf8 usage (static 'length' issue)
 	all : does not allow overriding var/prop
 	flash : removed wrapping for Xml nodes, use instead specific compare when comparing two typed nodes
 	js : use new haxe.xml.Parser (faster, not based on Regexp)
 	flash : fixed completion issue with for( x in Vector )
 	all : forbid static inline var when not a constant (after optimization)
 	all : optimized Std.int(123) and Std.int(123.45)
-	js : remove $hxClasses generation if Type.resolveClass/resolveEnum not referenced
 	flash : bugfix for @:bitmap with 24-bits PNG (flash decode wrong colors)
 	as3 : fixed EnumValue becomes Object
 	js : removed js.Lib.isIE/isOpera (not complete, use js.JQuery.browser instead)
@@ -28,17 +26,25 @@
 	all : support for callback(f, _, x)
 	all : allow private access between classes that have a common base class
 	all : added Output.writeFloat/Double and Input.readFloat/Double
-	all : support for var:{x:Float} = { x = 1 }
-	all : allow contravariant function arguments and covariant function returns
+	all : support for var:{x:Float} = { x = 1 } constant structure subtyping
+	all : allow contravariant function arguments and covariant function returns in overrides
 	macro : support for final Array<Expr> argument as rest argument
 	macro : use top-down inference on macro calls
 	all : made "using" imply "import"
-	all : made String output more consistent across platforms
+	all : made String concat more consistent across platforms (add Std.string wrappers)
 	all : allow direct member variable/property and static property initialization
 	js : greatly reduced amount of generated code by using smarter DCE
-	all : do not report individual times if total compilation time is rounded to 0
 	php : made modulo operations more consistent
-	all : bugfix for Int64.toString not working with 0
+	all : allow local functions to have both type parameters and be inlined
+	macro : use NekoVM runtime for regexps, process and xml parsing
+	flash : allow @:getter/@:setter in interfaces
+	flash : added support for "arguments" in methods
+	all : not used enums and inline var/methods are now removed by DCE
+	all : no longer automatically type arrays of mixed content as Array<Dynamic> (type must be explicit)
+	all : allow @:overload to use type parameters and not-absolute type paths
+	all : ensure that Std.string of arrays and enums are now consistent across platforms
+	all : no longer allow type names to start with one or several underscores
+	all : allow to inline functions containing other functions
 
 2012-04-14: 2.09
 	all : optimized const == const and const != const (with different const types)
