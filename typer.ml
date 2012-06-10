@@ -580,7 +580,7 @@ let get_this ctx p =
 	| FConstructor | FMember ->
 		mk (TConst TThis) ctx.tthis p
 
-let type_ident ?(imported_enums=true) ctx i p mode =
+let type_ident_raise ?(imported_enums=true) ctx i p mode =
 	match i with
 	| "true" ->
 		if mode = MGet then
@@ -1327,9 +1327,9 @@ and type_switch ctx e cases def need_val with_type p =
 		let t = if not need_val then (mk_mono()) else unify_min ctx !el in
 		mk (TSwitch (eval,cases,def)) t p
 
-and type_ident_noerr ctx i p mode =
+and type_ident ctx i p mode =
 	try
-		type_ident ctx i p mode
+		type_ident_raise ctx i p mode
 	with Not_found -> try
 		(* lookup type *)
 		if is_lower_ident i then raise Not_found;
@@ -1406,7 +1406,7 @@ and type_expr_with_type_raise ctx e t =
 		mk (TBlock l) (loop l) p
 	| EConst (Ident s) ->
 		(try
-			acc_get ctx (type_ident ~imported_enums:false ctx s p MGet) p
+			acc_get ctx (type_ident_raise ~imported_enums:false ctx s p MGet) p
 		with Not_found -> try
 			(match t with
 			| None -> raise Not_found
@@ -1499,7 +1499,7 @@ and type_expr_with_type ctx e t =
 and type_access ctx e p mode =
 	match e with
 	| EConst (Ident s) ->
-		type_ident_noerr ctx s p mode
+		type_ident ctx s p mode
 	| EField _ ->
 		let fields path e =
 			List.fold_left (fun e (f,_,p) ->
@@ -1587,7 +1587,7 @@ and type_access ctx e p mode =
 			| [] -> assert false
 			| (name,_,p) :: pnext ->
 				try
-					fields pnext (fun _ -> type_ident ctx name p MGet)
+					fields pnext (fun _ -> type_ident_raise ctx name p MGet)
 				with
 					Not_found -> loop [] path
 		in
