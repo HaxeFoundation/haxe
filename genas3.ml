@@ -850,6 +850,9 @@ and gen_value ctx e =
 		)) e.etype e.epos);
 		v()
 
+let final m =
+	if has_meta ":final" m then "final " else ""
+
 let generate_field ctx static f =
 	newline ctx;
 	ctx.in_static <- static;
@@ -878,11 +881,11 @@ let generate_field ctx static f =
 		| _ -> ()
 	) f.cf_meta;
 	let public = f.cf_public || Hashtbl.mem ctx.get_sets (f.cf_name,static) || (f.cf_name = "main" && static) || f.cf_name = "resolve" || has_meta ":public" f.cf_meta in
-	let rights = (if static then "static " else "") ^ (if public then "public" else "protected") in
+	let rights = (if static then "static final " else "") ^ (if public then "public" else "protected") in
 	let p = ctx.curclass.cl_pos in
 	match f.cf_expr, f.cf_kind with
 	| Some { eexpr = TFunction fd }, Method (MethNormal | MethInline) ->
-		print ctx "%s " rights;
+		print ctx "%s%s " rights (if static then "" else final f.cf_meta);
 		let rec loop c =
 			match c.cl_super with
 			| None -> ()
@@ -982,14 +985,13 @@ let rec define_getset ctx stat c =
 	| Some (c,_) when not stat -> define_getset ctx stat c
 	| _ -> ()
 
-
 let generate_class ctx c =
 	ctx.curclass <- c;
 	define_getset ctx true c;
 	define_getset ctx false c;
 	ctx.local_types <- List.map snd c.cl_types;
 	let pack = open_block ctx in
-	print ctx "\tpublic %s%s %s " (match c.cl_dynamic with None -> "" | Some _ -> if c.cl_interface then "" else "dynamic ") (if c.cl_interface then "interface" else "class") (snd c.cl_path);
+	print ctx "\tpublic %s%s%s %s " (final c.cl_meta) (match c.cl_dynamic with None -> "" | Some _ -> if c.cl_interface then "" else "dynamic ") (if c.cl_interface then "interface" else "class") (snd c.cl_path);
 	(match c.cl_super with
 	| None -> ()
 	| Some (csup,_) -> print ctx "extends %s " (s_path ctx true csup.cl_path c.cl_pos));
@@ -1051,7 +1053,7 @@ let generate_enum ctx e =
 	ctx.local_types <- List.map snd e.e_types;
 	let pack = open_block ctx in
 	let ename = snd e.e_path in
-	print ctx "\tpublic class %s extends enum {" ename;
+	print ctx "\tpublic final class %s extends enum {" ename;
 	let cl = open_block ctx in
 	newline ctx;
 	print ctx "public static const __isenum : Boolean = true";
@@ -1061,7 +1063,7 @@ let generate_enum ctx e =
 		newline ctx;
 		match c.ef_type with
 		| TFun (args,_) ->
-			print ctx "public static function %s(" c.ef_name;
+			print ctx "public static final function %s(" c.ef_name;
 			concat ctx ", " (fun (a,o,t) ->
 				print ctx "%s : %s" (s_ident a) (type_str ctx t c.ef_pos);
 				if o then spr ctx " = null";

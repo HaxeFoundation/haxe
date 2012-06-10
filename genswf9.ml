@@ -1924,7 +1924,7 @@ let generate_field_kind ctx f c stat =
 			ctx.debug <- old;
 			Some (HFMethod {
 				hlm_type = m;
-				hlm_final = stat;
+				hlm_final = stat || (has_meta ":final" f.cf_meta);
 				hlm_override = not stat && loop c name;
 				hlm_kind = kind;
 			})
@@ -2138,7 +2138,7 @@ let generate_class ctx c =
 		hlc_name = name;
 		hlc_super = (if c.cl_interface then None else Some (type_path ctx (match c.cl_super with None -> [],"Object" | Some (c,_) -> c.cl_path)));
 		hlc_sealed = not (is_dynamic c);
-		hlc_final = false;
+		hlc_final = has_meta ":final" c.cl_meta;
 		hlc_interface = c.cl_interface;
 		hlc_namespace = (match !has_protected with None -> None | Some p -> Some (HNProtected p));
 		hlc_implements = Array.of_list (List.map (fun (c,_) ->
