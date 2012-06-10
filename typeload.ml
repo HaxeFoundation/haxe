@@ -759,6 +759,12 @@ let patch_class ctx c fields =
 		in
 		List.rev (loop [] fields)
 
+let rec string_list_of_expr_path (e,p) = 
+	match e with
+	| EConst (Ident i) -> [i]
+	| EField (e,f) -> f :: string_list_of_expr_path e
+	| _ -> error "Invalid path" p
+
 let build_module_def ctx mt meta fvars fbuild =
 	let rec loop = function
 		| (":build",args,p) :: l ->
@@ -766,13 +772,7 @@ let build_module_def ctx mt meta fvars fbuild =
 				| [ECall (epath,el),p] -> epath, el
 				| _ -> error "Invalid build parameters" p
 			) in
-			let rec getpath (e,p) =
-				match e with
-				| EConst (Ident i) -> [i]
-				| EField (e,f) -> f :: getpath e
-				| _ -> error "Build call parameter must be a class path" p
-			in
-			let s = String.concat "." (List.rev (getpath epath)) in
+			let s = try String.concat "." (List.rev (string_list_of_expr_path epath)) with Error (_,p) -> error "Build call parameter must be a class path" p in
 			if ctx.in_macro then error "You cannot used :build inside a macro : make sure that your enum is not used in macro" p;
 			let old = ctx.g.get_build_infos in
 			ctx.g.get_build_infos <- (fun() -> Some (mt, fvars()));
