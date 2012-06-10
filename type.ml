@@ -56,6 +56,8 @@ type t =
 
 and tparams = t list
 
+and type_params = (string * t) list
+
 and tconstant =
 	| TInt of int32
 	| TFloat of string
@@ -70,6 +72,7 @@ and tvar = {
 	mutable v_name : string;
 	mutable v_type : t;
 	mutable v_capture : bool;
+	mutable v_extra : (type_params * texpr option) option;
 }
 
 and tfunc = {
@@ -134,7 +137,7 @@ and tclass_field = {
 	mutable cf_doc : Ast.documentation;
 	mutable cf_meta : metadata;
 	mutable cf_kind : field_kind;
-	cf_params : (string * t) list;
+	cf_params : type_params;
 	mutable cf_expr : texpr option;
 	mutable cf_overloads : tclass_field list;
 }
@@ -170,7 +173,7 @@ and tclass = {
 	mutable cl_kind : tclass_kind;
 	mutable cl_extern : bool;
 	mutable cl_interface : bool;
-	mutable cl_types : (string * t) list;
+	mutable cl_types : type_params;
 	mutable cl_super : (tclass * tparams) option;
 	mutable cl_implements : (tclass * tparams) list;
 	mutable cl_fields : (string , tclass_field) PMap.t;
@@ -204,7 +207,7 @@ and tenum = {
 	mutable e_meta : metadata;
 
 	mutable e_extern : bool;
-	mutable e_types : (string * t) list;
+	mutable e_types : type_params;
 	mutable e_constrs : (string , tenum_field) PMap.t;
 	mutable e_names : string list;
 }
@@ -216,7 +219,7 @@ and tdef = {
 	t_private : bool;
 	t_doc : Ast.documentation;
 	mutable t_meta : metadata;
-	mutable t_types : (string * t) list;
+	mutable t_types : type_params;
 	mutable t_type : t;
 }
 
@@ -253,7 +256,7 @@ and module_kind =
 
 let alloc_var =
 	let uid = ref 0 in
-	(fun n t -> incr uid; { v_name = n; v_type = t; v_id = !uid; v_capture = false })
+	(fun n t -> incr uid; { v_name = n; v_type = t; v_id = !uid; v_capture = false; v_extra = None })
 
 let alloc_mid = 
 	let mid = ref 0 in

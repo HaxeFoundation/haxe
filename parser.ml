@@ -602,6 +602,10 @@ and parse_var_decl = parser
 		| [< '(Binop OpAssign,_); e = expr >] -> (name,t,Some e)
 		| [< >] -> (name,t,None)
 
+and inline_function = parser
+	| [< '(Kwd Inline,_); '(Kwd Function,p1) >] -> true, p1
+	| [< '(Kwd Function,p1) >] -> false, p1
+
 and expr = parser
 	| [< '(BrOpen,p1); b = block1; '(BrClose,p2); s >] ->
 		let e = (b,punion p1 p2) in
@@ -630,7 +634,7 @@ and expr = parser
 		| [< >] -> serror())
 	| [< '(POpen,p1); e = expr; '(PClose,p2); s >] -> expr_next (EParenthesis e, punion p1 p2) s
 	| [< '(BkOpen,p1); l = parse_array_decl; '(BkClose,p2); s >] -> expr_next (EArrayDecl l, punion p1 p2) s
-	| [< '(Kwd Function,p1); name = popt ident; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
+	| [< inl, p1 = inline_function; name = popt ident; pl = parse_constraint_params; '(POpen,_); al = psep Comma parse_fun_param; '(PClose,_); t = parse_type_opt; s >] ->
 		let make e =
 			let f = {
 				f_params = pl;
@@ -638,7 +642,7 @@ and expr = parser
 				f_args = al;
 				f_expr = Some e;
 			} in
-			EFunction ((match name with None -> None | Some (name,_) -> Some name),f), punion p1 (pos e)
+			EFunction ((match name with None -> None | Some (name,_) -> Some (if inl then "inline_" ^ name else name)),f), punion p1 (pos e)
 		in
 		(try
 			expr_next (make (secure_expr s)) s
