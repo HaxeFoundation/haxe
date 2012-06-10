@@ -201,6 +201,16 @@ CAMLprim value get_full_path( value f ) {
 #endif
 }
 
+static void copyAscii( char *to, const char *from, int len ) {
+	while( len-- > 0 ) {
+		unsigned char c = *from;
+		if( c < 128 )
+			*to = c;
+		to++;
+		from++;
+	}
+}
+
 CAMLprim value get_real_path( value path ) {
 #ifdef _WIN32
 	value path2 = caml_copy_string(String_val(path));
@@ -227,7 +237,7 @@ CAMLprim value get_real_path( value path ) {
 			// some special names might be expended to their localized name, so make sure we only
 			// change the casing and not the whole content
 			if( strcmpi(infos.szDisplayName,cur) == 0 )
-				memcpy(cur,infos.szDisplayName,strlen(infos.szDisplayName)+1);
+				copyAscii(cur,infos.szDisplayName,strlen(infos.szDisplayName)+1);
 		}
 		if( next != NULL ) {
 			*next = '\\';
