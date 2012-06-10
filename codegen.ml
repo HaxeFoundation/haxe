@@ -450,7 +450,7 @@ let on_inherit ctx c p h =
 		extend_remoting ctx c t p true false;
 		false
 	| HImplements { tpackage = ["haxe";"rtti"]; tname = "Generic"; tparams = [] } ->
-		c.cl_kind <- KGeneric;
+		if c.cl_types <> [] then c.cl_kind <- KGeneric;
 		false
 	| HExtends { tpackage = ["haxe";"xml"]; tname = "Proxy"; tparams = [TPExpr(EConst (String file),p);TPType t] } ->
 		extend_xml_proxy ctx c t file p;
