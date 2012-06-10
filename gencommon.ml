@@ -4140,6 +4140,13 @@ struct
     let do_unsafe_cast () = do_unsafe_cast gen real_from_t real_to_t { e with etype = real_from_t } in
     let to_t, from_t = real_to_t, real_from_t in
     
+    let mk_cast t e =
+      match e.eexpr with
+        (* TThrow is always typed as Dynamic, we just need to type it accordingly *)
+        | TThrow _ -> { e with etype = t }
+        | _ -> mk_cast t e
+    in
+    
     let e = { e with etype = real_from_t } in
     if try fast_eq real_to_t real_from_t with Invalid_argument("List.for_all2") -> false then e else
     match real_to_t, real_from_t with
@@ -5102,6 +5109,7 @@ struct
             let e1 = problematic_expression_unwrap false e1 (expr_kind e1) in
             let e2 = problematic_expression_unwrap false e2 (expr_kind e2) in
             { expr with eexpr = TArray(e1, e2) }
+          (* bugfix: calls should not be transformed into closure calls *)
           | KExprWithStatement, TCall(( { eexpr = TField (ef_left, f) } as ef ), eargs) ->
             { expr with eexpr = TCall(
               { ef with eexpr = TField(problematic_expression_unwrap false ef_left (expr_kind ef_left), f) },
@@ -5127,6 +5135,7 @@ struct
               | TVars( (hd1 :: hd2 :: _) as vars ), _ ->
                 List.iter (fun v -> process_statement { e with eexpr = TVars([v]) }) vars
               | _, Statement | _, Both _ ->
+                let e = match e.eexpr with | TReturn (Some ({ eexpr = TThrow _ } as ethrow)) -> ethrow | _ -> e in
                 let kinds = get_kinds e in
                 if has_problematic_expressions kinds then begin
                   match try_call_unwrap_statement gen problematic_expression_unwrap add_statement e with

@@ -191,8 +191,7 @@ class Input {
 			return 0.0;
 		return sign * (1.0 + Math.pow(2, -52) * sig) * Math.pow(2, exp);
 		#else
-		throw "not implemented";
-		return 0.0;
+		return throw "not implemented";
 		#end
 	}
 
