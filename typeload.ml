@@ -1238,7 +1238,7 @@ let init_class ctx c p herits fields =
 						) f.tf_args
 					| _ ->
 						match follow cf.cf_type with
-						| TFun (args,_) -> List.map (fun (n,o,t) -> alloc_var n t, if o then Some TNull else None) args
+						| TFun (args,_) -> List.map (fun (n,o,t) -> alloc_var n (if o then ctx.t.tnull t else t), if o then Some TNull else None) args
 						| _ -> assert false
 				) in
 				let p = c.cl_pos in
