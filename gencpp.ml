@@ -950,6 +950,8 @@ let rec define_local_function_ctx ctx func_name func_def =
 	let rec define_local_function func_name func_def =
 		let declarations = Hashtbl.create 0 in
 		let undeclared = Hashtbl.create 0 in
+		(* '__global__' is always defined *)
+		Hashtbl.add declarations "__global__" ();
 		(* Add args as defined variables *)
 		List.iter ( fun (arg_var, opt_val) ->
 			if (ctx.ctx_debug) then
@@ -1063,6 +1065,8 @@ and define_local_return_block_ctx ctx expression name =
 	let rec define_local_return_block expression  =
 		let declarations = Hashtbl.create 0 in
 		let undeclared = Hashtbl.create 0 in
+		(* '__global__' is always defined *)
+		Hashtbl.add declarations "__global__" ();
 		find_undeclared_variables_ctx ctx undeclared declarations "_obj" true expression;
 
 		let vars = (hash_keys undeclared) in
