@@ -8533,12 +8533,13 @@ end;;
 (*
   
   This Module Filter will go through all defined functions in all modules and change them
-  so they set 
+  so they set all default arguments to be of a Nullable type, and adds the unroll from nullable to
+  the not-nullable type in the beginning of the function.
   
   dependencies:
     Since it depends on no other module filter, but since any function programatically created
     which needs default will only work if added before running DefaultArguments, it's best
-    if we keep as the last 
+    if we keep it as the last 
   
 *)
 
