@@ -931,6 +931,38 @@ let cast_if_required ctx expr to_type =
 ;;
 
 
+let default_value_string = function
+	| TInt i -> Printf.sprintf "%ld" i
+	| TFloat float_as_string -> float_as_string
+	| TString s -> str s
+	| TBool b -> (if b then "true" else "false")
+	| TNull -> "null()"
+	| _ -> "/* Hmmm */"
+;;
+
+let generate_default_values ctx args prefix =
+  List.iter ( fun (v,o) -> let type_str = type_string v.v_type in
+   let name = (keyword_remap v.v_name) in
+	match o with
+	| Some TNull -> ()
+	| Some const when (type_str=="::String") ->
+		ctx.ctx_output ("if (" ^ name ^ " == null() ) "
+			^ name ^ "=" ^ (default_value_string const) ^ ");\n")
+	| Some const ->
+		ctx.ctx_output (type_str ^ " " ^ name ^ " = " ^ prefix ^ name ^ ".Default(" ^
+			(default_value_string const) ^ ");\n")
+	| _ -> () ) args;;
+
+
+let has_default_values args =
+	List.exists ( fun (_,o) -> match o with
+            | Some TNull -> false
+            | Some _ -> true
+            | _ -> false ) args ;;
+
+
+
+
 (*
   This is the big one.
   Once you get inside a function, all code is generated (recursively) as a "expression".
@@ -972,12 +1004,25 @@ let rec define_local_function_ctx ctx func_name func_def =
 				(fun (v,_) -> (type_string v.v_type) ^ " " ^ (keyword_remap v.v_name) ) func_def.tf_args in
 		let block = is_block func_def.tf_expr in
 		let func_type = type_string func_def.tf_type in
-		output_i (func_type ^ " run(" ^ (String.concat "," args_and_types) ^ ")");
+		output_i (func_type ^ " run(" ^ (gen_arg_list func_def.tf_args "__o_") ^ ")");
+
+	   let close_defaults =
+         if (has_default_values func_def.tf_args) then begin
+			   writer#begin_block;
+			   output_i "";
+			   generate_default_values ctx func_def.tf_args "__o_";
+			   output_i "";
+            true;
+         end
+      else
+         false in
+
 
 		let pop_real_this_ptr = clear_real_this_ptr ctx true in
 
 		if (block) then begin
 			writer#begin_block;
+			output_i "";
 			gen_expression ctx false func_def.tf_expr;
 			output_i "return null();\n";
 			writer#end_block;
@@ -1004,6 +1049,8 @@ let rec define_local_function_ctx ctx func_name func_def =
 			pop_names();
 			writer#end_block;
 		end;
+
+	   if close_defaults then writer#end_block;
 		pop_real_this_ptr();
 
 		let return = if (type_string func_def.tf_type ) = "Void" then "(void)" else "return" in
@@ -1722,65 +1769,6 @@ let is_override class_def field =
 ;;
 
 			   (* external mem  Dynamic & *)
-
-let default_value_string = function
-	| TInt i -> Printf.sprintf "%ld" i
-	| TFloat float_as_string -> float_as_string
-	| TString s -> str s
-	| TBool b -> (if b then "true" else "false")
-	| TNull -> "null()"
-	| _ -> "/* Hmmm */"
-
-
-let generate_default_values ctx args prefix =
-  List.iter ( fun (v,o) -> let type_str = type_string v.v_type in
-   let name = (keyword_remap v.v_name) in
-	match o with
-	| Some TNull -> ()
-	| Some const when (type_str=="::String") ->
-		ctx.ctx_output ("if (" ^ name ^ " == null() ) "
-			^ name ^ "=" ^ (default_value_string const) ^ ");\n")
-	| Some const ->
-		ctx.ctx_output (type_str ^ " " ^ name ^ " = " ^ prefix ^ name ^ ".Default(" ^
-			(default_value_string const) ^ ");\n")
-	| _ -> () ) args;;
-
-
-let has_default_values args =
-	List.exists ( fun (_,o) -> match o with
-            | Some TNull -> false
-            | Some _ -> true
-            | _ -> false ) args ;;
-
-(*
-  When a specialized class inherits from a templated class, the inherited class
-  contains the specialized type, rather than the generic template (Dynamic) type.
-  C++ needs the inhertied functions to have the same types as the base types.
-
-  use Codegen.fix_overrides
-*)
-(*
-let rec inherit_temlpate_types class_def name is_static in_def =
-	match class_def.cl_super with
-	| None -> in_def
-	| Some (super,params) ->
-			let funcs = if is_static then super.cl_statics else super.cl_fields in
-			if (PMap.mem name funcs) then begin
-				let field = PMap.find name funcs in
-				match field.cf_expr with
-					| Some { eexpr = TFunction parent_def } ->
-						 inherit_temlpate_types super name is_static
-							{
-								tf_args = List.map2 (fun (n,_,_) (_,c,t) -> n,c,t) in_def.tf_args parent_def.tf_args;
-								tf_type = parent_def.tf_type;
-								tf_expr = in_def.tf_expr;
-							}
-					| _ -> inherit_temlpate_types super name is_static in_def;
-			end else
-				inherit_temlpate_types super name is_static in_def;
-;;
-*)
-
 
 let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 	let output = ctx.ctx_output in
