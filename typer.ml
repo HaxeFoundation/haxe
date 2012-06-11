@@ -107,6 +107,20 @@ let object_field f =
 
 let type_field_rec = ref (fun _ _ _ _ _ -> assert false)
 
+let rec is_pos_infos = function
+	| TMono r ->
+		(match !r with
+		| Some t -> is_pos_infos t
+		| _ -> false)
+	| TLazy f ->
+		is_pos_infos (!f())
+	| TType ({ t_path = ["haxe"] , "PosInfos" },[]) ->
+		true
+	| TType (t,tl) ->
+		is_pos_infos (apply_params t.t_types tl t.t_type)
+	| _ ->
+		false
+
 (* ---------------------------------------------------------------------- *)
 (* PASS 3 : type expression & check structure *)
 
@@ -257,20 +271,6 @@ let rec unify_call_params ctx cf el args r p inline =
 		| l -> List.map fst l
 	in
 	let rec default_value t =
-		let rec is_pos_infos = function
-			| TMono r ->
-				(match !r with
-				| Some t -> is_pos_infos t
-				| _ -> false)
-			| TLazy f ->
-				is_pos_infos (!f())
-			| TType ({ t_path = ["haxe"] , "PosInfos" },[]) ->
-				true
-			| TType (t,tl) ->
-				is_pos_infos (apply_params t.t_types tl t.t_type)
-			| _ ->
-				false
-		in
 		if is_pos_infos t then
 			let infos = mk_infos ctx p [] in
 			let e = type_expr ctx infos true in
@@ -818,7 +818,13 @@ let type_callback ctx e params p =
 		| [], [] -> given_args,missing_args,ordered_args
 		| [], _ -> error "Too many callback arguments" p
 		| (n,o,t) :: args , [] when o ->
-			let a = match ctx.com.platform with Neko | Php -> (ordered_args @ [(mk (TConst TNull) t_dynamic p)]) | _ -> ordered_args in
+			let a = match ctx.com.platform with
+				| _ when is_pos_infos t ->
+					let infos = mk_infos ctx p [] in
+					ordered_args @ [type_expr ctx infos true]
+				| Neko | Php -> (ordered_args @ [(mk (TConst TNull) t_dynamic p)])
+				| _ -> ordered_args
+			in
 			loop args [] given_args missing_args a
 		| (n,o,t) :: args , ([] as params)
 		| (n,o,t) :: args , (EConst(Ident "_"),_) :: params ->
