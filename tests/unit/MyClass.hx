@@ -101,6 +101,7 @@ class InitBase {
 	public var b = true;
 	public var a = [true, false];
 	public var complex = { var i = 10; for (v in 0...15) i++; i; };
+	public var newInit = new MyClass(12);
 	public function new() { }
 }
 
