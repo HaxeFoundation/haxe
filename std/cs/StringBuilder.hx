@@ -7,9 +7,9 @@ package cs;
 
 	function new():Void;
 	
-	@:overload(function(obj:Dynamic):cs.StringBuilder {})
+	@:overload(function(char:cs.StdTypes.Char16):cs.StringBuilder {})
 	@:overload(function(str:String, startIndex:Int, len:Int):cs.StringBuilder {})
-	function Append(char:cs.StdTypes.Char16):StringBuilder;
+	function Append(obj:Dynamic):StringBuilder;
 	
 	function ToString():String;
 }
