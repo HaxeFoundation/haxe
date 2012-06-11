@@ -466,11 +466,14 @@ let on_inherit ctx c p h =
 *)
 let add_field_inits com c =
 	let rec can_init_inline cf e = match com.platform,e.eexpr with
-		(* Flash8 and As3 can init anything (it seems) *)
+		(* Flash8 and As3 can init a lot of things with some exceptions *)
+		| Flash8, TBlock _ -> false
 		| Flash8, _ -> true
 		| Flash,_ when Common.defined com "as3" -> true
 		(* Php can init literals when the field has no setter *)
 		| Php, TConst _ when (match cf.cf_kind with Var({v_write = AccCall _}) -> false | _ -> true) -> true
+		(* Flash9 should support some field inits as well, but they are currently not generated *)
+		| Flash, TConst _ -> false
 		| _ -> false
 	in
 	let inits = List.filter (fun cf ->

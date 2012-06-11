@@ -268,9 +268,9 @@ class TestType extends Test {
 		var f : Void -> String = callback(foo, 0);
  		eq("foo0", f());
 
-		var foo = function(bar = 2) { return bar; };
-		var l = callback(foo, _);
-		eq(2, l());	
+		//var foo = function(bar = 2) { return bar; };
+		//var l = callback(foo, _);
+		//eq(2, l());	
 	}
 	
 	function testConstantAnonCovariance()
