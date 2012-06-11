@@ -1893,6 +1893,7 @@ and type_expr ctx ?(need_val=true) (e,p) =
 		type_unop ctx op flag e p
 	| EFunction (name,f) ->
 		let params = Typeload.type_function_params ctx f "localfun" [] p in
+		if params <> [] && name = None then error("Type parameters not supported in unnamed local functions") p;
 		let old = ctx.type_params in
 		ctx.type_params <- params @ ctx.type_params;
 		let rt = Typeload.load_type_opt ctx p f.f_type in
