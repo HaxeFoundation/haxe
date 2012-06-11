@@ -39,7 +39,7 @@ let pos ctx p =
 	if ctx.macros then
 		{
 			psource = p.pfile;
-			pline = p.pmin lor (p.pmax lsl 16);
+			pline = p.pmin lor ((p.pmax - p.pmin) lsl 20);
 		}
 	else let file = (match ctx.com.debug with
 		| true -> ctx.curclass ^ "::" ^ ctx.curmethod

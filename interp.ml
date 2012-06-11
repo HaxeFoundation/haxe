@@ -186,10 +186,11 @@ let make_ast (e:texpr) : Ast.expr = (!make_ast_ref) e
 let to_int f = int_of_float (mod_float f 2147483648.0)
 
 let make_pos p =
+	let low = p.pline land 0xFFFFF in
 	{
 		Ast.pfile = p.psource;
-		Ast.pmin = if p.pline < 0 then 0 else p.pline land 0xFFFF;
-		Ast.pmax = if p.pline < 0 then 0 else p.pline lsr 16;
+		Ast.pmin = low;
+		Ast.pmax = low + (p.pline lsr 20);
 	}
 
 let warn ctx msg p =
