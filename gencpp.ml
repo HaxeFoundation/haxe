@@ -324,7 +324,7 @@ let gen_close_namespace output class_path =
 
 (* The basic types can have default values and are passesby value *)
 let cant_be_null = function
-	| "Int" | "Bool" | "Float" | "::String" | "::haxe::io::Unsigned_char__" -> true
+	| "Int" | "Bool" | "Float" |  "::haxe::io::Unsigned_char__" -> true
 	| "int" | "bool" | "double" | "float" -> true
 	| _ -> false
 
