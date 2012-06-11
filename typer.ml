@@ -823,7 +823,7 @@ let type_callback ctx e params p =
 		| (n,o,t) :: args , ([] as params)
 		| (n,o,t) :: args , (EConst(Ident "_"),_) :: params ->
 			let v = alloc_var (alloc_name n) t in
-			loop args params given_args (missing_args @ [v,o,None]) (ordered_args @ [vexpr v])
+			loop args params given_args (missing_args @ [v,o]) (ordered_args @ [vexpr v])
 		| (n,o,t) :: args , param :: params ->
 			let e = type_expr ctx param true in
 			unify ctx e.etype t p;
@@ -833,19 +833,20 @@ let type_callback ctx e params p =
 	let given_args,missing_args,ordered_args = loop args params [] [] [] in
 	let loc = alloc_var "f" e.etype in
 	let given_args = (loc,false,Some e) :: given_args in
-	let fun_args l = List.map (fun (v,o,_) -> v.v_name, o, v.v_type) l in
-	let t_inner = TFun(fun_args missing_args, ret) in
+	let inner_fun_args l = List.map (fun (v,o) -> v.v_name, o, v.v_type) l in
+	let t_inner = TFun(inner_fun_args missing_args, ret) in
 	let call = make_call ctx (vexpr loc) ordered_args ret p in
 	let func = mk (TFunction {
-		tf_args = List.map (fun (v,_,_) -> v,None) missing_args;
+		tf_args = List.map (fun (v,o) -> if o then {v with v_type = ctx.t.tnull v.v_type},Some TNull else v,None) missing_args;
 		tf_type = ret;
 		tf_expr = mk (TReturn (Some call)) ret p;
 	}) t_inner p in
+	let outer_fun_args l = List.map (fun (v,o,_) -> v.v_name, o, v.v_type) l in
 	let func = mk (TFunction {
 		tf_args = List.map (fun (v,_,_) -> v,None) given_args;
 		tf_type = t_inner;
 		tf_expr = mk (TReturn (Some func)) t_inner p;
-	}) (TFun(fun_args given_args, t_inner)) p in
+	}) (TFun(outer_fun_args given_args, t_inner)) p in
 	make_call ctx func (List.map (fun (_,_,e) -> (match e with Some e -> e | None -> assert false)) given_args) t_inner p
 
 (*

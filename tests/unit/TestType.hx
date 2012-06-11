@@ -268,9 +268,15 @@ class TestType extends Test {
 		var f : Void -> String = callback(foo, 0);
  		eq("foo0", f());
 
-		//var foo = function(bar = 2) { return bar; };
-		//var l = callback(foo, _);
-		//eq(2, l());	
+		// TODO: this fails on flash 9
+		var foo = function(bar = 2) { return bar; };
+		var l = callback(foo, _);
+		eq(2, l());
+		
+		// note that this does not
+		var foo = function(bar:Null<Int> = 2) { return bar; };
+		var l = callback(foo, _);
+		eq(2, l());		
 	}
 	
 	function testConstantAnonCovariance()
