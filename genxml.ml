@@ -37,9 +37,11 @@ let pmap f m =
 let gen_path (p,n) priv =
 	("path",String.concat "." (p @ [n]))
 
+let gen_string s =
+	if String.contains s '<' || String.contains s '>' || String.contains s '&' then	cdata s else pcdata s
+
 let gen_doc s =
-	let f = if String.contains s '<' || String.contains s '>' || String.contains s '&' then	cdata else pcdata in
-	node "haxe_doc" [] [f s]
+	node "haxe_doc" [] [gen_string s]
 
 let gen_doc_opt d =
 	match d with
@@ -67,6 +69,23 @@ let rec follow_param t =
 		follow_param (apply_params t.t_types tl t.t_type)
 	| _ ->
 		t
+
+let rec sexpr (e,_) =
+	match e with
+	| EConst (String s) -> s
+	| EConst c -> s_constant c
+	| EParenthesis e -> "(" ^ (sexpr e) ^ ")"
+	| EArrayDecl el -> "[" ^ (String.concat "," (List.map sexpr el)) ^ "]"
+	| EObjectDecl fl -> "{" ^ (String.concat "," (List.map (fun (n,e) -> n ^ ":" ^ (sexpr e)) fl)) ^ "}"
+	| _ -> "'???'"
+
+let gen_meta meta = match meta with
+	| [] -> []
+	| _ ->
+		let nodes = List.map (fun (m,el,_) ->
+			node "m" ["n",m] (List.map (fun e -> node "e" [] [gen_string (sexpr e)]) el)
+		) meta in
+		[node "meta" [] nodes]
 
 let rec gen_type t =
 	match t with
@@ -97,7 +116,7 @@ and gen_field att f =
 			| MethInline -> ("get", "inline") :: ("set","null") :: att)
 	) in
 	let att = (match f.cf_params with [] -> att | l -> ("params", String.concat ":" (List.map (fun (n,_) -> n) l)) :: att) in
-	node f.cf_name (if f.cf_public then ("public","1") :: att else att) (gen_type f.cf_type :: gen_doc_opt f.cf_doc)
+	node f.cf_name (if f.cf_public then ("public","1") :: att else att) (gen_type f.cf_type :: gen_meta f.cf_meta @ gen_doc_opt f.cf_doc)
 
 let gen_constr e =
 	let doc = gen_doc_opt e.ef_doc in
@@ -129,7 +148,7 @@ let gen_type_decl com pos t =
 	let m = (t_infos t).mt_module in
 	match t with
 	| TClassDecl c ->
-		let stats = List.map (gen_field ["static","1"]) c.cl_ordered_statics in
+		let stats = List.map (gen_field ["static","1"]) (List.filter (fun cf -> cf.cf_name <> "__meta__") c.cl_ordered_statics) in
 		let fields = (match c.cl_super with
 			| None -> List.map (fun f -> f,[]) c.cl_ordered_fields
 			| Some (csup,_) -> List.map (fun f -> if exists f csup then (f,["override","1"]) else (f,[])) c.cl_ordered_fields
@@ -142,20 +161,23 @@ let gen_type_decl com pos t =
 			| Some x -> gen_class_path "extends" x :: impl
 		) in
 		let doc = gen_doc_opt c.cl_doc in
+		let meta = gen_meta c.cl_meta in
 		let ext = (if c.cl_extern then [("extern","1")] else []) in
 		let interf = (if c.cl_interface then [("interface","1")] else []) in
 		let dynamic = (match c.cl_dynamic with
 			| None -> []
 			| Some t -> [node "haxe_dynamic" [] [gen_type t]]
 		) in
-		node "class" (gen_type_params pos c.cl_private (cpath c) c.cl_types c.cl_pos m @ ext @ interf) (tree @ stats @ fields @ constr @ doc @ dynamic)
+		node "class" (gen_type_params pos c.cl_private (cpath c) c.cl_types c.cl_pos m @ ext @ interf) (tree @ stats @ fields @ constr @ doc @ meta @ dynamic)
 	| TEnumDecl e ->
 		let doc = gen_doc_opt e.e_doc in
-		node "enum" (gen_type_params pos e.e_private e.e_path e.e_types e.e_pos m) (pmap gen_constr e.e_constrs @ doc)
+		let meta = gen_meta e.e_meta in
+		node "enum" (gen_type_params pos e.e_private e.e_path e.e_types e.e_pos m) (pmap gen_constr e.e_constrs @ doc @ meta)
 	| TTypeDecl t ->
 		let doc = gen_doc_opt t.t_doc in
+		let meta = gen_meta t.t_meta in
 		let tt = gen_type t.t_type in
-		node "typedef" (gen_type_params pos t.t_private t.t_path t.t_types t.t_pos m) (tt :: doc)
+		node "typedef" (gen_type_params pos t.t_private t.t_path t.t_types t.t_pos m) (tt :: doc @ meta)
 
 let att_str att =
 	String.concat "" (List.map (fun (a,v) -> Printf.sprintf " %s=\"%s\"" a v) att)
@@ -278,11 +300,6 @@ let generate_type com t =
 			"(" ^ stype t ^ ")"
 		| _ ->
 			stype t
-	in
-	let sexpr (e,_) =
-		match e with
-		| EConst c -> s_constant c
-		| _ -> "'???'"
 	in
 	let sparam (n,v,t) =
 		match v with
