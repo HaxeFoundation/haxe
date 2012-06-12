@@ -1782,6 +1782,9 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 			let ret = if ((type_string result ) = "Void" ) then "" else "return " in
 			output ("HX_DEFINE_DYNAMIC_FUNC" ^ (string_of_int (List.length args)) ^
 				 "(" ^ class_name ^ "," ^ remap_name ^ "," ^ ret ^ ")\n\n");
+		| _ when is_static -> (* __meta__ *)
+			gen_type ctx field.cf_type;
+			output ( " " ^ class_name ^ "::" ^ remap_name ^ ";\n\n");
 		| _ -> ()
 	end else (match  field.cf_expr with
 	(* Function field *)
@@ -1908,7 +1911,11 @@ let gen_member_def ctx class_def is_static is_interface field =
 			output (if (not is_static) then ")=0;\n" else ");\n");
 			output (if is_static then "		static " else "		");
 			output ("Dynamic " ^ remap_name ^ "_dyn();\n" );
-		| _ -> (* no variables in interface - use dynamic delegation *)  ( )
+		| _ when is_static -> (* __meta__ *)
+         output "		static ";
+         gen_type ctx field.cf_type;
+         output (" " ^ remap_name ^ ";\n");
+		| _  ->  ( )
 	end else begin
 	output (if is_static then "		static " else "		");
    (match  field.cf_expr with
@@ -2701,6 +2708,8 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		List.iter dump_field_name  class_def.cl_ordered_fields;
 		output_cpp "	String(null()) };\n\n";
 
+     end; (* cl_interface *)
+
 		(* Mark static variables as used *)
 		output_cpp "static void sMarkStatics(HX_MARK_PARAMS) {\n";
 		output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::__mClass,\"__mClass\");\n");
@@ -2717,13 +2726,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			if (is_data_member field) then
 				output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
 			class_def.cl_ordered_statics;
-   (*
-	   if (has_meta) then
-		   output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::__meta__,\"__meta__\");\n");
-  *)
 		output_cpp "};\n\n";
-
-	end;
 
 
 
@@ -2742,9 +2745,6 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp ("	&super::__SGetClass(), 0, sMarkStatics, sVisitStatics);\n");
 		output_cpp ("}\n\n");
 
-		output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
-		List.iter (gen_field_init ctx ) class_def.cl_ordered_statics;
-		output_cpp ("}\n\n");
 	end else begin
 		let class_name_text = join_class_path class_path "." in
 
@@ -2754,9 +2754,14 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp ("	Static(__mClass) = hx::RegisterClass(" ^ (str class_name_text)  ^
 				", hx::TCanCast< " ^ class_name ^ "> ,0,0,\n");
 		output_cpp ("	0, 0,\n");
-		output_cpp ("	&super::__SGetClass(), 0, 0);\n");
+		output_cpp ("	&super::__SGetClass(), 0, sMarkStatics, sVisitStatics);\n");
 		output_cpp ("}\n\n");
-   end;
+	end;
+
+   output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
+	List.iter (gen_field_init ctx ) class_def.cl_ordered_statics ;
+	output_cpp ("}\n\n");
+
 
 	gen_close_namespace output_cpp class_path;
 
@@ -2834,6 +2839,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_h ("		::String __ToString() const { return " ^ (str smart_class_name) ^ "; }\n\n");
 	end else begin
 		output_h ("		HX_DO_INTERFACE_RTTI;\n");
+		output_h ("		static void __boot();\n");
    end;
 
 
