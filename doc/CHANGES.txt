@@ -43,7 +43,6 @@
 	all : no longer automatically type arrays of mixed content as Array<Dynamic> (type must be explicit)
 	all : allow @:overload to use type parameters and not-absolute type paths
 	all : ensure that Std.string of arrays and enums are now consistent across platforms
-	all : no longer allow type names to start with one or several underscores
 	all : allow to inline functions containing other functions
 
 2012-04-14: 2.09

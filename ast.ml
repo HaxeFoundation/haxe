@@ -258,9 +258,13 @@ type type_decl = type_def * pos
 type package = string list * type_decl list
 
 let is_lower_ident i =
-	match String.unsafe_get i 0 with
-	| 'a'..'z' | '_' -> true
-	| _ -> false
+	let rec loop p =
+		match String.unsafe_get i p with
+		| 'a'..'z' -> true
+		| '_' -> if p + 1 < String.length i then loop (p + 1) else true
+		| _ -> false
+	in
+	loop 0
 
 let pos = snd
 
