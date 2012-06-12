@@ -270,8 +270,12 @@ class TestType extends Test {
 
 		// TODO: this fails on flash 9
 		var foo = function(bar = 2) { return bar; };
+		#if flash9
+		t(typeError(callback(foo, _)));
+		#else
 		var l = callback(foo, _);
 		eq(2, l());
+		#end
 		
 		// note that this does not
 		var foo = function(bar:Null<Int> = 2) { return bar; };

@@ -826,6 +826,8 @@ let type_callback ctx e params p =
 				| _ -> ordered_args
 			in
 			loop args [] given_args missing_args a
+		| (n,o,t) :: _ , (EConst(Ident "_"),p) :: _ when ctx.com.platform = Flash && o && not (is_nullable t) ->
+			error "Usage of _ is currently not supported for optional non-nullable arguments on flash9" p
 		| (n,o,t) :: args , ([] as params)
 		| (n,o,t) :: args , (EConst(Ident "_"),_) :: params ->
 			let v = alloc_var (alloc_name n) t in
