@@ -1195,7 +1195,7 @@ let generate com =
 		print ctx "})()";
 		newline ctx;
 	end;
-	if com.debug then write_mappings ctx;
+	if com.debug then write_mappings ctx else try Sys.remove (com.file ^ ".map") with _ -> ();
 	let ch = open_out_bin com.file in
 	output_string ch (Buffer.contents ctx.buf);
 	close_out ch);
