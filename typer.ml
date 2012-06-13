@@ -472,7 +472,12 @@ let field_access ctx mode f t e p =
 	let fnormal() = AKField ((mk (TField (e,f.cf_name)) t p),f) in
 	let normal() =
 		match follow e.etype with
-		| TAnon a -> (match !(a.a_status) with EnumStatics e -> AKField ((mk (TEnumField (e,f.cf_name)) t p),f) | _ -> fnormal())
+		| TAnon a -> 
+			(match !(a.a_status) with
+			| EnumStatics e -> 
+				mark_used_enum ctx e;
+				AKField ((mk (TEnumField (e,f.cf_name)) t p),f)
+			| _ -> fnormal())
 		| _ -> fnormal()
 	in
 	match f.cf_kind with
