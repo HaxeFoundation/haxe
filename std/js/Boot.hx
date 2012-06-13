@@ -200,15 +200,4 @@ class Boot {
 		else throw "Cannot cast " +Std.string(o) + " to " +Std.string(t);
 	}
 
-	static function __init__() untyped {
-		__feature__("use.$bind",Function.prototype["$bind"] = function(o){
-			var f = function(){
-				return f.method.apply(f.scope, untyped __js__("arguments"));
-			}
-			f.scope = o;
-			f.method = __this__;
-			return f;
-		});
-	}
-
 }

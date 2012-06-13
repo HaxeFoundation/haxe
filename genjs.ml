@@ -41,7 +41,6 @@ type ctx = {
 	packages : (string list,unit) Hashtbl.t;
 	smap : sourcemap;
 	js_modern : bool;	
-	mutable boot_init : texpr option;
 	mutable current : tclass;
 	mutable statics : (tclass * string * texpr) list;
 	mutable inits : texpr list;
@@ -431,14 +430,15 @@ and gen_expr ctx e =
 		add_feature ctx "use.$bind";
 		(match x.eexpr with
 		| TConst _ | TLocal _ ->
+			print ctx "$bind(";
 			gen_value ctx x;
-			print ctx ".%s.$bind(" s;
+			print ctx ",";
 			gen_value ctx x;
-			print ctx ")"
+			print ctx ".%s)" s
 		| _ ->
 			print ctx "($_=";
 			gen_value ctx x;
-			print ctx ",$_.%s.$bind($_))" s)
+			print ctx ",$bind($_,$_.%s)" s)
 	| TTypeExpr t ->
 		spr ctx (ctx.type_accessor t)
 	| TParenthesis e ->
@@ -1061,8 +1061,6 @@ let generate_type ctx = function
 	| TClassDecl c ->
 		(match c.cl_init with
 		| None -> ()
-		| Some e when c.cl_path = (["js"],"Boot") || List.exists (function (":real",[Ast.EConst (Ast.String "js.Boot"),_],_) -> true | _ -> false) c.cl_meta ->
-			ctx.boot_init <- Some e
 		| Some e ->
 			ctx.inits <- e :: ctx.inits);
 		if not c.cl_extern then generate_class ctx c else if has_meta ":initPackage" c.cl_meta then generate_package_create ctx c.cl_path
@@ -1095,7 +1093,6 @@ let alloc_ctx com =
 		inits = [];
 		current = null_class;
 		tabs = "";
-		boot_init = None;
 		in_value = None;
 		in_loop = false;
 		handle_break = false;
@@ -1164,17 +1161,17 @@ let generate com =
 	List.iter (fun (_,_,e) -> chk_features e) ctx.statics;
 	if has_feature ctx "use.$iterator" then begin
 		add_feature ctx "use.$bind";
-		print ctx "function $iterator(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? o.iterator.$bind(o) : o.iterator; }";
+		print ctx "function $iterator(o) { if( o instanceof Array ) return function() { return HxOverrides.iter(o); }; return typeof(o.iterator) == 'function' ? $bind(o,o.iterator) : o.iterator; }";
 		ctx.separator <- true;
 		newline ctx;
 	end;
 	if has_feature ctx "use.$bind" then begin
 		print ctx "var $_";
 		newline ctx;
+		print ctx "function $bind(o,m) { var f = function(){ return f.method.apply(f.scope, arguments); }; f.scope = o; f.method = m; return f; }";
+		ctx.separator <- true;
+		newline ctx;
 	end;
-	(match ctx.boot_init with
-	| None -> ()
-	| Some e -> gen_block ~after:true ctx e);
 	List.iter (gen_block ~after:true ctx) (List.rev ctx.inits);
 	List.iter (generate_static ctx) (List.rev ctx.statics);
 	(match com.main with
