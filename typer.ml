@@ -2280,9 +2280,8 @@ let dce_finalize ctx =
 		List.iter (fun t ->
 			match t with
 			| TClassDecl c -> check_class c
-			| TEnumDecl e ->
-				if not (dce_check_metadata ctx e.e_meta) then e.e_extern <- true;
-				if not e.e_extern then add_feature "has_enum";
+			| TEnumDecl e when not e.e_extern && dce_check_metadata ctx e.e_meta ->
+				add_feature "has_enum"
 			| _ -> ()
 		) m.m_types
 	) ctx.g.modules;
@@ -2319,6 +2318,9 @@ let dce_optimize ctx =
 		List.iter (fun t ->
 			match t with
 			| TClassDecl c -> check_class c
+			| TEnumDecl e when not e.e_extern && not (dce_check_metadata ctx e.e_meta) ->
+				e.e_extern <- true;
+				Common.log ctx.com ("Removing " ^ s_type_path e.e_path);
 			| _ -> ()
 		) m.m_types
 	) ctx.g.modules
