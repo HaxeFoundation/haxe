@@ -4,6 +4,9 @@ OUTPUT=haxe.exe
 
 OCAMLOPT=ocamlopt.opt
 
+kill:
+	-@taskkill /F /IM haxe.exe 2>/dev/null
+
 # allow Ocaml/Mingw as well
 NATIVE_LIBS += -I "c:/program files/mingw/lib/"
 
