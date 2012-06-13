@@ -326,15 +326,12 @@ class TestMisc extends Test {
 	}
 
 	static inline function foo(x) return x + 5
-	static inline var type = String;
 	
 	function testInline() {
 		// check that operations are correctly generated
 		var x = 3; // prevent optimization
 		eq( 2 * foo(x), 16 );
 		eq( -foo(x), -8 );
-		
-		t(Std.is(Type.createEmptyInstance(type), String));
 	}
 
 	function testEvalAccessOrder() {

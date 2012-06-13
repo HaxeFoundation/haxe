@@ -99,16 +99,12 @@ class InitBase {
 	public var i = 2;
 	public var s = "foo";
 	public var b = true;
-	public var a = [true, false];
-	public var complex = { var i = 10; for (v in 0...15) i++; i; };
-	public var newInit = new MyClass(12);
 	public function new() { }
 }
 
 class InitChild extends InitBase { }
 
 class InitChildWithCtor extends InitBase {
-	public var t:Class<Dynamic> = String;
 	public function new(_) {
 		super();
 	}
