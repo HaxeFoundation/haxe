@@ -27,6 +27,7 @@ package haxe.remoting;
 /**
 	Synchronous communications between Flash and Javascript.
 **/
+@:expose
 class ExternalConnection implements Connection, implements Dynamic<Connection> {
 
 	var __data : { name : String, ctx : Context, #if js flash : String #end };
@@ -95,6 +96,7 @@ class ExternalConnection implements Connection, implements Dynamic<Connection> {
 
 	static var connections = new Hash<ExternalConnection>();
 
+	@:keep
 	static function doCall( name : String, path : String, params : String ) : String {
 		try {
 			var cnx = connections.get(name);
