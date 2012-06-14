@@ -1148,3 +1148,8 @@ flash.display.JPEGXREncoderOptions.colorSpace : BitmapEncodingColorSpace;
 @:require(flash11_3) flash.system.ApplicationInstaller;
 @:require(flash11_3) flash.system.AuthorizedFeatures;
 @:require(flash11_3) flash.system.AuthorizedFeaturesLoader;
+
+@:require(flash11_3) flash.events.Event.TEXTURE_READY;
+
+
+

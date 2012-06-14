@@ -50,6 +50,7 @@ extern class Event {
 	static var TAB_CHILDREN_CHANGE : String;
 	static var TAB_ENABLED_CHANGE : String;
 	static var TAB_INDEX_CHANGE : String;
+	@:require(flash11_3) static var TEXTURE_READY : String;
 	@:require(flash11) static var TEXT_INTERACTION_MODE_CHANGE : String;
 	static var UNLOAD : String;
 }

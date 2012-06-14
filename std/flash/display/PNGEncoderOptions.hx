@@ -1,5 +1,6 @@
 package flash.display;
 
-extern class PNGEncoderOptions {
-	function new() : Void;
+@:final extern class PNGEncoderOptions {
+	var fastCompression : Bool;
+	function new(fastCompression : Bool = false) : Void;
 }

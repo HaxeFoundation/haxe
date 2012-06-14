@@ -1,8 +1,8 @@
 package flash.display;
 
 @:final extern class JPEGXREncoderOptions {
-	var colorSpace : String;
+	var colorSpace : BitmapEncodingColorSpace;
 	var quantization : UInt;
 	var trimFlexBits : UInt;
-	function new(quantization : UInt = 20, ?colorSpace : String, trimFlexBits : UInt = 0) : Void;
+	function new(quantization : UInt = 20, ?colorSpace : BitmapEncodingColorSpace, trimFlexBits : UInt = 0) : Void;
 }

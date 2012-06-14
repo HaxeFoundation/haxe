@@ -1,6 +1,6 @@
 package flash.system;
 
-@:require(flash11_3) @:final extern class ApplicationInstaller {
+@:final @:require(flash11_3) extern class ApplicationInstaller extends flash.events.EventDispatcher {
 	var isInstalled(default,null) : Bool;
 	function new() : Void;
 	function install(shortcutsOnly : Bool = false) : Void;
