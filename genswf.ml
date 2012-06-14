@@ -314,10 +314,11 @@ let build_class com c file =
 							match v with
 							| None -> None
 							| Some v ->
+								(* add for --gen-hx-classes generation *)
 								meta := (":defparam",[String aname;v]) :: !meta;
 								Some (EConst v,pos)
 					in
-					(aname,opt_val <> None,Some t,def_val)
+					(aname,def_val <> None,Some t,def_val)
 				) t.hlmt_args in
 				let args = if t.hlmt_var_args then
 					args @ List.map (fun _ -> incr pn; ("p" ^ string_of_int !pn,true,Some (make_type None),None)) [1;2;3;4;5]
