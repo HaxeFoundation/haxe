@@ -299,11 +299,14 @@ let build_class com c file =
 					) in
 					incr p;
 					let t = make_type at in
+					let is_opt = ref false in
 					let def_val = match opt_val with
 						| None -> None
 						| Some v ->
 							let v = (match v with
-							| HVNone | HVNull | HVNamespace _ | HVString _ -> None
+							| HVNone | HVNull | HVNamespace _ | HVString _ ->
+								is_opt := true;
+								None
 							| HVBool b ->
 								Some (Ident (if b then "true" else "false"))
 							| HVInt i | HVUInt i ->
@@ -318,7 +321,7 @@ let build_class com c file =
 								meta := (":defparam",[String aname;v]) :: !meta;
 								Some (EConst v,pos)
 					in
-					(aname,def_val <> None,Some t,def_val)
+					(aname,!is_opt,Some t,def_val)
 				) t.hlmt_args in
 				let args = if t.hlmt_var_args then
 					args @ List.map (fun _ -> incr pn; ("p" ^ string_of_int !pn,true,Some (make_type None),None)) [1;2;3;4;5]
