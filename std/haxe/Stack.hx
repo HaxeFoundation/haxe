@@ -56,6 +56,9 @@ class Stack {
 			return makeStack("$s");
 		#elseif php
 			return makeStack("%s");
+		#elseif cpp
+         var s:Array<String> = untyped __global__.__hxcpp_get_call_stack(true);
+			return makeStack(s);
 		#else
 			return [];
 		#end
@@ -66,6 +69,7 @@ class Stack {
 		the place the last exception was thrown and the place it was
 		catched.
 	**/
+   #if cpp @:noStack #end /* Do not mess up the exception stack */
 	public static function exceptionStack() : Array<StackItem> {
 		#if neko
 			return makeStack(untyped __dollar__excstack());
@@ -89,6 +93,9 @@ class Stack {
 			return makeStack("$e");
 		#elseif php
 			return makeStack("%e");
+		#elseif cpp
+         var s:Array<String> = untyped __global__.__hxcpp_get_exception_stack();
+			return makeStack(s);
 		#else
 			return [];
 		#end
@@ -132,6 +139,7 @@ class Stack {
 		}
 	}
 
+   #if cpp @:noStack #end /* Do not mess up the exception stack */
 	private static function makeStack(s) {
 		#if neko
 			var a = new Array();
@@ -186,6 +194,19 @@ class Stack {
 				m.unshift(Method(d[0],d[1]));
 			}
 			return m;
+		#elseif cpp
+			var stack : Array<String> = s;
+			var m = new Array<StackItem>();
+         for(func in stack) {
+				var words = func.split("::");
+            if (words.length==0)
+					m.push(CFunction)
+            else if (words.length==2)
+					m.push(Method(words[0],words[1]));
+            else if (words.length==4)
+					m.push(FilePos( Method(words[0],words[1]),words[2],Std.parseInt(words[3])));
+			}
+         return m;
 		#else
 			return null;
 		#end

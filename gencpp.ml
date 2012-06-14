@@ -1782,9 +1782,6 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 			let ret = if ((type_string result ) = "Void" ) then "" else "return " in
 			output ("HX_DEFINE_DYNAMIC_FUNC" ^ (string_of_int (List.length args)) ^
 				 "(" ^ class_name ^ "," ^ remap_name ^ "," ^ ret ^ ")\n\n");
-		| _ when is_static -> (* __meta__ *)
-			gen_type ctx field.cf_type;
-			output ( " " ^ class_name ^ "::" ^ remap_name ^ ";\n\n");
 		| _ -> ()
 	end else (match  field.cf_expr with
 	(* Function field *)
@@ -1793,7 +1790,7 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 		let nargs = string_of_int (List.length function_def.tf_args) in
 		let is_void = (type_string function_def.tf_type ) = "Void" in
 		let ret = if is_void  then "(void)" else "return " in
-		let src_name = class_name ^ "::" ^ field.cf_name in
+		let src_name = if (Type.has_meta ":noStack" field.cf_meta) then "" else ptr_name ^ "::" ^ field.cf_name in
 
 		if (not (is_dynamic_haxe_method field)) then begin
 			(* The actual function definition *)
@@ -1808,7 +1805,7 @@ let gen_field ctx class_def class_name ptr_name is_static is_interface field =
 			if (has_default_values function_def.tf_args) then begin
 				ctx.ctx_writer#begin_block;
 				generate_default_values ctx function_def.tf_args "__o_";
-				output ("\tHX_SOURCE_PUSH(\"" ^ src_name ^ "\");\n");
+				if (src_name<>"") then output ("\tHX_SOURCE_PUSH(\"" ^ src_name ^ "\");\n");
             output code;
 				gen_expression ctx false function_def.tf_expr;
             output tail_code;
@@ -1880,18 +1877,17 @@ let gen_field_init ctx field =
 
 		if (is_dynamic_haxe_method field) then begin
 			let func_name = "__default_" ^ (remap_name) in
-			output ( "	hx::Static(" ^ remap_name ^ ") = new " ^ func_name ^ ";\n\n" );
+			output ( "	" ^ remap_name ^ " = new " ^ func_name ^ ";\n\n" );
 		end
 
 	(* Data field *)
 	| _ -> (match field.cf_expr with
 		| Some expr ->
 			find_local_functions_and_return_blocks_ctx ctx true expr;
-			output ( "	hx::Static(" ^ remap_name ^ ") = ");
+			output ( match remap_name with "__meta__" -> "	__mClass->__meta__=" | _ -> "	" ^ remap_name ^ "= ");
 			gen_expression ctx true expr;
 			output ";\n"
-		| _ ->
-			output ( "	hx::Static(" ^ remap_name ^ ");\n");
+		| _ -> ( )
 		);
 	)
 	;;
@@ -1911,10 +1907,6 @@ let gen_member_def ctx class_def is_static is_interface field =
 			output (if (not is_static) then ")=0;\n" else ");\n");
 			output (if is_static then "		static " else "		");
 			output ("Dynamic " ^ remap_name ^ "_dyn();\n" );
-		| _ when is_static -> (* __meta__ *)
-         output "		static ";
-         gen_type ctx field.cf_type;
-         output (" " ^ remap_name ^ ";\n");
 		| _  ->  ( )
 	end else begin
 	output (if is_static then "		static " else "		");
@@ -2194,7 +2186,6 @@ let generate_enum_files common_ctx enum_def super_deps meta =
 	let output_cpp = (cpp_file#write) in
 	let debug = false in
 	let ctx = new_context common_ctx cpp_file debug in
-	let has_meta = ( match meta with Some _ -> true  | _ -> false ) in
 
 	if (debug) then
 		print_endline ("Found enum definition:" ^ (join_class_path  class_path "::" ));
@@ -2262,8 +2253,6 @@ let generate_enum_files common_ctx enum_def super_deps meta =
 
 	(* Dynamic "Get" Field function - string version *)
 	output_cpp ("Dynamic " ^ class_name ^ "::__Field(const ::String &inName,bool inCallProp)\n{\n");
-	if (has_meta) then
-		output_cpp "	if (inName==HX_CSTRING(\"__meta__\")) return __meta__;\n";
 	let dump_constructor_test _ constr =
 		output_cpp ("	if (inName==" ^ (str constr.ef_name) ^ ") return " ^
                    (keyword_remap constr.ef_name) );
@@ -2272,8 +2261,6 @@ let generate_enum_files common_ctx enum_def super_deps meta =
 	in
 	PMap.iter dump_constructor_test enum_def.e_constrs;
 	output_cpp ("	return super::__Field(inName,inCallProp);\n}\n\n");
-
-	if (has_meta) then output_cpp ("Dynamic " ^ class_name ^ "::__meta__;\n");
 
 	output_cpp "static ::String sStaticFields[] = {\n";
 	let sorted =
@@ -2293,8 +2280,6 @@ let generate_enum_files common_ctx enum_def super_deps meta =
 		| TFun (_,_) -> ()
 		| _ -> output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::" ^ name ^ ",\"" ^ name ^ "\");\n") )
 	enum_def.e_constrs;
-	if (has_meta) then
-		output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::__meta__,\"__meta__\");\n");
 	output_cpp "};\n\n";
 
 	(* ENUM - Visit static as used by GC *)
@@ -2306,8 +2291,6 @@ let generate_enum_files common_ctx enum_def super_deps meta =
 		| TFun (_,_) -> ()
 		| _ -> output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::" ^ name ^ ",\"" ^ name ^ "\");\n") )
 	enum_def.e_constrs;
-	if (has_meta) then
-		output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::__meta__,\"__meta__\");\n");
 	output_cpp "};\n\n";
 
 	output_cpp "static ::String sMemberFields[] = { ::String(null()) };\n";
@@ -2329,7 +2312,7 @@ let generate_enum_files common_ctx enum_def super_deps meta =
 		| Some expr ->
 			let ctx = new_context common_ctx cpp_file false in
 			find_local_functions_and_return_blocks_ctx ctx true expr;
-			output_cpp ("Static(__meta__) = ");
+			output_cpp ("__mClass->__meta__ = ");
 			gen_expression ctx true expr;
 			output_cpp ";\n"
 		| _ -> () );
@@ -2377,8 +2360,6 @@ let generate_enum_files common_ctx enum_def super_deps meta =
 									(str (just_class_name ^ ".") )^ " + tag; }\n\n");
 
 
-        if (has_meta) then
-		output_h ("		static Dynamic __meta__;\n");
 	PMap.iter (fun _ constructor ->
 		let name = keyword_remap constructor.ef_name in
 		output_h ( "		static " ^  smart_class_name ^ " " ^ name );
@@ -2529,13 +2510,13 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		output_cpp "\n\n";
 	| _ -> ());
 
+	let statics_except_meta = (List.filter (fun static -> static.cf_name <> "__meta__") class_def.cl_ordered_statics) in
 
 	List.iter
 		(gen_field ctx class_def class_name smart_class_name false class_def.cl_interface)
 		class_def.cl_ordered_fields;
 	List.iter
-		(gen_field ctx class_def class_name smart_class_name true class_def.cl_interface)
-		class_def.cl_ordered_statics;
+		(gen_field ctx class_def class_name smart_class_name true class_def.cl_interface) statics_except_meta;
 	output_cpp "\n";
 
 
@@ -2594,7 +2575,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 			| _ -> true)
 		in
 
-		let all_fields = class_def.cl_ordered_statics @ class_def.cl_ordered_fields in
+		let all_fields = statics_except_meta @ class_def.cl_ordered_fields in
 		let all_variables = List.filter variable_field all_fields in
 
 		let dump_quick_field_test fields =
@@ -2701,7 +2682,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 
 		let dump_field_name = (fun field -> output_cpp ("	" ^  (str field.cf_name) ^ ",\n")) in
 		output_cpp "static ::String sStaticFields[] = {\n";
-		List.iter dump_field_name  class_def.cl_ordered_statics;
+		List.iter dump_field_name  statics_except_meta;
 		output_cpp "	String(null()) };\n\n";
 
 		output_cpp "static ::String sMemberFields[] = {\n";
@@ -2716,7 +2697,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		List.iter (fun field ->
 			if (is_data_member field) then
 				output_cpp ("	HX_MARK_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
-			class_def.cl_ordered_statics;
+			statics_except_meta;
 		output_cpp "};\n\n";
 
 		(* Visit static variables *)
@@ -2725,7 +2706,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 		List.iter (fun field ->
 			if (is_data_member field) then
 				output_cpp ("	HX_VISIT_MEMBER_NAME(" ^ class_name ^ "::" ^ (keyword_remap field.cf_name) ^ ",\"" ^  field.cf_name ^ "\");\n") )
-			class_def.cl_ordered_statics;
+			statics_except_meta;
 		output_cpp "};\n\n";
 
 
@@ -2759,7 +2740,7 @@ let generate_class_files common_ctx member_types super_deps constructor_deps cla
 	end;
 
    output_cpp ("void " ^ class_name ^ "::__boot()\n{\n");
-	List.iter (gen_field_init ctx ) class_def.cl_ordered_statics ;
+	List.iter (gen_field_init ctx ) class_def.cl_ordered_statics;
 	output_cpp ("}\n\n");
 
 
