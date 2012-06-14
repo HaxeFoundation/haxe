@@ -310,6 +310,7 @@ class XmlParser {
 			case "extends": csuper = xpath(c);
 			case "implements": interfaces.add(xpath(c));
 			case "haxe_dynamic": tdynamic = xtype(new Fast(c.x.firstElement()));
+			case "meta":
 			default:
 				if( c.x.exists("static") )
 					statics.add(xclassfield(c));
@@ -340,6 +341,7 @@ class XmlParser {
 		for( c in e )
 			switch( c.name ) {
 			case "haxe_doc": doc = c.innerData;
+			case "meta":
 			default: xerror(c);
 			}
 		return {
@@ -361,6 +363,7 @@ class XmlParser {
 		for( c in x.elements )
 			if( c.name == "haxe_doc" )
 				doc = c.innerData;
+			else if ( c.name == "meta" ) { }
 			else
 				cl.add(xenumfield(c));
 		return {
@@ -409,6 +412,7 @@ class XmlParser {
 		for( c in x.elements )
 			if( c.name == "haxe_doc" )
 				doc = c.innerData;
+			else if ( c.name == "meta" ) { }
 			else
 				t = xtype(c);
 		var types = new Hash();
