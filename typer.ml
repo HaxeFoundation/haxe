@@ -1517,12 +1517,12 @@ and type_expr_with_type_raise ctx e t =
 				) el in
  				let t = (TAnon { a_fields = !fields; a_status = ref Const }) in
 				if not ctx.untyped then begin
+					PMap.iter (fun n cf ->
+							if not (has_meta ":optional" cf.cf_meta) && not (PMap.mem n !fields) then raise (Error (Unify [has_no_field t n],p));
+					) a.a_fields;
 					(match !extra_fields with
 						| [] -> ()
 						| _ -> raise (Error (Unify (List.map (fun n -> has_extra_field t n) !extra_fields),p)));
-					PMap.iter (fun n cf ->
-							if not (has_meta ":optional" cf.cf_meta) && not (PMap.mem n !fields) then raise (Error (Unify [has_no_field t n],p));
-					) a.a_fields
 				end;
 				a.a_status := Closed;
 				mk (TObjectDecl el) t p
