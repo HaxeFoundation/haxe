@@ -49,10 +49,11 @@ class Json {
 		return buf.toString();
 	}
 
-	function objString( v : Dynamic ) {
+	function fieldsString( v : Dynamic, fields : Array<String> )
+	{
 		var first = true;
-		buf.add('{');
-		for( f in Reflect.fields(v) ) {
+		buf.add('{');		
+		for( f in fields ) {
 			var value = Reflect.field(v,f);
 			if( Reflect.isFunction(value) ) continue;
 			if( first ) first = false else buf.add(',');
@@ -61,6 +62,16 @@ class Json {
 			toStringRec(value);
 		}
 		buf.add('}');
+	}
+	
+	#if flash9
+	function classString ( v : Dynamic ) {
+		fieldsString(v,Type.getInstanceFields(Type.getClass(v)));
+	}
+	#end
+	
+	function objString( v : Dynamic ) {
+		fieldsString(v,Reflect.fields(v));
 	}
 
 	function toStringRec(v:Dynamic) {
@@ -95,14 +106,12 @@ class Json {
 				for( k in v.keys() )
 					Reflect.setField(o,k,v.get(k));
 				objString(o);
-			} else if( v.iterator != null ) {
-				var a = [];
-				var it : Iterator<Dynamic> = v.iterator();
-				for( v in it )
-					a.push(v);
-				toStringRec(a);
 			} else
+				#if flash9
+				classString(v);
+				#else
 				objString(v);
+				#end
 		case TEnum(e):
 			buf.add(Type.enumIndex(v));
 		case TBool:
