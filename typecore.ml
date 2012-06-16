@@ -89,10 +89,11 @@ type error_msg =
 	| Type_not_found of path * string
 	| Unify of unify_error list
 	| Custom of string
-	| Protect of error_msg
 	| Unknown_ident of string
 	| Stack of error_msg * error_msg
 	| Forbid_package of string * path
+
+exception Fatal_error
 
 exception Error of error_msg * pos
 
@@ -142,7 +143,6 @@ let rec error_msg = function
 	| Unknown_ident s -> "Unknown identifier : " ^ s
 	| Custom s -> s
 	| Stack (m1,m2) -> error_msg m1 ^ "\n" ^ error_msg m2
-	| Protect m -> error_msg m
 	| Forbid_package (p,m) ->
 		"You can't access the " ^ p ^ " package with current compilation flags (for " ^ Ast.s_type_path m ^ ")"
 
@@ -171,13 +171,14 @@ let unify_raise ctx t1 t2 p =
 			(* no untyped check *)
 			raise (Error (Unify l,p))
 
-let exc_protect f =
+let exc_protect ctx f =
 	let rec r = ref (fun() ->
 		try
 			f r
 		with
-			| Error (Protect _,_) as e -> raise e
-			| Error (m,p) -> raise (Error (Protect m,p))
+			| Error (m,p) -> 
+				display_error ctx (error_msg m) p;
+				raise Fatal_error
 	) in
 	r
 

@@ -1088,7 +1088,7 @@ try
 	Sys.catch_break false;
 	if not !no_output then List.iter (run_command ctx) (List.rev !cmds)
 with
-	| Abort ->
+	| Abort | Typecore.Fatal_error ->
 		()
 	| Common.Abort (m,p) ->
 		error ctx m p

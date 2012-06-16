@@ -412,7 +412,7 @@ let build_instance ctx mtype p =
 		let ft = (fun pl ->
 			match c.cl_kind with
 			| KGeneric ->
-				let r = exc_protect (fun r ->
+				let r = exc_protect ctx (fun r ->
 					let t = mk_mono() in
 					r := (fun() -> t);
 					unify_raise ctx (build_generic ctx c p pl) t p;
@@ -421,7 +421,7 @@ let build_instance ctx mtype p =
 				delay ctx (fun() -> ignore ((!r)()));
 				TLazy r
 			| KMacroType ->
-				let r = exc_protect (fun r ->
+				let r = exc_protect ctx (fun r ->
 					let t = mk_mono() in
 					r := (fun() -> t);
 					unify_raise ctx (build_macro_type ctx pl p) t p;

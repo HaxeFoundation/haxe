@@ -171,7 +171,7 @@ let rec load_instance ctx t p allow_no_params =
 				| TInst ({ cl_implements = [] }, []) ->
 					t
 				| TInst (c,[]) ->
-					let r = exc_protect (fun r ->
+					let r = exc_protect ctx (fun r ->
 						r := (fun() -> t);
 						check_param_constraints ctx types t tparams c p;
 						t
@@ -581,7 +581,7 @@ let type_type_params ctx path get_params p (n,flags) =
 	match flags with
 	| [] -> n, t
 	| _ ->
-		let r = exc_protect (fun r ->
+		let r = exc_protect ctx (fun r ->
 			r := (fun _ -> t);
 			let ctx = { ctx with type_params = ctx.type_params @ get_params() } in
 			set_heritance ctx c (List.map (fun t -> match t with CTPath t -> HImplements t | _ -> error "Unsupported type constraint" p) flags) p;
@@ -930,7 +930,7 @@ let init_class ctx c p herits fields =
 		let t = cf.cf_type in
 		match e with
 		| None when ctx.com.dead_code_elimination && not ctx.com.display ->
-			let r = exc_protect (fun r ->
+			let r = exc_protect ctx (fun r ->
 				r := (fun() -> t);
 				mark_used cf;
 				t
@@ -940,7 +940,7 @@ let init_class ctx c p herits fields =
 		| None ->
 			(fun() -> ())
 		| Some e ->
-			let r = exc_protect (fun r ->
+			let r = exc_protect ctx (fun r ->
 				if not !return_partial_type then begin
 					r := (fun() -> t);
 					if ctx.com.verbose then Common.log ctx.com ("Typing " ^ (if ctx.in_macro then "macro " else "") ^ s_type_path c.cl_path ^ "." ^ cf.cf_name);
@@ -1078,7 +1078,7 @@ let init_class ctx c p herits fields =
 				cf_overloads = [];
 			} in
 			init_meta_overloads ctx cf;
-			let r = exc_protect (fun r ->
+			let r = exc_protect ctx (fun r ->
 				if not !return_partial_type then begin
 					r := (fun() -> t);
 					incr stats.s_methods_typed;
