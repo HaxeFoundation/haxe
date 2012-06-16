@@ -200,11 +200,11 @@ class Stack {
          for(func in stack) {
 				var words = func.split("::");
             if (words.length==0)
-					m.push(CFunction)
+					m.unshift(CFunction)
             else if (words.length==2)
-					m.push(Method(words[0],words[1]));
+					m.unshift(Method(words[0],words[1]));
             else if (words.length==4)
-					m.push(FilePos( Method(words[0],words[1]),words[2],Std.parseInt(words[3])));
+					m.unshift(FilePos( Method(words[0],words[1]),words[2],Std.parseInt(words[3])));
 			}
          return m;
 		#else
